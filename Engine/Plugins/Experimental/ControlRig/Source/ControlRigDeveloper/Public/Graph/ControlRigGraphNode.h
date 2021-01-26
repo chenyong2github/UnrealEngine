@@ -141,6 +141,8 @@ public:
 
 	FNodeTitleDirtied& GetNodeTitleDirtied() { return NodeTitleDirtied; }
 
+	int32 GetInstructionIndex();
+
 protected:
 
 	FLinearColor GetNodeOpacityColor() const;

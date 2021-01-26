@@ -609,6 +609,27 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 
 	});
 
+
+	// this delegate is used by the controller to retrieve the current bytecode of the VM
+	Controller->GetCurrentByteCodeDelegate.BindLambda([WeakThis]() -> const FRigVMByteCode* {
+
+		if (WeakThis.IsValid())
+		{
+			if (UControlRigBlueprintGeneratedClass* RigClass = WeakThis->GetControlRigBlueprintGeneratedClass())
+			{
+				if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false)))
+				{
+					if (CDO->VM)
+					{
+						return &CDO->VM->GetByteCode();
+					}
+				}
+			}
+		}
+		return nullptr;
+
+	});
+
 #if WITH_EDITOR
 
 	// this sets up three delegates:

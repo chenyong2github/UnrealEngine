@@ -215,8 +215,10 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 				PinB = Temp;
 			}
 
+			const FRigVMByteCode* ByteCode = RigNodeA->GetController()->GetCurrentByteCode();
+
 			FString FailureReason;
-			bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason);
+			bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason, ByteCode);
 			if (!bResult)
 			{
 				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::FromString(FailureReason));

@@ -22,6 +22,7 @@ class URigVMActionStack;
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_ShouldStructUnfoldDelegate, const UStruct*)
 DECLARE_DELEGATE_RetVal(TArray<FRigVMExternalVariable>, FRigVMController_GetExternalVariablesDelegate)
+DECLARE_DELEGATE_RetVal(const FRigVMByteCode*, FRigVMController_GetByteCodeDelegate)
 
 /**
  * The Controller is the sole authority to perform changes
@@ -524,6 +525,9 @@ public:
 	// A delegate to retrieve the list of external variables
 	FRigVMController_GetExternalVariablesDelegate GetExternalVariablesDelegate;
 
+	// A delegate to retrieve the current bytecode of the graph
+	FRigVMController_GetByteCodeDelegate GetCurrentByteCodeDelegate;
+
 	int32 DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false);
 	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false);
 	void AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath);
@@ -548,6 +552,8 @@ public:
 
 	// A flag that can be used to turn off pin default value validation if necessary
 	bool bValidatePinDefaults;
+
+	const FRigVMByteCode* GetCurrentByteCode() const;
 
 private:
 

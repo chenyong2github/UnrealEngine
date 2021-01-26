@@ -6,6 +6,7 @@
 #include "Graph/ControlRigGraphNode.h"
 #include "Rigs/RigHierarchyContainer.h"
 #include "RigVMModel/RigVMGraph.h"
+#include "RigVMCore/RigVM.h"
 #include "Drawing/ControlRigDrawContainer.h"
 #include "ControlRigGraph.generated.h"
 
@@ -59,6 +60,8 @@ public:
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
+	int32 GetInstructionIndex(UControlRigGraphNode* InNode);
+
 	UPROPERTY()
 	FString ModelNodePath;
 
@@ -98,6 +101,8 @@ private:
 
 	FControlRigGraphNodeClicked OnGraphNodeClicked;
 
+	TMap<UControlRigGraphNode*, int32> CachedInstructionIndices;
+
 #endif
 #if WITH_EDITORONLY_DATA
 
@@ -108,6 +113,7 @@ private:
 #if WITH_EDITOR
 
 	URigVMController* GetTemplateController();
+	void HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM);
 
 	friend class UControlRigUnitNodeSpawner;
 	friend class UControlRigVariableNodeSpawner;
@@ -119,9 +125,11 @@ private:
 	friend class UControlRigPrototypeNodeSpawner;
 	friend class UControlRigEnumNodeSpawner;
 	friend class UControlRigFunctionRefNodeSpawner;
+
 #endif
 	friend class UControlRigGraphNode;
 	friend class FControlRigEditor;
 	friend class SControlRigGraphNode;
+	friend class UControlRigBlueprint;
 };
 

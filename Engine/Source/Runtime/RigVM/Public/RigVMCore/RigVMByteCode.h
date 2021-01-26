@@ -662,6 +662,19 @@ public:
 
 	FString DumpToText() const;
 
+#if WITH_EDITOR
+
+	// returns the subject which was used to inject a given instruction
+	UObject* GetSubjectForInstruction(int32 InInstructionIndex) const;
+
+	// returns the first hit instruction index for a given subject (or INDEX_NONE)
+	int32 GetFirstInstructionIndexForSubject(UObject* InSubject) const;
+
+	// returns all found instruction indices for a given subject
+	const TArray<int32>& GetAllInstructionIndicesForSubject(UObject* InSubject) const;
+
+#endif
+
 private:
 
 	template<class OpType>
@@ -683,6 +696,19 @@ private:
 	// number of instructions stored here
 	UPROPERTY()
 	int32 NumInstructions;
+	
+#if WITH_EDITORONLY_DATA
+
+	TArray<UObject*> SubjectPerInstruction;
+	TMap<UObject*, TArray<int32>> SubjectToInstructions;
+
+#endif
+
+#if WITH_EDITOR
+
+	void SetSubject(int32 InInstructionIndex, UObject* InSubject);
+
+#endif
 
 	// a look up table from entry name to instruction index
 	UPROPERTY()
@@ -690,6 +716,8 @@ private:
 
 	// if this is set to true the stored bytecode is aligned / padded
 	bool bByteCodeIsAligned;
+
+	static TArray<int32> EmptyInstructionIndices;
 
 	friend class URigVMCompiler;
 	friend class FRigVMByteCodeTest;

@@ -284,9 +284,9 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 
 		if (OutputModelPin && InputModelPin)
 		{
-			int32 OutputInstructionIndex = OutputModelPin->GetNode()->GetInstructionIndex();
-			int32 InputInstructionIndex = InputModelPin->GetNode()->GetInstructionIndex();
 			bool bVisited = false;
+			int32 OutputInstructionIndex = OutputNode->GetInstructionIndex();
+			int32 InputInstructionIndex = InputNode->GetInstructionIndex();
 
 			if (OutputInstructionIndex != INDEX_NONE && InputInstructionIndex != INDEX_NONE)
 			{

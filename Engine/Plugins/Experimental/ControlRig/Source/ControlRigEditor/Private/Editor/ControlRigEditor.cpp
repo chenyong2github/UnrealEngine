@@ -1832,12 +1832,12 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 		case ERigVMGraphNotifType::NodeSelected:
 		case ERigVMGraphNotifType::NodeDeselected:
 		{
-			URigVMNode* Node = Cast<URigVMNode>(InSubject);
-
-			if (FocusedGraphEdPtr.IsValid())
+			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ControlRigBlueprint->GetEdGraph(InGraph)))
 			{
-				TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-				if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
+				TSharedPtr<SGraphEditor> GraphEd = GetGraphEditor(RigGraph);
+				URigVMNode* Node = Cast<URigVMNode>(InSubject);
+
+				if (GraphEd.IsValid() && Node != nullptr)
 				{
 					if (InNotifType == ERigVMGraphNotifType::NodeSelected)
 					{
@@ -1863,7 +1863,7 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 						{
 							if (UEdGraphNode* EdNode = RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()))
 							{
-								FocusedGraphEd->SetNodeSelection(EdNode, InNotifType == ERigVMGraphNotifType::NodeSelected);
+								GraphEd->SetNodeSelection(EdNode, InNotifType == ERigVMGraphNotifType::NodeSelected);
 							}
 						}
 					}
@@ -4195,7 +4195,7 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-	if (Blueprint)
+	if (Blueprint && ControlRig && ControlRig->VM)
 	{
 		if (Blueprint->Status == BS_Error)
 		{
@@ -4206,6 +4206,8 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 		{
 			return;
 		}
+
+		const FRigVMByteCode& ByteCode = ControlRig->VM->GetByteCode();
 
 		TArray<UEdGraph*> EdGraphs;
 		Blueprint->GetAllGraphs(EdGraphs);
@@ -4221,20 +4223,12 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 			// reset all nodes and store them in the map
 			bool bFoundWarning = false;
 			bool bFoundError = false;
-			TMap<int32, UEdGraphNode*> InstructionIndexToNode;
 			for (UEdGraphNode* GraphNode : Graph->Nodes)
 			{
 				if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
 				{
 					bFoundError = bFoundError || ControlRigGraphNode->ErrorType <= (int32)EMessageSeverity::Error;
 					bFoundWarning = bFoundWarning || ControlRigGraphNode->ErrorType <= (int32)EMessageSeverity::Warning;
-					if (URigVMNode* ModelNode = ControlRigGraphNode->GetModelNode())
-					{
-						if (ModelNode->GetInstructionIndex() != INDEX_NONE)
-						{
-							InstructionIndexToNode.Add(ModelNode->GetInstructionIndex(), GraphNode);
-						}
-					}
 				}
 				GraphNode->ErrorType = int32(EMessageSeverity::Info) + 1;
 			}
@@ -4243,12 +4237,17 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 			bool bFoundErrorOrWarningInLog = false;
 			for (const FControlRigLog::FLogEntry& Entry : ControlRigLog.Entries)
 			{
-				UEdGraphNode** GraphNodePtr = InstructionIndexToNode.Find(Entry.InstructionIndex);
-				if (GraphNodePtr == nullptr)
+				URigVMNode* ModelNode = Cast<URigVMNode>(ByteCode.GetSubjectForInstruction(Entry.InstructionIndex));
+				if (ModelNode == nullptr)
 				{
 					continue;
 				}
-				UEdGraphNode* GraphNode = *GraphNodePtr;
+
+				UEdGraphNode* GraphNode = RigGraph->FindNodeForModelNodeName(ModelNode->GetFName());
+				if (GraphNode == nullptr)
+				{
+					continue;
+				}
 
 				bFoundError = bFoundError || Entry.Severity <= EMessageSeverity::Error;
 				bFoundWarning = bFoundWarning || Entry.Severity <= EMessageSeverity::Warning;
@@ -4466,5 +4465,23 @@ URigVMController* FControlRigEditor::GetFocusedController() const
 	}
 	return Blueprint->GetController(GetFocusedModel());
 }
+
+TSharedPtr<SGraphEditor> FControlRigEditor::GetGraphEditor(UEdGraph* InEdGraph) const
+{
+	TArray< TSharedPtr<SDockTab> > GraphEditorTabs;
+	DocumentManager->FindAllTabsForFactory(GraphEditorTabFactoryPtr, /*out*/ GraphEditorTabs);
+
+	for (TSharedPtr<SDockTab>& GraphEditorTab : GraphEditorTabs)
+	{
+		TSharedRef<SGraphEditor> Editor = StaticCastSharedRef<SGraphEditor>((GraphEditorTab)->GetContent());
+		if (Editor->GetCurrentGraph() == InEdGraph)
+		{
+			return Editor;
+		}
+	}
+
+	return TSharedPtr<SGraphEditor>();
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -5051,9 +5051,9 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		TGuardValue<FString> InputBoundVariableGuard(InputPin->BoundVariablePath, FString());
 
 		FString FailureReason;
-		if (!Graph->CanLink(OutputPin, InputPin, &FailureReason))
+		if (!Graph->CanLink(OutputPin, InputPin, &FailureReason, GetCurrentByteCode()))
 		{
-			ReportErrorf(TEXT("Cannot link '%s' to '%s': %s."), *OutputPin->GetPinPath(), *InputPin->GetPinPath(), *FailureReason);
+			ReportErrorf(TEXT("Cannot link '%s' to '%s': %s."), *OutputPin->GetPinPath(), *InputPin->GetPinPath(), *FailureReason, GetCurrentByteCode());
 			return false;
 		}
 	}
@@ -8178,6 +8178,15 @@ TArray<FRigVMExternalVariable> URigVMController::GetExternalVariables()
 		return GetExternalVariablesDelegate.Execute();
 	}
 	return TArray<FRigVMExternalVariable>();
+}
+
+const FRigVMByteCode* URigVMController::GetCurrentByteCode() const
+{
+	if (GetCurrentByteCodeDelegate.IsBound())
+	{
+		return GetCurrentByteCodeDelegate.Execute();
+	}
+	return nullptr;
 }
 
 void URigVMController::RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo)

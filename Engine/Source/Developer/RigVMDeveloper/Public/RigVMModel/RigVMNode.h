@@ -54,14 +54,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	int32 GetNodeIndex() const;
 
-	// Returns the current index of the instruction in the stack (or INDEX_NONE)
-	UFUNCTION(BlueprintCallable, Category = RigVMNode)
-	int32 GetInstructionIndex() const;
-
-	// Returns the index of the block this node belongs to
-	UFUNCTION(BlueprintCallable, Category = RigVMNode)
-	int32 GetBlockIndex() const;
-
 	// Returns all of the top-level Pins of this Node.
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	virtual const TArray<URigVMPin*>& GetPins() const;
@@ -220,11 +212,6 @@ protected:
 	FName PreviousName;
 
 private:
-	UPROPERTY(transient)
-	int32 InstructionIndex;
-
-	UPROPERTY(transient)
-	int32 BlockIndex;
 
 	UPROPERTY()
 	TArray<URigVMPin*> Pins;

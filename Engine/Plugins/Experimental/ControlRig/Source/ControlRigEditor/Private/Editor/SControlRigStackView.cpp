@@ -258,26 +258,44 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 			return;
 		}
 
-		TMap<int32, FName> InstructionIndexToNodeName;
-		for (URigVMNode* ModelNode : ControlRigEditor.Pin()->GetFocusedModel()->GetNodes())
+		UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
+		if (ControlRig == nullptr || ControlRig->GetVM() == nullptr)
 		{
-			if (ModelNode->GetInstructionIndex() != INDEX_NONE)
-			{
-				InstructionIndexToNodeName.Add(ModelNode->GetInstructionIndex(), ModelNode->GetFName());
-			}
+			return;
 		}
 
-		TArray<FName> SelectedNodes;
+		const FRigVMByteCode& ByteCode = ControlRig->GetVM()->GetByteCode();
+
+		TMap<URigVMGraph*, TArray<FName>> SelectedNodesPerGraph;
 		for (TSharedPtr<FRigStackEntry>& Entry : SelectedItems)
 		{
-			const FName* NodeName = InstructionIndexToNodeName.Find(Entry->InstructionIndex);
-			if (NodeName)
+			UObject* Subject = ByteCode.GetSubjectForInstruction(Entry->InstructionIndex);
+			URigVMGraph* SubjectGraph = nullptr;
+
+			FName NodeName = NAME_None;
+			if (URigVMNode* Node = Cast<URigVMNode>(Subject))
 			{
-				SelectedNodes.Add(*NodeName);
+				NodeName = Node->GetFName();
+				SubjectGraph = Node->GetGraph();
 			}
+			else if (URigVMPin* Pin = Cast<URigVMPin>(Subject))
+			{
+				NodeName = Pin->GetNode()->GetFName();
+				SubjectGraph = Pin->GetGraph();
+			}
+
+			if (NodeName.IsNone() || SubjectGraph == nullptr)
+			{
+				continue;
+			}
+
+			SelectedNodesPerGraph.FindOrAdd(SubjectGraph).AddUnique(NodeName);
 		}
 
-		ControlRigEditor.Pin()->GetFocusedController()->SetNodeSelection(SelectedNodes);
+		for (const TPair< URigVMGraph*, TArray<FName> >& Pair : SelectedNodesPerGraph)
+		{
+			ControlRigBlueprint->GetOrCreateController(Pair.Key)->SetNodeSelection(Pair.Value);
+		}
 	}
 }
 
@@ -303,39 +321,38 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 	if (InVM)
 	{
 		FRigVMInstructionArray Instructions = InVM->GetInstructions();
-		const TArray<URigVMNode*>& Nodes = ControlRigBlueprint->GetModel()->GetNodes();
-		
+
+		const FRigVMByteCode& ByteCode = InVM->GetByteCode();
+
 		// 1. cache information about instructions/nodes, which will be used later 
-		TArray<int32> InstructionIndexToNodeIndex;
-		InstructionIndexToNodeIndex.Init(-1, Instructions.Num());
 		TMap<FString, FString> NodeNameToDisplayName;
-		for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); NodeIndex++)
+		for (int32 InstructionIndex = 0; InstructionIndex < ByteCode.Num(); InstructionIndex++)
 		{
-			URigVMNode* Node = Nodes[NodeIndex];
-			// only struct nodes among all nodes has StaticExecute() that generates actual instructions
-			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
+			UObject* Subject = ByteCode.GetSubjectForInstruction(InstructionIndex);
+			if (URigVMNode* Node = Cast<URigVMNode>(Subject))
 			{
-				int32 InstructionIndex = UnitNode->GetInstructionIndex();
-				// only active nodes are assigned a valid instruction index, hence the check here
-				if (InstructionIndex >= 0 && InstructionIndex < InstructionIndexToNodeIndex.Num())
+				FString DisplayName = Node->GetName();
+
+				// only unit nodes among all nodes has StaticExecute() that generates actual instructions
+				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Subject))
 				{
-					InstructionIndexToNodeIndex[InstructionIndex] = NodeIndex;
-				}
-				FString DisplayName = UnitNode->GetNodeTitle();
+					DisplayName = UnitNode->GetNodeTitle();
 #if WITH_EDITOR
-				UScriptStruct* Struct = UnitNode->GetScriptStruct();
-				FString MenuDescSuffixMetadata;
-				if (Struct)
-				{
-					Struct->GetStringMetaDataHierarchical(FRigVMStruct::MenuDescSuffixMetaName, &MenuDescSuffixMetadata);
-				}
-				if (!MenuDescSuffixMetadata.IsEmpty())
-				{
-					DisplayName = FString::Printf(TEXT("%s %s"), *UnitNode->GetNodeTitle(), *MenuDescSuffixMetadata);
-				}
+					UScriptStruct* Struct = UnitNode->GetScriptStruct();
+					FString MenuDescSuffixMetadata;
+					if (Struct)
+					{
+						Struct->GetStringMetaDataHierarchical(FRigVMStruct::MenuDescSuffixMetaName, &MenuDescSuffixMetadata);
+					}
+					if (!MenuDescSuffixMetadata.IsEmpty())
+					{
+						DisplayName = FString::Printf(TEXT("%s %s"), *UnitNode->GetNodeTitle(), *MenuDescSuffixMetadata);
+					}
 #endif
+				}
+
 				// this is needed for name replacement later
-				NodeNameToDisplayName.Add(UnitNode->GetName(), DisplayName);
+				NodeNameToDisplayName.Add(Node->GetName(), DisplayName);
 			}
 		}
 
@@ -365,13 +382,13 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 		for (int32 InstructionIndex = 0; InstructionIndex < Labels.Num(); InstructionIndex++)
 		{
 			FString Label = Labels[InstructionIndex];
-			int32 NodeIndex = InstructionIndexToNodeIndex[InstructionIndex];
-			// note that some instructions don't map to a node, hence the check here
-			if (NodeIndex >= 0 && NodeIndex < Nodes.Num())
+
+			UObject* Subject = ByteCode.GetSubjectForInstruction(InstructionIndex);
+			if(URigVMNode* Node = Cast<URigVMNode>(Subject))
 			{
-				URigVMNode* Node = Nodes[NodeIndex];
 				Label = NodeNameToDisplayName[Node->GetName()];
 			}
+
 			// add the entry with the new label to the stack view
 			const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
 			if (FilterText.IsEmpty() || Label.Contains(FilterText.ToString()))
@@ -462,7 +479,28 @@ TSharedPtr< SWidget > SControlRigStackView::CreateContextMenu()
 void SControlRigStackView::HandleFocusOnSelectedGraphNode()
 {
 	OnSelectionChanged(TSharedPtr<FRigStackEntry>(), ESelectInfo::Direct);
-	ControlRigEditor.Pin()->ZoomToSelection_Clicked();
+
+	TArray<TSharedPtr<FRigStackEntry>> SelectedItems = TreeView->GetSelectedItems();
+	if (SelectedItems.Num() > 0)
+	{
+		UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
+		if (ControlRig == nullptr || ControlRig->GetVM() == nullptr)
+		{
+			return;
+		}
+
+		const FRigVMByteCode& ByteCode = ControlRig->GetVM()->GetByteCode();
+		URigVMNode* SelectedNode = Cast<URigVMNode>(ByteCode.GetSubjectForInstruction(SelectedItems[0]->InstructionIndex));
+		if (SelectedNode)
+		{
+			if (UEdGraph* EdGraph = ControlRigBlueprint->GetEdGraph(SelectedNode->GetGraph()))
+			{
+				ControlRigEditor.Pin()->OpenGraphAndBringToFront(EdGraph, true);
+				ControlRigEditor.Pin()->ZoomToSelection_Clicked();
+				ControlRigEditor.Pin()->HandleModifiedEvent(ERigVMGraphNotifType::NodeSelected, SelectedNode->GetGraph(), SelectedNode);
+			}
+		}
+	}
 }
 
 void SControlRigStackView::OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM* InCompiledVM)
@@ -489,22 +527,29 @@ void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 		return;
 	}
 
+	UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
+	if (ControlRig == nullptr || ControlRig->GetVM() == nullptr)
+	{
+		return;
+	}
+
+	const FRigVMByteCode& ByteCode = ControlRig->GetVM()->GetByteCode();
+
 	switch (InNotifType)
 	{
 		case ERigVMGraphNotifType::NodeSelected:
 		case ERigVMGraphNotifType::NodeDeselected:
 		{
-			URigVMNode* Node = Cast<URigVMNode>(InSubject);
-			if (Node)
+			TArray<int32> InstructionIndices = ByteCode.GetAllInstructionIndicesForSubject(InSubject);
+			for (int32 InstructionIndex : InstructionIndices)
 			{
-				if (Node->GetInstructionIndex() != INDEX_NONE)
+				if (InstructionIndex >= Operators.Num())
 				{
-					if (Operators.Num() > Node->GetInstructionIndex())
-					{
-						TGuardValue<bool> SuspendNotifs(bSuspendModelNotifications, true);
-						TreeView->SetItemSelection(Operators[Node->GetInstructionIndex()], InNotifType == ERigVMGraphNotifType::NodeSelected, ESelectInfo::Direct);
-					}
+					break;
 				}
+
+				TGuardValue<bool> SuspendNotifs(bSuspendModelNotifications, true);
+				TreeView->SetItemSelection(Operators[InstructionIndex], InNotifType == ERigVMGraphNotifType::NodeSelected, ESelectInfo::Direct);
 			}
 			break;
 		}

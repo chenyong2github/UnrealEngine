@@ -12,8 +12,6 @@ URigVMNode::URigVMNode()
 , Position(FVector2D::ZeroVector)
 , Size(FVector2D::ZeroVector)
 , NodeColor(FLinearColor::Black)
-, InstructionIndex(INDEX_NONE)
-, BlockIndex(INDEX_NONE)
 , GetSliceContextBracket(0)
 {
 
@@ -99,16 +97,6 @@ int32 URigVMNode::GetNodeIndex() const
 		Graph->GetNodes().Find((URigVMNode*)this, Index);
 	}
 	return Index;
-}
-
-int32 URigVMNode::GetInstructionIndex() const
-{
-	return InstructionIndex;
-}
-
-int32 URigVMNode::GetBlockIndex() const
-{
-	return BlockIndex;
 }
 
 const TArray<URigVMPin*>& URigVMNode::GetPins() const

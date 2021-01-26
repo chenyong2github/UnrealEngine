@@ -282,6 +282,15 @@ void UControlRigGraphNode::HandleInsertArrayElement(FString InPinPath)
 	}
 }
 
+int32 UControlRigGraphNode::GetInstructionIndex()
+{
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetGraph()))
+	{
+		return RigGraph->GetInstructionIndex(this);
+	}
+	return INDEX_NONE;
+}
+
 void UControlRigGraphNode::AllocateDefaultPins()
 {
 	ExecutePins.Reset();
@@ -508,9 +517,16 @@ FLinearColor UControlRigGraphNode::GetNodeOpacityColor() const
 		{
 			return FLinearColor::White;
 		}
-		if (ModelNode->GetInstructionIndex() == INDEX_NONE)
+
+		if (URigVMController* Controller = GetController())
 		{
-			return FLinearColor(0.35f, 0.35f, 0.35f, 0.35f);
+			if (const FRigVMByteCode* ByteCode = Controller->GetCurrentByteCode())
+			{
+				if (ByteCode->GetFirstInstructionIndexForSubject(ModelNode) == INDEX_NONE)
+				{
+					return FLinearColor(0.35f, 0.35f, 0.35f, 0.35f);
+				}
+			}
 		}
 	}
 	return FLinearColor::White;

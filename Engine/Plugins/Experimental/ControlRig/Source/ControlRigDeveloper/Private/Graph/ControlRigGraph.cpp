@@ -10,6 +10,10 @@
 #include "Units/RigUnit.h"
 #include "EdGraphNode_Comment.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "RigVMModel/Nodes/RigVMLibraryNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
+#include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -35,6 +39,8 @@ void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
 
 	InBlueprint->OnModified().RemoveAll(this);
 	InBlueprint->OnModified().AddUObject(this, &UControlRigGraph::HandleModifiedEvent);
+	InBlueprint->OnVMCompiled().RemoveAll(this);
+	InBlueprint->OnVMCompiled().AddUObject(this, &UControlRigGraph::HandleVMCompiledEvent);
 }
 
 const UControlRigGraphSchema* UControlRigGraph::GetControlRigGraphSchema()
@@ -621,6 +627,74 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 	}
 }
 
+int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
+{
+	if (const int32* FoundIndex = CachedInstructionIndices.Find(InNode))
+	{
+		return *FoundIndex;
+	}
+
+	struct Local
+	{
+		static int32 GetInstructionIndex(URigVMNode* InModelNode, const FRigVMByteCode* InByteCode)
+		{
+			if (InModelNode == nullptr)
+			{
+				return INDEX_NONE;
+			}
+
+			int32 InstructionIndex = InByteCode->GetFirstInstructionIndexForSubject(InModelNode);
+			if (InstructionIndex != INDEX_NONE)
+			{
+				return InstructionIndex;
+			}
+
+			TArray<URigVMNode*> NodesToCheck;
+			if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InModelNode))
+			{
+				NodesToCheck.Append(LibraryNode->GetContainedNodes());
+			}
+
+			if (InModelNode->IsA<URigVMFunctionReturnNode>() ||
+				InModelNode->IsA<URigVMRerouteNode>())
+			{
+				NodesToCheck.Append(InModelNode->GetLinkedSourceNodes());
+			}
+
+			if (InModelNode->IsA<URigVMFunctionEntryNode>() ||
+				InModelNode->IsA<URigVMRerouteNode>())
+			{
+				NodesToCheck.Append(InModelNode->GetLinkedTargetNodes());
+			}
+
+			int32 MinimumInstructionIndex = INDEX_NONE;
+			for (URigVMNode* NodeToCheck : NodesToCheck)
+			{
+				int32 ContainedInstructionIndex = GetInstructionIndex(NodeToCheck, InByteCode);
+				if (ContainedInstructionIndex != INDEX_NONE)
+				{
+					if (ContainedInstructionIndex < MinimumInstructionIndex || MinimumInstructionIndex == INDEX_NONE)
+					{
+						MinimumInstructionIndex = ContainedInstructionIndex;
+					}
+				}
+			}
+			return MinimumInstructionIndex;
+		}
+	};
+
+	if (const FRigVMByteCode* ByteCode = GetController()->GetCurrentByteCode())
+	{
+		int32 InstructionIndex = Local::GetInstructionIndex(InNode->GetModelNode(), ByteCode);
+		if (InstructionIndex != INDEX_NONE)
+		{
+			CachedInstructionIndices.Add(InNode, InstructionIndex);
+		}
+	}
+
+	return INDEX_NONE;
+}
+
 UEdGraphNode* UControlRigGraph::FindNodeForModelNodeName(const FName& InModelNodeName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -681,6 +755,11 @@ URigVMController* UControlRigGraph::GetTemplateController()
 		TemplateController->OnModified().AddUObject(this, &UControlRigGraph::HandleModifiedEvent);
 	}
 	return TemplateController;
+}
+
+void UControlRigGraph::HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM)
+{
+	CachedInstructionIndices.Reset();
 }
 
 #endif

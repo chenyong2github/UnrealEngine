@@ -1021,7 +1021,7 @@ URigVMGraph* URigVMPin::GetGraph() const
 	return nullptr;
 }
 
-bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason)
+bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode)
 {
 	if (InSourcePin == nullptr || InTargetPin == nullptr)
 	{
@@ -1202,34 +1202,37 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 	TArray<URigVMNode*> SourceNodes;
 	SourceNodes.Add(SourceNode);
 
-	int32 TargetNodeInstructionIndex = TargetNode->GetInstructionIndex();
-	if (TargetNodeInstructionIndex != INDEX_NONE)
+	if (InByteCode)
 	{
-		for (int32 SourceNodeIndex = 0; SourceNodeIndex < SourceNodes.Num(); SourceNodeIndex++)
+		int32 TargetNodeInstructionIndex = InByteCode->GetFirstInstructionIndexForSubject(TargetNode);
+		if (TargetNodeInstructionIndex != INDEX_NONE)
 		{
-			bool bNodeCanLinkAnywhere = SourceNodes[SourceNodeIndex]->IsA<URigVMRerouteNode>();
-			if (!bNodeCanLinkAnywhere)
+			for (int32 SourceNodeIndex = 0; SourceNodeIndex < SourceNodes.Num(); SourceNodeIndex++)
 			{
-				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(SourceNodes[SourceNodeIndex]))
+				bool bNodeCanLinkAnywhere = SourceNodes[SourceNodeIndex]->IsA<URigVMRerouteNode>();
+				if (!bNodeCanLinkAnywhere)
 				{
-					// pure / immutable nodes can be connected to any input in any order.
-					// since a new link is going to change the abstract syntax tree 
-					if (!UnitNode->IsMutable())
+					if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(SourceNodes[SourceNodeIndex]))
 					{
-						bNodeCanLinkAnywhere = true;
+						// pure / immutable nodes can be connected to any input in any order.
+						// since a new link is going to change the abstract syntax tree 
+						if (!UnitNode->IsMutable())
+						{
+							bNodeCanLinkAnywhere = true;
+						}
 					}
 				}
-			}
 
-			if (!bNodeCanLinkAnywhere)
-			{
-				int32 SourceNodeInstructionIndex = SourceNodes[SourceNodeIndex]->GetInstructionIndex();
-				if (SourceNodeInstructionIndex != INDEX_NONE &&
-					SourceNodeInstructionIndex > TargetNodeInstructionIndex)
+				if (!bNodeCanLinkAnywhere)
 				{
-					return false;
+					int32 SourceNodeInstructionIndex = InByteCode->GetFirstInstructionIndexForSubject(SourceNodes[SourceNodeIndex]);
+					if (SourceNodeInstructionIndex != INDEX_NONE &&
+						SourceNodeInstructionIndex > TargetNodeInstructionIndex)
+					{
+						return false;
+					}
+					SourceNodes.Append(SourceNodes[SourceNodeIndex]->GetLinkedSourceNodes());
 				}
-				SourceNodes.Append(SourceNodes[SourceNodeIndex]->GetLinkedSourceNodes());
 			}
 		}
 	}

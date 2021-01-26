@@ -117,14 +117,6 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 	OutVM->Reset();
 
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		for (URigVMNode* Node : InGraph->Nodes)
-		{
-			Node->InstructionIndex = INDEX_NONE;
-		}
-	}
-
 	TMap<FString, FRigVMOperand> LocalOperands;
 	if (OutOperands == nullptr)
 	{
@@ -223,90 +215,6 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	}
 
 	WorkData.VM->GetByteCode().AlignByteCode();
-
-	// loop over all nodes once more and setup the instruction index for reroute nodes
-	if (Settings.SetupNodeInstructionIndex)
-	{
-		struct Local
-		{
-			static int32 GetInstructionIndex(URigVMNode* InNode, TMap<URigVMNode*, int32>& InOutKnownInstructionIndex)
-			{
-				if (InNode->GetInstructionIndex() != INDEX_NONE)
-				{
-					return InNode->GetInstructionIndex();
-				}
-
-				if (int32* InstructionIndexPtr = InOutKnownInstructionIndex.Find(InNode))
-				{
-					return *InstructionIndexPtr;
-				}
-
-				InOutKnownInstructionIndex.Add(InNode, INDEX_NONE);
-
-				if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode))
-				{
-					TArray<URigVMNode*> TargetNodes = RerouteNode->GetLinkedTargetNodes();
-					if (TargetNodes.Num() > 0)
-					{
-						TArray<URigVMNode*> SourceNodes = RerouteNode->GetLinkedSourceNodes();
-						if (SourceNodes.Num() == 0)
-						{
-							for (URigVMNode* TargetNode : TargetNodes)
-							{
-								int32 InstructionIndex = GetInstructionIndex(TargetNode, InOutKnownInstructionIndex);
-								InOutKnownInstructionIndex.FindOrAdd(TargetNode) = InstructionIndex;
-
-								if (InstructionIndex != INDEX_NONE)
-								{
-									InOutKnownInstructionIndex.FindOrAdd(InNode) = InstructionIndex;
-									return InstructionIndex;
-								}
-							}
-						}
-						else
-						{
-							for (URigVMNode* SourceNode : SourceNodes)
-							{
-								int32 InstructionIndex = GetInstructionIndex(SourceNode, InOutKnownInstructionIndex);
-								InOutKnownInstructionIndex.FindOrAdd(SourceNode) = InstructionIndex;
-
-								if (InstructionIndex != INDEX_NONE)
-								{
-									InOutKnownInstructionIndex.FindOrAdd(InNode) = InstructionIndex;
-									return InstructionIndex;
-								}
-							}
-						}
-					}
-				}
-				else if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode))
-				{
-					int32 FirstInstructionIndex = INDEX_NONE;
-					for (URigVMNode* ContainedNode : CollapseNode->GetContainedNodes())
-					{
-						int32 ContainedInstructionIndex = GetInstructionIndex(ContainedNode, InOutKnownInstructionIndex);
-						if (ContainedInstructionIndex != INDEX_NONE)
-						{
-							if (FirstInstructionIndex == INDEX_NONE || ContainedInstructionIndex < FirstInstructionIndex)
-							{
-								FirstInstructionIndex = ContainedInstructionIndex;
-							}
-						}
-					}
-					return FirstInstructionIndex;
-				}
-
-				return INDEX_NONE;
-			}
-		};
-
-		TMap<URigVMNode*, int32> KnownInstructionIndex;
-		for (URigVMNode* Node : InGraph->Nodes)
-		{
-			Node->InstructionIndex = Local::GetInstructionIndex(Node, KnownInstructionIndex);
-		}
-	}
-
 
 	UE_LOG_RIGVMMEMORY(TEXT("RigVMCompiler: Finished '%s'."), *InGraph->GetPathName());
 
@@ -477,7 +385,7 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			UnitNode->InstructionIndex = EntryInstructionIndex;
+			WorkData.VM->GetByteCode().SetSubject(EntryInstructionIndex, UnitNode);
 		}
 
 		TraverseChildren(InExpr, WorkData);
@@ -560,7 +468,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			UnitNode->InstructionIndex = InstructionIndex;
+			WorkData.VM->GetByteCode().SetSubject(InstructionIndex, UnitNode);
 		}
 
 		ensure(InExpr->NumChildren() == UnitNode->Pins.Num());
@@ -814,7 +722,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				{
 					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(SourcePin->GetNode()))
 					{
-						VariableNode->InstructionIndex = InstructionIndex;
+						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, VariableNode);
 					}
 				}
 			}
@@ -824,7 +732,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				{
 					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(TargetPin->GetNode()))
 					{
-						VariableNode->InstructionIndex = InstructionIndex;
+						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, VariableNode);
 					}
 				}
 			}
@@ -909,7 +817,7 @@ void URigVMCompiler::TraverseBranch(const FRigVMBranchExprAST* InExpr, FRigVMCom
 	int32 JumpToFalseInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 	if (Settings.SetupNodeInstructionIndex)
 	{
-		BranchNode->InstructionIndex = JumpToFalseInstruction;
+		WorkData.VM->GetByteCode().SetSubject(JumpToFalseInstruction, BranchNode);
 	}
 
 	// traverse the true case
@@ -963,7 +871,7 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 	int32 JumpToFalseInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 	if (Settings.SetupNodeInstructionIndex)
 	{
-		IfNode->InstructionIndex = JumpToFalseInstruction;
+		WorkData.VM->GetByteCode().SetSubject(JumpToFalseInstruction, IfNode);
 	}
 
 	// traverse the true case
@@ -1081,7 +989,7 @@ void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCom
 		WorkData.VM->GetByteCode().AddEqualsOp(IndexOperand, WorkData.IntegerLiterals.FindChecked(CaseIndex), WorkData.ComparisonOperand);
 		if (CaseIndex == 1 && Settings.SetupNodeInstructionIndex)
 		{
-			SelectNode->InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, SelectNode);
 		}
 
 		uint64 JumpByte = WorkData.VM->GetByteCode().AddJumpIfOp(ERigVMOpCode::JumpForwardIf, 1, WorkData.ComparisonOperand, true);

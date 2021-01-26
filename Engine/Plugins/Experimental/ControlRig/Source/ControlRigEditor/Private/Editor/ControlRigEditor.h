@@ -356,6 +356,7 @@ protected:
 
 	URigVMGraph* GetFocusedModel() const;
 	URigVMController* GetFocusedController() const;
+	TSharedPtr<SGraphEditor> GetGraphEditor(UEdGraph* InEdGraph) const;
 
 	URigVMController* ActiveController;
 	bool bControlRigEditorInitialized;

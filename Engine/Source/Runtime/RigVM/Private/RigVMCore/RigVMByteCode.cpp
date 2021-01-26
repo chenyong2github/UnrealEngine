@@ -117,6 +117,8 @@ void FRigVMInstructionArray::Empty()
 	Instructions.Empty();
 }
 
+TArray<int32> FRigVMByteCode::EmptyInstructionIndices;
+
 FRigVMByteCode::FRigVMByteCode()
 	: NumInstructions(0)
 	, bByteCodeIsAligned(false)
@@ -528,6 +530,11 @@ void FRigVMByteCode::Reset()
 	bByteCodeIsAligned = false;
 	NumInstructions = 0;
 	Entries.Reset();
+
+#if WITH_EDITORONLY_DATA
+	SubjectPerInstruction.Reset();
+	SubjectToInstructions.Reset();
+#endif
 }
 
 void FRigVMByteCode::Empty()
@@ -536,6 +543,11 @@ void FRigVMByteCode::Empty()
 	bByteCodeIsAligned = false;
 	NumInstructions = 0;
 	Entries.Empty();
+
+#if WITH_EDITORONLY_DATA
+	SubjectPerInstruction.Empty();
+	SubjectToInstructions.Empty();
+#endif
 }
 
 uint64 FRigVMByteCode::Num() const
@@ -1222,3 +1234,45 @@ void FRigVMByteCode::AlignByteCode()
 	Swap(ByteCode, AlignedByteCode);
 	bByteCodeIsAligned = true;
 }
+
+#if WITH_EDITOR
+
+UObject* FRigVMByteCode::GetSubjectForInstruction(int32 InInstructionIndex) const
+{
+	if (SubjectPerInstruction.IsValidIndex(InInstructionIndex))
+	{
+		return SubjectPerInstruction[InInstructionIndex];
+	}
+	return nullptr;
+}
+
+int32 FRigVMByteCode::GetFirstInstructionIndexForSubject(UObject* InSubject) const
+{
+	const TArray<int32>& InstructionIndices = GetAllInstructionIndicesForSubject(InSubject);
+	if (InstructionIndices.Num() > 0)
+	{
+		return InstructionIndices[0];
+	}
+	return INDEX_NONE;
+}
+
+const TArray<int32>& FRigVMByteCode::GetAllInstructionIndicesForSubject(UObject* InSubject) const
+{
+	if (const TArray<int32>* InstructionIndices = SubjectToInstructions.Find(InSubject))
+	{
+		return *InstructionIndices;
+	}
+	return EmptyInstructionIndices;
+}
+
+void FRigVMByteCode::SetSubject(int32 InInstructionIndex, UObject* InSubject)
+{
+	if (SubjectPerInstruction.Num() <= InInstructionIndex)
+	{
+		SubjectPerInstruction.AddZeroed(1 + InInstructionIndex - SubjectPerInstruction.Num());
+	}
+	SubjectPerInstruction[InInstructionIndex] = InSubject;
+	SubjectToInstructions.FindOrAdd(InSubject).Add(InInstructionIndex);
+}
+
+#endif
