@@ -1651,6 +1651,12 @@ public:
 	virtual void DestroyOwningActor() override { /* Don't destroy the OwningActor since we follow a real PlayerController*/ }
 
 	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() override { return nullptr; }
+
+	virtual void InitRemoteConnection(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, const class FInternetAddr& InRemoteAddr, EConnectionState InState, int32 InMaxPacket = 0, int32 InPacketOverhead = 0) override {}
+	virtual void InitLocalConnection(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, EConnectionState InState, int32 InMaxPacket = 0, int32 InPacketOverhead = 0) override {}
+
+	virtual FString LowLevelDescribe() override { return TEXT("Simulated Client"); }
+
 };
 
 #if UE_NET_TRACE_ENABLED
