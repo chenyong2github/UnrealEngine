@@ -28,7 +28,7 @@ void FAudioAnalyzeTask::DoWork()
 	Results = AnalyzerFacade->AnalyzeAudioBuffer(AudioData, NumChannels, SampleRate);
 }
 
-void UAudioAnalyzer::StartAnalyzing(const UObject* WorldContextObject, UAudioBus* AudioBusToAnalyze)
+void UAudioAnalyzer::StartAnalyzing(UWorld* InWorld, UAudioBus* AudioBusToAnalyze)
 {
 	if (!AudioBusToAnalyze)
 	{
@@ -36,15 +36,13 @@ void UAudioAnalyzer::StartAnalyzing(const UObject* WorldContextObject, UAudioBus
 		return;
 	}
 
-	// Retrieve the world and if it's not a valid world, don't do anything
-	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (!ThisWorld || !ThisWorld->bAllowAudioPlayback || ThisWorld->GetNetMode() == NM_DedicatedServer)
+	if (!InWorld)
 	{
 		return;
 	}
 
-	// Get the audio mixer device to get audio mixer sample rate and be able to play audio buses
-	Audio::FMixerDevice* MixerDevice = FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(WorldContextObject);
+	Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(InWorld->GetAudioDeviceRaw());
+
 	if (!MixerDevice)
 	{
 		UE_LOG(LogAudioAnalyzer, Error, TEXT("Audio analyzer only works with the audio mixer."));
@@ -54,31 +52,31 @@ void UAudioAnalyzer::StartAnalyzing(const UObject* WorldContextObject, UAudioBus
 	// Retrieve the audio analyzer subsystem if it's not already retrieved
 	if (!AudioAnalyzerSubsystem)
 	{
-		AudioAnalyzerSubsystem = UAudioAnalyzerSubsystem::Get(ThisWorld);
+		AudioAnalyzerSubsystem = UAudioAnalyzerSubsystem::Get(InWorld);
 	}
 
 	// Store the audio bus we're analyzing
- 	AudioBus = AudioBusToAnalyze;
+	AudioBus = AudioBusToAnalyze;
 
- 	NumBusChannels = AudioBus->GetNumChannels();
- 	check(NumBusChannels > 0);
- 	
+	NumBusChannels = AudioBus->GetNumChannels();
+	check(NumBusChannels > 0);
+
 	AudioMixerSampleRate = (int32)MixerDevice->GetSampleRate();
- 
- 	// Get the analyzer factory to use for our analysis
+
+	// Get the analyzer factory to use for our analysis
 	if (!AnalyzerFactory)
 	{
- 		AnalyzerFactory = Audio::GetAnalyzerFactory(GetAnalyzerFactoryName());
+		AnalyzerFactory = Audio::GetAnalyzerFactory(GetAnalyzerFactoryName());
 	}
 	checkf(AnalyzerFactory != nullptr, TEXT("Need to register the factory as a modular feature for the analyzer '%s'."), *GetAnalyzerFactoryName().ToString());
 
- 	// Start the audio bus. This won't do anythign if the bus is already started elsewhere.
- 	uint32 AudioBusId = AudioBus->GetUniqueID();
- 	int32 NumChannels = (int32)AudioBus->AudioBusChannels + 1;
- 	MixerDevice->StartAudioBus(AudioBusId, NumChannels, false);
- 
- 	// Get an output patch for the audio bus
- 	PatchOutputStrongPtr = MixerDevice->AddPatchForAudioBus(AudioBusId);
+	// Start the audio bus. This won't do anythign if the bus is already started elsewhere.
+	uint32 AudioBusId = AudioBus->GetUniqueID();
+	int32 NumChannels = (int32)AudioBus->AudioBusChannels + 1;
+	MixerDevice->StartAudioBus(AudioBusId, NumChannels, false);
+
+	// Get an output patch for the audio bus
+	PatchOutputStrongPtr = MixerDevice->AddPatchForAudioBus(AudioBusId);
 
 	// Register this audio analyzer with the audio analyzer subsystem
 	// The subsystem will query this analyzer to see if it has enough audio to perform analysis.
@@ -87,6 +85,25 @@ void UAudioAnalyzer::StartAnalyzing(const UObject* WorldContextObject, UAudioBus
 
 	// Setup the analyzer facade here once
 	AnalyzerFacade = MakeUnique<Audio::FAnalyzerFacade>(GetSettings(AudioMixerSampleRate, NumBusChannels), AnalyzerFactory);
+}
+
+
+void UAudioAnalyzer::StartAnalyzing(const UObject* WorldContextObject, UAudioBus* AudioBusToAnalyze)
+{
+	if (!AudioBusToAnalyze)
+	{
+		UE_LOG(LogAudioAnalyzer, Error, TEXT("Unable to analyze audio without an audio bus to analyze."));
+		return;
+	}
+
+	// Retrieve the world and if it's not a valid world, don't do anything
+	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
+	if (!ThisWorld || !ThisWorld->bAllowAudioPlayback || ThisWorld->GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	StartAnalyzing(ThisWorld, AudioBusToAnalyze);
 }
 
 void UAudioAnalyzer::StopAnalyzing(const UObject* WorldContextObject)

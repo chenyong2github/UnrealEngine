@@ -88,6 +88,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioAnalyzer, meta = (WorldContext = "WorldContextObject"))
 	void StartAnalyzing(const UObject* WorldContextObject, UAudioBus* AudioBusToAnalyze);
 
+	/** Starts analyzing using the given world.*/
+	void StartAnalyzing(UWorld* InWorld, UAudioBus* AudioBusToAnalyze);
+
 	/** Stops analyzing audio. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioAnalyzer, meta = (WorldContext = "WorldContextObject"))
 	void StopAnalyzing(const UObject* WorldContextObject);

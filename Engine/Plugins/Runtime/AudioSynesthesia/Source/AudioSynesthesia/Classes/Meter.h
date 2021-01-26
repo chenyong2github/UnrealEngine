@@ -90,14 +90,26 @@ struct AUDIOSYNESTHESIA_API FMeterResults
 /** Delegate to receive all overall loudness results (time-stamped in an array) since last delegate call. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOverallMeterResults, const TArray<FMeterResults>&, MeterResults);
 
+/** shadow delegate declaration for above */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOverallMeterResultsNative, UMeterAnalyzer*, const TArray<FMeterResults>&);
+
 /** Delegate to receive only the most recent overall meter results. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLatestOverallMeterResults, const FMeterResults&, LatestOverallMeterResults);
+
+/** shadow delegate declaration for above */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLatestOverallMeterResultsNative, UMeterAnalyzer*, const FMeterResults&);
 
 /** Delegate to receive all meter results per channel (time-stamped in an array) since last delegate call. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPerChannelMeterResults, int32, ChannelIndex, const TArray<FMeterResults>&, MeterResults);
 
+/** shadow delegate declaration for above */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPerChannelMeterResultsNative, UMeterAnalyzer*, int32, const TArray<FMeterResults>&);
+
 /** Delegate to receive only the most recent overall meter result per channel. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLatestPerChannelMeterResults, int32, ChannelIndex, const FMeterResults&, LatestMeterResults);
+
+/** shadow delegate declaration for above */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLatestPerChannelMeterResultsNative, UMeterAnalyzer*, int32, const FMeterResults&);
 
 /** UMeterAnalyzer
  *
@@ -121,17 +133,25 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnOverallMeterResults OnOverallMeterResults;
 
+	FOnOverallMeterResultsNative OnOverallMeterResultsNative;
+
 	/** Delegate to receive all meter results, per-channel, since last delegate call. */
 	UPROPERTY(BlueprintAssignable)
 	FOnPerChannelMeterResults OnPerChannelMeterResults;
+
+	FOnPerChannelMeterResultsNative OnPerChannelMeterResultsNative;
 
 	/** Delegate to receive the latest overall meter results. */
 	UPROPERTY(BlueprintAssignable)
 	FOnLatestOverallMeterResults OnLatestOverallMeterResults;
 
+	FOnLatestOverallMeterResultsNative OnLatestOverallMeterResultsNative;
+
 	/** Delegate to receive the latest per-channel meter results. */
 	UPROPERTY(BlueprintAssignable)
 	FOnLatestPerChannelMeterResults OnLatestPerChannelMeterResults;
+
+	FOnLatestPerChannelMeterResultsNative OnLatestPerChannelMeterResultsNative;
 
 	/** Convert UMeterSettings to IAnalyzerSettings */
 	TUniquePtr<Audio::IAnalyzerSettings> GetSettings(const int32 InSampleRate, const int32 InNumChannels) const override;

@@ -104,8 +104,8 @@ void UMeterAnalyzer::BroadcastResults()
 
 	if (NumChannels > 0)
 	{
-		bool bIsOnOverallMeterResultsBound = OnOverallMeterResults.IsBound();
-		bool bIsOnLatestOverallMeterResultsBound = OnLatestOverallMeterResults.IsBound();
+		bool bIsOnOverallMeterResultsBound = OnOverallMeterResults.IsBound() || OnOverallMeterResultsNative.IsBound();
+		bool bIsOnLatestOverallMeterResultsBound = OnLatestOverallMeterResults.IsBound() || OnLatestOverallMeterResults.IsBound();
 		if (bIsOnOverallMeterResultsBound || bIsOnLatestOverallMeterResultsBound)
 		{
 			const TArray<Audio::FMeterEntry>& OverallMeterArray = MeterResults->GetMeterArray();
@@ -114,20 +114,18 @@ void UMeterAnalyzer::BroadcastResults()
 				TArray<FMeterResults> Results = ConvertToBlueprintResults(Settings, OverallMeterArray);
 				check(Results.Num() > 0);
 
-				if (bIsOnOverallMeterResultsBound)
-				{
-					OnOverallMeterResults.Broadcast(Results);
-				}
-				if (bIsOnLatestOverallMeterResultsBound)
-				{
-					FMeterResults& Latest = Results[Results.Num() - 1];
-					OnLatestOverallMeterResults.Broadcast(Latest);
-				}
+				OnOverallMeterResults.Broadcast(Results);
+				OnOverallMeterResultsNative.Broadcast(this, Results);
+
+				FMeterResults& Latest = Results[Results.Num() - 1];
+				OnLatestOverallMeterResults.Broadcast(Latest);
+				OnLatestOverallMeterResultsNative.Broadcast(this, Latest);
+
 			}
 		}
 
-		bool bIsOnPerChannelMeterResultsBound = OnPerChannelMeterResults.IsBound();
-		bool bIsOnLatestPerChannelMeterResultsBound = OnLatestPerChannelMeterResults.IsBound();
+		bool bIsOnPerChannelMeterResultsBound = OnPerChannelMeterResults.IsBound() || OnPerChannelMeterResultsNative.IsBound();
+		bool bIsOnLatestPerChannelMeterResultsBound = OnLatestPerChannelMeterResults.IsBound() || OnLatestPerChannelMeterResultsNative.IsBound();
 
 		if (bIsOnPerChannelMeterResultsBound || bIsOnLatestPerChannelMeterResultsBound)
 		{
@@ -139,15 +137,11 @@ void UMeterAnalyzer::BroadcastResults()
 					TArray<FMeterResults> Results = ConvertToBlueprintResults(Settings, MeterArray);
 					check(Results.Num() > 0);
 
-					if (bIsOnPerChannelMeterResultsBound)
-					{
-						OnPerChannelMeterResults.Broadcast(ChannelIndex, Results);
-					}
+					OnPerChannelMeterResults.Broadcast(ChannelIndex, Results);
+					OnPerChannelMeterResultsNative.Broadcast(this, ChannelIndex, Results);
 
-					if (bIsOnLatestPerChannelMeterResultsBound)
-					{
-						OnLatestPerChannelMeterResults.Broadcast(ChannelIndex, Results[Results.Num() - 1]);
-					}
+					OnLatestPerChannelMeterResults.Broadcast(ChannelIndex, Results[Results.Num() - 1]);
+					OnLatestPerChannelMeterResultsNative.Broadcast(this, ChannelIndex, Results[Results.Num() - 1]);
 				}
 			}
 		}
