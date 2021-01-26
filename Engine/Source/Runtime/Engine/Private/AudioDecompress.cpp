@@ -753,6 +753,11 @@ bool ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask()
 
 bool ICompressedAudioInfo::StreamCompressedInfo(USoundWave* Wave, FSoundQualityInfo* QualityInfo)
 {
+	if (!Wave)
+	{
+		return false;
+	}
+
 	// Create and cache proxy object
 	Audio::FProxyDataInitParams Params;
 	Params.NameOfFeatureRequestingProxy = "ICompressedAudioInfo";
