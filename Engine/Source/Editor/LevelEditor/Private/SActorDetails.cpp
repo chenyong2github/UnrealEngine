@@ -149,7 +149,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	[
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
-		.Padding(0.0f, 0.0f, 0.0f, 2.0f)
+		.Padding(0.0f, 4.0f, 0.0f, 4.0f)
 		.AutoHeight()
 		[
 			DetailsView->GetNameAreaWidget().ToSharedRef()

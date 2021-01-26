@@ -708,14 +708,14 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		.SetHoveredForeground(FStyleColors::ForegroundHover)
 		.SetPressedForeground(FStyleColors::ForegroundHover)
 		.SetDisabledForeground(FStyleColors::White25)
-		.SetNormalPadding(FMargin(6, 6))
-		.SetPressedPadding(FMargin(6, 6));
+		.SetNormalPadding(FMargin(6, 4))
+		.SetPressedPadding(FMargin(6, 4));
 
 	Set("RoundedButton", RoundedButtonStyle);
 
 	FComboButtonStyle AddNewComboButtonStyle = FComboButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
-		.SetButtonStyle(RoundedButtonStyle)
-		.SetDownArrowPadding(FMargin(1,0,0,0));
+		.SetButtonStyle(RoundedButtonStyle) 
+		.SetDownArrowImage(FSlateNoResource());
 
 	Set("RoundedComboButton", AddNewComboButtonStyle);
 

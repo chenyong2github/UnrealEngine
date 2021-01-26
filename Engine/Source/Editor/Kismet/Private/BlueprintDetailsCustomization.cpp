@@ -3748,6 +3748,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 
 			OutputsHeaderContentWidget->AddSlot()
 				.HAlign(HAlign_Right)
+				.Padding(FMargin(0,0,2,0))
 				[
 					SNew(SButton)
 					.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
