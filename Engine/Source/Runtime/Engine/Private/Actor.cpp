@@ -1118,7 +1118,7 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 	const bool bSuccess = Super::Rename( InName, NewOuter, Flags );
 
 #if WITH_EDITOR
-	if (!bRenameTest && bExternalActor && NewOuter)
+	if (!bRenameTest && bExternalActor)
 	{
 		if (ULevel* MyLevel = GetLevel())
 		{
