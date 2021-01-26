@@ -350,6 +350,9 @@ void SSourceControlChangelistsWidget::Refresh()
 {
 	if (ISourceControlModule::Get().IsEnabled())
 	{
+		TMap<FSourceControlChangelistStateRef, ExpandedState> ExpandedStates;
+		SaveExpandedState(ExpandedStates);
+
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		TArray<FSourceControlChangelistRef> Changelists = SourceControlProvider.GetChangelists(EStateCacheUsage::Use);
 
@@ -382,6 +385,8 @@ void SSourceControlChangelistsWidget::Refresh()
 
 			ChangelistsNodes.Add(ChangelistTreeItem);
 		}
+
+		RestoreExpandedState(ExpandedStates);
 
 		TreeView->RequestTreeRefresh();
 	}
@@ -1303,5 +1308,63 @@ void SSourceControlChangelistsWidget::OnGetChildren(FChangelistTreeItemPtr InPar
 	}
 }
 
+void SSourceControlChangelistsWidget::SaveExpandedState(TMap<FSourceControlChangelistStateRef, ExpandedState>& ExpandedStates) const
+{
+	for (FChangelistTreeItemPtr Root : ChangelistsNodes)
+	{
+		if (Root->GetTreeItemType() != IChangelistTreeItem::Changelist)
+		{
+			continue;
+		}
+
+		bool bChangelistExpanded = TreeView->IsItemExpanded(Root);
+
+		bool bShelveExpanded = false;
+		for (FChangelistTreeItemPtr Child : Root->GetChildren())
+		{
+			if (Child->GetTreeItemType() == IChangelistTreeItem::ShelvedChangelist)
+			{
+				bShelveExpanded = TreeView->IsItemExpanded(Child);
+				break;
+			}
+		}
+
+		ExpandedState State;
+		State.bChangelistExpanded = bChangelistExpanded;
+		State.bShelveExpanded = bShelveExpanded;
+
+		ExpandedStates.Add(StaticCastSharedPtr<FChangelistTreeItem>(Root)->ChangelistState, State);
+	}
+}
+
+void SSourceControlChangelistsWidget::RestoreExpandedState(const TMap<FSourceControlChangelistStateRef, ExpandedState>& ExpandedStates)
+{
+	for (FChangelistTreeItemPtr Root : ChangelistsNodes)
+	{
+		if (Root->GetTreeItemType() != IChangelistTreeItem::Changelist)
+		{
+			continue;
+		}
+
+		FSourceControlChangelistStateRef ChangelistState = StaticCastSharedPtr<FChangelistTreeItem>(Root)->ChangelistState;
+		const ExpandedState* State = ExpandedStates.Find(ChangelistState);
+
+		if (!State)
+		{
+			continue;
+		}
+
+		TreeView->SetItemExpansion(Root, State->bChangelistExpanded);
+
+		for (FChangelistTreeItemPtr Child : Root->GetChildren())
+		{
+			if (Child->GetTreeItemType() == IChangelistTreeItem::ShelvedChangelist)
+			{
+				TreeView->SetItemExpansion(Child, State->bShelveExpanded);
+				break;
+			}
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

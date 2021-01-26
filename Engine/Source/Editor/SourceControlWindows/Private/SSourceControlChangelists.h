@@ -149,6 +149,14 @@ private:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
+	struct ExpandedState
+	{
+		bool bChangelistExpanded;
+		bool bShelveExpanded;
+	};
+
+	void SaveExpandedState(TMap<FSourceControlChangelistStateRef, ExpandedState>& ExpandedStates) const;
+	void RestoreExpandedState(const TMap<FSourceControlChangelistStateRef, ExpandedState>& ExpandedStates);
 
 	/** Changelists (root nodes) */
 	TArray<FChangelistTreeItemPtr> ChangelistsNodes;
