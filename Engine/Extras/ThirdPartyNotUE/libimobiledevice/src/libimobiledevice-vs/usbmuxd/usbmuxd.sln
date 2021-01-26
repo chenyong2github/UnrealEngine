@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "usbmuxd", "usbmuxd.vcxproj", "{E775C6D0-C295-4D09-9ADC-60FC95526993}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E775C6D0-C295-4D09-9ADC-60FC95526993}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E775C6D0-C295-4D09-9ADC-60FC95526993}.Debug|Win32.Build.0 = Debug|Win32
+		{E775C6D0-C295-4D09-9ADC-60FC95526993}.Debug|x64.ActiveCfg = Debug|x64
+		{E775C6D0-C295-4D09-9ADC-60FC95526993}.Debug|x64.Build.0 = Debug|x64
+		{E775C6D0-C295-4D09-9ADC-60FC95526993}.Release|Win32.ActiveCfg = Release|Win32
+		{E775C6D0-C295-4D09-9ADC-60FC95526993}.Release|Win32.Build.0 = Release|Win32
+		{E775C6D0-C295-4D09-9ADC-60FC95526993}.Release|x64.ActiveCfg = Release|x64
+		{E775C6D0-C295-4D09-9ADC-60FC95526993}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AAACBCE3-ED59-493E-B141-5D4D40F4E2FA}
+	EndGlobalSection
+EndGlobal
