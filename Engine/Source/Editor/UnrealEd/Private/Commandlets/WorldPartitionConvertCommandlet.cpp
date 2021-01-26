@@ -252,6 +252,7 @@ void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(const 
 	{
 		StreamingLevel->SetShouldBeLoaded(true);
 		StreamingLevel->SetShouldBeVisible(true);
+		StreamingLevel->SetShouldBeVisibleInEditor(true);
 	}
 
 	World->FlushLevelStreaming(EFlushLevelStreamingType::Full);
