@@ -383,10 +383,10 @@ void FDynamicMeshChangeTracker::SaveTrianglesAndNeighbourTris(EnumerableType Tri
 
 void FDynamicMeshChangeTracker::SaveVertexOneRingTriangles(int32 VertexID, bool bSaveVertices)
 {
-	for (int32 TriangleID : Mesh->VtxTrianglesItr(VertexID))
+	Mesh->EnumerateVertexTriangles(VertexID, [this, bSaveVertices](int32 TriangleID)
 	{
 		SaveTriangle(TriangleID, bSaveVertices);
-	}
+	});
 }
 
 template<typename EnumerableType>

@@ -5,13 +5,15 @@
 
 FIndex2i FDynamicMesh3::GetEdgeOpposingV(int eID) const
 {
-	// [TODO] there was a comment here saying this does more work than necessary??
+	const FEdge& Edge = Edges[eID];
+	int a = Edge.Vert[0];
+	int b = Edge.Vert[1];
+
 	// ** it is important that verts returned maintain [c,d] order!!
-	const FEdge Edge = Edges[eID];
-	int c = IndexUtil::FindTriOtherVtx(Edge.Vert[0], Edge.Vert[1], Triangles, Edge.Tri[0]);
+	int c = IndexUtil::FindTriOtherVtxUnsafe(a, b, Triangles[Edge.Tri[0]]);
 	if (Edge.Tri[1] != InvalidID)
 	{
-		int d = IndexUtil::FindTriOtherVtx(Edge.Vert[0], Edge.Vert[1], Triangles, Edge.Tri[1]);
+		int d = IndexUtil::FindTriOtherVtxUnsafe(a, b, Triangles[Edge.Tri[1]]);
 		return FIndex2i(c, d);
 	}
 	else

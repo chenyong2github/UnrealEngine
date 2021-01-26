@@ -87,6 +87,27 @@ namespace IndexUtil
 		return IndexConstants::InvalidID;
 	}
 
+	/**
+	 * Find third vertex of triangle that is not VertexID1 or VertexID2. Triangle must contain VertexID1 and VertexID2 or result will be incorrect.
+	 * @return VertexID of third vertex, or incorrect result if precondition is not met
+	 */
+	template<typename T, typename Vec>
+	inline int FindTriOtherVtxUnsafe(T VertexID1, T VertexID2, const Vec& TriangleVerts)
+	{
+		if (TriangleVerts[0] == VertexID1)
+		{
+			return (TriangleVerts[1] == VertexID2) ? TriangleVerts[2] : TriangleVerts[1];
+		}
+		else if (TriangleVerts[1] == VertexID1)
+		{
+			return (TriangleVerts[0] == VertexID2) ? TriangleVerts[2] : TriangleVerts[0];
+		}
+		else
+		{
+			return (TriangleVerts[0] == VertexID2) ? TriangleVerts[1] : TriangleVerts[0];
+		}
+	}
+
 
 	/**
 	 * Find ordered edge [VertexID1,VertexID2] in TriangleVerts and then return the remaining third vertex
