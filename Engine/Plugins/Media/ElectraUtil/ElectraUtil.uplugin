@@ -1,0 +1,33 @@
+{
+	"FileVersion" : 1,
+	"Version" : 0,
+	"VersionName" : "0.1",
+	"FriendlyName" : "Electra Player Utilities",
+	"Description" : "Reusable Base Components for Electra Player Media Playback",
+	"Category" : "Media Players",
+	"CreatedBy" : "Epic Games, Inc.",
+	"CreatedByURL" : "http://epicgames.com",
+	"DocsURL" : "https://docs.unrealengine.com/en-US/Engine/MediaFramework/Overview",
+	"MarketplaceURL" : "",
+	"SupportURL" : "",
+	"EnabledByDefault" : false,
+	"CanContainContent" : false,
+	"IsBetaVersion" : true,
+	"Installed" : false,
+	"Modules": [
+		{
+			"Name": "ElectraBase",
+			"Type": "RuntimeNoCommandlet",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [ "Win64", "Mac", "IOS", "Android" ],
+			"BlacklistTargets": [ "Server" ]
+		},
+		{
+			"Name": "ElectraSamples",
+			"Type": "RuntimeNoCommandlet",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [ "Win64", "Mac", "IOS", "Android" ],
+			"BlacklistTargets": [ "Server" ]
+		}
+	]
+}
