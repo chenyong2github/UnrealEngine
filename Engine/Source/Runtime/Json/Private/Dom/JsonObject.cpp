@@ -21,7 +21,28 @@ double FJsonObject::GetNumberField( const FString& FieldName ) const
 }
 
 
+bool FJsonObject::TryGetNumberField( const FString& FieldName, float& OutNumber ) const
+{
+	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
+	return Field.IsValid() && Field->TryGetNumber(OutNumber);
+}
+
+
 bool FJsonObject::TryGetNumberField( const FString& FieldName, double& OutNumber ) const
+{
+	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
+	return Field.IsValid() && Field->TryGetNumber(OutNumber);
+}
+
+
+bool FJsonObject::TryGetNumberField( const FString& FieldName, int8& OutNumber ) const
+{
+	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
+	return Field.IsValid() && Field->TryGetNumber(OutNumber);
+}
+
+
+bool FJsonObject::TryGetNumberField( const FString& FieldName, int16& OutNumber ) const
 {
 	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
 	return Field.IsValid() && Field->TryGetNumber(OutNumber);
@@ -35,17 +56,38 @@ bool FJsonObject::TryGetNumberField( const FString& FieldName, int32& OutNumber 
 }
 
 
+bool FJsonObject::TryGetNumberField(const FString& FieldName, int64& OutNumber) const
+{
+	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
+	return Field.IsValid() && Field->TryGetNumber(OutNumber);
+}
+
+
+bool FJsonObject::TryGetNumberField( const FString& FieldName, uint8& OutNumber ) const
+{
+	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
+	return Field.IsValid() && Field->TryGetNumber(OutNumber);
+}
+
+
+bool FJsonObject::TryGetNumberField( const FString& FieldName, uint16& OutNumber ) const
+{
+	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
+	return Field.IsValid() && Field->TryGetNumber(OutNumber);
+}
+
 bool FJsonObject::TryGetNumberField( const FString& FieldName, uint32& OutNumber ) const
 {
 	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
 	return Field.IsValid() && Field->TryGetNumber(OutNumber);
 }
 
-bool FJsonObject::TryGetNumberField(const FString& FieldName, int64& OutNumber) const
+bool FJsonObject::TryGetNumberField( const FString& FieldName, uint64& OutNumber ) const
 {
 	TSharedPtr<FJsonValue> Field = TryGetField(FieldName);
 	return Field.IsValid() && Field->TryGetNumber(OutNumber);
 }
+
 
 void FJsonObject::SetNumberField( const FString& FieldName, double Number )
 {
@@ -164,5 +206,13 @@ void FJsonObject::SetObjectField( const FString& FieldName, const TSharedPtr<FJs
 	else
 	{
 		this->Values.Add(FieldName, MakeShared<FJsonValueNull>());
+	}
+}
+
+void FJsonObject::Duplicate(const TSharedPtr<FJsonObject>& Source, TSharedPtr<FJsonObject>& Dest)
+{
+	for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : Source->Values)
+	{
+		Dest->SetField(Pair.Key, FJsonValue::Duplicate(Pair.Value));
 	}
 }

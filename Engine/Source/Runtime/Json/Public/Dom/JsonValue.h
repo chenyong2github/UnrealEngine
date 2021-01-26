@@ -68,9 +68,15 @@ public:
 
 	/** Tries to convert this value to an array, returning false if not possible */
 	virtual bool TryGetArray(const TArray< TSharedPtr<FJsonValue> >*& OutArray) const { return false; }
+	
+	/** Tries to convert this value to an array, returning false if not possible */
+	virtual bool TryGetArray(TArray< TSharedPtr<FJsonValue> >*& OutArray) { return false; }
 
 	/** Tries to convert this value to an object, returning false if not possible */
 	virtual bool TryGetObject(const TSharedPtr<FJsonObject>*& Object) const { return false; }
+
+	/** Tries to convert this value to an object, returning false if not possible */
+	virtual bool TryGetObject(TSharedPtr<FJsonObject>*& Object) { return false; }
 
 	/** Returns true if this value is a 'null' */
 	bool IsNull() const { return Type == EJson::Null || Type == EJson::None; }
@@ -83,6 +89,8 @@ public:
 	void AsArgumentType(TSharedPtr<FJsonObject>         & Value) { Value = AsObject(); }
 
 	EJson Type;
+
+	static TSharedPtr<FJsonValue> Duplicate(const TSharedPtr<FJsonValue>& Src);
 
 	static bool CompareEqual(const FJsonValue& Lhs, const FJsonValue& Rhs);
 
@@ -196,6 +204,7 @@ class JSON_API FJsonValueArray : public FJsonValue
 public:
 	FJsonValueArray(const TArray< TSharedPtr<FJsonValue> >& InArray) : Value(InArray) {Type = EJson::Array;}
 	virtual bool TryGetArray(const TArray< TSharedPtr<FJsonValue> >*& OutArray) const override	{ OutArray = &Value; return true; }
+	virtual bool TryGetArray(TArray< TSharedPtr<FJsonValue> >*& OutArray) override				{ OutArray = &Value; return true; }
 	
 protected:
 	TArray< TSharedPtr<FJsonValue> > Value;
@@ -209,7 +218,8 @@ class JSON_API FJsonValueObject : public FJsonValue
 {
 public:
 	FJsonValueObject(TSharedPtr<FJsonObject> InObject) : Value(InObject) {Type = EJson::Object;}
-	virtual bool TryGetObject(const TSharedPtr<FJsonObject>*& OutObject) const override			{ OutObject = &Value; return true; }
+	virtual bool TryGetObject(const TSharedPtr<FJsonObject>*& OutObject) const override	{ OutObject = &Value; return true; }
+	virtual bool TryGetObject(TSharedPtr<FJsonObject>*& OutObject) override				{ OutObject = &Value; return true; }
 	
 protected:
 	TSharedPtr<FJsonObject> Value;

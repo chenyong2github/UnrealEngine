@@ -3,9 +3,6 @@
 #include "Dom/JsonValue.h"
 #include "Dom/JsonObject.h"
 
-
-
-
 double FJsonValue::AsNumber() const
 {
 	double Number = 0.0;
@@ -267,6 +264,68 @@ bool FJsonValue::CompareEqual( const FJsonValue& Lhs, const FJsonValue& Rhs )
 	default:
 		return false;
 	}
+}
+
+static void DuplicateJsonArray(const TArray<TSharedPtr<FJsonValue>>& Source, TArray<TSharedPtr<FJsonValue>>& Dest)
+{
+	for (const TSharedPtr<FJsonValue>& Value : Source)
+	{
+		Dest.Add(FJsonValue::Duplicate(Value));
+	} 
+}
+
+TSharedPtr<FJsonValue> FJsonValue::Duplicate(const TSharedPtr<FJsonValue>& Src)
+{
+	switch (Src->Type)
+	{
+		case EJson::Boolean:
+		{
+			bool BoolValue;
+			if (Src->TryGetBool(BoolValue))
+			{
+				return MakeShared<FJsonValueBoolean>(BoolValue);
+			}
+		}
+		case EJson::Number:
+		{
+			double NumberValue;
+			if (Src->TryGetNumber(NumberValue))
+			{
+				return MakeShared<FJsonValueNumber>(NumberValue);
+			}
+		}
+		case EJson::String:
+		{
+			FString StringValue;
+			if (Src->TryGetString(StringValue))
+			{
+				return MakeShared<FJsonValueString>(StringValue);
+			}
+		}
+		case EJson::Object:
+		{
+			const TSharedPtr<FJsonObject>* ObjectValue;
+			if (Src->TryGetObject(ObjectValue))
+			{
+				TSharedPtr<FJsonObject> NewObject = MakeShared<FJsonObject>();
+				FJsonObject::Duplicate(*ObjectValue, NewObject);
+				return MakeShared<FJsonValueObject>(NewObject);
+			}
+		}
+		case EJson::Array:
+		{
+			const TArray<TSharedPtr<FJsonValue>>* ArrayValue;
+			if (Src->TryGetArray(ArrayValue))
+			{
+				TArray<TSharedPtr<FJsonValue>> NewArray;
+				DuplicateJsonArray(*ArrayValue, NewArray);
+
+				return MakeShared<FJsonValueArray>(NewArray);
+			}
+		}
+	}
+
+	return TSharedPtr<FJsonValue>();
 }
 
 void FJsonValue::ErrorMessage(const FString& InType) const

@@ -122,16 +122,34 @@ public:
 	}
 
 	/** Get the field named FieldName as a number. Returns false if it doesn't exist or cannot be converted. */
+	bool TryGetNumberField(const FString& FieldName, float& OutNumber) const;
+
+	/** Get the field named FieldName as a number. Returns false if it doesn't exist or cannot be converted. */
 	bool TryGetNumberField(const FString& FieldName, double& OutNumber) const;
+
+	/** Get the field named FieldName as a number, and makes sure it's within int8 range. Returns false if it doesn't exist or cannot be converted. */
+	bool TryGetNumberField(const FString& FieldName, int8& OutNumber) const;
+
+	/** Get the field named FieldName as a number, and makes sure it's within int16 range. Returns false if it doesn't exist or cannot be converted. */
+	bool TryGetNumberField(const FString& FieldName, int16& OutNumber) const;
 
 	/** Get the field named FieldName as a number, and makes sure it's within int32 range. Returns false if it doesn't exist or cannot be converted. */
 	bool TryGetNumberField(const FString& FieldName, int32& OutNumber) const;
 
+	/** Get the field named FieldName as a number. Returns false if it doesn't exist or cannot be converted. */
+	bool TryGetNumberField(const FString& FieldName, int64& OutNumber) const;
+
+	/** Get the field named FieldName as a number, and makes sure it's within uint8 range. Returns false if it doesn't exist or cannot be converted. */
+	bool TryGetNumberField(const FString& FieldName, uint8& OutNumber) const;
+
+	/** Get the field named FieldName as a number, and makes sure it's within uint16 range. Returns false if it doesn't exist or cannot be converted. */
+	bool TryGetNumberField(const FString& FieldName, uint16& OutNumber) const;
+
 	/** Get the field named FieldName as a number, and makes sure it's within uint32 range. Returns false if it doesn't exist or cannot be converted.  */
 	bool TryGetNumberField(const FString& FieldName, uint32& OutNumber) const;
 
-	/** Get the field named FieldName as a number. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, int64& OutNumber) const;
+	/** Get the field named FieldName as a number, and makes sure it's within uint64 range. Returns false if it doesn't exist or cannot be converted.  */
+	bool TryGetNumberField(const FString& FieldName, uint64& OutNumber) const;
 
 	/** Add a field named FieldName with Number as value */
 	void SetNumberField( const FString& FieldName, double Number );
@@ -210,4 +228,6 @@ public:
 
 	/** Set an ObjectField named FieldName and value of JsonObject */
 	void SetObjectField( const FString& FieldName, const TSharedPtr<FJsonObject>& JsonObject );
+
+	static void Duplicate(const TSharedPtr<FJsonObject>& Source, TSharedPtr<FJsonObject>& Dest);
 };
