@@ -2,32 +2,7 @@
 
 #include "Misc/Blake3.h"
 
-#include "Containers/StringView.h"
-#include "Memory/MemoryView.h"
-#include "Serialization/Archive.h"
-#include "String/HexToBytes.h"
-
 #include "blake3.h"
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FBlake3Hash::FBlake3Hash(const FAnsiStringView HexHash)
-{
-	check(HexHash.Len() == sizeof(ByteArray) * 2);
-	UE::String::HexToBytes(HexHash, Hash);
-}
-
-FBlake3Hash::FBlake3Hash(const FWideStringView HexHash)
-{
-	check(HexHash.Len() == sizeof(ByteArray) * 2);
-	UE::String::HexToBytes(HexHash, Hash);
-}
-
-FArchive& operator<<(FArchive& Ar, FBlake3Hash& Hash)
-{
-	Ar.Serialize(Hash.Hash, sizeof(Hash.Hash));
-	return Ar;
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -47,10 +22,12 @@ void FBlake3::Update(const void* Data, uint64 Size)
 
 FBlake3Hash FBlake3::Finalize() const
 {
-	uint8 Output[BLAKE3_OUT_LEN];
+	FBlake3Hash Hash;
+	FBlake3Hash::ByteArray& Output = Hash.GetBytes();
+	static_assert(sizeof(decltype(Output)) == BLAKE3_OUT_LEN, "Mismatch in BLAKE3 hash size.");
 	const blake3_hasher& Hasher = reinterpret_cast<const blake3_hasher&>(HasherBytes);
 	blake3_hasher_finalize(&Hasher, Output, BLAKE3_OUT_LEN);
-	return FBlake3Hash(Output);
+	return Hash;
 }
 
 FBlake3Hash FBlake3::HashBuffer(const void* Data, uint64 Size)

@@ -3,10 +3,12 @@
 #pragma once
 
 #include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
 #include "HAL/UnrealMemory.h"
 #include "Memory/MemoryView.h"
+#include "Serialization/Archive.h"
 #include "String/BytesToHex.h"
-#include "Templates/TypeCompatibleBytes.h"
+#include "String/HexToBytes.h"
 
 class FArchive;
 
@@ -20,22 +22,23 @@ public:
 
 	/** Construct a zero hash. */
 	FBlake3Hash() = default;
-	explicit FBlake3Hash(const ByteArray& Hash);
+
+	/** Construct a hash from an array of 32 bytes. */
+	inline explicit FBlake3Hash(const ByteArray& Hash);
 
 	/** Construct a hash from a 64-character hex string. */
-	CORE_API explicit FBlake3Hash(FAnsiStringView HexHash);
-	CORE_API explicit FBlake3Hash(FWideStringView HexHash);
-
-	CORE_API friend FArchive& operator<<(FArchive& Ar, FBlake3Hash& Hash);
+	inline explicit FBlake3Hash(FAnsiStringView HexHash);
+	inline explicit FBlake3Hash(FWideStringView HexHash);
 
 	/** Reset this to a zero hash. */
 	inline void Reset() { *this = FBlake3Hash(); }
 
-	/** Returns a reference to the raw byte array for the hash. */
-	inline const ByteArray& GetBytes() const { return Hash; }
-
 	/** Returns whether this is a zero hash. */
 	inline bool IsZero() const;
+
+	/** Returns a reference to the raw byte array for the hash. */
+	inline ByteArray& GetBytes() { return Hash; }
+	inline const ByteArray& GetBytes() const { return Hash; }
 
 private:
 	alignas(uint32) ByteArray Hash{};
@@ -87,6 +90,18 @@ inline FBlake3Hash::FBlake3Hash(const ByteArray& InHash)
 	FMemory::Memcpy(Hash, InHash, sizeof(ByteArray));
 }
 
+inline FBlake3Hash::FBlake3Hash(const FAnsiStringView HexHash)
+{
+	check(HexHash.Len() == sizeof(ByteArray) * 2);
+	UE::String::HexToBytes(HexHash, Hash);
+}
+
+inline FBlake3Hash::FBlake3Hash(const FWideStringView HexHash)
+{
+	check(HexHash.Len() == sizeof(ByteArray) * 2);
+	UE::String::HexToBytes(HexHash, Hash);
+}
+
 inline bool FBlake3Hash::IsZero() const
 {
 	using UInt32Array = uint32[8];
@@ -114,6 +129,12 @@ inline bool operator!=(const FBlake3Hash& A, const FBlake3Hash& B)
 inline bool operator<(const FBlake3Hash& A, const FBlake3Hash& B)
 {
 	return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) < 0;
+}
+
+inline FArchive& operator<<(FArchive& Ar, FBlake3Hash& Hash)
+{
+	Ar.Serialize(Hash.GetBytes(), sizeof(decltype(Hash.GetBytes())));
+	return Ar;
 }
 
 inline uint32 GetTypeHash(const FBlake3Hash& Hash)
