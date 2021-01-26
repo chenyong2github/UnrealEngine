@@ -170,27 +170,30 @@ void UAnimGraphNode_StateMachineBase::PostPasteNode()
 {
 	Super::PostPasteNode();
 
-	// Add the new graph as a child of our parent graph
-	UEdGraph* ParentGraph = GetGraph();
-
-	if(ParentGraph->SubGraphs.Find(EditorStateMachineGraph) == INDEX_NONE)
+	if(EditorStateMachineGraph)
 	{
-		ParentGraph->SubGraphs.Add(EditorStateMachineGraph);
+		// Add the new graph as a child of our parent graph
+		UEdGraph* ParentGraph = GetGraph();
+
+		if(ParentGraph->SubGraphs.Find(EditorStateMachineGraph) == INDEX_NONE)
+		{
+			ParentGraph->SubGraphs.Add(EditorStateMachineGraph);
+		}
+
+		for (UEdGraphNode* GraphNode : EditorStateMachineGraph->Nodes)
+		{
+			GraphNode->CreateNewGuid();
+			GraphNode->PostPasteNode();
+			GraphNode->ReconstructNode();
+		}
+
+		// Find an interesting name
+		TSharedPtr<INameValidatorInterface> NameValidator = FNameValidatorFactory::MakeValidator(this);
+		FBlueprintEditorUtils::RenameGraphWithSuggestion(EditorStateMachineGraph, NameValidator, EditorStateMachineGraph->GetName());
+
+		//restore transactional flag that is lost during copy/paste process
+		EditorStateMachineGraph->SetFlags(RF_Transactional);
 	}
-
-	for (UEdGraphNode* GraphNode : EditorStateMachineGraph->Nodes)
-	{
-		GraphNode->CreateNewGuid();
-		GraphNode->PostPasteNode();
-		GraphNode->ReconstructNode();
-	}
-
-	// Find an interesting name
-	TSharedPtr<INameValidatorInterface> NameValidator = FNameValidatorFactory::MakeValidator(this);
-	FBlueprintEditorUtils::RenameGraphWithSuggestion(EditorStateMachineGraph, NameValidator, EditorStateMachineGraph->GetName());
-
-	//restore transactional flag that is lost during copy/paste process
-	EditorStateMachineGraph->SetFlags(RF_Transactional);
 }
 
 FString UAnimGraphNode_StateMachineBase::GetStateMachineName()

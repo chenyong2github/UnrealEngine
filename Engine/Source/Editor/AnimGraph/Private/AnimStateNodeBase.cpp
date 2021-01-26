@@ -50,23 +50,26 @@ void UAnimStateNodeBase::PostPasteNode()
 
 	for(UEdGraph* SubGraph : GetSubGraphs())
 	{
-		// Add the new graph as a child of our parent graph
-		UEdGraph* ParentGraph = GetGraph();
-
-		if(ParentGraph->SubGraphs.Find(SubGraph) == INDEX_NONE)
+		if(SubGraph)
 		{
-			ParentGraph->SubGraphs.Add(SubGraph);
+			// Add the new graph as a child of our parent graph
+			UEdGraph* ParentGraph = GetGraph();
+
+			if(ParentGraph->SubGraphs.Find(SubGraph) == INDEX_NONE)
+			{
+				ParentGraph->SubGraphs.Add(SubGraph);
+			}
+
+			//@TODO: CONDUIT: Merge conflict - May no longer be necessary due to other changes?
+	//		FBlueprintEditorUtils::RenameGraphWithSuggestion(SubGraph, NameValidator, GetDesiredNewNodeName());
+			//@ENDTODO
+
+			// Restore transactional flag that is lost during copy/paste process
+			SubGraph->SetFlags(RF_Transactional);
+
+			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(ParentGraph);
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 		}
-
-		//@TODO: CONDUIT: Merge conflict - May no longer be necessary due to other changes?
-//		FBlueprintEditorUtils::RenameGraphWithSuggestion(SubGraph, NameValidator, GetDesiredNewNodeName());
-		//@ENDTODO
-
-		// Restore transactional flag that is lost during copy/paste process
-		SubGraph->SetFlags(RF_Transactional);
-
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(ParentGraph);
-		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 	}
 }
 
