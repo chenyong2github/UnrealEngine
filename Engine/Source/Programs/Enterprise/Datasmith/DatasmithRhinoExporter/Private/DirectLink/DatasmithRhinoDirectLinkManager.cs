@@ -131,7 +131,8 @@ namespace DatasmithRhino.DirectLink
 				}
 				DirectLink.InitializeForScene(DatasmithScene);
 
-				DatasmithRhinoExportOptions ExportOptions = new DatasmithRhinoExportOptions(RhinoDocument, DatasmithScene);
+				const bool bSkipHidden = false;
+				DatasmithRhinoExportOptions ExportOptions = new DatasmithRhinoExportOptions(RhinoDocument, DatasmithScene, bSkipHidden);
 				ExportContext = new DatasmithRhinoExportContext(ExportOptions);
 			}
 			catch (Exception)

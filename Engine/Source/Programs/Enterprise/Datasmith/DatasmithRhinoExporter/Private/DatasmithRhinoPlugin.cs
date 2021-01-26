@@ -56,8 +56,9 @@ namespace DatasmithRhino
 		/// <returns>A value that defines success or a specific failure.</returns>
 		protected override WriteFileResult WriteFile(string Filename, int Index, RhinoDoc RhinoDocument, Rhino.FileIO.FileWriteOptions Options)
 		{
+			const bool bSkipHidden = true;
 			FDatasmithFacadeScene DatasmithScene = DatasmithRhinoSceneExporter.CreateDatasmithScene(Filename, RhinoDocument);
-			DatasmithRhinoExportOptions ExportOptions = new DatasmithRhinoExportOptions(Options, RhinoDocument, DatasmithScene);
+			DatasmithRhinoExportOptions ExportOptions = new DatasmithRhinoExportOptions(Options, RhinoDocument, DatasmithScene, bSkipHidden);
 			return DatasmithRhinoSceneExporter.ExportToFile(ExportOptions);
 		}
 

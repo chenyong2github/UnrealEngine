@@ -8,6 +8,7 @@ using Rhino.Geometry;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DatasmithRhino
@@ -45,7 +46,7 @@ namespace DatasmithRhino
 		}
 	}
 
-	public class DatasmithActorInfo : DatasmithInfoBase, IEnumerable<DatasmithActorInfo>
+	public class DatasmithActorInfo : DatasmithInfoBase
 	{
 		public bool bHasRhinoObject { get { return RhinoModelComponent is RhinoObject; } }
 		public bool bHasRhinoLayer { get { return RhinoModelComponent is Layer; } }
@@ -62,6 +63,26 @@ namespace DatasmithRhino
 		public FDatasmithFacadeActor DatasmithActor { get { return ExportedElement as FDatasmithFacadeActor; } }
 		private List<DatasmithActorInfo> Children = new List<DatasmithActorInfo>();
 		public HashSet<int> LayerIndices { get; private set; } = new HashSet<int>();
+		public Layer VisibilityLayer { get; private set; } = null;
+
+		public bool bIsVisible {
+			get {
+				if (bHasRhinoLayer)
+				{
+					// This recursion ensure that only layer actors with an actual exported object under them are considered visible.
+					// ie. Layers containing no mesh are not visible.
+					return (RhinoObject as Layer).IsVisible
+						&& Children.Any(Child => Child.bIsVisible);
+				}
+				else if (bIsRoot)
+				{
+					return true;
+				}
+
+				return (VisibilityLayer == null || VisibilityLayer.IsVisible)
+					&& (LinkedNode == null || LinkedNode.bIsVisible);
+			}
+		}
 
 		public DatasmithActorInfo(Transform NodeTransform, string InName, string InLabel)
 			: base(null, InName, InLabel)
@@ -69,13 +90,14 @@ namespace DatasmithRhino
 			WorldTransform = NodeTransform;
 		}
 
-		public DatasmithActorInfo(ModelComponent InModelComponent, string InName, string InLabel, List<string> InTags, int InMaterialIndex, bool bInOverrideMaterial)
+		public DatasmithActorInfo(ModelComponent InModelComponent, string InName, string InLabel, List<string> InTags, int InMaterialIndex, bool bInOverrideMaterial, Layer InVisibilityLayer)
 			: base(InModelComponent, InName, InLabel)
 		{
 			bIsInstanceDefinition = RhinoModelComponent is InstanceDefinition;
 			Tags = InTags;
 			MaterialIndex = InMaterialIndex;
 			bOverrideMaterial = bInOverrideMaterial;
+			VisibilityLayer = InVisibilityLayer;
 
 			WorldTransform = DatasmithRhinoUtilities.GetModelComponentTransform(RhinoModelComponent);
 		}
@@ -141,26 +163,26 @@ namespace DatasmithRhino
 			return Children.Remove(ChildNode);
 		}
 
-		//IEnumerable interface begin
-		public IEnumerator<DatasmithActorInfo> GetEnumerator()
+		/// <summary>
+		/// Custom enumerator implementation, we might want to enumerate with or without hidden actors.
+		/// </summary>
+		/// <param name="bIncludeHidden"></param>
+		/// <returns></returns>
+		public IEnumerable<DatasmithActorInfo> GetEnumerator(bool bIncludeHidden)
 		{
-			yield return this;
-
-			foreach (var Child in Children)
+			if (bIncludeHidden || bIsVisible)
 			{
-				var ChildEnumerator = Child.GetEnumerator();
-				while(ChildEnumerator.MoveNext())
+				yield return this;
+
+				foreach (var Child in Children)
 				{
-					yield return ChildEnumerator.Current;
+					foreach (var ChildEnumValue in Child.GetEnumerator(bIncludeHidden))
+					{
+						yield return ChildEnumValue;
+					}
 				}
 			}
 		}
-
-		IEnumerator IEnumerable.GetEnumerator()
-		{
-			return GetEnumerator();
-		}
-		//IEnumerable interface end
 	}
 
 	public class DatasmithMaterialInfo : DatasmithInfoBase
@@ -327,10 +349,9 @@ namespace DatasmithRhino
 				// that way there are no actors deleted and the Datasmith IDs stay consistent.
 				string DummyLayerName = RhinoDocument.Path;
 				string DummyLayerLabel = RhinoDocument.Name;
-				const int DefaultMaterialIndex = -1;
 				const int DummyLayerIndex = -1;
 
-				DummyDocumentNode = GenerateDummyNodeInfo(DummyLayerName, DummyLayerLabel, DefaultMaterialIndex);
+				DummyDocumentNode = GenerateDummyNodeInfo(DummyLayerName, DummyLayerLabel);
 				SceneRoot.AddChild(DummyDocumentNode, DummyLayerIndex);
 				LayerIndexToLayerString.Add(DummyLayerIndex, BuildLayerString(DummyDocumentNode.Label, SceneRoot));
 			}
@@ -351,13 +372,13 @@ namespace DatasmithRhino
 
 		private void RecursivelyParseLayerHierarchy(Layer CurrentLayer, DatasmithActorInfo ParentNode)
 		{
-			if(!CurrentLayer.IsVisible || CurrentLayer.IsDeleted)
+			if ((ExportOptions.bSkipHidden && !CurrentLayer.IsVisible) || CurrentLayer.IsDeleted)
 			{
 				return;
 			}
 
 			int MaterialIndex = CurrentLayer.RenderMaterialIndex;
-			DatasmithActorInfo ActorNodeInfo = GenerateNodeInfo(CurrentLayer, ParentNode.bIsInstanceDefinition, MaterialIndex);
+			DatasmithActorInfo ActorNodeInfo = GenerateNodeInfo(CurrentLayer, ParentNode.bIsInstanceDefinition, MaterialIndex, CurrentLayer);
 			ParentNode.AddChild(ActorNodeInfo, CurrentLayer.Index);
 			GuidToHierarchyActorNodeDictionary.Add(CurrentLayer.Id, ActorNodeInfo);
 			LayerIndexToLayerString.Add(CurrentLayer.Index, BuildLayerString(CurrentLayer, ParentNode));
@@ -373,12 +394,6 @@ namespace DatasmithRhino
 				{
 					RecursivelyParseLayerHierarchy(ChildLayer, ActorNodeInfo);
 				}
-			}
-
-			if (ActorNodeInfo.GetChildrenCount() == 0) 
-			{
-				// This layer is empty, remove it.
-				ParentNode.RemoveChild(ActorNodeInfo);
 			}
 		}
 
@@ -431,9 +446,14 @@ namespace DatasmithRhino
 					}
 				}
 
+				bool bIsActorInInstanceDefinition = ParentNode.bIsRoot && ParentNode.bIsInstanceDefinition;
+				Layer VisiblityLayer = bIsActorInInstanceDefinition
+					? RhinoDocument.Layers.FindIndex(CurrentObject.Attributes.LayerIndex)
+					: ParentNode.VisibilityLayer;
+
 				int MaterialIndex = GetObjectMaterialIndex(CurrentObject, ParentNode);
-				DatasmithActorInfo ObjectNodeInfo = GenerateNodeInfo(CurrentObject, ParentNode.bIsInstanceDefinition, MaterialIndex);
-				if (ParentNode.bIsRoot && ParentNode.bIsInstanceDefinition)
+				DatasmithActorInfo ObjectNodeInfo = GenerateNodeInfo(CurrentObject, ParentNode.bIsInstanceDefinition, MaterialIndex, VisiblityLayer);
+				if (bIsActorInInstanceDefinition)
 				{
 					// The objects inside a Block definitions may be defined in a different layer than the one we are currently in.
 					ParentNode.AddChild(ObjectNodeInfo, GetOrCreateLayerIndexHierarchy(CurrentObject.Attributes.LayerIndex));
@@ -455,7 +475,7 @@ namespace DatasmithRhino
 		private bool IsObjectIgnoredBySelection(RhinoObject InObject, DatasmithActorInfo ParentNode)
 		{
 			return !ParentNode.bIsInstanceDefinition
-					&& ExportOptions.WriteSelectedObjectsOnly
+					&& ExportOptions.bWriteSelectedObjectsOnly
 					&& InObject.IsSelected(/*checkSubObjects=*/true) == 0;
 		}
 
@@ -479,7 +499,7 @@ namespace DatasmithRhino
 			{
 				DatasmithActorInfo DefinitionChildNode = DefinitionNode.GetChild(ChildIndex);
 				int MaterialIndex = GetObjectMaterialIndex(DefinitionChildNode.RhinoModelComponent as RhinoObject, ParentNode);
-				DatasmithActorInfo InstanceChildNode = GenerateInstanceNodeInfo(ParentNode, DefinitionChildNode, MaterialIndex);
+				DatasmithActorInfo InstanceChildNode = GenerateInstanceNodeInfo(ParentNode, DefinitionChildNode, MaterialIndex, ParentNode.VisibilityLayer);
 				ParentNode.AddChild(InstanceChildNode);
 
 				InstanciateDefinition(InstanceChildNode, DefinitionChildNode);
@@ -495,8 +515,9 @@ namespace DatasmithRhino
 			{
 				const bool bIsInstanceDefinition = true;
 				const int MaterialIndex = -1;
+				const Layer NullVisibilityLayer = null;
 
-				InstanceRootNode = GenerateNodeInfo(InInstanceDefinition, bIsInstanceDefinition, MaterialIndex);
+				InstanceRootNode = GenerateNodeInfo(InInstanceDefinition, bIsInstanceDefinition, MaterialIndex, NullVisibilityLayer);
 				InstanceDefinitionHierarchyNodeDictionary.Add(InInstanceDefinition, InstanceRootNode);
 
 				RhinoObject[] InstanceObjects = InInstanceDefinition.GetObjects();
@@ -513,14 +534,14 @@ namespace DatasmithRhino
 		/// <param name="DefinitionNodeInfo"></param>
 		/// <param name="MaterialIndex"></param>
 		/// <returns></returns>
-		private DatasmithActorInfo GenerateInstanceNodeInfo(DatasmithActorInfo InstanceParentNodeInfo, DatasmithActorInfo DefinitionNodeInfo, int MaterialIndex)
+		private DatasmithActorInfo GenerateInstanceNodeInfo(DatasmithActorInfo InstanceParentNodeInfo, DatasmithActorInfo DefinitionNodeInfo, int MaterialIndex, Layer VisibilityLayer)
 		{
 			string Name = string.Format("{0}_{1}", InstanceParentNodeInfo.Name, DefinitionNodeInfo.Name);
 			string Label = ActorLabelGenerator.GenerateUniqueNameFromBaseName(DefinitionNodeInfo.Label);
 			List<string> Tags = new List<string>(DefinitionNodeInfo.Tags);
 			bool bOverrideMaterial = DefinitionNodeInfo.MaterialIndex != MaterialIndex;
 
-			return new DatasmithActorInfo(DefinitionNodeInfo.RhinoModelComponent, Name, Label, Tags, MaterialIndex, bOverrideMaterial);
+			return new DatasmithActorInfo(DefinitionNodeInfo.RhinoModelComponent, Name, Label, Tags, MaterialIndex, bOverrideMaterial, VisibilityLayer);
 		}
 
 		/// <summary>
@@ -528,17 +549,12 @@ namespace DatasmithRhino
 		/// </summary>
 		/// <param name="UniqueID"></param>
 		/// <param name="TargetLabel"></param>
-		/// <param name="MaterialIndex"></param>
-		/// <param name="ParentTransform"></param>
 		/// <returns></returns>
-		private DatasmithActorInfo GenerateDummyNodeInfo(string UniqueID, string TargetLabel, int MaterialIndex)
+		private DatasmithActorInfo GenerateDummyNodeInfo(string UniqueID, string TargetLabel)
 		{
 			string UniqueLabel = ActorLabelGenerator.GenerateUniqueNameFromBaseName(TargetLabel);
-			const ModelComponent NullModelComponent = null;
-			const List<string> NullTagList = null;
-			const bool bOverrideMaterial = false;
 
-			return new DatasmithActorInfo(NullModelComponent, UniqueID, UniqueLabel, NullTagList, MaterialIndex, bOverrideMaterial);
+			return new DatasmithActorInfo(Transform.Identity, UniqueID, UniqueLabel);
 		}
 
 		/// <summary>
@@ -549,7 +565,7 @@ namespace DatasmithRhino
 		/// <param name="MaterialIndex"></param>
 		/// <param name="ParentTransform"></param>
 		/// <returns></returns>
-		private DatasmithActorInfo GenerateNodeInfo(ModelComponent InModelComponent, bool bIsInstanceDefinition, int MaterialIndex)
+		private DatasmithActorInfo GenerateNodeInfo(ModelComponent InModelComponent, bool bIsInstanceDefinition, int MaterialIndex, Layer VisiblityLayer)
 		{
 			string Name = GetModelComponentName(InModelComponent);
 			string Label = bIsInstanceDefinition
@@ -558,7 +574,7 @@ namespace DatasmithRhino
 			List<string> Tags = GetTags(InModelComponent);
 			const bool bOverrideMaterial = false;
 
-			return new DatasmithActorInfo(InModelComponent, Name, Label, Tags, MaterialIndex, bOverrideMaterial);
+			return new DatasmithActorInfo(InModelComponent, Name, Label, Tags, MaterialIndex, bOverrideMaterial, VisiblityLayer);
 		}
 
 		/// <summary>
@@ -783,7 +799,7 @@ namespace DatasmithRhino
 
 		private void ParseRhinoMeshes()
 		{
-			HashSet<RhinoObject> DocObjects = CollectExportedRhinoObjects(RhinoDocument, InstanceDefinitionHierarchyNodeDictionary.Values);
+			HashSet<RhinoObject> DocObjects = CollectExportedRhinoObjects();
 
 			// Make sure all render meshes are generated before attempting to export them.
 			RhinoObject.GetRenderMeshes(DocObjects, /*okToCreate=*/true, /*returnAllObjects*/false);
@@ -835,7 +851,7 @@ namespace DatasmithRhino
 			}
 		}
 
-		private static HashSet<RhinoObject> CollectExportedRhinoObjects(RhinoDoc RhinoDocument, IEnumerable<DatasmithActorInfo> InstancesHierarchies)
+		private HashSet<RhinoObject> CollectExportedRhinoObjects()
 		{
 			ObjectEnumeratorSettings Settings = new ObjectEnumeratorSettings();
 			Settings.HiddenObjects = false;
@@ -848,9 +864,9 @@ namespace DatasmithRhino
 
 			// Collect objects that are referenced inside instance definitions(blocks).
 			// We do this because if we were to call RhinoObject.MeshObjects() on an Instance object it would create a single mesh merging all the instance's children.
-			foreach (var CurrentInstanceHierarchy in InstancesHierarchies)
+			foreach (var CurrentInstanceHierarchy in InstanceDefinitionHierarchyNodeDictionary.Values)
 			{
-				foreach (DatasmithActorInfo HierarchyNode in CurrentInstanceHierarchy)
+				foreach (DatasmithActorInfo HierarchyNode in CurrentInstanceHierarchy.GetEnumerator(/*bIncludeHidden=*/true))
 				{
 					if (!HierarchyNode.bIsRoot && HierarchyNode.bHasRhinoObject && !(HierarchyNode.RhinoModelComponent is InstanceObject))
 					{

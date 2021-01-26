@@ -9,21 +9,23 @@ namespace DatasmithRhino
 	{
 		public const string UntitledSceneName = "";
 
-		public bool WriteSelectedObjectsOnly { get; private set; } = false;
+		public bool bWriteSelectedObjectsOnly { get; private set; } = false;
 		public Transform Xform { get; private set; } = Transform.Identity;
 		public RhinoDoc RhinoDocument { get; private set; }
 		public FDatasmithFacadeScene DatasmithScene { get; private set; }
+		public bool bSkipHidden { get; private set; }
 
-		public DatasmithRhinoExportOptions(RhinoDoc InRhinoDocument, FDatasmithFacadeScene InDatasmithScene)
+		public DatasmithRhinoExportOptions(RhinoDoc InRhinoDocument, FDatasmithFacadeScene InDatasmithScene, bool bInSkipHidden)
 		{
 			RhinoDocument = InRhinoDocument;
 			DatasmithScene = InDatasmithScene;
+			bSkipHidden = bInSkipHidden;
 		}
 
-		public DatasmithRhinoExportOptions(FileWriteOptions RhinoFileWriteOptions, RhinoDoc InRhinoDocument, FDatasmithFacadeScene InDatasmithScene)
-			: this(InRhinoDocument, InDatasmithScene)
+		public DatasmithRhinoExportOptions(FileWriteOptions RhinoFileWriteOptions, RhinoDoc InRhinoDocument, FDatasmithFacadeScene InDatasmithScene, bool bInSkipHidden)
+			: this(InRhinoDocument, InDatasmithScene, bInSkipHidden)
 		{
-			WriteSelectedObjectsOnly = RhinoFileWriteOptions.WriteSelectedObjectsOnly;
+			bWriteSelectedObjectsOnly = RhinoFileWriteOptions.WriteSelectedObjectsOnly;
 			Xform = RhinoFileWriteOptions.Xform;
 		}
 	}

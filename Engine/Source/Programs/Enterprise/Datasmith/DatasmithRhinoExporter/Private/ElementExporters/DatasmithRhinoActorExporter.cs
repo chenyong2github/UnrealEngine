@@ -21,7 +21,7 @@ namespace DatasmithRhino.ElementExporters
 
 		protected override IEnumerable<DatasmithActorInfo> GetElementsToSynchronize()
 		{
-			return ExportContext.SceneRoot;
+			return ExportContext.SceneRoot.GetEnumerator(/*bIncludeHidden=*/false);
 		}
 
 		protected override FDatasmithFacadeElement CreateElement(DatasmithActorInfo ElementInfo)

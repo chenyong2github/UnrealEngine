@@ -57,8 +57,9 @@ namespace DatasmithRhino.Commands
 			if (SaveDialogResult == Eto.Forms.DialogResult.Ok)
 			{
 				string FileName = SaveDialog.FileName;
+				const bool bSkipHidden = true;
 				FDatasmithFacadeScene DatasmithScene = DatasmithRhinoSceneExporter.CreateDatasmithScene(FileName, RhinoDocument);
-				DatasmithRhinoExportOptions ExportOptions = new DatasmithRhinoExportOptions(RhinoDocument, DatasmithScene);
+				DatasmithRhinoExportOptions ExportOptions = new DatasmithRhinoExportOptions(RhinoDocument, DatasmithScene, bSkipHidden);
 				Rhino.PlugIns.WriteFileResult ExportResult = DatasmithRhinoSceneExporter.ExportToFile(ExportOptions);
 
 				switch (ExportResult)
