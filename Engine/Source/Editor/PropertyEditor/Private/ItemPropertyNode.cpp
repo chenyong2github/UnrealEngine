@@ -392,25 +392,30 @@ void FItemPropertyNode::InitChildNodes()
 
 void FItemPropertyNode::SetFavorite(bool FavoriteValue)
 {
-	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
-	if (MetadataOverrides != nullptr)
+	if (GEditor != nullptr)
 	{
-		MetadataOverrides->SetBoolMetadata(GetProperty(), "IsFavorite", FavoriteValue);
+		UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+		if (MetadataOverrides != nullptr)
+		{
+			MetadataOverrides->SetBoolMetadata(GetProperty(), "IsFavorite", FavoriteValue);
+		}
 	}
 }
 
 bool FItemPropertyNode::IsFavorite() const
 {
-	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
-	if (MetadataOverrides != nullptr)
+	if (GEditor != nullptr)
 	{
-		bool IsFavorite = false;
-		if (MetadataOverrides->GetBoolMetadata(GetProperty(), "IsFavorite", IsFavorite))
+		UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+		if (MetadataOverrides != nullptr)
 		{
-			return IsFavorite;
+			bool IsFavorite = false;
+			if (MetadataOverrides->GetBoolMetadata(GetProperty(), "IsFavorite", IsFavorite))
+			{
+				return IsFavorite;
+			}
 		}
 	}
-
 	return false;
 }
 
