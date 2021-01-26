@@ -38,6 +38,7 @@
 #include "SearchStyle.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Images/SImage.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBrowser"
 

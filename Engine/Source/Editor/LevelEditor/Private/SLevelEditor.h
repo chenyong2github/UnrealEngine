@@ -72,7 +72,9 @@ public:
 	virtual const TArray< TSharedPtr< class IToolkit > >& GetHostedToolkits() const override;
 	virtual TArray< TSharedPtr< IAssetViewport > > GetViewports() const override;
 	virtual TSharedPtr<IAssetViewport> GetActiveViewportInterface() override;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TSharedPtr< class FAssetThumbnailPool > GetThumbnailPool() const override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void AppendCommands( const TSharedRef<FUICommandList>& InCommandsToAppend ) override;
 	virtual void AddStandaloneLevelViewport( const TSharedRef<SLevelViewport>& LevelViewport ) override;
 
