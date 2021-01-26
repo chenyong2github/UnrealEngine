@@ -85,6 +85,7 @@
 #include "TabPayload_BlendSpaceGraph.h"
 #include "AnimGraphNode_RotationOffsetBlendSpaceGraph.h"
 #include "AnimGraphNode_BlendSpaceGraph.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintEditor"
 
