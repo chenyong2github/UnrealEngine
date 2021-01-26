@@ -1168,6 +1168,24 @@ void UControlRigBlueprint::ClearTransientControls()
 	}
 }
 
+void UControlRigBlueprint::SetTransientControlValue(const FRigElementKey& InElement)
+{
+	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+
+	TArray<FRigControl> PreviousControls;
+	TArray<UObject*> ArchetypeInstances;
+	CDO->GetArchetypeInstances(ArchetypeInstances);
+	for (UObject* ArchetypeInstance : ArchetypeInstances)
+	{
+		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
+		if (InstancedControlRig)
+		{
+			InstancedControlRig->SetTransientControlValue(InElement);
+		}
+	}
+}
+
 #endif
 
 void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UControlRigGraph* InGraph)

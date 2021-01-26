@@ -2904,6 +2904,7 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 						GetHierarchyContainer()->SetLocalTransform(Key, LocalTransform);
 						DebuggedContainer->SetInitialTransform(Key, LocalTransform);
 						DebuggedContainer->SetLocalTransform(Key, LocalTransform);
+						Blueprint->SetTransientControlValue(Key);
 					}
 					if (Key.Type == ERigElementType::Control)
 					{
