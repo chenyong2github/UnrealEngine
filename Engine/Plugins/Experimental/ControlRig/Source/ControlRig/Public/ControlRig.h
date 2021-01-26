@@ -31,6 +31,9 @@
 
 class IControlRigObjectBinding;
 class UScriptStruct;
+class USkeletalMesh;
+
+struct FReferenceSkeleton;
 struct FRigUnit;
 struct FRigControl;
 
