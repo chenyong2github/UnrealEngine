@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTypes.h"
+#include "CoreMinimal.h"
+#include "Trace/Trace.h"
 #include "Trace/Trace.inl"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
