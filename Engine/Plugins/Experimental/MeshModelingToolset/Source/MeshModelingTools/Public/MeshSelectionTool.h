@@ -251,7 +251,7 @@ public:
 
 	/** Toggle drawing of highlight points on/off */
 	UPROPERTY(EditAnywhere, Category = Selection)
-	bool bShowPoints = true;
+	bool bShowPoints = false;
 
 	UPROPERTY(EditAnywhere, Category = Selection)
 	EMeshFacesColorMode FaceColorMode = EMeshFacesColorMode::None;

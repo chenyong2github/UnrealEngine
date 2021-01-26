@@ -187,6 +187,22 @@ void UMeshSelectionTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {
 	UDynamicMeshBrushTool::RegisterActions(ActionSet);
 
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 50,
+		TEXT("TriSelectIncreaseSize"),
+		LOCTEXT("TriSelectIncreaseSize", "Increase Size"),
+		LOCTEXT("TriSelectIncreaseSizeTooltip", "Increase Brush Size"),
+		EModifierKey::None, EKeys::D,
+		[this]() { IncreaseBrushSizeAction(); });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 51,
+		TEXT("TriSelectDecreaseSize"),
+		LOCTEXT("TriSelectDecreaseSize", "Decrease Size"),
+		LOCTEXT("TriSelectDecreaseSizeTooltip", "Decrease Brush Size"),
+		EModifierKey::None, EKeys::S,
+		[this]() { DecreaseBrushSizeAction(); });
+
+
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 1,
 		TEXT("MeshSelectionToolDelete"),
 		LOCTEXT("MeshSelectionToolDelete", "Delete"),
