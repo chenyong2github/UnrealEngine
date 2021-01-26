@@ -55,6 +55,7 @@ public:
 	
 	int32 NumSubdivisionLODs;
 	int32 NumTailLods;
+	int32 NumForceLoadLods;
 
 	TArray<FVector2D> OcclusionData;
 	int32 NumOcclusionLods;

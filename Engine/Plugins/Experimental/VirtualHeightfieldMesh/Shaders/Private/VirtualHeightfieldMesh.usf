@@ -38,6 +38,7 @@ int OcclusionLevelOffset;
 Texture2D<float> LodTexture;
 
 uint MaxLevel;
+uint NumForceLoadLods;
 uint PageTableFeedbackId;
 uint NumPhysicalAddressBits;
 float4 PageTableSize;
@@ -194,8 +195,23 @@ void InitBuffersCS()
 	RWIndirectArgsBuffer[7] = 1;
 	RWIndirectArgsBuffer[8] = 0;
 
-	// Clear virtual texture feedback counter.
-	RWFeedbackBuffer[0] = 0;
+	// Clear virtual texture feedback counter or prime feedback buffer with first n levels.
+	uint FeedbackCount = 0;
+
+	for (uint Level = 0; Level < NumForceLoadLods; ++Level)
+	{
+		for (int Y = 0; Y < (1 << Level); ++Y)
+		{
+			for (int X = 0; X < (1 << Level); ++X)
+			{
+				uint LevelPlusOne = 1 + MaxLevel - Level;
+				uint Feedback = X | (Y << 12) | (LevelPlusOne << 24) | PageTableFeedbackId;
+				RWFeedbackBuffer[++FeedbackCount] = Feedback;
+			}
+		}
+	}
+
+	RWFeedbackBuffer[0] = FeedbackCount;
 }
 
 /**

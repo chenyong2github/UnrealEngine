@@ -70,6 +70,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Tail LODs", ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "8"))
 	int32 NumTailLods = 0;
 
+	/** The number of levels that we force loaded. A higher number can reduce LOD pop in but allocates more of the virtual texture memory pool. */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Force Load LODs", ClampMin = "0", ClampMax = "4"))
+	int32 NumForceLoadLods = 0;
+
 	/** The number of levels that we calculate occlusion volumes for. A higher number gives finer occlusion at the cost of more queries. */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Occlusion LODs", ClampMin = "0", ClampMax = "5"))
 	int32 NumOcclusionLods = 0;
@@ -109,6 +113,7 @@ public:
 	float GetLodDistribution() const { return LodDistribution; }
 	int32 GetNumSubdivisionLods() const { return NumSubdivisionLods; }
 	int32 GetNumTailLods() const { return NumTailLods; }
+	int32 GetNumForceLoadLods() const { return NumForceLoadLods; }
 	int32 GetNumOcclusionLods() const { return NumOcclusionLods; }
 
 protected:

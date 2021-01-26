@@ -371,6 +371,7 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 	, LodDistribution(InComponent->GetLodDistribution())
 	, NumSubdivisionLODs(InComponent->GetNumSubdivisionLods())
 	, NumTailLods(InComponent->GetNumTailLods())
+	, NumForceLoadLods(InComponent->GetNumForceLoadLods())
 	, NumOcclusionLods(0)
 	, OcclusionGridSize(0, 0)
 {
@@ -688,6 +689,8 @@ namespace VirtualHeightfieldMesh
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER(uint32, MaxLevel)
+			SHADER_PARAMETER(uint32, NumForceLoadLods)
+			SHADER_PARAMETER(uint32, PageTableFeedbackId)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<WorkerQueueInfo>, RWQueueInfo)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQueueBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, RWQuadBuffer)
@@ -982,6 +985,7 @@ namespace VirtualHeightfieldMesh
 		int32 MinMaxLevelOffset;
 
 		uint32 MaxLevel;
+		uint32 NumForceLoadLods;
 		uint32 PageTableFeedbackId;
 		uint32 NumPhysicalAddressBits;
 		FVector4 PageTableSize;
@@ -1137,6 +1141,8 @@ namespace VirtualHeightfieldMesh
 
 		FInitBuffersCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitBuffersCS::FParameters>();
 		PassParameters->MaxLevel = InDesc.MaxLevel;
+		PassParameters->NumForceLoadLods = InDesc.NumForceLoadLods;
+		PassParameters->PageTableFeedbackId = InDesc.PageTableFeedbackId;
 		PassParameters->RWQueueInfo = InVolatileResources.QueueInfoUAV;
 		PassParameters->RWQueueBuffer = InVolatileResources.QueueBufferUAV;
 		PassParameters->RWQuadBuffer = InVolatileResources.QuadBufferUAV;
@@ -1383,6 +1389,7 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRDGBuilder& GraphBuil
 		ProxyDesc.MinMaxTexture = Proxy->MinMaxTexture ? Proxy->MinMaxTexture->Resource->TextureRHI : VirtualHeightfieldMesh::GMinMaxDefaultTexture->TextureRHI;
 		ProxyDesc.MinMaxLevelOffset = ProxyDesc.MinMaxTexture->GetNumMips() - 1 - AllocatedVirtualTexture->GetMaxLevel();
 		ProxyDesc.MaxLevel = AllocatedVirtualTexture->GetMaxLevel();
+		ProxyDesc.NumForceLoadLods = FMath::Min<uint32>(FMath::Max(Proxy->NumForceLoadLods, 0), ProxyDesc.MaxLevel + 1);
 		ProxyDesc.PageTableSize = PageTableSize;
 		ProxyDesc.PhysicalPageTransform = PhysicalPageTransform;
 		ProxyDesc.NumPhysicalAddressBits = AllocatedVirtualTexture->GetPageTableFormat() == EVTPageTableFormat::UInt16 ? 6 : 8; // See packing in PageTableUpdate.usf
