@@ -148,6 +148,12 @@ FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FWeakObjectPtr& V
 	return *this;
 }
 
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FObjectPtr& Value)
+{
+	// @TODO: OBJPTR: If we want lazy loading from text archives, this will need to be modified to not route through the default raw pointer serialization path.
+	return FArchiveUObject::SerializeObjectPtr(*this, Value);
+}
+
 void FArchiveUObjectFromStructuredArchiveImpl::PushFileRegionType(EFileRegionType Type)
 {
 	check(CurrentFileRegionType == EFileRegionType::None);

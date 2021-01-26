@@ -7,6 +7,7 @@
 #include "Serialization/FileRegions.h"
 #include "UObject/ObjectResource.h"
 
+#include "UObject/ObjectPtr.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/LazyObjectPtr.h"
@@ -29,6 +30,7 @@ public:
 	virtual FArchive& operator<<(FSoftObjectPtr& Value) override;
 	virtual FArchive& operator<<(FSoftObjectPath& Value) override;
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
+	virtual FArchive& operator<<(FObjectPtr& Value) override;
 	//~ End FArchive Interface
 
 	virtual void PushFileRegionType(EFileRegionType Type) override;
