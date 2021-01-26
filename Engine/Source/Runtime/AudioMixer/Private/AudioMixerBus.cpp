@@ -94,6 +94,7 @@ namespace Audio
 		MixedSourceData[CurrentBufferIndex].AddZeroed(NumSamples);
 
 		float* BusDataBufferPtr = MixedSourceData[CurrentBufferIndex].GetData();
+		const int32 NumOutputFrames = SourceManager->GetNumOutputFrames();
 
 		for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
 		{
@@ -122,7 +123,6 @@ namespace Audio
 				if (ensure(SourceBufferPtr))
 				{
 					const int32 NumSourceChannels = SourceManager->GetNumChannels(AudioBusSend.SourceId);
-					const int32 NumOutputFrames = SourceManager->GetNumOutputFrames();
 					const int32 NumSourceSamples = NumSourceChannels * NumOutputFrames;
 
 					// If source channels are different than bus channels, we need to up-mix or down-mix
@@ -141,14 +141,15 @@ namespace Audio
 						Audio::MixInBufferFast(SourceBufferPtr, BusDataBufferPtr, NumOutputFrames * NumChannels, AudioBusSend.SendLevel);
 					}
 
-					// Push the mixed data to the patch splitter
-					AudioBusInput.PushAudio(BusDataBufferPtr, NumOutputFrames * NumChannels);
-
-					// Process the audio in the patch mixer splitter
-					PatchMixerSplitter.ProcessAudio();
 				}
 			}
 		}
+
+		// Push the mixed data to the patch splitter
+		AudioBusInput.PushAudio(BusDataBufferPtr, NumOutputFrames * NumChannels);
+
+		// Process the audio in the patch mixer splitter
+		PatchMixerSplitter.ProcessAudio();
 	}
 
 	void FMixerAudioBus::CopyCurrentBuffer(Audio::AlignedFloatBuffer& InChannelMap, int32 InNumOutputChannels, AlignedFloatBuffer& OutBuffer, int32 NumOutputFrames) const
