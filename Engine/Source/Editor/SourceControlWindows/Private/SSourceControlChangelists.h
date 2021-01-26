@@ -19,7 +19,9 @@ struct IChangelistTreeItem : TSharedFromThis<IChangelistTreeItem>
 	{
 		Invalid,
 		Changelist,
-		File
+		File,
+		ShelvedChangelist, // container for shelved files
+		ShelvedFile
 	};
 
 	/** Get this item's parent. Can be nullptr. */
@@ -103,11 +105,14 @@ private:
 	/** Returns the currently selected changelist state ptr or null in invalid cases */
 	FSourceControlChangelistStatePtr GetCurrentChangelistState();
 	FSourceControlChangelistPtr GetCurrentChangelist();
-	FSourceControlChangelistStatePtr GetChangelistStateFromFileSelection();
-	FSourceControlChangelistPtr GetChangelistFromFileSelection();
+	FSourceControlChangelistStatePtr GetChangelistStateFromSelection();
+	FSourceControlChangelistPtr GetChangelistFromSelection();
 
 	/** Returns list of currently selected files */
 	TArray<FString> GetSelectedFiles();
+
+	/** Returns list of currently selected shelved files */
+	TArray<FString> GetSelectedShelvedFiles();
 
 	/** Changelist operations */
 	void OnNewChangelist();
@@ -120,6 +125,11 @@ private:
 	/** Changelist & File operations */
 	void OnRevertUnchanged();
 	void OnRevert();
+	void OnShelve();
+
+	/** Changelist & shelved files operations */
+	void OnUnshelve();
+	void OnDeleteShelvedFiles();
 
 	/** Files operations */
 	void OnLocateFile();
@@ -127,6 +137,10 @@ private:
 	void OnShowHistory();
 	void OnDiffAgainstDepot();
 	bool CanDiffAgainstDepot();
+
+	/** Shelved files operations */
+	void OnDiffAgainstWorkspace();
+	bool CanDiffAgainstWorkspace();
 
 	void OnSourceControlStateChanged();
 	void OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider);

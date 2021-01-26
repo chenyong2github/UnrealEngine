@@ -155,8 +155,8 @@ public:
 public:
 	/** Temporary states for results */
 	TArray<FPerforceSourceControlChangelistState> OutChangelistsStates;
-	TArray<TMap<FString, EPerforceState::Type>> OutCLFilesStateMap;
-	TArray<TArray<FPerforceSourceControlState>> OutCLShelvedFilesStates;
+	TArray<TArray<FPerforceSourceControlState>> OutCLFilesStates;
+	TArray<TMap<FString, EPerforceState::Type>> OutCLShelvedFilesStates;
 };
 
 class FPerforceCopyWorker : public IPerforceSourceControlWorker
@@ -250,7 +250,7 @@ protected:
 	/** Map of filenames to perforce state */
 	TMap<FString, EPerforceState::Type> OutResults;
 
-	/** Changelist to be udpated */
+	/** Changelist to be updated */
 	FPerforceSourceControlChangelist ChangelistToUpdate;
 };
 
@@ -262,5 +262,62 @@ public:
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
+
+protected:
+	/** Reopened files */
+	TArray<FString> ReopenedFiles;
+	
+	/** Destination changelist */
+	FPerforceSourceControlChangelist DestinationChangelist;
 };
 
+class FPerforceShelveWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceShelveWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+protected:	
+	/** Map of filenames to perforce state */
+	TMap<FString, EPerforceState::Type> OutResults;
+
+	/** Changelist to be updated */
+	FPerforceSourceControlChangelist ChangelistToUpdate;
+};
+
+class FPerforceDeleteShelveWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceDeleteShelveWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+protected:
+	/** List of files to remove from shelved files in changelist state */
+	TArray<FString> FilesToRemove;
+
+	/** Changelist to be updated */
+	FPerforceSourceControlChangelist ChangelistToUpdate;
+};
+
+class FPerforceUnshelveWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceUnshelveWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+protected:
+	/** Changelist to be updated */
+	FPerforceSourceControlChangelist ChangelistToUpdate;
+
+	/** List of files states after update */
+	TArray<FPerforceSourceControlState> ChangelistFilesStates;
+};

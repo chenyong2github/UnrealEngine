@@ -535,5 +535,58 @@ public:
 	}
 };
 
+/**
+ * Operation used to shelve files in a changelist
+ */
+class FShelve : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "Shelve";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_ShelveOperation", "Shelving files in changelist...");
+	}
+};
+
+/**
+ * Operation used to unshelve files from a changelist
+ */
+class FUnshelve : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override 
+	{
+		return "Unshelve";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_UnshelveOperation", "Unshelving files from changelist...");
+	}
+};
+
+/**
+ * Operation used to delete shelved files from a changelist
+ */
+class FDeleteShelved : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "DeleteShelved";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_DeleteShelvedOperation", "Deleting shelved files from changelist...");
+	}
+};
 
 #undef LOCTEXT_NAMESPACE

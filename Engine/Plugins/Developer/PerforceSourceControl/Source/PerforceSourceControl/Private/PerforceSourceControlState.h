@@ -6,6 +6,8 @@
 #include "ISourceControlState.h"
 #include "ISourceControlRevision.h"
 
+#include "PerforceSourceControlChangelist.h"
+
 class FPerforceSourceControlRevision;
 
 namespace EPerforceState
@@ -54,6 +56,8 @@ public:
 		, LocalRevNumber(INVALID_REVISION)
 		, PendingResolveRevNumber(INVALID_REVISION)
 		, bModifed(false)
+		, bBinary(false)
+		, bExclusiveCheckout(false)
 		, TimeStamp(0)
 		, HeadModTime(0)
 		, HeadChangeList(0)
@@ -106,6 +110,9 @@ public:
 		State = InState;
 	}
 
+	/** Fills in missing information from other state */
+	void Update(const FPerforceSourceControlState& InOther, const FDateTime* TimeStamp = nullptr);
+
 public:
 	/** History of the item, if any */
 	TArray< TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> > History;
@@ -130,6 +137,9 @@ public:
 
 	/** Pending rev number with which a file must be resolved, INVALID_REVISION if no resolve pending */
 	int PendingResolveRevNumber;
+
+	/** Changelist containing this file */
+	FPerforceSourceControlChangelist Changelist;
 
 	/** Modified from depot version */
 	bool bModifed;

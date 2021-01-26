@@ -28,7 +28,7 @@
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
 //////////////////////////////
-static TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState)
+static TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState, bool bIsShelvedFile = false)
 {
 	const FSlateBrush* IconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
 
@@ -37,16 +37,17 @@ static TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState)
 	const float IconOverlaySize = IconBrush->ImageSize.X * ICON_SCALING_FACTOR;
 
 	return SNew(SOverlay)
-
 		// The actual icon
 		+ SOverlay::Slot()
 		[
 			SNew(SImage)
 			.Image(IconBrush)
+			.ColorAndOpacity_Lambda([bIsShelvedFile]() -> FSlateColor {
+					return FSlateColor(bIsShelvedFile ? FColor::Yellow : FColor::White);
+				})
 		]
-
-	// Source control state
-	+ SOverlay::Slot()
+		// Source control state
+		+ SOverlay::Slot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Top)
 		[
@@ -94,6 +95,19 @@ struct FChangelistTreeItem : public IChangelistTreeItem
 	}
 
 	FSourceControlChangelistStateRef ChangelistState;
+};
+
+struct FShelvedChangelistTreeItem : public IChangelistTreeItem
+{
+	FShelvedChangelistTreeItem()
+	{
+		Type = IChangelistTreeItem::ShelvedChangelist;
+	}
+
+	FText GetDisplayText() const
+	{
+		return LOCTEXT("SourceControl_ShelvedFiles", "Shelved Items");
+	}
 };
 
 bool GetAssetData(const FString& InPackageName, const FString& InFileName, TArray<FAssetData>& OutAssets)
@@ -246,6 +260,22 @@ private:
 	FColor DisplayColor;
 };
 
+struct FShelvedFileTreeItem : public IChangelistTreeItem
+{
+	FShelvedFileTreeItem(FSourceControlStateRef InFileState)
+		: FileState(InFileState)
+	{
+		Type = IChangelistTreeItem::ShelvedFile;
+	}
+
+	FText GetDisplayName() const
+	{
+		return FText::FromString(FileState->GetFilename());
+	}
+
+	FSourceControlStateRef FileState;
+};
+
 SSourceControlChangelistsWidget::SSourceControlChangelistsWidget()
 {
 }
@@ -295,6 +325,7 @@ void SSourceControlChangelistsWidget::RequestRefresh()
 		TSharedRef<FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
 		UpdatePendingChangelistsOperation->SetUpdateAllChangelists(true);
 		UpdatePendingChangelistsOperation->SetUpdateFilesStates(true);
+		UpdatePendingChangelistsOperation->SetUpdateShelvedFilesStates(true);
 
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		SourceControlProvider.Execute(UpdatePendingChangelistsOperation, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SSourceControlChangelistsWidget::OnChangelistsStatusUpdated));
@@ -335,6 +366,18 @@ void SSourceControlChangelistsWidget::Refresh()
 			{
 				FChangelistTreeItemRef FileTreeItem = MakeShareable(new FFileTreeItem(FileRef));
 				ChangelistTreeItem->AddChild(FileTreeItem);
+			}
+
+			if (ChangelistState->GetShelvedFilesStates().Num() > 0)
+			{
+				FChangelistTreeItemRef ShelvedChangelistTreeItem = MakeShareable(new FShelvedChangelistTreeItem());
+				ChangelistTreeItem->AddChild(ShelvedChangelistTreeItem);
+
+				for (FSourceControlStateRef ShelvedFileRef : ChangelistState->GetShelvedFilesStates())
+				{
+					FChangelistTreeItemRef ShelvedFileTreeItem = MakeShareable(new FShelvedFileTreeItem(ShelvedFileRef));
+					ShelvedChangelistTreeItem->AddChild(ShelvedFileTreeItem);
+				}
 			}
 
 			ChangelistsNodes.Add(ChangelistTreeItem);
@@ -416,7 +459,7 @@ FSourceControlChangelistPtr SSourceControlChangelistsWidget::GetCurrentChangelis
 	return ChangelistState ? (FSourceControlChangelistPtr)(ChangelistState->GetChangelist()) : nullptr;
 }
 
-FSourceControlChangelistStatePtr SSourceControlChangelistsWidget::GetChangelistStateFromFileSelection()
+FSourceControlChangelistStatePtr SSourceControlChangelistsWidget::GetChangelistStateFromSelection()
 {
 	if (!TreeView)
 	{
@@ -425,19 +468,27 @@ FSourceControlChangelistStatePtr SSourceControlChangelistsWidget::GetChangelistS
 
 	TArray<FChangelistTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
 
-	if (SelectedItems.Num() == 0 || SelectedItems[0]->GetTreeItemType() != IChangelistTreeItem::File)
+	if (SelectedItems.Num() == 0 || SelectedItems[0]->GetTreeItemType() == IChangelistTreeItem::Invalid)
 	{
 		return nullptr;
 	}
-	else
+
+	FChangelistTreeItemPtr Item = SelectedItems[0];
+
+	while (Item && Item->GetTreeItemType() != IChangelistTreeItem::Invalid)
 	{
-		return StaticCastSharedPtr<FChangelistTreeItem>(SelectedItems[0]->GetParent())->ChangelistState;
+		if (Item->GetTreeItemType() == IChangelistTreeItem::Changelist)
+			return StaticCastSharedPtr<FChangelistTreeItem>(Item)->ChangelistState;
+		else
+			Item = Item->GetParent();
 	}
+
+	return nullptr;
 }
 
-FSourceControlChangelistPtr SSourceControlChangelistsWidget::GetChangelistFromFileSelection()
+FSourceControlChangelistPtr SSourceControlChangelistsWidget::GetChangelistFromSelection()
 {
-	FSourceControlChangelistStatePtr ChangelistState = GetChangelistStateFromFileSelection();
+	FSourceControlChangelistStatePtr ChangelistState = GetChangelistStateFromSelection();
 	return ChangelistState ? (FSourceControlChangelistPtr)(ChangelistState->GetChangelist()) : nullptr;
 }
 
@@ -461,6 +512,34 @@ TArray<FString> SSourceControlChangelistsWidget::GetSelectedFiles()
 	}
 }
 
+TArray<FString> SSourceControlChangelistsWidget::GetSelectedShelvedFiles()
+{
+	TArray<FString> ShelvedFiles;
+	TArray<FChangelistTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
+	
+	if (SelectedItems.Num() > 0)
+	{
+		if (SelectedItems[0]->GetTreeItemType() == IChangelistTreeItem::ShelvedChangelist)
+		{
+			check(SelectedItems.Num() == 1);
+			const TArray<FChangelistTreeItemPtr>& ShelvedChildren = SelectedItems[0]->GetChildren();
+			for (FChangelistTreeItemPtr Item : ShelvedChildren)
+			{
+				ShelvedFiles.Add(StaticCastSharedPtr<FShelvedFileTreeItem>(Item)->FileState->GetFilename());
+			}
+		}
+		else if (SelectedItems[0]->GetTreeItemType() == IChangelistTreeItem::ShelvedFile)
+		{
+			for (FChangelistTreeItemPtr Item : SelectedItems)
+			{
+				ShelvedFiles.Add(StaticCastSharedPtr<FShelvedFileTreeItem>(Item)->FileState->GetFilename());
+			}
+		}
+	}
+
+	return ShelvedFiles;
+}
+
 void SSourceControlChangelistsWidget::OnNewChangelist()
 {
 	FText ChangelistDescription;
@@ -480,7 +559,6 @@ void SSourceControlChangelistsWidget::OnNewChangelist()
 	NewChangelistOperation->SetDescription(ChangelistDescription);
 
 	SourceControlProvider.Execute(NewChangelistOperation);
-	Refresh();
 }
 
 void SSourceControlChangelistsWidget::OnDeleteChangelist()
@@ -492,7 +570,6 @@ void SSourceControlChangelistsWidget::OnDeleteChangelist()
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	SourceControlProvider.Execute(ISourceControlOperation::Create<FDeleteChangelist>(), GetCurrentChangelist());
-	Refresh();
 }
 
 bool SSourceControlChangelistsWidget::CanDeleteChangelist()
@@ -528,8 +605,6 @@ void SSourceControlChangelistsWidget::OnEditChangelist()
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	SourceControlProvider.Execute(EditChangelistOperation, ChangelistState->GetChangelist());
-
-	Refresh();
 }
 
 void SSourceControlChangelistsWidget::OnRevertUnchanged()
@@ -537,19 +612,7 @@ void SSourceControlChangelistsWidget::OnRevertUnchanged()
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
 	auto RevertUnchangedOperation = ISourceControlOperation::Create<FRevertUnchanged>();
-
-	if(GetCurrentChangelist() != nullptr)
-	{
-		// Operation on full changelist
-		SourceControlProvider.Execute(RevertUnchangedOperation, GetCurrentChangelist());
-	}
-	else
-	{
-		// Operation on files in a changelist
-		SourceControlProvider.Execute(RevertUnchangedOperation, GetChangelistFromFileSelection(), GetSelectedFiles());
-	}
-
-	Refresh();
+	SourceControlProvider.Execute(RevertUnchangedOperation, GetChangelistFromSelection(), GetSelectedFiles());
 }
 
 void SSourceControlChangelistsWidget::OnRevert()
@@ -579,19 +642,28 @@ void SSourceControlChangelistsWidget::OnRevert()
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	auto RevertOperation = ISourceControlOperation::Create<FRevert>();
+	SourceControlProvider.Execute(RevertOperation, GetChangelistFromSelection(), GetSelectedFiles());
+}
 
-	if (GetCurrentChangelist() != nullptr)
-	{
-		// Operation on full changelist
-		SourceControlProvider.Execute(RevertOperation, GetCurrentChangelist());
-	}
-	else
-	{
-		// Operation on files in a changelist
-		SourceControlProvider.Execute(RevertOperation, GetChangelistFromFileSelection(), GetSelectedFiles());
-	}
+void SSourceControlChangelistsWidget::OnShelve()
+{
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	auto ShelveOperation = ISourceControlOperation::Create<FShelve>();
+	SourceControlProvider.Execute(ShelveOperation, GetChangelistFromSelection(), GetSelectedFiles());
+}
 
-	Refresh();
+void SSourceControlChangelistsWidget::OnUnshelve()
+{
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	auto UnshelveOperation = ISourceControlOperation::Create<FUnshelve>();
+	SourceControlProvider.Execute(UnshelveOperation, GetChangelistFromSelection(), GetSelectedShelvedFiles());
+}
+
+void SSourceControlChangelistsWidget::OnDeleteShelvedFiles()
+{
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	auto DeleteShelvedOperation = ISourceControlOperation::Create<FDeleteShelved>();
+	SourceControlProvider.Execute(DeleteShelvedOperation, GetChangelistFromSelection(), GetSelectedShelvedFiles());
 }
 
 void SSourceControlChangelistsWidget::OnSubmitChangelist()
@@ -672,6 +744,16 @@ bool SSourceControlChangelistsWidget::CanDiffAgainstDepot()
 	return GetSelectedFiles().Num() == 1;
 }
 
+void SSourceControlChangelistsWidget::OnDiffAgainstWorkspace()
+{
+
+}
+
+bool SSourceControlChangelistsWidget::CanDiffAgainstWorkspace()
+{
+	return GetSelectedShelvedFiles().Num() == 1;
+}
+
 TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -686,7 +768,9 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
 		
 	bool bHasSelectedChangelist = (GetCurrentChangelist() != nullptr);
-	bool bHasEmptySelection = (GetCurrentChangelist() == nullptr && GetSelectedFiles().Num() == 0);
+	bool bHasSelectedFiles = (GetSelectedFiles().Num() > 0);
+	bool bHasSelectedShelvedFiles = (GetSelectedShelvedFiles().Num() > 0);
+	bool bHasEmptySelection = (!bHasSelectedChangelist && !bHasSelectedFiles && !bHasSelectedShelvedFiles);
 
 	FToolMenuSection& Section = Menu->AddSection("Source Control");
 	
@@ -700,13 +784,43 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	}
 
 	// This can appear on both files & changelist
-	if (!bHasEmptySelection)
+	if (bHasSelectedChangelist || bHasSelectedFiles)
 	{
 		Section.AddMenuEntry("RevertUnchanged", LOCTEXT("SourceControl_RevertUnchanged", "Revert Unchanged"), LOCTEXT("SourceControl_Revert_Unchanged_Tooltip", "Reverts unchanged files & changelists"), FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevertUnchanged)));
 
 		Section.AddMenuEntry("Revert", LOCTEXT("SourceControl_Revert", "Revert Files"), LOCTEXT("SourceControl_Revert_Tooltip", "Reverts all files in the changelist or from the selection"), FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevert)));
+	}
+
+	if(bHasSelectedFiles || bHasSelectedShelvedFiles || (bHasSelectedChangelist && (GetCurrentChangelistState()->GetFilesStates().Num() > 0 || GetCurrentChangelistState()->GetShelvedFilesStates().Num() > 0)))
+	{
+		Section.AddSeparator("Shelve");
+	}
+
+	if(bHasSelectedFiles || (bHasSelectedChangelist && GetCurrentChangelistState()->GetFilesStates().Num() > 0))
+	{
+		Section.AddMenuEntry("Shelve", LOCTEXT("SourceControl_Shelve", "Shelve Files"), LOCTEXT("SourceControl_Shelve_Tooltip", "Shelves the changelist or the selected files"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnShelve)));
+	}
+
+	if (bHasSelectedShelvedFiles || (bHasSelectedChangelist && GetCurrentChangelistState()->GetShelvedFilesStates().Num() > 0))
+	{
+		Section.AddMenuEntry("Unshelve", LOCTEXT("SourceControl_Unshelve", "Unshelve Files"), LOCTEXT("SourceControl_Unshelve_Tooltip", "Unshelve selected files or changelist"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnUnshelve)));
+
+		Section.AddMenuEntry("DeleteShelved", LOCTEXT("SourceControl_DeleteShelved", "Delete Shelved Files"), LOCTEXT("SourceControl_DeleteShelved_Tooltip", "Delete selected shelved files or all from changelist"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDeleteShelvedFiles)));
+	}
+
+	// Shelved files-only operations
+	if (bHasSelectedShelvedFiles)
+	{
+		// Diff against workspace
+		Section.AddMenuEntry("DiffAgainstWorkspace", LOCTEXT("SourceControl_DiffAgainstWorkspace", "Diff Against Workspace Files"), LOCTEXT("SourceControl_DiffAgainstWorkspace_Tooltip", "Diff shelved file against the (local) workspace file"), FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDiffAgainstWorkspace),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDiffAgainstWorkspace)));
 	}
 
 	if (bHasEmptySelection || bHasSelectedChangelist)
@@ -733,7 +847,7 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	}
 
 	// Files-only operations
-	if (!bHasEmptySelection && !bHasSelectedChangelist)
+	if(bHasSelectedFiles)
 	{
 		Section.AddSeparator("Files");
 
@@ -998,6 +1112,144 @@ private:
 	FFileTreeItem* TreeItem;
 };
 
+class SShelvedChangelistTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
+{
+public:
+	SLATE_BEGIN_ARGS(SShelvedChangelistTableRow)
+		: _TreeItemToVisualize()
+	{}
+	SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+		SLATE_END_ARGS()
+
+public:
+	/**
+	* Construct child widgets that comprise this widget.
+	*
+	* @param InArgs Declaration from which to construct this widget.
+	*/
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
+	{
+		TreeItem = static_cast<FShelvedChangelistTreeItem*>(InArgs._TreeItemToVisualize.Get());
+
+		auto Args = FSuperRowType::FArguments();
+		SMultiColumnTableRow<FChangelistTreeItemPtr>::Construct(Args, InOwner);
+	}
+
+	// SMultiColumnTableRow overrides
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+	{
+		if (ColumnName == TEXT("Change"))
+		{
+			return SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(5, 0, 4, 0)
+					[
+						SNew(SExpanderArrow, SharedThis(this))
+					]
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(5, 0, 0, 0)
+					[
+						SNew(SImage)
+						.Image(FEditorStyle::GetBrush("SourceControl.Changelist"))
+					]
+				+ SHorizontalBox::Slot()
+					.Padding(2.0f, 0.0f)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(this, &SShelvedChangelistTableRow::GetText)
+					];
+		}
+		else
+		{
+			return SNullWidget::NullWidget;
+		}
+	}
+
+protected:
+	FText GetText() const
+	{
+		return TreeItem->GetDisplayText();
+	}
+
+private:
+	/** The info about the widget that we are visualizing. */
+	FShelvedChangelistTreeItem* TreeItem;
+};
+
+class SShelvedFileTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
+{
+public:
+	SLATE_BEGIN_ARGS(SShelvedFileTableRow)
+		: _TreeItemToVisualize()
+	{}
+	SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+		SLATE_END_ARGS()
+
+public:
+	/**
+	* Construct child widgets that comprise this widget.
+	*
+	* @param InArgs Declaration from which to construct this widget.
+	*/
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
+	{
+		TreeItem = static_cast<FShelvedFileTreeItem*>(InArgs._TreeItemToVisualize.Get());
+
+		auto Args = FSuperRowType::FArguments();
+		FSuperRowType::Construct(Args, InOwner);
+	}
+
+	// SMultiColumnTableRow overrides
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+	{
+		const bool bIsShelvedFile = true;
+
+		if (ColumnName == TEXT("Change")) // eq. to name
+		{
+			return SNew(SHorizontalBox)
+
+				// Icon
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(60, 0, 4, 0)
+				[
+					GetSCCFileWidget(TreeItem->FileState, bIsShelvedFile)
+				]
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("SourceControl_DefaultNameForShelvedFiles", "Unavailable"))
+				];
+		}
+		else if (ColumnName == TEXT("Description"))
+		{
+			return SNew(STextBlock)
+				.Text(this, &SShelvedFileTableRow::GetDisplayName);
+		}
+		else
+		{
+			return SNullWidget::NullWidget;
+		}
+	}
+
+	FText GetDisplayName() const
+	{
+		return TreeItem->GetDisplayName();
+	}
+
+private:
+	/** The info about the widget that we are visualizing. */
+	FShelvedFileTreeItem* TreeItem;
+};
+
 TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(FChangelistTreeItemPtr InTreeItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	switch (InTreeItem->GetTreeItemType())
@@ -1010,6 +1262,14 @@ TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(FChangelist
 		return SNew(SFileTableRow, OwnerTable)
 			.TreeItemToVisualize(InTreeItem)
 			.OnDragDetected(this, &SSourceControlChangelistsWidget::OnFilesDragged);
+
+	case IChangelistTreeItem::ShelvedChangelist:
+		return SNew(SShelvedChangelistTableRow, OwnerTable)
+			.TreeItemToVisualize(InTreeItem);
+
+	case IChangelistTreeItem::ShelvedFile:
+		return SNew(SShelvedFileTableRow, OwnerTable)
+			.TreeItemToVisualize(InTreeItem);
 
 	default:
 		check(false);
@@ -1042,7 +1302,6 @@ void SSourceControlChangelistsWidget::OnGetChildren(FChangelistTreeItemPtr InPar
 		OutChildren.Add(Child);
 	}
 }
-
 
 
 #undef LOCTEXT_NAMESPACE

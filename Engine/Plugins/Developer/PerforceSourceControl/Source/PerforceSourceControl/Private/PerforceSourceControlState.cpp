@@ -336,4 +336,92 @@ bool FPerforceSourceControlState::CanRevert() const
 	return CanCheckIn();
 }
 
+void FPerforceSourceControlState::Update(const FPerforceSourceControlState& InOther, const FDateTime* InTimeStamp /* = nullptr */)
+{
+	check(InOther.LocalFilename == LocalFilename);
+
+	if (InOther.History.Num() != 0)
+	{
+		History = InOther.History;
+	}
+
+	if (InOther.DepotFilename.Len() != 0)
+	{
+		DepotFilename = InOther.DepotFilename;
+	}
+
+	if (InOther.OtherUserCheckedOut.Len() != 0)
+	{
+		OtherUserCheckedOut = InOther.OtherUserCheckedOut;
+	}
+
+	if (InOther.State != EPerforceState::DontCare)
+	{
+		State = InOther.State;
+	}
+
+	if (InOther.DepotRevNumber != INVALID_REVISION)
+	{
+		DepotRevNumber = InOther.DepotRevNumber;
+	}
+
+	if (InOther.LocalRevNumber != INVALID_REVISION)
+	{
+		LocalRevNumber = InOther.LocalRevNumber;
+	}
+
+	if (InOther.PendingResolveRevNumber != INVALID_REVISION)
+	{
+		PendingResolveRevNumber = InOther.PendingResolveRevNumber;
+	}
+
+	// This flag is true when the current object has been modified.
+	// This is not necessarily known at all times, so we will play it safe and use an OR here.
+	bModifed |= InOther.bModifed;
+
+	// Here we will assume that the type info is always properly intiialized in InOther
+	bBinary = InOther.bBinary;
+	bExclusiveCheckout = InOther.bExclusiveCheckout;
+
+	if (InOther.Changelist.IsInitialized())
+	{
+		Changelist = InOther.Changelist;
+	}
+
+	if (InTimeStamp)
+	{
+		TimeStamp = *InTimeStamp;
+	}
+
+	if (InOther.HeadBranch.Len() != 0)
+	{
+		HeadBranch = InOther.HeadBranch;
+	}
+
+	if (InOther.HeadAction.Len() != 0)
+	{
+		HeadAction = InOther.HeadAction;
+	}
+
+	if (InOther.HeadModTime != 0)
+	{
+		HeadModTime = InOther.HeadModTime;
+	}
+
+	if (InOther.HeadChangeList != 0)
+	{
+		HeadChangeList = InOther.HeadChangeList;
+	}
+
+	if (InOther.CheckedOutBranches.Num() != 0)
+	{
+		CheckedOutBranches = InOther.CheckedOutBranches;
+	}
+
+	if (InOther.OtherUserBranchCheckedOuts.Len() != 0)
+	{
+		OtherUserBranchCheckedOuts = InOther.OtherUserBranchCheckedOuts;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

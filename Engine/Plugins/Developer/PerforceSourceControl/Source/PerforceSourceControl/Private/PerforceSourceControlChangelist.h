@@ -18,6 +18,7 @@ public:
 
 	FPerforceSourceControlChangelist(const FPerforceSourceControlChangelist& InOther)
 		: ChangelistNumber(InOther.ChangelistNumber)
+		, bInitialized(InOther.bInitialized)
 	{
 	}
 
@@ -57,8 +58,15 @@ public:
 		return ChangelistNumber != DefaultChangelist.ChangelistNumber ? FString::FromInt(ChangelistNumber) : TEXT("default");
 	}
 
+	int32 ToInt() const
+	{
+		return ChangelistNumber;
+	}
+
 public:
 	static const FPerforceSourceControlChangelist DefaultChangelist;
+
+private:
 	int32 ChangelistNumber;
 	bool bInitialized;
 };
