@@ -290,6 +290,7 @@ UEdGraph* UBlueprintEditorLibrary::AddFunctionGraph(UBlueprint* Blueprint, const
 {
 	if (!Blueprint)
 	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Failed to add function graph, ensure that blueprint is not null!"));
 		return nullptr;
 	}
 
@@ -302,7 +303,8 @@ UEdGraph* UBlueprintEditorLibrary::AddFunctionGraph(UBlueprint* Blueprint, const
 	}
 	else
 	{
-		GraphName = FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, FuncName);
+		static const FString NewFunctionString = TEXT("NewFunction");
+		GraphName = FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, !FuncName.IsEmpty() ? FuncName : NewFunctionString);
 	}
 
 	Blueprint->Modify();

@@ -86,7 +86,7 @@ public:
 	* @return UEdGraph*
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
-	static UEdGraph* AddFunctionGraph(UBlueprint* Blueprint, const FString& FuncName);
+	static UEdGraph* AddFunctionGraph(UBlueprint* Blueprint, const FString& FuncName = FString(TEXT("NewFunction")));
 
 	/** 
 	* Deletes the function of the given name on this blueprint. Does NOT replace function call sites. 
