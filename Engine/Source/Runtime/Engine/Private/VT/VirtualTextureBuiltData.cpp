@@ -193,7 +193,7 @@ struct FBulkDataLockedScope
 		}
 	}
 
-	const FUntypedBulkData* BulkData = nullptr;
+	const FByteBulkData* BulkData = nullptr;
 };
 
 bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext, bool bValidateCompression) const
