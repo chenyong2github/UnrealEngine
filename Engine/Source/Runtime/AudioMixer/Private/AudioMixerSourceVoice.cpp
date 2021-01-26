@@ -45,7 +45,9 @@ namespace Audio
 		bIsPaused = false;
 		bIsActive = false;
 		bIsBus = false;
-		bOutputToBusOnly = false;
+		bEnableBusSends = false;
+		bEnableBaseSubmix = false;
+		bEnableSubmixSends = false;
 		bStopFadedOut = false;
 
 		PitchModBase = TNumericLimits<float>::Max();
@@ -65,7 +67,10 @@ namespace Audio
 			AUDIO_MIXER_CHECK(InitParams.SourceListener != nullptr);
 			AUDIO_MIXER_CHECK(InitParams.NumInputChannels > 0);
 
-			bOutputToBusOnly = InitParams.bOutputToBusOnly;
+			bEnableBusSends = InitParams.bEnableBusSends;
+			bEnableBaseSubmix = InitParams.bEnableBaseSubmix;
+			bEnableSubmixSends = InitParams.bEnableSubmixSends;
+
 			bIsBus = InitParams.AudioBusId != INDEX_NONE;
 
 			for (int32 i = 0; i < InitParams.SubmixSends.Num(); ++i)
@@ -303,7 +308,7 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-		if (!bOutputToBusOnly)
+		if (IsRenderingToSubmixes())
 		{
 			SourceManager->MixOutputBuffers(SourceId, InNumOutputChannels, SendLevel, InSubmixSendStage, OutWetBuffer);
 		}
@@ -313,7 +318,7 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-		if (!bOutputToBusOnly)
+		if (IsRenderingToSubmixes())
 		{
 			return SourceManager->GetEncodedOutput(SourceId, InKey);
 		}
@@ -369,7 +374,20 @@ namespace Audio
 
 	void FMixerSourceVoice::SetOutputToBusOnly(bool bInOutputToBusOnly)
 	{
-		bOutputToBusOnly = bInOutputToBusOnly;
+		if (bInOutputToBusOnly)
+		{
+			bEnableBusSends = true;
+		}
+
+		bEnableBaseSubmix = !bInOutputToBusOnly;
+		bEnableSubmixSends = !bInOutputToBusOnly;
+	}
+
+	void FMixerSourceVoice::SetEnablement(bool bInEnableBusSendRouting, bool bInEnableMainSubmixOutput, bool bInEnableSubmixSendRouting)
+	{
+		bEnableBusSends = bInEnableBusSendRouting;
+		bEnableBaseSubmix = bInEnableMainSubmixOutput;
+		bEnableSubmixSends = bInEnableSubmixSendRouting;
 	}
 
 
@@ -377,7 +395,17 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
+		if (!bEnableBusSends)
+		{
+			BusSendLevel = 0.0f;
+		}
+
 		SourceManager->SetBusSendInfo(SourceId, InBusSendType, AudioBusId, BusSendLevel);
+	}
+
+	bool FMixerSourceVoice::IsRenderingToSubmixes() const
+	{
+		return bEnableBaseSubmix || bEnableSubmixSends;
 	}
 
 	void FMixerSourceVoice::OnMixBus(FMixerSourceVoiceBuffer* OutMixerSourceBuffer)

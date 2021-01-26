@@ -23,6 +23,10 @@ USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
 	MaxConcurrentPlayCount_DEPRECATED = 16;
 #endif // WITH_EDITORONLY_DATA
 
+	//Migrate bOutputToBusOnly settings to Enablement based UI
+	bEnableBusSends = true;
+	bEnableBaseSubmix = true;
+	bEnableSubmixSends = true;
 }
 
 void USoundBase::PostInitProperties()
@@ -194,6 +198,14 @@ bool USoundBase::GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSou
 void USoundBase::PostLoad()
 {
 	Super::PostLoad();
+
+	if (bOutputToBusOnly_DEPRECATED)
+	{
+		bEnableBusSends = true;
+		bEnableBaseSubmix = !bOutputToBusOnly_DEPRECATED;
+		bEnableSubmixSends = !bOutputToBusOnly_DEPRECATED;
+		bOutputToBusOnly_DEPRECATED = false;
+	}
 
 	const int32 LinkerUE4Version = GetLinkerUE4Version();
 

@@ -249,6 +249,8 @@ namespace Audio
 		, MixerDevice(static_cast<FMixerDevice*>(InAudioDevice))
 		, MixerBuffer(nullptr)
 		, MixerSourceVoice(nullptr)
+		, bPreviousBusEnablement(false)
+		, bPreviousBaseSubmixEnablement(false)
 		, PreviousAzimuth(-1.0f)
 		, PreviousPlaybackPercent(0.0f)
 		, InitializationState(EMixerSourceInitializationState::NotInitialized)
@@ -265,7 +267,7 @@ namespace Audio
 		, bIsVorbis(false)
 		, bIsStoppingVoicesEnabled(InAudioDevice->IsStoppingVoicesEnabled())
 		, bSendingAudioToBuses(false)
-		, bPrevAllowedSpatializationSetting(false)
+		, bPrevAllowedSpatializationSetting(false)		
 	{
 	}
 
@@ -420,10 +422,13 @@ namespace Audio
 
 			// Toggle muting the source if sending only to output bus.
 			// This can get set even if the source doesn't have bus sends since bus sends can be dynamically enabled.
-			InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
+			InitParams.bEnableBusSends = WaveInstance->bEnableBusSends;
+			InitParams.bEnableBaseSubmix = WaveInstance->bEnableBaseSubmix;
+			InitParams.bEnableSubmixSends = WaveInstance->bEnableSubmixSends;
+			bPreviousBusEnablement = WaveInstance->bEnableBusSends;
 			DynamicBusSendInfos.Reset();
 
-			SetupBusData(InitParams.AudioBusSends);
+			SetupBusData(InitParams.AudioBusSends, InitParams.bEnableBusSends);
 
 			// Don't set up any submixing if we're set to output to bus only
 	
@@ -438,10 +443,11 @@ namespace Audio
 				FMixerSourceSubmixSend SubmixSend;
 				SubmixSend.Submix = SubmixPtr;
 				SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation;
-				SubmixSend.SendLevel = 1.0f;
+				SubmixSend.SendLevel = InitParams.bEnableBaseSubmix;
 				SubmixSend.bIsMainSend = true;
 				SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
 				InitParams.SubmixSends.Add(SubmixSend);
+				bPreviousBaseSubmixEnablement = InitParams.bEnableBaseSubmix;
 			}
 
 			// Add submix sends for this source
@@ -457,7 +463,15 @@ namespace Audio
 					{
 						SubmixSend.SubmixSendStage = EMixerSourceSubmixSendStage::PreDistanceAttenuation;
 					}
-					SubmixSend.SendLevel = SendInfo.SendLevel;
+					if (!WaveInstance->bEnableSubmixSends)
+					{
+						SubmixSend.SendLevel = 0.0f;
+					}
+					else
+					{
+						SubmixSend.SendLevel = SendInfo.SendLevel;
+					}
+					
 					SubmixSend.bIsMainSend = false;
 					SubmixSend.SoundfieldFactory = MixerDevice->GetFactoryForSubmixInstance(SubmixSend.Submix);
 					InitParams.SubmixSends.Add(SubmixSend);
@@ -578,7 +592,15 @@ namespace Audio
 				{
 					FInitAudioBusSend BusSend;
 					BusSend.AudioBusId = InBusId;
-					BusSend.SendLevel = InSendInfo.SendLevel;
+					if(bEnableBusSends)
+					{
+						BusSend.SendLevel = InSendInfo.SendLevel;
+					}
+					else
+					{
+						BusSend.SendLevel = 0;
+					}
+					
 					if (AudioBusSends)
 					{
 						AudioBusSends[InBusSendType].Add(BusSend);
@@ -1256,6 +1278,24 @@ namespace Audio
 			MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), ReverbSendLevel);
 		}
 
+		//Check whether the base submix send has been enabled or disabled since the last update
+		if (WaveInstance->bEnableBaseSubmix != bPreviousBaseSubmixEnablement)
+		{
+			// set the level for this send
+			FMixerSubmixWeakPtr SubmixPtr;
+			if (WaveInstance->SoundSubmix)
+			{
+				SubmixPtr = MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix);
+			}
+			else
+			{
+				SubmixPtr = MixerDevice->GetMasterSubmix();
+			}
+
+			MixerSourceVoice->SetSubmixSendInfo(SubmixPtr, WaveInstance->bEnableBaseSubmix);
+			bPreviousBaseSubmixEnablement = WaveInstance->bEnableBaseSubmix;
+		}
+
 		if (WaveInstance->SubmixSendSettings.Num() > 0)
 		{
 			for (const FAttenuationSubmixSendSettings& SendSettings : WaveInstance->SubmixSendSettings)
@@ -1328,7 +1368,11 @@ namespace Audio
 				float SendLevel = 1.0f;
 
 				// calculate send level based on distance if that method is enabled
-				if (SendInfo.SendLevelControlMethod == ESendLevelControlMethod::Manual)
+				if (!WaveInstance->bEnableSubmixSends)
+				{
+					SendLevel = 0.0f;
+				}
+				else if (SendInfo.SendLevelControlMethod == ESendLevelControlMethod::Manual)
 				{
 					SendLevel = FMath::Clamp(SendInfo.SendLevel, 0.0f, 1.0f);
 				}
@@ -1355,7 +1399,7 @@ namespace Audio
 			}
 		}
  		
-		MixerSourceVoice->SetOutputToBusOnly(WaveInstance->bOutputToBusOnly);
+		MixerSourceVoice->SetEnablement(WaveInstance->bEnableBusSends, WaveInstance->bEnableBaseSubmix, WaveInstance->bEnableSubmixSends);
 	}
 
 	void FMixerSource::UpdateSourceBusSends()
@@ -1414,13 +1458,19 @@ namespace Audio
 			}
 
 			// If the send level changed, then we need to send an update to the audio render thread
-			if (!FMath::IsNearlyEqual(SendLevel, DynamicBusSendInfo.SendLevel))
+			const bool bSendLevelChanged = !FMath::IsNearlyEqual(SendLevel, DynamicBusSendInfo.SendLevel);
+			const bool bBusEnablementChanged = bPreviousBusEnablement != WaveInstance->bEnableBusSends;
+
+			if (bSendLevelChanged || bBusEnablementChanged)
 			{
 				DynamicBusSendInfo.SendLevel = SendLevel;
 				DynamicBusSendInfo.bIsInit = false;
 
 				MixerSourceVoice->SetAudioBusSendInfo(DynamicBusSendInfo.BusSendType, DynamicBusSendInfo.BusId, SendLevel);
+
+				bPreviousBusEnablement = WaveInstance->bEnableBusSends;
 			}
+
 		}
 	}
 

@@ -132,7 +132,9 @@ namespace Audio
 		bool bUseHRTFSpatialization = false;
 		bool bIsExternalSend = false;
 		bool bIsDebugMode  = false;
-		bool bOutputToBusOnly = false;
+		bool bEnableBusSends = false;
+		bool bEnableBaseSubmix = false;
+		bool bEnableSubmixSends = false;
 		bool bIsVorbis = false;
 		bool bIsSoundfield = false;
 		bool bIsSeeking = false;
@@ -427,7 +429,9 @@ namespace Audio
 			uint8 bUseReverbPlugin:1;
 			uint8 bIsDone:1;
 			uint8 bIsLastBuffer:1;
-			uint8 bOutputToBusOnly:1;
+			uint8 bEnableBusSends : 1;
+			uint8 bEnableBaseSubmix : 1;
+			uint8 bEnableSubmixSends : 1;
 			uint8 bIsVorbis:1;
 			uint8 bIsSoundfield:1;
 			uint8 bIsBypassingLPF:1;
@@ -455,6 +459,9 @@ namespace Audio
 				HighpassModulationBase = MIN_FILTER_FREQUENCY;
 				LowpassModulationBase = MAX_FILTER_FREQUENCY;
 			}
+
+			//Helper function for determining if OutputToBusOnly is enabled
+			bool IsRenderingToSubmixes() const;
 
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 			uint8 bIsDebugMode : 1;

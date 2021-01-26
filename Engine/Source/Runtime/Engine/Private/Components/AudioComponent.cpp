@@ -1516,8 +1516,15 @@ void UAudioComponent::SetOutputToBusOnly(bool bInOutputToBusOnly)
 			FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
 			if (ActiveSound)
 			{
-				ActiveSound->bEnableOutputToBusOnlyOverride = true;
-				ActiveSound->bOutputToBusOnlyOverride = bInOutputToBusOnly;
+				ActiveSound->bHasActiveMainSubmixOutputOverride = true;
+				ActiveSound->bHasActiveSubmixSendRoutingOverride = true;
+				if (bInOutputToBusOnly)
+				{
+					ActiveSound->bHasActiveBusSendRoutingOverride = true;
+					ActiveSound->bEnableBusSendRoutingOverride = true;
+				}
+				ActiveSound->bEnableMainSubmixOutputOverride = !bInOutputToBusOnly;
+				ActiveSound->bEnableSubmixSendRoutingOverride = !bInOutputToBusOnly;
 			}
 		}, GET_STATID(STAT_AudioSetOutputToBusOnly));
 	}

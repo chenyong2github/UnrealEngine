@@ -128,6 +128,10 @@ USynthComponent::USynthComponent(const FObjectInitializer& ObjectInitializer)
 
 	bStopWhenOwnerDestroyed = true;
 
+	bEnableBusSends = true;
+	bEnableBaseSubmix = true;
+	bEnableSubmixSends = true;
+
 	bNeverNeedsRenderUpdate = true;
 	bUseAttachParentBound = true; // Avoid CalcBounds() when transform changes.
 
@@ -239,7 +243,9 @@ void USynthComponent::Initialize(int32 SampleRateOverride)
 		Synth->SoundSubmixSends = SoundSubmixSends;
 		Synth->BusSends = BusSends;
 		Synth->PreEffectBusSends = PreEffectBusSends;
-		Synth->bOutputToBusOnly = bOutputToBusOnly;
+		Synth->bEnableBusSends = bEnableBusSends;
+		Synth->bEnableBaseSubmix = bEnableBaseSubmix;
+		Synth->bEnableSubmixSends = bEnableSubmixSends;
 
 		Synth->Init(this, NumChannels, SampleRate, PreferredBufferLength);
 
@@ -367,6 +373,20 @@ void USynthComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif //WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+void USynthComponent::PostLoad()
+{
+	Super::PostLoad();
+	if (bOutputToBusOnly_DEPRECATED)
+	{
+		bEnableBusSends = true;
+		bEnableBaseSubmix = !bOutputToBusOnly_DEPRECATED;
+		bEnableSubmixSends = !bOutputToBusOnly_DEPRECATED;
+		bOutputToBusOnly_DEPRECATED = false;
+	}
+}
+#endif //WITH_EDITORONLY_DATA
 
 void USynthComponent::Serialize(FArchive& Ar)
 {
