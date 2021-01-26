@@ -6216,7 +6216,7 @@ uint64 FShaderJobCache::GetAllocatedMemory()
 {
 	if (!CurrentlyAllocatedMemory)
 	{
-		uint64 MemoryUsed = sizeof(this) + InputHashToOutput.GetAllocatedSize() + Outputs.GetAllocatedSize();
+		uint64 MemoryUsed = sizeof(*this) + InputHashToOutput.GetAllocatedSize() + Outputs.GetAllocatedSize();
 
 		// go through all the outputs and sum them
 		for (TMap<FJobOutputHash, FStoredOutput*>::TConstIterator Iter(Outputs); Iter; ++Iter)
