@@ -375,6 +375,15 @@ bool UMetaDataRegistrySource_DataTable::DoesAssetPassFilter(const FAssetData& As
 		}
 	}
 
+	//TODO -- Temp hack per Ben Zeigler to workaround calls into here with cooked data.  He will adjust in a subsequent CL.
+#if !WITH_EDITORONLY_DATA
+	const UDataRegistrySettings* Settings = GetDefault<UDataRegistrySettings>();
+	if (Settings->bIgnoreMissingCookedAssetRegistryData)
+	{
+		return true;
+	}
+#endif
+
 	return false;
 }
 
