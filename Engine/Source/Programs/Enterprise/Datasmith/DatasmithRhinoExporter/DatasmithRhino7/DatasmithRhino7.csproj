@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <AssemblyInfo Condition=" '$(AssemblyInfo)' == ''">..\Properties\DefaultAssemblyInfo.cs</AssemblyInfo>
+    <!--If the evironment variable is not define, try to find the Rhino files on build machines-->
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{D1FDC795-B334-4933-B680-088119CDC6BB}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>DatasmithRhino7</RootNamespace>
+    <AssemblyName Condition="'$(Configuration)' == 'Debug'">DatasmithRhino7-Debug</AssemblyName>
+    <AssemblyName Condition="'$(Configuration)' == 'Shipping' OR '$(Configuration)' == 'Release'">DatasmithRhino7-Shipping</AssemblyName>
+    <AssemblyName Condition="'$(Configuration)' != 'Debug' AND '$(Configuration)' != 'Shipping' AND '$(Configuration)' != 'Release'">DatasmithRhino7</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\7</OutputPath>
+    <DefineConstants>DEBUG;TRACE;RHINO_VERSION_7</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisIgnoreBuiltInRules>false</CodeAnalysisIgnoreBuiltInRules>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Development|x64'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\7</OutputPath>
+    <DefineConstants>TRACE;RHINO_VERSION_7</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\7</OutputPath>
+    <DefineConstants>TRACE;RHINO_VERSION_7</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="RhinoCommon">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(RHINO7_PATH)\rhinocommon.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Eto">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(RHINO7_PATH)\Eto.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Rhino.UI">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(RHINO7_PATH)\Rhino.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="DatasmithRhino7.cs" />
+    <Compile Include="$(AssemblyInfo)">
+      <Link>Properties\AssemblyInfo.cs</Link>
+    </Compile>
+    <Compile Include="..\Private\**\*.cs">
+      <Link>DatasmithRhinoExporter\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Compile>
+    <!-- DatasmithCSharpFacade API, possibly change that. -->
+    <Compile Include="..\..\..\..\..\..\Binaries\Win64\DatasmithFacadeCSharp\Public\*.cs">
+      <Link>DatasmithSwigFacade\%(Filename)%(Extension)</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\SharedResources\UnrealEngine.ico" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <PropertyGroup>
+    <PostBuildEvent>
+		Copy "$(TargetPath)" "$(TargetDir)$(TargetName).rhp"
+		Copy "$(MSBuildProjectDirectory)\..\SharedResources\DatasmithRhino.rui" "$(TargetDir)$(TargetName).rui"
+    </PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <FallbackCulture>en-US</FallbackCulture>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <StartProgram>$(RHINO7_PATH)\Rhino.exe</StartProgram>
+    <StartArguments>
+    </StartArguments>
+    <StartAction>Program</StartAction>
+  </PropertyGroup>
+</Project>
