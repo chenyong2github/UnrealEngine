@@ -5,5 +5,5 @@
 namespace FEditorConfigTestHelpers
 {
 	// check that two serialized JSON objects are equivalent
-	static bool AreJsonStringsEquivalent(const FString& Actual, const FString& Expected);
+	bool AreJsonStringsEquivalent(const FString& Actual, const FString& Expected);
 }

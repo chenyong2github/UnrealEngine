@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ItemPropertyNode.h"
-#include "DetailsViewConfig.h"
 #include "Editor.h"
 #include "EditorMetadataOverrides.h"
 #include "ObjectPropertyNode.h"
