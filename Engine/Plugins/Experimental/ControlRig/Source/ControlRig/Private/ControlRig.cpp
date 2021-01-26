@@ -445,6 +445,12 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 				VM->AddExternalVariable(ExternalVariable);
 			}
 		}
+
+		// default to always clear data after each execution
+		// only set a valid first entry event later when execution
+		// has passed the initialization stage and there are multiple events present in one evaluation
+		// first entry event is used to determined when to clear data during an evaluation
+		VM->SetFirstEntryEventInEventQueue(NAME_None);
 	}
 
 	bool bJustRanInit = false;
@@ -598,8 +604,19 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if (!bSetupModeEnabled)
 	{
+
 		if(!IsExecuting())
-		{
+		{ 
+
+#if WITH_EDITOR
+			// only set a valid first entry event when execution
+			// has passed the initialization stage and there are multiple events present
+			if (EventQueue.Num() >= 2 && VM && InState != EControlRigState::Init)
+			{
+				VM->SetFirstEntryEventInEventQueue(EventQueue[0]);
+			}
+#endif
+
 			ExecuteUnits(Context, InEventName);
 
 			if (InState == EControlRigState::Init)

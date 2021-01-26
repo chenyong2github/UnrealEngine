@@ -67,6 +67,9 @@ URigVM::URigVM()
     , ByteCodePtr(&ByteCodeStorage)
     , FunctionNamesPtr(&FunctionNamesStorage)
     , FunctionsPtr(&FunctionsStorage)
+#if WITH_EDITOR
+	, FirstEntryEventInQueue(NAME_None)
+#endif
 	, ExecutingThreadId(INDEX_NONE)
 	, DeferredVMToCopy(nullptr)
 {
@@ -965,9 +968,13 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 
 #if WITH_EDITOR
 	TArray<FName>& FunctionNames = GetFunctionNames();
-	InstructionVisitedDuringLastRun.Reset();
-	InstructionVisitOrder.Reset();
-	InstructionVisitedDuringLastRun.SetNumZeroed(Instructions.Num());
+
+	if (FirstEntryEventInQueue == NAME_None || FirstEntryEventInQueue == InEntryName)
+	{
+		InstructionVisitedDuringLastRun.Reset();
+		InstructionVisitOrder.Reset();
+		InstructionVisitedDuringLastRun.SetNumZeroed(Instructions.Num());
+	}
 #endif
 
 	Context.Reset();
@@ -988,7 +995,7 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 	while (Instructions.IsValidIndex(Context.InstructionIndex))
 	{
 #if WITH_EDITOR
-		InstructionVisitedDuringLastRun[Context.InstructionIndex] = true;
+		InstructionVisitedDuringLastRun[Context.InstructionIndex]++;
 		InstructionVisitOrder.Add(Context.InstructionIndex);
 #endif
 

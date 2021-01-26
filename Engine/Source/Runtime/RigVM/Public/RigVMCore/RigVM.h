@@ -194,13 +194,15 @@ public:
 	{
 		if (InstructionVisitedDuringLastRun.IsValidIndex(InIndex))
 		{
-			return InstructionVisitedDuringLastRun[InIndex];
+			return InstructionVisitedDuringLastRun[InIndex] > 0;
 		}
 		return false;
 	}
 
 	// Returns the order of all instructions during the last run
 	FORCEINLINE const TArray<int32> GetInstructionVisitOrder() const { return InstructionVisitOrder; }
+
+	FORCEINLINE const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
 #endif
 
 	// Returns the parameters of the VM
@@ -528,8 +530,13 @@ private:
 	TArray<FRigVMExternalVariable> ExternalVariables;
 
 #if WITH_EDITOR
-	TArray<bool> InstructionVisitedDuringLastRun;
+	// stores the number of times each instruction was visited
+	TArray<int32> InstructionVisitedDuringLastRun;
 	TArray<int32> InstructionVisitOrder;
+	
+	// Control Rig can run multiple events per evaluation, such as the Backward&Forward Solve Mode,
+	// store the first event such that we know when to reset data for a new round of rig evaluation
+	FName FirstEntryEventInQueue;
 #endif
 
 	void CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute = false);
