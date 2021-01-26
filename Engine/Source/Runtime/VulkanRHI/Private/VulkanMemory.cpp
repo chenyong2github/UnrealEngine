@@ -262,8 +262,7 @@ static FAutoConsoleVariableRef CVarVulkanFakeMemoryLimit(
 );
 #endif
 
-// this is disabled currently due causing use-after-free issues, which caused UE-105058
-int32 GVulkanEnableDefrag = 0;
+int32 GVulkanEnableDefrag = 1;
 static FAutoConsoleVariableRef CVarVulkanEnableDefrag(
 	TEXT("r.Vulkan.EnableDefrag"),
 	GVulkanEnableDefrag,
