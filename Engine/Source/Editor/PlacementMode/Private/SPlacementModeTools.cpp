@@ -314,7 +314,7 @@ void SPlacementAssetMenuEntry::Construct(const FArguments& InArgs, const TShared
 	bIsPressed = false;
 
 	check(InItem.IsValid());
-	
+
 	Item = InItem;
 
 	AssetImage = nullptr;
@@ -422,7 +422,14 @@ const FSlateBrush* SPlacementAssetMenuEntry::GetIcon() const
 		return AssetImage;
 	}
 
-	AssetImage = FSlateIconFinder::FindIconBrushForClass(FClassIconFinder::GetIconClassForAssetData(Item->AssetData));
+	if (Item->ClassIconBrushOverride != NAME_None)
+	{
+		AssetImage = FSlateIconFinder::FindCustomIconBrushForClass(nullptr, TEXT("ClassIcon"), Item->ClassIconBrushOverride);
+	}
+	else
+	{
+		AssetImage = FSlateIconFinder::FindIconBrushForClass(FClassIconFinder::GetIconClassForAssetData(Item->AssetData));
+	}
 
 	return AssetImage;
 }

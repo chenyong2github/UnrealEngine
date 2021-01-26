@@ -20,6 +20,7 @@ void FHDRIBackdropPlacement::RegisterPlacement()
 	FPlaceableItem* BPPlacement = new FPlaceableItem(
 		*UActorFactoryBlueprint::StaticClass(),
 		FAssetData(HDRIBackdrop, true),
+		FName("HDRIBackdrop.ModesThumbnail"),
 		FName("HDRIBackdrop.ModesIcon"),
 		TOptional<FLinearColor>(),
 		TOptional<int32>(),

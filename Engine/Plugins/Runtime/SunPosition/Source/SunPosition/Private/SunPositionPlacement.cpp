@@ -23,6 +23,7 @@ void FSunPositionPlacement::RegisterPlacement()
 		FPlaceableItem* BPPlacement = new FPlaceableItem(
 			*UActorFactoryBlueprint::StaticClass(),
 			FAssetData(SunSky, true),
+			FName("SunPosition.ModesThumbnail"),
 			FName("SunPosition.ModesIcon"),
 			TOptional<FLinearColor>(),
 			TOptional<int32>(),

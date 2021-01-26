@@ -21,7 +21,8 @@ void FSunPositionStyle::Initialize()
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	FString IconPath = IPluginManager::Get().FindPlugin(TEXT("SunPosition"))->GetBaseDir() + TEXT("/Resources/SunPosition.png");
-	StyleSet->Set("SunPosition.ModesIcon", new FSlateImageBrush(IconPath, FVector2D(40.0f, 40.0f)));
+	StyleSet->Set("SunPosition.ModesThumbnail", new FSlateImageBrush(IconPath, FVector2D(40.0f, 40.0f)));
+	StyleSet->Set("SunPosition.ModesIcon", new FSlateImageBrush(IconPath, FVector2D(16.0f, 16.0f)));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }

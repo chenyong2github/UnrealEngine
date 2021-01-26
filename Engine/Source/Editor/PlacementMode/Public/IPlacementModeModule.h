@@ -109,6 +109,7 @@ struct FPlaceableItem
 		UClass& InAssetClass,
 		const FAssetData& InAssetData,
 		FName InClassThumbnailBrushOverride = NAME_None,
+		FName InClassIconBrushOverride = NAME_None,
 		TOptional<FLinearColor> InAssetTypeColorOverride = TOptional<FLinearColor>(),
 		TOptional<int32> InSortOrder = TOptional<int32>(),
 		TOptional<FText> InDisplayName = TOptional<FText>()
@@ -116,6 +117,7 @@ struct FPlaceableItem
 		: Factory(GEditor->FindActorFactoryByClass(&InAssetClass))
 		, AssetData(InAssetData)
 		, ClassThumbnailBrushOverride(InClassThumbnailBrushOverride)
+		, ClassIconBrushOverride(InClassIconBrushOverride)
 		, AssetTypeColorOverride(InAssetTypeColorOverride)
 		, SortOrder(InSortOrder)
 	{
@@ -176,6 +178,9 @@ struct FPlaceableItem
 
 	/** Optional override for the thumbnail brush (passed to FClassIconFinder::FindThumbnailForClass in the form ClassThumbnail.<override>) */
 	FName ClassThumbnailBrushOverride;
+
+	/** Optional override for the small icon brush */
+	FName ClassIconBrushOverride;
 
 	/** Whether to always use the generic thumbnail for this item or not */
 	bool bAlwaysUseGenericThumbnail;

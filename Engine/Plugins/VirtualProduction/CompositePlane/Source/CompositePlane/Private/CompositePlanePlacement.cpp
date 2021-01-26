@@ -25,6 +25,7 @@ void FCompositePlanePlacement::RegisterPlacement()
 		*UActorFactoryBlueprint::StaticClass(),
 		FAssetData(CompositePlane, true),
 		FName(""),
+		FName(""),
 		TOptional<FLinearColor>(),
 		TOptional<int32>(),
 		NSLOCTEXT("PlacementMode", "Composite Plane", "Composite Plane")

@@ -18,7 +18,8 @@ void FColorCorrectRegionsStyle::Initialize()
 	CCRStyle = MakeShared<FSlateStyleSet>(FName("ColorCorrectRegionsStyle"));
 
 	FString IconPath = IPluginManager::Get().FindPlugin(TEXT("ColorCorrectRegions"))->GetBaseDir() + TEXT("/Resources/PlaceActorPreview.png");
-	CCRStyle->Set("CCR.PlaceActorIcon", new FSlateImageBrush(IconPath, FVector2D(40.0f, 40.0f)));
+	CCRStyle->Set("CCR.PlaceActorThumbnail", new FSlateImageBrush(IconPath, FVector2D(40.0f, 40.0f)));
+	CCRStyle->Set("CCR.PlaceActorIcon", new FSlateImageBrush(IconPath, FVector2D(16.0f, 16.0f)));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*CCRStyle.Get());
 }

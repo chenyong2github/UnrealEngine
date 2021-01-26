@@ -27,6 +27,7 @@ void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName
 		FPlaceableItem* CCRPlaceableItem = new FPlaceableItem(
 			*UActorFactoryBlueprint::StaticClass(),
 			FAssetData(CCRBlueprint, true),
+			FName("CCR.PlaceActorThumbnail"),
 			FName("CCR.PlaceActorIcon"),
 			TOptional<FLinearColor>(),
 			TOptional<int32>(),

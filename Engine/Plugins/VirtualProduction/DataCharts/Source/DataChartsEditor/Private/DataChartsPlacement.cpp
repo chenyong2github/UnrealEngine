@@ -37,6 +37,7 @@ void FDataChartsPlacement::RegisterPlacement()
 			*UActorFactoryBlueprint::StaticClass(),
 			FAssetData(ChartBP, true),
 			It.Key(),
+			It.Key(),
 			TOptional<FLinearColor>(),
 			TOptional<int32>(),
 			FText::FromString(ChartName)
