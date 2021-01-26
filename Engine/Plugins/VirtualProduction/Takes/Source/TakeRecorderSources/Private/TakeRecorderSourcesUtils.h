@@ -93,6 +93,11 @@ namespace TakeRecorderSourcesUtils
 		return false;
 	}
 
+	static bool IsActorRecordable(const AActor* Actor)
+	{
+		return !Actor->GetClass()->HasAnyClassFlags(CLASS_NotPlaceable);
+	};
+
 	/**
 	* Get the object binding for a given actor that is being recorded. An actor can either be a Possessable or a Spawnable but we only have pointers
 	* to the original object being recorded. To solve this, we iterate through each actor being recorded and ask it what Guid it ended up with which

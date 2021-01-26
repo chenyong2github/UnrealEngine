@@ -62,6 +62,12 @@ UTakeRecorderSource* UTakeRecorderActorSource::AddSourceForActor(AActor* InActor
 		return nullptr;
 	}
 
+	if (!TakeRecorderSourcesUtils::IsActorRecordable(InActor))
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("The Actor: %s is not recordable."), *InActor->GetPathName()), ELogVerbosity::Error);
+		return nullptr;
+	}
+
 	//Look through our sources and see if one actor matches the incoming one either from editor or PIE world.
 	{
 		//Cache  InputActor comparison data

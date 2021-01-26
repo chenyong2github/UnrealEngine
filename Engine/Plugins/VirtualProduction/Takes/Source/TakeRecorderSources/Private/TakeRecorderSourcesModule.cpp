@@ -13,6 +13,7 @@
 #include "TakeRecorderActorSource.h"
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSettings.h"
+#include "TakeRecorderSourcesUtils.h"
 #include "Features/IModularFeatures.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
@@ -178,14 +179,52 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 	{
 		bool bCanHandle = false;
 		if (InOperation)
-		{
+		{		
+			TSharedPtr<FActorDragDropOp>  ActorDrag = nullptr;
+			TSharedPtr<FFolderDragDropOp> FolderDrag = nullptr;
+
+			FDragDropOperation* OperationPtr = InOperation.Get();
+			if (!OperationPtr)
+			{
+				return false;
+			}
 			if (InOperation->IsOfType<FActorDragDropOp>())
 			{
-				bCanHandle |= InOperation->CastTo<FActorDragDropOp>()->Actors.Num() > 0;
+				ActorDrag = OperationPtr->CastTo<FActorDragDropOp>();
 			}
 			if (InOperation->IsOfType<FFolderDragDropOp>())
 			{
-				bCanHandle |= true;
+				FolderDrag = OperationPtr->CastTo<FFolderDragDropOp>();
+			}
+
+			if (ActorDrag)
+			{
+				for (TWeakObjectPtr<AActor> WeakActor : ActorDrag->Actors)
+				{
+					if (AActor* Actor = WeakActor.Get())
+					{
+						if (TakeRecorderSourcesUtils::IsActorRecordable(Actor))
+						{
+							bCanHandle = true;
+							break;
+						}
+					}
+				}
+			}
+
+			if (FolderDrag && !bCanHandle)
+			{
+				TArray<AActor*> FolderActors;
+				FActorFolders::GetActorsFromFolders(*GWorld, FolderDrag->Folders, FolderActors);
+
+				for (AActor* ActorInFolder : FolderActors)
+				{
+					if (TakeRecorderSourcesUtils::IsActorRecordable(ActorInFolder))
+					{
+						bCanHandle = true;
+						break;
+					}
+				}
 			}
 		}
 
@@ -220,14 +259,26 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 			{
 				if (AActor* Actor = WeakActor.Get())
 				{
-					DraggedActors.Add(Actor);
+					if (TakeRecorderSourcesUtils::IsActorRecordable(Actor))
+					{
+						DraggedActors.Add(Actor);
+					}
 				}
 			}
 		}
 
 		if (FolderDrag)
 		{
-			FActorFolders::GetActorsFromFolders(*GWorld, FolderDrag->Folders, DraggedActors);
+			TArray<AActor*> FolderActors;
+			FActorFolders::GetActorsFromFolders(*GWorld, FolderDrag->Folders, FolderActors);
+
+			for (AActor* ActorInFolder : FolderActors)
+			{
+				if (TakeRecorderSourcesUtils::IsActorRecordable(ActorInFolder))
+				{
+					DraggedActors.Add(ActorInFolder);
+				}
+			}
 		}
 
 		TArray<AActor*> ExistingActors;
@@ -337,7 +388,7 @@ public:
 
 		auto OutlinerFilterPredicate = [InExistingActors = MoveTemp(ExistingActors)](const AActor* InActor)
 		{
-			return !InExistingActors.Contains(InActor);
+			return !InExistingActors.Contains(InActor) && TakeRecorderSourcesUtils::IsActorRecordable(InActor);
 		};
 
 		// Set up a menu entry to add the selected actor(s) to the sequencer
