@@ -8,6 +8,7 @@
 #include "RigVMModel/RigVMLink.h"
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMASTProxy.h"
+#include "Logging/TokenizedMessage.h"
 #include "RigVMAST.generated.h"
 
 DECLARE_DELEGATE_ThreeParams(FRigVMReportDelegate, EMessageSeverity::Type, UObject*, const FString&);
