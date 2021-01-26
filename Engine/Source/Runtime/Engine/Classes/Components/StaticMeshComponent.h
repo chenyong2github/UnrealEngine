@@ -195,6 +195,14 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=StaticMesh, ReplicatedUsing=OnRep_StaticMesh, meta=(AllowPrivateAccess="true"))
 	class UStaticMesh* StaticMesh;
 
+	void SetStaticMeshInternal(UStaticMesh* StaticMesh);
+
+#if WITH_EDITOR
+	/** Used to track down when StaticMesh has been modified for notification purpose */
+	class UStaticMesh* KnownStaticMesh = nullptr;
+#endif
+	void NotifyIfStaticMeshChanged();
+
 public:
 	/** Helper function to get the FName of the private static mesh member */
 	static const FName GetMemberNameChecked_StaticMesh() { return GET_MEMBER_NAME_CHECKED(UStaticMeshComponent, StaticMesh); }
@@ -374,6 +382,9 @@ public:
 	/** Get the StaticMesh used by this instance. */
 	UStaticMesh* GetStaticMesh() const 
 	{ 
+#if WITH_EDITOR
+		checkf(KnownStaticMesh == StaticMesh, TEXT("There is a missing call to NotifyIfStaticMeshChanged after StaticMesh has been modified"));
+#endif
 		return StaticMesh; 
 	}
 
@@ -416,6 +427,8 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void InitializeComponent() override;
 #endif // WITH_EDITOR
 #if WITH_EDITORONLY_DATA
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;

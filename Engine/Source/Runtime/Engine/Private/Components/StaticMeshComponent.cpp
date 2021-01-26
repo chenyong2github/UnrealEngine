@@ -22,6 +22,7 @@
 #include "Misc/MapErrors.h"
 #if WITH_EDITOR
 #include "Collision.h"
+#include "ObjectCacheEventSink.h"
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
 #include "Rendering/StaticLightingSystemInterface.h"
@@ -270,6 +271,8 @@ void UStaticMeshComponent::AddReferencedObjects(UObject* InThis, FReferenceColle
 
 void UStaticMeshComponent::Serialize(FArchive& Ar)
 {
+	NotifyIfStaticMeshChanged();
+
 	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	Super::Serialize(Ar);
@@ -327,6 +330,8 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 		GetBodyInstance()->bAutoWeld = false;	//existing content may rely on no auto welding
 	}
 #endif
+
+	NotifyIfStaticMeshChanged();
 }
 
 void UStaticMeshComponent::PostInitProperties()
@@ -546,8 +551,39 @@ const FMeshMapBuildData* UStaticMeshComponent::GetMeshMapBuildData(const FStatic
 	return NULL;
 }
 
+void UStaticMeshComponent::NotifyIfStaticMeshChanged()
+{
+#if WITH_EDITOR
+	if (KnownStaticMesh != StaticMesh)
+	{
+		KnownStaticMesh = StaticMesh;
+		FObjectCacheEventSink::NotifyStaticMeshChanged_Concurrent(this);
+	}
+#endif
+}
+
+#if WITH_EDITOR
+
+void UStaticMeshComponent::InitializeComponent()
+{
+	NotifyIfStaticMeshChanged();
+
+	Super::InitializeComponent();
+}
+
+void UStaticMeshComponent::PostDuplicate(bool bDuplicateForPIE)
+{
+	NotifyIfStaticMeshChanged();
+
+	Super::PostDuplicate(bDuplicateForPIE);
+}
+
+#endif // #if WITH_EDITOR
+
 void UStaticMeshComponent::OnRegister()
 {
+	NotifyIfStaticMeshChanged();
+
 	UpdateCollisionFromStaticMesh();
 
 #if WITH_EDITORONLY_DATA
@@ -1420,6 +1456,11 @@ void UStaticMeshComponent::BeginDestroy()
 {
 	Super::BeginDestroy();
 	ReleaseResources();
+
+#if WITH_EDITOR
+	// The object cache needs to be notified when we're getting destroyed
+	FObjectCacheEventSink::NotifyStaticMeshChanged_Concurrent(this);
+#endif
 }
 
 void UStaticMeshComponent::ExportCustomProperties(FOutputDevice& Out, uint32 Indent)
@@ -1524,6 +1565,8 @@ void UStaticMeshComponent::PreEditUndo()
 
 void UStaticMeshComponent::PostEditUndo()
 {
+	NotifyIfStaticMeshChanged();
+
 	// If the StaticMesh was also involved in this transaction, it may need reinitialization first
 	// In this case, the StaticMesh will have PostEditUndo called later in this transaction, which is too late to register this component
 	if (GetStaticMesh() && !GetStaticMesh()->AreRenderingResourcesInitialized())
@@ -1554,6 +1597,8 @@ void UStaticMeshComponent::PostEditUndo()
 
 void UStaticMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	NotifyIfStaticMeshChanged();
+
 	// Ensure that OverriddenLightMapRes is a factor of 4
 	OverriddenLightMapRes = FMath::Max(OverriddenLightMapRes + 3 & ~3,4);
 
@@ -1697,6 +1742,8 @@ void UStaticMeshComponent::UpdateCollisionFromStaticMesh()
 
 void UStaticMeshComponent::PostLoad()
 {
+	NotifyIfStaticMeshChanged();
+
 	// need to postload the StaticMesh because super initializes variables based on GetStaticLightingType() which we override and use from the StaticMesh
 	if (GetStaticMesh())
 	{
@@ -1800,6 +1847,15 @@ bool UStaticMeshComponent::ShouldCreatePhysicsState() const
 	return Super::ShouldCreatePhysicsState() && GetStaticMesh() && !GetStaticMesh()->IsCompiling();
 }
 
+void UStaticMeshComponent::SetStaticMeshInternal(UStaticMesh* NewMesh)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	StaticMesh = NewMesh;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	NotifyIfStaticMeshChanged();
+}
+
 bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 {
 	// Do nothing if we are already using the supplied static mesh
@@ -1820,9 +1876,7 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 		}
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	StaticMesh = NewMesh;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SetStaticMeshInternal(NewMesh);
 
 	if (StaticMesh != nullptr && !GetStaticMesh()->IsCompiling() && StaticMesh->GetRenderData() != nullptr && FApp::CanEverRender() && !StaticMesh->HasAnyFlags(RF_ClassDefaultObject))
 	{

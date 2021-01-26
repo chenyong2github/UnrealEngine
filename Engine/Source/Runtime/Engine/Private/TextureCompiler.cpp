@@ -298,7 +298,10 @@ void FTextureCompilingManager::PostCompilation(TArrayView<UTexture* const> InCom
 			TSet<UMaterialInterface*> AffectedMaterials;
 			for (UTexture* Texture : InCompiledTextures)
 			{
-				AffectedMaterials.Append(ObjectCacheScope.GetContext().GetMaterialsAffectedByTexture(Texture));
+				for (UMaterialInterface* Material : ObjectCacheScope.GetContext().GetMaterialsAffectedByTexture(Texture))
+				{
+					AffectedMaterials.Add(Material);
+				}
 			}
 
 			if (AffectedMaterials.Num())
@@ -326,7 +329,10 @@ void FTextureCompilingManager::PostCompilation(TArrayView<UTexture* const> InCom
 					TSet<UPrimitiveComponent*> AffectedPrimitives;
 					for (UMaterialInterface* MaterialInterface : AffectedMaterials)
 					{
-						AffectedPrimitives.Append(ObjectCacheScope.GetContext().GetPrimitivesAffectedByMaterial(MaterialInterface));
+						for (UPrimitiveComponent* Component : ObjectCacheScope.GetContext().GetPrimitivesAffectedByMaterial(MaterialInterface))
+						{
+							AffectedPrimitives.Add(Component);
+						}
 					}
 
 					for (UPrimitiveComponent* AffectedPrimitive : AffectedPrimitives)
@@ -489,7 +495,10 @@ void FTextureCompilingManager::ProcessTextures(bool bLimitExecutionTime, int32 M
 
 				for (UMaterialInterface* MaterialInstance : RenderedMaterials)
 				{
-					ReferencedTextures.Append(ObjectCacheScope.GetContext().GetUsedTextures(MaterialInstance));
+					for (UTexture* Texture : ObjectCacheScope.GetContext().GetUsedTextures(MaterialInstance))
+					{
+						ReferencedTextures.Add(Texture);
+					}
 				}
 			}
 

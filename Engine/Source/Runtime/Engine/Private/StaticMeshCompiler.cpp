@@ -216,8 +216,14 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 
 			if (LocalAsyncTask->GetTask().BuildContext.IsValid())
 			{
+				TArray<UStaticMeshComponent*> ComponentsToUpdate;
+				for (UStaticMeshComponent* Component : ObjectCacheScope.GetContext().GetStaticMeshComponents(StaticMesh))
+				{
+					ComponentsToUpdate.Add(Component);
+				}
+
 				StaticMesh->FinishBuildInternal(
-					ObjectCacheScope.GetContext().GetStaticMeshComponents(StaticMesh),
+					ComponentsToUpdate,
 					LocalAsyncTask->GetTask().BuildContext->bHasRenderDataChanged,
 					LocalAsyncTask->GetTask().BuildContext->bShouldComputeExtendedBounds
 				);

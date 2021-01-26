@@ -14,6 +14,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/AssetUserData.h"
 #include "Engine/Texture2D.h"
+#include "ObjectCacheEventSink.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Algo/BinarySearch.h"
@@ -345,6 +346,11 @@ void UMaterialInterface::BeginDestroy()
 {
 	ParentRefFence.BeginFence();
 	Super::BeginDestroy();
+
+#if WITH_EDITOR
+	// The object cache needs to be notified when we're getting destroyed
+	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
 }
 
 void UMaterialInterface::PostDuplicate(bool bDuplicateForPIE)

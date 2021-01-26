@@ -29,6 +29,7 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "ObjectCacheEventSink.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Components.h"
@@ -568,6 +569,11 @@ bool UMaterialInstance::UpdateParameters()
 					}
 				}
 			}
+		}
+
+		if (bDirty)
+		{
+			FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 		}
 	}
 #endif // WITH_EDITOR
@@ -1948,6 +1954,10 @@ void UMaterialInstance::CopyMaterialInstanceParameters(UMaterialInterface* Sourc
 
 		// Now, init the resources
 		InitResources();
+
+#if WITH_EDITOR
+		FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
 	}
 }
 
@@ -3941,6 +3951,10 @@ void UMaterialInstance::SetTextureParameterValueInternal(const FMaterialParamete
 			ParameterValue->ParameterValue = Value;
 			// Update the material instance data in the rendering thread.
 			GameThread_UpdateMIParameter(this, *ParameterValue);
+
+#if WITH_EDITOR
+			FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
 		}		
 	}
 }
@@ -3970,6 +3984,10 @@ void UMaterialInstance::SetRuntimeVirtualTextureParameterValueInternal(const FMa
 			ParameterValue->ParameterValue = Value;
 			// Update the material instance data in the rendering thread.
 			GameThread_UpdateMIParameter(this, *ParameterValue);
+
+#if WITH_EDITOR
+			FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
 		}
 	}
 }
@@ -4023,6 +4041,10 @@ void UMaterialInstance::ClearParameterValuesInternal(const bool bAllParameters)
 				InResource->RenderThread_ClearParameters();
 			});
 	}
+
+#if WITH_EDITOR
+	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
 
 	InitResources();
 }
@@ -4109,41 +4131,41 @@ void UMaterialInstance::UpdateCachedLayerParameters()
 {
 	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialInstanceCookStats::UpdateCachedExpressionDataSec));
 
-	if (bSavedCachedData)
+	// Don't need to rebuild cached data if it was serialized
+	if (!bSavedCachedData)
 	{
-		// Don't need to rebuild cached data if it was serialized
-		return;
-	}
-
-	UMaterialInstance* ParentInstance = nullptr;
-	FMaterialCachedExpressionData CachedExpressionData;
-	CachedExpressionData.Reset();
-	if (Parent)
-	{
-		CachedExpressionData.ReferencedTextures = Parent->GetReferencedTextures();
-		ParentInstance = Cast<UMaterialInstance>(Parent);
-	}
-	
-	bool bCachedDataValid = true;
-	for (FStaticMaterialLayersParameter& LayerParameters : StaticParameters.MaterialLayersParameters)
-	{
-		FMaterialCachedExpressionContext Context(Parent);
-		if (ParentInstance)
+		UMaterialInstance* ParentInstance = nullptr;
+		FMaterialCachedExpressionData CachedExpressionData;
+		CachedExpressionData.Reset();
+		if (Parent)
 		{
-			FMaterialCachedParameters_UpdateForLayerParameters(CachedExpressionData.Parameters, Context, ParentInstance, LayerParameters);
+			CachedExpressionData.ReferencedTextures = Parent->GetReferencedTextures();
+			ParentInstance = Cast<UMaterialInstance>(Parent);
 		}
-
-		if (!CachedExpressionData.UpdateForLayerFunctions(Context, LayerParameters.Value))
+	  
+		bool bCachedDataValid = true;
+		for (FStaticMaterialLayersParameter& LayerParameters : StaticParameters.MaterialLayersParameters)
 		{
-			bCachedDataValid = false;
+			FMaterialCachedExpressionContext Context(Parent);
+			if (ParentInstance)
+			{
+				FMaterialCachedParameters_UpdateForLayerParameters(CachedExpressionData.Parameters, Context, ParentInstance, LayerParameters);
+			}
+  
+			if (!CachedExpressionData.UpdateForLayerFunctions(Context, LayerParameters.Value))
+			{
+				bCachedDataValid = false;
+			}
 		}
+  
+		if (!CachedData)
+		{
+			CachedData = new FMaterialInstanceCachedData();
+		}
+		CachedData->Initialize(MoveTemp(CachedExpressionData));
 	}
 
-	if (!CachedData)
-	{
-		CachedData = new FMaterialInstanceCachedData();
-	}
-	CachedData->Initialize(MoveTemp(CachedExpressionData));
+	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 }
 
 void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewParameters, FMaterialUpdateContext* MaterialUpdateContext)
@@ -5037,6 +5059,10 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 
 		InitResources();
 	}
+
+#if WITH_EDITOR
+	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
 }
 
 #if WITH_EDITORONLY_DATA

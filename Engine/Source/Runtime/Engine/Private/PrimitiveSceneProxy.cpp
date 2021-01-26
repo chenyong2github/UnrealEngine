@@ -17,6 +17,7 @@
 #include "VT/RuntimeVirtualTexture.h"
 #if WITH_EDITOR
 #include "FoliageHelper.h"
+#include "ObjectCacheEventSink.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarForceSingleSampleShadowingFromStationary(
@@ -282,6 +283,8 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 #if WITH_EDITOR
 	const bool bGetDebugMaterials = true;
 	InComponent->GetUsedMaterials(UsedMaterialsForVerification, bGetDebugMaterials);
+
+	FObjectCacheEventSink::NotifyUsedMaterialsChanged_Concurrent(InComponent, UsedMaterialsForVerification);
 #endif
 
 	static const auto CVarVertexDeformationOutputsVelocity = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VertexDeformationOutputsVelocity"));

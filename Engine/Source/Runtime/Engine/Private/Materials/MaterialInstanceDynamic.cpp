@@ -10,6 +10,7 @@
 #include "Engine/Texture.h"
 #include "Misc/RuntimeErrors.h"
 #include "UnrealEngine.h"
+#include "ObjectCacheEventSink.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Stats/StatsMisc.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -420,6 +421,11 @@ void UMaterialInstanceDynamic::CopyParameterOverrides(UMaterialInstance* Materia
 		TextureParameterValues = MaterialInstance->TextureParameterValues;
 		FontParameterValues = MaterialInstance->FontParameterValues;
 	}
+
+#if WITH_EDITOR
+	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
+
 	InitResources();
 }
 

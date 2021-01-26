@@ -3214,8 +3214,8 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TR
 
 			// Note: relying on GetUsedMaterials to be accurate, or else we won't propagate to the right primitives and the renderer will crash later
 			// FPrimitiveSceneProxy::VerifyUsedMaterial is used to make sure that all materials used for rendering are reported in GetUsedMaterials
-			const TArray<UMaterialInterface*>& UsedMaterials = ObjectCacheScope.GetContext().GetUsedMaterials(PrimitiveComponent);
-			if (UsedMaterials.Num() > 0)
+			TObjectCacheIterator<UMaterialInterface> UsedMaterials = ObjectCacheScope.GetContext().GetUsedMaterials(PrimitiveComponent);
+			if (!UsedMaterials.IsEmpty())
 			{
 				for (TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>>::TConstIterator MaterialIt(MaterialsToUpdate); MaterialIt; ++MaterialIt)
 				{
@@ -3224,10 +3224,8 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TR
 						
 					if (UpdatedMaterialInterface)
 					{
-						for (int32 MaterialIndex = 0; MaterialIndex < UsedMaterials.Num(); MaterialIndex++)
+						for (UMaterialInterface* TestMaterial : UsedMaterials)
 						{
-							UMaterialInterface* TestMaterial = UsedMaterials[MaterialIndex];
-
 							if (TestMaterial && (TestMaterial == UpdatedMaterialInterface || TestMaterial->IsDependent(UpdatedMaterialInterface)))
 							{
 								bPrimitiveIsDependentOnMaterial = true;
@@ -3590,6 +3588,7 @@ void FShaderCompilingManager::FinishAllCompilation()
 	FTextureCompilingManager::Get().FinishAllCompilation();
 #endif
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::FinishAllCompilation);
 	check(IsInGameThread());
 	check(!FPlatformProperties::RequiresCookedData());
 	const double StartTime = FPlatformTime::Seconds();

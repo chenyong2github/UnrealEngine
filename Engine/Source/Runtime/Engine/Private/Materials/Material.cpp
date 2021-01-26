@@ -84,6 +84,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
+#include "ObjectCacheEventSink.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -2132,6 +2133,8 @@ void UMaterial::UpdateCachedExpressionData()
 	CachedExpressionData->Reset();
 	FMaterialCachedExpressionContext Context(nullptr); // UMaterial have no parent
 	CachedExpressionData->UpdateForExpressions(Context, Expressions, EMaterialParameterAssociation::GlobalParameter, -1);
+
+	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 }
 #endif // WITH_EDITOR
 
@@ -3074,6 +3077,7 @@ void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 
 void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialShaderPrecompileMode PrecompileMode)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterial::CacheResourceShadersForRendering);
 #if WITH_EDITOR
 	// Always rebuild the shading model field on recompile
 	RebuildShadingModelField();
@@ -3358,6 +3362,10 @@ void UMaterial::Serialize(FArchive& Ar)
 		check(CachedExpressionData);
 		UScriptStruct* Struct = FMaterialCachedExpressionData::StaticStruct();
 		Struct->SerializeTaggedProperties(Ar, (uint8*)CachedExpressionData, Struct, nullptr);
+
+#if WITH_EDITOR
+		FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
 	}
 
 #if WITH_EDITOR

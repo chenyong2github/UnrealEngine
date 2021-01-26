@@ -37,6 +37,7 @@
 
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
+#include "ObjectCacheEventSink.h"
 #include "StaticMeshCompiler.h"
 #endif
 #include "ObjectTrace.h"
@@ -1435,6 +1436,10 @@ void UActorComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Co
 #if LOG_RENDER_STATE
 	UE_LOG(LogActorComponent, Log, TEXT("CreateRenderState_Concurrent: %s"), *GetPathName());
 #endif
+
+#if WITH_EDITOR
+	FObjectCacheEventSink::NotifyRenderStateChanged_Concurrent(this);
+#endif
 }
 
 void UActorComponent::SendRenderTransform_Concurrent()
@@ -1471,6 +1476,10 @@ void UActorComponent::DestroyRenderState_Concurrent()
 
 #if LOG_RENDER_STATE
 	UE_LOG(LogActorComponent, Log, TEXT("DestroyRenderState_Concurrent: %s"), *GetPathName());
+#endif
+
+#if WITH_EDITOR
+	FObjectCacheEventSink::NotifyRenderStateChanged_Concurrent(this);
 #endif
 }
 
@@ -1726,6 +1735,10 @@ void UActorComponent::MarkRenderStateDirty()
 		MarkForNeededEndOfFrameRecreate();
 
 		MarkRenderStateDirtyEvent.Broadcast(*this);
+
+#if WITH_EDITOR
+		FObjectCacheEventSink::NotifyRenderStateChanged_Concurrent(this);
+#endif
 	}
 }
 
