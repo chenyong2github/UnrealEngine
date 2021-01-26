@@ -27,7 +27,7 @@ namespace ChaosTest
 		using FCollisionDetector = FParticlePairCollisionDetector;
 		using FRigidParticleSOAs = TPBDRigidsSOAs<FReal, 3>;
 		using FParticleHandle = TPBDRigidParticleHandle<FReal, 3>;
-		using FParticlePair = TVector<TGeometryParticleHandle<FReal, 3>*, 2>;
+		using FParticlePair = TVec2<TGeometryParticleHandle<FReal, 3>*>;
 
 		// Particles
 		FRigidParticleSOAs ParticlesContainer;

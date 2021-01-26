@@ -45,8 +45,8 @@ namespace ChaosTest {
 	template <class T, class TEvolutionPtr>
 	void InitSingleParticle(
 		TEvolutionPtr& Evolution,
-		const TVector<T, 3>& Position = TVector<T, 3>(0),
-		const TVector<T, 3>& Velocity = TVector<T, 3>(0),
+		const TVec3<T>& Position = TVec3<T>(0),
+		const TVec3<T>& Velocity = TVec3<T>(0),
 		const T Mass = 1.0)
 	{
 		auto& Particles = Evolution->Particles();
@@ -62,7 +62,7 @@ namespace ChaosTest {
 	void InitTriMesh_EquilateralTri(
 		Chaos::TTriangleMesh<T>& TriMesh, 
 		TEvolutionPtr& Evolution, 
-		const TVector<T,3>& XOffset=TVector<T,3>(0))
+		const TVec3<T>& XOffset=TVec3<T>(0))
 	{
 		auto& Particles = Evolution->Particles();
 		const uint32 InitialNumParticles = Particles.Size();
@@ -72,12 +72,12 @@ namespace ChaosTest {
 		for (uint32 i = InitialNumParticles; i < Particles.Size(); i++)
 		{
 			Particles.X(i) += XOffset;
-			Particles.V(i) = Chaos::TVector<T, 3>(0);
+			Particles.V(i) = Chaos::TVec3<T>(0);
 			Particles.M(i) = 0;
 		}
-		for (const Chaos::TVector<int32, 3>& Tri : TriMesh.GetElements())
+		for (const Chaos::TVec3<int32>& Tri : TriMesh.GetElements())
 		{
-			const T TriArea = 0.5 * Chaos::TVector<T, 3>::CrossProduct(
+			const T TriArea = 0.5 * Chaos::TVec3<T>::CrossProduct(
 				Particles.X(Tri[1]) - Particles.X(Tri[0]),
 				Particles.X(Tri[2]) - Particles.X(Tri[0])).Size();
 			for (int32 i = 0; i < 3; i++)
@@ -145,9 +145,9 @@ namespace ChaosTest {
 	}
 
 	template <class T, class TParticleContainer>
-	TArray<Chaos::TVector<T, 3>> CopyPoints(const TParticleContainer& Particles)
+	TArray<Chaos::TVec3<T>> CopyPoints(const TParticleContainer& Particles)
 	{
-		TArray<Chaos::TVector<T, 3>> Points;
+		TArray<Chaos::TVec3<T>> Points;
 		Points.SetNum(Particles.Size());
 
 		for (uint32 i = 0; i < Particles.Size(); i++)
@@ -157,12 +157,12 @@ namespace ChaosTest {
 	}
 
 	template <class T, class TParticleContainer>
-	void Reset(TParticleContainer& Particles, const TArray<Chaos::TVector<T, 3>>& Points)
+	void Reset(TParticleContainer& Particles, const TArray<Chaos::TVec3<T>>& Points)
 	{
 		for (uint32 i = 0; i < Particles.Size(); i++)
 		{
 			Particles.X(i) = Points[i];
-			Particles.V(i) = Chaos::TVector<T, 3>(0);
+			Particles.V(i) = Chaos::TVec3<T>(0);
 		}
 	}
 
@@ -177,7 +177,7 @@ namespace ChaosTest {
 	}
 
 	template <class T>
-	TArray<T> GetMagnitude(const TArray<Chaos::TVector<T, 3>>& V)
+	TArray<T> GetMagnitude(const TArray<Chaos::TVec3<T>>& V)
 	{
 		TArray<T> M;
 		M.SetNum(V.Num());
@@ -221,8 +221,8 @@ namespace ChaosTest {
 			<< "Evolution advanced time by " << (PostTime - PreTime)
 			<< " seconds, expected 1.0 seconds.";
 
-		const TArray<Chaos::TVector<T, 3>> PostPoints = CopyPoints<T>(Evolution->Particles());
-		const TArray<Chaos::TVector<T, 3>> Diff = GetDifference(PostPoints, InitialPoints);
+		const TArray<Chaos::TVec3<T>> PostPoints = CopyPoints<T>(Evolution->Particles());
+		const TArray<Chaos::TVec3<T>> Diff = GetDifference(PostPoints, InitialPoints);
 		const TArray<T> ScalarDiff = GetMagnitude(Diff);
 
 		// All points did the same thing
@@ -242,7 +242,7 @@ namespace ChaosTest {
 			<< " +/- " << DistTolerance << "."; 
 
 		// Fell the right direction
-		const T DirDot = Chaos::TVector<T, 3>::DotProduct(GravDir, Diff[0].GetSafeNormal());
+		const T DirDot = Chaos::TVec3<T>::DotProduct(GravDir, Diff[0].GetSafeNormal());
 		EXPECT_NEAR(DirDot, (T)1.0, (T)KINDA_SMALL_NUMBER)
 			<< TestID
 			<< "Points fell in different directions.";
@@ -269,7 +269,7 @@ namespace ChaosTest {
 		//
 
 		InitSingleParticle<T>(Evolution);
-		TArray<Chaos::TVector<T, 3>> InitialPoints = CopyPoints<T>(Evolution->Particles());
+		TArray<Chaos::TVec3<T>> InitialPoints = CopyPoints<T>(Evolution->Particles());
 
 		RunDropTest<T>(Evolution, GravMag, GravDir, InitialPoints, 1, DistTol, "Single point falling under gravity, iters: 1 - ");
 		Reset(Evolution->Particles(), InitialPoints);
@@ -313,7 +313,7 @@ namespace ChaosTest {
 		Chaos::TTriangleMesh<T> TriMesh;
 		auto& Particles = Evolution->Particles();
 		Particles.AddParticles(2145);
-		TArray<TVector<int32, 3>> Triangles;
+		TArray<TVec3<int32>> Triangles;
 		Triangles.SetNum(2048);
 		// 32 n, 32 m
 		// 6 + 4*(n-1) + (m - 1)(3 + 2*(n-1)) = 2*n*m
@@ -322,7 +322,7 @@ namespace ChaosTest {
 			int32 i = ((float)rand()) / ((float)RAND_MAX) * 2144;
 			int32 j = ((float)rand()) / ((float)RAND_MAX) * 2144;
 			int32 k = ((float)rand()) / ((float)RAND_MAX) * 2144;
-			Triangles[TriIndex] = TVector<int32, 3>(i, j, k);
+			Triangles[TriIndex] = TVec3<int32>(i, j, k);
 		}
 		AddEdgeLengthConstraint(Evolution, Triangles, 1.0);
 		AddAxialConstraint(Evolution, MoveTemp(Triangles), 1.0);

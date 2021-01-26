@@ -31,14 +31,14 @@ namespace ChaosTest
 	struct TVisitor : ISpatialVisitor<int32, T>
 	{
 		const TGeometryParticles<T, 3>& Boxes;
-		const TVector<T, 3> Start;
-		const TVector<T, 3> Dir;
-		TVector<T, 3> HalfExtents;
+		const TVec3<T> Start;
+		const TVec3<T> Dir;
+		TVec3<T> HalfExtents;
 		const T Thickness;
 		int32 BlockAfterN;
 		bool bAny;
 
-		TVisitor(const TVector<T,3>& InStart, const TVector<T,3>& InDir, const T InThickness, const TGeometryParticles<T,3>& InBoxes)
+		TVisitor(const TVec3<T>& InStart, const TVec3<T>& InDir, const T InThickness, const TGeometryParticles<T,3>& InBoxes)
 		: Boxes(InBoxes)
 		, Start(InStart)
 		, Dir(InDir)
@@ -63,8 +63,8 @@ namespace ChaosTest
 			TAABB<T, 3> ThicknedBox(Box.Min() - HalfExtents, Box.Max() + HalfExtents);
 
 			T NewLength;
-			TVector<T, 3> Position;
-			TVector<T, 3> Normal;
+			TVec3<T> Position;
+			TVec3<T> Normal;
 			int32 FaceIndex;
 			const T OldLength = CurData.CurrentLength;
 			if (ThicknedBox.Raycast(Start, Dir, CurData.CurrentLength, 0, NewLength, Position, Normal, FaceIndex))
@@ -226,9 +226,9 @@ namespace ChaosTest
 
 
 	template <typename T>
-	auto BuildBoxes(TUniquePtr<TBox<T,3>>& Box, float BoxSize = 100, const TVector<T, 3>& BoxGridDimensions = TVector<T, 3>(10,10,10))
+	auto BuildBoxes(TUniquePtr<TBox<T,3>>& Box, float BoxSize = 100, const TVec3<T>& BoxGridDimensions = TVec3<T>(10,10,10))
 	{
-		Box = MakeUnique<TBox<T, 3>>(TVector<T, 3>(0, 0, 0), TVector<T, 3>(BoxSize, BoxSize, BoxSize));
+		Box = MakeUnique<TBox<T, 3>>(TVec3<T>(0, 0, 0), TVec3<T>(BoxSize, BoxSize, BoxSize));
 		auto Boxes = MakeUnique<TGeometryParticles<T, 3>>();
 		const int32 NumRows = BoxGridDimensions.X;
 		const int32 NumCols = BoxGridDimensions.Y;
@@ -244,7 +244,7 @@ namespace ChaosTest
 				for (int32 Col = 0; Col < NumCols; ++Col)
 				{
 					Boxes->SetGeometry(Idx, MakeSerializable(Box));
-					Boxes->X(Idx) = TVector<T, 3>(Col * 100, Row * 100, Height * 100);
+					Boxes->X(Idx) = TVec3<T>(Col * 100, Row * 100, Height * 100);
 					Boxes->R(Idx) = TRotation<T, 3>::Identity;
 					Boxes->LocalBounds(Idx) = Box->BoundingBox();
 					Boxes->HasBounds(Idx) = true;
@@ -263,14 +263,14 @@ namespace ChaosTest
 		//raycast
 		//miss
 		{
-			TVisitor<T> Visitor(TVector<T, 3>(-100, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+			TVisitor<T> Visitor(TVec3<T>(-100, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 			Spatial.Raycast(Visitor.Start, Visitor.Dir, 1000, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 0);
 		}
 
 		//gather along ray
 		{
-			TVisitor<T> Visitor(TVector<T, 3>(10, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+			TVisitor<T> Visitor(TVec3<T>(10, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 			Spatial.Raycast(Visitor.Start, Visitor.Dir, 1000, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 10);
 		}
@@ -278,30 +278,30 @@ namespace ChaosTest
 		//gather along ray and then make modifications
 		{
 			auto Spatial2 = Spatial.Copy();
-			TVisitor<T> Visitor(TVector<T, 3>(10, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+			TVisitor<T> Visitor(TVec3<T>(10, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 			Spatial2->Raycast(Visitor.Start, Visitor.Dir, 1000, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 10);
 
 			//remove from structure
 			Spatial2->RemoveElementFrom(Visitor.Instances[0], SpatialIdx);
 
-			TVisitor<T> Visitor2(TVector<T, 3>(10, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+			TVisitor<T> Visitor2(TVec3<T>(10, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 			Spatial2->Raycast(Visitor2.Start, Visitor2.Dir, 1000, Visitor2);
 			EXPECT_EQ(Visitor2.Instances.Num(), 9);
 
 			//move instance away
 			{
 				const int32 MoveIdx = Visitor2.Instances[0];
-				Boxes->X(MoveIdx) += TVector<T, 3>(1000, 0, 0);
+				Boxes->X(MoveIdx) += TVec3<T>(1000, 0, 0);
 				TAABB<T, 3> NewBounds = Boxes->Geometry(MoveIdx)->template GetObject<TBox<T, 3>>()->BoundingBox().TransformedAABB(TRigidTransform<T, 3>(Boxes->X(MoveIdx), Boxes->R(MoveIdx)));
 				Spatial2->UpdateElementIn(MoveIdx, NewBounds, true, SpatialIdx);
 
-				TVisitor<T> Visitor3(TVector<T, 3>(10, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+				TVisitor<T> Visitor3(TVec3<T>(10, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 				Spatial2->Raycast(Visitor3.Start, Visitor3.Dir, 1000, Visitor3);
 				EXPECT_EQ(Visitor3.Instances.Num(), 8);
 
 				//move instance back
-				Boxes->X(MoveIdx) -= TVector<T, 3>(1000, 0, 0);
+				Boxes->X(MoveIdx) -= TVec3<T>(1000, 0, 0);
 				NewBounds = Boxes->Geometry(MoveIdx)->template GetObject<TBox<T, 3>>()->BoundingBox().TransformedAABB(TRigidTransform<T, 3>(Boxes->X(MoveIdx), Boxes->R(MoveIdx)));
 				Spatial2->UpdateElementIn(MoveIdx, NewBounds, true, SpatialIdx);
 			}
@@ -309,12 +309,12 @@ namespace ChaosTest
 			//move other instance into view
 			{
 				const int32 MoveIdx = 5 * 5 * 5;
-				const TVector<T, 3> OldPos = Boxes->X(MoveIdx);
-				Boxes->X(MoveIdx) = TVector<T, 3>(0, 0, 0);
+				const TVec3<T> OldPos = Boxes->X(MoveIdx);
+				Boxes->X(MoveIdx) = TVec3<T>(0, 0, 0);
 				TAABB<T, 3> NewBounds = Boxes->Geometry(MoveIdx)->template GetObject<TBox<T, 3>>()->BoundingBox().TransformedAABB(TRigidTransform<T, 3>(Boxes->X(MoveIdx), Boxes->R(MoveIdx)));
 				Spatial2->UpdateElementIn(MoveIdx, NewBounds, true, SpatialIdx);
 
-				TVisitor<T> Visitor3(TVector<T, 3>(10, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+				TVisitor<T> Visitor3(TVec3<T>(10, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 				Spatial2->Raycast(Visitor3.Start, Visitor3.Dir, 1000, Visitor3);
 				EXPECT_EQ(Visitor3.Instances.Num(), 10);
 
@@ -327,23 +327,23 @@ namespace ChaosTest
 			//move instance outside of grid bounds
 			{
 				const int32 MoveIdx = 5 * 5 * 5;
-				const TVector<T, 3> OldPos = Boxes->X(MoveIdx);
-				Boxes->X(MoveIdx) = TVector<T, 3>(-50, 0, 0);
+				const TVec3<T> OldPos = Boxes->X(MoveIdx);
+				Boxes->X(MoveIdx) = TVec3<T>(-50, 0, 0);
 				TAABB<T, 3> NewBounds = Boxes->Geometry(MoveIdx)->template GetObject<TBox<T,3>>()->BoundingBox().TransformedAABB(TRigidTransform<T, 3>(Boxes->X(MoveIdx), Boxes->R(MoveIdx)));
 				Spatial2->UpdateElementIn(MoveIdx, NewBounds, true, SpatialIdx);
 
-				TVisitor<T> Visitor3(TVector<T, 3>(10, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+				TVisitor<T> Visitor3(TVec3<T>(10, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 				Spatial2->Raycast(Visitor3.Start, Visitor3.Dir, 1000, Visitor3);
 				EXPECT_EQ(Visitor3.Instances.Num(), 10);
 
 				//try ray outside of bounds which should hit
-				TVisitor<T> Visitor4(TVector<T, 3>(-20, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+				TVisitor<T> Visitor4(TVec3<T>(-20, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 				Spatial2->Raycast(Visitor4.Start, Visitor4.Dir, 1000, Visitor4);
 				EXPECT_EQ(Visitor4.Instances.Num(), 1);
 
 				//delete dirty instance
 				Spatial2->RemoveElementFrom(MoveIdx, SpatialIdx);
-				TVisitor<T> Visitor5(TVector<T, 3>(-20, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+				TVisitor<T> Visitor5(TVec3<T>(-20, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 				Spatial2->Raycast(Visitor5.Start, Visitor5.Dir, 1000, Visitor4);
 				EXPECT_EQ(Visitor5.Instances.Num(), 0);
 
@@ -354,11 +354,11 @@ namespace ChaosTest
 				const int32 NewIdx = Boxes->Size();
 				Boxes->AddParticles(1);
 				Boxes->SetGeometry(NewIdx, MakeSerializable(Box));
-				Boxes->X(NewIdx) = TVector<T, 3>(-20, 0, 0);
+				Boxes->X(NewIdx) = TVec3<T>(-20, 0, 0);
 				Boxes->R(NewIdx) = TRotation<T, 3>::Identity;
 				NewBounds = Boxes->Geometry(NewIdx)->template GetObject<TBox<T,3>>()->BoundingBox().TransformedAABB(TRigidTransform<T, 3>(Boxes->X(NewIdx), Boxes->R(NewIdx)));
 				Spatial2->UpdateElementIn(NewIdx, NewBounds, true, SpatialIdx);
-				TVisitor<T> Visitor6(TVector<T, 3>(-20, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+				TVisitor<T> Visitor6(TVec3<T>(-20, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 				Spatial2->Raycast(Visitor6.Start, Visitor6.Dir, 1000, Visitor6);
 				EXPECT_EQ(Visitor6.Instances.Num(), 1);
 			}
@@ -366,14 +366,14 @@ namespace ChaosTest
 
 		//stop half way through
 		{
-			TVisitor<T> Visitor(TVector<T, 3>(10, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+			TVisitor<T> Visitor(TVec3<T>(10, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 			Spatial.Raycast(Visitor.Start, Visitor.Dir, 499, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 5);
 		}
 
 		//any
 		{
-			TVisitor<T> Visitor(TVector<T, 3>(10, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
+			TVisitor<T> Visitor(TVec3<T>(10, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
 			Visitor.bAny = true;
 			Spatial.Raycast(Visitor.Start, Visitor.Dir, 1000, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 1);
@@ -382,32 +382,32 @@ namespace ChaosTest
 		//sweep
 		//miss
 		{
-			TVisitor<T> Visitor(TVector<T, 3>(-100, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
-			Visitor.HalfExtents = TVector<T, 3>(10, 0, 0);
+			TVisitor<T> Visitor(TVec3<T>(-100, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
+			Visitor.HalfExtents = TVec3<T>(10, 0, 0);
 			Spatial.Sweep(Visitor.Start, Visitor.Dir, 1000, Visitor.HalfExtents, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 0);
 		}
 
 		//gather along ray
 		{
-			TVisitor<T> Visitor(TVector<T, 3>(-100, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
-			Visitor.HalfExtents = TVector<T, 3>(110, 0, 0);
+			TVisitor<T> Visitor(TVec3<T>(-100, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
+			Visitor.HalfExtents = TVec3<T>(110, 0, 0);
 			Spatial.Sweep(Visitor.Start, Visitor.Dir, 1000, Visitor.HalfExtents, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 10);
 		}
 
 		//stop half way through
 		{
-			TVisitor<T> Visitor(TVector<T, 3>(-100, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
-			Visitor.HalfExtents = TVector<T, 3>(110, 0, 0);
+			TVisitor<T> Visitor(TVec3<T>(-100, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
+			Visitor.HalfExtents = TVec3<T>(110, 0, 0);
 			Spatial.Sweep(Visitor.Start, Visitor.Dir, 499, Visitor.HalfExtents, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 5);
 		}
 
 		//right on edge and corner
 		{
-			TVisitor<T> Visitor(TVector<T, 3>(100, 0, 0), TVector<T, 3>(0, 1, 0), 0, *Boxes);
-			Visitor.HalfExtents = TVector<T, 3>(10, 0, 0);
+			TVisitor<T> Visitor(TVec3<T>(100, 0, 0), TVec3<T>(0, 1, 0), 0, *Boxes);
+			Visitor.HalfExtents = TVec3<T>(10, 0, 0);
 			Spatial.Sweep(Visitor.Start, Visitor.Dir, 499, Visitor.HalfExtents, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 10);
 		}
@@ -415,21 +415,21 @@ namespace ChaosTest
 		//overlap
 		//miss
 		{
-			TOverlapVisitor<T> Visitor(TAABB<T, 3>(TVector<T, 3>(-100, 0, 0), TVector<T, 3>(-10, 0, 0)), *Boxes);
+			TOverlapVisitor<T> Visitor(TAABB<T, 3>(TVec3<T>(-100, 0, 0), TVec3<T>(-10, 0, 0)), *Boxes);
 			Spatial.Overlap(Visitor.Bounds, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 0);
 		}
 
 		//overlap some
 		{
-			TOverlapVisitor<T> Visitor(TAABB<T, 3>(TVector<T, 3>(-100, 0, -10), TVector<T, 3>(110, 110, 10)), *Boxes);
+			TOverlapVisitor<T> Visitor(TAABB<T, 3>(TVec3<T>(-100, 0, -10), TVec3<T>(110, 110, 10)), *Boxes);
 			Spatial.Overlap(Visitor.Bounds, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 4);
 		}
 
 		//overlap any
 		{
-			TOverlapVisitor<T> Visitor(TAABB<T, 3>(TVector<T, 3>(-100, 0, -10), TVector<T, 3>(110, 110, 10)), *Boxes);
+			TOverlapVisitor<T> Visitor(TAABB<T, 3>(TVec3<T>(-100, 0, -10), TVec3<T>(110, 110, 10)), *Boxes);
 			Visitor.bAny = true;
 			Spatial.Overlap(Visitor.Bounds, Visitor);
 			EXPECT_EQ(Visitor.Instances.Num(), 1);
@@ -450,7 +450,7 @@ namespace ChaosTest
 	template<typename T>
 	void GridBPTest2()
 	{
-		TUniquePtr<TBox<T, 3>> Box = MakeUnique<TBox<T, 3>>(TVector<T, 3>(0, 0, 0), TVector<T, 3>(100, 100, 100));
+		TUniquePtr<TBox<T, 3>> Box = MakeUnique<TBox<T, 3>>(TVec3<T>(0, 0, 0), TVec3<T>(100, 100, 100));
 		TPBDRigidsSOAs<T, 3> SOAs;
 		const int32 NumRows = 10;
 		const int32 NumCols = 10;
@@ -466,7 +466,7 @@ namespace ChaosTest
 				for (int32 Col = 0; Col < NumCols; ++Col)
 				{
 					Boxes.SetGeometry(Idx, MakeSerializable(Box));
-					Boxes.X(Idx) = TVector<T, 3>(Col * 100, Row * 100, Height * 100);
+					Boxes.X(Idx) = TVec3<T>(Col * 100, Row * 100, Height * 100);
 					Boxes.R(Idx) = TRotation<T, 3>::Identity;
 					Boxes.LocalBounds(Idx) = Box->BoundingBox();
 					Boxes.HasBounds(Idx) = true;
@@ -478,21 +478,21 @@ namespace ChaosTest
 
 		TArray<TSOAView<TGeometryParticles<T, 3>>> TmpArray = { &Boxes };
 		TBoundingVolume<TGeometryParticleHandle<T,3>*, T, 3> BV(MakeParticleView(MoveTemp(TmpArray)));
-		TArray<TGeometryParticleHandle<T, 3>*> Handles = BV.FindAllIntersections(TAABB<T, 3>(TVector<T, 3>(0), TVector<T, 3>(10)));
+		TArray<TGeometryParticleHandle<T, 3>*> Handles = BV.FindAllIntersections(TAABB<T, 3>(TVec3<T>(0), TVec3<T>(10)));
 		EXPECT_EQ(Handles.Num(), 1);
 		EXPECT_EQ(Handles[0], Boxes.Handle(0));
 
-		Handles = BV.FindAllIntersections(TAABB<T, 3>(TVector<T, 3>(0), TVector<T, 3>(0, 0, 110)));
+		Handles = BV.FindAllIntersections(TAABB<T, 3>(TVec3<T>(0), TVec3<T>(0, 0, 110)));
 		EXPECT_EQ(Handles.Num(), 2);
 
 		//create BV with an array of handles instead (useful for partial structures)
 		{
 			TBoundingVolume<TGeometryParticleHandle<T,3>*, T, 3> BV2(MakeHandleView(Handles));
-			TArray<TGeometryParticleHandle<T, 3>*> Handles2 = BV2.FindAllIntersections(TAABB<T, 3>(TVector<T, 3>(0), TVector<T, 3>(10)));
+			TArray<TGeometryParticleHandle<T, 3>*> Handles2 = BV2.FindAllIntersections(TAABB<T, 3>(TVec3<T>(0), TVec3<T>(10)));
 			EXPECT_EQ(Handles2.Num(), 1);
 			EXPECT_EQ(Handles2[0], Boxes.Handle(0));
 
-			Handles2 = BV2.FindAllIntersections(TAABB<T, 3>(TVector<T, 3>(0), TVector<T, 3>(0, 0, 110)));
+			Handles2 = BV2.FindAllIntersections(TAABB<T, 3>(TVec3<T>(0), TVec3<T>(0, 0, 110)));
 			EXPECT_EQ(Handles2.Num(), 2);
 		}
 	}
@@ -710,7 +710,7 @@ namespace ChaosTest
 		FilterData.Word2 = TNumericLimits<uint32>::Max();
 		FilterData.Word3 = TNumericLimits<uint32>::Max();
 
-		TSharedPtr<TBox<T, 3>, ESPMode::ThreadSafe> Box = MakeShared<TBox<T, 3>, ESPMode::ThreadSafe>(TVector<T, 3>(0, 0, 0), TVector<T, 3>(BoxSize, BoxSize, BoxSize));
+		TSharedPtr<TBox<T, 3>, ESPMode::ThreadSafe> Box = MakeShared<TBox<T, 3>, ESPMode::ThreadSafe>(TVec3<T>(0, 0, 0), TVec3<T>(BoxSize, BoxSize, BoxSize));
 
 		int32 Idx = 0;
 		for (int32 Height = 0; Height < NumHeight; ++Height)
@@ -726,8 +726,8 @@ namespace ChaosTest
 					Handle->ShapesArray()[0]->SetQueryData(FilterData);
 					GTParticle->SetGeometry(Box);
 					GTParticle->ShapesArray()[0]->SetQueryData(FilterData);
-					Handle->SetX(TVector<T, 3>(Col * BoxSize, Row * BoxSize, Height * BoxSize));
-					GTParticle->SetX(TVector<T, 3>(Col * BoxSize, Row * BoxSize, Height * BoxSize));
+					Handle->SetX(TVec3<T>(Col * BoxSize, Row * BoxSize, Height * BoxSize));
+					GTParticle->SetX(TVec3<T>(Col * BoxSize, Row * BoxSize, Height * BoxSize));
 					Handle->SetR(TRotation<T, 3>::Identity);
 					GTParticle->SetR(TRotation<T, 3>::Identity);
 					Handle->SetUniqueIdx(FUniqueIdx(Idx));
@@ -809,7 +809,7 @@ namespace ChaosTest
 		// OVERLAPS
 		{
 			TStressTestVisitor<T> Visitor;
-			const TAABB<T, 3> QueryBounds(TVector<T, 3>(-50, -50, -50), TVector<T, 3>(50,50,50));
+			const TAABB<T, 3> QueryBounds(TVec3<T>(-50, -50, -50), TVec3<T>(50,50,50));
 
 			// Measure raycasts
 			uint32 Cycles = 0.0;

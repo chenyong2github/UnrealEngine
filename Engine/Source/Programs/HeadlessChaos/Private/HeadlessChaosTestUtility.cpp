@@ -26,10 +26,10 @@ namespace ChaosTest {
 		InParticles.AddParticles(1);
 		int32 RigidBodyIndex = InParticles.Size() - 1;
 
-		InParticles.X(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.V(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.R(RigidBodyIndex) = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		InParticles.W(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
+		InParticles.X(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.V(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.R(RigidBodyIndex) = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		InParticles.W(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
 		InParticles.P(RigidBodyIndex) = InParticles.X(RigidBodyIndex);
 		InParticles.Q(RigidBodyIndex) = InParticles.R(RigidBodyIndex);
 
@@ -37,7 +37,7 @@ namespace ChaosTest {
 		InParticles.InvM(RigidBodyIndex) = 1.f;
 		InParticles.I(RigidBodyIndex) = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
 		InParticles.InvI(RigidBodyIndex) = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
-		InParticles.SetDynamicGeometry(RigidBodyIndex, MakeUnique<TSphere<T, 3>>(TVector<T, 3>(0), Scale));
+		InParticles.SetDynamicGeometry(RigidBodyIndex, MakeUnique<TSphere<T, 3>>(TVec3<T>(0), Scale));
 		InParticles.SetObjectState(RigidBodyIndex, EObjectStateType::Dynamic);
 
 		return RigidBodyIndex;
@@ -45,15 +45,15 @@ namespace ChaosTest {
 	template int32 AppendAnalyticSphere(TPBDRigidParticles<float, 3> &, float Scale);
 
 	template<class T>
-	int32 AppendAnalyticBox(TPBDRigidParticles<T, 3> & InParticles, TVector<T, 3> Scale)
+	int32 AppendAnalyticBox(TPBDRigidParticles<T, 3> & InParticles, TVec3<T> Scale)
 	{
 		InParticles.AddParticles(1);
 		int32 RigidBodyIndex = InParticles.Size() - 1;
 
-		InParticles.X(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.V(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.R(RigidBodyIndex) = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		InParticles.W(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
+		InParticles.X(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.V(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.R(RigidBodyIndex) = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		InParticles.W(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
 		InParticles.P(RigidBodyIndex) = InParticles.X(RigidBodyIndex);
 		InParticles.Q(RigidBodyIndex) = InParticles.R(RigidBodyIndex);
 
@@ -70,12 +70,12 @@ namespace ChaosTest {
 
 
 	template<class T>
-	void InitAnalyticBox2(TKinematicGeometryParticleHandle<T, 3>* Particle, TVector<T, 3> Scale)
+	void InitAnalyticBox2(TKinematicGeometryParticleHandle<T, 3>* Particle, TVec3<T> Scale)
 	{
-		Particle->X() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->V() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
+		Particle->X() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->V() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		Particle->W() = TVec3<T>(0.f, 0.f, 0.f);
 		Particle->SetDynamicGeometry(MakeUnique<TBox<T, 3>>(-Scale / 2.f, Scale / 2.f));
 
 		TPBDRigidParticleHandle<T, 3>* DynamicParticle = Particle->CastToRigidParticle();
@@ -92,15 +92,15 @@ namespace ChaosTest {
 	}
 
 	template<class T>
-	int32 AppendParticleBox(TPBDRigidParticles<T, 3> & InParticles, TVector<T, 3> Scale, TArray<TVector<int32, 3>> * elements)
+	int32 AppendParticleBox(TPBDRigidParticles<T, 3> & InParticles, TVec3<T> Scale, TArray<TVec3<int32>> * elements)
 	{
 		InParticles.AddParticles(1);
 		int32 RigidBodyIndex = InParticles.Size() - 1;
 
-		InParticles.X(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.V(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.R(RigidBodyIndex) = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		InParticles.W(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
+		InParticles.X(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.V(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.R(RigidBodyIndex) = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		InParticles.W(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
 		InParticles.P(RigidBodyIndex) = InParticles.X(RigidBodyIndex);
 		InParticles.Q(RigidBodyIndex) = InParticles.R(RigidBodyIndex);
 
@@ -116,59 +116,59 @@ namespace ChaosTest {
 		int32 CollisionIndex = 0;
 		InParticles.CollisionParticlesInitIfNeeded(RigidBodyIndex);
 		InParticles.CollisionParticles(RigidBodyIndex)->AddParticles(8);
-		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, -Scale[1] / 2.f, -Scale[2] / 2.f);
-		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, -Scale[1] / 2.f, -Scale[2] / 2.f);
-		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, +Scale[1] / 2.f, -Scale[2] / 2.f);
-		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, +Scale[1] / 2.f, -Scale[2] / 2.f);
-		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, -Scale[1] / 2.f, +Scale[2] / 2.f);
-		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, -Scale[1] / 2.f, +Scale[2] / 2.f);
-		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
-		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
+		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, -Scale[1] / 2.f, -Scale[2] / 2.f);
+		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, -Scale[1] / 2.f, -Scale[2] / 2.f);
+		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, +Scale[1] / 2.f, -Scale[2] / 2.f);
+		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, +Scale[1] / 2.f, -Scale[2] / 2.f);
+		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, -Scale[1] / 2.f, +Scale[2] / 2.f);
+		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, -Scale[1] / 2.f, +Scale[2] / 2.f);
+		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
+		InParticles.CollisionParticles(RigidBodyIndex)->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
 
 		if (elements != nullptr)
 		{
 			/*
 			//cw
-			elements->Add(TVector<int32, 3>(4, 1, 5)); // Front
-			elements->Add(TVector<int32, 3>(1, 4, 0));
-			elements->Add(TVector<int32, 3>(7, 2, 6)); // Back
-			elements->Add(TVector<int32, 3>(2, 7, 3));
-			elements->Add(TVector<int32, 3>(6, 0, 4)); // Right
-			elements->Add(TVector<int32, 3>(0, 6, 2));
-			elements->Add(TVector<int32, 3>(5, 3, 7)); // Left
-			elements->Add(TVector<int32, 3>(3, 5, 1));
-			elements->Add(TVector<int32, 3>(6, 5, 7)); // Top
-			elements->Add(TVector<int32, 3>(5, 6, 4));
-			elements->Add(TVector<int32, 3>(0, 2, 1)); // Front
-			elements->Add(TVector<int32, 3>(2, 0, 3));
+			elements->Add(TVec3<int32>(4, 1, 5)); // Front
+			elements->Add(TVec3<int32>(1, 4, 0));
+			elements->Add(TVec3<int32>(7, 2, 6)); // Back
+			elements->Add(TVec3<int32>(2, 7, 3));
+			elements->Add(TVec3<int32>(6, 0, 4)); // Right
+			elements->Add(TVec3<int32>(0, 6, 2));
+			elements->Add(TVec3<int32>(5, 3, 7)); // Left
+			elements->Add(TVec3<int32>(3, 5, 1));
+			elements->Add(TVec3<int32>(6, 5, 7)); // Top
+			elements->Add(TVec3<int32>(5, 6, 4));
+			elements->Add(TVec3<int32>(0, 2, 1)); // Front
+			elements->Add(TVec3<int32>(2, 0, 3));
 			*/
 			//ccw
-			elements->Add(TVector<int32, 3>(1,4,5)); // Front
-			elements->Add(TVector<int32, 3>(4,1,0));
-			elements->Add(TVector<int32, 3>(2,7,6)); // Back
-			elements->Add(TVector<int32, 3>(7,2,3));
-			elements->Add(TVector<int32, 3>(0,6,4)); // Right
-			elements->Add(TVector<int32, 3>(6,0,2));
-			elements->Add(TVector<int32, 3>(3,5,7)); // Left
-			elements->Add(TVector<int32, 3>(5,3,1));
-			elements->Add(TVector<int32, 3>(5,6,7)); // Top
-			elements->Add(TVector<int32, 3>(6,5,4));
-			elements->Add(TVector<int32, 3>(2,0,1)); // Front
-			elements->Add(TVector<int32, 3>(0,2,3));
+			elements->Add(TVec3<int32>(1,4,5)); // Front
+			elements->Add(TVec3<int32>(4,1,0));
+			elements->Add(TVec3<int32>(2,7,6)); // Back
+			elements->Add(TVec3<int32>(7,2,3));
+			elements->Add(TVec3<int32>(0,6,4)); // Right
+			elements->Add(TVec3<int32>(6,0,2));
+			elements->Add(TVec3<int32>(3,5,7)); // Left
+			elements->Add(TVec3<int32>(5,3,1));
+			elements->Add(TVec3<int32>(5,6,7)); // Top
+			elements->Add(TVec3<int32>(6,5,4));
+			elements->Add(TVec3<int32>(2,0,1)); // Front
+			elements->Add(TVec3<int32>(0,2,3));
 		}
 
 		return RigidBodyIndex;
 	}
-	template int32 AppendParticleBox(TPBDRigidParticles<float, 3> &, FVec3, TArray<Chaos::TVector<int32, 3>> *);
+	template int32 AppendParticleBox(TPBDRigidParticles<float, 3> &, FVec3, TArray<Chaos::TVec3<int32>> *);
 
 
 	template<class T>
-	void InitDynamicParticleBox2(TPBDRigidParticleHandle<T, 3>* Particle, const TVector<T, 3>& Scale, FReal Margin, TArray<TVector<int32, 3>>* OutElements)
+	void InitDynamicParticleBox2(TPBDRigidParticleHandle<T, 3>* Particle, const TVec3<T>& Scale, FReal Margin, TArray<TVector<int32, 3>>* OutElements)
 	{
-		Particle->X() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->V() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
+		Particle->X() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->V() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		Particle->W() = TVec3<T>(0.f, 0.f, 0.f);
 
 		Particle->P() = Particle->X();
 		Particle->Q() = Particle->R();
@@ -186,50 +186,50 @@ namespace ChaosTest {
 		int32 CollisionIndex = 0;
 		Particle->CollisionParticlesInitIfNeeded();
 		Particle->CollisionParticles()->AddParticles(8);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, -Scale[1] / 2.f, -Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, -Scale[1] / 2.f, -Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, +Scale[1] / 2.f, -Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, +Scale[1] / 2.f, -Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, -Scale[1] / 2.f, +Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, -Scale[1] / 2.f, +Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, -Scale[1] / 2.f, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, -Scale[1] / 2.f, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, +Scale[1] / 2.f, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, +Scale[1] / 2.f, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, -Scale[1] / 2.f, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, -Scale[1] / 2.f, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
 
 		// This is needed for calculating contacts (Bounds are bigger than they need to be, even allowing for rotation)
-		Particle->SetLocalBounds(TAABB<T, 3>(TVector<T, 3>(-MaxScale), TVector<T, 3>(MaxScale)));
-		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVector<T, 3>(-MaxScale), TVector<T, 3>(MaxScale)));
+		Particle->SetLocalBounds(TAABB<T, 3>(TVec3<T>(-MaxScale), TVec3<T>(MaxScale)));
+		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVec3<T>(-MaxScale), TVec3<T>(MaxScale)));
 		Particle->SetHasBounds(true);
 
 		if (OutElements != nullptr)
 		{
 			/*
 			//cw
-			OutElements->Add(TVector<int32, 3>(4, 1, 5)); // Front
-			OutElements->Add(TVector<int32, 3>(1, 4, 0));
-			OutElements->Add(TVector<int32, 3>(7, 2, 6)); // Back
-			OutElements->Add(TVector<int32, 3>(2, 7, 3));
-			OutElements->Add(TVector<int32, 3>(6, 0, 4)); // Right
-			OutElements->Add(TVector<int32, 3>(0, 6, 2));
-			OutElements->Add(TVector<int32, 3>(5, 3, 7)); // Left
-			OutElements->Add(TVector<int32, 3>(3, 5, 1));
-			OutElements->Add(TVector<int32, 3>(6, 5, 7)); // Top
-			OutElements->Add(TVector<int32, 3>(5, 6, 4));
-			OutElements->Add(TVector<int32, 3>(0, 2, 1)); // Front
-			OutElements->Add(TVector<int32, 3>(2, 0, 3));
+			OutElements->Add(TVec3<int32>(4, 1, 5)); // Front
+			OutElements->Add(TVec3<int32>(1, 4, 0));
+			OutElements->Add(TVec3<int32>(7, 2, 6)); // Back
+			OutElements->Add(TVec3<int32>(2, 7, 3));
+			OutElements->Add(TVec3<int32>(6, 0, 4)); // Right
+			OutElements->Add(TVec3<int32>(0, 6, 2));
+			OutElements->Add(TVec3<int32>(5, 3, 7)); // Left
+			OutElements->Add(TVec3<int32>(3, 5, 1));
+			OutElements->Add(TVec3<int32>(6, 5, 7)); // Top
+			OutElements->Add(TVec3<int32>(5, 6, 4));
+			OutElements->Add(TVec3<int32>(0, 2, 1)); // Front
+			OutElements->Add(TVec3<int32>(2, 0, 3));
 			*/
 			//ccw
-			OutElements->Add(TVector<int32, 3>(1, 4, 5)); // Front
-			OutElements->Add(TVector<int32, 3>(4, 1, 0));
-			OutElements->Add(TVector<int32, 3>(2, 7, 6)); // Back
-			OutElements->Add(TVector<int32, 3>(7, 2, 3));
-			OutElements->Add(TVector<int32, 3>(0, 6, 4)); // Right
-			OutElements->Add(TVector<int32, 3>(6, 0, 2));
-			OutElements->Add(TVector<int32, 3>(3, 5, 7)); // Left
-			OutElements->Add(TVector<int32, 3>(5, 3, 1));
-			OutElements->Add(TVector<int32, 3>(5, 6, 7)); // Top
-			OutElements->Add(TVector<int32, 3>(6, 5, 4));
-			OutElements->Add(TVector<int32, 3>(2, 0, 1)); // Front
-			OutElements->Add(TVector<int32, 3>(0, 2, 3));
+			OutElements->Add(TVec3<int32>(1, 4, 5)); // Front
+			OutElements->Add(TVec3<int32>(4, 1, 0));
+			OutElements->Add(TVec3<int32>(2, 7, 6)); // Back
+			OutElements->Add(TVec3<int32>(7, 2, 3));
+			OutElements->Add(TVec3<int32>(0, 6, 4)); // Right
+			OutElements->Add(TVec3<int32>(6, 0, 2));
+			OutElements->Add(TVec3<int32>(3, 5, 7)); // Left
+			OutElements->Add(TVec3<int32>(5, 3, 1));
+			OutElements->Add(TVec3<int32>(5, 6, 7)); // Top
+			OutElements->Add(TVec3<int32>(6, 5, 4));
+			OutElements->Add(TVec3<int32>(2, 0, 1)); // Front
+			OutElements->Add(TVec3<int32>(0, 2, 3));
 		}
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle});
@@ -238,11 +238,11 @@ namespace ChaosTest {
 
 	
 	template<class T>
-	void InitDynamicParticleSphere2(TPBDRigidParticleHandle<T, 3>* Particle, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements) {
-		Particle->X() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->V() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
+	void InitDynamicParticleSphere2(TPBDRigidParticleHandle<T, 3>* Particle, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements) {
+		Particle->X() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->V() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		Particle->W() = TVec3<T>(0.f, 0.f, 0.f);
 
 		Particle->P() = Particle->X();
 		Particle->Q() = Particle->R();
@@ -254,59 +254,59 @@ namespace ChaosTest {
 		Particle->I() = PMatrix<T, 3, 3>(ScaleSq / 6.f, 0.f, 0.f, 0.f, ScaleSq / 6.f, 0.f, 0.f, 0.f, ScaleSq / 6.f);
 		Particle->InvI() = PMatrix<T, 3, 3>(6.f / ScaleSq, 0.f, 0.f, 0.f, 6.f / ScaleSq, 0.f, 0.f, 0.f, 6.f / ScaleSq);
 
-		Particle->SetDynamicGeometry(MakeUnique<TSphere<T, 3>>(TVector<T, 3>(0), Scale.X / 2.f));
+		Particle->SetDynamicGeometry(MakeUnique<TSphere<T, 3>>(TVec3<T>(0), Scale.X / 2.f));
 
 		int32 CollisionIndex = 0;
 		Particle->CollisionParticlesInitIfNeeded();
 		Particle->CollisionParticles()->AddParticles(6);
 
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, 0, 0);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, 0, 0);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(0, -Scale[1] / 2.f, 0);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(0, +Scale[1] / 2.f, 0);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(0, 0, -Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(0, 0, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, 0, 0);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, 0, 0);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(0, -Scale[1] / 2.f, 0);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(0, +Scale[1] / 2.f, 0);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(0, 0, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(0, 0, +Scale[2] / 2.f);
 
 		if (OutElements != nullptr)
 		{
 			/*
 			//cw
-			OutElements->Add(TVector<int32, 3>(4, 1, 5)); // Front
-			OutElements->Add(TVector<int32, 3>(1, 4, 0));
-			OutElements->Add(TVector<int32, 3>(7, 2, 6)); // Back
-			OutElements->Add(TVector<int32, 3>(2, 7, 3));
-			OutElements->Add(TVector<int32, 3>(6, 0, 4)); // Right
-			OutElements->Add(TVector<int32, 3>(0, 6, 2));
-			OutElements->Add(TVector<int32, 3>(5, 3, 7)); // Left
-			OutElements->Add(TVector<int32, 3>(3, 5, 1));
-			OutElements->Add(TVector<int32, 3>(6, 5, 7)); // Top
-			OutElements->Add(TVector<int32, 3>(5, 6, 4));
-			OutElements->Add(TVector<int32, 3>(0, 2, 1)); // Front
-			OutElements->Add(TVector<int32, 3>(2, 0, 3));
+			OutElements->Add(TVec3<int32>(4, 1, 5)); // Front
+			OutElements->Add(TVec3<int32>(1, 4, 0));
+			OutElements->Add(TVec3<int32>(7, 2, 6)); // Back
+			OutElements->Add(TVec3<int32>(2, 7, 3));
+			OutElements->Add(TVec3<int32>(6, 0, 4)); // Right
+			OutElements->Add(TVec3<int32>(0, 6, 2));
+			OutElements->Add(TVec3<int32>(5, 3, 7)); // Left
+			OutElements->Add(TVec3<int32>(3, 5, 1));
+			OutElements->Add(TVec3<int32>(6, 5, 7)); // Top
+			OutElements->Add(TVec3<int32>(5, 6, 4));
+			OutElements->Add(TVec3<int32>(0, 2, 1)); // Front
+			OutElements->Add(TVec3<int32>(2, 0, 3));
 			*/
 			//ccw
-			OutElements->Add(TVector<int32, 3>(1, 4, 5)); // Front
-			OutElements->Add(TVector<int32, 3>(4, 1, 0));
-			OutElements->Add(TVector<int32, 3>(2, 7, 6)); // Back
-			OutElements->Add(TVector<int32, 3>(7, 2, 3));
-			OutElements->Add(TVector<int32, 3>(0, 6, 4)); // Right
-			OutElements->Add(TVector<int32, 3>(6, 0, 2));
-			OutElements->Add(TVector<int32, 3>(3, 5, 7)); // Left
-			OutElements->Add(TVector<int32, 3>(5, 3, 1));
-			OutElements->Add(TVector<int32, 3>(5, 6, 7)); // Top
-			OutElements->Add(TVector<int32, 3>(6, 5, 4));
-			OutElements->Add(TVector<int32, 3>(2, 0, 1)); // Front
-			OutElements->Add(TVector<int32, 3>(0, 2, 3));
+			OutElements->Add(TVec3<int32>(1, 4, 5)); // Front
+			OutElements->Add(TVec3<int32>(4, 1, 0));
+			OutElements->Add(TVec3<int32>(2, 7, 6)); // Back
+			OutElements->Add(TVec3<int32>(7, 2, 3));
+			OutElements->Add(TVec3<int32>(0, 6, 4)); // Right
+			OutElements->Add(TVec3<int32>(6, 0, 2));
+			OutElements->Add(TVec3<int32>(3, 5, 7)); // Left
+			OutElements->Add(TVec3<int32>(5, 3, 1));
+			OutElements->Add(TVec3<int32>(5, 6, 7)); // Top
+			OutElements->Add(TVec3<int32>(6, 5, 4));
+			OutElements->Add(TVec3<int32>(2, 0, 1)); // Front
+			OutElements->Add(TVec3<int32>(0, 2, 3));
 		}
 	}
 
 
 	template<class T>
-	void InitDynamicParticleCylinder2(TPBDRigidParticleHandle<T, 3>* Particle, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements, bool Tapered) {
-		Particle->X() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->V() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
+	void InitDynamicParticleCylinder2(TPBDRigidParticleHandle<T, 3>* Particle, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements, bool Tapered) {
+		Particle->X() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->V() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		Particle->W() = TVec3<T>(0.f, 0.f, 0.f);
 
 		Particle->P() = Particle->X();
 		Particle->Q() = Particle->R();
@@ -320,119 +320,119 @@ namespace ChaosTest {
 		
 		if (Tapered)
 		{
-			Particle->SetDynamicGeometry(MakeUnique<TTaperedCylinder<T>>(TVector<T, 3>(0, 0, Scale.X / 2.0f), TVector<T, 3>(0, 0, -Scale.X / 2.0f), Scale.X / 2.f, Scale.X / 2.f));
+			Particle->SetDynamicGeometry(MakeUnique<TTaperedCylinder<T>>(TVec3<T>(0, 0, Scale.X / 2.0f), TVec3<T>(0, 0, -Scale.X / 2.0f), Scale.X / 2.f, Scale.X / 2.f));
 		}
 		else 
 		{
-			Particle->SetDynamicGeometry(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, Scale.X / 2.0f), TVector<T, 3>(0, 0, -Scale.X / 2.0f), Scale.X / 2.f));
+			Particle->SetDynamicGeometry(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, Scale.X / 2.0f), TVec3<T>(0, 0, -Scale.X / 2.0f), Scale.X / 2.f));
 		}
 
 		int32 CollisionIndex = 0;
 		Particle->CollisionParticlesInitIfNeeded();
 		Particle->CollisionParticles()->AddParticles(8);
 
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, 0, +Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, 0, -Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, 0, +Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, 0, -Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(0, -Scale[1] / 2.f, +Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(0, -Scale[1] / 2.f, -Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(0, +Scale[1] / 2.f, +Scale[2] / 2.f);
-		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(0, +Scale[1] / 2.f, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, 0, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(-Scale[0] / 2.f, 0, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, 0, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(+Scale[0] / 2.f, 0, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(0, -Scale[1] / 2.f, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(0, -Scale[1] / 2.f, -Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(0, +Scale[1] / 2.f, +Scale[2] / 2.f);
+		Particle->CollisionParticles()->X(CollisionIndex++) = TVec3<T>(0, +Scale[1] / 2.f, -Scale[2] / 2.f);
 
 		if (OutElements != nullptr)
 		{
 			/*
 			//cw
-			OutElements->Add(TVector<int32, 3>(4, 1, 5)); // Front
-			OutElements->Add(TVector<int32, 3>(1, 4, 0));
-			OutElements->Add(TVector<int32, 3>(7, 2, 6)); // Back
-			OutElements->Add(TVector<int32, 3>(2, 7, 3));
-			OutElements->Add(TVector<int32, 3>(6, 0, 4)); // Right
-			OutElements->Add(TVector<int32, 3>(0, 6, 2));
-			OutElements->Add(TVector<int32, 3>(5, 3, 7)); // Left
-			OutElements->Add(TVector<int32, 3>(3, 5, 1));
-			OutElements->Add(TVector<int32, 3>(6, 5, 7)); // Top
-			OutElements->Add(TVector<int32, 3>(5, 6, 4));
-			OutElements->Add(TVector<int32, 3>(0, 2, 1)); // Front
-			OutElements->Add(TVector<int32, 3>(2, 0, 3));
+			OutElements->Add(TVec3<int32>(4, 1, 5)); // Front
+			OutElements->Add(TVec3<int32>(1, 4, 0));
+			OutElements->Add(TVec3<int32>(7, 2, 6)); // Back
+			OutElements->Add(TVec3<int32>(2, 7, 3));
+			OutElements->Add(TVec3<int32>(6, 0, 4)); // Right
+			OutElements->Add(TVec3<int32>(0, 6, 2));
+			OutElements->Add(TVec3<int32>(5, 3, 7)); // Left
+			OutElements->Add(TVec3<int32>(3, 5, 1));
+			OutElements->Add(TVec3<int32>(6, 5, 7)); // Top
+			OutElements->Add(TVec3<int32>(5, 6, 4));
+			OutElements->Add(TVec3<int32>(0, 2, 1)); // Front
+			OutElements->Add(TVec3<int32>(2, 0, 3));
 			*/
 			//ccw
-			OutElements->Add(TVector<int32, 3>(1, 4, 5)); // Front
-			OutElements->Add(TVector<int32, 3>(4, 1, 0));
-			OutElements->Add(TVector<int32, 3>(2, 7, 6)); // Back
-			OutElements->Add(TVector<int32, 3>(7, 2, 3));
-			OutElements->Add(TVector<int32, 3>(0, 6, 4)); // Right
-			OutElements->Add(TVector<int32, 3>(6, 0, 2));
-			OutElements->Add(TVector<int32, 3>(3, 5, 7)); // Left
-			OutElements->Add(TVector<int32, 3>(5, 3, 1));
-			OutElements->Add(TVector<int32, 3>(5, 6, 7)); // Top
-			OutElements->Add(TVector<int32, 3>(6, 5, 4));
-			OutElements->Add(TVector<int32, 3>(2, 0, 1)); // Front
-			OutElements->Add(TVector<int32, 3>(0, 2, 3));
+			OutElements->Add(TVec3<int32>(1, 4, 5)); // Front
+			OutElements->Add(TVec3<int32>(4, 1, 0));
+			OutElements->Add(TVec3<int32>(2, 7, 6)); // Back
+			OutElements->Add(TVec3<int32>(7, 2, 3));
+			OutElements->Add(TVec3<int32>(0, 6, 4)); // Right
+			OutElements->Add(TVec3<int32>(6, 0, 2));
+			OutElements->Add(TVec3<int32>(3, 5, 7)); // Left
+			OutElements->Add(TVec3<int32>(5, 3, 1));
+			OutElements->Add(TVec3<int32>(5, 6, 7)); // Top
+			OutElements->Add(TVec3<int32>(6, 5, 4));
+			OutElements->Add(TVec3<int32>(2, 0, 1)); // Front
+			OutElements->Add(TVec3<int32>(0, 2, 3));
 		}
 	}
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements)
 	{
 		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
 		InitDynamicParticleBox2(Particles[0], Scale, 0.0f, OutElements);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVec3<int32>>* OutElements);
 
 	// Create a particle with box collision of specified size and margin (size includes margin)
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin, TArray<TVector<int32, 3>>* OutElements)
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale, FReal Margin, TArray<TVec3<int32>>* OutElements)
 	{
 		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
 		InitDynamicParticleBox2(Particles[0], Scale, Margin, OutElements);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, FReal Margin, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, FReal Margin, TArray<Chaos::TVec3<int32>>* OutElements);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements)
 	{
 		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
 		InitDynamicParticleSphere2(Particles[0], Scale, OutElements);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVec3<int32>>* OutElements);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements)
 	{
 		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
 		InitDynamicParticleCylinder2(Particles[0], Scale, OutElements, false);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVec3<int32>>* OutElements);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements)
 	{
 		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
 		InitDynamicParticleCylinder2(Particles[0], Scale, OutElements, true);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVec3<int32>>* OutElements);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
+	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements)
 	{
 		auto Particles = SOAs.CreateClusteredParticles(1);
 		InitDynamicParticleBox2(Particles[0], Scale, 0.0f, OutElements);
 		return Particles[0];
 	}
-	template TPBDRigidParticleHandle<float, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<float, 3>& SOAs, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TPBDRigidParticleHandle<float, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<float, 3>& SOAs, const FVec3& Scale, TArray<Chaos::TVec3<int32>>* OutElements);
 
 	template<class T>
-	void InitStaticParticleBox(TGeometryParticleHandle<T, 3>* Particle, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
+	void InitStaticParticleBox(TGeometryParticleHandle<T, 3>* Particle, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements)
 	{
-		Particle->X() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
+		Particle->X() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
 
 		check(Scale.X == Scale.Y && Scale.X == Scale.Z);
 		T ScaleSq = Scale.X * Scale.X;
@@ -440,40 +440,40 @@ namespace ChaosTest {
 		Particle->SetDynamicGeometry(MakeUnique<TBox<T, 3>>(-Scale / 2.f, Scale / 2.f));
 
 		// This is needed for calculating contacts (Bounds are bigger than they need to be, even allowing for rotation)
-		Particle->SetLocalBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0]), TVector<T, 3>(Scale[0])));
-		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0]), TVector<T, 3>(Scale[0])));
+		Particle->SetLocalBounds(TAABB<T, 3>(TVec3<T>(-Scale[0]), TVec3<T>(Scale[0])));
+		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVec3<T>(-Scale[0]), TVec3<T>(Scale[0])));
 		Particle->SetHasBounds(true);
 
 		if (OutElements != nullptr)
 		{
 			/*
 			//cw
-			OutElements->Add(TVector<int32, 3>(4, 1, 5)); // Front
-			OutElements->Add(TVector<int32, 3>(1, 4, 0));
-			OutElements->Add(TVector<int32, 3>(7, 2, 6)); // Back
-			OutElements->Add(TVector<int32, 3>(2, 7, 3));
-			OutElements->Add(TVector<int32, 3>(6, 0, 4)); // Right
-			OutElements->Add(TVector<int32, 3>(0, 6, 2));
-			OutElements->Add(TVector<int32, 3>(5, 3, 7)); // Left
-			OutElements->Add(TVector<int32, 3>(3, 5, 1));
-			OutElements->Add(TVector<int32, 3>(6, 5, 7)); // Top
-			OutElements->Add(TVector<int32, 3>(5, 6, 4));
-			OutElements->Add(TVector<int32, 3>(0, 2, 1)); // Front
-			OutElements->Add(TVector<int32, 3>(2, 0, 3));
+			OutElements->Add(TVec3<int32>(4, 1, 5)); // Front
+			OutElements->Add(TVec3<int32>(1, 4, 0));
+			OutElements->Add(TVec3<int32>(7, 2, 6)); // Back
+			OutElements->Add(TVec3<int32>(2, 7, 3));
+			OutElements->Add(TVec3<int32>(6, 0, 4)); // Right
+			OutElements->Add(TVec3<int32>(0, 6, 2));
+			OutElements->Add(TVec3<int32>(5, 3, 7)); // Left
+			OutElements->Add(TVec3<int32>(3, 5, 1));
+			OutElements->Add(TVec3<int32>(6, 5, 7)); // Top
+			OutElements->Add(TVec3<int32>(5, 6, 4));
+			OutElements->Add(TVec3<int32>(0, 2, 1)); // Front
+			OutElements->Add(TVec3<int32>(2, 0, 3));
 			*/
 			//ccw
-			OutElements->Add(TVector<int32, 3>(1, 4, 5)); // Front
-			OutElements->Add(TVector<int32, 3>(4, 1, 0));
-			OutElements->Add(TVector<int32, 3>(2, 7, 6)); // Back
-			OutElements->Add(TVector<int32, 3>(7, 2, 3));
-			OutElements->Add(TVector<int32, 3>(0, 6, 4)); // Right
-			OutElements->Add(TVector<int32, 3>(6, 0, 2));
-			OutElements->Add(TVector<int32, 3>(3, 5, 7)); // Left
-			OutElements->Add(TVector<int32, 3>(5, 3, 1));
-			OutElements->Add(TVector<int32, 3>(5, 6, 7)); // Top
-			OutElements->Add(TVector<int32, 3>(6, 5, 4));
-			OutElements->Add(TVector<int32, 3>(2, 0, 1)); // Front
-			OutElements->Add(TVector<int32, 3>(0, 2, 3));
+			OutElements->Add(TVec3<int32>(1, 4, 5)); // Front
+			OutElements->Add(TVec3<int32>(4, 1, 0));
+			OutElements->Add(TVec3<int32>(2, 7, 6)); // Back
+			OutElements->Add(TVec3<int32>(7, 2, 3));
+			OutElements->Add(TVec3<int32>(0, 6, 4)); // Right
+			OutElements->Add(TVec3<int32>(6, 0, 2));
+			OutElements->Add(TVec3<int32>(3, 5, 7)); // Left
+			OutElements->Add(TVec3<int32>(5, 3, 1));
+			OutElements->Add(TVec3<int32>(5, 6, 7)); // Top
+			OutElements->Add(TVec3<int32>(6, 5, 4));
+			OutElements->Add(TVec3<int32>(2, 0, 1)); // Front
+			OutElements->Add(TVec3<int32>(0, 2, 3));
 		}
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle });
@@ -481,13 +481,13 @@ namespace ChaosTest {
 	}
 
 	template<class T>
-	TGeometryParticleHandle<T, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
+	TGeometryParticleHandle<T, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale, TArray<TVec3<int32>>* OutElements)
 	{
 		TArray<TGeometryParticleHandle<T, 3>*> Particles = SOAs.CreateStaticParticles(1);
 		InitStaticParticleBox(Particles[0], Scale, OutElements);
 		return Particles[0];
 	}
-	template TGeometryParticleHandle<float, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+	template TGeometryParticleHandle<float, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const FVec3& Scale, TArray<Chaos::TVec3<int32>>* OutElements);
 
 	template<class T>
 	int AppendStaticAnalyticFloor(TPBDRigidParticles<T, 3> & InParticles)
@@ -495,15 +495,15 @@ namespace ChaosTest {
 		InParticles.AddParticles(1);
 		int32 RigidBodyIndex = InParticles.Size() - 1;
 
-		InParticles.X(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.V(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.R(RigidBodyIndex) = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		InParticles.W(RigidBodyIndex) = TVector<T, 3>(0.f, 0.f, 0.f);
+		InParticles.X(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.V(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.R(RigidBodyIndex) = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		InParticles.W(RigidBodyIndex) = TVec3<T>(0.f, 0.f, 0.f);
 		InParticles.M(RigidBodyIndex) = 1.f;
 		InParticles.InvM(RigidBodyIndex) = 0.f;
 		InParticles.I(RigidBodyIndex) = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
 		InParticles.InvI(RigidBodyIndex) = PMatrix<T, 3, 3>(0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f);
-		InParticles.SetDynamicGeometry(RigidBodyIndex, MakeUnique<TPlane<T, 3>>(TVector<T, 3>(0.f, 0.f, 0.f), TVector<T, 3>(0.f, 0.f, 1.f)));
+		InParticles.SetDynamicGeometry(RigidBodyIndex, MakeUnique<TPlane<T, 3>>(TVec3<T>(0.f, 0.f, 0.f), TVec3<T>(0.f, 0.f, 1.f)));
 		InParticles.SetObjectState(RigidBodyIndex, EObjectStateType::Kinematic);
 
 		InParticles.P(RigidBodyIndex) = InParticles.X(RigidBodyIndex);
@@ -519,11 +519,11 @@ namespace ChaosTest {
 		TArray<TKinematicGeometryParticleHandle<T, 3>*> Particles = SOAs.CreateKinematicParticles(1);
 		TKinematicGeometryParticleHandle<T, 3>* Particle = Particles[0];
 
-		Particle->X() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->V() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->SetDynamicGeometry(MakeUnique<TPlane<T, 3>>(TVector<T, 3>(0.f, 0.f, 0.f), TVector<T, 3>(0.f, 0.f, 1.f)));
+		Particle->X() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->V() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		Particle->W() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->SetDynamicGeometry(MakeUnique<TPlane<T, 3>>(TVec3<T>(0.f, 0.f, 0.f), TVec3<T>(0.f, 0.f, 1.f)));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle });
 
@@ -538,10 +538,10 @@ namespace ChaosTest {
 		TArray<TKinematicGeometryParticleHandle<T, 3>*> Particles = SOAs.CreateKinematicParticles(1);
 		TKinematicGeometryParticleHandle<T, 3>* Particle = Particles[0];
 
-		Particle->X() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->V() = TVector<T, 3>(0.f, 0.f, 0.f);
-		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
+		Particle->X() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->V() = TVec3<T>(0.f, 0.f, 0.f);
+		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		Particle->W() = TVec3<T>(0.f, 0.f, 0.f);
 
 		Chaos::TParticles<T, 3> Cube;
 		Cube.AddParticles(9);
@@ -565,10 +565,10 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	TLevelSet<T, 3> ConstructLevelset(TParticles<T, 3> & SurfaceParticles, TArray<TVector<int32, 3>> & Elements)
+	TLevelSet<T, 3> ConstructLevelset(TParticles<T, 3> & SurfaceParticles, TArray<TVec3<int32>> & Elements)
 	{
 		// build Particles and bounds
-		Chaos::TAABB<float, 3> BoundingBox(TVector<T, 3>(0), TVector<T, 3>(0));
+		Chaos::TAABB<float, 3> BoundingBox(TVec3<T>(0), TVec3<T>(0));
 		for (int32 CollisionParticleIndex = 0; CollisionParticleIndex < (int32)SurfaceParticles.Size(); CollisionParticleIndex++)
 		{
 			BoundingBox.GrowToInclude(SurfaceParticles.X(CollisionParticleIndex));
@@ -577,8 +577,8 @@ namespace ChaosTest {
 		// build cell domain
 		int32 MaxAxisSize = 10;
 		int MaxAxis = BoundingBox.LargestAxis();
-		TVector<T, 3> Extents = BoundingBox.Extents();
-		Chaos::TVector<int32, 3> Counts(MaxAxisSize * Extents[0] / Extents[MaxAxis], MaxAxisSize * Extents[1] / Extents[MaxAxis], MaxAxisSize * Extents[2] / Extents[MaxAxis]);
+		TVec3<T> Extents = BoundingBox.Extents();
+		Chaos::TVec3<int32> Counts(MaxAxisSize * Extents[0] / Extents[MaxAxis], MaxAxisSize * Extents[1] / Extents[MaxAxis], MaxAxisSize * Extents[2] / Extents[MaxAxis]);
 		Counts[0] = Counts[0] < 1 ? 1 : Counts[0];
 		Counts[1] = Counts[1] < 1 ? 1 : Counts[1];
 		Counts[2] = Counts[2] < 1 ? 1 : Counts[2];
@@ -588,11 +588,11 @@ namespace ChaosTest {
 		FErrorReporter ErrorReporter;
 		return TLevelSet<T,3>(ErrorReporter, Grid, SurfaceParticles, CollisionMesh);
 	}
-	template TLevelSet<float, 3> ConstructLevelset(TParticles<float, 3> &, TArray<TVector<int32, 3>> &);
+	template TLevelSet<float, 3> ConstructLevelset(TParticles<float, 3> &, TArray<TVec3<int32>> &);
 
 	/**/
 	template<class T>
-	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVector<T, 3>& Scale, FReal Margin)
+	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVec3<T>& Scale, FReal Margin)
 	{
 		Chaos::TParticles<T, 3> Cube;
 		Cube.AddParticles(9);
@@ -606,10 +606,10 @@ namespace ChaosTest {
 		Cube.X(7) = FVec3(1, 1, 1)*Scale;
 		Cube.X(8) = FVec3(0, 0, 0);
 
-		InParticles.X() = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.V() = TVector<T, 3>(0.f, 0.f, 0.f);
-		InParticles.R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
-		InParticles.W() = TVector<T, 3>(0.f, 0.f, 0.f);
+		InParticles.X() = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.V() = TVec3<T>(0.f, 0.f, 0.f);
+		InParticles.R() = TRotation<T, 3>::MakeFromEuler(TVec3<T>(0.f, 0.f, 0.f)).GetNormalized();
+		InParticles.W() = TVec3<T>(0.f, 0.f, 0.f);
 		InParticles.P() = InParticles.X();
 		InParticles.Q() = InParticles.R();
 
@@ -635,7 +635,7 @@ namespace ChaosTest {
 	template void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<float, 3> &, const FVec3& Scale, FReal Margin);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale)
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale)
 	{
 		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
 		AppendDynamicParticleConvexBox(*Particles[0], Scale, 0.0f);
@@ -654,7 +654,7 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	TVector<T,3> ObjectSpacePoint(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVector<T, 3>& WorldSpacePoint)
+	TVec3<T> ObjectSpacePoint(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVec3<T>& WorldSpacePoint)
 	{
 		TRigidTransform<T, 3> LocalToWorld(InParticles.X(Index), InParticles.R(Index));
 		return LocalToWorld.InverseTransformPosition(WorldSpacePoint);
@@ -662,7 +662,7 @@ namespace ChaosTest {
 	template FVec3 ObjectSpacePoint(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const FVec3& WorldSpacePoint);
 
 	template<class T>
-	TVector<T, 3> ObjectSpacePoint(TGeometryParticleHandle<T, 3>& Particle, const TVector<T, 3>& WorldSpacePoint)
+	TVec3<T> ObjectSpacePoint(TGeometryParticleHandle<T, 3>& Particle, const TVec3<T>& WorldSpacePoint)
 	{
 		TRigidTransform<T, 3> LocalToWorld(Particle.X(), Particle.R());
 		return LocalToWorld.InverseTransformPosition(WorldSpacePoint);
@@ -672,10 +672,10 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	T PhiWithNormal(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVector<T, 3>& WorldSpacePoint, TVector<T, 3>& Normal)
+	T PhiWithNormal(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVec3<T>& WorldSpacePoint, TVec3<T>& Normal)
 	{
 		TRigidTransform<T, 3>(InParticles.X(Index), InParticles.R(Index));
-		TVector<T, 3> BodySpacePoint = ObjectSpacePoint(InParticles, Index, WorldSpacePoint);
+		TVec3<T> BodySpacePoint = ObjectSpacePoint(InParticles, Index, WorldSpacePoint);
 		T LocalPhi = InParticles.Geometry(Index)->PhiWithNormal(BodySpacePoint, Normal);
 		Normal = TRigidTransform<T, 3>(InParticles.X(Index), InParticles.R(Index)).TransformVector(Normal);
 		return LocalPhi;
@@ -684,9 +684,9 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	T SignedDistance(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVector<T, 3>& WorldSpacePoint)
+	T SignedDistance(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVec3<T>& WorldSpacePoint)
 	{
-		TVector<T, 3> Normal;
+		TVec3<T> Normal;
 		return PhiWithNormal(InParticles, Index, WorldSpacePoint, Normal);
 	}
 	template float SignedDistance(TPBDRigidParticles<float, 3> & InParticles, const int32 Index, const FVec3& WorldSpacePoint);
@@ -694,10 +694,10 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	T PhiWithNormal(TGeometryParticleHandle<T, 3> & Particle, const TVector<T, 3>& WorldSpacePoint, TVector<T, 3>& Normal)
+	T PhiWithNormal(TGeometryParticleHandle<T, 3> & Particle, const TVec3<T>& WorldSpacePoint, TVec3<T>& Normal)
 	{
 		TRigidTransform<T, 3>(Particle.X(), Particle.R());
-		TVector<T, 3> BodySpacePoint = ObjectSpacePoint(Particle, WorldSpacePoint);
+		TVec3<T> BodySpacePoint = ObjectSpacePoint(Particle, WorldSpacePoint);
 		T LocalPhi = Particle.Geometry()->PhiWithNormal(BodySpacePoint, Normal);
 		Normal = TRigidTransform<T, 3>(Particle.X(), Particle.R()).TransformVector(Normal);
 		return LocalPhi;
@@ -706,9 +706,9 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	T SignedDistance(TGeometryParticleHandle<T, 3>& Particle, const TVector<T, 3>& WorldSpacePoint)
+	T SignedDistance(TGeometryParticleHandle<T, 3>& Particle, const TVec3<T>& WorldSpacePoint)
 	{
-		TVector<T, 3> Normal;
+		TVec3<T> Normal;
 		return PhiWithNormal(Particle, WorldSpacePoint, Normal);
 	}
 	template float SignedDistance(TGeometryParticleHandle<float, 3> & Particle, const FVec3& WorldSpacePoint);

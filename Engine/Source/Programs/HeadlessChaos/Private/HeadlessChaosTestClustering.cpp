@@ -30,12 +30,12 @@ namespace ChaosTest {
 		TPBDRigidClusteredParticles<T, 3>& ClusteredParticles = Particles.GetClusteredParticles();
 		
 		uint32 FirstId = ClusteredParticles.Size();
-		TPBDRigidParticleHandle<T, 3>* Box1 = AppendClusteredParticleBox<T>(Particles, TVector<T, 3>((T)100, (T)100, (T)100));
+		TPBDRigidParticleHandle<T, 3>* Box1 = AppendClusteredParticleBox<T>(Particles, TVec3<T>((T)100, (T)100, (T)100));
 		uint32 BoxId = FirstId++;
-		TPBDRigidParticleHandle<T, 3>* Box2 = AppendClusteredParticleBox<T>(Particles, TVector<T, 3>((T)100, (T)100, (T)100));
+		TPBDRigidParticleHandle<T, 3>* Box2 = AppendClusteredParticleBox<T>(Particles, TVec3<T>((T)100, (T)100, (T)100));
 		uint32 Box2Id = FirstId++;
 		
-		Box2->X() = TVector<T, 3>((T)100, (T)0, (T)0);
+		Box2->X() = TVec3<T>((T)100, (T)0, (T)0);
 		Box2->P() = Box2->X();
 
 		Evolution.AdvanceOneTimeStep(0);	//hack to initialize islands
@@ -49,20 +49,20 @@ namespace ChaosTest {
 		Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterChildren), ClusterParams);
 		EXPECT_EQ(ClusteredParticles.Size(), 3);
 
-		TVector<T, 3> ClusterX = ClusteredParticles.X(2);
+		TVec3<T> ClusterX = ClusteredParticles.X(2);
 		TRotation<T,3> ClusterRot = ClusteredParticles.R(2);
 
-		EXPECT_TRUE(ClusterX.Equals(TVector<T, 3> {(T)50, 0, 0}));
+		EXPECT_TRUE(ClusterX.Equals(TVec3<T> {(T)50, 0, 0}));
 		EXPECT_TRUE(ClusterRot.Equals(TRotation<T, 3>::Identity));
 		EXPECT_TRUE(ClusterX.Equals(ClusteredParticles.P(2)));
 		EXPECT_TRUE(ClusterRot.Equals(ClusteredParticles.Q(2)));
 
 		TRigidTransform<float, 3> ClusterTM(ClusterX, ClusterRot);
-		TVector<T, 3> LocalPos = ClusterTM.InverseTransformPositionNoScale(TVector<T, 3> {(T)200, (T)0, (T)0});
-		TVector<T, 3> Normal;
+		TVec3<T> LocalPos = ClusterTM.InverseTransformPositionNoScale(TVec3<T> {(T)200, (T)0, (T)0});
+		TVec3<T> Normal;
 		T Phi = ClusteredParticles.Geometry(2)->PhiWithNormal(LocalPos, Normal);
 		EXPECT_TRUE(FMath::IsNearlyEqual(Phi, (T)50));
-		EXPECT_TRUE(Normal.Equals(TVector<T, 3>{(T)1, (T)0, (T)0}));
+		EXPECT_TRUE(Normal.Equals(TVec3<T>{(T)1, (T)0, (T)0}));
 
 		//EXPECT_TRUE(Evolution.GetParticles().Geometry(2)->IsConvex());  we don't actually guarantee this
 	}
@@ -84,8 +84,8 @@ namespace ChaosTest {
 		for (int i = 0; i < NumBoxes; ++i)
 		{
 			BoxIDs.Add(ClusteredParticles.Size());
-			TPBDRigidParticleHandle<T, 3>* Box = AppendClusteredParticleBox<T>(Particles, TVector<T, 3>((T)100, (T)100, (T)100));
-			Box->X() = TVector<T, 3>((T)i * (T)100, (T)0, (T)0);
+			TPBDRigidParticleHandle<T, 3>* Box = AppendClusteredParticleBox<T>(Particles, TVec3<T>((T)100, (T)100, (T)100));
+			Box->X() = TVec3<T>((T)i * (T)100, (T)0, (T)0);
 			Box->P() = Box->X();
 			Boxes.Add(Box);
 		}
@@ -108,7 +108,7 @@ namespace ChaosTest {
 
 		FClusterCreationParameters<T> ClusterParams;
 		Chaos::TPBDRigidParticleHandle<T, 3>* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
-		TVector<T, 3> InitialVelocity((T)50, (T)20, (T)100);
+		TVec3<T> InitialVelocity((T)50, (T)20, (T)100);
 
 		RootClusterHandle->V() = InitialVelocity;		
 		
@@ -210,8 +210,8 @@ namespace ChaosTest {
 		for (int i = 0; i < NumBoxes; ++i)
 		{
 			BoxIDs.Add(ClusteredParticles.Size());
-			TPBDRigidParticleHandle<T, 3>* Box = AppendClusteredParticleBox<T>(Particles, TVector<T, 3>((T)100, (T)100, (T)100));
-			Box->X() = TVector<T, 3>((T)i * (T)100, (T)0, (T)0);
+			TPBDRigidParticleHandle<T, 3>* Box = AppendClusteredParticleBox<T>(Particles, TVec3<T>((T)100, (T)100, (T)100));
+			Box->X() = TVec3<T>((T)i * (T)100, (T)0, (T)0);
 			Box->P() = Box->X();
 			Boxes.Add(Box);
 		}
@@ -236,7 +236,7 @@ namespace ChaosTest {
 
 		FClusterCreationParameters<T> ClusterParams;
 		Chaos::TPBDRigidParticleHandle<T, 3>* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
-		TVector<T, 3> InitialVelocity((T)50, (T)20, (T)100);
+		TVec3<T> InitialVelocity((T)50, (T)20, (T)100);
 
 		RootClusterHandle->V() = InitialVelocity;
 

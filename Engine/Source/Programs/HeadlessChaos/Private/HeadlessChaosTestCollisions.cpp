@@ -17,9 +17,9 @@
 #define SMALL_THRESHOLD 1e-4
 
 #define RESET_PQ(Particle) Particle->P() = Particle->X(); Particle->Q() = Particle->R()
-#define INVARIANT_XR_START(Particle) TVector<T, 3> InvariantPreX_##Particle = Particle->X(); TRotation<T, 3> InvariantPreR_##Particle = Particle->R()
+#define INVARIANT_XR_START(Particle) TVec3<T> InvariantPreX_##Particle = Particle->X(); TRotation<T, 3> InvariantPreR_##Particle = Particle->R()
 #define INVARIANT_XR_END(Particle) EXPECT_TRUE(InvariantPreX_##Particle.Equals(Particle->X())); EXPECT_TRUE(InvariantPreR_##Particle.Equals(Particle->R()))
-#define INVARIANT_VW_START(Particle) TVector<T, 3> InvariantPreV_##Particle = Particle->V(); TVector<T, 3> InvariantPreW_##Particle = Particle->W()
+#define INVARIANT_VW_START(Particle) TVec3<T> InvariantPreV_##Particle = Particle->V(); TVec3<T> InvariantPreW_##Particle = Particle->W()
 #define INVARIANT_VW_END(Particle) EXPECT_TRUE(InvariantPreV_##Particle.Equals(Particle->V())); EXPECT_TRUE(InvariantPreW_##Particle.Equals(Particle->W()))
 
 namespace ChaosTest {
@@ -44,14 +44,14 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
 		auto Box1 = AppendDynamicParticleBox<T>(Particles);
-		Box1->X() = TVector<T, 3>(1.f);
+		Box1->X() = TVec3<T>(1.f);
 		Box1->R() = TRotation<T, 3>(FQuat::Identity);
 		Box1->P() = Box1->X();
 		Box1->Q() = Box1->R();
 		Box1->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
 		auto Box2 = AppendDynamicParticleBox<T>(Particles);
-		Box2->X() = TVector<T, 3>(1.5f, 1.5f, 1.9f);
+		Box2->X() = TVec3<T>(1.5f, 1.5f, 1.9f);
 		Box2->R() = TRotation<T, 3>(FQuat::Identity);
 		Box2->P() = Box2->X();
 		Box2->Q() = Box2->R();
@@ -71,7 +71,7 @@ namespace ChaosTest {
 
 		EXPECT_EQ(Constraint.Particle[0], Box2);
 		EXPECT_EQ(Constraint.Particle[1], Box1);
-		EXPECT_TRUE(Constraint.GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
+		EXPECT_TRUE(Constraint.GetNormal().operator==(TVec3<T>(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation())) < SMALL_THRESHOLD);
 	}
 	template void LevelsetConstraint<float>();
@@ -92,15 +92,15 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Box1 = AppendDynamicParticleConvexBox<T>(Particles, TVector<T, 3>(1.f) );
-		Box1->X() = TVector<T, 3>(0.f);
+		auto Box1 = AppendDynamicParticleConvexBox<T>(Particles, TVec3<T>(1.f) );
+		Box1->X() = TVec3<T>(0.f);
 		Box1->R() = TRotation<T, 3>(FQuat::Identity);
 		Box1->P() = Box1->X();
 		Box1->Q() = Box1->R();
 		Box1->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		auto Box2 = AppendDynamicParticleBox<T>(Particles, TVector<T, 3>(1.f) );
-		Box2->X() = TVector<T, 3>(1.25f, 0.f, 0.f);
+		auto Box2 = AppendDynamicParticleBox<T>(Particles, TVec3<T>(1.f) );
+		Box2->X() = TVec3<T>(1.25f, 0.f, 0.f);
 		Box2->R() = TRotation<T, 3>(FQuat::Identity);
 		Box2->P() = Box2->X();
 		Box2->Q() = Box2->R();
@@ -115,7 +115,7 @@ namespace ChaosTest {
 		
 		EXPECT_EQ(Constraint.Particle[0], Box2);
 		EXPECT_EQ(Constraint.Particle[1], Box1);
-		EXPECT_TRUE(Constraint.GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
+		EXPECT_TRUE(Constraint.GetNormal().operator==(TVec3<T>(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation())) < SMALL_THRESHOLD);
 	}
 	template void LevelsetConstraintGJK<float>();
@@ -138,9 +138,9 @@ namespace ChaosTest {
 
 		auto Floor = AppendStaticAnalyticFloor<T>(Particles);
 		auto Box = AppendDynamicParticleBox<T>(Particles);
-		Box->X() = TVector<T, 3>(0, 1, 0);
+		Box->X() = TVec3<T>(0, 1, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
-		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->V() = TVec3<T>(0, 0, -1);
 		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
@@ -162,7 +162,7 @@ namespace ChaosTest {
 
 		EXPECT_EQ(Constraint.Particle[0], Box);
 		EXPECT_EQ(Constraint.Particle[1], Floor);
-		EXPECT_TRUE(Constraint.GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
+		EXPECT_TRUE(Constraint.GetNormal().operator==(TVec3<T>(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation())) < SMALL_THRESHOLD);
 		EXPECT_TRUE(FMath::Abs(Constraint.GetPhi() - T(-0.5) ) < SMALL_THRESHOLD );
 
@@ -177,8 +177,8 @@ namespace ChaosTest {
 		}
 
 		// Velocity is below the restitution threshold, so expecting 0 velocity despite the fact that restitution is 1
-		EXPECT_TRUE(Box->V().Equals(TVector<T, 3>(0)));
-		EXPECT_TRUE(Box->W().Equals(TVector<T, 3>(0)));
+		EXPECT_TRUE(Box->V().Equals(TVec3<T>(0)));
+		EXPECT_TRUE(Box->W().Equals(TVec3<T>(0)));
 
 		{
 			RESET_PQ(Box);
@@ -217,10 +217,10 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
 		auto Floor = AppendStaticConvexFloor<T>(Particles);
-		auto Box = AppendDynamicParticleConvexBox<T>( Particles, TVector<T, 3>(50) );
-		Box->X() = TVector<T, 3>(0, 0, 49);
+		auto Box = AppendDynamicParticleConvexBox<T>( Particles, TVec3<T>(50) );
+		Box->X() = TVec3<T>(0, 0, 49);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
-		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->V() = TVec3<T>(0, 0, -1);
 		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
@@ -240,8 +240,8 @@ namespace ChaosTest {
 
 		EXPECT_EQ(Constraint->Particle[0], Box);
 		EXPECT_EQ(Constraint->Particle[1], Floor);
-		EXPECT_TRUE(Constraint->GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
-		EXPECT_TRUE(FMath::Abs( Constraint->GetLocation().Z - TVector<T, 3>(0,0,-1).Z ) < SMALL_THRESHOLD);
+		EXPECT_TRUE(Constraint->GetNormal().operator==(TVec3<T>(0, 0, 1)));
+		EXPECT_TRUE(FMath::Abs( Constraint->GetLocation().Z - TVec3<T>(0,0,-1).Z ) < SMALL_THRESHOLD);
 		EXPECT_TRUE(FMath::Abs(Constraint->GetPhi() - T(-1.0)) < SMALL_THRESHOLD);
 
 		{
@@ -251,8 +251,8 @@ namespace ChaosTest {
 		}
 
 		// 0 restitution so expecting 0 velocity
-		//EXPECT_TRUE(Box->V().Equals(TVector<T, 3>(0)));
-		//EXPECT_TRUE(Box->W().Equals(TVector<T, 3>(0)));
+		//EXPECT_TRUE(Box->V().Equals(TVec3<T>(0)));
+		//EXPECT_TRUE(Box->W().Equals(TVec3<T>(0)));
 
 		{
 			RESET_PQ(Box);
@@ -294,9 +294,9 @@ namespace ChaosTest {
 
 		auto Floor = AppendStaticAnalyticFloor<T>(Particles);
 		auto Box = AppendDynamicParticleBox<T>(Particles);
-		Box->X() = TVector<T, 3>(0, 1, 0);
+		Box->X() = TVec3<T>(0, 1, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
-		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->V() = TVec3<T>(0, 0, -1);
 		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
@@ -318,7 +318,7 @@ namespace ChaosTest {
 
 		EXPECT_EQ(Constraint.Particle[0], Box);
 		EXPECT_EQ(Constraint.Particle[1], Floor);
-		EXPECT_TRUE(Constraint.GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
+		EXPECT_TRUE(Constraint.GetNormal().operator==(TVec3<T>(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation())) < SMALL_THRESHOLD);
 		EXPECT_TRUE(FMath::Abs(Constraint.GetPhi() - T(-0.5)) < SMALL_THRESHOLD);
 
@@ -329,8 +329,8 @@ namespace ChaosTest {
 		}
 
 		// 0 restitution so expecting 0 velocity
-		EXPECT_TRUE(Box->V().Equals(TVector<T, 3>(0)));
-		EXPECT_TRUE(Box->W().Equals(TVector<T, 3>(0)));
+		EXPECT_TRUE(Box->V().Equals(TVec3<T>(0)));
+		EXPECT_TRUE(Box->W().Equals(TVec3<T>(0)));
 
 		{
 			RESET_PQ(Box);
@@ -368,9 +368,9 @@ namespace ChaosTest {
 
 		auto Floor = AppendStaticAnalyticFloor<T>(Particles);
 		auto Box = AppendDynamicParticleBox<T>(Particles);
-		Box->X() = TVector<T, 3>(0, 0, 0);
+		Box->X() = TVec3<T>(0, 0, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
-		Box->V() = TVector<T, 3>(0, 0, -100);
+		Box->V() = TVec3<T>(0, 0, -100);
 		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
@@ -391,7 +391,7 @@ namespace ChaosTest {
 		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
 		EXPECT_EQ(Constraint.Particle[0], Box);
 		EXPECT_EQ(Constraint.Particle[1], Floor);
-		EXPECT_TRUE(Constraint.GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
+		EXPECT_TRUE(Constraint.GetNormal().operator==(TVec3<T>(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation())) < SMALL_THRESHOLD);
 		EXPECT_TRUE(FMath::Abs(Constraint.GetPhi() - T(-0.5)) < SMALL_THRESHOLD);
 
@@ -402,8 +402,8 @@ namespace ChaosTest {
 		}
 
 		// full restitution, so expecting negative velocity
-		EXPECT_TRUE(Box->V().Equals(TVector<T, 3>(0.f, 0.f, 100.f)));
-		EXPECT_TRUE(Box->W().Equals(TVector<T, 3>(0)));
+		EXPECT_TRUE(Box->V().Equals(TVec3<T>(0.f, 0.f, 100.f)));
+		EXPECT_TRUE(Box->W().Equals(TVec3<T>(0)));
 		// collision occurs before full dt takes place, so need some bounce back for the remaining time we have
 		//EXPECT_TRUE(Particles.P(BoxId).Equals(Particles.X(BoxId)));
 		//EXPECT_TRUE(Particles.Q(BoxId).Equals(Particles.R(BoxId)));
@@ -444,12 +444,12 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		TGeometryParticleHandle<T, 3>* StaticCube = AppendStaticParticleBox<T>(Particles, TVector<T, 3>(100.0f));
-		StaticCube->X() = TVector<T, 3>(0, 0, -50.0f);
-		TPBDRigidParticleHandle<T, 3>* DynamicCube = AppendDynamicParticleBox<T>(Particles, TVector<T, 3>(100.0f));
-		DynamicCube->X() = TVector<T, 3>(0, 0, 80); // Penetrating by about 5cm
+		TGeometryParticleHandle<T, 3>* StaticCube = AppendStaticParticleBox<T>(Particles, TVec3<T>(100.0f));
+		StaticCube->X() = TVec3<T>(0, 0, -50.0f);
+		TPBDRigidParticleHandle<T, 3>* DynamicCube = AppendDynamicParticleBox<T>(Particles, TVec3<T>(100.0f));
+		DynamicCube->X() = TVec3<T>(0, 0, 80); // Penetrating by about 5cm
 		DynamicCube->R() = TRotation<T, 3>::FromElements( 0.27059805f, 0.27059805f, 0.0f, 0.923879532f ); // Rotate so that vertex collide
-		DynamicCube->V() = TVector<T, 3>(0, 0, -100);
+		DynamicCube->V() = TVec3<T>(0, 0, -100);
 		DynamicCube->PreV() = DynamicCube->V();
 		DynamicCube->P() = DynamicCube->X();
 		DynamicCube->Q() = DynamicCube->R();
@@ -475,7 +475,7 @@ namespace ChaosTest {
 		Collisions.UpdateLevelsetConstraint(*Constraint.template As<FPBDCollisionConstraints::FPointContactConstraint>());
 		EXPECT_EQ(Constraint.Particle[0], DynamicCube);
 		EXPECT_EQ(Constraint.Particle[1], StaticCube);
-		EXPECT_TRUE(Constraint.GetNormal().operator==(TVector<T, 3>(0, 0, 1)));
+		EXPECT_TRUE(Constraint.GetNormal().operator==(TVec3<T>(0, 0, 1)));
 		EXPECT_TRUE(FMath::Abs(ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation())) < SMALL_THRESHOLD);
 		{
 			INVARIANT_XR_START(DynamicCube);
@@ -506,15 +506,15 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
 		auto StaticBox = AppendStaticParticleBox<T>(Particles);
-		StaticBox->X() = TVector<T, 3>(-0.05f, -0.05f, -0.1f);
+		StaticBox->X() = TVec3<T>(-0.05f, -0.05f, -0.1f);
 		StaticBox->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
 		auto Box2 = AppendDynamicParticleBox<T>(Particles);
-		TVector<T, 3> StartingPoint(0.5f);
+		TVec3<T> StartingPoint(0.5f);
 		Box2->X() = StartingPoint;
 		Box2->P() = Box2->X();
 		Box2->Q() = Box2->R();
-		Box2->V() = TVector<T, 3>(0, 0, -1);
+		Box2->V() = TVec3<T>(0, 0, -1);
 		Box2->PreV() = Box2->V();
 		Box2->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
@@ -599,15 +599,15 @@ namespace ChaosTest {
 		Particles.AddArray(&PhysicsMaterials);
 
 		int32 BoxId1 = AppendParticleBox<T>(Particles);
-		Particles.X(BoxId1) = TVector<T, 3>(0.f, 0.f, 0.5f);
+		Particles.X(BoxId1) = TVec3<T>(0.f, 0.f, 0.5f);
 		Particles.R(BoxId1) = TRotation<T, 3>(FQuat::Identity);
-		Particles.V(BoxId1) = TVector<T, 3>(0.f, 0.f, -10.f);
+		Particles.V(BoxId1) = TVec3<T>(0.f, 0.f, -10.f);
 		PhysicsMaterials[BoxId1]  = MakeSerializable(PhysicsMaterial);
 
 		int32 BoxId2 = AppendParticleBox<T>(Particles);
-		Particles.X(BoxId2) = TVector<T, 3>(0.f, 0.f, 0.5f);
+		Particles.X(BoxId2) = TVec3<T>(0.f, 0.f, 0.5f);
 		Particles.R(BoxId2) = TRotation<T, 3>(FQuat::Identity);
-		Particles.V(BoxId2) = TVector<T, 3>(0.f, 0.f, -10.f);
+		Particles.V(BoxId2) = TVec3<T>(0.f, 0.f, -10.f);
 		PhysicsMaterials[BoxId2]  = MakeSerializable(PhysicsMaterial);
 
 		int32 FloorId = AppendStaticAnalyticFloor<T>(Particles);
@@ -656,15 +656,15 @@ namespace ChaosTest {
 		Particles.AddArray(&PhysicsMaterials);
 
 		int32 BoxId1 = AppendParticleBox<T>(Particles);
-		Particles.X(BoxId1) = TVector<T, 3>(0.f, 0.f, 0.5f);
+		Particles.X(BoxId1) = TVec3<T>(0.f, 0.f, 0.5f);
 		Particles.R(BoxId1) = TRotation<T, 3>(FQuat::Identity);
-		Particles.V(BoxId1) = TVector<T, 3>(0.f, 0.f, -10.f);
+		Particles.V(BoxId1) = TVec3<T>(0.f, 0.f, -10.f);
 		PhysicsMaterials[BoxId1] = MakeSerializable(PhysicsMaterial);
 
 		int32 BoxId2 = AppendParticleBox<T>(Particles);
-		Particles.X(BoxId2) = TVector<T, 3>(0.f, 0.f, 0.5f);
+		Particles.X(BoxId2) = TVec3<T>(0.f, 0.f, 0.5f);
 		Particles.R(BoxId2) = TRotation<T, 3>(FQuat::Identity);
-		Particles.V(BoxId2) = TVector<T, 3>(0.f, 0.f, -10.f);
+		Particles.V(BoxId2) = TVec3<T>(0.f, 0.f, -10.f);
 		PhysicsMaterials[BoxId2] = MakeSerializable(PhysicsMaterial);
 
 		int32 FloorId = AppendStaticAnalyticFloor<T>(Particles);

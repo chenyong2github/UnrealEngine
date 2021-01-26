@@ -47,7 +47,7 @@ namespace ChaosTest {
 			Evolution.AddConstraintRule(&JointsRule);
 		}
 
-		FPBDJointConstraintHandle* AddJoint(const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& InConstrainedParticleIndices, const FVec3& InLocation)
+		FPBDJointConstraintHandle* AddJoint(const TVec2<TGeometryParticleHandle<FReal, 3>*>& InConstrainedParticleIndices, const FVec3& InLocation)
 		{
 			return Joints.AddConstraint(InConstrainedParticleIndices, FRigidTransform3(InLocation, FRotation3::FromIdentity()));
 		}
@@ -61,7 +61,7 @@ namespace ChaosTest {
 
 			for (int32 JointIndex = 0; JointIndex < JointPositions.Num(); ++JointIndex)
 			{
-				const TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstraintedParticleIds(GetParticle(JointParticleIndices[JointIndex][0]), GetParticle(JointParticleIndices[JointIndex][1]));
+				const TVec2<TGeometryParticleHandle<FReal, 3>*> ConstraintedParticleIds(GetParticle(JointParticleIndices[JointIndex][0]), GetParticle(JointParticleIndices[JointIndex][1]));
 				AddJoint(ConstraintedParticleIds, JointPositions[JointIndex]);
 			}
 		}
@@ -73,7 +73,7 @@ namespace ChaosTest {
 
 		// Initial joints setup
 		TArray<FVec3> JointPositions;
-		TArray<TVector<int32, 2>> JointParticleIndices;
+		TArray<TVec2<int32>> JointParticleIndices;
 
 		// Solver state
 		FPBDJointConstraints Joints;
@@ -490,8 +490,8 @@ namespace ChaosTest {
 		Box2->P() = Box2->X();
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
-		TVector<TGeometryParticleHandle<FReal, 3>*,2> ConstrainedParticles = TVector<TGeometryParticleHandle<FReal,3>*, 2>(StaticBox, Box2);
-		TVector<FVec3, 2> Points = { FVec3((FReal)100, (FReal)0, (FReal)1000), FVec3((FReal)400, (FReal)0, (FReal)1000) };
+		TVec2<TGeometryParticleHandle<FReal, 3>*> ConstrainedParticles = TVec2<TGeometryParticleHandle<FReal,3>*>(StaticBox, Box2);
+		TVec2<FVec3> Points = { FVec3((FReal)100, (FReal)0, (FReal)1000), FVec3((FReal)400, (FReal)0, (FReal)1000) };
 
 		Evolution.SetPhysicsMaterial(StaticBox, MakeSerializable(PhysicalMaterial));
 		Evolution.SetPhysicsMaterial(Box2, MakeSerializable(PhysicalMaterial));
@@ -533,7 +533,7 @@ namespace ChaosTest {
 
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
-			TArray<TVector<TGeometryParticleHandle<FReal,3>*, 2>> Constraints = { TVector<TGeometryParticleHandle<FReal,3>*, 2>(&StaticBox, &Box2) };
+			TArray<TVec2<TGeometryParticleHandle<FReal,3>*>> Constraints = { TVec2<TGeometryParticleHandle<FReal,3>*>(&StaticBox, &Box2) };
 
 			Evolution.SetPhysicsMaterial(&StaticBox, MakeSerializable(PhysicalMaterial));
 			Evolution.SetPhysicsMaterial(&Box2, MakeSerializable(PhysicalMaterial));
@@ -563,7 +563,7 @@ namespace ChaosTest {
 
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
-			TArray<TVector<TGeometryParticleHandle<FReal,3>*, 2>> Constraints = { TVector<TGeometryParticleHandle<FReal,3>*, 2>(&StaticBox, &Box2) };
+			TArray<TVec2<TGeometryParticleHandle<FReal,3>*>> Constraints = { TVec2<TGeometryParticleHandle<FReal,3>*>(&StaticBox, &Box2) };
 
 			Evolution.SetPhysicsMaterial(&StaticBox, MakeSerializable(PhysicalMaterial));
 			Evolution.SetPhysicsMaterial(&Box2, MakeSerializable(PhysicalMaterial));

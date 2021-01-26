@@ -39,20 +39,20 @@ namespace GeometryCollectionTest
 			Vertices.X(i) += FVector(1, 2, 3);
 		}
 
-		TArray<Chaos::TVector<int32, 3>> Faces;
+		TArray<Chaos::TVec3<int32>> Faces;
 		Faces.SetNum(12);
-		Faces[0] = TVector<int32, 3>(0,1,2);
-		Faces[1] = TVector<int32, 3>(0,2,3);
-		Faces[2] = TVector<int32, 3>(2,1,6);
-		Faces[3] = TVector<int32, 3>(1,5,6);
-		Faces[4] = TVector<int32, 3>(2,6,7);
-		Faces[5] = TVector<int32, 3>(3,2,7);
-		Faces[6] = TVector<int32, 3>(4,7,3);
-		Faces[7] = TVector<int32, 3>(4,0,3);
-		Faces[8] = TVector<int32, 3>(4,1,0);
-		Faces[9] = TVector<int32, 3>(4,5,1);
-		Faces[10] = TVector<int32, 3>(5,4,7);
-		Faces[11] = TVector<int32, 3>(5,7,6);
+		Faces[0] = TVec3<int32>(0,1,2);
+		Faces[1] = TVec3<int32>(0,2,3);
+		Faces[2] = TVec3<int32>(2,1,6);
+		Faces[3] = TVec3<int32>(1,5,6);
+		Faces[4] = TVec3<int32>(2,6,7);
+		Faces[5] = TVec3<int32>(3,2,7);
+		Faces[6] = TVec3<int32>(4,7,3);
+		Faces[7] = TVec3<int32>(4,0,3);
+		Faces[8] = TVec3<int32>(4,1,0);
+		Faces[9] = TVec3<int32>(4,5,1);
+		Faces[10] = TVec3<int32>(5,4,7);
+		Faces[11] = TVec3<int32>(5,7,6);
 		Chaos::TTriangleMesh<float> Surface(MoveTemp(Faces));
 
 		TMassProperties<FReal, 3> MassProperties;
@@ -121,9 +121,9 @@ namespace GeometryCollectionTest
 				Indices,
 				false));
 
-		//TArray<Chaos::TVector<int32, 3>> Faces;
+		//TArray<Chaos::TVec3<int32>> Faces;
 		//Faces.SetNum(Indices.Num());
-		//for (int i = 0; i < Indices.Num(); i++) { Faces[i] = TVector<int32, 3>(Indices[i][0], Indices[i][1], Indices[i][2]); }
+		//for (int i = 0; i < Indices.Num(); i++) { Faces[i] = TVec3<int32>(Indices[i][0], Indices[i][1], Indices[i][2]); }
 		//Chaos::TTriangleMesh<float> TriMesh(MoveTemp(Faces));
 
 		TArray<TMassProperties<float, 3>> MassPropertiesArray;

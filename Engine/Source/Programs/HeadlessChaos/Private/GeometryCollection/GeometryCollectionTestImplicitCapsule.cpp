@@ -16,7 +16,7 @@ namespace GeometryCollectionTest
 		EXPECT_NEAR(Capsule.GetHeight() - OACapsule.GetHeight(), 0, KINDA_SMALL_NUMBER) << *FString("Capsule != OACapsule, height.");
 		EXPECT_NEAR(Capsule.GetRadius() - OACapsule.GetRadius(), 0, KINDA_SMALL_NUMBER) << *FString("Capsule != OACapsule, radius.");
 
-		Chaos::TVector<T, 3> Point;
+		Chaos::TVec3<T> Point;
 		T Phi;
 		EXPECT_EQ(Capsule.GetType(), Chaos::ImplicitObjectType::Capsule) << *FString("Implicit object type is not 'capsule'.");
 
@@ -38,7 +38,7 @@ namespace GeometryCollectionTest
 		Phi = Capsule.SignedDistance(Point);
 		EXPECT_LE(Phi, (T)0.0) << *FString("Capsule failed phi depth (3/4 origin) sanity test.");
 
-		EXPECT_NEAR((Capsule.GetCenter() - Chaos::TVector<T,3>(Capsule.GetOrigin() + Capsule.GetAxis() * (Capsule.GetHeight() + Capsule.GetRadius() * 2) * 0.5)).Size(), 0, KINDA_SMALL_NUMBER) << *FString("Capsule center is off mid axis.");
+		EXPECT_NEAR((Capsule.GetCenter() - Chaos::TVec3<T>(Capsule.GetOrigin() + Capsule.GetAxis() * (Capsule.GetHeight() + Capsule.GetRadius() * 2) * 0.5)).Size(), 0, KINDA_SMALL_NUMBER) << *FString("Capsule center is off mid axis.");
 
 		Point = Capsule.GetCenter();
 		Phi = Capsule.SignedDistance(Point);
@@ -60,14 +60,14 @@ namespace GeometryCollectionTest
 		Phi = Capsule.SignedDistance(Point);
 		EXPECT_NEAR(FMath::Abs(Phi), 0, KINDA_SMALL_NUMBER) << *FString("Capsule failed phi surface (center+orthogonalAxis*radius) sanity test.");
 
-		TArray<Chaos::TVector<T, 3>> Points = Capsule.ComputeSamplePoints(100);
+		TArray<Chaos::TVec3<T>> Points = Capsule.ComputeSamplePoints(100);
 		check(Points.Num() == 100);
 		Point[0] = TNumericLimits<T>::Max();
 		T MinPhi = TNumericLimits<T>::Max();
 		T MaxPhi = -TNumericLimits<T>::Max();
 		for (int32 i=0; i < Points.Num(); i++)
 		{
-			const Chaos::TVector<T, 3> &Pt = Points[i];
+			const Chaos::TVec3<T> &Pt = Points[i];
 
 			Phi = Capsule.SignedDistance(Pt);
 			MinPhi = FMath::Min(Phi, MinPhi);
@@ -93,32 +93,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)1.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,1), (T)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius > 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)10.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,1), (T)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius < 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)0.1);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,1), (T)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)1.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,11), (T)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius > 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)10.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,11), (T)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius < 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)0.1);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,11), (T)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 
@@ -128,32 +128,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)1.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,10), (T)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius > 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)10.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,10), (T)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius < 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)0.1);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,10), (T)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)1.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,21), (T)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius > 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)10.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,21), (T)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius < 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)0.1);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,21), (T)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 
@@ -163,32 +163,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)1.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(1,1,1), (T)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius > 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)10.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(1,1,1), (T)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius < 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)0.1);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(1,1,1), (T)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)1.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(11,11,11), (T)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius > 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)10.0);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(11,11,11), (T)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius < 1
 		{
-			Chaos::TCapsule<T> Capsule(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)0.1);
+			Chaos::TCapsule<T> Capsule(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(11,11,11), (T)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 	}

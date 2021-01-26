@@ -310,7 +310,7 @@ namespace ChaosTest {
 		}
 
 
-		TVector<FReal, 3> Scale(1, 1, 1);
+		FVec3 Scale(1, 1, 1);
 		FHeightField Heightfield(MoveTemp(Heights),TArray<uint8>(),Rows,Columns,Scale);
 
 		// Test is intended to catch trivial regressions in EditGeomData,

@@ -1018,7 +1018,7 @@ namespace GeometryCollectionTest
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000, 18.f);
 		// TSpatialHash<T>::Init() Time is 0.000123
-		TVector<T, 3> Particle_LookUp(122.0, 214.0, 3.0);
+		TVec3<T> Particle_LookUp(122.0, 214.0, 3.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0);
@@ -1043,7 +1043,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp1(-234.78, -19.31, 444.12);
+		TVec3<T> Particle_LookUp1(-234.78, -19.31, 444.12);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0);
@@ -1081,7 +1081,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp2(499.0, 222.0, -12.0);
+		TVec3<T> Particle_LookUp2(499.0, 222.0, -12.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 52.0);
@@ -1096,7 +1096,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp3(-333.0, -129.0, -489.0);
+		TVec3<T> Particle_LookUp3(-333.0, -129.0, -489.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0);
@@ -1120,7 +1120,7 @@ namespace GeometryCollectionTest
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000);
 		// TSpatialHash<T>::Init() Time is 0.000080
-		TVector<T, 3> Particle_LookUp(122.0, 214.0, 3.0);
+		TVec3<T> Particle_LookUp(122.0, 214.0, 3.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0);
@@ -1142,7 +1142,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp1(-234.78, -19.31, 444.12);
+		TVec3<T> Particle_LookUp1(-234.78, -19.31, 444.12);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0);
@@ -1180,7 +1180,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp2(499.0, 222.0, -12.0);
+		TVec3<T> Particle_LookUp2(499.0, 222.0, -12.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 52.0);
@@ -1195,7 +1195,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp3(-333.0, -129.0, -489.0);
+		TVec3<T> Particle_LookUp3(-333.0, -129.0, -489.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0);
@@ -1220,7 +1220,7 @@ namespace GeometryCollectionTest
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000);
 		// TSpatialHash<T>::Init() Time is 0.000080
-		TVector<T, 3> Particle_LookUp(122.0, 214.0, 3.0);
+		TVec3<T> Particle_LookUp(122.0, 214.0, 3.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0, 12);
@@ -1238,7 +1238,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp1(-234.78, -19.31, 444.12);
+		TVec3<T> Particle_LookUp1(-234.78, -19.31, 444.12);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0, 20);
@@ -1269,7 +1269,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp2(499.0, 222.0, -12.0);
+		TVec3<T> Particle_LookUp2(499.0, 222.0, -12.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 200.0, 5);
@@ -1285,7 +1285,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp3(-333.0, -129.0, -489.0);
+		TVec3<T> Particle_LookUp3(-333.0, -129.0, -489.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0, 12);
@@ -1301,7 +1301,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp4(1.1, 2.2, 3.3);
+		TVec3<T> Particle_LookUp4(1.1, 2.2, 3.3);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints4 = SpatialHash.GetClosestPoints(Particle_LookUp4, 250.0, 100000);
@@ -1311,7 +1311,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp5(1.1, 2.2, 3.3);
+		TVec3<T> Particle_LookUp5(1.1, 2.2, 3.3);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints5 = SpatialHash.GetClosestPoints(Particle_LookUp5, 1250.0, 100000);
@@ -1327,7 +1327,7 @@ namespace GeometryCollectionTest
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000);
 		// TSpatialHash<T>::Init() Time is 0.000087
-		TVector<T, 3> Particle_LookUp(0.0, 122.0, -23.0);
+		TVec3<T> Particle_LookUp(0.0, 122.0, -23.0);
 
 		// Get all the points in MaxRadius
 		int32 ClosestPoint = SpatialHash.GetClosestPoint(Particle_LookUp);
@@ -1337,7 +1337,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp1(-34.0, -56.0, 444.0);
+		TVec3<T> Particle_LookUp1(-34.0, -56.0, 444.0);
 
 		// Get all the points in MaxRadius
 		int32 ClosestPoint1 = SpatialHash.GetClosestPoint(Particle_LookUp1);
@@ -1347,7 +1347,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp2(12.34, 437.8, -345.67);
+		TVec3<T> Particle_LookUp2(12.34, 437.8, -345.67);
 
 		// Get all the points in MaxRadius
 		int32 ClosestPoint2 = SpatialHash.GetClosestPoint(Particle_LookUp2);
@@ -1357,7 +1357,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp3(10000.0, 10000.0, 10000.0);
+		TVec3<T> Particle_LookUp3(10000.0, 10000.0, 10000.0);
 
 		int32 ClosestPoint3 = SpatialHash.GetClosestPoint(Particle_LookUp3);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
@@ -1366,7 +1366,7 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVector<T, 3> Particle_LookUp4(-1234.0, 0.1234, 1234.0);
+		TVec3<T> Particle_LookUp4(-1234.0, 0.1234, 1234.0);
 
 		int32 ClosestPoint4 = SpatialHash.GetClosestPoint(Particle_LookUp4);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
@@ -1381,7 +1381,7 @@ namespace GeometryCollectionTest
 	{
 		TSpatialHash<float> SpatialHash(Particles_1000);
 		// TSpatialHash<T>::Init() Time is 0.000087
-		TVector<T, 3> Particle_LookUp(0.0, 122.0, -23.0);
+		TVec3<T> Particle_LookUp(0.0, 122.0, -23.0);
 
 		int32 ClosestPoint = SpatialHash.GetClosestPoint(Particle_LookUp);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
@@ -1397,7 +1397,7 @@ namespace GeometryCollectionTest
 		// ----------------------------------------------------------
 
 		TSpatialHash<float> SpatialHash2(Particles_1000);
-		TVector<T, 3> Particle_LookUp2(-333.0, -129.0, -489.0);
+		TVec3<T> Particle_LookUp2(-333.0, -129.0, -489.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints2 = SpatialHash2.GetClosestPoints(Particle_LookUp2, 122.0, 12);
@@ -1441,7 +1441,7 @@ namespace GeometryCollectionTest
 		TSpatialHash<float> SpatialHash(Particles);
 		// TSpatialHash<T>::Init() Time is 0.029013
 		
-		TVector<T, 3> Particle_LookUp(0.0, 122.0, -23.0);
+		TVec3<T> Particle_LookUp(0.0, 122.0, -23.0);
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 500.0, 150);
 		// TSpatialHash<T>::GetClosestPoints() Time is 0.073857
 

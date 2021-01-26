@@ -27,10 +27,10 @@ namespace ChaosTest
 	{
 		{
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1}, {-1,-1,1} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1}, {-1,-1,1} };
 			int32 Idxs[] = { 0,1 };
 			int32 NumVerts = 2;
-			const TVector<T,3> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
+			const TVec3<T> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
 			EXPECT_EQ(NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], -1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], -1);
@@ -41,10 +41,10 @@ namespace ChaosTest
 
 		{
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1}, {1,1,1} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1}, {1,1,1} };
 			int32 Idxs[] = { 0,1 };
 			int32 NumVerts = 2;
-			const TVector<T, 3> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
+			const TVec3<T> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
 			EXPECT_EQ(NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -55,10 +55,10 @@ namespace ChaosTest
 
 		{
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {1,1,1}, {1,2,3} };
+			const TVec3<T> Simplex[] = { {1,1,1}, {1,2,3} };
 			int32 Idxs[] = { 0,1 };
 			int32 NumVerts = 2;
-			const TVector<T, 3> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
+			const TVec3<T> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
 			EXPECT_EQ(NumVerts, 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 1);
@@ -69,10 +69,10 @@ namespace ChaosTest
 
 		{
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {10,11,12}, {1,2,3} };
+			const TVec3<T> Simplex[] = { {10,11,12}, {1,2,3} };
 			int32 Idxs[] = { 0,1 };
 			int32 NumVerts = 2;
-			const TVector<T, 3> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
+			const TVec3<T> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
 			EXPECT_EQ(NumVerts, 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 2);
@@ -83,10 +83,10 @@ namespace ChaosTest
 
 		{
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {1,1,1}, {1,1,1} };
+			const TVec3<T> Simplex[] = { {1,1,1}, {1,1,1} };
 			int32 Idxs[] = { 0,1 };
 			int32 NumVerts = 2;
-			const TVector<T, 3> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
+			const TVec3<T> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
 			EXPECT_EQ(NumVerts, 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 1);
@@ -97,10 +97,10 @@ namespace ChaosTest
 
 		{
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {1,-1e-16,1}, {1,1e-16,1} };
+			const TVec3<T> Simplex[] = { {1,-1e-16,1}, {1,1e-16,1} };
 			int32 Idxs[] = { 0,1 };
 			int32 NumVerts = 2;
-			const TVector<T, 3> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
+			const TVec3<T> ClosestPoint = LineSimplexFindOrigin(Simplex, Idxs, NumVerts, Barycentric);
 			EXPECT_EQ(NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -117,10 +117,10 @@ namespace ChaosTest
 	{
 		{
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1}, {-1,1,-1}, {-2,1,-1} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1}, {-1,1,-1}, {-2,1,-1} };
 			FSimplex Idxs = { 0,1, 2 };
 			
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], -1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -133,9 +133,9 @@ namespace ChaosTest
 
 		{
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1},{-2,1,-1}, {-1,1,-1} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1},{-2,1,-1}, {-1,1,-1} };
 			FSimplex Idxs = { 0,1, 2 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], -1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -149,9 +149,9 @@ namespace ChaosTest
 		{
 			//corner
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {1,1,1},{2,1,1}, {2,2,1} };
+			const TVec3<T> Simplex[] = { {1,1,1},{2,1,1}, {2,2,1} };
 			FSimplex Idxs = { 1,0, 2 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 1);
@@ -163,9 +163,9 @@ namespace ChaosTest
 		{
 			//corner equal
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {0,0,0},{2,1,1}, {2,2,1} };
+			const TVec3<T> Simplex[] = { {0,0,0},{2,1,1}, {2,2,1} };
 			FSimplex Idxs = { 0,1, 2 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -177,9 +177,9 @@ namespace ChaosTest
 		{
 			//edge equal
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,0,0},{1,0,0}, {0,2,0} };
+			const TVec3<T> Simplex[] = { {-1,0,0},{1,0,0}, {0,2,0} };
 			FSimplex Idxs = { 2,0, 1 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -193,9 +193,9 @@ namespace ChaosTest
 		{
 			//triangle equal
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,0,-1},{1,0,-1}, {0,0,1} };
+			const TVec3<T> Simplex[] = { {-1,0,-1},{1,0,-1}, {0,0,1} };
 			FSimplex Idxs = { 0,1, 2 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 3);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -211,9 +211,9 @@ namespace ChaosTest
 		{
 			//co-linear
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1},{-1,1,-1}, {-1,1.2,-1} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1},{-1,1,-1}, {-1,1.2,-1} };
 			FSimplex Idxs = { 0,1, 2 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], -1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -227,9 +227,9 @@ namespace ChaosTest
 		{
 			//single point
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1},{-1,-1,-1}, {-1,-1,-1} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1},{-1,-1,-1}, {-1,-1,-1} };
 			FSimplex Idxs = { 0,2, 1 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], -1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], -1);
@@ -241,9 +241,9 @@ namespace ChaosTest
 		{
 			//corner perfect split
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,0},{1,-1,0}, {0,-0.5,0} };
+			const TVec3<T> Simplex[] = { {-1,-1,0},{1,-1,0}, {0,-0.5,0} };
 			FSimplex Idxs = { 0,2, 1 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], -0.5);
@@ -255,9 +255,9 @@ namespace ChaosTest
 		{
 			//triangle face correct distance
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1},{1,-1,-1}, {0,1,-1} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1},{1,-1,-1}, {0,1,-1} };
 			FSimplex Idxs = { 0,1,2 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 3);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -273,9 +273,9 @@ namespace ChaosTest
 		{
 			//tiny triangle middle point
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1e-9,-1e-9,-1e-9},{-1e-9,1e-9,-1e-9}, {-1e-9,0,1e-9} };
+			const TVec3<T> Simplex[] = { {-1e-9,-1e-9,-1e-9},{-1e-9,1e-9,-1e-9}, {-1e-9,0,1e-9} };
 			FSimplex Idxs = { 0,1,2 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 3);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], -1e-9);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -291,9 +291,9 @@ namespace ChaosTest
 		{
 			//non cartesian triangle plane
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {2, 0, -1}, {0, 2, -1}, {1, 1, 1} };
+			const TVec3<T> Simplex[] = { {2, 0, -1}, {0, 2, -1}, {1, 1, 1} };
 			FSimplex Idxs = { 0,1,2 };
-			const TVector<T, 3> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TriangleSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 3);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 1);
@@ -313,9 +313,9 @@ namespace ChaosTest
 		{
 			//top corner
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1}, {1,-1,-1}, {0,1,-1}, {0,0,-0.5} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1}, {1,-1,-1}, {0,1,-1}, {0,0,-0.5} };
 			FSimplex Idxs = { 0,1,2,3 };
-			const TVector<T, 3> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 1);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -327,9 +327,9 @@ namespace ChaosTest
 		{
 			//inside
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,-1}, {1,-1,-1}, {0,1,-1}, {0,0,0.5} };
+			const TVec3<T> Simplex[] = { {-1,-1,-1}, {1,-1,-1}, {0,1,-1}, {0,0,0.5} };
 			FSimplex Idxs = { 0,1,2,3 };
-			const TVector<T, 3> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 4);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -344,9 +344,9 @@ namespace ChaosTest
 		{
 			//face
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {0,0,-1.5}, {-1,-1,-1}, {1,-1,-1}, {0,1,-1} };
+			const TVec3<T> Simplex[] = { {0,0,-1.5}, {-1,-1,-1}, {1,-1,-1}, {0,1,-1} };
 			FSimplex Idxs = { 0,1,2,3 }; 
-			const TVector<T, 3> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 3);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], 0);
@@ -360,9 +360,9 @@ namespace ChaosTest
 		{
 			//edge
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,0}, {1,-1,0}, {0,-1,-1}, {0, -2, -1} };
+			const TVec3<T> Simplex[] = { {-1,-1,0}, {1,-1,0}, {0,-1,-1}, {0, -2, -1} };
 			FSimplex Idxs = { 0,1,2,3 };
-			const TVector<T, 3> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], -1);
@@ -376,9 +376,9 @@ namespace ChaosTest
 		{
 			//degenerate
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-1,-1,0}, {1,-1,0}, {0,-1,-1}, {0, -1, -0.5} };
+			const TVec3<T> Simplex[] = { {-1,-1,0}, {1,-1,0}, {0,-1,-1}, {0, -1, -0.5} };
 			FSimplex Idxs = { 0,1,2,3 };
-			const TVector<T, 3> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 2);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], -1);
@@ -392,9 +392,9 @@ namespace ChaosTest
 		{
 			//wide angle, bad implementation would return edge but it's really a face
 			T Barycentric[4];
-			const TVector<T, 3> Simplex[] = { {-10000,-1,10000}, {1,-1,10000}, {4,-3,10000}, {1, -1, -10000} };
+			const TVec3<T> Simplex[] = { {-10000,-1,10000}, {1,-1,10000}, {4,-3,10000}, {1, -1, -10000} };
 			FSimplex Idxs = { 0,1,2,3 };
-			const TVector<T, 3> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 3);
 			EXPECT_FLOAT_EQ(ClosestPoint[0], 0);
 			EXPECT_FLOAT_EQ(ClosestPoint[1], -1);
@@ -408,13 +408,13 @@ namespace ChaosTest
 		{
 			// Previous failing case observed with Voronoi region implementation - Not quite degenerate (totally degenerate cases work)
 			T Barycentric[4];
-			TVector<T, 3> Simplex[] = { { -15.9112930, -15.2787428, 1.33070087 },
+			TVec3<T> Simplex[] = { { -15.9112930, -15.2787428, 1.33070087 },
 										{ 1.90487099, 2.25161266, 0.439208984 },
 										{ -15.8914719, -15.2915068, 1.34186459 },
 										{ 1.90874290, 2.24025059, 0.444719315 } };
 
 			FSimplex Idxs = { 0,1,2,3 };
-			const TVector<T, 3> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
+			const TVec3<T> ClosestPoint = TetrahedronSimplexFindOrigin(Simplex, Idxs, Barycentric);
 			EXPECT_EQ(Idxs.NumVerts, 3);
 			EXPECT_EQ(Idxs[0], 0);
 			EXPECT_EQ(Idxs[1], 1);
@@ -433,36 +433,36 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereSphereTest()
 	{
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
-		TSphere<T, 3> B(TVector<T, 3>(4, 0, 0), 2);
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
+		TSphere<T, 3> B(TVec3<T>(4, 0, 0), 2);
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>::Identity, 0, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//hit from thickness
-			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0.105, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0.105, InitialDir));
 
 			//miss with thickness
-			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0.095, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0.095, InitialDir));
 
 			//hit with rotation
-			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(6.5, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))), 1, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(6.5, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))), 1, InitialDir));
 
 			//miss with rotation
-			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(6.5, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))), 0.01, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(6.5, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))), 0.01, InitialDir));
 
 			//hit tiny
-			TSphere<T, 3> Tiny(TVector<T, 3>(0), 1e-2);
-			EXPECT_TRUE(GJKIntersection<T>(A, Tiny, TRigidTransform<T, 3>(TVector<T, 3>(15, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			TSphere<T, 3> Tiny(TVec3<T>(0), 1e-2);
+			EXPECT_TRUE(GJKIntersection<T>(A, Tiny, TRigidTransform<T, 3>(TVec3<T>(15, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//miss tiny
-			EXPECT_FALSE(GJKIntersection<T>(A, Tiny, TRigidTransform<T, 3>(TVector<T, 3>(15 + 1e-1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, Tiny, TRigidTransform<T, 3>(TVec3<T>(15 + 1e-1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 		}
 	}
 
@@ -470,40 +470,40 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereBoxTest()
 	{
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
-		TAABB<T, 3> B(TVector<T, 3>(-4, -2, -4), TVector<T,3>(4,2,4));
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
+		TAABB<T, 3> B(TVec3<T>(-4, -2, -4), TVec3<T>(4,2,4));
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
-			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0.9, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0.9, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//rotate and hit
-			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.1, 0, 0), TRotation<T, 3>::FromVector(TVector<T,3>(0,0,PI*0.5))), 0, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.1, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0,0,PI*0.5))), 0, InitialDir));
 
 			//rotate and miss
-			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.9, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(2.9, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0, InitialDir));
 
 			//rotate and hit from thickness
-			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.9, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0.1, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(2.9, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0.1, InitialDir));
 
 			//hit thin
-			TAABB<T, 3> Thin(TVector<T, 3>(4, -2, -4), TVector<T, 3>(4, 2, 4));
-			EXPECT_TRUE(GJKIntersection<T>(A, Thin, TRigidTransform<T, 3>(TVector<T, 3>(1+1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			TAABB<T, 3> Thin(TVec3<T>(4, -2, -4), TVec3<T>(4, 2, 4));
+			EXPECT_TRUE(GJKIntersection<T>(A, Thin, TRigidTransform<T, 3>(TVec3<T>(1+1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, Thin, TRigidTransform<T, 3>(TVector<T, 3>(1 - 1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, Thin, TRigidTransform<T, 3>(TVec3<T>(1 - 1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//hit line
-			TAABB<T, 3> Line(TVector<T, 3>(4, -2, 0), TVector<T, 3>(4, 2, 0));
-			EXPECT_TRUE(GJKIntersection<T>(A, Line, TRigidTransform<T, 3>(TVector<T, 3>(1 + 1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			TAABB<T, 3> Line(TVec3<T>(4, -2, 0), TVec3<T>(4, 2, 0));
+			EXPECT_TRUE(GJKIntersection<T>(A, Line, TRigidTransform<T, 3>(TVec3<T>(1 + 1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, Line, TRigidTransform<T, 3>(TVector<T, 3>(1 - 1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, Line, TRigidTransform<T, 3>(TVec3<T>(1 - 1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 		}
 	}
 
@@ -511,36 +511,36 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereCapsuleTest()
 	{
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
-		TCapsule<T> B(TVector<T, 3>(0, 0, -3), TVector<T, 3>(0, 0, 3), 3);
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
+		TCapsule<T> B(TVec3<T>(0, 0, -3), TVec3<T>(0, 0, 3), 3);
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
-			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2-1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(2-1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//thickness
-			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), 1.01, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), 1.01, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), 0.99, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), 0.99, InitialDir));
 
 			//rotation hit
-			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(-1+1e-2, 0, 0), TRotation<T, 3>::FromVector(TVector<T,3>(0,PI*0.5,0))), 0, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(-1+1e-2, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0,PI*0.5,0))), 0, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(-1-1e-2, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, PI*0.5, 0))), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(-1-1e-2, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, PI*0.5, 0))), 0, InitialDir));
 
 			//degenerate
-			TCapsule<T> Line(TVector<T, 3>(0, 0, -3), TVector<T, 3>(0, 0, 3), 0);
-			EXPECT_TRUE(GJKIntersection<T>(A, Line, TRigidTransform<T, 3>(TVector<T, 3>(5+1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			TCapsule<T> Line(TVec3<T>(0, 0, -3), TVec3<T>(0, 0, 3), 0);
+			EXPECT_TRUE(GJKIntersection<T>(A, Line, TRigidTransform<T, 3>(TVec3<T>(5+1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, Line, TRigidTransform<T, 3>(TVector<T, 3>(5 - 1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, Line, TRigidTransform<T, 3>(TVec3<T>(5 - 1e-2, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 		}
 	}
 
@@ -548,8 +548,8 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereConvexTest()
 	{
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
 
 		{
 			//Tetrahedron
@@ -561,28 +561,28 @@ namespace ChaosTest
 			HullParticles.X(3) = { 0,0,1 };
 			FConvex B(HullParticles, 0.0f);
 
-			for (const TVector<T, 3>& InitialDir : InitialDirs)
+			for (const TVec3<T>& InitialDir : InitialDirs)
 			{
 				//hit
-				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(5, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(5, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 				//near hit
-				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4 + 1e-4, 1, 1), TRotation<T, 3>::Identity), 0, InitialDir));
+				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4 + 1e-4, 1, 1), TRotation<T, 3>::Identity), 0, InitialDir));
 
 				//near miss
-				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4 - 1e-2, 1, 1), TRotation<T, 3>::Identity), 0, InitialDir));
+				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4 - 1e-2, 1, 1), TRotation<T, 3>::Identity), 0, InitialDir));
 
 				//rotated hit
-				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4 + 1e-4, 0, 1), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0, InitialDir));
+				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4 + 1e-4, 0, 1), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0, InitialDir));
 
 				//rotated miss
-				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4 - 1e-2, 0, 1), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0, InitialDir));
+				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4 - 1e-2, 0, 1), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0, InitialDir));
 
 				//rotated and inflated hit
-				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.5, 0, 1), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0.5 + 1e-4, InitialDir));
+				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.5, 0, 1), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0.5 + 1e-4, InitialDir));
 
 				//rotated and inflated miss
-				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.5, 0, 1), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0.5 - 1e-2, InitialDir));
+				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.5, 0, 1), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0.5 - 1e-2, InitialDir));
 			}
 		}
 
@@ -596,28 +596,28 @@ namespace ChaosTest
 			FConvex B(TriangleParticles, 0.0f);
 
 			//triangle
-			for (const TVector<T, 3>& InitialDir : InitialDirs)
+			for (const TVec3<T>& InitialDir : InitialDirs)
 			{
 				//hit
-				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(5, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(5, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 				//near hit
-				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4 + 1e-2, 1, 1), TRotation<T, 3>::Identity), 0, InitialDir));
+				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4 + 1e-2, 1, 1), TRotation<T, 3>::Identity), 0, InitialDir));
 
 				//near miss
-				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4 - 1e-2, 1, 1), TRotation<T, 3>::Identity), 0, InitialDir));
+				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4 - 1e-2, 1, 1), TRotation<T, 3>::Identity), 0, InitialDir));
 
 				//rotated hit
-				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4 + 1e-2, 0, 1), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0, InitialDir));
+				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4 + 1e-2, 0, 1), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0, InitialDir));
 
 				//rotated miss
-				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4 - 1e-2, 0, 1), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0, InitialDir));
+				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4 - 1e-2, 0, 1), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0, InitialDir));
 
 				//rotated and inflated hit
-				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.5, 0, 1), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0.5 + 1e-2, InitialDir));
+				EXPECT_TRUE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.5, 0, 1), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0.5 + 1e-2, InitialDir));
 
 				//rotated and inflated miss
-				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.5, 0, 1), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI*0.5))), 0.5 - 1e-2, InitialDir));
+				EXPECT_FALSE(GJKIntersection<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.5, 0, 1), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI*0.5))), 0.5 - 1e-2, InitialDir));
 			}
 		}
 	}
@@ -626,44 +626,44 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereScaledSphereTest()
 	{
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
-		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T, 3>>(TVector<T, 3>(4, 0, 0), 2);
-		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVector<T,3>(1));
-		TImplicitObjectScaled<TSphere<T, 3>> UniformScaled(MakeSerializable(Sphere), TVector<T, 3>(2));
-		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScaled(MakeSerializable(Sphere), TVector<T, 3>(2,1,1));
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
+		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T, 3>>(TVec3<T>(4, 0, 0), 2);
+		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVec3<T>(1));
+		TImplicitObjectScaled<TSphere<T, 3>> UniformScaled(MakeSerializable(Sphere), TVec3<T>(2));
+		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScaled(MakeSerializable(Sphere), TVec3<T>(2,1,1));
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			EXPECT_TRUE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>::Identity, 0, InitialDir));
 			EXPECT_TRUE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>::Identity, 0, InitialDir));
 			//EXPECT_TRUE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>::Identity, 0, InitialDir));
 
 			//miss
-			EXPECT_FALSE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
-			EXPECT_FALSE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
-			//EXPECT_FALSE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
+			//EXPECT_FALSE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0, InitialDir));
 
 			//hit from thickness
-			EXPECT_TRUE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0.105, InitialDir));
-			EXPECT_TRUE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0.105, InitialDir));
-			//EXPECT_TRUE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0.105, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0.105, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0.105, InitialDir));
+			//EXPECT_TRUE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0.105, InitialDir));
 
 			//miss with thickness
-			EXPECT_FALSE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0.095, InitialDir));
-			EXPECT_FALSE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0.095, InitialDir));
-			//EXPECT_FALSE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0.095, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(-1.1, 0, 0), TRotation<T, 3>::Identity), 0.095, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0.095, InitialDir));
+			//EXPECT_FALSE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(-7.1, 0, 0), TRotation<T, 3>::Identity), 0.095, InitialDir));
 
 			//hit with rotation
-			EXPECT_TRUE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(6.5, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))), 1, InitialDir));
-			EXPECT_TRUE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(8.1, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))), 1, InitialDir));
-			//EXPECT_TRUE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(8.1, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))), 1, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(6.5, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))), 1, InitialDir));
+			EXPECT_TRUE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(8.1, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))), 1, InitialDir));
+			//EXPECT_TRUE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(8.1, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))), 1, InitialDir));
 
 			//miss with rotation
-			EXPECT_FALSE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(6.5, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))), 0.01, InitialDir));
-			EXPECT_FALSE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(8.1, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))), 0.01, InitialDir));
-			//EXPECT_FALSE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(8.1, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))), 0.01, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(6.5, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))), 0.01, InitialDir));
+			EXPECT_FALSE(GJKIntersection<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(8.1, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))), 0.01, InitialDir));
+			//EXPECT_FALSE(GJKIntersection<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(8.1, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))), 0.01, InitialDir));
 		}
 	}
 
@@ -680,168 +680,168 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereSphereSweep()
 	{
-		typedef TVector<T, 3> TVector3;
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
-		TSphere<T, 3> B(TVector<T, 3>(1, 0, 0), 2);
+		typedef TVec3<T> TVector3;
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
+		TSphere<T, 3> B(TVec3<T>(1, 0, 0), 2);
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
 		constexpr T Eps = 1e-1;
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			T Time;
-			TVector<T, 3> Position;
-			TVector<T, 3> Normal;
+			TVec3<T> Position;
+			TVec3<T> Normal;
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//hit offset
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T,3>(1,0,0), TRotation<T,3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1,0,0), TRotation<T,3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 1, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//initial overlap
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(7, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, false, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(7, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, false, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
 
 			//MTD
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(7, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(7, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -5);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5,0,0), Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			
 			//EPA
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(9, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(9, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -7);	//perfect overlap, will default to 0,0,1 normal
 			EXPECT_VECTOR_NEAR(Position, TVec3<T>(10,0,5), Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(0, 0, 1), Eps);
 
 			//miss
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//hit with thickness
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
 
 			//hit rotated
-			const TRotation<T, 3> RotatedDown(TRotation<T, 3>::FromVector(TVector<T, 3>(0, PI * 0.5, 0)));
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.9), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			const TRotation<T, 3> RotatedDown(TRotation<T, 3>::FromVector(TVec3<T>(0, PI * 0.5, 0)));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.9), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//miss rotated
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 8.1), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 8.1), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//hit rotated with inflation
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.9), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.9), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
 
 			//near hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//near miss
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//degenerate
-			TSphere<T, 3> Tiny(TVector<T, 3>(1, 0, 0), 1e-8);
-			EXPECT_TRUE(GJKRaycast<T>(A, Tiny, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 8, Time, Position, Normal, 0, InitialDir));
+			TSphere<T, 3> Tiny(TVec3<T>(1, 0, 0), 1e-8);
+			EXPECT_TRUE(GJKRaycast<T>(A, Tiny, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 8, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 4, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//right at end
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 
 			// not far enough
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2 - 1e-2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2 - 1e-2, Time, Position, Normal, 0, InitialDir));
 		}
 	}
 
 	template <typename T>
 	void GJKSphereBoxSweep()
 	{
-		typedef TVector<T, 3> TVector3;
-		TAABB<T, 3> A(TVector<T, 3>(3, -1, 0), TVector<T, 3>(4, 1, 4));
-		TSphere<T, 3> B(TVector<T, 3>(0, 0, 0), 1);
+		typedef TVec3<T> TVector3;
+		TAABB<T, 3> A(TVec3<T>(3, -1, 0), TVec3<T>(4, 1, 4));
+		TSphere<T, 3> B(TVec3<T>(0, 0, 0), 1);
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
 		constexpr T Eps = 1e-1;
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			T Time;
-			TVector<T, 3> Position;
-			TVector<T, 3> Normal;
+			TVec3<T> Position;
+			TVec3<T> Normal;
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(3, 0, 0), Eps);
 
 			//hit offset
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(1.5, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1.5, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 0.5, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(3, 0, 0), Eps);
 
 			//initial overlap
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4, 0, 4), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, false, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4, 0, 4), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, false, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
 
 			//MTD without EPA
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4.25, 0, 2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4.25, 0, 2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -0.75);
 			EXPECT_VECTOR_NEAR(Position, TVector3(4, 0, 2), Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(1, 0, 0), Eps);
 
 			//MTD with EPA
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4, 0, 2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4, 0, 2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -1);
 			EXPECT_VECTOR_NEAR(Position, TVector3(4, 0, 2), Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(1, 0, 0), Eps);
 
 			//MTD with EPA
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, 2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.25, 0, 2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -1.25);
 			EXPECT_VECTOR_NEAR(Position, TVector3(3, 0, 2), Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 
 			//MTD with EPA
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.4, 0, 3.75), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.4, 0, 3.75), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -1.25);
 			EXPECT_VECTOR_NEAR(Position, TVector3(3.4, 0, 4), Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(0, 0, 1), Eps);
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 6), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, -1).GetUnsafeNormal(), 4, Time, Position, Normal, 0, InitialDir));
-			const T ExpectedTime = ((TVector<T, 3>(3, 0, 4) - TVector<T, 3>(1, 0, 6)).Size() - 1);
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1, 0, 6), TRotation<T, 3>::Identity), TVec3<T>(1, 0, -1).GetUnsafeNormal(), 4, Time, Position, Normal, 0, InitialDir));
+			const T ExpectedTime = ((TVec3<T>(3, 0, 4) - TVec3<T>(1, 0, 6)).Size() - 1);
 			EXPECT_NEAR(Time, ExpectedTime, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-sqrt(2) / 2, 0, sqrt(2) / 2), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(3, 0, 4), Eps);
 
 			//near miss
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 5+1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 5+1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 
 			//near hit with inflation
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 5 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 2e-2, InitialDir));
-			const T DistanceFromCorner = (Position - TVector<T, 3>(3, 0, 4)).Size();
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 5 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 2e-2, InitialDir));
+			const T DistanceFromCorner = (Position - TVec3<T>(3, 0, 4)).Size();
 			EXPECT_LT(DistanceFromCorner, 1e-1);
 
 			//rotated box
-			const TRotation<T, 3> Rotated(TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI * 0.5)));
-			EXPECT_TRUE(GJKRaycast<T>(B, A, TRigidTransform<T, 3>(TVector<T, 3>(0), Rotated), TVector<T, 3>(0, -1, 0), 4, Time, Position, Normal, 0, InitialDir));
+			const TRotation<T, 3> Rotated(TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI * 0.5)));
+			EXPECT_TRUE(GJKRaycast<T>(B, A, TRigidTransform<T, 3>(TVec3<T>(0), Rotated), TVec3<T>(0, -1, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(0, 1, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(0, 1, 0), Eps);
 
 			//degenerate box
-			TAABB<T, 3> Needle(TVector<T, 3>(3, 0, 0), TVector<T, 3>(4, 0, 0));
-			EXPECT_TRUE(GJKRaycast<T>(B, Needle, TRigidTransform<T, 3>(TVector<T, 3>(0), Rotated), TVector<T, 3>(0, -1, 0), 4, Time, Position, Normal, 0, InitialDir));
+			TAABB<T, 3> Needle(TVec3<T>(3, 0, 0), TVec3<T>(4, 0, 0));
+			EXPECT_TRUE(GJKRaycast<T>(B, Needle, TRigidTransform<T, 3>(TVec3<T>(0), Rotated), TVec3<T>(0, -1, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(0, 1, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(0, 1, 0), Eps);
@@ -852,77 +852,77 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereCapsuleSweep()
 	{
-		typedef TVector<T, 3> TVector3;
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
-		TCapsule<T> B(TVector<T, 3>(1, 0, 0), TVector<T, 3>(-3, 0, 0), 2);
+		typedef TVec3<T> TVector3;
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
+		TCapsule<T> B(TVec3<T>(1, 0, 0), TVec3<T>(-3, 0, 0), 2);
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
 		constexpr T Eps = 1e-1;
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			T Time;
-			TVector<T, 3> Position;
-			TVector<T, 3> Normal;
+			TVec3<T> Position;
+			TVec3<T> Normal;
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//hit offset
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 1, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 			
 			//initial overlap
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(7, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, false, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(7, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, false, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
 
 			//MTD
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(7, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(7, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -5);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 
 			//miss
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//hit with thickness
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
 
 			//hit rotated
-			const TRotation<T, 3> RotatedDown(TRotation<T, 3>::FromVector(TVector<T, 3>(0, PI * 0.5, 0)));
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.9), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			const TRotation<T, 3> RotatedDown(TRotation<T, 3>::FromVector(TVec3<T>(0, PI * 0.5, 0)));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.9), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//miss rotated
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 8.1), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 8.1), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//hit rotated with inflation
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.9), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.9), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
 
 			//near hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//near miss
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//degenerate
-			TSphere<T, 3> Tiny(TVector<T, 3>(1, 0, 0), 1e-8);
-			EXPECT_TRUE(GJKRaycast<T>(A, Tiny, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 8, Time, Position, Normal, 0, InitialDir));
+			TSphere<T, 3> Tiny(TVec3<T>(1, 0, 0), 1e-8);
+			EXPECT_TRUE(GJKRaycast<T>(A, Tiny, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 8, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 4, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//right at end
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 
 			// not far enough
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2 - 1e-2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2 - 1e-2, Time, Position, Normal, 0, InitialDir));
 		}
 	}
 
@@ -930,7 +930,7 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereConvexSweep()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		//Tetrahedron
 		TParticles<T, 3> HullParticles;
 		HullParticles.AddParticles(4);
@@ -939,36 +939,36 @@ namespace ChaosTest
 		HullParticles.X(2) = { 3,-1,0 };
 		HullParticles.X(3) = { 4,0,2 };
 		FConvex A(HullParticles, 0.0f);
-		TSphere<T, 3> B(TVector<T, 3>(0, 0, 0), 1);
+		TSphere<T, 3> B(TVec3<T>(0, 0, 0), 1);
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
 		constexpr T Eps = 1e-1;
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			T Time;
-			TVector<T, 3> Position;
-			TVector<T, 3> Normal;
+			TVec3<T> Position;
+			TVec3<T> Normal;
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(3, 0, 0), Eps);
 
 			//hit offset
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(1.5, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1.5, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 0.5, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(3, 0, 0), Eps);
 
 			//initial overlap
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(4, 0, 4), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, false, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(4, 0, 4), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, false, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
 
 			//MTD
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.5, 0, 2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(2.5, 0, 2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -0.5);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0).GetUnsafeNormal(), Eps);
 
@@ -976,30 +976,30 @@ namespace ChaosTest
 			T Penetration;
 			TVec3<T> ClosestA, ClosestB;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.5, 0, 2), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVec3<T>(2.5, 0, 2), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
 			EXPECT_FLOAT_EQ(Penetration, 0.5);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0).GetUnsafeNormal(), Eps);
 			EXPECT_NEAR(ClosestA[0], 3, Eps);	//could be any point on face, but should have x == 3
 			EXPECT_VECTOR_NEAR(ClosestB, TVector3(3.5, 0, 2), Eps);
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 6), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, -1).GetUnsafeNormal(), 4, Time, Position, Normal, 0, InitialDir));
-			const T ExpectedTime = ((TVector<T, 3>(3, 0, 4) - TVector<T, 3>(1, 0, 6)).Size() - 1);
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(1, 0, 6), TRotation<T, 3>::Identity), TVec3<T>(1, 0, -1).GetUnsafeNormal(), 4, Time, Position, Normal, 0, InitialDir));
+			const T ExpectedTime = ((TVec3<T>(3, 0, 4) - TVec3<T>(1, 0, 6)).Size() - 1);
 			EXPECT_NEAR(Time, ExpectedTime, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-sqrt(2) / 2, 0, sqrt(2) / 2), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(3, 0, 4), Eps);
 
 			//near miss
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 5 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 5 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 
 			//near hit with inflation
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 5 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 2e-2, InitialDir));
-			const T DistanceFromCorner = (Position - TVector<T, 3>(3, 0, 4)).Size();
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 5 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 2e-2, InitialDir));
+			const T DistanceFromCorner = (Position - TVec3<T>(3, 0, 4)).Size();
 			EXPECT_LT(DistanceFromCorner, 1e-1);
 
 			//rotated box
-			const TRotation<T, 3> Rotated(TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI * 0.5)));
-			EXPECT_TRUE(GJKRaycast<T>(B, A, TRigidTransform<T, 3>(TVector<T, 3>(0), Rotated), TVector<T, 3>(0, -1, 0), 4, Time, Position, Normal, 0, InitialDir));
+			const TRotation<T, 3> Rotated(TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI * 0.5)));
+			EXPECT_TRUE(GJKRaycast<T>(B, A, TRigidTransform<T, 3>(TVec3<T>(0), Rotated), TVec3<T>(0, -1, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_NEAR(Normal.X, 0, Eps);
 			EXPECT_NEAR(Normal.Y, 1, Eps);
@@ -1007,8 +1007,8 @@ namespace ChaosTest
 			EXPECT_VECTOR_NEAR(Position, TVector3(0, 1, 0), Eps);
 
 			//degenerate box
-			TAABB<T, 3> Needle(TVector<T, 3>(3, 0, 0), TVector<T, 3>(4, 0, 0));
-			EXPECT_TRUE(GJKRaycast<T>(B, Needle, TRigidTransform<T, 3>(TVector<T, 3>(0), Rotated), TVector<T, 3>(0, -1, 0), 4, Time, Position, Normal, 0, InitialDir));
+			TAABB<T, 3> Needle(TVec3<T>(3, 0, 0), TVec3<T>(4, 0, 0));
+			EXPECT_TRUE(GJKRaycast<T>(B, Needle, TRigidTransform<T, 3>(TVec3<T>(0), Rotated), TVec3<T>(0, -1, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(0, 1, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(0, 1, 0), Eps);
@@ -1018,103 +1018,103 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereScaledSphereSweep()
 	{
-		typedef TVector<T, 3> TVector3;
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
-		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T, 3>>(TVector<T, 3>(0, 0, 0), 2);
-		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVector<T, 3>(1));
-		TImplicitObjectScaled<TSphere<T, 3>> UniformScaled(MakeSerializable(Sphere), TVector<T, 3>(2));
-		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScaled(MakeSerializable(Sphere), TVector<T, 3>(2, 1, 1));
+		typedef TVec3<T> TVector3;
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
+		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T, 3>>(TVec3<T>(0, 0, 0), 2);
+		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVec3<T>(1));
+		TImplicitObjectScaled<TSphere<T, 3>> UniformScaled(MakeSerializable(Sphere), TVec3<T>(2));
+		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScaled(MakeSerializable(Sphere), TVec3<T>(2, 1, 1));
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
 		constexpr T Eps = 1e-1;
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			T Time;
-			TVector<T, 3> Position;
-			TVector<T, 3> Normal;
+			TVec3<T> Position;
+			TVec3<T> Normal;
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 3, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
-			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 6, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 6, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 1, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
-			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 1, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//hit offset
-			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
-			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 0, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
-			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 0, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//initial overlap
-			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(8, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(8, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
-			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(6, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(6, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
-			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(6, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(6, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
 
 			//miss
-			EXPECT_FALSE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_FALSE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 9.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_FALSE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 9.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//hit with thickness
-			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
-			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 9.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
-			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 9.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
 
 			//hit rotated
-			const TRotation<T, 3> RotatedInPlace(TRotation<T, 3>::FromVector(TVector<T, 3>(0, PI * 0.5, 0)));
-			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 0), RotatedInPlace), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 0), RotatedInPlace), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 0), RotatedInPlace), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			const TRotation<T, 3> RotatedInPlace(TRotation<T, 3>::FromVector(TVec3<T>(0, PI * 0.5, 0)));
+			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 0), RotatedInPlace), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 0), RotatedInPlace), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 0), RotatedInPlace), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//miss rotated
-			EXPECT_FALSE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), RotatedInPlace), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_FALSE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 9.1), RotatedInPlace), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_FALSE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 9.1), RotatedInPlace), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), RotatedInPlace), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, UniformScaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 9.1), RotatedInPlace), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, NonUniformScaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 9.1), RotatedInPlace), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//near hit
-			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//near miss
-			EXPECT_FALSE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//degenerate
-			TSphere<T, 3> Tiny(TVector<T, 3>(1, 0, 0), 1e-8);
-			EXPECT_TRUE(GJKRaycast<T>(A, Tiny, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 8, Time, Position, Normal, 0, InitialDir));
+			TSphere<T, 3> Tiny(TVec3<T>(1, 0, 0), 1e-8);
+			EXPECT_TRUE(GJKRaycast<T>(A, Tiny, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 8, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 4, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//right at end
-			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 3, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 3, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 3, Eps);
 
 			// not far enough
-			EXPECT_FALSE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 3 - 1e-2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Unscaled, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 3 - 1e-2, Time, Position, Normal, 0, InitialDir));
 		}
 	}
 
@@ -1122,87 +1122,87 @@ namespace ChaosTest
 	template <typename T>
 	void GJKSphereTransformedSphereSweep()
 	{
-		typedef TVector<T, 3> TVector3;
-		TSphere<T, 3> A(TVector<T, 3>(10, 0, 0), 5);
+		typedef TVec3<T> TVector3;
+		TSphere<T, 3> A(TVec3<T>(10, 0, 0), 5);
 
-		TSphere<T, 3> Sphere(TVector<T, 3>(0), 2);
-		TSphere<T, 3> Translated(Sphere.GetCenter() + TVector<T, 3>(1, 0, 0), Sphere.GetRadius());
-		TSphere<T,3> Transformed(TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0, 0, PI))).TransformPosition(Sphere.GetCenter()), Sphere.GetRadius());
+		TSphere<T, 3> Sphere(TVec3<T>(0), 2);
+		TSphere<T, 3> Translated(Sphere.GetCenter() + TVec3<T>(1, 0, 0), Sphere.GetRadius());
+		TSphere<T,3> Transformed(TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0, 0, PI))).TransformPosition(Sphere.GetCenter()), Sphere.GetRadius());
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
 		constexpr T Eps = 1e-1;
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			T Time;
-			TVector<T, 3> Position;
-			TVector<T, 3> Normal;
+			TVec3<T> Position;
+			TVec3<T> Normal;
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
-			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//hit offset
-			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 1, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
-			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 1, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVector3(-1, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Position, TVector3(5, 0, 0), Eps);
 
 			//initial overlap
-			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(7, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(7, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
-			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(7, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(7, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
 
 			//miss
-			EXPECT_FALSE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_FALSE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//hit with thickness
-			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
-			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.1), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.1), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
 
 			//hit rotated
-			const TRotation<T, 3> RotatedDown(TRotation<T, 3>::FromVector(TVector<T, 3>(0, PI * 0.5, 0)));
-			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.9), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.9), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			const TRotation<T, 3> RotatedDown(TRotation<T, 3>::FromVector(TVec3<T>(0, PI * 0.5, 0)));
+			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.9), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.9), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//miss rotated
-			EXPECT_FALSE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 8.1), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_FALSE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 8.1), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(0, 0, 8.1), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(0, 0, 8.1), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//hit rotated with inflation
-			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.9), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
-			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7.9), RotatedDown), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.9), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7.9), RotatedDown), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0.2, InitialDir));
 
 			//near hit
-			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//near miss
-			EXPECT_FALSE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
-			EXPECT_FALSE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 20, Time, Position, Normal, 0, InitialDir));
 
 			//right at end
-			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
-			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 2, Eps);
 
 			// not far enough
-			EXPECT_FALSE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2 - 1e-2, Time, Position, Normal, 0, InitialDir));
-			EXPECT_FALSE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2 - 1e-2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Translated, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2 - 1e-2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, Transformed, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2 - 1e-2, Time, Position, Normal, 0, InitialDir));
 		}
 	}
 
@@ -1210,21 +1210,21 @@ namespace ChaosTest
 	template <typename T>
 	void GJKBoxCapsuleSweep()
 	{
-		TAABB<T, 3> A(TVector<T, 3>(3, -1, 0), TVector<T, 3>(4, 1, 4));
-		TCapsule<T> B(TVector<T, 3>(0, 0, -1), TVector<T, 3>(0, 0, 1), 2);
+		TAABB<T, 3> A(TVec3<T>(3, -1, 0), TVec3<T>(4, 1, 4));
+		TCapsule<T> B(TVec3<T>(0, 0, -1), TVec3<T>(0, 0, 1), 2);
 
-		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
+		TVec3<T> InitialDirs[] = { TVec3<T>(1,0,0), TVec3<T>(-1,0,0), TVec3<T>(0,1,0), TVec3<T>(0,-1,0), TVec3<T>(0,0,1), TVec3<T>(0,0,-1) };
 
 		constexpr T Eps = 1e-1;
 
-		for (const TVector<T, 3>& InitialDir : InitialDirs)
+		for (const TVec3<T>& InitialDir : InitialDirs)
 		{
 			T Time;
-			TVector<T, 3> Position;
-			TVector<T, 3> Normal;
+			TVec3<T> Position;
+			TVec3<T> Normal;
 
 			//hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 1, Eps);
 			EXPECT_NEAR(Normal.X, -1, Eps);
 			EXPECT_NEAR(Normal.Y, 0, Eps);
@@ -1235,7 +1235,7 @@ namespace ChaosTest
 			EXPECT_GE(Position.Z, -1 - Eps);
 
 			//hit offset
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0.5, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0.5, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 0.5, Eps);
 			EXPECT_NEAR(Normal.X, -1, Eps);
 			EXPECT_NEAR(Normal.Y, 0, Eps);
@@ -1246,11 +1246,11 @@ namespace ChaosTest
 			EXPECT_GE(Position.Z, -1 - Eps);
 
 			//initial overlap
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, false, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, false, InitialDir));
 			EXPECT_FLOAT_EQ(Time, 0);
 
 			//MTD
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.5, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(2.5, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -1.5);
 			EXPECT_NEAR(Position[0], 3, Eps);	//many possible, but x must be on 3
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
@@ -1259,7 +1259,7 @@ namespace ChaosTest
 			T Penetration;
 			TVec3<T> ClosestA, ClosestB;
 			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(2.5, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVec3<T>(2.5, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
 			EXPECT_FLOAT_EQ(Penetration, 1.5);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 			EXPECT_NEAR(ClosestA[0], 3, Eps);	//could be any point on face, but should have x == 3
@@ -1267,13 +1267,13 @@ namespace ChaosTest
 			EXPECT_NEAR(ClosestB[1], 0, Eps);
 
 			//EPA
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -2);
 			EXPECT_NEAR(Position[0], 3, Eps);	//many possible, but x must be on 3
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 
 			//EPA
-			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
 			EXPECT_NEAR(Penetration, 2, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 			EXPECT_NEAR(ClosestA[0], 3, Eps);	//could be any point on face, but should have x == 3
@@ -1281,13 +1281,13 @@ namespace ChaosTest
 			EXPECT_NEAR(ClosestB[1], 0, Eps);
 
 			//EPA
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, 0), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.25, 0, 0), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -2.25);
 			EXPECT_NEAR(Position[0], 3, Eps);	//many possible, but x must be on 3
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 
 			//EPA
-			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.25, 0, 0), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
 			EXPECT_NEAR(Penetration, 2.25, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(-1, 0, 0), Eps);
 			EXPECT_NEAR(ClosestA[0], 3, Eps);	//could be any point on face, but should have x == 3
@@ -1295,34 +1295,34 @@ namespace ChaosTest
 			EXPECT_NEAR(ClosestB[1], 0, Eps);
 
 			//MTD
-			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, -2.875), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 2, Time, Position, Normal, 0, true, InitialDir));
+			EXPECT_TRUE(GJKRaycast2<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.25, 0, -2.875), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 2, Time, Position, Normal, 0, true, InitialDir));
 			EXPECT_FLOAT_EQ(Time, -0.125);
 			EXPECT_VECTOR_NEAR(Position, TVec3<T>(3.25, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(0, 0, -1), Eps);
 
 			//MTD
-			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(3.25, 0, -2.875), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
+			EXPECT_TRUE((GJKPenetration<false, T>(A, B, TRigidTransform<T, 3>(TVec3<T>(3.25, 0, -2.875), TRotation<T, 3>::Identity), Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0, 0, InitialDir)));
 			EXPECT_NEAR(Penetration, 0.125, Eps);
 			EXPECT_VECTOR_NEAR(Normal, TVec3<T>(0, 0, -1), Eps);
 			EXPECT_VECTOR_NEAR(ClosestA, TVec3<T>(3.25, 0, 0), Eps);
 			EXPECT_VECTOR_NEAR(ClosestB, TVec3<T>(3.25, 0, 0.125), Eps);
 
 			//near miss
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 + 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 
 			//near hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Position.X, 3, Eps);
 			EXPECT_NEAR(Position.Z, 4, 10 * Eps);
 
 			//near hit inflation
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVector<T, 3>(1, 0, 0), 4, Time, Position, Normal, 2e-2, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 7 - 1e-2), TRotation<T, 3>::Identity), TVec3<T>(1, 0, 0), 4, Time, Position, Normal, 2e-2, InitialDir));
 			EXPECT_NEAR(Position.X, 3, Eps);
 			EXPECT_NEAR(Position.Z, 4, 10 * Eps);
 
 			//rotation hit
-			TRotation<T, 3> Rotated(TRotation<T, 3>::FromVector(TVector<T, 3>(0, -PI * 0.5, 0)));
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(-0.5, 0, 0), Rotated), TVector<T, 3>(1, 0, 0), 1, Time, Position, Normal, 0, InitialDir));
+			TRotation<T, 3> Rotated(TRotation<T, 3>::FromVector(TVec3<T>(0, -PI * 0.5, 0)));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(-0.5, 0, 0), Rotated), TVec3<T>(1, 0, 0), 1, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 0.5, Eps);
 			EXPECT_NEAR(Position.X, 3, Eps);
 			EXPECT_NEAR(Normal.X, -1, Eps);
@@ -1330,14 +1330,14 @@ namespace ChaosTest
 			EXPECT_NEAR(Normal.Z, 0, Eps);
 
 			//rotation near hit
-			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 6 - 1e-2), Rotated), TVector<T, 3>(1, 0, 0), 10, Time, Position, Normal, 0, InitialDir));
+			EXPECT_TRUE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 6 - 1e-2), Rotated), TVec3<T>(1, 0, 0), 10, Time, Position, Normal, 0, InitialDir));
 
 			//rotation near miss
-			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVector<T, 3>(0, 0, 6 + 1e-2), Rotated), TVector<T, 3>(1, 0, 0), 10, Time, Position, Normal, 0, InitialDir));
+			EXPECT_FALSE(GJKRaycast<T>(A, B, TRigidTransform<T, 3>(TVec3<T>(0, 0, 6 + 1e-2), Rotated), TVec3<T>(1, 0, 0), 10, Time, Position, Normal, 0, InitialDir));
 
 			//degenerate capsule
-			TCapsule<T> Needle(TVector<T, 3>(0, 0, -1), TVector<T, 3>(0, 0, 1), 1e-8);
-			EXPECT_TRUE(GJKRaycast<T>(A, Needle, TRigidTransform<T, 3>::Identity, TVector<T, 3>(1, 0, 0), 6, Time, Position, Normal, 0, InitialDir));
+			TCapsule<T> Needle(TVec3<T>(0, 0, -1), TVec3<T>(0, 0, 1), 1e-8);
+			EXPECT_TRUE(GJKRaycast<T>(A, Needle, TRigidTransform<T, 3>::Identity, TVec3<T>(1, 0, 0), 6, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 3, Eps);
 			EXPECT_NEAR(Normal.X, -1, Eps);
 			EXPECT_NEAR(Normal.Y, 0, Eps);

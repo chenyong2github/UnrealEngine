@@ -48,10 +48,10 @@ namespace GeometryCollectionTest
 	{
 		TManagedArray<FIntVector>& Indices = TestCollection->Indices;
 		const int numTris = Indices.Num();
-		TArray<Chaos::TVector<int32, 3>> tris;
+		TArray<Chaos::TVec3<int32>> tris;
 		tris.SetNumUninitialized(numTris);
 		for (int i = 0; i < numTris; i++)
-			tris[i] = Chaos::TVector<int32, 3>(Indices[i][0], Indices[i][1], Indices[i][2]);
+			tris[i] = Chaos::TVec3<int32>(Indices[i][0], Indices[i][1], Indices[i][2]);
 
 		Chaos::TTriangleMesh<float> triMesh(MoveTemp(tris));
 		return triMesh;

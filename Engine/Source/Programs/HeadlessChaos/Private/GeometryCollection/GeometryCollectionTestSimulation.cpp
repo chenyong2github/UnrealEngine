@@ -327,7 +327,7 @@ namespace GeometryCollectionTest
 	TYPED_TEST(AllTraits, GeometryCollection_TestImplicitCollisionGeometry)
 	{
 		using Traits = TypeParam;
-		typedef Chaos::TVector<FReal, 3> Vec;
+		typedef Chaos::FVec3 Vec;
 
 		CreationParameters Params; 
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_GriddleBox;

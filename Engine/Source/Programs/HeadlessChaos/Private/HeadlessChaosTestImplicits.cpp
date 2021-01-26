@@ -43,7 +43,7 @@ namespace ChaosTest {
 	template<class T>
 	void UnitImplicitObjectNormalsInternal(FImplicitObject &Subject, FString Caller)
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Error = FString("Called by ") + Caller + FString(".");
 
 #if RUN_KNOWN_BROKEN_TESTS
@@ -72,7 +72,7 @@ namespace ChaosTest {
 	template<class T>
 	void UnitImplicitObjectNormalsExternal(FImplicitObject &Subject, FString Caller)
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Error = FString("Called by ") + Caller + FString(".");
 
 		// outside normal 
@@ -96,10 +96,10 @@ namespace ChaosTest {
 	/* Given an ImplicitObject and an InputPoint, verifies that when that point is reflected across the surface of the object, the point of 
 	   intersection between those two points is ExpectedPoint. */
 	template<class T>
-	void TestFindClosestIntersection(FImplicitObject& Subject, TVector<T, 3> InputPoint, TVector<T, 3> ExpectedPoint, FString Caller)
+	void TestFindClosestIntersection(FImplicitObject& Subject, TVec3<T> InputPoint, TVec3<T> ExpectedPoint, FString Caller)
 	{
 		FString Error = FString("Called by ") + Caller + FString(".");
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		T SamplePhi = Subject.SignedDistance(InputPoint);
 		TVector3 SampleNormal = Subject.Normal(InputPoint);
 		TVector3 EndPoint = InputPoint + SampleNormal * SamplePhi*-2.;
@@ -114,10 +114,10 @@ namespace ChaosTest {
 	void UnitImplicitObjectIntersections(FImplicitObject &Subject, FString Caller)
 	{
 		// closest point near origin (+)
-		TestFindClosestIntersection(Subject, TVector<T, 3>(0, 0, 2), TVector<T, 3>(0, 0, 1), Caller);
+		TestFindClosestIntersection(Subject, TVec3<T>(0, 0, 2), TVec3<T>(0, 0, 1), Caller);
 
 		// closest point near origin (-)
-		TestFindClosestIntersection<T>(Subject, TVector<T, 3>(0, 0, 1 / 2.), TVector<T, 3>(0, 0, 1), Caller);
+		TestFindClosestIntersection<T>(Subject, TVec3<T>(0, 0, 1 / 2.), TVec3<T>(0, 0, 1), Caller);
 	}
 
 
@@ -126,7 +126,7 @@ namespace ChaosTest {
 	template<typename GeometryType, typename T>
 	void UnitImplicitObjectSupportPhis(GeometryType& Subject, FString Caller)
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Error = FString("Called by ") + Caller + FString(".");
 
 		// support phi
@@ -152,7 +152,7 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitPlane()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Caller("ImplicitPlane()");
 
 		{// basic tests
@@ -174,14 +174,14 @@ namespace ChaosTest {
 		{// closest point near origin
 			TPlane<T, 3> Subject(TVector3(0), TVector3(0, 0, 1));
 			TVector3 InputPoint = TVector3(1, 1, 1);
-			TestFindClosestIntersection<T>(Subject, InputPoint, TVector<T, 3>(1, 1, 0), Caller);
+			TestFindClosestIntersection<T>(Subject, InputPoint, TVec3<T>(1, 1, 0), Caller);
 			EXPECT_VECTOR_NEAR_DEFAULT(Subject.FindClosestPoint(InputPoint), (TVector3(1, 1, 0)));
 		}
 
 		{// closest point single axis off origin (+)
 			TVector3 InputPoint = TVector3(0, 0, 2);
 			TPlane<T, 3> Subject = TPlane<T, 3>(TVector3(0, 0, 1), TVector3(0, 0, 1));
-			TestFindClosestIntersection<T>(Subject, InputPoint, TVector<T, 3>(0, 0, 1), Caller);
+			TestFindClosestIntersection<T>(Subject, InputPoint, TVec3<T>(0, 0, 1), Caller);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(InputPoint), FVector(0, 0, 1), 0.001);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(TVector3(0, 1, 2)), FVector(0,1,1), 0.001);
 		}
@@ -189,7 +189,7 @@ namespace ChaosTest {
 		{// closest point off origin (+)
 			TVector3 InputPoint = TVector3(11,11,11);
 			TPlane<T, 3> Subject = TPlane<T, 3>(TVector3(10, 10, 10), TVector3(1, 1, 1).GetSafeNormal());
-			TestFindClosestIntersection<T>(Subject, InputPoint, TVector<T, 3>(10, 10, 10), Caller);
+			TestFindClosestIntersection<T>(Subject, InputPoint, TVec3<T>(10, 10, 10), Caller);
 			TVector3 NearestPoint = Subject.FindClosestPoint(InputPoint); // wrong (9.26...)
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(InputPoint), FVector(10, 10, 10), 0.001);
 		}
@@ -197,7 +197,7 @@ namespace ChaosTest {
 		{// closest point off origin (-)
 			TVector3 InputPoint = TVector3(9,9,9);
 			TPlane<T, 3>Subject = TPlane<T, 3>(TVector3(10, 10, 10), TVector3(1, 1, 1).GetSafeNormal());
-			TestFindClosestIntersection<T>(Subject, InputPoint, TVector<T, 3>(10, 10, 10), Caller);
+			TestFindClosestIntersection<T>(Subject, InputPoint, TVec3<T>(10, 10, 10), Caller);
 			TVector3 NearestPoint = Subject.FindClosestPoint(InputPoint); // (10.73...)
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(InputPoint), FVector(10, 10, 10), 0.001);
 		}
@@ -209,10 +209,10 @@ namespace ChaosTest {
 	void ImplicitCube()
 	{
 
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Caller("ImplicitCube()");
 
-		TBox<T, 3> Subject(TVector<T,3>(-1), TVector3(1));
+		TBox<T, 3> Subject(TVec3<T>(-1), TVector3(1));
 
 		UnitImplicitObjectNormalsInternal<T>(Subject, Caller);
 		UnitImplicitObjectNormalsExternal<T>(Subject, Caller);
@@ -227,7 +227,7 @@ namespace ChaosTest {
 					for (int i2 = -1; i2 < 2; ++i2)
 					{
 						// If the direction is 0 or 1, it should snap to the upper corner. 
-						TVector<T, 3> Expected(1);
+						TVec3<T> Expected(1);
 						// If the direction is -1, it should snap to the lower corner. 
 						if (i0 == -1) Expected[0] = -1;
 						if (i1 == -1) Expected[1] = -1;
@@ -252,7 +252,7 @@ namespace ChaosTest {
 		}
 
 		{// support phi off origin
-			TBox<T, 3> Subject2(TVector<T, 3>(2), TVector3(4));
+			TBox<T, 3> Subject2(TVec3<T>(2), TVector3(4));
 
 			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(TVector3(0, 0, 1), T(0)), (TVector3(4, 4, 4)));
 			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(TVector3(0, 0, -1), T(0)), (TVector3(4, 4, 2)));
@@ -277,16 +277,16 @@ namespace ChaosTest {
 		EXPECT_FALSE(Subject.BoundingBox().Intersects(TAABB<T, 3>(TVector3(2), TVector3(3))));
 
 		{// closest point near origin (+)
-			TVector<T, 3> InputPoint(0, 0, 2);
+			TVec3<T> InputPoint(0, 0, 2);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(InputPoint), FVector(0,0,1), 0.001);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(TVector3(3 / 2., 0, 0)), FVector(1,0,0), 0.001);
 		}
 
 		{// closest point near origin (-)
-			TVector<T, 3> InputPoint(0, 0, 1 / 2.);
+			TVec3<T> InputPoint(0, 0, 1 / 2.);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(InputPoint), FVector(0, 0, 1), 0.001);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(TVector3(3 / 4., 0, 0)), FVector(1, 0, 0), 0.001);
-			EXPECT_FALSE(Subject.FindClosestPoint(TVector<T, 3>(0, 0, 0)).Equals(TVector<T, 3>(0)));
+			EXPECT_FALSE(Subject.FindClosestPoint(TVec3<T>(0, 0, 0)).Equals(TVec3<T>(0)));
 			EXPECT_EQ(Subject.FindClosestPoint(TVector3(0, 0, 0)).Size(),1.0);
 		}
 
@@ -316,7 +316,7 @@ namespace ChaosTest {
 		{// closest point off origin (+)
 			TBox<T, 3> Subject2(TVector3(2), TVector3(4));
 			TVector3 InputPoint(5, 5, 5);
-			TestFindClosestIntersection<T>(Subject2, InputPoint, TVector<T, 3>(4, 4, 4), Caller);
+			TestFindClosestIntersection<T>(Subject2, InputPoint, TVec3<T>(4, 4, 4), Caller);
 
 			EXPECT_VECTOR_NEAR(Subject2.FindClosestPoint(InputPoint), FVector(4,4,4), 0.001);
 			TVector3 test2 = Subject2.FindClosestPoint(TVector3(3.5, 3.5, 3.5));
@@ -326,19 +326,19 @@ namespace ChaosTest {
 #if RUN_KNOWN_BROKEN_TESTS
 		{// different defining corners of the box
 			// Ensure fails in PhiWithNormal
-			TBox<T, 3> Test1(TVector<T, 3>(-1, -1, 0), TVector3(1, 1, -1));
+			TBox<T, 3> Test1(TVec3<T>(-1, -1, 0), TVector3(1, 1, -1));
 			EXPECT_VECTOR_NEAR(Test1.Normal(TVector3(0, 0, -2 / 3.)), (TVector3(0, 0, -1)), KINDA_SMALL_NUMBER);
 
 			// Ensure fails in PhiWithNormal
-			TBox<T, 3> Test2(TVector<T, 3>(1, 1, -1), TVector3(-1, -1, 0));
+			TBox<T, 3> Test2(TVec3<T>(1, 1, -1), TVector3(-1, -1, 0));
 			EXPECT_VECTOR_NEAR(Test2.Normal(TVector3(0, 0, -2 / 3.)), (TVector3(0, 0, -1)), KINDA_SMALL_NUMBER);
 
 			// Ensure fails in PhiWithNormal
-			TBox<T, 3> Test3(TVector<T, 3>(1, 1, 0), TVector3(-1, -1, -1));
+			TBox<T, 3> Test3(TVec3<T>(1, 1, 0), TVector3(-1, -1, -1));
 			EXPECT_VECTOR_NEAR(Test3.Normal(TVector3(0, 0, -2 / 3.)), (TVector3(0, 0, -1)), KINDA_SMALL_NUMBER);
 
 			// Works fine!
-			TBox<T, 3> Test4(TVector<T, 3>(-1, -1, -1), TVector3(1, 1, 0));
+			TBox<T, 3> Test4(TVec3<T>(-1, -1, -1), TVector3(1, 1, 0));
 			EXPECT_VECTOR_NEAR(Test4.Normal(TVector3(0, 0, -2 / 3.)), (TVector3(0, 0, -1)), KINDA_SMALL_NUMBER);
 		}
 #endif
@@ -349,28 +349,28 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitSphere()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Caller("ImplicitSphere()");
 
-		TSphere<T, 3> Subject(TVector<T,3>(0), 1);
+		TSphere<T, 3> Subject(TVec3<T>(0), 1);
 		UnitImplicitObjectNormalsInternal<T>(Subject, Caller);
 		UnitImplicitObjectNormalsExternal<T>(Subject, Caller);
 		UnitImplicitObjectIntersections<T>(Subject, Caller);
 		UnitImplicitObjectSupportPhis<TSphere<T,3>, T>(Subject, Caller);
 
 		// intersection
-		EXPECT_TRUE(Subject.Intersects(TSphere<T, 3>(TVector<T,3>(0.f), 2.f)));
+		EXPECT_TRUE(Subject.Intersects(TSphere<T, 3>(TVec3<T>(0.f), 2.f)));
 		EXPECT_TRUE(Subject.Intersects(TSphere<T, 3>(TVector3(.5f), 1.f)));
-		EXPECT_FALSE(Subject.Intersects(TSphere<T, 3>(TVector<T,3>(2.f), 1.f)));
+		EXPECT_FALSE(Subject.Intersects(TSphere<T, 3>(TVec3<T>(2.f), 1.f)));
 
 		{// closest point near origin (+)
-			TVector<T, 3> InputPoint(0, 0, 2.);
+			TVec3<T> InputPoint(0, 0, 2.);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(InputPoint), FVector(0, 0, 1), 0.001);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(TVector3(3 / 2., 0, 0)), FVector(1, 0, 0), 0.001);
 		}
 
 		{// closest point near origin (-)
-			TVector<T, 3> InputPoint(0, 0, 1 / 2.);
+			TVec3<T> InputPoint(0, 0, 1 / 2.);
 			EXPECT_VECTOR_NEAR_DEFAULT(Subject.FindClosestPoint(TVector3(0, 0, 0)), TVector3(0));
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(InputPoint), FVector(0, 0, 1), 0.001);
 			EXPECT_VECTOR_NEAR(Subject.FindClosestPoint(TVector3(3 / 4., 0, 0)), FVector(1, 0, 0), 0.001);
@@ -379,7 +379,7 @@ namespace ChaosTest {
 		{// closest point off origin (+)
 			TSphere<T, 3> Subject2(TVector3(2), 2);
 			TVector3 InputPoint(2, 2, 5);
-			TestFindClosestIntersection<T>(Subject2, InputPoint, TVector<T, 3>(2, 2, 4), Caller);
+			TestFindClosestIntersection<T>(Subject2, InputPoint, TVec3<T>(2, 2, 4), Caller);
 			EXPECT_VECTOR_NEAR(Subject2.FindClosestPoint(InputPoint), FVector(2, 2, 4), 0.001);
 			EXPECT_VECTOR_NEAR(Subject2.FindClosestPoint(TVector3(2, 2, 3.5)), FVector(2, 2, 4), 0.001);
 		}
@@ -393,7 +393,7 @@ namespace ChaosTest {
 	template<class T>
 	void CheckCylinderEdgeBehavior(FImplicitObject &Subject, FString Caller)
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Error = FString("Called by ") + Caller + FString(".");
 
 		// inside normal
@@ -412,10 +412,10 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(TVector3(0, 3 / 2., -1.)), TVector3(0, 1, 0), KINDA_SMALL_NUMBER, Error);
 
 		//inside phi
-		EXPECT_EQ(Subject.SignedDistance(TVector<T, 3>(0, 1, 3 / 2.)), 1 / 2.) << *Error;
-		EXPECT_EQ(Subject.SignedDistance(TVector<T, 3>(0, 1, -3 / 2.)), 1 / 2.) << *Error;
-		EXPECT_EQ(Subject.SignedDistance(TVector<T, 3>(0, -1, 3 / 2.)), 1 / 2.) << *Error;
-		EXPECT_EQ(Subject.SignedDistance(TVector<T, 3>(0, -1, -3 / 2.)), 1 / 2.) << *Error;
+		EXPECT_EQ(Subject.SignedDistance(TVec3<T>(0, 1, 3 / 2.)), 1 / 2.) << *Error;
+		EXPECT_EQ(Subject.SignedDistance(TVec3<T>(0, 1, -3 / 2.)), 1 / 2.) << *Error;
+		EXPECT_EQ(Subject.SignedDistance(TVec3<T>(0, -1, 3 / 2.)), 1 / 2.) << *Error;
+		EXPECT_EQ(Subject.SignedDistance(TVec3<T>(0, -1, -3 / 2.)), 1 / 2.) << *Error;
 	}
 
 
@@ -423,7 +423,7 @@ namespace ChaosTest {
 	template<class T>
 	void TiltedUnitImplicitCylinder(FImplicitObject &Subject, FString Caller)
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Error = FString("Called by ") + Caller + FString(".");
 
 		// inside normals
@@ -466,11 +466,11 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitCylinder()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Caller("ImplicitCylinder()");
 
 		// unit cylinder tests
-		TCylinder<T> Subject(TVector<T, 3>(0, 0, 1), TVector<T, 3>(0, 0, -1), 1);
+		TCylinder<T> Subject(TVec3<T>(0, 0, 1), TVec3<T>(0, 0, -1), 1);
 		UnitImplicitObjectNormalsInternal<T>(Subject, Caller);
 		UnitImplicitObjectNormalsExternal<T>(Subject, Caller);
 		UnitImplicitObjectIntersections<T>(Subject, Caller);
@@ -493,20 +493,20 @@ namespace ChaosTest {
 #endif
 
 		{// closest point off origin (+)
-			TCylinder<T> Subject2(TVector<T, 3>(2,2,4), TVector<T, 3>(2,2,0), 2);
-			TVector<T, 3> InputPoint(2, 2, 5);
-			TestFindClosestIntersection<T>(Subject2, InputPoint, TVector<T, 3>(2, 2, 4), Caller);
+			TCylinder<T> Subject2(TVec3<T>(2,2,4), TVec3<T>(2,2,0), 2);
+			TVec3<T> InputPoint(2, 2, 5);
+			TestFindClosestIntersection<T>(Subject2, InputPoint, TVec3<T>(2, 2, 4), Caller);
 		}
 
 		{// closest point off origin (-)
-			TCylinder<T> Subject2(TVector<T, 3>(2, 2, 4), TVector<T, 3>(2, 2, 0), 2);
-			TVector<T, 3> InputPoint(2, 3, 2);
-			TestFindClosestIntersection<T>(Subject2, InputPoint, TVector<T, 3>(2, 4, 2), Caller);
+			TCylinder<T> Subject2(TVec3<T>(2, 2, 4), TVec3<T>(2, 2, 0), 2);
+			TVec3<T> InputPoint(2, 3, 2);
+			TestFindClosestIntersection<T>(Subject2, InputPoint, TVec3<T>(2, 4, 2), Caller);
 		}
 
 		{// near edge intersection
-			TCylinder<T> Cylinder(TVector<T, 3>(1, 1, -14), TVector<T, 3>(1, 1, 16), 15);
-			Pair<TVector3, bool> Result = Cylinder.FindClosestIntersection(TVector<T, 3>(16, 16, 1), TVector3(16, -16, 1), 0);
+			TCylinder<T> Cylinder(TVec3<T>(1, 1, -14), TVec3<T>(1, 1, 16), 15);
+			Pair<TVector3, bool> Result = Cylinder.FindClosestIntersection(TVec3<T>(16, 16, 1), TVector3(16, -16, 1), 0);
 			EXPECT_TRUE(Result.Second);
 			EXPECT_VECTOR_NEAR(Result.First, TVector3(16, 1, 1), KINDA_SMALL_NUMBER);
 		}
@@ -517,21 +517,21 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitTaperedCylinder()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Caller("ImplicitTaperedCylinder()");
 
 		// unit tapered cylinder tests
-		TTaperedCylinder<T> Subject(TVector<T, 3>(0, 0, 1), TVector<T, 3>(0, 0, -1), 1, 1);
+		TTaperedCylinder<T> Subject(TVec3<T>(0, 0, 1), TVec3<T>(0, 0, -1), 1, 1);
 		UnitImplicitObjectNormalsInternal<T>(Subject, Caller);
 		UnitImplicitObjectNormalsExternal<T>(Subject, Caller);
 		UnitImplicitObjectIntersections<T>(Subject, Caller);
 		CheckCylinderEdgeBehavior<T>(Subject, Caller);
 
 		// tilted tapered cylinder tests
-		TTaperedCylinder<T> SubjectTilted(TVector<T,3>(1), TVector<T,3>(-1), 1, 1);
+		TTaperedCylinder<T> SubjectTilted(TVec3<T>(1), TVec3<T>(-1), 1, 1);
 		TiltedUnitImplicitCylinder<T>(SubjectTilted, Caller);
 
-		TTaperedCylinder<T> SubjectCone(TVector<T, 3>(0, 0, 1), TVector<T, 3>(0, 0, 0), 0, 1);
+		TTaperedCylinder<T> SubjectCone(TVec3<T>(0, 0, 1), TVec3<T>(0, 0, 0), 0, 1);
 
 		// inside normals 
 		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(TVector3(0, 0, 0)), TVector3(0, 0, -1));
@@ -554,15 +554,15 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(TVector3(-1,  0, 1 / 2.)), TVector3(-1, 0, 0));
 
 		{// closest point off origin (+)
-			TTaperedCylinder<T> Subject2(TVector<T, 3>(2, 2, 4), TVector<T, 3>(2, 2, 0), 2, 2);
-			TVector<T, 3> InputPoint(2, 2, 5);
-			TestFindClosestIntersection<T>(Subject2, InputPoint, TVector<T, 3>(2, 2, 4), Caller);
+			TTaperedCylinder<T> Subject2(TVec3<T>(2, 2, 4), TVec3<T>(2, 2, 0), 2, 2);
+			TVec3<T> InputPoint(2, 2, 5);
+			TestFindClosestIntersection<T>(Subject2, InputPoint, TVec3<T>(2, 2, 4), Caller);
 		}
 
 		{// closest point off origin (-)
-			TTaperedCylinder<T> Subject2(TVector<T, 3>(2, 2, 4), TVector<T, 3>(2, 2, 0), 2, 2);
-			TVector<T, 3> InputPoint(2, 3, 2);
-			TestFindClosestIntersection<T>(Subject2, InputPoint, TVector<T, 3>(2, 4, 2), Caller);
+			TTaperedCylinder<T> Subject2(TVec3<T>(2, 2, 4), TVec3<T>(2, 2, 0), 2, 2);
+			TVec3<T> InputPoint(2, 3, 2);
+			TestFindClosestIntersection<T>(Subject2, InputPoint, TVec3<T>(2, 4, 2), Caller);
 		}
 	}
 	template void ImplicitTaperedCylinder<float>();
@@ -571,11 +571,11 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitCapsule()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Caller("ImplicitCapsule()");
 
 		// Effectively a sphere - flat cylinder with two radius 1 spheres overlapping at origin.
-		TCapsule<T> SubjectUnit(TVector<T, 3>(0, 0, 0), TVector<T, 3>(0, 0, 0), 1);
+		TCapsule<T> SubjectUnit(TVec3<T>(0, 0, 0), TVec3<T>(0, 0, 0), 1);
 
 		UnitImplicitObjectNormalsInternal<T>(SubjectUnit, Caller);
 		UnitImplicitObjectNormalsExternal<T>(SubjectUnit, Caller);
@@ -590,25 +590,25 @@ namespace ChaosTest {
 
 		{// closest point near origin (+)
 			TVector3 InputPoint(0, 0, 3);
-			TestFindClosestIntersection<T>(Subject, InputPoint, TVector<T, 3>(0, 0, 2), Caller);
+			TestFindClosestIntersection<T>(Subject, InputPoint, TVec3<T>(0, 0, 2), Caller);
 		}
 		
 		{// closest point near origin (-)
 			TVector3 InputPoint(0, 0, 3 / 2.);
 			// Equally close to inner cylinder and top sphere - defaults to sphere. 
-			TestFindClosestIntersection<T>(Subject, InputPoint, TVector<T, 3>(0, 0, 2), Caller);
+			TestFindClosestIntersection<T>(Subject, InputPoint, TVec3<T>(0, 0, 2), Caller);
 		}
 
 		{// closest point off origin (+)
 			TCapsule<T> Subject2(TVector3(5, 4, 4), TVector3(3, 4, 4), 1);
 			TVector3 InputPoint(4, 4, 6);
-			TestFindClosestIntersection<T>(Subject2, InputPoint, TVector<T, 3>(4, 4, 5), Caller);
+			TestFindClosestIntersection<T>(Subject2, InputPoint, TVec3<T>(4, 4, 5), Caller);
 		}
 
 		{// closest point off origin (-)
 			TCapsule<T> Subject2(TVector3(5, 4, 4), TVector3(3, 4, 4), 1);
 			TVector3 InputPoint(4, 4, 4 + 1 / 2.);
-			TestFindClosestIntersection<T>(Subject2, InputPoint, TVector<T, 3>(4, 4, 5), Caller);
+			TestFindClosestIntersection<T>(Subject2, InputPoint, TVec3<T>(4, 4, 5), Caller);
 		}
 	}
 	template void ImplicitCapsule<float>();
@@ -617,31 +617,31 @@ namespace ChaosTest {
 	template <typename T>
 	void ImplicitScaled()
 	{
-		typedef TVector<T, 3> TVector3;
-		TUniquePtr<TBox<T, 3>> UnitCube = MakeUnique<TBox<T, 3>>(TVector<T, 3>(-1), TVector<T, 3>(1));
-		TImplicitObjectScaled<TBox<T,3>> UnitUnscaled(MakeSerializable(UnitCube), TVector<T, 3>(1));
+		typedef TVec3<T> TVector3;
+		TUniquePtr<TBox<T, 3>> UnitCube = MakeUnique<TBox<T, 3>>(TVec3<T>(-1), TVec3<T>(1));
+		TImplicitObjectScaled<TBox<T,3>> UnitUnscaled(MakeSerializable(UnitCube), TVec3<T>(1));
 		UnitImplicitObjectNormalsInternal<T>(UnitUnscaled, FString("ImplicitTransformed()"));
 		UnitImplicitObjectNormalsExternal<T>(UnitUnscaled, FString("ImplicitTransformed()"));
 		UnitImplicitObjectIntersections<T>(UnitUnscaled, FString("ImplicitTransformed()"));
 
-		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T, 3>>(TVector<T, 3>(3, 0, 0), 5);
-		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVector<T, 3>(1));
-		TImplicitObjectScaled<TSphere<T, 3>> UniformScale(MakeSerializable(Sphere), TVector<T, 3>(2));
-		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScale(MakeSerializable(Sphere), TVector<T, 3>(2, 1, 1));
+		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T, 3>>(TVec3<T>(3, 0, 0), 5);
+		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVec3<T>(1));
+		TImplicitObjectScaled<TSphere<T, 3>> UniformScale(MakeSerializable(Sphere), TVec3<T>(2));
+		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScale(MakeSerializable(Sphere), TVec3<T>(2, 1, 1));
 
 		{//phi
-			const TVector<T, 3> NearEdge(7.5, 0, 0);
-			TVector<T, 3> UnscaledNormal;
+			const TVec3<T> NearEdge(7.5, 0, 0);
+			TVec3<T> UnscaledNormal;
 			const T UnscaledPhi = Unscaled.PhiWithNormal(NearEdge, UnscaledNormal);
 			EXPECT_FLOAT_EQ(UnscaledPhi, -0.5);
 			EXPECT_VECTOR_NEAR(UnscaledNormal, TVector3(1, 0, 0), 0);
 
-			TVector<T, 3> ScaledNormal;
+			TVec3<T> ScaledNormal;
 			T ScaledPhi = UniformScale.PhiWithNormal(NearEdge, ScaledNormal);
 			EXPECT_FLOAT_EQ(ScaledPhi, -(16 - 7.5));
 			EXPECT_VECTOR_NEAR(ScaledNormal, TVector3(1, 0, 0), 0);
 
-			const TVector<T, 3> NearTop(6, 0, 4.5);
+			const TVec3<T> NearTop(6, 0, 4.5);
 			ScaledPhi = UniformScale.PhiWithNormal(NearTop, ScaledNormal);
 			EXPECT_FLOAT_EQ(ScaledPhi, -(10 - 4.5));
 			EXPECT_VECTOR_NEAR(ScaledNormal, TVector3(0, 0, 1), 0);
@@ -652,14 +652,14 @@ namespace ChaosTest {
 		}
 		
 		{//support
-			const TVector<T, 3> DirX(1, 0, 0);
-			TVector<T, 3> SupportPt = Unscaled.Support(DirX, 1);
+			const TVec3<T> DirX(1, 0, 0);
+			TVec3<T> SupportPt = Unscaled.Support(DirX, 1);
 			EXPECT_VECTOR_NEAR(SupportPt, TVector3(9, 0, 0), 0);
 
 			SupportPt = UniformScale.Support(DirX, 1);
 			EXPECT_VECTOR_NEAR(SupportPt, TVector3(17, 0, 0), 0);
 
-			const TVector<T, 3> DirZ(0, 0, -1);
+			const TVec3<T> DirZ(0, 0, -1);
 			SupportPt = UniformScale.Support(DirZ, 1);
 			EXPECT_VECTOR_NEAR(SupportPt, TVector3(6, 0, -11), 0);
 
@@ -725,22 +725,22 @@ namespace ChaosTest {
 	template <class T>
 	void ImplicitTransformed()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 
 
 		TRigidTransform<T, 3> Identity(FVec3(0), FQuat::Identity);
 		
-		TUniquePtr<TBox<T, 3>> UnitCube = MakeUnique<TBox<T, 3>>(TVector<T, 3>(-1), TVector<T, 3>(1));
-		TImplicitObjectTransformed<T, 3> UnitUnrotated(MakeSerializable(UnitCube), TRigidTransform<T, 3>(TVector<T, 3>(0), FQuat(0,0,0, 0)));
+		TUniquePtr<TBox<T, 3>> UnitCube = MakeUnique<TBox<T, 3>>(TVec3<T>(-1), TVec3<T>(1));
+		TImplicitObjectTransformed<T, 3> UnitUnrotated(MakeSerializable(UnitCube), TRigidTransform<T, 3>(TVec3<T>(0), FQuat(0,0,0, 0)));
 		UnitImplicitObjectNormalsInternal<T>(UnitUnrotated, FString("ImplicitTransformed()"));
 		UnitImplicitObjectNormalsExternal<T>(UnitUnrotated, FString("ImplicitTransformed()"));
 		UnitImplicitObjectIntersections<T>(UnitUnrotated, FString("ImplicitTransformed()"));
 		
 		// Rotate 45 degrees around z axis @ origin.
-		TImplicitObjectTransformed<T, 3> UnitRotated(MakeSerializable(UnitCube), TRigidTransform<T, 3>(TVector<T, 3>(0), FQuat(0, 0, sin(.3927), cos(.3927))));
+		TImplicitObjectTransformed<T, 3> UnitRotated(MakeSerializable(UnitCube), TRigidTransform<T, 3>(TVec3<T>(0), FQuat(0, 0, sin(.3927), cos(.3927))));
 		
 		{// unit rotated normals
-			TVector<T, 3> Normal;
+			TVec3<T> Normal;
 			T TestPhi = UnitRotated.PhiWithNormal(TVector3(1 / 2., 1 / 2., 0), Normal);
 			EXPECT_VECTOR_NEAR_DEFAULT(Normal, TVector3(sqrt(2) / 2., sqrt(2) / 2., 0));
 			TestPhi = UnitRotated.PhiWithNormal(TVector3(-1 / 2., 1 / 2., 0), Normal);
@@ -751,28 +751,28 @@ namespace ChaosTest {
 			EXPECT_VECTOR_NEAR_DEFAULT(Normal, TVector3(-sqrt(2) / 2., -sqrt(2) / 2., 0));
 		}
 
-		TUniquePtr<TBox<T, 3>> Cube = MakeUnique<TBox<T, 3>>(TVector<T, 3>(-2, -5, -5), TVector<T,3>(8, 5, 5));
-		TImplicitObjectTransformed<T, 3> Untransformed(MakeSerializable(Cube), TRigidTransform<T, 3>(TVector<T, 3>(0), FQuat::Identity));
-		TImplicitObjectTransformed<T, 3> Translated(MakeSerializable(Cube), TRigidTransform<T, 3>(TVector<T, 3>(4, 0, 0), FQuat::Identity));
+		TUniquePtr<TBox<T, 3>> Cube = MakeUnique<TBox<T, 3>>(TVec3<T>(-2, -5, -5), TVec3<T>(8, 5, 5));
+		TImplicitObjectTransformed<T, 3> Untransformed(MakeSerializable(Cube), TRigidTransform<T, 3>(TVec3<T>(0), FQuat::Identity));
+		TImplicitObjectTransformed<T, 3> Translated(MakeSerializable(Cube), TRigidTransform<T, 3>(TVec3<T>(4, 0, 0), FQuat::Identity));
 		
 		// Rotate 90 degrees around z axis @ origin. 
 		float rad_45 = FMath::DegreesToRadians(45);
-		TImplicitObjectTransformed<T, 3> Rotated(MakeSerializable(Cube), TRigidTransform<T, 3>(TVector<T, 3>(0), FQuat(0, 0, sin(rad_45), cos(rad_45))));
-		TImplicitObjectTransformed<T, 3> Transformed(MakeSerializable(Cube), TRigidTransform<T, 3>(TVector<T, 3>(4, 0, 0), FQuat(0, 0, sin(rad_45), cos(rad_45))));
+		TImplicitObjectTransformed<T, 3> Rotated(MakeSerializable(Cube), TRigidTransform<T, 3>(TVec3<T>(0), FQuat(0, 0, sin(rad_45), cos(rad_45))));
+		TImplicitObjectTransformed<T, 3> Transformed(MakeSerializable(Cube), TRigidTransform<T, 3>(TVec3<T>(4, 0, 0), FQuat(0, 0, sin(rad_45), cos(rad_45))));
 
 		{// phi
-			const TVector<T, 3> NearEdge(7.5, 0, 0);
-			TVector<T, 3> UntransformedNormal;
+			const TVec3<T> NearEdge(7.5, 0, 0);
+			TVec3<T> UntransformedNormal;
 			const T UntransformedPhi = Untransformed.PhiWithNormal(NearEdge, UntransformedNormal);
 			EXPECT_FLOAT_EQ(UntransformedPhi, -0.5);
 			EXPECT_VECTOR_NEAR_DEFAULT(UntransformedNormal, TVector3(1, 0, 0));
 
-			TVector<T, 3> TransformedNormal;
+			TVec3<T> TransformedNormal;
 			T TranslatedPhi = Translated.PhiWithNormal(NearEdge, TransformedNormal);
 			EXPECT_FLOAT_EQ(TranslatedPhi, -(0.5 + 4));
 			EXPECT_VECTOR_NEAR_DEFAULT(TransformedNormal, TVector3(1, 0, 0));
 
-			const TVector<T, 3> NearEdgeRotated(0, 7.5, 0);
+			const TVec3<T> NearEdgeRotated(0, 7.5, 0);
 			T RotatedPhi = Rotated.PhiWithNormal(NearEdgeRotated, TransformedNormal);
 			EXPECT_FLOAT_EQ(RotatedPhi, -0.5);
 			EXPECT_VECTOR_NEAR_DEFAULT(TransformedNormal, TVector3(0, 1, 0));
@@ -781,7 +781,7 @@ namespace ChaosTest {
 			EXPECT_FLOAT_EQ(TransformedPhi, -(0.5 + 1));
 			EXPECT_VECTOR_NEAR_DEFAULT(TransformedNormal, TVector3(1, 0, 0));
 
-			const TVector<T, 3> NearTop(7, 0, 4.5);
+			const TVec3<T> NearTop(7, 0, 4.5);
 			TransformedPhi = Transformed.PhiWithNormal(NearTop, TransformedNormal);
 			EXPECT_FLOAT_EQ(TransformedPhi, -(0.5));
 			EXPECT_VECTOR_NEAR_DEFAULT(TransformedNormal, TVector3(0, 0, 1));
@@ -789,8 +789,8 @@ namespace ChaosTest {
 		
 		{//support
 
-			const TVector<T, 3> DirX(1, 0, 0);
-			TVector<T, 3> SupportPt = Utilities::CastHelper(Untransformed, Identity, [&](const auto& Concrete, const auto& FullTM)
+			const TVec3<T> DirX(1, 0, 0);
+			TVec3<T> SupportPt = Utilities::CastHelper(Untransformed, Identity, [&](const auto& Concrete, const auto& FullTM)
 			{
 				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirX), 1);
 				return FullTM.TransformPosition(SupportLocal);
@@ -804,7 +804,7 @@ namespace ChaosTest {
 			});
 			EXPECT_VECTOR_NEAR_DEFAULT(SupportPt, TVector3(13, 5, 5));
 
-			const TVector<T, 3> DirZ(0, 0, -1);
+			const TVec3<T> DirZ(0, 0, -1);
 			SupportPt = Utilities::CastHelper(Translated, Identity, [&](const auto& Concrete, const auto& FullTM)
 			{
 				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirZ), 1);
@@ -849,13 +849,13 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitIntersection()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Caller("ImplicitIntersection()");
 
 		// Two cylinders intersected to make a unit cylinder.
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, 2), TVector3(0, 0, -1), 1));
-		Objects.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, 1), TVector3(0, 0, -2), 1));
+		Objects.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, 2), TVector3(0, 0, -1), 1));
+		Objects.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, 1), TVector3(0, 0, -2), 1));
 
 		TImplicitObjectIntersection<T, 3> MIntersectedObjects(std::move(Objects));
 
@@ -886,8 +886,8 @@ namespace ChaosTest {
 		}
 
 		TArray<TUniquePtr<FImplicitObject>> Objects2;
-		Objects2.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(4, 4, 6), TVector3(4, 4, 3), 1));
-		Objects2.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(4, 4, 5), TVector3(4, 4, 2), 1));
+		Objects2.Add(MakeUnique<TCylinder<T>>(TVec3<T>(4, 4, 6), TVector3(4, 4, 3), 1));
+		Objects2.Add(MakeUnique<TCylinder<T>>(TVec3<T>(4, 4, 5), TVector3(4, 4, 2), 1));
 
 		TImplicitObjectIntersection<T, 3> MIntersectedObjects2(std::move(Objects2));
 		
@@ -918,14 +918,14 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitUnion()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		FString Caller("ImplicitUnion()");
 		TUniquePtr<FImplicitObjectUnion> MUnionedObjects;
 
 		{// unit cylinder - sanity check
 			TArray<TUniquePtr<FImplicitObject>> Objects;
-			Objects.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, 1), TVector3(0), 1));
-			Objects.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, -1), TVector3(0), 1));
+			Objects.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, 1), TVector3(0), 1));
+			Objects.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, -1), TVector3(0), 1));
 			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 
 			// Can't use the default internal unit tests because they expect different behavior internally where the two cylinders are joined together. 
@@ -949,8 +949,8 @@ namespace ChaosTest {
 		}
 
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, -2), TVector3(0, 0, 2), 1));
-		Objects.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, -2, 0), TVector3(0, 2, 0), 1));
+		Objects.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, -2), TVector3(0, 0, 2), 1));
+		Objects.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, -2, 0), TVector3(0, 2, 0), 1));
 		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 
 		{// closest point near origin (+)
@@ -974,8 +974,8 @@ namespace ChaosTest {
 		}
 		
 		TArray<TUniquePtr<FImplicitObject>> Objects2;
-		Objects2.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(4, 4, 2), TVector3(4, 4, 6), 1));
-		Objects2.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(4, 2, 4), TVector3(4, 6, 4), 1));
+		Objects2.Add(MakeUnique<TCylinder<T>>(TVec3<T>(4, 4, 2), TVector3(4, 4, 6), 1));
+		Objects2.Add(MakeUnique<TCylinder<T>>(TVec3<T>(4, 2, 4), TVector3(4, 6, 4), 1));
 		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects2)));
 
 		{// closest point off origin (+)
@@ -1002,8 +1002,8 @@ namespace ChaosTest {
 		
 		{// Union of unions (capsule)
 			TArray<TUniquePtr<FImplicitObject>> Unions;
-			Unions.Add(MakeUnique<TCapsule<T>>(TVector<T, 3>(0, 0, 0), TVector<T, 3>(0, 0, -2), 1));
-			Unions.Add(MakeUnique<TCapsule<T>>(TVector<T, 3>(0, 0, 0), TVector<T, 3>(0, 0, 2), 1));
+			Unions.Add(MakeUnique<TCapsule<T>>(TVec3<T>(0, 0, 0), TVec3<T>(0, 0, -2), 1));
+			Unions.Add(MakeUnique<TCapsule<T>>(TVec3<T>(0, 0, 0), TVec3<T>(0, 0, 2), 1));
 			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Unions)));
 
 			EXPECT_VECTOR_NEAR(MUnionedObjects->Normal(TVector3(0, 0, 7 / 3.)), (TVector3(0, 0, 1)), KINDA_SMALL_NUMBER);
@@ -1020,10 +1020,10 @@ namespace ChaosTest {
 
 		{// Union of a union containing all the unit geometries overlapping - should still pass all the normal unit tests. 
 			TArray<TUniquePtr<FImplicitObject>> Objects1;
-			Objects1.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, 1), TVector<T, 3>(0, 0, -1), 1));
-			Objects1.Add(MakeUnique<TSphere<T, 3>>(TVector<T, 3>(0, 0, 0), 1));
-			Objects1.Add(MakeUnique<TBox<T, 3>>(TVector<T, 3>(-1, -1, -1), TVector<T, 3>(1, 1, 1)));
-			Objects1.Add(MakeUnique<TTaperedCylinder<T>>(TVector<T, 3>(0, 0, 1), TVector<T, 3>(0, 0, -1), 1, 1));
+			Objects1.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, 1), TVec3<T>(0, 0, -1), 1));
+			Objects1.Add(MakeUnique<TSphere<T, 3>>(TVec3<T>(0, 0, 0), 1));
+			Objects1.Add(MakeUnique<TBox<T, 3>>(TVec3<T>(-1, -1, -1), TVec3<T>(1, 1, 1)));
+			Objects1.Add(MakeUnique<TTaperedCylinder<T>>(TVec3<T>(0, 0, 1), TVec3<T>(0, 0, -1), 1, 1));
 
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(Objects1)));
@@ -1038,10 +1038,10 @@ namespace ChaosTest {
 		{// Union of two unions, each with two unit objects
 			TArray<TUniquePtr<FImplicitObject>> ObjectsA;
 			TArray<TUniquePtr<FImplicitObject>> ObjectsB;
-			ObjectsA.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, 1), TVector<T, 3>(0, 0, -1), 1));
-			ObjectsA.Add(MakeUnique<TSphere<T, 3>>(TVector<T, 3>(0, 0, 0), 1));
-			ObjectsB.Add(MakeUnique<TBox<T, 3>>(TVector<T, 3>(-1, -1, -1), TVector<T, 3>(1, 1, 1)));
-			ObjectsB.Add(MakeUnique<TTaperedCylinder<T>>(TVector<T, 3>(0, 0, 1), TVector<T, 3>(0, 0, -1), 1, 1));
+			ObjectsA.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, 1), TVec3<T>(0, 0, -1), 1));
+			ObjectsA.Add(MakeUnique<TSphere<T, 3>>(TVec3<T>(0, 0, 0), 1));
+			ObjectsB.Add(MakeUnique<TBox<T, 3>>(TVec3<T>(-1, -1, -1), TVec3<T>(1, 1, 1)));
+			ObjectsB.Add(MakeUnique<TTaperedCylinder<T>>(TVec3<T>(0, 0, 1), TVec3<T>(0, 0, -1), 1, 1));
 
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsA)));
@@ -1057,8 +1057,8 @@ namespace ChaosTest {
 		{// Mimic a unit cylinder, but made up of multiple unions. 
 			TArray<TUniquePtr<FImplicitObject>> ObjectsA;
 			TArray<TUniquePtr<FImplicitObject>> ObjectsB;
-			ObjectsA.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, 0), TVector<T, 3>(0, 0, -1), 1));
-			ObjectsB.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, 0), TVector<T, 3>(0, 0, 1), 1));
+			ObjectsA.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, 0), TVec3<T>(0, 0, -1), 1));
+			ObjectsB.Add(MakeUnique<TCylinder<T>>(TVec3<T>(0, 0, 0), TVec3<T>(0, 0, 1), 1));
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsA)));
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsB)));
@@ -1088,13 +1088,13 @@ namespace ChaosTest {
 	template<class T>
 	void ImplicitLevelset()
 	{
-		typedef TVector<T, 3> TVector3;
+		typedef TVec3<T> TVector3;
 		Chaos::TPBDRigidParticles<T, 3> Particles;
-		TArray<TVector<int32, 3>> CollisionMeshElements;
-		int32 BoxId = AppendParticleBox<T>(Particles, TVector<T, 3>(1), &CollisionMeshElements);
+		TArray<TVec3<int32>> CollisionMeshElements;
+		int32 BoxId = AppendParticleBox<T>(Particles, TVec3<T>(1), &CollisionMeshElements);
 		TLevelSet<T, 3> Levelset = ConstructLevelset(*Particles.CollisionParticles(BoxId), CollisionMeshElements);
 
-		TVector<T, 3> Normal;
+		TVec3<T> Normal;
 		T Phi = Levelset.PhiWithNormal(TVector3(0, 0, 2), Normal);
 		EXPECT_GT(Phi, 0);
 		EXPECT_NEAR((Phi - 1.5), 0, KINDA_SMALL_NUMBER);
@@ -1159,55 +1159,55 @@ namespace ChaosTest {
 	template<class T>
 	void RasterizationImplicit()
 	{
-		TUniquePtr<TBox<T, 3>> Box(new TBox<T,3>(TVector<T, 3>(-0.5, -0.5, -0.5), TVector<T, 3>(0.5, 0.5, 0.5)));
+		TUniquePtr<TBox<T, 3>> Box(new TBox<T,3>(TVec3<T>(-0.5, -0.5, -0.5), TVec3<T>(0.5, 0.5, 0.5)));
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(MakeSerializable(Box), TRigidTransform<T, 3>(TVector<T, 3>(0.5, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(MakeSerializable(Box), TRigidTransform<T, 3>(TVector<T, 3>(-0.5, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(MakeSerializable(Box), TRigidTransform<T, 3>(TVec3<T>(0.5, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(MakeSerializable(Box), TRigidTransform<T, 3>(TVec3<T>(-0.5, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
 		FImplicitObjectUnion Union(MoveTemp(Objects));
 		FErrorReporter ErrorReporter;
 		// This one should be exactly right as we don't actually do an fast marching interior to the region
 		{
-			TUniformGrid<T, 3> Grid(TVector<T, 3>(-2.0, -1.5, -1.5), TVector<T, 3>(2.0, 1.5, 1.5), TVector<int32, 3>(4, 3, 3));
+			TUniformGrid<T, 3> Grid(TVec3<T>(-2.0, -1.5, -1.5), TVec3<T>(2.0, 1.5, 1.5), TVec3<int32>(4, 3, 3));
 			TLevelSet<T, 3> LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(0)) + T(0.5), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(0)) + T(0.5), KINDA_SMALL_NUMBER);
 		}
 		// We should get closer answers every time we refine the resolution
 		{
 			ErrorReporter.HandleLatestError();
-			TUniformGrid<T, 3> Grid(TVector<T, 3>(-1.5, -1.0, -1.0), TVector<T, 3>(1.5, 1.0, 1.0), TVector<int32, 3>(6, 4, 4));
+			TUniformGrid<T, 3> Grid(TVec3<T>(-1.5, -1.0, -1.0), TVec3<T>(1.5, 1.0, 1.0), TVec3<int32>(6, 4, 4));
 			TLevelSet<T, 3> LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(0)) + T(0.25), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(0)) + T(0.25), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
-			TUniformGrid<T, 3> Grid(TVector<T, 3>(-1.25, -0.75, -0.75), TVector<T, 3>(1.25, 0.75, 0.75), TVector<int32, 3>(10, 6, 6));
+			TUniformGrid<T, 3> Grid(TVec3<T>(-1.25, -0.75, -0.75), TVec3<T>(1.25, 0.75, 0.75), TVec3<int32>(10, 6, 6));
 			TLevelSet<T, 3> LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(0)) + T(0.3), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(0)) + T(0.3), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
-			TUniformGrid<T, 3> Grid(TVector<T, 3>(-1.1, -0.6, -0.6), TVector<T, 3>(1.1, 0.6, 0.6), TVector<int32, 3>(22, 12, 12));
+			TUniformGrid<T, 3> Grid(TVec3<T>(-1.1, -0.6, -0.6), TVec3<T>(1.1, 0.6, 0.6), TVec3<int32>(22, 12, 12));
 			TLevelSet<T, 3> LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(0)) + T(0.4), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(0)) + T(0.4), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
-			TUniformGrid<T, 3> Grid(TVector<T, 3>(-1.05, -0.55, -0.55), TVector<T, 3>(1.05, 0.55, 0.55), TVector<int32, 3>(42, 22, 22));
+			TUniformGrid<T, 3> Grid(TVec3<T>(-1.05, -0.55, -0.55), TVec3<T>(1.05, 0.55, 0.55), TVec3<int32>(42, 22, 22));
 			TLevelSet<T, 3> LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(0)) + T(0.45), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(0)) + T(0.45), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
-			TUniformGrid<T, 3> Grid(TVector<T, 3>(-1.5, -1.0, -1.0), TVector<T, 3>(1.5, 1.0, 1.0), TVector<int32, 3>(20, 20, 20));
+			TUniformGrid<T, 3> Grid(TVec3<T>(-1.5, -1.0, -1.0), TVec3<T>(1.5, 1.0, 1.0), TVec3<int32>(20, 20, 20));
 			TLevelSet<T, 3> LevelSet(ErrorReporter, Grid, Union);
 
 			T Volume;
-			TVector<T, 3> COM;
+			TVec3<T> COM;
 			PMatrix<T, 3, 3> Inertia;
 			TRotation<T, 3> RotationOfMass;
 
@@ -1223,32 +1223,32 @@ namespace ChaosTest {
 	template<class T>
 	void RasterizationImplicitWithHole()
 	{
-		TUniquePtr<TBox<T, 3>> Box(new TBox<T,3>(TVector<T, 3>(-0.5, -0.5, -0.5), TVector<T, 3>(0.5, 0.5, 0.5)));
+		TUniquePtr<TBox<T, 3>> Box(new TBox<T,3>(TVec3<T>(-0.5, -0.5, -0.5), TVec3<T>(0.5, 0.5, 0.5)));
 		TSerializablePtr<TBox<T, 3>> SerializableBox(Box);
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVector<T, 3>(1, 1, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVector<T, 3>(0, 1, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVector<T, 3>(-1, 1, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVector<T, 3>(1, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVector<T, 3>(-1, 0, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVector<T, 3>(1, -1, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVector<T, 3>(0, -1, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
-		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVector<T, 3>(-1, -1, 0), TRotation<T, 3>::FromVector(TVector<T, 3>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVec3<T>(1, 1, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVec3<T>(0, 1, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVec3<T>(-1, 1, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVec3<T>(1, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVec3<T>(-1, 0, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVec3<T>(1, -1, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVec3<T>(0, -1, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
+		Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, 3>(SerializableBox, TRigidTransform<T, 3>(TVec3<T>(-1, -1, 0), TRotation<T, 3>::FromVector(TVec3<T>(0))))));
 		FImplicitObjectUnion Union(MoveTemp(Objects));
 		{
-			TUniformGrid<T, 3> Grid(TVector<T, 3>(-1.6, -1.6, -0.6), TVector<T, 3>(1.6, 1.6, 0.6), TVector<int32, 3>(32, 32, 12));
+			TUniformGrid<T, 3> Grid(TVec3<T>(-1.6, -1.6, -0.6), TVec3<T>(1.6, 1.6, 0.6), TVec3<int32>(32, 32, 12));
 			FErrorReporter ErrorReporter;
 			TLevelSet<T, 3> LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_FALSE(LevelSet.IsConvex());
-			EXPECT_GT(LevelSet.SignedDistance(TVector<T, 3>(0)), -KINDA_SMALL_NUMBER);
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(1, 1, 0)), KINDA_SMALL_NUMBER);
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(0, 1, 0)), KINDA_SMALL_NUMBER);
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(-1, 1, 0)), KINDA_SMALL_NUMBER);
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(-1, 0, 0)), KINDA_SMALL_NUMBER);
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(1, 0, 0)), KINDA_SMALL_NUMBER);
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(1, -1, 0)), KINDA_SMALL_NUMBER);
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(0, -1, 0)), KINDA_SMALL_NUMBER);
-			EXPECT_LT(LevelSet.SignedDistance(TVector<T, 3>(-1, -1, 0)), KINDA_SMALL_NUMBER);
+			EXPECT_GT(LevelSet.SignedDistance(TVec3<T>(0)), -KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(1, 1, 0)), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(0, 1, 0)), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(-1, 1, 0)), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(-1, 0, 0)), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(1, 0, 0)), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(1, -1, 0)), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(0, -1, 0)), KINDA_SMALL_NUMBER);
+			EXPECT_LT(LevelSet.SignedDistance(TVec3<T>(-1, -1, 0)), KINDA_SMALL_NUMBER);
 		}
 	}
 
@@ -1326,7 +1326,7 @@ namespace ChaosTest {
 			Particles.X(0) = FVec3(-1, -1, -1);
 			Particles.X(1) = FVec3(1, -1, -1);
 			Particles.X(2) = FVec3(1, 1, -1);
-			TArray<TVector<int32, 3>>Indices;
+			TArray<TVec3<int32>>Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 0);
 			Particles.AddParticles(1);
@@ -1346,7 +1346,7 @@ namespace ChaosTest {
 			Particles.X(6) = FVec3(1, 1, -1);
 			Particles.X(7) = FVec3(1, 1, 1);
 			Particles.X(8) = FVec3(0, 0, 0);
-			TArray<TVector<int32, 3>>Indices;
+			TArray<TVec3<int32>>Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 12);
 			for (const auto& Tri : Indices)
@@ -1364,7 +1364,7 @@ namespace ChaosTest {
 			Particles.X(2) = FVec3(1, 1, -1);
 			Particles.X(3) = FVec3(0, 0, 0.5);
 			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + FVec3(0, 0, 0.1);
-			TArray<TVector<int32, 3>> Indices;
+			TArray<TVec3<int32>> Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 6);
 		}
@@ -1377,7 +1377,7 @@ namespace ChaosTest {
 			Particles.X(3) = FVec3(0, 0, 0.5);
 			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + FVec3(0, 0, 0.1);
 			Particles.X(5) = Particles.X(4) + FVec3(-0.1, 0, 0);
-			TArray<TVector<int32, 3>> Indices;
+			TArray<TVec3<int32>> Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 8);
 		}
@@ -1398,7 +1398,7 @@ namespace ChaosTest {
 			Particles.X(7) = FVec3(1, 1, 1);
 			Particles.X(8) = FVec3(0.966962576, -0.0577232838, 0.959515572);
 			
-			TArray<TVector<int32, 3>> Indices;
+			TArray<TVec3<int32>> Indices;
 			Chaos::FConvexBuilder::Params BuildParams;
 			BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(Particles);
 
@@ -1406,12 +1406,12 @@ namespace ChaosTest {
 
 			EXPECT_EQ(Indices.Num(), 12);
 
-			for (const TVector<int32, 3>& Tri : Indices)
+			for (const TVec3<int32>& Tri : Indices)
 			{
 				for (int32 i = 0; i < 3; ++i)
 				{
-					TVector<T, 3> V = Particles.X(Tri[i]);
-					TVector<T, 3> VAbs = V.GetAbs();
+					TVec3<T> V = Particles.X(Tri[i]);
+					TVec3<T> VAbs = V.GetAbs();
 					T Max = VAbs.GetMax();
 					EXPECT_GE(Max, 1 - 1e-2);
 				}
@@ -1438,7 +1438,7 @@ namespace ChaosTest {
 			{
 				Particles.X(i) = FVec3(Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f));
 			}
-			TArray<TVector<int32, 3>> Indices;
+			TArray<TVec3<int32>> Indices;
 
 			Chaos::FConvexBuilder::Params BuildParams;
 			BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(Particles);
@@ -1450,8 +1450,8 @@ namespace ChaosTest {
 			{
 				for(int i = 0; i < 3; ++i)
 				{
-					TVector<T, 3> V = Particles.X(Tri[i]);
-					TVector<T, 3> VAbs = V.GetAbs();
+					TVec3<T> V = Particles.X(Tri[i]);
+					TVec3<T> VAbs = V.GetAbs();
 					T Max = VAbs.GetMax();
 					EXPECT_GE(Max, 1 - 1e-2);
 				}
@@ -1510,8 +1510,8 @@ namespace ChaosTest {
 		EXPECT_EQ(NewNumberParticles, 10);
 		EXPECT_LT(NewNumberFaces, OriginalNumberFaces);
 
-		TVector<T, 3> DiffMin = OriginalBoundingBox.Min() - NewBoundingBox.Min();
-		TVector<T, 3> DiffMax = OriginalBoundingBox.Max() - NewBoundingBox.Max();
+		TVec3<T> DiffMin = OriginalBoundingBox.Min() - NewBoundingBox.Min();
+		TVec3<T> DiffMax = OriginalBoundingBox.Max() - NewBoundingBox.Max();
 
 		// bounding box won't be identical, so long as it's not too far out
 		for (int Idx=0; Idx<3; Idx++)
@@ -1532,46 +1532,46 @@ namespace ChaosTest {
 		// radius, the margin cannot be increased and any margin "added" by a wrapper shape like
 		// ImplicitObjectScaled is ignored.
 		T Thickness = 0.1;
-		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T,3>>(TVector<T, 3>(3, 0, 0), 5);
-		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVector<T,3>(1));
-		TImplicitObjectScaled<TSphere<T, 3>> UnscaledThickened(MakeSerializable(Sphere), TVector<T, 3>(1), Thickness);
-		TImplicitObjectScaled<TSphere<T, 3>> UniformScale(MakeSerializable(Sphere), TVector<T, 3>(2));
-		TImplicitObjectScaled<TSphere<T, 3>> UniformScaleThickened(MakeSerializable(Sphere), TVector<T, 3>(2), Thickness);
-		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScale(MakeSerializable(Sphere), TVector<T, 3>(2, 1, 1));
-		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScaleThickened(MakeSerializable(Sphere), TVector<T, 3>(2, 1, 1), Thickness);
+		TUniquePtr<TSphere<T, 3>> Sphere = MakeUnique<TSphere<T,3>>(TVec3<T>(3, 0, 0), 5);
+		TImplicitObjectScaled<TSphere<T, 3>> Unscaled(MakeSerializable(Sphere), TVec3<T>(1));
+		TImplicitObjectScaled<TSphere<T, 3>> UnscaledThickened(MakeSerializable(Sphere), TVec3<T>(1), Thickness);
+		TImplicitObjectScaled<TSphere<T, 3>> UniformScale(MakeSerializable(Sphere), TVec3<T>(2));
+		TImplicitObjectScaled<TSphere<T, 3>> UniformScaleThickened(MakeSerializable(Sphere), TVec3<T>(2), Thickness);
+		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScale(MakeSerializable(Sphere), TVec3<T>(2, 1, 1));
+		TImplicitObjectScaled<TSphere<T, 3>> NonUniformScaleThickened(MakeSerializable(Sphere), TVec3<T>(2, 1, 1), Thickness);
 
 		//phi
 		{
-			const TVector<T, 3> NearEdge(7.5, 0, 0);
-			TVector<T, 3> UnscaledNormal;
+			const TVec3<T> NearEdge(7.5, 0, 0);
+			TVec3<T> UnscaledNormal;
 			const T UnscaledPhi = Unscaled.PhiWithNormal(NearEdge, UnscaledNormal);
 			EXPECT_FLOAT_EQ(UnscaledPhi, -0.5);
 			EXPECT_FLOAT_EQ(UnscaledNormal[0], 1);
 			EXPECT_FLOAT_EQ(UnscaledNormal[1], 0);
 			EXPECT_FLOAT_EQ(UnscaledNormal[2], 0);
 
-			TVector<T, 3> UnscaledNormalThickened;
+			TVec3<T> UnscaledNormalThickened;
 			const T UnscaledThickenedPhi = UnscaledThickened.PhiWithNormal(NearEdge, UnscaledNormalThickened);
 			EXPECT_FLOAT_EQ(UnscaledThickenedPhi, -0.5);
 			EXPECT_FLOAT_EQ(UnscaledNormalThickened[0], 1);
 			EXPECT_FLOAT_EQ(UnscaledNormalThickened[1], 0);
 			EXPECT_FLOAT_EQ(UnscaledNormalThickened[2], 0);
 
-			TVector<T, 3> ScaledNormal;
+			TVec3<T> ScaledNormal;
 			T ScaledPhi = UniformScale.PhiWithNormal(NearEdge, ScaledNormal);
 			EXPECT_FLOAT_EQ(ScaledPhi, -(16 - 7.5));
 			EXPECT_FLOAT_EQ(ScaledNormal[0], 1);
 			EXPECT_FLOAT_EQ(ScaledNormal[1], 0);
 			EXPECT_FLOAT_EQ(ScaledNormal[2], 0);
 
-			TVector<T, 3> ScaledNormalThickened;
+			TVec3<T> ScaledNormalThickened;
 			T ScaledPhiThickened = UniformScaleThickened.PhiWithNormal(NearEdge, ScaledNormalThickened);
 			EXPECT_FLOAT_EQ(ScaledPhiThickened, -(16 - 7.5));
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[0], 1);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[1], 0);
 			EXPECT_FLOAT_EQ(ScaledNormalThickened[2], 0);
 
-			const TVector<T, 3> NearTop(6, 0, 4.5);
+			const TVec3<T> NearTop(6, 0, 4.5);
 			ScaledPhi = UniformScale.PhiWithNormal(NearTop, ScaledNormal);
 			EXPECT_FLOAT_EQ(ScaledPhi, -(10-4.5));
 			EXPECT_FLOAT_EQ(ScaledNormal[0], 0);
@@ -1606,8 +1606,8 @@ namespace ChaosTest {
 
 		//support
 		{
-			const TVector<T, 3> DirX(1, 0, 0);
-			TVector<T, 3> SupportPt = Unscaled.Support(DirX, 1);
+			const TVec3<T> DirX(1, 0, 0);
+			TVec3<T> SupportPt = Unscaled.Support(DirX, 1);
 			EXPECT_FLOAT_EQ(SupportPt[0], 9);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
@@ -1627,7 +1627,7 @@ namespace ChaosTest {
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
-			const TVector<T, 3> DirZ(0, 0, -1);
+			const TVec3<T> DirZ(0, 0, -1);
 			SupportPt = UniformScale.Support(DirZ, 1);
 			EXPECT_FLOAT_EQ(SupportPt[0], 6);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);

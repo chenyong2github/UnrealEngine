@@ -173,9 +173,9 @@ namespace ChaosTest {
 		EXPECT_EQ(PBDRigid->V()[2], 0);
 		EXPECT_EQ(PBDRigid->M(), 1);
 
-		PBDRigid->SetX(TVector<T, 3>(1, 2, 3));
+		PBDRigid->SetX(TVec3<T>(1, 2, 3));
 		EXPECT_EQ(PBDRigid->X()[0], 1);
-		KinematicGeometry->SetV(TVector<T, 3>(3, 3, 3));
+		KinematicGeometry->SetV(TVec3<T>(3, 3, 3));
 		EXPECT_EQ(KinematicGeometry->V()[0], 3);
 
 		EXPECT_EQ(Geometry->ObjectState(), EObjectStateType::Static);
@@ -217,7 +217,7 @@ namespace ChaosTest {
 				//fake step and write to physics side
 				for (auto& Particle : SOAs.GetAllParticlesView())
 				{
-					Particle.X() = TVector<T, 3>(Count);
+					Particle.X() = TVec3<T>(Count);
 					Count += 1;
 				}
 			}
@@ -272,7 +272,7 @@ namespace ChaosTest {
 			TGeometryParticleHandle<T, 3>* ThirdParticle = nullptr;
 			for (auto& Particle : SOAs.GetAllParticlesView())
 			{
-				Particle.X() = TVector<T, 3>(Count);
+				Particle.X() = TVec3<T>(Count);
 				if (Count == 2)
 				{
 					ThirdParticle = Particle.Handle();
@@ -308,7 +308,7 @@ namespace ChaosTest {
 			TGeometryParticleHandle<T, 3>* ThirdParticle = nullptr;
 			for (auto& Particle : SOAs.GetAllParticlesView())
 			{
-				Particle.X() = TVector<T, 3>(Count);
+				Particle.X() = TVec3<T>(Count);
 				if (Count == 2)
 				{
 					ThirdParticle = Particle.Handle();
@@ -389,7 +389,7 @@ namespace ChaosTest {
 				for (auto Itr = MakeParticleIterator(SOAViews); Itr; ++Itr)
 				{
 					//set X back to 0 for all particles
-					Itr->X() = TVector<T, 3>(0);
+					Itr->X() = TVec3<T>(0);
 					EXPECT_EQ(Itr->Handle(), GeomHandles[Count]);
 					//implicit const
 					TConstParticleIterator<TGeometryParticles<T, 3>>& ConstItr = Itr;
@@ -425,7 +425,7 @@ namespace ChaosTest {
 				for (auto Itr = MakeParticleIterator(MoveTemp(SOAViews)); Itr; ++Itr)
 				{
 					//set P to 1,1,1
-					Itr->P() = TVector<T, 3>(1);
+					Itr->P() = TVec3<T>(1);
 					EXPECT_EQ(Itr->Handle(), PBDRigidHandles[Count++]);
 					EXPECT_EQ(Itr->Handle()->P()[0], Itr->P()[0]);	//handle type is deduced from iterator type
 				}
@@ -438,8 +438,8 @@ namespace ChaosTest {
 				auto PartialDynamics = SOAsWithHandles.CreateDynamicParticles(10);
 
 				TArray<TPBDRigidParticleHandle<T,3>*> ActiveParticles = { PartialDynamics[3], PartialDynamics[5] };
-				PartialDynamics[3]->X() = TVector<T,3>(3);
-				PartialDynamics[5]->X() = TVector<T,3>(5);
+				PartialDynamics[3]->X() = TVec3<T>(3);
+				PartialDynamics[5]->X() = TVec3<T>(5);
 				
 				TArray<TSOAView<TPBDRigidParticles<T, 3>>> SOAViews = { PBDRigidParticles.Get(), &ActiveParticles, PBDRigidParticles.Get() };
 				int32 Count = 0;
@@ -481,7 +481,7 @@ namespace ChaosTest {
 			T Count = 0;
 			for (auto& Kinematic : KinematicParticles)
 			{
-				Kinematic->X() = TVector<T, 3>(Count);
+				Kinematic->X() = TVec3<T>(Count);
 				SOAs.DisableParticle(Kinematic);
 				Count += 1;
 			}

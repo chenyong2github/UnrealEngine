@@ -103,7 +103,7 @@ namespace ChaosTest {
 		auto PositionConstraintRule = TPBDConstraintIslandRule<TPBDPositionConstraints<FReal, 3>>(PositionConstraints);
 		Evolution.AddConstraintRule(&PositionConstraintRule);
 
-		TVector<TGeometryParticleHandle<FReal, 3>*, 2> JointParticles = { Dynamics[0], Dynamics[1] };
+		TVec2<TGeometryParticleHandle<FReal, 3>*> JointParticles = { Dynamics[0], Dynamics[1] };
 		FPBDJointConstraints JointConstraints;
 		JointConstraints.AddConstraint(JointParticles, FRigidTransform3(JointConstraintPosition, FRotation3::FromIdentity()));
 		auto JointConstraintRule = TPBDConstraintIslandRule<FPBDJointConstraints>(JointConstraints);

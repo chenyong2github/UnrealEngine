@@ -2,6 +2,8 @@
 
 #include "HeadlessChaosTestSerialization.h"
 
+// PRAGMA_DISABLE_OPTIMIZATION
+
 #include "HeadlessChaos.h"
 #include "Chaos/ChaosArchive.h"
 #include "Serialization/MemoryWriter.h"
@@ -36,9 +38,9 @@ namespace ChaosTest
 	{
 
 		TArray<TUniquePtr<TSphere<T, 3>>> OriginalSpheres;
-		OriginalSpheres.Add(TUniquePtr<TSphere<T, 3>>(new TSphere<T, 3>(TVector<T, 3>(), 1)));
-		OriginalSpheres.Add(TUniquePtr<TSphere<T, 3>>(new TSphere<T, 3>(TVector<T, 3>(), 2)));
-		OriginalSpheres.Add(TUniquePtr<TSphere<T, 3>>(new TSphere<T, 3>(TVector<T, 3>(), 3)));
+		OriginalSpheres.Add(TUniquePtr<TSphere<T, 3>>(new TSphere<T, 3>(TVec3<T>(), 1)));
+		OriginalSpheres.Add(TUniquePtr<TSphere<T, 3>>(new TSphere<T, 3>(TVec3<T>(), 2)));
+		OriginalSpheres.Add(TUniquePtr<TSphere<T, 3>>(new TSphere<T, 3>(TVec3<T>(), 3)));
 
 		TArray<uint8> Data;
 		{
@@ -68,7 +70,7 @@ namespace ChaosTest
 	void SharedObjectsSerialization()
 	{
 		TArray<TSharedPtr<TSphere<T, 3>>> OriginalSpheres;
-		TSharedPtr<TSphere<T, 3>> Sphere(new TSphere<T, 3>(TVector<T, 3>(0), 1));
+		TSharedPtr<TSphere<T, 3>> Sphere(new TSphere<T, 3>(TVec3<T>(0), 1));
 		OriginalSpheres.Add(Sphere);
 		OriginalSpheres.Add(Sphere);
 		TSerializablePtr<TSphere<T, 3>> SerializableSphere = MakeSerializable(Sphere);
@@ -111,8 +113,8 @@ namespace ChaosTest
 	void GraphSerialization()
 	{
 		TArray<TUniquePtr<TSphere<T, 3>>> OriginalSpheres;
-		OriginalSpheres.Emplace(new TSphere<T, 3>{ TVector<T,3>(1,2,3), 1 });
-		OriginalSpheres.Emplace(new TSphere<T, 3>{ TVector<T,3>(1,2,3), 2 });
+		OriginalSpheres.Emplace(new TSphere<T, 3>{ TVec3<T>(1,2,3), 1 });
+		OriginalSpheres.Emplace(new TSphere<T, 3>{ TVec3<T>(1,2,3), 2 });
 
 		TArray<TUniquePtr<TImplicitObjectTransformed<T, 3>>> OriginalChildren;
 		OriginalChildren.Emplace(new TImplicitObjectTransformed<T, 3>(MakeSerializable(OriginalSpheres[0]), TRigidTransform<T,3>::Identity));
@@ -157,8 +159,8 @@ namespace ChaosTest
 	void ObjectUnionSerialization()
 	{
 		TArray<TUniquePtr<FImplicitObject>> OriginalSpheres;
-		OriginalSpheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(1, 2, 3), 1));
-		OriginalSpheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(1, 2, 3), 2));
+		OriginalSpheres.Emplace(new TSphere<T, 3>(TVec3<T>(1, 2, 3), 1));
+		OriginalSpheres.Emplace(new TSphere<T, 3>(TVec3<T>(1, 2, 3), 2));
 
 		TArray<TUniquePtr<FImplicitObject>> OriginalChildren;
 		OriginalChildren.Emplace(new TImplicitObjectTransformed<T, 3>(MakeSerializable(OriginalSpheres[0]), TRigidTransform<T, 3>::Identity));
@@ -209,8 +211,8 @@ namespace ChaosTest
 	void ParticleSerialization()
 	{
 		TArray<TUniquePtr<TSphere<T, 3>>> OriginalSpheres;
-		OriginalSpheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(1, 2, 3), 1));
-		OriginalSpheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(1, 2, 3), 2));
+		OriginalSpheres.Emplace(new TSphere<T, 3>(TVec3<T>(1, 2, 3), 1));
+		OriginalSpheres.Emplace(new TSphere<T, 3>(TVec3<T>(1, 2, 3), 2));
 
 		{
 			TGeometryParticles<T, 3> OriginalParticles;
@@ -286,15 +288,15 @@ namespace ChaosTest
 		TArray<uint8> Data;
 		{
 			TArray<TUniquePtr<TSphere<T, 3>>> OriginalSpheres;
-			OriginalSpheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(0, 0, 0), 1));
-			OriginalSpheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(0, 0, 0), 2));
+			OriginalSpheres.Emplace(new TSphere<T, 3>(TVec3<T>(0, 0, 0), 1));
+			OriginalSpheres.Emplace(new TSphere<T, 3>(TVec3<T>(0, 0, 0), 2));
 
 			TGeometryParticles<T, 3> OriginalParticles;
 			OriginalParticles.AddParticles(2);
 			OriginalParticles.SetGeometry(0, MakeSerializable(OriginalSpheres[0]));
 			OriginalParticles.SetGeometry(1, MakeSerializable(OriginalSpheres[1]));
-			OriginalParticles.X(0) = TVector<T, 3>(100, 1, 2);
-			OriginalParticles.X(1) = TVector<T, 3>(0, 1, 2);
+			OriginalParticles.X(0) = TVec3<T>(100, 1, 2);
+			OriginalParticles.X(1) = TVec3<T>(0, 1, 2);
 			OriginalParticles.R(0) = TRotation<T, 3>::Identity;
 			OriginalParticles.R(1) = TRotation<T, 3>::Identity;
 
@@ -340,13 +342,13 @@ namespace ChaosTest
 	template<class T>
 	void RigidParticlesSerialization()
 	{
-		TArray<TVector<T, 3>> F;
-		F.Emplace(TVector<T, 3>(1, 2, 3));
-		F.Emplace(TVector<T, 3>(3, 2, 1));
+		TArray<TVec3<T>> F;
+		F.Emplace(TVec3<T>(1, 2, 3));
+		F.Emplace(TVec3<T>(3, 2, 1));
 
-		TArray<TVector<T, 3>> X;
-		X.Emplace(TVector<T, 3>(0, 2, 1));
-		X.Emplace(TVector<T, 3>(100, 15, 0));
+		TArray<TVec3<T>> X;
+		X.Emplace(TVec3<T>(0, 2, 1));
+		X.Emplace(TVec3<T>(100, 15, 0));
 
 		TRigidParticles<T, 3> Particles;
 		Particles.AddParticles(2);
@@ -377,18 +379,18 @@ namespace ChaosTest
 	{
 		TArray<uint8> Data;
 		TArray<TUniquePtr<TSphere<T, 3>>> Spheres;
-		Spheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(0, 0, 0), 1));
-		Spheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(0, 0, 0), 1));
-		Spheres.Emplace(new TSphere<T, 3>(TVector<T, 3>(0, 0, 0), 1));
+		Spheres.Emplace(new TSphere<T, 3>(TVec3<T>(0, 0, 0), 1));
+		Spheres.Emplace(new TSphere<T, 3>(TVec3<T>(0, 0, 0), 1));
+		Spheres.Emplace(new TSphere<T, 3>(TVec3<T>(0, 0, 0), 1));
 
 		TGeometryParticles<T, 3> Particles;
 		Particles.AddParticles(3);
 		Particles.SetGeometry(0, MakeSerializable(Spheres[0]));
 		Particles.SetGeometry(1, MakeSerializable(Spheres[1]));
 		Particles.SetGeometry(2, MakeSerializable(Spheres[2]));
-		Particles.X(0) = TVector<T, 3>(15, 1, 2);
-		Particles.X(1) = TVector<T, 3>(0, 2, 2);
-		Particles.X(2) = TVector<T, 3>(0, 2, 2);
+		Particles.X(0) = TVec3<T>(15, 1, 2);
+		Particles.X(1) = TVec3<T>(0, 2, 2);
+		Particles.X(2) = TVec3<T>(0, 2, 2);
 		Particles.R(0) = TRotation<T, 3>::Identity;
 		Particles.R(1) = TRotation<T, 3>::Identity;
 		Particles.R(2) = TRotation<T, 3>::Identity;

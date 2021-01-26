@@ -297,7 +297,7 @@ namespace ChaosTest
 			{ 26.2703266, -5.87738276, -8.47085190 }
 		});
 
-		TArray<TVector<int32, 3>> Indices(
+		TArray<TVec3<int32>> Indices(
 		{
 			{1, 0, 2},
 			{3, 0, 1},
@@ -856,8 +856,8 @@ namespace ChaosTest
 		TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
 		TImplicitObjectScaled<FTriangleMeshImplicitObject> ScaledTriangleMesh = TImplicitObjectScaled<FTriangleMeshImplicitObject>(MakeSerializable(TriangleMesh), FVec3(50,50,50));
 
-		const TVector<FReal, 3> X1 = { 0,0,-19.45 };
-		const TVector<FReal, 3> X2 = X1 + TVector<FReal, 3>(0, 0, 38.9);
+		const FVec3 X1 = { 0,0,-19.45 };
+		const FVec3 X2 = X1 + FVec3(0, 0, 38.9);
 		const FReal Radius = 25.895;
 		const TCapsule<FReal> Capsule = TCapsule<FReal>(X1, X2, Radius);
 

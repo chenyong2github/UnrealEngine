@@ -9,7 +9,7 @@ namespace GeometryCollectionTest
 	template <class T>
 	void RunTestComputeSamplePoints(const Chaos::TCylinder<T> &Cylinder)
 	{
-		Chaos::TVector<T, 3> Point;
+		Chaos::TVec3<T> Point;
 		T Phi;
 		EXPECT_EQ(Cylinder.GetType(), Chaos::ImplicitObjectType::Cylinder) << *FString("Implicit object type is not 'cylinder'.");
 
@@ -31,7 +31,7 @@ namespace GeometryCollectionTest
 		Phi = Cylinder.SignedDistance(Point);
 		EXPECT_LE(Phi, (T)0.0) << *FString("Cylinder failed phi depth (3/4 origin) sanity test.");
 
-		EXPECT_LE((Cylinder.GetCenter() - Chaos::TVector<T,3>(Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight() * 0.5)).Size(), KINDA_SMALL_NUMBER) << *FString("Cylinder center is off mid axis.");
+		EXPECT_LE((Cylinder.GetCenter() - Chaos::TVec3<T>(Cylinder.GetOrigin() + Cylinder.GetAxis() * Cylinder.GetHeight() * 0.5)).Size(), KINDA_SMALL_NUMBER) << *FString("Cylinder center is off mid axis.");
 
 		Point = Cylinder.GetCenter();
 		Phi = Cylinder.SignedDistance(Point);
@@ -53,14 +53,14 @@ namespace GeometryCollectionTest
 		Phi = Cylinder.SignedDistance(Point);
 		EXPECT_LE(FMath::Abs(Phi), KINDA_SMALL_NUMBER) << *FString("Cylinder failed phi surface (center+orthogonalAxis*radius) sanity test.");
 
-		TArray<Chaos::TVector<T, 3>> Points = Cylinder.ComputeSamplePoints(100);
+		TArray<Chaos::TVec3<T>> Points = Cylinder.ComputeSamplePoints(100);
 		check(Points.Num() == 100);
 		Point[0] = TNumericLimits<T>::Max();
 		T MinPhi = TNumericLimits<T>::Max();
 		T MaxPhi = -TNumericLimits<T>::Max();
 		for (int32 i=0; i < Points.Num(); i++)
 		{
-			const Chaos::TVector<T, 3> &Pt = Points[i];
+			const Chaos::TVec3<T> &Pt = Points[i];
 
 			Phi = Cylinder.SignedDistance(Pt);
 			MinPhi = FMath::Min(Phi, MinPhi);
@@ -86,32 +86,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)1.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,1), (T)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)10.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,1), (T)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,1), (T)0.1);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,1), (T)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)1.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,11), (T)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)10.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,11), (T)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,11), (T)0.1);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,11), (T)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 
@@ -121,32 +121,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)1.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,10), (T)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)10.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,10), (T)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(0,0,10), (T)0.1);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(0,0,10), (T)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)1.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,21), (T)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)10.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,21), (T)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(10,10,21), (T)0.1);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(10,10,21), (T)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 
@@ -156,32 +156,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)1.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(1,1,1), (T)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)10.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(1,1,1), (T)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(0,0,0), Chaos::TVector<T, 3>(1,1,1), (T)0.1);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(0,0,0), Chaos::TVec3<T>(1,1,1), (T)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)1.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(11,11,11), (T)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)10.0);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(11,11,11), (T)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
-			Chaos::TCylinder<T> Cylinder(Chaos::TVector<T, 3>(10,10,10), Chaos::TVector<T, 3>(11,11,11), (T)0.1);
+			Chaos::TCylinder<T> Cylinder(Chaos::TVec3<T>(10,10,10), Chaos::TVec3<T>(11,11,11), (T)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 	}

@@ -811,7 +811,7 @@ namespace ChaosTest
 		}
 
 		// Defining boat geom data outside of single test scope as it's used in multiple.
-		const TArray<TVector<FReal, 3>> BoatSurfaceParticles(
+		const TArray<FVec3> BoatSurfaceParticles(
 			{
 				{-118.965088, -100.379936, 105.818298},
 				{-128.562881, 80.0933762, 107.703270},
@@ -1208,7 +1208,7 @@ namespace ChaosTest
 					{-50.0000000, -50.0000000, 8.04061356e-15}
 				});
 
-			TArray<TVector<int32, 3>> Indices;
+			TArray<TVec3<int32>> Indices;
 			Indices.Emplace(1, 0, 2);
 			Indices.Emplace(1, 2, 3);
 

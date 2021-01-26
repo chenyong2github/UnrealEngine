@@ -86,32 +86,32 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	int32 AppendAnalyticBox(TPBDRigidParticles<T, 3>& InParticles, TVector<T, 3> Scale = TVector<T, 3>(1));
+	int32 AppendAnalyticBox(TPBDRigidParticles<T, 3>& InParticles, TVec3<T> Scale = TVec3<T>(1));
 
 	/**/
 	template<class T>
-	int32 AppendParticleBox(TPBDRigidParticles<T, 3>& InParticles, TVector<T, 3> Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	int32 AppendParticleBox(TPBDRigidParticles<T, 3>& InParticles, TVec3<T> Scale = TVec3<T>(1), TArray<TVec3<int32>>* OutElements = nullptr);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale = TVec3<T>(1), TArray<TVec3<int32>>* OutElements = nullptr);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin, TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale, FReal Margin, TArray<TVec3<int32>>* OutElements = nullptr);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale = TVec3<T>(1), TArray<TVec3<int32>>* OutElements = nullptr);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale = TVec3<T>(1), TArray<TVec3<int32>>* OutElements = nullptr);
 	
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleTaperedCylinder(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale = TVec3<T>(1), TArray<TVec3<int32>>* OutElements = nullptr);
 
 	template<class T>
-	TGeometryParticleHandle<T, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TGeometryParticleHandle<T, 3>* AppendStaticParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale = TVec3<T>(1), TArray<TVec3<int32>>* OutElements = nullptr);
 
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
+	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale = TVec3<T>(1), TArray<TVec3<int32>>* OutElements = nullptr);
 		
 	/**/
 	template<class T>
@@ -125,41 +125,41 @@ namespace ChaosTest {
 		
 	/**/
 	template<class T>
-	TLevelSet<T, 3> ConstructLevelset(TParticles<T, 3> & SurfaceParticles, TArray<TVector<int32, 3>> & Elements);
+	TLevelSet<T, 3> ConstructLevelset(TParticles<T, 3> & SurfaceParticles, TArray<TVec3<int32>> & Elements);
 
 	/**/
 	template<class T>
-	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVector<T, 3>& Scale, FReal Margin);
+	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVec3<T>& Scale, FReal Margin);
 	
 	template<class T>
-	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1));
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVec3<T>& Scale = TVec3<T>(1));
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin);
 
 	/**/
 	template<class T>
-	TVector<T,3>  ObjectSpacePoint(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVector<T, 3>& WorldSpacePoint);
+	TVec3<T> ObjectSpacePoint(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVec3<T>& WorldSpacePoint);
 
 	/**/
 	template<class T>
-	T PhiWithNormal(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVector<T, 3>& WorldSpacePoint, TVector<T, 3>& Normal);
+	T PhiWithNormal(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVec3<T>& WorldSpacePoint, TVec3<T>& Normal);
 
 	/**/
 	template<class T>
-	T SignedDistance(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVector<T, 3>& WorldSpacePoint);
+	T SignedDistance(TPBDRigidParticles<T, 3> & InParticles, const int32 Index, const TVec3<T>& WorldSpacePoint);
 
 	/**/
 	template<class T>
-	TVector<T, 3>  ObjectSpacePoint(TGeometryParticleHandle<T, 3> & Particle, const TVector<T, 3>& WorldSpacePoint);
+	TVec3<T>  ObjectSpacePoint(TGeometryParticleHandle<T, 3> & Particle, const TVec3<T>& WorldSpacePoint);
 
 	/**/
 	template<class T>
-	T PhiWithNormal(TGeometryParticleHandle<T, 3> & Particle, const TVector<T, 3>& WorldSpacePoint, TVector<T, 3>& Normal);
+	T PhiWithNormal(TGeometryParticleHandle<T, 3> & Particle, const TVec3<T>& WorldSpacePoint, TVec3<T>& Normal);
 
 	/**/
 	template<class T>
-	T SignedDistance(TGeometryParticleHandle<T, 3> & Particle, const TVector<T, 3>& WorldSpacePoint);
+	T SignedDistance(TGeometryParticleHandle<T, 3> & Particle, const TVec3<T>& WorldSpacePoint);
 
 	/**
 	 * Return a random normalized axis.

@@ -18,11 +18,11 @@ namespace GeometryCollectionTest
 	template <class T>
 	void RunTestFindClosestIntersectionHelper(
 		const FString TestName,
-		const Chaos::TVector<T, 3>& Center, 
+		const Chaos::TVec3<T>& Center, 
 		const T Radius,
 		const T Thickness,
-		const Chaos::TVector<T, 3>& StartPt,
-		const Chaos::TVector<T, 3>& EndPt,
+		const Chaos::TVec3<T>& StartPt,
+		const Chaos::TVec3<T>& EndPt,
 		const IntersectionResult ExpectedRes)
 	{
 		Chaos::TSphere<T, 3> Sphere(Center, Radius);
@@ -56,26 +56,26 @@ namespace GeometryCollectionTest
 
 	template <class T>
 	void RunTestFindClosestIntersection_Tangent(
-		const Chaos::TVector<T, 3>& Center,
+		const Chaos::TVec3<T>& Center,
 		const T Radius,
 		const T Thickness)
 	{
-		Chaos::TVector<T, 3> StartPt;
-		Chaos::TVector<T, 3> EndPt;
+		Chaos::TVec3<T> StartPt;
+		Chaos::TVec3<T> EndPt;
 
 		// Start & End points coincident, lying on the surface of the sphere w/zero thickness
 		// Fails with no collision:
 		// "RunTestFindClosestIntersection_Tangent1 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 1), EndPt(0, 0, 1), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
-		StartPt = EndPt = Center + Chaos::TVector<T,3>(0, 0, Radius);
+		StartPt = EndPt = Center + Chaos::TVec3<T>(0, 0, Radius);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Tangent1", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
-		StartPt = Center + Chaos::TVector<T, 3>(Radius, 0, Radius+Thickness);
-		EndPt = Center + Chaos::TVector<T, 3>(-Radius, 0, Radius+Thickness);
+		StartPt = Center + Chaos::TVec3<T>(Radius, 0, Radius+Thickness);
+		EndPt = Center + Chaos::TVec3<T>(-Radius, 0, Radius+Thickness);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Tangent2", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+			IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 		
 		// Start & End points coincident, lying on the surface of the sphere w/thickness
 		// Fails with incorrect collision point:
@@ -83,171 +83,171 @@ namespace GeometryCollectionTest
 		// "RunTestFindClosestIntersection_Tangent3 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 1.5), EndPt(0, 0, 1.5), Thickness:0.5) = RESULT: 1, Point: (0, 0, 1), EXPECTED: 1 (0, 0, 1.5)."	FString
 		// "RunTestFindClosestIntersection_Tangent3 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 2), EndPt(0, 0, 2), Thickness:1) = RESULT: 1, Point: (0, 0, 1), EXPECTED: 1 (0, 0, 2)."	FString
 		// "RunTestFindClosestIntersection_Tangent3 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 3), EndPt(0, 0, 3), Thickness:2) = RESULT: 1, Point: (0, 0, 1), EXPECTED: 1 (0, 0, 3)."	FString
-		StartPt = EndPt = Center + Chaos::TVector<T,3>(0, 0, Radius+Thickness);
+		StartPt = EndPt = Center + Chaos::TVec3<T>(0, 0, Radius+Thickness);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Tangent3", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
-		StartPt = Center + Chaos::TVector<T, 3>(Radius, 0, Radius+Thickness);
-		EndPt = Center + Chaos::TVector<T, 3>(-Radius, 0, Radius+Thickness);
+		StartPt = Center + Chaos::TVec3<T>(Radius, 0, Radius+Thickness);
+		EndPt = Center + Chaos::TVec3<T>(-Radius, 0, Radius+Thickness);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Tangent4", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+			IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
 		// Radius + Thickness + 1 (miss)
-		StartPt = EndPt = Center + Chaos::TVector<T,3>(0, 0, Radius+Thickness+1.0);
+		StartPt = EndPt = Center + Chaos::TVec3<T>(0, 0, Radius+Thickness+1.0);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Tangent5", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T,3>(Radius+Thickness,0,0), false));
+			IntersectionResult(Center+Chaos::TVec3<T>(Radius+Thickness,0,0), false));
 
-		StartPt = Center + Chaos::TVector<T, 3>(Radius, 0, Radius+Thickness+1.0);
-		EndPt = Center + Chaos::TVector<T, 3>(-Radius, 0, Radius+Thickness+1.0);
+		StartPt = Center + Chaos::TVec3<T>(Radius, 0, Radius+Thickness+1.0);
+		EndPt = Center + Chaos::TVec3<T>(-Radius, 0, Radius+Thickness+1.0);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Tangent6", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), false));
+			IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), false));
 	}
 
 	template <class T>
 	void RunTestFindClosestIntersection_Shallow(
-		const Chaos::TVector<T, 3>& Center,
+		const Chaos::TVec3<T>& Center,
 		const T Radius,
 		const T Thickness)
 	{
-		Chaos::TVector<T, 3> StartPt(0, 0, Radius * .999999);
-		Chaos::TVector<T, 3> EndPt = StartPt;
+		Chaos::TVec3<T> StartPt(0, 0, Radius * .999999);
+		Chaos::TVec3<T> EndPt = StartPt;
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Shallow1 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0.999999), EndPt(0, 0, 0.999999), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (1.1, 0...	FString
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Shallow1", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(Radius+Thickness,0,0), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(Radius+Thickness,0,0), true));
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Shallow2 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0.999999), EndPt(0, 0, 1), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
-		EndPt += Chaos::TVector<T, 3>(0, 0, Radius * .000001);
+		EndPt += Chaos::TVec3<T>(0, 0, Radius * .000001);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Shallow2", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Shallow3 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0.999999), EndPt(0, 0, 1), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
-		EndPt += Chaos::TVector<T, 3>(0, 0, Radius * .000001);
+		EndPt += Chaos::TVec3<T>(0, 0, Radius * .000001);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Shallow3", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
-		EndPt += Chaos::TVector<T, 3>(0, 0, Thickness);
+		EndPt += Chaos::TVec3<T>(0, 0, Thickness);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Shallow3.1", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+			IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Shallow4 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 1), EndPt(0, 0, 0.999999), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
 		EndPt = StartPt;
-		StartPt = EndPt + Chaos::TVector<T, 3>(0, 0, Radius * .000001);
+		StartPt = EndPt + Chaos::TVec3<T>(0, 0, Radius * .000001);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Shallow4", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Shallow5 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 1), EndPt(0, 0, 0.999999), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
-		StartPt += Chaos::TVector<T, 3>(0, 0, Radius * .000001);
+		StartPt += Chaos::TVec3<T>(0, 0, Radius * .000001);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Shallow5", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
-		StartPt += Chaos::TVector<T, 3>(0, 0, Thickness);
+		StartPt += Chaos::TVec3<T>(0, 0, Thickness);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Shallow5.1", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+			IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 	}
 
 	template <class T>
 	void RunTestFindClosestIntersection_Mid(
-		const Chaos::TVector<T, 3>& Center, 
+		const Chaos::TVec3<T>& Center, 
 		const T Radius,
 		const T Thickness)
 	{
-		Chaos::TVector<T, 3> StartPt(0,0,Radius * .5);
-		Chaos::TVector<T, 3> EndPt = StartPt;
+		Chaos::TVec3<T> StartPt(0,0,Radius * .5);
+		Chaos::TVec3<T> EndPt = StartPt;
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Mid1 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0.5), EndPt(0, 0, 0.5), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (1.1, 0, 0)."	FString
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Mid1", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(Radius+Thickness,0,0), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(Radius+Thickness,0,0), true));
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Mid2 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0.5), EndPt(0, 0, 1), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
-		//EndPt += Chaos::TVector<T, 3>(0, 0, Radius * .5);
+		//EndPt += Chaos::TVec3<T>(0, 0, Radius * .5);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Mid2", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 		
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Mid3 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0.5), EndPt(0, 0, 1), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
-		EndPt += Chaos::TVector<T, 3>(0, 0, Radius * .5);
+		EndPt += Chaos::TVec3<T>(0, 0, Radius * .5);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Mid3", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Mid4 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 1), EndPt(0, 0, 0.5), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
 		EndPt = StartPt;
-		StartPt = EndPt + Chaos::TVector<T, 3>(0, 0, Radius * .5);
+		StartPt = EndPt + Chaos::TVec3<T>(0, 0, Radius * .5);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Mid4", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 
-		StartPt += Chaos::TVector<T, 3>(0, 0, Radius * .5);
+		StartPt += Chaos::TVec3<T>(0, 0, Radius * .5);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Mid5", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T,3>(0,0,Radius+Thickness), true));
+			IntersectionResult(Center+Chaos::TVec3<T>(0,0,Radius+Thickness), true));
 	}
 
 	template <class T>
 	void RunTestFindClosestIntersection_Deep(
-		const Chaos::TVector<T, 3>& Center, 
+		const Chaos::TVec3<T>& Center, 
 		const T Radius,
 		const T Thickness)
 	{
-		Chaos::TVector<T, 3> StartPt = Center;
-		Chaos::TVector<T, 3> EndPt = Center;
+		Chaos::TVec3<T> StartPt = Center;
+		Chaos::TVec3<T> EndPt = Center;
 
 		// Fails w/no collision
 		// "RunTestFindClosestIntersection_Deep1 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0), EndPt(0, 0, 0), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (1.1, 0, 0)."	FString
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Deep1", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T,3>(Radius+Thickness,0,0), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(Radius+Thickness,0,0), true));
 
 		// Fails w/no collision
 		// "RunTestFindClosestIntersection_Deep2 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0), EndPt(0, 0, 0.5), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
-		EndPt += Chaos::TVector<T, 3>(0, 0, Radius*.5);
+		EndPt += Chaos::TVec3<T>(0, 0, Radius*.5);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Deep2", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T, 3>(0, 0, Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0, 0, Radius+Thickness), true));
 
-		EndPt += Chaos::TVector<T, 3>(0, 0, Radius);
+		EndPt += Chaos::TVec3<T>(0, 0, Radius);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Deep3", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T, 3>(0, 0, Radius+Thickness), true));
+			IntersectionResult(Center+Chaos::TVec3<T>(0, 0, Radius+Thickness), true));
 
 		// Fails w/no collision:
 		// "RunTestFindClosestIntersection_Deep4 - Sphere((0, 0, 0), 1).FindClosestIntersection(StartPt(0, 0, 0.5), EndPt(0, 0, 0), Thickness:0.1) = RESULT: 0, Point: (0, 0, 0), EXPECTED: 1 (0, 0, 1.1)."	FString
 		EndPt = Center;
-		StartPt += Chaos::TVector<T, 3>(0, 0, Radius*.5);
+		StartPt += Chaos::TVec3<T>(0, 0, Radius*.5);
 		//RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Deep4", Center, Radius, Thickness,
 		//	StartPt, EndPt, 
-		//	IntersectionResult(Center+Chaos::TVector<T, 3>(0, 0, Radius+Thickness), true));
+		//	IntersectionResult(Center+Chaos::TVec3<T>(0, 0, Radius+Thickness), true));
 
-		StartPt += Chaos::TVector<T, 3>(0, 0, Radius);
+		StartPt += Chaos::TVec3<T>(0, 0, Radius);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Deep5", Center, Radius, Thickness,
 			StartPt, EndPt, 
-			IntersectionResult(Center+Chaos::TVector<T, 3>(0, 0, Radius+Thickness), true));
+			IntersectionResult(Center+Chaos::TVec3<T>(0, 0, Radius+Thickness), true));
 
 		// Miss
-		StartPt = Center + Chaos::TVector<T, 3>(Radius + Thickness + 1);
-		EndPt = StartPt + Chaos::TVector<T, 3>(Radius + Thickness + 1);
+		StartPt = Center + Chaos::TVec3<T>(Radius + Thickness + 1);
+		EndPt = StartPt + Chaos::TVec3<T>(Radius + Thickness + 1);
 		RunTestFindClosestIntersectionHelper("RunTestFindClosestIntersection_Deep6", Center, Radius, Thickness,
 			StartPt, EndPt, 
 			IntersectionResult(StartPt, false));
@@ -255,7 +255,7 @@ namespace GeometryCollectionTest
 
 	template <class T>
 	void RunTestFindClosestIntersection(
-		const Chaos::TVector<T,3>& Center, const T Radius)
+		const Chaos::TVec3<T>& Center, const T Radius)
 	{
 		//
 		// Run different test configurations with varying thicknesses.
@@ -293,22 +293,22 @@ namespace GeometryCollectionTest
 	void TestIntersections()
 	{
 		// At the origin
-		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)0.0), (T)1.0);
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)0.0), (T)10.0);
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)0.0), (T)100.0);
+		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)0.0), (T)1.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)0.0), (T)10.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)0.0), (T)100.0);
 
 		// Off origin
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)1.0), (T)1.0);
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)10.0), (T)1.0);
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)100.0), (T)1.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)1.0), (T)1.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)10.0), (T)1.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)100.0), (T)1.0);
 
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)1.0), (T)10.0);
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)10.0), (T)10.0);
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)100.0), (T)10.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)1.0), (T)10.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)10.0), (T)10.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)100.0), (T)10.0);
 
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)1.0), (T)100.0);
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)10.0), (T)100.0);
-//		RunTestFindClosestIntersection(Chaos::TVector<T, 3>((T)100.0), (T)100.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)1.0), (T)100.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)10.0), (T)100.0);
+//		RunTestFindClosestIntersection(Chaos::TVec3<T>((T)100.0), (T)100.0);
 	}
 
 	//==========================================================================
@@ -347,9 +347,9 @@ namespace GeometryCollectionTest
 	template <class T>
 	void RunTestComputeSemispherePoints(const Chaos::TSphere<T, 3> &Sphere)
 	{
-		TArray<Chaos::TVector<T, 3>> Points;
+		TArray<Chaos::TVec3<T>> Points;
 		Chaos::TSphereSpecializeSamplingHelper<T, 3>::ComputeBottomHalfSemiSphere(Points, Sphere, 100);
-		for (Chaos::TVector<T, 3>& Pt : Points)
+		for (Chaos::TVec3<T>& Pt : Points)
 		{
 			T Phi = Sphere.SignedDistance(Pt);
 			const bool OnSurface = FMath::Abs(Phi) <= KINDA_SMALL_NUMBER;
@@ -363,7 +363,7 @@ namespace GeometryCollectionTest
 
 		Points.Reset();
 		Chaos::TSphereSpecializeSamplingHelper<T, 3>::ComputeTopHalfSemiSphere(Points, Sphere, 100);
-		for (Chaos::TVector<T, 3>& Pt : Points)
+		for (Chaos::TVec3<T>& Pt : Points)
 		{
 			T Phi = Sphere.SignedDistance(Pt);
 			const bool OnSurface = FMath::Abs(Phi) <= KINDA_SMALL_NUMBER;
@@ -381,7 +381,7 @@ namespace GeometryCollectionTest
 	{
 		// At the origin with radius 1
 		{
-			Chaos::TSphere<T, 3> Sphere(Chaos::TVector<T, 3>((T)0.0), (T)1.0);
+			Chaos::TSphere<T, 3> Sphere(Chaos::TVec3<T>((T)0.0), (T)1.0);
 			RunTestComputeSemispherePoints(Sphere);
 		}	
 	}
