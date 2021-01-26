@@ -252,6 +252,15 @@ public:
 	void RangeQuery(const FAxisAlignedBox3d& Bounds,
 		TArray<int>& ObjectIDsOut ) const;
 
+	/**
+	 * Collect ObjectIDs from all the cells with bounding boxes that intersect Bounds.
+	 * Current implementation creates a separate TArray for each thread.
+	 * @param Bounds query box
+	 * @param ObjectIDsOut collected ObjectIDs are stored here
+	 */
+	void ParallelRangeQuery(const FAxisAlignedBox3d& Bounds,
+		TArray<int>& ObjectIDsOut) const;
+
 
 	/**
 	 * Check that the octree is internally valid
@@ -394,6 +403,11 @@ protected:
 
 
 	double FindNearestRayCellIntersection(const FSparseOctreeCell& Cell, const FRay3d& Ray) const;
+
+
+	void BranchRangeQuery(const FSparseOctreeCell* ParentCell,
+		const FAxisAlignedBox3d& Bounds,
+		TArray<int>& ObjectIDs) const;
 
 };
 

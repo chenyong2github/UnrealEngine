@@ -2,6 +2,8 @@
 
 
 #include "Spatial/SparseDynamicOctree3.h"
+#include "Async/Async.h"
+#include "Async/ParallelFor.h"
 
 
 // NB: These have to be here until C++17 allows inline variables
@@ -240,7 +242,7 @@ int32 FSparseDynamicOctree3::FindNearestHitObject(const FRay3d& Ray,
 		const FSparseOctreeCell* CurCell = Queue.Pop(false);
 		
 		// process elements
-		for (int ObjectID : CellObjectLists.Values(CurCell->CellID))
+		CellObjectLists.Enumerate(CurCell->CellID, [&](int32 ObjectID)
 		{
 			double HitDist = HitObjectDistFunc(ObjectID, Ray);
 			if (HitDist < MaxDistance)
@@ -248,7 +250,7 @@ int32 FSparseDynamicOctree3::FindNearestHitObject(const FRay3d& Ray,
 				MaxDistance = HitDist;
 				HitObjectID = ObjectID;
 			}
-		}
+		});
 
 		// descend to child cells
 		// sort by distance? use DDA?
@@ -303,10 +305,10 @@ void FSparseDynamicOctree3::RangeQuery(
 		const FSparseOctreeCell* CurCell = Queue.Pop(false);
 
 		// process elements
-		for (int ObjectID : CellObjectLists.Values(CurCell->CellID))
+		CellObjectLists.Enumerate(CurCell->CellID, [&](int32 ObjectID)
 		{
 			ObjectIDFunc(ObjectID);
-		}
+		});
 
 		for (int k = 0; k < 8; ++k)
 		{
@@ -352,16 +354,15 @@ void FSparseDynamicOctree3::RangeQuery(
 		}
 	});
 
-
 	while (Queue.Num() > 0)
 	{
 		const FSparseOctreeCell* CurCell = Queue.Pop(false);
 
 		// process elements
-		for (int ObjectID : CellObjectLists.Values(CurCell->CellID))
+		CellObjectLists.Enumerate(CurCell->CellID, [&](int32 ObjectID)
 		{
 			ObjectIDs.Add(ObjectID);
-		}
+		});
 
 		for (int k = 0; k < 8; ++k)
 		{
@@ -378,6 +379,82 @@ void FSparseDynamicOctree3::RangeQuery(
 }
 
 
+
+
+void FSparseDynamicOctree3::ParallelRangeQuery(
+	const FAxisAlignedBox3d& Bounds,
+	TArray<int>& ObjectIDs) const
+{
+	// always collect spill objects
+	for (int ObjectID : SpillObjectSet)
+	{
+		ObjectIDs.Add(ObjectID);
+	}
+
+	TArray<const FSparseOctreeCell*> Queue;
+
+	// start at root cells
+	RootCells.AllocatedIteration([&](const uint32* RootCellID)
+	{
+		const FSparseOctreeCell* RootCell = &Cells[*RootCellID];
+		if (GetCellBox(*RootCell, MaxExpandFactor).Intersects(Bounds))
+		{
+			Queue.Add(&Cells[*RootCellID]);
+		}
+	});
+
+	// parallel strategy here is to collect each rootcell subtree into a separate
+	// array, and then merge them. Although this means we do some dynamic memory
+	// allocation, it's much faster than trying to lock ObjectIDs on every Add(),
+	// which results in crazy lock contention
+	FCriticalSection ObjectIDsLock;
+	ParallelFor(Queue.Num(), [&](int32 qi)
+	{
+		TArray<int32> LocalObjectIDs;
+		const FSparseOctreeCell* RootCell = Queue[qi];
+		BranchRangeQuery(RootCell, Bounds, LocalObjectIDs);
+		
+		ObjectIDsLock.Lock();
+		for (int32 ObjectID : LocalObjectIDs)
+		{
+			ObjectIDs.Add(ObjectID);
+		}
+		ObjectIDsLock.Unlock();
+	});
+}
+
+
+void FSparseDynamicOctree3::BranchRangeQuery(
+	const FSparseOctreeCell* ParentCell,
+	const FAxisAlignedBox3d& Bounds,
+	TArray<int>& ObjectIDs) const
+{
+	TArray<const FSparseOctreeCell*, TInlineAllocator<32>> Queue;
+	Queue.Add(ParentCell);
+
+	while (Queue.Num() > 0)
+	{
+		const FSparseOctreeCell* CurCell = Queue.Pop(false);
+
+		// process elements
+		CellObjectLists.Enumerate(CurCell->CellID, [&](int32 ObjectID)
+		{
+			ObjectIDs.Add(ObjectID);
+		});
+
+		for (int k = 0; k < 8; ++k)
+		{
+			if (CurCell->HasChild(k))
+			{
+				const FSparseOctreeCell* ChildCell = &Cells[CurCell->GetChildCellID(k)];
+				if (GetCellBox(*ChildCell, MaxExpandFactor).Intersects(Bounds))
+				{
+					Queue.Add(ChildCell);
+				}
+			}
+		}
+	}
+}
 
 
 

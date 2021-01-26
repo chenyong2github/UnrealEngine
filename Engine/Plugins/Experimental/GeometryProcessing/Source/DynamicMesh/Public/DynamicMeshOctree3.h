@@ -112,36 +112,20 @@ public:
 		return RemoveObject(TriangleID);		// will ignore if we do not contain this triangle
 	}
 
-	/**
-	 * Remove a list of triangles into the tree
-	 */
-	void RemoveTriangles(const TArray<int>& Triangles)
-	{
-		int N = Triangles.Num();
-		for ( int i = 0; i < N; ++i )
-		{
-			if (Mesh->IsTriangle(Triangles[i]))
-			{
-				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[i]);
-				ModifiedBounds.Contain(Bounds);
-			}
-			RemoveObject(Triangles[i]);		// will ignore if we do not contain this triangle
-		}
-	}
 
 	/**
 	 * Remove a set of triangles into the tree
 	 */
-	void RemoveTriangles(const TSet<int>& Triangles)
+	template<typename EnumerableType>
+	void RemoveTriangles(const EnumerableType& Triangles, bool bMarkModifiedBounds = true)
 	{
 		for (int TriangleID : Triangles)
 		{
-			if (Mesh->IsTriangle(TriangleID))
+			if (RemoveObject(TriangleID) && bMarkModifiedBounds && Mesh->IsTriangle(TriangleID))
 			{
 				FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(TriangleID);
 				ModifiedBounds.Contain(Bounds);
 			}
-			RemoveObject(TriangleID);		// will ignore if we do not contain this triangle
 		}
 	}
 
@@ -149,7 +133,8 @@ public:
 	/**
 	 * Reinsert a set of triangles into the tree
 	 */
-	void ReinsertTriangles(const TSet<int>& Triangles)
+	template<typename EnumerableType>
+	void ReinsertTriangles(const EnumerableType& Triangles)
 	{
 		for (int TriangleID : Triangles)
 		{
@@ -182,7 +167,8 @@ public:
 	/**
 	 * Include the current bounds of a set of triangles in the ModifiedBounds box
 	 */
-	void NotifyPendingModification(const TSet<int>& Triangles)
+	template<typename EnumerableType>
+	void NotifyPendingModification(const EnumerableType& Triangles)
 	{
 		for (int TriangleID : Triangles)
 		{
