@@ -8,6 +8,7 @@
 #include "DynamicAttribute.h"
 #include "GeometryTypes.h"
 #include "InfoTypes.h"
+#include "Containers/IndirectArray.h"
 
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
