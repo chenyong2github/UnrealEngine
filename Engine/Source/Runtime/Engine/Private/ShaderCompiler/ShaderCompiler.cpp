@@ -304,12 +304,60 @@ int32 FShaderCompileJobCollection::RemoveAllPendingJobsWithId(uint32 InId)
 
 				if (Job.Id == InId)
 				{
+					if (!GShaderCompilerDisableJobCache)
+					{
+						JobsInFlight.Remove(Job.GetInputHash());
+					}
+
 					check(NumPendingJobs[PriorityIndex] > 0);
 					NumPendingJobs[PriorityIndex]--;
 					Job.Unlink();
 					Job.PendingPriority = EShaderCompileJobPriority::None;
 					InternalRemoveJob(&Job);
 					++NumRemoved;
+				}
+			}
+		}
+
+		if (!GShaderCompilerDisableJobCache)
+		{
+			// Also look into the jobs that are cached
+			// Since each entry in DuplicateJobsWaitList is a list, and the head node can be removed, we essentially have to rebuild it
+			for (TMap<FSHAHash, FShaderCommonCompileJob*>::TIterator Iter(DuplicateJobsWaitList); Iter; ++Iter)
+			{
+				FShaderCommonCompileJob* ListHead = Iter.Value();
+				FShaderCommonCompileJob* NewListHead = ListHead;
+
+				// each entry in DJWL is a linked list of jobs that share the same ihash
+				for (FShaderCommonCompileJob::TIterator It(ListHead); It;)
+				{
+					FShaderCommonCompileJob& Job = *It;
+					It.Next();
+
+					if (Job.Id == InId)
+					{
+						// if we're removing the list head, we need to update the next
+						if (NewListHead == &Job)
+						{
+							NewListHead = Job.Next();
+						}
+
+						Job.Unlink();
+						Job.PendingPriority = EShaderCompileJobPriority::None;
+						InternalRemoveJob(&Job);
+						++NumRemoved;
+					}
+				}
+
+				if (NewListHead == nullptr)
+				{
+					// we removed the last job for this hash
+					Iter.RemoveCurrent();
+				}
+				else if (NewListHead != ListHead)
+				{
+					// update the mapping
+					Iter.Value() = NewListHead;
 				}
 			}
 		}
@@ -324,6 +372,10 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 {
 	if (InJobs.Num() > 0)
 	{
+		// all jobs (not just actually submitted ones) count as outstanding. This needs to be done early because
+		// we may fulfill some of the jobs from the cache (and we will be subtracting them)
+		NumOutstandingJobs.Add(InJobs.Num());
+
 		int32 SubmittedJobsCount = 0;
 		int32 NumSubmittedJobs[NumShaderCompileJobPriorities] = { 0 };
 		{
@@ -390,8 +442,7 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 			}
 		}
 
-		int NumOutstandingAsItWas = NumOutstandingJobs.Add(SubmittedJobsCount);
-		UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("Actual jobs submitted %d (of %d new, total outstanding jobs: %d)."), SubmittedJobsCount, InJobs.Num(), NumOutstandingAsItWas + SubmittedJobsCount);
+		UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("Actual jobs submitted %d (of %d new), total outstanding jobs: %d."), SubmittedJobsCount, InJobs.Num(), NumOutstandingJobs.GetValue());
 
 		for (int32 PriorityIndex = 0; PriorityIndex < NumShaderCompileJobPriorities; ++PriorityIndex)
 		{
@@ -422,9 +473,9 @@ void FShaderCompileJobCollection::ProcessFinishedJob(FShaderCommonCompileJob* Fi
 	const int32 NumPendingJobsForSM = ShaderMapResults.NumPendingJobs.Decrement();
 	checkf(NumPendingJobsForSM >= 0, TEXT("Problem tracking pending jobs for a SM (%d), number of pending jobs (%d) is negative!"), FinishedJob->Id, NumPendingJobsForSM);
 
+	InternalSubtractNumOutstandingJobs(1);
 	if (!bWasCached)
 	{
-		InternalSubtractNumOutstandingJobs(1);
 		AddToCacheAndProcessPending(FinishedJob);
 
 		// remove ourselves from the jobs in flight, if we were there (if this job is a cloned job it might not have been)
@@ -464,7 +515,6 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 		{
 			checkf(CurHead != FinishedJob, TEXT("Job that is being added to cache was also on a waiting list! Error in bookkeeping."));
 
-			
 #if 0 // while we could reuse the same ouput, let's go through the cache to influence the statistics (might be important for LRU later)
 			FMemoryReader MemReader(Output);
 #else
@@ -2949,6 +2999,7 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 				const FShaderMapCompileResults* Results = *ResultsPtr;
 				check(Results->NumPendingJobs.GetValue() == 0);
 				check(Results->FinishedJobs.Num() > 0);
+				ensureMsgf(CompiledShaderMaps.Find(ShaderMapIdsToFinishCompiling[ShaderMapIndex]) == nullptr, TEXT("We're likely losing existing shadermap compilation results"));
 				CompiledShaderMaps.Add(ShaderMapIdsToFinishCompiling[ShaderMapIndex], FShaderMapFinalizeResults(*Results));
 				ShaderMapJobs.Remove(ShaderMapIdsToFinishCompiling[ShaderMapIndex]);
 			}
@@ -2974,12 +3025,14 @@ void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderM
 				// Lock CompileQueueSection so we can access the input and output queues
 				FScopeLock Lock(&CompileQueueSection);
 
+				int32 ShaderMapIdx = 0;
 				for (TMap<int32, FPendingShaderMapCompileResultsPtr>::TIterator It(ShaderMapJobs); It; ++It)
 				{
 					FShaderMapCompileResults* Results = It.Value();
 
 					if (Results->NumPendingJobs.GetValue() == 0)
 					{
+						ensureMsgf(CompiledShaderMaps.Find(It.Key()) == nullptr, TEXT("We're likely losing existing shadermap compilation results"));
 						CompiledShaderMaps.Add(It.Key(), FShaderMapFinalizeResults(*Results));
 						It.RemoveCurrent();
 					}
@@ -3033,6 +3086,7 @@ void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderM
 		{
 			const FShaderMapCompileResults* Results = It.Value();
 			check(Results->NumPendingJobs.GetValue()== 0);
+			ensureMsgf(CompiledShaderMaps.Find(It.Key()) == nullptr, TEXT("We're likely losing existing shadermap compilation results"));
 			CompiledShaderMaps.Add(It.Key(), FShaderMapFinalizeResults(*Results));
 			It.RemoveCurrent();
 		}
