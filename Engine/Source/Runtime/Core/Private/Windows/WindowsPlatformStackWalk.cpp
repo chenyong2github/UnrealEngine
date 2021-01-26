@@ -207,9 +207,6 @@ static int32 CaptureStackTraceHelper(uint64 *BackTrace, uint32 MaxDepth, FWindow
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 
-PRAGMA_DISABLE_OPTIMIZATION // Work around "flow in or out of inline asm code suppresses global optimization" warning C4740.
-
-
 int32 CaptureStackTraceHelper(uint64* BackTrace, uint32 MaxDepth, CONTEXT* Context)
 {
 	FWindowsThreadContextWrapper HelperContext;
@@ -427,8 +424,6 @@ uint32 FWindowsPlatformStackWalk::CaptureStackBackTrace( uint64* BackTrace, uint
 	}	
 	return Depth;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 void FWindowsPlatformStackWalk::ProgramCounterToSymbolInfo( uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo )
 {
