@@ -68,7 +68,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingOcclusion(
 
 static int32 GShadowRayTracingSamplesPerPixel = 1;
 static FAutoConsoleVariableRef CVarShadowRayTracingSamplesPerPixel(
-	TEXT("r.RayTracing.Shadow.SamplesPerPixel"),
+	TEXT("r.RayTracing.Shadows.SamplesPerPixel"),
 	GShadowRayTracingSamplesPerPixel,
 	TEXT("Sets the samples-per-pixel for directional light occlusion (default = 1)"),
 	ECVF_RenderThreadSafe);
@@ -88,7 +88,7 @@ static TAutoConsoleVariable<int32> CVarMaxShadowDenoisingBatchSize(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarMaxShadowRayTracingBatchSize(
-	TEXT("r.RayTracing.Shadow.MaxBatchSize"), 8,
+	TEXT("r.RayTracing.Shadows.MaxBatchSize"), 8,
 	TEXT("Maximum number of shadows to trace at the same time."),
 	ECVF_RenderThreadSafe);
 

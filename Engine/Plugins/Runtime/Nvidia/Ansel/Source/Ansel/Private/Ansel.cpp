@@ -924,8 +924,8 @@ void FNVAnselCameraPhotographyPrivate::ConfigureRenderingSettingsForPhotography(
 			QUALITY_CVAR_AT_LEAST("r.RayTracing.Translucency.Shadows", 1); // turn on at least basic quality
 
 			/*** HIGH-QUALITY MODE DOES *NOT* FORCE RT SHADOWS ON ***/
-			QUALITY_CVAR("r.RayTracing.Shadow.MaxLights", -1); // unlimited
-			QUALITY_CVAR("r.RayTracing.Shadow.MaxDenoisedLights", -1); // unlimited
+			QUALITY_CVAR("r.RayTracing.Shadows.MaxLights", -1); // unlimited
+			QUALITY_CVAR("r.RayTracing.Shadows.MaxDenoisedLights", -1); // unlimited
 
 			// these apply to various RT effects but mostly reflections+translucency
 			QUALITY_CVAR_AT_LEAST("r.raytracing.lighting.maxshadowlights", 256); // as seen in reflections/translucencies
