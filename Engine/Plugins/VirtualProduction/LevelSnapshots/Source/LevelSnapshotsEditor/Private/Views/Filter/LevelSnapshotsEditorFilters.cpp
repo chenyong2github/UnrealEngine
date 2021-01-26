@@ -3,6 +3,7 @@
 #include "Views/Filter/LevelSnapshotsEditorFilters.h"
 
 #include "Views/Filter/SLevelSnapshotsEditorFilters.h"
+#include "LevelSnapshotFilters.h"
 
 FLevelSnapshotsEditorFilters::FLevelSnapshotsEditorFilters(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
 	: BuilderPtr(InBuilder)
