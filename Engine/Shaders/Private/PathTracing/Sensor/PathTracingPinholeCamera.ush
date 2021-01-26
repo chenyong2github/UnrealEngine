@@ -16,9 +16,15 @@ void PinholeCamera_SampleEmitter(
 	out float OutPdf
 )
 {
-	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
-	float2 ViewportUV = (LaunchIndex.xy + RandSample.xy) * View.BufferSizeAndInvSize.zw;
+	float2 AAJitter = RandomSequence_GenerateSample2D(RandSequence);
 
+	// importance sample a gaussian kernel with variable sigma
+	float3 Disk = ConcentricDiskSamplingHelper(AAJitter);
+	float Sigma = PathTracingData.FilterWidth / 6.0; // user-provided width covers +/-3*Sigma
+	float R = min(Disk.z, 0.99999994); // avoid log(0) when R=1
+	AAJitter = 0.5 + Sigma * Disk.xy * sqrt(-2.0 * log(1.0 - R * R));
+
+	float2 ViewportUV = (LaunchIndex.xy + AAJitter.xy) * View.BufferSizeAndInvSize.zw;
 	OutRay = CreatePrimaryRay(ViewportUV);
 	OutPixel = LaunchIndex.xy;
 	OutPdf = 1.0;
