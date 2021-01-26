@@ -480,21 +480,21 @@ void FCbWriter::Bool(const bool bValue)
 void FCbWriter::CompactBinaryReference(const FBlake3Hash& Value)
 {
 	BeginField();
-	Data.Append(Value.Bytes(), sizeof(decltype(Value.Bytes())));
+	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
 	EndField(ECbFieldType::CompactBinaryReference);
 }
 
 void FCbWriter::BinaryReference(const FBlake3Hash& Value)
 {
 	BeginField();
-	Data.Append(Value.Bytes(), sizeof(decltype(Value.Bytes())));
+	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
 	EndField(ECbFieldType::BinaryReference);
 }
 
 void FCbWriter::Hash(const FBlake3Hash& Value)
 {
 	BeginField();
-	Data.Append(Value.Bytes(), sizeof(decltype(Value.Bytes())));
+	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
 	EndField(ECbFieldType::Hash);
 }
 
