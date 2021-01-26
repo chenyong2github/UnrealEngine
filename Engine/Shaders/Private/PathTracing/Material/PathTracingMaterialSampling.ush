@@ -131,6 +131,34 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 	return Albedo;
 }
 
+void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, inout float PathRoughness)
+{
+	// boost material roughness according to what we've seen so far
+	float CoatRoughness = Payload.Roughness;
+	switch (Payload.ShadingModelID)
+	{
+		case SHADINGMODELID_UNLIT:
+			// this object does not scatter light
+			return;
+		case SHADINGMODELID_CLEAR_COAT:
+			// clamp coat roughness
+			CoatRoughness = Payload.CustomData.y = max(GetClearCoatRoughness(Payload), PathRoughness);
+			// fallthrough
+		case SHADINGMODELID_TWOSIDED_FOLIAGE:
+		case SHADINGMODELID_DEFAULT_LIT:
+			Payload.Roughness = max(Payload.Roughness, PathRoughness);
+			break;
+		default:
+			// fallback is diffuse
+			Payload.Roughness = 1.0;
+			break;
+	}
+	// now set the path roughness going forward
+	const float GlassPercent = (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Payload.Ior != 1.0) ? 1 - Payload.Opacity : 0.0;
+	PathRoughness = lerp(1.0 /* diffuse lobe */, max(CoatRoughness, Payload.Roughness), Payload.Metallic);
+	PathRoughness = lerp(PathRoughness, Payload.Roughness, GlassPercent);
+}
+
 void SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
