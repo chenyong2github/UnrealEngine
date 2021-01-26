@@ -383,7 +383,14 @@ public:
 	UStaticMesh* GetStaticMesh() const 
 	{ 
 #if WITH_EDITOR
-		checkf(KnownStaticMesh == StaticMesh, TEXT("There is a missing call to NotifyIfStaticMeshChanged after StaticMesh has been modified"));
+		if (KnownStaticMesh != StaticMesh)
+		{
+			ensureMsgf(KnownStaticMesh == StaticMesh, TEXT("There is a missing call to NotifyIfStaticMeshChanged after StaticMesh has been overwritten"));
+
+			// This is a last resort, we should have catched the property overwrite well before we reach this code
+			UStaticMeshComponent* MutableThis = const_cast<UStaticMeshComponent*>(this);
+			MutableThis->NotifyIfStaticMeshChanged();
+		}
 #endif
 		return StaticMesh; 
 	}
