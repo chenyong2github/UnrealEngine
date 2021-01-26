@@ -19716,6 +19716,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat1(Compiler, DiffuseMeanFreePathRadius, 0.0f),
 		CompileWithDefaultFloat1(Compiler, SSSRadiusScale, 1.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
@@ -19771,6 +19772,9 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	case 10:
 		return MCT_Float3; // Emissive Color
 		break;
+	case 11:
+		return MCT_Float1; // Haziness
+		break;
 	}
 
 	check(false);
@@ -19822,6 +19826,10 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	else if (InputIndex == 10)
 	{
 		return TEXT("Emissive Color");
+	}
+	else if (InputIndex == 11)
+	{
+		return TEXT("Haziness");
 	}
 	return TEXT("Unknown");
 }

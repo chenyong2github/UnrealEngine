@@ -113,3 +113,8 @@ float MakeRoughnessSafe(float Roughness, float MinRoughness=0.001f)
 {
 	return clamp(Roughness, MinRoughness, 1.0f);
 }
+
+float ComputeHazyLobeRoughness(float Roughness, float Haziness)
+{
+	return lerp(Roughness, 1.0f, Haziness);
+}

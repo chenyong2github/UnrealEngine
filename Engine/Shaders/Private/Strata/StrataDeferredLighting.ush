@@ -9,6 +9,7 @@ struct FStrataLightIntegrationContext
 	float3 IncidentRadianceNoShadow;
 	float3 IncidentIrradianceNoShadow;	// Modified incident irradiance, based on custom are light integrator
 	float3 OutgoingRadianceNoShadow;	// Continue the outgoing radiance if the BSDF evaluation/integration has been done with the custom area light integrator
+	float3 IncidentIrradianceNoShadowHaze;
 	bool bEvaluateBSDF;					// True if the BSDF need to be evalued, false, if the integration has already been done
 };
 
@@ -18,6 +19,7 @@ FStrataLightIntegrationContext StrataIniLightIntegrationContext()
 	Out.bEvaluateBSDF = true;
 	Out.OutgoingRadianceNoShadow = 0;
 	Out.IncidentIrradianceNoShadow = 0;
+	Out.IncidentIrradianceNoShadowHaze = 0;
 	Out.IncidentRadianceNoShadow = 0;
 	return Out;
 }
@@ -74,17 +76,32 @@ void StrataPreprocessAreaLightIntegration(
 
 		// Currently anistropic material don't support area lighting and will fallback on punctual lighting (that is a2Override == 0)
 		const bool bAnistropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
+		const bool bHaziness = BSDF_GETHASHAZINESS(BSDFContext.BSDF);
 		if (!bAnistropy)
 		{
 			// Evaluate area-light preintegration
 			if (LightContext.AreaLight.bIsRect)
 			{
+				// Using a single SpecularColor and roughness so haziness is ignored for LTC rect lights
+
 				// Rect light uses LTC integrator, which computes the full BDSD x Area light integration. 
 				// This is why there is no need to evaluate the BSDF. The result is stored into a local 
 				// OutgoingRadianceNoShadow, which will be accumulated outside of this function
-				Out.OutgoingRadianceNoShadow.rgb +=
+				float3 LocalOutgoingRadianceNoShadow =
 					Out.IncidentRadianceNoShadow *
 					RectGGXApproxLTC(SafeRoughnessX, SpecularColor, BSDFContext.N, BSDFContext.V, LightContext.AreaLight.Rect, LightContext.AreaLight.Texture);
+
+				if (bHaziness)
+				{
+					Out.IncidentIrradianceNoShadow =
+						(1.0f - SPECULAR_HAZINESS_WEIGHT) * LocalOutgoingRadianceNoShadow +
+						SPECULAR_HAZINESS_WEIGHT * Out.IncidentRadianceNoShadow * RectGGXApproxLTC(SafeRoughnessX, SpecularColor, BSDFContext.N, BSDFContext.V, LightContext.AreaLight.Rect, LightContext.AreaLight.Texture);
+				}
+				else
+				{
+					Out.OutgoingRadianceNoShadow = LocalOutgoingRadianceNoShadow;
+				}
+
 				Out.bEvaluateBSDF = false;
 			}
 			else
@@ -105,6 +122,17 @@ void StrataPreprocessAreaLightIntegration(
 					Out.IncidentRadianceNoShadow *
 					EnergyNormalization(BSDFContext.a2Override, BSDFContext.Context.VoH, LightContext.AreaLight) *
 					LightContext.AreaLight.FalloffColor * (LightContext.Falloff * LightContext.NoL);
+
+				if (bHaziness)
+				{
+					const float SafeRoughnessHaze = ComputeHazyLobeRoughness(SafeRoughnessX, SLAB_HAZINESS(BSDFContext.BSDF));
+					BSDFContext.a2OverrideHazy = Pow4(SafeRoughnessHaze);
+					Out.IncidentIrradianceNoShadowHaze =
+						Out.IncidentRadianceNoShadow *
+						EnergyNormalization(BSDFContext.a2OverrideHazy, BSDFContext.Context.VoH, LightContext.AreaLight) *
+						LightContext.AreaLight.FalloffColor * (LightContext.Falloff * LightContext.NoL);
+				}
+
 				Out.bEvaluateBSDF = true;
 			}
 		}
@@ -152,6 +180,7 @@ float4 StrataDeferredLighting(
 		FStrataLightIntegrationContext IntegrationContext = StrataIniLightIntegrationContext();
 		IntegrationContext.IncidentRadianceNoShadow   = LightData.Color * LightMask;
 		IntegrationContext.IncidentIrradianceNoShadow = PreintegratedIndicentIrradiance * IntegrationContext.IncidentRadianceNoShadow * StrataBSDFProjectedSolidAngleFactor(BSDFContext);
+		IntegrationContext.IncidentIrradianceNoShadowHaze = IntegrationContext.IncidentIrradianceNoShadow;
 		StrataPreprocessAreaLightIntegration(ToLight, LightData, RectTexture, BSDFContext, IntegrationContext);
 
 		// Evaluate BSDF
@@ -160,13 +189,15 @@ float4 StrataDeferredLighting(
 			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
 
 			const float3 DiffusePathWeight		= BSDF.Weight * BSDFEvaluate.DiffusePathValue;
-			const float3 SpecularPathWeight		= BSDF.Weight * BSDFEvaluate.SpecularPathValue;
+			const float3 SpecularPathWeight		= BSDF.Weight * BSDFEvaluate.SpecularPathValue     * BSDFEvaluate.SpecularPathProbability;
+			const float3 SpecularHazePathWeight = BSDF.Weight * BSDFEvaluate.SpecularHazePathValue * BSDFEvaluate.SpecularHazePathProbability;
 			const float3 TransmissionPathWeight	= BSDF.Weight * BSDFEvaluate.TransmissionPathValue;
 
 			const bool bNeedsSeparateSubsurfaceLightAccumulation = BSDFEvaluate.bSubsurface;
 
-			LightAccumulator_AddSplit(Out, DiffusePathWeight,		SpecularPathWeight, DiffusePathWeight,		IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.SurfaceShadow,		bNeedsSeparateSubsurfaceLightAccumulation);
-			LightAccumulator_AddSplit(Out, TransmissionPathWeight,	0.0f,				TransmissionPathWeight,	IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.TransmissionShadow,	bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, DiffusePathWeight,		SpecularPathWeight,		DiffusePathWeight,		IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.SurfaceShadow,		bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, 0.0,						SpecularHazePathWeight, 0.0,					IntegrationContext.IncidentIrradianceNoShadowHaze * ShadowTerms.SurfaceShadow,	bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, TransmissionPathWeight,	0.0f,					TransmissionPathWeight,	IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.TransmissionShadow,	bNeedsSeparateSubsurfaceLightAccumulation);
 		}
 		else
 		{

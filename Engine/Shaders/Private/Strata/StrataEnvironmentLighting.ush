@@ -13,11 +13,14 @@ float4 StrataEnvironmentLighting(
 	float AmbientOcclusion,
 	float TopLayerSpecularContributionFactor,
 	ByteAddressBuffer StrataDataBuffer,
-	uint PixelStrataDataByteOffset)
+	uint PixelStrataDataByteOffset,
+	inout float SSRReductionFactor)
 {
 	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
 
 	FLightAccumulator Out = (FLightAccumulator)0;
+
+	SSRReductionFactor = 1.0f;
 
 	float3 CommonFactor = 1;
 #if USE_PREEXPOSURE
@@ -58,14 +61,26 @@ float4 StrataEnvironmentLighting(
 		}
 
 		// Specular component
+		const bool bIsTopLayer = BSDF_GETISTOPLAYER(BSDF);
 		float3 SpecularSkyLighting = 0;
 		if (any(StrataEnvLight.SpecularWeight > 0.0f))
 		{
 			float SkyAverageBrightness = 1.0f;
 			const float3 SpecularLuminance = GetSkyLightReflection(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, SkyAverageBrightness);
 
-			SpecularSkyLighting = BSDFThroughput * SpecularLuminance * StrataEnvLight.SpecularWeight * View.SkyLightColor.rgb
-				* AmbientOcclusion * (BSDF_GETISTOPLAYER(BSDF) ? TopLayerSpecularContributionFactor : 1.0f);
+			SpecularSkyLighting += BSDFThroughput * SpecularLuminance * StrataEnvLight.SpecularWeight * View.SkyLightColor.rgb * AmbientOcclusion * 
+				(bIsTopLayer ? TopLayerSpecularContributionFactor : 1.0f);
+		}
+		if (BSDF_GETHASHAZINESS(BSDF))
+		{
+			float SkyAverageBrightness = 1.0f;
+			const float3 SpecularLuminance = GetSkyLightReflection(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularHazeSafeRoughness, SkyAverageBrightness);
+
+			SpecularSkyLighting += BSDFThroughput * SpecularLuminance * StrataEnvLight.SpecularHazeWeight * View.SkyLightColor.rgb * AmbientOcclusion;
+
+			// SSR is traced for the sharpest lob. The smoothest one does not rely on SSR so we need to lower energy coming from SSR according to the lobe blend weight.
+			// And we also try to make the transition smooth using Haziness
+			SSRReductionFactor -= bIsTopLayer ? dot(BSDFThroughput, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f)) * StrataEnvLight.SSRReduction : 0.0f;
 		}
 
 		const bool bNeedsSeparateSubsurfaceLightAccumulation = StrataEnvLight.bSubsurface;
@@ -73,6 +88,9 @@ float4 StrataEnvironmentLighting(
 
 		// STRATA_TODO: Missing probe reflection here
 	}
+
+	SSRReductionFactor = saturate(SSRReductionFactor);
+
 	return LightAccumulator_GetResult(Out);
 }
 
