@@ -79,6 +79,8 @@ FVirtualSmSample InitVirtualSmSample()
 	Result.Depth = 0.0f;
 	Result.MipLevel = 0;
 	Result.bValid = false;
+	Result.VirtualTexelAddress = Result.PhysicalTexelAddress = uint2(0U, 0U);
+	Result.VirtualTexelAddressFloat = float2(0.0f, 0.0f);
 	return Result;
 }
 
