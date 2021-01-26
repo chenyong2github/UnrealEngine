@@ -27,6 +27,14 @@ static FAutoConsoleVariableRef CVarCommandListBatchingMode(
 	ECVF_RenderThreadSafe
 );
 
+int32 MaxInitialResourceCopiesPerCommandList = 10000;
+static FAutoConsoleVariableRef CVarSyncTemporalResources(
+	TEXT("D3D12.MaxInitialResourceCopiesPerCommandList"),
+	MaxInitialResourceCopiesPerCommandList,
+	TEXT("Flush command list to GPU after certain amount of enqueued initial resource copy operations (default value 10000)"),
+	ECVF_RenderThreadSafe
+);
+
 // We don't yet have a way to auto-detect that the Radeon Developer Panel is running
 // with profiling enabled, so for now, we have to manually toggle this console var.
 // It needs to be set before device creation, so it's read only.
@@ -324,6 +332,7 @@ void FD3D12CommandContext::OpenCommandList()
 	numClears = 0;
 	numBarriers = 0;
 	numCopies = 0;
+	numInitialResourceCopies = 0;
 	otherWorkCounter = 0;
 }
 
@@ -406,6 +415,16 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 	}
 
 	return CommandListHandle;
+}
+
+void FD3D12CommandContext::ConditionalFlushCommandList()
+{
+	// Flush command list of reached maximum amount of initial resource command list which can be done in a single
+	// command list - too many can cause TDRs
+	if (MaxInitialResourceCopiesPerCommandList > 0 && numInitialResourceCopies > (uint32)MaxInitialResourceCopiesPerCommandList)
+	{
+		FlushCommands();
+	}
 }
 
 void FD3D12CommandContext::Finish(TArray<FD3D12CommandListHandle>& CommandLists)

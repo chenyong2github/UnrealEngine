@@ -213,7 +213,7 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			FD3D12Resource* Resource = CurrentTexture.GetResource();
 
 			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
-			hCommandList.GetCurrentOwningContext()->numCopies += NumSubresources;
+			hCommandList.GetCurrentOwningContext()->numInitialResourceCopies += NumSubresources;
 
 			// resource should be in copy dest already, because it's created like that, so no transition required here
 			
@@ -247,6 +247,8 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			{
 				check(Resource->GetDefaultResourceState() == DestinationState);
 			}
+
+			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
 
 			// Texture is now written and ready, so unlock the block (locked after creation and can be defragmented if needed)
 			CurrentTexture.ResourceLocation.UnlockPoolData();

@@ -91,7 +91,8 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 			FD3D12Resource* Destination = CurrentBuffer->ResourceLocation.GetResource();
 			FD3D12Device* Device = Destination->GetParentDevice();
 
-			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
+			FD3D12CommandContext& CommandContext = Device->GetDefaultCommandContext();
+			FD3D12CommandListHandle& hCommandList = CommandContext.CommandListHandle;
 			// Copy from the temporary upload heap to the default resource
 			{
 				// if resource doesn't require state tracking then transition to copy dest here (could have been suballocated from shared resource) - not very optimal and should be batched
@@ -100,7 +101,7 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 					hCommandList.AddTransitionBarrier(Destination, Destination->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 				}
 
-				Device->GetDefaultCommandContext().numCopies++;
+				CommandContext.numInitialResourceCopies++;
 				hCommandList.FlushResourceBarriers();
 				hCommandList->CopyBufferRegion(
 					Destination->GetResource(),
@@ -130,6 +131,8 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 				}
 
 				hCommandList.UpdateResidency(SrcResourceLoc.GetResource());
+
+				CommandContext.ConditionalFlushCommandList();
 			}
 
 			// Buffer is now written and ready, so unlock the block (locked after creation and can be defragmented if needed)
