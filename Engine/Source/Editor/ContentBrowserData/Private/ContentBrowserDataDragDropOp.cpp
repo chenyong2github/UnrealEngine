@@ -5,6 +5,7 @@
 #include "AssetThumbnail.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 TSharedRef<FContentBrowserDataDragDropOp> FContentBrowserDataDragDropOp::New(TArrayView<const FContentBrowserItem> InDraggedItems)
 {
@@ -110,16 +111,12 @@ void FContentBrowserDataDragDropOp::InitThumbnail()
 {
 	if (DraggedFiles.Num() > 0 && ThumbnailSize > 0)
 	{
-		// Create a thumbnail pool to hold the single thumbnail rendered
-		ThumbnailPool = MakeShared<FAssetThumbnailPool>(1, /*InAreRealTileThumbnailsAllowed=*/false);
-
 		// Create the thumbnail handle
-		AssetThumbnail = MakeShared<FAssetThumbnail>(FAssetData(), ThumbnailSize, ThumbnailSize, ThumbnailPool);
+		AssetThumbnail = MakeShared<FAssetThumbnail>(FAssetData(), ThumbnailSize, ThumbnailSize, UThumbnailManager::Get().GetSharedThumbnailPool());
 		if (DraggedFiles[0].UpdateThumbnail(*AssetThumbnail))
 		{
 			// Request the texture then tick the pool once to render the thumbnail
 			AssetThumbnail->GetViewportRenderTargetTexture();
-			ThumbnailPool->Tick(0);
 		}
 		else
 		{

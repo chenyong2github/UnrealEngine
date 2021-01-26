@@ -63,6 +63,7 @@
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Actor/ActorElementLevelEditorSelectionCustomization.h"
 #include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 
@@ -74,17 +75,10 @@ static const FName WorldBrowserCompositionTab("WorldBrowserComposition");
 static const FName WorldPartitionEditorTab("WorldBrowserPartitionEditor");
 
 
-namespace LevelEditorConstants
-{
-	/** The size of the thumbnail pool */
-	const int32 ThumbnailPoolSize = 32;
-}
-
 SLevelEditor::SLevelEditor()
 	: World(nullptr)
 	, bNeedsRefresh(false)
 {
-	ThumbnailPool = MakeShared<FAssetThumbnailPool>(LevelEditorConstants::ThumbnailPoolSize);
 }
 
 void SLevelEditor::BindCommands()
@@ -1753,9 +1747,9 @@ TSharedPtr<IAssetViewport> SLevelEditor::GetActiveViewportInterface()
 	return GetActiveViewport();
 }
 
-TSharedPtr< class FAssetThumbnailPool > SLevelEditor::GetThumbnailPool() const
+TSharedPtr<FAssetThumbnailPool> SLevelEditor::GetThumbnailPool() const
 {
-	return ThumbnailPool;
+	return UThumbnailManager::Get().GetSharedThumbnailPool();
 }
 
 void SLevelEditor::AppendCommands( const TSharedRef<FUICommandList>& InCommandsToAppend )

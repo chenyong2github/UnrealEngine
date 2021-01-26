@@ -15,6 +15,7 @@
 #include "IPropertyGenerationUtilities.h"
 #include "EditConditionParser.h"
 #include "UObject/StructOnScope.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 class FPropertyRowGeneratorUtilities : public IPropertyUtilities
 {
@@ -127,12 +128,19 @@ private:
 	FPropertyRowGenerator* Generator;
 };
 
-FPropertyRowGenerator::FPropertyRowGenerator(const FPropertyRowGeneratorArgs& InArgs, TSharedPtr<FAssetThumbnailPool> InThumbnailPool)
+FPropertyRowGenerator::FPropertyRowGenerator(const FPropertyRowGeneratorArgs& InArgs)
 	: Args(InArgs)
-	, ThumbnailPool(InThumbnailPool)
 	, PropertyUtilities(new FPropertyRowGeneratorUtilities(*this))
 	, PropertyGenerationUtilities(new FPropertyRowGeneratorGenerationUtilities(*this))
 {
+}
+
+FPropertyRowGenerator::FPropertyRowGenerator(const FPropertyRowGeneratorArgs& InArgs, TSharedPtr<FAssetThumbnailPool> InThumbnailPool)
+	: Args(InArgs)
+	, PropertyUtilities(new FPropertyRowGeneratorUtilities(*this))
+	, PropertyGenerationUtilities(new FPropertyRowGeneratorGenerationUtilities(*this))
+{
+
 }
 
 FPropertyRowGenerator::~FPropertyRowGenerator()
@@ -415,7 +423,7 @@ void FPropertyRowGenerator::ForceRefresh()
 
 TSharedPtr<class FAssetThumbnailPool> FPropertyRowGenerator::GetThumbnailPool() const
 {
-	return ThumbnailPool;
+	return UThumbnailManager::Get().GetSharedThumbnailPool();
 }
 
 void FPropertyRowGenerator::PreSetObject(int32 NumNewObjects, bool bHasStructRoots)

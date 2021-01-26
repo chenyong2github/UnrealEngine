@@ -12,6 +12,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "EditorStyleSet.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraAssetSelector"
 
@@ -27,8 +28,6 @@ void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetC
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> EmitterAssets;
 	AssetRegistryModule.Get().GetAssetsByClass(AssetClass->GetFName(), EmitterAssets);
-
-	AssetThumbnailPool = MakeShareable(new FAssetThumbnailPool(24));
 
 	OnTemplateAssetActivated = InArgs._OnTemplateAssetActivated;
 	ViewOptions = InArgs._ViewOptions;
@@ -72,7 +71,6 @@ void SNiagaraAssetPickerList::Construct(const FArguments& InArgs, UClass* AssetC
 
 void SNiagaraAssetPickerList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	AssetThumbnailPool->Tick(InDeltaTime);
 }
 
 TArray<FAssetData> SNiagaraAssetPickerList::GetSelectedAssets() const
@@ -311,7 +309,7 @@ const int32 ThumbnailSize = 72;
 
 TSharedRef<SWidget> SNiagaraAssetPickerList::OnGenerateWidgetForItem(const FAssetData& Item)
 {
-	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(Item, ThumbnailSize, ThumbnailSize, AssetThumbnailPool);
+	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(Item, ThumbnailSize, ThumbnailSize, UThumbnailManager::Get().GetSharedThumbnailPool());
 	FAssetThumbnailConfig ThumbnailConfig;
 	ThumbnailConfig.bAllowFadeIn = false;
 	

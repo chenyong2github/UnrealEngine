@@ -604,9 +604,6 @@ private:
 	/** The Static Mesh Editor this tool is associated with. */
 	FStaticMeshEditor& StaticMeshEditor;
 
-	/** Pool for material thumbnails. */
-	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
-
 	/** LOD group options. */
 	TArray<FName> LODGroupNames;
 	TArray<TSharedPtr<FString> > LODGroupOptions;

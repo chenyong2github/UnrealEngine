@@ -74,7 +74,11 @@ typedef TArray<TSharedPtr<FComplexPropertyNode>> FRootPropertyNodeList;
 class FPropertyRowGenerator : public IPropertyRowGenerator, public FTickableEditorObject, public TSharedFromThis<FPropertyRowGenerator>
 {
 public:
+	FPropertyRowGenerator(const FPropertyRowGeneratorArgs& InArgs);
+
+	UE_DEPRECATED(5.0, "FPropertyRowGenerator which takes in a thumbnail pool parameter is no longer necessary.")
 	FPropertyRowGenerator(const FPropertyRowGeneratorArgs& InArgs, TSharedPtr<FAssetThumbnailPool> InThumbnailPool);
+
 	~FPropertyRowGenerator();
 
 	DECLARE_DERIVED_EVENT(FPropertyRowGenerator, IPropertyRowGenerator::FOnRowsRefreshed, FOnRowsRefreshed);
@@ -91,11 +95,6 @@ public:
 	virtual void RegisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) override;
 	virtual void UnregisterInstancedCustomPropertyLayout(UStruct* Class) override;
 	virtual void UnregisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) override;
-	virtual TSharedPtr<FAssetThumbnailPool> GetGeneratedThumbnailPool() override
-	{ 
-		return GetThumbnailPool();
-	};
-
 
 	/** FTickableEditorObject interface */
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
@@ -145,8 +144,6 @@ private:
 	FCustomPropertyTypeLayoutMap InstancedTypeToLayoutMap;
 	/** A mapping of classes to detail layout delegates, called when querying for custom detail layouts in this instance of the details view only*/
 	FCustomDetailLayoutMap InstancedClassToDetailLayoutMap;
-	/** Asset pool for rendering and managing asset thumbnails visible in this view */
-	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 	/** Utility class for accessing commonly used helper methods from customizations */
 	TSharedRef<IPropertyUtilities> PropertyUtilities;
 	/** Utility class for accessing internal helper methods */

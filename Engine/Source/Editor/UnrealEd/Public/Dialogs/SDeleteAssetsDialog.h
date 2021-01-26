@@ -160,9 +160,6 @@ private:
 	/** The selected asset we're going to consolidate the would be deleted assets into. */
 	FAssetData ConsolidationAsset;
 
-	/** The thumbnail pool used by the replace references asset picker. */
-	TSharedPtr<FAssetThumbnailPool> AssetThumbnailPool;
-
 	/** The consolidation asset thumbnail */
 	TSharedPtr<class FAssetThumbnail> ConsolidationAssetThumbnail;
 

@@ -42,13 +42,6 @@
 #define LOCTEXT_NAMESPACE "SObjectBrowser"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectBrowser, Log, All)
-
-namespace AssetSearchConstants
-{
-	/** The size of the thumbnail pool */
-	const int32 ThumbnailPoolSize = 64;
-}
-
 //;
 //TODO Expose TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const via IContentBrowserSingleton.
 
@@ -75,7 +68,6 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 	SortByColumn = SSearchTreeRow::NAME_ColumnName;
 	SortMode = EColumnSortMode::Ascending;
 
-	ThumbnailPool = MakeShared<FAssetThumbnailPool>(AssetSearchConstants::ThumbnailPoolSize);
 
 	AssetRegistry = &FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 
@@ -479,7 +471,7 @@ void SSearchBrowser::TryRefreshingSearch(const FText& InText)
 
 TSharedRef<ITableRow> SSearchBrowser::HandleListGenerateRow(TSharedPtr<FSearchNode> ObjectPtr, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(SSearchTreeRow, OwnerTable, AssetRegistry, ThumbnailPool)
+	return SNew(SSearchTreeRow, OwnerTable, AssetRegistry, UThumbnailManager::Get().GetSharedThumbnailPool())
 		.Object(ObjectPtr)
 		.HighlightText(FilterText);
 }

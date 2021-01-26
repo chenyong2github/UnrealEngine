@@ -24,6 +24,7 @@
 #include "ScopedTransaction.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 #define LOCTEXT_NAMESPACE "VariantManagerVariantNode"
 
@@ -507,9 +508,7 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetThumbnailWidget()
 	// Use default thumbnail graphic for Variants as a fallback
 	if(!ThumbnailWidget.IsValid())
 	{
-		ThumbnailPool = MakeShared<FAssetThumbnailPool>(1, false);
-
-		TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(&Variant, VARIANT_MANAGER_THUMBNAIL_SIZE, VARIANT_MANAGER_THUMBNAIL_SIZE, ThumbnailPool);
+		TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(&Variant, VARIANT_MANAGER_THUMBNAIL_SIZE, VARIANT_MANAGER_THUMBNAIL_SIZE, UThumbnailManager::Get().GetSharedThumbnailPool());
 		ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
 	}
 

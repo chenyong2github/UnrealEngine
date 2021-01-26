@@ -121,7 +121,6 @@ private:
 	static FText LibraryCategory;
 	static FText NonLibraryCategory;
 	static FText UncategorizedCategory;
-	TSharedPtr<FAssetThumbnailPool> AssetThumbnailPool;
 	FOnTemplateAssetActivated OnTemplateAssetActivated;
 	FOnDoesAssetPassCustomFilter OnDoesAssetPassCustomFilter;
 	FNiagaraAssetPickerListViewOptions ViewOptions;

@@ -10,7 +10,6 @@ class UNiagaraOverviewNode;
 class UNiagaraStackViewModel;
 class UNiagaraSystemSelectionViewModel;
 class FNiagaraEmitterHandleViewModel;
-class FAssetThumbnailPool;
 class FAssetThumbnail;
 class UNiagaraStackEntry;
 
@@ -64,7 +63,6 @@ private:
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelWeak;
-	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 	/** Thumbnail widget containers */
 	TSharedPtr<SHorizontalBox> ThumbnailBar;
 	TArray<UNiagaraStackEntry*> PreviewStackEntries;

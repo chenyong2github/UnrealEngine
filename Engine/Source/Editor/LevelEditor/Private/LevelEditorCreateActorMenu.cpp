@@ -43,6 +43,7 @@
 #include "IPlacementModeModule.h"
 #include "Engine/TriggerBase.h"
 #include "LevelEditorMenuContext.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 class SMenuThumbnail : public SCompoundWidget
 {
@@ -59,10 +60,7 @@ public:
 	{
 		Asset = InAsset;
 
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		TSharedPtr<FAssetThumbnailPool> ThumbnailPool = LevelEditorModule.GetFirstLevelEditor()->GetThumbnailPool();
-
-		Thumbnail = MakeShareable( new FAssetThumbnail( Asset, InArgs._Width, InArgs._Height, ThumbnailPool ) );
+		Thumbnail = MakeShareable( new FAssetThumbnail(Asset, InArgs._Width, InArgs._Height, UThumbnailManager::Get().GetSharedThumbnailPool()));
 
 		ChildSlot
 		[

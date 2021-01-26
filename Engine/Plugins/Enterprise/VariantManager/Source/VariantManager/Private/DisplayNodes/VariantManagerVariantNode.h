@@ -6,7 +6,6 @@
 
 #include "CoreMinimal.h"
 
-class FAssetThumbnailPool;
 class FDragDropEvent;
 class FMenuBuilder;
 class SCheckBox;
@@ -48,8 +47,6 @@ private:
 	UVariant& Variant;
 
 	TSharedPtr<SCheckBox> RadioButton;
-
-	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 
 	// We need to keep the brush alive while the thumbnail is rendered
 	TSharedPtr<FSlateImageBrush> ImageBrush;

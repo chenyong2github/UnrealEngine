@@ -276,9 +276,6 @@ private:
 	// Holds the world settings details view.
 	TSharedPtr<IDetailsView> WorldSettingsView;
 
-	// The thumbnail pool used to display asset thumbnails
-	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
-
 	/** Transient editor viewport states - one for each view type. Key is "LayoutId[ELevelViewportType]", eg) "Viewport 1[0]" */
 	TMap<FString, FLevelViewportInfo> TransientEditorViews;
 

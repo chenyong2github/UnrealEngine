@@ -32,7 +32,5 @@ protected:
 
 private:
 	class UVirtualHeightfieldMeshComponent* VirtualHeightfieldMeshComponent;
-	
-	TSharedPtr<class FAssetThumbnailPool> AssetThumbnailPool;
 	TSharedRef<class FAssetThumbnail> AssetThumbnail;
 };

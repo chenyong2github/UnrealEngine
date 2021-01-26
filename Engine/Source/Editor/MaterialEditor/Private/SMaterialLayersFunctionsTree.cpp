@@ -41,6 +41,7 @@
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "SResetToDefaultPropertyEditor.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 #define LOCTEXT_NAMESPACE "MaterialLayerCustomization"
 
@@ -1328,7 +1329,7 @@ FReply SMaterialLayersFunctionsInstanceTree::ToggleLayerVisibility(int32 Index)
 
 TSharedPtr<class FAssetThumbnailPool> SMaterialLayersFunctionsInstanceTree::GetTreeThumbnailPool()
 {
-	return Generator->GetGeneratedThumbnailPool();
+	return UThumbnailManager::Get().GetSharedThumbnailPool();
 }
 
 void SMaterialLayersFunctionsInstanceTree::CreateGroupsWidget()
@@ -2683,7 +2684,7 @@ void SMaterialLayersFunctionsMaterialTree::SetParentsExpansionState()
 
 TSharedPtr<class FAssetThumbnailPool> SMaterialLayersFunctionsMaterialTree::GetTreeThumbnailPool()
 {
-	return Wrapper->GetGenerator()->GetGeneratedThumbnailPool();
+	return UThumbnailManager::Get().GetSharedThumbnailPool();
 }
 
 void SMaterialLayersFunctionsMaterialTree::CreateGroupsWidget()

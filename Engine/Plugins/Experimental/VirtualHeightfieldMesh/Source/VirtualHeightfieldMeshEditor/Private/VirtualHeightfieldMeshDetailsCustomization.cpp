@@ -23,8 +23,7 @@
 #define LOCTEXT_NAMESPACE "VirtualHeightfieldMeshEditorModule"
 
 FVirtualHeightfieldMeshComponentDetailsCustomization::FVirtualHeightfieldMeshComponentDetailsCustomization()
-	: AssetThumbnailPool(MakeShareable(new FAssetThumbnailPool(4)))
-	, AssetThumbnail(MakeShared<FAssetThumbnail>(nullptr, 64, 64, AssetThumbnailPool))
+	: AssetThumbnail(MakeShared<FAssetThumbnail>(nullptr, 64, 64, UThumbnailManager::Get().GetSharedThumbnailPool()))
 {
 }
 

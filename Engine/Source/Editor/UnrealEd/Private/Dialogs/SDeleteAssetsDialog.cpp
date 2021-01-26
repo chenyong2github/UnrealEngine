@@ -108,8 +108,6 @@ private:
 SDeleteAssetsDialog::~SDeleteAssetsDialog()
 {
 	DeleteModel->OnStateChanged().RemoveAll( this );
-	// Release all rendering resources being held onto
-	AssetThumbnailPool.Reset();
 }
 
 void SDeleteAssetsDialog::Construct( const FArguments& InArgs, TSharedRef<FAssetDeleteModel> InDeleteModel )
@@ -122,8 +120,6 @@ void SDeleteAssetsDialog::Construct( const FArguments& InArgs, TSharedRef<FAsset
 
 	// Save off the attributes
 	ParentWindow = InArgs._ParentWindow;
-
-	AssetThumbnailPool = MakeShareable( new FAssetThumbnailPool( 1, false ) );
 
 	ReferencerCommands = TSharedPtr< FUICommandList >(new FUICommandList);
 
@@ -638,7 +634,7 @@ TOptional< float > SDeleteAssetsDialog::ScanningProgressFraction() const
 
 TSharedRef<SWidget> SDeleteAssetsDialog::CreateThumbnailWidget()
 {
-	ConsolidationAssetThumbnail = MakeShareable( new FAssetThumbnail( NULL, 40, 40, AssetThumbnailPool ) );
+	ConsolidationAssetThumbnail = MakeShareable( new FAssetThumbnail( NULL, 40, 40, UThumbnailManager::Get().GetSharedThumbnailPool()) );
 
 	return SNew( SBox )
 		.WidthOverride( 40.0f )

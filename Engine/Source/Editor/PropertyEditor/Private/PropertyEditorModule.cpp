@@ -800,5 +800,5 @@ TSharedRef<class IStructureDetailsView> FPropertyEditorModule::CreateStructureDe
 
 TSharedRef<class IPropertyRowGenerator> FPropertyEditorModule::CreatePropertyRowGenerator(const struct FPropertyRowGeneratorArgs& InArgs)
 {
-	return MakeShared<FPropertyRowGenerator>(InArgs, GetThumbnailPool());
+	return MakeShared<FPropertyRowGenerator>(InArgs);
 }

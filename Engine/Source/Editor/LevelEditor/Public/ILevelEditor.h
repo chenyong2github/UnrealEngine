@@ -47,6 +47,7 @@ public:
 	virtual TSharedPtr<IAssetViewport> GetActiveViewportInterface() = 0;
 
 	/** Get the thumbnail pool used by this level editor */
+	UE_DEPRECATED(5.0, "GetThumbnailPool has been replaced by UThumbnailManager::Get().GetSharedThumbnailPool().")
 	virtual TSharedPtr< class FAssetThumbnailPool > GetThumbnailPool() const = 0;
 
 	/** Access the level editor's action command list */

@@ -410,8 +410,6 @@ protected:
 	TSharedPtr<IPropertyGenerationUtilities> PropertyGenerationUtilities;
 	/** The name area which is not recreated when selection changes */
 	TSharedPtr<class SDetailNameArea> NameArea;
-	/** Asset pool for rendering and managing asset thumbnails visible in this view*/
-	mutable TSharedPtr<class FAssetThumbnailPool> ThumbnailPool;
 	/** The current filter */
 	FDetailFilter CurrentFilter;
 	/** Delegate called to get generic details not specific to an object being viewed */

@@ -25,6 +25,7 @@
 #include "Mac/MacApplication.h"
 #endif
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 #define LOCTEXT_NAMESPACE "SGlobalTabSwitchingDialog"
 
@@ -261,7 +262,7 @@ void SGlobalTabSwitchingDialog::OnMainTabListSelectionChanged(FTabListItemPtr In
 	{
 		FTabListItemPtr SelectedItem = SelectedItems[0];
 
-		NewTopContents = SelectedItem->CreateWidget(AssetThumbnailPool);
+		NewTopContents = SelectedItem->CreateWidget(UThumbnailManager::Get().GetSharedThumbnailPool());
 
 		NewBottomContents =
 			SNew(SHorizontalBox)
@@ -386,8 +387,6 @@ void SGlobalTabSwitchingDialog::Construct(const FArguments& InArgs, FVector2D In
 #endif
 
 	TriggerChord = InTriggerChord;
-
-	AssetThumbnailPool = MakeShareable(new FAssetThumbnailPool(128));
 
 	// Populate the list with open asset editors
 	TArray<UObject*> OpenAssetList = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
@@ -551,7 +550,7 @@ FReply SGlobalTabSwitchingDialog::OnPreviewKeyDown(const FGeometry& MyGeometry, 
 
 TSharedRef<ITableRow> SGlobalTabSwitchingDialog::OnGenerateTabSwitchListItemWidget(FTabListItemPtr InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(STableRow<FTabListItemPtr>, OwnerTable)[InItem->CreateWidget(AssetThumbnailPool)];
+	return SNew(STableRow<FTabListItemPtr>, OwnerTable)[InItem->CreateWidget(UThumbnailManager::Get().GetSharedThumbnailPool())];
 }
 
 //////////////////////////////////////////////////////////////////////////

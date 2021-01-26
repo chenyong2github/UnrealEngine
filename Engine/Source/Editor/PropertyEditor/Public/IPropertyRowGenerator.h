@@ -100,6 +100,5 @@ public:
 	virtual void UnregisterInstancedCustomPropertyLayout(UStruct* Class) = 0;
 	virtual void UnregisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) = 0;
 
-	virtual TSharedPtr<class FAssetThumbnailPool> GetGeneratedThumbnailPool() = 0;
 	virtual FOnFinishedChangingProperties& OnFinishedChangingProperties() = 0;
 };

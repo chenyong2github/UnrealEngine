@@ -60,9 +60,6 @@ private:
 	// The chord that triggered the dialog (so we can handle the correct Tab/`/etc... key repeat, and dismiss on the correct control/command modifier release
 	FInputChord TriggerChord;
 
-	// Pool for maintaining and rendering thumbnails
-	TSharedPtr<class FAssetThumbnailPool> AssetThumbnailPool;
-
 	// The array of 'document' items
 	TArray<FTabListItemPtr> MainTabsListDataSource;
 

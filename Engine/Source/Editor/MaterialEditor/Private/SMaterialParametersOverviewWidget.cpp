@@ -40,6 +40,7 @@
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 
 
@@ -596,7 +597,7 @@ void SMaterialParametersOverviewTree::SetParentsExpansionState()
 
 TSharedPtr<class FAssetThumbnailPool> SMaterialParametersOverviewTree::GetTreeThumbnailPool()
 {
-	return GetOwner().Pin()->GetGenerator()->GetGeneratedThumbnailPool();
+	return UThumbnailManager::Get().GetSharedThumbnailPool();
 }
 
 void SMaterialParametersOverviewTree::CreateGroupsWidget()

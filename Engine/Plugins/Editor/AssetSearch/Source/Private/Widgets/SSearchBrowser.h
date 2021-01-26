@@ -88,8 +88,6 @@ private:
 
 	IAssetRegistry* AssetRegistry = nullptr;
 
-	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
-
 	TSharedPtr<SHeaderRow> HeaderColumns;
 
 	FName SortByColumn;

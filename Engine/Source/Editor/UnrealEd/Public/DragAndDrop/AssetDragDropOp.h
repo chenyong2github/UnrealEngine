@@ -9,7 +9,6 @@
 #include "DragAndDrop/DecoratedDragDropOp.h"
 
 class FAssetThumbnail;
-class FAssetThumbnailPool;
 class UActorFactory;
 
 class UNREALED_API FAssetDragDropOp : public FDecoratedDragDropOp
@@ -85,9 +84,6 @@ private:
 	TWeakObjectPtr<UActorFactory> ActorFactory;
 
 protected:
-	/** Pool for maintaining and rendering thumbnails */
-	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
-
 	/** Handle to the thumbnail resource */
 	TSharedPtr<FAssetThumbnail> AssetThumbnail;
 

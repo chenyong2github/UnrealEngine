@@ -25,10 +25,10 @@
 #include "DetailLayoutHelpers.h"
 #include "EditConditionParser.h"
 #include "Editor.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 SDetailsViewBase::~SDetailsViewBase()
 {
-	ThumbnailPool.Reset();
 }
 
 void SDetailsViewBase::OnGetChildrenForDetailTree(TSharedRef<FDetailTreeNode> InTreeNode, TArray< TSharedRef<FDetailTreeNode> >& OutChildren)
@@ -514,13 +514,7 @@ void SDetailsViewBase::RefreshRootObjectVisibility()
 
 TSharedPtr<FAssetThumbnailPool> SDetailsViewBase::GetThumbnailPool() const
 {
-	if (!ThumbnailPool.IsValid())
-	{
-		// Create a thumbnail pool for the view if it doesnt exist.  This does not use resources of no thumbnails are used
-		ThumbnailPool = MakeShared<FAssetThumbnailPool>(50);
-	}
-
-	return ThumbnailPool;
+	return UThumbnailManager::Get().GetSharedThumbnailPool();
 }
 
 void SDetailsViewBase::NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
