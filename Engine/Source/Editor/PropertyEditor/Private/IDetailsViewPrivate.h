@@ -142,4 +142,7 @@ public:
 
 	/** Column width accessibility */
 	virtual FDetailColumnSizeData& GetColumnSizeData() = 0;
+
+	/** Does this details view allow favoriting? */
+	virtual bool IsFavoritingEnabled() const = 0;
 };

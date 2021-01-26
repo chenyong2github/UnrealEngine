@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "ItemPropertyNode.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Classes/EditorStyleSettings.h"
+#include "DetailsViewConfig.h"
+#include "Editor.h"
+#include "EditorMetadataOverrides.h"
 #include "ObjectPropertyNode.h"
 #include "PropertyEditorHelpers.h"
 #include "PropertyPathHelpers.h"
+#include "Classes/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "ItemPropertyNode"
 
@@ -392,36 +393,26 @@ void FItemPropertyNode::InitChildNodes()
 
 void FItemPropertyNode::SetFavorite(bool FavoriteValue)
 {
-	const FObjectPropertyNode* CurrentObjectNode = FindObjectItemParent();
-	if (CurrentObjectNode == nullptr || CurrentObjectNode->GetNumObjects() <= 0)
-		return;
-	const UClass *ObjectClass = CurrentObjectNode->GetObjectBaseClass();
-	if (ObjectClass == nullptr)
-		return;
-	FString FullPropertyPath = ObjectClass->GetName() + TEXT(":") + PropertyPath;
-	if (FavoriteValue)
+	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (MetadataOverrides != nullptr)
 	{
-		GConfig->SetBool(TEXT("DetailPropertyFavorites"), *FullPropertyPath, FavoriteValue, GEditorPerProjectIni);
-	}
-	else
-	{
-		GConfig->RemoveKey(TEXT("DetailPropertyFavorites"), *FullPropertyPath, GEditorPerProjectIni);
+		MetadataOverrides->SetBoolMetadata(GetProperty(), "IsFavorite", FavoriteValue);
 	}
 }
 
 bool FItemPropertyNode::IsFavorite() const
 {
-	const FObjectPropertyNode* CurrentObjectNode = FindObjectItemParent();
-	if (CurrentObjectNode == nullptr ||CurrentObjectNode->GetNumObjects() <= 0)
-		return false;
-	const UClass *ObjectClass = CurrentObjectNode->GetObjectBaseClass();
-	if (ObjectClass == nullptr)
-		return false;
-	FString FullPropertyPath = ObjectClass->GetName() + TEXT(":") + PropertyPath;
-	bool FavoritesPropertyValue = false;
-	if (!GConfig->GetBool(TEXT("DetailPropertyFavorites"), *FullPropertyPath, FavoritesPropertyValue, GEditorPerProjectIni))
-		return false;
-	return FavoritesPropertyValue;
+	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
+	if (MetadataOverrides != nullptr)
+	{
+		bool IsFavorite = false;
+		if (MetadataOverrides->GetBoolMetadata(GetProperty(), "IsFavorite", IsFavorite))
+		{
+			return IsFavorite;
+		}
+	}
+
+	return false;
 }
 
 /**

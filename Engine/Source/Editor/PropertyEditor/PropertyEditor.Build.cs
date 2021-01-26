@@ -65,6 +65,7 @@ public class PropertyEditor : ModuleRules
                 "SceneOutliner",
 				"DesktopPlatform",
 				"PropertyPath",
+				"EditorConfig",
             }
         );
 

@@ -14,7 +14,6 @@
 
 namespace DetailLayoutHelpers
 {
-
 	void UpdateSinglePropertyMapRecursive(FPropertyNode& InNode, FName CurCategory, FComplexPropertyNode* CurObjectNode, FUpdatePropertyMapArgs& InUpdateArgs)
 	{
 		FDetailLayoutData& LayoutData = *InUpdateArgs.LayoutData;
@@ -160,16 +159,17 @@ namespace DetailLayoutHelpers
 
 						PropertyNodeMap.Add(Property->GetFName(), ChildNodePtr);
 					}
+
 					bool bCanDisplayFavorite = false;
 					if (bVisibleByDefault && bIsUserVisible && !bPushOutStructProps)
 					{
 						FName CategoryName = CurCategory;
 						// For properties inside a struct, add them to their own category unless they just take the name of the parent struct.  
 						// In that case push them to the parent category
-						FName PropertyCatagoryName = FObjectEditorUtils::GetCategoryFName(Property);
-						if (!ParentStructProp || (PropertyCatagoryName != ParentStructProp->Struct->GetFName()))
+						FName PropertyCategoryName = FObjectEditorUtils::GetCategoryFName(Property);
+						if (!ParentStructProp || (PropertyCategoryName != ParentStructProp->Struct->GetFName()))
 						{
-							CategoryName = PropertyCatagoryName;
+							CategoryName = PropertyCategoryName;
 						}
 
 						if (!LocalUpdateFavoriteSystemOnly)
@@ -190,25 +190,14 @@ namespace DetailLayoutHelpers
 							if (bIsCustomizedStruct)
 							{
 								bCanDisplayFavorite = false;
-								//CustomizedStruct child are not categorize since they are under an object but we have to put them in favorite category if the user want to favorite them
+								//CustomizedStruct child are not categorized since they are under an object but we have to put them in favorite category if the user wants to favorite them
 								LocalUpdateFavoriteSystemOnly = true;
 							}
 							else if (ChildNodePtr->IsFavorite())
 							{
-								//Find or create the favorite category, we have to duplicate favorite property row under this category
-								FString CategoryFavoritesName = TEXT("Favorites");
-								FName CatFavName = *CategoryFavoritesName;
-								FDetailCategoryImpl& CategoryFavImpl = DetailLayout.DefaultCategory(CatFavName);
-								CategoryFavImpl.SetSortOrder(0);
-								CategoryFavImpl.SetCategoryAsSpecialFavorite();
-
-								//Add the property to the favorite
-								FObjectPropertyNode *RootObjectParent = ChildNodePtr->FindRootObjectItemParent();
-								FName RootInstanceName = NAME_None;
-								if (RootObjectParent != nullptr)
-								{
-									RootInstanceName = RootObjectParent->GetObjectBaseClass()->GetFName();
-								}
+								// Find or create the favorite category, we have to duplicate favorite property row under this category
+								static const FName FavoritesCategoryName(TEXT("Favorites"));
+								FDetailCategoryImpl& FavoritesCategory = DetailLayout.DefaultCategory(FavoritesCategoryName);
 
 								if (LocalUpdateFavoriteSystemOnly)
 								{
@@ -218,9 +207,9 @@ namespace DetailLayoutHelpers
 									}
 									else
 									{
-										//If the parent has a condition that is not met, make the child as readonly
+										//If the parent has a condition that is not met, mark the child as read-only
 										FDetailLayoutCustomization ParentTmpCustomization;
-										ParentTmpCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(InNode.AsShared(), CategoryFavImpl.AsShared()));
+										ParentTmpCustomization.PropertyRow = MakeShareable(new FDetailPropertyRow(InNode.AsShared(), FavoritesCategory.AsShared()));
 										if (ParentTmpCustomization.PropertyRow->GetPropertyEditor()->IsPropertyEditingEnabled() == false)
 										{
 											ChildNode.SetNodeFlags(EPropertyNodeFlags::IsReadOnly, true);
@@ -228,14 +217,24 @@ namespace DetailLayoutHelpers
 									}
 								}
 
+								//Add the property to the favorite
+								FObjectPropertyNode* RootObjectParent = ChildNodePtr->FindRootObjectItemParent();
+								FName RootInstanceName = NAME_None;
+								if (RootObjectParent != nullptr)
+								{
+									RootInstanceName = RootObjectParent->GetObjectBaseClass()->GetFName();
+								}
+
 								//Duplicate the row
-								CategoryFavImpl.AddPropertyNode(ChildNodePtr.ToSharedRef(), RootInstanceName);
+								FavoritesCategory.AddPropertyNode(ChildNodePtr.ToSharedRef(), RootInstanceName);
 							}
 
 							if (bIsStruct)
 							{
 								LocalUpdateFavoriteSystemOnly = true;
 							}
+
+							ChildArgs.bUpdateFavoriteSystemOnly = LocalUpdateFavoriteSystemOnly;
 						}
 					}
 					ChildNodePtr->SetCanDisplayFavorite(bCanDisplayFavorite);

@@ -180,6 +180,23 @@ IDetailGroup& FDetailCategoryImpl::AddGroup(FName GroupName, const FText& Locali
 	return *NewCustomization.DetailGroup;
 }
 
+int32 FDetailCategoryImpl::GetNumCustomizations() const
+{
+	int32 NumCustomizations = 0;
+
+	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
+	{
+		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
+
+		NumCustomizations += Layout.GetDefaultSimpleLayouts().Num();
+		NumCustomizations += Layout.GetDefaultAdvancedLayouts().Num();
+		NumCustomizations += Layout.GetCustomSimpleLayouts().Num();
+		NumCustomizations += Layout.GetCustomAdvancedLayouts().Num();
+	}
+
+	return NumCustomizations;
+}
+
 void FDetailCategoryImpl::GetDefaultProperties(TArray<TSharedRef<IPropertyHandle> >& OutDefaultProperties, bool bSimpleProperties, bool bAdvancedProperties)
 {
 	FDetailLayoutBuilderImpl& DetailLayoutBuilderRef = GetParentLayoutImpl();
@@ -609,12 +626,6 @@ bool FDetailCategoryImpl::GetSavedExpansionState(FDetailTreeNode& InTreeNode) co
 bool FDetailCategoryImpl::ContainsOnlyAdvanced() const
 {
 	return !bFavoriteCategory && SimpleChildNodes.Num() == 0 && AdvancedChildNodes.Num() > 0;
-}
-
-void FDetailCategoryImpl::GetCategoryInformation(int32 &SimpleChildNum, int32 &AdvanceChildNum) const
-{
-	SimpleChildNum = SimpleChildNodes.Num();
-	AdvanceChildNum = AdvancedChildNodes.Num();
 }
 
 void FDetailCategoryImpl::SetDisplayName(FName InCategoryName, const FText& LocalizedNameOverride)

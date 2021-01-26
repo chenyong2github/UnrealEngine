@@ -387,7 +387,7 @@ void SDetailsViewBase::UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> 
 	TSharedPtr<FComplexPropertyNode> RootPropertyNode = InRootPropertyNode;
 	check(RootPropertyNode.IsValid());
 
-	const bool bEnableFavoriteSystem = false; //TODO: IsEngineExitRequested() ? false : DetailsViewArgs.bAllowFavoriteSystem;
+	const bool bEnableFavoriteSystem = IsEngineExitRequested() ? false : DetailsViewArgs.bAllowFavoriteSystem;
 
 	DetailLayoutHelpers::FUpdatePropertyMapArgs Args;
 
@@ -405,14 +405,32 @@ void SDetailsViewBase::UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> 
 	// inhibit our ability to find a single property's tree node. This is problematic for the diff and merge tools, that need
 	// to display and highlight each changed property for the user. We could whitelist 'good' customizations here if 
 	// we can make them work with the diff/merge tools.
-	if(!bDisableCustomDetailLayouts)
+	if (!bDisableCustomDetailLayouts)
 	{
 		DetailLayoutHelpers::QueryCustomDetailLayout(LayoutData, InstancedClassToDetailLayoutMap, GenericLayoutDelegate);
 	}
 
+	if (bEnableFavoriteSystem && InRootPropertyNode->GetInstancesNum() > 0)
+	{
+		static const FName FavoritesCategoryName("Favorites");
+		FDetailCategoryImpl& FavoritesCategory = LayoutData.DetailLayout->DefaultCategory(FavoritesCategoryName);
+		FavoritesCategory.SetSortOrder(0);
+		FavoritesCategory.SetCategoryAsSpecialFavorite();
+
+		if (FavoritesCategory.GetNumCustomizations() == 0)
+		{
+			FavoritesCategory.AddCustomRow(NSLOCTEXT("DetailLayoutHelpers", "Favorites", "Favorites"))
+				.WholeRowContent()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock).Text(NSLOCTEXT("DetailLayoutHelpers", "AddToFavoritesDescription", "Right-click on a property to add it to your Favorites."))
+				];
+		}
+	}
+
 	LayoutData.DetailLayout->GenerateDetailLayout();
 }
-
 
 void SDetailsViewBase::OnColorPickerWindowClosed(const TSharedRef<SWindow>& Window)
 {
@@ -432,7 +450,6 @@ void SDetailsViewBase::OnColorPickerWindowClosed(const TSharedRef<SWindow>& Wind
 	bHasOpenColorPicker = false;
 	ColorPropertyNode.Reset();
 }
-
 
 void SDetailsViewBase::SetIsPropertyVisibleDelegate(FIsPropertyVisible InIsPropertyVisible)
 {

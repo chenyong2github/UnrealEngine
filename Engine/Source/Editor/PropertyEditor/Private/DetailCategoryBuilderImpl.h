@@ -19,8 +19,10 @@
 #include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 
+class FDetailCustomBuilderRow;
 class FDetailGroup;
 class FDetailPropertyRow;
+class FDetailWidgetRow;
 class IDetailGroup;
 class IDetailPropertyRow;
 
@@ -31,13 +33,13 @@ struct FDetailLayoutCustomization
 {
 	FDetailLayoutCustomization();
 	/** The property node for the property detail */
-	TSharedPtr<class FDetailPropertyRow> PropertyRow;
+	TSharedPtr<FDetailPropertyRow> PropertyRow;
 	/** A group of customizations */
-	TSharedPtr<class FDetailGroup> DetailGroup;
+	TSharedPtr<FDetailGroup> DetailGroup;
 	/** Custom Widget for displaying the detail */
-	TSharedPtr<class FDetailWidgetRow> WidgetDecl;
+	TSharedPtr<FDetailWidgetRow> WidgetDecl;
 	/** Custom builder for more complicated widgets */
-	TSharedPtr<class FDetailCustomBuilderRow> CustomBuilderRow;
+	TSharedPtr<FDetailCustomBuilderRow> CustomBuilderRow;
 	/** @return true if this customization has a property node */
 	bool HasPropertyNode() const { return GetPropertyNode().IsValid(); }
 	/** @return true if this customization has a custom widget */
@@ -291,8 +293,7 @@ public:
 	/** @return true if this category only contains advanced properties */
 	bool ContainsOnlyAdvanced() const;
 
-	/** @return true if this category only contains advanced properties */
-	void GetCategoryInformation(int32 &SimpleChildNum, int32 &AdvanceChildNum) const;
+	int32 GetNumCustomizations() const;
 
 	/**
 	 * Called when the advanced dropdown button is clicked
@@ -305,6 +306,7 @@ public:
 	void SetCategoryAsSpecialFavorite() { bFavoriteCategory = true; bForceAdvanced = true; }
 
 	FDetailLayoutCustomization* GetDefaultCustomization(TSharedRef<FPropertyNode> PropertyNode);
+
 private:
 	virtual void OnItemExpansionChanged(bool bIsExpanded, bool bShouldSaveState) override;
 
