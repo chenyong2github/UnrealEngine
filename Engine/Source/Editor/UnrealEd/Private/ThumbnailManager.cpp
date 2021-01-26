@@ -15,6 +15,7 @@
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
 #include "ImageUtils.h"
+#include "AssetThumbnail.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogThumbnailManager, Log, All);
@@ -69,6 +70,8 @@ void UThumbnailManager::Initialize(void)
 	if (bIsInitialized == false)
 	{
 		InitializeRenderTypeArray(RenderableThumbnailTypes);
+
+		SharedThumbnailPool = MakeShared<FAssetThumbnailPool>(100);
 
 		bIsInitialized = true;
 	}
