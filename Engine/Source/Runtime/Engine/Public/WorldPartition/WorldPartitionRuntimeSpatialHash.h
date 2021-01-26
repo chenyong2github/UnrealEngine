@@ -12,6 +12,8 @@
 #include "WorldPartitionRuntimeSpatialHashCell.h"
 #include "WorldPartitionRuntimeSpatialHash.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionRuntimeSpatialHash, Log, All);
+
 USTRUCT()
 struct FSpatialHashStreamingGridLayerCell
 {
@@ -220,6 +222,9 @@ public:
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper) override;
 	virtual bool GenerateNavigationData() override;
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const override;
+
+	FName GetCellName(FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID = FDataLayersID()) const;
+	static FName GetCellName(UWorldPartition* WorldPartition, FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID);
 #endif
 
 	// streaming interface
@@ -232,13 +237,6 @@ protected:
 	TMap<class ULevelStreaming*, FName> WorldCompositionStreamingLevelToRuntimeGrid;
 
 private:
-
-#if WITH_EDITOR
-	FName GetCellName(FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID = FDataLayersID()) const;
-
-	void CacheHLODParents();
-#endif
-
 	/** Console command used to change loading range for a given streaming grid */
 	static class FAutoConsoleCommand OverrideLoadingRangeCommand;
 
@@ -265,6 +263,7 @@ private:
 	void GetStreamingCells(const FVector& Position, const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const;
 #if WITH_EDITOR
 	bool CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate = nullptr);
+	void CacheHLODParents();
 #endif
 
 	friend class UWorldPartitionSubsystem;
