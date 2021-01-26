@@ -106,6 +106,8 @@ void URigVM::Serialize(FArchive& Ar)
 
 void URigVM::Save(FArchive& Ar)
 {
+	CopyDeferredVMIfRequired();
+
 	Ar << WorkMemoryStorage;
 	Ar << LiteralMemoryStorage;
 	Ar << FunctionNamesStorage;
