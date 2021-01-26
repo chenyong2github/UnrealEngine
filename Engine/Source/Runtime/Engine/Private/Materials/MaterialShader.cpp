@@ -1408,9 +1408,9 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 	FString DebugDescription(TEXT(""));
 
 	// DebugExtension and Description make the jobs unnecessarily different. Use them if the job cache is disabled or shader dev mode is on
-	static IConsoleVariable* CVarCacheDisabled = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShaderCompiler.DisableJobCache"));
+	static IConsoleVariable* CVarCacheEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShaderCompiler.JobCache"));
 	static IConsoleVariable* CVarShaderDevMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShaderDevelopmentMode"));
-	if ((CVarCacheDisabled && CVarCacheDisabled->GetInt() != 0) || (CVarShaderDevMode && CVarShaderDevMode->GetInt() != 0))
+	if ((CVarCacheEnabled && CVarCacheEnabled->GetInt() == 0) || (CVarShaderDevMode && CVarShaderDevMode->GetInt() != 0))
 	{
 		DebugExtension = FString::Printf(TEXT("_%08x%08x"), ShaderMapId.BaseMaterialId.A, ShaderMapId.BaseMaterialId.B);
 		DebugDescription = GetDebugDescription();

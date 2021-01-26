@@ -68,10 +68,10 @@ DEFINE_LOG_CATEGORY(LogShaderCompilers);
 // Switch to Verbose after initial testing
 #define UE_SHADERCACHE_LOG_LEVEL		Display
 
-int32 GShaderCompilerDisableJobCache = 0;
-static FAutoConsoleVariableRef CVarShaderCompilerDisableJobCache(
-	TEXT("r.ShaderCompiler.DisableJobCache"),
-	GShaderCompilerDisableJobCache,
+int32 GShaderCompilerJobCache = 0;
+static FAutoConsoleVariableRef CVarShaderCompilerJobCache(
+	TEXT("r.ShaderCompiler.JobCache"),
+	GShaderCompilerJobCache,
 	TEXT("if != 0, shader compiler cache (based on the unpreprocessed input hash) will be disabled. By default, it is enabled."),
 	ECVF_Default
 );
@@ -133,6 +133,14 @@ FString GetGlobalShaderMapDDCKey()
 FString GetMaterialShaderMapDDCKey()
 {
 	return FString(MATERIALSHADERMAP_DERIVEDDATA_VER);
+}
+
+namespace ShaderCompiler
+{
+	bool IsJobCacheEnabled()
+	{
+		return GShaderCompilerJobCache != 0;
+	}
 }
 
 // The Id of 0 is reserved for global shaders
@@ -304,7 +312,7 @@ int32 FShaderCompileJobCollection::RemoveAllPendingJobsWithId(uint32 InId)
 
 				if (Job.Id == InId)
 				{
-					if (!GShaderCompilerDisableJobCache)
+					if (ShaderCompiler::IsJobCacheEnabled())
 					{
 						JobsInFlight.Remove(Job.GetInputHash());
 					}
@@ -319,7 +327,7 @@ int32 FShaderCompileJobCollection::RemoveAllPendingJobsWithId(uint32 InId)
 			}
 		}
 
-		if (!GShaderCompilerDisableJobCache)
+		if (ShaderCompiler::IsJobCacheEnabled())
 		{
 			// Also look into the jobs that are cached
 			// Since each entry in DuplicateJobsWaitList is a list, and the head node can be removed, we essentially have to rebuild it
@@ -389,7 +397,7 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 
 				const int32 PriorityIndex = (int32)Job->Priority;
 				bool bNewJob = true;
-				if (!GShaderCompilerDisableJobCache)
+				if (ShaderCompiler::IsJobCacheEnabled())
 				{
 					const FSHAHash& InputHash = Job->GetInputHash();
 
@@ -485,7 +493,7 @@ void FShaderCompileJobCollection::ProcessFinishedJob(FShaderCommonCompileJob* Fi
 
 void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompileJob* FinishedJob)
 {
-	if (GShaderCompilerDisableJobCache)
+	if (!ShaderCompiler::IsJobCacheEnabled())
 	{
 		return;
 	}
@@ -6100,7 +6108,7 @@ FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Ha
 {
 	++TotalSearchAttempts;
 
-	if (!GShaderCompilerDisableJobCache)
+	if (ShaderCompiler::IsJobCacheEnabled())
 	{
 		FJobOutputHash* OutputHash = InputHashToOutput.Find(Hash);
 		if (OutputHash)
@@ -6128,7 +6136,7 @@ uint64 FShaderJobCache::GetCurrentMemoryBudget() const
 
 void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents)
 {
-	if (GShaderCompilerDisableJobCache)
+	if (!ShaderCompiler::IsJobCacheEnabled())
 	{
 		return;
 	}
