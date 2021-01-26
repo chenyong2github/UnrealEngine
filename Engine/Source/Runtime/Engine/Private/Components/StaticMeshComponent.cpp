@@ -2544,6 +2544,16 @@ void UStaticMeshComponent::GetNavigationData(FNavigationRelevantData& Data) cons
 
 #if WITH_EDITOR
 
+// UpdateBounds is currently the closest place we can get from the StaticMesh property
+// being overwritten by a CDO construction from SpawnActor because PostInitProperties is 
+// not currently being called during subobjects property copies.
+void UStaticMeshComponent::UpdateBounds()
+{
+	NotifyIfStaticMeshChanged();
+
+	Super::UpdateBounds();
+}
+
 void UStaticMeshComponent::PostStaticMeshCompilation()
 {
 	CachePaintedDataIfNecessary();
