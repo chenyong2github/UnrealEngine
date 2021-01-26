@@ -29,17 +29,17 @@ struct FAlignmentTrackContainer
 	FRawAnimSequenceTrack Track;
 
 	UPROPERTY()
-	float SampleRate;
+	float SampleInterval;
 
 	FTransform ExtractTransformAtTime(float Time) const;
 
-	void Initialize(float InSampleRate)
+	void Initialize(float InSampleInterval)
 	{
 		Track.PosKeys.Empty();
 		Track.RotKeys.Empty();
 		Track.ScaleKeys.Empty();
 
-		SampleRate = InSampleRate;
+		SampleInterval = InSampleInterval;
 	}
 };
 
@@ -84,6 +84,10 @@ struct FContextualAnimData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
 	float SyncTime = 0.f;
 
+	//@TODO: Temp solution to prevent FindBestAnimStartTime from returning a time that leaves us without enough room for warping
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
+	float AnimMinStartTime = 0.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	float OffsetFromOrigin = 0.f;
 
@@ -102,6 +106,8 @@ struct FContextualAnimData
 	FORCEINLINE FTransform GetAlignmentTransformAtTime(float Time) const { return AlignmentData.ExtractTransformAtTime(Time); }
 	FORCEINLINE FTransform GetAlignmentTransformAtEntryTime() const { return AlignmentData.ExtractTransformAtTime(EntryTime); }
 	FORCEINLINE FTransform GetAlignmentTransformAtSyncTime() const  { return AlignmentData.ExtractTransformAtTime(SyncTime); }
+
+	float FindBestAnimStartTime(const FVector& LocalLocation) const;
 };
 
 UCLASS(Blueprintable)
@@ -114,6 +120,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alignment")
 	FName AlignmentJoint;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alignment", meta = (ClampMin = "1", ClampMax = "60"))
+	int32 SampleRate;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alignment")
 	FTransform MeshToComponent;
 
@@ -123,9 +132,4 @@ public:
 	UContextualAnimAsset(const FObjectInitializer& ObjectInitializer);
 
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
-
 };

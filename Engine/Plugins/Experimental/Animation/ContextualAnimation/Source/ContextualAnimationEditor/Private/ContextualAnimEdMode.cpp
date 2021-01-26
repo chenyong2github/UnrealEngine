@@ -13,7 +13,7 @@
 #include "AIController.h"
 #include "ContextualAnimComponent.h"
 #include "MotionWarpingComponent.h"
-#include "Animation/AnimMontage.h"
+#include "Animation/AnimInstance.h"
 
 const FEditorModeID FContextualAnimEdMode::EM_ContextualAnimEdModeId = TEXT("EM_ContextualAnimEdMode");
 
@@ -78,48 +78,50 @@ bool FContextualAnimEdMode::InputKey(FEditorViewportClient* ViewportClient, FVie
 	{
 		if (!TestCharacter->IsPlayingRootMotion())
 		{
-			//@TODO: Cache the list of interactable actors
-			float BestDistance = MAX_FLT;
 			UContextualAnimComponent* ContextualAnimComp = nullptr;
-			for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+
+			TArray<UPrimitiveComponent*> OverlappingComps;
+			TestCharacter->GetOverlappingComponents(OverlappingComps);
+
+			for (UPrimitiveComponent* Comp : OverlappingComps)
 			{
-				AActor* Actor = *It;
-				UContextualAnimComponent* Comp = Actor ? Actor->FindComponentByClass<UContextualAnimComponent>() : nullptr;
-				if(Comp)
+				if (Comp && Comp->GetClass()->IsChildOf<UContextualAnimComponent>())
 				{
-					const float Distance = FVector::DistSquared(Actor->GetActorLocation(), TestCharacter->GetActorLocation());
-					if(Distance < BestDistance)
-					{
-						BestDistance = Distance;
-						ContextualAnimComp = Comp;
-					}
+					ContextualAnimComp = Cast<UContextualAnimComponent>(Comp);
+					break;
 				}
 			}
 
 			if (ContextualAnimComp)
 			{
-				FContextualAnimEntryPoint EntryPoint;
-				if (ContextualAnimComp->FindBestEntryPointForActor(TestCharacter.Get(), EntryPoint))
+				FContextualAnimQueryResult Result;
+				if (ContextualAnimComp->QueryData(FContextualAnimQueryParams(TestCharacter.Get(), true, true), Result))
 				{
-					if (UAnimMontage* Montage = EntryPoint.Animation.LoadSynchronous())
+					if (UAnimMontage* Montage = Result.Animation.LoadSynchronous())
 					{
 						if (UMotionWarpingComponent* MotionWarpingComp = TestCharacter->FindComponentByClass<UMotionWarpingComponent>())
 						{
-							const FName SyncPointName = GetContextualAnimEdModeToolkit()->GetSettings()->MotionWarpSyncPointName;
-							MotionWarpingComp->AddOrUpdateSyncPoint(SyncPointName, EntryPoint.SyncTransform);
-							TestCharacter->PlayAnimMontage(Montage);
+							USkeletalMeshComponent* SkelMeshComp = TestCharacter->GetMesh();
+							UAnimInstance* AnimInstance = SkelMeshComp ? SkelMeshComp->GetAnimInstance() : nullptr;
+							if (AnimInstance)
+							{
+								const FName SyncPointName = GetContextualAnimEdModeToolkit()->GetSettings()->MotionWarpSyncPointName;
+								MotionWarpingComp->AddOrUpdateSyncPoint(SyncPointName, Result.SyncTransform);
+
+								AnimInstance->Montage_Play(Montage, 1.f, EMontagePlayReturnType::MontageLength, Result.AnimStartTime);
+							}
 						}
 					}
 				}
 				else
 				{
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("Found nearest interactable actor (%s) but the Test Character is not close enough to any of the entry points"), 
-					*GetNameSafe(ContextualAnimComp->GetOwner())));
+					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("Found nearest interactable actor (%s) but the Test Character is not close enough to any of the entry points"),
+						*GetNameSafe(ContextualAnimComp->GetOwner())));
 				}
 			}
 			else
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("There are no interactable actors in the level")));
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("Can't find interactable actor")));
 			}
 		}
 		else

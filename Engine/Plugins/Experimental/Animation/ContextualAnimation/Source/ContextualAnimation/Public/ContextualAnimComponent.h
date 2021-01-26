@@ -4,24 +4,62 @@
 
 #include "CoreMinimal.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SphereComponent.h"
 #include "ContextualAnimComponent.generated.h"
 
 class UContextualAnimAsset;
 struct FContextualAnimData;
 
+/** Stores the result of a query function */
 USTRUCT(BlueprintType)
-struct FContextualAnimEntryPoint
+struct FContextualAnimQueryResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
+	TSoftObjectPtr<UAnimMontage> Animation;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
+	FTransform EntryTransform;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
+	FTransform SyncTransform;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
+	float AnimStartTime = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
+	int32 DataIndex = INDEX_NONE;
+
+	void Reset()
+	{
+		Animation = nullptr;
+		EntryTransform = SyncTransform = FTransform::Identity;
+		AnimStartTime = 0.f;
+		DataIndex = INDEX_NONE;
+	}
+};
+
+/** Stores the parameters passed into query function */
+USTRUCT(BlueprintType)
+struct FContextualAnimQueryParams
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TSoftObjectPtr<UAnimMontage> Animation;
+	TWeakObjectPtr<const AActor> Querier;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FTransform EntryTransform;
+	bool bComplexQuery;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FTransform SyncTransform;
+	bool bFindAnimStartTime;
+
+	FContextualAnimQueryParams()
+		: Querier(nullptr), bComplexQuery(false), bFindAnimStartTime(false){}
+
+	FContextualAnimQueryParams(const AActor* InQuerier, bool bInComplexQuery, bool bInFindAnimStartTime)
+		: Querier(InQuerier), bComplexQuery(bInComplexQuery), bFindAnimStartTime(bInFindAnimStartTime) {}
 };
 
 USTRUCT(BlueprintType)
@@ -37,7 +75,7 @@ struct FContextualAnimDebugParams
 };
 
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CONTEXTUALANIMATION_API UContextualAnimComponent : public UPrimitiveComponent
+class CONTEXTUALANIMATION_API UContextualAnimComponent : public USphereComponent
 {
 	GENERATED_BODY()
 
@@ -54,18 +92,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug", meta = (ShowOnlyInnerProperties, EditCondition = "bEnableDebug"))
 	FContextualAnimDebugParams DebugParams;
 
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
 
-	const FContextualAnimData* FindBestDataForActor(const AActor* Querier) const;
-
-	const FContextualAnimData* FindClosestDataForActor(const AActor* Querier) const;
-
 	UFUNCTION(BlueprintCallable, Category = "Contextual Animation")
-	bool FindBestEntryPointForActor(const AActor* Querier, FContextualAnimEntryPoint& Result) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Contextual Animation")
-	bool FindClosestEntryPointForActor(const AActor* Querier, FContextualAnimEntryPoint& Result) const;
+	bool QueryData(const FContextualAnimQueryParams& QueryParams, FContextualAnimQueryResult& Result) const;
 };

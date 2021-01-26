@@ -9,132 +9,126 @@ UContextualAnimComponent::UContextualAnimComponent(const FObjectInitializer& Obj
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
+
+	SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	SetCollisionResponseToAllChannels(ECR_Ignore);
+	SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	SetGenerateOverlapEvents(true);
+
+	bHiddenInGame = false;
 }
 
-void UContextualAnimComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+bool UContextualAnimComponent::QueryData(const FContextualAnimQueryParams& QueryParams, FContextualAnimQueryResult& Result) const
 {
-	Super::TickComponent(DeltaTime,TickType, ThisTickFunction);
-}
+	Result.Reset();
 
-const FContextualAnimData* UContextualAnimComponent::FindBestDataForActor(const AActor* Querier) const
-{
-	if(ContextualAnimAsset == nullptr || Querier == nullptr)
+	if (!ContextualAnimAsset || !QueryParams.Querier.IsValid())
 	{
-		return nullptr;
+		return false;
 	}
 
-	for (int32 Idx = 0; Idx < ContextualAnimAsset->DataContainer.Num(); Idx++)
+	int32 DataIndex = INDEX_NONE;
+	if (QueryParams.bComplexQuery)
 	{
-		const FContextualAnimData& Data = ContextualAnimAsset->DataContainer[Idx];
-		const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * GetComponentTransform();
-		
-		FVector Origin = GetComponentTransform().GetLocation();
-		FVector Direction = (EntryTransform.GetLocation() - Origin).GetSafeNormal2D();
-
-		if (Data.OffsetFromOrigin != 0.f)
+		for (int32 Idx = 0; Idx < ContextualAnimAsset->DataContainer.Num(); Idx++)
 		{
-			Origin = Origin + Direction * Data.OffsetFromOrigin;
-		}
+			const FContextualAnimData& Data = ContextualAnimAsset->DataContainer[Idx];
+			const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * GetComponentTransform();
 
-		// Distance Test
-		//--------------------------------------------------
-		if(Data.Distance.MaxDistance > 0.f || Data.Distance.MinDistance > 0.f)
-		{
-			const float DistSq = FVector::DistSquared2D(Origin, Querier->GetActorLocation());
+			FVector Origin = GetComponentTransform().GetLocation();
+			FVector Direction = (EntryTransform.GetLocation() - Origin).GetSafeNormal2D();
 
-			if (Data.Distance.MaxDistance > 0.f)
+			if (Data.OffsetFromOrigin != 0.f)
 			{
-				if (DistSq > FMath::Square(Data.Distance.MaxDistance))
+				Origin = Origin + Direction * Data.OffsetFromOrigin;
+			}
+
+			// Distance Test
+			//--------------------------------------------------
+			if (Data.Distance.MaxDistance > 0.f || Data.Distance.MinDistance > 0.f)
+			{
+				const float DistSq = FVector::DistSquared2D(Origin, QueryParams.Querier->GetActorLocation());
+
+				if (Data.Distance.MaxDistance > 0.f)
+				{
+					if (DistSq > FMath::Square(Data.Distance.MaxDistance))
+					{
+						continue;
+					}
+				}
+
+				if (Data.Distance.MinDistance > 0.f)
+				{
+					if (DistSq < FMath::Square(Data.Distance.MinDistance))
+					{
+						continue;
+					}
+				}
+			}
+
+			// Angle Test
+			//--------------------------------------------------
+			if (Data.Angle.Tolerance > 0.f)
+			{
+				//@TODO: Cache this
+				const float AngleCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Angle.Tolerance), 0.f, PI));
+				const FVector ToLocation = (QueryParams.Querier->GetActorLocation() - Origin).GetSafeNormal2D();
+				if (FVector::DotProduct(ToLocation, Direction) < AngleCos)
 				{
 					continue;
 				}
 			}
 
-			if (Data.Distance.MinDistance > 0.f)
+			// Facing Test
+			//--------------------------------------------------
+			if (Data.Facing.Tolerance > 0.f)
 			{
-				if (DistSq < FMath::Square(Data.Distance.MinDistance))
+				//@TODO: Cache this
+				const float FacingCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Facing.Tolerance), 0.f, PI));
+				if (FVector::DotProduct(QueryParams.Querier->GetActorForwardVector(), EntryTransform.GetRotation().GetForwardVector()) < FacingCos)
 				{
 					continue;
 				}
 			}
-		}
 
-		// Angle Test
-		//--------------------------------------------------
-		if(Data.Angle.Tolerance > 0.f)
+			// Return the first item that passes all tests
+			DataIndex = Idx;
+			break;
+		}
+	}
+	else // Simple Query
+	{
+		float BestDistanceSq = MAX_FLT;
+		for (int32 Idx = 0; Idx < ContextualAnimAsset->DataContainer.Num(); Idx++)
 		{
-			//@TODO: Cache this
-			const float AngleCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Angle.Tolerance), 0.f, PI));
-			const FVector ToLocation = (Querier->GetActorLocation() - Origin).GetSafeNormal2D();
-			if (FVector::DotProduct(ToLocation, Direction) < AngleCos)
+			const FContextualAnimData& Data = ContextualAnimAsset->DataContainer[Idx];
+
+			//@TODO: Convert querier location to local space instead
+			const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * GetComponentTransform();
+			const float DistSq = FVector::DistSquared2D(EntryTransform.GetLocation(), QueryParams.Querier->GetActorLocation());
+			if (DistSq < BestDistanceSq)
 			{
-				continue;
+				BestDistanceSq = DistSq;
+				DataIndex = Idx;
 			}
 		}
+	}
 
-		// Facing Test
-		//--------------------------------------------------
-		if(Data.Facing.Tolerance > 0.f)
+	if(DataIndex != INDEX_NONE)
+	{
+		const FContextualAnimData& ResultData = ContextualAnimAsset->DataContainer[DataIndex];
+
+		Result.DataIndex = DataIndex;
+		Result.Animation = ResultData.Animation;
+		Result.EntryTransform = ResultData.GetAlignmentTransformAtEntryTime() * GetComponentTransform();
+		Result.SyncTransform = ResultData.GetAlignmentTransformAtSyncTime() * GetComponentTransform();
+
+		if (QueryParams.bFindAnimStartTime)
 		{
-			//@TODO: Cache this
-			const float FacingCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Facing.Tolerance), 0.f, PI));
-			if (FVector::DotProduct(Querier->GetActorForwardVector(), EntryTransform.GetRotation().GetForwardVector()) < FacingCos)
-			{
-				continue;
-			}
+			const FVector LocalLocation = (QueryParams.Querier->GetActorTransform().GetRelativeTransform(GetComponentTransform())).GetLocation();
+			Result.AnimStartTime = ResultData.FindBestAnimStartTime(LocalLocation);
 		}
 
-		// Return the first item that passes all tests
-		return &Data;
-	}
-
-	return nullptr;
-}
-
-const FContextualAnimData* UContextualAnimComponent::FindClosestDataForActor(const AActor* Querier) const
-{
-	if (ContextualAnimAsset == nullptr || Querier == nullptr)
-	{
-		return nullptr;
-	}
-
-	float BestDistanceSq = MAX_FLT;
-	const FContextualAnimData* BestData = nullptr;
-	for (int32 Idx = 0; Idx < ContextualAnimAsset->DataContainer.Num(); Idx++)
-	{
-		const FContextualAnimData& Data = ContextualAnimAsset->DataContainer[Idx];
-		const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * GetComponentTransform();
-		const float DistSq = FVector::DistSquared2D(EntryTransform.GetLocation(), Querier->GetActorLocation());
-		if (DistSq < BestDistanceSq)
-		{
-			BestDistanceSq = DistSq;
-			BestData = &Data;
-		}
-	}
-
-	return BestData;
-}
-
-bool UContextualAnimComponent::FindBestEntryPointForActor(const AActor* Querier, FContextualAnimEntryPoint& Result) const
-{
-	if(const FContextualAnimData* Data = FindBestDataForActor(Querier))
-	{
-		Result.Animation = Data->Animation;
-		Result.EntryTransform = Data->GetAlignmentTransformAtEntryTime() * GetComponentTransform();
-		Result.SyncTransform = Data->GetAlignmentTransformAtSyncTime() * GetComponentTransform();
-		return true;
-	}
-
-	return false;
-}
-
-bool UContextualAnimComponent::FindClosestEntryPointForActor(const AActor* Querier, FContextualAnimEntryPoint& Result) const
-{
-	if (const FContextualAnimData* Data = FindClosestDataForActor(Querier))
-	{
-		Result.Animation = Data->Animation;
-		Result.EntryTransform = Data->GetAlignmentTransformAtEntryTime() * GetComponentTransform();
-		Result.SyncTransform = Data->GetAlignmentTransformAtSyncTime() * GetComponentTransform();
 		return true;
 	}
 
@@ -217,26 +211,58 @@ FPrimitiveSceneProxy* UContextualAnimComponent::CreateSceneProxy()
 
 			const FContextualAnimDebugParams Params = ContextualAnimComp->DebugParams;
 
-			const FTransform ToWorldTransform = FTransform(GetLocalToWorld());
+			const FMatrix& LocalToWorld = GetLocalToWorld();
+			const FTransform ToWorldTransform = FTransform(LocalToWorld);
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				if (VisibilityMap & (1 << ViewIndex))
 				{
+					const FSceneView* View = Views[ViewIndex];
+
+					// Taking into account the min and maximum drawing distance
+					const float DistanceSqr = (View->ViewMatrices.GetViewOrigin() - LocalToWorld.GetOrigin()).SizeSquared();
+					if (DistanceSqr < FMath::Square(GetMinDrawDistance()) || DistanceSqr > FMath::Square(GetMaxDrawDistance()))
+					{
+						continue;
+					}
+
 					FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
 
-					FName BestAssetPathName = NAME_None;
+					// Draw collision sphere
+					const FLinearColor DrawSphereColor = GetViewSelectionColor(FColor::Red, *View, IsSelected(), IsHovered(), false, IsIndividuallySelected());
+					const float SphereRadius = ContextualAnimComp->GetScaledSphereRadius();
+
+					float AbsScaleX = LocalToWorld.GetScaledAxis(EAxis::X).Size();
+					float AbsScaleY = LocalToWorld.GetScaledAxis(EAxis::Y).Size();
+					float AbsScaleZ = LocalToWorld.GetScaledAxis(EAxis::Z).Size();
+					float MinAbsScale = FMath::Min3(AbsScaleX, AbsScaleY, AbsScaleZ);
+
+					FVector ScaledX = LocalToWorld.GetUnitAxis(EAxis::X) * MinAbsScale;
+					FVector ScaledY = LocalToWorld.GetUnitAxis(EAxis::Y) * MinAbsScale;
+					FVector ScaledZ = LocalToWorld.GetUnitAxis(EAxis::Z) * MinAbsScale;
+
+					const int32 SphereSides = FMath::Clamp<int32>(SphereRadius / 4.f, 16, 64);
+					DrawCircle(PDI, LocalToWorld.GetOrigin(), ScaledX, ScaledY, DrawSphereColor, SphereRadius, SphereSides, SDPG_World);
+					DrawCircle(PDI, LocalToWorld.GetOrigin(), ScaledX, ScaledZ, DrawSphereColor, SphereRadius, SphereSides, SDPG_World);
+					DrawCircle(PDI, LocalToWorld.GetOrigin(), ScaledY, ScaledZ, DrawSphereColor, SphereRadius, SphereSides, SDPG_World);
+
+					FContextualAnimQueryResult Result;
 					if (Params.TestActor.IsValid())
 					{
-						if (const FContextualAnimData* Data = ContextualAnimComp->FindBestDataForActor(Params.TestActor.Get()))
-						{
-							BestAssetPathName = Data->Animation.GetUniqueID().GetAssetPathName();
+						if (ContextualAnimComp->QueryData(FContextualAnimQueryParams(Params.TestActor.Get(), true, true), Result))
+						{							
+							const float Time = Result.AnimStartTime;
+							const FTransform TransformAtTime = Asset->DataContainer[Result.DataIndex].GetAlignmentTransformAtTime(Time) * ToWorldTransform;
+							DrawCoordinateSystem(PDI, TransformAtTime.GetLocation(), TransformAtTime.Rotator(), 20.f, SDPG_World, 2.f);
 						}
 					}
 
-					for(const FContextualAnimData& Data : Asset->DataContainer)
+					for (int32 Idx = 0; Idx < Asset->DataContainer.Num(); Idx++)
 					{
-						FLinearColor DrawColor = BestAssetPathName == Data.Animation.GetUniqueID().GetAssetPathName() ? FLinearColor::Red : FLinearColor::White;
+						const FContextualAnimData& Data = Asset->DataContainer[Idx];
+
+						FLinearColor DrawColor = Result.DataIndex == Idx ? FLinearColor::Red : FLinearColor::White;
 
 						// Draw Entry Point
 						const FTransform EntryTransform = (Data.GetAlignmentTransformAtEntryTime() * ToWorldTransform);

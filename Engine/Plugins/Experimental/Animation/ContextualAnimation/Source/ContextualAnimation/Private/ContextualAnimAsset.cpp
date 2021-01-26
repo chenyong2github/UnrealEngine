@@ -65,9 +65,45 @@ FTransform FAlignmentTrackContainer::ExtractTransformAtTime(float Time) const
 {
 	FTransform AlignmentTransform = FTransform::Identity;
 	const int32 TotalFrames = Track.PosKeys.Num();
-	const float TrackLength = (TotalFrames - 1) * SampleRate;
+	const float TrackLength = (TotalFrames - 1) * SampleInterval;
 	FAnimationUtils::ExtractTransformFromTrack(Time, TotalFrames, TrackLength, Track, EAnimInterpolationType::Linear, AlignmentTransform);
 	return AlignmentTransform;
+}
+
+// FContextualAnimData
+///////////////////////////////////////////////////////////////////////
+
+float FContextualAnimData::FindBestAnimStartTime(const FVector& LocalLocation) const
+{
+	float BestTime = 0.f;
+
+	const FTransform TransformAtEntryTime = GetAlignmentTransformAtEntryTime();
+	const FVector Direction = (LocalLocation - TransformAtEntryTime.GetLocation()).GetSafeNormal2D();
+	const float Dot = FVector::DotProduct(Direction, TransformAtEntryTime.GetRotation().GetForwardVector());
+	if (Dot > 0.f)
+	{
+		float BestDistance = MAX_FLT;	
+		const TArray<FVector>& PosKeys = AlignmentData.Track.PosKeys;
+
+		//@TODO: Very simple search for now
+		for (int32 Idx = 0; Idx < PosKeys.Num(); Idx++)
+		{
+			const float Time = Idx * AlignmentData.SampleInterval;
+			if(AnimMinStartTime > 0.f && Time >= AnimMinStartTime)
+			{
+				break;
+			}
+
+			const float DistSquared2D = FVector::DistSquared2D(LocalLocation, PosKeys[Idx]);
+			if (DistSquared2D < BestDistance)
+			{
+				BestDistance = DistSquared2D;
+				BestTime = Time;
+			}
+		}
+	}
+
+	return BestTime;
 }
 
 // UContextualAnimAsset
@@ -76,15 +112,9 @@ FTransform FAlignmentTrackContainer::ExtractTransformAtTime(float Time) const
 UContextualAnimAsset::UContextualAnimAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer) 
 {
+	SampleRate = 15;
 	MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));
 }
-
-#if WITH_EDITOR
-void UContextualAnimAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-#endif // WITH_EDITOR
 
 void UContextualAnimAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
@@ -93,6 +123,8 @@ void UContextualAnimAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 	TArray<FBoneIndexType> RequiredBoneIndexArray;
 	RequiredBoneIndexArray.Add(0);
 	FBoneContainer BoneContainer;
+
+	const float SampleInterval = 1.f / SampleRate;
 
 	for (FContextualAnimData& Data : DataContainer)
 	{
@@ -107,13 +139,12 @@ void UContextualAnimAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 		float SectionStartTime, SectionEndTime;
 		Animation->GetSectionStartAndEndTime(0, SectionStartTime, SectionEndTime);
 
-		const float SampleRate = 1 / 30.f;
 		float Time = 0.f;
 		float EndTime = SectionEndTime;
 		int32 SampleIndex = 0;
 
 		Data.SyncTime = EndTime;
-		Data.AlignmentData.Initialize(SampleRate);
+		Data.AlignmentData.Initialize(SampleInterval);
 		FRawAnimSequenceTrack& NewTrack = Data.AlignmentData.Track;
 
 		if (AlignmentJoint.IsNone())
@@ -125,7 +156,7 @@ void UContextualAnimAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 
 			while (Time < EndTime)
 			{
-				Time = FMath::Clamp(SampleIndex * SampleRate, 0.f, EndTime);
+				Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, EndTime);
 				SampleIndex++;
 
 				FCSPose<FCompactPose> ComponentSpacePose;
@@ -160,7 +191,7 @@ void UContextualAnimAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 
 			while (Time < EndTime)
 			{
-				Time = FMath::Clamp(SampleIndex * SampleRate, 0.f, EndTime);
+				Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, EndTime);
 				SampleIndex++;
 
 				FCSPose<FCompactPose> ComponentSpacePose;
