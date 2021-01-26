@@ -261,10 +261,10 @@ IElectraPlayerResourceDelegate* FElectraPlayerPlugin::FPlayerAdapterDelegate::Ge
 
 // IMediaPlayer interface
 
-FName FElectraPlayerPlugin::GetPlayerName() const
+FGuid FElectraPlayerPlugin::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("ElectraPlayer"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0x94ee3f80, 0x8e604292, 0xb4d24dd5, 0xfdade1c2);
+	return PlayerPluginGUID;
 }
 
 FString FElectraPlayerPlugin::GetInfo() const

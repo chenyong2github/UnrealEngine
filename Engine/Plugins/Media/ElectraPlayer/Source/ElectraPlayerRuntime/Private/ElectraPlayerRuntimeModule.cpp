@@ -57,7 +57,7 @@ public:
 		FString AnalyticsEventsFromIni;
 	
 		// Read Analytics Events from ini configuring the events sent during playback
-		if (GConfig->GetString(TEXT("ElectraPlayer"), TEXT("AnalyticsEvents"), AnalyticsEventsFromIni, GGameIni))
+		if (GConfig->GetString(TEXT("ElectraPlayer"), TEXT("AnalyticsEvents"), AnalyticsEventsFromIni, GEngineIni))
 		{
 			// Parse comma delimited strings into arrays
 			TArray<FString> EnabledAnalyticsEvents;
@@ -66,7 +66,6 @@ public:
 			{
 				EnabledEvent.TrimStartAndEndInline();
 				ElectraConfig.EnabledAnalyticsEvents.Add(EnabledEvent, true);
-				UE_LOG(LogElectraPlayer, Verbose, TEXT("Enabling Analytics for '%s'"), *EnabledEvent);
 			}
 		}
 		Electra::Startup(ElectraConfig);

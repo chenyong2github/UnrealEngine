@@ -89,7 +89,7 @@ public:
 	}
 
 	FString GetInfo() const override;
-	FName GetPlayerName() const override;
+	FGuid GetPlayerPluginGUID() const override;
 	IMediaSamples& GetSamples() override;
 	FString GetStats() const override;
 	IMediaTracks& GetTracks() override;

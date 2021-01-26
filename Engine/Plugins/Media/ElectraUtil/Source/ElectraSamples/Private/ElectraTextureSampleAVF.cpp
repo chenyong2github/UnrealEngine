@@ -192,8 +192,6 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 			// Expecting BiPlanar kCVPixelFormatType_420YpCbCr8BiPlanar Full/Video
 			check(CVPixelBufferGetPlaneCount(InImageBufferRef) == 2);
 
-			uint32 TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling;
-
 			int32 YWidth = CVPixelBufferGetWidthOfPlane(InImageBufferRef, 0);
 			int32 YHeight = CVPixelBufferGetHeightOfPlane(InImageBufferRef, 0);
 
@@ -219,8 +217,9 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 			UVCreateInfo.BulkData = new FTexConvTexResourceWrapper(UVTextureRef);
 			UVCreateInfo.ResourceArray = nullptr;
 
-			TRefCountPtr<FRHITexture2D> YTex = RHICreateTexture2D(YWidth, YHeight, PF_G8, 1, 1, TexCreateFlags | TexCreate_ShaderResource, YCreateInfo);
-			TRefCountPtr<FRHITexture2D> UVTex = RHICreateTexture2D(UVWidth, UVHeight, PF_R8G8, 1, 1, TexCreateFlags | TexCreate_ShaderResource, UVCreateInfo);
+			ETextureCreateFlags TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
+			TRefCountPtr<FRHITexture2D> YTex = RHICreateTexture2D(YWidth, YHeight, PF_G8, 1, 1, TexCreateFlags, YCreateInfo);
+			TRefCountPtr<FRHITexture2D> UVTex = RHICreateTexture2D(UVWidth, UVHeight, PF_R8G8, 1, 1, TexCreateFlags, UVCreateInfo);
 
 			// render video frame into sink texture
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -279,10 +278,8 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 			CreateInfo.BulkData = new FTexConvTexResourceWrapper(TextureRef);
 			CreateInfo.ResourceArray = nullptr;
 
-			uint32 TexCreateFlags = TexCreate_SRGB;
-			TexCreateFlags |= TexCreate_Dynamic | TexCreate_NoTiling;
-
-			InDstTexture = RHICreateTexture2D(Width, Height, PF_B8G8R8A8, 1, 1, TexCreateFlags | TexCreate_ShaderResource, CreateInfo);
+			ETextureCreateFlags TexCreateFlags = TexCreate_SRGB | TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
+			InDstTexture = RHICreateTexture2D(Width, Height, PF_B8G8R8A8, 1, 1, TexCreateFlags, CreateInfo);
 
 			CFRelease(TextureRef);
 		}

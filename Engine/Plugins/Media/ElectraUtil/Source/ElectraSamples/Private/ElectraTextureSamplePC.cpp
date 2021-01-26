@@ -201,7 +201,7 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef & InDstTexture, const FConv
 	if (!Texture.IsValid() || Texture->GetSizeX() != Dim.X || Texture->GetSizeY() != Dim.Y)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		const uint32 CreateFlags = TexCreate_Dynamic;
+		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic;
 		Texture = RHICreateTexture2D(
 			Dim.X,
 			Dim.Y,
