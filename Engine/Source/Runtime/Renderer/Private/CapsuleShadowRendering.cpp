@@ -701,8 +701,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 		RDG_EVENT_SCOPE(GraphBuilder, "CapsuleShadows");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, CapsuleShadows);
 
-		static TArray<FCapsuleShape> CapsuleShapeData;
-		CapsuleShapeData.Reset();
+		TArray<FCapsuleShape> CapsuleShapeData;
 
 		for (int32 ShadowIndex = 0; ShadowIndex < CapsuleShadows.Num(); ShadowIndex++)
 		{
@@ -746,8 +745,8 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 				FMath::DivideAndRoundUp(ScissorRect.Size().Y / GetCapsuleShadowDownsampleFactor(), GShadowShapeTileSize));
 
 			AllocateCapsuleTileIntersectionCountsBuffer(GroupSize, View.ViewState);
-
-			AddPass(GraphBuilder, [&View, &LightSceneInfo](FRHICommandListImmediate& RHICmdList)
+			int32 NumCapsuleShapeData = CapsuleShapeData.Num();
+			AddPass(GraphBuilder, [&View, &LightSceneInfo, CapsuleShapeData = MoveTemp(CapsuleShapeData)](FRHICommandListImmediate& RHICmdList)
 			{
 				static_assert(sizeof(FCapsuleShape) == sizeof(FVector4) * 2, "FCapsuleShape has padding");
 				const int32 DataSize = CapsuleShapeData.Num() * CapsuleShapeData.GetTypeSize();
@@ -778,7 +777,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 					RDG_EVENT_NAME("TiledCapsuleShadowing"),
 					PassParameters,
 					ERDGPassFlags::Compute,
-					[this, &View, &LightSceneInfo, RayTracedShadowsRT, GroupSize, ScissorRect, bDirectionalLight](FRHIComputeCommandList& RHICmdList)
+					[this, &View, &LightSceneInfo, RayTracedShadowsRT, GroupSize, ScissorRect, bDirectionalLight, NumCapsuleShapeData](FRHIComputeCommandList& RHICmdList)
 				{
 					if (bDirectionalLight)
 					{
@@ -797,7 +796,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 							GCapsuleMaxDirectOcclusionDistance,
 							ScissorRect,
 							GetCapsuleShadowDownsampleFactor(),
-							CapsuleShapeData.Num(),
+							NumCapsuleShapeData,
 							LightSceneInfo.ShadowCapsuleShapesSRV.GetReference(),
 							0,
 							NULL,
@@ -824,7 +823,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 							GCapsuleMaxDirectOcclusionDistance,
 							ScissorRect,
 							GetCapsuleShadowDownsampleFactor(),
-							CapsuleShapeData.Num(),
+							NumCapsuleShapeData,
 							LightSceneInfo.ShadowCapsuleShapesSRV.GetReference(),
 							0,
 							NULL,
