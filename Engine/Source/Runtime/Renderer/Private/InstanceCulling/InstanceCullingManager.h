@@ -71,6 +71,7 @@ struct FInstanceCullingResult
 class FInstanceCullingManager
 {
 public:
+	~FInstanceCullingManager();
 
 	// Max average number of instances that primitives are expanded to. GPUCULL_TODO: Not very robust
 	static constexpr uint32 MaxAverageInstanceFactor = 128;
@@ -110,7 +111,7 @@ private:
 
 	FInstanceCullingManagerResources& Resources;
 	TArray<Nanite::FPackedView> CullingViews;
-	
+	TArray<FInstanceCullingContext*> CullingContexts;
 	bool bIsEnabled;
 };
 

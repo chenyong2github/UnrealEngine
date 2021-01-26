@@ -2032,7 +2032,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 		ShadowDepthPass.SetDumpInstancingStats(TEXT("ShadowDepth ") + PassNameForStats);
 	}
 	
-
+	ViewIds.Reset();
 	if (GetShadowDepthType().bOnePassPointLightShadow)
 	{
 		ViewIds.AddDefaulted(6);

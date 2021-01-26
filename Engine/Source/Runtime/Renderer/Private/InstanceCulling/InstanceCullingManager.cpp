@@ -20,6 +20,15 @@ static TAutoConsoleVariable<int32> CVarCullInstances(
 	ECVF_RenderThreadSafe);
 
 
+FInstanceCullingManager::~FInstanceCullingManager()
+{
+	for (FInstanceCullingContext* InstanceCullingContext : CullingContexts)
+	{
+		// Memstack allocated, so no destructor is called.
+		InstanceCullingContext->~FInstanceCullingContext();
+	}
+}
+
 int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
 {
 	if (!bIsEnabled)
@@ -163,6 +172,7 @@ FInstanceCullingContext* FInstanceCullingManager::CreateContext(const int32* Vie
 	if (bIsEnabled)
 	{
 		FInstanceCullingContext* InstanceCullingContext = new(FMemStack::Get()) FInstanceCullingContext;
+		CullingContexts.Add(InstanceCullingContext);
 		InstanceCullingContext->ViewIds.Insert(ViewIds, NumViews, 0);
 		InstanceCullingContext->InstanceCullingManager = this;
 		return InstanceCullingContext;
