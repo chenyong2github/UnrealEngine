@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
+#include "BlendSpaceGraph.h"
 
 // Tab payload used to generate blendspace documents
 struct FTabPayload_BlendSpaceGraph : public FTabPayload
