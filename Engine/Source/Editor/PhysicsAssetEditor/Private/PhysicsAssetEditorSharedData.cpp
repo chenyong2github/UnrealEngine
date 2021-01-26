@@ -76,11 +76,6 @@ FPhysicsAssetEditorSharedData::FPhysicsAssetEditorSharedData()
 	// Construct mouse handle
 	MouseHandle = NewObject<UPhysicsAssetEditorPhysicsHandleComponent>();
 
-	// in Chaos, we have to manipulate the RBAN node in the Anim Instance (at least until we get SkelMeshComp implemented)
-#if PHAT_USE_RBAN_SIMULATION
-	MouseHandle->SetAnimInstanceMode(true);
-#endif
-
 	// Construct sim options.
 	EditorOptions = NewObject<UPhysicsAssetEditorOptions>(GetTransientPackage(), MakeUniqueObjectName(GetTransientPackage(), UPhysicsAssetEditorOptions::StaticClass(), FName(TEXT("EditorOptions"))), RF_Transactional);
 	check(EditorOptions);
@@ -1906,35 +1901,41 @@ void FPhysicsAssetEditorSharedData::ToggleSimulation()
 
 void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 {
+	// in Chaos, we have to manipulate the RBAN node in the Anim Instance (at least until we get SkelMeshComp implemented)
+	const bool bUseRBANSolver = (EditorOptions->SolverType == EPhysicsAssetEditorSolverType::RBAN);
+	MouseHandle->SetAnimInstanceMode(bUseRBANSolver);
+
 	if (bEnableSimulation)
 	{
-#if !PHAT_USE_RBAN_SIMULATION
-		// We should not already have an instance (destroyed when stopping sim).
-		EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		EditorSkelComp->SetSimulatePhysics(true);
-		EditorSkelComp->ResetAllBodiesSimulatePhysics();
-		EditorSkelComp->SetPhysicsBlendWeight(EditorOptions->PhysicsBlend);
-		PhysicalAnimationComponent->SetSkeletalMeshComponent(EditorSkelComp);
-
-		// Make it start simulating
-		EditorSkelComp->WakeAllRigidBodies();
-#else
-		// Enable the PreviewInstance (containing the AnimNode_RigidBody)
-		EditorSkelComp->SetAnimationMode(EAnimationMode::AnimationCustomMode);
-		EditorSkelComp->InitAnim(true);
-
-		// Add the floor
-		TSharedPtr<IPersonaPreviewScene> Scene = PreviewScene.Pin();
-		if (Scene != nullptr)
+		if (!bUseRBANSolver)
 		{
-			UStaticMeshComponent* FloorMeshComponent = const_cast<UStaticMeshComponent*>(Scene->GetFloorMeshComponent());
-			if ((FloorMeshComponent != nullptr) && (FloorMeshComponent->GetBodyInstance() != nullptr))
+			// We should not already have an instance (destroyed when stopping sim).
+			EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			EditorSkelComp->SetSimulatePhysics(true);
+			EditorSkelComp->ResetAllBodiesSimulatePhysics();
+			EditorSkelComp->SetPhysicsBlendWeight(EditorOptions->PhysicsBlend);
+			PhysicalAnimationComponent->SetSkeletalMeshComponent(EditorSkelComp);
+
+			// Make it start simulating
+			EditorSkelComp->WakeAllRigidBodies();
+		}
+		else
+		{
+			// Enable the PreviewInstance (containing the AnimNode_RigidBody)
+			EditorSkelComp->SetAnimationMode(EAnimationMode::AnimationCustomMode);
+			EditorSkelComp->InitAnim(true);
+
+			// Add the floor
+			TSharedPtr<IPersonaPreviewScene> Scene = PreviewScene.Pin();
+			if (Scene != nullptr)
 			{
-				EditorSkelComp->CreateSimulationFloor(FloorMeshComponent->GetBodyInstance(), FloorMeshComponent->GetBodyInstance()->GetUnrealWorldTransform());
+				UStaticMeshComponent* FloorMeshComponent = const_cast<UStaticMeshComponent*>(Scene->GetFloorMeshComponent());
+				if ((FloorMeshComponent != nullptr) && (FloorMeshComponent->GetBodyInstance() != nullptr))
+				{
+					EditorSkelComp->CreateSimulationFloor(FloorMeshComponent->GetBodyInstance(), FloorMeshComponent->GetBodyInstance()->GetUnrealWorldTransform());
+				}
 			}
 		}
-
-#endif
 
 		if(EditorOptions->bResetClothWhenSimulating)
 		{
@@ -1953,10 +1954,11 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 		// Stop any animation and clear node when stopping simulation.
 		PhysicalAnimationComponent->SetSkeletalMeshComponent(nullptr);
 
-#if PHAT_USE_RBAN_SIMULATION
-		// Undo ends up recreating the anim script instance, so we need to remove it here (otherwise the AnimNode_RigidBody similation starts when we undo)
-		EditorSkelComp->ClearAnimScriptInstance();
-#endif
+		if (bUseRBANSolver)
+		{
+			// Undo ends up recreating the anim script instance, so we need to remove it here (otherwise the AnimNode_RigidBody similation starts when we undo)
+			EditorSkelComp->ClearAnimScriptInstance();
+		}
 
 		EditorSkelComp->SetPhysicsBlendWeight(0.f);
 		EditorSkelComp->ResetAllBodiesSimulatePhysics();

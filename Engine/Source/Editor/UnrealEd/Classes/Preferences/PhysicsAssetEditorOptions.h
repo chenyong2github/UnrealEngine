@@ -25,6 +25,13 @@ enum class EPhysicsAssetEditorConstraintViewMode : uint8
 	AllLimits
 };
 
+UENUM()
+enum class EPhysicsAssetEditorSolverType: uint8
+{
+	RBAN,
+	World,
+};
+
 UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings)
 class UNREALED_API UPhysicsAssetEditorOptions : public UObject
 {
@@ -145,4 +152,7 @@ class UNREALED_API UPhysicsAssetEditorOptions : public UObject
 	/** When set, cloth will reset each time simulation is toggled */
 	UPROPERTY(EditAnywhere, config, Category=Clothing)
 	bool bResetClothWhenSimulating;
+
+	UPROPERTY(EditAnywhere, config, Category = Simulation)
+	EPhysicsAssetEditorSolverType SolverType;
 };

@@ -19,11 +19,6 @@ struct FBoneVertInfo;
 class IPersonaPreviewScene;
 class FPhysicsAssetEditorSharedData;
 
-// Whether to use RigidBody AnimNode for simulation preview when using Chaos since we don't have constraints in the main scene yet.
-// NOTE: The SkeletalMeshComponent simulation overrides the AnimNode simulation if enabled, so PHAT_USE_RBAN_SIMULATION switches it off.
-#define PHAT_USE_RBAN_SIMULATION WITH_CHAOS
-
-
 /** Scoped object that blocks selection broadcasts until it leaves scope */
 struct FScopedBulkSelection
 {
