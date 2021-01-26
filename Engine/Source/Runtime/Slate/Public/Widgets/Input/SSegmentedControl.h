@@ -10,6 +10,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
 
 /**
  * A Slate Segmented Control is functionally similar to a group of Radio Buttons.
@@ -28,10 +29,11 @@ public:
 
 	/** Stores the per-child info for this panel type */
 	template< typename SlotOptionType >
-	struct FSlot : public TSlotBase<FSlot<SlotOptionType>> 
+	struct FSlot : public TSlotBase<FSlot<SlotOptionType>>, TSupportsContentAlignmentMixin<FSlot<SlotOptionType>>
 	{
 		FSlot(const SlotOptionType& InValue) 
-		: TSlotBase<FSlot<SlotOptionType>>() 
+		: TSlotBase<FSlot<SlotOptionType>>()
+		, TSupportsContentAlignmentMixin<FSlot<SlotOptionType>>(HAlign_Center, VAlign_Fill)
 		, _Text()
 		, _Tooltip()
 		, _Icon(nullptr)
@@ -103,7 +105,7 @@ public:
 
 	void RebuildChildren()
 	{
-		TSharedPtr<SHorizontalBox> HBox = SNew(SHorizontalBox);
+		TSharedPtr<SUniformGridPanel> UniformBox = SNew(SUniformGridPanel);
 
 		const int32 NumSlots = Children.Num();
 		for ( int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex )
@@ -144,10 +146,12 @@ public:
 				];
 			}
 
-			HBox->AddSlot()
-			.AutoWidth()
+			UniformBox->AddSlot(SlotIndex, 0)
+			// Note HAlignment is applied at the check box level because if it were applied here it would make the slots look physically disconnected from each other 
+			.VAlign(ChildSlotPtr->VAlignment)
 			[
 				SNew(SCheckBox)
+				.HAlign(ChildSlotPtr->HAlignment)
 				.ToolTipText(ChildSlotPtr->_Tooltip)
 				.Style(SlotIndex == 0 ? &Style->FirstControlStyle : SlotIndex == (NumSlots - 1) ? &Style->LastControlStyle : &Style->ControlStyle)
 				.IsChecked(this, &SSegmentedControl::IsCurrentValue, ChildValue)
@@ -160,7 +164,7 @@ public:
 
 		ChildSlot
 		[
-			HBox.ToSharedRef()
+			UniformBox.ToSharedRef()
 		];
 
 	}

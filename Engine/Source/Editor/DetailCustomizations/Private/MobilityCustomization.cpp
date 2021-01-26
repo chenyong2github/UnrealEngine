@@ -52,6 +52,7 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 
 		// Static Mobility
 		ButtonOptionsPanel->AddSlot(EComponentMobility::Static)
+		.HAlign(HAlign_Center)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -64,7 +65,6 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
@@ -83,6 +83,7 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 			: LOCTEXT("Mobility_Stationary_Object_Tooltip", "A stationary object can be changed in game but not moved, and enables cached lighting methods. \n* Cached Dynamic Shadows.");
 
 		ButtonOptionsPanel->AddSlot(EComponentMobility::Stationary)
+		.HAlign(HAlign_Center)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -95,7 +96,6 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
@@ -112,6 +112,7 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 
 	// Movable Mobility
 	ButtonOptionsPanel->AddSlot(EComponentMobility::Movable)
+	.HAlign(HAlign_Center)
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
@@ -124,7 +125,6 @@ void FMobilityCustomization::CreateMobilityCustomization(IDetailCategoryBuilder&
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 		+ SHorizontalBox::Slot()
-		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
