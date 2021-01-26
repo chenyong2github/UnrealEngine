@@ -7,8 +7,6 @@
 #include "Dom/JsonObject.h"
 #include "Templates/Models.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogEditorConfig, Log, All);
-
 class EDITORCONFIG_API FEditorConfig
 {
 public:
@@ -79,7 +77,8 @@ bool FEditorConfig::TryGetStruct(FStringView Key, T& OutValue) const
 	}
 
 	TSharedPtr<FJsonObject> StructData;
-	if (!JsonConfig->TryGetJsonObject(UE::FJsonPath(Key), StructData))
+	UE::FJsonPath Path(Key);
+	if (!JsonConfig->TryGetJsonObject(Path, StructData))
 	{
 		return false;
 	}
@@ -106,7 +105,8 @@ bool FEditorConfig::TryGetUObject(FStringView Key, T& OutValue) const
 	}
 
 	TSharedPtr<FJsonObject> UObjectData;
-	if (!JsonConfig->TryGetJsonObject(UE::FJsonPath(Key), UObjectData))
+	UE::FJsonPath Path(Key);
+	if (!JsonConfig->TryGetJsonObject(Path, UObjectData))
 	{
 		return false;
 	}

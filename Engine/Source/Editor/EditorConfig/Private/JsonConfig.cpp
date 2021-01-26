@@ -2,8 +2,11 @@
 
 #include "JsonConfig.h"
 #include "Misc/FileHelper.h"
+#include "Misc/StringBuilder.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogJsonConfig, Log, All);
 
 namespace UE
 {
@@ -47,7 +50,7 @@ namespace UE
 			if (Part.IsEmpty())
 			{
 				PathParts.Empty();
-				UE_LOG(LogEditorConfig, Warning, TEXT("Path part was empty in JSON path \"%s\""), *InPath);
+				UE_LOG(LogJsonConfig, Warning, TEXT("Path part was empty in JSON path \"%s\""), *InPath);
 				return;
 			}
 
@@ -71,14 +74,14 @@ namespace UE
 					else
 					{
 						PathParts.Empty();
-						UE_LOG(LogEditorConfig, Warning, TEXT("Path part \"%s\" looked to be index into array but was malformed in JSON path \"%s\""), *Part, *InPath);
+						UE_LOG(LogJsonConfig, Warning, TEXT("Path part \"%s\" looked to be index into array but was malformed in JSON path \"%s\""), *Part, *InPath);
 						return;
 					}
 				}
 				else
 				{
 					PathParts.Empty();
-					UE_LOG(LogEditorConfig, Warning, TEXT("Path part \"%s\" looked to be index into array but was malformed in JSON path \"%s\""), *Part, *InPath);
+					UE_LOG(LogJsonConfig, Warning, TEXT("Path part \"%s\" looked to be index into array but was malformed in JSON path \"%s\""), *Part, *InPath);
 					return;
 				}
 			}
@@ -400,7 +403,7 @@ namespace UE
 		if (OverrideSet != nullptr && 
 			(OverrideAdd != nullptr || OverrideRemove != nullptr))
 		{
-			UE_LOG(LogEditorConfig, Warning, TEXT("JSON container is malformed and contains both set and add/remove values."));
+			UE_LOG(LogJsonConfig, Warning, TEXT("JSON container is malformed and contains both set and add/remove values."));
 		}
 
 		return OverrideSet != nullptr || OverrideAdd != nullptr || OverrideRemove != nullptr;
