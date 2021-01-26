@@ -115,4 +115,4 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 	return true;
 }
 
-#endif WITH_EDITOR
+#endif // #if WITH_EDITOR
