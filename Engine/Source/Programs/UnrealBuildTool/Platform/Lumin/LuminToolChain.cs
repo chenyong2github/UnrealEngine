@@ -317,6 +317,12 @@ namespace UnrealBuildTool
 			return true;
 		}
 
+		public override string GetNdkApiLevel()
+
+		{
+			return "android-21";
+		}
+
 		public override string GetStripPath(FileReference SourceFile)
 		{
 			return StripPath;
