@@ -164,7 +164,7 @@ void UInterchangeBaseNodeContainer::SerializeNodeContainerData(FArchive& Ar)
 			BaseNode->Serialize(Ar);
 		};
 
-		for (TPair<FString, UInterchangeBaseNode*> NodePair : Nodes)
+		for (auto NodePair : Nodes)
 		{
 			SerializeNodePair(NodePair.Value);
 		}

@@ -148,7 +148,7 @@ EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject
 		// If the asset is still valid or there wasn't a class-level validation, keep validating with custom validators
 		if (Result != EDataValidationResult::Invalid)
 		{
-			for (TPair<UClass*, UEditorValidatorBase*> ValidatorPair : Validators)
+			for (auto ValidatorPair : Validators)
 			{
 				if (ValidatorPair.Value && ValidatorPair.Value->IsEnabled() && ValidatorPair.Value->CanValidateAsset(InObject))
 				{

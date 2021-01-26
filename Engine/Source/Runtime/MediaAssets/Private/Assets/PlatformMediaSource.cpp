@@ -76,7 +76,7 @@ void UPlatformMediaSource::Serialize(FArchive& Ar)
 			if (Ar.IsLoading() && MediaCustomVersion < FMediaFrameworkObjectVersion::SerializeGUIDsInPlatformMediaSourceInsteadOfPlainNames)
 			{
 				// Load old data version
-				TMap<FString, UMediaSource*> OldPlatformMediaSources;
+				decltype(PlatformMediaSources) OldPlatformMediaSources;
 
 				Ar << OldPlatformMediaSources;
 

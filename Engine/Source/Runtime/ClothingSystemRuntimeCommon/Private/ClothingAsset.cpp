@@ -995,7 +995,7 @@ void UClothingAssetCommon::AddClothConfigs()
 					// migration from compatible config sources
 					if (UClothConfigCommon* const ClothConfigCommon = Cast<UClothConfigCommon>(ClothConfig))
 					{
-						for (TPair<FName, UClothConfigBase*> ClothConfigPair : ClothConfigs)
+						for (auto ClothConfigPair : ClothConfigs)
 						{
 							if (const UClothConfigCommon* SourceConfig = Cast<UClothConfigCommon>(ClothConfigPair.Value))
 							{
@@ -1026,7 +1026,7 @@ void UClothingAssetCommon::PropagateSharedConfigs(bool bMigrateSharedConfigToCon
 		const TArray<UClothingAssetBase*>& ClothingAssets = SkeletalMesh->GetMeshClothingAssets();
  
 		// Collect all shared configs found in the other assets
-		TMap<FName, UClothConfigBase*> ClothSharedConfigs;
+		decltype(ClothConfigs) ClothSharedConfigs;
 
 		for (const UClothingAssetBase* ClothingAssetBase : ClothingAssets)
 		{
@@ -1055,7 +1055,7 @@ void UClothingAssetCommon::PropagateSharedConfigs(bool bMigrateSharedConfigToCon
 		}
 
 		// Propagate the found shared configs to this asset
-		for (const TPair<FName, UClothConfigBase*>& ClothSharedConfigItem : ClothSharedConfigs)
+		for (const auto& ClothSharedConfigItem : ClothSharedConfigs)
 		{
 			// Set share config
 			if (UE_TRANSITIONAL_OBJECT_PTR(UClothConfigBase)* const ClothConfigBase = ClothConfigs.Find(ClothSharedConfigItem.Key))
