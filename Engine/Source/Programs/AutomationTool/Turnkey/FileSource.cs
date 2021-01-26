@@ -333,10 +333,8 @@ namespace Turnkey
 				return SdkUtils.SetupAutoSdk(this, Platform, bUnattended);
 			}
 
-			// let the platform decide how to 
-			AutomationTool.Platform.GetPlatform(Platform).InstallSDK(TurnkeyUtils.CommandUtilHelper, new CopyProviderRetriever(), this, Device);
-
-			return false;
+			// let the platform decide how to install
+			return AutomationTool.Platform.GetPlatform(Platform).InstallSDK(TurnkeyUtils.CommandUtilHelper, new CopyProviderRetriever(), this, Device);
 		}
 
 

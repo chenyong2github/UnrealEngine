@@ -154,7 +154,6 @@ public class IOSPlatform : Platform
 
 	private string PlatformName = null;
 	private string SDKName = null;
-	private UnrealTargetPlatform Platform;
 
 	public IOSPlatform()
 		: this(UnrealTargetPlatform.IOS)
@@ -165,7 +164,6 @@ public class IOSPlatform : Platform
 		: base(TargetPlatform)
 	{
 		PlatformName = TargetPlatform.ToString();
-		Platform = TargetPlatform;
 		SDKName = (TargetPlatform == UnrealTargetPlatform.TVOS) ? "appletvos" : "iphoneos";
 	}
 
@@ -509,7 +507,7 @@ public class IOSPlatform : Platform
 			return base.GetDevices();
 		}
 
-		string DeviceType = Platform == UnrealTargetPlatform.TVOS ? "tvOS" : "iOS";
+		string DeviceType = TargetPlatformType == UnrealTargetPlatform.TVOS ? "tvOS" : "iOS";
 
 		// print out each connected device's udid, os version, and name (which might have spaces)
 		string Params = "-e 'require \"fastlane\"; FastlaneCore::DeviceManager.connected_devices(\"" + DeviceType + "\").each { |x| puts \"#{x.udid} #{x.os_type} #{x.os_version} #{x.name}\" }'";
@@ -520,7 +518,7 @@ public class IOSPlatform : Platform
 		{
 			string[] Tokens = Line.Split(" ".ToCharArray());
 
-			DeviceInfo Device = new DeviceInfo();
+			DeviceInfo Device = new DeviceInfo(TargetPlatformType);
 			Device.Id = Tokens[0];
 			Device.Type = Tokens[1];
 			Device.SoftwareVersion = Tokens[2];
@@ -625,7 +623,7 @@ public class IOSPlatform : Platform
 	private bool IsBuiltAsFramework(ProjectParams Params, DeploymentContext SC)
 	{
 		UnrealTargetConfiguration Config = SC.StageTargetConfigurations[0];
-		string InExecutablePath = CombinePaths(Path.GetDirectoryName(Params.GetProjectExeForPlatform(Platform).ToString()), SC.StageExecutables[0]);
+		string InExecutablePath = CombinePaths(Path.GetDirectoryName(Params.GetProjectExeForPlatform(TargetPlatformType).ToString()), SC.StageExecutables[0]);
 		DirectoryReference InEngineDir = DirectoryReference.Combine(SC.LocalRoot, "Engine");
 		DirectoryReference InProjectDirectory = Params.RawProjectPath.Directory;
 		bool bIsUE4Game = !SC.IsCodeBasedProject;
@@ -724,7 +722,7 @@ public class IOSPlatform : Platform
 
 		// ensure the ue4game binary exists, if applicable
 #if !PLATFORM_MAC
-		string ProjectGameExeFilename = Params.GetProjectExeForPlatform(Platform).ToString();
+		string ProjectGameExeFilename = Params.GetProjectExeForPlatform(TargetPlatformType).ToString();
 		string FullExePath = CombinePaths(Path.GetDirectoryName(ProjectGameExeFilename), SC.StageExecutables[0] + (UnrealBuildTool.BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac ? ".stub" : ""));
 		if (!SC.IsCodeBasedProject && !FileExists_NoExceptions(FullExePath) && !bIsBuiltAsFramework)
 		{
@@ -805,7 +803,7 @@ public class IOSPlatform : Platform
 
 		StageLaunchScreenStoryboard(Params, SC);
 
-		IOSExports.GenerateAssetCatalog(Params.RawProjectPath, new FileReference(FullExePath), new DirectoryReference(CombinePaths(Params.BaseStageDirectory, (Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"))), Platform);
+		IOSExports.GenerateAssetCatalog(Params.RawProjectPath, new FileReference(FullExePath), new DirectoryReference(CombinePaths(Params.BaseStageDirectory, (TargetPlatformType == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"))), TargetPlatformType);
 
 		bCreatedIPA = false;
 		bool bNeedsIPA = false;
@@ -2162,7 +2160,7 @@ public class IOSPlatform : Platform
 		bool bForDistribution = Params.Distribution;
 
 		// intermediate directory
-		string IntermediateDir = SC.ProjectRoot + "/Intermediate/" + (Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS");
+		string IntermediateDir = SC.ProjectRoot + "/Intermediate/" + (TargetPlatformType == UnrealTargetPlatform.IOS ? "IOS" : "TVOS");
 
 		//	entitlements file name
 		string OutputFilename = Path.Combine(IntermediateDir, AppName + ".entitlements");
@@ -2171,7 +2169,7 @@ public class IOSPlatform : Platform
 		ConfigHierarchy PlatformGameConfig;
 		if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformGameConfig))
 		{
-			IOSExports.WriteEntitlements(Platform, PlatformGameConfig, AppName, MobileProvisionFile, bForDistribution, IntermediateDir);
+			IOSExports.WriteEntitlements(TargetPlatformType, PlatformGameConfig, AppName, MobileProvisionFile, bForDistribution, IntermediateDir);
 		}
 	}
 

@@ -40,7 +40,7 @@ namespace Turnkey
 			SetVariable("HOST_PLATFORM_NAME", HostPlatform.Current.HostEditorPlatform.ToString());
 		}
 
-		#region Turnkey Variables
+#region Turnkey Variables
 
 		static Dictionary<string, string> TurnkeyVariables = new Dictionary<string, string>();
 
@@ -82,9 +82,9 @@ namespace Turnkey
 			return UnrealBuildTool.Utils.ExpandVariables(ExpandedUserVariables, TurnkeyVariables, bUseOnlyTurnkeyVariables);
 		}
 
-		#endregion
+#endregion
 
-		#region Commandline Handling
+#region Commandline Handling
 
 		public static bool ParseParam(string Param, string[] ExtraOptions)
 		{
@@ -387,9 +387,17 @@ namespace Turnkey
 			{
 				return null;
 			}
-			return Array.Find(Devices, x => string.Compare(x.Name, DeviceName, true) == 0);
+			// look by Id first
+			DeviceInfo Device = Array.Find(Devices, x => string.Compare(x.Id, DeviceName, true) == 0);
+			// if that fails, use Name
+			if (Device == null)
+			{
+				Device = Array.Find(Devices, x => string.Compare(x.Name, DeviceName, true) == 0);
+			}
+			return Device;
 		}
-		public static Dictionary<UnrealTargetPlatform, List<DeviceInfo>> GetDevicesFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)
+
+		public static List<DeviceInfo> GetDevicesFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)
 		{
 			return GetDevicesFromCommandLineOrUser(CommandOptions, new List<UnrealTargetPlatform>() { Platform });
 		}
@@ -398,9 +406,9 @@ namespace Turnkey
 		//	Dictionary<UnrealTargetPlatform, List<DeviceInfo>> PlatformsAndDevices = GetDevicesFromCommandLineOrUser(CommandOptions, Platform);
 		//}
 
-		public static Dictionary<UnrealTargetPlatform, List<DeviceInfo>> GetDevicesFromCommandLineOrUser(string[] CommandOptions, List<UnrealTargetPlatform> PossiblePlatforms)
+		public static List<DeviceInfo> GetDevicesFromCommandLineOrUser(string[] CommandOptions, List<UnrealTargetPlatform> PossiblePlatforms)
 		{
-			Dictionary<UnrealTargetPlatform, List<DeviceInfo>> PlatformsAndDevices = null;
+			List<DeviceInfo> ChosenDevices = null;
 
 			// look at any devices on the commandline, and see if they have platforms or not
 			string DeviceList = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
@@ -436,25 +444,21 @@ namespace Turnkey
 						string DeviceName = Tokens[1];
 
 						// track it
-						if (PlatformsAndDevices == null)
+						if (ChosenDevices == null)
 						{
-							PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<DeviceInfo>>();
-						}
-						if (!PlatformsAndDevices.ContainsKey(Platform))
-						{
-							PlatformsAndDevices[Platform] = new List<DeviceInfo>();
+							ChosenDevices = new List<DeviceInfo>();
 						}
 						
 						if (DeviceName.ToLower() == "all")
 						{
-							PlatformsAndDevices[Platform].AddRange(AutomationTool.Platform.GetPlatform(Platform).GetDevices());
+							ChosenDevices.AddRange(AutomationTool.Platform.GetPlatform(Platform).GetDevices());
 						}
 						else
 						{
 							DeviceInfo Device = GetDeviceByPlatformAndName(Platform, DeviceName);
 							if (Device != null)
 							{
-								PlatformsAndDevices[Platform].Add(Device);
+								ChosenDevices.Add(Device);
 							}
 						}
 					}
@@ -463,9 +467,9 @@ namespace Turnkey
 			}
 
 			// if we didn't get some platforms already from -device list, then get or ask the user for platforms
-			if (PlatformsAndDevices == null)
+			if (ChosenDevices == null)
 			{
-				PlatformsAndDevices = new Dictionary<UnrealTargetPlatform, List<DeviceInfo>>();
+				ChosenDevices = new List<DeviceInfo>();
 				List<UnrealTargetPlatform> ChosenPlatforms;
 
 				// use all platforms (with -device=all), or ask user if needed (GetPlatformsFromCommandLineOrUser would look at -platform=all, not -device=all)
@@ -484,9 +488,6 @@ namespace Turnkey
 					return null;
 				}
 
-				// set up PlatformsAndDevices for all platforms
-				ChosenPlatforms.ForEach(x => PlatformsAndDevices.Add(x, new List<DeviceInfo>()));
-
 				if (ChosenPlatforms.Count > 1 && SplitDeviceList != null && !(SplitDeviceList.Count == 1 && SplitDeviceList[0].ToLower() == "all"))
 				{
 					throw new AutomationException("When using -Device without platform specifiers ('Platform@Device'), a single platform must be specified (unless -Device=All is used)");
@@ -500,7 +501,7 @@ namespace Turnkey
 						DeviceInfo[] Devices = AutomationTool.Platform.GetPlatform(Platform).GetDevices();
 						if (Devices != null)
 						{
-							PlatformsAndDevices[Platform].AddRange(Devices);
+							ChosenDevices.AddRange(Devices);
 						}
 					}
 				}
@@ -514,7 +515,7 @@ namespace Turnkey
 							DeviceInfo Device = GetDeviceByPlatformAndName(Platform, DeviceName);
 							if (Device != null)
 							{
-								PlatformsAndDevices[Platform].Add(Device);
+								ChosenDevices.Add(Device);
 							}
 						}
 					}
@@ -524,7 +525,6 @@ namespace Turnkey
 				{
 					List<string> Options = new List<string>();
 					List<DeviceInfo> PossibleDevices = new List<DeviceInfo>();
-					List<UnrealTargetPlatform> PossibleDevicePlatforms = new List<UnrealTargetPlatform>();
 
 					foreach (UnrealTargetPlatform Platform in ChosenPlatforms)
 					{
@@ -535,8 +535,6 @@ namespace Turnkey
 							foreach (DeviceInfo Device in Devices)
 							{
 								PossibleDevices.Add(Device);
-								PossibleDevicePlatforms.Add(Platform);
-
 								Options.Add(string.Format("[{0} {1}] {2}", Platform, Device.Type, Device.Name));
 							}
 						}
@@ -557,19 +555,12 @@ namespace Turnkey
 					}
 
 					// finally, add it to the proper list
-					PlatformsAndDevices[PossibleDevicePlatforms[Choice - 1]].Add(PossibleDevices[Choice - 1]);
+					ChosenDevices.Add(PossibleDevices[Choice - 1]);
 				}
 			}
 
 			// if we ended up with some platforms, but no devices, just return null
-			foreach (var Pair in PlatformsAndDevices)
-			{
-				if (Pair.Value != null && Pair.Value.Count > 0)
-				{
-					return PlatformsAndDevices;
-				}
-			}
-			return null;
+			return (ChosenDevices != null && ChosenDevices.Count > 0) ? ChosenDevices : null;
 		}
 
 		public static string GetGenericOption(string[] CommandOptions, List<string> Options, string CommandLineOption)
@@ -662,6 +653,7 @@ namespace Turnkey
 				foreach (var Pair in EnvVarsToSaveToBatchFile)
 				{
 					BatchContents.AppendLine("set {0}={1}", Pair.Key, Pair.Value);
+					TurnkeyUtils.Log("  Recording variable to set by caller {0}={1}", Pair.Key, Pair.Value);
 				}
 
 				// write out a batch file for the caller of this to call to update vars, including all changes from previous commands

@@ -23,10 +23,8 @@ public abstract class BaseWinPlatform : Platform
 
 		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
 		{
-			DeviceInfo LocalMachine = new DeviceInfo();
-			LocalMachine.Name = LocalMachine.Id = Environment.MachineName;
-			LocalMachine.Type = "Computer";
-			LocalMachine.SoftwareVersion = Environment.OSVersion.Version.ToString();
+			DeviceInfo LocalMachine = new DeviceInfo(UnrealTargetPlatform.Win64, Environment.MachineName, Environment.MachineName,
+				Environment.OSVersion.Version.ToString(), "Computer", true, true);
 
 			Devices.Add(LocalMachine);
 		}

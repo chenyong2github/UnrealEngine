@@ -172,6 +172,16 @@ namespace EpicGames.Core
 		public abstract string GetMainVersion();
 
 		/// <summary>
+		/// Returns a platform-specific version string that can be retrieved from anywhere without needing to typecast the SDK object
+		/// </summary>
+		/// <param name="VersionType">Descriptor of the version you want</param>
+		/// <returns>Version string, or empty string if not known/supported</returns>
+		public virtual string GetPlatformSpecificVersion(string VersionType)
+		{
+			return "";
+		}
+
+		/// <summary>
 		/// Return a list of full SDK versions that are already installed and can be quickly switched to without running any installers.
 		/// </summary>
 		/// <returns></returns>

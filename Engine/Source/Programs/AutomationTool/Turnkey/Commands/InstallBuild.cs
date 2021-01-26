@@ -107,25 +107,15 @@ namespace Turnkey.Commands
 			Config.Build = Build;
 			Config.ProjectName = Project;
 
-			Dictionary<UnrealTargetPlatform, List<DeviceInfo>> TurnkeyDevices = TurnkeyUtils.GetDevicesFromCommandLineOrUser(CommandOptions, Platform);
-			List<ITargetDevice> GauntletDevices = new List<ITargetDevice>();
-
+			List<DeviceInfo> TurnkeyDevices = TurnkeyUtils.GetDevicesFromCommandLineOrUser(CommandOptions, Platform);
 			if (TurnkeyDevices == null)
 			{
-				// @todo turnkey: probably don't want this, just cancel?
-				IEnumerable<IDefaultDeviceSource> DeviceSources = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDefaultDeviceSource>();
-				GauntletDevices.AddRange(DeviceSources.Where(S => S.CanSupportPlatform(Platform)).SelectMany(S => S.GetDefaultDevices()));
+				TurnkeyUtils.Log("Could not find a device to install on!");
+				return;
 			}
-			else
-			{
-				IDeviceFactory Factory = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDeviceFactory>()
-					.Where(F => F.CanSupportPlatform(Platform))
-					.FirstOrDefault();
-
-				GauntletDevices.AddRange(TurnkeyDevices[Platform].Select(x => Factory.CreateDevice(x.Name, null)));
-			}
-
-			if (GauntletDevices.Count == 0 || GauntletDevices[0] == null)
+			
+			List<ITargetDevice> GauntletDevices = TurnkeyGauntletUtils.GetGauntletDevices(TurnkeyDevices);
+			if (GauntletDevices == null)
 			{
 				TurnkeyUtils.Log("Could not find a device to install on!");
 				return;

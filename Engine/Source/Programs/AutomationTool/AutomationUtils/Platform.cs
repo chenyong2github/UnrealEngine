@@ -27,6 +27,23 @@ namespace AutomationTool
 
 	public class DeviceInfo
 	{
+		public DeviceInfo(UnrealTargetPlatform Platform)
+		{
+			this.Platform = Platform;
+		}
+
+		public DeviceInfo(UnrealTargetPlatform Platform, string Name, string Id, string SoftwareVersion, string Type, bool bIsDefault, bool bCanConnect)
+		{
+			this.Platform = Platform;
+			this.Name = Name;
+			this.Id = Id;
+			this.SoftwareVersion = SoftwareVersion;
+			this.Type = Type;
+			this.bIsDefault = bIsDefault;
+			this.bCanConnect = bCanConnect;
+		}
+
+		public UnrealTargetPlatform Platform;
 		public string Name;
 		public string Id;
 		public string SoftwareVersion;
@@ -35,12 +52,6 @@ namespace AutomationTool
 		// is the device able to be connected to (this is more about able to flash SDK or run, not about matching SDK version)
 		// if false, any of the above fields are suspect, especually SoftwareVersion
 		public bool bCanConnect = true;
-
-		public virtual void Connect() { }
-		public virtual void Disconnect() { }
-		public virtual void PowerOn() { }
-		public virtual void PowerOff() { }
-		public virtual void Reboot() { }
 	}
 
 	/// <summary>
@@ -183,7 +194,7 @@ namespace AutomationTool
 			return null;
 		}
 
-		public virtual bool InstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, object HintObject, DeviceInfo Device = null)
+		public virtual bool InstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, object HintObject, DeviceInfo Device)
 		{
 			string DownloadedSDK = Retriever.RetrieveFileSource(HintObject);
 
@@ -228,6 +239,19 @@ namespace AutomationTool
 			return null;
 		}
 
+		public virtual bool ShouldPerformManualSDKInstall()
+		{
+			return false;
+		}
+		public virtual bool ShouldPerformManualDeviceSoftwareInstall()
+		{
+			return false;
+		}
+
+		public virtual bool ManualInstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, DeviceInfo Device = null)
+		{
+			return false;
+		}
 
 		public virtual bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
 		{

@@ -233,7 +233,7 @@ namespace Turnkey
 		public bool RunExternalCommand(string Command, string Params, string Preamble, string SuccessPostAmble, string FailurePostamble, bool bRequiresPrivilegeElevation)
 		{
 			TurnkeyUtils.Log("----------------------------------------------");
-			TurnkeyUtils.Log("Running '{0} {1}'", Command, Params);
+			TurnkeyUtils.Log("Running '{0} {1}'", TurnkeyUtils.ExpandVariables(Command), TurnkeyUtils.ExpandVariables(Params));
 
 			if (!string.IsNullOrEmpty(Preamble))
 			{

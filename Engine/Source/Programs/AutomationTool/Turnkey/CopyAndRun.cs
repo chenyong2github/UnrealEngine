@@ -160,54 +160,5 @@ namespace Turnkey
 
 			return ExitCode == 0;
 		}
-
-
-
-		public bool Execute(CopyExecuteSpecialMode SpecialMode=CopyExecuteSpecialMode.None, string ModeHint=null)
-		{
-			if (ShouldExecute() == false)
-			{
-				return false;
-			}
-
-			// do the copy operation, capturing the output
-			string OutputPath = null;
-			if (Copy != null)
-			{
-				// if there was a copy operation do it
-				OutputPath = CopyProvider.ExecuteCopy(Copy, SpecialMode, ModeHint);
-
-				// if it returned null, then something went wrong, don't continue with the command. 
-				// assume the CopyProvider supplied enough information, so we quietly skip
-				if (OutputPath == null)
-				{
-					return false;
-				}
-
-				if (SpecialMode == CopyExecuteSpecialMode.DownloadOnly)
-				{
-					// if we only wanted to download if needed, then we are done!
-					return true;
-				}
-			}
-
-			if (OutputPath == null && ((CommandPath != null && CommandPath.Contains("$(CopyOutputPath)")) || (CommandLine != null && CommandLine.Contains("$(CopyOutputPath)"))))
-			{
-				throw new AutomationException("CopyAndRun required an valid $(CopyOutputPath) from the Copy operation, but it failed");
-			}
-
-			// run an external command
-			if (CommandPath != null)
-			{
-				return RunExternalCommand(CommandPath, CommandLine, false);
-			}
-
-			return true;
-		}
-
-		public bool ShouldExecute()
-		{
-			return !Platform.HasValue || Platform == HostPlatform.Current.HostEditorPlatform;
-		}
 	}
 }
