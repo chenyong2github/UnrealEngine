@@ -50,7 +50,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 
 	// Build a sim friendly triangle mesh including the solver particle's Offset
 	const int32 NumElements = Indices.Num() / 3;
-	TArray<TVector<int32, 3>> Elements;
+	TArray<TVec3<int32>> Elements;
 	Elements.Reserve(NumElements);
 
 	for (int32 i = 0; i < NumElements; ++i)
@@ -95,13 +95,13 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 
 	// Setup solver constraints
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-	const TArray<TVector<int32, 3>>& SurfaceElements = TriangleMesh.GetSurfaceElements();
+	const TArray<TVec3<int32>>& SurfaceElements = TriangleMesh.GetSurfaceElements();
 
 	// Self collisions
 	if (Cloth->bUseSelfCollisions)
 	{
 		static const int32 DisabledCollisionElementsN = 5;  // TODO: Make this a parameter?
-		TSet<TVector<int32, 2>> DisabledCollisionElements;  // TODO: Is this needed? Turn this into a bit array?
+		TSet<TVec2<int32>> DisabledCollisionElements;  // TODO: Is this needed? Turn this into a bit array?
 	
 		const int32 Range = Offset + NumParticles;
 		for (int32 Index = Offset; Index < Range; ++Index)
@@ -110,8 +110,8 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 			for (int32 Element : Neighbors)
 			{
 				check(Index != Element);
-				DisabledCollisionElements.Emplace(TVector<int32, 2>(Index, Element));
-				DisabledCollisionElements.Emplace(TVector<int32, 2>(Element, Index));
+				DisabledCollisionElements.Emplace(TVec2<int32>(Index, Element));
+				DisabledCollisionElements.Emplace(TVec2<int32>(Element, Index));
 			}
 		}
 		ClothConstraints.SetSelfCollisionConstraints(SurfaceElements, MoveTemp(DisabledCollisionElements), Cloth->SelfCollisionThickness);
@@ -128,12 +128,12 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	{
 		if (Cloth->bUseBendingElements)
 		{
-			TArray<Chaos::TVector<int32, 4>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
+			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
 			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), Cloth->BendingStiffness);
 		}
 		else
 		{
-			TArray<Chaos::TVector<int32, 2>> Edges = TriangleMesh.GetUniqueAdjacentPoints();
+			TArray<Chaos::TVec2<int32>> Edges = TriangleMesh.GetUniqueAdjacentPoints();
 			ClothConstraints.SetBendingConstraints(MoveTemp(Edges), Cloth->BendingStiffness, Cloth->bUseXPBDConstraints);
 		}
 	}
@@ -141,7 +141,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	// Area constraints
 	if (Cloth->AreaStiffness)
 	{
-		TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
+		TArray<Chaos::TVec3<int32>> SurfaceConstraints = SurfaceElements;
 		ClothConstraints.SetAreaConstraints(MoveTemp(SurfaceConstraints), Cloth->AreaStiffness, Cloth->bUseXPBDConstraints);
 	}
 
@@ -150,8 +150,8 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	{
 		if (Cloth->bUseThinShellVolumeConstraints)
 		{
-			TArray<Chaos::TVector<int32, 2>> BendingConstraints = TriangleMesh.GetUniqueAdjacentPoints();
-			TArray<Chaos::TVector<int32, 2>> DoubleBendingConstraints;
+			TArray<Chaos::TVec2<int32>> BendingConstraints = TriangleMesh.GetUniqueAdjacentPoints();
+			TArray<Chaos::TVec2<int32>> DoubleBendingConstraints;
 			{
 				TMap<int32, TArray<int32>> BendingHash;
 				for (int32 i = 0; i < BendingConstraints.Num(); ++i)
@@ -159,7 +159,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 					BendingHash.FindOrAdd(BendingConstraints[i][0]).Add(BendingConstraints[i][1]);
 					BendingHash.FindOrAdd(BendingConstraints[i][1]).Add(BendingConstraints[i][0]);
 				}
-				TSet<Chaos::TVector<int32, 2>> Visited;
+				TSet<Chaos::TVec2<int32>> Visited;
 				for (auto Elem : BendingHash)
 				{
 					for (int32 i = 0; i < Elem.Value.Num(); ++i)
@@ -168,12 +168,12 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 						{
 							if (Elem.Value[i] == Elem.Value[j])
 								continue;
-							auto NewElem = Chaos::TVector<int32, 2>(Elem.Value[i], Elem.Value[j]);
+							auto NewElem = Chaos::TVec2<int32>(Elem.Value[i], Elem.Value[j]);
 							if (!Visited.Contains(NewElem))
 							{
 								DoubleBendingConstraints.Add(NewElem);
 								Visited.Add(NewElem);
-								Visited.Add(Chaos::TVector<int32, 2>(Elem.Value[j], Elem.Value[i]));
+								Visited.Add(Chaos::TVec2<int32>(Elem.Value[j], Elem.Value[i]));
 							}
 						}
 					}
@@ -184,7 +184,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 		}
 		else
 		{
-			TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
+			TArray<Chaos::TVec3<int32>> SurfaceConstraints = SurfaceElements;
 			ClothConstraints.SetVolumeConstraints(MoveTemp(SurfaceConstraints), Cloth->VolumeStiffness);
 		}
 	}

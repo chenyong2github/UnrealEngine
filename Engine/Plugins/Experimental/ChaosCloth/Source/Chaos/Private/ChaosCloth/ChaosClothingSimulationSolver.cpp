@@ -543,9 +543,9 @@ float FClothingSimulationSolver::SetParticleMassPerArea(int32 Offset, int32 Size
 	}
 
 	// Assign per particle mass proportional to connected area.
-	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh.GetSurfaceElements();
+	const TArray<TVec3<int32>>& SurfaceElements = Mesh.GetSurfaceElements();
 	float TotalArea = 0.f;
-	for (const TVector<int32, 3>& Tri : SurfaceElements)
+	for (const TVec3<int32>& Tri : SurfaceElements)
 	{
 		const float TriArea = 0.5f * FVec3::CrossProduct(
 			Particles.X(Tri[1]) - Particles.X(Tri[0]),

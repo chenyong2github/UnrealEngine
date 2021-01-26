@@ -772,14 +772,14 @@ void FClothingSimulation::DebugDrawPhysMeshShaded(FPrimitiveDrawInterface* PDI) 
 			continue;
 		}
 
-		const TConstArrayView<TVector<int32, 3>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
+		const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
 
 		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex, VertexIndex += 3)
 		{
-			const TVector<int32, 3>& Element = Elements[ElementIndex];
+			const TVec3<int32>& Element = Elements[ElementIndex];
 
 			const FVector Pos0 = Positions[Element.X - Offset]; // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
 			const FVector Pos1 = Positions[Element.Y - Offset];
@@ -860,14 +860,14 @@ void FClothingSimulation::DebugDrawElementIndices(FCanvas* Canvas, const FSceneV
 			continue;
 		}
 
-		const TArray<TVector<int32, 3>>& Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
+		const TArray<TVec3<int32>>& Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
 
 		for (int32 Index = 0; Index < Elements.Num(); ++Index)
 		{
-			const TVector<int32, 3>& Element = Elements[Index];
+			const TVec3<int32>& Element = Elements[Index];
 			const FVector Position = LocalSpaceLocation + (Positions[Element[0]] + Positions[Element[1]] + Positions[Element[2]]) / 3.f;
 
 			const FLinearColor& Color = (InvMasses[Element[0]] == 0.f && InvMasses[Element[1]] == 0.f && InvMasses[Element[2]] == 0.f) ? KinematicColor : DynamicColor;
@@ -1171,7 +1171,7 @@ void FClothingSimulation::DebugDrawPhysMeshWired(FPrimitiveDrawInterface* PDI) c
 			continue;
 		}
 
-		const TConstArrayView<TVector<int32, 3>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
+		const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
@@ -1210,7 +1210,7 @@ void FClothingSimulation::DebugDrawAnimMeshWired(FPrimitiveDrawInterface* PDI) c
 			continue;
 		}
 
-		const TConstArrayView<TVector<int32, 3>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
+		const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 		const TConstArrayView<FVec3> Positions = Cloth->GetAnimationPositions(Solver.Get());
 		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
@@ -1613,8 +1613,8 @@ void FClothingSimulation::DebugDrawBendingConstraint(FPrimitiveDrawInterface* PD
 
 		if (const FPBDSpringConstraints* const BendingConstraints = ClothConstraints.GetBendingConstraints().Get())
 		{
-			const TArray<TVector<int32, 2>>& Constraints = BendingConstraints->GetConstraints();
-			for (const TVector<int32, 2>& Constraint : Constraints)
+			const TArray<TVec2<int32>>& Constraints = BendingConstraints->GetConstraints();
+			for (const TVec2<int32>& Constraint : Constraints)
 			{
 				// Draw line
 				const FVec3 Pos0 = Positions[Constraint[0]] + LocalSpaceLocation;
@@ -1683,10 +1683,10 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 			case TPBDLongRangeConstraints<float, 3>::EMode::FastTetherFastLength:
 			case TPBDLongRangeConstraints<float, 3>::EMode::AccurateTetherFastLength:
 				{
-					const TArray<TVector<uint32, 2>>& Constraints = LongRangeConstraints->GetEuclideanConstraints();
+					const TArray<TVec2<uint32>>& Constraints = LongRangeConstraints->GetEuclideanConstraints();
 					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 					{
-						const TVector<uint32, 2>& Path = Constraints[ConstraintIndex];
+						const TVec2<uint32>& Path = Constraints[ConstraintIndex];
 						const uint32 KinematicIndex = Path[0];
 						const uint32 DynamicIndex = Path[Path.Num() - 1];
 
@@ -1748,7 +1748,7 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 		}
 
 		// Draw islands
-		const TConstArrayView<TVector<int32, 3>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
+		const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 
 		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 		{
@@ -1816,14 +1816,14 @@ void FClothingSimulation::DebugDrawWindForces(FPrimitiveDrawInterface* PDI) cons
 
 		const TVelocityField<float, 3>& VelocityField = Solver->GetWindVelocityField(Cloth->GetGroupId());
 
-		const TConstArrayView<TVector<int32, 3>>& Elements = VelocityField.GetElements();
+		const TConstArrayView<TVec3<int32>>& Elements = VelocityField.GetElements();
 		const TConstArrayView<FVec3> Forces = VelocityField.GetForces();
 
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 
 		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 		{
-			const TVector<int32, 3>& Element = Elements[ElementIndex];
+			const TVec3<int32>& Element = Elements[ElementIndex];
 			const FVec3 Position = LocalSpaceLocation + (
 				Positions[Element.X - Offset] +
 				Positions[Element.Y - Offset] +
@@ -1872,7 +1872,7 @@ void FClothingSimulation::DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI) c
 		{
 			const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 			const TConstArrayView<FVec3> ParticleNormals = Cloth->GetParticleNormals(Solver.Get());
-			const TArray<TVector<int32, 4>>& Constraints = SelfCollisionConstraints->GetConstraints();
+			const TArray<TVec4<int32>>& Constraints = SelfCollisionConstraints->GetConstraints();
 			const TArray<FVec3>& Barys = SelfCollisionConstraints->GetBarys();
 			const TArray<FVec3>& Normals = SelfCollisionConstraints->GetNormals();
 			const float Thickness = SelfCollisionConstraints->GetThickness();
@@ -1880,7 +1880,7 @@ void FClothingSimulation::DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI) c
 
 			for (int32 Index = 0; Index < Constraints.Num(); ++Index)
 			{
-				const TVector<int32, 4>& Constraint = Constraints[Index];
+				const TVec4<int32>& Constraint = Constraints[Index];
 				const FVec3& Bary = Barys[Index];
 				const FVec3& Normal = Normals[Index];
 

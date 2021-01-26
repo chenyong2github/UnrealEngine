@@ -29,7 +29,13 @@ namespace Chaos
 	using FAABB3 = TAABB<FReal, 3>;
 
 	template <typename T>
+	using TVec2 = TVector<T, 2>;
+
+	template <typename T>
 	using TVec3 = TVector<T, 3>;
+
+	template <typename T>
+	using TVec4 = TVector<T, 4>;
 
 	/** Core version string for Chaos data. Any DDC builder dependent on Chaos for serialization should depend on this version */
 	static const FString ChaosVersionString = TEXT("857BE70B4650493781FB71DB2A00BDB5");
