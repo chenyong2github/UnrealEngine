@@ -74,6 +74,17 @@ namespace Audio
 	bool FSimpleDecoderWrapper::Initialize(const InitParams& InInitParams, const FSoundWaveProxy& InWave)
 	{
 		// validate data
+		if (false == InWave.IsStreaming())
+		{
+			ensureAlwaysMsgf(InWave.IsStreaming(), TEXT("Metasounds does not support Force Inline (sound must be streaming)"));
+
+			Input.Reset();
+			Output.Reset();
+			Decoder.Reset();
+			bDecoderIsDone = false;
+
+			return false;
+		}
 
 		// initialize input/output data
 		InputSampleRate = InWave.GetSampleRate();

@@ -372,7 +372,15 @@ namespace Audio
 			InWave->InitAudioResource(AudioDevice->GetRuntimeFormat(InWave));
 		}
 
-		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave->GetThisAsProxy());
+		// stream caching uses the proxy
+		if (InWave->IsStreaming())
+		{
+			Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave->GetThisAsProxy());
+		}
+		else
+		{
+			Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
+		}
 
 		if (Buffer->DecompressionState)
 		{
