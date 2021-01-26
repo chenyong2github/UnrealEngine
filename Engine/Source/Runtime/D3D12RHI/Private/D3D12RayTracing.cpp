@@ -533,6 +533,7 @@ void FD3D12RayTracingCompactionRequestHandler::Update(FD3D12CommandContext& InCo
 
 		// Force UAV barrier to make sure all previous builds ops are finished
 		InCommandContext.CommandListHandle.AddUAVBarrier();
+		InCommandContext.CommandListHandle.FlushResourceBarriers();
 
 		// Emit the RT post build info from the selected requests
 		ID3D12GraphicsCommandList4* CommandList4 = InCommandContext.CommandListHandle.RayTracingCommandList();
@@ -540,6 +541,8 @@ void FD3D12RayTracingCompactionRequestHandler::Update(FD3D12CommandContext& InCo
 
 		// Transition to copy source and perform the copy to readback
 		FD3D12DynamicRHI::TransitionResource(InCommandContext.CommandListHandle, PostBuildInfoBuffer.GetReference()->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
+		InCommandContext.CommandListHandle.FlushResourceBarriers();
+
 		InCommandContext.RHICopyToStagingBuffer(PostBuildInfoBuffer, PostBuildInfoStagingBuffer, 0, sizeof(uint64) * ActiveBLASGPUAddresses.Num());
 
 		// Update the fence value

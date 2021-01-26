@@ -1326,7 +1326,7 @@ bool FD3D12DefaultBufferAllocator::IsPlacedResource(D3D12_RESOURCE_FLAGS InResou
 }
 
 
-D3D12_RESOURCE_STATES FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(D3D12_HEAP_TYPE InHeapType, EBufferUsageFlags InBufferFlags)
+D3D12_RESOURCE_STATES FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(D3D12_HEAP_TYPE InHeapType, EBufferUsageFlags InBufferFlags, ED3D12ResourceStateMode InResourceStateMode)
 {
 	// Validate the create state
 	if (InHeapType == D3D12_HEAP_TYPE_READBACK)
@@ -1337,9 +1337,15 @@ D3D12_RESOURCE_STATES FD3D12DefaultBufferAllocator::GetDefaultInitialResourceSta
 	{
 		return D3D12_RESOURCE_STATE_GENERIC_READ;
 	}
+	else if (InBufferFlags == BUF_UnorderedAccess && InResourceStateMode == ED3D12ResourceStateMode::SingleState)
+	{
+		check(InHeapType == D3D12_HEAP_TYPE_DEFAULT);
+		return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	}
 #if D3D12_RHI_RAYTRACING
 	else if (InBufferFlags & BUF_AccelerationStructure)
 	{
+		check(InHeapType == D3D12_HEAP_TYPE_DEFAULT);
 		return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
 	}
 #endif // D3D12_RHI_RAYTRACING

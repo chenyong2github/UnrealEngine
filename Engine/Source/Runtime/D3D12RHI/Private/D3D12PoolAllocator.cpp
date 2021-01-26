@@ -210,6 +210,10 @@ void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const
 	{
 		check(InCreateState == D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
+	else if (InBufferUsage == BUF_UnorderedAccess && InResourceStateMode == ED3D12ResourceStateMode::SingleState)
+	{
+		check(InCreateState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	}
 #if D3D12_RHI_RAYTRACING
 	else if (InBufferUsage & BUF_AccelerationStructure)
 	{

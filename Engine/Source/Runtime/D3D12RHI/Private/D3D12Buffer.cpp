@@ -203,7 +203,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 	D3D12_HEAP_TYPE HeapType = bIsDynamic ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT;
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(InDesc, HeapType);
 	const D3D12_RESOURCE_STATES InitialState = bSupportResourceStateTracking ? Type.GetOptimalInitialState(InResourceState, false) : 
-		FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(HeapType, (EBufferUsageFlags)InUsage);
+		FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(HeapType, (EBufferUsageFlags)InUsage, InResourceStateMode);
 
 	FD3D12Buffer* BufferOut = nullptr;
 	if (bIsDynamic)
