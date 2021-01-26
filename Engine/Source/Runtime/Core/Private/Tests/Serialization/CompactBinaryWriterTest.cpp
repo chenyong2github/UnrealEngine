@@ -2,8 +2,8 @@
 
 #include "Serialization/CompactBinaryWriter.h"
 
+#include "IO/IoHash.h"
 #include "Misc/AutomationTest.h"
-#include "Misc/Blake3.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
@@ -568,11 +568,11 @@ bool FCbWriterCompactBinaryReferenceTest::RunTest(const FString& Parameters)
 {
 	TCbWriter<256> Writer;
 
-	const FBlake3Hash::ByteArray ZeroBytes{};
-	const FBlake3Hash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+	const FIoHash::ByteArray ZeroBytes{};
+	const FIoHash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
-	const FBlake3Hash Values[] = { FBlake3Hash(ZeroBytes), FBlake3Hash(SequentialBytes) };
-	for (const FBlake3Hash& Value : Values)
+	const FIoHash Values[] = { FIoHash(ZeroBytes), FIoHash(SequentialBytes) };
+	for (const FIoHash& Value : Values)
 	{
 		Writer.CompactBinaryReference(Value);
 	}
@@ -580,7 +580,7 @@ bool FCbWriterCompactBinaryReferenceTest::RunTest(const FString& Parameters)
 	FCbFieldRefIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(CompactBinaryReference) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
-		const FBlake3Hash* CheckValue = Values;
+		const FIoHash* CheckValue = Values;
 		for (FCbField Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(CompactBinaryReference).AsCompactBinaryReference()"), Field.AsCompactBinaryReference(), *CheckValue++);
@@ -598,11 +598,11 @@ bool FCbWriterBinaryReferenceTest::RunTest(const FString& Parameters)
 {
 	TCbWriter<256> Writer;
 
-	const FBlake3Hash::ByteArray ZeroBytes{};
-	const FBlake3Hash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+	const FIoHash::ByteArray ZeroBytes{};
+	const FIoHash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
-	const FBlake3Hash Values[] = { FBlake3Hash(ZeroBytes), FBlake3Hash(SequentialBytes) };
-	for (const FBlake3Hash& Value : Values)
+	const FIoHash Values[] = { FIoHash(ZeroBytes), FIoHash(SequentialBytes) };
+	for (const FIoHash& Value : Values)
 	{
 		Writer.BinaryReference(Value);
 	}
@@ -610,7 +610,7 @@ bool FCbWriterBinaryReferenceTest::RunTest(const FString& Parameters)
 	FCbFieldRefIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(BinaryReference) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
-		const FBlake3Hash* CheckValue = Values;
+		const FIoHash* CheckValue = Values;
 		for (FCbField Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(BinaryReference).AsBinaryReference()"), Field.AsBinaryReference(), *CheckValue++);
@@ -628,11 +628,11 @@ bool FCbWriterHashTest::RunTest(const FString& Parameters)
 {
 	TCbWriter<256> Writer;
 
-	const FBlake3Hash::ByteArray ZeroBytes{};
-	const FBlake3Hash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+	const FIoHash::ByteArray ZeroBytes{};
+	const FIoHash::ByteArray SequentialBytes{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
-	const FBlake3Hash Values[] = { FBlake3Hash(ZeroBytes), FBlake3Hash(SequentialBytes) };
-	for (const FBlake3Hash& Value : Values)
+	const FIoHash Values[] = { FIoHash(ZeroBytes), FIoHash(SequentialBytes) };
+	for (const FIoHash& Value : Values)
 	{
 		Writer.Hash(Value);
 	}
@@ -640,7 +640,7 @@ bool FCbWriterHashTest::RunTest(const FString& Parameters)
 	FCbFieldRefIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(Hash) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
-		const FBlake3Hash* CheckValue = Values;
+		const FIoHash* CheckValue = Values;
 		for (FCbField Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(Hash).AsHash()"), Field.AsHash(), *CheckValue++);
@@ -816,10 +816,10 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.Name("False"_ASV).Bool(false);
 		Writer.Name("True"_ASV).Bool(true);
 
-		Writer.Name("CompactBinaryReference"_ASV).CompactBinaryReference(FBlake3Hash());
-		Writer.Name("BinaryReference"_ASV).BinaryReference(FBlake3Hash());
+		Writer.Name("CompactBinaryReference"_ASV).CompactBinaryReference(FIoHash());
+		Writer.Name("BinaryReference"_ASV).BinaryReference(FIoHash());
 
-		Writer.Name("Hash"_ASV).Hash(FBlake3Hash());
+		Writer.Name("Hash"_ASV).Hash(FIoHash());
 		Writer.Name("Uuid"_ASV).Uuid(FGuid());
 
 		Writer.Name("DateTimeZero"_ASV).DateTimeTicks(0);
@@ -982,7 +982,7 @@ bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 
 		Writer << "False"_ASV << false << "True"_ASV << true;
 
-		Writer << "Hash"_ASV << FBlake3Hash();
+		Writer << "Hash"_ASV << FIoHash();
 		Writer << "Uuid"_ASV << FGuid();
 
 		Writer << "DateTime"_ASV << FDateTime(2020, 5, 13, 15, 10);

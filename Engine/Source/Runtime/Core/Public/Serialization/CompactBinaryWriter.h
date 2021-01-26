@@ -10,9 +10,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FArchive;
-struct FBlake3Hash;
 struct FDateTime;
 struct FGuid;
+struct FIoHash;
 struct FTimespan;
 
 /**
@@ -166,12 +166,12 @@ public:
 	CORE_API void Bool(bool bValue);
 
 	/** Write a field referencing compact binary data by its hash. */
-	CORE_API void CompactBinaryReference(const FBlake3Hash& Value);
+	CORE_API void CompactBinaryReference(const FIoHash& Value);
 	/** Write a field referencing binary data by its hash. */
-	CORE_API void BinaryReference(const FBlake3Hash& Value);
+	CORE_API void BinaryReference(const FIoHash& Value);
 
 	/** Write a hash field. */
-	CORE_API void Hash(const FBlake3Hash& Value);
+	CORE_API void Hash(const FIoHash& Value);
 	/** Write a UUID field. */
 	CORE_API void Uuid(const FGuid& Value);
 
@@ -372,7 +372,7 @@ inline FCbWriter& operator<<(FCbWriter& Writer, bool Value)
 	return Writer;
 }
 
-inline FCbWriter& operator<<(FCbWriter& Writer, const FBlake3Hash& Value)
+inline FCbWriter& operator<<(FCbWriter& Writer, const FIoHash& Value)
 {
 	Writer.Hash(Value);
 	return Writer;

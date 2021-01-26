@@ -2,6 +2,7 @@
 
 #include "Serialization/CompactBinaryValidation.h"
 
+#include "IO/IoHash.h"
 #include "Misc/ByteSwap.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/VarInt.h"
@@ -355,7 +356,7 @@ static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbVali
 	case ECbFieldType::CompactBinaryReference:
 	case ECbFieldType::BinaryReference:
 	case ECbFieldType::Hash:
-		ValidateFixedPayload(32);
+		ValidateFixedPayload(20);
 		break;
 	case ECbFieldType::Uuid:
 		ValidateFixedPayload(16);
@@ -395,7 +396,7 @@ static FCbField ValidateCbPackageField(FMemoryView& View, ECbValidateMode Mode, 
 	return FCbField();
 }
 
-static FBlake3Hash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static FIoHash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	const FMemoryView ValueView = Value.AsBinary();
 	if (Value.HasError() && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
@@ -409,14 +410,14 @@ static FBlake3Hash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& Vie
 	{
 		if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
 		{
-			const FBlake3Hash Hash = HashField.AsReference();
+			const FIoHash Hash = HashField.AsReference();
 			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 			{
 				if (HashField.HasError())
 				{
 					AddError(Error, ECbValidateError::InvalidPackageFormat);
 				}
-				else if (Hash != FBlake3::HashBuffer(ValueView))
+				else if (Hash != FIoHash::HashBuffer(ValueView))
 				{
 					AddError(Error, ECbValidateError::InvalidPackageHash);
 				}
@@ -424,10 +425,10 @@ static FBlake3Hash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& Vie
 			return Hash;
 		}
 	}
-	return FBlake3Hash();
+	return FIoHash();
 }
 
-static FBlake3Hash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static FIoHash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	FCbObject Object = Value.AsObject();
 	if (Value.HasError())
@@ -439,7 +440,7 @@ static FBlake3Hash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, E
 	}
 	else if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
 	{
-		const FBlake3Hash Hash = HashField.AsReference();
+		const FIoHash Hash = HashField.AsReference();
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
 			if (!Object.CreateIterator())
@@ -457,7 +458,7 @@ static FBlake3Hash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, E
 		}
 		return Hash;
 	}
-	return FBlake3Hash();
+	return FIoHash();
 }
 
 ECbValidateError ValidateCompactBinary(FMemoryView View, ECbValidateMode Mode, ECbFieldType Type)
@@ -506,7 +507,7 @@ ECbValidateError ValidateCompactBinaryAttachment(FMemoryView View, ECbValidateMo
 
 ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode Mode)
 {
-	TArray<FBlake3Hash, TInlineAllocator<16>> Attachments;
+	TArray<FIoHash, TInlineAllocator<16>> Attachments;
 	ECbValidateError Error = ECbValidateError::None;
 	if (EnumHasAnyFlags(Mode, ECbValidateMode::All))
 	{
@@ -515,7 +516,7 @@ ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode 
 		{
 			if (Value.IsBinary())
 			{
-				const FBlake3Hash Hash = ValidateCbPackageAttachment(Value, View, Mode, Error);
+				const FIoHash Hash = ValidateCbPackageAttachment(Value, View, Mode, Error);
 				if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 				{
 					Attachments.Add(Hash);
@@ -556,7 +557,7 @@ ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode 
 		if (Attachments.Num() && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
 			Algo::Sort(Attachments);
-			for (const FBlake3Hash* It = Attachments.GetData(), *End = It + Attachments.Num() - 1; It != End; ++It)
+			for (const FIoHash* It = Attachments.GetData(), *End = It + Attachments.Num() - 1; It != End; ++It)
 			{
 				if (It[0] == It[1])
 				{

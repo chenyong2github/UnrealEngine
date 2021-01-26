@@ -4,8 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "IO/IoHash.h"
 #include "Memory/SharedBuffer.h"
-#include "Misc/Blake3.h"
 #include "Serialization/CompactBinary.h"
 
 class FArchive;
@@ -36,7 +36,7 @@ public:
 	}
 
 	/** Construct a compact binary attachment. Value is cloned if not owned. Hash must match Value. */
-	inline explicit FCbAttachment(FCbFieldRefIterator Value, const FBlake3Hash& Hash)
+	inline explicit FCbAttachment(FCbFieldRefIterator Value, const FIoHash& Hash)
 		: FCbAttachment(MoveTemp(Value), &Hash)
 	{
 	}
@@ -48,7 +48,7 @@ public:
 	}
 
 	/** Construct a binary attachment. Value is cloned if not owned. Hash must match Value. */
-	inline explicit FCbAttachment(FSharedBuffer Value, const FBlake3Hash& Hash)
+	inline explicit FCbAttachment(FSharedBuffer Value, const FIoHash& Hash)
 		: FCbAttachment(MoveTemp(Value), &Hash)
 	{
 	}
@@ -75,7 +75,7 @@ public:
 	inline bool IsCompactBinary() const { return CompactBinary.HasValue(); }
 
 	/** Returns the hash of the attachment value. */
-	inline const FBlake3Hash& GetHash() const { return Hash; }
+	inline const FIoHash& GetHash() const { return Hash; }
 
 	/** Compares attachments by their hash. Any discrepancy in type must be handled externally. */
 	inline bool operator==(const FCbAttachment& Attachment) const { return Hash == Attachment.Hash; }
@@ -108,15 +108,15 @@ public:
 	CORE_API void Save(FArchive& Ar) const;
 
 private:
-	CORE_API FCbAttachment(FCbFieldRefIterator Value, const FBlake3Hash* Hash);
-	CORE_API FCbAttachment(FSharedBuffer Value, const FBlake3Hash* Hash);
+	CORE_API FCbAttachment(FCbFieldRefIterator Value, const FIoHash* Hash);
+	CORE_API FCbAttachment(FSharedBuffer Value, const FIoHash* Hash);
 
 	/** An owned buffer containing the binary or compact binary data. */
 	FSharedBuffer Buffer;
 	/** A field iterator that is valid only for compact binary attachments. */
 	FCbFieldIterator CompactBinary;
 	/** A hash of the attachment value. */
-	FBlake3Hash Hash;
+	FIoHash Hash;
 };
 
 /** Hashes attachments by their hash. Any discrepancy in type must be handled externally. */
@@ -158,7 +158,7 @@ public:
 	 *
 	 * The resolver may return a null buffer to skip resolving an attachment for the hash.
 	 */
-	using FAttachmentResolver = TFunctionRef<FSharedBuffer (const FBlake3Hash& Hash)>;
+	using FAttachmentResolver = TFunctionRef<FSharedBuffer (const FIoHash& Hash)>;
 
 	/** Construct a null package. */
 	FCbPackage() = default;
@@ -190,7 +190,7 @@ public:
 	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 */
-	inline explicit FCbPackage(FCbObjectRef InObject, const FBlake3Hash& InObjectHash)
+	inline explicit FCbPackage(FCbObjectRef InObject, const FIoHash& InObjectHash)
 	{
 		SetObject(MoveTemp(InObject), InObjectHash);
 	}
@@ -202,7 +202,7 @@ public:
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
-	inline explicit FCbPackage(FCbObjectRef InObject, const FBlake3Hash& InObjectHash, FAttachmentResolver InResolver)
+	inline explicit FCbPackage(FCbObjectRef InObject, const FIoHash& InObjectHash, FAttachmentResolver InResolver)
 	{
 		SetObject(MoveTemp(InObject), InObjectHash, InResolver);
 	}
@@ -223,7 +223,7 @@ public:
 	inline const FCbObjectRef& GetObject() const { return Object; }
 
 	/** Returns the has of the compact binary object for the package. */
-	inline const FBlake3Hash& GetObjectHash() const { return ObjectHash; }
+	inline const FIoHash& GetObjectHash() const { return ObjectHash; }
 
 	/**
 	 * Set the root object without gathering attachments.
@@ -252,7 +252,7 @@ public:
 	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 */
-	inline void SetObject(FCbObjectRef InObject, const FBlake3Hash& InObjectHash)
+	inline void SetObject(FCbObjectRef InObject, const FIoHash& InObjectHash)
 	{
 		SetObject(MoveTemp(InObject), &InObjectHash, nullptr);
 	}
@@ -264,7 +264,7 @@ public:
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
-	inline void SetObject(FCbObjectRef InObject, const FBlake3Hash& InObjectHash, FAttachmentResolver InResolver)
+	inline void SetObject(FCbObjectRef InObject, const FIoHash& InObjectHash, FAttachmentResolver InResolver)
 	{
 		SetObject(MoveTemp(InObject), &InObjectHash, &InResolver);
 	}
@@ -278,7 +278,7 @@ public:
 	 * @return The attachment, or null if the attachment is not found.
 	 * @note The returned pointer is only valid until the attachments on this package are modified.
 	 */
-	CORE_API const FCbAttachment* FindAttachment(const FBlake3Hash& Hash) const;
+	CORE_API const FCbAttachment* FindAttachment(const FIoHash& Hash) const;
 
 	/** Find an attachment if it exists in the package. */
 	inline const FCbAttachment* FindAttachment(const FCbAttachment& Attachment) const
@@ -303,7 +303,7 @@ public:
 	 *
 	 * @return Number of attachments removed, which will be either 0 or 1.
 	 */
-	CORE_API int32 RemoveAttachment(const FBlake3Hash& Hash);
+	CORE_API int32 RemoveAttachment(const FIoHash& Hash);
 	inline int32 RemoveAttachment(const FCbAttachment& Attachment) { return RemoveAttachment(Attachment.GetHash()); }
 
 	/** Compares packages by their object and attachment hashes. */
@@ -338,7 +338,7 @@ public:
 	CORE_API void Save(FArchive& Ar) const;
 
 private:
-	CORE_API void SetObject(FCbObjectRef Object, const FBlake3Hash* Hash, FAttachmentResolver* Resolver);
+	CORE_API void SetObject(FCbObjectRef Object, const FIoHash* Hash, FAttachmentResolver* Resolver);
 	CORE_API void AddAttachment(const FCbAttachment& Attachment, FAttachmentResolver* Resolver);
 
 	void GatherAttachments(const FCbFieldIterator& Fields, FAttachmentResolver Resolver);
@@ -346,7 +346,7 @@ private:
 	/** Attachments ordered by their hash. */
 	TArray<FCbAttachment> Attachments;
 	FCbObjectRef Object;
-	FBlake3Hash ObjectHash;
+	FIoHash ObjectHash;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

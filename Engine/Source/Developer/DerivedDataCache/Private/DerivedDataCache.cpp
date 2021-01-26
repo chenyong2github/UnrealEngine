@@ -769,7 +769,7 @@ private:
 	{
 		check(AttachmentKey);
 		TStringBuilder<128> Out;
-		Out << AttachmentKey.GetKey().GetBucket() << TEXT("_BLAKE3_") << AttachmentKey.GetHash();
+		Out << AttachmentKey.GetKey().GetBucket() << TEXT("_CAS_") << AttachmentKey.GetHash();
 		return FDerivedDataCacheInterface::SanitizeCacheKey(Out.ToString());
 	}
 };
@@ -839,7 +839,7 @@ void FCache::Get(
 
 	// Check for existence of the value and attachments if they are being skipped.
 	{
-		TArray<FBlake3Hash, TInlineAllocator<1>> KeysToCheck;
+		TArray<FIoHash, TInlineAllocator<1>> KeysToCheck;
 		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsReference())
 		{
 			KeysToCheck.Add(ValueField.AsReference());
@@ -861,7 +861,7 @@ void FCache::Get(
 			TArray<FString, TInlineAllocator<1>> ContentKeysToCheck;
 			ContentKeysToCheck.Reserve(KeysToCheck.Num());
 			Algo::Transform(KeysToCheck, ContentKeysToCheck,
-				[&Key](const FBlake3Hash& Hash) -> FString { return MakeContentKey(FCacheAttachmentKey(Key, Hash)); });
+				[&Key](const FIoHash& Hash) -> FString { return MakeContentKey(FCacheAttachmentKey(Key, Hash)); });
 			if (!GetDerivedDataCacheRef().AllCachedDataProbablyExists(ContentKeysToCheck))
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing content for %s from '%.*s'"),
@@ -875,12 +875,12 @@ void FCache::Get(
 	const auto GetContent = [&Key, Context](FCbField ReferenceField) -> FCbAttachment
 	{
 		TArray<uint8> ContentData;
-		const FBlake3Hash Hash = ReferenceField.AsReference();
+		const FIoHash Hash = ReferenceField.AsReference();
 		check(!ReferenceField.HasError());
 		const FCacheAttachmentKey ContentKey(Key, Hash);
 		if (GetDerivedDataCacheRef().GetSynchronous(*MakeContentKey(ContentKey), ContentData, Context))
 		{
-			if (FBlake3::HashBuffer(MakeMemoryView(ContentData)) == Hash)
+			if (FIoHash::HashBuffer(MakeMemoryView(ContentData)) == Hash)
 			{
 				FSharedBuffer ContentBuffer = FSharedBuffer::Clone(MakeMemoryView(ContentData));
 				if (ReferenceField.IsCompactBinaryReference())
@@ -1030,7 +1030,7 @@ void FCache::Put(
 		break;
 	}
 
-	const auto PutContent = [&Key = Params.Key, Context](const FSharedBuffer& Buffer, const FBlake3Hash& Hash)
+	const auto PutContent = [&Key = Params.Key, Context](const FSharedBuffer& Buffer, const FIoHash& Hash)
 	{
 		check(Buffer.GetSize() <= MAX_int32);
 		TConstArrayView<uint8> BufferView = MakeArrayView(
@@ -1165,7 +1165,7 @@ void FCache::GetAttachment(
 		return;
 	}
 
-	if (FBlake3::HashBuffer(MakeMemoryView(Data)) != Key.GetHash())
+	if (FIoHash::HashBuffer(MakeMemoryView(Data)) != Key.GetHash())
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment cache miss with corrupted content for %s from '%.*s'"),
 			*TToString<160>(Key), Context.Len(), Context.GetData());

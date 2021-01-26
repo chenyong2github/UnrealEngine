@@ -8,7 +8,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCbAttachment::FCbAttachment(FCbFieldRefIterator InValue, const FBlake3Hash* const InHash)
+FCbAttachment::FCbAttachment(FCbFieldRefIterator InValue, const FIoHash* const InHash)
 {
 	if (InValue)
 	{
@@ -39,7 +39,7 @@ FCbAttachment::FCbAttachment(FCbFieldRefIterator InValue, const FBlake3Hash* con
 	}
 }
 
-FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FBlake3Hash* const InHash)
+FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FIoHash* const InHash)
 	: Buffer(MoveTemp(InBuffer))
 {
 	Buffer.MakeOwned();
@@ -48,7 +48,7 @@ FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FBlake3Hash* const In
 		Hash = *InHash;
 		if (Buffer.GetSize())
 		{
-			checkSlow(Hash == FBlake3::HashBuffer(Buffer));
+			checkSlow(Hash == FIoHash::HashBuffer(Buffer));
 		}
 		else
 		{
@@ -57,7 +57,7 @@ FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FBlake3Hash* const In
 	}
 	else if (Buffer.GetSize())
 	{
-		Hash = FBlake3::HashBuffer(Buffer);
+		Hash = FIoHash::HashBuffer(Buffer);
 	}
 	else
 	{
@@ -180,7 +180,7 @@ void FCbAttachment::Save(FArchive& Ar) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FCbPackage::SetObject(FCbObjectRef InObject, const FBlake3Hash* InObjectHash, FAttachmentResolver* InResolver)
+void FCbPackage::SetObject(FCbObjectRef InObject, const FIoHash* InObjectHash, FAttachmentResolver* InResolver)
 {
 	if (InObject.CreateIterator())
 	{
@@ -230,10 +230,10 @@ void FCbPackage::AddAttachment(const FCbAttachment& Attachment, FAttachmentResol
 	}
 }
 
-int32 FCbPackage::RemoveAttachment(const FBlake3Hash& Hash)
+int32 FCbPackage::RemoveAttachment(const FIoHash& Hash)
 {
 	const int32 Index = Algo::BinarySearchBy(Attachments, Hash,
-		[](const FCbAttachment& Attachment) -> const FBlake3Hash& { return Attachment.GetHash(); });
+		[](const FCbAttachment& Attachment) -> const FIoHash& { return Attachment.GetHash(); });
 	if (Attachments.IsValidIndex(Index))
 	{
 		Attachments.RemoveAt(Index);
@@ -247,10 +247,10 @@ bool FCbPackage::Equals(const FCbPackage& Package) const
 	return ObjectHash == Package.ObjectHash && Attachments == Package.Attachments;
 }
 
-const FCbAttachment* FCbPackage::FindAttachment(const FBlake3Hash& Hash) const
+const FCbAttachment* FCbPackage::FindAttachment(const FIoHash& Hash) const
 {
 	const int32 Index = Algo::BinarySearchBy(Attachments, Hash,
-		[](const FCbAttachment& Attachment) -> const FBlake3Hash& { return Attachment.GetHash(); });
+		[](const FCbAttachment& Attachment) -> const FIoHash& { return Attachment.GetHash(); });
 	return Attachments.IsValidIndex(Index) ? &Attachments[Index] : nullptr;
 }
 
@@ -258,7 +258,7 @@ void FCbPackage::GatherAttachments(const FCbFieldIterator& Fields, FAttachmentRe
 {
 	Fields.IterateRangeReferences([this, &Resolver](FCbField Field)
 		{
-			const FBlake3Hash& Hash = Field.AsReference();
+			const FIoHash& Hash = Field.AsReference();
 			if (FSharedBuffer Buffer = Resolver(Hash))
 			{
 				if (Field.IsCompactBinaryReference())
@@ -333,7 +333,7 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 				FSharedBuffer Buffer = FSharedBuffer::MakeView(View, ValueField.GetOuterBuffer());
 				Buffer.MakeOwned();
 				FCbFieldRef HashField = LoadCompactBinary(Ar, StackAllocator);
-				const FBlake3Hash& Hash = HashField.AsReference();
+				const FIoHash& Hash = HashField.AsReference();
 				checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
 				if (HashField.IsCompactBinaryReference())
 				{

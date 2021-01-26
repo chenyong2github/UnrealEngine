@@ -3,6 +3,7 @@
 #include "Serialization/CompactBinary.h"
 
 #include "Math/UnrealMathUtility.h"
+#include "Misc/Blake3.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
@@ -253,12 +254,12 @@ bool FCbField::AsBool(const bool bDefault)
 	return (uint8(bIsBool) & uint8(LocalType) & 1) | ((!bIsBool) & bDefault);
 }
 
-FBlake3Hash FCbField::AsCompactBinaryReference(const FBlake3Hash& Default)
+FIoHash FCbField::AsCompactBinaryReference(const FIoHash& Default)
 {
 	if (FCbFieldType::IsCompactBinaryReference(Type))
 	{
 		Error = ECbFieldError::None;
-		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
+		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Payload));
 	}
 	else
 	{
@@ -267,12 +268,12 @@ FBlake3Hash FCbField::AsCompactBinaryReference(const FBlake3Hash& Default)
 	}
 }
 
-FBlake3Hash FCbField::AsBinaryReference(const FBlake3Hash& Default)
+FIoHash FCbField::AsBinaryReference(const FIoHash& Default)
 {
 	if (FCbFieldType::IsBinaryReference(Type))
 	{
 		Error = ECbFieldError::None;
-		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
+		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Payload));
 	}
 	else
 	{
@@ -281,12 +282,12 @@ FBlake3Hash FCbField::AsBinaryReference(const FBlake3Hash& Default)
 	}
 }
 
-FBlake3Hash FCbField::AsReference(const FBlake3Hash& Default)
+FIoHash FCbField::AsReference(const FIoHash& Default)
 {
 	if (FCbFieldType::IsReference(Type))
 	{
 		Error = ECbFieldError::None;
-		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
+		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Payload));
 	}
 	else
 	{
@@ -295,12 +296,12 @@ FBlake3Hash FCbField::AsReference(const FBlake3Hash& Default)
 	}
 }
 
-FBlake3Hash FCbField::AsHash(const FBlake3Hash& Default)
+FIoHash FCbField::AsHash(const FIoHash& Default)
 {
 	if (FCbFieldType::IsHash(Type))
 	{
 		Error = ECbFieldError::None;
-		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
+		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Payload));
 	}
 	else
 	{
@@ -418,7 +419,7 @@ uint64 FCbField::GetPayloadSize() const
 	case ECbFieldType::CompactBinaryReference:
 	case ECbFieldType::BinaryReference:
 	case ECbFieldType::Hash:
-		return 32;
+		return 20;
 	case ECbFieldType::Uuid:
 		return 16;
 	case ECbFieldType::DateTime:
@@ -429,11 +430,11 @@ uint64 FCbField::GetPayloadSize() const
 	}
 }
 
-FBlake3Hash FCbField::GetHash() const
+FIoHash FCbField::GetHash() const
 {
 	FBlake3 Hash;
 	GetHash(Hash);
-	return Hash.Finalize();
+	return FIoHash(Hash.Finalize());
 }
 
 void FCbField::GetHash(FBlake3& Hash) const
@@ -540,11 +541,11 @@ uint64 FCbArray::GetSize() const
 	return sizeof(ECbFieldType) + GetPayloadSize();
 }
 
-FBlake3Hash FCbArray::GetHash() const
+FIoHash FCbArray::GetHash() const
 {
 	FBlake3 Hash;
 	GetHash(Hash);
-	return Hash.Finalize();
+	return FIoHash(Hash.Finalize());
 }
 
 void FCbArray::GetHash(FBlake3& Hash) const
@@ -632,11 +633,11 @@ uint64 FCbObject::GetSize() const
 	return sizeof(ECbFieldType) + GetPayloadSize();
 }
 
-FBlake3Hash FCbObject::GetHash() const
+FIoHash FCbObject::GetHash() const
 {
 	FBlake3 Hash;
 	GetHash(Hash);
-	return Hash.Finalize();
+	return FIoHash(Hash.Finalize());
 }
 
 void FCbObject::GetHash(FBlake3& Hash) const
@@ -694,11 +695,11 @@ uint64 TCbFieldIterator<FieldType>::GetRangeSize() const
 }
 
 template <typename FieldType>
-FBlake3Hash TCbFieldIterator<FieldType>::GetRangeHash() const
+FIoHash TCbFieldIterator<FieldType>::GetRangeHash() const
 {
 	FBlake3 Hash;
 	GetRangeHash(Hash);
-	return Hash.Finalize();
+	return FIoHash(Hash.Finalize());
 }
 
 template <typename FieldType>

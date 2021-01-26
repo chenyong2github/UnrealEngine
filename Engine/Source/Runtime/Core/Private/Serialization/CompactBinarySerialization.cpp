@@ -62,7 +62,7 @@ bool TryMeasureCompactBinary(FMemoryView View, ECbFieldType& OutType, uint64& Ou
 	case ECbFieldType::CompactBinaryReference:
 	case ECbFieldType::BinaryReference:
 	case ECbFieldType::Hash:
-		FixedSize = 32;
+		FixedSize = 20;
 		break;
 	case ECbFieldType::Uuid:
 		FixedSize = 16;

@@ -3,7 +3,7 @@
 #include "Serialization/CompactBinaryWriter.h"
 
 #include "Containers/StringConv.h"
-#include "Misc/Blake3.h"
+#include "IO/IoHash.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
@@ -477,21 +477,21 @@ void FCbWriter::Bool(const bool bValue)
 	EndField(bValue ? ECbFieldType::BoolTrue : ECbFieldType::BoolFalse);
 }
 
-void FCbWriter::CompactBinaryReference(const FBlake3Hash& Value)
+void FCbWriter::CompactBinaryReference(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
 	EndField(ECbFieldType::CompactBinaryReference);
 }
 
-void FCbWriter::BinaryReference(const FBlake3Hash& Value)
+void FCbWriter::BinaryReference(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
 	EndField(ECbFieldType::BinaryReference);
 }
 
-void FCbWriter::Hash(const FBlake3Hash& Value)
+void FCbWriter::Hash(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));

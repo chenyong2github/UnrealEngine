@@ -4,9 +4,9 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "IO/IoHash.h"
 #include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
-#include "Misc/Blake3.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/IsTriviallyDestructible.h"
 
@@ -61,6 +61,7 @@
  */
 
 class FArchive;
+class FBlake3;
 class FCbArray;
 class FCbField;
 class FCbObject;
@@ -309,7 +310,7 @@ public:
 	CORE_API uint64 GetRangeSize() const;
 
 	/** Calculate the hash of every field in the range. */
-	CORE_API FBlake3Hash GetRangeHash() const;
+	CORE_API FIoHash GetRangeHash() const;
 	/** Calculate the hash of every field in the range. */
 	CORE_API void GetRangeHash(FBlake3& Hash) const;
 
@@ -496,14 +497,14 @@ public:
 	CORE_API bool AsBool(bool bDefault = false);
 
 	/** Access the field as a hash referencing compact binary data. Returns the provided default on error. */
-	CORE_API FBlake3Hash AsCompactBinaryReference(const FBlake3Hash& Default = FBlake3Hash());
+	CORE_API FIoHash AsCompactBinaryReference(const FIoHash& Default = FIoHash());
 	/** Access the field as a hash referencing binary data. Returns the provided default on error. */
-	CORE_API FBlake3Hash AsBinaryReference(const FBlake3Hash& Default = FBlake3Hash());
+	CORE_API FIoHash AsBinaryReference(const FIoHash& Default = FIoHash());
 	/** Access the field as a hash referencing compact binary data or binary data. Returns the provided default on error. */
-	CORE_API FBlake3Hash AsReference(const FBlake3Hash& Default = FBlake3Hash());
+	CORE_API FIoHash AsReference(const FIoHash& Default = FIoHash());
 
 	/** Access the field as a hash. Returns the provided default on error. */
-	CORE_API FBlake3Hash AsHash(const FBlake3Hash& Default = FBlake3Hash());
+	CORE_API FIoHash AsHash(const FIoHash& Default = FIoHash());
 
 	/** Access the field as a UUID. Returns a nil UUID on error. */
 	CORE_API FGuid AsUuid();
@@ -574,7 +575,7 @@ public:
 	CORE_API uint64 GetSize() const;
 
 	/** Calculate the hash of the field, including the type and name. */
-	CORE_API FBlake3Hash GetHash() const;
+	CORE_API FIoHash GetHash() const;
 	/** Calculate the hash of the field, including the type and name. */
 	CORE_API void GetHash(FBlake3& Hash) const;
 
@@ -763,7 +764,7 @@ public:
 	CORE_API uint64 GetSize() const;
 
 	/** Calculate the hash of the array if serialized by itself with no name. */
-	CORE_API FBlake3Hash GetHash() const;
+	CORE_API FIoHash GetHash() const;
 	/** Calculate the hash of the array if serialized by itself with no name. */
 	CORE_API void GetHash(FBlake3& Hash) const;
 
@@ -861,7 +862,7 @@ public:
 	CORE_API uint64 GetSize() const;
 
 	/** Calculate the hash of the object if serialized by itself with no name. */
-	CORE_API FBlake3Hash GetHash() const;
+	CORE_API FIoHash GetHash() const;
 	/** Calculate the hash of the object if serialized by itself with no name. */
 	CORE_API void GetHash(FBlake3& Hash) const;
 

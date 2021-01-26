@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
-#include "Misc/Blake3.h"
+#include "IO/IoHash.h"
 #include "Templates/TypeHash.h"
 
 #define UE_API DERIVEDDATACACHE_API
@@ -97,7 +97,7 @@ public:
 	FCacheKey() = default;
 
 	/** Construct a cache key from the non-null bucket and non-zero hash. */
-	inline FCacheKey(FCacheBucket InBucket, const FBlake3Hash& InHash)
+	inline FCacheKey(FCacheBucket InBucket, const FIoHash& InHash)
 		: Bucket(InBucket)
 		, Hash(InHash)
 	{
@@ -107,7 +107,7 @@ public:
 	inline FCacheBucket GetBucket() const { return Bucket; }
 
 	/** Returns the hash component of the cache key. */
-	inline const FBlake3Hash& GetHash() const { return Hash; }
+	inline const FIoHash& GetHash() const { return Hash; }
 
 	/** Append the cache key to the string builder. */
 	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
@@ -123,7 +123,7 @@ public:
 
 private:
 	FCacheBucket Bucket;
-	FBlake3Hash Hash;
+	FIoHash Hash;
 };
 
 inline bool operator==(const FCacheKey& A, const FCacheKey& B)
@@ -176,7 +176,7 @@ public:
 	FCacheAttachmentKey() = default;
 
 	/** Construct a cache attachment key from the non-null key and non-zero hash. */
-	inline FCacheAttachmentKey(const FCacheKey& InKey, const FBlake3Hash& InHash)
+	inline FCacheAttachmentKey(const FCacheKey& InKey, const FIoHash& InHash)
 		: Key(InKey)
 		, Hash(InHash)
 	{
@@ -186,7 +186,7 @@ public:
 	inline const FCacheKey& GetKey() const { return Key; }
 
 	/** Returns the hash of the attachment. */
-	inline const FBlake3Hash& GetHash() const { return Hash; }
+	inline const FIoHash& GetHash() const { return Hash; }
 
 	/** Append the cache attachment key to the string builder. */
 	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
@@ -202,7 +202,7 @@ public:
 
 private:
 	FCacheKey Key;
-	FBlake3Hash Hash;
+	FIoHash Hash;
 };
 
 inline bool operator==(const FCacheAttachmentKey& A, const FCacheAttachmentKey& B)
