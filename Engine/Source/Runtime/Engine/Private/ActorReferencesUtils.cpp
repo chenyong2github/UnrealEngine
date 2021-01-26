@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ExternalActorsUtils.h"
+#include "ActorReferencesUtils.h"
 #include "Serialization/ArchiveUObject.h"
 #include "GameFramework/Actor.h"
 
 class FArchiveGatherExternalActorRefs : public FArchiveUObject
 {
 public:
-	FArchiveGatherExternalActorRefs(UObject* InRoot, TSet<AActor*>& InActorReferences)
+	FArchiveGatherExternalActorRefs(UObject* InRoot, TSet<AActor*>& InActorReferences, EObjectFlags InRequiredFlags)
 		: Root(InRoot)
 		, ActorReferences(InActorReferences)
+		, RequiredFlags(InRequiredFlags)
 	{
 		SetIsSaving(true);
 		SetIsPersistent(true);
@@ -62,7 +63,7 @@ private:
 
 			check(TopParentActor);
 
-			if (TopParentActor->IsPackageExternal() && (TopParentActor != Root))
+			if (((RequiredFlags == RF_NoFlags) || TopParentActor->HasAnyFlags(RequiredFlags)) && (TopParentActor != Root))
 			{
 				ActorReferences.Add(TopParentActor);
 			}
@@ -72,11 +73,17 @@ private:
 	UObject* Root;
 	TSet<AActor*>& ActorReferences;
 	TSet<UObject*> SubObjects;
+	EObjectFlags RequiredFlags;
 };
 
-TArray<AActor*> ExternalActorsUtils::GetExternalActorReferences(UObject* Root)
+TArray<AActor*> ActorsReferencesUtils::GetExternalActorReferences(UObject* Root)
+{
+	return GetActorReferences(Root, RF_HasExternalPackage);
+}
+
+TArray<AActor*> ActorsReferencesUtils::GetActorReferences(UObject* Root, EObjectFlags RequiredFlags)
 {
 	TSet<AActor*> Result;
-	FArchiveGatherExternalActorRefs Ar(Root, Result);
+	FArchiveGatherExternalActorRefs Ar(Root, Result, RequiredFlags);
 	return Result.Array();
 }

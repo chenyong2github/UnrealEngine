@@ -38,7 +38,7 @@
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/NavigationData/NavigationDataChunkActor.h"
 #include "AI/NavigationSystemBase.h"
-#include "Engine/Public/ExternalActorsUtils.h"
+#include "Engine/Public/ActorReferencesUtils.h"
 #include "Engine/LevelScriptBlueprint.h"
 
 #include "AssetRegistryModule.h"
@@ -253,7 +253,7 @@ TArray<FActorCluster> CreateActorClustersImpl(UWorldPartition* WorldPartition, T
 	TSet<AActor*> LevelScriptExternalActorReferences;
 	if (ULevelScriptBlueprint* LevelScriptBlueprint = WorldPartition->GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
 	{
-		LevelScriptExternalActorReferences.Append(ExternalActorsUtils::GetExternalActorReferences(LevelScriptBlueprint));
+		LevelScriptExternalActorReferences.Append(ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint));
 	}
 
 	for (const auto& Pair : WorldPartition->Actors)

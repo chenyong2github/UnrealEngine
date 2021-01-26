@@ -101,6 +101,9 @@ protected:
 	TMap<FName, EActorGridPlacement> LevelsGridPlacement;
 
 	UPROPERTY(Config)
+	bool bConvertActorsNotReferencedByLevelScript;
+
+	UPROPERTY(Config)
 	FVector WorldOrigin;
 	
 	UPROPERTY(Config)
@@ -115,9 +118,9 @@ protected:
 	UPROPERTY(Config)
 	TArray<FHLODLayerActorMapping> HLODLayersForActorClasses;
 
-	UPROPERTY(Config)
-	uint32 LandscapeGridSize;
-
 	UPROPERTY(Transient)
 	TMap<FString, UHLODLayer*> HLODLayers;
+
+	UPROPERTY(Config)
+	uint32 LandscapeGridSize;
 };

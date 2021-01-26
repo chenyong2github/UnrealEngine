@@ -16,6 +16,7 @@
 #include "Engine/LODActor.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "Engine/Public/ActorReferencesUtils.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -155,6 +156,7 @@ UWorldPartitionConvertCommandlet::UWorldPartitionConvertCommandlet(const FObject
 	: Super(ObjectInitializer)
 	, bConversionSuffix(false)
 	, ConversionSuffix(TEXT("_WP"))
+	, bConvertActorsNotReferencedByLevelScript(true)
 	, WorldOrigin(FVector::ZeroVector)
 	, WorldExtent(HALF_WORLD_MAX)
 	, LandscapeGridSize(4)
@@ -508,7 +510,10 @@ void UWorldPartitionConvertCommandlet::FixupSoftObjectPaths(UPackage* OuterPacka
 
 	ForEachObjectWithPackage(OuterPackage, [&](UObject* Object)
 	{
-		Object->Serialize(FixupSerializer);
+		if (Object->HasAllFlags(RF_WasLoaded))
+		{
+			Object->Serialize(FixupSerializer);
+		}
 		return true;
 	}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 }
@@ -949,7 +954,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		}
 	};
 
-	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers](ULevel* Level, bool bMainLevel, EActorGridPlacement DefaultGridPlacement)
+	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers](ULevel* Level, TArray<AActor*>& Actors, bool bMainLevel, EActorGridPlacement DefaultGridPlacement)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareLevelActors);
 
@@ -957,10 +962,12 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		TArray<AInstancedFoliageActor*> IFAs;
 		TSet<ULandscapeInfo*> LandscapeInfos;
-		for (AActor* Actor: Level->Actors)
+		for (AActor* Actor: Actors)
 		{
 			if (Actor && !Actor->IsPendingKill())
 			{
+				check(Actor->GetLevel() == Level);
+
 				if (ShouldDeleteActor(Actor, bMainLevel))
 				{
 					Level->GetWorld()->DestroyActor(Actor);
@@ -1071,7 +1078,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	// Prepare levels for conversion
 	DetachDependantLevelPackages(MainLevel);
-	PrepareLevelActors(MainLevel, true, GetLevelGridPlacement(MainLevel, SubLevelsToConvert.Num() ? EActorGridPlacement::AlwaysLoaded : EActorGridPlacement::Bounds));
+	PrepareLevelActors(MainLevel, MainLevel->Actors, true, GetLevelGridPlacement(MainLevel, SubLevelsToConvert.Num() ? EActorGridPlacement::AlwaysLoaded : EActorGridPlacement::Bounds));
+	PackagesToSave.Add(MainLevel->GetPackage());
 
 	if (bConversionSuffix)
 	{
@@ -1097,11 +1105,80 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		UWorld* SubWorld = SubLevel->GetTypedOuter<UWorld>();
 		UPackage* SubPackage = SubLevel->GetPackage();
 
+		RemapSoftObjectPaths.Add(FSoftObjectPath(SubWorld).ToString(), FSoftObjectPath(MainWorld).ToString());
+		RemapSoftObjectPaths.Add(FSoftObjectPath(SubLevel).ToString(), FSoftObjectPath(MainLevel).ToString());
+		RemapSoftObjectPaths.Add(FSoftObjectPath(SubPackage).ToString(), FSoftObjectPath(MainPackage).ToString());
+
+		TArray<AActor*> ActorsToConvert;
 		if (LevelHasLevelScriptBlueprint(SubLevel))
 		{
 			MapsWithLevelScriptsBPs.Add(SubPackage->GetLoadedPath().GetPackageName());
 
-			// Spawn the Level Instance
+			if (bConvertActorsNotReferencedByLevelScript)
+			{
+				// Gather the list of actors referenced by the level script blueprint
+				TSet<AActor*> LevelScriptActorReferences;
+
+				ALevelScriptActor* LevelScriptActor = SubLevel->GetLevelScriptActor();
+				LevelScriptActorReferences.Add(LevelScriptActor);
+
+				ULevelScriptBlueprint* LevelScriptBlueprint = SubLevel->GetLevelScriptBlueprint(true);
+				LevelScriptActorReferences.Append(ActorsReferencesUtils::GetActorReferences(LevelScriptBlueprint));
+
+				for(AActor* Actor: SubLevel->Actors)
+				{
+					if(Actor && !Actor->IsPendingKill())
+					{
+						TSet<AActor*> ActorReferences;
+						ActorReferences.Append(ActorsReferencesUtils::GetActorReferences(Actor));
+
+						for (AActor* ActorReference : ActorReferences)
+						{
+							if (LevelScriptActorReferences.Find(ActorReference))
+							{
+								LevelScriptActorReferences.Add(Actor);
+								LevelScriptActorReferences.Append(ActorReferences);
+								break;
+							}
+						}
+					}
+				}
+
+				for(AActor* Actor: SubLevel->Actors)
+				{
+					if(Actor && !Actor->IsPendingKill())
+					{
+						if (!LevelScriptActorReferences.Find(Actor))
+						{
+							ActorsToConvert.Add(Actor);
+						}
+					}
+				}
+			}
+
+			// Rename the world if requested
+			UWorld* SubLevelWorld = SubLevel->GetTypedOuter<UWorld>();
+			UPackage* SubLevelPackage = SubLevelWorld->GetPackage();
+
+			if (bConversionSuffix)
+			{
+				FString OldMainWorldPath = FSoftObjectPath(SubLevelWorld).ToString();
+				FString OldMainLevelPath = FSoftObjectPath(SubLevel).ToString();
+				FString OldPackagePath = FSoftObjectPath(SubLevelPackage).ToString();
+
+				if (!RenameWorldPackageWithSuffix(SubLevelWorld))
+				{
+					return 1;
+				}
+
+				RemapSoftObjectPaths.Add(OldMainWorldPath, FSoftObjectPath(SubLevelWorld).ToString());
+				RemapSoftObjectPaths.Add(OldMainLevelPath, FSoftObjectPath(SubLevel).ToString());
+				RemapSoftObjectPaths.Add(OldPackagePath, FSoftObjectPath(SubLevelPackage).ToString());
+			}
+			
+			PackagesToSave.Add(SubLevelPackage);
+
+			// Spawn the level instance actor
 			ULevelStreaming* SubLevelStreaming = nullptr;
 			for (ULevelStreaming* LevelStreaming : MainLevel->GetWorld()->GetStreamingLevels())
 			{
@@ -1117,8 +1194,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			SpawnParams.OverrideLevel = MainLevel;
 			ALevelInstance* LevelInstanceActor = MainWorld->SpawnActor<ALevelInstance>(SpawnParams);
 
-			UPackage* SubLevelPackage = SubLevel->GetPackage();
-
 			FTransform LevelTransform;
 			if (SubLevelPackage->WorldTileInfo)
 			{
@@ -1130,70 +1205,72 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			}
 
 			LevelInstanceActor->SetActorTransform(LevelTransform);
-			LevelInstanceActor->SetWorldAsset(SubLevel->GetTypedOuter<UWorld>());
+			LevelInstanceActor->SetWorldAsset(SubLevelWorld);
 		}
 		else
 		{
-			RemapSoftObjectPaths.Add(FSoftObjectPath(SubWorld).ToString(), FSoftObjectPath(MainWorld).ToString());
-			RemapSoftObjectPaths.Add(FSoftObjectPath(SubLevel).ToString(), FSoftObjectPath(MainLevel).ToString());
-			RemapSoftObjectPaths.Add(FSoftObjectPath(SubPackage).ToString(), FSoftObjectPath(MainPackage).ToString());
-
 			if (LevelHasMapBuildData(SubLevel))
 			{
 				MapsWithMapBuildData.Add(SubPackage->GetLoadedPath().GetPackageName());
 			}
 
 			DetachDependantLevelPackages(SubLevel);
-			PrepareLevelActors(SubLevel, false, GetLevelGridPlacement(SubLevel, EActorGridPlacement::Bounds));
 
-			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s"), *SubWorld->GetName());
+			ActorsToConvert = SubLevel->Actors;
+		}
 
-			for(AActor* Actor: SubLevel->Actors)
+		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s"), *SubWorld->GetName());
+
+		PrepareLevelActors(SubLevel, ActorsToConvert, false, GetLevelGridPlacement(SubLevel, EActorGridPlacement::Bounds));
+
+		for(AActor* Actor: ActorsToConvert)
+		{
+			if(Actor && !Actor->IsPendingKill())
 			{
-				if(Actor && !Actor->IsPendingKill())
-				{
-					check(Actor->GetOuter() == SubLevel);
-					check(!ShouldDeleteActor(Actor, false));
+				check(Actor->GetOuter() == SubLevel);
+				check(!ShouldDeleteActor(Actor, false));
 				
-					if (Actor->IsA(AGroupActor::StaticClass()))
-					{
-						GroupActors.Add(*Actor->GetFullName());
-					}
+				if (Actor->IsA(AGroupActor::StaticClass()))
+				{
+					GroupActors.Add(*Actor->GetFullName());
+				}
 
-					if (Actor->GroupActor)
-					{
-						ActorsInGroupActors.Add(*Actor->GetFullName());
-					}
+				if (Actor->GroupActor)
+				{
+					ActorsInGroupActors.Add(*Actor->GetFullName());
+				}
 
-					TArray<AActor*> ChildActors;
-					Actor->GetAllChildActors(ChildActors, false);
+				TArray<AActor*> ChildActors;
+				Actor->GetAllChildActors(ChildActors, false);
 
-					if (ChildActors.Num())
-					{
-						ActorsWithChildActors.Add(*Actor->GetFullName());
-					}
+				if (ChildActors.Num())
+				{
+					ActorsWithChildActors.Add(*Actor->GetFullName());
+				}
 
-					FArchiveGatherPrivateImports Ar(Actor, PrivateRefsMap, ActorsReferencesToActors);
-					Actor->Serialize(Ar);
+				FArchiveGatherPrivateImports Ar(Actor, PrivateRefsMap, ActorsReferencesToActors);
+				Actor->Serialize(Ar);
 
-					// Even after Foliage Partitioning it is possible some Actors still have a FoliageTag. Make sure it is removed.
-					if (FFoliageHelper::IsOwnedByFoliage(Actor))
-					{
-						FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
-					}
+				// Even after Foliage Partitioning it is possible some Actors still have a FoliageTag. Make sure it is removed.
+				if (FFoliageHelper::IsOwnedByFoliage(Actor))
+				{
+					FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
+				}
 
-					ChangeObjectOuter(Actor, MainLevel);
+				ChangeObjectOuter(Actor, MainLevel);
 
-					// Migrate blueprint classes
-					UClass* ActorClass = Actor->GetClass();
-					if (!ActorClass->IsNative() && (ActorClass->GetPackage() == SubPackage))
-					{
-						ChangeObjectOuter(ActorClass, MainPackage);
-						UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Extracted non-native class %s"), *ActorClass->GetName());
-					}
+				// Migrate blueprint classes
+				UClass* ActorClass = Actor->GetClass();
+				if (!ActorClass->IsNative() && (ActorClass->GetPackage() == SubPackage))
+				{
+					ChangeObjectOuter(ActorClass, MainPackage);
+					UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Extracted non-native class %s"), *ActorClass->GetName());
 				}
 			}
+		}
 
+		if (!LevelHasLevelScriptBlueprint(SubLevel))
+		{
 			if (!bReportOnly)
 			{
 				TArray<UObject*> ObjectsToRename;
@@ -1221,6 +1298,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	for (ULevelStreaming* LevelStreaming: MainLevel->GetWorld()->GetStreamingLevels())
 	{
 		LevelStreaming->MarkPendingKill();
+		ULevelStreaming::RemoveLevelAnnotation(LevelStreaming->GetLoadedLevel());
 	}
 	MainLevel->GetWorld()->ClearStreamingLevels();
 
@@ -1322,6 +1400,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			}
 		}
 
+		// Checkout packages
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(CheckoutPackages);
 
@@ -1359,6 +1438,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			}
 		}
 
+		// Add packages
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(AddPackagesToSourceControl);
 
@@ -1369,25 +1449,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				{
 					return 1;
 				}
-			}
-		}
-
-		// Checkout level
-		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Saving %s."), *MainPackage->GetName());
-
-		if (!PackageHelper.Checkout(MainPackage))
-		{
-			return 1;
-		}
-
-		// Save level
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(SaveLevel);
-
-			FString PackageFileName = SourceControlHelpers::PackageFilename(MainPackage);
-			if (!UPackage::SavePackage(MainPackage, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
-			{
-				return 1;
 			}
 		}
 
