@@ -43,6 +43,7 @@ struct FPrimitiveInstance
 	FNaniteInfo NaniteInfo;
 	uint32 LastUpdateSceneFrameNumber;
 	float PerInstanceRandom;
+	uint32 Flags;
 };
 
 /** 
@@ -62,7 +63,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API
 	SHADER_PARAMETER(uint32,   NaniteRuntimeResourceID)
 	SHADER_PARAMETER(uint32,   NaniteHierarchyOffset_AndHasImposter)
 	SHADER_PARAMETER(float,    PerInstanceRandom)
-	SHADER_PARAMETER(uint32,   Unused3)
+	SHADER_PARAMETER(uint32,   Flags)			// CastShadows=1,
 	SHADER_PARAMETER(FVector4, LightMapAndShadowMapUVBias)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -78,7 +79,8 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	const FNaniteInfo& NaniteInfo,
 	uint32 PrimitiveId,
 	uint32 LastUpdateSceneFrameNumber,
-	float PerInstanceRandom
+	float PerInstanceRandom,
+	bool bCastShadow
 )
 {
 	FInstanceUniformShaderParameters Result;
@@ -94,6 +96,8 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	Result.NaniteHierarchyOffset_AndHasImposter	= NaniteInfo.HierarchyOffset_AndHasImposter;
 	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;
 	Result.PerInstanceRandom					= PerInstanceRandom;
+	Result.Flags								= 0;
+	Result.Flags								|= bCastShadow ? 1 : 0;
 	return Result;
 }
 
@@ -108,7 +112,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 	const FNaniteInfo& NaniteInfo,
 	uint32 PrimitiveId,
 	uint32 LastUpdateSceneFrameNumber,
-	float PerInstanceRandom
+	float PerInstanceRandom,
+	bool bCastShadow
 )
 {
 	check(IsInRenderingThread());
@@ -124,7 +129,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 			NaniteInfo,
 			PrimitiveId,
 			LastUpdateSceneFrameNumber,
-			PerInstanceRandom
+			PerInstanceRandom,
+			bCastShadow
 		),
 		UniformBuffer_MultiFrame
 	);
@@ -150,7 +156,8 @@ struct FInstanceSceneShaderData
 			FNaniteInfo(),
 			0,
 			0xFFFFFFFFu,
-			0.0f
+			0.0f,
+			true
 		));
 	}
 

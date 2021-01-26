@@ -48,7 +48,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32, LightmapUVIndex)
 	SHADER_PARAMETER(uint32, InstanceDataOffset)
 	SHADER_PARAMETER(uint32, NumInstanceDataEntries)
-	SHADER_PARAMETER(uint32, Unused)
+	SHADER_PARAMETER(uint32, Flags)						// CastShadows=1,
 	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -74,7 +74,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	const FCustomPrimitiveData* CustomPrimitiveData,
 	bool bCastContactShadow,
 	int32 InstanceDataOffset,
-	int32 NumInstanceDataEntries
+	int32 NumInstanceDataEntries,
+	bool bCastShadow
 )
 {
 	FPrimitiveUniformShaderParameters Result;
@@ -133,6 +134,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 
 	Result.InstanceDataOffset = InstanceDataOffset;
 	Result.NumInstanceDataEntries = NumInstanceDataEntries;
+	Result.Flags = 0;
+	Result.Flags |= bCastShadow ? 1 : 0;
 
 	return Result;
 }
@@ -158,7 +161,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	const FCustomPrimitiveData* CustomPrimitiveData,
 	bool bCastContactShadow,
 	int32 InstanceDataOffset,
-	int32 NumInstanceDataEntries
+	int32 NumInstanceDataEntries,
+	bool bCastShadow
 )
 {
 	// Pass through call
@@ -183,7 +187,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 		CustomPrimitiveData,
 		bCastContactShadow,
 		InstanceDataOffset,
-		NumInstanceDataEntries
+		NumInstanceDataEntries,
+		bCastShadow
 		);
 }
 
@@ -219,7 +224,8 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 			nullptr,
 			/* bCastContactShadow = */ true,
 			INDEX_NONE,
-			0
+			0,
+			/* bCastShadow */ true
 		),
 		UniformBuffer_MultiFrame
 	);
@@ -249,7 +255,8 @@ inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 		nullptr,
 		/* bCastContactShadow = */ true,
 		INDEX_NONE,
-		0
+		0,
+		/* bCastShadow */ true
 	);
 }
 

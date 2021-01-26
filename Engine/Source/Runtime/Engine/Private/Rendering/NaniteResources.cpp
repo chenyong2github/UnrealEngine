@@ -452,6 +452,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instance.LocalBounds = Instance.RenderBounds;
 	Instance.LightMapAndShadowMapUVBias = FVector4(-11.0f, -22.0f, -33.0f, -44.0f); // TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
 	Instance.PerInstanceRandom = 0;
+	Instance.Flags = 0;
+	Instance.Flags |= bCastShadow ? 1 : 0;
 
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())

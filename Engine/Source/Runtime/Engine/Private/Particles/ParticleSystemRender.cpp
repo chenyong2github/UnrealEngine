@@ -7216,7 +7216,8 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 			nullptr,
 			/* bCastContactShadow = */ true,
 			INDEX_NONE,
-			0
+			0,
+			/* bCastShadow = */ true
 		);
 
 		WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);

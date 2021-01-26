@@ -17,7 +17,8 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(const FPrimitiveInstance& Ins
 		Instance.NaniteInfo,
 		Instance.PrimitiveId,
 		Instance.LastUpdateSceneFrameNumber,
-		Instance.PerInstanceRandom
+		Instance.PerInstanceRandom,
+		!!(Instance.Flags & 1) /* bCastShadow */
 	));
 }
 
@@ -39,6 +40,6 @@ void FInstanceSceneShaderData::Setup(const FInstanceUniformShaderParameters& Ins
 	Data[10].X = *(const    float*)&InstanceUniformShaderParameters.NaniteRuntimeResourceID;
 	Data[10].Y = *(const    float*)&InstanceUniformShaderParameters.NaniteHierarchyOffset_AndHasImposter;
 	Data[10].Z = *(const    float*)&InstanceUniformShaderParameters.PerInstanceRandom;
-	Data[10].W = 0.0f; // Unused
+	Data[10].W = *(const    float*)&InstanceUniformShaderParameters.Flags;
 	Data[11]   = *(const FVector4*)&InstanceUniformShaderParameters.LightMapAndShadowMapUVBias;
 }

@@ -30,6 +30,7 @@ struct FInstanceSceneData
 	uint     NaniteHierarchyOffset;
 	bool     NaniteHasImposter;
 	bool     UseInstanceData;
+	bool     CastShadows;
 	float    PerInstanceRandom;
 	float4   LightMapAndShadowMapUVBias;
 };
@@ -82,6 +83,7 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 	InstanceData.NaniteRuntimeResourceID				= asuint(LoadInstanceDataElement(10 * SOAStride + InstanceId).x);
 	const uint NaniteHierarchyOffset_AndHasImposter		= asint(LoadInstanceDataElement(10 * SOAStride + InstanceId).y);
 	InstanceData.PerInstanceRandom						= LoadInstanceDataElement(10 * SOAStride + InstanceId).z;
+	const uint Flags									= asuint(LoadInstanceDataElement(10 * SOAStride + InstanceId).w);
 	InstanceData.LightMapAndShadowMapUVBias				= LoadInstanceDataElement(11 * SOAStride + InstanceId);
 
 	InstanceData.NaniteHierarchyOffset					= (NaniteHierarchyOffset_AndHasImposter >> 1);
@@ -97,6 +99,8 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 
 	// TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
 	InstanceData.UseInstanceData						= all(InstanceData.LightMapAndShadowMapUVBias != float4(-11.0f, -22.0f, -33.0f, -44.0f));
+
+	InstanceData.CastShadows							= (Flags & 1u) != 0u;
 
 	return InstanceData;
 }
@@ -142,7 +146,8 @@ struct FPrimitiveSceneData
 	// Link to the range of instances that belong to this primitive
 	int InstanceDataOffset;
 	int NumInstanceDataEntries;
-	uint Unused;
+	// CastShadows=1
+	uint Flags;
 	float4 CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA];
 };
 
@@ -251,6 +256,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.LightmapUVIndex = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).x);
 	PrimitiveData.InstanceDataOffset = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).y);
 	PrimitiveData.NumInstanceDataEntries = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).z);
+	PrimitiveData.Flags = asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w);
 
 	UNROLL
 	for (int i = 0; i < NUM_CUSTOM_PRIMITIVE_DATA; i++)

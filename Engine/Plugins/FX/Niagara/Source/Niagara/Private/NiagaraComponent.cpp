@@ -397,7 +397,8 @@ FRHIUniformBuffer* FNiagaraSceneProxy::GetUniformBufferNoVelocity() const
 				GetCustomPrimitiveData(),
 				true,
 				LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE,
-				LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetNumInstanceDataEntries() : 0
+				LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetNumInstanceDataEntries() : 0,
+				true
 			)
 		);
 		UniformBufferNoVelocity.InitResource();

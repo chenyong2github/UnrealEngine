@@ -410,7 +410,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				GetCustomPrimitiveData(),
 				CastsContactShadow(),
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceDataOffset() : INDEX_NONE,
-				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceDataEntries() : 0
+				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceDataEntries() : 0,
+				CastsDynamicShadow()
 			);
 
 		if (UniformBuffer.GetReference())

@@ -874,7 +874,8 @@ void FDynamicMeshBuilder::GetMesh(
 				nullptr,
 				/* bCastContactShadow = */ true,
 				INDEX_NONE,
-				0
+				0,
+				/* bCastShadow = */ true
 			);
 
 
@@ -971,7 +972,8 @@ void FDynamicMeshBuilder::GetMeshElement(const FMatrix& LocalToWorld, const FMat
 				nullptr,
 				/* bCastContactShadow = */ true,
 				INDEX_NONE,
-				0
+				0,
+				/* bCastShadow = */ true
 			);
 
 			if (IsInGameThread())
@@ -1054,7 +1056,8 @@ void FDynamicMeshBuilder::Draw(FPrimitiveDrawInterface* PDI,const FMatrix& Local
 			nullptr,
 			/* bCastContactShadow = */ true,
 			INDEX_NONE,
-			0
+			0,
+			/* bCastShadow = */ true
 		);
 
 

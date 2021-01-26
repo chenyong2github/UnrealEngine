@@ -84,6 +84,7 @@ uint NumInstances;
 uint NumViews;
 uint NumPrimaryViews;
 int ImposterMaxPixels;
+int IsDepthOnlyPass;
 
 StructuredBuffer<FInstanceDraw>			InInstanceDraws;
 Buffer<uint>							InOccludedInstancesArgs;
@@ -124,6 +125,15 @@ void InstanceCull(
 #else
 		uint InstanceId = DispatchIndex;
 #endif
+		FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		bool bCastShadows = (PrimitiveData.Flags & 1u) != 0u;
+
+		// JonO/Note: Depth-Only pass indicates its a shadow map... but this may not technically always be the case?
+		//if(IsDepthOnlyPass && !InstanceData.CastShadows) {
+		if(IsDepthOnlyPass && !bCastShadows) {
+			return;
+		}
 
 		uint ViewId = 0;
 #if NANITE_MULTI_VIEW
@@ -139,7 +149,6 @@ void InstanceCull(
 
 			FNaniteView NaniteView = GetNaniteView(ViewId);
 
-			FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
 			const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
 
 			// Depth clipping should only be disabled with orthographic projections
@@ -290,8 +299,15 @@ void InstanceCullVSM(
 
 	const bool bActive = InstanceId < NumInstances && InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu; // Only process valid Nanite primitives
 
-	// JonO: Early out if bActive is false
+	//if(!bActive || !InstanceData.CastShadows) 
 	if(!bActive) 
+	{
+		return;
+	}
+
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+	bool bCastShadow = (PrimitiveData.Flags & 1u) != 0u;
+	if(!bCastShadow) 
 	{
 		return;
 	}
