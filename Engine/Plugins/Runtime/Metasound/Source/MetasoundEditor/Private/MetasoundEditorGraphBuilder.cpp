@@ -26,20 +26,17 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		// Category names must match those found in UEdGraphSchema_K2:PC_<type>
-		// so default selectors function the same way by default
+		const FName FGraphBuilder::PinCategoryAudioFormat = "audio_format";
 		const FName FGraphBuilder::PinCategoryBoolean = "bool";
 		const FName FGraphBuilder::PinCategoryDouble = "double";
-		const FName FGraphBuilder::PinCategoryExec = "exec";
 		const FName FGraphBuilder::PinCategoryFloat = "float";
 		const FName FGraphBuilder::PinCategoryInt32 = "int";
 		const FName FGraphBuilder::PinCategoryInt64 = "int64";
 		const FName FGraphBuilder::PinCategoryObject = "object";
 		const FName FGraphBuilder::PinCategoryString = "string";
+		const FName FGraphBuilder::PinCategoryTrigger = "trigger";
 
-		const FName FGraphBuilder::PinSubCategoryAudioFormat = "Format";
-		const FName FGraphBuilder::PinSubCategoryAudioNumeric = "Numeric";
-		const FName FGraphBuilder::PinSubCategoryObjectArray = "UObjectArray";
+		const FName FGraphBuilder::PinSubCategoryTime = "time";
 
 		namespace GraphBuilderPrivate
 		{
@@ -90,7 +87,6 @@ namespace Metasound
 
 					case ELiteralType::UObjectProxy:
 					{
-						// TODO: Support default UObject value on node
 						UClass* ClassToUse = FMetasoundFrontendRegistryContainer::Get()->GetLiteralUClassForDataType(InTypeName);
 						if (ClassToUse)
 						{
@@ -238,11 +234,6 @@ namespace Metasound
 			using namespace Metasound::Frontend;
 
 			const FScopedTransaction Transaction(LOCTEXT("SetMetasoundGraphNode", "Set Metasound Literal Input"));
-
-			if (!ensureAlways(InNodeHandle->GetClassType() == EMetasoundFrontendClassType::External))
-			{
-				return;
-			}
 
 			const FString& InInputName = InInputPin.GetName();
 			const FString& InStringValue = InInputPin.DefaultValue;
@@ -541,9 +532,13 @@ namespace Metasound
 							FOutputHandle OutputHandle = NodeInputs[InputIndex]->GetCurrentlyConnectedOutput();
 							if (OutputHandle->IsValid())
 							{
-								UEdGraphNode* OutputGraphNode = NewIdNodeMap.FindChecked(OutputHandle->GetOwningNodeID()).GraphNode;
-								UEdGraphPin* OutputPin = OutputGraphNode->FindPinChecked(OutputHandle->GetName(), EEdGraphPinDirection::EGPD_Output);
-								Pin->MakeLinkTo(OutputPin);
+								const FMetasoundFrontendNodeStyle& Style = OutputHandle->GetOwningNode()->GetNodeStyle();
+								if (Style.Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Visible)
+								{
+									UEdGraphNode* OutputGraphNode = NewIdNodeMap.FindChecked(OutputHandle->GetOwningNodeID()).GraphNode;
+									UEdGraphPin* OutputPin = OutputGraphNode->FindPinChecked(OutputHandle->GetName(), EEdGraphPinDirection::EGPD_Output);
+									Pin->MakeLinkTo(OutputPin);
+								}
 							}
 
 							InputIndex++;
@@ -571,20 +566,17 @@ namespace Metasound
 			{
 				NodeHandle = Node->GetNodeHandle();
 
-				if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::External)
+				TArray<FInputHandle> Inputs = NodeHandle->GetInputs();
+				for (FInputHandle& Input : Inputs)
 				{
-					TArray<FInputHandle> Inputs = NodeHandle->GetInputs();
-					for (FInputHandle& Input : Inputs)
+					FOutputHandle Output = Input->GetCurrentlyConnectedOutput();
+					if (Output->IsValid())
 					{
-						FOutputHandle Output = Input->GetCurrentlyConnectedOutput();
-						if (Output->IsValid())
+						FNodeHandle InputHandle = Output->GetOwningNode();
+						if (InputHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
 						{
-							FNodeHandle InputHandle = Output->GetOwningNode();
-							if (InputHandle->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
-							{
-								FGraphHandle Graph = InputHandle->GetOwningGraph();
-								Graph->RemoveNode(*InputHandle);
-							}
+							FGraphHandle Graph = InputHandle->GetOwningGraph();
+							Graph->RemoveNode(*InputHandle);
 						}
 					}
 				}
@@ -766,10 +758,7 @@ namespace Metasound
 				NewPin->PinType = EditorModule.FindDataType(InInputHandle->GetDataType()).PinType;
 
 				FNodeHandle NodeHandle = InInputHandle->GetOwningNode();
-				if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::External)
-				{
-					FGraphBuilder::AddOrUpdateLiteralInput(InEditorNode.GetMetasoundChecked(), NodeHandle, *NewPin);
-				}
+				FGraphBuilder::AddOrUpdateLiteralInput(InEditorNode.GetMetasoundChecked(), NodeHandle, *NewPin);
 			}
 
 			return NewPin;

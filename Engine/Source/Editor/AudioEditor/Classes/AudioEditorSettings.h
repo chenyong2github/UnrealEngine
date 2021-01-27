@@ -27,20 +27,6 @@ public:
 	//~ End UObject
 };
 
-UCLASS(config = EditorSettings, defaultconfig, meta = (DisplayName = "Metasound Editor"))
-class AUDIOEDITOR_API UAudioMetasoundEditorSettings : public UDeveloperSettings
-{
-	GENERATED_BODY()
-
-public:
-	//~ Begin UDeveloperSettings
-	virtual FName GetCategoryName() const override { return TEXT("Audio"); }
-	//~ End UDeveloperSettings
-
-	//~ Begin UObject
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~ End UObject
-};
 
 UCLASS(config = EditorSettings, defaultconfig, meta = (DisplayName = "SoundClass Editor"))
 class AUDIOEDITOR_API UAudioSoundClassEditorSettings : public UDeveloperSettings

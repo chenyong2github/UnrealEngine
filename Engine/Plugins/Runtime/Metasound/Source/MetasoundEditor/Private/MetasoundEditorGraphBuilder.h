@@ -29,19 +29,18 @@ namespace Metasound
 		class FGraphBuilder
 		{
 		public:
+			static const FName PinCategoryAudioFormat;  // Audio formats (ex. Buffers, Mono, Stereo)
 			static const FName PinCategoryBoolean;
 			static const FName PinCategoryDouble;
-			static const FName PinCategoryExec;
 			static const FName PinCategoryFloat;
 			static const FName PinCategoryInt32;
 			static const FName PinCategoryInt64;
 			static const FName PinCategoryObject;
 			static const FName PinCategoryString;
+			static const FName PinCategoryTrigger;
 
-			// Custom pin-related styles (ex. wire color, pin heads, etc.)
-			static const FName PinSubCategoryAudioFormat;				// Audio formats (ex. Buffers, Mono, Stereo)
-			static const FName PinSubCategoryAudioNumeric;				// Audio numeric types (ex. Frequency, Time)
-			static const FName PinSubCategoryObjectArray;
+			// Custom pin-related styles for non-literal types (ex. wire color, pin heads, etc.)
+			static const FName PinSubCategoryTime; // Time type
 
 			// Adds a node to the editor graph that corresponds to the provided node handle.
 			static UEdGraphNode* AddNode(UObject& InMetasound, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode = true);

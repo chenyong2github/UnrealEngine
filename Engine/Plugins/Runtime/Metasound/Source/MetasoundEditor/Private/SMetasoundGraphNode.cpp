@@ -4,8 +4,17 @@
 #include "EditorStyleSet.h"
 #include "GraphEditorSettings.h"
 #include "IDocumentation.h"
+#include "KismetPins/SGraphPinNum.h"
+#include "KismetPins/SGraphPinBool.h"
+#include "KismetPins/SGraphPinExec.h"
+#include "KismetPins/SGraphPinInteger.h"
+#include "KismetPins/SGraphPinObject.h"
+#include "KismetPins/SGraphPinString.h"
+#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
+#include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorModule.h"
+#include "NodeFactory.h"
 #include "ScopedTransaction.h"
 #include "SCommentBubble.h"
 #include "SGraphNode.h"
@@ -58,23 +67,79 @@ const UMetasoundEditorGraphNode& SMetasoundGraphNode::GetMetasoundNode() const
 	return *Cast<UMetasoundEditorGraphNode>(GraphNode);
 }
 
-void SMetasoundGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
+TSharedPtr<SGraphPin> SMetasoundGraphNode::CreatePinWidget(UEdGraphPin* InPin) const
 {
-	const bool bShowPin = ShouldPinBeHidden(CurPin);
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (const UMetasoundEditorGraphSchema* GraphSchema = Cast<const UMetasoundEditorGraphSchema>(InPin->GetSchema()))
+	{
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudioFormat)
+		{
+			return SNew(SGraphPin, InPin);
+		}
+
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryBoolean)
+		{
+			return SNew(SGraphPinBool, InPin);
+		}
+
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryDouble)
+		{
+			return SNew(SGraphPinNum<double>, InPin);
+		}
+
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
+		{
+			return SNew(SGraphPinNum<float>, InPin);
+		}
+
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt32)
+		{
+			return SNew(SGraphPinInteger, InPin);
+		}
+
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt64)
+		{
+			return SNew(SGraphPinNum<int64>, InPin);
+		}
+
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryObject)
+		{
+			return SNew(SGraphPinObject, InPin);
+		}
+
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryString)
+		{
+			return SNew(SGraphPinString, InPin);
+		}
+
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
+		{
+			return SNew(SGraphPinExec, InPin);
+		}
+	}
+
+	return SNew(SGraphPin, InPin);
+}
+
+void SMetasoundGraphNode::CreateStandardPinWidget(UEdGraphPin* InPin)
+{
+	const bool bShowPin = ShouldPinBeHidden(InPin);
 	if (bShowPin)
 	{
-		TSharedPtr<SGraphPin> NewPin = CreatePinWidget(CurPin);
+		TSharedPtr<SGraphPin> NewPin = CreatePinWidget(InPin);
 		check(NewPin.IsValid());
 
 		Metasound::Frontend::FNodeHandle NodeHandle = GetMetasoundNode().GetNodeHandle();
-		if (CurPin->Direction == EGPD_Input)
+		if (InPin->Direction == EGPD_Input)
 		{
 			if (!NodeHandle->GetClassStyle().Display.bShowInputNames)
 			{
 				NewPin->SetShowLabel(false);
 			}
 		}
-		else if (CurPin->Direction == EGPD_Output)
+		else if (InPin->Direction == EGPD_Output)
 		{
 			if (!NodeHandle->GetClassStyle().Display.bShowOutputNames)
 			{
@@ -247,6 +312,7 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 					SNew(SImage)
 					.Image(ImageBrush)
 					.ColorAndOpacity(FSlateColor::UseForeground())
+					.DesiredSizeOverride(FVector2D(20, 20))
 				];
 		}
 	}

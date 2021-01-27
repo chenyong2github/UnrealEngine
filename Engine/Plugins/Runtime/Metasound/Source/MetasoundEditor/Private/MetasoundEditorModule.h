@@ -20,8 +20,8 @@ namespace Metasound
 			FEdGraphPinType PinType;
 			FDataTypeRegistryInfo RegistryInfo;
 
-			FEditorDataType(FName InPinCategory, FName InPinSubCategory, const FDataTypeRegistryInfo& InRegistryInfo)
-				: PinType(InPinCategory, InPinSubCategory, nullptr, EPinContainerType::None, false, FEdGraphTerminalType())
+			FEditorDataType(FEdGraphPinType&& InPinType, const FDataTypeRegistryInfo& InRegistryInfo)
+				: PinType(MoveTemp(InPinType))
 				, RegistryInfo(InRegistryInfo)
 			{
 			}

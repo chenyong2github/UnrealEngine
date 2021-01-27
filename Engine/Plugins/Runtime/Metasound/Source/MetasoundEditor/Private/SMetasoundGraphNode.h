@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-
 #include "CoreMinimal.h"
+
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
 #include "SGraphNode.h"
@@ -10,6 +10,7 @@
 
 
 // Forward Declarations
+class SGraphPin;
 class SVerticalBox;
 class UMetasoundEditorGraphNode;
 
@@ -28,7 +29,8 @@ public:
 protected:
 	// SGraphNode Interface
 	virtual void CreateOutputSideAddButton(TSharedPtr<SVerticalBox> OutputBox) override;
-	virtual void CreateStandardPinWidget(UEdGraphPin* CurPin) override;
+	virtual TSharedPtr<SGraphPin> CreatePinWidget(UEdGraphPin* InPin) const override;
+	virtual void CreateStandardPinWidget(UEdGraphPin* InPin) override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
 	virtual const FSlateBrush* GetNodeBodyBrush() const override;

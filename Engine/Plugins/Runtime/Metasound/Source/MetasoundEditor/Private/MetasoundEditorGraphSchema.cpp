@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundEditorGraphSchema.h"
 
 #include "EdGraph/EdGraph.h"
@@ -20,6 +19,7 @@
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorModule.h"
+#include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
 #include "ScopedTransaction.h"
 #include "Toolkits/ToolkitManager.h"
@@ -49,22 +49,17 @@ namespace Metasound
 
 		FLinearColor GetPinCategoryColor(const FEdGraphPinType& PinType)
 		{
-			const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+			const UMetasoundEditorSettings* Settings = GetDefault<UMetasoundEditorSettings>();
 			check(Settings);
 
-			if (PinType.PinSubCategory == FGraphBuilder::PinSubCategoryAudioNumeric)
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryAudioFormat)
 			{
-				return Settings->SoftObjectPinTypeColor;
+				return Settings->AudioPinTypeColor;
 			}
 
-			if (PinType.PinSubCategory == FGraphBuilder::PinSubCategoryAudioFormat)
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
 			{
-				return Settings->SoftClassPinTypeColor;
-			}
-
-			if (PinType.PinCategory == FGraphBuilder::PinCategoryExec)
-			{
-				return Settings->ExecutionPinTypeColor;
+				return Settings->TriggerPinTypeColor;
 			}
 
 			if (PinType.PinCategory == FGraphBuilder::PinCategoryBoolean)
@@ -74,6 +69,10 @@ namespace Metasound
 
 			if (PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
 			{
+				if (PinType.PinSubCategory == FGraphBuilder::PinSubCategoryTime)
+				{
+					return Settings->TimePinTypeColor;
+				}
 				return Settings->FloatPinTypeColor;
 			}
 
@@ -99,11 +98,10 @@ namespace Metasound
 
 			if (PinType.PinCategory == FGraphBuilder::PinCategoryObject)
 			{
-				return Settings->ClassPinTypeColor;
+				return Settings->ObjectPinTypeColor;
 			}
 
-
-			return Settings->StructPinTypeColor;
+			return Settings->DefaultPinTypeColor;
 		}
 
 		FConnectionDrawingPolicy* FGraphConnectionDrawingPolicyFactory::CreateConnectionPolicy(
@@ -159,11 +157,11 @@ namespace Metasound
 
 			if (!bExecuted)
 			{
-				if (InputPin->PinType.PinCategory == FGraphBuilder::PinCategoryExec)
+				if (InputPin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
 				{
 					OutParams.WireThickness = Settings->DefaultExecutionWireThickness;
 				}
-				else if (InputPin->PinType.PinCategory == FGraphBuilder::PinSubCategoryAudioFormat)
+				else if (InputPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudioFormat)
 				{
 					OutParams.bDrawBubbles = true;
 				}
@@ -584,10 +582,7 @@ void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSe
 		Handle->Disconnect();
 
 		FNodeHandle NodeHandle = Handle->GetOwningNode();
-		if (NodeHandle->GetClassType() == EMetasoundFrontendClassType::External)
-		{
-			FGraphBuilder::AddOrUpdateLiteralInput(Metasound, NodeHandle, *InputPins[i]);
-		}
+		FGraphBuilder::AddOrUpdateLiteralInput(Metasound, NodeHandle, *InputPins[i]);
 	}
 
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);

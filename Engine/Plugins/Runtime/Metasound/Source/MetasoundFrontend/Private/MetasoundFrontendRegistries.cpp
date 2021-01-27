@@ -308,7 +308,10 @@ bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName I
 
 bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, const ::Metasound::FDataTypeConstructorCallbacks& InCallbacks)
 {
-	if (!ensureAlwaysMsgf(!DataTypeRegistry.Contains(InDataInfo.DataTypeName), TEXT("Name collision when trying to register Metasound Data Type %s! Make sure that you created a unique name for your data type, and that REGISTER_METASOUND_DATATYPE isn't called in a public header."), *InDataInfo.DataTypeName.ToString()))
+	if (!ensureAlwaysMsgf(!DataTypeRegistry.Contains(InDataInfo.DataTypeName),
+		TEXT("Name collision when trying to register Metasound Data Type %s! DataType must have "
+			"unique name and REGISTER_METASOUND_DATATYPE cannot be called in a public header."),
+			*InDataInfo.DataTypeName.ToString()))
 	{
 		// todo: capture callstack for previous declaration for non-shipping builds to help clarify who already registered this name for a type.
 		return false;

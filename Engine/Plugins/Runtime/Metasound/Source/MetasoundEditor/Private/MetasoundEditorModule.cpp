@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundEditorModule.h"
 
 #include "AssetTypeActions_Base.h"
@@ -10,6 +9,7 @@
 #include "EdGraphUtilities.h"
 #include "EditorStyleSet.h"
 #include "IDetailCustomization.h"
+#include "ISettingsModule.h"
 #include "Metasound.h"
 #include "MetasoundSource.h"
 #include "MetasoundAssetTypeActions.h"
@@ -18,6 +18,8 @@
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNodeFactory.h"
 #include "MetasoundEditorGraphSchema.h"
+#include "MetasoundEditorSettings.h"
+#include "MetasoundFrontendRegistries.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
@@ -28,7 +30,6 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Templates/SharedPointer.h"
-#include "../../BlueprintGraph/Classes/EdGraphSchema_K2.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEditor);
 
@@ -81,8 +82,8 @@ namespace Metasound
 					Set("MetasoundEditor.Graph.Node.Body.Default", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_default_body_64x.png")), FVector2D(64.0f, 64.0f)));
 					Set("MetasoundEditor.Graph.Node.Math.Add", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_add_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Divide", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_divide_40x.png")), Icon40x40));
-					Set("MetasoundEditor.Graph.Node.Math.Multiply", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_multiply_40x.png")), FVector2D(32.0f, 32.0f)));
-					Set("MetasoundEditor.Graph.Node.Math.RandRange", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_random_40x.png")), FVector2D(26.0f, 40.0f)));
+					Set("MetasoundEditor.Graph.Node.Math.Multiply", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_multiply_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Graph.Node.Math.RandRange", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_random_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Subtract", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_subtract_40x.png")), Icon40x40));
 
 					// Misc
@@ -114,7 +115,8 @@ namespace Metasound
 
 			virtual void RegisterDataType(FName InPinCategoryName, FName InPinSubCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) override
 			{
-				DataTypeInfo.Add(InRegistryInfo.DataTypeName, FEditorDataType(InPinCategoryName, InPinSubCategoryName, InRegistryInfo));
+				FEdGraphPinType PinType(InPinCategoryName, InPinSubCategoryName, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
+				DataTypeInfo.Emplace(InRegistryInfo.DataTypeName, Editor::FEditorDataType(MoveTemp(PinType), InRegistryInfo));
 			}
 
 			void RegisterCoreDataTypes()
@@ -131,7 +133,7 @@ namespace Metasound
 					// Execution path triggers are specialized
 					if (DataTypeName == "Trigger")
 					{
-						PinCategory = FGraphBuilder::PinCategoryExec;
+						PinCategory = FGraphBuilder::PinCategoryTrigger;
 					}
 
 					// GraphEditor by default designates specialized connection
@@ -161,7 +163,7 @@ namespace Metasound
 								// but different colorization
 								if (DataTypeName == "Double")
 								{
-									PinCategory = FGraphBuilder::PinCategoryFloat;
+									PinCategory = FGraphBuilder::PinCategoryDouble;
 								}
 
 								// Differentiate stronger numeric types associated with audio
@@ -171,7 +173,7 @@ namespace Metasound
 									|| DataTypeName == "Time:SampleResolution"
 								)
 								{
-									PinSubCategory = FGraphBuilder::PinSubCategoryAudioNumeric;
+									PinSubCategory = FGraphBuilder::PinSubCategoryTime;
 								}
 							}
 							break;
@@ -196,17 +198,16 @@ namespace Metasound
 
 							case ELiteralType::UObjectProxyArray:
 							{
-								PinCategory = FGraphBuilder::PinSubCategoryObjectArray;
+								// TODO: Implement, or will be nuked in favor of general array support for all types
 							}
 							break;
 
-							// Register atypical primitives
 							default:
 							case ELiteralType::None:
 							case ELiteralType::Invalid:
 							{
-
-								// Audio types are ubiquitous, so specialize
+								// Audio types are ubiquitous, so add as subcategory
+								// to be able to stylize connections (i.e. wire color)
 								if (DataTypeName == "Audio:Buffer"
 									|| DataTypeName == "Audio:Unformatted"
 									|| DataTypeName == "Audio:Mono"
@@ -214,7 +215,7 @@ namespace Metasound
 									|| DataTypeName == "Audio:Multichannel"
 								)
 								{
-									PinSubCategory = FGraphBuilder::PinSubCategoryAudioFormat;
+									PinCategory = FGraphBuilder::PinCategoryAudioFormat;
 								}
 								static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing binding of pin category to primitive type");
 							}
@@ -222,7 +223,11 @@ namespace Metasound
 						}
 					}
 
-					DataTypeInfo.Add(DataTypeName, FEditorDataType(PinCategory, PinSubCategory, RegistryInfo));
+					FEdGraphPinType PinType(PinCategory, PinSubCategory, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
+ 					UClass* ClassToUse = FMetasoundFrontendRegistryContainer::Get()->GetLiteralUClassForDataType(DataTypeName);
+ 					PinType.PinSubCategoryObject = Cast<UObject>(ClassToUse);
+
+					DataTypeInfo.Emplace(DataTypeName, FEditorDataType(MoveTemp(PinType), RegistryInfo));
 				}
 			}
 
@@ -259,10 +264,23 @@ namespace Metasound
 
 				GraphPanelPinFactory = MakeShared<FMetasoundGraphPanelPinFactory>();
 				FEdGraphUtilities::RegisterVisualPinFactory(GraphPanelPinFactory);
+
+				ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+
+				SettingsModule.RegisterSettings("Editor", "Audio", "Metasound Editor",
+					NSLOCTEXT("MetasoundsEditor", "MetasoundEditorSettingsName", "Metasound Editor"),
+					NSLOCTEXT("MetasoundsEditor", "MetasoundEditorSettingsDescription", "Customize Metasound Editor."),
+					GetMutableDefault<UMetasoundEditorSettings>()
+				);
 			}
 
 			virtual void ShutdownModule() override
 			{
+				if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+				{
+					SettingsModule->UnregisterSettings("Editor", "Audio", "Metasound Editor");
+				}
+
 				if (FModuleManager::Get().IsModuleLoaded(AssetToolName))
 				{
 					IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>(AssetToolName).Get();
