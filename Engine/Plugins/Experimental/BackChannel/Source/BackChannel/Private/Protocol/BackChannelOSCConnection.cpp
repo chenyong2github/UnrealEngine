@@ -362,7 +362,7 @@ int32 FBackChannelOSCConnection::GetMessageLimitForPath(const TCHAR* InPath)
 
 	if (Path.EndsWith(TEXT("*")))
 	{
-		Path.LeftChop(1);
+		Path.LeftChopInline(1);
 	}
 
 	// todo - search for vest match, not first match

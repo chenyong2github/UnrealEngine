@@ -219,7 +219,7 @@ TArray<UObject*> UDEPRECATED_UUSDImporter::ImportMeshes(FUsdImportContext& Impor
 						ExistingNamesToCount.Add(MeshName, 1);
 					}
 
-					FinalPackagePathName / MeshName;
+					FinalPackagePathName /= MeshName;
 				}
 			}
 

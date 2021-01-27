@@ -985,9 +985,9 @@ void SNewProjectWizard::SetDefaultProjectLocation()
 		IFileManager::Get().MakeDirectory(*DefaultProjectFilePath, true);
 	}
 
-	if ( !DefaultProjectFilePath.IsEmpty() && DefaultProjectFilePath.Right(1) == TEXT("/") )
+	if ( DefaultProjectFilePath.EndsWith(TEXT("/")) )
 	{
-		DefaultProjectFilePath.LeftChop(1);
+		DefaultProjectFilePath.LeftChopInline(1);
 	}
 
 	FPaths::NormalizeFilename(DefaultProjectFilePath);

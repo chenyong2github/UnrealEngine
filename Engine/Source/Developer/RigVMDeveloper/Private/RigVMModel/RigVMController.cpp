@@ -4749,17 +4749,17 @@ FLinearColor URigVMController::GetColorFromMetadata(const FString& InMetadata)
 	FLinearColor Color = FLinearColor::Black;
 
 	FString Metadata = InMetadata;
-	Metadata.TrimStartAndEnd();
+	Metadata.TrimStartAndEndInline();
 	FString SplitString(TEXT(" "));
 	FString Red, Green, Blue, GreenAndBlue;
 	if (Metadata.Split(SplitString, &Red, &GreenAndBlue))
 	{
-		Red.TrimEnd();
-		GreenAndBlue.TrimStart();
+		Red.TrimEndInline();
+		GreenAndBlue.TrimStartInline();
 		if (GreenAndBlue.Split(SplitString, &Green, &Blue))
 		{
-			Green.TrimEnd();
-			Blue.TrimStart();
+			Green.TrimEndInline();
+			Blue.TrimStartInline();
 
 			float RedValue = FCString::Atof(*Red);
 			float GreenValue = FCString::Atof(*Green);
