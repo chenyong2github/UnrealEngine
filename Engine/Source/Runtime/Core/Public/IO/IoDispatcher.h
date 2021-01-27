@@ -973,7 +973,7 @@ private:
 struct FIoStoreWriterSettings
 {
 	FName CompressionMethod = NAME_None;
-	uint64 CompressionBlockSize = 0;
+	uint64 CompressionBlockSize = 64 << 10;
 	uint64 CompressionBlockAlignment = 0;
 	uint64 MemoryMappingAlignment = 0;
 	uint64 MaxPartitionSize = 0;
@@ -1077,7 +1077,8 @@ public:
 	virtual void PrepareSourceBufferAsync(FGraphEventRef CompletionEvent) = 0;
 	virtual uint64 GetOrderHint() = 0;
 	virtual TArrayView<const FFileRegion> GetRegions() = 0;
-	virtual FIoBuffer ConsumeSourceBuffer() = 0;
+	virtual const FIoBuffer* GetSourceBuffer() = 0;
+	virtual void FreeSourceBuffer() = 0;
 };
 
 class FIoStoreWriter
@@ -1089,7 +1090,8 @@ public:
 	FIoStoreWriter(const FIoStoreWriter&) = delete;
 	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
 
-	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings, const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>());
+	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings);
+	CORE_API void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>());
 	CORE_API void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions);
 	CORE_API void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions);
 	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();

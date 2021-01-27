@@ -3448,11 +3448,16 @@ private:
 			Manager.Schedule(this);
 		}
 
-		FIoBuffer ConsumeSourceBuffer() override
+		const FIoBuffer* GetSourceBuffer() override
 		{
+			return SourceBuffer;
+		}
+
+		void FreeSourceBuffer() override
+		{
+			delete SourceBuffer;
+			SourceBuffer = nullptr;
 			Manager.OnBufferMemoryFreed(TargetFile.SourceSize);
-			FIoBuffer Result = MoveTemp(SourceBuffer);
-			return Result;
 		}
 
 		uint64 GetOrderHint() override
@@ -3467,8 +3472,9 @@ private:
 
 		FIoBuffer& PrepareSourceBuffer()
 		{
-			SourceBuffer = FIoBuffer(TargetFile.SourceSize);
-			return SourceBuffer;
+			check(!SourceBuffer);
+			SourceBuffer = new FIoBuffer(TargetFile.SourceSize);
+			return *SourceBuffer;
 		}
 
 		void AsyncReadCallback()
@@ -3477,7 +3483,7 @@ private:
 			if (!TargetFile.bIsBulkData)
 			{
 				check(ObjectExports);
-				SourceBuffer = CreateExportBundleBuffer(TargetFile, *ObjectExports, SourceBuffer, bHasUpdatedExportBundleRegions ? nullptr : &FileRegions);
+				*SourceBuffer = CreateExportBundleBuffer(TargetFile, *ObjectExports, *SourceBuffer, bHasUpdatedExportBundleRegions ? nullptr : &FileRegions);
 				bHasUpdatedExportBundleRegions = true;
 			}
 			TArray<FBaseGraphTask*> NewTasks;
@@ -3490,7 +3496,7 @@ private:
 		const TArray<FObjectExport>* ObjectExports;
 		TArray<FFileRegion> FileRegions;
 		FGraphEventRef CompletionEvent;
-		FIoBuffer SourceBuffer;
+		FIoBuffer* SourceBuffer = nullptr;
 		bool bHasUpdatedExportBundleRegions = false;
 	};
 
@@ -3798,8 +3804,9 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
 				}
 				ContainerSettings.bGenerateDiffPatch = ContainerTarget->bGenerateDiffPatch;
-				IoStatus = ContainerTarget->IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerSettings, ContainerTarget->PatchSourceReaders);
+				IoStatus = ContainerTarget->IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerSettings);
 				check(IoStatus.IsOk());
+				ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
 			}
 		}
 	}
