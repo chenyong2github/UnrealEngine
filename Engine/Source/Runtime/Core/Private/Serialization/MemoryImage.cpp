@@ -1539,6 +1539,13 @@ FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FType
 
 		FMemoryUnfreezeContent UnfreezeContext(PointerTable, LayoutParameters);
 		UnfreezeContext.UnfreezeObject(FrozenObject, TypeDesc, UnfrozenObject);
+#else
+		FPlatformTypeLayoutParameters CurrentPlatform;
+		CurrentPlatform.InitializeForCurrent();
+
+		UE_LOG(LogMemoryImage, Error, TEXT("Attempting to load an incompatible memory image and conversion isn't supported. Image layout: MaxFieldAlignment=%u, Flags=0x%x, CurrentPlatform: MaxFieldAlignment=%u, Flags=0x%x"),
+			LayoutParameters.MaxFieldAlignment, LayoutParameters.Flags, CurrentPlatform.MaxFieldAlignment, CurrentPlatform.Flags
+			);
 #endif // UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
 		FMemory::Free(FrozenObject);
 		return FMemoryImageObject(TypeDesc, UnfrozenObject, 0u);

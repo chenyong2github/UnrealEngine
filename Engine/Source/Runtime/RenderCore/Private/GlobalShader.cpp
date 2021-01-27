@@ -448,5 +448,9 @@ void FGlobalShaderMap::LoadFromGlobalArchive(FArchive& Ar)
 		{
 			AddSection(Section);
 		}
+		else
+		{
+			UE_LOG(LogShaders, Fatal, TEXT("Could not load section %d (of %d) of the global shadermap."), i, NumSections);
+		}
 	}
 }
