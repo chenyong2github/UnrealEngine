@@ -72,6 +72,8 @@ Landscape.cpp: Terrain rendering
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionActorDescIterator.h"
+#include "WorldPartition/Landscape/LandscapeActorDesc.h"
+#include "WorldPartition/Landscape/LandscapeSplineActorDesc.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "Misc/ScopedSlowTask.h"
@@ -3128,15 +3130,21 @@ void ULandscapeInfo::Initialize(UWorld* InWorld, const FGuid& InLandscapeGuid)
 	{
 		for (TWorldPartitionActorDescIterator<AActor, FWorldPartitionActorDesc> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 		{
-			if (ActorDescIterator->GetActorClass()->IsChildOf(ALandscapeStreamingProxy::StaticClass()))
+			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
+			if (ActorDesc->GetActorClass()->IsChildOf(ALandscapeStreamingProxy::StaticClass()))
 			{
-				ProxyHandles.Add(FWorldPartitionHandle(WorldPartition, ActorDescIterator->GetGuid()));
+				if (((FLandscapeActorDesc*)ActorDesc)->GridGuid == InLandscapeGuid)
+				{
+					ProxyHandles.Add(FWorldPartitionHandle(WorldPartition, ActorDesc->GetGuid()));
+				}
 			}
 			else if (ActorDescIterator->GetActorClass()->IsChildOf(ALandscapeSplineActor::StaticClass()))
 			{
-				SplineHandles.Emplace(FWorldPartitionHandle(WorldPartition, ActorDescIterator->GetGuid()));
+				if (((FLandscapeSplineActorDesc*)ActorDesc)->LandscapeGuid == InLandscapeGuid)
+				{
+					SplineHandles.Emplace(FWorldPartitionHandle(WorldPartition, ActorDesc->GetGuid()));
+				}
 			}
-
 		}
 	}
 #endif
