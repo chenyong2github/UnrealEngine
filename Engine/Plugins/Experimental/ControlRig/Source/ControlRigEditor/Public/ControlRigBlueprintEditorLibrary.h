@@ -13,12 +13,25 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "ControlRigBlueprintEditorLibrary.generated.h"
 
+UENUM(BlueprintType)
+enum class ECastToControlRigBlueprintCases : uint8
+{
+	CastSucceeded,
+	CastFailed
+};
+
 UCLASS(meta=(ScriptName="ControlRigBlueprintLibrary"))
 class CONTROLRIGEDITOR_API UControlRigBlueprintEditorLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint", Meta = (ExpandEnumAsExecs = "Branches"))
+	static void CastToControlRigBlueprint(
+		UObject* Object, 
+		ECastToControlRigBlueprintCases& Branches,
+		UControlRigBlueprint*& AsControlRigBlueprint);
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	static void SetPreviewMesh(UControlRigBlueprint* InRigBlueprint, USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true);
@@ -38,19 +51,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	static void RequestControlRigInit(UControlRigBlueprint* InRigBlueprint);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "VM")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Control Rig Blueprint")
 	static URigVMGraph* GetModel(UControlRigBlueprint* InRigBlueprint);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "VM")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Control Rig Blueprint")
 	static URigVMController* GetController(UControlRigBlueprint* InRigBlueprint);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "VM")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Control Rig Blueprint")
 	static TArray<UControlRigBlueprint*> GetCurrentlyOpenRigBlueprints();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "VM")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Control Rig Blueprint")
 	static TArray<UStruct*> GetAvailableRigUnits();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Hierarchy")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Control Rig Blueprint")
 	static UControlRigHierarchyModifier* GetHierarchyModifier(UControlRigBlueprint* InRigBlueprint);
 };
 

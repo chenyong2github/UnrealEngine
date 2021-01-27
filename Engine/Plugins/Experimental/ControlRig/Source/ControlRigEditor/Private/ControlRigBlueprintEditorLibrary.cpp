@@ -2,6 +2,17 @@
 
 #include "ControlRigBlueprintEditorLibrary.h"
 
+void UControlRigBlueprintEditorLibrary::CastToControlRigBlueprint(
+	UObject* Object,
+	ECastToControlRigBlueprintCases& Branches,
+	UControlRigBlueprint*& AsControlRigBlueprint)
+{
+	AsControlRigBlueprint = Cast<UControlRigBlueprint>(Object);
+	Branches = AsControlRigBlueprint == nullptr ? 
+		ECastToControlRigBlueprintCases::CastFailed : 
+		ECastToControlRigBlueprintCases::CastSucceeded;
+}
+
 void UControlRigBlueprintEditorLibrary::SetPreviewMesh(UControlRigBlueprint* InRigBlueprint, USkeletalMesh* PreviewMesh, bool bMarkAsDirty)
 {
 	if(InRigBlueprint == nullptr)
