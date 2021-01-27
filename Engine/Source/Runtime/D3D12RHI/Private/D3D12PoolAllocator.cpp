@@ -581,8 +581,8 @@ void FD3D12PoolAllocator::FlushPendingCopyOps(FD3D12CommandContext& InCommandCon
 #if D3D12_RHI_RAYTRACING
 		if (bRTAccelerationStructure)
 		{
-			CommandListHandle.GraphicsCommandList5()->CopyRaytracingAccelerationStructure(CopyOperation.DestResource->GetResource()->GetGPUVirtualAddress(),
-				CopyOperation.SourceResource->GetResource()->GetGPUVirtualAddress(), D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE);
+			CommandListHandle.GraphicsCommandList5()->CopyRaytracingAccelerationStructure(CopyOperation.DestResource->GetResource()->GetGPUVirtualAddress() + CopyOperation.DestOffset,
+				CopyOperation.SourceResource->GetResource()->GetGPUVirtualAddress() + CopyOperation.SourceOffset, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE);
 		}
 		else
 #endif // D3D12_RHI_RAYTRACING
