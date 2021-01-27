@@ -267,22 +267,22 @@ namespace Chaos
 		}
 
 		// Returns a position on the shape
-		FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
 			return AABB.Support(Direction, Thickness);
 		}
 
 		// Returns a position on the core shape excluding the margin
-		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 		{
 			return AABB.SupportCore(Direction, InMargin + GetMargin());
 		}
 
-		FORCEINLINE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, float InMargin, const TVector<T, d>& Scale) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, float InMargin, const TVector<T, d>& Scale) const
 		{
 			const FReal InvScale = 1.0f / Scale[0];
 			const FReal NetMargin = InvScale * (InMargin + GetMargin());
-			return SupportCore(Direction * Scale, NetMargin) * Scale;
+			return AABB.SupportCore(Direction * Scale, NetMargin) * Scale;
 		}
 
 		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
