@@ -109,7 +109,7 @@ public class UnrealEd : ModuleRules
 				"EditorSubsystem",
 				"InteractiveToolsFramework",
 				"TypedElementFramework",
-				"TypedElementInterfaces",
+				"TypedElementRuntime",
 				"ToolMenusEditor",
 				"StatusBar",
 				"InterchangeCore",

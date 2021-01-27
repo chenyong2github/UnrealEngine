@@ -34,7 +34,7 @@ public class EditorFramework : ModuleRules
 				"EditorSubsystem",
 				"InteractiveToolsFramework",
 				"TypedElementFramework",
-				"TypedElementInterfaces",
+				"TypedElementRuntime",
 			}
 		);
 

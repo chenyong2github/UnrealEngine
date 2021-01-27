@@ -3,9 +3,9 @@
 using UnrealBuildTool;
 using System.IO;
 
-public class TypedElementInterfaces : ModuleRules
+public class TypedElementRuntime : ModuleRules
 {
-	public TypedElementInterfaces(ReadOnlyTargetRules Target) : base(Target)
+	public TypedElementRuntime(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
 			new string[]

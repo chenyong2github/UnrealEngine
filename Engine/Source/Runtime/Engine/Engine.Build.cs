@@ -101,6 +101,7 @@ public class Engine : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"TypedElementFramework",
+				"TypedElementRuntime",
 			}
 		);
 
@@ -113,7 +114,7 @@ public class Engine : ModuleRules
 				"UMG",
 				"Projects",
 				"TypedElementFramework",
-				"TypedElementInterfaces",
+				"TypedElementRuntime",
 				"MaterialShaderQualitySettings",
 				"CinematicCamera",
 				"Analytics",

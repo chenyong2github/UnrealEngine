@@ -8,7 +8,7 @@
 #include "TypedElementAssetDataInterface.generated.h"
 
 UCLASS(Abstract)
-class TYPEDELEMENTINTERFACES_API UTypedElementAssetDataInterface : public UTypedElementInterface
+class TYPEDELEMENTRUNTIME_API UTypedElementAssetDataInterface : public UTypedElementInterface
 {
 	GENERATED_BODY()
 

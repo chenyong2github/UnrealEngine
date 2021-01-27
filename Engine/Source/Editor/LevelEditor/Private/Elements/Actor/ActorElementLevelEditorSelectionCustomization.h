@@ -7,7 +7,7 @@
 
 class AGroupActor;
 
-class FActorElementLevelEditorSelectionCustomization : public FTypedElementAssetEditorSelectionCustomization, public FTypedElementAssetEditorToolkitHostMixin
+class FActorElementLevelEditorSelectionCustomization : public FTypedElementSelectionCustomization, public FTypedElementAssetEditorToolkitHostMixin
 {
 public:
 	virtual bool CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) override;

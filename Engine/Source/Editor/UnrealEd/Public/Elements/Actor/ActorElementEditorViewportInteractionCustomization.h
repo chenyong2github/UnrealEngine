@@ -7,7 +7,7 @@
 
 class AActor;
 
-class UNREALED_API FActorElementEditorViewportInteractionCustomization : public FTypedElementAssetEditorViewportInteractionCustomization, public FTypedElementAssetEditorToolkitHostMixin
+class UNREALED_API FActorElementEditorViewportInteractionCustomization : public FTypedElementViewportInteractionCustomization, public FTypedElementAssetEditorToolkitHostMixin
 {
 public:
 	virtual bool GetGizmoPivotLocation(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation) override;

@@ -22,7 +22,7 @@ public class AssetPlacementEdMode : ModuleRules
 				"Foliage",
 				"Landscape",
 				"TypedElementFramework",
-				"TypedElementInterfaces",
+				"TypedElementRuntime",
 				"PropertyEditor",
 			}
 		);

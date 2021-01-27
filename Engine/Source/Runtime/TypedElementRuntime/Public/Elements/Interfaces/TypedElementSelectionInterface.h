@@ -63,7 +63,7 @@ private:
 };
 
 UCLASS(Abstract)
-class TYPEDELEMENTINTERFACES_API UTypedElementSelectionInterface : public UTypedElementInterface
+class TYPEDELEMENTRUNTIME_API UTypedElementSelectionInterface : public UTypedElementInterface
 {
 	GENERATED_BODY()
 

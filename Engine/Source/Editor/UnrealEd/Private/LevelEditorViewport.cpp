@@ -1816,13 +1816,13 @@ void FLevelEditorViewportClient::InitializeViewportInteraction()
 		TUniquePtr<FActorElementLevelEditorViewportInteractionCustomization> ActorCustomization = MakeUnique<FActorElementLevelEditorViewportInteractionCustomization>();
 		ActorCustomization->SetLevelEditorViewportClient(this);
 		ActorCustomization->SetToolkitHost(ParentLevelEditor.Pin().Get());
-		ViewportInteraction->RegisterAssetEditorCustomizationByTypeName(NAME_Actor, MoveTemp(ActorCustomization));
+		ViewportInteraction->RegisterInterfaceCustomizationByTypeName(NAME_Actor, MoveTemp(ActorCustomization));
 	}
 	{
 		TUniquePtr<FComponentElementLevelEditorViewportInteractionCustomization> ComponentCustomization = MakeUnique<FComponentElementLevelEditorViewportInteractionCustomization>();
 		ComponentCustomization->SetLevelEditorViewportClient(this);
 		ComponentCustomization->SetToolkitHost(ParentLevelEditor.Pin().Get());
-		ViewportInteraction->RegisterAssetEditorCustomizationByTypeName(NAME_Components, MoveTemp(ComponentCustomization));
+		ViewportInteraction->RegisterInterfaceCustomizationByTypeName(NAME_Components, MoveTemp(ComponentCustomization));
 	}
 }
 

@@ -10,7 +10,7 @@ namespace TypedElementListObjectUtil
 /**
  * Test whether there are any objects in the given list of elements.
  */
-EDITORFRAMEWORK_API bool HasObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API bool HasObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Test whether there are any objects in the given list of elements.
@@ -24,7 +24,7 @@ bool HasObjects(const UTypedElementList* InElementList)
 /**
  * Count the number of objects in the given list of elements.
  */
-EDITORFRAMEWORK_API int32 CountObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API int32 CountObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Count the number of objects in the given list of elements.
@@ -39,7 +39,7 @@ int32 CountObjects(const UTypedElementList* InElementList)
  * Enumerate the objects from the given list of elements.
  * @note Return true from the callback to continue enumeration.
  */
-EDITORFRAMEWORK_API void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass = nullptr);
 
 /**
  * Enumerate the objects from the given list of elements.
@@ -57,7 +57,7 @@ void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(Req
 /**
  * Get the array of objects from the given list of elements.
  */
-EDITORFRAMEWORK_API TArray<UObject*> GetObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API TArray<UObject*> GetObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Get the array of objects from the given list of elements.
@@ -80,7 +80,7 @@ TArray<RequiredClassType*> GetObjects(const UTypedElementList* InElementList)
 /**
  * Get the first object of the given type from the given list of elements.
  */
-EDITORFRAMEWORK_API UObject* GetTopObject(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API UObject* GetTopObject(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Get the first object of the given type from the given list of elements.
@@ -94,7 +94,7 @@ RequiredClassType* GetTopObject(const UTypedElementList* InElementList)
 /**
  * Get the last object of the given type from the given list of elements.
  */
-EDITORFRAMEWORK_API UObject* GetBottomObject(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API UObject* GetBottomObject(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Get the last object of the given type from the given list of elements.

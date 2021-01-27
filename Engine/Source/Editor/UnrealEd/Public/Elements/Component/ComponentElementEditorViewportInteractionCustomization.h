@@ -8,7 +8,7 @@
 class FProperty;
 class USceneComponent;
 
-class UNREALED_API FComponentElementEditorViewportInteractionCustomization : public FTypedElementAssetEditorViewportInteractionCustomization, public FTypedElementAssetEditorToolkitHostMixin
+class UNREALED_API FComponentElementEditorViewportInteractionCustomization : public FTypedElementViewportInteractionCustomization, public FTypedElementAssetEditorToolkitHostMixin
 {
 public:
 	virtual bool GetGizmoPivotLocation(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation) override;

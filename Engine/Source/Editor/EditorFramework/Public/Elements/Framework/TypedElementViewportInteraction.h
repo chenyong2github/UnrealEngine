@@ -4,7 +4,7 @@
 
 #include "InputState.h"
 #include "UnrealWidgetFwd.h"
-#include "Elements/Framework/TypedElementAssetEditorCustomization.h"
+#include "Elements/Framework/TypedElementInterfaceCustomization.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "TypedElementViewportInteraction.generated.h"
 
@@ -20,10 +20,10 @@ enum class ETypedElementViewportInteractionWorldType : uint8
 /**
  * Customization used to allow asset editors (such as the level editor) to override the base behavior of viewport interaction.
  */
-class EDITORFRAMEWORK_API FTypedElementAssetEditorViewportInteractionCustomization
+class EDITORFRAMEWORK_API FTypedElementViewportInteractionCustomization
 {
 public:
-	virtual ~FTypedElementAssetEditorViewportInteractionCustomization() = default;
+	virtual ~FTypedElementViewportInteractionCustomization() = default;
 
 	//~ See UTypedElementViewportInteraction for API docs
 	virtual void GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove);
@@ -37,16 +37,16 @@ public:
 };
 
 /**
- * Utility to hold a typed element handle and its associated world interface and asset editor viewport interaction customization.
+ * Utility to hold a typed element handle and its associated world interface and  viewport interaction customization.
  */
 struct EDITORFRAMEWORK_API FTypedElementViewportInteractionElement
 {
 public:
 	FTypedElementViewportInteractionElement() = default;
 
-	FTypedElementViewportInteractionElement(TTypedElement<UTypedElementWorldInterface> InElementWorldHandle, FTypedElementAssetEditorViewportInteractionCustomization* InAssetEditorViewportInteractionCustomization)
+	FTypedElementViewportInteractionElement(TTypedElement<UTypedElementWorldInterface> InElementWorldHandle, FTypedElementViewportInteractionCustomization* InViewportInteractionCustomization)
 		: ElementWorldHandle(MoveTemp(InElementWorldHandle))
-		, AssetEditorViewportInteractionCustomization(InAssetEditorViewportInteractionCustomization)
+		, ViewportInteractionCustomization(InViewportInteractionCustomization)
 	{
 	}
 
@@ -64,28 +64,28 @@ public:
 	FORCEINLINE bool IsSet() const
 	{
 		return ElementWorldHandle.IsSet()
-			&& AssetEditorViewportInteractionCustomization;
+			&& ViewportInteractionCustomization;
 	}
 
 	//~ See UTypedElementViewportInteraction for API docs
-	void GetElementsToMove(const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove) { AssetEditorViewportInteractionCustomization->GetElementsToMove(ElementWorldHandle, InWorldType, InSelectionSet, OutElementsToMove); }
-	bool GetGizmoPivotLocation(const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation) const { return AssetEditorViewportInteractionCustomization->GetGizmoPivotLocation(ElementWorldHandle, InWidgetMode, OutPivotLocation); }
-	void GizmoManipulationStarted(const UE::Widget::EWidgetMode InWidgetMode) const { AssetEditorViewportInteractionCustomization->GizmoManipulationStarted(ElementWorldHandle, InWidgetMode); }
-	void GizmoManipulationDeltaUpdate(const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation) const { AssetEditorViewportInteractionCustomization->GizmoManipulationDeltaUpdate(ElementWorldHandle, InWidgetMode, InDragAxis, InInputState, InDeltaTransform, InPivotLocation); }
-	void GizmoManipulationStopped(const UE::Widget::EWidgetMode InWidgetMode) const { AssetEditorViewportInteractionCustomization->GizmoManipulationStopped(ElementWorldHandle, InWidgetMode); }
-	void MirrorElement(const FVector& InMirrorScale, const FVector& InPivotLocation) const { AssetEditorViewportInteractionCustomization->MirrorElement(ElementWorldHandle, InMirrorScale, InPivotLocation); }
+	void GetElementsToMove(const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove) { ViewportInteractionCustomization->GetElementsToMove(ElementWorldHandle, InWorldType, InSelectionSet, OutElementsToMove); }
+	bool GetGizmoPivotLocation(const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation) const { return ViewportInteractionCustomization->GetGizmoPivotLocation(ElementWorldHandle, InWidgetMode, OutPivotLocation); }
+	void GizmoManipulationStarted(const UE::Widget::EWidgetMode InWidgetMode) const { ViewportInteractionCustomization->GizmoManipulationStarted(ElementWorldHandle, InWidgetMode); }
+	void GizmoManipulationDeltaUpdate(const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation) const { ViewportInteractionCustomization->GizmoManipulationDeltaUpdate(ElementWorldHandle, InWidgetMode, InDragAxis, InInputState, InDeltaTransform, InPivotLocation); }
+	void GizmoManipulationStopped(const UE::Widget::EWidgetMode InWidgetMode) const { ViewportInteractionCustomization->GizmoManipulationStopped(ElementWorldHandle, InWidgetMode); }
+	void MirrorElement(const FVector& InMirrorScale, const FVector& InPivotLocation) const { ViewportInteractionCustomization->MirrorElement(ElementWorldHandle, InMirrorScale, InPivotLocation); }
 
 private:
 	TTypedElement<UTypedElementWorldInterface> ElementWorldHandle;
-	FTypedElementAssetEditorViewportInteractionCustomization* AssetEditorViewportInteractionCustomization = nullptr;
+	FTypedElementViewportInteractionCustomization* ViewportInteractionCustomization = nullptr;
 };
 
 /**
  * A utility to handle higher-level viewport interactions, but default via UTypedElementWorldInterface,
- * but asset editors can customize this behavior via FTypedElementAssetEditorViewportInteractionCustomization.
+ * but asset editors can customize this behavior via FTypedElementViewportInteractionCustomization.
  */
 UCLASS(Transient)
-class EDITORFRAMEWORK_API UTypedElementViewportInteraction : public UObject, public TTypedElementAssetEditorCustomizationRegistry<FTypedElementAssetEditorViewportInteractionCustomization>
+class EDITORFRAMEWORK_API UTypedElementViewportInteraction : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementViewportInteractionCustomization>
 {
 	GENERATED_BODY()
 
@@ -123,7 +123,7 @@ public:
 
 private:
 	/**
-	 * Attempt to resolve the selection interface and asset editor viewport interaction customization for the given element, if any.
+	 * Attempt to resolve the selection interface and viewport interaction customization for the given element, if any.
 	 */
 	FTypedElementViewportInteractionElement ResolveViewportInteractionElement(const FTypedElementHandle& InElementHandle) const;
 };

@@ -271,7 +271,7 @@ void InitSelectionSets()
 	GObjectSelection->AddToRoot();
 
 	UTypedElementSelectionSet* ObjectSelectionSet = NewObject<UTypedElementSelectionSet>(GObjectSelection, NAME_None, RF_Transactional);
-	ObjectSelectionSet->RegisterAssetEditorCustomizationByTypeName(NAME_Object, MakeUnique<FObjectElementEditorSelectionCustomization>());
+	ObjectSelectionSet->RegisterInterfaceCustomizationByTypeName(NAME_Object, MakeUnique<FObjectElementEditorSelectionCustomization>());
 	GObjectSelection->SetElementSelectionSet(ObjectSelectionSet);
 }
 

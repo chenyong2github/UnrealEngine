@@ -4,7 +4,7 @@
 
 #include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/TypedElementListObjectUtil.h"
-#include "Elements/Framework/TypedElementAssetEditorCustomization.h"
+#include "Elements/Framework/TypedElementInterfaceCustomization.h"
 #include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "TypedElementSelectionSet.generated.h"
 
@@ -12,10 +12,10 @@
  * Customization type used to allow asset editors (such as the level editor) to override the base behavior of element selection,
  * by injecting extra pre/post selection logic around the call into the selection interface for an element type.
  */
-class EDITORFRAMEWORK_API FTypedElementAssetEditorSelectionCustomization
+class TYPEDELEMENTRUNTIME_API FTypedElementSelectionCustomization
 {
 public:
-	virtual ~FTypedElementAssetEditorSelectionCustomization() = default;
+	virtual ~FTypedElementSelectionCustomization() = default;
 
 	//~ See UTypedElementSelectionInterface for API docs
 	virtual bool IsElementSelected(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions) { return InElementSelectionHandle.IsElementSelected(InSelectionSet, InSelectionOptions); }
@@ -28,17 +28,17 @@ public:
 };
 
 /**
- * Utility to hold a typed element handle and its associated selection interface and asset editor selection customization.
+ * Utility to hold a typed element handle and its associated selection interface and selection customization.
  */
-struct EDITORFRAMEWORK_API FTypedElementSelectionSetElement
+struct TYPEDELEMENTRUNTIME_API FTypedElementSelectionSetElement
 {
 public:
 	FTypedElementSelectionSetElement() = default;
 
-	FTypedElementSelectionSetElement(TTypedElement<UTypedElementSelectionInterface> InElementSelectionHandle, UTypedElementList* InElementList, FTypedElementAssetEditorSelectionCustomization* InAssetEditorSelectionCustomization)
+	FTypedElementSelectionSetElement(TTypedElement<UTypedElementSelectionInterface> InElementSelectionHandle, UTypedElementList* InElementList, FTypedElementSelectionCustomization* InSelectionCustomization)
 		: ElementSelectionHandle(MoveTemp(InElementSelectionHandle))
 		, ElementList(InElementList)
-		, AssetEditorSelectionCustomization(InAssetEditorSelectionCustomization)
+		, SelectionCustomization(InSelectionCustomization)
 	{
 	}
 
@@ -57,22 +57,22 @@ public:
 	{
 		return ElementSelectionHandle.IsSet()
 			&& ElementList
-			&& AssetEditorSelectionCustomization;
+			&& SelectionCustomization;
 	}
 
 	//~ See UTypedElementSelectionInterface for API docs
-	bool IsElementSelected(const FTypedElementIsSelectedOptions& InSelectionOptions) const { return AssetEditorSelectionCustomization->IsElementSelected(ElementSelectionHandle, ElementList, InSelectionOptions); }
-	bool CanSelectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return AssetEditorSelectionCustomization->CanSelectElement(ElementSelectionHandle, InSelectionOptions); }
-	bool CanDeselectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return AssetEditorSelectionCustomization->CanDeselectElement(ElementSelectionHandle, InSelectionOptions); }
-	bool SelectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return AssetEditorSelectionCustomization->SelectElement(ElementSelectionHandle, ElementList, InSelectionOptions); }
-	bool DeselectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return AssetEditorSelectionCustomization->DeselectElement(ElementSelectionHandle, ElementList, InSelectionOptions); }
-	bool AllowSelectionModifiers() const { return AssetEditorSelectionCustomization->AllowSelectionModifiers(ElementSelectionHandle, ElementList); }
-	FTypedElementHandle GetSelectionElement(const ETypedElementSelectionMethod InSelectionMethod) const { return AssetEditorSelectionCustomization->GetSelectionElement(ElementSelectionHandle, ElementList, InSelectionMethod); }
+	bool IsElementSelected(const FTypedElementIsSelectedOptions& InSelectionOptions) const { return SelectionCustomization->IsElementSelected(ElementSelectionHandle, ElementList, InSelectionOptions); }
+	bool CanSelectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return SelectionCustomization->CanSelectElement(ElementSelectionHandle, InSelectionOptions); }
+	bool CanDeselectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return SelectionCustomization->CanDeselectElement(ElementSelectionHandle, InSelectionOptions); }
+	bool SelectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return SelectionCustomization->SelectElement(ElementSelectionHandle, ElementList, InSelectionOptions); }
+	bool DeselectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return SelectionCustomization->DeselectElement(ElementSelectionHandle, ElementList, InSelectionOptions); }
+	bool AllowSelectionModifiers() const { return SelectionCustomization->AllowSelectionModifiers(ElementSelectionHandle, ElementList); }
+	FTypedElementHandle GetSelectionElement(const ETypedElementSelectionMethod InSelectionMethod) const { return SelectionCustomization->GetSelectionElement(ElementSelectionHandle, ElementList, InSelectionMethod); }
 
 private:
 	TTypedElement<UTypedElementSelectionInterface> ElementSelectionHandle;
 	UTypedElementList* ElementList = nullptr;
-	FTypedElementAssetEditorSelectionCustomization* AssetEditorSelectionCustomization = nullptr;
+	FTypedElementSelectionCustomization* SelectionCustomization = nullptr;
 };
 
 /**
@@ -80,7 +80,7 @@ private:
  * interfaces, as well as providing some utilities for batching operations.
  */
 UCLASS(Transient)
-class EDITORFRAMEWORK_API UTypedElementSelectionSet : public UObject, public TTypedElementAssetEditorCustomizationRegistry<FTypedElementAssetEditorSelectionCustomization>
+class TYPEDELEMENTRUNTIME_API UTypedElementSelectionSet : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementSelectionCustomization>
 {
 	GENERATED_BODY()
 
@@ -88,7 +88,9 @@ public:
 	UTypedElementSelectionSet();
 
 	//~ UObject interface
+#if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+#endif	// WITH_EDITOR
 	virtual void Serialize(FArchive& Ar) override;
 
 	/**
@@ -422,7 +424,7 @@ public:
 
 private:
 	/**
-	 * Attempt to resolve the selection interface and asset editor selection customization for the given element, if any.
+	 * Attempt to resolve the selection interface and selection customization for the given element, if any.
 	 */
 	FTypedElementSelectionSetElement ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const;
 

@@ -62,7 +62,7 @@ public class LevelEditor : ModuleRules
 				"Projects",
 				"TargetPlatform",
 				"TypedElementFramework",
-				"TypedElementInterfaces",
+				"TypedElementRuntime",
 				"EngineSettings",
 				"PropertyEditor",
 				"Kismet",

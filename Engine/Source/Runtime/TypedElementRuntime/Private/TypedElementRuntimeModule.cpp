@@ -2,7 +2,7 @@
 
 #include "Modules/ModuleManager.h"
 
-class FTypedElementInterfacesModule : public FDefaultModuleImpl
+class FTypedElementRuntimeModule : public FDefaultModuleImpl
 {
 public:
 	virtual void StartupModule() override
@@ -11,4 +11,4 @@ public:
 	}
 };
 
-IMPLEMENT_MODULE(FTypedElementInterfacesModule, TypedElementInterfaces)
+IMPLEMENT_MODULE(FTypedElementRuntimeModule, TypedElementRuntime)

@@ -229,12 +229,12 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 	{
 		TUniquePtr<FActorElementLevelEditorSelectionCustomization> ActorCustomization = MakeUnique<FActorElementLevelEditorSelectionCustomization>();
 		ActorCustomization->SetToolkitHost(this);
-		SelectedElements->RegisterAssetEditorCustomizationByTypeName(NAME_Actor, MoveTemp(ActorCustomization));
+		SelectedElements->RegisterInterfaceCustomizationByTypeName(NAME_Actor, MoveTemp(ActorCustomization));
 	}
 	{
 		TUniquePtr<FComponentElementLevelEditorSelectionCustomization> ComponentCustomization = MakeUnique<FComponentElementLevelEditorSelectionCustomization>();
 		ComponentCustomization->SetToolkitHost(this);
-		SelectedElements->RegisterAssetEditorCustomizationByTypeName(NAME_Components, MoveTemp(ComponentCustomization));
+		SelectedElements->RegisterInterfaceCustomizationByTypeName(NAME_Components, MoveTemp(ComponentCustomization));
 	}
 
 	// Allow USelection to bridge to our selected element list

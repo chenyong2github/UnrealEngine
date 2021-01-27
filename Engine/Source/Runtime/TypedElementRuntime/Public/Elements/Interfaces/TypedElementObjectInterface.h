@@ -6,7 +6,7 @@
 #include "TypedElementObjectInterface.generated.h"
 
 UCLASS(Abstract)
-class TYPEDELEMENTINTERFACES_API UTypedElementObjectInterface : public UTypedElementInterface
+class TYPEDELEMENTRUNTIME_API UTypedElementObjectInterface : public UTypedElementInterface
 {
 	GENERATED_BODY()
 

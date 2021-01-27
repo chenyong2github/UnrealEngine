@@ -58,7 +58,7 @@ void RegisterEngineElements()
 {
 	// Ensure the framework and base interfaces are also loaded
 	FModuleManager::Get().LoadModuleChecked("TypedElementFramework");
-	FModuleManager::Get().LoadModuleChecked("TypedElementInterfaces");
+	FModuleManager::Get().LoadModuleChecked("TypedElementRuntime");
 
 	RegisterEngineObjectElements();
 	RegisterEngineActorElements();

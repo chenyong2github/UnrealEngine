@@ -22,7 +22,7 @@ bool FComponentElementEditorViewportInteractionCustomization::GetGizmoPivotLocat
 		}
 		else
 		{
-			FTypedElementAssetEditorViewportInteractionCustomization::GetGizmoPivotLocation(InElementWorldHandle, InWidgetMode, BasePivotLocation);
+			FTypedElementViewportInteractionCustomization::GetGizmoPivotLocation(InElementWorldHandle, InWidgetMode, BasePivotLocation);
 		}
 
 		// If necessary, transform the editor pivot location to be relative to the component's parent

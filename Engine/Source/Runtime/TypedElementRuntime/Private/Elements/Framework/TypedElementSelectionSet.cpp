@@ -13,6 +13,7 @@ UTypedElementSelectionSet::UTypedElementSelectionSet()
 	}
 }
 
+#if WITH_EDITOR
 bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
 {
 	if (GUndo && CanModify())
@@ -34,6 +35,7 @@ bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
 
 	return false;
 }
+#endif	// WITH_EDITOR
 
 void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 {
@@ -230,7 +232,7 @@ FTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FTypedE
 FTypedElementSelectionSetElement UTypedElementSelectionSet::ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const
 {
 	return InElementHandle
-		? FTypedElementSelectionSetElement(ElementList->GetElement<UTypedElementSelectionInterface>(InElementHandle), ElementList, GetAssetEditorCustomizationByTypeId(InElementHandle.GetId().GetTypeId()))
+		? FTypedElementSelectionSetElement(ElementList->GetElement<UTypedElementSelectionInterface>(InElementHandle), ElementList, GetInterfaceCustomizationByTypeId(InElementHandle.GetId().GetTypeId()))
 		: FTypedElementSelectionSetElement();
 }
 

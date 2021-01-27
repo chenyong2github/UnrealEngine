@@ -4,7 +4,7 @@
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
 
-class FObjectElementEditorSelectionCustomization : public FTypedElementAssetEditorSelectionCustomization
+class FObjectElementEditorSelectionCustomization : public FTypedElementSelectionCustomization
 {
 public:
 	virtual bool SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions) override;
