@@ -18,6 +18,8 @@ struct FWorldPartitionActorDescInitData
 	FName ActorPath;
 	TArray<uint8> SerializedData;
 };
+
+class UActorDescContainer;
 #endif
 
 #if WITH_DEV_AUTOMATION_TESTS

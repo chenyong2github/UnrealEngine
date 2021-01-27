@@ -15,6 +15,7 @@
 #include "Editor/GroupActor.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "Engine/Public/ActorReferencesUtils.h"
 #endif
