@@ -305,7 +305,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			TSharedPtr<SWidget> ValueWidget;
 
 			NameWidget = Row.NameWidget.Widget;
-			if(Row.IsEnabledAttr.IsBound())
+			if (Row.IsEnabledAttr.IsBound() || Row.IsEnabledAttr.IsSet())
 			{
 				NameWidgetEnabled = Row.IsEnabledAttr;
 				NameWidget->SetEnabled(Row.IsEnabledAttr);
@@ -321,7 +321,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 
 			TSharedRef<SWidget> ExtensionWidget = CreateExtensionWidget(ValueWidget.ToSharedRef(), *Customization, InOwnerTreeNode);
 
-			if(Row.IsEnabledAttr.IsBound())
+			if (Row.IsEnabledAttr.IsBound() || Row.IsEnabledAttr.IsSet())
 			{
 				ValueWidget->SetEnabled(Row.IsEnabledAttr);
 				ExtensionWidget->SetEnabled(Row.IsEnabledAttr);
