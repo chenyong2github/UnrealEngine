@@ -304,6 +304,9 @@ public:
 	bool bRunningSimulation;
 	bool bNoGravitySimulation;
 	
+	/** solver type used while simulation is running */
+	EPhysicsAssetEditorSolverType RunningSimulationSolverType;
+
 	/** Manipulation (rotate, translate, scale) */
 	bool bManipulating;
 

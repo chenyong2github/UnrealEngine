@@ -81,6 +81,8 @@ FPhysicsAssetEditorSharedData::FPhysicsAssetEditorSharedData()
 	check(EditorOptions);
 
 	EditorOptions->LoadConfig();
+
+	RunningSimulationSolverType = EditorOptions->SolverType;
 }
 
 FPhysicsAssetEditorSharedData::~FPhysicsAssetEditorSharedData()
@@ -1901,12 +1903,15 @@ void FPhysicsAssetEditorSharedData::ToggleSimulation()
 
 void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 {
-	// in Chaos, we have to manipulate the RBAN node in the Anim Instance (at least until we get SkelMeshComp implemented)
-	const bool bUseRBANSolver = (EditorOptions->SolverType == EPhysicsAssetEditorSolverType::RBAN);
-	MouseHandle->SetAnimInstanceMode(bUseRBANSolver);
-
 	if (bEnableSimulation)
 	{
+		// save the current solver type to make sure we clean up using the one we started the simulation with
+		RunningSimulationSolverType = EditorOptions->SolverType;
+
+		// in Chaos, we have to manipulate the RBAN node in the Anim Instance (at least until we get SkelMeshComp implemented)
+		const bool bUseRBANSolver = (RunningSimulationSolverType == EPhysicsAssetEditorSolverType::RBAN);
+		MouseHandle->SetAnimInstanceMode(bUseRBANSolver);
+
 		if (!bUseRBANSolver)
 		{
 			// We should not already have an instance (destroyed when stopping sim).
@@ -1954,7 +1959,8 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 		// Stop any animation and clear node when stopping simulation.
 		PhysicalAnimationComponent->SetSkeletalMeshComponent(nullptr);
 
-		if (bUseRBANSolver)
+		// IMPORTANT : we must check the solver type used to start the simulation, not the one in the options as this can be changed while the simulation is running
+		if (RunningSimulationSolverType == EPhysicsAssetEditorSolverType::RBAN)
 		{
 			// Undo ends up recreating the anim script instance, so we need to remove it here (otherwise the AnimNode_RigidBody similation starts when we undo)
 			EditorSkelComp->ClearAnimScriptInstance();
