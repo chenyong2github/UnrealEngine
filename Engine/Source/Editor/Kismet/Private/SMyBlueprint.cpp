@@ -3227,9 +3227,12 @@ void SMyBlueprint::OnCopy()
 	}
 	else if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
-		FBPGraphClipboardData FuncData(GraphAction->EdGraph);
-		FBPGraphClipboardData::StaticStruct()->ExportText(OutputString, &FuncData, &FuncData, nullptr, 0, nullptr, false);
-		OutputString = GRAPH_PREFIX + OutputString;
+		if (!Blueprint->ExportGraphToText(GraphAction->EdGraph, OutputString))
+		{
+			FBPGraphClipboardData FuncData(GraphAction->EdGraph);
+			FBPGraphClipboardData::StaticStruct()->ExportText(OutputString, &FuncData, &FuncData, nullptr, 0, nullptr, false);
+			OutputString = GRAPH_PREFIX + OutputString;
+		}
 	}
 
 	if (!OutputString.IsEmpty())
@@ -3429,6 +3432,12 @@ void SMyBlueprint::OnPasteFunction()
 {
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+
+	if (Blueprint->TryImportGraphFromText(ClipboardText))
+	{
+		return;
+	}
+
 	if (!ensure(ClipboardText.StartsWith(GRAPH_PREFIX, ESearchCase::CaseSensitive)))
 	{
 		return;
@@ -3473,6 +3482,12 @@ bool SMyBlueprint::CanPasteFunction() const
 
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+
+	if (Blueprint->CanImportGraphFromText(ClipboardText))
+	{
+		return true;
+	}
+
 	if (ClipboardText.StartsWith(GRAPH_PREFIX, ESearchCase::CaseSensitive))
 	{
 		FBPGraphClipboardData FuncData;

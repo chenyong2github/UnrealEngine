@@ -132,6 +132,67 @@ void UControlRigBlueprint::LoadModulesRequiredForCompilation()
 {
 }
 
+bool UControlRigBlueprint::ExportGraphToText(UEdGraph* InEdGraph, FString& OutText)
+{
+	OutText.Empty();
+
+	if (URigVMGraph* RigGraph = GetModel(InEdGraph))
+	{
+		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(RigGraph->GetOuter()))
+		{
+			if (URigVMController* Controller = GetOrCreateController(CollapseNode->GetGraph()))
+			{
+				TArray<FName> NodeNamesToExport;
+				NodeNamesToExport.Add(CollapseNode->GetFName());
+				OutText = Controller->ExportNodesToText(NodeNamesToExport);
+			}
+		}
+	}
+
+	// always return true so that the default mechanism doesn't take over
+	return true;
+}
+
+bool UControlRigBlueprint::CanImportGraphFromText(const FString& InClipboardText)
+{
+	return GetTemplateController()->CanImportNodesFromText(InClipboardText);
+}
+
+bool UControlRigBlueprint::TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr)
+{
+	if (OutGraphPtr)
+	{
+		*OutGraphPtr = nullptr;
+	}
+
+	if (URigVMController* FunctionLibraryController = GetOrCreateController(GetLocalFunctionLibrary()))
+	{
+		TArray<FName> ImportedNodeNames = FunctionLibraryController->ImportNodesFromText(InClipboardText, true);
+		if (ImportedNodeNames.Num() == 0)
+		{
+			return false;
+		}
+
+		URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(GetLocalFunctionLibrary()->FindFunction(ImportedNodeNames[0]));
+		if (ImportedNodeNames.Num() > 1 || CollapseNode == nullptr || CollapseNode->GetContainedGraph() == nullptr)
+		{
+			FunctionLibraryController->Undo();
+			return false;
+		}
+
+		UEdGraph* EdGraph = GetEdGraph(CollapseNode->GetContainedGraph());
+		if (OutGraphPtr)
+		{
+			*OutGraphPtr = EdGraph;
+		}
+
+		BroadcastGraphImported(EdGraph);
+	}
+
+	// always return true so that the default mechanism doesn't take over
+	return true;
+}
+
 USkeletalMesh* UControlRigBlueprint::GetPreviewMesh() const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -2583,6 +2644,11 @@ void UControlRigBlueprint::BroadcastExternalVariablesChangedEvent()
 void UControlRigBlueprint::BroadcastNodeDoubleClicked(URigVMNode* InNode)
 {
 	NodeDoubleClickedEvent.Broadcast(this, InNode);
+}
+
+void UControlRigBlueprint::BroadcastGraphImported(UEdGraph* InGraph)
+{
+	GraphImportedEvent.Broadcast(InGraph);
 }
 
 #endif

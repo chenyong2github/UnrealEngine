@@ -1104,6 +1104,23 @@ public:
 	 */
 	virtual bool SupportsAnimLayers() const { return true; }
 
+	/**
+	 * Copies a given graph into a text buffer. Returns true if successful.
+	 */
+	virtual bool ExportGraphToText(UEdGraph* InEdGraph, FString& OutText) { return false; }
+
+	/**
+	 * Returns true if the blueprint can import a given InClipboardText.
+	 * If this return false the default BP functionality will be used.
+	 */
+	virtual bool CanImportGraphFromText(const FString& InClipboardText) { return false; }
+
+	/**
+	 * Returns a new ed graph if the blueprint's specialization imported a graph based on 
+	 * a clipboard text content an nullptr if that's not successful.
+	 */
+	virtual bool TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr = nullptr) { return false; }
+
 #endif
 };
 

@@ -35,6 +35,7 @@ DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnRefreshEditorEvent, UControlRigB
 DECLARE_EVENT_FourParams(UControlRigBlueprint, FOnVariableDroppedEvent, UObject*, FProperty*, const FVector2D&, const FVector2D&);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnExternalVariablesChanged, const TArray<FRigVMExternalVariable>&);
 DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnNodeDoubleClicked, UControlRigBlueprint*, URigVMNode*);
+DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnGraphImported, UEdGraph*);
 
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
@@ -74,7 +75,9 @@ public:
 	virtual bool SupportsDelegates() const override { return false; }
 	virtual bool SupportsEventGraphs() const override { return false; }
 	virtual bool SupportsAnimLayers() const override { return false; }
-
+	virtual bool ExportGraphToText(UEdGraph* InEdGraph, FString& OutText) override;
+	virtual bool TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr = nullptr) override;
+	virtual bool CanImportGraphFromText(const FString& InClipboardText) override;
 
 #endif	// #if WITH_EDITOR
 
@@ -372,12 +375,16 @@ public:
 	FOnNodeDoubleClicked& OnNodeDoubleClicked() { return NodeDoubleClickedEvent; }
 	void BroadcastNodeDoubleClicked(URigVMNode* InNode);
 
+	FOnGraphImported& OnGraphImported() { return GraphImportedEvent; }
+	void BroadcastGraphImported(UEdGraph* InGraph);
+
 private:
 
 	FOnExternalVariablesChanged ExternalVariablesChangedEvent;
 	void BroadcastExternalVariablesChangedEvent();
 
 	FOnNodeDoubleClicked NodeDoubleClickedEvent;
+	FOnGraphImported GraphImportedEvent;
 
 #endif
 

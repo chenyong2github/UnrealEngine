@@ -128,6 +128,7 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnRefreshEditor().RemoveAll(this);
 		RigBlueprint->OnVariableDropped().RemoveAll(this);
 		RigBlueprint->OnNodeDoubleClicked().RemoveAll(this);
+		RigBlueprint->OnGraphImported().RemoveAll(this);
 	}
 
 	if (NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr)
@@ -363,6 +364,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		}
 
 		InControlRigBlueprint->OnNodeDoubleClicked().AddSP(this, &FControlRigEditor::OnNodeDoubleClicked);
+		InControlRigBlueprint->OnGraphImported().AddSP(this, &FControlRigEditor::OnGraphImported);
 	}
 
 	UpdateStaleWatchedPins();
@@ -4179,6 +4181,14 @@ void FControlRigEditor::OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, U
 			}
 		}
 	}
+}
+
+void FControlRigEditor::OnGraphImported(UEdGraph* InEdGraph)
+{
+	check(InEdGraph);
+
+	OpenDocument(InEdGraph, FDocumentTracker::OpenNewDocument);
+	RenameNewlyAddedAction(InEdGraph->GetFName());
 }
 
 bool FControlRigEditor::OnActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const

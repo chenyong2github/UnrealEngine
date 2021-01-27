@@ -307,6 +307,8 @@ private:
 
 	 void OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, URigVMNode* InNode);
 
+	 void OnGraphImported(UEdGraph* InEdGraph);
+
 	 virtual bool OnActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const override;
 
 protected:
