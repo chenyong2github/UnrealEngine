@@ -1455,14 +1455,6 @@ class FGenerateVulkanVisitor : public ir_visitor
 				var->constant_value->accept(this);
 			}
 		}
-		else if ((var->type->base_type != GLSL_TYPE_STRUCT) && (var->mode == ir_var_auto || var->mode == ir_var_temporary || var->mode == ir_var_shared) && (AtomicVariables.find(var) == AtomicVariables.end()))
-		{
-			if (!is_struct_type(var->type) && var->type->base_type != GLSL_TYPE_ARRAY && var->mode != ir_var_shared)
-			{
-				ralloc_asprintf_append(buffer, " = ");
-				print_zero_initialiser(var->type);
-			}
-		}
 
 		// add type to used_structures so we can later declare them at the start of the GLSL shader
 		// this is for the case of a variable that is declared, but not later dereferenced (which can happen
