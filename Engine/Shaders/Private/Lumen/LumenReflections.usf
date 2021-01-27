@@ -342,15 +342,29 @@ static const int2 kOffsets3x3[8] =
 	int2( 1,  1),
 };
 
-float3 ClampHistory(
+struct FNeighborStatistics
+{
+	float3 Mean;
+	float3 Variance;
+	float3 StdDev;
+	float3 Min;
+	float3 Max;
+};
+
+FNeighborStatistics GetNeighborStatistics(
 	uint2 ScreenCoord, 
 	uint2 MinScreenCoord, 
 	uint2 MaxScreenCoord,
-	float3 NewLighting,
-	float3 HistoryLighting)
+	float3 NewLighting)
 {
-	float3 NeighborMin = NewLighting;
-	float3 NeighborMax = NewLighting;
+	FNeighborStatistics Result = (FNeighborStatistics)0;
+
+	int Count = 1;
+	float3 M1 = NewLighting;
+	float3 M2 = (float3)0;
+
+	Result.Min = NewLighting;
+	Result.Max = NewLighting;
 
 	UNROLL
 	for(uint NeighborId = 0; NeighborId < 8; NeighborId++)
@@ -362,13 +376,52 @@ float3 ClampHistory(
 
 		float3 Sample = ResolvedReflections[NeighborScreenCoord].xyz;
 
-		NeighborMin = min(NeighborMin, Sample);
-		NeighborMax = max(NeighborMax, Sample);
+		Result.Min = min(Result.Min, Sample);
+		Result.Max = max(Result.Max, Sample);
+
+		// Welford's online algorithm for variance.
+		// More numerically stable than accumulating squares.
+		// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+		Count += 1;
+		float3 Delta1 = Sample - M1;
+		M1 += Delta1 / Count;
+		float3 Delta2 = Sample - M1;
+		M2 += Delta1 * Delta2;
 	}
 
-	HistoryLighting = clamp(HistoryLighting, NeighborMin, NeighborMax);
-	return HistoryLighting;
+	Result.Mean = M1;
+	Result.Variance = M2 / (Count - 1);
+	Result.StdDev = sqrt(Result.Variance);
+
+	return Result;
 }
+
+float2 GetReprojectedScreenUV(float2 ScreenPosition, float DeviceZ, float4 EncodedVelocity)
+{
+	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
+	float4 ThisClip = float4(HistoryScreenPosition, 1);
+	float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+	float3 PrevScreen = PrevClip.xyz / PrevClip.w;
+	float3 Velocity = HistoryScreenPosition - PrevScreen;
+	bool bIsDynamicPixel = EncodedVelocity.x > 0.0;
+
+	if (bIsDynamicPixel)
+	{
+		Velocity = DecodeVelocityFromTexture(EncodedVelocity);
+	}
+
+	HistoryScreenPosition -= Velocity;
+
+	float2 HistoryScreenUV = HistoryScreenPosition.xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
+
+	return HistoryScreenUV;
+}
+
+bool IsValidHistoryUV(float2 UV)
+{
+	return !(any(UV > HistoryUVMinMax.zw) || any(UV < HistoryUVMinMax.xy));
+}
+
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionTemporalReprojectionCS(
@@ -381,53 +434,41 @@ void ReflectionTemporalReprojectionCS(
 
 	float4 NewSpecularAndDepth = Texture2DSampleLevel(ResolvedReflections, GlobalBilinearClampedSampler, ScreenUV, 0);
 
-#define REPROJECTION_USE_HIT_DEPTH 1
-#if REPROJECTION_USE_HIT_DEPTH
-	float DeviceZ = NewSpecularAndDepth.w;
-#else
-	float DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, ScreenUV, 0).r;
-#endif
-	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+	float DeviceZ1 = NewSpecularAndDepth.w;
+	float DeviceZ2 = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, GlobalPointClampedSampler, ScreenUV, 0).r;
 
-	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
-	bool bIsDynamicPixel = false;
+	float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
 
-	{
-		float4 ThisClip = float4(HistoryScreenPosition, 1);
-		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
-		float3 Velocity = HistoryScreenPosition - PrevScreen;
-		float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
-		bIsDynamicPixel = EncodedVelocity.x > 0.0;
+	float2 HistoryScreenUV1 = GetReprojectedScreenUV(ScreenPosition, DeviceZ1, EncodedVelocity);
+	float2 HistoryScreenUV2 = GetReprojectedScreenUV(ScreenPosition, DeviceZ2, EncodedVelocity);
 
-		if (bIsDynamicPixel)
-		{
-			Velocity = DecodeVelocityFromTexture(EncodedVelocity);
-		}
+	float3 HistorySpecularIndirect1 = Texture2DSampleLevel(SpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV1, 0).xyz * PrevInvPreExposure * View.PreExposure;
+	float3 HistorySpecularIndirect2 = Texture2DSampleLevel(SpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV2, 0).xyz * PrevInvPreExposure * View.PreExposure;
 
-		HistoryScreenPosition -= Velocity;
-	}
-
-	float2 HistoryScreenUV = HistoryScreenPosition.xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
-
-	float EffectiveHistoryWeight = HistoryWeight;
-
-	FLATTEN
-	if (any(HistoryScreenUV > HistoryUVMinMax.zw) || any(HistoryScreenUV < HistoryUVMinMax.xy))
-	{ 
-		EffectiveHistoryWeight = 0;
-	}
-
-	HistoryScreenUV = clamp(HistoryScreenUV, HistoryUVMinMax.xy, HistoryUVMinMax.zw);
-
-	float3 HistorySpecularIndirect = Texture2DSampleLevel(SpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
-
-#define NEIGHBORHOOD_CLAMP_HISTORY_REJECTION 1
-#if NEIGHBORHOOD_CLAMP_HISTORY_REJECTION
 	uint2 MinScreenCoord = uint2(0, 0);
 	uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);
-	HistorySpecularIndirect = ClampHistory(ReflectionScreenCoord, MinScreenCoord, MaxScreenCoord, NewSpecularAndDepth.xyz, HistorySpecularIndirect);
+	FNeighborStatistics Neighborhood = GetNeighborStatistics(ReflectionScreenCoord, MinScreenCoord, MaxScreenCoord, NewSpecularAndDepth.xyz);
+
+	const float InvalidHistoryErrorThreshold = 1e6;
+	float Error1 = IsValidHistoryUV(HistoryScreenUV1) ? abs(Luma(HistorySpecularIndirect1) - Luma(Neighborhood.Mean)) : InvalidHistoryErrorThreshold;
+	float Error2 = IsValidHistoryUV(HistoryScreenUV2) ? abs(Luma(HistorySpecularIndirect2) - Luma(Neighborhood.Mean)) : InvalidHistoryErrorThreshold;
+
+	float3 HistorySpecularIndirect = Error1 < Error2 
+		? HistorySpecularIndirect1 
+		: HistorySpecularIndirect2;
+
+#define REPROJECTION_USE_STANDARD_DEVIATION_CLAMP 1
+#if REPROJECTION_USE_STANDARD_DEVIATION_CLAMP
+	float3 HistoryClampMin = Neighborhood.Mean - Neighborhood.StdDev;
+	float3 HistoryClampMax = Neighborhood.Mean + Neighborhood.StdDev;
+#else
+	float3 HistoryClampMin = Neighborhood.Min;
+	float3 HistoryClampMax = Neighborhood.Max;
 #endif
+
+	HistorySpecularIndirect = clamp(HistorySpecularIndirect, HistoryClampMin, HistoryClampMax);
+
+	float EffectiveHistoryWeight = min(Error1, Error2) < InvalidHistoryErrorThreshold ? HistoryWeight : 0;
 	float3 OutReflections = lerp(NewSpecularAndDepth.rgb, HistorySpecularIndirect.rgb, EffectiveHistoryWeight);
 
 	OutReflections = -min(-OutReflections, 0.0f);
