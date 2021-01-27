@@ -94,14 +94,24 @@ public:
 	}
 	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, FPropertyNode* InParentNode) override
 	{
+		if (InParentNode == nullptr || InProperty == nullptr)
+		{
+			return nullptr;
+		}
+
 		const UObject* Obj = GetUObject(Index);
 		if (Obj == nullptr)
 		{
 			return nullptr;
 		}
 
-		uint8* ParentOffset = InParentNode ? InParentNode->GetValueAddressFromObject(Obj) : nullptr;
-		return InProperty ? InProperty->ContainerPtrToValuePtr<uint8>(ParentOffset) : nullptr;
+		uint8* ParentPtr = InParentNode->GetValueAddressFromObject(Obj);
+		if (ParentPtr == nullptr)
+		{
+			return nullptr;
+		}
+
+		return InProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
 	}
 	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) override
 	{

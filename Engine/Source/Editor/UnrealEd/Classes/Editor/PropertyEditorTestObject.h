@@ -153,15 +153,21 @@ struct FPropertyEditorTestBasicStruct
 }; 
 
 USTRUCT()
-struct FPropertyEditorTestInlineEditCondition
+struct FPropertyEditorTestEditCondition
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Default, meta=(InlineEditConditionToggle))
 	bool InlineEditCondition;
 
-	UPROPERTY(EditAnywhere, Category=Default, meta=(EditCondition=InlineEditCondition))
+	UPROPERTY(EditAnywhere, Category=Default, meta=(EditCondition="InlineEditCondition"))
 	int32 HasInlineEditCondition;
+
+	UPROPERTY(EditAnywhere, Category=Default)
+	ETestEnumFlags Flags;
+
+	UPROPERTY(EditAnywhere, Category=Default, meta=(EditCondition="Flags == ETestEnumFlags::One", EditConditionHides))
+	int32 EnabledAndVisibleWhenOne;
 };
 
 UCLASS(EditInlineNew)
@@ -707,10 +713,10 @@ class UPropertyEditorTestObject : public UObject
 	float UsesSharedEditCondition2;
 
 	UPROPERTY(EditAnywhere, Category="Inline Edit Conditions")
-	FPropertyEditorTestInlineEditCondition StructWithInlineCondition;
+	FPropertyEditorTestEditCondition StructWithInlineCondition;
 
 	UPROPERTY(EditAnywhere, Category="Inline Edit Conditions")
-	TArray<FPropertyEditorTestInlineEditCondition> ArrayOfStructsWithInlineCondition;
+	TArray<FPropertyEditorTestEditCondition> ArrayOfStructsWithInlineCondition;
 
 	bool CanEditChange(const FProperty* InProperty) const;
 };
