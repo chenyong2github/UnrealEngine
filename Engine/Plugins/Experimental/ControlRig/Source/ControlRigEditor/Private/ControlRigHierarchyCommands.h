@@ -66,6 +66,9 @@ public:
 	/* set initial transform from closest bone */
 	TSharedPtr<FUICommandInfo> SetInitialTransformFromClosestBone;
 
+	/* set gizmo transform from the control's current local transform and reset the control's transform */
+	TSharedPtr<FUICommandInfo> SetGizmoTransformFromCurrent;
+
 	/* frames the selection in the tree */
 	TSharedPtr<FUICommandInfo> FrameSelection;
 

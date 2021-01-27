@@ -299,6 +299,7 @@ private:
 	void HandleResetSpace();
 	void HandleSetInitialTransformFromCurrentTransform();
 	void HandleSetInitialTransformFromClosestBone();
+	void HandleSetGizmoTransformFromCurrent();
 	void HandleFrameSelection();
 	void HandleControlBoneOrSpaceTransform();
 	void HandleUnparent();

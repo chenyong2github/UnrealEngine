@@ -507,6 +507,11 @@ void SRigHierarchy::BindCommands()
 		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected));
 
 	CommandList->MapAction(
+		Commands.SetGizmoTransformFromCurrent,
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleSetGizmoTransformFromCurrent),
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
+
+	CommandList->MapAction(
 		Commands.FrameSelection,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleFrameSelection),
 		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected));
@@ -1298,6 +1303,7 @@ void SRigHierarchy::FillContextMenu(class FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(Actions.ResetAllTransforms);
 		MenuBuilder.AddMenuEntry(Actions.SetInitialTransformFromCurrentTransform);
 		MenuBuilder.AddMenuEntry(Actions.SetInitialTransformFromClosestBone);
+		MenuBuilder.AddMenuEntry(Actions.SetGizmoTransformFromCurrent);
 		MenuBuilder.AddMenuEntry(Actions.Unparent);
 		MenuBuilder.EndSection();
 
@@ -2915,6 +2921,50 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 						DebuggedContainer->ControlHierarchy[Key.Name].OffsetTransform = LocalTransform;
 						DebuggedContainer->SetLocalTransform(Key, FTransform::Identity);
 						DebuggedContainer->SetInitialTransform(Key, FTransform::Identity);
+					}
+				}
+			}
+		}
+	}
+}
+
+void SRigHierarchy::HandleSetGizmoTransformFromCurrent()
+{
+	if (IsControlSelected())
+	{
+		if (UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint())
+		{
+			if (FRigHierarchyContainer* DebuggedContainer = GetDebuggedHierarchyContainer())
+			{
+				FScopedTransaction Transaction(LOCTEXT("HierarchySetInitialTransforms", "Set Initial Transforms"));
+				Blueprint->Modify();
+
+				TArray<TSharedPtr<FRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
+				for (TSharedPtr<FRigTreeElement> SelectedItem : SelectedItems)
+				{
+					FRigElementKey Key = SelectedItem->Key;
+					if (Key.Type == ERigElementType::Control)
+					{
+						FRigControl& Control = GetHierarchyContainer()->ControlHierarchy[Key.Name];
+						FRigControl& DebuggedControl = DebuggedContainer->ControlHierarchy[Key.Name];
+						
+						if (Control.ControlType == ERigControlType::Transform
+							|| Control.ControlType == ERigControlType::TransformNoScale
+							|| Control.ControlType == ERigControlType::EulerTransform)
+						{
+							if (Control.bGizmoEnabled)
+							{
+								Control.GizmoTransform = Control.GetTransformFromValue(ERigControlValueType::Current);
+								GetHierarchyContainer()->SetLocalTransform(Key, FTransform::Identity);
+								DebuggedControl.GizmoTransform = DebuggedControl.GetTransformFromValue(ERigControlValueType::Current);
+								DebuggedContainer->SetLocalTransform(Key, FTransform::Identity);
+							}
+						}
+
+						if (FControlRigEditorEditMode* EditMode = ControlRigEditor.Pin()->GetEditMode())
+						{
+							EditMode->RequestToRecreateGizmoActors();
+						}
 					}
 				}
 			}

@@ -150,6 +150,9 @@ public:
 
 	FUICommandList* GetCommandBindings() const { return CommandBindings.Get(); }
 
+	/** Requests to recreate the gizmo actors in the next tick */
+	void RequestToRecreateGizmoActors() { bRecreateGizmosRequired = true; }
+
 protected:
 
 	// Gizmo related functions wrt enable/selection
@@ -199,8 +202,7 @@ protected:
 	/** It creates if it doesn't have it */
 	void RecreateGizmoActors(const TArray<FRigElementKey>& InSelectedElements = TArray<FRigElementKey>());
 
-	/** Requests to recreate the gizmo actors in the next tick */
-	void RequestToRecreateGizmoActors() { bRecreateGizmosRequired = true; }
+
 
 	/** Let the preview scene know how we want to select components */
 	bool GizmoSelectionOverride(const UPrimitiveComponent* InComponent) const;
