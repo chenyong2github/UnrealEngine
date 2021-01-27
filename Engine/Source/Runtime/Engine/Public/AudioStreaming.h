@@ -15,6 +15,7 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 #include "Async/AsyncWork.h"
 #include "Async/AsyncFileHandle.h"
 #include "HAL/ThreadSafeBool.h"
+#include "UObject/ObjectKey.h"
 
 class FSoundSource;
 class FSoundWaveProxy;

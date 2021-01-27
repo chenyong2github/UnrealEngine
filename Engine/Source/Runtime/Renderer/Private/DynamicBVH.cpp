@@ -4,7 +4,7 @@
 
 #include "DynamicBVH.h"
 #include "Misc/AutomationTest.h"
-
+#include "Misc/OutputDeviceRedirector.h"
 
 FMortonArray::FMortonArray( const TArray< FBounds >& InBounds )
 	: Bounds( InBounds )
