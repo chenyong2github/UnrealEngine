@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimComponent.h"
-#include "ContextualAnimAsset.h"
 #include "DrawDebugHelpers.h"
 
 UContextualAnimComponent::UContextualAnimComponent(const FObjectInitializer& ObjectInitializer)
@@ -20,119 +19,7 @@ UContextualAnimComponent::UContextualAnimComponent(const FObjectInitializer& Obj
 
 bool UContextualAnimComponent::QueryData(const FContextualAnimQueryParams& QueryParams, FContextualAnimQueryResult& Result) const
 {
-	Result.Reset();
-
-	if (!ContextualAnimAsset || !QueryParams.Querier.IsValid())
-	{
-		return false;
-	}
-
-	int32 DataIndex = INDEX_NONE;
-	if (QueryParams.bComplexQuery)
-	{
-		for (int32 Idx = 0; Idx < ContextualAnimAsset->DataContainer.Num(); Idx++)
-		{
-			const FContextualAnimData& Data = ContextualAnimAsset->DataContainer[Idx];
-			const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * GetComponentTransform();
-
-			FVector Origin = GetComponentTransform().GetLocation();
-			FVector Direction = (EntryTransform.GetLocation() - Origin).GetSafeNormal2D();
-
-			if (Data.OffsetFromOrigin != 0.f)
-			{
-				Origin = Origin + Direction * Data.OffsetFromOrigin;
-			}
-
-			// Distance Test
-			//--------------------------------------------------
-			if (Data.Distance.MaxDistance > 0.f || Data.Distance.MinDistance > 0.f)
-			{
-				const float DistSq = FVector::DistSquared2D(Origin, QueryParams.Querier->GetActorLocation());
-
-				if (Data.Distance.MaxDistance > 0.f)
-				{
-					if (DistSq > FMath::Square(Data.Distance.MaxDistance))
-					{
-						continue;
-					}
-				}
-
-				if (Data.Distance.MinDistance > 0.f)
-				{
-					if (DistSq < FMath::Square(Data.Distance.MinDistance))
-					{
-						continue;
-					}
-				}
-			}
-
-			// Angle Test
-			//--------------------------------------------------
-			if (Data.Angle.Tolerance > 0.f)
-			{
-				//@TODO: Cache this
-				const float AngleCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Angle.Tolerance), 0.f, PI));
-				const FVector ToLocation = (QueryParams.Querier->GetActorLocation() - Origin).GetSafeNormal2D();
-				if (FVector::DotProduct(ToLocation, Direction) < AngleCos)
-				{
-					continue;
-				}
-			}
-
-			// Facing Test
-			//--------------------------------------------------
-			if (Data.Facing.Tolerance > 0.f)
-			{
-				//@TODO: Cache this
-				const float FacingCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Facing.Tolerance), 0.f, PI));
-				if (FVector::DotProduct(QueryParams.Querier->GetActorForwardVector(), EntryTransform.GetRotation().GetForwardVector()) < FacingCos)
-				{
-					continue;
-				}
-			}
-
-			// Return the first item that passes all tests
-			DataIndex = Idx;
-			break;
-		}
-	}
-	else // Simple Query
-	{
-		float BestDistanceSq = MAX_FLT;
-		for (int32 Idx = 0; Idx < ContextualAnimAsset->DataContainer.Num(); Idx++)
-		{
-			const FContextualAnimData& Data = ContextualAnimAsset->DataContainer[Idx];
-
-			//@TODO: Convert querier location to local space instead
-			const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * GetComponentTransform();
-			const float DistSq = FVector::DistSquared2D(EntryTransform.GetLocation(), QueryParams.Querier->GetActorLocation());
-			if (DistSq < BestDistanceSq)
-			{
-				BestDistanceSq = DistSq;
-				DataIndex = Idx;
-			}
-		}
-	}
-
-	if(DataIndex != INDEX_NONE)
-	{
-		const FContextualAnimData& ResultData = ContextualAnimAsset->DataContainer[DataIndex];
-
-		Result.DataIndex = DataIndex;
-		Result.Animation = ResultData.Animation;
-		Result.EntryTransform = ResultData.GetAlignmentTransformAtEntryTime() * GetComponentTransform();
-		Result.SyncTransform = ResultData.GetAlignmentTransformAtSyncTime() * GetComponentTransform();
-
-		if (QueryParams.bFindAnimStartTime)
-		{
-			const FVector LocalLocation = (QueryParams.Querier->GetActorTransform().GetRelativeTransform(GetComponentTransform())).GetLocation();
-			Result.AnimStartTime = ResultData.FindBestAnimStartTime(LocalLocation);
-		}
-
-		return true;
-	}
-
-	return false;
+	return ContextualAnimAsset ? ContextualAnimAsset->QueryData(Result, QueryParams, GetComponentTransform()) : false;
 }
 
 FBoxSphereBounds UContextualAnimComponent::CalcBounds(const FTransform& LocalToWorld) const

@@ -226,3 +226,117 @@ void UContextualAnimAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 
 	Super::PreSave(TargetPlatform);
 }
+
+bool UContextualAnimAsset::QueryData(FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const
+{
+	OutResult.Reset();
+
+	const FTransform QueryTransform = QueryParams.Querier.IsValid() ? QueryParams.Querier->GetActorTransform() : QueryParams.QueryTransform;
+
+	int32 DataIndex = INDEX_NONE;
+	if (QueryParams.bComplexQuery)
+	{
+		for (int32 Idx = 0; Idx < DataContainer.Num(); Idx++)
+		{
+			const FContextualAnimData& Data = DataContainer[Idx];
+			const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
+
+			FVector Origin = ToWorldTransform.GetLocation();
+			FVector Direction = (EntryTransform.GetLocation() - Origin).GetSafeNormal2D();
+
+			if (Data.OffsetFromOrigin != 0.f)
+			{
+				Origin = Origin + Direction * Data.OffsetFromOrigin;
+			}
+
+			// Distance Test
+			//--------------------------------------------------
+			if (Data.Distance.MaxDistance > 0.f || Data.Distance.MinDistance > 0.f)
+			{
+				const float DistSq = FVector::DistSquared2D(Origin, QueryTransform.GetLocation());
+
+				if (Data.Distance.MaxDistance > 0.f)
+				{
+					if (DistSq > FMath::Square(Data.Distance.MaxDistance))
+					{
+						continue;
+					}
+				}
+
+				if (Data.Distance.MinDistance > 0.f)
+				{
+					if (DistSq < FMath::Square(Data.Distance.MinDistance))
+					{
+						continue;
+					}
+				}
+			}
+
+			// Angle Test
+			//--------------------------------------------------
+			if (Data.Angle.Tolerance > 0.f)
+			{
+				//@TODO: Cache this
+				const float AngleCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Angle.Tolerance), 0.f, PI));
+				const FVector ToLocation = (QueryTransform.GetLocation() - Origin).GetSafeNormal2D();
+				if (FVector::DotProduct(ToLocation, Direction) < AngleCos)
+				{
+					continue;
+				}
+			}
+
+			// Facing Test
+			//--------------------------------------------------
+			if (Data.Facing.Tolerance > 0.f)
+			{
+				//@TODO: Cache this
+				const float FacingCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Facing.Tolerance), 0.f, PI));
+				if (FVector::DotProduct(QueryTransform.GetRotation().GetForwardVector(), EntryTransform.GetRotation().GetForwardVector()) < FacingCos)
+				{
+					continue;
+				}
+			}
+
+			// Return the first item that passes all tests
+			DataIndex = Idx;
+			break;
+		}
+	}
+	else // Simple Query
+	{
+		float BestDistanceSq = MAX_FLT;
+		for (int32 Idx = 0; Idx < DataContainer.Num(); Idx++)
+		{
+			const FContextualAnimData& Data = DataContainer[Idx];
+
+			//@TODO: Convert querier location to local space instead
+			const FTransform EntryTransform = Data.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
+			const float DistSq = FVector::DistSquared2D(EntryTransform.GetLocation(), QueryTransform.GetLocation());
+			if (DistSq < BestDistanceSq)
+			{
+				BestDistanceSq = DistSq;
+				DataIndex = Idx;
+			}
+		}
+	}
+
+	if (DataIndex != INDEX_NONE)
+	{
+		const FContextualAnimData& ResultData = DataContainer[DataIndex];
+
+		OutResult.DataIndex = DataIndex;
+		OutResult.Animation = ResultData.Animation;
+		OutResult.EntryTransform = ResultData.GetAlignmentTransformAtEntryTime() * ToWorldTransform;
+		OutResult.SyncTransform = ResultData.GetAlignmentTransformAtSyncTime() * ToWorldTransform;
+
+		if (QueryParams.bFindAnimStartTime)
+		{
+			const FVector LocalLocation = (QueryTransform.GetRelativeTransform(ToWorldTransform)).GetLocation();
+			OutResult.AnimStartTime = ResultData.FindBestAnimStartTime(LocalLocation);
+		}
+
+		return true;
+	}
+
+	return false;
+}
