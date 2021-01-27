@@ -927,19 +927,33 @@ public:
 	/** Iterates over values associated with a specified key in a const map. */
 	class TConstKeyIterator : public TBaseKeyIterator<true>
 	{
+	private:
+		using Super        = TBaseKeyIterator<true>;
+		using IteratorType = typename ElementSetType::TConstKeyIterator;
+
 	public:
-		FORCEINLINE TConstKeyIterator(const TMapBase& InMap, KeyInitType InKey)
-			: TBaseKeyIterator<true>(typename ElementSetType::TConstKeyIterator(InMap.Pairs, InKey))
-		{}
+		using KeyArgumentType = typename IteratorType::KeyArgumentType;
+
+		FORCEINLINE TConstKeyIterator(const TMapBase& InMap, KeyArgumentType InKey)
+			: Super(IteratorType(InMap.Pairs, InKey))
+		{
+		}
 	};
 
 	/** Iterates over values associated with a specified key in a map. */
 	class TKeyIterator : public TBaseKeyIterator<false>
 	{
+	private:
+		using Super        = TBaseKeyIterator<false>;
+		using IteratorType = typename ElementSetType::TKeyIterator;
+
 	public:
-		FORCEINLINE TKeyIterator(TMapBase& InMap, KeyInitType InKey)
-			: TBaseKeyIterator<false>(typename ElementSetType::TKeyIterator(InMap.Pairs, InKey))
-		{}
+		using KeyArgumentType = typename IteratorType::KeyArgumentType;
+
+		FORCEINLINE TKeyIterator(TMapBase& InMap, KeyArgumentType InKey)
+			: Super(IteratorType(InMap.Pairs, InKey))
+		{
+		}
 
 		/** Removes the current key-value pair from the map. */
 		FORCEINLINE void RemoveCurrent()
@@ -961,13 +975,13 @@ public:
 	}
 
 	/** Creates an iterator over the values associated with a specified key in a map */
-	FORCEINLINE TKeyIterator CreateKeyIterator(KeyInitType InKey)
+	FORCEINLINE TKeyIterator CreateKeyIterator(typename TKeyIterator::KeyArgumentType InKey)
 	{
 		return TKeyIterator(*this, InKey);
 	}
 
 	/** Creates a const iterator over the values associated with a specified key in a map */
-	FORCEINLINE TConstKeyIterator CreateConstKeyIterator(KeyInitType InKey) const
+	FORCEINLINE TConstKeyIterator CreateConstKeyIterator(typename TConstKeyIterator::KeyArgumentType InKey) const
 	{
 		return TConstKeyIterator(*this, InKey);
 	}
