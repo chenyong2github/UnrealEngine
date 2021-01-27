@@ -284,7 +284,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				{
 					ConvexMesh->acquireReference();
 					const PxU32 NumPolygons = ConvexMesh->getNbPolygons();
-					TArray<Chaos::TVector<int32, 3>> Triangles;
+					TArray<Chaos::TVec3<int32>> Triangles;
 					Triangles.Reserve(NumPolygons);
 					PxHullPolygon Polygon;
 					for (uint32 i = 0; i < NumPolygons; i++)
@@ -296,7 +296,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 								// getPolygonData() augments what getIndexBuffer() returns?
 								const auto LocalIndices = ConvexMesh->getIndexBuffer() + Polygon.mIndexBase;
 								Triangles.Add(
-									Chaos::TVector<int32, 3>(LocalIndices[0], LocalIndices[1], LocalIndices[2]));
+									Chaos::TVec3<int32>(LocalIndices[0], LocalIndices[1], LocalIndices[2]));
 							}
 							else if (Polygon.mNbVerts > 3)
 							{
@@ -304,7 +304,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 								{
 									const auto LocalIndices = ConvexMesh->getIndexBuffer() + Polygon.mIndexBase;
 									Triangles.Add(
-										Chaos::TVector<int32, 3>(LocalIndices[0], LocalIndices[j], LocalIndices[j - 1]));
+										Chaos::TVec3<int32>(LocalIndices[0], LocalIndices[j], LocalIndices[j - 1]));
 								}
 							}
 						}

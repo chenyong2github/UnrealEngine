@@ -19,7 +19,7 @@ namespace Chaos
 	public:
 		TSegmentMesh()
 		{}
-		TSegmentMesh(TArray<TVector<int32, 2>>&& Elements);
+		TSegmentMesh(TArray<TVec2<int32>>&& Elements);
 		TSegmentMesh(const TSegmentMesh& Other) = delete;
 		TSegmentMesh(TSegmentMesh&& Other)
 		    : MElements(MoveTemp(Other.MElements))
@@ -29,9 +29,9 @@ namespace Chaos
 		~TSegmentMesh();
 
 		void
-		Init(const TArray<TVector<int32, 2>>& Elements);
+		Init(const TArray<TVec2<int32>>& Elements);
 		void
-		Init(TArray<TVector<int32, 2>>&& Elements);
+		Init(TArray<TVec2<int32>>&& Elements);
 
 		int32
 		GetNumElements() const
@@ -39,7 +39,7 @@ namespace Chaos
 			return MElements.Num();
 		}
 
-		const TArray<TVector<int32, 2>>&
+		const TArray<TVec2<int32>>&
 		GetElements() const
 		{
 			return MElements;
@@ -88,9 +88,9 @@ namespace Chaos
 
 	private:
 		// We use TVector rather than FEdge to represent connectivity because
-		// sizeof(TVector<int32,2>) < sizeof(FEdge).  FEdge has an extra int32
+		// sizeof(TVec2<int32>) < sizeof(FEdge).  FEdge has an extra int32
 		// member called Count, which we don't currently have a use for.
-		TArray<TVector<int32, 2>> MElements;
+		TArray<TVec2<int32>> MElements;
 
 		// Members are mutable so they can be generated on demand by const API.
 		mutable TMap<int32, TArray<int32>> MPointToEdgeMap;

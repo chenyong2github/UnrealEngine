@@ -470,8 +470,8 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 						if (!Particle->Sleeping() && bSleepState)
 						{
 							Particles.DeactivateParticle(Particle); 	//todo: record state change for array reorder
-							PBDRigid->V() = TVector<FReal, 3>(0);
-							PBDRigid->W() = TVector<FReal, 3>(0);
+							PBDRigid->V() = FVec3(0);
+							PBDRigid->W() = FVec3(0);
 						}
 
 						PBDRigid->SetSleeping(bSleepState);

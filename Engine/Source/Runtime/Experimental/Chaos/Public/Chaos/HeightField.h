@@ -45,8 +45,8 @@ namespace Chaos
 		uint8 GetMaterialIndex(int32 InX, int32 InY) const;
 		bool IsHole(int32 InIndex) const;
 		bool IsHole(int32 InCellX, int32 InCellY) const;
-		FVec3 GetNormalAt(const TVector<FReal, 2>& InGridLocationLocal) const;
-		FReal GetHeightAt(const TVector<FReal, 2>& InGridLocationLocal) const;
+		FVec3 GetNormalAt(const FVec2& InGridLocationLocal) const;
+		FReal GetHeightAt(const FVec2& InGridLocationLocal) const;
 
 		int32 GetNumRows() const { return GeomData.NumRows; }
 		int32 GetNumCols() const { return GeomData.NumCols; }
@@ -329,8 +329,8 @@ namespace Chaos
 		// Struct for 2D bounds and associated operations
 		struct FBounds2D
 		{
-			TVector<FReal, 2> Min;
-			TVector<FReal, 2> Max;
+			FVec2 Min;
+			FVec2 Max;
 			
 			FBounds2D()
 				: Min(0)
@@ -348,23 +348,23 @@ namespace Chaos
 				Max = {In3DBounds.Max()[0], In3DBounds.Max()[1]};
 			}
 
-			TVector<FReal, 2> GetExtent() const
+			FVec2 GetExtent() const
 			{
 				return Max - Min;
 			}
 
-			bool IsInside(const TVector<FReal, 2>& InPoint) const
+			bool IsInside(const FVec2& InPoint) const
 			{
 				return InPoint[0] >= Min[0] && InPoint[0] <= Max[0] && InPoint[1] >= Min[1] && InPoint[1] <= Max[1];
 			}
 
-			TVector<FReal, 2> Clamp(const TVector<FReal, 2>& InToClamp, FReal InNudge = SMALL_NUMBER) const
+			FVec2 Clamp(const FVec2& InToClamp, FReal InNudge = SMALL_NUMBER) const
 			{
-				const TVector<FReal, 2> NudgeVec(InNudge, InNudge);
-				const TVector<FReal, 2> TestMin = Min + NudgeVec;
-				const TVector<FReal, 2> TestMax = Max - NudgeVec;
+				const FVec2 NudgeVec(InNudge, InNudge);
+				const FVec2 TestMin = Min + NudgeVec;
+				const FVec2 TestMax = Max - NudgeVec;
 
-				TVector<FReal, 2> OutVec = InToClamp;
+				FVec2 OutVec = InToClamp;
 
 				OutVec[0] = FMath::Max(OutVec[0], TestMin[0]);
 				OutVec[1] = FMath::Max(OutVec[1], TestMin[1]);
@@ -375,20 +375,20 @@ namespace Chaos
 				return OutVec;
 			}
 
-			bool IntersectLine(const TVector<FReal, 2>& InStart, const TVector<FReal, 2>& InEnd)
+			bool IntersectLine(const FVec2& InStart, const FVec2& InEnd)
 			{
 				if(IsInside(InStart) || IsInside(InEnd))
 				{
 					return true;
 				}
 
-				const TVector<FReal, 2> Extent = GetExtent();
+				const FVec2 Extent = GetExtent();
 				float TA, TB;
 
-				if(Utilities::IntersectLineSegments2D(InStart, InEnd, Min, TVector<FReal, 2>(Min[0] + Extent[0], Min[1]), TA, TB)
-					|| Utilities::IntersectLineSegments2D(InStart, InEnd, Min, TVector<FReal, 2>(Min[0], Min[1] + Extent[1]), TA, TB)
-					|| Utilities::IntersectLineSegments2D(InStart, InEnd, Max, TVector<FReal, 2>(Max[0] - Extent[0], Max[1]), TA, TB)
-					|| Utilities::IntersectLineSegments2D(InStart, InEnd, Max, TVector<FReal, 2>(Max[0], Max[1] - Extent[1]), TA, TB))
+				if(Utilities::IntersectLineSegments2D(InStart, InEnd, Min, FVec2(Min[0] + Extent[0], Min[1]), TA, TB)
+					|| Utilities::IntersectLineSegments2D(InStart, InEnd, Min, FVec2(Min[0], Min[1] + Extent[1]), TA, TB)
+					|| Utilities::IntersectLineSegments2D(InStart, InEnd, Max, FVec2(Max[0] - Extent[0], Max[1]), TA, TB)
+					|| Utilities::IntersectLineSegments2D(InStart, InEnd, Max, FVec2(Max[0], Max[1] - Extent[1]), TA, TB))
 				{
 					return true;
 				}
@@ -396,10 +396,10 @@ namespace Chaos
 				return false;
 			}
 
-			bool ClipLine(const FVec3& InStart, const FVec3& InEnd, TVector<FReal, 2>& OutClippedStart, TVector<FReal, 2>& OutClippedEnd) const
+			bool ClipLine(const FVec3& InStart, const FVec3& InEnd, FVec2& OutClippedStart, FVec2& OutClippedEnd) const
 			{
-				TVector<FReal, 2> TempStart(InStart[0], InStart[1]);
-				TVector<FReal, 2> TempEnd(InEnd[0], InEnd[1]);
+				FVec2 TempStart(InStart[0], InStart[1]);
+				FVec2 TempEnd(InEnd[0], InEnd[1]);
 
 				bool bLineIntersects = ClipLine(TempStart, TempEnd);
 
@@ -409,7 +409,7 @@ namespace Chaos
 				return bLineIntersects;
 			}
 
-			bool ClipLine(TVector<FReal, 2>& InOutStart, TVector<FReal, 2>& InOutEnd) const
+			bool ClipLine(FVec2& InOutStart, FVec2& InOutEnd) const
 			{
 				
 				// Test we don't need to clip at all, quite likely with a heightfield so optimize for it.
@@ -420,7 +420,7 @@ namespace Chaos
 					return true;
 				}
 
-				const TVector<FReal, 2> Dir = InOutEnd - InOutStart;
+				const FVec2 Dir = InOutEnd - InOutStart;
 
 				// Tiny ray not inside so must be outside
 				if(Dir.SizeSquared() < 1e-4)
@@ -429,7 +429,7 @@ namespace Chaos
 				}
 
 				bool bPerpendicular[2];
-				TVector<FReal, 2> InvDir;
+				FVec2 InvDir;
 				for(int Axis = 0; Axis < 2; ++Axis)
 				{
 					bPerpendicular[Axis] = Dir[Axis] == 0;
@@ -502,7 +502,7 @@ namespace Chaos
 
 		private:
 			//This helper assumes Start is inside the min/max box and uses InvDir to compute how long it takes to exit
-			FReal ComputeTimeToExit(const TVector<FReal, 2>& Start,const TVector<FReal, 2>& InvDir) const
+			FReal ComputeTimeToExit(const FVec2& Start,const FVec2& InvDir) const
 			{
 				FReal Times[2] ={TNumericLimits<FReal>::Max(),TNumericLimits<FReal>::Max()};
 				for(int Axis = 0; Axis < 2; ++Axis)
@@ -523,15 +523,15 @@ namespace Chaos
 		};
 
 		// Helpers for accessing bounds
-		bool GetCellBounds2D(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<FReal, 2>& InInflate = {0}) const;
+		bool GetCellBounds2D(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const FVec2& InInflate = {0}) const;
 		bool GetCellBounds3D(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate = FVec3(0)) const;
-		bool GetCellBounds2DScaled(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<FReal, 2>& InInflate = {0}) const;
+		bool GetCellBounds2DScaled(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const FVec2& InInflate = {0}) const;
 		bool GetCellBounds3DScaled(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate = FVec3(0)) const;
 		bool CalcCellBounds3D(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate = FVec3(0)) const;
 
 		// Query functions - sweep, ray, overlap
 		template<typename SQVisitor>
-		bool GridSweep(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const TVector<FReal, 2> InHalfExtents, SQVisitor& Visitor) const;
+		bool GridSweep(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FVec2 InHalfExtents, SQVisitor& Visitor) const;
 		bool GridCast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, FHeightfieldRaycastVisitor& Visitor) const;
 		bool GetGridIntersections(FBounds2D InFlatBounds, TArray<TVector<int32, 2>>& OutInterssctions) const;
 		

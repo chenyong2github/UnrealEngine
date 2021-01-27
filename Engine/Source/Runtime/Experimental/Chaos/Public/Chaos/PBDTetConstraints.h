@@ -15,7 +15,7 @@ class PBDTetConstraints : public TParticleRule<T, 3>, public PBDTetConstraintsBa
 	using Base::MConstraints;
 
   public:
-	PBDTetConstraints(const TDynamicParticles<T, 3>& InParticles, TArray<TVector<int32, 4>>&& Constraints, const T Stiffness = (T)1)
+	PBDTetConstraints(const TDynamicParticles<T, 3>& InParticles, TArray<TVec4<int32>>&& Constraints, const T Stiffness = (T)1)
 	    : Base(InParticles, MoveTemp(Constraints), Stiffness) {}
 	virtual ~PBDTetConstraints() {}
 

@@ -31,13 +31,13 @@ namespace Chaos
 		using SmallIdxType = uint16;
 
 		FTrimeshIndexBuffer() = default;
-		FTrimeshIndexBuffer(TArray<TVector<LargeIdxType, 3>>&& Elements)
+		FTrimeshIndexBuffer(TArray<TVec3<LargeIdxType>>&& Elements)
 		    : LargeIdxBuffer(MoveTemp(Elements))
 		    , bRequiresLargeIndices(true)
 		{
 		}
 
-		FTrimeshIndexBuffer(TArray<TVector<SmallIdxType, 3>>&& Elements)
+		FTrimeshIndexBuffer(TArray<TVec3<SmallIdxType>>&& Elements)
 		    : SmallIdxBuffer(MoveTemp(Elements))
 		    , bRequiresLargeIndices(false)
 		{
@@ -87,8 +87,8 @@ namespace Chaos
 		}
 
 	private:
-		TArray<TVector<LargeIdxType, 3>> LargeIdxBuffer;
-		TArray<TVector<SmallIdxType, 3>> SmallIdxBuffer;
+		TArray<TVec3<LargeIdxType>> LargeIdxBuffer;
+		TArray<TVec3<SmallIdxType>> SmallIdxBuffer;
 		bool bRequiresLargeIndices;
 	};
 
@@ -104,7 +104,7 @@ namespace Chaos
 		using FImplicitObject::GetTypeName;
 
 		template <typename IdxType>
-		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVector<IdxType, 3>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
+		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVec3<IdxType>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
 		: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
 		, MParticles(MoveTemp(Particles))
 		, MElements(MoveTemp(Elements))
@@ -364,7 +364,7 @@ namespace Chaos
 		bool SweepGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, const FReal Thickness, const bool bComputeMTD, FVec3 TriMeshScale = FVec3(1.0f)) const;
 
 		template <typename IdxType>
-		bool RaycastImp(const TArray<TVector<IdxType, 3>>& Elements, const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const;
+		bool RaycastImp(const TArray<TVec3<IdxType>>& Elements, const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const;
 
 		template <typename IdxType>
 		bool OverlapImp(const TArray<TVec3<IdxType>>& Elements, const FVec3& Point, const FReal Thickness) const;

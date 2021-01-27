@@ -129,7 +129,7 @@ namespace Chaos
 			return FMath::Sqrt(Variance);
 		}
 
-		inline static PMatrix<float, 3, 3> CrossProductMatrix(const TVector<float, 3>& V)
+		inline static PMatrix<float, 3, 3> CrossProductMatrix(const FVec3& V)
 		{
 			return PMatrix<float, 3, 3>(
 			    0, -V.Z, V.Y,
@@ -235,23 +235,23 @@ namespace Chaos
 		 * Multiple a vector by a matrix: C = L.R
 		 * If L is a rotation matrix, then this will return R rotated by that rotation.
 		 */
-		inline TVector<float, 3> Multiply(const PMatrix<float, 3, 3>& LIn, const TVector<float, 3>& R)
+		inline FVec3 Multiply(const PMatrix<float, 3, 3>& LIn, const FVec3& R)
 		{
 			// @todo(ccaulfield): optimize: remove transposes and use simd etc
 			PMatrix<float, 3, 3> L = LIn.GetTransposed();
 
-			return TVector<float, 3>(
+			return FVec3(
 			    L.M[0][0] * R.X + L.M[0][1] * R.Y + L.M[0][2] * R.Z,
 			    L.M[1][0] * R.X + L.M[1][1] * R.Y + L.M[1][2] * R.Z,
 			    L.M[2][0] * R.X + L.M[2][1] * R.Y + L.M[2][2] * R.Z);
 		}
 
-		inline TVector<float, 4> Multiply(const PMatrix<float, 4, 4>& LIn, const TVector<float, 4>& R)
+		inline FVec4 Multiply(const PMatrix<float, 4, 4>& LIn, const FVec4& R)
 		{
 			// @todo(ccaulfield): optimize: remove transposes and use simd etc
 			PMatrix<float, 4, 4> L = LIn.GetTransposed();
 
-			return TVector<float, 4>(
+			return FVec4(
 				L.M[0][0] * R.X + L.M[0][1] * R.Y + L.M[0][2] * R.Z + L.M[0][3] * R.W,
 				L.M[1][0] * R.X + L.M[1][1] * R.Y + L.M[1][2] * R.Z + L.M[1][3] * R.W,
 				L.M[2][0] * R.X + L.M[2][1] * R.Y + L.M[2][2] * R.Z + L.M[2][3] * R.W,
@@ -290,7 +290,7 @@ namespace Chaos
 		 * Calculate the matrix that maps a constraint position error to constraint position and rotation corrections.
 		 */
 		template<class T>
-		PMatrix<T, 3, 3> ComputeJointFactorMatrix(const TVector<T, 3>& V, const PMatrix<T, 3, 3>& M, const T& Im)
+		PMatrix<T, 3, 3> ComputeJointFactorMatrix(const TVec3<T>& V, const PMatrix<T, 3, 3>& M, const T& Im)
 		{
 			// Rigid objects rotational contribution to the impulse.
 			// Vx*M*VxT+Im
@@ -309,7 +309,7 @@ namespace Chaos
 		 * used to calculate exact intersection locations
 		 */
 		template<typename T>
-		bool IntersectLineSegments2D(const TVector<T, 2>& InStartA, const TVector<T, 2>& InEndA, const TVector<T, 2>& InStartB, const TVector<T, 2>& InEndB, T& OutTA, T& OutTB)
+		bool IntersectLineSegments2D(const TVec2<T>& InStartA, const TVec2<T>& InEndA, const TVec2<T>& InStartB, const TVec2<T>& InEndB, T& OutTA, T& OutTB)
 		{
 			// Each line can be described as p0 + t(p1 - p0) = P. Set equal to each other and solve for t0 and t1
 			OutTA = OutTB = 0;

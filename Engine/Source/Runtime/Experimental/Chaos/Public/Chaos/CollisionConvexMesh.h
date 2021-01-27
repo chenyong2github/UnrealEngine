@@ -55,7 +55,7 @@ namespace Chaos
 			// above 1.0 such that 1.0 + FLT_EPSILON != 1.0. Floats aren't equally disanced though so big or small numbers
 			// don't work well with it. Here we take the max absolute of each axis and scale that for a wider margin and
 			// use that to scale FLT_EPSILON to get a more relevant value.
-			TVector<FReal, 3> MaxAxes(TNumericLimits<FReal>::Lowest());
+			FVec3 MaxAxes(TNumericLimits<FReal>::Lowest());
 			const int32 NumParticles = InParticles.Size();
 
 			if (NumParticles <= 1)
@@ -65,7 +65,7 @@ namespace Chaos
 
 			for (int32 Index = 0; Index < NumParticles; ++Index)
 			{
-				TVector<FReal, 3> PositionAbs = InParticles.X(Index).GetAbs();
+				FVec3 PositionAbs = InParticles.X(Index).GetAbs();
 
 				MaxAxes[0] = FMath::Max(MaxAxes[0], PositionAbs[0]);
 				MaxAxes[1] = FMath::Max(MaxAxes[1], PositionAbs[1]);
@@ -317,7 +317,7 @@ namespace Chaos
 
 			if(NumParticlesToUse >= 4)
 			{
-				TArray<TVector<int32, 3>> Indices;
+				TArray<TVec3<int32>> Indices;
 				Params BuildParams;
 				BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(*ParticlesToUse);
 				BuildConvexHull(*ParticlesToUse, Indices, BuildParams);
@@ -335,7 +335,7 @@ namespace Chaos
 					return NewIdx++;
 				};
 
-				for(const TVector<int32, 3>& Idx : Indices)
+				for(const TVec3<int32>& Idx : Indices)
 				{
 					FVec3 Vs[3] = {ParticlesToUse->X(Idx[0]), ParticlesToUse->X(Idx[1]), ParticlesToUse->X(Idx[2])};
 					const FVec3 Normal = FVec3::CrossProduct(Vs[1] - Vs[0], Vs[2] - Vs[0]).GetUnsafeNormal();
@@ -358,7 +358,7 @@ namespace Chaos
 			UE_CLOG(OutSurfaceParticles.Size() == 0, LogChaos, Warning, TEXT("Convex hull generation produced zero convex particles, collision will fail for this primitive."));
 		}
 
-		static void BuildConvexHull(const TParticles<FReal, 3>& InParticles, TArray<TVector<int32, 3>>& OutIndices, const Params& InParams = Params())
+		static void BuildConvexHull(const TParticles<FReal, 3>& InParticles, TArray<TVec3<int32>>& OutIndices, const Params& InParams = Params())
 		{
 			OutIndices.Reset();
 			FMemPool Pool;
@@ -417,7 +417,7 @@ namespace Chaos
 			while(Cur)
 			{
 				//todo(ocohen): this assumes faces are triangles, not true once face merging is added
-				OutIndices.Add(TVector<int32, 3>(Cur->FirstEdge->Vertex, Cur->FirstEdge->Next->Vertex, Cur->FirstEdge->Next->Next->Vertex));
+				OutIndices.Add(TVec3<int32>(Cur->FirstEdge->Vertex, Cur->FirstEdge->Next->Vertex, Cur->FirstEdge->Next->Next->Vertex));
 				FConvexFace* Next = Cur->Next;
 				Cur = Next;
 			}
@@ -425,7 +425,7 @@ namespace Chaos
 
 		static TTriangleMesh<FReal> BuildConvexHullTriMesh(const TParticles<FReal, 3>& InParticles)
 		{
-			TArray<TVector<int32, 3>> Indices;
+			TArray<TVec3<int32>> Indices;
 			BuildConvexHull(InParticles, Indices);
 			return TTriangleMesh<FReal>(MoveTemp(Indices));
 		}
