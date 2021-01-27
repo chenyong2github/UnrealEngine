@@ -36,7 +36,7 @@ void ScaleTransformHelper(const FVec3& TriMeshScale, const FRigidTransform3& Que
 
 template <typename IdxType>
 void TransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const TParticles<FReal, 3>& Particles,
-	const TArray<TVector<IdxType, 3>>& Elements, TVec3<FReal>& OutA, TVec3<FReal>& OutB, TVec3<FReal>& OutC)
+	const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
 {
 	OutA = Particles.X(Elements[TriIdx][0]) * TriMeshScale;
 	OutB = Particles.X(Elements[TriIdx][1]) * TriMeshScale;
@@ -56,8 +56,8 @@ TImplicitObjectScaled<QueryGeomType> ScaleGeomIntoWorldHelper(const TImplicitObj
 	return MakeScaledHelper(QueryGeom, TriMeshScale);
 }
 
-void TransformSweepOutputsHelper(FVec3 TriMeshScale, const TVec3<FReal>& HitNormal, const TVec3<FReal>& HitPosition, const FReal LengthScale,
-	const FReal Time, TVec3<FReal>& OutNormal, TVec3<FReal>& OutPosition, FReal& OutTime)
+void TransformSweepOutputsHelper(FVec3 TriMeshScale, const FVec3& HitNormal, const FVec3& HitPosition, const FReal LengthScale,
+	const FReal Time, FVec3& OutNormal, FVec3& OutPosition, FReal& OutTime)
 {
 	if (ensure(TriMeshScale != FVec3(0.0f)))
 	{
@@ -355,7 +355,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 
 		for (int32 TriIdx : PotentialIntersections)
 		{
-			TVec3<FReal> A, B, C;
+			FVec3 A, B, C;
 			TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 			if (CalculateTriangleContact(A, B, C, LocalContactLocation, LocalContactNormal, LocalContactPhi))
@@ -520,7 +520,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 			bool bOverlap = false;
 			for (int32 TriIdx : PotentialIntersections)
 			{
-				TVec3<FReal> A, B, C;
+				FVec3 A, B, C;
 				TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 				FVec3 TriangleNormal(0.0);
@@ -547,7 +547,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 		{
 			for (int32 TriIdx : PotentialIntersections)
 			{
-				TVec3<FReal> A, B, C;
+				FVec3 A, B, C;
 				TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 				const FVec3 AB = B - A;

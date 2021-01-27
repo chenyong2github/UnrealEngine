@@ -1263,7 +1263,7 @@ namespace ChaosTest
 			TRigidTransform<FReal, 3> StartTM(FVec3(-344.031799, 1210.37158, 134.252747), FQuat(-0.255716801, -0.714108050, 0.0788889676, -0.646866322), FVec3(1));
 
 			// Wrapping in 1,1,1 scale is unnecessary, but this is technically what is happening when sweeping against scaled trimesh.
-			TUniquePtr<TCapsule<FReal>> Capsule = MakeUnique<TCapsule<FReal>>(TVec3<FReal>(0, 0, -33), TVec3<FReal>(0, 0, 33), 42);
+			TUniquePtr<TCapsule<FReal>> Capsule = MakeUnique<TCapsule<FReal>>(FVec3(0, 0, -33), FVec3(0, 0, 33), 42);
 			TImplicitObjectScaled<TCapsule<FReal>> ScaledCapsule = TImplicitObjectScaled<TCapsule<FReal>>(MakeSerializable(Capsule), FVec3(1));
 
 

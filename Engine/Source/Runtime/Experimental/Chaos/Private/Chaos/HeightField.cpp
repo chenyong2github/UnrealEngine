@@ -233,7 +233,7 @@ namespace Chaos
 
 				//Convert into local space of A to get better precision
 
-				TTriangle<FReal> Triangle(TVec3<FReal>(0), B-A, C-A);
+				TTriangle<FReal> Triangle(FVec3(0), B-A, C-A);
 
 				FReal Time;
 				FVec3 LocalHitPosition;
@@ -668,11 +668,11 @@ namespace Chaos
 		if (FlatGrid.IsValid(InCoord))
 		{
 			//todo: just compute max height, avoid extra work since this is called from tight loop
-			TVec3<FReal> Min,Max;
+			FVec3 Min,Max;
 			CalcCellBounds3D(InCoord,Min,Max);
 
-			OutMin = TVec3<FReal>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<FReal>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
+			OutMin = FVec3(InCoord[0], InCoord[1], GeomData.GetMinHeight());
+			OutMax = FVec3(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin - InInflate;
 			OutMax = OutMax + InInflate;
 
@@ -771,8 +771,8 @@ namespace Chaos
 		FReal TOI;
 		const FBounds2D FlatBounds = GetFlatBounds();
 		TAABB<FReal, 3> Bounds(
-			TVec3<FReal>(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
-			TVec3<FReal>(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
+			FVec3(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
+			FVec3(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
 			);
 		FVec3 NextStart;
 
@@ -1243,7 +1243,7 @@ namespace Chaos
 			TTriangle<FReal> TriangleConvex(A, B, C);
 
 			FReal Penetration;
-			TVec3<FReal> ClosestA, ClosestB, Normal;
+			FVec3 ClosestA, ClosestB, Normal;
 
 			if (bOneSidedHeightField)
 			{
@@ -1382,7 +1382,7 @@ namespace Chaos
 	{
 		if (OutMTD)
 		{
-			OutMTD->Normal = TVec3<FReal>(0);
+			OutMTD->Normal = FVec3(0);
 			OutMTD->Penetration = TNumericLimits<FReal>::Lowest();
 		}
 
@@ -1398,10 +1398,10 @@ namespace Chaos
 			TTriangle<FReal> TriangleConvex(A, B, C);
 			if (InnerMTD)
 			{
-				TVec3<FReal> TriangleNormal(0);
+				FVec3 TriangleNormal(0);
 				FReal Penetration = 0;
-				TVec3<FReal> ClosestA(0);
-				TVec3<FReal> ClosestB(0);
+				FVec3 ClosestA(0);
+				FVec3 ClosestB(0);
 				int32 ClosestVertexIndexA, ClosestVertexIndexB;
 				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
 				{
