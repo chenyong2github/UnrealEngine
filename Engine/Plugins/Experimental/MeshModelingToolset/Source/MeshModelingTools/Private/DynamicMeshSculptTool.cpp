@@ -387,11 +387,10 @@ void UDynamicMeshSculptTool::OnBeginDrag(const FRay& Ray)
 	}
 }
 
+
 void UDynamicMeshSculptTool::UpdateROI(const FVector3d& BrushPos)
 {
-	SCOPE_CYCLE_COUNTER(SculptTool_UpdateROI);
-
-	// TODO: need dynamic vertex hash table!
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateROI);
 
 	float RadiusSqr = CurrentBrushRadius * CurrentBrushRadius;
 
@@ -399,28 +398,56 @@ void UDynamicMeshSculptTool::UpdateROI(const FVector3d& BrushPos)
 		BrushPos - CurrentBrushRadius * FVector3d::One(),
 		BrushPos + CurrentBrushRadius * FVector3d::One());
 
-	VertexSetBuffer.Reset();
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
-	Octree->RangeQuery(BrushBox,
-		[&](int TriIdx) {
-		FIndex3i TriV = Mesh->GetTriangle(TriIdx);
-		for (int j = 0; j < 3; ++j)
+
+	// find set of triangles in brush bounding box
+	UpdateROITriBuffer.Reset();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateROI_1RangeQuery);
+		Octree->ParallelRangeQuery(BrushBox, UpdateROITriBuffer);
+	}
+
+	// collect set of vertices inside brush sphere, from that box
+	VertexROIBuilder.Initialize(Mesh->MaxVertexID());
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateROI_2Collect);
+		for (int32 TriIdx : UpdateROITriBuffer)
 		{
-			FVector3d Position = Mesh->GetVertex(TriV[j]);
-			if ((Position - BrushPos).SquaredLength() < RadiusSqr)
+			FIndex3i TriV = Mesh->GetTriangle(TriIdx);
+			for (int j = 0; j < 3; ++j)
 			{
-				VertexSetBuffer.Add(TriV[j]);
+				if (VertexROIBuilder.Contains(TriV[j]) == false)
+				{
+					//const FVector3d& Position = Mesh->GetVertexRef(TriV[j]);
+					FVector3d Position = Mesh->GetVertex(TriV[j]);
+					if (BrushPos.DistanceSquared(Position) < RadiusSqr)
+					{
+						VertexROIBuilder.Add(TriV[j]);
+					}
+				}
 			}
 		}
+		VertexROI.Reset();
+		VertexROIBuilder.SwapValuesWith(VertexROI);
+	}
 
-	});
-
-	VertexROI.SetNum(0, false);
-	BufferUtil::AppendElements(VertexROI, VertexSetBuffer);
-
-	TriangleROI.Reset();
-	MeshIndexUtil::VertexToTriangleOneRing(Mesh, VertexROI, TriangleROI);
+	// find triangle ROI as full one-rings of all vertices (this is surprisingly expensive...)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateROI_3TriangleROI);
+		TriangleROIBuilder.Initialize(Mesh->MaxTriangleID());
+		for (int32 vid : VertexROI)
+		{
+			Mesh->EnumerateVertexEdges(vid, [&](int32 eid)
+			{
+				FDynamicMesh3::FEdge Edge = Mesh->GetEdge(eid);
+				TriangleROIBuilder.Add(Edge.Tri.A);
+				if (Edge.Tri.B != IndexConstants::InvalidID) TriangleROIBuilder.Add(Edge.Tri.B);
+			});
+		}
+		TriangleROI.Reset();
+		TriangleROIBuilder.Collect(TriangleROI);
+	}
 }
 
 void UDynamicMeshSculptTool::OnUpdateDrag(const FRay& WorldRay)
@@ -447,7 +474,10 @@ void UDynamicMeshSculptTool::CalculateBrushRadius()
 
 void UDynamicMeshSculptTool::ApplyStamp(const FRay& WorldRay)
 {
-	SCOPE_CYCLE_COUNTER(STAT_SculptToolApplyStamp);
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_ApplyStamp);
+
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
 
 	// update brush type history. apologies for convoluted logic.
 	StampTimestamp++;
@@ -471,67 +501,100 @@ void UDynamicMeshSculptTool::ApplyStamp(const FRay& WorldRay)
 
 	CalculateBrushRadius();
 
-	SaveActiveROI();
-
-	if (bSmoothing)
+	TFuture<void> DirtyOctreeFuture = Async(DynamicSculptToolAsyncExecTarget, [&]()
 	{
-		ApplySmoothBrush(WorldRay);
-		return;
-	}
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_ApplyStamp_DirtyOctree);
+		Octree->NotifyPendingModification(TriangleROI);
+	});
 
-	switch (SculptProperties->PrimaryBrushType)
+	TFuture<void> SaveROIFuture = Async(DynamicSculptToolAsyncExecTarget, [&]() 
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_ApplyStamp_SaveActiveROI);
+		SaveActiveROI();
+	});
+
+	// TODO: 
+	//   - we can begin Octree->RemoveTriangles below as soon as we have (1) finished
+	//     marking dirty box in DirtyOctreeFuture and (2) updated brush position. Unfortunately
+	//     right now that happens inside each brush func :(
+
+	EDynamicMeshSculptBrushType ApplyBrushType = (bSmoothing) ?
+		EDynamicMeshSculptBrushType::Smooth : SculptProperties->PrimaryBrushType;
+
+	bool bBrushApplied = false;
+	switch (ApplyBrushType)
 	{
 		case EDynamicMeshSculptBrushType::Offset:
-			ApplyOffsetBrush(WorldRay, false);
+			bBrushApplied = ApplyOffsetBrush(WorldRay, false);
 			break;
 		case EDynamicMeshSculptBrushType::SculptView:
-			ApplyOffsetBrush(WorldRay, true);
+			bBrushApplied = ApplyOffsetBrush(WorldRay, true);
 			break;
 		case EDynamicMeshSculptBrushType::SculptMax:
-			ApplySculptMaxBrush(WorldRay);
+			bBrushApplied = ApplySculptMaxBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::Move:
-			ApplyMoveBrush(WorldRay);
+			bBrushApplied = ApplyMoveBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::PullKelvin:
-			ApplyPullKelvinBrush(WorldRay);
+			bBrushApplied = ApplyPullKelvinBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::PullSharpKelvin:
-			ApplyPullSharpKelvinBrush(WorldRay);
+			bBrushApplied = ApplyPullSharpKelvinBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::Smooth:
-			ApplySmoothBrush(WorldRay);
+			bBrushApplied = ApplySmoothBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::Pinch:
-			ApplyPinchBrush(WorldRay);
+			bBrushApplied = ApplyPinchBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::TwistKelvin:
-			ApplyTwistKelvinBrush(WorldRay);
+			bBrushApplied = ApplyTwistKelvinBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::Inflate:
-			ApplyInflateBrush(WorldRay);
+			bBrushApplied = ApplyInflateBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::ScaleKelvin:
-			ApplyScaleKelvinBrush(WorldRay);
+			bBrushApplied = ApplyScaleKelvinBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::Flatten:
-			ApplyFlattenBrush(WorldRay);
+			bBrushApplied = ApplyFlattenBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::Plane:
-			ApplyPlaneBrush(WorldRay);
+			bBrushApplied = ApplyPlaneBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::PlaneViewAligned:
-			ApplyPlaneBrush(WorldRay);
+			bBrushApplied = ApplyPlaneBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::FixedPlane:
-			ApplyFixedPlaneBrush(WorldRay);
+			bBrushApplied = ApplyFixedPlaneBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::Resample:
-			ApplyResampleBrush(WorldRay);
+			bBrushApplied = ApplyResampleBrush(WorldRay);
 			break;
 		case EDynamicMeshSculptBrushType::LastValue:
 			break;
 	}
+
+	// wait for ROI to finish saving before we update positions
+	SaveROIFuture.Wait();
+	DirtyOctreeFuture.Wait();
+
+	// we are going to reinsert these later
+	TFuture<void> OctreeRemoveFuture = Async(DynamicSculptToolAsyncExecTarget, [&]()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_ApplyStamp_OctreeRemove);
+		Octree->RemoveTriangles(TriangleROI, false);	// already marked dirty above
+	});
+
+	// Update the mesh positions to match those in the position buffer
+	if (bBrushApplied)
+	{
+		SyncMeshWithPositionBuffer(Mesh);
+	}
+
+	// we don't stricty have to wait here, we could return this future
+	OctreeRemoveFuture.Wait();
 }
 
 double UDynamicMeshSculptTool::CalculateBrushFalloff(double Distance)
@@ -555,22 +618,31 @@ void UDynamicMeshSculptTool::SyncMeshWithPositionBuffer(FDynamicMesh3* Mesh)
 	const int NumV = ROIPositionBuffer.Num();
 	checkSlow(VertexROI.Num() <= NumV);
 
-	for (int k = 0; k < NumV; ++k)
+	// only if remeshing is disabled?
+	if (ActiveVertexChange != nullptr)
+	{
+		for (int k = 0; k < NumV; ++k)
+		{
+			int VertIdx = VertexROI[k];
+			ActiveVertexChange->UpdateVertex(VertIdx, Mesh->GetVertex(VertIdx), ROIPositionBuffer[k]);
+		}
+	}
+
+	ParallelFor(NumV, [&](int32 k)
 	{
 		int VertIdx = VertexROI[k];
 		const FVector3d& NewPos = ROIPositionBuffer[k];
-		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
-		Mesh->SetVertex(VertIdx, NewPos);
-		UpdateSavedVertex(VertIdx, OrigPos, NewPos);
-	}
+		Mesh->SetVertex_NoTimeStampUpdate(VertIdx, NewPos);
+	});
+	Mesh->IncrementTimeStamps(1, true, false);
 }
 
-void UDynamicMeshSculptTool::ApplySmoothBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplySmoothBrush(const FRay& WorldRay)
 {
 	bool bHit = UpdateBrushPositionOnSculptMesh(WorldRay, true);
 	if (bHit == false)
 	{
-		return;
+		return false;
 	}
 
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
@@ -595,13 +667,12 @@ void UDynamicMeshSculptTool::ApplySmoothBrush(const FRay& WorldRay)
 		ROIPositionBuffer[k] = NewPos;
 	});
 
-	SyncMeshWithPositionBuffer(Mesh);
-
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplyMoveBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyMoveBrush(const FRay& WorldRay)
 {
 	UpdateBrushPositionOnActivePlane(WorldRay);
 
@@ -611,7 +682,7 @@ void UDynamicMeshSculptTool::ApplyMoveBrush(const FRay& WorldRay)
 	if (MoveVec.SquaredLength() <= 0)
 	{
 		LastBrushPosLocal = NewBrushPosLocal;
-		return;
+		return false;
 	}
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
@@ -633,14 +704,12 @@ void UDynamicMeshSculptTool::ApplyMoveBrush(const FRay& WorldRay)
 		ROIPositionBuffer[k] = NewPos;
 	});
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
-
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay, bool bUseViewDirection)
+bool UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay, bool bUseViewDirection)
 {
 	UpdateBrushPositionOnTargetMesh(WorldRay, bUseViewDirection);
 	if (bUseViewDirection)
@@ -678,14 +747,12 @@ void UDynamicMeshSculptTool::ApplyOffsetBrush(const FRay& WorldRay, bool bUseVie
 		}
 	});
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
-
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplySculptMaxBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplySculptMaxBrush(const FRay& WorldRay)
 {
 	UpdateBrushPositionOnTargetMesh(WorldRay, true);
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
@@ -731,14 +798,12 @@ void UDynamicMeshSculptTool::ApplySculptMaxBrush(const FRay& WorldRay)
 		}
 	});
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
-
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 {
 	UpdateBrushPositionOnTargetMesh(WorldRay, true);
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
@@ -784,13 +849,10 @@ void UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 		ROIPositionBuffer[k] = NewPos;
 	});
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
-
-
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
 	LastSmoothBrushPosLocal = NewSmoothBrushPosLocal;
+	return true;
 }
 
 FFrame3d UDynamicMeshSculptTool::ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth, bool bViewAligned)
@@ -825,12 +887,12 @@ FFrame3d UDynamicMeshSculptTool::ComputeROIBrushPlane(const FVector3d& BrushCent
 	return Result;
 }
 
-void UDynamicMeshSculptTool::ApplyPlaneBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyPlaneBrush(const FRay& WorldRay)
 {
 	bool bHit = UpdateBrushPositionOnSculptMesh(WorldRay, true);
 	if (bHit == false)
 	{
-		return;
+		return false;
 	}
 
 	static const double PlaneSigns[3] = { 0, -1, 1 };
@@ -861,19 +923,17 @@ void UDynamicMeshSculptTool::ApplyPlaneBrush(const FRay& WorldRay)
 		ROIPositionBuffer[k] = NewPos;
 	});
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
-
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplyFixedPlaneBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyFixedPlaneBrush(const FRay& WorldRay)
 {
 	bool bHit = UpdateBrushPositionOnSculptMesh(WorldRay, true);
 	if (bHit == false)
 	{
-		return;
+		return false;
 	}
 
 	static const double PlaneSigns[3] = { 0, -1, 1 };
@@ -910,19 +970,17 @@ void UDynamicMeshSculptTool::ApplyFixedPlaneBrush(const FRay& WorldRay)
 		ROIPositionBuffer[k] = NewPos;
 	});
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
-
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplyFlattenBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyFlattenBrush(const FRay& WorldRay)
 {
 	bool bHit = UpdateBrushPositionOnSculptMesh(WorldRay, true);
 	if (bHit == false)
 	{
-		return;
+		return false;
 	}
 
 	static const double PlaneSigns[3] = { 0, -1, 1 };
@@ -960,19 +1018,17 @@ void UDynamicMeshSculptTool::ApplyFlattenBrush(const FRay& WorldRay)
 		ROIPositionBuffer[k] = NewPos;
 	});
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
-
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplyInflateBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyInflateBrush(const FRay& WorldRay)
 {
 	bool bHit = UpdateBrushPositionOnSculptMesh(WorldRay, true);
 	if (bHit == false)
 	{
-		return;
+		return false;
 	}
 
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
@@ -1006,14 +1062,13 @@ void UDynamicMeshSculptTool::ApplyInflateBrush(const FRay& WorldRay)
 		ROIPositionBuffer[k] = NewPos;
 	});
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
 
-void UDynamicMeshSculptTool::ApplyResampleBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyResampleBrush(const FRay& WorldRay)
 {
 	UpdateBrushPositionOnTargetMesh(WorldRay, true);
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
@@ -1026,29 +1081,16 @@ void UDynamicMeshSculptTool::ApplyResampleBrush(const FRay& WorldRay)
 	ROIPositionBuffer.SetNum(NumV, false);
 	ParallelFor(NumV, [&](int k)
 	{
-		int VertIdx = VertexROI[k];
-		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
-
-		FVector3d BasePos, BaseNormal;
-		if (GetTargetMeshNearest(OrigPos, (double)(4 * CurrentBrushRadius), BasePos, BaseNormal) == false)
-		{
-			ROIPositionBuffer[k] = OrigPos;
-		}
-		else
-		{
-			double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
-			FVector3d NewPos = BasePos;// FVector3d::Lerp(OrigPos, BasePos, Falloff);
-			ROIPositionBuffer[k] = NewPos;
-		}
+		ROIPositionBuffer[k] = Mesh->GetVertex(VertexROI[k]);
 	});
 
-	SyncMeshWithPositionBuffer(Mesh);
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
 
-void UDynamicMeshSculptTool::ApplyPullKelvinBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyPullKelvinBrush(const FRay& WorldRay)
 {
 	UpdateBrushPositionOnActivePlane(WorldRay);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
@@ -1058,7 +1100,7 @@ void UDynamicMeshSculptTool::ApplyPullKelvinBrush(const FRay& WorldRay)
 	if (MoveVec.SquaredLength() <= 0)
 	{
 		LastBrushPosLocal = NewBrushPosLocal;
-		return;
+		return false;
 	}
 	
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
@@ -1069,20 +1111,18 @@ void UDynamicMeshSculptTool::ApplyPullKelvinBrush(const FRay& WorldRay)
 	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(KelvinMode, *KelvinBrushProperties, *BrushProperties);
 	KelvinletBrushOpProperties.Direction = FVector(MoveVec.X, MoveVec.Y, MoveVec.Z);  //FVector(BrushNormalLocal.X, BrushNormalLocal.Y, BrushNormalLocal.Z);
 	KelvinletBrushOpProperties.Size *= 0.6;
-	
 
 	FMatrix ToBrush; ToBrush.SetIdentity();  ToBrush.SetOrigin(-FVector(NewBrushPosLocal.X, NewBrushPosLocal.Y, NewBrushPosLocal.Z)); //  ToBrush.
 
 	KelvinBrushOp.ApplyBrush(KelvinletBrushOpProperties, ToBrush, VertexROI, ROIPositionBuffer);
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
 
-void UDynamicMeshSculptTool::ApplyPullSharpKelvinBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyPullSharpKelvinBrush(const FRay& WorldRay)
 {
 	UpdateBrushPositionOnActivePlane(WorldRay);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
@@ -1092,7 +1132,7 @@ void UDynamicMeshSculptTool::ApplyPullSharpKelvinBrush(const FRay& WorldRay)
 	if (MoveVec.SquaredLength() <= 0)
 	{
 		LastBrushPosLocal = NewBrushPosLocal;
-		return;
+		return false;
 	}
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
@@ -1104,32 +1144,27 @@ void UDynamicMeshSculptTool::ApplyPullSharpKelvinBrush(const FRay& WorldRay)
 	KelvinletBrushOpProperties.Direction = FVector(MoveVec.X, MoveVec.Y, MoveVec.Z);  //FVector(BrushNormalLocal.X, BrushNormalLocal.Y, BrushNormalLocal.Z);
 	KelvinletBrushOpProperties.Size *= 0.6;
 
-
 	FMatrix ToBrush; ToBrush.SetIdentity();  ToBrush.SetOrigin(-FVector(NewBrushPosLocal.X, NewBrushPosLocal.Y, NewBrushPosLocal.Z)); //  ToBrush.
 
 	KelvinBrushOp.ApplyBrush(KelvinletBrushOpProperties, ToBrush, VertexROI, ROIPositionBuffer);
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplyTwistKelvinBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyTwistKelvinBrush(const FRay& WorldRay)
 {
 	UpdateBrushPositionOnTargetMesh(WorldRay, true);
 	
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	
-
-
 	double Direction = (bInvert) ? -1.0 : 1.0;
 	double UseSpeed  = Direction * FMathd::Sqrt(CurrentBrushRadius) * (SculptProperties->PrimaryBrushSpeed) * ActivePressure;
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FKelvinletBrushOp KelvinBrushOp(*Mesh);
-
 
 	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(EKelvinletBrushMode::TwistKelvinlet, *KelvinBrushProperties, *BrushProperties);
 	KelvinletBrushOpProperties.Direction = UseSpeed * FVector(BrushNormalLocal.X, BrushNormalLocal.Y, BrushNormalLocal.Z); // twist about local normal
@@ -1139,27 +1174,24 @@ void UDynamicMeshSculptTool::ApplyTwistKelvinBrush(const FRay& WorldRay)
 
 	KelvinBrushOp.ApplyBrush(KelvinletBrushOpProperties, ToBrush, VertexROI, ROIPositionBuffer);
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
-void UDynamicMeshSculptTool::ApplyScaleKelvinBrush(const FRay& WorldRay)
+bool UDynamicMeshSculptTool::ApplyScaleKelvinBrush(const FRay& WorldRay)
 {
 	UpdateBrushPositionOnSculptMesh(WorldRay, true);
 
 	FVector3d NewBrushPosLocal = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
 	FVector3d BrushNormalLocal = CurTargetTransform.InverseTransformNormal(LastBrushPosNormalWorld);
 	FVector3d OffsetBrushPosLocal = NewBrushPosLocal - BrushProperties->Depth * CurrentBrushRadius * BrushNormalLocal;
-	
 
 	double Direction = (bInvert) ? -1.0 : 1.0;
 	double UseSpeed = Direction * FMath::Sqrt(CurrentBrushRadius) * SculptProperties->PrimaryBrushSpeed * 0.025 * ActivePressure; ; 
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FKelvinletBrushOp KelvinBrushOp(*Mesh);
-
 
 	FKelvinletBrushOp::FKelvinletBrushOpProperties  KelvinletBrushOpProperties(EKelvinletBrushMode::ScaleKelvinlet, *KelvinBrushProperties, *BrushProperties);
 	KelvinletBrushOpProperties.Direction = FVector(UseSpeed, 0., 0.); // it is a bit iffy, but we only use the first component for the scale
@@ -1169,10 +1201,9 @@ void UDynamicMeshSculptTool::ApplyScaleKelvinBrush(const FRay& WorldRay)
 
 	KelvinBrushOp.ApplyBrush(KelvinletBrushOpProperties, ToBrush, VertexROI, ROIPositionBuffer);
 
-	// Update the mesh positions to match those in the position buffer
-	SyncMeshWithPositionBuffer(Mesh);
 	ScheduleRemeshPass();
 	LastBrushPosLocal = NewBrushPosLocal;
+	return true;
 }
 
 int UDynamicMeshSculptTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
@@ -1375,6 +1406,12 @@ void UDynamicMeshSculptTool::OnEndDrag(const FRay& Ray)
 
 	// close change record
 	EndChange();
+
+	// destroy active remesher. Should we do this every stroke?? need to do it on undo/redo...
+	if (ActiveRemesher)
+	{
+		ActiveRemesher = nullptr;
+	}
 }
 
 
@@ -1437,17 +1474,16 @@ void UDynamicMeshSculptTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UDynamicMeshSculptTool::OnTick(float DeltaTime)
 {
-	SCOPE_CYCLE_COUNTER(STAT_SculptToolTick);
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_OnTick);
 
 	ActivePressure = GetCurrentDevicePressure();
 
-	// Allow a tick to pass between application of brush stamps. Bizarrely this
-	// improves responsiveness in the Editor...
-	static int TICK_SKIP_HACK = 0;
-	if (TICK_SKIP_HACK++ % 2 == 0)
-	{
-		return;
-	}
+	// Allow a tick to pass between application of brush stamps. Bizarrely this improves responsiveness in the Editor...
+	//static int TICK_SKIP_HACK = 0;
+	//if (TICK_SKIP_HACK++ % 2 == 0)
+	//{
+	//	return;
+	//}
 
 	ShowWireframeWatcher.CheckAndUpdate();
 	MaterialModeWatcher.CheckAndUpdate();
@@ -1491,15 +1527,38 @@ void UDynamicMeshSculptTool::OnTick(float DeltaTime)
 	bool bROIUpdatePending = false;
 	bool bOctreeUpdatePending = false;
 
+
+	TFuture<void> InitializeRemesher;
 	if (bStampPending)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_SculptTool_Tick_ApplyStampBlock);
+		// if we don't have an active remesher for this brush stroke, create one
+		if (ActiveRemesher == nullptr)
+		{
+			InitializeRemesher = Async(DynamicSculptToolAsyncExecTarget, [&]()
+			{
+				InitializeActiveRemesher();
+			});
+		}
 
-		SCOPE_CYCLE_COUNTER(SculptTool_Tick_ApplyStamp_Remove);
-		Octree->NotifyPendingModification(TriangleROI);		// to mark initial positions
+		// initialize ROI for current brush position
+		// TODO: does this break move brush??
+		UpdateBrushPosition(PendingStampRay);
+		FVector3d BrushPos = CurTargetTransform.InverseTransformPosition(LastBrushPosWorld);
+		UpdateROI(BrushPos);
 
+
+		// once we know ROI we can speculatively start initializing remesh ROI
+		TFuture<void> PrecomputeRemeshROI = Async(DynamicSculptToolAsyncExecTarget, [&]()
+		{
+			// make sure our remesher is initialized
+			InitializeRemesher.Wait();
+			// initialize the ROI
+			PrecomputeRemesherROI();
+		});
+
+		// apply brush stamp to ROI
 		ApplyStamp(PendingStampRay);
-		bStampPending = false;
+		bStampPending = (bInDrag) ? true : false;
 
 		bNormalUpdatePending = true;
 		bROIUpdatePending = true;
@@ -1507,66 +1566,61 @@ void UDynamicMeshSculptTool::OnTick(float DeltaTime)
 		bMeshShapeModified = true;
 		bOctreeUpdatePending = true;
 
-		// flow
-		if (bInDrag)
+		if (bRemeshPending)
 		{
-			bStampPending = true;
+			check(bInDrag == true);    // this would break undo otherwise!
+
+			// make sure our remesher is initialized
+			InitializeRemesher.Wait();
+			// make sure our ROI is computed
+			PrecomputeRemeshROI.Wait();
+
+			// remesh the ROI (this removes all ROI triangles from octree)
+			if (ActiveRemesher)
+			{
+				RemeshROIPass_ActiveRemesher(true);
+			}
+			else
+			{
+				check(false);		// broken now
+				RemeshROIPass();
+			}
+
+			// accumulate new triangles into TriangleROI
+			for (int32 tid : RemeshFinalTriangleROI)
+			{
+				TriangleROI.Add(tid);
+			}
+
+			bMeshModified = true;
+			bMeshShapeModified = true;
+			bRemeshPending = false;
+			bNormalUpdatePending = true;
+			bROIUpdatePending = true;
+			bOctreeUpdatePending = true;
+			bHaveRemeshed = true;
 		}
-
-		SCOPE_CYCLE_COUNTER(SculptTool_Tick_ApplyStamp_Insert);
-
-		//UpdateOctreeFuture = Async(DynamicSculptToolAsyncExecTarget, [&]() {
-		//	Octree->ReinsertTriangles(TriangleROI);
-		//});
 	}
+	check(bRemeshPending == false);		// should never happen...
 
-	//UpdateOctreeFuture.Wait();
-
-	if (bRemeshPending)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SculptTool_Tick_RemeshBlock);
-
-		check(bInDrag == true);    // this would break undo otherwise!
-
-		// only removes from octree
-		RemeshROIPass();
-
-		// accumulate new triangles into TriangleROI
-		for (int32 tid : RemeshFinalTriangleROI)
-		{
-			TriangleROI.Add(tid);
-		}
-
-		bMeshModified = true;
-		bMeshShapeModified = true;
-		bRemeshPending = false;
-		bNormalUpdatePending = true;
-		bROIUpdatePending = true;
-		bOctreeUpdatePending = true;
-		bHaveRemeshed = true;
-	}
-
-
-	// launch octree update
+	// launch octree update that inserts/reinserts all triangles in TriangleROI
 	TFuture<void> UpdateOctreeFuture;
 	if (bOctreeUpdatePending)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_SculptTool_Remesh_Finish);
 		// reinsert new ROI into octree
 		UpdateOctreeFuture = Async(DynamicSculptToolAsyncExecTarget, [&]() {
+			TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_OctreeReinsert);
 			Octree->ReinsertTriangles(TriangleROI);
 			//Octree->CheckValidity(EValidityCheckFailMode::Check, false, true);
 		});
 		bOctreeUpdatePending = false;
 	}
 
-	//UpdateOctreeFuture.Wait();
-
 	//Octree->CheckValidity(EValidityCheckFailMode::Check, false, true);
 
 	if (bNormalUpdatePending)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_SculptTool_Tick_NormalsBlock);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateNormals);
 
 		if (Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals() != nullptr)
 		{
@@ -1583,36 +1637,23 @@ void UDynamicMeshSculptTool::OnTick(float DeltaTime)
 	// next steps need to wait for octree update to finish
 	UpdateOctreeFuture.Wait();
 
-	TFuture<void> ROIUpdateFuture;
-	if (bROIUpdatePending)
-	{
-		ROIUpdateFuture = Async(DynamicSculptToolAsyncExecTarget, [&]() 
-		{
-			UpdateROI(LastBrushPosLocal);
-		});
-		bROIUpdatePending = false;
-	}
-
 	// launch async target update task
 	if (bTargetDirty)
 	{
-		UpdateTarget();		// TODO: does this make sense to do as a full mesh copy??
+		UpdateTarget();
 		bTargetDirty = false;
 	}
 
+	// update render data
 	if (bMeshModified)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_SculptTool_Tick_UpdateMeshBlock);
-
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateRenderMesh);
 		DynamicMeshComponent->NotifyMeshUpdated();
 		GetToolManager()->PostInvalidation();
 
 		bMeshModified = false;
 	}
 
-
-	// wait for ROI update to complete (can defer but it will immediately happen on hover...)
-	ROIUpdateFuture.Wait();
 }
 
 void UDynamicMeshSculptTool::PrecomputeRemeshInfo()
@@ -1652,6 +1693,31 @@ void UDynamicMeshSculptTool::ScheduleRemeshPass()
 		bRemeshPending = true;
 	}
 }
+
+
+
+
+
+
+/**
+ * This is an internal class we will use to just hold onto a FSubRegionRemesher instance
+ * between brush stamps. Perhaps does not need to exist.
+ */
+class FPersistentStampRemesher
+{
+public:
+	FDynamicMesh3* Mesh;
+	TUniquePtr<FSubRegionRemesher> Remesher;
+
+	FPersistentStampRemesher(FDynamicMesh3* MeshIn)
+	{
+		this->Mesh = MeshIn;
+		Remesher = MakeUnique<FSubRegionRemesher>(MeshIn);
+	}
+};
+
+
+
 
 /*
         Split	Collapse	Vertices Pinned	Flip
@@ -1727,23 +1793,10 @@ void UDynamicMeshSculptTool::ConfigureRemesher(FSubRegionRemesher& Remesher)
 	Remesher.bEnableSplits = RemeshProperties->bSplits;
 	Remesher.bPreventNormalFlips = RemeshProperties->bPreventNormalFlips;
 
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SculptTool_Remesh_Setup);
-		for (int VertIdx : VertexROI)
-		{
-			Remesher.VertexROI.Add(VertIdx);
-		}
-		Remesher.InitializeFromVertexROI();
-		Remesher.UpdateROI();	// required to use roi in constraints fn below
-	}
-
 	FMeshConstraints Constraints;
 	bool bConstraintAllowSplits = true;
 	{
-		SCOPE_CYCLE_COUNTER(STAT_SculptTool_Remesh_Constraints);
-
-		// TODO: only constrain in ROI. This is quite difficult to do externally because we need to update based on
-		// the changing triangle set in Remesher. Perhaps FSubRegionRemesher should update the constraints itself?
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_Configure_Constraints);
 
 		FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(Constraints, *Mesh,
 															 (EEdgeRefineFlags)RemeshProperties->MeshBoundaryConstraint,
@@ -1755,13 +1808,122 @@ void UDynamicMeshSculptTool::ConfigureRemesher(FSubRegionRemesher& Remesher)
 	}
 }
 
+
+void UDynamicMeshSculptTool::InitializeRemesherROI(FSubRegionRemesher& Remesher)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_Configure_InitializeROI);
+	Remesher.SetInitialVertexROI(this->VertexROI);
+	Remesher.InitializeFromVertexROI();
+}
+
+
+
+void UDynamicMeshSculptTool::InitializeActiveRemesher()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_InitializeActiveRemesher);
+
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	ActiveRemesher = MakeShared<FPersistentStampRemesher>(Mesh);
+	ConfigureRemesher(* ActiveRemesher->Remesher);
+}
+
+void UDynamicMeshSculptTool::PrecomputeRemesherROI()
+{
+	FSubRegionRemesher& Remesher = *ActiveRemesher->Remesher;
+	Remesher.Reset();
+	InitializeRemesherROI(Remesher);
+}
+
+
+void UDynamicMeshSculptTool::RemeshROIPass_ActiveRemesher(bool bHasPrecomputedROI)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROIActive);
+
+	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
+	FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
+
+	FSubRegionRemesher& Remesher = *ActiveRemesher->Remesher;
+	
+	if (bHasPrecomputedROI == false)
+	{
+		PrecomputeRemesherROI();
+	}
+
+	// remove initial triangles
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_CopyROIStep);
+		RemeshRemovedTriangles = Remesher.GetCurrentTriangleROI();
+	}
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_OctreeRemoveStep);
+		Octree->RemoveTriangles(RemeshRemovedTriangles, true);
+	}
+
+	if (ActiveMeshChange != nullptr)
+	{
+		Remesher.SetMeshChangeTracker(ActiveMeshChange);
+	}
+
+	bool bIsUniformSmooth = (Remesher.SmoothType == FRemesher::ESmoothTypes::Uniform);
+	for (int k = 0; k < RemeshProperties->Iterations; ++k)
+	{
+		if ((bIsUniformSmooth == false) && (k > 1))
+		{
+			Remesher.bEnableFlips = false;
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_UpdateStep);
+
+			Remesher.UpdateROI();
+
+			if (ActiveMeshChange != nullptr)
+			{
+				// [TODO] would like to only save vertices here, as triangles will be saved by Remesher as necessary.
+				// However currently FDynamicMeshChangeTracker cannot independently save vertices, only vertices 
+				// that are part of saved triangles will be included in the output FDynamicMeshChange
+				Remesher.SaveActiveROI(ActiveMeshChange);
+				//ActiveMeshChange->VerifySaveState();    // useful for debugging
+			}
+
+			Remesher.BeginTrackRemovedTrisInPass();
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_RemeshStep);
+			Remesher.BasicRemeshPass();
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_OctreeStep);
+			const TSet<int32>& TrisRemovedInPass = Remesher.EndTrackRemovedTrisInPass();
+			Octree->RemoveTriangles(TrisRemovedInPass);
+			for (int32 tid : TrisRemovedInPass)
+			{
+				RemeshRemovedTriangles.Add(tid);
+			}
+		}
+	}
+	//UE_LOG(LogTemp, Warning, TEXT("Triangle Count %d after update"), Mesh->TriangleCount());
+
+	RemeshFinalTriangleROI = Remesher.ExtractFinalTriangleROI();
+}
+
+
+
 void UDynamicMeshSculptTool::RemeshROIPass()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI);
+
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
 
 	FSubRegionRemesher Remesher(Mesh);
-	ConfigureRemesher(Remesher);
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_Configure);
+		ConfigureRemesher(Remesher);
+		InitializeRemesherROI(Remesher);
+	}
 
 	// remove initial triangles
 	RemeshRemovedTriangles = Remesher.GetCurrentTriangleROI();
@@ -1781,7 +1943,7 @@ void UDynamicMeshSculptTool::RemeshROIPass()
 		}
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_SculptTool_Remesh_RemeshROIUpdate);
+			TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_UpdateStep);
 
 			Remesher.UpdateROI();
 
@@ -1798,12 +1960,11 @@ void UDynamicMeshSculptTool::RemeshROIPass()
 		}
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_SculptTool_Remesh_RemeshPass);
+			TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_RemeshROI_RemeshStep);
 			Remesher.BasicRemeshPass();
 		}
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_SculptTool_Remesh_PassOctreeUpdate);
 			const TSet<int32>& TrisRemovedInPass = Remesher.EndTrackRemovedTrisInPass();
 			Octree->RemoveTriangles(TrisRemovedInPass);
 			for (int32 tid : TrisRemovedInPass)
@@ -1820,7 +1981,6 @@ void UDynamicMeshSculptTool::RemeshROIPass()
 void UDynamicMeshSculptTool::RecalculateNormals_PerVertex(const TSet<int32>& Triangles)
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	//FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
 
 	int MaxVertexID = Mesh->MaxVertexID();
 	if (NormalsVertexFlags.Num() < MaxVertexID)
@@ -1829,11 +1989,6 @@ void UDynamicMeshSculptTool::RecalculateNormals_PerVertex(const TSet<int32>& Tri
 	}
 
 	{
-		SCOPE_CYCLE_COUNTER(SculptTool_Normals_Collect);
-
-		//TrianglesBuffer.Reset();
-		//Octree->RangeQuery(Octree->ModifiedBounds, TrianglesBuffer);
-
 		NormalsBuffer.Reset();
 		for (int TriangleID : Triangles)
 		{
@@ -1853,11 +2008,7 @@ void UDynamicMeshSculptTool::RecalculateNormals_PerVertex(const TSet<int32>& Tri
 		}
 	}
 
-	//UE_LOG(LogTemp, Warning, TEXT("Computing %d normals"), NormalsBuffer.Num());
-
 	{
-		SCOPE_CYCLE_COUNTER(SculptTool_Normals_Compute);
-
 		ParallelFor(NormalsBuffer.Num(), [&](int k) {
 			int vid = NormalsBuffer[k];
 			FVector3d NewNormal = FMeshNormals::ComputeVertexNormal(*Mesh, vid);
@@ -1870,7 +2021,6 @@ void UDynamicMeshSculptTool::RecalculateNormals_PerVertex(const TSet<int32>& Tri
 void UDynamicMeshSculptTool::RecalculateNormals_Overlay(const TSet<int32>& Triangles)
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
-	//FDynamicMeshOctree3* Octree = DynamicMeshComponent->GetOctree();
 	FDynamicMeshNormalOverlay* Normals = Mesh->HasAttributes() ? Mesh->Attributes()->PrimaryNormals() : nullptr;
 	check(Normals != nullptr);
 
@@ -1880,13 +2030,7 @@ void UDynamicMeshSculptTool::RecalculateNormals_Overlay(const TSet<int32>& Trian
 		NormalsVertexFlags.Init(false, MaxElementID * 2);
 	}
 
-
 	{
-		SCOPE_CYCLE_COUNTER(SculptTool_Normals_Collect);
-
-		//TrianglesBuffer.Reset();
-		//Octree->RangeQuery(Octree->ModifiedBounds, TrianglesBuffer);
-
 		NormalsBuffer.Reset();
 		for (int TriangleID : Triangles)
 		{
@@ -1906,11 +2050,7 @@ void UDynamicMeshSculptTool::RecalculateNormals_Overlay(const TSet<int32>& Trian
 		}
 	}
 
-	//UE_LOG(LogTemp, Warning, TEXT("Computing %d normals"), NormalsBuffer.Num());
-
 	{
-		SCOPE_CYCLE_COUNTER(SculptTool_Normals_Compute);
-
 		ParallelFor(NormalsBuffer.Num(), [&](int k) {
 			int elemid = NormalsBuffer[k];
 			FVector3d NewNormal = FMeshNormals::ComputeOverlayNormal(*Mesh, Normals, elemid);
@@ -1918,8 +2058,8 @@ void UDynamicMeshSculptTool::RecalculateNormals_Overlay(const TSet<int32>& Trian
 			NormalsVertexFlags[elemid] = false;
 		});
 	}
-
 }
+
 
 void UDynamicMeshSculptTool::UpdateTarget()
 {
@@ -1935,12 +2075,15 @@ void UDynamicMeshSculptTool::UpdateTarget()
 	// TODO: could have a second set of target meshes, and swap between them while we update the other one
 	PendingTargetUpdate = Async(DynamicSculptToolAsyncExecTarget, [this]()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateTarget);
 		BrushTargetMesh.Copy(*DynamicMeshComponent->GetMesh(), false, false, false, false);
 
 		TFuture<void> TargetSpatialUpdate = Async(DynamicSculptToolAsyncExecTarget, [this]() {
+			TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateTarget_Spatial);
 			BrushTargetMeshSpatial.SetMesh(&BrushTargetMesh, true);
 		});
 		TFuture<void> TargetNormalsUpdate = Async(DynamicSculptToolAsyncExecTarget, [this]() {
+			TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateTarget_Normals);
 			BrushTargetNormals.SetMesh(&BrushTargetMesh);
 			BrushTargetNormals.ComputeVertexNormals();
 		});
@@ -2265,15 +2408,6 @@ void UDynamicMeshSculptTool::SaveActiveROI()
 	}
 }
 
-void UDynamicMeshSculptTool::UpdateSavedVertex(int vid, const FVector3d& OldPosition, const FVector3d& NewPosition)
-{
-	if (ActiveVertexChange != nullptr)
-	{
-		UpdateSavedVertexLock.Lock();
-		ActiveVertexChange->UpdateVertex(vid, OldPosition, NewPosition);
-		UpdateSavedVertexLock.Unlock();
-	}
-}
 
 void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes MaterialMode)
 {

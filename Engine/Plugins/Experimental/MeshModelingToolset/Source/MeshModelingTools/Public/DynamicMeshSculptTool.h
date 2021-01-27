@@ -20,35 +20,18 @@
 #include "TransformTypes.h"
 #include "Sculpting/MeshSculptToolBase.h"
 #include "Async/Async.h"
+#include "Util/UniqueIndexSet.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 class UTransformGizmo;
 class UTransformProxy;
 class UMaterialInstanceDynamic;
 
-DECLARE_STATS_GROUP(TEXT("SculptTool"), STATGROUP_SculptTool, STATCAT_Advanced);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_UpdateROI"), SculptTool_UpdateROI, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_ApplyStamp"), STAT_SculptToolApplyStamp, STATGROUP_SculptTool );
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Tick"), STAT_SculptToolTick, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Tick_ApplyStampBlock"), STAT_SculptTool_Tick_ApplyStampBlock, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Tick_ApplyStamp_Remove"), SculptTool_Tick_ApplyStamp_Remove, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Tick_ApplyStamp_Insert"), SculptTool_Tick_ApplyStamp_Insert, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Tick_RemeshBlock"), STAT_SculptTool_Tick_RemeshBlock, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Tick_NormalsBlock"), STAT_SculptTool_Tick_NormalsBlock, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Tick_UpdateMeshBlock"), STAT_SculptTool_Tick_UpdateMeshBlock, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Normals_Collect"), SculptTool_Normals_Collect, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Normals_Compute"), SculptTool_Normals_Compute, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_1Setup"), STAT_SculptTool_Remesh_Setup, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_2Constraints"), STAT_SculptTool_Remesh_Constraints, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_3RemeshROIUpdate"), STAT_SculptTool_Remesh_RemeshROIUpdate, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_4RemeshPass"), STAT_SculptTool_Remesh_RemeshPass, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_5PassOctreeUpdate"), STAT_SculptTool_Remesh_PassOctreeUpdate, STATGROUP_SculptTool);
-DECLARE_CYCLE_STAT(TEXT("SculptTool_Remesh_6Finish"), STAT_SculptTool_Remesh_Finish, STATGROUP_SculptTool);
-
 class FMeshVertexChangeBuilder;
 class FDynamicMeshChangeTracker;
 class UPreviewMesh;
 class FSubRegionRemesher;
+class FPersistentStampRemesher;
 
 /** Mesh Sculpting Brush Types */
 UENUM()
@@ -198,6 +181,9 @@ public:
 	/** Control the amount of simplification during sculpting. Higher values will avoid wiping out fine details on the mesh. */
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0", UIMax = "5", ClampMin = "0", ClampMax = "5", DisplayPriority = 3))
 	int PreserveDetail = 0;
+
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
+	int Iterations = 5;
 };
 
 
@@ -358,7 +344,14 @@ private:
 	bool bEnableRemeshing;
 	double InitialEdgeLength;
 	void ScheduleRemeshPass();
-	void ConfigureRemesher(FSubRegionRemesher&);
+	void ConfigureRemesher(FSubRegionRemesher& Remesher);
+	void InitializeRemesherROI(FSubRegionRemesher& Remesher);
+
+	TSharedPtr<FPersistentStampRemesher> ActiveRemesher;
+	void InitializeActiveRemesher();
+	void PrecomputeRemesherROI();
+	void RemeshROIPass_ActiveRemesher(bool bHasPrecomputedROI);
+
 
 	bool bInDrag;
 
@@ -372,9 +365,12 @@ private:
 	FVector3d LastSmoothBrushPosLocal;
 	int32 LastBrushTriangleID = -1;
 
+	TArray<int> UpdateROITriBuffer;
+	FUniqueIndexSet VertexROIBuilder;
 	TArray<int> VertexROI;
-	TSet<int> VertexSetBuffer;
+	FUniqueIndexSet TriangleROIBuilder;
 	TSet<int> TriangleROI;
+	//TSet<int> TriangleROI;
 	void UpdateROI(const FVector3d& BrushPos);
 
 	bool bRemeshPending;
@@ -412,20 +408,20 @@ private:
 	bool UpdateBrushPositionOnSculptMesh(const FRay& WorldRay, bool bFallbackToViewPlane);
 	void AlignBrushToView();
 
-	void ApplySmoothBrush(const FRay& WorldRay);
-	void ApplyMoveBrush(const FRay& WorldRay);
-	void ApplyOffsetBrush(const FRay& WorldRay, bool bUseViewDirection);
-	void ApplySculptMaxBrush(const FRay& WorldRay);
-	void ApplyPinchBrush(const FRay& WorldRay);
-	void ApplyInflateBrush(const FRay& WorldRay);
-	void ApplyPlaneBrush(const FRay& WorldRay);
-	void ApplyFixedPlaneBrush(const FRay& WorldRay);
-	void ApplyFlattenBrush(const FRay& WorldRay);
-	void ApplyResampleBrush(const FRay& WorldRay);
-	void ApplyPullKelvinBrush(const FRay& WorldRay);
-	void ApplyPullSharpKelvinBrush(const FRay& WorldRay);
-	void ApplyTwistKelvinBrush(const FRay& WorldRay);
-	void ApplyScaleKelvinBrush(const FRay& WorldRay);
+	bool ApplySmoothBrush(const FRay& WorldRay);
+	bool ApplyMoveBrush(const FRay& WorldRay);
+	bool ApplyOffsetBrush(const FRay& WorldRay, bool bUseViewDirection);
+	bool ApplySculptMaxBrush(const FRay& WorldRay);
+	bool ApplyPinchBrush(const FRay& WorldRay);
+	bool ApplyInflateBrush(const FRay& WorldRay);
+	bool ApplyPlaneBrush(const FRay& WorldRay);
+	bool ApplyFixedPlaneBrush(const FRay& WorldRay);
+	bool ApplyFlattenBrush(const FRay& WorldRay);
+	bool ApplyResampleBrush(const FRay& WorldRay);
+	bool ApplyPullKelvinBrush(const FRay& WorldRay);
+	bool ApplyPullSharpKelvinBrush(const FRay& WorldRay);
+	bool ApplyTwistKelvinBrush(const FRay& WorldRay);
+	bool ApplyScaleKelvinBrush(const FRay& WorldRay);
 
 	double SculptMaxFixedHeight = -1.0;
 
@@ -436,7 +432,6 @@ private:
 	FFrame3d ActiveFixedBrushPlane;
 	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth, bool bViewAligned);
 
-	TArray<int> TrianglesBuffer;
 	TArray<int> NormalsBuffer;
 	TArray<bool> NormalsVertexFlags;
 	void RecalculateNormals_PerVertex(const TSet<int32>& Triangles);
@@ -455,9 +450,6 @@ private:
 	void BeginChange(bool bIsVertexChange);
 	void EndChange();
 	void SaveActiveROI();
-
-	void UpdateSavedVertex(int vid, const FVector3d& OldPosition, const FVector3d& NewPosition);
-	FCriticalSection UpdateSavedVertexLock;
 
 	double EstimateIntialSafeTargetLength(const FDynamicMesh3& Mesh, int MinTargetTriCount);
 
