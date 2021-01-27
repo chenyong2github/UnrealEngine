@@ -547,7 +547,9 @@ void CreatePageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : SV
 
 		// Don't kill the last mip. It may be forced on.
 		if( Level == VSM_MAX_MIP_LEVELS - 1 )
+		{
 			bIsAllCovered = false;
+		}
 		
 		CreatePageMapping( ShadowMapID, Level, vPage, PageOffset, Flag && !bIsAllCovered );
 		

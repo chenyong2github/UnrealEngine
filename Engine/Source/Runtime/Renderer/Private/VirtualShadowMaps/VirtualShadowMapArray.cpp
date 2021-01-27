@@ -711,9 +711,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 					if( ClipmapLevel == 0 )
 					{
-					DirectionalLightSmInds.Add(ID);
+						DirectionalLightSmInds.Add(ID);
+					}
 				}
-			}
 			}
 
 			for (FProjectedShadowInfo* ProjectedShadowInfo : VisibleLightInfo.AllProjectedShadows)

@@ -107,7 +107,7 @@ bool ShadowRayCastDirectional(
 
 		if (bValid)
 		{
-			const float SampleDepth = ToBaseDepthScale * asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0))) + ToBaseDepthBias;
+			const float SampleDepth = ToBaseDepthScale * SampleVirtualSmPhysicalDepth(PhysicalTexelAddress) + ToBaseDepthBias;
 			const float ReferenceDepth = SampleTexelsZ.z;
 			if (DepthHistory < 0)
 			{

@@ -4348,7 +4348,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 			static_assert(INDEX_NONE == -1, "INDEX_NONE != -1!");
 
-			float MaxShadowCascadeDistance = 0.0f;
 #if ENABLE_NON_NANITE_VSM
 			float MaxNonFarCascadeDistance = 0.0f;
 #endif // ENABLE_NON_NANITE_VSM
@@ -4368,7 +4367,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 				if (LightSceneInfo.Proxy->GetViewDependentWholeSceneProjectedShadowInitializer(View, LocalIndex, LightSceneInfo.IsPrecomputedLightingValid(), ProjectedShadowInitializer))
 				{
-					MaxShadowCascadeDistance = FMath::Max(MaxShadowCascadeDistance, ProjectedShadowInitializer.CascadeSettings.SplitFar);
 #if ENABLE_NON_NANITE_VSM
 					if (!ProjectedShadowInitializer.CascadeSettings.bFarShadowCascade)
 					{
@@ -4417,7 +4415,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 					ShadowInfos.Add(ProjectedShadowInfo);
 
-					if (bNeedsVirtualShadowMap)
+					if (bNeedsVirtualShadowMap && !ProjectedShadowInitializer.bRayTracedDistanceField)
 					{
 						// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
 						ProjectedShadowInfo->bNaniteGeometry = false;
@@ -4457,7 +4455,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 				}
 			}
 
-			if (bNeedsVirtualShadowMap && MaxShadowCascadeDistance > 0.0f)
+			if (bNeedsVirtualShadowMap)
 			{
 				FMatrix WorldToLight = FInverseRotationMatrix(LightSceneInfo.Proxy->GetDirection().GetSafeNormal().Rotation());
 
@@ -4467,8 +4465,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					LightSceneInfo,
 					WorldToLight,
 					View.ViewMatrices,
-					View.ViewRect.Size(),
-					MaxShadowCascadeDistance
+					View.ViewRect.Size()
 				));
 
 				// TODO: Not clear we need both of these in this path, but keep it consistent for now

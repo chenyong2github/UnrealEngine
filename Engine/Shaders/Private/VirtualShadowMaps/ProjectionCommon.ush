@@ -84,6 +84,18 @@ FVirtualSmSample InitVirtualSmSample()
 	return Result;
 }
 
+float SampleVirtualSmPhysicalDepth(uint2 PhysicalTexelAddress)
+{
+#if ENABLE_NON_NANITE_VSM
+	return max(
+		asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0))),
+		PhysicalPagePoolHw.Load(int3(PhysicalTexelAddress, 0))
+	);
+#else //!ENABLE_NON_NANITE_VSM
+	return asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0)));
+#endif // ENABLE_NON_NANITE_VSM
+}
+
 FVirtualSmSample SampleVirtualSmLevel(int VirtualShadowMapId, float2 ShadowMapUV, uint VSMLevel)
 {
 	FVirtualSmSample Result = InitVirtualSmSample();
@@ -91,19 +103,10 @@ FVirtualSmSample SampleVirtualSmLevel(int VirtualShadowMapId, float2 ShadowMapUV
 	Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(VSMLevel));
 	Result.VirtualTexelAddress = uint2(Result.VirtualTexelAddressFloat);
 
-	// Page map to physical address
-	uint2 PhysicalTexelAddress = uint2(0, 0);
 	bool PagePresent = VirtualToPhysicalTexel(VirtualShadowMapId, VSMLevel, Result.VirtualTexelAddress, Result.PhysicalTexelAddress);
 	if (PagePresent)
 	{
-#if ENABLE_NON_NANITE_VSM
-		Result.Depth = max(
-			asfloat(PhysicalPagePool.Load(int3(Result.PhysicalTexelAddress, 0))),
-			PhysicalPagePoolHw.Load(int3(Result.PhysicalTexelAddress, 0))
-		);
-#else //!ENABLE_NON_NANITE_VSM
-		Result.Depth = asfloat(PhysicalPagePool.Load(int3(Result.PhysicalTexelAddress, 0)));
-#endif // ENABLE_NON_NANITE_VSM
+		Result.Depth = SampleVirtualSmPhysicalDepth(Result.PhysicalTexelAddress);
 		Result.MipLevel = VSMLevel;
 		Result.bValid = true;
 	}
@@ -122,7 +125,7 @@ FVirtualSmSample SampleVirtualSm(int VirtualShadowMapId, float2 ShadowMapUV)
 		Result.VirtualTexelAddress = Page.VirtualTexelAddress;
 		Result.VirtualTexelAddressFloat = Page.VirtualTexelAddressFloat;
 		Result.PhysicalTexelAddress = Page.PhysicalTexelAddress;
-		Result.Depth = asfloat(PhysicalPagePool.Load(int3(Result.PhysicalTexelAddress, 0)));
+		Result.Depth = SampleVirtualSmPhysicalDepth(Result.PhysicalTexelAddress);
 		return Result;
 	}
 

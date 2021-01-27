@@ -31,6 +31,8 @@ bool ShadowRayCastSpotlight(
 	float3 RayEnd,
 	int NumSteps,
 	float StepOffset,
+	int DebugOutputType,
+	inout float3 DebugOutput,
 	inout float OccluderDistance)
 {
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
@@ -79,8 +81,8 @@ bool ShadowRayCastSpotlight(
 	const float CompareScale = RayStepUVz.z * 2.0 / Pow2(NumSteps);
 	const float CompareBias = -CompareScale * (NumSteps - StepOffset + 1.0f);
 
-	float FirstHitTime = 2;
 	float DepthHistory = -1;
+	int SampleMissCount = 0;
 
 	bool bValidHit = false;
 	for (int i = 0; i <= NumSteps; i++)
@@ -98,7 +100,6 @@ bool ShadowRayCastSpotlight(
 			{
 				// First valid sample we've seen. Do a regular depth compare.
 				DepthHistory = SampleDepth;
-				FirstHitTime = SampleDepth > ReferenceDepth ? SampleTime : 2;
 				if( SampleDepth > ReferenceDepth )
 				{
 					float ReceiverDistance = length( RayStart + BaseProjectionData.ShadowPreViewTranslation );
@@ -124,7 +125,6 @@ bool ShadowRayCastSpotlight(
 				bool bHit = abs(DepthDiff + CompareTolerance) < CompareTolerance;
 				if (bHit)
 				{
-					FirstHitTime = SampleTime;
 					OccluderDistance = length(RayEnd - RayStart) * SampleTime;
 
 					bValidHit = true;
@@ -132,6 +132,16 @@ bool ShadowRayCastSpotlight(
 				}
 			}
 		}
+		else
+		{
+			++SampleMissCount;
+		}
+	}
+
+	float OutputDebugSignal = bValidHit ? 0.0f : 1.0f;
+	if (DebugOutputType == 1)	// Invalid page
+	{
+		DebugOutput = lerp(OutputDebugSignal.xxx, lerp(float3(0, 1, 0), float3(1, 0, 1), saturate(SampleMissCount / 4.0f)), 0.75f);
 	}
 
 	return bValidHit;
@@ -163,6 +173,7 @@ float TraceSpotLight(
 	bool bBackFace = dot(GBufferData.WorldNormal, normalize(ToLight)) < -SinAlpha;
 
 	float RayMissFactor = 0;
+	uint SampleCount = 0;
 	if (!bBackFace)
 	{
 		uint2 SobolBase = SobolPixel(SvPosition.xy);
@@ -170,15 +181,13 @@ float TraceSpotLight(
 
 		float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
 
-#if 1
-		uint SampleCount = RayCount;
-
-		for( uint i = 0; i < SampleCount; i++ )
+		uint i = 0;
+		for( ; i < uint(RayCount); i++ )
 		{
-#if 1
 			RandomSequence RandSequence;
-			RandomSequence_Initialize( RandSequence, uint2( SvPosition.xy ), i, View.StateFrameIndexMod8, SampleCount );
+			RandomSequence_Initialize( RandSequence, uint2( SvPosition.xy ), i, View.StateFrameIndexMod8, RayCount );
 
+#if 1
 			float2 E = RandomSequence_GenerateSample2D(RandSequence);
 #else
 			// NOTE: 1-X to avoid 0/0 issues with UniformSampleDiskConcentric
@@ -204,6 +213,8 @@ float TraceSpotLight(
 				RayEnd,
 				SamplesPerRay,
 				StepOffset,
+				DebugOutputType,
+				DebugOutput,
 				InOutHitDistance);
 
 			RayMissFactor += bHit ? 0 : 1;
@@ -222,7 +233,6 @@ float TraceSpotLight(
 				bool bAllLanesMiss = WaveActiveAllTrue( !bHit );
 				if( bAllLanesMiss )
 				{
-					RayMissFactor *= SampleCount;
 					break;
 				}
 			}
@@ -232,49 +242,19 @@ float TraceSpotLight(
 				bool bAllLanesHit = WaveActiveAllTrue( RayMissFactor == 0 );
 				if( bAllLanesHit )
 				{
-					RayMissFactor *= 0.5 * SampleCount;
 					break;
 				}
 			}
 #endif
 		}
-		RayMissFactor /= SampleCount;
-#else
+		SampleCount = min(i + 1, RayCount);		// break vs regular for loop exit
+		RayMissFactor /= float(SampleCount);
+	}
 
-#if 0
-		RandomSequence RandSequence;
-		RandomSequence_Initialize( RandSequence, uint2( SvPosition.xy ), 0, View.StateFrameIndexMod8, 1 );
-
-		float2 E = RandomSequence_GenerateSample2D(RandSequence);
-#else
-		// TODO: Loop over number of rays RayCount
-		float2 E = float2(SobolIndex(SobolFrame, (View.Random & 7) << 3)) / 0x10000;
-#endif
-
-		// NOTE: Avoid 0/0 issues with UniformSampleDiskConcentric
-		// TODO: RandomSequence
-		float2 LightUV = UniformSampleDiskConcentricApprox(E) * Light.SourceRadius;
-
-		float3 RayEnd =
-			Light.Position +
-			LightUV.x * Light.Tangent +
-			LightUV.y * cross(Light.Direction, Light.Tangent);
-
-		float3 Dir = normalize(RayEnd - WorldPosition);
-
-		float3 RayStart = WorldPosition + Dir * RayStartOffset;
-		RayEnd = lerp(RayStart, RayEnd, 0.75);	// TODO!
-
-		bool bHit = ShadowRayCastSpotlight(
-			VirtualShadowMapId,
-			RayStart,
-			RayEnd,
-			SamplesPerRay,
-			StepOffset,
-			InOutHitDistance);
-
-		RayMissFactor += bHit ? 0 : 1;
-#endif
+	if (DebugOutputType == 2)	// Sample count
+	{
+		float Ratio = float(SampleCount) / float(RayCount);
+		DebugOutput = lerp(RayMissFactor.xxx, lerp(float3(0, 1, 0), float3(1, 0, 0), Ratio), 1.0f);
 	}
 
 	return RayMissFactor;
