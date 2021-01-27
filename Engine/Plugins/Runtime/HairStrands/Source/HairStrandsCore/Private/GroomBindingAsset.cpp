@@ -14,6 +14,8 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
+bool IsHairStrandsDDCLogEnable();
+
 FArchive& operator<<(FArchive& Ar, FHairStrandsRootData& RootData)
 {
 	RootData.Serialize(Ar);
@@ -613,7 +615,10 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		TArray<uint8> DerivedData;
 		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, GetPathName()))
 		{
-			UE_LOG(LogHairStrands, Log, TEXT("[GroomBinding/DDC] Found (GroomiBinding:%s)."), *GetName());
+			if (IsHairStrandsDDCLogEnable())
+			{
+				UE_LOG(LogHairStrands, Log, TEXT("[GroomBinding/DDC] Found (GroomiBinding:%s)."), *GetName());
+			}
 
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 
@@ -630,7 +635,10 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		}
 		else
 		{
-			UE_LOG(LogHairStrands, Log, TEXT("[GroomBinding/DDC] Not found (GroomiBinding:%s)."), *GetName());
+			if (IsHairStrandsDDCLogEnable())
+			{
+				UE_LOG(LogHairStrands, Log, TEXT("[GroomBinding/DDC] Not found (GroomiBinding:%s)."), *GetName());
+			}
 
 			// Build groom binding data
 			bIsValid = FGroomBindingBuilder::BuildBinding(this, false, false);
