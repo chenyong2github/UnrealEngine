@@ -559,11 +559,11 @@ void UTexture::FinishDestroy()
 	check(!bAsyncResourceReleaseHasBeenStarted || ReleaseFence.IsFenceComplete());
 	check(TextureReference.IsInitialized_GameThread() == false);
 
-	if(Resource)
+	if(PrivateResource)
 	{
 		// Free the resource.
-		delete Resource;
-		Resource = NULL;
+		delete PrivateResource;
+		PrivateResource = NULL;
 	}
 
 	CleanupCachedRunningPlatformData();
