@@ -1746,7 +1746,7 @@ void UCanvas::TextSize(const UFont* InFont, const FString& InText, float& XL, fl
 	YL = YLi;
 }
 
-FVector UCanvas::Project(FVector Location) const
+FVector UCanvas::Project(FVector Location, bool bClampToZeroPlane) const 
 {
 	FPlane V(0,0,0,0);
 
@@ -1762,7 +1762,7 @@ FVector UCanvas::Project(FVector Location) const
 	resultVec.Y = (ClipY/2.f) + (resultVec.Y*(ClipY/2.f));
 
 	// if behind the screen, clamp depth to the screen
-	if (V.W <= 0.0f)
+	if (bClampToZeroPlane && V.W <= 0.0f) 
 	{
 		resultVec.Z = 0.0f;
 	}

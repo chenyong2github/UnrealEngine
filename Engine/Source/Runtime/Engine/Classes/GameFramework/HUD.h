@@ -323,9 +323,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = HUD)
 	void DrawMaterialTriangle(UMaterialInterface* Material, FVector2D V0_Pos, FVector2D V1_Pos, FVector2D V2_Pos, FVector2D V0_UV, FVector2D V1_UV, FVector2D V2_UV, FLinearColor V0_Color = FLinearColor::White, FLinearColor V1_Color = FLinearColor::White, FLinearColor V2_Color = FLinearColor::White);
 	
-	/** Transforms a 3D world-space vector into 2D screen coordinates */
+	/** Transforms a 3D world-space vector into 2D screen coordinates
+	 * @param Location			The world-space position to transform
+	 * @param bClampToZeroPlane	If true, 2D screen coordinates behind the viewing plane (-Z) will have Z set to 0 (leaving X and Y alone)
+	 * @return The transformed vector
+	 */
 	UFUNCTION(BlueprintCallable, Category = HUD)
-	FVector Project(FVector Location) const;
+	FVector Project(FVector Location, bool bClampToZeroPlane = true) const;
 	
 	/** Transforms a 2D screen location into a 3D location and direction */
 	UFUNCTION(BlueprintCallable, Category = HUD)

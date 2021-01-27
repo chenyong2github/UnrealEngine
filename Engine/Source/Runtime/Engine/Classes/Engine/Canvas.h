@@ -365,10 +365,11 @@ public:
 	/**
 	 * Transforms a 3D world-space vector into 2D screen coordinates.
 	 *
-	 * @param Location The vector to transform.
+	 * @param Location			The vector to transform.
+	 * @param bClampToZeroPlane	If true, 2D screen coordinates behind the viewing plane (-Z) will have Z set to 0 (leaving X and Y alone)
 	 * @return The transformed vector.
 	 */
-	FVector Project(FVector Location) const;
+	FVector Project(FVector Location, bool bClampToZeroPlane = true) const;
 
 	/** 
 	 * Transforms 2D screen coordinates into a 3D world-space origin and direction.

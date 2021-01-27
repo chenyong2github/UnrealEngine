@@ -1010,11 +1010,12 @@ void AHUD::DrawMaterialTriangle(UMaterialInterface* Material, FVector2D V0_Pos, 
 		Canvas->DrawItem(TriangleItem);
 	}
 }
-FVector AHUD::Project(FVector Location) const
+
+FVector AHUD::Project(FVector Location, bool bClampToZeroPlane) const
 {
 	if (IsCanvasValid_WarnIfNot())
 	{
-		return Canvas->Project(Location);
+		return Canvas->Project(Location, bClampToZeroPlane);
 	}
 	return FVector(0, 0, 0);
 }
@@ -1077,23 +1078,23 @@ void AHUD::GetActorsInSelectionRectangle(TSubclassOf<class AActor> ClassFilter, 
 		for (uint8 BoundsPointItr = 0; BoundsPointItr < 8; BoundsPointItr++)
 		{
 			// Project vert into screen space.
-			const FVector ProjectedWorldLocation = Project(BoxCenter + (BoundsPointMapping[BoundsPointItr] * BoxExtents));
-			// Add to 2D bounding box
-			ActorBox2D += FVector2D(ProjectedWorldLocation.X, ProjectedWorldLocation.Y);
+			const FVector ProjectedWorldLocation = Project(BoxCenter + (BoundsPointMapping[BoundsPointItr] * BoxExtents), true);
+			// Add to 2D bounding box if point is on the front side of the camera
+			if (ProjectedWorldLocation.Z > 0.f)
+			{
+				ActorBox2D += FVector2D(ProjectedWorldLocation.X, ProjectedWorldLocation.Y);
+			}
 		}
-
-		//Selection Box must fully enclose the Projected Actor Bounds
-		if (bActorMustBeFullyEnclosed)
+		// Only consider actor boxes that have valid points inside
+		if (ActorBox2D.bIsValid)
 		{
-			if (SelectionRectangle.IsInside(ActorBox2D))
+			//Selection Box must fully enclose the Projected Actor Bounds
+			if (bActorMustBeFullyEnclosed && SelectionRectangle.IsInside(ActorBox2D))
 			{
 				OutActors.Add(EachActor);
 			}
-		}
-		//Partial Intersection with Projected Actor Bounds
-		else
-		{
-			if (SelectionRectangle.Intersect(ActorBox2D))
+			//Partial Intersection with Projected Actor Bounds
+			else if (SelectionRectangle.Intersect(ActorBox2D))
 			{
 				OutActors.Add(EachActor);
 			}
