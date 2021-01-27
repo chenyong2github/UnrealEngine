@@ -131,14 +131,14 @@ public:
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 #if RHI_RAYTRACING
-	virtual bool IsRayTracingRelevant() const override final { return true; }
+	virtual bool IsRayTracingRelevant() const override { return true; }
 
 	virtual bool IsRayTracingStaticRelevant() const override
 	{
 		return bRenderStatic;
 	}
 
-	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) final override;
+	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
 #endif // RHI_RAYTRACING
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
