@@ -3737,6 +3737,11 @@ void UMaterialInstance::AddReferencedObjects(UObject* InThis, FReferenceCollecto
 {
 	UMaterialInstance* This = CastChecked<UMaterialInstance>(InThis);
 
+	if (This->CachedData)
+	{
+		This->CachedData->AddReferencedObjects(Collector);
+	}
+
 	if (This->bHasStaticPermutationResource)
 	{
 		for (FMaterialResource* CurrentResource : This->StaticPermutationMaterialResources)
