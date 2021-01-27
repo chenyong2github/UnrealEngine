@@ -1,50 +1,61 @@
 {
-	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
-	"FriendlyName" : "Metasound",
-	"Description" : "",
-	"Category" : "Audio",
-	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
-	"DocsURL" : "",
-	"MarketplaceURL" : "",
-	"SupportURL" : "",
-	"EnabledByDefault" : false,
-	"CanContainContent" : true,
-	"IsBetaVersion" : true,
-	"Installed" : false,
-	"Modules" :
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Metasound",
+	"Description": "",
+	"Category": "Audio",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"Modules": 
 	[
 		{
-			"Name" : "MetasoundGraphCore",
-			"Type" : "Runtime",
-			"LoadingPhase" : "PreDefault"
+			"Name": "MetasoundGraphCore",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
 		},
 		{
-			"Name" : "MetasoundGenerator",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"Name": "MetasoundGenerator",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		},
 		{
-			"Name" : "MetasoundFrontend",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"Name": "MetasoundFrontend",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		},
 		{
-			"Name" : "MetasoundStandardNodes",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"Name": "MetasoundStandardNodes",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		},
 		{
-			"Name" : "MetasoundEngine",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"Name": "MetasoundEngine",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "MetasoundEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
+		}
+	],
+	"Plugins": 
+	[
+		{
+			"Name": "AudioWidgets",
+			"Enabled": true
 		},
+		{
+			"Name": "AudioSynesthesia",
+			"Enabled": true
+		}
 	]
 }

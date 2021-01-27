@@ -6,6 +6,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Internationalization/Internationalization.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "SAudioMeter.h"
 #include "Templates/SharedPointer.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
@@ -18,9 +19,22 @@ namespace Metasound
 		{
 			namespace Names
 			{
+				const FName Analyzers = "MetasoundEditor_Analyzers";
 				const FName GraphCanvas = "MetasoundEditor_GraphCanvas";
 				const FName Palette = "MetasoundEditor_Palette";
 				const FName Properties = "MetasoundEditor_Properties";
+			}
+
+			TSharedRef<SDockTab> CreateAnalyzersTab(TSharedPtr<SAudioMeter> InAudioMeter, const FSpawnTabArgs& Args)
+			{
+				check(Args.GetTabId() == Names::Analyzers);
+
+				return SNew(SDockTab)
+					.Icon(FEditorStyle::GetBrush("Kismet.Tabs.Palette"))
+					.Label(LOCTEXT("MetasoundAnalyzersTitle", "Analyzers"))
+					[
+						InAudioMeter.ToSharedRef()
+					];
 			}
 
 			TSharedRef<SDockTab> CreateGraphCanvasTab(TSharedPtr<SGraphEditor> GraphEditor, const FSpawnTabArgs& Args)

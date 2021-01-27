@@ -32,7 +32,8 @@
 #include "SNodePanel.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Notifications/SNotificationList.h"
-
+#include "Widgets/SBoxPanel.h"
+#include "AudioMeterStyle.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
@@ -63,11 +64,11 @@ namespace Metasound
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-			InTabManager->RegisterTabSpawner(TabFactory::Names::Palette, FOnSpawnTab::CreateLambda([InPalette = Palette](const FSpawnTabArgs& Args)
+			InTabManager->RegisterTabSpawner(TabFactory::Names::Analyzers, FOnSpawnTab::CreateLambda([InMetasoundMeter = MetasoundMeter](const FSpawnTabArgs& Args)
 			{
-				return TabFactory::CreatePaletteTab(InPalette, Args);
+				return TabFactory::CreateAnalyzersTab(InMetasoundMeter, Args);
 			}))
-			.SetDisplayName(LOCTEXT("PaletteTab", "Palette"))
+			.SetDisplayName(LOCTEXT("AnalyzersTab", "Analyzers"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Palette"));
 		}
@@ -78,8 +79,8 @@ namespace Metasound
 
 			FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
+			InTabManager->UnregisterTabSpawner(TabFactory::Names::Analyzers);
 			InTabManager->UnregisterTabSpawner(TabFactory::Names::GraphCanvas);
-			InTabManager->UnregisterTabSpawner(TabFactory::Names::Palette);
 			InTabManager->UnregisterTabSpawner(TabFactory::Names::Properties);
 		}
 
@@ -133,7 +134,9 @@ namespace Metasound
 
 			CreateInternalWidgets();
 
-			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v2")
+			CreateAnalyzers();
+
+			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v4")
 				->AddArea
 				(
 					FTabManager::NewPrimaryArea()
@@ -160,7 +163,7 @@ namespace Metasound
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.125f)
 							->SetHideTabWell(true)
-							->AddTab(TabFactory::Names::Palette, ETabState::OpenedTab)
+							->AddTab(TabFactory::Names::Analyzers, ETabState::OpenedTab)
 						)
 					)
 				);
@@ -176,6 +179,11 @@ namespace Metasound
 		UObject* FEditor::GetMetasoundObject() const
 		{
 			return Metasound;
+		}
+
+		UObject* FEditor::GetMetasoundAudioBusObject() const
+		{
+			return MetasoundAudioBus.Get();
 		}
 
 		void FEditor::SetSelection(const TArray<UObject*>& SelectedObjects)
@@ -259,6 +267,64 @@ namespace Metasound
 			MetasoundProperties->SetObject(Metasound);
 
 			Palette = SNew(SMetasoundPalette);
+		}
+
+		void FEditor::OnMeterOutput(UMeterAnalyzer* InMeterAnalyzer, int32 ChannelIndex, const FMeterResults& InMeterResults)
+		{
+			if (InMeterAnalyzer && MetasoundMeter.IsValid())
+			{
+				FMeterChannelInfo ChannelInfo;
+				ChannelInfo.MeterValue = InMeterResults.MeterValue;
+				ChannelInfo.PeakValue = InMeterResults.PeakValue;
+
+				check(ChannelIndex < MetasoundChannelInfo.Num());
+				MetasoundChannelInfo[ChannelIndex] = ChannelInfo;
+
+				// If it's the last channel, update the widget
+				if (ChannelIndex == MetasoundChannelInfo.Num() - 1)
+				{
+					MetasoundMeter->SetMeterChannelInfo(MetasoundChannelInfo);
+				}
+			}
+		}
+
+		void FEditor::CreateAnalyzers()
+		{
+			MetasoundAudioBus = TStrongObjectPtr<UAudioBus>(NewObject<UAudioBus>());
+			MetasoundAudioBus->AudioBusChannels = EAudioBusChannels::Stereo;
+
+			MetasoundMeterAnalyzer = TStrongObjectPtr<UMeterAnalyzer>(NewObject<UMeterAnalyzer>());
+
+			MetasoundMeterAnalyzer->OnLatestPerChannelMeterResultsNative.AddRaw(this, &FEditor::OnMeterOutput);
+
+			MetasoundMeterAnalyzerSettings = TStrongObjectPtr<UMeterSettings>(NewObject<UMeterSettings>());
+			MetasoundMeterAnalyzerSettings->PeakHoldTime = 4000.0f;
+
+			MetasoundMeterAnalyzer->Settings = MetasoundMeterAnalyzerSettings.Get();
+
+			UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+			MetasoundMeterAnalyzer->StartAnalyzing(EditorWorld, MetasoundAudioBus.Get());
+
+			// Create the audio meter
+			MetasoundMeter = SNew(SAudioMeter);			
+
+			// TODO: THIS IS TEMP, WIP
+			MetasoundMeter->SetOrientation(EOrientation::Orient_Vertical);
+			MetasoundMeter->SetBackgroundColor(FLinearColor(0.0075f, 0.0075f, 0.0075, 1.0f));
+			MetasoundMeter->SetMeterBackgroundColor(FLinearColor(0.031f, 0.031f, 0.031f, 1.0f));
+			MetasoundMeter->SetMeterValueColor(FLinearColor(0.025719f, 0.208333f, 0.069907f, 1.0f));
+			MetasoundMeter->SetMeterPeakColor(FLinearColor(0.24349f, 0.708333f, 0.357002f, 1.0f));
+			MetasoundMeter->SetMeterClippingColor(FLinearColor(1.0f, 0.0f, 0.112334f, 1.0f));
+			MetasoundMeter->SetMeterScaleColor(FLinearColor(0.017642f, 0.017642f, 0.017642f, 1.0f));
+			MetasoundMeter->SetMeterScaleLabelColor(FLinearColor(0.442708f, 0.442708f, 0.442708f, 1.0f));
+
+			FMeterChannelInfo DefaultInfo;
+			DefaultInfo.MeterValue = -60.0f;
+			DefaultInfo.PeakValue = -60.0f;
+			MetasoundChannelInfo.Add(DefaultInfo);
+			MetasoundChannelInfo.Add(DefaultInfo);
+			MetasoundMeter->SetMeterChannelInfo(MetasoundChannelInfo);
+
 		}
 
 		void FEditor::ExtendToolbar()
@@ -418,13 +484,20 @@ namespace Metasound
 
 		void FEditor::Play()
 		{
-			// 	TODO: Implement play
 			check(GEditor);
 
-			// TODO: toggle the Play button if Metasound is a USoundBase
 			if (USoundBase* MetasoundToPlay = Cast<USoundBase>(Metasound))
 			{
 				GEditor->PlayPreviewSound(MetasoundToPlay);
+
+				// Set the send to the audio bus that is used for analyzing the metasound output
+				if (UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent())
+				{
+					if (MetasoundAudioBus.IsValid())
+					{
+						PreviewComp->SetAudioBusSendPostEffect(MetasoundAudioBus.Get(), 1.0f);
+					}
+				}
 
 				MetasoundGraphEditor->RegisterActiveTimer(0.0f,
 					FWidgetActiveTimerDelegate::CreateLambda([](double InCurrentTime, float InDeltaTime)

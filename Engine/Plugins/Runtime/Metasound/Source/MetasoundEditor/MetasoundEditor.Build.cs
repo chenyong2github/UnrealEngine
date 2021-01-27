@@ -22,6 +22,8 @@ namespace UnrealBuildTool.Rules
 					"MetasoundFrontend",
 					"MetasoundGraphCore",
 					"ToolMenus",
+					"AudioWidgets",
+					"AudioSynesthesia"
 				}
 			);
 
@@ -46,6 +48,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"EditorFramework",
 					"UnrealEd",
+					"AudioAnalyzer"
 				}
 			);
 		}

@@ -19,6 +19,7 @@
 #include "SCommentBubble.h"
 #include "SGraphNode.h"
 #include "SGraphPin.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "SLevelOfDetailBranchNode.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateColor.h"

@@ -14,7 +14,12 @@
 #include "Textures/SlateIcon.h"
 #include "Toolkits/IToolkitHost.h"
 #include "UObject/GCObject.h"
-
+#include "Widgets/SPanel.h"
+#include "Sound/AudioBus.h"
+#include "SAudioMeter.h"
+#include "AudioMeterStyle.h"
+#include "AudioSynesthesia/Classes/Meter.h"
+#include "UObject/StrongObjectPtr.h"
 
 // Forward Declarations
 class FSlateRect;
@@ -24,9 +29,11 @@ class IToolkitHost;
 class SDockableTab;
 class SGraphEditor;
 class SMetasoundPalette;
+class SVerticalBox;
 class UEdGraphNode;
 class UMetasound;
 
+struct FMeterResults;
 struct FPropertyChangedEvent;
 
 namespace Metasound
@@ -46,6 +53,7 @@ namespace Metasound
 
 			/** IMetasoundEditor interface */
 			virtual UObject* GetMetasoundObject() const override;
+			virtual UObject* GetMetasoundAudioBusObject() const override;
 			virtual void SetSelection(const TArray<UObject*>& SelectedObjects) override;
 			virtual bool GetBoundsForSelectedNodes(FSlateRect& Rect, float Padding) override;
 
@@ -77,6 +85,8 @@ namespace Metasound
 			{
 				return MetasoundGraphEditor->GetSelectedNodes().Num();
 			}
+
+			void OnMeterOutput(UMeterAnalyzer* InMeterAnalyzer, int32 ChannelIndex, const FMeterResults& MeterResults);
 
 		protected:
 			/** Called when the selection changes in the GraphEditor */
@@ -121,6 +131,9 @@ namespace Metasound
 
 			/** Creates all internal widgets for the tabs to point at */
 			void CreateInternalWidgets();
+
+			/** Creates analyzers */
+			void CreateAnalyzers();
 
 			/** Builds the toolbar widget for the Metasound editor */
 			void ExtendToolbar();
@@ -179,7 +192,13 @@ namespace Metasound
 			/** Properties tab */
 			TSharedPtr<IDetailsView> MetasoundProperties;
 
-			/** Palette of Sound Node types */
+			/** Metasound Output Meter widget */
+			TSharedPtr<SAudioMeter> MetasoundMeter;
+
+			/** Metasound channel info for the meter. */
+			TArray<FMeterChannelInfo> MetasoundChannelInfo;
+
+			/** Palette of Node types */
 			TSharedPtr<SMetasoundPalette> Palette;
 
 			/** Command list for this editor */
@@ -187,6 +206,14 @@ namespace Metasound
 
 			/** The Metasound asset being edited */
 			UObject* Metasound = nullptr;
+
+			/** The preview audio bus. Used for analysis. */
+			TStrongObjectPtr<UAudioBus> MetasoundAudioBus;
+
+			/** Metasound analyzer object. */
+			TStrongObjectPtr<UMeterAnalyzer> MetasoundMeterAnalyzer;
+
+			TStrongObjectPtr<UMeterSettings> MetasoundMeterAnalyzerSettings;
 
 			/** Whether or not metasound being edited is valid */
 			bool bPassedValidation = true;
