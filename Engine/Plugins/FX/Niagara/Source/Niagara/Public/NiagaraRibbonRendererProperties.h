@@ -47,6 +47,34 @@ enum class ENiagaraRibbonDrawDirection : uint8
 };
 
 UENUM()
+enum class ENiagaraRibbonShapeMode : uint8
+{
+	/** Default shape, flat plane facing camera. */
+	Plane,
+	/** Multiple Planes between direct facing camera, and 90 degree offset. */
+	MultiPlane,
+	/** 3D Tube shape, from triangular to cylindrical depending on vertex count. */
+	Tube,
+	/** Custom shape, defined by cross section. */
+	Custom
+};
+
+USTRUCT()
+struct FNiagaraRibbonShapeCustomVertex
+{
+	GENERATED_BODY();
+
+	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
+	FVector2D Position;
+
+	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
+	FVector2D Normal;
+
+	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
+	float TextureV;
+};
+
+UENUM()
 enum class ENiagaraRibbonTessellationMode : uint8
 {
 	/** Default tessellation parameters. */
@@ -230,6 +258,29 @@ public:
 	/** If true, the particles are only sorted when using a translucent material. */
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	ENiagaraRibbonDrawDirection DrawDirection;
+
+	/** Shape of the ribbon, from flat plane, multiplane, 3d tube, and custom shapes. */
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape")
+	ENiagaraRibbonShapeMode Shape;
+
+	/** Tessellation factor to apply to the width of the ribbon.
+	* Ranges from 1 to 16. Greater values increase amount of tessellation.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Plane || Shape == ENiagaraRibbonShapeMode::MultiPlane", ClampMin = "1", ClampMax = "16"))
+	int32 WidthSegmentationCount;
+
+	/** Number of planes in multiplane shape. Evenly distributed from 0-90 or 0-180 degrees off camera facing depending on setting */
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::MultiPlane", ClampMin = "2", ClampMax = "8"))
+	int32 MultiPlaneCount;
+
+	/** Number of vertices/faces in a tube.  */
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Tube", ClampMin = "3", ClampMax = "16"))
+	int32 TubeSubdivisions;
+
+	/** Vertices for a cross section of the ribbon in custom shape mode. */
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Custom"))
+	TArray<FNiagaraRibbonShapeCustomVertex> CustomVertices;
+
 
 	/** Defines the curve tension, or how long the curve's tangents are.
 	  * Ranges from 0 to 1. The higher the value, the sharper the curve becomes.
