@@ -23,6 +23,7 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/SphereElem.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "PhysXIncludes.h"
@@ -452,7 +453,7 @@ namespace ChaosInterface
 			{
 				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
 				{
-					FTransform WorldTransform(ShapeHandle.ActorRef->R(), ShapeHandle.ActorRef->X());
+					FTransform WorldTransform(ShapeHandle.ActorRef->GetGameThreadAPI().R(), ShapeHandle.ActorRef->GetGameThreadAPI().X());
 					Chaos::TMassProperties<float, 3> MassProperties;
 					if (CalculateMassPropertiesOfImplicitType(MassProperties, WorldTransform, ImplicitObject, InDensityKGPerCM))
 					{

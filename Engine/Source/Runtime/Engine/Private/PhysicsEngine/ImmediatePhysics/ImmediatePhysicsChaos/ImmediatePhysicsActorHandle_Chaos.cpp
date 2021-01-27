@@ -20,6 +20,7 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/BodyUtils.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -95,12 +96,12 @@ namespace ImmediatePhysics_Chaos
 	{
 #if WITH_CHAOS
 		// We should only get non-simulated objects through this path, but you never know...
-		if ((BodyInstance != nullptr) && !BodyInstance->bSimulatePhysics && (BodyInstance->ActorHandle != nullptr))
+		if ((BodyInstance != nullptr) && !BodyInstance->bSimulatePhysics && BodyInstance->ActorHandle)
 		{
 			OutMass = 0.0f;
 			OutInertia = FVector::ZeroVector;
 			OutCoMTransform = FTransform::Identity;
-			OutGeom = CloneGeometry(BodyInstance->ActorHandle->Geometry().Get(), OutShapes);
+			OutGeom = CloneGeometry(BodyInstance->ActorHandle->GetGameThreadAPI().Geometry().Get(), OutShapes);
 			if (OutGeom != nullptr)
 			{
 				return true;

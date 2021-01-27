@@ -216,7 +216,7 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 	//for sim-writable props this is only possible if those props are immutable from the sim side (sleeping, not simulated, etc...)
 
 	const auto Proxy = static_cast<const FSingleParticlePhysicsProxy*>(Dirty.Proxy);
-	const auto Handle = Proxy->GetHandle();
+	const auto Handle = Proxy->GetHandle_LowLevel();
 
 	const bool bSyncSimWritable = !SimWritablePropsMayChange(*Handle);
 
@@ -729,7 +729,7 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 
 	auto ProcessProxy = [this,&SrcManagerWrapper,SrcDataIdx,Dirty,&DestManagerWrapper](const auto Proxy)
 	{
-		const auto PTParticle = Proxy->GetHandle();
+		const auto PTParticle = Proxy->GetHandle_LowLevel();
 		FDirtyParticleInfo& Info = FindOrAddParticle(*PTParticle);
 		Info.LastDirtyFrame = CurFrame;
 		Info.GTDirtyOnFrame[CurFrame].SetWave(CurFrame,CurWave);
@@ -747,7 +747,7 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 			if(ResimType == EResimType::FullResim)
 			{
 				//TODO: should not be passing GTParticle in here, it's not used so ok but not safe if someone decides to use it by mistake
-				FGeometryParticleState FutureState(*Proxy->GetParticle());
+				FGeometryParticleState FutureState(*Proxy->GetParticle_LowLevel());
 				if(GetFutureStateAtFrame(FutureState,CurFrame) == EFutureQueryResult::Ok)
 				{
 					if(FutureState.IsDesynced(SrcManagerWrapper,*PTParticle,Dirty.ParticleData.GetFlags()))

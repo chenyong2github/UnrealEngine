@@ -44,6 +44,7 @@
 #include "PhysicsInterfaceUtilsCore.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "geometry/PxConvexMesh.h"
@@ -622,13 +623,11 @@ private:
 
 	FPhysScene_Chaos* GetSceneForActor(FPhysicsActorHandle const * InActorHandle)
 	{
-		FBodyInstance* ActorInstance = (*InActorHandle) ? FPhysicsUserData_Chaos::Get<FBodyInstance>((*InActorHandle)->UserData()) : nullptr;
-
-		if(ActorInstance)
+		if(InActorHandle)
 		{
-			return ActorInstance->GetPhysicsScene();
+			return static_cast<FPhysScene*>(FChaosEngineInterface::GetCurrentScene(*InActorHandle));
 		}
-
+		
 		return nullptr;
 	}
 
@@ -857,24 +856,24 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 		//todo: we should not be creating unique geometry per actor
 		// we always have a union so we can support any future welding operations. (Non-trivial converting the SharedPtr to UniquePtr)
 		{
-			if (InActor->Geometry()) // geometry already exists - combine new geometry with the existing
+			if (InActor->GetGameThreadAPI().Geometry()) // geometry already exists - combine new geometry with the existing
 			{
-				InActor->MergeGeometry(MoveTemp(Geoms));
+				InActor->GetGameThreadAPI().MergeGeometry(MoveTemp(Geoms));
 				bMergeShapesArray = true;
 			}
 			else
 			{
-				InActor->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
+				InActor->GetGameThreadAPI().SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
 			}
 		}
 
 		if (bMergeShapesArray)
 		{
-			InActor->MergeShapesArray(MoveTemp(Shapes));
+			InActor->GetGameThreadAPI().MergeShapesArray(MoveTemp(Shapes));
 		}
 		else
 		{
-			InActor->SetShapesArray(MoveTemp(Shapes));
+			InActor->GetGameThreadAPI().SetShapesArray(MoveTemp(Shapes));
 		}
 	}
 #endif
@@ -991,7 +990,7 @@ bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstanc
 			{
 				// If we're welded then the target instance is actually our parent
 				const FBodyInstance* TargetInstance = InInstance->WeldParent ? InInstance->WeldParent : InInstance;
-				if(const Chaos::TGeometryParticle<float, 3>* RigidBody = TargetInstance->ActorHandle)
+				if(const FPhysicsActorHandle RigidBody = TargetInstance->ActorHandle)
 				{
 					FRaycastHit BestHit;
 					BestHit.Distance = FLT_MAX;
@@ -1000,7 +999,7 @@ bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstanc
 					PhysicsInterfaceTypes::FInlineShapeArray Shapes;
 					const int32 NumShapes = FillInlineShapeArray_AssumesLocked(Shapes, Actor);
 
-					const FTransform WorldTM(RigidBody->R(), RigidBody->X());
+					const FTransform WorldTM(RigidBody->GetGameThreadAPI().R(), RigidBody->GetGameThreadAPI().X());
 					const FVector LocalStart = WorldTM.InverseTransformPositionNoScale(WorldStart);
 					const FVector LocalDelta = WorldTM.InverseTransformVectorNoScale(Delta);
 
@@ -1037,7 +1036,7 @@ bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstanc
 									BestHit.WorldNormal = LocalNormal;	//will convert to world when best is chosen
 									BestHit.WorldPosition = LocalPosition;
 									BestHit.Shape = Shape;
-									BestHit.Actor = Actor;
+									BestHit.Actor = Actor->GetParticle_LowLevel();
 									BestHit.FaceIndex = FaceIndex;
 								}
 							}
@@ -1084,9 +1083,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 
 		FPhysicsCommand::ExecuteRead(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Actor)
 		{
-			const Chaos::TGeometryParticle<float, 3>* RigidBody = Actor;
-
-			if (RigidBody && InInstance->OwnerComponent.Get())
+			if (Actor && InInstance->OwnerComponent.Get())
 			{
 				FPhysicsShapeAdapter ShapeAdapter(InShapeRotation, InShape);
 
@@ -1094,7 +1091,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 				const float DeltaMag = Delta.Size();
 				if (DeltaMag > KINDA_SMALL_NUMBER)
 				{
-					const FTransform ActorTM(RigidBody->R(), RigidBody->X());
+					const FTransform ActorTM(Actor->GetGameThreadAPI().R(), Actor->GetGameThreadAPI().X());
 
 					UPrimitiveComponent* OwnerComponentInst = InInstance->OwnerComponent.Get();
 					FTransform StartTM(ShapeAdapter.GetGeomOrientation(), InStart);
@@ -1140,7 +1137,7 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 
 								// we don't get Shape information when we access via PShape, so I filled it up
 								Hit.Shape = Shape;
-								Hit.Actor = ShapeRef.ActorRef;
+								Hit.Actor = ShapeRef.ActorRef ? ShapeRef.ActorRef->GetParticle_LowLevel() : nullptr;
 								Hit.WorldPosition = WorldPosition;
 								Hit.WorldNormal = WorldNormal;
 								Hit.FaceIndex = FaceIdx;
@@ -1167,9 +1164,9 @@ bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* I
 bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, FMTDResult* OutOptResult)
 {
 	const FBodyInstance* TargetInstance = InInstance->WeldParent ? InInstance->WeldParent : InInstance;
-	Chaos::TGeometryParticle<float, 3>* RigidBody = TargetInstance->ActorHandle;
+	FPhysicsActorHandle RigidBody = TargetInstance->ActorHandle;
 
-	if (RigidBody == nullptr)
+	if (!RigidBody)
 	{
 		return false;
 	}
@@ -1178,7 +1175,7 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 	PhysicsInterfaceTypes::FInlineShapeArray Shapes;
 	const int32 NumShapes = FillInlineShapeArray_AssumesLocked(Shapes, RigidBody);
 
-	const FTransform ActorTM(RigidBody->R(), RigidBody->X());
+	const FTransform ActorTM(RigidBody->GetGameThreadAPI().R(), RigidBody->GetGameThreadAPI().X());
 
 	// Iterate over each shape
 	for (int32 ShapeIdx = 0; ShapeIdx < NumShapes; ++ShapeIdx)

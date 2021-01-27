@@ -386,14 +386,14 @@ public:
 
 	const TVector<T, d>& X() const { return GeometryParticles->X(ParticleIdx); }
 	TVector<T, d>& X() { return GeometryParticles->X(ParticleIdx); }
-	void SetX(const TVector<T, d>& InX) { GeometryParticles->X(ParticleIdx) = InX; }
+	void SetX(const TVector<T, d>& InX, bool bInvalidate = false) { GeometryParticles->X(ParticleIdx) = InX; }
 
 	FUniqueIdx UniqueIdx() const { return GeometryParticles->UniqueIdx(ParticleIdx); }
-	void SetUniqueIdx(const FUniqueIdx UniqueIdx) const { GeometryParticles->UniqueIdx(ParticleIdx) = UniqueIdx; }
+	void SetUniqueIdx(const FUniqueIdx UniqueIdx, bool bInvalidate = false) const { GeometryParticles->UniqueIdx(ParticleIdx) = UniqueIdx; }
 
 	const TRotation<T, d>& R() const { return GeometryParticles->R(ParticleIdx); }
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
-	void SetR(const TRotation<T, d>& InR) { GeometryParticles->R(ParticleIdx) = InR; }
+	void SetR(const TRotation<T, d>& InR, bool bInvalidate = false) { GeometryParticles->R(ParticleIdx) = InR; }
 
 	void SetXR(const FParticlePositionRotation& XR);
 	
@@ -610,11 +610,11 @@ public:
 
 	const TVector<T, d>& V() const { return KinematicGeometryParticles->V(ParticleIdx); }
 	TVector<T, d>& V() { return KinematicGeometryParticles->V(ParticleIdx); }
-	void SetV(const TVector<T, d>& InV) { KinematicGeometryParticles->V(ParticleIdx) = InV; }
+	void SetV(const TVector<T, d>& InV, bool bInvalidate = false) { KinematicGeometryParticles->V(ParticleIdx) = InV; }
 
 	const TVector<T, d>& W() const { return KinematicGeometryParticles->W(ParticleIdx); }
 	TVector<T, d>& W() { return KinematicGeometryParticles->W(ParticleIdx); }
-	void SetW(const TVector<T, d>& InW) { KinematicGeometryParticles->W(ParticleIdx) = InW; }
+	void SetW(const TVector<T, d>& InW, bool bInvalidate = false) { KinematicGeometryParticles->W(ParticleIdx) = InW; }
 
 	void SetVelocities(const FParticleVelocities& Velocities)
 	{
@@ -622,7 +622,7 @@ public:
 		SetW(Velocities.W());
 	}
 
-	void SetKinematicTarget(const TKinematicTarget<T, d>& InKinematicTarget)
+	void SetKinematicTarget(const TKinematicTarget<T, d>& InKinematicTarget, bool bInvalidate = true)
 	{
 		KinematicGeometryParticles->KinematicTarget(ParticleIdx) = InKinematicTarget;
 	}
@@ -746,17 +746,27 @@ public:
 	TVector<T, d>& F() { return PBDRigidParticles->F(ParticleIdx); }
 	void SetF(const TVector<T, d>& InF) { PBDRigidParticles->F(ParticleIdx) = InF; }
 
+	void AddForce(const TVector<T, d>& InF, bool bInvalidate = true)
+	{
+		SetF(F() + InF);
+	}
+
 	const TVector<T, d>& Torque() const { return PBDRigidParticles->Torque(ParticleIdx); }
 	TVector<T, d>& Torque() { return PBDRigidParticles->Torque(ParticleIdx); }
 	void SetTorque(const TVector<T, d>& InTorque) { PBDRigidParticles->Torque(ParticleIdx) = InTorque; }
 
+	void AddTorque(const TVector<T, d>& InTorque, bool bInvalidate = true)
+	{
+		SetTorque(Torque() + InTorque);
+	}
+
 	const TVector<T, d>& LinearImpulse() const { return PBDRigidParticles->LinearImpulse(ParticleIdx); }
 	TVector<T, d>& LinearImpulse() { return PBDRigidParticles->LinearImpulse(ParticleIdx); }
-	void SetLinearImpulse(const TVector<T, d>& InLinearImpulse) { PBDRigidParticles->LinearImpulse(ParticleIdx) = InLinearImpulse; }
+	void SetLinearImpulse(const TVector<T, d>& InLinearImpulse, bool bInvalidate = false) { PBDRigidParticles->LinearImpulse(ParticleIdx) = InLinearImpulse; }
 
 	const TVector<T, d>& AngularImpulse() const { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
 	TVector<T, d>& AngularImpulse() { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
-	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse) { PBDRigidParticles->AngularImpulse(ParticleIdx) = InAngularImpulse; }
+	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse, bool bInvalidate = false) { PBDRigidParticles->AngularImpulse(ParticleIdx) = InAngularImpulse; }
 
 	// Resets VSmooth value to something plausible based on external forces to prevent object from going back to sleep if it was just impulsed.
 	void ResetVSmoothFromForces()
@@ -816,10 +826,10 @@ public:
 	void SetInvM(const T& InInvM) { PBDRigidParticles->InvM(ParticleIdx) = InInvM; }
 
 	const TVector<T,d>& CenterOfMass() const { return PBDRigidParticles->CenterOfMass(ParticleIdx); }
-	void SetCenterOfMass(const TVector<T,d>& InCenterOfMass) { PBDRigidParticles->CenterOfMass(ParticleIdx) = InCenterOfMass; }
+	void SetCenterOfMass(const TVector<T,d>& InCenterOfMass, bool bInvalidate = false) { PBDRigidParticles->CenterOfMass(ParticleIdx) = InCenterOfMass; }
 
 	const TRotation<T,d>& RotationOfMass() const { return PBDRigidParticles->RotationOfMass(ParticleIdx); }
-	void SetRotationOfMass(const TRotation<T,d>& InRotationOfMass) { PBDRigidParticles->RotationOfMass(ParticleIdx) = InRotationOfMass; }
+	void SetRotationOfMass(const TRotation<T,d>& InRotationOfMass, bool bInvalidate = false) { PBDRigidParticles->RotationOfMass(ParticleIdx) = InRotationOfMass; }
 
 
 	T LinearEtherDrag() const { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
@@ -839,7 +849,7 @@ public:
 	void SetToBeRemovedOnFracture(const bool bToBeRemovedOnFracture) { PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx) = bToBeRemovedOnFracture; }
 
 	EObjectStateType ObjectState() const { return PBDRigidParticles->ObjectState(ParticleIdx); }
-	void SetObjectState(EObjectStateType InState) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
+	void SetObjectState(EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = false) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
 	void SetObjectStateLowLevel(EObjectStateType InState) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
 	
 	bool Sleeping() const { return PBDRigidParticles->Sleeping(ParticleIdx); }
@@ -1756,7 +1766,6 @@ public:
 	const FShapesArray& ShapesArray() const { return MShapesArray; }
 
 	EObjectStateType ObjectState() const;
-	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate=true);
 
 	EParticleType ObjectType() const
 	{
@@ -2382,16 +2391,6 @@ const TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::CastToRigidParticle()  c
 	}
 
 	return nullptr;
-}
-
-template <typename T, int d>
-void TGeometryParticle<T, d>::SetObjectState(const EObjectStateType InState, bool bAllowEvents, bool bInvalidate)
-{
-	TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
-	if (Dyn)
-	{
-		Dyn->SetObjectState(InState, bAllowEvents, bInvalidate);
-	}
 }
 
 template <typename T, int d>

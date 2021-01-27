@@ -8,6 +8,7 @@
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/Framework/ChaosResultsManager.h"
+#include "Framework/Threading.h"
 
 namespace Chaos
 {	
@@ -88,6 +89,8 @@ namespace Chaos
 		LLM_SCOPE(ELLMTag::Chaos);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
+
+		FPhysicsThreadContextScope Scope(/*IsPhysicsThreadContext=*/true);
 
 		Solver.SetExternalTimestampConsumed_Internal(PushData->ExternalTimestamp);
 		Solver.ProcessPushedData_Internal(*PushData);

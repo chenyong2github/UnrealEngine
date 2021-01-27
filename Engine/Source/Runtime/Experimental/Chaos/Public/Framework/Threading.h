@@ -6,9 +6,128 @@
 #include "UObject/ObjectMacros.h"
 #include "PhysicsCoreTypes.h"
 #include "ChaosLog.h"
+#include "Async/ParallelFor.h"
+
+#ifndef PHYSICS_THREAD_CONTEXT
+	#if (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+		#define PHYSICS_THREAD_CONTEXT 1
+	#else
+		#define PHYSICS_THREAD_CONTEXT 0
+	#endif
+#endif
 
 namespace Chaos
 {
+
+#if PHYSICS_THREAD_CONTEXT
+/** Debug helper to ensure threading mistakes are caught. Do not use for ship */
+class CHAOS_API FPhysicsThreadContext : public TThreadSingleton<FPhysicsThreadContext>
+{
+public:
+	bool IsInPhysicsSimContext() const
+	{
+		return PhysicsSimContext > 0;
+	}
+
+	bool IsInGameThreadContext() const
+	{
+		return IsInGameThread() || GameThreadContext > 0;
+	}
+
+	void IncPhysicsSimContext()
+	{
+		++PhysicsSimContext;
+	}
+
+	void DecPhysicsSimContext()
+	{
+		check(PhysicsSimContext > 0);	//double delete?
+		--PhysicsSimContext;
+	}
+
+	void IncGameThreadContext()
+	{
+		++GameThreadContext;
+	}
+
+	void DecGameThreadContext()
+	{
+		check(GameThreadContext > 0);	//double delete?
+		--GameThreadContext;
+	}
+
+private:
+	int32 PhysicsSimContext = 0;
+	int32 GameThreadContext = 0;
+};
+
+struct FPhysicsThreadContextScope
+{
+	FPhysicsThreadContextScope(bool InParentIsPhysicsSimContext)
+		: bParentIsPhysicsSimContext(InParentIsPhysicsSimContext)
+	{
+		if (bParentIsPhysicsSimContext)
+		{
+			FPhysicsThreadContext::Get().IncPhysicsSimContext();
+		}
+	}
+
+	~FPhysicsThreadContextScope()
+	{
+		if (bParentIsPhysicsSimContext)
+		{
+			FPhysicsThreadContext::Get().DecPhysicsSimContext();
+		}
+	}
+
+	bool bParentIsPhysicsSimContext;
+};
+
+struct FGameThreadContextScope
+{
+	FGameThreadContextScope(bool InParentIsGameThreadContext)
+		: bParentIsGameThreadContext(InParentIsGameThreadContext)
+	{
+		if (bParentIsGameThreadContext)
+		{
+			FPhysicsThreadContext::Get().IncGameThreadContext();
+		}
+	}
+
+	~FGameThreadContextScope()
+	{
+		if (bParentIsGameThreadContext)
+		{
+			FPhysicsThreadContext::Get().DecGameThreadContext();
+		}
+	}
+
+	bool bParentIsGameThreadContext;
+};
+
+
+FORCEINLINE bool IsInPhysicsThreadContext()
+{
+	return FPhysicsThreadContext::Get().IsInPhysicsSimContext();
+}
+
+FORCEINLINE bool IsInGameThreadContext()
+{
+	return FPhysicsThreadContext::Get().IsInGameThreadContext();
+}
+#else
+FORCEINLINE bool IsInPhysicsThreadContext()
+{
+	return false;
+}
+
+FORCEINLINE bool IsInGameThreadContext()
+{
+	return false;
+}
+#endif
+
+
 	using EThreadingMode = EChaosThreadingMode;
 
 	/**
@@ -59,6 +178,11 @@ namespace Chaos
 			{
 				InnerLock.ReadLock();
 			}
+
+#if PHYSICS_THREAD_CONTEXT
+			//read lock means we can access game thread data, so set the right context
+			FPhysicsThreadContext::Get().IncGameThreadContext();
+#endif
 		}
 
 		void WriteLock()
@@ -72,6 +196,11 @@ namespace Chaos
 				InnerLock.WriteLock();
 				CurrentWriterThreadId.Store(ThisThreadId);
 			}
+
+#if PHYSICS_THREAD_CONTEXT
+			//write lock means we can access game thread data, so set the right context
+			FPhysicsThreadContext::Get().IncGameThreadContext();
+#endif
 		}
 
 		void ReadUnlock()
@@ -90,7 +219,6 @@ namespace Chaos
 					UE_LOG(LogChaos, Warning, TEXT("ReadUnlock called on physics scene guard when the thread does not hold the lock"))
 #endif
 				}
-				
 			});
 
 			const uint32 ThisThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -99,6 +227,11 @@ namespace Chaos
 			{
 				InnerLock.ReadUnlock();
 			}
+
+#if PHYSICS_THREAD_CONTEXT
+			//read lock is released, the gamethread context is gone
+			FPhysicsThreadContext::Get().DecGameThreadContext();
+#endif
 		}
 
 		void WriteUnlock()
@@ -123,6 +256,11 @@ namespace Chaos
 				UE_LOG(LogChaos, Warning, TEXT("ReadUnlock called on physics scene guard when the thread does not hold the lock"))
 #endif
 			}
+
+#if PHYSICS_THREAD_CONTEXT
+			//write lock is released, the gamethread context is gone
+			FPhysicsThreadContext::Get().DecGameThreadContext();
+#endif
 		}
 
 	private:

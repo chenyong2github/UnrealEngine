@@ -57,7 +57,7 @@ namespace GeometryCollectionTest
 			for (int32 i = 0; i < 3; i++)
 			{
 				int32 A = Tri[i];
-				int32 B = Tri[(i+1)%3];
+				int32 B = Tri[(i + 1) % 3];
 				TPair<int32, int32> Edge(
 					A < B ? A : B,
 					A > B ? A : B);
@@ -77,18 +77,18 @@ namespace GeometryCollectionTest
 		}
 
 		return GeometryCollection::MakeMeshElement(
-			SphereGen.Vertices, 
-			SphereGen.Normals, 
-			SphereGen.Triangles, 
-			SphereGen.UVs, 
+			SphereGen.Vertices,
+			SphereGen.Normals,
+			SphereGen.Triangles,
+			SphereGen.UVs,
 			RootTranform, GeomTransform, NumberOfMaterials);
 	}
 
 	TSharedPtr<FGeometryCollection> MakeCubeElement(FTransform RootTranform, FTransform GeomTransform)
 	{
-		const TArray<FVector> PointsIn = { FVector(-1,1,-1), FVector(1,1,-1), FVector(1,-1,-1), FVector(-1,-1,-1), FVector(-1,1,1), FVector(1,1,1), FVector(1,-1,1), FVector(-1,-1,1)};
+		const TArray<FVector> PointsIn = { FVector(-1,1,-1), FVector(1,1,-1), FVector(1,-1,-1), FVector(-1,-1,-1), FVector(-1,1,1), FVector(1,1,1), FVector(1,-1,1), FVector(-1,-1,1) };
 		const TArray<FVector> NormalsIn = { FVector(-1,1,-1).GetSafeNormal(), FVector(1,1,-1).GetSafeNormal(), FVector(1,-1,-1).GetSafeNormal(), FVector(-1,-1,-1).GetSafeNormal(), FVector(-1,1,1).GetSafeNormal(), FVector(1,1,1).GetSafeNormal(), FVector(1,-1,1).GetSafeNormal(), FVector(-1,-1,1).GetSafeNormal() };
-		const TArray<FVector3i> TrianglesIn = { FVector3i(0,1,2),FVector3i(0,2,3), FVector3i(2,1,6),FVector3i(1,5,6),FVector3i(2,6,7),FVector3i(3,2,7),FVector3i(4,7,3),FVector3i(4,0,3),FVector3i(4,1,0),FVector3i(4,5,1),FVector3i(5,4,7),FVector3i(5,7,6)};
+		const TArray<FVector3i> TrianglesIn = { FVector3i(0,1,2),FVector3i(0,2,3), FVector3i(2,1,6),FVector3i(1,5,6),FVector3i(2,6,7),FVector3i(3,2,7),FVector3i(4,7,3),FVector3i(4,0,3),FVector3i(4,1,0),FVector3i(4,5,1),FVector3i(5,4,7),FVector3i(5,7,6) };
 		const TArray<FVector2f> UVsIn = { FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f),FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f), FVector2f(0.f,0.f) };
 		return GeometryCollection::MakeMeshElement(PointsIn, NormalsIn, TrianglesIn, UVsIn, RootTranform, GeomTransform);
 	}
@@ -160,7 +160,7 @@ namespace GeometryCollectionTest
 			SimulationParams.InitialLinearVelocity = Params.InitialLinearVelocity;
 			SimulationParams.InitialVelocityType = Params.InitialVelocityType;
 			SimulationParams.DamageThreshold = Params.DamageThreshold;
-			SimulationParams.MaxClusterLevel = Params.MaxClusterLevel;	
+			SimulationParams.MaxClusterLevel = Params.MaxClusterLevel;
 			SimulationParams.ClusterConnectionMethod = Params.ClusterConnectionMethod;
 			SimulationParams.RemoveOnFractureEnabled = Params.RemoveOnFractureEnabled;
 			SimulationParams.CollisionGroup = Params.CollisionGroup;
@@ -205,7 +205,7 @@ namespace GeometryCollectionTest
 		switch (Params.SimplicialType)
 		{
 		case ESimplicialType::Chaos_Simplicial_Box:
-			RestCollection = MakeCubeElement(Params.RootTransform, Params.GeomTransform );
+			RestCollection = MakeCubeElement(Params.RootTransform, Params.GeomTransform);
 			break;
 		case ESimplicialType::Chaos_Simplicial_Sphere:
 			RestCollection = MakeSphereElement(Params.RootTransform, Params.GeomTransform);
@@ -242,16 +242,17 @@ namespace GeometryCollectionTest
 	WrapperBase* TNewSimulationObject<GeometryType::RigidFloor>::Init(const CreationParameters Params)
 	{
 		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeShared<Chaos::FChaosPhysicsMaterial>(); InitMaterialToZero(PhysicalMaterial.Get());
-		FGeometryParticle* Particle = FGeometryParticle::CreateParticle().Release();
-		Particle->SetGeometry(TUniquePtr<TPlane<float, 3>>(new TPlane<float, 3>(FVector(0), FVector(0, 0, 1))));
+		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TGeometryParticle<float, 3>::CreateParticle());
+		auto& Particle = Proxy->GetGameThreadAPI();
+		Particle.SetGeometry(TUniquePtr<TPlane<float, 3>>(new TPlane<float, 3>(FVector(0), FVector(0, 0, 1))));
 
 		FCollisionFilterData FilterData;
 		FilterData.Word1 = 0xFFFF;
 		FilterData.Word3 = 0xFFFF;
-		Particle->SetShapeSimData(0, FilterData);
+		Particle.SetShapeSimData(0, FilterData);
 
 
-		return new RigidBodyWrapper(PhysicalMaterial, Particle);
+		return new RigidBodyWrapper(PhysicalMaterial, Proxy);
 	}
 
 	template <>
@@ -287,7 +288,7 @@ namespace GeometryCollectionTest
 				Solver->UnregisterObject(BCW->Particle);
 			}
 		}
-		
+
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 
 		//don't delete wrapper objects until solver is gone.
@@ -299,11 +300,11 @@ namespace GeometryCollectionTest
 	}
 
 	template<typename Traits>
-	void TFramework<Traits>::AddSimulationObject(WrapperBase * Object)
+	void TFramework<Traits>::AddSimulationObject(WrapperBase* Object)
 	{
 		PhysicsObjects.Add(Object);
 	}
-	
+
 	template<typename Traits>
 	void TFramework<Traits>::Initialize()
 	{
@@ -317,7 +318,6 @@ namespace GeometryCollectionTest
 			else if (RigidBodyWrapper* RBW = Object->As<RigidBodyWrapper>())
 			{
 				Solver->RegisterObject(RBW->Particle);
-				Solver->AddDirtyProxy(RBW->Particle->GetProxy());
 			}
 		}
 	}
@@ -329,12 +329,12 @@ namespace GeometryCollectionTest
 		Solver->AdvanceAndDispatch_External(Dt);
 		Solver->UpdateGameThreadStructures();
 	}
-	
+
 #define EVOLUTION_TRAIT(Trait) template class TFramework<Trait>;
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 
-	
+
 #define EVOLUTION_TRAIT(Trait)\
 template WrapperBase* TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Trait>(const CreationParameters Params);\
 template WrapperBase* TNewSimulationObject<GeometryType::RigidFloor>::Init<Trait>(const CreationParameters Params);\

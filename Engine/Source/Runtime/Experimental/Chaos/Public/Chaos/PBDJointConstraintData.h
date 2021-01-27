@@ -6,6 +6,7 @@
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/PBDConstraintBaseData.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 
 
 namespace Chaos
@@ -56,7 +57,7 @@ namespace Chaos
 		const FData& GetJointSettings()const { return JointSettings; }
 
 		// If we created particle to serve as kinematic endpoint, track so we can release later. This will add particle to solver.
-		void SetKinematicEndPoint(TGeometryParticle<FReal, 3>* InParticle, FPBDRigidsSolver* Solver);
+		void SetKinematicEndPoint(FSingleParticlePhysicsProxy* InParticle, FPBDRigidsSolver* Solver);
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, CollisionEnabled, EJointConstraintFlags::CollisionEnabled, JointSettings.bCollisionEnabled);
 		//void SetCollisionEnabled(bool InValue);
@@ -327,7 +328,7 @@ namespace Chaos
 	private:
 		// TODO: When we build constraint with only one actor, we spawn this particle to serve as kinematic endpoint
 		// to attach to, as Chaos requires two particles currently. This tracks particle that will need to be released with joint.
-		TGeometryParticle<FReal, 3>* KinematicEndPoint;
+		FSingleParticlePhysicsProxy* KinematicEndPoint;
 	};
 
 } // Chaos

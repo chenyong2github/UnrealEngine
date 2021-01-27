@@ -12,6 +12,9 @@ namespace Chaos
 
 	template <typename T, int d>
 	class TPBDRigidParticle;
+
+	class FRigidBodyHandle_External;
+	class FRigidBodyHandle_Internal;
 }
 
 class FSingleParticlePhysicsProxy;

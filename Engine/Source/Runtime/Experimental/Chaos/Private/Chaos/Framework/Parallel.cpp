@@ -2,6 +2,7 @@
 
 #include "Chaos/Framework/Parallel.h"
 #include "Async/ParallelFor.h"
+#include "Framework/Threading.h"
 
 using namespace Chaos;
 
@@ -23,7 +24,14 @@ namespace Chaos
 void Chaos::PhysicsParallelFor(int32 InNum, TFunctionRef<void(int32)> InCallable, bool bForceSingleThreaded)
 {
 	// Passthrough for now, except with global flag to disable parallel
-	::ParallelFor(InNum, InCallable, bDisablePhysicsParallelFor || bForceSingleThreaded);
+	
+	auto PassThrough = [InCallable, bIsInPhysicsSimContext = IsInPhysicsThreadContext(), bIsInGameThreadContext = IsInGameThreadContext()](int32 Idx)
+	{
+		FPhysicsThreadContextScope PTScope(bIsInPhysicsSimContext);
+		FGameThreadContextScope GTScope(bIsInGameThreadContext);
+		InCallable(Idx);
+	};
+	::ParallelFor(InNum, PassThrough, bDisablePhysicsParallelFor || bForceSingleThreaded);
 }
 
 //class FRecursiveDivideTask

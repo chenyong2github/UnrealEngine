@@ -38,7 +38,7 @@ namespace Chaos
 
 	void RecordToCacheInternal(FSingleParticlePhysicsProxy* InProxy, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime)
 	{
-		if(TGeometryParticleHandle<FReal,3>* Handle = InProxy->GetHandle())
+		if(TGeometryParticleHandle<FReal,3>* Handle = InProxy->GetHandle_LowLevel())
 		{
 			if(TPBDRigidParticleHandle<float, 3> * AsRigid = Handle->CastToRigidParticle())
 			{
@@ -75,7 +75,7 @@ namespace Chaos
 			return;
 		}
 
-		TGeometryParticleHandle<FReal,3>* Handle = InProxy->GetHandle();
+		TGeometryParticleHandle<FReal,3>* Handle = InProxy->GetHandle_LowLevel();
 		
 		if(Handle && Handle->ObjectState() == EObjectStateType::Kinematic)
 		{

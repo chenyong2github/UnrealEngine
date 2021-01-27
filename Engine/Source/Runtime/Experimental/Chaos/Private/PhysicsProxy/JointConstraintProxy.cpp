@@ -64,7 +64,7 @@ TJointConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysicsProxy
 	{
 		if (ProxyBase->GetType() == EPhysicsProxyType::SingleParticleProxy)
 		{
-			return ((FSingleParticlePhysicsProxy*)ProxyBase)->GetHandle();
+			return ((FSingleParticlePhysicsProxy*)ProxyBase)->GetHandle_LowLevel();
 		}
 	}
 	return nullptr;

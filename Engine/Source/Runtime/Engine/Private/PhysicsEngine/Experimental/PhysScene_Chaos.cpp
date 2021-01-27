@@ -956,26 +956,19 @@ void FPhysScene_Chaos::AddForce_AssumesLocked(FBodyInstance* BodyInstance, const
 	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 	if (FPhysicsInterface::IsValid(Handle))
 	{
-		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
-		if(Rigid)
+		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
+		EObjectStateType ObjectState = Body_External.ObjectState();
+		Body_External.SetObjectState(EObjectStateType::Dynamic);
+
+		if (bAccelChange)
 		{
-			EObjectStateType ObjectState = Rigid->ObjectState();
-			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
-			{
-				Rigid->SetObjectState(EObjectStateType::Dynamic);
-
-				if (bAccelChange)
-				{
-					const float Mass = Rigid->M();
-					const Chaos::FVec3 Acceleration = Force * Mass;
-					Rigid->AddForce(Acceleration);
-				}
-				else
-				{
-					Rigid->AddForce(Force);
-				}
-
-			}
+			const float Mass = Body_External.M();
+			const Chaos::FVec3 Acceleration = Force * Mass;
+			Body_External.AddForce(Acceleration);
+		}
+		else
+		{
+			Body_External.AddForce(Force);
 		}
 	}
 }
@@ -987,34 +980,26 @@ void FPhysScene_Chaos::AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInsta
 	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 	if (ensure(FPhysicsInterface::IsValid(Handle)))
 	{
-		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
-		
-		if (ensure(Rigid))
+		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
+		EObjectStateType ObjectState = Body_External.ObjectState();
+		const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(&Body_External);
+
+		Body_External.SetObjectState(EObjectStateType::Dynamic);
+
+		if (bIsLocalForce)
 		{
-			EObjectStateType ObjectState = Rigid->ObjectState();
-			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
-			{
-				const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
-
-				Rigid->SetObjectState(EObjectStateType::Dynamic);
-
-				if (bIsLocalForce)
-				{
-					const Chaos::FRigidTransform3 CurrentTransform = FParticleUtilitiesGT::GetActorWorldTransform(Rigid);
-					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
-					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
-					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
-					Rigid->AddForce(WorldForce);
-					Rigid->AddTorque(WorldTorque);
-				}
-				else
-				{
-					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
-					Rigid->AddForce(Force);
-					Rigid->AddTorque(WorldTorque);
-				}
-
-			}
+			const Chaos::FRigidTransform3 CurrentTransform = FParticleUtilitiesGT::GetActorWorldTransform(&Body_External);
+			const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
+			const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
+			const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
+			Body_External.AddForce(WorldForce);
+			Body_External.AddTorque(WorldTorque);
+		}
+		else
+		{
+			const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
+			Body_External.AddForce(Force);
+			Body_External.AddTorque(WorldTorque);
 		}
 	}
 }
@@ -1024,52 +1009,48 @@ void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyIns
 	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 	if (ensure(FPhysicsInterface::IsValid(Handle)))
 	{
-		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
-		
-		if (ensure(Rigid))
+		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
+		Chaos::EObjectStateType ObjectState = Body_External.ObjectState();
+		if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
 		{
-			Chaos::EObjectStateType ObjectState = Rigid->ObjectState();
-			if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
+			const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&Body_External);
+
+			Chaos::FVec3 Direction = WorldCOM - Origin;
+			const float Distance = Direction.Size();
+			if (Distance > Radius)
 			{
-				const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
+				return;
+			}
 
-				Chaos::FVec3 Direction = WorldCOM - Origin;
-				const float Distance = Direction.Size();
-				if (Distance > Radius)
-				{
-					return;
-				}
+			Body_External.SetObjectState(Chaos::EObjectStateType::Dynamic);
 
-				Rigid->SetObjectState(Chaos::EObjectStateType::Dynamic);
-
-				if (Distance < 1e-4)
-				{
-					Direction = Chaos::FVec3(1, 0, 0);
-				}
-				else
-				{
-					Direction = Direction.GetUnsafeNormal();
-				}
-				Chaos::FVec3 Force(0, 0, 0);
-				CHAOS_ENSURE(Falloff < RIF_MAX);
-				if (Falloff == ERadialImpulseFalloff::RIF_Constant)
-				{
-					Force = Strength * Direction;
-				}
-				if (Falloff == ERadialImpulseFalloff::RIF_Linear)
-				{
-					Force = (Radius - Distance) / Radius * Strength * Direction;
-				}
-				if (bAccelChange)
-				{
-					const float Mass = Rigid->M();
-					const Chaos::FVec3 Acceleration = Force * Mass;
-					Rigid->AddForce(Acceleration);
-				}
-				else
-				{
-					Rigid->AddForce(Force);
-				}
+			if (Distance < 1e-4)
+			{
+				Direction = Chaos::FVec3(1, 0, 0);
+			}
+			else
+			{
+				Direction = Direction.GetUnsafeNormal();
+			}
+			Chaos::FVec3 Force(0, 0, 0);
+			CHAOS_ENSURE(Falloff < RIF_MAX);
+			if (Falloff == ERadialImpulseFalloff::RIF_Constant)
+			{
+				Force = Strength * Direction;
+			}
+			if (Falloff == ERadialImpulseFalloff::RIF_Linear)
+			{
+				Force = (Radius - Distance) / Radius * Strength * Direction;
+			}
+			if (bAccelChange)
+			{
+				const float Mass = Body_External.M();
+				const Chaos::FVec3 Acceleration = Force * Mass;
+				Body_External.AddForce(Acceleration);
+			}
+			else
+			{
+				Body_External.AddForce(Force);
 			}
 		}
 	}
@@ -1080,11 +1061,7 @@ void FPhysScene_Chaos::ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bo
 	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 	if (ensure(FPhysicsInterface::IsValid(Handle)))
 	{
-		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
-		if (ensure(Rigid))
-		{
-			Rigid->ClearForces();
-		}
+		Handle->GetGameThreadAPI().ClearForces();
 	}
 }
 
@@ -1095,21 +1072,17 @@ void FPhysScene_Chaos::AddTorque_AssumesLocked(FBodyInstance* BodyInstance, cons
 	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 	if (ensure(FPhysicsInterface::IsValid(Handle)))
 	{
-		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
-		
-		if (ensure(Rigid))
+		Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
+		EObjectStateType ObjectState = Body_External.ObjectState();
+		if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 		{
-			EObjectStateType ObjectState = Rigid->ObjectState();
-			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
+			if (bAccelChange)
 			{
-				if (bAccelChange)
-				{
-					Rigid->AddTorque(FParticleUtilitiesXR::GetWorldInertia(Rigid) * Torque);
-				}
-				else
-				{
-					Rigid->AddTorque(Torque);
-				}
+				Body_External.AddTorque(FParticleUtilitiesXR::GetWorldInertia(&Body_External) * Torque);
+			}
+			else
+			{
+				Body_External.AddTorque(Torque);
 			}
 		}
 	}
@@ -1120,11 +1093,7 @@ void FPhysScene_Chaos::ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, b
 	FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 	if (ensure(FPhysicsInterface::IsValid(Handle)))
 	{
-		Chaos::TPBDRigidParticle<float, 3>* Rigid = Handle->CastToRigidParticle();
-		if (ensure(Rigid))
-		{
-			Rigid->ClearTorques();
-		}
+		Handle->GetGameThreadAPI().ClearTorques();
 	}
 }
 
@@ -1265,10 +1234,11 @@ void ProcessTeleportActors(FPhysScene_Chaos& Scene, const TArrayView<FPhysicsAct
 		for (int32 ActorIndex = 0; ActorIndex < NumActors; ++ActorIndex)
 		{
 			const FPhysicsActorHandle& ActorHandle = ActorHandles[ActorIndex];
+			Chaos::FRigidBodyHandle_External& Body_External = ActorHandle->GetGameThreadAPI();
 			const FTransform& ActorTransform = Transforms[ActorIndex];
-			ActorHandle->SetX(ActorTransform.GetLocation(), false);	// only set dirty once in SetR
-			ActorHandle->SetR(ActorTransform.GetRotation());
-			ActorHandle->UpdateShapeBounds();
+			Body_External.SetX(ActorTransform.GetLocation(), false);	// only set dirty once in SetR
+			Body_External.SetR(ActorTransform.GetRotation());
+			Body_External.UpdateShapeBounds();
 		}
 
 		Scene.UpdateActorsInAccelerationStructure(ActorHandles);
@@ -1403,7 +1373,7 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 						const int32 BoneIndex = BodyInst->InstanceBoneIndex;
 						if (BoneIndex != INDEX_NONE)
 						{
-							IPhysicsProxyBase* Proxy = ActorHandle->GetProxy();
+							IPhysicsProxyBase* Proxy = ActorHandle;
 							if (Proxy && Proxy->GetDirtyIdx() == INDEX_NONE)
 							{
 								ProxiesToDirty.Add(Proxy);
@@ -1450,6 +1420,7 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 				{
 					FBodyInstance* BodyInst = SkelComp->Bodies[i];
 					FPhysicsActorHandle& ActorHandle = BodyInst->ActorHandle;
+					Chaos::FRigidBodyHandle_External& Body_External = ActorHandle->GetGameThreadAPI();
 					if (!BodyInst->IsInstanceSimulatingPhysics())
 					{
 						const int32 BoneIndex = BodyInst->InstanceBoneIndex;
@@ -1460,9 +1431,9 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 							TeleportActorsPool[ActorPoolStartIndex + i] = ActorHandle;
 
 							// TODO: Kinematic targets. Check Teleport type on FDeferredKinematicUpdateInfo and don't always teleport.
-							ActorHandle->SetX(BoneTransform.GetLocation(), false);	// only set dirty once in SetR
-							ActorHandle->SetR(BoneTransform.GetRotation());
-							ActorHandle->UpdateShapeBounds(BoneTransform);
+							Body_External.SetX(BoneTransform.GetLocation(), false);	// only set dirty once in SetR
+							Body_External.SetR(BoneTransform.GetRotation());
+							Body_External.UpdateShapeBounds(BoneTransform);
 
 							if (!PhysicsAsset->SkeletalBodySetups[i]->bSkipScaleFromAnimation)
 							{

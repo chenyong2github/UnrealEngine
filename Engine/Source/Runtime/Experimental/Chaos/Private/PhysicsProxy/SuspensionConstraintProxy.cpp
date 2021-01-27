@@ -56,7 +56,7 @@ TSuspensionConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysics
 	{
 		if (ProxyBase->GetType() == EPhysicsProxyType::SingleParticleProxy)
 		{
-			return ((FSingleParticlePhysicsProxy*)ProxyBase)->GetHandle();
+			return ((FSingleParticlePhysicsProxy*)ProxyBase)->GetHandle_LowLevel();
 		}
 	}
 	return nullptr;

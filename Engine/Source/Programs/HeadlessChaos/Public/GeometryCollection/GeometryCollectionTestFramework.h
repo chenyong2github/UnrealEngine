@@ -9,6 +9,7 @@
 #include "Chaos/EvolutionTraits.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "Chaos/Defines.h"
+#include "PhysicsInterfaceDeclaresCore.h"
 
 namespace GeometryCollectionTest
 {
@@ -60,13 +61,13 @@ namespace GeometryCollectionTest
 	{
 		RigidBodyWrapper(
 			TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterialIn,
-			FGeometryParticle* ParticleIn)
+			FPhysicsActorHandle ParticleIn)
 			: WrapperBase(WrapperType::RigidBody)
 			, PhysicalMaterial(PhysicalMaterialIn)
 			, Particle(ParticleIn) {}
 		static WrapperType StaticType() { return WrapperType::RigidBody; }
 		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
-		FGeometryParticle* Particle;
+		FPhysicsActorHandle Particle;
 	};
 
 

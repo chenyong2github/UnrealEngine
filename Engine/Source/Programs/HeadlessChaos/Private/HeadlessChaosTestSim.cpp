@@ -28,33 +28,35 @@ namespace ChaosTest {
 		GeometryCollectionTest::TFramework<TypeParam> Framework;
 
 		// Make a particle
-		TUniquePtr<Chaos::TPBDRigidParticle<FReal, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
-		Particle->SetGeometry(Sphere);
-		Particle->SetX(FVec3(1000, 1000, 200));
-		Particle->SetGravityEnabled(true);
-		Framework.Solver->RegisterObject(Particle.Get());
+		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+		auto& Particle = Proxy->GetGameThreadAPI();
+		Particle.SetGeometry(Sphere);
+		Particle.SetX(FVec3(1000, 1000, 200));
+		Particle.SetGravityEnabled(true);
+		Framework.Solver->RegisterObject(Proxy);
 
-		TUniquePtr<Chaos::FGeometryParticle> Static = Chaos::FGeometryParticle::CreateParticle();
-		Static->SetGeometry(Sphere);
-		Static->SetX(FVec3(0, 0, 0));
-		Framework.Solver->RegisterObject(Static.Get());
+		auto StaticProxy = FSingleParticlePhysicsProxy::Create(Chaos::TGeometryParticle<float, 3>::CreateParticle());
+		auto& Static = StaticProxy->GetGameThreadAPI();
+		Static.SetGeometry(Sphere);
+		Static.SetX(FVec3(0, 0, 0));
+		Framework.Solver->RegisterObject(StaticProxy);
 
-		Static->SetX(FVec3(2000, 1000, 0));
-		Static->SetX(FVec3(3000, 1000, 0));
+		Static.SetX(FVec3(2000, 1000, 0));
+		Static.SetX(FVec3(3000, 1000, 0));
 
-		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get(), Static.Get() });
+		::ChaosTest::SetParticleSimDataToCollide({ Proxy->GetParticle_LowLevel(), StaticProxy->GetParticle_LowLevel() });
 
-		for(int32 Iter = 0; Iter < 200; ++Iter)
+		for (int32 Iter = 0; Iter < 200; ++Iter)
 		{
 			Framework.Advance();
 
-			if(Iter == 0)
+			if (Iter == 0)
 			{
-				Static->SetX(FVec3(1000, 1000, 0));
+				Static.SetX(FVec3(1000, 1000, 0));
 			}
 		}
 
-		EXPECT_NEAR(Particle->X().Z, 20, 1);
+		EXPECT_NEAR(Particle.X().Z, 20, 1);
 	}
 
 	TYPED_TEST(AllEvolutions, SimTests_SphereSphereSimTest)

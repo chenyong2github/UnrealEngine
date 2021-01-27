@@ -132,8 +132,8 @@ namespace Chaos
 		//  Object API
 		//
 
-		void RegisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
-		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
+		void RegisterObject(FSingleParticlePhysicsProxy* Proxy);
+		void UnregisterObject(FSingleParticlePhysicsProxy* Proxy);
 
 		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
 		void UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);

@@ -37,6 +37,8 @@ public:
 	template< class SOLVER_TYPE>
 	SOLVER_TYPE* GetSolver() const { return static_cast<SOLVER_TYPE*>(Solver); }
 
+	Chaos::FPhysicsSolverBase* GetSolverBase() const { return Solver; }
+
 	//Should this be in the public API? probably not
 	template< class SOLVER_TYPE = Chaos::FPhysicsSolver>
 	void SetSolver(SOLVER_TYPE* InSolver) { Solver = InSolver; }

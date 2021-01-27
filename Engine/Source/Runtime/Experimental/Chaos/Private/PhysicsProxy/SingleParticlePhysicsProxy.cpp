@@ -16,15 +16,16 @@
 #include "Chaos/PullPhysicsDataImp.h"
 
 
-FSingleParticlePhysicsProxy::FSingleParticlePhysicsProxy(PARTICLE_TYPE* InParticle, FParticleHandle* InHandle, UObject* InOwner, FInitialState InInitialState)
+FSingleParticlePhysicsProxy::FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner, FInitialState InInitialState)
 	: IPhysicsProxyBase(EPhysicsProxyType::SingleParticleProxy)
 	, bInitialized(false)
 	, InitialState(InInitialState)
-	, Particle(InParticle)
+	, Particle(MoveTemp(InParticle))
 	, Handle(InHandle)
 	, Owner(InOwner)
 	, PullDataInterpIdx_External(INDEX_NONE)
 {
+	Particle->SetProxy(this);
 }
 
 
