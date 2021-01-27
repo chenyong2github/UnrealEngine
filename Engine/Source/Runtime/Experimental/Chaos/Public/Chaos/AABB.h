@@ -355,7 +355,7 @@ namespace Chaos
 			return BestNormal;
 		}
 
-		FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const 
+		FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
 			TVector<T, d> ChosenPt;
 			for (int Axis = 0; Axis < d; ++Axis)
@@ -382,7 +382,7 @@ namespace Chaos
 		}
 
 		// Support vertex in the specified direction, assuming each face has been moved inwards by InMargin
-		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 		{
 			TVector<T, d> ChosenPt;
 			for (int Axis = 0; Axis < d; ++Axis)
