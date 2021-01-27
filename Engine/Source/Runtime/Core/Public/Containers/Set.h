@@ -1574,7 +1574,7 @@ public:
 		/** Removes the current element from the set. */
 		FORCEINLINE void RemoveCurrent()
 		{
-			this->Set.Remove(TBaseIterator<false>::GetId());
+			Set.Remove(TBaseIterator<false>::GetId());
 		}
 
 	private:
@@ -1616,7 +1616,7 @@ public:
 		/** Removes the current element from the set. */
 		FORCEINLINE void RemoveCurrent()
 		{
-			Set.Remove(TBaseKeyIterator<false>::Id);
+			this->Set.Remove(TBaseKeyIterator<false>::Id);
 			TBaseKeyIterator<false>::Id = FSetElementId();
 		}
 	};
