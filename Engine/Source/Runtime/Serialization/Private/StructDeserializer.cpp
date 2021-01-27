@@ -156,6 +156,11 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 							NewState.Data = CurrentState.Data;
 						}
 					}
+					// handle static array	
+					else
+					{
+						NewState.Data = CurrentState.Data;
+					}
 
 					NewState.TypeInfo = FindClass(NewState);
 					StateStack.Push(CurrentState);
