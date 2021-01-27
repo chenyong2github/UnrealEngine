@@ -158,6 +158,9 @@ private:
 	void SaveExpandedState(TMap<FSourceControlChangelistStateRef, ExpandedState>& ExpandedStates) const;
 	void RestoreExpandedState(const TMap<FSourceControlChangelistStateRef, ExpandedState>& ExpandedStates);
 
+	TSharedRef<SWidget> MakeToolBar();
+
+private:
 	/** Changelists (root nodes) */
 	TArray<FChangelistTreeItemPtr> ChangelistsNodes;
 
