@@ -286,6 +286,8 @@ public:
 	FVulkanCommandBufferManager(FVulkanDevice* InDevice, FVulkanCommandListContext* InContext);
 	~FVulkanCommandBufferManager();
 
+	void Init(FVulkanCommandListContext* InContext);
+
 	inline FVulkanCmdBuffer* GetActiveCmdBuffer()
 	{
 		if (UploadCmdBuffer)

@@ -143,6 +143,7 @@ FVulkanCommandListContext::FVulkanCommandListContext(FVulkanDynamicRHI* InRHI, F
 
 	// Create CommandBufferManager, contain all active buffers
 	CommandBufferManager = new FVulkanCommandBufferManager(InDevice, this);
+	CommandBufferManager->Init(this);
 	FrameTiming->Initialize();
 	if (IsImmediate())
 	{

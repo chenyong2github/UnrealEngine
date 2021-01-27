@@ -442,6 +442,10 @@ FVulkanCommandBufferManager::FVulkanCommandBufferManager(FVulkanDevice* InDevice
 	}
 
 	ActiveCmdBuffer = Pool.Create(false);
+}
+
+void FVulkanCommandBufferManager::Init(FVulkanCommandListContext* InContext)
+{
 	ActiveCmdBuffer->InitializeTimings(InContext);
 	ActiveCmdBuffer->Begin();
 }
