@@ -222,7 +222,7 @@ void CalcOutputOffsets(uint GroupThreadIndex : SV_GroupIndex, uint GroupId : SV_
 	}
 }
 
-StructuredBuffer<uint> InstanceIdOffsetBuffer;
+Buffer<uint> InstanceIdOffsetBuffer;
 
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
 void OutputInstanceIdsAtOffset(uint GroupThreadIndex : SV_GroupIndex, uint GroupId : SV_GroupID)
