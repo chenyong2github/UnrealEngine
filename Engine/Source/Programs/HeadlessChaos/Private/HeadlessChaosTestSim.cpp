@@ -34,7 +34,7 @@ namespace ChaosTest {
 		Particle->SetGravityEnabled(true);
 		Framework.Solver->RegisterObject(Particle.Get());
 
-		TUniquePtr<Chaos::TGeometryParticle<FReal, 3>> Static = Chaos::TGeometryParticle<FReal, 3>::CreateParticle();
+		TUniquePtr<Chaos::FGeometryParticle> Static = Chaos::FGeometryParticle::CreateParticle();
 		Static->SetGeometry(Sphere);
 		Static->SetX(FVec3(0, 0, 0));
 		Framework.Solver->RegisterObject(Static.Get());

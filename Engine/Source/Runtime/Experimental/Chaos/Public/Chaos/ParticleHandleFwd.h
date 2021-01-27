@@ -89,4 +89,8 @@ namespace Chaos
 
 	template <typename TSOA>
 	class TConstParticleIterator;
+
+	using FGeometryParticle = TGeometryParticle<float, 3>;
+	using FKinematicGeometryParticle = TKinematicGeometryParticle<float, 3>;
+	using FPBDRigidParticle = TPBDRigidParticle<float, 3>;
 }

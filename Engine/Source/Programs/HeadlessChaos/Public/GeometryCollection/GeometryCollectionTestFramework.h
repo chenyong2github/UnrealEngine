@@ -60,13 +60,13 @@ namespace GeometryCollectionTest
 	{
 		RigidBodyWrapper(
 			TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterialIn,
-			TGeometryParticle<float, 3>* ParticleIn)
+			FGeometryParticle* ParticleIn)
 			: WrapperBase(WrapperType::RigidBody)
 			, PhysicalMaterial(PhysicalMaterialIn)
 			, Particle(ParticleIn) {}
 		static WrapperType StaticType() { return WrapperType::RigidBody; }
 		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
-		TGeometryParticle<float, 3>* Particle;
+		FGeometryParticle* Particle;
 	};
 
 

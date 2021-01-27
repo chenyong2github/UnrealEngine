@@ -42,7 +42,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params,Particle);
 		EXPECT_NE(Particle,nullptr);
@@ -63,7 +63,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params,Particle);
 		EXPECT_NE(Particle,nullptr);
@@ -73,7 +73,7 @@ namespace ChaosTest {
 			Particle->SetGeometry(MoveTemp(Sphere));
 		}
 
-		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		TArray<FGeometryParticle*> Particles ={Particle};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 
 		//make sure acceleration structure has new actor right away
@@ -245,21 +245,21 @@ namespace ChaosTest {
 
 
 		// Create two particles, one to remove for test, the other to ensure we have > 0 proxies to hit the pull physics data path.
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 		FChaosEngineInterface::CreateActor(Params,Particle);
 		EXPECT_NE(Particle,nullptr);
 		{
 			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
 			Particle->SetGeometry(MoveTemp(Sphere));
 		}
-		TGeometryParticle<FReal,3>* Particle2 = nullptr;
+		FGeometryParticle* Particle2 = nullptr;
 		FChaosEngineInterface::CreateActor(Params,Particle2);
 		EXPECT_NE(Particle2,nullptr);
 		{
 			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
 			Particle2->SetGeometry(MoveTemp(Sphere));
 		}
-		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle, Particle2};
+		TArray<FGeometryParticle*> Particles ={Particle, Particle2};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 
 		// verify external timestamps are as expected.
@@ -335,7 +335,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params,Particle);
 		EXPECT_NE(Particle,nullptr);
@@ -356,7 +356,7 @@ namespace ChaosTest {
 		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
 
 		//create actor after structure is finished, but before swap happens
-		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		TArray<FGeometryParticle*> Particles ={Particle};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 
 		Scene.CopySolverAccelerationStructure();	//trigger swap manually and see pending changes apply
@@ -374,7 +374,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params,Particle);
 		EXPECT_NE(Particle,nullptr);
@@ -385,7 +385,7 @@ namespace ChaosTest {
 		}
 
 		//create actor before structure is ticked
-		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		TArray<FGeometryParticle*> Particles ={Particle};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 
 		//tick solver so that particle is created, but don't call EndFrame (want to flush and swap manually)
@@ -417,7 +417,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params,Particle);
 		EXPECT_NE(Particle,nullptr);
@@ -428,7 +428,7 @@ namespace ChaosTest {
 		}
 
 		//create actor before structure is ticked
-		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		TArray<FGeometryParticle*> Particles ={Particle};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 
 		//tick solver so that particle is created, but don't call EndFrame (want to flush and swap manually)
@@ -459,7 +459,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params,Particle);
 		EXPECT_NE(Particle,nullptr);
@@ -470,7 +470,7 @@ namespace ChaosTest {
 		}
 
 		//create actor before structure is ticked
-		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		TArray<FGeometryParticle*> Particles ={Particle};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 
 		//tick solver so that particle is created, but don't call EndFrame (want to flush and swap manually)
@@ -502,7 +502,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		//tick solver, but don't call EndFrame (want to flush and swap manually)
 		{
@@ -523,7 +523,7 @@ namespace ChaosTest {
 		}
 
 		//create actor after flush
-		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		TArray<FGeometryParticle*> Particles ={Particle};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 
 		//delete object right away to get no hit
@@ -547,7 +547,7 @@ namespace ChaosTest {
 			FActorCreationParams Params;
 			Params.Scene = &Scene;
 
-			TGeometryParticle<FReal,3>* Particle = nullptr;
+			FGeometryParticle* Particle = nullptr;
 
 			FChaosEngineInterface::CreateActor(Params,Particle);
 			EXPECT_NE(Particle,nullptr);
@@ -558,7 +558,7 @@ namespace ChaosTest {
 			}
 
 			//create actor after flush
-			TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+			TArray<FGeometryParticle*> Particles ={Particle};
 			Scene.AddActorsToScene_AssumesLocked(Particles);
 
 			for(int Repeat = 0; Repeat < Delay; ++Repeat)
@@ -679,7 +679,7 @@ namespace ChaosTest {
 			Params.bSimulatePhysics = true;	//simulate so that sync body is triggered
 			Params.bStartAwake = true;
 
-			TGeometryParticle<FReal,3>* Particle = nullptr;
+			FGeometryParticle* Particle = nullptr;
 			FChaosEngineInterface::CreateActor(Params,Particle);
 			EXPECT_NE(Particle,nullptr);
 
@@ -693,7 +693,7 @@ namespace ChaosTest {
 
 			//make second simulating particle that we don't delete. Needed to trigger a sync
 			//this is because some data is cleaned up on GT immediately
-			TGeometryParticle<FReal,3>* Particle2 = nullptr;
+			FGeometryParticle* Particle2 = nullptr;
 			FChaosEngineInterface::CreateActor(Params,Particle2);	
 			EXPECT_NE(Particle2,nullptr);
 			{
@@ -704,7 +704,7 @@ namespace ChaosTest {
 			}
 
 			//create actor
-			TArray<TGeometryParticle<FReal,3>*> Particles ={Particle, Particle2};
+			TArray<FGeometryParticle*> Particles ={Particle, Particle2};
 			Scene.AddActorsToScene_AssumesLocked(Particles);
 
 			//tick until it's being synced from sim
@@ -774,7 +774,7 @@ namespace ChaosTest {
 			Params.bSimulatePhysics = true;	//simulated so that gt conflicts with sim thread
 			Params.bStartAwake = true;
 
-			TGeometryParticle<FReal,3>* Particle = nullptr;
+			FGeometryParticle* Particle = nullptr;
 			FChaosEngineInterface::CreateActor(Params,Particle);
 			EXPECT_NE(Particle,nullptr);
 
@@ -786,7 +786,7 @@ namespace ChaosTest {
 			}
 
 			//create actor
-			TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+			TArray<FGeometryParticle*> Particles ={Particle};
 			Scene.AddActorsToScene_AssumesLocked(Particles);
 
 			//tick until it's being synced from sim
@@ -877,7 +877,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params,Particle);
 
@@ -887,7 +887,7 @@ namespace ChaosTest {
 		}
 		TPBDRigidParticle<FReal,3>* Simulated = static_cast<TPBDRigidParticle<FReal,3>*>(Particle);
 
-		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		TArray<FGeometryParticle*> Particles ={Particle};
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 		Simulated->SetObjectState(EObjectStateType::Dynamic);
 		Simulated->AddForce(FVec3(0,0,10) * Simulated->M());
@@ -922,8 +922,8 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal, 3>* Particle = nullptr;
-		TGeometryParticle<FReal, 3>* Particle2 = nullptr;
+		FGeometryParticle* Particle = nullptr;
+		FGeometryParticle* Particle2 = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params, Particle);
 		{
@@ -940,7 +940,7 @@ namespace ChaosTest {
 		TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
 		TPBDRigidParticle<FReal, 3>* Simulated2 = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle2);
 
-		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle, Particle2 };
+		TArray<FGeometryParticle*> Particles = { Particle, Particle2 };
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 		Simulated->SetObjectState(EObjectStateType::Dynamic);
 		const float ZVel = 10;
@@ -1018,7 +1018,7 @@ namespace ChaosTest {
 			FActorCreationParams Params;
 			Params.Scene = &Scene;
 
-			TGeometryParticle<FReal, 3>* Particle = nullptr;
+			FGeometryParticle* Particle = nullptr;
 
 			FChaosEngineInterface::CreateActor(Params, Particle);
 			{
@@ -1028,7 +1028,7 @@ namespace ChaosTest {
 
 			TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
 
-			TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
+			TArray<FGeometryParticle*> Particles = { Particle };
 			Scene.AddActorsToScene_AssumesLocked(Particles);
 			Simulated->SetX(FVec3(0, 0, 3));
 			auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Simulated->GetProxy());
@@ -1079,7 +1079,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal, 3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params, Particle);
 		{
@@ -1089,7 +1089,7 @@ namespace ChaosTest {
 
 		TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
 
-		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
+		TArray<FGeometryParticle*> Particles = { Particle };
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 		Simulated->SetObjectState(EObjectStateType::Dynamic);
 		Simulated->SetGravityEnabled(true);
@@ -1151,7 +1151,7 @@ namespace ChaosTest {
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal, 3>* Particle = nullptr;
+		FGeometryParticle* Particle = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params, Particle);
 		{
@@ -1161,7 +1161,7 @@ namespace ChaosTest {
 
 		TPBDRigidParticle<FReal, 3>* Simulated = static_cast<TPBDRigidParticle<FReal, 3>*>(Particle);
 
-		TArray<TGeometryParticle<FReal, 3>*> Particles = { Particle };
+		TArray<FGeometryParticle*> Particles = { Particle };
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 		
 		struct FDummyInput : FSimCallbackInput

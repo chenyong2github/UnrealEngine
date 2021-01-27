@@ -544,7 +544,7 @@ namespace ChaosTest {
 
 		TPBDRigidsSOAs<FReal,3> SOAs;
 
-		auto GTParticle = TGeometryParticle<FReal, 3>::CreateParticle();
+		auto GTParticle = FGeometryParticle::CreateParticle();
 		//fake unique assignment like we would for solver
 		GTParticle->SetUniqueIdx(SOAs.GetUniqueIndices().GenerateUniqueIdx());
 

@@ -2172,7 +2172,7 @@ namespace ChaosTest {
 		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
 		InitSolverSettings(Solver);
 
-		TArray<TUniquePtr<TGeometryParticle<FReal, 3>>> Storage = InitFunc(Solver);
+		TArray<TUniquePtr<FGeometryParticle>> Storage = InitFunc(Solver);
 
 		for(int32 Step = 0; Step < NumSteps; ++Step)
 		{
@@ -2189,7 +2189,7 @@ namespace ChaosTest {
 
 		const auto InitLambda = [&Box](auto& Solver)
 		{
-			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			TArray<TUniquePtr<FGeometryParticle>> Storage;
 			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
 
 			Dynamic->SetGeometry(Box);
@@ -2223,7 +2223,7 @@ namespace ChaosTest {
 
 		const auto InitLambda = [&Box, &StartPos, &StartRotation](auto& Solver)
 		{
-			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			TArray<TUniquePtr<FGeometryParticle>> Storage;
 			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
 
 			Dynamic->SetGeometry(Box);
@@ -2272,7 +2272,7 @@ namespace ChaosTest {
 
 		const auto InitLambda = [&Box](auto& Solver)
 		{
-			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			TArray<TUniquePtr<FGeometryParticle>> Storage;
 			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
 
 			Dynamic->SetGeometry(Box);
@@ -2306,7 +2306,7 @@ namespace ChaosTest {
 
 		const auto InitLambda = [&Box, Gravity](auto& Solver)
 		{
-			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			TArray<TUniquePtr<FGeometryParticle>> Storage;
 			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
 
 			Dynamic->SetGeometry(Box);
@@ -2359,7 +2359,7 @@ namespace ChaosTest {
 
 		const auto InitLambda = [&Sphere](auto& Solver)
 		{
-			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			TArray<TUniquePtr<FGeometryParticle>> Storage;
 			auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();
 
 			Dynamic->SetGeometry(Sphere);
@@ -2405,7 +2405,7 @@ namespace ChaosTest {
 		const auto InitLambda = [&SmallBox, &Box](auto& Solver)
 		{
 			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0,0,-980));
-			TArray<TUniquePtr<TGeometryParticle<FReal,3>>> Storage;
+			TArray<TUniquePtr<FGeometryParticle>> Storage;
 			for(int Idx = 0; Idx < 5; ++Idx)
 			{
 				auto Dynamic = TPBDRigidParticle<float,3>::CreateParticle();

@@ -727,9 +727,9 @@ namespace ChaosTest {
 		return FVec3(FVector::UpVector);
 	}
 
-	void SetParticleSimDataToCollide(TArray< Chaos::TGeometryParticle<float, 3>* > ParticleArray)
+	void SetParticleSimDataToCollide(TArray< Chaos::FGeometryParticle* > ParticleArray)
 	{
-		for (Chaos::TGeometryParticle<float, 3>* Particle : ParticleArray)
+		for (Chaos::FGeometryParticle* Particle : ParticleArray)
 		{
 			for (const TUniquePtr<Chaos::FPerShapeData>& Shape :Particle->ShapesArray())
 			{

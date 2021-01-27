@@ -242,7 +242,7 @@ namespace GeometryCollectionTest
 	WrapperBase* TNewSimulationObject<GeometryType::RigidFloor>::Init(const CreationParameters Params)
 	{
 		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeShared<Chaos::FChaosPhysicsMaterial>(); InitMaterialToZero(PhysicalMaterial.Get());
-		TGeometryParticle<float, 3>* Particle = TGeometryParticle<float, 3>::CreateParticle().Release();
+		FGeometryParticle* Particle = FGeometryParticle::CreateParticle().Release();
 		Particle->SetGeometry(TUniquePtr<TPlane<float, 3>>(new TPlane<float, 3>(FVector(0), FVector(0, 0, 1))));
 
 		FCollisionFilterData FilterData;

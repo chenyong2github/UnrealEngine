@@ -197,7 +197,7 @@ namespace ChaosTest {
 	}
 
 	/**/
-	void SetParticleSimDataToCollide(TArray< Chaos::TGeometryParticle<float, 3>* > ParticleArray);
+	void SetParticleSimDataToCollide(TArray< Chaos::FGeometryParticle* > ParticleArray);
 	void SetParticleSimDataToCollide(TArray< Chaos::TGeometryParticleHandle<float, 3>* > ParticleArray);
 
 
