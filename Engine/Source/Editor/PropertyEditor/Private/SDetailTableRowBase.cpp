@@ -2,6 +2,8 @@
 
 #include "SDetailTableRowBase.h"
 
+const float SDetailTableRowBase::ScrollBarPadding = 16.0f;
+
 int32 SDetailTableRowBase::GetIndentLevelForBackgroundColor() const
 {
 	int32 IndentLevel = 0; 
@@ -23,16 +25,12 @@ int32 SDetailTableRowBase::GetIndentLevelForBackgroundColor() const
 	return FMath::Max(0, IndentLevel);
 }
 
-FMargin SDetailTableRowBase::GetRowScrollBarPadding(TWeakPtr<STableViewBase> OwnerTableViewWeak) const
+bool SDetailTableRowBase::IsScrollBarVisible(TWeakPtr<STableViewBase> OwnerTableViewWeak)
 {
 	TSharedPtr<STableViewBase> OwnerTableView = OwnerTableViewWeak.Pin();
 	if (OwnerTableView.IsValid())
 	{
-		if (OwnerTableView->GetScrollbarVisibility() == EVisibility::Visible)
-		{
-			const float ScrollbarPaddingSize = 16.0f;
-			return FMargin(0, 0, ScrollbarPaddingSize, 1);
-		}
+		return OwnerTableView->GetScrollbarVisibility() == EVisibility::Visible;
 	}
-	return FMargin(0, 0, 0, 1);
+	return false;
 }

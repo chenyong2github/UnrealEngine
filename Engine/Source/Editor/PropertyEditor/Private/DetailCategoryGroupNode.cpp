@@ -5,6 +5,7 @@
 #include "PropertyEditorConstants.h"
 #include "SDetailExpanderArrow.h"
 #include "SDetailRowIndent.h"
+#include "Styling/StyleColors.h"
 
 void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView )
 {
@@ -57,12 +58,25 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 	const float EditConditionWidgetWidth = 33; // this is the width of the edit condition widget displayed on the left in SDetailSingleItemRow
 
 	TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
-	
+	auto GetScrollbarWellBrush = [this, OwnerTableViewWeak]()
+	{
+		return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ?
+			FAppStyle::Get().GetBrush("DetailsView.GridLine") : 
+			this->GetBackgroundImage();
+	};
+
+	auto GetScrollbarWellTint = [this, OwnerTableViewWeak]()
+	{
+		return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ?
+			FSlateColor(EStyleColor::White) : 
+			this->GetInnerBackgroundColor();
+	};
+
 	this->ChildSlot
 	[
 		SNew( SBorder )
 		.BorderImage(FAppStyle::Get().GetBrush("DetailsView.GridLine"))
-		.Padding(this, &SDetailTableRowBase::GetRowScrollBarPadding, OwnerTableViewWeak)
+		.Padding(FMargin(0, 0, 0, 1))
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -75,19 +89,29 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 				.Padding(0)
 				[
 					SNew(SSpacer)
-					.Size(bIsInnerCategory ? FVector2D(EditConditionWidgetWidth,0) : FVector2D(0,0))
+					.Size(bIsInnerCategory ? FVector2D(EditConditionWidgetWidth, 0) : FVector2D(0,0))
 				]
 			]
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Fill)
 			[
-				SNew( SBorder )
-				.BorderImage( this, &SDetailCategoryTableRow::GetBackgroundImage )
+				SNew(SBorder)
+				.BorderImage(this, &SDetailCategoryTableRow::GetBackgroundImage)
 				.BorderBackgroundColor(this, &SDetailCategoryTableRow::GetInnerBackgroundColor)
 				.Padding(0)
 				[
 					HeaderBox
 				]
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Fill)
+			.AutoWidth()
+			[
+				SNew(SBorder)
+				.BorderImage_Lambda(GetScrollbarWellBrush)
+				.BorderBackgroundColor_Lambda(GetScrollbarWellTint)
+				.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollBarPadding, 0))
 			]
 		]
 	];

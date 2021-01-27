@@ -21,6 +21,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
@@ -272,10 +273,10 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				];
 
 			TAttribute<bool> IsEnabledAttribute;
-			if (WidgetRow.IsEnabledAttr.IsBound())
+			if (WidgetRow.IsEnabledAttr.IsSet() || WidgetRow.IsEnabledAttr.IsBound())
 			{
-				TAttribute<bool> PropertyEnabledAttr = InOwnerTreeNode->IsPropertyEditingEnabled();
 				TAttribute<bool> RowEnabledAttr = WidgetRow.IsEnabledAttr;
+				TAttribute<bool> PropertyEnabledAttr = InOwnerTreeNode->IsPropertyEditingEnabled();
 				IsEnabledAttribute = TAttribute<bool>::Create(
 					[RowEnabledAttr, PropertyEnabledAttr]()
 					{
@@ -533,20 +534,48 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 	}
 
 	TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
-	
+	auto GetScrollbarWellBrush = [this, OwnerTableViewWeak]()
+	{
+		return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ?
+			FAppStyle::Get().GetBrush("DetailsView.GridLine") : 
+			FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle");
+	};
+
+	auto GetScrollbarWellTint = [this, OwnerTableViewWeak]()
+	{
+		return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ?
+			FSlateColor(EStyleColor::White) : 
+			this->GetInnerBackgroundColor();
+	};
+
 	this->ChildSlot
 	[
 		SNew( SBorder )
 		.BorderImage(FAppStyle::Get().GetBrush( "DetailsView.GridLine"))
-		.Padding(this, &SDetailTableRowBase::GetRowScrollBarPadding, OwnerTableViewWeak)
+		.Padding(FMargin(0,0,0,1))
 		[
-			SNew( SBorder )
-			.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
-			.BorderBackgroundColor(this, &SDetailSingleItemRow::GetOuterBackgroundColor)
-			.Padding(0)
-			.Clipping(EWidgetClipping::ClipToBounds)
+			SNew( SHorizontalBox )
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
 			[
-				Widget
+				SNew( SBorder )
+				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+				.BorderBackgroundColor(this, &SDetailSingleItemRow::GetOuterBackgroundColor)
+				.Padding(0)
+				.Clipping(EWidgetClipping::ClipToBounds)
+				[
+					Widget
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Fill)
+			.AutoWidth()
+			[
+				SNew(SBorder)
+				.BorderImage_Lambda(GetScrollbarWellBrush)
+				.BorderBackgroundColor_Lambda(GetScrollbarWellTint)
+				.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollBarPadding, 0))
 			]
 		]
 	];
@@ -682,30 +711,33 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 			PasteAction);
 	}
 
-	FUIAction FavoriteAction;
-	FavoriteAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnFavoriteMenuToggle);
-	FavoriteAction.CanExecuteAction = FCanExecuteAction::CreateLambda([this]()
-		{
-			return Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->CanDisplayFavorite();
-		});
-
-	FText FavoriteText = NSLOCTEXT("PropertyView", "FavoriteProperty", "Add to Favorites");
-	FText FavoriteTooltipText = NSLOCTEXT("PropertyView", "FavoriteProperty_ToolTip", "Add this property to your favorites.");
-	FName FavoriteIcon = "DetailsView.PropertyIsFavorite";
-
-	bool IsFavorite = Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->IsFavorite();
-	if (IsFavorite)
+	if (OwnerTreeNode.Pin()->GetDetailsView()->IsFavoritingEnabled())
 	{
-		FavoriteText = NSLOCTEXT("PropertyView", "RemoveFavoriteProperty", "Remove from Favorites");
-		FavoriteTooltipText = NSLOCTEXT("PropertyView", "RemoveFavoriteProperty_ToolTip", "Remove this property from your favorites.");
-		FavoriteIcon = "DetailsView.PropertyIsNotFavorite";
-	}
+		FUIAction FavoriteAction;
+		FavoriteAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnFavoriteMenuToggle);
+		FavoriteAction.CanExecuteAction = FCanExecuteAction::CreateLambda([this]()
+			{
+				return Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->CanDisplayFavorite();
+			});
 
-	MenuBuilder.AddMenuEntry(
-		FavoriteText,
-		FavoriteTooltipText,
-		FSlateIcon(FEditorStyle::Get().GetStyleSetName(), FavoriteIcon),
-		FavoriteAction);
+		FText FavoriteText = NSLOCTEXT("PropertyView", "FavoriteProperty", "Add to Favorites");
+		FText FavoriteTooltipText = NSLOCTEXT("PropertyView", "FavoriteProperty_ToolTip", "Add this property to your favorites.");
+		FName FavoriteIcon = "DetailsView.PropertyIsFavorite";
+
+		bool IsFavorite = Customization->GetPropertyNode().IsValid() && Customization->GetPropertyNode()->IsFavorite();
+		if (IsFavorite)
+		{
+			FavoriteText = NSLOCTEXT("PropertyView", "RemoveFavoriteProperty", "Remove from Favorites");
+			FavoriteTooltipText = NSLOCTEXT("PropertyView", "RemoveFavoriteProperty_ToolTip", "Remove this property from your favorites.");
+			FavoriteIcon = "DetailsView.PropertyIsNotFavorite";
+		}
+
+		MenuBuilder.AddMenuEntry(
+			FavoriteText,
+			FavoriteTooltipText,
+			FSlateIcon(FEditorStyle::Get().GetStyleSetName(), FavoriteIcon),
+			FavoriteAction);
+	}
 
 	if (WidgetRow.CustomMenuItems.Num() > 0)
 	{
@@ -844,10 +876,7 @@ void SDetailSingleItemRow::OnFavoriteMenuToggle()
 		return;
 	}
 
-	//////////////////////////////////////////////////////////////////////////
-	// Calculate properly the scrolling offset (by item) to make sure the mouse stay over the same property
-
-	// Get the node item number in case it is expand we have to recursively count all childrens
+	// Calculate the scrolling offset (by item) to make sure the mouse stay over the same property
 	int32 ExpandSize = 0;
 	if (OwnerTreeNodePinned->ShouldBeExpanded())
 	{

@@ -61,7 +61,9 @@ public:
 	}
 
 	int32 GetIndentLevelForBackgroundColor() const;
-	FMargin GetRowScrollBarPadding(TWeakPtr<STableViewBase> OwnerTableView) const;
+
+	static bool IsScrollBarVisible(TWeakPtr<STableViewBase> OwnerTableViewWeak);
+	static const float ScrollBarPadding;
 
 protected:
 	/**

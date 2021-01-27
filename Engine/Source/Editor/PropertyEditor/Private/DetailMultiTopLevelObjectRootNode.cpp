@@ -27,23 +27,20 @@ void SDetailMultiTopLevelObjectTableRow::SetContent(TSharedRef<SWidget> InConten
 	{
 		ChildSlot
 		[
-			SNew(SBox)
-			.Padding(this, &SDetailTableRowBase::GetRowScrollBarPadding, OwnerTableViewWeak)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+			.AutoWidth()
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f, 2.0f, 2.0f, 2.0f)
-				.AutoWidth()
-				[
-					SNew(SExpanderArrow, SharedThis(this))
-					.Visibility(ExpansionArrowUsage == EExpansionArrowUsage::Default ? EVisibility::Visible : EVisibility::Collapsed)
-				]
-				+ SHorizontalBox::Slot()
-				.Expose(ContentSlot)
-				[
-					InContent
-				]
+				SNew(SExpanderArrow, SharedThis(this))
+				.Visibility(ExpansionArrowUsage == EExpansionArrowUsage::Default ? EVisibility::Visible : EVisibility::Collapsed)
+			]
+			+ SHorizontalBox::Slot()
+			.Expose(ContentSlot)
+			.Padding(FMargin(0, 0, 0, 16))
+			[
+				InContent
 			]
 		];
 	}
@@ -53,18 +50,6 @@ void SDetailMultiTopLevelObjectTableRow::SetContent(TSharedRef<SWidget> InConten
 		[
 			InContent
 		];
-	}
-}
-
-const FSlateBrush* SDetailMultiTopLevelObjectTableRow::GetBackgroundImage() const
-{
-	if (IsHovered())
-	{
-		return IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
-	}
-	else
-	{
-		return IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
 	}
 }
 

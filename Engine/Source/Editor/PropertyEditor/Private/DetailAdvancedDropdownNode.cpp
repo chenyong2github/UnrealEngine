@@ -72,30 +72,50 @@ public:
 			ContentWidget = SNew(SSpacer);
 		}
 
-		TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
-		auto GetGridLinePadding = [this, bIsTopNode, OwnerTableViewWeak]()
-		{
-			FMargin Margin = GetRowScrollBarPadding(OwnerTableViewWeak);
-			if (bIsTopNode)
-			{
-				Margin.Bottom = 0;
-			}
-			return Margin;
-		};
+		const FSlateBrush* ScrollBarWellBrush = FAppStyle::Get().GetBrush("DetailsView.GridLine");
+		const FSlateBrush* BackgroundBrush = FAppStyle::Get().GetBrush("DetailsView.AdvancedDropdownBorder");
 
-		FMargin BorderPadding = bIsTopNode ? FMargin(0, 0, 0, 2) : FMargin(0, 3, 0, 2);
+		TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
+		auto GetScrollbarWellBrush = [OwnerTableViewWeak, ScrollBarWellBrush, BackgroundBrush]()
+		{
+			return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ? ScrollBarWellBrush : BackgroundBrush;
+		};
 
 		ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush( "DetailsView.GridLine"))
-			.Padding_Lambda(GetGridLinePadding)
+			.BorderImage(FAppStyle::Get().GetBrush("DetailsView.GridLine"))
+			.Padding(bIsTopNode ? FMargin(0) : FMargin(0, 0, 0, 1))
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder"))
-				.Padding(BorderPadding)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
 				[
-					ContentWidget.ToSharedRef()
+					SNew(SBorder)
+					.BorderImage(FAppStyle::Get().GetBrush("DetailsView.AdvancedDropdownBorder"))
+					.Padding(bIsTopNode ? FMargin(0, 0, 0, 2) : FMargin(0, 3, 0, 2))
+					[
+						ContentWidget.ToSharedRef()
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				[
+					SNew(SBorder)
+					.BorderImage_Lambda(GetScrollbarWellBrush)
+					.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollBarPadding, 0))
+					[
+						SNew(SBox)
+						.VAlign(VAlign_Fill)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder.Open"))
+							.Visibility(bIsTopNode ? EVisibility::Visible : EVisibility::Collapsed)
+						]
+					]
 				]
 			]
 		];
