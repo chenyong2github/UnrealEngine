@@ -110,42 +110,6 @@ void UBlueprintEditorLibrary::ReplaceVariableReferences(UBlueprint* Blueprint, c
 	FBlueprintEditorUtils::RenameVariableReferences(Blueprint, Blueprint->GeneratedClass, OldVarName, NewVarName);
 }
 
-void UBlueprintEditorLibrary::ReplaceK2Nodes(UBlueprint* Blueprint, TSubclassOf<UEdGraphNode> OldNodeType, TSubclassOf<UEdGraphNode> NewNodeType)
-{
-	if (!Blueprint)
-	{
-		return;
-	}
-
-	TArray<UEdGraph*> AllGraphs;
-	Blueprint->GetAllGraphs(AllGraphs);
-
-	for (UEdGraph* Graph : AllGraphs)
-	{
-		Graph->Modify();
-
-		// Iterate backwards through the nodes because we will be removing some
-		for (int32 i = Graph->Nodes.Num() - 1; i >= 0; i--)
-		{
-			UEdGraphNode* OriginalNode = Graph->Nodes[i];
-			if (OriginalNode && OriginalNode->IsA(OldNodeType))
-			{
-				// Spawn a new node of the new class
-				UEdGraphNode* NewNode = NewObject<UEdGraphNode>(Graph, NewNodeType);
-				NewNode->CreateNewGuid();
-				NewNode->PostPlacedNewNode();
-				NewNode->AllocateDefaultPins();
-				NewNode->SetFlags(RF_Transactional);
-
-				NewNode->NodePosX = OriginalNode->NodePosX;
-				NewNode->NodePosY = OriginalNode->NodePosY;
-
-				InternalBlueprintEditorLibrary::ReplaceOldNodeWithNew(OriginalNode, NewNode);
-			}
-		}
-	}
-}
-
 UEdGraph* UBlueprintEditorLibrary::FindEventGraph(UBlueprint* Blueprint)
 {
 	return Blueprint ? FBlueprintEditorUtils::FindEventGraph(Blueprint) : nullptr;

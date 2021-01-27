@@ -28,16 +28,6 @@ public:
 	static void ReplaceVariableReferences(UBlueprint* Blueprint, const FName OldVarName, const FName NewVarName);
 
 	/**
-	* Replace any existing k2node class with the new one, attempting to remap pins as we go
-	*
-	* @param Blueprint		Blueprint to replace node types on
-	* @param OldNodeType	Old node type that will be removed
-	* @param NewNodeType	New node type that will be put in the old node's place
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
-	static void ReplaceK2Nodes(UBlueprint* Blueprint, TSubclassOf<UEdGraphNode> OldNodeType, TSubclassOf<UEdGraphNode> NewNodeType);
-
-	/**
 	* Finds the event graph of the given blueprint. Null if it doesn't have one. This will only return
 	* the primary event graph of the blueprint (the graph named "EventGraph").
 	*
