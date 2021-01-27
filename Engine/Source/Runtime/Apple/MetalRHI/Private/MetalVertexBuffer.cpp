@@ -846,6 +846,24 @@ void FMetalDynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* De
 	}
 }
 
+void FMetalDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
+{
+	@autoreleasepool {
+		check(DestBuffer);
+		FMetalResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
+		if (!SrcBuffer)
+		{
+			TRefCountPtr<FMetalResourceMultiBuffer> DeletionProxy = new FMetalResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetStride(), nullptr, Dest->Type);
+			Dest->Swap(*DeletionProxy);
+		}
+		else
+		{
+			FMetalResourceMultiBuffer* Src = ResourceCast(SrcBuffer);
+			Dest->Swap(*Src);
+		}
+	}
+}
+
 void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
 {
 	if (CreateInfo.ResourceArray)

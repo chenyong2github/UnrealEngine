@@ -449,6 +449,11 @@ void FVulkanDynamicRHI::UnlockBuffer_RenderThread(FRHICommandListImmediate& RHIC
 }
 #endif
 
+void FVulkanDynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* DestBufferRHI)
+{
+	VULKAN_SIGNAL_UNIMPLEMENTED();
+}
+
 void FVulkanDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
 {
 	check(DestBuffer);

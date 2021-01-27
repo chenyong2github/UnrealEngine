@@ -265,6 +265,23 @@ void FOpenGLDynamicRHI::RHICopyBufferRegion(FRHIBuffer* DestBufferRHI, uint64 Ds
 	glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
 }
 
+void FOpenGLDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
+{
+	VERIFY_GL_SCOPE();
+	check(DestBuffer);
+	FOpenGLBuffer* Dest = ResourceCast(DestBuffer);
+	if (!SrcBuffer)
+	{
+		TRefCountPtr<FOpenGLBuffer> Src = new FOpenGLBuffer();
+		Dest->Swap(*Src);
+	}
+	else
+	{
+		FOpenGLBuffer* Src = ResourceCast(SrcBuffer);
+		Dest->Swap(*Src);
+	}
+}
+
 FStagingBufferRHIRef FOpenGLDynamicRHI::RHICreateStagingBuffer()
 {
 	return new FOpenGLStagingBuffer();
