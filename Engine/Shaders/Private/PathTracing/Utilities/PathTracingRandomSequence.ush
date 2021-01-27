@@ -57,8 +57,8 @@ uint StrongIntegerHash(uint x)
 uint WeakIntegerHash(uint x)
 {
 	// Generated using https://github.com/skeeto/hash-prospector
-	// Estimated Bias ~586
-	x *= 0xe92955555u;
+	// Estimated Bias ~583
+	x *= 0x92955555u;
 	x ^= x >> 15;
 	return x;
 }
