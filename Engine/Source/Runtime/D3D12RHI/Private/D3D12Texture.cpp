@@ -696,11 +696,6 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 				FD3D12Resource* Resource = nullptr;
 				VERIFYD3D12CREATETEXTURERESULT(Adapter->CreateBuffer(HeapType, pDevice->GetGPUMask(), pDevice->GetVisibilityMask(), Size, &Resource, Name), TextureDesc, pDevice->GetDevice());
 				OutTexture2D->AsStandAlone(Resource);
-
-				if (IsCPUWritable(HeapType))
-				{
-					OutTexture2D->SetMappedBaseAddress(Resource->Map());
-				}
 			}
 			break;
 

@@ -339,10 +339,8 @@ void* FD3D12StagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
 	bIsLocked = true;
 	if (ResourceLocation.IsValid())
 	{
-		D3D12_RANGE ReadRange;
-		ReadRange.Begin = ResourceLocation.GetOffsetFromBaseOfResource() + Offset;
-		ReadRange.End = ResourceLocation.GetOffsetFromBaseOfResource() + Offset + NumBytes;
-		return reinterpret_cast<uint8*>(ResourceLocation.GetResource()->Map(&ReadRange)) + ResourceLocation.GetOffsetFromBaseOfResource() + Offset;
+		// readback resource are kept mapped after creation
+		return reinterpret_cast<uint8*>(ResourceLocation.GetMappedBaseAddress()) + Offset;
 	}
 	else
 	{
@@ -354,8 +352,4 @@ void FD3D12StagingBuffer::Unlock()
 {
 	check(bIsLocked);
 	bIsLocked = false;
-	if (ResourceLocation.IsValid())
-	{
-		ResourceLocation.GetResource()->Unmap();
-	}
 }

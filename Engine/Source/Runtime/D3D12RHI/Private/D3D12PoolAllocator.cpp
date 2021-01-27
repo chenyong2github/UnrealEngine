@@ -68,7 +68,7 @@ void FD3D12MemoryPool::Init()
 		BackingHeap->SetHeap(Heap);
 
 		// Only track resources that cannot be accessed on the CPU.
-		if (IsCPUInaccessible(InitConfig.HeapType))
+		if (IsGPUOnly(InitConfig.HeapType))
 		{
 			BackingHeap->BeginTrackingResidency(Desc.SizeInBytes);
 		}
@@ -81,7 +81,7 @@ void FD3D12MemoryPool::Init()
 			VERIFYD3D12RESULT(Adapter->CreateBuffer(HeapProps, GetGPUMask(), InitConfig.InitialResourceState, ED3D12ResourceStateMode::SingleState, InitConfig.InitialResourceState, PoolSize, BackingResource.GetInitReference(), TEXT("Resource Allocator Underlying Buffer"), InitConfig.ResourceFlags));
 		}
 
-		if (IsCPUWritable(InitConfig.HeapType))
+		if (IsCPUAccessible(InitConfig.HeapType))
 		{
 			BackingResource->Map();
 		}
@@ -277,7 +277,7 @@ void FD3D12PoolAllocator::AllocResource(D3D12_HEAP_TYPE InHeapType, const D3D12_
 				ResourceLocation.SetResource(BackingResource);
 				ResourceLocation.SetGPUVirtualAddress(BackingResource->GetGPUVirtualAddress() + AllocationData.GetOffset());
 
-				if (IsCPUWritable(InitConfig.HeapType))
+				if (IsCPUAccessible(InitConfig.HeapType))
 				{
 					ResourceLocation.SetMappedBaseAddress((uint8*)BackingResource->GetResourceBaseAddress() + AllocationData.GetOffset());
 				}

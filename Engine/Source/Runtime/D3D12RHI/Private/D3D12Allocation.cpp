@@ -232,7 +232,7 @@ void FD3D12BuddyAllocator::Initialize()
 		BackingHeap->SetHeap(Heap);
 
 		// Only track resources that cannot be accessed on the CPU.
-		if (IsCPUInaccessible(InitConfig.HeapType))
+		if (IsGPUOnly(InitConfig.HeapType))
 		{
 			BackingHeap->BeginTrackingResidency(Desc.SizeInBytes);
 		}
@@ -245,7 +245,7 @@ void FD3D12BuddyAllocator::Initialize()
 			VERIFYD3D12RESULT(Adapter->CreateBuffer(HeapProps, GetGPUMask(), InitConfig.InitialResourceState, ED3D12ResourceStateMode::SingleState, InitConfig.InitialResourceState, MaxBlockSize, BackingResource.GetInitReference(), TEXT("Resource Allocator Underlying Buffer"), InitConfig.ResourceFlags));
 		}
 
-		if (IsCPUWritable(InitConfig.HeapType))
+		if (IsCPUAccessible(InitConfig.HeapType))
 		{
 			BackingResource->Map();
 		}
@@ -379,7 +379,7 @@ void FD3D12BuddyAllocator::Allocate(uint32 SizeInBytes, uint32 Alignment, FD3D12
 		ResourceLocation.SetResource(BackingResource);
 		ResourceLocation.SetGPUVirtualAddress(BackingResource->GetGPUVirtualAddress() + AlignedOffsetFromResourceBase);
 
-		if (IsCPUWritable(InitConfig.HeapType))
+		if (IsCPUAccessible(InitConfig.HeapType))
 		{
 			ResourceLocation.SetMappedBaseAddress((uint8*)BackingResource->GetResourceBaseAddress() + AlignedOffsetFromResourceBase);
 		}
@@ -799,7 +799,7 @@ bool FD3D12BucketAllocator::TryAllocate(uint32 SizeInBytes, uint32 Alignment, FD
 		// Track the resource so we know when to delete it
 		SubAllocatedResources.Add(Resource);
 
-		if (IsCPUWritable(InitConfig.HeapType))
+		if (IsCPUAccessible(InitConfig.HeapType))
 		{
 			BaseAddress = Resource->Map();
 			check(BaseAddress);
@@ -843,7 +843,7 @@ bool FD3D12BucketAllocator::TryAllocate(uint32 SizeInBytes, uint32 Alignment, FD
 	ResourceLocation.SetOffsetFromBaseOfResource(AlignedBlockOffset);
 	ResourceLocation.SetGPUVirtualAddress(Block.ResourceHeap->GetGPUVirtualAddress() + AlignedBlockOffset);
 
-	if (IsCPUWritable(InitConfig.HeapType))
+	if (IsCPUAccessible(InitConfig.HeapType))
 	{
 		ResourceLocation.SetMappedBaseAddress((void*)((uint64)Block.ResourceHeap->GetResourceBaseAddress() + AlignedBlockOffset));
 	}
@@ -1846,15 +1846,9 @@ void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12R
 		ResourceName = FString::Printf(TEXT("Stand Alone Fast Allocation %lld"), UniqueID);
 #endif
 		VERIFYD3D12RESULT(Adapter->CreateBuffer(PagePool.GetHeapType(), GetGPUMask(), GetVisibilityMask(), Size + Alignment, &Resource, *ResourceName));
-
-		void* Data = nullptr;
-		if (PagePool.IsCPUWritable())
-		{
-			Data = Resource->Map();
-		}
 		ResourceLocation->AsStandAlone(Resource, Size + Alignment);
 
-		return Data;
+		return PagePool.IsCPUWritable() ? Resource->GetResourceBaseAddress() : nullptr;
 	}
 	else
 	{

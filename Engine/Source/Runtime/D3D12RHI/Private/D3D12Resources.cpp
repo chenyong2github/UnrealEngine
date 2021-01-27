@@ -302,7 +302,7 @@ FD3D12Resource::~FD3D12Resource()
 void FD3D12Resource::StartTrackingForResidency()
 {
 #if ENABLE_RESIDENCY_MANAGEMENT
-	check(IsCPUInaccessible(HeapType));	// This is checked at a higher level before calling this function.
+	check(IsGPUOnly(HeapType));	// This is checked at a higher level before calling this function.
 	check(D3DX12Residency::IsInitialized(ResidencyHandle) == false);
 	const D3D12_RESOURCE_DESC ResourceDesc = Resource->GetDesc();
 	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &ResourceDesc);
@@ -432,7 +432,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 		SetName(*ppOutResource, Name);
 
 		// Only track resources that cannot be accessed on the CPU.
-		if (IsCPUInaccessible(HeapProps.Type))
+		if (IsGPUOnly(HeapProps.Type))
 		{
 			(*ppOutResource)->StartTrackingForResidency();
 		}
@@ -806,7 +806,7 @@ void FD3D12ResourceLocation::AsStandAlone(FD3D12Resource* Resource, uint64 InSiz
 	SetResource(Resource);
 	SetSize(InSize);
 
-	if (!IsCPUInaccessible(Resource->GetHeapType()))
+	if (IsCPUAccessible(Resource->GetHeapType()))
 	{
 		D3D12_RANGE range = { 0, IsCPUWritable(Resource->GetHeapType()) ? 0 : InSize };
 		SetMappedBaseAddress(Resource->Map(&range));

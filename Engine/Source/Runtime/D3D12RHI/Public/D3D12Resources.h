@@ -173,6 +173,7 @@ public:
 	inline void* Map(const D3D12_RANGE* ReadRange = nullptr)
 	{
 		check(Resource);
+		check(ResourceBaseAddress == nullptr);
 		VERIFYD3D12RESULT(Resource->Map(0, ReadRange, &ResourceBaseAddress));
 
 		return ResourceBaseAddress;
@@ -564,6 +565,8 @@ public:
 
 	inline void AsHeapAliased(FD3D12Resource* Resource)
 	{
+		check(Resource->GetHeapType() != D3D12_HEAP_TYPE_READBACK);
+
 		SetType(FD3D12ResourceLocation::ResourceLocationType::eHeapAliased);
 		SetResource(Resource);
 		SetSize(0);
