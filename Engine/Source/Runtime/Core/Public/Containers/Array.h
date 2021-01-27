@@ -24,6 +24,8 @@
 #include "Templates/Sorting.h"
 #include "Templates/AlignmentTemplates.h"
 
+#include <type_traits>
+
 
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
 	#define TARRAY_RANGED_FOR_CHECKS 0
@@ -343,7 +345,11 @@ public:
 	 *
 	 * @param Other The source array to copy.
 	 */
-	template <typename OtherElementType, typename OtherAllocator>
+	template <
+		typename OtherElementType,
+		typename OtherAllocator,
+		std::enable_if_t<std::is_constructible<ElementType, OtherElementType&>::value>* = 0
+	>
 	FORCEINLINE explicit TArray(const TArray<OtherElementType, OtherAllocator>& Other)
 	{
 		CopyToEmpty(Other.GetData(), Other.Num(), 0, 0);
@@ -548,7 +554,11 @@ public:
 	 *
 	 * @param Other Array to move from.
 	 */
-	template <typename OtherElementType, typename OtherAllocator>
+	template <
+		typename OtherElementType,
+		typename OtherAllocator,
+		std::enable_if_t<std::is_constructible<ElementType, OtherElementType&>::value>* = 0
+	>
 	FORCEINLINE explicit TArray(TArray<OtherElementType, OtherAllocator>&& Other)
 	{
 		MoveOrCopy(*this, Other, 0);
@@ -561,7 +571,10 @@ public:
 	 * @param ExtraSlack Tells how much extra memory should be preallocated
 	 *                   at the end of the array in the number of elements.
 	 */
-	template <typename OtherElementType>
+	template <
+		typename OtherElementType,
+		std::enable_if_t<std::is_constructible<ElementType, OtherElementType&>::value>* = 0
+	>
 	TArray(TArray<OtherElementType, Allocator>&& Other, SizeType ExtraSlack)
 	{
 		// We don't implement move semantics for general OtherAllocators, as there's no way
