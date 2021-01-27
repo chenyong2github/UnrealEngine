@@ -111,6 +111,13 @@ static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingAMD(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+int32 GAllowShaderModel6 = 0;
+static FAutoConsoleVariableRef CVarAllowShaderModel6(
+	TEXT("r.D3D12.AllowShaderModel6"),
+	GAllowShaderModel6,
+	TEXT("Allows the usage of SM6 feature level."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
 
 static inline int D3D12RHI_PreferAdapterVendor()
 {
@@ -525,24 +532,6 @@ void FD3D12DynamicRHIModule::FindAdapter()
 
 FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
-	ERHIFeatureLevel::Type PreviewFeatureLevel;
-	if (!GIsEditor && RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
-	{
-		check(PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
-
-		// ES3.1 feature level emulation in D3D
-		GMaxRHIFeatureLevel = PreviewFeatureLevel;
-		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
-		{
-			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
-		}
-	}
-	else
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
-	}
-
 #if USE_PIX
 	bool bPixEventEnabled = (WindowsPixDllHandle != nullptr);
 #else
@@ -841,11 +830,6 @@ void FD3D12DynamicRHI::Init()
 		UE_LOG(LogD3D12RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
 	}
 
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
-
 	GSupportsEfficientAsyncCompute = FParse::Param(FCommandLine::Get(), TEXT("ForceAsyncCompute")) || (GRHISupportsParallelRHIExecute && IsRHIDeviceAMD());
 
 	GSupportsDepthBoundsTest = SupportsDepthBoundsTest(this);
@@ -971,6 +955,41 @@ void FD3D12Device::InitPlatformSpecific()
 	CommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_DIRECT, ED3D12CommandQueueType::Direct);
 	CopyCommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_COPY, ED3D12CommandQueueType::Copy);
 	AsyncCommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_COMPUTE, ED3D12CommandQueueType::Async);
+
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
+	if (GAllowShaderModel6)
+	{
+		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM6] = SP_PCD3D_SM6;
+	}
+
+	ERHIFeatureLevel::Type PreviewFeatureLevel;
+	if (!GIsEditor && RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
+	{
+		check(PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
+
+		// ES3.1 feature level emulation in D3D
+		GMaxRHIFeatureLevel = PreviewFeatureLevel;
+		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
+		{
+			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
+		}
+	}
+	else 
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
+		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
+
+		if (GAllowShaderModel6)
+		{
+			// TODO: D3D_FEATURE_LEVEL_12_2
+			if (GetParentAdapter()->GetFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && GetParentAdapter()->GetHighestShaderModel() >= D3D_SHADER_MODEL_6_5)
+			{
+				GMaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
+				GMaxRHIShaderPlatform = SP_PCD3D_SM6;
+			}
+		}
+	}
 }
 
 void FD3D12Device::CreateSamplerInternal(const D3D12_SAMPLER_DESC& Desc, D3D12_CPU_DESCRIPTOR_HANDLE Descriptor)

@@ -644,7 +644,7 @@ float4 TonemapCommonPS(
 	}
 #endif //DEBUG_TONEMAPPER
 
-#if SM5_PROFILE && !USE_GAMMA_ONLY
+#if PC_D3D && !USE_GAMMA_ONLY
 	// If HDR in the editor need to convert from PQ space to linear sRGB
 	BRANCH
 	if(bOutputInHDR)

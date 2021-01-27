@@ -9,6 +9,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
 
+static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 
@@ -17,20 +18,25 @@ class FShaderFormatD3D : public IShaderFormat
 	enum
 	{
 		/** Version for shader format, this becomes part of the DDC key. */
+		UE_SHADER_PCD3D_SM6_VER = 1,
 		UE_SHADER_PCD3D_SM5_VER = 8,
 		UE_SHADER_PCD3D_ES3_1_VER = 8,
 	};
 
 	void CheckFormat(FName Format) const
 	{
-		check(Format == NAME_PCD3D_SM5 || Format == NAME_PCD3D_ES3_1);
+		check(Format == NAME_PCD3D_SM6 || Format == NAME_PCD3D_SM5 || Format == NAME_PCD3D_ES3_1);
 	}
 
 public:
 	virtual uint32 GetVersion(FName Format) const override
 	{
 		CheckFormat(Format);
-		if (Format == NAME_PCD3D_SM5) 
+		if (Format == NAME_PCD3D_SM6)
+		{
+			return UE_SHADER_PCD3D_SM6_VER;
+		}
+		else if (Format == NAME_PCD3D_SM5)
 		{
 			return UE_SHADER_PCD3D_SM5_VER;
 		}
@@ -43,6 +49,7 @@ public:
 	}
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const
 	{
+		OutFormats.Add(NAME_PCD3D_SM6);
 		OutFormats.Add(NAME_PCD3D_SM5);
 		OutFormats.Add(NAME_PCD3D_ES3_1);
 	}
@@ -50,7 +57,11 @@ public:
 	virtual void CompileShader(FName Format, const struct FShaderCompilerInput& Input, struct FShaderCompilerOutput& Output,const FString& WorkingDirectory) const
 	{
 		CheckFormat(Format);
-		if (Format == NAME_PCD3D_SM5)
+		if (Format == NAME_PCD3D_SM6)
+		{
+			CompileShader_Windows(Input, Output, WorkingDirectory, ELanguage::SM6);
+		}
+		else if(Format == NAME_PCD3D_SM5)
 		{
 			CompileShader_Windows(Input, Output, WorkingDirectory, ELanguage::SM5);
 		}

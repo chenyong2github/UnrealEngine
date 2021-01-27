@@ -483,7 +483,7 @@ public:
 		if ((RasterTechnique == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
 			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
-			 && Parameters.Platform != EShaderPlatform::SP_PCD3D_SM5)
+			 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
 		{
 			// Only supporting vendor extensions on PC D3D SM5+
 			return false;
@@ -904,7 +904,7 @@ class FHWRasterizeVS : public FNaniteShader
 		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
 			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
-			&& Parameters.Platform != EShaderPlatform::SP_PCD3D_SM5)
+			&& !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
 		{
 			// Only supporting vendor extensions on PC D3D SM5+
 			return false;
@@ -1029,7 +1029,7 @@ class FHWRasterizePS : public FNaniteShader
 		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
 			 PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
-			 && Parameters.Platform != EShaderPlatform::SP_PCD3D_SM5)
+			 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
 		{
 			// Only supporting vendor extensions on PC D3D SM5+
 			return false;

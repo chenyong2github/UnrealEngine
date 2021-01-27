@@ -892,7 +892,7 @@ RHI_API int32 volatile GCurrentRendertargetMemorySize = 0;
 RHI_API int64 GTexturePoolSize = 0 * 1024 * 1024;
 RHI_API int32 GPoolSizeVRAMPercentage = 0;
 
-RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = {SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms};
+RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = {SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms};
 
 // simple stats about draw calls. GNum is the previous frame and 
 // GCurrent is the current frame.
@@ -966,6 +966,7 @@ FName FeatureLevelNames[] =
 	FName(TEXT("ES3_1")),
 	FName(TEXT("SM4_REMOVED")),
 	FName(TEXT("SM5")),
+	FName(TEXT("SM6")),
 };
 
 static_assert(UE_ARRAY_COUNT(FeatureLevelNames) == ERHIFeatureLevel::Num, "Missing entry from feature level names.");
@@ -1082,6 +1083,7 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 {
 	switch (Platform)
 	{
+	case SP_PCD3D_SM6:
 	case SP_PCD3D_SM5:
 	case SP_PCD3D_ES3_1:
 	case SP_OPENGL_PCES3_1:
@@ -1477,6 +1479,7 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 {
 	switch (Platform)
 	{
+	case SP_PCD3D_SM6: return TEXT("PCD3D_SM6");
 	case SP_PCD3D_SM5: return TEXT("PCD3D_SM5");
 	case SP_PCD3D_ES3_1: return TEXT("PCD3D_ES3_1");
 	case SP_OPENGL_PCES3_1: return TEXT("OPENGL_PCES3_1");
@@ -1586,6 +1589,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");
 	Info.bSupportsPrimitiveShaders = GetSectionBool(Section, "bSupportsPrimitiveShaders");
 	Info.bSupportsUInt64ImageAtomics = GetSectionBool(Section, "bSupportsUInt64ImageAtomics");
+	Info.bRequiresVendorExtensionsForAtomics = GetSectionBool(Section, "bRequiresVendorExtensionsForAtomics");
 	Info.bSupportsNanite = GetSectionBool(Section, "bSupportsNanite");
 	Info.bSupportsLumenGI = GetSectionBool(Section, "bSupportsLumenGI");
 	Info.bSupportsSSDIndirect = GetSectionBool(Section, "bSupportsSSDIndirect");

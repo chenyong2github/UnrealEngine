@@ -318,6 +318,8 @@ public:
 	void SubmitGapRecorderTimestamps();
 #endif
 
+	FORCEINLINE D3D_SHADER_MODEL GetHighestShaderModel() const { return HighestShaderModel; }
+
 protected:
 
 	virtual void CreateRootDevice(bool bWithDebug);
@@ -354,6 +356,7 @@ protected:
 	D3D12_RESOURCE_HEAP_TIER ResourceHeapTier;
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
+	D3D_SHADER_MODEL HighestShaderModel = D3D_SHADER_MODEL_5_1;
 	bool bDepthBoundsTestSupported;
 	bool bHeapNotZeroedSupported;
 

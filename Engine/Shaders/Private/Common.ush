@@ -1507,7 +1507,7 @@ void GenerateCoordinateSystem(float3 ZAxis, out float3 XAxis, out float3 YAxis)
 }
 
 // Define passthrough implementations of EvaluateAttributeAtSample for non-D3D11 platforms.
-#if !SM5_PROFILE
+#if !(SM6_PROFILE || SM5_PROFILE)
 	float EvaluateAttributeAtSample(float Attribute,uint SampleIndex) { return Attribute; }
 	float2 EvaluateAttributeAtSample(float2 Attribute,uint SampleIndex) { return Attribute; }
 	float3 EvaluateAttributeAtSample(float3 Attribute,uint SampleIndex) { return Attribute; }
@@ -1727,7 +1727,7 @@ float DecodePackedHeight(float2 PackedHeight)
 /** Reverses all the 32 bits. */
 uint ReverseBits32( uint bits )
 {
-#if SM5_PROFILE || COMPILER_METAL
+#if SM6_PROFILE || SM5_PROFILE || COMPILER_METAL
 	return reversebits( bits );
 #else
 	bits = ( bits << 16) | ( bits >> 16);

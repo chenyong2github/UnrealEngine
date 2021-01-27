@@ -100,6 +100,7 @@ enum EShaderPlatform
 	//  Add new platforms below this line, starting from (SP_StaticPlatform_Last + 1)
 	//---------------------------------------------------------------------------------
 	SP_VULKAN_SM5_ANDROID			= SP_StaticPlatform_Last+1,
+	SP_PCD3D_SM6,
 
 	SP_NumPlatforms,
 	SP_NumBits						= 7,
@@ -239,6 +240,17 @@ namespace ERHIFeatureLevel
 		 * Tessellation is not considered part of Feature Level SM5 and has a separate capability flag.
 		 */
 		SM5,
+
+		/**
+		 * Feature level defined by the capabilities of DirectX 12 hardware feature level 12_2 with Shader Model 6.5
+		 *   Raytracing Tier 1.1
+		 *   Mesh and Amplification shaders
+		 *   Variable rate shading
+		 *   Sampler feedback
+		 *   Resource binding tier 3
+		 */
+		SM6,
+
 		Num
 	};
 };
@@ -332,6 +344,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsByteBufferComputeShaders : 1;
 	uint32 bSupportsPrimitiveShaders : 1;
 	uint32 bSupportsUInt64ImageAtomics : 1;
+	uint32 bRequiresVendorExtensionsForAtomics : 1;
 	uint32 bSupportsNanite : 1;
 	uint32 bSupportsLumenGI : 1;
 	uint32 bSupportsSSDIndirect : 1;
@@ -561,6 +574,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsUInt64ImageAtomics(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsUInt64ImageAtomics;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetRequiresVendorExtensionsForAtomics(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bRequiresVendorExtensionsForAtomics;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsNanite(const FStaticShaderPlatform Platform)
@@ -1856,6 +1874,7 @@ inline int32 GetFeatureLevelMaxNumberOfBones(const FStaticFeatureLevel FeatureLe
 	case ERHIFeatureLevel::ES3_1:
 		return 75;	
 	case ERHIFeatureLevel::SM5:
+	case ERHIFeatureLevel::SM6:
 		return 65536; // supports uint16
 	default:
 		checkf(0, TEXT("Unknown FeatureLevel %d"), (int32)FeatureLevel);

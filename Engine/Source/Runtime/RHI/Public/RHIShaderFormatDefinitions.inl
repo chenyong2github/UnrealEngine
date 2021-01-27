@@ -8,6 +8,7 @@
 #pragma once
 
 
+static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 
@@ -48,6 +49,8 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 {
 	switch (Platform)
 	{
+	case SP_PCD3D_SM6:
+		return NAME_PCD3D_SM6;
 	case SP_PCD3D_SM5:
 		return NAME_PCD3D_SM5;
 	case SP_PCD3D_ES3_1:
@@ -132,6 +135,7 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 
 static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 {
+	if (ShaderFormat == NAME_PCD3D_SM6)					return SP_PCD3D_SM6;
 	if (ShaderFormat == NAME_PCD3D_SM5)					return SP_PCD3D_SM5;
 	if (ShaderFormat == NAME_PCD3D_ES3_1)				return SP_PCD3D_ES3_1;
 

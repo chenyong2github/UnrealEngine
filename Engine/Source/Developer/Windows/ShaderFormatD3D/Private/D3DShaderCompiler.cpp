@@ -83,7 +83,33 @@ static void D3D11FilterShaderCompileWarnings(const FString& CompileWarnings, TAr
 // @return 0 if not recognized
 static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 {
-	if(Target.Platform == SP_PCD3D_SM5)
+	if (Target.Platform == SP_PCD3D_SM6)
+	{
+		switch (Target.Frequency)
+		{
+		default:
+			checkfSlow(false, TEXT("Unexpected shader frequency"));
+			return nullptr;
+		case SF_Pixel:
+			return TEXT("ps_6_5");
+		case SF_Vertex:
+			return TEXT("vs_6_5");
+		case SF_Hull:
+			return TEXT("hs_6_5");
+		case SF_Domain:
+			return TEXT("ds_6_5");
+		case SF_Geometry:
+			return TEXT("gs_6_5");
+		case SF_Compute:
+			return TEXT("cs_6_5");
+		case SF_RayGen:
+		case SF_RayMiss:
+		case SF_RayHitGroup:
+		case SF_RayCallable:
+			return TEXT("lib_6_5");
+		}
+	}
+	else if(Target.Platform == SP_PCD3D_SM5)
 	{
 		//set defines and profiles for the appropriate shader paths
 		switch(Target.Frequency)
@@ -838,7 +864,9 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 {
 	FString PreprocessedShaderSource;
 	const bool bIsRayTracingShader = Input.IsRayTracingShader();
-	const bool bUseDXC = bIsRayTracingShader
+	const bool bUseDXC =
+		Language == ELanguage::SM6
+		|| bIsRayTracingShader
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 	const TCHAR* ShaderProfile = GetShaderProfileName(Input.Target, bUseDXC);
@@ -1041,7 +1069,12 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 void CompileShader_Windows(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory, ELanguage Language)
 {
 	FShaderCompilerDefinitions AdditionalDefines;
-	if (Language == ELanguage::SM5)
+	if (Language == ELanguage::SM6)
+	{
+		check(Input.Target.Platform == SP_PCD3D_SM6);
+		AdditionalDefines.SetDefine(TEXT("SM6_PROFILE"), 1);
+	}
+	else if (Language == ELanguage::SM5)
 	{
 		check(Input.Target.Platform == SP_PCD3D_SM5);
 		AdditionalDefines.SetDefine(TEXT("SM5_PROFILE"), 1);

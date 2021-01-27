@@ -566,7 +566,7 @@ Done:
 			if ((Desc.TargetableFlags & TexCreate_UAV))
 			{
 				// The render target desc is invalid if a UAV is requested with an RHI that doesn't support the high-end feature level.
-				check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
+				check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
 				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0);
 			}
 

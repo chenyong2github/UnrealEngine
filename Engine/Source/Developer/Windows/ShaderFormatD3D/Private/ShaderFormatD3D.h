@@ -9,6 +9,7 @@ struct FShaderTarget;
 enum class ELanguage
 {
 	SM5,
+	SM6,
 	ES3_1,
 };
 

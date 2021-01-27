@@ -50,6 +50,7 @@ public:
 		TArray<FName> TargetedShaderFormats;
 		GetAllTargetedShaderFormats(TargetedShaderFormats);
 
+		static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 		static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 		static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
 
@@ -61,7 +62,11 @@ public:
 			EShaderPlatform ShaderPlatform = SP_NumPlatforms;
 			// Can't use ShaderFormatToLegacyShaderPlatform() because of link dependency
 			{
-				if (TargetedShaderFormat == NAME_PCD3D_SM5)
+				if (TargetedShaderFormat == NAME_PCD3D_SM6)
+				{
+					ShaderPlatform = SP_PCD3D_SM6;
+				}
+				else if (TargetedShaderFormat == NAME_PCD3D_SM5)
 				{
 					ShaderPlatform = SP_PCD3D_SM5;
 				}
@@ -72,7 +77,7 @@ public:
 			}
 
 			// If we're targeting only DX11 we can use DX11 texture formats. Otherwise we'd have to compress fallbacks and increase the size of cooked content significantly.
-			if (ShaderPlatform != SP_PCD3D_SM5 && ShaderPlatform != SP_VULKAN_SM5)
+			if (ShaderPlatform != SP_PCD3D_SM6 && ShaderPlatform != SP_PCD3D_SM5 && ShaderPlatform != SP_VULKAN_SM5)
 			{
 				bSupportDX11TextureFormats = false;
 			}
@@ -212,6 +217,7 @@ public:
 		// no shaders needed for dedicated server target
 		if (!IS_DEDICATED_SERVER)
 		{
+			static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 			static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 			static FName NAME_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));
 			static FName NAME_OPENGL_150_ES3_1(TEXT("GLSL_150_ES31"));
@@ -219,6 +225,7 @@ public:
 			static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 
 			OutFormats.AddUnique(NAME_PCD3D_SM5);
+			OutFormats.AddUnique(NAME_PCD3D_SM6);
 			OutFormats.AddUnique(NAME_VULKAN_ES31);
 			OutFormats.AddUnique(NAME_OPENGL_150_ES3_1);
 			OutFormats.AddUnique(NAME_VULKAN_SM5);

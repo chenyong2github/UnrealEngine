@@ -371,7 +371,7 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 static FString D3DCreateDXCCompileBatchFile(const FDxcArguments& Args, const FString& ShaderPath)
 {
 	FString BatchFileHeader = TEXT("@ECHO OFF\nSET DXC=\"C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.18362.0\\x64\\dxc.exe\"\n"\
-		"IF EXIST %DXC% (\nREM\n) ELSE (\nECHO Couldn't find Windows 10.0.17763 SDK, falling back to dxc.exe in PATH...\n"\
+		"IF EXIST %DXC% (\nREM\n) ELSE (\nECHO Couldn't find Windows 10.0.18362 SDK, falling back to dxc.exe in PATH...\n"\
 		"SET DXC=dxc.exe)\n");
 
 	FString DXCCommandline = FString(TEXT("%DXC%"));
@@ -589,9 +589,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 
 	const bool bIsRayTracingShader = Input.IsRayTracingShader();
-	const bool bUseDXC = bIsRayTracingShader
-		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
-		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 
 	const uint32 AutoBindingSpace = GetAutoBindingSpace(Input.Target);
 

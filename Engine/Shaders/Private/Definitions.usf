@@ -78,7 +78,7 @@
 #define GBUFFER_HAS_VELOCITY							0
 #endif
 
-#define PC_D3D											SM5_PROFILE
+#define PC_D3D											(SM6_PROFILE || SM5_PROFILE)
 
 #ifndef NEEDS_LIGHTMAP_COORDINATE
 #define NEEDS_LIGHTMAP_COORDINATE						0

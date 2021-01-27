@@ -47,6 +47,13 @@ static inline bool IsStencilFormat(EPixelFormat Format)
 	return false;
 }
 
+inline bool RHISupportsTextureBuffers(const FStaticShaderPlatform Platform)
+{
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
+		|| IsVulkanPlatform(Platform)
+		|| IsMetalPlatform(Platform)
+		|| (GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1 && GSupportsResourceView);
+}
 
 /** Get the best default resource state for the given texture creation flags */
 extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData);
@@ -76,12 +83,8 @@ struct FTextureRWBuffer2D
 	static constexpr ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource | TexCreate_UAV;
 	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
-		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
-			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
-			|| IsMetalPlatform(GMaxRHIShaderPlatform)
-			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
-		);		
-				
+		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
+
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
 		FRHIResourceCreateInfo CreateInfo;
@@ -142,11 +145,7 @@ struct FTextureRWBuffer3D
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
 	void Initialize(uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format)
 	{
-		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
-			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
-			|| IsMetalPlatform(GMaxRHIShaderPlatform)
-			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
-		);
+		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
 
 		NumBytes = SizeX * SizeY * SizeZ * BytesPerElement;
 
@@ -245,11 +244,8 @@ struct FRWBuffer
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
 	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, ERHIAccess InResourceState, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = NULL, FResourceArrayInterface *InResourceArray = nullptr)	
 	{
-		check( GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5 
-			|| IsVulkanPlatform(GMaxRHIShaderPlatform) 
-			|| IsMetalPlatform(GMaxRHIShaderPlatform)
-			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
-		);
+		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
+
 		// Provide a debug name if using Fast VRAM so the allocators diagnostics will work
 		ensure(!((AdditionalUsage & BUF_FastVRAM) && !InDebugName));
 		NumBytes = BytesPerElement * NumElements;
@@ -311,11 +307,7 @@ struct FTextureReadBuffer2D
 	const static ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource;
 	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
-		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
-			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
-			|| IsMetalPlatform(GMaxRHIShaderPlatform)
-			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
-		);
+		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
 
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
@@ -400,7 +392,7 @@ struct FRWBufferStructured
 
 	void Initialize(uint32 BytesPerElement, uint32 NumElements, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = NULL, bool bUseUavCounter = false, bool bAppendBuffer = false)
 	{
-		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
+		check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
 		// Provide a debug name if using Fast VRAM so the allocators diagnostics will work
 		ensure(!((AdditionalUsage & BUF_FastVRAM) && !InDebugName));
 
@@ -448,7 +440,7 @@ struct FByteAddressBuffer
 	void Initialize(uint32 InNumBytes, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr)
 	{
 		NumBytes = InNumBytes;
-		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5);
+		check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
 		check( NumBytes % 4 == 0 );
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.DebugName = InDebugName;

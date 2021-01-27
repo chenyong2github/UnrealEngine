@@ -17,7 +17,7 @@ class FLumenCardScene;
 
 inline bool DoesPlatformSupportLumenGI(EShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5 || FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(Platform);
 }
 
 extern int32 GAllowLumenScene;

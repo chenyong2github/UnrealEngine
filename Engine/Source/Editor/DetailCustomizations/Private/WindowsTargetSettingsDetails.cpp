@@ -52,7 +52,11 @@ namespace WindowsTargetSettingsDetailsConstants
 static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 {
 	FText FriendlyRHIName;
-	if (InRHIName == TEXT("PCD3D_SM5"))
+	if (InRHIName == TEXT("PCD3D_SM6"))
+	{
+		FriendlyRHIName = LOCTEXT("DirectX12", "DirectX 12 (SM6, Experimental)");
+	}
+	else if (InRHIName == TEXT("PCD3D_SM5"))
 	{
 		FriendlyRHIName = LOCTEXT("DirectX11", "DirectX 11 & 12 (SM5)");
 	}

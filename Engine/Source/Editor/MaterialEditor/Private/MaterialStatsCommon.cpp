@@ -132,6 +132,8 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 {
 	switch (PlatformID)
 	{
+		case SP_PCD3D_SM6:
+			return FString("PCD3D_SM6");
 		case SP_PCD3D_SM5:
 			return FString("PCD3D_SM5");
 		case SP_PS4:
