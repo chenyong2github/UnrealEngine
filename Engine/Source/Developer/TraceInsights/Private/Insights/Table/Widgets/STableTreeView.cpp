@@ -61,10 +61,14 @@ public:
 		virtual void RegisterCommands() override
 	{
 		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies selection to clipboard", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
+		UI_COMMAND(Command_CopyColumnToClipboard, "Copy Column Value To Clipboard", "Copies the value of hovered column to clipboard", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
+		UI_COMMAND(Command_CopyColumnTooltipToClipboard, "Copy Column Tooltip To Clipboard", "Copies the value of hovered column's tooltip to clipboard", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Alt, EKeys::C));
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
 	TSharedPtr<FUICommandInfo> Command_CopyToClipboard;
+	TSharedPtr<FUICommandInfo> Command_CopyColumnToClipboard;
+	TSharedPtr<FUICommandInfo> Command_CopyColumnTooltipToClipboard;
 };
 
 const FName STableTreeView::RootNodeName(TEXT("Root"));
@@ -341,6 +345,8 @@ void STableTreeView::InitCommandList()
 	FTableTreeViewCommands::Register();
 	CommandList = MakeShared<FUICommandList>();
 	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopySelectedToClipboard_CanExecute));
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyColumnToClipboard, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnToClipboard_CanExecute));
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_CopyColumnTooltipToClipboard, FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnTooltipToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_CopyColumnTooltipToClipboard_CanExecute));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -411,6 +417,24 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 		MenuBuilder.AddMenuEntry
 		(
 			FTableTreeViewCommands::Get().Command_CopyToClipboard,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FTableTreeViewCommands::Get().Command_CopyColumnToClipboard,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FTableTreeViewCommands::Get().Command_CopyColumnTooltipToClipboard,
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
@@ -953,11 +977,10 @@ bool STableTreeView::TableRow_ShouldBeEnabled(FTableTreeNodePtr NodePtr) const
 
 void STableTreeView::TableRow_SetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, FTableTreeNodePtr InNodePtr)
 {
-	HoveredColumnId = InColumnPtr ? InColumnPtr->GetId() : FName();
-
 	const bool bIsAnyMenusVisible = FSlateApplication::Get().AnyMenusVisible();
 	if (!HasMouseCapture() && !bIsAnyMenusVisible)
 	{
+		HoveredColumnId = InColumnPtr ? InColumnPtr->GetId() : FName();
 		HoveredNodePtr = InNodePtr;
 	}
 }
@@ -2612,6 +2635,52 @@ void STableTreeView::ContextMenu_CopySelectedToClipboard_Execute()
 	{
 		FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ContextMenu_CopyColumnToClipboard_CanExecute() const
+{
+	const TSharedPtr<FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
+
+	if (!HoveredColumnPtr.IsValid() || !HoveredNodePtr.IsValid())
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ContextMenu_CopyColumnToClipboard_Execute()
+{
+	const TSharedPtr<FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
+	FString Text = HoveredColumnPtr->GetValueAsText(*HoveredNodePtr).ToString();
+	FPlatformApplicationMisc::ClipboardCopy(*Text);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ContextMenu_CopyColumnTooltipToClipboard_CanExecute() const
+{
+	const TSharedPtr<FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
+
+	if (!HoveredColumnPtr.IsValid() || !HoveredNodePtr.IsValid())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ContextMenu_CopyColumnTooltipToClipboard_Execute()
+{
+	const TSharedPtr<FTableColumn> HoveredColumnPtr = Table->FindColumn(HoveredColumnId);
+	FString Text = HoveredColumnPtr->GetValueAsTooltipText(*HoveredNodePtr).ToString();
+	FPlatformApplicationMisc::ClipboardCopy(*Text);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

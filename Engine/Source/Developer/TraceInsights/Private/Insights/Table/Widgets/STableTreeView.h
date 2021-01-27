@@ -161,6 +161,10 @@ protected:
 
 	bool ContextMenu_CopySelectedToClipboard_CanExecute() const;
 	void ContextMenu_CopySelectedToClipboard_Execute();
+	bool ContextMenu_CopyColumnToClipboard_CanExecute() const;
+	void ContextMenu_CopyColumnToClipboard_Execute();
+	bool ContextMenu_CopyColumnTooltipToClipboard_CanExecute() const;
+	void ContextMenu_CopyColumnTooltipToClipboard_Execute();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header
