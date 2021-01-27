@@ -512,7 +512,7 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	if (RecoveryService && 
 		DirectoryExists && 
 		SharedCrashContext.UserSettings.bSendUsageData && 
-		SharedCrashContext.CrashType != ECrashContextType::Ensure)
+		!FGenericCrashContext::IsTypeContinuable(SharedCrashContext.CrashType)
 	{
 		RecoveryService->CollectFiles(ReportDirectoryAbsolutePath);
 	}
@@ -653,6 +653,10 @@ bool IsCrashReportAvailable(uint32 WatchedProcess, FSharedCrashContext& CrashCon
 
 				case ECrashContextType::Ensure:
 					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Ensure"));
+					break;
+
+				case ECrashContextType::Stall:
+					FDiagnosticLogger::Get().LogEvent(TEXT("Pipe/Stall"));
 					break;
 
 				case ECrashContextType::Crash:

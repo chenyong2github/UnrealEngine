@@ -434,7 +434,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const FFailureInfo& Info, const TCHAR* M
 						SCOPE_LOG_TIME_IN_SECONDS(*SubmitErrorReporterfMessage, nullptr)
 #endif
 
-							FCoreDelegates::OnHandleSystemEnsure.Broadcast();
+						FCoreDelegates::OnHandleSystemEnsure.Broadcast();
 
 						FPlatformMisc::SubmitErrorReport(ErrorMsg, EErrorReportMode::Balloon);
 

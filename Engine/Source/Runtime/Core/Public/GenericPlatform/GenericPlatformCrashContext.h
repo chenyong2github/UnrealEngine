@@ -95,6 +95,7 @@ enum class ECrashContextType
 	Crash,
 	Assert,
 	Ensure,
+	Stall,
 	GPUCrash,
 	Hang,
 	OutOfMemory,
@@ -247,6 +248,7 @@ public:
 	static const TCHAR* const CrashTypeCrash;
 	static const TCHAR* const CrashTypeAssert;
 	static const TCHAR* const CrashTypeEnsure;
+	static const TCHAR* const CrashTypeStall;
 	static const TCHAR* const CrashTypeGPU;
 	static const TCHAR* const CrashTypeHang;
 	static const TCHAR* const CrashTypeAbnormalShutdown;
@@ -443,9 +445,25 @@ public:
 	static void CleanupPlatformSpecificFiles();
 
 	/**
-	 * @return whether this crash is a non-crash event
+	 * @return the type of this crash
 	 */
 	ECrashContextType GetType() const { return Type; }
+
+	/**
+	 * @return whether a crash context type is continable
+	 */
+	static bool IsTypeContinuable(ECrashContextType Type)
+	{
+		switch (Type)
+		{
+		case ECrashContextType::Ensure:
+			return true;
+		case ECrashContextType::Stall:
+			return true;
+		default:
+			return false;
+		}
+	}
 
 	/**
 	 * Set the current deployment name (ie. EpicApp)

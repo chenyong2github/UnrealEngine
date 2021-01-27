@@ -31,6 +31,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "Toolkits/FConsoleCommandExecutor.h"
 #include "Misc/MessageDialog.h"
+#include "ProfilingDebugging/StallDetector.h"
 
 DEFINE_LOG_CATEGORY(LogMainFrame);
 #define LOCTEXT_NAMESPACE "FMainFrameModule"
@@ -395,6 +396,13 @@ TSharedRef<SWidget> FMainFrameModule::MakeDeveloperTools( const TArray<FMainFram
 			return FText::AsNumber(GUObjectArray.GetObjectArrayNumMinusAvailable());
 		}
 
+#if STALL_DETECTOR
+		static FText GetStallCountAsString()
+		{
+			return FText::AsNumber(UE::FStallDetectorStats::TotalTriggeredCount);
+		}
+#endif // STALL_DETECTOR
+
 		static void OpenVideo( FString SourceFilePath )
 		{
 			FPlatformProcess::ExploreFolder( *( FPaths::GetPath(SourceFilePath) ) );
@@ -476,6 +484,15 @@ TSharedRef<SWidget> FMainFrameModule::MakeDeveloperTools( const TArray<FMainFram
 		ObjDeveloperTool.Label = LOCTEXT("UObjectCountLabel", "Objs: ");
 		ObjDeveloperTool.Value = TAttribute<FText>::Create(&Local::GetUObjectCountAsString);
 		Local::AddSlot(DeveloperToolWidget, LabelFont, NormalFixedFont, ObjDeveloperTool);
+	}
+	{
+#if STALL_DETECTOR
+		FMainFrameDeveloperTool StallsDeveloperTool;
+		StallsDeveloperTool.Visibility = TAttribute<EVisibility>::Create(&Local::ShouldShowFrameRateAndMemory);
+		StallsDeveloperTool.Label = LOCTEXT("StallsLabel", "Stalls: ");
+		StallsDeveloperTool.Value = TAttribute<FText>::Create(&Local::GetStallCountAsString);
+		Local::AddSlot(DeveloperToolWidget, LabelFont, NormalFixedFont, StallsDeveloperTool);
+#endif // STALL_DETECTOR
 	}
 
 

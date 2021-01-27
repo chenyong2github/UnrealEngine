@@ -307,11 +307,21 @@ uint32 FWindowsPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 	InitStackWalking();
 
 	if (BackTrace == nullptr || MaxDepth == 0)
+	{
 		return 0;
+	}
+
+	// Don't suspend the calling thread, capture it's context directly and trace
+	if (ThreadId == FPlatformTLS::GetCurrentThreadId())
+	{
+		return CaptureStackBackTrace(BackTrace, MaxDepth);
+	}
 
 	HANDLE ThreadHandle = OpenThread(THREAD_GET_CONTEXT | THREAD_SET_CONTEXT | THREAD_TERMINATE | THREAD_SUSPEND_RESUME, false, (DWORD)ThreadId);
 	if (!ThreadHandle)
+	{
 		return 0;
+	}
 
 	// Suspend the thread before grabbing its context
 	SuspendThread(ThreadHandle);

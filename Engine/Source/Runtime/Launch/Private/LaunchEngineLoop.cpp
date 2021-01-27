@@ -43,6 +43,7 @@
 #endif
 #include "HAL/ThreadManager.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
+#include "ProfilingDebugging/StallDetector.h"
 #include "Containers/StringView.h"
 #include "Containers/Ticker.h"
 
@@ -4782,6 +4783,8 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 
 void FEngineLoop::Tick()
 {
+	SCOPE_STALL_COUNTER(FEngineLoop::Tick, 2.0)
+
 	// make sure to catch any FMemStack uses outside of UWorld::Tick
 	FMemMark MemStackMark(FMemStack::Get());
 
@@ -5925,6 +5928,10 @@ bool FEngineLoop::AppInit( )
 
 	FEmbeddedCommunication::ForceTick(19);
 
+#if STALL_DETECTOR
+	UE::FStallDetector::Startup();
+#endif
+
 	return true;
 }
 
@@ -6014,6 +6021,10 @@ void FEngineLoop::AppPreExit( )
 
 void FEngineLoop::AppExit( )
 {
+#if STALL_DETECTOR
+	UE::FStallDetector::Shutdown();
+#endif
+
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();

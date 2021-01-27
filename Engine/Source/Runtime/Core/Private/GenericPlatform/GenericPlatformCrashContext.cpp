@@ -62,6 +62,7 @@ const TCHAR* const FGenericCrashContext::NewLineTag = TEXT( "&nl;" );
 const TCHAR* const FGenericCrashContext::CrashTypeCrash = TEXT("Crash");
 const TCHAR* const FGenericCrashContext::CrashTypeAssert = TEXT("Assert");
 const TCHAR* const FGenericCrashContext::CrashTypeEnsure = TEXT("Ensure");
+const TCHAR* const FGenericCrashContext::CrashTypeStall = TEXT("Stall");
 const TCHAR* const FGenericCrashContext::CrashTypeGPU = TEXT("GPUCrash");
 const TCHAR* const FGenericCrashContext::CrashTypeHang = TEXT("Hang");
 const TCHAR* const FGenericCrashContext::CrashTypeAbnormalShutdown = TEXT("AbnormalShutdown");
@@ -618,6 +619,7 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	AddCrashProperty( TEXT( "CrashGUID" ), (const TCHAR*)CrashGUID);
 
 	AddCrashProperty( TEXT( "IsEnsure" ), (Type == ECrashContextType::Ensure) );
+	AddCrashProperty( TEXT( "IsStall"), (Type == ECrashContextType::Stall) );
 	AddCrashProperty( TEXT( "IsAssert" ), (Type == ECrashContextType::Assert) );
 	AddCrashProperty( TEXT( "CrashType" ), GetCrashTypeString(Type) );
 	AddCrashProperty( TEXT( "ErrorMessage" ), ErrorMessage );
@@ -726,7 +728,7 @@ void FGenericCrashContext::GetUniqueCrashName(TCHAR* GUIDBuffer, int32 BufferSiz
 
 const bool FGenericCrashContext::IsFullCrashDump() const
 {
-	if(Type == ECrashContextType::Ensure)
+	if (FGenericCrashContext::IsTypeContinuable(Type))
 	{
 		return (NCached::Session.CrashDumpMode == (int32)ECrashDumpMode::FullDumpAlways);
 	}
@@ -920,6 +922,8 @@ const TCHAR* FGenericCrashContext::GetCrashTypeString(ECrashContextType Type)
 		return CrashTypeGPU;
 	case ECrashContextType::Ensure:
 		return CrashTypeEnsure;
+	case ECrashContextType::Stall:
+		return CrashTypeStall;
 	case ECrashContextType::Assert:
 		return CrashTypeAssert;
 	case ECrashContextType::AbnormalShutdown:

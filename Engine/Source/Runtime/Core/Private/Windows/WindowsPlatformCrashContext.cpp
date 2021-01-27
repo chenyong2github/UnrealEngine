@@ -1244,18 +1244,18 @@ public:
 		return ThreadId;
 	}
 
-	/** Ensures are passed trough this. */
-	FORCEINLINE int32 OnEnsure(LPEXCEPTION_POINTERS InExceptionInfo, int NumStackFramesToIgnore, const TCHAR* ErrorMessage, EErrorReportUI ReportUI)
+	/** Ensures and Stalls are passed through this. */
+	FORCEINLINE int32 OnContinuableEvent(ECrashContextType InType, LPEXCEPTION_POINTERS InExceptionInfo, HANDLE InThreadHandle, uint32 InThreadId, int NumStackFramesToIgnore, const TCHAR* ErrorMessage, EErrorReportUI ReportUI)
 	{
 		if (CrashClientHandle.IsValid() && FPlatformProcess::IsProcRunning(CrashClientHandle))
 		{
 			return ReportCrashForMonitor(
 				InExceptionInfo, 
-				ECrashContextType::Ensure, 
+				InType,
 				ErrorMessage, 
 				NumStackFramesToIgnore, 
-				GetCurrentThread(), 
-				GetCurrentThreadId(), 
+				InThreadHandle,
+				InThreadId,
 				CrashClientHandle, 
 				&SharedContext, 
 				CrashMonitorWritePipe, 
@@ -1265,10 +1265,10 @@ public:
 		}
 		else
 		{
-			FWindowsPlatformCrashContext CrashContext(ECrashContextType::Ensure, ErrorMessage);
+			FWindowsPlatformCrashContext CrashContext(InType, ErrorMessage);
 			CrashContext.SetCrashedProcess(FProcHandle(::GetCurrentProcess()));
-			CrashContext.SetCrashedThreadId(GetCurrentThreadId());
-			void* ContextWrapper = FWindowsPlatformStackWalk::MakeThreadContextWrapper(InExceptionInfo->ContextRecord, GetCurrentThread());
+			CrashContext.SetCrashedThreadId(InThreadId);
+			void* ContextWrapper = FWindowsPlatformStackWalk::MakeThreadContextWrapper(InExceptionInfo->ContextRecord, InThreadHandle);
 			CrashContext.CapturePortableCallStack(NumStackFramesToIgnore, ContextWrapper);
 
 			return ReportCrashUsingCrashReportClient(CrashContext, InExceptionInfo, ReportUI);
@@ -1591,23 +1591,20 @@ static bool bReentranceGuard = false;
 /**
  * A wrapper for ReportCrashUsingCrashReportClient that creates a new ensure crash context
  */
-int32 ReportEnsureUsingCrashReportClient(EXCEPTION_POINTERS* ExceptionInfo, int NumStackFramesToIgnore, const TCHAR* ErrorMessage, EErrorReportUI ReportUI)
+int32 ReportContinuableEventUsingCrashReportClient(ECrashContextType InType, EXCEPTION_POINTERS* ExceptionInfo, HANDLE InThreadHandle, uint32 InThreadId, int NumStackFramesToIgnore, const TCHAR* ErrorMessage, EErrorReportUI ReportUI)
 {
 #if !NOINITCRASHREPORTER
-	return GCrashReportingThread->OnEnsure(ExceptionInfo, NumStackFramesToIgnore, ErrorMessage, ReportUI);
+	return GCrashReportingThread->OnContinuableEvent(InType, ExceptionInfo, InThreadHandle, InThreadId, NumStackFramesToIgnore, ErrorMessage, ReportUI);
 #else 
 	return EXCEPTION_EXECUTE_HANDLER;
 #endif
 }
 #endif
 
-FORCENOINLINE void ReportEnsureInner(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+static void ReportEventOnCallingThread(ECrashContextType InType, const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 {
 	// Skip this frame and the ::RaiseException call itself
 	NumStackFramesToIgnore += 2;
-
-	/** This is the last place to gather memory stats before exception. */
-	FGenericCrashContext::SetMemoryStats(FPlatformMemory::GetStats());
 
 #if WINVER > 0x502	// Windows Error Reporting is not supported on Windows XP
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
@@ -1617,12 +1614,95 @@ FORCENOINLINE void ReportEnsureInner(const TCHAR* ErrorMessage, int NumStackFram
 		::RaiseException(EnsureExceptionCode, 0, 0, nullptr);
 	}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__except (ReportEnsureUsingCrashReportClient( GetExceptionInformation(), NumStackFramesToIgnore, ErrorMessage, IsInteractiveEnsureMode() ? EErrorReportUI::ShowDialog : EErrorReportUI::ReportInUnattendedMode))
+	__except (ReportContinuableEventUsingCrashReportClient( InType, GetExceptionInformation(), GetCurrentThread(), GetCurrentThreadId(), NumStackFramesToIgnore, ErrorMessage, IsInteractiveEnsureMode() ? EErrorReportUI::ShowDialog : EErrorReportUI::ReportInUnattendedMode))
 		CA_SUPPRESS(6322)
 	{
 	}
 #endif
 #endif	// WINVER
+}
+
+static void ReportEvent(ECrashContextType InType, const TCHAR* ErrorMessage, uint32 InThreadId, int NumStackFramesToIgnore)
+{
+	if (ReportCrashCallCount > 0 || FDebug::HasAsserted())
+	{
+		// Don't report ensures after we've crashed/asserted, they simply may be a result of the crash as
+		// the engine is already in a bad state.
+		return;
+	}
+
+	// Serialize concurrent ensures (from concurrent threads).
+	FScopeLock ScopeLock(&EnsureLock);
+
+	// Ignore any ensure that could be fired by the code reporting an ensure.
+	TGuardValue<bool> ReentranceGuard(bReentranceGuard, true);
+	if (*ReentranceGuard) // Read the old value.
+	{
+		return; // Already handling an ensure.
+	}
+
+	// Stop checking heartbeat for this thread (and stop the gamethread hitch detector if we're the game thread).
+	// Ensure can take a lot of time (when stackwalking), so we don't want hitches/hangs firing.
+	// These are no-ops on threads that didn't already have a heartbeat etc.
+	FSlowHeartBeatScope SuspendHeartBeat(true);
+	FDisableHitchDetectorScope SuspendGameThreadHitch;
+
+	/** This is the last place to gather memory stats before exception. */
+	FGenericCrashContext::SetMemoryStats(FPlatformMemory::GetStats());
+
+	if (FPlatformTLS::GetCurrentThreadId() == InThreadId)
+	{
+		ReportEventOnCallingThread(InType, ErrorMessage, NumStackFramesToIgnore);
+	}
+	else
+	{
+		// This is what is normally returned by GetExceptionInformation(), which is a special compiler intrinsic only valid inside __except parenthesis
+		//  Here we construct one for a perfectly valid suspended thread of execution, and pass it into the CrashReportClient pathway
+		EXCEPTION_POINTERS ExceptionInformation = {};
+
+		HANDLE ThreadHandle = OpenThread(THREAD_SUSPEND_RESUME|THREAD_GET_CONTEXT|THREAD_QUERY_INFORMATION, 0, InThreadId);
+		if (ThreadHandle != nullptr)
+		{
+			// This is the thread state data, represents the register file state once suspended
+			CONTEXT ThreadContext;
+			ZeroMemory(&ThreadContext, sizeof(ThreadContext));
+
+			// This include segments and debug registers, just in case
+			ThreadContext.ContextFlags |= CONTEXT_ALL;
+
+			DWORD SuspendCount = SuspendThread(ThreadHandle);
+			if (SuspendCount != -1)
+			{
+				// Read the context block from the thread now its suspended
+				BOOL bGotThreadContext = GetThreadContext(ThreadHandle, &ThreadContext);
+				if (bGotThreadContext)
+				{
+					// Success! Set the pointer to this state in the exception information block
+					ExceptionInformation.ContextRecord = &ThreadContext;
+				}
+			}
+
+			// If we were able to suspend and capture the thread state
+			if (ExceptionInformation.ContextRecord)
+			{
+				EXCEPTION_RECORD ExceptionRecord;
+				ZeroMemory(&ExceptionRecord, sizeof(ExceptionRecord));
+				ExceptionRecord.ExceptionCode = STILL_ACTIVE; // normally where EXCEPTION_ACCESS_VIOLATION would be
+
+				// The thread context and exception recard are the two things expected
+				ExceptionInformation.ExceptionRecord = &ExceptionRecord;
+
+				(void)ReportContinuableEventUsingCrashReportClient(InType, &ExceptionInformation, ThreadHandle, InThreadId, NumStackFramesToIgnore, ErrorMessage, IsInteractiveEnsureMode() ? EErrorReportUI::ShowDialog : EErrorReportUI::ReportInUnattendedMode);
+			}
+
+			if (SuspendCount != -1)
+			{
+				ResumeThread(ThreadHandle);
+			}
+
+			CloseHandle(ThreadHandle);
+		}
+	}
 }
 
 FORCENOINLINE void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
@@ -1683,32 +1763,16 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
  */
 FORCENOINLINE void ReportEnsure(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 {
-	if (ReportCrashCallCount > 0 || FDebug::HasAsserted())
-	{
-		// Don't report ensures after we've crashed/asserted, they simply may be a result of the crash as
-		// the engine is already in a bad state.
-		return;
-	}
-
-	// Serialize concurrent ensures (from concurrent threads).
-	FScopeLock ScopedEnsureLock(&EnsureLock);
-
-	// Ignore any ensure that could be fired by the code reporting an ensure.
-	TGuardValue<bool> ReentranceGuard(bReentranceGuard, true);
-	if (*ReentranceGuard) // Read the old value.
-	{
-		return; // Already handling an ensure.
-	}
-
-	// Stop checking heartbeat for this thread (and stop the gamethread hitch detector if we're the game thread).
-	// Ensure can take a lot of time (when stackwalking), so we don't want hitches/hangs firing.
-	// These are no-ops on threads that didn't already have a heartbeat etc.
-	FSlowHeartBeatScope SuspendHeartBeat(true);
-	FDisableHitchDetectorScope SuspendGameThreadHitch;
-
-	ReportEnsureInner(ErrorMessage, NumStackFramesToIgnore + 1);
+	ReportEvent(ECrashContextType::Ensure, ErrorMessage, FPlatformTLS::GetCurrentThreadId(), NumStackFramesToIgnore + 1);
 }
 
+/**
+ * Report a hitch to the crash reporting system
+ */
+FORCENOINLINE void ReportStall(const TCHAR* ErrorMessage, uint32 HitchThreadId, int NumStackFramesToIgnore)
+{
+	ReportEvent(ECrashContextType::Stall, ErrorMessage, HitchThreadId, FPlatformTLS::GetCurrentThreadId() == HitchThreadId ? NumStackFramesToIgnore + 1 : NumStackFramesToIgnore);
+}
 
 #if !IS_PROGRAM && 0
 namespace {
