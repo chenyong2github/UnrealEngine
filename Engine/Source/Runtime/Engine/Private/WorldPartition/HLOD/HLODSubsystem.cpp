@@ -65,14 +65,11 @@ void UHLODSubsystem::OnActorLoaded(AActor& Actor)
 		}
 	}
 
-	if(!Actor.GetRootComponent() || Actor.GetRootComponent()->IsRegistered())
+	// If HLOD for this actor is already loaded, notify the HLOD that it should be hidden
+	AWorldPartitionHLOD** HLODActorPtr = ActorsToHLOD.Find(Actor.GetActorGuid());
+	if (HLODActorPtr)
 	{
-		// If HLOD for this actor is already loaded, setup LOD parenting
-		AWorldPartitionHLOD** HLODActorPtr = ActorsToHLOD.Find(Actor.GetActorGuid());
-		if (HLODActorPtr)
-		{
-			(*HLODActorPtr)->OnSubActorLoaded(Actor);
-		}
+		(*HLODActorPtr)->OnSubActorLoaded(Actor);
 	}
 }
 

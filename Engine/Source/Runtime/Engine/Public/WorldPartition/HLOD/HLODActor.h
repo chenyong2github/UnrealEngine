@@ -62,7 +62,9 @@ protected:
 	virtual void PostUnregisterAllComponents() override;
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
+
 	virtual void PostActorCreated() override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif
 	//~ End AActor Interface.
 
@@ -96,7 +98,7 @@ private:
 	TSet<TWeakObjectPtr<AActor>> LoadedSubActors;
 #endif
 
-	UPROPERTY()
+	UPROPERTY(NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
 	FGuid HLODGuid;
 
 	UPROPERTY()

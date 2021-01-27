@@ -52,8 +52,6 @@ void AWorldPartitionHLOD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AWorldPartitionHLOD::OnSubActorLoaded(AActor& Actor)
 {
-	check(!Actor.GetRootComponent() || Actor.GetRootComponent()->IsRegistered());
-	
 	bool bIsAlreadyInSet = false;
 	LoadedSubActors.Add(&Actor, &bIsAlreadyInSet);
 
@@ -90,8 +88,8 @@ void AWorldPartitionHLOD::SetupLoadedSubActors()
 		for (const FGuid& SubActorGuid : SubActors)
 		{
 			const FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
-			AActor* SubActor = SubActorDesc ? SubActorDesc->GetActor() : nullptr;
-			if (SubActor && SubActor->GetRootComponent() && SubActor->GetRootComponent()->IsRegistered())
+			AActor* SubActor = SubActorDesc->IsLoaded() ? SubActorDesc->GetActor() : nullptr;
+			if (SubActor)
 			{
 				OnSubActorLoaded(*SubActor);
 			}
@@ -225,6 +223,15 @@ void AWorldPartitionHLOD::PostActorCreated()
 {
 	Super::PostActorCreated();
 	HLODGuid = GetActorGuid();
+}
+
+void AWorldPartitionHLOD::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+	if (!bDuplicateForPIE)
+	{
+		HLODGuid = GetActorGuid();
+	}
 }
 
 #endif // WITH_EDITOR
