@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -705,9 +706,9 @@ namespace Gauntlet
             }
 
             // dependency info is a hash of the destination name, saved under a folder on /sdcard
-            int DestHash = DestPath.GetHashCode();
+            string DestHash = ContentHash.MD5(DestPath).ToString();
 			string DependencyCacheDir = "/sdcard/gdeps";
-			string DepFile = string.Format("{0}/{1:X}", DependencyCacheDir, DestHash);	
+			string DepFile = string.Format("{0}/{1}", DependencyCacheDir, DestHash);
 
 			IProcessResult AdbResult = null;
 

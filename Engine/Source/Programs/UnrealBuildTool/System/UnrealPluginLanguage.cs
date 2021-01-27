@@ -574,7 +574,7 @@ namespace UnrealBuildTool
 
 		public string GetUPLHash()
 		{
-			return XDoc.ToString().GetHashCode().ToString();
+			return ContentHash.MD5(XDoc.ToString()).ToString();
 		}
 
 		public bool MergeXML(XDocument MergeDoc, string PluginDir, List<string> Architectures)
