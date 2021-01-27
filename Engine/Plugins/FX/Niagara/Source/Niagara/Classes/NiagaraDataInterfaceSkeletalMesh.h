@@ -267,9 +267,12 @@ struct FSkeletalMeshUvMappingHandle
 
 	FSkeletalMeshUvMappingUsage Usage;
 
-	void FindOverlappingTriangles(const FVector2D& InUv, TArray<int32>& TriangleIndices, float Tolerance = SMALL_NUMBER) const;
-	int32 FindFirstTriangle(const FVector2D& InUv, FVector& BarycentricCoord, float Tolerance = SMALL_NUMBER) const;
+	void FindOverlappingTriangles(const FVector2D& InUv, float Tolerance, TArray<int32>& TriangleIndices) const;
+	int32 FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector& BarycentricCoord) const;
+	int32 FindFirstTriangle(const FBox2D& InUvBox, FVector& BarycentricCoord) const;
 	const FSkeletalMeshUvMappingBufferProxy* GetQuadTreeProxy() const;
+	int32 GetUvSetIndex() const;
+	int32 GetLodIndex() const;
 
 private:
 	TSharedPtr<FSkeletalMeshUvMapping> UvMappingData;
@@ -709,15 +712,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Skeleton", meta = (InlineEditConditionToggle))
 	uint8 bExcludeBone : 1;
 
-	/** Marks the DI as supporting UV mapping on the CPU */
-	UPROPERTY(EditAnywhere, Category = "UV Mapping")
-	uint8 bSupportUvMappingCpu : 1;
-
-	/** Marks the DI as supporting UV mapping on the GPU */
-	UPROPERTY(EditAnywhere, Category = "UV Mapping")
-	uint8 bSupportUvMappingGpu : 1;
-
-	UPROPERTY(EditAnywhere, Category = "UV Mapping")
+	UPROPERTY(EditAnywhere, Category = "Experimental - UV Mapping")
 	int32 UvSetIndex = 0;
 
 	/** When this option is disabled, we use the previous frame's data for the skeletal mesh and can often issue the simulation early. This greatly
@@ -806,6 +801,8 @@ public:
 	static const FString NumFilteredSocketsName;
 	static const FString FilteredSocketBoneOffsetName;
 	static const FString UvMappingBufferName;
+	static const FString UvMappingBufferLengthName;
+	static const FString UvMappingSetName;
 	static const FString InstanceTransformName;
 	static const FString InstancePrevTransformName;
 	static const FString InstanceRotationName;
@@ -854,6 +851,9 @@ public:
 
 	template<typename VertexAccessorType>
 	void GetTriangleCoordAtUV(FVectorVMContext& Context);
+
+	template<typename VertexAccessorType>
+	void GetTriangleCoordInAabb(FVectorVMContext& Context);
 
 private:
 	template<typename FilterMode, typename AreaWeightingMode>
@@ -970,7 +970,6 @@ public:
 	static const FName RandomFilteredTriangleName;
 	static const FName GetFilteredTriangleCountName;
 	static const FName GetFilteredTriangleAtName;
-	static const FName GetTriangleCoordAtUVName;
 
 	// Bone Sampling
 	static const FName GetSkinnedBoneDataName;
@@ -1012,6 +1011,10 @@ public:
 	static const FName RandomFilteredVertexName;
 	static const FName GetFilteredVertexCountName;
 	static const FName GetFilteredVertexAtName;
+
+	// Uv Mapping
+	static const FName GetTriangleCoordAtUVName;
+	static const FName GetTriangleCoordInAabbName;
 };
 
 struct FNiagaraDISkeletalMeshPassedDataToRT
@@ -1030,6 +1033,7 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 	FMatrix Transform;
 	FMatrix PrevTransform;
 	float DeltaSeconds;
+	uint32 UvMappingSet;
 };
 
 typedef FNiagaraDISkeletalMeshPassedDataToRT FNiagaraDataInterfaceProxySkeletalMeshData;

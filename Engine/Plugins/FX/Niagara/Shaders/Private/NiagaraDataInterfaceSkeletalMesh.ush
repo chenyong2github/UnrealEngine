@@ -53,6 +53,8 @@ struct FDISkelMeshContext
 	int				NumFilteredSockets;
 	int				FilteredSocketBoneOffset;
 	Buffer<int>		UvMappingBuffer;
+	uint			UvMappingBufferLength;
+	uint			UvMappingSet;
 	float4x4		InstanceTransform;
 	float4x4		InstancePrevTransform;
 	float4			InstanceRotation;
@@ -443,7 +445,8 @@ void DISKelMesh_GetFilteredTriangleAt(in FDISkelMeshContext DIContext, int Filte
 	OutBaryCoord = 1.0f / 3.0f;
 }
 
-////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Uv Mapping
 
 // UvMappingBuffer organized as an array of:
 //struct FFrozenNode
@@ -455,9 +458,10 @@ void DISKelMesh_GetFilteredTriangleAt(in FDISkelMeshContext DIContext, int Filte
 
 #define ElementCountOffset 4
 #define TriangleIndexOffset 5
-#define MinValidUvMappingBufferSize 24
+#define MinValidUvMappingBufferSize 24 // minimum size (in bytes) for a quadtree to have valid data
 
-bool QuadTreeTriangleOverlap(in FDISkelMeshContext DIContext, in int UvSet, in float2 Uv, in int TriangleIndex, out float3 OutBaryCoord)
+// Evaluates QuadTree for a single point
+bool QuadTreeTriangleOverlap(FDISkelMeshContext DIContext, float2 Uv, float Tolerance, int TriangleIndex, out float3 OutBaryCoord)
 {
 	if (DIContext.MeshNumTexCoord > 0)
 	{
@@ -467,10 +471,9 @@ bool QuadTreeTriangleOverlap(in FDISkelMeshContext DIContext, in int UvSet, in f
 		uint VertexIndex2 = DIContext.MeshIndexBuffer[IndexBufferOffset+2];
 
 		uint Stride = DIContext.MeshNumTexCoord;
-		uint SelectedUvSet = clamp((uint) UvSet, 0, DIContext.MeshNumTexCoord - 1);
-		float2 UV0 = DIContext.MeshTexCoordBuffer[VertexIndex0 * Stride + SelectedUvSet];
-		float2 UV1 = DIContext.MeshTexCoordBuffer[VertexIndex1 * Stride + SelectedUvSet];
-		float2 UV2 = DIContext.MeshTexCoordBuffer[VertexIndex2 * Stride + SelectedUvSet];
+		float2 UV0 = DIContext.MeshTexCoordBuffer[VertexIndex0 * Stride + DIContext.UvMappingSet];
+		float2 UV1 = DIContext.MeshTexCoordBuffer[VertexIndex1 * Stride + DIContext.UvMappingSet];
+		float2 UV2 = DIContext.MeshTexCoordBuffer[VertexIndex2 * Stride + DIContext.UvMappingSet];
 
 		// from FMath::GetBaryCentric2D()
 		const float a = ((UV1.y-UV2.y)*(Uv.x-UV2.x) + (UV2.x-UV1.x)*(Uv.y-UV2.y)) / ((UV1.y-UV2.y)*(UV0.x-UV2.x) + (UV2.x-UV1.x)*(UV0.y-UV2.y));
@@ -480,7 +483,7 @@ bool QuadTreeTriangleOverlap(in FDISkelMeshContext DIContext, in int UvSet, in f
 		OutBaryCoord.y = b;
 		OutBaryCoord.z = 1.0f - a - b;
 
-		if (all(OutBaryCoord >= 0.0f) && all(OutBaryCoord <= 1.0f))
+		if (all(OutBaryCoord > -Tolerance) && all(OutBaryCoord < (1.0f + Tolerance)))
 		{
 			return true;
 		}
@@ -489,7 +492,7 @@ bool QuadTreeTriangleOverlap(in FDISkelMeshContext DIContext, in int UvSet, in f
 	return false;
 }
 
-bool QuadTreeNodeContains(in FDISkelMeshContext DIContext, in int NodeBufferOffset, in int UvSet, in float2 Uv, out int OutTriangleIndex, out float3 OutBaryCoord)
+bool QuadTreeNodeContains(FDISkelMeshContext DIContext, int NodeBufferOffset, float2 Uv, float Tolerance, out int OutTriangleIndex, out float3 OutBaryCoord)
 {
 	if (NodeBufferOffset == -1)
 	{
@@ -500,7 +503,7 @@ bool QuadTreeNodeContains(in FDISkelMeshContext DIContext, in int NodeBufferOffs
 	for (int TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
 	{
 		int TriangleIndex = DIContext.UvMappingBuffer[NodeBufferOffset + TriangleIndexOffset + TriangleIt];
-		if (QuadTreeTriangleOverlap(DIContext, UvSet, Uv, TriangleIndex, OutBaryCoord))
+		if (QuadTreeTriangleOverlap(DIContext, Uv, Tolerance, TriangleIndex, OutBaryCoord))
 		{
 			OutTriangleIndex = TriangleIndex;
 			return true;
@@ -510,17 +513,13 @@ bool QuadTreeNodeContains(in FDISkelMeshContext DIContext, in int NodeBufferOffs
 	return false;
 }
 
-
-
-void DISkelMesh_GetTriangleCoordAtUV(in FDISkelMeshContext DIContext, int InUvSet, float2 InUv, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
+void DISkelMesh_GetTriangleCoordAtUV(in FDISkelMeshContext DIContext, float2 InUv, float InTolerance, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
 {
 	OutTriangle = -1;
 	OutBaryCoord = float3(0.0f, 0.0f, 0.0f);
 	OutIsValid = false;
 
-	uint BufferLength = 0;
-	DIContext.UvMappingBuffer.GetDimensions(BufferLength);
-	if (BufferLength < MinValidUvMappingBufferSize)
+	if (DIContext.UvMappingBufferLength < MinValidUvMappingBufferSize)
 	{
 		return;
 	}
@@ -532,7 +531,7 @@ void DISkelMesh_GetTriangleCoordAtUV(in FDISkelMeshContext DIContext, int InUvSe
 
 	while (NodeBufferOffset != -1)
 	{
-		if (QuadTreeNodeContains(DIContext, NodeBufferOffset, InUvSet, InUv, OutTriangle, OutBaryCoord))
+		if (QuadTreeNodeContains(DIContext, NodeBufferOffset, InUv, InTolerance, OutTriangle, OutBaryCoord))
 		{
 			OutIsValid = true;
 			return;
@@ -542,6 +541,141 @@ void DISkelMesh_GetTriangleCoordAtUV(in FDISkelMeshContext DIContext, int InUvSe
 
 		const bool LessX = InUv.x < MidPoint.x;
 		const bool LessY = InUv.y < MidPoint.y;
+
+		MidPoint += Extent * float2(LessX ? -1.0f : 1.0f, LessY ? -1.0f : 1.0f);
+		int ChildIndex = LessX ? (LessY ? 2 : 0) : (LessY ? 3 : 1);
+
+		NodeBufferOffset = DIContext.UvMappingBuffer[NodeBufferOffset + ChildIndex];
+	}
+}
+
+bool NormalizedAabbTriangleIntersection(float2 A, float2 B, float2 C)
+{
+	float2 TriAabbMin = float2(min3(A.x, B.x, C.x), min3(A.y, B.y, C.y));
+	float2 TriAabbMax = float2(max3(A.x, B.x, C.x), max3(A.y, B.y, C.y));
+
+	if (any(TriAabbMin > 1.0f) || any(TriAabbMax < 0.0f))
+	{
+		return false;
+	}
+
+	#define AXIS_COUNT 3
+	float2 TriangleEdges[AXIS_COUNT] = { C - B, A - C, B - A };
+
+	for (int i = 0; i < AXIS_COUNT; ++i)
+	{
+		float2 Axis = TriangleEdges[i].yx * (float2(-1.0f, 0.0f));
+		float AabbSegmentMin = min(0.0f, min3(Axis.x, Axis.y, Axis.x + Axis.y));
+		float AabbSegmentMax = max(0.0f, max3(Axis.x, Axis.y, Axis.x + Axis.y));
+		float TriangleSegmentMin = min3(dot(A, Axis), dot(B, Axis), dot(C, Axis));
+		float TriangleSegmentMax = max3(dot(A, Axis), dot(B, Axis), dot(C, Axis));
+		if (AabbSegmentMin > TriangleSegmentMax || AabbSegmentMax < TriangleSegmentMin)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+// Evaluates QuadTree for an AABB region
+bool QuadTreeTriangleAabbOverlap(FDISkelMeshContext DIContext, float2 UvRef, float2 UvExtentScale, float2 UvExtentBias, int TriangleIndex, out float3 OutBaryCoord)
+{
+	if (DIContext.MeshNumTexCoord > 0)
+	{
+        uint IndexBufferOffset = TriangleIndex * 3;
+		uint VertexIndex0 = DIContext.MeshIndexBuffer[IndexBufferOffset  ];
+		uint VertexIndex1 = DIContext.MeshIndexBuffer[IndexBufferOffset+1];
+		uint VertexIndex2 = DIContext.MeshIndexBuffer[IndexBufferOffset+2];
+
+		uint Stride = DIContext.MeshNumTexCoord;
+		float2 UV0 = DIContext.MeshTexCoordBuffer[VertexIndex0 * Stride + DIContext.UvMappingSet];
+		float2 UV1 = DIContext.MeshTexCoordBuffer[VertexIndex1 * Stride + DIContext.UvMappingSet];
+		float2 UV2 = DIContext.MeshTexCoordBuffer[VertexIndex2 * Stride + DIContext.UvMappingSet];
+
+		// evaluate whether our triangle intersects with our AABB, if it does, then generate the barycentric coordinate for the center of the AABB
+		const bool Intersection = NormalizedAabbTriangleIntersection(
+				mad(UV0, UvExtentScale, UvExtentBias),
+				mad(UV1, UvExtentScale, UvExtentBias),
+				mad(UV2, UvExtentScale, UvExtentBias));
+
+		if (Intersection)
+		{
+			// from FMath::GetBaryCentric2D()
+			const float a = ((UV1.y-UV2.y)*(UvRef.x-UV2.x) + (UV2.x-UV1.x)*(UvRef.y-UV2.y)) / ((UV1.y-UV2.y)*(UV0.x-UV2.x) + (UV2.x-UV1.x)*(UV0.y-UV2.y));
+			const float b = ((UV2.y-UV0.y)*(UvRef.x-UV2.x) + (UV0.x-UV2.x)*(UvRef.y-UV2.y)) / ((UV1.y-UV2.y)*(UV0.x-UV2.x) + (UV2.x-UV1.x)*(UV0.y-UV2.y));
+
+			OutBaryCoord.x = a;
+			OutBaryCoord.y = b;
+			OutBaryCoord.z = 1.0f - a - b;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool QuadTreeNodeContainsAabb(FDISkelMeshContext DIContext, int NodeBufferOffset, float2 UvMin, float2 UvMax, out int OutTriangleIndex, out float3 OutBaryCoord)
+{
+	if (NodeBufferOffset == -1)
+	{
+		return false;
+	}
+
+	const int TriangleCount = DIContext.UvMappingBuffer[NodeBufferOffset + ElementCountOffset];
+	if (TriangleCount == 0)
+	{
+		return false;
+	}
+
+	const float2 UvRef = 0.5f * (UvMin + UvMax);
+	const float2 UvExtentScale = 1.0f / (UvMax - UvMin);
+	const float2 UvExtentBias = 1.0f - UvMax * UvExtentScale;
+
+	for (int TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
+	{
+		float3 BaryCoord;
+		int TriangleIndex = DIContext.UvMappingBuffer[NodeBufferOffset + TriangleIndexOffset + TriangleIt];
+		if (QuadTreeTriangleAabbOverlap(DIContext, UvRef, UvExtentScale, UvExtentBias, TriangleIndex, BaryCoord))
+		{
+			OutTriangleIndex = TriangleIndex;
+			OutBaryCoord = BaryCoord;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void DISkelMesh_GetTriangleCoordInAabb(FDISkelMeshContext DIContext, float2 InUvMin, float2 InUvMax, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
+{
+	OutTriangle = -1;
+	OutBaryCoord = float3(0.0f, 0.0f, 0.0f);
+	OutIsValid = false;
+
+	if (DIContext.UvMappingBufferLength < MinValidUvMappingBufferSize)
+	{
+		return;
+	}
+
+	int NodeBufferOffset = 0;
+
+	const float2 UvRegionCenter = 0.5f * (InUvMin + InUvMax);
+	float2 MidPoint = float2(0.5f, 0.5f);
+	float2 Extent = float2(0.5f, 0.5f);
+
+	while (NodeBufferOffset != -1)
+	{
+		if (QuadTreeNodeContainsAabb(DIContext, NodeBufferOffset, InUvMin, InUvMax, OutTriangle, OutBaryCoord))
+		{
+			OutIsValid = true;
+			return;
+		}
+
+		Extent *= 0.5f;
+
+		const bool LessX = UvRegionCenter.x < MidPoint.x;
+		const bool LessY = UvRegionCenter.y < MidPoint.y;
 
 		MidPoint += Extent * float2(LessX ? -1.0f : 1.0f, LessY ? -1.0f : 1.0f);
 		int ChildIndex = LessX ? (LessY ? 2 : 0) : (LessY ? 3 : 1);
@@ -893,6 +1027,8 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 	int				NumFilteredSockets_ ## NAME; \
 	int				FilteredSocketBoneOffset_ ## NAME; \
 	Buffer<int>		UvMappingBuffer_ ## NAME; \
+	uint			UvMappingBufferLength_ ## NAME; \
+	uint			UvMappingSet_ ## NAME; \
 	float4x4		InstanceTransform_ ## NAME; \
 	float4x4		InstancePrevTransform_ ## NAME; \
 	float4			InstanceRotation_ ## NAME; \
@@ -933,6 +1069,8 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 	DIContext.NumFilteredSockets = NumFilteredSockets_ ## NAME; \
 	DIContext.FilteredSocketBoneOffset = FilteredSocketBoneOffset_ ## NAME; \
 	DIContext.UvMappingBuffer = UvMappingBuffer_ ## NAME; \
+	DIContext.UvMappingBufferLength = UvMappingBufferLength_ ## NAME; \
+	DIContext.UvMappingSet = UvMappingSet_ ## NAME; \
 	DIContext.MeshWeightStride = MeshWeightStride_ ## NAME; \
 	DIContext.MeshSkinWeightIndexSize = MeshSkinWeightIndexSize_ ## NAME; \
 	DIContext.InstanceTransform = InstanceTransform_ ## NAME; \
