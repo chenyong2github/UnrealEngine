@@ -189,7 +189,7 @@ void URigVM::Empty()
 	CachedMemoryHandles.Empty();
 }
 
-void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemory, bool bReferenceByteCode)
+void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemory, bool bReferenceByteCode, bool bCopyExternalVariables)
 {
 	check(InVM);
 
@@ -257,6 +257,11 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 	Instructions = InVM->Instructions;
 	Parameters = InVM->Parameters;
 	ParametersNameMap = InVM->ParametersNameMap;
+
+	if (bCopyExternalVariables)
+	{
+		ExternalVariables = InVM->ExternalVariables;
+	}
 }
 
 int32 URigVM::AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMethodName)

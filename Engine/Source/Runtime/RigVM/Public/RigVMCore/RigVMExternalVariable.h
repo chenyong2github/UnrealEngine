@@ -372,7 +372,7 @@ struct RIGVM_API FRigVMExternalVariable
 	}
 
 	template<typename T>
-	FORCEINLINE T GetValue()
+	FORCEINLINE T GetValue() const
 	{
 		ensure(IsValid() && !bIsArray);
 		return *(T*)Memory;
@@ -380,6 +380,13 @@ struct RIGVM_API FRigVMExternalVariable
 
 	template<typename T>
 	FORCEINLINE T& GetRef()
+	{
+		ensure(IsValid() && !bIsArray);
+		return *(T*)Memory;
+	}
+
+	template<typename T>
+	FORCEINLINE const T& GetRef() const
 	{
 		ensure(IsValid() && !bIsArray);
 		return *(T*)Memory;
