@@ -25,7 +25,7 @@ uint32 FWorldPartitionActorDesc::GlobalTag = 0;
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: SoftRefCount(0)
 	, HardRefCount(0)
-	, WorldPartition(nullptr)
+	, Container(nullptr)
 	, Tag(0)
 {}
 
@@ -79,11 +79,11 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 	ActorLabel = *InActor->GetActorLabel(false);
 
-	WorldPartition = InActor->GetLevel()->GetWorldPartition();
-	check(WorldPartition);
+	Container = InActor->GetLevel()->GetWorldPartition();
+	check(Container);
 }
 
-void FWorldPartitionActorDesc::Init(UWorldPartition* InWorldPartition, const FWorldPartitionActorDescInitData& DescData)
+void FWorldPartitionActorDesc::Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData)
 {
 	ActorPackage = DescData.PackageName;
 	ActorPath = DescData.ActorPath;
@@ -108,7 +108,7 @@ void FWorldPartitionActorDesc::Init(UWorldPartition* InWorldPartition, const FWo
 		GridPlacement = DefaultGridPlacement;
 	}
 
-	WorldPartition = InWorldPartition;
+	Container = InContainer;
 
 	ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
 }
@@ -233,6 +233,8 @@ AActor* FWorldPartitionActorDesc::Load() const
 	// The, if the actor isn't loaded, load it
 	if (ActorPtr.IsExplicitlyNull())
 	{
+		// For now we assume that an ActorDesc that gets loaded is owned by an actual WorldPartition
+		UWorldPartition* WorldPartition = CastChecked<UWorldPartition>(Container);
 		check(WorldPartition || GIsAutomationTesting);
 
 		const FLinkerInstancingContext* InstancingContext = nullptr;
@@ -286,7 +288,7 @@ void FWorldPartitionActorDesc::RegisterActor()
 {
 	if (AActor* Actor = GetActor())
 	{
-		ApplyActorTransform(WorldPartition->InstanceTransform);
+		ApplyActorTransform(CastChecked<UWorldPartition>(Container)->InstanceTransform);
 		Actor->GetLevel()->AddLoadedActor(Actor);
 	}
 }
@@ -298,7 +300,7 @@ void FWorldPartitionActorDesc::UnregisterActor()
 		if (!Actor->IsPendingKill())
 		{
 			Actor->GetLevel()->RemoveLoadedActor(Actor);
-			ApplyActorTransform(WorldPartition->InstanceTransform.Inverse());
+			ApplyActorTransform(CastChecked<UWorldPartition>(Container)->InstanceTransform.Inverse());
 		}
 	}
 }

@@ -26,14 +26,13 @@
 #include "Misc/ScopeExit.h"
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
-#include "AssetRegistryModule.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
-#include "Misc/Base64.h"
+#include "Modules/ModuleManager.h"
 #endif //WITH_EDITOR
 
 DEFINE_LOG_CATEGORY(LogWorldPartition);
@@ -106,7 +105,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	, EditorHash(nullptr)
 	, WorldPartitionEditor(nullptr)
-	, bIgnoreAssetRegistryEvents(false)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
 #endif
@@ -179,11 +177,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		}
 
 		EditorHash->Initialize();
-
-		if (IsMainWorldPartition())
-		{
-			RegisterDelegates();
-		}
 	}
 
 	if (!RuntimeHash)
@@ -197,25 +190,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		TArray<FAssetData> Assets;
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
-
-		if (!LevelPackage->GetLoadedPath().GetPackageFName().IsNone())
-		{
-			TGuardValue<bool> IgnoreAssetRegistryEvents(bIgnoreAssetRegistryEvents, true);
-
-			const FString LevelPathStr = LevelPackage->GetLoadedPath().GetPackageName();
-			const FString LevelExternalActorsPath = ULevel::GetExternalActorsPath(LevelPathStr);
-
-			// Do a synchronous scan of the level external actors path.			
-			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-			AssetRegistry.ScanPathsSynchronous({LevelExternalActorsPath}, /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
-
-			FARFilter Filter;
-			Filter.bRecursivePaths = true;
-			Filter.bIncludeOnlyOnDiskAssets = true;
-			Filter.PackagePaths.Add(*LevelExternalActorsPath);
-
-			AssetRegistry.GetAssets(Filter, Assets);
-		}
+		FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName();
 
 		bool bIsInstanced = (bEditorOnly && !IsRunningCommandlet()) ? OuterWorld->PersistentLevel->IsInstancedLevel() : false;
 
@@ -233,14 +208,17 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			ReplaceTo = DestWorldName + TEXT(".") + DestWorldName;
 		}
 
-		for (const FAssetData& Asset : Assets)
+		const bool bRegisterDelegates = bEditorOnly && IsMainWorldPartition();
+		UActorDescContainer::Initialize(PackageName, bRegisterDelegates);
+		check(bContainerInitialized);
+
+		for (TPair<FGuid, TUniquePtr<FWorldPartitionActorDesc>*>& Pair : Actors)
 		{
-			TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(GetActorDescriptor(Asset));
-			check(NewActorDesc->IsValid());
+			TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = Pair.Value;
 
 			if (bIsInstanced)
 			{
-				const FString LongActorPackageName = Asset.PackageName.ToString();
+				const FString LongActorPackageName = (*NewActorDesc)->ActorPackage.ToString();
 				const FString ActorPackageName = FPaths::GetBaseFilename(LongActorPackageName);
 				const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorPackageName);
 
@@ -248,8 +226,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 				(*NewActorDesc)->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
 			}
-
-			Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
 
 			if (bEditorOnly)
 			{
@@ -318,6 +294,8 @@ void UWorldPartition::WorldPartitionOnLevelRemovedFromWorld(ULevel* Level, UWorl
 
 void UWorldPartition::Uninitialize()
 {
+	Super::Uninitialize();
+
 	if (IsInitialized())
 	{
 		check(World);
@@ -346,7 +324,6 @@ void UWorldPartition::Uninitialize()
 					UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false);
 				});
 			}
-			UnregisterDelegates();
 		}
 
 		EditorHash = nullptr;
@@ -383,13 +360,9 @@ bool UWorldPartition::IsMainWorldPartition() const
 #if WITH_EDITOR
 void UWorldPartition::RegisterDelegates()
 {
+	Super::RegisterDelegates();
 	if (GEditor && !IsTemplate())
 	{
-		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		AssetRegistry.OnAssetAdded().AddUObject(this, &UWorldPartition::OnAssetAdded);
-		AssetRegistry.OnAssetRemoved().AddUObject(this, &UWorldPartition::OnAssetRemoved);
-		AssetRegistry.OnAssetUpdated().AddUObject(this, &UWorldPartition::OnAssetUpdated);
-
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
 		FEditorDelegates::EndPIE.AddUObject(this, &UWorldPartition::OnEndPIE);
 	}
@@ -397,16 +370,9 @@ void UWorldPartition::RegisterDelegates()
 
 void UWorldPartition::UnregisterDelegates()
 {
+	Super::UnregisterDelegates();
 	if (GEditor && !IsTemplate())
 	{
-		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
-		{
-			IAssetRegistry& AssetRegistry = AssetRegistryModule->Get();
-			AssetRegistry.OnAssetAdded().RemoveAll(this);
-			AssetRegistry.OnAssetRemoved().RemoveAll(this);
-			AssetRegistry.OnAssetUpdated().RemoveAll(this);
-		}
-
 		FEditorDelegates::PreBeginPIE.RemoveAll(this);
 		FEditorDelegates::EndPIE.RemoveAll(this);
 	}
@@ -690,146 +656,42 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	}
 }
 
-void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
+void UWorldPartition::OnActorDescAdded(const TUniquePtr<FWorldPartitionActorDesc>& NewActorDesc)
 {
-	if (ShouldHandleAssetEvent(InAssetData))
+	HashActorDesc(NewActorDesc.Get());
+
+	NewActorDesc->OnRegister();
+
+	if (WorldPartitionEditor)
 	{
-		TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(GetActorDescriptor(InAssetData));
-		check(NewActorDesc->IsValid());
-
-		check(!Actors.Contains((*NewActorDesc)->GetGuid()));
-		Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
-
-		HashActorDesc(NewActorDesc->Get());
-
-		(*NewActorDesc)->OnRegister();
-
-		if (WorldPartitionEditor)
-		{
-			WorldPartitionEditor->Refresh();
-		}
+		WorldPartitionEditor->Refresh();
 	}
 }
 
-void UWorldPartition::OnAssetRemoved(const FAssetData& InAssetData)
+void UWorldPartition::OnActorDescRemoved(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
 {
-	if (ShouldHandleAssetEvent(InAssetData))
-	{
-		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
-		check(NewActorDesc.IsValid());
-
-		TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
-
-		UnhashActorDesc(ExistingActorDesc->Get());
-
-		(*ExistingActorDesc)->OnUnregister();
-
-		Actors.Remove((*ExistingActorDesc)->GetGuid());
-		ExistingActorDesc->Release();
-
-		if (WorldPartitionEditor)
-		{
-			WorldPartitionEditor->Refresh();
-		}
-	}
-}
-
-void UWorldPartition::OnAssetUpdated(const FAssetData& InAssetData)
-{
-	if (ShouldHandleAssetEvent(InAssetData))
-	{
-		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
-		check(NewActorDesc.IsValid());
-
-		TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
-
-		// Pin the actor handle on the actor to prevent unloading it when unhashing
-		FWorldPartitionHandle ExistingActorHandle(ExistingActorDesc);
-		FWorldPartitionHandlePinRefScope ExistingActorHandlePin(ExistingActorHandle);
-
-		UnhashActorDesc(ExistingActorDesc->Get());
-
-		// Transfer any reference count from external sources
-		NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
-
-		*ExistingActorDesc = MoveTemp(NewActorDesc);
+	UnhashActorDesc(ActorDesc.Get());
+	ActorDesc->OnUnregister();
 		
-		HashActorDesc(ExistingActorDesc->Get());
-
-		if (WorldPartitionEditor)
-		{
-			WorldPartitionEditor->Refresh();
-		}
+	if (WorldPartitionEditor)
+	{
+		WorldPartitionEditor->Refresh();
 	}
 }
 
-bool UWorldPartition::ShouldHandleAssetEvent(const FAssetData& InAssetData)
+void UWorldPartition::OnActorDescUpdating(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
 {
-	// Ignore asset event when specifically asking to
-	if (bIgnoreAssetRegistryEvents)
-	{
-		return false;
-	}
-
-	// Ignore in-memory assets until they gets saved
-	if (InAssetData.HasAnyPackageFlags(PKG_NewlyCreated))
-	{
-		return false;
-	}
-
-	// Only handle actors
-	if (!InAssetData.GetClass()->IsChildOf<AActor>())
-	{
-		return false;
-	}
-
-	// Make sure asset contains the required tags
-	static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-	static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-	if (!InAssetData.FindTag(NAME_ActorMetaDataClass) || !InAssetData.FindTag(NAME_ActorMetaData))
-	{
-		return false;
-	}
-
-	// Only handle assets that belongs to our level
-	auto RemoveAfterFirstDot = [](const FString& InValue)
-	{
-		int32 DotIndex;
-		if (InValue.FindChar(TEXT('.'), DotIndex))
-		{
-			return InValue.LeftChop(InValue.Len() - DotIndex);
-		}
-		return InValue;
-	};
-
-	const FString ThisLevelPath = GetPackage()->GetLoadedPath().GetPackageName();
-	const FString AssetLevelPath = RemoveAfterFirstDot(InAssetData.ObjectPath.ToString());
-	return (ThisLevelPath == AssetLevelPath);
+	UnhashActorDesc(ActorDesc.Get());
 }
 
-TUniquePtr<FWorldPartitionActorDesc> UWorldPartition::GetActorDescriptor(const FAssetData& InAssetData)
+void UWorldPartition::OnActorDescUpdated(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
 {
-	FString ActorClass;
-	static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorClass))
+	HashActorDesc(ActorDesc.Get());
+
+	if (WorldPartitionEditor)
 	{
-		FString ActorMetaDataStr;
-		static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-		if (InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
-		{
-			FWorldPartitionActorDescInitData ActorDescInitData;
-			ActorDescInitData.NativeClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ActorClass, true);
-			ActorDescInitData.PackageName = InAssetData.PackageName;
-			ActorDescInitData.ActorPath = InAssetData.ObjectPath;
-			FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
-
-			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::CreateClassActorDesc(ActorDescInitData.NativeClass));
-			NewActorDesc->Init(this, ActorDescInitData);
-			return NewActorDesc;
-		}
+		WorldPartitionEditor->Refresh();
 	}
-
-	return nullptr;
 }
 
 void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)

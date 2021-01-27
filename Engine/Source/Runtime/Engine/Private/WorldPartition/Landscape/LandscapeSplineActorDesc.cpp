@@ -6,7 +6,7 @@
 
 #include "LandscapeSplineActor.h"
 #include "LandscapeInfo.h"
-#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
@@ -35,9 +35,9 @@ void FLandscapeSplineActorDesc::OnRegister()
 {
 	FWorldPartitionActorDesc::OnRegister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), LandscapeGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), LandscapeGuid))
 	{
-		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
+		FWorldPartitionHandle Handle(Container, GetGuid());
 		check(Handle.IsValid());
 		LandscapeInfo->SplineHandles.Add(MoveTemp(Handle));
 	}
@@ -47,9 +47,9 @@ void FLandscapeSplineActorDesc::OnUnregister()
 {
 	FWorldPartitionActorDesc::OnUnregister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), LandscapeGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), LandscapeGuid))
 	{
-		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
+		FWorldPartitionHandle Handle(Container, GetGuid());
 		check(Handle.IsValid());
 		LandscapeInfo->SplineHandles.Remove(Handle);
 	}

@@ -2,12 +2,12 @@
 
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/ActorDescContainer.h"
 
 #if WITH_EDITOR
-TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
+TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid)
 {
-	if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = WorldPartition->Actors.Find(ActorGuid))
+	if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = Container->Actors.Find(ActorGuid))
 	{
 		return *ActorDescPtr;
 	}

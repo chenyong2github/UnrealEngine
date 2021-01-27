@@ -5,12 +5,12 @@
 #include "Templates/UniquePtr.h"
 
 #if WITH_EDITOR
-class UWorldPartition;
+class UActorDescContainer;
 class FWorldPartitionActorDesc;
 
 struct ENGINE_API FWorldPartitionHandleUtils
 {
-	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UWorldPartition* WorldPartition, const FGuid& ActorGuid);
+	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid);
 	static bool IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc);
 };
 
@@ -31,8 +31,8 @@ public:
 		}
 	}
 
-	FORCEINLINE TWorldPartitionHandle(UWorldPartition* WorldPartition, const FGuid& ActorGuid)
-		: ActorDesc(FWorldPartitionHandleUtils::GetActorDesc(WorldPartition, ActorGuid))
+	FORCEINLINE TWorldPartitionHandle(UActorDescContainer* Container, const FGuid& ActorGuid)
+		: ActorDesc(FWorldPartitionHandleUtils::GetActorDesc(Container, ActorGuid))
 	{
 		if (IsValid())
 		{

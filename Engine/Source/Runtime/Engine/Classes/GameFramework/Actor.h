@@ -804,7 +804,7 @@ public:
 	inline const FGuid& GetActorGuid() const { return ActorGuid; }
 
 private:
-	friend class UWorldPartition;
+	friend class UActorDescContainer;
 
 	/**
 	 * Creates an uninitialized actor descriptor. Can be overriden.

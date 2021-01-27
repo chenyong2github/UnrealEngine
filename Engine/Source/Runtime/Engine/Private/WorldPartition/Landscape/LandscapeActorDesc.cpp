@@ -6,7 +6,7 @@
 #include "LandscapeProxy.h"
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
-#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
@@ -46,9 +46,9 @@ void FLandscapeActorDesc::OnRegister()
 {
 	FPartitionActorDesc::OnRegister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), GridGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), GridGuid))
 	{
-		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
+		FWorldPartitionHandle Handle(Container, GetGuid());
 		check(Handle.IsValid());
 		LandscapeInfo->ProxyHandles.Add(MoveTemp(Handle));
 	}
@@ -58,9 +58,9 @@ void FLandscapeActorDesc::OnUnregister()
 {
 	FPartitionActorDesc::OnUnregister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(WorldPartition->GetWorld(), GridGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), GridGuid))
 	{
-		FWorldPartitionHandle Handle(WorldPartition, GetGuid());
+		FWorldPartitionHandle Handle(Container, GetGuid());
 		check(Handle.IsValid());
 		LandscapeInfo->ProxyHandles.Remove(Handle);
 	}

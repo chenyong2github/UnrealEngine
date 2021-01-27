@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/ActorDescContainer.h"
 
 #if WITH_EDITOR
 #include "PackageSourceControlHelper.h"
@@ -60,7 +61,7 @@ public:
 #endif
 
 UCLASS(AutoExpandCategories=(WorldPartition))
-class ENGINE_API UWorldPartition final : public UObject
+class ENGINE_API UWorldPartition final : public UActorDescContainer
 {
 	GENERATED_UCLASS_BODY()
 
@@ -83,13 +84,13 @@ private:
 	void OnPreBeginPIE(bool bStartSimulate);
 	void OnEndPIE(bool bStartSimulate);
 
-	// Asset registry events
-	void OnAssetAdded(const FAssetData& InAssetData);
-	void OnAssetRemoved(const FAssetData& InAssetData);
-	void OnAssetUpdated(const FAssetData& InAssetData);
+	// UActorDescContainer events
+	virtual void OnActorDescAdded(const TUniquePtr<FWorldPartitionActorDesc>& NewActorDesc) override;
+	virtual void OnActorDescRemoved(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) override;
+	virtual void OnActorDescUpdating(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) override;
+	virtual void OnActorDescUpdated(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) override;
 
 	bool ShouldHandleAssetEvent(const FAssetData& InAssetData);
-	TUniquePtr<FWorldPartitionActorDesc> GetActorDescriptor(const FAssetData& InAssetData);
 #endif
 
 	//~ Begin UObject Interface
@@ -138,7 +139,7 @@ public:
 public:
 	void Initialize(UWorld* World, const FTransform& InTransform);
 	bool IsInitialized() const;
-	void Uninitialize();
+	virtual void Uninitialize() override;
 
 	void CleanupWorldPartition();
 
@@ -168,10 +169,6 @@ public:
 	UWorldPartitionRuntimeHash* RuntimeHash;
 
 #if WITH_EDITOR
-	TChunkedArray<TUniquePtr<FWorldPartitionActorDesc>> ActorDescList;
-	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> Actors;
-	
-	bool bIgnoreAssetRegistryEvents;
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
 #endif
@@ -194,12 +191,12 @@ private:
 #endif
 
 	bool IsMainWorldPartition() const;
-
-	// Delegates registration
-	void RegisterDelegates();
-	void UnregisterDelegates();
-
+		
 #if WITH_EDITOR
+	// Delegates registration
+	virtual void RegisterDelegates() override;
+	virtual void UnregisterDelegates() override;
+
 	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded);
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);

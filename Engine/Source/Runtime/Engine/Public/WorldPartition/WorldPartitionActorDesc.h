@@ -35,6 +35,7 @@ class ENGINE_API FWorldPartitionActorDesc
 #if WITH_EDITOR
 	friend class AActor;
 	friend class UWorldPartition;
+	friend class UActorDescContainer;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
 	friend struct FWorldPartitionHandleUtils;
@@ -111,7 +112,7 @@ public:
 	void UnregisterActor();
 
 	virtual void Init(const AActor* InActor);
-	void Init(UWorldPartition* InWorldPartition, const FWorldPartitionActorDescInitData& DescData);
+	void Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData);
 
 	void SerializeTo(TArray<uint8>& OutData);
 
@@ -152,7 +153,7 @@ protected:
 	mutable uint32					HardRefCount;
 	UClass*							ActorClass;
 	mutable TWeakObjectPtr<AActor>	ActorPtr;
-	UWorldPartition*				WorldPartition;
+	UActorDescContainer*			Container;
 
 public:
 	// Tagging
