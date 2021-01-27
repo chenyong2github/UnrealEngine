@@ -38,4 +38,14 @@ TSharedRef<SWidget> FRigHierarchyTabSummoner::CreateTabBody(const FWorkflowTabSp
 	return SNew(SRigHierarchy, ControlRigEditor.Pin().ToSharedRef());
 }
 
+TSharedRef<SDockTab> FRigHierarchyTabSummoner::SpawnTab(const FWorkflowTabSpawnInfo& Info) const
+{
+	TSharedRef<SDockTab>  DockTab = FWorkflowTabFactory::SpawnTab(Info);
+	DockTab->SetCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([]()
+    {
+        return false;
+    }));
+	return DockTab;
+}
+
 #undef LOCTEXT_NAMESPACE 
