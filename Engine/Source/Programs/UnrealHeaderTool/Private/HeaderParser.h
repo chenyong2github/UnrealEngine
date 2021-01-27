@@ -419,7 +419,7 @@ struct FDocumentationPolicy
 	bool bFloatRangesRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
 };
 
-enum class ENativePointerMemberBehavior
+enum class EPointerMemberBehavior
 {
 	Disallow,
 	AllowSilently,
@@ -439,7 +439,8 @@ public:
 	// Default version of generated code. Defaults to oldest possible, unless specified otherwise in config.
 	static EGeneratedCodeVersion DefaultGeneratedCodeVersion;
 
-	static ENativePointerMemberBehavior NativePointerMemberBehavior;
+	static EPointerMemberBehavior NativePointerMemberBehavior;
+	static EPointerMemberBehavior ObjectPtrMemberBehavior;
 
 	// Compute the function parameter size and save the return offset
 	static void ComputeFunctionParametersSize(UClass* InClass);
@@ -1078,6 +1079,9 @@ private:
 
 	// Checks if a valid range has been found on the provided metadata
 	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);
+
+	// Checks if a valid range has been found on the provided metadata
+	void ConditionalLogPointerUsage(EPointerMemberBehavior PointerMemberBehavior, const TCHAR* PointerTypeDesc, FString&& PointerTypeDecl);
 
 	// Names that cannot be used enums, UStructs, or UClasses
 	static TArray<FString> ReservedTypeNames;

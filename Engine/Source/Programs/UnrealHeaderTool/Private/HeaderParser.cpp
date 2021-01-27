@@ -107,7 +107,8 @@ const FName FHeaderParserNames::NAME_IsConversionRoot(TEXT("IsConversionRoot"));
 const FName FHeaderParserNames::NAME_AdvancedClassDisplay(TEXT("AdvancedClassDisplay"));
 
 EGeneratedCodeVersion FHeaderParser::DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
-ENativePointerMemberBehavior FHeaderParser::NativePointerMemberBehavior = ENativePointerMemberBehavior::AllowSilently;
+EPointerMemberBehavior FHeaderParser::NativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
+EPointerMemberBehavior FHeaderParser::ObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
 TArray<FString> FHeaderParser::StructsWithNoPrefix;
 TArray<FString> FHeaderParser::StructsWithTPrefix;
 FRigVMStructMap FHeaderParser::StructRigVMMap;
@@ -1303,25 +1304,25 @@ namespace
 		SkipAlignasIfNecessary(Parser);
 	}
 
-	inline ENativePointerMemberBehavior ToNativePointerMemberBehavior(const FString& InString)
+	inline EPointerMemberBehavior ToPointerMemberBehavior(const FString& InString)
 	{
 		if (InString.Compare(TEXT("Disallow")) == 0)
 		{
-			return ENativePointerMemberBehavior::Disallow;
+			return EPointerMemberBehavior::Disallow;
 		}
 
 		if (InString.Compare(TEXT("AllowSilently")) == 0)
 		{
-			return ENativePointerMemberBehavior::AllowSilently;
+			return EPointerMemberBehavior::AllowSilently;
 		}
 
 		if (InString.Compare(TEXT("AllowAndLog")) == 0)
 		{
-			return ENativePointerMemberBehavior::AllowAndLog;
+			return EPointerMemberBehavior::AllowAndLog;
 		}
 
 		FError::Throwf(TEXT("Unrecognized native pointer member behavior: %s"), *InString );
-		return ENativePointerMemberBehavior::Disallow;
+		return EPointerMemberBehavior::Disallow;
 	}
 
 	static const TCHAR* GLayoutMacroNames[] = {
@@ -4973,36 +4974,16 @@ void FHeaderParser::GetVarType(
 					// Optionally emit messages about native pointer members and swallow trailing 'const' after pointer properties
 					if (VariableCategory == EVariableCategory::Member)
 					{
-						switch (NativePointerMemberBehavior)
-						{
-							case ENativePointerMemberBehavior::Disallow:
-							{
-								FString TypeName = FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar();
-								UE_LOG(LogCompile, Error, TEXT("Native pointer usage in member declaration detected in '%s', line %d [[%s]]"), *GetSourceFileContext(), InputLine, *TypeName);
-							}
-							break;
-							case ENativePointerMemberBehavior::AllowAndLog:
-							{
-								FString TypeName = FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar();
-								UE_LOG(LogCompile, Log, TEXT("Native pointer usage in member declaration detected in '%s', line %d [[%s]]"), *GetSourceFileContext(), InputLine, *TypeName);
-							}
-							break;
-							case ENativePointerMemberBehavior::AllowSilently:
-							{
-								// Do nothing
-							}
-							break;
-							default:
-							{
-								checkf(false, TEXT("Unhandled case"));
-							}
-							break;
-						}
+						ConditionalLogPointerUsage(NativePointerMemberBehavior, TEXT("Native pointer"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar());
 
 						MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
 					}
 
 					VarProperty.PointerType = EPointerType::Native;
+				}
+				else if ((PropertyType == CPT_ObjectPtrReference) && (VariableCategory == EVariableCategory::Member))
+				{
+					ConditionalLogPointerUsage(ObjectPtrMemberBehavior, TEXT("ObjectPtr"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar());
 				}
 
 				// Imply const if it's a parameter that is a pointer to a const class
@@ -9019,6 +9000,7 @@ FHeaderParser::FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& In
 		const FName DelegateParameterCountStringsKey(TEXT("DelegateParameterCountStrings"));
 		const FName GeneratedCodeVersionKey(TEXT("GeneratedCodeVersion"));
 		const FName NativePointerMemberBehaviorKey(TEXT("NativePointerMemberBehavior"));
+		const FName ObjectPtrMemberBehaviorKey(TEXT("ObjectPtrMemberBehavior"));
 
 		FConfigSection* ConfigSection = GConfig->GetSectionPrivate(TEXT("UnrealHeaderTool"), false, true, GEngineIni);
 		if (ConfigSection)
@@ -9053,7 +9035,11 @@ FHeaderParser::FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& In
 				}
 				else if (It.Key() == NativePointerMemberBehaviorKey)
 				{
-					NativePointerMemberBehavior = ToNativePointerMemberBehavior(It.Value().GetValue());
+					NativePointerMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
+				}
+				else if (It.Key() == ObjectPtrMemberBehaviorKey)
+				{
+					ObjectPtrMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
 				}
 			}
 		}
@@ -10909,6 +10895,33 @@ bool FHeaderParser::CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const F
 	}
 
 	return true;
+}
+
+void FHeaderParser::ConditionalLogPointerUsage(EPointerMemberBehavior PointerMemberBehavior, const TCHAR* PointerTypeDesc, FString&& PointerTypeDecl)
+{
+	switch (NativePointerMemberBehavior)
+	{
+		case EPointerMemberBehavior::Disallow:
+		{
+			UE_LOG(LogCompile, Error, TEXT("%s usage in member declaration detected in '%s', line %d [[%s]]"), PointerTypeDesc, *GetSourceFileContext(), InputLine, *PointerTypeDecl);
+		}
+		break;
+		case EPointerMemberBehavior::AllowAndLog:
+		{
+			UE_LOG(LogCompile, Log, TEXT("%s usage in member declaration detected in '%s', line %d [[%s]]"), PointerTypeDesc, *GetSourceFileContext(), InputLine, *PointerTypeDecl);
+		}
+		break;
+		case EPointerMemberBehavior::AllowSilently:
+		{
+			// Do nothing
+		}
+		break;
+		default:
+		{
+			checkf(false, TEXT("Unhandled case"));
+		}
+		break;
+	}
 }
 
 template <class TFunctionType>

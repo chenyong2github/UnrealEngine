@@ -22,6 +22,7 @@ enum class EPointerUpgradeBehaviorFlags
 {
 	None,
 	PreviewOnly = 1,
+	Reverse     = 2,
 };
 ENUM_CLASS_FLAGS(EPointerUpgradeBehaviorFlags)
 
@@ -77,6 +78,8 @@ private:
 	static bool SaveStringArrayWithNewlinesToFile(const TArray<FString>& InStringArray, EByteOrderMarkerType InBOM, const TCHAR* InFilename, uint32 WriteFlags = 0);
 
 	static int32 CountLines(const FStringView Input);
+	static FString PerformForwardTypenameUpgrade(const FString& TypeName);
+	static FString PerformReverseTypenameUpgrade(const FString& TypeName);
 
 
 	int32 TotalUpgradesFound = 0;
@@ -105,45 +108,59 @@ FStringView ParseBracketedStringSegment(const FString& InString, int32& InOutCur
 TValueOrError<FPointerUpgrader::FPointerUpgradeList, FString> FPointerUpgrader::FillUpgradeList(const FString& LogFilename)
 {
 	FPointerUpgradeList UpgradeList;
-	const TCHAR Preamble[] = TEXT("Native pointer usage in member declaration detected in '");
+	const TCHAR* Preamble = EnumHasAllFlags(BehaviorFlags, EPointerUpgradeBehaviorFlags::Reverse) ? TEXT("ObjectPtr usage in member declaration detected in '") : TEXT("Native pointer usage in member declaration detected in '");
 	TArray<FString> PointerUpgradeEntries;
 	if (!FFileHelper::LoadFileToStringArrayWithPredicate(PointerUpgradeEntries, *LogFilename, [&Preamble](const FString& Line) { return Line.Contains(Preamble);  }))
 	{
 		return MakeError(FString::Printf(TEXT("Unable to load UHT log: %s"), *LogFilename));
 	}
 
-	constexpr int32 PreambleLen = UE_ARRAY_COUNT(Preamble) - 1;
+	const int32 PreambleLen = FCString::Strlen(Preamble);
 	for (const FString& Entry : PointerUpgradeEntries)
 	{
 		int32 CurrentIndex = 0;
 		FStringView FilenameView = ParseBracketedStringSegment(Entry, CurrentIndex, Preamble, TEXT("'"));
 		if (FilenameView.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("Failed to parse filename from native pointer member upgrade statement: %s"), *Entry));
+			return MakeError(FString::Printf(TEXT("Failed to parse filename from pointer member upgrade statement: %s"), *Entry));
 		}
 
 		FStringView LineNumberView = ParseBracketedStringSegment(Entry, CurrentIndex, TEXT(", line "), TEXT(" "));
 		if (LineNumberView.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("Failed to parse line number from native pointer member upgrade statement: %s"), *Entry));
+			return MakeError(FString::Printf(TEXT("Failed to parse line number from pointer member upgrade statement: %s"), *Entry));
 		}
 
 		FStringView TypeNameView = ParseBracketedStringSegment(Entry, CurrentIndex, TEXT("[["), TEXT("]]"));
 		if (TypeNameView.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("Failed to parse type name from native pointer member upgrade statement: %s"), *Entry));
+			return MakeError(FString::Printf(TEXT("Failed to parse type name from pointer member upgrade statement: %s"), *Entry));
 		}
 
 		int32 LineNumber = -1;
 		LexFromString(LineNumber, LineNumberView);
 		if (LineNumber < 1)
 		{
-			return MakeError(FString::Printf(TEXT("Failed to convert line number to integer from native pointer member upgrade statement: %s"), *Entry));
+			return MakeError(FString::Printf(TEXT("Failed to convert line number to integer from pointer member upgrade statement: %s"), *Entry));
 		}
 
-		if (!TypeNameView.EndsWith(TEXT("*")))
+		if (EnumHasAllFlags(BehaviorFlags, EPointerUpgradeBehaviorFlags::Reverse))
 		{
-			return MakeError(FString::Printf(TEXT("Failed to find expected asterisk at end of native pointer member upgrade statement: %s"), *Entry));
+			if (!TypeNameView.StartsWith(TEXT("TObjectPtr<")))
+			{
+				return MakeError(FString::Printf(TEXT("Failed to find expected 'TObjectPtr<' at end of pointer member upgrade statement: %s"), *Entry));
+			}
+			if (!TypeNameView.EndsWith(TEXT(">")))
+			{
+				return MakeError(FString::Printf(TEXT("Failed to find expected angle bracket at end of pointer member upgrade statement: %s"), *Entry));
+			}
+		}
+		else
+		{
+			if (!TypeNameView.EndsWith(TEXT("*")))
+			{
+				return MakeError(FString::Printf(TEXT("Failed to find expected asterisk at end of pointer member upgrade statement: %s"), *Entry));
+			}
 		}
 
 		TArray<FMemberDeclaration>& DeclarationArray = UpgradeList.FindOrAdd(FString(FilenameView));
@@ -196,25 +213,7 @@ bool FPointerUpgrader::TryUpgradesInFile(const FString& FilenameToUpgrade, TCons
 		}
 		FString OriginalLinesToUpgrade = LinesToUpgrade;
 
-		// Chop off the trailing asterisk in the member type declaration
-		FString TemplateArg = MemberDeclaration.TypeName.LeftChop(1);
-		// Any trailing whitespace that was after the asterisk should not go in the template argument, but be appended after the template argument
-		// This only applies to space (' ') and tab ('\t') that have non-whitespace before them on the line, and should not include newlines.
-		// This is to avoid having end template bracket ('>') get put on a line that may have a line comment ahead of it ("//").
-		int32 TrailingWhitespaceCount = 0;
-		int32 CharIndex;
-		for (CharIndex = TemplateArg.Len()-1; (CharIndex >= 0) && (TemplateArg[CharIndex] == TCHAR(' ') || TemplateArg[CharIndex] == TCHAR('\t')); --CharIndex)
-		{
-			++TrailingWhitespaceCount;
-		}
-		if ((CharIndex == 0) || (TemplateArg[CharIndex-1] == TEXT('\n')) || (TemplateArg[CharIndex-1] == TEXT('\r')))
-		{
-			// The trailing whitespace represented the entire lead of the line the end template character will be on.  Put the indentation inside the template arg instead of outside of it.
-			TrailingWhitespaceCount = 0;
-		}
-		FString TrailingWhitespace = TemplateArg.Right(TrailingWhitespaceCount);
-		TemplateArg.LeftChopInline(TrailingWhitespaceCount);
-		FString UpgradedTypeName = FString::Printf(TEXT("TObjectPtr<%s>%s"), *TemplateArg, *TrailingWhitespace);
+		FString UpgradedTypeName = EnumHasAllFlags(BehaviorFlags, EPointerUpgradeBehaviorFlags::Reverse) ? PerformReverseTypenameUpgrade(MemberDeclaration.TypeName) : PerformForwardTypenameUpgrade(MemberDeclaration.TypeName);
 		if (LinesToUpgrade.ReplaceInline(*MemberDeclaration.TypeName, *UpgradedTypeName) < 1)
 		{
 			if (!LinesToUpgrade.Contains(*UpgradedTypeName))
@@ -560,6 +559,39 @@ int32 FPointerUpgrader::CountLines(const FStringView Input)
 	return LineCount;
 }
 
+FString FPointerUpgrader::PerformForwardTypenameUpgrade(const FString& TypeName)
+{
+	// Chop off the trailing asterisk in the type declaration
+	FString TemplateArg = TypeName.LeftChop(1);
+	// Any trailing whitespace that was after the asterisk should not go in the template argument, but be appended after the template argument
+	// This only applies to space (' ') and tab ('\t') that have non-whitespace before them on the line, and should not include newlines.
+	// This is to avoid having end template bracket ('>') get put on a line that may have a line comment ahead of it ("//").
+	int32 TrailingWhitespaceCount = 0;
+	int32 CharIndex;
+	for (CharIndex = TemplateArg.Len()-1; (CharIndex >= 0) && (TemplateArg[CharIndex] == TCHAR(' ') || TemplateArg[CharIndex] == TCHAR('\t')); --CharIndex)
+	{
+		++TrailingWhitespaceCount;
+	}
+	if ((CharIndex == 0) || (TemplateArg[CharIndex-1] == TEXT('\n')) || (TemplateArg[CharIndex-1] == TEXT('\r')))
+	{
+		// The trailing whitespace represented the entire lead of the line the end template character will be on.  Put the indentation inside the template arg instead of outside of it.
+		TrailingWhitespaceCount = 0;
+	}
+	FString TrailingWhitespace = TemplateArg.Right(TrailingWhitespaceCount);
+	TemplateArg.LeftChopInline(TrailingWhitespaceCount);
+	return FString::Printf(TEXT("TObjectPtr<%s>%s"), *TemplateArg, *TrailingWhitespace);
+}
+
+FString FPointerUpgrader::PerformReverseTypenameUpgrade(const FString& TypeName)
+{
+	// Chop off the trailing angle bracket in the type declaration
+	FString TemplateArg = TypeName.LeftChop(1);
+	// Chop off the leading TObjectPtr in the type declaration
+	TemplateArg = TemplateArg.RightChop(UE_ARRAY_COUNT(TEXT("TObjectPtr<")) - 1);
+
+	return FString::Printf(TEXT("%s*"), *TemplateArg);
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
@@ -592,6 +624,10 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	if (FParse::Param(*CmdLine, TEXT("n")) || FParse::Param(*CmdLine, TEXT("PREVIEW")))
 	{
 		BehaviorFlags |= EPointerUpgradeBehaviorFlags::PreviewOnly;
+	}
+	if (FParse::Param(*CmdLine, TEXT("r")) || FParse::Param(*CmdLine, TEXT("REVERSE")))
+	{
+		BehaviorFlags |= EPointerUpgradeBehaviorFlags::Reverse;
 	}
 
 	FPointerUpgrader PointerUpgrader(SCCCommand, BehaviorFlags);
