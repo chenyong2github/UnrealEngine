@@ -1040,10 +1040,10 @@ void AWaterBody::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	bool bWeightmapSettingsChanged = false;
 
 	OnPostEditChangeProperty(PropertyChangedEvent, bShapeOrPositionChanged, bWeightmapSettingsChanged);
+	
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	OnWaterBodyChanged(bShapeOrPositionChanged, bWeightmapSettingsChanged);
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void AWaterBody::OnSplineDataChanged()
