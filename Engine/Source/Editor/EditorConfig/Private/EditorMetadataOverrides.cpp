@@ -348,5 +348,3 @@ void UEditorMetadataOverrides::RemoveMetadata(const FField* Field, FName Key)
 
 	bDirty = true;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
