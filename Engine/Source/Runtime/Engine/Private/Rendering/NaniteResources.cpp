@@ -74,11 +74,11 @@ FAutoConsoleVariableRef CVarNaniteMaxVisibleClusters(
 	ECVF_ReadOnly
 );
 
-int32 GRayTracingNaniteProxyMeshes = 0;
+int32 GRayTracingNaniteProxyMeshes = 1;
 FAutoConsoleVariableRef CVarRayTracingNaniteProxyMeshes(
 	TEXT("r.RayTracing.Geometry.NaniteProxies"),
 	GRayTracingNaniteProxyMeshes,
-	TEXT("Include Nanite proxy meshes in ray tracing effects (default = 0 (Nanite proxy meshes disabled in ray tracing))"),
+	TEXT("Include Nanite proxy meshes in ray tracing effects (default = 1 (Nanite proxy meshes enabled in ray tracing))"),
 	ECVF_RenderThreadSafe
 );
 
