@@ -28,9 +28,8 @@ public:
 	virtual bool IsDefinedAsVarying() const override;
 
 	// Library node interface
-	virtual FString GetCategory() const { return Category; }
-	virtual FString GetTooltip() const { return Tooltip; }
-	virtual FString GetKeywords() const { return Keywords; }
+	virtual FString GetNodeCategory() const { return FString(); }
+	virtual FString GetNodeKeywords() const { return FString(); }
 	virtual URigVMFunctionLibrary* GetLibrary() const { return nullptr; }
 	virtual URigVMGraph* GetContainedGraph() const { return nullptr; }
 	virtual const TArray<URigVMNode*>& GetContainedNodes() const;
@@ -39,15 +38,6 @@ public:
 	virtual URigVMFunctionReturnNode* GetReturnNode() const;
 
 protected:
-
-	UPROPERTY()
-	FString Category;
-
-	UPROPERTY()
-	FString Tooltip;
-
-	UPROPERTY()
-	FString Keywords;
 
 	const static TArray<URigVMNode*> EmptyNodes;
 	const static TArray<URigVMLink*> EmptyLinks;

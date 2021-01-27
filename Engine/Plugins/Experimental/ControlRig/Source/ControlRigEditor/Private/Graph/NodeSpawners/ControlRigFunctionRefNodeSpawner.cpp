@@ -36,7 +36,7 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 
-	FString Category = InFunction->GetCategory();
+	FString Category = InFunction->GetNodeCategory();
 	FString CategoryPrefix;
 
 	if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(InFunction->GetLibrary()->GetOuter()))
@@ -59,9 +59,9 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 	}
 
 	MenuSignature.MenuName = FText::FromString(InFunction->GetName());
-	MenuSignature.Tooltip = FText::FromString(InFunction->GetTooltip());
+	MenuSignature.Tooltip = InFunction->GetToolTipText();
 	MenuSignature.Category = FText::FromString(CategoryPrefix + Category);
-	MenuSignature.Keywords = FText::FromString(InFunction->GetKeywords());
+	MenuSignature.Keywords = FText::FromString(InFunction->GetNodeKeywords());
 
 	// add at least one character, so that PrimeDefaultUiSpec() doesn't 
 	// attempt to query the template node

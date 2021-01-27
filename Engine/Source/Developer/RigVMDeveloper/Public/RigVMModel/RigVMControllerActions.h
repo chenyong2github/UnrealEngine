@@ -780,6 +780,67 @@ public:
 };
 
 /**
+ * An action setting a node's category in the graph.
+ */
+USTRUCT()
+struct FRigVMSetNodeCategoryAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetNodeCategoryAction()
+	{
+		OldCategory = NewCategory = FString();
+	}
+	FRigVMSetNodeCategoryAction(URigVMCollapseNode* InNode, const FString& InNewCategory);
+	virtual ~FRigVMSetNodeCategoryAction() {};
+	virtual bool Merge(const FRigVMBaseAction* Other);
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString NodePath;
+
+	UPROPERTY()
+	FString OldCategory;
+
+	UPROPERTY()
+	FString NewCategory;
+};
+
+
+/**
+ * An action setting a node's keywords in the graph.
+ */
+USTRUCT()
+struct FRigVMSetNodeKeywordsAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetNodeKeywordsAction()
+	{
+		OldKeywords = NewKeywords = FString();
+	}
+	FRigVMSetNodeKeywordsAction(URigVMCollapseNode* InNode, const FString& InNewKeywords);
+	virtual ~FRigVMSetNodeKeywordsAction() {};
+	virtual bool Merge(const FRigVMBaseAction* Other);
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString NodePath;
+
+	UPROPERTY()
+	FString OldKeywords;
+
+	UPROPERTY()
+	FString NewKeywords;
+};
+
+/**
  * An action setting a comment node's text in the graph.
  */
 USTRUCT()

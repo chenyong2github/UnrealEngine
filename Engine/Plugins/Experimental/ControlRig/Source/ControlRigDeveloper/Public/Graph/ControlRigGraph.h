@@ -101,7 +101,7 @@ private:
 
 	FControlRigGraphNodeClicked OnGraphNodeClicked;
 
-	TMap<UControlRigGraphNode*, int32> CachedInstructionIndices;
+	TMap<URigVMNode*, int32> CachedInstructionIndices;
 
 #endif
 #if WITH_EDITORONLY_DATA

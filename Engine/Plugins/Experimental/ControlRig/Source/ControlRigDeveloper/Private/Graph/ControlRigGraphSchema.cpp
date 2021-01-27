@@ -303,13 +303,13 @@ FReply UControlRigGraphSchema::BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAct
 	if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Graph::StaticGetTypeId())
 	{
 		FEdGraphSchemaAction_K2Graph* FuncAction = (FEdGraphSchemaAction_K2Graph*)InAction.Get();
-		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FuncAction->EdGraph))
-		{
-			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
-			{
-				return FReply::Handled().BeginDragDrop(FControlRigFunctionDragDropAction::New(InAction, RigBlueprint, RigGraph));
-			}
-		}
+if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FuncAction->EdGraph))
+{
+	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
+	{
+		return FReply::Handled().BeginDragDrop(FControlRigFunctionDragDropAction::New(InAction, RigBlueprint, RigGraph));
+	}
+}
 	}
 	return FReply::Unhandled();
 }
@@ -383,7 +383,7 @@ void UControlRigGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D
 {
 	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 	{
-		RigNode->GetController()->SetNodePosition(RigNode->GetModelNode(), Position, true, false); 
+		RigNode->GetController()->SetNodePosition(RigNode->GetModelNode(), Position, true, false);
 	}
 }
 
@@ -394,12 +394,51 @@ void UControlRigGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /
 	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)&Graph))
 	{
 		TArray<FString> NodePathParts;
-		if(URigVMNode::SplitNodePath(RigGraph->ModelNodePath, NodePathParts))
+		if (URigVMNode::SplitNodePath(RigGraph->ModelNodePath, NodePathParts))
 		{
 			DisplayInfo.DisplayName = FText::FromString(NodePathParts.Last());
 			DisplayInfo.PlainName = DisplayInfo.DisplayName;
 		}
 	}
+}
+
+FText UControlRigGraphSchema::GetGraphCategory(const UEdGraph* InGraph) const
+{
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)InGraph))
+	{
+		if (URigVMGraph* Model = RigGraph->GetModel())
+		{
+			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				return FText::FromString(CollapseNode->GetNodeCategory());
+			}
+		}
+	}
+	return FText();
+}
+
+FReply UControlRigGraphSchema::TrySetGraphCategory(const UEdGraph* InGraph, const FText& InCategory)
+{
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)InGraph))
+	{
+		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
+		{
+			if (URigVMGraph* Model = RigGraph->GetModel())
+			{
+				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+				{
+					if (URigVMController* Controller = RigBlueprint->GetOrCreateController(CollapseNode->GetGraph()))
+					{
+						if (Controller->SetNodeCategory(CollapseNode, InCategory.ToString()))
+						{
+							return FReply::Handled();
+						}
+					}
+				}
+			}
+		}
+	}
+	return FReply::Unhandled();
 }
 
 bool UControlRigGraphSchema::TryDeleteGraph(UEdGraph* GraphToDelete) const
@@ -408,18 +447,31 @@ bool UControlRigGraphSchema::TryDeleteGraph(UEdGraph* GraphToDelete) const
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
 		{
-			if (URigVMGraph* Model = RigBlueprint->GetModel())
+			if (URigVMGraph* Model = RigBlueprint->GetModel(GraphToDelete))
 			{
-				URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->FindNode(RigGraph->ModelNodePath));
-				if (LibraryNode == nullptr && RigBlueprint->GetLocalFunctionLibrary())
-				{
-					LibraryNode = Cast<URigVMLibraryNode>(RigBlueprint->GetLocalFunctionLibrary()->FindFunction(*RigGraph->ModelNodePath));
-				}
-
-				if (LibraryNode)
+				if (URigVMCollapseNode* LibraryNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
 				{
 					if (URigVMController* Controller = RigBlueprint->GetOrCreateController(LibraryNode->GetGraph()))
 					{
+						// check if there is a "bulk remove function" transaction going on.
+						// which implies that a category is being deleted
+						if (GEditor->CanTransact())
+						{
+							if (GEditor->Trans->GetQueueLength() > 0)
+							{
+								const FTransaction* LastTransaction = GEditor->Trans->GetTransaction(GEditor->Trans->GetQueueLength() - 1);
+								if (LastTransaction)
+								{
+									if (LastTransaction->GetTitle().ToString() == TEXT("Bulk Remove Functions"))
+									{
+										// instead of deleting the graph, let's set its category to none
+										// and thus moving it to the top of the tree
+										return Controller->SetNodeCategory(LibraryNode, FString());
+									}
+								}
+							}
+						}
+						
 						return Controller->RemoveNode(LibraryNode);
 					}
 				}

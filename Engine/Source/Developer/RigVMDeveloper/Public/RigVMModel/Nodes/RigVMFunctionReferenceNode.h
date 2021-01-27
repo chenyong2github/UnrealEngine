@@ -22,10 +22,11 @@ public:
 	// URigVMNode interface
 	virtual FString GetNodeTitle() const override;
 	virtual FLinearColor GetNodeColor() const override;
-	virtual FText GetToolTipText() const override;
 	// end URigVMNode interface
 
 	// URigVMLibraryNode interface
+	virtual FString GetNodeCategory() const override;
+	virtual FString GetNodeKeywords() const override;
 	virtual URigVMFunctionLibrary* GetLibrary() const override;
 	virtual URigVMGraph* GetContainedGraph() const override;
 	// end URigVMLibraryNode interface

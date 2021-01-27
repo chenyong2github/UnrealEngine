@@ -637,7 +637,41 @@ void SMyBlueprint::OnCategoryNameCommitted(const FText& InNewText, ETextCommit::
 					// Don't allow changing the category of a graph who's parent is not the current Blueprint
 					if(GraphAction && !FBlueprintEditorUtils::IsPaletteActionReadOnly(Actions[i], BlueprintEditorPtr.Pin()) && FBlueprintEditorUtils::FindBlueprintForGraph(GraphAction->EdGraph) == GetBlueprintObj())
 					{
-						GraphAction->MovePersistentItemToCategory(CategoryName);
+						FReply ReplyBySchema = FReply::Unhandled();
+						if (GraphAction->EdGraph)
+						{
+							if (UEdGraphSchema* Schema = (UEdGraphSchema*)GraphAction->EdGraph->GetSchema())
+							{
+								TArray<FString> CategoryParts;
+								TWeakPtr< FGraphActionNode > CurrentActionNode = InAction;
+								while (CurrentActionNode.IsValid())
+								{
+									FString CurrentDisplayName = CurrentActionNode.Pin()->GetDisplayName().ToString();
+									if (!CurrentDisplayName.IsEmpty())
+									{
+										CategoryParts.Insert(CurrentDisplayName, 0);
+									}
+									CurrentActionNode = CurrentActionNode.Pin()->GetParentNode();
+								}
+
+								FString OldCategoryPath = FString::Join(CategoryParts, TEXT("|"));
+								CategoryParts.Last() = CategoryName.ToString();
+								FString NewCategoryPath = FString::Join(CategoryParts, TEXT("|"));
+
+								FString CurrentCategoryPath = GraphAction->GetCategory().ToString();
+								if (CurrentCategoryPath == OldCategoryPath || CurrentCategoryPath.StartsWith(OldCategoryPath + TEXT("|"), ESearchCase::CaseSensitive))
+								{
+									NewCategoryPath = NewCategoryPath + CurrentCategoryPath.RightChop(OldCategoryPath.Len());
+								}
+
+								ReplyBySchema = Schema->TrySetGraphCategory(GraphAction->EdGraph, FText::FromString(NewCategoryPath));
+							}
+						}
+
+						if (!ReplyBySchema.IsEventHandled())
+						{
+							GraphAction->MovePersistentItemToCategory(CategoryName);
+						}
 					}
 				}
 			}
@@ -1272,8 +1306,8 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 		FGraphDisplayInfo DisplayInfo;
 		Graph->GetSchema()->GetGraphDisplayInformation(*Graph, DisplayInfo);
 
-		FText FunctionCategory;
-		if (BlueprintObj->SkeletonGeneratedClass != nullptr)
+		FText FunctionCategory = Graph->GetSchema()->GetGraphCategory(Graph);
+		if (FunctionCategory.IsEmpty() && BlueprintObj->SkeletonGeneratedClass != nullptr)
 		{
 			UFunction* Function = BlueprintObj->SkeletonGeneratedClass->FindFunctionByName(Graph->GetFName());
 			if (Function != nullptr)

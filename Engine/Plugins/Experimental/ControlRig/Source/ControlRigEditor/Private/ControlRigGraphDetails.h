@@ -11,6 +11,7 @@
 #include "ControlRigEditor.h"
 #include "SGraphPin.h"
 #include "Graph/SControlRigGraphNode.h"
+#include "Widgets/Colors/SColorBlock.h"
 
 class FMobilityCustomization;
 class IDetailLayoutBuilder;
@@ -163,8 +164,19 @@ public:
 	EVisibility GetAddNewInputOutputVisibility() const;
 	FReply OnAddNewInputClicked();
 	FReply OnAddNewOutputClicked();
+	FText GetNodeCategory() const;
+	void SetNodeCategory(const FText& InNewText, ETextCommit::Type InCommitType);
+	FText GetNodeKeywords() const;
+	void SetNodeKeywords(const FText& InNewText, ETextCommit::Type InCommitType);
+	FLinearColor GetNodeColor() const;
+	void SetNodeColor(FLinearColor InColor, bool bSetupUndoRedo);
+	void OnNodeColorBegin();
+	void OnNodeColorEnd();
+	void OnNodeColorCancelled(FLinearColor OriginalColor);
+	FReply OnNodeColorClicked();
 
 private:
+
 	/** The Blueprint editor we are embedded in */
 	TWeakPtr<IControlRigEditor> ControlRigEditorPtr;
 
@@ -173,4 +185,16 @@ private:
 
 	/** The blueprint we are editing */
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
+
+	/** The color block widget */
+	TSharedPtr<SColorBlock> ColorBlock;
+
+	/** The color to change */
+	FLinearColor TargetColor;
+
+	/** The color array to change */
+	TArray<FLinearColor*> TargetColors;
+
+	/** Set to true if the UI is currently picking a color */
+	bool bIsPickingColor;
 };

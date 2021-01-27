@@ -911,6 +911,90 @@ bool FRigVMSetNodeColorAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Redo(InController);
 }
 
+FRigVMSetNodeCategoryAction::FRigVMSetNodeCategoryAction(URigVMCollapseNode* InNode, const FString& InNewCategory)
+	: NodePath(InNode->GetNodePath())
+	, OldCategory(InNode->GetNodeCategory())
+	, NewCategory(InNewCategory)
+{
+}
+
+bool FRigVMSetNodeCategoryAction::Merge(const FRigVMBaseAction* Other)
+{
+	if (!FRigVMBaseAction::Merge(Other))
+	{
+		return false;
+	}
+
+	const FRigVMSetNodeCategoryAction* Action = (const FRigVMSetNodeCategoryAction*)Other;
+	if (NodePath != Action->NodePath)
+	{
+		return false;
+	}
+
+	NewCategory = Action->NewCategory;
+	return true;
+}
+
+bool FRigVMSetNodeCategoryAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->SetNodeCategoryByName(*NodePath, OldCategory, false);
+}
+
+bool FRigVMSetNodeCategoryAction::Redo(URigVMController* InController)
+{
+	if (!InController->SetNodeCategoryByName(*NodePath, NewCategory, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo(InController);
+}
+
+FRigVMSetNodeKeywordsAction::FRigVMSetNodeKeywordsAction(URigVMCollapseNode* InNode, const FString& InNewKeywords)
+	: NodePath(InNode->GetNodePath())
+	, OldKeywords(InNode->GetNodeKeywords())
+	, NewKeywords(InNewKeywords)
+{
+}
+
+bool FRigVMSetNodeKeywordsAction::Merge(const FRigVMBaseAction* Other)
+{
+	if (!FRigVMBaseAction::Merge(Other))
+	{
+		return false;
+	}
+
+	const FRigVMSetNodeKeywordsAction* Action = (const FRigVMSetNodeKeywordsAction*)Other;
+	if (NodePath != Action->NodePath)
+	{
+		return false;
+	}
+
+	NewKeywords = Action->NewKeywords;
+	return true;
+}
+
+bool FRigVMSetNodeKeywordsAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->SetNodeKeywordsByName(*NodePath, OldKeywords, false);
+}
+
+bool FRigVMSetNodeKeywordsAction::Redo(URigVMController* InController)
+{
+	if (!InController->SetNodeKeywordsByName(*NodePath, NewKeywords, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo(InController);
+}
+
 FRigVMSetCommentTextAction::FRigVMSetCommentTextAction(URigVMCommentNode* InNode, const FString& InNewText)
 : NodePath(InNode->GetNodePath())
 , OldText(InNode->GetCommentText())

@@ -363,6 +363,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool SetNodeColorByName(const FName& InNodeName, const FLinearColor& InColor, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
 
+	// Sets the category of a node in the graph.
+	// This causes a NodeCategoryChanged modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool SetNodeCategory(URigVMCollapseNode* InNode, const FString& InCategory, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+
+	// Sets the category of a node in the graph.
+	// This causes a NodeCategoryChanged modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool SetNodeCategoryByName(const FName& InNodeName, const FString& InCategory, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+
+	// Sets the keywords of a node in the graph.
+	// This causes a NodeKeywordsChanged modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool SetNodeKeywords(URigVMCollapseNode* InNode, const FString& InKeywords, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+
+	// Sets the keywords of a node in the graph.
+	// This causes a NodeKeywordsChanged modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool SetNodeKeywordsByName(const FName& InNodeName, const FString& InKeywords, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+
 	// Sets the comment text of a comment node in the graph.
 	// This causes a CommentTextChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)

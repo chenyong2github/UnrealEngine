@@ -968,6 +968,21 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 */
 	virtual void GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const;
 
+	/**
+	 * Returns an optional category for a graph
+	 *
+	 * @param	InGraph				Graph to get the category for
+	 */
+	virtual FText GetGraphCategory(const UEdGraph* InGraph) const { return FText(); }
+
+	/**
+	 * Tentatively sets the category for a given graph
+	 *
+	 * @param	InGraph				Graph to set the category for
+	 * @param	InCategory			Pipe "|" separated category for the graph.
+	 */
+	virtual FReply TrySetGraphCategory(const UEdGraph* InGraph, const FText& InCategory) { return FReply::Unhandled(); }
+
 	/** Called when asset(s) are dropped onto a graph background. */
 	virtual void DroppedAssetsOnGraph(const TArray<struct FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const {}
 

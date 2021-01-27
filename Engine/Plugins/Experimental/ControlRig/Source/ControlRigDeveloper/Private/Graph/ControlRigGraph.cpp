@@ -400,10 +400,16 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		{
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
 			{
-				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
-				if (EdNode)
+				if (ModelNode->IsA<URigVMLibraryNode>())
 				{
-					EdNode->CommentColor = ModelNode->GetNodeColor();
+					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
+					{
+						RigNode->SetColorFromModel(ModelNode->GetNodeColor());
+					}
+				}
+				else if(UEdGraphNode_Comment * EdComment = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName())))
+				{
+					EdComment->CommentColor = ModelNode->GetNodeColor();
 				}
 			}
 			break;
@@ -629,23 +635,31 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 
 int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
 {
-	if (const int32* FoundIndex = CachedInstructionIndices.Find(InNode))
+	if (const int32* FoundIndex = CachedInstructionIndices.Find(InNode->GetModelNode()))
 	{
 		return *FoundIndex;
 	}
 
 	struct Local
 	{
-		static int32 GetInstructionIndex(URigVMNode* InModelNode, const FRigVMByteCode* InByteCode)
+		static int32 GetInstructionIndex(URigVMNode* InModelNode, const FRigVMByteCode* InByteCode, TMap<URigVMNode*, int32>& Indices)
 		{
 			if (InModelNode == nullptr)
 			{
 				return INDEX_NONE;
 			}
 
+			if (const int32* ExistingIndex = Indices.Find(InModelNode))
+			{
+				return *ExistingIndex;
+			}
+
+			Indices.Add(InModelNode, INDEX_NONE);
+
 			int32 InstructionIndex = InByteCode->GetFirstInstructionIndexForSubject(InModelNode);
 			if (InstructionIndex != INDEX_NONE)
 			{
+				Indices.FindOrAdd(InModelNode) = InstructionIndex;
 				return InstructionIndex;
 			}
 
@@ -670,7 +684,7 @@ int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
 			int32 MinimumInstructionIndex = INDEX_NONE;
 			for (URigVMNode* NodeToCheck : NodesToCheck)
 			{
-				int32 ContainedInstructionIndex = GetInstructionIndex(NodeToCheck, InByteCode);
+				int32 ContainedInstructionIndex = GetInstructionIndex(NodeToCheck, InByteCode, Indices);
 				if (ContainedInstructionIndex != INDEX_NONE)
 				{
 					if (ContainedInstructionIndex < MinimumInstructionIndex || MinimumInstructionIndex == INDEX_NONE)
@@ -679,17 +693,15 @@ int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
 					}
 				}
 			}
+
+			Indices.FindOrAdd(InModelNode) = MinimumInstructionIndex;
 			return MinimumInstructionIndex;
 		}
 	};
 
 	if (const FRigVMByteCode* ByteCode = GetController()->GetCurrentByteCode())
 	{
-		int32 InstructionIndex = Local::GetInstructionIndex(InNode->GetModelNode(), ByteCode);
-		if (InstructionIndex != INDEX_NONE)
-		{
-			CachedInstructionIndices.Add(InNode, InstructionIndex);
-		}
+		return Local::GetInstructionIndex(InNode->GetModelNode(), ByteCode, CachedInstructionIndices);
 	}
 
 	return INDEX_NONE;

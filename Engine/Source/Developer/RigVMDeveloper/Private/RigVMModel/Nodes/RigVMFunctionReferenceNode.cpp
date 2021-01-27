@@ -21,13 +21,22 @@ FLinearColor URigVMFunctionReferenceNode::GetNodeColor() const
 	return Super::GetNodeColor();
 }
 
-FText URigVMFunctionReferenceNode::GetToolTipText() const
+FString URigVMFunctionReferenceNode::GetNodeCategory() const
 {
 	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
 	{
-		return ReferencedNode->GetToolTipText();
+		return ReferencedNode->GetNodeCategory();
 	}
-	return Super::GetToolTipText();
+	return Super::GetNodeCategory();
+}
+
+FString URigVMFunctionReferenceNode::GetNodeKeywords() const
+{
+	if (URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	{
+		return ReferencedNode->GetNodeKeywords();
+	}
+	return Super::GetNodeKeywords();
 }
 
 URigVMFunctionLibrary* URigVMFunctionReferenceNode::GetLibrary() const

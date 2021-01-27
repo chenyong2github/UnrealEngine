@@ -1780,6 +1780,12 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				}
 				break;
 			}
+			case ERigVMGraphNotifType::NodeCategoryChanged:
+			case ERigVMGraphNotifType::NodeKeywordsChanged:
+			{
+				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+				break;
+			}
 			default:
 			{
 				break;

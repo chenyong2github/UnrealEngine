@@ -3635,6 +3635,26 @@ bool URigVMController::SetNodeColor(URigVMNode* InNode, const FLinearColor& InCo
 	InNode->NodeColor = InColor;
 	Notify(ERigVMGraphNotifType::NodeColorChanged, InNode);
 
+	if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
+	{
+		if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
+		{
+			FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(LibraryNode);
+			if (ReferencesEntry)
+			{
+				for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
+				{
+					if (FunctionReferencePtr.IsValid())
+					{
+						URigVMNode* ReferenceNode = FunctionReferencePtr.Get();
+						FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
+						Notify(ERigVMGraphNotifType::NodeColorChanged, ReferenceNode);
+					}
+				}
+			}
+		}
+	}
+
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(Action, bMergeUndoAction);
@@ -3655,6 +3675,96 @@ bool URigVMController::SetNodeColorByName(const FName& InNodeName, const FLinear
 
 	URigVMNode* Node = Graph->FindNodeByName(InNodeName);
 	return SetNodeColor(Node, InColor, bSetupUndoRedo, bMergeUndoAction);
+}
+
+bool URigVMController::SetNodeCategory(URigVMCollapseNode* InNode, const FString& InCategory, bool bSetupUndoRedo, bool bMergeUndoAction)
+{
+	if (!IsValidNodeForGraph(InNode))
+	{
+		return false;
+	}
+
+	if (InNode->GetNodeCategory() == InCategory)
+	{
+		return false;
+	}
+
+	FRigVMSetNodeCategoryAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action = FRigVMSetNodeCategoryAction(InNode, InCategory);
+		Action.Title = FString::Printf(TEXT("Set Node Category"));
+		ActionStack->BeginAction(Action);
+	}
+
+	InNode->NodeCategory = InCategory;
+	Notify(ERigVMGraphNotifType::NodeCategoryChanged, InNode);
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action, bMergeUndoAction);
+	}
+
+	return true;
+}
+
+bool URigVMController::SetNodeCategoryByName(const FName& InNodeName, const FString& InCategory, bool bSetupUndoRedo, bool bMergeUndoAction)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMCollapseNode* Node = Cast<URigVMCollapseNode>(Graph->FindNodeByName(InNodeName));
+	return SetNodeCategory(Node, InCategory, bSetupUndoRedo, bMergeUndoAction);
+}
+
+bool URigVMController::SetNodeKeywords(URigVMCollapseNode* InNode, const FString& InKeywords, bool bSetupUndoRedo, bool bMergeUndoAction)
+{
+	if (!IsValidNodeForGraph(InNode))
+	{
+		return false;
+	}
+
+	if (InNode->GetNodeKeywords() == InKeywords)
+	{
+		return false;
+	}
+
+	FRigVMSetNodeKeywordsAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action = FRigVMSetNodeKeywordsAction(InNode, InKeywords);
+		Action.Title = FString::Printf(TEXT("Set Node Keywords"));
+		ActionStack->BeginAction(Action);
+	}
+
+	InNode->NodeKeywords = InKeywords;
+	Notify(ERigVMGraphNotifType::NodeKeywordsChanged, InNode);
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action, bMergeUndoAction);
+	}
+
+	return true;
+}
+
+bool URigVMController::SetNodeKeywordsByName(const FName& InNodeName, const FString& InKeywords, bool bSetupUndoRedo, bool bMergeUndoAction)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMCollapseNode* Node = Cast<URigVMCollapseNode>(Graph->FindNodeByName(InNodeName));
+	return SetNodeKeywords(Node, InKeywords, bSetupUndoRedo, bMergeUndoAction);
 }
 
 bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InCommentText, bool bSetupUndoRedo)

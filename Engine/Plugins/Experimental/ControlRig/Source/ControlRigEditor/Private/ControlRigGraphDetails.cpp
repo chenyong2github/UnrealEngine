@@ -10,6 +10,8 @@
 #include "SPinTypeSelector.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Colors/SColorPicker.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "PropertyCustomizationHelpers.h"
 #include "NodeFactory.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -497,6 +499,7 @@ void FControlRigArgumentDefaultNode::HandleModifiedEvent(ERigVMGraphNotifType In
 			break;
 		}
 		case ERigVMGraphNotifType::NodeRenamed:
+		case ERigVMGraphNotifType::NodeColorChanged:
 		{
 			URigVMNode* Node = CastChecked<URigVMNode>(InSubject);
 			if (Node == LibraryNode)
@@ -528,6 +531,8 @@ TSharedPtr<IDetailCustomization> FControlRigGraphDetails::MakeInstance(TSharedPt
 
 void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
+	bIsPickingColor = false;
+
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailLayout.GetObjectsBeingCustomized(Objects);
 
@@ -626,6 +631,72 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 	];
 	OutputsCategory.HeaderContent(OutputsHeaderContentWidget);
 
+	IDetailCategoryBuilder& SettingsCategory = DetailLayout.EditCategory("NodeSettings", LOCTEXT("FunctionDetailsNodeSettings", "Node Settings"));
+
+	bool bIsFunction = false;
+	if (Model)
+	{
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->GetOuter()))
+		{
+			bIsFunction = LibraryNode->GetGraph()->IsA<URigVMFunctionLibrary>();
+		}
+	}
+
+	if(bIsFunction)
+	{
+		// node category
+		SettingsCategory.AddCustomRow(FText::GetEmpty())
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(TEXT("Category")))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SEditableTextBox)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(this, &FControlRigGraphDetails::GetNodeCategory)
+			.OnTextCommitted(this, &FControlRigGraphDetails::SetNodeCategory)
+		];
+
+		// node keywords
+		SettingsCategory.AddCustomRow(FText::GetEmpty())
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(TEXT("Keywords")))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SEditableTextBox)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(this, &FControlRigGraphDetails::GetNodeKeywords)
+			.OnTextCommitted(this, &FControlRigGraphDetails::SetNodeKeywords)
+		];
+	}
+
+	// node color
+	SettingsCategory.AddCustomRow(FText::GetEmpty())
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(FText::FromString(TEXT("Color")))
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+	]
+	.ValueContent()
+	[
+		SNew(SButton)
+		.ButtonStyle(FEditorStyle::Get(), "Menu.Button")
+		.OnClicked(this, &FControlRigGraphDetails::OnNodeColorClicked)
+		[
+			SAssignNew(ColorBlock, SColorBlock)
+			.Color(this, &FControlRigGraphDetails::GetNodeColor)
+			.Size(FVector2D(77, 16))
+		]
+	];
+
 	IDetailCategoryBuilder& DefaultsCategory = DetailLayout.EditCategory("NodeDefaults", LOCTEXT("FunctionDetailsNodeDefaults", "Node Defaults"));
 	TSharedRef<FControlRigArgumentDefaultNode> DefaultsArgumentNode = MakeShareable(new FControlRigArgumentDefaultNode(
 		Model,
@@ -699,6 +770,146 @@ FReply FControlRigGraphDetails::OnAddNewOutputClicked()
 		}
 	}
 	return FReply::Unhandled();
+}
+
+FText FControlRigGraphDetails::GetNodeCategory() const
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMGraph* Model = Blueprint->GetModel(GraphPtr.Get()))
+		{
+			if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				return FText::FromString(OuterNode->GetNodeCategory());
+			}
+		}
+	}
+
+	return FText();
+}
+
+void FControlRigGraphDetails::SetNodeCategory(const FText& InNewText, ETextCommit::Type InCommitType)
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMGraph* Model = Blueprint->GetModel(GraphPtr.Get()))
+		{
+			if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
+				{
+					Controller->SetNodeCategory(OuterNode, InNewText.ToString());
+				}
+			}
+		}
+	}
+}
+
+FText FControlRigGraphDetails::GetNodeKeywords() const
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMGraph* Model = Blueprint->GetModel(GraphPtr.Get()))
+		{
+			if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				return FText::FromString(OuterNode->GetNodeKeywords());
+			}
+		}
+	}
+
+	return FText();
+}
+
+void FControlRigGraphDetails::SetNodeKeywords(const FText& InNewText, ETextCommit::Type InCommitType)
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMGraph* Model = Blueprint->GetModel(GraphPtr.Get()))
+		{
+			if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
+				{
+					Controller->SetNodeKeywords(OuterNode, InNewText.ToString());
+				}
+			}
+		}
+	}
+}
+
+FLinearColor FControlRigGraphDetails::GetNodeColor() const
+{
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMGraph* Model = Blueprint->GetModel(GraphPtr.Get()))
+		{
+			if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				return OuterNode->GetNodeColor();
+			}
+		}
+	}
+	return FLinearColor::White;
+}
+
+void FControlRigGraphDetails::SetNodeColor(FLinearColor InColor, bool bSetupUndoRedo)
+{
+	TargetColor = InColor;
+
+	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	{
+		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
+		if (URigVMGraph* Model = Blueprint->GetModel(GraphPtr.Get()))
+		{
+			if (URigVMCollapseNode* OuterNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+			{
+				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
+				{
+					Controller->SetNodeColor(OuterNode, TargetColor, bSetupUndoRedo, bIsPickingColor);
+				}
+			}
+		}
+	}
+}
+
+void FControlRigGraphDetails::OnNodeColorBegin()
+{
+	bIsPickingColor = true;
+}
+void FControlRigGraphDetails::OnNodeColorEnd()
+{ 
+	bIsPickingColor = false; 
+}
+
+void FControlRigGraphDetails::OnNodeColorCancelled(FLinearColor OriginalColor)
+{
+	SetNodeColor(OriginalColor, true);
+}
+
+FReply FControlRigGraphDetails::OnNodeColorClicked()
+{
+	TargetColor = GetNodeColor();
+	TargetColors.Reset();
+	TargetColors.Add(&TargetColor);
+
+	FColorPickerArgs PickerArgs;
+	PickerArgs.ParentWidget = ColorBlock;
+	PickerArgs.bUseAlpha = false;
+	PickerArgs.DisplayGamma = false;
+	PickerArgs.InitialColorOverride = TargetColor;
+	PickerArgs.LinearColorArray = &TargetColors;
+	PickerArgs.OnInteractivePickBegin = FSimpleDelegate::CreateSP(this, &FControlRigGraphDetails::OnNodeColorBegin);
+	PickerArgs.OnInteractivePickEnd = FSimpleDelegate::CreateSP(this, &FControlRigGraphDetails::OnNodeColorEnd);
+	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateSP(this, &FControlRigGraphDetails::SetNodeColor, true);
+	PickerArgs.OnColorPickerCancelled = FOnColorPickerCancelled::CreateSP(this, &FControlRigGraphDetails::OnNodeColorCancelled);
+	OpenColorPicker(PickerArgs);
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE
