@@ -575,6 +575,29 @@ public:
 
 	const FRigVMByteCode* GetCurrentByteCode() const;
 
+	void ReportWarning(const FString& InMessage);
+	void ReportError(const FString& InMessage);
+	void ReportAndNotifyError(const FString& InMessage);
+
+	template <typename FmtType, typename... Types>
+	void ReportWarningf(const FmtType& Fmt, Types... Args)
+	{
+		ReportWarning(FString::Printf(Fmt, Args...));
+	}
+
+	template <typename FmtType, typename... Types>
+	void ReportErrorf(const FmtType& Fmt, Types... Args)
+	{
+		ReportError(FString::Printf(Fmt, Args...));
+	}
+
+	template <typename FmtType, typename... Types>
+	void ReportAndNotifyErrorf(const FmtType& Fmt, Types... Args)
+	{
+		ReportAndNotifyError(FString::Printf(Fmt, Args...));
+	}
+
+
 private:
 
 	UPROPERTY(BlueprintReadOnly, Category = RigVMController, meta = (ScriptName = "ModifiedEvent", AllowPrivateAccess = "true"))
@@ -635,27 +658,6 @@ private:
 	void ApplyPinState(URigVMPin* InPin, const FPinState& InPinState);
 	void ApplyPinStates(URigVMNode* InNode, const TMap<FString, FPinState>& InPinStates, const TMap<FString, FString>& InRedirectedPinPaths = TMap<FString, FString>());
 
-	void ReportWarning(const FString& InMessage);
-	void ReportError(const FString& InMessage);
-	void ReportAndNotifyError(const FString& InMessage);
-
-	template <typename FmtType, typename... Types>
-	void ReportWarningf(const FmtType& Fmt, Types... Args)
-	{
-		ReportWarning(FString::Printf(Fmt, Args...));
-	}
-
-	template <typename FmtType, typename... Types>
-	void ReportErrorf(const FmtType& Fmt, Types... Args)
-	{
-		ReportError(FString::Printf(Fmt, Args...));
-	}
-
-	template <typename FmtType, typename... Types>
-	void ReportAndNotifyErrorf(const FmtType& Fmt, Types... Args)
-	{
-		ReportAndNotifyError(FString::Printf(Fmt, Args...));
-	}
 
 	static FLinearColor GetColorFromMetadata(const FString& InMetadata);
 	static void CreateDefaultValueForStructIfRequired(UScriptStruct* InStruct, FString& InOutDefaultValue);

@@ -7940,7 +7940,8 @@ void URigVMController::ReportAndNotifyError(const FString& InMessage)
 	Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
 	Info.bFireAndForget = true;
 	Info.bUseThrobber = true;
-	Info.FadeOutDuration = 5.0f;
+	// longer message needs more time to read
+	Info.FadeOutDuration = FMath::Clamp(0.1f * InMessage.Len(), 5.0f, 20.0f);
 	Info.ExpireDuration = Info.FadeOutDuration;
 	TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 	if (NotificationPtr)

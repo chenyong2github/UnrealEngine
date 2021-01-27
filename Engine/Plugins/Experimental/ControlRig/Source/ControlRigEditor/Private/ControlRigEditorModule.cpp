@@ -1658,6 +1658,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 							Controller->OpenUndoBracket(TEXT("Mirroring Graph"));
 							int32 ReplacedNames = 0;
+							TArray<FString> UnchangedItems;
 
 							for (const TPair<const URigVMPin*, FRigElementKey>& Pair : PinToKey)
 							{
@@ -1679,11 +1680,33 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 										Controller->SetPinDefaultValue(Pin->GetPinPath(), NewNameStr, false);
 										ReplacedNames++;
 									}
+									else
+									{
+										// save the names of the items that we skipped during this search & replace
+										UnchangedItems.AddUnique(OldNameStr);
+									} 
 								}
 							}
 
-							if (ReplacedNames > 0)
+							if (UnchangedItems.Num() > 0)
 							{
+								FString ListOfUnchangedItems;
+								for (int Index = 0; Index < UnchangedItems.Num(); Index++)
+								{
+									// construct the string "item1, item2, item3"
+									ListOfUnchangedItems += UnchangedItems[Index];
+									if (Index != UnchangedItems.Num() - 1)
+									{
+										ListOfUnchangedItems += TEXT(", ");
+									}
+								}
+								
+								// inform the user that some items were skipped due to invalid new names
+								Controller->ReportAndNotifyError(FString::Printf(TEXT("Invalid Names after Search & Replace, action skipped for %s"), *ListOfUnchangedItems));
+							}
+
+							if (ReplacedNames > 0)
+							{ 
 								Controller->CloseUndoBracket();
 							}
 							else
