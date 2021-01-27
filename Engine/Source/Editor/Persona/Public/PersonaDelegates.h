@@ -46,6 +46,9 @@ DECLARE_DELEGATE_OneParam(FOnBlendSpaceSampleRemoved, const int32 /*SampleIndex*
 // Called when a blendspace sample point is added
 DECLARE_DELEGATE_TwoParams(FOnBlendSpaceSampleAdded, UAnimSequence* /*InSequence*/, const FVector& /*InSamplePoint*/);
 
+// Called when a blendspace sample point is replaced
+DECLARE_DELEGATE_TwoParams(FOnBlendSpaceSampleReplaced, const int32 /*SampleIndex*/, UAnimSequence* /*InSequence*/);
+
 // Called to get the overridden name of a blend sample
 DECLARE_DELEGATE_RetVal_OneParam(FName, FOnGetBlendSpaceSampleName, int32 /*SampleIndex*/);
 

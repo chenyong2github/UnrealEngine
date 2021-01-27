@@ -970,6 +970,10 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpaceGraph()
 				FGraphNodeCreator<UAnimGraphNode_BlendSpaceGraph> NodeCreator(*TargetGraph);
 				UAnimGraphNode_BlendSpaceGraph* NewNode = NodeCreator.CreateNode();
 				NewNode->SetupFromAsset(OldNode->Node.BlendSpace, false);
+				if(OldNode->SyncGroup.GroupName != NAME_None && OldNode->SyncGroup.Method == EAnimSyncMethod::SyncGroup)
+				{
+					NewNode->SetSyncGroupName(OldNode->SyncGroup.GroupName);
+				}
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node
@@ -1228,6 +1232,10 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetGraph()
 				FGraphNodeCreator<UAnimGraphNode_RotationOffsetBlendSpaceGraph> NodeCreator(*TargetGraph);
 				UAnimGraphNode_RotationOffsetBlendSpaceGraph* NewNode = NodeCreator.CreateNode();
 				NewNode->SetupFromAsset(OldNode->Node.BlendSpace, false);
+				if(OldNode->SyncGroup.GroupName != NAME_None && OldNode->SyncGroup.Method == EAnimSyncMethod::SyncGroup)
+				{
+					NewNode->SetSyncGroupName(OldNode->SyncGroup.GroupName);
+				}
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node

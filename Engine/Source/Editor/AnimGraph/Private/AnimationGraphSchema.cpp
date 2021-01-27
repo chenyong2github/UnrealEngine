@@ -37,6 +37,7 @@
 #include "AnimGraphNode_LinkedInputPose.h"
 #include "AnimGraphNode_LinkedAnimLayer.h"
 #include "AnimGraphNode_RigidBody.h"
+#include "AnimationBlendSpaceSampleGraph.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphSchema"
 
@@ -618,6 +619,11 @@ FText UAnimationGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) const
 	return DisplayName;
 }
 
+bool UAnimationGraphSchema::CanDuplicateGraph(UEdGraph* InSourceGraph) const
+{
+	return InSourceGraph->GetFName() != UEdGraphSchema_K2::GN_AnimGraph && !InSourceGraph->IsA<UAnimationBlendSpaceSampleGraph>();
+}
+
 void UAnimationGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const
 {
 	if (GetGraphType(&Graph) == GT_Animation)
@@ -631,29 +637,31 @@ void UAnimationGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /*
 		if(!Graph.bAllowDeletion)
 		{
 			// Might be from an interface, so check
-			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(&Graph);
-			TSubclassOf<UInterface> Interface;
-
-			auto FindInterfaceForGraph = [&Blueprint, &Graph](TSubclassOf<UInterface>& OutInterface)
+			if(UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(&Graph))
 			{
-				for(const FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+				TSubclassOf<UInterface> Interface;
+
+				auto FindInterfaceForGraph = [&Blueprint, &Graph](TSubclassOf<UInterface>& OutInterface)
 				{
-					for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
+					for(const FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
 					{
-						if(InterfaceGraph == &Graph)
+						for(UEdGraph* InterfaceGraph : InterfaceDesc.Graphs)
 						{
-							OutInterface = InterfaceDesc.Interface;
-							return true;
+							if(InterfaceGraph == &Graph)
+							{
+								OutInterface = InterfaceDesc.Interface;
+								return true;
+							}
 						}
 					}
+
+					return false;
+				};
+
+				if(FindInterfaceForGraph(Interface))
+				{
+					DisplayInfo.Tooltip = FText::Format(LOCTEXT("GraphTooltip_AnimGraphInterface", "Layer inherited from interface '{0}'."), FText::FromString(Interface.Get()->GetName()));
 				}
-
-				return false;
-			};
-
-			if(FindInterfaceForGraph(Interface))
-			{
-				DisplayInfo.Tooltip = FText::Format(LOCTEXT("GraphTooltip_AnimGraphInterface", "Layer inherited from interface '{0}'."), FText::FromString(Interface.Get()->GetName()));
 			}
 		}
 			

@@ -107,6 +107,9 @@ struct FBlendSpaceEditorArgs
 
 	// Called when a blendspace sample point is added
 	FOnBlendSpaceSampleAdded OnBlendSpaceSampleAdded;
+	
+	// Called when a blendspace sample point is replaced
+	FOnBlendSpaceSampleReplaced OnBlendSpaceSampleReplaced;
 
 	// Called when a blendspace sample point is double clicked
 	FOnBlendSpaceSampleDoubleClicked OnBlendSpaceSampleDoubleClicked;

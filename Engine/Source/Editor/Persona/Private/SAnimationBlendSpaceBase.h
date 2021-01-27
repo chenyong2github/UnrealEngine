@@ -34,6 +34,8 @@ public:
 
 	SLATE_EVENT(FOnBlendSpaceSampleRemoved, OnBlendSpaceSampleRemoved)
 
+	SLATE_EVENT(FOnBlendSpaceSampleReplaced, OnBlendSpaceSampleReplaced)
+
 	SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName) 
 
 	SLATE_EVENT(FOnExtendBlendSpaceSampleTooltip, OnExtendSampleTooltip)
@@ -65,7 +67,7 @@ protected:
 	void OnSampleMoved(const int32 SampleIndex, const FVector& NewValue, bool bIsInteractive, bool bSnap);
 	void OnSampleRemoved(const int32 SampleIndex);
 	void OnSampleAdded(UAnimSequence* Animation, const FVector& Value);
-	void OnUpdateAnimation(UAnimSequence* Animation, const FVector& Value);
+	void OnSampleReplaced(const int32 SampleIndex, UAnimSequence* Animation);
 	
 	// Begin SAnimEditorBase overrides
 	virtual UAnimationAsset* GetEditorObject() const override { return BlendSpace; }
@@ -109,6 +111,9 @@ protected:
 
 	/** Delegate called when a sample is removed */
 	FOnBlendSpaceSampleRemoved OnBlendSpaceSampleRemoved;
+
+	/** Delegate called when a sample is replaced */
+	FOnBlendSpaceSampleReplaced OnBlendSpaceSampleReplaced;
 
 	/** Delegate called to externally control the preview position */
 	FOnSetBlendSpacePreviewPosition OnSetPreviewPosition;

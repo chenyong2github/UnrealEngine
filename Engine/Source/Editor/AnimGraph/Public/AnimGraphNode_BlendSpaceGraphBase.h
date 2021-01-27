@@ -30,10 +30,13 @@ public:
 	UBlendSpaceGraph* GetBlendSpaceGraph() const { return BlendSpaceGraph; }
 
 	// Adds a new graph to the internal array
-	UAnimationBlendSpaceSampleGraph* AddGraph(FName InSampleName);
+	UAnimationBlendSpaceSampleGraph* AddGraph(FName InSampleName, UAnimSequence* InSequence);
 
 	// Removes the graph at the specified index
 	void RemoveGraph(int32 InSampleIndex);
+
+	// Replaces the graph at the specified index
+	void ReplaceGraph(int32 InSampleIndex, UAnimSequence* InSequence);
 
 	// Setup this node from the specified asset
 	void SetupFromAsset(UBlendSpaceBase* InBlendSpace, bool bInIsTemplateNode);
@@ -43,6 +46,9 @@ public:
 
 	// @return the sync group name assigned to this node
 	FName GetSyncGroupName() const;
+
+	// Set the sync group name assigned to this node
+	void SetSyncGroupName(FName InName);
 
 protected:
 	// Get the name of the blendspace graph
@@ -96,4 +102,7 @@ protected:
 
 	// Helper function for compilation
 	UAnimGraphNode_Base* ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+
+	// Helper function for AddGraph/ReplaceGraph - builds the new graph but doesnt add it to Graphs array.
+	UAnimationBlendSpaceSampleGraph* AddGraphInternal(FName InSampleName, UAnimSequence* InSequence);
 };

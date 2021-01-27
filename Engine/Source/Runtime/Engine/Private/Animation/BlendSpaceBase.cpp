@@ -1014,6 +1014,17 @@ bool UBlendSpaceBase::UpdateSampleAnimation(UAnimSequence* AnimationSequence, co
 	return UpdateSampleIndex != INDEX_NONE;
 }
 
+bool UBlendSpaceBase::ReplaceSampleAnimation(const int32 BlendSampleIndex, UAnimSequence* AnimationSequence)
+{
+	const bool bValidValue = SampleData.IsValidIndex(BlendSampleIndex);
+	if (bValidValue)
+	{
+		SampleData[BlendSampleIndex].Animation = AnimationSequence;
+	}
+
+	return bValidValue;
+}
+
 bool UBlendSpaceBase::DeleteSample(const int32 BlendSampleIndex)
 {
 	const bool bValidRemoval = SampleData.IsValidIndex(BlendSampleIndex);

@@ -45,8 +45,8 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 	OnSampleAdded = InArgs._OnSampleAdded;
 	OnSampleMoved = InArgs._OnSampleMoved;
 	OnSampleRemoved = InArgs._OnSampleRemoved;
+	OnSampleReplaced = InArgs._OnSampleReplaced;
 	OnSampleDoubleClicked = InArgs._OnSampleDoubleClicked;
-	OnSampleAnimationChanged = InArgs._OnSampleAnimationChanged;
 	OnGetBlendSpaceSampleName = InArgs._OnGetBlendSpaceSampleName;
 	OnExtendSampleTooltip = InArgs._OnExtendSampleTooltip;
 	bReadOnly = InArgs._ReadOnly;
@@ -631,12 +631,12 @@ FReply SBlendSpaceGridWidget::OnDrop(const FGeometry& MyGeometry, const FDragDro
 				}
 				else if (DragState == EDragState::DragDropOverride)
 				{
-					const FVector SampleValue = SnapToClosestSamplePoint(LocalMousePosition);
 					TSharedPtr<FAssetDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
 					if (DragDropOperation.IsValid())
 					{
 						UAnimSequence* Animation = FAssetData::GetFirstAsset<UAnimSequence>(DragDropOperation->GetAssets());
-						OnSampleAnimationChanged.ExecuteIfBound(Animation, SampleValue);
+						int32 DroppedSampleIndex = GetClosestSamplePointIndexToMouse();
+						OnSampleReplaced.ExecuteIfBound(DroppedSampleIndex, Animation);
 					}
 				}
 
@@ -891,16 +891,7 @@ FReply SBlendSpaceGridWidget::ProcessClick(const FGeometry& MyGeometry, const FP
 				if (HighlightedSampleIndex == INDEX_NONE)
 				{
 					// If there isn't any sample currently being highlighted, retrieve all of them and see if we are over one
-					const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
-					for (int32 SampleIndex = 0; SampleIndex < Samples.Num(); ++SampleIndex)
-					{
-						const FBlendSample& Sample = Samples[SampleIndex];
-						if (IsSampleValueWithinMouseRange(Sample.SampleValue))
-						{
-							SelectedSampleIndex = SampleIndex;					
-							break;
-						}
-					}
+					SelectedSampleIndex = GetClosestSamplePointIndexToMouse();
 				}
 				else
 				{
@@ -1296,11 +1287,37 @@ const FSlateRect SBlendSpaceGridWidget::GetGridRectangleFromGeometry(const FGeom
 	return WindowRect.InsetBy(GridMargin + GridRatioMargin);
 }
 
-bool SBlendSpaceGridWidget::IsSampleValueWithinMouseRange(const FVector& SampleValue) const
+bool SBlendSpaceGridWidget::IsSampleValueWithinMouseRange(const FVector& SampleValue, float& OutDistance) const
 {
 	const FVector2D GridPosition = SampleValueToGridPosition(SampleValue);
-	const float MouseDistance = FVector2D::Distance(LocalMousePosition, GridPosition);	
-	return (FMath::Abs(MouseDistance) < ClickAndHighlightThreshold);
+	OutDistance = FVector2D::Distance(LocalMousePosition, GridPosition);
+	return (OutDistance < ClickAndHighlightThreshold);
+}
+
+int32 SBlendSpaceGridWidget::GetClosestSamplePointIndexToMouse() const
+{
+	float BestDistance = FLT_MAX;
+	int32 BestIndex = INDEX_NONE;
+
+	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	{
+		const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
+		for (int32 SampleIndex = 0; SampleIndex < Samples.Num(); ++SampleIndex)
+		{
+			const FBlendSample& Sample = Samples[SampleIndex];
+			float Distance;
+			if (IsSampleValueWithinMouseRange(Sample.SampleValue, Distance))
+			{
+				if(Distance < BestDistance)
+				{
+					BestDistance = Distance;
+					BestIndex = SampleIndex;
+				}
+			}
+		}
+	}
+
+	return BestIndex;
 }
 
 void SBlendSpaceGridWidget::StartPreviewing()
@@ -1505,8 +1522,16 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 
 				case EDragState::DragDropOverride:
 				{
-					static const FTextFormat OverrideAnimationFormat = FTextFormat::FromString("Changing Animation from {0} to {1}");
-					ToolTipText = FText::Format(OverrideAnimationFormat, HoveredAnimationName, DragDropAnimationName);
+					if(HoveredAnimationName.IsEmpty())
+					{
+						static const FTextFormat OverrideAnimationFormat = LOCTEXT("InvalidSampleChangingFormat", "Changing sample to {0}");
+						ToolTipText = FText::Format(OverrideAnimationFormat, DragDropAnimationName);
+					}
+					else
+					{
+						static const FTextFormat OverrideAnimationFormat = LOCTEXT("ValidSampleChangingFormat", "Changing sample from {0} to {1}");
+						ToolTipText = FText::Format(OverrideAnimationFormat, HoveredAnimationName, DragDropAnimationName);
+					}
 					break;
 				}
 				// If the drag and drop operation is invalid return the cached error message as to why it is invalid
@@ -1865,8 +1890,9 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 		{
 			if (DragState == EDragState::None)
 			{
-				// Check if we are highlighting preview pin						
-				bHighlightPreviewPin = IsSampleValueWithinMouseRange(LastPreviewingSampleValue);
+				// Check if we are highlighting preview pin
+				float Distance;
+				bHighlightPreviewPin = IsSampleValueWithinMouseRange(LastPreviewingSampleValue, Distance);
 				if (bHighlightPreviewPin)
 				{
 					if (bHighlightPreviewPin != bPreviousHighlightPreviewPin)
@@ -1880,16 +1906,7 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 				}
 		
 				// Determine highlighted sample
-				const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
-				for (int32 SampleIndex = 0; SampleIndex < Samples.Num(); ++SampleIndex)
-				{
-					const FBlendSample& Sample = Samples[SampleIndex];
-					if (IsSampleValueWithinMouseRange(Sample.SampleValue))
-					{
-						HighlightedSampleIndex = SampleIndex;
-						break;
-					}
-				}
+				HighlightedSampleIndex = GetClosestSamplePointIndexToMouse();
 
 				if (!bHighlightPreviewPin)
 				{
@@ -1959,7 +1976,7 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 						const FBlendSample& Sample = Samples[SampleIndex];
 						if (Sample.SampleValue == DropSampleValue)
 						{
-							HoveredAnimationName = Sample.Animation ? FText::FromString(Sample.Animation->GetName()) : FText::FromString("Invalid Animation Sequence");
+							HoveredAnimationName = Sample.Animation ? FText::FromString(Sample.Animation->GetName()) : FText::GetEmpty();
 							break;
 						}
 					}
@@ -2071,36 +2088,39 @@ bool SBlendSpaceGridWidget::ValidateAnimationSequence(const UAnimSequence* Anima
 	{
 		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
 		{
-			// If there are any existing blend samples check whether or not the the animation should be additive and if so if the additive matches the existing samples
-			if (BlendSpace->GetNumberOfBlendSamples() > 0)
+			if(BlendSpace->IsAsset())
 			{
-				const bool bIsAdditive = BlendSpace->ShouldAnimationBeAdditive();
-				if (AnimationSequence->IsValidAdditive() != bIsAdditive)
+				// If there are any existing blend samples check whether or not the the animation should be additive and if so if the additive matches the existing samples
+				if ( BlendSpace->GetNumberOfBlendSamples() > 0)
 				{
-					InvalidOperationText = FText::FromString(bIsAdditive ? "Animation should be additive" : "Animation should be non-additive");
+					const bool bIsAdditive = BlendSpace->ShouldAnimationBeAdditive();
+					if (AnimationSequence->IsValidAdditive() != bIsAdditive)
+					{
+						InvalidOperationText = FText::FromString(bIsAdditive ? "Animation should be additive" : "Animation should be non-additive");
+						return false;
+					}
+
+					// If it is the supported additive type, but does not match existing samples
+					if (!BlendSpace->DoesAnimationMatchExistingSamples(AnimationSequence))
+					{
+						InvalidOperationText = FText::FromString("Additive Animation Type does not match existing Samples");
+						return false;
+					}
+				}
+
+				// Check if the supplied animation is of a different additive animation type 
+				if (!BlendSpace->IsAnimationCompatible(AnimationSequence))
+				{
+					InvalidOperationText = FText::FromString("Invalid Additive Animation Type");
 					return false;
 				}
 
-				// If it is the supported additive type, but does not match existing samples
-				if (!BlendSpace->DoesAnimationMatchExistingSamples(AnimationSequence))
+				// Check if the supplied animation is compatible with the skeleton
+				if (!BlendSpace->IsAnimationCompatibleWithSkeleton(AnimationSequence))
 				{
-					InvalidOperationText = FText::FromString("Additive Animation Type does not match existing Samples");
+					InvalidOperationText = FText::FromString("Animation is incompatible with the skeleton");
 					return false;
 				}
-			}
-
-			// Check if the supplied animation is of a different additive animation type 
-			if (!BlendSpace->IsAnimationCompatible(AnimationSequence))
-			{
-				InvalidOperationText = FText::FromString("Invalid Additive Animation Type");
-				return false;
-			}
-
-			// Check if the supplied animation is compatible with the skeleton
-			if (!BlendSpace->IsAnimationCompatibleWithSkeleton(AnimationSequence))
-			{
-				InvalidOperationText = FText::FromString("Animation is incompatible with the skeleton");
-				return false;
 			}
 		}
 	}

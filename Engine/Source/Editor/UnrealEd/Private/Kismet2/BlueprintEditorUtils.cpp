@@ -2581,15 +2581,6 @@ void FBlueprintEditorUtils::RemoveGraphs( UBlueprint* Blueprint, const TArray<cl
 // Removes the supplied graph from the Blueprint.
 void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* GraphToRemove, EGraphRemoveFlags::Type Flags /*= Transient | Recompile */)
 {
-	struct Local
-	{
-		static bool IsASubGraph(UEdGraph* Graph)
-		{
-			UObject* Outer = Graph->GetOuter();
-			return ( Outer && Outer->IsA( UK2Node_Composite::StaticClass() ) );
-		}
-	};
-
 	GraphToRemove->Modify();
 
 	for (UObject* TestOuter = GraphToRemove->GetOuter(); TestOuter; TestOuter = TestOuter->GetOuter())

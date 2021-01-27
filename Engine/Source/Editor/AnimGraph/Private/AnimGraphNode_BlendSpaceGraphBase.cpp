@@ -24,6 +24,7 @@
 #include "AnimGraphNode_SequencePlayer.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "AnimNodes/AnimNode_BlendSpaceGraphBase.h"
+#include "BlueprintEditor.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_BlendSpaceGraphBase"
 
@@ -161,20 +162,7 @@ void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(UBlendSpaceBase* InBlend
 
 			FName SampleName = Sample.Animation != nullptr ? Sample.Animation->GetFName() : FName("Sample", SampleIndex);
 
-			UAnimationBlendSpaceSampleGraph* SampleGraph = AddGraph(SampleName);
-
-			// Attach an asset player by default to default the sample
-			FGraphNodeCreator<UAnimGraphNode_SequencePlayer> SequencePlayerNodeCreator(*SampleGraph);
-			UAnimGraphNode_SequencePlayer* SequencePlayer = SequencePlayerNodeCreator.CreateNode();
-			SequencePlayer->SetAnimationAsset(Sample.Animation);
-			SequencePlayerNodeCreator.Finalize();
-
-			// Offset node in X
-			SequencePlayer->NodePosX = SampleGraph->ResultNode->NodePosX - 400;
-
-			UEdGraphPin* OutputPin = SequencePlayer->FindPinChecked(TEXT("Pose"), EGPD_Output);
-			UEdGraphPin* InputPin = SampleGraph->ResultNode->FindPinChecked(TEXT("Result"), EGPD_Input);
-			OutputPin->MakeLinkTo(InputPin);
+			UAnimationBlendSpaceSampleGraph* SampleGraph = AddGraph(SampleName, Sample.Animation);
 
 			// Clear the animation now we have created the point
 			Sample.Animation = nullptr;
@@ -301,31 +289,34 @@ void UAnimGraphNode_BlendSpaceGraphBase::PostPasteNode()
 {
 	Super::PostPasteNode();
 
-	// Add the new graph as a child of our parent graph
-	UEdGraph* ParentGraph = GetGraph();
-
-	if(ParentGraph->SubGraphs.Find(BlendSpaceGraph) == INDEX_NONE)
+	if(BlendSpaceGraph != nullptr)
 	{
-		ParentGraph->SubGraphs.Add(BlendSpaceGraph);
-	}
+		// Add the new graph as a child of our parent graph
+		UEdGraph* ParentGraph = GetGraph();
 
-	// Refresh sample graphs
-	for (UEdGraph* SampleGraph : Graphs)
-	{
-		for(UEdGraphNode* GraphNode : SampleGraph->Nodes)
+		if(ParentGraph->SubGraphs.Find(BlendSpaceGraph) == INDEX_NONE)
 		{
-			GraphNode->CreateNewGuid();
-			GraphNode->PostPasteNode();
-			GraphNode->ReconstructNode();
+			ParentGraph->SubGraphs.Add(BlendSpaceGraph);
 		}
+
+		// Refresh sample graphs
+		for (UEdGraph* SampleGraph : Graphs)
+		{
+			for(UEdGraphNode* GraphNode : SampleGraph->Nodes)
+			{
+				GraphNode->CreateNewGuid();
+				GraphNode->PostPasteNode();
+				GraphNode->ReconstructNode();
+			}
+		}
+
+		// Find an interesting name
+		TSharedPtr<INameValidatorInterface> NameValidator = FNameValidatorFactory::MakeValidator(this);
+		FBlueprintEditorUtils::RenameGraphWithSuggestion(BlendSpaceGraph, NameValidator, BlendSpaceGraph->GetName());
+
+		// Restore transactional flag that is lost during copy/paste process
+		BlendSpaceGraph->SetFlags(RF_Transactional);
 	}
-
-	// Find an interesting name
-	TSharedPtr<INameValidatorInterface> NameValidator = FNameValidatorFactory::MakeValidator(this);
-	FBlueprintEditorUtils::RenameGraphWithSuggestion(BlendSpaceGraph, NameValidator, BlendSpaceGraph->GetName());
-
-	// Restore transactional flag that is lost during copy/paste process
-	BlendSpaceGraph->SetFlags(RF_Transactional);
 }
 
 void UAnimGraphNode_BlendSpaceGraphBase::PostPlacedNewNode()
@@ -397,7 +388,16 @@ void UAnimGraphNode_BlendSpaceGraphBase::PostProcessPinName(const UEdGraphPin* P
 	Super::PostProcessPinName(Pin, DisplayName);
 }
 
-UAnimationBlendSpaceSampleGraph* UAnimGraphNode_BlendSpaceGraphBase::AddGraph(FName InSampleName)
+UAnimationBlendSpaceSampleGraph* UAnimGraphNode_BlendSpaceGraphBase::AddGraph(FName InSampleName, UAnimSequence* InSequence)
+{
+	UAnimationBlendSpaceSampleGraph* NewGraph = AddGraphInternal(InSampleName, InSequence);
+
+	Graphs.Add(NewGraph);
+
+	return NewGraph;
+}
+
+UAnimationBlendSpaceSampleGraph* UAnimGraphNode_BlendSpaceGraphBase::AddGraphInternal(FName InSampleName, UAnimSequence* InSequence)
 {
 	const UAnimationGraphSchema* AnimationGraphSchema = GetDefault<UAnimationGraphSchema>();
 
@@ -413,7 +413,23 @@ UAnimationBlendSpaceSampleGraph* UAnimGraphNode_BlendSpaceGraphBase::AddGraph(FN
 	SampleGraph->ResultNode = ResultSinkNode;
 	SampleGraph->bAllowDeletion = false;
 	SampleGraph->bAllowRenaming = true;
-	Graphs.Add(SampleGraph);
+
+	if(InSequence != nullptr)
+	{
+		// Attach an asset player if a valid animation is supplied
+		FGraphNodeCreator<UAnimGraphNode_SequencePlayer> SequencePlayerNodeCreator(*SampleGraph);
+		UAnimGraphNode_SequencePlayer* SequencePlayer = SequencePlayerNodeCreator.CreateNode();
+		SequencePlayer->SetAnimationAsset(InSequence);
+		SequencePlayer->SyncGroup.Method = EAnimSyncMethod::Graph;
+		SequencePlayerNodeCreator.Finalize();
+
+		// Offset node in X
+		SequencePlayer->NodePosX = SampleGraph->ResultNode->NodePosX - 400;
+
+		UEdGraphPin* OutputPin = SequencePlayer->FindPinChecked(TEXT("Pose"), EGPD_Output);
+		UEdGraphPin* InputPin = SampleGraph->ResultNode->FindPinChecked(TEXT("Result"), EGPD_Input);
+		OutputPin->MakeLinkTo(InputPin);
+	}
 
 	BlendSpaceGraph->Modify();
 	BlendSpaceGraph->SubGraphs.Add(SampleGraph);
@@ -427,12 +443,30 @@ void UAnimGraphNode_BlendSpaceGraphBase::RemoveGraph(int32 InSampleIndex)
 
 	check(Graphs.IsValidIndex(InSampleIndex));
 	UEdGraph* GraphToRemove = Graphs[InSampleIndex];
+	TSharedPtr<FBlueprintEditor> BlueprintEditor = StaticCastSharedPtr<FBlueprintEditor>(FKismetEditorUtilities::GetIBlueprintEditorForObject(GraphToRemove, false));
+	check(BlueprintEditor.IsValid());
 
 	// 'Asset' blendspace sample deletion uses a RemoveAtSwap, so we must mirror it here to maintain the same indices
 	Graphs.RemoveAtSwap(InSampleIndex);
 
-	BlendSpaceGraph->Modify();
-	BlendSpaceGraph->SubGraphs.Remove(GraphToRemove);
+	FBlueprintEditorUtils::RemoveGraph(GetAnimBlueprint(), GraphToRemove);
+	BlueprintEditor->CloseDocumentTab(GraphToRemove);
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::ReplaceGraph(int32 InSampleIndex, UAnimSequence* InSequence)
+{
+	Modify();
+
+	check(Graphs.IsValidIndex(InSampleIndex));
+	UEdGraph* GraphToRemove = Graphs[InSampleIndex];
+	FName GraphName = GraphToRemove->GetFName();
+	TSharedPtr<FBlueprintEditor> BlueprintEditor = StaticCastSharedPtr<FBlueprintEditor>(FKismetEditorUtilities::GetIBlueprintEditorForObject(GraphToRemove, false));
+	check(BlueprintEditor.IsValid());
+
+	FBlueprintEditorUtils::RemoveGraph(GetAnimBlueprint(), GraphToRemove);
+	BlueprintEditor->CloseDocumentTab(GraphToRemove);
+
+	Graphs[InSampleIndex] = AddGraphInternal(GraphName, InSequence);
 }
 
 FName UAnimGraphNode_BlendSpaceGraphBase::GetSyncGroupName() const
@@ -441,6 +475,13 @@ FName UAnimGraphNode_BlendSpaceGraphBase::GetSyncGroupName() const
 	const FAnimNode_BlendSpaceGraphBase* AnimNode = NodeProperty->ContainerPtrToValuePtr<FAnimNode_BlendSpaceGraphBase>(this);
 
 	return AnimNode->GroupName;
+}
+
+void UAnimGraphNode_BlendSpaceGraphBase::SetSyncGroupName(FName InName)
+{
+	FStructProperty* NodeProperty = GetFNodeProperty();
+	FAnimNode_BlendSpaceGraphBase* AnimNode = NodeProperty->ContainerPtrToValuePtr<FAnimNode_BlendSpaceGraphBase>(this);
+	AnimNode->GroupName = InName;
 }
 
 void UAnimGraphNode_BlendSpaceGraphBase::GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const

@@ -343,8 +343,11 @@ class UBlendSpaceBase : public UAnimationAsset, public IInterpolationIndexProvid
 	/** edit samples */
 	ENGINE_API bool	EditSampleValue(const int32 BlendSampleIndex, const FVector& NewValue, bool bSnap = true);
 
-	/** update animation on grid sample */
+	UE_DEPRECATED(5.0, "Please use ReplaceSampleAnimation instead")
 	ENGINE_API bool	UpdateSampleAnimation(UAnimSequence* AnimationSequence, const FVector& SampleValue);
+
+	/** update animation on grid sample */
+	ENGINE_API bool	ReplaceSampleAnimation(const int32 BlendSampleIndex, UAnimSequence* AnimationSequence);
 
 	/** delete samples */
 	ENGINE_API bool	DeleteSample(const int32 BlendSampleIndex);

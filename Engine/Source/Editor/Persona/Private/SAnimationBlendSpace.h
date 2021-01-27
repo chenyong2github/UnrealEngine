@@ -26,6 +26,8 @@ public:
 
 	SLATE_EVENT(FOnBlendSpaceSampleRemoved, OnBlendSpaceSampleRemoved)
 
+	SLATE_EVENT(FOnBlendSpaceSampleReplaced, OnBlendSpaceSampleReplaced)
+
 	SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName)
 
 	SLATE_EVENT(FOnExtendBlendSpaceSampleTooltip, OnExtendSampleTooltip)

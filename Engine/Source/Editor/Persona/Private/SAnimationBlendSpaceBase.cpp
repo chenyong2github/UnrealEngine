@@ -33,6 +33,7 @@ void SBlendSpaceEditorBase::Construct(const FArguments& InArgs)
 
 	OnBlendSpaceSampleAdded = InArgs._OnBlendSpaceSampleAdded;
 	OnBlendSpaceSampleRemoved = InArgs._OnBlendSpaceSampleRemoved;
+	OnBlendSpaceSampleReplaced = InArgs._OnBlendSpaceSampleReplaced;
 	OnSetPreviewPosition = InArgs._OnSetPreviewPosition;
 
 	bShouldSetPreviewValue = false;
@@ -74,7 +75,7 @@ void SBlendSpaceEditorBase::Construct(const FArguments& InArgs)
 							.OnSampleMoved(this, &SBlendSpaceEditorBase::OnSampleMoved)
 							.OnSampleRemoved(this, &SBlendSpaceEditorBase::OnSampleRemoved)
 							.OnSampleAdded(this, &SBlendSpaceEditorBase::OnSampleAdded)
-							.OnSampleAnimationChanged(this, &SBlendSpaceEditorBase::OnUpdateAnimation)
+							.OnSampleReplaced(this, &SBlendSpaceEditorBase::OnSampleReplaced)
 							.OnSampleDoubleClicked(InArgs._OnBlendSpaceSampleDoubleClicked)
 							.OnExtendSampleTooltip(InArgs._OnExtendSampleTooltip)
 							.OnGetBlendSpaceSampleName(InArgs._OnGetBlendSpaceSampleName)
@@ -156,16 +157,27 @@ void SBlendSpaceEditorBase::OnSampleAdded(UAnimSequence* Animation, const FVecto
 	BlendSpace->PostEditChange();
 }
 
-void SBlendSpaceEditorBase::OnUpdateAnimation(UAnimSequence* Animation, const FVector& Value)
+void SBlendSpaceEditorBase::OnSampleReplaced(int32 InSampleIndex, UAnimSequence* Animation)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("UpdateAnimation", "Changing Animation Sequence"));
 	BlendSpace->Modify();
 
-	const bool bUpdateSuccesful = BlendSpace->UpdateSampleAnimation(Animation, Value);
+	bool bUpdateSuccesful = false;
+	if(BlendSpace->IsAsset())
+	{
+		bUpdateSuccesful = BlendSpace->ReplaceSampleAnimation(InSampleIndex, Animation);
+	}
+	else
+	{
+		bUpdateSuccesful = true;
+	}
+
 	if (bUpdateSuccesful)
 	{
 		ResampleData();
 		BlendSpace->ValidateSampleData();
+
+		OnBlendSpaceSampleReplaced.ExecuteIfBound(InSampleIndex, Animation);
 	}
 }
 

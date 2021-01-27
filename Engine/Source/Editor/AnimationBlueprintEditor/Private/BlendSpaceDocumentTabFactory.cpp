@@ -53,7 +53,7 @@ TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflow
 		if(WeakBlendSpaceNode.Get())
 		{
 			UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
-			UAnimationBlendSpaceSampleGraph* NewGraph = BlendSpaceNode->AddGraph(TEXT("NewSample"));
+			UAnimationBlendSpaceSampleGraph* NewGraph = BlendSpaceNode->AddGraph(TEXT("NewSample"), InSequence);
 			BlueprintEditorPtr.Pin()->RefreshMyBlueprint();
 			BlueprintEditorPtr.Pin()->RenameNewlyAddedAction(NewGraph->GetFName());
 		}
@@ -65,6 +65,16 @@ TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflow
 		{
 			UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
 			BlendSpaceNode->RemoveGraph(InSampleIndex);
+			BlueprintEditorPtr.Pin()->RefreshMyBlueprint();
+		}
+	});
+
+	Args.OnBlendSpaceSampleReplaced = FOnBlendSpaceSampleReplaced::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](int32 InSampleIndex, UAnimSequence* InSequence)
+	{
+		if(WeakBlendSpaceNode.Get())
+		{
+			UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
+			BlendSpaceNode->ReplaceGraph(InSampleIndex, InSequence);
 			BlueprintEditorPtr.Pin()->RefreshMyBlueprint();
 		}
 	});

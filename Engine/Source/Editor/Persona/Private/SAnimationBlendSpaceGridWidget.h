@@ -46,7 +46,7 @@ public:
 		SLATE_EVENT(FOnSampleMoved, OnSampleMoved)
 		SLATE_EVENT(FOnBlendSpaceSampleRemoved, OnSampleRemoved)
 		SLATE_EVENT(FOnBlendSpaceSampleAdded, OnSampleAdded)
-		SLATE_EVENT(FOnSampleAnimationChanged, OnSampleAnimationChanged)
+		SLATE_EVENT(FOnBlendSpaceSampleReplaced, OnSampleReplaced)
 		SLATE_EVENT(FOnBlendSpaceSampleDoubleClicked, OnSampleDoubleClicked)
 		SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName)
 		SLATE_ARGUMENT(FName, StatusBarName)
@@ -182,7 +182,9 @@ protected:
 	/** Returns the (calculated) grid rectangle given the supplied geometry, and calls UpdateGridRatioMargin */
 	const FSlateRect GetGridRectangleFromGeometry(const FGeometry& MyGeometry);
 	/** Checks whether or not the blendspace sample value is within the range of the mouse position */
-	bool IsSampleValueWithinMouseRange(const FVector& SampleValue) const;
+	bool IsSampleValueWithinMouseRange(const FVector& SampleValue, float& OutDistance) const;
+	/** Get the sample index that most closely corresponds to the mouse position */
+	int32 GetClosestSamplePointIndexToMouse() const;
 
 	/** Sets the tooltip instance on the underlying widget instance */
 	void ShowToolTip();
@@ -295,7 +297,7 @@ private:
 	FOnBlendSpaceSampleAdded OnSampleAdded;
 	FOnSampleMoved OnSampleMoved;
 	FOnBlendSpaceSampleRemoved OnSampleRemoved;
-	FOnSampleAnimationChanged OnSampleAnimationChanged;
+	FOnBlendSpaceSampleReplaced OnSampleReplaced;
 	FOnBlendSpaceSampleDoubleClicked OnSampleDoubleClicked;
 	FOnGetBlendSpaceSampleName OnGetBlendSpaceSampleName;
 	FOnExtendBlendSpaceSampleTooltip OnExtendSampleTooltip;
