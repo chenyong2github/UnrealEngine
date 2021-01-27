@@ -127,9 +127,9 @@ private:
 private:
 	/** SoundSubmix which forms the root of this graph */
 	UPROPERTY(Transient)
-	USoundSubmixBase* RootSoundSubmix = nullptr;
+	TObjectPtr<USoundSubmixBase> RootSoundSubmix = nullptr;
 
 	UPROPERTY(Transient)
-	TArray<USoundSubmixBase*> StaleRoots;
+	TArray<TObjectPtr<USoundSubmixBase>> StaleRoots;
 };
 

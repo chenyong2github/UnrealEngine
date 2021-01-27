@@ -26,7 +26,7 @@ public:
 	TArray<FString> VariableFriendlyNames;
 
 	UPROPERTY()
-	const UStruct* ExternalStructAsset;
+	TObjectPtr<const UStruct> ExternalStructAsset;
 
 	//~ Begin UObject Interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

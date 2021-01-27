@@ -83,7 +83,7 @@ class UNREALED_API UUnrealEdOptions : public UObject
 
 	/** Pointer to the key bindings object that actually stores key bindings for the editor. */
 	UPROPERTY()
-	class UUnrealEdKeyBindings* EditorKeyBindings;
+	TObjectPtr<class UUnrealEdKeyBindings> EditorKeyBindings;
 
 	/** If true, the list of classes in the class picker dialog will be expanded */
 	UPROPERTY(config)

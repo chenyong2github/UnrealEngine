@@ -44,7 +44,7 @@ public:
 
 	/** Instance of the current game mode, exists only on the server. For non-authority clients, this will be NULL. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category=GameState)
-	AGameModeBase* AuthorityGameMode;
+	TObjectPtr<AGameModeBase> AuthorityGameMode;
 
 	/** Class used by spectators, assigned by GameModeBase. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category=GameState, ReplicatedUsing=OnRep_SpectatorClass)
@@ -52,7 +52,7 @@ public:
 
 	/** Array of all PlayerStates, maintained on both server and clients (PlayerStates are always relevant) */
 	UPROPERTY(Transient, BlueprintReadOnly, Category=GameState)
-	TArray<APlayerState*> PlayerArray;
+	TArray<TObjectPtr<APlayerState>> PlayerArray;
 
 	/** Allow game states to react to asset packages being loaded asynchronously */
 	virtual void AsyncPackageLoaded(UObject* Package) {}

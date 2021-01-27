@@ -766,32 +766,32 @@ private:
 	 * since the source collection and the duplicated collection will have their own instances.
 	 */
 	UPROPERTY()
-	class AGameStateBase* GameState;
+	TObjectPtr<class AGameStateBase> GameState;
 
 	/**
 	 * The network driver associated with this collection.
 	 * The source collection and the duplicated collection will have their own instances.
 	 */
 	UPROPERTY()
-	class UNetDriver* NetDriver;
+	TObjectPtr<class UNetDriver> NetDriver;
 
 	/**
 	 * The demo network driver associated with this collection.
 	 * The source collection and the duplicated collection will have their own instances.
 	 */
 	UPROPERTY()
-	class UDemoNetDriver* DemoNetDriver;
+	TObjectPtr<class UDemoNetDriver> DemoNetDriver;
 
 	/**
 	 * The persistent level associated with this collection.
 	 * The source collection and the duplicated collection will have their own instances.
 	 */
 	UPROPERTY()
-	class ULevel* PersistentLevel;
+	TObjectPtr<class ULevel> PersistentLevel;
 
 	/** All the levels in this collection. */
 	UPROPERTY()
-	TSet<ULevel*> Levels;
+	TSet<TObjectPtr<ULevel>> Levels;
 };
 
 template<>
@@ -852,7 +852,7 @@ private:
 
 	/** Priority sorted array of streaming levels actively being considered. */
 	UPROPERTY()
-	TArray<ULevelStreaming*> StreamingLevels;
+	TArray<TObjectPtr<ULevelStreaming>> StreamingLevels;
 
 	enum class EProcessReason : uint8
 	{
@@ -921,48 +921,48 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 #if WITH_EDITORONLY_DATA
 	/** List of all the layers referenced by the world's actors */
 	UPROPERTY(Transient)
-	TArray< class ULayer* > Layers; 
+	TArray< TObjectPtr<class ULayer> > Layers; 
 
 	// Group actors currently "active"
 	UPROPERTY(Transient)
-	TArray<AActor*> ActiveGroupActors;
+	TArray<TObjectPtr<AActor>> ActiveGroupActors;
 
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, Category=Thumbnail)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Persistent level containing the world info, default brush and actors spawned during gameplay among other things			*/
 	UPROPERTY(Transient)
-	class ULevel*								PersistentLevel;
+	TObjectPtr<class ULevel>								PersistentLevel;
 
 	/** The NAME_GameNetDriver game connection(s) for client/server communication */
 	UPROPERTY(Transient)
-	class UNetDriver*							NetDriver;
+	TObjectPtr<class UNetDriver>							NetDriver;
 
 	/** Line Batchers. All lines to be drawn in the world. */
 	UPROPERTY(Transient)
-	class ULineBatchComponent*					LineBatcher;
+	TObjectPtr<class ULineBatchComponent>					LineBatcher;
 
 	/** Persistent Line Batchers. They don't get flushed every frame.  */
 	UPROPERTY(Transient)
-	class ULineBatchComponent*					PersistentLineBatcher;
+	TObjectPtr<class ULineBatchComponent>					PersistentLineBatcher;
 
 	/** Foreground Line Batchers. This can't be Persistent.  */
 	UPROPERTY(Transient)
-	class ULineBatchComponent*					ForegroundLineBatcher;
+	TObjectPtr<class ULineBatchComponent>					ForegroundLineBatcher;
 
 	/** Instance of this world's game-specific networking management */
 	UPROPERTY(Transient)
-	class AGameNetworkManager*					NetworkManager;
+	TObjectPtr<class AGameNetworkManager>					NetworkManager;
 
 	/** Instance of this world's game-specific physics collision handler */
 	UPROPERTY(Transient)
-	class UPhysicsCollisionHandler*				PhysicsCollisionHandler;
+	TObjectPtr<class UPhysicsCollisionHandler>				PhysicsCollisionHandler;
 
 	/** Array of any additional objects that need to be referenced by this world, to make sure they aren't GC'd */
 	UPROPERTY(Transient)
-	TArray<UObject*>							ExtraReferencedObjects;
+	TArray<TObjectPtr<UObject>>							ExtraReferencedObjects;
 
 	/**
 	 * External modules can have additional data associated with this UWorld.
@@ -970,12 +970,12 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 	 * loaded/saved by default.
 	 */
 	UPROPERTY(Transient)
-	TArray<UObject*>							PerModuleDataObjects;
+	TArray<TObjectPtr<UObject>>							PerModuleDataObjects;
 
 private:
 	/** Level collection. ULevels are referenced by FName (Package name) to avoid serialized references. Also contains offsets in world units */
 	UPROPERTY(Transient)
-	TArray<ULevelStreaming*> StreamingLevels;
+	TArray<TObjectPtr<ULevelStreaming>> StreamingLevels;
 
 	/** This is the list of streaming levels that are actively being considered for what their state should be. It will be a subset of StreamingLevels */
 	UPROPERTY(Transient, DuplicateTransient)
@@ -1049,21 +1049,21 @@ public:
 private:
 	/** Pointer to the current level in the queue to be made visible, NULL if none are pending. */
 	UPROPERTY(Transient)
-	class ULevel*								CurrentLevelPendingVisibility;
+	TObjectPtr<class ULevel>								CurrentLevelPendingVisibility;
 
 	/** Pointer to the next best candidate level to become the CurrentLevelPendingVisibility. */
 	UPROPERTY(Transient)
-	class ULevel*								NextPreferredLevelPendingVisibility;
+	TObjectPtr<class ULevel>								NextPreferredLevelPendingVisibility;
 
 	/** Pointer to the current level in the queue to be made invisible, NULL if none are pending. */
 	UPROPERTY(Transient)
-	class ULevel*								CurrentLevelPendingInvisibility;
+	TObjectPtr<class ULevel>								CurrentLevelPendingInvisibility;
 
 public:
 	/** NetDriver for capturing network traffic to record demos */
 	UE_DEPRECATED(4.26, "DemoNetDriver will be made private in a future release.  Please use GetDemoNetDriver/SetDemoNetDriver instead.")
 	UPROPERTY()
-	class UDemoNetDriver*						DemoNetDriver;
+	TObjectPtr<class UDemoNetDriver>						DemoNetDriver;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Gets the demo net driver for this world. */
@@ -1075,12 +1075,12 @@ public:
 
 	/** Particle event manager **/
 	UPROPERTY()
-	class AParticleEventManager*				MyParticleEventManager;
+	TObjectPtr<class AParticleEventManager>				MyParticleEventManager;
 
 private:
 	/** DefaultPhysicsVolume used for whole game **/
 	UPROPERTY(Transient)
-	APhysicsVolume*								DefaultPhysicsVolume;
+	TObjectPtr<APhysicsVolume>								DefaultPhysicsVolume;
 
 public:
 
@@ -1234,27 +1234,27 @@ private:
 
 	/** The world's navigation data manager */
 	UPROPERTY(Transient)
-	class UNavigationSystemBase*				NavigationSystem;
+	TObjectPtr<class UNavigationSystemBase>				NavigationSystem;
 
 	/** The current GameMode, valid only on the server */
 	UPROPERTY(Transient)
-	class AGameModeBase*						AuthorityGameMode;
+	TObjectPtr<class AGameModeBase>						AuthorityGameMode;
 
 	/** The replicated actor which contains game state information that can be accessible to clients. Direct access is not allowed, use GetGameState<>() */
 	UPROPERTY(Transient)
-	class AGameStateBase*						GameState;
+	TObjectPtr<class AGameStateBase>						GameState;
 
 	/** The AI System handles generating pathing information and AI behavior */
 	UPROPERTY(Transient)
-	class UAISystemBase*						AISystem;
+	TObjectPtr<class UAISystemBase>						AISystem;
 	
 	/** RVO avoidance manager used by game */
 	UPROPERTY(Transient)
-	class UAvoidanceManager*					AvoidanceManager;
+	TObjectPtr<class UAvoidanceManager>					AvoidanceManager;
 
 	/** Array of levels currently in this world. Not serialized to disk to avoid hard references. */
 	UPROPERTY(Transient)
-	TArray<class ULevel*>						Levels;
+	TArray<TObjectPtr<class ULevel>>						Levels;
 
 	/** Array of level collections currently in this world. */
 	UPROPERTY(Transient, NonTransactional)
@@ -1292,25 +1292,25 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Pointer to the current level being edited. Level has to be in the Levels array and == PersistentLevel in the game. */
 	UPROPERTY(Transient)
-	class ULevel*								CurrentLevel;
+	TObjectPtr<class ULevel>								CurrentLevel;
 #endif
 
 	UPROPERTY(Transient)
-	class UGameInstance*						OwningGameInstance;
+	TObjectPtr<class UGameInstance>						OwningGameInstance;
 
 	/** Parameter collection instances that hold parameter overrides for this world. */
 	UPROPERTY(Transient)
-	TArray<class UMaterialParameterCollectionInstance*> ParameterCollectionInstances;
+	TArray<TObjectPtr<class UMaterialParameterCollectionInstance>> ParameterCollectionInstances;
 
 	/** 
 	 * Canvas object used for drawing to render targets from blueprint functions eg DrawMaterialToRenderTarget.
 	 * This is cached as UCanvas creation takes >100ms.
 	 */
 	UPROPERTY(Transient)
-	UCanvas* CanvasForRenderingToTarget;
+	TObjectPtr<UCanvas> CanvasForRenderingToTarget;
 
 	UPROPERTY(Transient)
-	UCanvas* CanvasForDrawMaterialToRenderTarget;
+	TObjectPtr<UCanvas> CanvasForDrawMaterialToRenderTarget;
 
 public:
 	/** Set the pointer to the Navigation System instance. */
@@ -1404,21 +1404,21 @@ public:
 
 	/** Physics Field component. */
 	UPROPERTY(Transient)
-	class UPhysicsFieldComponent* PhysicsField;
+	TObjectPtr<class UPhysicsFieldComponent> PhysicsField;
 
 private:
 
 	/** Array of components that need to wait on tasks before end of frame updates */
 	UPROPERTY(Transient, NonTransactional)
-	TSet<UActorComponent*> ComponentsThatNeedPreEndOfFrameSync;
+	TSet<TObjectPtr<UActorComponent>> ComponentsThatNeedPreEndOfFrameSync;
 
 	/** Array of components that need updates at the end of the frame */
 	UPROPERTY(Transient, NonTransactional)
-	TArray<UActorComponent*> ComponentsThatNeedEndOfFrameUpdate;
+	TArray<TObjectPtr<UActorComponent>> ComponentsThatNeedEndOfFrameUpdate;
 
 	/** Array of components that need game thread updates at the end of the frame */
 	UPROPERTY(Transient, NonTransactional)
-	TArray<UActorComponent*> ComponentsThatNeedEndOfFrameUpdate_OnGameThread;
+	TArray<TObjectPtr<UActorComponent>> ComponentsThatNeedEndOfFrameUpdate_OnGameThread;
 
 	/** The state of async tracing - abstracted into its own object for easier reference */
 	FWorldAsyncTraceState AsyncTraceState;
@@ -1525,7 +1525,7 @@ private:
 
 	/** Array of selected levels currently in this world. Not serialized to disk to avoid hard references.	*/
 	UPROPERTY(Transient)
-	TArray<class ULevel*>						SelectedLevels;
+	TArray<TObjectPtr<class ULevel>>						SelectedLevels;
 
 	/** Disables the broadcasting of level selection change. Internal use only. */
 	uint32 bBroadcastSelectionChange:1;
@@ -1631,7 +1631,7 @@ public:
 
 	/** All levels information from which our world is composed */
 	UPROPERTY()
-	class UWorldComposition* WorldComposition;
+	TObjectPtr<class UWorldComposition> WorldComposition;
 	
 	/** Whether we flushing level streaming state */ 
 	EFlushLevelStreamingType FlushLevelStreamingType;

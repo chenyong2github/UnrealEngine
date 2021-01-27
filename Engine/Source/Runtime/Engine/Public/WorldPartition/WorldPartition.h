@@ -156,17 +156,17 @@ public:
 	virtual UWorld* GetWorld() const override;
 
 	UPROPERTY(Transient)
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)
-	UWorldPartitionEditorHash* EditorHash;
+	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
 
 	IWorldPartitionEditor* WorldPartitionEditor;
 #endif
 
 	UPROPERTY(EditAnywhere, Category=RuntimeHash, NoClear, meta = (NoResetToDefault), Instanced)
-	UWorldPartitionRuntimeHash* RuntimeHash;
+	TObjectPtr<UWorldPartitionRuntimeHash> RuntimeHash;
 
 #if WITH_EDITOR
 	bool bForceGarbageCollection;
@@ -176,7 +176,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	// Default HLOD layer
 	UPROPERTY(EditAnywhere, Category=HLOD)
-	class UHLODLayer* DefaultHLODLayer;
+	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 #endif
 
 private:
@@ -184,7 +184,7 @@ private:
 	FTransform InstanceTransform;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	mutable UWorldPartitionStreamingPolicy* StreamingPolicy;
+	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;
 
 #if WITH_EDITORONLY_DATA
 	FLinkerInstancingContext InstancingContext;

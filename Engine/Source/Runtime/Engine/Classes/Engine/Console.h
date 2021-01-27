@@ -67,13 +67,13 @@ class ENGINE_API UConsole
 
 	/** The player which the next console command should be executed in the context of.  If nullptr, execute in the viewport. */
 	UPROPERTY()
-	class ULocalPlayer* ConsoleTargetPlayer;
+	TObjectPtr<class ULocalPlayer> ConsoleTargetPlayer;
 
 	UPROPERTY()
-	class UTexture2D* DefaultTexture_Black;
+	TObjectPtr<class UTexture2D> DefaultTexture_Black;
 
 	UPROPERTY()
-	class UTexture2D* DefaultTexture_White;
+	TObjectPtr<class UTexture2D> DefaultTexture_White;
 
 	/** Holds the scrollback buffer */
 	TArray<FString> Scrollback;

@@ -20,7 +20,7 @@ public:
 	virtual ~ADatasmithSceneActor();
 
 	UPROPERTY(VisibleAnywhere, Category="Datasmith")
-	class UDatasmithScene* Scene;
+	TObjectPtr<class UDatasmithScene> Scene;
 
 	/** Map of all the actors related to this Datasmith Scene */
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)

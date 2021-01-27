@@ -61,32 +61,32 @@ private:
 
 	/** Root component to give the whole actor a transform. */
 	UPROPERTY(EditDefaultsOnly, Category = "Crane Components")
-	USceneComponent* TransformComponent;
+	TObjectPtr<USceneComponent> TransformComponent;
 
 	/** Component to control Yaw. */
 	UPROPERTY(EditDefaultsOnly, Category = "Crane Components")
-	USceneComponent* CraneYawControl;
+	TObjectPtr<USceneComponent> CraneYawControl;
 
 	/** Component to control Pitch. */
 	UPROPERTY(EditDefaultsOnly, Category = "Crane Components")
-	USceneComponent* CranePitchControl;
+	TObjectPtr<USceneComponent> CranePitchControl;
 
 	/** Component to define the attach point for cameras. */
 	UPROPERTY(EditDefaultsOnly, Category = "Crane Components")
-	USceneComponent* CraneCameraMount;
+	TObjectPtr<USceneComponent> CraneCameraMount;
 
 #if WITH_EDITORONLY_DATA
 	/** Preview meshes for visualization */
 	UPROPERTY(Transient)
-	UStaticMeshComponent* PreviewMesh_CraneArm;
+	TObjectPtr<UStaticMeshComponent> PreviewMesh_CraneArm;
 
 	UPROPERTY(Transient)
-	UStaticMeshComponent* PreviewMesh_CraneBase;
+	TObjectPtr<UStaticMeshComponent> PreviewMesh_CraneBase;
 
 	UPROPERTY(Transient)
-	UStaticMeshComponent* PreviewMesh_CraneMount;
+	TObjectPtr<UStaticMeshComponent> PreviewMesh_CraneMount;
 
 	UPROPERTY(Transient)
-	UStaticMeshComponent* PreviewMesh_CraneCounterWeight;
+	TObjectPtr<UStaticMeshComponent> PreviewMesh_CraneCounterWeight;
 #endif
 };

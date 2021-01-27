@@ -21,7 +21,7 @@ class UVectorFieldComponent : public UPrimitiveComponent
 
 	/** The vector field asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=VectorFieldComponent)
-	class UVectorField* VectorField;
+	TObjectPtr<class UVectorField> VectorField;
 
 	/** The intensity at which the vector field is applied. */
 	UPROPERTY(interp, Category=VectorFieldComponent)

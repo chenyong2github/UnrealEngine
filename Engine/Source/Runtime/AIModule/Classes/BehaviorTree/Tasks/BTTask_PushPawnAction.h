@@ -20,7 +20,7 @@ class AIMODULE_API UBTTask_PushPawnAction : public UBTTask_PawnActionBase
 
 protected:
 	UPROPERTY(EditAnywhere, Instanced, Category = Action)
-	UPawnAction* Action;
+	TObjectPtr<UPawnAction> Action;
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual FString GetStaticDescription() const override;

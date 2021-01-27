@@ -60,7 +60,7 @@ class ALandscapeGizmoActiveActor : public ALandscapeGizmoActor
 	TEnumAsByte<enum ELandscapeGizmoType> DataType;
 
 	UPROPERTY(Transient)
-	UTexture2D* GizmoTexture;
+	TObjectPtr<UTexture2D> GizmoTexture;
 
 	UPROPERTY()
 	FVector2D TextureScale;
@@ -90,16 +90,16 @@ class ALandscapeGizmoActiveActor : public ALandscapeGizmoActor
 	FVector FrustumVerts[8];
 
 	UPROPERTY()
-	UMaterial* GizmoMaterial;
+	TObjectPtr<UMaterial> GizmoMaterial;
 
 	UPROPERTY()
-	UMaterialInstance* GizmoDataMaterial;
+	TObjectPtr<UMaterialInstance> GizmoDataMaterial;
 
 	UPROPERTY()
-	UMaterial* GizmoMeshMaterial;
+	TObjectPtr<UMaterial> GizmoMeshMaterial;
 
 	UPROPERTY(Category=LandscapeGizmoActiveActor, VisibleAnywhere)
-	TArray<ULandscapeLayerInfoObject*> LayerInfos;
+	TArray<TObjectPtr<ULandscapeLayerInfoObject>> LayerInfos;
 
 	UPROPERTY(transient)
 	bool bSnapToLandscapeGrid;

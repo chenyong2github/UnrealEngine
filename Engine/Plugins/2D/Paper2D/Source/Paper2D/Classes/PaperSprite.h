@@ -84,12 +84,12 @@ protected:
 	TSoftObjectPtr<UTexture2D> SourceTexture;
 
 	UPROPERTY(Transient)
-	mutable UTexture2D* SourceTextureCacheNeverSerialized;
+	mutable TObjectPtr<UTexture2D> SourceTextureCacheNeverSerialized;
 #endif
 
 	// Additional source textures for other slots
 	UPROPERTY(Category=Sprite, EditAnywhere, AssetRegistrySearchable, meta=(DisplayName="Additional Textures"))
-	TArray<UTexture*> AdditionalSourceTextures;
+	TArray<TObjectPtr<UTexture>> AdditionalSourceTextures;
 
 	// Position within BakedSourceTexture (in pixels)
 	UPROPERTY()
@@ -100,15 +100,15 @@ protected:
 	FVector2D BakedSourceDimension;
 
 	UPROPERTY()
-	UTexture2D* BakedSourceTexture;
+	TObjectPtr<UTexture2D> BakedSourceTexture;
 
 	// The material to use on a sprite instance if not overridden (this is the default material when only one is being used, and is the translucent/masked material for Diced render geometry, slot 0)
 	UPROPERTY(Category=Sprite, EditAnywhere, BlueprintReadOnly)
-	UMaterialInterface* DefaultMaterial;
+	TObjectPtr<UMaterialInterface> DefaultMaterial;
 
 	// The alternate material to use on a sprite instance if not overridden (this is only used for Diced render geometry, and will be the opaque material in that case, slot 1)
 	UPROPERTY(Category=Rendering, EditAnywhere, BlueprintReadOnly)
-	UMaterialInterface* AlternateMaterial;
+	TObjectPtr<UMaterialInterface> AlternateMaterial;
 
 	// List of sockets on this sprite
 	UPROPERTY(Category=Sprite, EditAnywhere)
@@ -125,7 +125,7 @@ protected:
 public:
 	// Baked physics data.
 	UPROPERTY(EditAnywhere, Category=NeverShown)
-	class UBodySetup* BodySetup;
+	TObjectPtr<class UBodySetup> BodySetup;
 
 #if WITH_EDITORONLY_DATA
 
@@ -156,7 +156,7 @@ protected:
 
 	// Spritesheet group that this sprite belongs to
 	UPROPERTY(Category=Sprite, EditAnywhere, AssetRegistrySearchable)
-	class UPaperSpriteAtlas* AtlasGroup;
+	TObjectPtr<class UPaperSpriteAtlas> AtlasGroup;
 
 	// The previous spritesheet group this belonged to
 	// To make sure we remove ourselves from it if changed or nulled out

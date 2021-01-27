@@ -96,7 +96,7 @@ public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 	
 	UPROPERTY(EditAnywhere, Category = "Oscilloscope")
-	USoundSubmix* Submix;
+	TObjectPtr<USoundSubmix> Submix;
 
 	static const int32 MaxBufferResolution = 8192;
 

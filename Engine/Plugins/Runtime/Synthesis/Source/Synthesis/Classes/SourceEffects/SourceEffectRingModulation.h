@@ -45,7 +45,7 @@ struct SYNTHESIS_API FSourceEffectRingModulationSettings
 
 	// Audio bus to use to modulate the effect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset")
-	UAudioBus* AudioBusModulator;
+	TObjectPtr<UAudioBus> AudioBusModulator;
 
 	FSourceEffectRingModulationSettings()
 		: ModulatorType(ERingModulatorTypeSourceEffect::Sine)

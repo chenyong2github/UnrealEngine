@@ -290,6 +290,6 @@ protected:
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_GameThread*> SystemInstancesToProxyData_GT;
 
 	UPROPERTY(Transient)
-	TMap< uint64, UTextureRenderTarget2DArray*> ManagedRenderTargets;
+	TMap< uint64, TObjectPtr<UTextureRenderTarget2DArray>> ManagedRenderTargets;
 	
 };

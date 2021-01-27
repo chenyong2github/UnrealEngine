@@ -87,7 +87,7 @@ struct FTemplateMapInfo
 
 	/** The Texture2D associated with this map template */
 	UPROPERTY()
-	UTexture2D* ThumbnailTexture;
+	TObjectPtr<UTexture2D> ThumbnailTexture;
 
 	/** The object path to the template map */
 	UPROPERTY(config)
@@ -111,29 +111,29 @@ public:
 
 	/** Global instance of the editor options class. */
 	UPROPERTY()
-	class UUnrealEdOptions* EditorOptionsInst;
+	TObjectPtr<class UUnrealEdOptions> EditorOptionsInst;
 
 	/**
 	 * Manager responsible for configuring auto reimport
 	 */
 	UPROPERTY()
-	class UAutoReimportManager* AutoReimportManager;
+	TObjectPtr<class UAutoReimportManager> AutoReimportManager;
 
 	/** A buffer for implementing material expression copy/paste. */
 	UPROPERTY()
-	class UMaterial* MaterialCopyPasteBuffer;
+	TObjectPtr<class UMaterial> MaterialCopyPasteBuffer;
 
 	/** A buffer for implementing matinee track/group copy/paste. */
 	UPROPERTY()
-	TArray<class UObject*> MatineeCopyPasteBuffer;
+	TArray<TObjectPtr<class UObject>> MatineeCopyPasteBuffer;
 
 	/** A buffer for implementing sound cue nodes copy/paste. */
 	UPROPERTY()
-	class USoundCue* SoundCueCopyPasteBuffer;
+	TObjectPtr<class USoundCue> SoundCueCopyPasteBuffer;
 
 	/** Global list of instanced animation compression algorithms. */
 	UPROPERTY()
-	TArray<class UAnimCompress*> AnimationCompressionAlgorithms;
+	TArray<TObjectPtr<class UAnimCompress>> AnimationCompressionAlgorithms;
 
 	/** Array of packages to be fully loaded at Editor startup. */
 	UPROPERTY(config)
@@ -141,7 +141,7 @@ public:
 
 	/** Current target for LOD parenting operations (actors will use this as the replacement) */
 	UPROPERTY()
-	class AActor* CurrentLODParentActor;
+	TObjectPtr<class AActor> CurrentLODParentActor;
 
 	/** Whether the user needs to be prompted about a package being saved with an engine version newer than the current one or not */
 	UPROPERTY()
@@ -160,7 +160,7 @@ public:
 
 	/** Cooker server incase we want to cook on the side while editing... */
 	UPROPERTY()
-	class UCookOnTheFlyServer* CookServer;
+	TObjectPtr<class UCookOnTheFlyServer> CookServer;
 
 	/** A list of packages dirtied this tick */
 	TArray<TWeakObjectPtr<UPackage>> PackagesDirtiedThisTick;

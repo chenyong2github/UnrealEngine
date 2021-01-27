@@ -33,7 +33,7 @@ class ENGINE_API ALevelBounds
 		
 	/** Bounding box for the level bounds. */
 	UPROPERTY(EditAnywhere, Category = LevelBounds)
-	class UBoxComponent* BoxComponent;
+	TObjectPtr<class UBoxComponent> BoxComponent;
 
 	/** Whether to automatically update actor bounds based on all relevant actors bounds belonging to the same level */
 	UPROPERTY(EditAnywhere, Category=LevelBounds)

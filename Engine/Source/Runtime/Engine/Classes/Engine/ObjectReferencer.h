@@ -19,7 +19,7 @@ class UObjectReferencer : public UObject
 
 	/** Array of objects being referenced. */
 	UPROPERTY(EditAnywhere, Category=ObjectReferencer)
-	TArray<class UObject*> ReferencedObjects;
+	TArray<TObjectPtr<class UObject>> ReferencedObjects;
 
 };
 

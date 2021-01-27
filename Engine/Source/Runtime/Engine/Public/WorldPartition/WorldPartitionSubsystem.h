@@ -56,7 +56,7 @@ private:
 	friend class UWorldPartition;
 
 	UPROPERTY()
-	TArray<UWorldPartition*> RegisteredWorldPartitions;
+	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
 
 	FDelegateHandle	DrawRuntimeHash2DHandle;
 };

@@ -586,7 +586,7 @@ struct AIMODULE_API FBlackboardKeySelector
 	/** array of allowed types with additional properties (e.g. uobject's base class) 
 	  * EditAnywhere is required for FBlackboardSelectorDetails::CacheBlackboardData() */
 	UPROPERTY(transient, EditAnywhere, BlueprintReadWrite, Category = Blackboard)
-	TArray<UBlackboardKeyType*> AllowedTypes;
+	TArray<TObjectPtr<UBlackboardKeyType>> AllowedTypes;
 
 	/** name of selected key */
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = Blackboard)

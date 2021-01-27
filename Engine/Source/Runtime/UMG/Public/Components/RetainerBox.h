@@ -122,7 +122,7 @@ protected:
 	 * you won't see the expected color.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Effect")
-	UMaterialInterface* EffectMaterial;
+	TObjectPtr<UMaterialInterface> EffectMaterial;
 
 	/**
 	 * The texture sampler parameter of the @EffectMaterial, that we'll set to the render target.

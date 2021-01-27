@@ -165,7 +165,7 @@ struct FNiagaraSystemCompileRequest
 	double StartTime = 0.0;
 
 	UPROPERTY()
-	TArray<UObject*> RootObjects;
+	TArray<TObjectPtr<UObject>> RootObjects;
 
 	TArray<FEmitterCompiledScriptPair> EmitterCompiledScriptPairs;
 	
@@ -344,7 +344,7 @@ public:
 
 	/** Internal: The thumbnail image.*/
 	UPROPERTY()
-	class UTexture2D* ThumbnailImage;
+	TObjectPtr<class UTexture2D> ThumbnailImage;
 
 	/** Internal: Indicates the thumbnail image is out of date.*/
 	UPROPERTY()
@@ -361,7 +361,7 @@ public:
 	FText TemplateAssetDescription;
 
 	UPROPERTY()
-	TArray<UNiagaraScript*> ScratchPadScripts;
+	TArray<TObjectPtr<UNiagaraScript>> ScratchPadScripts;
 
 	UPROPERTY(transient)
 	FNiagaraParameterStore EditorOnlyAddedParameters;
@@ -544,7 +544,7 @@ private:
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "System")
-	UNiagaraEffectType* EffectType;
+	TObjectPtr<UNiagaraEffectType> EffectType;
 
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	bool bOverrideScalabilitySettings;
@@ -560,7 +560,7 @@ protected:
 	TArray<FNiagaraEmitterHandle> EmitterHandles;
 
 	UPROPERTY(EditAnywhere, Category="System")
-	TArray<UNiagaraParameterCollectionInstance*> ParameterCollectionOverrides;
+	TArray<TObjectPtr<UNiagaraParameterCollectionInstance>> ParameterCollectionOverrides;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
@@ -574,12 +574,12 @@ protected:
 	/** The script which defines the System parameters, and which generates the bindings from System
 		parameter to emitter parameter. */
 	UPROPERTY()
-	UNiagaraScript* SystemSpawnScript;
+	TObjectPtr<UNiagaraScript> SystemSpawnScript;
 
 	/** The script which defines the System parameters, and which generates the bindings from System
 	parameter to emitter parameter. */
 	UPROPERTY()
-	UNiagaraScript* SystemUpdateScript;
+	TObjectPtr<UNiagaraScript> SystemUpdateScript;
 
 	//** Post compile generated data used for initializing Emitter Instances during runtime. */
 	TArray<TSharedRef<const FNiagaraEmitterCompiledData>> EmitterCompiledData;
@@ -595,7 +595,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** Data used by the editor to maintain UI state etc.. */
 	UPROPERTY()
-	UNiagaraEditorDataBase* EditorData;
+	TObjectPtr<UNiagaraEditorDataBase> EditorData;
 
 	bool bIsolateEnabled;
 
@@ -675,7 +675,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the System asset. */
 	UPROPERTY()
-	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
+	TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>> MessageKeyToMessageMap;
 
 	FGuid AssetGuid;
 #endif

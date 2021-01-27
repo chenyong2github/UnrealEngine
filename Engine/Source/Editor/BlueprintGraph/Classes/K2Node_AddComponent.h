@@ -27,7 +27,7 @@ class UK2Node_AddComponent : public UK2Node_CallFunction
 	FString TemplateBlueprint;
 
 	UPROPERTY()
-	UClass* TemplateType;
+	TObjectPtr<UClass> TemplateType;
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;

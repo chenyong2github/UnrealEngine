@@ -29,7 +29,7 @@ class ENGINE_API UAnimSingleNodeInstance : public UAnimInstance
 
 	/** Current Asset being played **/
 	UPROPERTY(Transient)
-	class UAnimationAsset* CurrentAsset;
+	TObjectPtr<class UAnimationAsset> CurrentAsset;
 	 
 	UPROPERTY(Transient)
 	FPostEvaluateAnimEvent PostEvaluateAnimEvent;

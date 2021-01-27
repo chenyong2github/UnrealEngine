@@ -66,7 +66,7 @@ protected:
 	FString Notes;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Screenshot")
-	class UCameraComponent* ScreenshotCamera;
+	TObjectPtr<class UCameraComponent> ScreenshotCamera;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Screenshot", SimpleDisplay)
 	FAutomationScreenshotOptions ScreenshotOptions;

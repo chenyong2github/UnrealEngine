@@ -281,41 +281,41 @@ public:
 
 	// Objects.
 	UPROPERTY()
-	class UModel* TempModel;
+	TObjectPtr<class UModel> TempModel;
 
 	UPROPERTY()
-	class UModel* ConversionTempModel;
+	TObjectPtr<class UModel> ConversionTempModel;
 
 	UPROPERTY()
-	class UTransactor* Trans;
+	TObjectPtr<class UTransactor> Trans;
 
 	// Textures.
 	UPROPERTY()
-	class UTexture2D* Bad;
+	TObjectPtr<class UTexture2D> Bad;
 
 	// Font used by Canvas-based editors
 	UPROPERTY()
-	class UFont* EditorFont;
+	TObjectPtr<class UFont> EditorFont;
 
 	// Audio
 	UPROPERTY(transient)
-	class USoundCue* PreviewSoundCue;
+	TObjectPtr<class USoundCue> PreviewSoundCue;
 
 	UPROPERTY(transient)
-	class UAudioComponent* PreviewAudioComponent;
+	TObjectPtr<class UAudioComponent> PreviewAudioComponent;
 
 	// Used in UnrealEd for showing materials
 	UPROPERTY()
-	class UStaticMesh* EditorCube;
+	TObjectPtr<class UStaticMesh> EditorCube;
 
 	UPROPERTY()
-	class UStaticMesh* EditorSphere;
+	TObjectPtr<class UStaticMesh> EditorSphere;
 
 	UPROPERTY()
-	class UStaticMesh* EditorPlane;
+	TObjectPtr<class UStaticMesh> EditorPlane;
 
 	UPROPERTY()
-	class UStaticMesh* EditorCylinder;
+	TObjectPtr<class UStaticMesh> EditorCylinder;
 
 	// Toggles.
 	UPROPERTY()
@@ -329,7 +329,7 @@ public:
 	uint32 ClickFlags;
 
 	UPROPERTY()
-	class UPackage* ParentContext;
+	TObjectPtr<class UPackage> ParentContext;
 
 	UPROPERTY()
 	FVector UnsnappedClickLocation;
@@ -382,7 +382,7 @@ public:
 
 	/** Array of actor factories created at editor startup and used by context menu etc. */
 	UPROPERTY()
-	TArray<class UActorFactory*> ActorFactories;
+	TArray<TObjectPtr<class UActorFactory>> ActorFactories;
 
 	/** The name of the file currently being opened in the editor. "" if no file is being opened. */
 	UPROPERTY()
@@ -397,7 +397,7 @@ public:
 
 	/** A pointer to a UWorld that is the duplicated/saved-loaded to be played in with "Play From Here" 								*/
 	UPROPERTY()
-	class UWorld* PlayWorld;
+	TObjectPtr<class UWorld> PlayWorld;
 
 
 
@@ -427,7 +427,7 @@ public:
 
 	/** When Simulating In Editor, a pointer to the original (non-simulating) editor world */
 	UPROPERTY()
-	class UWorld* EditorWorld;
+	TObjectPtr<class UWorld> EditorWorld;
 	
 	/** When Simulating In Editor, an array of all actors that were selected when it began*/
 	UPROPERTY()
@@ -459,20 +459,20 @@ public:
 
 	/** Temporary render target that can be used by the editor. */
 	UPROPERTY(transient)
-	class UTextureRenderTarget2D* ScratchRenderTarget2048;
+	TObjectPtr<class UTextureRenderTarget2D> ScratchRenderTarget2048;
 
 	UPROPERTY(transient)
-	class UTextureRenderTarget2D* ScratchRenderTarget1024;
+	TObjectPtr<class UTextureRenderTarget2D> ScratchRenderTarget1024;
 
 	UPROPERTY(transient)
-	class UTextureRenderTarget2D* ScratchRenderTarget512;
+	TObjectPtr<class UTextureRenderTarget2D> ScratchRenderTarget512;
 
 	UPROPERTY(transient)
-	class UTextureRenderTarget2D* ScratchRenderTarget256;
+	TObjectPtr<class UTextureRenderTarget2D> ScratchRenderTarget256;
 
 	/** A mesh component used to preview in editor without spawning a static mesh actor. */
 	UPROPERTY(transient)
-	class UStaticMeshComponent* PreviewMeshComp;
+	TObjectPtr<class UStaticMeshComponent> PreviewMeshComp;
 
 	/** The index of the mesh to use from the list of preview meshes. */
 	UPROPERTY()
@@ -500,7 +500,7 @@ public:
 
 	/** Brush builders that have been created in the editor */
 	UPROPERTY(transient)
-	TArray<class UBrushBuilder*> BrushBuilders;	
+	TArray<TObjectPtr<class UBrushBuilder>> BrushBuilders;	
 
 	/** Whether or not to recheck the current actor selection for lock actors the next time HasLockActors is called */
 	bool bCheckForLockActors;
@@ -535,7 +535,7 @@ private:
 
 	/** Manager that holds all extensions paired with a world */
 	UPROPERTY()
-	UEditorWorldExtensionManager* EditorWorldExtensionsManager;
+	TObjectPtr<UEditorWorldExtensionManager> EditorWorldExtensionsManager;
 
 public:
 
@@ -3185,7 +3185,7 @@ protected:
 	FSoftClassPath ActorGroupingUtilsClassName;
 
 	UPROPERTY()
-	class UActorGroupingUtils* ActorGroupingUtils;
+	TObjectPtr<class UActorGroupingUtils> ActorGroupingUtils;
 private:
 	FTimerHandle CleanupPIEOnlineSessionsTimerHandle;
 

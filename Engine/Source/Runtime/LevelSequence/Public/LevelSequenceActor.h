@@ -46,7 +46,7 @@ public:
 	FSoftClassPath BurnInClass;
 
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category="General", meta=(EditCondition=bUseBurnIn))
-	ULevelSequenceBurnInInitSettings* Settings;
+	TObjectPtr<ULevelSequenceBurnInInitSettings> Settings;
 
 protected:
 
@@ -79,7 +79,7 @@ public:
 	FMovieSceneSequencePlaybackSettings PlaybackSettings;
 
 	UPROPERTY(Instanced, transient, replicated, BlueprintReadOnly, BlueprintGetter=GetSequencePlayer, Category="Playback", meta=(ExposeFunctionCategories="Game|Cinematic"))
-	ULevelSequencePlayer* SequencePlayer;
+	TObjectPtr<ULevelSequencePlayer> SequencePlayer;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="General", meta=(AllowedClasses="LevelSequence"))
 	FSoftObjectPath LevelSequence;
@@ -88,11 +88,11 @@ public:
 	FLevelSequenceCameraSettings CameraSettings;
 
 	UPROPERTY(Instanced, BlueprintReadOnly, Category="General")
-	ULevelSequenceBurnInOptions* BurnInOptions;
+	TObjectPtr<ULevelSequenceBurnInOptions> BurnInOptions;
 
 	/** Mapping of actors to override the sequence bindings with */
 	UPROPERTY(Instanced, BlueprintReadOnly, Category="General")
-	UMovieSceneBindingOverrides* BindingOverrides;
+	TObjectPtr<UMovieSceneBindingOverrides> BindingOverrides;
 
 	UPROPERTY()
 	uint8 bAutoPlay_DEPRECATED : 1;
@@ -107,7 +107,7 @@ public:
 
 	/** Instance data that can be used to dynamically control sequence evaluation at runtime */
 	UPROPERTY(Instanced, BlueprintReadWrite, Category="General")
-	UObject* DefaultInstanceData;
+	TObjectPtr<UObject> DefaultInstanceData;
 
 public:
 
@@ -289,7 +289,7 @@ public:
 private:
 	/** Burn-in widget */
 	UPROPERTY()
-	ULevelSequenceBurnIn* BurnInInstance;
+	TObjectPtr<ULevelSequenceBurnIn> BurnInInstance;
 
 	UPROPERTY()
 	bool bShowBurnin;
@@ -304,7 +304,7 @@ struct FBoundActorProxy
 
 	/** Specifies the actor to override the binding with */
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, Category="General")
-	AActor* BoundActor = nullptr;
+	TObjectPtr<AActor> BoundActor = nullptr;
 
 	void Initialize(TSharedPtr<IPropertyHandle> InPropertyHandle);
 

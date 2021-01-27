@@ -93,7 +93,7 @@ struct FBlendSample
 
 	// For linked animations
 	UPROPERTY(EditAnywhere, Category=BlendSample)
-	class UAnimSequence* Animation;
+	TObjectPtr<class UAnimSequence> Animation;
 
 	//blend 0->x, blend 1->y, blend 2->z
 
@@ -467,7 +467,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Preview Base pose for additive BlendSpace **/
 	UPROPERTY(EditAnywhere, Category = AdditiveSettings)
-	UAnimSequence* PreviewBasePose;
+	TObjectPtr<UAnimSequence> PreviewBasePose;
 #endif // WITH_EDITORONLY_DATA
 
 	/** This animation length changes based on current input (resulting in different blend time)**/

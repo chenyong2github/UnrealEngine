@@ -64,7 +64,7 @@ class AUDIOSYNESTHESIA_API UOnsetNRT : public UAudioSynesthesiaNRT
 
 		/** The settings for the audio analyzer.  */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer)
-		UOnsetNRTSettings* Settings;
+		TObjectPtr<UOnsetNRTSettings> Settings;
 
 		/** Returns onsets which occured between start and end timestamps. */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")

@@ -39,7 +39,7 @@ public:
 
 	/** Audio bus to use to use as audio for this source bus. This source bus will sonify the audio from the audio bus. */
 	UPROPERTY(EditAnywhere, Category = BusProperties)
-	UAudioBus* AudioBus;
+	TObjectPtr<UAudioBus> AudioBus;
 
 	/** Stop the source bus when the volume goes to zero. */
 	UPROPERTY(meta = (DeprecatedProperty))

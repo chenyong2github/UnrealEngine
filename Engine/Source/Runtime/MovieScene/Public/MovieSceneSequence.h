@@ -266,7 +266,7 @@ private:
 
 	/** Serialized compiled data - should only be used through UMovieSceneCompiledDataManager */
 	UPROPERTY(Instanced)
-	UMovieSceneCompiledData* CompiledData;
+	TObjectPtr<UMovieSceneCompiledData> CompiledData;
 
 public:
 

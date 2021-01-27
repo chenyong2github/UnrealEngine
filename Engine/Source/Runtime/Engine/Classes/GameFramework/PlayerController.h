@@ -230,26 +230,26 @@ public:
 
 	/** UPlayer associated with this PlayerController.  Could be a local player or a net connection. */
 	UPROPERTY()
-	UPlayer* Player;
+	TObjectPtr<UPlayer> Player;
 
 	/** Used in net games so client can acknowledge it possessed a specific pawn. */
 	UPROPERTY()
-	APawn* AcknowledgedPawn;
+	TObjectPtr<APawn> AcknowledgedPawn;
 
 	/** Director track that's currently possessing this player controller, or none if not possessed. */
 	UPROPERTY(Transient)
-	UInterpTrackInstDirector* ControllingDirTrackInst;
+	TObjectPtr<UInterpTrackInstDirector> ControllingDirTrackInst;
 
 	/** Heads up display associated with this PlayerController. */
 	UPROPERTY()
-	AHUD* MyHUD;
+	TObjectPtr<AHUD> MyHUD;
 
 	// ******************************************************************************
 	// Camera/view related variables
 
 	/** Camera manager associated with this Player Controller. */
 	UPROPERTY(BlueprintReadOnly, Category=PlayerController)
-	APlayerCameraManager* PlayerCameraManager;
+	TObjectPtr<APlayerCameraManager> PlayerCameraManager;
 
 	/** PlayerCamera class should be set for each game, otherwise Engine.PlayerCameraManager is used */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=PlayerController)
@@ -282,7 +282,7 @@ public:
 
 	/** The actors which the camera shouldn't see - e.g. used to hide actors which the camera penetrates */
 	UPROPERTY()
-	TArray<class AActor*> HiddenActors;
+	TArray<TObjectPtr<class AActor>> HiddenActors;
 
 	/** Explicit components the camera shouldn't see (helpful for external systems to hide a component from a single player) */
 	UPROPERTY()
@@ -317,7 +317,7 @@ public:
 	 * This behavior can be changed either by overriding APlayerController::EnableCheats or AGameModeBase::AllowCheats.
 	 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="Cheat Manager")
-	UCheatManager* CheatManager;
+	TObjectPtr<UCheatManager> CheatManager;
 	
 	/**
 	 * Class of my CheatManager.
@@ -328,7 +328,7 @@ public:
 
 	/** Object that manages player input. */
 	UPROPERTY(Transient)
-	class UPlayerInput* PlayerInput;    
+	TObjectPtr<class UPlayerInput> PlayerInput;    
 	
 	UPROPERTY(Transient)
 	TArray<FActiveForceFeedbackEffect> ActiveForceFeedbackEffects;
@@ -428,11 +428,11 @@ public:
 	 * @see GameModeBase::SwapPlayerControllers()
 	 */
 	UPROPERTY(DuplicateTransient)
-	UNetConnection* PendingSwapConnection;
+	TObjectPtr<UNetConnection> PendingSwapConnection;
 
 	/** The net connection this controller is communicating on, nullptr for local players on server */
 	UPROPERTY(DuplicateTransient)
-	UNetConnection* NetConnection;
+	TObjectPtr<UNetConnection> NetConnection;
 
 	/** Input axes values, accumulated each tick. */
 	FRotator RotationInput;
@@ -1480,7 +1480,7 @@ protected:
 	
 	/** InputComponent we use when player is in Inactive state. */
 	UPROPERTY()
-	UInputComponent* InactiveStateInputComponent;
+	TObjectPtr<UInputComponent> InactiveStateInputComponent;
 
 	/** Sets up input bindings for the input component pushed on the stack in the inactive state. */
 	virtual void SetupInactiveStateInputComponent(UInputComponent* InComponent);
@@ -1510,7 +1510,7 @@ protected:
 
 	/** The currently set touch interface */
 	UPROPERTY()
-	class UTouchInterface* CurrentTouchInterface;
+	TObjectPtr<class UTouchInterface> CurrentTouchInterface;
 
 	/** Handle for efficient management of UnFreeze timer */
 	FTimerHandle TimerHandle_UnFreeze;
@@ -1931,7 +1931,7 @@ protected:
 private:
 	/** The pawn used when spectating (nullptr if not spectating). */
 	UPROPERTY()
-	ASpectatorPawn* SpectatorPawn;
+	TObjectPtr<ASpectatorPawn> SpectatorPawn;
 
 	/** Used to delay calling ClientRestart() again when it hasn't been appropriately acknowledged. */
 	float		LastRetryPlayerTime;

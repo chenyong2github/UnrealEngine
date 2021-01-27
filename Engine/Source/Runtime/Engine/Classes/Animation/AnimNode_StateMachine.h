@@ -65,7 +65,7 @@ protected:
 public:
 	// Blend profile to use for this transition. Specifying this will make the transition evaluate per-bone
 	UPROPERTY()
-	UBlendProfile* BlendProfile;
+	TObjectPtr<UBlendProfile> BlendProfile;
 
 	// Type of blend to use
 	EAlphaBlendOption BlendOption;

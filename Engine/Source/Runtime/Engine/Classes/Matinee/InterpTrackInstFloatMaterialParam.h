@@ -18,7 +18,7 @@ class UInterpTrackInstFloatMaterialParam : public UInterpTrackInst
 
 	/** MIDs we're using to set the desired parameter. */
 	UPROPERTY()
-	TArray<class UMaterialInstanceDynamic*> MaterialInstances;
+	TArray<TObjectPtr<class UMaterialInstanceDynamic>> MaterialInstances;
 
 	/** Saved values for restoring state when exiting Matinee. */
 	UPROPERTY()
@@ -30,7 +30,7 @@ class UInterpTrackInstFloatMaterialParam : public UInterpTrackInst
 
 	/** track we are an instance of - used in the editor to propagate changes to the track's Materials array immediately */
 	UPROPERTY()
-	class UInterpTrackFloatMaterialParam* InstancedTrack;
+	TObjectPtr<class UInterpTrackFloatMaterialParam> InstancedTrack;
 
 
 	// Begin UInterpTrackInst Instance

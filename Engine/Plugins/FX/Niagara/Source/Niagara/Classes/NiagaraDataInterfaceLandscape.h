@@ -38,7 +38,7 @@ public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 
 	UPROPERTY(EditAnywhere, Category = "Landscape")
-	AActor* SourceLandscape;
+	TObjectPtr<AActor> SourceLandscape;
 
 	//UObject Interface
 	virtual void PostInitProperties() override;	

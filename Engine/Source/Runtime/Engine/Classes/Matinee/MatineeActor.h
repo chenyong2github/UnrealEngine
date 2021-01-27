@@ -51,7 +51,7 @@ struct FInterpGroupActorInfo
 	FName ObjectName;
 
 	UPROPERTY(EditAnywhere, Category=InterpGroupActorInfo)
-	TArray<class AActor*> Actors;
+	TArray<TObjectPtr<class AActor>> Actors;
 
 };
 
@@ -64,7 +64,7 @@ class ENGINE_API AMatineeActor : public AActor
 
 	/** The matinee data used by this actor*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MatineeActor, replicated, meta=(ForceRebuildProperty = "GroupActorInfos"))
-	class UInterpData* MatineeData;
+	TObjectPtr<class UInterpData> MatineeData;
 
 	/** Name of controller node in level script, used to know what function to try and find for events */
 	UPROPERTY()
@@ -162,7 +162,7 @@ class ENGINE_API AMatineeActor : public AActor
 
 	/** Instance data for interp groups. One for each variable/group combination. */
 	UPROPERTY(transient)
-	TArray<class UInterpGroupInst*> GroupInst;
+	TArray<TObjectPtr<class UInterpGroupInst>> GroupInst;
 
 	/** Contains the camera world-position for each camera cut in the cinematic. */
 	UPROPERTY(transient)
@@ -173,7 +173,7 @@ class ENGINE_API AMatineeActor : public AActor
 	// Reference to the actor sprite
 private:
 	UPROPERTY()
-	class UBillboardComponent* SpriteComponent;
+	TObjectPtr<class UBillboardComponent> SpriteComponent;
 public:
 
 	UPROPERTY(transient)

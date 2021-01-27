@@ -30,7 +30,7 @@ struct FMaterialFunctionInfo
 
 	/** The function which this material has a dependency on. */
 	UPROPERTY()
-	UMaterialFunctionInterface* Function = nullptr;
+	TObjectPtr<UMaterialFunctionInterface> Function = nullptr;
 };
 
 /** Stores information about a parameter collection that this material references, used to know when the material needs to be recompiled. */
@@ -45,7 +45,7 @@ struct FMaterialParameterCollectionInfo
 
 	/** The collection which this material has a dependency on. */
 	UPROPERTY()
-	class UMaterialParameterCollection* ParameterCollection = nullptr;
+	TObjectPtr<class UMaterialParameterCollection> ParameterCollection = nullptr;
 
 	bool operator==(const FMaterialParameterCollectionInfo& Other) const
 	{
@@ -166,16 +166,16 @@ struct FMaterialCachedParameters
 	TArray<FLinearColor> VectorValues;
 
 	UPROPERTY()
-	TArray<UTexture*> TextureValues;
+	TArray<TObjectPtr<UTexture>> TextureValues;
 
 	UPROPERTY()
-	TArray<UFont*> FontValues;
+	TArray<TObjectPtr<UFont>> FontValues;
 
 	UPROPERTY()
 	TArray<int32> FontPageValues;
 
 	UPROPERTY()
-	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextureValues;
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextureValues;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -191,10 +191,10 @@ struct FMaterialCachedParameters
 	TArray<FVector2D> ScalarMinMaxValues;
 
 	UPROPERTY()
-	TArray<UCurveLinearColor*> ScalarCurveValues;
+	TArray<TObjectPtr<UCurveLinearColor>> ScalarCurveValues;
 
 	UPROPERTY()
-	TArray<UCurveLinearColorAtlas*> ScalarCurveAtlasValues;
+	TArray<TObjectPtr<UCurveLinearColorAtlas>> ScalarCurveAtlasValues;
 
 	UPROPERTY()
 	TArray<FParameterChannelNames> VectorChannelNameValues;
@@ -238,7 +238,7 @@ struct FMaterialCachedExpressionData
 
 	/** Array of all texture referenced by this material */
 	UPROPERTY()
-	TArray<UObject*> ReferencedTextures;
+	TArray<TObjectPtr<UObject>> ReferencedTextures;
 
 	/** Array of all functions this material depends on. */
 	UPROPERTY()
@@ -249,13 +249,13 @@ struct FMaterialCachedExpressionData
 	TArray<FMaterialParameterCollectionInfo> ParameterCollectionInfos;
 
 	UPROPERTY()
-	TArray<UMaterialFunctionInterface*> DefaultLayers;
+	TArray<TObjectPtr<UMaterialFunctionInterface>> DefaultLayers;
 
 	UPROPERTY()
-	TArray<UMaterialFunctionInterface*> DefaultLayerBlends;
+	TArray<TObjectPtr<UMaterialFunctionInterface>> DefaultLayerBlends;
 
 	UPROPERTY()
-	TArray<ULandscapeGrassType*> GrassTypes;
+	TArray<TObjectPtr<ULandscapeGrassType>> GrassTypes;
 
 	UPROPERTY()
 	TArray<FName> DynamicParameterNames;
@@ -282,5 +282,5 @@ struct FMaterialInstanceCachedData
 	FMaterialCachedParameters Parameters;
 
 	UPROPERTY()
-	TArray<UObject*> ReferencedTextures;
+	TArray<TObjectPtr<UObject>> ReferencedTextures;
 };

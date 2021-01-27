@@ -13,8 +13,8 @@ class NIAGARA_API UNiagaraPrecompileContainer : public UObject
 
 public:
 	UPROPERTY()
-	TArray<UNiagaraScript*> Scripts;
+	TArray<TObjectPtr<UNiagaraScript>> Scripts;
 
 	UPROPERTY()
-	UNiagaraSystem* System;
+	TObjectPtr<UNiagaraSystem> System;
 };

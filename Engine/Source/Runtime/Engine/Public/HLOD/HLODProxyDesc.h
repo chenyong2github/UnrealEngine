@@ -25,10 +25,10 @@ public:
 
 public:
 	UPROPERTY()
-	UStaticMesh* StaticMesh = nullptr;
+	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
 	
 	UPROPERTY()
-	const UMaterialInterface* Material = nullptr;
+	TObjectPtr<const UMaterialInterface> Material = nullptr;
 
 	UPROPERTY()
 	TArray<FTransform> Instances;
@@ -63,7 +63,7 @@ private:
 	TArray<FName> SubActors;
 
 	UPROPERTY()
-	UStaticMesh* StaticMesh;
+	TObjectPtr<UStaticMesh> StaticMesh;
 
 	UPROPERTY()
 	TArray<FHLODISMComponentDesc> ISMComponentsDesc;

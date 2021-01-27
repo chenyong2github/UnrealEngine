@@ -108,12 +108,12 @@ public:
 public:
 	/** The root widget of the tree */
 	UPROPERTY(Instanced)
-	UWidget* RootWidget;
+	TObjectPtr<UWidget> RootWidget;
 
 protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Instanced)
-	TArray< UWidget* > AllWidgets;
+	TArray< TObjectPtr<UWidget> > AllWidgets;
 #endif
 };

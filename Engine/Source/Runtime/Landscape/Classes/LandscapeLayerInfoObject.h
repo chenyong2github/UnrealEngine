@@ -29,7 +29,7 @@ class ULandscapeLayerInfoObject : public UObject
 	FName LayerName;
 
 	UPROPERTY(EditAnywhere, Category=LandscapeLayerInfoObject)
-	UPhysicalMaterial* PhysMaterial;
+	TObjectPtr<UPhysicalMaterial> PhysMaterial;
 
 	UPROPERTY(EditAnywhere, Category=LandscapeLayerInfoObject)
 	float Hardness;
@@ -44,7 +44,7 @@ class ULandscapeLayerInfoObject : public UObject
 
 	/** Texture to modulate the Splines Falloff Layer Alpha */
 	UPROPERTY(EditAnywhere, Category = SplineFalloffModulation, Meta = (DisplayName="Texture"))
-	UTexture2D* SplineFalloffModulationTexture;
+	TObjectPtr<UTexture2D> SplineFalloffModulationTexture;
 
 	UPROPERTY(EditAnywhere, Category = SplineFalloffModulation, Meta = (DisplayName = "Color Mask"))
 	ESplineModulationColorMask SplineFalloffModulationColorMask;

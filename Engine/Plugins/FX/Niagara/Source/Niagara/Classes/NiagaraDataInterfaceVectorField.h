@@ -15,7 +15,7 @@ class NIAGARA_API UNiagaraDataInterfaceVectorField : public UNiagaraDataInterfac
 public:
 	/** Vector field to sample from. */
 	UPROPERTY(EditAnywhere, Category = VectorField)
-	UVectorField* Field;
+	TObjectPtr<UVectorField> Field;
 
 	UPROPERTY(EditAnywhere, Category = VectorField)
 	bool bTileX;

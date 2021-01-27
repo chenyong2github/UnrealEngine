@@ -26,10 +26,10 @@ struct FHLODInstancingKey
 	GENERATED_BODY()
 
 	UPROPERTY()
-	const UStaticMesh* StaticMesh;
+	TObjectPtr<const UStaticMesh> StaticMesh;
 
 	UPROPERTY()
-	const UMaterialInterface* Material;
+	TObjectPtr<const UMaterialInterface> Material;
 
 	FHLODInstancingKey()
 		: StaticMesh()
@@ -76,15 +76,15 @@ class ENGINE_API ALODActor : public AActor
 private:
 	// disable display of this component
 	UPROPERTY(Category=LODActor, VisibleAnywhere)
-	UStaticMeshComponent* StaticMeshComponent;
+	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 
 	/** Imposters to be rendered as instanced static meshes */
 	UPROPERTY(Transient)
-	TMap<FHLODInstancingKey, UInstancedStaticMeshComponent*> InstancedStaticMeshComponents;
+	TMap<FHLODInstancingKey, TObjectPtr<UInstancedStaticMeshComponent>> InstancedStaticMeshComponents;
 
 	/** The mesh proxy used to display this LOD */
 	UPROPERTY(Category=LODActor, VisibleAnywhere)
-	UHLODProxy* Proxy;
+	TObjectPtr<UHLODProxy> Proxy;
 
 	/** The key used to validate this actor against the proxy */
 	UPROPERTY(Category=LODActor, VisibleAnywhere)
@@ -100,7 +100,7 @@ public:
 	int32 LODLevel;
 
 	UPROPERTY(Category=LODActor, VisibleAnywhere)
-	TArray<AActor*> SubActors;
+	TArray<TObjectPtr<AActor>> SubActors;
 	
 	UPROPERTY()
 	uint8 CachedNumHLODLevels;
@@ -397,6 +397,6 @@ private:
 
 	/** The hlod proxy desc used to build this LODActor */
 	UPROPERTY(Transient)
-	UHLODProxyDesc* ProxyDesc;
+	TObjectPtr<UHLODProxyDesc> ProxyDesc;
 #endif // WITH_EDITORONLY_DATA
 }; 

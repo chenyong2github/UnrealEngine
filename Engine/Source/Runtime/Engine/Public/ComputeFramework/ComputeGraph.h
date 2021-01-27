@@ -73,7 +73,7 @@ struct FComputeKernelInvocation
 	static constexpr uint32 MAX_NAME_LENGTH = 32;
 
 	UPROPERTY()
-	UComputeKernel* ComputeKernel = nullptr;
+	TObjectPtr<UComputeKernel> ComputeKernel = nullptr;
 	
 	UPROPERTY()
 	uint16 GenerationIdx = 0xFFFF;

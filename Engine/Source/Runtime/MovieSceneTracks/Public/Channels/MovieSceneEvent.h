@@ -35,7 +35,7 @@ struct FMovieSceneEventPtrs
 	{}
 
 	UPROPERTY()
-	UFunction* Function;
+	TObjectPtr<UFunction> Function;
 
 	UPROPERTY()
 	TFieldPath<FProperty> BoundObjectProperty;

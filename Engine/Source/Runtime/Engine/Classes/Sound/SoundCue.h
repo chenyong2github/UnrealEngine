@@ -94,7 +94,7 @@ class ENGINE_API USoundCue : public USoundBase
 	uint32 bPrimeOnLoad : 1;
 
 	UPROPERTY()
-	USoundNode* FirstNode;
+	TObjectPtr<USoundNode> FirstNode;
 
 	/* Base volume multiplier */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, AssetRegistrySearchable)
@@ -110,10 +110,10 @@ class ENGINE_API USoundCue : public USoundBase
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<USoundNode*> AllNodes;
+	TArray<TObjectPtr<USoundNode>> AllNodes;
 
 	UPROPERTY()
-	UEdGraph* SoundCueGraph;
+	TObjectPtr<UEdGraph> SoundCueGraph;
 #endif
 
 protected:

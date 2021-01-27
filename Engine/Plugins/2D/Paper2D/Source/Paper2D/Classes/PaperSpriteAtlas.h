@@ -89,7 +89,7 @@ class UPaperSpriteAtlas : public UObject
 
 	// List of generated atlas textures
 	UPROPERTY(VisibleAnywhere, Category=AtlasTexture)
-	TArray<UTexture*> GeneratedTextures;
+	TArray<TObjectPtr<UTexture>> GeneratedTextures;
 
 	// The GUID of the atlas group, used to match up sprites that belong to this group even thru atlas renames
 	UPROPERTY(VisibleAnywhere, Category=General)

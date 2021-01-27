@@ -202,7 +202,7 @@ public:
 
 	// Holds the collection of managed profiles.
 	UPROPERTY( EditAnywhere, Category=Properties )
-	TArray< UObject* > Profiles;
+	TArray< TObjectPtr<UObject> > Profiles;
 
 private:
 

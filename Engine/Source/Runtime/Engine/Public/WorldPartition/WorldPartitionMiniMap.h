@@ -28,7 +28,7 @@ public:
 
 	/*MiniMap Texture for displaying on world partition window*/
 	UPROPERTY(VisibleAnywhere, Category = WorldPartitionMiniMap)
-	UTexture2D* MiniMapTexture;
+	TObjectPtr<UTexture2D> MiniMapTexture;
 
 	/*MiniMap Size*/
 	UPROPERTY(EditAnywhere, Category = WorldPartitionMiniMap, meta=(UIMin = "256", UIMax = "8192"))

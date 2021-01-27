@@ -440,7 +440,7 @@ private:
 
 	/** Underlying element list holding the selection state. */
 	UPROPERTY()
-	UTypedElementList* ElementList = nullptr;
+	TObjectPtr<UTypedElementList> ElementList = nullptr;
 
 	/** Delegate that is invoked whenever the underlying element list is potentially about to change. */
 	FOnPreChange OnPreChangeDelegate;

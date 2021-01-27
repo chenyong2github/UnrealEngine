@@ -20,7 +20,7 @@ class PAPER2D_API APaperFlipbookActor : public AActor
 
 private:
 	UPROPERTY(Category=Sprite, VisibleAnywhere, BlueprintReadOnly, meta=(ExposeFunctionCategories="Sprite,Rendering,Physics,Components|Flipbook", AllowPrivateAccess="true"))
-	class UPaperFlipbookComponent* RenderComponent;
+	TObjectPtr<class UPaperFlipbookComponent> RenderComponent;
 
 public:
 

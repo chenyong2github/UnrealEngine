@@ -106,11 +106,11 @@ private:
 
 	/** The folders contained by this folder. */
 	UPROPERTY()
-	TArray<UMovieSceneFolder*> ChildFolders;
+	TArray<TObjectPtr<UMovieSceneFolder>> ChildFolders;
 
 	/** The master tracks contained by this folder. */
 	UPROPERTY()
-	TArray<UMovieSceneTrack*> ChildMasterTracks;
+	TArray<TObjectPtr<UMovieSceneTrack>> ChildMasterTracks;
 
 	/** The guid strings used to serialize the guids for the object bindings contained by this folder. */
 	UPROPERTY()

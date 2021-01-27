@@ -25,76 +25,76 @@ public:
 	//
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* GizmoHandleSelectedSound;
+	TObjectPtr<USoundBase> GizmoHandleSelectedSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* GizmoHandleDropSound;
+	TObjectPtr<USoundBase> GizmoHandleDropSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* SelectionChangeSound;
+	TObjectPtr<USoundBase> SelectionChangeSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* SelectionDropSound;
+	TObjectPtr<USoundBase> SelectionDropSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* SelectionStartDragSound;
+	TObjectPtr<USoundBase> SelectionStartDragSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* GridSnapSound;
+	TObjectPtr<USoundBase> GridSnapSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* ActorSnapSound;
+	TObjectPtr<USoundBase> ActorSnapSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* UndoSound;
+	TObjectPtr<USoundBase> UndoSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* RedoSound;
+	TObjectPtr<USoundBase> RedoSound;
 
 	//
 	// Meshes
 	//
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* GridMesh;
+	TObjectPtr<UStaticMesh> GridMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* TranslationHandleMesh;
+	TObjectPtr<UStaticMesh> TranslationHandleMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* UniformScaleHandleMesh;
+	TObjectPtr<UStaticMesh> UniformScaleHandleMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* ScaleHandleMesh;
+	TObjectPtr<UStaticMesh> ScaleHandleMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* PlaneTranslationHandleMesh;
+	TObjectPtr<UStaticMesh> PlaneTranslationHandleMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* RotationHandleMesh;
+	TObjectPtr<UStaticMesh> RotationHandleMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* RotationHandleSelectedMesh;
+	TObjectPtr<UStaticMesh> RotationHandleSelectedMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* StartRotationIndicatorMesh;
+	TObjectPtr<UStaticMesh> StartRotationIndicatorMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* CurrentRotationIndicatorMesh;
+	TObjectPtr<UStaticMesh> CurrentRotationIndicatorMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* FreeRotationHandleMesh;
+	TObjectPtr<UStaticMesh> FreeRotationHandleMesh;
 
 	//
 	// Materials
 	//
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* GridMaterial;
+	TObjectPtr<UMaterialInterface> GridMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* TransformGizmoMaterial;
+	TObjectPtr<UMaterialInterface> TransformGizmoMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* TranslucentTransformGizmoMaterial;
+	TObjectPtr<UMaterialInterface> TranslucentTransformGizmoMaterial;
 };

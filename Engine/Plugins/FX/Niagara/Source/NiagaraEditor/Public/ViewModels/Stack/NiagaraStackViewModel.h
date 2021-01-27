@@ -178,7 +178,7 @@ private:
 	TArray<UNiagaraStackEntry*> RootEntries;
 
 	UPROPERTY()
-	UNiagaraStackEntry* RootEntry;
+	TObjectPtr<UNiagaraStackEntry> RootEntry;
 
 	bool bExternalRootEntry;
 

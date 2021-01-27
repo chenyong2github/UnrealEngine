@@ -18,7 +18,7 @@ class UK2Node_MultiGate : public UK2Node_ExecutionSequence
 
 	/** Reference to the integer that contains */
 	UPROPERTY(transient)
-	class UK2Node_TemporaryVariable* DataNode;
+	TObjectPtr<class UK2Node_TemporaryVariable> DataNode;
 
 	//~ Begin UEdGraphNode Interface
 	virtual void AllocateDefaultPins() override;

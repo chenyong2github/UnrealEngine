@@ -56,7 +56,7 @@ struct ENGINE_API FComponentKey
 
 private: 
 	UPROPERTY()
-	UClass* OwnerClass;
+	TObjectPtr<UClass> OwnerClass;
 
 	UPROPERTY()
 	FName SCSVariableName;
@@ -71,10 +71,10 @@ struct FComponentOverrideRecord
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UClass* ComponentClass;
+	TObjectPtr<UClass> ComponentClass;
 
 	UPROPERTY()
-	UActorComponent* ComponentTemplate;
+	TObjectPtr<UActorComponent> ComponentTemplate;
 
 	UPROPERTY()
 	FComponentKey ComponentKey;
@@ -168,5 +168,5 @@ private:
 
 	/** List of components that were marked unnecessary, need to keep these around so it doesn't regenerate them when a child asks for one */
 	UPROPERTY(Transient)
-	TArray<UActorComponent*> UnnecessaryComponents;
+	TArray<TObjectPtr<UActorComponent>> UnnecessaryComponents;
 };

@@ -428,7 +428,7 @@ public:
 
 	/* Which script to use if this is deprecated.*/
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated"))
-	UNiagaraScript* DeprecationRecommendation;
+	TObjectPtr<UNiagaraScript> DeprecationRecommendation;
 
 	/* Custom logic to convert the contents of an existing script assignment to this script.*/
 	UPROPERTY(EditAnywhere, Category = Script)
@@ -755,7 +755,7 @@ private:
 
 	/** 'Source' data/graphs for this script */
 	UPROPERTY()
-	class UNiagaraScriptSourceBase*	Source;
+	TObjectPtr<class UNiagaraScriptSourceBase>	Source;
 	
 	/** A multicast delegate which is called whenever the script has been compiled (successfully or not). */
 	FOnScriptCompiled OnVMScriptCompiledDelegate;
@@ -799,7 +799,7 @@ private:
 	TMap<const class ITargetPlatform*, TArray<FNiagaraShaderScript*>> CachedScriptResourcesForCooking;
 
 	UPROPERTY(Transient)
-	TArray<UObject*> ActiveCompileRoots;
+	TArray<TObjectPtr<UObject>> ActiveCompileRoots;
 
 	/* Flag set on load based on whether the serialized data includes editor only data */
 	bool IsCooked;
@@ -810,7 +810,7 @@ private:
 	FNiagaraVMExecutableData CachedScriptVM;
 	
 	UPROPERTY()
-	TArray<UNiagaraParameterCollection*> CachedParameterCollectionReferences;
+	TArray<TObjectPtr<UNiagaraParameterCollection>> CachedParameterCollectionReferences;
 
 	UPROPERTY()
 	TArray<FNiagaraScriptDataInterfaceInfo> CachedDefaultDataInterfaces;

@@ -63,7 +63,7 @@ public:
 	
 	/** The graph that was use to create this asset */
 	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")
-	UInterchangeBaseNodeContainer* NodeContainer;
+	TObjectPtr<UInterchangeBaseNodeContainer> NodeContainer;
 
 	/** The Node UID pass to the factory that exist in the graph that was use to create this asset */
 	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")

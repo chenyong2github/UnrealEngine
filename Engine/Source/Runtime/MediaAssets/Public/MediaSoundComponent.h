@@ -244,7 +244,7 @@ protected:
 	 * @see SetMediaPlayer
 	 */
 	UPROPERTY(EditAnywhere, Category="Media")
-	UMediaPlayer* MediaPlayer;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 
 private:
 

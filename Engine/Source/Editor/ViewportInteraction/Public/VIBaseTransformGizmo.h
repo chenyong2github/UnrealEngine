@@ -30,7 +30,7 @@ struct FTransformGizmoMeasurement
 
 	/** The text that displays the actual measurement and units */
 	UPROPERTY()
-	class UTextRenderComponent* MeasurementText = nullptr;
+	TObjectPtr<class UTextRenderComponent> MeasurementText = nullptr;
 };
 
 
@@ -97,15 +97,15 @@ protected:
 	
 	/** Scene component root of this actor */
 	UPROPERTY()
-	USceneComponent* SceneComponent;
+	TObjectPtr<USceneComponent> SceneComponent;
 
 	/** All gizmo components */
 	UPROPERTY()
-	TArray< class UGizmoHandleGroup* > AllHandleGroups;
+	TArray< TObjectPtr<class UGizmoHandleGroup> > AllHandleGroups;
 
 	/** Owning object */
 	UPROPERTY()
-	class UViewportWorldInteraction* WorldInteraction;
+	TObjectPtr<class UViewportWorldInteraction> WorldInteraction;
 	
 	/** Current gizmo type */
 	EGizmoHandleTypes GizmoType;

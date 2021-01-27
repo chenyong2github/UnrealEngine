@@ -244,7 +244,7 @@ public:
 
 	/** The level streaming volumes bound to this level. */
 	UPROPERTY(EditAnywhere, Category=LevelStreaming, meta=(DisplayName = "Streaming Volumes", NoElementDuplicate))
-	TArray<ALevelStreamingVolume*> EditorStreamingVolumes;
+	TArray<TObjectPtr<ALevelStreamingVolume>> EditorStreamingVolumes;
 
 	/** Cooldown time in seconds between volume-based unload requests.  Used in preventing spurious unload requests. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=LevelStreaming, meta=(ClampMin = "0", UIMin = "0", UIMax = "10"))
@@ -535,11 +535,11 @@ protected:
 
 	/** Pointer to Level object if currently loaded/ streamed in.																*/
 	UPROPERTY(transient)
-	class ULevel* LoadedLevel;
+	TObjectPtr<class ULevel> LoadedLevel;
 
 	/** Pointer to a Level object that was previously active and was replaced with a new LoadedLevel (for LOD switching) */
 	UPROPERTY(transient)
-	class ULevel* PendingUnloadLevel;
+	TObjectPtr<class ULevel> PendingUnloadLevel;
 
 private:
 	/** @return Name of the LOD level package used for loading.																		*/

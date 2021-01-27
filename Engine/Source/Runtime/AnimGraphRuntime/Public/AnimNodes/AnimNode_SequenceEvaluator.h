@@ -32,7 +32,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_SequenceEvaluator : public FAnimNode_Asset
 public:
 	// The animation sequence asset to evaluate
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	UAnimSequenceBase* Sequence;
+	TObjectPtr<UAnimSequenceBase> Sequence;
 
 	// The time at which to evaluate the associated sequence
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))

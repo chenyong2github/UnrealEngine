@@ -304,7 +304,7 @@ struct ENGINE_API FEdGraphSchemaAction_NewNode : public FEdGraphSchemaAction
 
 	/** Template of node we want to create */
 	UPROPERTY()
-	class UEdGraphNode* NodeTemplate;
+	TObjectPtr<class UEdGraphNode> NodeTemplate;
 
 
 	FEdGraphSchemaAction_NewNode() 

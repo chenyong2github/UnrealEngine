@@ -14,10 +14,10 @@ class UAnimationStateMachineGraph : public UEdGraph
 
 	// Entry node within the state machine
 	UPROPERTY()
-	class UAnimStateEntryNode* EntryNode;
+	TObjectPtr<class UAnimStateEntryNode> EntryNode;
 
 	// Parent instance node
 	UPROPERTY()
-	class UAnimGraphNode_StateMachineBase* OwnerAnimGraphNode;
+	TObjectPtr<class UAnimGraphNode_StateMachineBase> OwnerAnimGraphNode;
 };
 

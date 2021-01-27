@@ -18,11 +18,11 @@ class APrecomputedVisibilityOverrideVolume : public AVolume
 
 	/** Array of actors that will always be considered visible by Precomputed Visibility when viewed from inside this volume. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PrecomputedVisibilityOverrideVolume)
-	TArray<class AActor*> OverrideVisibleActors;
+	TArray<TObjectPtr<class AActor>> OverrideVisibleActors;
 
 	/** Array of actors that will always be considered invisible by Precomputed Visibility when viewed from inside this volume. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PrecomputedVisibilityOverrideVolume)
-	TArray<class AActor*> OverrideInvisibleActors;
+	TArray<TObjectPtr<class AActor>> OverrideInvisibleActors;
 
 	/** Array of level names whose actors will always be considered invisible by Precomputed Visibility when viewed from inside this volume. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PrecomputedVisibilityOverrideVolume)

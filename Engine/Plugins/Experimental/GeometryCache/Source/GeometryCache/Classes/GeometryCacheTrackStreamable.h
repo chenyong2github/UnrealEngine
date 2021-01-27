@@ -142,7 +142,7 @@ class GEOMETRYCACHE_API UGeometryCacheTrackStreamable : public UGeometryCacheTra
 
 	/** Codec for this track */
 	UPROPERTY(VisibleAnywhere, Category = GeometryCache)
-	UGeometryCacheCodecBase *Codec;
+	TObjectPtr<UGeometryCacheCodecBase> Codec;
 	FGeometryCachePreprocessor *Preprocessor;
 
 	/**

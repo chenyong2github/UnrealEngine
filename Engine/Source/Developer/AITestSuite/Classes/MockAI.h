@@ -38,16 +38,16 @@ class UMockAI : public UObject
 	FTestTickHelper TickHelper;
 
 	UPROPERTY()
-	UBlackboardComponent* BBComp;
+	TObjectPtr<UBlackboardComponent> BBComp;
 
 	UPROPERTY()
-	UBrainComponent* BrainComp;
+	TObjectPtr<UBrainComponent> BrainComp;
 
 	UPROPERTY()
-	UAIPerceptionComponent* PerceptionComp;
+	TObjectPtr<UAIPerceptionComponent> PerceptionComp;
 
 	UPROPERTY()
-	UPawnActionsComponent* PawnActionComp;
+	TObjectPtr<UPawnActionsComponent> PawnActionComp;
 	
 	template<typename TBrainClass>
 	void UseBrainComponent()

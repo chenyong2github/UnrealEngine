@@ -19,11 +19,11 @@ struct FMaterialSpriteElement
 
 	/** The material that the sprite is rendered with. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialSpriteElement)
-	class UMaterialInterface* Material;
+	TObjectPtr<class UMaterialInterface> Material;
 	
 	/** A curve that maps distance on the X axis to the sprite opacity on the Y axis. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialSpriteElement)
-	UCurveFloat* DistanceToOpacityCurve;
+	TObjectPtr<UCurveFloat> DistanceToOpacityCurve;
 	
 	/** Whether the size is defined in screen-space or world-space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialSpriteElement)
@@ -39,7 +39,7 @@ struct FMaterialSpriteElement
 
 	/** A curve that maps distance on the X axis to the sprite size on the Y axis. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialSpriteElement)
-	UCurveFloat* DistanceToSizeCurve;
+	TObjectPtr<UCurveFloat> DistanceToSizeCurve;
 
 	FMaterialSpriteElement()
 		: Material(NULL)

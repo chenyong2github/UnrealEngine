@@ -229,7 +229,7 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncI
 
 	/** The skeletal mesh used by this component. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Mesh")
-	class USkeletalMesh* SkeletalMesh;
+	TObjectPtr<class USkeletalMesh> SkeletalMesh;
 
 	//
 	// MasterPoseComponent.
@@ -421,7 +421,7 @@ public:
 	 *	PhysicsAsset is set in SkeletalMesh by default, but you can override with this value
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Physics)
-	class UPhysicsAsset* PhysicsAssetOverride;
+	TObjectPtr<class UPhysicsAsset> PhysicsAssetOverride;
 
 	//
 	// Level of detail.

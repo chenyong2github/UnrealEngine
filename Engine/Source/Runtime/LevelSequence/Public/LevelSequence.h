@@ -30,7 +30,7 @@ public:
 
 	/** Pointer to the movie scene that controls this animation. */
 	UPROPERTY()
-	UMovieScene* MovieScene;
+	TObjectPtr<UMovieScene> MovieScene;
 
 public:
 
@@ -123,7 +123,7 @@ protected:
 
 	/** A pointer to the director blueprint that generates this sequence's DirectorClass. */
 	UPROPERTY()
-	UBlueprint* DirectorBlueprint;
+	TObjectPtr<UBlueprint> DirectorBlueprint;
 
 #endif
 
@@ -132,7 +132,7 @@ protected:
 	 * Director instances are allocated on-demand one per sequence during evaluation and are used by event tracks for triggering events.
 	 */
 	UPROPERTY()
-	UClass* DirectorClass;
+	TObjectPtr<UClass> DirectorClass;
 
 public:
 	/**
@@ -267,12 +267,12 @@ private:
 
 	/** Array of meta-data objects associated with this level sequence. Each pointer may implement the ILevelSequenceMetaData interface in order to hook into default ULevelSequence functionality. */
 	UPROPERTY()
-	TArray<UObject*> MetaDataObjects;
+	TArray<TObjectPtr<UObject>> MetaDataObjects;
 
 #endif
 
 protected:
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Animation)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 };

@@ -62,7 +62,7 @@ private:
 
 	/** A tree of the widget templates to be created */
 	UPROPERTY()
-	UWidgetTree* WidgetTree;
+	TObjectPtr<UWidgetTree> WidgetTree;
 
 #if WITH_EDITORONLY_DATA
 
@@ -84,7 +84,7 @@ public:
 	TArray< FDelegateRuntimeBinding > Bindings;
 
 	UPROPERTY()
-	TArray< UWidgetAnimation* > Animations;
+	TArray< TObjectPtr<UWidgetAnimation> > Animations;
 
 	UPROPERTY()
 	TArray< FName > NamedSlots;

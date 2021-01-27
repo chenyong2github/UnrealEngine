@@ -93,10 +93,10 @@ private:
 	static uint32 DebugPinId;
 	
 	UPROPERTY()
-	UARTrackedGeometry* TrackedGeometry;
+	TObjectPtr<UARTrackedGeometry> TrackedGeometry;
 	
 	UPROPERTY()
-	USceneComponent* PinnedComponent;
+	TObjectPtr<USceneComponent> PinnedComponent;
 	
 	UPROPERTY()
 	FTransform LocalToTrackingTransform;

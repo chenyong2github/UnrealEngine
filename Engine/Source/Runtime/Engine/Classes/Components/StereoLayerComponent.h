@@ -345,11 +345,11 @@ public:
 protected:
 	/** Texture displayed on the stereo layer (is stereocopic textures are supported on the platfrom and more than one texture is provided, this will be the right eye) **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= "StereoLayer")
-	class UTexture* Texture;
+	TObjectPtr<class UTexture> Texture;
 
 	/** Texture displayed on the stereo layer for left eye, if stereoscopic textures are supported on the platform and by the layer shape **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stereoscopic Properties")
-	class UTexture* LeftTexture;
+	TObjectPtr<class UTexture> LeftTexture;
 
 public:
 	/** True if the quad should internally set it's Y value based on the set texture's dimensions */
@@ -391,7 +391,7 @@ protected:
 
 	/** Specifies which shape of layer it is.  Note that some shapes will be supported only on certain platforms! **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NoClear, Instanced, Category = "StereoLayer", DisplayName="Stereo Layer Shape")
-	UStereoLayerShape* Shape;
+	TObjectPtr<UStereoLayerShape> Shape;
 
 
 	/** Render priority among all stereo layers, higher priority render on top of lower priority **/

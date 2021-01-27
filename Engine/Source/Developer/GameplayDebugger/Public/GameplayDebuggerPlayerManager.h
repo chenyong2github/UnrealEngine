@@ -19,13 +19,13 @@ struct FGameplayDebuggerPlayerData
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UGameplayDebuggerLocalController* Controller = nullptr;
+	TObjectPtr<UGameplayDebuggerLocalController> Controller = nullptr;
 
 	UPROPERTY()
-	UInputComponent* InputComponent = nullptr;
+	TObjectPtr<UInputComponent> InputComponent = nullptr;
 
 	UPROPERTY()
-	AGameplayDebuggerCategoryReplicator* Replicator = nullptr;
+	TObjectPtr<AGameplayDebuggerCategoryReplicator> Replicator = nullptr;
 };
 
 UCLASS(NotBlueprintable, NotBlueprintType, notplaceable, noteditinlinenew, hidedropdown, Transient)
@@ -75,7 +75,7 @@ protected:
 	TArray<FGameplayDebuggerPlayerData> PlayerData;
 
 	UPROPERTY()
-	TArray<AGameplayDebuggerCategoryReplicator*> PendingRegistrations;
+	TArray<TObjectPtr<AGameplayDebuggerCategoryReplicator>> PendingRegistrations;
 
 #if WITH_EDITORONLY_DATA 
 	UPROPERTY()

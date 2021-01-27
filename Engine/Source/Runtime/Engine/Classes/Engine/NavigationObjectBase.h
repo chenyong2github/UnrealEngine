@@ -16,15 +16,15 @@ class ENGINE_API ANavigationObjectBase : public AActor, public INavAgentInterfac
 
 private:
 	UPROPERTY()
-	class UCapsuleComponent* CapsuleComponent;
+	TObjectPtr<class UCapsuleComponent> CapsuleComponent;
 
 	/** Normal editor sprite. */
 	UPROPERTY()
-	class UBillboardComponent* GoodSprite;
+	TObjectPtr<class UBillboardComponent> GoodSprite;
 
 	/** Used to draw bad collision intersection in editor. */
 	UPROPERTY()
-	class UBillboardComponent* BadSprite;
+	TObjectPtr<class UBillboardComponent> BadSprite;
 public:
 
 	/** True if this nav point was spawned to be a PIE player start. */

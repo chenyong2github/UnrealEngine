@@ -31,7 +31,7 @@ class ENGINE_API UDeviceProfile : public UTextureLODSettings
 
 	/** The parent object of this profile, it is the object matching this DeviceType with the BaseProfileName */
 	UPROPERTY()
-	UObject* Parent;
+	TObjectPtr<UObject> Parent;
 
 	/** Flag used in the editor to determine whether the profile is visible in the property matrix */
 	bool bVisible;

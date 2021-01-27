@@ -77,7 +77,7 @@ struct ENGINE_API FSplineCurves
 	FInterpCurveFloat ReparamTable;
 
 	UPROPERTY()
-	USplineMetadata* Metadata_DEPRECATED = nullptr;
+	TObjectPtr<USplineMetadata> Metadata_DEPRECATED = nullptr;
 
 	UPROPERTY(transient)
 	uint32 Version = 0xffffffff;

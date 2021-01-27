@@ -48,5 +48,5 @@ public:
 private:
 	/** List of all sections */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> CameraAnimSections;
+	TArray<TObjectPtr<UMovieSceneSection>> CameraAnimSections;
 };

@@ -14,10 +14,10 @@ class DATASMITHCONTENT_API UDatasmithStaticMeshComponentTemplate : public UDatas
 public:
 
 	UPROPERTY()
-	class UStaticMesh* StaticMesh;
+	TObjectPtr<class UStaticMesh> StaticMesh;
 
 	UPROPERTY()
-	TArray< class UMaterialInterface* > OverrideMaterials;
+	TArray< TObjectPtr<class UMaterialInterface> > OverrideMaterials;
 
 	virtual UObject* UpdateObject( UObject* Destination, bool bForce = false ) override;
 	virtual void Load( const UObject* Source ) override;

@@ -17,7 +17,7 @@ public:
 	ADatasmithImportedSequencesActor(const FObjectInitializer& Init);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImportedSequences")
-	TArray<ULevelSequence*> ImportedSequences;
+	TArray<TObjectPtr<ULevelSequence>> ImportedSequences;
 
     UFUNCTION(BlueprintCallable, Category="ImportedSequences")
 	void PlayLevelSequence(ULevelSequence* SequenceToPlay);

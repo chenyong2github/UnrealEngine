@@ -112,7 +112,7 @@ public:
 
 	/** The level sequence to record into */
 	UPROPERTY(EditAnywhere, Category = "Actor Recording", meta=(EditCondition = "bCreateLevelSequence"))
-	class ULevelSequence* TargetLevelSequence;
+	TObjectPtr<class ULevelSequence> TargetLevelSequence;
 
 	/** Optional target name to record to. If not specified, the actor label will be used */
 	UPROPERTY(EditAnywhere, Category = "Actor Recording", meta=(EditCondition = "bCreateLevelSequence"))
@@ -128,7 +128,7 @@ public:
 
 	/** The target animation we want to record to */
 	UPROPERTY(EditAnywhere, Category = "Animation Recording", meta=(EditCondition = "bSpecifyTargetAnimation"))
-	class UAnimSequence* TargetAnimation;
+	TObjectPtr<class UAnimSequence> TargetAnimation;
 
 	/** The settings to apply to this actor's animation */
 	UPROPERTY(EditAnywhere, Category = "Animation Recording")

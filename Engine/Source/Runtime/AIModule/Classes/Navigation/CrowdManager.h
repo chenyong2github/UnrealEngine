@@ -267,7 +267,7 @@ public:
 protected:
 
 	UPROPERTY(transient)
-	ANavigationData* MyNavData;
+	TObjectPtr<ANavigationData> MyNavData;
 
 	/** obstacle avoidance params */
 	UPROPERTY(config, EditAnywhere, Category = Config)
@@ -342,7 +342,7 @@ protected:
 	 *	only on dedicated-server.
 	 *	Note that this is only relevant when ENABLE_DRAW_DEBUG is enabled*/
 	UPROPERTY(transient)
-	UWorld* DebugDrawingWorld;
+	TObjectPtr<UWorld> DebugDrawingWorld;
 #endif // WITH_EDITORONLY_DATA
 
 	/** try to initialize nav data from already existing ones */

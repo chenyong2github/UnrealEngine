@@ -31,11 +31,11 @@ class PAPER2D_API UPaperSpriteComponent : public UMeshComponent
 protected:
 	// The sprite asset used by this component
 	UPROPERTY(Category=Sprite, EditAnywhere, BlueprintReadOnly, meta=(DisplayThumbnail = "true"))
-	UPaperSprite* SourceSprite;
+	TObjectPtr<UPaperSprite> SourceSprite;
 
 	// DEPRECATED in 4.4: The material override for this sprite component (if any); replaced by the Materials array inherited from UMeshComponent
 	UPROPERTY()
-	UMaterialInterface* MaterialOverride_DEPRECATED;
+	TObjectPtr<UMaterialInterface> MaterialOverride_DEPRECATED;
 
 	// The color of the sprite (passed to the sprite material as a vertex color)
 	UPROPERTY(BlueprintReadOnly, Interp, Category=Sprite)

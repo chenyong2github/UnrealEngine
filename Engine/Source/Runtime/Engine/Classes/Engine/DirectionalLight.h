@@ -23,11 +23,11 @@ class ADirectionalLight
 	// Reference to editor visualization arrow
 private:
 	UPROPERTY()
-	UArrowComponent* ArrowComponent;
+	TObjectPtr<UArrowComponent> ArrowComponent;
 
 	/* EditorOnly reference to the light component to allow it to be displayed in the details panel correctly */
 	UPROPERTY(VisibleAnywhere, Category="Light")
-	UDirectionalLightComponent* DirectionalLightComponent;
+	TObjectPtr<UDirectionalLightComponent> DirectionalLightComponent;
 #endif
 
 public:

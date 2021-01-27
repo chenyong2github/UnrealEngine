@@ -266,7 +266,7 @@ private:
 	FString Name;
 
 	UPROPERTY()
-	UObject* ObjectTemplate;
+	TObjectPtr<UObject> ObjectTemplate;
 
 	/** Set of GUIDs to possessable object bindings that are bound to an object inside this spawnable */
 	// @todo sequencer: This should be a TSet, but they don't duplicate correctly atm
@@ -281,7 +281,7 @@ private:
 public:
 	/** Deprecated generated class */
 	UPROPERTY()
-	UClass* GeneratedClass_DEPRECATED;
+	TObjectPtr<UClass> GeneratedClass_DEPRECATED;
 #endif
 
 	/** Name of level to spawn into */

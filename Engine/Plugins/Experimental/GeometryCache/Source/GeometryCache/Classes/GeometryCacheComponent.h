@@ -157,7 +157,7 @@ public:
 
 	/** Geometry Cache instance referenced by the component */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = GeometryCache)
-	UGeometryCache* GeometryCache;
+	TObjectPtr<UGeometryCache> GeometryCache;
 		
 	/** Get the duration of the playback */
 	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")

@@ -357,31 +357,31 @@ class UNREALED_API UFbxSceneImportFactory : public USceneImportFactory
 
 	/** Import options UI detail when importing fbx scene */
 	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Fbx Scene Import", Transient)
-	class UFbxSceneImportOptions* SceneImportOptions;
+	TObjectPtr<class UFbxSceneImportOptions> SceneImportOptions;
 	
 	/** Import options UI detail when importing fbx scene static mesh*/
 	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Fbx Scene Import", Transient)
-	class UFbxSceneImportOptionsStaticMesh* SceneImportOptionsStaticMesh;
+	TObjectPtr<class UFbxSceneImportOptionsStaticMesh> SceneImportOptionsStaticMesh;
 	
 	/** Import options UI detail when importing fbx scene skeletal mesh*/
 	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Fbx Scene Import", Transient)
-	class UFbxSceneImportOptionsSkeletalMesh* SceneImportOptionsSkeletalMesh;
+	TObjectPtr<class UFbxSceneImportOptionsSkeletalMesh> SceneImportOptionsSkeletalMesh;
 	
 	/** Import data used when importing static meshes */
 	UPROPERTY(Transient)
-	class UFbxStaticMeshImportData* StaticMeshImportData;
+	TObjectPtr<class UFbxStaticMeshImportData> StaticMeshImportData;
 
 	/** Import data used when importing skeletal meshes */
 	UPROPERTY(Transient)
-	class UFbxSkeletalMeshImportData* SkeletalMeshImportData;
+	TObjectPtr<class UFbxSkeletalMeshImportData> SkeletalMeshImportData;
 
 	/** Import data used when importing animations */
 	UPROPERTY(Transient)
-	class UFbxAnimSequenceImportData* AnimSequenceImportData;
+	TObjectPtr<class UFbxAnimSequenceImportData> AnimSequenceImportData;
 
 	/** Import data used when importing textures */
 	UPROPERTY(Transient)
-	class UFbxTextureImportData* TextureImportData;
+	TObjectPtr<class UFbxTextureImportData> TextureImportData;
 	
 	/* Default Options always have the same name "Default" */
 	static FString DefaultOptionName;
@@ -444,7 +444,7 @@ protected:
 
 	/** Pointer on the fbx scene import data, we fill this object to be able to do re import of the scene */
 	UPROPERTY()
-	UFbxSceneImportData* ReimportData;
+	TObjectPtr<UFbxSceneImportData> ReimportData;
 	
 	/** Assets created by the factory*/
 	TMap<TSharedPtr<FFbxAttributeInfo>, UObject*> AllNewAssets;

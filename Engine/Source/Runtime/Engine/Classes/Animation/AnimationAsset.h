@@ -77,7 +77,7 @@ struct FBlendSampleData
 	int32 SampleDataIndex;
 
 	UPROPERTY()
-	class UAnimSequence* Animation;
+	TObjectPtr<class UAnimSequence> Animation;
 
 	UPROPERTY()
 	float TotalWeight;
@@ -287,7 +287,7 @@ struct FAnimTickRecord
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	class UAnimationAsset* SourceAsset = nullptr;
+	TObjectPtr<class UAnimationAsset> SourceAsset = nullptr;
 
 	float* TimeAccumulator = nullptr;
 	float PlayRateMultiplier = 1.0f;
@@ -857,7 +857,7 @@ class ENGINE_API UAnimationAsset : public UObject, public IInterface_AssetUserDa
 private:
 	/** Pointer to the Skeleton this asset can be played on .	*/
 	UPROPERTY(AssetRegistrySearchable, Category=Animation, VisibleAnywhere)
-	class USkeleton* Skeleton;
+	TObjectPtr<class USkeleton> Skeleton;
 
 	/** Skeleton guid. If changes, you need to remap info*/
 	FGuid SkeletonGuid;
@@ -870,7 +870,7 @@ private:
 	 * You can query by GetMetaData function
 	 */
 	UPROPERTY(Category=MetaData, instanced, EditAnywhere)
-	TArray<UAnimMetaData*> MetaData;
+	TArray<TObjectPtr<UAnimMetaData>> MetaData;
 
 public:
 	/* 
@@ -886,7 +886,7 @@ public:
 	 * 
 	 * During cooking, this data will be used to bake out to normal asset */
 	UPROPERTY(AssetRegistrySearchable, Category=Animation, VisibleAnywhere)
-	class UAnimationAsset* ParentAsset;
+	TObjectPtr<class UAnimationAsset> ParentAsset;
 
 	/** 
 	 * @todo : comment
@@ -897,7 +897,7 @@ public:
 	 * note this is transient as they're added as they're loaded
 	 */
 	UPROPERTY(transient)
-	TArray<class UAnimationAsset*> ChildrenAssets;
+	TArray<TObjectPtr<class UAnimationAsset>> ChildrenAssets;
 
 	const UAssetMappingTable* GetAssetMappingTable() const
 	{
@@ -906,13 +906,13 @@ public:
 protected:
 	/** Asset mapping table when ParentAsset is set */
 	UPROPERTY(Category=Animation, VisibleAnywhere)
-	class UAssetMappingTable* AssetMappingTable;
+	TObjectPtr<class UAssetMappingTable> AssetMappingTable;
 #endif // WITH_EDITORONLY_DATA
 
 protected:
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Animation)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 public:
 	/** Advances the asset player instance 
@@ -1030,12 +1030,12 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, Category = Thumbnail)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 
 	/** The default skeletal mesh to use when previewing this asset - this only applies when you open Persona using this asset*/
 	// @todo: note that this doesn't retarget right now
 	UPROPERTY(duplicatetransient, EditAnywhere, Category = Animation)
-	class UPoseAsset* PreviewPoseAsset;
+	TObjectPtr<class UPoseAsset> PreviewPoseAsset;
 
 private:
 	/** The default skeletal mesh to use when previewing this asset - this only applies when you open Persona using this asset*/

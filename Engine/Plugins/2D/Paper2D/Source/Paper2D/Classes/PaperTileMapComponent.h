@@ -51,13 +51,13 @@ private:
 	int32 TileHeight_DEPRECATED;
 
 	UPROPERTY()
-	class UPaperTileSet* DefaultLayerTileSet_DEPRECATED;
+	TObjectPtr<class UPaperTileSet> DefaultLayerTileSet_DEPRECATED;
 
 	UPROPERTY()
-	UMaterialInterface* Material_DEPRECATED;
+	TObjectPtr<UMaterialInterface> Material_DEPRECATED;
 
 	UPROPERTY()
-	TArray<UPaperTileLayer*> TileLayers_DEPRECATED;
+	TArray<TObjectPtr<UPaperTileLayer>> TileLayers_DEPRECATED;
 
 	// The color of the tile map (multiplied with the per-layer color and passed to the material as a vertex color)
 	UPROPERTY(EditAnywhere, Category=Materials)
@@ -82,7 +82,7 @@ private:
 public:
 	// The tile map used by this component
 	UPROPERTY(Category=Setup, EditAnywhere, BlueprintReadOnly)
-	class UPaperTileMap* TileMap;
+	TObjectPtr<class UPaperTileMap> TileMap;
 
 #if WITH_EDITORONLY_DATA
 	// Should this component show a tile grid when the component is selected?

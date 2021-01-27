@@ -19,7 +19,7 @@ class ULightmappedSurfaceCollection : public UObject
 
 	/** The UModel these surfaces come from. */
 	UPROPERTY(EditAnywhere, Category=LightmappedSurfaceCollection)
-	class UModel* SourceModel;
+	TObjectPtr<class UModel> SourceModel;
 
 	/** An array of the surface indices grouped into a single static lighting mapping. */
 	UPROPERTY(EditAnywhere, Category=LightmappedSurfaceCollection)

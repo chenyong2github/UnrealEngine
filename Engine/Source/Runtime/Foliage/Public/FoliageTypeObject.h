@@ -41,11 +41,11 @@ struct FOLIAGE_API FFoliageTypeObject
 private:
 	/** The foliage type that will be spawned by the procedural foliage simulation */
 	UPROPERTY(Category = ProceduralFoliageSimulation, EditAnywhere, meta=(AllowedClasses="FoliageType_InstancedStaticMesh,FoliageType_Actor,Blueprint", DisplayThumbnail="true", ThumbnailSize="X=40 Y=40"))
-	UObject* FoliageTypeObject;
+	TObjectPtr<UObject> FoliageTypeObject;
 
 	/** The actual instance of the foliage type that is used for spawning */
 	UPROPERTY(transient)
-	UFoliageType* TypeInstance;
+	TObjectPtr<UFoliageType> TypeInstance;
 
 	/** Whether this contains an asset object (as opposed to a BP class) */
 	UPROPERTY()

@@ -44,7 +44,7 @@ struct SYNTHESIS_API FSourceEffectFilterAudioBusModulationSettings
 
 	// Audio bus to use to modulate the filter
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset|AudioBus")
-	UAudioBus* AudioBus = nullptr;
+	TObjectPtr<UAudioBus> AudioBus = nullptr;
 
 	// The amplitude envelope follower attack time (in milliseconds) on the audio bus.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Modulation Envelope", meta = (ClampMin = "0", UIMin = "0", UIMax = "2000.0", DisplayName = "Attack Time (ms)"))

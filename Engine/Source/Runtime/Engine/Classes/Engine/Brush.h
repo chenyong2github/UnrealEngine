@@ -103,16 +103,16 @@ class ENGINE_API ABrush
 	uint32 bNotForClientOrServer:1;
 
 	UPROPERTY(Instanced)
-	class UModel* Brush;
+	TObjectPtr<class UModel> Brush;
 
 private:
 	UPROPERTY(Category = Collision, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UBrushComponent* BrushComponent;
+	TObjectPtr<class UBrushComponent> BrushComponent;
 public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, Instanced, Category=BrushBuilder)
-	class UBrushBuilder* BrushBuilder;
+	TObjectPtr<class UBrushBuilder> BrushBuilder;
 #endif
 
 	/** Flag set when we are in a manipulation (scaling, translation, brush builder param change etc.) */

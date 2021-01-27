@@ -162,7 +162,7 @@ struct NIAGARA_API FNiagaraParameterStore
 private:
 	/** Owner of this store. Used to provide an outer to data interfaces in this store. */
 	UPROPERTY(Transient)
-	UObject* Owner;
+	TObjectPtr<UObject> Owner;
 	
 #if WITH_EDITORONLY_DATA
 	/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
@@ -181,11 +181,11 @@ private:
 	
 	/** Data interfaces for this script. Possibly overridden with externally owned interfaces. Also indexed by ParameterOffsets. */
 	UPROPERTY()
-	TArray<UNiagaraDataInterface*> DataInterfaces;
+	TArray<TObjectPtr<UNiagaraDataInterface>> DataInterfaces;
 
 	/** UObjects referenced by this store. Also indexed by ParameterOffsets.*/
 	UPROPERTY()
-	TArray<UObject*> UObjects;
+	TArray<TObjectPtr<UObject>> UObjects;
 
 	/** Bindings between this parameter store and others we push data into when we tick. */
 	typedef TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> BindingPair;

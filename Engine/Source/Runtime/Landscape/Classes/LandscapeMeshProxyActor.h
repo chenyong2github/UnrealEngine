@@ -15,7 +15,7 @@ class ALandscapeMeshProxyActor : public AActor
 
 private:
 	UPROPERTY(Category = LandscapeMeshProxyActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))
-	class ULandscapeMeshProxyComponent* LandscapeMeshProxyComponent;
+	TObjectPtr<class ULandscapeMeshProxyComponent> LandscapeMeshProxyComponent;
 
 public:
 	/** Returns StaticMeshComponent subobject **/

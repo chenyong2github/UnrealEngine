@@ -41,6 +41,6 @@ protected:
 
 	/** All the sections in this track */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> Sections;
+	TArray<TObjectPtr<UMovieSceneSection>> Sections;
 };
 

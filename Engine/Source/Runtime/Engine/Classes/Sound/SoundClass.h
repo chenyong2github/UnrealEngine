@@ -140,7 +140,7 @@ struct FSoundClassProperties
 	/** Default output submix of referencing sounds. If unset, falls back to the 'Master Submix' as set in the 'Audio' category of Project Settings. 
 	  * (Unavailable if legacy 'Output to Master EQ Submix' is set) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Submix, meta = (EditCondition = "!bApplyEffects"))
-	USoundSubmix* DefaultSubmix;
+	TObjectPtr<USoundSubmix> DefaultSubmix;
 
 	FSoundClassProperties();
 };
@@ -167,7 +167,7 @@ struct FPassiveSoundMixModifier
 
 	/** The SoundMix to activate */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=PassiveSoundMixModifier)
-	class USoundMix* SoundMix;
+	TObjectPtr<class USoundMix> SoundMix;
 
 	/** Minimum volume level required to activate SoundMix. Below this value the SoundMix will not be active. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=PassiveSoundMixModifier)
@@ -212,14 +212,14 @@ public:
 	FSoundClassProperties Properties;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = General)
-	TArray<USoundClass*> ChildClasses;
+	TArray<TObjectPtr<USoundClass>> ChildClasses;
 
 	/** SoundMix Modifiers to activate automatically when a sound of this class is playing. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = General)
 	TArray<FPassiveSoundMixModifier> PassiveSoundMixModifiers;
 
 	UPROPERTY(BlueprintReadOnly, Category = General)
-	USoundClass* ParentClass;
+	TObjectPtr<USoundClass> ParentClass;
 
 #if WITH_EDITORONLY_DATA
 	/** EdGraph based representation of the SoundClass */

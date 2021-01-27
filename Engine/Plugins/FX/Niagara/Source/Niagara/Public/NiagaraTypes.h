@@ -957,7 +957,7 @@ public:
 	In occasional situations this may be a UClass when we're dealing with DataInterface etc.
 	*/
 	UPROPERTY(EditAnywhere, Category=Type)
-	UObject* ClassStructOrEnum;
+	TObjectPtr<UObject> ClassStructOrEnum;
 
 	// See enumeration FUnderlyingType for possible values
 	UPROPERTY(EditAnywhere, Category=Type)
@@ -972,10 +972,10 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UStruct* Struct_DEPRECATED;
+	TObjectPtr<UStruct> Struct_DEPRECATED;
 
 	UPROPERTY()
-	UEnum* Enum_DEPRECATED;
+	TObjectPtr<UEnum> Enum_DEPRECATED;
 #endif
 
 public:

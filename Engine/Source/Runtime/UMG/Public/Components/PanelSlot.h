@@ -16,10 +16,10 @@ class UMG_API UPanelSlot : public UVisual
 public:
 
 	UPROPERTY(Instanced)
-	class UPanelWidget* Parent;
+	TObjectPtr<class UPanelWidget> Parent;
 
 	UPROPERTY(Instanced)
-	class UWidget* Content;
+	TObjectPtr<class UWidget> Content;
 	
 #if WITH_EDITOR
 	bool IsDesignTime() const;

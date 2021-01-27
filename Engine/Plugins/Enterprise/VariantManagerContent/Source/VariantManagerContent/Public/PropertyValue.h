@@ -208,7 +208,7 @@ protected:
 	// We use these mainly to know how to serialize/deserialize the values of properties that need special care
 	// (e.g. UObjectProperties, name properties, text properties, etc)
 	UPROPERTY()
-	UClass* LeafPropertyClass_DEPRECATED;
+	TObjectPtr<UClass> LeafPropertyClass_DEPRECATED;
 	FFieldClass* LeafPropertyClass;
 
 	UPROPERTY()

@@ -14,7 +14,7 @@ struct UNREALED_API FDFontParameters
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category = DFontParameter)
-	class UFont* FontValue = nullptr;
+	TObjectPtr<class UFont> FontValue = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = DFontParameter)
 	int32 FontPage;

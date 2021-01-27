@@ -157,7 +157,7 @@ struct FFullyLoadedPackagesInfo
 
 	/** List of objects that were loaded, for faster cleanup */
 	UPROPERTY()
-	TArray<class UObject*> LoadedObjects;
+	TArray<TObjectPtr<class UObject>> LoadedObjects;
 
 
 	FFullyLoadedPackagesInfo()
@@ -242,7 +242,7 @@ struct FNamedNetDriver
 
 	/** Instantiation of named net driver */
 	UPROPERTY(transient)
-	class UNetDriver* NetDriver;
+	TObjectPtr<class UNetDriver> NetDriver;
 
 	/** Definition associated with this net driver */
 	FNetDriverDefinition* NetDriverDef;
@@ -311,7 +311,7 @@ struct FWorldContext
 	struct FURL LastRemoteURL;
 
 	UPROPERTY()
-	UPendingNetGame * PendingNetGame;
+	TObjectPtr<UPendingNetGame>  PendingNetGame;
 
 	/** A list of tag/array pairs that is used at LoadMap time to fully load packages that may be needed for the map/game with DLC, but we can't use DynamicLoadObject to load from the packages */
 	UPROPERTY()
@@ -325,7 +325,7 @@ struct FWorldContext
 
 	/** Array of already loaded levels. The ordering is arbitrary and depends on what is already loaded and such.	*/
 	UPROPERTY()
-	TArray<class ULevel*> LoadedLevelsForPendingMapChange;
+	TArray<TObjectPtr<class ULevel>> LoadedLevelsForPendingMapChange;
 
 	/** Human readable error string for any failure during a map change request. Empty if there were no failures.	*/
 	FString PendingMapChangeFailureDescription;
@@ -335,16 +335,16 @@ struct FWorldContext
 
 	/** Handles to object references; used by the engine to e.g. the prevent objects from being garbage collected.	*/
 	UPROPERTY()
-	TArray<class UObjectReferencer*> ObjectReferencers;
+	TArray<TObjectPtr<class UObjectReferencer>> ObjectReferencers;
 
 	UPROPERTY()
 	TArray<struct FLevelStreamingStatus> PendingLevelStreamingStatusUpdates;
 
 	UPROPERTY()
-	class UGameViewportClient* GameViewport;
+	TObjectPtr<class UGameViewportClient> GameViewport;
 
 	UPROPERTY()
-	class UGameInstance* OwningGameInstance;
+	TObjectPtr<class UGameInstance> OwningGameInstance;
 
 	/** A list of active net drivers */
 	UPROPERTY(transient)
@@ -643,7 +643,7 @@ class ENGINE_API UEngine
 
 private:
 	UPROPERTY()
-	class UFont* TinyFont;
+	TObjectPtr<class UFont> TinyFont;
 
 public:
 	/** Sets the font used for the smallest engine text */
@@ -652,7 +652,7 @@ public:
 
 private:
 	UPROPERTY()
-	class UFont* SmallFont;
+	TObjectPtr<class UFont> SmallFont;
 
 public:
 	/** Sets the font used for small engine text, used for most debug displays */
@@ -661,7 +661,7 @@ public:
 
 private:
 	UPROPERTY()
-	class UFont* MediumFont;
+	TObjectPtr<class UFont> MediumFont;
 
 public:
 	/** Sets the font used for medium engine text */
@@ -670,7 +670,7 @@ public:
 
 private:
 	UPROPERTY()
-	class UFont* LargeFont;
+	TObjectPtr<class UFont> LargeFont;
 
 public:
 	/** Sets the font used for large engine text */
@@ -679,7 +679,7 @@ public:
 
 private:
 	UPROPERTY()
-	class UFont* SubtitleFont;
+	TObjectPtr<class UFont> SubtitleFont;
 
 public:
 	/** Sets the font used by the default Subtitle Manager */
@@ -688,7 +688,7 @@ public:
 
 private:
 	UPROPERTY()
-	TArray<class UFont*> AdditionalFonts;
+	TArray<TObjectPtr<class UFont>> AdditionalFonts;
 
 public:
 	/** Sets additional fonts that will be loaded at startup and available using GetAdditionalFont. */
@@ -764,7 +764,7 @@ public:
 
 	/** Global instance of the user game settings */
 	UPROPERTY()
-	class UGameUserSettings* GameUserSettings;
+	TObjectPtr<class UGameUserSettings> GameUserSettings;
 
 	UPROPERTY()
 	TSubclassOf<class ALevelScriptActor>  LevelScriptActorClass;
@@ -783,7 +783,7 @@ public:
 
 	/** A UObject spawned at initialization time to handle game-specific data */
 	UPROPERTY()
-	UObject *GameSingleton;
+	TObjectPtr<UObject> GameSingleton;
 
 	/** Sets the class to spawn as the global AssetManager, configurable per game. If empty, it will not spawn one */
 	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="Object", DisplayName="Asset Manager Class"), AdvancedDisplay)
@@ -791,11 +791,11 @@ public:
 
 	/** A UObject spawned at initialization time to handle runtime asset loading and management */
 	UPROPERTY()
-	class UAssetManager *AssetManager;
+	TObjectPtr<class UAssetManager> AssetManager;
 
 	/** A global default texture. */
 	UPROPERTY()
-	class UTexture2D* DefaultTexture;
+	TObjectPtr<class UTexture2D> DefaultTexture;
 
 	/** Path of the global default texture that is used when no texture is specified. */
 	UPROPERTY(globalconfig)
@@ -803,7 +803,7 @@ public:
 
 	/** A global default diffuse texture.*/
 	UPROPERTY()
-	class UTexture* DefaultDiffuseTexture;
+	TObjectPtr<class UTexture> DefaultDiffuseTexture;
 
 	/** Path of the global default diffuse texture.*/
 	UPROPERTY(globalconfig)
@@ -811,7 +811,7 @@ public:
 
 	/** Texture used to render a vertex in the editor */
 	UPROPERTY()
-	class UTexture2D* DefaultBSPVertexTexture;
+	TObjectPtr<class UTexture2D> DefaultBSPVertexTexture;
 
 	/** Path of the texture used to render a vertex in the editor */
 	UPROPERTY(globalconfig)
@@ -819,7 +819,7 @@ public:
 
 	/** Texture used to get random image grain values for post processing */
 	UPROPERTY()
-	class UTexture2D* HighFrequencyNoiseTexture;
+	TObjectPtr<class UTexture2D> HighFrequencyNoiseTexture;
 
 	/** Path of the texture used to get random image grain values for post processing */
 	UPROPERTY(globalconfig)
@@ -827,7 +827,7 @@ public:
 
 	/** Texture used to blur out of focus content, mimics the Bokeh shape of actual cameras */
 	UPROPERTY()
-	class UTexture2D* DefaultBokehTexture;
+	TObjectPtr<class UTexture2D> DefaultBokehTexture;
 
 	/** Path of the texture used to blur out of focus content, mimics the Bokeh shape of actual cameras */
 	UPROPERTY(globalconfig)
@@ -835,7 +835,7 @@ public:
 
 	/** Texture used to bloom when using FFT, mimics characteristic bloom produced in a camera from a signle bright source */
 	UPROPERTY()
-	class UTexture2D* DefaultBloomKernelTexture;
+	TObjectPtr<class UTexture2D> DefaultBloomKernelTexture;
 
 	/** Path of the texture used to bloom when using FFT, mimics characteristic bloom produced in a camera from a signle bright source */
 	UPROPERTY(globalconfig)
@@ -843,7 +843,7 @@ public:
 
 	/** The material used to render wireframe meshes. */
 	UPROPERTY()
-	class UMaterial* WireframeMaterial;
+	TObjectPtr<class UMaterial> WireframeMaterial;
 	
 	/** Path of the material used to render wireframe meshes in the editor and debug tools. */
 	UPROPERTY(globalconfig)
@@ -852,7 +852,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** A translucent material used to render things in geometry mode. */
 	UPROPERTY()
-	class UMaterial* GeomMaterial;
+	TObjectPtr<class UMaterial> GeomMaterial;
 
 	/** Path of the translucent material used to render things in geometry mode. */
 	UPROPERTY(globalconfig)
@@ -861,7 +861,7 @@ public:
 
 	/** A material used to render debug meshes. */
 	UPROPERTY()
-	class UMaterial* DebugMeshMaterial;
+	TObjectPtr<class UMaterial> DebugMeshMaterial;
 
 	/** Path of the default material for debug mesh */
 	UPROPERTY(globalconfig)
@@ -869,7 +869,7 @@ public:
 
 	/** A material used to render emissive meshes (e.g. light source surface). */
 	UPROPERTY()
-	class UMaterial* EmissiveMeshMaterial;
+	TObjectPtr<class UMaterial> EmissiveMeshMaterial;
 
 	/** Path of the default material for emissive mesh */
 	UPROPERTY(globalconfig)
@@ -877,7 +877,7 @@ public:
 
 	/** Material used for visualizing level membership in lit view port modes. */
 	UPROPERTY()
-	class UMaterial* LevelColorationLitMaterial;
+	TObjectPtr<class UMaterial> LevelColorationLitMaterial;
 
 	/** Path of the material used for visualizing level membership in lit view port modes. */
 	UPROPERTY(globalconfig)
@@ -885,7 +885,7 @@ public:
 
 	/** Material used for visualizing level membership in unlit view port modes. */
 	UPROPERTY()
-	class UMaterial* LevelColorationUnlitMaterial;
+	TObjectPtr<class UMaterial> LevelColorationUnlitMaterial;
 
 	/** Path of the material used for visualizing level membership in unlit view port modes. */
 	UPROPERTY(globalconfig)
@@ -893,7 +893,7 @@ public:
 
 	/** Material used for visualizing lighting only w/ lightmap texel density. */
 	UPROPERTY()
-	class UMaterial* LightingTexelDensityMaterial;
+	TObjectPtr<class UMaterial> LightingTexelDensityMaterial;
 
 	/** Path of the material used for visualizing lighting only w/ lightmap texel density. */
 	UPROPERTY(globalconfig)
@@ -901,7 +901,7 @@ public:
 
 	/** Material used for visualizing level membership in lit view port modes. Uses shading to show axis directions. */
 	UPROPERTY()
-	class UMaterial* ShadedLevelColorationLitMaterial;
+	TObjectPtr<class UMaterial> ShadedLevelColorationLitMaterial;
 
 	/** Path of the material used for visualizing level membership in lit view port modes. Uses shading to show axis directions. */
 	UPROPERTY(globalconfig)
@@ -909,7 +909,7 @@ public:
 
 	/** Material used for visualizing level membership in unlit view port modes.  Uses shading to show axis directions. */
 	UPROPERTY()
-	class UMaterial* ShadedLevelColorationUnlitMaterial;
+	TObjectPtr<class UMaterial> ShadedLevelColorationUnlitMaterial;
 
 	/** Path of the material used for visualizing level membership in unlit view port modes.  Uses shading to show axis directions. */
 	UPROPERTY(globalconfig)
@@ -917,7 +917,7 @@ public:
 
 	/** Material used to indicate that the associated BSP surface should be removed. */
 	UPROPERTY()
-	class UMaterial* RemoveSurfaceMaterial;
+	TObjectPtr<class UMaterial> RemoveSurfaceMaterial;
 
 	/** Path of the material used to indicate that the associated BSP surface should be removed. */
 	UPROPERTY(globalconfig)
@@ -925,7 +925,7 @@ public:
 
 	/** Material used to visualize vertex colors as emissive */
 	UPROPERTY()
-	class UMaterial* VertexColorMaterial;
+	TObjectPtr<class UMaterial> VertexColorMaterial;
 
 	/** Path of the material used to visualize vertex colors as emissive */
 	UPROPERTY(globalconfig)
@@ -933,7 +933,7 @@ public:
 
 	/** Material for visualizing vertex colors on meshes in the scene (color only, no alpha) */
 	UPROPERTY()
-	class UMaterial* VertexColorViewModeMaterial_ColorOnly;
+	TObjectPtr<class UMaterial> VertexColorViewModeMaterial_ColorOnly;
 
 	/** Path of the material for visualizing vertex colors on meshes in the scene (color only, no alpha) */
 	UPROPERTY(globalconfig)
@@ -941,7 +941,7 @@ public:
 
 	/** Material for visualizing vertex colors on meshes in the scene (alpha channel as color) */
 	UPROPERTY()
-	class UMaterial* VertexColorViewModeMaterial_AlphaAsColor;
+	TObjectPtr<class UMaterial> VertexColorViewModeMaterial_AlphaAsColor;
 
 	/** Path of the material for visualizing vertex colors on meshes in the scene (alpha channel as color) */
 	UPROPERTY(globalconfig)
@@ -949,7 +949,7 @@ public:
 
 	/** Material for visualizing vertex colors on meshes in the scene (red only) */
 	UPROPERTY()
-	class UMaterial* VertexColorViewModeMaterial_RedOnly;
+	TObjectPtr<class UMaterial> VertexColorViewModeMaterial_RedOnly;
 
 	/** Path of the material for visualizing vertex colors on meshes in the scene (red only) */
 	UPROPERTY(globalconfig)
@@ -957,7 +957,7 @@ public:
 
 	/** Material for visualizing vertex colors on meshes in the scene (green only) */
 	UPROPERTY()
-	class UMaterial* VertexColorViewModeMaterial_GreenOnly;
+	TObjectPtr<class UMaterial> VertexColorViewModeMaterial_GreenOnly;
 
 	/** Path of the material for visualizing vertex colors on meshes in the scene (green only) */
 	UPROPERTY(globalconfig)
@@ -965,7 +965,7 @@ public:
 
 	/** Material for visualizing vertex colors on meshes in the scene (blue only) */
 	UPROPERTY()
-	class UMaterial* VertexColorViewModeMaterial_BlueOnly;
+	TObjectPtr<class UMaterial> VertexColorViewModeMaterial_BlueOnly;
 
 	/** Path of the material for visualizing vertex colors on meshes in the scene (blue only) */
 	UPROPERTY(globalconfig)
@@ -974,7 +974,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Material used to render bone weights on skeletal meshes */
 	UPROPERTY()
-	class UMaterial* BoneWeightMaterial;
+	TObjectPtr<class UMaterial> BoneWeightMaterial;
 
 	/** Path of the material used to render bone weights on skeletal meshes */
 	UPROPERTY(globalconfig)
@@ -982,13 +982,13 @@ public:
 
 	/** Materials used to render cloth properties on skeletal meshes */
 	UPROPERTY()
-	class UMaterial* ClothPaintMaterial;
+	TObjectPtr<class UMaterial> ClothPaintMaterial;
 	UPROPERTY()
-	class UMaterial* ClothPaintMaterialWireframe;
+	TObjectPtr<class UMaterial> ClothPaintMaterialWireframe;
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ClothPaintMaterialInstance;
+	TObjectPtr<class UMaterialInstanceDynamic> ClothPaintMaterialInstance;
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ClothPaintMaterialWireframeInstance;
+	TObjectPtr<class UMaterialInstanceDynamic> ClothPaintMaterialWireframeInstance;
 
 	/** Name of the material used to render cloth in the clothing tools */
 	UPROPERTY(globalconfig)
@@ -1000,7 +1000,7 @@ public:
 
 	/** A material used to render physical material mask on mesh. */
 	UPROPERTY()
-	class UMaterial* PhysicalMaterialMaskMaterial;
+	TObjectPtr<class UMaterial> PhysicalMaterialMaskMaterial;
 
 	/** A material used to render physical material mask on mesh. */
 	UPROPERTY(globalconfig)
@@ -1008,7 +1008,7 @@ public:
 
 	/** A material used to render debug meshes. */
 	UPROPERTY()
-	class UMaterial* DebugEditorMaterial;
+	TObjectPtr<class UMaterial> DebugEditorMaterial;
 #endif
 
 	/** A material used to render debug opaque material. Used in various animation editor viewport features. */
@@ -1017,30 +1017,30 @@ public:
 
 	/** Material used to render constraint limits */
 	UPROPERTY()
-	class UMaterial* ConstraintLimitMaterial;
+	TObjectPtr<class UMaterial> ConstraintLimitMaterial;
 
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ConstraintLimitMaterialX;
+	TObjectPtr<class UMaterialInstanceDynamic> ConstraintLimitMaterialX;
 
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ConstraintLimitMaterialXAxis;
+	TObjectPtr<class UMaterialInstanceDynamic> ConstraintLimitMaterialXAxis;
 
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ConstraintLimitMaterialY;
+	TObjectPtr<class UMaterialInstanceDynamic> ConstraintLimitMaterialY;
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ConstraintLimitMaterialYAxis;
+	TObjectPtr<class UMaterialInstanceDynamic> ConstraintLimitMaterialYAxis;
 
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ConstraintLimitMaterialZ;
+	TObjectPtr<class UMaterialInstanceDynamic> ConstraintLimitMaterialZ;
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ConstraintLimitMaterialZAxis;
+	TObjectPtr<class UMaterialInstanceDynamic> ConstraintLimitMaterialZAxis;
 
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ConstraintLimitMaterialPrismatic;
+	TObjectPtr<class UMaterialInstanceDynamic> ConstraintLimitMaterialPrismatic;
 
 	/** Material that renders a message about lightmap settings being invalid. */
 	UPROPERTY()
-	class UMaterial* InvalidLightmapSettingsMaterial;
+	TObjectPtr<class UMaterial> InvalidLightmapSettingsMaterial;
 
 	/** Path of the material that renders a message about lightmap settings being invalid. */
 	UPROPERTY(globalconfig)
@@ -1048,7 +1048,7 @@ public:
 
 	/** Material that renders a message about preview shadows being used. */
 	UPROPERTY()
-	class UMaterial* PreviewShadowsIndicatorMaterial;
+	TObjectPtr<class UMaterial> PreviewShadowsIndicatorMaterial;
 
 	/** Path of the material that renders a message about preview shadows being used. */
 	UPROPERTY(globalconfig, EditAnywhere, Category=DefaultMaterials, meta=(AllowedClasses="Material", DisplayName="Preview Shadows Indicator Material"))
@@ -1056,11 +1056,11 @@ public:
 
 	/** Material that 'fakes' lighting, used for arrows, widgets. */
 	UPROPERTY()
-	class UMaterial* ArrowMaterial;
+	TObjectPtr<class UMaterial> ArrowMaterial;
 
 	/** Arrow material instance with yellow color. */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* ArrowMaterialYellow;
+	TObjectPtr<class UMaterialInstanceDynamic> ArrowMaterialYellow;
 
 	/** Path of the material that 'fakes' lighting, used for arrows, widgets. */
 	UPROPERTY(globalconfig)
@@ -1147,7 +1147,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** A material used to render the sides of the builder brush/volumes/etc. */
 	UPROPERTY()
-	class UMaterial* EditorBrushMaterial;
+	TObjectPtr<class UMaterial> EditorBrushMaterial;
 
 	/** Path of the material used to render the sides of the builder brush/volumes/etc. */
 	UPROPERTY(globalconfig)
@@ -1156,7 +1156,7 @@ public:
 
 	/** PhysicalMaterial to use if none is defined for a particular object. */
 	UPROPERTY()
-	class UPhysicalMaterial* DefaultPhysMaterial;
+	TObjectPtr<class UPhysicalMaterial> DefaultPhysMaterial;
 
 	/** Path of the PhysicalMaterial to use if none is defined for a particular object. */
 	UPROPERTY(globalconfig)
@@ -1177,7 +1177,7 @@ public:
 
 	/** Texture used for pre-integrated skin shading */
 	UPROPERTY()
-	class UTexture2D* PreIntegratedSkinBRDFTexture;
+	TObjectPtr<class UTexture2D> PreIntegratedSkinBRDFTexture;
 
 	/** Path of the texture used for pre-integrated skin shading */
 	UPROPERTY(globalconfig)
@@ -1185,7 +1185,7 @@ public:
 
 	/** Tiled blue-noise texture */
 	UPROPERTY()
-	class UTexture2D* BlueNoiseTexture;
+	TObjectPtr<class UTexture2D> BlueNoiseTexture;
 
 	/** Path of the tiled blue-noise texture */
 	UPROPERTY(globalconfig)
@@ -1193,7 +1193,7 @@ public:
 
 	/** Texture used to do font rendering in shaders */
 	UPROPERTY()
-	class UTexture2D* MiniFontTexture;
+	TObjectPtr<class UTexture2D> MiniFontTexture;
 
 	/** Path of the texture used to do font rendering in shaders */
 	UPROPERTY(globalconfig)
@@ -1201,7 +1201,7 @@ public:
 
 	/** Texture used as a placeholder for terrain weight-maps to give the material the correct texture format. */
 	UPROPERTY()
-	class UTexture* WeightMapPlaceholderTexture;
+	TObjectPtr<class UTexture> WeightMapPlaceholderTexture;
 
 	/** Path of the texture used as a placeholder for terrain weight-maps to give the material the correct texture format. */
 	UPROPERTY(globalconfig)
@@ -1209,7 +1209,7 @@ public:
 
 	/** Texture used to display LightMapDensity */
 	UPROPERTY()
-	class UTexture2D* LightMapDensityTexture;
+	TObjectPtr<class UTexture2D> LightMapDensityTexture;
 
 	/** Path of the texture used to display LightMapDensity */
 	UPROPERTY(globalconfig)
@@ -1222,7 +1222,7 @@ public:
 
 	/** The view port representing the current game instance. Can be 0 so don't use without checking. */
 	UPROPERTY()
-	class UGameViewportClient* GameViewport;
+	TObjectPtr<class UGameViewportClient> GameViewport;
 
 	/** Array of deferred command strings/ execs that get executed at the end of the frame */
 	UPROPERTY()
@@ -1286,7 +1286,7 @@ public:
 private:
 	/** Controls how the Engine process the Framerate/Timestep */
 	UPROPERTY(transient)
-	UEngineCustomTimeStep* CustomTimeStep;
+	TObjectPtr<UEngineCustomTimeStep> CustomTimeStep;
 
 	/** Broadcasts whenever the custom time step changed. */
 	FSimpleMulticastDelegate CustomTimeStepChangedEvent;
@@ -1306,7 +1306,7 @@ public:
 private:
 	/** Controls the Engine's timecode. */
 	UPROPERTY(transient)
-	UTimecodeProvider* TimecodeProvider;
+	TObjectPtr<UTimecodeProvider> TimecodeProvider;
 
 	/** Broadcasts whenever the timecode provider changed. */
 	FSimpleMulticastDelegate TimecodeProviderChangedEvent;

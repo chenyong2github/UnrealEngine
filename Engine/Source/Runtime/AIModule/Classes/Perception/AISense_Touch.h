@@ -19,10 +19,10 @@ struct AIMODULE_API FAITouchEvent
 	FVector Location;
 	
 	UPROPERTY()
-	AActor* TouchReceiver;
+	TObjectPtr<AActor> TouchReceiver;
 
 	UPROPERTY()
-	AActor* OtherActor;
+	TObjectPtr<AActor> OtherActor;
 		
 	FAITouchEvent() : TouchReceiver(nullptr), OtherActor(nullptr) {}
 	

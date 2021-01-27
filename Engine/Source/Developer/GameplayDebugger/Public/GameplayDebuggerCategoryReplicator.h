@@ -159,7 +159,7 @@ protected:
 	friend FGameplayDebuggerNetPack;
 
 	UPROPERTY(Replicated)
-	APlayerController* OwnerPC;
+	TObjectPtr<APlayerController> OwnerPC;
 
 	UPROPERTY(Replicated)
 	bool bIsEnabled;
@@ -175,7 +175,7 @@ protected:
 
 	/** rendering component needs to attached to some actor, and this is as good as any */
 	UPROPERTY()
-	UGameplayDebuggerRenderingComponent* RenderingComp;
+	TObjectPtr<UGameplayDebuggerRenderingComponent> RenderingComp;
 
 	/** category objects */
 	TArray<TSharedRef<FGameplayDebuggerCategory> > Categories;

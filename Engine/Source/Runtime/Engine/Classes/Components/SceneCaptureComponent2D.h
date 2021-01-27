@@ -36,7 +36,7 @@ public:
 
 	/** Output render target of the scene capture that can be read in materals. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SceneCapture)
-	class UTextureRenderTarget2D* TextureTarget;
+	TObjectPtr<class UTextureRenderTarget2D> TextureTarget;
 
 	/** When enabled, the scene capture will composite into the render target instead of overwriting its contents. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SceneCapture)

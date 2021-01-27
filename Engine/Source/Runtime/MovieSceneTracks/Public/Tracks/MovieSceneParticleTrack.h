@@ -56,5 +56,5 @@ private:
 
 	/** List of all particle sections. */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> ParticleSections;
+	TArray<TObjectPtr<UMovieSceneSection>> ParticleSections;
 };

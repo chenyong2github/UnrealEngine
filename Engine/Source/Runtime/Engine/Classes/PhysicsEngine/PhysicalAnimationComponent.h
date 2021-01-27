@@ -124,7 +124,7 @@ public:
 
 private:
 	UPROPERTY()
-	USkeletalMeshComponent* SkeletalMeshComponent;
+	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
 
 	struct FPhysicalAnimationInstanceData
 	{

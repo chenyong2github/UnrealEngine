@@ -87,11 +87,11 @@ public:
 	* Physical Properties
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics")
-	const UChaosPhysicalMaterial* PhysicalMaterial;
+	TObjectPtr<const UChaosPhysicalMaterial> PhysicalMaterial;
 
 	/** Chaos RBD Solver */
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics", meta = (DisplayName = "Chaos Solver"))
-	AChaosSolverActor* ChaosSolverActor;
+	TObjectPtr<AChaosSolverActor> ChaosSolverActor;
 
 	const TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const;
 
@@ -116,7 +116,7 @@ private :
 
 	/** List of component for which this simulation component created a physics object. Parallel array to PhysicsProxy, so PhysicsProxies[i] corresponds to SimulatedComponents[i] */
 	UPROPERTY()
-	TArray<UPrimitiveComponent*> SimulatedComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> SimulatedComponents;
 
 
 	//@todo(mlentine): Don't have one per static mesh

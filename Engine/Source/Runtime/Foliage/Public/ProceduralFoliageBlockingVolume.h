@@ -18,7 +18,7 @@ class AProceduralFoliageBlockingVolume : public AVolume
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(Category = ProceduralFoliage, EditAnywhere)
-	AProceduralFoliageVolume* ProceduralFoliageVolume;
+	TObjectPtr<AProceduralFoliageVolume> ProceduralFoliageVolume;
 
 	UPROPERTY(Category = ProceduralFoliage, EditAnywhere)
 	FFoliageDensityFalloff DensityFalloff;

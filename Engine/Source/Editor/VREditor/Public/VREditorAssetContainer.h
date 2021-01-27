@@ -30,143 +30,143 @@ public:
 	//
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* DockableWindowCloseSound;
+	TObjectPtr<USoundBase> DockableWindowCloseSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* DockableWindowOpenSound;
+	TObjectPtr<USoundBase> DockableWindowOpenSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* DockableWindowDropSound;
+	TObjectPtr<USoundBase> DockableWindowDropSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* DockableWindowDragSound;
+	TObjectPtr<USoundBase> DockableWindowDragSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* DropFromContentBrowserSound;
+	TObjectPtr<USoundBase> DropFromContentBrowserSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* RadialMenuOpenSound;
+	TObjectPtr<USoundBase> RadialMenuOpenSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* RadialMenuCloseSound;
+	TObjectPtr<USoundBase> RadialMenuCloseSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* TeleportSound;
+	TObjectPtr<USoundBase> TeleportSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundCue* ButtonPressSound;
+	TObjectPtr<USoundCue> ButtonPressSound;
 
 	UPROPERTY(EditAnywhere, Category = Sound)
-	USoundBase* AutoScaleSound;
+	TObjectPtr<USoundBase> AutoScaleSound;
 
 	//
 	// Meshes
 	//
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* GenericHMDMesh;
+	TObjectPtr<UStaticMesh> GenericHMDMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* PlaneMesh;
+	TObjectPtr<UStaticMesh> PlaneMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* CylinderMesh;
+	TObjectPtr<UStaticMesh> CylinderMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* LaserPointerStartMesh;
+	TObjectPtr<UStaticMesh> LaserPointerStartMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* LaserPointerMesh;
+	TObjectPtr<UStaticMesh> LaserPointerMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* LaserPointerEndMesh;
+	TObjectPtr<UStaticMesh> LaserPointerEndMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* LaserPointerHoverMesh;
+	TObjectPtr<UStaticMesh> LaserPointerHoverMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* VivePreControllerMesh;
+	TObjectPtr<UStaticMesh> VivePreControllerMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* OculusControllerMesh;
+	TObjectPtr<UStaticMesh> OculusControllerMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* GenericControllerMesh;
+	TObjectPtr<UStaticMesh> GenericControllerMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* TeleportRootMesh;
+	TObjectPtr<UStaticMesh> TeleportRootMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* WindowMesh;
+	TObjectPtr<UStaticMesh> WindowMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* WindowSelectionBarMesh;
+	TObjectPtr<UStaticMesh> WindowSelectionBarMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* WindowCloseButtonMesh;
+	TObjectPtr<UStaticMesh> WindowCloseButtonMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* RadialMenuMainMesh;
+	TObjectPtr<UStaticMesh> RadialMenuMainMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* RadialMenuPointerMesh;
+	TObjectPtr<UStaticMesh> RadialMenuPointerMesh;
 	
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* PointerCursorMesh;
+	TObjectPtr<UStaticMesh> PointerCursorMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* LineSegmentCylinderMesh;
+	TObjectPtr<UStaticMesh> LineSegmentCylinderMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* JointSphereMesh;
+	TObjectPtr<UStaticMesh> JointSphereMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* DockingButtonMesh;
+	TObjectPtr<UStaticMesh> DockingButtonMesh;
 
 	//
 	// Materials
 	//
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* GridMaterial;
+	TObjectPtr<UMaterialInterface> GridMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* LaserPointerMaterial;
+	TObjectPtr<UMaterialInterface> LaserPointerMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* LaserPointerTranslucentMaterial;
+	TObjectPtr<UMaterialInterface> LaserPointerTranslucentMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterial* WorldMovementPostProcessMaterial;
+	TObjectPtr<UMaterial> WorldMovementPostProcessMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* TextMaterial;
+	TObjectPtr<UMaterialInterface> TextMaterial;
 	
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* VivePreControllerMaterial;
+	TObjectPtr<UMaterialInterface> VivePreControllerMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* OculusControllerMaterial;
+	TObjectPtr<UMaterialInterface> OculusControllerMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* TeleportMaterial;
+	TObjectPtr<UMaterialInterface> TeleportMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* WindowMaterial;
+	TObjectPtr<UMaterialInterface> WindowMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* WindowTranslucentMaterial;
+	TObjectPtr<UMaterialInterface> WindowTranslucentMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterial* LineMaterial;
+	TObjectPtr<UMaterial> LineMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* TranslucentTextMaterial;
+	TObjectPtr<UMaterialInterface> TranslucentTextMaterial;
 
 	//
 	// Fonts
 	//
 
 	UPROPERTY(EditAnywhere, Category = Font)
-	UFont* TextFont;
+	TObjectPtr<UFont> TextFont;
 };

@@ -42,7 +42,7 @@ class UDrawFrustumComponent : public UPrimitiveComponent
 
 	/** optional texture to show on the near plane */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=DrawFrustumComponent)
-	class UTexture* Texture;
+	TObjectPtr<class UTexture> Texture;
 
 
 	//~ Begin UPrimitiveComponent Interface.

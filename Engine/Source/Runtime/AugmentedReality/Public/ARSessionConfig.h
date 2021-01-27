@@ -411,7 +411,7 @@ protected:
 	
 	/** The list of candidate images to detect within the AR camera view */
 	UPROPERTY(EditAnywhere, Category="AR Settings | Image Tracking")
-	TArray<UARCandidateImage*> CandidateImages;
+	TArray<TObjectPtr<UARCandidateImage>> CandidateImages;
 
     /** The maximum number of images to track at the same time. Defaults to 1 */
     UPROPERTY(EditAnywhere, Category="AR Settings | Image Tracking")
@@ -427,7 +427,7 @@ protected:
 
 	/** A list of candidate objects to search for in the scene */
 	UPROPERTY(EditAnywhere, Category="AR Settings")
-	TArray<UARCandidateObject*> CandidateObjects;
+	TArray<TObjectPtr<UARCandidateObject>> CandidateObjects;
 
 	/**
 	 * The desired video format (or the default if not supported) that this session should use if the camera is enabled
@@ -497,9 +497,9 @@ protected:
 	
 	/** The default mesh material used by the generated mesh component */
 	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
-	UMaterialInterface* DefaultMeshMaterial;
+	TObjectPtr<UMaterialInterface> DefaultMeshMaterial;
 
 	/** The default mesh material used by the wireframe setting of the generated mesh component.  Note: It is reccomended to ignore this 'wireframe' feature and use a wirefraem material in the DefaultMeshMaterial if you want wireframe. */
 	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
-	UMaterialInterface* DefaultWireframeMeshMaterial;
+	TObjectPtr<UMaterialInterface> DefaultWireframeMeshMaterial;
 };

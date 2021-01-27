@@ -377,7 +377,7 @@ private:
 
 	/** Underlying element selection set (if any). */
 	UPROPERTY()
-	UTypedElementSelectionSet* ElementSelectionSet = nullptr;
+	TObjectPtr<UTypedElementSelectionSet> ElementSelectionSet = nullptr;
 
 	/** Tracks the most recently selected actor classes.  Used for UnrealEd menus. */
 	ClassArray SelectedClasses;

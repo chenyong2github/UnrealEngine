@@ -44,8 +44,8 @@ protected:
 
 protected:
 	UPROPERTY(Transient)
-	TArray<UMeshComponent*> CachedClickedComponents;
+	TArray<TObjectPtr<UMeshComponent>> CachedClickedComponents;
 	UPROPERTY(Transient)
-	TArray<AActor*> CachedClickedActors;
+	TArray<TObjectPtr<AActor>> CachedClickedActors;
 	bool bAddToSelectionSet;
 };

@@ -23,11 +23,11 @@ class USCS_Node : public UObject
 
 	/** Component class */
 	UPROPERTY()
-	UClass* ComponentClass;
+	TObjectPtr<UClass> ComponentClass;
 
 	/** Template for the component to create */
 	UPROPERTY()
-	class UActorComponent* ComponentTemplate;
+	TObjectPtr<class UActorComponent> ComponentTemplate;
 
 	/** Cached data for faster runtime instancing (only used in cooked builds) */
 	UPROPERTY()
@@ -58,7 +58,7 @@ class USCS_Node : public UObject
 
 	/** Set of child nodes */
 	UPROPERTY()
-	TArray<class USCS_Node*> ChildNodes;
+	TArray<TObjectPtr<class USCS_Node>> ChildNodes;
 
 	/** Metadata information for this Node */
 	UPROPERTY(EditAnywhere, Category=BPVariableDescription)

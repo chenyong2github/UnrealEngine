@@ -22,7 +22,7 @@ struct FGrassInput
 	FName Name;
 
 	UPROPERTY(EditAnywhere, Category = Grass)
-	ULandscapeGrassType* GrassType;
+	TObjectPtr<ULandscapeGrassType> GrassType;
 
 	UPROPERTY(meta = (RequiredInput = "true"))
 	FExpressionInput Input;

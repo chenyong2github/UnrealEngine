@@ -43,7 +43,7 @@ struct AIMODULE_API FAINoiseEvent
 	 * Actor triggering the sound.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sense")
-	AActor* Instigator;
+	TObjectPtr<AActor> Instigator;
 
 	/**
 	 * Named identifier for the noise.

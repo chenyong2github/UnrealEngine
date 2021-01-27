@@ -39,7 +39,7 @@ public:
 
 	// Particle System to Spawn
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AnimNotify", meta=(DisplayName="Particle System"))
-	UParticleSystem* PSTemplate;
+	TObjectPtr<UParticleSystem> PSTemplate;
 
 	// Location offset from the socket
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AnimNotify")

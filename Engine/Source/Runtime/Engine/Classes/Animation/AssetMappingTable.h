@@ -24,11 +24,11 @@ struct FAssetMapping
 
 	/** source asset **/
 	UPROPERTY(EditAnywhere, Category = "FAssetMapping")
-	class UAnimationAsset*			SourceAsset;
+	TObjectPtr<class UAnimationAsset>			SourceAsset;
 
 	/** source asset **/
 	UPROPERTY(EditAnywhere, Category = "FAssetMapping")
-	class UAnimationAsset*			TargetAsset;
+	TObjectPtr<class UAnimationAsset>			TargetAsset;
 
 	FAssetMapping()
 		: SourceAsset(nullptr)

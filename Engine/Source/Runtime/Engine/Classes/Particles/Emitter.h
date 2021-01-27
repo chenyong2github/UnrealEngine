@@ -60,7 +60,7 @@ class ENGINE_API AEmitter : public AActor
 
 private:
 	UPROPERTY(Category = Emitter, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Particles|Beam,Particles|Parameters,Particles,Effects|Components|ParticleSystem,Rendering,Activation,Components|Activation", AllowPrivateAccess = "true"))
-	class UParticleSystemComponent* ParticleSystemComponent;
+	TObjectPtr<class UParticleSystemComponent> ParticleSystemComponent;
 public:
 
 	UPROPERTY()
@@ -89,10 +89,10 @@ public:
 
 private:
 	UPROPERTY()
-	class UBillboardComponent* SpriteComponent;
+	TObjectPtr<class UBillboardComponent> SpriteComponent;
 
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 public:
 
 #endif

@@ -105,7 +105,7 @@ struct FNamedEmitterMaterial
 	FName Name;
 
 	UPROPERTY(EditAnywhere, Category = NamedMaterial)
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 };
 
 UCLASS(Abstract, MinimalAPI, BlueprintType)
@@ -173,11 +173,11 @@ class UParticleSystem : public UFXSystemAsset
 
 	/** Emitters	- internal - the array of emitters in the system				*/
 	UPROPERTY(instanced)
-	TArray<UParticleEmitter*> Emitters;
+	TArray<TObjectPtr<UParticleEmitter>> Emitters;
 
 	/** The component used to preview the particle system in Cascade				*/
 	UPROPERTY(transient)
-	UParticleSystemComponent* PreviewComponent;
+	TObjectPtr<UParticleSystemComponent> PreviewComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** The angle to use when rendering the thumbnail image							*/
@@ -195,7 +195,7 @@ class UParticleSystem : public UFXSystemAsset
 #endif // WITH_EDITORONLY_DATA
 	/** Used for curve editor to remember curve-editing setup.						*/
 	UPROPERTY(export)
-	UInterpCurveEdSetup* CurveEdSetup;
+	TObjectPtr<UInterpCurveEdSetup> CurveEdSetup;
 
 	//
 	//	LOD
@@ -315,7 +315,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Internal: The PSys thumbnail image									*/
 	UPROPERTY()
-	class UTexture2D* ThumbnailImage;
+	TObjectPtr<class UTexture2D> ThumbnailImage;
 
 #endif // WITH_EDITORONLY_DATA
 

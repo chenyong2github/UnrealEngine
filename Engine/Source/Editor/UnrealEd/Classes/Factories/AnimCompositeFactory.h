@@ -20,15 +20,15 @@ class UAnimCompositeFactory : public UFactory
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class USkeleton* TargetSkeleton;
+	TObjectPtr<class USkeleton> TargetSkeleton;
 
 	/* Used when creating a composite from an AnimSequence, becomes the only AnimSequence contained */
 	UPROPERTY()
-	class UAnimSequence* SourceAnimation;
+	TObjectPtr<class UAnimSequence> SourceAnimation;
 
 	/** The preview mesh to use with this animation */
 	UPROPERTY()
-	class USkeletalMesh* PreviewSkeletalMesh;
+	TObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
 
 	//~ Begin UFactory Interface
 	virtual bool ConfigureProperties() override;

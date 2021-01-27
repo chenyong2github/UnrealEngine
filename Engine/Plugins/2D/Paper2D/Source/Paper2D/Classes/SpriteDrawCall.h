@@ -18,7 +18,7 @@ public:
 	FVector Destination;
 
 	UPROPERTY()
-	UTexture* BaseTexture;
+	TObjectPtr<UTexture> BaseTexture;
 
 	FAdditionalSpriteTextureArray AdditionalTextures;
 

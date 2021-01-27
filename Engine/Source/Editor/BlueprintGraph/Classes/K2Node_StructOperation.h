@@ -16,7 +16,7 @@ class UK2Node_StructOperation : public UK2Node_Variable
 
 	/** Class that this variable is defined in.  */
 	UPROPERTY()
-	UScriptStruct* StructType;
+	TObjectPtr<UScriptStruct> StructType;
 
 	//~ Begin UEdGraphNode Interface
 	virtual FString GetPinMetaData(FName InPinName, FName InKey) override;

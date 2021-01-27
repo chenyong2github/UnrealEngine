@@ -18,7 +18,7 @@ class ULandscapeWeightmapUsage : public UObject
 
 public:
 	UPROPERTY()
-	ULandscapeComponent* ChannelUsage[NumChannels];
+	TObjectPtr<ULandscapeComponent> ChannelUsage[NumChannels];
 
 	UPROPERTY()
 	FGuid LayerGuid;

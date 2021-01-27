@@ -46,7 +46,7 @@ private:
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
 
 	UPROPERTY()
-	UNiagaraStackObject* EmitterObject;
+	TObjectPtr<UNiagaraStackObject> EmitterObject;
 };
 
 UCLASS()
@@ -62,5 +62,5 @@ protected:
 
 private:
 	UPROPERTY()
-	UNiagaraStackEmitterPropertiesItem* PropertiesItem;
+	TObjectPtr<UNiagaraStackEmitterPropertiesItem> PropertiesItem;
 };

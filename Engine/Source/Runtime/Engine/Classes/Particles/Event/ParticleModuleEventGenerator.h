@@ -53,7 +53,7 @@ struct FParticleEvent_GenerateInfo
 
 	/** The events we want to fire off when this event has been generated */
 	UPROPERTY(EditAnywhere, Instanced, Category = ParticleEvent_GenerateInfo)
-	TArray<class UParticleModuleEventSendToGame*> ParticleModuleEventsToSendToGame;
+	TArray<TObjectPtr<class UParticleModuleEventSendToGame>> ParticleModuleEventsToSendToGame;
 
 	FParticleEvent_GenerateInfo()
 	: Type(0)

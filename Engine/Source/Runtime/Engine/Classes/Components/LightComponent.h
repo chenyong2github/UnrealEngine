@@ -155,7 +155,7 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	 * Note that only non-lightmapped lights (UseDirectLightMap=False) can have a light function. 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightFunction)
-	class UMaterialInterface* LightFunctionMaterial;
+	TObjectPtr<class UMaterialInterface> LightFunctionMaterial;
 
 	/** Scales the light function projection.  X and Y scale in the directions perpendicular to the light's direction, Z scales along the light direction. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightFunction, meta=(AllowPreserveRatio = "true"))
@@ -163,7 +163,7 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 
 	/** IES texture (light profiles from real world measured data) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightProfiles, meta=(DisplayName = "IES Texture"))
-	class UTextureLightProfile* IESTexture;
+	TObjectPtr<class UTextureLightProfile> IESTexture;
 
 	/** true: take light brightness from IES profile, false: use the light brightness - the maximum light in one direction is used to define no masking. Use with InverseSquareFalloff. Will be disabled if a valid IES profile texture is not supplied. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightProfiles, meta=(DisplayName = "Use IES Intensity"))

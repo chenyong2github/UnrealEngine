@@ -18,7 +18,7 @@ class AIMODULE_API UEnvQueryGenerator_Composite : public UEnvQueryGenerator
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditDefaultsOnly, Instanced, Category = Generator)
-	TArray<UEnvQueryGenerator*> Generators;
+	TArray<TObjectPtr<UEnvQueryGenerator>> Generators;
 
 	/** allow generators with different item types, use at own risk!
 	 *

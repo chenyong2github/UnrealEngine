@@ -22,7 +22,7 @@ struct FDebugDisplayProperty
 
 	/** the object whose property to display. If this is a class, all objects of that class are drawn. */
 	UPROPERTY()
-	class UObject* Obj;
+	TObjectPtr<class UObject> Obj;
 
 	/** if Obj is a class and WithinClass is not nullptr, further limit the display to objects that have an Outer of WithinClass */
 	UPROPERTY()

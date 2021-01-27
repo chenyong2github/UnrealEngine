@@ -353,19 +353,19 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** Mesh used for debug focus plane visualization */
 	UPROPERTY(transient)
-	UStaticMesh* FocusPlaneVisualizationMesh;
+	TObjectPtr<UStaticMesh> FocusPlaneVisualizationMesh;
 
 	/** Material used for debug focus plane visualization */
 	UPROPERTY(transient)
-	UMaterial* FocusPlaneVisualizationMaterial;
+	TObjectPtr<UMaterial> FocusPlaneVisualizationMaterial;
 
 	/** Component for the debug focus plane visualization */
 	UPROPERTY(transient)
-	UStaticMeshComponent* DebugFocusPlaneComponent;
+	TObjectPtr<UStaticMeshComponent> DebugFocusPlaneComponent;
 
 	/** Dynamic material instance for the debug focus plane visualization */
 	UPROPERTY(transient)
-	UMaterialInstanceDynamic* DebugFocusPlaneMID;
+	TObjectPtr<UMaterialInstanceDynamic> DebugFocusPlaneMID;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void ResetProxyMeshTransform() override;

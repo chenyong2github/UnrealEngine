@@ -669,7 +669,7 @@ public:
 	
 	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh")
-	AActor* Source;
+	TObjectPtr<AActor> Source;
 
 	/** Reference to a user parameter if we're reading one. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
@@ -677,7 +677,7 @@ public:
 	
 	/** The source component from which to sample. Takes precedence over the direct mesh. Not exposed to the user, only indirectly accessible from blueprints. */
 	UPROPERTY(Transient)
-	USkeletalMeshComponent* SourceComponent;
+	TObjectPtr<USkeletalMeshComponent> SourceComponent;
 
 	/** Selects which skinning mode to use, for most cases Skin On The Fly will cover your requirements, see individual tooltips for more information. */
 	UPROPERTY(EditAnywhere, Category="Mesh")

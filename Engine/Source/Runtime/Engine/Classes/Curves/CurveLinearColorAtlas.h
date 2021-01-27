@@ -118,7 +118,7 @@ class ENGINE_API UCurveLinearColorAtlas : public UTexture2D
 	uint32	TextureHeight;						// Height of the lookup textures
 
 	UPROPERTY(EditAnywhere, Category = "Curves")
-	TArray<UCurveLinearColor*> GradientCurves;
+	TArray<TObjectPtr<UCurveLinearColor>> GradientCurves;
 
 #if WITH_EDITORONLY_DATA
 	/** Disable all color adjustments to preserve negative values in curves. Color adjustments clamp to 0 when enabled. */

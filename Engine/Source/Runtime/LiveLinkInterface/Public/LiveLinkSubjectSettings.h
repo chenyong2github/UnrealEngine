@@ -24,15 +24,15 @@ public:
 
 	/** List of available preprocessor the subject will use. */
 	UPROPERTY(EditAnywhere, Instanced, Category = "LiveLink", meta = (DisplayName = "Pre Processors"))
-	TArray<ULiveLinkFramePreProcessor*> PreProcessors;
+	TArray<TObjectPtr<ULiveLinkFramePreProcessor>> PreProcessors;
 
 	/** The interpolation processor the subject will use. */
 	UPROPERTY(EditAnywhere, Instanced, Category = "LiveLink", meta = (DisplayName = "Interpolation"))
-	ULiveLinkFrameInterpolationProcessor* InterpolationProcessor;
+	TObjectPtr<ULiveLinkFrameInterpolationProcessor> InterpolationProcessor;
 
 	/** List of available translator the subject can use. */
 	UPROPERTY(EditAnywhere, Instanced, Category = "LiveLink", meta = (DisplayName = "Translators"))
-	TArray<ULiveLinkFrameTranslator*> Translators;
+	TArray<TObjectPtr<ULiveLinkFrameTranslator>> Translators;
 
 	UPROPERTY()
 	TSubclassOf<ULiveLinkRole> Role;

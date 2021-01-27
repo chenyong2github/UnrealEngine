@@ -52,7 +52,7 @@ protected:
 
 	// The internal blendspace asset to play
 	UPROPERTY()
-	const UBlendSpaceBase* BlendSpace = nullptr;
+	TObjectPtr<const UBlendSpaceBase> BlendSpace = nullptr;
 
 	// Pose links for each sample in the blendspace
 	UPROPERTY()

@@ -66,7 +66,7 @@ public:
 	bool bCapturedBoolProperty;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Template", meta=(ToolTip="Captured UObject property"))
-	UObject* CapturedObjectProperty;
+	TObjectPtr<UObject> CapturedObjectProperty;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Template", meta=(ToolTip="Captured UInterface property"))
 	FScriptInterface CapturedInterfaceProperty;
@@ -105,7 +105,7 @@ public:
 	FIntPoint CapturedIntPointProperty;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Template", meta=(ToolTip="Captured UObject array property"))
-	TArray<UObject*> CapturedUObjectArrayProperty;
+	TArray<TObjectPtr<UObject>> CapturedUObjectArrayProperty;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Template", meta=(ToolTip="Captured FVector array property"))
 	TArray<FVector> CapturedVectorArrayProperty;

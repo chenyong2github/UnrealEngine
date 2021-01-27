@@ -200,13 +200,13 @@ struct FImportAssetParameters
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
-	UObject* ReimportAsset = nullptr;
+	TObjectPtr<UObject> ReimportAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
 	bool bIsAutomated = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
-	TArray<UInterchangePipelineBase*> OverridePipelines;
+	TArray<TObjectPtr<UInterchangePipelineBase>> OverridePipelines;
 };
 
 UCLASS(Transient, BlueprintType)
@@ -442,24 +442,24 @@ private:
 
 	// Caching the registered translator classes to avoid double registration fast
 	UPROPERTY()
-	TSet<const UClass*> RegisteredTranslatorsClass;
+	TSet<TObjectPtr<const UClass>> RegisteredTranslatorsClass;
 
 	//The manager will create translator at every import, translator must be able to retrieve payload information when the factory ask for it.
 	//The translator stored has value is only use to know if we can use this type of translator.
 	UPROPERTY()
-	TArray<UInterchangeTranslatorBase*> RegisteredTranslators;
+	TArray<TObjectPtr<UInterchangeTranslatorBase>> RegisteredTranslators;
 	
 	//The manager will create only one pipeline per type
 	UPROPERTY()
-	TMap<const UClass*, UInterchangePipelineBase* > RegisteredPipelines;
+	TMap<TObjectPtr<const UClass>, TObjectPtr<UInterchangePipelineBase> > RegisteredPipelines;
 
 	//The manager will create only one factory per type
 	UPROPERTY()
-	TMap<const UClass*, UInterchangeFactoryBase* > RegisteredFactories;
+	TMap<TObjectPtr<const UClass>, TObjectPtr<UInterchangeFactoryBase> > RegisteredFactories;
 
 	//The manager will create only one writer per type
 	UPROPERTY()
-	TMap<const UClass*, UInterchangeWriterBase* > RegisteredWriters;
+	TMap<TObjectPtr<const UClass>, TObjectPtr<UInterchangeWriterBase> > RegisteredWriters;
 
 	//If interchange is currently importing we have a timer to watch the cancel and we block GC 
 	FThreadSafeBool bIsActive = false;

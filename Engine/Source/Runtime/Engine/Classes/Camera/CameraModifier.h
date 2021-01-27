@@ -48,7 +48,7 @@ public:
 protected:
 	/** Camera this object is associated with. */
 	UPROPERTY(transient, BlueprintReadOnly, Category = CameraModifier)
-	class APlayerCameraManager* CameraOwner;
+	TObjectPtr<class APlayerCameraManager> CameraOwner;
 
 	/** When blending in, alpha proceeds from 0 to 1 over this time */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = CameraModifier)

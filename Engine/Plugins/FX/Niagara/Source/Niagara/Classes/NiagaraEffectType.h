@@ -263,7 +263,7 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 
 	/** Used to determine the relative significance of FX in the scene which is used in other scalability systems such as instance count culling. */
 	UPROPERTY(EditAnywhere, Instanced, Category = "Scalability")
-	UNiagaraSignificanceHandler* SignificanceHandler;
+	TObjectPtr<UNiagaraSignificanceHandler> SignificanceHandler;
 
 	/** Cull settings to use at each detail level. */
 	UPROPERTY()
@@ -333,7 +333,7 @@ private:
 
 	/** Controls generation of performance baseline data for this effect type. */
 	UPROPERTY(EditAnywhere, Category="Performance", Instanced)
-	UNiagaraBaselineController* PerformanceBaselineController;
+	TObjectPtr<UNiagaraBaselineController> PerformanceBaselineController;
 
 	/**
 	Performance data gathered from the Baseline System. 

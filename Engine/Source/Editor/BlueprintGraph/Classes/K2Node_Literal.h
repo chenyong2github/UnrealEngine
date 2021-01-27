@@ -21,7 +21,7 @@ class UK2Node_Literal : public UK2Node
 private:
 	/** If this is an object reference literal, keep a reference here so that it can be updated as objects move around */
 	UPROPERTY()
-	class UObject* ObjectRef;
+	TObjectPtr<class UObject> ObjectRef;
 
 public:
 

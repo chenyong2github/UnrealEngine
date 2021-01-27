@@ -19,7 +19,7 @@ public:
 	FDatasmithAssetImportOptions AssetImportOptions;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = Asset, meta = (ShowOnlyInnerProperties))
-	TArray<class UDatasmithAdditionalData*> AdditionalData;
+	TArray<TObjectPtr<class UDatasmithAdditionalData>> AdditionalData;
 #endif		// WITH_EDITORONLY_DATA
 };
 
@@ -112,7 +112,7 @@ class DATASMITHCONTENT_API UDatasmithTranslatedSceneImportData : public UDatasmi
 #if WITH_EDITORONLY_DATA
 public:
 	UPROPERTY(EditAnywhere, Category = "Options", meta = (ShowOnlyInnerProperties))
-	TArray<UDatasmithOptionsBase*> AdditionalOptions;
+	TArray<TObjectPtr<UDatasmithOptionsBase>> AdditionalOptions;
 #endif // WITH_EDITORONLY_DATA
 };
 

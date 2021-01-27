@@ -68,7 +68,7 @@ protected:
 	 * Edited via FSlateSoundStructCustomization to ensure you can only set USoundBase assets on it.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound, meta=(DisplayName="Sound", AllowedClasses="SoundBase"))
-	UObject* ResourceObject;
+	TObjectPtr<UObject> ResourceObject;
 
 	/** The legacy resource name; only used by sounds that have been set-up in code, or otherwise upgraded from old FName properties, set to NAME_None in non-legacy instances */
 	FName LegacyResourceName_DEPRECATED;

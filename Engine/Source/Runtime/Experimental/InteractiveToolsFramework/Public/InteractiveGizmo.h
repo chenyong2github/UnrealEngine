@@ -83,7 +83,7 @@ protected:
 
 	/** The current set of InputBehaviors provided by this Gizmo */
 	UPROPERTY()
-	UInputBehaviorSet* InputBehaviors;
+	TObjectPtr<UInputBehaviorSet> InputBehaviors;
 };
 
 

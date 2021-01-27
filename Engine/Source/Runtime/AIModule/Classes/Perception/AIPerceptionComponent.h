@@ -186,7 +186,7 @@ struct FActorPerceptionBlueprintInfo
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "AI|Perception")
-	AActor* Target;
+	TObjectPtr<AActor> Target;
 
 	UPROPERTY(BlueprintReadWrite, Category = "AI|Perception")
 	TArray<FAIStimulus> LastSensedStimuli;
@@ -215,7 +215,7 @@ class AIMODULE_API UAIPerceptionComponent : public UActorComponent
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Instanced, Category = "AI Perception")
-	TArray<UAISenseConfig*> SensesConfig;
+	TArray<TObjectPtr<UAISenseConfig>> SensesConfig;
 
 	/** Indicated sense that takes precedence over other senses when determining sensed actor's location. 
 	 *	Should be set to one of the senses configured in SensesConfig, or None. */
@@ -225,7 +225,7 @@ protected:
 	FAISenseID DominantSenseID;
 
 	UPROPERTY(Transient)
-	AAIController* AIOwner;
+	TObjectPtr<AAIController> AIOwner;
 
 	/** @todo this field is misnamed. It's a whitelist. */
 	FPerceptionChannelWhitelist PerceptionFilter;

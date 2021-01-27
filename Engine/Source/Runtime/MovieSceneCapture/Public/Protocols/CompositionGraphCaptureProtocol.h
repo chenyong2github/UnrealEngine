@@ -87,7 +87,7 @@ public:
 private:
 
 	UPROPERTY(transient)
-	UMaterialInterface* PostProcessingMaterialPtr;
+	TObjectPtr<UMaterialInterface> PostProcessingMaterialPtr;
 
 	/** The viewport we are capturing from */
 	TWeakPtr<FSceneViewport> SceneViewport;

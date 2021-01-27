@@ -16,7 +16,7 @@ class ENGINE_API AAmbientSound : public AActor
 private:
 	/** Audio component that handles sound playing */
 	UPROPERTY(Category = Sound, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Sound,Audio,Audio|Components|Audio", AllowPrivateAccess = "true"))
-	class UAudioComponent* AudioComponent;
+	TObjectPtr<class UAudioComponent> AudioComponent;
 public:
 	
 	FString GetInternalSoundCueName();

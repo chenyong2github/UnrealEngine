@@ -23,7 +23,7 @@ class USphereReflectionCaptureComponent : public UReflectionCaptureComponent
 	float CaptureDistanceScale;
 
 	UPROPERTY()
-	class UDrawSphereComponent* PreviewInfluenceRadius;
+	TObjectPtr<class UDrawSphereComponent> PreviewInfluenceRadius;
 
 public:
 	virtual void UpdatePreviewShape() override;

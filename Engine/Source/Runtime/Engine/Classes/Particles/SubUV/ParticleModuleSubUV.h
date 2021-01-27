@@ -25,7 +25,7 @@ class UParticleModuleSubUV : public UParticleModuleSubUVBase
 	 * When specified, SubImages_Horizontal and SubImages_Vertical will come from the asset instead of the Required Module.
 	 */
 	UPROPERTY()
-	USubUVAnimation* Animation;
+	TObjectPtr<USubUVAnimation> Animation;
 
 	/**
 	 *	The index of the sub-image that should be used for the particle.

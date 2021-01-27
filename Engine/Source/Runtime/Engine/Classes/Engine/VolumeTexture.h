@@ -25,7 +25,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** A (optional) reference texture from which the volume texture was built */
 	UPROPERTY(EditAnywhere, Category=Source2D, meta=(DisplayName="Source Texture"))
-	UTexture2D* Source2DTexture;
+	TObjectPtr<UTexture2D> Source2DTexture;
 	/** The lighting Guid of the source 2D texture, used to trigger rebuild when the source changes. */
 	UPROPERTY()
 	FGuid SourceLightingGuid;

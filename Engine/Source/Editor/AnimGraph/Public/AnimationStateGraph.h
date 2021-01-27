@@ -14,7 +14,7 @@ class UAnimationStateGraph : public UAnimationGraph
 
 	// Result node within the state's animation graph
 	UPROPERTY()
-	class UAnimGraphNode_StateResult* MyResultNode;
+	TObjectPtr<class UAnimGraphNode_StateResult> MyResultNode;
 
 	ANIMGRAPH_API class UAnimGraphNode_StateResult* GetResultNode();
 };

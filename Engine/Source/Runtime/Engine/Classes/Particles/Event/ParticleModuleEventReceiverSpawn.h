@@ -55,7 +55,7 @@ class UParticleModuleEventReceiverSpawn : public UParticleModuleEventReceiverBas
 	*	Array of physical materials that can be used to allow or ban a specific set of materials when receiving collision events.
 	*/
 	UPROPERTY(EditAnywhere, Category = Collision)
-	TArray<UPhysicalMaterial*> PhysicalMaterials;
+	TArray<TObjectPtr<UPhysicalMaterial>> PhysicalMaterials;
 
 	/**
 	*	When true, the PhysicalMaterials list is used to ban specified materials for collision events but allow all others.

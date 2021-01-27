@@ -59,7 +59,7 @@ private:
 	/** object implementing IPathFollowingAgentInterface. Is private to control access to it.
 	 *	@see SetPathFollowingAgent, GetPathFollowingAgent */
 	UPROPERTY()
-	UObject* PathFollowingComp;
+	TObjectPtr<UObject> PathFollowingComp;
 
 public:
 	/** Stops applying further movement (usually zeros acceleration). */

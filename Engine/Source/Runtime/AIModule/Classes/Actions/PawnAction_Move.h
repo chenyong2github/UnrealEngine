@@ -29,7 +29,7 @@ class AIMODULE_API UPawnAction_Move : public UPawnAction
 	GENERATED_UCLASS_BODY()
 protected:
 	UPROPERTY(Category = PawnAction, EditAnywhere, BlueprintReadWrite)
-	AActor* GoalActor;
+	TObjectPtr<AActor> GoalActor;
 
 	UPROPERTY(Category = PawnAction, EditAnywhere, BlueprintReadWrite)
 	FVector GoalLocation;

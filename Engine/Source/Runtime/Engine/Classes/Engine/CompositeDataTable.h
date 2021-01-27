@@ -74,11 +74,11 @@ protected:
 	// Parent tables
 	// Tables with higher indices override data in tables with lower indices
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tables)
-	TArray<UDataTable*> ParentTables;
+	TArray<TObjectPtr<UDataTable>> ParentTables;
 
 	// temporary copy used to detect changes so we can update delegates correctly on removal
 	UPROPERTY(transient)
-	TArray<UDataTable*> OldParentTables;
+	TArray<TObjectPtr<UDataTable>> OldParentTables;
 
 #if WITH_EDITORONLY_DATA
 	TMap<FName, ERowState> RowSourceMap;

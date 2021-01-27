@@ -43,11 +43,11 @@ protected:
 	TSubclassOf<UUserWidget> WidgetClass;
 
 	UPROPERTY()
-	UUserWidget* SpawnedWidget;
+	TObjectPtr<UUserWidget> SpawnedWidget;
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	EWidgetTestAppearLocation WidgetLocation;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UTextureRenderTarget2D* ScreenshotRT;
+	TObjectPtr<UTextureRenderTarget2D> ScreenshotRT;
 };

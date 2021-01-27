@@ -107,7 +107,7 @@ public:
 
 	/** The texture generated and exposed to materials, will be nullptr if we do not expose to the renderers. */
 	UPROPERTY()
-	class UTexture2D* ExposedTexture;
+	TObjectPtr<class UTexture2D> ExposedTexture;
 
 #if WITH_EDITOR	
 	/** Refreshes and returns the errors detected with the corresponding data, if any.*/

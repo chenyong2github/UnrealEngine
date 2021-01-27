@@ -20,7 +20,7 @@ class ENGINE_API ASceneCaptureCube : public ASceneCapture
 private:
 	/** Scene capture component. */
 	UPROPERTY(Category = DecalActor, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
-	class USceneCaptureComponentCube* CaptureComponentCube;
+	TObjectPtr<class USceneCaptureComponentCube> CaptureComponentCube;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering")

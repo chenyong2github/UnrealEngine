@@ -21,7 +21,7 @@ class UParticleModuleVectorFieldScaleOverLife : public UParticleModuleVectorFiel
 
 	/** Per-particle vector field scale. Evaluated using particle relative time. */
 	UPROPERTY()
-	class UDistributionFloat* VectorFieldScaleOverLife_DEPRECATED;
+	TObjectPtr<class UDistributionFloat> VectorFieldScaleOverLife_DEPRECATED;
 
 	/** Per-particle vector field scale. Evaluated using particle relative time. */
 	UPROPERTY(EditAnywhere, Category=VectorField)

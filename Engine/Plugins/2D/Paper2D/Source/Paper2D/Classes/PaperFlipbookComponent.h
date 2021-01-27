@@ -26,11 +26,11 @@ class PAPER2D_API UPaperFlipbookComponent : public UMeshComponent
 protected:
 	/** Flipbook currently being played */
 	UPROPERTY(Category=Sprite, EditAnywhere, meta=(DisplayThumbnail = "true"), ReplicatedUsing=OnRep_SourceFlipbook)
-	UPaperFlipbook* SourceFlipbook;
+	TObjectPtr<UPaperFlipbook> SourceFlipbook;
 
 	// DEPRECATED in 4.5: The material override for this flipbook component (if any); replaced by the Materials array inherited from UMeshComponent
 	UPROPERTY()
-	UMaterialInterface* Material_DEPRECATED;
+	TObjectPtr<UMaterialInterface> Material_DEPRECATED;
 
 	/** Current play rate of the flipbook */
 	UPROPERTY(Category=Sprite, EditAnywhere)
@@ -62,7 +62,7 @@ protected:
 
 	/** The cached body setup */
 	UPROPERTY(Transient)
-	UBodySetup* CachedBodySetup;
+	TObjectPtr<UBodySetup> CachedBodySetup;
 
 public:
 	/** Event called whenever a non-looping flipbook finishes playing (either reaching the beginning or the end, depending on the play direction) */

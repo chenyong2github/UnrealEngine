@@ -258,11 +258,11 @@ public:
 public:
 	/** Currently-active Left Tool, or null if no Tool is active */
 	UPROPERTY()
-	UInteractiveTool* ActiveLeftTool;
+	TObjectPtr<UInteractiveTool> ActiveLeftTool;
 
 	/** Currently-active Right Tool, or null if no Tool is active */
 	UPROPERTY()
-	UInteractiveTool* ActiveRightTool;
+	TObjectPtr<UInteractiveTool> ActiveRightTool;
 
 
 
@@ -289,7 +289,7 @@ protected:
 
 	/** Current set of named ToolBuilders */
 	UPROPERTY()
-	TMap<FString, UInteractiveToolBuilder*> ToolBuilders;
+	TMap<FString, TObjectPtr<UInteractiveToolBuilder>> ToolBuilders;
 
 	/** Currently-active Left ToolBuilder */
 	FString ActiveLeftBuilderName;

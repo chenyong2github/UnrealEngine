@@ -18,7 +18,7 @@ class LANDSCAPE_API ALandscapeBlueprintBrushBase : public AActor
 protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
-	class ALandscape* OwningLandscape;
+	TObjectPtr<class ALandscape> OwningLandscape;
 
 	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
 	bool AffectHeightmap;

@@ -113,7 +113,7 @@ private:
 
 	/** The graph that the local variable belongs to (if this is a local variable spawner). */
 	UPROPERTY()
-	UEdGraph* LocalVarOuter;
+	TObjectPtr<UEdGraph> LocalVarOuter;
 
 	/** */
 	UPROPERTY()

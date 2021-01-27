@@ -118,7 +118,7 @@ struct ENGINE_API FDynamicTextureInstance : public FStreamableTextureInstance
 
 	/** Texture that is used by a dynamic UPrimitiveComponent. */
 	UPROPERTY()
-	UTexture2D*					Texture = nullptr;
+	TObjectPtr<UTexture2D>					Texture = nullptr;
 
 	/** Whether the primitive that uses this texture is attached to the scene or not. */
 	UPROPERTY()
@@ -393,7 +393,7 @@ struct FReplicatedStaticActorDestructionInfo
 	FVector	DestroyedPosition;
 	TWeakObjectPtr<UObject> ObjOuter;
 	UPROPERTY()
-	UClass* ObjClass = nullptr;
+	TObjectPtr<UClass> ObjClass = nullptr;
 };
 
 #if WITH_EDITORONLY_DATA
@@ -454,23 +454,23 @@ public:
 	 * It should not be accessed during BeginDestroy(), just like any other UObject references, since GC may occur in any order.
 	 */
 	UPROPERTY(Transient)
-	UWorld* OwningWorld;
+	TObjectPtr<UWorld> OwningWorld;
 
 	/** BSP UModel. */
 	UPROPERTY()
-	class UModel* Model;
+	TObjectPtr<class UModel> Model;
 
 	/** BSP Model components used for rendering. */
 	UPROPERTY()
-	TArray<class UModelComponent*> ModelComponents;
+	TArray<TObjectPtr<class UModelComponent>> ModelComponents;
 
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional)
-	ULevelActorContainer* ActorCluster;
+	TObjectPtr<ULevelActorContainer> ActorCluster;
 
 #if WITH_EDITORONLY_DATA
 	/** Reference to the blueprint for level scripting */
 	UPROPERTY(NonTransactional)
-	class ULevelScriptBlueprint* LevelScriptBlueprint;
+	TObjectPtr<class ULevelScriptBlueprint> LevelScriptBlueprint;
 
 	/** The Guid list of all materials and meshes Guid used in the last texture streaming build. Used to know if the streaming data needs rebuild. Only used for the persistent level. */
 	UPROPERTY(NonTransactional)
@@ -487,20 +487,20 @@ public:
 
 	/** The level scripting actor, created by instantiating the class from LevelScriptBlueprint.  This handles all level scripting */
 	UPROPERTY(NonTransactional)
-	class ALevelScriptActor* LevelScriptActor;
+	TObjectPtr<class ALevelScriptActor> LevelScriptActor;
 
 	/**
 	 * Start and end of the navigation list for this level, used for quickly fixing up
 	 * when streaming this level in/out. @TODO DEPRECATED - DELETE
 	 */
 	UPROPERTY()
-	class ANavigationObjectBase *NavListStart;
+	TObjectPtr<class ANavigationObjectBase> NavListStart;
 	UPROPERTY()
-	class ANavigationObjectBase	*NavListEnd;
+	TObjectPtr<class ANavigationObjectBase>	NavListEnd;
 	
 	/** Navigation related data that can be stored per level */
 	UPROPERTY()
-	TArray<UNavigationDataChunk*> NavDataChunks;
+	TArray<TObjectPtr<UNavigationDataChunk>> NavDataChunks;
 	
 	/** Total number of KB used for lightmap textures in the level. */
 	UPROPERTY(VisibleAnywhere, Category=Level)
@@ -548,7 +548,7 @@ public:
 	 * ReleaseRenderingResources must be called before changing what is referenced, to update the rendering thread state.
 	 */
 	UPROPERTY(NonPIEDuplicateTransient)
-	UMapBuildDataRegistry* MapBuildData;
+	TObjectPtr<UMapBuildDataRegistry> MapBuildData;
 
 	/** Level offset at time when lighting was built */
 	UPROPERTY()
@@ -714,7 +714,7 @@ private:
 	FLevelBoundsActorUpdatedEvent LevelBoundsActorUpdatedEvent; 
 
 	UPROPERTY()
-	AWorldSettings* WorldSettings;
+	TObjectPtr<AWorldSettings> WorldSettings;
 
 	/** Cached level collection that this level is contained in, for faster access than looping through the collections in the world. */
 	FLevelCollection* CachedLevelCollection;
@@ -723,7 +723,7 @@ protected:
 
 	/** Array of user data stored with the asset */
 	UPROPERTY()
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 private:
 	// Actors awaiting input to be enabled once the appropriate PlayerController has been created

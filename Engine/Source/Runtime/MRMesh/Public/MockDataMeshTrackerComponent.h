@@ -109,7 +109,7 @@ public:
 
 	/** MRMeshComponent can render and provide collision based on the Mesh data. */
 	UPROPERTY(transient)
-	class UMRMeshComponent* MRMesh;
+	TObjectPtr<class UMRMeshComponent> MRMesh;
 
 	/**
 		The procedural mesh generated should bake physics and update its collision data.

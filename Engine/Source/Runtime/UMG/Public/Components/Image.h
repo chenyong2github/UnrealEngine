@@ -36,7 +36,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Image to draw */
 	UPROPERTY()
-	USlateBrushAsset* Image_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> Image_DEPRECATED;
 #endif
 
 	/** Image to draw */

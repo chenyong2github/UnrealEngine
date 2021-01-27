@@ -469,10 +469,10 @@ private:
 	TArray<FOnFilterChild> ChildFilters;
 
 	UPROPERTY()
-	TArray<UNiagaraStackEntry*> Children;
+	TArray<TObjectPtr<UNiagaraStackEntry>> Children;
 
 	UPROPERTY()
-	TArray<UNiagaraStackErrorItem*> ErrorChildren;
+	TArray<TObjectPtr<UNiagaraStackErrorItem>> ErrorChildren;
 
 	mutable TOptional<bool> bIsExpandedCache;
 

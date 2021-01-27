@@ -27,7 +27,7 @@ public:
 
 	// The asset that was created for TextureName
 	UPROPERTY(VisibleAnywhere, Category=Data)
-	UTexture2D* Texture;
+	TObjectPtr<UTexture2D> Texture;
 
 	// The name of the normal map texture during import (if any)
 	UPROPERTY(VisibleAnywhere, Category=Data)
@@ -35,12 +35,12 @@ public:
 
 	// The asset that was created for NormalMapTextureName (if any)
 	UPROPERTY(VisibleAnywhere, Category=Data)
-	UTexture2D* NormalMapTexture;
+	TObjectPtr<UTexture2D> NormalMapTexture;
 
 #if WITH_EDITORONLY_DATA
 	// Import data for this 
 	UPROPERTY(VisibleAnywhere, Instanced, Category=ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 	// UObject interface
 	virtual void PostInitProperties() override;

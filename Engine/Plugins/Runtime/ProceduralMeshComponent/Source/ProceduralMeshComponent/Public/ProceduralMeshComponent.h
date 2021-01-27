@@ -280,7 +280,7 @@ public:
 
 	/** Collision data */
 	UPROPERTY(Instanced)
-	class UBodySetup* ProcMeshBodySetup;
+	TObjectPtr<class UBodySetup> ProcMeshBodySetup;
 
 	/** 
 	 *	Get pointer to internal data for one section of this procedural mesh component. 
@@ -338,7 +338,7 @@ private:
 	
 	/** Queue for async body setups that are being cooked */
 	UPROPERTY(transient)
-	TArray<UBodySetup*> AsyncBodySetupQueue;
+	TArray<TObjectPtr<UBodySetup>> AsyncBodySetupQueue;
 
 	friend class FProceduralMeshSceneProxy;
 };

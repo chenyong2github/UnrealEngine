@@ -31,5 +31,5 @@ private:
 
 	/** List of event sections that are bound to the blueprint */
 	UPROPERTY()
-	TArray<UMovieSceneEventSectionBase*> EventSections;
+	TArray<TObjectPtr<UMovieSceneEventSectionBase>> EventSections;
 };

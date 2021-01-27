@@ -56,7 +56,7 @@ struct ENGINE_API FAlphaBlendArgs
 
 	/** If you're using Custom BlendOption, you can specify curve */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta=(DisplayAfter="BlendOption"))
-	UCurveFloat* CustomCurve;
+	TObjectPtr<UCurveFloat> CustomCurve;
 
 	/** Blend Time */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend")
@@ -82,7 +82,7 @@ private:
 
 	/** If you're using Custom BlendOption, you can specify curve */
 	UPROPERTY(EditAnywhere, Category = "Blend", meta=(DisplayAfter="BlendOption"))
-	UCurveFloat* CustomCurve;
+	TObjectPtr<UCurveFloat> CustomCurve;
 
 public:
 	/* Constructor */

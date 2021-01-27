@@ -1110,7 +1110,7 @@ protected:
 	 * @see OpenPlaylist, OpenPlaylistIndex
 	 */
 	UPROPERTY(BlueprintReadOnly, transient, Category=Playback, BlueprintGetter = GetPlayList)
-	mutable UMediaPlaylist* Playlist;
+	mutable TObjectPtr<UMediaPlaylist> Playlist;
 
 	/**
 	 * The current index of the source in the play list being played.

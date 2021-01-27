@@ -25,7 +25,7 @@ public:
 	}
 
 	UPROPERTY()
-	UNiagaraScript* Script;
+	TObjectPtr<UNiagaraScript> Script;
 
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FName SimulationStageName;

@@ -22,7 +22,7 @@ struct AIMODULE_API FPawnActionEvent
 	static const int32 FakeActionIndex = INDEX_NONE;
 
 	UPROPERTY()
-	UPawnAction* Action;
+	TObjectPtr<UPawnAction> Action;
 
 	EPawnActionEventType::Type EventType;
 
@@ -50,7 +50,7 @@ struct AIMODULE_API FPawnActionStack
 
 private:
 	UPROPERTY()
-	UPawnAction* TopAction;
+	TObjectPtr<UPawnAction> TopAction;
 
 public:
 	void Pause();
@@ -81,7 +81,7 @@ class AIMODULE_API UPawnActionsComponent : public UActorComponent
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category="PawnActions")
-	APawn* ControlledPawn;
+	TObjectPtr<APawn> ControlledPawn;
 
 	UPROPERTY()
 	TArray<FPawnActionStack> ActionStacks;
@@ -90,7 +90,7 @@ protected:
 	TArray<FPawnActionEvent> ActionEvents;
 
 	UPROPERTY(Transient)
-	UPawnAction* CurrentAction;
+	TObjectPtr<UPawnAction> CurrentAction;
 
 	/** set when logic was locked by hi priority stack */
 	uint32 bLockedAILogic : 1;

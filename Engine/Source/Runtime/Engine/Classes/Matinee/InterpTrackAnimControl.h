@@ -24,7 +24,7 @@ struct FAnimControlTrackKey
 
 	/** Animation Sequence to play */
 	UPROPERTY()
-	class UAnimSequence* AnimSeq;
+	TObjectPtr<class UAnimSequence> AnimSeq;
 
 	/** Time to start playing AnimSequence at. */
 	UPROPERTY()

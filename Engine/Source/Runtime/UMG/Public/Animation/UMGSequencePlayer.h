@@ -101,7 +101,7 @@ private:
 
 	/** Animation being played */
 	UPROPERTY()
-	UWidgetAnimation* Animation;
+	TObjectPtr<UWidgetAnimation> Animation;
 
 	/** The user widget this sequence is animating */
 	TWeakObjectPtr<UUserWidget> UserWidget;

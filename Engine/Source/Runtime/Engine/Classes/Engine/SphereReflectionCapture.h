@@ -21,7 +21,7 @@ class ASphereReflectionCapture : public AReflectionCapture
 private:
 	/** Sphere component used to visualize the capture radius */
 	UPROPERTY()
-	UDrawSphereComponent* DrawCaptureRadius;
+	TObjectPtr<UDrawSphereComponent> DrawCaptureRadius;
 
 public:
 

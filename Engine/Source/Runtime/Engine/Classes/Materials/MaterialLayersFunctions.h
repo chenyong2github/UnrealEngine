@@ -231,10 +231,10 @@ struct ENGINE_API FMaterialLayersFunctions
 	}
 
 	UPROPERTY(EditAnywhere, Category=MaterialLayers)
-	TArray<class UMaterialFunctionInterface*> Layers;
+	TArray<TObjectPtr<class UMaterialFunctionInterface>> Layers;
 
 	UPROPERTY(EditAnywhere, Category=MaterialLayers)
-	TArray<class UMaterialFunctionInterface*> Blends;
+	TArray<TObjectPtr<class UMaterialFunctionInterface>> Blends;
 
 	UPROPERTY(EditAnywhere, Category = MaterialLayers)
 	TArray<bool> LayerStates;

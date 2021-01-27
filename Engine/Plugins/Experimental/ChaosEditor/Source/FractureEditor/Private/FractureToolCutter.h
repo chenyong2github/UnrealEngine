@@ -89,7 +89,7 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
-	UFractureCutterSettings* CutterSettings;
+	TObjectPtr<UFractureCutterSettings> CutterSettings;
 
 };
 

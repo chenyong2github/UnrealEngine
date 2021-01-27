@@ -54,24 +54,24 @@ class AIMODULE_API UPawnAction : public UObject
 private:
 	/** Current child node executing on top of this Action */
 	UPROPERTY(Transient)
-	UPawnAction* ChildAction;
+	TObjectPtr<UPawnAction> ChildAction;
 
 	UPROPERTY(Transient)
-	UPawnAction* ParentAction;
+	TObjectPtr<UPawnAction> ParentAction;
 
 	/** Extra reference to the component this action is being governed by */
 	UPROPERTY(Transient)
-	UPawnActionsComponent* OwnerComponent;
+	TObjectPtr<UPawnActionsComponent> OwnerComponent;
 	
 	/** indicates an object that caused this action. Used for mass removal of actions 
 	 *	by specific object */
 	UPROPERTY(Transient)
-	UObject* Instigator;
+	TObjectPtr<UObject> Instigator;
 
 protected:
 	/** @Note: THIS IS HERE _ONLY_ BECAUSE OF THE WAY AI MESSAGING IS CURRENTLY IMPLEMENTED. WILL GO AWAY! */
 	UPROPERTY(Transient)
-	UBrainComponent* BrainComp;
+	TObjectPtr<UBrainComponent> BrainComp;
 
 private:
 	/** stores registered message observers */

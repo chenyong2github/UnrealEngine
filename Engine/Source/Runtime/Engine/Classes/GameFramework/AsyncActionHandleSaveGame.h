@@ -65,7 +65,7 @@ protected:
 
 	/** The object that was either saved or loaded */
 	UPROPERTY()
-	USaveGame* SaveGameObject;
+	TObjectPtr<USaveGame> SaveGameObject;
 	
 	/** Function callbacks for load/save */
 	virtual void HandleAsyncSave(const FString& SlotName, const int32 UserIndex, bool bSuccess);

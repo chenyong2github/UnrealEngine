@@ -85,10 +85,10 @@ private:
 	TArray<FGuid> SelectedEmitterHandleIds;
 
 	UPROPERTY()
-	UNiagaraStackSelection* StackSelection;
+	TObjectPtr<UNiagaraStackSelection> StackSelection;
 
 	UPROPERTY()
-	UNiagaraStackViewModel* SelectionStackViewModel;
+	TObjectPtr<UNiagaraStackViewModel> SelectionStackViewModel;
 
 	FOnSelectionChanged OnEntrySelectionChangedDelegate;
 

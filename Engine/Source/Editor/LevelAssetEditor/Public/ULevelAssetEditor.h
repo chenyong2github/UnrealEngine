@@ -20,5 +20,5 @@ public:
 
 protected:
 	UPROPERTY()
-	UInteractiveToolsContext* InteractiveToolsContext;
+	TObjectPtr<UInteractiveToolsContext> InteractiveToolsContext;
 };

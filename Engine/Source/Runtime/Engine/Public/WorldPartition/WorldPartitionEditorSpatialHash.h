@@ -241,13 +241,13 @@ private:
 	TMap<FCellCoord, UWorldPartitionEditorCell*> HashCells;
 
 	UPROPERTY(Transient)
-	TSet<UWorldPartitionEditorCell*> Cells;
+	TSet<TObjectPtr<UWorldPartitionEditorCell>> Cells;
 	
 	FBox Bounds;
 	bool bBoundsDirty;
 	
 	UPROPERTY(Transient)
-	UWorldPartitionEditorCell* AlwaysLoadedCell;
+	TObjectPtr<UWorldPartitionEditorCell> AlwaysLoadedCell;
 
 public:
 	UPROPERTY(Config, meta = (AllowedClasses = "Texture2D, MaterialInterface"))

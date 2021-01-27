@@ -509,7 +509,7 @@ protected:
 
 	/**	Allows you to override the PhysicalMaterial to use for simple collision on this body. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Collision)
-	class UPhysicalMaterial* PhysMaterialOverride;
+	TObjectPtr<class UPhysicalMaterial> PhysMaterialOverride;
 
 public:
 	/** The maximum angular velocity for this instance [degrees/s]*/

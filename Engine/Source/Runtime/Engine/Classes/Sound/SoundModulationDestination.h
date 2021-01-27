@@ -45,7 +45,7 @@ struct ENGINE_API FSoundModulationDestinationSettings
 
 	/** Modulation source, which provides value to mix with base value. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
-	USoundModulatorBase* Modulator = nullptr;
+	TObjectPtr<USoundModulatorBase> Modulator = nullptr;
 };
 
 /** Default parameter destination settings for source audio object. */

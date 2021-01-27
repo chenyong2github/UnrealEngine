@@ -762,11 +762,11 @@ public:
 
 	/** Right field to be processed */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Input Field A")
-	const UFieldNodeBase* RightField;
+	TObjectPtr<const UFieldNodeBase> RightField;
 
 	/** Left field to be processed */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Input Field B")
-	const UFieldNodeBase* LeftField;
+	TObjectPtr<const UFieldNodeBase> LeftField;
 
 	/** Type of operation you want to perform between the 2 fields */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Field Operation")
@@ -800,7 +800,7 @@ public:
 
 	/** Scalar field to be converted to an an integer one */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Scalar Field")
-	const UFieldNodeFloat* FloatField;
+	TObjectPtr<const UFieldNodeFloat> FloatField;
 };
 
 /**
@@ -830,7 +830,7 @@ public:
 
 	/** Integer field to be converted to an a scalar one */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Integer Field")
-	const UFieldNodeInt* IntField;
+	TObjectPtr<const UFieldNodeInt> IntField;
 };
 
 /**
@@ -868,11 +868,11 @@ public:
 
 	/** Culling field to be used */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Culling Field")
-	const UFieldNodeBase* Culling;
+	TObjectPtr<const UFieldNodeBase> Culling;
 
 	/** Input field that will be evaluated according to the culling field result */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Input Field")
-	const UFieldNodeBase* Field;
+	TObjectPtr<const UFieldNodeBase> Field;
 
 	/** Evaluate the input field if the result of the culling field is equal to 0 (Inside) or different from 0 (Outside) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Culling Operation")

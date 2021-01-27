@@ -28,7 +28,7 @@ public:
 
 	/** Media sources per platform. */
 	UPROPERTY(transient, EditAnywhere, Category=Sources, Meta=(DisplayName="Media Sources"))
-	TMap<FString, UMediaSource*> PlatformMediaSources;
+	TMap<FString, TObjectPtr<UMediaSource>> PlatformMediaSources;
 
 private:
 	/** Blind data encountered at load that could not be mapped to a known platform */
@@ -74,5 +74,5 @@ private:
 	 * This media source will be used if no source was specified for a target platform.
 	 */
 	UPROPERTY()
-	UMediaSource* MediaSource;
+	TObjectPtr<UMediaSource> MediaSource;
 };

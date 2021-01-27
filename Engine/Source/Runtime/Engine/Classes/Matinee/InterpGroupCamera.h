@@ -25,7 +25,7 @@ struct FCameraPreviewInfo
 	TSubclassOf<class APawn>  PawnClass;
 
 	UPROPERTY(EditAnywhere, Category=CameraPreviewInfo)
-	class UAnimSequence* AnimSeq;
+	TObjectPtr<class UAnimSequence> AnimSeq;
 
 	/* for now this is read-only. It has maintenance issue to be resolved if I enable this.*/
 	UPROPERTY(VisibleAnywhere, Category=CameraPreviewInfo)
@@ -36,7 +36,7 @@ struct FCameraPreviewInfo
 
 	/** APawn Inst - CameraAnimInst doesn't really exist in editor **/
 	UPROPERTY(transient)
-	class APawn* PawnInst;
+	TObjectPtr<class APawn> PawnInst;
 
 
 
@@ -57,7 +57,7 @@ class UInterpGroupCamera : public UInterpGroup
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(transient)
-	class UCameraAnim* CameraAnimInst;
+	TObjectPtr<class UCameraAnim> CameraAnimInst;
 
 #if WITH_EDITORONLY_DATA
 	// this is interaction property info for CameraAnim

@@ -98,11 +98,11 @@ struct GAMEPLAYTAGS_API FGameplayTagSource
 
 	/** If this is bound to an ini object for saving, this is the one */
 	UPROPERTY()
-	class UGameplayTagsList* SourceTagList;
+	TObjectPtr<class UGameplayTagsList> SourceTagList;
 
 	/** If this has restricted tags and is bound to an ini object for saving, this is the one */
 	UPROPERTY()
-	class URestrictedGameplayTagsList* SourceRestrictedTagList;
+	TObjectPtr<class URestrictedGameplayTagsList> SourceRestrictedTagList;
 
 	FGameplayTagSource() 
 		: SourceName(NAME_None), SourceType(EGameplayTagSourceType::Invalid), SourceTagList(nullptr), SourceRestrictedTagList(nullptr)
@@ -721,7 +721,7 @@ private:
 
 	/** Holds all of the valid gameplay-related tags that can be applied to assets */
 	UPROPERTY()
-	TArray<UDataTable*> GameplayTagTables;
+	TArray<TObjectPtr<UDataTable>> GameplayTagTables;
 
 	/** The map of ini-configured tag redirectors */
 	TMap<FName, FGameplayTag> TagRedirects;

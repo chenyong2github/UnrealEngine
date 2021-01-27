@@ -22,7 +22,7 @@ class UParticleModuleAccelerationDragScaleOverLife : public UParticleModuleAccel
 
 	/** Per-particle drag scale. Evaluted using particle relative time. */
 	UPROPERTY()
-	class UDistributionFloat* DragScale_DEPRECATED;
+	TObjectPtr<class UDistributionFloat> DragScale_DEPRECATED;
 
 	/** Per-particle drag scale. Evaluted using particle relative time. */
 	UPROPERTY(EditAnywhere, Category = Drag)

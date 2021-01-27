@@ -38,10 +38,10 @@ private:
 
 	/** The component to transform when this manipulator was moved. */
 	UPROPERTY()
-	USceneComponent* AssociatedComponent;
+	TObjectPtr<USceneComponent> AssociatedComponent;
 
 	/** Visual representation of this manipulator. */
 	UPROPERTY()
-	class UStaticMeshComponent* StaticMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> StaticMeshComponent;
 
 };

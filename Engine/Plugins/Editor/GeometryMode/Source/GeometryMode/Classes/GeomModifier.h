@@ -59,7 +59,7 @@ class UGeomModifier : public UObject
 private:
 	/** Stored state of polys in case the brush state needs to be restroed */
 	UPROPERTY()
-	class UPolys* CachedPolys;
+	TObjectPtr<class UPolys> CachedPolys;
 
 public:
 

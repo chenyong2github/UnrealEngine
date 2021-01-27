@@ -23,7 +23,7 @@ class AIMODULE_API UEnvQuery : public UDataAsset
 #if WITH_EDITORONLY_DATA
 	/** Graph for query */
 	UPROPERTY()
-	UEdGraph*	EdGraph;
+	TObjectPtr<UEdGraph>	EdGraph;
 #endif
 
 protected:
@@ -33,7 +33,7 @@ protected:
 	FName QueryName;
 
 	UPROPERTY()
-	TArray<UEnvQueryOption*> Options;
+	TArray<TObjectPtr<UEnvQueryOption>> Options;
 
 public:
 	/** Gather all required named params */

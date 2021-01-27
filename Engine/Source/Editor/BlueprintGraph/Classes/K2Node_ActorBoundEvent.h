@@ -25,11 +25,11 @@ class UK2Node_ActorBoundEvent : public UK2Node_Event
 
 	/** Delegate property's owner class that this event is associated with */
 	UPROPERTY()
-	UClass* DelegateOwnerClass;
+	TObjectPtr<UClass> DelegateOwnerClass;
 
 	/** The event that this event is bound to */
 	UPROPERTY()
-	class AActor* EventOwner;
+	TObjectPtr<class AActor> EventOwner;
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;

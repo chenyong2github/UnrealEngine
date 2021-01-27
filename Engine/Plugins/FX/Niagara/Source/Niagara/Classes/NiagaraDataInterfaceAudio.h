@@ -137,7 +137,7 @@ public:
 	
 	/** The audio submix where analyzed. */
 	UPROPERTY(EditAnywhere, Category = "Audio")
-	USoundSubmix* Submix;
+	TObjectPtr<USoundSubmix> Submix;
 
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;

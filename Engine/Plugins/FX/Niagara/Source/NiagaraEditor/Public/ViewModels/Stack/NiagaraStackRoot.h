@@ -37,37 +37,37 @@ private:
 
 private:
 	UPROPERTY()
-	UNiagaraStackSystemSettingsGroup* SystemSettingsGroup;
+	TObjectPtr<UNiagaraStackSystemSettingsGroup> SystemSettingsGroup;
 
 	UPROPERTY()
-	UNiagaraStackScriptItemGroup* SystemSpawnGroup;
+	TObjectPtr<UNiagaraStackScriptItemGroup> SystemSpawnGroup;
 
 	UPROPERTY()
-	UNiagaraStackScriptItemGroup* SystemUpdateGroup;
+	TObjectPtr<UNiagaraStackScriptItemGroup> SystemUpdateGroup;
 
 	UPROPERTY()
-	UNiagaraStackEmitterSettingsGroup* EmitterSettingsGroup;
+	TObjectPtr<UNiagaraStackEmitterSettingsGroup> EmitterSettingsGroup;
 
 	UPROPERTY()
-	UNiagaraStackScriptItemGroup* EmitterSpawnGroup;
+	TObjectPtr<UNiagaraStackScriptItemGroup> EmitterSpawnGroup;
 
 	UPROPERTY()
-	UNiagaraStackScriptItemGroup* EmitterUpdateGroup;
+	TObjectPtr<UNiagaraStackScriptItemGroup> EmitterUpdateGroup;
 
 	UPROPERTY()
-	UNiagaraStackScriptItemGroup* ParticleSpawnGroup;
+	TObjectPtr<UNiagaraStackScriptItemGroup> ParticleSpawnGroup;
 
 	UPROPERTY()
-	UNiagaraStackScriptItemGroup* ParticleUpdateGroup;
+	TObjectPtr<UNiagaraStackScriptItemGroup> ParticleUpdateGroup;
 
 	UPROPERTY()
-	UNiagaraStackEventHandlerGroup* AddEventHandlerGroup;
+	TObjectPtr<UNiagaraStackEventHandlerGroup> AddEventHandlerGroup;
 
 	UPROPERTY()
-	UNiagaraStackSimulationStagesGroup* AddSimulationStageGroup;
+	TObjectPtr<UNiagaraStackSimulationStagesGroup> AddSimulationStageGroup;
 
 	UPROPERTY()
-	UNiagaraStackRenderItemGroup* RenderGroup;
+	TObjectPtr<UNiagaraStackRenderItemGroup> RenderGroup;
 
 	bool bIncludeSystemInformation;
 	bool bIncludeEmitterInformation;

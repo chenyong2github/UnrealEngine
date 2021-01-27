@@ -28,7 +28,7 @@ struct FNamedInterface
 	FName InterfaceName;
 	/** The object to store at this location */
 	UPROPERTY()
-	UObject* InterfaceObject;
+	TObjectPtr<UObject> InterfaceObject;
 };
 
 /** Holds a name to class name mapping for adding the named interfaces automatically */

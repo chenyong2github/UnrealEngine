@@ -31,11 +31,11 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 
 	/** Parent function. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialFunctionInstance, AssetRegistrySearchable)
-	UMaterialFunctionInterface* Parent;
+	TObjectPtr<UMaterialFunctionInterface> Parent;
 
 	/** Base function. */
 	UPROPERTY(AssetRegistrySearchable)
-	UMaterialFunctionInterface* Base;
+	TObjectPtr<UMaterialFunctionInterface> Base;
 
 	/** Scalar parameters. */
 	UPROPERTY(EditAnywhere, Category=MaterialFunctionInstance)
@@ -180,6 +180,6 @@ public:
 protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
-	class UMaterialInstanceConstant* PreviewMaterial;
+	TObjectPtr<class UMaterialInstanceConstant> PreviewMaterial;
 #endif // WITH_EDITORONLY_DATA
 };

@@ -70,7 +70,7 @@ protected:
 	TArray<TSoftClassPtr<UObject>> BaseClassesToAllowRecompilingDuringPlayInEditor;
 
 	UPROPERTY(Transient)
-	mutable TArray<UClass*> ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor;
+	mutable TArray<TObjectPtr<UClass>> ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor;
 
 public:
 	bool IsClassAllowedToRecompileDuringPIE(UClass* TestClass) const;

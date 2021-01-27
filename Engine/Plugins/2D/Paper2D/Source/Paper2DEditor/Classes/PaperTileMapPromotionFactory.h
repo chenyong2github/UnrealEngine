@@ -18,7 +18,7 @@ class UPaperTileMapPromotionFactory : public UFactory
 
 	// Object being promoted to an asset
 	UPROPERTY()
-	class UPaperTileMap* AssetToRename;
+	TObjectPtr<class UPaperTileMap> AssetToRename;
 
 	// UFactory interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;

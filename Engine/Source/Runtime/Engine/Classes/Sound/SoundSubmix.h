@@ -170,7 +170,7 @@ public:
 
 	// Child submixes to this sound mix
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
-	TArray<USoundSubmixBase*> ChildSubmixes;
+	TArray<TObjectPtr<USoundSubmixBase>> ChildSubmixes;
 
 protected:
 	//~ Begin UObject Interface.
@@ -219,7 +219,7 @@ class ENGINE_API USoundSubmixWithParentBase : public USoundSubmixBase
 public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
-	USoundSubmixBase* ParentSubmix;
+	TObjectPtr<USoundSubmixBase> ParentSubmix;
 
 	/**
 	* Set the parent submix of this SoundSubmix, removing it as a child from its previous owner
@@ -259,11 +259,11 @@ public:
 	uint8 bMuteWhenBackgrounded : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
-	TArray<USoundEffectSubmixPreset*> SubmixEffectChain;
+	TArray<TObjectPtr<USoundEffectSubmixPreset>> SubmixEffectChain;
 
 	/** Optional settings used by plugins which support ambisonics file playback. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SoundSubmix)
-	USoundfieldEncodingSettingsBase* AmbisonicsPluginSettings;
+	TObjectPtr<USoundfieldEncodingSettingsBase> AmbisonicsPluginSettings;
 
 	/** The attack time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the envelope value of sounds played with this submix. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = EnvelopeFollower, meta = (ClampMin = "0", UIMin = "0"))
@@ -413,12 +413,12 @@ public:
 	//TODO: Make this editable only if SoundfieldEncodingFormat is non-default,
 	// and filter classes based on ISoundfieldFactory::GetCustomSettingsClass().
 	UPROPERTY(EditAnywhere, Category = Soundfield)
-	USoundfieldEncodingSettingsBase* EncodingSettings;
+	TObjectPtr<USoundfieldEncodingSettingsBase> EncodingSettings;
 
 	// TODO: make this editable only if SoundfieldEncodingFormat is non-default
 	// and filter classes based on USoundfieldProcessorBase::SupportsFormat.
 	UPROPERTY(EditAnywhere, Category = Soundfield)
-	TArray<USoundfieldEffectBase*> SoundfieldEffectChain;
+	TArray<TObjectPtr<USoundfieldEffectBase>> SoundfieldEffectChain;
 
 	// Traverses parent submixes until we find a submix that doesn't inherit it's soundfield format.
 	FName GetSubmixFormat() const;
@@ -462,7 +462,7 @@ public:
 	//TODO: Make this editable only if EndpointType is non-default,
 	// and filter classes based on ISoundfieldFactory::GetCustomSettingsClass().
 	UPROPERTY(EditAnywhere, Category = Endpoint)
-	UAudioEndpointSettingsBase* EndpointSettings;
+	TObjectPtr<UAudioEndpointSettingsBase> EndpointSettings;
 
 };
 
@@ -498,16 +498,16 @@ public:
 	//TODO: Make this editable only if EndpointType is non-default,
 	// and filter classes based on ISoundfieldFactory::GetCustomSettingsClass().
 	UPROPERTY(EditAnywhere, Category = Endpoint)
-	USoundfieldEndpointSettingsBase* EndpointSettings;
+	TObjectPtr<USoundfieldEndpointSettingsBase> EndpointSettings;
 
 	UPROPERTY()
 	TSubclassOf<USoundfieldEncodingSettingsBase> EncodingSettingsClass;
 
 	UPROPERTY(EditAnywhere, Category = Soundfield)
-	USoundfieldEncodingSettingsBase* EncodingSettings;
+	TObjectPtr<USoundfieldEncodingSettingsBase> EncodingSettings;
 
 	UPROPERTY(EditAnywhere, Category = Soundfield)
-	TArray<USoundfieldEffectBase*> SoundfieldEffectChain;
+	TArray<TObjectPtr<USoundfieldEffectBase>> SoundfieldEffectChain;
 
 protected:
 #if WITH_EDITOR

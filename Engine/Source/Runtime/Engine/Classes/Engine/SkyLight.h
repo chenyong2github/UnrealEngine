@@ -17,7 +17,7 @@ class ENGINE_API ASkyLight : public AInfo
 private:
 	/** @todo document */
 	UPROPERTY(Category = Light, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Light,Rendering,Rendering|Components|SkyLight", AllowPrivateAccess = "true"))
-	class USkyLightComponent* LightComponent;
+	TObjectPtr<class USkyLightComponent> LightComponent;
 public:
 
 	/** replicated copy of LightComponent's bEnabled property */

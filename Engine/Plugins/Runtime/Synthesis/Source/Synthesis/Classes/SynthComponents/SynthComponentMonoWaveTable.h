@@ -395,7 +395,7 @@ protected:
 
 	/** The settings asset to use for this synth */
 	UPROPERTY(EditAnywhere, Category = "Synth|Components|Audio")
-	UMonoWaveTableSynthPreset* CurrentPreset;
+	TObjectPtr<UMonoWaveTableSynthPreset> CurrentPreset;
 
 	UMonoWaveTableSynthPreset* CachedPreset;
 

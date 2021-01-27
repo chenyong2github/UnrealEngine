@@ -29,7 +29,7 @@ private:
 	TSoftObjectPtr<USoundWave> SoundWaveAssetPtr;
 
 	UPROPERTY(transient)
-	USoundWave* SoundWave;
+	TObjectPtr<USoundWave> SoundWave;
 
 	void OnSoundWaveLoaded(const FName& PackageName, UPackage * Package, EAsyncLoadingResult::Type Result, bool bAddToRoot);
 

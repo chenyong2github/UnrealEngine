@@ -32,5 +32,5 @@ private:
 	void RemoveInvalidModifiers();
 protected:
 	UPROPERTY()
-	TArray<UAnimationModifier*> AnimationModifierInstances;
+	TArray<TObjectPtr<UAnimationModifier>> AnimationModifierInstances;
 };

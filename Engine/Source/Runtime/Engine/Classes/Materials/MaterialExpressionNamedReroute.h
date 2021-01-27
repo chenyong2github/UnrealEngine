@@ -99,7 +99,7 @@ class ENGINE_API UMaterialExpressionNamedRerouteUsage : public UMaterialExpressi
 public:
 	// The declaration this node is linked to
 	UPROPERTY()
-	UMaterialExpressionNamedRerouteDeclaration* Declaration;
+	TObjectPtr<UMaterialExpressionNamedRerouteDeclaration> Declaration;
 	
 	// The variable GUID, to support copy across graphs
 	UPROPERTY()

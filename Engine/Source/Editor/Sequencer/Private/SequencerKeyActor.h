@@ -46,15 +46,15 @@ private:
 
 	/** The key mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* KeyMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> KeyMeshComponent;
 
 	/** The actor whose transform was used to build this key */
 	UPROPERTY()
-	AActor*	AssociatedActor;
+	TObjectPtr<AActor>	AssociatedActor;
 
 	/** The track section this key resides on */
 	UPROPERTY()
-	class UMovieScene3DTransformSection* TrackSection;
+	TObjectPtr<class UMovieScene3DTransformSection> TrackSection;
 
 	/** The time this key is associated with in Sequencer */
 	UPROPERTY()

@@ -38,7 +38,7 @@ struct FCompositeReroute
 	FName Name;
 
 	UPROPERTY(meta = (NoResetToDefault))
-	UMaterialExpressionReroute* Expression;
+	TObjectPtr<UMaterialExpressionReroute> Expression;
 
 	FCompositeReroute()
 		: Name(NAME_None)

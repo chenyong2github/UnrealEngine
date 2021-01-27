@@ -60,7 +60,7 @@ struct FPlatformInterfaceData
 	FString StringValue;
 
 	UPROPERTY()
-	class UObject* ObjectValue;
+	TObjectPtr<class UObject> ObjectValue;
 
 
 	FPlatformInterfaceData()

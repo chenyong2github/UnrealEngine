@@ -18,7 +18,7 @@ class UObjectLibrary : public UObject
 
 	/** Class that Objects must be of. If ContainsBlueprints is true, this is the native class that the blueprints are instances of and not UClass  */
 	UPROPERTY(EditAnywhere, Category=ObjectLibrary, meta=(AllowAbstract = ""))
-	UClass*				ObjectBaseClass;
+	TObjectPtr<UClass>				ObjectBaseClass;
 
 	/** True if this library holds blueprint classes, false if it holds other objects */
 	UPROPERTY(EditAnywhere, Category=ObjectLibrary)
@@ -28,7 +28,7 @@ protected:
 
 	/** List of Objects in library */
 	UPROPERTY(EditAnywhere, Category=ObjectLibrary)
-	TArray<UObject*>	Objects;
+	TArray<TObjectPtr<UObject>>	Objects;
 
 	/** Weak pointers to objects */
 	UPROPERTY()

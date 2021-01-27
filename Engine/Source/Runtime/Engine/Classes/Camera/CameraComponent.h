@@ -151,7 +151,7 @@ protected:
 	class UDrawFrustumComponent* DrawFrustum;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Camera)
-	class UStaticMesh* CameraMesh;
+	TObjectPtr<class UStaticMesh> CameraMesh;
 
 	// The camera mesh to show visually where the camera is placed
 	class UStaticMeshComponent* ProxyMeshComponent;

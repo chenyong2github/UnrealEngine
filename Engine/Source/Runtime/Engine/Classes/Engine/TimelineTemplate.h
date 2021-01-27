@@ -95,7 +95,7 @@ private:
 public:
 	/** Curve object used to store keys */
 	UPROPERTY()
-	class UCurveFloat* CurveKeys;
+	TObjectPtr<class UCurveFloat> CurveKeys;
 
 	/** Determine if Tracks are the same */
 	ENGINE_API bool operator == (const FTTEventTrack& T2) const;
@@ -130,7 +130,7 @@ struct FTTFloatTrack : public FTTPropertyTrack
 
 	/** Curve object used to define float value over time */
 	UPROPERTY()
-	class UCurveFloat* CurveFloat;
+	TObjectPtr<class UCurveFloat> CurveFloat;
 
 	/** Determine if Tracks are the same */
 	ENGINE_API bool operator == (const FTTFloatTrack& T2) const;
@@ -150,7 +150,7 @@ struct FTTVectorTrack : public FTTPropertyTrack
 
 	/** Curve object used to define vector value over time */
 	UPROPERTY()
-	class UCurveVector* CurveVector;
+	TObjectPtr<class UCurveVector> CurveVector;
 
 	/** Determine if Tracks are the same */
 	ENGINE_API bool operator == (const FTTVectorTrack& T2) const;
@@ -170,7 +170,7 @@ struct FTTLinearColorTrack : public FTTPropertyTrack
 
 	/** Curve object used to define color value over time */
 	UPROPERTY()
-	class UCurveLinearColor* CurveLinearColor;
+	TObjectPtr<class UCurveLinearColor> CurveLinearColor;
 
 	/** Determine if Tracks are the same */
 	ENGINE_API bool operator == (const FTTLinearColorTrack& T2) const;

@@ -96,7 +96,7 @@ public:
 	 * Optional Component that will be transformed such that it tracks the Radius/Position/Normal
 	 */
 	UPROPERTY()
-	UPrimitiveComponent* AttachedComponent;
+	TObjectPtr<UPrimitiveComponent> AttachedComponent;
 
 protected:
 	UPrimitiveComponent* ScaleInitializedComponent = nullptr;		// we are just using this as a key, never calling any functions on it

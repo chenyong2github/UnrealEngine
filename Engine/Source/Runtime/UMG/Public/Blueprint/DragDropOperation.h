@@ -52,14 +52,14 @@ public:
 	 * were building an inventory screen this would be the UObject representing the item being moved to another slot.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Drag and Drop", meta=( ExposeOnSpawn="true" ))
-	UObject* Payload;
+	TObjectPtr<UObject> Payload;
 	
 	/**
 	 * The Drag Visual is the widget to display when dragging the item.  Normally people create a new widget to represent the 
 	 * temporary drag.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Drag and Drop", meta=( ExposeOnSpawn="true", DisplayName="Drag Visual" ))
-	class UWidget* DefaultDragVisual;
+	TObjectPtr<class UWidget> DefaultDragVisual;
 
 	/**
 	 * Controls where the drag widget visual will appear when dragged relative to the pointer performing

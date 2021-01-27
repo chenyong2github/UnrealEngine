@@ -203,11 +203,11 @@ public:
 	virtual ~UNavigationSystemV1();
 
 	UPROPERTY(Transient)
-	ANavigationData* MainNavData;
+	TObjectPtr<ANavigationData> MainNavData;
 
 	/** special navigation data for managing direct paths, not part of NavDataSet! */
 	UPROPERTY(Transient)
-	ANavigationData* AbstractNavData;
+	TObjectPtr<ANavigationData> AbstractNavData;
 
 protected:
 	/** If not None indicates which of navigation datas and supported agents are
@@ -304,10 +304,10 @@ protected:
 public:
 
 	UPROPERTY(Transient)
-	TArray<ANavigationData*> NavDataSet;
+	TArray<TObjectPtr<ANavigationData>> NavDataSet;
 
 	UPROPERTY(Transient)
-	TArray<ANavigationData*> NavDataRegistrationQueue;
+	TArray<TObjectPtr<ANavigationData>> NavDataRegistrationQueue;
 
 	// List of pending navigation bounds update requests (add, remove, update size)
 	TArray<FNavigationBoundsUpdateRequest> PendingNavBoundsUpdates;

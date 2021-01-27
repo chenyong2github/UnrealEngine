@@ -19,5 +19,5 @@ class UWorldPartitionBuilderCommandlet : public UCommandlet, public FPackageSour
 
 private:
 	UPROPERTY()
-	TArray<UWorldPartitionBuilder*> Builders;
+	TArray<TObjectPtr<UWorldPartitionBuilder>> Builders;
 };

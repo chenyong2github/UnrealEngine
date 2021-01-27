@@ -51,7 +51,7 @@ struct SLATECORE_API FFontOutlineSettings
 
 	/** Optional material to apply to the outline */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="MaterialInterface"))
-	UObject* OutlineMaterial;
+	TObjectPtr<UObject> OutlineMaterial;
 
 	/** The color of the outline for any character in this font */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=OutlineSettings)
@@ -135,11 +135,11 @@ struct SLATECORE_API FSlateFontInfo
 
 	/** The font object (valid when used from UMG or a Slate widget style asset) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="Font", DisplayName="Font Family"))
-	const UObject* FontObject;
+	TObjectPtr<const UObject> FontObject;
 
 	/** The material to use when rendering this font */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="MaterialInterface"))
-	UObject* FontMaterial;
+	TObjectPtr<UObject> FontMaterial;
 
 	/** Settings for applying an outline to a font */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules)

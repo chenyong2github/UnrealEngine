@@ -31,34 +31,34 @@ public:
 private:
 	/** Uniform scale handle group component */
 	UPROPERTY()
-	class UUniformScaleGizmoHandleGroup* UniformScaleGizmoHandleGroup;
+	TObjectPtr<class UUniformScaleGizmoHandleGroup> UniformScaleGizmoHandleGroup;
 
 	/** Translation handle group component */
 	UPROPERTY()
-	class UPivotTranslationGizmoHandleGroup* TranslationGizmoHandleGroup;
+	TObjectPtr<class UPivotTranslationGizmoHandleGroup> TranslationGizmoHandleGroup;
 	
 	/** Scale handle group component */
 	UPROPERTY()
-	class UPivotScaleGizmoHandleGroup* ScaleGizmoHandleGroup;
+	TObjectPtr<class UPivotScaleGizmoHandleGroup> ScaleGizmoHandleGroup;
 	
 	/** Plane translation handle group component */
 	UPROPERTY()
-	class UPivotPlaneTranslationGizmoHandleGroup* PlaneTranslationGizmoHandleGroup;
+	TObjectPtr<class UPivotPlaneTranslationGizmoHandleGroup> PlaneTranslationGizmoHandleGroup;
 
 	/** Rotation handle group component */
 	UPROPERTY()
-	class UPivotRotationGizmoHandleGroup* RotationGizmoHandleGroup;
+	TObjectPtr<class UPivotRotationGizmoHandleGroup> RotationGizmoHandleGroup;
 
 	/** Stretch handle group component */
 	UPROPERTY()
-	class UStretchGizmoHandleGroup* StretchGizmoHandleGroup;
+	TObjectPtr<class UStretchGizmoHandleGroup> StretchGizmoHandleGroup;
 
 	/** The alpha for gizmo animation when aiming at it with a laser */
 	float AimingAtGizmoScaleAlpha;
 
 	/** Handle from previous tick that was dragged */
 	UPROPERTY()
-	UActorComponent* LastDraggingHandle;
+	TObjectPtr<UActorComponent> LastDraggingHandle;
 };
 
 /**
@@ -162,27 +162,27 @@ private:
 
 	/** Root component of all the mesh components that are used to visualize the rotation when dragging */
 	UPROPERTY()
-	USceneComponent* RootFullRotationHandleComponent;
+	TObjectPtr<USceneComponent> RootFullRotationHandleComponent;
 
 	/** When dragging a rotation handle the full rotation circle appears */
 	UPROPERTY()
-	class UGizmoHandleMeshComponent* FullRotationHandleMeshComponent;
+	TObjectPtr<class UGizmoHandleMeshComponent> FullRotationHandleMeshComponent;
 
 	/** The mesh that indicated the start rotation */
 	UPROPERTY()
-	class UGizmoHandleMeshComponent* StartRotationIndicatorMeshComponent;
+	TObjectPtr<class UGizmoHandleMeshComponent> StartRotationIndicatorMeshComponent;
 
 	/** The root component of the start rotation indicator */
 	UPROPERTY()
-	USceneComponent* RootStartRotationIdicatorComponent;
+	TObjectPtr<USceneComponent> RootStartRotationIdicatorComponent;
 
 	/** The mesh that indicated the delta rotation */
 	UPROPERTY()
-	class UGizmoHandleMeshComponent* DeltaRotationIndicatorMeshComponent;
+	TObjectPtr<class UGizmoHandleMeshComponent> DeltaRotationIndicatorMeshComponent;
 
 	/** The root component of the delta rotation indicator */
 	UPROPERTY()
-	USceneComponent* RootDeltaRotationIndicatorComponent;
+	TObjectPtr<USceneComponent> RootDeltaRotationIndicatorComponent;
 
 	/** The rotation when starting to drag the gizmo */
 	TOptional<FQuat> StartDragRotation;

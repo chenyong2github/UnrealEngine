@@ -23,11 +23,11 @@ class USoundCueFactoryNew : public UFactory
 
 	/** An initial sound wave to place in the newly created cue */
 	UPROPERTY()
-	class USoundWave* InitialSoundWave;
+	TObjectPtr<class USoundWave> InitialSoundWave;
 
 	/** An initial dialogue wave to place in the newly created cue */
 	UPROPERTY()
-	class UDialogueWave* InitialDialogueWave;
+	TObjectPtr<class UDialogueWave> InitialDialogueWave;
 };
 
 

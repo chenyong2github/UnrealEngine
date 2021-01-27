@@ -30,7 +30,7 @@ struct ENGINE_API FClientReceiveData
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	APlayerController* LocalPC;
+	TObjectPtr<APlayerController> LocalPC;
 
 	UPROPERTY()
 	FName MessageType;
@@ -42,13 +42,13 @@ struct ENGINE_API FClientReceiveData
 	FString MessageString;
 
 	UPROPERTY()
-	APlayerState* RelatedPlayerState_1;
+	TObjectPtr<APlayerState> RelatedPlayerState_1;
 
 	UPROPERTY()
-	APlayerState* RelatedPlayerState_2;
+	TObjectPtr<APlayerState> RelatedPlayerState_2;
 
 	UPROPERTY()
-	UObject* OptionalObject;
+	TObjectPtr<UObject> OptionalObject;
 
 	FClientReceiveData();
 };

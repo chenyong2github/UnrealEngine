@@ -54,7 +54,7 @@ class UVolumetricCloudComponent : public USceneComponent
 
 	/** The material describing the cloud volume. It must be a Volume domain material. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Material")
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	/** Whether to apply atmosphere transmittance per sample, instead of using the light global transmittance. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing")
@@ -178,7 +178,7 @@ class AVolumetricCloud : public AInfo
 private:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Atmosphere, meta = (AllowPrivateAccess = "true"))
-	class UVolumetricCloudComponent* VolumetricCloudComponent;
+	TObjectPtr<class UVolumetricCloudComponent> VolumetricCloudComponent;
 
 public:
 

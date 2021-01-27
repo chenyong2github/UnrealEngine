@@ -79,38 +79,38 @@ private:
 
 	/** Mesh underneath the window for docking it to the world */
 	UPROPERTY()
-	class UStaticMeshComponent* DockButtonMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> DockButtonMeshComponent;
 
 	/** Mesh underneath the window for easy selecting and dragging */
 	UPROPERTY()
-	class UStaticMeshComponent* SelectionBarMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> SelectionBarMeshComponent;
 
 	/** Mesh that represents the close button for this UI */
 	UPROPERTY()
-	class UStaticMeshComponent* CloseButtonMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> CloseButtonMeshComponent;
 
 	/** Dock Button dynamic material  (opaque) */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* DockButtonMID;
+	TObjectPtr<class UMaterialInstanceDynamic> DockButtonMID;
 
 	/** Selection bar dynamic material  (opaque) */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* SelectionBarMID;
+	TObjectPtr<class UMaterialInstanceDynamic> SelectionBarMID;
 
 	/** Select bar dynamic material (translucent) */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* SelectionBarTranslucentMID;
+	TObjectPtr<class UMaterialInstanceDynamic> SelectionBarTranslucentMID;
 
 	/** Close button dynamic material  (opaque) */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* CloseButtonMID;
+	TObjectPtr<class UMaterialInstanceDynamic> CloseButtonMID;
 
 	/** Close button dynamic material (translucent) */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* CloseButtonTranslucentMID;
+	TObjectPtr<class UMaterialInstanceDynamic> CloseButtonTranslucentMID;
 
 	UPROPERTY()
-	class UViewportDragOperationComponent* DragOperationComponent;
+	TObjectPtr<class UViewportDragOperationComponent> DragOperationComponent;
 
 	/** True if at least one hand's laser is aiming toward the UI */
 	bool bIsLaserAimingTowardUI;

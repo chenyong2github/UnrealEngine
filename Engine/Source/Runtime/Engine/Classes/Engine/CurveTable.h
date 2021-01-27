@@ -77,7 +77,7 @@ public:
 	virtual void PostLoad() override;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category=ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 	/** The filename imported to create this object. Relative to this object's package, BaseDir() or absolute */
 	UPROPERTY()
@@ -252,7 +252,7 @@ struct ENGINE_API FCurveTableRowHandle
 
 	/** Pointer to table we want a row from */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CurveTableRowHandle, meta=(DisplayThumbnail="false"))
-	const class UCurveTable*	CurveTable;
+	TObjectPtr<const class UCurveTable>	CurveTable;
 
 	/** Name of row in the table that we want */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CurveTableRowHandle)

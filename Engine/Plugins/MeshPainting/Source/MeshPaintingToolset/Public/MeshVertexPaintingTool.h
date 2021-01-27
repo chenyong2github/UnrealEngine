@@ -223,14 +223,14 @@ protected:
 	bool bCachedClickRay;
 
 	UPROPERTY(Transient)
-	UMeshPaintSelectionMechanic* SelectionMechanic;
+	TObjectPtr<UMeshPaintSelectionMechanic> SelectionMechanic;
 
 private:
 	bool PaintInternal(const TArrayView<TPair<FVector, FVector>>& Rays, EMeshPaintModeAction PaintAction, float PaintStrength);
 	
 private:
 	UPROPERTY(Transient)
-	UMeshVertexPaintingToolProperties* VertexProperties;
+	TObjectPtr<UMeshVertexPaintingToolProperties> VertexProperties;
 
 	/** Flag for whether or not we are currently painting */
 	bool bArePainting;
@@ -268,7 +268,7 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	UMeshColorPaintingToolProperties* ColorProperties;
+	TObjectPtr<UMeshColorPaintingToolProperties> ColorProperties;
 
 	/** Current LOD index used for painting / forcing */
 	int32 CachedLODIndex;
@@ -292,5 +292,5 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	UMeshWeightPaintingToolProperties* WeightProperties;
+	TObjectPtr<UMeshWeightPaintingToolProperties> WeightProperties;
 };

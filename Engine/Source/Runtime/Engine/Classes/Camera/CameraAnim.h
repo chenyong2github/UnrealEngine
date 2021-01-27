@@ -21,12 +21,12 @@ class UCameraAnim : public UObject
 public:
 	/** The UInterpGroup that holds our actual interpolation data. */
 	UPROPERTY()
-	class UInterpGroup* CameraInterpGroup;
+	TObjectPtr<class UInterpGroup> CameraInterpGroup;
 
 #if WITH_EDITORONLY_DATA
 	/** This is to preview and they only exists in editor */
 	UPROPERTY(transient)
-	class UInterpGroup* PreviewInterpGroup;
+	TObjectPtr<class UInterpGroup> PreviewInterpGroup;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Length, in seconds. */

@@ -49,7 +49,7 @@ public:
 
 	/** Style used for the text box */
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	/** Hint text that appears when there is no text in the text box */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Content)

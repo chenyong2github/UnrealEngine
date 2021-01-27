@@ -30,7 +30,7 @@ struct FPaperTileInfo
 
 	// The tile set that this tile comes from
 	UPROPERTY(EditAnywhere, Category=Sprite)
-	UPaperTileSet* TileSet;
+	TObjectPtr<UPaperTileSet> TileSet;
 
 	// This is the index of the current tile within the tile set
 	UPROPERTY(EditAnywhere, Category=Sprite)
@@ -171,7 +171,7 @@ private:
 	TArray<FPaperTileInfo> AllocatedCells;
 
 	UPROPERTY()
-	UPaperTileSet* TileSet_DEPRECATED;
+	TObjectPtr<UPaperTileSet> TileSet_DEPRECATED;
 
 	UPROPERTY()
 	TArray<int32> AllocatedGrid_DEPRECATED;

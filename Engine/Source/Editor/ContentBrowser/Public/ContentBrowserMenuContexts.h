@@ -29,7 +29,7 @@ public:
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
 	UPROPERTY()
-	UClass* CommonClass;
+	TObjectPtr<UClass> CommonClass;
 
 	UPROPERTY()
 	bool bCanBeModified;

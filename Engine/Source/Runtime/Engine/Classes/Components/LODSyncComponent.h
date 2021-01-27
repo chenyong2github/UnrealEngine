@@ -100,11 +100,11 @@ private:
 
 	// component that drives the LOD
 	UPROPERTY(transient)
-	TArray<UPrimitiveComponent*> DriveComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> DriveComponents;
 
 	// all the components that ticks
 	UPROPERTY(transient)
-	TArray<UPrimitiveComponent*> SubComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> SubComponents;
 
 	// BEGIN AActorComponent interface
 	virtual void OnRegister() override;

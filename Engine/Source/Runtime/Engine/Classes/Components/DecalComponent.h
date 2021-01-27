@@ -26,7 +26,7 @@ class ENGINE_API UDecalComponent : public USceneComponent
 protected:
 	/** Decal material. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Decal)
-	class UMaterialInterface* DecalMaterial;
+	TObjectPtr<class UMaterialInterface> DecalMaterial;
 
 public:
 	/** 

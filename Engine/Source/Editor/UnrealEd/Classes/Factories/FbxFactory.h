@@ -19,11 +19,11 @@ class UNREALED_API UFbxFactory : public UFactory
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UFbxImportUI* ImportUI;
+	TObjectPtr<class UFbxImportUI> ImportUI;
 
 	/** Prevent garbage collection of original when overriding ImportUI property */
 	UPROPERTY()
-	class UFbxImportUI* OriginalImportUI;
+	TObjectPtr<class UFbxImportUI> OriginalImportUI;
 
 	/**  Set import batch **/
 	void EnableShowOption() { bShowOption = true; }

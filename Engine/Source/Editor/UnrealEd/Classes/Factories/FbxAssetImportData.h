@@ -44,5 +44,5 @@ class UNREALED_API UFbxAssetImportData : public UAssetImportData
 
 	/* Use by the reimport factory to answer CanReimport, if true only factory for scene reimport will return true */
 	UPROPERTY()
-	UFbxSceneImportData* FbxSceneImportDataReference;
+	TObjectPtr<UFbxSceneImportData> FbxSceneImportDataReference;
 };

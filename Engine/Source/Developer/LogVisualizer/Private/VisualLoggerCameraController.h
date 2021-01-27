@@ -18,7 +18,7 @@ public:
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class AActor* PickedActor;
+	TObjectPtr<class AActor> PickedActor;
 
 	virtual void PostInitializeComponents() override;
 

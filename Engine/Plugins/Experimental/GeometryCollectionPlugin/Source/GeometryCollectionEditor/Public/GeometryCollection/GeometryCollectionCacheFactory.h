@@ -20,7 +20,7 @@ public:
 	/** Config properties required for CreateNew */
 
 	UPROPERTY()
-	UGeometryCollection* TargetCollection;
+	TObjectPtr<UGeometryCollection> TargetCollection;
 
 	/** End required properties */
 

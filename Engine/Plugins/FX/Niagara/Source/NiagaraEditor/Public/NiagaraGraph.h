@@ -62,7 +62,7 @@ public:
 	TArray<FNiagaraGraphParameterReference> ParameterReferences;
 
 	UPROPERTY()
-	const UNiagaraGraph* Graph;
+	TObjectPtr<const UNiagaraGraph> Graph;
 
 	/** Returns true if this parameter was initially created by the user. */
 	bool WasCreated() const;
@@ -109,7 +109,7 @@ public:
 
 	/** The traversal of output to input nodes for this graph. This is not a recursive traversal, it just includes nodes from this graph.*/
 	UPROPERTY()
-	TArray<UNiagaraNode*> Traversal;
+	TArray<TObjectPtr<UNiagaraNode>> Traversal;
 
 	void PostLoad(UObject* Owner);
 
@@ -451,7 +451,7 @@ private:
 
 	/** Storage of variables defined for use with this graph.*/
 	UPROPERTY()
-	mutable TMap<FNiagaraVariable, UNiagaraScriptVariable*> VariableToScriptVariable;
+	mutable TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> VariableToScriptVariable;
 	
 	/** A map of parameters in the graph to their referencers. */
 	UPROPERTY(Transient)

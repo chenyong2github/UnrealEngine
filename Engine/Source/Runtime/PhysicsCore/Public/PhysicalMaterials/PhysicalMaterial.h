@@ -93,7 +93,7 @@ class PHYSICSCORE_API UPhysicalMaterial : public UObject
 	float DestructibleDamageThresholdScale;
 
 	UPROPERTY()
-	class UDEPRECATED_PhysicalMaterialPropertyBase* PhysicalMaterialProperty_DEPRECATED;
+	TObjectPtr<class UDEPRECATED_PhysicalMaterialPropertyBase> PhysicalMaterialProperty_DEPRECATED;
 
 	/**
 	 * To edit surface type for your project, use ProjectSettings/Physics/PhysicalSurface section

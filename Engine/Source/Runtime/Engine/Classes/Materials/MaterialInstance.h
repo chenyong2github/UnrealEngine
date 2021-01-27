@@ -165,7 +165,7 @@ struct FTextureParameterValue
 	FMaterialParameterInfo ParameterInfo;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TextureParameterValue)
-	class UTexture* ParameterValue;
+	TObjectPtr<class UTexture> ParameterValue;
 
 	UPROPERTY()
 	FGuid ExpressionGUID;
@@ -201,7 +201,7 @@ struct FRuntimeVirtualTextureParameterValue
 	FMaterialParameterInfo ParameterInfo;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RuntimeVirtualTextureParameterValue)
-	class URuntimeVirtualTexture* ParameterValue;
+	TObjectPtr<class URuntimeVirtualTexture> ParameterValue;
 
 	UPROPERTY()
 	FGuid ExpressionGUID;
@@ -242,7 +242,7 @@ struct FFontParameterValue
 	FMaterialParameterInfo ParameterInfo;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FontParameterValue)
-	class UFont* FontValue;
+	TObjectPtr<class UFont> FontValue;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FontParameterValue)
 	int32 FontPage;
@@ -299,15 +299,15 @@ class UMaterialInstance : public UMaterialInterface
 
 	/** Physical material to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialInstance)
-	class UPhysicalMaterial* PhysMaterial;
+	TObjectPtr<class UPhysicalMaterial> PhysMaterial;
 
 	/** Physical material map used with physical material mask, when it exists.*/
 	UPROPERTY(EditAnywhere, Category = PhysicalMaterialMask)
-	class UPhysicalMaterial* PhysicalMaterialMap[EPhysicalMaterialMaskColor::MAX];
+	TObjectPtr<class UPhysicalMaterial> PhysicalMaterialMap[EPhysicalMaterialMaskColor::MAX];
 
 	/** Parent material. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, AssetRegistrySearchable)
-	class UMaterialInterface* Parent;
+	TObjectPtr<class UMaterialInterface> Parent;
 
 	/**
 	 * Delegate for custom static parameters getter.

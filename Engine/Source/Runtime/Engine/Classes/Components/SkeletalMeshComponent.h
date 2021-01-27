@@ -340,12 +340,12 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** The blueprint for creating an AnimationScript. */
 	UPROPERTY()
-	class UAnimBlueprint* AnimationBlueprint_DEPRECATED;
+	TObjectPtr<class UAnimBlueprint> AnimationBlueprint_DEPRECATED;
 #endif
 
 	UE_DEPRECATED(4.11, "This property is deprecated. Please use AnimClass instead")
 	UPROPERTY(BlueprintReadOnly, Category = Animation, meta = (DeprecationMessage = "This property is deprecated. Please use AnimClass instead"))
-	class UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass;
+	TObjectPtr<class UAnimBlueprintGeneratedClass> AnimBlueprintGeneratedClass;
 
 	/* The AnimBlueprint class to use. Use 'SetAnimInstanceClass' to change at runtime. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Animation)
@@ -353,20 +353,20 @@ public:
 
 	/** The active animation graph program instance. */
 	UPROPERTY(transient, NonTransactional)
-	UAnimInstance* AnimScriptInstance;
+	TObjectPtr<UAnimInstance> AnimScriptInstance;
 
 #if WITH_EDITORONLY_DATA
 	/** Any running linked anim instances */
 	UE_DEPRECATED(4.24, "Direct access to this property is deprecated and the array is no longer used. Storage is now in LinkedInstances. Please use GetLinkedAnimInstances() instead.")
 	UPROPERTY(transient)
-	TArray<UAnimInstance*> SubInstances;
+	TArray<TObjectPtr<UAnimInstance>> SubInstances;
 #endif
 
 	/** An instance created from the PostPhysicsBlueprint property of the skeletal mesh we're using,
 	 *  Runs after (and receives pose from) the main anim instance.
 	 */
 	UPROPERTY(transient)
-	UAnimInstance* PostProcessAnimInstance;
+	TObjectPtr<UAnimInstance> PostProcessAnimInstance;
 
 public:
 
@@ -416,7 +416,7 @@ public:
 private:
 	/** Any running linked anim instances */
 	UPROPERTY(transient)
-	TArray<UAnimInstance*> LinkedInstances;
+	TArray<TObjectPtr<UAnimInstance>> LinkedInstances;
 
 	// Update Rate
 
@@ -834,7 +834,7 @@ public:
 	* Used for per poly collision. In 99% of cases you will be better off using a Physics Asset.
 	* This BodySetup is per instance because all modification of vertices is done in place */
 	UPROPERTY(transient)
-	class UBodySetup * BodySetup;
+	TObjectPtr<class UBodySetup>  BodySetup;
 
 	void CreateBodySetup();
 
@@ -1446,7 +1446,7 @@ private:
 	 * it is safe to do so the interactor will sync to the simulation context
 	 */
 	UPROPERTY(Transient)
-	UClothingSimulationInteractor* ClothingInteractor;
+	TObjectPtr<UClothingSimulationInteractor> ClothingInteractor;
 
 	/** Helper struct used to store info about a cloth collision source */
 	struct FClothCollisionSource
@@ -2358,11 +2358,11 @@ private:
 	// remove if this version goes away : VER_UE4_REMOVE_SINGLENODEINSTANCE
 	// deprecated variable to be re-save
 	UPROPERTY()
-	class UAnimSequence* SequenceToPlay_DEPRECATED;
+	TObjectPtr<class UAnimSequence> SequenceToPlay_DEPRECATED;
 
 	// The default sequence to play on this skeletal mesh
 	UPROPERTY()
-	class UAnimationAsset* AnimToPlay_DEPRECATED;
+	TObjectPtr<class UAnimationAsset> AnimToPlay_DEPRECATED;
 
 	// Default setting for looping for SequenceToPlay. This is not current state of looping.
 	UPROPERTY()

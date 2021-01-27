@@ -119,7 +119,7 @@ public:
 
 	/** USkeletalMesh that this vertex animation works on. */
 	UPROPERTY(AssetRegistrySearchable)
-	class USkeletalMesh* BaseSkelMesh;
+	TObjectPtr<class USkeletalMesh> BaseSkelMesh;
 
 	/** morph mesh vertex data for each LOD */
 	TArray<FMorphTargetLODModel>	MorphLODModels;

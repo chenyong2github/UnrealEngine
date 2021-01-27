@@ -300,7 +300,7 @@ private:
 	TWeakPtr<SNotificationItem> RestorePreviouslyOpenAssetsNotificationPtr;
 	
 	UPROPERTY(Transient)
-	TArray<UAssetEditor*> OwnedAssetEditors;
+	TArray<TObjectPtr<UAssetEditor>> OwnedAssetEditors;
 	
 	/** Map of FEditorModeId to EditorModeInfo for all known UEdModes when the subsystem initialized */
 	RegisteredModeInfoMap EditorModes;

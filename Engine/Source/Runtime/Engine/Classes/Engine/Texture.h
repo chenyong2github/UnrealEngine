@@ -660,7 +660,7 @@ public:
 	FString SourceFilePath_DEPRECATED;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category=ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 public:
 
@@ -769,7 +769,7 @@ public:
 	 * Make sure the normal map has at least as many mips as this texture.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compositing)
-	class UTexture* CompositeTexture;
+	TObjectPtr<class UTexture> CompositeTexture;
 
 	/* defines how the CompositeTexture is applied, e.g. CTM_RoughnessFromNormalAlpha */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compositing, AdvancedDisplay)
@@ -875,7 +875,7 @@ private:
 protected:
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Texture)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 private:
 	/** The texture's resource, can be NULL */

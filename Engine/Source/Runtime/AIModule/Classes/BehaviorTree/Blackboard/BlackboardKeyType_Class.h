@@ -17,7 +17,7 @@ class AIMODULE_API UBlackboardKeyType_Class : public UBlackboardKeyType
 	static const FDataType InvalidValue;
 
 	UPROPERTY(Category=Blackboard, EditDefaultsOnly, meta=(AllowAbstract="1"))
-	UClass* BaseClass;
+	TObjectPtr<UClass> BaseClass;
 	
 	static UClass* GetValue(const UBlackboardKeyType_Class* KeyOb, const uint8* RawData);
 	static bool SetValue(UBlackboardKeyType_Class* KeyOb, uint8* RawData, UClass* Value);

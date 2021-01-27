@@ -41,7 +41,7 @@ private:
 
 	/** The mesh used to display this proxy */
 	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")
-	UStaticMesh* StaticMesh;
+	TObjectPtr<UStaticMesh> StaticMesh;
 
 	/** The key generated from an ALODActor. If this differs from that generated from the ALODActor, then the mesh needs regenerating. */
 	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")

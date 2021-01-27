@@ -178,7 +178,7 @@ public:
 
 	/** The master viewport containing this player's view. */
 	UPROPERTY()
-	class UGameViewportClient* ViewportClient;
+	TObjectPtr<class UGameViewportClient> ViewportClient;
 
 	/** The coordinates for the upper left corner of the master viewport subregion allocated to this player. 0-1 */
 	FVector2D Origin;

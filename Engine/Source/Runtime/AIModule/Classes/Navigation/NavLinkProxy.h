@@ -37,7 +37,7 @@ class AIMODULE_API ANavLinkProxy : public AActor, public INavLinkHostInterface, 
 private:
 	/** Smart link: can affect path following */
 	UPROPERTY(VisibleAnywhere, Category=SmartLink)
-	UNavLinkCustomComponent* SmartLinkComp;
+	TObjectPtr<UNavLinkCustomComponent> SmartLinkComp;
 public:
 
 	/** Smart link: toggle relevancy */
@@ -48,10 +48,10 @@ public:
 private:
 	/** Editor Preview */
 	UPROPERTY()
-	UNavLinkRenderingComponent* EdRenderComp;
+	TObjectPtr<UNavLinkRenderingComponent> EdRenderComp;
 
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 public:
 #endif // WITH_EDITORONLY_DATA
 

@@ -24,7 +24,7 @@ public:
 	* the rest of the text as it'll fall back to the same reference issue. Marking this as TextExportTransient solves this.
 	*/
 	UPROPERTY(TextExportTransient)
-	UObject* SpawnableObjectTemplate;
+	TObjectPtr<UObject> SpawnableObjectTemplate;
 
 	/**
 	 * Tracks are also owned by the owning Movie Sequence. We manually copy the tracks out of a binding when we copy,
@@ -32,7 +32,7 @@ public:
 	 * and then restore them upon paste to re-create the tracks with the correct owner.
 	 */
 	UPROPERTY()
-	TArray<UMovieSceneTrack*> Tracks;
+	TArray<TObjectPtr<UMovieSceneTrack>> Tracks;
 
 	UPROPERTY()
 	FMovieSceneBinding Binding;

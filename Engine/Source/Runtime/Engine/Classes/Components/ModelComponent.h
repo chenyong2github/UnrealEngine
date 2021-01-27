@@ -45,7 +45,7 @@ public:
 
 	/** Description of collision */
 	UPROPERTY()
-	class UBodySetup* ModelBodySetup;
+	TObjectPtr<class UBodySetup> ModelBodySetup;
 
 private:
 	/** The nodes which this component renders. */

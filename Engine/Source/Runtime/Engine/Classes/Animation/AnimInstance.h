@@ -376,7 +376,7 @@ class ENGINE_API UAnimInstance : public UObject
 
 	/** This is used to extract animation. If Mesh exists, this will be overwritten by Mesh->Skeleton */
 	UPROPERTY(transient)
-	USkeleton* CurrentSkeleton;
+	TObjectPtr<USkeleton> CurrentSkeleton;
 
 	// Sets where this blueprint pulls Root Motion from
 	UPROPERTY(Category = RootMotion, EditDefaultsOnly)

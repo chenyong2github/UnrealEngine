@@ -119,7 +119,7 @@ public:
 
 	/** The object template used to create new components at runtime. */
 	UPROPERTY(Export, Instanced, EditAnywhere, Category = "Component Properties")
-	USceneComponent* TemplateComponent;
+	TObjectPtr<USceneComponent> TemplateComponent;
 
 	UPROPERTY()
 	TArray<FNiagaraComponentPropertyBinding> PropertyBindings;

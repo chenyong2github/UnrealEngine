@@ -155,19 +155,19 @@ protected:
 	
 	/** When in a spawned state, this is the widget component to represent the widget */
 	UPROPERTY()
-	TArray<class UVREditorWidgetComponent*> WidgetComponents;
+	TArray<TObjectPtr<class UVREditorWidgetComponent>> WidgetComponents;
 
 	/** The floating window mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* WindowMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> WindowMeshComponent;
 
 	/** The arrow indicator mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* ArrowMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> ArrowMeshComponent;
 
 	/** The central helper widget */
 	UPROPERTY()
-	class UVREditorWidgetComponent* CentralWidgetComponent;
+	TObjectPtr<class UVREditorWidgetComponent> CentralWidgetComponent;
 
 	TSharedPtr<SWidget> CentralSlateWidget;
 

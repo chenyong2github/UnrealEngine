@@ -602,7 +602,7 @@ struct ENGINE_API FChannelDefinition
 	FName ClassName;			// UClass name used to create the UChannel
 
 	UPROPERTY()
-	UClass* ChannelClass;		// UClass used to create the UChannel
+	TObjectPtr<UClass> ChannelClass;		// UClass used to create the UChannel
 
 	UPROPERTY()
 	int32 StaticChannelIndex;	// Channel always uses this index, INDEX_NONE if dynamically chosen
@@ -776,11 +776,11 @@ public:
 
 	/** Connection to the server (this net driver is a client) */
 	UPROPERTY()
-	class UNetConnection* ServerConnection;
+	TObjectPtr<class UNetConnection> ServerConnection;
 
 	/** Array of connections to clients (this net driver is a host) - unsorted, and ordering changes depending on actor replication */
 	UPROPERTY()
-	TArray<UNetConnection*> ClientConnections;
+	TArray<TObjectPtr<UNetConnection>> ClientConnections;
 
 	/**
 	 * Map of IP's to NetConnection's - for fast lookup, particularly under DDoS.
@@ -810,10 +810,10 @@ public:
 
 	/** World this net driver is associated with */
 	UPROPERTY()
-	class UWorld* World;
+	TObjectPtr<class UWorld> World;
 
 	UPROPERTY()
-	class UPackage* WorldPackage;
+	TObjectPtr<class UPackage> WorldPackage;
 
 	/** @todo document */
 	TSharedPtr< class FNetGUIDCache > GuidCache;
@@ -822,10 +822,10 @@ public:
 
 	/** The loaded UClass of the net connection type to use */
 	UPROPERTY()
-	UClass* NetConnectionClass;
+	TObjectPtr<UClass> NetConnectionClass;
 
 	UPROPERTY()
-	UClass* ReplicationDriverClass;
+	TObjectPtr<UClass> ReplicationDriverClass;
 
 	/** @todo document */
 	FProperty* RoleProperty;
@@ -861,7 +861,7 @@ private:
 
 	/** List of channels that were previously used and can be used again */
 	UPROPERTY()
-	TArray<UChannel*> ActorChannelPool;
+	TArray<TObjectPtr<UChannel>> ActorChannelPool;
 
 public:
 
@@ -1725,7 +1725,7 @@ private:
 	void LoadChannelDefinitions();
 
 	UPROPERTY(transient)
-	UReplicationDriver* ReplicationDriver;
+	TObjectPtr<UReplicationDriver> ReplicationDriver;
 
 	/** Stores the list of objects to replicate into the replay stream. This should be a TUniquePtr, but it appears the generated.cpp file needs the full definition of the pointed-to type. */
 	TSharedPtr<FNetworkObjectList> NetworkObjects;

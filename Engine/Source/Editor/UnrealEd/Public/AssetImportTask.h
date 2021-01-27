@@ -53,11 +53,11 @@ public:
 
 	/** Optional factory to use */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
-	UFactory* Factory;
+	TObjectPtr<UFactory> Factory;
 
 	/** Import options specific to the type of asset */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
-	UObject* Options;
+	TObjectPtr<UObject> Options;
 
 	/** Paths to objects created or updated after import */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
@@ -65,6 +65,6 @@ public:
 
 	/** Imported objects */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")
-	TArray<UObject*> Result;
+	TArray<TObjectPtr<UObject>> Result;
 };
 

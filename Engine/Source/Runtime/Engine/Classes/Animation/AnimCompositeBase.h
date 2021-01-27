@@ -28,7 +28,7 @@ struct FRootMotionExtractionStep
 
 	/** AnimSequence ref */
 	UPROPERTY()
-	UAnimSequence* AnimSequence;
+	TObjectPtr<UAnimSequence> AnimSequence;
 
 	/** Start position to extract root motion from. */
 	UPROPERTY()
@@ -61,7 +61,7 @@ struct FAnimSegment
 
 	/** Anim Reference to play - only allow AnimSequence or AnimComposite **/
 	UPROPERTY(EditAnywhere, Category=AnimSegment)
-	UAnimSequenceBase* AnimReference;
+	TObjectPtr<UAnimSequenceBase> AnimReference;
 
 	/** Start Pos within this AnimCompositeBase */
 	UPROPERTY(VisibleAnywhere, Category=AnimSegment)

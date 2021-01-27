@@ -150,7 +150,7 @@ class UFbxTestPlan : public UObject
 
 	/* Options use for this test plan, Transient because we manually serialize the options. */
 	UPROPERTY(EditAnywhere, Transient, Instanced, Category = Options)
-	UFbxImportUI* ImportUI;
+	TObjectPtr<UFbxImportUI> ImportUI;
 };
 
 namespace FbxAutomationTestsAPI

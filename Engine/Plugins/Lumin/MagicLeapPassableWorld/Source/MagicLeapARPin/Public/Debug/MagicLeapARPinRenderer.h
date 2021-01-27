@@ -28,7 +28,7 @@ private:
 	void SetVisibilityOverride(const bool InVisibilityOverride);
 
 	UPROPERTY()
-	TMap<FGuid, AMagicLeapARPinInfoActorBase*> AllInfoActors;
+	TMap<FGuid, TObjectPtr<AMagicLeapARPinInfoActorBase>> AllInfoActors;
 
 	FDelegateHandle DelegateHandle;
 

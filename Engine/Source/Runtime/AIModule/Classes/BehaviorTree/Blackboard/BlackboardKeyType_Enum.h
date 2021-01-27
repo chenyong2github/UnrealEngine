@@ -17,7 +17,7 @@ class AIMODULE_API UBlackboardKeyType_Enum : public UBlackboardKeyType
 	static const FDataType InvalidValue;
 
 	UPROPERTY(Category=Blackboard, EditDefaultsOnly)
-	UEnum* EnumType;
+	TObjectPtr<UEnum> EnumType;
 
 	/** name of enum defined in c++ code, will take priority over asset from EnumType property */
 	UPROPERTY(Category=Blackboard, EditDefaultsOnly)

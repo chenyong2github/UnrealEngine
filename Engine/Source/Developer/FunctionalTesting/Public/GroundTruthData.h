@@ -40,5 +40,5 @@ public:
 protected:
 	
 	UPROPERTY(VisibleAnywhere, Instanced, Category=Data)
-	UObject* ObjectData;
+	TObjectPtr<UObject> ObjectData;
 };

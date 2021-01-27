@@ -51,11 +51,11 @@ class ENGINE_API UTextRenderComponent : public UPrimitiveComponent
 
 	/** Text material */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Text)
-	class UMaterialInterface* TextMaterial;
+	TObjectPtr<class UMaterialInterface> TextMaterial;
 	
 	/** Text font */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Text)
-	class UFont* Font;
+	TObjectPtr<class UFont> Font;
 
 	/** Horizontal text alignment */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Text, meta=(DisplayName = "Horizontal Alignment"))

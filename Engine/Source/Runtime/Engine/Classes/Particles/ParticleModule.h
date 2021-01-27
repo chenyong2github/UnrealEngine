@@ -73,7 +73,7 @@ struct FParticleCurvePair
 	FString CurveName;
 
 	UPROPERTY()
-	class UObject* CurveObject;
+	TObjectPtr<class UObject> CurveObject;
 
 
 	FParticleCurvePair()

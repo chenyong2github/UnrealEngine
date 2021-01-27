@@ -23,11 +23,11 @@ class UBrushComponent : public UPrimitiveComponent
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UModel* Brush;
+	TObjectPtr<class UModel> Brush;
 
 	/** Description of collision */
 	UPROPERTY()
-	class UBodySetup* BrushBodySetup;
+	TObjectPtr<class UBodySetup> BrushBodySetup;
 
 #if WITH_EDITORONLY_DATA
 	/** Local space translation */

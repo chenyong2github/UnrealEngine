@@ -67,6 +67,6 @@ public:
 	 * List of Favorites widgets used to populate the Favorites Palette
 	 */
 	UPROPERTY()
-	UWidgetPaletteFavorites* Favorites;
+	TObjectPtr<UWidgetPaletteFavorites> Favorites;
 
 };

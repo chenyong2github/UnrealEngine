@@ -42,8 +42,8 @@ struct FNewLevelInstanceParams
 	ELevelInstancePivotType PivotType = ELevelInstancePivotType::CenterMinZ;
 
 	UPROPERTY(EditAnywhere, Category = Pivot)
-	AActor* PivotActor = nullptr;
+	TObjectPtr<AActor> PivotActor = nullptr;
 
 	UPROPERTY()
-	UWorld* TemplateWorld = nullptr;
+	TObjectPtr<UWorld> TemplateWorld = nullptr;
 };

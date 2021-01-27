@@ -51,7 +51,7 @@ struct FLandscapeEditorLayerSettings
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	ULandscapeLayerInfoObject* LayerInfoObj;
+	TObjectPtr<ULandscapeLayerInfoObject> LayerInfoObj;
 
 	UPROPERTY()
 	FString ReimportLayerFilePath;
@@ -82,14 +82,14 @@ struct FLandscapeLayerStruct
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	ULandscapeLayerInfoObject* LayerInfoObj;
+	TObjectPtr<ULandscapeLayerInfoObject> LayerInfoObj;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
-	ULandscapeMaterialInstanceConstant* ThumbnailMIC;
+	TObjectPtr<ULandscapeMaterialInstanceConstant> ThumbnailMIC;
 
 	UPROPERTY()
-	ALandscapeProxy* Owner;
+	TObjectPtr<ALandscapeProxy> Owner;
 
 	UPROPERTY(transient)
 	int32 DebugColorChannel;
@@ -139,7 +139,7 @@ struct FLandscapeImportLayerInfo
 	FName LayerName;
 
 	UPROPERTY(Category="Import", EditAnywhere)
-	ULandscapeLayerInfoObject* LayerInfo;
+	TObjectPtr<ULandscapeLayerInfoObject> LayerInfo;
 
 	UPROPERTY(Category="Import", EditAnywhere, meta=(DisplayName="Layer File"))
 	FString SourceFilePath; // Optional
@@ -326,7 +326,7 @@ struct FLandscapeProxyMaterialOverride
 	FPerPlatformInt LODIndex;
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
-	UMaterialInterface* Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	bool operator==(const FLandscapeProxyMaterialOverride& InOther) const
@@ -366,7 +366,7 @@ public:
 
 protected:
 	UPROPERTY()
-	ULandscapeSplinesComponent* SplineComponent;
+	TObjectPtr<ULandscapeSplinesComponent> SplineComponent;
 
 	/** Guid for LandscapeEditorInfo **/
 	UPROPERTY()
@@ -444,7 +444,7 @@ public:
 
 	/** Default physical material, used when no per-layer values physical materials */
 	UPROPERTY(EditAnywhere, Category=Landscape)
-	UPhysicalMaterial* DefaultPhysMaterial;
+	TObjectPtr<UPhysicalMaterial> DefaultPhysMaterial;
 
 	/**
 	 * Allows artists to adjust the distance where textures using UV 0 are streamed in/out.
@@ -456,7 +456,7 @@ public:
 
 	/** Combined material used to render the landscape */
 	UPROPERTY(EditAnywhere, BlueprintSetter=EditorSetLandscapeMaterial, Category=Landscape)
-	UMaterialInterface* LandscapeMaterial;
+	TObjectPtr<UMaterialInterface> LandscapeMaterial;
 
 #if !WITH_EDITORONLY_DATA
 	/** Used to cache grass types from GetGrassTypes */
@@ -471,17 +471,17 @@ public:
 
 	/** Material used to render landscape components with holes. If not set, LandscapeMaterial will be used (blend mode will be overridden to Masked if it is set to Opaque) */
 	UPROPERTY(EditAnywhere, Category=Landscape, AdvancedDisplay)
-	UMaterialInterface* LandscapeHoleMaterial;
+	TObjectPtr<UMaterialInterface> LandscapeHoleMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	TArray<FLandscapeProxyMaterialOverride> LandscapeMaterialsOverride;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
-	UMaterialInterface* PreEditLandscapeMaterial;
+	TObjectPtr<UMaterialInterface> PreEditLandscapeMaterial;
 
 	UPROPERTY(Transient)
-	UMaterialInterface* PreEditLandscapeHoleMaterial;
+	TObjectPtr<UMaterialInterface> PreEditLandscapeHoleMaterial;
 
 	UPROPERTY(Transient)
 	TArray<FLandscapeProxyMaterialOverride> PreEditLandscapeMaterialsOverride;
@@ -503,7 +503,7 @@ public:
 	 * The material also needs to be set up to output to a virtual texture.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
-	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
 	/** 
 	 * Number of mesh levels to use when rendering landscape into runtime virtual texture.
@@ -537,14 +537,14 @@ public:
 
 	/** The array of LandscapeComponent that are used by the landscape */
 	UPROPERTY()
-	TArray<ULandscapeComponent*> LandscapeComponents;
+	TArray<TObjectPtr<ULandscapeComponent>> LandscapeComponents;
 
 	/** Array of LandscapeHeightfieldCollisionComponent */
 	UPROPERTY()
-	TArray<ULandscapeHeightfieldCollisionComponent*> CollisionComponents;
+	TArray<TObjectPtr<ULandscapeHeightfieldCollisionComponent>> CollisionComponents;
 
 	UPROPERTY(transient, duplicatetransient)
-	TArray<UHierarchicalInstancedStaticMeshComponent*> FoliageComponents;
+	TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> FoliageComponents;
 
 	/** A transient data structure for tracking the grass */
 	FCachedLandscapeFoliage FoliageCache;
@@ -671,7 +671,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<ULandscapeLayerInfoObject*> EditorCachedLayerInfos_DEPRECATED;
+	TArray<TObjectPtr<ULandscapeLayerInfoObject>> EditorCachedLayerInfos_DEPRECATED;
 
 	UPROPERTY()
 	FString ReimportHeightmapFilePath;
@@ -740,7 +740,7 @@ public:
 
 	/** Map of weightmap usage */
 	UPROPERTY(Transient)
-	TMap<UTexture2D*, ULandscapeWeightmapUsage*> WeightmapUsageMap;
+	TMap<TObjectPtr<UTexture2D>, TObjectPtr<ULandscapeWeightmapUsage>> WeightmapUsageMap;
 
 	// Blueprint functions
 

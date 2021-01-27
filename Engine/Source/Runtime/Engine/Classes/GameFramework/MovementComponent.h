@@ -63,13 +63,13 @@ class ENGINE_API UMovementComponent : public UActorComponent
 	 * @see bAutoRegisterUpdatedComponent, SetUpdatedComponent(), UpdatedPrimitive
 	 */
 	UPROPERTY(BlueprintReadOnly, Transient, DuplicateTransient, Category=MovementComponent)
-	USceneComponent* UpdatedComponent;
+	TObjectPtr<USceneComponent> UpdatedComponent;
 
 	/**
 	 * UpdatedComponent, cast as a UPrimitiveComponent. May be invalid if UpdatedComponent was null or not a UPrimitiveComponent.
 	 */
 	UPROPERTY(BlueprintReadOnly, Transient, DuplicateTransient, Category=MovementComponent)
-	UPrimitiveComponent* UpdatedPrimitive;
+	TObjectPtr<UPrimitiveComponent> UpdatedPrimitive;
 
 	/**
 	 * Flags that control the behavior of calls to MoveComponent() on our UpdatedComponent.

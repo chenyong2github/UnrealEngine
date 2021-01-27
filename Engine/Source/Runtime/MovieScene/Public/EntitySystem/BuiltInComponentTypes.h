@@ -34,7 +34,7 @@ struct FEasingComponentData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UMovieSceneSection* Section = nullptr;
+	TObjectPtr<UMovieSceneSection> Section = nullptr;
 };
 
 
@@ -47,7 +47,7 @@ struct FMovieSceneTrackInstanceComponent
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UMovieSceneSection* Owner = nullptr;
+	TObjectPtr<UMovieSceneSection> Owner = nullptr;
 
 	UPROPERTY()
 	TSubclassOf<UMovieSceneTrackInstance> TrackInstanceClass;
@@ -76,7 +76,7 @@ struct FTrackInstanceInputComponent
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UMovieSceneSection* Section = nullptr;
+	TObjectPtr<UMovieSceneSection> Section = nullptr;
 
 	UPROPERTY()
 	int32 OutputIndex = INDEX_NONE;

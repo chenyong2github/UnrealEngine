@@ -58,7 +58,7 @@ public:
 
 	/** Used to refer back to preview instance in anim tools */
 	UPROPERTY(Transient)
-	USkeletalMeshComponent* LastPreviewComponent;
+	TObjectPtr<USkeletalMeshComponent> LastPreviewComponent;
 
 	// Begin UObject Interface.
 	virtual void PostLoad() override;

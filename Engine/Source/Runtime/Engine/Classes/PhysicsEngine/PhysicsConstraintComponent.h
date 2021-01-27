@@ -22,7 +22,7 @@ class ENGINE_API UPhysicsConstraintComponent : public USceneComponent
 
 	/** Pointer to first Actor to constrain.  */
 	UPROPERTY(EditInstanceOnly, Category=Constraint)
-	AActor* ConstraintActor1;
+	TObjectPtr<AActor> ConstraintActor1;
 
 	/** 
 	 *	Name of first component property to constrain. If Actor1 is NULL, will look within Owner.
@@ -34,7 +34,7 @@ class ENGINE_API UPhysicsConstraintComponent : public USceneComponent
 
 	/** Pointer to second Actor to constrain. */
 	UPROPERTY(EditInstanceOnly, Category=Constraint)
-	AActor* ConstraintActor2;
+	TObjectPtr<AActor> ConstraintActor2;
 
 	/** 
 	 *	Name of second component property to constrain. If Actor2 is NULL, will look within Owner. 
@@ -52,7 +52,7 @@ class ENGINE_API UPhysicsConstraintComponent : public USceneComponent
 
 
 	UPROPERTY(instanced)
-	class UPhysicsConstraintTemplate* ConstraintSetup_DEPRECATED;
+	TObjectPtr<class UPhysicsConstraintTemplate> ConstraintSetup_DEPRECATED;
 
 	/** Notification when constraint is broken. */
 	UPROPERTY(BlueprintAssignable)

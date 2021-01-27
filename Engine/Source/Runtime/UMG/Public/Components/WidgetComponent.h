@@ -519,7 +519,7 @@ protected:
 	 * what player's screen it appears on for split screen, if not set, users player 0.
 	 */
 	UPROPERTY()
-	ULocalPlayer* OwnerPlayer;
+	TObjectPtr<ULocalPlayer> OwnerPlayer;
 
 	/** The background color of the component */
 	UPROPERTY(EditAnywhere, Category=Rendering)
@@ -547,39 +547,39 @@ protected:
 
 	/** The body setup of the displayed quad */
 	UPROPERTY(Transient, DuplicateTransient)
-	class UBodySetup* BodySetup;
+	TObjectPtr<class UBodySetup> BodySetup;
 
 	/** The material instance for translucent widget components */
 	UPROPERTY()
-	UMaterialInterface* TranslucentMaterial;
+	TObjectPtr<UMaterialInterface> TranslucentMaterial;
 
 	/** The material instance for translucent, one-sided widget components */
 	UPROPERTY()
-	UMaterialInterface* TranslucentMaterial_OneSided;
+	TObjectPtr<UMaterialInterface> TranslucentMaterial_OneSided;
 
 	/** The material instance for opaque widget components */
 	UPROPERTY()
-	UMaterialInterface* OpaqueMaterial;
+	TObjectPtr<UMaterialInterface> OpaqueMaterial;
 
 	/** The material instance for opaque, one-sided widget components */
 	UPROPERTY()
-	UMaterialInterface* OpaqueMaterial_OneSided;
+	TObjectPtr<UMaterialInterface> OpaqueMaterial_OneSided;
 
 	/** The material instance for masked widget components. */
 	UPROPERTY()
-	UMaterialInterface* MaskedMaterial;
+	TObjectPtr<UMaterialInterface> MaskedMaterial;
 
 	/** The material instance for masked, one-sided widget components. */
 	UPROPERTY()
-	UMaterialInterface* MaskedMaterial_OneSided;
+	TObjectPtr<UMaterialInterface> MaskedMaterial_OneSided;
 
 	/** The target to which the user widget is rendered */
 	UPROPERTY(Transient, DuplicateTransient)
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
 	/** The dynamic instance of the material that the render target is attached to */
 	UPROPERTY(Transient, DuplicateTransient)
-	UMaterialInstanceDynamic* MaterialInstance;
+	TObjectPtr<UMaterialInstanceDynamic> MaterialInstance;
 
 	UPROPERTY(Transient, DuplicateTransient)
 	bool bAddedToScreen;
@@ -627,7 +627,7 @@ private:
 
 	/** The User Widget object displayed and managed by this component */
 	UPROPERTY(Transient, DuplicateTransient)
-	UUserWidget* Widget;
+	TObjectPtr<UUserWidget> Widget;
 
 	/** The Slate widget to be displayed by this component.  Only one of either Widget or SlateWidget can be used */
 	TSharedPtr<SWidget> SlateWidget;

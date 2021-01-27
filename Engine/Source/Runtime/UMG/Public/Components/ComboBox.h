@@ -21,7 +21,7 @@ public:
 
 	/** The list of items to be displayed on the combobox. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Content)
-	TArray<UObject*> Items;
+	TArray<TObjectPtr<UObject>> Items;
 
 	/** Called when the widget is needed for the item. */
 	UPROPERTY(EditAnywhere, Category=Events, meta=( IsBindableEvent="True" ))

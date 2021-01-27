@@ -48,7 +48,7 @@ public:
 	FMovieSceneSequencePlaybackSettings PlaybackSettings;
 
 	UPROPERTY(Instanced, Transient, Replicated, BlueprintReadOnly, BlueprintGetter = GetSequencePlayer, Category = "Playback", meta = (ExposeFunctionCategories = "Game|Cinematic"))
-	UTemplateSequencePlayer* SequencePlayer;
+	TObjectPtr<UTemplateSequencePlayer> SequencePlayer;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "General", meta = (AllowedClasses = "TemplateSequence"))
 	FSoftObjectPath TemplateSequence;

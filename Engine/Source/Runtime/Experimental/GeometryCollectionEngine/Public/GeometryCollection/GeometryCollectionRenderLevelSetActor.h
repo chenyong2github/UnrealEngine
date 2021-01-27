@@ -34,12 +34,12 @@ public:
 
 	// Volume texture to fill	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume")
-	UVolumeTexture *TargetVolumeTexture;
+	TObjectPtr<UVolumeTexture> TargetVolumeTexture;
 
 	// Material that performs ray marching.  Note this must have certain parameters in order
 	// to work correctly
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
-	UMaterial *RayMarchMaterial;
+	TObjectPtr<UMaterial> RayMarchMaterial;
 
 	// Surface tolerance used for rendering.  When surface reconstruction is noisy,
 	// try tweaking this value

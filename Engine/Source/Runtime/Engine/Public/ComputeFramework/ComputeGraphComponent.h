@@ -21,7 +21,7 @@ public:
 	UComputeGraphComponent();
 
 	UPROPERTY(EditAnywhere, Category = "Compute")
-	UComputeGraph* ComputeGraph = nullptr;
+	TObjectPtr<UComputeGraph> ComputeGraph = nullptr;
 
 	UFUNCTION(BlueprintCallable, Category = "Compute")
 	void QueueExecute();

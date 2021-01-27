@@ -19,10 +19,10 @@ class AIMODULE_API UPawnAction_Repeat : public UPawnAction
 
 	/** Action to repeat. This instance won't really be run, it's a source for copying actions to be actually performed */
 	UPROPERTY()
-	UPawnAction* ActionToRepeat;
+	TObjectPtr<UPawnAction> ActionToRepeat;
 
 	UPROPERTY(Transient)
-	UPawnAction* RecentActionCopy;
+	TObjectPtr<UPawnAction> RecentActionCopy;
 
 	UPROPERTY(Category = PawnAction, EditAnywhere, BlueprintReadOnly)
 	TEnumAsByte<EPawnActionFailHandling::Type> ChildFailureHandlingMode;

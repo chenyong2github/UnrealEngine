@@ -14,7 +14,7 @@ class ULightmassPortalComponent : public USceneComponent
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UBoxComponent* PreviewBox;
+	TObjectPtr<class UBoxComponent> PreviewBox;
 
 public:
 	void UpdatePreviewShape();

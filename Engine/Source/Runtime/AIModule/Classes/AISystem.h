@@ -99,23 +99,23 @@ public:
 protected:
 	/** Behavior tree manager used by game */
 	UPROPERTY(Transient)
-	UBehaviorTreeManager* BehaviorTreeManager;
+	TObjectPtr<UBehaviorTreeManager> BehaviorTreeManager;
 
 	/** Environment query manager used by game */
 	UPROPERTY(Transient)
-	UEnvQueryManager* EnvironmentQueryManager;
+	TObjectPtr<UEnvQueryManager> EnvironmentQueryManager;
 
 	UPROPERTY(Transient)
-	UAIPerceptionSystem* PerceptionSystem;
+	TObjectPtr<UAIPerceptionSystem> PerceptionSystem;
 
 	UPROPERTY(Transient)
-	TArray<UAIAsyncTaskBlueprintProxy*> AllProxyObjects;
+	TArray<TObjectPtr<UAIAsyncTaskBlueprintProxy>> AllProxyObjects;
 
 	UPROPERTY(Transient)
-	UAIHotSpotManager* HotSpotManager;
+	TObjectPtr<UAIHotSpotManager> HotSpotManager;
 
 	UPROPERTY(Transient)
-	UNavLocalGridManager* NavLocalGrids;
+	TObjectPtr<UNavLocalGridManager> NavLocalGrids;
 
 	typedef TMultiMap<TWeakObjectPtr<UBlackboardData>, TWeakObjectPtr<UBlackboardComponent> > FBlackboardDataToComponentsMap;
 

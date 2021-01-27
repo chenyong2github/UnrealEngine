@@ -73,7 +73,7 @@ public:
 
 	/** Target Actor used to compute POV */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TViewTarget)
-	class AActor* Target;
+	TObjectPtr<class AActor> Target;
 
 	/** Computed point of view */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TViewTarget)
@@ -82,7 +82,7 @@ public:
 protected:
 	/** PlayerState (used to follow same player through pawn transitions, etc., when spectating) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TViewTarget)
-	class APlayerState* PlayerState;
+	TObjectPtr<class APlayerState> PlayerState;
 
 public:
 	class APlayerState* GetPlayerState() const { return PlayerState; }
@@ -183,12 +183,12 @@ class ENGINE_API APlayerCameraManager : public AActor
 
 	/** PlayerController that owns this Camera actor */
 	UPROPERTY(transient)
-	class APlayerController* PCOwner;
+	TObjectPtr<class APlayerController> PCOwner;
 
 private:
 	/** Dummy component we can use to attach things to the camera. */
 	UPROPERTY(Category = PlayerCameraManager, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class USceneComponent* TransformComponent;
+	TObjectPtr<class USceneComponent> TransformComponent;
 
 public:
 	/** Usable to define different camera behaviors. A few simple styles are implemented by default. */
@@ -281,7 +281,7 @@ private:
 protected:
 	/** List of active camera modifier instances that have a chance to update the final camera POV */
 	UPROPERTY(transient)
-	TArray<UCameraModifier*> ModifierList;
+	TArray<TObjectPtr<UCameraModifier>> ModifierList;
 
 public:
 	/** List of modifiers to create by default for this camera */
@@ -341,7 +341,7 @@ protected:
 	// "Lens" effects (e.g. blood, dirt on camera)
 	/** CameraBlood emitter attached to this camera */
 	UPROPERTY(transient)
-	TArray<class AEmitterCameraLensEffectBase*> CameraLensEffects;
+	TArray<TObjectPtr<class AEmitterCameraLensEffectBase>> CameraLensEffects;
 
 	/////////////////////
 	// Camera Modifiers
@@ -349,7 +349,7 @@ protected:
 
 	/** Cached ref to modifier for code-driven screen shakes */
 	UPROPERTY(transient)
-	class UCameraModifier_CameraShake* CachedCameraShakeMod;
+	TObjectPtr<class UCameraModifier_CameraShake> CachedCameraShakeMod;
 
 
 	////////////////////////
@@ -360,7 +360,7 @@ protected:
 
 	/** Internal pool of camera anim instance objects available for playing camera animations. Defines the max number of camera anims that can play simultaneously. */
 	UPROPERTY(transient)
-	class UCameraAnimInst* AnimInstPool[8];    /*MAX_ACTIVE_CAMERA_ANIMS @fixme constant */
+	TObjectPtr<class UCameraAnimInst> AnimInstPool[8];    /*MAX_ACTIVE_CAMERA_ANIMS @fixme constant */
 
 	/** Internal list of active post process effects. Parallel array to PostProcessBlendCacheWeights. */
 	UPROPERTY(transient)
@@ -379,7 +379,7 @@ protected:
 public:
 	/** Array of camera anim instances that are currently playing and in-use */
 	UPROPERTY(transient)
-	TArray<class UCameraAnimInst*> ActiveAnims;
+	TArray<TObjectPtr<class UCameraAnimInst>> ActiveAnims;
 
 	/** Returns active post process info. */
 	void GetCachedPostProcessBlends(TArray<struct FPostProcessSettings> const*& OutPPSettings, TArray<float> const*& OutBlendWeigthts) const;
@@ -387,11 +387,11 @@ public:
 protected:
 	/** Array of camera anim instances that are not playing and available to be used. */
 	UPROPERTY(transient)
-	TArray<class UCameraAnimInst*> FreeAnims;
+	TArray<TObjectPtr<class UCameraAnimInst>> FreeAnims;
 
 	/** Internal. Receives the output of individual camera animations. */
 	UPROPERTY(transient)
-	class ACameraActor* AnimCameraActor;
+	TObjectPtr<class ACameraActor> AnimCameraActor;
 
 
 	////////////////////////

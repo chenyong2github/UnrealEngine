@@ -41,13 +41,13 @@ public:
 public:
 
 	UPROPERTY()
-	UGizmoLineHandleComponent* UpIntervalComponent = nullptr;
+	TObjectPtr<UGizmoLineHandleComponent> UpIntervalComponent = nullptr;
 
 	UPROPERTY()
-	UGizmoLineHandleComponent* DownIntervalComponent = nullptr;
+	TObjectPtr<UGizmoLineHandleComponent> DownIntervalComponent = nullptr;
 
 	UPROPERTY()
-	UGizmoLineHandleComponent* ForwardIntervalComponent = nullptr;
+	TObjectPtr<UGizmoLineHandleComponent> ForwardIntervalComponent = nullptr;
 
 
 public:
@@ -159,7 +159,7 @@ public:
 
 	/** State target is shared across gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoTransformChangeStateTarget* StateTarget = nullptr;
+	TObjectPtr<UGizmoTransformChangeStateTarget> StateTarget = nullptr;
 
 
 protected:
@@ -171,15 +171,15 @@ protected:
 
 	/** The active target object for the Gizmo */
 	UPROPERTY()
-	UTransformProxy* TransformProxy = nullptr;
+	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	/** list of current-active child components */
 	UPROPERTY()
-	TArray<UPrimitiveComponent*> ActiveComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> ActiveComponents;
 
 	/** list of currently-active child gizmos */
 	UPROPERTY()
-	TArray<UInteractiveGizmo*> ActiveGizmos;
+	TArray<TObjectPtr<UInteractiveGizmo>> ActiveGizmos;
 
 	UGizmoLocalFloatParameterSource* UpIntervalSource = nullptr;
 	UGizmoLocalFloatParameterSource* DownIntervalSource = nullptr;
@@ -188,11 +188,11 @@ protected:
 	
 	/** Y-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoComponentAxisSource* AxisYSource = nullptr;
+	TObjectPtr<UGizmoComponentAxisSource> AxisYSource = nullptr;
 
 	/** Z-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoComponentAxisSource* AxisZSource = nullptr;
+	TObjectPtr<UGizmoComponentAxisSource> AxisZSource = nullptr;
 
 protected:
 	TSharedPtr<FIntervalGizmoActorFactory> GizmoActorBuilder;

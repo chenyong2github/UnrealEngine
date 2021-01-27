@@ -20,7 +20,7 @@ class UPlayer : public UObject, public FExec
 
 	/** The actor this player controls. */
 	UPROPERTY(transient)
-	class APlayerController* PlayerController;
+	TObjectPtr<class APlayerController> PlayerController;
 
 	// Net variables.
 	/** the current speed of the connection */

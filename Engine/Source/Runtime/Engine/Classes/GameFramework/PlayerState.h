@@ -165,7 +165,7 @@ private:
 
 	/** The pawn that is controlled by by this player state. */
 	UPROPERTY(BlueprintReadOnly, Category=PlayerState, meta=(AllowPrivateAccess="true"))
-	APawn* PawnPrivate;
+	TObjectPtr<APawn> PawnPrivate;
 
 	/**
 	 * Stores the last 4 seconds worth of ping data (one second per 'bucket').

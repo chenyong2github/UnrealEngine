@@ -54,7 +54,7 @@ public:
 	
 	/** The source actor from which to sample.  Note that this can only be set when used as a user variable on a component in the world.*/
 	UPROPERTY(EditAnywhere, Category = "Spline")
-	AActor* Source;
+	TObjectPtr<AActor> Source;
 	
 	//UObject Interface
 	virtual void PostInitProperties()override;

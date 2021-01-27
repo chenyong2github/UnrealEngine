@@ -583,7 +583,7 @@ private:
 	uint8 ShadingModelField = 0;
 
 	UPROPERTY()
-	TArray<USubsurfaceProfile*> SubsurfaceProfiles;
+	TArray<TObjectPtr<USubsurfaceProfile>> SubsurfaceProfiles;
 };
 
 /** This is used by the drawing passes to determine tessellation policy, so changes here need to be supported in native code. */
@@ -1423,7 +1423,7 @@ struct ENGINE_API FRigidBodyContactInfo
 
 	/** The physical material of the two shapes involved in a contact */
 	UPROPERTY()
-	class UPhysicalMaterial* PhysMaterial[2];
+	TObjectPtr<class UPhysicalMaterial> PhysMaterial[2];
 
 
 	FRigidBodyContactInfo()
@@ -1496,11 +1496,11 @@ struct FFractureEffect
 
 	/** Particle system effect to play at fracture location. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FractureEffect)
-	class UParticleSystem* ParticleSystem;
+	TObjectPtr<class UParticleSystem> ParticleSystem;
 
 	/** Sound cue to play at fracture location. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FractureEffect)
-	class USoundBase* Sound;
+	TObjectPtr<class USoundBase> Sound;
 
 	FFractureEffect()
 		: ParticleSystem(nullptr)
@@ -1516,7 +1516,7 @@ struct ENGINE_API FBasedPosition
 
 	/** Actor that is the base */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BasedPosition)
-	class AActor* Base;
+	TObjectPtr<class AActor> Base;
 
 	/** Position relative to the base actor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BasedPosition)
@@ -1947,11 +1947,11 @@ struct FPrimitiveMaterialRef
 
 	/** Material is on a primitive component */
 	UPROPERTY()
-	class UPrimitiveComponent* Primitive;
+	TObjectPtr<class UPrimitiveComponent> Primitive;
 
 	/** Material is on a decal component */
 	UPROPERTY()
-	class UDecalComponent* Decal;
+	TObjectPtr<class UDecalComponent> Decal;
 
 	/** Index into the material on the components data */
 	UPROPERTY()
@@ -2762,7 +2762,7 @@ struct FMeshBuildSettings
 #endif
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
-	class UStaticMesh* DistanceFieldReplacementMesh;
+	TObjectPtr<class UStaticMesh> DistanceFieldReplacementMesh;
 
 	/** Default settings. */
 	FMeshBuildSettings()
@@ -3489,7 +3489,7 @@ struct FRepAttachment
 
 	/** Actor we are attached to, movement replication will not happen while AttachParent is non-nullptr */
 	UPROPERTY()
-	class AActor* AttachParent;
+	TObjectPtr<class AActor> AttachParent;
 
 	/** Location offset from attach parent */
 	UPROPERTY()
@@ -3509,7 +3509,7 @@ struct FRepAttachment
 
 	/** Specific component we are attached to */
 	UPROPERTY()
-	class USceneComponent* AttachComponent;
+	TObjectPtr<class USceneComponent> AttachComponent;
 
 	FRepAttachment()
 		: AttachParent(nullptr)
@@ -3745,7 +3745,7 @@ struct ENGINE_API FComponentReference
 	 * If this is not provided the reference refers to a component on this / the same actor.
 	 */
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Referenced Actor"))
-	AActor* OtherActor;
+	TObjectPtr<AActor> OtherActor;
 
 	/** Name of component to use. If this is not specified the reference refers to the root component. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Component Name"))

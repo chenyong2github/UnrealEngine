@@ -46,10 +46,10 @@ class USoundNodeEnveloper : public USoundNode
 	uint32 bLoop:1;
 
 	UPROPERTY()
-	class UDistributionFloatConstantCurve* VolumeInterpCurve_DEPRECATED;
+	TObjectPtr<class UDistributionFloatConstantCurve> VolumeInterpCurve_DEPRECATED;
 
 	UPROPERTY()
-	class UDistributionFloatConstantCurve* PitchInterpCurve_DEPRECATED;
+	TObjectPtr<class UDistributionFloatConstantCurve> PitchInterpCurve_DEPRECATED;
 
 	// The distribution defining the volume envelope.
 	UPROPERTY(EditAnywhere, Category=Envelope)

@@ -68,11 +68,11 @@ protected:
 
 	// The class containing the proxy object functions
 	UPROPERTY()
-	UClass* ProxyFactoryClass;
+	TObjectPtr<UClass> ProxyFactoryClass;
 
 	// The type of proxy object that will be created
 	UPROPERTY()
-	UClass* ProxyClass;
+	TObjectPtr<UClass> ProxyClass;
 
 	// The name of the 'go' function on the proxy object that will be called after delegates are in place, can be NAME_None
 	UPROPERTY()

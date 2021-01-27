@@ -37,7 +37,7 @@ public:
 private:
 
 	UPROPERTY(Transient);
-	TArray<UAudioAnalyzer*> AudioAnalyzers;
+	TArray<TObjectPtr<UAudioAnalyzer>> AudioAnalyzers;
 };
 
 

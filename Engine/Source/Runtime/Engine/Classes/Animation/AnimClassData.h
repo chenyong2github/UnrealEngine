@@ -46,7 +46,7 @@ public:
 
 	/** Target skeleton for this blueprint class */
 	UPROPERTY()
-	class USkeleton* TargetSkeleton;
+	TObjectPtr<class USkeleton> TargetSkeleton;
 
 	/** A list of anim notifies that state machines (or anything else) may reference */
 	UPROPERTY()

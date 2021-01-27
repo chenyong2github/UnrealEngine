@@ -60,7 +60,7 @@ public:
 	 * Component->LineTraceComponent() is called to determine if the target is hit
 	 */
 	UPROPERTY()
-	UPrimitiveComponent* Component;
+	TObjectPtr<UPrimitiveComponent> Component;
 
 	/**
 	 * If set, this condition is checked before performing the hit test. This gives a way 

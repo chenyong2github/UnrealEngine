@@ -66,11 +66,11 @@ public:
 protected:
 	/** Cached AIController owner of BehaviorTreeComponent. */
 	UPROPERTY(Transient)
-	AAIController* AIOwner;
+	TObjectPtr<AAIController> AIOwner;
 
 	/** Cached AIController owner of BehaviorTreeComponent. */
 	UPROPERTY(Transient)
-	AActor* ActorOwner;
+	TObjectPtr<AActor> ActorOwner;
 
 	/** blackboard key names that should be observed */
 	UPROPERTY()

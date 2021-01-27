@@ -54,7 +54,7 @@ public:
 
 	/** The texture that will be tracked by this image tracker instance. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
-	UTexture2D* TargetImageTexture;
+	TObjectPtr<UTexture2D> TargetImageTexture;
 
 	/**
 	  The name of the target.

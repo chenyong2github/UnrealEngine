@@ -292,7 +292,7 @@ struct FBPInterfaceDescription
 
 	/** References to the graphs associated with the required functions for this interface */
 	UPROPERTY()
-	TArray<UEdGraph*> Graphs;
+	TArray<TObjectPtr<UEdGraph>> Graphs;
 
 
 	FBPInterfaceDescription()
@@ -356,7 +356,7 @@ struct FEditedDocumentInfo
 private:
 	// Legacy hard reference is now serialized as a soft reference (see above).
 	UPROPERTY()
-	UObject* EditedObject_DEPRECATED;
+	TObjectPtr<UObject> EditedObject_DEPRECATED;
 };
 
 template<>
@@ -550,45 +550,45 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** 'Simple' construction script - graph of components to instance */
 	UPROPERTY()
-	class USimpleConstructionScript* SimpleConstructionScript;
+	TObjectPtr<class USimpleConstructionScript> SimpleConstructionScript;
 
 #if WITH_EDITORONLY_DATA
 	/** Set of pages that combine into a single uber-graph */
 	UPROPERTY()
-	TArray<UEdGraph*> UbergraphPages;
+	TArray<TObjectPtr<UEdGraph>> UbergraphPages;
 
 	/** Set of functions implemented for this class graphically */
 	UPROPERTY()
-	TArray<UEdGraph*> FunctionGraphs;
+	TArray<TObjectPtr<UEdGraph>> FunctionGraphs;
 
 	/** Graphs of signatures for delegates */
 	UPROPERTY()
-	TArray<UEdGraph*> DelegateSignatureGraphs;
+	TArray<TObjectPtr<UEdGraph>> DelegateSignatureGraphs;
 
 	/** Set of macros implemented for this class */
 	UPROPERTY()
-	TArray<UEdGraph*> MacroGraphs;
+	TArray<TObjectPtr<UEdGraph>> MacroGraphs;
 
 	/** Set of functions actually compiled for this class */
 	UPROPERTY(transient, duplicatetransient)
-	TArray<UEdGraph*> IntermediateGeneratedGraphs;
+	TArray<TObjectPtr<UEdGraph>> IntermediateGeneratedGraphs;
 
 	/** Set of functions actually compiled for this class */
 	UPROPERTY(transient, duplicatetransient)
-	TArray<UEdGraph*> EventGraphs;
+	TArray<TObjectPtr<UEdGraph>> EventGraphs;
 
 	/** Cached cosmetic information about macro graphs, use GetCosmeticInfoForMacro() to access */
 	UPROPERTY(Transient)
-	TMap<UEdGraph*, FBlueprintMacroCosmeticInfo> PRIVATE_CachedMacroInfo;
+	TMap<TObjectPtr<UEdGraph>, FBlueprintMacroCosmeticInfo> PRIVATE_CachedMacroInfo;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Array of component template objects, used by AddComponent function */
 	UPROPERTY()
-	TArray<class UActorComponent*> ComponentTemplates;
+	TArray<TObjectPtr<class UActorComponent>> ComponentTemplates;
 
 	/** Array of templates for timelines that should be created */
 	UPROPERTY()
-	TArray<class UTimelineTemplate*> Timelines;
+	TArray<TObjectPtr<class UTimelineTemplate>> Timelines;
 
 	/** Array of blueprint overrides of component classes in parent classes */
 	UPROPERTY()
@@ -596,7 +596,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Stores data to override (in children classes) components (created by SCS) from parent classes */
 	UPROPERTY()
-	class UInheritableComponentHandler* InheritableComponentHandler;
+	TObjectPtr<class UInheritableComponentHandler> InheritableComponentHandler;
 
 #if WITH_EDITORONLY_DATA
 	/** Array of new variables to be added to generated class */
@@ -625,13 +625,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Persistent debugging options */
 	UPROPERTY()
-	TArray<class UBreakpoint*> Breakpoints;
+	TArray<TObjectPtr<class UBreakpoint>> Breakpoints;
 
 	UPROPERTY()
 	TArray<FEdGraphPinReference> WatchedPins;
 
 	UPROPERTY()
-	TArray<class UEdGraphPin_Deprecated*> DeprecatedPinWatches;
+	TArray<TObjectPtr<class UEdGraphPin_Deprecated>> DeprecatedPinWatches;
 
 	/** Index map for component template names */
 	UPROPERTY()
@@ -643,7 +643,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Array of extensions for this blueprint */
 	UPROPERTY()
-	TArray<UBlueprintExtension*> Extensions;
+	TArray<TObjectPtr<UBlueprintExtension>> Extensions;
 
 #endif // WITH_EDITORONLY_DATA
 
@@ -688,7 +688,7 @@ public:
 
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, Category=Thumbnail)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 
 	/** CRC for CDO calculated right after the latest compilation used by Reinstancer to check if default values were changed */
 	UPROPERTY(transient, duplicatetransient)
@@ -726,7 +726,7 @@ public:
 
 	// If this BP is just a duplicate created for a specific compilation, the reference to original GeneratedClass is needed
 	UPROPERTY(transient, duplicatetransient)
-	UClass* OriginalClass;
+	TObjectPtr<UClass> OriginalClass;
 
 	bool IsUpToDate() const
 	{

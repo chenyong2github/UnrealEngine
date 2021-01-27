@@ -378,7 +378,7 @@ protected:
 
 	/** State of the beacon */
 	UPROPERTY()
-	UPartyBeaconState* State;
+	TObjectPtr<UPartyBeaconState> State;
 
 	/** Delegate fired when the beacon indicates all reservations are taken */
 	FOnReservationUpdate ReservationsFull;

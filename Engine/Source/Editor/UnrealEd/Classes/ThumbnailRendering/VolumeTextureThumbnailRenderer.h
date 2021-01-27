@@ -34,6 +34,6 @@ private:
 	class FVolumeTextureThumbnailScene* ThumbnailScene;
 
 	UPROPERTY()
-	UMaterialInstanceConstant* MaterialInstance;
+	TObjectPtr<UMaterialInstanceConstant> MaterialInstance;
 };
 

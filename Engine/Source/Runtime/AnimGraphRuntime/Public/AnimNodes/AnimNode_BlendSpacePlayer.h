@@ -48,7 +48,7 @@ public:
 
 	// The blendspace asset to play
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	UBlendSpaceBase* BlendSpace;
+	TObjectPtr<UBlendSpaceBase> BlendSpace;
 
 protected:
 
@@ -57,7 +57,7 @@ protected:
 	TArray<FBlendSampleData> BlendSampleDataCache;
 
 	UPROPERTY(Transient)
-	UBlendSpaceBase* PreviousBlendSpace;
+	TObjectPtr<UBlendSpaceBase> PreviousBlendSpace;
 
 public:	
 	FAnimNode_BlendSpacePlayer();

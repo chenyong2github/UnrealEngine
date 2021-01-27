@@ -34,6 +34,6 @@ private:
 	TWeakObjectPtr<UNiagaraSystem> System;
 
 	UPROPERTY()
-	UNiagaraStackObject* SystemObject;
+	TObjectPtr<UNiagaraStackObject> SystemObject;
 
 };

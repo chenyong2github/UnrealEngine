@@ -480,7 +480,7 @@ public:
 	}
 
 	UPROPERTY()
-	class UNiagaraDataInterface* DataInterface;
+	TObjectPtr<class UNiagaraDataInterface> DataInterface;
 	
 	UPROPERTY()
 	FName Name;
@@ -671,13 +671,13 @@ private:
 	void AddInternal(class UNiagaraComponent* Comp, bool bReInit);
 
 	UPROPERTY(transient)
-	TArray<UNiagaraComponent*> ComponentsToReset;
+	TArray<TObjectPtr<UNiagaraComponent>> ComponentsToReset;
 	UPROPERTY(transient)
-	TArray<UNiagaraComponent*> ComponentsToReInit;
+	TArray<TObjectPtr<UNiagaraComponent>> ComponentsToReInit;
 	UPROPERTY(transient)
-	TArray<UNiagaraComponent*> ComponentsToNotifySimDestroy;
+	TArray<TObjectPtr<UNiagaraComponent>> ComponentsToNotifySimDestroy;
 	UPROPERTY(transient)
-	TArray<UNiagaraSystem*> SystemSimsToDestroy;
+	TArray<TObjectPtr<UNiagaraSystem>> SystemSimsToDestroy;
 
 	bool bDestroyOnAdd;
 	bool bOnlyActive;
@@ -853,7 +853,7 @@ struct FNiagaraVariableInfo
 	FText Definition;
 
 	UPROPERTY()
-	UNiagaraDataInterface* DataInterface;
+	TObjectPtr<UNiagaraDataInterface> DataInterface;
 };
 
 /** This enum decides how a renderer will attempt to process the incoming data from the stack.*/

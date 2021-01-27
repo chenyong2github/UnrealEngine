@@ -60,7 +60,7 @@ class UAnimGraphNode_AnimDynamics : public UAnimGraphNode_SkeletalControlBase
 	bool bShowCollisionSpheres;
 
 	UPROPERTY(Transient)
-	mutable USkeletalMeshComponent* LastPreviewComponent;
+	mutable TObjectPtr<USkeletalMeshComponent> LastPreviewComponent;
 
 public:
 

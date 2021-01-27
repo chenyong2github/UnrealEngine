@@ -14,7 +14,7 @@ class UInterpTrackInstDirector : public UInterpTrackInst
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class AActor* OldViewTarget;
+	TObjectPtr<class AActor> OldViewTarget;
 
 
 	// Begin UInterpTrackInst Instance

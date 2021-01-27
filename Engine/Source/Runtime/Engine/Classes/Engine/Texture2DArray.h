@@ -85,7 +85,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Add Textures*/
 	UPROPERTY(EditAnywhere, Category = Source2D, meta = (DisplayName = "Source Textures"))
-	TArray<UTexture2D*> SourceTextures;
+	TArray<TObjectPtr<UTexture2D>> SourceTextures;
 #endif
 
 	/**

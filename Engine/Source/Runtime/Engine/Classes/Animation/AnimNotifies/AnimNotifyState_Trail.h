@@ -22,7 +22,7 @@ class ENGINE_API UAnimNotifyState_Trail : public UAnimNotifyState
 	
 	/** The particle system to use for this trail. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Trail)
-	UParticleSystem* PSTemplate;
+	TObjectPtr<UParticleSystem> PSTemplate;
 
 	UFUNCTION(BlueprintImplementableEvent)
 	UParticleSystem* OverridePSTemplate(USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation) const;

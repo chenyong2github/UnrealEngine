@@ -31,7 +31,7 @@ private:
 
 	/** Name of the enum being switched on */
 	UPROPERTY()
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	/** List of the current entries in the enum (Pin Names) */
 	UPROPERTY()

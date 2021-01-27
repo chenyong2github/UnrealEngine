@@ -505,7 +505,7 @@ struct ENGINE_API FEventGraphFastCallPair
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UFunction* FunctionToPatch = nullptr;
+	TObjectPtr<UFunction> FunctionToPatch = nullptr;
 
 	UPROPERTY()
 	int32 EventGraphCallOffset = 0;
@@ -527,7 +527,7 @@ struct ENGINE_API FBlueprintComponentChangedPropertyInfo
 
 	/** The parent struct (owner) of the changed property. */
 	UPROPERTY()
-	UStruct* PropertyScope;
+	TObjectPtr<UStruct> PropertyScope;
 
 	/** Default constructor. */
 	FBlueprintComponentChangedPropertyInfo()
@@ -607,7 +607,7 @@ struct FBPComponentClassOverride
 
 	/** The class to use when constructing the component. */
 	UPROPERTY()
-	UClass* ComponentClass;
+	TObjectPtr<UClass> ComponentClass;
 
 	FBPComponentClassOverride()
 		: ComponentClass(nullptr)
@@ -657,15 +657,15 @@ private:
 public:
 	/** Array of objects containing information for dynamically binding delegates to functions in this blueprint */
 	UPROPERTY()
-	TArray<class UDynamicBlueprintBinding*> DynamicBindingObjects;
+	TArray<TObjectPtr<class UDynamicBlueprintBinding>> DynamicBindingObjects;
 
 	/** Array of component template objects, used by AddComponent function */
 	UPROPERTY()
-	TArray<class UActorComponent*> ComponentTemplates;
+	TArray<TObjectPtr<class UActorComponent>> ComponentTemplates;
 
 	/** Array of templates for timelines that should be created */
 	UPROPERTY()
-	TArray<class UTimelineTemplate*> Timelines;
+	TArray<TObjectPtr<class UTimelineTemplate>> Timelines;
 
 	/** Array of blueprint overrides of component classes in parent classes */
 	UPROPERTY()
@@ -673,19 +673,19 @@ public:
 
 	/** 'Simple' construction script - graph of components to instance */
 	UPROPERTY()
-	class USimpleConstructionScript* SimpleConstructionScript;
+	TObjectPtr<class USimpleConstructionScript> SimpleConstructionScript;
 
 	/** Stores data to override (in children classes) components (created by SCS) from parent classes */
 	UPROPERTY()
-	class UInheritableComponentHandler* InheritableComponentHandler;
+	TObjectPtr<class UInheritableComponentHandler> InheritableComponentHandler;
 
 	UPROPERTY()
-	class UStructProperty* UberGraphFramePointerProperty_DEPRECATED;
+	TObjectPtr<class UStructProperty> UberGraphFramePointerProperty_DEPRECATED;
 	
 	FStructProperty* UberGraphFramePointerProperty;
 
 	UPROPERTY()
-	UFunction* UberGraphFunction;
+	TObjectPtr<UFunction> UberGraphFunction;
 
 #if VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
 	uint32 UberGraphFunctionKey;
@@ -700,14 +700,14 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
-	UObject* OverridenArchetypeForCDO;
+	TObjectPtr<UObject> OverridenArchetypeForCDO;
 
 	/** Property guid map */
 	UPROPERTY()
 	TMap<FName,FGuid> PropertyGuids;
 
 	UPROPERTY(Transient)
-	TArray<UFunction*> CalledFunctions;
+	TArray<TObjectPtr<UFunction>> CalledFunctions;
 #endif //WITH_EDITORONLY_DATA
 
 	// Mapping of changed properties & data to apply when instancing components in a cooked build (one entry per named AddComponent node template for fast lookup at runtime).

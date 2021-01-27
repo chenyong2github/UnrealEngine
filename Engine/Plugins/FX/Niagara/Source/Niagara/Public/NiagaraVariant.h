@@ -46,10 +46,10 @@ struct NIAGARA_API FNiagaraVariant
 
 private:
 	UPROPERTY(EditAnywhere, Category=Variant, Instanced)
-	UObject* Object;
+	TObjectPtr<UObject> Object;
 
 	UPROPERTY(EditAnywhere, Category=Variant, Instanced)
-	UNiagaraDataInterface* DataInterface;
+	TObjectPtr<UNiagaraDataInterface> DataInterface;
 
 	UPROPERTY(EditAnywhere, Category=Variant)
 	TArray<uint8> Bytes;

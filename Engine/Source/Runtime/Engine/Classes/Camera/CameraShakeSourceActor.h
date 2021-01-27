@@ -26,5 +26,5 @@ public:
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = CameraShakeSourceActor, meta = (AllowPrivateAccess = "true"))
-	UCameraShakeSourceComponent* CameraShakeSourceComponent;
+	TObjectPtr<UCameraShakeSourceComponent> CameraShakeSourceComponent;
 };

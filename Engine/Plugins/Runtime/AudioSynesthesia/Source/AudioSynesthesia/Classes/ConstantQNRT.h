@@ -141,7 +141,7 @@ class AUDIOSYNESTHESIA_API UConstantQNRT : public UAudioSynesthesiaNRT
 
 		/** The settings for the audio analyzer.  */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer)
-		UConstantQNRTSettings* Settings;
+		TObjectPtr<UConstantQNRTSettings> Settings;
 
 		/** Get a specific channel cqt of the analyzed sound at a given time. */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")

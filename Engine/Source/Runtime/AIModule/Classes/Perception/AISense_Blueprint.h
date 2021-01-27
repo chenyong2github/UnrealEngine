@@ -24,10 +24,10 @@ protected:
 	TSubclassOf<UUserDefinedStruct> ListenerDataType;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Sense")
-	TArray<UAIPerceptionComponent*> ListenerContainer;
+	TArray<TObjectPtr<UAIPerceptionComponent>> ListenerContainer;
 
 	UPROPERTY()
-	TArray<UAISenseEvent*> UnprocessedEvents;
+	TArray<TObjectPtr<UAISenseEvent>> UnprocessedEvents;
 
 public:
 	UAISense_Blueprint(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());

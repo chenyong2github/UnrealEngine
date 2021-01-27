@@ -61,7 +61,7 @@ struct FGeomComponentCacheParameters
 
 	// The cache to target when recording or playing
 	UPROPERTY(EditAnywhere, Category = Cache)
-	UGeometryCollectionCache* TargetCache;
+	TObjectPtr<UGeometryCollectionCache> TargetCache;
 
 	// Cache mode, whether disabled, playing or recording
 	UPROPERTY(EditAnywhere, Category = Cache)
@@ -366,7 +366,7 @@ public:
 
 	/** Chaos RBD Solver override. Will use the world's default solver actor if null. */
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics", meta = (DisplayName = "Chaos Solver"))
-	AChaosSolverActor* ChaosSolverActor;
+	TObjectPtr<AChaosSolverActor> ChaosSolverActor;
 
 	/** RestCollection */
 	void SetRestCollection(const UGeometryCollection * RestCollectionIn);
@@ -423,10 +423,10 @@ public:
 
 
 	UPROPERTY(EditAnywhere, NoClear, BlueprintReadOnly, Category = "ChaosPhysics")
-	const UGeometryCollection* RestCollection;
+	TObjectPtr<const UGeometryCollection> RestCollection;
 
 	UPROPERTY(EditAnywhere, NoClear, BlueprintReadOnly, Category = "ChaosPhysics")
-	TArray<const AFieldSystemActor*> InitializationFields;
+	TArray<TObjectPtr<const AFieldSystemActor>> InitializationFields;
 
 	/**
 	* When Simulating is enabled the Component will initialize its rigid bodies within the solver.
@@ -477,7 +477,7 @@ public:
 
 	/** Physical Properties */
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Physical material now derived from render materials, for instance overrides use PhysicalMaterialOverride."))
-	const UChaosPhysicalMaterial* PhysicalMaterial_DEPRECATED;
+	TObjectPtr<const UChaosPhysicalMaterial> PhysicalMaterial_DEPRECATED;
 
 	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
@@ -492,7 +492,7 @@ public:
 	FVector InitialAngularVelocity;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="ChaosPhysics|Collisions")
-	UPhysicalMaterial* PhysicalMaterialOverride;
+	TObjectPtr<UPhysicalMaterial> PhysicalMaterialOverride;
 
 	UPROPERTY()
 	FGeomComponentCacheParameters CacheParameters;
@@ -715,13 +715,13 @@ private:
 
 	// Temporary storage for body setup in order to initialise a dummy body instance
 	UPROPERTY(Transient)
-	UBodySetup* DummyBodySetup;
+	TObjectPtr<UBodySetup> DummyBodySetup;
 
 #if WITH_EDITORONLY_DATA
 	// Tracked editor actor that owns the original component so we can write back recorded caches
 	// from PIE.
 	UPROPERTY(Transient)
-	AActor* EditorActor;
+	TObjectPtr<AActor> EditorActor;
 #endif
 	void SwitchRenderModels(const AActor* Actor);
 

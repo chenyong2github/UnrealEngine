@@ -15,12 +15,12 @@ class ARuntimeVirtualTextureVolume : public AActor
 public:
 	/** Component that owns the runtime virtual texture. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (AllowPrivateAccess = "true"))
-	class URuntimeVirtualTextureComponent* VirtualTextureComponent;
+	TObjectPtr<class URuntimeVirtualTextureComponent> VirtualTextureComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** Box for visualizing virtual texture extents. */
 	UPROPERTY(Transient)
-	class UBoxComponent* Box = nullptr;
+	TObjectPtr<class UBoxComponent> Box = nullptr;
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR

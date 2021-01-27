@@ -41,38 +41,38 @@ private:
 
 	/** Scene component root of this actor */
 	UPROPERTY()
-	class USceneComponent* SceneComponent;
+	TObjectPtr<class USceneComponent> SceneComponent;
 
 	/** First line segment component.  Starts at the designation location, goes toward the line connection point. */
 	UPROPERTY()
-	class UStaticMeshComponent* FirstLineComponent;
+	TObjectPtr<class UStaticMeshComponent> FirstLineComponent;
 
 	/** Sphere that connects the two line segments and makes the joint look smooth and round */
 	UPROPERTY()
-	class UStaticMeshComponent* JointSphereComponent;
+	TObjectPtr<class UStaticMeshComponent> JointSphereComponent;
 
 	/** Second line segment component.  Starts at the connection point and goes toward the 3D text. */
 	UPROPERTY()
-	class UStaticMeshComponent* SecondLineComponent;
+	TObjectPtr<class UStaticMeshComponent> SecondLineComponent;
 
 	/** The 3D text we're drawing.  Positioned at the end of the second line. */
 	UPROPERTY()
-	class UTextRenderComponent* TextComponent;
+	TObjectPtr<class UTextRenderComponent> TextComponent;
 
 	/** Masked text material.  Used after faded in */
 	UPROPERTY()
-	class UMaterialInterface* MaskedTextMaterial;
+	TObjectPtr<class UMaterialInterface> MaskedTextMaterial;
 
 	/** Translucent text material.  Used during fading */
 	UPROPERTY()
-	class UMaterialInterface* TranslucentTextMaterial;
+	TObjectPtr<class UMaterialInterface> TranslucentTextMaterial;
 
 	/** Material to use for the line meshes */
 	UPROPERTY()
-	class UMaterialInterface* LineMaterial;
+	TObjectPtr<class UMaterialInterface> LineMaterial;
 
 	/** Dynamic material instance for fading lines in and out */
 	UPROPERTY( transient )
-	class UMaterialInstanceDynamic* LineMaterialMID;
+	TObjectPtr<class UMaterialInstanceDynamic> LineMaterialMID;
 
 };

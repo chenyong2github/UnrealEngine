@@ -22,7 +22,7 @@ class NIAGARAANIMNOTIFIES_API UAnimNotifyState_TimedNiagaraEffect : public UAnim
 
 	// The niagara system template to use when spawning the niagara component
 	UPROPERTY(EditAnywhere, Category = NiagaraSystem, meta = (ToolTip = "The niagara system to spawn for the notify state"))
-	UNiagaraSystem* Template;
+	TObjectPtr<UNiagaraSystem> Template;
 
 	// The socket within our mesh component to attach to when we spawn the Niagara component
 	UPROPERTY(EditAnywhere, Category = NiagaraSystem, meta = (ToolTip = "The socket or bone to attach the system to", AnimNotifyBoneName = "true"))

@@ -30,7 +30,7 @@ class UParticleModuleAttractorPointGravity : public UParticleModuleAttractorBase
 
 	/** The strength of the point source. */
 	UPROPERTY()
-	class UDistributionFloat* Strength_DEPRECATED;
+	TObjectPtr<class UDistributionFloat> Strength_DEPRECATED;
 
 	/** The strength of the point source. */
 	UPROPERTY(EditAnywhere, noclear, Category=PointGravitySource)

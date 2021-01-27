@@ -168,10 +168,10 @@ private:
 	void ClearAllBrickData_Internal();
 
 	UPROPERTY(EditAnywhere, Category = Appearance)
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	UPROPERTY(EditAnywhere, Category = Appearance)
-	UMaterialInterface* WireframeMaterial;
+	TObjectPtr<UMaterialInterface> WireframeMaterial;
 
 	/** If true, MRMesh will create a renderable mesh proxy.  If false it will not, but could still provide collision. */
 	UPROPERTY(EditAnywhere, Category = Appearance)
@@ -188,10 +188,10 @@ private:
 	bool bConnected = false;
 
 	UPROPERTY(Transient)
-	class UBodySetup* CachedBodySetup = nullptr;
+	TObjectPtr<class UBodySetup> CachedBodySetup = nullptr;
 
 	UPROPERTY(Transient)
-	TArray<UBodySetup*> BodySetups;
+	TArray<TObjectPtr<UBodySetup>> BodySetups;
 
 
 	/** Whether this mesh should write z-depth to occlude meshes or not */

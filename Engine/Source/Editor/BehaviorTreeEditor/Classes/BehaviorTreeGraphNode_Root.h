@@ -14,7 +14,7 @@ class UBehaviorTreeGraphNode_Root : public UBehaviorTreeGraphNode
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, Category="AI|BehaviorTree")
-	class UBlackboardData* BlackboardAsset;
+	TObjectPtr<class UBlackboardData> BlackboardAsset;
 
 	virtual void PostPlacedNewNode() override;
 	virtual void AllocateDefaultPins() override;

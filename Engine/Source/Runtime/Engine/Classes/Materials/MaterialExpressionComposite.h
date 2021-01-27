@@ -54,10 +54,10 @@ class UMaterialExpressionComposite : public UMaterialExpression
 	FString SubgraphName;
 
 	UPROPERTY()
-	UMaterialExpressionPinBase* InputExpressions;
+	TObjectPtr<UMaterialExpressionPinBase> InputExpressions;
 
 	UPROPERTY()
-	UMaterialExpressionPinBase* OutputExpressions;
+	TObjectPtr<UMaterialExpressionPinBase> OutputExpressions;
 
 #if WITH_EDITOR
 	/** Get all reroute expressions used by this composite & its pin bases */

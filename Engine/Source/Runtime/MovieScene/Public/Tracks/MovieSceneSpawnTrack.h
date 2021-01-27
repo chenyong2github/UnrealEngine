@@ -65,7 +65,7 @@ protected:
 
 	/** All the sections in this track */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> Sections;
+	TArray<TObjectPtr<UMovieSceneSection>> Sections;
 
 	/** The guid relating to the object we are to spawn and destroy */
 	UPROPERTY()

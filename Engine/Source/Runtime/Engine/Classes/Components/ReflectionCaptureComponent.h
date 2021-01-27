@@ -39,7 +39,7 @@ class UReflectionCaptureComponent : public USceneComponent
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UBillboardComponent* CaptureOffsetComponent;
+	TObjectPtr<UBillboardComponent> CaptureOffsetComponent;
 
 	/** Indicates where to get the reflection source from. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ReflectionCapture)
@@ -51,7 +51,7 @@ class UReflectionCaptureComponent : public USceneComponent
 
 	/** Cubemap to use for reflection if ReflectionSourceType is set to RS_SpecifiedCubemap. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ReflectionCapture)
-	class UTextureCube* Cubemap;
+	TObjectPtr<class UTextureCube> Cubemap;
 
 	/** Angle to rotate the source cubemap when SourceType is set to SLS_SpecifiedCubemap. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ReflectionCapture, meta = (UIMin = "0", UIMax = "360"))
@@ -79,7 +79,7 @@ class UReflectionCaptureComponent : public USceneComponent
 
 	/** Cached Cubemap texture from MapBuildData used for rendering with the encoded HDR values. */
 	UPROPERTY(transient)
-	UTextureCube* CachedEncodedHDRCubemap;
+	TObjectPtr<UTextureCube> CachedEncodedHDRCubemap;
 
 #if WITH_EDITOR
 	/** Check to see if MapBuildDataId was loaded - otherwise we need to display a warning on cook */

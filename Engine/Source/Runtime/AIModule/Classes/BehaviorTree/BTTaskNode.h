@@ -77,7 +77,7 @@ public:
 
 	/** service nodes */
 	UPROPERTY()
-	TArray<UBTService*> Services;
+	TArray<TObjectPtr<UBTService>> Services;
 
 protected:
 

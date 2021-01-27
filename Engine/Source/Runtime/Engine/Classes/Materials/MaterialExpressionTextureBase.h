@@ -21,7 +21,7 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase)
-	class UTexture* Texture;
+	TObjectPtr<class UTexture> Texture;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase)

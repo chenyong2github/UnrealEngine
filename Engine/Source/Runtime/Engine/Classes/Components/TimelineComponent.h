@@ -78,7 +78,7 @@ struct FTimelineVectorTrack
 
 	/** Vector curve to be evaluated */
 	UPROPERTY()
-	class UCurveVector* VectorCurve;
+	TObjectPtr<class UCurveVector> VectorCurve;
 
 	/** Function that the output from ValueCurve will be passed to */
 	UPROPERTY()
@@ -115,7 +115,7 @@ struct FTimelineFloatTrack
 
 	/** Float curve to be evaluated */
 	UPROPERTY()
-	class UCurveFloat* FloatCurve;
+	TObjectPtr<class UCurveFloat> FloatCurve;
 
 	/** Function that the output from ValueCurve will be passed to */
 	UPROPERTY()
@@ -153,7 +153,7 @@ struct FTimelineLinearColorTrack
 
 	/** Float curve to be evaluated */
 	UPROPERTY()
-	class UCurveLinearColor* LinearColorCurve;
+	TObjectPtr<class UCurveLinearColor> LinearColorCurve;
 
 	/** Function that the output from ValueCurve will be passed to */
 	UPROPERTY()

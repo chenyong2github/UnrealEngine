@@ -28,24 +28,24 @@ class UInterpData : public UObject
 
 	/** Actual interpolation data. Groups of InterpTracks. */
 	UPROPERTY(export, BlueprintReadOnly, Category=InterpData)
-	TArray<class UInterpGroup*> InterpGroups;
+	TArray<TObjectPtr<class UInterpGroup>> InterpGroups;
 
 	/** Used for curve editor to remember curve-editing setup. Only loaded in editor. */
 	UPROPERTY(export)
-	class UInterpCurveEdSetup* CurveEdSetup;
+	TObjectPtr<class UInterpCurveEdSetup> CurveEdSetup;
 
 #if WITH_EDITORONLY_DATA
 	/** Used for filtering which tracks are currently visible. */
 	UPROPERTY()
-	TArray<class UInterpFilter*> InterpFilters;
+	TArray<TObjectPtr<class UInterpFilter>> InterpFilters;
 
 	/** The currently selected filter. */
 	UPROPERTY()
-	class UInterpFilter* SelectedFilter;
+	TObjectPtr<class UInterpFilter> SelectedFilter;
 
 	/** Array of default filters. */
 	UPROPERTY(transient)
-	TArray<class UInterpFilter*> DefaultFilters;
+	TArray<TObjectPtr<class UInterpFilter>> DefaultFilters;
 
 #endif // WITH_EDITORONLY_DATA
 	/** Used in editor for defining sections to loop, stretch etc. */
@@ -62,7 +62,7 @@ class UInterpData : public UObject
 
 	/** Cached version of the director group, if any, for easy access while in game */
 	UPROPERTY(transient)
-	class UInterpGroupDirector* CachedDirectorGroup;
+	TObjectPtr<class UInterpGroupDirector> CachedDirectorGroup;
 
 	/** Unique names of all events contained across all event tracks */
 	UPROPERTY()

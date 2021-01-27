@@ -300,6 +300,6 @@ protected:
 	TSoftClassPtr<UObject> SettingsClass;
 
 	UPROPERTY(Transient)
-	UObject* SettingsObject;
+	TObjectPtr<UObject> SettingsObject;
 
 };

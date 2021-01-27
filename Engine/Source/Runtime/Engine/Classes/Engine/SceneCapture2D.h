@@ -20,7 +20,7 @@ class ASceneCapture2D : public ASceneCapture
 private:
 	/** Scene capture component. */
 	UPROPERTY(Category = DecalActor, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
-	class USceneCaptureComponent2D* CaptureComponent2D;
+	TObjectPtr<class USceneCaptureComponent2D> CaptureComponent2D;
 
 public:
 	UFUNCTION(BlueprintCallable, Category="Rendering")

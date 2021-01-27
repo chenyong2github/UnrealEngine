@@ -305,10 +305,10 @@ struct FAnimNotifyEvent : public FAnimLinkableElement
 	FName NotifyName;
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category=AnimNotifyEvent)
-	class UAnimNotify * Notify;
+	TObjectPtr<class UAnimNotify>  Notify;
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category=AnimNotifyEvent)
-	class UAnimNotifyState * NotifyStateClass;
+	TObjectPtr<class UAnimNotifyState>  NotifyStateClass;
 
 	UPROPERTY()
 	float Duration;

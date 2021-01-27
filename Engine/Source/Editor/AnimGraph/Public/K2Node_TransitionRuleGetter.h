@@ -43,10 +43,10 @@ class UK2Node_TransitionRuleGetter : public UK2Node
 	TEnumAsByte<ETransitionGetter::Type> GetterType;
 
 	UPROPERTY()
-	UAnimGraphNode_Base* AssociatedAnimAssetPlayerNode;
+	TObjectPtr<UAnimGraphNode_Base> AssociatedAnimAssetPlayerNode;
 
 	UPROPERTY()
-	UAnimStateNode* AssociatedStateNode;
+	TObjectPtr<UAnimStateNode> AssociatedStateNode;
 
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins() override;

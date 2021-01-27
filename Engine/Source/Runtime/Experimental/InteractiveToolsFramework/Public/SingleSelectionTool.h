@@ -45,5 +45,5 @@ protected:
 	TUniquePtr<FPrimitiveComponentTarget> ComponentTarget{};
 
 	UPROPERTY()
-	UToolTarget* Target;
+	TObjectPtr<UToolTarget> Target;
 };

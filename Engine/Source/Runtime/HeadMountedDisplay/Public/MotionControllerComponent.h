@@ -68,14 +68,14 @@ class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveCompo
 
 	/** A mesh override that'll be displayed attached to this MotionController. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetCustomDisplayMesh, Category="Visualization", meta=(editcondition="bDisplayDeviceModel"))
-	UStaticMesh* CustomDisplayMesh;
+	TObjectPtr<UStaticMesh> CustomDisplayMesh;
 
 	UFUNCTION(BlueprintSetter)
 	void SetCustomDisplayMesh(UStaticMesh* NewDisplayMesh);
 
 	/** Material overrides for the specified display mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Visualization", meta=(editcondition="bDisplayDeviceModel"))
-	TArray<UMaterialInterface*> DisplayMeshMaterialOverrides;
+	TArray<TObjectPtr<UMaterialInterface>> DisplayMeshMaterialOverrides;
 
 	UFUNCTION(BlueprintSetter, meta = (DeprecatedFunction, DeprecationMessage = "Please use the Motion Source property instead of Hand"))
 	void SetTrackingSource(const EControllerHand NewSource);
@@ -166,7 +166,7 @@ private:
 	TSharedPtr< FViewExtension, ESPMode::ThreadSafe > ViewExtension;	
  
 	UPROPERTY(Transient, BlueprintReadOnly, Category=Visualization, meta=(AllowPrivateAccess="true"))
-	UPrimitiveComponent* DisplayComponent;
+	TObjectPtr<UPrimitiveComponent> DisplayComponent;
 
 	/** Callback for asynchronous display model loads (to set materials, etc.) */
 	void OnDisplayModelLoaded(UPrimitiveComponent* DisplayComponent);

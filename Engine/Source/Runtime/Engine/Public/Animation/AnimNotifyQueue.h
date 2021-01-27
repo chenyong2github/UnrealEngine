@@ -50,7 +50,7 @@ private:
 	const FAnimNotifyEvent* Notify;
 
 	UPROPERTY(transient)
-	const UObject* NotifySource;
+	TObjectPtr<const UObject> NotifySource;
 };
 
 USTRUCT()

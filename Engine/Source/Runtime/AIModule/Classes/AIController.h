@@ -125,28 +125,28 @@ private:
 
 	/** Component used for moving along a path. */
 	UPROPERTY(VisibleDefaultsOnly, Category = AI)
-	UPathFollowingComponent* PathFollowingComponent;
+	TObjectPtr<UPathFollowingComponent> PathFollowingComponent;
 
 public:
 
 	/** Component responsible for behaviors. */
 	UPROPERTY(BlueprintReadWrite, Category = AI)
-	UBrainComponent* BrainComponent;
+	TObjectPtr<UBrainComponent> BrainComponent;
 
 	UPROPERTY(VisibleDefaultsOnly, Category = AI)
-	UAIPerceptionComponent* PerceptionComponent;
+	TObjectPtr<UAIPerceptionComponent> PerceptionComponent;
 
 private:
 	UPROPERTY(BlueprintReadOnly, Category = AI, meta = (AllowPrivateAccess = "true"))
-	UPawnActionsComponent* ActionsComp;
+	TObjectPtr<UPawnActionsComponent> ActionsComp;
 
 protected:
 	/** blackboard */
 	UPROPERTY(BlueprintReadOnly, Category = AI, meta = (AllowPrivateAccess = "true"))
-	UBlackboardComponent* Blackboard;
+	TObjectPtr<UBlackboardComponent> Blackboard;
 
 	UPROPERTY()
-	UGameplayTasksComponent* CachedGameplayTasksComponent;
+	TObjectPtr<UGameplayTasksComponent> CachedGameplayTasksComponent;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AI)
 	TSubclassOf<UNavigationQueryFilter> DefaultNavigationFilterClass;

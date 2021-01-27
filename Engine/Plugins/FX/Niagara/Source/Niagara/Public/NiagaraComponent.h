@@ -35,13 +35,13 @@ struct FNiagaraMaterialOverride
 	GENERATED_USTRUCT_BODY();
 
 	UPROPERTY()
-	class UMaterialInterface* Material = nullptr;
+	TObjectPtr<class UMaterialInterface> Material = nullptr;
 
 	UPROPERTY()
 	uint32 MaterialSubIndex;
 
 	UPROPERTY()
-	UNiagaraRendererProperties* EmitterRendererProperty = nullptr;
+	TObjectPtr<UNiagaraRendererProperties> EmitterRendererProperty = nullptr;
 };
 
 /**
@@ -79,7 +79,7 @@ public:
 
 private:
 	UPROPERTY(EditAnywhere, Category="Niagara", meta = (DisplayName = "Niagara System Asset"))
-	UNiagaraSystem* Asset;
+	TObjectPtr<UNiagaraSystem> Asset;
 
 	/** Allows you to control how Niagara selects the tick group, changing this while an instance is active will result in not change as it is cached. */
 	UPROPERTY(EditAnywhere, Category = "Niagara", meta = (DisplayName = "Niagara Tick Behavior"))

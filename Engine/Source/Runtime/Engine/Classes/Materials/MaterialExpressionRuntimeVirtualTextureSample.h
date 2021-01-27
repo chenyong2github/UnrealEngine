@@ -62,7 +62,7 @@ class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMateri
 
 	/** The virtual texture object to sample. */
 	UPROPERTY(EditAnywhere, Category = VirtualTexture)
-	class URuntimeVirtualTexture* VirtualTexture;
+	TObjectPtr<class URuntimeVirtualTexture> VirtualTexture;
 
 	/** How to interpret the virtual texture contents. Note that the bound Virtual Texture should have the same setting for sampling to work correctly. */
 	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Virtual texture content"))

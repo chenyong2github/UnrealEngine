@@ -18,7 +18,7 @@ public:
 
 	// The transition graph for this conduit; it's a logic graph, not an animation graph
 	UPROPERTY()
-	class UEdGraph* BoundGraph;
+	TObjectPtr<class UEdGraph> BoundGraph;
 
 	//~ Begin UEdGraphNode Interface
 	virtual void AllocateDefaultPins() override;

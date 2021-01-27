@@ -63,12 +63,12 @@ protected:
 
 	/** The owning class to configure new nodes with. */
 	UPROPERTY()
-	UClass const* OwnerClass;
+	TObjectPtr<UClass const> OwnerClass;
 
 private:
 	/** The field to configure new nodes with. */
 	UPROPERTY()
-	UField* Field;
+	TObjectPtr<UField> Field;
 
 	UPROPERTY()
 	TFieldPath<FProperty> Property;

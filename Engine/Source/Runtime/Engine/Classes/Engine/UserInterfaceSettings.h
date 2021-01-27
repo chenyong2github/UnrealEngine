@@ -211,13 +211,13 @@ private:
 	float CalculateScale(FIntPoint Size, bool& bError) const;
 
 	UPROPERTY(Transient)
-	TArray<UObject*> CursorClasses;
+	TArray<TObjectPtr<UObject>> CursorClasses;
 
 	UPROPERTY(Transient)
-	mutable UClass* CustomScalingRuleClassInstance;
+	mutable TObjectPtr<UClass> CustomScalingRuleClassInstance;
 
 	UPROPERTY(Transient)
-	mutable UDPICustomScalingRule* CustomScalingRule;
+	mutable TObjectPtr<UDPICustomScalingRule> CustomScalingRule;
 
 	mutable TOptional<FIntPoint> LastViewportSize;
 	mutable float CalculatedScale;

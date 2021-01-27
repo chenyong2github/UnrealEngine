@@ -67,11 +67,11 @@ struct MOTOSYNTH_API FMotoSynthRuntimeSettings
 
 	// Motosynth source to use for granular engine acceleration
 	UPROPERTY(EditAnywhere, Category = "Granular Engine", meta = (EditCondition = "bGranularEngineEnabled"))
-	UMotoSynthSource* AccelerationSource = nullptr;
+	TObjectPtr<UMotoSynthSource> AccelerationSource = nullptr;
 
 	// Motosynth source to use for granular engine deceleration
 	UPROPERTY(EditAnywhere, Category = "Granular Engine", meta = (EditCondition = "bGranularEngineEnabled"))
-	UMotoSynthSource* DecelerationSource = nullptr;
+	TObjectPtr<UMotoSynthSource> DecelerationSource = nullptr;
 
 	// If the stereo widener is enabled
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")

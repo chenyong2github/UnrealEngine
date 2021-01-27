@@ -14,5 +14,5 @@ class UNREALED_API UDEditorRuntimeVirtualTextureParameterValue : public UDEditor
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, Category=DEditorTextureParameterValue)
-	class URuntimeVirtualTexture* ParameterValue;
+	TObjectPtr<class URuntimeVirtualTexture> ParameterValue;
 };

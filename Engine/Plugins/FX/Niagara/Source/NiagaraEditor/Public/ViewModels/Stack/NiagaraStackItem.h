@@ -65,7 +65,7 @@ protected:
 
 private:
 	UPROPERTY()
-	UNiagaraStackItemFooter* ItemFooter;
+	TObjectPtr<UNiagaraStackItemFooter> ItemFooter;
 };
 
 UCLASS()

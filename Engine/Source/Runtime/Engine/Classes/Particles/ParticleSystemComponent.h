@@ -138,10 +138,10 @@ struct FParticleSysParam
 	FColor Color;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ParticleSysParam)
-	class AActor* Actor;
+	TObjectPtr<class AActor> Actor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ParticleSysParam)
-	class UMaterialInterface* Material;
+	TObjectPtr<class UMaterialInterface> Material;
 
 	FParticleSysParam()
 		: ParamType(0)
@@ -433,17 +433,17 @@ class ENGINE_API UParticleSystemComponent : public UFXSystemComponent
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Particles)
-	class UParticleSystem* Template;
+	TObjectPtr<class UParticleSystem> Template;
 
 	UPROPERTY(transient, duplicatetransient)
-	TArray<class UMaterialInterface*> EmitterMaterials;
+	TArray<TObjectPtr<class UMaterialInterface>> EmitterMaterials;
 
 	/**
 	 *	The skeletal mesh components used with the socket location module.
 	 *	This is to prevent them from being garbage collected.
 	 */
 	UPROPERTY(transient, duplicatetransient)
-	TArray<class USkeletalMeshComponent*> SkelMeshComponents;
+	TArray<TObjectPtr<class USkeletalMeshComponent>> SkelMeshComponents;
 
 	uint8 bWasCompleted:1;
 
@@ -693,7 +693,7 @@ public:
 
 	/** Array of replay clips for this particle system component.  These are serialized to disk.  You really should never add anything to this in the editor.  It's exposed so that you can delete clips if you need to, but be careful when doing so! */
 	UPROPERTY()
-	TArray<class UParticleSystemReplay*> ReplayClips;
+	TArray<TObjectPtr<class UParticleSystemReplay>> ReplayClips;
 
 	/** Clip ID number we're either playing back or capturing to, depending on the value of ReplayState. */
 	int32 ReplayClipIDNumber;

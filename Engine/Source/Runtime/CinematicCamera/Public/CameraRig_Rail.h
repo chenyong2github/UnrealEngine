@@ -66,28 +66,28 @@ private:
 
  	/** Root component to give the whole actor a transform. */
 	UPROPERTY(EditDefaultsOnly, Category = "Rail Components")
- 	USceneComponent* TransformComponent;
+ 	TObjectPtr<USceneComponent> TransformComponent;
 
 	/** Spline component to define the rail path. */
 	UPROPERTY(EditDefaultsOnly, Category = "Rail Components")
-	USplineComponent* RailSplineComponent;
+	TObjectPtr<USplineComponent> RailSplineComponent;
 
 	/** Component to define the attach point for cameras. Moves along the rail. */
 	UPROPERTY(EditDefaultsOnly, Category = "Rail Components")
-	USceneComponent* RailCameraMount;
+	TObjectPtr<USceneComponent> RailCameraMount;
 
 #if WITH_EDITORONLY_DATA
 	/** Preview meshes for visualization */
 	UPROPERTY(Transient)
-	USplineMeshComponent* PreviewMesh_Rail;
+	TObjectPtr<USplineMeshComponent> PreviewMesh_Rail;
 
 	UPROPERTY(Transient)
-	TArray<USplineMeshComponent*> PreviewRailMeshSegments;
+	TArray<TObjectPtr<USplineMeshComponent>> PreviewRailMeshSegments;
 
 	UPROPERTY(Transient)
-	UStaticMesh* PreviewRailStaticMesh;
+	TObjectPtr<UStaticMesh> PreviewRailStaticMesh;
 
 	UPROPERTY(Transient)
-	UStaticMeshComponent* PreviewMesh_Mount;
+	TObjectPtr<UStaticMeshComponent> PreviewMesh_Mount;
 #endif
 };

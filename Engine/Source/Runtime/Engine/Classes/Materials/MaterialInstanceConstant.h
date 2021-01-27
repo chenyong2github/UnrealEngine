@@ -39,7 +39,7 @@ class UMaterialInstanceConstant : public UMaterialInstance
 
 	/** Physical material mask to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, Category = PhysicalMaterial)
-	class UPhysicalMaterialMask* PhysMaterialMask;
+	TObjectPtr<class UPhysicalMaterialMask> PhysMaterialMask;
 
 	// Begin UMaterialInterface interface.
 	ENGINE_API virtual UPhysicalMaterialMask* GetPhysicalMaterialMask() const override;

@@ -47,5 +47,5 @@ public:
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 
 	UPROPERTY(EditAnywhere, Category = AutoCluster)
-	UFractureAutoClusterSettings* AutoClusterSettings;
+	TObjectPtr<UFractureAutoClusterSettings> AutoClusterSettings;
 };

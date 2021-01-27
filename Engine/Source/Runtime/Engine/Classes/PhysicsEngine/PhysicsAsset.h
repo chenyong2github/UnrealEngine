@@ -98,7 +98,7 @@ class UPhysicsAsset : public UObject, public IInterface_PreviewMeshProvider
 	 *	Is the one that was used as the basis for creating this Asset.
 	 */
 	UPROPERTY()
-	class USkeletalMesh * DefaultSkelMesh_DEPRECATED;
+	TObjectPtr<class USkeletalMesh>  DefaultSkelMesh_DEPRECATED;
 
 	UPROPERTY(AssetRegistrySearchable)
 	TSoftObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
@@ -126,14 +126,14 @@ class UPhysicsAsset : public UObject, public IInterface_PreviewMeshProvider
 	*	Does not include body position - those are taken from mesh.
 	*/
 	UPROPERTY(instanced)
-	TArray<USkeletalBodySetup*> SkeletalBodySetups;
+	TArray<TObjectPtr<USkeletalBodySetup>> SkeletalBodySetups;
 
 	/** 
 	 *	Array of RB_ConstraintSetup objects. 
 	 *	Stores information about a joint between two bodies, such as position relative to each body, joint limits etc.
 	 */
 	UPROPERTY(instanced)
-	TArray<class UPhysicsConstraintTemplate*> ConstraintSetup;
+	TArray<TObjectPtr<class UPhysicsConstraintTemplate>> ConstraintSetup;
 
 public:
 
@@ -156,7 +156,7 @@ public:
 
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, Category = Thumbnail)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
@@ -280,7 +280,7 @@ private:
 
 
 	UPROPERTY(instanced)
-	TArray<class UBodySetup*> BodySetup_DEPRECATED;
+	TArray<TObjectPtr<class UBodySetup>> BodySetup_DEPRECATED;
 };
 
 USTRUCT()

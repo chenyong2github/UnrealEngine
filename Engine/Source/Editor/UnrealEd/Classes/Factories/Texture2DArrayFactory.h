@@ -16,7 +16,7 @@ class UTexture2DArrayFactory : public UFactory
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	TArray<UTexture2D*> InitialTextures;
+	TArray<TObjectPtr<UTexture2D>> InitialTextures;
 
 	//~ Begin UFactory Interface
 	virtual bool CanCreateNew() const override;

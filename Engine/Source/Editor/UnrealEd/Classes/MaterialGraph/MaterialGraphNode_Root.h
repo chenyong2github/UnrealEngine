@@ -16,7 +16,7 @@ class UMaterialGraphNode_Root : public UMaterialGraphNode_Base
 
 	/** Material whose inputs this root node represents */
 	UPROPERTY()
-	class UMaterial* Material;
+	TObjectPtr<class UMaterial> Material;
 
 	//~ Begin UEdGraphNode Interface.
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

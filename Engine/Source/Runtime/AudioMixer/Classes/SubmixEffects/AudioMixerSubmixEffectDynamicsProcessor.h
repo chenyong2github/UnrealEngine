@@ -143,11 +143,11 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 
 	// If set, uses output of provided submix as modulator of input signal for dynamics processor (Uses input signal as default modulator)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (EditCondition = "!bBypass && KeySource == ESubmixEffectDynamicsKeySource::AudioBus", EditConditionHides))
-	UAudioBus* ExternalAudioBus = nullptr;
+	TObjectPtr<UAudioBus> ExternalAudioBus = nullptr;
 
 	// If set, uses output of provided submix as modulator of input signal for dynamics processor (Uses input signal as default modulator)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (EditCondition = "!bBypass && KeySource == ESubmixEffectDynamicsKeySource::Submix", EditConditionHides))
-	USoundSubmix* ExternalSubmix = nullptr;
+	TObjectPtr<USoundSubmix> ExternalSubmix = nullptr;
 
 	UPROPERTY()
 	uint8 bChannelLinked_DEPRECATED : 1;

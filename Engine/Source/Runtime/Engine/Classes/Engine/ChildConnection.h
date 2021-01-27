@@ -17,7 +17,7 @@ class UChildConnection
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(transient)
-	class UNetConnection* Parent;
+	TObjectPtr<class UNetConnection> Parent;
 
 public:
 

@@ -55,7 +55,7 @@ public:
 private:
 	// Slicing
 	UPROPERTY(EditAnywhere, Category = Slicing)
-	UFracturePlaneCutSettings* PlaneCutSettings;
+	TObjectPtr<UFracturePlaneCutSettings> PlaneCutSettings;
 
 	void GenerateSliceTransforms(const FFractureToolContext& Context, TArray<FTransform>& CuttingPlaneTransforms);
 

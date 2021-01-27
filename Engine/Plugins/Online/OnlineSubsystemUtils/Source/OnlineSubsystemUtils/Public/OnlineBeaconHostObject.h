@@ -87,5 +87,5 @@ protected:
 
 	/** List of all client beacon actors with active connections */
 	UPROPERTY()
-	TArray<AOnlineBeaconClient*> ClientActors;
+	TArray<TObjectPtr<AOnlineBeaconClient>> ClientActors;
 };

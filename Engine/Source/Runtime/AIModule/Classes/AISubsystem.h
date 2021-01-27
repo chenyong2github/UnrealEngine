@@ -18,7 +18,7 @@ class AIMODULE_API UAISubsystem : public UObject, public FTickableGameObject
 
 private:
 	UPROPERTY()
-	UAISystem* AISystem;
+	TObjectPtr<UAISystem> AISystem;
 			
 public:
 	UAISubsystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());

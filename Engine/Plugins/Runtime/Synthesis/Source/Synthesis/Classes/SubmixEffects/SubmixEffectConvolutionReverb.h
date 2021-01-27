@@ -118,7 +118,7 @@ struct SYNTHESIS_API FSubmixEffectConvolutionReverbSettings
 	float SurroundRearChannelBleedAmount_DEPRECATED;
 
 	UPROPERTY(meta = ( DeprecatedProperty ) )
-	UAudioImpulseResponse* ImpulseResponse_DEPRECATED;
+	TObjectPtr<UAudioImpulseResponse> ImpulseResponse_DEPRECATED;
 
 	UPROPERTY(meta = ( DeprecatedProperty ) )
 	bool AllowHardwareAcceleration_DEPRECATED;
@@ -249,7 +249,7 @@ public:
 
 	/** The impulse response used for convolution. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetImpulseResponse, Category = SubmixEffectPreset)
-	UAudioImpulseResponse* ImpulseResponse;
+	TObjectPtr<UAudioImpulseResponse> ImpulseResponse;
 
 	/** ConvolutionReverbPreset Preset Settings. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetSettings, Category = SubmixEffectPreset)

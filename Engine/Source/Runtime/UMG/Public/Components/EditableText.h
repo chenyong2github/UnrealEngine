@@ -55,19 +55,19 @@ public:
 
 	/** Text style */
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	/** Background image for the selected text (overrides Style) */
 	UPROPERTY()
-	USlateBrushAsset* BackgroundImageSelected_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> BackgroundImageSelected_DEPRECATED;
 
 	/** Background image for the composing text (overrides Style) */
 	UPROPERTY()
-	USlateBrushAsset* BackgroundImageComposing_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> BackgroundImageComposing_DEPRECATED;
 
 	/** Image brush used for the caret (overrides Style) */
 	UPROPERTY()
-	USlateBrushAsset* CaretImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> CaretImage_DEPRECATED;
 
 	/** Font color and opacity (overrides Style) */
 	UPROPERTY()

@@ -58,19 +58,19 @@ public:
 public:
 	/** current UInputRouter for this Context */
 	UPROPERTY()
-	UInputRouter* InputRouter;	
+	TObjectPtr<UInputRouter> InputRouter;	
 
 	/** current UToolTargetManager for this Context */
 	UPROPERTY()
-	UToolTargetManager* TargetManager;
+	TObjectPtr<UToolTargetManager> TargetManager;
 
 	/** current UInteractiveToolManager for this Context */
 	UPROPERTY()
-	UInteractiveToolManager* ToolManager;	
+	TObjectPtr<UInteractiveToolManager> ToolManager;	
 
 	/** current UInteractiveGizmoManager for this Context */
 	UPROPERTY()
-	UInteractiveGizmoManager* GizmoManager;
+	TObjectPtr<UInteractiveGizmoManager> GizmoManager;
 
 protected:
 	UPROPERTY()

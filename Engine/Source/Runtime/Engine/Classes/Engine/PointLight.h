@@ -13,7 +13,7 @@ class APointLight : public ALight
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Light", meta=(ExposeFunctionCategories="PointLight,Rendering|Lighting"))
-	class UPointLightComponent* PointLightComponent;
+	TObjectPtr<class UPointLightComponent> PointLightComponent;
 
 	// BEGIN DEPRECATED (use component functions now in level script)
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting", meta=(DeprecatedFunction))

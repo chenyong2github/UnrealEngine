@@ -36,7 +36,7 @@ struct FLandscapeSplineConnection
 
 	// Segment connected to this control point
 	UPROPERTY()
-	ULandscapeSplineSegment* Segment;
+	TObjectPtr<ULandscapeSplineSegment> Segment;
 
 	// Which end of the segment is connected to this control point
 	UPROPERTY()
@@ -110,11 +110,11 @@ class ULandscapeSplineControlPoint : public UObject
 
 	/** Mesh to use on the control point */
 	UPROPERTY(EditAnywhere, Category=Mesh)
-	UStaticMesh* Mesh;
+	TObjectPtr<UStaticMesh> Mesh;
 
 	/** Overrides mesh's materials */
 	UPROPERTY(EditAnywhere, Category=Mesh)
-	TArray<UMaterialInterface*> MaterialOverrides;
+	TArray<TObjectPtr<UMaterialInterface>> MaterialOverrides;
 
 	/** Scale of the control point mesh */
 	UPROPERTY(EditAnywhere, Category=Mesh)
@@ -171,7 +171,7 @@ class ULandscapeSplineControlPoint : public UObject
 	 * The material also needs to be set up to output to a virtual texture. 
 	 */
 	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
-	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
 	/** Lod bias for rendering to runtime virtual texture. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", UIMin = "-7", UIMax = "8"))
@@ -221,7 +221,7 @@ protected:
 
 	/** Control point mesh */
 	UPROPERTY(TextExportTransient)
-	UControlPointMeshComponent* LocalMeshComponent;
+	TObjectPtr<UControlPointMeshComponent> LocalMeshComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** World reference for if mesh component is stored in another streaming level */

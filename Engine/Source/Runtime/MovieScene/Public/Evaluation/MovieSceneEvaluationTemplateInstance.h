@@ -131,18 +131,18 @@ private:
 	TWeakObjectPtr<UMovieSceneSequence> WeakRootSequence;
 
 	UPROPERTY()
-	UMovieSceneCompiledDataManager* CompiledDataManager;
+	TObjectPtr<UMovieSceneCompiledDataManager> CompiledDataManager;
 
 	UE::MovieScene::FInstanceHandle RootInstanceHandle;
 
 	UPROPERTY()
-	UMovieSceneEntitySystemLinker* EntitySystemLinker;
+	TObjectPtr<UMovieSceneEntitySystemLinker> EntitySystemLinker;
 
 	FMovieSceneEntitySystemRunner EntitySystemRunner;
 
 	/** Map of director instances by sequence ID. Kept alive by this map assuming this struct is reference collected */
 	UPROPERTY()
-	TMap<FMovieSceneSequenceID, UObject*> DirectorInstances;
+	TMap<FMovieSceneSequenceID, TObjectPtr<UObject>> DirectorInstances;
 
 	FMovieSceneSequenceID RootID;
 

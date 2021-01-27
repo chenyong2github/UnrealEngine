@@ -46,7 +46,7 @@ protected:
 	
 private:
 	UPROPERTY()
-	UAIPerceptionSystem* PerceptionSystemInstance;
+	TObjectPtr<UAIPerceptionSystem> PerceptionSystemInstance;
 
 	/** then this count reaches 0 sense will be updated */
 	float TimeUntilNextUpdate;

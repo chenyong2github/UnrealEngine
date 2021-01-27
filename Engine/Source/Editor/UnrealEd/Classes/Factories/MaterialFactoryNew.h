@@ -18,7 +18,7 @@ class UMaterialFactoryNew : public UFactory
 
 	/** An initial texture to place in the newly created material */
 	UPROPERTY()
-	class UTexture* InitialTexture;
+	TObjectPtr<class UTexture> InitialTexture;
 
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn) override;

@@ -14,7 +14,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** A tree of the widget templates to be created */
 	UPROPERTY()
-	class UWidgetTree* WidgetTree;
+	TObjectPtr<class UWidgetTree> WidgetTree;
 #endif
 
 	virtual void PostLoad() override;

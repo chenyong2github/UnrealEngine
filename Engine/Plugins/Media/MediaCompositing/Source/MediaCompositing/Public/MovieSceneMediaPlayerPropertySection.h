@@ -20,7 +20,7 @@ public:
 
 	/** The source to play with this video track. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media")
-	UMediaSource* MediaSource;
+	TObjectPtr<UMediaSource> MediaSource;
 
 	/** Whether to loop this video. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media")

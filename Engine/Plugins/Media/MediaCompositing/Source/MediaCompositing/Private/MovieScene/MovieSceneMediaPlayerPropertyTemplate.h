@@ -30,7 +30,7 @@ public:
 private:
 
 	UPROPERTY()
-	UMediaSource* MediaSource;
+	TObjectPtr<UMediaSource> MediaSource;
 
 	UPROPERTY()
 	FFrameNumber SectionStartFrame;

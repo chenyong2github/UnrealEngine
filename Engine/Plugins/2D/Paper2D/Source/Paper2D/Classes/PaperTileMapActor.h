@@ -21,7 +21,7 @@ class PAPER2D_API APaperTileMapActor : public AActor
 
 private:
 	UPROPERTY(Category=TileMapActor, VisibleAnywhere, BlueprintReadOnly, meta=(ExposeFunctionCategories="Sprite,Rendering,Physics,Components|Sprite", AllowPrivateAccess="true"))
-	class UPaperTileMapComponent* RenderComponent;
+	TObjectPtr<class UPaperTileMapComponent> RenderComponent;
 public:
 
 	// AActor interface

@@ -169,11 +169,11 @@ protected:
 
 	/** Owning beacon host of this beacon actor (server only) */
 	UPROPERTY()
-	AOnlineBeaconHostObject* BeaconOwner;
+	TObjectPtr<AOnlineBeaconHostObject> BeaconOwner;
 
 	/** Network connection associated with this beacon client instance */
 	UPROPERTY()
-	UNetConnection* BeaconConnection;
+	TObjectPtr<UNetConnection> BeaconConnection;
 
 	/** State of the connection */
 	UPROPERTY()

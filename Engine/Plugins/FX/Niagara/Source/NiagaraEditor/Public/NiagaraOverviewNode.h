@@ -46,7 +46,7 @@ public:
 
 private:
 	UPROPERTY()
-	UNiagaraSystem* OwningSystem;
+	TObjectPtr<UNiagaraSystem> OwningSystem;
 
 	UPROPERTY()
 	FGuid EmitterHandleGuid;

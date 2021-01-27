@@ -146,7 +146,7 @@ struct FPropertyEditorTestBasicStruct
 	float FloatPropertyInsideAStruct;
 
 	UPROPERTY(EditAnywhere, Category=InnerStructCategoryWithPushedOutProps)
-	UObject* ObjectPropertyInsideAStruct;
+	TObjectPtr<UObject> ObjectPropertyInsideAStruct;
 
 	UPROPERTY(EditAnywhere, Category=InnerStructCategoryWithPushedOutProps)
 	FPropertyEditorTestSubStruct InnerStruct;
@@ -185,7 +185,7 @@ struct FPropertyEditorTestInstancedStruct
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Instanced, Category=Default)
-	UPropertyEditorTestInstancedObject* Object { nullptr };
+	TObjectPtr<UPropertyEditorTestInstancedObject> Object { nullptr };
 };
 
 UCLASS(transient)
@@ -251,7 +251,7 @@ class UPropertyEditorTestObject : public UObject
 	FRotator RotatorProperty;
 
 	UPROPERTY(EditAnywhere, Category=BasicProperties)
-	UObject* ObjectProperty;
+	TObjectPtr<UObject> ObjectProperty;
 
 	UPROPERTY(EditAnywhere, Category=BasicProperties)
 	FLinearColor LinearColorProperty;
@@ -272,13 +272,13 @@ class UPropertyEditorTestObject : public UObject
 	FTransform TransformProperty;
 
 	UPROPERTY(EditAnywhere, Category=Classes)
-	UClass* ClassProperty;
+	TObjectPtr<UClass> ClassProperty;
 
 	UPROPERTY(EditAnywhere, Category=Classes, meta=(AllowedClasses="Texture2D"))
-	UClass* ClassPropertyWithAllowed;
+	TObjectPtr<UClass> ClassPropertyWithAllowed;
 
 	UPROPERTY(EditAnywhere, Category=Classes, meta=(DisallowedClasses="Texture2D"))
-	UClass* ClassPropertyWithDisallowed;
+	TObjectPtr<UClass> ClassPropertyWithDisallowed;
 
 	UPROPERTY(EditAnywhere, Category=Classes)
 	TSubclassOf<UTexture> SubclassOfTexture;
@@ -328,10 +328,10 @@ class UPropertyEditorTestObject : public UObject
 	TArray<FRotator> RotatorPropertyArray;
 
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
-	TArray<UObject*> ObjectPropertyArray;
+	TArray<TObjectPtr<UObject>> ObjectPropertyArray;
 
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
-	TArray<AActor*> ActorPropertyArray;
+	TArray<TObjectPtr<AActor>> ActorPropertyArray;
 
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
 	TArray<FLinearColor> LinearColorPropertyArray;
@@ -352,7 +352,7 @@ class UPropertyEditorTestObject : public UObject
 	TArray<FPropertyEditorTestInstancedStruct> InstancedStructArray;
 
 	UPROPERTY(EditAnywhere, Instanced, Category=ArraysOfProperties)
-	TArray<UPropertyEditorTestInstancedObject*> InstancedUObjectArray;
+	TArray<TObjectPtr<UPropertyEditorTestInstancedObject>> InstancedUObjectArray;
 
 	UPROPERTY(EditAnywhere, editfixedsize, Category=ArraysOfProperties)
 	TArray<int32> FixedArrayOfInts;
@@ -380,7 +380,7 @@ class UPropertyEditorTestObject : public UObject
 	FString StringThatCannotBeChanged;
 
 	UPROPERTY(VisibleAnywhere, Category=AdvancedProperties)
-	UPrimitiveComponent* ObjectThatCannotBeChanged;
+	TObjectPtr<UPrimitiveComponent> ObjectThatCannotBeChanged;
 
 	UPROPERTY(EditAnywhere, Category=AdvancedProperties, meta=(Bitmask, BitmaskEnum="PropertyEditorTestBitflags"))
 	int32 EnumBitflags=0;
@@ -455,25 +455,25 @@ class UPropertyEditorTestObject : public UObject
 	FPropertyEditTestTextStruct Struct;
 
 	UPROPERTY(EditAnywhere, Category=EditInlineProps)
-	UStaticMeshComponent* EditInlineNewStaticMeshComponent;
+	TObjectPtr<UStaticMeshComponent> EditInlineNewStaticMeshComponent;
 
 	UPROPERTY(EditAnywhere, Category=EditInlineProps)
-	TArray<UStaticMeshComponent*> ArrayOfEditInlineNewSMCs;
+	TArray<TObjectPtr<UStaticMeshComponent>> ArrayOfEditInlineNewSMCs;
 
 	UPROPERTY(EditAnywhere, Category=AssetPropertyTests)
-	UTexture* TextureProp;
+	TObjectPtr<UTexture> TextureProp;
 
 	UPROPERTY(EditAnywhere, Category=AssetPropertyTests)
-	UStaticMesh* StaticMeshProp;
+	TObjectPtr<UStaticMesh> StaticMeshProp;
 
 	UPROPERTY(EditAnywhere, Category=AssetPropertyTests)
-	UMaterialInterface* AnyMaterialInterface;
+	TObjectPtr<UMaterialInterface> AnyMaterialInterface;
 
 	UPROPERTY(EditAnywhere, Category = AssetPropertyTests, meta=(DisplayThumbnail=false))
-	UMaterialInterface* MaterialNoThumbnail;
+	TObjectPtr<UMaterialInterface> MaterialNoThumbnail;
 
 	UPROPERTY(EditAnywhere, Category=AssetPropertyTests)
-	AActor* OnlyActorsAllowed;
+	TObjectPtr<AActor> OnlyActorsAllowed;
 
 	UPROPERTY(EditAnywhere, Category="TSet Tests")
 	TSet<int32> Int32Set;
@@ -485,10 +485,10 @@ class UPropertyEditorTestObject : public UObject
 	TSet<FString> StringSet;
 
 	UPROPERTY(EditAnywhere, Category="TSet Tests")
-	TSet<UObject*> ObjectSet;
+	TSet<TObjectPtr<UObject>> ObjectSet;
 
 	UPROPERTY(EditAnywhere, Category="TSet Tests")
-	TSet<AActor*> ActorSet;
+	TSet<TObjectPtr<AActor>> ActorSet;
 
 	UPROPERTY(EditAnywhere, Category="TSet Tests")
 	TSet<EditColor> EditColorSet;
@@ -509,16 +509,16 @@ class UPropertyEditorTestObject : public UObject
 	TMap<FString, float> StringToFloatMap;
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
-	TMap<FString, UObject*> StringToObjectMap;
+	TMap<FString, TObjectPtr<UObject>> StringToObjectMap;
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
-	TMap<FString, AActor*> StringToActorMap;
+	TMap<FString, TObjectPtr<AActor>> StringToActorMap;
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
-	TMap<UObject*, int32> ObjectToInt32Map;
+	TMap<TObjectPtr<UObject>, int32> ObjectToInt32Map;
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
-	TMap<UObject*, FLinearColor> ObjectToColorMap;
+	TMap<TObjectPtr<UObject>, FLinearColor> ObjectToColorMap;
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
 	TMap<int32, TEnumAsByte<PropertyEditorTestEnum> > IntToEnumMap;
@@ -527,7 +527,7 @@ class UPropertyEditorTestObject : public UObject
 	TMap<FName, FName> NameToNameMap;
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
-	TMap<FName, UObject*> NameToObjectMap;
+	TMap<FName, TObjectPtr<UObject>> NameToObjectMap;
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
 	TMap<FName, FPropertyEditorTestBasicStruct> NameToCustomMap;
@@ -569,7 +569,7 @@ class UPropertyEditorTestObject : public UObject
 	// Allows either an object that's derived from UTexture or IBlendableInterface, to ensure that Object Property handles know how to
 	// filter for AllowedClasses correctly.
 	UPROPERTY(EditAnywhere, Category=ObjectPropertyAllowedClasses, meta=(AllowedClasses="Texture,BlendableInterface"))
-	UObject* TextureOrBlendableInterface;
+	TObjectPtr<UObject> TextureOrBlendableInterface;
 
 	UPROPERTY(EditAnywhere, Category="Subcategory")
 	bool bSubcategory;
@@ -638,7 +638,7 @@ class UPropertyEditorTestObject : public UObject
 	bool bEditConditionForArrays;
 
 	UPROPERTY(EditAnywhere, Category=EditCondition, meta=(EditCondition="bEditConditionForArrays"))
-	TArray<UTexture2D*> ArrayWithEditCondition;
+	TArray<TObjectPtr<UTexture2D>> ArrayWithEditCondition;
 
 	UPROPERTY(EditAnywhere, Category=EditCondition, meta=(EditCondition="bEditConditionForArrays"))
 	TArray<FPropertyEditorTestBasicStruct> ArrayOfStructsWithEditCondition;
@@ -739,7 +739,7 @@ class UBlueprintPropertyContainerTestObject : public UObject
 	GENERATED_BODY()
 public:
 	UPROPERTY(Instanced, EditAnywhere, Category="Default", meta=(ShowOnlyInnerProperties))
-	TArray<UBlueprintPropertyTestObject*> Array;
+	TArray<TObjectPtr<UBlueprintPropertyTestObject>> Array;
 };
 
 UCLASS(Abstract, BlueprintType, SparseClassDataType=TestSparseClassDataStorage)

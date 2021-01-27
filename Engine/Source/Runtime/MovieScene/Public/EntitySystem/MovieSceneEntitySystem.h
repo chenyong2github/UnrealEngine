@@ -155,7 +155,7 @@ private:
 protected:
 
 	UPROPERTY()
-	UMovieSceneEntitySystemLinker* Linker;
+	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
 
 protected:
 

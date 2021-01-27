@@ -29,7 +29,7 @@ struct ENGINE_API FLatentActionInfo
 
 	/** Object to execute the function on. */ 
 	UPROPERTY(meta=(LatentCallbackTarget = true))
-	UObject* CallbackTarget;
+	TObjectPtr<UObject> CallbackTarget;
 
 	FLatentActionInfo()
 		: Linkage(INDEX_NONE)

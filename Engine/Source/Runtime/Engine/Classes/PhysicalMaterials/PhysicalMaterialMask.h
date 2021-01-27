@@ -30,11 +30,11 @@ class ENGINE_API UPhysicalMaterialMask : public UObject
 #if WITH_EDITORONLY_DATA
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 	/** Mask input texture, square aspect ratio recommended. Recognized mask colors include: white, black, red, green, yellow, cyan, turquoise, and magenta. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = TextureSource)
-	UTexture* MaskTexture;
+	TObjectPtr<UTexture> MaskTexture;
 
 #endif
 

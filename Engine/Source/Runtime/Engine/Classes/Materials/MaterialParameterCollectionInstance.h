@@ -80,7 +80,7 @@ protected:
 
 	/** Collection resource this instance is based off of. */
 	UPROPERTY()
-	UMaterialParameterCollection* Collection;
+	TObjectPtr<UMaterialParameterCollection> Collection;
 
 	/** World that owns this instance. */
 	TWeakObjectPtr<UWorld> World;

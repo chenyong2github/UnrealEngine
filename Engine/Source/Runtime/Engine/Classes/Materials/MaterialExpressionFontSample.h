@@ -17,7 +17,7 @@ class UMaterialExpressionFontSample : public UMaterialExpression
 
 	/** font resource that will be sampled */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionFontSample)
-	class UFont* Font;
+	TObjectPtr<class UFont> Font;
 
 	/** allow access to the various font pages */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionFontSample)

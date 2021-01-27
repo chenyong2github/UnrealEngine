@@ -29,10 +29,10 @@ private:
 
 	/** The camera component for this camera */
 	UPROPERTY(Category = CameraActor, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* CameraComponent;
+	TObjectPtr<class UCameraComponent> CameraComponent;
 
 	UPROPERTY(Category = CameraActor, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class USceneComponent* SceneComponent;
+	TObjectPtr<class USceneComponent> SceneComponent;
 public:
 
 	/** If this CameraActor is being used to preview a CameraAnim in the editor, this is the anim being previewed. */

@@ -17,7 +17,7 @@ struct FDecoratorSchemaAction_NewNode : public FEdGraphSchemaAction
 
 	/** Template of node we want to create */
 	UPROPERTY()
-	class UBehaviorTreeDecoratorGraphNode* NodeTemplate;
+	TObjectPtr<class UBehaviorTreeDecoratorGraphNode> NodeTemplate;
 
 	FDecoratorSchemaAction_NewNode() 
 		: FEdGraphSchemaAction()

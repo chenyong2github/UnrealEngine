@@ -116,11 +116,11 @@ private:
 
 	/** The actor that we spawned and own */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category=ChildActorComponent, TextExportTransient, NonPIEDuplicateTransient, meta=(AllowPrivateAccess="true"))
-	AActor*	ChildActor;
+	TObjectPtr<AActor>	ChildActor;
 
 	/** Property to point to the template child actor for details panel purposes */
 	UPROPERTY(VisibleDefaultsOnly, DuplicateTransient, Category=ChildActorComponent, meta=(ShowInnerProperties))
-	AActor* ChildActorTemplate;
+	TObjectPtr<AActor> ChildActorTemplate;
 
 	/** We try to keep the child actor's name as best we can, so we store it off here when destroying */
 	FName ChildActorName;

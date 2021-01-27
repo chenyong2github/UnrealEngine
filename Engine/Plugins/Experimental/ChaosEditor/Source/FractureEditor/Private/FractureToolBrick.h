@@ -101,7 +101,7 @@ public:
 
 private:
 	UPROPERTY()
-	UFractureBrickSettings* BrickSettings;
+	TObjectPtr<UFractureBrickSettings> BrickSettings;
 
 	void AddBoxEdges(const FVector& Min, const FVector& Max);
 

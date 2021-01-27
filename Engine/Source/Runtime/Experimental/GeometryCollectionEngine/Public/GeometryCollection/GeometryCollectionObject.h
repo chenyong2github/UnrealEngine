@@ -30,7 +30,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 	FTransform LocalTransform;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
-	TArray<UMaterialInterface*> SourceMaterial;
+	TArray<TObjectPtr<UMaterialInterface>> SourceMaterial;
 };
 
 
@@ -242,7 +242,7 @@ public:
 	TArray<FGeometryCollectionSource> GeometrySource;
 	
 	UPROPERTY(EditAnywhere, Category = "Materials")
-	TArray<UMaterialInterface*> Materials;
+	TArray<TObjectPtr<UMaterialInterface>> Materials;
 
 	/**
 	* Enable support for Nanite.
@@ -335,7 +335,7 @@ public:
 	* Materials relating to remove on fracture
 	*/
 	UPROPERTY(EditAnywhere, Category = "Fracture")
-	TArray<UMaterialInterface*> RemoveOnFractureMaterials;
+	TArray<TObjectPtr<UMaterialInterface>> RemoveOnFractureMaterials;
 
 	FORCEINLINE const int32 GetBoneSelectedMaterialIndex() const { return BoneSelectedMaterialIndex; }
 
@@ -345,7 +345,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, AdvancedDisplay, Category = GeometryCollection)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 #endif // WITH_EDITORONLY_DATA
 
 private:

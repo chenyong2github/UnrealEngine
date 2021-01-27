@@ -104,7 +104,7 @@ public:
 
 	/** Source camera animation sequence to play. */
 	UPROPERTY(EditAnywhere, Category=CameraShake)
-	class UCameraAnimationSequence* Sequence;
+	TObjectPtr<class UCameraAnimationSequence> Sequence;
 
 	/** Scalar defining how fast to play the anim. */
 	UPROPERTY(EditAnywhere, Category=CameraShake, meta=(ClampMin="0.001"))
@@ -152,11 +152,11 @@ private:
 
 	/** The player we use to play the camera animation sequence */
 	UPROPERTY(Instanced, Transient)
-	USequenceCameraShakeSequencePlayer* Player;
+	TObjectPtr<USequenceCameraShakeSequencePlayer> Player;
 
 	/** Standin for the camera actor and components */
 	UPROPERTY(Instanced, Transient)
-	USequenceCameraShakeCameraStandIn* CameraStandIn;
+	TObjectPtr<USequenceCameraShakeCameraStandIn> CameraStandIn;
 };
 
 /**
@@ -237,11 +237,11 @@ private:
 
 	/** Bound object overrides */
 	UPROPERTY(transient)
-	UObject* BoundObjectOverride;
+	TObjectPtr<UObject> BoundObjectOverride;
 
 	/** The sequence to play back */
 	UPROPERTY(transient)
-	UMovieSceneSequence* Sequence;
+	TObjectPtr<UMovieSceneSequence> Sequence;
 
 	/** The evaluation template instance */
 	UPROPERTY(transient)

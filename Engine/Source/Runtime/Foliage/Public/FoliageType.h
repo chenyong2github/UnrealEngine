@@ -572,7 +572,7 @@ public:
 	 * The mesh material also needs to be set up to output to a virtual texture. 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
-	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
 	/**
 	 * Number of lower mips in the runtime virtual texture to skip for rendering this primitive.

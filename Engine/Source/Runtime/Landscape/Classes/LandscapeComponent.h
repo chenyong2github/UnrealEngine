@@ -72,11 +72,11 @@ public:
 
 	// Material used to render the tool.
 	UPROPERTY(NonTransactional)
-	UMaterialInterface* ToolMaterial;
+	TObjectPtr<UMaterialInterface> ToolMaterial;
 
 	// Material used to render the gizmo selection region...
 	UPROPERTY(NonTransactional)
-	UMaterialInterface* GizmoMaterial;
+	TObjectPtr<UMaterialInterface> GizmoMaterial;
 
 	// Component is selected
 	UPROPERTY(NonTransactional)
@@ -92,13 +92,13 @@ public:
 	int32 DebugChannelB;
 
 	UPROPERTY(NonTransactional)
-	UTexture2D* DataTexture; // Data texture other than height/weight
+	TObjectPtr<UTexture2D> DataTexture; // Data texture other than height/weight
 
 	UPROPERTY(NonTransactional)
-	UTexture2D* LayerContributionTexture; // Data texture used to represent layer contribution
+	TObjectPtr<UTexture2D> LayerContributionTexture; // Data texture used to represent layer contribution
 
 	UPROPERTY(NonTransactional)
-	UTexture2D* DirtyTexture; // Data texture used to represent layer blend dirtied area
+	TObjectPtr<UTexture2D> DirtyTexture; // Data texture used to represent layer blend dirtied area
 
 #if WITH_EDITOR
 	void UpdateDebugColorMaterial(const ULandscapeComponent* const Component);
@@ -199,7 +199,7 @@ struct FWeightmapLayerAllocationInfo
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	ULandscapeLayerInfoObject* LayerInfo;
+	TObjectPtr<ULandscapeLayerInfoObject> LayerInfo;
 
 	UPROPERTY()
 	uint8 WeightmapTextureIndex;
@@ -294,7 +294,7 @@ struct FLandscapeComponentMaterialOverride
 	FPerPlatformInt LODIndex;
 
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
-	UMaterialInterface* Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 };
 
 USTRUCT(NotBlueprintable)
@@ -303,13 +303,13 @@ struct FWeightmapData
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	TArray<UTexture2D*> Textures;
+	TArray<TObjectPtr<UTexture2D>> Textures;
 	
 	UPROPERTY()
 	TArray<FWeightmapLayerAllocationInfo> LayerAllocations;
 
 	UPROPERTY(Transient)
-	TArray<ULandscapeWeightmapUsage*> TextureUsages;
+	TArray<TObjectPtr<ULandscapeWeightmapUsage>> TextureUsages;
 };
 
 USTRUCT(NotBlueprintable)
@@ -318,7 +318,7 @@ struct FHeightmapData
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UTexture2D* Texture = nullptr;
+	TObjectPtr<UTexture2D> Texture = nullptr;
 };
 
 USTRUCT(NotBlueprintable)
@@ -446,24 +446,24 @@ class ULandscapeComponent : public UPrimitiveComponent
 	int32 NumSubsections;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LandscapeComponent)
-	UMaterialInterface* OverrideMaterial;
+	TObjectPtr<UMaterialInterface> OverrideMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LandscapeComponent, AdvancedDisplay)
-	UMaterialInterface* OverrideHoleMaterial;
+	TObjectPtr<UMaterialInterface> OverrideHoleMaterial;
 
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
 	TArray<FLandscapeComponentMaterialOverride> OverrideMaterials;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UMaterialInstanceConstant* MaterialInstance_DEPRECATED;
+	TObjectPtr<UMaterialInstanceConstant> MaterialInstance_DEPRECATED;
 #endif
 
 	UPROPERTY(TextExportTransient)
-	TArray<UMaterialInstanceConstant*> MaterialInstances;
+	TArray<TObjectPtr<UMaterialInstanceConstant>> MaterialInstances;
 
 	UPROPERTY(Transient, TextExportTransient)
-	TArray<UMaterialInstanceDynamic*> MaterialInstancesDynamic;
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> MaterialInstancesDynamic;
 
 	/** Mapping between LOD and Material Index*/
 	UPROPERTY(TextExportTransient)
@@ -475,7 +475,7 @@ class ULandscapeComponent : public UPrimitiveComponent
 
 	/** XYOffsetmap texture reference */
 	UPROPERTY(TextExportTransient)
-	UTexture2D* XYOffsetmapTexture;
+	TObjectPtr<UTexture2D> XYOffsetmapTexture;
 
 	/** UV offset to component's weightmap data from component local coordinates*/
 	UPROPERTY()
@@ -513,7 +513,7 @@ private:
 		
 	// Final layer data
 	UPROPERTY(Transient)
-	TArray<ULandscapeWeightmapUsage*> WeightmapTexturesUsage;
+	TArray<TObjectPtr<ULandscapeWeightmapUsage>> WeightmapTexturesUsage;
 
 	UPROPERTY(Transient)
 	uint32 LayerUpdateFlagPerMode;
@@ -524,7 +524,7 @@ private:
 
 	/** Heightmap texture reference */
 	UPROPERTY(TextExportTransient)
-	UTexture2D* HeightmapTexture;
+	TObjectPtr<UTexture2D> HeightmapTexture;
 
 	/** List of layers, and the weightmap and channel they are stored */
 	UPROPERTY()
@@ -532,11 +532,11 @@ private:
 
 	/** Weightmap texture reference */
 	UPROPERTY(TextExportTransient)
-	TArray<UTexture2D*> WeightmapTextures;
+	TArray<TObjectPtr<UTexture2D>> WeightmapTextures;
 
 	/** Used to interface the component to the LOD streamer. */
 	UPROPERTY()
-	ULandscapeLODStreamingProxy* LODStreamingProxy;
+	TObjectPtr<ULandscapeLODStreamingProxy> LODStreamingProxy;
 
 public:
 
@@ -591,7 +591,7 @@ public:
 
 	/** Pre-baked Base Color texture for use by distance field GI */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = BakedTextures)
-	UTexture2D* GIBakedBaseColorTexture;
+	TObjectPtr<UTexture2D> GIBakedBaseColorTexture;
 
 #if WITH_EDITORONLY_DATA
 	/** LOD level Bias to use when lighting buidling via lightmass, -1 Means automatic LOD calculation based on ForcedLOD + LODBias */
@@ -600,7 +600,7 @@ public:
 
 	// List of layers allowed to be painted on this component
 	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
-	TArray<ULandscapeLayerInfoObject*> LayerWhitelist;
+	TArray<TObjectPtr<ULandscapeLayerInfoObject>> LayerWhitelist;
 
 	/** Pointer to data shared with the render thread, used by the editor tools */
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional)
@@ -612,7 +612,7 @@ public:
 
 	/** Represent the chosen material for each LOD */
 	UPROPERTY(DuplicateTransient)
-	TMap<UMaterialInterface*, int8> MaterialPerLOD;
+	TMap<TObjectPtr<UMaterialInterface>, int8> MaterialPerLOD;
 
 	/** Represents hash of last weightmap usage update */
 	uint32 WeightmapsHash;
@@ -634,16 +634,16 @@ public:
 	uint8 MobileBlendableLayerMask;
 
 	UPROPERTY(NonPIEDuplicateTransient)
-	UMaterialInterface* MobileMaterialInterface_DEPRECATED;
+	TObjectPtr<UMaterialInterface> MobileMaterialInterface_DEPRECATED;
 
 	/** Material interfaces used for mobile */
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<UMaterialInterface*> MobileMaterialInterfaces;
+	TArray<TObjectPtr<UMaterialInterface>> MobileMaterialInterfaces;
 
 	/** Generated weightmap textures used for mobile. The first entry is also used for the normal map. 
 	  * Serialized only when cooking or loading cooked builds. */
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<UTexture2D*> MobileWeightmapTextures;
+	TArray<TObjectPtr<UTexture2D>> MobileWeightmapTextures;
 
 #if WITH_EDITORONLY_DATA
 	/** Layer allocations used by mobile. Cached value here used only in the editor for usage visualization. */
@@ -652,10 +652,10 @@ public:
 	/** The editor needs to save out the combination MIC we'll use for mobile, 
 	  because we cannot generate it at runtime for standalone PIE games */
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<UMaterialInstanceConstant*> MobileCombinationMaterialInstances;
+	TArray<TObjectPtr<UMaterialInstanceConstant>> MobileCombinationMaterialInstances;
 
 	UPROPERTY(NonPIEDuplicateTransient)
-	UMaterialInstanceConstant* MobileCombinationMaterialInstance_DEPRECATED;
+	TObjectPtr<UMaterialInstanceConstant> MobileCombinationMaterialInstance_DEPRECATED;
 #endif
 
 public:

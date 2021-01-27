@@ -182,7 +182,7 @@ public:
 
 	/** Volume to search for an ARPin in. The position and scaled radius (in Unreal Units) of this sphere is used to look for an ARPin of type SearchPinTypes. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ContentPersistence|MagicLeap")
-	class USphereComponent* SearchVolume;
+	TObjectPtr<class USphereComponent> SearchVolume;
 
 	/**
 	 * Delegate used to notify the instigating blueprint that an entity (component or actor) has been successfully pinned to the real-world.
@@ -226,10 +226,10 @@ private:
 	FGuid PinnedCFUID;
 
 	UPROPERTY()
-	USceneComponent* PinnedSceneComponent;
+	TObjectPtr<USceneComponent> PinnedSceneComponent;
 
 	UPROPERTY()
-	UMagicLeapARPinSaveGame* PinData;
+	TObjectPtr<UMagicLeapARPinSaveGame> PinData;
 
 	FTransform OldComponentWorldTransform;
 	FTransform OldCFUIDTransform;

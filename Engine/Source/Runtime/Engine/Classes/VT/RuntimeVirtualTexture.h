@@ -74,7 +74,7 @@ protected:
 
 	/** Deprecated texture object containing streamed low mips. */
 	UPROPERTY()
-	class URuntimeVirtualTextureStreamingProxy* StreamingTexture_DEPRECATED = nullptr;
+	TObjectPtr<class URuntimeVirtualTextureStreamingProxy> StreamingTexture_DEPRECATED = nullptr;
 
 public:
 	/** Get the material set that this virtual texture stores. */

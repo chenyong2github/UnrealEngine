@@ -274,11 +274,11 @@ class UNetConnection : public UPlayer
 public:
 	/** child connections for secondary viewports */
 	UPROPERTY(transient)
-	TArray<class UChildConnection*> Children;
+	TArray<TObjectPtr<class UChildConnection>> Children;
 
 	/** Owning net driver */
 	UPROPERTY()
-	class UNetDriver* Driver;	
+	TObjectPtr<class UNetDriver> Driver;	
 
 	/** The class name for the PackageMap to be loaded */
 	UPROPERTY()
@@ -286,23 +286,23 @@ public:
 
 	UPROPERTY()
 	/** Package map between local and remote. (negotiates net serialization) */
-	class UPackageMap* PackageMap;
+	TObjectPtr<class UPackageMap> PackageMap;
 
 	/** @todo document */
 	UPROPERTY()
-	TArray<class UChannel*> OpenChannels;
+	TArray<TObjectPtr<class UChannel>> OpenChannels;
 	 
 	/** This actor is bNetTemporary, which means it should never be replicated after it's initial packet is complete */
 	UPROPERTY()
-	TArray<class AActor*> SentTemporaries;
+	TArray<TObjectPtr<class AActor>> SentTemporaries;
 
 	/** The actor that is currently being viewed/controlled by the owning controller */
 	UPROPERTY()
-	class AActor* ViewTarget;
+	TObjectPtr<class AActor> ViewTarget;
 
 	/** Reference to controlling actor (usually PlayerController) */
 	UPROPERTY()
-	class AActor* OwningActor;
+	TObjectPtr<class AActor> OwningActor;
 
 	UPROPERTY()
 	int32	MaxPacket;						// Maximum packet size.
@@ -1347,7 +1347,7 @@ private:
 	 * OpenChannels every frame.
 	 */
 	UPROPERTY()
-	TArray<UChannel*> ChannelsToTick;
+	TArray<TObjectPtr<UChannel>> ChannelsToTick;
 
 	/** Histogram of the received packet time */
 	FHistogram NetConnectionHistogram;

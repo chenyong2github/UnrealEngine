@@ -189,34 +189,34 @@ public:
 
 	// The physics asset to extract collisions from when building a simulation.
 	UPROPERTY(EditAnywhere, Category = Config)
-	UPhysicsAsset* PhysicsAsset;
+	TObjectPtr<UPhysicsAsset> PhysicsAsset;
 
 	// Simulation specific cloth parameters. 
 	// Use GetClothConfig() to retrieve the correct parameters/config type for the desired cloth simulation system.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, EditFixedSize, Instanced, Category = Config)
-	TMap<FName, UClothConfigBase*> ClothConfigs;
+	TMap<FName, TObjectPtr<UClothConfigBase>> ClothConfigs;
 
 	// Shared by all cloth instances in a skeletal mesh
 	// Only supported with Chaos Cloth for now
 	// This may not be editable on unused cloth assets
 	UPROPERTY()
-	UClothConfigBase* ClothSharedSimConfig_DEPRECATED;
+	TObjectPtr<UClothConfigBase> ClothSharedSimConfig_DEPRECATED;
 
 	// Parameters for how the NVcloth behaves.
 	// These will have no effect on Chaos cloth
 	UPROPERTY()
-	UClothConfigBase* ClothSimConfig_DEPRECATED;
+	TObjectPtr<UClothConfigBase> ClothSimConfig_DEPRECATED;
 
 	// Parameters for how Chaos cloth behaves 
 	// These will not affect NVcloth
 	// For now, we have two configuration parameters so that we can switch between chaos and
 	// non chaos at will without losing the original NVcloth data
 	UPROPERTY()
-	UClothConfigBase* ChaosClothSimConfig_DEPRECATED;
+	TObjectPtr<UClothConfigBase> ChaosClothSimConfig_DEPRECATED;
 
 	// Deprecated. Use LodData instead
 	UPROPERTY()
-	TArray<UClothLODDataCommon_Legacy*> ClothLodData_DEPRECATED;
+	TArray<TObjectPtr<UClothLODDataCommon_Legacy>> ClothLodData_DEPRECATED;
 
 	// The actual asset data, listed by LOD.
 	UPROPERTY()
@@ -240,7 +240,7 @@ public:
 
 	// Custom data applied by the importer depending on where the asset was imported from.
 	UPROPERTY()
-	UClothingAssetCustomData* CustomData;
+	TObjectPtr<UClothingAssetCustomData> CustomData;
 
 	/** 
 	 * Deprecated property for transitioning the \c FClothConfig struct to the 

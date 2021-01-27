@@ -27,10 +27,10 @@ public:
 	float Strength;
 private:
 	UPROPERTY()
-	AActor* Broadcaster;
+	TObjectPtr<AActor> Broadcaster;
 public:
 	UPROPERTY()
-	AActor* Enemy;
+	TObjectPtr<AActor> Enemy;
 		
 	FAITeamStimulusEvent() : Broadcaster(nullptr), Enemy(nullptr) {}
 	FAITeamStimulusEvent(AActor* InBroadcaster, AActor* InEnemy, const FVector& InLastKnowLocation, float EventRange, float PassedInfoAge = 0.f, float InStrength = 1.f);

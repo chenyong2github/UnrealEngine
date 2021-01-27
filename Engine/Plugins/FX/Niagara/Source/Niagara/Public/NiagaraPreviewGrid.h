@@ -221,18 +221,18 @@ private:
 public:
 
 	UPROPERTY(EditAnywhere, Category = Preview)
-	UNiagaraSystem* System;
+	TObjectPtr<UNiagaraSystem> System;
 	
 	UPROPERTY(EditAnywhere, Category = Preview)
 	ENiagaraPreviewGridResetMode ResetMode;
 
 	/** Object controlling behavior varying on the X axis. */
 	UPROPERTY(EditAnywhere, Category = Preview, Instanced)
-	UNiagaraPreviewAxis* PreviewAxisX;
+	TObjectPtr<UNiagaraPreviewAxis> PreviewAxisX;
 
 	/** Object controlling behavior varying on the Y axis. */
 	UPROPERTY(EditAnywhere, Category = Preview, Instanced)
-	UNiagaraPreviewAxis* PreviewAxisY;
+	TObjectPtr<UNiagaraPreviewAxis> PreviewAxisY;
 
 	/** Class used to for previews in this grid. */
 	UPROPERTY(EditAnywhere, Category = Preview)
@@ -256,16 +256,16 @@ private:
 	int32 NumY;
 
 	UPROPERTY(transient)
-	TArray<UChildActorComponent*> PreviewComponents;
+	TArray<TObjectPtr<UChildActorComponent>> PreviewComponents;
 
 #if WITH_EDITORONLY_DATA
 	// Reference to sprite visualization component
 	UPROPERTY()
-	class UBillboardComponent* SpriteComponent;
+	TObjectPtr<class UBillboardComponent> SpriteComponent;
 
 	// Reference to arrow visualization component
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 #endif
 
 

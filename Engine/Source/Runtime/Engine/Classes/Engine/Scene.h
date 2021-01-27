@@ -394,7 +394,7 @@ struct FConvolutionBloomSettings
 
 	/** Texture to replace default convolution bloom kernel */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens|Bloom", meta = (DisplayName = "Convolution Kernel"))
-	class UTexture2D* Texture;
+	TObjectPtr<class UTexture2D> Texture;
 
 	/** Relative size of the convolution kernel image compared to the minor axis of the viewport  */
 	UPROPERTY(Interp, BlueprintReadWrite, Category = "Lens|Bloom", AdvancedDisplay, meta = (ClampMin = "0.0", UIMax = "1.0", DisplayName = "Convolution Scale"))
@@ -472,7 +472,7 @@ struct FLensImperfectionSettings
 	 * Texture that defines the dirt on the camera lens where the light of very bright objects is scattered.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lens|Dirt Mask", meta=(DisplayName = "Dirt Mask Texture"))
-	class UTexture* DirtMask;	
+	TObjectPtr<class UTexture> DirtMask;	
 	
 	/** BloomDirtMask intensity */
 	UPROPERTY(Interp, BlueprintReadWrite, Category="Lens|Dirt Mask", meta=(ClampMin = "0.0", UIMax = "8.0", DisplayName = "Dirt Mask Intensity"))
@@ -590,14 +590,14 @@ struct FCameraExposureSettings
 	 * 0: no adjustment, -1:2x darker, -2:4x darker, 1:2x brighter, 2:4x brighter, ...
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exposure", meta = (DisplayName = "Exposure Bias Curve"))
-	class UCurveFloat* BiasCurve = nullptr;
+	TObjectPtr<class UCurveFloat> BiasCurve = nullptr;
 
 	/**
 	 * Exposure metering mask. Bright spots on the mask will have high influence on auto-exposure metering
 	 * and dark spots will have low influence.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Exposure", meta=(DisplayName = "Exposure Metering Mask"))
-	class UTexture* MeterMask = nullptr;	
+	TObjectPtr<class UTexture> MeterMask = nullptr;	
 
 	/** temporary exposed until we found good values, -8: 1/256, -10: 1/1024 */
 	UPROPERTY(Interp, BlueprintReadWrite, Category="Exposure", AdvancedDisplay, meta=(UIMin = "-16", UIMax = "0.0"))
@@ -632,7 +632,7 @@ struct FWeightedBlendable
 
 	/** should be of the IBlendableInterface* type but UProperties cannot express that */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FWeightedBlendable, meta=( AllowedClasses="BlendableInterface", Keywords="PostProcess" ))
-	UObject* Object;
+	TObjectPtr<UObject> Object;
 
 	// default constructor
 	FWeightedBlendable()
@@ -1424,7 +1424,7 @@ struct FPostProcessSettings
 
 	/** Texture to replace default convolution bloom kernel */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens|Bloom", meta = (editcondition = "bOverride_BloomConvolutionTexture", DisplayName = "Convolution Kernel"))
-	class UTexture2D* BloomConvolutionTexture;
+	TObjectPtr<class UTexture2D> BloomConvolutionTexture;
 
 	/** The UV location of the center of the kernel.  Should be very close to (.5,.5) */
 	UPROPERTY(interp, BlueprintReadWrite, Category = "Lens|Bloom", AdvancedDisplay, meta = (editcondition = "bOverride_BloomConvolutionCenterUV", DisplayName = "Convolution Center"))
@@ -1455,7 +1455,7 @@ struct FPostProcessSettings
 	 * Texture that defines the dirt on the camera lens where the light of very bright objects is scattered.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lens|Dirt Mask", meta=(editcondition = "bOverride_BloomDirtMask", DisplayName = "Dirt Mask Texture"))
-	class UTexture* BloomDirtMask;	
+	TObjectPtr<class UTexture> BloomDirtMask;	
 	
 	/** BloomDirtMask intensity */
 	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Dirt Mask", meta=(ClampMin = "0.0", UIMax = "8.0", editcondition = "bOverride_BloomDirtMaskIntensity", DisplayName = "Dirt Mask Intensity"))
@@ -1478,7 +1478,7 @@ struct FPostProcessSettings
 
 	/** The Ambient cubemap (Affects diffuse and specular shading), blends additively which if different from all other settings here */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rendering Features|Ambient Cubemap", meta=(DisplayName = "Cubemap Texture"))
-	class UTextureCube* AmbientCubemap;
+	TObjectPtr<class UTextureCube> AmbientCubemap;
 
 	/** The camera shutter in seconds.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lens|Camera", meta=(ClampMin = "1.0", ClampMax = "2000.0", editcondition = "bOverride_CameraShutterSpeed", DisplayName = "Shutter Speed (1/s)"))
@@ -1531,14 +1531,14 @@ struct FPostProcessSettings
 	 * 0: no adjustment, -1:2x darker, -2:4x darker, 1:2x brighter, 2:4x brighter, ...
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens|Exposure", meta = (editcondition = "bOverride_AutoExposureBiasCurve", DisplayName = "Exposure Compensation Curve"))
-	class UCurveFloat* AutoExposureBiasCurve = nullptr;
+	TObjectPtr<class UCurveFloat> AutoExposureBiasCurve = nullptr;
 
 	/**
 	 * Exposure metering mask. Bright spots on the mask will have high influence on auto-exposure metering
 	 * and dark spots will have low influence.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lens|Exposure", meta=(editcondition = "bOverride_AutoExposureMeterMask", DisplayName = "Exposure Metering Mask"))
-	class UTexture* AutoExposureMeterMask = nullptr;	
+	TObjectPtr<class UTexture> AutoExposureMeterMask = nullptr;	
 
 	/**
 	 * The eye adaptation will adapt to a value extracted from the luminance histogram of the scene color.
@@ -1614,7 +1614,7 @@ struct FPostProcessSettings
 
 	/** Defines the shape of the Bokeh when the image base lens flares are blurred, cannot be blended */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Lens|Lens Flares", meta=(editcondition = "bOverride_LensFlareBokehShape", DisplayName = "BokehShape"))
-	class UTexture* LensFlareBokehShape;
+	TObjectPtr<class UTexture> LensFlareBokehShape;
 
 	/** RGB defines the lens flare color, A it's position. This is a temporary solution. */
 	UPROPERTY(EditAnywhere, Category="Lens|Lens Flares", meta=(editcondition = "bOverride_LensFlareTints", DisplayName = "Tints"))
@@ -1735,7 +1735,7 @@ struct FPostProcessSettings
 
 	/** Look up table texture to use or none of not used*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Color Grading|Misc", meta=(editcondition = "bOverride_ColorGradingLUT", DisplayName = "Color Grading LUT"))
-	class UTexture* ColorGradingLUT;
+	TObjectPtr<class UTexture> ColorGradingLUT;
 
 	/** Width of the camera sensor to assume, in mm. */
 	UPROPERTY(BlueprintReadWrite, Category="Lens|Depth of Field", meta=(ForceUnits=mm, ClampMin = "0.1", UIMin="0.1", UIMax= "1000.0", editcondition = "bOverride_DepthOfFieldSensorWidth", DisplayName = "Sensor Width (mm)"))
@@ -1957,7 +1957,7 @@ struct FPostProcessSettings
 #if WITH_EDITORONLY_DATA
 	// for backwards compatibility
 	UPROPERTY()
-	TArray<UObject*> Blendables_DEPRECATED;
+	TArray<TObjectPtr<UObject>> Blendables_DEPRECATED;
 
 	// for backwards compatibility
 	void OnAfterLoad()

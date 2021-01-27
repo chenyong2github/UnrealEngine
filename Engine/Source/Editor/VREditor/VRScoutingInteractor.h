@@ -49,5 +49,5 @@ public:
 
 	/** Shown in Navigation mode */
 	UPROPERTY(Category = Interactor, EditAnywhere, BlueprintReadOnly)
-	class UStaticMeshComponent* FlyingIndicatorComponent;
+	TObjectPtr<class UStaticMeshComponent> FlyingIndicatorComponent;
 };

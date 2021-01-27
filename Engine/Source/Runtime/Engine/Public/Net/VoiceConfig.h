@@ -51,16 +51,16 @@ struct FVoiceSettings
 	// that the voice is coming from that scene component.
 	// If this is not set, the voice will not be spatialized.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio|Voice|Spatialization")
-	USceneComponent* ComponentToAttachTo;
+	TObjectPtr<USceneComponent> ComponentToAttachTo;
 
 	// Optional attenuation settings to attach to this player's voice.
 	// This should only be used when ComponentToAttachTo is set.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio|Voice|Spatialization")
-	USoundAttenuation* AttenuationSettings;
+	TObjectPtr<USoundAttenuation> AttenuationSettings;
 	
 	// Optional audio effects to apply to this player's voice.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio|Voice|Effects")
-	USoundEffectSourcePresetChain* SourceEffectChain;
+	TObjectPtr<USoundEffectSourcePresetChain> SourceEffectChain;
 
 	FVoiceSettings()
 		: ComponentToAttachTo(nullptr)

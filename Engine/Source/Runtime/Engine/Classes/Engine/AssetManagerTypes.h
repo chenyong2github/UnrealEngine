@@ -114,7 +114,7 @@ public:
 
 	/** Base Class of all assets of this type */
 	UPROPERTY(Transient)
-	UClass* AssetBaseClassLoaded;
+	TObjectPtr<UClass> AssetBaseClassLoaded;
 
 	/** True if the assets loaded are blueprints classes, false if they are normal UObjects */
 	UPROPERTY(EditAnywhere, Category = AssetType)
@@ -206,7 +206,7 @@ struct FAssetManagerSearchRules
 
 	/** Assets must inherit from this class, for blueprints this should be the instance base class */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)
-	UClass* AssetBaseClass = nullptr;
+	TObjectPtr<UClass> AssetBaseClass = nullptr;
 
 	/** True if scanning for blueprints, false for all other assets */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Default)

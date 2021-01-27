@@ -233,18 +233,18 @@ protected:
 
 	/** cached behavior tree component */
 	UPROPERTY(transient)
-	UBrainComponent* BrainComp;
+	TObjectPtr<UBrainComponent> BrainComp;
 
 	/** data asset defining entries. Will be used as part of InitializeComponent 
 	 *	call provided BlackboardAsset hasn't been already set (via a InitializeBlackboard 
 	 *	call). */
 	UPROPERTY(EditDefaultsOnly, Category = AI)
-	UBlackboardData* DefaultBlackboardAsset;
+	TObjectPtr<UBlackboardData> DefaultBlackboardAsset;
 
 	/** internal use, current BB asset being used. Will be made private in the future */
 	UE_DEPRECATED_FORGAME(4.26, "Directly accessing BlackboardAsset is not longer supported. Use DefaultBlackboardAsset or InitializeBlackboard to set it and GetBlackboardAsset to retrieve it")
 	UPROPERTY(transient)
-	UBlackboardData* BlackboardAsset;
+	TObjectPtr<UBlackboardData> BlackboardAsset;
 
 	/** memory block holding all values */
 	TArray<uint8> ValueMemory;
@@ -254,7 +254,7 @@ protected:
 
 	/** instanced keys with custom data allocations */
 	UPROPERTY(transient)
-	TArray<UBlackboardKeyType*> KeyInstances;
+	TArray<TObjectPtr<UBlackboardKeyType>> KeyInstances;
 
 protected:
 	struct FOnBlackboardChangeNotificationInfo

@@ -26,7 +26,7 @@ struct FExpressionInput
 #if WITH_EDITORONLY_DATA
 	/** UMaterial expression that this input is connected to, or NULL if not connected. */
 	UPROPERTY()
-	class UMaterialExpression* Expression;
+	TObjectPtr<class UMaterialExpression> Expression;
 #endif
 
 	/** Index into Expression's outputs array that this input is connected to. */
@@ -113,11 +113,11 @@ class ENGINE_API UMaterialExpression : public UObject
 
 	/** Expression's Graph representation */
 	UPROPERTY(transient)
-	UEdGraphNode*	GraphNode;
+	TObjectPtr<UEdGraphNode>	GraphNode;
 
 	/** If exists, expresssion containing this expression within its subgraph. */
 	UPROPERTY()
-	UMaterialExpression* SubgraphExpression;
+	TObjectPtr<UMaterialExpression> SubgraphExpression;
 
 	/** Text of last error for this expression */
 	FString LastErrorText;
@@ -132,14 +132,14 @@ class ENGINE_API UMaterialExpression : public UObject
 	 * This is not necessarily the object which owns this expression, for example a preview material compiling a material function's expressions.
 	 */
 	UPROPERTY()
-	class UMaterial* Material;
+	TObjectPtr<class UMaterial> Material;
 
 	/** 
 	 * The material function that this expression is being used with, if any.
 	 * This will be NULL if the expression belongs to a function that is currently being edited, 
 	 */
 	UPROPERTY()
-	class UMaterialFunction* Function;
+	TObjectPtr<class UMaterialFunction> Function;
 
 #if WITH_EDITORONLY_DATA
 	/** A description that level designers can add (shows in the material editor UI). */

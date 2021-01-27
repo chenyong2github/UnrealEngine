@@ -38,7 +38,7 @@ struct FAnimParentNodeAssetOverride
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UAnimationAsset* NewAsset;
+	TObjectPtr<UAnimationAsset> NewAsset;
 	UPROPERTY()
 	FGuid ParentNodeGuid;
 
@@ -84,7 +84,7 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	 * to cause errors if this is modified without updating or replacing all referenced animations.
 	 */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, AdvancedDisplay, Category=ClassOptions)
-	USkeleton* TargetSkeleton;
+	TObjectPtr<USkeleton> TargetSkeleton;
 
 	// List of animation sync groups
 	UPROPERTY()
@@ -203,7 +203,7 @@ public:
 	// Array of active pose watches (pose watch allows us to see the bone pose at a 
 	// particular point of the anim graph) 
 	UPROPERTY(transient)
-	TArray<class UPoseWatch*> PoseWatches;
+	TArray<TObjectPtr<class UPoseWatch>> PoseWatches;
 
 private:
 	/** The default skeletal mesh to use when previewing this asset - this only applies when you open Persona using this asset*/

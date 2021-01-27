@@ -34,7 +34,7 @@ public:
 private:
 	/** Pointer to the movie scene that controls this sequence. */
 	UPROPERTY()
-	UMovieScene* MovieScene;
+	TObjectPtr<UMovieScene> MovieScene;
 
 	/** The system view model which owns this niagara sequence. */
 	FNiagaraSystemViewModel* SystemViewModel;

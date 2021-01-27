@@ -251,7 +251,7 @@ class INTROTUTORIALS_API UEditorTutorial : public UObject
 
 	/** Texture for this tutorial, used when presented to the user in the tutorial browser. */
 	UPROPERTY(EditAnywhere, Category="Tutorial")
-	UTexture2D* Texture;
+	TObjectPtr<UTexture2D> Texture;
 
 	/** Category of this tutorial, used to organize tutorials when presented to the user */
 	UPROPERTY(EditAnywhere, Category="Tutorial")

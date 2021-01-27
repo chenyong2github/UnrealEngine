@@ -13,13 +13,13 @@ class AIMODULE_API UPawnAction_Sequence : public UPawnAction
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	TArray<UPawnAction*> ActionSequence;
+	TArray<TObjectPtr<UPawnAction>> ActionSequence;
 
 	UPROPERTY(Category = PawnAction, EditAnywhere, BlueprintReadOnly)
 	TEnumAsByte<EPawnActionFailHandling::Type> ChildFailureHandlingMode;
 
 	UPROPERTY(Transient)
-	UPawnAction* RecentActionCopy;
+	TObjectPtr<UPawnAction> RecentActionCopy;
 
 	uint32 CurrentActionIndex;
 

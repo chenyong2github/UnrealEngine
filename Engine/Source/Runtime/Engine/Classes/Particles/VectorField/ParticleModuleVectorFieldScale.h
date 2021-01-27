@@ -21,7 +21,7 @@ class UParticleModuleVectorFieldScale : public UParticleModuleVectorFieldBase
 
 	/** Per-particle vector field scale. Evaluated using emitter time. */
 	UPROPERTY()
-	class UDistributionFloat* VectorFieldScale_DEPRECATED;
+	TObjectPtr<class UDistributionFloat> VectorFieldScale_DEPRECATED;
 
 	/** Per-particle vector field scale. Evaluated using emitter time. */
 	UPROPERTY(EditAnywhere, Category=VectorField)

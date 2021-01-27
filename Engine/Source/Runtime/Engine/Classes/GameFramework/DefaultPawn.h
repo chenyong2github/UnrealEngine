@@ -85,7 +85,7 @@ public:
 protected:
 	/** DefaultPawn movement component */
 	UPROPERTY(Category = Pawn, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UPawnMovementComponent* MovementComponent;
+	TObjectPtr<UPawnMovementComponent> MovementComponent;
 
 public:
 	/** Name of the CollisionComponent. */
@@ -94,7 +94,7 @@ public:
 private:
 	/** DefaultPawn collision component */
 	UPROPERTY(Category = Pawn, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	USphereComponent* CollisionComponent;
+	TObjectPtr<USphereComponent> CollisionComponent;
 public:
 
 	/** Name of the MeshComponent. Use this name if you want to prevent creation of the component (with ObjectInitializer.DoNotCreateDefaultSubobject). */
@@ -103,7 +103,7 @@ public:
 private:
 	/** The mesh associated with this Pawn. */
 	UPROPERTY(Category = Pawn, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* MeshComponent;
+	TObjectPtr<UStaticMeshComponent> MeshComponent;
 public:
 
 	/** If true, adds default input bindings for movement and camera look. */

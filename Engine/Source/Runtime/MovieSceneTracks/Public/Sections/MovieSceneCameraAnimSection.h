@@ -28,7 +28,7 @@ struct FMovieSceneCameraAnimSectionData
 
 	/** The camera anim to play */
 	UPROPERTY(EditAnywhere, Category = "Camera Anim")
-	UCameraAnim* CameraAnim;
+	TObjectPtr<UCameraAnim> CameraAnim;
 
 	/** How fast to play back the animation. */
 	UPROPERTY(EditAnywhere, Category = "Camera Anim")
@@ -73,7 +73,7 @@ private:
 
 	/** Deprecated members */
 	UPROPERTY()
-	UCameraAnim* CameraAnim_DEPRECATED;
+	TObjectPtr<UCameraAnim> CameraAnim_DEPRECATED;
 
 	UPROPERTY()
 	float PlayRate_DEPRECATED;

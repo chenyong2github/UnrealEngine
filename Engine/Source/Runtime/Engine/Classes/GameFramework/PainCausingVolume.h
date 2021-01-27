@@ -49,7 +49,7 @@ class ENGINE_API APainCausingVolume : public APhysicsVolume
 
 	/** Controller that gets credit for any damage caused by this volume */
 	UPROPERTY()
-	class AController* DamageInstigator;
+	TObjectPtr<class AController> DamageInstigator;
 
 	/** Damage overlapping actors if pain-causing. */
 	virtual void PainTimer();

@@ -65,7 +65,7 @@ class UParticleModuleTypeDataMesh : public UParticleModuleTypeDataBase
 
 	/** The static mesh to render at the particle positions */
 	UPROPERTY(EditAnywhere, Category=Mesh)
-	UStaticMesh* Mesh;
+	TObjectPtr<UStaticMesh> Mesh;
 
 	/** Random stream for the initial rotation distribution */
 	FRandomStream RandomStream;

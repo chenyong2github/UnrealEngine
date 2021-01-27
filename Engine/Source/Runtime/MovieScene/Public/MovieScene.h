@@ -343,7 +343,7 @@ public:
 
 private:
 	UPROPERTY()
-	TArray<UMovieSceneNodeGroup*> NodeGroups;
+	TArray<TObjectPtr<UMovieSceneNodeGroup>> NodeGroups;
 
 	bool bAnyActiveFilter;
 
@@ -1160,11 +1160,11 @@ private:
 
 	/** Master tracks which are not bound to spawned or possessed objects */
 	UPROPERTY(Instanced)
-	TArray<UMovieSceneTrack*> MasterTracks;
+	TArray<TObjectPtr<UMovieSceneTrack>> MasterTracks;
 
 	/** The camera cut track is a specialized track for switching between cameras on a cinematic */
 	UPROPERTY(Instanced)
-	UMovieSceneTrack* CameraCutTrack;
+	TObjectPtr<UMovieSceneTrack> CameraCutTrack;
 
 	/** User-defined selection range. */
 	UPROPERTY()
@@ -1220,7 +1220,7 @@ private:
 
 	/** The root folders for this movie scene. */
 	UPROPERTY()
-	TArray<UMovieSceneFolder*> RootFolders;
+	TArray<TObjectPtr<UMovieSceneFolder>> RootFolders;
 
 	/** Nodes currently marked Solo, stored as node tree paths */
 	UPROPERTY()
@@ -1236,7 +1236,7 @@ private:
 
 	/** Collection of user-defined groups */
 	UPROPERTY()
-	UMovieSceneNodeGroupCollection* NodeGroupCollection;
+	TObjectPtr<UMovieSceneNodeGroupCollection> NodeGroupCollection;
 
 	/** Whether this scene's marked frames should be shown globally */
 	bool bGloballyShowMarkedFrames;

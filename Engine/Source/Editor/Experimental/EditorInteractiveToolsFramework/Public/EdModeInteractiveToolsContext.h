@@ -105,7 +105,7 @@ protected:
 
 public:
 	UPROPERTY()
-	UMaterialInterface* StandardVertexColorMaterial;
+	TObjectPtr<UMaterialInterface> StandardVertexColorMaterial;
 
 protected:
 	// called when PIE is about to start, shuts down active tools

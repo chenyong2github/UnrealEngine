@@ -19,7 +19,7 @@ public:
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(Category=Sprite, EditAnywhere)
-	UPaperSprite* Sprite;
+	TObjectPtr<UPaperSprite> Sprite;
 
 	UPROPERTY(Category=Sprite, EditAnywhere, meta=(ClampMin=1))
 	int32 FrameRun;
@@ -66,7 +66,7 @@ protected:
 
 	// The material to use on a flipbook player instance if not overridden
 	UPROPERTY(Category=Sprite, EditAnywhere, BlueprintReadOnly)
-	UMaterialInterface* DefaultMaterial;
+	TObjectPtr<UMaterialInterface> DefaultMaterial;
 
 	// Collision source
 	UPROPERTY(Category=Sprite, EditAnywhere, BlueprintReadOnly)

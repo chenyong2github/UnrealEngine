@@ -28,12 +28,12 @@ class NAVIGATIONSYSTEM_API ANavSystemConfigOverride : public AActor
 #if WITH_EDITORONLY_DATA
 private:
 	UPROPERTY()
-	class UBillboardComponent* SpriteComponent;
+	TObjectPtr<class UBillboardComponent> SpriteComponent;
 #endif // WITH_EDITORONLY_DATA
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Navigation, Instanced,  meta = (NoResetToDefault))
-	UNavigationSystemConfig* NavigationSystemConfig;
+	TObjectPtr<UNavigationSystemConfig> NavigationSystemConfig;
 
 	/** If there's already a NavigationSystem instance in the world how should this nav override behave */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Navigation)

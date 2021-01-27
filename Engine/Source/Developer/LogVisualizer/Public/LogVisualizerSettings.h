@@ -188,7 +188,7 @@ protected:
 
 	/** A material used to render debug meshes with kind of flat shading, mostly used by Visual Logger tool. */
 	UPROPERTY()
-	class UMaterial* DebugMeshMaterialFakeLight;
+	TObjectPtr<class UMaterial> DebugMeshMaterialFakeLight;
 
 	/** @todo document */
 	UPROPERTY(config)

@@ -125,7 +125,7 @@ public:
 protected:
 
 	UPROPERTY(Transient)
-	USoundWave* GranulatedSoundWave;
+	TObjectPtr<USoundWave> GranulatedSoundWave;
 
 	Audio::FGranularSynth GranularSynth;
 	Audio::FSoundWavePCMLoader SoundWaveLoader;

@@ -99,7 +99,7 @@ class UEditorConfigTestObject : public UObject
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UObject* Object;
+	TObjectPtr<UObject> Object;
 
 	UPROPERTY()
 	FSoftObjectPath SoftObjectPath;

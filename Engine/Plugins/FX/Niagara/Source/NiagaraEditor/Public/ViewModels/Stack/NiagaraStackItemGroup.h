@@ -46,7 +46,7 @@ private:
 
 private:
 	UPROPERTY()
-	UNiagaraStackItemGroupFooter* GroupFooter;
+	TObjectPtr<UNiagaraStackItemGroupFooter> GroupFooter;
 
 	INiagaraStackItemGroupAddUtilities* AddUtilities;
 

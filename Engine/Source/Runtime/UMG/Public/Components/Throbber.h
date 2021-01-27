@@ -40,7 +40,7 @@ public:
 
 	/** Image to use for each segment of the throbber */
 	UPROPERTY()
-	USlateBrushAsset* PieceImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> PieceImage_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
 	FSlateBrush Image;

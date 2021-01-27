@@ -128,7 +128,7 @@ class UParticleModuleRequired : public UParticleModule
 	
 	/** The material to utilize for the emitter at this LOD level.						*/
 	UPROPERTY(EditAnywhere, Category=Emitter)
-	class UMaterialInterface* Material;
+	TObjectPtr<class UMaterialInterface> Material;
 
 	/** The distance at which PSA_FacingCameraDistanceBlend	is fully PSA_Square */
 	UPROPERTY(EditAnywhere, Category = Emitter, meta = (UIMin = "0", DisplayAfter="ScreenAlignment"))
@@ -378,7 +378,7 @@ class UParticleModuleRequired : public UParticleModule
 	* Texture to generate bounding geometry from.
 	*/
 	UPROPERTY(EditAnywhere, Category = ParticleCutout)
-	UTexture2D* CutoutTexture;
+	TObjectPtr<UTexture2D> CutoutTexture;
 
 	/**
 	 *	The maximum number of particles to DRAW for this emitter.

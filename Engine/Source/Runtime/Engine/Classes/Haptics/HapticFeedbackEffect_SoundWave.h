@@ -16,7 +16,7 @@ class UHapticFeedbackEffect_SoundWave : public UHapticFeedbackEffect_Base
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "HapticFeedbackEffect_SoundWave")
-	USoundWave *SoundWave;
+	TObjectPtr<USoundWave> SoundWave;
 
 	~UHapticFeedbackEffect_SoundWave();
 

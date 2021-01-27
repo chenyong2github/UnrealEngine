@@ -27,20 +27,20 @@ class ENGINE_API ADecalActor
 private:
 	/** The decal component for this decal actor */
 	UPROPERTY(Category = Decal, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Decal,Rendering|Components|Decal", AllowPrivateAccess = "true"))
-	UDecalComponent* Decal;
+	TObjectPtr<UDecalComponent> Decal;
 
 #if WITH_EDITORONLY_DATA
 	/* Reference to the editor only arrow visualization component */
 	UPROPERTY()
-	UArrowComponent* ArrowComponent;
+	TObjectPtr<UArrowComponent> ArrowComponent;
 
 	/* Reference to the billboard component */
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 
 	// formerly we used this component to draw a box, now we use the DecalComponentVisualizer
 	UPROPERTY()
-	UBoxComponent* BoxComponent_DEPRECATED;
+	TObjectPtr<UBoxComponent> BoxComponent_DEPRECATED;
 #endif
 
 public:

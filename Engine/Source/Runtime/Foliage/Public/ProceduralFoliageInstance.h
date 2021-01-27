@@ -96,7 +96,7 @@ public:
 	float Scale;
 
 	UPROPERTY()
-	const UFoliageType* Type;
+	TObjectPtr<const UFoliageType> Type;
 
 	UActorComponent* BaseComponent;
 

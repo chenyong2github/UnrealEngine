@@ -91,7 +91,7 @@ class ENGINE_API UCheatManager : public UObject
 
 	/** Debug camera - used to have independent camera without stopping gameplay */
 	UPROPERTY()
-	class ADebugCameraController* DebugCameraControllerRef;
+	TObjectPtr<class ADebugCameraController> DebugCameraControllerRef;
 
 	/** Debug camera - used to have independent camera without stopping gameplay */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Debug Camera")
@@ -446,7 +446,7 @@ public:
 protected:
 	/** List of registered cheat manager extensions */
 	UPROPERTY(Transient)
-	TArray<UCheatManagerExtension*> CheatManagerExtensions;
+	TArray<TObjectPtr<UCheatManagerExtension>> CheatManagerExtensions;
 
 	/** Delegate called when the asset manager singleton is created */
 	static FOnCheatManagerCreated OnCheatManagerCreatedDelegate;

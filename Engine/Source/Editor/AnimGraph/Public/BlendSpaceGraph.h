@@ -17,5 +17,5 @@ class UBlendSpaceGraph : public UEdGraph
 public:
 	// Blendspace that we wrap
 	UPROPERTY()
-	UBlendSpaceBase* BlendSpace;
+	TObjectPtr<UBlendSpaceBase> BlendSpace;
 };

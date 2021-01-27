@@ -14,7 +14,7 @@ struct FLayerActorStats
 
 	/** A Type of Actor currently associated with the Layer */
 	UPROPERTY()
-	UClass* Type;
+	TObjectPtr<UClass> Type;
 
 	/** The total number of Actors of Type assigned to the Layer */
 	UPROPERTY()

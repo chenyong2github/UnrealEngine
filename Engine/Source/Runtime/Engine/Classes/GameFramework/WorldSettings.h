@@ -234,15 +234,15 @@ struct ENGINE_API FNetViewer
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UNetConnection* Connection;
+	TObjectPtr<UNetConnection> Connection;
 
 	/** The "controlling net object" associated with this view (typically player controller) */
 	UPROPERTY()
-	class AActor* InViewer;
+	TObjectPtr<class AActor> InViewer;
 
 	/** The actor that is being directly viewed, usually a pawn.  Could also be the net actor of consequence */
 	UPROPERTY()
-	class AActor* ViewTarget;
+	TObjectPtr<class AActor> ViewTarget;
 
 	/** Where the viewer is looking from */
 	UPROPERTY()
@@ -539,14 +539,14 @@ protected:
 	 *	in NavigationSystem instance not being created for this world. Note that
 	 *	if set NavigationSystemConfigOverride will be used instead. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, AdvancedDisplay, Instanced, NoClear, meta=(NoResetToDefault))
-	UNavigationSystemConfig* NavigationSystemConfig;
+	TObjectPtr<UNavigationSystemConfig> NavigationSystemConfig;
 
 	/** Overrides NavigationSystemConfig. */
 	UPROPERTY(Transient)
-	UNavigationSystemConfig* NavigationSystemConfigOverride;
+	TObjectPtr<UNavigationSystemConfig> NavigationSystemConfigOverride;
 
 	UPROPERTY(EditAnywhere, Category = WorldPartition, NoClear, meta = (NoResetToDefault), Instanced)
-	UWorldPartition* WorldPartition;
+	TObjectPtr<UWorldPartition> WorldPartition;
 
 public:
 	/** Size of the grid for instanced foliage actors*/
@@ -647,7 +647,7 @@ public:
 
 	/** Default Base SoundMix.																			*/
 	UPROPERTY(EditAnywhere, Category=Audio)
-	class USoundMix* DefaultBaseSoundMix;
+	TObjectPtr<class USoundMix> DefaultBaseSoundMix;
 
 #if WITH_EDITORONLY_DATA
 	/** If set overrides the level settings and global project settings */
@@ -681,7 +681,7 @@ public:
 	/** Level Bookmarks: 10 should be MAX_BOOKMARK_NUMBER @fixmeconst */
 	UE_DEPRECATED(4.21, "This member will be removed. Please use the Bookmark accessor functions instead.")
 	UPROPERTY()
-	class UBookMark* BookMarks[10];
+	TObjectPtr<class UBookMark> BookMarks[10];
 #endif
 
 	/************************************/
@@ -724,7 +724,7 @@ public:
 	// If paused, FName of person pausing the game.
 	UE_DEPRECATED(4.23, "This property is deprecated. Please use Get/SetPauserPlayerState().")
 	UPROPERTY(transient)
-	class APlayerState* Pauser;
+	TObjectPtr<class APlayerState> Pauser;
 
 	/** valid only during replication - information about the player(s) being replicated to
 	 * (there could be more than one in the case of a splitscreen client)
@@ -742,11 +742,11 @@ public:
 
 	/** Array of user data stored with the asset */
 	UPROPERTY()
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 	// If paused, PlayerState of person pausing the game.
 	UPROPERTY(transient, replicated)
-	class APlayerState* PauserPlayerState;
+	TObjectPtr<class APlayerState> PauserPlayerState;
 
 public:
 	//~ Begin UObject Interface.
@@ -874,7 +874,7 @@ private:
 	TSubclassOf<class UBookmarkBase> DefaultBookmarkClass;
 
 	UPROPERTY()
-	TArray<class UBookmarkBase*> BookmarkArray;
+	TArray<TObjectPtr<class UBookmarkBase>> BookmarkArray;
 
 	// Tracked so we can detect changes from Config
 	UPROPERTY()

@@ -21,7 +21,7 @@ class AIMODULE_API UBlackboardKeyType_NativeEnum : public UBlackboardKeyType
 	FString EnumName;
 
 	UPROPERTY()
-	UEnum* EnumType;
+	TObjectPtr<UEnum> EnumType;
 
 	virtual UBlackboardKeyType* UpdateDeprecatedKey() override;
 

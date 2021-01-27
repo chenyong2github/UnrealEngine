@@ -68,7 +68,7 @@ public:
 	float DelayEveryFrame;
 
 	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category=CaptureSettings, AdvancedDisplay, meta=(EditInline))
-	ULevelSequenceBurnInOptions* BurnInOptions;
+	TObjectPtr<ULevelSequenceBurnInOptions> BurnInOptions;
 
 	/** Whether to write edit decision lists (EDLs) if the sequence contains shots */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=Sequence)

@@ -35,11 +35,11 @@ public:
 	FTrackedGeometryGroup(UARTrackedGeometry* InTrackedGeometry);
 	
 	UPROPERTY()
-	AARActor* ARActor = nullptr;
+	TObjectPtr<AARActor> ARActor = nullptr;
 	
 	UPROPERTY()
-	UARComponent* ARComponent = nullptr;
+	TObjectPtr<UARComponent> ARComponent = nullptr;
 	
 	UPROPERTY()
-	UARTrackedGeometry* TrackedGeometry = nullptr;
+	TObjectPtr<UARTrackedGeometry> TrackedGeometry = nullptr;
 };

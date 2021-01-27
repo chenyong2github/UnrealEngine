@@ -18,7 +18,7 @@ class UParticleModuleVectorFieldLocal : public UParticleModuleVectorFieldBase
 
 	/** Vector field asset to use. */
 	UPROPERTY(EditAnywhere, Category=VectorField)
-	class UVectorField* VectorField;
+	TObjectPtr<class UVectorField> VectorField;
 
 	/** Translation of the vector field relative to the emitter. */
 	UPROPERTY(EditAnywhere, Category=VectorField)

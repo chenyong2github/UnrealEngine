@@ -98,10 +98,10 @@ protected:
 
 protected:
 	UPROPERTY()
-	UWidget* HeaderContent;
+	TObjectPtr<UWidget> HeaderContent;
 
 	UPROPERTY()
-	UWidget* BodyContent;
+	TObjectPtr<UWidget> BodyContent;
 
 	TSharedPtr<SExpandableArea> MyExpandableArea;
 };

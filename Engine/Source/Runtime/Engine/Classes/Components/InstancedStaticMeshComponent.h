@@ -493,7 +493,7 @@ public:
 public:
 	/** Mesh being used by component */
 	UPROPERTY()
-	UStaticMesh* StaticMesh = nullptr;
+	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
 
 	// Static lighting info
 	UPROPERTY()

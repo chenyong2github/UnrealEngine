@@ -161,7 +161,7 @@ struct FSkeletalMeshOptimizationSettings
 	TArray<FBoneReference> BonesToRemove_DEPRECATED;
 
 	UPROPERTY()
-	class UAnimSequence* BakePose_DEPRECATED;
+	TObjectPtr<class UAnimSequence> BakePose_DEPRECATED;
 
 	//Transient mutable delegate. If the delegate is bound, the reduction will call it instead of deleting the replaced LODModel. It will be then the delegate owner responsible of the LODModel memory
 	mutable FOnDeleteLODModelOverride OnDeleteLODModelDelegate;

@@ -50,7 +50,7 @@ class ENGINE_API ADocumentationActor
 	
 private:
 	UPROPERTY(Category = Sprite, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UMaterialBillboardComponent* Billboard;
+	TObjectPtr<class UMaterialBillboardComponent> Billboard;
 #endif
 
 public:

@@ -23,7 +23,7 @@ private:
 	/** A macro is like a composite node, except that the associated graph lives
 	  * in another blueprint, and can be instanced multiple times. */
 	UPROPERTY()
-	class UEdGraph* MacroGraph_DEPRECATED;
+	TObjectPtr<class UEdGraph> MacroGraph_DEPRECATED;
 
 	UPROPERTY()
 	FGraphReference MacroGraphReference;

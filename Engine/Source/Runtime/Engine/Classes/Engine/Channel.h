@@ -56,7 +56,7 @@ class ENGINE_API UChannel
 	GENERATED_UCLASS_BODY()
 	
 	UPROPERTY()
-	class UNetConnection*	Connection;		// Owner connection.
+	TObjectPtr<class UNetConnection>	Connection;		// Owner connection.
 
 	// Variables.
 	uint32				OpenAcked:1;		// If OpenedLocally is true, this means we have acknowledged the packet we sent the bOpen bunch on. Otherwise, it means we have received the bOpen bunch from the server.

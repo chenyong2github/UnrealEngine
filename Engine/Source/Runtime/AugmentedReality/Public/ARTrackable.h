@@ -94,7 +94,7 @@ protected:
 	
 	/** For AR systems that support arbitrary mesh geometry associated with a tracked point */
 	UPROPERTY(Transient)
-	UMRMeshComponent* UnderlyingMesh;
+	TObjectPtr<UMRMeshComponent> UnderlyingMesh;
 
 	/** What the scene understanding system thinks this object is */
 	UPROPERTY()
@@ -165,7 +165,7 @@ private:
 
 	// Used by ARCore Only
 	UPROPERTY()
-	UARPlaneGeometry* SubsumedBy = nullptr;
+	TObjectPtr<UARPlaneGeometry> SubsumedBy = nullptr;
 };
 
 UCLASS(BlueprintType)
@@ -212,7 +212,7 @@ public:
 protected:
 	/** The candidate image that was detected in the scene */
 	UPROPERTY()
-	UARCandidateImage* DetectedImage;
+	TObjectPtr<UARCandidateImage> DetectedImage;
 
 	/** The estimated image size that was detected in the scene */
 	UPROPERTY()
@@ -423,7 +423,7 @@ protected:
 
 	/** The cube map of the reflected environment */
 	UPROPERTY()
-	UAREnvironmentCaptureProbeTexture* EnvironmentCaptureTexture;
+	TObjectPtr<UAREnvironmentCaptureProbeTexture> EnvironmentCaptureTexture;
 };
 
 UCLASS(BlueprintType)
@@ -445,7 +445,7 @@ public:
 private:
 	/** The candidate object that was detected in the scene */
 	UPROPERTY()
-	UARCandidateObject* DetectedObject;
+	TObjectPtr<UARCandidateObject> DetectedObject;
 };
 
 UCLASS(BlueprintType)

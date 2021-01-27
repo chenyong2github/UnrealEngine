@@ -19,11 +19,11 @@ struct FBehaviorTreeTemplateInfo
 
 	/** behavior tree asset */
 	UPROPERTY()
-	UBehaviorTree* Asset = nullptr;
+	TObjectPtr<UBehaviorTree> Asset = nullptr;
 
 	/** initialized template */
 	UPROPERTY(transient)
-	UBTCompositeNode* Template = nullptr;
+	TObjectPtr<UBTCompositeNode> Template = nullptr;
 
 	/** size required for instance memory */
 	uint16 InstanceMemorySize;
@@ -68,5 +68,5 @@ protected:
 	TArray<FBehaviorTreeTemplateInfo> LoadedTemplates;
 
 	UPROPERTY()
-	TArray<UBehaviorTreeComponent*> ActiveComponents;
+	TArray<TObjectPtr<UBehaviorTreeComponent>> ActiveComponents;
 };

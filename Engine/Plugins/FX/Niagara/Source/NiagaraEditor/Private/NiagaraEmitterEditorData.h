@@ -27,7 +27,7 @@ public:
 
 private:
 	UPROPERTY(Instanced)
-	UNiagaraStackEditorData* StackEditorData;
+	TObjectPtr<UNiagaraStackEditorData> StackEditorData;
 
 	UPROPERTY()
 	float PlaybackRangeMin;

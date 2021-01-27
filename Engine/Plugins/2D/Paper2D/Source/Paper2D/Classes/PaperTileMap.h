@@ -77,11 +77,11 @@ class PAPER2D_API UPaperTileMap : public UObject
 
 	// The material to use on a tile map instance if not overridden
 	UPROPERTY(Category=Setup, EditAnywhere, BlueprintReadOnly)
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	// The list of layers
 	UPROPERTY(Instanced, Category=Sprite, BlueprintReadOnly, EditAnywhere)
-	TArray<UPaperTileLayer*> TileLayers;
+	TArray<TObjectPtr<UPaperTileLayer>> TileLayers;
 
 protected:
 	// The extrusion thickness of collision geometry when using a 3D collision domain
@@ -104,13 +104,13 @@ public:
 
 	// Baked physics data.
 	UPROPERTY()
-	UBodySetup* BodySetup;
+	TObjectPtr<UBodySetup> BodySetup;
 
 public:
 #if WITH_EDITORONLY_DATA
 	/** Importing data and options used for this tile map */
 	UPROPERTY(Category=ImportSettings, VisibleAnywhere, Instanced)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 	/** The currently selected layer index */
 	UPROPERTY()

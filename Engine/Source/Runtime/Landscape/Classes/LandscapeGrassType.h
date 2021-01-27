@@ -29,10 +29,10 @@ struct FGrassVariety
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Grass)
-	UStaticMesh* GrassMesh;
+	TObjectPtr<UStaticMesh> GrassMesh;
 
 	UPROPERTY(EditAnywhere, Category=Grass, meta = (ToolTip = "Material Overrides."))
-	TArray<class UMaterialInterface*> OverrideMaterials;
+	TArray<TObjectPtr<class UMaterialInterface>> OverrideMaterials;
 
 	/* Instances per 10 square meters. */
 	UPROPERTY(EditAnywhere, Category=Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000, ClampMax = 1000))
@@ -148,7 +148,7 @@ class ULandscapeGrassType : public UObject
 	uint32 bEnableDensityScaling : 1;
 
 	UPROPERTY()
-	UStaticMesh* GrassMesh_DEPRECATED;
+	TObjectPtr<UStaticMesh> GrassMesh_DEPRECATED;
 	UPROPERTY()
 	float GrassDensity_DEPRECATED;
 	UPROPERTY()

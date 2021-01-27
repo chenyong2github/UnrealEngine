@@ -67,7 +67,7 @@ public:
 
 	/** The mouse click behavior of the gizmo is accessible so that it can be modified to use different mouse keys. */
 	UPROPERTY()
-	UClickDragInputBehavior* MouseBehavior;
+	TObjectPtr<UClickDragInputBehavior> MouseBehavior;
 
 	/** 
 	 * This gets checked to see if we should use the custom ray caster to get a destination point for the gizmo, rather

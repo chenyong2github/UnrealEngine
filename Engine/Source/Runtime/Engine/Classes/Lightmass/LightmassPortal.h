@@ -16,11 +16,11 @@ class ALightmassPortal : public AActor
 
 private:
 	UPROPERTY(Category = Portal, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class ULightmassPortalComponent* PortalComponent;
+	TObjectPtr<class ULightmassPortalComponent> PortalComponent;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 #endif // WITH_EDITORONLY_DATA
 
 public:	

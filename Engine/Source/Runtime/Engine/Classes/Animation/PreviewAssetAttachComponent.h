@@ -26,7 +26,7 @@ private:
 	TSoftObjectPtr<class UObject> AttachedObject;
 
 	UPROPERTY()
-	UObject* Object_DEPRECATED;
+	TObjectPtr<UObject> Object_DEPRECATED;
 
 public:
 

@@ -27,7 +27,7 @@ struct FGPUSpriteLocalVectorFieldInfo
 
 	/** Local vector field to apply to this emitter. */
 	UPROPERTY()
-	class UVectorField* Field;
+	TObjectPtr<class UVectorField> Field;
 
 	/** Local vector field transform. */
 	UPROPERTY()
@@ -97,19 +97,19 @@ struct FGPUSpriteEmitterInfo
 
 	/** The required module. Needed for now, but should be divorced from the runtime. */
 	UPROPERTY()
-	class UParticleModuleRequired* RequiredModule;
+	TObjectPtr<class UParticleModuleRequired> RequiredModule;
 
 	/** The spawn module. Needed for now, but should be divorced from the runtime. */
 	UPROPERTY()
-	class UParticleModuleSpawn* SpawnModule;
+	TObjectPtr<class UParticleModuleSpawn> SpawnModule;
 
 	/** The spawn-per-unit module. */
 	UPROPERTY()
-	class UParticleModuleSpawnPerUnit* SpawnPerUnitModule;
+	TObjectPtr<class UParticleModuleSpawnPerUnit> SpawnPerUnitModule;
 
 	/** List of spawn modules that must be evaluated at runtime. */
 	UPROPERTY()
-	TArray<class UParticleModule*> SpawnModules;
+	TArray<TObjectPtr<class UParticleModule>> SpawnModules;
 
 	/** Local vector field info. */
 	UPROPERTY()

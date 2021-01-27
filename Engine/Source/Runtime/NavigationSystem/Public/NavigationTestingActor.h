@@ -47,16 +47,16 @@ class NAVIGATIONSYSTEM_API ANavigationTestingActor : public AActor, public INavA
 
 private:
 	UPROPERTY()
-	class UCapsuleComponent* CapsuleComponent;
+	TObjectPtr<class UCapsuleComponent> CapsuleComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** Editor Preview */
 	UPROPERTY()
-	class UNavTestRenderingComponent* EdRenderComp;
+	TObjectPtr<class UNavTestRenderingComponent> EdRenderComp;
 #endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY(EditAnywhere, Category = Navigation, meta=(EditCondition="bActAsNavigationInvoker"))
-	UNavigationInvokerComponent* InvokerComponent;
+	TObjectPtr<UNavigationInvokerComponent> InvokerComponent;
 
 	UPROPERTY(EditAnywhere, Category = Navigation, meta=(InlineEditConditionToggle))
 	uint32 bActAsNavigationInvoker : 1;
@@ -71,7 +71,7 @@ public:
 	FVector QueryingExtent;
 
 	UPROPERTY(transient)
-	ANavigationData* MyNavData;
+	TObjectPtr<ANavigationData> MyNavData;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=AgentStatus)
 	FVector ProjectedLocation;
@@ -153,7 +153,7 @@ public:
 	int32 PathfindingSteps;
 
 	UPROPERTY(EditAnywhere, Category=Pathfinding)
-	ANavigationTestingActor* OtherActor;
+	TObjectPtr<ANavigationTestingActor> OtherActor;
 
 	/** "None" will result in default filter being used */
 	UPROPERTY(EditAnywhere, Category=Pathfinding)

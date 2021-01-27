@@ -105,7 +105,7 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 
 	/** Cubemap to use for sky lighting if SourceType is set to SLS_SpecifiedCubemap. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light)
-	class UTextureCube* Cubemap;
+	TObjectPtr<class UTextureCube> Cubemap;
 
 	/** Angle to rotate the source cubemap when SourceType is set to SLS_SpecifiedCubemap. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "0", UIMax = "360"))
@@ -320,7 +320,7 @@ protected:
 	float BlendFraction;
 
 	UPROPERTY(transient)
-	class UTextureCube* BlendDestinationCubemap;
+	TObjectPtr<class UTextureCube> BlendDestinationCubemap;
 	TRefCountPtr<FSkyTextureCubeResource> BlendDestinationProcessedSkyTexture;
 	FSHVectorRGB3 BlendDestinationIrradianceEnvironmentMap;
 	float BlendDestinationAverageBrightness;

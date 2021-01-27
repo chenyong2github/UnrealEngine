@@ -207,15 +207,15 @@ public:
 
 	/** The blueprint associated with this context; may be NULL for non-Kismet related graphs. */
 	UPROPERTY()
-	const UBlueprint* Blueprint;
+	TObjectPtr<const UBlueprint> Blueprint;
 
 	/** The graph associated with this context. */
 	UPROPERTY()
-	const UEdGraph* Graph;
+	TObjectPtr<const UEdGraph> Graph;
 
 	/** The node associated with this context. */
 	UPROPERTY()
-	const UEdGraphNode* Node;
+	TObjectPtr<const UEdGraphNode> Node;
 
 	/** The pin associated with this context; may be NULL when over a node. */
 	const UEdGraphPin* Pin;
@@ -265,7 +265,7 @@ public:
 
 	/** List of connector pins */
 	UPROPERTY()
-	TArray<class UEdGraphPin_Deprecated*> DeprecatedPins;
+	TArray<TObjectPtr<class UEdGraphPin_Deprecated>> DeprecatedPins;
 
 	/** X position of node in the editor */
 	UPROPERTY()

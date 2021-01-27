@@ -111,7 +111,7 @@ public:
 
 	/** Properties that control brush size/etc*/
 	UPROPERTY()
-	UBrushBaseProperties* BrushProperties;
+	TObjectPtr<UBrushBaseProperties> BrushProperties;
 
 	/** Set to true by Tool if user is currently in an active brush stroke*/
 	UPROPERTY()
@@ -160,7 +160,7 @@ protected:
 protected:
 
 	UPROPERTY()
-	UBrushStampIndicator* BrushStampIndicator;
+	TObjectPtr<UBrushStampIndicator> BrushStampIndicator;
 
 	virtual void SetupBrushStampIndicator();
 	virtual void UpdateBrushStampIndicator();

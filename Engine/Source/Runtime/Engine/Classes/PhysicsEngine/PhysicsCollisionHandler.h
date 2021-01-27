@@ -28,7 +28,7 @@ class ENGINE_API UPhysicsCollisionHandler : public UObject
 
 	/** Sound to play  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Impact)
-	class USoundBase* DefaultImpactSound;
+	TObjectPtr<class USoundBase> DefaultImpactSound;
 
 	/** Time since last impact sound */
 	UPROPERTY()

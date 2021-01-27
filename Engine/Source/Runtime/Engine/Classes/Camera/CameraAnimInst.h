@@ -21,12 +21,12 @@ class ENGINE_API UCameraAnimInst : public UObject
 
 	/** which CameraAnim this is an instance of */
 	UPROPERTY()
-	class UCameraAnim* CamAnim;
+	TObjectPtr<class UCameraAnim> CamAnim;
 
 private:
 	/** the UInterpGroupInst used to do the interpolation */
 	UPROPERTY(instanced)
-	class UInterpGroupInst* InterpGroupInst;
+	TObjectPtr<class UInterpGroupInst> InterpGroupInst;
 
 public:
 	/** Current time for the animation */
@@ -85,10 +85,10 @@ protected:
 public:
 	/** cached movement track from the currently playing anim so we don't have to go find it every frame */
 	UPROPERTY(transient)
-	class UInterpTrackMove* MoveTrack;
+	TObjectPtr<class UInterpTrackMove> MoveTrack;
 
 	UPROPERTY(transient)
-	class UInterpTrackInstMove* MoveInst;
+	TObjectPtr<class UInterpTrackInstMove> MoveInst;
 
 	UPROPERTY()
 	ECameraShakePlaySpace PlaySpace;

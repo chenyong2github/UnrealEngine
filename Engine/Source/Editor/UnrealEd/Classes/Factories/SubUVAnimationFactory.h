@@ -18,7 +18,7 @@ class USubUVAnimationFactory : public UFactory
 
 	/** An initial texture to use */
 	UPROPERTY()
-	class UTexture2D* InitialTexture;
+	TObjectPtr<class UTexture2D> InitialTexture;
 
 	// UFactory interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;

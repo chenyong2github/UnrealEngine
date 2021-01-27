@@ -82,7 +82,7 @@ public:
 
 	/** The UAudioBus which is analyzed in real-time. */
 	UPROPERTY(Transient)
-	UAudioBus* AudioBus;
+	TObjectPtr<UAudioBus> AudioBus;
 
 	/** Starts analyzing audio from the given audio bus. Optionally override the audio bus desired to analyze. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioAnalyzer, meta = (WorldContext = "WorldContextObject"))
@@ -136,7 +136,7 @@ private:
 
 	// Audio analysis subsystem used with this audio analyzer
 	UPROPERTY(Transient)
-	UAudioAnalyzerSubsystem* AudioAnalyzerSubsystem;
+	TObjectPtr<UAudioAnalyzerSubsystem> AudioAnalyzerSubsystem;
 
 	// Output patch for retrieving audio from audio bus for analysis
 	Audio::FPatchOutputStrongPtr PatchOutputStrongPtr;

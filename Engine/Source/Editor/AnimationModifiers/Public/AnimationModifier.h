@@ -78,5 +78,5 @@ private:
 
 	/** Serialized version of the modifier that has been previously applied to the Animation Asset */
 	UPROPERTY()
-	UAnimationModifier* PreviouslyAppliedModifier;
+	TObjectPtr<UAnimationModifier> PreviouslyAppliedModifier;
 };

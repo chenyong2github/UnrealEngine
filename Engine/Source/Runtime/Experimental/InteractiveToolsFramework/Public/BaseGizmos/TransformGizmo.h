@@ -50,28 +50,28 @@ public:
 
 	/** X Axis Translation Component */
 	UPROPERTY()
-	UPrimitiveComponent* TranslateX;
+	TObjectPtr<UPrimitiveComponent> TranslateX;
 
 	/** Y Axis Translation Component */
 	UPROPERTY()
-	UPrimitiveComponent* TranslateY;
+	TObjectPtr<UPrimitiveComponent> TranslateY;
 
 	/** Z Axis Translation Component */
 	UPROPERTY()
-	UPrimitiveComponent* TranslateZ;
+	TObjectPtr<UPrimitiveComponent> TranslateZ;
 
 
 	/** YZ Plane Translation Component */
 	UPROPERTY()
-	UPrimitiveComponent* TranslateYZ;
+	TObjectPtr<UPrimitiveComponent> TranslateYZ;
 
 	/** XZ Plane Translation Component */
 	UPROPERTY()
-	UPrimitiveComponent* TranslateXZ;
+	TObjectPtr<UPrimitiveComponent> TranslateXZ;
 
 	/** XY Plane Translation Component */
 	UPROPERTY()
-	UPrimitiveComponent* TranslateXY;
+	TObjectPtr<UPrimitiveComponent> TranslateXY;
 
 	//
 	// Rotation Components
@@ -79,15 +79,15 @@ public:
 
 	/** X Axis Rotation Component */
 	UPROPERTY()
-	UPrimitiveComponent* RotateX;
+	TObjectPtr<UPrimitiveComponent> RotateX;
 
 	/** Y Axis Rotation Component */
 	UPROPERTY()
-	UPrimitiveComponent* RotateY;
+	TObjectPtr<UPrimitiveComponent> RotateY;
 
 	/** Z Axis Rotation Component */
 	UPROPERTY()
-	UPrimitiveComponent* RotateZ;
+	TObjectPtr<UPrimitiveComponent> RotateZ;
 
 	//
 	// Scaling Components
@@ -95,33 +95,33 @@ public:
 
 	/** Uniform Scale Component */
 	UPROPERTY()
-	UPrimitiveComponent* UniformScale;
+	TObjectPtr<UPrimitiveComponent> UniformScale;
 
 
 	/** X Axis Scale Component */
 	UPROPERTY()
-	UPrimitiveComponent* AxisScaleX;
+	TObjectPtr<UPrimitiveComponent> AxisScaleX;
 
 	/** Y Axis Scale Component */
 	UPROPERTY()
-	UPrimitiveComponent* AxisScaleY;
+	TObjectPtr<UPrimitiveComponent> AxisScaleY;
 
 	/** Z Axis Scale Component */
 	UPROPERTY()
-	UPrimitiveComponent* AxisScaleZ;
+	TObjectPtr<UPrimitiveComponent> AxisScaleZ;
 
 
 	/** YZ Plane Scale Component */
 	UPROPERTY()
-	UPrimitiveComponent* PlaneScaleYZ;
+	TObjectPtr<UPrimitiveComponent> PlaneScaleYZ;
 
 	/** XZ Plane Scale Component */
 	UPROPERTY()
-	UPrimitiveComponent* PlaneScaleXZ;
+	TObjectPtr<UPrimitiveComponent> PlaneScaleXZ;
 
 	/** XY Plane Scale Component */
 	UPROPERTY()
-	UPrimitiveComponent* PlaneScaleXY;
+	TObjectPtr<UPrimitiveComponent> PlaneScaleXY;
 
 
 
@@ -298,7 +298,7 @@ public:
 
 	/** The active target object for the Gizmo */
 	UPROPERTY()
-	UTransformProxy* ActiveTarget;
+	TObjectPtr<UTransformProxy> ActiveTarget;
 
 	/**
 	 * @return the internal GizmoActor used by the Gizmo
@@ -386,7 +386,7 @@ protected:
 
 	/** List of current-active child components */
 	UPROPERTY()
-	TArray<UPrimitiveComponent*> ActiveComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> ActiveComponents;
 
 	/** 
 	 * List of nonuniform scale components. Subset of of ActiveComponents. These are tracked separately so they can
@@ -394,11 +394,11 @@ protected:
 	 * on Components
 	 */
 	UPROPERTY()
-	TArray<UPrimitiveComponent*> NonuniformScaleComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> NonuniformScaleComponents;
 
 	/** list of currently-active child gizmos */
 	UPROPERTY()
-	TArray<UInteractiveGizmo*> ActiveGizmos;
+	TArray<TObjectPtr<UInteractiveGizmo>> ActiveGizmos;
 
 	/** GizmoActors will be spawned in this World */
 	UWorld* World;
@@ -413,7 +413,7 @@ protected:
 
 	/** Axis that points towards camera, X/Y plane tangents aligned to right/up. Shared across Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoConstantFrameAxisSource* CameraAxisSource;
+	TObjectPtr<UGizmoConstantFrameAxisSource> CameraAxisSource;
 
 	// internal function that updates CameraAxisSource by getting current view state from GizmoManager
 	void UpdateCameraAxisSource();
@@ -421,15 +421,15 @@ protected:
 
 	/** X-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoComponentAxisSource* AxisXSource;
+	TObjectPtr<UGizmoComponentAxisSource> AxisXSource;
 
 	/** Y-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoComponentAxisSource* AxisYSource;
+	TObjectPtr<UGizmoComponentAxisSource> AxisYSource;
 
 	/** Z-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoComponentAxisSource* AxisZSource;
+	TObjectPtr<UGizmoComponentAxisSource> AxisZSource;
 
 	//
 	// Scaling support. 
@@ -438,15 +438,15 @@ protected:
 
 	/** Local X-axis source (ie 1,0,0) is shared across Scale Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoComponentAxisSource* UnitAxisXSource;
+	TObjectPtr<UGizmoComponentAxisSource> UnitAxisXSource;
 
 	/** Y-axis source (ie 0,1,0) is shared across Scale Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoComponentAxisSource* UnitAxisYSource;
+	TObjectPtr<UGizmoComponentAxisSource> UnitAxisYSource;
 
 	/** Z-axis source (ie 0,0,1) is shared across Scale Gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
-	UGizmoComponentAxisSource* UnitAxisZSource;
+	TObjectPtr<UGizmoComponentAxisSource> UnitAxisZSource;
 
 
 	//
@@ -460,7 +460,7 @@ protected:
 	 * itself (IToolCommandChangeSource implementation above is called)
 	 */
 	UPROPERTY()
-	UGizmoTransformChangeStateTarget* StateTarget;
+	TObjectPtr<UGizmoTransformChangeStateTarget> StateTarget;
 
 	/**
 	 * These are used to let the translation subgizmos use raycasts into the scene to align the gizmo with scene geometry.

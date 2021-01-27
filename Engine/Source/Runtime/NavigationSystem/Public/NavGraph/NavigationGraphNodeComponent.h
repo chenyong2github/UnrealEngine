@@ -17,10 +17,10 @@ class UNavigationGraphNodeComponent : public USceneComponent
 	FNavGraphNode Node;
 
 	UPROPERTY()
-	UNavigationGraphNodeComponent* NextNodeComponent;
+	TObjectPtr<UNavigationGraphNodeComponent> NextNodeComponent;
 
 	UPROPERTY()
-	UNavigationGraphNodeComponent* PrevNodeComponent;
+	TObjectPtr<UNavigationGraphNodeComponent> PrevNodeComponent;
 
 	//~ Begin UObject Interface.
 	virtual void BeginDestroy() override;

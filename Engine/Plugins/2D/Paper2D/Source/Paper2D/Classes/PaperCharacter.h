@@ -20,7 +20,7 @@ class PAPER2D_API APaperCharacter : public ACharacter
 private:
 	/** The main skeletal mesh associated with this Character (optional sub-object). */
 	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UPaperFlipbookComponent* Sprite;
+	TObjectPtr<class UPaperFlipbookComponent> Sprite;
 public:
 
 	virtual void PostInitializeComponents() override;

@@ -23,7 +23,7 @@ public:
 
 	/** Pointer to the player that's playing back this director's sequence */
 	UPROPERTY(BlueprintReadOnly, Category="Cinematics")
-	ULevelSequencePlayer* Player;
+	TObjectPtr<ULevelSequencePlayer> Player;
 };
 
 

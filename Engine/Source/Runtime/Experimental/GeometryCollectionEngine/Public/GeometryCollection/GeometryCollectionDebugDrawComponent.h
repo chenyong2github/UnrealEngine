@@ -38,11 +38,11 @@ public:
 
 	/** Singleton actor, containing the debug draw properties. Automatically populated at play time unless explicitly set. */
 	UPROPERTY(EditAnywhere, Category = "Debug Draw", AdvancedDisplay)
-	AGeometryCollectionDebugDrawActor* GeometryCollectionDebugDrawActor;
+	TObjectPtr<AGeometryCollectionDebugDrawActor> GeometryCollectionDebugDrawActor;
 
 	/** Level Set singleton actor, containing the Render properties. Automatically populated at play time unless explicitly set. */
 	UPROPERTY(EditAnywhere, Category = "Debug Draw", AdvancedDisplay)
-	AGeometryCollectionRenderLevelSetActor* GeometryCollectionRenderLevelSetActor;
+	TObjectPtr<AGeometryCollectionRenderLevelSetActor> GeometryCollectionRenderLevelSetActor;
 
 	UGeometryCollectionComponent* GeometryCollectionComponent;  // the component we are debug rendering for, set by the GeometryCollectionActor after creation
 

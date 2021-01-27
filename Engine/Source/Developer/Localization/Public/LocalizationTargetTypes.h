@@ -496,7 +496,7 @@ class LOCALIZATION_API ULocalizationTargetSet : public UObject
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Targets")
-	TArray<ULocalizationTarget*> TargetObjects;
+	TArray<TObjectPtr<ULocalizationTarget>> TargetObjects;
 
 public:
 #if WITH_EDITOR

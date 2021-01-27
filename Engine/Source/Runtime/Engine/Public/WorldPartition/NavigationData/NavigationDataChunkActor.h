@@ -47,7 +47,7 @@ protected:
 	void Log(const TCHAR* FunctionName) const;
 
 	UPROPERTY()
-	TArray<UNavigationDataChunk*> NavDataChunks;
+	TArray<TObjectPtr<UNavigationDataChunk>> NavDataChunks;
 
 	UPROPERTY()
 	FBox DataChunkActorBounds;

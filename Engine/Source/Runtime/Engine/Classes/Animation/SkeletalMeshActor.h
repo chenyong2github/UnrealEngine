@@ -35,23 +35,23 @@ class ENGINE_API ASkeletalMeshActor : public AActor, public IMatineeAnimInterfac
 
 private:
 	UPROPERTY(Category = SkeletalMeshActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Components|SkeletalMesh,Animation,Physics", AllowPrivateAccess = "true"))
-	class USkeletalMeshComponent* SkeletalMeshComponent;
+	TObjectPtr<class USkeletalMeshComponent> SkeletalMeshComponent;
 public:
 
 	/** Used to replicate mesh to clients */
 	UPROPERTY(replicatedUsing=OnRep_ReplicatedMesh, transient)
-	class USkeletalMesh* ReplicatedMesh;
+	TObjectPtr<class USkeletalMesh> ReplicatedMesh;
 
 	/** Used to replicate physics asset to clients */
 	UPROPERTY(replicatedUsing=OnRep_ReplicatedPhysAsset, transient)
-	class UPhysicsAsset* ReplicatedPhysAsset;
+	TObjectPtr<class UPhysicsAsset> ReplicatedPhysAsset;
 
 	/** used to replicate the material in index 0 */
 	UPROPERTY(replicatedUsing=OnRep_ReplicatedMaterial0)
-	class UMaterialInterface* ReplicatedMaterial0;
+	TObjectPtr<class UMaterialInterface> ReplicatedMaterial0;
 
 	UPROPERTY(replicatedUsing=OnRep_ReplicatedMaterial1)
-	class UMaterialInterface* ReplicatedMaterial1;
+	TObjectPtr<class UMaterialInterface> ReplicatedMaterial1;
 
 	/** Replication Notification Callbacks */
 	UFUNCTION()

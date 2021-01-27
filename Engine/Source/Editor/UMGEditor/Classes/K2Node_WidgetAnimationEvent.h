@@ -36,7 +36,7 @@ public:
 	FName UserTag;
 
 	UPROPERTY()
-	const UWidgetBlueprint* SourceWidgetBlueprint;
+	TObjectPtr<const UWidgetBlueprint> SourceWidgetBlueprint;
 
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 

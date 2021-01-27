@@ -617,7 +617,7 @@ protected:
 
 	/** The sequence to play back */
 	UPROPERTY(transient)
-	UMovieSceneSequence* Sequence;
+	TObjectPtr<UMovieSceneSequence> Sequence;
 
 	/** Time (in playback frames) at which to start playing the sequence (defaults to the lower bound of the sequence's play range) */
 	UPROPERTY(replicated)
@@ -657,7 +657,7 @@ protected:
 
 	/** Global tick manager, held here to keep it alive while world sequences are in play */
 	UPROPERTY(transient)
-	UMovieSceneSequenceTickManager* TickManager;
+	TObjectPtr<UMovieSceneSequenceTickManager> TickManager;
 
 	/** Local latent action manager for when we're running a blocking sequence */
 	FMovieSceneLatentActionManager LatentActionManager;

@@ -15,5 +15,5 @@ class CABLECOMPONENT_API ACableActor : public AActor
 
 	/** Cable component that performs simulation and rendering */
 	UPROPERTY(Category=Cable, VisibleAnywhere, BlueprintReadOnly)
-	class UCableComponent* CableComponent;
+	TObjectPtr<class UCableComponent> CableComponent;
 };

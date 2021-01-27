@@ -22,7 +22,7 @@ class AIMODULE_API UBTTask_PlayAnimation : public UBTTaskNode
 
 	/** Animation asset to play. Note that it needs to match the skeleton of pawn this BT is controlling */
 	UPROPERTY(Category = Node, EditAnywhere)
-	UAnimationAsset* AnimationToPlay;
+	TObjectPtr<UAnimationAsset> AnimationToPlay;
 	
 	UPROPERTY(Category = Node, EditAnywhere)
 	uint32 bLooping : 1; 
@@ -32,10 +32,10 @@ class AIMODULE_API UBTTask_PlayAnimation : public UBTTaskNode
 	uint32 bNonBlocking : 1;
 
 	UPROPERTY()
-	UBehaviorTreeComponent* MyOwnerComp;
+	TObjectPtr<UBehaviorTreeComponent> MyOwnerComp;
 
 	UPROPERTY()
-	USkeletalMeshComponent* CachedSkelMesh;
+	TObjectPtr<USkeletalMeshComponent> CachedSkelMesh;
 
 	EAnimationMode::Type PreviousAnimationMode;
 

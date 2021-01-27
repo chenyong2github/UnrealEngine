@@ -19,7 +19,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseHandler : public FAnimNode_AssetPlayer
 public:
 	// The animation sequence asset to evaluate
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	UPoseAsset* PoseAsset;
+	TObjectPtr<UPoseAsset> PoseAsset;
 
 public:	
 	FAnimNode_PoseHandler()

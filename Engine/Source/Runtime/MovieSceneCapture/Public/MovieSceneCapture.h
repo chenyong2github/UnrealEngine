@@ -89,10 +89,10 @@ public:
 
 	/** Capture protocol responsible for actually capturing frame data */
 	UPROPERTY(VisibleAnywhere, Category=CaptureSettings, Transient, Instanced)
-	UMovieSceneImageCaptureProtocolBase* ImageCaptureProtocol;
+	TObjectPtr<UMovieSceneImageCaptureProtocolBase> ImageCaptureProtocol;
 	
 	UPROPERTY(VisibleAnywhere, Category = CaptureSettings, Transient, Instanced)
-	UMovieSceneAudioCaptureProtocolBase* AudioCaptureProtocol;
+	TObjectPtr<UMovieSceneAudioCaptureProtocolBase> AudioCaptureProtocol;
 
 	/** Settings that define how to capture */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=CaptureSettings, meta=(ShowOnlyInnerProperties))

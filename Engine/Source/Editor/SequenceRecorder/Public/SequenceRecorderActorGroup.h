@@ -41,7 +41,7 @@ public:
 
 	/** The level sequence to record into */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Recording Groups", meta=(EditCondition = "bSpecifyTargetLevelSequence"))
-	class ULevelSequence* TargetLevelSequence;
+	TObjectPtr<class ULevelSequence> TargetLevelSequence;
 
 	/** Whether we should duplicate the target level sequence and record into the duplicate */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Recording Groups", meta=(EditCondition = "bSpecifyTargetLevelSequence"))
@@ -53,7 +53,7 @@ public:
 
 	/** A list of actor recordings in this group which contains both the actors to record as well as settings for each one. */
 	UPROPERTY(VisibleAnywhere, Category = "Recording Groups")
-	TArray<UActorRecording*> RecordedActors;
+	TArray<TObjectPtr<UActorRecording>> RecordedActors;
 
 	void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 };
@@ -95,5 +95,5 @@ public:
 public:
 
 	UPROPERTY()
-	TArray<USequenceRecorderActorGroup*> ActorGroups;
+	TArray<TObjectPtr<USequenceRecorderActorGroup>> ActorGroups;
 };

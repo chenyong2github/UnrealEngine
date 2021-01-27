@@ -57,7 +57,7 @@ public:
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Function")
-	UNiagaraScript* FunctionScript;
+	TObjectPtr<UNiagaraScript> FunctionScript;
 
 	/** 
 	 * A path to a script asset which can be used to assign the function script the first time that
@@ -166,7 +166,7 @@ protected:
 	FString FunctionDisplayName;
 
 	UPROPERTY(meta = (SkipForCompileHash="true"))
-	TMap<FGuid, UNiagaraMessageData*> MessageKeyToMessageMap;
+	TMap<FGuid, TObjectPtr<UNiagaraMessageData>> MessageKeyToMessageMap;
 
 	FOnInputsChanged OnInputsChangedDelegate;
 };

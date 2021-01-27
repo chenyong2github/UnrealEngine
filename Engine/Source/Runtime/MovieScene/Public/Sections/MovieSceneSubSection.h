@@ -197,7 +197,7 @@ protected:
 	 * @todo Sequencer: Should this be lazy loaded?
 	 */
 	UPROPERTY(EditAnywhere, Category="Sequence")
-	UMovieSceneSequence* SubSequence;
+	TObjectPtr<UMovieSceneSequence> SubSequence;
 
 	/** Target actor to record */
 	UPROPERTY(EditAnywhere, Category="Sequence Recording")

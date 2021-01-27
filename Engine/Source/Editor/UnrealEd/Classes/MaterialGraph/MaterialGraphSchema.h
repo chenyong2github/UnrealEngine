@@ -18,7 +18,7 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewNode : public FEdGraphSchemaAc
 
 	/** Class of expression we want to create */
 	UPROPERTY()
-	class UClass* MaterialExpressionClass;
+	TObjectPtr<class UClass> MaterialExpressionClass;
 
 	// Simple type info
 	static FName StaticGetTypeId() {static FName Type("FMaterialGraphSchemaAction_NewNode"); return Type;}
@@ -130,7 +130,7 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewNamedRerouteUsage : public FEd
 
 	// Declaration that we want to add an usage of
 	UPROPERTY()
-	class UMaterialExpressionNamedRerouteDeclaration* Declaration = nullptr;
+	TObjectPtr<class UMaterialExpressionNamedRerouteDeclaration> Declaration = nullptr;
 
 	// Simple type info
 	static FName StaticGetTypeId() {static FName Type("FMaterialGraphSchemaAction_NewNamedRerouteUsage"); return Type;}

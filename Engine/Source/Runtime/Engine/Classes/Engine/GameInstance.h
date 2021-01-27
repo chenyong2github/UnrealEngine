@@ -169,15 +169,15 @@ protected:
 
 	/** List of locally participating players in this game instance */
 	UPROPERTY()
-	TArray<ULocalPlayer*> LocalPlayers;
+	TArray<TObjectPtr<ULocalPlayer>> LocalPlayers;
 	
 	/** Class to manage online services */
 	UPROPERTY()
-	class UOnlineSession* OnlineSession;
+	TObjectPtr<class UOnlineSession> OnlineSession;
 
 	/** List of objects that are being kept alive by this game instance. Stored as array for fast iteration, should not be modified every frame */
 	UPROPERTY()
-	TArray<UObject*> ReferencedObjects;
+	TArray<TObjectPtr<UObject>> ReferencedObjects;
 
 	/** Listeners to PreClientTravel call */
 	FOnPreClientTravel NotifyPreClientTravelDelegates;

@@ -36,14 +36,14 @@ public:
 
 	/** Physical Properties */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics")
-	const UChaosPhysicalMaterial* PhysicalMaterial;
+	TObjectPtr<const UChaosPhysicalMaterial> PhysicalMaterial;
 
 	/** Chaos RBD Solver */
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics", meta = (DisplayName = "Chaos Solver"))
-	AChaosSolverActor* ChaosSolverActor;
+	TObjectPtr<AChaosSolverActor> ChaosSolverActor;
 
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics")
-	UPhysicsAsset* OverridePhysicsAsset;
+	TObjectPtr<UPhysicsAsset> OverridePhysicsAsset;
 
 	//
 	// ChaosPhysics | General

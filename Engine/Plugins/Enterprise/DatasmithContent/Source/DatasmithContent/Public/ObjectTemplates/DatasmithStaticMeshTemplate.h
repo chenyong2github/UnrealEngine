@@ -70,7 +70,7 @@ public:
 	FName MaterialSlotName;
 
 	UPROPERTY()
-	class UMaterialInterface* MaterialInterface;
+	TObjectPtr<class UMaterialInterface> MaterialInterface;
 
 	void Apply( FStaticMaterial* Destination, FDatasmithStaticMaterialTemplate* PreviousTemplate );
 	void Load( const FStaticMaterial& Source );

@@ -18,10 +18,10 @@ struct FMovieSceneTrackInstanceEntry
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UObject* BoundObject = nullptr;
+	TObjectPtr<UObject> BoundObject = nullptr;
 
 	UPROPERTY()
-	UMovieSceneTrackInstance* TrackInstance = nullptr;
+	TObjectPtr<UMovieSceneTrackInstance> TrackInstance = nullptr;
 };
 
 
@@ -77,7 +77,7 @@ private:
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 
 	UPROPERTY()
-	UMovieSceneTrackInstanceInstantiator* Instantiator;
+	TObjectPtr<UMovieSceneTrackInstanceInstantiator> Instantiator;
 };
 
 

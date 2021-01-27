@@ -83,7 +83,7 @@ protected:
 	/** Tasks that run on simulated proxies */
 	UE_DEPRECATED(4.26, "This will be made private in future versions. Use GetSimulatedTasks, GetSimulatedTasks_Mutable, or SetSimulatedTasks instead.")
 	UPROPERTY(ReplicatedUsing = OnRep_SimulatedTasks)
-	TArray<UGameplayTask*> SimulatedTasks;
+	TArray<TObjectPtr<UGameplayTask>> SimulatedTasks;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const TArray<UGameplayTask*>& GetSimulatedTasks()
@@ -96,7 +96,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	void SetSimulatedTasks(const TArray<UGameplayTask*>& NewSimulatedTasks);
 
 	UPROPERTY()
-	TArray<UGameplayTask*> TaskPriorityQueue;
+	TArray<TObjectPtr<UGameplayTask>> TaskPriorityQueue;
 	
 	/** Transient array of events whose main role is to avoid
 	 *	long chain of recurrent calls if an activated/paused/removed task 
@@ -106,11 +106,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Array of currently active UGameplayTask that require ticking */
 	UPROPERTY()
-	TArray<UGameplayTask*> TickingTasks;
+	TArray<TObjectPtr<UGameplayTask>> TickingTasks;
 
 	/** All known tasks (processed by this component) referenced for GC */
 	UPROPERTY(transient)
-	TArray<UGameplayTask*> KnownTasks;
+	TArray<TObjectPtr<UGameplayTask>> KnownTasks;
 
 public:
 	UPROPERTY(BlueprintReadWrite, Category = "Gameplay Tasks")

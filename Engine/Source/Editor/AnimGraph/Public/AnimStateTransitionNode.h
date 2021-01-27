@@ -23,11 +23,11 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 
 	// The transition logic graph for this transition (returning a boolean)
 	UPROPERTY()
-	class UEdGraph* BoundGraph;
+	TObjectPtr<class UEdGraph> BoundGraph;
 
 	// The animation graph for this transition if it uses custom blending (returning a pose)
 	UPROPERTY()
-	class UEdGraph* CustomTransitionGraph;
+	TObjectPtr<class UEdGraph> CustomTransitionGraph;
 
 	// The priority order of this transition. If multiple transitions out of a state go
 	// true at the same time, the one with the smallest priority order will take precedent
@@ -46,11 +46,11 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	EAlphaBlendOption BlendMode;
 
 	UPROPERTY(EditAnywhere, Category=Transition)
-	UCurveFloat* CustomBlendCurve;
+	TObjectPtr<UCurveFloat> CustomBlendCurve;
 
 	// The blend profile to use to evaluate this transition per-bone
 	UPROPERTY(EditAnywhere, Category=Transition, meta=(UseAsBlendProfile=true))
-	UBlendProfile* BlendProfile;
+	TObjectPtr<UBlendProfile> BlendProfile;
 
 	// Try setting the rule automatically based on most relevant player node's remaining time and the CrossfadeDuration of the transition, ignoring the internal time
 	UPROPERTY(EditAnywhere, Category=Transition)

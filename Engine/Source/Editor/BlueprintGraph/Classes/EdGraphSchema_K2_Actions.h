@@ -41,7 +41,7 @@ struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2NewNode : public FEdGraphSchema
 
 	/** Template of node we want to create */
 	UPROPERTY()
-	class UK2Node* NodeTemplate;
+	TObjectPtr<class UK2Node> NodeTemplate;
 
 	UPROPERTY()
 	bool bGotoNode;
@@ -120,7 +120,7 @@ struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2ViewNode : public FEdGraphSchem
 
 	/** node we want to view */
 	UPROPERTY()
-	const UK2Node* NodePtr;
+	TObjectPtr<const UK2Node> NodePtr;
 
 	FEdGraphSchemaAction_K2ViewNode() 
 		: FEdGraphSchemaAction()
@@ -181,7 +181,7 @@ struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_EventFromFunction : public FEdGra
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
 
 	UPROPERTY()
-	class UFunction* SignatureFunction;
+	TObjectPtr<class UFunction> SignatureFunction;
 
 	FEdGraphSchemaAction_EventFromFunction() 
 		:FEdGraphSchemaAction()
@@ -220,7 +220,7 @@ struct FEdGraphSchemaAction_K2AddComponent : public FEdGraphSchemaAction_K2NewNo
 
 	/** Option asset to assign to newly created component */
 	UPROPERTY()
-	class UObject* ComponentAsset;
+	TObjectPtr<class UObject> ComponentAsset;
 
 	FEdGraphSchemaAction_K2AddComponent()
 		: FEdGraphSchemaAction_K2NewNode()
@@ -313,7 +313,7 @@ struct FEdGraphSchemaAction_K2AddCallOnActor : public FEdGraphSchemaAction_K2New
 
 	/** Pointer to actors in level we want to call function on */
 	UPROPERTY()
-	TArray<class AActor*> LevelActors;
+	TArray<TObjectPtr<class AActor>> LevelActors;
 
 	FEdGraphSchemaAction_K2AddCallOnActor()
 		: FEdGraphSchemaAction_K2NewNode()

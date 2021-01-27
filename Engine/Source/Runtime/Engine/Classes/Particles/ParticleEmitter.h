@@ -184,7 +184,7 @@ class UParticleEmitter : public UObject
 	//	'Private' data - not required by the editor
 	//~=============================================================================
 	UPROPERTY(instanced)
-	TArray<class UParticleLODLevel*> LODLevels;
+	TArray<TObjectPtr<class UParticleLODLevel>> LODLevels;
 
 	UPROPERTY()
 	int32 PeakActiveParticles;

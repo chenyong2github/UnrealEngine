@@ -50,17 +50,17 @@ struct FLandscapeInfoLayerSettings
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	ULandscapeLayerInfoObject* LayerInfoObj;
+	TObjectPtr<ULandscapeLayerInfoObject> LayerInfoObj;
 
 	UPROPERTY()
 	FName LayerName;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
-	UMaterialInstanceConstant* ThumbnailMIC;
+	TObjectPtr<UMaterialInstanceConstant> ThumbnailMIC;
 
 	UPROPERTY()
-	ALandscapeProxy* Owner;
+	TObjectPtr<ALandscapeProxy> Owner;
 
 	UPROPERTY(transient)
 	int32 DebugColorChannel;
@@ -143,7 +143,7 @@ public:
 #endif
 
 	UPROPERTY()
-	TArray<ALandscapeStreamingProxy*> Proxies;
+	TArray<TObjectPtr<ALandscapeStreamingProxy>> Proxies;
 
 private:
 #if WITH_EDITORONLY_DATA

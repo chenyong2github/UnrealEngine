@@ -45,11 +45,11 @@ private:
 
 	/** Our avatar's head mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* HeadMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> HeadMeshComponent;
 
 	/** The grid that appears while the user is dragging the world around */
 	UPROPERTY()
-	class UStaticMeshComponent* WorldMovementGridMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> WorldMovementGridMeshComponent;
 
 	//
 	// World movement grid & FX
@@ -57,7 +57,7 @@ private:
 
 	/** Grid mesh component dynamic material instance to set the opacity */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* WorldMovementGridMID;
+	TObjectPtr<class UMaterialInstanceDynamic> WorldMovementGridMID;
 
 	/** Opacity of the movement grid and post process */
 	UPROPERTY()
@@ -69,7 +69,7 @@ private:
 
 	/** Post process material for "greying out" the world while in world movement mode */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* WorldMovementPostProcessMaterial;
+	TObjectPtr<class UMaterialInstanceDynamic> WorldMovementPostProcessMaterial;
 
 	//
 	// World scaling progress bar
@@ -77,31 +77,31 @@ private:
 
 	/** Background progressbar scaling mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* ScaleProgressMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> ScaleProgressMeshComponent;
 
 	/** Current scale progressbar mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* CurrentScaleProgressMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> CurrentScaleProgressMeshComponent;
 
 	/** Current scale text */
 	UPROPERTY()
-	class UTextRenderComponent* UserScaleIndicatorText;
+	TObjectPtr<class UTextRenderComponent> UserScaleIndicatorText;
 
 	/** Base dynamic material for the user scale fixed progressbar */
 	UPROPERTY()
-	UMaterialInstanceDynamic* FixedUserScaleMID;
+	TObjectPtr<UMaterialInstanceDynamic> FixedUserScaleMID;
 
 	/** Translucent dynamic material for the user scale fixed progressbar */
 	UPROPERTY()
-	UMaterialInstanceDynamic* TranslucentFixedUserScaleMID;
+	TObjectPtr<UMaterialInstanceDynamic> TranslucentFixedUserScaleMID;
 	
 	/** Base dynamic material for the current user scale progressbar */
 	UPROPERTY()
-	UMaterialInstanceDynamic* CurrentUserScaleMID;
+	TObjectPtr<UMaterialInstanceDynamic> CurrentUserScaleMID;
 
 	/** Translucent dynamic material for the current user scale progressbar */
 	UPROPERTY()
-	UMaterialInstanceDynamic* TranslucentCurrentUserScaleMID;
+	TObjectPtr<UMaterialInstanceDynamic> TranslucentCurrentUserScaleMID;
 
 	//
 	// Post process
@@ -109,9 +109,9 @@ private:
 
 	/** Post process for drawing VR-specific post effects */
 	UPROPERTY()
-	class UPostProcessComponent* PostProcessComponent;
+	TObjectPtr<class UPostProcessComponent> PostProcessComponent;
 
 	/** Owning object */
 	UPROPERTY()
-	class UVREditorMode* VRMode;
+	TObjectPtr<class UVREditorMode> VRMode;
 };

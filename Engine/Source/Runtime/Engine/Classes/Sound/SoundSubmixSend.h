@@ -110,7 +110,7 @@ struct ENGINE_API FSoundSubmixSendInfo
 
 	// The submix to send the audio to
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixSend)
-	USoundSubmixBase* SoundSubmix;
+	TObjectPtr<USoundSubmixBase> SoundSubmix;
 
 	// The amount of audio to send
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixSend)

@@ -21,7 +21,7 @@ class USkeletonFactory : public UFactory
 
 	// The skeletal mesh with which to initialize this skeleton.
 	UPROPERTY()
-	class USkeletalMesh* TargetSkeletalMesh;
+	TObjectPtr<class USkeletalMesh> TargetSkeletalMesh;
 
 	//~ Begin UFactory Interface
 	virtual bool ConfigureProperties() override;

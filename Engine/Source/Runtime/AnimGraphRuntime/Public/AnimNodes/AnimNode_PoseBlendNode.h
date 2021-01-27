@@ -25,7 +25,7 @@ public:
 
 	/** If you're using Custom BlendOption, you can specify curve */
 	UPROPERTY(EditAnywhere, Category = "Blend")
-	UCurveFloat* CustomCurve;
+	TObjectPtr<UCurveFloat> CustomCurve;
 
 public:	
 	FAnimNode_PoseBlendNode();

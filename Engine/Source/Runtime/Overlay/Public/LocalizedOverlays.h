@@ -29,7 +29,7 @@ public:
 
 	/** The overlays to use if no overlays are found for the current culture */
 	UPROPERTY(EditAnywhere, Category="Overlay Data")
-	UBasicOverlays* DefaultOverlays;
+	TObjectPtr<UBasicOverlays> DefaultOverlays;
 
 	/**
 	 * Maps a set of cultures to specific BasicOverlays assets.
@@ -39,13 +39,13 @@ public:
 	 *		An optional two-letter ISO 3166-1 country code  (e.g., "CN")
 	 */
 	UPROPERTY(EditAnywhere, Category="Overlay Data")
-	TMap<FString, UBasicOverlays*> LocaleToOverlaysMap;
+	TMap<FString, TObjectPtr<UBasicOverlays>> LocaleToOverlaysMap;
 
 #if WITH_EDITORONLY_DATA
 
 	/** The import data used to make this overlays asset */
 	UPROPERTY(VisibleAnywhere, Instanced, Category="Import Settings")
-	UAssetImportData* AssetImportData;
+	TObjectPtr<UAssetImportData> AssetImportData;
 
 #endif	// WITH_EDITORONLY_DATA
 

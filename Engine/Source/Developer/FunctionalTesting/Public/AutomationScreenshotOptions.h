@@ -152,7 +152,7 @@ public:
 	 * screenshot.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screenshot")
-	UAutomationViewSettings* ViewSettings;
+	TObjectPtr<UAutomationViewSettings> ViewSettings;
 
 	/**
 	 * Allows you to screenshot a buffer other than the default final lit scene image.  Useful if you're

@@ -282,11 +282,11 @@ public:
 
 	/** The bone compression settings used to compress bones in this sequence. */
 	UPROPERTY(Category = Compression, EditAnywhere, meta = (ForceShowEngineContent))
-	class UAnimBoneCompressionSettings* BoneCompressionSettings;
+	TObjectPtr<class UAnimBoneCompressionSettings> BoneCompressionSettings;
 
 	/** The curve compression settings used to compress curves in this sequence. */
 	UPROPERTY(Category = Compression, EditAnywhere, meta = (ForceShowEngineContent))
-	class UAnimCurveCompressionSettings* CurveCompressionSettings;
+	TObjectPtr<class UAnimCurveCompressionSettings> CurveCompressionSettings;
 
 	FCompressedAnimSequence CompressedData;
 
@@ -311,7 +311,7 @@ public:
 
 	/* Additive reference animation if it's relevant - i.e. AnimScaled or AnimFrame **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings, meta=(DisplayName = "Base Pose Animation"))
-	class UAnimSequence* RefPoseSeq;
+	TObjectPtr<class UAnimSequence> RefPoseSeq;
 
 	/* Additve reference frame if RefPoseType == AnimFrame **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings)
@@ -369,7 +369,7 @@ public:
 
 	/** Importing data and options used for this mesh */
 	UPROPERTY(VisibleAnywhere, Instanced, Category=ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 	/***  for Reimport **/
 	/** Path to the resource used to construct this skeletal mesh */

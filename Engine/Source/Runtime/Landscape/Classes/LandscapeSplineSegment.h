@@ -99,7 +99,7 @@ struct FLandscapeSplineSegmentConnection
 
 	// Control point connected to this end of the segment
 	UPROPERTY()
-	ULandscapeSplineControlPoint* ControlPoint;
+	TObjectPtr<ULandscapeSplineControlPoint> ControlPoint;
 
 	// Tangent length of the connection
 	UPROPERTY(EditAnywhere, Category=LandscapeSplineSegmentConnection)
@@ -133,11 +133,11 @@ struct FLandscapeSplineMeshEntry
 
 	/** Mesh to use on the spline */
 	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshEntry)
-	UStaticMesh* Mesh;
+	TObjectPtr<UStaticMesh> Mesh;
 
 	/** Overrides mesh's materials */
 	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshEntry, AdvancedDisplay)
-	TArray<UMaterialInterface*> MaterialOverrides;
+	TArray<TObjectPtr<UMaterialInterface>> MaterialOverrides;
 
 	/** Whether to automatically center the mesh horizontally on the spline */
 	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshEntry, meta=(DisplayName="Center Horizontally"))
@@ -273,7 +273,7 @@ class ULandscapeSplineSegment : public UObject
 	 * The material also needs to be set up to output to a virtual texture. 
 	 */
 	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
-	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
 	/** Lod bias for rendering to runtime virtual texture. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", UIMin = "-7", UIMax = "8"))
@@ -323,7 +323,7 @@ protected:
 
 	/** Spline meshes */
 	UPROPERTY(TextExportTransient)
-	TArray<USplineMeshComponent*> LocalMeshComponents;
+	TArray<TObjectPtr<USplineMeshComponent>> LocalMeshComponents;
 
 #if WITH_EDITORONLY_DATA
 	/** World references for mesh components stored in other streaming levels */

@@ -139,10 +139,10 @@ private:
 	}
 
 	UPROPERTY(Transient)
-	TArray<UUserWidget*> ActiveWidgets;
+	TArray<TObjectPtr<UUserWidget>> ActiveWidgets;
 	
 	UPROPERTY(Transient)
-	TArray<UUserWidget*> InactiveWidgets;
+	TArray<TObjectPtr<UUserWidget>> InactiveWidgets;
 
 	TWeakObjectPtr<UWidget> OwningWidget;
 	TWeakObjectPtr<UWorld> OwningWorld;

@@ -23,7 +23,7 @@ public:
 
 	/** The material parameter collection to manipulate */
 	UPROPERTY(EditAnywhere, Category=General, DisplayName="Material Parameter Collection")
-	UMaterialParameterCollection* MPC;
+	TObjectPtr<UMaterialParameterCollection> MPC;
 
 	UMovieSceneMaterialParameterCollectionTrack(const FObjectInitializer& ObjectInitializer);
 

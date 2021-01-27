@@ -20,11 +20,11 @@ class UBlendSpaceFactory1D : public UFactory
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class USkeleton*	TargetSkeleton;
+	TObjectPtr<class USkeleton>	TargetSkeleton;
 
 	/** The preview mesh to use with this animation */
 	UPROPERTY()
-	class USkeletalMesh* PreviewSkeletalMesh;
+	TObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
 
 	//~ Begin UFactory Interface
 	virtual bool ConfigureProperties() override;

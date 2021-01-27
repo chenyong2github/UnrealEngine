@@ -49,7 +49,7 @@ private:
 	TSet<TWeakObjectPtr<UUserWidget>> WeakUserWidgets;
 
 	UPROPERTY(transient)
-	UMovieSceneEntitySystemLinker* Linker;
+	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
 
 	FMovieSceneEntitySystemRunner Runner;
 

@@ -17,7 +17,7 @@ class UInterpTrackInstFloatAnimBPParam : public UInterpTrackInst
 
 	/** MIDs we're using to set the desired parameter. */
 	UPROPERTY(transient)
-	class UAnimInstance* AnimScriptInstance;
+	TObjectPtr<class UAnimInstance> AnimScriptInstance;
 
 	/** Saved values for restoring state when exiting Matinee. */
 	UPROPERTY(transient)

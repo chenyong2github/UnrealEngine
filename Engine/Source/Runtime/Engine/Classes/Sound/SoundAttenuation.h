@@ -88,15 +88,15 @@ struct ENGINE_API FSoundAttenuationPluginSettings
 
 	/** Settings to use with spatialization audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. This is an array so multiple plugins can have settings. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (DisplayName = "Spatialization Plugin Settings"))
-	TArray<USpatializationPluginSourceSettingsBase*> SpatializationPluginSettingsArray;
+	TArray<TObjectPtr<USpatializationPluginSourceSettingsBase>> SpatializationPluginSettingsArray;
 
 	/** Settings to use with occlusion audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. This  is an array so multiple plugins can have settings. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationOcclusion, meta = (DisplayName = "Occlusion Plugin Settings"))
-	TArray<UOcclusionPluginSourceSettingsBase*> OcclusionPluginSettingsArray;
+	TArray<TObjectPtr<UOcclusionPluginSourceSettingsBase>> OcclusionPluginSettingsArray;
 
 	/** Settings to use with reverb audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. This  is an array so multiple plugins can have settings. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend, meta = (DisplayName = "Reverb Plugin Settings"))
-	TArray<UReverbPluginSourceSettingsBase*> ReverbPluginSettingsArray;
+	TArray<TObjectPtr<UReverbPluginSourceSettingsBase>> ReverbPluginSettingsArray;
 };
 
 USTRUCT(BlueprintType)
@@ -106,7 +106,7 @@ struct ENGINE_API FAttenuationSubmixSendSettings
 
 	/** Submix to send audio to based on distance. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSubmixSend)
-	USoundSubmixBase* Submix = nullptr;
+	TObjectPtr<USoundSubmixBase> Submix = nullptr;
 
 	/** What method to use to use for submix sends. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend)
@@ -232,7 +232,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	USpatializationPluginSourceSettingsBase* SpatializationPluginSettings_DEPRECATED;
+	TObjectPtr<USpatializationPluginSourceSettingsBase> SpatializationPluginSettings_DEPRECATED;
 
 	UPROPERTY()
 	float RadiusMin_DEPRECATED;
@@ -327,10 +327,10 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings_DEPRECATED;
+	TObjectPtr<UOcclusionPluginSourceSettingsBase> OcclusionPluginSettings_DEPRECATED;
 
 	UPROPERTY()
-	UReverbPluginSourceSettingsBase* ReverbPluginSettings_DEPRECATED;
+	TObjectPtr<UReverbPluginSourceSettingsBase> ReverbPluginSettings_DEPRECATED;
 #endif
 
 	/** The amount to send to master reverb when sound is located at a distance equal to value specified in the reverb min send distance. */

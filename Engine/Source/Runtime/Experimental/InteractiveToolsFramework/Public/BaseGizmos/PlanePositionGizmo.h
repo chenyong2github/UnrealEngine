@@ -82,7 +82,7 @@ public:
 
 	/** The mouse click behavior of the gizmo is accessible so that it can be modified to use different mouse keys. */
 	UPROPERTY()
-	UClickDragInputBehavior* MouseBehavior;
+	TObjectPtr<UClickDragInputBehavior> MouseBehavior;
 
 public:
 	/** If enabled, then the sign on the parameter delta is always "increasing" when moving away from the origin point, rather than just being a projection onto the axis */

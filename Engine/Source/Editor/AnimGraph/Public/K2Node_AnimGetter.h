@@ -26,23 +26,23 @@ struct FNodeSpawnData
 
 	// The node the spawned getter accesses
 	UPROPERTY()
-	UAnimGraphNode_Base* SourceNode;
+	TObjectPtr<UAnimGraphNode_Base> SourceNode;
 
 	// The state node the spawned getter accesses
 	UPROPERTY()
-	UAnimStateNodeBase* SourceStateNode;
+	TObjectPtr<UAnimStateNodeBase> SourceStateNode;
 
 	// The instance class the spawned getter is defined on
 	UPROPERTY()
-	UClass* AnimInstanceClass;
+	TObjectPtr<UClass> AnimInstanceClass;
 
 	// The blueprint the getter is valid within
 	UPROPERTY()
-	const UAnimBlueprint* SourceBlueprint;
+	TObjectPtr<const UAnimBlueprint> SourceBlueprint;
 
 	// The UFunction (as a UField) 
 	UPROPERTY()
-	UField* Getter;
+	TObjectPtr<UField> Getter;
 
 	// String of combined valid contexts for the spawned getter
 	UPROPERTY()
@@ -73,20 +73,20 @@ public:
 
 	// The node that is required for the getter
 	UPROPERTY()
-	UAnimGraphNode_Base* SourceNode;
+	TObjectPtr<UAnimGraphNode_Base> SourceNode;
 
 	// UAnimStateNode doesn't use the same hierarchy so we need to have a seperate property here to handle
 	// those.
 	UPROPERTY()
-	UAnimStateNodeBase* SourceStateNode;
+	TObjectPtr<UAnimStateNodeBase> SourceStateNode;
 
 	// The UAnimInstance derived class that implements the getter we are running
 	UPROPERTY()
-	UClass* GetterClass;
+	TObjectPtr<UClass> GetterClass;
 
 	// The anim blueprint that generated this getter
 	UPROPERTY()
-	const UAnimBlueprint* SourceAnimBlueprint;
+	TObjectPtr<const UAnimBlueprint> SourceAnimBlueprint;
 
 	// Cached node title
 	UPROPERTY()

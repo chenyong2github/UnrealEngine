@@ -47,7 +47,7 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 
 	/** List of layers painted on this component. Matches the WeightmapLayerAllocations array in the LandscapeComponent. */
 	UPROPERTY()
-	TArray<ULandscapeLayerInfoObject*> ComponentLayerInfos;
+	TArray<TObjectPtr<ULandscapeLayerInfoObject>> ComponentLayerInfos;
 
 	/** Offset of component in landscape quads */
 	UPROPERTY()
@@ -132,7 +132,7 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 
 	/** Physical materials objects referenced by the indices in PhysicalMaterialRenderData. Stripped from cooked content */
 	UPROPERTY()
-	TArray<UPhysicalMaterial*>					PhysicalMaterialRenderObjects;
+	TArray<TObjectPtr<UPhysicalMaterial>>					PhysicalMaterialRenderObjects;
 
 	/*  Cooked editor specific heightfield data, never serialized  */
 	TArray<uint8>								CookedCollisionDataEd;
@@ -160,7 +160,7 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	
 	/** This is a list of physical materials that is actually used by a cooked HeightField */
 	UPROPERTY()
-	TArray<UPhysicalMaterial*>					CookedPhysicalMaterials;
+	TArray<TObjectPtr<UPhysicalMaterial>>					CookedPhysicalMaterials;
 	
 	/** Physics engine version of heightfield data. */
 	TRefCountPtr<FHeightfieldGeometryRef>	HeightfieldRef;

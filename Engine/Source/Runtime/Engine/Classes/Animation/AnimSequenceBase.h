@@ -290,14 +290,14 @@ private:
 protected:
 	/** UAnimDataModel instance containing source animation data */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Model")
-	UAnimDataModel* DataModel;
+	TObjectPtr<UAnimDataModel> DataModel;
 
 	/** Flag set whenever the data-model is initially populated (during upgrade path) */
 	bool bPopulatingDataModel;
 
 	/** UAnimDataController instance set to operate on DataModel */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, DuplicateTransient, Category = "Animation Model")
-	UAnimDataController* Controller;
+	TObjectPtr<UAnimDataController> Controller;
 	
 	/** Helper object that keeps track of any controller brackets, and all unique notify types that are broadcasted during it */
 	UE::Anim::FAnimDataModelNotifyCollector NotifyCollector;

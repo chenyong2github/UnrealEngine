@@ -65,7 +65,7 @@ public:
 
 	// Variables.
 	UPROPERTY()
-	AActor* Actor;					// Actor this corresponds to.
+	TObjectPtr<AActor> Actor;					// Actor this corresponds to.
 
 	FNetworkGUID	ActorNetGUID;		// Actor GUID (useful when we don't have the actor resolved yet). Currently only valid on clients.
 	float			CustomTimeDilation;
@@ -109,7 +109,7 @@ public:
 	TSet<FNetworkGUID> PendingGuidResolves;	// These guids are waiting for their resolves, we need to queue up bunches until these are resolved
 
 	UPROPERTY()
-	TArray< UObject* >					CreateSubObjects;		// Any sub-object we created on this channel
+	TArray< TObjectPtr<UObject> >					CreateSubObjects;		// Any sub-object we created on this channel
 
 	TArray< FNetworkGUID >				QueuedMustBeMappedGuidsInLastBunch;	// Array of guids that will async load on client. This list is used for queued RPC's.
 	TArray< class FOutBunch * >			QueuedExportBunches;				// Bunches that need to be appended to the export list on the next SendBunch call. This list is used for queued RPC's.

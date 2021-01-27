@@ -58,5 +58,5 @@ private:
 
 	/** List of all master media sections. */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> MediaSections;
+	TArray<TObjectPtr<UMovieSceneSection>> MediaSections;
 };

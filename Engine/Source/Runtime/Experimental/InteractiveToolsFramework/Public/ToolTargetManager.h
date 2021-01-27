@@ -88,7 +88,7 @@ protected:
 	bool bIsActive = false;
 
 	UPROPERTY()
-	TArray<UToolTargetFactory*> Factories;
+	TArray<TObjectPtr<UToolTargetFactory>> Factories;
 
 	// More state will go here if the manager deals with target caching.
 };

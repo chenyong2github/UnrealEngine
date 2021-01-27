@@ -101,7 +101,7 @@ protected:
 
 	/** The VR mode that owns this actor */
 	UPROPERTY()
-	class UVREditorMode* VRMode;
+	TObjectPtr<class UVREditorMode> VRMode;
 
 private:
 	/** Local rotation of the UI */

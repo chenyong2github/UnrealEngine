@@ -21,7 +21,7 @@ class UInterpFilter_Custom : public UInterpFilter
 #if WITH_EDITORONLY_DATA
 	/** Which groups are included in this filter. */
 	UPROPERTY()
-	TArray<class UInterpGroup*> GroupsToInclude;
+	TArray<TObjectPtr<class UInterpGroup>> GroupsToInclude;
 
 #endif // WITH_EDITORONLY_DATA
 

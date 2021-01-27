@@ -186,11 +186,11 @@ private:
 
 	/** source asset */
 	UPROPERTY()
-	UBehaviorTree* TreeAsset;
+	TObjectPtr<UBehaviorTree> TreeAsset;
 
 	/** parent node */
 	UPROPERTY()
-	UBTCompositeNode* ParentNode;
+	TObjectPtr<UBTCompositeNode> ParentNode;
 
 #if USE_BEHAVIORTREE_DEBUGGER
 	/** next node in execution order */

@@ -21,7 +21,7 @@ class SLATECORE_API USlateWidgetStyleAsset : public UObject
 public:  
 	/**  */
 	UPROPERTY(Category=Appearance, EditAnywhere, Instanced)
-	USlateWidgetStyleContainerBase* CustomStyle;
+	TObjectPtr<USlateWidgetStyleContainerBase> CustomStyle;
 
 	template< class WidgetStyleType >            
 	const WidgetStyleType* GetStyle() const 

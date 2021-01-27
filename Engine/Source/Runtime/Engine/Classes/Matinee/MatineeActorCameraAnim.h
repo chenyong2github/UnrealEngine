@@ -19,5 +19,5 @@ class AMatineeActorCameraAnim : public AMatineeActor
 
 	/** The camera anim we are editing */
 	UPROPERTY(Transient)
-	UCameraAnim* CameraAnim;
+	TObjectPtr<UCameraAnim> CameraAnim;
 };

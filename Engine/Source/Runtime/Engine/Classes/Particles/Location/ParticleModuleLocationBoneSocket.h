@@ -123,7 +123,7 @@ class ENGINE_API UParticleModuleLocationBoneSocket : public UParticleModuleLocat
 #if WITH_EDITORONLY_DATA
 	/** The name of the skeletal mesh to use in the editor */
 	UPROPERTY(EditAnywhere, Category=BoneSocket)
-	class USkeletalMesh* EditorSkelMesh;
+	TObjectPtr<class USkeletalMesh> EditorSkelMesh;
 
 #endif // WITH_EDITORONLY_DATA
 

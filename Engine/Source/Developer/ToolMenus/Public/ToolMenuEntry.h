@@ -163,7 +163,7 @@ public:
 	bool bShouldCloseWindowAfterMenuSelection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
-	UToolMenuEntryScript* ScriptObject;
+	TObjectPtr<UToolMenuEntryScript> ScriptObject;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	FName StyleNameOverride;

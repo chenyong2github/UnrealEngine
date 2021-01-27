@@ -103,5 +103,5 @@ private:
 	TArray<FHLODProxyMesh> ProxyMeshes;
 
 	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")
-	TMap<UHLODProxyDesc*, FHLODProxyMesh> HLODActors;
+	TMap<TObjectPtr<UHLODProxyDesc>, FHLODProxyMesh> HLODActors;
 };

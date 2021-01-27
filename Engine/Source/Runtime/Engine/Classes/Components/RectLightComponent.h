@@ -49,7 +49,7 @@ class ENGINE_API URectLightComponent : public ULocalLightComponent
 
 	/** Texture mapped to the light source rectangle */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light)
-	class UTexture* SourceTexture;
+	TObjectPtr<class UTexture> SourceTexture;
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
 	void SetSourceTexture(UTexture* bNewValue);

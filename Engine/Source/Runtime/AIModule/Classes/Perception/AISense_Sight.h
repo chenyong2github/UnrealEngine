@@ -33,10 +33,10 @@ struct AIMODULE_API FAISightEvent
 	ESightPerceptionEventName::Type EventType;	
 
 	UPROPERTY()
-	AActor* SeenActor;
+	TObjectPtr<AActor> SeenActor;
 
 	UPROPERTY()
-	AActor* Observer;
+	TObjectPtr<AActor> Observer;
 
 	FAISightEvent() : SeenActor(nullptr), Observer(nullptr) {}
 

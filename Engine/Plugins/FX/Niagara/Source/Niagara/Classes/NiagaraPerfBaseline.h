@@ -102,11 +102,11 @@ public:
 
 	/** The effect type this controller is in use by. */
 	UPROPERTY(Category = "Baseline", BlueprintReadOnly)
-	UNiagaraEffectType* EffectType = nullptr;
+	TObjectPtr<UNiagaraEffectType> EffectType = nullptr;
 
 	/** The owning actor for this baseline controller. */
 	UPROPERTY(Category = "Baseline", BlueprintReadOnly)
-	ANiagaraPerfBaselineActor* Owner;
+	TObjectPtr<ANiagaraPerfBaselineActor> Owner;
 
 private:
 	/** The baseline system to spawn. */
@@ -132,7 +132,7 @@ class NIAGARA_API UNiagaraBaselineController_Basic : public UNiagaraBaselineCont
 	int32 NumInstances = 1;
 
 	UPROPERTY()
-	TArray<UNiagaraComponent*> SpawnedComponents;
+	TArray<TObjectPtr<UNiagaraComponent>> SpawnedComponents;
 };
 
 /** Actor that controls how the baseline system behaves and also controls stats gathering for. */
@@ -145,10 +145,10 @@ class NIAGARA_API ANiagaraPerfBaselineActor : public AActor
 public:
 
 	UPROPERTY(EditAnywhere, Category="Baseline")
-	UNiagaraBaselineController* Controller;
+	TObjectPtr<UNiagaraBaselineController> Controller;
 
 	UPROPERTY(EditAnywhere, Category="Baseline")
-	UTextRenderComponent* Label;
+	TObjectPtr<UTextRenderComponent> Label;
 
 #if NIAGARA_PERF_BASELINES
 

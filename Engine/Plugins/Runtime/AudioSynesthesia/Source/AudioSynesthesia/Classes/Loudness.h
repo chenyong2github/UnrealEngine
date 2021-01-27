@@ -124,7 +124,7 @@ public:
 
 	/** The settings for the audio analyzer.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioAnalyzer)
-	ULoudnessSettings* Settings;
+	TObjectPtr<ULoudnessSettings> Settings;
 
 	/** Delegate to receive all overall loudness results since last delegate call. */
 	UPROPERTY(BlueprintAssignable)

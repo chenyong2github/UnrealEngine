@@ -119,7 +119,7 @@ class ENGINE_API USplineMeshComponent : public UStaticMeshComponent, public IInt
 
 	// Physics data.
 	UPROPERTY()
-	UBodySetup* BodySetup;
+	TObjectPtr<UBodySetup> BodySetup;
 
 	/** Maximum coordinate along the spline forward axis which corresponds to end of spline. If set to 0.0, will use bounding box to determine bounds */
 	UPROPERTY(EditAnywhere, Category = SplineMesh, AdvancedDisplay)

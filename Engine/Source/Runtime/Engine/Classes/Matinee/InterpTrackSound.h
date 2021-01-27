@@ -32,7 +32,7 @@ struct FSoundTrackKey
 	float Pitch;
 
 	UPROPERTY(EditAnywhere, Category=SoundTrackKey)
-	class USoundBase* Sound;
+	TObjectPtr<class USoundBase> Sound;
 
 
 

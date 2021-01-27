@@ -86,8 +86,8 @@ private:
 	bool bExpanded;
 
 	UPROPERTY()
-	TArray<UVariant*> Variants;
+	TArray<TObjectPtr<UVariant>> Variants;
 
 	UPROPERTY()
-	UTexture2D* Thumbnail;
+	TObjectPtr<UTexture2D> Thumbnail;
 };

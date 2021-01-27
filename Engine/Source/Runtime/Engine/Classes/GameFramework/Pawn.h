@@ -132,7 +132,7 @@ public:
 private:
 	/** If Pawn is possessed by a player, points to its Player State.  Needed for network play as controllers are not replicated to clients. */
 	UPROPERTY(replicatedUsing=OnRep_PlayerState, BlueprintReadOnly, Category=Pawn, meta=(AllowPrivateAccess="true"))
-	APlayerState* PlayerState;
+	TObjectPtr<APlayerState> PlayerState;
 
 public:
 
@@ -155,11 +155,11 @@ public:
 
 	/** Controller of the last Actor that caused us damage. */
 	UPROPERTY(BlueprintReadOnly, transient, Category="Pawn")
-	AController* LastHitBy;
+	TObjectPtr<AController> LastHitBy;
 
 	/** Controller currently possessing this Actor */
 	UPROPERTY(replicatedUsing=OnRep_Controller)
-	AController* Controller;
+	TObjectPtr<AController> Controller;
 
 	/** Max difference between pawn's Rotation.Yaw and GetDesiredRotation().Yaw for pawn to be considered as having reached its desired rotation */
 	float AllowedYawError;

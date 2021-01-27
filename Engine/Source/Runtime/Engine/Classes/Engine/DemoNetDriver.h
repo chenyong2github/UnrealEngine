@@ -64,18 +64,18 @@ struct FRollbackNetStartupActorInfo
 
 	FName		Name;
 	UPROPERTY()
-	UObject*	Archetype = nullptr;
+	TObjectPtr<UObject>	Archetype = nullptr;
 	FVector		Location;
 	FRotator	Rotation;
 	FVector		Scale3D;
 	UPROPERTY()
-	ULevel*		Level = nullptr;
+	TObjectPtr<ULevel>		Level = nullptr;
 
 	TSharedPtr<FRepState> RepState;
 	TMap<FString, TSharedPtr<FRepState>> SubObjRepState;
 
 	UPROPERTY()
-	TArray<UObject*> ObjReferences;
+	TArray<TObjectPtr<UObject>> ObjReferences;
 
 	void CountBytes(FArchive& Ar) const
 	{
@@ -592,7 +592,7 @@ private:
 
 	/** An array of all the spectator controllers (the main one and all splitscreen ones) that currently exist */
 	UPROPERTY(transient)
-	TArray<APlayerController*> SpectatorControllers;
+	TArray<TObjectPtr<APlayerController>> SpectatorControllers;
 
 	/**
 	 * Removes all child connections for splitscreen viewers.

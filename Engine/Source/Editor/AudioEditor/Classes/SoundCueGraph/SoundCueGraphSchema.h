@@ -19,7 +19,7 @@ struct AUDIOEDITOR_API FSoundCueGraphSchemaAction_NewNode : public FEdGraphSchem
 
 	/** Class of node we want to create */
 	UPROPERTY()
-	class UClass* SoundNodeClass;
+	TObjectPtr<class UClass> SoundNodeClass;
 
 
 	FSoundCueGraphSchemaAction_NewNode() 

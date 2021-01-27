@@ -106,7 +106,7 @@ class UInterpTrack : public UObject, public FCurveEdInterface, public FInterpEdI
 
 	/** A list of subtracks that belong to this track */
 	UPROPERTY(BlueprintReadOnly, Category=InterpTrack)
-	TArray<class UInterpTrack*> SubTracks;
+	TArray<TObjectPtr<class UInterpTrack>> SubTracks;
 
 #if WITH_EDITORONLY_DATA
 	/** A list of subtrack groups (for editor UI organization only) */
@@ -149,7 +149,7 @@ private:
 public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
-	UTexture2D* TrackIcon;
+	TObjectPtr<UTexture2D> TrackIcon;
 #endif // WITH_EDITORONLY_DATA
 
 	/** If true, the  AActor  this track is working on will have BeginAnimControl/FinishAnimControl called on it. */

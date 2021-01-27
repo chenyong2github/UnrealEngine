@@ -20,7 +20,7 @@ class ENGINE_API UAnimCurveCompressionSettings : public UObject
 
 	/** An animation curve compression codec. */
 	UPROPERTY(Category = Compression, Export, EditAnywhere, NoClear, meta = (EditInline))
-	UAnimCurveCompressionCodec* Codec;
+	TObjectPtr<UAnimCurveCompressionCodec> Codec;
 
 	//////////////////////////////////////////////////////////////////////////
 

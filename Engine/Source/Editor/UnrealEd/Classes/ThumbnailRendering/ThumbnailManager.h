@@ -68,7 +68,7 @@ struct FThumbnailRenderingInfo
 	 * The instance of the renderer class
 	 */
 	UPROPERTY()
-	class UThumbnailRenderer* Renderer;
+	TObjectPtr<class UThumbnailRenderer> Renderer;
 
 public:
 	FThumbnailRenderingInfo()
@@ -93,28 +93,28 @@ public:
 
 	// All these meshes/materials/textures are preloaded via default properties
 	UPROPERTY(Transient)
-	class UStaticMesh* EditorCube;
+	TObjectPtr<class UStaticMesh> EditorCube;
 
 	UPROPERTY(Transient)
-	class UStaticMesh* EditorSphere;
+	TObjectPtr<class UStaticMesh> EditorSphere;
 
 	UPROPERTY(Transient)
-	class UStaticMesh* EditorCylinder;
+	TObjectPtr<class UStaticMesh> EditorCylinder;
 
 	UPROPERTY(Transient)
-	class UStaticMesh* EditorPlane;
+	TObjectPtr<class UStaticMesh> EditorPlane;
 
 	UPROPERTY(Transient)
-	class UStaticMesh* EditorSkySphere;
+	TObjectPtr<class UStaticMesh> EditorSkySphere;
 
 	UPROPERTY(Transient)
-	class UMaterial* FloorPlaneMaterial;
+	TObjectPtr<class UMaterial> FloorPlaneMaterial;
 
 	UPROPERTY(Transient)
-	class UTextureCube* AmbientCubemap;
+	TObjectPtr<class UTextureCube> AmbientCubemap;
 
 	UPROPERTY(Transient)
-	class UTexture2D* CheckerboardTexture;
+	TObjectPtr<class UTexture2D> CheckerboardTexture;
 
 public:
 	//~ Begin UObject Interface

@@ -18,7 +18,7 @@ class USoundClassGraphNode : public UEdGraphNode
 
 	/** The SoundNode this represents */
 	UPROPERTY(VisibleAnywhere, instanced, Category=Sound)
-	USoundClass*		SoundClass;
+	TObjectPtr<USoundClass>		SoundClass;
 
 	/** Get the Pin that connects to all children */
 	UEdGraphPin* GetChildPin() const { return ChildPin; }

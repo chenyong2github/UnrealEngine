@@ -31,11 +31,11 @@ public:
 
 	/* GeometryCollectionComponent */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Destruction, meta = (ExposeFunctionCategories = "Components|GeometryCollection", AllowPrivateAccess = "true"))
-	UGeometryCollectionComponent* GeometryCollectionComponent;
+	TObjectPtr<UGeometryCollectionComponent> GeometryCollectionComponent;
 	UGeometryCollectionComponent* GetGeometryCollectionComponent() const { return GeometryCollectionComponent; }
 
 	UPROPERTY(VisibleAnywhere, Category = Destruction, meta = (ExposeFunctionCategories = "Components|GeometryCollection", AllowPrivateAccess = "true"))
-	UGeometryCollectionDebugDrawComponent* GeometryCollectionDebugDrawComponent;
+	TObjectPtr<UGeometryCollectionDebugDrawComponent> GeometryCollectionDebugDrawComponent;
 	UGeometryCollectionDebugDrawComponent* GetGeometryCollectionDebugDrawComponent() const { return GeometryCollectionDebugDrawComponent; }
 
 	UFUNCTION(BlueprintCallable, Category = "Physics")

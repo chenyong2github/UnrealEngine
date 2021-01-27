@@ -23,10 +23,10 @@ struct FInterpEdSelKey
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	class UInterpGroup* Group;
+	TObjectPtr<class UInterpGroup> Group;
 
 	UPROPERTY()
-	class UInterpTrack* Track;
+	TObjectPtr<class UInterpTrack> Track;
 
 	UPROPERTY()
 	int32 KeyIndex;
@@ -87,7 +87,7 @@ class UInterpGroup : public UObject, public FInterpEdInputInterface
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(export, BlueprintReadOnly, Category=InterpGroup)
-	TArray<class UInterpTrack*> InterpTracks;
+	TArray<TObjectPtr<class UInterpTrack>> InterpTracks;
 
 	/** 
 	 *	Within an InterpData, all GroupNames must be unique. 

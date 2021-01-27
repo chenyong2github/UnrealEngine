@@ -51,7 +51,7 @@ struct FPSCPoolElem
 	GENERATED_BODY()
 
 	UPROPERTY(transient)
-	UParticleSystemComponent* PSC;
+	TObjectPtr<UParticleSystemComponent> PSC;
 
 	float LastUsedTime;
 
@@ -111,7 +111,7 @@ struct ENGINE_API FWorldPSCPool
 
 private:
 	UPROPERTY()
-	TMap<UParticleSystem*, FPSCPool> WorldParticleSystemPools;
+	TMap<TObjectPtr<UParticleSystem>, FPSCPool> WorldParticleSystemPools;
 
 	float LastParticleSytemPoolCleanTime;
 

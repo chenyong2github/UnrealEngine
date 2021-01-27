@@ -18,7 +18,7 @@ class UK2Node_ForEachElementInEnum : public UK2Node
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	BLUEPRINTGRAPH_API static const FName InsideLoopPinName;
 	BLUEPRINTGRAPH_API static const FName EnumOuputPinName;

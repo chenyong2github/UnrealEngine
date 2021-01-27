@@ -266,7 +266,7 @@ protected:
 
 	/** Motion controller component which handles late-frame transform updates of all parented sub-components */
 	UPROPERTY()
-	class UMotionControllerComponent* MotionControllerComponent;
+	TObjectPtr<class UMotionControllerComponent> MotionControllerComponent;
 
 	//
 	// Graphics
@@ -274,42 +274,42 @@ protected:
 
 	/** Access to the current handmesh. Use ReplaceHandMeshComponent() to update the entire StaticMeshComponent. */
 	UPROPERTY(BlueprintReadWrite, Category = "VREditorInteractor")
-	class UStaticMeshComponent* HandMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> HandMeshComponent;
 
 
 private:
 
 	/** Spline for this hand's laser pointer */
 	UPROPERTY()
-	class USplineComponent* LaserSplineComponent;
+	TObjectPtr<class USplineComponent> LaserSplineComponent;
 
 	/** Spline meshes for curved laser */
 	UPROPERTY()
-	TArray<class USplineMeshComponent*> LaserSplineMeshComponents;
+	TArray<TObjectPtr<class USplineMeshComponent>> LaserSplineMeshComponents;
 
 	/** MID for laser pointer material (opaque parts) */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* LaserPointerMID;
+	TObjectPtr<class UMaterialInstanceDynamic> LaserPointerMID;
 
 	/** MID for laser pointer material (translucent parts) */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* TranslucentLaserPointerMID;
+	TObjectPtr<class UMaterialInstanceDynamic> TranslucentLaserPointerMID;
 
 	/** Hover impact indicator mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* HoverMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> HoverMeshComponent;
 
 	/** Hover point light */
 	UPROPERTY()
-	class UPointLightComponent* HoverPointLightComponent;
+	TObjectPtr<class UPointLightComponent> HoverPointLightComponent;
 
 	/** MID for hand mesh */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* HandMeshMID;
+	TObjectPtr<class UMaterialInstanceDynamic> HandMeshMID;
 
 	/** Avatar actor that we're attached to. Cached so that we can change the HandMeshComponent via BP at runtime. */
 	UPROPERTY()
-	AActor* OwningAvatar;
+	TObjectPtr<AActor> OwningAvatar;
 
 	/** True if this hand has a motion controller (or both!) */
 	bool bHaveMotionController;
@@ -487,5 +487,5 @@ protected:
 
 	/** The mode that owns this interactor */
 	UPROPERTY()
-	class UVREditorMode* VRMode;
+	TObjectPtr<class UVREditorMode> VRMode;
 };

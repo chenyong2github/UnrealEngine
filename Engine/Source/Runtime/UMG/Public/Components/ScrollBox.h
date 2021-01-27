@@ -31,10 +31,10 @@ public:
 	FScrollBarStyle WidgetBarStyle;
 
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	UPROPERTY()
-	USlateWidgetStyleAsset* BarStyle_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> BarStyle_DEPRECATED;
 
 	/** The orientation of the scrolling and stacking in the box. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")

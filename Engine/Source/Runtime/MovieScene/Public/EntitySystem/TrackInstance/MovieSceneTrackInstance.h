@@ -17,7 +17,7 @@ struct FMovieSceneTrackInstanceInput
 
 	/** The section that acts as an input for this animator */
 	UPROPERTY()
-	UMovieSceneSection* Section = nullptr;
+	TObjectPtr<UMovieSceneSection> Section = nullptr;
 
 	/** The instance that this input relates to */
 	UE::MovieScene::FInstanceHandle InstanceHandle;
@@ -157,13 +157,13 @@ private:
 private:
 
 	UPROPERTY()
-	UObject* AnimatedObject;
+	TObjectPtr<UObject> AnimatedObject;
 
 	UPROPERTY()
 	bool bIsMasterTrackInstance;
 
 	UPROPERTY()
-	UMovieSceneEntitySystemLinker* Linker;
+	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
 
 	UPROPERTY()
 	TArray<FMovieSceneTrackInstanceInput> Inputs;

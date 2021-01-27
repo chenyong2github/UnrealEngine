@@ -39,7 +39,7 @@ class UStaticMeshSocket : public UObject
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=StaticMeshSocket)
-	class UStaticMesh* PreviewStaticMesh;
+	TObjectPtr<class UStaticMesh> PreviewStaticMesh;
 
 	/* Weather the socket was imported with the asset or create in the editor. Importer will remove/modify only imported socket and will not touch any editor created socket. */
 	UPROPERTY()

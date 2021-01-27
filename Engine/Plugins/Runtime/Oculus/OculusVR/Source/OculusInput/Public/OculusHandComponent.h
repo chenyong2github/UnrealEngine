@@ -49,7 +49,7 @@ public:
 
 	/** Material that gets applied to the hands when the system gesture is active */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HandProperties")
-	class UMaterialInterface* SystemGestureMaterial;
+	TObjectPtr<class UMaterialInterface> SystemGestureMaterial;
 
 	/** Whether or not to initialize physics capsules on the skeletal mesh */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HandProperties")
@@ -61,7 +61,7 @@ public:
 
 	/** Material override for the runtime skeletal mesh */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HandProperties")
-	class UMaterialInterface* MaterialOverride;
+	TObjectPtr<class UMaterialInterface> MaterialOverride;
 
 	/** Bone mapping for custom hand skeletal meshes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CustomSkeletalMesh")

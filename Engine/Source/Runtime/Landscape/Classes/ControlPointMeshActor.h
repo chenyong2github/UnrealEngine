@@ -19,7 +19,7 @@ class LANDSCAPE_API AControlPointMeshActor : public AActor
 
 private:
 	UPROPERTY(Category = ControlPointMeshActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh,Components|ControlPointMesh", AllowPrivateAccess = "true"))
-	class UControlPointMeshComponent* ControlPointMeshComponent;
+	TObjectPtr<class UControlPointMeshComponent> ControlPointMeshComponent;
 
 public:
 

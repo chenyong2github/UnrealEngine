@@ -54,7 +54,7 @@ public:
 	FString SourceFilePath_DEPRECATED;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category=ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 #endif // WITH_EDITORONLY_DATA
 
 	//~ Begin UObject Interface.

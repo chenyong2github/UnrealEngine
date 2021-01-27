@@ -52,6 +52,6 @@ private:
 
 	/** List of all animation sections */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> AnimationSections;
+	TArray<TObjectPtr<UMovieSceneSection>> AnimationSections;
 
 };

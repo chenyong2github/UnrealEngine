@@ -24,7 +24,7 @@ struct FCanvasIcon
 
 	/** Source texture */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CanvasIcon)
-	class UTexture* Texture;
+	TObjectPtr<class UTexture> Texture;
 
 	/** UV coords */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CanvasIcon)
@@ -192,14 +192,14 @@ class ENGINE_API UCanvas
 	FPlane ColorModulate; 
 
 	UPROPERTY()
-	class UTexture2D* DefaultTexture; //Default texture to use 
+	TObjectPtr<class UTexture2D> DefaultTexture; //Default texture to use 
 
 	UPROPERTY()
-	class UTexture2D* GradientTexture0; //Default texture to use 
+	TObjectPtr<class UTexture2D> GradientTexture0; //Default texture to use 
 
 	/** Helper class to render 2d graphs on canvas */
 	UPROPERTY()
-	class UReporterGraph* ReporterGraph;
+	TObjectPtr<class UReporterGraph> ReporterGraph;
 
 	int32 UnsafeSizeX;   // Canvas size before safe frame adjustment
 	int32 UnsafeSizeY;	// Canvas size before safe frame adjustment

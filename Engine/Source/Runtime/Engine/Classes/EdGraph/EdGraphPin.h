@@ -31,7 +31,7 @@ struct FSimpleMemberReference
 	 * if it is a native delegate signature function (declared globally).
 	 */
 	UPROPERTY()
-	UObject* MemberParent;
+	TObjectPtr<UObject> MemberParent;
 
 	/** Name of the member */
 	UPROPERTY()
@@ -669,7 +669,7 @@ class UEdGraphPin_Deprecated : public UObject
 
 	/** If the default value for this pin should be an object, we store a pointer to it */
 	UPROPERTY()
-	class UObject* DefaultObject;
+	TObjectPtr<class UObject> DefaultObject;
 
 	/** If the default value for this pin should be an FText, it is stored here. */
 	UPROPERTY()
@@ -677,19 +677,19 @@ class UEdGraphPin_Deprecated : public UObject
 
 	/** Set of pins that we are linked to */
 	UPROPERTY()
-	TArray<class UEdGraphPin_Deprecated*> LinkedTo;
+	TArray<TObjectPtr<class UEdGraphPin_Deprecated>> LinkedTo;
 
 	/** The pins created when a pin is split and hidden */ 
 	UPROPERTY()
-	TArray<class UEdGraphPin_Deprecated*> SubPins;
+	TArray<TObjectPtr<class UEdGraphPin_Deprecated>> SubPins;
 
 	/** The pin that was split and generated this pin */
 	UPROPERTY()
-	UEdGraphPin_Deprecated* ParentPin;
+	TObjectPtr<UEdGraphPin_Deprecated> ParentPin;
 
 	/** Pin that this pin uses for passing through reference connection */
 	UPROPERTY()
-	UEdGraphPin_Deprecated* ReferencePassThroughConnection;
+	TObjectPtr<UEdGraphPin_Deprecated> ReferencePassThroughConnection;
 
 #if WITH_EDITORONLY_DATA
 	/** If true, this connector is currently hidden. */

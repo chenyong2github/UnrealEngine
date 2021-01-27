@@ -39,5 +39,5 @@ private:
 
 	/** Owning mode */
 	UPROPERTY()
-	UVREditorMode* VRMode;
+	TObjectPtr<UVREditorMode> VRMode;
 };

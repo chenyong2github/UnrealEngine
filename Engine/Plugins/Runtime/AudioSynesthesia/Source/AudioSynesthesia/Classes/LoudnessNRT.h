@@ -85,7 +85,7 @@ class AUDIOSYNESTHESIA_API ULoudnessNRT : public UAudioSynesthesiaNRT
 
 		/** The settings for the audio analyzer.  */
 		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AudioAnalyzer)
-		ULoudnessNRTSettings* Settings;
+		TObjectPtr<ULoudnessNRTSettings> Settings;
 
 		/** Get the overall loudness of the analyzed sound at a given time. */
 		UFUNCTION(BlueprintCallable, Category="Audio Analyzer")

@@ -20,7 +20,7 @@ class PAPER2D_API APaperSpriteActor : public AActor
 
 private:
 	UPROPERTY(Category=Sprite, VisibleAnywhere, BlueprintReadOnly, meta=(ExposeFunctionCategories="Sprite,Rendering,Physics,Components|Sprite", AllowPrivateAccess="true"))
-	class UPaperSpriteComponent* RenderComponent;
+	TObjectPtr<class UPaperSpriteComponent> RenderComponent;
 public:
 
 	// AActor interface

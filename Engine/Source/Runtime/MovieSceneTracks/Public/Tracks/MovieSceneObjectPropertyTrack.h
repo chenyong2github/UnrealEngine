@@ -15,7 +15,7 @@ public:
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UClass* PropertyClass;
+	TObjectPtr<UClass> PropertyClass;
 
 	UMovieSceneObjectPropertyTrack(const FObjectInitializer& ObjInit);
 

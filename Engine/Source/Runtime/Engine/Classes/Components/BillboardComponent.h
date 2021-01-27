@@ -21,7 +21,7 @@ class ENGINE_API UBillboardComponent : public UPrimitiveComponent
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sprite)
-	class UTexture2D* Sprite;
+	TObjectPtr<class UTexture2D> Sprite;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sprite)
 	uint32 bIsScreenSizeScaled:1;

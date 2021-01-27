@@ -45,11 +45,11 @@ protected:
 
 	/** Owning object */
 	UPROPERTY()
-	UVREditorMode* VRMode;
+	TObjectPtr<UVREditorMode> VRMode;
 
 	/** The actual ViewportWorldInteraction */
 	UPROPERTY()
-	UViewportWorldInteraction* ViewportWorldInteraction;
+	TObjectPtr<UViewportWorldInteraction> ViewportWorldInteraction;
 
 	//
 	// Dragging object from UI
@@ -57,10 +57,10 @@ protected:
 
 	/** The UI used to drag an asset into the level */
 	UPROPERTY()
-	class UWidgetComponent* FloatingUIAssetDraggedFrom;
+	TObjectPtr<class UWidgetComponent> FloatingUIAssetDraggedFrom;
 
 	/** The material or texture asset we're dragging to place on an object */
 	UPROPERTY()
-	UObject* PlacingMaterialOrTextureAsset;
+	TObjectPtr<UObject> PlacingMaterialOrTextureAsset;
 };
 

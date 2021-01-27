@@ -19,7 +19,7 @@ class UInterpTrackInstSound : public UInterpTrackInst
 	float LastUpdatePosition;
 
 	UPROPERTY(transient)
-	class UAudioComponent* PlayAudioComp;
+	TObjectPtr<class UAudioComponent> PlayAudioComp;
 
 
 	// Begin UInterpTrackInst Instance

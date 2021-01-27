@@ -40,7 +40,7 @@ struct FCSVImportSettings
 	FCSVImportSettings();
 
 	UPROPERTY(BlueprintReadWrite, Category="Misc")
-	UScriptStruct* ImportRowStruct;
+	TObjectPtr<UScriptStruct> ImportRowStruct;
 
 	UPROPERTY(BlueprintReadWrite, Category="Misc")
 	ECSVImportType ImportType;
@@ -91,6 +91,6 @@ public:
 
 	/** Temporary data table to use to display import options */
 	UPROPERTY()
-	UDataTable* DataTableImportOptions;
+	TObjectPtr<UDataTable> DataTableImportOptions;
 };
 

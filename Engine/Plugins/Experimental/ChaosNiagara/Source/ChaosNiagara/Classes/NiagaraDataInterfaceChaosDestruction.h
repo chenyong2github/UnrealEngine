@@ -357,7 +357,7 @@ public:
 
 	/* Chaos Solver */
 	UPROPERTY(EditAnywhere, Category = "Solver", meta = (DisplayName = "Chaos Solver"))
-	TSet<AChaosSolverActor*> ChaosSolverActorSet;
+	TSet<TObjectPtr<AChaosSolverActor>> ChaosSolverActorSet;
 
 	/* */
 	UPROPERTY(EditAnywhere, Category = "Solver Data", meta = (DisplayName = "Data Source"))
@@ -479,7 +479,7 @@ public:
 
 	/* TODO: Explanatory comment */
 	UPROPERTY(EditAnywhere, Category = "Breaking Data Settings", meta = (DisplayName = "Breaking Filtered Materials", EditCondition = bApplyMaterialsFilter))
-	TSet<UPhysicalMaterial*> ChaosBreakingMaterialSet;
+	TSet<TObjectPtr<UPhysicalMaterial>> ChaosBreakingMaterialSet;
 
 	/* TODO: Explanatory comment */
 	UPROPERTY(EditAnywhere, Category = "Breaking Data Settings", meta = (DisplayName = "Get External Breaking Mesh and Physical Data"))

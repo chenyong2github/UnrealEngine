@@ -95,7 +95,7 @@ public:
 	FToolMenuContext Context;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
-	UToolMenuSectionDynamic* ToolMenuSectionDynamic;
+	TObjectPtr<UToolMenuSectionDynamic> ToolMenuSectionDynamic;
 
 	TAttribute<FText> Label;
 

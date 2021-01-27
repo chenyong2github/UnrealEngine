@@ -484,7 +484,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Current UAnimDataModel instance targeted by this controller */
 	UPROPERTY(transient)
-	UAnimDataModel* Model;
+	TObjectPtr<UAnimDataModel> Model;
 #endif // WITH_EDITORONLY_DATA
 
 	friend class FAnimDataControllerTestBase;

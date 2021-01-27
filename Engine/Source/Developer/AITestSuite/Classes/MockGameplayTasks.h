@@ -73,7 +73,7 @@ class UMockGameplayTaskOwner : public UObject, public IGameplayTaskOwnerInterfac
 
 public:
 	UPROPERTY()
-	UGameplayTasksComponent* GTComponent;
+	TObjectPtr<UGameplayTasksComponent> GTComponent;
 
 	virtual UGameplayTasksComponent* GetGameplayTasksComponent(const UGameplayTask& Task) const override { return GTComponent; }	
 	virtual AActor* GetGameplayTaskOwner(const UGameplayTask* Task) const { return nullptr; }

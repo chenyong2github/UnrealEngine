@@ -62,7 +62,7 @@ private:
 
 	/** The collection that we recorded the data from */
 	UPROPERTY()
-	const UGeometryCollection* SupportedCollection;
+	TObjectPtr<const UGeometryCollection> SupportedCollection;
 
 	/** Guid pulled from the collection when the recording was last saved */
 	UPROPERTY()

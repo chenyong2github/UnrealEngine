@@ -67,7 +67,7 @@ private:
 	} Stage;
 
 	UPROPERTY()
-	TArray<USceneCaptureComponent2D*> CaptureComponents;
+	TArray<TObjectPtr<USceneCaptureComponent2D>> CaptureComponents;
 
 	uint32 CaptureBoxSideRes;
 	EPixelFormat CaptureFormat;

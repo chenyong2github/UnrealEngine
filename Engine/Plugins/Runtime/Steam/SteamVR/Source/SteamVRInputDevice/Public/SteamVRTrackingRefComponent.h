@@ -75,7 +75,7 @@ public:
 
 	/** Currently displayed Tracking References in-world */
 	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
-	TArray<UStaticMeshComponent*> TrackingReferences;
+	TArray<TObjectPtr<UStaticMeshComponent>> TrackingReferences;
 
 private:
 	/** Represents a tracked device with a flag on whether its activated or not */

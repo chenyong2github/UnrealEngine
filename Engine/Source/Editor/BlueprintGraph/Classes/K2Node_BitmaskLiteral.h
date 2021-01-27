@@ -17,7 +17,7 @@ class UK2Node_BitmaskLiteral : public UK2Node, public INodeDependingOnEnumInterf
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UEnum* BitflagsEnum;
+	TObjectPtr<UEnum> BitflagsEnum;
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;

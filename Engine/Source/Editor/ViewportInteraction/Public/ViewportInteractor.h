@@ -296,11 +296,11 @@ protected:
 
 	/** The owning world interaction */
 	UPROPERTY()
-	class UViewportWorldInteraction* WorldInteraction;
+	TObjectPtr<class UViewportWorldInteraction> WorldInteraction;
 
 	/** The paired interactor by the world interaction */
 	UPROPERTY()
-	UViewportInteractor* OtherInteractor;
+	TObjectPtr<UViewportInteractor> OtherInteractor;
 
 	/** True if this interactor supports 'grabber sphere' interaction.  Usually disabled for mouse cursors */
 	bool bAllowGrabberSphere;

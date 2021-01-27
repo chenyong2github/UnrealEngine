@@ -34,11 +34,11 @@ struct FAITestSpawnInfo
 
 	/** if set will be applied to spawned AI */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
-	class UBehaviorTree* BehaviorTree;
+	TObjectPtr<class UBehaviorTree> BehaviorTree;
 
 	/** Where should AI be spawned */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
-	AActor* SpawnLocation;
+	TObjectPtr<AActor> SpawnLocation;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn, meta=(UIMin=1, ClampMin=1))
 	int32 NumberToSpawn;
@@ -102,7 +102,7 @@ struct FAITestSpawnSet
 
 	/** location used for spawning if spawn info doesn't define one */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AISpawn)
-	AActor* FallbackSpawnLocation;
+	TObjectPtr<AActor> FallbackSpawnLocation;
 
 	FAITestSpawnSet()
 		: bEnabled(true)
@@ -123,7 +123,7 @@ protected:
 	float SpawnLocationRandomizationRange;
 
 	UPROPERTY(BlueprintReadOnly, Category=AITest)
-	TArray<APawn*> SpawnedPawns;
+	TArray<TObjectPtr<APawn>> SpawnedPawns;
 
 	UPROPERTY(BlueprintReadOnly, Category = AITest)
 	TArray<FPendingDelayedSpawn> PendingDelayedSpawns;

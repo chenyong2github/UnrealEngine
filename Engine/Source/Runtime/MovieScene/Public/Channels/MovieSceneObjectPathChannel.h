@@ -57,7 +57,7 @@ private:
 
 	/** Hard reference to the loaded object - relevant for any asset type which also hints the async loader to efficiently load the asset in advance */
 	UPROPERTY()
-	mutable UObject* HardPtr;
+	mutable TObjectPtr<UObject> HardPtr;
 };
 
 template<>
@@ -165,7 +165,7 @@ public:
 private:
 
 	UPROPERTY()
-	UClass* PropertyClass;
+	TObjectPtr<UClass> PropertyClass;
 
 	UPROPERTY(meta=(KeyTimes))
 	TArray<FFrameNumber> Times;

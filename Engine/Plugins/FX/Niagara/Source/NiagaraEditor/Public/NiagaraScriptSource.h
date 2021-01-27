@@ -18,7 +18,7 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 
 	/** Graph for particle update expression */
 	UPROPERTY()
-	class UNiagaraGraph*	NodeGraph;
+	TObjectPtr<class UNiagaraGraph>	NodeGraph;
 	
 	// UObject interface
 	virtual void PostLoad() override;

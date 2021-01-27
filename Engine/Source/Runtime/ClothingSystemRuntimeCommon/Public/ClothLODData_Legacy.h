@@ -64,7 +64,7 @@ public:
 
 	// Deprecated, use ClothPhysicalMeshData instead
 	UPROPERTY()
-	UClothPhysicalMeshDataBase_Legacy* PhysicalMeshData_DEPRECATED;
+	TObjectPtr<UClothPhysicalMeshDataBase_Legacy> PhysicalMeshData_DEPRECATED;
 
 	// Raw phys mesh data
 	UPROPERTY()

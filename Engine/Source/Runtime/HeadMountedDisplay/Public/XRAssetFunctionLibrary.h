@@ -98,6 +98,6 @@ private:
 	ELoadStatus LoadStatus = ELoadStatus::Pending;
 
 	UPROPERTY()
-	UPrimitiveComponent* SpawnedComponent;
+	TObjectPtr<UPrimitiveComponent> SpawnedComponent;
 };
 

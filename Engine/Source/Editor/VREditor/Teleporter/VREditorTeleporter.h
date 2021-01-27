@@ -120,7 +120,7 @@ private:
 
 	/** The owning VR mode */
 	UPROPERTY()
-	UVREditorMode* VRMode;
+	TObjectPtr<UVREditorMode> VRMode;
 
 	enum EState
 	{
@@ -143,27 +143,27 @@ private:
 
 	/** Visuals for the feet location of the teleporter with the same direction of the HMD yaw */
 	UPROPERTY()
-	UStaticMeshComponent* TeleportDirectionMeshComponent;
+	TObjectPtr<UStaticMeshComponent> TeleportDirectionMeshComponent;
 
 	/** Visuals for teleport HMD */
 	UPROPERTY()
-	UStaticMeshComponent* HMDMeshComponent;
+	TObjectPtr<UStaticMeshComponent> HMDMeshComponent;
 
 	/** Visuals for teleport left motion controller */
 	UPROPERTY()
-	UStaticMeshComponent* LeftMotionControllerMeshComponent;
+	TObjectPtr<UStaticMeshComponent> LeftMotionControllerMeshComponent;
 
 	/** Visuals for teleport right motion controller */
 	UPROPERTY()
-	UStaticMeshComponent* RightMotionControllerMeshComponent;
+	TObjectPtr<UStaticMeshComponent> RightMotionControllerMeshComponent;
 
 	/** Dynamic material for teleport visuals */
 	UPROPERTY()
-	UMaterialInstanceDynamic* TeleportMID;
+	TObjectPtr<UMaterialInstanceDynamic> TeleportMID;
 
 	/** The interactor that started aiming to teleport */
 	UPROPERTY()
-	UViewportInteractor* InteractorTryingTeleport;
+	TObjectPtr<UViewportInteractor> InteractorTryingTeleport;
 
 	/** When offset between the hoverlocation of the laser and the calculated  teleport*/
 	FVector OffsetDistance;

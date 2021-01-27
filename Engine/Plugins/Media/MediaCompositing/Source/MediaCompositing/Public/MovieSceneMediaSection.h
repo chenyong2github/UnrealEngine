@@ -27,7 +27,7 @@ public:
 public:
 	/** The source to play with this video track. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media")
-	UMediaSource* MediaSource;
+	TObjectPtr<UMediaSource> MediaSource;
 
 	/** Should the media player be set to loop? This can be helpful for media formats that can use this information (such as exr sequences) to pre-cache the starting data when nearing the end of playback. Does not cause the media to continue playing after the end of the section is reached. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
@@ -39,11 +39,11 @@ public:
 
 	/** The media texture that receives the track's video output. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media", meta = (EditCondition = "!bUseExternalMediaPlayer"))
-	UMediaTexture* MediaTexture;
+	TObjectPtr<UMediaTexture> MediaTexture;
 
 	/** The media sound component that receives the track's audio output. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media")
-	UMediaSoundComponent* MediaSoundComponent;
+	TObjectPtr<UMediaSoundComponent> MediaSoundComponent;
 
 	/** If true, this track will control a previously created media player instead of automatically creating one. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media", AdvancedDisplay)
@@ -51,7 +51,7 @@ public:
 
 	/** The external media player this track should control. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media", meta = (EditCondition = "bUseExternalMediaPlayer"), AdvancedDisplay)
-	UMediaPlayer* ExternalMediaPlayer;
+	TObjectPtr<UMediaPlayer> ExternalMediaPlayer;
 
 public:
 

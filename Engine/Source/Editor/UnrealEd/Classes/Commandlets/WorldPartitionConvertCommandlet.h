@@ -119,7 +119,7 @@ protected:
 	TArray<FHLODLayerActorMapping> HLODLayersForActorClasses;
 
 	UPROPERTY(Transient)
-	TMap<FString, UHLODLayer*> HLODLayers;
+	TMap<FString, TObjectPtr<UHLODLayer>> HLODLayers;
 
 	UPROPERTY(Config)
 	uint32 LandscapeGridSize;

@@ -32,7 +32,7 @@ struct FForeignControlPointData
 	FGuid ModificationKey;
 
 	UPROPERTY()
-	UControlPointMeshComponent* MeshComponent = nullptr;
+	TObjectPtr<UControlPointMeshComponent> MeshComponent = nullptr;
 
 	UPROPERTY()
 	TLazyObjectPtr<ULandscapeSplineControlPoint> Identifier;
@@ -54,7 +54,7 @@ struct FForeignSplineSegmentData
 	FGuid ModificationKey;
 
 	UPROPERTY()
-	TArray<USplineMeshComponent*> MeshComponents;
+	TArray<TObjectPtr<USplineMeshComponent>> MeshComponents;
 
 	UPROPERTY()
 	TLazyObjectPtr<ULandscapeSplineSegment> Identifier;
@@ -113,11 +113,11 @@ class ULandscapeSplinesComponent : public UPrimitiveComponent
 
 	/** Sprite used to draw control points */
 	UPROPERTY()
-	UTexture2D* ControlPointSprite;
+	TObjectPtr<UTexture2D> ControlPointSprite;
 
 	/** Mesh used to draw splines that have no mesh */
 	UPROPERTY()
-	UStaticMesh* SplineEditorMesh;
+	TObjectPtr<UStaticMesh> SplineEditorMesh;
 
 	/** Whether we are in-editor and showing spline editor meshes */
 	UPROPERTY(NonTransactional, Transient)
@@ -126,10 +126,10 @@ class ULandscapeSplinesComponent : public UPrimitiveComponent
 
 protected:
 	UPROPERTY(TextExportTransient)
-	TArray<ULandscapeSplineControlPoint*> ControlPoints;
+	TArray<TObjectPtr<ULandscapeSplineControlPoint>> ControlPoints;
 
 	UPROPERTY(TextExportTransient)
-	TArray<ULandscapeSplineSegment*> Segments;
+	TArray<TObjectPtr<ULandscapeSplineSegment>> Segments;
 
 #if WITH_EDITORONLY_DATA
 	// Serialized
@@ -144,7 +144,7 @@ protected:
 	// References to components owned by landscape splines in other levels
 	// for cooked build (uncooked keeps references via ForeignWorldSplineDataMap)
 	UPROPERTY(TextExportTransient)
-	TArray<UMeshComponent*> CookedForeignMeshComponents;
+	TArray<TObjectPtr<UMeshComponent>> CookedForeignMeshComponents;
 
 public:
 	/** Get a list of spline mesh components representing this landscape spline (Editor only) */

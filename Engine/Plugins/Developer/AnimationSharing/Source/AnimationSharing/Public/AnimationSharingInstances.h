@@ -16,7 +16,7 @@ class ANIMATIONSHARING_API UAnimSharingStateInstance : public UAnimInstance
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Transient, Category = AnimationSharing)
-	UAnimSequence* AnimationToPlay;
+	TObjectPtr<UAnimSequence> AnimationToPlay;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Transient, Category = AnimationSharing)
 	float PermutationTimeOffset;
@@ -35,7 +35,7 @@ private:
 	uint8 ComponentIndex;
 	
 	UPROPERTY(Transient)
-	class UAnimSharingInstance* Instance;
+	TObjectPtr<class UAnimSharingInstance> Instance;
 };
 
 UCLASS(transient, Blueprintable)

@@ -15,7 +15,7 @@ class USlateBrushAssetFactory : public UFactory
 
 	/** An initial texture to assign to the newly created slate brush */
 	UPROPERTY()
-	class UTexture2D* InitialTexture;
+	TObjectPtr<class UTexture2D> InitialTexture;
 
 	//~ Begin UFactory Interface
 	virtual FText GetDisplayName() const override;

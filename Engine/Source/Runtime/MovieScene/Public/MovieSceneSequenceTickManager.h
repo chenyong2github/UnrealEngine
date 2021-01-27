@@ -57,11 +57,11 @@ private:
 
 public:
 	UPROPERTY(transient)
-	TArray<AActor*> SequenceActors;
+	TArray<TObjectPtr<AActor>> SequenceActors;
 
 private:
 	UPROPERTY(transient)
-	UMovieSceneEntitySystemLinker* Linker;
+	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
 
 	FMovieSceneEntitySystemRunner Runner;
 

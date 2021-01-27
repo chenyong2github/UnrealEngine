@@ -207,7 +207,7 @@ protected:
 
 	/** World pointer assigned on Setup */
 	UPROPERTY(transient, BlueprintReadOnly, Category=Capture)
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 protected:
 

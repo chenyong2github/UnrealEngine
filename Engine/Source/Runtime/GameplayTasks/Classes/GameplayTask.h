@@ -362,7 +362,7 @@ protected:
 
 	/** child task instance */
 	UPROPERTY()
-	UGameplayTask* ChildTask;
+	TObjectPtr<UGameplayTask> ChildTask;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	mutable FString DebugDescription;

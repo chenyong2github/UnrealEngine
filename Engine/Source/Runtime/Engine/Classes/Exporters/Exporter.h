@@ -32,7 +32,7 @@ class UExporter : public UObject
 	 * Objects being exported that are contained within ExportRootScope will use just their name instead of a full path
 	 */
 	UPROPERTY(transient)
-	class UObject* ExportRootScope;    // transient
+	TObjectPtr<class UObject> ExportRootScope;    // transient
 
 	/** File extension to use for this exporter */
 	UPROPERTY(BlueprintReadWrite, Category=Misc)
@@ -63,7 +63,7 @@ class UExporter : public UObject
 	uint32 bForceFileOperations:1;
 
 	UPROPERTY(BlueprintReadWrite, Category=Misc)
-	class UAssetExportTask* ExportTask;
+	TObjectPtr<class UAssetExportTask> ExportTask;
 
 	ENGINE_API static		FString	CurrentFilename;
 	/** (debugging purposes only) */

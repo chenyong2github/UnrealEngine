@@ -20,7 +20,7 @@ class UK2Node_CastByteToEnum : public UK2Node
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	/* if true, the node returns always a valid value */
 	UPROPERTY()

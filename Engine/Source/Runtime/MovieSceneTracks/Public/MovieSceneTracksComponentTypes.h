@@ -21,7 +21,7 @@ struct FLevelVisibilityComponentData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	const UMovieSceneLevelVisibilitySection* Section = nullptr;
+	TObjectPtr<const UMovieSceneLevelVisibilitySection> Section = nullptr;
 };
 
 namespace UE

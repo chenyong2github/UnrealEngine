@@ -61,11 +61,11 @@ private:
 	 * or as a base to fallback on if settings are not overridden by the file 
 	 */
 	UPROPERTY()
-	UAutomatedAssetImportData* GlobalImportData;
+	TObjectPtr<UAutomatedAssetImportData> GlobalImportData;
 
 	/** List of import data to import.  Each element in the list represents a list of assets using the same import settings */
 	UPROPERTY()
-	TArray<UAutomatedAssetImportData*> ImportDataList;
+	TArray<TObjectPtr<UAutomatedAssetImportData>> ImportDataList;
 
 	/** If true we allow source control operations during import */
 	bool bAllowSourceControl;

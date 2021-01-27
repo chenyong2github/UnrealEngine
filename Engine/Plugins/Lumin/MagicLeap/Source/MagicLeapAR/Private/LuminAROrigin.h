@@ -54,13 +54,13 @@ private:
 
 private:
 	UPROPERTY()
-	class UMRMeshComponent* MRMeshComponent;
+	TObjectPtr<class UMRMeshComponent> MRMeshComponent;
 
 	UPROPERTY()
-	class UMaterialInterface* PlaneSurfaceMaterial;
+	TObjectPtr<class UMaterialInterface> PlaneSurfaceMaterial;
 
 	UPROPERTY()
-	class UMaterialInterface* WireframeMaterial;
+	TObjectPtr<class UMaterialInterface> WireframeMaterial;
 
 	TMap<FGuid, IMRMesh::FBrickId> PlaneIdToBrickId;
 	IMRMesh::FBrickId NextBrickId = 0;

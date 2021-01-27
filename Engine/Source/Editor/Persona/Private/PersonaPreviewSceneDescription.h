@@ -30,10 +30,10 @@ public:
 	class TSubclassOf<UPersonaPreviewSceneController> PreviewController;
 
 	UPROPERTY()
-	UPersonaPreviewSceneController* PreviewControllerInstance;
+	TObjectPtr<UPersonaPreviewSceneController> PreviewControllerInstance;
 
 	UPROPERTY()
-	TArray<UPersonaPreviewSceneController*> PreviewControllerInstances;
+	TArray<TObjectPtr<UPersonaPreviewSceneController>> PreviewControllerInstances;
 
 	/** The preview mesh to use */
 	UPROPERTY(EditAnywhere, Category = "Mesh", meta=(DisplayThumbnail=true))
@@ -55,7 +55,7 @@ public:
 	TSoftObjectPtr<UDataAsset> AdditionalMeshes;
 
 	UPROPERTY()
-	UPreviewMeshCollection* DefaultAdditionalMeshes;
+	TObjectPtr<UPreviewMeshCollection> DefaultAdditionalMeshes;
 
 	// Sets the current preview controller for the scene (handles uninitializing and initializing controllers)
 	bool SetPreviewController(UClass* PreviewControllerClass, class IPersonaPreviewScene* PreviewScene)

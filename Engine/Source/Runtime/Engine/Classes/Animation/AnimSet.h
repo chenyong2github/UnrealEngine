@@ -59,7 +59,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Actual animation sequence information. */
 	UPROPERTY()
-	TArray<class UAnimSequence*> Sequences;
+	TArray<TObjectPtr<class UAnimSequence>> Sequences;
 
 #endif // WITH_EDITORONLY_DATA
 private:

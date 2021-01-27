@@ -50,7 +50,7 @@ class SYNTHESIS_API USynthSamplePlayer : public USynthComponent
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset")
-	USoundWave* SoundWave;
+	TObjectPtr<USoundWave> SoundWave;
 
 	UPROPERTY(BlueprintAssignable, Category = "Synth|Components|Audio")
 	FOnSampleLoaded OnSampleLoaded;

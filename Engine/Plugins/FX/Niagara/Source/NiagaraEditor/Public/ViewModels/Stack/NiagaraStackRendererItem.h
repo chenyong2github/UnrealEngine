@@ -84,5 +84,5 @@ private:
 	TArray<FNiagaraVariable> MissingAttributes;
 
 	UPROPERTY()
-	UNiagaraStackObject* RendererObject;
+	TObjectPtr<UNiagaraStackObject> RendererObject;
 };

@@ -24,13 +24,13 @@ class AIGRAPH_API UAIGraphNode : public UEdGraphNode
 	struct FGraphNodeClassData ClassData;
 
 	UPROPERTY()
-	UObject* NodeInstance;
+	TObjectPtr<UObject> NodeInstance;
 
 	UPROPERTY(transient)
-	UAIGraphNode* ParentNode;
+	TObjectPtr<UAIGraphNode> ParentNode;
 
 	UPROPERTY()
-	TArray<UAIGraphNode*> SubNodes;
+	TArray<TObjectPtr<UAIGraphNode>> SubNodes;
 
 	/** subnode index assigned during copy operation to connect nodes again on paste */
 	UPROPERTY()

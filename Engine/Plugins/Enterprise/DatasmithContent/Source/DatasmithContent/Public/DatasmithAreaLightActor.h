@@ -54,7 +54,7 @@ public:
 	float Temperature;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Light")
-	class UTextureLightProfile* IESTexture;
+	TObjectPtr<class UTextureLightProfile> IESTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Light", meta=(DisplayName = "Use IES Intensity"))
 	bool bUseIESBrightness;

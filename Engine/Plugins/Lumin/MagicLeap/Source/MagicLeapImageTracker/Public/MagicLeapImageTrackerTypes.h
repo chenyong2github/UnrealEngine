@@ -58,7 +58,7 @@ struct MAGICLEAPIMAGETRACKER_API FMagicLeapImageTargetSettings
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
-	UTexture2D* ImageTexture;
+	TObjectPtr<UTexture2D> ImageTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ImageTracking|MagicLeap")
 	FString Name;

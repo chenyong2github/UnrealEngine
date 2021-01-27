@@ -36,7 +36,7 @@ struct NAVIGATIONSYSTEM_API FSupportedAreaData
 	int32 AreaID;
 
 	UPROPERTY(transient)
-	const UClass* AreaClass;
+	TObjectPtr<const UClass> AreaClass;
 
 	FSupportedAreaData(TSubclassOf<UNavArea> NavAreaClass = NULL, int32 InAreaID = INDEX_NONE);
 };
@@ -496,7 +496,7 @@ class NAVIGATIONSYSTEM_API ANavigationData : public AActor, public INavigationDa
 	GENERATED_UCLASS_BODY()
 	
 	UPROPERTY(transient, duplicatetransient)
-	UPrimitiveComponent* RenderingComp;
+	TObjectPtr<UPrimitiveComponent> RenderingComp;
 
 protected:
 	UPROPERTY()

@@ -109,7 +109,7 @@ protected:
 
 protected:
 	UPROPERTY(Transient)
-	UMeshPaintModeSettings* ModeSettings;
+	TObjectPtr<UMeshPaintModeSettings> ModeSettings;
 
 
 	// End vertex paint state

@@ -16,7 +16,7 @@ class UBehaviorTreeDecoratorGraphNode_Decorator : public UBehaviorTreeDecoratorG
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UObject* NodeInstance;
+	TObjectPtr<UObject> NodeInstance;
 
 	UPROPERTY()
 	FGraphNodeClassData ClassData;

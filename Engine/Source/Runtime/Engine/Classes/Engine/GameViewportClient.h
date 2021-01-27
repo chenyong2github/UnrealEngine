@@ -66,7 +66,7 @@ public:
 
 	/** The viewport's console.   Might be null on consoles */
 	UPROPERTY()
-	class UConsole* ViewportConsole;
+	TObjectPtr<class UConsole> ViewportConsole;
 
 	/** Debug properties that have been added via one of the "displayall" commands */
 	UPROPERTY()
@@ -99,10 +99,10 @@ protected:
 
 	/* The relative world context for this viewport */
 	UPROPERTY()
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	UPROPERTY()
-	UGameInstance* GameInstance;
+	TObjectPtr<UGameInstance> GameInstance;
 
 	/** If true will suppress the blue transition text messages. */
 	bool bSuppressTransitionMessage;

@@ -40,7 +40,7 @@ protected:
 	void UpdateActiveGrid(const FVector& CurrentLocation);
 
 	UPROPERTY(Transient)
-	UNavLocalGridManager* GridManager;
+	TObjectPtr<UNavLocalGridManager> GridManager;
 
 	/** index of current grid */
 	int32 ActiveGridIdx;

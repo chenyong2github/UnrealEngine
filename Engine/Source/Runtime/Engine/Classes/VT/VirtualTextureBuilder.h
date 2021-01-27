@@ -49,7 +49,7 @@ public:
 
 	/** The UTexture object. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
-	class UVirtualTexture2D* Texture;
+	TObjectPtr<class UVirtualTexture2D> Texture;
 
 	/** Some client defined hash of that defines how the Texture was built. */
 	UPROPERTY()

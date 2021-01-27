@@ -23,16 +23,16 @@ public:
 private:
 	/** Pointer to System component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=NiagaraActor, meta = (AllowPrivateAccess = "true"))
-	class UNiagaraComponent* NiagaraComponent;
+	TObjectPtr<class UNiagaraComponent> NiagaraComponent;
 
 #if WITH_EDITORONLY_DATA
 	// Reference to sprite visualization component
 	UPROPERTY()
-	class UBillboardComponent* SpriteComponent;
+	TObjectPtr<class UBillboardComponent> SpriteComponent;
 
 	// Reference to arrow visualization component
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 
 #endif
 

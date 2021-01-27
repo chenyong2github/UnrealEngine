@@ -38,7 +38,7 @@ protected:
 
 	/** Pointer to the property instantiator system for retrieving property stats */
 	UPROPERTY()
-	UMovieScenePropertyInstantiatorSystem* InstantiatorSystem;
+	TObjectPtr<UMovieScenePropertyInstantiatorSystem> InstantiatorSystem;
 
 	/** Must be set on construction - the composite type of the property this system operates with */
 	UE::MovieScene::FCompositePropertyTypeID CompositePropertyID;

@@ -22,7 +22,7 @@ USTRUCT()
 	 float GetSequenceLength() const;
 	/** The animation this section plays */
 	UPROPERTY(EditAnywhere, Category = "GeometryCache", DisplayName = "Geometry Cache")
-	UGeometryCache* GeometryCacheAsset;
+	TObjectPtr<UGeometryCache> GeometryCacheAsset;
 
 	/** The offset for the first loop of the animation clip */
 	UPROPERTY(EditAnywhere, Category = "GeometryCache")

@@ -27,7 +27,7 @@ class ENGINE_API UPoseWatch
 public:
 	// Node that we are trying to watch
 	UPROPERTY()
-	class UEdGraphNode* Node;
+	TObjectPtr<class UEdGraphNode> Node;
 
 	UPROPERTY()
 	FColor PoseWatchColour;

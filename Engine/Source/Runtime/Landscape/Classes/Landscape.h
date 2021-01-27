@@ -130,7 +130,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	ALandscapeBlueprintBrushBase* BlueprintBrush;
+	TObjectPtr<ALandscapeBlueprintBrushBase> BlueprintBrush;
 
 	FTransform LandscapeTransform;
 	FIntPoint LandscapeSize;
@@ -188,7 +188,7 @@ struct FLandscapeLayer
 	TArray<FLandscapeLayerBrush> Brushes;
 
 	UPROPERTY()
-	TMap<ULandscapeLayerInfoObject*, bool> WeightmapLayerAllocationBlend; // True -> Substractive, False -> Additive
+	TMap<TObjectPtr<ULandscapeLayerInfoObject>, bool> WeightmapLayerAllocationBlend; // True -> Substractive, False -> Additive
 };
 
 UCLASS(MinimalAPI, showcategories=(Display, Movement, Collision, Lighting, LOD, Input), hidecategories=(Mobility))
@@ -419,10 +419,10 @@ public:
 	TArray<FLandscapeLayer> LandscapeLayers;
 
 	UPROPERTY(Transient)
-	TArray<UTextureRenderTarget2D*> HeightmapRTList;
+	TArray<TObjectPtr<UTextureRenderTarget2D>> HeightmapRTList;
 
 	UPROPERTY(Transient)
-	TArray<UTextureRenderTarget2D*> WeightmapRTList;
+	TArray<TObjectPtr<UTextureRenderTarget2D>> WeightmapRTList;
 
 private:
 	FLandscapeBlueprintBrushChangedDelegate LandscapeBlueprintBrushChangedDelegate;
@@ -430,7 +430,7 @@ private:
 
 	/** Components affected by landscape splines (used to partially clear Layer Reserved for Splines) */
 	UPROPERTY(Transient)
-	TSet<ULandscapeComponent*> LandscapeSplinesAffectedComponents;
+	TSet<TObjectPtr<ULandscapeComponent>> LandscapeSplinesAffectedComponents;
 
 	/** Provides information from LandscapeEdMode */
 	ILandscapeEdModeInterface* LandscapeEdMode;

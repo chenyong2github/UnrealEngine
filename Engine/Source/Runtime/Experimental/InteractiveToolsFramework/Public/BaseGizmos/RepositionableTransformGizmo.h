@@ -66,7 +66,7 @@ protected:
 	TArray<UInteractiveGizmo*> PivotAlignmentGizmos;
 
 	UPROPERTY()
-	UGizmoTransformChangeStateTarget* RepositionStateTarget;
+	TObjectPtr<UGizmoTransformChangeStateTarget> RepositionStateTarget;
 
 	// Helper functions
 	void ModifyPivotAxisGizmo(UInteractiveGizmo* SubGizmoIn);

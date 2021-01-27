@@ -144,7 +144,7 @@ class UEditorPerProjectUserSettings : public UObject
 	uint32 bAllowSelectTranslucent:1;
 
 	UPROPERTY()
-	class UBlueprintPaletteFavorites* BlueprintFavorites;
+	TObjectPtr<class UBlueprintPaletteFavorites> BlueprintFavorites;
 	
 public:
 	// Per project user settings for which asset viewer profile should be used

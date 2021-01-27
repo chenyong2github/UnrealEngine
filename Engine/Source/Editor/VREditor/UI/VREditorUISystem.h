@@ -50,7 +50,7 @@ struct FVRButton
 
 	/** Pointer to button */
 	UPROPERTY()
-	UVREditorWidgetComponent* ButtonWidget;
+	TObjectPtr<UVREditorWidgetComponent> ButtonWidget;
 
 	/** Animation playback state of the button */
 	EVREditorAnimationState AnimationDirection;
@@ -335,19 +335,19 @@ protected:
 
 	/** Owning object */
 	UPROPERTY()
-	class UVREditorMode* VRMode;
+	TObjectPtr<class UVREditorMode> VRMode;
 
 	/** All of the floating UIs.  These may or may not be visible (spawned) */
 	UPROPERTY()
-	TMap<FName, class AVREditorFloatingUI*> FloatingUIs;
+	TMap<FName, TObjectPtr<class AVREditorFloatingUI>> FloatingUIs;
 
 	/** All of the preview window info. */
 	UPROPERTY()
-	TMap<FName, class AActor*> PreviewWindowInfo;
+	TMap<FName, TObjectPtr<class AActor>> PreviewWindowInfo;
 
 	/** Our Quick Menu UI */
 	UPROPERTY()
-	class AVREditorFloatingUI* InfoDisplayPanel;
+	TObjectPtr<class AVREditorFloatingUI> InfoDisplayPanel;
 
 	/** 
 	 * The current widget used on the info display. Often we wrap a widget in a widget to configure the settings (e.g. DPI). 
@@ -357,7 +357,7 @@ protected:
 
 	/** The Radial Menu UI */
 	UPROPERTY()
-	class AVREditorRadialFloatingUI* QuickRadialMenu;
+	TObjectPtr<class AVREditorRadialFloatingUI> QuickRadialMenu;
 
 	/** The time since the radial menu was updated */
 	float RadialMenuHideDelayTime;
@@ -380,21 +380,21 @@ protected:
 
 	/** The current UI that is being dragged */
 	UPROPERTY()
-	class AVREditorDockableWindow* DraggingUI;
+	TObjectPtr<class AVREditorDockableWindow> DraggingUI;
 
 	/** The color picker dockable window */
 	UPROPERTY()
-	class AVREditorDockableWindow* ColorPickerUI;
+	TObjectPtr<class AVREditorDockableWindow> ColorPickerUI;
 
 	//
 	// Asymmetry
 	//
 	/** Interactor that has a laser and is generally interacting with the scene */
 	UPROPERTY()
-	class UVREditorInteractor* LaserInteractor;
+	TObjectPtr<class UVREditorInteractor> LaserInteractor;
 	/** Interactor that usually accesses UI and other helper functionality */
 	UPROPERTY()
-	class UVREditorInteractor* UIInteractor;
+	TObjectPtr<class UVREditorInteractor> UIInteractor;
 
 	//
 	// Tab Manager UI
@@ -415,7 +415,7 @@ protected:
 
 	/** The add-on that handles radial menu switching */
 	UPROPERTY()
-	UVRRadialMenuHandler* RadialMenuHandler;
+	TObjectPtr<UVRRadialMenuHandler> RadialMenuHandler;
 
 	/** When replacing the actions menu, store off any existing actions */
 	FOnRadialMenuGenerated ExistingActionsMenu;

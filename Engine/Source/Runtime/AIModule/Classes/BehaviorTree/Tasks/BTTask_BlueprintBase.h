@@ -43,11 +43,11 @@ class AIMODULE_API UBTTask_BlueprintBase : public UBTTaskNode
 protected:
 	/** Cached AIController owner of BehaviorTreeComponent. */
 	UPROPERTY(Transient)
-	AAIController* AIOwner;
+	TObjectPtr<AAIController> AIOwner;
 
 	/** Cached actor owner of BehaviorTreeComponent. */
 	UPROPERTY(Transient)
-	AActor* ActorOwner;
+	TObjectPtr<AActor> ActorOwner;
 
 	/** If any of the Tick functions is implemented, how often should they be ticked.
 	 *	Values < 0 mean 'every tick'. */

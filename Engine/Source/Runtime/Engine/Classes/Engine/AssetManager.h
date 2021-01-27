@@ -712,7 +712,7 @@ protected:
 
 	/** List of UObjects that are being kept from being GCd, derived from the asset type map. Arrays are currently more efficient than Sets */
 	UPROPERTY()
-	TArray<UObject*> ObjectReferenceList;
+	TArray<TObjectPtr<UObject>> ObjectReferenceList;
 
 	/** True if we are running a build that is already scanning assets globally so we can perhaps avoid scanning paths synchronously */
 	UPROPERTY()

@@ -45,7 +45,7 @@ private:
 	mutable TOptional<bool> bCanResetToBaseCache;
 
 	UPROPERTY()
-	UNiagaraStackObject* SimulationStageObject;
+	TObjectPtr<UNiagaraStackObject> SimulationStageObject;
 };
 
 UCLASS()
@@ -99,5 +99,5 @@ private:
 	FOnModifiedSimulationStages OnModifiedSimulationStagesDelegate;
 
 	UPROPERTY()
-	UNiagaraStackSimulationStagePropertiesItem* SimulationStageProperties;
+	TObjectPtr<UNiagaraStackSimulationStagePropertiesItem> SimulationStageProperties;
 };

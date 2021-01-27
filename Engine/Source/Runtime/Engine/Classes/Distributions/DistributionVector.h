@@ -74,7 +74,7 @@ private:
 
 public:
 	UPROPERTY(EditAnywhere, export, noclear, Category=RawDistributionVector)
-	class UDistributionVector* Distribution;
+	TObjectPtr<class UDistributionVector> Distribution;
 
 	/** Whether the distribution data has been cooked or the object itself is available */
 	bool IsCreated();

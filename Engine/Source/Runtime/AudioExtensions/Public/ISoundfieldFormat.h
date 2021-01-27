@@ -374,7 +374,7 @@ public:
 	 * TODO: Filter classes settable on here by GetSettingsClass.
 	 */
 	UPROPERTY(EditAnywhere, Category = EffectPreset)
-	USoundfieldEffectSettingsBase* Settings;
+	TObjectPtr<USoundfieldEffectSettingsBase> Settings;
 
 protected:
 	/*

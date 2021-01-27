@@ -28,7 +28,7 @@ class AIMODULE_API UBTTask_RunEQSQuery : public UBTTask_BlackboardBase
 
 	/** query to run */
 	UPROPERTY(Category = Node, VisibleAnywhere, meta = (EditCondition = "!bUseBBKey", DisplayName = "QueryTemplate_DEPRECATED"))
-	UEnvQuery* QueryTemplate;
+	TObjectPtr<UEnvQuery> QueryTemplate;
 
 	/** optional parameters for query */
 	UPROPERTY(Category = Node, VisibleAnywhere, meta = (DisplayName = "QueryParams_DEPRECATED"))

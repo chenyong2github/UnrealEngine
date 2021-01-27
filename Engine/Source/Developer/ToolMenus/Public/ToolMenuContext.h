@@ -93,7 +93,7 @@ private:
 	void Empty();
 
 	UPROPERTY()
-	TArray<UObject*> ContextObjects;
+	TArray<TObjectPtr<UObject>> ContextObjects;
 
 	TArray<TSharedPtr<FUICommandList>> CommandLists;
 

@@ -32,7 +32,7 @@ public:
 
 	/** The import data used to make this overlays asset */
 	UPROPERTY(VisibleAnywhere, Instanced, Category="Import Settings")
-	UAssetImportData* AssetImportData;
+	TObjectPtr<UAssetImportData> AssetImportData;
 
 #endif	// WITH_EDITORONLY_DATA
 

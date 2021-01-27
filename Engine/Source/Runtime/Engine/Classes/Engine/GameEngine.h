@@ -36,7 +36,7 @@ class ENGINE_API UGameEngine
 	float ServerFlushLogInterval;
 
 	UPROPERTY(transient)
-	UGameInstance* GameInstance;
+	TObjectPtr<UGameInstance> GameInstance;
 
 public:
 

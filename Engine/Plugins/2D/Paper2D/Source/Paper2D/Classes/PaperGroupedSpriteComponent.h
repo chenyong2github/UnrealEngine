@@ -26,7 +26,7 @@ public:
 	FMatrix Transform;
 
 	UPROPERTY(EditAnywhere, Category=Instances)
-	UPaperSprite* SourceSprite;
+	TObjectPtr<UPaperSprite> SourceSprite;
 
 	UPROPERTY(EditAnywhere, Category=Instances)
 	FColor VertexColor;
@@ -63,7 +63,7 @@ class PAPER2D_API UPaperGroupedSpriteComponent : public UMeshComponent
 protected:
 	/** Array of materials used by the instances */
 	UPROPERTY()
-	TArray<UMaterialInterface*> InstanceMaterials;
+	TArray<TObjectPtr<UMaterialInterface>> InstanceMaterials;
 
 	/** Array of instances */
 	UPROPERTY(EditAnywhere, DisplayName="Instances", Category=Instances, meta=(MakeEditWidget=true))

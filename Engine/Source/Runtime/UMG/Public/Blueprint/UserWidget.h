@@ -78,7 +78,7 @@ public:
 
 	/** The animation to look for. */
 	UPROPERTY()
-	UWidgetAnimation* Animation;
+	TObjectPtr<UWidgetAnimation> Animation;
 
 	/** The callback. */
 	UPROPERTY()
@@ -156,7 +156,7 @@ public:
 	FName Name;
 
 	UPROPERTY(Instanced)
-	UWidget* Content;
+	TObjectPtr<UWidget> Content;
 };
 
 class UUMGSequencePlayer;
@@ -1164,14 +1164,14 @@ public:
 
 	/** All the sequence players currently playing */
 	UPROPERTY(Transient)
-	TArray<UUMGSequencePlayer*> ActiveSequencePlayers;
+	TArray<TObjectPtr<UUMGSequencePlayer>> ActiveSequencePlayers;
 
 	UPROPERTY(Transient)
-	UUMGSequenceTickManager* AnimationTickManager;
+	TObjectPtr<UUMGSequenceTickManager> AnimationTickManager;
 
 	/** List of sequence players to cache and clean up when safe */
 	UPROPERTY(Transient)
-	TArray<UUMGSequencePlayer*> StoppedSequencePlayers;
+	TArray<TObjectPtr<UUMGSequencePlayer>> StoppedSequencePlayers;
 
 private:
 	/** Stores the widgets being assigned to named slots */
@@ -1181,7 +1181,7 @@ private:
 public:
 	/** The widget tree contained inside this user widget initialized by the blueprint */
 	UPROPERTY(Transient, DuplicateTransient, TextExportTransient)
-	UWidgetTree* WidgetTree;
+	TObjectPtr<UWidgetTree> WidgetTree;
 
 public:
 
@@ -1203,7 +1203,7 @@ public:
 	 * a texture with a screenshot of your game in it, for example if you were designing a HUD.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category="Designer")
-	UTexture2D* PreviewBackground;
+	TObjectPtr<UTexture2D> PreviewBackground;
 
 #endif
 
@@ -1399,7 +1399,7 @@ private:
 
 protected:
 	UPROPERTY(Transient, DuplicateTransient)
-	class UInputComponent* InputComponent;
+	TObjectPtr<class UInputComponent> InputComponent;
 
 protected:
 	UPROPERTY(Transient, DuplicateTransient)

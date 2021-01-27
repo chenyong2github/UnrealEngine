@@ -30,7 +30,7 @@ public:
 #if WITH_EDITORONLY_DATA
 private:
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 public:
 #endif
 

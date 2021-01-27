@@ -61,12 +61,12 @@ class ENGINE_API USoundNode : public UObject
 	static const int32 MAX_ALLOWED_CHILD_NODES = 32;
 
 	UPROPERTY()
-	TArray<class USoundNode*> ChildNodes;
+	TArray<TObjectPtr<class USoundNode>> ChildNodes;
 
 #if WITH_EDITORONLY_DATA
 	/** Node's Graph representation, used to get position. */
 	UPROPERTY()
-	UEdGraphNode*	GraphNode;
+	TObjectPtr<UEdGraphNode>	GraphNode;
 
 	class UEdGraphNode* GetGraphNode() const;
 #endif

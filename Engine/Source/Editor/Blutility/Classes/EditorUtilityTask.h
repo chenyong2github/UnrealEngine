@@ -52,7 +52,7 @@ private:
 
 private:
 	UPROPERTY(Transient)
-	UEditorUtilitySubsystem* MyTaskManager;
+	TObjectPtr<UEditorUtilitySubsystem> MyTaskManager;
 
 	UPROPERTY(Transient)
 	bool bCancelRequested = false;

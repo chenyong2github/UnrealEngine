@@ -613,7 +613,7 @@ struct FStaticMaterial
 	ENGINE_API friend bool operator==(const UMaterialInterface& LHS, const FStaticMaterial& RHS);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMesh)
-	class UMaterialInterface* MaterialInterface;
+	TObjectPtr<class UMaterialInterface> MaterialInterface;
 
 	/*This name should be use by the gameplay to avoid error if the skeletal mesh Materials array topology change*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMesh)
@@ -817,7 +817,7 @@ public:
 
 	/** Materials used by this static mesh. Individual sections index in to this array. */
 	UPROPERTY()
-	TArray<UMaterialInterface*> Materials_DEPRECATED;
+	TArray<TObjectPtr<UMaterialInterface>> Materials_DEPRECATED;
 
 	/** Settings related to building Nanite data. */
 	UPROPERTY()
@@ -989,7 +989,7 @@ private:
 	// Physics data.
 	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, transient, duplicatetransient, Instanced, Category = StaticMesh)
-	class UBodySetup* BodySetup;
+	TObjectPtr<class UBodySetup> BodySetup;
 public:
 	UBodySetup* GetBodySetup() const
 	{
@@ -1111,7 +1111,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Importing data and options used for this mesh */
 	UPROPERTY(EditAnywhere, Instanced, Category=ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 	/** Path to the resource used to construct this static mesh */
 	UPROPERTY()
@@ -1123,7 +1123,7 @@ public:
 
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, AdvancedDisplay, Category=StaticMesh)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 
 	/** The stored camera position to use as a default for the static mesh editor */
 	UPROPERTY()
@@ -1176,7 +1176,7 @@ public:
 	 *	everything explicitly to AttachComponent in the StaticMeshComponent.
 	 */
 	UPROPERTY()
-	TArray<class UStaticMeshSocket*> Sockets;
+	TArray<TObjectPtr<class UStaticMeshSocket>> Sockets;
 
 	/** Data that is only available if this static mesh is an imported SpeedTree */
 	TSharedPtr<class FSpeedTreeWind> SpeedTreeWind;
@@ -1281,7 +1281,7 @@ protected:
 
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = StaticMesh)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 	friend class FStaticMeshCompilingManager;
 	friend class FStaticMeshAsyncBuildWorker;
@@ -1291,10 +1291,10 @@ protected:
 public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Instanced)
-	class UObject* EditableMesh_DEPRECATED;
+	TObjectPtr<class UObject> EditableMesh_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, Category = Collision)
-	class UStaticMesh* ComplexCollisionMesh;
+	TObjectPtr<class UStaticMesh> ComplexCollisionMesh;
 #endif
 
 	/**
@@ -1451,7 +1451,7 @@ public:
 private:
 	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(VisibleAnywhere, transient, duplicatetransient, Instanced, Category = Navigation)
-	UNavCollisionBase* NavCollision;
+	TObjectPtr<UNavCollisionBase> NavCollision;
 
 public:
 	ENGINE_API void SetNavCollision(UNavCollisionBase*);

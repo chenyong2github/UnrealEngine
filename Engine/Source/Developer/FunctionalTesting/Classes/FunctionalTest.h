@@ -226,7 +226,7 @@ public:
 
 private:
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 
 protected:
 	/**
@@ -268,7 +268,7 @@ protected:
 	 * way to observe the test from a different location than you place the functional test actor.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Functional Testing")
-	AActor* ObservationPoint;
+	TObjectPtr<AActor> ObservationPoint;
 
 	/**
 	 * A random number stream that you can use during testing.  This number stream will be consistent
@@ -317,16 +317,16 @@ public:
 	FFunctionalTestEventSignature OnTestFinished;
 
 	UPROPERTY(Transient)
-	TArray<AActor*> AutoDestroyActors;
+	TArray<TObjectPtr<AActor>> AutoDestroyActors;
 	
 	FString FailureMessage;
 	
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	class UFuncTestRenderingComponent* RenderComp;
+	TObjectPtr<class UFuncTestRenderingComponent> RenderComp;
 
 	UPROPERTY()
-	class UTextRenderComponent* TestName;
+	TObjectPtr<class UTextRenderComponent> TestName;
 #endif // WITH_EDITORONLY_DATA
 
 	/** List of causes we need a re-run. */

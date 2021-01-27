@@ -24,5 +24,5 @@ private:
 	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
 
 	UPROPERTY()
-	UMaterialParameterCollection* MPC;
+	TObjectPtr<UMaterialParameterCollection> MPC;
 };

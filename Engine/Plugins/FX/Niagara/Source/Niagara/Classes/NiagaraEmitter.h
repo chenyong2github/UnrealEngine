@@ -120,7 +120,7 @@ struct FNiagaraEmitterScriptProperties
 	GENERATED_BODY()
 	
 	UPROPERTY()
-	UNiagaraScript *Script;
+	TObjectPtr<UNiagaraScript> Script;
 
 	UPROPERTY()
 	TArray<FNiagaraEventReceiverProperties> EventReceivers;
@@ -389,7 +389,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** 'Source' data/graphs for the scripts used by this emitter. */
 	UPROPERTY()
-	class UNiagaraScriptSourceBase*	GraphSource;
+	TObjectPtr<class UNiagaraScriptSourceBase>	GraphSource;
 
 	/** Should we enable rapid iteration removal if the system is also set to remove rapid iteration parameters on compile? This value defaults to true.*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
@@ -411,7 +411,7 @@ public:
 
 	/** Internal: The thumbnail image.*/
 	UPROPERTY()
-	class UTexture2D* ThumbnailImage;
+	TObjectPtr<class UTexture2D> ThumbnailImage;
 
 	/** Internal: Indicates the thumbnail image is out of date.*/
 	UPROPERTY()
@@ -432,10 +432,10 @@ public:
 	FText Category;
 
 	UPROPERTY()
-	TArray<UNiagaraScript*> ScratchPadScripts;
+	TArray<TObjectPtr<UNiagaraScript>> ScratchPadScripts;
 
 	UPROPERTY()
-	TArray<UNiagaraScript*> ParentScratchPadScripts;
+	TArray<TObjectPtr<UNiagaraScript>> ParentScratchPadScripts;
 	
 	/** Callback issued whenever a VM compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnEmitterCompiled& OnEmitterVMCompiled();
@@ -594,7 +594,7 @@ private:
 
 	/** Data used by the editor to maintain UI state etc.. */
 	UPROPERTY()
-	UNiagaraEditorDataBase* EditorData;
+	TObjectPtr<UNiagaraEditorDataBase> EditorData;
 
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnVMScriptCompiledDelegate;
@@ -613,26 +613,26 @@ private:
 	FString UniqueEmitterName;
 
 	UPROPERTY()
-	TArray<UNiagaraRendererProperties*> RendererProperties;
+	TArray<TObjectPtr<UNiagaraRendererProperties>> RendererProperties;
 
 	UPROPERTY(EditAnywhere, Category = "Events", meta=(NiagaraNoMerge))
 	TArray<FNiagaraEventScriptProperties> EventHandlerScriptProps;
 
 	UPROPERTY(meta = (NiagaraNoMerge))
-	TArray<UNiagaraSimulationStageBase*> SimulationStages;
+	TArray<TObjectPtr<UNiagaraSimulationStageBase>> SimulationStages;
 
 	UPROPERTY()
-	UNiagaraScript* GPUComputeScript;
+	TObjectPtr<UNiagaraScript> GPUComputeScript;
 
 	UPROPERTY()
 	TArray<FName> SharedEventGeneratorIds;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UNiagaraEmitter* Parent;
+	TObjectPtr<UNiagaraEmitter> Parent;
 
 	UPROPERTY()
-	UNiagaraEmitter* ParentAtLastMerge;
+	TObjectPtr<UNiagaraEmitter> ParentAtLastMerge;
 #endif
 
 #if WITH_EDITOR
@@ -668,7 +668,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the Emitter asset. */
 	UPROPERTY()
-	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
+	TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>> MessageKeyToMessageMap;
 #endif
 };
 

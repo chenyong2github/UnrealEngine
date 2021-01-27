@@ -19,7 +19,7 @@ class ENGINE_API ASplineMeshActor : public AActor
 
 private:
 	UPROPERTY(Category = SplineMeshActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh,Components|SplineMesh", AllowPrivateAccess = "true"))
-	class USplineMeshComponent* SplineMeshComponent;
+	TObjectPtr<class USplineMeshComponent> SplineMeshComponent;
 
 public:
 

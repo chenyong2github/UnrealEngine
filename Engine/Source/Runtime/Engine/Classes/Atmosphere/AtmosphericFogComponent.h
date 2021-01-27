@@ -222,10 +222,10 @@ protected:
 
 public:
 	UPROPERTY()
-	class UTexture2D* TransmittanceTexture_DEPRECATED;
+	TObjectPtr<class UTexture2D> TransmittanceTexture_DEPRECATED;
 
 	UPROPERTY()
-	class UTexture2D* IrradianceTexture_DEPRECATED;
+	TObjectPtr<class UTexture2D> IrradianceTexture_DEPRECATED;
 
 	enum EPrecomputeState
 	{

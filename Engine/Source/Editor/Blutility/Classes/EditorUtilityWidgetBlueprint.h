@@ -64,6 +64,6 @@ private:
 	TWeakPtr<SDockTab> CreatedTab;
 
 	UPROPERTY(Transient)
-	UEditorUtilityWidget* CreatedUMGWidget;
+	TObjectPtr<UEditorUtilityWidget> CreatedUMGWidget;
 
 };

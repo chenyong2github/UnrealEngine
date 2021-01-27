@@ -25,7 +25,7 @@ class UK2Node_DoOnceMultiInput : public UK2Node, public IK2Node_AddPinInterface
 
 	/** Reference to the integer that contains */
 	UPROPERTY(transient)
-	class UK2Node_TemporaryVariable* DataNode;
+	TObjectPtr<class UK2Node_TemporaryVariable> DataNode;
 
 	virtual ERedirectType DoPinsMatchForReconstruction(const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex) const override;
 

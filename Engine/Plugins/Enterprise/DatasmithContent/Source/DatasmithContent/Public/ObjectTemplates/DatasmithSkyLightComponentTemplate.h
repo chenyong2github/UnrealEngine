@@ -23,7 +23,7 @@ public:
 	int32 CubemapResolution;
 
 	UPROPERTY()
-	class UTextureCube* Cubemap;
+	TObjectPtr<class UTextureCube> Cubemap;
 
 	virtual UObject* UpdateObject( UObject* Destination, bool bForce = false ) override;
 	virtual void Load( const UObject* Source ) override;

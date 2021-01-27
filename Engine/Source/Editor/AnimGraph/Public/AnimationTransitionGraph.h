@@ -13,7 +13,7 @@ class UAnimationTransitionGraph : public UAnimationGraph
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UAnimGraphNode_TransitionResult* MyResultNode;
+	TObjectPtr<class UAnimGraphNode_TransitionResult> MyResultNode;
 
 	ANIMGRAPH_API class UAnimGraphNode_TransitionResult* GetResultNode();
 };

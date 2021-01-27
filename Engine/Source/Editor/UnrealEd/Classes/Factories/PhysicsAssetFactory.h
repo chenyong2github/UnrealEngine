@@ -17,7 +17,7 @@ class UPhysicsAssetFactory : public UFactory
 
 	// The skeletal mesh with which to initialize this physics asset
 	UPROPERTY()
-	USkeletalMesh* TargetSkeletalMesh;
+	TObjectPtr<USkeletalMesh> TargetSkeletalMesh;
 
 	// UFactory Interface
 	virtual bool ConfigureProperties() override;

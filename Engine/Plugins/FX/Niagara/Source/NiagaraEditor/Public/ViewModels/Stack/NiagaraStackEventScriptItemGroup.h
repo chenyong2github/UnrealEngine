@@ -51,7 +51,7 @@ private:
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
 
 	UPROPERTY()
-	UNiagaraStackObject* EmitterObject;
+	TObjectPtr<UNiagaraStackObject> EmitterObject;
 };
 
 UCLASS()
@@ -93,5 +93,5 @@ private:
 	FGuid EventSourceEmitterId;
 
 	UPROPERTY()
-	UNiagaraStackEventHandlerPropertiesItem* EventHandlerProperties;
+	TObjectPtr<UNiagaraStackEventHandlerPropertiesItem> EventHandlerProperties;
 };

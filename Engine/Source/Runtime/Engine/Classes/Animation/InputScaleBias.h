@@ -160,7 +160,7 @@ struct ENGINE_API FInputAlphaBoolBlend
 	bool bInitialized;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	UCurveFloat* CustomCurve;
+	TObjectPtr<UCurveFloat> CustomCurve;
 
 	UPROPERTY(Transient)
 	FAlphaBlend AlphaBlend;

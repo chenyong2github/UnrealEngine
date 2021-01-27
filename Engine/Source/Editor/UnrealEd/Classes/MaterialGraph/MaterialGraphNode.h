@@ -17,7 +17,7 @@ class UMaterialGraphNode : public UMaterialGraphNode_Base
 
 	/** Material Expression this node is representing */
 	UPROPERTY()
-	class UMaterialExpression* MaterialExpression;
+	TObjectPtr<class UMaterialExpression> MaterialExpression;
 
 	/** Set to true when Expression Preview compiles, so we can update SGraphNode */
 	bool bPreviewNeedsUpdate;

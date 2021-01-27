@@ -82,7 +82,7 @@ public:
 
 	/** Texture to which Painting should be Applied */
 	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (DisplayThumbnail = "true", TransientToolProperty))
-	UTexture2D* PaintTexture;
+	TObjectPtr<UTexture2D> PaintTexture;
 
 	/** Enables "Flow" painting where paint is continually applied from the brush every tick */
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Enable Brush Flow"))
@@ -164,10 +164,10 @@ private:
 	
 private:
 	UPROPERTY(Transient)
-	UMeshTexturePaintingToolProperties* TextureProperties;
+	TObjectPtr<UMeshTexturePaintingToolProperties> TextureProperties;
 
 	UPROPERTY(Transient)
-	TArray<const UTexture*> Textures;
+	TArray<TObjectPtr<const UTexture>> Textures;
 
 	/** Flag for whether or not we are currently painting */
 	bool bArePainting;
@@ -186,30 +186,30 @@ private:
 
 	/** Temporary render target used to draw incremental paint to */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* BrushRenderTargetTexture;
+	TObjectPtr<UTextureRenderTarget2D> BrushRenderTargetTexture;
 
 	/** Temporary render target used to store a mask of the affected paint region, updated every time we add incremental texture paint */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* BrushMaskRenderTargetTexture;
+	TObjectPtr<UTextureRenderTarget2D> BrushMaskRenderTargetTexture;
 
 	/** Temporary render target used to store generated mask for texture seams, we create this by projecting object triangles into texture space using the selected UV channel */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* SeamMaskRenderTargetTexture;
+	TObjectPtr<UTextureRenderTarget2D> SeamMaskRenderTargetTexture;
 
 	/** Stores data associated with our paint target textures */
 	UPROPERTY(Transient)
-	TMap< UTexture2D*, FPaintTexture2DData > PaintTargetData;
+	TMap< TObjectPtr<UTexture2D>, FPaintTexture2DData > PaintTargetData;
 
 	/** Texture paint: Will hold a list of texture items that we can paint on */
 	TArray<FTextureTargetListInfo> TexturePaintTargetList;
 
 	/** Texture paint: The mesh components that we're currently painting */
 	UPROPERTY(Transient)
-	UMeshComponent* TexturePaintingCurrentMeshComponent;
+	TObjectPtr<UMeshComponent> TexturePaintingCurrentMeshComponent;
 
 	/** The original texture that we're painting */
 	UPROPERTY(Transient)
-	UTexture2D* PaintingTexture2D;
+	TObjectPtr<UTexture2D> PaintingTexture2D;
 
 	/** True if we need to generate a texture seam mask used for texture dilation */
 	bool bGenerateSeamMask;

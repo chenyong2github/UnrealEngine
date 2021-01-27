@@ -43,7 +43,7 @@ protected:
 	AIPerception::FListenerMap ListenerContainer;
 
 	UPROPERTY()
-	TArray<UAISense*> Senses;
+	TArray<TObjectPtr<UAISense>> Senses;
 
 	UPROPERTY(config, EditAnywhere, Category = Perception)
 	float PerceptionAgingRate;

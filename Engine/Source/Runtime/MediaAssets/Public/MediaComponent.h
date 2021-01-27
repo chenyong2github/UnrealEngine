@@ -33,9 +33,9 @@ private:
 
 	/** This component's media texture */
 	UPROPERTY(Category="Media", Instanced, Transient, BlueprintGetter=GetMediaTexture)
-	UMediaTexture* MediaTexture;
+	TObjectPtr<UMediaTexture> MediaTexture;
 
 	/** This component's media player */
 	UPROPERTY(Category="Media", Instanced, Transient, BlueprintGetter=GetMediaPlayer, Interp)
-	UMediaPlayer* MediaPlayer;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 };

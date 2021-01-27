@@ -117,6 +117,6 @@ private:
 
 private:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
-	class UNiagaraDataInterface* DataInterface;
+	TObjectPtr<class UNiagaraDataInterface> DataInterface;
 };
 

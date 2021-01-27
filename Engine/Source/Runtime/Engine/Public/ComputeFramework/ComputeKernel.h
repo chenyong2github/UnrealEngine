@@ -78,7 +78,7 @@ public:
 	 * This abstracts the source and compilation process.
 	 */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, meta = (ShowOnlyInnerProperties), Category = "Kernel")
-	UComputeKernelSource* KernelSource = nullptr;
+	TObjectPtr<UComputeKernelSource> KernelSource = nullptr;
 
 	/* Specifying certain memory access flags allows for optimizations such as kernel fusing. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (Bitmask, BitmaskEnum = "EComputeKernelFlags"), Category = "Kernel")

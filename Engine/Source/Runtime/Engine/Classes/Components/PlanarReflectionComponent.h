@@ -18,7 +18,7 @@ class UPlanarReflectionComponent : public USceneCaptureComponent
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UBoxComponent* PreviewBox;
+	TObjectPtr<class UBoxComponent> PreviewBox;
 
 public:
 
@@ -116,7 +116,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** The material to use on ProxyMeshComponent */
 	UPROPERTY(transient)
-	class UMaterial* CaptureMaterial;
+	TObjectPtr<class UMaterial> CaptureMaterial;
 #endif
 
 private:

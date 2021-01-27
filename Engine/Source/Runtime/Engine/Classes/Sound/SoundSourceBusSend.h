@@ -37,11 +37,11 @@ struct ENGINE_API FSoundSourceBusSendInfo
 
 	// A source Bus to send the audio to. Source buses sonify (make audible) the audio sent to it and are themselves sounds which take up a voice slot in the audio engine.
 	UPROPERTY(EditAnywhere, Category = BusSend)
-	USoundSourceBus* SoundSourceBus;
+	TObjectPtr<USoundSourceBus> SoundSourceBus;
 
 	// An audio bus to send the audio to. Audio buses can be used to route audio to DSP effects or other purposes. E.g. side-chaining, analysis, etc. Audio buses are not audible unless hooked up to a source bus.
 	UPROPERTY(EditAnywhere, Category = BusSend)
-	UAudioBus* AudioBus;
+	TObjectPtr<UAudioBus> AudioBus;
 
 	// The amount of audio to send to the bus.
 	UPROPERTY(EditAnywhere, Category = BusSend)

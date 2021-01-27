@@ -47,5 +47,5 @@ protected:
 
 	/** List of all constraint sections. */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> ConstraintSections;
+	TArray<TObjectPtr<UMovieSceneSection>> ConstraintSections;
 };

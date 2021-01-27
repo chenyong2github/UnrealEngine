@@ -50,18 +50,18 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Importing data and options used for this Geometry cache object*/
 	UPROPERTY(Category = ImportSettings, VisibleAnywhere, Instanced)
-	class UAssetImportData* AssetImportData;	
+	TObjectPtr<class UAssetImportData> AssetImportData;	
 
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, Category = Thumbnail)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 #endif
 	UPROPERTY(EditAnywhere, Category = GeometryCache)
-	TArray<UMaterialInterface*> Materials;
+	TArray<TObjectPtr<UMaterialInterface>> Materials;
 	
 	/** GeometryCache track defining the samples/geometry data for this GeomCache instance */
 	UPROPERTY(VisibleAnywhere, Category=GeometryCache)
-	TArray<UGeometryCacheTrack*> Tracks;
+	TArray<TObjectPtr<UGeometryCacheTrack>> Tracks;
 
 	/** Set the start and end frames for the GeometryCache */
 	void SetFrameStartEnd(int32 InStartFrame, int32 InEndFrame);

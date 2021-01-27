@@ -21,7 +21,7 @@ struct FMovieSceneTrackEvaluationFieldEntry
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UMovieSceneSection* Section = nullptr;
+	TObjectPtr<UMovieSceneSection> Section = nullptr;
 
 	UPROPERTY()
 	FFrameNumberRange Range;

@@ -452,14 +452,14 @@ protected:
 
 	/** associated movement component */
 	UPROPERTY(transient)
-	UNavMovementComponent* MovementComp;
+	TObjectPtr<UNavMovementComponent> MovementComp;
 
 	/** currently traversed custom nav link */
 	FWeakObjectPtr CurrentCustomLinkOb;
 
 	/** navigation data for agent described in movement component */
 	UPROPERTY(transient)
-	ANavigationData* MyNavData;
+	TObjectPtr<ANavigationData> MyNavData;
 
 	/** requested path */
 	FNavPathSharedPtr Path;

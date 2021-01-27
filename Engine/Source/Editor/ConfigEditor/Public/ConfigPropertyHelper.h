@@ -47,5 +47,5 @@ public:
 	TFieldPath<FProperty> EditProperty;
 
 	UPROPERTY(Transient, Category = Helper, EditAnywhere)
-	TArray<UPropertyConfigFileDisplayRow*> ConfigFilePropertyObjects;
+	TArray<TObjectPtr<UPropertyConfigFileDisplayRow>> ConfigFilePropertyObjects;
 };

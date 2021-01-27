@@ -37,7 +37,7 @@ private:
 
 public:
 	UPROPERTY(EditAnywhere, export, noclear, Category=RawDistributionFloat)
-	class UDistributionFloat* Distribution;
+	TObjectPtr<class UDistributionFloat> Distribution;
 
 
 	FRawDistributionFloat()

@@ -36,7 +36,7 @@ struct AIGRAPH_API FAISchemaAction_NewNode : public FEdGraphSchemaAction
 
 	/** Template of node we want to create */
 	UPROPERTY()
-	class UAIGraphNode* NodeTemplate;
+	TObjectPtr<class UAIGraphNode> NodeTemplate;
 
 	FAISchemaAction_NewNode()
 		: FEdGraphSchemaAction()
@@ -72,11 +72,11 @@ struct AIGRAPH_API FAISchemaAction_NewSubNode : public FEdGraphSchemaAction
 
 	/** Template of node we want to create */
 	UPROPERTY()
-	class UAIGraphNode* NodeTemplate;
+	TObjectPtr<class UAIGraphNode> NodeTemplate;
 
 	/** parent node */
 	UPROPERTY()
-	class UAIGraphNode* ParentNode;
+	TObjectPtr<class UAIGraphNode> ParentNode;
 
 	FAISchemaAction_NewSubNode()
 		: FEdGraphSchemaAction()

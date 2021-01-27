@@ -48,7 +48,7 @@ protected:
 
 	/** The viewport world interaction object we're registered with */
 	UPROPERTY()
-	UViewportWorldInteraction* ViewportWorldInteraction;
+	TObjectPtr<UViewportWorldInteraction> ViewportWorldInteraction;
 
 };
 

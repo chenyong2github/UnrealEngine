@@ -74,7 +74,7 @@ public:
 
 	// Radial Voronoi Fracture Input Settings
 	UPROPERTY(EditAnywhere, Category = Uniform)
-	UFractureRadialSettings* RadialSettings;
+	TObjectPtr<UFractureRadialSettings> RadialSettings;
 
 protected:
 	void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) override;

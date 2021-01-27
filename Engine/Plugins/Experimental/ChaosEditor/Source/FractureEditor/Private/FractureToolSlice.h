@@ -71,7 +71,7 @@ public:
 
 	// Slicing
 	UPROPERTY(EditAnywhere, Category = Slicing)
-	UFractureSliceSettings* SliceSettings;
+	TObjectPtr<UFractureSliceSettings> SliceSettings;
 
 private:
 	float RenderCuttingPlaneSize;

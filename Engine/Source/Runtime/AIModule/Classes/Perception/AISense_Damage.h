@@ -34,11 +34,11 @@ struct AIMODULE_API FAIDamageEvent
 	
 	/** Damaged actor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sense")
-	AActor* DamagedActor;
+	TObjectPtr<AActor> DamagedActor;
 
 	/** Actor that instigated damage. Can be None */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sense")
-	AActor* Instigator;
+	TObjectPtr<AActor> Instigator;
 	
 	FAIDamageEvent();
 	FAIDamageEvent(AActor* InDamagedActor, AActor* InInstigator, float DamageAmount, const FVector& EventLocation, const FVector& InHitLocation = FAISystem::InvalidLocation); 

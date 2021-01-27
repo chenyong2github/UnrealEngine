@@ -58,11 +58,11 @@ struct FAudioVolumeSubmixOverrideSettings
 
 	// The submix to override the effect chain of
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
-	USoundSubmix* Submix = nullptr;
+	TObjectPtr<USoundSubmix> Submix = nullptr;
 
 	// The submix effect chain to overrideac
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
-	TArray<USoundEffectSubmixPreset*> SubmixEffectChain;
+	TArray<TObjectPtr<USoundEffectSubmixPreset>> SubmixEffectChain;
 
 	// The amount of time to crossfade to the override for the submix chain
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)

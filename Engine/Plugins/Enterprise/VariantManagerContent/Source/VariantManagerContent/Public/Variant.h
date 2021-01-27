@@ -134,10 +134,10 @@ private:
 	FText DisplayText;
 
 	UPROPERTY()
-	TArray<UVariantObjectBinding*> ObjectBindings;
+	TArray<TObjectPtr<UVariantObjectBinding>> ObjectBindings;
 
 	UPROPERTY()
-	UTexture2D* Thumbnail;
+	TObjectPtr<UTexture2D> Thumbnail;
 
 #if WITH_EDITOR
 	// Whether we already tried restoring a thumbnail from the actual package (backwards compatibility)

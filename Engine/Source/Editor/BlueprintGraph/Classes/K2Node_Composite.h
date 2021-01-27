@@ -16,7 +16,7 @@ class BLUEPRINTGRAPH_API UK2Node_Composite : public UK2Node_Tunnel
 
 	// The graph that this composite node is representing
 	UPROPERTY()
-	class UEdGraph* BoundGraph;
+	TObjectPtr<class UEdGraph> BoundGraph;
 
 	//~ Begin UObject Interface
 	virtual void PostEditUndo() override;

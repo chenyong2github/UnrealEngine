@@ -117,7 +117,7 @@ class USubUVAnimation : public UObject
 	 * Texture to generate bounding geometry from.
 	 */
 	UPROPERTY(EditAnywhere, Category=SubUV)
-	UTexture2D* SubUVTexture;
+	TObjectPtr<UTexture2D> SubUVTexture;
 
 	/** The number of sub-images horizontally in the texture							*/
 	UPROPERTY(EditAnywhere, Category=SubUV)

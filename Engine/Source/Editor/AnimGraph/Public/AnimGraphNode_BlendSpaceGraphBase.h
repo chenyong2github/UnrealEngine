@@ -62,7 +62,7 @@ protected:
 
 	// Internal blendspace
 	UPROPERTY()
-	UBlendSpaceBase* BlendSpace;
+	TObjectPtr<UBlendSpaceBase> BlendSpace;
 
 	// Blendspace class, for template nodes
 	UPROPERTY()
@@ -70,11 +70,11 @@ protected:
 
 	// Dummy blendspace graph (used for navigation only)
 	UPROPERTY()
-	UBlendSpaceGraph* BlendSpaceGraph;
+	TObjectPtr<UBlendSpaceGraph> BlendSpaceGraph;
 
 	// Linked animation graphs for sample points
 	UPROPERTY()
-	TArray<UEdGraph*> Graphs;
+	TArray<TObjectPtr<UEdGraph>> Graphs;
 
 protected:
 	// UEdGraphNode interface

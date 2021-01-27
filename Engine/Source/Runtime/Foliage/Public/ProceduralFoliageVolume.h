@@ -15,7 +15,7 @@ class FOLIAGE_API AProceduralFoliageVolume: public AVolume
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(Category = ProceduralFoliage, VisibleAnywhere, BlueprintReadOnly)
-	UProceduralFoliageComponent* ProceduralComponent;
+	TObjectPtr<UProceduralFoliageComponent> ProceduralComponent;
 
 #if WITH_EDITOR
 

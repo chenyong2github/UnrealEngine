@@ -240,7 +240,7 @@ protected:
 
 	/** Current set of named GizmoBuilders */
 	UPROPERTY()
-	TMap<FString, UInteractiveGizmoBuilder*> GizmoBuilders;
+	TMap<FString, TObjectPtr<UInteractiveGizmoBuilder>> GizmoBuilders;
 
 	bool bDefaultGizmosRegistered = false;
 	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;

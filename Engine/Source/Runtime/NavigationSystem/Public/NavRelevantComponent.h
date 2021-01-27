@@ -49,5 +49,5 @@ protected:
 	uint32 bNavParentCacheInitialized : 1;
 
 	UPROPERTY(transient)
-	UObject* CachedNavParent;
+	TObjectPtr<UObject> CachedNavParent;
 };

@@ -16,7 +16,7 @@ struct FCurveEdEntry
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	class UObject* CurveObject;
+	TObjectPtr<class UObject> CurveObject;
 
 	UPROPERTY()
 	FColor CurveColor;

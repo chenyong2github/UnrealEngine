@@ -24,11 +24,11 @@ struct ENGINE_API FGraphReference
 protected:
 	// Reference to the actual graph
 	UPROPERTY()
-	mutable class UEdGraph* MacroGraph;
+	mutable TObjectPtr<class UEdGraph> MacroGraph;
 
 	// The blueprint the graph is contained within
 	UPROPERTY()
-	class UBlueprint* GraphBlueprint;
+	TObjectPtr<class UBlueprint> GraphBlueprint;
 
 	// The graph GUID so we can refind it if it has been renamed
 	UPROPERTY()
@@ -76,7 +76,7 @@ public:
 
 	/** Set of all nodes in this graph */
 	UPROPERTY()
-	TArray<class UEdGraphNode*> Nodes;
+	TArray<TObjectPtr<class UEdGraphNode>> Nodes;
 
 	/** If true, graph can be edited by the user */
 	UPROPERTY()
@@ -97,7 +97,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Child graphs that are a part of this graph; the separation is purely visual */
 	UPROPERTY()
-	TArray<class UEdGraph*> SubGraphs;
+	TArray<TObjectPtr<class UEdGraph>> SubGraphs;
 
 	/** Guid for this graph */
 	UPROPERTY()

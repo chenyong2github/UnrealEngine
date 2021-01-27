@@ -183,7 +183,7 @@ struct FSoundWaveSpectralDataPerSound
 
 	// The sound wave this spectral data is associated with
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
-	USoundWave* SoundWave = nullptr;
+	TObjectPtr<USoundWave> SoundWave = nullptr;
 };
 
 USTRUCT(BlueprintType)
@@ -201,7 +201,7 @@ struct FSoundWaveEnvelopeDataPerSound
 
 	// The sound wave this envelope data is associated with
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EnvelopeData")
-	USoundWave* SoundWave = nullptr;
+	TObjectPtr<USoundWave> SoundWave = nullptr;
 };
 
 // Sort predicate for sorting spectral data by frequency (lowest first)
@@ -480,7 +480,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Specify a sound to use for the baked analysis. Will default to this USoundWave if not set. */
 	UPROPERTY(EditAnywhere, Category = "Analysis")
-		USoundWave* OverrideSoundToUseForAnalysis;
+		TObjectPtr<USoundWave> OverrideSoundToUseForAnalysis;
 
 	/**
 		Whether or not we should treat the sound wave used for analysis (this or the override) as looping while performing analysis.
@@ -666,7 +666,7 @@ public:
 		FString SourceFileTimestamp_DEPRECATED;
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
-		class UAssetImportData* AssetImportData;
+		TObjectPtr<class UAssetImportData> AssetImportData;
 
 #endif // WITH_EDITORONLY_DATA
 
@@ -674,11 +674,11 @@ protected:
 
 	/** Curves associated with this sound wave */
 	UPROPERTY(EditAnywhere, Category = SoundWave, AdvancedDisplay)
-		class UCurveTable* Curves;
+		TObjectPtr<class UCurveTable> Curves;
 
 	/** Hold a reference to our internal curve so we can switch back to it if we want to */
 	UPROPERTY()
-		class UCurveTable* InternalCurves;
+		TObjectPtr<class UCurveTable> InternalCurves;
 
 	/** Potential strong handle to the first chunk of audio data. Can be released via ReleaseCompressedAudioData. */
 	FAudioChunkHandle FirstChunk;

@@ -21,11 +21,11 @@ class APlanarReflection : public ASceneCapture
 private:
 	/** Planar reflection component. */
 	UPROPERTY(Category = SceneCapture, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UPlanarReflectionComponent* PlanarReflectionComponent;
+	TObjectPtr<class UPlanarReflectionComponent> PlanarReflectionComponent;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 #endif
 
 public:

@@ -19,12 +19,12 @@ class ATriggerBase : public AActor
 private:
 	/** Shape component used for collision */
 	UPROPERTY(Category = TriggerBase, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UShapeComponent* CollisionComponent;
+	TObjectPtr<UShapeComponent> CollisionComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** Billboard used to see the trigger in the editor */
 	UPROPERTY(Category = TriggerBase, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 #endif
 
 public:

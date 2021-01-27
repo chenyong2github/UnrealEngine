@@ -260,7 +260,7 @@ protected:
 
 	/** instanced nodes */
 	UPROPERTY(transient)
-	TArray<UBTNode*> NodeInstances;
+	TArray<TObjectPtr<UBTNode>> NodeInstances;
 
 	/** search data being currently used */
 	FBehaviorTreeSearchData SearchData;
@@ -430,7 +430,7 @@ protected:
 protected:
 	/** data asset defining the tree */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AI)
-	UBehaviorTree* DefaultBehaviorTreeAsset;
+	TObjectPtr<UBehaviorTree> DefaultBehaviorTreeAsset;
 
 	/** Used to tell tickmanager that we want interval ticking */
 	bool bTickedOnce = false;

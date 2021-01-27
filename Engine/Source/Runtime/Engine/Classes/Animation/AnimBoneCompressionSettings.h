@@ -20,7 +20,7 @@ class ENGINE_API UAnimBoneCompressionSettings : public UObject
 
 	/** A list of animation bone compression codecs to try. Empty entries are ignored but the array cannot be empty. */
 	UPROPERTY(Category = Compression, Instanced, EditAnywhere, meta = (NoElementDuplicate))
-	TArray<UAnimBoneCompressionCodec*> Codecs;
+	TArray<TObjectPtr<UAnimBoneCompressionCodec>> Codecs;
 
 #if WITH_EDITORONLY_DATA
 	/** When compressing, the best codec below this error threshold will be used. */

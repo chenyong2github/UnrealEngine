@@ -62,7 +62,7 @@ public:
 	FString ErrorMessage;
 
 	UPROPERTY()
-	UObject* EditorData;
+	TObjectPtr<UObject> EditorData;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Status of this struct, outside of the editor it is assumed to always be UpToDate */

@@ -16,10 +16,10 @@ class AIMODULE_API UEnvQueryOption : public UObject
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UEnvQueryGenerator* Generator;
+	TObjectPtr<UEnvQueryGenerator> Generator;
 
 	UPROPERTY()
-	TArray<UEnvQueryTest*> Tests;
+	TArray<TObjectPtr<UEnvQueryTest>> Tests;
 
 	FText GetDescriptionTitle() const;
 	FText GetDescriptionDetails() const;

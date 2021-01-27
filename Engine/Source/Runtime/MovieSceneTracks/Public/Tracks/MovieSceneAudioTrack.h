@@ -65,7 +65,7 @@ private:
 
 	/** List of all master audio sections */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> AudioSections;
+	TArray<TObjectPtr<UMovieSceneSection>> AudioSections;
 
 #if WITH_EDITORONLY_DATA
 

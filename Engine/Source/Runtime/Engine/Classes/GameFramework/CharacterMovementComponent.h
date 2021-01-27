@@ -172,7 +172,7 @@ protected:
 
 	/** Character movement component belongs to */
 	UPROPERTY(Transient, DuplicateTransient)
-	ACharacter* CharacterOwner;
+	TObjectPtr<ACharacter> CharacterOwner;
 
 public:
 
@@ -547,7 +547,7 @@ public:
 
 	/** What to update CharacterOwner and UpdatedComponent after movement ends */
 	UPROPERTY()
-	USceneComponent* DeferredUpdatedMoveComponent;
+	TObjectPtr<USceneComponent> DeferredUpdatedMoveComponent;
 
 	/** Maximum step height for getting out of water */
 	UPROPERTY(Category="Character Movement: Swimming", EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(ClampMin="0", UIMin="0"))

@@ -25,7 +25,7 @@ public:
 
 public:
 	UPROPERTY()
-	UClass* AssetType;
+	TObjectPtr<UClass> AssetType;
 
 	// cannot use a FSoftObjectPath, as the json serializer has problems 
 	// with some asset paths (for example, I had a folder named 'Folder()')
@@ -230,7 +230,7 @@ private:
 	FString OutputDir;
 
 	UPROPERTY()
-	TArray<UPackage*> ModuleDependencies;
+	TArray<TObjectPtr<UPackage>> ModuleDependencies;
 
 	/**  */
 	UPROPERTY()

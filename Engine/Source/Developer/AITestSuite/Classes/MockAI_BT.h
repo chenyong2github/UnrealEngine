@@ -16,7 +16,7 @@ class UMockAI_BT : public UMockAI
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UBehaviorTreeComponent* BTComp;
+	TObjectPtr<UBehaviorTreeComponent> BTComp;
 
 	static TArray<int32> ExecutionLog;
 	TArray<int32> ExpectedResult;

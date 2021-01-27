@@ -139,7 +139,7 @@ public:
 protected:
 	/** Array of user data stored with the component */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = AssetUserData)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 private:
 	/** Used for fast removal of end of frame update */

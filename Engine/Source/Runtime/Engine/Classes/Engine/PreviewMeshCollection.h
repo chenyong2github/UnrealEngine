@@ -42,7 +42,7 @@ public:
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = "Skeleton", AssetRegistrySearchable)
-	USkeleton* Skeleton;
+	TObjectPtr<USkeleton> Skeleton;
 
 	/** The skeletal meshes that this collection contains */
 	UPROPERTY(EditAnywhere, Category = "Skeletal Meshes")

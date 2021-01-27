@@ -42,13 +42,13 @@ protected:
 	friend struct FGameplayDebuggerConsoleCommands;
 
 	UPROPERTY()
-	AGameplayDebuggerCategoryReplicator* CachedReplicator;
+	TObjectPtr<AGameplayDebuggerCategoryReplicator> CachedReplicator;
 
 	UPROPERTY()
-	AGameplayDebuggerPlayerManager* CachedPlayerManager;
+	TObjectPtr<AGameplayDebuggerPlayerManager> CachedPlayerManager;
 
 	UPROPERTY()
-	AActor* DebugActorCandidate;
+	TObjectPtr<AActor> DebugActorCandidate;
 
 	TArray<TArray<int32> > DataPackMap;
 	TArray<TArray<int32> > SlotCategoryIds;

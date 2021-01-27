@@ -17,7 +17,7 @@ class USoundCueGraphNode : public USoundCueGraphNode_Base
 
 	/** The SoundNode this represents */
 	UPROPERTY(VisibleAnywhere, instanced, Category=Sound)
-	USoundNode* SoundNode;
+	TObjectPtr<USoundNode> SoundNode;
 
 	/** Set the SoundNode this represents (also assigns this to the SoundNode in Editor)*/
 	AUDIOEDITOR_API void SetSoundNode(USoundNode* InSoundNode);

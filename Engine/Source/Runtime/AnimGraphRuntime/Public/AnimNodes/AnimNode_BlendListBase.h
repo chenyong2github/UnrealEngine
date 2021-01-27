@@ -46,10 +46,10 @@ protected:
 
 public:
 	UPROPERTY(EditAnywhere, Category=BlendType)
-	UCurveFloat* CustomBlendCurve;
+	TObjectPtr<UCurveFloat> CustomBlendCurve;
 
 	UPROPERTY(EditAnywhere, Category=BlendType, meta=(UseAsBlendProfile=true))
-	UBlendProfile* BlendProfile;
+	TObjectPtr<UBlendProfile> BlendProfile;
 
 	TArray<struct FAlphaBlend> Blends;
 

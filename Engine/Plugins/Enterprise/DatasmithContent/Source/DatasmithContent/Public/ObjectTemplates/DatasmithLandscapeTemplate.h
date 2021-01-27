@@ -19,7 +19,7 @@ public:
 	{}
 
 	UPROPERTY()
-	UMaterialInterface* LandscapeMaterial;
+	TObjectPtr<UMaterialInterface> LandscapeMaterial;
 
 	UPROPERTY()
 	int32 StaticLightingLOD;

@@ -21,11 +21,11 @@ class APhysicsThruster : public ARigidBodyBase
 private:
 	/** Thruster component */
 	UPROPERTY(Category = Physics, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Activation,Components|Activation", AllowPrivateAccess = "true"))
-	class UPhysicsThrusterComponent* ThrusterComponent;
+	TObjectPtr<class UPhysicsThrusterComponent> ThrusterComponent;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 #endif
 
 public:

@@ -17,14 +17,14 @@ class AReflectionCapture : public AActor
 private:
 	/** Reflection capture component. */
 	UPROPERTY(Category = DecalActor, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UReflectionCaptureComponent* CaptureComponent;
+	TObjectPtr<class UReflectionCaptureComponent> CaptureComponent;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 
 	UPROPERTY()
-	UBillboardComponent* CaptureOffsetComponent;
+	TObjectPtr<UBillboardComponent> CaptureOffsetComponent;
 #endif // WITH_EDITORONLY_DATA
 
 public:	

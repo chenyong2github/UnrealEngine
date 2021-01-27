@@ -33,7 +33,7 @@ private:
 public:
 	/** (optional) provider for dynamic data binding */
 	UPROPERTY(EditAnywhere, Instanced, Category = Value)
-	UAIDataProvider* DataBinding;
+	TObjectPtr<UAIDataProvider> DataBinding;
 
 	/** name of provider's value property */
 	UPROPERTY(EditAnywhere, Category = Value)
@@ -82,7 +82,7 @@ struct AIMODULE_API FAIDataProviderTypedValue : public FAIDataProviderValue
 
 	/** type of value */
 	UPROPERTY()
-	UClass* PropertyType_DEPRECATED;
+	TObjectPtr<UClass> PropertyType_DEPRECATED;
 	FFieldClass* PropertyType;
 
 	/** filter for provider's properties */

@@ -193,7 +193,7 @@ class ENGINE_API UStaticMeshComponent : public UMeshComponent
 	/** The static mesh that this component uses to render */
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=StaticMesh, ReplicatedUsing=OnRep_StaticMesh, meta=(AllowPrivateAccess="true"))
-	class UStaticMesh* StaticMesh;
+	TObjectPtr<class UStaticMesh> StaticMesh;
 
 	void SetStaticMeshInternal(UStaticMesh* StaticMesh);
 
@@ -775,7 +775,7 @@ public:
 
 	/** Mesh being used by component */
 	UPROPERTY()
-	class UStaticMesh* StaticMesh = nullptr;
+	TObjectPtr<class UStaticMesh> StaticMesh = nullptr;
 
 	/** Array of cached vertex colors for each LOD */
 	UPROPERTY()

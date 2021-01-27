@@ -230,11 +230,11 @@ struct FSkeletalMeshLODInfo
 
 	/** Pose which should be used to reskin vertex influences for which the bones will be removed in this LOD level, uses ref-pose by default */
 	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	class UAnimSequence* BakePose;
+	TObjectPtr<class UAnimSequence> BakePose;
 
 	/** This is used when you are sharing the LOD settings, but you'd like to override the BasePose. This precedes prior to BakePose*/
 	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	class UAnimSequence* BakePoseOverride;
+	TObjectPtr<class UAnimSequence> BakePoseOverride;
 
 	/** The filename of the file tha was used to import this LOD if it was not auto generated. */
 	UPROPERTY(VisibleAnywhere, Category= SkeletalMeshLODInfo, AdvancedDisplay)
@@ -448,7 +448,7 @@ struct FSkeletalMaterial
 	ENGINE_API friend bool operator==( const UMaterialInterface& LHS, const FSkeletalMaterial& RHS );
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SkeletalMesh)
-	class UMaterialInterface *	MaterialInterface;
+	TObjectPtr<class UMaterialInterface> 	MaterialInterface;
 	
 	/*This name should be use by the gameplay to avoid error if the skeletal mesh Materials array topology change*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SkeletalMesh)
@@ -535,7 +535,7 @@ public:
 	 */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use the public ImportData API.")
 	UPROPERTY()
-	mutable USkeletalMeshEditorData* MeshEditorDataObject;
+	mutable TObjectPtr<USkeletalMeshEditorData> MeshEditorDataObject;
 
 private:
 	/*
@@ -626,7 +626,7 @@ public:
 	/** Skeleton of this skeletal mesh **/
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkeleton() or USkeletalMesh::SetSkeleton().")
 	UPROPERTY(Category=Mesh, AssetRegistrySearchable, VisibleAnywhere, BlueprintGetter = GetSkeleton)
-	USkeleton* Skeleton;
+	TObjectPtr<USkeleton> Skeleton;
 
 	static FName GetSkeletonMemberName()
 	{
@@ -974,7 +974,7 @@ public:
 
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetLODSettings() or USkeletalMesh::SetLODSettings().")
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintGetter = GetLODSettings, BlueprintSetter = SetLODSettings, Category = LODSettings)
-	USkeletalMeshLODSettings* LODSettings;
+	TObjectPtr<USkeletalMeshLODSettings> LODSettings;
 
 	static FName GetLODSettingsMemberName()
 	{
@@ -1228,7 +1228,7 @@ public:
 	// Physics data for the per poly collision case. In 99% of cases you will not need this and are better off using simple ragdoll collision (physics asset)
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetBodySetup() or USkeletalMesh::SetBodySetup().")
 	UPROPERTY(transient)
-	class UBodySetup* BodySetup;
+	TObjectPtr<class UBodySetup> BodySetup;
 	static FName GetBodySetupMemberName()
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1265,7 +1265,7 @@ public:
 	 */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetPhysicsAsset() or USkeletalMesh::SetPhysicsAsset().")
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintGetter = GetPhysicsAsset, Category=Physics)
-	class UPhysicsAsset* PhysicsAsset;
+	TObjectPtr<class UPhysicsAsset> PhysicsAsset;
 	
 	static FName GetPhysicsAssetMemberName()
 	{
@@ -1295,7 +1295,7 @@ public:
 	 */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetShadowPhysicsAsset() or USkeletalMesh::SetShadowPhysicsAsset().")
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintGetter = GetShadowPhysicsAsset, Category=Lighting)
-	class UPhysicsAsset* ShadowPhysicsAsset;
+	TObjectPtr<class UPhysicsAsset> ShadowPhysicsAsset;
 
 	static FName GetShadowPhysicsAssetMemberName()
 	{
@@ -1322,7 +1322,7 @@ public:
 	/** Mapping data that is saved */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetNodeMappingData() or USkeletalMesh::SetNodeMappingData().")
 	UPROPERTY(EditAnywhere, editfixedsize, BlueprintGetter = GetNodeMappingData, Category=Animation)
-	TArray<class UNodeMappingContainer*> NodeMappingData;
+	TArray<TObjectPtr<class UNodeMappingContainer>> NodeMappingData;
 	static FName GetNodeMappingDataMemberName()
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1360,7 +1360,7 @@ public:
 	/** Importing data and options used for this mesh */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetAssetImportData() or USkeletalMesh::SetAssetImportData().")
 	UPROPERTY(EditAnywhere, Instanced, Category=ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 	static FName GetAssetImportDataMemberName()
 	{
@@ -1396,7 +1396,7 @@ public:
 	/** Information for thumbnail rendering */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetThumbnailInfo() or USkeletalMesh::SetThumbnailInfo().")
 	UPROPERTY(VisibleAnywhere, Instanced, AdvancedDisplay, Category = Thumbnail)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 	
 	static FName GetThumbnailInfoMemberName()
 	{
@@ -1629,7 +1629,7 @@ public:
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMorphTargets() or USkeletalMesh::SetMorphTargets().")
 	UPROPERTY(BlueprintGetter = GetMorphTargets, BlueprintSetter = SetMorphTargets, Category = Mesh)
 
-	TArray<UMorphTarget*> MorphTargets;
+	TArray<TObjectPtr<UMorphTarget>> MorphTargets;
 
 	static FName GetMorphTargetsMemberName()
 	{
@@ -1899,7 +1899,7 @@ public:
 	 */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMeshClothingAssets() or USkeletalMesh::SetMeshClothingAssets().")
 	UPROPERTY(EditAnywhere, editfixedsize, BlueprintGetter = GetMeshClothingAssets, BlueprintSetter = SetMeshClothingAssets, Category = Clothing)
-	TArray<UClothingAssetBase*> MeshClothingAssets;
+	TArray<TObjectPtr<UClothingAssetBase>> MeshClothingAssets;
 
 	static FName GetMeshClothingAssetsMemberName()
 	{
@@ -1978,7 +1978,7 @@ protected:
 
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category=SkeletalMesh)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 #if WITH_EDITOR
 	FOnMeshChanged OnMeshChanged;
@@ -1993,7 +1993,7 @@ private:
 	 *	everything explicitly to AttachComponent in the SkeletalMeshComponent. 
 	 */
 	UPROPERTY()
-	TArray<class USkeletalMeshSocket*> Sockets;
+	TArray<TObjectPtr<class USkeletalMeshSocket>> Sockets;
 
 	/** Cached matrices from GetComposedRefPoseMatrix */
 	TArray<FMatrix> CachedComposedRefPoseMatrices;

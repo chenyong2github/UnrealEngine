@@ -256,17 +256,17 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 
 	/** Array of morphtargets to render verts for */
 	UPROPERTY(transient)
-	TArray<class UMorphTarget*> MorphTargetOfInterests;
+	TArray<TObjectPtr<class UMorphTarget>> MorphTargetOfInterests;
 
 	/** Array of materials to restore when not rendering blend weights */
 	UPROPERTY(transient)
-	TArray<class UMaterialInterface*> SkelMaterials;
+	TArray<TObjectPtr<class UMaterialInterface>> SkelMaterials;
 	
 	UPROPERTY(transient, NonTransactional)
-	class UAnimPreviewInstance* PreviewInstance;
+	TObjectPtr<class UAnimPreviewInstance> PreviewInstance;
 
 	UPROPERTY(transient)
-	class UAnimInstance* SavedAnimScriptInstance;
+	TObjectPtr<class UAnimInstance> SavedAnimScriptInstance;
 
 	/** Does this component use in game bounds or does it use bounds calculated from bones */
 	UPROPERTY(transient)

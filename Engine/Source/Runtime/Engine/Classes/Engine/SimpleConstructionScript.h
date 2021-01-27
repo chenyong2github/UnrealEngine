@@ -128,24 +128,24 @@ class USimpleConstructionScript : public UObject
 private:
 	/** Root nodes of the construction script */
 	UPROPERTY()
-	TArray<class USCS_Node*> RootNodes;
+	TArray<TObjectPtr<class USCS_Node>> RootNodes;
 
 	/** All nodes that exist in the hierarchy of this SimpleConstructionScript */
 	UPROPERTY()
-	TArray<class USCS_Node*> AllNodes;
+	TArray<TObjectPtr<class USCS_Node>> AllNodes;
 
 	/** Default scene root node; used when no other nodes are available to use as the root */
 	UPROPERTY()
-	class USCS_Node* DefaultSceneRootNode;
+	TObjectPtr<class USCS_Node> DefaultSceneRootNode;
 
 #if WITH_EDITORONLY_DATA
 	/** (DEPRECATED) Root node of the construction script */
 	UPROPERTY()
-	class USCS_Node* RootNode_DEPRECATED;
+	TObjectPtr<class USCS_Node> RootNode_DEPRECATED;
 
 	/** (DEPRECATED) Actor Component based nodes are stored here.  They cannot be in the tree hierarchy */
 	UPROPERTY()
-	TArray<USCS_Node*> ActorComponentNodes_DEPRECATED;
+	TArray<TObjectPtr<USCS_Node>> ActorComponentNodes_DEPRECATED;
 #endif
 
 	/** Helper function to find an appropriate child node index that can be promoted to the parent's level */

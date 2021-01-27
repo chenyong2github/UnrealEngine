@@ -17,7 +17,7 @@ struct FSingleAnimationPlayData
 	// and have detail customization to display different things
 	// The default sequence to play on this skeletal mesh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation)
-	class UAnimationAsset* AnimToPlay;
+	TObjectPtr<class UAnimationAsset> AnimToPlay;
 
 	/** Default setting for looping for SequenceToPlay. This is not current state of looping. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation, meta = (DisplayName = "Looping"))

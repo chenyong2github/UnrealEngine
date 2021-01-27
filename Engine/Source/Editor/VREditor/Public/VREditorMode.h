@@ -367,7 +367,7 @@ protected:
 
 	/** Actor with components to represent the VR avatar in the world, including motion controller meshes */
 	UPROPERTY()
-	class AVREditorAvatarActor* AvatarActor;
+	TObjectPtr<class AVREditorAvatarActor> AvatarActor;
 
 
 	//
@@ -406,15 +406,15 @@ protected:
 
 	/** VR UI system */
 	UPROPERTY()
-	class UVREditorUISystem* UISystem;
+	TObjectPtr<class UVREditorUISystem> UISystem;
 
 	/** Teleporter system */
 	UPROPERTY()
-	class AVREditorTeleporter* TeleportActor;
+	TObjectPtr<class AVREditorTeleporter> TeleportActor;
 
 	/** Automatic scale system */
 	UPROPERTY()
-	class UVREditorAutoScaler* AutoScalerSystem;
+	TObjectPtr<class UVREditorAutoScaler> AutoScalerSystem;
 
 	//
 	// World interaction
@@ -422,20 +422,20 @@ protected:
 
 	/** World interaction manager */
 	UPROPERTY()
-	class UViewportWorldInteraction* WorldInteraction;
+	TObjectPtr<class UViewportWorldInteraction> WorldInteraction;
 
 	/** The current Gizmo type that is used for the TransformGizmo Actor */
 	EGizmoHandleTypes CurrentGizmoType;
 
 	UPROPERTY()
-	class UVREditorPlacement* PlacementSystem;
+	TObjectPtr<class UVREditorPlacement> PlacementSystem;
 
 	//
 	// Interactors
 	//
 
 	UPROPERTY()
-	TArray<UVREditorInteractor*> Interactors;
+	TArray<TObjectPtr<UVREditorInteractor>> Interactors;
 
 	//
 	// Colors
@@ -493,7 +493,7 @@ private:
 
 	/** Container of assets */
 	UPROPERTY()
-	class UVREditorAssetContainer* AssetContainer;
+	TObjectPtr<class UVREditorAssetContainer> AssetContainer;
 
 	/** Whether currently in debug mode or not. */
 	static bool bDebugModeEnabled;

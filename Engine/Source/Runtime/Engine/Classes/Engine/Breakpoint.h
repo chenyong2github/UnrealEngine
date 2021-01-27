@@ -22,7 +22,7 @@ private:
 
 	// Node that the breakpoint is placed on
 	UPROPERTY()
-	class UEdGraphNode* Node;
+	TObjectPtr<class UEdGraphNode> Node;
 
 	// Is this breakpoint auto-generated, and should be removed when next hit?
 	UPROPERTY()

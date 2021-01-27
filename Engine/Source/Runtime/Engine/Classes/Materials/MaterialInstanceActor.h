@@ -21,7 +21,7 @@ class AMaterialInstanceActor : public AActor
 
 	/** Pointer to actors that we want to control paramters of using Matinee. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialInstanceActor)
-	TArray<class AActor*> TargetActors;
+	TArray<TObjectPtr<class AActor>> TargetActors;
 
 #if WITH_EDITORONLY_DATA
 private:

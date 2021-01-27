@@ -56,7 +56,7 @@ struct FPredictProjectilePathParams
 
 	// Actors to ignore when tracing with collision.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PredictProjectilePathParams, AdvancedDisplay)
-	TArray<AActor*> ActorsToIgnore;
+	TArray<TObjectPtr<AActor>> ActorsToIgnore;
 
 	// Determines size of each sub-step in the simulation (chopping up MaxSimTime). Recommended between 10 to 30 depending on desired quality versus performance.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PredictProjectilePathParams, AdvancedDisplay)

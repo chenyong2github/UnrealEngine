@@ -32,7 +32,7 @@ struct FSequencerChannelProxy
 	FName ChannelName;
 
 	UPROPERTY(BlueprintReadWrite, Category=Channel)
-	UMovieSceneSection* Section;
+	TObjectPtr<UMovieSceneSection> Section;
 };
 
 

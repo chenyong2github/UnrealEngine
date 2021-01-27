@@ -23,15 +23,15 @@ class ENGINE_API AEmitterCameraLensEffectBase : public AEmitter
 protected:
 	/** Particle System to use */
 	UPROPERTY(EditDefaultsOnly, Category = EmitterCameraLensEffectBase)
-	class UParticleSystem* PS_CameraEffect;
+	TObjectPtr<class UParticleSystem> PS_CameraEffect;
 
 	/** The effect to use for non extreme content */
 	UPROPERTY()
-	class UParticleSystem* PS_CameraEffectNonExtremeContent_DEPRECATED;
+	TObjectPtr<class UParticleSystem> PS_CameraEffectNonExtremeContent_DEPRECATED;
 
 	/** Camera this emitter is attached to, will be notified when emitter is destroyed */
 	UPROPERTY(transient)
-	class APlayerCameraManager* BaseCamera;
+	TObjectPtr<class APlayerCameraManager> BaseCamera;
 
 	/** 
 	 * Effect-to-camera transform to allow arbitrary placement of the particle system .

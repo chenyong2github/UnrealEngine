@@ -161,7 +161,7 @@ private:
 public:
 	// The skeleton that owns this profile
 	UPROPERTY()
-	USkeleton* OwningSkeleton;
+	TObjectPtr<USkeleton> OwningSkeleton;
 
 	// List of blend scale entries
 	UPROPERTY()

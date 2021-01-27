@@ -21,7 +21,7 @@ public:
 	FVector DecalSize;
 
 	UPROPERTY()
-	class UMaterialInterface* Material;
+	TObjectPtr<class UMaterialInterface> Material;
 
 	virtual UObject* UpdateObject( UObject* Destination, bool bForce = false ) override;
 	virtual void Load( const UObject* Source ) override;

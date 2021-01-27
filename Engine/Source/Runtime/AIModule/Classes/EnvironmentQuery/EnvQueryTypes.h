@@ -1295,7 +1295,7 @@ struct AIMODULE_API FEQSParametrizedQueryExecutionRequest
 	FEQSParametrizedQueryExecutionRequest();
 
 	UPROPERTY(Category = Node, EditAnywhere, meta = (EditCondition = "!bUseBBKeyForQueryTemplate"))
-	UEnvQuery* QueryTemplate;
+	TObjectPtr<UEnvQuery> QueryTemplate;
 
 	UPROPERTY(Category = Node, EditAnywhere)
 	TArray<FAIDynamicParam> QueryConfig;

@@ -77,5 +77,5 @@ private:
 
 	/** Actors to check if they should auto destroy or not */
 	UPROPERTY()
-	TArray<AActor*> ActorsToPoll;
+	TArray<TObjectPtr<AActor>> ActorsToPoll;
 };

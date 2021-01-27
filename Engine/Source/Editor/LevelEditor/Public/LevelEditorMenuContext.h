@@ -43,11 +43,11 @@ public:
 	ELevelEditorMenuContext ContextType;
 
 	UPROPERTY()
-	TArray<UActorComponent*> SelectedComponents;
+	TArray<TObjectPtr<UActorComponent>> SelectedComponents;
 
 	/** If the ContextType is Viewport this property can be set to the HitProxy actor that triggered the ContextMenu. */
 	UPROPERTY()
-	AActor* HitProxyActor = nullptr;
+	TObjectPtr<AActor> HitProxyActor = nullptr;
 };
 
 UCLASS()
@@ -68,5 +68,5 @@ class LEVELEDITOR_API UQuickActionMenuContext : public UObject
 	GENERATED_BODY()
 public:
 	UPROPERTY(Transient)
-	const UTypedElementSelectionSet* CurrentSelection;
+	TObjectPtr<const UTypedElementSelectionSet> CurrentSelection;
 };

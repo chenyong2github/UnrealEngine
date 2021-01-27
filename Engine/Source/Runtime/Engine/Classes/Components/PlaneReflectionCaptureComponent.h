@@ -19,10 +19,10 @@ class UPlaneReflectionCaptureComponent : public UReflectionCaptureComponent
 	float InfluenceRadiusScale;
 
 	UPROPERTY()
-	class UDrawSphereComponent* PreviewInfluenceRadius;
+	TObjectPtr<class UDrawSphereComponent> PreviewInfluenceRadius;
 
 	UPROPERTY()
-	class UBoxComponent* PreviewCaptureBox;
+	TObjectPtr<class UBoxComponent> PreviewCaptureBox;
 
 public:
 	virtual void UpdatePreviewShape() override;

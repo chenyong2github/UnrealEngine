@@ -173,7 +173,7 @@ private:
 
 	/** The sound cue or wave that this section plays */
 	UPROPERTY(EditAnywhere, Category="Audio")
-	USoundBase* Sound;
+	TObjectPtr<USoundBase> Sound;
 
 	/** The offset into the beginning of the audio clip */
 	UPROPERTY(EditAnywhere, Category="Audio")
@@ -219,7 +219,7 @@ private:
 
 	/** The attenuation settings to use. */
 	UPROPERTY( EditAnywhere, Category="Attenuation" )
-	class USoundAttenuation* AttenuationSettings;
+	TObjectPtr<class USoundAttenuation> AttenuationSettings;
 
 	/** Called when subtitles are sent to the SubtitleManager.  Set this delegate if you want to hijack the subtitles for other purposes */
 	UPROPERTY()

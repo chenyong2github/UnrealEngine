@@ -21,16 +21,16 @@ struct FMovieSceneMediaSectionParams
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UMediaSoundComponent* MediaSoundComponent;
+	TObjectPtr<UMediaSoundComponent> MediaSoundComponent;
 
 	UPROPERTY()
-	UMediaSource* MediaSource;
+	TObjectPtr<UMediaSource> MediaSource;
 
 	UPROPERTY()
-	UMediaTexture* MediaTexture;
+	TObjectPtr<UMediaTexture> MediaTexture;
 
 	UPROPERTY()
-	UMediaPlayer* MediaPlayer;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 
 	UPROPERTY()
 	FFrameNumber SectionStartFrame;

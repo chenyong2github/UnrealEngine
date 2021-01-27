@@ -97,5 +97,5 @@ private:
 
 	/** Flat List of the nodes. Since the nodes are variable size, we store a pointer. */
 	UPROPERTY()
-	TMap<FString, UInterchangeBaseNode* > Nodes;
+	TMap<FString, TObjectPtr<UInterchangeBaseNode> > Nodes;
 };

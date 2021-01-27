@@ -385,7 +385,7 @@ public:
 
 	/** Actors currently registered to be animation driven by the AnimManager using this setup */
 	UPROPERTY(VisibleAnywhere, Transient, Category = AnimationSharing)
-	TArray<AActor*> RegisteredActors;
+	TArray<TObjectPtr<AActor>> RegisteredActors;
 	
 	/** Per actor data, matches RegisteredActors*/
 	TArray<FPerActorData> PerActorData;
@@ -400,7 +400,7 @@ public:
 
 	/** (Blueprint)class instance used for determining the state enum value for each registered actor */
 	UPROPERTY(EditAnywhere, Transient, Category = AnimationSharing)
-	UAnimationSharingStateProcessor* StateProcessor;
+	TObjectPtr<UAnimationSharingStateProcessor> StateProcessor;
 	bool bNativeStateProcessor;
 
 	/** Currently running blend instances */
@@ -411,7 +411,7 @@ public:
 	TArray<FAdditiveInstance> AdditiveInstances;
 
 	UPROPERTY(VisibleAnywhere, Transient, Category = AnimationSharing)
-	TArray<UAnimSequence*> UsedAnimationSequences;
+	TArray<TObjectPtr<UAnimSequence>> UsedAnimationSequences;
 
 	/** Significance manager used for retrieve AI actor significance values */
 	USignificanceManager* SignificanceManager;
@@ -421,11 +421,11 @@ public:
 
 	/** Enum class set up by the user to 'describe' the animation states */
 	UPROPERTY(VisibleAnywhere, Transient, Category = AnimationSharing)
-	UEnum* StateEnum;
+	TObjectPtr<UEnum> StateEnum;
 
 	/** Actor to which all the running SkeletalMeshComponents used for the sharing are attached to */
 	UPROPERTY(VisibleAnywhere, Transient, Category = AnimationSharing)
-	AActor* SharingActor;
+	TObjectPtr<AActor> SharingActor;
 
 	/** Platform specific scalability settings */
 	const FAnimationSharingScalability* ScalabilitySettings;
@@ -538,11 +538,11 @@ protected:
 protected:
 	/** Array of unique skeletons, matches PerSkeletonData array entries*/
 	UPROPERTY(Transient)
-	TArray<const USkeleton*> Skeletons;
+	TArray<TObjectPtr<const USkeleton>> Skeletons;
 
 	/** Sharing data required for the unique Skeleton setups */
 	UPROPERTY(VisibleAnywhere, Transient, Category = AnimationSharing)
-	TArray<UAnimSharingInstance*> PerSkeletonData;
+	TArray<TObjectPtr<UAnimSharingInstance>> PerSkeletonData;
 	
 	/** Platform specific scalability settings */
 	FAnimationSharingScalability ScalabilitySettings;

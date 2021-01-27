@@ -48,7 +48,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	ULevel* RuntimeLevel;
+	TObjectPtr<ULevel> RuntimeLevel;
 #endif
 
 	FDelegateHandle OnCleanupLevelDelegateHandle;

@@ -91,7 +91,7 @@ private:
 
 	// A pointer to the director blueprint that generates this levelvariantsets' DirectorClass
 	UPROPERTY()
-	UObject* DirectorBlueprint;
+	TObjectPtr<UObject> DirectorBlueprint;
 
 	FDelegateHandle OnBlueprintCompiledHandle;
 	FDelegateHandle EndPlayDelegateHandle;
@@ -100,10 +100,10 @@ private:
 	// The class that is used to spawn this levelvariantsets' director instance.
 	// Director instances are allocated one per instance
 	UPROPERTY()
-	UBlueprintGeneratedClass* DirectorClass;
+	TObjectPtr<UBlueprintGeneratedClass> DirectorClass;
 
 	UPROPERTY()
-	TArray<UVariantSet*> VariantSets;
+	TArray<TObjectPtr<UVariantSet>> VariantSets;
 
 	// We keep one director instance per world to execute our functions
 	TMap<UWorld*, UObject*> WorldToDirectorInstance;

@@ -418,7 +418,7 @@ struct ENGINE_API FRootMotionSource_ConstantForce : public FRootMotionSource
 	FVector Force;
 
 	UPROPERTY()
-	UCurveFloat* StrengthOverTime;
+	TObjectPtr<UCurveFloat> StrengthOverTime;
 
 	virtual FRootMotionSource* Clone() const override;
 
@@ -469,7 +469,7 @@ struct ENGINE_API FRootMotionSource_RadialForce : public FRootMotionSource
 	FVector Location;
 
 	UPROPERTY()
-	AActor* LocationActor;
+	TObjectPtr<AActor> LocationActor;
 
 	UPROPERTY()
 	float Radius;
@@ -484,10 +484,10 @@ struct ENGINE_API FRootMotionSource_RadialForce : public FRootMotionSource
 	bool bNoZForce;
 
 	UPROPERTY()
-	UCurveFloat* StrengthDistanceFalloff;
+	TObjectPtr<UCurveFloat> StrengthDistanceFalloff;
 
 	UPROPERTY()
-	UCurveFloat* StrengthOverTime;
+	TObjectPtr<UCurveFloat> StrengthOverTime;
 
 	UPROPERTY()
 	bool bUseFixedWorldDirection;
@@ -550,7 +550,7 @@ struct ENGINE_API FRootMotionSource_MoveToForce : public FRootMotionSource
 	bool bRestrictSpeedToExpected;
 
 	UPROPERTY()
-	UCurveVector* PathOffsetCurve;
+	TObjectPtr<UCurveVector> PathOffsetCurve;
 
 	FVector GetPathOffsetInWorldSpace(float MoveFraction) const;
 
@@ -617,10 +617,10 @@ struct ENGINE_API FRootMotionSource_MoveToDynamicForce : public FRootMotionSourc
 	bool bRestrictSpeedToExpected;
 
 	UPROPERTY()
-	UCurveVector* PathOffsetCurve;
+	TObjectPtr<UCurveVector> PathOffsetCurve;
 
 	UPROPERTY()
-	UCurveFloat* TimeMappingCurve;
+	TObjectPtr<UCurveFloat> TimeMappingCurve;
 
 	void SetTargetLocation(FVector NewTargetLocation);
 
@@ -686,10 +686,10 @@ struct ENGINE_API FRootMotionSource_JumpForce : public FRootMotionSource
 	bool bDisableTimeout;
 
 	UPROPERTY()
-	UCurveVector* PathOffsetCurve;
+	TObjectPtr<UCurveVector> PathOffsetCurve;
 
 	UPROPERTY()
-	UCurveFloat* TimeMappingCurve;
+	TObjectPtr<UCurveFloat> TimeMappingCurve;
 
 	FVector SavedHalfwayLocation;
 

@@ -83,7 +83,7 @@ protected:
 	IToolsContextTransactionsAPI* TransactionsAPI;
 
 	UPROPERTY()
-	UInputBehaviorSet* ActiveInputBehaviors;
+	TObjectPtr<UInputBehaviorSet> ActiveInputBehaviors;
 
 	UInputBehavior* ActiveKeyboardCapture = nullptr;
 	void* ActiveKeyboardCaptureOwner = nullptr;

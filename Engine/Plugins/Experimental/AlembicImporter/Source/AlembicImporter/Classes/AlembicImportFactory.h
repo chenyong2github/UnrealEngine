@@ -24,7 +24,7 @@ class UAlembicImportFactory : public UFactory, public FReimportHandler
 
 	/** Object used to show import options for Alembic */
 	UPROPERTY()
-	UAbcImportSettings* ImportSettings;
+	TObjectPtr<UAbcImportSettings> ImportSettings;
 
 	UPROPERTY()
 	bool bShowOption;

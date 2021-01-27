@@ -22,7 +22,7 @@ struct FDebugTextInfo
 
 	/**  AActor related to text item */
 	UPROPERTY()
-	AActor* SrcActor;
+	TObjectPtr<AActor> SrcActor;
 
 	/** Offset from SrcActor.Location to apply */
 	UPROPERTY()
@@ -66,7 +66,7 @@ struct FDebugTextInfo
 
 	/** The Font which to display this as.  Will Default to GetSmallFont()**/
 	UPROPERTY()
-	UFont* Font;
+	TObjectPtr<UFont> Font;
 
 	/** Scale to apply to font when rendering */
 	UPROPERTY()

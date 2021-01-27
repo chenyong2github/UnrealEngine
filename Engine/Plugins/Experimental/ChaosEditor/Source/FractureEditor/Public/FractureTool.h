@@ -32,7 +32,7 @@ public:
 	void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
 	UPROPERTY()
-	UFractureModalTool* OwnerTool;
+	TObjectPtr<UFractureModalTool> OwnerTool;
 };
 
 

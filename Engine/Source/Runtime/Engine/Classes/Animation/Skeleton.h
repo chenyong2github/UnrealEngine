@@ -198,7 +198,7 @@ struct FRigConfiguration
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	class URig * Rig = nullptr;
+	TObjectPtr<class URig>  Rig = nullptr;
 
 	// @todo in the future we can make this to be run-time data
 	UPROPERTY()
@@ -332,7 +332,7 @@ public:
 	 *	everything explicitly to AttachComponent in the SkeletalMeshComponent.
 	 */
 	UPROPERTY()
-	TArray<class USkeletalMeshSocket*> Sockets;
+	TArray<TObjectPtr<class USkeletalMeshSocket>> Sockets;
 
 	/** Serializable retarget sources for this skeleton **/
 	TMap< FName, FReferencePose > AnimRetargetSources;
@@ -409,7 +409,7 @@ public:
 
 	/** List of blend profiles available in this skeleton */
 	UPROPERTY(Instanced)
-	TArray<UBlendProfile*> BlendProfiles;
+	TArray<TObjectPtr<UBlendProfile>> BlendProfiles;
 
 	/** Get the specified blend profile by name */
 	ENGINE_API UBlendProfile* GetBlendProfile(const FName& InProfileName);
@@ -899,6 +899,6 @@ public:
 protected:
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Skeleton)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 };
 

@@ -16,7 +16,7 @@ class UBehaviorTreeGraphNode_CompositeDecorator : public UBehaviorTreeGraphNode
 
 	// The logic graph for this decorator (returning a boolean)
 	UPROPERTY()
-	class UEdGraph* BoundGraph;
+	TObjectPtr<class UEdGraph> BoundGraph;
 
 	UPROPERTY(EditAnywhere, Category=Description)
 	FString CompositeName;
@@ -68,7 +68,7 @@ protected:
 	virtual void ResetNodeOwner() override;
 
 	UPROPERTY()
-	class UBTCompositeNode* ParentNodeInstance;
+	TObjectPtr<class UBTCompositeNode> ParentNodeInstance;
 
 	uint8 ChildIndex;
 

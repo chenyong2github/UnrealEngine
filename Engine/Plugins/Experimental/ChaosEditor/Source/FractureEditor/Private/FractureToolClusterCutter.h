@@ -73,7 +73,7 @@ public:
 
 	
 	UPROPERTY(EditAnywhere, Category = Cluster)
-	UFractureClusterCutterSettings* ClusterSettings;
+	TObjectPtr<UFractureClusterCutterSettings> ClusterSettings;
 
 protected:
 	void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) override;

@@ -197,7 +197,7 @@ protected:
 protected:
 	/** Image to use for the border */
 	UPROPERTY()
-	USlateBrushAsset* Brush_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> Brush_DEPRECATED;
 #endif
 
 	PROPERTY_BINDING_IMPLEMENTATION(FLinearColor, ContentColorAndOpacity)

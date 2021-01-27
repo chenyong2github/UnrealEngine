@@ -16,7 +16,7 @@ class UMaterialGraphNode_Composite : public UMaterialGraphNode
 
 	/** The graph that this composite node is representing */
 	UPROPERTY()
-	UMaterialGraph* BoundGraph;
+	TObjectPtr<UMaterialGraph> BoundGraph;
 
 	//~ Begin UObject Interface
 	virtual void PostEditUndo() override; 

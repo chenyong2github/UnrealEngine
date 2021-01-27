@@ -18,9 +18,9 @@ struct FTouchInputControl
 
 	// basically mirroring SVirtualJoystick::FControlInfo but as an editable class
 	UPROPERTY(EditAnywhere, Category="Control", meta=(ToolTip="For sticks, this is the Thumb"))
-	UTexture2D* Image1;
+	TObjectPtr<UTexture2D> Image1;
 	UPROPERTY(EditAnywhere, Category="Control", meta=(ToolTip="For sticks, this is the Background"))
-	UTexture2D* Image2;
+	TObjectPtr<UTexture2D> Image2;
 	UPROPERTY(EditAnywhere, Category="Control", meta=(ToolTip="The center point of the control (if <= 1.0, it's relative to screen, > 1.0 is absolute)"))
 	FVector2D Center;
 	UPROPERTY(EditAnywhere, Category="Control", meta=(ToolTip="The size of the control (if <= 1.0, it's relative to screen, > 1.0 is absolute)"))

@@ -224,7 +224,7 @@ public:
 protected:
 	// CachedProperties should only ever be set to an instance of the subclass, ideally via GetPropertyCache().
 	UPROPERTY()
-	UInteractiveToolPropertySet* CachedProperties = nullptr;
+	TObjectPtr<UInteractiveToolPropertySet> CachedProperties = nullptr;
 
 	UPROPERTY()
 	bool bIsPropertySetEnabled = true;
@@ -367,11 +367,11 @@ protected:
 
 	/** The current set of InputBehaviors provided by this Tool */
 	UPROPERTY()
-	UInputBehaviorSet* InputBehaviors;
+	TObjectPtr<UInputBehaviorSet> InputBehaviors;
 
 	/** The current set of Property UObjects provided by this Tool. May contain pointer to itself. */
 	UPROPERTY()
-	TArray<UObject*> ToolPropertyObjects;
+	TArray<TObjectPtr<UObject>> ToolPropertyObjects;
 
 	/**
 	 * Add a Property object for this Tool

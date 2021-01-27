@@ -23,7 +23,7 @@ public:
 	FScrollBarStyle WidgetStyle;
 
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category="Behavior")

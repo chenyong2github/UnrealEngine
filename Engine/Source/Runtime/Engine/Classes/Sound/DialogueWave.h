@@ -53,7 +53,7 @@ struct ENGINE_API FDialogueContextMapping
 
 	/** The soundwave to play for this dialogue. */
 	UPROPERTY(EditAnywhere, Category=DialogueContextMapping )
-	USoundWave* SoundWave;
+	TObjectPtr<USoundWave> SoundWave;
 
 	/**
 	 * The format string to use when generating the localization key for this context. This must be unique within the owner dialogue wave.
@@ -65,7 +65,7 @@ struct ENGINE_API FDialogueContextMapping
 
 	/** Cached object for playing the soundwave with subtitle information included. */
 	UPROPERTY(Transient)
-	UDialogueSoundWaveProxy* Proxy;
+	TObjectPtr<UDialogueSoundWaveProxy> Proxy;
 
 	/** Gets the localization key to use for this context mapping */
 	FString GetLocalizationKey() const;

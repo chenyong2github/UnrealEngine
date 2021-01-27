@@ -22,7 +22,7 @@ class UNREALED_API UTrueTypeFontFactory : public UTextureFactory, public FReimpo
 
 	/** Import options for this font */
 	UPROPERTY(EditAnywhere, Instanced, Category = TrueTypeFontFactory, meta = (ToolTip = "Import options for the font"))
-	class UFontImportOptions* ImportOptions;
+	TObjectPtr<class UFontImportOptions> ImportOptions;
 
 	/** True when the font dialog was shown for this factory during the non-legacy creation process */
 	UPROPERTY()

@@ -48,7 +48,7 @@ private:
 
 	// Exposing our root component like this allows manual Mobility control on the details panel
 	UPROPERTY(Category = SwitchActor, VisibleAnywhere)
-	class USceneComponent* SceneComponent;
+	TObjectPtr<class USceneComponent> SceneComponent;
 
 	UPROPERTY()
 	int32 LastSelectedOption;

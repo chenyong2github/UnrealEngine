@@ -57,15 +57,15 @@ class NIAGARA_API UNiagaraDataInterfaceAudioPlayer : public UNiagaraDataInterfac
 public:
 	/** Reference to the audio asset to play */
 	UPROPERTY(EditAnywhere, Category = "Audio")
-    USoundBase* SoundToPlay;
+    TObjectPtr<USoundBase> SoundToPlay;
 
 	/** Optional sound attenuation setting to use */
 	UPROPERTY(EditAnywhere, Category = "Audio")
-	USoundAttenuation* Attenuation;
+	TObjectPtr<USoundAttenuation> Attenuation;
 
 	/** Optional sound concurrency setting to use */
 	UPROPERTY(EditAnywhere, Category = "Audio")
-	USoundConcurrency* Concurrency;
+	TObjectPtr<USoundConcurrency> Concurrency;
 	
 	/** A set of parameter names that can be referenced via index when setting sound cue parameters on persistent audio */
 	UPROPERTY(EditAnywhere, Category = "Parameters")

@@ -14,11 +14,11 @@ class ENGINE_API AWindDirectionalSource : public AInfo
 
 private:
 	UPROPERTY(Category = WindDirectionalSource, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UWindDirectionalSourceComponent* Component;
+	TObjectPtr<class UWindDirectionalSourceComponent> Component;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 #endif
 
 public:

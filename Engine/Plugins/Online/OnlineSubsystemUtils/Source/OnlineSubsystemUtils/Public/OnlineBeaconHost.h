@@ -107,7 +107,7 @@ private:
 
 	/** List of all client beacon actors with active connections */
 	UPROPERTY()
-	TArray<AOnlineBeaconClient*> ClientActors;
+	TArray<TObjectPtr<AOnlineBeaconClient>> ClientActors;
 
 	/** Sends the welcome control message to the client. Used as a delegate if encryption is being negotiated. */
 	void SendWelcomeControlMessage(UNetConnection* Connection);

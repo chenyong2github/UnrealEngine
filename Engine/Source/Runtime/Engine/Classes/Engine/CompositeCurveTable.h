@@ -45,11 +45,11 @@ protected:
 	// Parent tables
 	// Tables with higher indices override data in tables with lower indices
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tables)
-	TArray<UCurveTable*> ParentTables;
+	TArray<TObjectPtr<UCurveTable>> ParentTables;
 
 	// temporary copy used to detect changes so we can update delegates correctly on removal
 	UPROPERTY(transient)
-	TArray<UCurveTable*> OldParentTables;
+	TArray<TObjectPtr<UCurveTable>> OldParentTables;
 
 	// true if this asset is currently being loaded; false otherwise
 	uint8 bIsLoading : 1;

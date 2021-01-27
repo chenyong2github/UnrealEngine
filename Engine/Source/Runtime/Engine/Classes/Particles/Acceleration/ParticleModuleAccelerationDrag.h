@@ -22,7 +22,7 @@ class UParticleModuleAccelerationDrag : public UParticleModuleAccelerationBase
 
 	/** Per-particle drag coefficient. Evaluted using emitter time. */
 	UPROPERTY()
-	class UDistributionFloat* DragCoefficient_DEPRECATED;
+	TObjectPtr<class UDistributionFloat> DragCoefficient_DEPRECATED;
 
 	/** Per-particle drag coefficient. Evaluted using emitter time. */
 	UPROPERTY(EditAnywhere, Category = Drag)

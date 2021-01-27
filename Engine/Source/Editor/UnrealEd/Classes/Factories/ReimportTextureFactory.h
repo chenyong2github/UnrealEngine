@@ -21,7 +21,7 @@ class UReimportTextureFactory : public UTextureFactory, public FReimportHandler
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UTexture* pOriginalTex;
+	TObjectPtr<class UTexture> pOriginalTex;
 
 
 	//~ Begin FReimportHandler Interface

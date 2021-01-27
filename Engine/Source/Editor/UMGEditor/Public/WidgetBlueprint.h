@@ -63,7 +63,7 @@ private:
 
 	/** The owner of the path segment (ie. What class or structure was this property from) */
 	UPROPERTY()
-	UStruct* Struct;
+	TObjectPtr<UStruct> Struct;
 
 	/** The member name in the structure this segment represents. */
 	UPROPERTY()
@@ -175,7 +175,7 @@ struct FWidgetAnimation_DEPRECATED
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UMovieScene* MovieScene = nullptr;
+	TObjectPtr<UMovieScene> MovieScene = nullptr;
 
 	UPROPERTY()
 	TArray<FWidgetAnimationBinding> AnimationBindings;
@@ -238,7 +238,7 @@ public:
 	TArray<FWidgetAnimation_DEPRECATED> AnimationData_DEPRECATED;
 
 	UPROPERTY()
-	TArray<UWidgetAnimation*> Animations;
+	TArray<TObjectPtr<UWidgetAnimation>> Animations;
 
 	/**
 	 * Don't directly modify this property to change the palette category.  The actual value is stored 

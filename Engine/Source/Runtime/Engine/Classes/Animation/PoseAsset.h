@@ -165,7 +165,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Category=Source, EditAnywhere)
-	UAnimSequence* SourceAnimation;
+	TObjectPtr<UAnimSequence> SourceAnimation;
 #endif // WITH_EDITORONLY_DATA
 
 	/**

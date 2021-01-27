@@ -41,7 +41,7 @@ public:
 	FName Name;
 
 	UPROPERTY()
-	UToolMenu* Menu;
+	TObjectPtr<UToolMenu> Menu;
 };
 
 UCLASS()
@@ -61,7 +61,7 @@ public:
 	ECustomizedToolMenuVisibility Visibility;
 
 	UPROPERTY()
-	UToolMenu* Menu;
+	TObjectPtr<UToolMenu> Menu;
 };
 
 UCLASS()

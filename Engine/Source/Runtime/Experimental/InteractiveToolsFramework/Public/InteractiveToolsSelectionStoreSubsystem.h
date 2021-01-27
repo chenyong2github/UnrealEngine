@@ -81,5 +81,5 @@ public:
 
 private:
 	UPROPERTY()
-	const UInteractiveToolStorableSelection* StoredSelection = nullptr;
+	TObjectPtr<const UInteractiveToolStorableSelection> StoredSelection = nullptr;
 };

@@ -22,13 +22,13 @@ public:
 
 private:
 	UPROPERTY()
-	ULocalizationTargetSet* EngineTargetSet;
+	TObjectPtr<ULocalizationTargetSet> EngineTargetSet;
 
 	UPROPERTY(config)
 	TArray<FLocalizationTargetSettings> EngineTargetsSettings;
 
 	UPROPERTY()
-	ULocalizationTargetSet* GameTargetSet;
+	TObjectPtr<ULocalizationTargetSet> GameTargetSet;
 
 	UPROPERTY(config)
 	TArray<FLocalizationTargetSettings> GameTargetsSettings;

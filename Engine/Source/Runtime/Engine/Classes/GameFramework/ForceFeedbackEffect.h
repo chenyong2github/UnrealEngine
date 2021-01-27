@@ -70,7 +70,7 @@ struct ENGINE_API FActiveForceFeedbackEffect
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	class UForceFeedbackEffect* ForceFeedbackEffect;
+	TObjectPtr<class UForceFeedbackEffect> ForceFeedbackEffect;
 
 	FForceFeedbackParameters Parameters;
 	float PlayTime;

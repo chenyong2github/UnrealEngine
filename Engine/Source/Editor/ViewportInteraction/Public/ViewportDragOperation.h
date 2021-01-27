@@ -74,7 +74,7 @@ private:
 
 	/** The actual dragging implementation */
 	UPROPERTY()
-	UViewportDragOperation* DragOperation;
+	TObjectPtr<UViewportDragOperation> DragOperation;
 
 	/** The next class that will be used as drag operation */
 	UPROPERTY()

@@ -141,10 +141,10 @@ struct FAnimationTransitionBetweenStates : public FAnimationStateBase
 	EAlphaBlendOption BlendMode;
 
 	UPROPERTY()
-	UCurveFloat* CustomCurve;
+	TObjectPtr<UCurveFloat> CustomCurve;
 
 	UPROPERTY()
-	UBlendProfile* BlendProfile;
+	TObjectPtr<UBlendProfile> BlendProfile;
 
 	UPROPERTY()
 	TEnumAsByte<ETransitionLogicType::Type> LogicType;

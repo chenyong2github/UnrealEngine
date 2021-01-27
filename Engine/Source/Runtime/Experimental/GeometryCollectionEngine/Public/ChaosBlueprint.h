@@ -77,11 +77,11 @@ public:
 
 	// Which chaos solver actors we're using. If empty, this listener will fallback to the "world" solver.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Solvers")
-	TSet<AChaosSolverActor*> ChaosSolverActors;
+	TSet<TObjectPtr<AChaosSolverActor>> ChaosSolverActors;
 
 	// Which chaos solver actors we're using. If empty, this listener will fallback to the "world" solver.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GeometryCollections")
-	TSet<AGeometryCollectionActor*> GeometryCollectionActors; // Using TSet automatically blocks if user tries to add same actor twice
+	TSet<TObjectPtr<AGeometryCollectionActor>> GeometryCollectionActors; // Using TSet automatically blocks if user tries to add same actor twice
 
 	// Dynamically adds a chaos solver to the listener
 	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))

@@ -19,7 +19,7 @@ class UK2Node_GetNumEnumEntries : public UK2Node, public INodeDependingOnEnumInt
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	//~ Begin UEdGraphNode Interface
 	virtual void AllocateDefaultPins() override;

@@ -181,7 +181,7 @@ protected:
 	bool bReturnFocusToSelection = false;
 
 	UPROPERTY(Transient)
-	TArray<UObject*> ListItems;
+	TArray<TObjectPtr<UObject>> ListItems;
 
 	TSharedPtr<SListView<UObject*>> MyListView;
 

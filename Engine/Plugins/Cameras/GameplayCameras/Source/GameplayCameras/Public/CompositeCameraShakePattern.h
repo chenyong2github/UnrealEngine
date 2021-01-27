@@ -29,7 +29,7 @@ public:
 
 	/** The list of child shake patterns */
 	UPROPERTY(EditAnywhere, Instanced, Category=CameraShake)
-	TArray<UCameraShakePattern*> ChildPatterns;
+	TArray<TObjectPtr<UCameraShakePattern>> ChildPatterns;
 
 private:
 

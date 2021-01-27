@@ -40,7 +40,7 @@ public:
 
 	/** Field system asset to be used to store the construction fields */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Field", meta = (ToolTip = "Field system asset to be used to store the construction fields"))
-	UFieldSystem* FieldSystem;
+	TObjectPtr<UFieldSystem> FieldSystem;
 
 	/** If enabled the field will be pushed to the world fields and will be available to materials and niagara */
 	UPROPERTY(EditAnywhere, Category = "Field", meta = (ToolTip = "If enabled the field will be pushed to the world fields and will be available to materials and niagara"))

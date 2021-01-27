@@ -17,11 +17,11 @@ class UBehaviorTreeGraphNode : public UAIGraphNode
 
 	/** only some of behavior tree nodes support decorators */
 	UPROPERTY()
-	TArray<UBehaviorTreeGraphNode*> Decorators;
+	TArray<TObjectPtr<UBehaviorTreeGraphNode>> Decorators;
 
 	/** only some of behavior tree nodes support services */
 	UPROPERTY()
-	TArray<UBehaviorTreeGraphNode*> Services;
+	TArray<TObjectPtr<UBehaviorTreeGraphNode>> Services;
 
 	//~ Begin UEdGraphNode Interface
 	virtual class UBehaviorTreeGraph* GetBehaviorTreeGraph();

@@ -24,7 +24,7 @@ public:
 
 	/** Array of actors in a level */
 	UPROPERTY(transient)
-	TArray<AActor*> Actors;
+	TArray<TObjectPtr<AActor>> Actors;
 
 	virtual void CreateCluster() override;
 	virtual void OnClusterMarkedAsPendingKill() override;

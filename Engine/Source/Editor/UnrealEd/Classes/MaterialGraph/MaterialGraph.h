@@ -105,19 +105,19 @@ class UNREALED_API UMaterialGraph : public UEdGraph
 
 	/** Material this Graph represents */
 	UPROPERTY()
-	class UMaterial*				Material;
+	TObjectPtr<class UMaterial>				Material;
 
 	/** Material Function this Graph represents (NULL for Materials) */
 	UPROPERTY()
-	class UMaterialFunction*		MaterialFunction;
+	TObjectPtr<class UMaterialFunction>		MaterialFunction;
 
 	/** Root node representing Material inputs (NULL for Material Functions) */
 	UPROPERTY()
-	class UMaterialGraphNode_Root*	RootNode;
+	TObjectPtr<class UMaterialGraphNode_Root>	RootNode;
 
 	/** Expression this subgraph represents (NULL if not subgraph, Material [Function] still populated) */
 	UPROPERTY()
-	UMaterialExpression*			SubgraphExpression;
+	TObjectPtr<UMaterialExpression>			SubgraphExpression;
 
 	/** List of Material Inputs (not set up for Material Functions) */
 	TArray<FMaterialInputInfo> MaterialInputs;

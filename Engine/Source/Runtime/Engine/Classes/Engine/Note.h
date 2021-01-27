@@ -24,11 +24,11 @@ class ANote : public AActor
 	// Reference to sprite visualization component
 private:
 	UPROPERTY()
-	class UBillboardComponent* SpriteComponent;
+	TObjectPtr<class UBillboardComponent> SpriteComponent;
 
 	// Reference to arrow visualization component
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 public:
 
 #endif // WITH_EDITORONLY_DATA

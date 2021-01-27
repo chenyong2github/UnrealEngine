@@ -172,7 +172,7 @@ protected:
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category=Appearance, meta=(RequiredAssetDataTags = "RowStructure=RichTextStyleRow"))
-	class UDataTable* TextStyleSet;
+	TObjectPtr<class UDataTable> TextStyleSet;
 
 	/**  */
 	UPROPERTY(EditAnywhere, Category=Appearance)
@@ -198,7 +198,7 @@ protected:
 	FTextBlockStyle DefaultTextStyle;
 
 	UPROPERTY(Transient)
-	TArray<URichTextBlockDecorator*> InstanceDecorators;
+	TArray<TObjectPtr<URichTextBlockDecorator>> InstanceDecorators;
 	TSharedPtr<class FSlateStyleSet> StyleInstance;
 	TSharedPtr<SRichTextBlock> MyRichTextBlock;
 };

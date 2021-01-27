@@ -23,7 +23,7 @@ class UAnimGraphNode_BlendListByEnum : public UAnimGraphNode_BlendListBase, publ
 protected:
 	/** Name of the enum being switched on */
 	UPROPERTY()
-	UEnum* BoundEnum;
+	TObjectPtr<UEnum> BoundEnum;
 
 	UPROPERTY()
 	TArray<FName> VisibleEnumEntries;

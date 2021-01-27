@@ -128,7 +128,7 @@ private:
 
 	/** What we are currently attached to. If valid, RelativeLocation etc. are used relative to this object */
 	UPROPERTY(ReplicatedUsing = OnRep_AttachParent)
-	USceneComponent* AttachParent;
+	TObjectPtr<USceneComponent> AttachParent;
 
 	/** Optional socket name on AttachParent that we are attached to. */
 	UPROPERTY(ReplicatedUsing = OnRep_AttachSocketName)
@@ -136,11 +136,11 @@ private:
 
 	/** List of child SceneComponents that are attached to us. */
 	UPROPERTY(ReplicatedUsing = OnRep_AttachChildren, Transient)
-	TArray<USceneComponent*> AttachChildren;
+	TArray<TObjectPtr<USceneComponent>> AttachChildren;
 
 	/** Set of attached SceneComponents that were attached by the client so we can fix up AttachChildren when it is replicated to us. */
 	UPROPERTY(Transient)
-	TArray<USceneComponent*> ClientAttachedChildren;
+	TArray<TObjectPtr<USceneComponent>> ClientAttachedChildren;
 
 	FName NetOldAttachSocketName;
 	USceneComponent* NetOldAttachParent;
@@ -1635,7 +1635,7 @@ struct ENGINE_API FSceneComponentInstanceData : public FActorComponentInstanceDa
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	UPROPERTY() 
-	TMap<USceneComponent*, FTransform> AttachedInstanceComponents;
+	TMap<TObjectPtr<USceneComponent>, FTransform> AttachedInstanceComponents;
 };
 
 

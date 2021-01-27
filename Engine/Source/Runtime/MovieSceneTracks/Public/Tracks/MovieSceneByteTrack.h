@@ -31,5 +31,5 @@ public:
 
 protected:
 	UPROPERTY()
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 };

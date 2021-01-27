@@ -25,10 +25,10 @@ class AGroupActor : public AActor
 	uint32 bLocked:1;
 
 	UPROPERTY()
-	TArray<class AActor*> GroupActors;
+	TArray<TObjectPtr<class AActor>> GroupActors;
 
 	UPROPERTY()
-	TArray<class AGroupActor*> SubGroups;
+	TArray<TObjectPtr<class AGroupActor>> SubGroups;
 
 #endif // WITH_EDITORONLY_DATA
 

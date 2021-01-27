@@ -30,19 +30,19 @@ public:
 
 	/** Style used for the progress bar */
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	/** The brush to use as the background of the progress bar */
 	UPROPERTY()
-	USlateBrushAsset* BackgroundImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> BackgroundImage_DEPRECATED;
 	
 	/** The brush to use as the fill image */
 	UPROPERTY()
-	USlateBrushAsset* FillImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> FillImage_DEPRECATED;
 	
 	/** The brush to use as the marquee image */
 	UPROPERTY()
-	USlateBrushAsset* MarqueeImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> MarqueeImage_DEPRECATED;
 
 	/** Used to determine the fill position of the progress bar ranging 0..1 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Progress, meta=( UIMin = "0", UIMax = "1" ))

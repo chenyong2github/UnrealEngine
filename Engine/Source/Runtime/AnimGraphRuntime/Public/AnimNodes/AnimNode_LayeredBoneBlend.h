@@ -40,7 +40,7 @@ public:
 	 * Blend masks are used when BlendMode is BlendMask.
 	 */
 	UPROPERTY(EditAnywhere, editfixedsize, Category=Config, meta=(UseAsBlendMask=true))
-	TArray<UBlendProfile*> BlendMasks;
+	TArray<TObjectPtr<UBlendProfile>> BlendMasks;
 
 	/** 
 	 * Configuration for the parts of the skeleton to blend for each layer. Allows

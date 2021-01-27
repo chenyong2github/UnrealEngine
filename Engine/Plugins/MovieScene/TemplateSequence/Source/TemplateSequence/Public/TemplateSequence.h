@@ -48,7 +48,7 @@ public:
 public:
 
 	UPROPERTY()
-	UMovieScene* MovieScene;
+	TObjectPtr<UMovieScene> MovieScene;
 
 	UPROPERTY()
 	TSoftClassPtr<AActor> BoundActorClass;

@@ -51,7 +51,7 @@ public:
 	virtual void SetTransform(const FTransform& NewTransform) override;
 
 	UPROPERTY()
-	USceneComponent* Component;
+	TObjectPtr<USceneComponent> Component;
 
 	/** If true, Component->Modify() is called on SetTransform */
 	UPROPERTY()
@@ -169,7 +169,7 @@ public:
 	virtual void SetTransform(const FTransform& NewTransform) override;
 
 	UPROPERTY()
-	UTransformProxy* Proxy;
+	TObjectPtr<UTransformProxy> Proxy;
 
 	/**
 	 * The underlying proxy is modified with its SetPivotMode flag set to this. Thus, the transform source

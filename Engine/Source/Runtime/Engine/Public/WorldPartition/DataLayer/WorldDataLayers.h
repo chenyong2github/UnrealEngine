@@ -51,5 +51,5 @@ private:
 #endif
 
 	UPROPERTY()
-	TSet<UDataLayer*> WorldDataLayers;
+	TSet<TObjectPtr<UDataLayer>> WorldDataLayers;
 };

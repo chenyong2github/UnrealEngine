@@ -45,8 +45,8 @@ protected:
 
 	/** Embedded actor sequence data */
 	UPROPERTY(EditAnywhere, Instanced, Category=Animation)
-	UActorSequence* Sequence;
+	TObjectPtr<UActorSequence> Sequence;
 
 	UPROPERTY(transient, BlueprintReadOnly, Category=Animation)
-	UActorSequencePlayer* SequencePlayer;
+	TObjectPtr<UActorSequencePlayer> SequencePlayer;
 };

@@ -21,7 +21,7 @@ class UTileSheetPaddingFactory : public UFactory
 
 	// Source tile sheet texture
 	UPROPERTY()
-	UPaperTileSet* SourceTileSet;
+	TObjectPtr<UPaperTileSet> SourceTileSet;
 
 	// The amount to extrude out from each tile (in pixels)
 	UPROPERTY(Category = Settings, EditAnywhere, meta=(UIMin=1, ClampMin=1))

@@ -28,7 +28,7 @@ struct FStaticSwitchTypeData
 
 	/** If the type is enum, this is the enum being switched on, otherwise it holds no sensible value */
 	UPROPERTY()
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	/** If set, then this switch is not exposed but will rather be evaluated by the given compile-time constant */
 	UPROPERTY()

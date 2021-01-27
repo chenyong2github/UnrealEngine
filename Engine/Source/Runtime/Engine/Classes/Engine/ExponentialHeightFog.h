@@ -21,7 +21,7 @@ class AExponentialHeightFog
 private:
 	/** @todo document */
 	UPROPERTY(Category = ExponentialHeightFog, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UExponentialHeightFogComponent* Component;
+	TObjectPtr<class UExponentialHeightFogComponent> Component;
 
 public:
 

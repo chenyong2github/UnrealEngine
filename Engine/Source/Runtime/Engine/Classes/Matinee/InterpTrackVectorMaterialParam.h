@@ -17,7 +17,7 @@ class UInterpTrackVectorMaterialParam : public UInterpTrackVectorBase
 
 	/** Materials whose parameters we want to change and the references to those materials. */
 	UPROPERTY(EditAnywhere, Category=InterpTrackVectorMaterialParam)
-	TArray<class UMaterialInterface*> TargetMaterials;
+	TArray<TObjectPtr<class UMaterialInterface>> TargetMaterials;
 
 	/** Name of parameter in the MaterialInstance which this track will modify over time. */
 	UPROPERTY(EditAnywhere, Category=InterpTrackVectorMaterialParam)

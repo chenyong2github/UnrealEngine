@@ -58,7 +58,7 @@ protected:
 
 	/** The name of the mesh renderer */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	UNiagaraMeshRendererProperties* MeshRenderer;
+	TObjectPtr<UNiagaraMeshRendererProperties> MeshRenderer;
 
 	FNDIMeshRendererInfoPtr Info;
 };

@@ -134,7 +134,7 @@ struct FSoundClassAdjuster
 
 	/* The sound class this adjuster affects. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SoundClassAdjuster, DisplayName = "Sound Class" )
-	USoundClass* SoundClassObject;
+	TObjectPtr<USoundClass> SoundClassObject;
 
 	/* A multiplier applied to the volume. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SoundClassAdjuster, meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "4.0"))

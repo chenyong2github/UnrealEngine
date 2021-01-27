@@ -13,13 +13,13 @@ class ASpotLight : public ALight
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Light", meta=(ExposeFunctionCategories="SpotLight,Rendering|Lighting"))
-	class USpotLightComponent* SpotLightComponent;
+	TObjectPtr<class USpotLightComponent> SpotLightComponent;
 
 #if WITH_EDITORONLY_DATA
 	// Reference to editor arrow component visualization 
 private:
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 public:
 #endif
 

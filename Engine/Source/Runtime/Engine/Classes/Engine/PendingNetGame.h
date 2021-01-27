@@ -29,7 +29,7 @@ public:
 	 * Transferred to world on successful connection
 	 */
 	UPROPERTY()
-	class UNetDriver*		NetDriver;
+	TObjectPtr<class UNetDriver>		NetDriver;
 
 	/** 
 	 * Demo Net driver created for loading demos, but we need to go through pending net game
@@ -37,7 +37,7 @@ public:
 	 */
 	UE_DEPRECATED(4.26, "DemoNetDriver will be made private in a future release.  Please use GetDemoNetDriver/SetDemoNetDriver instead.")
 	UPROPERTY()
-	class UDemoNetDriver*	DemoNetDriver;
+	TObjectPtr<class UDemoNetDriver>	DemoNetDriver;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Gets the demo net driver for this pending world. */

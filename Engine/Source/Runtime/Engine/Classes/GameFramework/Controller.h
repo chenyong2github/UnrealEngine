@@ -47,7 +47,7 @@ public:
 
 	/** PlayerState containing replicated information about the player using this controller (only exists for players, not NPCs). */
 	UPROPERTY(replicatedUsing = OnRep_PlayerState, BlueprintReadOnly, Category=Controller)
-	APlayerState* PlayerState;
+	TObjectPtr<APlayerState> PlayerState;
 
 	/** Actor marking where this controller spawned in. */
 	TWeakObjectPtr<class AActor> StartSpot;
@@ -63,7 +63,7 @@ public:
 private:
 	/** Pawn currently being controlled by this controller.  Use Pawn.Possess() to take control of a pawn */
 	UPROPERTY(replicatedUsing=OnRep_Pawn)
-	APawn* Pawn;
+	TObjectPtr<APawn> Pawn;
 
 	/**
 	 * Used to track when pawn changes during OnRep_Pawn. 
@@ -73,11 +73,11 @@ private:
 
 	/** Character currently being controlled by this controller.  Value is same as Pawn if the controlled pawn is a character, otherwise nullptr */
 	UPROPERTY()
-	ACharacter* Character;
+	TObjectPtr<ACharacter> Character;
 
 	/** Component to give controllers a transform and enable attachment if desired. */
 	UPROPERTY()
-	USceneComponent* TransformComponent;
+	TObjectPtr<USceneComponent> TransformComponent;
 
 protected:
 	/** Delegate broadcasted when possessing a new pawn or unpossessing one */

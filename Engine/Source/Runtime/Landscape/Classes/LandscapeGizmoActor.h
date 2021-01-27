@@ -35,11 +35,11 @@ class ALandscapeGizmoActor : public AActor
 	float RelativeScaleZ;
 
 	UPROPERTY(EditAnywhere, transient, Category=Gizmo)
-	class ULandscapeInfo* TargetLandscapeInfo;
+	TObjectPtr<class ULandscapeInfo> TargetLandscapeInfo;
 
 private:
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 #endif // WITH_EDITORONLY_DATA
 public:
 

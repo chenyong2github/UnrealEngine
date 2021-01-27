@@ -337,7 +337,7 @@ protected:
 
 	/** The widget component we're currently hovering over. */
 	UPROPERTY(Transient)
-	UWidgetComponent* HoveredWidgetComponent;
+	TObjectPtr<UWidgetComponent> HoveredWidgetComponent;
 
 	/** The last hit result we used. */
 	UPROPERTY(Transient)
@@ -365,7 +365,7 @@ private:
 
 	/** The arrow component we show at editor time. */
 	UPROPERTY()
-	class UArrowComponent* ArrowComponent;
+	TObjectPtr<class UArrowComponent> ArrowComponent;
 
 #endif
 

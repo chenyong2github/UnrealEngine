@@ -19,7 +19,7 @@ protected:
 
 	/** The slots in the widget holding the child widgets of this panel. */
 	UPROPERTY(Instanced)
-	TArray<UPanelSlot*> Slots;
+	TArray<TObjectPtr<UPanelSlot>> Slots;
 
 public:
 

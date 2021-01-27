@@ -138,10 +138,10 @@ struct FNiagaraScalabilityManager
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(transient)
-	UNiagaraEffectType* EffectType;
+	TObjectPtr<UNiagaraEffectType> EffectType;
 
 	UPROPERTY(transient)
-	TArray<UNiagaraComponent*>  ManagedComponents;
+	TArray<TObjectPtr<UNiagaraComponent>>  ManagedComponents;
 
 	TArray<FNiagaraScalabilityState> State;
 

@@ -17,7 +17,7 @@ struct ENGINE_API FRuntimeFloatCurve
 	FRichCurve EditorCurveData;
 
 	UPROPERTY(EditAnywhere,Category=RuntimeFloatCurve)
-	class UCurveFloat* ExternalCurve;
+	TObjectPtr<class UCurveFloat> ExternalCurve;
 
 	FRuntimeFloatCurve();
 

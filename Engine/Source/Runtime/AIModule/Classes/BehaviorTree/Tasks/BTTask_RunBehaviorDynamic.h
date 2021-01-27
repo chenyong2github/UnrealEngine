@@ -42,11 +42,11 @@ protected:
 
 	/** default behavior to run */
 	UPROPERTY(Category=Node, EditAnywhere)
-	UBehaviorTree* DefaultBehaviorAsset;
+	TObjectPtr<UBehaviorTree> DefaultBehaviorAsset;
 
 	/** current subtree */
 	UPROPERTY()
-	UBehaviorTree* BehaviorAsset;
+	TObjectPtr<UBehaviorTree> BehaviorAsset;
 
 	/** called when subtree is removed from active stack */
 	virtual void OnSubtreeDeactivated(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type NodeResult);

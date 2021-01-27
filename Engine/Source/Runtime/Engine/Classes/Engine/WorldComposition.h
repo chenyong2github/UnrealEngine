@@ -223,7 +223,7 @@ private:
 public:
 	// Streaming level objects for each tile
 	UPROPERTY(transient)
-	TArray<ULevelStreaming*>	TilesStreaming;
+	TArray<TObjectPtr<ULevelStreaming>>	TilesStreaming;
 
 	// Time threshold between tile streaming state changes
 	UPROPERTY(config)

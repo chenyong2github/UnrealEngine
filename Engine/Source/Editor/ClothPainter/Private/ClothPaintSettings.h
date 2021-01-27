@@ -84,7 +84,7 @@ public:
 
 	/** Array of Clothing assets */
 	UPROPERTY()
-	TArray<UClothingAssetCommon*> ClothingAssets;
+	TArray<TObjectPtr<UClothingAssetCommon>> ClothingAssets;
 
 	/** Whether to flip normals on the mesh preview */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = View)

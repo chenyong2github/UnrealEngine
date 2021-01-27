@@ -41,34 +41,34 @@ public:
 	virtual void BeginDestroy() override;
 
 	UPROPERTY()
-	class UVRNotificationsComponent* VRNotificationComponent;
+	TObjectPtr<class UVRNotificationsComponent> VRNotificationComponent;
 
 	UPROPERTY()
-	UTexture2D* CameraColorTexture;
+	TObjectPtr<UTexture2D> CameraColorTexture;
 
 	UPROPERTY()
-	UTexture2D* CameraDepthTexture;
+	TObjectPtr<UTexture2D> CameraDepthTexture;
 
 	UPROPERTY()
-	UOculusMR_PlaneMeshComponent* PlaneMeshComponent;
+	TObjectPtr<UOculusMR_PlaneMeshComponent> PlaneMeshComponent;
 
 	UPROPERTY()
-	UMaterial* ChromaKeyMaterial;
+	TObjectPtr<UMaterial> ChromaKeyMaterial;
 
 	UPROPERTY()
-	UMaterial* OpaqueColoredMaterial;
+	TObjectPtr<UMaterial> OpaqueColoredMaterial;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* ChromaKeyMaterialInstance;
+	TObjectPtr<UMaterialInstanceDynamic> ChromaKeyMaterialInstance;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* CameraFrameMaterialInstance;
+	TObjectPtr<UMaterialInstanceDynamic> CameraFrameMaterialInstance;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* BackdropMaterialInstance;
+	TObjectPtr<UMaterialInstanceDynamic> BackdropMaterialInstance;
 
 	UPROPERTY()
-	class UTexture2D* DefaultTexture_White;
+	TObjectPtr<class UTexture2D> DefaultTexture_White;
 
 	bool TrackedCameraCalibrationRequired;
 	bool HasTrackedCameraCalibrationCalibrated;
@@ -117,22 +117,22 @@ private:
 	float ForegroundMaxDistance;
 
 	UPROPERTY()
-	TArray<UTextureRenderTarget2D*> BackgroundRenderTargets;
+	TArray<TObjectPtr<UTextureRenderTarget2D>> BackgroundRenderTargets;
 
 	UPROPERTY()
-	ASceneCapture2D* ForegroundCaptureActor;
+	TObjectPtr<ASceneCapture2D> ForegroundCaptureActor;
 
 	UPROPERTY()
-	TArray<UTextureRenderTarget2D*> ForegroundRenderTargets;
+	TArray<TObjectPtr<UTextureRenderTarget2D>> ForegroundRenderTargets;
 
 	UPROPERTY()
 	TArray<double> PoseTimes;
 
 	UPROPERTY()
-	UOculusMR_Settings* MRSettings;
+	TObjectPtr<UOculusMR_Settings> MRSettings;
 
 	UPROPERTY()
-	UOculusMR_State* MRState;
+	TObjectPtr<UOculusMR_State> MRState;
 
 #if PLATFORM_ANDROID
 	TArray<Audio::AlignedFloatBuffer> AudioBuffers;

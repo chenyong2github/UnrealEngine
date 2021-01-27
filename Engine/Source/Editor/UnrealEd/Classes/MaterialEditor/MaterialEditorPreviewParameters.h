@@ -31,20 +31,20 @@ public:
 	TArray<struct FEditorParameterGroup> ParameterGroups;
 
 	UPROPERTY()
-	class UMaterial* PreviewMaterial;
+	TObjectPtr<class UMaterial> PreviewMaterial;
 
 	UPROPERTY()
-	class UMaterialFunction* OriginalFunction;
+	TObjectPtr<class UMaterialFunction> OriginalFunction;
 
 	UPROPERTY()
-	class UMaterial* OriginalMaterial;
+	TObjectPtr<class UMaterial> OriginalMaterial;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<class UMaterialInstanceConstant*> StoredLayerPreviews;
+	TArray<TObjectPtr<class UMaterialInstanceConstant>> StoredLayerPreviews;
 
 	UPROPERTY()
-	TArray<class UMaterialInstanceConstant*> StoredBlendPreviews;
+	TArray<TObjectPtr<class UMaterialInstanceConstant>> StoredBlendPreviews;
 #endif
 
 	//~ Begin UObject Interface.

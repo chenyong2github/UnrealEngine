@@ -131,13 +131,13 @@ private:
 	bool bCanRefresh;
 
 	UPROPERTY()
-	UNiagaraStackModuleItemLinkedInputCollection* LinkedInputCollection;
+	TObjectPtr<UNiagaraStackModuleItemLinkedInputCollection> LinkedInputCollection;
 
 	UPROPERTY()
-	UNiagaraStackFunctionInputCollection* InputCollection;
+	TObjectPtr<UNiagaraStackFunctionInputCollection> InputCollection;
 
 	UPROPERTY()
-	UNiagaraStackModuleItemOutputCollection* OutputCollection;
+	TObjectPtr<UNiagaraStackModuleItemOutputCollection> OutputCollection;
 
 	INiagaraStackItemGroupAddUtilities* GroupAddUtilities;
 

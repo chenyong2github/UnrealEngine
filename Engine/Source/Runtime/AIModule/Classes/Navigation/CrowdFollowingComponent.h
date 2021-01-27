@@ -161,7 +161,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(4.26, "This member is deprecated and no longer used. Use AvoidanceInterface instead.")
 	UPROPERTY(transient)
-	class UCharacterMovementComponent* CharacterMovement;
+	TObjectPtr<class UCharacterMovementComponent> CharacterMovement;
 
 	/** DEPRECATED: Group mask for this agent - use IRVOAvoidanceInterface instead */
 	UPROPERTY()

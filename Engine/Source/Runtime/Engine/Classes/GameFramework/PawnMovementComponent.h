@@ -86,7 +86,7 @@ protected:
 
 	/** Pawn that owns this component. */
 	UPROPERTY(Transient, DuplicateTransient)
-	class APawn* PawnOwner;
+	TObjectPtr<class APawn> PawnOwner;
 
 	/**
 	 * Attempts to mark the PlayerCameraManager as dirty.

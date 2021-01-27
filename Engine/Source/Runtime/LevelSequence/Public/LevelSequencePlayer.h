@@ -86,7 +86,7 @@ struct FLevelSequencePlayerSnapshot
 	FLevelSequenceSnapshotSettings Settings;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "General")
-	ULevelSequence* ActiveShot = nullptr;
+	TObjectPtr<ULevelSequence> ActiveShot = nullptr;
 
 	UPROPERTY()
 	FMovieSceneSequenceID ShotID;

@@ -21,10 +21,10 @@ class UParticleSystemThumbnailRenderer : public UTextureThumbnailRenderer
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UTexture2D* NoImage;
+	TObjectPtr<class UTexture2D> NoImage;
 
 	UPROPERTY()
-	class UTexture2D* OutOfDate;
+	TObjectPtr<class UTexture2D> OutOfDate;
 
 
 	// Begin UThumbnailRenderer Object

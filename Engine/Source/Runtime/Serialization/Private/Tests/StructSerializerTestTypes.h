@@ -131,7 +131,7 @@ struct FStructSerializerObjectTestStruct
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UClass* Class;
+	TObjectPtr<UClass> Class;
 
 	UPROPERTY()
 	TSubclassOf<class UMetaData> SubClass;
@@ -140,7 +140,7 @@ struct FStructSerializerObjectTestStruct
 	TSoftClassPtr<class UMetaData> SoftClass;
 
 	UPROPERTY()
-	class UObject* Object;
+	TObjectPtr<class UObject> Object;
 
 	UPROPERTY()
 	TWeakObjectPtr<class UMetaData> WeakObject;

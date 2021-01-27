@@ -19,13 +19,13 @@ class PAPER2D_API APaperTerrainActor : public AActor
 
 private:
 	UPROPERTY()
-	class USceneComponent* DummyRoot;
+	TObjectPtr<class USceneComponent> DummyRoot;
 
 	UPROPERTY()
-	class UPaperTerrainSplineComponent* SplineComponent;
+	TObjectPtr<class UPaperTerrainSplineComponent> SplineComponent;
 
 	UPROPERTY(Category=Sprite, VisibleAnywhere, BlueprintReadOnly, meta=(ExposeFunctionCategories="Sprite,Rendering,Physics,Components|Sprite", AllowPrivateAccess="true"))
-	class UPaperTerrainComponent* RenderComponent;
+	TObjectPtr<class UPaperTerrainComponent> RenderComponent;
 public:
 
 	// AActor interface

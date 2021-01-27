@@ -43,7 +43,7 @@ public:
 
 	// Niagara System to Spawn
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimNotify", meta = (DisplayName = "Niagara System"))
-	UNiagaraSystem* Template;
+	TObjectPtr<UNiagaraSystem> Template;
 
 	// Location offset from the socket
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AnimNotify")

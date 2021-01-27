@@ -34,7 +34,7 @@ public:
 	bool bHighPassFilter;
 
 	UPROPERTY()
-	TArray<UMovieSceneSection*> SectionArray;
+	TArray<TObjectPtr<UMovieSceneSection>> SectionArray;
 };
 
 UCLASS(MinimalAPI)
@@ -62,7 +62,7 @@ public:
 	virtual UMovieScene* GetMovieScene() const override { return MovieScene; }
 
 	UPROPERTY()
-	UMovieScene* MovieScene;
+	TObjectPtr<UMovieScene> MovieScene;
 };
 
 UCLASS(MinimalAPI)
@@ -74,7 +74,7 @@ public:
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override { return SectionArray; }
 
 	UPROPERTY()
-	TArray<UMovieSceneSection*> SectionArray;
+	TArray<TObjectPtr<UMovieSceneSection>> SectionArray;
 };
 
 UCLASS(MinimalAPI)

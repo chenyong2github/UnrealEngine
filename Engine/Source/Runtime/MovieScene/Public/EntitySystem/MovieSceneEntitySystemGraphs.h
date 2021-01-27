@@ -45,7 +45,7 @@ struct FMovieSceneEntitySystemGraphNode
 	TSharedPtr<UE::MovieScene::FSystemTaskPrerequisites> SubsequentTasks;
 
 	UPROPERTY()
-	UMovieSceneEntitySystem* System;
+	TObjectPtr<UMovieSceneEntitySystem> System;
 };
 
 USTRUCT()

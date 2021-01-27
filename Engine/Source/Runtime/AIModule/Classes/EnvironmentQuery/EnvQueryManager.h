@@ -59,15 +59,15 @@ protected:
 
 	/** query to run */
 	UPROPERTY()
-	const UEnvQuery* QueryTemplate;
+	TObjectPtr<const UEnvQuery> QueryTemplate;
 
 	/** querier */
 	UPROPERTY()
-	UObject* Owner;
+	TObjectPtr<UObject> Owner;
 
 	/** world */
 	UPROPERTY()
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	/** list of named params */
 	TMap<FName, float> NamedParams;
@@ -83,7 +83,7 @@ struct FEnvQueryInstanceCache
 
 	/** query template, duplicated in manager's world */
 	UPROPERTY()
-	UEnvQuery* Template = nullptr;
+	TObjectPtr<UEnvQuery> Template = nullptr;
 
 	/** instance to duplicate */
 	FEnvQueryInstance Instance;
@@ -268,10 +268,10 @@ protected:
 
 	/** local cache of context objects for managing BP based objects */
 	UPROPERTY(transient)
-	TArray<UEnvQueryContext*> LocalContexts;
+	TArray<TObjectPtr<UEnvQueryContext>> LocalContexts;
 
 	UPROPERTY()
-	TArray<UEnvQueryInstanceBlueprintWrapper*> GCShieldedWrappers;
+	TArray<TObjectPtr<UEnvQueryInstanceBlueprintWrapper>> GCShieldedWrappers;
 
 	/** local contexts mapped by class names */
 	TMap<FName, UEnvQueryContext*> LocalContextMap;

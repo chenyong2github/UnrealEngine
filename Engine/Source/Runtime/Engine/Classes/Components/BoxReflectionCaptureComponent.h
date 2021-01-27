@@ -19,10 +19,10 @@ class UBoxReflectionCaptureComponent : public UReflectionCaptureComponent
 	float BoxTransitionDistance;
 
 	UPROPERTY()
-	class UBoxComponent* PreviewInfluenceBox;
+	TObjectPtr<class UBoxComponent> PreviewInfluenceBox;
 
 	UPROPERTY()
-	class UBoxComponent* PreviewCaptureBox;
+	TObjectPtr<class UBoxComponent> PreviewCaptureBox;
 
 public:
 	virtual void UpdatePreviewShape() override;

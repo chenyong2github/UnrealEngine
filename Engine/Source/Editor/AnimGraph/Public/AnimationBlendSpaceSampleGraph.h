@@ -17,5 +17,5 @@ class UAnimationBlendSpaceSampleGraph : public UAnimationGraph
 public:
 	// Result node within the state's animation graph
 	UPROPERTY()
-	UAnimGraphNode_BlendSpaceSampleResult* ResultNode;
+	TObjectPtr<UAnimGraphNode_BlendSpaceSampleResult> ResultNode;
 };

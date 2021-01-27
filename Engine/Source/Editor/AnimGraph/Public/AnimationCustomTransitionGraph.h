@@ -14,7 +14,7 @@ class UAnimationCustomTransitionGraph : public UAnimationGraph
 
 	// Result node within the state's animation graph
 	UPROPERTY()
-	class UAnimGraphNode_CustomTransitionResult* MyResultNode;
+	TObjectPtr<class UAnimGraphNode_CustomTransitionResult> MyResultNode;
 
 	//@TODO: Document
 	ANIMGRAPH_API class UAnimGraphNode_CustomTransitionResult* GetResultNode();

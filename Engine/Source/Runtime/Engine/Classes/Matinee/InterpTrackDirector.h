@@ -67,7 +67,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** The camera actor which the track is currently focused on. Only valid if this track or it's group is selected */
 	UPROPERTY(Transient)
-	class ACameraActor* PreviewCamera;
+	TObjectPtr<class ACameraActor> PreviewCamera;
 #endif // WITH_EDITORONLY_DATA
 
 public:

@@ -31,5 +31,5 @@ class UWidgetBlueprintFactory : public UFactory
 
 private:
 	UPROPERTY(Transient)
-	UClass* RootWidgetClass;
+	TObjectPtr<UClass> RootWidgetClass;
 };

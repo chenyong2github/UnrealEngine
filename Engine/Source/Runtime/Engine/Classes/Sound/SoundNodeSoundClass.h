@@ -22,7 +22,7 @@ class USoundNodeSoundClass : public USoundNode
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, Category=SoundClass)
-	USoundClass* SoundClassOverride;
+	TObjectPtr<USoundClass> SoundClassOverride;
 
 public:
 	//~ Begin USoundNode Interface. 

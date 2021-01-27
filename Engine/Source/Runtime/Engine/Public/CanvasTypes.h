@@ -52,7 +52,7 @@ struct FTextSizingParameters
 
 	/** the font to use for sizing/wrapping the string */
 	UPROPERTY()
-	const UFont* DrawFont;
+	TObjectPtr<const UFont> DrawFont;
 
 	/** Horizontal spacing adjustment between characters and vertical spacing adjustment between wrapped lines */
 	UPROPERTY()

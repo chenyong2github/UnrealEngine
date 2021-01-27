@@ -41,7 +41,7 @@ public:
 	FSpinBoxStyle WidgetStyle;
 
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	/** The minimum required fractional digits - default 1 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetMinFractionalDigits, BlueprintGetter = GetMinFractionalDigits, Category = "Slider", meta = (ClampMin = 0, UIMin = 0))

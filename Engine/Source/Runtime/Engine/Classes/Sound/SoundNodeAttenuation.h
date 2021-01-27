@@ -22,7 +22,7 @@ class USoundNodeAttenuation : public USoundNode
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Attenuation, meta=(EditCondition="!bOverrideAttenuation"))
-	USoundAttenuation* AttenuationSettings;
+	TObjectPtr<USoundAttenuation> AttenuationSettings;
 
 	UPROPERTY(EditAnywhere, Category=Attenuation, meta=(EditCondition="bOverrideAttenuation"))
 	FSoundAttenuationSettings AttenuationOverrides;

@@ -250,7 +250,7 @@ public:
 	 * The parent slot of the UWidget.  Allows us to easily inline edit the layout controlling this widget.
 	 */
 	UPROPERTY(Instanced, TextExportTransient, EditAnywhere, BlueprintReadOnly, Category=Layout, meta=(ShowOnlyInnerProperties))
-	UPanelSlot* Slot;
+	TObjectPtr<UPanelSlot> Slot;
 
 	/** A bindable delegate for bIsEnabled */
 	UPROPERTY()
@@ -266,7 +266,7 @@ public:
 
 	/** Tooltip widget to show when the user hovers over the widget with the mouse */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Behavior", AdvancedDisplay)
-	UWidget* ToolTipWidget;
+	TObjectPtr<UWidget> ToolTipWidget;
 
 	/** A bindable delegate for ToolTipWidget */
 	UPROPERTY()
@@ -362,7 +362,7 @@ public:
 private:
 	/** A custom set of accessibility rules for this widget. If null, default rules for the widget are used. */
 	UPROPERTY(Instanced)
-	USlateAccessibleWidgetData* AccessibleWidgetData;
+	TObjectPtr<USlateAccessibleWidgetData> AccessibleWidgetData;
 
 protected:
 
@@ -420,7 +420,7 @@ public:
 	 * can occur between widgets.
 	 */
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadOnly, Category="Navigation")
-	class UWidgetNavigation* Navigation;
+	TObjectPtr<class UWidgetNavigation> Navigation;
 
 	/** Allows you to set a new flow direction */
 	UPROPERTY(EditAnywhere, Category = "Localization")
@@ -1052,7 +1052,7 @@ protected:
 
 	/** Native property bindings. */
 	UPROPERTY(Transient)
-	TArray<UPropertyBinding*> NativeBindings;
+	TArray<TObjectPtr<UPropertyBinding>> NativeBindings;
 
 	static TArray<TSubclassOf<UPropertyBinding>> BinderClasses;
 

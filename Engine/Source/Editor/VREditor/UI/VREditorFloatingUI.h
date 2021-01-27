@@ -34,7 +34,7 @@ public:
 	FName PanelID;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Virtual Production UI")
-	AActor* ParentActor = nullptr;
+	TObjectPtr<AActor> ParentActor = nullptr;
 
 	/** Optional offset from HMD where the window opens. Pass FTransform::Identity for default logic - window will open at controller location. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Mode UI")
@@ -46,7 +46,7 @@ public:
 
 	/** Optional custom mesh to use for the VR window. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Mode UI")
-	UStaticMesh* PanelMesh = nullptr;
+	TObjectPtr<UStaticMesh> PanelMesh = nullptr;
 
 	/** Optional override for "VREd.EditorUISize". Leave at 0 for default. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Mode UI")
@@ -201,15 +201,15 @@ protected:
 	
 	/** UMG user widget we're drawing, or nullptr if we're drawing a Slate widget */
 	UPROPERTY()
-	UUserWidget* UserWidget;
+	TObjectPtr<UUserWidget> UserWidget;
 	
 	/** When in a spawned state, this is the widget component to represent the widget */
 	UPROPERTY()
-	class UVREditorWidgetComponent* WidgetComponent;
+	TObjectPtr<class UVREditorWidgetComponent> WidgetComponent;
 
 	/** The floating window mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* WindowMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> WindowMeshComponent;
 
 	/** Resolution we should draw this UI at, regardless of scale */
 	FIntPoint Resolution;
@@ -223,7 +223,7 @@ private:
 
 	/** Class of the UMG widget we're spawning */
 	UPROPERTY()
-	UClass* UserWidgetClass;
+	TObjectPtr<UClass> UserWidgetClass;
 
 	/** True if the UI wants to be visible, or false if it wants to be hidden.  Remember, we might still be visually 
 	    transitioning between states */

@@ -27,7 +27,7 @@ class UMaterialFunction : public UMaterialFunctionInterface
 #if WITH_EDITORONLY_DATA
 	/** Used in the material editor, points to the function asset being edited, which this function is just a preview for. */
 	UPROPERTY(transient)
-	class UMaterialFunction* ParentFunction;
+	TObjectPtr<class UMaterialFunction> ParentFunction;
 
 #endif // WITH_EDITORONLY_DATA
 	/** Description of the function which will be displayed as a tooltip wherever the function is used. */
@@ -37,7 +37,7 @@ class UMaterialFunction : public UMaterialFunctionInterface
 #if WITH_EDITORONLY_DATA
 	/** Array of material expressions, excluding Comments.  Used by the material editor. */
 	UPROPERTY()
-	TArray<UMaterialExpression*> FunctionExpressions;
+	TArray<TObjectPtr<UMaterialExpression>> FunctionExpressions;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Whether to list this function in the material function library, which is a window in the material editor that lists categorized functions. */
@@ -67,13 +67,13 @@ class UMaterialFunction : public UMaterialFunctionInterface
 #if WITH_EDITORONLY_DATA
 	/** Array of comments associated with this material; viewed in the material editor. */
 	UPROPERTY()
-	TArray<class UMaterialExpressionComment*> FunctionEditorComments;
+	TArray<TObjectPtr<class UMaterialExpressionComment>> FunctionEditorComments;
 
 	UPROPERTY(transient)
-	UMaterial* PreviewMaterial;
+	TObjectPtr<UMaterial> PreviewMaterial;
 
 	UPROPERTY()
-	TArray<class UMaterialExpressionMaterialFunctionCall*> DependentFunctionExpressionCandidates;
+	TArray<TObjectPtr<class UMaterialExpressionMaterialFunctionCall>> DependentFunctionExpressionCandidates;
 
 private:
 	/** Transient flag used to track re-entrance in recursive functions like IsDependent. */

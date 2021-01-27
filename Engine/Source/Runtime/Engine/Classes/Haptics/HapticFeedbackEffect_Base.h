@@ -28,7 +28,7 @@ struct ENGINE_API FActiveHapticFeedbackEffect
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	class UHapticFeedbackEffect_Base* HapticEffect;
+	TObjectPtr<class UHapticFeedbackEffect_Base> HapticEffect;
 
 	FActiveHapticFeedbackEffect()
 		: HapticEffect(nullptr)

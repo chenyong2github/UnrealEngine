@@ -27,7 +27,7 @@ class ENGINE_API UPhysicsHandleComponent : public UActorComponent
 
 	/** Component we are currently holding */
 	UPROPERTY()
-	class UPrimitiveComponent* GrabbedComponent;
+	TObjectPtr<class UPrimitiveComponent> GrabbedComponent;
 
 	/** Name of bone, if we are grabbing a skeletal component */
 	FName GrabbedBoneName;

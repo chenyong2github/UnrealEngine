@@ -19,10 +19,10 @@ struct AIMODULE_API FAIPredictionEvent
 	typedef UAISense_Prediction FSenseClass;
 	
 	UPROPERTY()
-	AActor* Requestor;
+	TObjectPtr<AActor> Requestor;
 
 	UPROPERTY()
-	AActor* PredictedActor;
+	TObjectPtr<AActor> PredictedActor;
 
 	float TimeToPredict;
 		

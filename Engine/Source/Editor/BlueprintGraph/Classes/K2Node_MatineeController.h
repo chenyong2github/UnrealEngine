@@ -20,7 +20,7 @@ class UK2Node_MatineeController : public UK2Node
 
 	/** The matinee actor in the level that this node controls */
 	UPROPERTY(EditAnywhere, Category=K2Node_MatineeController)
-	class AMatineeActor* MatineeActor;
+	TObjectPtr<class AMatineeActor> MatineeActor;
 
 	//~ Begin UEdGraphNode Interface
 	virtual void AllocateDefaultPins() override;

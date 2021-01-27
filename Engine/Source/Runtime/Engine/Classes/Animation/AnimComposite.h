@@ -29,7 +29,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Preview Base pose for additive BlendSpace **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings)
-	UAnimSequence* PreviewBasePose;
+	TObjectPtr<UAnimSequence> PreviewBasePose;
 #endif // WITH_EDITORONLY_DATA
 
 	//~ Begin UAnimSequenceBase Interface

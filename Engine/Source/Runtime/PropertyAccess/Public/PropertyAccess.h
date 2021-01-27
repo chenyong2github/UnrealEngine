@@ -98,7 +98,7 @@ private:
 
 	// Function if this is a script of native function indirection
 	UPROPERTY()
-	UFunction* Function = nullptr;
+	TObjectPtr<UFunction> Function = nullptr;
 
 	// Return buffer size if this is a script of native function indirection
 	UPROPERTY()
@@ -217,7 +217,7 @@ private:
 
 	/** The Class or ScriptStruct that was used last to resolve Name to a property. */
 	UPROPERTY()
-	UStruct* Struct = nullptr;
+	TObjectPtr<UStruct> Struct = nullptr;
 
 	/** The cached property on the Struct that this Name resolved to at compile time. If this is a Function segment, then this is the return property of the function. */
 	UPROPERTY()
@@ -225,7 +225,7 @@ private:
 
 	/** If this segment is a function, EPropertyAccessSegmentFlags::Function flag will be present and this value will be valid */
 	UPROPERTY()
-	UFunction* Function = nullptr;
+	TObjectPtr<UFunction> Function = nullptr;
 
 	/** The optional array index. */
 	UPROPERTY()

@@ -33,7 +33,7 @@ struct FEditorParameterGroup
 	TEnumAsByte<EMaterialParameterAssociation> GroupAssociation;
 
 	UPROPERTY(EditAnywhere, editfixedsize, Instanced, Category=EditorParameterGroup)
-	TArray<class UDEditorParameterValue*> Parameters;
+	TArray<TObjectPtr<class UDEditorParameterValue>> Parameters;
 
 	UPROPERTY()
 	int32 GroupSortPriority;
@@ -93,7 +93,7 @@ struct FEditorTextureParameterValue : public FEditorParameterValue
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=EditorTextureParameterValue)
-	class UTexture* ParameterValue;
+	TObjectPtr<class UTexture> ParameterValue;
 
 	FEditorTextureParameterValue()
 		: ParameterValue(NULL)
@@ -107,7 +107,7 @@ struct FEditorFontParameterValue : public FEditorParameterValue
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=EditorFontParameterValue)
-	class UFont* FontValue;
+	TObjectPtr<class UFont> FontValue;
 
 	UPROPERTY(EditAnywhere, Category=EditorFontParameterValue)
 	int32 FontPage;
@@ -125,7 +125,7 @@ struct FEditorMaterialLayersParameterValue : public FEditorParameterValue
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=EditorLayersParameterValue)
-	class UMaterialFunctionInterface* FunctionValue;
+	TObjectPtr<class UMaterialFunctionInterface> FunctionValue;
 
 	FEditorMaterialLayersParameterValue()
 		: FunctionValue(NULL)
@@ -219,11 +219,11 @@ class UNREALED_API UMaterialEditorInstanceConstant : public UObject
 
 	/** Physical material to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, Category=MaterialEditorInstanceConstant)
-	class UPhysicalMaterial* PhysMaterial;
+	TObjectPtr<class UPhysicalMaterial> PhysMaterial;
 
 	// since the Parent may point across levels and the property editor needs to import this text, it must be marked lazy so it doesn't set itself to NULL in FindImportedObject
 	UPROPERTY(EditAnywhere, Category=MaterialEditorInstanceConstant, meta=(DisplayThumbnail="true"))
-	class UMaterialInterface* Parent;
+	TObjectPtr<class UMaterialInterface> Parent;
 
 	UPROPERTY(EditAnywhere, editfixedsize, Category=MaterialEditorInstanceConstant)
 	TArray<struct FEditorParameterGroup> ParameterGroups;
@@ -234,7 +234,7 @@ class UNREALED_API UMaterialEditorInstanceConstant : public UObject
 
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
-	class USubsurfaceProfile* SubsurfaceProfile;
+	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
 
 	/** Defines if SubsurfaceProfile from tis instance is used or it uses the parent one. */
 	UPROPERTY(EditAnywhere, Category = MaterialEditorInstanceConstant)
@@ -253,10 +253,10 @@ class UNREALED_API UMaterialEditorInstanceConstant : public UObject
 	FMaterialInstanceBasePropertyOverrides BasePropertyOverrides;
 
 	UPROPERTY()
-	class UMaterialInstanceConstant* SourceInstance;
+	TObjectPtr<class UMaterialInstanceConstant> SourceInstance;
 
 	UPROPERTY()
-	class UMaterialFunctionInstance* SourceFunction;	
+	TObjectPtr<class UMaterialFunctionInstance> SourceFunction;	
 
 	UPROPERTY(transient, duplicatetransient)
 	TArray<FMaterialParameterInfo> VisibleExpressions;
@@ -328,10 +328,10 @@ class UNREALED_API UMaterialEditorInstanceConstant : public UObject
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<class UMaterialInstanceConstant*> StoredLayerPreviews;
+	TArray<TObjectPtr<class UMaterialInstanceConstant>> StoredLayerPreviews;
 
 	UPROPERTY()
-	TArray<class UMaterialInstanceConstant*> StoredBlendPreviews;
+	TArray<TObjectPtr<class UMaterialInstanceConstant>> StoredBlendPreviews;
 #endif
 
 	/** Whether or not we should show only overridden properties*/

@@ -21,7 +21,7 @@ class UMaterialExpressionCollectionParameter : public UMaterialExpression
 
 	/** The Parameter Collection to use. */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionCollectionParameter)
-	class UMaterialParameterCollection* Collection;
+	TObjectPtr<class UMaterialParameterCollection> Collection;
 
 	/** Name of the parameter being referenced. */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionCollectionParameter)

@@ -79,7 +79,7 @@ public:
 private:
 	/** The function to configure new nodes with. */
 	UPROPERTY()
-    UFunction const* EventFunc;
+    TObjectPtr<UFunction const> EventFunc;
 
 	/** The custom name to configure new event nodes with. */
 	UPROPERTY()

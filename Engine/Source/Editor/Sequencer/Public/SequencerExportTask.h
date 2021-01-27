@@ -20,5 +20,5 @@ public:
 
 	/* A UWorld for LevelSequences, UUserWidget for WidgetAnimations, or AActor for Actor Sequences, etc... */
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)
-	UObject* SequencerContext;
+	TObjectPtr<UObject> SequencerContext;
 };

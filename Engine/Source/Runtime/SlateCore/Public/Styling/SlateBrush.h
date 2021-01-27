@@ -438,7 +438,7 @@ private:
 	 * the AtlasedTextureInterface. 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush, meta=( AllowPrivateAccess="true", DisplayThumbnail="true", DisplayName="Image", AllowedClasses="Texture,MaterialInterface,SlateTextureAtlasInterface", DisallowedClasses = "MediaTexture"))
-	UObject* ResourceObject;
+	TObjectPtr<UObject> ResourceObject;
 
 protected:
 	/** The name of the rendering resource to use */

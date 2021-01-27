@@ -25,7 +25,7 @@ public:
 	}
 
 	UPROPERTY(BlueprintReadWrite, Category = "Editor Menus")
-	UObject* SelectedAsset;
+	TObjectPtr<UObject> SelectedAsset;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Editor Menus")
 	FName StyleSetName;

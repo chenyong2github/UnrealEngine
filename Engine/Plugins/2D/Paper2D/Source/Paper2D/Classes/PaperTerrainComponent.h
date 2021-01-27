@@ -55,7 +55,7 @@ class PAPER2D_API UPaperTerrainComponent : public UPrimitiveComponent
 public:
 	/** The terrain material to apply to this component (set of rules for which sprites are used on different surfaces or the interior) */
 	UPROPERTY(Category=Sprite, EditAnywhere, BlueprintReadOnly)
-	class UPaperTerrainMaterial* TerrainMaterial;
+	TObjectPtr<class UPaperTerrainMaterial> TerrainMaterial;
 
 	UPROPERTY(Category = Sprite, EditAnywhere, BlueprintReadOnly)
 	bool bClosedSpline;
@@ -64,7 +64,7 @@ public:
 	bool bFilledSpline;
 
 	UPROPERTY()
-	class UPaperTerrainSplineComponent* AssociatedSpline;
+	TObjectPtr<class UPaperTerrainSplineComponent> AssociatedSpline;
 
 	/** Random seed used for choosing which spline meshes to use. */
 	UPROPERTY(Category=Sprite, EditAnywhere)
@@ -128,7 +128,7 @@ protected:
 
 	/** Description of collision */
 	UPROPERTY(Transient, DuplicateTransient)
-	class UBodySetup* CachedBodySetup;
+	TObjectPtr<class UBodySetup> CachedBodySetup;
 
 	TArray<FPaperTerrainSpriteGeometry> GeneratedSpriteGeometry;
 	

@@ -15,10 +15,10 @@ struct FConnectionAlwaysRelevantNodePair
 	bool operator==(UNetConnection* InConnection) const;
 
 	UPROPERTY()
-	UNetConnection* NetConnection = nullptr;
+	TObjectPtr<UNetConnection> NetConnection = nullptr;
 
 	UPROPERTY()
-	UReplicationGraphNode_AlwaysRelevant_ForConnection* Node = nullptr;	
+	TObjectPtr<UReplicationGraphNode_AlwaysRelevant_ForConnection> Node = nullptr;	
 };
 
 
@@ -49,17 +49,17 @@ public:
 	virtual int32 ServerReplicateActors(float DeltaSeconds) override;
 
 	UPROPERTY()
-	UReplicationGraphNode_GridSpatialization2D* GridNode;
+	TObjectPtr<UReplicationGraphNode_GridSpatialization2D> GridNode;
 
 	UPROPERTY()
-	UReplicationGraphNode_ActorList* AlwaysRelevantNode;
+	TObjectPtr<UReplicationGraphNode_ActorList> AlwaysRelevantNode;
 
 	UPROPERTY()
 	TArray<FConnectionAlwaysRelevantNodePair> AlwaysRelevantForConnectionList;
 
 	/** Actors that are only supposed to replicate to their owning connection, but that did not have a connection on spawn */
 	UPROPERTY()
-	TArray<AActor*> ActorsWithoutNetConnection;
+	TArray<TObjectPtr<AActor>> ActorsWithoutNetConnection;
 
 
 	UReplicationGraphNode_AlwaysRelevant_ForConnection* GetAlwaysRelevantNodeForConnection(UNetConnection* Connection);

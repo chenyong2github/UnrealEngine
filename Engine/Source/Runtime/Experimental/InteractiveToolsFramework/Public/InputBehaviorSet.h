@@ -19,7 +19,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FBehaviorInfo
 	
 	/** Reference to a Behavior */
 	UPROPERTY()
-	UInputBehavior* Behavior = nullptr;
+	TObjectPtr<UInputBehavior> Behavior = nullptr;
 
 	/** Source object that provided this Behavior */
 	void* Source = nullptr;

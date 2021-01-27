@@ -61,7 +61,7 @@ public:
 
 	/** Use this UMaterialInterface if set to a valid value. This will be subordinate to UserParamBinding if it is set to a valid user variable.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
-	UMaterialInterface* ExplicitMat;
+	TObjectPtr<UMaterialInterface> ExplicitMat;
 
 	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and ExplicitMat is also set, UserParamBinding wins.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
@@ -109,7 +109,7 @@ struct NIAGARA_API FNiagaraMeshRendererMeshProperties
 
 	/** The mesh to use when rendering this slot */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
-	UStaticMesh* Mesh;
+	TObjectPtr<UStaticMesh> Mesh;
 
 	/** Scale of the mesh */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
@@ -312,7 +312,7 @@ public:
 	 * will not be found or used.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook"))
-	UStaticMesh* FirstFlipbookFrame;
+	TObjectPtr<UStaticMesh> FirstFlipbookFrame;
 
 	/**
 	 * Provides the format of the suffix of the names of the static meshes when searching for flipbook frames. "{frame_number}" is used to mark
@@ -353,7 +353,7 @@ private:
 
 	// These properties are deprecated and moved to FNiagaraMeshRendererMeshProperties
 	UPROPERTY()
-	UStaticMesh* ParticleMesh_DEPRECATED;
+	TObjectPtr<UStaticMesh> ParticleMesh_DEPRECATED;
 
 	UPROPERTY()
 	FVector PivotOffset_DEPRECATED;

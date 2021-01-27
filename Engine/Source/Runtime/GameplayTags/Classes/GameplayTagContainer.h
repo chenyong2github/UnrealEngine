@@ -1020,7 +1020,7 @@ public:
 
 	/** The base expression of this query. */
 	UPROPERTY(EditDefaultsOnly, Instanced, Category = Query)
-	class UEditableGameplayTagQueryExpression* RootExpression;
+	TObjectPtr<class UEditableGameplayTagQueryExpression> RootExpression;
 
 #if WITH_EDITOR
 	/** Converts this editor query construct into the runtime-usable token stream. */
@@ -1097,7 +1097,7 @@ class UEditableGameplayTagQueryExpression_AnyExprMatch : public UEditableGamepla
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, Instanced, Category = Expr)
-	TArray<UEditableGameplayTagQueryExpression*> Expressions;
+	TArray<TObjectPtr<UEditableGameplayTagQueryExpression>> Expressions;
 
 #if WITH_EDITOR
 	virtual void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString = nullptr) const override;
@@ -1110,7 +1110,7 @@ class UEditableGameplayTagQueryExpression_AllExprMatch : public UEditableGamepla
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, Instanced, Category = Expr)
-	TArray<UEditableGameplayTagQueryExpression*> Expressions;
+	TArray<TObjectPtr<UEditableGameplayTagQueryExpression>> Expressions;
 
 #if WITH_EDITOR
 	virtual void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString = nullptr) const override;
@@ -1123,7 +1123,7 @@ class UEditableGameplayTagQueryExpression_NoExprMatch : public UEditableGameplay
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, Instanced, Category = Expr)
-	TArray<UEditableGameplayTagQueryExpression*> Expressions;
+	TArray<TObjectPtr<UEditableGameplayTagQueryExpression>> Expressions;
 
 #if WITH_EDITOR
 	virtual void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString = nullptr) const override;

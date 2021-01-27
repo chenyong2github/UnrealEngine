@@ -45,7 +45,7 @@ struct FRepRootMotionMontage
 
 	/** AnimMontage providing Root Motion */
 	UPROPERTY()
-	UAnimMontage* AnimMontage = nullptr;
+	TObjectPtr<UAnimMontage> AnimMontage = nullptr;
 
 	/** Track position of Montage */
 	UPROPERTY()
@@ -61,7 +61,7 @@ struct FRepRootMotionMontage
 
 	/** Movement Relative to Base */
 	UPROPERTY()
-	UPrimitiveComponent* MovementBase = nullptr;
+	TObjectPtr<UPrimitiveComponent> MovementBase = nullptr;
 
 	/** Bone on the MovementBase, if a skeletal mesh. */
 	UPROPERTY()
@@ -156,7 +156,7 @@ struct FBasedMovementInfo
 
 	/** Component we are based on */
 	UPROPERTY()
-	UPrimitiveComponent* MovementBase = nullptr;
+	TObjectPtr<UPrimitiveComponent> MovementBase = nullptr;
 
 	/** Bone name on component, for skeletal meshes. NAME_None if not a skeletal mesh or if bone is invalid. */
 	UPROPERTY()
@@ -223,20 +223,20 @@ public:
 private:
 	/** The main skeletal mesh associated with this Character (optional sub-object). */
 	UPROPERTY(Category=Character, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
-	USkeletalMeshComponent* Mesh;
+	TObjectPtr<USkeletalMeshComponent> Mesh;
 
 	/** Movement component used for movement logic in various movement modes (walking, falling, etc), containing relevant settings and functions to control movement. */
 	UPROPERTY(Category=Character, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
-	UCharacterMovementComponent* CharacterMovement;
+	TObjectPtr<UCharacterMovementComponent> CharacterMovement;
 
 	/** The CapsuleComponent being used for movement collision (by CharacterMovement). Always treated as being vertically aligned in simple collision check functions. */
 	UPROPERTY(Category=Character, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
-	UCapsuleComponent* CapsuleComponent;
+	TObjectPtr<UCapsuleComponent> CapsuleComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** Component shown in the editor only to indicate character facing */
 	UPROPERTY()
-	UArrowComponent* ArrowComponent;
+	TObjectPtr<UArrowComponent> ArrowComponent;
 #endif
 
 public:

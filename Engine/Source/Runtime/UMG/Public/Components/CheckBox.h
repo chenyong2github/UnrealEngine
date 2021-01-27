@@ -47,43 +47,43 @@ public:
 
 	/** Style of the check box */
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	/** Image to use when the checkbox is unchecked */
 	UPROPERTY()
-	USlateBrushAsset* UncheckedImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> UncheckedImage_DEPRECATED;
 	
 	/** Image to use when the checkbox is unchecked and hovered */
 	UPROPERTY()
-	USlateBrushAsset* UncheckedHoveredImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> UncheckedHoveredImage_DEPRECATED;
 	
 	/** Image to use when the checkbox is unchecked and pressed */
 	UPROPERTY()
-	USlateBrushAsset* UncheckedPressedImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> UncheckedPressedImage_DEPRECATED;
 	
 	/** Image to use when the checkbox is checked */
 	UPROPERTY()
-	USlateBrushAsset* CheckedImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> CheckedImage_DEPRECATED;
 	
 	/** Image to use when the checkbox is checked and hovered */
 	UPROPERTY()
-	USlateBrushAsset* CheckedHoveredImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> CheckedHoveredImage_DEPRECATED;
 	
 	/** Image to use when the checkbox is checked and pressed */
 	UPROPERTY()
-	USlateBrushAsset* CheckedPressedImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> CheckedPressedImage_DEPRECATED;
 	
 	/** Image to use when the checkbox is in an ambiguous state and hovered */
 	UPROPERTY()
-	USlateBrushAsset* UndeterminedImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> UndeterminedImage_DEPRECATED;
 	
 	/** Image to use when the checkbox is checked and hovered */
 	UPROPERTY()
-	USlateBrushAsset* UndeterminedHoveredImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> UndeterminedHoveredImage_DEPRECATED;
 	
 	/** Image to use when the checkbox is in an ambiguous state and pressed */
 	UPROPERTY()
-	USlateBrushAsset* UndeterminedPressedImage_DEPRECATED;
+	TObjectPtr<USlateBrushAsset> UndeterminedPressedImage_DEPRECATED;
 
 	/** How the content of the toggle button should align within the given space */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)

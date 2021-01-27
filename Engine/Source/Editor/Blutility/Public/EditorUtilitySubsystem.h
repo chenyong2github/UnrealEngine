@@ -94,19 +94,19 @@ private:
 	IConsoleObject* CancelAllTasksCommandObject = nullptr;
 	
 	UPROPERTY()
-	TMap<UObject* /*Asset*/, UObject* /*Instance*/> ObjectInstances;
+	TMap<TObjectPtr<UObject> /*Asset*/, TObjectPtr<UObject> /*Instance*/> ObjectInstances;
 
 	TQueue< TArray<FString> > RunTaskCommandBuffer;
 
 	UPROPERTY(Transient)
-	TArray<UEditorUtilityTask*> PendingTasks;
+	TArray<TObjectPtr<UEditorUtilityTask>> PendingTasks;
 
 	UPROPERTY(Transient)
-	UEditorUtilityTask* ActiveTask;
+	TObjectPtr<UEditorUtilityTask> ActiveTask;
 
 	FDelegateHandle TickerHandle;
 
 	/** List of objects that are being kept alive by this subsystem. */
 	UPROPERTY()
-	TSet<UObject*> ReferencedObjects;
+	TSet<TObjectPtr<UObject>> ReferencedObjects;
 };

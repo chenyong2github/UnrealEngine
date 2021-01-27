@@ -45,7 +45,7 @@ class FOLIAGE_API UProceduralFoliageComponent : public UActorComponent
 
 	/** The procedural foliage spawner used to generate foliage instances within this volume. */
 	UPROPERTY(Category = "ProceduralFoliage", BlueprintReadWrite, EditAnywhere)
-	UProceduralFoliageSpawner* FoliageSpawner;
+	TObjectPtr<UProceduralFoliageSpawner> FoliageSpawner;
 
 	/** The amount of overlap between simulation tiles (in cm). */
 	UPROPERTY(Category = "ProceduralFoliage", BlueprintReadWrite, EditAnywhere)
@@ -128,7 +128,7 @@ private:
 
 private:
 	UPROPERTY()
-	AVolume* SpawningVolume;
+	TObjectPtr<AVolume> SpawningVolume;
 	
 	UPROPERTY()
 	FGuid ProceduralGuid;

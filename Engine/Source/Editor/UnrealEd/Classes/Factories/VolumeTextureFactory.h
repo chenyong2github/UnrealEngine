@@ -15,7 +15,7 @@ class UVolumeTextureFactory : public UFactory
 
 	/** An initial texture to assign to the newly created volume texture */
 	UPROPERTY()
-	class UTexture2D* InitialTexture;
+	TObjectPtr<class UTexture2D> InitialTexture;
 
 	//~ Begin UFactory Interface
 	virtual FText GetDisplayName() const override;

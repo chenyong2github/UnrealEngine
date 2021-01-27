@@ -11,7 +11,7 @@ struct FBlueprintCompiledData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<UEdGraph*> IntermediateGraphs;
+	TArray<TObjectPtr<UEdGraph>> IntermediateGraphs;
 };
 
 UCLASS(Abstract)

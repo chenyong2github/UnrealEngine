@@ -573,7 +573,7 @@ private:
 	 * @see SetOwner(), GetOwner()
 	 */
 	UPROPERTY(ReplicatedUsing=OnRep_Owner)
-	AActor* Owner;
+	TObjectPtr<AActor> Owner;
 
 protected:
 	/** Used to specify the net driver to replicate on (NAME_None || NAME_GameNetDriver is the default net driver) */
@@ -618,7 +618,7 @@ public:
 
 	/** Component that handles input for this actor, if input is enabled. */
 	UPROPERTY(DuplicateTransient)
-	class UInputComponent* InputComponent;
+	TObjectPtr<class UInputComponent> InputComponent;
 
 	/** Square of the max distance from the client's viewpoint that this actor is relevant and will be replicated. */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category=Replication)
@@ -693,7 +693,7 @@ public:
 private:
 	/** Pawn responsible for damage and other gameplay events caused by this actor. */
 	UPROPERTY(BlueprintReadWrite, ReplicatedUsing=OnRep_Instigator, meta=(ExposeOnSpawn=true, AllowPrivateAccess=true), Category=Actor)
-	class APawn* Instigator;
+	TObjectPtr<class APawn> Instigator;
 
 public:
 	/** Called on clients when Instigator is replicated. */
@@ -702,12 +702,12 @@ public:
 
 	/** Array of all Actors whose Owner is this actor, these are not necessarily spawned by UChildActorComponent */
 	UPROPERTY(Transient)
-	TArray<AActor*> Children;
+	TArray<TObjectPtr<AActor>> Children;
 
 protected:
 	/** The component that defines the transform (location, rotation, scale) of this Actor in the world, all other components must be attached to this one somehow */
 	UPROPERTY(BlueprintGetter=K2_GetRootComponent, Category="Utilities|Transformation")
-	USceneComponent* RootComponent;
+	TObjectPtr<USceneComponent> RootComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** Local space pivot offset for the actor, only used in the editor */
@@ -717,7 +717,7 @@ protected:
 
 	/** The matinee actors that control this actor. */
 	UPROPERTY(Transient)
-	TArray<class AMatineeActor*> ControllingMatineeActors;
+	TArray<TObjectPtr<class AMatineeActor>> ControllingMatineeActors;
 
 	/** Handle for efficient management of LifeSpanExpired timer */
 	FTimerHandle TimerHandle_LifeSpanExpired;
@@ -735,7 +735,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** The UHLODLayer in which this actor should be included. */
 	UPROPERTY(EditAnywhere, Category = HLOD, meta = (DisplayName = "HLOD Layer"))
-	class UHLODLayer* HLODLayer;
+	TObjectPtr<class UHLODLayer> HLODLayer;
 #endif
 
 public:
@@ -775,7 +775,7 @@ protected:
 public:
 	/** The editor-only group this actor is a part of. */
 	UPROPERTY(Transient)
-	AActor* GroupActor;
+	TObjectPtr<AActor> GroupActor;
 
 	/** The scale to apply to any billboard components in editor builds (happens in any WITH_EDITOR build, including non-cooked games). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Rendering, meta=(DisplayName="Editor Billboard Scale"))
@@ -3342,12 +3342,12 @@ private:
 
 	/** Array of ActorComponents that have been added by the user on a per-instance basis. */
 	UPROPERTY(Instanced)
-	TArray<UActorComponent*> InstanceComponents;
+	TArray<TObjectPtr<UActorComponent>> InstanceComponents;
 
 public:
 	/** Array of ActorComponents that are created by blueprints and serialized per-instance. */
 	UPROPERTY(TextExportTransient, NonTransactional)
-	TArray<UActorComponent*> BlueprintCreatedComponents;
+	TArray<TObjectPtr<UActorComponent>> BlueprintCreatedComponents;
 
 	/** Adds a component to the instance components array */
 	void AddInstanceComponent(UActorComponent* Component);

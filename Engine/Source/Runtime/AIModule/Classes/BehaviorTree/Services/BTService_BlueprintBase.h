@@ -38,11 +38,11 @@ class AIMODULE_API UBTService_BlueprintBase : public UBTService
 protected:
 	/** Cached AIController owner of BehaviorTreeComponent. */
 	UPROPERTY(Transient)
-	AAIController* AIOwner;
+	TObjectPtr<AAIController> AIOwner;
 
 	/** Cached actor owner of BehaviorTreeComponent. */
 	UPROPERTY(Transient)
-	AActor* ActorOwner;
+	TObjectPtr<AActor> ActorOwner;
 
 	// Gets the description for our service
 	virtual FString GetStaticServiceDescription() const override;

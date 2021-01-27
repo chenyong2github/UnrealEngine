@@ -39,10 +39,10 @@ public:
 	FLinearColor LightColor;
 
 	UPROPERTY()
-	class UMaterialInterface* LightFunctionMaterial;
+	TObjectPtr<class UMaterialInterface> LightFunctionMaterial;
 
 	UPROPERTY()
-	class UTextureLightProfile* IESTexture;
+	TObjectPtr<class UTextureLightProfile> IESTexture;
 
 	virtual UObject* UpdateObject( UObject* Destination, bool bForce = false ) override;
 	virtual void Load( const UObject* Source ) override;

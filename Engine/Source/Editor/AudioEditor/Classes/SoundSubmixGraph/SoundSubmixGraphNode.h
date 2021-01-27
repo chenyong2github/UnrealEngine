@@ -48,11 +48,11 @@ class USoundSubmixGraphNode : public UEdGraphNode
 
 	/** The SoundSubmix this represents */
 	UPROPERTY(VisibleAnywhere, instanced, Category=Sound)
-	USoundSubmixBase* SoundSubmix;
+	TObjectPtr<USoundSubmixBase> SoundSubmix;
 
 	/** A user widget to use to represent the graph node */
 	UPROPERTY(Transient)
-	UUserWidget* SubmixNodeUserWidget;
+	TObjectPtr<UUserWidget> SubmixNodeUserWidget;
 
 	/** Get the Pin that connects to all children */
 	UEdGraphPin* GetChildPin() const { return ChildPin; }

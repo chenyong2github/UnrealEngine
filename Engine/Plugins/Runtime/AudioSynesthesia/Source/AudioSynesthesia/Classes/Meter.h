@@ -127,7 +127,7 @@ public:
 
 	/** The settings for the meter audio analyzer.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioAnalyzer)
-	UMeterSettings* Settings;
+	TObjectPtr<UMeterSettings> Settings;
 
 	/** Delegate to receive all overall meter results since last delegate call. */
 	UPROPERTY(BlueprintAssignable)

@@ -103,7 +103,7 @@ struct FSkeletalMeshLODGroupSettings
 
 	/** Pose which should be used to reskin vertex influences for which the bones will be removed in this LOD level, uses ref-pose by default */
 	UPROPERTY(EditAnywhere, Category = Reduction)
-	class UAnimSequence* BakePose;
+	TObjectPtr<class UAnimSequence> BakePose;
 
 	/** The optimization settings to use for the respective LOD level */
 	UPROPERTY(EditAnywhere, Category = Reduction)

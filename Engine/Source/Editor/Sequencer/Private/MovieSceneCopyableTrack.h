@@ -15,7 +15,7 @@ public:
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UMovieSceneTrack* Track;
+	TObjectPtr<UMovieSceneTrack> Track;
 
 	UPROPERTY()
 	bool bIsAMasterTrack;

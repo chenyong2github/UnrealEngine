@@ -18,11 +18,11 @@ class ENGINE_API UAssetExportTask : public UObject
 public:
 	/** Asset to export */
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)
-	UObject* Object;
+	TObjectPtr<UObject> Object;
 
 	/** Optional exporter, otherwise it will be determined automatically */
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)
-	class UExporter* Exporter;
+	TObjectPtr<class UExporter> Exporter;
 
 	/** File to export as */
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)
@@ -54,11 +54,11 @@ public:
 
 	/** Array of objects to ignore exporting */
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)
-	TArray<UObject*> IgnoreObjectList;
+	TArray<TObjectPtr<UObject>> IgnoreObjectList;
 
 	/** Exporter specific options */
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)
-	UObject* Options;
+	TObjectPtr<UObject> Options;
 
 	/** Array of error messages encountered during exporter */
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)

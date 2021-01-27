@@ -17,7 +17,7 @@ class UParticleModuleMeshMaterial : public UParticleModuleMaterialBase
 
 	/** The array of materials to apply to the mesh particles. */
 	UPROPERTY(EditAnywhere, Category=MeshMaterials)
-	TArray<class UMaterialInterface*> MeshMaterials;
+	TArray<TObjectPtr<class UMaterialInterface>> MeshMaterials;
 
 
 	//Begin UParticleModule Interface

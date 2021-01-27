@@ -27,7 +27,7 @@ struct FDrawToRenderTargetContext
 	{}
 
 	UPROPERTY()
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
 	FDrawEvent* DrawEvent;
 };

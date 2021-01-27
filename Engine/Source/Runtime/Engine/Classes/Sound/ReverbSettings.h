@@ -61,11 +61,11 @@ struct FReverbSettings
 
 	/** The reverb asset to employ. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ReverbSettings)
-	UReverbEffect* ReverbEffect;
+	TObjectPtr<UReverbEffect> ReverbEffect;
 
 	/** This is used to apply plugin-specific settings when a Reverb Plugin is being used. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ReverbSettings)
-	USoundEffectSubmixPreset* ReverbPluginEffect;
+	TObjectPtr<USoundEffectSubmixPreset> ReverbPluginEffect;
 
 	/** Volume level of the reverb affect. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ReverbSettings)

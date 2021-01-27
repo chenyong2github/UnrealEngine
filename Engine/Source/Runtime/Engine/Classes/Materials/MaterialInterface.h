@@ -209,7 +209,7 @@ class UMaterialInterface : public UObject, public IBlendableInterface, public II
 
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
-	class USubsurfaceProfile* SubsurfaceProfile;
+	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
 
 	/* -------------------------- */
 
@@ -236,7 +236,7 @@ protected:
 
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Material)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 private:
 	/** Feature levels to force to compile. */
@@ -261,7 +261,7 @@ public:
 
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, Category = Thumbnail)
-	class UThumbnailInfo* ThumbnailInfo;
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 
 	UPROPERTY()
 	TMap<FString, bool> LayerParameterExpansion;
@@ -271,7 +271,7 @@ public:
 
 	/** Importing data and options used for this material */
 	UPROPERTY(EditAnywhere, Instanced, Category = ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 private:
 	/** Unique ID for this material, used for caching during distributed lighting */

@@ -31,7 +31,7 @@ public:
 
 	// Sound to Play
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AnimNotify", meta=(ExposeOnSpawn = true))
-	USoundBase* Sound;
+	TObjectPtr<USoundBase> Sound;
 
 	// Volume Multiplier
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AnimNotify", meta=(ExposeOnSpawn = true))

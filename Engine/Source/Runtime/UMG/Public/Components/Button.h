@@ -35,7 +35,7 @@ class UMG_API UButton : public UContentWidget
 public:
 	/** The template style asset, used to seed the mutable instance of the style. */
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	/** The button style used at runtime */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Appearance", meta=( DisplayName="Style" ))

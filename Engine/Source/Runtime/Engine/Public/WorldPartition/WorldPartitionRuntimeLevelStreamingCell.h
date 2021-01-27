@@ -52,5 +52,5 @@ private:
 #endif
 
 	UPROPERTY()
-	mutable class UWorldPartitionLevelStreamingDynamic* LevelStreaming;
+	mutable TObjectPtr<class UWorldPartitionLevelStreamingDynamic> LevelStreaming;
 };

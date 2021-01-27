@@ -62,7 +62,7 @@ private:
 
 	/** The cached Class or ScriptStruct that was used last to resolve Name to a property. */
 	UPROPERTY(Transient)
-	mutable UStruct* Struct;
+	mutable TObjectPtr<UStruct> Struct;
 
 	/**
 	 * The cached property on the Struct that this Name resolved to on it last time Resolve was called, if 
@@ -196,7 +196,7 @@ private:
 
 	/** Cached function for function-terminated paths */
 	UPROPERTY()
-	mutable UFunction* CachedFunction;
+	mutable TObjectPtr<UFunction> CachedFunction;
 
 #if DO_CHECK
 	/** Cached container, used for checking purposes only */

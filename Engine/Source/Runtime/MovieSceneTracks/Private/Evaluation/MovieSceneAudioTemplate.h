@@ -23,7 +23,7 @@ struct FMovieSceneAudioSectionTemplate : public FMovieSceneEvalTemplate
 	FMovieSceneAudioSectionTemplate(const UMovieSceneAudioSection& Section);
 
 	UPROPERTY()
-	const UMovieSceneAudioSection* AudioSection;
+	TObjectPtr<const UMovieSceneAudioSection> AudioSection;
 
 private:
 

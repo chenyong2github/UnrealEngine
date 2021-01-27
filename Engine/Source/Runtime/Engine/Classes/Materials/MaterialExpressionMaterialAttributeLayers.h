@@ -71,13 +71,13 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 	}
 
 	UPROPERTY(Transient)
-	TArray<UMaterialExpressionMaterialFunctionCall*> LayerCallers;
+	TArray<TObjectPtr<UMaterialExpressionMaterialFunctionCall>> LayerCallers;
 
 	UPROPERTY(Transient)
 	int32 NumActiveLayerCallers;
 
 	UPROPERTY(Transient)
-	TArray<UMaterialExpressionMaterialFunctionCall*> BlendCallers;
+	TArray<TObjectPtr<UMaterialExpressionMaterialFunctionCall>> BlendCallers;
 
 	UPROPERTY(Transient)
 	int32 NumActiveBlendCallers;

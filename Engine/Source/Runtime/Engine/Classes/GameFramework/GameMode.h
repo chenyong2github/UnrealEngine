@@ -135,7 +135,7 @@ public:
 
 	/** PlayerStates of players who have disconnected from the server (saved in case they reconnect) */
 	UPROPERTY()
-	TArray<class APlayerState*> InactivePlayerArray;    
+	TArray<TObjectPtr<class APlayerState>> InactivePlayerArray;    
 
 protected:
 

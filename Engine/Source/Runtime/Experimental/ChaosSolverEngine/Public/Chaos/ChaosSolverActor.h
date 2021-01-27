@@ -134,7 +134,7 @@ public:
 	* Display icon in the editor
 	*/
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 
 	UChaosGameplayEventDispatcher* GetGameplayEventDispatcher() const { return GameplayEventDispatcherComponent; };
 
@@ -166,7 +166,7 @@ private:
 
 	/** Component responsible for harvesting and triggering physics-related gameplay events (hits, breaks, etc) */
 	UPROPERTY()
-	UChaosGameplayEventDispatcher* GameplayEventDispatcherComponent;
+	TObjectPtr<UChaosGameplayEventDispatcher> GameplayEventDispatcherComponent;
 
 	/** If floor is enabled - this will point to the solver particle for it */
 	TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>> FloorParticle;

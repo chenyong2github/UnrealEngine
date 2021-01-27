@@ -79,7 +79,7 @@ protected:
 
 private:
 	UPROPERTY()
-	TMap<const TSubclassOf<UWorldPartitionRuntimeCellData>, const UWorldPartitionRuntimeCellData*> CellDataMap;
+	TMap<const TSubclassOf<UWorldPartitionRuntimeCellData>, TObjectPtr<const UWorldPartitionRuntimeCellData>> CellDataMap;
 
 	UPROPERTY()
 	TArray<FName> DataLayers;

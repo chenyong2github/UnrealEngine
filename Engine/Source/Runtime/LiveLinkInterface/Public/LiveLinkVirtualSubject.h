@@ -57,7 +57,7 @@ protected:
 
 	/** List of available translator the subject can use. */
 	UPROPERTY(EditAnywhere, Instanced, Category = "LiveLink", meta=(DisplayName="Translators"))
-	TArray<ULiveLinkFrameTranslator*> FrameTranslators;
+	TArray<TObjectPtr<ULiveLinkFrameTranslator>> FrameTranslators;
 
 	/** LiveLinkClient to get access to subjects */
 	ILiveLinkClient* LiveLinkClient;

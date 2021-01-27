@@ -63,13 +63,13 @@ public:
 	FName Linked;
 
 	UPROPERTY()
-	UNiagaraDataInterface* Data;
+	TObjectPtr<UNiagaraDataInterface> Data;
 
 	UPROPERTY()
 	FString Expression;
 
 	UPROPERTY()
-	UNiagaraClipboardFunction* Dynamic;
+	TObjectPtr<UNiagaraClipboardFunction> Dynamic;
 
 	bool CopyValuesFrom(const UNiagaraClipboardFunctionInput* InOther);
 
@@ -115,7 +115,7 @@ public:
 	TArray<FString> AssignmentDefaults;
 
 	UPROPERTY()
-	TArray<const UNiagaraClipboardFunctionInput*> Inputs;
+	TArray<TObjectPtr<const UNiagaraClipboardFunctionInput>> Inputs;
 
 	UPROPERTY()
 	FOnPastedFunctionCallNode OnPastedFunctionCallNodeDelegate;
@@ -130,19 +130,19 @@ public:
 	static UNiagaraClipboardContent* Create();
 
 	UPROPERTY()
-	TArray<const UNiagaraClipboardFunction*> Functions;
+	TArray<TObjectPtr<const UNiagaraClipboardFunction>> Functions;
 
 	UPROPERTY()
-	TArray<const UNiagaraClipboardFunctionInput*> FunctionInputs;
+	TArray<TObjectPtr<const UNiagaraClipboardFunctionInput>> FunctionInputs;
 
 	UPROPERTY()
-	TArray<const UNiagaraRendererProperties*> Renderers;
+	TArray<TObjectPtr<const UNiagaraRendererProperties>> Renderers;
 
 	UPROPERTY()
-	TArray<const UNiagaraScript*> Scripts;
+	TArray<TObjectPtr<const UNiagaraScript>> Scripts;
 
 	UPROPERTY()
-	TArray<const UNiagaraScriptVariable*> ScriptVariables;
+	TArray<TObjectPtr<const UNiagaraScriptVariable>> ScriptVariables;
 };
 
 class NIAGARAEDITOR_API FNiagaraClipboard

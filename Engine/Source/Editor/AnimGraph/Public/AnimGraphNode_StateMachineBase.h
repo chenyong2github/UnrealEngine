@@ -18,7 +18,7 @@ class ANIMGRAPH_API UAnimGraphNode_StateMachineBase : public UAnimGraphNode_Base
 
 	// Editor state machine representation
 	UPROPERTY()
-	class UAnimationStateMachineGraph* EditorStateMachineGraph;
+	TObjectPtr<class UAnimationStateMachineGraph> EditorStateMachineGraph;
 
 	// UEdGraphNode interface
 	virtual FLinearColor GetNodeTitleColor() const override;

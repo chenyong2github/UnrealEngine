@@ -62,7 +62,7 @@ private:
 	 * A pointer to the geometry data that was intersected by this trace, if any.
 	 */
 	UPROPERTY()
-	UARTrackedGeometry* TrackedGeometry;
+	TObjectPtr<UARTrackedGeometry> TrackedGeometry;
 	
 	/** A reference to the AR system that creates this hit test result. */
 	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;

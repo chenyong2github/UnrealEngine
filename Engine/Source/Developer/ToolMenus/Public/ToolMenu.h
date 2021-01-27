@@ -157,7 +157,7 @@ public:
 	TArray<FToolMenuSection> Sections;
 
 	UPROPERTY()
-	const UToolMenu* SubMenuParent;
+	TObjectPtr<const UToolMenu> SubMenuParent;
 
 	UPROPERTY()
 	FName SubMenuSourceEntryName;

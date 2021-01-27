@@ -57,5 +57,5 @@ public:
 
 	/** Curve data */
 	UPROPERTY(EditAnywhere, Category=Easing)
-	UCurveFloat* Curve;
+	TObjectPtr<UCurveFloat> Curve;
 };

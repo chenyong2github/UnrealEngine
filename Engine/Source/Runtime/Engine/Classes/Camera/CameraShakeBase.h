@@ -518,11 +518,11 @@ private:
 
 	/** The root pattern for this camera shake */
 	UPROPERTY(EditAnywhere, Instanced, Category=CameraShake)
-	UCameraShakePattern* RootShakePattern;
+	TObjectPtr<UCameraShakePattern> RootShakePattern;
 
 	/** The camera manager owning this camera shake. Only valid when the shake is active. */
 	UPROPERTY(transient)
-	APlayerCameraManager* CameraManager;
+	TObjectPtr<APlayerCameraManager> CameraManager;
 
 	/** What space to play the shake in before applying to the camera. Only valid when the shake is active. */
 	ECameraShakePlaySpace PlaySpace;

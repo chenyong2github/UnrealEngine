@@ -13,7 +13,7 @@ class UMaterialFunctionInstanceFactory : public UFactory
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UMaterialFunctionInterface* InitialParent;
+	TObjectPtr<class UMaterialFunctionInterface> InitialParent;
 
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn) override;

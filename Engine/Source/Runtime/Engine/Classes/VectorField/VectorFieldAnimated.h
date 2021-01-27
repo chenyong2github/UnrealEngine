@@ -31,7 +31,7 @@ class UVectorFieldAnimated : public UVectorField
 
 	/** The texture from which to create the vector field. */
 	UPROPERTY(EditAnywhere, Category=Reconstruction)
-	class UTexture2D* Texture;
+	TObjectPtr<class UTexture2D> Texture;
 
 	/** The operation used to construct the vector field. */
 	UPROPERTY(EditAnywhere, Category=Reconstruction)
@@ -71,7 +71,7 @@ class UVectorFieldAnimated : public UVectorField
 
 	/** A static vector field used to add noise. */
 	UPROPERTY(EditAnywhere, Category=Noise)
-	class UVectorFieldStatic* NoiseField;
+	TObjectPtr<class UVectorFieldStatic> NoiseField;
 
 	/** Scale to apply to vectors in the noise field. */
 	UPROPERTY(EditAnywhere, Category=Noise)

@@ -89,7 +89,7 @@ private:
 
 	/** Blueprint that we subscribed OnBlueprintChangedDelegate and OnBlueprintCompiledDelegate to */
 	UPROPERTY()
-	UBlueprint* BlueprintSubscribedTo;
+	TObjectPtr<UBlueprint> BlueprintSubscribedTo;
 
 	/** Blueprint.OnChanged delegate handle */
 	FDelegateHandle OnBlueprintChangedDelegate;

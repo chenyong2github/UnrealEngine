@@ -386,11 +386,11 @@ public:
 
 	/** Data for how to import files via the automated command line importing interface */
 	UPROPERTY(BlueprintReadWrite, Category=Misc)
-	const class UAutomatedAssetImportData* AutomatedImportData;
+	TObjectPtr<const class UAutomatedAssetImportData> AutomatedImportData;
 
 	/** Task for importing file via script interfaces */
 	UPROPERTY(BlueprintReadWrite, Category=Misc)
-	class UAssetImportTask* AssetImportTask;
+	TObjectPtr<class UAssetImportTask> AssetImportTask;
 
 protected:
 

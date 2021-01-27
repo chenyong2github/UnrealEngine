@@ -34,7 +34,7 @@ public:
 
 	/** Bounding box for searching planes in. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes | MagicLeap")
-	class UBoxComponent* SearchVolume;
+	TObjectPtr<class UBoxComponent> SearchVolume;
 
 	/** The maximum number of planes that should be returned in the result. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes | MagicLeap", meta = (ClampMin = 0))

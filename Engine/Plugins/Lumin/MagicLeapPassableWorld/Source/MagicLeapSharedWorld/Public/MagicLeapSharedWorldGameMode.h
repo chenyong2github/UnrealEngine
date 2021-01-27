@@ -90,5 +90,5 @@ protected:
 	TMap<FGuid, TMap<AMagicLeapSharedWorldPlayerController*, FMagicLeapARPinState>> PinToOwnersToStates;
 
 	UPROPERTY(BlueprintReadWrite, Category="AR Shared World|Magic Leap")
-	AMagicLeapSharedWorldPlayerController* ChosenOne;
+	TObjectPtr<AMagicLeapSharedWorldPlayerController> ChosenOne;
 };

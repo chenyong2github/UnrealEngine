@@ -25,7 +25,7 @@ class AInfo : public AActor
 private:
 	/** Billboard Component displayed in editor */
 	UPROPERTY()
-	class UBillboardComponent* SpriteComponent;
+	TObjectPtr<class UBillboardComponent> SpriteComponent;
 public:
 #endif
 

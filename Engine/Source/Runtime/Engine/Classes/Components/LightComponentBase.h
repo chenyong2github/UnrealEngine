@@ -119,7 +119,7 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 #if WITH_EDITORONLY_DATA
 	/** Sprite for static light in the editor. */
 	UPROPERTY(transient)
-	UTexture2D* StaticEditorTexture;
+	TObjectPtr<UTexture2D> StaticEditorTexture;
 
 	/** Sprite scaling for static light in the editor. */
 	UPROPERTY(transient)
@@ -127,7 +127,7 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 
 	/** Sprite for dynamic light in the editor. */
 	UPROPERTY(transient)
-	UTexture2D* DynamicEditorTexture;
+	TObjectPtr<UTexture2D> DynamicEditorTexture;
 
 	/** Sprite scaling for dynamic light in the editor. */
 	UPROPERTY(transient)

@@ -15,10 +15,10 @@ class UMaterialExpressionCurveAtlasRowParameter : public UMaterialExpressionScal
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionCurveAtlasRowParameter)
-	class UCurveLinearColor* Curve;
+	TObjectPtr<class UCurveLinearColor> Curve;
 
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionCurveAtlasRowParameter)
-	class UCurveLinearColorAtlas* Atlas;
+	TObjectPtr<class UCurveLinearColorAtlas> Atlas;
 
 	UPROPERTY()
 	FExpressionInput InputTime;

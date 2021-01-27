@@ -619,7 +619,7 @@ public:
 	 * The material also needs to be set up to output to a virtual texture. 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
-	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
 	/** Bias to the LOD selected for rendering to runtime virtual textures. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", UIMin = "-7", UIMax = "8"))
@@ -739,7 +739,7 @@ public:
 	 * @see IgnoreActorWhenMoving()
 	 */
 	UPROPERTY(Transient, DuplicateTransient)
-	TArray<AActor*> MoveIgnoreActors;
+	TArray<TObjectPtr<AActor>> MoveIgnoreActors;
 
 	/**
 	 * Tells this component whether to ignore collision with all components of a specific Actor when this component is moved.
@@ -774,7 +774,7 @@ public:
 	* @see IgnoreComponentWhenMoving()
 	*/
 	UPROPERTY(Transient, DuplicateTransient)
-	TArray<UPrimitiveComponent*> MoveIgnoreComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> MoveIgnoreComponents;
 
 	/**
 	* Tells this component whether to ignore collision with another component when this component is moved.
@@ -1575,10 +1575,10 @@ public:
 private:
 	/** LOD parent primitive to draw instead of this one (multiple UPrim's will point to the same LODParent ) */
 	UPROPERTY(NonPIEDuplicateTransient)
-	class UPrimitiveComponent* LODParentPrimitive;
+	TObjectPtr<class UPrimitiveComponent> LODParentPrimitive;
 
 	UPROPERTY(Transient)
-	class UPrimitiveComponent* CachedLODParentPrimitive;
+	TObjectPtr<class UPrimitiveComponent> CachedLODParentPrimitive;
 
 public:
 	/** Set the LOD parent component */
@@ -2402,7 +2402,7 @@ private:
 	int32 VisibilityId;
 
 	UPROPERTY()
-	UPrimitiveComponent* LODParent = nullptr;
+	TObjectPtr<UPrimitiveComponent> LODParent = nullptr;
 };
 
 

@@ -107,5 +107,5 @@ protected:
 
 private:
 	UPROPERTY(transient)
-	mutable UNiagaraEffectType* DefaultEffectTypePtr;
+	mutable TObjectPtr<UNiagaraEffectType> DefaultEffectTypePtr;
 };

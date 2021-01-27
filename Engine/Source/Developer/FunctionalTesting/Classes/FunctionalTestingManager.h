@@ -24,10 +24,10 @@ class UFunctionalTestingManager : public UBlueprintFunctionLibrary
 	GENERATED_UCLASS_BODY()
 	
 	UPROPERTY(Transient)
-	TArray<class AFunctionalTest*> TestsLeft;
+	TArray<TObjectPtr<class AFunctionalTest>> TestsLeft;
 
 	UPROPERTY(Transient)
-	TArray<class AFunctionalTest*> AllTests;
+	TArray<TObjectPtr<class AFunctionalTest>> AllTests;
 
 	UPROPERTY(BlueprintAssignable)
 	FFunctionalTestEventSignature OnSetupTests;

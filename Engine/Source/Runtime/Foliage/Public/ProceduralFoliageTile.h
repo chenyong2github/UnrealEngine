@@ -123,7 +123,7 @@ private:
 private:
 
 	UPROPERTY()
-	const UProceduralFoliageSpawner* FoliageSpawner;
+	TObjectPtr<const UProceduralFoliageSpawner> FoliageSpawner;
 
 	TSet<FProceduralFoliageInstance*> PendingRemovals;
 	TSet<FProceduralFoliageInstance*> InstancesSet;

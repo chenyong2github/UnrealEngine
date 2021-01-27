@@ -67,7 +67,7 @@ public:
 	EVirtualKeyboardDismissAction VirtualKeyboardDismissAction;
 
 	UPROPERTY()
-	USlateWidgetStyleAsset* Style_DEPRECATED;
+	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
 
 	/** Font color and opacity (overrides Style) */
 	UPROPERTY()

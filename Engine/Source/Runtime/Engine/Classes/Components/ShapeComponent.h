@@ -27,7 +27,7 @@ class ENGINE_API UShapeComponent : public UPrimitiveComponent
 
 	/** Description of collision */
 	UPROPERTY(transient, duplicatetransient)
-	class UBodySetup* ShapeBodySetup;
+	TObjectPtr<class UBodySetup> ShapeBodySetup;
 
 	/** Navigation area type (empty = default obstacle) */
 	UPROPERTY(EditAnywhere, Category = Navigation)

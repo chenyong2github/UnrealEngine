@@ -53,7 +53,7 @@ struct FCompositeSection : public FAnimLinkableElement
 	 * You can query by GetMetaData function
 	 */
 	UPROPERTY(Category=Section, Instanced, EditAnywhere)
-	TArray<class UAnimMetaData*> MetaData;
+	TArray<TObjectPtr<class UAnimMetaData>> MetaData;
 
 public:
 	FCompositeSection()
@@ -302,7 +302,7 @@ struct ENGINE_API FMontageBlendSettings
 
 	/** Blend Profile to use for this blend */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta = (DisplayAfter = "Blend"))
-	UBlendProfile* BlendProfile;
+	TObjectPtr<UBlendProfile> BlendProfile;
 
 	/** AlphaBlend options (time, curve, etc.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta = (DisplayAfter = "BlendMode"))
@@ -322,7 +322,7 @@ struct ENGINE_API FAnimMontageInstance
 
 	// Montage reference
 	UPROPERTY()
-	class UAnimMontage* Montage;
+	TObjectPtr<class UAnimMontage> Montage;
 
 	// delegates
 	FOnMontageEnded OnMontageEnded;
@@ -693,11 +693,11 @@ class UAnimMontage : public UAnimCompositeBase
 
 	/** The blend profile to use. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = BlendOption, meta = (UseAsBlendProfile = true))
-	UBlendProfile* BlendProfileIn;
+	TObjectPtr<UBlendProfile> BlendProfileIn;
 
 	/** The blend profile to use. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = BlendOption, meta = (UseAsBlendProfile = true))
-	UBlendProfile* BlendProfileOut;
+	TObjectPtr<UBlendProfile> BlendProfileOut;
 
 	/** Root Bone will be locked to that position when extracting root motion. DEPRECATED in 4.5 root motion is controlled by anim sequences **/
 	UPROPERTY()
@@ -706,7 +706,7 @@ class UAnimMontage : public UAnimCompositeBase
 #if WITH_EDITORONLY_DATA
 	/** Preview Base pose for additive BlendSpace **/
 	UPROPERTY(EditAnywhere, Category = AdditiveSettings)
-	UAnimSequence* PreviewBasePose;
+	TObjectPtr<UAnimSequence> PreviewBasePose;
 #endif // WITH_EDITORONLY_DATA
 
 	// Add new slot track to this montage

@@ -84,7 +84,7 @@ private:
 	TArray<FGuid> SubActors;
 
 	UPROPERTY()
-	const UHLODLayer* SubActorsHLODLayer;
+	TObjectPtr<const UHLODLayer> SubActorsHLODLayer;
 
 	UPROPERTY()
 	int64 GridIndexX;

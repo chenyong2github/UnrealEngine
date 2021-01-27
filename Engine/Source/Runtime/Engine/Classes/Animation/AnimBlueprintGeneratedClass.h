@@ -321,7 +321,7 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 
 	/** Target skeleton for this blueprint class */
 	UPROPERTY()
-	USkeleton* TargetSkeleton;
+	TObjectPtr<USkeleton> TargetSkeleton;
 
 	/** A list of anim notifies that state machines (or anything else) may reference */
 	UPROPERTY()
@@ -366,7 +366,7 @@ private:
 
 	// Any internal blendspaces we host
 	UPROPERTY()
-	TArray<UBlendSpaceBase*> BlendSpaces;
+	TArray<TObjectPtr<UBlendSpaceBase>> BlendSpaces;
 
 public:
 	// IAnimClassInterface interface

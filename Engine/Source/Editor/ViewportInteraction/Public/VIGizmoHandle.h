@@ -109,11 +109,11 @@ protected:
 
 	/** Gizmo material (opaque) */
 	UPROPERTY()
-	UMaterialInterface* GizmoMaterial;
+	TObjectPtr<UMaterialInterface> GizmoMaterial;
 
 	/** Gizmo material (translucent) */
 	UPROPERTY()
-	UMaterialInterface* TranslucentGizmoMaterial;
+	TObjectPtr<UMaterialInterface> TranslucentGizmoMaterial;
 	
 	/** All the StaticMeshes for this handle type */
 	UPROPERTY()
@@ -121,10 +121,10 @@ protected:
 
 	/** The actor transform gizmo owning this handlegroup */
 	UPROPERTY()
-	class ABaseTransformGizmo* OwningTransformGizmoActor;
+	TObjectPtr<class ABaseTransformGizmo> OwningTransformGizmoActor;
 
 	UPROPERTY()
-	class UViewportDragOperationComponent* DragOperationComponent;
+	TObjectPtr<class UViewportDragOperationComponent> DragOperationComponent;
 
 private:
 

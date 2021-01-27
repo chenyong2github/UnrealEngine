@@ -104,7 +104,7 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	const ARecastNavMesh* RecastNavMeshActor = nullptr;
+	TObjectPtr<const ARecastNavMesh> RecastNavMeshActor = nullptr;
 
 	const dtNavMesh* DetourNavMesh = nullptr;
 

@@ -113,7 +113,7 @@ public:
 
 	/** The material used to render the particle. Note that it must have the Use with Niagara Sprites flag checked.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	/** Whether or not to draw a single element for the Emitter or to draw the particles.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
@@ -275,7 +275,7 @@ public:
 
 	/** Texture to generate bounding geometry from.	*/
 	UPROPERTY(EditAnywhere, Category="Cutout", meta = (EditCondition = "!bUseMaterialCutoutTexture"))
-	UTexture2D* CutoutTexture;
+	TObjectPtr<UTexture2D> CutoutTexture;
 	
 	/**
 	* More bounding vertices results in reduced overdraw, but adds more triangle overhead.

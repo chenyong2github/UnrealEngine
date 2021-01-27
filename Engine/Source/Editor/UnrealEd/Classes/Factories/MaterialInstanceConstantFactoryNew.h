@@ -17,7 +17,7 @@ class UMaterialInstanceConstantFactoryNew : public UFactory
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UMaterialInterface* InitialParent;
+	TObjectPtr<class UMaterialInterface> InitialParent;
 
 	//~ Begin UFactory Interface
 	UNREALED_API virtual UObject* FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn) override;

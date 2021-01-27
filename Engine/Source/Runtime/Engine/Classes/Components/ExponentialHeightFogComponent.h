@@ -71,7 +71,7 @@ class ENGINE_API UExponentialHeightFogComponent : public USceneComponent
 	 * When the cubemap is specified, FogInscatteringColor is ignored and Directional inscattering is disabled. 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=InscatteringTexture)
-	class UTextureCube* InscatteringColorCubemap;
+	TObjectPtr<class UTextureCube> InscatteringColorCubemap;
 
 	/** Angle to rotate the InscatteringColorCubemap around the Z axis. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=InscatteringTexture, meta=(UIMin = "0", UIMax = "360"))

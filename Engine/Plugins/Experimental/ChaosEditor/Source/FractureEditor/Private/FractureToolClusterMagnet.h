@@ -58,7 +58,7 @@ public:
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 
 	UPROPERTY(EditAnywhere, Category = AutoCluster)
-	UFractureClusterMagnetSettings* ClusterMagnetSettings;
+	TObjectPtr<UFractureClusterMagnetSettings> ClusterMagnetSettings;
 
 private:
 	bool CheckPresenceOfNecessaryAttributes(const FGeometryCollectionPtr GeometryCollection) const;

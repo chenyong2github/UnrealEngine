@@ -38,7 +38,7 @@ public:
 	GENERATED_BODY()
 
 	UPROPERTY(Instanced)
-	TArray<UCurveEditorCopyableCurveKeys*> Curves;
+	TArray<TObjectPtr<UCurveEditorCopyableCurveKeys>> Curves;
 
 	UPROPERTY()
 	double TimeOffset;

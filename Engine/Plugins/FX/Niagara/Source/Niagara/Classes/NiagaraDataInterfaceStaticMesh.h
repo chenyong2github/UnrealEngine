@@ -262,15 +262,15 @@ public:
 
 	/** Mesh used to sample from when not overridden by a source actor from the scene. This mesh is NOT removed from cooked builds. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
-	UStaticMesh* DefaultMesh;
+	TObjectPtr<UStaticMesh> DefaultMesh;
 
 	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
-	AActor* Source;
+	TObjectPtr<AActor> Source;
 	
 	/** The source component from which to sample. Takes precedence over the direct mesh. Not exposed to the user, only indirectly accessible from blueprints. */
 	UPROPERTY(Transient)
-	UStaticMeshComponent* SourceComponent;
+	TObjectPtr<UStaticMeshComponent> SourceComponent;
 
 	/** Array of filters the can be used to limit sampling to certain sections of the mesh. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")

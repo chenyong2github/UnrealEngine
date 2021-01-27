@@ -100,7 +100,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	// The source to use for the moto synth source
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grain Table | Analysis")
-	USoundWave* SoundWaveSource;
+	TObjectPtr<USoundWave> SoundWaveSource;
 #endif // #if WITH_EDITORONLY_DATA
 
 	// Whether or not to convert this moto synth source to 8 bit on load to use less memory

@@ -19,7 +19,7 @@ class UInterpTrackFloatAnimBPParam : public UInterpTrackFloatBase
 	
 	UE_DEPRECATED(4.11, "This property is deprecated. Please use AnimClass instead")
 	UPROPERTY(EditAnywhere, Category = InterpTrackFloatAnimBPParam)
-	class UAnimBlueprintGeneratedClass* AnimBlueprintClass;
+	TObjectPtr<class UAnimBlueprintGeneratedClass> AnimBlueprintClass;
 
 	/** Materials whose parameters we want to change and the references to those materials. */
 	UPROPERTY(EditAnywhere, Category=InterpTrackFloatAnimBPParam)

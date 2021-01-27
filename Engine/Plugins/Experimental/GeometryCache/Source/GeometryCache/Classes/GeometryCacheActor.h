@@ -22,7 +22,7 @@ class GEOMETRYCACHE_API AGeometryCacheActor : public AActor
 	// End AActor overrides.
 private:
 	UPROPERTY(Category = GeometryCacheActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|GeometryCache", AllowPrivateAccess = "true"))
-	UGeometryCacheComponent* GeometryCacheComponent;
+	TObjectPtr<UGeometryCacheComponent> GeometryCacheComponent;
 public:
 	/** Returns GeometryCacheComponent subobject **/
 	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")

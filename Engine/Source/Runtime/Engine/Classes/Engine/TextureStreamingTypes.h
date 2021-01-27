@@ -38,7 +38,7 @@ struct FStreamingRenderAssetPrimitiveInfo
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UStreamableRenderAsset* RenderAsset;
+	TObjectPtr<UStreamableRenderAsset> RenderAsset;
 
 	/** 
 	 * The streaming bounds of the texture/mesh, usually the component material bounds. 

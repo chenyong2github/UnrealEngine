@@ -71,7 +71,7 @@ protected:
 	 * be NULL if bSelfContext is true.  
 	 */
 	UPROPERTY()
-	mutable UObject* MemberParent;
+	mutable TObjectPtr<UObject> MemberParent;
 
 	/**  */
 	UPROPERTY()

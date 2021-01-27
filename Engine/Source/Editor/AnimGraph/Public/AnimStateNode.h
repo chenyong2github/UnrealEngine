@@ -27,7 +27,7 @@ public:
 
 	// The animation graph for this state
 	UPROPERTY()
-	class UEdGraph* BoundGraph;
+	TObjectPtr<class UEdGraph> BoundGraph;
 
 	// The type of the contents of this state
 	UPROPERTY()

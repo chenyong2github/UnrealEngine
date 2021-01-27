@@ -122,11 +122,11 @@ public:
 
 	/** Game Session handles login approval, arbitration, online game interface */
 	UPROPERTY(Transient)
-	AGameSession* GameSession;
+	TObjectPtr<AGameSession> GameSession;
 
 	/** GameState is used to replicate game state relevant properties to all clients. */
 	UPROPERTY(Transient)
-	AGameStateBase* GameState;
+	TObjectPtr<AGameStateBase> GameState;
 
 	/** Helper template to returns the current GameState casted to the desired type. */
 	template< class T >
@@ -136,7 +136,7 @@ public:
 	}
 
 	UPROPERTY(Transient)
-	AServerStatReplicator* ServerStatReplicator;
+	TObjectPtr<AServerStatReplicator> ServerStatReplicator;
 
 	/** Returns number of active human players, excluding spectators */
 	UFUNCTION(BlueprintCallable, Category=Game)

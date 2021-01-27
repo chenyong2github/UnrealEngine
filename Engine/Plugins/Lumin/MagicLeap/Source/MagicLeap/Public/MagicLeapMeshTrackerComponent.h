@@ -87,7 +87,7 @@ public:
 
 	/** Bounding box for the mesh scan. The mesh will be scanned for only within this box. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Meshing|MagicLeap")
-	class UBoxComponent* BoundingVolume;
+	TObjectPtr<class UBoxComponent> BoundingVolume;
 
 	/** Meshing LOD. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Meshing|MagicLeap")
@@ -145,7 +145,7 @@ public:
 
 	/** MRMeshComponent can render and provide collision based on the Mesh data. */
 	UPROPERTY(transient)
-	class UMRMeshComponent* MRMesh;
+	TObjectPtr<class UMRMeshComponent> MRMesh;
 
 	/** Specifies the number of MR Mesh bricks to create per frame. This is to
 	    amortize the cost of brick creation across frames rather than creating

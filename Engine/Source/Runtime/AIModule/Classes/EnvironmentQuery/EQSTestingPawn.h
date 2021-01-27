@@ -29,7 +29,7 @@ class AIMODULE_API AEQSTestingPawn : public ACharacter, public IEQSQueryResultSo
 	GENERATED_UCLASS_BODY()
 	
 	UPROPERTY(Category=EQS, EditAnywhere)
-	UEnvQuery* QueryTemplate;
+	TObjectPtr<UEnvQuery> QueryTemplate;
 
 	/** optional parameters for query */
 	UPROPERTY(Category=EQS, VisibleAnywhere, meta=(DisplayName="QueryParams_DEPRECATED"))
@@ -72,7 +72,7 @@ class AIMODULE_API AEQSTestingPawn : public ACharacter, public IEQSQueryResultSo
 private:
 	/** Editor Preview */
 	UPROPERTY(Transient)
-	UEQSRenderingComponent* EdRenderComp;
+	TObjectPtr<UEQSRenderingComponent> EdRenderComp;
 #endif // WITH_EDITORONLY_DATA
 
 protected:

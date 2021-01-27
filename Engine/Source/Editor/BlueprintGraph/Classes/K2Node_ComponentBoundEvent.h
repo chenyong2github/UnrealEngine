@@ -24,7 +24,7 @@ class UK2Node_ComponentBoundEvent : public UK2Node_Event
 
 	/** Delegate property's owner class that this event is associated with */
 	UPROPERTY()
-	UClass* DelegateOwnerClass;
+	TObjectPtr<UClass> DelegateOwnerClass;
 
 	/** Name of property in Blueprint class that pointer to component we want to bind to */
 	UPROPERTY()

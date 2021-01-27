@@ -65,11 +65,11 @@ struct FGeometryCollectionDebugDrawActorSelectedRigidBody
 
 	/** Chaos RBD Solver. Will use the world's default solver actor if null. */
 	UPROPERTY(EditAnywhere, Category = "Selected Rigid Body")
-	AChaosSolverActor* Solver;
+	TObjectPtr<AChaosSolverActor> Solver;
 
 	/** Currently selected geometry collection. */
 	UPROPERTY(VisibleAnywhere, Category = "Selected Rigid Body")
-	AGeometryCollectionActor* GeometryCollection;
+	TObjectPtr<AGeometryCollectionActor> GeometryCollection;
 
 	/** Return the name of selected solver, or "None" if none is selected. */
 	FString GetSolverName() const;
@@ -331,7 +331,7 @@ public:
 
 	/** Display icon in the editor. */
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 
 	/** Game tick callback. This tick function is required to clean up the persistent debug lines. */
 	static AGeometryCollectionDebugDrawActor* FindOrCreate(UWorld* World);

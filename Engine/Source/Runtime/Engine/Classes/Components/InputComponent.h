@@ -696,7 +696,7 @@ struct FCachedKeyToActionInfo
 
 	/** Which PlayerInput object this has been built for */
 	UPROPERTY()
-	UPlayerInput* PlayerInput;
+	TObjectPtr<UPlayerInput> PlayerInput;
 
 	/** What index of the player input's key mappings was the map built for. */
 	uint32 KeyMapBuiltForIndex;

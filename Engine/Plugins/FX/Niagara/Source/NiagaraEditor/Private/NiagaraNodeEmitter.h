@@ -78,7 +78,7 @@ private:
 
 	/** The System that owns the emitter which is represented by this node. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
-	UNiagaraSystem* OwnerSystem;
+	TObjectPtr<UNiagaraSystem> OwnerSystem;
 
 	/** The id of the emitter handle which points to the emitter represented by this node. */
 	UPROPERTY()

@@ -17,15 +17,15 @@ struct FPaperTerrainMaterialRule
 
 	// The sprite to use at the 'left' (closest to spline start) edge of the terrain segment
 	UPROPERTY(Category=Sprite, EditAnywhere, meta=(DisplayThumbnail="true"))
-	class UPaperSprite* StartCap;
+	TObjectPtr<class UPaperSprite> StartCap;
 
 	// A set of sprites to randomly choose to fill up the interior space between the caps in a terrain segment
 	UPROPERTY(Category=Sprite, EditAnywhere, meta=(DisplayThumbnail="true"))
-	TArray<class UPaperSprite*> Body;
+	TArray<TObjectPtr<class UPaperSprite>> Body;
 
 	// The sprite to use at the 'right' (closest to spline end) edge of the terrain segment
 	UPROPERTY(Category=Sprite, EditAnywhere, meta=(DisplayThumbnail="true"))
-	class UPaperSprite* EndCap;
+	TObjectPtr<class UPaperSprite> EndCap;
 
 	// Minimum slope angle (in degrees) to apply this rule
 	UPROPERTY(Category=Sprite, EditAnywhere)
@@ -81,7 +81,7 @@ class PAPER2D_API UPaperTerrainMaterial : public UDataAsset
 
 	// The sprite to use for an interior region fill
 	UPROPERTY(Category = Sprite, EditAnywhere, meta=(DisplayThumbnail="true"))
-	class UPaperSprite* InteriorFill;
+	TObjectPtr<class UPaperSprite> InteriorFill;
 
 #if WITH_EDITOR
 	// UObject interface

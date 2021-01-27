@@ -53,7 +53,7 @@ protected:
 private:
 	// Base UClass of which template class corresponds.
 	UPROPERTY(Transient)
-	UClass* GeneratedBaseClass;
+	TObjectPtr<UClass> GeneratedBaseClass;
 };
 
 UCLASS(Abstract)

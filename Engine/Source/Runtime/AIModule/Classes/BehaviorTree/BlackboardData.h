@@ -28,7 +28,7 @@ struct FBlackboardEntry
 
 	/** key type and additional properties */
 	UPROPERTY(EditAnywhere, Instanced, Category=Blackboard)
-	UBlackboardKeyType* KeyType;
+	TObjectPtr<UBlackboardKeyType> KeyType;
 
 	/** if set to true then this field will be synchronized across all instances of this blackboard */
 	UPROPERTY(EditAnywhere, Category=Blackboard)
@@ -49,7 +49,7 @@ class AIMODULE_API UBlackboardData : public UDataAsset
 
 	/** parent blackboard (keys can be overridden) */
 	UPROPERTY(EditAnywhere, Category=Parent)
-	UBlackboardData* Parent;
+	TObjectPtr<UBlackboardData> Parent;
 
 #if WITH_EDITORONLY_DATA
 	/** all keys inherited from parent chain */

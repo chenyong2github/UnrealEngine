@@ -39,7 +39,7 @@ class ENGINE_API AHUD : public AActor
 
 	/** PlayerController which owns this HUD. */
 	UPROPERTY(BlueprintReadOnly, Category=HUD)
-	APlayerController* PlayerOwner;    
+	TObjectPtr<APlayerController> PlayerOwner;    
 
 	/** Tells whether the game was paused due to lost focus */
 	UPROPERTY(BlueprintReadOnly, Category=HUD)
@@ -76,7 +76,7 @@ private:
 public:
 	/** Holds a list of Actors that need PostRender() calls. */
 	UPROPERTY()
-	TArray<AActor*> PostRenderedActors;
+	TArray<TObjectPtr<AActor>> PostRenderedActors;
 
 	/** Used to calculate delta time between HUD rendering. */
 	float LastHUDRenderTime;
@@ -95,11 +95,11 @@ public:
 protected:
 	/** Canvas to Draw HUD on.  Only valid during PostRender() event.  */
 	UPROPERTY()
-	UCanvas* Canvas;
+	TObjectPtr<UCanvas> Canvas;
 
 	/** 'Foreground' debug canvas, will draw in front of Slate UI. */
 	UPROPERTY()
-	UCanvas* DebugCanvas;
+	TObjectPtr<UCanvas> DebugCanvas;
 
 	/** List of debug strings attached to actors, sorted by actor first, then by order of addition */
 	UPROPERTY()
@@ -137,7 +137,7 @@ protected:
 
 	/** Show Debug Actor used if 'bShowDebugForReticleTarget' is true, only updated if trace from reticle hit a new Actor of class 'ShowDebugTargetDesiredClass'*/
 	UPROPERTY()
-	AActor* ShowDebugTargetActor;
+	TObjectPtr<AActor> ShowDebugTargetActor;
 
 public:
 	/**

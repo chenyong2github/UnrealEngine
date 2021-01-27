@@ -62,7 +62,7 @@ private:
 	mutable TLazyObjectPtr<UObject> LazyObjectPtr;
 
 	UPROPERTY()
-	TArray<UPropertyValue*> CapturedProperties;
+	TArray<TObjectPtr<UPropertyValue>> CapturedProperties;
 
 	UPROPERTY()
 	TArray<FFunctionCaller> FunctionCallers;

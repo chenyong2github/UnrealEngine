@@ -107,7 +107,7 @@ public:
 
 	// Sequence the streamable was created from (used for reflecting changes to the source in editor)
 	UPROPERTY()
-	const UAnimSequence* SourceSequence;
+	TObjectPtr<const UAnimSequence> SourceSequence;
 
 	UPROPERTY()
 	FGuid RawDataGuid;
@@ -177,11 +177,11 @@ public:
 
 	/** The bone compression settings used to compress bones in this sequence. */
 	UPROPERTY(Category = Compression, EditAnywhere)
-	class UAnimBoneCompressionSettings* BoneCompressionSettings;
+	TObjectPtr<class UAnimBoneCompressionSettings> BoneCompressionSettings;
 
 	/** The curve compression settings used to compress curves in this sequence. */
 	UPROPERTY(Category = Compression, EditAnywhere)
-	class UAnimCurveCompressionSettings* CurveCompressionSettings;
+	TObjectPtr<class UAnimCurveCompressionSettings> CurveCompressionSettings;
 
 	/** If this is on, it will allow extracting of root motion **/
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = RootMotion, meta = (DisplayName = "EnableRootMotion"))

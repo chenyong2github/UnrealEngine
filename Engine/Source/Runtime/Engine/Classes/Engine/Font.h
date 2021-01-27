@@ -113,7 +113,7 @@ class UFont : public UObject, public IFontProviderInterface
 	/** Textures that store this font's glyph image data */
 	//NOTE: Do not expose this to the editor as it has nasty crash potential
 	UPROPERTY()
-	TArray<class UTexture2D*> Textures;
+	TArray<TObjectPtr<class UTexture2D>> Textures;
 
 	/** True if font is 'remapped'.  That is, the character array is not a direct mapping to unicode values.  Instead,
 		all characters are indexed indirectly through the CharRemap array */

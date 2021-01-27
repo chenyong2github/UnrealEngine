@@ -114,7 +114,7 @@ class ENGINE_API UParticleModuleLocationSkelVertSurface : public UParticleModule
 #if WITH_EDITORONLY_DATA
 	/** The name of the skeletal mesh to use in the editor */
 	UPROPERTY(EditAnywhere, Category=VertSurface)
-	class USkeletalMesh* EditorSkelMesh;
+	TObjectPtr<class USkeletalMesh> EditorSkelMesh;
 
 #endif // WITH_EDITORONLY_DATA
 	/** This module will only spawn from verts or surfaces associated with the bones in this list */

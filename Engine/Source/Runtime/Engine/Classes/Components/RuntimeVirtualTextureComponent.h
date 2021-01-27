@@ -31,7 +31,7 @@ protected:
 
 	/** The virtual texture object to use. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTexture)
-	URuntimeVirtualTexture* VirtualTexture = nullptr;
+	TObjectPtr<URuntimeVirtualTexture> VirtualTexture = nullptr;
 
 	/** Set to true to enable scalability settings for the virtual texture. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (InlineEditConditionToggle))
@@ -47,7 +47,7 @@ protected:
 
 	/** Texture object containing streamed low mips. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTextureBuild)
-	UVirtualTextureBuilder* StreamingTexture = nullptr;
+	TObjectPtr<UVirtualTextureBuilder> StreamingTexture = nullptr;
 
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
 	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "12", DisplayName = "Streaming Levels"))

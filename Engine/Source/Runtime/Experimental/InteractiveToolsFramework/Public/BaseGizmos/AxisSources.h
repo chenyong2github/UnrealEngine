@@ -145,7 +145,7 @@ public:
 	virtual void GetTangentVectors(FVector& TangentXOut, FVector& TangentYOut) const;
 
 	UPROPERTY()
-	USceneComponent* Component;
+	TObjectPtr<USceneComponent> Component;
 
 	/** Clamped internally to 0,1,2 */
 	UPROPERTY()

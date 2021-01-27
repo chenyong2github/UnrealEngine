@@ -58,7 +58,7 @@ public:
 
 	/** Pointer to the factory currently being sued */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Data")
-	UFactory* Factory;
+	TObjectPtr<UFactory> Factory;
 
 	/** Full path to level to load before importing this group (only matters if importing assets into a level) */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Data")

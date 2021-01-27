@@ -130,7 +130,7 @@ public:
 private:
 	/** Section we should Key */
 	UPROPERTY()
-	UMovieSceneSection* SectionToKey;
+	TObjectPtr<UMovieSceneSection> SectionToKey;
 
 protected:
 
@@ -139,5 +139,5 @@ protected:
 
 	/** All the sections in this list */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> Sections;
+	TArray<TObjectPtr<UMovieSceneSection>> Sections;
 };

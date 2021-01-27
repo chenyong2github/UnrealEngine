@@ -49,7 +49,7 @@ public:
 
 	// Uniform Voronoi Fracture Input Settings
 	UPROPERTY(EditAnywhere, Category = Uniform)
-	UFractureUniformSettings* UniformSettings;
+	TObjectPtr<UFractureUniformSettings> UniformSettings;
 
 protected:
 	void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) override;

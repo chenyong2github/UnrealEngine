@@ -101,7 +101,7 @@ private:
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 
 	UPROPERTY()
-	TArray<UMovieSceneSection*> Sections;
+	TArray<TObjectPtr<UMovieSceneSection>> Sections;
 
 	UPROPERTY()
 	bool bSectionsWereModified;

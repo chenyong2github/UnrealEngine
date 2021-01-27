@@ -38,7 +38,7 @@ class UDEPRECATED_DiffPackagesCommandlet : public UCommandlet // No longer maint
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UPackage* Packages[3];
+	TObjectPtr<UPackage> Packages[3];
 
 	bool bDiffNonEditProps;
 	bool bDiffAllProps;

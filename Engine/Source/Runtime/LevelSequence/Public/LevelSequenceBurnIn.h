@@ -46,5 +46,5 @@ protected:
 
 	/** The actor to get our burn in frames from */
 	UPROPERTY(BlueprintReadOnly, Category="Burn In")
-	ALevelSequenceActor* LevelSequenceActor;
+	TObjectPtr<ALevelSequenceActor> LevelSequenceActor;
 };

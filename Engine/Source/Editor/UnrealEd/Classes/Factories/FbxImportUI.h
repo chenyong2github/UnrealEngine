@@ -127,7 +127,7 @@ public:
 
 	/** Skeleton to use for imported asset. When importing a mesh, leaving this as "None" will create a new skeleton. When importing an animation this MUST be specified to import the asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Mesh, meta=(ImportType="SkeletalMesh|Animation"))
-	class USkeleton* Skeleton;
+	TObjectPtr<class USkeleton> Skeleton;
 
 	/** If checked, create new PhysicsAsset if it doesn't have it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, config, Category=Mesh, meta=(ImportType="SkeletalMesh"))
@@ -135,7 +135,7 @@ public:
 
 	/** If this is set, use this PhysicsAsset. It is possible bCreatePhysicsAsset == false, and PhysicsAsset == NULL. It is possible they do not like to create anything. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=Mesh, meta=(ImportType="SkeletalMesh", editcondition="!bCreatePhysicsAsset"))
-	class UPhysicsAsset* PhysicsAsset;
+	TObjectPtr<class UPhysicsAsset> PhysicsAsset;
 
 	/** If checked, the editor will automatically compute screen size values for the static mesh's LODs. If unchecked, the user can enter custom screen size values for each LOD. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = LODSettings, meta = (ImportType = "StaticMesh", DisplayName = "Auto Compute LOD Screen Size"))
@@ -199,19 +199,19 @@ public:
 
 	/** Import data used when importing static meshes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient, Instanced, Category = Mesh, meta=(ImportType = "StaticMesh"))
-	class UFbxStaticMeshImportData* StaticMeshImportData;
+	TObjectPtr<class UFbxStaticMeshImportData> StaticMeshImportData;
 
 	/** Import data used when importing skeletal meshes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient, Instanced, Category=Mesh, meta=(ImportType = "SkeletalMesh"))
-	class UFbxSkeletalMeshImportData* SkeletalMeshImportData;
+	TObjectPtr<class UFbxSkeletalMeshImportData> SkeletalMeshImportData;
 
 	/** Import data used when importing animations */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient, Instanced, Category=Animation, meta=(editcondition="bImportAnimations", ImportType = "Animation"))
-	class UFbxAnimSequenceImportData* AnimSequenceImportData;
+	TObjectPtr<class UFbxAnimSequenceImportData> AnimSequenceImportData;
 
 	/** Import data used when importing textures */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient, Instanced, Category=Material)
-	class UFbxTextureImportData* TextureImportData;
+	TObjectPtr<class UFbxTextureImportData> TextureImportData;
 
 	/** If true the automated import path should detect the import type.  If false the import type was specified by the user */
 	UPROPERTY(BlueprintReadWrite, Category = Miscellaneous)

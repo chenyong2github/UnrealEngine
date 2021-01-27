@@ -109,7 +109,7 @@ struct MAGICLEAPPLANES_API FMagicLeapPlanesQuery
 
 	/** DEPRECATED. Use individual fields for setting search volume position, orientation and extents. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap", meta = (DeprecatedProperty, DisplayName = "SearchVolume_DEPRECATED"))
-	class UBoxComponent* SearchVolume;
+	TObjectPtr<class UBoxComponent> SearchVolume;
 
 	/**
 		The maximum number of results that should be returned.  This is also the minimum expected size of the array of results

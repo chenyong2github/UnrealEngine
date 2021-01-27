@@ -23,7 +23,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TMap< TSubclassOf< class UDatasmithObjectTemplate >, UDatasmithObjectTemplate* > ObjectTemplates;
+	TMap< TSubclassOf< class UDatasmithObjectTemplate >, TObjectPtr<UDatasmithObjectTemplate> > ObjectTemplates;
 
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PostLoad() override;

@@ -84,7 +84,7 @@ private:
 	bool bIsDragging{ false };
 
 	UPROPERTY()
-	UTransformProxy* ActiveTarget;
+	TObjectPtr<UTransformProxy> ActiveTarget;
 
 	// The current axis that is being dragged along
 	UPROPERTY()

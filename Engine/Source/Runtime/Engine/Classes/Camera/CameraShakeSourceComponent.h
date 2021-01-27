@@ -65,7 +65,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Sprite to display in the editor. */
 	UPROPERTY(transient)
-	UTexture2D* EditorSpriteTexture;
+	TObjectPtr<UTexture2D> EditorSpriteTexture;
 
 	/** Sprite scaling for display in the editor. */
 	UPROPERTY(transient)

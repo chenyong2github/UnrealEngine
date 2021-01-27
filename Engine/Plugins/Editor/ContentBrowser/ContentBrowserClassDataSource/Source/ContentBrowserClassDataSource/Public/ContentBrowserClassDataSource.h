@@ -21,7 +21,7 @@ struct CONTENTBROWSERCLASSDATASOURCE_API FContentBrowserCompiledClassDataFilter
 
 public:
 	UPROPERTY()
-	TSet<UClass*> ValidClasses;
+	TSet<TObjectPtr<UClass>> ValidClasses;
 
 	UPROPERTY()
 	TSet<FName> ValidFolders;

@@ -27,7 +27,7 @@ struct FMovieSceneSkeletalAnimationParams
 
 	/** The animation this section plays */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Animation", meta=(AllowedClasses = "AnimSequence,AnimComposite,AnimStreamable"))
-	UAnimSequenceBase* Animation;
+	TObjectPtr<UAnimSequenceBase> Animation;
 
 	/** The offset into the beginning of the animation clip for the first loop of play. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Animation")
@@ -128,10 +128,10 @@ private:
 private:
 
 	UPROPERTY()
-	class UAnimSequence* AnimSequence_DEPRECATED;
+	TObjectPtr<class UAnimSequence> AnimSequence_DEPRECATED;
 
 	UPROPERTY()
-	UAnimSequenceBase* Animation_DEPRECATED;
+	TObjectPtr<UAnimSequenceBase> Animation_DEPRECATED;
 
 	UPROPERTY()
 	float StartOffset_DEPRECATED;

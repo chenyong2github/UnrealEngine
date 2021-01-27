@@ -1636,10 +1636,10 @@ USTRUCT(noexport)
 struct FTestUninitializedScriptStructMembersTest
 {
 	UPROPERTY(Transient)
-	UObject* UninitializedObjectReference;
+	TObjectPtr<UObject> UninitializedObjectReference;
 
 	UPROPERTY(Transient)
-	UObject* InitializedObjectReference;
+	TObjectPtr<UObject> InitializedObjectReference;
 
 	UPROPERTY(Transient)
 	float UnusedValue;

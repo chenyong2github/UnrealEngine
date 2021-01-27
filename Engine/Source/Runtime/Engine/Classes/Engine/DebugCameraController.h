@@ -59,7 +59,7 @@ class ENGINE_API ADebugCameraController
 
 	/** Visualizes the frustum of the camera */
 	UPROPERTY()
-	class UDrawFrustumComponent* DrawFrustum;
+	TObjectPtr<class UDrawFrustumComponent> DrawFrustum;
 	
 	/** Sets whether to show information about the selected actor on the debug camera HUD.t */
 	UFUNCTION(exec)
@@ -177,7 +177,7 @@ public:
 
 	/** Currently selected actor, may be invalid */
 	UPROPERTY()
-	class AActor* SelectedActor;
+	TObjectPtr<class AActor> SelectedActor;
 
 	/** Returns the currently selected actor, or null if it is invalid or not set */
 	UFUNCTION(BlueprintCallable, Category="Debug Camera")
@@ -185,7 +185,7 @@ public:
 	
 	/** Currently selected component, may be invalid */
 	UPROPERTY()
-	class UPrimitiveComponent* SelectedComponent;
+	TObjectPtr<class UPrimitiveComponent> SelectedComponent;
 
 	/** Selected hit point */
 	UPROPERTY()
@@ -193,11 +193,11 @@ public:
 
 	/** Controller that was active before this was spawned */
 	UPROPERTY()	
-	class APlayerController* OriginalControllerRef;
+	TObjectPtr<class APlayerController> OriginalControllerRef;
 
 	/** Player object that was active before this was spawned */
 	UPROPERTY()	
-	class UPlayer* OriginalPlayer;
+	TObjectPtr<class UPlayer> OriginalPlayer;
 
 	/** Allows control over the speed of the spectator pawn. This scales the speed based on the InitialMaxSpeed. Use Set Pawn Movement Speed Scale during runtime */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Debug Camera")

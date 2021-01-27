@@ -13,7 +13,7 @@ class ARectLight : public ALight
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Light", meta=(ExposeFunctionCategories="RectLight,Rendering|Lighting"))
-	class URectLightComponent* RectLightComponent;
+	TObjectPtr<class URectLightComponent> RectLightComponent;
 
 #if WITH_EDITOR
 	//~ Begin AActor Interface.

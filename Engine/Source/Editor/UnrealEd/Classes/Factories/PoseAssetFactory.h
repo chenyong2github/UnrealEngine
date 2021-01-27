@@ -24,7 +24,7 @@ class UPoseAssetFactory : public UFactory
 
 	/* Used when creating a composite from an AnimSequence, becomes the only AnimSequence contained */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PoseAssetFactory")
-	class UAnimSequence* SourceAnimation;
+	TObjectPtr<class UAnimSequence> SourceAnimation;
 
 	/** Optional. If specified the poses will be named according to this array.
 	If you don't specify, or you don't specify enough names for all poses, then default names will be generated.*/
@@ -34,10 +34,10 @@ class UPoseAssetFactory : public UFactory
 	// Only used for AnimationEditorUtils::ExecuteNewAnimAsset template. Do not use directly.
 
 	UPROPERTY()
-	class USkeleton* TargetSkeleton;
+	TObjectPtr<class USkeleton> TargetSkeleton;
 
 	UPROPERTY()
-	class USkeletalMesh* PreviewSkeletalMesh;
+	TObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
 
 	//~ Begin UFactory Interface
 	virtual bool ConfigureProperties() override;

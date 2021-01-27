@@ -66,7 +66,7 @@ protected:
 	void OnRep_StaticMesh();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Debug, AdvancedDisplay, meta = (BlueprintProtected = "true", AllowPrivateAccess = "true"))
-	class UHierarchicalInstancedStaticMeshComponent* InstancedStaticMeshComponent;
+	TObjectPtr<class UHierarchicalInstancedStaticMeshComponent> InstancedStaticMeshComponent;
 
 	//
 	// Bookkeeping info

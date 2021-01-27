@@ -104,7 +104,7 @@ protected:
 
 	/** Net driver routing network traffic */
 	UPROPERTY()
-	UNetDriver* NetDriver;
+	TObjectPtr<UNetDriver> NetDriver;
 
 	/** State of beacon */
 	EBeaconState::Type BeaconState;

@@ -118,11 +118,11 @@ private:
 
 	/** The mesh data asset from which the vector art is sourced */
 	UPROPERTY(EditAnywhere, Category="Vector Art" )
-	UStaticMesh* MeshAsset;
+	TObjectPtr<UStaticMesh> MeshAsset;
 
 	/** The material which we are using, or the material from with the MIC was constructed. */
 	UPROPERTY(Transient)
-	UMaterialInterface* SourceMaterial;
+	TObjectPtr<UMaterialInterface> SourceMaterial;
 #endif
 
 	/** @see GetVertexData() */
@@ -135,7 +135,7 @@ private:
 
 	/** @see GetMaterial() */
 	UPROPERTY()
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	UPROPERTY()
 	FVector2D ExtentMin;

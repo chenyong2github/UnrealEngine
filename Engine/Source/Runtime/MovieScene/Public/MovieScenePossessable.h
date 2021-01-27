@@ -131,7 +131,7 @@ private:
 	// possessable "slot" though.  Or we could use it to generate a "preview" spawnable puppet when previewing with no
 	// possessable object available.
 	UPROPERTY()
-	UClass* PossessedObjectClass;
+	TObjectPtr<UClass> PossessedObjectClass;
 
 	/** GUID relating to this possessable's parent, if applicable. */
 	UPROPERTY()

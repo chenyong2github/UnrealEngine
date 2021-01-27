@@ -38,7 +38,7 @@ private:
 	UShaderPlatformQualitySettings* GetOrCreatePlatformSettings(FName ShaderPlatformName);
 
 	UPROPERTY()
-	TMap<FName, UShaderPlatformQualitySettings*> ForwardSettingMap;
+	TMap<FName, TObjectPtr<UShaderPlatformQualitySettings>> ForwardSettingMap;
 
 #if WITH_EDITORONLY_DATA
 	UShaderPlatformQualitySettings* PreviewPlatformSettings;

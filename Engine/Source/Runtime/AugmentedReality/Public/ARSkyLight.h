@@ -25,7 +25,7 @@ private:
 	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY()
-	UAREnvironmentCaptureProbe* CaptureProbe;
+	TObjectPtr<UAREnvironmentCaptureProbe> CaptureProbe;
 
 	/** The timestamp from the environment probe when we last updated the cube map */
 	float LastUpdateTimestamp;

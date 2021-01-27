@@ -543,7 +543,7 @@ protected:
 
 	/** move goal: actor */
 	UPROPERTY()
-	AActor* GoalActor;
+	TObjectPtr<AActor> GoalActor;
 
 	/** move goal: location */
 	mutable FVector GoalLocation;

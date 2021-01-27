@@ -17,5 +17,5 @@ class UOculusResourceHolder : public UObject
 
 public:
 	UPROPERTY()
-	UMaterial* PokeAHoleMaterial;
+	TObjectPtr<UMaterial> PokeAHoleMaterial;
 };

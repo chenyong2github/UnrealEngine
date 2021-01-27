@@ -224,7 +224,7 @@ class UBodySetup : public UBodySetupCore
 	
 	/** Physical material to use for simple collision on this body. Encodes information about density, friction etc. */
 	UPROPERTY(EditAnywhere, Category=Physics, meta=(DisplayName="Simple Collision Physical Material"))
-	class UPhysicalMaterial* PhysMaterial;
+	TObjectPtr<class UPhysicalMaterial> PhysMaterial;
 
 	/** Custom walkable slope setting for this body. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Physics)

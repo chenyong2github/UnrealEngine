@@ -140,5 +140,5 @@ private:
 
 	/** The stack entry for displaying the value object. */
 	UPROPERTY()
-	UNiagaraStackObject* ValueObjectEntry;
+	TObjectPtr<UNiagaraStackObject> ValueObjectEntry;
 };

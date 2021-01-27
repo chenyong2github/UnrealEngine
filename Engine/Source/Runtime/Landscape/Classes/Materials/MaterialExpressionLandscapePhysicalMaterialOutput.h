@@ -14,7 +14,7 @@ struct FPhysicalMaterialInput
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category = PhysicalMaterial)
-	class UPhysicalMaterial* PhysicalMaterial;
+	TObjectPtr<class UPhysicalMaterial> PhysicalMaterial;
 
 	UPROPERTY(meta = (RequiredInput = "true"))
 	FExpressionInput Input;

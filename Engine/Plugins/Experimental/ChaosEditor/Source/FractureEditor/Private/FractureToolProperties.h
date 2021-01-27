@@ -57,6 +57,6 @@ public:
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 
 	UPROPERTY(EditAnywhere, Category = InitialDynamicState)
-	UFractureInitialDynamicStateSettings* StateSettings;
+	TObjectPtr<UFractureInitialDynamicStateSettings> StateSettings;
 
 };

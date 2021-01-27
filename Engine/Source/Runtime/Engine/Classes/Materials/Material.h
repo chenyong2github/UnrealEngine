@@ -159,7 +159,7 @@ struct FMaterialInput
 #if WITH_EDITORONLY_DATA
 	/** Material expression that this input is connected to, or NULL if not connected. */
 	UPROPERTY()
-	class UMaterialExpression* Expression;
+	TObjectPtr<class UMaterialExpression> Expression;
 #endif
 
 	/** Index into Expression's outputs array that this input is connected to. */
@@ -312,15 +312,15 @@ class UMaterial : public UMaterialInterface
 	
 	/** Physical material to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, Category=PhysicalMaterial)
-	class UPhysicalMaterial* PhysMaterial;
+	TObjectPtr<class UPhysicalMaterial> PhysMaterial;
 
 	/** Physical material mask to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, Category = PhysicalMaterial)
-	class UPhysicalMaterialMask* PhysMaterialMask;
+	TObjectPtr<class UPhysicalMaterialMask> PhysMaterialMask;
 
 	/** Physical material mask map to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, Category = PhysicalMaterialMask)
-	class UPhysicalMaterial* PhysicalMaterialMap[EPhysicalMaterialMaskColor::MAX];
+	TObjectPtr<class UPhysicalMaterial> PhysicalMaterialMap[EPhysicalMaterialMaskColor::MAX];
 
 	// Reflection.
 #if WITH_EDITORONLY_DATA
@@ -827,11 +827,11 @@ public:
 
 	/** Array of material expressions, excluding Comments.  Used by the material editor. */
 	UPROPERTY()
-	TArray<class UMaterialExpression*> Expressions;
+	TArray<TObjectPtr<class UMaterialExpression>> Expressions;
 
 	/** Array of comments associated with this material; viewed in the material editor. */
 	UPROPERTY()
-	TArray<class UMaterialExpressionComment*> EditorComments;
+	TArray<TObjectPtr<class UMaterialExpressionComment>> EditorComments;
 
 	/** Controls where this parameter group is displayed in a material instance parameter list.  The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, EditFixedSize, Category = "Group Sorting")

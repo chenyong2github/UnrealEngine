@@ -70,14 +70,14 @@ struct FBTCompositeChild
 
 	/** child node */
 	UPROPERTY()
-	UBTCompositeNode* ChildComposite = nullptr;
+	TObjectPtr<UBTCompositeNode> ChildComposite = nullptr;
 
 	UPROPERTY()
-	UBTTaskNode* ChildTask = nullptr;
+	TObjectPtr<UBTTaskNode> ChildTask = nullptr;
 
 	/** execution decorators */
 	UPROPERTY()
-	TArray<UBTDecorator*> Decorators;
+	TArray<TObjectPtr<UBTDecorator>> Decorators;
 
 	/** logic operations for decorators */
 	UPROPERTY()
@@ -95,7 +95,7 @@ class AIMODULE_API UBTCompositeNode : public UBTNode
 
 	/** service nodes */
 	UPROPERTY()
-	TArray<UBTService*> Services;
+	TArray<TObjectPtr<UBTService>> Services;
 
 	/** delegate for finding next child to execute */
 	UE_DEPRECATED(4.21, "OnNextChild is no longer being used. Please override UBTCompositeNode::GetNextChildHandler instead")

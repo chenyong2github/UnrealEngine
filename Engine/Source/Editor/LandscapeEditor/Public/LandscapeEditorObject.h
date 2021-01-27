@@ -202,7 +202,7 @@ struct FLandscapeImportLayer : public FLandscapeImportLayerInfo
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(Category="Import", VisibleAnywhere)
-	ULandscapeMaterialInstanceConstant* ThumbnailMIC;
+	TObjectPtr<ULandscapeMaterialInstanceConstant> ThumbnailMIC;
 
 	UPROPERTY(Category = "Import", VisibleAnywhere)
 	ELandscapeImportResult ImportResult;
@@ -626,7 +626,7 @@ public:
 
 	// Mask texture to use
 	UPROPERTY(Category="Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Texture", ShowForBrushes="BrushSet_Alpha,BrushSet_Pattern"))
-	UTexture2D* AlphaTexture;
+	TObjectPtr<UTexture2D> AlphaTexture;
 
 	// Channel of Mask Texture to use
 	UPROPERTY(Category="Brush Settings", EditAnywhere, NonTransactional, meta=(DisplayName="Texture Channel", ShowForBrushes="BrushSet_Alpha,BrushSet_Pattern"))
