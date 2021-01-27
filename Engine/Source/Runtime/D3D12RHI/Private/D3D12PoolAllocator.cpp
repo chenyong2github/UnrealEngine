@@ -307,7 +307,7 @@ void FD3D12PoolAllocator::AllocResource(D3D12_HEAP_TYPE InHeapType, const D3D12_
 	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InHeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
 	D3D12_RESOURCE_DESC Desc = InDesc;
 	Desc.Alignment = 0;
-	VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InClearValue, &NewResource, InName, false));
+	VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InResourceStateMode, InCreateState, InClearValue, &NewResource, InName, false));
 	
 	ResourceLocation.AsStandAlone(NewResource, InSize);
 }

@@ -345,7 +345,7 @@ private:
 		{
 #if D3D12_RHI_RAYTRACING
 			// No state tracking for acceleration structures because they can't have another state
-			check(InDefaultState != D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
+			check(InDefaultState != D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE && InInitialState != D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 #endif // D3D12_RHI_RAYTRACING
 
 			// Only a few resources (~1%) actually need resource state tracking
