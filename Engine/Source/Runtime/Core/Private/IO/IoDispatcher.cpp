@@ -247,11 +247,11 @@ public:
 			FIoDispatcherMountedContainer MountedContainer;
 			MountedContainer.ContainerId = ContainerId.ValueOrDie();
 			MountedContainer.Environment = Environment;
+			FScopeLock Lock(&MountedContainersCritical);
 			if (ContainerMountedEvent.IsBound())
 			{
 				ContainerMountedEvent.Broadcast(MountedContainer);
 			}
-			FScopeLock Lock(&MountedContainersCritical);
 			MountedContainers.Add(MoveTemp(MountedContainer));
 			return FIoStatus::Ok;
 		}
