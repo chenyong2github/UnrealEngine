@@ -7,6 +7,7 @@
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"
 #include "ShaderFormatOpenGL.h"
+#include "HlslccHeaderWriter.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -1376,13 +1377,8 @@ static bool CompileToGlslWithShaderConductor(
 		TArray<SpvReflectInterfaceVariable*> OutputVars;
 		TArray<SpvReflectBlockVariable*> ConstantBindings;
 		uint32 GlobalSetId = 32;
-		FString SRVString;
-		FString UAVString;
-		FString UBOString;
-		FString SMPString;
-		FString INPString;
-		FString OUTString;
-		FString PAKString;
+
+		CrossCompiler::FHlslccHeaderWriter CCHeaderWriter;
 		TArray<FString> Textures;
 		TArray<FString> Samplers;
 		uint32 UAVIndices = 0xffffffff;
@@ -1522,7 +1518,7 @@ static bool CompileToGlslWithShaderConductor(
 				TextureIndices &= ~(1llu << uint64(Index));
 				UAVIndices &= ~(1 << Index);
 
-				UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
+				CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
 
 				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
@@ -1538,7 +1534,7 @@ static bool CompileToGlslWithShaderConductor(
 				TextureIndices &= ~(1llu << uint64(Index));
 				UAVIndices &= ~(1 << Index);
 
-				UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
+				CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
 
 				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
@@ -1555,7 +1551,7 @@ static bool CompileToGlslWithShaderConductor(
 				TextureIndices &= ~(1llu << uint64(Index));
 				UAVIndices &= ~(1 << Index);
 
-				UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index, 1);
+				CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
 
 				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
@@ -1599,10 +1595,7 @@ static bool CompileToGlslWithShaderConductor(
 					for (uint32 i = 0; i < Binding->block.member_count; i++)
 					{
 						SpvReflectBlockVariable& member = Binding->block.members[i];
-						uint32 MbrOffset = member.absolute_offset / sizeof(float);
-						uint32 MbrSize = member.size / sizeof(float);
-
-						PAKString += FString::Printf(TEXT("%s%s(h:%u,%u)"), PAKString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(member.name), MbrOffset, MbrSize);
+						CCHeaderWriter.WritePackedGlobal(UTF8_TO_TCHAR(member.name), TEXT("h"), member.absolute_offset, member.size);
 					}
 				}
 				else
@@ -1614,7 +1607,7 @@ static bool CompileToGlslWithShaderConductor(
 					NewName += std::to_string(Index);
 					UniformVarNames[OldName] = NewName;
 					// Regular uniform buffer - we only care about the binding index
-					UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), UTF8_TO_TCHAR(Binding->name), Index);
+					CCHeaderWriter.WriteUniformBlock(UTF8_TO_TCHAR(Binding->name), Index);
 				}
 
 				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
@@ -1674,8 +1667,7 @@ static bool CompileToGlslWithShaderConductor(
 							}
 							auto const type = *member.type_description;
 
-							uint32 MbrOffset = Align(member.absolute_offset / sizeof(float), 4);
-							uint32 MbrSize = member.size / sizeof(float);
+							const uint32 MbrSize = member.size / sizeof(float);
 
 							FString TypeQualifier;
 
@@ -1692,7 +1684,7 @@ static bool CompileToGlslWithShaderConductor(
 
 							uint32& Offset = GlobalOffsets.FindOrAdd(TypeQualifier);
 
-							PAKString += FString::Printf(TEXT("%s%s(%s:%u,%u)"), PAKString.Len() ? TEXT(",") : TEXT(""), *MemberName, *TypeQualifier, Offset * 4, MbrSize);
+							CCHeaderWriter.WritePackedGlobal(*MemberName, *TypeQualifier, member.absolute_offset, member.size);
 
 							bool const bArray = type.traits.array.dims_count > 0;
 
@@ -1828,7 +1820,7 @@ static bool CompileToGlslWithShaderConductor(
 							FString Name = ANSI_TO_TCHAR(Var->name);
 							Name.ReplaceInline(TEXT("."), TEXT("_"));
 							OutputVarNames.Add(Name);
-							OUTString += FString::Printf(TEXT("%s%s;%d:out_Target%d"), OUTString.Len() ? TEXT(",") : TEXT(""), *TypeQualifier, Var->location, Var->location);
+							CCHeaderWriter.WriteOutputAttribute(TEXT("out_Target"), *TypeQualifier, Var->location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ true);
 						}
 						else
 						{
@@ -1899,7 +1891,7 @@ static bool CompileToGlslWithShaderConductor(
 
 							FString Name = ANSI_TO_TCHAR(Var->name);
 							Name.ReplaceInline(TEXT("."), TEXT("_"));
-							OUTString += FString::Printf(TEXT("%s%s;%d:%s"), OUTString.Len() ? TEXT(",") : TEXT(""), *TypeQualifier, Location, *Name);
+							CCHeaderWriter.WriteOutputAttribute(*Name, *TypeQualifier, Location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ false);
 						}
 					}
 				}
@@ -1991,7 +1983,7 @@ static bool CompileToGlslWithShaderConductor(
 						FString Name = ANSI_TO_TCHAR(Var->name);
 						Name.ReplaceInline(TEXT("."), TEXT("_"));
 						InputVarNames.Add(Name);
-						INPString += FString::Printf(TEXT("%s%s;%d:%s"), INPString.Len() ? TEXT(",") : TEXT(""), *TypeQualifier, Location, *Name);
+						CCHeaderWriter.WriteInputAttribute(*Name, *TypeQualifier, Location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ false);
 					}
 				}
 			}
@@ -2213,7 +2205,7 @@ static bool CompileToGlslWithShaderConductor(
 				size_t SamplerPos = GlslSource.find("\nuniform ");
 
 				uint32 TextureIndex = 0;
-				for (FString& Texture : Textures)
+				for (const FString& Texture : Textures)
 				{
 					TArray<FString> UsedSamplers;
 					FString SamplerString;
@@ -2237,46 +2229,14 @@ static bool CompileToGlslWithShaderConductor(
 							SamplerString += FString::Printf(TEXT("%s%s"), SamplerString.Len() ? TEXT(",") : TEXT(""), *Sampler);
 						}
 					}
-					if (UsedSamplers.Num() > 0)
-					{
-						SRVString += FString::Printf(TEXT("%s%s(%u:%u[%s])"), SRVString.Len() ? TEXT(",") : TEXT(""), *Texture, TextureIndex, UsedSamplers.Num(), *SamplerString);
-						TextureIndex += UsedSamplers.Num();
-					}
-					else
-					{
-						SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), *Texture, TextureIndex++, 1);
-					}
+
+					const uint32 SamplerCount = FMath::Max(1, UsedSamplers.Num());
+					CCHeaderWriter.WriteSRV(*Texture, TextureIndex, SamplerCount, UsedSamplers);
+					TextureIndex += SamplerCount;
 				}
 
 				MetaData += TEXT("// Compiled by ShaderConductor\n");
-				if (INPString.Len())
-				{
-					MetaData += FString::Printf(TEXT("// @Inputs: %s\n"), *INPString);
-				}
-				if (OUTString.Len())
-				{
-					MetaData += FString::Printf(TEXT("// @Outputs: %s\n"), *OUTString);
-				}
-				if (UBOString.Len())
-				{
-					MetaData += FString::Printf(TEXT("// @UniformBlocks: %s\n"), *UBOString);
-				}
-				if (PAKString.Len())
-				{
-					MetaData += FString::Printf(TEXT("// @PackedGlobals: %s\n"), *PAKString);
-				}
-				if (SRVString.Len())
-				{
-					MetaData += FString::Printf(TEXT("// @Samplers: %s\n"), *SRVString);
-				}
-				if (UAVString.Len())
-				{
-					MetaData += FString::Printf(TEXT("// @UAVs: %s\n"), *UAVString);
-				}
-				if (SMPString.Len())
-				{
-					MetaData += FString::Printf(TEXT("// @SamplerStates: %s\n"), *SMPString);
-				}
+				MetaData += CCHeaderWriter.ToString();
 
 				// Merge meta data and GLSL source to output string
 				const int32 GlslShaderSourceLen = MetaData.Len() + static_cast<int32>(GlslSource.size()) + 1;

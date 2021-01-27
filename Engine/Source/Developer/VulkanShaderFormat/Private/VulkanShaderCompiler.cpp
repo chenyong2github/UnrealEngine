@@ -5,6 +5,7 @@
 #include "VulkanCommon.h"
 #include "ShaderPreprocessor.h"
 #include "ShaderCompilerCommon.h"
+#include "HlslccHeaderWriter.h"
 #include "hlslcc.h"
 
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
@@ -2013,17 +2014,6 @@ static void GatherSpirvReflectionBindingEntry(SpvReflectDescriptorBinding* InBin
 	} // switch
 }
 
-// Flattens the array dimensions of the interface variable (aka shader attribute), e.g. from float4[2][3] -> float4[6]
-static uint32 FlattenAttributeArrayDimension(const SpvReflectInterfaceVariable& Attribute, uint32 FirstArrayDim = 0)
-{
-	uint32 FlattenedArrayDim = 1;
-	for (uint32 ArrayDimIndex = FirstArrayDim; ArrayDimIndex < Attribute.array.dims_count; ++ArrayDimIndex)
-	{
-		FlattenedArrayDim *= Attribute.array.dims[ArrayDimIndex];
-	}
-	return FlattenedArrayDim;
-}
-
 static void GatherSpirvReflectionBindings(
 	spv_reflect::ShaderModule&	Reflection,
 	FSpirvReflectionBindings&	OutBindings,
@@ -2107,279 +2097,7 @@ static void GatherSpirvReflectionBindings(
 		for (auto const& BindingEntry : Bindings)
 		{
 			GatherSpirvReflectionBindingEntry(BindingEntry, OutBindings);
-		} // for
-	}
-}
-
-static void ConvertMetaDataTypeSpecifierPrimary(const SpvReflectTypeDescription& TypeSpecifier, FString& OutTypeName, uint32& OutTypeBitWidth, bool bBaseTypeOnly)
-{
-	// Generate prefix for base type
-	if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_BOOL)
-	{
-		OutTypeName += TEXT('b');
-		OutTypeBitWidth = 8;
-	}
-	else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_INT)
-	{
-		if (TypeSpecifier.traits.numeric.scalar.signedness)
-		{
-			OutTypeName += TEXT('i');
 		}
-		else
-		{
-			OutTypeName += TEXT('u');
-		}
-		OutTypeBitWidth = 32;
-	}
-	else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT)
-	{
-		if (TypeSpecifier.traits.numeric.scalar.width == 16)
-		{
-			OutTypeName += TEXT('h');
-			OutTypeBitWidth = 16;
-		}
-		else
-		{
-			OutTypeName += TEXT('f');
-			OutTypeBitWidth = 32;
-		}
-	}
-
-	if (!bBaseTypeOnly)
-	{
-		// Generate number for vector size
-		const SpvReflectTypeFlags SpvScalarTypeFlags = (SPV_REFLECT_TYPE_FLAG_BOOL | SPV_REFLECT_TYPE_FLAG_INT | SPV_REFLECT_TYPE_FLAG_FLOAT);
-		if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-		{
-			static const TCHAR* VectorDims = TEXT("1234");
-			const uint32 VectorSize = TypeSpecifier.traits.numeric.vector.component_count;
-			check(VectorSize >= 1 && VectorSize <= 4);
-			OutTypeName += VectorDims[VectorSize - 1];
-		}
-		else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-		{
-			//TODO
-		}
-		else if ((TypeSpecifier.type_flags & SpvScalarTypeFlags) != 0)
-		{
-			OutTypeName += TEXT('1'); // add single scalar component
-		}
-	}
-}
-
-static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& TypeSpecifier, uint32* OutTypeBitWidth = nullptr, bool bBaseTypeOnly = false)
-{
-	FString TypeName;
-	uint32 TypeBitWidth = sizeof(float) * 8;
-	ConvertMetaDataTypeSpecifierPrimary(TypeSpecifier, TypeName, TypeBitWidth, bBaseTypeOnly);
-	if (OutTypeBitWidth)
-	{
-		*OutTypeBitWidth = TypeBitWidth;
-	}
-	return TypeName;
-}
-
-static const TCHAR* SpvBuiltinToString(const SpvBuiltIn BuiltIn)
-{
-	switch (BuiltIn)
-	{
-	case SpvBuiltInPosition:					return TEXT("gl_Position");
-	case SpvBuiltInPointSize:					return TEXT("gl_PointSize");
-	case SpvBuiltInClipDistance:				return TEXT("gl_ClipDistance");
-	case SpvBuiltInCullDistance:				return TEXT("gl_CullDistance");
-	case SpvBuiltInVertexId:					return TEXT("gl_VertexID");
-	case SpvBuiltInInstanceId:					return TEXT("gl_InstanceID");
-	case SpvBuiltInPrimitiveId:					return TEXT("gl_PrimitiveID");
-	case SpvBuiltInInvocationId:				return TEXT("gl_InvocationID");
-	case SpvBuiltInLayer:						return TEXT("gl_Layer");
-	case SpvBuiltInViewportIndex:				return TEXT("gl_ViewportIndex");
-	case SpvBuiltInTessLevelOuter:				return TEXT("gl_TessLevelOuter");
-	case SpvBuiltInTessLevelInner:				return TEXT("gl_TessLevelInner");
-	case SpvBuiltInTessCoord:					return TEXT("gl_TessCoord");
-	case SpvBuiltInPatchVertices:				return TEXT("gl_PatchVertices");
-	case SpvBuiltInFragCoord:					return TEXT("gl_FragCoord");
-	case SpvBuiltInPointCoord:					return TEXT("gl_PointCoord");
-	case SpvBuiltInFrontFacing:					return TEXT("gl_FrontFacing");
-	case SpvBuiltInSampleId:					return TEXT("gl_SampleID");
-	case SpvBuiltInSamplePosition:				return TEXT("gl_SamplePosition");
-	case SpvBuiltInSampleMask:					return TEXT("gl_SampleMask");
-	case SpvBuiltInFragDepth:					return TEXT("gl_FragDepth");
-	case SpvBuiltInHelperInvocation:			return TEXT("gl_HelperInvocation");
-	case SpvBuiltInNumWorkgroups:				return TEXT("gl_NumWorkgroups");
-	case SpvBuiltInWorkgroupSize:				return TEXT("gl_WorkgroupSize");
-	case SpvBuiltInWorkgroupId:					return TEXT("gl_WorkgroupID");
-	case SpvBuiltInLocalInvocationId:			return TEXT("gl_LocalInvocationID");
-	case SpvBuiltInGlobalInvocationId:			return TEXT("gl_GlobalInvocationID");
-	case SpvBuiltInLocalInvocationIndex:		return TEXT("gl_LocalInvocationIndex");
-	case SpvBuiltInWorkDim:						return TEXT("gl_WorkDim");
-	case SpvBuiltInGlobalSize:					return TEXT("gl_GlobalSize");
-	case SpvBuiltInEnqueuedWorkgroupSize:		return TEXT("gl_EnqueuedWorkgroupSize");
-	case SpvBuiltInGlobalOffset:				return TEXT("gl_GlobalOffset");
-	case SpvBuiltInGlobalLinearId:				return TEXT("gl_GlobalLinearID");
-	case SpvBuiltInSubgroupSize:				return TEXT("gl_SubgroupSize");
-	case SpvBuiltInSubgroupMaxSize:				return TEXT("gl_SubgroupMaxSize");
-	case SpvBuiltInNumSubgroups:				return TEXT("gl_NumSubgroups");
-	case SpvBuiltInNumEnqueuedSubgroups:		return TEXT("gl_NumEnqueuedSubgroups");
-	case SpvBuiltInSubgroupId:					return TEXT("gl_SubgroupID");
-	case SpvBuiltInSubgroupLocalInvocationId:	return TEXT("gl_SubgroupLocalInvocationID");
-	case SpvBuiltInVertexIndex:					return TEXT("gl_VertexIndex");
-	case SpvBuiltInInstanceIndex:				return TEXT("gl_InstanceIndex");
-	case SpvBuiltInSubgroupEqMask:				return TEXT("gl_SubgroupEqMask");
-	case SpvBuiltInSubgroupGeMask:				return TEXT("gl_SubgroupGeMask");
-	case SpvBuiltInSubgroupGtMask:				return TEXT("gl_SubgroupGtMask");
-	case SpvBuiltInSubgroupLeMask:				return TEXT("gl_SubgroupLeMask");
-	case SpvBuiltInSubgroupLtMask:				return TEXT("gl_SubgroupLtMask");
-	case SpvBuiltInBaseVertex:					return TEXT("gl_BaseVertex");
-	case SpvBuiltInBaseInstance:				return TEXT("gl_BaseInstance");
-	case SpvBuiltInDrawIndex:					return TEXT("gl_DrawIndex");
-	case SpvBuiltInDeviceIndex:					return TEXT("gl_DeviceIndex");
-	case SpvBuiltInViewIndex:					return TEXT("gl_ViewIndex");
-	}
-	return nullptr;
-}
-
-static FString ConvertAttributeToMetaDataSemantic(const ANSICHAR* AttributeName, const SpvBuiltIn BuiltIn, bool bIsInput)
-{
-	if (const TCHAR* BuiltInName = SpvBuiltinToString(BuiltIn))
-	{
-		return FString(BuiltInName);
-	}
-	else
-	{
-		check(AttributeName != nullptr && *AttributeName != '\0');
-		FString InSemantic = ANSI_TO_TCHAR(AttributeName);
-		FString OutSemantic = (bIsInput ? TEXT("in_") : TEXT("out_"));
-
-		if (InSemantic.StartsWith(TEXT("SV_")))
-		{
-			OutSemantic += InSemantic.Right(InSemantic.Len() - 3);
-		}
-		else
-		{
-			OutSemantic += InSemantic;
-		}
-
-		return OutSemantic;
-	}
-}
-
-// Returns the string position where the index in the specified HLSL semantic beings, e.g. "SV_Target2" -> 9, "SV_Target" -> INDEX_NONE
-static int32 FindIndexInHlslSemantic(const FString& Semantic)
-{
-	int32 Index = Semantic.Len();
-	if (Index > 0 && FChar::IsDigit(Semantic[Index - 1]))
-	{
-		while (Index > 0 && FChar::IsDigit(Semantic[Index - 1]))
-		{
-			--Index;
-		}
-		return Index;
-	}
-	return INDEX_NONE;
-}
-
-static void BuildShaderInterfaceVariableMetaData(const SpvReflectInterfaceVariable& Attribute, FString& OutMetaData, bool bIsInput)
-{
-	// Ignore interface variables that are only generated for intermediate results
-	if (CrossCompiler::FShaderConductorContext::IsIntermediateSpirvOutputVariable(Attribute.name))
-	{
-		return;
-	}
-
-	const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Attribute.type_description);
-	FString Semantic = ConvertAttributeToMetaDataSemantic(Attribute.semantic, Attribute.built_in, bIsInput);
-
-	if (Attribute.array.dims_count > 0)
-	{
-		// Get semantic without index, e.g. "out_Target0" -> "out_Target"
-		const int32 SemanticIndexPos = FindIndexInHlslSemantic(Semantic);
-		if (SemanticIndexPos != INDEX_NONE)
-		{
-			Semantic = Semantic.Left(SemanticIndexPos);
-		}
-
-		if (Attribute.location == -1)
-		{
-			// Flatten array dimensions, e.g. from float4[3][2] -> float4[6]
-			const uint32 FlattenedArrayDim = FlattenAttributeArrayDimension(Attribute);
-
-			// Emit one output slot for each array element, e.g. "out float4 OutColor[2] : SV_Target0" occupies output slot SV_Target0 and SV_Target1.
-			for (uint32 FlattenedArrayIndex = 0; FlattenedArrayIndex < FlattenedArrayDim; ++FlattenedArrayIndex)
-			{
-				// If there is no binding slot, emit output as system value array such as "gl_SampleMask[]"
-				OutMetaData += FString::Printf(
-					TEXT("%s%s;%d:%s[%d]"),
-					!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
-					*TypeSpecifier, // type specifier
-					Attribute.location,
-					*Semantic,
-					FlattenedArrayIndex
-				);
-			}
-		}
-		else if (!bIsInput)
-		{
-			//NOTE: For some reason, the meta data for output slot arrays must be entirely flattened, including the outer most array dimension
-			// Flatten array dimensions, e.g. from float4[3][2] -> float4[6]
-			const uint32 FlattenedArrayDim = FlattenAttributeArrayDimension(Attribute);
-
-			// Emit one output slot for each array element, e.g. "out float4 OutColor[2] : SV_Target0" occupies output slot SV_Target0 and SV_Target1.
-			for (uint32 FlattenedArrayIndex = 0; FlattenedArrayIndex < FlattenedArrayDim; ++FlattenedArrayIndex)
-			{
-				const uint32 BindingSlot = Attribute.location + FlattenedArrayIndex;
-				OutMetaData += FString::Printf(
-					TEXT("%s%s;%d:%s%d"),
-					!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
-					*TypeSpecifier, // Type specifier
-					BindingSlot,
-					*Semantic,
-					BindingSlot
-				);
-			}
-		}
-		else if (Attribute.array.dims_count >= 2)
-		{
-			// Flatten array dimensions, e.g. from float4[3][2] -> float4[6]
-			const uint32 FlattenedArrayDim = FlattenAttributeArrayDimension(Attribute, 1);
-
-			// Emit one output slot for each array element, e.g. "out float4 OutColor[2] : SV_Target0" occupies output slot SV_Target0 and SV_Target1.
-			for (uint32 FlattenedArrayIndex = 0; FlattenedArrayIndex < FlattenedArrayDim; ++FlattenedArrayIndex)
-			{
-				const uint32 BindingSlot = Attribute.location + FlattenedArrayIndex;
-				OutMetaData += FString::Printf(
-					TEXT("%s%s[%d];%d:%s%d"),
-					!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
-					*TypeSpecifier, // Type specifier
-					Attribute.array.dims[0], // Outer most array dimension
-					BindingSlot,
-					*Semantic,
-					BindingSlot
-				);
-			}
-		}
-		else
-		{
-			const uint32 BindingSlot = Attribute.location;
-			OutMetaData += FString::Printf(
-				TEXT("%s%s[%d];%d:%s%d"),
-				!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
-				*TypeSpecifier, // Type specifier
-				Attribute.array.dims[0], // Outer most array dimension
-				BindingSlot,
-				*Semantic,
-				BindingSlot
-			);
-		}
-	}
-	else
-	{
-		OutMetaData += FString::Printf(
-			TEXT("%s%s;%d:%s"),
-			!OutMetaData.IsEmpty() ? TEXT(",") : TEXT(""),
-			*TypeSpecifier, // type specifier
-			Attribute.location,
-			*Semantic
-		);
 	}
 }
 
@@ -2393,7 +2111,6 @@ static void BuildShaderOutputFromSpirv(
 {
 	FShaderParameterMap& ParameterMap = Output.ParameterMap;
 
-	FString UAVString, SRVString, SMPString, UBOString, GLOString, PAKString, INPString, OUTString, WKGString;
 	SpvReflectResult SpvResult = SPV_REFLECT_RESULT_SUCCESS;
 
 	uint8 UAVIndices = 0xff;
@@ -2517,15 +2234,17 @@ static void BuildShaderOutputFromSpirv(
 	// Sort binding table
 	BindingTable.SortBindings();
 
+	CrossCompiler::FHlslccHeaderWriter CCHeaderWriter;
+
 	// Iterate over all resource bindings grouped by resource type
 	for (const SpvReflectInterfaceVariable* Attribute : Bindings.InputAttributes)
 	{
-		BuildShaderInterfaceVariableMetaData(*Attribute, INPString, /*bIsInput:*/ true);
+		CCHeaderWriter.WriteInputAttribute(*Attribute);
 	}
 
 	for (const SpvReflectInterfaceVariable* Attribute : Bindings.OutputAttributes)
 	{
-		BuildShaderInterfaceVariableMetaData(*Attribute, OUTString, /*bIsInput:*/ false);
+		CCHeaderWriter.WriteOutputAttribute(*Attribute);
 	}
 
 	int32 UBOBindings = 0, UAVBindings = 0, SRVBindings = 0, SMPBindings = 0, GLOBindings = 0;
@@ -2550,7 +2269,7 @@ static void BuildShaderOutputFromSpirv(
 
 			Spirv.ReflectionInfo.Add(FSpirv::FEntry(UBOGlobalsNameSpv, BindingIndex));
 
-			UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), TEXT("_Globals_h"), UBOBindings++);
+			CCHeaderWriter.WriteUniformBlock(TEXT("_Globals_h"), UBOBindings++);
 
 			// Register all uniform buffer members as loose data
 			FString MbrString;
@@ -2558,25 +2277,11 @@ static void BuildShaderOutputFromSpirv(
 			for (uint32 MemberIndex = 0; MemberIndex < Binding->block.member_count; ++MemberIndex)
 			{
 				const SpvReflectBlockVariable* Member = &(Binding->block.members[MemberIndex]);
-
 				const FString MemberName(ANSI_TO_TCHAR(Member->name));
-				uint32 MemberTypeBitWidth = sizeof(float) * 8;
-				const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Member->type_description, &MemberTypeBitWidth, /*bBaseTypeOnly:*/ true);
-				const uint32 MemberOffset = Member->absolute_offset / sizeof(float);
-				const uint32 MemberComponentCount = Member->size * 8 / MemberTypeBitWidth;
-
-				MbrString += FString::Printf(
-					TEXT("%s%s(%s:%u,%u)"),
-					MbrString.Len() ? TEXT(",") : TEXT(""),
-					*MemberName,
-					TEXT("h"),//*TypeSpecifier,
-					MemberOffset,
-					MemberComponentCount
-				);
+				CCHeaderWriter.WritePackedGlobal(*MemberName, TEXT("h"), Member->absolute_offset, Member->size);
 			}
 
-			GLOString += MbrString;
-
+			// Stop after we found $Globals uniform buffer
 			break;
 		}
 	}
@@ -2596,7 +2301,7 @@ static void BuildShaderOutputFromSpirv(
 
 			Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
 
-			UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UBOBindings++);
+			CCHeaderWriter.WriteUniformBlock(*ResourceName, UBOBindings++);
 		}
 	}
 
@@ -2608,7 +2313,6 @@ static void BuildShaderOutputFromSpirv(
 		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		//IAString += FString::Printf(TEXT("%s%s(%u:%u)"), IAString.Len() ? TEXT(",") : TEXT(""), *ResourceName, IABindings++, 1);
 
 		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
 	}
@@ -2621,7 +2325,7 @@ static void BuildShaderOutputFromSpirv(
 		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UAVBindings++, 1);
+		CCHeaderWriter.WriteUAV(*ResourceName, UAVBindings++);
 
 		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
 	}
@@ -2634,7 +2338,7 @@ static void BuildShaderOutputFromSpirv(
 		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UAVBindings++, 1);
+		CCHeaderWriter.WriteUAV(*ResourceName, UAVBindings++);
 
 		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
 	}
@@ -2647,7 +2351,7 @@ static void BuildShaderOutputFromSpirv(
 		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		UAVString += FString::Printf(TEXT("%s%s(%u:%u)"), UAVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UAVBindings++, 1);
+		CCHeaderWriter.WriteUAV(*ResourceName, UAVBindings++);
 
 		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
 	}
@@ -2660,7 +2364,7 @@ static void BuildShaderOutputFromSpirv(
 		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, SRVBindings++, 1);
+		CCHeaderWriter.WriteSRV(*ResourceName, UAVBindings++);
 
 		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
 	}
@@ -2673,7 +2377,7 @@ static void BuildShaderOutputFromSpirv(
 		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, SRVBindings++, 1);
+		CCHeaderWriter.WriteSRV(*ResourceName, SRVBindings++);
 
 		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
 	}
@@ -2688,24 +2392,20 @@ static void BuildShaderOutputFromSpirv(
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
 		if (Binding->usage_binding_count > 0)
 		{
-			SRVString += FString::Printf(TEXT("%s%s(%u:%u["), SRVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, SRVBindings++, 1);
+			TArray<FString> AssociatedResourceNames;
+			AssociatedResourceNames.SetNum(Binding->usage_binding_count);
 
 			for (uint32 UsageIndex = 0; UsageIndex < Binding->usage_binding_count; ++UsageIndex)
 			{
 				const SpvReflectDescriptorBinding* AssociatedResource = Binding->usage_bindings[UsageIndex];
-				const FString AssociatedResourceName(ANSI_TO_TCHAR(AssociatedResource->name));
-				if (UsageIndex > 0)
-				{
-					SRVString += TEXT(",");
-				}
-				SRVString += AssociatedResourceName;
+				AssociatedResourceNames[UsageIndex] = ANSI_TO_TCHAR(AssociatedResource->name);
 			}
 
-			SRVString += TEXT("])");
+			CCHeaderWriter.WriteSRV(*ResourceName, SRVBindings++, /*Count:*/ 1, AssociatedResourceNames);
 		}
 		else
 		{
-			SRVString += FString::Printf(TEXT("%s%s(%u:%u)"), SRVString.Len() ? TEXT(",") : TEXT(""), *ResourceName, SRVBindings++, 1);
+			CCHeaderWriter.WriteSRV(*ResourceName, SRVBindings++);
 		}
 
 		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
@@ -2726,7 +2426,7 @@ static void BuildShaderOutputFromSpirv(
 		{
 //			if (*UseCount >= 2)
 			{
-				SMPString += FString::Printf(TEXT("%s%u:%s"), SMPString.Len() ? TEXT(",") : TEXT(""), SMPBindings++, *ResourceName);
+				CCHeaderWriter.WriteSamplerState(*ResourceName, SMPBindings++);
 			}
 		}
 	}
@@ -2736,42 +2436,7 @@ static void BuildShaderOutputFromSpirv(
 
 	FString MetaData;// = FString::Printf(TEXT("// ! %s/%s:%s\n"), *Input.DebugGroupName, *Input.GetSourceFilename(), *Input.EntryPointName);
 	MetaData += TEXT("// Compiled by ShaderConductor\n");
-	if (INPString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @Inputs: %s\n"), *INPString);
-	}
-	if (OUTString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @Outputs: %s\n"), *OUTString);
-	}
-	if (UBOString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @UniformBlocks: %s\n"), *UBOString);
-	}
-	if (GLOString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @PackedGlobals: %s\n"), *GLOString);
-	}
-	if (PAKString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @PackedUBGlobalCopies: %s\n"), *PAKString);
-	}
-	if (SRVString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @Samplers: %s\n"), *SRVString);
-	}
-	if (UAVString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @UAVs: %s\n"), *UAVString);
-	}
-	if (SMPString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @SamplerStates: %s\n"), *SMPString);
-	}
-	if (WKGString.Len())
-	{
-		MetaData += FString::Printf(TEXT("// @NumThreads: %s\n"), *WKGString);
-	}
+	MetaData += CCHeaderWriter.ToString();
 
 	Output.Target = Input.Target;
 

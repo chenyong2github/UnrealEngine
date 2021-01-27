@@ -20,5 +20,6 @@ public class ShaderCompilerCommon : ModuleRules
 
 		// We only need a header containing definitions
 		PublicSystemIncludePaths.Add("ThirdParty/hlslcc/hlslcc/src/hlslcc_lib");
-    }
+		PublicSystemIncludePaths.Add("ThirdParty/SPIRV-Reflect/SPIRV-Reflect");
+	}
 }
