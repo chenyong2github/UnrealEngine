@@ -124,7 +124,9 @@ private:
 
 	/** Changelist & File operations */
 	void OnRevertUnchanged();
+	bool CanRevertUnchanged();
 	void OnRevert();
+	bool CanRevert();
 	void OnShelve();
 
 	/** Changelist & shelved files operations */

@@ -661,6 +661,11 @@ void SSourceControlChangelistsWidget::OnRevertUnchanged()
 	SourceControlProvider.Execute(RevertUnchangedOperation, GetChangelistFromSelection(), GetSelectedFiles());
 }
 
+bool SSourceControlChangelistsWidget::CanRevertUnchanged()
+{
+	return GetSelectedFiles().Num() > 0 || (GetCurrentChangelistState() && GetCurrentChangelistState()->GetFilesStates().Num() > 0);
+}
+
 void SSourceControlChangelistsWidget::OnRevert()
 {
 	FText DialogText;
@@ -691,6 +696,11 @@ void SSourceControlChangelistsWidget::OnRevert()
 	SourceControlProvider.Execute(RevertOperation, GetChangelistFromSelection(), GetSelectedFiles());
 }
 
+bool SSourceControlChangelistsWidget::CanRevert()
+{
+	return GetSelectedFiles().Num() > 0 || (GetCurrentChangelistState() && GetCurrentChangelistState()->GetFilesStates().Num() > 0);
+}
+
 void SSourceControlChangelistsWidget::OnShelve()
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
@@ -714,9 +724,9 @@ void SSourceControlChangelistsWidget::OnDeleteShelvedFiles()
 
 void SSourceControlChangelistsWidget::OnSubmitChangelist()
 {
-	FSourceControlChangelistPtr Changelist = GetCurrentChangelist();
+	FSourceControlChangelistStatePtr ChangelistState = GetCurrentChangelistState();
 	
-	if (!Changelist)
+	if (!ChangelistState)
 	{
 		return;
 	}
@@ -724,14 +734,36 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 	const FText DialogText = LOCTEXT("SourceControl_ConfirmSubmit", "Are you sure you want to submit this changelist?");
 	const FText DialogTitle = LOCTEXT("SourceControl_ConfirmSubmit_Title", "Confirm changelist submit");
 
-	EAppReturnType::Type UserConfirmation = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Ok, DialogText, & DialogTitle);
+	EAppReturnType::Type UserConfirmation = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Ok, DialogText, &DialogTitle);
 
 	if (UserConfirmation == EAppReturnType::Ok)
 	{
+		FText ChangelistDescription = ChangelistState->GetDescriptionText();
+		const bool bAskForChangelistDescription = (ChangelistDescription.IsEmptyOrWhitespace());
+
+		if (bAskForChangelistDescription)
+		{
+			bool bOk = GetChangelistDescription(
+				nullptr,
+				LOCTEXT("SourceControl.Changelist.Submit.Description.Title", "Enter a submit description..."),
+				LOCTEXT("SourceControl.Changelist.Submit.Description.Label", "Enter a description for the submit:"),
+				ChangelistDescription);
+
+			if (!bOk)
+			{
+				return; // Abort submit
+			}
+		}
+
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		auto SubmitChangelistOperation = ISourceControlOperation::Create<FCheckIn>();
 
-		SourceControlProvider.Execute(SubmitChangelistOperation, Changelist);
+		if (bAskForChangelistDescription)
+		{
+			SubmitChangelistOperation->SetDescription(ChangelistDescription);
+		}
+
+		SourceControlProvider.Execute(SubmitChangelistOperation, ChangelistState->GetChangelist());
 		Refresh();
 	}
 }
@@ -739,7 +771,7 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 bool SSourceControlChangelistsWidget::CanSubmitChangelist()
 {
 	FSourceControlChangelistStatePtr Changelist = GetCurrentChangelistState();
-	return Changelist != nullptr && Changelist->GetFilesStates().Num() >= 0 && Changelist->GetShelvedFilesStates().Num() == 0;
+	return Changelist != nullptr && Changelist->GetFilesStates().Num() > 0 && Changelist->GetShelvedFilesStates().Num() == 0;
 }
 
 void SSourceControlChangelistsWidget::OnLocateFile()
@@ -833,15 +865,19 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	if (bHasSelectedChangelist || bHasSelectedFiles)
 	{
 		Section.AddMenuEntry("RevertUnchanged", LOCTEXT("SourceControl_RevertUnchanged", "Revert Unchanged"), LOCTEXT("SourceControl_Revert_Unchanged_Tooltip", "Reverts unchanged files & changelists"), FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevertUnchanged)));
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevertUnchanged),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanRevertUnchanged)));
 
 		Section.AddMenuEntry("Revert", LOCTEXT("SourceControl_Revert", "Revert Files"), LOCTEXT("SourceControl_Revert_Tooltip", "Reverts all files in the changelist or from the selection"), FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevert)));
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnRevert),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanRevert)));
 	}
 
 	if(bHasSelectedFiles || bHasSelectedShelvedFiles || (bHasSelectedChangelist && (GetCurrentChangelistState()->GetFilesStates().Num() > 0 || GetCurrentChangelistState()->GetShelvedFilesStates().Num() > 0)))
 	{
-		Section.AddSeparator("Shelve");
+		Section.AddSeparator("ShelveSeparator");
 	}
 
 	if(bHasSelectedFiles || (bHasSelectedChangelist && GetCurrentChangelistState()->GetFilesStates().Num() > 0))
@@ -871,7 +907,7 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 
 	if (bHasEmptySelection || bHasSelectedChangelist)
 	{
-		Section.AddSeparator("Changelists");
+		Section.AddSeparator("ChangelistsSeparator");
 	}
 
 	// This should appear only if we have no selection
@@ -895,18 +931,18 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	// Files-only operations
 	if(bHasSelectedFiles)
 	{
-		Section.AddSeparator("Files");
+		Section.AddSeparator("FilesSeparator");
 
-		Section.AddMenuEntry("Locate File", LOCTEXT("SourceControl_LocateFile", "Locate File"), LOCTEXT("SourceControl_LocateFile_Tooltip", "Locate File in Project..."), FSlateIcon(),
+		Section.AddMenuEntry("LocateFile", LOCTEXT("SourceControl_LocateFile", "Locate File"), LOCTEXT("SourceControl_LocateFile_Tooltip", "Locate File in Project..."), FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnLocateFile),
 				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanLocateFile)));
 
-		Section.AddMenuEntry("Show History", LOCTEXT("SourceControl_ShowHistory", "Show History"), LOCTEXT("SourceControl_ShowHistory_ToolTip", "Show File History From Selection..."), FSlateIcon(),
+		Section.AddMenuEntry("ShowHistory", LOCTEXT("SourceControl_ShowHistory", "Show History"), LOCTEXT("SourceControl_ShowHistory_ToolTip", "Show File History From Selection..."), FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnShowHistory)));
 
-		Section.AddMenuEntry("Diff Against Local Version", LOCTEXT("SourceControl_DiffAgainstDepot", "Diff Against Depot"), LOCTEXT("SourceControl_DiffAgainstLocal_Tooltip", "Diff local file against depot revision."), FSlateIcon(),
+		Section.AddMenuEntry("DiffAgainstLocalVersion", LOCTEXT("SourceControl_DiffAgainstDepot", "Diff Against Depot"), LOCTEXT("SourceControl_DiffAgainstLocal_Tooltip", "Diff local file against depot revision."), FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDiffAgainstDepot),
 				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDiffAgainstDepot)));

@@ -17,6 +17,7 @@
 #include "Algo/AnyOf.h"
 #include "Algo/IndexOf.h"
 #include "Algo/Find.h"
+#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl"
 
@@ -388,6 +389,23 @@ static bool RunReopenCommand(FPerforceSourceControlCommand& InCommand, const TAr
 	return bCommandSuccessful;
 }
 
+static bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>& Results, TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe>& ChangelistState)
+{
+	return ChangelistState->Files.RemoveAll([&Results](FSourceControlStateRef& State) -> bool
+		{
+			return Algo::AnyOf(Results, [&State](auto& Result) {
+				return State->GetFilename() == Result.Key;
+				});
+		}) > 0;
+}
+
+static bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>& Results, const FPerforceSourceControlChangelist& Changelist)
+{
+	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(Changelist);
+	return RemoveFilesFromChangelist(Results, ChangelistState);
+}
+
 bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	FScopedPerforceConnection ScopedConnection(InCommand);
@@ -398,6 +416,8 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FCheckIn, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FCheckIn>(InCommand.Operation);
 
+		TArray<FString> FilesToSubmit = InCommand.Files;
+
 		FPerforceSourceControlChangelist ChangeList(InCommand.Changelist);
 		TArray<FString> ReopenedFiles;
 
@@ -405,11 +425,21 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 		if (InCommand.Changelist.IsDefault())
 		{
+			// If the command has specified the default changelist but no files, then get all files from the default changelist
+			if (FilesToSubmit.Num() == 0 && InCommand.Changelist.IsInitialized())
+			{
+				FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+				TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> DefaultChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InCommand.Changelist);
+				Algo::Transform(DefaultChangelistState->Files, FilesToSubmit, [](const auto& FileState) {
+					return FileState->GetFilename();
+					});
+			}
+
 			int32 NewChangeList = Connection.CreatePendingChangelist(Operation->GetDescription(), TArray<FString>(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
 			if (NewChangeList > 0)
 			{
 				ChangeList = FPerforceSourceControlChangelist(NewChangeList);
-				InCommand.bCommandSuccessful = RunReopenCommand(InCommand, InCommand.Files, ChangeList, &ReopenedFiles);
+				InCommand.bCommandSuccessful = RunReopenCommand(InCommand, FilesToSubmit, ChangeList, &ReopenedFiles);
 			}
 			else
 			{
@@ -440,7 +470,7 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 				FPerforceSourceControlProvider& Provider = PerforceSourceControl.GetProvider();
 
 				TArray<TSharedRef<ISourceControlState, ESPMode::ThreadSafe>> States;
-				Provider.GetState(InCommand.Files, States, EStateCacheUsage::Use);
+				Provider.GetState(FilesToSubmit, States, EStateCacheUsage::Use);
 				for (const auto& State : States)
 				{
 					if (State->IsDeleted())
@@ -451,11 +481,12 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 				StaticCastSharedRef<FCheckIn>(InCommand.Operation)->SetSuccessMessage(ParseSubmitResults(Records));
 
-				for(auto Iter(InCommand.Files.CreateIterator()); Iter; Iter++)
+				for(auto Iter(FilesToSubmit.CreateIterator()); Iter; Iter++)
 				{
 					OutResults.Add(*Iter, EPerforceState::ReadOnly);
 				}
 
+				InChangelist = InCommand.Changelist;
 				OutChangelist = ChangeList;
 			}
 		}
@@ -488,10 +519,17 @@ bool FPerforceCheckInWorker::UpdateStates() const
 	bool bUpdatedStates = UpdateCachedStates(OutResults);
 	bool bUpdatedChangelistStates = false;
 
-	if (!OutChangelist.IsDefault())
+	if(!OutChangelist.IsDefault()) // e.g. operation succeeded
 	{
+		// Delete changelist, whether its a temporary one or not
 		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 		bUpdatedChangelistStates = PerforceSourceControl.GetProvider().RemoveChangelistFromCache(OutChangelist);
+
+		// If it's a temporary one, then remove the submitted files from the default changelist
+		if (InChangelist.IsDefault())
+		{
+			bUpdatedChangelistStates = RemoveFilesFromChangelist(OutResults, InChangelist);
+		}
 	}
 
 	return (bUpdatedStates || bUpdatedChangelistStates);
@@ -610,23 +648,6 @@ bool FPerforceRevertWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		ChangelistToUpdate = InCommand.Changelist;
 	}
 	return InCommand.bCommandSuccessful;
-}
-
-bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>& Results, TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe>& ChangelistState)
-{
-	return ChangelistState->Files.RemoveAll([&Results](FSourceControlStateRef& State) -> bool
-		{
-			return Algo::AnyOf(Results, [&State](auto& Result) {
-				return State->GetFilename() == Result.Key;
-				});
-		}) > 0;
-}
-
-bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>& Results, const FPerforceSourceControlChangelist& Changelist)
-{
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(Changelist);
-	return RemoveFilesFromChangelist(Results, ChangelistState);
 }
 
 bool FPerforceRevertWorker::UpdateStates() const
@@ -2017,15 +2038,14 @@ FName FPerforceDeleteChangelistWorker::GetName() const
 
 bool FPerforceDeleteChangelistWorker::Execute(class FPerforceSourceControlCommand& InCommand)
 {
+	FScopedPerforceConnection ScopedConnection(InCommand);
+
 	// Can't delete the default changelist
 	if (InCommand.Changelist.IsDefault())
 	{
 		InCommand.bCommandSuccessful = false;
-		return false;
 	}
-
-	FScopedPerforceConnection ScopedConnection(InCommand);
-	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	else if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		check(InCommand.Operation->GetName() == GetName());
@@ -2078,13 +2098,22 @@ bool FPerforceEditChangelistWorker::Execute(class FPerforceSourceControlCommand&
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FEditChangelist, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FEditChangelist>(InCommand.Operation);
 
-		int32 ChangelistNumber = Connection.EditPendingChangelist(Operation->GetDescription(), InCommand.Changelist.ToInt(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
+		int32 ChangelistNumber = -1;
 
-		InCommand.bCommandSuccessful = (ChangelistNumber == InCommand.Changelist.ToInt());
+		if (InCommand.Changelist.IsDefault())
+		{
+			ChangelistNumber = Connection.CreatePendingChangelist(Operation->GetDescription(), InCommand.Files, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
+		}
+		else
+		{
+			ChangelistNumber = Connection.EditPendingChangelist(Operation->GetDescription(), InCommand.Changelist.ToInt(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
+		}
+
+		InCommand.bCommandSuccessful = (ChangelistNumber == InCommand.Changelist.ToInt() || (ChangelistNumber >= 0 && InCommand.Changelist.IsDefault()));
 
 		if (InCommand.bCommandSuccessful)
 		{
-			EditedChangelist = InCommand.Changelist;
+			EditedChangelist = FPerforceSourceControlChangelist(ChangelistNumber);
 			EditedDescription = Operation->GetDescription();
 		}
 	}
@@ -2096,11 +2125,13 @@ bool FPerforceEditChangelistWorker::UpdateStates() const
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> EditedChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(EditedChangelist);
+	// TODO: update similar to NewChangelist when/if we support files in edit/new changelists.
 	EditedChangelistState->Description = EditedDescription.ToString();
+	EditedChangelistState->Changelist = EditedChangelist;
+	EditedChangelistState->TimeStamp = FDateTime::Now();
 
 	return true;
 }
-
 
 FName FPerforceRevertUnchangedWorker::GetName() const
 {

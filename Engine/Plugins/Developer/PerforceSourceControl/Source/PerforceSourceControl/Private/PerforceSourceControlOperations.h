@@ -46,6 +46,9 @@ public:
 	/** Map of filenames to perforce state */
 	TMap<FString, EPerforceState::Type> OutResults;
 
+	/** Changelist we asked to submit */
+	FPerforceSourceControlChangelist InChangelist;
+
 	/** Changelist we submitted */
 	FPerforceSourceControlChangelist OutChangelist;
 };
