@@ -114,7 +114,6 @@ extern void TraceScreenProbes(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	bool bEnableSSGI,
 	bool bTraceCards,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,

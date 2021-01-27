@@ -1477,7 +1477,9 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 
 		// Commit HZB state
 		{
-			const bool bHasSSGI = ViewPipelineState[&FPerViewPipelineState::bEnableSSGI];
+			const bool bHasSSGI = ViewPipelineState[&FPerViewPipelineState::DiffuseIndirectMethod] == EDiffuseIndirectMethod::SSGI;
+			const bool bUseLumen = ViewPipelineState[&FPerViewPipelineState::DiffuseIndirectMethod] == EDiffuseIndirectMethod::Lumen 
+				|| ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::Lumen;
 
 			// Requires FurthestHZB
 			ViewPipelineState.Set(&FPerViewPipelineState::bFurthestHZB,
@@ -1486,11 +1488,10 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 				ViewPipelineState[&FPerViewPipelineState::bUseLumenProbeHierarchy] ||
 				ViewPipelineState[&FPerViewPipelineState::AmbientOcclusionMethod] == EAmbientOcclusionMethod::SSAO ||
 				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::SSR ||
-				bHasSSGI);
+				bHasSSGI || bUseLumen);
 
-			// SSGI requires ClosestHZB
 			ViewPipelineState.Set(&FPerViewPipelineState::bClosestHZB, 
-				bHasSSGI || ViewPipelineState[&FPerViewPipelineState::DiffuseIndirectMethod] == EDiffuseIndirectMethod::Lumen);
+				bHasSSGI || bUseLumen);
 		}
 	}
 
@@ -2835,7 +2836,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		const FViewInfo& View = Views[ViewIndex];
 
-		if (ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
+		if ((ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View) || GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+			&& !View.bStatePrevViewInfoIsReadOnly)
 		{
 			// Keep scene color and depth for next frame screen space ray tracing.
 			FSceneViewState* ViewState = View.ViewState;

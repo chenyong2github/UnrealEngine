@@ -305,30 +305,24 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 		IScreenSpaceDenoiser::EMode DiffuseIndirectDenoiser = IScreenSpaceDenoiser::EMode::Disabled;
 		bool bUseLumenProbeHierarchy = false;
 
-		bool bEnableSSGI = ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View);
-		if (ShouldRenderRayTracingGlobalIllumination(View))
-		{
-			DiffuseIndirectMethod = EDiffuseIndirectMethod::RTGI;
-			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
+		const bool bEnableSSGI = ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View);
 
-			// Force SSGI to be disabled because hybrid is not supported.
-			bEnableSSGI = false;
-		}
-		else if (ShouldRenderLumenDiffuseGI(View))
+		if (ShouldRenderLumenDiffuseGI(View))
 		{
 			DiffuseIndirectMethod = EDiffuseIndirectMethod::Lumen;
 			bUseLumenProbeHierarchy = CVarLumenProbeHierarchy.GetValueOnRenderThread() != 0;
 		}
-		
-		if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+		else if (bEnableSSGI)
 		{
-			if (ViewFamily.EngineShowFlags.VisualizeLumenIndirectDiffuse)
-			{
-				// SSGI can only give reasonable results with direct lighting onscreen
-				bEnableSSGI = false;
-			}
+			DiffuseIndirectMethod = EDiffuseIndirectMethod::SSGI;
 		}
-		else if (bEnableSSGI && DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled)
+		else if (ShouldRenderRayTracingGlobalIllumination(View))
+		{
+			DiffuseIndirectMethod = EDiffuseIndirectMethod::RTGI;
+			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
+		}
+		
+		if (bEnableSSGI && DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled)
 		{
 			if (CVarLumenProbeHierarchy.GetValueOnRenderThread() && CVarStandaloneSSGIAllowLumenProbeHierarchy.GetValueOnRenderThread())
 			{
@@ -372,7 +366,6 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 			}
 		}
 
-		ViewPipelineState.Set(&FPerViewPipelineState::bEnableSSGI, bEnableSSGI);
 		ViewPipelineState.Set(&FPerViewPipelineState::DiffuseIndirectMethod, DiffuseIndirectMethod);
 		ViewPipelineState.Set(&FPerViewPipelineState::DiffuseIndirectDenoiser, DiffuseIndirectDenoiser);
 		ViewPipelineState.Set(&FPerViewPipelineState::bUseLumenProbeHierarchy, bUseLumenProbeHierarchy);
@@ -623,7 +616,7 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 		// The all point of the probe hiararchy denoiser is to keep full res detail, so do not allow downscaling.
 		DownscaleFactor = 1;
 	}
-	else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled && ViewPipelineState.bEnableSSGI)
+	else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
 	{
 		// Standalone SSGI have the number of ray baked in the shader permutation.
 		RayCountPerPixel = ScreenSpaceRayTracing::GetSSGIRayCountPerTracingPixel();
@@ -727,7 +720,8 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		}
 
 		ScreenSpaceRayTracing::FPrevSceneColorMip PrevSceneColorMip;
-		if (ViewPipelineState.bEnableSSGI)
+		if ((ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+			&& View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
 		{
 			PrevSceneColorMip = ScreenSpaceRayTracing::ReducePrevSceneColorMip(GraphBuilder, SceneTextureParameters, View);
 		}
@@ -747,14 +741,11 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				CommonDiffuseParameters, PrevSceneColorMip,
 				View, &View.PrevViewInfo);
 		}
-		else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled)
+		else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
 		{
-			if (ViewPipelineState.bEnableSSGI)
-			{
-				RDG_EVENT_SCOPE(GraphBuilder, "SSGI %dx%d", CommonDiffuseParameters.TracingViewportSize.X, CommonDiffuseParameters.TracingViewportSize.Y);
-				DenoiserInputs = ScreenSpaceRayTracing::CastStandaloneDiffuseIndirectRays(
-					GraphBuilder, CommonDiffuseParameters, PrevSceneColorMip, View);
-			}
+			RDG_EVENT_SCOPE(GraphBuilder, "SSGI %dx%d", CommonDiffuseParameters.TracingViewportSize.X, CommonDiffuseParameters.TracingViewportSize.Y);
+			DenoiserInputs = ScreenSpaceRayTracing::CastStandaloneDiffuseIndirectRays(
+				GraphBuilder, CommonDiffuseParameters, PrevSceneColorMip, View);
 		}
 		else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::RTGI)
 		{
@@ -775,7 +766,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				LightingChannelsTexture,
 				View,
 				&View.PrevViewInfo,
-				ViewPipelineState.bEnableSSGI,
 				bLumenUseDenoiserComposite,
 				MeshSDFGridParameters);
 
@@ -790,10 +780,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			{
 				DenoiserOutputs.Textures[2] = DenoiserOutputs.Textures[1];
 			}
-		}
-		else
-		{
-			unimplemented();
 		}
 
 		FRDGTextureRef AmbientOcclusionMask = DenoiserInputs.AmbientOcclusionMask;
@@ -831,7 +817,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 				AmbientOcclusionMask = DenoiserOutputs.Textures[1];
 			}
-			else if (ViewPipelineState.bEnableSSGI)
+			else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
 			{
 				DenoiserOutputs = DenoiserToUse->DenoiseScreenSpaceDiffuseIndirect(
 					GraphBuilder,
@@ -864,7 +850,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		}
 		else if (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSGI)
 		{
-			check(ViewPipelineState.bEnableSSGI);
 			check(AmbientOcclusionMask);
 		}
 		else if (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO)
@@ -913,8 +898,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			PassParameters->ApplyAOToDynamicDiffuseIndirect = 0.0f;
 
-			// TODO(Guillaume): SSGI is not fan to have AO applied to it.
-			if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && !ViewPipelineState.bEnableSSGI)
+			if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 			{
 				PassParameters->ApplyAOToDynamicDiffuseIndirect = 1.0f;
 			}

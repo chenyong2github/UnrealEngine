@@ -208,7 +208,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 
-		bool bSSGI = ViewPipelineState.bEnableSSGI;
+		bool bSSGI = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI;
 		bool bLumen = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 		
 		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise || bSSGI || bLumen;

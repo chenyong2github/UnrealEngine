@@ -947,7 +947,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGTextureRef LightingChannelsTexture,
 	const FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
-	bool bSSGI,
 	bool& bLumenUseDenoiserComposite,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
 {
@@ -1181,7 +1180,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		GraphBuilder, 
 		Scene,
 		View, 
-		bSSGI,
 		GLumenGatherCvars.TraceCards != 0,
 		SceneTextures.UniformBuffer,
 		PrevSceneColorMip,

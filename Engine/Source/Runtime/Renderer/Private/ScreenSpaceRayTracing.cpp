@@ -120,7 +120,7 @@ namespace ScreenSpaceRayTracing
 bool ShouldKeepBleedFreeSceneColor(const FViewInfo& View)
 {
 	// TODO(Guillaume): SSR as well.
-	return SupportScreenSpaceDiffuseIndirect(View) && !View.bStatePrevViewInfoIsReadOnly && CVarSSGILeakFreeReprojection.GetValueOnRenderThread() != 0;
+	return SupportScreenSpaceDiffuseIndirect(View) && CVarSSGILeakFreeReprojection.GetValueOnRenderThread() != 0;
 }
 
 bool ShouldRenderScreenSpaceReflections(const FViewInfo& View)

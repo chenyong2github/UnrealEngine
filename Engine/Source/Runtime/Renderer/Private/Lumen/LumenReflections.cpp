@@ -592,13 +592,10 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.TraceHit = GraphBuilder.CreateTexture(TraceHitDesc, TEXT("ReflectionTraceHit"));
 	ReflectionTracingParameters.RWTraceHit = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.TraceHit));
 
-	const bool bScreenSpaceReflections = ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View);
-
 	TraceReflections(
 		GraphBuilder, 
 		Scene,
 		View, 
-		bScreenSpaceReflections,
 		GLumenReflectionTraceCards != 0,
 		SceneTextures,
 		TracingInputs,

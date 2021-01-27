@@ -260,6 +260,7 @@ private:
 	enum class EDiffuseIndirectMethod
 	{
 		Disabled,
+		SSGI,
 		RTGI,
 		Lumen,
 	};
@@ -283,10 +284,6 @@ private:
 	/** Structure that contains the final state of deferred shading pipeline for a FViewInfo */
 	struct FPerViewPipelineState
 	{
-		/** Method to use for dynamic diffuse indirect.
-		 * SSGI can be enabled independently of the fall back method if supported. But there is only one denoiser invocation.
-		 */
-		bool bEnableSSGI;
 		EDiffuseIndirectMethod DiffuseIndirectMethod;
 		IScreenSpaceDenoiser::EMode DiffuseIndirectDenoiser;
 
@@ -483,7 +480,6 @@ private:
 		FRDGTextureRef LightingChannelsTexture,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
-		bool bSSGI,
 		bool& bLumenUseDenoiserComposite,
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters);
 

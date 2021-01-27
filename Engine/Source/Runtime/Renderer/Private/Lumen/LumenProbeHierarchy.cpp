@@ -1567,7 +1567,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 		// Performs the screen space tracing first, given it can give the highest frequency detail.
 		{
-			bool bScreenSpaceProbeOcclusion = ViewPipelineState.bEnableSSGI && CVarSSGIProbeOcclusion.GetValueOnRenderThread();
+			bool bScreenSpaceProbeOcclusion = ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View) && CVarSSGIProbeOcclusion.GetValueOnRenderThread();
 
 			if (bProbeOcclusion && bScreenSpaceProbeOcclusion)
 			{
@@ -1754,7 +1754,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		IndirectLightingAtlasParameters.ProbeAtlasSampleMask = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("ProbeHierarchy.ProbeAtlasSampleMask"));
 	}
 
-	if (ViewPipelineState.bEnableSSGI && CVarScreenSpaceProbeTracing.GetValueOnRenderThread())
+	if (ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View) && CVarScreenSpaceProbeTracing.GetValueOnRenderThread())
 	{
 		ScreenSpaceRayTracing::TraceProbe(
 			GraphBuilder, View,
@@ -1779,14 +1779,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 			ProbeHierachyParameters,
 			IndirectLightingAtlasParameters,
 			EmitProbeParameters);
-	}
-	else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled && ViewPipelineState.bEnableSSGI)
-	{
-		// NOP
-	}
-	else
-	{
-		unimplemented();
 	}
 
 	// Compose the parent probes into the leaves.

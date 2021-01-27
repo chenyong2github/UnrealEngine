@@ -14,9 +14,17 @@
 #include "ReflectionEnvironment.h"
 #include "DistanceFieldAmbientOcclusion.h"
 
+int32 GLumenScreenProbeGatherScreenTraces = 1;
+FAutoConsoleVariableRef GVarLumenScreenProbeGatherScreenTraces(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces"),
+	GLumenScreenProbeGatherScreenTraces,
+	TEXT("Whether to trace against the screen before falling back to other tracing methods."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenScreenProbeGatherHierarchicalScreenTraces = 1;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTraces(
-	TEXT("r.Lumen.ScreenProbeGather.HierarchicalScreenTraces"),
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal"),
 	GLumenScreenProbeGatherHierarchicalScreenTraces,
 	TEXT("Whether to use HZB tracing for SSGI instead of fixed step count intersection.  HZB tracing is much more accurate, in particular not missing thin features, but is about ~3x slower."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -24,7 +32,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTraces(
 
 int32 GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations = 50;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations(
-	TEXT("r.Lumen.ScreenProbeGather.HierarchicalScreenTraces.MaxIterations"),
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.MaxIterations"),
 	GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations,
 	TEXT("Max iterations for HZB tracing."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -32,7 +40,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesMaxIte
 
 float GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold = .05f;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold(
-	TEXT("r.Lumen.ScreenProbeGather.HierarchicalScreenTraces.UncertainTraceRelativeDepthThreshold"),
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.UncertainTraceRelativeDepthThreshold"),
 	GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold,
 	TEXT("Determines depth thickness of objects hit by HZB tracing, as a relative depth threshold."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -40,7 +48,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherUncertainTraceRelativeDepthThr
 
 int32 GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty = 4;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty(
-	TEXT("r.Lumen.ScreenProbeGather.HierarchicalScreenTraces.NumThicknessStepsToDetermineCertainty"),
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.NumThicknessStepsToDetermineCertainty"),
 	GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty,
 	TEXT("Number of linear search steps to determine if a hit feature is thin and should be ignored."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -514,7 +522,6 @@ void TraceScreenProbes(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
 	const FViewInfo& View, 
-	bool bEnableSSGI,
 	bool bTraceCards,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
@@ -544,7 +551,11 @@ void TraceScreenProbes(
 	FLumenIndirectTracingParameters IndirectTracingParameters;
 	SetupLumenDiffuseTracingParameters(IndirectTracingParameters);
 
-	if (bEnableSSGI)
+	const bool bTraceScreen = View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid() 
+		&& GLumenScreenProbeGatherScreenTraces != 0
+		&& !View.Family->EngineShowFlags.VisualizeLumenIndirectDiffuse;
+
+	if (bTraceScreen)
 	{
 		FScreenProbeTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceScreenTexturesCS::FParameters>();
 

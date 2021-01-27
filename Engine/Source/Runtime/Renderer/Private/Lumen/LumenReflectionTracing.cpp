@@ -14,6 +14,14 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "LumenReflections.h"
 
+int32 GLumenReflectionScreenTraces = 1;
+FAutoConsoleVariableRef CVarLumenReflectionScreenTraces(
+	TEXT("r.Lumen.Reflections.ScreenTraces"),
+	GLumenReflectionScreenTraces,
+	TEXT("Whether to trace against the screen for reflections before falling back to other methods."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenReflectionHierarchicalScreenTracesMaxIterations = 50;
 FAutoConsoleVariableRef CVarLumenReflectionHierarchicalScreenTracesMaxIterations(
 	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.MaxIterations"),
@@ -288,7 +296,6 @@ void TraceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	bool bScreenSpaceReflections,
 	bool bTraceCards,
 	const FSceneTextures& SceneTextures,
 	const FLumenCardTracingInputs& TracingInputs,
@@ -317,7 +324,9 @@ void TraceReflections(
 
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
-	if (bScreenSpaceReflections)
+	const bool bScreenTraces = GLumenReflectionScreenTraces != 0;
+
+	if (bScreenTraces)
 	{
 		FReflectionTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceScreenTexturesCS::FParameters>();
 
