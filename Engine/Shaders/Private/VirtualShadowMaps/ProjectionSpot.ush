@@ -247,7 +247,7 @@ float TraceSpotLight(
 			}
 #endif
 		}
-		SampleCount = min(i + 1, RayCount);		// break vs regular for loop exit
+		SampleCount = min(i + 1, uint(RayCount));		// break vs regular for loop exit
 		RayMissFactor /= float(SampleCount);
 	}
 
