@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundWavePlayerNode.h"
+
+#include "AudioResampler.h"
+#include "MetasoundBuildError.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundWave.h"
-#include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundBuildError.h"
-#include "MetasoundBop.h"
-#include "AudioResampler.h"
+#include "MetasoundTrigger.h"
+
 
 #define LOCTEXT_NAMESPACE "MetasoundWaveNode"
 
@@ -79,7 +79,7 @@ namespace Metasound
 		{
 			FDataReferenceCollection InputDataReferences;
 			InputDataReferences.AddDataReadReference(TEXT("Audio"), FWaveAssetReadRef(Wave));
-			InputDataReferences.AddDataReadReference(TEXT("TrigIn"), FBopReadRef(TrigIn));
+			InputDataReferences.AddDataReadReference(TEXT("TrigIn"), FTriggerReadRef(TrigIn));
 			InputDataReferences.AddDataReadReference(TEXT("PitchShiftCents"), FFloatReadRef(PitchShiftCents));
 			return InputDataReferences;
 		}
@@ -121,7 +121,7 @@ namespace Metasound
 			}
 
 			TrigIn->ExecuteBlock(
-				// OnPreBop
+				// OnPreTrigger
 				[&](int32 StartFrame, int32 EndFrame)
 				{
  					if (bIsPlaying)
@@ -129,7 +129,7 @@ namespace Metasound
 						ExecuteInternal(StartFrame, EndFrame);
 					}
 				},
-				// OnBop
+				// OnTrigger
 				[&](int32 StartFrame, int32 EndFrame)
 				{
 					if (!bIsPlaying)
@@ -190,7 +190,7 @@ namespace Metasound
 			if (!Decoder.CanGenerateAudio() ||  (NumFramesDecoded < NumOutputFrames))
 			{
 				bIsPlaying = false;
-				TrigggerOnDone->BopFrame(StartFrame + NumFramesDecoded);
+				TrigggerOnDone->TriggerFrame(StartFrame + NumFramesDecoded);
 			}
 
 			if (bNeedsUpmix)

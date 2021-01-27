@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "MetasoundDataReferenceCollection.h"
 #include "MetasoundNode.h"
-#include "MetasoundBop.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundTime.h"
+#include "MetasoundTrigger.h"
+
 
 namespace Metasound
 {

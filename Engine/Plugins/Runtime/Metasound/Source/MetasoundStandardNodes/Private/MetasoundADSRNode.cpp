@@ -5,11 +5,11 @@
 #include "DSP/Envelope.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAudioBuffer.h"
-#include "MetasoundBop.h"
 #include "MetasoundExecutableOperator.h"
-#include "MetasoundTime.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundTime.h"
+#include "MetasoundTrigger.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -32,7 +32,7 @@ namespace Metasound
 			static FVertexInterface DeclareVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
-			FADSROperator(const FOperatorSettings& InSettings, const FBopReadRef& InTriggerAttack, const FBopReadRef& InTriggerRelease, const FADSRReferences& InADSRData);
+			FADSROperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerAttack, const FTriggerReadRef& InTriggerRelease, const FADSRReferences& InADSRData);
 
 			virtual FDataReferenceCollection GetInputs() const override;
 			virtual FDataReferenceCollection GetOutputs() const override;
@@ -46,12 +46,12 @@ namespace Metasound
 			// TODO: write envelope gen for metasound more suited to this processing structure. 
 			Audio::FEnvelope Envelope;
 
-			FBopReadRef TriggerAttack;
-			FBopReadRef TriggerRelease;
+			FTriggerReadRef TriggerAttack;
+			FTriggerReadRef TriggerRelease;
 
-			FBopWriteRef TriggerAttackComplete;
-			FBopWriteRef TriggerDecayComplete;
-			FBopWriteRef TriggerReleaseComplete;
+			FTriggerWriteRef TriggerAttackComplete;
+			FTriggerWriteRef TriggerDecayComplete;
+			FTriggerWriteRef TriggerReleaseComplete;
 
 			bool bReleased;
 
@@ -61,12 +61,12 @@ namespace Metasound
 			FAudioBufferWriteRef EnvelopeBuffer;
 	};
 
-	FADSROperator::FADSROperator(const FOperatorSettings& InSettings, const FBopReadRef& InTriggerAttack, const FBopReadRef& InTriggerRelease, const FADSRReferences& InADSRData)
+	FADSROperator::FADSROperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerAttack, const FTriggerReadRef& InTriggerRelease, const FADSRReferences& InADSRData)
 	:	TriggerAttack(InTriggerAttack)
 	,	TriggerRelease(InTriggerRelease)
-	,	TriggerAttackComplete(FBopWriteRef::CreateNew(InSettings))
-	,	TriggerDecayComplete(FBopWriteRef::CreateNew(InSettings))
-	,	TriggerReleaseComplete(FBopWriteRef::CreateNew(InSettings))
+	,	TriggerAttackComplete(FTriggerWriteRef::CreateNew(InSettings))
+	,	TriggerDecayComplete(FTriggerWriteRef::CreateNew(InSettings))
+	,	TriggerReleaseComplete(FTriggerWriteRef::CreateNew(InSettings))
 	,	bReleased(false)
 	,	TimeUntilRelease(0, InSettings.GetSampleRate())
 	,	TimePerBlock(InSettings.GetNumFramesPerBlock(), InSettings.GetSampleRate())
@@ -85,8 +85,8 @@ namespace Metasound
 		InputDataReferences.AddDataReadReference(TEXT("Decay"), FFloatTimeReadRef(ADSRReferences.Decay));
 		InputDataReferences.AddDataReadReference(TEXT("Release"), FFloatTimeReadRef(ADSRReferences.Release));
 		InputDataReferences.AddDataReadReference(TEXT("Sustain Level"), FFloatReadRef(ADSRReferences.SustainLevel));
-		InputDataReferences.AddDataReadReference(TEXT("Trigger Attack"), FBopReadRef(TriggerAttack));
-		InputDataReferences.AddDataReadReference(TEXT("Trigger Release"), FBopReadRef(TriggerRelease));
+		InputDataReferences.AddDataReadReference(TEXT("Trigger Attack"), FTriggerReadRef(TriggerAttack));
+		InputDataReferences.AddDataReadReference(TEXT("Trigger Release"), FTriggerReadRef(TriggerRelease));
 		return InputDataReferences;
 	}
 
@@ -94,9 +94,9 @@ namespace Metasound
 	{
 		FDataReferenceCollection OutputDataReferences;
 		OutputDataReferences.AddDataReadReference(TEXT("Envelope"), FAudioBufferReadRef(EnvelopeBuffer));
-		OutputDataReferences.AddDataReadReference(TEXT("Attack Complete"), FBopReadRef(TriggerAttackComplete));
-		OutputDataReferences.AddDataReadReference(TEXT("Decay Complete"), FBopReadRef(TriggerDecayComplete));
-		OutputDataReferences.AddDataReadReference(TEXT("Release Complete"), FBopReadRef(TriggerReleaseComplete));
+		OutputDataReferences.AddDataReadReference(TEXT("Attack Complete"), FTriggerReadRef(TriggerAttackComplete));
+		OutputDataReferences.AddDataReadReference(TEXT("Decay Complete"), FTriggerReadRef(TriggerDecayComplete));
+		OutputDataReferences.AddDataReadReference(TEXT("Release Complete"), FTriggerReadRef(TriggerReleaseComplete));
 		return OutputDataReferences;
 	}
 
@@ -149,17 +149,17 @@ namespace Metasound
 
 		if (AttackCompleteFrame >= 0)
 		{
-			TriggerAttackComplete->BopFrame(AttackCompleteFrame);
+			TriggerAttackComplete->TriggerFrame(AttackCompleteFrame);
 		}
 
 		if (DecayCompleteFrame >= 0)
 		{
-			TriggerDecayComplete->BopFrame(DecayCompleteFrame);
+			TriggerDecayComplete->TriggerFrame(DecayCompleteFrame);
 		}
 
 		if (Envelope.IsDone() && !bWasDone && ReleaseCompleteFrame >= 0)
 		{
-			TriggerReleaseComplete->BopFrame(ReleaseCompleteFrame);
+			TriggerReleaseComplete->TriggerFrame(ReleaseCompleteFrame);
 		}
 	}
 
@@ -175,11 +175,11 @@ namespace Metasound
 		TriggerReleaseComplete->AdvanceBlock();
 
 		TriggerRelease->ExecuteBlock(
-			// OnPreBop
+			// OnPreTrigger
 			[&](int32 StartFrame, int32 EndFrame)
 			{
 			},
-			// OnBop
+			// OnTrigger
 			[&](int32 StartFrame, int32 EndFrame)
 			{
 				if (!bReleased)
@@ -204,12 +204,12 @@ namespace Metasound
 		);
 
 		TriggerAttack->ExecuteBlock(
-			// OnPreBop
+			// OnPreTrigger
 			[&](int32 StartFrame, int32 EndFrame)
 			{
 				GenerateEnvelope(StartFrame, EndFrame);
 			},
-			// OnBop
+			// OnTrigger
 			[&](int32 StartFrame, int32 EndFrame)
 			{
 				Start();
@@ -238,14 +238,14 @@ namespace Metasound
 				TInputDataVertexModel<FFloatTime>(TEXT("Decay"), LOCTEXT("DecayDurationTooltip", "Decay duration.")),
 				TInputDataVertexModel<FFloatTime>(TEXT("Release"), LOCTEXT("ReleaseDurationTooltip", "Release duration.")),
 				TInputDataVertexModel<float>(TEXT("Sustain Level"), LOCTEXT("SustainLevelTooltip", "Sustain level [0.0f, 1.0f].")),
-				TInputDataVertexModel<FBop>(TEXT("Trigger Attack"), LOCTEXT("BopTooltip", "Trigger the envelope's attack.")),
-				TInputDataVertexModel<FBop>(TEXT("Trigger Release"), LOCTEXT("BopTooltip", "Trigger the envelope's release."))
+				TInputDataVertexModel<FTrigger>(TEXT("Trigger Attack"), LOCTEXT("TriggerTooltip", "Trigger the envelope's attack.")),
+				TInputDataVertexModel<FTrigger>(TEXT("Trigger Release"), LOCTEXT("TriggerTooltip", "Trigger the envelope's release."))
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("Envelope"), LOCTEXT("EnvelopeTooltip", "The output envelope")),
-				TOutputDataVertexModel<FBop>(TEXT("Attack Complete"), LOCTEXT("AttackCompleteTooltip", "Triggered when the envelope attack is complete")),
-				TOutputDataVertexModel<FBop>(TEXT("Decay Complete"), LOCTEXT("DecayCompleteTooltip", "Triggered when the envelope decay is complete")),
-				TOutputDataVertexModel<FBop>(TEXT("Release Complete"), LOCTEXT("ReleaseCompleteTooltip", "Triggered when the envelope is released"))
+				TOutputDataVertexModel<FTrigger>(TEXT("Attack Complete"), LOCTEXT("AttackCompleteTooltip", "Triggered when the envelope attack is complete")),
+				TOutputDataVertexModel<FTrigger>(TEXT("Decay Complete"), LOCTEXT("DecayCompleteTooltip", "Triggered when the envelope decay is complete")),
+				TOutputDataVertexModel<FTrigger>(TEXT("Release Complete"), LOCTEXT("ReleaseCompleteTooltip", "Triggered when the envelope is released"))
 			)
 		);
 
@@ -260,7 +260,7 @@ namespace Metasound
 			Info.ClassName = FName(TEXT("ADSR"));
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.Description = LOCTEXT("Metasound_ADSRNodeDescription", "Emits an ADSR (Attack, decay, sustain, & release) envelope when bopped.");
+			Info.Description = LOCTEXT("Metasound_ADSRNodeDescription", "Emits an ADSR (Attack, decay, sustain, & release) envelope when triggered.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
@@ -278,9 +278,9 @@ namespace Metasound
 		const FADSRNode& ADSRNode = static_cast<const FADSRNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
-		// TODO: Could no-op this if the bop is not connected.
-		FBopReadRef TriggerAttack = InputCollection.GetDataReadReferenceOrConstruct<FBop>(TEXT("Trigger Attack"), InParams.OperatorSettings);
-		FBopReadRef TriggerRelease = InputCollection.GetDataReadReferenceOrConstruct<FBop>(TEXT("Trigger Release"), InParams.OperatorSettings);
+		// TODO: Could no-op this if the trigger is not connected.
+		FTriggerReadRef TriggerAttack = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Trigger Attack"), InParams.OperatorSettings);
+		FTriggerReadRef TriggerRelease = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Trigger Release"), InParams.OperatorSettings);
 
 		// TODO: If none of these are connected, could pre-generate ADSR envelope and return a different operator. 
 		FADSRReferences ADSRReferences = 

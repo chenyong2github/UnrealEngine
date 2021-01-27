@@ -2,8 +2,6 @@
 #include "MetasoundTriggerPipeNode.h"
 
 #include "CoreMinimal.h"
-
-#include "MetasoundBop.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundDataReferenceCollection.h"
 #include "MetasoundExecutableOperator.h"
@@ -14,8 +12,10 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTime.h"
+#include "MetasoundTrigger.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+
 
 namespace Metasound
 {
@@ -88,7 +88,7 @@ namespace Metasound
 			}
 			else
 			{
-				TriggerOut->BopFrame(SamplesRemaining + (int32)FramesPerBlock);
+				TriggerOut->TriggerFrame(SamplesRemaining + (int32)FramesPerBlock);
 				SamplesUntilTrigger.RemoveAtSwap(i);
 			}
 		}

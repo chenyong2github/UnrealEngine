@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "DSP/BufferVectorOperations.h"
 #include "MetasoundAudioBuffer.h"
-#include "MetasoundBop.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceCollection.h"
@@ -17,6 +16,7 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTime.h"
+#include "MetasoundTrigger.h"
 
 
 #define LOCTEXT_NAMESPACE "MetasoundMathOpNode"

@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundWaveSelectorNode.h"
+
+#include "MetasoundBuildError.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundTrigger.h"
 #include "MetasoundWave.h"
-#include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundBuildError.h"
-#include "MetasoundBop.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundWaveNode"
+
 
 namespace Metasound
 {
@@ -44,7 +44,7 @@ namespace Metasound
 
 			InputDataReferences.AddDataReadReference(TEXT("Index"), FInt32ReadRef(Index));
 
-			InputDataReferences.AddDataReadReference(TEXT("TrigIn"), FBopReadRef(TrigIn));
+			InputDataReferences.AddDataReadReference(TEXT("TrigIn"), FTriggerReadRef(TrigIn));
 			return InputDataReferences;
 		}
 
@@ -62,15 +62,15 @@ namespace Metasound
 			TriggerNewWaveSelected->AdvanceBlock();
 
 			TrigIn->ExecuteBlock(
-				// OnPreBop
+				// OnPreTrigger
 				[&](int32 StartFrame, int32 EndFrame)
 				{
 				},
-				// OnBop
+				// OnTrigger
 				[&](int32 StartFrame, int32 EndFrame)
 				{
 					UpdateWave(*Index);
-					TriggerNewWaveSelected->BopFrame(StartFrame);
+					TriggerNewWaveSelected->TriggerFrame(StartFrame);
 				}
 			);
 		}
@@ -131,7 +131,7 @@ namespace Metasound
 
 		// Outputs
 		FWaveAssetWriteRef SelectedWave;
-		FBopWriteRef TriggerNewWaveSelected;
+		FTriggerWriteRef TriggerNewWaveSelected;
 
 		TArray<FWaveAssetReadRef*> WavePtrs;
 

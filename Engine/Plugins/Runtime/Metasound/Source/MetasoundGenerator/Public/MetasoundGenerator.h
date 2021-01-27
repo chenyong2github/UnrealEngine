@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "DSP/Dsp.h"
-#include "MetasoundBop.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundTrigger.h"
 #include "Sound/SoundGenerator.h"
 
 namespace Metasound
@@ -17,8 +16,8 @@ namespace Metasound
 	{
 		TUniquePtr<Metasound::IOperator> GraphOperator;
 		TArrayView<TDataReadReference<FAudioBuffer>> OutputBuffers;
-		FBopWriteRef TriggerOnPlayRef;
-		FBopReadRef TriggerOnFinishRef;
+		FTriggerWriteRef TriggerOnPlayRef;
+		FTriggerReadRef TriggerOnFinishRef;
 	};
 
 	/** FMetasoundGenerator generates audio from a given metasound IOperator
@@ -129,10 +128,10 @@ namespace Metasound
 		TArray<FAudioBufferReadRef> GraphOutputAudio;
 
 		// Triggered when metasound is played
-		FBopWriteRef OnPlayTriggerRef;
+		FTriggerWriteRef OnPlayTriggerRef;
 
 		// Triggered when metasound is finished
-		FBopReadRef OnFinishedTriggerRef;
+		FTriggerReadRef OnFinishedTriggerRef;
 
 		Audio::AlignedFloatBuffer InterleavedAudioBuffer;
 

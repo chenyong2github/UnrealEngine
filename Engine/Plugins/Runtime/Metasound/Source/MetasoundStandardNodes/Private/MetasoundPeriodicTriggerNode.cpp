@@ -110,7 +110,7 @@ namespace Metasound
 			while ((SampleCountdown - ExecuteDurationInSamples) <= 0.f)
 			{
 				uint32 Frame = FMath::RoundToInt(SampleCountdown);
-				TriggerOut->BopFrame(Frame);
+				TriggerOut->TriggerFrame(Frame);
 				SampleCountdown += PeriodInSamples;
 			}
 

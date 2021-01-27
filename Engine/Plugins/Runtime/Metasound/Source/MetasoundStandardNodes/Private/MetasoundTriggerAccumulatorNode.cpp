@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundTriggerAccumulatorNode.h"
 
 #include "Internationalization/Text.h"
-#include "MetasoundBop.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
+
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -25,7 +25,7 @@ namespace Metasound
 			~FTriggerAccumulatorOperator() = default;
 			
 			FTriggerAccumulatorOperator(
-				const FOperatorSettings& InSettings, 
+				const FOperatorSettings& InSettings,
 				const FTriggerReadRef& InInputTriggerToAccumulate,
 				const FTriggerReadRef& InInputTriggerResetCount,
 				const FInt32ReadRef& InInputTriggerAtCount);
@@ -98,7 +98,7 @@ namespace Metasound
 		if (*CurrentCount >= *TriggerCount)
 		{
 			Reset(InCurrentFrameIndex);
-			CountReached->BopFrame(InCurrentFrameIndex);
+			CountReached->TriggerFrame(InCurrentFrameIndex);
 		}
 	}
 
@@ -108,15 +108,15 @@ namespace Metasound
 		CountReached->AdvanceBlock();
 
 		// Query the number of triggers in the current block.
-		int32 NumResets = ResetTrigger->NumBoppedInBlock();
-		int32 NumAccumulates = TriggerToAccumulate->NumBoppedInBlock();
+		int32 NumResets = ResetTrigger->NumTriggeredInBlock();
+		int32 NumAccumulates = TriggerToAccumulate->NumTriggeredInBlock();
 		int32 MaxTriggers = FMath::Max(NumResets, NumAccumulates);
 
 		// Indices into each trigger array
 		int32 ResetIndex = 0;
 		int32 AccumulateIndex = 0;
 		
-		// Move forwards through the bop array and return next bop frame index, or INDEX_NONE if there's none remaining.
+		// Move forwards through the trigger array and return next trigger frame index, or INDEX_NONE if there's none remaining.
 		static const auto GetNextTriggerFrame = [](const FTriggerReadRef& InTrigger, int32& InOutIndex, const int32 InNumTriggers) 
 			-> int32 { return InOutIndex < InNumTriggers ? (*InTrigger)[InOutIndex++] : INDEX_NONE; };
 		
@@ -175,7 +175,7 @@ namespace Metasound
 				TInputDataVertexModel<int32>(TriggerCountPinName, LOCTEXT("CountToTriggerAtTooltip", "Count to trigger at"))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(CountReachedPinName, LOCTEXT("CountReachedTooltop", "Triggered when the accumulated count is reached")),				
+				TOutputDataVertexModel<FTrigger>(CountReachedPinName, LOCTEXT("CountReachedTooltop", "Triggered when the accumulated count is reached")),
 				TOutputDataVertexModel<int32>(CurrentCountPinName, LOCTEXT("CountTooltop", "Current accumulator count"))
 			)
 		);

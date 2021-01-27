@@ -3,15 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundNode.h"
-#include "MetasoundBop.h"
 #include "MetasoundBuilderInterface.h"
+#include "MetasoundDataReferenceCollection.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
-#include "MetasoundOperatorInterface.h"
+#include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
-#include "MetasoundDataReferenceCollection.h"
+#include "MetasoundOperatorInterface.h"
 #include "MetasoundTime.h"
+#include "MetasoundTrigger.h"
+
 
 namespace Metasound
 {
@@ -24,6 +25,6 @@ namespace Metasound
 			float GetDefaultDelayInSeconds() const;
 
 		private:
-			float DefaultDelay;
+			float DefaultDelay = 1.0f;
 	};
 }

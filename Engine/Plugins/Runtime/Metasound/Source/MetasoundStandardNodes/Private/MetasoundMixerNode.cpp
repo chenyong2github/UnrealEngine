@@ -1,21 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundMixerNode.h"
 
+#include "DSP/Dsp.h"
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundFrequency.h"
-#include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundPrimitives.h"
-#include "MetasoundVertex.h"
-#include "MetasoundBop.h"
 #include "MetasoundGain.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
-
-#include "DSP/Dsp.h"
+#include "MetasoundPrimitives.h"
+#include "MetasoundTrigger.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
+
 
 namespace Metasound
 {

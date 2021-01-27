@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundSource.h"
 
 #include "AssetRegistryModule.h"
@@ -7,7 +6,6 @@
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAudioFormats.h"
-#include "MetasoundBop.h"
 #include "MetasoundEngineEnvironment.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendQuery.h"
@@ -17,6 +15,7 @@
 #include "MetasoundLog.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundReceiveNode.h"
+#include "MetasoundTrigger.h"
 
 
 #if WITH_EDITORONLY_DATA
@@ -180,8 +179,8 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 
 		// References must be cached before moving the operator to the InitParams
 		FDataReferenceCollection Inputs = Operator->GetInputs();
-		FTriggerWriteRef PlayTrigger = Inputs.GetDataWriteReferenceOrConstruct<FBop>(GetOnPlayInputName(), InSettings, false);
-		FTriggerReadRef FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FBop>(GetIsFinishedOutputName(), InSettings, false);
+		FTriggerWriteRef PlayTrigger = Inputs.GetDataWriteReferenceOrConstruct<FTrigger>(GetOnPlayInputName(), InSettings, false);
+		FTriggerReadRef FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FTrigger>(GetIsFinishedOutputName(), InSettings, false);
 
 		// Create the FMetasoundGenerator.
 		FMetasoundGeneratorInitParams InitParams =
@@ -467,7 +466,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 		FMetasoundFrontendClassVertex OnPlayTrigger;
 		OnPlayTrigger.Name = UMetasoundSource::GetOnPlayInputName();
 		OnPlayTrigger.Metadata.DisplayName = FText::FromString(OnPlayTrigger.Name);
-		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
+		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
 		OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
 		OnPlayTrigger.PointIDs.Add(FGuid::NewGuid());
 
@@ -476,8 +475,8 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 		FMetasoundFrontendClassVertex OnFinished;
 		OnFinished.Name = UMetasoundSource::GetIsFinishedOutputName();
 		OnFinished.Metadata.DisplayName = FText::FromString(OnFinished.Name);
-		OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
-		OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Bop executed to initiate stopping the source.");
+		OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
+		OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
 		OnFinished.PointIDs.Add(FGuid::NewGuid());
 
 		Archetype.Interface.Outputs.Add(OnFinished);

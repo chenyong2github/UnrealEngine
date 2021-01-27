@@ -89,7 +89,7 @@ namespace Metasound
 			}
 			else
 			{
-				TriggerOut->BopFrame(SamplesRemaining + (int32)FramesPerBlock);
+				TriggerOut->TriggerFrame(SamplesRemaining + (int32)FramesPerBlock);
 				Reset();
 			}
 		}

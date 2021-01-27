@@ -2,13 +2,13 @@
 #include "MetasoundGenerator.h"
 
 #include "DSP/Dsp.h"
-#include "MetasoundBop.h"
 #include "MetasoundFrequency.h"
 #include "MetasoundGraph.h"
 #include "MetasoundInputNode.h"
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundOutputNode.h"
+#include "MetasoundTrigger.h"
 
 
 namespace Metasound
@@ -103,7 +103,7 @@ namespace Metasound
 
 		if (!bIsPlaying)
 		{
-			OnPlayTriggerRef->BopFrame(0);
+			OnPlayTriggerRef->TriggerFrame(0);
 			bIsPlaying = true;
 		}
 
