@@ -80,22 +80,16 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput Tangent;
 
 	/**
-	 * Mean free path albedo. Only used when there is no sub-surface profile provided. (type = float3, unit = unitless)
+	 * Chromatic mean free path . Only used when there is not any sub-surface profile provided. (type = float3, unit = unitless)
 	 */
-	UPROPERTY(meta = (DisplayName = "DMFP Albedo"))
-	FExpressionInput DiffuseMeanFreePathAlbedo;
+	UPROPERTY()
+	FExpressionInput SSSDMFP;
 
 	/**
-	 * Mean free path radius. Only used when there is no sub-surface profile provided. (type = float, unit = cm)
+	 * Scale the mean free path radius of the SSS profile according to a value between 0 and 1. Always used, when a subsurface profile is provided or not. (type = float, unitless, defaults to 1)
 	 */
-	UPROPERTY(meta = (DisplayName = "DMFP Radius"))
-	FExpressionInput DiffuseMeanFreePathRadius;
-
-	/**
-	 * Scale the mean free path radius. Always used, when a subsurface profile is provided or not. (type = float, unitless, defaults to 1)
-	 */
-	UPROPERTY(meta = (DisplayName = "SSS Radius Scale"))
-	FExpressionInput SSSRadiusScale;
+	UPROPERTY()
+	FExpressionInput SSSDMFPScale;
 
 	/**
 	 * Emissive color on top of the surface (type = float3, unit = luminance, default = 0)

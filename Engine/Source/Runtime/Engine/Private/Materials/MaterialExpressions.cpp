@@ -19712,9 +19712,8 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		RoughnessXCodeChunk,
 		RoughnessYCodeChunk,
 		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),	
-		CompileWithDefaultFloat3(Compiler, DiffuseMeanFreePathAlbedo, 0.0f, 0.0f, 0.0f),
-		CompileWithDefaultFloat1(Compiler, DiffuseMeanFreePathRadius, 0.0f),
-		CompileWithDefaultFloat1(Compiler, SSSRadiusScale, 1.0f),
+		CompileWithDefaultFloat3(Compiler, SSSDMFP, 0.0f, 0.0f, 0.0f),
+		CompileWithDefaultFloat1(Compiler, SSSDMFPScale, 1.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
 		NormalCodeChunk,
@@ -19761,18 +19760,15 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 		return MCT_Float3; // Tangent
 		break;
 	case 7:
-		return MCT_Float3; // DMFP Albedo
+		return MCT_Float3; // SSSDMFP
 		break;
 	case 8:
-		return MCT_Float1; // DMFP Radius
+		return MCT_Float1; // SSSDMFPScale
 		break;
 	case 9:
-		return MCT_Float1; // SSS Radius Scale
-		break;
-	case 10:
 		return MCT_Float3; // Emissive Color
 		break;
-	case 11:
+	case 10:
 		return MCT_Float1; // Haziness
 		break;
 	}
@@ -19813,21 +19809,17 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == 7)
 	{
-		return TEXT("DMFP Albedo");
+		return TEXT("SSS Diffuse MFP");
 	}
 	else if (InputIndex == 8)
 	{
-		return TEXT("DMFP Radius");
+		return TEXT("SSS Diffuse MFP Scale");
 	}
 	else if (InputIndex == 9)
 	{
-		return TEXT("SSS Radius Scale");
-	}
-	else if (InputIndex == 10)
-	{
 		return TEXT("Emissive Color");
 	}
-	else if (InputIndex == 11)
+	else if (InputIndex == 10)
 	{
 		return TEXT("Haziness");
 	}
@@ -19857,7 +19849,7 @@ void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterial
 
 bool UMaterialExpressionStrataSlabBSDF::HasScattering() const
 {
-	return SubsurfaceProfile != nullptr || DiffuseMeanFreePathRadius.IsConnected();
+	return SubsurfaceProfile != nullptr || SSSDMFP.IsConnected();
 }
 #endif // WITH_EDITOR
 

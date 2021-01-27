@@ -10,6 +10,10 @@
 #include "DeferredShadingCommon.ush"
 #include "MonteCarlo.ush"
 
+#if STRATA_ENABLED
+#include "Strata/Strata.ush"
+#endif
+
 // Setup the max number of Burley samples
 #define BURLEY_NUM_SAMPLES	64
 #define BURLEY_INV_NUM_SAMPLES (1.0f/BURLEY_NUM_SAMPLES)
@@ -213,16 +217,18 @@ FBurleyParameter GetBurleyParameters(FGBufferData GBuffer)
 		}
 		else
 		{
-			// Special data encoding from strata packing
-			const float3 MFPAlebdo			= Pow2(GBuffer.CustomData.xyz);
-			const float  MFPRadius			= GBuffer.CustomData.a * SSS_PROFILE_PERPIXEL_MAXRADIUS * BURLEY_CM_2_MM * 5.0f; // STRATA_TODO why a scale of 5 is needed here to match between regular and Strata?
-			const float3 MFPChromaticRadius = MFPAlebdo * MFPRadius;
+			// Decode the DMFP stored as Float111110 in a uint over a RGBA8 unorm
+			uint PackedDMFP11_11_10 = PackRGBA8(GBuffer.CustomData);
+			float3 DMFP = UnpackR11G11B10F(PackedDMFP11_11_10);
 
-			const float MaxDMFP				= max3(MFPChromaticRadius.x, MFPChromaticRadius.y, MFPChromaticRadius.z);
-			const uint IndexOfMaxDmfp		= (MFPChromaticRadius.r == MaxDMFP) ? 0 : ((MFPChromaticRadius.g == MaxDMFP) ? 1 : 2);
+			// Conversion to match other SSS encoding 
+			DMFP *= BURLEY_CM_2_MM * 5.0f; // STRATA_TODO why a scale of 5 is needed here to match between regular and Strata?
+
+			const float MaxDMFP				= max3(DMFP.x, DMFP.y, DMFP.z);
+			const uint IndexOfMaxDmfp		= (DMFP.r == MaxDMFP) ? 0 : ((DMFP.g == MaxDMFP) ? 1 : 2);
 
 			Out.SurfaceAlbedo				= float4(GBuffer.BaseColor, GBuffer.BaseColor[IndexOfMaxDmfp]);
-			Out.DiffuseMeanFreePath			= float4(MFPChromaticRadius, MaxDMFP);
+			Out.DiffuseMeanFreePath			= float4(DMFP, MaxDMFP);
 			Out.WorldUnitScale				= DecodeWorldUnitScale(1.0f * ENC_WORLDUNITSCALE_IN_CM_TO_UNIT) * BURLEY_CM_2_MM;
 
 			// STRATA_TODO smooth transistion based on pixel footprint w.r.t. MFPRadius and pixel footprint

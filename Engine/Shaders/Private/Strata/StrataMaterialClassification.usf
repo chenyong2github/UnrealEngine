@@ -73,8 +73,7 @@ void ComputePostProcessBSDFData(
 			SSS.ProfilePackedId		= SLAB_SSSPROFILEID(BSDF);
 			SSS.ProfileRadiusScale	= SLAB_SSSPROFILERADIUSSCALE(BSDF);
 			SSS.BaseColor			= SLAB_BASECOLOR(BSDF);
-			SSS.DMFPAlbedo			= SLAB_SSSDMFPALBEDO(BSDF);
-			SSS.DMFPRadius			= SLAB_SSSDMFPRADIUS(BSDF);
+			SSS.DMFP				= SLAB_SSSDMFP(BSDF);
 		}
 		break;
 	}
