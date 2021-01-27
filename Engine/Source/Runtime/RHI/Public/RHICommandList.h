@@ -3966,7 +3966,9 @@ public:
 	
 	FORCEINLINE FBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
-		return GDynamicRHI->CreateAndLockIndexBuffer_RenderThread(*this, Stride, Size, InUsage, InResourceState, CreateInfo, OutDataBuffer);
+		FBufferRHIRef IndexBuffer = GDynamicRHI->CreateBuffer_RenderThread(*this, Size, (EBufferUsageFlags)InUsage | BUF_IndexBuffer, Stride, InResourceState, CreateInfo);
+		OutDataBuffer = GDynamicRHI->RHILockBuffer(*this, IndexBuffer, 0, Size, RLM_WriteOnly);
+		return IndexBuffer;
 	}
 
 	FORCEINLINE FBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
@@ -4000,7 +4002,9 @@ public:
 	
 	FORCEINLINE FBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
-		return GDynamicRHI->CreateAndLockVertexBuffer_RenderThread(*this, Size, InUsage, InResourceState, CreateInfo, OutDataBuffer);
+		FBufferRHIRef VertexBuffer = GDynamicRHI->CreateBuffer_RenderThread(*this, Size, (EBufferUsageFlags)InUsage | BUF_VertexBuffer, 0, InResourceState, CreateInfo);
+		OutDataBuffer = GDynamicRHI->RHILockBuffer(*this, VertexBuffer, 0, Size, RLM_WriteOnly);
+		return VertexBuffer;
 	}
 
 	FORCEINLINE FBufferRHIRef CreateAndLockVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
@@ -4989,6 +4993,11 @@ FORCEINLINE FStagingBufferRHIRef RHICreateStagingBuffer()
 FORCEINLINE FBufferRHIRef RHICreateAndLockIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateAndLockIndexBuffer(Stride, Size, InUsage, CreateInfo, OutDataBuffer);
+}
+
+FORCEINLINE FBufferRHIRef RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->CreateBuffer_RenderThread(FRHICommandListExecutor::GetImmediateCommandList(), Size, Usage, Stride, ResourceState, CreateInfo);
 }
 
 FORCEINLINE FBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)

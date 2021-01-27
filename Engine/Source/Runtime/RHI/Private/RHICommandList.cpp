@@ -1987,23 +1987,6 @@ void FRHICommandListBase::operator delete(void *RawMemory)
 	FMemory::Free(RawMemory);
 }	
 
-///////// Pass through functions that allow RHIs to optimize certain calls.
-
-FBufferRHIRef FDynamicRHI::CreateAndLockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-{
-	FBufferRHIRef VertexBuffer = CreateBuffer_RenderThread(RHICmdList, Size, (EBufferUsageFlags)Usage | BUF_VertexBuffer, 0, ResourceState, CreateInfo);
-	OutDataBuffer = RHILockBuffer(RHICmdList, VertexBuffer, 0, Size, RLM_WriteOnly);
-
-	return VertexBuffer;
-}
-
-FBufferRHIRef FDynamicRHI::CreateAndLockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-{
-	FBufferRHIRef IndexBuffer = CreateBuffer_RenderThread(RHICmdList, Size, (EBufferUsageFlags)Usage | BUF_IndexBuffer, Stride, ResourceState, CreateInfo);
-	OutDataBuffer = RHILockBuffer(RHICmdList, IndexBuffer, 0, Size, RLM_WriteOnly);
-	return IndexBuffer;
-}
-
 
 FBufferRHIRef FDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
