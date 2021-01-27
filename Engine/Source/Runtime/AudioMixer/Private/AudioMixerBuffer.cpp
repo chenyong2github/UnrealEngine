@@ -318,11 +318,10 @@ namespace Audio
 		FMixerBuffer* Buffer = new FMixerBuffer(AudioDevice, InWave, EBufferType::Streaming);
 
 		FSoundQualityInfo QualityInfo = { 0 };
-
-		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave->GetThisAsProxy());
+		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
 
 		// Get the header information of our compressed format
-		if (Buffer->DecompressionState->StreamCompressedInfo(InWave, &QualityInfo))
+		if (Buffer->DecompressionState && Buffer->DecompressionState->StreamCompressedInfo(InWave, &QualityInfo))
 		{
 			// Refresh the wave data
 			InWave->SetSampleRate(QualityInfo.SampleRate);
@@ -372,15 +371,7 @@ namespace Audio
 			InWave->InitAudioResource(AudioDevice->GetRuntimeFormat(InWave));
 		}
 
-		// stream caching uses the proxy
-		if (InWave->IsStreaming())
-		{
-			Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave->GetThisAsProxy());
-		}
-		else
-		{
-			Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
-		}
+		Buffer->DecompressionState = AudioDevice->CreateCompressedAudioInfo(InWave);
 
 		if (Buffer->DecompressionState)
 		{
