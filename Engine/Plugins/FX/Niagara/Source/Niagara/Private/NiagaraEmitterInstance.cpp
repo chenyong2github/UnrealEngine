@@ -148,6 +148,9 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 
 	if (GPUExecContext != nullptr)
 	{
+		//This has down stream stores now too so we need to unbind them here otherwise we'll get a in the dtor on the RT.
+		GPUExecContext->CombinedParamStore.UnbindAll();
+
 		/** We defer the deletion of the particle dataset and the compute context to the RT to be sure all in-flight RT commands have finished using it.*/
 		NiagaraEmitterInstanceBatcher* Batcher_RT = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
 		ENQUEUE_RENDER_COMMAND(FDeleteContextCommand)(
