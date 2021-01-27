@@ -1022,7 +1022,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			FMemory::Memcpy(CompressedData.AverageSample->Normals.GetData(), AverageNormalData.GetData(), sizeof(FVector) * NumIndices);
 
 			const float FrameStep = (MaxTime - MinTime) / (float)(NumSamples - 1);
-			AbcImporterUtilities::GenerateCompressedMeshData(CompressedData, NumUsedSingularValues, NumSamples, BasesMatrix, OriginalNormalsMatrix, OutV, FrameStep, FMath::Max(MinTime, 0.0f));
+			AbcImporterUtilities::GenerateCompressedMeshData(CompressedData, NumUsedSingularValues, NumSamples, BasesMatrix, NormalsBasesMatrix, OutV, FrameStep, FMath::Max(MinTime, 0.0f));
 
 			if (bRunComparison)
 			{
@@ -1367,8 +1367,10 @@ const int32 FAbcImporter::PerformSVDCompression(const TArray<float>& OriginalMat
 	Eigen::MatrixXf NormalsMatrix;
 	EigenHelpers::ConvertArrayToEigenMatrix(OriginalNormalsMatrix, NormalsNumRows, NumSamples, NormalsMatrix);
 
+	const uint32 OutVNumRows = OutV.Num() / NumSamples;
+
 	Eigen::MatrixXf VMatrix;
-	EigenHelpers::ConvertArrayToEigenMatrix(OutV, NumSamples, NumSamples, VMatrix);
+	EigenHelpers::ConvertArrayToEigenMatrix(OutV, OutVNumRows, NumSamples, VMatrix);
 
 	Eigen::MatrixXf NormalsUMatrix = NormalsMatrix * VMatrix.transpose();
 
