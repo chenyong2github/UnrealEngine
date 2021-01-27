@@ -35,11 +35,11 @@ private:
 	FName DataLayerLabel;
 
 	/** Whether actors associated with the DataLayer are visible in the viewport */
-	UPROPERTY()
+	UPROPERTY(Category = DataLayer, EditAnywhere)
 	uint32 bIsVisible : 1;
 
 	/** Whether the DataLayer affects actor runtime loading */
-	UPROPERTY()
+	UPROPERTY(Category = DataLayer, EditAnywhere)
 	uint32 bIsDynamicallyLoaded : 1;
 
 #if WITH_EDITORONLY_DATA

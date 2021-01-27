@@ -8,11 +8,13 @@
 #include "DataLayerTreeItem.h"
 #include "DataLayerMode.h"
 #include "WorldPartition/DataLayer/DataLayerEditorPerProjectUserSettings.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "DataLayerOutlinerIsDynamicallyLoadedColumn.h"
 #include "DataLayerOutlinerDeleteButtonColumn.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "Editor.h"
 
@@ -46,6 +48,15 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 		static const FName InvertedForegroundName("InvertedForeground");
 		return (ToggleModeButton.IsValid() && (ToggleModeButton->IsHovered() || ToggleModeButton->IsPressed())) ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FSlateColor::UseForeground();
 	};
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	FDetailsViewArgs Args;
+	Args.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	Args.bAllowSearch = false;
+	Args.bHideSelectionTip = true;
+	Args.bShowActorLabel = false;
+	DetailsWidget = PropertyModule.CreateDetailView(Args);
+	DetailsWidget->SetVisibility(EVisibility::Visible);
 
 	//////////////////////////////////////////////////////////////////////////
 	//	DataLayer Contents Header
@@ -104,18 +115,34 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	InitOptions.ColumnMap.Add(FDataLayerOutlinerIsDynamicallyLoadedColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 1, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerIsDynamicallyLoadedColumn(InSceneOutliner)); })));
 	InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 2));
 	InitOptions.ColumnMap.Add(FDataLayerOutlinerDeleteButtonColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 20, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FDataLayerOutlinerDeleteButtonColumn(InSceneOutliner)); })));
-
-	auto CreateDataLayerBrowser = [&](const FSceneOutlinerInitializationOptions& InInitOptions)
-	{
-		return SNew(SDataLayerOutliner, InInitOptions).IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
-	};
+	DataLayerOutliner = SNew(SDataLayerOutliner, InitOptions).IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 
 	SAssignNew(DataLayerContentsSection, SBorder)
 	.Padding(5)
 	.BorderImage(FEditorStyle::GetBrush("NoBrush"))
 	.Content()
 	[
-		CreateDataLayerBrowser(InitOptions)
+		// Data Layer Outliner
+		SNew(SSplitter)
+		.Orientation(Orient_Vertical)
+		.Style(FEditorStyle::Get(), "FoliageEditMode.Splitter")
+		+ SSplitter::Slot()
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			[
+				DataLayerOutliner.ToSharedRef()
+			]
+		]
+		// Details
+		+SSplitter::Slot()
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			[
+				DetailsWidget.ToSharedRef()
+			]
+		]
 	];
 
 	//////////////////////////////////////////////////////////////////////////
@@ -127,6 +154,20 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	];
 
 	SetupDataLayerMode(Mode);
+}
+
+void SDataLayerBrowser::OnSelectionChanged(TSet<TWeakObjectPtr<const UDataLayer>>& InSelectedDataLayersSet)
+{
+	SelectedDataLayersSet = InSelectedDataLayersSet;
+	TArray<UObject*> SelectedDataLayers;
+	for (const auto& WeakDataLayer : SelectedDataLayersSet)
+	{
+		if (WeakDataLayer.IsValid())
+		{
+			SelectedDataLayers.Add(const_cast<UDataLayer*>(WeakDataLayer.Get()));
+		}
+	}
+	DetailsWidget->SetObjects(SelectedDataLayers, /*bForceRefresh*/ true);
 }
 
 

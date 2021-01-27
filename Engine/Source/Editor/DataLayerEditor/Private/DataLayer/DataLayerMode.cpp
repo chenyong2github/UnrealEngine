@@ -63,6 +63,22 @@ int32 FDataLayerMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) co
 	return -1;
 }
 
+FText FDataLayerMode::GetStatusText() const
+{
+	if (SelectedDataLayersSet.Num() == 1)
+	{
+		if (const UDataLayer* DataLayer = SelectedDataLayersSet.Array()[0].Get())
+		{
+			return FText::FromName(DataLayer->GetDataLayerLabel());
+		}
+	}
+	else if (SelectedDataLayersSet.Num() > 1)
+	{
+		return FText::Format(LOCTEXT("DetailsMultipleDataLayersSelected", "{0} Data Layers Selected"), FText::AsNumber(SelectedDataLayersSet.Num()));
+	}
+	return LOCTEXT("DetailsNoDataLayerSelected", "No Data Layer Selected");
+}
+
 SDataLayerBrowser* FDataLayerMode::GetDataLayerBrowser() const
 {
 	return DataLayerBrowser;
@@ -149,8 +165,21 @@ void FDataLayerMode::DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>&
 	}
 	else if (!DataLayersToDelete.IsEmpty())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("DeleteDataLayers", "Delete DataLayers"));
-		DataLayerEditorSubsystem->DeleteDataLayers(DataLayersToDelete);
+		int32 PrevDeleteCount = SelectedDataLayersSet.Num();
+		for (UDataLayer* DataLayerToDelete : DataLayersToDelete)
+		{
+			SelectedDataLayersSet.Remove(DataLayerToDelete);
+		}
+		
+		{
+			const FScopedTransaction Transaction(LOCTEXT("DeleteDataLayers", "Delete DataLayers"));
+			DataLayerEditorSubsystem->DeleteDataLayers(DataLayersToDelete);
+		}
+
+		if ((SelectedDataLayersSet.Num() != PrevDeleteCount) && DataLayerBrowser)
+		{
+			DataLayerBrowser->OnSelectionChanged(SelectedDataLayersSet);
+		}
 	}
 }
 
@@ -615,6 +644,10 @@ void FDataLayerMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeItem, 
 	SelectedDataLayerActors.Empty();
 	Selection.ForEachItem<FDataLayerTreeItem>([this](const FDataLayerTreeItem& Item) { SelectedDataLayersSet.Add(Item.GetDataLayer()); });
 	Selection.ForEachItem<FDataLayerActorTreeItem>([this](const FDataLayerActorTreeItem& Item) { SelectedDataLayerActors.Add(FSelectedDataLayerActor(Item.GetDataLayer(), Item.GetActor())); });
+	if (DataLayerBrowser)
+	{
+		DataLayerBrowser->OnSelectionChanged(SelectedDataLayersSet);
+	}
 }
 
 void FDataLayerMode::Rebuild()

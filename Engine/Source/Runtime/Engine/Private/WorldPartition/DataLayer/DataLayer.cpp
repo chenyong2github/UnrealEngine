@@ -13,7 +13,7 @@ UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 , DataLayerLabel(GetFName())
 , bIsVisible(true)
-, bIsDynamicallyLoaded(true)
+, bIsDynamicallyLoaded(false)
 , bIsDynamicallyLoadedInEditor(true)
 #endif
 {

@@ -13,6 +13,7 @@ class ISceneOutliner;
 class SButton;
 class SVerticalBox;
 class SBorder;
+class UDataLayer;
 
 enum class EDataLayerBrowserMode
 {
@@ -47,6 +48,8 @@ public:
 	DECLARE_EVENT_OneParam(SDataLayerBrowser, FOnModeChanged, EDataLayerBrowserMode /*Mode*/);
 	virtual FOnModeChanged& OnModeChanged() final { return ModeChanged; }
 
+	void OnSelectionChanged(TSet<TWeakObjectPtr<const UDataLayer>>& SelectedDataLayersSet);
+
 private:
 
 	void SetupDataLayerMode(EDataLayerBrowserMode InNewMode);
@@ -54,6 +57,9 @@ private:
 	/**	Fires whenever one or more actor DataLayer changes */
 	FOnModeChanged ModeChanged;
 
+	TSet<TWeakObjectPtr<const UDataLayer>> SelectedDataLayersSet;
+	TSharedPtr<class ISceneOutliner> DataLayerOutliner;
+	TSharedPtr<class IDetailsView> DetailsWidget;
 	TSharedPtr<SButton> ToggleModeButton;
 	TSharedPtr<SVerticalBox> ContentAreaBox;
 	TSharedPtr<SBorder> DataLayerContentsSection;

@@ -44,6 +44,9 @@ public:
 	virtual bool IsInteractive() const override { return true; }
 	virtual bool CanRename() const override { return true; }
 	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const override { return (Item.IsValid() && (Item.IsA<FDataLayerTreeItem>())); }
+	virtual bool ShowStatusBar() const override { return true; }
+	virtual FText GetStatusText() const override;
+	virtual FSlateColor GetStatusTextColor() const override { return FSlateColor::UseForeground(); }
 
 	virtual void OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item) override;
 	virtual void OnItemAdded(FSceneOutlinerTreeItemPtr Item) override;
