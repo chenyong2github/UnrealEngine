@@ -178,9 +178,14 @@ void USimpleDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool b
 		{
 			Converter.Update(Mesh.Get(), *MeshDescription, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateTangents, ConversionOptions.bUpdateUVs);
 		}
-		else
+		else if (ConversionOptions.bUpdateNormals || ConversionOptions.bUpdateTangents || ConversionOptions.bUpdateUVs)
 		{
 			Converter.UpdateAttributes(Mesh.Get(), *MeshDescription, ConversionOptions.bUpdateNormals, ConversionOptions.bUpdateTangents, ConversionOptions.bUpdateUVs);
+		}
+
+		if (ConversionOptions.bUpdateVtxColors)
+		{
+			Converter.UpdateVertexColors(Mesh.Get(), *MeshDescription);
 		}
 	}
 	else

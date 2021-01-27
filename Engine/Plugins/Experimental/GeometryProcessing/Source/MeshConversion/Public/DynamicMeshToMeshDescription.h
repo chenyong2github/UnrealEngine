@@ -116,6 +116,15 @@ public:
 	void UpdateTangents(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
 
 
+	/**
+	 * Update only vertex colors, assuming the mesh topology has not changed.  Does not touch positions or other attributes.
+	 *	NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over triangles, on MeshOut
+	 *		  This matches conversion currently used in MeshDescriptionToDynamicMesh.cpp, but if that changes we will need to change this function to match!
+	 */
+	void UpdateVertexColors(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut);
+
+
+
 	//
 	// Internal functions that you can also call directly
 	//

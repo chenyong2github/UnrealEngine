@@ -23,4 +23,18 @@ public:
 
 	/** Should UVs of MeshDescription be updated, if available and relevant */
 	bool bUpdateUVs = false;
+
+	/** Should Vertex Colors of MeshDescription be updated, if available and relevant */
+	bool bUpdateVtxColors = false;
+
+
+	//
+	// utility functions for common configuration cases
+	//
+
+	void SetToVertexColorsOnly()
+	{
+		bSetPolyGroups = bUpdatePositions = bUpdateNormals = bUpdateTangents = bUpdateUVs = false;
+		bUpdateVtxColors = true;
+	}
 };

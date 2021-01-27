@@ -150,6 +150,17 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TVertexInstanceAttributesConstRef<FVector> InstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> InstanceBiTangentSign = Attributes.GetVertexInstanceBinormalSigns();
 
+	TVertexInstanceAttributesConstRef<FVector4> InstanceColors = Attributes.GetVertexInstanceColors();
+	if (bEnableOutputVertexColors && InstanceColors.IsValid())
+	{
+		MeshOut.EnableVertexColors(FVector3f::One());
+	}
+	else
+	{
+		bEnableOutputVertexColors = false;
+	}
+	bool bFoundNonDefaultVertexColor = false;
+
 	TPolygonAttributesConstRef<int> PolyGroups =
 		MeshIn->PolygonAttributes().GetAttributesRef<int>(ExtendedMeshAttribute::PolyTriGroups);
 	if (bEnableOutputGroups)
@@ -306,6 +317,23 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		// .Insert(Value, Index)
 		TriIDMap.Insert(TriangleID, NewTriangleID);
 	
+		// copy triangle instance colors to per-vertex colors. Currently this just uses last-instance as
+		// we do not support per-triangle-vertex colors.
+		if (bEnableOutputVertexColors)
+		{
+			for (int32 j = 0; j < 3; ++j)
+			{
+				FVector4 InstanceColor4 = InstanceColors.Get(TriData.TriInstances[j], 0);
+				FVector3f InstanceColor3(InstanceColor4.X, InstanceColor4.Y, InstanceColor4.Z);
+				bFoundNonDefaultVertexColor |= (InstanceColor3 != FVector3f::One());
+				MeshOut.SetVertexColor(VertexIDs[j], InstanceColor3);
+			}
+		}
+	}
+
+	if (bFoundNonDefaultVertexColor == false)
+	{
+		MeshOut.DiscardVertexColors();
 	}
 
 	FDateTime Time_AfterTriangles = FDateTime::Now();

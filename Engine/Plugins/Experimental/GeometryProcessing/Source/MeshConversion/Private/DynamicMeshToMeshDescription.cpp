@@ -231,6 +231,31 @@ void FDynamicMeshToMeshDescription::UpdateTangents(const FDynamicMesh3* MeshIn, 
 }
 
 
+void FDynamicMeshToMeshDescription::UpdateVertexColors(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
+{
+	check(MeshIn->IsCompactV() && MeshIn->HasVertexColors());
+
+	FStaticMeshAttributes Attributes(MeshOut);
+	TVertexInstanceAttributesRef<FVector4> InstanceColors = Attributes.GetVertexInstanceColors();
+	bool bIsValidDst = InstanceColors.IsValid();
+	ensureMsgf(bIsValidDst, TEXT("Trying to update colors on a MeshDescription that has no color attributes"));
+	if (bIsValidDst)
+	{
+		check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
+		for (int VertID : MeshIn->VertexIndicesItr())
+		{
+			FVector3f Color3f = MeshIn->GetVertexColor(VertID);
+			FVector4 Color4(Color3f.X, Color3f.Y, Color3f.Z, 1.0f);
+			for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstanceIDs(FVertexID(VertID)))
+			{
+				InstanceColors.Set(InstanceID, 0, Color4);
+			}
+		}
+	}
+}
+
+
+
 
 void FDynamicMeshToMeshDescription::Convert(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bCopyTangents)
 {
@@ -524,6 +549,8 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		bCopyGroupToPolyGroup = true;
 	}
 
+	bool bCopyVertexColors = MeshIn->HasVertexColors();		// always copy when we are baking new mesh? should this be a config option?
+
 	// disable indexing during the full build of the mesh
 	Builder.SuspendMeshDescriptionIndexing();
 
@@ -652,6 +679,16 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		{
 			const FVertexID TriVertex = MapV[Triangle[j]];
 			TriVertInstances[j] = Builder.AppendInstance(TriVertex);
+		}
+
+		// copy vertex colors. This writes each color multiple times, but that is not expensive in this context
+		if (bCopyVertexColors)
+		{
+			for (int32 j = 0; j < 3; ++j)
+			{
+				FVector3f Color = MeshIn->GetVertexColor(Triangle[j]);
+				Builder.SetInstanceColor(TriVertInstances[j], FVector4(Color.X, Color.Y, Color.Z, 1.0f));
+			}
 		}
 
 		// transfer material index to MeshDescription polygon group (by convention)
