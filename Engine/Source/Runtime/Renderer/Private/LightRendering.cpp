@@ -442,6 +442,7 @@ class FDeferredLightPS : public FGlobalShader
 	class FCloudTransmittance 	: SHADER_PERMUTATION_BOOL("USE_CLOUD_TRANSMITTANCE");
 	class FAnistropicMaterials 	: SHADER_PERMUTATION_BOOL("SUPPORTS_ANISOTROPIC_MATERIALS");
 	class FStrata				: SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
+	class FStrataFastPath		: SHADER_PERMUTATION_BOOL("STRATA_FASTPATH");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FSourceShapeDim,
@@ -455,7 +456,8 @@ class FDeferredLightPS : public FGlobalShader
 		FAtmosphereTransmittance,
 		FCloudTransmittance,
 		FAnistropicMaterials,
-		FStrata>;
+		FStrata,
+		FStrataFastPath>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -522,6 +524,10 @@ class FDeferredLightPS : public FGlobalShader
 			return false;
 		}
 
+		if (PermutationVector.Get<FStrataFastPath>() && (!Strata::IsStrataEnabled() || !PermutationVector.Get<FStrata>()))
+		{
+			return false;
+		}
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
@@ -1334,6 +1340,11 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 			if (!bUseHairLighting)
 			{
+				if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+				{
+					Strata::AddStrataStencilPass(GraphBuilder, Views, SceneTextures);
+				}
+
 				FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
 				GetRenderLightParameters(SceneTextures, nullptr, LightingChannelsTexture, {}, HairDatas ? &HairDatas->HairVisibilityViews : nullptr, *PassParameters);
 
@@ -2087,10 +2098,28 @@ void SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitialize
 		GraphicsPSOInit.RasterizerState = View.bReverseCulling ? TStaticRasterizerState<FM_Solid, CM_CCW>::GetRHI() : TStaticRasterizerState<FM_Solid, CM_CW>::GetRHI();
 	}
 
-	GraphicsPSOInit.DepthStencilState =
+	if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+	{
+		GraphicsPSOInit.DepthStencilState =
 		bCameraInsideLightGeometry
-		? TStaticDepthStencilState<false, CF_Always>::GetRHI()
-		: TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+		? TStaticDepthStencilState<
+			false, CF_Always,
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+			Strata::StencilBit, 0x0>::GetRHI()
+		: TStaticDepthStencilState<
+			false, CF_DepthNearOrEqual,
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+			Strata::StencilBit, 0x0>::GetRHI();
+	}
+	else
+	{
+		GraphicsPSOInit.DepthStencilState =
+			bCameraInsideLightGeometry
+			? TStaticDepthStencilState<false, CF_Always>::GetRHI()
+			: TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+	}
 }
 
 template<bool bUseIESProfile, bool bRadialAttenuation, bool bInverseSquaredFalloff>
@@ -2114,6 +2143,7 @@ static void SetShaderTemplLightingSimple(
 	PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >( false );
 	PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
 	PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
+	PermutationVector.Set< FDeferredLightPS::FStrataFastPath>(false);
 
 	TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
@@ -2182,6 +2212,9 @@ void FDeferredShadingSceneRenderer::RenderLight(
 	INC_DWORD_STAT(STAT_NumLightsUsingStandardDeferred);
 	SCOPED_CONDITIONAL_DRAW_EVENT(RHICmdList, StandardDeferredLighting, bIssueDrawEvent);
 
+	auto RenderInternalLight = [&](bool bStrataFastPath)
+	{
+
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
@@ -2218,6 +2251,15 @@ void FDeferredShadingSceneRenderer::RenderLight(
 
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+		if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+		{
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
+				false, CF_Always,
+				true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+				true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+				Strata::StencilBit, 0x0>::GetRHI();
+		}
 
 		if (bRenderOverlap)
 		{
@@ -2269,6 +2311,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 			PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(bAtmospherePerPixelTransmittance);
 			PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance);
 			PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
+			PermutationVector.Set< FDeferredLightPS::FStrataFastPath >(Strata::IsStrataEnabled() && Strata::IsClassificationEnabled() && bStrataFastPath);
 
 			TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -2282,6 +2325,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 		VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
 
 		// Apply the directional light as a full screen quad
+		RHICmdList.SetStencilRef(bStrataFastPath ? Strata::StencilBit : 0u);
 		DrawRectangle(
 			RHICmdList,
 			0, 0,
@@ -2334,6 +2378,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 			PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >(false);
 			PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
 			PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled());
+			PermutationVector.Set< FDeferredLightPS::FStrata >(Strata::IsStrataEnabled() && Strata::IsClassificationEnabled() && bStrataFastPath);
 
 			TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
@@ -2376,6 +2421,14 @@ void FDeferredShadingSceneRenderer::RenderLight(
 			StencilingGeometry::DrawCone(RHICmdList);
 		}
 	}
+	};
+
+
+	RenderInternalLight(false);
+	if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+	{
+		RenderInternalLight(true);
+	}
 }
 
 void FDeferredShadingSceneRenderer::RenderLight(
@@ -2395,6 +2448,11 @@ void FDeferredShadingSceneRenderer::RenderLight(
 	{
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, ViewCount > 1, "View%d", ViewIndex);
 		const FViewInfo& View = Views[ViewIndex];
+
+		if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+		{
+			Strata::AddStrataStencilPass(GraphBuilder, View, SceneTextures);
+		}
 
 		FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
 		GetRenderLightParameters(SceneTextures, ScreenShadowMaskTexture, LightingChannelsTexture, GetCloudShadowAOParameters(GraphBuilder, View, CloudInfo), InHairVisibilityViews, *PassParameters);

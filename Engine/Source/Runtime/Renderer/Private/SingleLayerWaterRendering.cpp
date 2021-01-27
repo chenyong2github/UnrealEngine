@@ -424,7 +424,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		// We need to update the classification texture once again because the GBuffer has been patched with single layer water data.
 		if (Strata::IsStrataEnabled() && bRunTiled)
 		{
-			Strata::AddStrataMaterialClassificationPass(GraphBuilder, Views);
+			Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
 		}
 
 

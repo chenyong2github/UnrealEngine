@@ -176,6 +176,7 @@ struct FStrataClassification
 	bool bHasSubsurface;
 	bool bHasSubsurfaceProfile;
 	bool bHasTransmission;
+	bool bIsSimple;
 };
 
 uint StrataPackClassificationData(FStrataClassification In)
@@ -185,7 +186,8 @@ uint StrataPackClassificationData(FStrataClassification In)
 		((In.bIsStrataMaterial		? 1 : 0) << 8 ) |
 		((In.bHasSubsurface			? 1 : 0) << 9 ) | 
 		((In.bHasSubsurfaceProfile	? 1 : 0) << 10) |
-		((In.bHasTransmission		? 1 : 0) << 11) ;
+		((In.bHasTransmission		? 1 : 0) << 11) |
+		((In.bIsSimple				? 1 : 0) << 12);
 }
 
 FStrataClassification StrataUnpackClassificationData(uint In)
@@ -196,6 +198,7 @@ FStrataClassification StrataUnpackClassificationData(uint In)
 	Out.bHasSubsurface			= (In >> 9 ) & 0x1;
 	Out.bHasSubsurfaceProfile	= (In >> 10) & 0x1;
 	Out.bHasTransmission		= (In >> 11) & 0x1;
+	Out.bIsSimple				= (In >> 12) & 0x1;
 	return Out;
 }
 

@@ -12,8 +12,7 @@
 // Forward declarations.
 class FScene;
 class FRDGBuilder;
-
-
+struct FMinimalSceneTextures;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataOpaquePassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
@@ -30,9 +29,10 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 struct FStrataSceneData
 {
 	uint32 MaxBytesPerPixel;
-	FRWByteAddressBuffer MaterialLobesBuffer;				// This should be a RDG resource
-	TRefCountPtr<IPooledRenderTarget> ClassificationTexture;// This should be a RDG resource
-	TRefCountPtr<IPooledRenderTarget> TopLayerTexture;		// This should be a RDG resource
+	FRWByteAddressBuffer MaterialLobesBuffer;					// This should be a RDG resource
+	TRefCountPtr<IPooledRenderTarget> ClassificationTexture;	// This should be a RDG resource
+	TRefCountPtr<IPooledRenderTarget> TopLayerTexture;			// This should be a RDG resource
+	TRefCountPtr<IPooledRenderTarget> TileClassificationTexture;// This should be a RDG resource
 
 	TUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
 
@@ -43,8 +43,10 @@ struct FStrataSceneData
 
 namespace Strata
 {
+constexpr uint32 StencilBit = 0x80; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_FASTPATH)
 
 bool IsStrataEnabled();
+bool IsClassificationEnabled();
 
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder);
 
@@ -54,8 +56,10 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 
 void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, FRDGTextureRef SceneColorTexture);
 
-void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views);
+void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArray<FViewInfo>& Views);
 
+void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMinimalSceneTextures& SceneTextures);
+void AddStrataStencilPass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views, const FMinimalSceneTextures& SceneTextures);
 };
 
 

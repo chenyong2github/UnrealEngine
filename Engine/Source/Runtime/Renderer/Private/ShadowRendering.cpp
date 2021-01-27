@@ -210,6 +210,9 @@ static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserTemporal(
 
 DEFINE_GPU_DRAWCALL_STAT(ShadowProjection);
 
+// Use Shadow stencil mask is set to 0x7F instead of 0xFF so that that last bit can be used for strata classification without clearing the stencil bit for pre-shadow/per-object static shadow mask
+constexpr uint32 ShadowStencilMask = 0x7f;
+
 // 0:off, 1:low, 2:med, 3:high, 4:very high, 5:max
 uint32 GetShadowQuality()
 {
@@ -856,7 +859,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 			false, CF_DepthNearOrEqual,
 			true, CF_Always, SO_Keep, SO_Increment, SO_Keep,
 			true, CF_Always, SO_Keep, SO_Decrement, SO_Keep,
-			0xff, 0xff
+			ShadowStencilMask, ShadowStencilMask
 			>::GetRHI());
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -927,7 +930,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 				false, CF_DepthNearOrEqual,
 				true, CF_Always, SO_Keep, SO_Increment, SO_Keep,
 				true, CF_Always, SO_Keep, SO_Decrement, SO_Keep,
-				0xff, 0xff
+				ShadowStencilMask, ShadowStencilMask
 				>::GetRHI());
 		}
 		else
@@ -939,7 +942,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 				false, CF_DepthNearOrEqual,
 				true, CF_Always, SO_Keep, SO_Keep, SO_Increment,
 				true, CF_Always, SO_Keep, SO_Keep, SO_Decrement,
-				0xff, 0xff
+				ShadowStencilMask, ShadowStencilMask
 				>::GetRHI());
 		}
 		
@@ -1154,7 +1157,7 @@ void FProjectedShadowInfo::RenderProjection(
 					false, CF_Always,
 					true, CF_NotEqual, SO_Zero, SO_Zero, SO_Zero,
 					false, CF_Always, SO_Zero, SO_Zero, SO_Zero,
-					0xff, 0xff
+					ShadowStencilMask, ShadowStencilMask
 					>::GetRHI();
 			}
 			else
@@ -1165,7 +1168,7 @@ void FProjectedShadowInfo::RenderProjection(
 					false, CF_Always,
 					true, CF_NotEqual, SO_Keep, SO_Keep, SO_Keep,
 					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					0xff, 0xff
+					ShadowStencilMask, ShadowStencilMask
 					>::GetRHI();
 			}
 		}
