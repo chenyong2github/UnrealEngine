@@ -19,6 +19,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <Choose>
+    <When Condition="'$(IsLinux)'=='true'">
+      <PropertyGroup>
+        <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+      </PropertyGroup>
+    </When>
     <When Condition="'$(IsOSX)'=='true'">
       <PropertyGroup>
         <!-- Set runtie identifier for osx so that it produces a app host executable (consistency with the other platforms) -->
