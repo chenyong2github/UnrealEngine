@@ -9,7 +9,9 @@
 #include "Misc/Optional.h"
 #include "Containers/UnrealString.h"
 
+#ifndef WITH_ADDITIONAL_CRASH_CONTEXTS
 #define WITH_ADDITIONAL_CRASH_CONTEXTS 0
+#endif
 
 /** Defines special exit codes used to diagnose abnormal terminations. The code values are arbitrary, but easily recongnizable in decimal. They are meant to be
     used with the out-of-process monitoring/analytics in order to figure out unexpected cases. */
