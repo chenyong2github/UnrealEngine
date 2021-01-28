@@ -1,4 +1,4 @@
-VULKAN RELEASE 1.2.148.0 WINDOWS LICENSE SUMMARY
+VULKAN RELEASE 1.2.162.0 WINDOWS LICENSE SUMMARY
 ================================================================================
 
 List of Open Source Licenses in use by SDK components:
@@ -7,13 +7,14 @@ List of Open Source Licenses in use by SDK components:
     Apache-2.0+MIT
     BSD-2-Clause
     BSD-3-Clause
+    GLM
     Khronos
     LGPL-3.0
     LLVM
     MIT
+    Qt
     Qt2
     Simple-DirectMedia
-    Unlicensed
     Zlib
     glslangPreprocessor
     glslangPreprocesssor
@@ -26,10 +27,10 @@ List of copyrights in use by SDK components:
     "Copyright (c) 2014-2020 The Khronos Group Inc.",
     -- Copyright (c) 2014-2020 The Khronos Group Inc.
     2010), this software is Copyright (c) 2007-2010 by Baptiste Lepilleur, and is
-    ; Copyright (C) 2015 Valve Corporation
     <!-- Copyright (c) 2015-2019 LunarG, Inc. -->
     << Copyright 2016-2020 LunarG Inc.
     Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+    Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
     Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
     Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
     Copyright (C) 1999-2006  Brian Paul   All Rights Reserved.
@@ -155,7 +156,6 @@ List of copyrights in use by SDK components:
     Copyright (c) 2015-2017 Valve Corporation
     Copyright (c) 2015-2017, 2019 Google Inc.
     Copyright (c) 2015-2017, 2019 LunarG, Inc.
-    Copyright (c) 2015-2017, 2019 The Khronos Group Inc.
     Copyright (c) 2015-2017, 2019 Valve Corporation
     Copyright (c) 2015-2017, 2019-2020 LunarG, Inc.
     Copyright (c) 2015-2017, 2019-2020 The Khronos Group Inc.
@@ -253,6 +253,7 @@ List of copyrights in use by SDK components:
     Copyright 2016-2020 Arm Limited
     Copyright 2016-2020 Robert Konrad
     Copyright 2016-2020 The Brenwill Workshop Ltd.
+    Copyright 2017-2018 Google Inc.
     Copyright 2018 The Shaderc Authors. All rights reserved.
     Copyright 2018-2020 Arm Limited
     Copyright 2018-2020 Bradley Austin Davis
@@ -264,10 +265,9 @@ List of copyrights in use by SDK components:
     OpenGL Mathematics Copyright (c) 2005 - 2012 G-Truc Creation (www.g-truc.net)
     OpenGL Mathematics Copyright (c) 2005 - 2014 G-Truc Creation (www.g-truc.net)
     OpenGL Mathematics Copyright (c) 2006 G-Truc Creation (www.g-truc.net)
-    REM Copyright (c) 2015-2020 LunarG, Inc.
     \b\f0\fs18 Copyright (c) 2015-2020 Valve Corporation\b0\f1\fs24\par
     copyright (c) 2014 joseph werle <joseph.werle@gmail.com>
-    label->setText(QApplication::translate("dlgAbout", "Copyright 2020 LunarG, Inc.", nullptr));
+    label->setText(QApplication::translate("dialog_about", "Copyright 2020 LunarG, Inc.", nullptr));
 
 The full text of each license is listed below.
 
@@ -357,6 +357,65 @@ Redistribution and use in source and binary forms, with or without modification,
 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+================================================================================
+GLM
+--------------------------------------------------------------------------------
+
+================================================================================
+OpenGL Mathematics (GLM)
+--------------------------------------------------------------------------------
+GLM is licensed under The Happy Bunny License and MIT License
+
+================================================================================
+The Happy Bunny License (Modified MIT License)
+--------------------------------------------------------------------------------
+Copyright (c) 2005 - 2014 G-Truc Creation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+Restrictions:
+ By making use of the Software for military purposes, you choose to make a
+ Bunny unhappy.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+================================================================================
+The MIT License
+--------------------------------------------------------------------------------
+Copyright (c) 2005 - 2014 G-Truc Creation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 
 ================================================================================
 Khronos
@@ -504,6 +563,24 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ================================================================================
+Qt
+--------------------------------------------------------------------------------
+
+LunarG’s SDK incorporates the following Qt 5.13 modules and add-ons: Qt Core, Qt GUI, Qt Widgets and Qt WebEngine.
+
+Information on the general Qt 5.13 license is available at this link: https://doc.qt.io/qt-5/licensing.html
+
+Information on the overall Qt Core license and third party modules contained in Qt Core are available at this link: https://doc.qt.io/qt-5/qtcore-index.html
+
+Information on the overall Qt GUI license and third party modules contained in Qt GUI are available at this link: https://doc.qt.io/qt-5/qtgui-index.html
+
+Information on the overall Qt Widgets license is available at this link: https://doc.qt.io/qt-5/qtwidgets-index.html
+
+Information on the overall Qt WebEngine license and third party modules contained in Qt WebEngine are available at this link: https://doc.qt.io/qt-5/qtwebengine-licensing.html
+
+
+
+================================================================================
 Qt2
 --------------------------------------------------------------------------------
 
@@ -542,12 +619,6 @@ Simple DirectMedia Layer
   2. Altered source versions must be plainly marked as such, and must not be
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
-
-================================================================================
-Unlicensed
---------------------------------------------------------------------------------
-
-
 
 ================================================================================
 Zlib
