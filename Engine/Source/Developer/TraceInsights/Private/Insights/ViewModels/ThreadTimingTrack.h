@@ -129,6 +129,7 @@ public:
 		, GroupName(InGroupName)
 		, TimelineIndex(InTimelineIndex)
 		, ThreadId(InThreadId)
+		, SharedState(InSharedState)
 	{
 	}
 
@@ -179,6 +180,8 @@ private:
 	const TCHAR* GroupName;
 	uint32 TimelineIndex;
 	uint32 ThreadId;
+
+	FThreadTimingSharedState& SharedState;
 
 	TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator;
 	FDelegateHandle OnFilterChangesCommitedHandle;

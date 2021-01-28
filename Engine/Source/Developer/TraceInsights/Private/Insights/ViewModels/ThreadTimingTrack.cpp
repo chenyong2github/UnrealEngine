@@ -8,6 +8,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Serialization/MemoryReader.h"
 #include "Styling/SlateBrush.h"
+#include "TraceServices/Model/TasksProfiler.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -1004,6 +1005,73 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 		{
 			AppendMetadataToTooltip(InOutTooltip, Metadata);
 		}
+
+		// tasks
+
+		const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
+
+		auto AddTaskInfo = [&InOutTooltip, this](const TraceServices::FTaskInfo& Task)
+		{
+			InOutTooltip.AddTextLine(TEXT("-------- TaskInfo --------"), FLinearColor::Green);
+			InOutTooltip.AddNameValueTextLine(TEXT("TaskId:"), FString::Printf(TEXT("%d"), Task.Id));
+			InOutTooltip.AddNameValueTextLine(TEXT("Task Debug Name:"), FString::Printf(TEXT("%s"), Task.DebugName));
+			InOutTooltip.AddNameValueTextLine(TEXT("Tracked:"), FString::Printf(TEXT("%d"), Task.bTracked));
+			InOutTooltip.AddNameValueTextLine(TEXT("Created:"), FString::Printf(TEXT("%f"), Task.CreatedTimestamp));
+			InOutTooltip.AddNameValueTextLine(TEXT("Launched:"), FString::Printf(TEXT("%f (+%s)"), Task.LaunchedTimestamp, *TimeUtils::FormatTimeAuto(Task.LaunchedTimestamp - Task.CreatedTimestamp)));
+			InOutTooltip.AddNameValueTextLine(TEXT("Started:"), FString::Printf(TEXT("%f (+%s) on thread \"%s\""), Task.StartedTimestamp, *TimeUtils::FormatTimeAuto(Task.StartedTimestamp - Task.LaunchedTimestamp), *SharedState.GetCpuTrack(Task.StartedThreadId)->GetName()));
+			if (Task.FinishedTimestamp != TraceServices::FTaskInfo::InvalidTimestamp)
+			{
+				InOutTooltip.AddNameValueTextLine(TEXT("Finished:"), FString::Printf(TEXT("%f (+%s)"), Task.FinishedTimestamp, *TimeUtils::FormatTimeAuto(Task.FinishedTimestamp - Task.StartedTimestamp)));
+
+				if (Task.CompletedTimestamp != TraceServices::FTaskInfo::InvalidTimestamp)
+				{
+					InOutTooltip.AddNameValueTextLine(TEXT("Completed:"), FString::Printf(TEXT("%f (+%s)"), Task.FinishedTimestamp, *TimeUtils::FormatTimeAuto(Task.CompletedTimestamp - Task.FinishedTimestamp)));
+				}
+			}
+		};
+
+		do // info about a task
+		{
+			const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(ThreadId, TooltipEvent.GetStartTime());
+			if (Task == nullptr)
+			{
+				break;
+			}
+
+			if (Task->FinishedTimestamp < TooltipEvent.GetEndTime())
+			{
+				break;
+			}
+
+			AddTaskInfo(*Task);
+		} while (false);
+
+		do // info about blocking
+		{
+			if (TimerName.StartsWith(TEXT("WaitUntilTasksComplete")) || TimerName.StartsWith(TEXT("GameThreadWaitForTask")))
+			{
+				const TraceServices::FWaitingForTasks* Waiting = TasksProvider->TryGetWaiting(ThreadId, TooltipEvent.GetStartTime());
+				if (Waiting == nullptr)
+				{
+					break;
+				}
+
+				InOutTooltip.AddTextLine(TEXT("-------- Wating for tasks --------"), FLinearColor::Red);
+				FString TaskIdsStr = FString::JoinBy(Waiting->Tasks, TEXT(", "), [](TaskTrace::FId TaskId) { return FString::FromInt(TaskId); });
+				InOutTooltip.AddNameValueTextLine(TEXT("Tasks:"), FString::Printf(TEXT("[%s]"), *TaskIdsStr));
+				InOutTooltip.AddNameValueTextLine(TEXT("Started waiting:"), FString::Printf(TEXT("%f"), Waiting->StartedTimestamp));
+				InOutTooltip.AddNameValueTextLine(TEXT("Finished waiting:"), FString::Printf(TEXT("%f (+%s)"), Waiting->FinishedTimestamp, *TimeUtils::FormatTimeAuto(Waiting->FinishedTimestamp - Waiting->StartedTimestamp)));
+
+				for (TaskTrace::FId TaskId : Waiting->Tasks)
+				{
+					const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(TaskId);
+					if (Task != nullptr)
+					{
+						AddTaskInfo(*Task);
+					}
+				}
+			}
+		} while (false);
 	}
 
 	InOutTooltip.UpdateLayout();

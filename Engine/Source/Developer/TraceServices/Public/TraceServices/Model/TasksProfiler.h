@@ -1,0 +1,87 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "TraceServices/Model/AnalysisSession.h"
+#include "Async/TaskTrace.h"
+#include "Containers/Array.h"
+
+namespace TraceServices
+{
+	// task biography
+	struct FTaskInfo
+	{
+		FTaskInfo() = default;
+
+		TaskTrace::FId Id = TaskTrace::InvalidId;
+
+		// this members are filled during task launch
+		const TCHAR* DebugName; // user provided or automatically generated (in format `full_path(lineno)`)
+		bool bTracked; // if the task is awaitable, not awaitable tasks will never be "completed", they are done when their execution is finished
+		int32 ThreadToExecuteOn; // ENamedThreads::Type - which thread type the task will be executed on, one of named threads or a worker thread
+
+		static constexpr double InvalidTimestamp = 0.0;
+
+		// some tasks can be created with delayed launch, otherwise "created" and "launched" timestamps and thread IDs are equal
+		double CreatedTimestamp = InvalidTimestamp;
+		uint32 CreatedThreadId;
+		// the moment and the place when the task was launched
+		double LaunchedTimestamp = InvalidTimestamp;
+		uint32 LaunchedThreadId;
+		// the moment and the place when all task's dependencies are resolved and it's added to the execution queue
+		double ScheduledTimestamp = InvalidTimestamp;
+		uint32 ScheduledThreadId;
+		// execution started
+		double StartedTimestamp = InvalidTimestamp;
+		uint32 StartedThreadId;
+		// execution finished, but the task can be still not completed waiting for all nested tasks to complete
+		double FinishedTimestamp = InvalidTimestamp;
+		// execution done and all nested tasks are completed
+		double CompletedTimestamp = InvalidTimestamp;
+		uint32 CompletedThreadId;
+
+		//  relation with another task, when and where it was established
+		struct FRelationInfo
+		{
+			FRelationInfo(TaskTrace::FId InRelativeId, double InTimestamp, uint32 InThreadId)
+				: RelativeId(InRelativeId)
+				, Timestamp(InTimestamp)
+				, ThreadId(InThreadId)
+			{
+			}
+
+			TaskTrace::FId RelativeId;
+			double Timestamp;
+			uint32 ThreadId;
+		};
+
+		// other tasks that wait for this task completion before they'll start execution
+		TArray<FRelationInfo> Subsequents;
+		// the task is completed only after all nested tasks are completed
+		TArray<FRelationInfo> NestedTasks;
+	};
+
+	struct FWaitingForTasks
+	{
+		TArray<TaskTrace::FId> Tasks;
+		double StartedTimestamp;
+		double FinishedTimestamp;
+	};
+
+	// query interface to tasks info
+	class ITasksProvider : public IProvider
+	{
+	public:
+		virtual ~ITasksProvider() = default;
+
+		// returns a task for given thread and timestamp, if any, otherwise `nullptr`
+		virtual const FTaskInfo* TryGetTask(uint32 ThreadId, double Timestamp) const = 0;
+		// returns task info for given task ID
+		virtual const FTaskInfo* TryGetTask(TaskTrace::FId TaskId) const = 0;
+
+		// returns an info about waiting for tasks completion for given thread and timestamp, if any, otherwise `nullptr`
+		virtual const FWaitingForTasks* TryGetWaiting(uint32 ThreadId, double Timestamp) const = 0;
+	};
+
+	TRACESERVICES_API const ITasksProvider* ReadTasksProvider(const IAnalysisSession& Session);
+}

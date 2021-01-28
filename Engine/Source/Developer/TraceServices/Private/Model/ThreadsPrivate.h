@@ -3,6 +3,7 @@
 #pragma once
 
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/Threads.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "HAL/PlatformAffinity.h"
 #include "Containers/Map.h"

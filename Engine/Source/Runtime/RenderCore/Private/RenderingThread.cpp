@@ -25,6 +25,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Async/TaskTrace.h"
 
 
 //
@@ -1125,6 +1126,7 @@ static void GameThreadWaitForTask(const FGraphEventRef& Task, ENamedThreads::Typ
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GameThreadWaitForTask);
 	SCOPE_TIME_GUARD(TEXT("GameThreadWaitForTask"));
+	TaskTrace::FWaitingScope WaitingScope(GetTraceIds({ Task }));
 
 	check(IsInGameThread());
 	check(IsValidRef(Task));	

@@ -13,6 +13,7 @@
 #include "Modules/NetProfilerModule.h"
 #include "Modules/MemoryModule.h"
 #include "Modules/DiagnosticsModule.h"
+#include "Modules/TasksModule.h"
 
 class FTraceServicesModule
 	: public ITraceServicesModule
@@ -38,6 +39,7 @@ private:
 	TraceServices::FNetProfilerModule NetProfilerModule;
 	TraceServices::FMemoryModule MemoryModule;
 	TraceServices::FDiagnosticsModule DiagnosticsModule;
+	TraceServices::FTasksModule TasksModule;
 };
 
 TSharedPtr<TraceServices::IAnalysisService> FTraceServicesModule::GetAnalysisService()
@@ -86,10 +88,12 @@ void FTraceServicesModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &NetProfilerModule);
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &MemoryModule);
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &DiagnosticsModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &TasksModule);
 }
 
 void FTraceServicesModule::ShutdownModule()
 {
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &TasksModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &DiagnosticsModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &MemoryModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &NetProfilerModule);

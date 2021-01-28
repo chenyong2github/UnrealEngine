@@ -214,7 +214,22 @@ static FAutoConsoleVariableRef CVarUseHiPriThreads(
 	#define TASKGRAPH_SCOPE_CYCLE_COUNTER(Index, Name)
 #endif
 
+TArray<TaskTrace::FId> GetTraceIds(const FGraphEventArray& Tasks)
+{
+#if UE_TASK_TRACE_ENABLED
+	TArray<TaskTrace::FId> TasksIds;
+	TasksIds.Reserve(Tasks.Num());
 
+	for (const FGraphEventRef& Task : Tasks)
+	{
+		TasksIds.Add(Task->GetTraceId());
+	}
+
+	return TasksIds;
+#else
+	return {};
+#endif
+}
 
 /** 
  *	Pointer to the task graph implementation singleton.
@@ -1188,6 +1203,8 @@ public:
 	**/
 	FTaskGraphImplementation(int32)
 	{
+		TaskTrace::Init();
+
 		bCreatedHiPriorityThreads = !!ENamedThreads::bHasHighPriorityThreads;
 		bCreatedBackgroundPriorityThreads = !!ENamedThreads::bHasBackgroundThreads;
 
@@ -1501,7 +1518,9 @@ public:
 
 	virtual void WaitUntilTasksComplete(const FGraphEventArray& Tasks, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread) final override
 	{
+		TaskTrace::FWaitingScope WaitingScope(GetTraceIds(Tasks));
 		TRACE_CPUPROFILER_EVENT_SCOPE(WaitUntilTasksComplete);
+
 		ENamedThreads::Type CurrentThread = CurrentThreadIfKnown;
 		if (ENamedThreads::GetThreadIndex(CurrentThreadIfKnown) == ENamedThreads::AnyThread)
 		{
@@ -1537,6 +1556,7 @@ public:
 					return;
 				}
 			}
+
 			// named thread process tasks while we wait
 			TGraphTask<FReturnGraphTask>::CreateTask(&Tasks, CurrentThread).ConstructAndDispatchWhenReady(CurrentThread);
 			ProcessThreadUntilRequestReturn(CurrentThread);
@@ -1561,6 +1581,7 @@ public:
 				}
 				UE_LOG(LogTaskGraph, Fatal, TEXT("Recursive waits are not allowed in single threaded mode."));
 			}
+		
 			// We will just stall this thread on an event while we wait
 			FScopedEvent Event;
 			TriggerEventWhenTasksComplete(Event.Get(), Tasks, CurrentThreadIfKnown);
@@ -1637,7 +1658,6 @@ public:
 		int32 MyIndex = int32((uint32(ThreadInNeed) - NumNamedThreads) % NumTaskThreadsPerSet);
 		int32 Priority = int32((uint32(ThreadInNeed) - NumNamedThreads) / NumTaskThreadsPerSet);
 		check(MyIndex >= 0 && MyIndex < LocalNumWorkingThread &&
-			MyIndex < (PLATFORM_64BITS ? 63 : 32) &&
 			Priority >= 0 && Priority < ENamedThreads::NumThreadPriorities);
 
 		return IncomingAnyThreadTasks[Priority].Pop(MyIndex, true);
@@ -1719,7 +1739,7 @@ private:
 	enum
 	{
 		/** Compile time maximum number of threads. Didn't really need to be a compile time constant, but task thread are limited by MAX_LOCK_FREE_LINKS_AS_BITS **/
-		MAX_THREADS = 26 * (CREATE_HIPRI_TASK_THREADS + CREATE_BACKGROUND_TASK_THREADS + 1) + ENamedThreads::ActualRenderingThread + 1,
+		MAX_THREADS = 0xFFFF,
 		MAX_THREAD_PRIORITIES = 3
 	};
 
@@ -1779,6 +1799,8 @@ public:
 	FTaskGraphCompatibilityImplementation(int32 InNumWorkerThreads) 
 		: NumWorkerThreads(FForkProcessHelper::IsForkedMultithreadInstance() ? CVar_ForkedProcess_MaxWorkerThreads : InNumWorkerThreads)
 	{
+		TaskTrace::Init();
+
 		if (FTaskGraphInterface::IsMultithread())
 		{
 			int32 NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - FMath::Min<int>(GNumForegroundWorkers, NumWorkerThreads));
@@ -1974,7 +1996,9 @@ private:
 
 	void WaitUntilTasksComplete(const FGraphEventArray& Tasks, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread) final override
 	{
+		TaskTrace::FWaitingScope WaitingScope(GetTraceIds(Tasks));
 		TRACE_CPUPROFILER_EVENT_SCOPE(WaitUntilTasksComplete);
+	
 		ENamedThreads::Type CurrentThread = CurrentThreadIfKnown;
 		if (ENamedThreads::GetThreadIndex(CurrentThreadIfKnown) == ENamedThreads::AnyThread)
 		{
@@ -2010,6 +2034,7 @@ private:
 					return;
 				}
 			}
+
 			// named thread process tasks while we wait
 			TGraphTask<FReturnGraphTask>::CreateTask(&Tasks, CurrentThread).ConstructAndDispatchWhenReady(CurrentThread);
 			ProcessThreadUntilRequestReturn(CurrentThread);
@@ -2225,7 +2250,7 @@ static TLockFreeClassAllocator_TLSCache<FGraphEvent, PLATFORM_CACHE_LINE_SIZE> T
 
 FGraphEventRef FGraphEvent::CreateGraphEvent()
 {
-	return TheGraphEventAllocator.New();
+	return new(TheGraphEventAllocator.Allocate()) FGraphEvent{};
 }
 
 void FGraphEvent::Recycle(FGraphEvent* ToRecycle)
@@ -2288,6 +2313,8 @@ void FGraphEvent::DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedT
 		NewTask->ConditionalQueueTask(CurrentThreadIfKnown, bWakeUpWorker);
 	}
 	NewTasks.Reset();
+
+	TaskTrace::Completed(GetTraceId());
 }
 
 FGraphEvent::~FGraphEvent()

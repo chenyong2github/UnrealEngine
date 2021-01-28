@@ -26,6 +26,8 @@
 
 #include "Async/Fundamental/Task.h"
 
+#include "Async/TaskTrace.h"
+
 #if !defined(STATS)
 #error "STATS must be defined as either zero or one."
 #endif
@@ -209,7 +211,6 @@ namespace ENamedThreads
 			);
 		return Type(ThreadAndIndex | TaskPriority);
 	}
-
 }
 
 DECLARE_INTRINSIC_TYPE_LAYOUT(ENamedThreads::Type);
@@ -277,6 +278,9 @@ typedef TRefCountPtr<class FGraphEvent> FGraphEventRef;
 
 /** Convenience typedef for a an array a graph events **/
 typedef TArray<FGraphEventRef, TInlineAllocator<4> > FGraphEventArray;
+
+/** returns trace IDs of given tasks **/
+CORE_API TArray<TaskTrace::FId> GetTraceIds(const FGraphEventArray& Tasks);
 
 /** Interface tot he task graph system **/
 class FTaskGraphInterface
@@ -430,7 +434,6 @@ public:
  *	Tasks go through a very specific life stage progression, and this is verified.
  **/
 
-
 class FBaseGraphTask
 {
 public:
@@ -509,6 +512,15 @@ protected:
 		}
 	}
 
+	TaskTrace::FId GetTraceId() const
+	{
+#if UE_TASK_TRACE_ENABLED
+		return TraceId;
+#else
+		return TaskTrace::InvalidId;
+#endif
+	}
+
 private:
 	friend class FNamedTaskThread;
 	friend class FTaskThreadBase;
@@ -557,6 +569,7 @@ private:
 	void QueueTask(ENamedThreads::Type CurrentThreadIfKnown, bool bWakeUpWorker)
 	{
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Queued));
+		TaskTrace::Scheduled(GetTraceId());
 		FTaskGraphInterface::Get().QueueTask(this, bWakeUpWorker, ThreadToExecuteOn, CurrentThreadIfKnown);
 	}
 
@@ -586,6 +599,10 @@ private:
 	int32 InheritedTraceTag;
 #endif
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
+
+#if UE_TASK_TRACE_ENABLED
+	TaskTrace::FId TraceId{ TaskTrace::GenerateTaskId() };
+#endif
 };
 
 /** 
@@ -605,13 +622,19 @@ public:
 
 	// the returned event will have ref count zero; be sure to add one!
 	static CORE_API FGraphEvent* CreateGraphEventWithInlineStorage();
+
 	/**
 	 *	Attempts to a new subsequent task. If this event has already fired, false is returned and action must be taken to ensure that the task will still fire even though this event cannot be a prerequisite (because it is already finished).
 	 *	@return true if the task was successfully set up as a subsequent. false if the event has already fired.
 	**/
-	bool AddSubsequent(class FBaseGraphTask* Task)
+	bool AddSubsequent(class FBaseGraphTask* Subsequent)
 	{
-		return SubsequentList.PushIfNotClosed(Task);
+		bool bSucceeded = SubsequentList.PushIfNotClosed(Subsequent);
+		if (bSucceeded)
+		{
+			TaskTrace::SubsequentAdded(GetTraceId(), Subsequent->GetTraceId());
+		}
+		return bSucceeded;
 	}
 
 	/**
@@ -631,6 +654,7 @@ public:
 	{
 		checkThreadGraph(!IsComplete()); // it is not legal to add a DontCompleteUntil after the event has been completed. Basically, this is only legal within a task function.
 		new (EventsToWaitFor) FGraphEventRef(EventToWaitFor);
+		TaskTrace::NestedAdded(GetTraceId(), EventToWaitFor->GetTraceId());
 	}
 
 	/**
@@ -679,12 +703,28 @@ public:
 	/**
 	 * Sets a name for the event for debugging purposes.
 	 */
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	void SetDebugName(const TCHAR* Name)
 	{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		DebugName = Name;
-	}
 #endif
+	}
+
+	TaskTrace::FId GetTraceId() const
+	{
+#if UE_TASK_TRACE_ENABLED
+		return TraceId;
+#else
+		return TaskTrace::InvalidId;
+#endif
+	}
+
+	void SetTraceId(TaskTrace::FId InTraceId)
+	{
+#if UE_TASK_TRACE_ENABLED
+		TraceId = InTraceId;
+#endif
+	}
 
 private:
 	friend class TRefCountPtr<FGraphEvent>;
@@ -700,7 +740,7 @@ private:
 	 *	Hidden Constructor
 	**/
 	friend struct FGraphEventAndSmallTaskStorage;
-	FGraphEvent(bool bInInline = false)
+	FGraphEvent()
 		: ThreadToDoGatherOn(ENamedThreads::AnyHiPriThreadHiPriTask)
 	{
 	}
@@ -738,7 +778,6 @@ public:
 		return RefCount;
 	}
 
-
 private:
 
 	/** Threadsafe list of subsequents for the event **/
@@ -752,9 +791,11 @@ private:
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	const TCHAR* DebugName = nullptr;
 #endif
+
+#if UE_TASK_TRACE_ENABLED
+	TaskTrace::FId TraceId = TaskTrace::InvalidId;
+#endif
 };
-
-
 
 /** 
  The user defined task type can take arguments to a constructor. These arguments (unfortunately) must not be references.
@@ -873,6 +914,7 @@ public:
 	{
 		bool bWakeUpWorker = true;
 		ConditionalQueueTask(CurrentThreadIfKnown, bWakeUpWorker);
+		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ENamedThreads::GetThreadIndex(((TTask*)&TaskStorage)->GetDesiredThread()));
 	}
 
 	FGraphEventRef GetCompletionEvent()
@@ -909,12 +951,14 @@ private:
 		}
 		
 		TTask& Task = *(TTask*)&TaskStorage;
+		TaskTrace::Started(GetTraceId());
 		{
 			FScopeCycleCounter Scope(Task.GetStatId(), true); 
 			Task.DoTask(CurrentThread, Subsequents);
 			Task.~TTask();
 			checkThreadGraph(ENamedThreads::GetThreadIndex(CurrentThread) <= ENamedThreads::GetRenderThread() || FMemStack::Get().IsEmpty()); // you must mark and pop memstacks if you use them in tasks! Named threads are excepted.
 		}
+		TaskTrace::Finished(GetTraceId());
 		
 		TaskConstructed = false;
 
@@ -947,7 +991,7 @@ private:
 
 	/** 
 	 *	Private constructor, constructs the base class with the number of prerequisites.
-	 *	@param InSubsequents subsequents to associate with this task. Thsi refernence is destroyed in the process!
+	 *	@param InSubsequents subsequents to associate with this task. This refernence is destroyed in the process!
 	 *	@param NumberOfPrerequistitesOutstanding the number of prerequisites this task will have when it is built.
 	**/
 	TGraphTask(FGraphEventRef InSubsequents, int32 NumberOfPrerequistitesOutstanding)
@@ -955,6 +999,10 @@ private:
 		, TaskConstructed(false)
 	{
 		Subsequents.Swap(InSubsequents);
+		if (Subsequents.IsValid())
+		{
+			Subsequents->SetTraceId(GetTraceId());
+		}
 	}
 
 	/** 
@@ -1010,6 +1058,8 @@ private:
 	 **/
 	FGraphEventRef Setup(const FGraphEventArray* Prerequisites = NULL, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
+		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ENamedThreads::GetThreadIndex(((TTask*)&TaskStorage)->GetDesiredThread()));
+
 		FGraphEventRef ReturnedEventRef = Subsequents; // very important so that this doesn't get destroyed before we return
 		SetupPrereqs(Prerequisites, CurrentThreadIfKnown, true);
 		return ReturnedEventRef;
@@ -1028,6 +1078,8 @@ private:
 	 **/
 	TGraphTask* Hold(const FGraphEventArray* Prerequisites = NULL, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
+		TaskTrace::Created(GetTraceId());
+
 		SetupPrereqs(Prerequisites, CurrentThreadIfKnown, false);
 		return this;
 	}
