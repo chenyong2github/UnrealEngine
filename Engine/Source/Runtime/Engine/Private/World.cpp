@@ -4972,6 +4972,11 @@ void UWorld::RemoveMovieSceneSequenceTickHandler(FDelegateHandle InHandle)
 	MovieSceneSequenceTick.Remove(InHandle);
 }
 
+bool UWorld::IsMovieSceneSequenceTickHandlerBound() const
+{
+	return MovieSceneSequenceTick.IsBound();
+}
+
 ABrush* UWorld::GetDefaultBrush() const
 {
 	check(PersistentLevel);

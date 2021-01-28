@@ -2588,6 +2588,8 @@ public:
 	FDelegateHandle AddMovieSceneSequenceTickHandler(const FOnMovieSceneSequenceTick::FDelegate& InHandler);
 	/** Removes a tick handler for sequences */
 	void RemoveMovieSceneSequenceTickHandler(FDelegateHandle InHandle);
+	/** Check if movie sequences tick handler is bound at all */
+	bool IsMovieSceneSequenceTickHandlerBound() const;
 
 	//~ Begin UObject Interface
 	virtual void Serialize( FArchive& Ar ) override;

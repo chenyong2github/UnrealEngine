@@ -44,6 +44,9 @@
 #if ENABLE_COLLISION_ANALYZER
 #include "PhysicsEngine/CollisionAnalyzerCapture.h"
 #endif
+#if !UE_SERVER
+#include "IMediaModule.h"
+#endif
 
 //#include "SoundDefinitions.h"
 #include "FXSystem.h"
@@ -1451,6 +1454,20 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		// Tick level sequence actors first
 		MovieSceneSequenceTick.Broadcast(DeltaSeconds);
 	}
+
+#if !UE_SERVER
+	if (MovieSceneSequenceTick.IsBound())
+	{
+		// tick media framework pre-engine
+		// (needs to be delayed post movie scene tick delegates handling, sif they are used - otherwise is triggered elsewhere)
+		static const FName MediaModuleName(TEXT("Media"));
+		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
+		if (MediaModule != nullptr)
+		{
+			MediaModule->TickPreEngine();
+		}
+	}
+#endif
 
 	// If only the DynamicLevel collection has entries, we can skip the validation and tick all levels.
 	bool bValidateLevelList = false;

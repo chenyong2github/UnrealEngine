@@ -5042,17 +5042,6 @@ void FEngineLoop::Tick()
             }
 		}
 
-#if !UE_SERVER
-		// tick media framework
-		static const FName MediaModuleName(TEXT("Media"));
-		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
-
-		if (MediaModule != nullptr)
-		{
-			MediaModule->TickPreEngine();
-		}
-#endif
-
 		// main game engine tick (world, game objects, etc.)
 		GEngine->Tick(FApp::GetDeltaTime(), bIdleMode);
 
@@ -5114,14 +5103,6 @@ void FEngineLoop::Tick()
 			FAssetCompilingManager::Get().ProcessAsyncTasks(true);
 #endif
 		}
-#if !UE_SERVER
-		// tick media framework
-		if (MediaModule != nullptr)
-		{
-			MediaModule->TickPreSlate();
-		}
-#endif
-
 		// Tick the platform and input portion of Slate application, we need to do this before we run things
 		// concurrent with networking.
 		if (FSlateApplication::IsInitialized() && !bIdleMode)
@@ -5288,6 +5269,8 @@ void FEngineLoop::Tick()
 
 #if !UE_SERVER
 		// tick media framework
+		static const FName MediaModuleName(TEXT("Media"));
+		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
 		if (MediaModule != nullptr)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_MediaTickPostRender);
