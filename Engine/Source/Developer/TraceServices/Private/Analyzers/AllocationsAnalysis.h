@@ -41,6 +41,7 @@ private:
 	FAllocationsProvider& AllocationsProvider;
 	uint64 BaseCycle;
 	uint32 MarkerPeriod;
+	uint64 LastMarkerCycle;
 	double LastMarkerSeconds;
 };
 
