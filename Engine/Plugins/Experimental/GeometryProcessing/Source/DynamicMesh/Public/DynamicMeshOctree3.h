@@ -6,6 +6,7 @@
 #include "Spatial/SparseDynamicOctree3.h"
 #include "MeshQueries.h"
 #include "DynamicMesh3.h"
+#include "Async/ParallelFor.h"
 
 
 /**
@@ -150,6 +151,36 @@ public:
 			}
 		}
 	}
+
+
+	/**
+	 * Reinsert a set of triangles into the tree. Internally precomputes which triangles need
+	 * re-inserting, which can be done in parallel and generally saves time as some triangles can be skipped.
+	 */
+	void ReinsertTrianglesParallel(const TArray<int32>& Triangles, TArray<uint32>& TempBuffer, TArray<bool>& TempFlagBuffer)
+	{
+		int32 NumTriangles = Triangles.Num();
+		TempBuffer.SetNum(NumTriangles, false);
+		TempFlagBuffer.SetNum(NumTriangles, false);
+
+		// can check which triangles need reinsertion in parallel. This will also return which
+		// CellID the triangle is in, which saves time in the Reinsert function
+		ParallelFor(NumTriangles, [&](int k)
+		{
+			FAxisAlignedBox3d Bounds = Mesh->GetTriBounds(Triangles[k]);
+			TempFlagBuffer[k] = CheckIfObjectNeedsReinsert(Triangles[k], Bounds, TempBuffer[k]);
+		});
+
+		// now reinsert all necessary triangles
+		for (int32 k = 0; k < NumTriangles; ++k)
+		{
+			if (TempFlagBuffer[k])
+			{
+				ReinsertObject(Triangles[k], Mesh->GetTriBounds(Triangles[k]), TempBuffer[k]);
+			}
+		}
+	}
+
 
 
 	/**

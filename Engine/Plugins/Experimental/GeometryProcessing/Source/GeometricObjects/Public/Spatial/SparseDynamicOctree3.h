@@ -219,9 +219,20 @@ public:
 	/**
 	 * Update the position of an object in the octree. This is more efficient than doing a remove+insert
 	 * @param ObjectID ID of the object
-	 * @param NewBounds enw bounding box of the object
+	 * @param NewBounds new bounding box of the object
+	 * @return true if object was reinserted, false if the object was fine in it's existing cell
 	 */
-	void ReinsertObject(int32 ObjectID, const FAxisAlignedBox3d& NewBounds);
+	bool ReinsertObject(int32 ObjectID, const FAxisAlignedBox3d& NewBounds, uint32 CellIDHint = InvalidCellID);
+
+	/**
+	 * Check if the object needs to be reinserted, if it has NewBounds. 
+	 * @param ObjectID ID of the object
+	 * @param NewBounds new bounding box of the object
+	 * @param CellIDOut returned CellID of the object, if it is in the tree. This can be passed to ReinsertObject() to save some computation.
+	 * @return false if ObjectID is already in the tree, and NewBounds fits within the cell that currently contains ObjectID
+	 */
+	bool CheckIfObjectNeedsReinsert(int32 ObjectID, const FAxisAlignedBox3d& NewBounds, uint32& CellIDOut) const;
+
 
 	/**
 	 * Find nearest ray-hit point with objects in tree
@@ -400,7 +411,6 @@ protected:
 	void Insert_NewRoot(int32 ObjectID, const FAxisAlignedBox3d& Bounds, FSparseOctreeCell NewRootCell);
 	void Insert_ToCell(int32 ObjectID, const FAxisAlignedBox3d& Bounds, const FSparseOctreeCell& ExistingCell);
 	void Insert_NewChildCell(int32 ObjectID, const FAxisAlignedBox3d& Bounds, int ParentCellID, FSparseOctreeCell NewChildCell, int ChildIdx);
-
 
 	double FindNearestRayCellIntersection(const FSparseOctreeCell& Cell, const FRay3d& Ray) const;
 

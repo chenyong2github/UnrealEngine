@@ -161,25 +161,63 @@ bool FSparseDynamicOctree3::RemoveObject(int32 ObjectID)
 
 
 
-
-void FSparseDynamicOctree3::ReinsertObject(int32 ObjectID, const FAxisAlignedBox3d& NewBounds)
+bool FSparseDynamicOctree3::CheckIfObjectNeedsReinsert(int32 ObjectID, const FAxisAlignedBox3d& NewBounds, uint32& CellIDOut) const
 {
+	CellIDOut = InvalidCellID;
 	if (ContainsObject(ObjectID))
 	{
-		uint32 CellID = GetCellForObject(ObjectID);
+		CellIDOut = GetCellForObject(ObjectID);
+		if (CellIDOut != SpillCellID && CellIDOut != InvalidCellID)
+		{
+			const FSparseOctreeCell& CurrentCell = Cells[CellIDOut];
+			if (CanFit(CurrentCell, NewBounds))
+			{
+				return false;		// everything is fine
+			}
+
+		}
+	}
+	return true;
+}
+
+
+bool FSparseDynamicOctree3::ReinsertObject(int32 ObjectID, const FAxisAlignedBox3d& NewBounds, uint32 CellIDHint)
+{
+	uint32 CellID = CellIDHint;
+
+	// check if this object still fits in current cell. If so, we can ignore it
+	if ( CellID == InvalidCellID && ContainsObject(ObjectID) )
+	{
+		CellID = GetCellForObject(ObjectID);
 		if (CellID != SpillCellID && CellID != InvalidCellID)
 		{
 			FSparseOctreeCell& CurrentCell = Cells[CellID];
 			if (CanFit(CurrentCell, NewBounds))
 			{
-				return;		// everything is fine
+				return false;		// everything is fine
 			}
-
 		}
 	}
 
-	RemoveObject(ObjectID);
+	// remove object
+	if (CellID != InvalidCellID)
+	{
+		if (CellID == SpillCellID)
+		{
+			SpillObjectSet.Remove(ObjectID);
+		}
+		else
+		{
+			ObjectIDToCellMap[ObjectID] = InvalidCellID;
+			CellObjectLists.Remove(CellID, ObjectID);
+		}
+		ValidObjectIDs.Set(ObjectID, false);
+	}
+
+	// reinsert
 	InsertObject(ObjectID, NewBounds);
+
+	return true;
 }
 
 
