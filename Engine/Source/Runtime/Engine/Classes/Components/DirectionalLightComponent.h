@@ -127,20 +127,20 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	 * Angle subtended by light source in degrees (also known as angular diameter).
 	 * Defaults to 0.5357 which is the angle for our sun.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "0", UIMax = "5"), DisplayName = "Source Angle")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Light, meta=(UIMin = "0", UIMax = "5"), DisplayName = "Source Angle")
 	float LightSourceAngle;
 
 	/** 
 	 * Angle subtended by soft light source in degrees.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "0", UIMax = "5"), DisplayName = "Source Soft Angle")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Light, meta=(UIMin = "0", UIMax = "5"), DisplayName = "Source Soft Angle")
 	float LightSourceSoftAngle;
 
 	/**
 	 * Shadow source angle factor, relative to the light source angle.
 	 * Defaults to 1.0 to coincide with light source angle.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = RayTracing, meta = (UIMin = "0", UIMax = "5"), DisplayName = "Shadow Source Angle Factor")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = RayTracing, meta = (UIMin = "0", UIMax = "5"), DisplayName = "Shadow Source Angle Factor")
 	float ShadowSourceAngleFactor;
 
 	/** Determines how far shadows can be cast, in world units.  Larger values increase the shadowing cost. */
