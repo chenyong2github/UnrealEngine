@@ -41,8 +41,8 @@ public:
 	
 	/** Animation Toolbar Extender*/
 	TSharedRef<FExtender> GetAnimationEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationEditor> InAnimationEditor);
-	void HandleAddControlRigExtenderToToolbar(FToolBarBuilder& ParentToolbarBuilder, TSharedRef<IAnimationEditor> InAnimationEditor);
-	TSharedRef< SWidget > GenerateAnimationMenu(TSharedRef<IAnimationEditor> InAnimationEditor) ;
+	void HandleAddControlRigExtenderToToolbar(FToolBarBuilder& ParentToolbarBuilder, TWeakPtr<IAnimationEditor> InAnimationEditor);
+	TSharedRef< SWidget > GenerateAnimationMenu(TWeakPtr<IAnimationEditor> InAnimationEditor);
 	void ToggleIsDrivenByLevelSequence(UAnimSequence* AnimSequence)const;
 	bool IsDrivenByLevelSequence(UAnimSequence* AnimSequence)const;
 	void EditWithFKControlRig(UAnimSequence* AnimSequence, USkeletalMesh* SkelMesh, USkeleton* InSkeleton);
