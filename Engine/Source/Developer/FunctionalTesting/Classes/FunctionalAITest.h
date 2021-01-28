@@ -52,6 +52,8 @@ struct FUNCTIONALTESTING_API FAITestSpawnInfoBase
 		, PreSpawnDelay(0.0f)
 	{}
 
+	virtual ~FAITestSpawnInfoBase() = default;
+
 	virtual bool IsValid() const { return SpawnLocation != NULL; }
 
 	virtual bool Spawn(AFunctionalAITestBase* AITest) const PURE_VIRTUAL(, return false;);
