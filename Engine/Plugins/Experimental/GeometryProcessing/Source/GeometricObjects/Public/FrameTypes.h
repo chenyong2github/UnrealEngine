@@ -319,7 +319,15 @@ struct TFrame3
 	 */
 	void Rotate(const TQuaternion<RealType>& Quat)
 	{
-		Rotation = Quat * Rotation;
+		TQuaternion<RealType> NewRotation = Quat * Rotation;
+		if (NewRotation.Normalize() > 0 )
+		{
+			Rotation = NewRotation;
+		}
+		else
+		{
+			checkSlow(false);
+		}
 	}
 
 
@@ -329,7 +337,7 @@ struct TFrame3
 	void Transform(const FTransform& XForm)
 	{
 		Origin = FVector3<RealType>(XForm.TransformPosition((FVector)Origin));
-		Rotation = TQuaternion<RealType>(XForm.GetRotation()) * Rotation;
+		Rotate(TQuaternion<RealType>(XForm.GetRotation()));
 	}
 
 
@@ -339,7 +347,7 @@ struct TFrame3
 	void Transform(const TTransform3<RealType>& XForm)
 	{
 		Origin = XForm.TransformPosition(Origin);
-		Rotation = XForm.GetRotation() * Rotation;
+		Rotate(XForm.GetRotation());
 	}
 
 
