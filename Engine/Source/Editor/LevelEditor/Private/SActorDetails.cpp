@@ -99,6 +99,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bUpdatesFromSelection = true;
 	DetailsViewArgs.bLockable = true;
+	DetailsViewArgs.bAllowFavoriteSystem = true;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ComponentsAndActorsUseNameArea;
 	DetailsViewArgs.NotifyHook = GUnrealEd;
 	DetailsViewArgs.ViewIdentifier = TabIdentifier;

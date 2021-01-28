@@ -120,7 +120,7 @@ public:
 		, bShowDifferingPropertiesOption(false)
 		, bCustomNameAreaLocation(false)
 		, bCustomFilterAreaLocation(false)
-		, bAllowFavoriteSystem(true)	
+		, bAllowFavoriteSystem(false)	
 		, bAllowMultipleTopLevelObjects(false)
 		, bShowScrollBar(true)
 		, bForceHiddenPropertyVisibility(false)
