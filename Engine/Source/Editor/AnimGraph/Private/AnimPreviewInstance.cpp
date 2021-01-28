@@ -124,21 +124,24 @@ void FAnimPreviewInstanceProxy::Update(float DeltaSeconds)
 	}
 #endif // #if WITH_EDITORONLY_DATA
 
+	FAnimSingleNodeInstanceProxy::Update(DeltaSeconds);
+}
+
+void FAnimPreviewInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
+{
 	if (CopyPoseNode.SourceMeshComponent.IsValid())
 	{
-		FAnimationUpdateContext UpdateContext(this, DeltaSeconds);
-		CopyPoseNode.Update_AnyThread(UpdateContext);
+		CopyPoseNode.Update_AnyThread(InContext);
 	}
 	else if (UPoseAsset* PoseAsset = Cast<UPoseAsset>(CurrentAsset))
 	{
 		PoseBlendNode.PoseAsset = PoseAsset;
 
-		FAnimationUpdateContext UpdateContext(this, DeltaSeconds);
-		PoseBlendNode.Update_AnyThread(UpdateContext);
+		PoseBlendNode.Update_AnyThread(InContext);
 	}
 	else
 	{
-		FAnimSingleNodeInstanceProxy::Update(DeltaSeconds);
+		FAnimSingleNodeInstanceProxy::UpdateAnimationNode(InContext);
 	}
 }
 
