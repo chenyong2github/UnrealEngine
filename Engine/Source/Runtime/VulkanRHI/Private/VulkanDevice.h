@@ -52,6 +52,13 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasAtomicInt64 : 1;
 			uint32 HasBufferAtomicInt64 : 1;
 			uint32 HasScalarBlockLayoutFeatures : 1;
+			uint32 HasAccelerationStructure : 1;
+			uint32 HasRayTracingPipeline : 1;
+			uint32 HasDescriptorIndexing : 1;
+			uint32 HasBufferDeviceAddress : 1;
+			uint32 HasDeferredHostOperations : 1;
+			uint32 HasSPIRV_14 : 1;
+			uint32 HasShaderFloatControls : 1;
 		};
 		uint32 Packed;
 	};
@@ -68,7 +75,46 @@ struct FOptionalVulkanDeviceExtensions
 	{
 		return HasAMDBufferMarker || HasNVDiagnosticCheckpoints;
 	}
+
+#if VULKAN_RHI_RAYTRACING
+	inline bool HasRaytracingExtensions() const
+	{
+		return 
+			HasAccelerationStructure && 
+			HasRayTracingPipeline && 
+			HasDescriptorIndexing && 
+			HasBufferDeviceAddress && 
+			HasDeferredHostOperations && 
+			HasSPIRV_14 && 
+			HasShaderFloatControls;
+	}
+#endif
 };
+
+struct FOptionalVulkanDeviceFeatures
+{
+#if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS
+	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR SeparateDepthStencilLayoutsFeatures;
+#endif
+#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
+	VkPhysicalDeviceScalarBlockLayoutFeaturesEXT ScalarBlockLayoutFeatures;
+#endif
+#if VULKAN_RHI_RAYTRACING
+	VkPhysicalDeviceBufferDeviceAddressFeaturesKHR BufferDeviceAddressFeatures;
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR AccelerationStructureFeatures;
+	VkPhysicalDeviceRayTracingPipelineFeaturesKHR RayTracingPipelineFeatures;
+	VkPhysicalDeviceDescriptorIndexingFeaturesEXT DescriptorIndexingFeatures;
+#endif
+};
+
+#if VULKAN_RHI_RAYTRACING
+struct FRayTracingProperties
+{
+	VkPhysicalDeviceAccelerationStructurePropertiesKHR AccelerationStructure;
+	VkPhysicalDeviceRayTracingPipelinePropertiesKHR RayTracingPipeline;
+};
+#endif // VULKAN_RHI_RAYTRACING
+
 namespace VulkanRHI
 {
 	class FDeferredDeletionQueue2 : public FDeviceChild
@@ -223,7 +269,15 @@ public:
 		check(RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2);
 		return GpuIdProps;
 	}
-#endif
+
+#if VULKAN_RHI_RAYTRACING
+	inline const FRayTracingProperties& GetRayTracingProperties() const
+	{
+		check(OptionalDeviceExtensions.HasRaytracingExtensions());
+		return RayTracingProperties;
+	}
+#endif // VULKAN_RHI_RAYTRACING
+#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 #if VULKAN_SUPPORTS_VALIDATION_CACHE
 	inline VkValidationCacheEXT GetValidationCache() const
@@ -394,6 +448,11 @@ public:
 		return OptionalDeviceExtensions;
 	}
 
+	inline FOptionalVulkanDeviceFeatures& GetOptionalFeatures()
+	{
+		return OptionalFeatures;
+	}
+
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 	VkBuffer GetCrashMarkerBuffer() const
 	{
@@ -455,9 +514,15 @@ private:
 	VkPhysicalDeviceProperties GpuProps;
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
-#endif
+
+#if VULKAN_RHI_RAYTRACING
+	FRayTracingProperties RayTracingProperties;
+#endif // VULKAN_RHI_RAYTRACING
+#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 	VkPhysicalDeviceFeatures PhysicalFeatures;
+	FOptionalVulkanDeviceFeatures OptionalFeatures;
+
 	bool bHasSeparateDepthStencilLayouts = false;
 
 	TArray<VkQueueFamilyProperties> QueueFamilyProps;

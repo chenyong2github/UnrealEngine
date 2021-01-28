@@ -19,6 +19,8 @@
 
 #define	UE_VK_API_VERSION							VK_API_VERSION_1_1
 
+//#define VULKAN_RHI_RAYTRACING (RHI_RAYTRACING)
+#define VULKAN_RHI_RAYTRACING 0 // Disabled while under development
 
 // 32-bit windows has warnings on custom mem mgr callbacks
 #define VULKAN_SHOULD_USE_LLM					(UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT) && !PLATFORM_32BITS
@@ -67,6 +69,8 @@ public:
 		static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Vulkan.UseRealUBs"));
 		return (CVar && CVar->GetValueOnAnyThread() == 0) ? false : bCodeHeaderUseRealUBs;
 	}
+
+	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device);
 };
 
 typedef FVulkanWindowsPlatform FVulkanPlatform;

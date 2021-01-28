@@ -152,9 +152,9 @@ bool FVulkanLuminPlatform::ForceEnableDebugMarkers()
 	return GFoundTegraGfxDebugger;
 }
 
-void FVulkanLuminPlatform::EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo)
+void FVulkanLuminPlatform::EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device)
 {
-	SamplerConversion.pNext = nullptr;
+	SamplerConversion.pNext = const_cast<void*>(DeviceInfo.pNext);
 	SamplerConversion.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES;
 	SamplerConversion.samplerYcbcrConversion = VK_TRUE;
 	DeviceInfo.pNext = &SamplerConversion;

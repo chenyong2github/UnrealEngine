@@ -185,6 +185,17 @@ struct FWrapLayer
 	static void CreateSamplerYcbcrConversionKHR(VkResult Result, VkDevice device, const VkSamplerYcbcrConversionCreateInfo* pCreateInfo, VkSamplerYcbcrConversion* YcbcrConversion) VULKAN_LAYER_BODY
 	static void DestroySamplerYcbcrConversionKHR(VkResult Result, VkDevice device, VkSamplerYcbcrConversion ycbcrConversion) VULKAN_LAYER_BODY
 #endif
+#if VULKAN_RHI_RAYTRACING
+	static void CreateAccelerationStructureKHR(VkResult Result, VkDevice Device, const VkAccelerationStructureCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkAccelerationStructureKHR* AccelerationStructure);
+	static void DestroyAccelerationStructureKHR(VkResult Result, VkDevice Device, VkAccelerationStructureKHR AccelerationStructure, const VkAllocationCallbacks* Allocator);
+	static void CmdBuildAccelerationStructuresKHR(VkResult Result, VkCommandBuffer CommandBuffer, uint32 InfoCount, const VkAccelerationStructureBuildGeometryInfoKHR* Infos, const VkAccelerationStructureBuildRangeInfoKHR* const* BuildRangeInfos);
+	static void GetAccelerationStructureBuildSizesKHR(VkResult Result, VkDevice Device, VkAccelerationStructureBuildTypeKHR BuildType, const VkAccelerationStructureBuildGeometryInfoKHR* BuildInfo, const uint32* MaxPrimitiveCounts, VkAccelerationStructureBuildSizesInfoKHR* SizeInfo);
+	static void GetAccelerationStructureDeviceAddressKHR(VkResult Result, VkDevice Device, const VkAccelerationStructureDeviceAddressInfoKHR* Info);
+	static void CmdTraceRaysKHR(VkResult Result, VkCommandBuffer CommandBuffer, const VkStridedDeviceAddressRegionKHR* RaygenShaderBindingTable, const VkStridedDeviceAddressRegionKHR* MissShaderBindingTable, const VkStridedDeviceAddressRegionKHR* HitShaderBindingTable, const VkStridedDeviceAddressRegionKHR* CallableShaderBindingTable, uint32 width, uint32 height, uint32 depth);
+	static void CreateRayTracingPipelinesKHR(VkResult Result, VkDevice Device, VkDeferredOperationKHR DeferredOperation, VkPipelineCache PipelineCache, uint32_t CreateInfoCount, const VkRayTracingPipelineCreateInfoKHR* CreateInfos, const VkAllocationCallbacks* Allocator, VkPipeline* Pipelines);
+	static void GetRayTracingShaderGroupHandlesKHR(VkResult Result, VkDevice Device, VkPipeline Pipeline, uint32_t FirstGroup, uint32_t GroupCount, size_t DataSize, void* Data);
+	static void GetBufferDeviceAddressKHR(VkResult Result, VkDevice Device, const VkBufferDeviceAddressInfo* Info);
+#endif
 };
 
 #undef VULKAN_LAYER_BODY
@@ -1369,6 +1380,75 @@ namespace VulkanRHI
 		FWrapLayer::DestroySamplerYcbcrConversionKHR(VK_RESULT_MAX_ENUM, Device, YcbcrConversion);
 		VULKANAPINAMESPACE::vkDestroySamplerYcbcrConversionKHR(Device, YcbcrConversion, Allocator);
 		FWrapLayer::DestroySamplerYcbcrConversionKHR(VK_SUCCESS, Device, YcbcrConversion);
+	}
+#endif
+
+#if VULKAN_RHI_RAYTRACING
+	static FORCEINLINE_DEBUGGABLE VkResult vkCreateAccelerationStructureKHR(VkDevice Device, const VkAccelerationStructureCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkAccelerationStructureKHR* AccelerationStructure)
+	{
+		FWrapLayer::CreateAccelerationStructureKHR(VK_RESULT_MAX_ENUM, Device, CreateInfo, Allocator, AccelerationStructure);
+		const VkResult Result = VULKANAPINAMESPACE::vkCreateAccelerationStructureKHR(Device, CreateInfo, Allocator, AccelerationStructure);
+		FWrapLayer::CreateAccelerationStructureKHR(Result, Device, CreateInfo, Allocator, AccelerationStructure);
+		return Result;
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkDestroyAccelerationStructureKHR(VkDevice Device, VkAccelerationStructureKHR AccelerationStructure, const VkAllocationCallbacks* Allocator)
+	{
+		FWrapLayer::DestroyAccelerationStructureKHR(VK_RESULT_MAX_ENUM, Device, AccelerationStructure, Allocator);
+		VULKANAPINAMESPACE::vkDestroyAccelerationStructureKHR(Device, AccelerationStructure, Allocator);
+		FWrapLayer::DestroyAccelerationStructureKHR(VK_SUCCESS, Device, AccelerationStructure, Allocator);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkCmdBuildAccelerationStructuresKHR(VkCommandBuffer CommandBuffer, uint32 InfoCount, const VkAccelerationStructureBuildGeometryInfoKHR* Infos, const VkAccelerationStructureBuildRangeInfoKHR* const* BuildRangeInfos)
+	{
+		FWrapLayer::CmdBuildAccelerationStructuresKHR(VK_RESULT_MAX_ENUM, CommandBuffer, InfoCount, Infos, BuildRangeInfos);
+		VULKANAPINAMESPACE::vkCmdBuildAccelerationStructuresKHR(CommandBuffer, InfoCount, Infos, BuildRangeInfos);
+		FWrapLayer::CmdBuildAccelerationStructuresKHR(VK_SUCCESS, CommandBuffer, InfoCount, Infos, BuildRangeInfos);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkGetAccelerationStructureBuildSizesKHR(VkDevice Device, VkAccelerationStructureBuildTypeKHR BuildType, const VkAccelerationStructureBuildGeometryInfoKHR* BuildInfo, const uint32* MaxPrimitiveCounts, VkAccelerationStructureBuildSizesInfoKHR* SizeInfo)
+	{
+		FWrapLayer::GetAccelerationStructureBuildSizesKHR(VK_RESULT_MAX_ENUM, Device, BuildType, BuildInfo, MaxPrimitiveCounts, SizeInfo);
+		VULKANAPINAMESPACE::vkGetAccelerationStructureBuildSizesKHR(Device, BuildType, BuildInfo, MaxPrimitiveCounts, SizeInfo);
+		FWrapLayer::GetAccelerationStructureBuildSizesKHR(VK_SUCCESS, Device, BuildType, BuildInfo, MaxPrimitiveCounts, SizeInfo);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkGetAccelerationStructureDeviceAddressKHR(VkDevice Device, const VkAccelerationStructureDeviceAddressInfoKHR* Info)
+	{
+		FWrapLayer::GetAccelerationStructureDeviceAddressKHR(VK_RESULT_MAX_ENUM, Device, Info);
+		VULKANAPINAMESPACE::vkGetAccelerationStructureDeviceAddressKHR(Device, Info);
+		FWrapLayer::GetAccelerationStructureDeviceAddressKHR(VK_SUCCESS, Device, Info);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkCmdTraceRaysKHR(VkCommandBuffer CommandBuffer, const VkStridedDeviceAddressRegionKHR* RaygenShaderBindingTable, const VkStridedDeviceAddressRegionKHR* MissShaderBindingTable, const VkStridedDeviceAddressRegionKHR* HitShaderBindingTable, const VkStridedDeviceAddressRegionKHR* CallableShaderBindingTable, uint32 width, uint32 height, uint32 depth)
+	{
+		FWrapLayer::CmdTraceRaysKHR(VK_RESULT_MAX_ENUM, CommandBuffer, RaygenShaderBindingTable, MissShaderBindingTable, HitShaderBindingTable, CallableShaderBindingTable, width, height, depth);
+		VULKANAPINAMESPACE::vkCmdTraceRaysKHR(CommandBuffer, RaygenShaderBindingTable, MissShaderBindingTable, HitShaderBindingTable, CallableShaderBindingTable, width, height, depth);
+		FWrapLayer::CmdTraceRaysKHR(VK_SUCCESS, CommandBuffer, RaygenShaderBindingTable, MissShaderBindingTable, HitShaderBindingTable, CallableShaderBindingTable, width, height, depth);
+	}
+
+	static FORCEINLINE_DEBUGGABLE VkResult vkCreateRayTracingPipelinesKHR(VkDevice Device, VkDeferredOperationKHR DeferredOperation, VkPipelineCache PipelineCache, uint32_t CreateInfoCount, const VkRayTracingPipelineCreateInfoKHR* CreateInfos, const VkAllocationCallbacks* Allocator, VkPipeline* Pipelines)
+	{
+		FWrapLayer::CreateRayTracingPipelinesKHR(VK_RESULT_MAX_ENUM, Device, DeferredOperation, PipelineCache, CreateInfoCount, CreateInfos, Allocator, Pipelines);
+		const VkResult Result = VULKANAPINAMESPACE::vkCreateRayTracingPipelinesKHR(Device, DeferredOperation, PipelineCache, CreateInfoCount, CreateInfos, Allocator, Pipelines);
+		FWrapLayer::CreateRayTracingPipelinesKHR(Result, Device, DeferredOperation, PipelineCache, CreateInfoCount, CreateInfos, Allocator, Pipelines);
+		return Result;
+	}
+
+	static FORCEINLINE_DEBUGGABLE VkResult vkGetRayTracingShaderGroupHandlesKHR(VkDevice Device, VkPipeline Pipeline, uint32_t FirstGroup, uint32_t GroupCount, size_t DataSize, void* Data)
+	{
+		FWrapLayer::GetRayTracingShaderGroupHandlesKHR(VK_RESULT_MAX_ENUM, Device, Pipeline, FirstGroup, GroupCount, DataSize, Data);
+		const VkResult Result = VULKANAPINAMESPACE::vkGetRayTracingShaderGroupHandlesKHR(Device, Pipeline, FirstGroup, GroupCount, DataSize, Data);
+		FWrapLayer::GetRayTracingShaderGroupHandlesKHR(Result, Device, Pipeline, FirstGroup, GroupCount, DataSize, Data);
+		return Result;
+	}
+
+	static FORCEINLINE_DEBUGGABLE VkDeviceAddress vkGetBufferDeviceAddressKHR(VkDevice Device, const VkBufferDeviceAddressInfo* Info)
+	{
+		FWrapLayer::GetBufferDeviceAddressKHR(VK_RESULT_MAX_ENUM, Device, Info);
+		const VkDeviceAddress Result = VULKANAPINAMESPACE::vkGetBufferDeviceAddressKHR(Device, Info);
+		FWrapLayer::GetBufferDeviceAddressKHR(VK_SUCCESS, Device, Info);
+		return Result;
 	}
 #endif
 

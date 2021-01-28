@@ -15,7 +15,7 @@
 #define VULKAN_SUPPORTS_DEDICATED_ALLOCATION			0
 #define VULKAN_SUPPORTS_GPU_CRASH_DUMPS					1
 #define VULKAN_SUPPORTS_ASTC_DECODE_MODE				1
-
+#define VULKAN_RHI_RAYTRACING						0
 
 #define ENUM_VK_ENTRYPOINTS_PLATFORM_BASE(EnumMacro)
 
@@ -63,7 +63,7 @@ public:
 
 	static bool HasUnifiedMemory() { return true; }
 
-	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo);
+	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device);
 
 	static bool RequiresWaitingForFrameCompletionEvent() { return false; }
 

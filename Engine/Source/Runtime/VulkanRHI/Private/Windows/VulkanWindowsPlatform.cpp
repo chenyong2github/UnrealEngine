@@ -137,6 +137,14 @@ bool FVulkanWindowsPlatform::LoadVulkanInstanceFunctions(VkInstance inInstance)
 	ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(CHECK_VK_ENTRYPOINTS);
 #endif
 
+#if VULKAN_RHI_RAYTRACING
+	const bool bFoundRayTracingEntries = FVulkanRayTracingPlatform::LoadVulkanInstanceFunctions(inInstance);
+	if (!bFoundRayTracingEntries)
+	{
+		UE_LOG(LogVulkanRHI, Warning, TEXT("Vulkan RHI ray tracing is enabled, but failed to load instance functions."));
+	}
+#endif
+	
 	ENUM_VK_ENTRYPOINTS_PLATFORM_INSTANCE(GETINSTANCE_VK_ENTRYPOINTS);
 	ENUM_VK_ENTRYPOINTS_PLATFORM_INSTANCE(CHECK_VK_ENTRYPOINTS);
 #undef GET_VK_ENTRYPOINTS
@@ -210,6 +218,10 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 #if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
 	// Fullscreen requires Instance capabilities2
 	OutExtensions.Add(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
+#endif
+
+#if VULKAN_RHI_RAYTRACING
+	FVulkanRayTracingPlatform::GetDeviceExtensions(VendorId, OutExtensions);
 #endif
 }
 
@@ -369,4 +381,11 @@ void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId 
 			}
 		}
 	}
+}
+
+void FVulkanWindowsPlatform::EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device)
+{
+#if VULKAN_RHI_RAYTRACING
+	FVulkanRayTracingPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo, Device);
+#endif
 }

@@ -318,7 +318,7 @@ void FVulkanDevice::CreateDevice()
 	FVulkanPlatform::RestrictEnabledPhysicalDeviceFeatures(PhysicalFeatures);
 	DeviceInfo.pEnabledFeatures = &PhysicalFeatures;
 
-	FVulkanPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo);
+	FVulkanPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo, *this);
 
 #if VULKAN_SUPPORTS_NV_DIAGNOSTICS
 	VkPhysicalDeviceDiagnosticsConfigFeaturesNV DeviceDiagnosticsNV;
@@ -355,24 +355,22 @@ void FVulkanDevice::CreateDevice()
 #endif
 
 #if VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS
-	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR SeparateDepthStencilLayoutsFeatures;
 	if (bHasSeparateDepthStencilLayouts)
 	{
-		ZeroVulkanStruct(SeparateDepthStencilLayoutsFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR);
-		SeparateDepthStencilLayoutsFeatures.separateDepthStencilLayouts = VK_TRUE;
-		SeparateDepthStencilLayoutsFeatures.pNext = const_cast<void*>(DeviceInfo.pNext);
-		DeviceInfo.pNext = &SeparateDepthStencilLayoutsFeatures;
+		ZeroVulkanStruct(OptionalFeatures.SeparateDepthStencilLayoutsFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR);
+		OptionalFeatures.SeparateDepthStencilLayoutsFeatures.separateDepthStencilLayouts = VK_TRUE;
+		OptionalFeatures.SeparateDepthStencilLayoutsFeatures.pNext = const_cast<void*>(DeviceInfo.pNext);
+		DeviceInfo.pNext = &OptionalFeatures.SeparateDepthStencilLayoutsFeatures;
 	}
 #endif
 
 #if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
-	VkPhysicalDeviceScalarBlockLayoutFeaturesEXT ScalarBlockLayoutFeatures;
 	if (OptionalDeviceExtensions.HasScalarBlockLayoutFeatures)
 	{
-		ZeroVulkanStruct(ScalarBlockLayoutFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT);
-		ScalarBlockLayoutFeatures.scalarBlockLayout = VK_TRUE;
-		ScalarBlockLayoutFeatures.pNext = (void*)DeviceInfo.pNext;
-		DeviceInfo.pNext = &ScalarBlockLayoutFeatures;
+		ZeroVulkanStruct(OptionalFeatures.ScalarBlockLayoutFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT);
+		OptionalFeatures.ScalarBlockLayoutFeatures.scalarBlockLayout = VK_TRUE;
+		OptionalFeatures.ScalarBlockLayoutFeatures.pNext = (void*)DeviceInfo.pNext;
+		DeviceInfo.pNext = &OptionalFeatures.ScalarBlockLayoutFeatures;
 	}
 #endif
 
@@ -848,14 +846,22 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 		GpuProps2.pNext = &GpuIdProps;
 		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
 
-		void** NextPropsAddr = nullptr;
-		NextPropsAddr = &GpuIdProps.pNext;
-
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 		if (GetOptionalExtensions().HasDriverProperties)
 		{
-			*NextPropsAddr = &PhysicalDeviceProperties;
-			NextPropsAddr = &PhysicalDeviceProperties.pNext;
+			PhysicalDeviceProperties.pNext = GpuProps2.pNext;
+			GpuProps2.pNext = &PhysicalDeviceProperties;
+		}
+#endif
+
+#if VULKAN_RHI_RAYTRACING
+		if (OptionalDeviceExtensions.HasRaytracingExtensions())
+		{
+			ZeroVulkanStruct(RayTracingProperties.AccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR);
+			ZeroVulkanStruct(RayTracingProperties.RayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR);
+			RayTracingProperties.RayTracingPipeline.pNext = GpuProps2.pNext;
+			RayTracingProperties.AccelerationStructure.pNext = &RayTracingProperties.RayTracingPipeline;
+			GpuProps2.pNext = &RayTracingProperties.AccelerationStructure;
 		}
 #endif
 
@@ -873,7 +879,7 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 #endif
 
 	}
-#endif
+#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 	VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
 	bool bDiscrete = false;

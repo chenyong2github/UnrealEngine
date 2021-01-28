@@ -99,7 +99,7 @@ public:
 	static bool SupportsVolumeTextureRendering() { return true; }
 
 	// Allow platforms to add extension features to the DeviceInfo pNext chain
-	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo) {}
+	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device) {}
 
 	static bool RequiresSwapchainGeneralInitialLayout() { return false; }
 

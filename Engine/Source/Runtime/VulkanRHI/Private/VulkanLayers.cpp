@@ -849,6 +849,16 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 #if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
 	HasScalarBlockLayoutFeatures = HasExtension(DeviceExtensions, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME);
 #endif
+
+#if VULKAN_RHI_RAYTRACING
+	HasAccelerationStructure	= HasExtension(DeviceExtensions, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+	HasRayTracingPipeline		= HasExtension(DeviceExtensions, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+	HasDescriptorIndexing		= HasExtension(DeviceExtensions, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+	HasBufferDeviceAddress		= HasExtension(DeviceExtensions, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+	HasDeferredHostOperations	= HasExtension(DeviceExtensions, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+	HasSPIRV_14					= HasExtension(DeviceExtensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+	HasShaderFloatControls		= HasExtension(DeviceExtensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+#endif
 }
 
 void FVulkanDynamicRHI::SetupValidationRequests()
