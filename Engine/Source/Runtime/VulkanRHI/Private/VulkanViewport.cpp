@@ -65,7 +65,7 @@ void FVulkanBackBuffer::OnAdvanceBackBufferFrame(FRHICommandListImmediate& RHICm
 
 void FVulkanBackBuffer::OnLayoutTransition(FVulkanCommandListContext& Context, VkImageLayout NewLayout)
 {
-	if (NewLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && GVulkanDelayAcquireImage == EDelayAcquireImageType::LazyAcquire)
+	if (GVulkanDelayAcquireImage == EDelayAcquireImageType::LazyAcquire)
 	{
 		AcquireBackBufferImage(Context);
 	}
