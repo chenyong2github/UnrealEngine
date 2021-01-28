@@ -433,6 +433,8 @@ public:
 	 */
 	void FastUpdateVertices(const TArray<int32>& WhichBuffers, bool bPositions, bool bNormals, bool bColors, bool bUVs)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshProxy_FastUpdateVertices);
+
 		// skip if we have no updates
 		if (bPositions == false && bNormals == false && bColors == false && bUVs == false)
 		{

@@ -8,6 +8,7 @@
 #include "Drawing/MeshRenderDecomposition.h"
 #include "MeshTangents.h"
 #include "TransformTypes.h"
+#include "Async/Future.h"
 
 #include "SimpleDynamicMeshComponent.generated.h"
 
@@ -187,6 +188,26 @@ public:
 	 * If a FMeshRenderDecomposition has not been explicitly set, call is forwarded to FastNotifyVertexAttributesUpdated()
 	 */
 	void FastNotifyTriangleVerticesUpdated(const TSet<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes);
+
+
+	/**
+	 * If a Decomposition is set on this Component, and everything is currently valid (proxy/etc), precompute the set of
+	 * buffers that will be modified, as well as the bounds of the modified region. These are both computed in parallel.
+	 * @return a future that will (eventually) return true if the precompute is OK, and (immediately) false if it is not
+	 */
+	TFuture<bool> FastNotifyTriangleVerticesUpdated_TryPrecompute(const TArray<int32>& Triangles, TArray<int32>& UpdateSetsOut, FAxisAlignedBox3d& BoundsOut);
+
+
+	/**
+	 * This function updates vertex positions/attributes of existing SceneProxy render buffers if possible, for the given triangles.
+	 * The assumption is that FastNotifyTriangleVerticesUpdated_TryPrecompute() was used to get the Precompute future, this function
+	 * will Wait() until it is done and then use the UpdateSets and UpdateSetBounds that were computed (must be the same variables
+	 * passed to FastNotifyTriangleVerticesUpdated_TryPrecompute). 
+	 * If the Precompute future returns false, then we forward the call to FastNotifyTriangleVerticesUpdated(), which will do more work.
+	 */
+	void FastNotifyTriangleVerticesUpdated_ApplyPrecompute(const TArray<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes,
+		TFuture<bool>& Precompute, const TArray<int32>& UpdateSets, const FAxisAlignedBox3d& UpdateSetBounds);
+
 
 
 	/** If false, we don't completely invalidate the RenderProxy when ApplyChange() is called (assumption is it will be handled elsewhere) */
