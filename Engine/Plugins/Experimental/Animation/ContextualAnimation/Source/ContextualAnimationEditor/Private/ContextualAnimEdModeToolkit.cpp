@@ -6,6 +6,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "EditorModeManager.h"
+#include "Modules/ModuleManager.h"
 #include "ContextualAnimEdModeSettings.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimEdModeToolkit"
