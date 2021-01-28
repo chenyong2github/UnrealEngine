@@ -40,7 +40,7 @@ void FNewLandscapeUtils::ImportLandscapeData( ULandscapeEditorObject* UISettings
 	{
 		FLandscapeImportDescriptor OutImportDescriptor;
 		UISettings->ImportLandscape_HeightmapImportResult =
-			FLandscapeImportHelper::GetHeightmapImportDescriptor(UISettings->ImportLandscape_HeightmapFilename, UISettings->UseSingleFileImport(), OutImportDescriptor, UISettings->ImportLandscape_HeightmapErrorMessage);
+			FLandscapeImportHelper::GetHeightmapImportDescriptor(UISettings->ImportLandscape_HeightmapFilename, UISettings->UseSingleFileImport(), UISettings->bFlipYAxis, OutImportDescriptor, UISettings->ImportLandscape_HeightmapErrorMessage);
 
 		if (UISettings->ImportLandscape_HeightmapImportResult != ELandscapeImportResult::Error)
 		{

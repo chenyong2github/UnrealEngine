@@ -567,7 +567,7 @@ void ULandscapeEditorObject::RefreshImports()
 	if (!ImportLandscape_HeightmapFilename.IsEmpty())
 	{
 		ImportLandscape_HeightmapImportResult =
-			FLandscapeImportHelper::GetHeightmapImportDescriptor(ImportLandscape_HeightmapFilename, UseSingleFileImport(), HeightmapImportDescriptor, ImportLandscape_HeightmapErrorMessage);
+			FLandscapeImportHelper::GetHeightmapImportDescriptor(ImportLandscape_HeightmapFilename, UseSingleFileImport(), bFlipYAxis, HeightmapImportDescriptor, ImportLandscape_HeightmapErrorMessage);
 		if (ImportLandscape_HeightmapImportResult != ELandscapeImportResult::Error)
 		{
 			ImportLandscape_Width = HeightmapImportDescriptor.ImportResolutions[HeightmapImportDescriptorIndex].Width;
@@ -597,7 +597,7 @@ void ULandscapeEditorObject::RefreshLayerImports()
 
 		if (UIImportLayer.LayerInfo != nullptr && !UIImportLayer.SourceFilePath.IsEmpty())
 		{
-			UIImportLayer.ImportResult = FLandscapeImportHelper::GetWeightmapImportDescriptor(UIImportLayer.SourceFilePath, UseSingleFileImport(), UIImportLayer.LayerName, UIImportLayer.ImportDescriptor, UIImportLayer.ErrorMessage);
+			UIImportLayer.ImportResult = FLandscapeImportHelper::GetWeightmapImportDescriptor(UIImportLayer.SourceFilePath, UseSingleFileImport(), bFlipYAxis, UIImportLayer.LayerName, UIImportLayer.ImportDescriptor, UIImportLayer.ErrorMessage);
 			if (UIImportLayer.ImportResult == ELandscapeImportResult::Error)
 			{
 				continue;
@@ -677,7 +677,7 @@ ELandscapeImportResult ULandscapeEditorObject::CreateImportLayersInfo(TArray<FLa
 
 		if (ImportLayer.LayerInfo != nullptr && !ImportLayer.SourceFilePath.IsEmpty())
 		{
-			UIImportLayer.ImportResult = FLandscapeImportHelper::GetWeightmapImportDescriptor(ImportLayer.SourceFilePath, UseSingleFileImport(), ImportLayer.LayerName, UIImportLayer.ImportDescriptor, UIImportLayer.ErrorMessage);
+			UIImportLayer.ImportResult = FLandscapeImportHelper::GetWeightmapImportDescriptor(ImportLayer.SourceFilePath, UseSingleFileImport(), bFlipYAxis, ImportLayer.LayerName, UIImportLayer.ImportDescriptor, UIImportLayer.ErrorMessage);
 			if (UIImportLayer.ImportResult == ELandscapeImportResult::Error)
 			{
 				FMessageDialog::Open(EAppMsgType::Ok, UIImportLayer.ErrorMessage);
@@ -884,7 +884,7 @@ void ULandscapeEditorObject::RefreshImportLayersList(bool bRefreshFromTarget)
 			}
 			else
 			{
-				NewImportLayer.ImportResult = FLandscapeImportHelper::GetWeightmapImportDescriptor(NewImportLayer.SourceFilePath, UseSingleFileImport(), NewImportLayer.LayerName, NewImportLayer.ImportDescriptor, NewImportLayer.ErrorMessage);
+				NewImportLayer.ImportResult = FLandscapeImportHelper::GetWeightmapImportDescriptor(NewImportLayer.SourceFilePath, UseSingleFileImport(), bFlipYAxis, NewImportLayer.LayerName, NewImportLayer.ImportDescriptor, NewImportLayer.ErrorMessage);
 				if (NewImportLayer.ImportResult != ELandscapeImportResult::Error)
 				{
 					int32 DescriptorIndex = NewImportLayer.ImportDescriptor.FindDescriptorIndex(ImportLandscape_Width, ImportLandscape_Height);

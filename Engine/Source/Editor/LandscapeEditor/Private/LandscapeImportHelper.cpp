@@ -113,7 +113,7 @@ ELandscapeImportResult GetImportDataInternal(const FLandscapeImportDescriptor& I
 }
 
 template<class T>
-ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool bSingleFile, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
+ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool bSingleFile, bool bFlipYAxis, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
 {
 	OutImportDescriptor.Reset();
 	if (FilePath.IsEmpty())
@@ -234,6 +234,15 @@ ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool
 	}
 	MaxCoord -= MinCoord;
 
+	// Flip Coordinates on Y axis
+	if (bFlipYAxis)
+	{
+		for (FLandscapeImportFileDescriptor& FileDescriptor : OutImportDescriptor.FileDescriptors)
+		{
+			FileDescriptor.Coord.Y = MaxCoord.Y - FileDescriptor.Coord.Y;
+		}
+	}
+
 	// Compute Import Total Size
 	for (const FLandscapeFileResolution& Resolution : OutImportDescriptor.FileResolutions)
 	{
@@ -278,14 +287,14 @@ void TransformImportDataInternal(const TArray<T>& InData, TArray<T>& OutData, co
 	}
 }
 
-ELandscapeImportResult FLandscapeImportHelper::GetHeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
+ELandscapeImportResult FLandscapeImportHelper::GetHeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, bool bFlipYAxis, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
 {
-	return GetImportDescriptorInternal<uint16>(FilePath, bSingleFile, NAME_None, OutImportDescriptor, OutMessage);
+	return GetImportDescriptorInternal<uint16>(FilePath, bSingleFile, bFlipYAxis, NAME_None, OutImportDescriptor, OutMessage);
 }
 
-ELandscapeImportResult FLandscapeImportHelper::GetWeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
+ELandscapeImportResult FLandscapeImportHelper::GetWeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, bool bFlipYAxis, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
 {
-	return GetImportDescriptorInternal<uint8>(FilePath, bSingleFile, LayerName, OutImportDescriptor, OutMessage);
+	return GetImportDescriptorInternal<uint8>(FilePath, bSingleFile, bFlipYAxis, LayerName, OutImportDescriptor, OutMessage);
 }
 
 ELandscapeImportResult FLandscapeImportHelper::GetHeightmapImportData(const FLandscapeImportDescriptor& ImportDescriptor, int32 DescriptorIndex, TArray<uint16>& OutData, FText& OutMessage)

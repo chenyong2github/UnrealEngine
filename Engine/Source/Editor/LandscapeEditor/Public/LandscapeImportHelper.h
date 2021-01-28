@@ -116,7 +116,7 @@ public:
 	 * @param OutMessage In case the result of the operation is  an error or warning, this will contain the reason.
 	 * @return If the operation was a Success/Error/Warning. 
 	 */
-	static ELandscapeImportResult GetHeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage);
+	static ELandscapeImportResult GetHeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, bool bFlipYAxis, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage);
 
 	/**
 	 * @param FilePath File to import when bSingleFile is true.
@@ -126,7 +126,7 @@ public:
 	 * @param OutMessage In case the result of the operation is  an error or warning, this will contain the reason.
 	 * @return If the operation was a Success/Error/Warning.
 	 */
-	static ELandscapeImportResult GetWeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage);
+	static ELandscapeImportResult GetWeightmapImportDescriptor(const FString& FilePath, bool bSingleFile, bool bFlipYAxis, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage);
 
 	static ELandscapeImportResult GetHeightmapImportData(const FLandscapeImportDescriptor& ImportDescriptor, int32 DescriptorIndex, TArray<uint16>& OutData, FText& OutMessage);
 	static ELandscapeImportResult GetWeightmapImportData(const FLandscapeImportDescriptor& ImportDescriptor, int32 DescriptorIndex, FName LayerName, TArray<uint8>& OutData, FText& OutMessage);
@@ -141,9 +141,9 @@ public:
 
 
 	template<typename T>
-	static typename TEnableIf<TIsSame<T, uint16>::Value, ELandscapeImportResult>::Type GetImportDescriptor(const FString& FilePath, bool bSingleFile, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
+	static typename TEnableIf<TIsSame<T, uint16>::Value, ELandscapeImportResult>::Type GetImportDescriptor(const FString& FilePath, bool bSingleFile, bool bFlipYAxis, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
 	{
-		return GetHeightmapImportDescriptor(FilePath, bSingleFile, OutImportDescriptor, OutMessage);
+		return GetHeightmapImportDescriptor(FilePath, bSingleFile, bFlipYAxis, OutImportDescriptor, OutMessage);
 	}
 
 	template<typename T>
@@ -158,9 +158,9 @@ public:
 	}
 
 	template<typename T>
-	static typename TEnableIf<TIsSame<T, uint8>::Value, ELandscapeImportResult>::Type GetImportDescriptor(const FString& FilePath, bool bSingleFile, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
+	static typename TEnableIf<TIsSame<T, uint8>::Value, ELandscapeImportResult>::Type GetImportDescriptor(const FString& FilePath, bool bSingleFile, bool bFlipYAxis, FName LayerName, FLandscapeImportDescriptor& OutImportDescriptor, FText& OutMessage)
 	{
-		return GetWeightmapImportDescriptor(FilePath, bSingleFile, LayerName, OutImportDescriptor, OutMessage);
+		return GetWeightmapImportDescriptor(FilePath, bSingleFile, bFlipYAxis, LayerName, OutImportDescriptor, OutMessage);
 	}
 	template<typename T>
 	static typename TEnableIf<TIsSame<T, uint8>::Value, ELandscapeImportResult>::Type GetImportData(const FLandscapeImportDescriptor& ImportDescriptor, int32 DescriptorIndex, FName LayerName, TArray<T>& OutData, FText& OutMessage)
