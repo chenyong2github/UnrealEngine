@@ -141,7 +141,7 @@
     <ProjectGuid>{5F273BF5-1036-4F2A-AB83-CC6CCB638EDB}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>hlslcc_lib</RootNamespace>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
