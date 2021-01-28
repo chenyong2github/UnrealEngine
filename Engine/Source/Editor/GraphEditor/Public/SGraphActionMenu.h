@@ -79,32 +79,6 @@ struct FCustomExpanderData
 	TSharedPtr<SPanel> WidgetContainer;
 };
 
-/** 
-* Debug Info about how the preferred context menu action is chosen
-* @see SGraphActionMenu::GetActionFilteredWeight
-*/
-struct FContextMenuWeightDebugInfo
-{
-	float TotalWeight = 0.0f;
-	// Info about which sets of words match up with what weight
-	float KeywordArrayWeight = 0.0f;
-	float DescriptionWeight = 0.0f;
-	float NodeTitleWeight = 0.0f;
-	float CategoryWeight = 0.0f;
-	float FavoriteBonusWeight = 0.0f;
-
-	float PercentageMatchWeight = 0.0f;
-	/** The calculated match percentage */
-	float PercMatch = 0.0f;
-	float ShorterWeight = 0.0f;
-	float CategoryBonusWieight = 0.0f;
-
-	/**
-	* Print out the debug info about this weight info to the console 
-	*/
-	void Print();
-};
-
 /** Class that displays a list of graph actions and them to be searched and selected */
 class GRAPHEDITOR_API SGraphActionMenu : public SCompoundWidget, public FGCObject
 {
@@ -145,6 +119,7 @@ public:
 		, _AlphaSortItems(true)
 		, _ShowFilterTextBox(true)
 		, _UseSectionStyling(false)
+		, _GraphObj(nullptr)
 		{ }
 
 		SLATE_EVENT( FOnActionSelected, OnActionSelected )
@@ -168,6 +143,7 @@ public:
 		SLATE_ARGUMENT( bool, ShowFilterTextBox )
 		SLATE_ARGUMENT( bool, UseSectionStyling )
 		SLATE_ARGUMENT( TArray<UEdGraphPin*>, DraggedFromPins )
+		SLATE_ARGUMENT( UEdGraph*, GraphObj )
 
 	SLATE_END_ARGS()
 
@@ -314,18 +290,6 @@ protected:
 	/** Checks if the passed in node is safe for renaming */
 	bool CanRenameNode(TWeakPtr<FGraphActionNode> InNode) const;
 
-	/** 
-	* Get the 'weight' of the given action relevance to a given filter list
-	* 
-	* @param InCurrentAction			The action to check how good of a match it is
-	* @param InFilterTerms				The filter terms that the user has typed in to go off of
-	* @param InSanitizedFilterTerms		The sanitized filter terms to go off of
-	* @param OutDebugInfo				Debug info about the weight so that the user can tweak how things are matched
-	* 
-	* @return the weight of this action group
-	*/
-	float GetActionFilteredWeight( const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, FContextMenuWeightDebugInfo& OutDebugInfo );
-
 	// Delegates
 
 	/** Called when filter text changes */
@@ -368,5 +332,8 @@ protected:
 private:
 	/** The pins that have been dragged off of to prompt the creation of this action menu. */
 	TArray<UEdGraphPin*> DraggedFromPins;
+
+	/** The graph that this menu is being constructed in */
+	UEdGraph* GraphObj;
 };
 
