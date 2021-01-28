@@ -101,6 +101,11 @@ void FNiagaraOverviewGraphViewModel::SetViewSettings(const FNiagaraGraphViewSett
 	GetSystemViewModel()->GetEditorData().SetSystemOverviewGraphViewSettings(InOverviewGraphViewSettings);
 }
 
+FNiagaraOverviewGraphViewModel::FOnNodesPasted& FNiagaraOverviewGraphViewModel::OnNodesPasted()
+{
+	return OnNodesPastedDelegate;
+}
+
 TSharedRef<FNiagaraSystemViewModel> FNiagaraOverviewGraphViewModel::GetSystemViewModel()
 {
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModel.Pin();
@@ -319,22 +324,29 @@ void FNiagaraOverviewGraphViewModel::PasteNodes()
 		TArray<FNiagaraSystemViewModel::FEmitterHandleToDuplicate> EmitterHandlesToDuplicate;
  		for (UEdGraphNode* PastedNode : PastedNodes)
  		{
+			PastedNode->CreateNewGuid();
 			UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(PastedNode);
 			
 			if(OverviewNode != nullptr)
 			{
-				if (OverviewNode->GetOwningSystem() != nullptr && OverviewNode->GetEmitterHandleGuid().IsValid())
+				if (OverviewNode->GetOwningSystem() == nullptr)
+				{
+					// Nodes pasted from emitters have no owning system, and will be invalid, so they are destroyed here instead.
+					FNiagaraEditorUtilities::InfoWithToastAndLog(LOCTEXT("PasteFromEmitterAsset", "Cannot paste emitters from emitter assets. Please use Add Emitter from the right click menu instead."));
+					OverviewNode->DestroyNode();
+				}					
+				else if	(OverviewNode->GetEmitterHandleGuid().IsValid())
 				{
 					FNiagaraSystemViewModel::FEmitterHandleToDuplicate EmitterHandleToDuplicate;
 					EmitterHandleToDuplicate.SystemPath = OverviewNode->GetOwningSystem()->GetPathName();
 					EmitterHandleToDuplicate.EmitterHandleId = OverviewNode->GetEmitterHandleGuid();
+					EmitterHandleToDuplicate.OverviewNode = OverviewNode;
 					EmitterHandlesToDuplicate.Add(EmitterHandleToDuplicate);
 				}
-				// Once we've collected the data from the pasted overview node delete it, since a proper node will be created as part
-				// of the duplication process.
-				OverviewNode->DestroyNode();
 			}
  		}
+		// Make the overview graph aware of the pasted nodes, so it can position them correctly.
+		OnNodesPastedDelegate.Broadcast(PastedNodes);
 
 		GetSystemViewModel()->DuplicateEmitters(EmitterHandlesToDuplicate);
 	}
