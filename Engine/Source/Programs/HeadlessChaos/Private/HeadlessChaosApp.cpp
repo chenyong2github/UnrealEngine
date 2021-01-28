@@ -144,7 +144,7 @@ TEST(SerializationTests, Serialization) {
 
 TEST(BroadphaseTests, Broadphase) {
 	ChaosTest::BPPerfTest();
-	//ChaosTest::SpatialAccelerationDirtyAndGlobalQueryStrestTest<float>();
+	//ChaosTest::SpatialAccelerationDirtyAndGlobalQueryStrestTest();
 	SUCCEED();
 }
 
@@ -225,11 +225,11 @@ TEST(EPA, EPATests) {
 }
 
 TEST(BP, BroadphaseTests) {
-	ChaosTest::GridBPTest<float>();
-	ChaosTest::GridBPTest2<float>();
-	ChaosTest::AABBTreeTest<float>();
-	ChaosTest::AABBTreeTimesliceTest<float>();
-	ChaosTest::BroadphaseCollectionTest<float>();
+	ChaosTest::GridBPTest();
+	ChaosTest::GridBPTest2();
+	ChaosTest::AABBTreeTest();
+	ChaosTest::AABBTreeTimesliceTest();
+	ChaosTest::BroadphaseCollectionTest();
 	SUCCEED();
 }
 
