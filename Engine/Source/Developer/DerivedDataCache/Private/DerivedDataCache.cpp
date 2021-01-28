@@ -932,7 +932,7 @@ void FCache::Get(
 		FCbPackage Package;
 		if (Value && Value.IsCompactBinary())
 		{
-			Package.SetObject(Value.AsCompactBinary().AsObjectRef(), Value.GetHash());
+			Package.SetObject(Value.AsCompactBinary().AsObjectRef(), ValueField.AsReference());
 		}
 		for (FCbAttachment Attachment : Attachments)
 		{
@@ -945,12 +945,12 @@ void FCache::Get(
 		// Object
 		if (Value.IsCompactBinary())
 		{
-			Params.Record.SetObject(Value.AsCompactBinary().AsObjectRef());
+			Params.Record.SetObject(Value.AsCompactBinary().AsObjectRef(), ValueField.AsReference());
 		}
 		// Binary
 		else
 		{
-			Params.Record.SetBinary(Value.AsBinary());
+			Params.Record.SetBinary(Value.AsBinary(), ValueField.AsReference());
 		}
 	}
 
@@ -1013,15 +1013,13 @@ void FCache::Put(
 	case ECacheRecordType::None:
 		break;
 	case ECacheRecordType::Binary:
-		Value = FCbAttachment(Record.AsBinary());
+		Value = FCbAttachment(Record.AsBinary(), Record.GetValueHash());
 		break;
 	case ECacheRecordType::Object:
-		Value = FCbAttachment(FCbFieldRefIterator::MakeSingle(Record.AsObject().AsFieldRef()));
-		break;
 	case ECacheRecordType::Package:
 		{
 			const FCbPackage& Package = Record.AsPackage();
-			Value = FCbAttachment(FCbFieldRefIterator::MakeSingle(Package.GetObject().AsFieldRef()));
+			Value = FCbAttachment(FCbFieldRefIterator::MakeSingle(Package.GetObject().AsFieldRef()), Package.GetObjectHash());
 			Attachments = Package.GetAttachments();
 		}
 		break;
