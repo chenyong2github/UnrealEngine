@@ -40,6 +40,7 @@ TArray<UObject*> UFractureToolClusterCutter::GetSettingsObjects() const
 {
 	TArray<UObject*> ReturnSettings;
 	ReturnSettings.Add(CutterSettings);
+	ReturnSettings.Add(CollisionSettings);
 	ReturnSettings.Add(ClusterSettings);
 	return ReturnSettings;
 }

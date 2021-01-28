@@ -19,6 +19,7 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshEditor.h"
 #include "DynamicMeshAABBTree3.h"
+#include "Selections/MeshConnectedComponents.h"
 #include "MeshTransforms.h"
 #include "Operations/MeshBoolean.h"
 #include "Operations/MeshSelfUnion.h"
@@ -126,7 +127,7 @@ namespace UE
 				Mesh.Attributes()->EnableMaterialID();
 				ensure(Mesh.Attributes()->NumAttachedAttributes() == 0);
 				Mesh.Attributes()->AttachAttribute(TangentUAttribName, new TDynamicMeshVertexAttribute<float, 3>(&Mesh));
-				Mesh.Attributes()->AttachAttribute(TangentVAttribName, new TDynamicMeshVertexAttribute<float, 3>(&Mesh)); // just a sign
+				Mesh.Attributes()->AttachAttribute(TangentVAttribName, new TDynamicMeshVertexAttribute<float, 3>(&Mesh));
 				TDynamicMeshScalarTriangleAttribute<bool>* VisAttrib = new TDynamicMeshScalarTriangleAttribute<bool>(&Mesh);
 				VisAttrib->Initialize(true);
 				Mesh.Attributes()->AttachAttribute(VisibleAttribName, VisAttrib);
@@ -208,6 +209,121 @@ namespace UE
 				FVector3f Normal = Mesh.GetVertexNormal(VID);
 				Us->GetValue(VID, U);
 				Vs->GetValue(VID, V);
+			}
+
+			// per component sampling is a rough heuristic to avoid doing geodesic distance but still get points on a 'thin' slice
+			void AddCollisionSamplesPerComponent(FDynamicMesh3& Mesh, double Spacing)
+			{
+				checkSlow(IsAugmented(Mesh));
+				FMeshConnectedComponents Components(&Mesh);
+				// TODO: if/when we switch to merged edges representation, pass a predicate here based on whether there's a normal seam ?
+				Components.FindConnectedTriangles();
+				TArray<TPointHashGrid3d<int>> KnownSamples;  KnownSamples.Reserve(Components.Num());
+				for (int ComponentIdx = 0; ComponentIdx < Components.Num(); ComponentIdx++)
+				{
+					KnownSamples.Emplace(.5 * Spacing / FMathd::InvSqrt3, -1);
+				}
+
+				TArray<int> AlreadySeen; AlreadySeen.Init(-1, Mesh.MaxVertexID());
+				for (int ComponentIdx = 0; ComponentIdx < Components.Num(); ComponentIdx++)
+				{
+					FMeshConnectedComponents::FComponent& Component = Components.GetComponent(ComponentIdx);
+					for (int TID : Component.Indices)
+					{
+						FIndex3i Tri = Mesh.GetTriangle(TID);
+						for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+						{
+							int VID = Tri[SubIdx];
+							if (AlreadySeen[VID] != ComponentIdx)
+							{
+								AlreadySeen[VID] = ComponentIdx;
+								KnownSamples[ComponentIdx].InsertPointUnsafe(VID, Mesh.GetVertex(VID));
+							}
+						}
+					}
+				}
+				AlreadySeen.Empty();
+
+				double SpacingThreshSq = Spacing * Spacing; // if points are more than Spacing apart, consider adding a new point between them
+				for (int ComponentIdx = 0; ComponentIdx < Components.Num(); ComponentIdx++)
+				{
+					FMeshConnectedComponents::FComponent& Component = Components.GetComponent(ComponentIdx);
+					for (int TID : Component.Indices)
+					{
+						FIndex3i TriVIDs = Mesh.GetTriangle(TID);
+						FTriangle3d Triangle;
+						Mesh.GetTriVertices(TID, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
+						double EdgeLensSq[3];
+						int MaxEdgeIdx = 0;
+						double MaxEdgeLenSq = 0;
+						for (int i = 2, j = 0; j < 3; i = j++)
+						{
+							double EdgeLenSq = Triangle.V[i].DistanceSquared(Triangle.V[j]);
+							if (EdgeLenSq > MaxEdgeLenSq)
+							{
+								MaxEdgeIdx = i;
+								MaxEdgeLenSq = EdgeLenSq;
+							}
+							EdgeLensSq[i] = EdgeLenSq;
+						}
+						// if we found a too-long edge, we can try sampling the tri
+						if (MaxEdgeLenSq > SpacingThreshSq)
+						{
+							FVector3f Normal = (FVector3f)VectorUtil::Normal(Triangle.V[0], Triangle.V[1], Triangle.V[2]);
+
+							// Pick number of samples based on the longest edge
+							double LongEdgeLen = FMathd::Sqrt(MaxEdgeLenSq);
+							int Divisions = FMathd::Floor(LongEdgeLen / Spacing);
+							double Factor = 1.0 / double(Divisions + 1);
+							int SecondEdgeIdx = (MaxEdgeIdx + 1) % 3;
+							int ThirdEdgeIdx = (MaxEdgeIdx + 2) % 3;
+							// Sample along the two longest edges first, then interpolate these samples
+							int SecondLongestEdgeIdx = SecondEdgeIdx;
+							if (EdgeLensSq[SecondEdgeIdx] < EdgeLensSq[ThirdEdgeIdx])
+							{
+								SecondLongestEdgeIdx = ThirdEdgeIdx;
+							}
+							int SecondLongestSecondEdgeIdx = (SecondLongestEdgeIdx + 1) % 3;
+							for (int DivI = 0; DivI < Divisions; DivI++)
+							{
+								double Along = (DivI + 1) * Factor;
+								FVector3d E1Bary(0, 0, 0), E2Bary(0, 0, 0);
+								E1Bary[MaxEdgeIdx] = Along;
+								E1Bary[SecondEdgeIdx] = 1 - Along;
+								E2Bary[SecondLongestEdgeIdx] = 1 - Along;
+								E2Bary[SecondLongestSecondEdgeIdx] = Along;
+
+								// Choose number of samples between the two edge points based on their distance
+								double AcrossDist = Triangle.BarycentricPoint(E1Bary).Distance(Triangle.BarycentricPoint(E2Bary));
+								int DivisionsAcross = FMathd::Ceil(AcrossDist / Spacing);
+								double FactorAcross = 1.0 / double(DivisionsAcross + 1);
+								for (int DivJ = 0; DivJ < DivisionsAcross; DivJ++)
+								{
+									double AlongAcross = (DivJ + 1) * FactorAcross;
+									FVector3d Bary = FVector3d::Lerp(E1Bary, E2Bary, AlongAcross);
+									FVector3d SamplePos = Triangle.BarycentricPoint(Bary);
+									if (!KnownSamples[ComponentIdx].IsCellEmptyUnsafe(SamplePos)) // fast early out; def. have pt within radius
+									{
+										continue;
+									}
+									TPair<int, double> VIDDist = KnownSamples[ComponentIdx].FindNearestInRadius(SamplePos, Spacing * .5, [&Mesh, SamplePos](int VID)
+										{
+											return Mesh.GetVertex(VID).DistanceSquared(SamplePos);
+										});
+									// No point within radius Spacing/2 -> Add a new sample
+									if (VIDDist.Key == -1)
+									{
+										// no point within radius; can add a sample here
+										FVertexInfo Info(SamplePos, Normal);
+
+										int AddedVID = Mesh.AppendVertex(Info);
+										KnownSamples[ComponentIdx].InsertPointUnsafe(AddedVID, SamplePos);
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1234,6 +1350,7 @@ struct FDynamicMeshCollection
 	int32 CutWithMultiplePlanes(
 		const TArrayView<const FPlane>& Planes, 
 		double Grout,
+		double CollisionSampleSpacing,
 		FGeometryCollection* Collection,
 		FInternalSurfaceMaterials& InternalSurfaceMaterials,
 		bool bSetDefaultInternalMaterialsFromCollection
@@ -1294,7 +1411,7 @@ struct FDynamicMeshCollection
 			TArray<TPair<int32, int32>> CellConnectivity;
 			CellConnectivity.Add(TPair<int32, int32>(0, -1));
 
-			return CutWithCellMeshes(InternalSurfaceMaterials, CellConnectivity, GroutCells, Collection, bSetDefaultInternalMaterialsFromCollection);
+			return CutWithCellMeshes(InternalSurfaceMaterials, CellConnectivity, GroutCells, Collection, bSetDefaultInternalMaterialsFromCollection, CollisionSampleSpacing);
 		}
 
 		bool bHasProximity = Collection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup);
@@ -1551,7 +1668,8 @@ struct FDynamicMeshCollection
 			{
 				FDynamicMesh3& Mesh = ToCut[ToCutIdx]->AugMesh;
 
-				int32 CreatedGeometryIdx = AppendToCollection(ToCut[ToCutIdx]->ToCollection, Mesh, ToCut[ToCutIdx]->TransformIndex, SubPartIdx++, *Collection, InternalMaterialID);
+				FString BoneName = GetBoneName(*Collection, ToCut[ToCutIdx]->TransformIndex, SubPartIdx++);
+				int32 CreatedGeometryIdx = AppendToCollection(ToCut[ToCutIdx]->ToCollection, Mesh, CollisionSampleSpacing, ToCut[ToCutIdx]->TransformIndex, BoneName, *Collection, InternalMaterialID);
 				ToCutIdxToGeometryIdx[ToCutIdx] = CreatedGeometryIdx;
 				if (FirstCreatedIndex == -1)
 				{
@@ -1583,7 +1701,7 @@ struct FDynamicMeshCollection
 	 * @param bSetDefaultInternalMaterialsFromCollection If true, set internal materials to the most common external material + 1, following a convenient artist convention
 	 * @return Index of the first created geometry
 	 */
-	int32 CutWithCellMeshes(const FInternalSurfaceMaterials& InternalSurfaceMaterials, const TArray<TPair<int32, int32>>& CellConnectivity, FCellMeshes& CellMeshes, FGeometryCollection* Collection, bool bSetDefaultInternalMaterialsFromCollection)
+	int32 CutWithCellMeshes(const FInternalSurfaceMaterials& InternalSurfaceMaterials, const TArray<TPair<int32, int32>>& CellConnectivity, FCellMeshes& CellMeshes, FGeometryCollection* Collection, bool bSetDefaultInternalMaterialsFromCollection, double CollisionSampleSpacing)
 	{
 		// TODO: should we do these cuts in parallel, and the appends sequentially below?
 		int32 FirstIdx = -1;
@@ -1655,7 +1773,8 @@ struct FDynamicMeshCollection
 							for (int32 i = 0; i < Islands.Num(); i++)
 							{
 								FDynamicMesh3& Island = Islands[i];
-								CreatedGeometryIdx = AppendToCollection(Surface.ToCollection, Island, Surface.TransformIndex, SubPartIndex++, *Collection, InternalMaterialID);
+								FString BoneName = GetBoneName(*Collection, Surface.TransformIndex, SubPartIndex++);
+								CreatedGeometryIdx = AppendToCollection(Surface.ToCollection, Island, CollisionSampleSpacing, Surface.TransformIndex, BoneName, *Collection, InternalMaterialID);
 								CellToGeometry.Add(CellIdx, CreatedGeometryIdx);
 								if (i > 0)
 								{
@@ -1670,7 +1789,8 @@ struct FDynamicMeshCollection
 						}
 						else
 						{
-							CreatedGeometryIdx = AppendToCollection(Surface.ToCollection, AugBoolResult, Surface.TransformIndex, SubPartIndex++, *Collection, InternalMaterialID);
+							FString BoneName = GetBoneName(*Collection, Surface.TransformIndex, SubPartIndex++);
+							CreatedGeometryIdx = AppendToCollection(Surface.ToCollection, AugBoolResult, CollisionSampleSpacing, Surface.TransformIndex, BoneName, *Collection, InternalMaterialID);
 							CellToGeometry.Add(CellIdx, CreatedGeometryIdx);
 							GeometryToResultMesh.Add(CreatedGeometryIdx, CellIdx);
 						}
@@ -1858,7 +1978,12 @@ struct FDynamicMeshCollection
 		return bWasSplit;
 	}
 
-	static int32 AppendToCollection(const FTransform& ToCollection, FDynamicMesh3& Mesh, int32 TransformParent, int32 SubPartIndex, FGeometryCollection& Output, int32 InternalMaterialID)
+	FString GetBoneName(FGeometryCollection& Output, int TransformParent, int SubPartIndex)
+	{
+		return Output.BoneName[TransformParent] + "_" + FString::FromInt(SubPartIndex);
+	}
+
+	static int32 AppendToCollection(const FTransform& ToCollection, FDynamicMesh3& Mesh, double CollisionSampleSpacing, int32 TransformParent, FString BoneName, FGeometryCollection& Output, int32 InternalMaterialID)
 	{
 		if (Mesh.TriangleCount() == 0)
 		{
@@ -1868,6 +1993,11 @@ struct FDynamicMeshCollection
 		if (!Mesh.IsCompact())
 		{
 			Mesh.CompactInPlace(nullptr);
+		}
+
+		if (CollisionSampleSpacing > 0)
+		{
+			UE::PlanarCutInternals::AugmentDynamicMesh::AddCollisionSamplesPerComponent(Mesh, CollisionSampleSpacing);
 		}
 
 		int32 NewGeometryStartIdx = Output.FaceStart.Num();
@@ -1889,8 +2019,7 @@ struct FDynamicMeshCollection
 		Output.TransformToGeometryIndex[TransformIdx] = GeometryIdx;
 		if (TransformParent > -1)
 		{
-			// TODO: this is probably not the best way to build the bone name string?
-			Output.BoneName[TransformIdx] = Output.BoneName[TransformParent] + "_" + FString::FromInt(SubPartIndex);
+			Output.BoneName[TransformIdx] = BoneName;
 			Output.BoneColor[TransformIdx] = Output.BoneColor[TransformParent];
 			Output.Parent[TransformIdx] = TransformParent;
 			Output.Children[TransformParent].Add(TransformIdx);
@@ -4001,6 +4130,7 @@ int32 CutWithPlanarCells(
 	FGeometryCollection& Source,
 	int32 TransformIdx,
 	double Grout,
+	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCells,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
@@ -4009,7 +4139,7 @@ int32 CutWithPlanarCells(
 )
 {
 	TArray<int32> TransformIndices { TransformIdx };
-	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, TransformCells, bIncludeOutsideCellInOutput, CheckDistanceAcrossOutsideCellForProximity, bSetDefaultInternalMaterialsFromCollection, VertexInterpolate);
+	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, TransformCells, bIncludeOutsideCellInOutput, CheckDistanceAcrossOutsideCellForProximity, bSetDefaultInternalMaterialsFromCollection, VertexInterpolate);
 }
 
 int32 CutMultipleWithPlanarCells_MeshBooleanPath(
@@ -4017,6 +4147,7 @@ int32 CutMultipleWithPlanarCells_MeshBooleanPath(
 	FGeometryCollection& Source,
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
+	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCells,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
@@ -4030,6 +4161,7 @@ int32 CutMultipleWithPlanarCells(
 	FGeometryCollection& Source,
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
+	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCells,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
@@ -4044,6 +4176,7 @@ int32 CutMultipleWithPlanarCells(
 			Source,
 			TransformIndices,
 			Grout,
+			CollisionSampleSpacing,
 			TransformCells,
 			bIncludeOutsideCellInOutput,
 			CheckDistanceAcrossOutsideCellForProximity,
@@ -4449,6 +4582,7 @@ int32 CutMultipleWithMultiplePlanes(
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
+	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCells,
 	bool bSetDefaultInternalMaterialsFromCollection,
 	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate
@@ -4479,7 +4613,7 @@ int32 CutMultipleWithMultiplePlanes(
 	double OnePercentExtend = MeshCollection.Bounds.MaxDim() * .01;
 
 	int32 NewGeomStartIdx = -1;
-	NewGeomStartIdx = MeshCollection.CutWithMultiplePlanes(Planes, Grout, &Collection, InternalSurfaceMaterials, bSetDefaultInternalMaterialsFromCollection);
+	NewGeomStartIdx = MeshCollection.CutWithMultiplePlanes(Planes, Grout, CollisionSampleSpacing, &Collection, InternalSurfaceMaterials, bSetDefaultInternalMaterialsFromCollection);
 
 	Collection.ReindexMaterials();
 	return NewGeomStartIdx;
@@ -4492,6 +4626,7 @@ int32 CutMultipleWithPlanarCells_MeshBooleanPath(
 	FGeometryCollection& Source,
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
+	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCells,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
@@ -4518,7 +4653,7 @@ int32 CutMultipleWithPlanarCells_MeshBooleanPath(
 
 	int32 NewGeomStartIdx = -1;
 
-	NewGeomStartIdx = MeshCollection.CutWithCellMeshes(Cells.InternalSurfaceMaterials, Cells.PlaneCells, CellMeshes, &Source, bSetDefaultInternalMaterialsFromCollection);
+	NewGeomStartIdx = MeshCollection.CutWithCellMeshes(Cells.InternalSurfaceMaterials, Cells.PlaneCells, CellMeshes, &Source, bSetDefaultInternalMaterialsFromCollection, CollisionSampleSpacing);
 
 	Source.ReindexMaterials();
 	return NewGeomStartIdx;
@@ -4526,10 +4661,40 @@ int32 CutMultipleWithPlanarCells_MeshBooleanPath(
 
 
 
+int32 AddCollisionSampleVertices(double CollisionSampleSpacing, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices)
+{
+	FTransform CellsToWorld = FTransform::Identity;
 
+	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CellsToWorld);
+	struct FLocalInfo
+	{
+		FString BoneName;
+		int Parent = -1;
+	};
+	TArray<FLocalInfo> LocalInfo; LocalInfo.SetNum(TransformIndices.Num());
+	for (int Idx = 0; Idx < TransformIndices.Num(); Idx++)
+	{
+		LocalInfo[Idx].BoneName = Collection.BoneName[TransformIndices[Idx]];
+		LocalInfo[Idx].Parent = Collection.Parent[TransformIndices[Idx]];
+	}
 
+	TArray<int32> ToDelete(TransformIndices);
+	ToDelete.Sort();
+	Collection.RemoveElements(FGeometryCollection::TransformGroup, ToDelete);
+	int32 FirstAppended = -1;
+	for (int MeshIdx = 0; MeshIdx < MeshCollection.Meshes.Num(); MeshIdx++)
+	{
+		FDynamicMeshCollection::FMeshData& MeshData = MeshCollection.Meshes[MeshIdx];
+		FDynamicMesh3& Mesh = MeshData.AugMesh;
+		int32 ResultIdx = MeshCollection.AppendToCollection(MeshData.ToCollection, Mesh, CollisionSampleSpacing, LocalInfo[MeshIdx].Parent, LocalInfo[MeshIdx].BoneName, Collection, -1);
+		if (FirstAppended == -1)
+		{
+			FirstAppended = ResultIdx;
+		}
+	}
 
+	Collection.ReindexMaterials();
 
-
-
+	return FirstAppended;
+}
 

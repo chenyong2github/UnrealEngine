@@ -156,6 +156,8 @@ void PLANARCUT_API ComputeTriangleNormals(const TArrayView<const FVector> Vertic
  * @param Cells				Defines the cutting planes and division of space
  * @param Collection		The collection to be cut
  * @param TransformIdx		Which transform inside the collection to cut
+ * @param Grout				Separation to leave between cutting cells
+ * @param CollisionSampleSpacing	Target spacing collision samples	
  * @param TransformCells	Optional transform of the planar cut; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param CheckDistanceAcrossOutsideCellForProximity	If > 0, when a plane is neighboring the "outside" cell, instead of setting proximity to the outside cell, the algo will sample a point this far outside the cell in the normal direction of the plane to see if there is actually a non-outside cell there.  (Useful for bricks w/out mortar)
@@ -167,6 +169,7 @@ int32 PLANARCUT_API CutWithPlanarCells(
 	FGeometryCollection& Collection,
 	int32 TransformIdx,
 	double Grout,
+	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,
@@ -191,6 +194,7 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
+	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,  // TODO: < this param does nothing in the new mode; is only needed in special cases that aren't possible in the UI currently
@@ -215,7 +219,19 @@ int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
+	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bSetDefaultInternalMaterialsFromCollection = true,
 	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
 );
+
+
+/**
+ * Scatter additional vertices (w/ no associated triangle) as needed to satisfy minimum point spacing
+ * 
+ * @param TargetSpacing		The desired spacing between collision sample vertices
+ * @param Collection		The Geometry Collection to be updated
+ * @param TransformIndices	Which transform groups on the Geometry Collection to be updated.  If empty, all groups are updated.
+ * @return Index of first transform group w/ updated geometry.  (To update geometry we delete and re-add, because geometry collection isn't designed for in-place updates)
+ */
+int32 PLANARCUT_API AddCollisionSampleVertices(double TargetSpacing, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices = TArrayView<const int32>());

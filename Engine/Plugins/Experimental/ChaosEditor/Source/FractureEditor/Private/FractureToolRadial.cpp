@@ -40,6 +40,7 @@ TArray<UObject*> UFractureToolRadial::GetSettingsObjects() const
 { 
 	TArray<UObject*> Settings; 
 	Settings.Add(CutterSettings);
+	Settings.Add(CollisionSettings);
 	Settings.Add(RadialSettings);
 	return Settings;
 }

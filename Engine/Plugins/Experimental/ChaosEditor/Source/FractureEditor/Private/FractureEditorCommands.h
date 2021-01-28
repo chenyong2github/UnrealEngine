@@ -48,6 +48,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > Slice;
 		TSharedPtr< FUICommandInfo > Brick;
 		TSharedPtr< FUICommandInfo > Texture;
+		TSharedPtr< FUICommandInfo > Resample;
 
 		// Property Commands
 		TSharedPtr< FUICommandInfo > SetInitialDynamicState;

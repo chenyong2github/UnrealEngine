@@ -101,6 +101,35 @@ public:
 
 
 	/**
+	 * Test if the cell containing Position is empty. This function is thread-safe.
+	 * Can be used to skip a more expensive range search, in some cases.
+	 * 
+	 * @return true if the cell containing Position is empty
+	 */
+	bool IsCellEmpty(const FVector3<RealType>& Position)
+	{
+		FVector3i Idx = Indexer.ToGrid(Position);
+		{
+			FScopeLock Lock(&CriticalSection);
+			return !Hash.Contains(Idx);
+		}
+	}
+
+
+	/**
+	 * Test if the whole cell containing Position is empty, without locking / thread-safety
+	 * Can be used to skip a more expensive range search, in some cases.
+	 * 
+	 * @return true if the cell containing Position is empty
+	 */
+	bool IsCellEmptyUnsafe(const FVector3<RealType>& Position)
+	{
+		FVector3i Idx = Indexer.ToGrid(Position);
+		return !Hash.Contains(Idx);
+	}
+
+
+	/**
 	 * Move value from old to new position. This function is thread-safe.
 	 * @param Value the point/value to update
 	 * @param OldPosition the current position associated with this value

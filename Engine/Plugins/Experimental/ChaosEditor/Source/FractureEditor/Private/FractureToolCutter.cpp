@@ -19,6 +19,8 @@ UFractureToolCutterBase::UFractureToolCutterBase(const FObjectInitializer& ObjIn
 {
 	CutterSettings = NewObject<UFractureCutterSettings>(GetTransientPackage(), UFractureCutterSettings::StaticClass());
 	CutterSettings->OwnerTool = this;
+	CollisionSettings = NewObject<UFractureCollisionSettings>(GetTransientPackage(), UFractureCollisionSettings::StaticClass());
+	CollisionSettings->OwnerTool = this;
 }
 
 bool UFractureToolCutterBase::CanExecute() const
@@ -177,7 +179,7 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 
-		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *(FractureContext.GetGeometryCollection()), FractureContext.GetSelection(), CutterSettings->Grout);
+		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *(FractureContext.GetGeometryCollection()), FractureContext.GetSelection(), CutterSettings->Grout, CollisionSettings->PointSpacing);
 	}
 
 	return INDEX_NONE;

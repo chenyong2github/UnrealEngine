@@ -66,11 +66,26 @@ public:
 	int32 OctaveNumber;
 
 	/** Spacing between vertices on cut surfaces, where noise is added.  Larger spacing between vertices will create more efficient meshes with fewer triangles, but less resolution to see the shape of the added noise  */
-	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1", ClampMin = "0.1"))
+	UPROPERTY(EditAnywhere, Category = Noise, meta = (DisplayName = "Point Spacing", UIMin = "1", ClampMin = "0.1"))
 	float SurfaceResolution;
-
 };
 
+/** Settings related to the collision properties of the fractured mesh pieces */
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureCollisionSettings : public UFractureToolSettings
+{
+public:
+	GENERATED_BODY()
+
+	UFractureCollisionSettings(const FObjectInitializer& ObjInit)
+	: Super(ObjInit) {}
+
+	/** Target spacing between collision samples on the mesh surface. */
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "1", ClampMin = "0.1"))
+	float PointSpacing = 50.0f;
+
+	// TODO: add remeshing options here as well
+};
 
 UCLASS(Abstract, DisplayName = "Cutter Base", Category = "FractureTools")
 class UFractureToolCutterBase : public UFractureInteractiveTool
@@ -90,6 +105,9 @@ public:
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureCutterSettings> CutterSettings;
+
+	UPROPERTY(EditAnywhere, Category = Collision)
+	TObjectPtr<UFractureCollisionSettings> CollisionSettings;
 
 };
 

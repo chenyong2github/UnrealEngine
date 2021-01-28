@@ -500,6 +500,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.Planar);
 		ToolbarBuilder.AddToolBarButton(Commands.Slice);
 		ToolbarBuilder.AddToolBarButton(Commands.Brick);
+		ToolbarBuilder.AddToolBarButton(Commands.Resample);
 	}
 	else if (PaletteIndex == TEXT("Cluster"))
 	{
