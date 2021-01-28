@@ -123,9 +123,9 @@ FString FHairGroupsCardsSourceDescription::GetMeshKey() const
 	{
 		ImportedMesh->ConditionalPostLoad();
 		FStaticMeshSourceModel& SourceModel = ImportedMesh->GetSourceModel(0);
-		if (SourceModel.MeshDescriptionBulkData)
+		if (SourceModel.GetMeshDescriptionBulkData())
 		{
-			return SourceModel.MeshDescriptionBulkData->GetIdString();
+			return SourceModel.GetMeshDescriptionBulkData()->GetIdString();
 		}
 
 	}
@@ -133,9 +133,9 @@ FString FHairGroupsCardsSourceDescription::GetMeshKey() const
 	{
 		ProceduralMesh->ConditionalPostLoad();
 		FStaticMeshSourceModel& SourceModel = ProceduralMesh->GetSourceModel(0);
-		if (SourceModel.MeshDescriptionBulkData)
+		if (SourceModel.GetMeshDescriptionBulkData())
 		{
-			return SourceModel.MeshDescriptionBulkData->GetIdString();
+			return SourceModel.GetMeshDescriptionBulkData()->GetIdString();
 		}
 	}
 #endif

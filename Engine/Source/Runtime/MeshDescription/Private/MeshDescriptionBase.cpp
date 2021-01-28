@@ -1,13 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshDescriptionBase.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "Algo/Copy.h"
 
 
 
 void UMeshDescriptionBase::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
 	Super::Serialize(Ar);
+
+	if (!Ar.IsLoading() || Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SerializeMeshDescriptionBase)
+	{
+		Ar << OwnedMeshDescription;
+	}
 }
 
 void UMeshDescriptionBase::RegisterAttributes()
@@ -18,7 +26,7 @@ void UMeshDescriptionBase::RegisterAttributes()
 
 void UMeshDescriptionBase::Reset()
 {
-	SetMeshDescriptionRef(nullptr);
+	OwnedMeshDescription = FMeshDescription();
 	RegisterAttributes();
 }
 

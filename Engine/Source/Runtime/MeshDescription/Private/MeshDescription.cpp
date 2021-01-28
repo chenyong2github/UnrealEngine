@@ -4,6 +4,7 @@
 #include "MeshAttributes.h"
 #include "Algo/Copy.h"
 #include "Misc/SecureHash.h"
+#include "Serialization/NameAsStringProxyArchive.h"
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
 #include "UObject/EnterpriseObjectVersion.h"
@@ -158,8 +159,10 @@ void FMeshDescription::Cache()
 }
 
 
-void FMeshDescription::Serialize(FArchive& Ar)
+void FMeshDescription::Serialize(FArchive& BaseAr)
 {
+	FNameAsStringProxyArchive Ar(BaseAr);
+
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
@@ -2168,3 +2171,16 @@ void FMeshDescriptionBulkData::UseHashAsGuid()
 }
 
 #endif // #if WITH_EDITORONLY_DATA
+
+
+void UMeshDescriptionBulkDataWrapper::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if WITH_EDITORONLY_DATA
+	if (!Ar.IsCooking())
+	{
+		BulkData.Serialize(Ar, GetOuter());
+	}
+#endif
+}

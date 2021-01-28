@@ -66,7 +66,6 @@ enum class EComputeNTBsOptions : uint32
 ENUM_CLASS_FLAGS(EComputeNTBsOptions);
 
 
-//USTRUCT()
 struct MESHDESCRIPTION_API FMeshDescription
 {
 public:
@@ -1339,5 +1338,27 @@ private:
 	/** Uses hash instead of guid to identify content to improve DDC cache hit. */
 	bool bGuidIsHash;
 };
+#endif // WITH_EDITORONLY_DATA
+
+
+/**
+ * UObject wrapper for FMeshDescriptionBulkData
+ */
+UCLASS()
+class MESHDESCRIPTION_API UMeshDescriptionBulkDataWrapper : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Serialize(FArchive& Ar) override;
+
+#if WITH_EDITORONLY_DATA
+
+	const FMeshDescriptionBulkData& GetBulkData() const { return BulkData; }
+	FMeshDescriptionBulkData& GetBulkData() { return BulkData; }
+
+private:
+	FMeshDescriptionBulkData BulkData;
 
 #endif //WITH_EDITORONLY_DATA
+};

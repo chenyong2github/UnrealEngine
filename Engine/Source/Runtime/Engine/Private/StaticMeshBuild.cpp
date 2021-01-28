@@ -24,7 +24,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "StaticMeshCompiler.h"
 #include "MeshUtilities.h"
-#include "MeshDescription.h"
+#include "StaticMeshDescription.h"
 #include "MeshUtilitiesCommon.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
@@ -400,9 +400,9 @@ void UStaticMesh::BeginBuildInternal(FStaticMeshBuildContext* Context)
 		// Extended bounds are super important to avoid many stalls since a lot of different
 		// systems rely on mesh bounds. If mesh description is available and doesn't require being
 		// loaded, compute bounds right now so we can unlock the property before going async.
-		if (IsSourceModelValid(0) && GetSourceModel(0).MeshDescription.IsValid())
+		if (IsSourceModelValid(0) && GetSourceModel(0).StaticMeshDescription != nullptr)
 		{
-			CachedMeshDescriptionBounds = GetSourceModel(0).MeshDescription.Get()->GetBounds();
+			CachedMeshDescriptionBounds = GetSourceModel(0).StaticMeshDescription->GetMeshDescription().GetBounds();
 		}
 
 		// CommitMeshDescription will also fill out CachedMeshDescriptionBounds

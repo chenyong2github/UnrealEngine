@@ -21,40 +21,18 @@ public:
 	/** Get a reference to the actual mesh description */
 	FMeshDescription& GetMeshDescription()
 	{
-		if (MeshDescriptionPtr)
-		{
-			return *MeshDescriptionPtr;
-		}
-		else
-		{
-			return OwnedMeshDescription;
-		}
+		return OwnedMeshDescription;
 	}
 
 	const FMeshDescription& GetMeshDescription() const
 	{
-		if (MeshDescriptionPtr)
-		{
-			return *MeshDescriptionPtr;
-		}
-		else
-		{
-			return OwnedMeshDescription;
-		}
+		return OwnedMeshDescription;
 	}
 
 	/** Set the mesh description */
 	void SetMeshDescription(FMeshDescription InMeshDescription)
 	{ 
 		OwnedMeshDescription = MoveTemp(InMeshDescription);
-		MeshDescriptionPtr = nullptr;
-	}
-
-	/** Sets a reference to another mesh description */
-	void SetMeshDescriptionRef(FMeshDescription* InMeshDescriptionRef)
-	{
-		MeshDescriptionPtr = InMeshDescriptionRef;
-		OwnedMeshDescription.Empty();
 	}
 
 	// UMeshDescriptionBase interface
@@ -505,6 +483,5 @@ public:
 
 protected:
 	FMeshDescription OwnedMeshDescription;
-	FMeshDescription* MeshDescriptionPtr = nullptr;
 	TUniquePtr<FMeshAttributes> RequiredAttributes;
 };

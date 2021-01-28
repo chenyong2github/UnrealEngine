@@ -893,7 +893,7 @@ void UDatasmithStaticMeshBlueprintLibrary::SetupStaticLighting(const TArray< UOb
 			{
 				int32 MaxBiggestUVChannel = Lightmass::MAX_TEXCOORDS;
 
-				if (const FMeshDescription* MeshDescription = SourceModel.MeshDescription.Get())
+				if (FMeshDescription* MeshDescription = SourceModel.GetCachedMeshDescription())
 				{
 					FStaticMeshConstAttributes Attributes(*MeshDescription);
 

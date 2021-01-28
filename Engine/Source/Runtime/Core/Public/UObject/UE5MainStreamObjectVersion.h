@@ -85,6 +85,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Fix potentially duplicated actors when using ForceExternalActorLevelReference
 		FixForceExternalActorLevelReferenceDuplicates,
 
+		// Make UMeshDescriptionBase serializable
+		SerializeMeshDescriptionBase,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
