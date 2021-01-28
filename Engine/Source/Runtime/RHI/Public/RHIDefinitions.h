@@ -1574,6 +1574,7 @@ inline bool IsVulkanMobilePlatform(const FStaticShaderPlatform Platform)
 		|| (FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform) && FDataDrivenShaderPlatformInfo::GetIsMobile(Platform));
 }
 
+UE_DEPRECATED(4.27, "IsD3DPlatform(bIncludeXboxOne) is deprecated; please use IsD3DPlatform() and DataDrivenShaderPlatformInfo instead.") 
 inline bool IsD3DPlatform(const FStaticShaderPlatform Platform, bool bIncludeXboxOne)
 {
 	switch (Platform)
@@ -1589,6 +1590,22 @@ inline bool IsD3DPlatform(const FStaticShaderPlatform Platform, bool bIncludeXbo
 
 	return false;
 }
+
+inline bool IsD3DPlatform(const FStaticShaderPlatform Platform)
+{
+	switch (Platform)
+	{
+	case SP_PCD3D_SM5:
+	case SP_PCD3D_ES3_1:
+	case SP_XBOXONE_D3D12:
+		return true;
+	default:
+		return FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(Platform);
+	}
+
+	return false;
+}
+
 
 inline bool IsHlslccShaderPlatform(const FStaticShaderPlatform Platform)
 {
@@ -1744,7 +1761,7 @@ inline bool RHISupportsDualSourceBlending(const FStaticShaderPlatform Platform)
 {
 	// For now only enable support for SM5
 	// Metal RHI doesn't support dual source blending properly at the moment.
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || FDataDrivenShaderPlatformInfo::GetSupportsDualSourceBlending(Platform) || IsVulkanPlatform(Platform));
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsDualSourceBlending(Platform) || IsVulkanPlatform(Platform));
 }
 
 inline bool RHISupportsMultithreadedShaderCreation(const FStaticShaderPlatform Platform)

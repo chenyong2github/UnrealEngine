@@ -163,7 +163,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			FName ShaderFormatName(*TargetedShaderFormats[0]);
 			EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 			bForceVulkan = IsVulkanPlatform(TargetedPlatform);
-			bForceD3D11 = !bPreferD3D12 && IsD3DPlatform(TargetedPlatform, false);
+			bForceD3D11 = !bPreferD3D12 && IsD3DPlatform(TargetedPlatform);
 			bForceOpenGL = IsOpenGLPlatform(TargetedPlatform);
 			DesiredFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
 		}

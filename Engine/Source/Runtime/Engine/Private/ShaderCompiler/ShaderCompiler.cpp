@@ -4332,7 +4332,7 @@ void GlobalBeginCompileShader(
 		}
 	}
 
-	if (IsD3DPlatform((EShaderPlatform)Target.Platform, false))
+	if (IsD3DPlatform((EShaderPlatform)Target.Platform) && IsPCPlatform((EShaderPlatform)Target.Platform))
 	{
 		if (CVarD3DRemoveUnusedInterpolators.GetValueOnAnyThread() != 0)
 		{
