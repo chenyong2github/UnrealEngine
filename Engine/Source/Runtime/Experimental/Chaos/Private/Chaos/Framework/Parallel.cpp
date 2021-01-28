@@ -28,8 +28,10 @@ void Chaos::PhysicsParallelFor(int32 InNum, TFunctionRef<void(int32)> InCallable
 	
 	auto PassThrough = [InCallable, bIsInPhysicsSimContext = IsInPhysicsThreadContext(), bIsInGameThreadContext = IsInGameThreadContext()](int32 Idx)
 	{
+#if PHYSICS_THREAD_CONTEXT
 		FPhysicsThreadContextScope PTScope(bIsInPhysicsSimContext);
 		FGameThreadContextScope GTScope(bIsInGameThreadContext);
+#endif
 		InCallable(Idx);
 	};
 	::ParallelFor(InNum, PassThrough, bDisablePhysicsParallelFor || bForceSingleThreaded);
