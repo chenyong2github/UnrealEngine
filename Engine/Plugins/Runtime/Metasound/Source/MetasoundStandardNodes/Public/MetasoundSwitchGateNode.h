@@ -28,7 +28,7 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FSwitchNode : public FNodeFacade
 	{
 	public:
-		FSwitchNode(const FString& InName);
+		FSwitchNode(const FString& InName, const FGuid& InInstanceID);
 		FSwitchNode(const FNodeInitData& InInitData);
 	};
 
@@ -40,7 +40,7 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FGateNode : public FNodeFacade
 	{
 	public:
-		FGateNode(const FString& InName);
+		FGateNode(const FString& InName, const FGuid& InInstanceID);
 		FGateNode(const FNodeInitData& InInitData);
 	};
 }

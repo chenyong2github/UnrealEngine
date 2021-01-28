@@ -38,7 +38,6 @@ namespace Metasound
 			for (auto& NodeClassTuple : Registry)
 			{
 				FNodeClassInfo ClassInfo;
-				ClassInfo.NodeName = NodeClassTuple.Key.NodeName.ToString();
 				ClassInfo.NodeType = EMetasoundFrontendClassType::External;
 				ClassInfo.LookupKey = NodeClassTuple.Key;
 
@@ -55,32 +54,12 @@ namespace Metasound
 			return GenerateClassDescription(InInfo).Metadata;
 		}
 
-		FMetasoundFrontendClass GenerateClassDescription(const FNodeInfo& InNodeMetadata, EMetasoundFrontendClassType ClassType)
+		FMetasoundFrontendClass GenerateClassDescription(const FNodeClassMetadata& InNodeMetadata, EMetasoundFrontendClassType ClassType)
 		{
-			FMetasoundFrontendClassName ClassName
-			{
-				TEXT(""), // Namespace
-				InNodeMetadata.ClassName.ToString(),
-				TEXT("") // Variant
-			};
-
 			FMetasoundFrontendClass ClassDescription;
 
-			ClassDescription.Metadata = FMetasoundFrontendClassMetadata
-			{
-				ClassName,
-				FMetasoundFrontendVersionNumber
-				{
-					InNodeMetadata.MajorVersion,
-					InNodeMetadata.MinorVersion
-				},
-				ClassType,
-				InNodeMetadata.Description,
-				InNodeMetadata.PromptIfMissing,
-				InNodeMetadata.Author,
-				InNodeMetadata.Keywords,
-				InNodeMetadata.CategoryHierarchy,
-			};
+			ClassDescription.Metadata = FMetasoundFrontendClassMetadata(InNodeMetadata);
+			ClassDescription.Metadata.Type = ClassType;
 
 			FMetasoundFrontendClassStyleDisplay DisplayStyle(InNodeMetadata.DisplayStyle);
 			ClassDescription.Style = FMetasoundFrontendClassStyle
@@ -143,7 +122,7 @@ namespace Metasound
 			}
 			else
 			{
-				ensureAlwaysMsgf(false, TEXT("Tried to get Class Description for unknown node %s!"), *InInfo.NodeName);
+				ensureAlwaysMsgf(false, TEXT("Cannot generate description of unregistered node [NodeClassName:%s]"), *InInfo.LookupKey.NodeClassFullName.ToString());
 				return FMetasoundFrontendClass();
 			}
 		}

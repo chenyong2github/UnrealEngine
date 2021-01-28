@@ -80,15 +80,16 @@ namespace Metasound
 			);
 		}
 
-		static FNodeInfo GetNodeInfo(const FString& InVertexName)
+		static FNodeClassMetadata GetNodeInfo(const FString& InVertexName)
 		{
 			static const FString ClassNameString = FString(TEXT("Output_")) + GetMetasoundDataTypeName<DataType>().ToString();
 
-			FNodeInfo Info;
+			FNodeClassMetadata Info;
 
-			Info.ClassName = FName(*ClassNameString);
+			Info.ClassName = {TEXT("Output"), GetMetasoundDataTypeName<DataType>(), TEXT("")};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = FText::Format(LOCTEXT("Metasound_OutputNodeDisplayNameFormat", "Output {0}"), FText::FromName(GetMetasoundDataTypeName<DataType>()));
 			Info.Description = LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -100,8 +101,8 @@ namespace Metasound
 
 
 		public:
-			TOutputNode(const FString& InInstanceName, const FString& InVertexName)
-			:	FNode(InInstanceName, GetNodeInfo(InVertexName))
+			TOutputNode(const FString& InInstanceName, const FGuid& InInstanceID, const FString& InVertexName)
+			:	FNode(InInstanceName, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexInterface(GetVertexInterface(InVertexName))
 			,	Factory(MakeShared<FOutputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))
 			{

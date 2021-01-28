@@ -9,6 +9,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundBufferAddFloatNode"
 
@@ -17,7 +18,7 @@ namespace Metasound
 	class FBufferAddFloatOperator : public TExecutableOperator<FBufferAddFloatOperator>
 	{
 		public:
-			static const FNodeInfo& GetNodeInfo();
+			static const FNodeClassMetadata& GetNodeInfo();
 
 			static FVertexInterface DeclareVertexInterface();
 
@@ -66,13 +67,13 @@ namespace Metasound
 			FAudioBufferWriteRef OutputBuffer;
 	};
 
-	FBufferAddFloatNode::FBufferAddFloatNode(const FString& InInstanceName)
-	:	FNodeFacade(InInstanceName, TFacadeOperatorClass<FBufferAddFloatOperator>())
+	FBufferAddFloatNode::FBufferAddFloatNode(const FString& InInstanceName, const FGuid& InInstanceID)
+	:	FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FBufferAddFloatOperator>())
 	{
 	}
 
 	FBufferAddFloatNode::FBufferAddFloatNode(const FNodeInitData& InInitData)
-	:	FBufferAddFloatNode(InInitData.InstanceName)
+	:	FBufferAddFloatNode(InInitData.InstanceName, InInitData.InstanceID)
 	{
 	}
 
@@ -102,9 +103,9 @@ namespace Metasound
 		return MakeUnique<FBufferAddFloatOperator>(InParams.OperatorSettings, InputBuffer, InputGain);
 	}
 
-	const FNodeInfo& FBufferAddFloatOperator::GetNodeInfo()
+	const FNodeClassMetadata& FBufferAddFloatOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeDisplayStyle DisplayStyle;
 			DisplayStyle.ImageName = "MetasoundEditor.Graph.Node.Math.Add";
@@ -112,11 +113,12 @@ namespace Metasound
 			DisplayStyle.bShowInputNames = false;
 			DisplayStyle.bShowOutputNames = false;
 
-			FNodeInfo Info;
-			Info.ClassName = "Add Float to AudioBuffer";
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("Add"), TEXT("FloatToAudioBuffer")};
 			Info.DisplayStyle = DisplayStyle;
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("BufferAddFloat_NodeDisplayName", "Add");
 			Info.Description = LOCTEXT("BufferAddFloat_NodeDescription", "Add Float to AudioBuffer.");
 			Info.CategoryHierarchy = { LOCTEXT("Metasound_MathCategory", "Math") };
 			Info.Author = PluginAuthor;
@@ -126,7 +128,7 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	};

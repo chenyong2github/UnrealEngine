@@ -40,9 +40,9 @@ namespace Metasound
 			template<typename T, T> 
 			struct Helper;
 
-			// Check for "static const FNodeInfo& U::CreateOperator(const FCreateOperatorParams& Inparams, FBuildErrorArray& OutErrors)"
+			// Check for "static const FNodeClassMetadata& U::CreateOperator(const FCreateOperatorParams& Inparams, FBuildErrorArray& OutErrors)"
 			template<typename T>
-			static uint8 Check(Helper<const FNodeInfo&(*)(), &T::GetNodeInfo>*);
+			static uint8 Check(Helper<const FNodeClassMetadata&(*)(), &T::GetNodeInfo>*);
 
 			template<typename T> static uint16 Check(...);
 
@@ -65,10 +65,10 @@ namespace Metasound
 		// Require static TUniquePtr<IOperator> OperatorType::CreateOperator(const FCreateOperatorParams&, TArray<TUniquePtr<IOperatorBuildError>>&) exists.
 		static_assert(TIsFactoryMethodDeclared<OperatorType>::Value, "To use the FNodeFacade constructor, the OperatorType must have the static function \"static TUniquePtr<IOperator> OperatorType::CreateOperator(const FCreateOperatorParams&, TArray<TUniquePtr<IOperatorBuildError>>&)\"");
 
-		// Require static const FNodeInfo& OperatorType::GetNodeInfo() exists.
-		static_assert(TIsNodeInfoDeclared<OperatorType>::Value, "To use the FNodeFacade constructor, the OperatorType must have the static function \"static const FNodeInfo& OperatorType::GetNodeInfo()\"");
+		// Require static const FNodeClassMetadata& OperatorType::GetNodeInfo() exists.
+		static_assert(TIsNodeInfoDeclared<OperatorType>::Value, "To use the FNodeFacade constructor, the OperatorType must have the static function \"static const FNodeClassMetadata& OperatorType::GetNodeInfo()\"");
 
-		static const FNodeInfo& GetNodeInfo() 
+		static const FNodeClassMetadata& GetNodeInfo() 
 		{ 
 			return OperatorType::GetNodeInfo(); 
 		}
@@ -113,12 +113,13 @@ namespace Metasound
 			 * to get the node info, operator factory method and vertex interface. 
 			 *
 			 * @param InInstanceName - Instance name for the node.
+			 * @param InInstanceID - Instance ID for the node.
 			 * @param OperatorClass - Template class wrapper for the underlying 
 			 * 						  IOperator which is created by this node.
 			 */
 			template<typename OperatorType>
-			FNodeFacade(const FString& InInstanceName, TFacadeOperatorClass<OperatorType> OperatorClass)
-			:	FNode(InInstanceName, OperatorType::GetNodeInfo())
+			FNodeFacade(const FString& InInstanceName, const FGuid& InInstanceID, TFacadeOperatorClass<OperatorType> OperatorClass)
+			:	FNode(InInstanceName, InInstanceID, OperatorType::GetNodeInfo())
 			, 	Factory(MakeShared<FFactory, ESPMode::ThreadSafe>(&OperatorType::CreateOperator))
 			{
 				VertexInterface = GetMetadata().DefaultInterface;

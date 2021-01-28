@@ -773,13 +773,13 @@ namespace Metasound
 
 			if (ConverterInputs.Num() < 1)
 			{
-				UE_LOG(LogMetasound, Warning, TEXT("Converter node [Name: %s] does not support preferred input vertex [Vertex: %s]"), *InConverterInfo.NodeKey.NodeName.ToString(), *InConverterInfo.PreferredConverterInputPin);
+				UE_LOG(LogMetasound, Warning, TEXT("Converter node [Name: %s] does not support preferred input vertex [Vertex: %s]"), *InConverterInfo.NodeKey.NodeClassFullName.ToString(), *InConverterInfo.PreferredConverterInputPin);
 				return false;
 			}
 
 			if (ConverterOutputs.Num() < 1)
 			{
-				UE_LOG(LogMetasound, Warning, TEXT("Converter node [Name: %s] does not support preferred output vertex [Vertex: %s]"), *InConverterInfo.NodeKey.NodeName.ToString(), *InConverterInfo.PreferredConverterOutputPin);
+				UE_LOG(LogMetasound, Warning, TEXT("Converter node [Name: %s] does not support preferred output vertex [Vertex: %s]"), *InConverterInfo.NodeKey.NodeClassFullName.ToString(), *InConverterInfo.PreferredConverterOutputPin);
 				return false;
 			}
 
@@ -1054,6 +1054,15 @@ namespace Metasound
 			return Metasound::FrontendInvalidID;
 		}
 
+		const FText& FBaseNodeController::GetClassDisplayName() const
+		{
+			if (const FMetasoundFrontendClass* NodeClass = ClassPtr.Get())
+			{
+				return NodeClass->Metadata.DisplayName;
+			}
+			return FText::GetEmpty();
+		}
+
 		FMetasoundFrontendVersionNumber FBaseNodeController::GetClassVersionNumber() const
 		{
 			if (ClassPtr.IsValid())
@@ -1120,14 +1129,14 @@ namespace Metasound
 			return EMetasoundFrontendClassType::Invalid;
 		}
 
-		const FString& FBaseNodeController::GetClassName() const
+		const FMetasoundFrontendClassName& FBaseNodeController::GetClassName() const
 		{
 			if (ClassPtr.IsValid())
 			{
-				return ClassPtr->Metadata.Name.Name;
+				return ClassPtr->Metadata.ClassName;
 			}
 
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FString>();
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendClassName>();
 		}
 
 		bool FBaseNodeController::CanAddInput(const FString& InVertexName) const
@@ -2393,7 +2402,6 @@ namespace Metasound
 			// Construct a FNodeClassInfo from this lookup key.
 			FNodeClassInfo ClassInfo;
 			ClassInfo.LookupKey = InNodeClass;
-			ClassInfo.NodeName = InNodeClass.NodeName.ToString();
 			ClassInfo.NodeType = EMetasoundFrontendClassType::External;
 
 			return AddNode(ClassInfo);
@@ -2459,7 +2467,7 @@ namespace Metasound
 				{
 					if (const FMetasoundFrontendClass* ExistingDependency = OwningDocument->FindClass(InInfo).Get())
 					{
-						UE_LOG(LogMetasound, Error, TEXT("Cannot add new subgraph. Metasound class already exists with matching metadata Name: \"%s\", Version %d.%d"), *(ExistingDependency->Metadata.Name.GetFullName()), ExistingDependency->Metadata.Version.Major, ExistingDependency->Metadata.Version.Minor);
+						UE_LOG(LogMetasound, Error, TEXT("Cannot add new subgraph. Metasound class already exists with matching metadata Name: \"%s\", Version %d.%d"), *(ExistingDependency->Metadata.ClassName.GetFullName().ToString()), ExistingDependency->Metadata.Version.Major, ExistingDependency->Metadata.Version.Minor);
 					}
 					//else if (const FMetasoundFrontendClass* DependencyDescription = OwningDocument->FindOrAddClass(InInfo))
 					else if (FConstClassAccessPtr DependencyDescription = OwningDocument->FindOrAddClass(InInfo))
@@ -3171,7 +3179,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetasound, Error, TEXT("Cannot add external dependency. No Metasound class found with matching metadata Name: \"%s\", Version %d.%d. Suggested solution \"%s\" by %s."), *InMetadata.Name.GetFullName(), InMetadata.Version.Major, InMetadata.Version.Minor, *InMetadata.PromptIfMissing.ToString(), *InMetadata.Author.ToString());
+						UE_LOG(LogMetasound, Error, TEXT("Cannot add external dependency. No Metasound class found with matching metadata Name: \"%s\", Version %d.%d. Suggested solution \"%s\" by %s."), *InMetadata.ClassName.GetFullName().ToString(), InMetadata.Version.Major, InMetadata.Version.Minor, *InMetadata.PromptIfMissing.ToString(), *InMetadata.Author.ToString());
 					}
 				} 
 				else if (EMetasoundFrontendClassType::Graph == InMetadata.Type)
@@ -3184,7 +3192,7 @@ namespace Metasound
 				}
 				else
 				{
-					UE_LOG(LogMetasound, Error, TEXT("Unsupported metasound class type for node: \"%s\", Version %d.%d."), *InMetadata.Name.GetFullName(), InMetadata.Version.Major, InMetadata.Version.Minor);
+					UE_LOG(LogMetasound, Error, TEXT("Unsupported metasound class type for node: \"%s\", Version %d.%d."), *InMetadata.ClassName.GetFullName().ToString(), InMetadata.Version.Major, InMetadata.Version.Minor);
 					checkNoEntry();
 				}
 
@@ -3345,7 +3353,7 @@ namespace Metasound
 		{
 			if (InMetadataA.Type == InMetadataB.Type)
 			{
-				if (InMetadataA.Name == InMetadataB.Name)
+				if (InMetadataA.ClassName == InMetadataB.ClassName)
 				{
 					return FRegistry::GetRegistryKey(InMetadataA) == FRegistry::GetRegistryKey(InMetadataB);
 				}
@@ -3357,10 +3365,7 @@ namespace Metasound
 		{
 			if (InNodeClass.NodeType == InMetadata.Type)
 			{
-				if (InNodeClass.NodeName == InMetadata.Name.Name)
-				{
-					return InNodeClass.LookupKey == FRegistry::GetRegistryKey(InMetadata);
-				}
+				return InNodeClass.LookupKey == FRegistry::GetRegistryKey(InMetadata);
 			}
 			return false;
 		}

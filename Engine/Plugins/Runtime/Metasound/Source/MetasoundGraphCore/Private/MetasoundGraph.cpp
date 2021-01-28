@@ -6,9 +6,10 @@
 
 namespace Metasound
 {
-	FGraph::FGraph(const FString& InInstanceName)
+	FGraph::FGraph(const FString& InInstanceName, const FGuid& InInstanceID)
 	: InstanceName(InInstanceName)
-	, Metadata(FNodeInfo::GetEmpty())
+	, InstanceID(InInstanceID)
+	, Metadata(FNodeClassMetadata::GetEmpty())
 	{
 	}
 
@@ -17,7 +18,12 @@ namespace Metasound
 		return InstanceName;
 	}
 
-	const FNodeInfo& FGraph::GetMetadata() const
+	const FGuid& FGraph::GetInstanceID() const
+	{
+		return InstanceID;
+	}
+
+	const FNodeClassMetadata& FGraph::GetMetadata() const
 	{
 		return Metadata;
 	}

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundMathNodes.h"
 
+#define LOCTEXT_NAMESPACE "MetasoundMathOpNode"
 
 namespace Metasound
 {
@@ -37,3 +38,5 @@ namespace Metasound
 	METASOUND_REGISTER_NODE(FRandRangeFrequencyNode)
 	METASOUND_REGISTER_NODE(FRandRangeFloatTimeNode)
 }
+
+#undef LOCTEXT_NAMESPACE // MetasoundMathOpNode

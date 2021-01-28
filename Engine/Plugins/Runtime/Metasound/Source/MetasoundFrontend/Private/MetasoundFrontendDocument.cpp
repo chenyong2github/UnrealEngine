@@ -5,6 +5,11 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
 
+namespace Metasound
+{
+	const FGuid FrontendInvalidID = FGuid();
+}
+
 void FMetasoundFrontendLiteral::Set(bool InValue)
 {
 	Clear();
@@ -83,7 +88,7 @@ FMetasoundFrontendNodeInterface::FMetasoundFrontendNodeInterface(const FMetasoun
 
 FMetasoundFrontendNode::FMetasoundFrontendNode(const FMetasoundFrontendClass& InClass)
 : ClassID(InClass.ID)
-, Name(InClass.Metadata.Name.Name)
+, Name(InClass.Metadata.ClassName.Name.ToString())
 , Interface(InClass.Interface)
 {
 
@@ -104,15 +109,49 @@ bool FMetasoundFrontendClassVertex::IsFunctionalEquivalent(const FMetasoundFront
 	return FMetasoundFrontendVertex::IsFunctionalEquivalent(InLHS, InRHS) && FMetasoundFrontendVertexBehavior::IsFunctionalEquivalent(InLHS.Behavior, InRHS.Behavior);
 }
 
-FString FMetasoundFrontendClassName::GetFullName() const
+FMetasoundFrontendClassName::FMetasoundFrontendClassName(const FName& InNamespace, const FName& InName, const FName& InVariant)
+: Namespace(InNamespace)
+, Name(InName)
+, Variant(InVariant)
 {
-	//return FString::Format(TEXT("{0}.{1}.{2}"), {Namespace, Name, Variant});
-	return Name;
+}
+
+FMetasoundFrontendClassName::FMetasoundFrontendClassName(const Metasound::FNodeClassName& InName)
+: FMetasoundFrontendClassName(InName.GetNamespace(), InName.GetName(), InName.GetVariant())
+{
+}
+
+FName FMetasoundFrontendClassName::GetScopedName() const
+{
+	return Metasound::FNodeClassName::FormatScopedName(Namespace, Name);
+}
+
+FName FMetasoundFrontendClassName::GetFullName() const
+{
+	return Metasound::FNodeClassName::FormatFullName(Namespace, Name, Variant);
+}
+
+FString FMetasoundFrontendClassName::ToString() const
+{
+	return GetFullName().ToString();
 }
 
 bool operator==(const FMetasoundFrontendClassName& InLHS, const FMetasoundFrontendClassName& InRHS)
 {
 	return (InLHS.Namespace == InRHS.Namespace) && (InLHS.Name == InRHS.Name) && (InLHS.Variant == InRHS.Variant);
+}
+
+FMetasoundFrontendClassMetadata::FMetasoundFrontendClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata)
+: ClassName(InNodeClassMetadata.ClassName)
+, Version{InNodeClassMetadata.MajorVersion, InNodeClassMetadata.MinorVersion}
+, Type(EMetasoundFrontendClassType::External)
+, DisplayName(InNodeClassMetadata.DisplayName)
+, Description(InNodeClassMetadata.Description)
+, PromptIfMissing(InNodeClassMetadata.PromptIfMissing)
+, Author(InNodeClassMetadata.Author)
+, Keywords(InNodeClassMetadata.Keywords)
+, CategoryHierarchy(InNodeClassMetadata.CategoryHierarchy)
+{
 }
 
 FMetasoundFrontendClassInput::FMetasoundFrontendClassInput(const FMetasoundFrontendClassVertex& InOther)

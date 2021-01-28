@@ -6,9 +6,10 @@
 
 namespace Metasound
 {
-	FNode::FNode(const FString& InInstanceName, const FNodeInfo& InInfo)
-	:	InstanceName(InInstanceName)
-	,	Info(InInfo)
+	FNode::FNode(const FString& InInstanceName, const FGuid& InInstanceID, const FNodeClassMetadata& InInfo)
+	: InstanceName(InInstanceName)
+	, InstanceID(InInstanceID)
+	, Info(InInfo)
 	{
 	}
 
@@ -18,8 +19,14 @@ namespace Metasound
 		return InstanceName;
 	}
 
+	/** Return the ID of this specific instance of the node class. */
+	const FGuid& FNode::GetInstanceID() const
+	{
+		return InstanceID;
+	}
+
 	/** Return the type name of this node. */
-	const FNodeInfo& FNode::GetMetadata() const
+	const FNodeClassMetadata& FNode::GetMetadata() const
 	{
 		return Info;
 	}

@@ -115,7 +115,7 @@ namespace Metasound
 					PackageToSaveTo = GetTransientPackage();
 				}
 
-				UObject* NewMetasoundObject = InEntry.NewObject(PackageToSaveTo, *InDocument.RootGraph.Metadata.Name.GetFullName());
+				UObject* NewMetasoundObject = InEntry.NewObject(PackageToSaveTo, *InDocument.RootGraph.Metadata.ClassName.GetFullName().ToString());
 				FMetasoundAssetBase* NewAssetBase = InEntry.Cast(NewMetasoundObject);
 				if (ensure(nullptr != NewAssetBase))
 				{

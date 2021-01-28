@@ -49,9 +49,9 @@ namespace Metasound
 			);
 		}
 
-		static const FNodeInfo& GetAutoConverterNodeMetadata()
+		static const FNodeClassMetadata& GetAutoConverterNodeMetadata()
 		{
-			auto InitNodeInfo = []() -> FNodeInfo
+			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				const FString& InputDisplayName = GetInputName();
 				const FString& OutputDisplayName = GetOutputName();
@@ -61,10 +61,11 @@ namespace Metasound
 				DisplayStyle.bShowInputNames = false;
 				DisplayStyle.bShowOutputNames = false;
 
-				FNodeInfo Info;
-				Info.ClassName = FName(*FString::Printf(TEXT("%s To %s"), *InputDisplayName, *OutputDisplayName));
+				FNodeClassMetadata Info;
+				Info.ClassName = {TEXT("Convert"), GetMetasoundDataTypeName<ToDataType>(), GetMetasoundDataTypeName<FromDataType>()}; 
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
+				Info.DisplayName = FText::Format(LOCTEXT("Metasound_AutoConverterNodeDisplayNameFormat", "Convert {0} to {1}"), FText::FromName(GetMetasoundDataTypeName<FromDataType>()), FText::FromName(GetMetasoundDataTypeName<ToDataType>()));
 				Info.Description = LOCTEXT("Metasound_ConverterNodeDescription", "Converts between two different data types.");
 				Info.Author = PluginAuthor;
 				Info.DisplayStyle = DisplayStyle;
@@ -77,7 +78,7 @@ namespace Metasound
 				return Info;
 			};
 
-			static const FNodeInfo Info = InitNodeInfo();
+			static const FNodeClassMetadata Info = InitNodeInfo();
 
 			return Info;
 		}
@@ -157,7 +158,7 @@ namespace Metasound
 		public:
 
 			TAutoConverterNode(const FNodeInitData& InInitData)
-				: FNode(InInitData.InstanceName, GetAutoConverterNodeMetadata())
+				: FNode(InInitData.InstanceName, InInitData.InstanceID, GetAutoConverterNodeMetadata())
 				, Interface(DeclareVertexInterface())
 				, Factory(MakeOperatorFactoryRef<FCoverterOperatorFactory>())
 			{

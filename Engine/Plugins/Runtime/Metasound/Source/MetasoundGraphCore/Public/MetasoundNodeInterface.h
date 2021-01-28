@@ -9,6 +9,7 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundVertex.h"
 #include "MetasoundLiteral.h"
+#include "Misc/Guid.h"
 
 namespace Metasound
 {
@@ -22,6 +23,7 @@ namespace Metasound
 	struct FNodeInitData
 	{
 		FString InstanceName;
+		FGuid InstanceID;
 		TMap<FName, FLiteral> ParamMap;
 
 		template<typename ParamType>
@@ -51,27 +53,65 @@ namespace Metasound
 		bool bShowOutputNames = true;
 	};
 
-	// TODO: update FNodeInfo with this as class name.
-	struct FNodeClassName
+	/** Name of a node class.
+	 *
+	 * FNodeClassName is used for lookup and declaring interoperability.
+	 *
+	 * Namespaces are provided as a convenience to simply name collisions.
+	 *
+	 * Nodes with equal Namespace and Name, but different Variants are considered
+	 * to be interoperable. They can be used to define nodes that perform the same
+	 * function, but have differing vertex types.
+	 */
+	class METASOUNDGRAPHCORE_API FNodeClassName
 	{
-		FString Namespace;
-		FString Name;
-		FString Variant;
+	public:
+		FNodeClassName();
+
+		FNodeClassName(const FName& InNamespace, const FName& InName, const FName& InVariant);
+
+		/** Namespace of node class. */
+		const FName& GetNamespace() const;
+
+		/** Name of node class. */
+		const FName& GetName() const;
+
+		/** Variant of node class. */
+		const FName& GetVariant() const;
+
+		/** Namespace and name of the node class. */
+		const FName& GetScopedName() const;
+
+		/** Namespace, name and variant of the node class. */
+		const FName& GetFullName() const;
+
+		static FName FormatFullName(const FName& InNamespace, const FName& InName, const FName& InVariant);
+
+		static FName FormatScopedName(const FName& InNamespace, const FName& InName);
+
+	private:
+
+		FName Namespace;
+		FName Name;
+		FName Variant;
+		FName ScopedName;
+		FName FullName;
 	};
 
 	/** Provides metadata for a given node. */
-	struct FNodeInfo
+	struct FNodeClassMetadata
 	{
-		// TODO: rename this class to FNodeMetadata
-
 		/** Name of class. Used for registration and lookup. */
-		FName ClassName;
+		FNodeClassName ClassName;
 
 		/** Major version of node. Used for registration and lookup. */
 		int32 MajorVersion = -1;
 
 		/** Minor version of node. */
 		int32 MinorVersion = -1;
+
+		/** Display name of node class. */
+		FText DisplayName;
 
 		/** Human readable description of node. */
 		FText Description;
@@ -94,10 +134,10 @@ namespace Metasound
 		/** Display style for node when visualized. */
 		FNodeDisplayStyle DisplayStyle;
 
-		/** Returns an empty FNodeInfo object. */
-		static const FNodeInfo& GetEmpty()
+		/** Returns an empty FNodeClassMetadata object. */
+		static const FNodeClassMetadata& GetEmpty()
 		{
-			static const FNodeInfo EmptyInfo;
+			static const FNodeClassMetadata EmptyInfo;
 			return EmptyInfo;
 		}
 	};
@@ -114,8 +154,11 @@ namespace Metasound
 			/** Return the name of this specific instance of the node class. */
 			virtual const FString& GetInstanceName() const = 0;
 
+			/** Return the ID of this node instance. */
+			virtual const FGuid& GetInstanceID() const = 0;
+
 			/** Return the type name of this node. */
-			virtual const FNodeInfo& GetMetadata() const = 0;
+			virtual const FNodeClassMetadata& GetMetadata() const = 0;
 
 			/** Return the current vertex interface. */
 			virtual const FVertexInterface& GetVertexInterface() const = 0;

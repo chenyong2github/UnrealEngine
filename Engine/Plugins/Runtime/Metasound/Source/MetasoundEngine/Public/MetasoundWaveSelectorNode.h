@@ -21,9 +21,9 @@ namespace Metasound
 
 	public:
 		static FVertexInterface DeclareVertexInterface();
-		static const FNodeInfo& GetNodeInfo();
+		static const FNodeClassMetadata& GetNodeInfo();
 
-		FWaveSelectorNode(const FString& InName);
+		FWaveSelectorNode(const FString& InName, const FGuid& InInstanceID);
 
 		// constructor used by the Metasound Frontend.
 		FWaveSelectorNode(const FNodeInitData& InInitData);

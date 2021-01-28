@@ -27,7 +27,7 @@ namespace Metasound
 
 
 	template <typename FNodeType>
-	bool RegisterNodeWithFrontend(const Metasound::FNodeInfo& InMetadata)
+	bool RegisterNodeWithFrontend(const Metasound::FNodeClassMetadata& InMetadata)
 	{
 		// if we reenter this code (because DECLARE_METASOUND_DATA_REFERENCE_TYPES was called twice with the same type),
 		// we catch it here.

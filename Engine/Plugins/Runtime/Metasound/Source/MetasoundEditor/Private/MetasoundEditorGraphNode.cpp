@@ -251,7 +251,7 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 		case EMetasoundFrontendClassType::External:
 		case EMetasoundFrontendClassType::Graph:
 		{
-			return FText::FromString(NodeHandle->GetClassName());
+			return NodeHandle->GetClassDisplayName();
 		}
 		break;
 	}

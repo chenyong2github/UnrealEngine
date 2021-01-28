@@ -9,6 +9,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGainMultiplyNode"
 
@@ -17,7 +18,7 @@ namespace Metasound
 	class FGainMultiplyOperator : public TExecutableOperator<FGainMultiplyOperator>
 	{
 		public:
-			static const FNodeInfo& GetNodeInfo();
+			static const FNodeClassMetadata& GetNodeInfo();
 
 			static FVertexInterface DeclareVertexInterface();
 
@@ -84,13 +85,13 @@ namespace Metasound
 			int32 BlockSize;
 	};
 
-	FGainMultiplyNode::FGainMultiplyNode(const FString& InInstanceName)
-	:	FNodeFacade(InInstanceName, TFacadeOperatorClass<FGainMultiplyOperator>())
+	FGainMultiplyNode::FGainMultiplyNode(const FString& InInstanceName, const FGuid& InInstanceID)
+	:	FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FGainMultiplyOperator>())
 	{
 	}
 
 	FGainMultiplyNode::FGainMultiplyNode(const FNodeInitData& InInitData)
-	:	FGainMultiplyNode(InInitData.InstanceName)
+	:	FGainMultiplyNode(InInitData.InstanceName, InInitData.InstanceID)
 	{
 	}
 
@@ -120,9 +121,9 @@ namespace Metasound
 		return MakeUnique<FGainMultiplyOperator>(InParams.OperatorSettings, InputBuffer, InputGain);
 	}
 
-	const FNodeInfo& FGainMultiplyOperator::GetNodeInfo()
+	const FNodeClassMetadata& FGainMultiplyOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeDisplayStyle DisplayStyle;
 			DisplayStyle.ImageName = "MetasoundEditor.Graph.Node.Math.Multiply";
@@ -130,11 +131,12 @@ namespace Metasound
 			DisplayStyle.bShowInputNames = false;
 			DisplayStyle.bShowOutputNames = false;
 
-			FNodeInfo Info;
-			Info.ClassName = "Multiply AudioBuffer by Gain";
+			FNodeClassMetadata Info;
+			Info.ClassName = FNodeClassName(StandardNodes::Namespace, TEXT("Multiply"), TEXT("AudioBufferByGain"));
 			Info.DisplayStyle = DisplayStyle;
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("GainMultiply_NodeDisplayName", "Multiply Audio by Float");
 			Info.Description = LOCTEXT("GainMultiply_NodeDescription", "Multiply AudioBuffer by float.");
 			Info.CategoryHierarchy = { LOCTEXT("Metasound_MathCategory", "Math") };
 			Info.Author = PluginAuthor;
@@ -144,7 +146,7 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	};

@@ -10,6 +10,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 
@@ -22,7 +23,7 @@ namespace Metasound
 	{
 	public:
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
-		static const FNodeInfo& GetNodeInfo();
+		static const FNodeClassMetadata& GetNodeInfo();
 		static FVertexInterface DeclareVertexInterface();	
 
 		FMixerOperator(const FOperatorSettings& InSettings, TArray<FAudioBufferReadRef>&& InBuffers, TArray<FGainReadRef>&& InGains);
@@ -116,14 +117,15 @@ namespace Metasound
 		return Interface;
 	}
 
-	const FNodeInfo& FMixerOperator::GetNodeInfo()
+	const FNodeClassMetadata& FMixerOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("Mixer"));
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("Mixer"), Metasound::StandardNodes::AudioVariant};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_MixerNodeDisplayName", "Mixer");
 			Info.Description = LOCTEXT("Metasound_MixerNodeDescription", "Mixes 1 or more input signals together");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -132,19 +134,19 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	}
 
-	FMixerNode::FMixerNode(const FString& InName, float InDefaultMixGainLinear)
-	:	FNodeFacade(InName, TFacadeOperatorClass<FMixerOperator>())
-		, DefaultMixGainLinear(InDefaultMixGainLinear)
+	FMixerNode::FMixerNode(const FString& InName, const FGuid& InInstanceID, float InDefaultMixGainLinear)
+	: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FMixerOperator>())
+	, DefaultMixGainLinear(InDefaultMixGainLinear)
 	{
 	}
 
 	FMixerNode::FMixerNode(const FNodeInitData& InInitData)
-		: FMixerNode(InInitData.InstanceName, 1.0f)
+	: FMixerNode(InInitData.InstanceName, InInitData.InstanceID, 1.0f)
 	{
 	}
 

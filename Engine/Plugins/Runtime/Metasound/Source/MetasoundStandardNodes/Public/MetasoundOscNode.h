@@ -19,7 +19,7 @@ namespace Metasound
 	{
 		public:
 
-		FOscNode(const FString& InName, float InDefaultFrequency, bool bInDefaultEnablement);
+		FOscNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, bool bInDefaultEnablement);
 
 		FOscNode(const FNodeInitData& InInitData);
 

@@ -6,6 +6,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrigger.h"
+#include "MetasoundStandardNodesNames.h"
 #include "MetasoundVertex.h"
 
 
@@ -18,7 +19,7 @@ namespace Metasound
 	class FTriggerAccumulatorOperator : public TExecutableOperator<FTriggerAccumulatorOperator>
 	{
 		public:
-			static const FNodeInfo& GetNodeInfo();
+			static const FNodeClassMetadata& GetNodeInfo();
 			static FVertexInterface DeclareVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
@@ -183,14 +184,15 @@ namespace Metasound
 		return Interface;
 	}
 
-	const FNodeInfo& FTriggerAccumulatorOperator::GetNodeInfo()
+	const FNodeClassMetadata& FTriggerAccumulatorOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("Trigger Accumulator"));
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("TriggerAccumulator"), TEXT("")};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_TriggerAccumulatorNodeDisplayName", "Trigger Accumulator");
 			Info.Description = LOCTEXT("Metasound_TriggerAccumulatorNodeDescription", "Accumulates Triggers until a Count is hit and then it Triggers");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -199,7 +201,7 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	}
@@ -218,13 +220,13 @@ namespace Metasound
 	}
 
 	// Node.
-	FTriggerAccumulatorNode::FTriggerAccumulatorNode(const FString& InName, int32 InDefaultTriggerAtCount)
-		: FNodeFacade(InName, TFacadeOperatorClass<FTriggerAccumulatorOperator>())
+	FTriggerAccumulatorNode::FTriggerAccumulatorNode(const FString& InName, const FGuid& InInstanceID, int32 InDefaultTriggerAtCount)
+		: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FTriggerAccumulatorOperator>())
 		, DefaultTriggerAtCount(InDefaultTriggerAtCount)
 	{}
 
 	FTriggerAccumulatorNode::FTriggerAccumulatorNode(const FNodeInitData& InitData)
-		: FTriggerAccumulatorNode(InitData.InstanceName, 1)
+		: FTriggerAccumulatorNode(InitData.InstanceName, InitData.InstanceID, 1)
 	{}
 }
 

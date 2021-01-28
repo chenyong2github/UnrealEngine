@@ -659,8 +659,6 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 			? Metadata.Description
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
 
-		FString DisplayName = ClassInfo.NodeName;
-
 		const FText* MenuName = &NodeMenuName;
 		FText CategoriesText = FText::GetEmpty();
 		if (!Metadata.CategoryHierarchy.IsEmpty() && !Metadata.CategoryHierarchy[0].CompareTo(ConvertMenuName))
@@ -675,7 +673,7 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 		TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 		(
 			FText::Format(MenuJoinFormat, *MenuName, CategoriesText),
-			FText::FromString(DisplayName),
+			Metadata.DisplayName,
 			Tooltip,
 			0
 		);

@@ -11,6 +11,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 #include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
 
@@ -24,7 +25,7 @@ namespace Metasound
 	class FTriggerPipeOperator : public TExecutableOperator<FTriggerPipeOperator>
 	{
 		public:
-			static const FNodeInfo& GetNodeInfo();
+			static const FNodeClassMetadata& GetNodeInfo();
 			static FVertexInterface DeclareVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
@@ -141,14 +142,15 @@ namespace Metasound
 		return Interface;
 	}
 
-	const FNodeInfo& FTriggerPipeOperator::GetNodeInfo()
+	const FNodeClassMetadata& FTriggerPipeOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = "Trigger Pipe";
+			FNodeClassMetadata Info;
+			Info.ClassName = FNodeClassName(StandardNodes::Namespace, TEXT("Pipe"), TEXT("Trigger"));
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("PipeTriggerNode_NodeDisplayName", "Trigger Pipe");
 			Info.Description = LOCTEXT("Metasound_DelayNodeDescription", "Delays execution of the input trigger by the given delay for all input trigger executions.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -157,18 +159,18 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 		return Info;
 	}
 
-	FTriggerPipeNode::FTriggerPipeNode(const FString& InName, float InDefaultDelayInSeconds)
-	:	FNodeFacade(InName, TFacadeOperatorClass<FTriggerPipeOperator>())
+	FTriggerPipeNode::FTriggerPipeNode(const FString& InName, const FGuid& InInstanceID, float InDefaultDelayInSeconds)
+	:	FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FTriggerPipeOperator>())
 	,	DefaultDelay(InDefaultDelayInSeconds)
 	{
 	}
 
 	FTriggerPipeNode::FTriggerPipeNode(const FNodeInitData& InInitData)
-		: FTriggerPipeNode(InInitData.InstanceName, 0.0f)
+		: FTriggerPipeNode(InInitData.InstanceName, InInitData.InstanceID, 0.0f)
 	{
 	}
 

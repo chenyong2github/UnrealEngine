@@ -26,7 +26,7 @@ namespace Metasound
 		// Convenience functions to create an INodeB corresponding to a specific externally declared node type.
 		// InNodeType and InNodeHash can be retrieved from the FNodeClassInfo generated from the node registry queries in the metasound frontend (GetAllAvailableNodeClasses, GetAllNodeClassesInNamespace, etc.)
 		// @returns nullptr if the type given wasn't found.
-		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const FNodeInitData& InInitData);
+		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructExternalNode(const FName& InNodeClassFullName, uint32 InNodeHash, const FNodeInitData& InInitData);
 
 
 		// Utility functions for building a ::Metasound::FDataInitParam corresponding to a literal.

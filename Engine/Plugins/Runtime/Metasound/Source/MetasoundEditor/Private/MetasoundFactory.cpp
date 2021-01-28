@@ -23,7 +23,7 @@ UObject* UMetasoundFactory::FactoryCreateNew(UClass* InClass, UObject* InParent,
 
 	FMetasoundFrontendClassMetadata Metadata;
 
-	Metadata.Name = FMetasoundFrontendClassName{TEXT(""), NewMetasound->GetName(), TEXT("")};
+	Metadata.ClassName = FMetasoundFrontendClassName{TEXT(""), *NewMetasound->GetName(), TEXT("")};
 	Metadata.Version.Major = 1;
 	Metadata.Version.Minor = 0;
 	Metadata.Type = EMetasoundFrontendClassType::Graph;
@@ -52,7 +52,7 @@ UObject* UMetasoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InP
 
 	FMetasoundFrontendClassMetadata Metadata;
 
-	Metadata.Name = FMetasoundFrontendClassName{TEXT(""), MetasoundSource->GetName(), TEXT("")};
+	Metadata.ClassName = FMetasoundFrontendClassName{TEXT(""), *MetasoundSource->GetName(), TEXT("")};
 	Metadata.Version.Major = 1;
 	Metadata.Version.Minor = 0;
 	Metadata.Type = EMetasoundFrontendClassType::Graph;

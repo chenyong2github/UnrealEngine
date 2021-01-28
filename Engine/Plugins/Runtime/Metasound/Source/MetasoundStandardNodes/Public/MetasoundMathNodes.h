@@ -15,18 +15,20 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 #include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
 
 
 #define LOCTEXT_NAMESPACE "MetasoundMathOpNode"
 
-#define DEFINE_METASOUND_MATHOP(OpName, DataTypeName, DataClass, Description) \
+#define DEFINE_METASOUND_MATHOP(OpName, DataTypeName, DataClass, DisplayName, Description) \
 	class F##OpName##DataTypeName##Node \
 		: public ::Metasound::TMathOpNode<F##OpName##DataTypeName##Node, ::Metasound::TMathOp##OpName<DataClass>, DataClass> \
 	{ \
 	public: \
-		static FName GetClassName() { return #OpName " " #DataTypeName; } \
+		static FNodeClassName GetClassName() { return {::Metasound::StandardNodes::Namespace, TEXT(#OpName), TEXT(#DataTypeName)}; } \
+		static FText GetDisplayName() { return DisplayName; } \
 		static FText GetDescription() { return Description; } \
 		static FName GetImageName() { return "MetasoundEditor.Graph.Node.Math." #OpName; } \
 		F##OpName##DataTypeName##Node(const FNodeInitData& InInitData) : TMathOpNode(InInitData) { } \
@@ -34,6 +36,44 @@
 
 namespace Metasound
 {
+	namespace MathOpDisplayNames
+	{
+		template<typename DataType>
+		const FText GetAddDisplayName()
+		{
+			static const FText DisplayName = FText::Format(LOCTEXT("AddNodeDisplayNamePattern", "Add {0}"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			return DisplayName;
+		}
+
+		template<typename DataType>
+		const FText GetSubtractDisplayName()
+		{
+			static const FText DisplayName = FText::Format(LOCTEXT("SubtractNodeDisplayNamePattern", "Subtract {0}"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			return DisplayName;
+		}
+
+		template<typename DataType>
+		const FText GetMultiplyDisplayName()
+		{
+			static const FText DisplayName = FText::Format(LOCTEXT("MultiplyNodeDisplayNamePattern", "Multiply {0}"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			return DisplayName;
+		}
+
+		template<typename DataType>
+		const FText GetDivideDisplayName()
+		{
+			static const FText DisplayName = FText::Format(LOCTEXT("DivideNodeDisplayNamePattern", "Divide {0}"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			return DisplayName;
+		}
+
+		template<typename DataType>
+		const FText GetRandRangeDisplayName()
+		{
+			static const FText DisplayName = FText::Format(LOCTEXT("RandRangeNodeDisplayNamePattern", "RandRange {0}"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
+			return DisplayName;
+		}
+	}
+
 	template <typename TDerivedClass, typename TMathOpClass, typename TDataClass>
 	class TMathOpNode : public FNodeFacade
 	{
@@ -63,9 +103,9 @@ namespace Metasound
 				return Interface;
 			}
 
-			static const FNodeInfo& GetNodeInfo()
+			static const FNodeClassMetadata& GetNodeInfo()
 			{
-				auto InitNodeInfo = []() -> FNodeInfo
+				auto InitNodeInfo = []() -> FNodeClassMetadata
 				{
 					FNodeDisplayStyle DisplayStyle;
 					DisplayStyle.ImageName = TDerivedClass::GetImageName();
@@ -73,10 +113,11 @@ namespace Metasound
 					DisplayStyle.bShowInputNames = false;
 					DisplayStyle.bShowOutputNames = false;
 
-					FNodeInfo Info;
+					FNodeClassMetadata Info;
 					Info.ClassName = TDerivedClass::GetClassName();
 					Info.MajorVersion = 1;
 					Info.MinorVersion = 0;
+					Info.DisplayName = TDerivedClass::GetDisplayName();
 					Info.Description = TDerivedClass::GetDescription();
 					Info.Author = PluginAuthor;
 					Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -87,7 +128,7 @@ namespace Metasound
 					return Info;
 				};
 
-				static const FNodeInfo Info = InitNodeInfo();
+				static const FNodeClassMetadata Info = InitNodeInfo();
 				return Info;
 			}
 
@@ -134,7 +175,7 @@ namespace Metasound
 
 	public:
 		TMathOpNode(const FNodeInitData& InInitData)
-			: FNodeFacade(InInitData.InstanceName, TFacadeOperatorClass<TMathOperator>())
+			: FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<TMathOperator>())
 		{
 		}
 	};
@@ -555,39 +596,39 @@ namespace Metasound
 		}
 	};
 
-// Definitions
-	DEFINE_METASOUND_MATHOP(Add, Float, float, LOCTEXT("Metasound_MathAddFloatNodeDescription", "Adds floats."))
-	DEFINE_METASOUND_MATHOP(Add, Int32, int32, LOCTEXT("Metasound_MathAddInt32NodeDescription", "Adds int32s."))
-	DEFINE_METASOUND_MATHOP(Add, Int64, int64, LOCTEXT("Metasound_MathAddInt64NodeDescription", "Adds int64s."))
-	DEFINE_METASOUND_MATHOP(Add, Frequency, FFrequency, LOCTEXT("Metasound_MathAddFrequencyNodeDescription", "Adds frequency values."))
-	DEFINE_METASOUND_MATHOP(Add, FloatTime, FFloatTime, LOCTEXT("Metasound_MathAddFloatTimeNodeDescription", "Adds time values."))
-	DEFINE_METASOUND_MATHOP(Add, AudioBuffer, FAudioBuffer, LOCTEXT("Metasound_MathAddBufferNodeDescription", "Adds buffers together by sample."))
+	// Definitions
+	DEFINE_METASOUND_MATHOP(Add, Float, float, MathOpDisplayNames::GetAddDisplayName<float>(), LOCTEXT("Metasound_MathAddFloatNodeDescription", "Adds floats."))
+	DEFINE_METASOUND_MATHOP(Add, Int32, int32, MathOpDisplayNames::GetAddDisplayName<int32>(), LOCTEXT("Metasound_MathAddInt32NodeDescription", "Adds int32s."))
+	DEFINE_METASOUND_MATHOP(Add, Int64, int64, MathOpDisplayNames::GetAddDisplayName<int64>(), LOCTEXT("Metasound_MathAddInt64NodeDescription", "Adds int64s."))
+	DEFINE_METASOUND_MATHOP(Add, Frequency, FFrequency, MathOpDisplayNames::GetAddDisplayName<FFrequency>(), LOCTEXT("Metasound_MathAddFrequencyNodeDescription", "Adds frequency values."))
+	DEFINE_METASOUND_MATHOP(Add, FloatTime, FFloatTime, MathOpDisplayNames::GetAddDisplayName<FFloatTime>(), LOCTEXT("Metasound_MathAddFloatTimeNodeDescription", "Adds time values."))
+	DEFINE_METASOUND_MATHOP(Add, AudioBuffer, FAudioBuffer, MathOpDisplayNames::GetAddDisplayName<FAudioBuffer>(), LOCTEXT("Metasound_MathAddBufferNodeDescription", "Adds buffers together by sample."))
 
-	DEFINE_METASOUND_MATHOP(Subtract, Float, float, LOCTEXT("Metasound_MathSubractFloatNodeDescription", "Subtracts floats."))
-	DEFINE_METASOUND_MATHOP(Subtract, Int32, int32, LOCTEXT("Metasound_MathSubractInt32NodeDescription", "Subtracts int32s."))
-	DEFINE_METASOUND_MATHOP(Subtract, Int64, int64, LOCTEXT("Metasound_MathSubractInt64NodeDescription", "Subtracts int64s."))
-	DEFINE_METASOUND_MATHOP(Subtract, Frequency, FFrequency, LOCTEXT("Metasound_MathSubractFrequencyNodeDescription", "Subtracts frequency values."))
-	DEFINE_METASOUND_MATHOP(Subtract, FloatTime, FFloatTime, LOCTEXT("Metasound_MathSubractFloatTimeNodeDescription", "Subtracts time values."))
-	DEFINE_METASOUND_MATHOP(Subtract, AudioBuffer, FAudioBuffer, LOCTEXT("Metasound_MathSubtractBufferNodeDescription", "Subtracts buffers by sample."))
+	DEFINE_METASOUND_MATHOP(Subtract, Float, float, MathOpDisplayNames::GetSubtractDisplayName<float>(), LOCTEXT("Metasound_MathSubractFloatNodeDescription", "Subtracts floats."))
+	DEFINE_METASOUND_MATHOP(Subtract, Int32, int32, MathOpDisplayNames::GetSubtractDisplayName<int32>(), LOCTEXT("Metasound_MathSubractInt32NodeDescription", "Subtracts int32s."))
+	DEFINE_METASOUND_MATHOP(Subtract, Int64, int64, MathOpDisplayNames::GetSubtractDisplayName<int64>(), LOCTEXT("Metasound_MathSubractInt64NodeDescription", "Subtracts int64s."))
+	DEFINE_METASOUND_MATHOP(Subtract, Frequency, FFrequency, MathOpDisplayNames::GetSubtractDisplayName<FFrequency>(), LOCTEXT("Metasound_MathSubractFrequencyNodeDescription", "Subtracts frequency values."))
+	DEFINE_METASOUND_MATHOP(Subtract, FloatTime, FFloatTime, MathOpDisplayNames::GetSubtractDisplayName<FFloatTime>(), LOCTEXT("Metasound_MathSubractFloatTimeNodeDescription", "Subtracts time values."))
+	DEFINE_METASOUND_MATHOP(Subtract, AudioBuffer, FAudioBuffer, MathOpDisplayNames::GetSubtractDisplayName<FAudioBuffer>(), LOCTEXT("Metasound_MathSubtractBufferNodeDescription", "Subtracts buffers by sample."))
 
-	DEFINE_METASOUND_MATHOP(Multiply, Float, float, LOCTEXT("Metasound_MathMultiplyFloatNodeDescription", "Multiplies floats."))
-	DEFINE_METASOUND_MATHOP(Multiply, Int32, int32, LOCTEXT("Metasound_MathMultiplyInt32NodeDescription", "Multiplies int32s."))
-	DEFINE_METASOUND_MATHOP(Multiply, Int64, int64, LOCTEXT("Metasound_MathMultiplyInt64NodeDescription", "Multiplies int64s."))
-	DEFINE_METASOUND_MATHOP(Multiply, Frequency, FFrequency, LOCTEXT("Metasound_MathMultiplyFrequencyNodeDescription", "Multiplies frequency values."))
-	DEFINE_METASOUND_MATHOP(Multiply, FloatTime, FFloatTime, LOCTEXT("Metasound_MathMultiplyFloatTimeNodeDescription", "Multiplies time values."))
-	DEFINE_METASOUND_MATHOP(Multiply, AudioBuffer, FAudioBuffer, LOCTEXT("Metasound_MathMultiplyBufferNodeDescription", "Multiplies buffers together by sample."))
+	DEFINE_METASOUND_MATHOP(Multiply, Float, float, MathOpDisplayNames::GetMultiplyDisplayName<float>(), LOCTEXT("Metasound_MathMultiplyFloatNodeDescription", "Multiplies floats."))
+	DEFINE_METASOUND_MATHOP(Multiply, Int32, int32, MathOpDisplayNames::GetMultiplyDisplayName<int32>(), LOCTEXT("Metasound_MathMultiplyInt32NodeDescription", "Multiplies int32s."))
+	DEFINE_METASOUND_MATHOP(Multiply, Int64, int64, MathOpDisplayNames::GetMultiplyDisplayName<int64>(), LOCTEXT("Metasound_MathMultiplyInt64NodeDescription", "Multiplies int64s."))
+	DEFINE_METASOUND_MATHOP(Multiply, Frequency, FFrequency, MathOpDisplayNames::GetMultiplyDisplayName<FFrequency>(), LOCTEXT("Metasound_MathMultiplyFrequencyNodeDescription", "Multiplies frequency values."))
+	DEFINE_METASOUND_MATHOP(Multiply, FloatTime, FFloatTime, MathOpDisplayNames::GetMultiplyDisplayName<FFloatTime>(), LOCTEXT("Metasound_MathMultiplyFloatTimeNodeDescription", "Multiplies time values."))
+	DEFINE_METASOUND_MATHOP(Multiply, AudioBuffer, FAudioBuffer, MathOpDisplayNames::GetMultiplyDisplayName<FAudioBuffer>(), LOCTEXT("Metasound_MathMultiplyBufferNodeDescription", "Multiplies buffers together by sample."))
 
-	DEFINE_METASOUND_MATHOP(Divide, Float, float, LOCTEXT("Metasound_MathDivideFloatNodeDescription", "Divide float by another float."))
-	DEFINE_METASOUND_MATHOP(Divide, Int32, int32, LOCTEXT("Metasound_MathDivideInt32NodeDescription", "Divide int32 by another int32."))
-	DEFINE_METASOUND_MATHOP(Divide, Int64, int64, LOCTEXT("Metasound_MathDivideInt64NodeDescription", "Divide int64 by another int64."))
-	DEFINE_METASOUND_MATHOP(Divide, Frequency, FFrequency, LOCTEXT("Metasound_MathDivideFrequencyNodeDescription", "Divide frequency by another frequency."))
-	DEFINE_METASOUND_MATHOP(Divide, FloatTime, FFloatTime, LOCTEXT("Metasound_MathDivideFloatTimeNodeDescription", "Divide time by another time."))
+	DEFINE_METASOUND_MATHOP(Divide, Float, float, MathOpDisplayNames::GetDivideDisplayName<float>(), LOCTEXT("Metasound_MathDivideFloatNodeDescription", "Divide float by another float."))
+	DEFINE_METASOUND_MATHOP(Divide, Int32, int32, MathOpDisplayNames::GetDivideDisplayName<int32>(), LOCTEXT("Metasound_MathDivideInt32NodeDescription", "Divide int32 by another int32."))
+	DEFINE_METASOUND_MATHOP(Divide, Int64, int64, MathOpDisplayNames::GetDivideDisplayName<int64>(), LOCTEXT("Metasound_MathDivideInt64NodeDescription", "Divide int64 by another int64."))
+	DEFINE_METASOUND_MATHOP(Divide, Frequency, FFrequency, MathOpDisplayNames::GetDivideDisplayName<FFrequency>(), LOCTEXT("Metasound_MathDivideFrequencyNodeDescription", "Divide frequency by another frequency."))
+	DEFINE_METASOUND_MATHOP(Divide, FloatTime, FFloatTime, MathOpDisplayNames::GetDivideDisplayName<FFloatTime>(), LOCTEXT("Metasound_MathDivideFloatTimeNodeDescription", "Divide time by another time."))
 
-	DEFINE_METASOUND_MATHOP(RandRange, Float, float, LOCTEXT("Metasound_MathRandRangeFloatNodeDescription", "Computes random float value in the range [Min, Max]."))
-	DEFINE_METASOUND_MATHOP(RandRange, Int32, int32, LOCTEXT("Metasound_MathRandRangeInt32NodeDescription", "Computes random int32 in the range [Min, Max]."))
-	DEFINE_METASOUND_MATHOP(RandRange, Int64, int64, LOCTEXT("Metasound_MathRandRangeInt64NodeDescription", "Computes random int64 in the range [Min, Max]."))
-	DEFINE_METASOUND_MATHOP(RandRange, Frequency, FFrequency, LOCTEXT("Metasound_MathRandRangeFrequencyNodeDescription", "Computes random frequency value in the range [Min, Max]."))
-	DEFINE_METASOUND_MATHOP(RandRange, FloatTime, FFloatTime, LOCTEXT("Metasound_MathRandRangeFloatTimeNodeDescription", "Computes random time value in the range [Min, Max]."))
+	DEFINE_METASOUND_MATHOP(RandRange, Float, float, MathOpDisplayNames::GetRandRangeDisplayName<float>(), LOCTEXT("Metasound_MathRandRangeFloatNodeDescription", "Computes random float value in the range [Min, Max]."))
+	DEFINE_METASOUND_MATHOP(RandRange, Int32, int32, MathOpDisplayNames::GetRandRangeDisplayName<int32>(), LOCTEXT("Metasound_MathRandRangeInt32NodeDescription", "Computes random int32 in the range [Min, Max]."))
+	DEFINE_METASOUND_MATHOP(RandRange, Int64, int64, MathOpDisplayNames::GetRandRangeDisplayName<int64>(), LOCTEXT("Metasound_MathRandRangeInt64NodeDescription", "Computes random int64 in the range [Min, Max]."))
+	DEFINE_METASOUND_MATHOP(RandRange, Frequency, FFrequency, MathOpDisplayNames::GetRandRangeDisplayName<FFrequency>(), LOCTEXT("Metasound_MathRandRangeFrequencyNodeDescription", "Computes random frequency value in the range [Min, Max]."))
+	DEFINE_METASOUND_MATHOP(RandRange, FloatTime, FFloatTime, MathOpDisplayNames::GetRandRangeDisplayName<FFloatTime>(), LOCTEXT("Metasound_MathRandRangeFloatTimeNodeDescription", "Computes random time value in the range [Min, Max]."))
 }
 
 #undef LOCTEXT_NAMESPACE // MetasoundMathOpNode

@@ -310,6 +310,8 @@ namespace Metasound
 			// Info about this node.
 			FGuid GetID() const override;
 			FGuid GetClassID() const override;
+			const FText& GetClassDisplayName() const override;
+
 			FMetasoundFrontendVersionNumber GetClassVersionNumber() const override;
 			const FText& GetClassDescription() const override;
 			const FMetasoundFrontendClassStyle& GetClassStyle() const override;
@@ -328,7 +330,7 @@ namespace Metasound
 			FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
 			bool RemoveOutput(FGuid InPointID) override;
 
-			const FString& GetClassName() const override;
+			const FMetasoundFrontendClassName& GetClassName() const override;
 
 			/** Returns all node inputs. */
 			TArray<FInputHandle> GetInputs() override;

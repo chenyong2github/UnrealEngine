@@ -17,14 +17,17 @@ namespace Metasound
 	class METASOUNDGRAPHCORE_API FGraph : public IGraph
 	{
 		public:
-			FGraph(const FString& InInstanceName);
+			FGraph(const FString& InInstanceName, const FGuid& InInstanceID);
 			virtual ~FGraph() = default;
 
 			/** Return the name of this specific instance of the node class. */
 			const FString& GetInstanceName() const override;
 
+			/** Return the ID of this specific instance of the node class. */
+			const FGuid& GetInstanceID() const override;
+
 			/** Return metadata about this graph. */
-			const FNodeInfo& GetMetadata() const override;
+			const FNodeClassMetadata& GetMetadata() const override;
 
 			/** Retrieve all the edges associated with a graph. */
 			const TArray<FDataEdge>& GetDataEdges() const override;
@@ -106,8 +109,9 @@ namespace Metasound
 
 		private:
 			FString InstanceName;
-			FNodeInfo Metadata;
+			FGuid InstanceID;
 
+			FNodeClassMetadata Metadata;
 
 			TArray<FDataEdge> Edges;
 

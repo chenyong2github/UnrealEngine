@@ -8,6 +8,7 @@
 #include "MetasoundFrequency.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 #include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
@@ -40,7 +41,7 @@ namespace Metasound
 	{
 		public:
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
-			static const FNodeInfo& GetNodeInfo();
+			static const FNodeClassMetadata& GetNodeInfo();
 			static FVertexInterface DeclareVertexInterface();
 
 			FSwitchOperator(const FOperatorSettings& InSettings, FInt32ReadRef InSelector, FBoolReadRef InShouldCrossfade, FAudioBufferReadRef InBuffers[PREVIEW_INPUT_COUNT])
@@ -191,14 +192,15 @@ namespace Metasound
 		return CachedInterface;
 	}
 
-	const FNodeInfo& FSwitchOperator::GetNodeInfo()
+	const FNodeClassMetadata& FSwitchOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("Switch"));
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("Switch"), Metasound::StandardNodes::AudioVariant};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_SwitchNodeDisplayName", "Switch");
 			Info.Description = LOCTEXT("Metasound_SwitchNodeDescription", "Selects one audio buffer from any number of inputs.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -207,7 +209,7 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 		return Info;
 	}
 
@@ -232,13 +234,13 @@ namespace Metasound
 		return MakeUnique<FSwitchOperator>(InParams.OperatorSettings, Selector, Crossfade, PreviewBuffers);
 	}
 
-	FSwitchNode::FSwitchNode(const FString& InName)
-		: FNodeFacade(InName, TFacadeOperatorClass<FSwitchOperator>())
+	FSwitchNode::FSwitchNode(const FString& InName, const FGuid& InInstanceID)
+		: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FSwitchOperator>())
 	{
 	}
 
 	FSwitchNode::FSwitchNode(const FNodeInitData& InInitData)
-		: FSwitchNode(InInitData.InstanceName)
+		: FSwitchNode(InInitData.InstanceName, InInitData.InstanceID)
 	{
 	}
 
@@ -248,7 +250,7 @@ namespace Metasound
 	{
 	public:
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
-		static const FNodeInfo& GetNodeInfo();
+		static const FNodeClassMetadata& GetNodeInfo();
 		static FVertexInterface DeclareVertexInterface();
 
 		FGateOperator(const FOperatorSettings& InSettings, FInt32ReadRef InSelector, FBoolReadRef InShouldCrossfade, FAudioBufferReadRef InBuffer)
@@ -409,14 +411,15 @@ namespace Metasound
 		return CachedInterface;
 	}
 
-	const FNodeInfo& FGateOperator::GetNodeInfo()
+	const FNodeClassMetadata& FGateOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("Gate"));
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("Gate"), Metasound::StandardNodes::AudioVariant};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_GateNodeDisplayName", "Gate");
 			Info.Description = LOCTEXT("Metasound_GateNodeDescription", "Routes an audio buffer to one of a set of output buffers based on an input value.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -425,7 +428,7 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 		return Info;
 	}
 
@@ -444,13 +447,13 @@ namespace Metasound
 		return MakeUnique<FGateOperator>(InParams.OperatorSettings, Selector, Crossfade, Input);
 	}
 
-	FGateNode::FGateNode(const FString& InName)
-		: FNodeFacade(InName, TFacadeOperatorClass<FGateOperator>())
+	FGateNode::FGateNode(const FString& InName, const FGuid& InInstanceID)
+		: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FGateOperator>())
 	{
 	}
 
 	FGateNode::FGateNode(const FNodeInitData& InInitData)
-		: FGateNode(InInitData.InstanceName)
+		: FGateNode(InInitData.InstanceName, InInitData.InstanceID)
 	{
 	}
 

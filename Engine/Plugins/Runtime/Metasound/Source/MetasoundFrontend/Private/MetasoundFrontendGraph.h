@@ -21,8 +21,9 @@ namespace Metasound
 			/** FFrontendGraph constructor.
 			 *
 			 * @parma InInstanceName - Name of this graph.
+			 * @parma InInstanceID - ID of this graph.
 			 */
-			FFrontendGraph(const FString& InInstanceName);
+			FFrontendGraph(const FString& InInstanceName, const FGuid& InInstanceID);
 
 			virtual ~FFrontendGraph() = default;
 

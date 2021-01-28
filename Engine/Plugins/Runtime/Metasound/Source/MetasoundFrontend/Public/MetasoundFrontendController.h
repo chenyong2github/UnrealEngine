@@ -362,8 +362,9 @@ namespace Metasound
 			virtual EMetasoundFrontendClassType GetClassType() const = 0;
 
 			/** Returns the name of the node class. */
-			virtual const FString& GetClassName() const = 0;
+			virtual const FMetasoundFrontendClassName& GetClassName() const = 0;
 			virtual FMetasoundFrontendVersionNumber GetClassVersionNumber() const = 0;
+			virtual const FText& GetClassDisplayName() const = 0;
 			virtual const FText& GetClassDescription() const = 0;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const = 0;
 

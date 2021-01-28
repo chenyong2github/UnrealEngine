@@ -12,7 +12,7 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FBufferAddFloatNode : public FNodeFacade
 	{
 		public:
-			FBufferAddFloatNode(const FString& InInstanceName);
+			FBufferAddFloatNode(const FString& InInstanceName, const FGuid& InInstanceID);
 			FBufferAddFloatNode(const FNodeInitData& InInitData);
 	};
 } // namespace Metasound

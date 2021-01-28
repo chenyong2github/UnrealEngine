@@ -16,7 +16,7 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FTriggerPipeNode : public FNodeFacade
 	{
 		public:
-			FTriggerPipeNode(const FString& InName, float InDefaultDelayInSeconds);
+			FTriggerPipeNode(const FString& InName, const FGuid& InInstanceID, float InDefaultDelayInSeconds);
 			FTriggerPipeNode(const FNodeInitData& InInitData);
 
 			float GetDefaultDelayInSeconds() const;

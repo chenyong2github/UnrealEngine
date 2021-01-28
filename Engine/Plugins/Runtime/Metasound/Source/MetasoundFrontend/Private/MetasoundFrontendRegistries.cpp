@@ -18,10 +18,10 @@ namespace MetasoundFrontendRegistryPrivate
 	{
 		Metasound::Frontend::FNodeRegistryKey Key;
 
-		Key.NodeName = InClassName;
+		Key.NodeClassFullName = InClassName;
 
 		// NodeHash is hash of node name and major version.
-		Key.NodeHash = FCrc::StrCrc32(*Key.NodeName.ToString());
+		Key.NodeHash = FCrc::StrCrc32(*Key.NodeClassFullName.ToString());
 		Key.NodeHash = HashCombine(Key.NodeHash, FCrc::TypeCrc32(InMajorVersion));
 
 		return Key;
@@ -171,10 +171,10 @@ Metasound::FLiteral FMetasoundFrontendRegistryContainer::GenerateLiteralForUObje
 	}
 }
 
-TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const Metasound::FNodeInitData& InInitData)
+TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructExternalNode(const FName& InNodeClassFullName, uint32 InNodeHash, const Metasound::FNodeInitData& InInitData)
 {
 	Metasound::Frontend::FNodeRegistryKey RegistryKey;
-	RegistryKey.NodeName = InNodeType;
+	RegistryKey.NodeClassFullName = InNodeClassFullName;
 	RegistryKey.NodeHash = InNodeHash;
 
 	if (!ExternalNodeRegistry.Contains(RegistryKey))
@@ -342,7 +342,7 @@ bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(Metasound::FCreat
 	if (ensure(FMetasoundFrontendRegistryContainer::GetRegistryKey(RegistryElement, Key)))
 	{
 		// check to see if an identical node was already registered, and log
-		ensureAlwaysMsgf(!ExternalNodeRegistry.Contains(Key), TEXT("Node with identical name, inputs and outputs to node %s was already registered. The previously registered node will be overwritten. This could also happen because METASOUND_REGISTER_NODE is in a public header."), *Key.NodeName.ToString());
+		ensureAlwaysMsgf(!ExternalNodeRegistry.Contains(Key), TEXT("Node with identical name, inputs and outputs to node %s was already registered. The previously registered node will be overwritten. This could also happen because METASOUND_REGISTER_NODE is in a public header."), *Key.NodeClassFullName.ToString());
 
 		ExternalNodeRegistry.Add(MoveTemp(Key), MoveTemp(RegistryElement));
 
@@ -366,14 +366,14 @@ bool FMetasoundFrontendRegistryContainer::GetRegistryKey(const Metasound::Fronte
 	return false;
 }
 
-Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeInfo& InNodeMetadata)
+Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeClassMetadata& InNodeMetadata)
 {
-	return MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName, InNodeMetadata.MajorVersion);
+	return MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName.GetFullName(), InNodeMetadata.MajorVersion);
 }
 
 Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FMetasoundFrontendClassMetadata& InNodeMetadata)
 {
-	return MetasoundFrontendRegistryPrivate::GetRegistryKey(FName(InNodeMetadata.Name.Name), InNodeMetadata.Version.Major);
+	return MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName.GetFullName(), InNodeMetadata.Version.Major);
 }
 
 bool FMetasoundFrontendRegistryContainer::GetFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass)

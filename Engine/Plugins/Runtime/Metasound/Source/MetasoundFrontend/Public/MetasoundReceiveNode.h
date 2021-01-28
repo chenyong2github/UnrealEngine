@@ -38,9 +38,9 @@ namespace Metasound
 			return OutputName;
 		}
 
-		static FString GetClassNameForDataType(const FName& InDataTypeName)
+		static FNodeClassName GetClassNameForDataType(const FName& InDataTypeName)
 		{
-			return FString::Printf(TEXT("Receive.%s"), *InDataTypeName.ToString());
+			return FNodeClassName{TEXT("Receive"), InDataTypeName, TEXT("")};
 		}
 	};
 
@@ -62,14 +62,15 @@ namespace Metasound
 			);
 		}
 
-		static const FNodeInfo& GetNodeInfo()
+		static const FNodeClassMetadata& GetNodeInfo()
 		{
-			auto InitNodeInfo = []() -> FNodeInfo
+			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
-				FNodeInfo Info;
-				Info.ClassName = FName(FReceiveNodeNames::GetClassNameForDataType(GetMetasoundDataTypeName<TDataType>()));
+				FNodeClassMetadata Info;
+				Info.ClassName = FReceiveNodeNames::GetClassNameForDataType(GetMetasoundDataTypeName<TDataType>());
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
+				Info.DisplayName = FText::Format(LOCTEXT("Metasound_ReceiveNodeDisplayNameFormat", "Receive {0}"), FText::FromName(GetMetasoundDataTypeName<TDataType>()));
 				Info.Description = LOCTEXT("Metasound_ReceiveNodeDescription", "Receives data from a send node with the same name.");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -80,7 +81,7 @@ namespace Metasound
 				return Info;
 			};
 
-			static const FNodeInfo Info = InitNodeInfo();
+			static const FNodeClassMetadata Info = InitNodeInfo();
 
 			return Info;
 		}
@@ -184,7 +185,7 @@ namespace Metasound
 
 			// TODO: default value of received object.
 			TReceiveNode(const FNodeInitData& InInitData)
-				: FNode(InInitData.InstanceName, GetNodeInfo())
+				: FNode(InInitData.InstanceName, InInitData.InstanceID, GetNodeInfo())
 				, Interface(DeclareVertexInterface())
 				, Factory(MakeOperatorFactoryRef<FReceiverOperatorFactory>())
 			{

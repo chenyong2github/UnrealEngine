@@ -8,6 +8,7 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 #include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
 
@@ -28,7 +29,7 @@ namespace Metasound
 				FFloatTimeReadRef Release;
 			};
 
-			static const FNodeInfo& GetNodeInfo();
+			static const FNodeClassMetadata& GetNodeInfo();
 			static FVertexInterface DeclareVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
@@ -252,14 +253,15 @@ namespace Metasound
 		return Interface;
 	}
 
-	const FNodeInfo& FADSROperator::GetNodeInfo()
+	const FNodeClassMetadata& FADSROperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("ADSR"));
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("ADSR"), Metasound::StandardNodes::AudioVariant};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_ADSRNodeDisplayName", "ADSR");
 			Info.Description = LOCTEXT("Metasound_ADSRNodeDescription", "Emits an ADSR (Attack, decay, sustain, & release) envelope when triggered.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -268,7 +270,7 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	}
@@ -294,8 +296,8 @@ namespace Metasound
 		return MakeUnique<FADSROperator>(InParams.OperatorSettings, TriggerAttack, TriggerRelease, ADSRReferences);
 	}
 
-	FADSRNode::FADSRNode(const FString& InName, float InDefaultAttackMs, float InDefaultDecayMs, float InDefaultSustainLevel, float InDefaultReleaseMs)
-	:	FNodeFacade(InName, TFacadeOperatorClass<FADSROperator>())
+	FADSRNode::FADSRNode(const FString& InName, const FGuid& InInstanceID, float InDefaultAttackMs, float InDefaultDecayMs, float InDefaultSustainLevel, float InDefaultReleaseMs)
+	:	FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FADSROperator>())
 	,	DefaultSustainLevel(InDefaultSustainLevel)
 	,	DefaultAttackMs(InDefaultAttackMs)
 	,	DefaultDecayMs(InDefaultDecayMs)
@@ -304,7 +306,7 @@ namespace Metasound
 	}
 
 	FADSRNode::FADSRNode(const FNodeInitData& InitData)
-		: FADSRNode(InitData.InstanceName, 10.0f, 20.0f, 0.7f, 20.0f)
+		: FADSRNode(InitData.InstanceName, InitData.InstanceID, 10.0f, 20.0f, 0.7f, 20.0f)
 	{
 	}
 

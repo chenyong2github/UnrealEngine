@@ -12,7 +12,7 @@
 
 namespace Metasound
 {
-	static const FGuid FrontendInvalidID;
+	extern const FGuid METASOUNDFRONTEND_API FrontendInvalidID;
 }
 
 // Forward declare
@@ -580,20 +580,33 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 {
 	GENERATED_BODY()
 
+	FMetasoundFrontendClassName() = default;
+
+	FMetasoundFrontendClassName(const FName& InNamespace, const FName& InName, const FName& InVariant);
+
+	FMetasoundFrontendClassName(const Metasound::FNodeClassName& InName);
+	
+
 	// Namespace of class.
-	UPROPERTY()
-	FString Namespace;
+	UPROPERTY(EditAnywhere, Category = General)
+	FName Namespace;
 
 	// Name of class.
-	UPROPERTY()
-	FString Name;
+	UPROPERTY(EditAnywhere, Category = General)
+	FName Name;
 
 	// Variant of class. The Variant is used to describe an equivalent class which performs the same operation but on differing types.
-	UPROPERTY()
-	FString Variant;
+	UPROPERTY(EditAnywhere, Category = General)
+	FName Variant;
 
 	// Returns a full name of the class.
-	FString GetFullName() const;
+	FName GetFullName() const;
+
+	// Returns scoped name representing namespace and name. 
+	FName GetScopedName() const;
+
+	// Return string version of full name.
+	FString ToString() const;
 
 	METASOUNDFRONTEND_API friend bool operator==(const FMetasoundFrontendClassName& InLHS, const FMetasoundFrontendClassName& InRHS);
 };
@@ -604,8 +617,12 @@ struct FMetasoundFrontendClassMetadata
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	FMetasoundFrontendClassName Name;
+	FMetasoundFrontendClassMetadata() = default;
+
+	FMetasoundFrontendClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata);
+
+	UPROPERTY(EditAnywhere, Category = General)
+	FMetasoundFrontendClassName ClassName;
 
 	UPROPERTY(EditAnywhere, Category = General)
 	FMetasoundFrontendVersionNumber Version;
@@ -613,19 +630,22 @@ struct FMetasoundFrontendClassMetadata
 	UPROPERTY(VisibleAnywhere, Category = General)
 	EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
 
-	UPROPERTY(EditAnywhere, Category = General, meta = (DisplayName = "Description"))
+	UPROPERTY(EditAnywhere, Category = General)
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, Category = General)
 	FText Description;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = General)
 	FText PromptIfMissing;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = General)
 	FText Author;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = General)
 	TArray<FName> Keywords;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = General)
 	TArray<FText> CategoryHierarchy;
 };
 

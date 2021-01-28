@@ -6,6 +6,7 @@
 
 #include "IAudioProxyInitializer.h"
 #include "MetasoundOperatorSettings.h" 
+#include "Misc/Guid.h"
 #include "Misc/TVariant.h"
 #include <type_traits>
 
@@ -218,6 +219,7 @@ namespace Metasound
 	{
 		// the instance name and name of the specific connection that we should use.
 		const FString& InNodeName;
+		const FGuid& InInstanceID;
 		const FString& InVertexName;
 
 		FLiteral InitParam;
@@ -227,6 +229,7 @@ namespace Metasound
 	{
 		// the instance name and name of the specific connection that we should use.
 		const FString& InNodeName;
+		const FGuid& InInstanceID;
 		const FString& InVertexName;
 	};
 }

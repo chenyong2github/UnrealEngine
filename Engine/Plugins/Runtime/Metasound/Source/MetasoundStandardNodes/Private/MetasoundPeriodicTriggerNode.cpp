@@ -13,6 +13,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -23,7 +24,7 @@ namespace Metasound
 	class FPeriodicTriggerOperator : public TExecutableOperator<FPeriodicTriggerOperator>
 	{
 		public:
-			static const FNodeInfo& GetNodeInfo();
+			static const FNodeClassMetadata& GetNodeInfo();
 			static FVertexInterface DeclareVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
@@ -152,14 +153,15 @@ namespace Metasound
 		return Interface;
 	}
 
-	const FNodeInfo& FPeriodicTriggerOperator::GetNodeInfo()
+	const FNodeClassMetadata& FPeriodicTriggerOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = "Periodic Trigger";
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("PeriodicTrigger"), TEXT("")};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_PeriodicTriggerNodeDisplayName", "Periodic Trigger");
 			Info.Description = LOCTEXT("Metasound_PeriodicTriggerNodeDescription", "Emits a trigger periodically based on the period duration given.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -168,20 +170,20 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	}
 
 
-	FPeriodicTriggerNode::FPeriodicTriggerNode(const FString& InName, float InDefaultPeriodInSeconds)
-	:	FNodeFacade(InName, TFacadeOperatorClass<FPeriodicTriggerOperator>())
+	FPeriodicTriggerNode::FPeriodicTriggerNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultPeriodInSeconds)
+	:	FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FPeriodicTriggerOperator>())
 	,	DefaultPeriod(InDefaultPeriodInSeconds)
 	{
 	}
 
 	FPeriodicTriggerNode::FPeriodicTriggerNode(const FNodeInitData& InInitData)
-		: FPeriodicTriggerNode(InInitData.InstanceName, 1.0f)
+		: FPeriodicTriggerNode(InInitData.InstanceName, InInitData.InstanceID, 1.0f)
 	{}
 
 	float FPeriodicTriggerNode::GetDefaultPeriodInSeconds() const

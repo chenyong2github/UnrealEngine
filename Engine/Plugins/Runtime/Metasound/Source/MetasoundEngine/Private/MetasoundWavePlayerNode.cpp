@@ -3,6 +3,7 @@
 
 #include "AudioResampler.h"
 #include "MetasoundBuildError.h"
+#include "MetasoundEngineNodesNames.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
@@ -283,14 +284,15 @@ namespace Metasound
 		);
 	}
 
-	const FNodeInfo& FWavePlayerNode::GetNodeInfo()
+	const FNodeClassMetadata& FWavePlayerNode::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("Wave Player"));
+			FNodeClassMetadata Info;
+			Info.ClassName = {EngineNodes::Namespace, TEXT("WavePlayer"), EngineNodes::StereoVariant};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_WavePlayerNodeDisplayName", "Wave Player");
 			Info.Description = LOCTEXT("Metasound_WavePlayerNodeDescription", "Plays a supplied Wave");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -299,20 +301,20 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	}
 
-	FWavePlayerNode::FWavePlayerNode(const FString& InName)
-		:	FNode(InName, GetNodeInfo())
-		,	Factory(MakeOperatorFactoryRef<FWavePlayerNode::FOperatorFactory>())
-		,	Interface(DeclareVertexInterface())
+	FWavePlayerNode::FWavePlayerNode(const FString& InName, const FGuid& InInstanceID)
+	: FNode(InName, InInstanceID, GetNodeInfo())
+	, Factory(MakeOperatorFactoryRef<FWavePlayerNode::FOperatorFactory>())
+	, Interface(DeclareVertexInterface())
 	{
 	}
 
 	FWavePlayerNode::FWavePlayerNode(const FNodeInitData& InInitData)
-		: FWavePlayerNode(InInitData.InstanceName)
+	: FWavePlayerNode(InInitData.InstanceName, InInitData.InstanceID)
 	{
 	}
 

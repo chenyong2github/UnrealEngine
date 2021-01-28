@@ -10,19 +10,23 @@ namespace Metasound
 	class METASOUNDGRAPHCORE_API FNode : public INode
 	{
 		public:
-			FNode(const FString& InInstanceName, const FNodeInfo& InInfo);
+			FNode(const FString& InInstanceName, const FGuid& InInstanceID, const FNodeClassMetadata& InInfo);
 
 			virtual ~FNode() = default;
 
 			/** Return the name of this specific instance of the node class. */
 			const FString& GetInstanceName() const override;
 
+			/** Return the ID of this specific instance of the node class. */
+			const FGuid& GetInstanceID() const override;
+
 			/** Return metadata associated with this node. */
-			const FNodeInfo& GetMetadata() const override;
+			const FNodeClassMetadata& GetMetadata() const override;
 
 		private:
 
 			FString InstanceName;
-			FNodeInfo Info;
+			FGuid InstanceID;
+			FNodeClassMetadata Info;
 	};
 }

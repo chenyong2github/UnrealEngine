@@ -53,12 +53,12 @@ namespace Metasound
 	class METASOUNDFRONTEND_API FFilterClassesByClassName : public IFrontendQueryFilterStep
 	{
 	public: 
-		FFilterClassesByClassName(const FString& InClassName);
+		FFilterClassesByClassName(const FMetasoundFrontendClassName& InClassName);
 
 		bool Filter(const FFrontendQueryEntry& InEntry) const override;
 
 	private:
-		FString ClassName;
+		FMetasoundFrontendClassName ClassName;
 	};
 }
 

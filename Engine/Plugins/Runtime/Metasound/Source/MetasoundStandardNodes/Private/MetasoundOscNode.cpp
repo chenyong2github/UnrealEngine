@@ -8,6 +8,7 @@
 #include "MetasoundFrequency.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 
@@ -21,7 +22,7 @@ namespace Metasound
 	public:
 
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
-		static const FNodeInfo& GetNodeInfo();
+		static const FNodeClassMetadata& GetNodeInfo();
 		static FVertexInterface DeclareVertexInterface();
 
 		FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency, const FBoolReadRef& InActivate);
@@ -134,14 +135,15 @@ namespace Metasound
 	}
 
 
-	const FNodeInfo& FOscOperator::GetNodeInfo()
+	const FNodeClassMetadata& FOscOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("Osc"));
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("Osc"), Metasound::StandardNodes::AudioVariant};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_OscNodeDisplayName", "Oscillator");
 			Info.Description = LOCTEXT("Metasound_OscNodeDescription", "Emits an audio signal of a sinusoid.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -150,20 +152,20 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	}
 
-	FOscNode::FOscNode(const FString& InName, float InDefaultFrequency, bool bInDefaultEnablement)
-	:	FNodeFacade(InName, TFacadeOperatorClass<FOscOperator>())
+	FOscNode::FOscNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, bool bInDefaultEnablement)
+	:	FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FOscOperator>())
 	,	DefaultFrequency(InDefaultFrequency)
 	,	bDefaultEnablement(bInDefaultEnablement)
 	{
 	}
 
 	FOscNode::FOscNode(const FNodeInitData& InInitData)
-		: FOscNode(InInitData.InstanceName, 440.0f, true)
+		: FOscNode(InInitData.InstanceName, InInitData.InstanceID, 440.0f, true)
 	{
 	}
 

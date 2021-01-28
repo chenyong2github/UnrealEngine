@@ -22,9 +22,6 @@ namespace Metasound
 		// and also used in FGraphHandle::AddNewNode.
 		struct METASOUNDFRONTEND_API FNodeClassInfo
 		{
-			// The descriptive name of this node class.
-			FString NodeName;
-
 			// The type for this node.
 			EMetasoundFrontendClassType NodeType = EMetasoundFrontendClassType::Invalid;
 
@@ -49,7 +46,7 @@ namespace Metasound
 		 *
 		 * @return Class description for external node.
 		 */
-		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClassDescription(const FNodeInfo& InNodeMetadata, EMetasoundFrontendClassType ClassType=EMetasoundFrontendClassType::External);
+		METASOUNDFRONTEND_API FMetasoundFrontendClass GenerateClassDescription(const FNodeClassMetadata& InNodeMetadata, EMetasoundFrontendClassType ClassType=EMetasoundFrontendClassType::External);
 
 		/** Generates a new FMetasoundFrontendClass from node lookup info.
 		 *

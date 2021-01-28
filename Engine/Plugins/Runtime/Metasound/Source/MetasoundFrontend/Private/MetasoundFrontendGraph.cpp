@@ -13,8 +13,8 @@
 
 namespace Metasound
 {
-	FFrontendGraph::FFrontendGraph(const FString& InInstanceName)
-	:	FGraph(InInstanceName)
+	FFrontendGraph::FFrontendGraph(const FString& InInstanceName, const FGuid& InInstanceID)
+	:	FGraph(InInstanceName, InInstanceID)
 	{
 	}
 
@@ -162,6 +162,7 @@ namespace Metasound
 					FInputNodeConstructorParams InitParams =
 					{
 						InNode.Name,
+						InNode.ID,
 						InputVertex.Name,
 						MoveTemp(Literal)
 					};
@@ -195,6 +196,7 @@ namespace Metasound
 			FOutputNodeConstructorParams InitParams =
 			{
 				InNode.Name,
+				InNode.ID,
 				OutputVertex.Name,
 			};
 
@@ -215,6 +217,9 @@ namespace Metasound
 		InitData.InstanceName.AppendChar('_');
 		InitData.InstanceName.Append(InNode.ID.ToString());
 
+		InitData.InstanceID = InNode.ID;
+
+
 		// Copy over our initialization params.
 		/*
 		for (auto& StaticParamTuple : InNode.StaticParameters)
@@ -233,7 +238,7 @@ namespace Metasound
 
 		Metasound::Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(InClass.Metadata);
 
-		return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(Key.NodeName, Key.NodeHash, InitData);
+		return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(Key.NodeClassFullName, Key.NodeHash, InitData);
 	}
 
 
@@ -604,7 +609,7 @@ namespace Metasound
 			ClassMap.Add(ExtClass.ID, &ExtClass);
 		}
 
-		TUniquePtr<FFrontendGraph> MetasoundGraph = MakeUnique<FFrontendGraph>(InGraph.Metadata.Name.Name);
+		TUniquePtr<FFrontendGraph> MetasoundGraph = MakeUnique<FFrontendGraph>(InGraph.Metadata.ClassName.GetFullName().ToString(), FGuid::NewGuid());
 
 		// TODO: will likely want to bubble up errors here for case where
 		// a datatype or node is not registered. 

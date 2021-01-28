@@ -89,7 +89,7 @@ namespace Metasound
 	{
 		using FConverterNode = Metasound::TAutoConverterNode<TFromDataType, TToDataType>;
 
-		const FNodeInfo& Metadata = FConverterNode::GetAutoConverterNodeMetadata();
+		const FNodeClassMetadata& Metadata = FConverterNode::GetAutoConverterNodeMetadata();
 		const Metasound::Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(Metadata);
 
 		if (!std::is_same<TFromDataType, TToDataType>::value && !FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(Key))
@@ -141,27 +141,27 @@ namespace Metasound
 		// Lambdas that generate our template-instantiated input and output nodes:
 		FCreateInputNodeFunction InputNodeConstructor = [](FInputNodeConstructorParams&& InParams) -> TUniquePtr<INode>
 		{
-			return TUniquePtr<INode>(new TInputNode<TDataType>(InParams.InNodeName, InParams.InVertexName, MoveTemp(InParams.InitParam)));
+			return TUniquePtr<INode>(new TInputNode<TDataType>(InParams.InNodeName, InParams.InInstanceID, InParams.InVertexName, MoveTemp(InParams.InitParam)));
 		};
 
 		FCreateMetasoundFrontendClassFunction CreateFrontendInputClass = []() -> FMetasoundFrontendClass
 		{
 			// Create class info using prototype node
 			// TODO: register input nodes with static class info.
-  			static TInputNode<TDataType> Prototype(TEXT(""), TEXT(""), FLiteral());
+  			static TInputNode<TDataType> Prototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
 			return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Input);
 		};
 
 		FCreateOutputNodeFunction OutputNodeConstructor = [](const FOutputNodeConstructorParams& InParams) -> TUniquePtr<INode>
 		{
-			return TUniquePtr<INode>(new TOutputNode<TDataType>(InParams.InNodeName, InParams.InVertexName));
+			return TUniquePtr<INode>(new TOutputNode<TDataType>(InParams.InNodeName, InParams.InInstanceID, InParams.InVertexName));
 		};
 
 		FCreateMetasoundFrontendClassFunction CreateFrontendOutputClass = []() -> FMetasoundFrontendClass
 		{
 			// Create class info using prototype node
 			// TODO: register input nodes with static class info.
-			static TOutputNode<TDataType> Prototype(TEXT(""), TEXT(""));
+			static TOutputNode<TDataType> Prototype(TEXT(""), FGuid(), TEXT(""));
 			return Metasound::Frontend::GenerateClassDescription(Prototype.GetMetadata(), EMetasoundFrontendClassType::Output);
 		};
 		

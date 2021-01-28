@@ -45,16 +45,17 @@ namespace Metasound
 			);
 		}
 
-		static const FNodeInfo& GetNodeInfo()
+		static const FNodeClassMetadata& GetNodeInfo()
 		{
-			auto InitNodeInfo = []() -> FNodeInfo
+			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				const FString& InputName = GetSendInputName();
-				FNodeInfo Info;
+				FNodeClassMetadata Info;
 
-				Info.ClassName = FName(*FString::Printf(TEXT("Send %s"), *InputName));
+				Info.ClassName = {TEXT("Send"), GetMetasoundDataTypeName<TDataType>(), TEXT("")};
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
+				Info.DisplayName = FText::Format(LOCTEXT("Metasound_SendNodeDisplayNameFormat", "Send {0}"), FText::FromName(GetMetasoundDataTypeName<TDataType>()));
 				Info.Description = LOCTEXT("Metasound_SendNodeDescription", "Sends data from a send node with the same name.");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -65,7 +66,7 @@ namespace Metasound
 				return Info;
 			};
 
-			static const FNodeInfo Info = InitNodeInfo();
+			static const FNodeClassMetadata Info = InitNodeInfo();
 
 			return Info;
 		}
@@ -138,7 +139,7 @@ namespace Metasound
 		public:
 
 			TSendNode(const FNodeInitData& InInitData)
-				: FNode(InInitData.InstanceName, GetNodeInfo())
+				: FNode(InInitData.InstanceName, InInitData.InstanceID, GetNodeInfo())
 				, Interface(DeclareVertexInterface())
 				, Factory(MakeOperatorFactoryRef<FSendOperatorFactory>())
 			{

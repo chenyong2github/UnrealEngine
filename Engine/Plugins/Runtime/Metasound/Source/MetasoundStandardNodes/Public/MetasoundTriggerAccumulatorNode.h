@@ -20,10 +20,7 @@ namespace Metasound
 		 * @param InName - Name of this node.
 		 * @param InTriggerAtCount - The count at which after accumulated triggers we trigger.
 		 */
-		FTriggerAccumulatorNode(
-			const FString& InName,
-			int32 InDefaultTriggerAtCount
-		);
+		FTriggerAccumulatorNode(const FString& InName, const FGuid& InInstanceID, int32 InDefaultTriggerAtCount);
 
 		/**
 		 * Constructor used by the Metasound Frontend.

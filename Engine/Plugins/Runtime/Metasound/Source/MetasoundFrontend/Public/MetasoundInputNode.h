@@ -117,16 +117,14 @@ namespace Metasound
 				);
 			}
 
-			static FNodeInfo GetNodeInfo(const FString& InVertexName)
+			static FNodeClassMetadata GetNodeInfo(const FString& InVertexName)
 			{
-				static const FString ClassNameString = FString(TEXT("Input_")) + GetMetasoundDataTypeName<DataType>().ToString();
-				static const FName ClassName(*ClassNameString);
+				FNodeClassMetadata Info;
 
-				FNodeInfo Info;
-
-				Info.ClassName = ClassName;
+				Info.ClassName = {TEXT("Input"), GetMetasoundDataTypeName<DataType>(), TEXT("")};
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
+				Info.DisplayName = FText::Format(LOCTEXT("Metasound_InputNodeDisplayNameFormat", "Input {0}"), FText::FromName(GetMetasoundDataTypeName<DataType>()));
 				Info.Description = LOCTEXT("Metasound_InputNodeDescription", "Input into the parent Metasound graph.");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -139,8 +137,8 @@ namespace Metasound
 			/* Construct a TInputNode using the TInputOperatorFactory<> and forwarding 
 			 * Args to the TInputOperatorFactory constructor.*/
 			template<typename... ArgTypes>
-			TInputNode(const FString& InNodeDescription, const FString& InVertexName, ArgTypes&&... Args)
-			:	FNode(InNodeDescription, GetNodeInfo(InVertexName))
+			TInputNode(const FString& InNodeDescription, const FGuid& InInstanceID, const FString& InVertexName, ArgTypes&&... Args)
+			:	FNode(InNodeDescription, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
 			,	Factory(MakeOperatorFactoryRef<TInputOperatorFactory<DataType>>(Forward<ArgTypes>(Args)...))
@@ -149,8 +147,8 @@ namespace Metasound
 
 			/* Construct a TInputNode using the TInputOperatorLiteralFactory<> and moving
 			 * InParam to the TInputOperatorLiteralFactory constructor.*/
-			explicit TInputNode(const FString& InNodeDescription, const FString& InVertexName, FLiteral&& InParam)
-			:	FNode(InNodeDescription, GetNodeInfo(InVertexName))
+			explicit TInputNode(const FString& InNodeDescription, const FGuid& InInstanceID, const FString& InVertexName, FLiteral&& InParam)
+			:	FNode(InNodeDescription, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
 			, 	Factory(MakeOperatorFactoryRef<TInputOperatorLiteralFactory<DataType>>(MoveTemp(InParam)))

@@ -5,6 +5,7 @@
 #include "MetasoundAudioFormats.h"
 #include "MetasoundFacade.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -63,18 +64,19 @@ namespace Metasound
 			return MakeUnique<FMonoAudioFormatOperator>(Mono);
 		}
 
-		static const FNodeInfo& GetNodeInfo()
+		static const FNodeClassMetadata& GetNodeInfo()
 		{
-			auto InitNodeInfo = []() -> FNodeInfo
+			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeDisplayStyle DisplayStyle;
 				DisplayStyle.bShowName = false;
 
-				FNodeInfo Info;
-				Info.ClassName = "Buffer to Mono";
+				FNodeClassMetadata Info;
+				Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("FormatAudio"), TEXT("Mono")};
 				Info.DisplayStyle = DisplayStyle;
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
+				Info.DisplayName = LOCTEXT("MonoAudioFormat_NodeDisplayName", "Mono");
 				Info.Description = LOCTEXT("MonoAudioFormat_NodeDescription", "Converts Audio:Buffer To Mono Format");
 				Info.CategoryHierarchy = { LOCTEXT("Metasound_ConvertNodeCategory", "Conversions") };
 				Info.Author = PluginAuthor;
@@ -92,18 +94,18 @@ namespace Metasound
 				return Info;
 			};
 
-			static const FNodeInfo Info = InitNodeInfo();
+			static const FNodeClassMetadata Info = InitNodeInfo();
 			return Info;
 		}
 	};
 
-	FMonoAudioFormatNode::FMonoAudioFormatNode(const FString& InInstanceName)
-	: FNodeFacade(InInstanceName, TFacadeOperatorClass<FMonoAudioFormatOperator>())
+	FMonoAudioFormatNode::FMonoAudioFormatNode(const FString& InInstanceName, const FGuid& InInstanceID)
+	: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FMonoAudioFormatOperator>())
 	{
 	}
 
 	FMonoAudioFormatNode::FMonoAudioFormatNode(const FNodeInitData& InInitData)
-	: FMonoAudioFormatNode(InInitData.InstanceName)
+	: FMonoAudioFormatNode(InInitData.InstanceName, InInitData.InstanceID)
 	{
 	}
 
@@ -169,18 +171,19 @@ namespace Metasound
 			return MakeUnique<FStereoAudioFormatOperator>(Stereo);
 		}
 
-		static const FNodeInfo& GetNodeInfo()
+		static const FNodeClassMetadata& GetNodeInfo()
 		{
-			auto InitNodeInfo = []() -> FNodeInfo
+			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeDisplayStyle DisplayStyle;
 				DisplayStyle.bShowName = false;
 
-				FNodeInfo Info;
-				Info.ClassName = "Buffer to Stereo";
+				FNodeClassMetadata Info;
+				Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("FormatAudio"), TEXT("Stereo")};
 				Info.DisplayStyle = DisplayStyle;
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
+				Info.DisplayName = LOCTEXT("StereoAudioFormat_NodeDisplayName", "Stereo");
 				Info.Description = LOCTEXT("StereoAudioFormat_NodeDescription", "Converts Audio:Buffer to Stereo Format");
 				Info.CategoryHierarchy = { LOCTEXT("Metasound_ConvertNodeCategory", "Conversions") };
 				Info.Author = PluginAuthor;
@@ -199,18 +202,18 @@ namespace Metasound
 				return Info;
 			};
 
-			static const FNodeInfo Info = InitNodeInfo();
+			static const FNodeClassMetadata Info = InitNodeInfo();
 			return Info;
 		}
 	};
 
-	FStereoAudioFormatNode::FStereoAudioFormatNode(const FString& InInstanceName)
-	: FNodeFacade(InInstanceName, TFacadeOperatorClass<FStereoAudioFormatOperator>())
+	FStereoAudioFormatNode::FStereoAudioFormatNode(const FString& InInstanceName, const FGuid& InInstanceID)
+	: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FStereoAudioFormatOperator>())
 	{
 	}
 
 	FStereoAudioFormatNode::FStereoAudioFormatNode(const FNodeInitData& InInitData)
-	: FStereoAudioFormatNode(InInitData.InstanceName)
+	: FStereoAudioFormatNode(InInitData.InstanceName, InInitData.InstanceID)
 	{
 	}
 

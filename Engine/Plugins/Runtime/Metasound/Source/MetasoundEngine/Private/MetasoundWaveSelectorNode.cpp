@@ -2,6 +2,7 @@
 #include "MetasoundWaveSelectorNode.h"
 
 #include "MetasoundBuildError.h"
+#include "MetasoundEngineNodesNames.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
@@ -188,14 +189,15 @@ namespace Metasound
 		);
 	}
 
-	const FNodeInfo& FWaveSelectorNode::GetNodeInfo()
+	const FNodeClassMetadata& FWaveSelectorNode::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = FName(TEXT("Wave Selector"));
+			FNodeClassMetadata Info;
+			Info.ClassName = {EngineNodes::Namespace, TEXT("WaveSelector"), TEXT("")};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_WaveSelectorNodeDisplayName", "Wave Selector");
 			Info.Description = LOCTEXT("Metasound_WaveSelectorNodeDescription", "Allows selection of a Wave Asset from a list");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -204,20 +206,20 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 
 		return Info;
 	}
 
-	FWaveSelectorNode::FWaveSelectorNode(const FString& InName)
-		:	FNode(InName, GetNodeInfo())
+	FWaveSelectorNode::FWaveSelectorNode(const FString& InName, const FGuid& InInstanceID)
+		:	FNode(InName, InInstanceID, GetNodeInfo())
 		,	Factory(MakeOperatorFactoryRef<FWaveSelectorNode::FOperatorFactory>())
 		,	Interface(DeclareVertexInterface())
 	{
 	}
 
 	FWaveSelectorNode::FWaveSelectorNode(const FNodeInitData& InInitData)
-		: FWaveSelectorNode(InInitData.InstanceName)
+		: FWaveSelectorNode(InInitData.InstanceName, InInitData.InstanceID)
 	{
 	}
 

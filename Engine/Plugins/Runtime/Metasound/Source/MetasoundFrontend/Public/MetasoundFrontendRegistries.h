@@ -57,14 +57,14 @@ namespace Metasound
 		struct METASOUNDFRONTEND_API FNodeRegistryKey
 		{
 			// The class name for the node.
-			FName NodeName;
+			FName NodeClassFullName;
 
 			// A hash generated from the input types and output types for this node.
 			uint32 NodeHash = 0;
 
 			FORCEINLINE bool operator==(const FNodeRegistryKey& Other) const
 			{
-				return NodeHash == Other.NodeHash && NodeName == Other.NodeName;
+				return NodeHash == Other.NodeHash && NodeClassFullName == Other.NodeClassFullName;
 			}
 
 			friend uint32 GetTypeHash(const Metasound::Frontend::FNodeRegistryKey& InKey)
@@ -163,7 +163,7 @@ class METASOUNDFRONTEND_API FMetasoundFrontendRegistryContainer
 
 	using FDataTypeRegistryInfo = Metasound::FDataTypeRegistryInfo;
 	using FDataTypeConstructorCallbacks = ::Metasound::FDataTypeConstructorCallbacks;
-	using FNodeInfo = Metasound::FNodeInfo;
+	using FNodeClassMetadata = Metasound::FNodeClassMetadata;
 
 public:
 	static FMetasoundFrontendRegistryContainer* Get();
@@ -224,7 +224,7 @@ public:
 		return ExternalNodeRegistry.Contains(InKey);
 	}
 
-	static FNodeRegistryKey GetRegistryKey(const FNodeInfo& InNodeMetadata);
+	static FNodeRegistryKey GetRegistryKey(const FNodeClassMetadata& InNodeMetadata);
 	static FNodeRegistryKey GetRegistryKey(const FMetasoundFrontendClassMetadata& InNodeMetadata);
 	static bool GetRegistryKey(const FNodeRegistryElement& InElement, FNodeRegistryKey& OutKey);
 	static bool GetFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass);

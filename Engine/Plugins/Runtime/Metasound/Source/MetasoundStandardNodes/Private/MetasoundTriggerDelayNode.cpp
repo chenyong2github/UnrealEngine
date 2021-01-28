@@ -12,6 +12,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -22,7 +23,7 @@ namespace Metasound
 	class FTriggerDelayOperator : public TExecutableOperator<FTriggerDelayOperator>
 	{
 		public:
-			static const FNodeInfo& GetNodeInfo();
+			static const FNodeClassMetadata& GetNodeInfo();
 			static FVertexInterface DeclareVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
@@ -143,14 +144,15 @@ namespace Metasound
 		return Interface;
 	}
 
-	const FNodeInfo& FTriggerDelayOperator::GetNodeInfo()
+	const FNodeClassMetadata& FTriggerDelayOperator::GetNodeInfo()
 	{
-		auto InitNodeInfo = []() -> FNodeInfo
+		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
-			FNodeInfo Info;
-			Info.ClassName = "Trigger Delay";
+			FNodeClassMetadata Info;
+			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("Trigger Delay"), TEXT("")};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+			Info.DisplayName = LOCTEXT("Metasound_TriggerDelayNodeDisplayName", "Trigger Delay");
 			Info.Description = LOCTEXT("Metasound_TriggerDelayNodeDescription", "Executes output trigger after the given delay time from the most recent execution of the input trigger .");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -159,7 +161,7 @@ namespace Metasound
 			return Info;
 		};
 
-		static const FNodeInfo Info = InitNodeInfo();
+		static const FNodeClassMetadata Info = InitNodeInfo();
 		return Info;
 	}
 
@@ -168,14 +170,14 @@ namespace Metasound
 		SamplesUntilTrigger = -1;
 	}
 
-	FTriggerDelayNode::FTriggerDelayNode(const FString& InName, float InDefaultDelayInSeconds)
-	:	FNodeFacade(InName, TFacadeOperatorClass<FTriggerDelayOperator>())
+	FTriggerDelayNode::FTriggerDelayNode(const FString& InName, const FGuid& InInstanceID, float InDefaultDelayInSeconds)
+	:	FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FTriggerDelayOperator>())
 	,	DefaultDelay(InDefaultDelayInSeconds)
 	{
 	}
 
 	FTriggerDelayNode::FTriggerDelayNode(const FNodeInitData& InInitData)
-		: FTriggerDelayNode(InInitData.InstanceName, 0.0f)
+		: FTriggerDelayNode(InInitData.InstanceName, InInitData.InstanceID, 0.0f)
 	{
 	}
 
