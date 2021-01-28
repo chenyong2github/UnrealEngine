@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Common/StringStore.h"
+#include "Misc/ScopeLock.h"
+
 
 namespace TraceServices
 {

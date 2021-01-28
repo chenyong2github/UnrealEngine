@@ -7,6 +7,7 @@
 #include "Common/PagedArray.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
+#include "HAL/CriticalSection.h"
 
 namespace TraceServices
 {
