@@ -795,10 +795,6 @@ UDatasmithObjectElement* UDatasmithSceneElementBase::FindOrAddElement(const TSha
 		{
 			Object = FindOrAddElement(StaticCastSharedPtr<IDatasmithActorBindingElement>(InElement));
 		}
-		else if (VariantElement->IsSubType(EDatasmithElementVariantSubType::ActorBinding))
-		{
-			Object = FindOrAddElement(StaticCastSharedPtr<IDatasmithActorBindingElement>(InElement));
-		}
 		else if (VariantElement->IsSubType(EDatasmithElementVariantSubType::Variant))
 		{
 			Object = FindOrAddElement(StaticCastSharedPtr<IDatasmithVariantElement>(InElement));

@@ -1826,7 +1826,6 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::ConstantColor, ExpressionIndex );
 				}
 			}
-
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 			{
 				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionScalar&>( *MaterialExpression ) ) )
@@ -1854,10 +1853,6 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FlattenNormal ) )
 			{
 				// Do noting
-			}
-			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
-			{
-				// Do nothing
 			}
 			else
 			{
