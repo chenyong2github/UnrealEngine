@@ -623,6 +623,10 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 
 			uint32 MaxPointsPerNode = 0;
 
+			double Time = FPlatformTime::Seconds();
+			const bool bUseRenderDataSmoothing = GetDefault<ULidarPointCloudSettings>()->bUseRenderDataSmoothing;
+			const float RenderDataSmoothingMaxFrametime = GetDefault<ULidarPointCloudSettings>()->RenderDataSmoothingMaxFrametime;
+
 			// Iterate over proxies and, if valid, update their data
 			for (const FLidarPointCloudProxyUpdateData& UpdateData : ProxyUpdateData)
 			{
@@ -636,6 +640,12 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 							if (Node.DataNode->BuildDataCache())
 							{
 								MaxPointsPerNode = FMath::Max(MaxPointsPerNode, Node.DataNode->GetNumVisiblePoints());
+							}
+
+							// Split building render data across multiple frames, to avoid stuttering
+							if (bUseRenderDataSmoothing && (FPlatformTime::Seconds() - Time > RenderDataSmoothingMaxFrametime))
+							{
+								break;
 							}
 						}
 

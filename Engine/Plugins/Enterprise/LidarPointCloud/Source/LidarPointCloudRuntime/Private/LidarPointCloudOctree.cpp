@@ -1859,7 +1859,7 @@ void FLidarPointCloudOctree::StreamQueuedNodes()
 	bStreamingBusy = true;
 	
 	// Perform data streaming in a separate thread
-	Async(EAsyncExecution::TaskGraph, [this]
+	Async(EAsyncExecution::ThreadPool, [this]
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
 
