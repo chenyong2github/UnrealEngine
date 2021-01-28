@@ -532,6 +532,10 @@ void UPhysicsConstraintComponent::SetDisableCollision(bool bDisableCollision)
 	ConstraintInstance.SetDisableCollision(bDisableCollision);
 }
 
+FConstraintInstanceAccessor UPhysicsConstraintComponent::GetConstraint()
+{
+	return FConstraintInstanceAccessor(this);
+}
 
 #if WITH_EDITOR
 void UPhysicsConstraintComponent::UpdateSpriteTexture()

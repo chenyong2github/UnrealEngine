@@ -1965,6 +1965,9 @@ public:
 	/** Find instance of the constraint that matches the name supplied. */
 	FConstraintInstance* FindConstraintInstance(FName ConName);
 
+	/** get instance of the constraint that matches the index . */
+	FConstraintInstance* GetConstraintInstanceByIndex(uint32 Index);
+
 	/** Utility which returns total mass of all bones below the supplied one in the hierarchy (including this one). */
 	float GetTotalMassBelowBone(FName InBoneName);
 
@@ -2110,7 +2113,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "Constraint"))
 	void BreakConstraint(FVector Impulse, FVector HitLocation, FName InBoneName);
 
-	/** Sets the Angular Motion Ranges for a named bone
+	/** Gets a constraint by its name 
+	* @param ConstraintName		name of the constraint
+	* @param IncludesTerminated wether or not to return a terminated constraint
+	* */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "Components|SkeletalMesh"))
+	FConstraintInstanceAccessor GetConstraintByName(FName ConstraintName, bool bIncludesTerminated);
+
+	/** Gets all the constraints
+	* @param IncludesTerminated wether or not to return terminated constraints
+	* @param OutConstraints returned list of constraints matching the parameters
+	* */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "Components|SkeletalMesh"))
+	void GetConstraints(bool bIncludesTerminated, TArray<FConstraintInstanceAccessor>& OutConstraints);
+
+	/** Sets the Angular Motion Ranges for a named constraint
 	*  @param InBoneName  Name of bone to adjust constraint ranges for
 	*  @param Swing1LimitAngle	 Size of limit in degrees, 0 means locked, 180 means free
 	*  @param TwistLimitAngle	 Size of limit in degrees, 0 means locked, 180 means free

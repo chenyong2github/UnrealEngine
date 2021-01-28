@@ -1399,6 +1399,15 @@ FConstraintInstance* USkeletalMeshComponent::FindConstraintInstance(FName ConNam
 	return NULL;
 }
 
+FConstraintInstance* USkeletalMeshComponent::GetConstraintInstanceByIndex(uint32 Index)
+{
+	if (Index < (uint32)Constraints.Num())
+	{
+		return Constraints[Index];
+	}
+	return nullptr;
+}
+
 void USkeletalMeshComponent::AddForceToAllBodiesBelow(FVector Force, FName BoneName, bool bAccelChange, bool bIncludeSelf)
 {
 	ForEachBodyBelow(BoneName, bIncludeSelf, /*bSkipCustomPhysics=*/false, [Force, bAccelChange](FBodyInstance* BI)
@@ -1821,6 +1830,41 @@ void USkeletalMeshComponent::SetNotifyRigidBodyCollisionBelow(bool bNewNotifyRig
 	if(NumBodiesFound > 0)
 	{
 		OnComponentCollisionSettingsChanged();
+	}
+}
+
+FConstraintInstanceAccessor USkeletalMeshComponent::GetConstraintByName(FName ConstraintName, bool bIncludesTerminated)
+{
+	int32 ConstraintIndex = FindConstraintIndex(ConstraintName);
+	if (ConstraintIndex == INDEX_NONE || ConstraintIndex >= Constraints.Num())
+	{
+		return FConstraintInstanceAccessor();
+	}
+
+	if (FConstraintInstance* Constraint = Constraints[ConstraintIndex])
+	{
+		if (bIncludesTerminated || !Constraint->IsTerminated())
+		{
+			return FConstraintInstanceAccessor(this, ConstraintIndex);
+		}
+	}
+	return FConstraintInstanceAccessor();
+}
+
+void USkeletalMeshComponent::GetConstraints(bool bIncludesTerminated, TArray<FConstraintInstanceAccessor>& OutConstraints)
+{
+	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
+	{
+		for (int32 i = 0; i < Constraints.Num(); i++)
+		{
+			if (FConstraintInstance* ConstraintInstance = Constraints[i])
+			{
+				if (bIncludesTerminated || !ConstraintInstance->IsTerminated())
+				{
+					OutConstraints.Add(FConstraintInstanceAccessor(this, i));
+				}
+			}
+		}
 	}
 }
 

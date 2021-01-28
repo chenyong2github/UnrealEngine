@@ -333,6 +333,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
 	bool IsBroken();
 
+	/** Gets the constraint object */
+	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
+	FConstraintInstanceAccessor GetConstraint();
+
 #if WITH_EDITOR
 	void UpdateSpriteTexture();
 #endif

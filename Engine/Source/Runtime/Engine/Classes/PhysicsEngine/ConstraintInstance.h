@@ -256,6 +256,16 @@ public:
 		return ProfileInstance.LinearLimit.Limit;
 	}
 
+	/** Sets the Linear XYZ Motion Type and the limit distance (Note distance is the same for all 3 axes) */
+	void SetLinearLimits(ELinearConstraintMotion XConstraintType, ELinearConstraintMotion YConstraintType, ELinearConstraintMotion ZConstraintType, float InLinearLimitSize)
+	{
+		ProfileInstance.LinearLimit.XMotion = XConstraintType;
+		ProfileInstance.LinearLimit.YMotion = YConstraintType;
+		ProfileInstance.LinearLimit.ZMotion = ZConstraintType;
+		ProfileInstance.LinearLimit.Limit = InLinearLimitSize;
+		UpdateLinearLimit();
+	}
+
 	/** Gets the motion type for the linear X-axis limit. */
 	ELinearConstraintMotion GetLinearXMotion() const
 	{
@@ -263,18 +273,17 @@ public:
 	}
 
 	/** Sets the Linear XMotion type */
-	void SetLinearXMotion(ELinearConstraintMotion ConstraintType)
+	void SetLinearXMotion(ELinearConstraintMotion XConstraintType)
 	{
-		ProfileInstance.LinearLimit.XMotion = ConstraintType;
-		UpdateLinearLimit();
+		const FLinearConstraint& prevLimits = ProfileInstance.LinearLimit;
+		SetLinearLimits(XConstraintType, prevLimits.YMotion, prevLimits.ZMotion, prevLimits.Limit);
 	}
 
 	/** Sets the LinearX Motion Type and the limit distance (Note distance is the same for all 3 axes) */
-	void SetLinearXLimit(ELinearConstraintMotion ConstraintType, float InLinearLimitSize)
+	void SetLinearXLimit(ELinearConstraintMotion XConstraintType, float InLinearLimitSize)
 	{
-		ProfileInstance.LinearLimit.XMotion = ConstraintType;
-		ProfileInstance.LinearLimit.Limit = InLinearLimitSize;
-		UpdateLinearLimit();
+		const FLinearConstraint& prevLimits = ProfileInstance.LinearLimit;
+		SetLinearLimits(XConstraintType, prevLimits.YMotion, prevLimits.ZMotion, InLinearLimitSize);
 	}
 
 	/** Gets the motion type for the linear Y-axis limit. */
@@ -284,18 +293,17 @@ public:
 	}
 
 	/** Sets the Linear YMotion type */
-	void SetLinearYMotion(ELinearConstraintMotion ConstraintType)
+	void SetLinearYMotion(ELinearConstraintMotion YConstraintType)
 	{
-		ProfileInstance.LinearLimit.YMotion = ConstraintType;
-		UpdateLinearLimit();
+		const FLinearConstraint& prevLimits = ProfileInstance.LinearLimit;
+		SetLinearLimits(prevLimits.XMotion, YConstraintType, prevLimits.ZMotion, prevLimits.Limit);
 	}
 
 	/** Sets the LinearY Motion Type and the limit distance (Note distance is the same for all 3 axes) */
-	void SetLinearYLimit(ELinearConstraintMotion ConstraintType, float InLinearLimitSize)
+	void SetLinearYLimit(ELinearConstraintMotion YConstraintType, float InLinearLimitSize)
 	{
-		ProfileInstance.LinearLimit.YMotion = ConstraintType;
-		ProfileInstance.LinearLimit.Limit = InLinearLimitSize;
-		UpdateLinearLimit();
+		const FLinearConstraint& prevLimits = ProfileInstance.LinearLimit;
+		SetLinearLimits(prevLimits.XMotion, YConstraintType, prevLimits.ZMotion, InLinearLimitSize);
 	}
 
 	/** Gets the motion type for the linear Z-axis limit. */
@@ -305,18 +313,17 @@ public:
 	}
 
 	/** Sets the Linear ZMotion type */
-	void SetLinearZMotion(ELinearConstraintMotion ConstraintType)
+	void SetLinearZMotion(ELinearConstraintMotion ZConstraintType)
 	{
-		ProfileInstance.LinearLimit.ZMotion = ConstraintType;
-		UpdateLinearLimit();
+		const FLinearConstraint& prevLimits = ProfileInstance.LinearLimit;
+		SetLinearLimits(prevLimits.XMotion, prevLimits.YMotion, ZConstraintType, prevLimits.Limit);
 	}
 
 	/** Sets the LinearZ Motion Type and the limit distance (Note distance is the same for all 3 axes) */
-	void SetLinearZLimit(ELinearConstraintMotion ConstraintType, float InLinearLimitSize)
+	void SetLinearZLimit(ELinearConstraintMotion ZConstraintType, float InLinearLimitSize)
 	{
-		ProfileInstance.LinearLimit.ZMotion = ConstraintType;
-		ProfileInstance.LinearLimit.Limit = InLinearLimitSize;
-		UpdateLinearLimit();
+		const FLinearConstraint& prevLimits = ProfileInstance.LinearLimit;
+		SetLinearLimits(prevLimits.XMotion, prevLimits.YMotion, ZConstraintType, InLinearLimitSize);
 	}
 
 	/** Gets the motion type for the swing1 of the cone constraint */
@@ -480,6 +487,18 @@ public:
 		UpdateBreakable();
 	}
 
+	/** Gets Whether it is possible to break the joint with linear force */
+	bool IsLinearBreakable() const
+	{
+		return ProfileInstance.bLinearBreakable;
+	}
+
+	/** Gets linear force needed to break the joint */
+	float GetLinearBreakThreshold() const
+	{
+		return ProfileInstance.LinearBreakThreshold;
+	}
+
 	/** Sets the Linear Plasticity properties
 	*	@param bInLinearPlasticity 	Whether it is possible to reset the target angles
 	*	@param InLinearPlasticityThreshold	Delta from target needed to reset the target joint
@@ -502,6 +521,17 @@ public:
 		UpdateBreakable();
 	}
 
+	/** Gets Whether it is possible to break the joint with angular force */
+	bool IsAngularBreakable() const
+	{
+		return ProfileInstance.bAngularBreakable;
+	}
+
+	/** Gets Torque needed to break the joint */
+	float GetAngularBreakThreshold() const
+	{
+		return ProfileInstance.AngularBreakThreshold;
+	}
 
 	/** Sets the Angular Plasticity properties
 	*	@param bInAngularPlasticity 	Whether it is possible to reset the target angles
@@ -512,6 +542,18 @@ public:
 		ProfileInstance.bAngularPlasticity = bInAngularPlasticity;
 		ProfileInstance.AngularPlasticityThreshold = InAngularPlasticityThreshold;
 		UpdatePlasticity();
+	}
+
+	/** Gets Whether it is possible to reset the target angles */
+	bool HasAngularPlasticity() const
+	{
+		return ProfileInstance.bAngularPlasticity;
+	}
+
+	/** Gets Delta from target needed to reset the target joint */
+	float GetAngularPlasticityThreshold() const
+	{
+		return ProfileInstance.AngularPlasticityThreshold;
 	}
 
 	// @todo document
@@ -529,6 +571,24 @@ public:
 	/** Set which linear position drives are enabled */
 	void SetLinearPositionDrive(bool bEnableXDrive, bool bEnableYDrive, bool bEnableZDrive);
 
+	/** Get which linear position drives is enabled on XAxis */
+	bool IsLinearPositionDriveXEnabled() const
+	{
+		return ProfileInstance.LinearDrive.XDrive.bEnablePositionDrive;
+	}
+
+	/** Get which linear position drives is enabled on YAxis */
+	bool IsLinearPositionDriveYEnabled() const
+	{
+		return ProfileInstance.LinearDrive.YDrive.bEnablePositionDrive;
+	}
+
+	/** Get which linear position drives is enabled on ZAxis */
+	bool IsLinearPositionDriveZEnabled() const
+	{
+		return ProfileInstance.LinearDrive.ZDrive.bEnablePositionDrive;
+	}
+
 	/** Whether the linear position drive is enabled */
 	bool IsLinearPositionDriveEnabled() const
 	{
@@ -538,8 +598,32 @@ public:
 	/** Set the linear drive's target position position */
 	void SetLinearPositionTarget(const FVector& InPosTarget);
 
+	/** Get the linear drive's target position position */
+	const FVector& GetLinearPositionTarget()
+	{
+		return ProfileInstance.LinearDrive.PositionTarget;
+	}
+
 	/** Set which linear velocity drives are enabled */
 	void SetLinearVelocityDrive(bool bEnableXDrive, bool bEnableYDrive, bool bEnableZDrive);
+
+	/** Get which linear position drives is enabled on XAxis */
+	bool IsLinearVelocityDriveXEnabled() const
+	{
+		return ProfileInstance.LinearDrive.XDrive.bEnableVelocityDrive;
+	}
+
+	/** Get which linear position drives is enabled on YAxis */
+	bool IsLinearVelocityDriveYEnabled() const
+	{
+		return ProfileInstance.LinearDrive.YDrive.bEnableVelocityDrive;
+	}
+
+	/** Get which linear position drives is enabled on ZAxis */
+	bool IsLinearVelocityDriveZEnabled() const
+	{
+		return ProfileInstance.LinearDrive.ZDrive.bEnableVelocityDrive;
+	}
 
 	/** Whether the linear velocity drive is enabled */
 	bool IsLinearVelocityDriveEnabled() const
@@ -547,11 +631,20 @@ public:
 		return ProfileInstance.LinearDrive.IsVelocityDriveEnabled();
 	}
 
-	/** Set the linear drive's target velocity*/
+	/** Set the linear drive's target velocity */
 	void SetLinearVelocityTarget(const FVector& InVelTarget);
+
+	/** Get the linear drive's target velocity */
+	const FVector& GetLinearVelocityTarget()
+	{
+		return ProfileInstance.LinearDrive.VelocityTarget;
+	}
 
 	/** Set the linear drive's strength parameters */
 	void SetLinearDriveParams(float InPositionStrength, float InVelocityStrength, float InForceLimit);
+
+	/** Get the linear drive's strength parameters */
+	void GetLinearDriveParams(float& OutPositionStrength, float& OutVelocityStrength, float& OutForceLimit);
 
 	UE_DEPRECATED(4.15, "Please call SetOrientationDriveTwistAndSwing. Note the order of bools is reversed (Make sure to pass Twist and then Swing)")
 	void SetAngularPositionDrive(bool bInEnableSwingDrive, bool bInEnableTwistDrive)
@@ -562,8 +655,17 @@ public:
 	/** Set which twist and swing orientation drives are enabled. Only applicable when Twist And Swing drive mode is used */
 	void SetOrientationDriveTwistAndSwing(bool bInEnableTwistDrive, bool bInEnableSwingDrive);
 
+	/** Get which twist and swing orientation drives are enabled. Only applicable when Twist And Swing drive mode is used */
+	void GetOrientationDriveTwistAndSwing(bool& bOutEnableTwistDrive, bool& bOutEnableSwingDrive);
+
 	/** Set whether the SLERP angular position drive is enabled. Only applicable when SLERP drive mode is used */
 	void SetOrientationDriveSLERP(bool bInEnableSLERP);
+
+	/** Get whether the SLERP angular position drive is enabled. Only applicable when SLERP drive mode is used */
+	bool GetOrientationDriveSLERP()
+	{
+		return ProfileInstance.AngularDrive.SlerpDrive.bEnablePositionDrive;
+	}
 
 	/** Whether the angular orientation drive is enabled */
 	bool IsAngularOrientationDriveEnabled() const
@@ -574,6 +676,12 @@ public:
 	/** Set the angular drive's orientation target*/
 	void SetAngularOrientationTarget(const FQuat& InPosTarget);
 
+	/** Get the angular drive's orientation target*/
+	const FRotator& GetAngularOrientationTarget() const
+	{
+		return ProfileInstance.AngularDrive.OrientationTarget;
+	}
+
 	UE_DEPRECATED(4.15, "Please call SetAngularVelocityDriveTwistAndSwing. Note the order of bools is reversed (Make sure to pass Twist and then Swing)")
 	void SetAngularVelocityDrive(bool bInEnableSwingDrive, bool bInEnableTwistDrive)
 	{
@@ -583,8 +691,17 @@ public:
 	/** Set which twist and swing angular velocity drives are enabled. Only applicable when Twist And Swing drive mode is used */
 	void SetAngularVelocityDriveTwistAndSwing(bool bInEnableTwistDrive, bool bInEnableSwingDrive);
 
+	/** Get which twist and swing angular velocity drives are enabled. Only applicable when Twist And Swing drive mode is used */
+	void GetAngularVelocityDriveTwistAndSwing(bool& bOutEnableTwistDrive, bool& bOutEnableSwingDrive);
+
 	/** Set whether the SLERP angular velocity drive is enabled. Only applicable when SLERP drive mode is used */
 	void SetAngularVelocityDriveSLERP(bool bInEnableSLERP);
+
+	/** Get whether the SLERP angular velocity drive is enabled. Only applicable when SLERP drive mode is used */
+	bool GetAngularVelocityDriveSLERP()
+	{
+		return ProfileInstance.AngularDrive.SlerpDrive.bEnableVelocityDrive;
+	}
 
 	/** Whether the angular velocity drive is enabled */
 	bool IsAngularVelocityDriveEnabled() const
@@ -595,11 +712,26 @@ public:
 	/** Set the angular drive's angular velocity target*/
 	void SetAngularVelocityTarget(const FVector& InVelTarget);
 
+	/** Get the angular drive's angular velocity target*/
+	const FVector& GetAngularVelocityTarget() const
+	{
+		return ProfileInstance.AngularDrive.AngularVelocityTarget;
+	}
+
 	/** Set the angular drive's strength parameters*/
 	void SetAngularDriveParams(float InSpring, float InDamping, float InForceLimit);
 
+	/** Get the angular drive's strength parameters*/
+	void GetAngularDriveParams(float& OutSpring, float& OutDamping, float& OutForceLimit) const;
+
 	/** Set the angular drive mode */
 	void SetAngularDriveMode(EAngularDriveMode::Type DriveMode);
+
+	/** Set the angular drive mode */
+	EAngularDriveMode::Type GetAngularDriveMode()
+	{
+		return ProfileInstance.AngularDrive.AngularDriveMode;
+	}
 
 	/** Refreshes the physics engine joint's linear limits. Only applicable if the joint has been created already.*/
 	void UpdateLinearLimit();
@@ -688,6 +820,14 @@ public:
 
 	/** Turn off linear and angular projection */
 	void DisableProjection();
+
+	/** Set projection parameters */
+	void SetProjectionParams(bool bEnableProjection, float ProjectionLinearAlphaOrTolerance, float ProjectionAngularAlphaOrTolerance);
+
+	/** Get projection parameters 
+	* Chaos returns alphas, PhysX returns tolerances
+	*/
+	void GetProjectionAlphasOrTolerances(float& ProjectionLinearAlphaOrTolerance, float& ProjectionAngularAlphaOrTolerance) const;
 
 	/** Whether parent domination is enabled (meaning the parent body cannot be be affected at all by a child) */
 	bool IsParentDominatesEnabled() const
@@ -887,4 +1027,33 @@ struct TStructOpsTypeTraits<FConstraintInstance> : public TStructOpsTypeTraitsBa
 		WithPostSerialize = true
 #endif
 	};
+};
+
+
+// Wrapping type around instance pointer to be returned per value in Blueprints
+USTRUCT(BlueprintType)
+struct ENGINE_API FConstraintInstanceAccessor
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	FConstraintInstanceAccessor()
+		: Owner(nullptr)
+		, Index(0)
+	{}
+
+	FConstraintInstanceAccessor(const TWeakObjectPtr<UObject>& Owner, uint32 Index = 0)
+		: Owner(Owner)
+		, Index(Index)
+	{}
+
+	FConstraintInstance* Get() const;
+
+private:
+	UPROPERTY()
+	TWeakObjectPtr<UObject> Owner;
+
+	UPROPERTY()
+	uint32 Index;
+	
 };

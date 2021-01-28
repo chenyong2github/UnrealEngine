@@ -6,6 +6,8 @@
 #include "UObject/AnimPhysObjectVersion.h"
 #include "HAL/IConsoleManager.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "PhysicsPublic.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 
@@ -726,6 +728,12 @@ void FConstraintInstance::SetOrientationDriveTwistAndSwing(bool InEnableTwistDri
 	});
 }
 
+void FConstraintInstance::GetOrientationDriveTwistAndSwing(bool& bOutEnableTwistDrive, bool& bOutEnableSwingDrive)
+{
+	bOutEnableTwistDrive = ProfileInstance.AngularDrive.TwistDrive.bEnablePositionDrive;
+	bOutEnableSwingDrive = ProfileInstance.AngularDrive.SwingDrive.bEnablePositionDrive;
+}
+
 void FConstraintInstance::SetOrientationDriveSLERP(bool InEnableSLERP)
 {
 	ProfileInstance.AngularDrive.SetOrientationDriveSLERP(InEnableSLERP);
@@ -745,6 +753,12 @@ void FConstraintInstance::SetAngularVelocityDriveTwistAndSwing(bool bInEnableTwi
 	{
 		FPhysicsInterface::UpdateAngularDrive_AssumesLocked(InUnbrokenConstraint, ProfileInstance.AngularDrive);
 	});
+}
+
+void FConstraintInstance::GetAngularVelocityDriveTwistAndSwing(bool& bOutEnableTwistDrive, bool& bOutEnableSwingDrive)
+{
+	bOutEnableTwistDrive = ProfileInstance.AngularDrive.TwistDrive.bEnableVelocityDrive;
+	bOutEnableSwingDrive = ProfileInstance.AngularDrive.SwingDrive.bEnableVelocityDrive;	
 }
 
 /** Set whether the SLERP angular velocity drive is enabled. Only applicable when SLERP drive mode is used */
@@ -806,6 +820,13 @@ void FConstraintInstance::SetLinearDriveParams(float InSpring, float InDamping, 
 	});
 }
 
+/** Get the linear drive's strength parameters */
+void FConstraintInstance::GetLinearDriveParams(float& OutPositionStrength, float& OutVelocityStrength, float& OutForceLimit)
+{
+	ProfileInstance.LinearDrive.GetDriveParams(OutPositionStrength, OutVelocityStrength, OutForceLimit);
+}
+
+
 /** Function for setting target angular position. */
 void FConstraintInstance::SetAngularOrientationTarget(const FQuat& InOrientationTarget)
 {
@@ -859,6 +880,11 @@ void FConstraintInstance::SetAngularDriveParams(float InSpring, float InDamping,
 	{
 		FPhysicsInterface::UpdateAngularDrive_AssumesLocked(InUnbrokenConstraint, ProfileInstance.AngularDrive);
 	});
+}
+
+void FConstraintInstance::GetAngularDriveParams(float& OutSpring, float& OutDamping, float& OutForceLimit) const
+{
+	ProfileInstance.AngularDrive.GetDriveParams(OutSpring, OutDamping, OutForceLimit);
 }
 
 /** Scale Angular Limit Constraints (as defined in RB_ConstraintSetup) */
@@ -1082,24 +1108,59 @@ FConstraintInstance * FConstraintInstance::Alloc()
 	return new (Memory)FConstraintInstance();
 }
 
+void FConstraintInstance::GetProjectionAlphasOrTolerances(float& ProjectionLinearAlphaOrTolerance, float& ProjectionAngularAlphaOrTolerance) const
+{
+#if WITH_CHAOS
+	ProjectionLinearAlphaOrTolerance = ProfileInstance.ProjectionLinearAlpha;
+	ProjectionAngularAlphaOrTolerance = ProfileInstance.ProjectionAngularAlpha;
+#else
+	ProjectionLinearAlphaOrTolerance = ProfileInstance.ProjectionLinearTolerance;
+	ProjectionAngularAlphaOrTolerance = ProfileInstance.ProjectionAngularTolerance;
+
+#endif
+}
+
+void FConstraintInstance::SetProjectionParams(bool bEnableProjection, float ProjectionLinearAlphaOrTolerance, float ProjectionAngularAlphaOrTolerance)
+{
+	ProfileInstance.bEnableProjection = bEnableProjection;
+#if WITH_CHAOS
+	ProfileInstance.ProjectionLinearAlpha = ProjectionLinearAlphaOrTolerance;
+	ProfileInstance.ProjectionAngularAlpha = ProjectionAngularAlphaOrTolerance;
+#else
+	ProfileInstance.ProjectionLinearTolerance = ProjectionLinearAlphaOrTolerance;
+	ProfileInstance.ProjectionAngularTolerance = ProjectionAngularAlphaOrTolerance;
+
+#endif
+
+	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
+		{
+			if (bEnableProjection)
+			{
+				FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, true, ProjectionLinearAlphaOrTolerance, ProjectionAngularAlphaOrTolerance);
+			}
+			else
+			{
+				FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, false);
+			}
+		});
+}
+
 void FConstraintInstance::EnableProjection()
 {
-	ProfileInstance.bEnableProjection = true;
-	
-	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
-	{
-		FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, true, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
-	});
+#if WITH_CHAOS
+	SetProjectionParams(true, ProfileInstance.ProjectionLinearAlpha, ProfileInstance.ProjectionAngularAlpha);
+#else
+	SetProjectionParams(true, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
+#endif
 }
 
 void FConstraintInstance::DisableProjection()
 {
-	ProfileInstance.bEnableProjection = false;
-	
-	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
-	{
-		FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, false);
-	});
+#if WITH_CHAOS
+	SetProjectionParams(false, ProfileInstance.ProjectionLinearAlpha, ProfileInstance.ProjectionAngularAlpha);
+#else
+	SetProjectionParams(false, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
+#endif
 }
 
 void FConstraintInstance::EnableParentDominates()
@@ -1122,5 +1183,20 @@ void FConstraintInstance::DisableParentDominates()
 	});
 }
 
+FConstraintInstance* FConstraintInstanceAccessor::Get() const
+{
+	if (Owner.IsValid())
+	{
+		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Owner.Get()))
+		{
+			return SkeletalMeshComponent->GetConstraintInstanceByIndex(Index);
+		}
+		if (UPhysicsConstraintComponent* PhysicsConstraintComponent = Cast<UPhysicsConstraintComponent>(Owner.Get()))
+		{
+			return &(PhysicsConstraintComponent->ConstraintInstance);
+		}
+	}
+	return nullptr;
+}
 
 #undef LOCTEXT_NAMESPACE
