@@ -45,7 +45,7 @@ namespace Chaos
 				FFieldSystemMetaData::EMetaType::ECommandData_Filter)->FilterType :
 			EFieldFilterType::Field_Filter_Max;
 
-		if (LocalProxy && (PrevResolutionType != ResolutionType) || (PrevFilterType != FilterType) || ParticleHandles.Num() == 0)
+		if (LocalProxy && ( (PrevResolutionType != ResolutionType) || (PrevFilterType != FilterType) || ParticleHandles.Num() == 0))
 		{
 			if (FilterType != EFieldFilterType::Field_Filter_Max)
 			{
