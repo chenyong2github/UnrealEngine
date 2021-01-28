@@ -194,15 +194,23 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 
 	Input.VertexId = Tri.Indices[VertexIndex];
 	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
-	#if VF_USE_PRIMITIVE_SCENE_DATA
-#if !defined(GPUCULL_TODO)
+#if VF_USE_PRIMITIVE_SCENE_DATA
+#if defined(GPUCULL_TODO)
+	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
+	Input.InstanceIdOffset = GetInstanceUserData() | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
+	Input.DrawInstanceId = 0;
+#else // !defined(GPUCULL_TODO)
 	// GPUCULL_TODO: Need to work out what this is meant to do
 	Input.PrimitiveId = GetInstanceUserData();
 #endif //!defined(GPUCULL_TODO)
-	#endif
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
 
 #if USE_INSTANCING
 	Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex();
+#endif
+
+#if USE_INSTANCE_CULLING
+	Input.DrawInstanceId = InstanceIndex() - GetBaseInstanceIndex();
 #endif
 
 	return Input;
@@ -222,25 +230,24 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 		Input.Position.x = GPUSkinCachePositionBuffer[VertexOffset * 3 + 0];
 		Input.Position.y = GPUSkinCachePositionBuffer[VertexOffset * 3 + 1];
 		Input.Position.z = GPUSkinCachePositionBuffer[VertexOffset * 3 + 2];
-		#if VF_USE_PRIMITIVE_SCENE_DATA
-#if !defined(GPUCULL_TODO)
-			// GPUCULL_TODO: !!!
-			Input.PrimitiveId = PrimitiveId;
-#endif //!defined(GPUCULL_TODO)
-		#endif
 	#else
 		Input.VertexId = TriangleIndex * 3 + VertexIndex;
 		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId * 3;
 		Input.Position.x = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 0];
 		Input.Position.y = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 1];
 		Input.Position.z = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 2];
-		#if VF_USE_PRIMITIVE_SCENE_DATA
-#if !defined(GPUCULL_TODO)
-			// GPUCULL_TODO: !!!
-			Input.PrimitiveId = PrimitiveId;
-#endif //!defined(GPUCULL_TODO)
-		#endif
 	#endif
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+#if defined(GPUCULL_TODO)
+		// GPUCULL_TODO: Makes use of DynamicDraw workaround, should instead refactor VF interfaces and provide the instance ID data directly.
+		Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
+		Input.DrawInstanceId = 0;
+#else // !defined(GPUCULL_TODO)
+		Input.PrimitiveId = PrimitiveId;
+#endif // defined(GPUCULL_TODO)
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
+
 	return Input;
 }
 

@@ -11,6 +11,9 @@
 
 #define INSTANCE_SCENE_DATA_SUPPORTED (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
 
+// GPUCULL_TODO: Eventually we need to remove this workaround
+#define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
+
 // Unpacked AoS layout - see FInstanceSceneShaderData::Setup() for SoA packed layout.
 #if INSTANCE_SCENE_DATA_SUPPORTED
 
@@ -313,12 +316,13 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 	// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
 	//				 instead they mark the top bit in the primitive ID and disable auto instancing such that there is an 1:1:1
 	//               drawcmd:primitive:instance. Then we can just look up the primitive and fetch the instance data index.
+	// GPUCULL_TODO: Workaround also used for ray tracing interfacing with the VFs, that also supply a DrawInstanceId. 
 	// We mark the PrimitiveID with the top bit in dynamic draw passes
-	if (InstanceIdOffset >= (1U << 31U))
+	if ((InstanceIdOffset & VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG) != 0U)
 	{
-		// mask off the top bit
-		uint PrimitiveID = InstanceIdOffset & ((1U << 31U) - 1U);
-		Intermediates.InstanceId = GetPrimitiveData(PrimitiveID).InstanceDataOffset;
+		// mask off the flag
+		uint PrimitiveID = InstanceIdOffset & (VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG - 1U);
+		Intermediates.InstanceId = GetPrimitiveData(PrimitiveID).InstanceDataOffset + DrawInstanceId;
 		Intermediates.ViewIndex = 0;
 	}
 	else
