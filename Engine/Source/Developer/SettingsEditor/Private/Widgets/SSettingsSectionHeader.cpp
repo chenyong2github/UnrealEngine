@@ -39,7 +39,7 @@ void SSettingsSectionHeader::Construct(const FArguments& InArgs, const UObject* 
 
 
 	ChildSlot
-	.Padding(FMargin(0.0f, 8.0f, 0.0f, 5.0f))
+	.Padding(FMargin(0.0f, 8.0f, 16.0f, 5.0f))
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()

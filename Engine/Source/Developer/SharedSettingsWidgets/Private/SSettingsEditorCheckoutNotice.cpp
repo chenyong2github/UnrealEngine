@@ -207,7 +207,7 @@ void SSettingsEditorCheckoutNotice::Construct( const FArguments& InArgs )
 
 			// Check out button
 			+ SHorizontalBox::Slot()
-			.Padding(FMargin(0.f, 0.f, Padding, 0.f))
+			.Padding(FMargin(0))
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
