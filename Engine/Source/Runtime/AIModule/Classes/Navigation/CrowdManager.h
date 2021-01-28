@@ -257,6 +257,8 @@ public:
 	 *	to find another one. If there's none the crowd manager will stop working. */
 	virtual void OnNavDataUnregistered(ANavigationData& NavData) override;
 
+	virtual void CleanUp(float DeltaTime) override {};
+
 	const ANavigationData* GetNavData() const { return MyNavData; }
 
 	UWorld* GetWorld() const override;
