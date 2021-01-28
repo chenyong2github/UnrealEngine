@@ -52,7 +52,7 @@ enum EShaderPlatform
 	SP_OPENGL_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 1,
 	SP_PS4_REMOVED					UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 2,
 	SP_OPENGL_PCES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 3,
-	SP_XBOXONE_D3D12				= 4,
+	SP_XBOXONE_D3D12_REMOVED		UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 4,
 	SP_PCD3D_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 5,
 	SP_OPENGL_SM5_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 6,
 	SP_PCD3D_ES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 7,
@@ -1526,8 +1526,7 @@ inline bool IsMetalSM5Platform(const FStaticShaderPlatform Platform)
 
 inline bool IsConsolePlatform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_XBOXONE_D3D12
-		|| FDataDrivenShaderPlatformInfo::GetIsConsole(Platform);
+	return FDataDrivenShaderPlatformInfo::GetIsConsole(Platform);
 }
 
 inline bool IsSwitchPlatform(const FStaticShaderPlatform Platform)
@@ -1582,8 +1581,10 @@ inline bool IsD3DPlatform(const FStaticShaderPlatform Platform, bool bIncludeXbo
 	case SP_PCD3D_SM5:
 	case SP_PCD3D_ES3_1:
 		return true;
-	case SP_XBOXONE_D3D12:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	case SP_XBOXONE_D3D12_REMOVED:
 		return bIncludeXboxOne;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	default:
 		return FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(Platform);
 	}
@@ -1597,7 +1598,9 @@ inline bool IsD3DPlatform(const FStaticShaderPlatform Platform)
 	{
 	case SP_PCD3D_SM5:
 	case SP_PCD3D_ES3_1:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	case SP_XBOXONE_D3D12:
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	default:
 		return FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(Platform);
@@ -1628,7 +1631,6 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	switch (InShaderPlatform)
 	{
 	case SP_PCD3D_SM5:
-	case SP_XBOXONE_D3D12:
 	case SP_METAL_SM5:
 	case SP_METAL_MRT:
 	case SP_METAL_MRT_TVOS:

@@ -99,7 +99,7 @@ public:
 	{
 		const EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
 		const uint32 DDPINumThreads = FDataDrivenShaderPlatformInfo::GetNumberOfComputeThreads(Platform);
-		const uint32 THREAD_COUNT = (DDPINumThreads != 0) ? DDPINumThreads : (Platform == SP_XBOXONE_D3D12  ? 64 : 128);
+		const uint32 THREAD_COUNT = (DDPINumThreads != 0) ? DDPINumThreads : 128;
 
 		// To simplify the shader code, the size of the ID table must be a multiple of the thread count.
 		check(NumIDs % THREAD_COUNT == 0);

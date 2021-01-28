@@ -649,7 +649,7 @@ static bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, ESha
 {
 	if (SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
 	{
-		return Platform == SP_PCD3D_SM5 || FDataDrivenShaderPlatformInfo::GetCompileSignalProcessingPipeline(FStaticShaderPlatform(Platform)) || Platform == SP_XBOXONE_D3D12 || Platform == SP_METAL_SM5;
+		return Platform == SP_PCD3D_SM5 || FDataDrivenShaderPlatformInfo::GetCompileSignalProcessingPipeline(FStaticShaderPlatform(Platform)) || Platform == SP_METAL_SM5;
 	}
 	else if (
 		SignalProcessing == ESignalProcessing::Reflections ||

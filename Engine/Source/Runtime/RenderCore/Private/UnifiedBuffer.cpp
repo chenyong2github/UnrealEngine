@@ -42,7 +42,7 @@ class FByteBufferShader : public FGlobalShader
 				&& FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsByteBufferComputeShaders;
 				*/
 			// TODO: Workaround for FDataDrivenShaderPlatformInfo::GetInfo not being properly filled out yet.
-			return FDataDrivenShaderPlatformInfo::GetSupportsByteBufferComputeShaders(Parameters.Platform) || Parameters.Platform == SP_PCD3D_SM5 || Parameters.Platform == SP_XBOXONE_D3D12;
+			return FDataDrivenShaderPlatformInfo::GetSupportsByteBufferComputeShaders(Parameters.Platform) || Parameters.Platform == SP_PCD3D_SM5;
 		}
 	}
 

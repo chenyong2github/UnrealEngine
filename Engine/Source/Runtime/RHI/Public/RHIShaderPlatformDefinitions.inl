@@ -28,13 +28,6 @@ static FText GetFriendlyShaderPlatformName(const EShaderPlatform InShaderPlatfor
 	}
 	break;
 
-	case SP_XBOXONE_D3D12:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "XBox_One_loc", "XBox One");
-		return Description;
-	}
-	break;
-
 	case SP_SWITCH:
 	{
 		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Switch_loc", "Switch");

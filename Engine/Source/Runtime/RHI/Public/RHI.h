@@ -151,12 +151,8 @@ inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
 
 inline bool RHISupportsMSAA(const FStaticShaderPlatform Platform)
 {
-	return 
-		(
-		// @todo optimise MSAA for XboxOne, currently uses significant eRAM.
-		Platform != SP_XBOXONE_D3D12)
-		// @todo platplug: Maybe this should become bDisallowMSAA to default of 0 is a better default (since now MSAA is opt-out more than opt-in) 
-		|| FDataDrivenShaderPlatformInfo::GetSupportsMSAA(Platform);
+	// @todo platplug: Maybe this should become bDisallowMSAA to default of 0 is a better default (since now MSAA is opt-out more than opt-in) 
+	return FDataDrivenShaderPlatformInfo::GetSupportsMSAA(Platform);
 }
 
 inline bool RHISupportsBufferLoadTypeConversion(const FStaticShaderPlatform Platform)
@@ -189,7 +185,7 @@ inline bool RHISupports4ComponentUAVReadWrite(const FStaticShaderPlatform Platfo
 {
 	// Must match usf PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
 	// D3D11 does not support multi-component loads from a UAV: "error X3676: typed UAV loads are only allowed for single-component 32-bit element types"
-	return Platform == SP_XBOXONE_D3D12 || IsMetalPlatform(Platform) 
+	return IsMetalPlatform(Platform) 
 		|| FDataDrivenShaderPlatformInfo::GetSupports4ComponentUAVReadWrite(Platform);
 }
 
@@ -230,9 +226,7 @@ inline RHI_API bool RHISupportsWaveOperations(const FStaticShaderPlatform Platfo
 /** True if the given shader platform supports a render target write mask */
 inline bool RHISupportsRenderTargetWriteMask(const FStaticShaderPlatform Platform)
 {
-	return
-		Platform == SP_XBOXONE_D3D12 ||
-		FDataDrivenShaderPlatformInfo::GetSupportsRenderTargetWriteMask(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsRenderTargetWriteMask(Platform);
 }
 
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.

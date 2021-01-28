@@ -134,8 +134,6 @@ FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform Platfo
 	{
 		case SP_PCD3D_SM5:
 			return FString("PCD3D_SM5");
-		case SP_XBOXONE_D3D12:
-			return FString("XBOXONE_D3D12");
 		case SP_METAL:
 			return FString("METAL");
 		case SP_METAL_MRT:
@@ -221,7 +219,6 @@ bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform Sha
 
 
 		case SP_PCD3D_SM5:
-		case SP_XBOXONE_D3D12:
 		case SP_METAL:
 		case SP_METAL_MRT:
 		case SP_METAL_TVOS:

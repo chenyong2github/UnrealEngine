@@ -56,9 +56,6 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 	case SP_OPENGL_ES3_1_ANDROID:
 		return NAME_GLSL_ES3_1_ANDROID;
 
-	case SP_XBOXONE_D3D12:
-		return NAME_SF_XBOXONE_D3D12;
-
 	case SP_SWITCH:
 		return NAME_GLSL_SWITCH;
 	case SP_SWITCH_FORWARD:
@@ -132,8 +129,6 @@ static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 
 	if (ShaderFormat == NAME_GLSL_150_ES31)				return SP_OPENGL_PCES3_1;
 	if (ShaderFormat == NAME_GLSL_ES3_1_ANDROID)		return SP_OPENGL_ES3_1_ANDROID;
-
-	if (ShaderFormat == NAME_SF_XBOXONE_D3D12)			return SP_XBOXONE_D3D12;
 
 	if (ShaderFormat == NAME_GLSL_SWITCH)				return SP_SWITCH;
 	if (ShaderFormat == NAME_GLSL_SWITCH_FORWARD)		return SP_SWITCH_FORWARD;

@@ -1036,7 +1036,6 @@ inline bool DoesPlatformSupportDistanceFields(const FStaticShaderPlatform Platfo
 {
 	return Platform == SP_PCD3D_SM5
 		|| IsMetalSM5Platform(Platform)
-		|| Platform == SP_XBOXONE_D3D12
 		|| IsVulkanSM5Platform(Platform)
 		|| Platform == SP_SWITCH
 		|| Platform == SP_SWITCH_FORWARD
