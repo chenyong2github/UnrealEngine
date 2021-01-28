@@ -47,10 +47,8 @@ public:
 	/** Recreate this node's pins and relink the Graph from the Material */
 	UNREALED_API void RecreateAndLinkNode();
 
-	/** Get the Material Expression output index from an output pin */
-	UNREALED_API int32 GetOutputIndex(const UEdGraphPin* OutputPin);
 	/** Get the Material value type of an output pin */
-	uint32 GetOutputType(const UEdGraphPin* OutputPin);
+	virtual uint32 GetOutputType(const UEdGraphPin* OutputPin) const override;
 
 	//~ Begin UObject Interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

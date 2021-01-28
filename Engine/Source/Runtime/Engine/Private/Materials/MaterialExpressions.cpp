@@ -250,6 +250,12 @@
 #include "Materials/MaterialExpressionStrata.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Materials/MaterialExpressionSamplePhysicsField.h"
+#include "Materials/MaterialExpressionExecBegin.h"
+#include "Materials/MaterialExpressionReturnMaterialAttributes.h"
+#include "Materials/MaterialExpressionIfThenElse.h"
+#include "Materials/MaterialExpressionForLoop.h"
+#include "Materials/MaterialExpressionSetLocal.h"
+#include "Materials/MaterialExpressionGetLocal.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
 #if WITH_EDITOR
@@ -408,6 +414,12 @@ void GetMaterialValueTypeDescriptions(const uint32 MaterialValueType, TArray<FTe
 
 bool CanConnectMaterialValueTypes(const uint32 InputType, const uint32 OutputType)
 {
+	if ((InputType & MCT_Execution) || (OutputType & MCT_Execution))
+	{
+		// exec pins can only connect to other exec pins
+		return InputType == OutputType;
+	}
+
 	if (InputType & MCT_Unknown)
 	{
 		// can plug anything into unknown inputs
@@ -1114,6 +1126,22 @@ uint32 UMaterialExpression::GetOutputType(int32 OutputIndex)
 			return MCT_Float;
 		}
 	}
+}
+
+FExpressionInput* UMaterialExpression::GetExecInput()
+{
+	return nullptr;
+}
+
+bool UMaterialExpression::IsExecInputConnection(UMaterialExpression* InExpression, int32 InOutputIndex)
+{
+	FExpressionInput* Input = GetExecInput();
+	if (Input)
+	{
+		FExpressionInput TracedInput = Input->GetTracedInput();
+		return TracedInput.Expression == InExpression && TracedInput.OutputIndex == InOutputIndex;
+	}
+	return false;
 }
 
 int32 UMaterialExpression::GetWidth() const
@@ -6290,27 +6318,62 @@ int32 UMaterialExpressionSetMaterialAttributes::Compile(class FMaterialCompiler*
 	}
 
 	// Compile attribute
-	const FGuid AttributeID = Compiler->GetMaterialAttribute();
-	FExpressionInput* AttributeInput = nullptr;
-
-	int32 PinIndex;
-	if (AttributeSetTypes.Find(AttributeID, PinIndex))
+	const FGuid CompilingAttributeID = Compiler->GetMaterialAttribute();
+	if (CompilingAttributeID == FMaterialAttributeDefinitionMap::GetID(MP_MaterialAttributes))
 	{
-		checkf(PinIndex + 1 < Inputs.Num(), TEXT("Requested non-existent pin."));
-		AttributeInput = &Inputs[PinIndex + 1];
-	}
+		int32 Result = INDEX_NONE;
+		if (Inputs[0].GetTracedInput().Expression)
+		{
+			Result = Inputs[0].GetTracedInput().Compile(Compiler);
+		}
+		else
+		{
+			Result = Compiler->DefaultMaterialAttributes();
+		}
 
-	if (AttributeInput && AttributeInput->GetTracedInput().Expression)
-	{
-		EMaterialValueType ValueType = FMaterialAttributeDefinitionMap::GetValueType(AttributeID);
-		return Compiler->ValidCast(AttributeInput->GetTracedInput().Compile(Compiler), ValueType);
+		for (int32 PinIndex = 0; PinIndex < AttributeSetTypes.Num(); ++PinIndex)
+		{
+			const FExpressionInput& AttributeInput = Inputs[PinIndex + 1];
+			if (AttributeInput.GetTracedInput().Expression)
+			{
+				const FGuid& AttributeID = AttributeSetTypes[PinIndex];
+				// Only compile code to set attributes of the current shader frequency
+				const EShaderFrequency AttributeFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID);
+				if (AttributeFrequency == Compiler->GetCurrentShaderFrequency())
+				{
+					const int32 AttributeResult = AttributeInput.GetTracedInput().Compile(Compiler);
+					if (AttributeResult != INDEX_NONE)
+					{
+						Result = Compiler->SetMaterialAttribute(Result, AttributeResult, AttributeID);
+					}
+				}
+			}
+		}
+		return Result;
 	}
-	else if (Inputs[0].GetTracedInput().Expression)
+	else
 	{
-		return Inputs[0].GetTracedInput().Compile(Compiler);
-	}
+		FExpressionInput* AttributeInput = nullptr;
 
-	return FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, AttributeID);
+		int32 PinIndex;
+		if (AttributeSetTypes.Find(CompilingAttributeID, PinIndex))
+		{
+			checkf(PinIndex + 1 < Inputs.Num(), TEXT("Requested non-existent pin."));
+			AttributeInput = &Inputs[PinIndex + 1];
+		}
+
+		if (AttributeInput && AttributeInput->GetTracedInput().Expression)
+		{
+			EMaterialValueType ValueType = FMaterialAttributeDefinitionMap::GetValueType(CompilingAttributeID);
+			return Compiler->ValidCast(AttributeInput->GetTracedInput().Compile(Compiler), ValueType);
+		}
+		else if (Inputs[0].GetTracedInput().Expression)
+		{
+			return Inputs[0].GetTracedInput().Compile(Compiler);
+		}
+
+		return FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, CompilingAttributeID);
+	}
 }
 
 void UMaterialExpressionSetMaterialAttributes::GetCaption(TArray<FString>& OutCaptions) const
@@ -20618,5 +20681,373 @@ uint32 UMaterialExpressionStrataAnisotropyToRoughness::GetInputType(int32 InputI
 	return MCT_Float1;
 }
 #endif // WITH_EDITOR
+
+UMaterialExpressionExecBegin::UMaterialExpressionExecBegin(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("exec")));
+	bHidePreviewWindow = true;
+#endif
+}
+
+#if WITH_EDITOR
+void UMaterialExpressionExecBegin::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Material Execution Begin"));
+}
+
+uint32 UMaterialExpressionExecBegin::GetOutputType(int32 OutputIndex)
+{
+	check(OutputIndex == 0);
+	return MCT_Execution;
+}
+
+static UMaterialExpression* GetExecConnection(UMaterialExpression* InExpression, int32 InOutputIndex)
+{
+	const uint32 OutputType = InExpression->GetOutputType(InOutputIndex);
+	check(OutputType == MCT_Execution);
+
+	const auto& Expressions = InExpression->Material->Expressions;
+	for (UMaterialExpression* Expression : Expressions)
+	{
+		if (Expression->IsExecInputConnection(InExpression, InOutputIndex))
+		{
+			return Expression;
+		}
+	}
+
+	return nullptr;
+}
+
+int32 UMaterialExpressionExecBegin::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	check(OutputIndex == CompileExecutionOutputIndex);
+	UMaterialExpression* NextExpression = GetExecConnection(this, 0);
+	if (NextExpression)
+	{
+		const int32 RootScope = Compiler->BeginScope();
+		NextExpression->Compile(Compiler, CompileExecutionOutputIndex);
+		Compiler->EndScope();
+		return RootScope;
+	}
+	return Compiler->Error(TEXT("Exec pin must be connected"));
+}
+#endif
+
+UMaterialExpressionReturnMaterialAttributes::UMaterialExpressionReturnMaterialAttributes(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Execution;
+		FConstructorStatics() : NAME_Execution(LOCTEXT("Execution", "Execution")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Execution);
+	Outputs.Reset();
+	bHidePreviewWindow = true;
+#endif
+}
+
+#if WITH_EDITOR
+void UMaterialExpressionReturnMaterialAttributes::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Return Material Attributes"));
+}
+
+int32 UMaterialExpressionReturnMaterialAttributes::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	check(OutputIndex == CompileExecutionOutputIndex);
+	const int32 AttributesIndex = MaterialAttributes.Compile(Compiler);
+	return Compiler->ReturnMaterialAttributes(AttributesIndex);
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionReturnMaterialAttributes::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&Exec);
+	Result.Add(&MaterialAttributes);
+	return Result;
+}
+
+FExpressionInput* UMaterialExpressionReturnMaterialAttributes::GetInput(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0: return &Exec;
+	case 1: return &MaterialAttributes;
+	default: checkNoEntry(); return nullptr;
+	}
+}
+
+uint32 UMaterialExpressionReturnMaterialAttributes::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0: return MCT_Execution;
+	case 1: return MCT_MaterialAttributes;
+	default: checkNoEntry(); return 0u;
+	}
+}
+#endif
+
+UMaterialExpressionIfThenElse::UMaterialExpressionIfThenElse(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Execution;
+		FConstructorStatics() : NAME_Execution(LOCTEXT("Execution", "Execution")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Execution);
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Then")));
+	Outputs.Add(FExpressionOutput(TEXT("Else")));
+	bShowOutputNameOnPin = true;
+	bHidePreviewWindow = true;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionIfThenElse::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	check(OutputIndex == CompileExecutionOutputIndex);
+	UMaterialExpression* ThenExpression = GetExecConnection(this, 0);
+	if (!ThenExpression)
+	{
+		return Compiler->Error(TEXT("Then pin must be connected"));
+	}
+
+	const int32 ConditionResult = Condition.GetTracedInput().Compile(Compiler);
+	if (ConditionResult == INDEX_NONE)
+	{
+		return Compiler->Error(TEXT("Condition pin must be connected"));
+	}
+
+	const int32 IfScopeIndex = Compiler->BeginScope_If(ConditionResult);
+	ThenExpression->Compile(Compiler, CompileExecutionOutputIndex);
+	Compiler->EndScope();
+
+	UMaterialExpression* ElseExpression = GetExecConnection(this, 1);
+	int32 ElseScope = INDEX_NONE;
+	if (ElseExpression)
+	{
+		ElseScope = Compiler->BeginScope_Else();
+		ElseExpression->Compile(Compiler, CompileExecutionOutputIndex);
+		Compiler->EndScope();
+	}
+
+	return INDEX_NONE;
+}
+
+void UMaterialExpressionIfThenElse::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("If"));
+}
+
+uint32 UMaterialExpressionIfThenElse::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0: return MCT_Execution;
+	case 1: return MCT_Float1;
+	default: checkNoEntry(); return 0u;
+	}
+}
+
+uint32 UMaterialExpressionIfThenElse::GetOutputType(int32 InputIndex)
+{
+	return MCT_Execution;
+}
+#endif
+
+UMaterialExpressionForLoop::UMaterialExpressionForLoop(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Execution;
+		FConstructorStatics() : NAME_Execution(LOCTEXT("Execution", "Execution")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Execution);
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Loop Body")));
+	Outputs.Add(FExpressionOutput(TEXT("Index")));
+	Outputs.Add(FExpressionOutput(TEXT("Completed")));
+	bShowOutputNameOnPin = true;
+	bHidePreviewWindow = true;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionForLoop::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (OutputIndex == CompileExecutionOutputIndex)
+	{
+		UMaterialExpression* LoopExpression = GetExecConnection(this, 0);
+		if (!LoopExpression)
+		{
+			return Compiler->Error(TEXT("Loop pin must be connected"));
+		}
+
+		UMaterialExpression* CompletedExpression = GetExecConnection(this, 2);
+
+		const int32 StartResult = StartIndex.GetTracedInput().Compile(Compiler);
+		if (StartResult == INDEX_NONE)
+		{
+			return Compiler->Error(TEXT("Start index pin must be connected"));
+		}
+
+		const int32 EndResult = EndIndex.GetTracedInput().Compile(Compiler);
+		if (EndResult == INDEX_NONE)
+		{
+			return Compiler->Error(TEXT("End index pin must be connected"));
+		}
+
+		const int32 LoopScopeIndex = Compiler->BeginScope_For(this, StartResult, EndResult, Compiler->Constant(1.0f));
+		LoopExpression->Compile(Compiler, CompileExecutionOutputIndex);
+		Compiler->EndScope();
+
+		if (CompletedExpression)
+		{
+			CompletedExpression->Compile(Compiler, CompileExecutionOutputIndex);
+		}
+
+		return INDEX_NONE;
+	}
+
+	// Loop index output
+	check(OutputIndex == 1);
+	return Compiler->ForLoopIndex(this);
+}
+
+void UMaterialExpressionForLoop::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("For"));
+}
+
+uint32 UMaterialExpressionForLoop::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0: return MCT_Execution;
+	case 1: return MCT_Float1;
+	case 2: return MCT_Float1;
+	case 3: return MCT_Float1;
+	default: checkNoEntry(); return 0u;
+	}
+}
+
+uint32 UMaterialExpressionForLoop::GetOutputType(int32 OutputIndex)
+{
+	switch (OutputIndex)
+	{
+	case 0: return MCT_Execution;
+	case 1: return MCT_Float1;
+	case 2: return MCT_Execution;
+	default: checkNoEntry(); return 0u;
+	}
+}
+#endif
+
+UMaterialExpressionGetLocal::UMaterialExpressionGetLocal(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Execution;
+		FConstructorStatics() : NAME_Execution(LOCTEXT("Execution", "Execution")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Execution);
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Result")));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionGetLocal::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->GetLocal(LocalName);
+}
+
+void UMaterialExpressionGetLocal::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString::Printf(TEXT("Get %s"), *LocalName.ToString()));
+}
+
+uint32 UMaterialExpressionGetLocal::GetOutputType(int32 InputIndex)
+{
+	return MCT_Float1;
+}
+#endif
+
+UMaterialExpressionSetLocal::UMaterialExpressionSetLocal(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Execution;
+		FConstructorStatics() : NAME_Execution(LOCTEXT("Execution", "Execution")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Execution);
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Exec")));
+	bHidePreviewWindow = true;
+#endif
+}
+
+#if WITH_EDITOR
+uint32 UMaterialExpressionSetLocal::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0: return MCT_Execution;
+	case 1: return MCT_Float1;
+	default: checkNoEntry(); return 0u;
+	}
+}
+
+int32 UMaterialExpressionSetLocal::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	check(OutputIndex == CompileExecutionOutputIndex);
+	
+	const int32 ValueIndex = Value.GetTracedInput().Compile(Compiler);
+	if (ValueIndex == INDEX_NONE)
+	{
+		return Compiler->Error(TEXT("Value must be connected"));
+	}
+
+	Compiler->SetLocal(LocalName, ValueIndex);
+
+	UMaterialExpression* NextExpression = GetExecConnection(this, 0);
+	if (NextExpression)
+	{
+		NextExpression->Compile(Compiler, CompileExecutionOutputIndex);
+	}
+
+	return INDEX_NONE;
+}
+
+void UMaterialExpressionSetLocal::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString::Printf(TEXT("Set %s"), *LocalName.ToString()));
+}
+
+uint32 UMaterialExpressionSetLocal::GetOutputType(int32 InputIndex)
+{
+	return MCT_Execution;
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

@@ -83,6 +83,22 @@ void UMaterialGraphNode_Base::GetOutputPins(TArray<class UEdGraphPin*>& OutOutpu
 	}
 }
 
+int32 UMaterialGraphNode_Base::GetOutputIndex(const UEdGraphPin* OutputPin) const
+{
+	TArray<UEdGraphPin*> OutputPins;
+	GetOutputPins(OutputPins);
+
+	for (int32 Index = 0; Index < OutputPins.Num(); ++Index)
+	{
+		if (OutputPin == OutputPins[Index])
+		{
+			return Index;
+		}
+	}
+
+	return -1;
+}
+
 void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
 {
 	check(OldNode);

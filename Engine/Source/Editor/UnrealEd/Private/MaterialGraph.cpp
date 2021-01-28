@@ -92,11 +92,16 @@ void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArra
 		//^^^ New material properties go above here. ^^^^
 		MaterialInputs.Add(FMaterialInputInfo(LOCTEXT("MaterialAttributes", "Material Attributes"), MP_MaterialAttributes, LOCTEXT("MaterialAttributesToolTip", "Material Attributes")));
 
-		// Add Root Node
-		FGraphNodeCreator<UMaterialGraphNode_Root> NodeCreator(*this);
-		RootNode = NodeCreator.CreateNode();
-		RootNode->Material = Material;
-		NodeCreator.Finalize();
+		// No root node if material is using exec pin
+		// Attribute assignments should be done using explicit nodes in this case
+		if (!Material->IsCompiledWithExecutionFlow())
+		{
+			// Add Root Node
+			FGraphNodeCreator<UMaterialGraphNode_Root> NodeCreator(*this);
+			RootNode = NodeCreator.CreateNode();
+			RootNode->Material = Material;
+			NodeCreator.Finalize();
+		}
 	}
 
 	TArray<UMaterialExpression*> ChildSubGraphExpressions;

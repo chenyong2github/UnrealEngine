@@ -104,6 +104,8 @@ class ENGINE_API UMaterialExpression : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	static constexpr int32 CompileExecutionOutputIndex = -2;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 MaterialExpressionEditorX;
@@ -266,6 +268,11 @@ class ENGINE_API UMaterialExpression : public UObject
 
 	virtual uint32 GetInputType(int32 InputIndex);
 	virtual uint32 GetOutputType(int32 OutputIndex);
+
+	/** Gets this expression's execution input, if any */
+	virtual FExpressionInput* GetExecInput();
+
+	bool IsExecInputConnection(UMaterialExpression* InExpression, int32 InOutputIndex);
 
 	virtual FText GetCreationDescription() const;
 	virtual FText GetCreationName() const;

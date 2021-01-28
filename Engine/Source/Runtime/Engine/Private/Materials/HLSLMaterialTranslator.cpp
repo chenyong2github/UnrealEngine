@@ -696,6 +696,10 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 {
 	FMemory::Memzero(SharedPixelProperties);
 
+	FMemory::Memzero(NumForLoops);
+
+	FMemory::Memzero(MaterialAttributesReturned);
+
 	SharedPixelProperties[MP_Normal] = true;
 	SharedPixelProperties[MP_Tangent] = true;
 	SharedPixelProperties[MP_EmissiveColor] = true;
@@ -1116,11 +1120,15 @@ bool FHLSLMaterialTranslator::Translate()
 		SCOPE_SECONDS_COUNTER(HLSLTranslateTime);
 		bSuccess = true;
 
+		check(ScopeStack.Num() == 0);
+
 		// WARNING: No compile outputs should be stored on the UMaterial / FMaterial / FMaterialResource, unless they are transient editor-only data (like error expressions)
 		// Compile outputs that need to be saved must be stored in MaterialCompilationOutput, which will be saved to the DDC.
 
 		Material->CompileErrors.Empty();
 		Material->ErrorExpressions.Empty();
+
+		bEnableExecutionFlow = Material->IsCompiledWithExecutionFlow();
 
 		bCompileForComputeShader = Material->IsLightFunction();
 
@@ -1148,6 +1156,8 @@ bool FHLSLMaterialTranslator::Translate()
 
 		int32 NormalCodeChunkEnd = -1;
 		int32 Chunk[CompiledMP_MAX];
+		int32 VertexAttributesChunk = INDEX_NONE;
+		int32 PixelAttributesChunk = INDEX_NONE;
 			
 		memset(Chunk, INDEX_NONE, sizeof(Chunk));
 
@@ -1201,14 +1211,6 @@ bool FHLSLMaterialTranslator::Translate()
 		// Some custom outputs must be pre-compiled so they can be re-used as shared inputs
 		CompileCustomOutputs(CustomOutputExpressions, SeenCustomOutputExpressionsClasses, true);			
 
-		// Normal must always be compiled first; this will ensure its chunk calculations are the first to be added
-		{
-			// Verify that start chunk is 0
-			check(SharedPropertyCodeChunks[NormalShaderFrequency].Num() == 0);
-			Chunk[MP_Normal]					= Material->CompilePropertyAndSetMaterialProperty(MP_Normal					,this);
-			NormalCodeChunkEnd = SharedPropertyCodeChunks[NormalShaderFrequency].Num();
-		}
-
 		// Validate some things on the VT system. Since generated code for expressions shared between multiple properties
 		// (e.g. a texture sample connected to both diffuse and opacity mask) is reused we can't check based on the MaterialProperty
 		// variable inside the actual code generation pass. So we do a pre-pass over it here.
@@ -1217,26 +1219,42 @@ bool FHLSLMaterialTranslator::Translate()
 			ValidateVtPropertyLimits();
 		}
 
-		// Rest of properties
-		Chunk[MP_EmissiveColor]					= Material->CompilePropertyAndSetMaterialProperty(MP_EmissiveColor			,this);
-		Chunk[MP_DiffuseColor]					= Material->CompilePropertyAndSetMaterialProperty(MP_DiffuseColor			,this);
-		Chunk[MP_SpecularColor]					= Material->CompilePropertyAndSetMaterialProperty(MP_SpecularColor			,this);
-		Chunk[MP_BaseColor]						= Material->CompilePropertyAndSetMaterialProperty(MP_BaseColor				,this);
-		Chunk[MP_Metallic]						= Material->CompilePropertyAndSetMaterialProperty(MP_Metallic				,this);
-		Chunk[MP_Specular]						= Material->CompilePropertyAndSetMaterialProperty(MP_Specular				,this);
-		Chunk[MP_Roughness]						= Material->CompilePropertyAndSetMaterialProperty(MP_Roughness				,this);
-		Chunk[MP_Anisotropy]					= Material->CompilePropertyAndSetMaterialProperty(MP_Anisotropy				,this);
-		Chunk[MP_Opacity]						= Material->CompilePropertyAndSetMaterialProperty(MP_Opacity				,this);
-		Chunk[MP_OpacityMask]					= Material->CompilePropertyAndSetMaterialProperty(MP_OpacityMask			,this);
-		Chunk[MP_Tangent]						= Material->CompilePropertyAndSetMaterialProperty(MP_Tangent				,this);
-		Chunk[MP_WorldPositionOffset]			= Material->CompilePropertyAndSetMaterialProperty(MP_WorldPositionOffset	,this);
-		Chunk[MP_WorldDisplacement]				= Material->CompilePropertyAndSetMaterialProperty(MP_WorldDisplacement		,this);
-		Chunk[MP_TessellationMultiplier]		= Material->CompilePropertyAndSetMaterialProperty(MP_TessellationMultiplier	,this);			
+		if (bEnableExecutionFlow)
+		{
+			PixelAttributesChunk = Material->CompilePropertyAndSetMaterialProperty(MP_MaterialAttributes, this, SF_Pixel);
+			VertexAttributesChunk = Material->CompilePropertyAndSetMaterialProperty(MP_MaterialAttributes, this, SF_Vertex);
+		}
+		else
+		{
+			// Normal must always be compiled first; this will ensure its chunk calculations are the first to be added
+			{
+				// Verify that start chunk is 0
+				check(SharedPropertyCodeChunks[NormalShaderFrequency].Num() == 0);
+				Chunk[MP_Normal]					= Material->CompilePropertyAndSetMaterialProperty(MP_Normal					,this);
+				NormalCodeChunkEnd = SharedPropertyCodeChunks[NormalShaderFrequency].Num();
+			}
 
-		// Make sure to compile this property before using ShadingModelsFromCompilation
-		Chunk[MP_ShadingModel]					= Material->CompilePropertyAndSetMaterialProperty(MP_ShadingModel			,this);
+			// Rest of properties
+			Chunk[MP_EmissiveColor]					= Material->CompilePropertyAndSetMaterialProperty(MP_EmissiveColor			,this);
+			Chunk[MP_DiffuseColor]					= Material->CompilePropertyAndSetMaterialProperty(MP_DiffuseColor			,this);
+			Chunk[MP_SpecularColor]					= Material->CompilePropertyAndSetMaterialProperty(MP_SpecularColor			,this);
+			Chunk[MP_BaseColor]						= Material->CompilePropertyAndSetMaterialProperty(MP_BaseColor				,this);
+			Chunk[MP_Metallic]						= Material->CompilePropertyAndSetMaterialProperty(MP_Metallic				,this);
+			Chunk[MP_Specular]						= Material->CompilePropertyAndSetMaterialProperty(MP_Specular				,this);
+			Chunk[MP_Roughness]						= Material->CompilePropertyAndSetMaterialProperty(MP_Roughness				,this);
+			Chunk[MP_Anisotropy]					= Material->CompilePropertyAndSetMaterialProperty(MP_Anisotropy				,this);
+			Chunk[MP_Opacity]						= Material->CompilePropertyAndSetMaterialProperty(MP_Opacity				,this);
+			Chunk[MP_OpacityMask]					= Material->CompilePropertyAndSetMaterialProperty(MP_OpacityMask			,this);
+			Chunk[MP_Tangent]						= Material->CompilePropertyAndSetMaterialProperty(MP_Tangent				,this);
+			Chunk[MP_WorldPositionOffset]			= Material->CompilePropertyAndSetMaterialProperty(MP_WorldPositionOffset	,this);
+			Chunk[MP_WorldDisplacement]				= Material->CompilePropertyAndSetMaterialProperty(MP_WorldDisplacement		,this);
+			Chunk[MP_TessellationMultiplier]		= Material->CompilePropertyAndSetMaterialProperty(MP_TessellationMultiplier	,this);			
+
+			// Make sure to compile this property before using ShadingModelsFromCompilation
+			Chunk[MP_ShadingModel]					= Material->CompilePropertyAndSetMaterialProperty(MP_ShadingModel			,this);
 		
-		Chunk[MP_FrontMaterial]					= Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial			,this);
+			Chunk[MP_FrontMaterial]					= Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial			,this);
+		}
 
 		// Get shading models from material.
 		FMaterialShadingModelField MaterialShadingModels = Material->GetShadingModels(); 
@@ -1250,47 +1268,49 @@ bool FHLSLMaterialTranslator::Translate()
 		
 		ValidateShadingModelsForFeatureLevel(MaterialShadingModels);
 		
-		if (Domain == MD_Volume || (Domain == MD_Surface && IsSubsurfaceShadingModel(MaterialShadingModels)))
+		if (!bEnableExecutionFlow)
 		{
-			// Note we don't test for the blend mode as you can have a translucent material using the subsurface shading model
+			if (Domain == MD_Volume || (Domain == MD_Surface && IsSubsurfaceShadingModel(MaterialShadingModels)))
+			{
+				// Note we don't test for the blend mode as you can have a translucent material using the subsurface shading model
 
-			// another ForceCast as CompilePropertyAndSetMaterialProperty() can return MCT_Float which we don't want here
-			int32 SubsurfaceColor = Material->CompilePropertyAndSetMaterialProperty(MP_SubsurfaceColor, this);
-			SubsurfaceColor = ForceCast(SubsurfaceColor, FMaterialAttributeDefinitionMap::GetValueType(MP_SubsurfaceColor), MFCF_ExactMatch | MFCF_ReplicateValue);
+				// another ForceCast as CompilePropertyAndSetMaterialProperty() can return MCT_Float which we don't want here
+				int32 SubsurfaceColor = Material->CompilePropertyAndSetMaterialProperty(MP_SubsurfaceColor, this);
+				SubsurfaceColor = ForceCast(SubsurfaceColor, FMaterialAttributeDefinitionMap::GetValueType(MP_SubsurfaceColor), MFCF_ExactMatch | MFCF_ReplicateValue);
 
-			static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
+				static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
 
-			// 1.0f is is a not used profile - later this gets replaced with the actual profile
-			int32 CodeSubsurfaceProfile = ForceCast(ScalarParameter(NameSubsurfaceProfile, 1.0f), MCT_Float1);
+				// 1.0f is is a not used profile - later this gets replaced with the actual profile
+				int32 CodeSubsurfaceProfile = ForceCast(ScalarParameter(NameSubsurfaceProfile, 1.0f), MCT_Float1);
 
-			Chunk[MP_SubsurfaceColor] = AppendVector(SubsurfaceColor, CodeSubsurfaceProfile);		
+				Chunk[MP_SubsurfaceColor] = AppendVector(SubsurfaceColor, CodeSubsurfaceProfile);
+			}
+
+			Chunk[MP_CustomData0] = Material->CompilePropertyAndSetMaterialProperty(MP_CustomData0, this);
+			Chunk[MP_CustomData1] = Material->CompilePropertyAndSetMaterialProperty(MP_CustomData1, this);
+			Chunk[MP_AmbientOcclusion] = Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion, this);
+
+			if (IsTranslucentBlendMode(BlendMode) || MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
+			{
+				int32 UserRefraction = ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Refraction, this), MCT_Float1);
+				int32 RefractionDepthBias = ForceCast(ScalarParameter(FName(TEXT("RefractionDepthBias")), Material->GetRefractionDepthBiasValue()), MCT_Float1);
+
+				Chunk[MP_Refraction] = AppendVector(UserRefraction, RefractionDepthBias);
+			}
+
+			if (bCompileForComputeShader)
+			{
+				Chunk[CompiledMP_EmissiveColorCS] = Material->CompilePropertyAndSetMaterialProperty(MP_EmissiveColor, this, SF_Compute);
+			}
+
+			if (Chunk[MP_WorldPositionOffset] != INDEX_NONE)
+			{
+				// Only calculate previous WPO if there is a current WPO
+				Chunk[CompiledMP_PrevWorldPositionOffset] = Material->CompilePropertyAndSetMaterialProperty(MP_WorldPositionOffset, this, SF_Vertex, true);
+			}
+
+			Chunk[MP_PixelDepthOffset] = Material->CompilePropertyAndSetMaterialProperty(MP_PixelDepthOffset, this);
 		}
-
-		Chunk[MP_CustomData0]					= Material->CompilePropertyAndSetMaterialProperty(MP_CustomData0		,this);
-		Chunk[MP_CustomData1]					= Material->CompilePropertyAndSetMaterialProperty(MP_CustomData1		,this);
-		Chunk[MP_AmbientOcclusion]				= Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion	,this);
-
-		if (IsTranslucentBlendMode(BlendMode) || MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
-		{
-			int32 UserRefraction = ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Refraction, this), MCT_Float1);
-			int32 RefractionDepthBias = ForceCast(ScalarParameter(FName(TEXT("RefractionDepthBias")), Material->GetRefractionDepthBiasValue()), MCT_Float1);
-
-			Chunk[MP_Refraction] = AppendVector(UserRefraction, RefractionDepthBias);
-		}
-
-		if (bCompileForComputeShader)
-		{
-			Chunk[CompiledMP_EmissiveColorCS]	= Material->CompilePropertyAndSetMaterialProperty(MP_EmissiveColor, this, SF_Compute);
-		}
-
-		if (Chunk[MP_WorldPositionOffset] != INDEX_NONE)
-		{
-			// Only calculate previous WPO if there is a current WPO
-			Chunk[CompiledMP_PrevWorldPositionOffset] = Material->CompilePropertyAndSetMaterialProperty(MP_WorldPositionOffset, this, SF_Vertex, true);
-		}
-
-		Chunk[MP_PixelDepthOffset] = Material->CompilePropertyAndSetMaterialProperty(MP_PixelDepthOffset, this);
-
 
 		ResourcesString = TEXT("");
 
@@ -1366,14 +1386,17 @@ bool FHLSLMaterialTranslator::Translate()
 		// No more calls to non-vertex shader CompilePropertyAndSetMaterialProperty beyond this point
 		const uint32 SavedNumUserTexCoords = GetNumUserTexCoords();
 
-		for (uint32 CustomUVIndex = MP_CustomizedUVs0; CustomUVIndex <= MP_CustomizedUVs7; CustomUVIndex++)
+		if (!bEnableExecutionFlow)
 		{
-			// Only compile custom UV inputs for UV channels requested by the pixel shader inputs
-			// Any unconnected inputs will have a texcoord generated for them in Material->CompileProperty, which will pass through the vertex (uncustomized) texture coordinates
-			// Note: this is using NumUserTexCoords, which is set by translating all the pixel properties above
-			if (CustomUVIndex - MP_CustomizedUVs0 < SavedNumUserTexCoords)
+			for (uint32 CustomUVIndex = MP_CustomizedUVs0; CustomUVIndex <= MP_CustomizedUVs7; CustomUVIndex++)
 			{
-				Chunk[CustomUVIndex] = Material->CompilePropertyAndSetMaterialProperty((EMaterialProperty)CustomUVIndex, this);
+				// Only compile custom UV inputs for UV channels requested by the pixel shader inputs
+				// Any unconnected inputs will have a texcoord generated for them in Material->CompileProperty, which will pass through the vertex (uncustomized) texture coordinates
+				// Note: this is using NumUserTexCoords, which is set by translating all the pixel properties above
+				if (CustomUVIndex - MP_CustomizedUVs0 < SavedNumUserTexCoords)
+				{
+					Chunk[CustomUVIndex] = Material->CompilePropertyAndSetMaterialProperty((EMaterialProperty)CustomUVIndex, this);
+				}
 			}
 		}
 
@@ -1586,81 +1609,102 @@ bool FHLSLMaterialTranslator::Translate()
 
 		MaterialCompilationOutput.NumUsedUVScalars = GetNumUserTexCoords() * 2;
 		MaterialCompilationOutput.NumUsedCustomInterpolatorScalars = CurrentCustomVertexInterpolatorOffset;
-
-		for (int32 VariationIter = 0; VariationIter < CompiledPDV_MAX; VariationIter++)
+		
+		if (bEnableExecutionFlow)
 		{
-			ECompiledPartialDerivativeVariation Variation = (ECompiledPartialDerivativeVariation)VariationIter;
-
-			// Do Normal Chunk first
+			if (VertexAttributesChunk != INDEX_NONE)
 			{
-				GetFixedParameterCode(
-					0,
-					NormalCodeChunkEnd,
-					Chunk[MP_Normal],
-					SharedPropertyCodeChunks[NormalShaderFrequency],
-					DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[MP_Normal],
-					DerivativeVariations[Variation].TranslatedCodeChunks[MP_Normal],
-					Variation);
+				LinkParentScopes(SharedPropertyCodeChunks[SF_Vertex]);
 
-				// Always gather MP_Normal definitions as they can be shared by other properties
-				if (DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[MP_Normal].IsEmpty())
-				{
-					DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[MP_Normal] = GetDefinitions(SharedPropertyCodeChunks[NormalShaderFrequency], 0, NormalCodeChunkEnd, Variation);
-				}
+				TSet<int32> EmittedChunks;
+				GetScopeCode(1, VertexAttributesChunk, SharedPropertyCodeChunks[SF_Vertex], EmittedChunks, TranslatedAttributesCodeChunks[SF_Vertex]);
 			}
 
-			// Now the rest, skipping Normal
-			for(uint32 PropertyId = 0; PropertyId < MP_MAX; ++PropertyId)
+			if (PixelAttributesChunk != INDEX_NONE)
 			{
-				if (PropertyId == MP_MaterialAttributes || PropertyId == MP_Normal || PropertyId == MP_CustomOutput)
-				{
-					continue;
-				}
+				LinkParentScopes(SharedPropertyCodeChunks[SF_Pixel]);
 
-				const EShaderFrequency PropertyShaderFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency((EMaterialProperty)PropertyId);
-
-				int32 StartChunk = 0;
-				if (PropertyShaderFrequency == NormalShaderFrequency && SharedPixelProperties[PropertyId])
-				{
-					// When processing shared properties, do not generate the code before the Normal was generated as those are already handled
-					StartChunk = NormalCodeChunkEnd;
-				}
-
-				GetFixedParameterCode(
-					StartChunk,
-					SharedPropertyCodeChunks[PropertyShaderFrequency].Num(),
-					Chunk[PropertyId],
-					SharedPropertyCodeChunks[PropertyShaderFrequency],
-					DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[PropertyId],
-					DerivativeVariations[Variation].TranslatedCodeChunks[PropertyId],
-					Variation);
-
+				TSet<int32> EmittedChunks;
+				GetScopeCode(1, PixelAttributesChunk, SharedPropertyCodeChunks[SF_Pixel], EmittedChunks, TranslatedAttributesCodeChunks[SF_Pixel]);
 			}
-
-			for(uint32 PropertyId = MP_MAX; PropertyId < CompiledMP_MAX; ++PropertyId)
+		}
+		else
+		{
+			for (int32 VariationIter = 0; VariationIter < CompiledPDV_MAX; VariationIter++)
 			{
-				switch(PropertyId)
+				ECompiledPartialDerivativeVariation Variation = (ECompiledPartialDerivativeVariation)VariationIter;
+
+				// Do Normal Chunk first
 				{
-				case CompiledMP_EmissiveColorCS:
-					if (bCompileForComputeShader)
+					GetFixedParameterCode(
+						0,
+						NormalCodeChunkEnd,
+						Chunk[MP_Normal],
+						SharedPropertyCodeChunks[NormalShaderFrequency],
+						DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[MP_Normal],
+						DerivativeVariations[Variation].TranslatedCodeChunks[MP_Normal],
+						Variation);
+
+					// Always gather MP_Normal definitions as they can be shared by other properties
+					if (DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[MP_Normal].IsEmpty())
 					{
-						GetFixedParameterCode(Chunk[PropertyId], SharedPropertyCodeChunks[SF_Compute], DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[PropertyId], DerivativeVariations[Variation].TranslatedCodeChunks[PropertyId], Variation);
+						DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[MP_Normal] = GetDefinitions(SharedPropertyCodeChunks[NormalShaderFrequency], 0, NormalCodeChunkEnd, Variation);
 					}
-					break;
-				case CompiledMP_PrevWorldPositionOffset:
+				}
+
+				// Now the rest, skipping Normal
+				for (uint32 PropertyId = 0; PropertyId < MP_MAX; ++PropertyId)
+				{
+					if (PropertyId == MP_MaterialAttributes || PropertyId == MP_Normal || PropertyId == MP_CustomOutput)
+					{
+						continue;
+					}
+
+					const EShaderFrequency PropertyShaderFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency((EMaterialProperty)PropertyId);
+
+					int32 StartChunk = 0;
+					if (PropertyShaderFrequency == NormalShaderFrequency && SharedPixelProperties[PropertyId])
+					{
+						// When processing shared properties, do not generate the code before the Normal was generated as those are already handled
+						StartChunk = NormalCodeChunkEnd;
+					}
+
+					GetFixedParameterCode(
+						StartChunk,
+						SharedPropertyCodeChunks[PropertyShaderFrequency].Num(),
+						Chunk[PropertyId],
+						SharedPropertyCodeChunks[PropertyShaderFrequency],
+						DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[PropertyId],
+						DerivativeVariations[Variation].TranslatedCodeChunks[PropertyId],
+						Variation);
+
+				}
+
+				for (uint32 PropertyId = MP_MAX; PropertyId < CompiledMP_MAX; ++PropertyId)
+				{
+					switch (PropertyId)
+					{
+					case CompiledMP_EmissiveColorCS:
+						if (bCompileForComputeShader)
+						{
+							GetFixedParameterCode(Chunk[PropertyId], SharedPropertyCodeChunks[SF_Compute], DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[PropertyId], DerivativeVariations[Variation].TranslatedCodeChunks[PropertyId], Variation);
+						}
+						break;
+					case CompiledMP_PrevWorldPositionOffset:
 					{
 						GetFixedParameterCode(Chunk[PropertyId], SharedPropertyCodeChunks[SF_Vertex], DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[PropertyId], DerivativeVariations[Variation].TranslatedCodeChunks[PropertyId], Variation);
 					}
 					break;
-				default: check(0);
-					break;
+					default: check(0);
+						break;
+					}
 				}
-			}
 
-			// Output the implementation for any custom output expressions
-			for (int32 ExpressionIndex = 0; ExpressionIndex < DerivativeVariations[Variation].CustomOutputImplementations.Num(); ExpressionIndex++)
-			{
-				ResourcesString += DerivativeVariations[Variation].CustomOutputImplementations[ExpressionIndex] + "\r\n\r\n";
+				// Output the implementation for any custom output expressions
+				for (int32 ExpressionIndex = 0; ExpressionIndex < DerivativeVariations[Variation].CustomOutputImplementations.Num(); ExpressionIndex++)
+				{
+					ResourcesString += DerivativeVariations[Variation].CustomOutputImplementations[ExpressionIndex] + "\r\n\r\n";
+				}
 			}
 		}
 
@@ -2267,22 +2311,25 @@ void FHLSLMaterialTranslator::GetSharedInputsMaterialCode(FString& PixelMembersD
 			check(PropertyName.Len() > 0);				
 			const EMaterialValueType Type = Property == MP_SubsurfaceColor ? MCT_Float4 : FMaterialAttributeDefinitionMap::GetValueType(Property);
 
-			// Normal requires its own separate initializer
-			if (Property == MP_Normal)
+			if (!bEnableExecutionFlow)
 			{
-				NormalInitializerValue = FString::Printf(TEXT("\tPixelMaterialInputs.%s = %s;\n"), *PropertyName, *DerivativeVariations[DerivativeVariation].TranslatedCodeChunks[Property]);
-			}
-			else
-			{
-				if (DerivativeVariations[DerivativeVariation].TranslatedCodeChunkDefinitions[Property].Len() > 0)
+				// Normal requires its own separate initializer
+				if (Property == MP_Normal)
 				{
-					if (LastProperty >= 0)
+					NormalInitializerValue = FString::Printf(TEXT("\tPixelMaterialInputs.%s = %s;\n"), *PropertyName, *DerivativeVariations[DerivativeVariation].TranslatedCodeChunks[Property]);
+				}
+				else
+				{
+					if (DerivativeVariations[DerivativeVariation].TranslatedCodeChunkDefinitions[Property].Len() > 0)
 					{
-						// Verify that all code chunks have the same contents
-						check(DerivativeVariations[DerivativeVariation].TranslatedCodeChunkDefinitions[Property].Len() == DerivativeVariations[DerivativeVariation].TranslatedCodeChunkDefinitions[LastProperty].Len());
-					}
+						if (LastProperty >= 0)
+						{
+							// Verify that all code chunks have the same contents
+							check(DerivativeVariations[DerivativeVariation].TranslatedCodeChunkDefinitions[Property].Len() == DerivativeVariations[DerivativeVariation].TranslatedCodeChunkDefinitions[LastProperty].Len());
+						}
 
-					LastProperty = Property;
+						LastProperty = Property;
+					}
 				}
 
 				PixelInputInitializerValues += FString::Printf(TEXT("\tPixelMaterialInputs.%s = %s;\n"), *PropertyName, *DerivativeVariations[DerivativeVariation].TranslatedCodeChunks[Property]);
@@ -2344,24 +2391,55 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 	LazyPrintf.PushParam(*VertexInterpolatorsOffsetsDefinition);
 
 	FString MaterialAttributesDeclaration;
+	FString MaterialAttributesUtilities;
+	FString MaterialAttributesDefault;
+
+	const EMaterialShadingModel DefaultShadingModel = Material->GetShadingModels().GetFirstShadingModel();
 
 	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
-	for(const FGuid& AttributeID : OrderedVisibleAttributes)
+	for (const FGuid& AttributeID : OrderedVisibleAttributes)
 	{
 		const FString PropertyName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
 		const EMaterialValueType PropertyType = FMaterialAttributeDefinitionMap::GetValueType(AttributeID);
+		const TCHAR* HLSLType = nullptr;
+
 		switch (PropertyType)
 		{
-		case MCT_Float1: case MCT_Float: MaterialAttributesDeclaration += FString::Printf(TEXT("\tfloat %s;") LINE_TERMINATOR, *PropertyName); break;
-		case MCT_Float2: MaterialAttributesDeclaration += FString::Printf(TEXT("\tfloat2 %s;") LINE_TERMINATOR, *PropertyName); break;
-		case MCT_Float3: MaterialAttributesDeclaration += FString::Printf(TEXT("\tfloat3 %s;") LINE_TERMINATOR, *PropertyName); break;
-		case MCT_Float4: MaterialAttributesDeclaration += FString::Printf(TEXT("\tfloat4 %s;") LINE_TERMINATOR, *PropertyName); break;
-		case MCT_ShadingModel: MaterialAttributesDeclaration += FString::Printf(TEXT("\tuint %s;") LINE_TERMINATOR, *PropertyName); break;
-		case MCT_Strata: MaterialAttributesDeclaration += FString::Printf(TEXT("\tFStrataData %s;") LINE_TERMINATOR, *PropertyName); break;
+		case MCT_Float1: case MCT_Float: HLSLType = TEXT("float"); break;
+		case MCT_Float2: HLSLType = TEXT("float2"); break;
+		case MCT_Float3: HLSLType = TEXT("float3"); break;
+		case MCT_Float4: HLSLType = TEXT("float4"); break;
+		case MCT_ShadingModel: HLSLType = TEXT("uint"); break;
+		case MCT_Strata: HLSLType = TEXT("FStrataData"); break;
+		default: break;
+		}
+
+		if (HLSLType)
+		{
+			const FVector4& DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID);
+
+			MaterialAttributesDeclaration += FString::Printf(TEXT("\t%s %s;") LINE_TERMINATOR, HLSLType, *PropertyName);
+
+			// Chainable method to set the attribute
+			MaterialAttributesUtilities += FString::Printf(TEXT("FMaterialAttributes FMaterialAttributes_Set%s(FMaterialAttributes InAttributes, %s InValue) { InAttributes.%s = InValue; return InAttributes; }") LINE_TERMINATOR,
+				*PropertyName, HLSLType, *PropertyName);
+
+			// Standard value type
+			switch (PropertyType)
+			{
+			case MCT_Float: case MCT_Float1: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = %0.8f;") LINE_TERMINATOR, *PropertyName, DefaultValue.X); break;
+			case MCT_Float2: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = MaterialFloat2(%0.8f,%0.8f);") LINE_TERMINATOR, *PropertyName, DefaultValue.X, DefaultValue.Y); break;
+			case MCT_Float3: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = MaterialFloat3(%0.8f,%0.8f,%0.8f);") LINE_TERMINATOR, *PropertyName, DefaultValue.X, DefaultValue.Y, DefaultValue.Z); break;
+			case MCT_Float4: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = MaterialFloat4(%0.8f,%0.8f,%0.8f,%0.8f);") LINE_TERMINATOR, *PropertyName, DefaultValue.X, DefaultValue.Y, DefaultValue.Z, DefaultValue.W); break;
+			case MCT_ShadingModel: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = %d;") LINE_TERMINATOR, *PropertyName, (int32)DefaultShadingModel); break;
+			case MCT_Strata: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = GetInitialisedStrataData();") LINE_TERMINATOR, *PropertyName); break; // TODO
+			default: checkNoEntry(); break;
+			}
 		}
 	}
 
 	LazyPrintf.PushParam(*MaterialAttributesDeclaration);
+	LazyPrintf.PushParam(*MaterialAttributesUtilities);
 
 	// Stores the shared shader results member declarations
 	FString PixelMembersDeclaration[CompiledPDV_MAX];
@@ -2418,13 +2496,13 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 
 	LazyPrintf.PushParam(*FString::Printf(TEXT("return %.5f"), Material->GetOpacityMaskClipValue()));
 
-	LazyPrintf.PushParam(*GenerateFunctionCode(MP_WorldPositionOffset, BaseDerivativeVariation));
-	LazyPrintf.PushParam(*GenerateFunctionCode(CompiledMP_PrevWorldPositionOffset, BaseDerivativeVariation));
-	LazyPrintf.PushParam(*GenerateFunctionCode(MP_WorldDisplacement, BaseDerivativeVariation));
+	LazyPrintf.PushParam(!bEnableExecutionFlow ? *GenerateFunctionCode(MP_WorldPositionOffset, BaseDerivativeVariation) : TEXT("return Parameters.MaterialVertexAttributes.WorldPositionOffset"));
+	LazyPrintf.PushParam(!bEnableExecutionFlow ? *GenerateFunctionCode(CompiledMP_PrevWorldPositionOffset, BaseDerivativeVariation) : TEXT("return 0.0f"));
+	LazyPrintf.PushParam(!bEnableExecutionFlow ? *GenerateFunctionCode(MP_WorldDisplacement, BaseDerivativeVariation) : TEXT("return 0.0f"));
 	LazyPrintf.PushParam(*FString::Printf(TEXT("return %.5f"), Material->GetMaxDisplacement()));
-	LazyPrintf.PushParam(*GenerateFunctionCode(MP_TessellationMultiplier, BaseDerivativeVariation));
-	LazyPrintf.PushParam(*GenerateFunctionCode(MP_CustomData0, BaseDerivativeVariation));
-	LazyPrintf.PushParam(*GenerateFunctionCode(MP_CustomData1, BaseDerivativeVariation));
+	LazyPrintf.PushParam(!bEnableExecutionFlow ? *GenerateFunctionCode(MP_TessellationMultiplier, BaseDerivativeVariation) : TEXT("return 0.0f"));
+	LazyPrintf.PushParam(!bEnableExecutionFlow ? *GenerateFunctionCode(MP_CustomData0, BaseDerivativeVariation) : TEXT("return 0.0f"));
+	LazyPrintf.PushParam(!bEnableExecutionFlow ? *GenerateFunctionCode(MP_CustomData1, BaseDerivativeVariation) : TEXT("return 0.0f"));
 
 	// Print custom texture coordinate assignments, should be fine with regular derivatives
 	FString CustomUVAssignments;
@@ -2432,20 +2510,28 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 	int32 LastProperty = -1;
 	for (uint32 CustomUVIndex = 0; CustomUVIndex < NumUserTexCoords; CustomUVIndex++)
 	{
-		if (CustomUVIndex == 0)
+		if (bEnableExecutionFlow)
 		{
-			CustomUVAssignments += DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex];
+			const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + CustomUVIndex));
+			CustomUVAssignments += FString::Printf(TEXT("\tOutTexCoords[%u] = Parameters.MaterialVertexAttributes.%s;") LINE_TERMINATOR, CustomUVIndex, *AttributeName);
 		}
-
-		if (DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex].Len() > 0)
+		else
 		{
-			if (LastProperty >= 0)
+			if (CustomUVIndex == 0)
 			{
-				check(DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[LastProperty].Len() == DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex].Len());
+				CustomUVAssignments += DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex];
 			}
-			LastProperty = MP_CustomizedUVs0 + CustomUVIndex;
+
+			if (DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex].Len() > 0)
+			{
+				if (LastProperty >= 0)
+				{
+					check(DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[LastProperty].Len() == DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex].Len());
+				}
+				LastProperty = MP_CustomizedUVs0 + CustomUVIndex;
+			}
+			CustomUVAssignments += FString::Printf(TEXT("\tOutTexCoords[%u] = %s;") LINE_TERMINATOR, CustomUVIndex, *DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunks[MP_CustomizedUVs0 + CustomUVIndex]);
 		}
-		CustomUVAssignments += FString::Printf(TEXT("\tOutTexCoords[%u] = %s;") LINE_TERMINATOR, CustomUVIndex, *DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunks[MP_CustomizedUVs0 + CustomUVIndex]);
 	}
 
 	LazyPrintf.PushParam(*CustomUVAssignments);
@@ -2487,15 +2573,75 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 
 	LazyPrintf.PushParam(*CustomInterpolatorAssignments);
 
-	for (int32 Iter = 0; Iter < CompiledPDV_MAX; Iter++)
-	{
-		ECompiledPartialDerivativeVariation Variation = (ECompiledPartialDerivativeVariation)Iter;
+	LazyPrintf.PushParam(*MaterialAttributesDefault);
 
-		// Initializers required for Normal
-		LazyPrintf.PushParam(*DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[MP_Normal]);
-		LazyPrintf.PushParam(*NormalAssignment[Variation]);
-		// Finally the rest of common code followed by assignment into each input
-		LazyPrintf.PushParam(*PixelMembersSetupAndAssignments[Variation]);
+	if (bEnableExecutionFlow)
+	{
+		FString EvaluateVertexCode;
+
+		// Set default texcoords in the VS
+		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumUserVertexTexCoords; ++TexCoordIndex)
+		{
+			const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + TexCoordIndex));
+
+			EvaluateVertexCode += FString::Printf(TEXT("\tDefaultMaterialAttributes.%s = Parameters.TexCoords[%d];") LINE_TERMINATOR, *AttributeName, TexCoordIndex);
+		}
+
+		EvaluateVertexCode += TranslatedAttributesCodeChunks[SF_Vertex];
+
+		LazyPrintf.PushParam(*EvaluateVertexCode);
+		LazyPrintf.PushParam(*TranslatedAttributesCodeChunks[SF_Pixel]);
+
+		FString EvaluateMaterialAttributesCode = TEXT("    FMaterialAttributes MaterialAttributes = EvaluatePixelMaterialAttributes(Parameters);" LINE_TERMINATOR);
+
+		for (int32 PropertyIndex = 0; PropertyIndex < MP_MAX; ++PropertyIndex)
+		{
+			// Skip non-shared properties
+			if (!SharedPixelProperties[PropertyIndex])
+			{
+				continue;
+			}
+
+			const EMaterialProperty Property = (EMaterialProperty)PropertyIndex;
+			check(FMaterialAttributeDefinitionMap::GetShaderFrequency(Property) == SF_Pixel);
+			// Special case MP_SubsurfaceColor as the actual property is a combination of the color and the profile but we don't want to expose the profile
+			const FString PropertyName = FMaterialAttributeDefinitionMap::GetAttributeName(Property);
+
+			if (PropertyIndex == MP_SubsurfaceColor)
+			{
+				// TODO - properly handle subsurface profile
+				EvaluateMaterialAttributesCode += FString::Printf("    PixelMaterialInputs.Subsurface = float4(MaterialAttributes.%s, 0.0f);" LINE_TERMINATOR, *PropertyName);
+			}
+			else
+			{
+				EvaluateMaterialAttributesCode += FString::Printf("    PixelMaterialInputs.%s = MaterialAttributes.%s;" LINE_TERMINATOR, *PropertyName, *PropertyName);
+			}
+		}
+
+		// TODO - deriv
+		for (int32 Iter = 0; Iter < CompiledPDV_MAX; Iter++)
+		{
+			LazyPrintf.PushParam(*EvaluateMaterialAttributesCode);
+			LazyPrintf.PushParam(TEXT(""));
+			LazyPrintf.PushParam(TEXT(""));
+		}
+	}
+	else
+	{
+		// skip material attributes code
+		LazyPrintf.PushParam(TEXT(""));
+		LazyPrintf.PushParam(TEXT(""));
+
+		for (int32 Iter = 0; Iter < CompiledPDV_MAX; Iter++)
+		{
+			ECompiledPartialDerivativeVariation Variation = (ECompiledPartialDerivativeVariation)Iter;
+
+			// Initializers required for Normal
+			LazyPrintf.PushParam(*DerivativeVariations[Variation].TranslatedCodeChunkDefinitions[MP_Normal]);
+			LazyPrintf.PushParam(*NormalAssignment[Variation]);
+			// Finally the rest of common code followed by assignment into each input
+			LazyPrintf.PushParam(*PixelMembersSetupAndAssignments[Variation]);
+		}
 	}
 
 	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"),MaterialTemplateLineNumber));
@@ -2508,15 +2654,20 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 
 bool FHLSLMaterialTranslator::IsMaterialPropertyUsed(EMaterialProperty Property, int32 PropertyChunkIndex, const FLinearColor& ReferenceValue, int32 NumComponents) const
 {
+	const int32 Frequency = (int32)FMaterialAttributeDefinitionMap::GetShaderFrequency(Property);
 	bool bPropertyUsed = false;
 
-	if (PropertyChunkIndex == -1)
+	if ((MaterialAttributesReturned[Frequency] & (1ull << Property)) != 0u)
+	{
+		// Property was set via a 'Return Material Attributes' expression
+		bPropertyUsed = true;
+	}
+	else if (PropertyChunkIndex == -1)
 	{
 		bPropertyUsed = false;
 	}
 	else
 	{
-		int32 Frequency = (int32)FMaterialAttributeDefinitionMap::GetShaderFrequency(Property);
 		const FShaderCodeChunk& PropertyChunk = SharedPropertyCodeChunks[Frequency][PropertyChunkIndex];
 
 		// Determine whether the property is used. 
@@ -2642,6 +2793,8 @@ FString FHLSLMaterialTranslator::GetParameterCodeRaw(int32 Index, const TCHAR* D
 			check(AccessedCodeChunk.SymbolName.Len() > 0);
 			return AccessedCodeChunk.SymbolName;
 		}
+
+		ReferencedCodeChunks.AddUnique(Index);
 			
 		// Return the symbol used to reference this code chunk
 		check(CodeChunk.SymbolName.Len() > 0);
@@ -2670,6 +2823,30 @@ uint64 FHLSLMaterialTranslator::GetParameterHash(int32 Index)
 	return CodeChunk.Hash;
 }
 
+uint64 FHLSLMaterialTranslator::GetParameterMaterialAttributeMask(int32 Index)
+{
+	if (Index == INDEX_NONE)
+	{
+		return 0u;
+	}
+
+	checkf(Index >= 0 && Index < CurrentScopeChunks->Num(), TEXT("Index %d/%d, Platform=%d"), Index, CurrentScopeChunks->Num(), (int)Platform);
+	const FShaderCodeChunk& CodeChunk = (*CurrentScopeChunks)[Index];
+	check(CodeChunk.Type == MCT_MaterialAttributes);
+	check(!CodeChunk.UniformExpression);
+
+	return CodeChunk.MaterialAttributeMask;
+}
+
+void FHLSLMaterialTranslator::SetParameterMaterialAttributes(int32 Index, uint64 Mask)
+{
+	checkf(Index >= 0 && Index < CurrentScopeChunks->Num(), TEXT("Index %d/%d, Platform=%d"), Index, CurrentScopeChunks->Num(), (int)Platform);
+	FShaderCodeChunk& CodeChunk = (*CurrentScopeChunks)[Index];
+	check(CodeChunk.Type == MCT_MaterialAttributes);
+	CodeChunk.MaterialAttributeMask |= Mask;
+}
+
+
 /** Creates a string of all definitions needed for the given material input. */
 FString FHLSLMaterialTranslator::GetDefinitions(TArray<FShaderCodeChunk>& CodeChunks, int32 StartChunk, int32 EndChunk, ECompiledPartialDerivativeVariation Variation) const
 {
@@ -2678,7 +2855,8 @@ FString FHLSLMaterialTranslator::GetDefinitions(TArray<FShaderCodeChunk>& CodeCh
 	{
 		const FShaderCodeChunk& CodeChunk = CodeChunks[ChunkIndex];
 		// Uniform expressions (both constant and variable) and inline expressions don't have definitions.
-		if (!CodeChunk.UniformExpression && !CodeChunk.bInline)
+		if (!CodeChunk.UniformExpression &&
+			(!CodeChunk.bInline || CodeChunk.Type == MCT_VoidStatement))
 		{
 			Definitions += CodeChunk.AtDefinition(Variation);
 		}
@@ -2721,6 +2899,78 @@ void FHLSLMaterialTranslator::GetFixedParameterCode(int32 StartChunk, int32 EndC
 void FHLSLMaterialTranslator::GetFixedParameterCode(int32 ResultIndex, TArray<FShaderCodeChunk>& CodeChunks, FString& OutDefinitions, FString& OutValue, ECompiledPartialDerivativeVariation Variation)
 {
 	GetFixedParameterCode(0, CodeChunks.Num(), ResultIndex, CodeChunks, OutDefinitions, OutValue, Variation);
+}
+
+static void AppendIndent(int32 Level, FString& OutValue)
+{
+	for (int32 i = 0; i < Level; ++i)
+	{
+		OutValue += '\t';
+	}
+}
+
+void FHLSLMaterialTranslator::LinkParentScopes(TArray<FShaderCodeChunk>& CodeChunks)
+{
+	// Add all chunks to parent's child array
+	for (int32 ChunkIndex = 0; ChunkIndex < CodeChunks.Num(); ++ChunkIndex)
+	{
+		FShaderCodeChunk& ChildChunk = CodeChunks[ChunkIndex];
+		if (ChildChunk.UsedScopeIndex != INDEX_NONE)
+		{
+			FShaderCodeChunk& ParentChunk = CodeChunks[ChildChunk.UsedScopeIndex];
+			ParentChunk.ScopedChunks.Add(ChunkIndex);
+		}
+	}
+}
+
+void FHLSLMaterialTranslator::GetScopeCode(int32 IndentLevel, int32 ScopeChunkIndex, const TArray<FShaderCodeChunk>& CodeChunks, TSet<int32>& EmittedChunks, FString& OutValue)
+{
+	bool bAlreadyAddedChunk = false;
+	EmittedChunks.Add(ScopeChunkIndex, &bAlreadyAddedChunk);
+	if (bAlreadyAddedChunk)
+	{
+		// Only emit code for the chunk the first time we visit it
+		return;
+	}
+
+	const FShaderCodeChunk& CodeChunk = CodeChunks[ScopeChunkIndex];
+
+	// Add code for any dependencies of the current chunk
+	for (int32 ReferencedChunkIndex : CodeChunk.ReferencedCodeChunks)
+	{
+		GetScopeCode(IndentLevel, ReferencedChunkIndex, CodeChunks, EmittedChunks, OutValue);
+	}
+
+	if ((!CodeChunk.UniformExpression && !CodeChunk.bInline) || CodeChunk.Type == MCT_VoidStatement)
+	{
+		AppendIndent(IndentLevel, OutValue);
+		OutValue += CodeChunk.AtDefinition(CompiledPDV_FiniteDifferences); // TODO - deriv
+	}
+
+	if (CodeChunk.ScopedChunks.Num() > 0)
+	{
+		AppendIndent(IndentLevel, OutValue);
+		OutValue += TEXT("{\n");
+		for (int32 ChildChunkIndex : CodeChunk.ScopedChunks)
+		{
+			const FShaderCodeChunk& ChildChunk = CodeChunks[ChildChunkIndex];
+			check(ChildChunk.UsedScopeIndex == ScopeChunkIndex);
+			if (ChildChunk.DeclaredScopeIndex != ScopeChunkIndex)
+			{
+				GetScopeCode(IndentLevel + 1, ChildChunkIndex, CodeChunks, EmittedChunks, OutValue);
+			}
+		}
+		for (int32 ChildChunkIndex : CodeChunk.ScopedChunks)
+		{
+			const FShaderCodeChunk& ChildChunk = CodeChunks[ChildChunkIndex];
+			if (ChildChunk.DeclaredScopeIndex == ScopeChunkIndex)
+			{
+				GetScopeCode(IndentLevel + 1, ChildChunkIndex, CodeChunks, EmittedChunks, OutValue);
+			}
+		}
+		AppendIndent(IndentLevel, OutValue);
+		OutValue += TEXT("}\n");
+	}
 }
 
 /** Used to get a user friendly type from EMaterialValueType */
@@ -2861,12 +3111,18 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* Forma
 		return INDEX_NONE;
 	}
 
-	if (bInlined)
+	int32 CodeIndex = INDEX_NONE;
+	if (Type == MCT_VoidStatement)
 	{
-		const int32 CodeIndex = CurrentScopeChunks->Num();
+		CodeIndex = CurrentScopeChunks->Num();
+		const FString Statement = FString("") + FormattedCode + LINE_TERMINATOR;
+		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *Statement, *Statement, TEXT(""), Type, true);
+	}
+	else if (bInlined)
+	{
+		CodeIndex = CurrentScopeChunks->Num();
 		// Adding an inline code chunk, the definition will be the code to inline
 		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, FormattedCode,FormattedCode,TEXT(""),Type,true);
-		return CodeIndex;
 	}
 	// Can only create temporaries for certain types
 	else if ((Type & (MCT_Float | MCT_VTPageTableResult)) || Type == MCT_ShadingModel || Type == MCT_MaterialAttributes || Type == MCT_Strata)
@@ -2876,20 +3132,23 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* Forma
 		{
 			if ((*CurrentScopeChunks)[i].Hash == Hash)
 			{
-				return i;
+				CodeIndex = i;
+				break;
 			}
 		}
 
-		const int32 CodeIndex = CurrentScopeChunks->Num();
-		// Allocate a local variable name
-		const FString SymbolName = CreateSymbolName(TEXT("Local"));
-		// Construct the definition string which stores the result in a temporary and adds a newline for readability
-		const FString LocalVariableDefinitionFinite = FString("	") + HLSLTypeString(Type) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCode + TEXT(";") + LINE_TERMINATOR;
-		// Construct the definition string which stores the result in a temporary and adds a newline for readability
-		const FString LocalVariableDefinitionAnalytic = FString("	") + HLSLTypeString(Type) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCode + TEXT(";") + LINE_TERMINATOR;
-		// Adding a code chunk that creates a local variable
-		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *LocalVariableDefinitionFinite, *LocalVariableDefinitionAnalytic,SymbolName,Type,false);
-		return CodeIndex;
+		if (CodeIndex == INDEX_NONE)
+		{
+			CodeIndex = CurrentScopeChunks->Num();
+			// Allocate a local variable name
+			const FString SymbolName = CreateSymbolName(TEXT("Local"));
+			// Construct the definition string which stores the result in a temporary and adds a newline for readability
+			const FString LocalVariableDefinitionFinite = FString("	") + HLSLTypeString(Type) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCode + TEXT(";") + LINE_TERMINATOR;
+			// Construct the definition string which stores the result in a temporary and adds a newline for readability
+			const FString LocalVariableDefinitionAnalytic = FString("	") + HLSLTypeString(Type) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCode + TEXT(";") + LINE_TERMINATOR;
+			// Adding a code chunk that creates a local variable
+			new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *LocalVariableDefinitionFinite, *LocalVariableDefinitionAnalytic,SymbolName,Type,false);
+		}
 	}
 	else
 	{
@@ -2902,9 +3161,10 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* Forma
 		{
 			return Errorf(TEXT("Operation not supported on a Static Bool"));
 		}
-			
-		return INDEX_NONE;
 	}
+	
+	AddCodeChunkToCurrentScope(CodeIndex);
+	return CodeIndex;
 }
 
 /** Adds an already formatted inline or referenced code chunk, and notes the derivative status. */
@@ -2926,12 +3186,14 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* 
 		return INDEX_NONE;
 	}
 
+	check(Type != MCT_VoidStatement);
+
+	int32 CodeIndex = INDEX_NONE;
 	if (bInlined)
 	{
-		const int32 CodeIndex = CurrentScopeChunks->Num();
+		CodeIndex = CurrentScopeChunks->Num();
 		// Adding an inline code chunk, the definition will be the code to inline
 		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, FormattedCodeFinite,FormattedCodeAnalytic,TEXT(""),Type,true,DerivativeStatus);
-		return CodeIndex;
 	}
 	// Can only create temporaries for certain types
 	else if ((Type & (MCT_Float | MCT_VTPageTableResult)) || Type == MCT_ShadingModel || Type == MCT_MaterialAttributes || Type == MCT_Strata)
@@ -2941,20 +3203,23 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* 
 		{
 			if ((*CurrentScopeChunks)[i].Hash == Hash)
 			{
-				return i;
+				CodeIndex = i;
+				break;
 			}
 		}
 
-		const int32 CodeIndex = CurrentScopeChunks->Num();
-		// Allocate a local variable name
-		const FString SymbolName = CreateSymbolName(TEXT("Local"));
-		// Construct the definition string which stores the result in a temporary and adds a newline for readability
-		const FString LocalVariableDefinitionFinite = FString("	") + HLSLTypeString(Type) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCodeFinite + TEXT(";") + LINE_TERMINATOR;
-		// Analytic version too
-		const FString LocalVariableDefinitionAnalytic = FString("	") + HLSLTypeStringDeriv(Type,DerivativeStatus) + TEXT(" ") + SymbolName + TEXT(" = (") + FormattedCodeAnalytic + TEXT("); // deriv") + LINE_TERMINATOR;
-		// Adding a code chunk that creates a local variable
-		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *LocalVariableDefinitionFinite, *LocalVariableDefinitionAnalytic,SymbolName,Type,false,DerivativeStatus);
-		return CodeIndex;
+		if(CodeIndex == INDEX_NONE)
+		{
+			CodeIndex = CurrentScopeChunks->Num();
+			// Allocate a local variable name
+			const FString SymbolName = CreateSymbolName(TEXT("Local"));
+			// Construct the definition string which stores the result in a temporary and adds a newline for readability
+			const FString LocalVariableDefinitionFinite = FString("	") + HLSLTypeString(Type) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCodeFinite + TEXT(";") + LINE_TERMINATOR;
+			// Analytic version too
+			const FString LocalVariableDefinitionAnalytic = FString("	") + HLSLTypeStringDeriv(Type,DerivativeStatus) + TEXT(" ") + SymbolName + TEXT(" = (") + FormattedCodeAnalytic + TEXT("); // deriv") + LINE_TERMINATOR;
+			// Adding a code chunk that creates a local variable
+			new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *LocalVariableDefinitionFinite, *LocalVariableDefinitionAnalytic,SymbolName,Type,false,DerivativeStatus);
+		}
 	}
 	else
 	{
@@ -2968,8 +3233,10 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* 
 			return Errorf(TEXT("Operation not supported on a Static Bool"));
 		}
 
-		return INDEX_NONE;
 	}
+
+	AddCodeChunkToCurrentScope(CodeIndex);
+	return CodeIndex;
 }
 
 /** 
@@ -3130,6 +3397,7 @@ int32 FHLSLMaterialTranslator::AddUniformExpressionInner(uint64 Hash, FMaterialU
 				{
 					delete UniformExpression;
 					// Reuse the entry in CurrentScopeChunks
+					AddCodeChunkToCurrentScope(ChunkIndex);
 					return ChunkIndex;
 				}
 			}
@@ -3185,6 +3453,7 @@ int32 FHLSLMaterialTranslator::AddUniformExpressionInner(uint64 Hash, FMaterialU
 		new(UniformExpressions) FShaderCodeChunk(Hash, UniformExpression, FormattedCode, FormattedCode, Type, MEADS_Zero);
 	}
 
+	AddCodeChunkToCurrentScope(ReturnIndex);
 	return ReturnIndex;
 }
 
@@ -3622,9 +3891,11 @@ int32 FHLSLMaterialTranslator::CallExpression(FMaterialExpressionKey ExpressionK
 	FMaterialFunctionCompileState* CurrentFunctionState = CurrentFunctionStack.Last();
 
 	int32* ExistingCodeIndex = CurrentFunctionState->ExpressionCodeMap.Find(ExpressionKey);
+	int32 Result = INDEX_NONE;
 	if (ExistingCodeIndex)
 	{
-		return *ExistingCodeIndex;
+		Result = *ExistingCodeIndex;
+		AddCodeChunkToCurrentScope(Result);
 	}
 	else
 	{
@@ -3650,7 +3921,9 @@ int32 FHLSLMaterialTranslator::CallExpression(FMaterialExpressionKey ExpressionK
 			FunctionCall->SetSharedCompileState(SharedFunctionState);
 		}
 
-		int32 Result = ExpressionKey.Expression->Compile(Compiler, ExpressionKey.OutputIndex);
+		ReferencedCodeChunks.Reset();
+
+		Result = ExpressionKey.Expression->Compile(Compiler, ExpressionKey.OutputIndex);
 
 		// Restore state
 		if (FunctionCall)
@@ -3667,7 +3940,57 @@ int32 FHLSLMaterialTranslator::CallExpression(FMaterialExpressionKey ExpressionK
 		// Cache the translation.
 		CurrentFunctionStack.Last()->ExpressionCodeMap.Add(ExpressionKey,Result);
 
-		return Result;
+		if (Result != INDEX_NONE)
+		{
+			FShaderCodeChunk& ResultChunk = (*CurrentScopeChunks)[Result];
+			ResultChunk.ReferencedCodeChunks = MoveTemp(ReferencedCodeChunks);
+		}
+		ReferencedCodeChunks.Reset();
+	}
+
+	return Result;
+}
+
+void FHLSLMaterialTranslator::AddCodeChunkToCurrentScope(int32 ChunkIndex)
+{
+	if (ChunkIndex != INDEX_NONE && ScopeStack.Num() > 0)
+	{
+		const int32 CurrentScopeIndex = ScopeStack.Last();
+		const FShaderCodeChunk& CurrentScope = (*CurrentScopeChunks)[CurrentScopeIndex];
+
+		FShaderCodeChunk& Chunk = (*CurrentScopeChunks)[ChunkIndex];
+		if (Chunk.DeclaredScopeIndex == INDEX_NONE)
+		{
+			check(Chunk.UsedScopeIndex == INDEX_NONE);
+			Chunk.DeclaredScopeIndex = CurrentScopeIndex;
+			Chunk.UsedScopeIndex = CurrentScopeIndex;
+			Chunk.ScopeLevel = CurrentScope.ScopeLevel + 1;
+		}
+		else if(Chunk.UsedScopeIndex != CurrentScopeIndex)
+		{
+			// Find the most derived scope that's shared by the current scope, and the scope this code was previously referenced from
+			int32 ScopeIndex0 = CurrentScopeIndex;
+			int32 ScopeIndex1 = Chunk.UsedScopeIndex;
+			while (ScopeIndex0 != ScopeIndex1)
+			{
+				const FShaderCodeChunk& Scope0 = (*CurrentScopeChunks)[ScopeIndex0];
+				const FShaderCodeChunk& Scope1 = (*CurrentScopeChunks)[ScopeIndex1];
+				if (Scope0.ScopeLevel > Scope1.ScopeLevel)
+				{
+					check(Scope0.UsedScopeIndex != INDEX_NONE);
+					ScopeIndex0 = Scope0.UsedScopeIndex;
+				}
+				else
+				{
+					check(Scope1.UsedScopeIndex != INDEX_NONE);
+					ScopeIndex1 = Scope1.UsedScopeIndex;
+				}
+			}
+
+			const FShaderCodeChunk& Scope = (*CurrentScopeChunks)[ScopeIndex0];
+			Chunk.UsedScopeIndex = ScopeIndex0;
+			Chunk.ScopeLevel = Scope.ScopeLevel + 1;
+		}
 	}
 }
 
@@ -8426,6 +8749,184 @@ int32 FHLSLMaterialTranslator::ShadingModel(EMaterialShadingModel InSelectedShad
 {
 	ShadingModelsFromCompilation.AddShadingModel(InSelectedShadingModel);
 	return AddInlinedCodeChunk(MCT_ShadingModel, TEXT("%d"), InSelectedShadingModel);
+}
+
+int32 FHLSLMaterialTranslator::DefaultMaterialAttributes()
+{
+	return AddInlinedCodeChunk(MCT_MaterialAttributes, TEXT("DefaultMaterialAttributes"));
+}
+
+int32 FHLSLMaterialTranslator::SetMaterialAttribute(int32 MaterialAttributes, int32 Value, const FGuid& AttributeID)
+{
+	const EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
+	const FString PropertyName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
+	const EMaterialValueType PropertyType = FMaterialAttributeDefinitionMap::GetValueType(AttributeID);
+	const EShaderFrequency Frequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID);
+	
+	if (MaterialAttributes == INDEX_NONE ||
+		GetParameterType(MaterialAttributes) != MCT_MaterialAttributes)
+	{
+		return Error(TEXT("Expected MaterialAttributes"));
+	}
+
+	if (Frequency != ShaderFrequency)
+	{
+		return Errorf(TEXT("Can't set material attribute %s from shader stage %d"), *PropertyName, ShaderFrequency);
+	}
+
+	const int32 CastValue = ValidCast(Value, PropertyType);
+	FMaterialUniformExpression* UniformExpression = GetParameterUniformExpression(CastValue);
+	bool bSetDefaultValue = false;
+	if (UniformExpression && UniformExpression->IsConstant())
+	{
+		FMaterialRenderContext Context(nullptr, *Material, nullptr);
+		FLinearColor ConstantValue(ForceInitToZero);
+		UniformExpression->GetNumberValue(Context, ConstantValue);
+		const FVector4 DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID);
+		bSetDefaultValue = (ConstantValue == FLinearColor(DefaultValue));
+	}
+
+	uint64 AttributeMask = GetParameterMaterialAttributeMask(MaterialAttributes);
+	if (bSetDefaultValue)
+	{
+		if (!(AttributeMask & (1ull << Property)))
+		{
+			// Setting default value to an input that already has the default value set, this is a NOP
+			return MaterialAttributes;
+		}
+		// Otherwise, explicitly set the value back to default
+		AttributeMask &= ~(1ull << Property);
+	}
+	else
+	{
+		// Setting a non-default value
+		AttributeMask |= (1ull << Property);
+	}
+
+	const int32 Result = AddCodeChunk(MCT_MaterialAttributes, TEXT("FMaterialAttributes_Set%s(%s, %s)"),
+		*PropertyName,
+		*GetParameterCode(MaterialAttributes),
+		*GetParameterCode(CastValue));
+
+	SetParameterMaterialAttributes(Result, AttributeMask);
+
+	return Result;
+}
+
+int32 FHLSLMaterialTranslator::BeginScope()
+{
+	const int32 Result = AddCodeChunk(MCT_VoidStatement, TEXT(""));
+	ScopeStack.Add(Result);
+	return Result;
+}
+
+int32 FHLSLMaterialTranslator::BeginScope_If(int32 Condition)
+{
+	const int32 ConditionAsFloat = ForceCast(Condition, MCT_Float1);
+	if (ConditionAsFloat == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	const int32 Result = AddCodeChunk(MCT_VoidStatement, TEXT("if (%s != 0.0f)"), *GetParameterCode(ConditionAsFloat));
+	ScopeStack.Add(Result);
+
+	return Result;
+}
+
+int32 FHLSLMaterialTranslator::BeginScope_Else()
+{
+	const int32 Result = AddCodeChunk(MCT_VoidStatement, TEXT("else"));
+	ScopeStack.Add(Result);
+
+	return Result;
+}
+
+int32 FHLSLMaterialTranslator::BeginScope_For(const UMaterialExpression* Expression, int32 StartIndex, int32 EndIndex, int32 IndexStep)
+{
+	const int32 StartIndexAsFloat = ForceCast(StartIndex, MCT_Float1);
+	const int32 EndIndexAsFloat = ForceCast(EndIndex, MCT_Float1);
+	const int32 IndexStepAsFloat = ForceCast(IndexStep, MCT_Float1);
+	if (StartIndexAsFloat == INDEX_NONE || EndIndexAsFloat == INDEX_NONE || IndexStepAsFloat == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	const int32 LoopIndex = NumForLoops[ShaderFrequency]++;
+	check(!ForLoopMap[ShaderFrequency].Contains(Expression));
+	ForLoopMap[ShaderFrequency].Add(Expression, LoopIndex);
+
+	const int32 Result = AddCodeChunk(MCT_VoidStatement, TEXT("for (float ForLoopCounter%d = %s; ForLoopCounter%d < %s; ForLoopCounter%d += %s)"),
+		LoopIndex, *GetParameterCode(StartIndexAsFloat),
+		LoopIndex, *GetParameterCode(EndIndexAsFloat),
+		LoopIndex, *GetParameterCode(IndexStepAsFloat));
+	ScopeStack.Add(Result);
+	return Result;
+}
+
+int32 FHLSLMaterialTranslator::EndScope()
+{
+	return ScopeStack.Pop(false);
+}
+
+int32 FHLSLMaterialTranslator::ForLoopIndex(const UMaterialExpression* Expression)
+{
+	const int32* Result = ForLoopMap[ShaderFrequency].Find(Expression);
+	if (Result)
+	{
+		return AddInlinedCodeChunk(MCT_Float1, TEXT("ForLoopCounter%d"), *Result);
+	}
+	return Error(TEXT("Expression is not a for-loop"));
+}
+
+int32 FHLSLMaterialTranslator::ReturnMaterialAttributes(int32 MaterialAttributes)
+{
+	if (MaterialAttributes == INDEX_NONE ||
+		GetParameterType(MaterialAttributes) != MCT_MaterialAttributes)
+	{
+		return Error(TEXT("Expected MaterialAttributes"));
+	}
+
+	const uint64 AttributeMask = GetParameterMaterialAttributeMask(MaterialAttributes);
+	MaterialAttributesReturned[ShaderFrequency] |= AttributeMask;
+
+	return AddCodeChunk(MCT_VoidStatement, TEXT("return %s;"), *GetParameterCode(MaterialAttributes));
+}
+
+int32 FHLSLMaterialTranslator::SetLocal(const FName& LocalName, int32 Value)
+{
+	const int32 ValueAsFloat = ForceCast(Value, MCT_Float1);
+	if (ValueAsFloat == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	FMaterialLocalVariableEntry& Entry = LocalVariables[ShaderFrequency].FindOrAdd(LocalName);
+	if (Entry.DeclarationCodeIndex == INDEX_NONE)
+	{
+		Entry.Name = LocalName.ToString();
+		Entry.DeclarationCodeIndex = AddCodeChunk(MCT_VoidStatement, TEXT("float %s = %s;"), *Entry.Name, *GetParameterCode(ValueAsFloat));
+		return Entry.DeclarationCodeIndex;
+	}
+	else
+	{
+		// ensure the declaration is visible in the current scope
+		AddCodeChunkToCurrentScope(Entry.DeclarationCodeIndex);
+		return AddCodeChunk(MCT_VoidStatement, TEXT("%s = %s;"), *Entry.Name, *GetParameterCode(ValueAsFloat));
+	}
+}
+
+int32 FHLSLMaterialTranslator::GetLocal(const FName& LocalName)
+{
+	const FMaterialLocalVariableEntry* Entry = LocalVariables[ShaderFrequency].Find(LocalName);
+	if (!Entry)
+	{
+		return Errorf(TEXT("Local %s used before being set"), *LocalName.ToString());
+	}
+
+	// ensure the declaration is visible in the current scope
+	AddCodeChunkToCurrentScope(Entry->DeclarationCodeIndex);
+	return AddInlinedCodeChunk(MCT_Float1, TEXT("%s"), *Entry->Name);
 }
 
 void FHLSLMaterialTranslator::StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo)

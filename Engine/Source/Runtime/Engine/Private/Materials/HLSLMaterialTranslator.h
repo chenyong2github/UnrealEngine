@@ -91,6 +91,10 @@ struct FShaderCodeChunk
 	 * By default this is simply the hash of the code string
 	 */
 	uint64 Hash;
+
+
+	uint64 MaterialAttributeMask;
+
 	/** 
 	 * Definition string of the code chunk. 
 	 * If !bInline && !UniformExpression || UniformExpression->IsConstant(), this is the definition of a local variable named by SymbolName.
@@ -109,7 +113,18 @@ struct FShaderCodeChunk
 	FString SymbolName;
 	/** Reference to a uniform expression, if this code chunk has one. */
 	TRefCountPtr<FMaterialUniformExpression> UniformExpression;
+
+	/** All the chunks that are scoped under this chunk.  This is populated once translation is complete, rather than on-the-fly, as a chunk's parent scope may change during translation */
+	TArray<int32> ScopedChunks;
+
+	TArray<int32> ReferencedCodeChunks;
+
 	EMaterialValueType Type;
+
+	int32 DeclaredScopeIndex;
+	int32 UsedScopeIndex;
+	int32 ScopeLevel;
+
 	/** Whether the code chunk should be inlined or not.  If true, SymbolName is empty and Definition contains the code to inline. */
 	bool bInline;
 	/** The status of partial derivatives at this expression. **/
@@ -131,11 +146,15 @@ struct FShaderCodeChunk
 	FShaderCodeChunk(uint64 InHash, const TCHAR* InDefinitionFinite,const TCHAR* InDefinitionAnalytic,const FString& InSymbolName,EMaterialValueType InType,bool bInInline,
 					 EMaterialExpressionAnalyticDerivativeStatus InDerivativeStatus = MEADS_NotAware):
 		Hash(InHash),
+		MaterialAttributeMask(0u),
 		DefinitionFinite(InDefinitionFinite),
 		DefinitionAnalytic(InDefinitionAnalytic),
 		SymbolName(InSymbolName),
 		UniformExpression(NULL),
 		Type(InType),
+		DeclaredScopeIndex(INDEX_NONE),
+		UsedScopeIndex(INDEX_NONE),
+		ScopeLevel(0),
 		bInline(bInInline),
 		DerivativeStatus(InDerivativeStatus)
 	{}
@@ -144,10 +163,14 @@ struct FShaderCodeChunk
 	FShaderCodeChunk(uint64 InHash, FMaterialUniformExpression* InUniformExpression,const TCHAR* InDefinitionFinite,const TCHAR* InDefinitionAnalytic,EMaterialValueType InType,
 					 EMaterialExpressionAnalyticDerivativeStatus InDerivativeStatus = MEADS_NotAware):
 		Hash(InHash),
+		MaterialAttributeMask(0u),
 		DefinitionFinite(InDefinitionFinite),
 		DefinitionAnalytic(InDefinitionAnalytic),
 		UniformExpression(InUniformExpression),
 		Type(InType),
+		DeclaredScopeIndex(INDEX_NONE),
+		UsedScopeIndex(INDEX_NONE),
+		ScopeLevel(0),
 		bInline(false),
 		DerivativeStatus(InDerivativeStatus)
 	{}
@@ -246,6 +269,12 @@ struct FMaterialDerivativeVariation
 
 };
 
+struct FMaterialLocalVariableEntry
+{
+	FString Name;
+	int32 DeclarationCodeIndex = INDEX_NONE;
+};
+
 class FHLSLMaterialTranslator : public FMaterialCompiler
 {
 protected:
@@ -286,14 +315,27 @@ protected:
 	/** Feature level being compiled for. */
 	ERHIFeatureLevel::Type FeatureLevel;
 
+	FString TranslatedAttributesCodeChunks[SF_NumFrequencies];
+
+	uint64 MaterialAttributesReturned[SF_NumFrequencies];
+
 	/** Line number of the #line in MaterialTemplate.usf */
 	int32 MaterialTemplateLineNumber;
 
 	/** Contents of the MaterialTemplate.usf file */
 	FString MaterialTemplate;
 
+	TArray<int32> ScopeStack;
+
+	TArray<int32> ReferencedCodeChunks;
+
 	// Array of code chunks per material property
 	TArray<FShaderCodeChunk> SharedPropertyCodeChunks[SF_NumFrequencies];
+
+	TMap<const UMaterialExpression*, int32> ForLoopMap[SF_NumFrequencies];
+	int32 NumForLoops[SF_NumFrequencies];
+
+	TMap<FName, FMaterialLocalVariableEntry> LocalVariables[SF_NumFrequencies];
 
 	// Uniform expressions used across all material properties
 	TArray<FShaderCodeChunk> UniformExpressions;
@@ -400,11 +442,12 @@ protected:
 	/** True if this material write anisotropy material property */
 	uint32 bUsesAnisotropy : 1;
 
-	/** 
-	 * True if the material is detected as a strata material at compile time.
+	/** True if the material is detected as a strata material at compile time.
 	 * This is decoupled from runtime FMaterialResource::IsStrataMaterial but practically fine since this is only temporary until Strata is the main shading system. Only really used at runtime for translucency dual source blending.
 	 */
 	uint32 bMaterialIsStrata : 1; // 
+	
+	uint32 bEnableExecutionFlow : 1;
 
 	/** Tracks the texture coordinates used by this material. */
 	TBitArray<> AllocatedUserTexCoords;
@@ -498,11 +541,18 @@ protected:
 
 	uint64 GetParameterHash(int32 Index);
 
+	uint64 GetParameterMaterialAttributeMask(int32 Index);
+	void SetParameterMaterialAttributes(int32 Index, uint64 Mask);
+
 	/** Creates a string of all definitions needed for the given material input. */
 	FString GetDefinitions(TArray<FShaderCodeChunk>& CodeChunks, int32 StartChunk, int32 EndChunk, ECompiledPartialDerivativeVariation Variation) const;
 
 	// GetFixedParameterCode
 	void GetFixedParameterCode(int32 StartChunk, int32 EndChunk, int32 ResultIndex, TArray<FShaderCodeChunk>& CodeChunks, FString& OutDefinitions, FString& OutValue, ECompiledPartialDerivativeVariation Variation);
+
+	void LinkParentScopes(TArray<FShaderCodeChunk>& CodeChunks);
+
+	void GetScopeCode(int32 IndentLevel, int32 ScopeChunkIndex, const TArray<FShaderCodeChunk>& CodeChunks, TSet<int32>& EmittedChunks, FString& OutValue);
 
 	void GetFixedParameterCode(int32 ResultIndex, TArray<FShaderCodeChunk>& CodeChunks, FString& OutDefinitions, FString& OutValue, ECompiledPartialDerivativeVariation Variation);
 
@@ -526,6 +576,8 @@ protected:
 
 	/** Creates a unique symbol name and adds it to the symbol list. */
 	FString CreateSymbolName(const TCHAR* SymbolNameHint);
+
+	void AddCodeChunkToCurrentScope(int32 ChunkIndex);
 
 	/** Adds an already formatted inline or referenced code chunk */
 	int32 AddCodeChunkInner(uint64 Hash, const TCHAR* FormattedCode, EMaterialValueType Type, bool bInlined);
@@ -917,6 +969,21 @@ protected:
 	virtual int32 CustomOutput(class UMaterialExpressionCustomOutput* Custom, int32 OutputIndex, int32 OutputCode) override;
 
 	virtual int32 VirtualTextureOutput(uint8 MaterialAttributeMask) override;
+
+	// Material attributes
+	virtual int32 DefaultMaterialAttributes() override;
+	virtual int32 SetMaterialAttribute(int32 MaterialAttributes, int32 Value, const FGuid& AttributeID) override;
+
+	// Exec
+	virtual int32 BeginScope() override;
+	virtual int32 BeginScope_If(int32 Condition) override;
+	virtual int32 BeginScope_Else() override;
+	virtual int32 BeginScope_For(const UMaterialExpression* Expression, int32 StartIndex, int32 EndIndex, int32 IndexStep) override;
+	virtual int32 EndScope() override;
+	virtual int32 ForLoopIndex(const UMaterialExpression* Expression) override;
+	virtual int32 ReturnMaterialAttributes(int32 MaterialAttributes) override;
+	virtual int32 SetLocal(const FName& LocalName, int32 Value) override;
+	virtual int32 GetLocal(const FName& LocalName) override;
 
 	// Strata
 	virtual int32 StrataCreateAndRegisterNullMaterial() override;

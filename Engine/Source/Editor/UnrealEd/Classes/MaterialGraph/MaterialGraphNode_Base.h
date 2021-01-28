@@ -37,6 +37,12 @@ class UMaterialGraphNode_Base : public UEdGraphNode
 	/** Get the Material value type of an input pin */
 	virtual uint32 GetInputType(const UEdGraphPin* InputPin) const;
 
+	/** Get the Material Expression output index from an output pin */
+	UNREALED_API int32 GetOutputIndex(const UEdGraphPin* OutputPin) const;
+
+	/** Get the Material value type of an output pin */
+	virtual uint32 GetOutputType(const UEdGraphPin* OutputPin) const { return 0; }
+
 	/**
 	 * Handles inserting the node between the FromPin and what the FromPin was original connected to
 	 *

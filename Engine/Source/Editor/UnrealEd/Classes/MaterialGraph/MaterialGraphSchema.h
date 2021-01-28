@@ -182,6 +182,7 @@ class UMaterialGraphSchema : public UEdGraphSchema
 	UNREALED_API static const FName PC_Required;
 	UNREALED_API static const FName PC_Optional;
 	UNREALED_API static const FName PC_MaterialInput;
+	UNREALED_API static const FName PC_Exec;
 
 	// Common PinType.PinSubCategory values
 	UNREALED_API static const FName PSC_Red;
@@ -189,6 +190,8 @@ class UMaterialGraphSchema : public UEdGraphSchema
 	UNREALED_API static const FName PSC_Blue;
 	UNREALED_API static const FName PSC_Alpha;
 	UNREALED_API static const FName PSC_RGBA;
+
+	UNREALED_API static const FName PN_Execute; // Category=PC_Exec, singleton, input
 
 	// Color of certain pins/connections
 	UNREALED_API static const FLinearColor ActivePinColor;

@@ -833,6 +833,10 @@ public:
 	UPROPERTY()
 	TArray<TObjectPtr<class UMaterialExpressionComment>> EditorComments;
 
+	/** The execution begin expression, if material is using an exec wire */
+	UPROPERTY()
+	class UMaterialExpressionExecBegin* ExpressionExecBegin;
+
 	/** Controls where this parameter group is displayed in a material instance parameter list.  The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, EditFixedSize, Category = "Group Sorting")
 	TArray<FParameterGroupData> ParameterGroupData;
@@ -857,6 +861,9 @@ public:
 	/** when true, the material attributes pin is used instead of the regular pins. */
 	UPROPERTY(EditAnywhere, Category=Material)
 	uint8 bUseMaterialAttributes : 1;
+
+	UPROPERTY(EditAnywhere, Category = Material)
+	uint8 bEnableExecWire : 1;
 
 	/** when true, the material casts ray tracing shadows. */
 	UPROPERTY(EditAnywhere, Category = Material)
@@ -1082,6 +1089,8 @@ public:
 
 	/** Like IsPropertyActive(), but considers any state overriden by DerivedMaterial */
 	ENGINE_API bool IsPropertyActiveInDerived(EMaterialProperty InProperty, const UMaterialInterface* DerivedMaterial) const;
+
+	ENGINE_API bool IsCompiledWithExecutionFlow() const;
 
 #if WITH_EDITOR
 	/** Allows material properties to be compiled with the option of being overridden by the material attributes input. */

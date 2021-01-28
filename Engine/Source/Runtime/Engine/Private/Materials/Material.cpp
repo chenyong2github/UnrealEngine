@@ -44,6 +44,7 @@
 #include "Materials/MaterialExpressionSceneColor.h"
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionTransform.h"
+#include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
@@ -120,6 +121,12 @@ static TAutoConsoleVariable<int32> CVarMaterialParameterLegacyChecks(
 	TEXT("When enabled, sanity check new material parameter logic against legacy path.\n")
 	TEXT("Note that this can be slow"),
 	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarMaterialEnableControlFlow(
+	TEXT("r.MaterialEnableControlFlow"),
+	0,
+	TEXT("Allows experemental control flow to be used in the material editor.\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 #if WITH_EDITOR
 const FMaterialsWithDirtyUsageFlags FMaterialsWithDirtyUsageFlags::DefaultAnnotation;
@@ -229,7 +236,7 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 			break;
 
 		case MP_MaterialAttributes:
-			Ret = INDEX_NONE;
+			Ret = MaterialInterface->CompileProperty(Compiler, Property);
 			break;
 
 		default:
@@ -260,8 +267,14 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 		}
 	}
 
-	// Output should always be the right type for this property
-	return Compiler->ForceCast(Ret, AttributeType);
+	// MaterialAttributes are expected to give a void statement, don't need to cast that
+	if (Property != MP_MaterialAttributes)
+	{
+		// Output should always be the right type for this property
+		Ret = Compiler->ForceCast(Ret, AttributeType);
+	}
+	return Ret;
+
 #else // WITH_EDITOR
 	check(0); // This is editor-only function
 	return INDEX_NONE;
@@ -4086,6 +4099,15 @@ void UMaterial::PropagateDataToMaterialProxy()
 	UpdateMaterialRenderProxy(*DefaultMaterialInstance);
 }
 
+bool UMaterial::IsCompiledWithExecutionFlow() const
+{
+	if (bEnableExecWire)
+	{
+		return CVarMaterialEnableControlFlow.GetValueOnAnyThread() != 0;
+	}
+	return false;
+}
+
 #if WITH_EDITOR
 void UMaterial::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
@@ -4407,6 +4429,23 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 		if (PropertyThatChanged->GetName() == TEXT("PhysMaterial") || PropertyThatChanged->GetName() == TEXT("PhysMaterialMask") || PropertyThatChanged->GetName() == TEXT("PhysicalMaterialMap"))
 		{
 			bRequiresCompilation = false;
+		}
+	}
+
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterial, bEnableExecWire))
+	{
+		if (IsCompiledWithExecutionFlow())
+		{
+			check(!ExpressionExecBegin);
+			ExpressionExecBegin = NewObject<UMaterialExpressionExecBegin>(this);
+			ExpressionExecBegin->Material = this;
+			Expressions.Add(ExpressionExecBegin);
+		}
+		else
+		{
+			check(ExpressionExecBegin);
+			verify(Expressions.Remove(ExpressionExecBegin) == 1);
+			ExpressionExecBegin = nullptr;
 		}
 	}
 
@@ -5936,6 +5975,12 @@ void UMaterial::AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& Ids) con
 int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& AttributeID )
 {
 	const EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
+
+	if (IsCompiledWithExecutionFlow())
+	{
+		check(ExpressionExecBegin);
+		return ExpressionExecBegin->Compile(Compiler, UMaterialExpression::CompileExecutionOutputIndex);
+	}
 
 	if( bUseMaterialAttributes && MP_DiffuseColor != Property && MP_SpecularColor != Property )
 	{

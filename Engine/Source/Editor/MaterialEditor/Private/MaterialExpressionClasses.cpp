@@ -17,7 +17,13 @@
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionNamedReroute.h"
+#include "Materials/MaterialExpressionExecBegin.h"
 
+#include "Materials/MaterialExpressionIfThenElse.h"
+#include "Materials/MaterialExpressionForLoop.h"
+#include "Materials/MaterialExpressionGetLocal.h"
+#include "Materials/MaterialExpressionSetLocal.h"
+#include "Materials/MaterialExpressionReturnMaterialAttributes.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -78,6 +84,9 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 {
 	if(!bInitialized)
 	{
+		static const auto CVarMaterialEnableControlFlow = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableControlFlow"));
+		const bool bEnableControlFlow = CVarMaterialEnableControlFlow->GetValueOnAnyThread() != 0;
+
 		UMaterialEditorOptions* TempEditorOptions = NewObject<UMaterialEditorOptions>();
 		UClass* BaseType = UMaterialExpression::StaticClass();
 		if( BaseType )
@@ -98,11 +107,18 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 						{
 							continue;
 						}
-						
+
+						// Hide node types related to control flow, unless it's enabled
+						if (!bEnableControlFlow && Class->HasMetaData("MaterialControlFlow"))
+						{
+							continue;
+						}
+
 						// Exclude comments from the expression list, as well as the base parameter expression and local variable usage, as they should not be used directly
 						if ( Class != UMaterialExpressionComment::StaticClass() 
 							&& Class != UMaterialExpressionParameter::StaticClass()
-							&& Class != UMaterialExpressionNamedRerouteUsage::StaticClass())
+							&& Class != UMaterialExpressionNamedRerouteUsage::StaticClass()
+							&& Class != UMaterialExpressionExecBegin::StaticClass() )
 						{
 							FMaterialExpression MaterialExpression;
 							// Trim the material expression name and add it to the list used for filtering.

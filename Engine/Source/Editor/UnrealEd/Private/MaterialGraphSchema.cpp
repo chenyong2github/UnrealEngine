@@ -228,12 +228,15 @@ const FName UMaterialGraphSchema::PC_Mask(TEXT("mask"));
 const FName UMaterialGraphSchema::PC_Required(TEXT("required"));
 const FName UMaterialGraphSchema::PC_Optional(TEXT("optional"));
 const FName UMaterialGraphSchema::PC_MaterialInput(TEXT("materialinput"));
+const FName UMaterialGraphSchema::PC_Exec(TEXT("exec"));
 
 const FName UMaterialGraphSchema::PSC_Red(TEXT("red"));
 const FName UMaterialGraphSchema::PSC_Green(TEXT("green"));
 const FName UMaterialGraphSchema::PSC_Blue(TEXT("blue"));
 const FName UMaterialGraphSchema::PSC_Alpha(TEXT("alpha"));
 const FName UMaterialGraphSchema::PSC_RGBA(TEXT("rgba"));
+
+const FName UMaterialGraphSchema::PN_Execute("execute");
 
 const FLinearColor UMaterialGraphSchema::ActivePinColor = FLinearColor::White;
 const FLinearColor UMaterialGraphSchema::InactivePinColor = FLinearColor(0.05f, 0.05f, 0.05f);
@@ -351,15 +354,15 @@ void UMaterialGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenu
 
 bool UMaterialGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const
 {
-	// Only nodes representing Expressions have outputs
-	UMaterialGraphNode* OutputNode = CastChecked<UMaterialGraphNode>(OutputPin->GetOwningNode());
-
-	TArray<UMaterialExpression*> InputExpressions;
-	OutputNode->MaterialExpression->GetAllInputExpressions(InputExpressions);
-
-	if (UMaterialGraphNode* InputNode = Cast<UMaterialGraphNode>(InputPin->GetOwningNode()))
+	if (UMaterialGraphNode* OutputNode = Cast<UMaterialGraphNode>(OutputPin->GetOwningNode()))
 	{
-		return InputExpressions.Contains(InputNode->MaterialExpression);
+		TArray<UMaterialExpression*> InputExpressions;
+		OutputNode->MaterialExpression->GetAllInputExpressions(InputExpressions);
+
+		if (UMaterialGraphNode* InputNode = Cast<UMaterialGraphNode>(InputPin->GetOwningNode()))
+		{
+			return InputExpressions.Contains(InputNode->MaterialExpression);
+		}
 	}
 
 	// Simple connection to root node
@@ -409,14 +412,13 @@ bool UMaterialGraphSchema::ArePinsCompatible_Internal(const UEdGraphPin* InputPi
 
 uint32 UMaterialGraphSchema::GetMaterialValueType(const UEdGraphPin* MaterialPin)
 {
+	const UMaterialGraphNode_Base* OwningNode = CastChecked<UMaterialGraphNode_Base>(MaterialPin->GetOwningNode());
 	if (MaterialPin->Direction == EGPD_Output)
 	{
-		UMaterialGraphNode* OwningNode = CastChecked<UMaterialGraphNode>(MaterialPin->GetOwningNode());
 		return OwningNode->GetOutputType(MaterialPin);
 	}
 	else
 	{
-		UMaterialGraphNode_Base* OwningNode = CastChecked<UMaterialGraphNode_Base>(MaterialPin->GetOwningNode());
 		return OwningNode->GetInputType(MaterialPin);
 	}
 }
@@ -561,20 +563,25 @@ const FPinConnectionResponse UMaterialGraphSchema::CanCreateConnection(const UEd
 	// Break existing connections on inputs only - multiple output connections are acceptable
 	if (InputPin->LinkedTo.Num() > 0)
 	{
-		ECanCreateConnectionResponse ReplyBreakOutputs;
-		if (InputPin == A)
+		const uint32 InputType = GetMaterialValueType(InputPin);
+		// TODO - Allow multiple exec inputs, will generate a compile error where not supported
+		//if (!(InputType & MCT_Execution))
 		{
-			ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_A;
+			ECanCreateConnectionResponse ReplyBreakOutputs;
+			if (InputPin == A)
+			{
+				ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_A;
+			}
+			else
+			{
+				ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_B;
+			}
+			if (ResponseMessage.IsEmpty())
+			{
+				ResponseMessage = LOCTEXT("ConnectionReplace", "Replace existing connections");
+			}
+			return FPinConnectionResponse(ReplyBreakOutputs, ResponseMessage);
 		}
-		else
-		{
-			ReplyBreakOutputs = CONNECT_RESPONSE_BREAK_OTHERS_B;
-		}
-		if (ResponseMessage.IsEmpty())
-		{
-			ResponseMessage = LOCTEXT("ConnectionReplace", "Replace existing connections");
-		}
-		return FPinConnectionResponse(ReplyBreakOutputs, ResponseMessage);
 	}
 
 	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, ResponseMessage);

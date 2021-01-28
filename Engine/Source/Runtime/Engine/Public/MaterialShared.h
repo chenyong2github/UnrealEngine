@@ -146,6 +146,11 @@ enum EMaterialValueType
 	MCT_ShadingModel		  = 1 << 14,
 
 	MCT_Strata				  = 1 << 15,
+
+	MCT_Execution             = 1 << 16,
+
+	/** Used for code chunks that are statements with no value, rather than expressions */
+	MCT_VoidStatement         = 1 << 17,
 };
 
 /**
@@ -1799,6 +1804,9 @@ public:
 	 * @return returns true if compilation is complete false otherwise
 	 */
 	ENGINE_API bool IsCompilationFinished() const;
+
+	/** Should the material be compiled using exec pin? */
+	virtual bool IsCompiledWithExecutionFlow() const { return false; }
 #endif // WITH_EDITOR
 
 	/**
@@ -2632,6 +2640,7 @@ public:
 	/** Allows to associate the shader resources with the asset for load order. */
 	ENGINE_API virtual FName GetAssetPath() const override;
 	ENGINE_API virtual bool ShouldInlineShaderCode() const override;
+	ENGINE_API virtual bool IsCompiledWithExecutionFlow() const override;
 #endif // WITH_EDITOR
 
 	ENGINE_API virtual FString GetFullPath() const override;

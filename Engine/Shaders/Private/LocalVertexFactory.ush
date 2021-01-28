@@ -653,6 +653,8 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.Particle.WorldToParticle = GetPrimitiveData(Result.PrimitiveId).WorldToLocal;
 #endif
 
+	Result.MaterialVertexAttributes = EvaluateVertexMaterialAttributes(Result);
+
 	return Result;
 }
 

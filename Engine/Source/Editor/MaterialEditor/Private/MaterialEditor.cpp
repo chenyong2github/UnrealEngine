@@ -6049,6 +6049,10 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 				SetPreviewAsset(GUnrealEd->GetThumbnailManager()->EditorSphere);
 			}
 		}
+		else if (NameOfPropertyThatChanged == GET_MEMBER_NAME_CHECKED(UMaterial, bEnableExecWire))
+		{
+			Material->MaterialGraph->RebuildGraph();
+		}
 		else if( NameOfPropertyThatChanged == GET_MEMBER_NAME_CHECKED(UMaterial, MaterialDomain) ||
 				 NameOfPropertyThatChanged == GET_MEMBER_NAME_CHECKED(UMaterial, ShadingModel))
 		{

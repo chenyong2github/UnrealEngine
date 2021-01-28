@@ -223,6 +223,9 @@ struct FMaterialAttributes
 %s
 };
 
+/** FMaterialAttributes utilities */
+%s
+
 /** 
  * Parameters calculated from the pixel material inputs.
  */
@@ -477,6 +480,8 @@ struct FMaterialVertexParameters
 #if WATER_MESH_FACTORY
 	uint WaterWaveParamIndex;
 #endif
+
+	FMaterialAttributes MaterialVertexAttributes;
 };
 
 /**
@@ -2376,6 +2381,29 @@ float3 CalculateAnisotropyTangent(FMaterialPixelParameters Parameters, FPixelMat
 	Tangent = normalize(cross(BiTangent, Normal));
 
 	return Tangent;
+}
+
+FMaterialAttributes FMaterialAttributes_GetDefault()
+{
+	FMaterialAttributes Result;
+%s
+	return Result;
+}
+
+FMaterialAttributes EvaluateVertexMaterialAttributes(in out FMaterialVertexParameters Parameters)
+{
+	FMaterialAttributes DefaultMaterialAttributes = FMaterialAttributes_GetDefault();
+%s
+	// Return the default, this may be skipped if the above code returns different attributes
+	return DefaultMaterialAttributes;
+}
+
+FMaterialAttributes EvaluatePixelMaterialAttributes(in out FMaterialPixelParameters Parameters)
+{
+	FMaterialAttributes DefaultMaterialAttributes = FMaterialAttributes_GetDefault();
+%s
+	// Return the default, this may be skipped if the above code returns different attributes
+	return DefaultMaterialAttributes;
 }
 
 // Be very, very careful about changing CalcPixelMaterialInputs() or CalcPixelMaterialInputsAnalyticDerivatives(). They apply the same basic calculation,

@@ -38,6 +38,8 @@
 #include "Materials/MaterialExpressionNamedReroute.h"
 #include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
+#include "Materials/MaterialExpressionReturnMaterialAttributes.h"
+#include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialExpressionStrata.h"
 #include "MaterialEditorUtilities.h"
 #include "MaterialEditorActions.h"
@@ -229,8 +231,6 @@ FLinearColor UMaterialGraphNode::GetNodeTitleColor() const
 		return Settings->PreviewNodeTitleColor;
 	}
 
-
-
 	if (UsesBoolColour(MaterialExpression))
 	{
 		return Settings->BooleanPinTypeColor;
@@ -278,6 +278,18 @@ FLinearColor UMaterialGraphNode::GetNodeTitleColor() const
 	{
 		// Previously FColor(255, 155, 0);
 		return Settings->ResultNodeTitleColor;
+	}
+	else if (MaterialExpression->IsA(UMaterialExpressionReturnMaterialAttributes::StaticClass()))
+	{
+		return Settings->ResultNodeTitleColor;
+	}
+	else if (MaterialExpression->IsA(UMaterialExpressionExecBegin::StaticClass()))
+	{
+		return Settings->FunctionTerminatorNodeTitleColor;
+	}
+	else if (MaterialExpression->GetExecInput())
+	{
+		return Settings->ExecutionPinTypeColor;
 	}
 	else if (const UMaterialExpressionNamedRerouteDeclaration* RerouteDeclaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(MaterialExpression))
 	{
@@ -615,11 +627,26 @@ void UMaterialGraphNode::CreateInputPins()
 	for (int32 Index = 0; Index < ExpressionInputs.Num() ; ++Index)
 	{
 		FExpressionInput* Input = ExpressionInputs[Index];
-		FName InputName = MaterialExpression->GetInputName(Index);
-
-		InputName = GetShortenPinName(InputName);
-
-		const FName PinCategory = MaterialExpression->IsInputConnectionRequired(Index) ? UMaterialGraphSchema::PC_Required : UMaterialGraphSchema::PC_Optional;
+		const uint32 InputType = MaterialExpression->GetInputType(Index);
+		FName PinCategory;
+		FName InputName;
+		if (InputType == MCT_Execution)
+		{
+			PinCategory = UMaterialGraphSchema::PC_Exec;
+		}
+		else
+		{
+			InputName = MaterialExpression->GetInputName(Index);
+			InputName = GetShortenPinName(InputName);
+			if (MaterialExpression->IsInputConnectionRequired(Index))
+			{
+				PinCategory = UMaterialGraphSchema::PC_Required;
+			}
+			else
+			{
+				PinCategory = UMaterialGraphSchema::PC_Optional;
+			}
+		}
 
 		UEdGraphPin* NewPin = CreatePin(EGPD_Input, PinCategory, InputName);
 		if (NewPin->PinName.IsNone())
@@ -635,15 +662,26 @@ void UMaterialGraphNode::CreateOutputPins()
 {
 	TArray<FExpressionOutput>& Outputs = MaterialExpression->GetOutputs();
 
-	for (const FExpressionOutput& ExpressionOutput : Outputs)
+	for(int32 Index = 0; Index < Outputs.Num(); ++Index)
 	{
+		const FExpressionOutput& ExpressionOutput = Outputs[Index];
+		const uint32 OutputType = MaterialExpression->GetOutputType(Index);
+
 		FName PinCategory;
 		FName PinSubCategory;
 		FName OutputName;
-
-		if (MaterialExpression->bShowMaskColorsOnPin)
+		if (MaterialExpression->bShowOutputNameOnPin)
 		{
-			if (ExpressionOutput.Mask)
+			OutputName = ExpressionOutput.OutputName;
+		}
+
+		if (OutputType == MCT_Execution)
+		{
+			PinCategory = UMaterialGraphSchema::PC_Exec;
+		}
+		else
+		{
+			if (MaterialExpression->bShowMaskColorsOnPin && ExpressionOutput.Mask)
 			{
 				PinCategory = UMaterialGraphSchema::PC_Mask;
 
@@ -670,11 +708,6 @@ void UMaterialGraphNode::CreateOutputPins()
 			}
 		}
 
-		if (MaterialExpression->bShowOutputNameOnPin)
-		{
-			OutputName = ExpressionOutput.OutputName;
-		}
-
 		UEdGraphPin* NewPin = CreatePin(EGPD_Output, PinCategory, PinSubCategory, OutputName);
 		if (NewPin->PinName.IsNone())
 		{
@@ -685,23 +718,7 @@ void UMaterialGraphNode::CreateOutputPins()
 	}
 }
 
-int32 UMaterialGraphNode::GetOutputIndex(const UEdGraphPin* OutputPin)
-{
-	TArray<UEdGraphPin*> OutputPins;
-	GetOutputPins(OutputPins);
-
-	for (int32 Index = 0; Index < OutputPins.Num(); ++Index)
-	{
-		if (OutputPin == OutputPins[Index])
-		{
-			return Index;
-		}
-	}
-
-	return -1;
-}
-
-uint32 UMaterialGraphNode::GetOutputType(const UEdGraphPin* OutputPin)
+uint32 UMaterialGraphNode::GetOutputType(const UEdGraphPin* OutputPin) const
 {
 	return MaterialExpression->GetOutputType(GetOutputIndex(OutputPin));
 }
