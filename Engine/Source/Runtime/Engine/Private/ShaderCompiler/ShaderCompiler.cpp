@@ -66,7 +66,7 @@
 DEFINE_LOG_CATEGORY(LogShaderCompilers);
 
 // Switch to Verbose after initial testing
-#define UE_SHADERCACHE_LOG_LEVEL		Display
+#define UE_SHADERCACHE_LOG_LEVEL		Verbose
 
 int32 GShaderCompilerJobCache = 0;
 static FAutoConsoleVariableRef CVarShaderCompilerJobCache(
@@ -100,11 +100,11 @@ static FAutoConsoleVariableRef CVarShaderCompilerDumpCompileJobInputs(
 	ECVF_Default
 );
 
-int32 GShaderCompilerCacheStatsPrintoutInterval = UE_BUILD_DEBUG ? 5 : 60;
+int32 GShaderCompilerCacheStatsPrintoutInterval = 180;
 static FAutoConsoleVariableRef CVarShaderCompilerCacheStatsPrintoutInterval(
 	TEXT("r.ShaderCompiler.CacheStatsPrintoutInterval"),
 	GShaderCompilerCacheStatsPrintoutInterval,
-	TEXT("Minimum interval (in seconds) between printing out debugging stats (by default, no closer than each 1 minute in Development, 5 seconds in Debug)"),
+	TEXT("Minimum interval (in seconds) between printing out debugging stats (by default, no closer than each 3 minutes)."),
 	ECVF_Default
 );
 
