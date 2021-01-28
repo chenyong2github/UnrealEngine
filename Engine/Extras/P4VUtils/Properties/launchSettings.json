@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "P4VUtils": {
-      "commandName": "Project",
-      "commandLineArgs": "merge 15160963"
-    }
-  }
-}
