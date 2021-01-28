@@ -171,6 +171,9 @@ private:
 	/** Rebuild the tree view */
 	void RefreshTreeView();
 
+	/** Return all selected keys */
+	TArray<FRigElementKey> GetSelectedKeys() const;
+
 	/** Make a row widget for the table */
 	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigTreeElement> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
