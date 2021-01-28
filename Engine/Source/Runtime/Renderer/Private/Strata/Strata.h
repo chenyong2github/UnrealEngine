@@ -32,7 +32,9 @@ struct FStrataSceneData
 	FRWByteAddressBuffer MaterialLobesBuffer;					// This should be a RDG resource
 	TRefCountPtr<IPooledRenderTarget> ClassificationTexture;	// This should be a RDG resource
 	TRefCountPtr<IPooledRenderTarget> TopLayerTexture;			// This should be a RDG resource
-	TRefCountPtr<IPooledRenderTarget> TileClassificationTexture;// This should be a RDG resource
+
+	TRefCountPtr<FRDGPooledBuffer> ClassificationTileListBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ClassificationTileIndirectBuffer;
 
 	TUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters;
 

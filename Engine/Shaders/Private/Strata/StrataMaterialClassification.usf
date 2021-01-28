@@ -6,6 +6,9 @@
 #define STRATA_INLINE_SHADING 0
 #include "/Engine/Private/Strata/Strata.ush"
 
+#define TILE_SIZE 8
+#define GROUP_THREAD_COUNT (TILE_SIZE*TILE_SIZE)
+
 #if SHADER_CATEGORIZATION
 
 // Note: 
@@ -169,42 +172,79 @@ void MainPS(
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if SHADER_TILE_CATEGORIZATION
-int  TileSize;
-int2 ClassificationResolution;
-int2 TileClassificationResolution;
-Texture2D<uint> ClassificationTexture;
-
-#define GROUP_SIZE 8
-#define GROUP_THREAD_COUNT (GROUP_SIZE*GROUP_SIZE)
-groupshared uint s_TileType;
-RWTexture2D<uint> TileClassificationTexture;
-[numthreads(8, 8, 1)]
-void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
+uint EncodeTile(uint2 TileCoord)
 {
-	if (GroupIndex == 0)
+	return TileCoord.x | (TileCoord.y << 16); // assumes 16bit is enough to represent a tiled resolution up to 65,535 :)
+}
+
+uint2 DecodeTile(uint In)
+{
+	return uint2(In & 0xFFFF, In >> 16);
+}
+
+#if SHADER_TILE_CATEGORIZATION
+int TileSize;
+int bRectPrimitive;
+int2 ClassificationResolution;
+Texture2D<uint> ClassificationTexture;
+RWBuffer<uint> TileIndirectData;
+RWBuffer<uint> TileListData;
+
+groupshared bool s_IsSimpleTile[GROUP_THREAD_COUNT];
+
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
+{
+	if (all(DispatchThreadId == 0))
 	{
-		s_TileType = 0;
+		TileIndirectData[0] = bRectPrimitive > 0 ? 4 : 6;
+		TileIndirectData[2] = 0;
+		TileIndirectData[3] = 0;
 	}
 
+	// TODO: add a SM6 permutation with ballot?
 	const uint2 PixelCoord = DispatchThreadId;
-	const uint PackClassification = ClassificationTexture.Load(uint3(PixelCoord, 0));
-	FStrataClassification Data = StrataUnpackClassificationData(PackClassification);
-
-	if (all(PixelCoord < ClassificationResolution))
+	bool bIsSimpleTile = false;
+	if (all(PixelCoord < uint2(ClassificationResolution)))
 	{
-		InterlockedAdd(s_TileType, Data.bIsSimple ? 1 : 0);
+		const uint PackClassification = ClassificationTexture.Load(uint3(PixelCoord, 0));
+		FStrataClassification Data = StrataUnpackClassificationData(PackClassification);
+		bIsSimpleTile = Data.bIsSimple;
 	}
+	s_IsSimpleTile[LinearIndex] = bIsSimpleTile;
 
 	GroupMemoryBarrierWithGroupSync();
-
-	if (GroupIndex == 0)
+	if (LinearIndex < 32)
 	{
-		const uint2 TileCoord = PixelCoord / TileSize;
-		if (s_TileType == GROUP_THREAD_COUNT && all(TileCoord < TileClassificationResolution))
-		{
-			InterlockedAdd(TileClassificationTexture[TileCoord], s_TileType);
-		}
+		s_IsSimpleTile[LinearIndex] = s_IsSimpleTile[LinearIndex] || s_IsSimpleTile[LinearIndex + 32];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 16)
+	{
+		s_IsSimpleTile[LinearIndex] = s_IsSimpleTile[LinearIndex] || s_IsSimpleTile[LinearIndex + 16];
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 8)
+	{
+		s_IsSimpleTile[LinearIndex] = s_IsSimpleTile[LinearIndex] || s_IsSimpleTile[LinearIndex + 8];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 4)
+	{
+		s_IsSimpleTile[LinearIndex] = s_IsSimpleTile[LinearIndex] || s_IsSimpleTile[LinearIndex + 4];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 2)
+	{
+		s_IsSimpleTile[LinearIndex] = s_IsSimpleTile[LinearIndex] || s_IsSimpleTile[LinearIndex + 2];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 1 && (s_IsSimpleTile[LinearIndex] || s_IsSimpleTile[LinearIndex + 1]))
+	{
+		uint WriteToIndex;
+		InterlockedAdd(TileIndirectData[1], 1, WriteToIndex);
+		TileListData[WriteToIndex] = EncodeTile(GroupId.xy);
 	}
 }
 #endif // SHADER_TILE_CATEGORIZATION
@@ -215,39 +255,21 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint GroupIndex : 
 
 int  TileSize;
 int2 TileCount;
+int	 bRectPrimitive;
 int2 OutputResolution;
-Texture2D<uint> TileClassificationTexture;
+Buffer<uint> TileListBuffer;
 
 void StencilMainVS(
 	in uint InVertexId : SV_VertexID,
 	in uint InInstanceId : SV_InstanceID,
 	out float4 OutPosition : SV_POSITION)
 {
-	uint2 TileCoord = uint2(InInstanceId % TileCount.x, InInstanceId / TileCount.y);
-	
-	// Only tile whose all the threads are flagged as simple will be set as valid
-	const uint bIsSimple = TileClassificationTexture.Load(uint3(TileCoord, 0)) == (TileSize*TileSize);
-	float3 P = float3(INFINITE_FLOAT, INFINITE_FLOAT, INFINITE_FLOAT);
-	if (bIsSimple)
-	{
-		float2 UV = 0;
-		switch (InVertexId)
-		{
-		case 0: UV = float2(0, 0); break;
-		case 1: UV = float2(1, 0); break;
-		case 2: UV = float2(1, 1); break;
-		case 3: UV = float2(0, 0); break;
-		case 4: UV = float2(1, 1); break;
-		case 5: UV = float2(0, 1); break;
-		}
+	const uint2 TileCoord = DecodeTile(TileListBuffer[InInstanceId]);
 
-		int LocalTileSize = TileSize;
-		P.xy = TileCoord * LocalTileSize + UV * LocalTileSize;
-		P.xy/= float2(OutputResolution);
-		P.xy = float2(P.x, (1 - P.y)) * 2 - 1;
-		P.z  = 0.5f;
-	}
-	OutPosition = float4(P, 1);
+	uint2 TileVertex = TileCoord * TILE_SIZE;
+	TileVertex.x += InVertexId == 1 || InVertexId == 2 || InVertexId == 4 ? TILE_SIZE : 0;
+	TileVertex.y += InVertexId == 2 || InVertexId == 4 || InVertexId == 5 ? TILE_SIZE : 0;
+	OutPosition = float4(float2(TileVertex) / OutputResolution * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.5f, 1.0f);
 }
 
 void StencilMainPS(
