@@ -31,6 +31,7 @@
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
 #include "Insights/MemoryProfiler/Widgets/SMemAllocTableTreeView.h"
+#include "Insights/MemoryProfiler/Widgets/SMemInvestigationView.h"
 #include "Insights/MemoryProfiler/Widgets/SMemoryProfilerToolbar.h"
 #include "Insights/MemoryProfiler/Widgets/SMemTagTreeView.h"
 #include "Insights/TraceInsightsModule.h"
@@ -47,6 +48,7 @@
 
 const FName FMemoryProfilerTabs::ToolbarID(TEXT("Toolbar"));
 const FName FMemoryProfilerTabs::TimingViewID(TEXT("TimingView"));
+const FName FMemoryProfilerTabs::MemInvestigationViewID(TEXT("MemInvestigation"));
 const FName FMemoryProfilerTabs::MemTagTreeViewID(TEXT("LowLevelMemTags"));
 const FName FMemoryProfilerTabs::MemAllocTableTreeViewID(TEXT("MemAllocTableTreeView"));
 
@@ -55,6 +57,7 @@ const FName FMemoryProfilerTabs::MemAllocTableTreeViewID(TEXT("MemAllocTableTree
 SMemoryProfilerWindow::SMemoryProfilerWindow()
 	: TimingView()
 	, SharedState(MakeShared<FMemorySharedState>())
+	, MemInvestigationView()
 	, MemTagTreeView()
 	, TabManager()
 	, ActiveTimerHandle()
@@ -70,6 +73,12 @@ SMemoryProfilerWindow::~SMemoryProfilerWindow()
 	{
 		HideTab(FMemoryProfilerTabs::MemTagTreeViewID);
 		check(MemTagTreeView == nullptr);
+	}
+
+	if (MemInvestigationView)
+	{
+		HideTab(FMemoryProfilerTabs::MemInvestigationViewID);
+		check(MemInvestigationView == nullptr);
 	}
 
 	if (TimingView)
@@ -98,11 +107,17 @@ void SMemoryProfilerWindow::Reset()
 		ResetTimingViewMarkers();
 	}
 
+	if (MemInvestigationView)
+	{
+		MemInvestigationView->Reset();
+	}
+
 	if (MemTagTreeView)
 	{
 		MemTagTreeView->Reset();
 	}
 
+	UpdateMemInvestigationView();
 	UpdateTableTreeViews();
 }
 
@@ -165,6 +180,16 @@ void SMemoryProfilerWindow::UpdateTimingViewMarkers()
 		{
 			TimeMarker->SetVisibility(false);
 		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::UpdateMemInvestigationView()
+{
+	if (MemInvestigationView)
+	{
+		//MemInvestigationView->Update();
 	}
 }
 
@@ -276,6 +301,34 @@ void SMemoryProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingC
 	TimingView = nullptr;
 
 	FMemoryProfilerManager::Get()->SetTimingViewVisible(false);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemInvestigationView(const FSpawnTabArgs& Args)
+{
+	FMemoryProfilerManager::Get()->SetMemInvestigationViewVisible(true);
+
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.ShouldAutosize(false)
+		.TabRole(ETabRole::PanelTab)
+		[
+			SAssignNew(MemInvestigationView, SMemInvestigationView, SharedThis(this))
+		];
+
+	UpdateMemInvestigationView();
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemInvestigationViewTabClosed));
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::OnMemInvestigationViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	FMemoryProfilerManager::Get()->SetMemInvestigationViewVisible(false);
+	MemInvestigationView = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -392,6 +445,11 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Small"))
 		.SetGroup(AppMenuGroup);
 
+	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemInvestigationViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemInvestigationView))
+		.SetDisplayName(LOCTEXT("MemoryProfiler.MemInvestigationViewTabTitle", "Investigation"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemInvestigationView.Icon.Small"))
+		.SetGroup(AppMenuGroup);
+
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemTagTreeViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemTagTreeView))
 		.SetDisplayName(LOCTEXT("MemoryProfiler.MemTagTreeViewTabTitle", "LLM Tags"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemTagTreeView.Icon.Small"))
@@ -404,7 +462,7 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		FText MemAllocTableTreeViewTabDisplayName = FText::Format(LOCTEXT("MemoryProfiler.MemAllocTableTreeViewTabTitle", "Allocs Table {0}"), FText::AsNumber(TabIndex));
 		TabManager->RegisterTabSpawner(MemAllocTableTreeViewTabId, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView, TabIndex))
 			.SetDisplayName(MemAllocTableTreeViewTabDisplayName)
-			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemTagTreeView.Icon.Small")) // TODO
+			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemAllocTableTreeView.Icon.Small"))
 			.SetGroup(AppMenuGroup);
 	}
 
@@ -439,8 +497,9 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.23f)
+					->AddTab(FMemoryProfilerTabs::MemInvestigationViewID, ETabState::OpenedTab)
 					->AddTab(FMemoryProfilerTabs::MemTagTreeViewID, ETabState::OpenedTab)
-					->SetForegroundTab(FMemoryProfilerTabs::MemTagTreeViewID)
+					->SetForegroundTab(FMemoryProfilerTabs::MemInvestigationViewID)
 				)
 			)
 		);

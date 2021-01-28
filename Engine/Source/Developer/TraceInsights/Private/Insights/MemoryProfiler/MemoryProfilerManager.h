@@ -87,12 +87,14 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Getters and setters used by Toggle Commands.
 
-	/** @return true, if the Timing view is visible */
 	const bool IsTimingViewVisible() const { return bIsTimingViewVisible; }
 	void SetTimingViewVisible(const bool bIsVisible) { bIsTimingViewVisible = bIsVisible; }
 	void ShowHideTimingView(const bool bIsVisible);
 
-	/** @return true, if the Export Details tree view is visible */
+	const bool IsMemInvestigationViewVisible() const { return bIsMemInvestigationViewVisible; }
+	void SetMemInvestigationViewVisible(const bool bIsVisible) { bIsMemInvestigationViewVisible = bIsVisible; }
+	void ShowHideMemInvestigationView(const bool bIsVisible);
+
 	const bool IsMemTagTreeViewVisible() const { return bIsMemTagTreeViewVisible; }
 	void SetMemTagTreeViewVisible(const bool bIsVisible) { bIsMemTagTreeViewVisible = bIsVisible; }
 	void ShowHideMemTagTreeView(const bool bIsVisible);
@@ -141,7 +143,10 @@ private:
 	/** If the Timing view is visible or hidden. */
 	bool bIsTimingViewVisible;
 
-	/** If the Categories tree view is visible or hidden. */
+	/** If the Memory Investigation (Alloc Queries) view is visible or hidden. */
+	bool bIsMemInvestigationViewVisible;
+
+	/** If the LLM Tags tree view is visible or hidden. */
 	bool bIsMemTagTreeViewVisible;
 
 	/** The name of the Memory Insights log listing. */

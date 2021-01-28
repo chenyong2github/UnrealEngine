@@ -1,0 +1,83 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "SlateFwd.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FMenuBuilder;
+class SMemoryProfilerWindow;
+
+namespace TraceServices
+{
+	class IAnalysisSession;
+}
+
+namespace Insights
+{
+	class FMemoryRuleSpec;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * A custom widget used to setup and run mem (allocations) queries.
+ */
+class SMemInvestigationView : public SCompoundWidget
+{
+public:
+	/** Default constructor. */
+	SMemInvestigationView();
+
+	/** Virtual destructor. */
+	virtual ~SMemInvestigationView();
+
+	SLATE_BEGIN_ARGS(SMemInvestigationView) {}
+	SLATE_END_ARGS()
+
+	/**
+	 * Construct this widget
+	 * @param InArgs - The declaration data for this widget
+	 */
+	void Construct(const FArguments& InArgs, TSharedPtr<SMemoryProfilerWindow> InProfilerWindow);
+
+	void Reset();
+
+private:
+	TSharedRef<SWidget> ConstructInvestigationWidgetArea();
+	TSharedRef<SWidget> ConstructTimeMarkerWidget(uint32 TimeMarkerIndex);
+
+	/** Called when the analysis session has changed. */
+	void InsightsManager_OnSessionChanged();
+
+	const TArray<TSharedPtr<Insights::FMemoryRuleSpec>>* GetAvailableQueryRules();
+	void QueryRule_OnSelectionChanged(TSharedPtr<Insights::FMemoryRuleSpec> InRule, ESelectInfo::Type SelectInfo);
+	TSharedRef<SWidget> QueryRule_OnGenerateWidget(TSharedPtr<Insights::FMemoryRuleSpec> InRule);
+	FText QueryRule_GetSelectedText() const;
+	FText QueryRule_GetTooltipText() const;
+	FReply RunQuery();
+
+	/**
+	 * Ticks this widget.  Override in derived classes, but always call the parent implementation.
+	 *
+	 * @param  AllottedGeometry The space allotted for this widget
+	 * @param  InCurrentTime  Current absolute real time
+	 * @param  InDeltaTime  Real time passed since last tick
+	 */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+private:
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow;
+
+	/** A weak pointer to the profiler session used to populate this widget. */
+	TSharedPtr<const TraceServices::IAnalysisSession>/*Weak*/ Session;
+
+	TSharedPtr<SComboBox<TSharedPtr<Insights::FMemoryRuleSpec>>> QueryRuleComboBox;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

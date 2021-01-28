@@ -32,7 +32,6 @@ namespace TraceServices
 
 namespace Insights
 {
-	class FMemoryRuleSpec;
 	class FTable;
 	class FTableColumn;
 	class ITableCellValueSorter;
@@ -250,15 +249,6 @@ private:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	const TArray<TSharedPtr<Insights::FMemoryRuleSpec>>* GetAvailableQueryRules();
-	void QueryRule_OnSelectionChanged(TSharedPtr<Insights::FMemoryRuleSpec> InRule, ESelectInfo::Type SelectInfo);
-	TSharedRef<SWidget> QueryRule_OnGenerateWidget(TSharedPtr<Insights::FMemoryRuleSpec> InRule);
-	FText QueryRule_GetSelectedText() const;
-	FText QueryRule_GetTooltipText() const;
-	FReply RunQuery();
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-
 	const TArray<TSharedPtr<Insights::FMemoryTracker>>* GetAvailableTrackers();
 	void Tracker_OnSelectionChanged(TSharedPtr<Insights::FMemoryTracker> InTracker, ESelectInfo::Type SelectInfo);
 	TSharedRef<SWidget> Tracker_OnGenerateWidget(TSharedPtr<Insights::FMemoryTracker> InTracker);
@@ -381,11 +371,6 @@ private:
 
 	/** If true, the expanded nodes have been saved before applying a text filter. */
 	bool bExpansionSaved;
-
-	//////////////////////////////////////////////////
-	// Queries
-
-	TSharedPtr<SComboBox<TSharedPtr<Insights::FMemoryRuleSpec>>> QueryRuleComboBox;
 
 	//////////////////////////////////////////////////
 	// Search box and filters

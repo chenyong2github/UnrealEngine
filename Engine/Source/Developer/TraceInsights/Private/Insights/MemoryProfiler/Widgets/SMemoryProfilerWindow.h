@@ -21,8 +21,9 @@ class FActiveTimerHandle;
 class FMenuBuilder;
 
 class FMemorySharedState;
-class STimingView;
+class SMemInvestigationView;
 class SMemTagTreeView;
+class STimingView;
 
 namespace Insights
 {
@@ -38,6 +39,7 @@ struct FMemoryProfilerTabs
 	// Tab identifiers
 	static const FName ToolbarID;
 	static const FName TimingViewID;
+	static const FName MemInvestigationViewID;
 	static const FName MemTagTreeViewID;
 	static const FName MemAllocTableTreeViewID; // base id
 };
@@ -61,6 +63,7 @@ public:
 	void ResetTimingViewMarkers();
 	void UpdateTimingViewMarkers();
 	void UpdateTableTreeViews();
+	void UpdateMemInvestigationView();
 	void UpdateMemTagTreeView();
 	void UpdateMemAllocTableTreeView(TSharedPtr<Insights::SMemAllocTableTreeView> MemAllocTableTreeView);
 
@@ -76,6 +79,7 @@ public:
 	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
 
 	TSharedPtr<STimingView> GetTimingView() const { return TimingView; }
+	TSharedPtr<SMemInvestigationView> GetMemInvestigationView() const { return MemInvestigationView; }
 	TSharedPtr<SMemTagTreeView> GetMemTagTreeView() const { return MemTagTreeView; }
 
 	uint32 GetNumCustomTimeMarkers() const { return (uint32)CustomTimeMarkers.Num(); }
@@ -91,6 +95,9 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
 	void OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_MemInvestigationView(const FSpawnTabArgs& Args);
+	void OnMemInvestigationViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	TSharedRef<SDockTab> SpawnTab_MemTagTreeView(const FSpawnTabArgs& Args);
 	void OnMemTagTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
@@ -174,6 +181,9 @@ private:
 	TSharedPtr<STimingView> TimingView;
 	TArray<TSharedRef<Insights::FTimeMarker>> CustomTimeMarkers;
 	TSharedPtr<FMemorySharedState> SharedState;
+
+	/** The Memory Investigation (Allocation Queries) view widget */
+	TSharedPtr<SMemInvestigationView> MemInvestigationView;
 
 	/** The "LLM Tags" tree view widget */
 	TSharedPtr<SMemTagTreeView> MemTagTreeView;
