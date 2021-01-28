@@ -81,8 +81,12 @@ void FMovieSceneMediaData::HandleMediaPlayerEvent(EMediaEvent Event)
 	}
 
 	const FTimespan Duration = MediaPlayer->GetDuration();
-	FTimespan MediaTime;
+    if (Duration == FTimespan::Zero())
+    {
+	    return;
+    }
 
+	FTimespan MediaTime;
 	if (!MediaPlayer->IsLooping())
 	{
 		MediaTime = FMath::Clamp(SeekOnOpenTime, FTimespan::Zero(), Duration - FTimespan::FromSeconds(0.001));

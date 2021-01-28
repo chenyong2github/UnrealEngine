@@ -81,12 +81,15 @@ struct FMediaSectionExecutionToken
 		if (MediaPlayer->GetUrl().IsEmpty())
 		{
 			SectionData.SeekOnOpen(CurrentTime);
+			// Setup an initial blocking range - MediaFramework will block (even through the opening process) in its next tick...
+			MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));
 			MediaPlayer->OpenSource(MediaSource);
 
 			return;
 		}
 
 		// seek on open if necessary
+		// (usually should not be needed as the blocking on open should ensure we never see the player preparing here)
 		if (MediaPlayer->IsPreparing())
 		{
 			SectionData.SeekOnOpen(CurrentTime);
@@ -164,10 +167,6 @@ struct FMediaSectionExecutionToken
 					}
 				}
 			}
-
-			// Set blocking range / time-range to display
-			// (we always use the full current time for this, any adjustments to player timestamps are done internally)
-			MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));
 		}
 		else
 		{
@@ -177,8 +176,11 @@ struct FMediaSectionExecutionToken
 			}
 
 			MediaPlayer->Seek(MediaTime);
-			MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
 		}
+
+	// Set blocking range / time-range to display
+	// (we always use the full current time for this, any adjustments to player timestamps are done internally)
+		MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));
 	}
 
 private:
