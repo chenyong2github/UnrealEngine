@@ -51,7 +51,7 @@ void FCachedOSVeryLargePageAllocator::Init()
 	}
 }
 
-void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, FCriticalSection* Mutex, uint32 AllocationHint)
+void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHint)
 {
 	Size = Align(Size, 4096);
 
@@ -69,14 +69,9 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, FCriticalSection* M
 				LargePage = FreeLargePagesHead[AllocationHint];
 				if (LargePage)
 				{
+					Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
 					LargePage->AllocationHint = AllocationHint;
 					LargePage->Unlink();
-					{
-#if UE_ALLOW_OSMEMORYLOCKFREE
-						FScopeUnlock FScopeUnlock(Mutex);
-#endif
-						Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
-					}
 					LargePage->LinkHead(UsedLargePagesWithSpaceHead[AllocationHint]);
 					CachedFree += SizeOfLargePage;
 				}
@@ -99,14 +94,14 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, FCriticalSection* M
 
 	if (ret == nullptr)
 	{
-		ret = CachedOSPageAllocator.Allocate(Size, Mutex);
+		ret = CachedOSPageAllocator.Allocate(Size);
 	}
 	return ret;
 }
 
 #define LARGEPAGEALLOCATOR_SORT_OnAddress 1
 
-void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSection* Mutex)
+void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size)
 {
 	Size = Align(Size, 4096);
 	uint64 Index = ((uintptr_t)Ptr - (uintptr_t)AddressSpaceReserved) / SizeOfLargePage;
@@ -121,13 +116,8 @@ void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSect
 		{
 			// totally free, need to move which list we are in and remove the backing store
 			LargePage->Unlink();
-			{
-#if UE_ALLOW_OSMEMORYLOCKFREE
-				FScopeUnlock FScopeUnlock(Mutex);
-#endif
-				Block.Decommit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
-			}
 			LargePage->LinkHead(FreeLargePagesHead[LargePage->AllocationHint]);
+			Block.Decommit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
 			CachedFree -= SizeOfLargePage;
 		}
 		else if (LargePage->NumberOfFreeSubPages == 1)
@@ -187,12 +177,12 @@ void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSect
 	}
 	else
 	{
-		CachedOSPageAllocator.Free(Ptr, Size, Mutex);
+		CachedOSPageAllocator.Free(Ptr, Size);
 	}
 }
 
-void FCachedOSVeryLargePageAllocator::FreeAll(FCriticalSection* Mutex)
+void FCachedOSVeryLargePageAllocator::FreeAll()
 {
-	CachedOSPageAllocator.FreeAll(Mutex);
+	CachedOSPageAllocator.FreeAll();
 }
 #endif

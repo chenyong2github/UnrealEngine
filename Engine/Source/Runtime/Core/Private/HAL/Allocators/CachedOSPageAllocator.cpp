@@ -7,7 +7,7 @@
 #include "HAL/LowLevelMemTracker.h"
 
 
-void* FCachedOSPageAllocator::AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, FFreePageBlock* First, FFreePageBlock* Last, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal, FCriticalSection* Mutex)
+void* FCachedOSPageAllocator::AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, FFreePageBlock* First, FFreePageBlock* Last, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal)
 {
 	if (!FPlatformMemory::BinnedPlatformHasMemoryPoolForThisSize(Size) && (Size <= CachedByteLimit / 4))
 	{
@@ -57,18 +57,12 @@ void* FCachedOSPageAllocator::AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, 
 
 		{
 			LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
-			void* Ptr = nullptr;
-			{
-#if UE_ALLOW_OSMEMORYLOCKFREE
-				FScopeUnlock FScopeUnlock(Mutex);
-#endif
-				Ptr = FPlatformMemory::BinnedAllocFromOS(Size);
-			}
-			if(Ptr)
+			if(void* Ptr = FPlatformMemory::BinnedAllocFromOS(Size))
 			{
 				return Ptr;
 			}
 		}
+
 			// Are we holding on to much mem? Release it all.
 			for (FFreePageBlock* Block = First; Block != Last; ++Block)
 			{
@@ -82,24 +76,13 @@ void* FCachedOSPageAllocator::AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, 
 	}
 
 	LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
-
-	void* Ret = nullptr;
-	{
-#if UE_ALLOW_OSMEMORYLOCKFREE
-		FScopeUnlock FScopeUnlock(Mutex);
-#endif
-		Ret = FPlatformMemory::BinnedAllocFromOS(Size);
-	}
-	return Ret;
+	return FPlatformMemory::BinnedAllocFromOS(Size);
 }
 
-void FCachedOSPageAllocator::FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlocks, uint32 CachedByteLimit, FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal, FCriticalSection* Mutex)
+void FCachedOSPageAllocator::FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlocks, uint32 CachedByteLimit, FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal)
 {
 	if (FPlatformMemory::BinnedPlatformHasMemoryPoolForThisSize(Size) || Size > CachedByteLimit / 4)
 	{
-#if UE_ALLOW_OSMEMORYLOCKFREE
-		FScopeUnlock FScopeUnlock(Mutex);
-#endif
 		FPlatformMemory::BinnedFreeToOS(Ptr, Size);
 		return;
 	}
@@ -115,12 +98,7 @@ void FCachedOSPageAllocator::FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlo
 		{
 			FMemory::Memmove(First, First + 1, sizeof(FFreePageBlock) * FreedPageBlocksNum);
 		}
-		{
-#if UE_ALLOW_OSMEMORYLOCKFREE
-			FScopeUnlock FScopeUnlock(Mutex);
-#endif
-			FPlatformMemory::BinnedFreeToOS(FreePtr, FreeSize);
-		}
+		FPlatformMemory::BinnedFreeToOS(FreePtr, FreeSize);
 	}
 
 	First[FreedPageBlocksNum].Ptr      = Ptr;
@@ -130,7 +108,7 @@ void FCachedOSPageAllocator::FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlo
 	++FreedPageBlocksNum;
 }
 
-void FCachedOSPageAllocator::FreeAllImpl(FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal, FCriticalSection* Mutex)
+void FCachedOSPageAllocator::FreeAllImpl(FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal)
 {
 	while (FreedPageBlocksNum)
 	{
