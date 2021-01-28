@@ -68,7 +68,7 @@ DEFINE_LOG_CATEGORY(LogShaderCompilers);
 // Switch to Verbose after initial testing
 #define UE_SHADERCACHE_LOG_LEVEL		Verbose
 
-int32 GShaderCompilerJobCache = 0;
+int32 GShaderCompilerJobCache = 1;
 static FAutoConsoleVariableRef CVarShaderCompilerJobCache(
 	TEXT("r.ShaderCompiler.JobCache"),
 	GShaderCompilerJobCache,
