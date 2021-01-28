@@ -19,7 +19,7 @@ enum class ERigElementType : uint8
 	Space = 0x002,
 	Control = 0x004,
 	Curve = 0x008,
-	All = Bone | Space | Control | Curve,
+	All = Bone | Space | Control | Curve UMETA(Hidden),
 };
 
 UENUM()
