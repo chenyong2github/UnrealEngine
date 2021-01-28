@@ -10,23 +10,28 @@ using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
 {
-	class MergeCommand : Command
+	class CherryPickCommand : Command
 	{
-		public override string Description => "Merge a changelist into the current stream";
+		public override string Description => "Cherry-picks a changelist into the current stream";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Merge to current stream", "%p") { ShowConsole = true };
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Cherry-Pick", "%S") { ShowConsole = true };
 
 		public override async Task<int> Execute(string[] Args, IReadOnlyDictionary<string, string> ConfigValues, ILogger Logger)
 		{
 			int Change = int.Parse(Args[1]);
 
 			PerforceConnection Perforce = new PerforceConnection(null, null, null, Logger);
+			int NewChange = await MergeAsync(Perforce, Change, Logger);
+			return (NewChange > 0) ? 0 : 1;
+		}
 
+		public static async Task<int> MergeAsync(PerforceConnection Perforce, int Change, ILogger Logger)
+		{
 			InfoRecord Info = await Perforce.GetInfoAsync(InfoOptions.None, CancellationToken.None);
 			if (Info.ClientStream == null)
 			{
 				Logger.LogError("Not currently in a stream workspace.");
-				return 1;
+				return -1;
 			}
 
 			StreamRecord TargetStream = await Perforce.GetStreamAsync(Info.ClientStream, false, CancellationToken.None);
@@ -39,23 +44,32 @@ namespace P4VUtils.Commands
 			if (ExistingChangeRecord.Files.Count == 0)
 			{
 				Logger.LogError("No files in selected changelist");
-				return 1;
+				return -1;
 			}
+
+			string SourceFileSpec = Regex.Replace(ExistingChangeRecord.Files[0].DepotFile, @"^(//[^/]+/[^/]+)/.*$", $"$1/...@={Change}");
+			string TargetFileSpec = $"{TargetStream.Stream}/...";
+			Logger.LogInformation("Merging from {SourceSpec} to {TargetSpec}", SourceFileSpec, TargetFileSpec);
+
 
 			ChangeRecord NewChangeRecord = new ChangeRecord();
 			NewChangeRecord.User = Info.UserName;
 			NewChangeRecord.Client = Info.ClientName;
 			NewChangeRecord.Description = $"{ExistingChangeRecord.Description.TrimEnd()}\n#p4v-cherrypick {Change}";
 			NewChangeRecord = await Perforce.CreateChangeAsync(NewChangeRecord, CancellationToken.None);
+			Logger.LogInformation("Created pending changelist {0}", NewChangeRecord.Number);
 
-			string SourceFileSpec = Regex.Replace(ExistingChangeRecord.Files[0].DepotFile, @"^(//[^/]+/[^/]+)/.*$", "$1/...");
-			string TargetFileSpec = $"{TargetStream.Stream}/...";
-			await Perforce.MergeAsync(MergeOptions.None, NewChangeRecord.Number, -1, $"{SourceFileSpec}@={Change}", TargetFileSpec, CancellationToken.None);
+			await Perforce.MergeAsync(MergeOptions.None, NewChangeRecord.Number, -1, SourceFileSpec, TargetFileSpec, CancellationToken.None);
+			Logger.LogInformation("Merged files into changelist {0}", SourceFileSpec, TargetFileSpec, NewChangeRecord.Number);
 
-			Logger.LogInformation("Merged into pending changelist {0}", NewChangeRecord.Number);
+			PerforceResponseList<ResolveRecord> ResolveRecords = await Perforce.TryResolveAsync(NewChangeRecord.Number, ResolveOptions.Automatic, null, CancellationToken.None);
+			if (!ResolveRecords.Succeeded)
+			{
+				Logger.LogError("Unable to resolve files. Please resolve manually.");
+				return -1;
+			}
 
-			await Perforce.TryResolveAsync(NewChangeRecord.Number, ResolveOptions.Automatic, null, CancellationToken.None);
-			return 0;
+			return NewChangeRecord.Number;
 		}
 	}
 }

@@ -46,7 +46,7 @@ namespace EpicGames.Perforce
 						return new List<T>();
 					}
 				}
-				return this.Select(x => x.Data).Where(x => x != null).ToList();
+				return this.Where(x => x.Info == null).Select(x => x.Data).Where(x => x != null).ToList();
 			}
 		}
 

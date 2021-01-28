@@ -2176,7 +2176,7 @@ namespace EpicGames.Perforce
 		/// <param name="FileSpecs">Files to be reverted</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public Task<PerforceResponseList<ResolveRecord>> TryResolveAsync(int ChangeNumber, ResolveOptions Options, string[]? FileSpecs, CancellationToken CancellationToken)
+		public async Task<PerforceResponseList<ResolveRecord>> TryResolveAsync(int ChangeNumber, ResolveOptions Options, string[]? FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("resolve");
 			if ((Options & ResolveOptions.Automatic) != 0)
@@ -2227,7 +2227,9 @@ namespace EpicGames.Perforce
 				}
 			}
 
-			return CommandAsync<ResolveRecord>(Arguments.ToString(), null, CancellationToken);
+			PerforceResponseList<ResolveRecord> Records = await CommandAsync<ResolveRecord>(Arguments.ToString(), null, CancellationToken);
+			Records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return Records;
 		}
 
 		#endregion

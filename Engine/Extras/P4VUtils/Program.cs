@@ -42,11 +42,12 @@ namespace P4VUtils
 	{
 		public static IReadOnlyDictionary<string, Command> Commands { get; } = new Dictionary<string, Command>
 		{
+			["converttoedit"] = new ConvertToEditCommand(),
+			["describe"] = new DescribeCommand(),
+			["cherrypick"] = new CherryPickCommand(),
+			["edigrate"] = new EdigrateCommand(),
 			["preflight"] = new PreflightCommand(),
 			["preflightandsubmit"] = new PreflightAndSubmitCommand(),
-			["merge"] = new MergeCommand(),
-			["edigrate"] = new EdigrateCommand(),
-			["describe"] = new DescribeCommand()
 		};
 
 		static void PrintHelp(ILogger Logger)

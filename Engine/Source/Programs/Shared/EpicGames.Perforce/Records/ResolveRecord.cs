@@ -16,32 +16,44 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Path to the file in the workspace
 		/// </summary>
-		[PerforceTag("clientFile")]
-		public string ClientFile;
+		[PerforceTag("clientFile", Optional = true)]
+		public string? ClientFile;
 
 		/// <summary>
 		/// Path to the depot file that needs to be resolved
 		/// </summary>
-		[PerforceTag("fromFile")]
-		public string FromFile;
+		[PerforceTag("fromFile", Optional = true)]
+		public string? FromFile;
+
+		/// <summary>
+		/// Target file for the resolve
+		/// </summary>
+		[PerforceTag("toFile", Optional = true)]
+		public string? ToFile;
+
+		/// <summary>
+		/// How the file was resolved
+		/// </summary>
+		[PerforceTag("how", Optional = true)]
+		public string? How;
 
 		/// <summary>
 		/// Start range of changes to be resolved
 		/// </summary>
-		[PerforceTag("startFromRev")]
+		[PerforceTag("startFromRev", Optional = true)]
 		public int FromRevisionStart;
 
 		/// <summary>
 		/// Ending range of changes to be resolved
 		/// </summary>
-		[PerforceTag("endFromRev")]
+		[PerforceTag("endFromRev", Optional = true)]
 		public int FromRevisionEnd;
 
 		/// <summary>
 		/// The type of resolve to perform
 		/// </summary>
-		[PerforceTag("resolveType")]
-		public string ResolveType;
+		[PerforceTag("resolveType", Optional = true)]
+		public string? ResolveType;
 
 		/// <summary>
 		/// For content resolves, the type of resolve to be performed
@@ -63,7 +75,7 @@ namespace EpicGames.Perforce
 		/// Format this record for display in the debugger
 		/// </summary>
 		/// <returns>Summary of this revision</returns>
-		public override string ToString()
+		public override string? ToString()
 		{
 			return ClientFile;
 		}
