@@ -191,6 +191,14 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	}
 #endif
 
+#if PLATFORM_DESKTOP
+	extern int32 GUseMobileLODBiasOnDesktopES31;
+	if (GUseMobileLODBiasOnDesktopES31 != 0 && GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		EffectiveMinLOD += InComponent->GetStaticMesh()->GetLODBiasModifier();
+	}
+#endif
+
 	// Find the first LOD with any vertices (ie that haven't been stripped)
 	int FirstAvailableLOD = 0;
 	for (; FirstAvailableLOD < RenderData->LODResources.Num(); FirstAvailableLOD++)
