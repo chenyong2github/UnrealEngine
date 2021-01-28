@@ -235,7 +235,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 	if (ActorPtr.IsExplicitlyNull())
 	{
 		// For now we assume that an ActorDesc that gets loaded is owned by an actual WorldPartition
-		UWorldPartition* WorldPartition = CastChecked<UWorldPartition>(Container);
+		UWorldPartition* WorldPartition = Container ? CastChecked<UWorldPartition>(Container) : nullptr;
 		check(WorldPartition || GIsAutomationTesting);
 
 		const FLinkerInstancingContext* InstancingContext = nullptr;
