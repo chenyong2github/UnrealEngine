@@ -188,9 +188,20 @@ UAISystem::FBlackboardDataToComponentsIterator::FBlackboardDataToComponentsItera
 	: CurrentIteratorIndex(0)
 	, Iterators()
 {
+	// Reserve space for the weak pointers so that we don't invalidate references as we insert
+	int32 NumBlackboardAssets = 0;
+	for (UBlackboardData* BlackboardAssetIt = BlackboardAsset; BlackboardAssetIt; BlackboardAssetIt = BlackboardAssetIt->Parent)
+	{
+		++NumBlackboardAssets;
+	}
+	IteratorKeysForReference.Reserve(NumBlackboardAssets);
+
 	while (BlackboardAsset)
 	{
-		Iterators.Add(InBlackboardDataToComponentsMap.CreateConstKeyIterator(BlackboardAsset));
+		// In 32-bit, map key iterators hold TWeakObjectPtrs by reference, not value,
+		// so we need to retain a bunch of weakobjptrs in an array so there is something to reference.
+		TWeakObjectPtr<UBlackboardData>& WeakBlackboardAssetRef = IteratorKeysForReference.Add_GetRef(BlackboardAsset);
+		Iterators.Add(InBlackboardDataToComponentsMap.CreateConstKeyIterator(WeakBlackboardAssetRef));
 		BlackboardAsset = BlackboardAsset->Parent;
 	}
 	TryMoveIteratorToParentBlackboard();

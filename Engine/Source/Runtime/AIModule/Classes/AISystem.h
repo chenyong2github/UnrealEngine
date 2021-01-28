@@ -235,6 +235,7 @@ public:
 		int32 CurrentIteratorIndex;
 
 		static const int32 InlineSize = 8;
+		TArray<TWeakObjectPtr<UBlackboardData>> IteratorKeysForReference;
 		TArray<FBlackboardDataToComponentsMap::TConstKeyIterator, TInlineAllocator<InlineSize>> Iterators;
 	};
 
