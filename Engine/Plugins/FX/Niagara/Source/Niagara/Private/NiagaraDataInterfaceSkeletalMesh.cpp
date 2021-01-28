@@ -10,6 +10,7 @@
 #include "NDISkeletalMeshCommon.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceSkeletalMeshConnectivity.h"
 #include "NiagaraDataInterfaceSkeletalMeshUvMapping.h"
 #include "NiagaraSettings.h"
 #include "NiagaraStats.h"
@@ -614,6 +615,29 @@ void FNDI_SkeletalMesh_GeneratedData::TickGeneratedData(ETickingGroup TickGroup,
 			CachedUvMapping.RemoveAtSwap(MappingsToRemove.Pop(false));
 		}
 	}
+
+	{ // handle any changes to the connectivity handles
+		FRWScopeLock ConnectivityWriteLock(CachedConnectivityGuard, SLT_Write);
+
+		TArray<int32, TInlineAllocator<32>> EntriesToRemove;
+
+		const int32 EntryCount = CachedConnectivity.Num();
+
+		for (int32 EntryIt = 0; EntryIt < EntryCount; ++EntryIt)
+		{
+			const TSharedPtr<FSkeletalMeshConnectivity>& ConnectivityData = CachedConnectivity[EntryIt];;
+
+			if (ConnectivityData->CanBeDestroyed())
+			{
+				EntriesToRemove.Add(EntryIt);
+			}
+		}
+
+		while (EntriesToRemove.Num())
+		{
+			CachedConnectivity.RemoveAtSwap(EntriesToRemove.Pop(false));
+		}
+	}
 }
 
 FSkeletalMeshUvMappingHandle FNDI_SkeletalMesh_GeneratedData::GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex, FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately)
@@ -644,6 +668,38 @@ FSkeletalMeshUvMappingHandle FNDI_SkeletalMesh_GeneratedData::GetCachedUvMapping
 	return FSkeletalMeshUvMappingHandle(
 		Usage,
 		CachedUvMapping.Add_GetRef(MakeShared<FSkeletalMeshUvMapping>(MeshObject, InLodIndex, InUvSetIndex)),
+		bNeedsDataImmediately);
+}
+
+
+FSkeletalMeshConnectivityHandle FNDI_SkeletalMesh_GeneratedData::GetCachedConnectivity(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, FSkeletalMeshConnectivityUsage Usage, bool bNeedsDataImmediately)
+{
+	check(MeshObject.Get() != nullptr);
+
+	if (!FSkeletalMeshConnectivity::IsValidMeshObject(MeshObject, InLodIndex))
+	{
+		return FSkeletalMeshConnectivityHandle();
+	}
+
+	// Attempt to Find data
+	{
+		FRWScopeLock ReadLock(CachedConnectivityGuard, SLT_ReadOnly);
+		TSharedPtr<FSkeletalMeshConnectivity>* Existing = CachedConnectivity.FindByPredicate([&](const TSharedPtr<FSkeletalMeshConnectivity>& Connectivity)
+			{
+				return Connectivity->Matches(MeshObject, InLodIndex);
+			});
+
+		if (Existing)
+		{
+			return FSkeletalMeshConnectivityHandle(Usage, *Existing, bNeedsDataImmediately);
+		}
+	}
+
+	// We need to add
+	FRWScopeLock WriteLock(CachedConnectivityGuard, SLT_Write);
+	return FSkeletalMeshConnectivityHandle(
+		Usage,
+		CachedConnectivity.Add_GetRef(MakeShared<FSkeletalMeshConnectivity>(MeshObject, InLodIndex)),
 		bNeedsDataImmediately);
 }
 
@@ -1209,6 +1265,9 @@ struct FNDISkeletalMeshParametersName
 	FString UvMappingBufferName;
 	FString UvMappingBufferLengthName;
 	FString UvMappingSetName;
+	FString ConnectivityBufferName;
+	FString ConnectivityBufferLengthName;
+	FString ConnectivityMaxAdjacentPerVertexName;
 	FString InstanceTransformName;
 	FString InstancePrevTransformName;
 	FString InstanceRotationName;
@@ -1254,6 +1313,9 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 	Names.UvMappingBufferName = UNiagaraDataInterfaceSkeletalMesh::UvMappingBufferName + Suffix;
 	Names.UvMappingBufferLengthName = UNiagaraDataInterfaceSkeletalMesh::UvMappingBufferLengthName + Suffix;
 	Names.UvMappingSetName = UNiagaraDataInterfaceSkeletalMesh::UvMappingSetName + Suffix;
+	Names.ConnectivityBufferName = UNiagaraDataInterfaceSkeletalMesh::ConnectivityBufferName + Suffix;
+	Names.ConnectivityBufferLengthName = UNiagaraDataInterfaceSkeletalMesh::ConnectivityBufferLengthName + Suffix;
+	Names.ConnectivityMaxAdjacentPerVertexName = UNiagaraDataInterfaceSkeletalMesh::ConnectivityMaxAdjacentPerVertexName + Suffix;
 	Names.InstanceTransformName = UNiagaraDataInterfaceSkeletalMesh::InstanceTransformName + Suffix;
 	Names.InstancePrevTransformName = UNiagaraDataInterfaceSkeletalMesh::InstancePrevTransformName + Suffix;
 	Names.InstanceRotationName = UNiagaraDataInterfaceSkeletalMesh::InstanceRotationName + Suffix;
@@ -1306,6 +1368,9 @@ public:
 		UvMappingBuffer.Bind(ParameterMap, *ParamNames.UvMappingBufferName);
 		UvMappingBufferLength.Bind(ParameterMap, *ParamNames.UvMappingBufferLengthName);
 		UvMappingSet.Bind(ParameterMap, *ParamNames.UvMappingSetName);
+		ConnectivityBuffer.Bind(ParameterMap, *ParamNames.ConnectivityBufferName);
+		ConnectivityBufferLength.Bind(ParameterMap, *ParamNames.ConnectivityBufferLengthName);
+		ConnectivityMaxAdjacentPerVertex.Bind(ParameterMap, *ParamNames.ConnectivityMaxAdjacentPerVertexName);
 		InstanceTransform.Bind(ParameterMap, *ParamNames.InstanceTransformName);
 		InstancePrevTransform.Bind(ParameterMap, *ParamNames.InstancePrevTransformName);
 		InstanceRotation.Bind(ParameterMap, *ParamNames.InstanceRotationName);
@@ -1430,6 +1495,19 @@ public:
 				SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingSet, 0);
 			}
 
+			if (InstanceData->ConnectivityBuffer)
+			{
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, ConnectivityBuffer, InstanceData->ConnectivityBuffer->GetSrv());
+				SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityBufferLength, InstanceData->ConnectivityBuffer->GetBufferSize());
+				SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityMaxAdjacentPerVertex, InstanceData->ConnectivityBuffer->MaxAdjacentTriangleCount);
+			}
+			else
+			{
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, ConnectivityBuffer, FNiagaraRenderer::GetDummyIntBuffer());
+				SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityBufferLength, 0);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityMaxAdjacentPerVertex, 0);
+			}
+
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, InstanceData->Transform);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, InstanceData->PrevTransform);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, InstanceData->Transform.GetMatrixWithoutScale().ToQuat());
@@ -1484,6 +1562,10 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingBufferLength, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingSet, 0);
 
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, ConnectivityBuffer, FNiagaraRenderer::GetDummyIntBuffer());
+			SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityBufferLength, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityMaxAdjacentPerVertex, 0);
+
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, FMatrix::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, FMatrix::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, FQuat::Identity);
@@ -1530,6 +1612,9 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, UvMappingBuffer);
 	LAYOUT_FIELD(FShaderParameter, UvMappingBufferLength);
 	LAYOUT_FIELD(FShaderParameter, UvMappingSet);
+	LAYOUT_FIELD(FShaderResourceParameter, ConnectivityBuffer);
+	LAYOUT_FIELD(FShaderParameter, ConnectivityBufferLength);
+	LAYOUT_FIELD(FShaderParameter, ConnectivityMaxAdjacentPerVertex);
 	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
 	LAYOUT_FIELD(FShaderParameter, InstancePrevTransform);
 	LAYOUT_FIELD(FShaderParameter, InstanceRotation);
@@ -1565,6 +1650,8 @@ void FNiagaraDataInterfaceProxySkeletalMesh::ConsumePerInstanceDataFromGameThrea
 
 	Data.UvMappingBuffer = SourceData->UvMappingBuffer;
 	Data.UvMappingSet = SourceData->UvMappingSet;
+
+	Data.ConnectivityBuffer = SourceData->ConnectivityBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1590,6 +1677,8 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 
 	Data->UvMappingBuffer = SourceData->UvMapping.GetQuadTreeProxy();
 	Data->UvMappingSet = SourceData->UvMapping.GetUvSetIndex();
+
+	Data->ConnectivityBuffer = SourceData->Connectivity.GetProxy();
 }
 
 USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
@@ -1925,6 +2014,33 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		else
 		{
 			UvMapping = FSkeletalMeshUvMappingHandle(UvMappingUsage, nullptr, false);
+		}
+	}
+
+	// mesh connectivity
+	{
+		bool UsedByCpuConnectivity = false;
+		bool UsedByGpuConnectivity = false;
+
+		EvaluateSystemUsage(*SystemInstance, FSkeletalMeshInterfaceHelper::GetAdjacentTriangleIndexName, UsedByCpuConnectivity, UsedByGpuConnectivity);
+		EvaluateSystemUsage(*SystemInstance, FSkeletalMeshInterfaceHelper::GetTriangleNeighborName, UsedByCpuConnectivity, UsedByGpuConnectivity);
+
+		const bool MeshValid = SkeletalMesh.IsValid();
+		const bool SupportConnectivityCpu = UsedByCpuConnectivity && MeshValid;
+		const bool SupportConnectivityGpu = UsedByGpuConnectivity && MeshValid && Interface->IsUsedWithGPUEmitter(SystemInstance);
+
+		FSkeletalMeshConnectivityUsage ConnectivityUsage(SupportConnectivityCpu, SupportConnectivityGpu);
+
+		if (ConnectivityUsage.IsValid())
+		{
+			const bool bNeedsDataImmediately = true;
+
+			FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->GetSkeletalMeshGeneratedData();
+			Connectivity = GeneratedData.GetCachedConnectivity(SkeletalMesh, CachedLODIdx, ConnectivityUsage, bNeedsDataImmediately);
+		}
+		else
+		{
+			Connectivity = FSkeletalMeshConnectivityHandle(ConnectivityUsage, nullptr, false);
 		}
 	}
 
@@ -2806,6 +2922,9 @@ const FString UNiagaraDataInterfaceSkeletalMesh::FilteredSocketBoneOffsetName(TE
 const FString UNiagaraDataInterfaceSkeletalMesh::UvMappingBufferName(TEXT("UvMappingBuffer_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::UvMappingBufferLengthName(TEXT("UvMappingBufferLength_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::UvMappingSetName(TEXT("UvMappingSet_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::ConnectivityBufferName(TEXT("ConnectivityBuffer_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::ConnectivityBufferLengthName(TEXT("ConnectivityBufferLength_"));
+const FString UNiagaraDataInterfaceSkeletalMesh::ConnectivityMaxAdjacentPerVertexName(TEXT("ConnectivityMaxAdjacentPerVertex_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::InstanceTransformName(TEXT("InstanceTransform_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::InstancePrevTransformName(TEXT("InstancePrevTransform_"));
 const FString UNiagaraDataInterfaceSkeletalMesh::InstanceRotationName(TEXT("InstanceRotation_"));
@@ -2838,6 +2957,7 @@ void UNiagaraDataInterfaceSkeletalMesh::ModifyCompilationEnvironment(struct FSha
 
 	OutEnvironment.SetDefine(TEXT("DISKELMESH_BONE_INFLUENCES"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuMaxInfluences));
 	OutEnvironment.SetDefine(TEXT("DISKELMESH_PROBALIAS_FORMAT"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuUniformSamplingFormat));
+	OutEnvironment.SetDefine(TEXT("DISKELMESH_ADJ_INDEX_FORMAT"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_AdjacencyTriangleIndexFormat));
 }
 
 bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -3100,6 +3220,18 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName)
 	{
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in float2 InUvMin, in float2 InUvMax, out {MeshTriCoordinateStructName} OutCoord, out bool OutIsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleCoordInAabb(DIContext, InUvMin, InUvMax, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+	}
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Adjacency
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetAdjacentTriangleIndexName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int VertexId, in int AdjacencyIndex, out int TriangleIndex) { {GetDISkelMeshContextName} DISkelMesh_GetAdjacentTriangleIndex(DIContext, VertexId, AdjacencyIndex, TriangleIndex); }");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+	}
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleNeighborName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int TriangleIndex, in int EdgeIndex, out int NeighborTriangleIndex, out int NeighborEdgeIndex) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleNeighbor(DIContext, TriangleIndex, EdgeIndex, NeighborTriangleIndex, NeighborEdgeIndex); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

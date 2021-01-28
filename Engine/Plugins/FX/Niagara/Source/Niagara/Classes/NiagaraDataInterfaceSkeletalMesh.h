@@ -14,6 +14,8 @@
 class UNiagaraDataInterfaceSkeletalMesh;
 class USkeletalMesh;
 struct FSkeletalMeshSkinningData;
+struct FSkeletalMeshConnectivity;
+class FSkeletalMeshConnectivityProxy;
 struct FSkeletalMeshUvMapping;
 class FSkeletalMeshUvMappingBufferProxy;
 struct FNDISkeletalMesh_InstanceData;
@@ -278,6 +280,42 @@ private:
 	TSharedPtr<FSkeletalMeshUvMapping> UvMappingData;
 };
 
+struct FSkeletalMeshConnectivityUsage
+{
+	FSkeletalMeshConnectivityUsage() = default;
+	FSkeletalMeshConnectivityUsage(bool InRequiresCpuAccess, bool InRequiresGpuAccess)
+		: RequiresCpuAccess(InRequiresCpuAccess)
+		, RequiresGpuAccess(InRequiresGpuAccess)
+	{}
+
+	bool IsValid() const { return RequiresCpuAccess || RequiresGpuAccess; }
+
+	bool RequiresCpuAccess = false;
+	bool RequiresGpuAccess = false;
+};
+
+struct FSkeletalMeshConnectivityHandle
+{
+	FSkeletalMeshConnectivityHandle();
+	FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityUsage InUsage, const TSharedPtr<struct FSkeletalMeshConnectivity>& InConnectivityData, bool bNeedsDataImmediately);
+	FSkeletalMeshConnectivityHandle(const FSkeletalMeshConnectivityHandle& Other) = delete;
+	FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityHandle&& Other);
+	~FSkeletalMeshConnectivityHandle();
+
+	FSkeletalMeshConnectivityHandle& operator=(const FSkeletalMeshConnectivityHandle& Other) = delete;
+	FSkeletalMeshConnectivityHandle& operator=(FSkeletalMeshConnectivityHandle&& Other);
+	explicit operator bool() const;
+
+	FSkeletalMeshConnectivityUsage Usage;
+
+	int32 GetAdjacentTriangleIndex(int32 VertexIndex, int32 AdjacencyIndex) const;
+
+	const FSkeletalMeshConnectivityProxy* GetProxy() const;
+
+private:
+	TSharedPtr<FSkeletalMeshConnectivity> ConnectivityData;
+};
+
 class FNDI_SkeletalMesh_GeneratedData
 {
 	FRWLock CachedSkinningDataGuard;
@@ -286,9 +324,13 @@ class FNDI_SkeletalMesh_GeneratedData
 	FRWLock CachedUvMappingGuard;
 	TArray<TSharedPtr<FSkeletalMeshUvMapping>> CachedUvMapping;
 
+	FRWLock CachedConnectivityGuard;
+	TArray<TSharedPtr<FSkeletalMeshConnectivity>> CachedConnectivity;
+
 public:
 	FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage, bool bNeedsDataImmediately);
 	FSkeletalMeshUvMappingHandle GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex, FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
+	FSkeletalMeshConnectivityHandle GetCachedConnectivity(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, FSkeletalMeshConnectivityUsage Usage, bool bNeedsDataImmediately);
 
 	void TickGeneratedData(ETickingGroup TickGroup, float DeltaSeconds);
 };
@@ -546,6 +588,9 @@ struct FNDISkeletalMesh_InstanceData
 
 	/** Handle to our uv mapping data. */
 	FSkeletalMeshUvMappingHandle UvMapping;
+
+	/** Handle to connectivity data. */
+	FSkeletalMeshConnectivityHandle Connectivity;
 	
 	/** Indices of all valid Sampling regions on the mesh to sample from. */
 	TArray<int32> SamplingRegionIndices;
@@ -803,6 +848,9 @@ public:
 	static const FString UvMappingBufferName;
 	static const FString UvMappingBufferLengthName;
 	static const FString UvMappingSetName;
+	static const FString ConnectivityBufferName;
+	static const FString ConnectivityBufferLengthName;
+	static const FString ConnectivityMaxAdjacentPerVertexName;
 	static const FString InstanceTransformName;
 	static const FString InstancePrevTransformName;
 	static const FString InstanceRotationName;
@@ -1015,6 +1063,10 @@ public:
 	// Uv Mapping
 	static const FName GetTriangleCoordAtUVName;
 	static const FName GetTriangleCoordInAabbName;
+
+	// Adjacency
+	static const FName GetAdjacentTriangleIndexName;
+	static const FName GetTriangleNeighborName;
 };
 
 struct FNiagaraDISkeletalMeshPassedDataToRT
@@ -1024,6 +1076,7 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer;
 	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer;
 	const FSkeletalMeshUvMappingBufferProxy* UvMappingBuffer;
+	const FSkeletalMeshConnectivityProxy* ConnectivityBuffer;
 
 	bool bIsGpuUniformlyDistributedSampling;
 
