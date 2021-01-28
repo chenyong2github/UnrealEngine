@@ -110,8 +110,8 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 							GroupName = FName(*FString::Printf(TEXT("0x%X"), Frame->Addr));
 							break;
 						case TraceServices::QueryResult::QR_OK:
-							//GroupName = FName(Frame->Symbol->Name);
-							GroupName = FName(*FString::Printf(TEXT("0x%X %s"), Frame->Addr, Frame->Symbol->Name));
+							GroupName = FName(Frame->Symbol->Name);
+							//GroupName = FName(*FString::Printf(TEXT("0x%X %s"), Frame->Addr, Frame->Symbol->Name));
 							break;
 						}
 
