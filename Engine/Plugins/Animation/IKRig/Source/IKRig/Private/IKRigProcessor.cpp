@@ -16,11 +16,13 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigDefinition)
 		return;
 	}
 	
-	RefPoseTransforms = RigDefinition->GetReferencePose();
-	Transforms = FIKRigTransforms(&RigDefinition->GetHierarchy());
-	Transforms.SetAllGlobalTransforms(RefPoseTransforms);
-	
-	Goals.SetAllGoals(RigDefinition->GetGoals());
+	RefPoseGlobalTransforms = RigDefinition->GetReferencePose();
+	GlobalBoneTransforms = FIKRigTransforms(&RigDefinition->GetHierarchy());
+	GlobalBoneTransforms.SetAllGlobalTransforms(RefPoseGlobalTransforms);
+
+	TArray<FName> GoalNames;
+	RigDefinition->GetGoalNamesFromSolvers(GoalNames);
+	Goals.InitializeGoalsFromNames(GoalNames);
 
 	TArray<UIKRigSolver*> RigSolvers = RigDefinition->GetSolvers();
 	const int32 NumSolvers = RigSolvers.Num();
@@ -28,7 +30,7 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigDefinition)
 	for (int32 Index = 0; Index < NumSolvers; ++Index)
 	{
 		UIKRigSolver* Solver = DuplicateObject(RigSolvers[Index], this);
-		Solver->Init(Transforms);
+		Solver->Init(GlobalBoneTransforms);
 		Solvers.Add(Solver);
 	}
 
@@ -37,7 +39,7 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigDefinition)
 
 void UIKRigProcessor::Solve()
 {
-	if (!bInitialized)
+	if (!ensure(bInitialized))
 	{
 		return;
 	}
@@ -48,26 +50,44 @@ void UIKRigProcessor::Solve()
 
 	for (int32 Index = 0; Index < Solvers.Num(); ++Index)
 	{
-		Solvers[Index]->Solve(Transforms, Goals, &DrawInterface);
+		Solvers[Index]->Solve(GlobalBoneTransforms, Goals, &DrawInterface);
 	}
 }
 
-FIKRigTransforms& UIKRigProcessor::GetTransforms() 
+FIKRigTransforms& UIKRigProcessor::GetCurrentGlobalTransforms() 
 {
-	return Transforms;
+	check(bInitialized);
+	return GlobalBoneTransforms;
+}
+
+void UIKRigProcessor::SetGoalTransform(
+	const FName& GoalName,
+	const FVector& Position,
+	const FQuat& Rotation)
+{
+	check(bInitialized);
+	Goals.SetGoalTransform(GoalName, Position, Rotation);
+}
+
+void UIKRigProcessor::GetGoalNames(TArray<FName>& OutGoalNames) const
+{
+	check(bInitialized);
+	return Goals.GetNames(OutGoalNames);
+}
+
+int UIKRigProcessor::GetNumGoals() const
+{
+	return Goals.GetNumGoals();
 }
 
 const FIKRigHierarchy* UIKRigProcessor::GetHierarchy() const
 {
-	if (RigDefinition)
-	{
-		return &RigDefinition->GetHierarchy();
-	}
-
-	return nullptr;
+	check(bInitialized);
+	return ensure(RigDefinition) ? &RigDefinition->GetHierarchy(): nullptr;
 }
 
 void UIKRigProcessor::ResetToRefPose()
 {
-	Transforms.SetAllGlobalTransforms(RefPoseTransforms);
+	check(bInitialized);
+	GlobalBoneTransforms.SetAllGlobalTransforms(RefPoseGlobalTransforms);
 }

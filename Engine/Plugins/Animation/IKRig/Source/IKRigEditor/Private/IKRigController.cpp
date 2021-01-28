@@ -9,33 +9,33 @@
 
 #define LOCTEXT_NAMESPACE	"IKRigController"
 
+
+// -------------------------------------------------------
+// CONTROLLER <-> IKRIGDEFINITION CONNECTION
+//
+
 TMap<UIKRigDefinition*, UIKRigController*> UIKRigController::DefinitionToControllerMap;
 
-// currently it's not clear the lifecycle of this map
-// usually during editor, they will be present, 
 UIKRigController* UIKRigController::GetControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition)
 {
-	if (InIKRigDefinition)
+	if (!InIKRigDefinition)
 	{
-		UIKRigController** Controller = DefinitionToControllerMap.Find(InIKRigDefinition);
-		if (Controller)
-		{
-			return *Controller;
-		}
-		else
-		{
-			UIKRigController* NewController = NewObject<UIKRigController>();
-			DefinitionToControllerMap.Add(InIKRigDefinition) = NewController;
-			NewController->SetIKRigDefinition(InIKRigDefinition);
-			InIKRigDefinition->IKRigDefinitionBeginDestroy.AddStatic(&UIKRigController::RemoveControllerByRigDefinition);
-			return NewController;
-		}
+		return nullptr;
+	}
+	
+	UIKRigController** Controller = DefinitionToControllerMap.Find(InIKRigDefinition);
+	if (Controller)
+	{
+		return *Controller;
 	}
 
-	return nullptr;
+	UIKRigController* NewController = NewObject<UIKRigController>();
+	DefinitionToControllerMap.Add(InIKRigDefinition) = NewController;
+	NewController->SetIKRigDefinition(InIKRigDefinition);
+	return NewController;
 }
 
-// this shoudl be called by IKRigDefinition::BeginDestroy;
+// this should be called by IKRigDefinition::BeginDestroy;
 void UIKRigController::RemoveControllerByRigDefinition(UIKRigDefinition* InIKRigDefinition)
 {
 	DefinitionToControllerMap.Remove(InIKRigDefinition);
@@ -56,254 +56,129 @@ void UIKRigController::AddReferencedObjects(UObject* InThis, FReferenceCollector
 	}
 }
 
-void UIKRigController::BeginDestroy() 
-{
-	if (IKRigDefinition)
-	{
-		for (int32 Index = 0; Index < IKRigDefinition->Solvers.Num(); ++Index)
-		{
-			UninitializeSolver(IKRigDefinition->Solvers[Index]);
-		}
-	}
-
-	Super::BeginDestroy();
-}
-
- // IKRigDefinition set up
 void UIKRigController::SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition)
 {
-	if (IKRigDefinition)
-	{
-		for (int32 Index = 0; Index < IKRigDefinition->Solvers.Num(); ++Index)
-		{
-			UninitializeSolver(IKRigDefinition->Solvers[Index]);
-		}
-	}
-
 	IKRigDefinition = InIKRigDefinition;
+}
 
+// -------------------------------------------------------
+// SKELETON
+//
+
+const FIKRigHierarchy* UIKRigController::GetHierarchy() const
+{
+	return (IKRigDefinition) ? &IKRigDefinition->GetHierarchy() : nullptr;
+}
+
+const TArray<FTransform>& UIKRigController::GetRefPoseTransforms() const
+{
 	if (IKRigDefinition)
 	{
-		for (int32 Index = 0; Index < IKRigDefinition->Solvers.Num(); ++Index)
-		{
-			InitializeSolver(IKRigDefinition->Solvers[Index]);
-		}
+		return IKRigDefinition->GetReferencePose();
 	}
+
+	static TArray<FTransform> Dummy;
+	return Dummy;
 }
 
-void UIKRigController::InitializeSolver(UIKRigSolver* Solver)
-{
-	if (Solver)
-	{
-		// we want to register this controller delegate
-		// if there are multiple controllers managing one IKRigDefinition
-		// we want to ensure that works 
-		FDelegateHandle DelegateHandle = Solver->GoalNeedsUpdateDelegate.AddUObject(this, &UIKRigController::UpdateGoal);
-		SolverDelegateHandles.Add(Solver) = DelegateHandle;
-
-		Solver->UpdateEffectors();
-	}
-}
-
-void UIKRigController::UninitializeSolver(UIKRigSolver* Solver)
-{
-	if (Solver)
-	{
-		FDelegateHandle* DelegateHandle = SolverDelegateHandles.Find(Solver);
-		if (ensure(DelegateHandle))
-		{
-			Solver->GoalNeedsUpdateDelegate.Remove(*DelegateHandle);
-		}
-	}
-}
-
-// hierarchy operators
 void UIKRigController::SetSkeleton(const FReferenceSkeleton& InSkeleton)
 {
-	if (IKRigDefinition)
+	if (!IKRigDefinition)
 	{
-		FScopedTransaction Transaction(LOCTEXT("SetSkeleton_Label", "Set Skeleton"));
-		IKRigDefinition->Modify();
-
-		IKRigDefinition->ResetHierarchy();
-
-		const TArray<FMeshBoneInfo>& RefBoneInfo = InSkeleton.GetRefBoneInfo();
-		TArray<FTransform> RefPoseInCS;
-		FAnimationRuntime::FillUpComponentSpaceTransforms(InSkeleton, InSkeleton.GetRefBonePose(), RefPoseInCS);
-		ensure(RefPoseInCS.Num() == RefBoneInfo.Num());
-		for (int32 Index=0; Index<RefBoneInfo.Num(); ++Index)
-		{
-			int32 ParentIndex = RefBoneInfo[Index].ParentIndex;
-			ensure (IKRigDefinition->AddBone(RefBoneInfo[Index].Name, (ParentIndex != INDEX_NONE)? RefBoneInfo[ParentIndex].Name : NAME_None, RefPoseInCS[Index]));
-		}
-
-		ensure(IKRigDefinition->Hierarchy.GetNum() == IKRigDefinition->RefPoseTransforms.Num());
+		return;
 	}
+
+	FScopedTransaction Transaction(LOCTEXT("SetSkeleton_Label", "Set Skeleton"));
+	IKRigDefinition->Modify();
+
+	IKRigDefinition->ResetHierarchy();
+
+	const TArray<FMeshBoneInfo>& RefBoneInfo = InSkeleton.GetRefBoneInfo();
+	TArray<FTransform> RefPoseInCS;
+	FAnimationRuntime::FillUpComponentSpaceTransforms(InSkeleton, InSkeleton.GetRefBonePose(), RefPoseInCS);
+	ensure(RefPoseInCS.Num() == RefBoneInfo.Num());
+	for (int32 Index = 0; Index < RefBoneInfo.Num(); ++Index)
+	{
+		int32 ParentIndex = RefBoneInfo[Index].ParentIndex;
+		ensure(IKRigDefinition->AddBone(RefBoneInfo[Index].Name, (ParentIndex != INDEX_NONE) ? RefBoneInfo[ParentIndex].Name : NAME_None, RefPoseInCS[Index]));
+	}
+
+	ensure(IKRigDefinition->Hierarchy.GetNum() == IKRigDefinition->RefPoseTransforms.Num());
 }
 
 bool UIKRigController::AddBone(const FName& InName, const FName& InParent, const FTransform& InGlobalTransform)
 {
-	if (IKRigDefinition)
+	if (!IKRigDefinition)
 	{
-		FScopedTransaction Transaction(LOCTEXT("AddBone_Label", "Add Bone"));
-		IKRigDefinition->Modify();
-
-		return IKRigDefinition->AddBone(InName, InParent, InGlobalTransform);
+		return false;
 	}
 
-	return false;
+	FScopedTransaction Transaction(LOCTEXT("AddBone_Label", "Add Bone"));
+	IKRigDefinition->Modify();
+
+	return IKRigDefinition->AddBone(InName, InParent, InGlobalTransform);
 }
 
-bool UIKRigController::RemoveBone(const FName& InName)
-{
-	if (IKRigDefinition)
-	{
-		FScopedTransaction Transaction(LOCTEXT("RemoveBone_Label", "Remove Bone"));
-		IKRigDefinition->Modify();
 
-		return IKRigDefinition->RemoveBone(InName);
-	}
-
-	return false;
-}
-bool UIKRigController::RenameBone(const FName& InOldName, const FName& InNewName)
-{
-	if (IKRigDefinition)
-	{
-		FScopedTransaction Transaction(LOCTEXT("RenameBone_Label", "Rename Bone"));
-		IKRigDefinition->Modify();
-
-		return IKRigDefinition->RenameBone(InOldName, InNewName);
-	}
-
-	return false;
-}
-bool UIKRigController::ReparentBone(const FName& InName, const FName& InNewParent)
-{
-	if (IKRigDefinition)
-	{
-		FScopedTransaction Transaction(LOCTEXT("ReparentBone_Label", "Reparent Bone"));
-		IKRigDefinition->Modify();
-
-		return IKRigDefinition->ReparentBone(InName, InNewParent);
-	}
-
-	return false;
-}
 void UIKRigController::ResetHierarchy()
 {
-	if (IKRigDefinition)
+	if (!IKRigDefinition)
 	{
-		FScopedTransaction Transaction(LOCTEXT("ResetHierarchy_Label", "Reset Hierarchy"));
-		IKRigDefinition->Modify();
-
-		IKRigDefinition->ResetHierarchy();
+		return;
 	}
+
+	FScopedTransaction Transaction(LOCTEXT("ResetHierarchy_Label", "Reset Hierarchy"));
+	IKRigDefinition->Modify();
+
+	IKRigDefinition->ResetHierarchy();
 }
 
-// solver operators
+// -------------------------------------------------------
+// SOLVERS
+//
+
 UIKRigSolver* UIKRigController::AddSolver(TSubclassOf<UIKRigSolver> InIKRigSolverClass)
 {
-	if (IKRigDefinition)
+	if (!IKRigDefinition)
 	{
-		FScopedTransaction Transaction(LOCTEXT("AddSolver_Label", "Add Solver"));
-		IKRigDefinition->Modify();
-
-		UIKRigSolver* NewSolver = NewObject<UIKRigSolver>(IKRigDefinition, InIKRigSolverClass);
-		check(NewSolver);
-
-		// todo: set delegate for the goal update
-		IKRigDefinition->Solvers.Add(NewSolver);
-		InitializeSolver(NewSolver);
-		IKRigDefinition->UpdateGoal();
-		return NewSolver;
+		return nullptr;
 	}
 
-	return nullptr;
+	FScopedTransaction Transaction(LOCTEXT("AddSolver_Label", "Add Solver"));
+	IKRigDefinition->Modify();
+
+	UIKRigSolver* NewSolver = NewObject<UIKRigSolver>(IKRigDefinition, InIKRigSolverClass);
+	check(NewSolver);
+
+	IKRigDefinition->Solvers.Add(NewSolver);
+	return NewSolver;
 }
 
 int32 UIKRigController::GetNumSolvers() const
 {
-	if (IKRigDefinition)
-	{
-		return IKRigDefinition->Solvers.Num();
-	}
-
-	return 0;
+	return IKRigDefinition ? IKRigDefinition->Solvers.Num() : 0;
 }
 
 UIKRigSolver* UIKRigController::GetSolver(int32 Index) const
 {
-	if (IKRigDefinition && IKRigDefinition->Solvers.IsValidIndex(Index))
-	{
-		return IKRigDefinition->Solvers[Index];
-	}
-
-	return nullptr;
+	bool ValidSolver = IKRigDefinition && IKRigDefinition->Solvers.IsValidIndex(Index);
+	return ValidSolver ? IKRigDefinition->Solvers[Index] : nullptr;
 }
 
 void UIKRigController::RemoveSolver(UIKRigSolver* SolverToDelete)
 {
-	if (IKRigDefinition && SolverToDelete)
+	if (!(IKRigDefinition && SolverToDelete))
 	{
-		FScopedTransaction Transaction(LOCTEXT("RemoveSolver_Label", "Remove Solver"));
-		IKRigDefinition->Modify();
-
-		UninitializeSolver(SolverToDelete);
-		IKRigDefinition->Solvers.Remove(SolverToDelete);
-		IKRigDefinition->UpdateGoal();
-	}
-}
-
-bool UIKRigController::ValidateSolver(UIKRigSolver* const Solver) const
-{
-	return (IKRigDefinition && Solver && IKRigDefinition->Solvers.Find(Solver) != INDEX_NONE);
-}
-
-void UIKRigController::UpdateGoal()
-{
-	if (IKRigDefinition)
-	{
-		FScopedTransaction Transaction(LOCTEXT("UpdateGoal_Label", "Update Goal"));
-		IKRigDefinition->Modify();
-
-		IKRigDefinition->UpdateGoal();
-		OnGoalModified.Broadcast();
-	}
-}
-
-FName UIKRigController::GetGoalName(UIKRigSolver* InSolver, const FIKRigEffector& InEffector)
-{
-	if (InSolver)
-	{
-		FName* GoalName = InSolver->EffectorToGoalName.Find(InEffector);
-		if (GoalName)
-		{
-			return *GoalName;
-		}
+		return;
 	}
 
-	return NAME_None;
+	FScopedTransaction Transaction(LOCTEXT("RemoveSolver_Label", "Remove Solver"));
+	IKRigDefinition->Modify();
+
+	IKRigDefinition->Solvers.Remove(SolverToDelete);
 }
 
-void UIKRigController::SetGoalName(UIKRigSolver* InSolver, const FIKRigEffector& InEffector, const FName& NewGoalName)
-{
-	if (InSolver)
-	{
-		FScopedTransaction Transaction(LOCTEXT("SetGoalName_Label", "Set Goal Name"));
-		InSolver->Modify();
-
-		FName* GoalName = InSolver->EffectorToGoalName.Find(InEffector);
-		if (GoalName)
-		{
-			*GoalName = NewGoalName;
-
-			UpdateGoal();
-		}
-	}
-}
-
-UIKRigBoneSetting* UIKRigController::AddBoneSetting(TSubclassOf<UIKRigBoneSetting> NewSettingType)
+UIKRigBoneSetting* UIKRigController::AddBoneSetting(TSubclassOf<UIKRigBoneSetting> NewSettingType) const
 {
 	
 	FScopedTransaction Transaction(LOCTEXT("AddSetting_Label", "Add Bone Setting"));
@@ -319,54 +194,34 @@ UIKRigBoneSetting* UIKRigController::AddBoneSetting(TSubclassOf<UIKRigBoneSettin
 	return nullptr;	
 }
 
-// goal operators
-void UIKRigController::QueryGoals(TArray<FName>& OutGoals) const
+// -----------------------------
+// GOALS
+//
+
+void UIKRigController::GetGoalNames(TArray<FName>& OutGoals) const
 {
-	if (IKRigDefinition)
+	if (!IKRigDefinition)
 	{
-		IKRigDefinition->GetGoals().GenerateKeyArray(OutGoals);
+		return;
 	}
+
+	IKRigDefinition->GetGoalNamesFromSolvers(OutGoals);
 }
 
-void UIKRigController::RenameGoal(const FName& OldName, const FName& NewName)
+void UIKRigController::RenameGoal(const FName& OldName, const FName& NewName) const
 {
-	// ensure we don't have used NewDisplayName 
-	if (IKRigDefinition)
+	if (!IKRigDefinition)
 	{
-		FScopedTransaction Transaction(LOCTEXT("RenameGoal_Label", "Rename Goal"));
-		IKRigDefinition->Modify();
-
-		for (UIKRigSolver* Solver : IKRigDefinition->Solvers)
-		{
-			if (Solver)
-			{
-				Solver->RenameGoal(OldName, NewName);
-			}
-		}
-		
-		// update goal list
-		IKRigDefinition->UpdateGoal();
-	}
-}
-
-FIKRigGoal* UIKRigController::GetGoal(const FName& InGoalName) 
-{
-	if (IKRigDefinition)
-	{
-		return IKRigDefinition->Goals.Find(InGoalName);
+		return;
 	}
 
-	return nullptr;
-}
+	FScopedTransaction Transaction(LOCTEXT("RenameGoal_Label", "Rename Goal"));
+	IKRigDefinition->Modify();
 
-const FIKRigGoal* UIKRigController::GetGoal(const FName& InGoalName) const
-{
-	if (IKRigDefinition)
+	for (UIKRigSolver* Solver : IKRigDefinition->Solvers)
 	{
-		return IKRigDefinition->Goals.Find(InGoalName);
+		Solver->RenameGoal(OldName, NewName);
 	}
-
-	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

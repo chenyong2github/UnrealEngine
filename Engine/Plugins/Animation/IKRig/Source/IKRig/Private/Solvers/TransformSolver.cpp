@@ -7,18 +7,13 @@
 
 
 UTransformSolver::UTransformSolver()
-	: TransformTargetName(TEXT("TransformTarget"))
 {
+	Effector.Goal = "DefaultGoal";
 }
 
 void UTransformSolver::Init(const FIKRigTransforms& InGlobalTransform)
 {
 	
-}
-
-bool UTransformSolver::IsSolverActive() const
-{
-	return Super::IsSolverActive() && (bEnablePosition || bEnableRotation);
 }
 
 void UTransformSolver::Solve(
@@ -46,46 +41,13 @@ void UTransformSolver::Solve(
 	}
 	if (bEnableRotation)
 	{
-		CurrentTransform.SetRotation(Goal.Rotation.Quaternion());
+		CurrentTransform.SetRotation(Goal.Rotation);
 	}
 
 	InOutGlobalTransform.SetGlobalTransform(Index, CurrentTransform, true);
 }
 
-#if WITH_EDITOR
-
-void UTransformSolver::UpdateEffectors()
+void UTransformSolver::CollectGoalNames(TSet<FName>& OutGoals) const
 {
-	// KIARAN - this doesn't make any sense, why would we remove an effector just because
-	// the solver settings have been toggled off?
-
-	// update tasks - you want to keep old name though if changed
-	bool bActiveTask = bEnablePosition || bEnableRotation;
-
-	// not found, we add new
-	if (bActiveTask)
-	{
-		EnsureToAddEffector(Effector, *TransformTargetName);
-	}
-	// if the opposite, we have to remove
-	else if (!bActiveTask)
-	{
-		EnsureToRemoveEffector(Effector);
-	}
-
-	// trigger a delegate for goal has been updated?
-	OnGoalHasBeenUpdated();
+	OutGoals.Add(Effector.Goal);
 }
-
-void UTransformSolver::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformSolver, bEnablePosition) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformSolver, bEnableRotation))
-	{
-		UpdateEffectors();
-	}
-
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-}
-
-#endif// WITH_EDITOR

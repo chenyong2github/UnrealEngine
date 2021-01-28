@@ -34,7 +34,7 @@ bool UIKRigDefinitionFactory::ConfigureProperties()
 
 FText UIKRigDefinitionFactory::GetDisplayName() const
 {
-	return LOCTEXT("IKRigDefinition_DisplayName", "IK Rig Definition");
+	return LOCTEXT("IKRigDefinition_DisplayName", "IK Rig");
 }
 
 uint32 UIKRigDefinitionFactory::GetMenuCategories() const
@@ -44,11 +44,11 @@ uint32 UIKRigDefinitionFactory::GetMenuCategories() const
 
 FText UIKRigDefinitionFactory::GetToolTip() const
 {
-	return LOCTEXT("IKRigDefinition_Tooltip", "Create IK Rig simply to animate or to use in runtime.");
+	return LOCTEXT("IKRigDefinition_Tooltip", "Create a customized IK Rig to be embedded in an Anim Graph or Control Rig.");
 }
 
 FString UIKRigDefinitionFactory::GetDefaultNewAssetName() const
 {
-	return FString(TEXT("NewIKRigDefinition"));
+	return FString(TEXT("NewIKRig"));
 }
 #undef LOCTEXT_NAMESPACE

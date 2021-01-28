@@ -13,7 +13,7 @@ enum class ERotationLimitMode : uint8
 	Locked	UMETA(DisplayName = "Locked"),
 };
 
-UCLASS(config = Engine, hidecategories = UObject, BlueprintType)
+UCLASS(EditInlineNew, config = Engine, hidecategories = UObject, BlueprintType)
 class IKRIG_API URotationLimits : public UIKRigBoneSetting
 {
 	GENERATED_BODY()

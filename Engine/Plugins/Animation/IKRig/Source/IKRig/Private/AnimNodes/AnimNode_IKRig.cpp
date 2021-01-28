@@ -41,7 +41,7 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	}
 		
 	FCompactPose& OutPose = SourcePose.Pose;
-	FIKRigTransforms& Transforms = RigProcessor->GetTransforms();
+	FIKRigTransforms& Transforms = RigProcessor->GetCurrentGlobalTransforms();
 
 	// copy input pose
 	for (FCompactPoseBoneIndex CPIndex : OutPose.ForEachBoneIndex())
@@ -62,10 +62,10 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		if (ensure(GoalTransforms.IsValidIndex(GoalIndex)))
 		{
-			RigProcessor->Goals.SetGoalTransform(
+			RigProcessor->SetGoalTransform(
 				GoalNames[GoalIndex], 
 				GoalTransforms[GoalIndex].GetLocation(),
-				GoalTransforms[GoalIndex].GetRotation().Rotator());
+				GoalTransforms[GoalIndex].GetRotation());
 		}
 	}
 
@@ -106,7 +106,7 @@ void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Co
 	{
 		RigProcessor->Initialize(RigDefinitionAsset);
 		GoalNames.Reset();
-		RigProcessor->Goals.GetNames(GoalNames);
+		RigProcessor->GetGoalNames(GoalNames);
 	}
 }
 
@@ -126,7 +126,9 @@ bool FAnimNode_IKRig::RebuildGoalList()
 {
 	if (RigDefinitionAsset)
 	{
-		const int32 GoalNum = RigDefinitionAsset->GetGoals().Num();
+		TArray<FName> SolverGoals;
+		RigDefinitionAsset->GetGoalNamesFromSolvers(SolverGoals);
+		const int32 GoalNum = SolverGoals.Num();
 		if (GoalTransforms.Num() != GoalNum)
 		{
 			GoalTransforms.SetNum(GoalNum);
@@ -141,9 +143,8 @@ FName FAnimNode_IKRig::GetGoalName(int32 Index) const
 {
 	if (RigDefinitionAsset)
 	{
-		// TODO: fix  this vs RigProcessor goals. I think RigProcessor
-		// only issue with RigProcessor is you don't know until it compiles
-		TArray<FName> Names = RigDefinitionAsset->GetGoalNames();
+		TArray<FName> Names;
+		RigDefinitionAsset->GetGoalNamesFromSolvers(Names);
 		if (Names.IsValidIndex(Index))
 		{
 			return Names[Index];

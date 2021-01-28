@@ -11,13 +11,12 @@
 
 struct FIKRigHierarchy;
 
-
 USTRUCT()
 struct IKRIG_API FIKRigGoal
 {
 	GENERATED_BODY()
 
-	FIKRigGoal()
+		FIKRigGoal()
 		: Position(ForceInitToZero),
 		Rotation(ForceInitToZero)
 	{
@@ -31,64 +30,38 @@ struct IKRIG_API FIKRigGoal
 	}
 
 	UPROPERTY(VisibleAnywhere, Category = FIKRigGoal)
-	FName Name;
+		FName Name;
 
 	UPROPERTY(EditAnywhere, Category = FIKRigGoal)
-	FVector Position;
+		FVector Position;
 
 	UPROPERTY(EditAnywhere, Category = FIKRigGoal)
-	FRotator Rotation;
+		FQuat Rotation;
 };
 
-USTRUCT()
-struct IKRIG_API FIKRigEffector
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FGuid Guid;
-
-	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
-	FName Bone;
-
-	FIKRigEffector()
-		: Guid(FGuid::NewGuid())
-	{
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FIKRigEffector& Effector)
-	{
-		return Ar << Effector.Guid;
-	}
-
-	FORCEINLINE bool operator==(const FIKRigEffector& Rhs) const
-	{
-		return Guid == Rhs.Guid;
-	}
-};
+inline uint32 GetTypeHash(FIKRigGoal ObjectRef) { return GetTypeHash(ObjectRef.Name); }
 
 USTRUCT()
 struct IKRIG_API FIKRigGoalContainer
 {
 	GENERATED_BODY()
 
-private:
-
-	TMap<FName, FIKRigGoal> Goals;
-
-public:
-
-	void SetAllGoals(const TMap<FName, FIKRigGoal> &InGoals)
+		void InitializeGoalsFromNames(const TArray<FName>& InGoalNames)
 	{
-		Goals = InGoals;
+		Goals.Reserve(InGoalNames.Num());
+		for (const FName& Name : InGoalNames)
+		{
+			Goals.Emplace(Name, Name);
+		}
 	}
 
 	void SetGoalTransform(
 		const FName& GoalName,
 		const FVector& InPosition,
-		const FRotator& InRotation)
+		const FQuat& InRotation)
 	{
-		if (FIKRigGoal* Goal = Goals.Find(GoalName))
+		FIKRigGoal* Goal = Goals.Find(GoalName);
+		if (Goal)
 		{
 			Goal->Position = InPosition;
 			Goal->Rotation = InRotation;
@@ -111,22 +84,22 @@ public:
 	{
 		Goals.GenerateKeyArray(OutNames);
 	}
+
+	FORCEINLINE int GetNumGoals() const
+	{
+		return Goals.Num();
+	}
+
+private:
+
+	TMap<FName, FIKRigGoal> Goals;
 };
 
-template <typename ValueType>
-struct TIKRigEffectorMapKeyFuncs : public TDefaultMapKeyFuncs<const FIKRigEffector, ValueType, false>
-{
-	static FORCEINLINE FIKRigEffector	GetSetKey(TPair<FIKRigEffector, ValueType> const& Element) { return Element.Key; }
-	static FORCEINLINE uint32			GetKeyHash(FIKRigEffector const& Key) { return GetTypeHash(Key.Guid); }
-	static FORCEINLINE bool				Matches(FIKRigEffector const& A, FIKRigEffector const& B) { return (A.Guid == B.Guid); }
-};
-
-template <typename ValueType>
-using TIKRigEffectorMap = TMap<FIKRigEffector, ValueType, FDefaultSetAllocator, TIKRigEffectorMapKeyFuncs<ValueType>>;
-
-
+USTRUCT()
 struct IKRIG_API FIKRigTransforms
 {
+	GENERATED_BODY()
+	
 	FIKRigTransforms()
 		: Hierarchy(nullptr)
 	{

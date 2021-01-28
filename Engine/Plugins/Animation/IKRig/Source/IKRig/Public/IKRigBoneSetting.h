@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "IKRigBoneSetting.generated.h"
 
-UCLASS(config = Engine, hidecategories = UObject, DontCollapseCategories, BlueprintType)
+UCLASS(abstract, config = Engine, BlueprintType)
 class IKRIG_API UIKRigBoneSetting : public UObject
 {
 	GENERATED_BODY()

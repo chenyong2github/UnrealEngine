@@ -4,7 +4,7 @@
 	FullBodyIKSolver.cpp: Solver execution class for Transform
 =============================================================================*/
 
-#include "FullBodyIKSolver.h"
+#include "IKRigFBIKSolver.h"
 #include "IKRigDataTypes.h"
 #include "IKRigHierarchy.h"
 #include "FBIKConstraint.h"
@@ -13,7 +13,7 @@
 #include "FBIKShared.h"
 #include "Drawing/ControlRigDrawInterface.h"
 
-const FName UFullBodyIKSolver::EffectorTargetPrefix = FName(TEXT("FullBodyIKTarget"));
+const FName UIKRigFBIKSolver::EffectorTargetPrefix = FName(TEXT("FullBodyIKTarget"));
 
 //////////////////////////////////////////////
 // utility functions
@@ -107,7 +107,7 @@ static bool GetBoneChain(const FIKRigTransforms& TransformModifier, const FName&
 	// when you reached to something invalid, that means, we did not hit the 
 	// expected root, we iterated to the root and above, and we exhausted our option
 	// so if you hit or valid target by the hitting max depth, we should 
-	return ChainIndices.Num() > 0;
+	return !ChainIndices.IsEmpty();
 }
 
 static void AddEffectors(const FIKRigTransforms& TransformModifier, const FName Root, const TArray<FFBIKRigEffector>& Effectors,
@@ -200,11 +200,11 @@ static void AddEffectors(const FIKRigTransforms& TransformModifier, const FName 
 }
 /////////////////////////////////////////////////
 
-UFullBodyIKSolver::UFullBodyIKSolver()
+UIKRigFBIKSolver::UIKRigFBIKSolver()
 {
 }
 
-void UFullBodyIKSolver::Init(const FIKRigTransforms& InGlobalTransform)
+void UIKRigFBIKSolver::Init(const FIKRigTransforms& InGlobalTransform)
 {
 
 	LinkData.Reset();
@@ -218,22 +218,17 @@ void UFullBodyIKSolver::Init(const FIKRigTransforms& InGlobalTransform)
 	
 }
 
-bool UFullBodyIKSolver::IsSolverActive() const
-{
-	if (Super::IsSolverActive())
-	{
-		return Effectors.Num() > 1;
-	}
-
-	return false;
-}
-
-void UFullBodyIKSolver::Solve(
+void UIKRigFBIKSolver::Solve(
 	FIKRigTransforms& InOutGlobalTransform,
 	const FIKRigGoalContainer& Goals,
 	FControlRigDrawInterface* InOutDrawInterface)
 {
-	if (LinkDataToHierarchyIndices.Num() > 0)
+	if (Effectors.IsEmpty())
+	{
+		return; // nothing to do
+	}
+	
+	if (!LinkDataToHierarchyIndices.IsEmpty())
 	{
 #if 0
 		// we do this every frame for now
@@ -247,7 +242,7 @@ void UFullBodyIKSolver::Solve(
 		// during only editor and update
 		// we expect solver type changes, it will reinit
 		// InternalConstraints can't be changed during runtime
-		if (InternalConstraints.Num() > 0)
+		if (!InternalConstraints.IsEmpty())
 		{
 			WorkData.IKSolver.SetPostProcessDelegateForIteration(FPostProcessDelegateForIteration::CreateStatic(&FBIKConstraintLib::ApplyConstraint, &InternalConstraints));
 		}
@@ -293,7 +288,7 @@ void UFullBodyIKSolver::Solve(
 					FIKRigGoal Goal;
 					ensure(GetGoalForEffector(CurEffector.Target, Goals, Goal));
 					EffectorTarget->Position = Goal.Position; // FMath::Lerp(CurrentLinkLocation, EffectorLocation, RigTarget.PositionTarget.);
-					EffectorTarget->Rotation = Goal.Rotation.Quaternion(); // FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
+					EffectorTarget->Rotation = Goal.Rotation; // FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
 					EffectorTarget->InitialPositionDistance = (EffectorTarget->Position - CurrentLinkLocation).Size();
 					EffectorTarget->InitialRotationDistance = (FBIKUtil::GetScaledRotationAxis(EffectorTarget->Rotation) - FBIKUtil::GetScaledRotationAxis(CurrentLinkRotation)).Size();
 
@@ -363,7 +358,7 @@ void UFullBodyIKSolver::Solve(
 		if (bDebugEnabled && InOutDrawInterface != nullptr)
 		{
 			const int32 DebugDataNum = DebugData.Num();
-			if (DebugData.Num() > 0)
+			if (!DebugData.IsEmpty())
 			{
 				for (int32 DebugIndex = DebugDataNum - 1; DebugIndex >= 0; --DebugIndex)
 				{
@@ -562,58 +557,10 @@ void UFullBodyIKSolver::Solve(
 	}
 }
 
-#if WITH_EDITOR
-
-void UFullBodyIKSolver::UpdateEffectors()
+void UIKRigFBIKSolver::CollectGoalNames(TSet<FName>& OutGoals) const
 {
-	// first ensure we add all the effectors
-	for (int32 Index = 0; Index < Effectors.Num(); ++Index)
+	for (const FFBIKRigEffector& Effector: Effectors)
 	{
-		EnsureToAddEffector(Effectors[Index].Target, TEXT("FBIK_Effector"));
+		OutGoals.Add(Effector.Target.Goal);
 	}
-
-	// we have more nodes than goals
-	// which means we have something deleted
-	if (Effectors.Num() < EffectorToGoalName.Num())
-	{
-		TArray<FIKRigEffector> GoalEffectors;
-		// we have to remove things that don't belong
-		for (auto Iter = EffectorToGoalName.CreateIterator(); Iter; ++Iter)
-		{
-			GoalEffectors.Add(Iter.Key());
-		}
-
-		TBitArray<> RemoveFlags(false, GoalEffectors.Num());
-
-		for (int32 Index = 0; Index < Effectors.Num(); ++Index)
-		{
-			int32 Found = GoalEffectors.Find(Effectors[Index].Target);
-
-			if (Found != INDEX_NONE)
-			{
-				RemoveFlags[Found] = true;
-			}
-		}
-
-		for (TConstSetBitIterator<> Iter(RemoveFlags); Iter; ++Iter)
-		{
-			// remove things that don't belong
-			EffectorToGoalName.Remove(GoalEffectors[Iter.GetIndex()]);
-		}
-	}
-
-	// trigger a delegate for goal has been updated?
-	OnGoalHasBeenUpdated();
 }
-
-void UFullBodyIKSolver::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFullBodyIKSolver, Effectors))
-	{
-		UpdateEffectors();
-	}
-
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-}
-
-#endif// WITH_EDITOR

@@ -159,6 +159,7 @@ public:
 	TArray<int32> FindChildren(int32 Index) const;
 
 private:
+	
 	void ValidateRuntimeData() const
 	{
 		ensure (RuntimeNameLookupTable.Num() == Bones.Num() && ParentIndices.Num() == Bones.Num());

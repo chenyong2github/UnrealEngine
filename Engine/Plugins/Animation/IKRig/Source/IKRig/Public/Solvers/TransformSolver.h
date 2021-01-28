@@ -6,14 +6,14 @@
 #include "TransformSolver.generated.h"
 
 
-UCLASS()
+UCLASS(EditInlineNew)
 class IKRIG_API UTransformSolver : public UIKRigSolver
 {
 	GENERATED_BODY()
 
-public:
-
 	UTransformSolver();
+
+public:
 
 	UPROPERTY(EditAnywhere, Category = "Solver")
 	bool bEnablePosition = true;
@@ -22,7 +22,7 @@ public:
 	bool bEnableRotation = true;
 
 	UPROPERTY(EditAnywhere, Category = "Solver")
-	FIKRigEffector Effector;
+	FIKRigEffectorGoal Effector;
 
 protected:
 	
@@ -31,17 +31,6 @@ protected:
 		FIKRigTransforms& InOutGlobalTransform, 
 		const FIKRigGoalContainer& Goals,
 		FControlRigDrawInterface* InOutDrawInterface) override;
-	virtual bool IsSolverActive() const override;
-
-private:
-#if WITH_EDITOR
-	virtual void UpdateEffectors() override;
-
-	// UObject interface
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	// UObject interface
-#endif // WITH_EDITOR
-
-	const FString TransformTargetName;
+	virtual void CollectGoalNames(TSet<FName>& OutGoals) const override;
 };
 

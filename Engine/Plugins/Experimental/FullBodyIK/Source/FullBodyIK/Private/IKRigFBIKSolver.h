@@ -11,7 +11,7 @@
 #include "FBIKShared.h"
 #include "FBIKConstraintOption.h"
 #include "FBIKDebugOption.h"
-#include "FullBodyIKSolver.generated.h"
+#include "IKRigFBIKSolver.generated.h"
 
 struct FFBIKLinkData;
 
@@ -24,7 +24,7 @@ struct FFBIKRigEffector
 	* The last item in the chain to solve - the effector
 	*/
 	UPROPERTY(EditAnywhere, Category = FFBIKRigEffector)
-	FIKRigEffector Target;
+	FIKRigEffectorGoal Target;
 
 	UPROPERTY(EditAnywhere, Category = FFBIKRigEffector)
 	int32  PositionDepth = 1000;
@@ -45,22 +45,21 @@ struct FFBIKRigEffector
 };
 
  // run time for UFullBodyIKSolverDefinition
-UCLASS()
-class FULLBODYIK_API UFullBodyIKSolver : public UIKRigSolver
+UCLASS(EditInlineNew)
+class FULLBODYIK_API UIKRigFBIKSolver : public UIKRigSolver
 {
 	GENERATED_BODY()
 
 public:
+	
 	UPROPERTY(EditAnywhere, Category = Effectors)
 	FName Root;
 
 	UPROPERTY(EditAnywhere, Category = Effectors)
 	TArray<FFBIKRigEffector> Effectors;
-	//	UPROPERTY(EditAnywhere, Category = Constraint)
-	//	TArray<FFBIKConstraintOption> Constraints;
 
 	UPROPERTY(EditAnywhere, Category = Solver)
-	FSolverInput	SolverProperty;
+	FSolverInput SolverProperty;
 
 	UPROPERTY(EditAnywhere, Category = Motion)
 	FMotionProcessInput MotionProperty;
@@ -68,18 +67,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Solver)
 	FFBIKDebugOption DebugOption;
 
-	UFullBodyIKSolver();
+	UIKRigFBIKSolver();
 
 private:
-
-#if WITH_EDITOR
-	virtual void UpdateEffectors() override;
-
-	// UObject interface
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	// UObject interface
-#endif // WITH_EDITOR
-
 
 	/** list of Link Data for solvers - joints */
 	TArray<FFBIKLinkData> LinkData;
@@ -104,7 +94,7 @@ protected:
 		FIKRigTransforms& InOutGlobalTransforms,
 		const FIKRigGoalContainer& Goals,
 		FControlRigDrawInterface* InOutDrawInterface) override;
-	virtual bool IsSolverActive() const override;
+	virtual void CollectGoalNames(TSet<FName>& OutGoals) const override;
 
 public:
 	static const FName EffectorTargetPrefix;
