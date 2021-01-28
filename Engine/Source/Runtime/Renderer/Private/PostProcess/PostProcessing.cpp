@@ -540,7 +540,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			RDG_EVENT_SCOPE_CONDITIONAL(
 				GraphBuilder,
 				UpscalerToUse != DefaultTemporalUpscaler,
-				"ThirdParty %s %dx%d -> %dx%d",
+				"ThirdParty TAA %s %dx%d -> %dx%d",
 				UpscalerToUse->GetDebugName(),
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
