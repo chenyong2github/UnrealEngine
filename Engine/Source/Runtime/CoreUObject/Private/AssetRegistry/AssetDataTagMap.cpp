@@ -8,6 +8,8 @@
 #include "Serialization/MemoryReader.h"
 #include <limits>
 
+DEFINE_LOG_CATEGORY_STATIC(LogAssetDataTags, Log, All);
+
 //////////////////////////////////////////////////////////////////////////
 
 template<class T>
@@ -991,9 +993,12 @@ namespace FixedTagPrivate
 		template<typename T>
 		void LoadViewData(TArrayView<T> Items)
 		{
-			for (T& Item : Items)
+			if (!Ar.IsError())
 			{
-				Item = LoadItem<T>();
+				for (T& Item : Items)
+				{
+					Item = LoadItem<T>();
+				}
 			}
 		}
 
@@ -1036,21 +1041,27 @@ namespace FixedTagPrivate
 			SaveItem(EndMagic);
 		}
 
-		static ELoadOrder GetLoadOrder(uint32 InitialMagic)
+		static TOptional<ELoadOrder> GetLoadOrder(uint32 InitialMagic)
 		{
-			if (InitialMagic == OldBeginMagic)
+			switch (InitialMagic)
 			{
-				return ELoadOrder::Member;
+				case OldBeginMagic:	return ELoadOrder::Member;
+				case BeginMagic:	return ELoadOrder::TextFirst;
+				default:			return TOptional<ELoadOrder>();
 			}
-	
-			check(InitialMagic == BeginMagic);
-			return ELoadOrder::TextFirst;
 		}
 
-		ELoadOrder LoadHeader(FStore& Store)
+		TOptional<ELoadOrder> LoadHeader(FStore& Store)
 		{
 			uint32 InitialMagic = LoadItem<uint32>();
-			ELoadOrder Order = GetLoadOrder(InitialMagic);
+			TOptional<ELoadOrder> Order = GetLoadOrder(InitialMagic);
+
+			if (!Order)
+			{
+				UE_LOG(LogAssetDataTags, Warning, TEXT("Bad init magic, archive '%s' is corrupt"), *Ar.GetArchiveName());
+				Ar.SetError();
+				return Order;
+			}
 
 			// Load view sizes
 			VisitViews(Store, [&] (auto& View) { SetNum(View, LoadItem<int32>()); });
@@ -1082,21 +1093,26 @@ namespace FixedTagPrivate
 		
 		void Load(FStore& Store)
 		{
-			ELoadOrder Order = LoadHeader(/* Out */ Store);
-
-			// Load view data
-			if (Order == ELoadOrder::TextFirst)
+			if (TOptional<ELoadOrder> Order = LoadHeader(/* Out */ Store))
 			{
-				uint32 TextDataBytes = LoadItem<uint32>();
+				// Load view data
+				if (Order.GetValue() == ELoadOrder::TextFirst)
+				{
+					uint32 TextDataBytes = LoadItem<uint32>();
 
-				VisitViews<EOrder::TextFirst>(Store, [&] (auto View) { LoadViewData(View); });
-			}
-			else
-			{
-				VisitViews(Store, [&] (auto View) { LoadViewData(View); });
-			}
+					VisitViews<EOrder::TextFirst>(Store, [&] (auto View) { LoadViewData(View); });
+				}
+				else
+				{
+					VisitViews(Store, [&] (auto View) { LoadViewData(View); });
+				}
 
-			verify(LoadItem<uint32>() == EndMagic);
+				if (LoadItem<uint32>() != EndMagic)
+				{
+					UE_LOG(LogAssetDataTags, Warning, TEXT("Bad end magic, archive '%s' is corrupt"), *Ar.GetArchiveName());
+					Ar.SetError();
+				}
+			}
 		}
 
 		TArray<uint8> ReadTextData()
@@ -1124,7 +1140,11 @@ namespace FixedTagPrivate
 				VisitViews(Store, [&] (auto View) { LoadViewData(View); });
 			}
 			
-			verify(LoadItem<uint32>() == EndMagic);
+			if (LoadItem<uint32>() != EndMagic)
+			{
+				UE_LOG(LogAssetDataTags, Warning, TEXT("Bad end magic, archive '%s' is corrupt"), *Ar.GetArchiveName());
+				Ar.SetError();
+			}
 		}
 	};
 
@@ -1135,6 +1155,11 @@ namespace FixedTagPrivate
 
 	TRefCountPtr<const FStore> LoadStore(FArchive& Ar)
 	{
+		if (Ar.IsError())
+		{
+			return nullptr;
+		}
+
 		FStore* Store = GStores.CreateAndRegister();
 		FSerializer(Ar).Load(*Store);
 		return TRefCountPtr<const FStore>(Store);
@@ -1167,9 +1192,14 @@ namespace FixedTagPrivate
 
 	TRefCountPtr<const FStore> FAsyncStoreLoader::LoadFinalData(FArchive& Ar)
 	{
-		FSerializer(Ar).LoadFinalData(/* Out */ *Store, Order);
+		if (Order.IsSet())
+		{
+			FSerializer(Ar).LoadFinalData(/* Out */ *Store, Order.GetValue());
 
-		return TRefCountPtr<const FStore>(Store);
+			return TRefCountPtr<const FStore>(Store);
+		}
+
+		return TRefCountPtr<const FStore>();
 	}
 
 } // end namespace FixedTagPrivate
