@@ -209,4 +209,6 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	  TArrayCollectionArray<TArray<TConnectivityEdge<T>>> MConnectivityEdges;
 };
 
+using FPBDRigidClusteredParticles = TPBDRigidClusteredParticles<FReal, 3>;
+
 } // namespace Chaos

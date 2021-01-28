@@ -8,12 +8,9 @@
 namespace ChaosTest {
 
 	/**/
-	template<class T>
 	void ImplicitCluster();
 	
-	template<class T>
 	void FractureCluster();
 
-	template<class T>
 	void PartialFractureCluster();
 }

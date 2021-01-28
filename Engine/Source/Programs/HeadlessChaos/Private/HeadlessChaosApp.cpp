@@ -124,9 +124,9 @@ TEST(CollisionTests, PGS) {
 }
 
 TEST(Clustering, Clustering) {
-	ChaosTest::ImplicitCluster<float>();
-	ChaosTest::FractureCluster<float>();
-	ChaosTest::PartialFractureCluster<float>();
+	ChaosTest::ImplicitCluster();
+	ChaosTest::FractureCluster();
+	ChaosTest::PartialFractureCluster();
 	SUCCEED();
 }
 

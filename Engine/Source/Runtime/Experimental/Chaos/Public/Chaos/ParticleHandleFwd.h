@@ -69,8 +69,12 @@ namespace Chaos
 	using TPBDRigidClusteredParticleHandle = TPBDRigidClusteredParticleHandleImp<T, d, true>;
 	using TPBDRigidClusteredParticleHandleFloat3 = TPBDRigidClusteredParticleHandle<float, 3>;
 
+	using FPBDRigidClusteredParticleHandle = TPBDRigidClusteredParticleHandle<FReal, 3>;
+
 	template <typename T, int d>
 	using TTransientPBDRigidClusteredParticleHandle = TPBDRigidClusteredParticleHandleImp<T, d, false>;
+
+	using FTransientPBDRigidClusteredParticleHandle = TTransientPBDRigidClusteredParticleHandle<FReal, 3>;
 
 	// TPBDGeometryCollectionParticleHandle
 
