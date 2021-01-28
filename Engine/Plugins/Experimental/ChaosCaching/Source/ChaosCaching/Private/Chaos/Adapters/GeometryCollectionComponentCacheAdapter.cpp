@@ -77,8 +77,8 @@ namespace Chaos
 		{
 			// Accessing the GT particle here to pull the proxy - while unsafe we're recording a proxy currently so it should remain valid.
 			// No GT data is being read from the particle
-			Chaos::TGeometryParticle<float, 3>* GTParticleUnsafe = Break.Particle->GTGeometryParticle();
-			IPhysicsProxyBase*                  BaseProxy        = GTParticleUnsafe->GetProxy();
+			Chaos::FGeometryParticle* GTParticleUnsafe = Break.Particle->GTGeometryParticle();
+			IPhysicsProxyBase*        BaseProxy        = GTParticleUnsafe->GetProxy();
 			if(BaseProxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
 			{
 				FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<FGeometryCollectionPhysicsProxy*>(BaseProxy);
