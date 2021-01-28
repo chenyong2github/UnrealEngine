@@ -718,6 +718,11 @@ protected:
 	 */
 	bool BlockOnFetch() const;
 
+	/**
+	 * Internal setup for blocking time ranges
+	 */
+	void SetBlockOnTimeRangeInternal(const TRange<FTimespan>& TimeRange);
+
 	/** Flush all media sample sinks. */
 	void FlushSinks();
 
@@ -834,6 +839,9 @@ private:
 
 	/** Last user provided BlockOnRange value */
 	TRange<FTimespan> LastBlockOnRange;
+
+	/** Facade's copy of the last value passed into SetBlockOnRange(); used in case evaluation must be delayed */
+	TRange<FTimespan> BlockOnTimeRange;
 
 	/** Flag to indicate block on range feature as disabled for the current playback session due to previous timeout */
 	bool BlockOnRangeDisabled;
