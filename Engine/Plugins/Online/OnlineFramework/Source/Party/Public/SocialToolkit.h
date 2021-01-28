@@ -94,6 +94,8 @@ public:
 	 */
 	void TrySendFriendInvite(const FString& DisplayNameOrEmail) const;
 
+	virtual bool IsFriendshipRestricted(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
+
 	bool GetAuthAttribute(ESocialSubsystem SubsystemType, const FString& AttributeKey, FString& OutValue) const;
 
 	const FString& GetRecentPlayerNamespaceToQuery() const { return RecentPlayerNamespaceToQuery; }
@@ -138,7 +140,6 @@ PACKAGE_SCOPE:
 #endif
 
 protected:
-	virtual bool IsFriendshipRestricted(const USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
 	virtual void OnOwnerLoggedIn();
 	virtual void OnOwnerLoggedOut();
