@@ -18,6 +18,7 @@
 #include "DrawDebugHelpers.h"
 #include "Logging/LogMacros.h"
 #include "NetworkPredictionCues.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 #if WITH_CHAOS
 

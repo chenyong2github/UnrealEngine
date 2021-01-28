@@ -58,13 +58,9 @@ namespace Chaos
 
 		UStaticMeshComponent* MeshComp = CastChecked<UStaticMeshComponent>(InComponent);
 
-		IPhysicsProxyBase* PhysProxy = MeshComp->BodyInstance.ActorHandle->GetProxy();
+		FSingleParticlePhysicsProxy* PhysProxy = MeshComp->BodyInstance.ActorHandle;
 
-		if(PhysProxy->GetType() == EPhysicsProxyType::SingleParticleProxy)
-		{
-			auto* Proxy = static_cast<FSingleParticlePhysicsProxy*>(PhysProxy);
-			RecordToCacheInternal(Proxy, InRootTransform, OutFrame, InTime);
-		}
+		RecordToCacheInternal(PhysProxy, InRootTransform, OutFrame, InTime);
 #endif // WITH_CHAOS
 	}
 
@@ -106,13 +102,9 @@ namespace Chaos
 
 		UStaticMeshComponent* MeshComp = CastChecked<UStaticMeshComponent>(InComponent);
 
-		IPhysicsProxyBase* PhysProxy = MeshComp->BodyInstance.ActorHandle->GetProxy();
+		FSingleParticlePhysicsProxy* PhysProxy = MeshComp->BodyInstance.ActorHandle;
 
-		if(PhysProxy->GetType() == EPhysicsProxyType::SingleParticleProxy)
-		{
-			auto* Proxy = static_cast<FSingleParticlePhysicsProxy*>(PhysProxy);
-			PlayFromCacheInternal(Proxy, InCache, TickRecord, OutUpdatedRigids);
-		}
+		PlayFromCacheInternal(PhysProxy, InCache, TickRecord, OutUpdatedRigids);
 #endif // WITH_CHAOS
 	}
 
@@ -169,4 +161,3 @@ namespace Chaos
 }    // namespace Chaos
 
 Chaos::TAutoRegisterCacheAdapter<Chaos::FStaticMeshCacheAdapter> StaticMeshAdapter;
-

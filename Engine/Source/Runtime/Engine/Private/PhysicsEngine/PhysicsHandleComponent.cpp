@@ -15,6 +15,7 @@
 	#include "Chaos/PBDJointConstraintTypes.h"
 	#include "Chaos/PBDJointConstraintData.h"
 	#include "Chaos/Sphere.h"
+	#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #endif
 
 #include "ChaosCheck.h"
