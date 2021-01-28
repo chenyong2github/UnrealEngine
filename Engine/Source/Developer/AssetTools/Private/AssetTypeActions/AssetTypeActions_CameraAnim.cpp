@@ -22,7 +22,7 @@ void FAssetTypeActions_CameraAnim::CreateMatineeActorForCameraAnim(UCameraAnim* 
 	check(InCameraAnim);
 
 	FActorSpawnParameters ActorSpawnParameters;
-	ActorSpawnParameters.Name = InCameraAnim->GetFName();
+	ActorSpawnParameters.Name = MakeUniqueObjectName(GEditor->GetEditorWorldContext().World()->GetCurrentLevel(), AMatineeActorCameraAnim::StaticClass(), InCameraAnim->GetFName());
 	PreviewMatineeActor = GEditor->GetEditorWorldContext().World()->SpawnActor<AMatineeActorCameraAnim>(ActorSpawnParameters);
 	check(PreviewMatineeActor.IsValid());
 	UInterpData* NewData = NewObject<UInterpData>(GetTransientPackage(), NAME_None, RF_Transactional);
