@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "NiagaraBaryCentricUtils.ush"
+
 #define DISKELMESH_BONE_INFLUENCES_MAX4			0
 #define DISKELMESH_BONE_INFLUENCES_MAX8			1
 #define DISKELMESH_BONE_INFLUENCES_UNLIMITED	2
@@ -485,13 +487,7 @@ bool QuadTreeTriangleOverlap(FDISkelMeshContext DIContext, float2 Uv, float Tole
 		float2 UV1 = DIContext.MeshTexCoordBuffer[VertexIndex1 * Stride + DIContext.UvMappingSet];
 		float2 UV2 = DIContext.MeshTexCoordBuffer[VertexIndex2 * Stride + DIContext.UvMappingSet];
 
-		// from FMath::GetBaryCentric2D()
-		const float a = ((UV1.y-UV2.y)*(Uv.x-UV2.x) + (UV2.x-UV1.x)*(Uv.y-UV2.y)) / ((UV1.y-UV2.y)*(UV0.x-UV2.x) + (UV2.x-UV1.x)*(UV0.y-UV2.y));
-		const float b = ((UV2.y-UV0.y)*(Uv.x-UV2.x) + (UV0.x-UV2.x)*(Uv.y-UV2.y)) / ((UV1.y-UV2.y)*(UV0.x-UV2.x) + (UV2.x-UV1.x)*(UV0.y-UV2.y));
-
-		OutBaryCoord.x = a;
-		OutBaryCoord.y = b;
-		OutBaryCoord.z = 1.0f - a - b;
+		OutBaryCoord = GetBaryCentric2D(Uv, UV0, UV1, UV2);
 
 		if (all(OutBaryCoord > -Tolerance) && all(OutBaryCoord < (1.0f + Tolerance)))
 		{
@@ -523,13 +519,13 @@ bool QuadTreeNodeContains(FDISkelMeshContext DIContext, int NodeBufferOffset, fl
 	return false;
 }
 
-void DISkelMesh_GetTriangleCoordAtUV(in FDISkelMeshContext DIContext, float2 InUv, float InTolerance, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
+void DISkelMesh_GetTriangleCoordAtUV(in FDISkelMeshContext DIContext, bool Enabled, float2 InUv, float InTolerance, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
 {
 	OutTriangle = -1;
 	OutBaryCoord = float3(0.0f, 0.0f, 0.0f);
 	OutIsValid = false;
 
-	if (DIContext.UvMappingBufferLength < MinValidUvMappingBufferSize)
+	if (!Enabled || DIContext.UvMappingBufferLength < MinValidUvMappingBufferSize)
 	{
 		return;
 	}
@@ -611,13 +607,7 @@ bool QuadTreeTriangleAabbOverlap(FDISkelMeshContext DIContext, float2 UvRef, flo
 
 		if (Intersection)
 		{
-			// from FMath::GetBaryCentric2D()
-			const float a = ((UV1.y-UV2.y)*(UvRef.x-UV2.x) + (UV2.x-UV1.x)*(UvRef.y-UV2.y)) / ((UV1.y-UV2.y)*(UV0.x-UV2.x) + (UV2.x-UV1.x)*(UV0.y-UV2.y));
-			const float b = ((UV2.y-UV0.y)*(UvRef.x-UV2.x) + (UV0.x-UV2.x)*(UvRef.y-UV2.y)) / ((UV1.y-UV2.y)*(UV0.x-UV2.x) + (UV2.x-UV1.x)*(UV0.y-UV2.y));
-
-			OutBaryCoord.x = a;
-			OutBaryCoord.y = b;
-			OutBaryCoord.z = 1.0f - a - b;
+			OutBaryCoord = GetClosestBaryCentric2D(UvRef, UV0, UV1, UV2);
 			return true;
 		}
 	}
@@ -657,13 +647,13 @@ bool QuadTreeNodeContainsAabb(FDISkelMeshContext DIContext, int NodeBufferOffset
 	return false;
 }
 
-void DISkelMesh_GetTriangleCoordInAabb(FDISkelMeshContext DIContext, float2 InUvMin, float2 InUvMax, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
+void DISkelMesh_GetTriangleCoordInAabb(FDISkelMeshContext DIContext, bool Enabled, float2 InUvMin, float2 InUvMax, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
 {
 	OutTriangle = -1;
 	OutBaryCoord = float3(0.0f, 0.0f, 0.0f);
 	OutIsValid = false;
 
-	if (DIContext.UvMappingBufferLength < MinValidUvMappingBufferSize)
+	if (!Enabled || DIContext.UvMappingBufferLength < MinValidUvMappingBufferSize)
 	{
 		return;
 	}

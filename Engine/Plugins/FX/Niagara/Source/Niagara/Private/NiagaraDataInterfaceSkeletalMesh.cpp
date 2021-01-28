@@ -37,6 +37,7 @@ struct FNiagaraSkelMeshDIFunctionVersion
 		CleanupBoneSampling = 3,
 		AddTangentBasisToGetSkinnedVertexData = 4,
 		RemoveUvSetFromMapping = 5,
+		AddedEnabledUvMapping = 6,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -3214,12 +3215,12 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	// Uv Mapping
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in float2 InUV, in float InTolerance, out {MeshTriCoordinateStructName} OutCoord, out bool OutIsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleCoordAtUV(DIContext, InUV, InTolerance, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool InEnabled, in float2 InUV, in float InTolerance, out {MeshTriCoordinateStructName} OutCoord, out bool OutIsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleCoordAtUV(DIContext, InEnabled, InUV, InTolerance, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in float2 InUvMin, in float2 InUvMax, out {MeshTriCoordinateStructName} OutCoord, out bool OutIsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleCoordInAabb(DIContext, InUvMin, InUvMax, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool InEnabled, in float2 InUvMin, in float2 InUvMax, out {MeshTriCoordinateStructName} OutCoord, out bool OutIsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleCoordInAabb(DIContext, InEnabled, InUvMin, InUvMax, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3380,6 +3381,18 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 			ToleranceVariable.SetValue(KINDA_SMALL_NUMBER);
 
 			FunctionSignature.Inputs.Add(ToleranceVariable);
+			bWasChanged = true;
+		}
+	}
+
+	if (FunctionSignature.FunctionVersion < FNiagaraSkelMeshDIFunctionVersion::AddedEnabledUvMapping)
+	{
+		if ((FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName)
+			|| (FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName))
+		{
+			FNiagaraVariable EnabledVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled"));
+			EnabledVariable.SetValue(true);
+			FunctionSignature.Inputs.Insert(EnabledVariable, 1);
 			bWasChanged = true;
 		}
 	}
