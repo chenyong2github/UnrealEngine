@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include <Chaos/Real.h>
+
 // Use to define out code blocks that need to be adapted to use Particle Handles in a searchable way (better than #if 0)
 #define CHAOS_PARTICLEHANDLE_TODO 0
 
@@ -32,8 +34,12 @@ namespace Chaos
 	template <typename T, int d>
 	using TKinematicGeometryParticleHandle = TKinematicGeometryParticleHandleImp<T, d, true>;
 
+	using FKinematicGeometryParticleHandle = TKinematicGeometryParticleHandle<FReal, 3>;
+
 	template <typename T, int d>
 	using TTransientKinematicGeometryParticleHandle = TKinematicGeometryParticleHandleImp<T, d, false>;
+
+	using FTransientKinematicGeometryParticleHandle = TTransientKinematicGeometryParticleHandle<FReal, 3>;
 
 	// TPBDRigidParticle
 
@@ -47,8 +53,12 @@ namespace Chaos
 	using TPBDRigidParticleHandle = TPBDRigidParticleHandleImp<T, d, true>;
 	using TPBDRigidParticleHandleFloat3 = TPBDRigidParticleHandle<float, 3>;
 
+	using FPBDRigidParticleHandle = TPBDRigidParticleHandle<FReal, 3>;
+
 	template <typename T, int d>
 	using TTransientPBDRigidParticleHandle = TPBDRigidParticleHandleImp<T, d, false>;
+
+	using FTransientPBDRigidParticleHandle = TTransientPBDRigidParticleHandle<FReal, 3>;
 
 	// TPBDRigidClusteredParticleHandle
 
@@ -90,7 +100,8 @@ namespace Chaos
 	template <typename TSOA>
 	class TConstParticleIterator;
 
-	using FGeometryParticle = TGeometryParticle<float, 3>;
-	using FKinematicGeometryParticle = TKinematicGeometryParticle<float, 3>;
-	using FPBDRigidParticle = TPBDRigidParticle<float, 3>;
+	using FGeometryParticle = TGeometryParticle<FReal, 3>;
+	using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
+	using FKinematicGeometryParticle = TKinematicGeometryParticle<FReal, 3>;
+	using FPBDRigidParticle = TPBDRigidParticle<FReal, 3>;
 }

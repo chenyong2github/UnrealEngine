@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/Real.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/Rotation.h"
@@ -11,13 +12,6 @@
 namespace Chaos
 {
 	template<class T, int d> class TAABB;
-
-	/**
-	 * Common data types for the Chaos physics engine. Unless a specific
-	 * precision of type is required most code should use these existing types
-	 * (e.g. FVec3) to adapt to global changes in precision.
-	 */
-	using FReal = float;
 
 	using FVec2 = TVector<FReal, 2>;
 	using FVec3 = TVector<FReal, 3>;

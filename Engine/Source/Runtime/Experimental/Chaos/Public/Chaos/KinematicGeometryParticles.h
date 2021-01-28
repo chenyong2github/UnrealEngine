@@ -92,6 +92,11 @@ extern template class Chaos::TKinematicGeometryParticlesImp<float, 3, Chaos::EGe
 template <typename T, int d>
 using TKinematicGeometryParticles = TKinematicGeometryParticlesImp<T, d, EGeometryParticlesSimType::RigidBodySim>;
 
+using FKinematicGeometryParticles = TKinematicGeometryParticles<FReal, 3>;
+
 template <typename T, int d>
 using TKinematicGeometryClothParticles = TKinematicGeometryParticlesImp<T, d, EGeometryParticlesSimType::Other>;
+
+using FKinematicGeometryClothParticles = TKinematicGeometryClothParticles<FReal, 3>;
 }
+
