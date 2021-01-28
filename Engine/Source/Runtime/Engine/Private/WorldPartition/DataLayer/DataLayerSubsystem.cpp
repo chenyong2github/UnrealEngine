@@ -89,7 +89,7 @@ void UDataLayerSubsystem::ActivateDataLayer(const FActorDataLayer& InDataLayer, 
 
 void UDataLayerSubsystem::ActivateDataLayer(const UDataLayer* InDataLayer, bool bInActivate)
 {
-	if (!InDataLayer)
+	if (!InDataLayer || !InDataLayer->IsDynamicallyLoaded())
 	{
 		return;
 	}
