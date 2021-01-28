@@ -95,6 +95,11 @@ namespace ToolSetupUtil
 	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetSimpleCustomMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float Opacity);
 
 	/**
+	 * @return Simple material with configurable depth offset, color, and opacity.
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetCustomDepthOffsetMaterial(UInteractiveToolManager* ToolManager, const FLinearColor& Color, float DepthOffset, float Opacity);
+
+	/**
 	 * @return Material used when editing AVolume objects using our tools.
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultEditVolumeMaterial();

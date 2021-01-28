@@ -7,6 +7,7 @@
 
 #include "SegmentTypes.h"
 #include "DynamicMeshAttributeSet.h"
+#include "Mechanics/DragAlignmentMechanic.h"
 #include "MeshNormals.h"
 #include "MeshOpPreviewHelpers.h"
 #include "ToolSceneQueriesUtil.h"
@@ -34,7 +35,7 @@
 /*
  * ToolBuilder
  */
-UMeshSurfacePointTool* UMeshSpaceDeformerToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
+UInteractiveTool* UMeshSpaceDeformerToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UMeshSpaceDeformerTool* MeshSpaceDeformerTool = NewObject<UMeshSpaceDeformerTool>(SceneState.ToolManager);
 	
@@ -61,7 +62,7 @@ TUniquePtr<FDynamicMeshOperator> USpaceDeformerOperatorFactory::MakeNewOperator(
 
 	check(SpaceDeformerTool);
 
-	const ENonlinearOperationType OperationType = SpaceDeformerTool->SelectedOperationType;
+	const ENonlinearOperationType OperationType = SpaceDeformerTool->Settings->SelectedOperationType;
 	
 	// Create the actual operator type based on the requested operation
 	TUniquePtr<FMeshSpaceDeformerOp>  DeformerOp;
@@ -71,16 +72,24 @@ TUniquePtr<FDynamicMeshOperator> USpaceDeformerOperatorFactory::MakeNewOperator(
 		case ENonlinearOperationType::Bend: 
 		{
 			DeformerOp = MakeUnique<FBendMeshOp>();
+			static_cast<FBendMeshOp*>(DeformerOp.Get())->BendDegrees = SpaceDeformerTool->Settings->BendDegrees;
+			static_cast<FBendMeshOp*>(DeformerOp.Get())->bLockBottom = SpaceDeformerTool->Settings->bLockBottom;
 			break;
 		}
 		case ENonlinearOperationType::Flare:
 		{
 			DeformerOp = MakeUnique<FFlareMeshOp>();
+			static_cast<FFlareMeshOp*>(DeformerOp.Get())->FlarePercentY = SpaceDeformerTool->Settings->FlarePercentY;
+			static_cast<FFlareMeshOp*>(DeformerOp.Get())->FlarePercentX = SpaceDeformerTool->Settings->bLockXAndYFlaring ? 
+				SpaceDeformerTool->Settings->FlarePercentY : SpaceDeformerTool->Settings->FlarePercentX;
+			static_cast<FFlareMeshOp*>(DeformerOp.Get())->bSmoothEnds = SpaceDeformerTool->Settings->bSmoothEnds;
 			break;
 		}
 		case ENonlinearOperationType::Twist:
 		{
 			DeformerOp = MakeUnique<FTwistMeshOp>();
+			static_cast<FTwistMeshOp*>(DeformerOp.Get())->TwistDegrees = SpaceDeformerTool->Settings->TwistDegrees;
+			static_cast<FTwistMeshOp*>(DeformerOp.Get())->bLockBottom = SpaceDeformerTool->Settings->bLockBottom;
 			break;
 		}
 	default:
@@ -96,14 +105,20 @@ TUniquePtr<FDynamicMeshOperator> USpaceDeformerOperatorFactory::MakeNewOperator(
 }
 
 
+void UMeshSpaceDeformerToolActionPropertySet::PostAction(EMeshSpaceDeformerToolAction Action)
+{
+	if (ParentTool.IsValid())
+	{
+		ParentTool->RequestAction(Action);
+	}
+}
+
+
 /*
  * Tool
  */
 UMeshSpaceDeformerTool::UMeshSpaceDeformerTool()
 {
-	GizmoCenter = FVector::ZeroVector;
-	GizmoOrientation = FQuat::Identity;
-	GizmoFrame = FFrame3d(FVector3d(GizmoCenter), FQuaterniond(GizmoOrientation));
 }
 
 void UMeshSpaceDeformerTool::SetWorld(UWorld* World)
@@ -123,27 +138,17 @@ bool UMeshSpaceDeformerTool::CanAccept() const
 	return Super::CanAccept() && (Preview == nullptr || Preview->HaveValidResult());
 }
 
-void UMeshSpaceDeformerTool::ComputeAABB(const FDynamicMesh3& MeshIn, const FTransform& XFormIn, FVector& BBoxMin, FVector& BBoxMax) const 
-{
-	
-
-	BBoxMin = FVector(FLT_MAX, FLT_MAX, FLT_MAX);
-	BBoxMax = -BBoxMin;
-	
-	for (const auto VertID : MeshIn.VertexIndicesItr())
-	{
-		const FVector3d LocalPosition = MeshIn.GetVertex(VertID);
-		const FVector WorldPosition = XFormIn.TransformPosition(FVector(LocalPosition.X, LocalPosition.Y, LocalPosition.Z));
-		for (int i = 0; i < 3; ++i) BBoxMin[i] = FMath::Min(BBoxMin[i], WorldPosition[i]);
-		for (int i = 0; i < 3; ++i) BBoxMax[i] = FMath::Max(BBoxMax[i], WorldPosition[i]);
-	}
-
-}
-
 void UMeshSpaceDeformerTool::Setup()
 {
-	UMeshSurfacePointTool::Setup();
+	UInteractiveTool::Setup();
 
+	Settings = NewObject<UMeshSpaceDeformerToolProperties>(this);
+	Settings->RestoreProperties(this);
+	AddToolPropertySource(Settings);
+
+	ToolActions = NewObject<UMeshSpaceDeformerToolActionPropertySet>(this);
+	ToolActions->Initialize(this);
+	AddToolPropertySource(ToolActions);
 
 	// populate the OriginalDynamicMesh with a conversion of the input mesh.
 	{
@@ -152,28 +157,52 @@ void UMeshSpaceDeformerTool::Setup()
 		Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
 	}
 
-	// hide input StaticMeshComponent
+	FTransform MeshTransform = ComponentTarget->GetWorldTransform();
+
+	// Hide the mesh, and potentially put a semi-transparent copy in its place. We could
+	// update the materials and restore them later, but this seems safer.
 	ComponentTarget->SetOwnerVisibility(false);
 
+	OriginalMeshPreview = NewObject<UPreviewMesh>();
+	OriginalMeshPreview->CreateInWorld(TargetWorld, MeshTransform);
+	OriginalMeshPreview->UpdatePreview(OriginalDynamicMesh.Get());
+	OriginalMeshPreview->SetMaterial(0, ToolSetupUtil::GetCustomDepthOffsetMaterial(GetToolManager(), FLinearColor::White,
+		-0.5,  // depth offset, 0.5% inward
+		0.4)); // opacity
+	OriginalMeshPreview->SetVisible(Settings->bShowOriginalMesh);
 
+	// The gizmo gets initialized to the center point of the object-space bounding box,
+	// with the Z axis (along which the deformation acts) aligned to the longest of the
+	// bounding box dimensions, after scaling them with the transform.
+	FAxisAlignedBox3d BBox = OriginalDynamicMesh->GetBounds();
+	FVector3d Dimensions = BBox.Max - BBox.Min;
+	MeshCenter = MeshTransform.TransformPosition((FVector)BBox.Center());
 
-	//// add properties
+	Dimensions = FVector3d(MeshTransform.GetScale3D().GetAbs()) * Dimensions;
+	double WorldMajorLength = 0;
 
-	AddToolPropertySource(this);
+	// Prefer being aligned with the Z axis.
+	if (Dimensions.Z >= Dimensions.Y && Dimensions.Z >= Dimensions.X)
+	{
+		WorldMajorLength = Dimensions.Z;
+		GizmoFrame = FFrame3d(MeshCenter, FVector3d::UnitX(), FVector3d::UnitY(), FVector3d::UnitZ());
+	}
+	else if (Dimensions.Y >= Dimensions.X)
+	{
+		WorldMajorLength = Dimensions.Y;
+		GizmoFrame = FFrame3d(MeshCenter, FVector3d::UnitZ(), FVector3d::UnitX(), FVector3d::UnitY());
+	}
+	else
+	{
+		WorldMajorLength = Dimensions.X;
+		GizmoFrame = FFrame3d(MeshCenter, FVector3d::UnitY(), FVector3d::UnitZ(), FVector3d::UnitX());
+	}
 
+	GizmoFrame.Rotate((FQuaterniond)MeshTransform.GetRotation());
 
-	// compute the bounding box for the input mesh
-	// AABB for the source geometry
-	FVector AABBMin;
-	FVector AABBMax;
-	ComputeAABB(*OriginalDynamicMesh, ComponentTarget->GetWorldTransform(), AABBMin, AABBMax);
-	FVector Extents = AABBMax - AABBMin;
-
-
-	AABBHalfExtents = 0.5 * FVector3d(Extents.X, Extents.Y, Extents.Z);
-	GizmoCenter = 0.5 * (AABBMin + AABBMax);
-	GizmoFrame.Origin = GizmoCenter;
-
+	// The scaling of the modifier gizmo is somewhat arbitrary. We choose for it to be
+	// related to the major axis length.
+	ModifierGizmoLength = WorldMajorLength;
 
 	// add click to set plane behavior
 	SetPointInWorldConnector = MakePimpl<FSelectClickedAction>();
@@ -181,7 +210,7 @@ void UMeshSpaceDeformerTool::Setup()
 	SetPointInWorldConnector->InvisibleComponentsToHitTest.Add(ComponentTarget->GetOwnerComponent());
 	SetPointInWorldConnector->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
-		SetGizmoPlaneFromWorldPos(Hit.ImpactPoint, -Hit.ImpactNormal, false);
+		SetGizmoFrameFromWorldPos(Hit.ImpactPoint, Hit.ImpactNormal, Settings->bAlignToNormalOnCtrlClick);
 	};
 
 	USingleClickInputBehavior* ClickToSetPlaneBehavior = NewObject<USingleClickInputBehavior>();
@@ -193,71 +222,49 @@ void UMeshSpaceDeformerTool::Setup()
 	// Create a new TransformGizmo and associated TransformProxy. The TransformProxy will not be the
 	// parent of any Components in this case, we just use it's transform and change delegate.
 	TransformProxy = NewObject<UTransformProxy>(this);
-	TransformProxy->SetTransform(FTransform(GizmoOrientation, GizmoCenter));
+	TransformProxy->SetTransform(GizmoFrame.ToFTransform());
 	TransformGizmo = GetToolManager()->GetPairedGizmoManager()->CreateCustomTransformGizmo(
 		ETransformGizmoSubElements::StandardTranslateRotate, this);
+	TransformGizmo->bSnapToWorldGrid = Settings->bSnapToWorldGrid;
 
 	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
+
 	// listen for changes to the proxy and update the preview when that happens
 	TransformProxy->OnTransformChanged.AddUObject(this, &UMeshSpaceDeformerTool::TransformProxyChanged);
 
-	// wire these to the input 
-
-	// The initial range for the intervals.
-	const float InitialVerticalIntervalSize = AABBHalfExtents.Length();
-
 	// create sources for the interval parameters
-
 	UpIntervalSource      = NewObject< UGizmoLocalFloatParameterSource >(this);
 	DownIntervalSource    = NewObject< UGizmoLocalFloatParameterSource >(this);
 	ForwardIntervalSource = NewObject< UGizmoLocalFloatParameterSource >(this);
 
-	// Initial Lengths for the interval handles
-
-	UpIntervalSource->Value      = InitialVerticalIntervalSize;
-	DownIntervalSource->Value    = -InitialVerticalIntervalSize;
-	ForwardIntervalSource->Value = 20.f;
+	// Initial Lengths for the interval handle
+	UpIntervalSource->Value      = WorldMajorLength/2;
+	DownIntervalSource->Value    = -WorldMajorLength / 2;
+	ForwardIntervalSource->Value = GetModifierGizmoValue();
 
 	// Sync the properties panel to the interval handles.
-
-	this->UpperBoundsInterval = UpIntervalSource->Value;
-	this->LowerBoundsInterval = DownIntervalSource->Value;
-	this->ModifierPercent     = ForwardIntervalSource->Value;
+	Settings->UpperBoundsInterval = UpIntervalSource->Value;
+	Settings->AbsLowerBoundsInterval = FMath::Abs(DownIntervalSource->Value);
 
 	// Wire up callbacks to update result mesh and the properties panel when these parameters are changed (by gizmo manipulation in viewport).  Note this is just a one-way
 	// coupling (Sources to Properties). The OnPropertyModified() method provides the Properties to Souces coupling 
-
 	UpIntervalSource->OnParameterChanged.AddLambda([this](IGizmoFloatParameterSource* ParamSource, FGizmoFloatParameterChange Change)->void
 	{
-		this->UpperBoundsInterval = Change.CurrentValue;
-
-		if (this->Preview != nullptr)
-		{
-			this->Preview->InvalidateResult();
-		}
+		Settings->UpperBoundsInterval = Change.CurrentValue;
+		UpdatePreview();
 	});
 
 	DownIntervalSource->OnParameterChanged.AddLambda([this](IGizmoFloatParameterSource* ParamSource, FGizmoFloatParameterChange Change)->void
 	{
-		this->LowerBoundsInterval = Change.CurrentValue;
-
-		if (this->Preview != nullptr)
-		{
-			this->Preview->InvalidateResult();
-		}
+		Settings->AbsLowerBoundsInterval = FMath::Abs(Change.CurrentValue);
+		UpdatePreview();
 	});
 
 	ForwardIntervalSource->OnParameterChanged.AddLambda([this](IGizmoFloatParameterSource* ParamSource, FGizmoFloatParameterChange Change)->void
 	{
-		this->ModifierPercent = Change.CurrentValue;
-
-		if (this->Preview != nullptr)
-		{
-			this->Preview->InvalidateResult();
-		}
+		ApplyModifierGizmoValue(Change.CurrentValue);
+		UpdatePreview();
 	});
-
-
 
 	// add the interval gizmo
 	IntervalGizmo = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UIntervalGizmo>(UIntervalGizmo::GizmoName, TEXT("MeshSpaceDefomerInterval"), this);
@@ -267,6 +274,13 @@ void UMeshSpaceDeformerTool::Setup()
 
 	// use the statetarget to track details changes
 	StateTarget = IntervalGizmo->StateTarget;
+
+	// Set up the bent line visualizer
+	VisualizationRenderer.bDepthTested = false;
+	VisualizationRenderer.LineColor = FLinearColor::Yellow;
+	VisualizationRenderer.LineThickness = 4.0;
+	VisualizationRenderer.SetTransform(GizmoFrame.ToFTransform());
+
 	// Set up the preview object
 	{
 		// create the operator factory
@@ -282,11 +296,9 @@ void UMeshSpaceDeformerTool::Setup()
 
 		// Give the preview something to display
 		Preview->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
-		Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+		Preview->PreviewMesh->SetTransform(MeshTransform);
 
-		FComponentMaterialSet MaterialSet;
-		ComponentTarget->GetMaterialSet(MaterialSet);
-		Preview->ConfigureMaterials(MaterialSet.Materials,
+		Preview->ConfigureMaterials(StoredMaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
 
@@ -294,9 +306,18 @@ void UMeshSpaceDeformerTool::Setup()
 		Preview->SetVisibility(true);
 
 		// start the compute
-		Preview->InvalidateResult();
+		UpdatePreview();
 	}
 
+	DragAlignmentMechanic = NewObject<UDragAlignmentMechanic>(this);
+	DragAlignmentMechanic->Setup(this);
+
+	// We want to align to the original mesh, even though it is hidden (our stand-in preview mesh that
+	// we use to display a transparent version does not get hit tested by our normal raycasts into
+	// the world).
+	TArray<const UPrimitiveComponent*> ComponentsToInclude{ ComponentTarget->GetOwnerComponent() } ;
+	DragAlignmentMechanic->AddToGizmo(TransformGizmo, nullptr, &ComponentsToInclude);
+	DragAlignmentMechanic->AddToGizmo(IntervalGizmo, nullptr, &ComponentsToInclude);
 
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("MeshSpaceDeformerToolDescription", "Deform the vertices of the selected Mesh using various spatial deformations. Use the in-viewport Gizmo to control the extents/strength of the deformation."),
@@ -305,9 +326,13 @@ void UMeshSpaceDeformerTool::Setup()
 
 void UMeshSpaceDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	
-	// Restore (unhide) the source meshes
+	Settings->SaveProperties(this);
+
+	// Restore source mesh and remove our stand-in
 	ComponentTarget->SetOwnerVisibility(true);
+	OriginalMeshPreview->SetVisible(false);
+	OriginalMeshPreview->Disconnect();
+	OriginalMeshPreview = nullptr;
 
 	if (Preview != nullptr)
 	{
@@ -331,97 +356,32 @@ void UMeshSpaceDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 		}
 	}
 
+	DragAlignmentMechanic->Shutdown();
+
 	UInteractiveGizmoManager* GizmoManager = GetToolManager()->GetPairedGizmoManager();
 	GizmoManager->DestroyAllGizmosByOwner(this);
-
 }
 
 
 
 void  UMeshSpaceDeformerTool::TransformProxyChanged(UTransformProxy* Proxy, FTransform Transform)
 {
-	GizmoOrientation = Transform.GetRotation();
-	GizmoCenter = Transform.GetLocation();
-	GizmoFrame = FFrame3d( FVector3d(GizmoCenter), FQuaterniond(GizmoOrientation) );
-
-	if (Preview != nullptr)
-	{
-		Preview->InvalidateResult();
-	}
+	GizmoFrame = FFrame3d(Transform.GetLocation(), Transform.GetRotation());
+	VisualizationRenderer.SetTransform(GizmoFrame.ToFTransform());
+	UpdatePreview();
 }
-
-
-
-#if WITH_EDITOR
-void UMeshSpaceDeformerTool::PostEditChangeProperty(FPropertyChangedEvent & PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.ChangeType & EPropertyChangeType::Interactive)
-	{
-		if (!bHasBegin)
-		{
-			StateTarget->BeginUpdate();
-			bHasBegin = true;
-		}
-
-		// Propagates change to the ParameterSource by triggering UMeshSpaceDeformerTool::OnPropertyModified
-		OnPropertyModified(this, PropertyChangedEvent.Property);
-	}
-
-	if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ValueSet)
-	{
-		if (!bHasBegin)
-		{
-			StateTarget->BeginUpdate();
-		}
-
-		// Propagates change to the ParameterSource by triggering UMeshSpaceDeformerTool::OnPropertyModified
-		OnPropertyModified(this, PropertyChangedEvent.Property);
-
-		StateTarget->EndUpdate();
-		// reset the bHasBegin
-		bHasBegin = false;
-	}
-		
-}
-
-
-#endif
 
 void  UMeshSpaceDeformerTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	// Update the property sources to reflect any changes.
-	// NB: due to callback, the SetParameter will trigger a recompute of the result via  Preview->InvalidateResult();
+	UpIntervalSource->Value = Settings->UpperBoundsInterval;
+	DownIntervalSource->Value = -Settings->AbsLowerBoundsInterval;
+	ForwardIntervalSource->Value = GetModifierGizmoValue();
 
-	if (PropertySet == this)
-	{
-		if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMeshSpaceDeformerTool, UpperBoundsInterval)))
-		{
-			UpIntervalSource->BeginModify();
-			UpIntervalSource->SetParameter(this->UpperBoundsInterval);
-			UpIntervalSource->EndModify();
-		}
-		if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMeshSpaceDeformerTool, LowerBoundsInterval)))
-		{
-			DownIntervalSource->BeginModify();
-			DownIntervalSource->SetParameter(this->LowerBoundsInterval);
-			DownIntervalSource->EndModify();
-		}
-		if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMeshSpaceDeformerTool, ModifierPercent)))
-		{
-			ForwardIntervalSource->BeginModify();
-			ForwardIntervalSource->SetParameter(this->ModifierPercent);
-			ForwardIntervalSource->EndModify();
-		}
+	UpdatePreview();
 
+	TransformGizmo->bSnapToWorldGrid = Settings->bSnapToWorldGrid;
 
-		if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMeshSpaceDeformerTool, SelectedOperationType)))
-		{
-			if (Preview != nullptr)
-			{
-				Preview->InvalidateResult();
-			}
-		}
-	}
+	OriginalMeshPreview->SetVisible(Settings->bShowOriginalMesh);
 }
 
 void UMeshSpaceDeformerTool::UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceDeformerOp) const
@@ -430,23 +390,34 @@ void UMeshSpaceDeformerTool::UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceD
 	MeshSpaceDeformerOp.SetTransform(ComponentTarget->GetWorldTransform());
 	MeshSpaceDeformerOp.GizmoFrame = GizmoFrame;
 
-	// Set half axis length to be 1/2 the major axis of the bbox.
-	double LengthScale = FMath::Max( AABBHalfExtents.MaxAbsElement(), 1.e-3);
-	MeshSpaceDeformerOp.AxesHalfLength = LengthScale;
-
 	// set the bound range
-	MeshSpaceDeformerOp.UpperBoundsInterval =  UpperBoundsInterval / LengthScale;
-	MeshSpaceDeformerOp.LowerBoundsInterval = -LowerBoundsInterval / LengthScale;
+	MeshSpaceDeformerOp.UpperBoundsInterval =  Settings->UpperBoundsInterval;
+	MeshSpaceDeformerOp.LowerBoundsInterval = -Settings->AbsLowerBoundsInterval;
+}
 
-	// percent to apply.
-	MeshSpaceDeformerOp.ModifierPercent = ModifierPercent;
+void UMeshSpaceDeformerTool::RequestAction(EMeshSpaceDeformerToolAction ActionType)
+{
+	if (PendingAction == EMeshSpaceDeformerToolAction::NoAction)
+	{
+		PendingAction = ActionType;
+	}
+}
+
+void UMeshSpaceDeformerTool::ApplyAction(EMeshSpaceDeformerToolAction ActionType)
+{
+	if (PendingAction == EMeshSpaceDeformerToolAction::ShiftToCenter)
+	{
+		SetGizmoFrameFromWorldPos((FVector)MeshCenter);
+	}
 }
 
 void UMeshSpaceDeformerTool::OnTick(float DeltaTime)
 {
-	if (TransformGizmo != nullptr)
+	// Deal with clicked button
+	if (PendingAction != EMeshSpaceDeformerToolAction::NoAction)
 	{
-		TransformGizmo->bSnapToWorldGrid = this->bSnapToWorldGrid;
+		ApplyAction(PendingAction);
+		PendingAction = EMeshSpaceDeformerToolAction::NoAction;
 	}
 
 	if (Preview != nullptr)
@@ -455,29 +426,119 @@ void UMeshSpaceDeformerTool::OnTick(float DeltaTime)
 	}
 }
 
-
-
-void UMeshSpaceDeformerTool::SetGizmoPlaneFromWorldPos(const FVector& Position, const FVector& Normal, bool bIsInitializing)
+void UMeshSpaceDeformerTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	GizmoCenter = Position;
+	DragAlignmentMechanic->Render(RenderAPI);
 
-	FFrame3f GizmoPlane(Position, Normal);
-	GizmoOrientation = (FQuat)GizmoPlane.Rotation;
-	GizmoFrame = FFrame3d(FVector3d(GizmoCenter), FQuaterniond(GizmoOrientation));
-
-	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
-	if (bIsInitializing)
+	if (Settings->bDrawVisualization && Settings->SelectedOperationType == ENonlinearOperationType::Bend)
 	{
-		TransformGizmo->ReinitializeGizmoTransform(GizmoPlane.ToFTransform());
+		VisualizationRenderer.BeginFrame(RenderAPI, RenderAPI->GetCameraState());
+		for (int32 i = 1; i < VisualizationPoints.Num(); ++i)
+		{
+			VisualizationRenderer.DrawLine(VisualizationPoints[i - 1], VisualizationPoints[i]);
+		}
+		VisualizationRenderer.EndFrame();
 	}
 	else
 	{
-		TransformGizmo->SetNewGizmoTransform(GizmoPlane.ToFTransform());
+	}
+}
+
+void UMeshSpaceDeformerTool::UpdatePreview()
+{
+	if (Settings->SelectedOperationType == ENonlinearOperationType::Bend)
+	{
+		const int32 NUM_RENDER_POINTS = 30;
+
+		VisualizationPoints.SetNumUninitialized(NUM_RENDER_POINTS);
+
+		double BentLength = Settings->UpperBoundsInterval + Settings->AbsLowerBoundsInterval;
+		double ArcAngle = Settings->BendDegrees * PI / 180;
+		double ArcRadius = BentLength / ArcAngle;
+
+		double RotationCenterZ = Settings->bLockBottom ? -Settings->AbsLowerBoundsInterval : 0;
+		FVector2d RotationCenterYZ(ArcRadius, RotationCenterZ);
+
+		double PointSpacing = BentLength / (NUM_RENDER_POINTS - 1);
+
+		for (int32 i = 0; i < NUM_RENDER_POINTS; ++i)
+		{
+			double OriginalZ = -Settings->AbsLowerBoundsInterval + PointSpacing * i;
+			FVector2d YZToRotate(0, RotationCenterZ);
+
+			// The negative here is because we are rotating clockwise in the direction of the positive Y axis
+			double AngleToRotate = -ArcAngle * (OriginalZ - RotationCenterZ) / BentLength;
+
+			FMatrix2d RotationMatrix = FMatrix2d::RotationRad(AngleToRotate);
+			FVector2d RotatedYZ = RotationMatrix * (YZToRotate - RotationCenterYZ) + RotationCenterYZ;
+
+			VisualizationPoints[i] = FVector3d(0, RotatedYZ.X, RotatedYZ.Y);
+		}
 	}
 
-	if (Preview != nullptr)
+	if (Preview)
 	{
 		Preview->InvalidateResult();
+	}
+}
+
+
+void UMeshSpaceDeformerTool::SetGizmoFrameFromWorldPos(const FVector& Position, const FVector& Normal, bool bAlignNormal)
+{
+	GizmoFrame.Origin = Position;
+	if (bAlignNormal)
+	{
+		// It's not clear whether aligning the Z axis to the normal is the right idea here. The Z axis
+		// is the main axis on which we operate. On the one hand, setting it to the normal gives the user
+		// greater control over its alignment. On the other hand, it seems likely that when clicking the object,
+		// the user would want the axis to lie along the object on the side they clicked, not pierce inwards.
+		// Still, it's hard to come up with a clean alternative.
+		FVector3d FrameZ(Normal);
+		FVector3d FrameY = FrameZ.Cross(FVector3d::UnitZ()).Normalized(); // orthogonal to world Z and frame Z 
+		FVector3d FrameX = FrameY.Cross(Normal); // safe to not normalize because already orthogonal
+		GizmoFrame = FFrame3d(Position, FrameX, FrameY, Normal);
+	}
+
+	TransformGizmo->ReinitializeGizmoTransform(GizmoFrame.ToFTransform());
+	UpdatePreview();
+}
+
+/** 
+ * These two functions translate to and from the modifier gizmo length
+ * to the relevant operator parameters. They should be matched to each
+ * other.
+ */
+double UMeshSpaceDeformerTool::GetModifierGizmoValue() const
+{
+	switch (Settings->SelectedOperationType)
+	{
+	case ENonlinearOperationType::Bend:
+		return Settings->BendDegrees * ModifierGizmoLength / 180;
+	case ENonlinearOperationType::Flare:
+		return Settings->FlarePercentY * ModifierGizmoLength / 100;
+	case ENonlinearOperationType::Twist:
+		return Settings->TwistDegrees * ModifierGizmoLength / 360;
+	}
+
+	// Shouldn't get here
+	check(false);
+	return 0;
+}
+void UMeshSpaceDeformerTool::ApplyModifierGizmoValue(double Value)
+{
+	switch (Settings->SelectedOperationType)
+	{
+	case ENonlinearOperationType::Bend:
+		Settings->BendDegrees = 180 * Value / ModifierGizmoLength;
+		break;
+	case ENonlinearOperationType::Flare:
+		Settings->FlarePercentY = 100 * Value / ModifierGizmoLength;
+		break;
+	case ENonlinearOperationType::Twist:
+		Settings->TwistDegrees = 360 * Value/ ModifierGizmoLength;
+		break;
+	default:
+		check(false);
 	}
 }
 

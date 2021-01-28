@@ -11,10 +11,14 @@
 #include "SpaceDeformerOps/TwistMeshOp.h"
 #include "SpaceDeformerOps/FlareMeshOp.h"
 #include "SimpleDynamicMeshComponent.h"
+#include "ToolDataVisualizer.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 
 #include "MeshSpaceDeformerTool.generated.h"
 
+class UMeshSpaceDeformerTool;
+
+class UDragAlignmentMechanic;
 class UPreviewMesh;
 class UTransformGizmo;
 class UTransformProxy;
@@ -28,7 +32,7 @@ class FSelectClickedAction;
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMeshSpaceDeformerToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLS_API UMeshSpaceDeformerToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
@@ -38,22 +42,139 @@ public:
 	}
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-
-	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 /** ENonlinearOperation determines which type of nonlinear deformation will be applied*/
 UENUM()
 enum class  ENonlinearOperationType : int8
 {
-	Bend		UMETA(DisplayName = "Bend"),
-	Flare		UMETA(DisplayName = "Flare"),
-	Twist		UMETA(DisplayName = "Twist"),
-	//Sinusoid	UMETA(DisplayName = "Sinusoid"),
-	//Wave		UMETA(DisplayName = "Wave"),
-	//Squish	UMETA(DisplayName = "Squish")
+	/** 
+	 * Will bend the mesh in the direction of the gizmo Y axis along the Z axis. A line along the Z
+	 * axis from the lower bound to the upper bound would not change length as it bends.
+	 */
+	Bend,
+
+	/**
+	 * Depening on 'Flare Percent", will either flare or squish the mesh along the Gizmo Z axis,
+	 * from lower bound to upper bound.
+	 */
+	Flare		UMETA(DisplayName = "Flare/Squish"),
+
+	/** Twists the mesh along the gizmo Z axis, from lower bound to upper bound. */
+	Twist
 };
 
+UCLASS()
+class MESHMODELINGTOOLS_API UMeshSpaceDeformerToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Operation Type"))
+	ENonlinearOperationType SelectedOperationType = ENonlinearOperationType::Bend;
+
+	/** The upper bound to the region of space which the operation will affect. Measured upward along the gizmo Z axis from the gizmo center. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Up Extent", UIMin = "0.0", ClampMin = "0.0"))
+	float UpperBoundsInterval = 10.0;
+
+	//~ Note that the value here is the negative of what we use elsewhere, because otherwise the user has to reverse
+	//~ their scrubbing direction compared to UpperBoundsInterval for increasing/decreasing the interval.
+	/** The lower bound to the region of space which the operation will affect. Measured downward along the gizmo Z axis from the gizmo center. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Down Extent", UIMin = "0", ClampMin = "0"))
+	float AbsLowerBoundsInterval = 10.0;
+
+	//~ The two degrees properties (bend vs twist) are separate because they have different clamp values. 
+	//~ Bending a "negative" amount probably won't do what the user wants, whereas twisting in the opposite
+	//~ direction makes sense.
+	/** 
+	 * A line along the Z axis of the gizmo from lower bound to upper bound will be bent into a perfect arc of this
+	 * many degrees in the direction of the Y axis without changing length.
+	 */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "360", ClampMin = "0", ClampMax = "3600", 
+		EditCondition = "SelectedOperationType == ENonlinearOperationType::Bend", EditConditionHides))
+	float BendDegrees = 90;
+
+	/** Degrees of twist to from the lower bound to the upper bound along the gizmo Z axis. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-360", UIMax = "360", ClampMin = "-3600", ClampMax = "3600", 
+		EditCondition = "SelectedOperationType == ENonlinearOperationType::Twist", EditConditionHides))
+	float TwistDegrees = 180;
+
+	/**
+	 * Determines how much to flare perpendicular to the Z axis. When set to 100%, points are moved double the distance
+	 * away from the gizmo Z axis at the most extreme flare point. 0% does not flare at all, whereas -100% pinches all
+	 * the way to the gizmo Z axis at the most extreme flare point.
+	 */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-100", UIMax = "200", ClampMin = "-1000", ClampMax = "2000", 
+		EditCondition = "SelectedOperationType == ENonlinearOperationType::Flare", EditConditionHides))
+	float FlarePercentY = 100;
+
+	/**
+	 * If true, flaring is applied along the gizmo X and Y axis the same amount.
+	 */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "SelectedOperationType == ENonlinearOperationType::Flare", EditConditionHides))
+	bool bLockXAndYFlaring = true;
+
+	/**
+	 * Determines how much to flare perpendicular to the Z axis in the X direction if the flaring is not locked
+	 * to be the same in the X and Y directions.
+	 */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-100", UIMax = "200", ClampMin = "-1000", ClampMax = "2000",
+	EditCondition = "SelectedOperationType == ENonlinearOperationType::Flare && !bLockXAndYFlaring", EditConditionHides))
+	float FlarePercentX = 100;
+
+	/**
+	 * If true, the "bottom" of the mesh relative to the gizmo Z axis will stay in place while the rest bends or twists. If false, the bend
+	 * or twist will happen around the gizmo location.
+	 */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (
+		EditCondition = "SelectedOperationType == ENonlinearOperationType::Bend || SelectedOperationType == ENonlinearOperationType::Twist", EditConditionHides))
+	bool bLockBottom = true;
+
+	/**
+	 * When true, changes the flare/pinch function to have C1 continuity at the upper and lower bounds.
+	 */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "SelectedOperationType == ENonlinearOperationType::Flare", EditConditionHides))
+	bool bSmoothEnds = true;
+
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bShowOriginalMesh = true;
+
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "SelectedOperationType == ENonlinearOperationType::Bend", EditConditionHides))
+	bool bDrawVisualization = true;
+
+	/** Snap the deformer gizmo to the world grid */
+	UPROPERTY(EditAnywhere, Category = Gizmo)
+	bool bSnapToWorldGrid = false;
+
+	/** When true, Ctrl+click not only moves the gizmo to the clicked location, but also aligns the Z axis with the normal at that point. */
+	UPROPERTY(EditAnywhere, Category = Gizmo)
+	bool bAlignToNormalOnCtrlClick = false;
+};
+
+UENUM()
+enum class EMeshSpaceDeformerToolAction
+{
+	NoAction,
+
+	ShiftToCenter
+};
+
+UCLASS()
+class MESHMODELINGTOOLS_API UMeshSpaceDeformerToolActionPropertySet : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	TWeakObjectPtr<UMeshSpaceDeformerTool> ParentTool;
+
+	void Initialize(UMeshSpaceDeformerTool* ParentToolIn) { ParentTool = ParentToolIn; }
+	void PostAction(EMeshSpaceDeformerToolAction Action);
+
+	/** Move the gizmo to the center of the object without changing the orientation. */
+	UFUNCTION(CallInEditor, Category = Gizmo)
+	void ShiftToCenter() { PostAction(EMeshSpaceDeformerToolAction::ShiftToCenter); }
+};
 
 
 UCLASS()
@@ -74,13 +195,12 @@ public:
  * Applies non-linear deformations to a mesh 
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMeshSpaceDeformerTool : public UMeshSurfacePointTool
+class MESHMODELINGTOOLS_API UMeshSpaceDeformerTool : public USingleSelectionTool
 {
 	GENERATED_BODY()
 
 public:
 	UMeshSpaceDeformerTool();
-
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -88,85 +208,51 @@ public:
 	virtual void SetWorld(UWorld* World);
 	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
 
+	void RequestAction(EMeshSpaceDeformerToolAction ActionType);
 
 	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override {};
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
-
-
-	// disable UMeshSurfacePointTool hits as tool is not using that interaction (subclass should be changed)
-	virtual bool HitTest(const FRay& Ray, FHitResult& OutHit) override { return false; }
-
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// sync the parameters owned by the MeshSpaceDeformerOp 
 	void UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceDeformerOp) const;
 
-public:
-
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Operation Type"))
-	ENonlinearOperationType SelectedOperationType = ENonlinearOperationType::Bend;
-
-	/** The upper bounds interval corresponds to the region of space which the selected operator will affect. A setting of 1.0 should envelope all points in the "upper" half of the mesh given the axis has been auto-detected. The corresponding lower value of -1 will cover the entire mesh. */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Upper Bound", UIMin = "0.0", ClampMin = "0.0"))
-	float UpperBoundsInterval = 10.0;
-
-	/** The upper bounds interval corresponds to the region of space which the selected operator will affect. A setting of -1.0 should envelope all points in the "lower" half of the mesh given the axis has been auto-detected. The corresponding upper value of 1 will cover the entire mesh. */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Lower Bound", UIMax = "0", ClampMax = "0"))
-	float LowerBoundsInterval = -10.0;
-
-	/** As each operator has a range of values (i.e. curvature, angle of twist, scale), this represents the percentage passed to the operator as a parameter. In the future, for more control, this should be separated into individual settings for each operator for more precise control */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Modifier Percent"))
-	float ModifierPercent = 20.0;
-
-	/** Snap the deformer gizmo to the world grid */
-	UPROPERTY(EditAnywhere, Category = Snapping)
-	bool bSnapToWorldGrid = false;
-
-
-	//UPROPERTY()
-	//UMeshSpaceDeformerToolStandardProperties* SpaceDeformerProperties;
-
 protected:
+
+	UPROPERTY()
+	UMeshSpaceDeformerToolProperties* Settings;
+
+	UPROPERTY()
+	UMeshSpaceDeformerToolActionPropertySet* ToolActions;
 
 	UPROPERTY()
 	UGizmoTransformChangeStateTarget* StateTarget = nullptr;
 	
-	// used to coordinate undo for the detail panel. 
+	UPROPERTY()
+	UDragAlignmentMechanic* DragAlignmentMechanic;
 
-	bool bHasBegin = false;
 protected:
 
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;   
 
-
 protected:	
 
 	TSharedPtr<FDynamicMesh3> OriginalDynamicMesh;
 
+	UPROPERTY()
+	UPreviewMesh* OriginalMeshPreview;
+
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 
-
-	// drawing plane control
-
-	/** offset to center of gizmo*/
-	UPROPERTY()
-	FVector GizmoCenter;
-
-	/** Gizmo Plane Orientation */
-	UPROPERTY()
-	FQuat GizmoOrientation;
-
+	// Stores the materials of the original object, used to make the object semi-transparent.
+	FComponentMaterialSet StoredMaterialSet;
 
 	UPROPERTY()
 	UIntervalGizmo* IntervalGizmo;
@@ -188,18 +274,32 @@ protected:
 	UPROPERTY()
 	UGizmoLocalFloatParameterSource* ForwardIntervalSource;
 
+	// Button click support
+	EMeshSpaceDeformerToolAction PendingAction;
+	FVector3d MeshCenter;
+
 	FFrame3d GizmoFrame;
+
+	// The length of the third interval gizmo (which sets the intensity of the deformation)
+	// when the modifier is set to some reasonable maximum.
+	double ModifierGizmoLength;
 
 	TPimplPtr<FSelectClickedAction> SetPointInWorldConnector;
 
-	FVector3d AABBHalfExtents; // 1/2 the extents of the bbox
+	TArray<FVector3d> VisualizationPoints;
+	FToolDataVisualizer VisualizationRenderer;
 
 	void TransformProxyChanged(UTransformProxy* Proxy, FTransform Transform);
-	void SetGizmoPlaneFromWorldPos(const FVector& Position, const FVector& Normal, bool bIsInitializing);
+	void SetGizmoFrameFromWorldPos(const FVector& Position, const FVector& Normal = FVector(), bool bAlignNormal = false);
+	
+	double GetModifierGizmoValue() const;
+	void ApplyModifierGizmoValue(double Value);
 
-	/** Compute the axis aligned abounding box for the source mesh */
-	void ComputeAABB(const FDynamicMesh3& MeshIn, const FTransform& XFormIn, FVector& BBoxMin, FVector& BBoxMax) const;
-	
-	
+	// Apply clicked action
+	void ApplyAction(EMeshSpaceDeformerToolAction Action);
+
+	void UpdatePreview();
+
+	friend USpaceDeformerOperatorFactory;
 };
 

@@ -10,11 +10,19 @@
 class MODELINGOPERATORS_API FFlareMeshOp : public FMeshSpaceDeformerOp
 {
 public:
-	virtual ~FFlareMeshOp() {}
-	FFlareMeshOp() : FMeshSpaceDeformerOp(-2.0, 2.0) {};
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 
+	/** 0% does nothing, 100% moves 2x away from Z axis at extremal point, -100% squishes down to Z axis at extremal point. */
+	double FlarePercentX = 100;
+	double FlarePercentY = 100;
 
+	/** 
+	 * Changes the type of flaring. When false, the flaring is the curve of sin(y) from 0 to Pi,
+	 * which makes the ends of the flaring sharp because the derivative is not 0. When true, the 
+	 * flaring is the curve of cos(y) + 1 from -Pi to Pi, which makes the ends smooth out back
+	 * into the shape.
+	 */
+	bool bSmoothEnds = false;
 protected:
 
 };

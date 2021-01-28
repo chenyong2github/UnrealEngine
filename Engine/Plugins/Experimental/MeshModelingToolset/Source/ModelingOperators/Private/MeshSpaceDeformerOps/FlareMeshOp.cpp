@@ -54,8 +54,8 @@ void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 
 	FMatrix GizmoToObject = ObjectToGizmo.Inverse();
 
-	const double ZMin = -LowerBoundsInterval * AxesHalfLength;
-	const double ZMax =  UpperBoundsInterval * AxesHalfLength;
+	const double ZMin = LowerBoundsInterval;
+	const double ZMax =  UpperBoundsInterval;
 
 	if (ResultMesh->HasAttributes())
 	{
@@ -105,20 +105,38 @@ void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 
 			const double T = FMath::Clamp((GizmoPos4[2] - ZMin) / (ZMax - ZMin), 0.0, 1.0);
 
-			const double R = 1. + FMath::Sin(PI * T) * (ModifierPercent / 100.f);
+			double Rx = bSmoothEnds ? 1. + (FMath::Cos(2 * PI * T - PI) + 1) * (FlarePercentX / 200.f) // Shift cos curve up 1, right PI, scale down by 2, go from 0 to 2PI
+				: 1. + FMath::Sin(PI * T) * (FlarePercentX / 100.f);
+			double Ry = bSmoothEnds ? 1. + (FMath::Cos(2 * PI * T - PI) + 1) * (FlarePercentY / 200.f) // Shift cos curve up 1, right PI, scale down by 2, go from 0 to 2PI
+				: 1. + FMath::Sin(PI * T) * (FlarePercentY / 100.f);
 			
 			// transform normal.  Do this before changing GizmoPos
-
+			// To get the normal, note that the positions are transformed like this:
+			// X = Rx * x
+			// Y = Ry * y
+			// Z = z
+			// The jacobian is:
+			// Rx  0  x*DRx
+			// 0  Ry  y*DRy
+			// 0   0   1
+			// Where DRx is dRx/dz and DRy is dRy/dz
+			// Then take the transpose of the inverse of the Jacobian and multiply by the determinant (or don't, since we don't
+			// care about the length, but it's cleaner if you do).
 			{
+				double DRx = bSmoothEnds ? -FMath::Sin(2 * PI * T - PI) * (2 * PI / (ZMax - ZMin)) * (FlarePercentX / 200.f)
+					: FMath::Cos(PI * T) * (PI / (ZMax - ZMin)) * (FlarePercentX / 100.f);
+				double DRy = bSmoothEnds ? -FMath::Sin(2 * PI * T - PI) * (2 * PI / (ZMax - ZMin)) * (FlarePercentY / 200.f)
+					: FMath::Cos(PI * T) * (PI / (ZMax - ZMin)) *  (FlarePercentY / 100.f);
 
-				double DR = FMath::Cos(PI * T) * (PI / (ZMax - ZMin)) *  (ModifierPercent / 100.f);
-				if (GizmoPos4[2] > ZMax || GizmoPos4[2] < ZMin)  DR = 0.f;
+				if (GizmoPos4[2] > ZMax || GizmoPos4[2] < ZMin)
+				{
+					DRx = DRy = 0.f;
+				}
 			
-
 				FVector3d DstNormal(0., 0., 0.);
-				DstNormal[0] = R * RotatedNormal[0];
-				DstNormal[1] = R * RotatedNormal[1];
-				DstNormal[2] = -R * DR * (RotatedNormal[0] * GizmoPos4[0] + RotatedNormal[1] * GizmoPos4[1]) + R * R * RotatedNormal[2];
+				DstNormal[0] = Ry * RotatedNormal[0];
+				DstNormal[1] = Rx * RotatedNormal[1];
+				DstNormal[2] = -Ry * DRx * GizmoPos4[0] * RotatedNormal[0] - Rx * DRy * GizmoPos4[1] * RotatedNormal[1] + Rx * Ry * RotatedNormal[2];
 
 				// rotate back to mesh space.
 				RotatedNormal = FVector3d(0, 0, 0);
@@ -132,9 +150,7 @@ void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 
 			}
 
-			FVector3f RotatedNoramlF;
-			RotatedNoramlF[0] = RotatedNormal[0]; RotatedNoramlF[1] = RotatedNormal[1]; RotatedNoramlF[2] = RotatedNormal[2];
-			Normals->SetElement(ElID, RotatedNoramlF);
+			Normals->SetElement(ElID, FVector3f(RotatedNormal.Normalized()));
 		});
 	}
 
@@ -168,11 +184,14 @@ void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 		// Parameterize curve between ZMin and ZMax to go between 0, 1
 		double T = FMath::Clamp( (GizmoPos4[2]- ZMin) / (ZMax - ZMin), 0.0, 1.0);
 
-		double R = 1. + FMath::Sin(PI * T) * (ModifierPercent / 100.f);
+		double Rx = bSmoothEnds ? 1. + (FMath::Cos(2 * PI * T - PI) + 1) * (FlarePercentX / 200.f) // Shift cos curve up 1, right PI, scale down by 2, go from 0 to 2PI
+			: 1. + FMath::Sin(PI * T) * (FlarePercentX / 100.f);
+		double Ry = bSmoothEnds ? 1. + (FMath::Cos(2 * PI * T - PI) + 1) * (FlarePercentY / 200.f) // Shift cos curve up 1, right PI, scale down by 2, go from 0 to 2PI
+			: 1. + FMath::Sin(PI * T) * (FlarePercentY / 100.f);
 
 		// 2d scale x,y values.
-		GizmoPos4[0] *= R;
-		GizmoPos4[1] *= R;
+		GizmoPos4[0] *= Rx;
+		GizmoPos4[1] *= Ry;
 
 
 		double DstPos4[4] = { 0., 0., 0., 0. };

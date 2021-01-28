@@ -32,12 +32,12 @@ void FTwistMeshOp::CalculateResult(FProgressCancel* Progress)
 	
 
 
-	const double ZMin = -LowerBoundsInterval * AxesHalfLength;
-	const double ZMax =  UpperBoundsInterval * AxesHalfLength;
+	const double ZMin = LowerBoundsInterval;
+	const double ZMax =  UpperBoundsInterval;
 
 
 	const double DegreesToRadians = 0.017453292519943295769236907684886; // Pi / 180
-	const double ThetaRadians = DegreesToRadians * GetModifierValue();
+	const double ThetaRadians = DegreesToRadians * TwistDegrees;
 
 	if (ResultMesh->HasAttributes())
 	{
@@ -86,7 +86,8 @@ void FTwistMeshOp::CalculateResult(FProgressCancel* Progress)
 			}
 
 
-			double T = FMath::Clamp((GizmoPos4[2] - ZMin) / (ZMax - ZMin), 0.0, 1.0) - 0.5;
+			double T = FMath::Clamp((GizmoPos4[2] - ZMin) / (ZMax - ZMin), 0.0, 1.0) 
+				- (bLockBottom ? 0 : 0.5);
 			double Theta = ThetaRadians * T;
 
 
@@ -119,9 +120,7 @@ void FTwistMeshOp::CalculateResult(FProgressCancel* Progress)
 				
 			}
 
-			FVector3f RotatedNoramlF;
-			RotatedNoramlF[0] = RotatedNormal[0]; RotatedNoramlF[1] = RotatedNormal[1]; RotatedNoramlF[2] = RotatedNormal[2];
-			Normals->SetElement(ElID, RotatedNoramlF);
+			Normals->SetElement(ElID, FVector3f(RotatedNormal.Normalized()));
 		});
 	}
 
@@ -151,7 +150,8 @@ void FTwistMeshOp::CalculateResult(FProgressCancel* Progress)
 			}
 		}
 
-		double T = FMath::Clamp( (GizmoPos4[2] - ZMin) / ( ZMax - ZMin ), 0.0, 1.0) - 0.5;
+		double T = FMath::Clamp( (GizmoPos4[2] - ZMin) / ( ZMax - ZMin ), 0.0, 1.0) 
+			- (bLockBottom ? 0 : 0.5);
 		double Theta = ThetaRadians * T;
 
 		

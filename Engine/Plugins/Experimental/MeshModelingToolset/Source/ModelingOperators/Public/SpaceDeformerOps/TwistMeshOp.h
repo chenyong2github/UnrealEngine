@@ -10,12 +10,10 @@
 class MODELINGOPERATORS_API FTwistMeshOp : public FMeshSpaceDeformerOp
 {
 public:
-	virtual ~FTwistMeshOp() {}
-	FTwistMeshOp() : FMeshSpaceDeformerOp(0.0, 180.0) {}
-
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 
-
+	double TwistDegrees = 180;
+	bool bLockBottom = false;
 protected:
 
 };

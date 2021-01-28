@@ -9,9 +9,10 @@
 class MODELINGOPERATORS_API FBendMeshOp : public FMeshSpaceDeformerOp
 {
 public:
-	virtual ~FBendMeshOp() {}
-	FBendMeshOp() : FMeshSpaceDeformerOp(0.0, 180.1) {};
 	virtual void CalculateResult(FProgressCancel* Progress) override;
+
+	double BendDegrees = 90;
+	bool bLockBottom = false;
 
 protected:
 };
