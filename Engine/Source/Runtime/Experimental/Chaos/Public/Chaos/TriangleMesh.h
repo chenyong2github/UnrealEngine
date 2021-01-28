@@ -288,7 +288,6 @@ namespace Chaos
 		int32 MStartIdx;
 		int32 MNumIndices;
 	};
-
 #ifdef __clang__
 #if PLATFORM_WINDOWS
 	extern template class TTriangleMesh<float>;
@@ -298,7 +297,7 @@ namespace Chaos
 #else
 	extern template class TTriangleMesh<float>;
 #endif
-
+?	using FTriangleMesh = TTriangleMesh<FReal>;
 }
 
 // Support ISPC enable/disable in non-shipping builds

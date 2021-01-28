@@ -149,13 +149,13 @@ TEST(BroadphaseTests, Broadphase) {
 }
 
 //TEST(ClothTests, DeformableGravity) {
-//	ChaosTest::DeformableGravity<float>();
+//	ChaosTest::DeformableGravity();
 //
 //	SUCCEED();
 //}
 //
 //TEST(ClothTests, EdgeConstraints) {
-//	ChaosTest::EdgeConstraints<float>();
+//	ChaosTest::EdgeConstraints();
 //
 //	SUCCEED();
 //}
