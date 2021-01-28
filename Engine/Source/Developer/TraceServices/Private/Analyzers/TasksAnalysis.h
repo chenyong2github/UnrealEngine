@@ -20,7 +20,7 @@ namespace TraceServices
 	private:
 		enum : uint16
 		{
-			RouterId_Init,
+			RouteId_Init,
 			RouteId_Created,
 			RouteId_Launched,
 			RouteId_Scheduled,

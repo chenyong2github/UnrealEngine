@@ -17,6 +17,7 @@ namespace TraceServices
 	{
 		auto& Builder = Context.InterfaceBuilder;
 
+		Builder.RouteEvent(RouteId_Init, "TaskTrace", "Init");
 		Builder.RouteEvent(RouteId_Created, "TaskTrace", "Created");
 		Builder.RouteEvent(RouteId_Launched, "TaskTrace", "Launched");
 		Builder.RouteEvent(RouteId_Scheduled, "TaskTrace", "Scheduled");
@@ -40,7 +41,7 @@ namespace TraceServices
 		uint32 ThreadId = Context.ThreadInfo.GetId();
 		switch (RouteId)
 		{
-		case RouterId_Init:
+		case RouteId_Init:
 		{
 			uint32 Version = EventData.GetValue<uint32>("Version");
 			TasksProvider.Init(Version);

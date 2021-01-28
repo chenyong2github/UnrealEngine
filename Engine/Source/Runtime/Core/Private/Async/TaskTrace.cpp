@@ -13,7 +13,7 @@ namespace TaskTrace
 {
 	UE_TRACE_CHANNEL(TaskChannel);
 
-	UE_TRACE_EVENT_BEGIN(TaskTrace, InitTaskTrace)
+	UE_TRACE_EVENT_BEGIN(TaskTrace, Init)
 		UE_TRACE_EVENT_FIELD(uint32, Version)
 	UE_TRACE_EVENT_END()
 
@@ -81,8 +81,8 @@ namespace TaskTrace
 
 	void Init()
 	{
-		UE_TRACE_LOG(TaskTrace, InitTaskTrace, TaskChannel)
-			<< InitTaskTrace.Version(0);
+		UE_TRACE_LOG(TaskTrace, Init, TaskChannel)
+			<< Init.Version(0);
 
 		bGTaskTraceInitialized = true;
 	}
