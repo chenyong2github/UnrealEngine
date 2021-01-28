@@ -235,8 +235,8 @@ TEST(BP, BroadphaseTests) {
 
 TEST(ParticleHandle, ParticleHandleTests)
 {
-	ChaosTest::ParticleIteratorTest<float>();
-	ChaosTest::ParticleHandleTest<float>();
+	ChaosTest::ParticleIteratorTest();
+	ChaosTest::ParticleHandleTest();
 	ChaosTest::AccelerationStructureHandleComparison();
 	ChaosTest::HandleObjectStateChangeTest();
 	SUCCEED();
