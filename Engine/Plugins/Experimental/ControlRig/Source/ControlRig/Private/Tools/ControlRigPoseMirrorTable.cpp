@@ -93,6 +93,10 @@ void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& Contr
 			FTransform NewTransform = MirrorSettings.MirrorTransform(GlobalTransform);
 			OutGlobalTranslation = NewTransform.GetTranslation();
 			OutGlobalRotation = NewTransform.GetRotation();
+
+			FTransform NewLocalTransform = MirrorSettings.MirrorTransform(LocalTransform);
+			OutLocalTranslation = NewLocalTransform.GetTranslation();
+			OutLocalRotation = NewLocalTransform.GetRotation();
 			return;
 		}
 	}

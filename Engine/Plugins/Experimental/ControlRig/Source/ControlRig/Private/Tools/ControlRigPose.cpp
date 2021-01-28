@@ -35,7 +35,7 @@ void FControlRigControlPose::PastePose(UControlRig* ControlRig, bool bDoKey, boo
 
 void FControlRigControlPose::SetControlMirrorTransform(bool bDoLocal, UControlRig* ControlRig, const FName& Name, bool bIsMatched, const FVector& GlobalTranslation, const FQuat& GlobalRotation, const FVector& LocalTranslation, const FQuat& LocalRotation, bool bNotify, const  FRigControlModifiedContext& Context)
 {
-	if (bIsMatched)
+	if (bDoLocal || bIsMatched)
 	{
 		FTransform NewLocalTransform(LocalRotation, LocalTranslation);
 		ControlRig->SetControlLocalTransform(Name, NewLocalTransform, bNotify, Context);
@@ -372,7 +372,6 @@ bool UControlRigPoseAsset::DoesMirrorMatch(UControlRig* ControlRig, const FName&
 	MirrorTable.SetUpMirrorTable(ControlRig);
 	return (MirrorTable.IsMatched(ControlName));
 }
-
 
 
 #undef LOCTEXT_NAMESPACE

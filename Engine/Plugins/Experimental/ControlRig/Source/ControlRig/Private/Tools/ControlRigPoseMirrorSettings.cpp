@@ -6,5 +6,5 @@ UControlRigPoseMirrorSettings::UControlRigPoseMirrorSettings()
 	RightSide = TEXT("_r_");
 	LeftSide = TEXT("_l_");
 	MirrorAxis = EAxis::X;
-	AxisToFlip = EAxis::Z;
+	AxisToFlip = EAxis::X;
 }
