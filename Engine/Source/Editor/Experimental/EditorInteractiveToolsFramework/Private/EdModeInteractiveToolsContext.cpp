@@ -72,7 +72,8 @@ static bool IsVisibleObjectHit_Internal(const FHitResult& HitResult)
 }
 
 static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
-	bool bIsSceneGeometrySnapQuery, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore)
+	bool bIsSceneGeometrySnapQuery, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore, 
+	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
 {
 	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
 	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
@@ -91,10 +92,13 @@ static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitR
 		if (CurResult.Distance < NearestVisible)
 		{
 			if (IsVisibleObjectHit_Internal(CurResult) 
-				&& (!ComponentsToIgnore || !ComponentsToIgnore->Contains(CurResult.Component.Get())))
+				|| (InvisibleComponentsToInclude && InvisibleComponentsToInclude->Contains(CurResult.GetComponent())))
 			{
-				HitResultOut = CurResult;
-				NearestVisible = CurResult.Distance;
+				if (!ComponentsToIgnore || !ComponentsToIgnore->Contains(CurResult.GetComponent()))
+				{
+					HitResultOut = CurResult;
+					NearestVisible = CurResult.Distance;
+				}
 			}
 		}
 	}
@@ -252,7 +256,7 @@ public:
 		FVector RayEnd = RayStart + HALF_WORLD_MAX * RayDirection;
 		FHitResult HitResult;
 		bool bHitWorld = FindNearestVisibleObjectHit_Internal(EditorModeManager->GetWorld(), HitResult, 
-			RayStart, RayEnd, true, Request.ComponentsToIgnore);
+			RayStart, RayEnd, true, Request.ComponentsToIgnore, Request.InvisibleComponentsToInclude);
 		if (bHitWorld && HitResult.FaceIndex >= 0)
 		{
 			float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);

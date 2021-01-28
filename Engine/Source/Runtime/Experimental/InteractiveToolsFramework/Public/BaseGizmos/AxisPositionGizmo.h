@@ -106,11 +106,23 @@ public:
 
 	/**
 	 * If ShouldUseCustomDestinationFunc() returns true, this function gets queried to get a destination point.
-	 * The gizmo parameter will then be picked in such a way that the gizmo origin moves to the closest point
-	 * on the axis to the destination point. Can be used, for example, to align to items in the scene.
+	 * The gizmo parameter will then be picked in such a way that the dragged location moves to the closest point
+	 * on the axis to the destination point (optionally offset by the start click position relative the axis origin,
+	 * if bCustomDestinationAlignsAxisOrigin is true, to align the axis origin itself). Can be used, for example, 
+	 * to align to items in the scene.
 	 */
 	TUniqueFunction<bool(const FCustomDestinationParams& WorldRay, FVector& OutputPoint)> CustomDestinationFunc =
 		[](const FCustomDestinationParams& Params, FVector& OutputPoint) { return false; };
+
+	/**
+	 * Only used when a custom destination is obtained from CustomDestinationFunc. When false, the custom destination
+	 * is simply projected back to the axis to get the resulting parameter. This is useful when trying to align the
+	 * dragged point on the gizmo to the destination point.
+	 * If true, the same projection is performed, but the final parameter is adjusted to make the axis origin align
+	 * to the destination instead, rather than the aligning the grabbed point (since the user probably grabbed the
+	 * gizmo some distance away from the axis origin).
+	 */
+	bool bCustomDestinationAlignsAxisOrigin = true;
 
 public:
 	/** If true, we are in an active click+drag interaction, otherwise we are not */

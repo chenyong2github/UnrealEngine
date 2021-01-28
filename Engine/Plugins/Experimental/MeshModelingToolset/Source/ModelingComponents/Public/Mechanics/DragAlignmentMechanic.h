@@ -16,6 +16,7 @@
 
 class FGroupTopologyDeformer;
 class UPrimitiveComponent;
+class UIntervalGizmo;
 class UTransformGizmo;
 
 /**
@@ -36,7 +37,14 @@ public:
 	 * target object(s)). For movement, the gizmo will ignore ComponentsToIgnore, as well as modified triangles if used
 	 * for deformation.
 	 */
-	void AddToGizmo(UTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr);
+	void AddToGizmo(UTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr,
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
+
+	/**
+	 * Like the other AddToGizmo, but acts on interval gizmos.
+	 */
+	void AddToGizmo(UIntervalGizmo* IntervalGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment = nullptr,
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
 
 	/**
 	 * Optional- allows the use of the mechanic in mesh deformation. Specifically, alignment will attempt to align
@@ -62,7 +70,9 @@ public:
 
 protected:
 	// These are modifiable in case we someday want to make it easier to customize them further.
-	TUniqueFunction<bool(const FRay& InputRay, FHitResult& OutputHit, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore)> WorldRayCast = nullptr;
+	TUniqueFunction<bool(const FRay& InputRay, FHitResult& OutputHit, 
+		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore,
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)> WorldRayCast = nullptr;
 	TUniqueFunction<bool(const FRay&, FHitResult&, bool bUseFilter)> MeshRayCast = nullptr;
 	TUniqueFunction<bool(int32 Tid)> MeshRayCastTriangleFilter = [](int32 Tid) { return true; };
 
@@ -86,6 +96,8 @@ protected:
 	int32 AlignmentModifierID = 1;
 
 	virtual bool CastRay(const FRay& WorldRay, FVector& OutputPoint,
-		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore, bool bUseFilter);
+		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore, 
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude,
+		bool bUseFilter);
 	void OnGizmoTransformChanged(FTransform NewTransform);
 };

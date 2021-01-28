@@ -106,7 +106,7 @@ void UAxisPositionGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 	{
 		GizmoMath::NearestPointOnLine(InteractionOrigin, InteractionAxis, HitPoint,
 			InteractionCurPoint, InteractionCurParameter);
-		InteractionCurParameter += InteractionStartAxisOriginParameterOffset;
+		InteractionCurParameter += bCustomDestinationAlignsAxisOrigin ? InteractionStartAxisOriginParameterOffset : 0;
 	}
 	else
 	{

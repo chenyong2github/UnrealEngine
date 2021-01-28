@@ -101,6 +101,7 @@ namespace ToolSceneQueriesUtil
 		bool bEdges = false; // If true, try to snap to edges
 		double VisualAngleThreshold = 0; // Visual angle threshold to use. If 0, GetDefaultVisualAngleSnapThresh() is used
 		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr;
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr;
 		FSnapGeometry* SnapGeometryOut = nullptr; // world-space position of the snap geometry(point / line / polygon)
 		FVector* DebugTriangleOut = nullptr; // if non - null, triangle containing snap is returned if a snap is found
 	};

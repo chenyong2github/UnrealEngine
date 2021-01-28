@@ -150,6 +150,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
 
 	/** Optional: components to consider invisible even if they aren't. */
 	const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr;
+	/** Optional: components to consider visible even if they aren't. */
+	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr;
 };
 
 

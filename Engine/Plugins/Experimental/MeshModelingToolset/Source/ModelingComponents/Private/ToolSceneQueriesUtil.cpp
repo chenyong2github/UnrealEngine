@@ -176,6 +176,7 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(FFindSceneSnapPointParams& Params)
 	Request.Position = (FVector)*Params.Point;
 	Request.VisualAngleThresholdDegrees = UseThreshold;
 	Request.ComponentsToIgnore = Params.ComponentsToIgnore;
+	Request.InvisibleComponentsToInclude = Params.InvisibleComponentsToInclude;
 
 	TArray<FSceneSnapQueryResult> Results;
 	if (QueryAPI->ExecuteSceneSnapQuery(Request, Results))

@@ -86,6 +86,45 @@ public:
 	}
 };
 
+/**
+ * This change source doesn't actually issue any valid transactions. Instead, it is a helper class 
+ * that can get attached to the interval gizmo's state target to fire off BeginEditSequence and 
+ * EndEditSequence on the start/end of a drag.
+ */
+class FIntervalGizmoChangeBroadcaster : public IToolCommandChangeSource
+{
+public:
+	FIntervalGizmoChangeBroadcaster(UIntervalGizmo* IntervalGizmoIn) : IntervalGizmo(IntervalGizmoIn) {}
+
+	virtual ~FIntervalGizmoChangeBroadcaster() {}
+
+	TWeakObjectPtr<UIntervalGizmo> IntervalGizmo;
+
+	virtual void BeginChange() override
+	{
+		if (IntervalGizmo.IsValid())
+		{
+			IntervalGizmo->BeginEditSequence();
+		}
+	}
+	virtual TUniquePtr<FToolCommandChange> EndChange() override
+	{
+		if (IntervalGizmo.IsValid())
+		{
+			IntervalGizmo->EndEditSequence();
+		}
+		return TUniquePtr<FToolCommandChange>();
+	}
+	virtual UObject* GetChangeTarget() override
+	{
+		return IntervalGizmo.Get();
+	}
+	virtual FText GetChangeDescription() override
+	{
+		return LOCTEXT("FIntervalGizmoChangeBroadcaster", "IntervalGizmoEdit");
+	}
+};
+
 
 AIntervalGizmoActor::AIntervalGizmoActor()
 {
@@ -158,6 +197,26 @@ void UIntervalGizmo::SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*,
 void UIntervalGizmo::SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction)
 {
 	UpdateCoordSystemFunction = CoordSysFunction;
+}
+
+void UIntervalGizmo::SetWorldAlignmentFunctions(TUniqueFunction<bool()>&& ShouldAlignDestinationIn, TUniqueFunction<bool(const FRay&, FVector&)>&& DestinationAlignmentRayCasterIn)
+{
+	// Save these so that any later gizmo resets (using SetActiveTarget) keep the settings.
+	ShouldAlignDestination = MoveTemp(ShouldAlignDestinationIn);
+	DestinationAlignmentRayCaster = MoveTemp(DestinationAlignmentRayCasterIn);
+
+	for (UInteractiveGizmo* SubGizmo : this->ActiveGizmos)
+	{
+		if (UAxisPositionGizmo* CastGizmo = Cast<UAxisPositionGizmo>(SubGizmo))
+		{
+			CastGizmo->ShouldUseCustomDestinationFunc = [this]() { return ShouldAlignDestination(); };
+			CastGizmo->CustomDestinationFunc =
+				[this](const UAxisPositionGizmo::FCustomDestinationParams& Params, FVector& OutputPoint) {
+				return DestinationAlignmentRayCaster(*Params.WorldRay, OutputPoint);
+			};
+			CastGizmo->bCustomDestinationAlignsAxisOrigin = false; // We're aligning the endpoints of the intervals
+		}
+	}
 }
 
 void UIntervalGizmo::Setup()
@@ -261,6 +320,16 @@ void UIntervalGizmo::SetActiveTarget(UTransformProxy* TransformTargetIn, UGizmoL
 	DownIntervalSource    = DownInterval;
 	ForwardIntervalSource = ForwardInterval;
 
+	// Get the parameter source to notify our delegate of any changes
+	UpIntervalSource->OnParameterChanged.AddWeakLambda(this, [this](IGizmoFloatParameterSource*, FGizmoFloatParameterChange Change) {
+		OnIntervalChanged.Broadcast(this, FVector::ZAxisVector, Change.CurrentValue);
+		});
+	DownIntervalSource->OnParameterChanged.AddWeakLambda(this, [this](IGizmoFloatParameterSource*, FGizmoFloatParameterChange Change) {
+		OnIntervalChanged.Broadcast(this, -FVector::ZAxisVector, -Change.CurrentValue);
+		});
+	ForwardIntervalSource->OnParameterChanged.AddWeakLambda(this, [this](IGizmoFloatParameterSource*, FGizmoFloatParameterChange Change) {
+		OnIntervalChanged.Broadcast(this, FVector::YAxisVector, Change.CurrentValue);
+		});
 
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
 
@@ -291,9 +360,8 @@ void UIntervalGizmo::SetActiveTarget(UTransformProxy* TransformTargetIn, UGizmoL
 	StateTarget->DependentChangeSources.Add(MakeUnique<FGizmoFloatParameterChangeSource>(DownIntervalSource));
 	StateTarget->DependentChangeSources.Add(MakeUnique<FGizmoFloatParameterChangeSource>(ForwardIntervalSource));
 
-
-	UGizmoTransformProxyTransformSource* TransformSource =
-		UGizmoTransformProxyTransformSource::Construct(TransformProxy, this);
+	// Have the state target notify us of the start/end of drags
+	StateTarget->DependentChangeSources.Add(MakeUnique<FIntervalGizmoChangeBroadcaster>(this));
 
 	// root component provides local Y/Z axis, identified by AxisIndex
 	AxisYSource = UGizmoComponentAxisSource::Construct(GizmoComponent, 1, true, this);
@@ -348,6 +416,10 @@ void UIntervalGizmo::ClearActiveTarget()
 	TransformProxy = nullptr;
 }
 
+FTransform UIntervalGizmo::GetGizmoTransform() const
+{
+	return TransformProxy->GetTransform();
+}
 
 UInteractiveGizmo* UIntervalGizmo::AddIntervalHandleGizmo(
 	USceneComponent* RootComponent,
@@ -379,6 +451,12 @@ UInteractiveGizmo* UIntervalGizmo::AddIntervalHandleGizmo(
 	IntervalGizmo->HitTarget = HitTarget;
 
 	IntervalGizmo->StateTarget = Cast<UObject>(StateTargetIn);
+
+	IntervalGizmo->ShouldUseCustomDestinationFunc = [this]() { return ShouldAlignDestination(); };
+	IntervalGizmo->CustomDestinationFunc =
+		[this](const UAxisPositionGizmo::FCustomDestinationParams& Params, FVector& OutputPoint) {
+		return DestinationAlignmentRayCaster(*Params.WorldRay, OutputPoint);
+	};
 
 	ActiveGizmos.Add(IntervalGizmo);
 

@@ -3,6 +3,7 @@
 #include "Mechanics/DragAlignmentMechanic.h"
 
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"
+#include "BaseGizmos/IntervalGizmo.h"
 #include "BaseGizmos/RepositionableTransformGizmo.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "BaseGizmos/TransformProxy.h"
@@ -24,7 +25,8 @@ void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 	// Set up the function that casts rays into the world.
 	WorldRayCast = [this, ParentToolIn](const FRay& WorldRay, FHitResult& HitResult, 
-		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore)
+		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore,
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
 	{
 		bool bSuccess = false;
 		FVector3d QueryPoint = WorldRay.PointAt(1);
@@ -41,6 +43,7 @@ void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)
 		SnapParams.VisualAngleThreshold = VisualAngleSnapThreshold;
 		SnapParams.SnapGeometryOut = &SnapGeometry;
 		SnapParams.ComponentsToIgnore = ComponentsToIgnore;
+		SnapParams.InvisibleComponentsToInclude = InvisibleComponentsToInclude;
 
 		if (ToolSceneQueriesUtil::FindSceneSnapPoint(SnapParams))
 		{
@@ -65,21 +68,27 @@ void UDragAlignmentMechanic::Shutdown()
 {
 }
 
-void UDragAlignmentMechanic::AddToGizmo(UTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment)
+void UDragAlignmentMechanic::AddToGizmo(UTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment, 
+	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToIncludeInAlignment)
 {
-	// If we have components to ignore, we need a copy of the array so that the alignment
+	// If we have components to ignore/include, we need a copy of the array so that the alignment
 	// functions can use them later.
 	TSharedPtr<TArray<const UPrimitiveComponent*>> ComponentsToIgnorePersistent;
 	if (ComponentsToIgnoreInAlignment)
 	{
 		ComponentsToIgnorePersistent = MakeShared<TArray<const UPrimitiveComponent*>>(*ComponentsToIgnoreInAlignment);
 	}
+	TSharedPtr<TArray<const UPrimitiveComponent*>> ComponentsToIncludePersistent;
+	if (InvisibleComponentsToIncludeInAlignment)
+	{
+		ComponentsToIncludePersistent = MakeShared<TArray<const UPrimitiveComponent*>>(*InvisibleComponentsToIncludeInAlignment);
+	}
 
 	// Set the alignment functions.
 	TransformGizmo->SetWorldAlignmentFunctions(
 		[this]() { return bAlignmentToggle; },
-		[this, ComponentsToIgnorePersistent](const FRay& WorldRay, FVector& OutputPoint) { 
-			return CastRay(WorldRay, OutputPoint, ComponentsToIgnorePersistent.Get(), true); 
+		[this, ComponentsToIgnorePersistent, ComponentsToIncludePersistent](const FRay& WorldRay, FVector& OutputPoint) {
+			return CastRay(WorldRay, OutputPoint, ComponentsToIgnorePersistent.Get(), ComponentsToIncludePersistent.Get(), true);
 		});
 
 	// If we're adding to a repositionable gizmo, we probably don't want to ignore components
@@ -91,8 +100,8 @@ void UDragAlignmentMechanic::AddToGizmo(UTransformGizmo* TransformGizmo, const T
 	{
 		RepositionableGizmo->SetPivotAlignmentFunctions(
 			[this]() { return bAlignmentToggle; },
-			[this](const FRay& WorldRay, FVector& OutputPoint) {
-				return CastRay(WorldRay, OutputPoint, nullptr, false); // don't ignore anything
+			[this, ComponentsToIncludePersistent](const FRay& WorldRay, FVector& OutputPoint) {
+				return CastRay(WorldRay, OutputPoint, nullptr, ComponentsToIncludePersistent.Get(), false); // don't ignore anything
 			});
 	}
 
@@ -111,6 +120,44 @@ void UDragAlignmentMechanic::AddToGizmo(UTransformGizmo* TransformGizmo, const T
 		bWaitingOnProjectedResult = false;
 	});
 	TransformGizmo->ActiveTarget->OnEndPivotEdit.AddWeakLambda(this, [this](UTransformProxy*) {
+		bPreviewEndpointsValid = false;
+		bWaitingOnProjectedResult = false;
+		});
+}
+
+void UDragAlignmentMechanic::AddToGizmo(UIntervalGizmo* IntervalGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment,
+	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToIncludeInAlignment)
+{
+	// If we have components to ignore/include, we need a copy of the array so that the alignment
+	// functions can use them later.
+	TSharedPtr<TArray<const UPrimitiveComponent*>> ComponentsToIgnorePersistent;
+	if (ComponentsToIgnoreInAlignment)
+	{
+		ComponentsToIgnorePersistent = MakeShared<TArray<const UPrimitiveComponent*>>(*ComponentsToIgnoreInAlignment);
+	}
+	TSharedPtr<TArray<const UPrimitiveComponent*>> ComponentsToIncludePersistent;
+	if (InvisibleComponentsToIncludeInAlignment)
+	{
+		ComponentsToIncludePersistent = MakeShared<TArray<const UPrimitiveComponent*>>(*InvisibleComponentsToIncludeInAlignment);
+	}
+
+	// Set the alignment functions.
+	IntervalGizmo->SetWorldAlignmentFunctions(
+		[this]() { return bAlignmentToggle; },
+		[this, ComponentsToIgnorePersistent, ComponentsToIncludePersistent](const FRay& WorldRay, FVector& OutputPoint) {
+			return CastRay(WorldRay, OutputPoint, ComponentsToIgnorePersistent.Get(), ComponentsToIncludePersistent.Get(), true);
+		});
+
+	// Register listener to help with rendering. It gets us the final location of the interval endpoint
+	// so that we can draw a line from the hit point to that location.
+	IntervalGizmo->OnIntervalChanged.AddWeakLambda(this, [this](UIntervalGizmo* Gizmo, FVector Direction, float NewParam) {
+		FTransform Transform = Gizmo->GetGizmoTransform();
+		Transform.AddToTranslation(Transform.Rotator().RotateVector(Direction) * NewParam);
+		OnGizmoTransformChanged(Transform);
+		});
+
+	// Register a listener to stop drawing once the gizmo is done moving.
+	IntervalGizmo->OnEndIntervalGizmoEdit.AddWeakLambda(this, [this](UIntervalGizmo*) {
 		bPreviewEndpointsValid = false;
 		bWaitingOnProjectedResult = false;
 		});
@@ -227,7 +274,9 @@ void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMes
  * @return true if something was hit.
  */
 bool UDragAlignmentMechanic::CastRay(const FRay& WorldRay, FVector& OutputPoint,
-	const TArray<const UPrimitiveComponent*>* ComponentsToIgnore, bool bUseFilter)
+	const TArray<const UPrimitiveComponent*>* ComponentsToIgnore, 
+	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude,
+	bool bUseFilter)
 {
 	bool bHit = false;
 	FHitResult MeshHitResult;
@@ -239,8 +288,9 @@ bool UDragAlignmentMechanic::CastRay(const FRay& WorldRay, FVector& OutputPoint,
 	}
 
 	FHitResult WorldHitResult;
-	if (WorldRayCast && WorldRayCast(WorldRay, WorldHitResult, ComponentsToIgnore) &&
-		(!bHit || WorldHitResult.Distance < MeshHitResult.Distance))
+	if (WorldRayCast 
+		&& WorldRayCast(WorldRay, WorldHitResult, ComponentsToIgnore, InvisibleComponentsToInclude) 
+		&& (!bHit || WorldHitResult.Distance < MeshHitResult.Distance))
 	{
 		bHit = true;
 		LastHitResult = WorldHitResult;
