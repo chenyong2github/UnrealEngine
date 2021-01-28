@@ -24,14 +24,9 @@ public:
 	virtual UPrimitiveComponent* GetOwnerComponent() const override;
 	virtual AActor* GetOwnerActor() const override;
 	virtual void SetOwnerVisibility(bool bVisible) const override;
-	virtual int32 GetNumMaterials() const override;
-	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut) const override;
 	virtual FTransform GetWorldTransform() const override;
 	virtual bool HitTestComponent(const FRay& WorldRay, FHitResult& OutHit) const override;
 
-	// Not implemented by this class:
-	virtual void CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet) override PURE_VIRTUAL(UPrimitiveComponentToolTarget::CommitMaterialSetUpdate);
 protected:
 	UPrimitiveComponent* Component;
 };

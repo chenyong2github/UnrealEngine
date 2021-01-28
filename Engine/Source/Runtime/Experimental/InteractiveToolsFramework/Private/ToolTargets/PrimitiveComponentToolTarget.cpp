@@ -27,29 +27,6 @@ void UPrimitiveComponentToolTarget::SetOwnerVisibility(bool bVisible) const
 	}
 }
 
-int32 UPrimitiveComponentToolTarget::GetNumMaterials() const
-{
-	return IsValid() ? Component->GetNumMaterials() : 0;
-}
-
-UMaterialInterface* UPrimitiveComponentToolTarget::GetMaterial(int32 MaterialIndex) const
-{
-	return IsValid() ? Component->GetMaterial(MaterialIndex) : nullptr;
-}
-
-void UPrimitiveComponentToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut) const
-{
-	if (IsValid())
-	{
-		int32 NumMaterials = Component->GetNumMaterials();
-		MaterialSetOut.Materials.SetNum(NumMaterials);
-		for (int32 k = 0; k < NumMaterials; ++k)
-		{
-			MaterialSetOut.Materials[k] = Component->GetMaterial(k);
-		}
-	}
-}
-
 FTransform UPrimitiveComponentToolTarget::GetWorldTransform() const
 {
 	return IsValid() ? Component->GetComponentTransform() : FTransform::Identity;

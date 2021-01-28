@@ -6,7 +6,7 @@
 #include "Math/UnrealMath.h"
 #include "Misc/Optional.h"
 #include "Templates/Function.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h" // FComponentMaterialSet
+#include "TargetInterfaces/MaterialProvider.h" // FComponentMaterialSet
 #include "Engine/EngineTypes.h"    // FHitResult
 
 // predeclarations

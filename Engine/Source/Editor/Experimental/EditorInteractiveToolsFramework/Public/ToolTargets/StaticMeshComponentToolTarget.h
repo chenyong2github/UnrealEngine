@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
@@ -16,7 +17,7 @@
  */
 UCLASS(Transient)
 class EDITORINTERACTIVETOOLSFRAMEWORK_API UStaticMeshComponentToolTarget : public UPrimitiveComponentToolTarget,
-	public IMeshDescriptionCommitter, public IMeshDescriptionProvider
+	public IMeshDescriptionCommitter, public IMeshDescriptionProvider, public IMaterialProvider
 {
 	GENERATED_BODY()
 
@@ -28,8 +29,12 @@ public:
 	// IMeshDescritpionCommitter implementation
 	virtual void CommitMeshDescription(const FCommitter& Committer) override;
 
-	// IPrimitiveComponentBackedTarget implementation
-	virtual void CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet) override;
+	// IMaterialProvider implementation
+	int32 GetNumMaterials() const override;
+	UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const override;
+	virtual bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;	
+
 	// Rest provided by parent class
 
 protected:

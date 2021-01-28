@@ -25,7 +25,22 @@ UVolumeMeshDescriptionToolTarget::UVolumeMeshDescriptionToolTarget()
 	VolumeToMeshOptions.bOptimizeMesh = true;
 }
 
-void UVolumeMeshDescriptionToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut) const
+int32 UVolumeMeshDescriptionToolTarget::GetNumMaterials() const
+{
+	return IsValid() ? 1 : 0;
+}
+
+UMaterialInterface* UVolumeMeshDescriptionToolTarget::GetMaterial(int32 MaterialIndex) const
+{
+	if (!IsValid() || MaterialIndex > 0)
+	{
+		return nullptr;
+	}
+
+	return ToolSetupUtil::GetDefaultEditVolumeMaterial();
+}
+
+void UVolumeMeshDescriptionToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const
 {
 	MaterialSetOut.Materials.Reset();
 	if (IsValid() == false)
@@ -38,12 +53,6 @@ void UVolumeMeshDescriptionToolTarget::GetMaterialSet(FComponentMaterialSet& Mat
 	{
 		MaterialSetOut.Materials.Add(Material);
 	}
-}
-
-void UVolumeMeshDescriptionToolTarget::CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet)
-{
-	check(IsValid());
-	// Do nothing
 }
 
 FMeshDescription* UVolumeMeshDescriptionToolTarget::GetMeshDescription()

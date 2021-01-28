@@ -4,7 +4,7 @@
 
 #include "Containers/StaticArray.h"
 #include "Engine/Classes/Materials/Material.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/MaterialProvider.h" //FComponentMaterialSet
 
 
 APreviewMeshActor::APreviewMeshActor()

@@ -12,6 +12,7 @@
 #include "ToolSetupUtil.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Selection/ToolSelectionUtil.h"
+#include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
@@ -33,8 +34,9 @@ const FToolTargetTypeRequirements& UMeshToVolumeToolBuilder::GetTargetRequiremen
 {
 	static FToolTargetTypeRequirements TypeRequirements(nullptr, TArray<const UClass*>({
 		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass() })
-		);
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UMaterialProvider::StaticClass()
+		}));
 	return TypeRequirements;
 }
 
@@ -78,7 +80,8 @@ void UMeshToVolumeTool::Setup()
 	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 
 	FComponentMaterialSet MaterialSet;
-	TargetComponent->GetMaterialSet(MaterialSet);
+	check(Cast<IMaterialProvider>(Target));
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet, false);
 	PreviewMesh->SetMaterials(MaterialSet.Materials);
 
 	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
