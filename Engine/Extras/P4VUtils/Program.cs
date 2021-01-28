@@ -44,6 +44,7 @@ namespace P4VUtils
 		{
 			["preflight"] = new PreflightCommand(),
 			["preflightandsubmit"] = new PreflightAndSubmitCommand(),
+			["merge"] = new MergeCommand(),
 			["edigrate"] = new EdigrateCommand(),
 			["describe"] = new DescribeCommand()
 		};

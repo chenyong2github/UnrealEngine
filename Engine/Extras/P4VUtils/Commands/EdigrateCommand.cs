@@ -15,7 +15,7 @@ namespace P4VUtils.Commands
 	{
 		public override string Description => "Converts an integration to an edit";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Convert to Edigrate", "%p");
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Convert to Edigrate", "%p") { ShowConsole = true };
 
 		public override async Task<int> Execute(string[] Args, IReadOnlyDictionary<string, string> ConfigValues, ILogger Logger)
 		{

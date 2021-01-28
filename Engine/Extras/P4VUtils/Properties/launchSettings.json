@@ -2,7 +2,7 @@
   "profiles": {
     "P4VUtils": {
       "commandName": "Project",
-      "commandLineArgs": "preflight 1234"
+      "commandLineArgs": "merge 15160963"
     }
   }
 }

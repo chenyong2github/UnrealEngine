@@ -13,6 +13,11 @@ namespace EpicGames.Perforce
 	public enum MergeOptions
 	{
 		/// <summary>
+		/// No options
+		/// </summary>
+		None = 0,
+
+		/// <summary>
 		/// Preview the merge
 		/// </summary>
 		Preview = 1,

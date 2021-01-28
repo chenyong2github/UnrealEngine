@@ -21,7 +21,7 @@ namespace P4VUtils.Commands
 	{
 		public override string Description => "Runs a preflight of the given changelist on Horde";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Preflight...", "%p");
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Horde: Preflight...", "%p");
 
 		public override async Task<int> Execute(string[] Args, IReadOnlyDictionary<string, string> ConfigValues, ILogger Logger)
 		{
@@ -30,8 +30,18 @@ namespace P4VUtils.Commands
 			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 
 			ClientRecord Client = await Perforce.GetClientAsync(null, CancellationToken.None);
+			if(Client.Stream == null)
+			{
+				return 1;
+			}
 
-			string Url = GetUrl(Client.Stream!, Change, ConfigValues);
+			StreamRecord Stream = await Perforce.GetStreamAsync(Client.Stream, false, CancellationToken.None);
+			while (Stream.Type == "virtual" && Stream.Parent != null)
+			{
+				Stream = await Perforce.GetStreamAsync(Stream.Parent, false, CancellationToken.None);
+			}
+
+			string Url = GetUrl(Stream.Stream, Change, ConfigValues);
 			Logger.LogDebug("Opening {Url}", Url);
 			OpenUrl(Url);
 
@@ -69,7 +79,7 @@ namespace P4VUtils.Commands
 	{
 		public override string Description => "Runs a preflight of the given changelist on Horde and submits it";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Preflight and submit", "%p");
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Horde: Preflight and submit", "%p");
 
 		public override string GetUrl(string Stream, int Change, IReadOnlyDictionary<string, string> ConfigValues)
 		{
