@@ -313,6 +313,9 @@ void FImgMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 		Loader->RequestFrame(CurrentTime, CurrentRate, ShouldLoop);
 	}
 	RequestFrameHasRun = true;
+#else
+	// Tick the scheduler an extra time in addition to its hookup as media clock sink, so we also get it moving forward during blocked playback
+	Scheduler->TickInput(FTimespan::Zero(), FTimespan::MinValue());
 #endif // IMG_MEDIA_PLAYER_VERSION == 1
 }
 
@@ -429,14 +432,14 @@ bool FImgMediaPlayer::QueryCacheState(EMediaCacheState State, TRangeSet<FTimespa
 
 bool FImgMediaPlayer::CanControl(EMediaControl Control) const
 {
+	if (Control == EMediaControl::BlockOnFetch)
+	{
+		return true;
+	}
+
 	if (!IsInitialized())
 	{
 		return false;
-	}
-
-	if (Control == EMediaControl::BlockOnFetch)
-	{
-		return ((CurrentState == EMediaState::Paused) || (CurrentState == EMediaState::Playing));
 	}
 
 	if (Control == EMediaControl::Pause)

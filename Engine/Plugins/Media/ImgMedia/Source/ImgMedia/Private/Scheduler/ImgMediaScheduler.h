@@ -63,7 +63,7 @@ public:
 
 	//~ IMediaClockSink interface
 
-	virtual void TickFetch(FTimespan DeltaTime, FTimespan Timecode) override;
+	virtual void TickInput(FTimespan DeltaTime, FTimespan Timecode) override;
 
 protected:
 
