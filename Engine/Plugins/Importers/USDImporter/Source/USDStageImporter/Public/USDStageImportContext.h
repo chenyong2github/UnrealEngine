@@ -40,11 +40,11 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 
 	UPROPERTY()
 	UUsdStageImportOptions* ImportOptions;
-
-	/** Keep track of the parent imported package so that we have something valid to return to upstream code that calls the import factories */
-	UPROPERTY()
-	UPackage* ImportedPackage;
 	
+	/** Keep track of the last imported object so that we have something valid to return to upstream code that calls the import factories */
+	UPROPERTY()
+	UObject* ImportedAsset;
+
 	/** Level sequence that will contain the animation data during the import process */
 	FUsdLevelSequenceHelper LevelSequenceHelper;
 

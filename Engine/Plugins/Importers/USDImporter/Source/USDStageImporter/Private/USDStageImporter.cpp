@@ -614,6 +614,8 @@ namespace UsdStageImporterImpl
 			AssetEditorSubsystem->OpenEditorForAsset(MovedAsset);
 		}
 
+		ImportContext.ImportedAsset = MovedAsset;
+
 		return MovedAsset;
 	}
 
@@ -671,17 +673,22 @@ namespace UsdStageImporterImpl
 			PublishAsset(ImportContext, Asset, DestPackagePath, ObjectsToRemap);
 		}
 
-		// Publish the level sequences
-		TArray<ULevelSequence*> LevelSequences;
-		LevelSequences.Append(ImportContext.LevelSequenceHelper.GetSubSequences());
-		LevelSequences.Add(ImportContext.LevelSequenceHelper.GetMainLevelSequence());
-
-		const FString AssetTypeFolder = "Sequences";
-
-		for (ULevelSequence* LevelSequence : LevelSequences)
+		// Publish the level sequences if there's data in them
+		if (ImportContext.LevelSequenceHelper.GetMainLevelSequence() &&
+			ImportContext.LevelSequenceHelper.GetMainLevelSequence()->GetMovieScene() &&
+			ImportContext.LevelSequenceHelper.GetMainLevelSequence()->GetMovieScene()->GetPossessableCount() > 0)
 		{
-			const FString DestPackagePath = FPaths::Combine(ImportContext.PackagePath, ImportContext.ObjectName, AssetTypeFolder, LevelSequence->GetName());
-			UObject* PublishedLevelSequence = PublishAsset(ImportContext, LevelSequence, DestPackagePath, ObjectsToRemap);
+			TArray<ULevelSequence*> LevelSequences;
+			LevelSequences.Append(ImportContext.LevelSequenceHelper.GetSubSequences());
+			LevelSequences.Add(ImportContext.LevelSequenceHelper.GetMainLevelSequence());
+
+			const FString AssetTypeFolder = "Sequences";
+
+			for (ULevelSequence* LevelSequence : LevelSequences)
+			{
+				const FString DestPackagePath = FPaths::Combine(ImportContext.PackagePath, ImportContext.ObjectName, AssetTypeFolder, LevelSequence->GetName());
+				UObject* PublishedLevelSequence = PublishAsset(ImportContext, LevelSequence, DestPackagePath, ObjectsToRemap);
+			}
 		}
 	}
 
@@ -1040,25 +1047,6 @@ namespace UsdStageImporterImpl
 #endif // #if USE_USD_SDK
 	}
 
-	/** This returns the outer imported folder so that we can return it from the factories and have the content browser navigate to it */
-	void FetchMainImportedPackage( FUsdStageImportContext& ImportContext )
-	{
-		FString PackagePath = UPackageTools::SanitizePackageName( FPaths::Combine( ImportContext.PackagePath, ImportContext.ObjectName ) );
-
-		UPackage* ImportedPackage = FindPackage( nullptr, *PackagePath );
-		if ( !ImportedPackage && FPackageName::DoesPackageExist( PackagePath ) )
-		{
-			ImportedPackage = LoadPackage( nullptr, *PackagePath, LOAD_None );
-		}
-
-		if ( !ImportedPackage )
-		{
-			ImportedPackage = CreatePackage( *PackagePath );
-		}
-
-		ImportContext.ImportedPackage = ImportedPackage;
-	}
-
 	/**
 	 * FUsdAssetCache can track which assets are requested/added to itself during translation, but it may miss some dependencies
 	 * that are only retrieved/added themselves when the original asset is first parsed. This function recursively collects all of those.
@@ -1202,7 +1190,6 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	UsdStageImporterImpl::RemapReferences( ImportContext, UsedAssetsAndDependencies, ObjectsToRemap );
 	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, ExistingSceneActor, ImportContext.ImportOptions->ExistingActorPolicy );
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
-	UsdStageImporterImpl::FetchMainImportedPackage( ImportContext );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast( ImportContext.FilePath );
 #endif // #if USE_USD_SDK
@@ -1291,7 +1278,6 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 
 	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, nullptr, ImportContext.ImportOptions->ExistingActorPolicy );
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
-	UsdStageImporterImpl::FetchMainImportedPackage( ImportContext );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast(ImportContext.FilePath);
 

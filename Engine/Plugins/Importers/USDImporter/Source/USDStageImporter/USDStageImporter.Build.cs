@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"LevelSequence",
 					"MainFrame",
 					"MessageLog",
+					"MovieScene",
 					"RenderCore", // So that we can release resources of reimported meshes
 					"Slate",
 					"SlateCore",
