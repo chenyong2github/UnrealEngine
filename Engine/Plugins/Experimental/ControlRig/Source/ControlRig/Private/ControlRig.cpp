@@ -1022,6 +1022,13 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 
 UAnimationDataSourceRegistry* UControlRig::GetDataSourceRegistry()
 {
+	if (DataSourceRegistry)
+	{
+		if (DataSourceRegistry->GetOuter() != this)
+		{
+			DataSourceRegistry = nullptr;
+		}
+	}
 	if (DataSourceRegistry == nullptr)
 	{
 		DataSourceRegistry = NewObject<UAnimationDataSourceRegistry>(this, TEXT("DataSourceRegistry"));
