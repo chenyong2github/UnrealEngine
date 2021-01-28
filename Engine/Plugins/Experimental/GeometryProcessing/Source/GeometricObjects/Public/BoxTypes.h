@@ -221,11 +221,18 @@ struct TAxisAlignedBox3
 		this->Max = Max;
 	}
 
-	TAxisAlignedBox3(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	TAxisAlignedBox3(const FVector3<RealType>& A, const FVector3<RealType>& B, const FVector3<RealType>& C)
 	{
-		TMathUtil<RealType>::MinMax(V0.X, V1.X, V2.X, Min.X, Max.X);
-		TMathUtil<RealType>::MinMax(V0.Y, V1.Y, V2.Y, Min.Y, Max.Y);
-		TMathUtil<RealType>::MinMax(V0.Z, V1.Z, V2.Z, Min.Z, Max.Z);
+		// TMathUtil::MinMax could be used here, but it generates worse code because the Min3's below will be
+		// turned into SSE instructions by the optimizer, while MinMax will not
+		Min = FVector3<RealType>(
+			TMathUtil<RealType>::Min3(A.X, B.X, C.X),
+			TMathUtil<RealType>::Min3(A.Y, B.Y, C.Y),
+			TMathUtil<RealType>::Min3(A.Z, B.Z, C.Z));
+		Max = FVector3<RealType>(
+			TMathUtil<RealType>::Max3(A.X, B.X, C.X),
+			TMathUtil<RealType>::Max3(A.Y, B.Y, C.Y),
+			TMathUtil<RealType>::Max3(A.Z, B.Z, C.Z));
 	}
 
 	TAxisAlignedBox3(const TAxisAlignedBox3& OtherBox) = default;

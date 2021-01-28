@@ -118,7 +118,7 @@ public:
 	 */
 	inline int32 GetCount(int32 ListIndex) const
 	{
-		check(ListIndex >= 0);
+		checkSlow(ListIndex >= 0);
 		int32 block_ptr = ListHeads[ListIndex];
 		return (block_ptr == NullValue) ? 0 : ListBlocks[block_ptr];
 	}
@@ -130,7 +130,7 @@ public:
 	 */
 	inline int32 First(int32 ListIndex) const
 	{
-		check(ListIndex >= 0);
+		checkSlow(ListIndex >= 0);
 		int32 block_ptr = ListHeads[ListIndex];
 		return ListBlocks[block_ptr + 1];
 	}

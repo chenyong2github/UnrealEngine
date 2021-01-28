@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMesh3.h"
+#include "Async/ParallelFor.h"
 
 
 FIndex2i FDynamicMesh3::GetEdgeOpposingV(int eID) const
@@ -591,21 +592,49 @@ int FDynamicMesh3::FindTriangle(int a, int b, int c) const
 /**
  * Computes bounding box of all vertices.
  */
-FAxisAlignedBox3d FDynamicMesh3::GetBounds() const
+FAxisAlignedBox3d FDynamicMesh3::GetBounds(bool bParallel) const
 {
-	if (VertexCount() == 0) 
+	if (VertexCount() == 0)
 	{
 		return FAxisAlignedBox3d::Empty();
 	}
 
-	FVector3d MinVec = Vertices[*(VertexIndicesItr().begin())];
-	FVector3d MaxVec = MinVec;
-	for (int vi : VertexIndicesItr())
+	FAxisAlignedBox3d ResultBounds = FAxisAlignedBox3d::Empty();
+	int32 MaxVID = MaxVertexID();
+	if (bParallel == false || MaxVID < 50000)
 	{
-		MinVec = Min(MinVec, Vertices[vi]);
-		MaxVec = Max(MaxVec, Vertices[vi]);
+		FVector3d MinVec = Vertices[*(VertexIndicesItr().begin())];
+		FVector3d MaxVec = MinVec;
+		for (int vi : VertexIndicesItr())
+		{
+			MinVec = Min(MinVec, Vertices[vi]);
+			MaxVec = Max(MaxVec, Vertices[vi]);
+		}
+		return FAxisAlignedBox3d(MinVec, MaxVec);
 	}
-	return FAxisAlignedBox3d(MinVec, MaxVec);
+	else
+	{
+		constexpr int ChunkSize = 10000;
+		int32 NumChunks = (MaxVID / ChunkSize) + 1;
+		FCriticalSection BoundsLock;
+		ParallelFor(NumChunks, [&](int ci)
+		{
+			FAxisAlignedBox3d ChunkBounds = FAxisAlignedBox3d::Empty();
+			int Start = ci * ChunkSize;
+			for (int k = 0; k < ChunkSize; ++k)
+			{
+				int vid = Start + k;
+				if (IsVertex(vid))
+				{
+					ChunkBounds.Contain(Vertices[vid]);
+				}
+			}
+			BoundsLock.Lock();
+			ResultBounds.Contain(ChunkBounds);
+			BoundsLock.Unlock();
+		});
+	}
+	return ResultBounds;
 }
 
 
@@ -811,13 +840,14 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 	}
 }
 
+
 FAxisAlignedBox3d FDynamicMesh3::GetTriBounds(int tID) const
 {
 	const FIndex3i& tIDs = Triangles[tID];
-	const FVector3d TriVerts[3]       = {Vertices[tIDs[0]], Vertices[tIDs[1]], Vertices[tIDs[2]]};
-	const FVector3d MinVec            = Min(Min(TriVerts[0], TriVerts[1]), TriVerts[2]);
-	const FVector3d MaxVec            = Max(Max(TriVerts[0], TriVerts[1]), TriVerts[2]);
-	return FAxisAlignedBox3d(MinVec, MaxVec);
+	const FVector3d& A = Vertices[tIDs.A];
+	const FVector3d& B = Vertices[tIDs.B];
+	const FVector3d& C = Vertices[tIDs.C];
+	return FAxisAlignedBox3d(A, B, C);
 }
 
 FFrame3d FDynamicMesh3::GetTriFrame(int tID, int nEdge) const

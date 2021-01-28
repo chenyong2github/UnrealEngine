@@ -60,7 +60,7 @@ public:
 	/**
 	 * Add Index to the set
 	 */
-	inline void Add(int32 Index)
+	inline bool Add(int32 Index)
 	{
 		int64& Word = Bits[(int64)(Index / 64)];
 		int64 Offset = (int64)(Index % 64);
@@ -69,7 +69,9 @@ public:
 		{
 			Word |= Mask;
 			Values.Add(Index);
+			return true;
 		}
+		return false;
 	}
 
 	/**
