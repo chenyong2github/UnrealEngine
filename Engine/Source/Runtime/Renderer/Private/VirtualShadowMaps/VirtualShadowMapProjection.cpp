@@ -90,6 +90,13 @@ static TAutoConsoleVariable<float> CVarSMRTRayLengthScaleDirectional(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarSMRTAdaptiveRayCount(
+	TEXT( "r.Shadow.v.SMRT.AdaptiveRayCount" ),
+	1,
+	TEXT( "Shoot fewer rays in fully shadowed and unshadowed regions. Currently only supported with OnePassProjection. " ),
+	ECVF_RenderThreadSafe
+);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
 	SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
@@ -442,6 +449,9 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCS);
 	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCS, FGlobalShader)
 	
+	class FSMRTAdaptiveRayCountDim : SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
+	using FPermutationDomain = TShaderPermutationDomain<FSMRTAdaptiveRayCountDim>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
@@ -501,8 +511,10 @@ void RenderVirtualShadowMapProjection(
 	PassParameters->SMRTRayLengthScale = 0.0f;		// Currently unused in this path
 
 	PassParameters->RWShadowMaskBits = GraphBuilder.CreateUAV( ShadowMaskBits );
-				
-	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >();
+	
+	FVirtualShadowMapProjectionCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0 );
+	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );
 
 	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( View.ViewRect.Size(), 8 );
 

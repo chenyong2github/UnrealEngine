@@ -12,6 +12,10 @@ ProjectionSpot.ush:
 #include "PageAccessCommon.ush"
 #include "ProjectionCommon.ush"
 
+#ifndef SMRT_ADAPTIVE_RAY_COUNT
+#define SMRT_ADAPTIVE_RAY_COUNT 0
+#endif
+
 /** Return float multiplier to scale RayStepScreen such that it clip it right at the edge of the screen. */
 float GetStepScreenFactorToClipAtScreenEdge(float2 RayStartScreen, float2 RayStepScreen)
 {
@@ -219,6 +223,7 @@ float TraceSpotLight(
 
 			RayMissFactor += bHit ? 0 : 1;
 			
+#if SMRT_ADAPTIVE_RAY_COUNT
 #if COMPILER_SUPPORTS_WAVE_VOTE
 			if( i == 0 )
 			{
@@ -245,6 +250,7 @@ float TraceSpotLight(
 					break;
 				}
 			}
+#endif
 #endif
 		}
 		SampleCount = min(i + 1, uint(RayCount));		// break vs regular for loop exit
