@@ -1599,7 +1599,7 @@ inline bool IsD3DPlatform(const FStaticShaderPlatform Platform)
 	case SP_PCD3D_SM5:
 	case SP_PCD3D_ES3_1:
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	case SP_XBOXONE_D3D12:
+	case SP_XBOXONE_D3D12_REMOVED:
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	default:
