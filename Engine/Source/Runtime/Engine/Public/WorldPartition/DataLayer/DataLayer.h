@@ -21,7 +21,11 @@ public:
 	void SetVisible(bool bInIsVisible);
 	void SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded);
 	void SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor);
+
 	bool IsDynamicallyLoadedInEditor() const { return !IsDynamicallyLoaded() || bIsDynamicallyLoadedInEditor; }
+	bool ShouldGenerateHLODs() const { return IsDynamicallyLoaded() && bGeneratesHLODs; }
+	class UHLODLayer* GetDefaultHLODLayer() const { return ShouldGenerateHLODs() ? DefaultHLODLayer : nullptr; }
+
 	static FText GetDataLayerText(const UDataLayer* InDataLayer);
 #endif
 	
@@ -46,5 +50,13 @@ private:
 	/** Whether the DataLayer affects actor editor loading */
 	UPROPERTY(Transient)
 	uint32 bIsDynamicallyLoadedInEditor : 1;
+
+	/** Whether HLODs should be generated for actors in this layer */
+	UPROPERTY(Category = DataLayer, EditAnywhere, meta=(EditConditionHides, EditCondition="bIsDynamicallyLoaded"))
+	uint32 bGeneratesHLODs : 1;
+
+	// Default HLOD layer
+	UPROPERTY(Category = DataLayer, EditAnywhere, meta=(EditConditionHides, EditCondition="bIsDynamicallyLoaded && bGeneratesHLODs"))
+	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 #endif
 };
