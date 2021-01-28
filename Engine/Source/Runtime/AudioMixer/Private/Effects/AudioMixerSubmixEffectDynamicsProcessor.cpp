@@ -389,13 +389,24 @@ void USubmixEffectDynamicsProcessorPreset::SetAudioBus(UAudioBus* InAudioBus)
 	if (InAudioBus)
 	{
 		BusChannels = static_cast<int32>(InAudioBus->AudioBusChannels) + 1;
+		SetKey(ESubmixEffectDynamicsKeySource::AudioBus, InAudioBus, BusChannels);
 	}
-	SetKey(ESubmixEffectDynamicsKeySource::AudioBus, InAudioBus, BusChannels);
+	else
+	{
+		ResetKey();
+	}
 }
 
 void USubmixEffectDynamicsProcessorPreset::SetExternalSubmix(USoundSubmix* InSubmix)
 {
-	SetKey(ESubmixEffectDynamicsKeySource::Submix, InSubmix);
+	if (InSubmix)
+	{
+		SetKey(ESubmixEffectDynamicsKeySource::Submix, InSubmix);
+	}
+	else
+	{
+		ResetKey();
+	}
 }
 
 void USubmixEffectDynamicsProcessorPreset::SetKey(ESubmixEffectDynamicsKeySource InKeySource, UObject* InObject, int32 InNumChannels)
