@@ -11,7 +11,6 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
-	template<class T>
 	void BPPerfTest()
 	{
 #if CHAOS_PARTICLEHANDLE_TODO
@@ -19,12 +18,12 @@ namespace ChaosTest
 		//perf files are not stored in p4 at the moment. Use your own local file by calling 'p.SerializeForPerfTest' while running a specific scene. The log will contain the file name generated
 		TUniquePtr<FArchive> File(IFileManager::Get().CreateFileReader(TEXT("ChaosPerf_xxx.bin")));
 		
-		const T Dt = (T)1 / (T)60;
+		const FReal Dt = (FReal)1 / (FReal)60;
 		if (File)
 		{
 			FChaosArchive Ar(*File);
 
-			TPBDRigidParticles<T, 3> Particles;
+			FPBDRigidParticles Particles;
 			FPBDRigidsEvolution Evolution(MoveTemp(Particles));
 			Evolution.SerializeForPerfTest(Ar);
 			Evolution.AdvanceOneTimeStep(Dt);
@@ -32,6 +31,4 @@ namespace ChaosTest
 	}
 #endif
 	}
-
-	template void BPPerfTest<float>();
 }

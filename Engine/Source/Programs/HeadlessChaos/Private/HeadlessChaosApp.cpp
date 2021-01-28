@@ -143,7 +143,7 @@ TEST(SerializationTests, Serialization) {
 }
 
 TEST(BroadphaseTests, Broadphase) {
-	ChaosTest::BPPerfTest<float>();
+	ChaosTest::BPPerfTest();
 	//ChaosTest::SpatialAccelerationDirtyAndGlobalQueryStrestTest<float>();
 	SUCCEED();
 }
@@ -250,9 +250,9 @@ TEST(Perf, PerfTests)
 
 TEST(Handles, FrameworkTests)
 {
-	ChaosTest::Handles::HandleArrayTest<float>();
-	ChaosTest::Handles::HandleHeapTest<float>();
-	ChaosTest::Handles::HandleSerializeTest<float>();
+	ChaosTest::Handles::HandleArrayTest();
+	ChaosTest::Handles::HandleHeapTest();
+	ChaosTest::Handles::HandleSerializeTest();
 }
 
 //TEST(Vehicle, VehicleTests) {
