@@ -6,7 +6,6 @@
 #include "Curves/CurveFloat.h"
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudOctree.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Engine/EngineTypes.h"
 #include "LidarPointCloudSettings.h"
@@ -21,6 +20,7 @@ class ALidarPointCloudActor;
 class ULidarPointCloudComponent;
 class UBodySetup;
 class FLidarPointCloudCollisionRendering;
+class FLidarPointCloudNotification;
 
 /**
  * Used for ULidarPointCloud::CreateFromXXXX calls
@@ -48,33 +48,6 @@ struct FLidarPointCloudAsyncParameters
 		, CompletionCallback(MoveTemp(CompletionCallback))
 	{
 	}
-};
-
-/** Wrapper around a NotificationItem to make the notification handling more centralized */
-class FLidarPointCloudNotification
-{
-	/** Stores the pointer to the actual notification item */
-	TSharedPtr<SNotificationItem> NotificationItem;
-
-	/** Owner of this notification */
-	UObject* Owner;
-
-	FString CurrentText;
-	int8 CurrentProgress;
-
-public:
-	FLidarPointCloudNotification() : FLidarPointCloudNotification(nullptr) {}
-	FLidarPointCloudNotification(UObject* Owner);
-
-	bool IsValid() const { return NotificationItem.IsValid(); }
-	void Create(const FString& Text, FThreadSafeBool* bCancelPtr = nullptr, const FString& Icon = "ClassIcon32.LidarPointCloud");
-	void SetText(const FString& Text);
-	void SetProgress(int8 Progress);
-	void SetTextWithProgress(const FString& Text, int8 Progress);
-	void Close(bool bSuccess);
-
-private:
-	void UpdateStatus();
 };
 
 /** Used to notify the component it should refresh its state. */
@@ -151,8 +124,18 @@ private:
 	FThreadSafeBool bAsyncCancelled;
 	FCriticalSection ProcessingLock;
 
-	/** Notification we hold on to, that indicates status and progress. */
-	FLidarPointCloudNotification Notification;
+	/** Notifications we hold on to, that indicate status and progress. */
+	class FLidarPointCloudNotificationManager
+	{
+		TArray<TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe>> Notifications;
+		TWeakObjectPtr<ULidarPointCloud> Owner;
+
+	public:
+		FLidarPointCloudNotificationManager() : FLidarPointCloudNotificationManager(nullptr) {}
+		FLidarPointCloudNotificationManager(TWeakObjectPtr<ULidarPointCloud> Owner) : Owner(Owner) {}
+		TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Create(const FString& Text, FThreadSafeBool* bCancelPtr = nullptr, const FString& Icon = "ClassIcon32.LidarPointCloud");
+		void CloseAll();
+	} Notifications;
 
 	/** Description of collision */
 	UPROPERTY(transient, duplicatetransient)
@@ -656,8 +639,8 @@ public:
 
 private:
 	/** Once async physics cook is done, create needed state */
-	void FinishPhysicsAsyncCook(UBodySetup* NewBodySetup) { FinishPhysicsAsyncCook(true, NewBodySetup); }
-	void FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBodySetup);
+	void FinishPhysicsAsyncCook(UBodySetup* NewBodySetup, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification) { FinishPhysicsAsyncCook(true, NewBodySetup, Notification); }
+	void FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBodySetup, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification);
 
 	void InitializeCollisionRendering();
 	void ReleaseCollisionRendering();

@@ -17,6 +17,7 @@
 #include "Engine/CollisionProfile.h"
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #if WITH_EDITOR
 #include "IContentBrowserSingleton.h"
@@ -68,121 +69,147 @@ public:
 /////////////////////////////////////////////////
 // FLidarPointCloudNotification
 
-FLidarPointCloudNotification::FLidarPointCloudNotification(UObject* Owner)
-	: Owner(Owner)
-	, CurrentText("")
-	, CurrentProgress(-1)
+/** Wrapper around a NotificationItem to make the notification handling more centralized */
+class FLidarPointCloudNotification
 {
-}
+	/** Stores the pointer to the actual notification item */
+	TSharedPtr<SNotificationItem> NotificationItem;
 
-void FLidarPointCloudNotification::Create(const FString& Text, FThreadSafeBool* bCancelPtr, const FString& Icon)
-{
-	SetTextWithProgress(Text, -1);
+	FString CurrentText;
+	int8 CurrentProgress;
 
+public:
+	FLidarPointCloudNotification(const FString& Text, TWeakObjectPtr<ULidarPointCloud> Owner, FThreadSafeBool* bCancelPtr, const FString& Icon)
+		: CurrentText(Text)
+		, CurrentProgress(-1)
+	{
 #if WITH_EDITOR
-	if (Owner && !IsValid() && GIsEditor)
-	{
-		// Build the notification widget
-		FNotificationInfo Info(FText::FromString(CurrentText));
-		Info.bFireAndForget = false;
-		Info.Image = FSlateStyleRegistry::FindSlateStyle("LidarPointCloudStyle")->GetBrush(*Icon);
-
-		if (Owner->HasAnyFlags(RF_Public | RF_Standalone))
+		if (GIsEditor)
 		{
-			Info.Hyperlink = FSimpleDelegate::CreateLambda([this] {
-				// Select the cloud in Content Browser when the hyperlink is clicked
-				TArray<FAssetData> AssetData;
-				AssetData.Add(FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get().GetAssetByObjectPath(FSoftObjectPath(Owner).GetAssetPathName()));
-				FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get().SyncBrowserToAssets(AssetData);
-			});
-			Info.HyperlinkText = FText::FromString(FPaths::GetBaseFilename(FSoftObjectPath(Owner).ToString()));
-		}
+			// Build the notification widget
+			FNotificationInfo Info(FText::FromString(CurrentText));
+			Info.bFireAndForget = false;
+			Info.Image = FSlateStyleRegistry::FindSlateStyle("LidarPointCloudStyle")->GetBrush(*Icon);
 
-		if (bCancelPtr)
-		{
-			Info.ButtonDetails.Emplace(
-				LOCTEXT("OpCancel", "Cancel"),
-				LOCTEXT("OpCancelToolTip", "Cancels the point cloud operation in progress."),
-				FSimpleDelegate::CreateLambda([bCancelPtr] { *bCancelPtr = true; })
-			);
-		}
-
-		NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
-		if (IsValid())
-		{
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
-		}
-	}
-#endif
-}
-
-void FLidarPointCloudNotification::SetText(const FString& Text)
-{
-	CurrentText = Text;
-	UpdateStatus();
-}
-
-void FLidarPointCloudNotification::SetProgress(int8 Progress)
-{
-	CurrentProgress = Progress;
-	UpdateStatus();
-}
-
-void FLidarPointCloudNotification::SetTextWithProgress(const FString& Text, int8 Progress)
-{
-	CurrentText = Text;
-	CurrentProgress = Progress;
-	UpdateStatus();
-}
-
-void FLidarPointCloudNotification::Close(bool bSuccess)
-{
-#if WITH_EDITOR
-	if (Owner && IsValid())
-	{
-		// Do not use fadeout if the engine is shutting down
-		if (!GEditor->HasAnyFlags(RF_BeginDestroyed))
-		{
-			CurrentText.Append(bSuccess ? " Complete" : " Failed");
-			CurrentProgress = -1;
-			UpdateStatus();
-			NotificationItem->SetCompletionState(bSuccess ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
-			NotificationItem->ExpireAndFadeout();
-		}
-		NotificationItem.Reset();
-	}
-#endif
-}
-
-void FLidarPointCloudNotification::UpdateStatus()
-{
-	if (!Owner || !IsValid())
-	{
-		return;
-	}
-
-	if (IsInGameThread())
-	{
-		// Update Text
-		{
-			FString Message;
-
-			if (CurrentProgress >= 0)
+			if (ULidarPointCloud* OwnerPtr = Owner.Get())
 			{
-				Message = FString::Printf(TEXT("%s: %d%%"), *CurrentText, CurrentProgress);
+				const FSoftObjectPath SoftObjectPath(OwnerPtr);
+
+				Info.Hyperlink = FSimpleDelegate::CreateLambda([SoftObjectPath] {
+					// Select the cloud in Content Browser when the hyperlink is clicked
+					TArray<FAssetData> AssetData;
+					AssetData.Add(FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get().GetAssetByObjectPath(SoftObjectPath.GetAssetPathName()));
+					FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get().SyncBrowserToAssets(AssetData);
+					});
+				Info.HyperlinkText = FText::FromString(FPaths::GetBaseFilename(SoftObjectPath.ToString()));
+			}
+
+			if (bCancelPtr)
+			{
+				Info.ButtonDetails.Emplace(
+					LOCTEXT("OpCancel", "Cancel"),
+					LOCTEXT("OpCancelToolTip", "Cancels the point cloud operation in progress."),
+					FSimpleDelegate::CreateLambda([bCancelPtr] { *bCancelPtr = true; })
+				);
+			}
+
+			NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+			if (NotificationItem.IsValid())
+			{
+				NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+			}
+		}
+#endif
+	}
+	~FLidarPointCloudNotification()
+	{
+		Close(false);
+	}
+
+	void SetText(const FString& Text)
+	{
+#if WITH_EDITOR
+		CurrentText = Text;
+		UpdateStatus();
+#endif
+	}
+	void SetProgress(int8 Progress)
+	{
+#if WITH_EDITOR
+		CurrentProgress = Progress;
+		UpdateStatus();
+#endif
+	}
+	void SetTextWithProgress(const FString& Text, int8 Progress)
+	{
+#if WITH_EDITOR
+		CurrentText = Text;
+		CurrentProgress = Progress;
+		UpdateStatus();
+#endif
+	}
+	void Close(bool bSuccess)
+	{
+#if WITH_EDITOR
+		if (NotificationItem.IsValid())
+		{
+			// Do not use fadeout if the engine is shutting down
+			if(FSlateApplication::IsInitialized())
+			{
+				CurrentText.Append(bSuccess ? " Complete" : " Failed");
+				CurrentProgress = -1;
+				UpdateStatus();
+				NotificationItem->SetCompletionState(bSuccess ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
+				NotificationItem->ExpireAndFadeout();
+			}
+			NotificationItem.Reset();
+		}
+#endif
+	}
+
+private:
+	void UpdateStatus()
+	{
+#if WITH_EDITOR
+		if (NotificationItem.IsValid())
+		{
+			if (IsInGameThread())
+			{
+				FString Message;
+
+				if (CurrentProgress >= 0)
+				{
+					Message = FString::Printf(TEXT("%s: %d%%"), *CurrentText, CurrentProgress);
+				}
+				else
+				{
+					Message = FString::Printf(TEXT("%s"), *CurrentText);
+				}
+
+				NotificationItem->SetText(FText::FromString(Message));
 			}
 			else
 			{
-				Message = FString::Printf(TEXT("%s"), *CurrentText);
+				AsyncTask(ENamedThreads::GameThread, [this] { UpdateStatus(); });
 			}
-
-			NotificationItem->SetText(FText::FromString(Message));
 		}
+#endif
 	}
-	else
+};
+
+TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> ULidarPointCloud::FLidarPointCloudNotificationManager::Create(const FString& Text, FThreadSafeBool* bCancelPtr, const FString& Icon)
+{
+	return Notifications[Notifications.Add(MakeShared<FLidarPointCloudNotification, ESPMode::ThreadSafe>(Text, Owner, bCancelPtr, Icon))];
+}
+
+void ULidarPointCloud::FLidarPointCloudNotificationManager::CloseAll()
+{
+	for (TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification : Notifications)
 	{
-		AsyncTask(ENamedThreads::GameThread, [this] { UpdateStatus(); });
+		Notification->Close(false);
 	}
+
+	Notifications.Empty();
 }
 
 /////////////////////////////////////////////////
@@ -195,7 +222,7 @@ ULidarPointCloud::ULidarPointCloud()
 	, Octree(this)
 	, OriginalCoordinates(FDoubleVector::ZeroVector)
 	, LocationOffset(FDoubleVector::ZeroVector)
-	, Notification(this)
+	, Notifications(this)
 	, BodySetup(nullptr)
 	, bCollisionBuildInProgress(false)
 {
@@ -272,7 +299,7 @@ void ULidarPointCloud::BeginDestroy()
 	FScopeLock LockImport(&ProcessingLock);
 
 	// Hide any notifications, if still present
-	Notification.Close(false);
+	Notifications.CloseAll();
 
 	// Wait for ongoing data access to finish
 	FScopeLock LockOctree(&Octree.DataLock);
@@ -385,7 +412,7 @@ void ULidarPointCloud::BuildCollision()
 		return;
 	}
 
-	Notification.Create("Building Collision", nullptr, "LidarPointCloudEditor.BuildCollision");
+	TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification = Notifications.Create("Building Collision", nullptr, "LidarPointCloudEditor.BuildCollision");
 	
 	bCollisionBuildInProgress = true;
 	MarkPackageDirty();
@@ -395,17 +422,17 @@ void ULidarPointCloud::BuildCollision()
 	NewBodySetup->CollisionTraceFlag = CTF_UseComplexAsSimple;
 	NewBodySetup->bHasCookedCollisionData = true;
 
-	Async(EAsyncExecution::Thread, [this, NewBodySetup]{
+	Async(EAsyncExecution::Thread, [this, Notification, NewBodySetup]{
 		Octree.BuildCollision(MaxCollisionError, true);
 
 		FBenchmarkTimer::Reset();
 #if WITH_PHYSX  && PHYSICS_INTERFACE_PHYSX
-		AsyncTask(ENamedThreads::GameThread, [this, NewBodySetup] {
-			NewBodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateUObject(this, &ULidarPointCloud::FinishPhysicsAsyncCook, NewBodySetup));
+		AsyncTask(ENamedThreads::GameThread, [this, NewBodySetup, Notification] {
+			NewBodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateUObject(this, &ULidarPointCloud::FinishPhysicsAsyncCook, NewBodySetup, Notification));
 		});
 #elif WITH_CHAOS
 		NewBodySetup->CreatePhysicsMeshes();
-		AsyncTask(ENamedThreads::GameThread, [this, NewBodySetup] { FinishPhysicsAsyncCook(true, NewBodySetup); });
+		AsyncTask(ENamedThreads::GameThread, [this, NewBodySetup, Notification] { FinishPhysicsAsyncCook(true, NewBodySetup, Notification); });
 #endif		
 	});
 }
@@ -452,12 +479,12 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 		}
 
 		bAsyncCancelled = false;
-		Notification.Create("Importing Point Cloud", &bAsyncCancelled);
+		TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification = Notifications.Create("Importing Point Cloud", &bAsyncCancelled);
 
 		const bool bCenter = GetDefault<ULidarPointCloudSettings>()->bAutoCenterOnImport;
 
 		// The actual import function to be executed
-		auto ImportFunction = [this, AsyncParameters, bCenter]
+		auto ImportFunction = [this, Notification, AsyncParameters, bCenter]
 		{
 			// This will take over the lock
 			FScopeLock Lock(&ProcessingLock);
@@ -475,9 +502,9 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 				PC_LOG("Using Concurrent Insertion");
 
 				ImportResults = FLidarPointCloudImportResults(&bAsyncCancelled,
-				[this, AsyncParameters](float Progress)
+				[this, Notification, AsyncParameters](float Progress)
 				{
-					Notification.SetProgress(100.0f * Progress);
+					Notification->SetProgress(100.0f * Progress);
 					if (AsyncParameters.ProgressCallback)
 					{
 						AsyncParameters.ProgressCallback(100.0f * Progress);
@@ -496,9 +523,9 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 			}
 			else
 			{
-				ImportResults = FLidarPointCloudImportResults(&bAsyncCancelled, [this, AsyncParameters](float Progress)
+				ImportResults = FLidarPointCloudImportResults(&bAsyncCancelled, [this, Notification, AsyncParameters](float Progress)
 				{
-					Notification.SetProgress(50.0f * Progress);
+					Notification->SetProgress(50.0f * Progress);
 					if (AsyncParameters.ProgressCallback)
 					{
 						AsyncParameters.ProgressCallback(50.0f * Progress);
@@ -512,9 +539,9 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 
 					FScopeBenchmarkTimer BenchmarkTimer("Octree Build-Up");
 
-					bSuccess = InsertPoints_NoLock(ImportResults.Points.GetData(), ImportResults.Points.Num(), GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false, -LocationOffset.ToVector(), &bAsyncCancelled, [this, AsyncParameters](float Progress)
+					bSuccess = InsertPoints_NoLock(ImportResults.Points.GetData(), ImportResults.Points.Num(), GetDefault<ULidarPointCloudSettings>()->DuplicateHandling, false, -LocationOffset.ToVector(), &bAsyncCancelled, [this, Notification, AsyncParameters](float Progress)
 					{
-						Notification.SetProgress(50.0f + 50.0f * Progress);
+						Notification->SetProgress(50.0f + 50.0f * Progress);
 						if (AsyncParameters.ProgressCallback)
 						{
 							AsyncParameters.ProgressCallback(50.0f + 50.0f * Progress);
@@ -552,9 +579,9 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 			// Only process those if not being destroyed
 			if (!HasAnyFlags(RF_BeginDestroyed))
 			{
-				auto PostFunction = [this, bSuccess]() {
+				auto PostFunction = [this, Notification, bSuccess]() {
 					MarkPackageDirty();
-					Notification.Close(bSuccess);
+					Notification->Close(bSuccess);
 					OnPointCloudRebuiltEvent.Broadcast();
 				};
 
@@ -743,7 +770,6 @@ bool ULidarPointCloud::SetData(T Points, const int64& Count, TFunction<void(floa
 		{
 			auto PostFunction = [this, bSuccess]() {
 				MarkPackageDirty();
-				Notification.Close(bSuccess);
 				OnPointCloudRebuiltEvent.Broadcast();
 			};
 
@@ -898,7 +924,7 @@ void ULidarPointCloud::CalculateNormals(TArray64<FLidarPointCloudPoint*>* Points
 	}
 
 	bAsyncCancelled = false;
-	Notification.Create("Calculating Normals", &bAsyncCancelled);
+	TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification = Notifications.Create("Calculating Normals", &bAsyncCancelled);
 	Async(EAsyncExecution::Thread,
 	[this, Points]
 	{
@@ -910,12 +936,12 @@ void ULidarPointCloud::CalculateNormals(TArray64<FLidarPointCloudPoint*>* Points
 
 		Octree.CalculateNormals(&bAsyncCancelled, NormalsQuality, NormalsNoiseTolerance, Points);
 	},
-	[this, _CompletionCallback = MoveTemp(CompletionCallback)]
+	[this, Notification, _CompletionCallback = MoveTemp(CompletionCallback)]
 	{
-		AsyncTask(ENamedThreads::GameThread, [this]
+		AsyncTask(ENamedThreads::GameThread, [this, Notification]
 		{
 			MarkPackageDirty();
-			Notification.Close(!bAsyncCancelled);
+			Notification->Close(!bAsyncCancelled);
 		});
 
 		if (_CompletionCallback)
@@ -1052,10 +1078,10 @@ FBox ULidarPointCloud::CalculateBoundsFromPoints(FLidarPointCloudPoint** Points,
 	return Bounds;
 }
 
-void ULidarPointCloud::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBodySetup)
+void ULidarPointCloud::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBodySetup, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification)
 {
 	FBenchmarkTimer::Log("CookingCollision");
-	Notification.Close(bSuccess);
+	Notification->Close(bSuccess);
 
 	if (bSuccess)
 	{
