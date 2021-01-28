@@ -69,6 +69,7 @@ public:
 	{
 		FName BundleName;
 		EInstallBundleRequestFlags Flags = EInstallBundleRequestFlags::None;
+		ELogVerbosity::Type LogVerbosityOverride = ELogVerbosity::NoLogging;
 		FInstallBundlePausedDelegate PausedCallback;
 		FInstallBundleCompleteDelegate CompleteCallback;
 		TSharedPtr<InstallBundleUtil::FContentRequestSharedContext> RequestSharedContext;
@@ -82,6 +83,7 @@ public:
 	{
 		FName BundleName;
 		EInstallBundleReleaseRequestFlags Flags = EInstallBundleReleaseRequestFlags::None;
+		ELogVerbosity::Type LogVerbosityOverride = ELogVerbosity::NoLogging;
 		FInstallBundleRemovedDelegate CompleteCallback;
 	};
 
