@@ -90,7 +90,9 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 
+#if PHYSICS_THREAD_CONTEXT
 		FPhysicsThreadContextScope Scope(/*IsPhysicsThreadContext=*/true);
+#endif
 
 		Solver.SetExternalTimestampConsumed_Internal(PushData->ExternalTimestamp);
 		Solver.ProcessPushedData_Internal(*PushData);
