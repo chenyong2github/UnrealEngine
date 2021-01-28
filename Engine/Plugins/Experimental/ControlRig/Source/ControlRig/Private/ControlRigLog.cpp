@@ -2,6 +2,14 @@
 
 #include "ControlRigLog.h"
 
+void FControlRigLog::Reset()
+{
+#if WITH_EDITOR
+	Entries.Reset();
+	KnownMessages.Reset();
+#endif
+}
+
 void FControlRigLog::Report(EMessageSeverity::Type InSeverity, const FName& InOperatorName, int32 InInstructionIndex, const FString& InMessage)
 {
 #if WITH_EDITOR

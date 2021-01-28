@@ -3193,7 +3193,8 @@ void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, c
 		return;
 	}
 
-	FString NoneStr = FName(NAME_None).ToString();
+	CacheNameLists();
+
 	FString RemovedElementName = InKey.Name.ToString();
 	ERigElementType RemovedElementType = InKey.Type;
 
@@ -3224,7 +3225,8 @@ void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, c
 						{
 							if (ModelPin->GetDefaultValue() == RemovedElementName)
 							{
-								GetFocusedController()->SetPinDefaultValue(ModelPin->GetPinPath(), FName(NAME_None).ToString());
+								RigNode->ReconstructNode();
+								break;
 							}
 						}
 						else if (ModelPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
@@ -3241,7 +3243,8 @@ void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, c
 										FString NameStr = NamePin->GetDefaultValue();
 										if (NameStr == RemovedElementName)
 										{
-											GetFocusedController()->SetPinDefaultValue(NamePin->GetPinPath(), NoneStr);
+											RigNode->ReconstructNode();
+											break;
 										}
 									}
 								}
@@ -3251,8 +3254,6 @@ void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, c
 				}
 			}
 		}
-
-		CacheNameLists();
 	}
 
 	OnHierarchyChanged();

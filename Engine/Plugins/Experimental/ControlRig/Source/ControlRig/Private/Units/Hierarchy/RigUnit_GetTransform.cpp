@@ -26,10 +26,7 @@ FRigUnit_GetTransform_Execute()
 			{
 				if (!CachedIndex.UpdateCache(Item, Hierarchy))
 				{
-					if(Context.State != EControlRigState::Init)
-					{
-						UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item '%s' is not valid."), *Item.ToString());
-					}
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item '%s' is not valid."), *Item.ToString());
 				}
 				else
 				{

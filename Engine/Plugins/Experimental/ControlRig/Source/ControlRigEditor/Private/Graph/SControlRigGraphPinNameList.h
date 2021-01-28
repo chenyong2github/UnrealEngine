@@ -15,10 +15,13 @@ public:
 
 	DECLARE_DELEGATE_RetVal_OneParam( const TArray<TSharedPtr<FString>>&, FOnGetNameListContent, URigVMPin*);
 
-	SLATE_BEGIN_ARGS(SControlRigGraphPinNameList){}
+	SLATE_BEGIN_ARGS(SControlRigGraphPinNameList)
+		: _MarkupInvalidItems(true)
+	{}
 
 		SLATE_ARGUMENT(URigVMPin*, ModelPin)
 		SLATE_EVENT(FOnGetNameListContent, OnGetNameListContent)
+		SLATE_ARGUMENT(bool, MarkupInvalidItems)
 
 	SLATE_END_ARGS()
 
@@ -31,6 +34,7 @@ protected:
 
 	const TArray<TSharedPtr<FString>>& GetNameList() const;
 	FText GetNameListText() const;
+	FSlateColor GetNameColor() const;
 	virtual void SetNameListText(const FText& NewTypeInValue, ETextCommit::Type CommitInfo);
 
 	TSharedRef<SWidget> MakeNameListItemWidget(TSharedPtr<FString> InItem);
@@ -42,4 +46,5 @@ protected:
 	TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListComboBox;
 	TArray<TSharedPtr<FString>> EmptyList;
 	TArray<TSharedPtr<FString>> CurrentList;
+	bool bMarkupInvalidItems;
 };

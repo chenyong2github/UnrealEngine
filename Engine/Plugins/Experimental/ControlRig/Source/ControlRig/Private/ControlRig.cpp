@@ -559,7 +559,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.Log = ControlRigLog;
 	if (ControlRigLog != nullptr)
 	{
-		ControlRigLog->Entries.Reset();
+		ControlRigLog->Reset();
 	}
 #endif
 
@@ -1031,7 +1031,7 @@ UAnimationDataSourceRegistry* UControlRig::GetDataSourceRegistry()
 	}
 	if (DataSourceRegistry == nullptr)
 	{
-		DataSourceRegistry = NewObject<UAnimationDataSourceRegistry>(this, TEXT("DataSourceRegistry"));
+		DataSourceRegistry = NewObject<UAnimationDataSourceRegistry>(this);
 	}
 	return DataSourceRegistry;
 }

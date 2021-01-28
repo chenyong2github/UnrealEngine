@@ -31,5 +31,6 @@ public:
 	TMap<FString, bool> KnownMessages;
 #endif
 
+	virtual void Reset();
 	virtual void Report(EMessageSeverity::Type InSeverity, const FName& InFunctionName, int32 InInstructionIndex, const FString& InMessage);
 };

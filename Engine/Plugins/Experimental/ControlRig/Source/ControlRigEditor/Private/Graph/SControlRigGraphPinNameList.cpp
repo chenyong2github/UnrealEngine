@@ -13,7 +13,9 @@ void SControlRigGraphPinNameList::Construct(const FArguments& InArgs, UEdGraphPi
 {
 	this->ModelPin = InArgs._ModelPin;
 	this->OnGetNameListContent = InArgs._OnGetNameListContent;
+	this->bMarkupInvalidItems = InArgs._MarkupInvalidItems;
 
+	CurrentList = GetNameList();
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 }
 
@@ -42,6 +44,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 				[
 					SNew(STextBlock)
 					.Text(this, &SControlRigGraphPinNameList::GetNameListText)
+					.ColorAndOpacity(this, &SControlRigGraphPinNameList::GetNameColor)
 				]
 		];
 }
@@ -68,6 +71,30 @@ void SControlRigGraphPinNameList::SetNameListText(const FText& NewTypeInValue, E
 		GraphPinObj->Modify();
 		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, NewTypeInValue.ToString());
 	}
+}
+
+FSlateColor SControlRigGraphPinNameList::GetNameColor() const
+{
+	if(bMarkupInvalidItems)
+	{
+		FString CurrentItem = GetNameListText().ToString();
+		
+		bool bFound = false;
+		for (TSharedPtr<FString> Item : CurrentList)
+		{
+			if (Item->Equals(CurrentItem))
+			{
+				bFound = true;
+				break;
+			}
+		}
+
+		if(!bFound || CurrentItem.IsEmpty() || CurrentItem == FName(NAME_None).ToString())
+		{
+			return FSlateColor(FLinearColor::Red);
+		}
+	}
+	return FSlateColor::UseForeground();
 }
 
 TSharedRef<SWidget> SControlRigGraphPinNameList::MakeNameListItemWidget(TSharedPtr<FString> InItem)
