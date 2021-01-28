@@ -79,7 +79,6 @@ namespace DetailedCookStats
 	FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
 		const FString StatName(TEXT("Cook.Profile"));
-		TArray<FCookStatsManager::StringKeyValue> Attrs;
 		#define ADD_COOK_STAT_FLT(Path, Name) AddStat(StatName, FCookStatsManager::CreateKeyValueArray(TEXT("Path"), TEXT(Path), TEXT(#Name), Name))
 		ADD_COOK_STAT_FLT(" 0", CookWallTimeSec);
 		ADD_COOK_STAT_FLT(" 0. 0", StartupWallTimeSec);
