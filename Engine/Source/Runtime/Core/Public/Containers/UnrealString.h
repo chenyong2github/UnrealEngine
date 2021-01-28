@@ -396,7 +396,7 @@ public:
 	 *
 	 * @return true if this string is empty, otherwise return false.
 	 */
-	FORCEINLINE bool IsEmpty() const
+	UE_NODISCARD FORCEINLINE bool IsEmpty() const
 	{
 		return Data.Num() <= 1;
 	}
@@ -431,7 +431,7 @@ public:
 	 *
 	 * @returns True if index is valid. False otherwise.
 	 */
-	FORCEINLINE bool IsValidIndex(int32 Index) const
+	UE_NODISCARD FORCEINLINE bool IsValidIndex(int32 Index) const
 	{
 		return Index >= 0 && Index < Len();
 	}
@@ -441,7 +441,7 @@ public:
 	 *
 	 * @Return Pointer to Array of TCHAR if Num, otherwise the empty string
 	 */
-	FORCEINLINE const TCHAR* operator*() const
+	UE_NODISCARD FORCEINLINE const TCHAR* operator*() const
 	{
 		return Data.Num() ? Data.GetData() : TEXT("");
 	}
@@ -452,13 +452,13 @@ public:
 	 * @warning: Operations on the TArray<*CHAR> can be unsafe, such as adding
 	 *		non-terminating 0's or removing the terminating zero.
 	 */
-	FORCEINLINE DataType& GetCharArray()
+	UE_NODISCARD FORCEINLINE DataType& GetCharArray()
 	{
 		return Data;
 	}
 
 	/** Get string as const array of TCHARS */
-	FORCEINLINE const DataType& GetCharArray() const
+	UE_NODISCARD FORCEINLINE const DataType& GetCharArray() const
 	{
 		return Data;
 	}
@@ -636,7 +636,7 @@ public:
 	 * @return The concatenated string.
 	 */
 	template <typename CharType>
-	FORCEINLINE friend typename TEnableIf<TIsCharType<CharType>::Value, FString>::Type operator+(const FString& Lhs, CharType Rhs)
+	UE_NODISCARD FORCEINLINE friend typename TEnableIf<TIsCharType<CharType>::Value, FString>::Type operator+(const FString& Lhs, CharType Rhs)
 	{
 		Lhs.CheckInvariants();
 
@@ -655,7 +655,7 @@ public:
 	 * @return The concatenated string.
 	 */
 	template <typename CharType>
-	FORCEINLINE friend typename TEnableIf<TIsCharType<CharType>::Value, FString>::Type operator+(FString&& Lhs, CharType Rhs)
+	UE_NODISCARD FORCEINLINE friend typename TEnableIf<TIsCharType<CharType>::Value, FString>::Type operator+(FString&& Lhs, CharType Rhs)
 	{
 		Lhs.CheckInvariants();
 
@@ -667,7 +667,7 @@ public:
 
 private:
 	template <typename LhsType, typename RhsType>
-	FORCEINLINE static FString ConcatFStrings(typename TIdentity<LhsType>::Type Lhs, typename TIdentity<RhsType>::Type Rhs)
+	UE_NODISCARD FORCEINLINE static FString ConcatFStrings(typename TIdentity<LhsType>::Type Lhs, typename TIdentity<RhsType>::Type Rhs)
 	{
 		Lhs.CheckInvariants();
 		Rhs.CheckInvariants();
@@ -686,7 +686,7 @@ private:
 	}
 
 	template <typename RhsType>
-	FORCEINLINE static FString ConcatTCHARsToFString(const TCHAR* Lhs, typename TIdentity<RhsType>::Type Rhs)
+	UE_NODISCARD FORCEINLINE static FString ConcatTCHARsToFString(const TCHAR* Lhs, typename TIdentity<RhsType>::Type Rhs)
 	{
 		checkSlow(Lhs);
 		Rhs.CheckInvariants();
@@ -715,7 +715,7 @@ private:
 	}
 
 	template <typename LhsType>
-	FORCEINLINE static FString ConcatFStringToTCHARs(typename TIdentity<LhsType>::Type Lhs, const TCHAR* Rhs)
+	UE_NODISCARD FORCEINLINE static FString ConcatFStringToTCHARs(typename TIdentity<LhsType>::Type Lhs, const TCHAR* Rhs)
 	{
 		Lhs.CheckInvariants();
 		checkSlow(Rhs);
@@ -729,7 +729,7 @@ private:
 
 		FString Result(MoveTempIfPossible(Lhs), RhsLen);
 		Result.AppendChars(Rhs, RhsLen);
-		
+
 		return Result;
 	}
 
@@ -742,7 +742,7 @@ public:
 	 *
 	 * @return The concatenated string.
 	 */
-	FORCEINLINE friend FString operator+(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, const FString& Rhs)
 	{
 		return ConcatFStrings<const FString&, const FString&>(Lhs, Rhs);
 	}
@@ -755,7 +755,7 @@ public:
 	 *
 	 * @return The concatenated string.
 	 */
-	FORCEINLINE friend FString operator+(FString&& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, const FString& Rhs)
 	{
 		return ConcatFStrings<FString&&, const FString&>(MoveTemp(Lhs), Rhs);
 	}
@@ -768,7 +768,7 @@ public:
 	 *
 	 * @return The concatenated string.
 	 */
-	FORCEINLINE friend FString operator+(const FString& Lhs, FString&& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, FString&& Rhs)
 	{
 		return ConcatFStrings<const FString&, FString&&>(Lhs, MoveTemp(Rhs));
 	}
@@ -781,7 +781,7 @@ public:
 	 *
 	 * @return The concatenated string.
 	 */
-	FORCEINLINE friend FString operator+(FString&& Lhs, FString&& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, FString&& Rhs)
 	{
 		return ConcatFStrings<FString&&, FString&&>(MoveTemp(Lhs), MoveTemp(Rhs));
 	}
@@ -794,7 +794,7 @@ public:
 	 *
 	 * @return The concatenated string.
 	 */
-	FORCEINLINE friend FString operator+(const TCHAR* Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator+(const TCHAR* Lhs, const FString& Rhs)
 	{
 		return ConcatTCHARsToFString<const FString&>(Lhs, Rhs);
 	}
@@ -807,7 +807,7 @@ public:
 	 *
 	 * @return The concatenated string.
 	 */
-	FORCEINLINE friend FString operator+(const TCHAR* Lhs, FString&& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator+(const TCHAR* Lhs, FString&& Rhs)
 	{
 		return ConcatTCHARsToFString<FString&&>(Lhs, MoveTemp(Rhs));
 	}
@@ -820,7 +820,7 @@ public:
 	 *
 	 * @return The concatenated string.
 	 */
-	FORCEINLINE friend FString operator+(const FString& Lhs, const TCHAR* Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, const TCHAR* Rhs)
 	{
 		return ConcatFStringToTCHARs<const FString&>(Lhs, Rhs);
 	}
@@ -833,7 +833,7 @@ public:
 	 *
 	 * @return The concatenated string.
 	 */
-	FORCEINLINE friend FString operator+(FString&& Lhs, const TCHAR* Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, const TCHAR* Rhs)
 	{
 		return ConcatFStringToTCHARs<FString&&>(MoveTemp(Lhs), Rhs);
 	}
@@ -871,7 +871,7 @@ public:
 	 * @param Rhs Path to concatenate.
 	 * @return new FString of the path
 	 */
-	FORCEINLINE friend FString operator/(const FString& Lhs, const TCHAR* Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator/(const FString& Lhs, const TCHAR* Rhs)
 	{
 		checkSlow(Rhs);
 
@@ -889,7 +889,7 @@ public:
 	 * @param Rhs Path to concatenate.
 	 * @return new FString of the path
 	 */
-	FORCEINLINE friend FString operator/(FString&& Lhs, const TCHAR* Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator/(FString&& Lhs, const TCHAR* Rhs)
 	{
 		checkSlow(Rhs);
 
@@ -907,7 +907,7 @@ public:
 	 * @param Rhs Path to concatenate.
 	 * @return new FString of the path
 	 */
-	FORCEINLINE friend FString operator/(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator/(const FString& Lhs, const FString& Rhs)
 	{
 		int32 StrLength = Rhs.Len();
 
@@ -923,7 +923,7 @@ public:
 	 * @param Rhs Path to concatenate.
 	 * @return new FString of the path
 	 */
-	FORCEINLINE friend FString operator/(FString&& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator/(FString&& Lhs, const FString& Rhs)
 	{
 		int32 StrLength = Rhs.Len();
 
@@ -939,7 +939,7 @@ public:
 	 * @param Rhs Path to concatenate.
 	 * @return new FString of the path
 	 */
-	FORCEINLINE friend FString operator/(const TCHAR* Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend FString operator/(const TCHAR* Lhs, const FString& Rhs)
 	{
 		int32 StrLength = Rhs.Len();
 
@@ -956,7 +956,7 @@ public:
 	 * @return true if the left string is lexicographically <= the right string, otherwise false
 	 * @note case insensitive
 	 */
-	FORCEINLINE friend bool operator<=(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator<=(const FString& Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, *Rhs) <= 0;
 	}
@@ -970,7 +970,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator<=(const FString& Lhs, const CharType* Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator<=(const FString& Lhs, const CharType* Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, Rhs) <= 0;
 	}
@@ -984,7 +984,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator<=(const CharType* Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator<=(const CharType* Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(Lhs, *Rhs) <= 0;
 	}
@@ -997,7 +997,7 @@ public:
 	 * @return true if the left string is lexicographically < the right string, otherwise false
 	 * @note case insensitive
 	 */
-	FORCEINLINE friend bool operator<(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator<(const FString& Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, *Rhs) < 0;
 	}
@@ -1011,7 +1011,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator<(const FString& Lhs, const CharType* Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator<(const FString& Lhs, const CharType* Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, Rhs) < 0;
 	}
@@ -1025,7 +1025,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator<(const CharType* Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator<(const CharType* Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(Lhs, *Rhs) < 0;
 	}
@@ -1038,7 +1038,7 @@ public:
 	 * @return true if the left string is lexicographically >= the right string, otherwise false
 	 * @note case insensitive
 	 */
-	FORCEINLINE friend bool operator>=(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator>=(const FString& Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, *Rhs) >= 0;
 	}
@@ -1052,7 +1052,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator>=(const FString& Lhs, const CharType* Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator>=(const FString& Lhs, const CharType* Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, Rhs) >= 0;
 	}
@@ -1066,7 +1066,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator>=(const CharType* Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator>=(const CharType* Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(Lhs, *Rhs) >= 0;
 	}
@@ -1079,7 +1079,7 @@ public:
 	 * @return true if the left string is lexicographically > the right string, otherwise false
 	 * @note case insensitive
 	 */
-	FORCEINLINE friend bool operator>(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator>(const FString& Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, *Rhs) > 0;
 	}
@@ -1093,7 +1093,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator>(const FString& Lhs, const CharType* Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator>(const FString& Lhs, const CharType* Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, Rhs) > 0;
 	}
@@ -1107,7 +1107,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator>(const CharType* Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator>(const CharType* Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(Lhs, *Rhs) > 0;
 	}
@@ -1120,7 +1120,7 @@ public:
 	 * @return true if the left string is lexicographically == the right string, otherwise false
 	 * @note case insensitive
 	 */
-	FORCEINLINE friend bool operator==(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator==(const FString& Lhs, const FString& Rhs)
 	{
 		return Lhs.Equals(Rhs, ESearchCase::IgnoreCase);
 	}
@@ -1134,7 +1134,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator==(const FString& Lhs, const CharType* Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator==(const FString& Lhs, const CharType* Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, Rhs) == 0;
 	}
@@ -1148,7 +1148,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator==(const CharType* Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator==(const CharType* Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(Lhs, *Rhs) == 0;
 	}
@@ -1161,7 +1161,7 @@ public:
 	 * @return true if the left string is lexicographically != the right string, otherwise false
 	 * @note case insensitive
 	 */
-	FORCEINLINE friend bool operator!=(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator!=(const FString& Lhs, const FString& Rhs)
 	{
 		return !(Lhs == Rhs);
 	}
@@ -1175,7 +1175,7 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator!=(const FString& Lhs, const CharType* Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator!=(const FString& Lhs, const CharType* Rhs)
 	{
 		return FPlatformString::Stricmp(*Lhs, Rhs) != 0;
 	}
@@ -1189,24 +1189,24 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	FORCEINLINE friend bool operator!=(const CharType* Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE friend bool operator!=(const CharType* Lhs, const FString& Rhs)
 	{
 		return FPlatformString::Stricmp(Lhs, *Rhs) != 0;
 	}
 
 	/** Get the length of the string, excluding terminating character */
-	FORCEINLINE int32 Len() const
+	UE_NODISCARD FORCEINLINE int32 Len() const
 	{
 		return Data.Num() ? Data.Num() - 1 : 0;
 	}
 
 	/** Returns the left most given number of characters */
-	FORCEINLINE FString Left( int32 Count ) const &
+	UE_NODISCARD FORCEINLINE FString Left( int32 Count ) const &
 	{
 		return FString( FMath::Clamp(Count,0,Len()), **this );
 	}
 
-	FORCEINLINE FString Left(int32 Count) &&
+	UE_NODISCARD FORCEINLINE FString Left(int32 Count) &&
 	{
 		LeftInline(Count, false);
 		return MoveTemp(*this);
@@ -1221,13 +1221,13 @@ public:
 	}
 
 	/** Returns the left most characters from the string chopping the given number of characters from the end */
-	FORCEINLINE FString LeftChop( int32 Count ) const &
+	UE_NODISCARD FORCEINLINE FString LeftChop( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( FMath::Clamp(Length-Count,0, Length), **this );
 	}
 
-	FORCEINLINE FString LeftChop(int32 Count)&&
+	UE_NODISCARD FORCEINLINE FString LeftChop(int32 Count)&&
 	{
 		LeftChopInline(Count, false);
 		return MoveTemp(*this);
@@ -1241,13 +1241,13 @@ public:
 	}
 
 	/** Returns the string to the right of the specified location, counting back from the right (end of the word). */
-	FORCEINLINE FString Right( int32 Count ) const &
+	UE_NODISCARD FORCEINLINE FString Right( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( **this + Length-FMath::Clamp(Count,0,Length) );
 	}
 
-	FORCEINLINE FString Right(int32 Count) &&
+	UE_NODISCARD FORCEINLINE FString Right(int32 Count) &&
 	{
 		RightInline(Count, false);
 		return MoveTemp(*this);
@@ -1261,13 +1261,13 @@ public:
 	}
 
 	/** Returns the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
-	FORCEINLINE FString RightChop( int32 Count ) const &
+	UE_NODISCARD FORCEINLINE FString RightChop( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( **this + Length-FMath::Clamp(Length-Count,0, Length) );
 	}
 
-	FORCEINLINE FString RightChop(int32 Count) &&
+	UE_NODISCARD FORCEINLINE FString RightChop(int32 Count) &&
 	{
 		RightChopInline(Count, false);
 		return MoveTemp(*this);
@@ -1280,7 +1280,7 @@ public:
 	}
 
 	/** Returns the substring from Start position for Count characters. */
-	FORCEINLINE FString Mid( int32 Start, int32 Count=MAX_int32 ) const &
+	UE_NODISCARD FORCEINLINE FString Mid( int32 Start, int32 Count=MAX_int32 ) const &
 	{
 		FString Result;
 		if (Count >= 0)
@@ -1294,7 +1294,7 @@ public:
 		return Result;
 	}
 
-	FORCEINLINE FString Mid(int32 Start, int32 Count = MAX_int32) &&
+	UE_NODISCARD FORCEINLINE FString Mid(int32 Start, int32 Count = MAX_int32) &&
 	{
 		MidInline(Start, Count, false);
 		return MoveTemp(*this);
@@ -1316,7 +1316,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end.
 	 */
-	int32 Find( const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
+	UE_NODISCARD int32 Find( const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
 				ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition=INDEX_NONE ) const;
 
 	/**
@@ -1328,7 +1328,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 */
-	FORCEINLINE int32 Find( const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
+	UE_NODISCARD FORCEINLINE int32 Find( const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
 							ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition=INDEX_NONE ) const
 	{
 		return Find( *SubStr, SearchCase, SearchDir, StartPosition );
@@ -1342,7 +1342,7 @@ public:
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return					Returns whether the string contains the substring
 	 **/
-	FORCEINLINE bool Contains(const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
+	UE_NODISCARD FORCEINLINE bool Contains(const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
 							  ESearchDir::Type SearchDir = ESearchDir::FromStart ) const
 	{
 		return Find(SubStr, SearchCase, SearchDir) != INDEX_NONE;
@@ -1356,7 +1356,7 @@ public:
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return					Returns whether the string contains the substring
 	 **/
-	FORCEINLINE bool Contains(const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
+	UE_NODISCARD FORCEINLINE bool Contains(const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
 							  ESearchDir::Type SearchDir = ESearchDir::FromStart ) const
 	{
 		return Find(*SubStr, SearchCase, SearchDir) != INDEX_NONE;
@@ -1422,7 +1422,7 @@ public:
 	 * @param SearchCase 	Whether or not the comparison should ignore case
 	 * @return true if this string is lexicographically equivalent to the other, otherwise false
 	 */
-	FORCEINLINE bool Equals(const FString& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const
+	UE_NODISCARD FORCEINLINE bool Equals(const FString& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const
 	{
 		int32 Num = Data.Num();
 		int32 OtherNum = Other.Data.Num();
@@ -1454,7 +1454,7 @@ public:
 	 * @param SearchCase 	Whether or not the comparison should ignore case
 	 * @return 0 if equal, negative if less than, positive if greater than
 	 */
-	FORCEINLINE int32 Compare( const FString& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive ) const
+	UE_NODISCARD FORCEINLINE int32 Compare( const FString& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive ) const
 	{
 		if( SearchCase == ESearchCase::CaseSensitive )
 		{
@@ -1508,37 +1508,37 @@ public:
 	}
 
 	/** Returns a new string with the characters of this converted to uppercase */
-	FString ToUpper() const &;
+	UE_NODISCARD FString ToUpper() const &;
 
 	/**
 	 * Converts all characters in this rvalue string to uppercase and moves it into the returned string.
 	 * @return a new string with the characters of this converted to uppercase
 	 */
-	FString ToUpper() &&;
+	UE_NODISCARD FString ToUpper() &&;
 
 	/** Converts all characters in this string to uppercase */
 	void ToUpperInline();
 
 	/** Returns a new string with the characters of this converted to lowercase */
-	FString ToLower() const &;
+	UE_NODISCARD FString ToLower() const &;
 
 	/**
 	 * Converts all characters in this rvalue string to lowercase and moves it into the returned string.
 	 * @return a new string with the characters of this converted to lowercase
 	 */
-	FString ToLower() &&;
+	UE_NODISCARD FString ToLower() &&;
 
 	/** Converts all characters in this string to lowercase */
 	void ToLowerInline();
 
 	/** Pad the left of this string for ChCount characters */
-	FString LeftPad( int32 ChCount ) const;
+	UE_NODISCARD FString LeftPad( int32 ChCount ) const;
 
 	/** Pad the right of this string for ChCount characters */
-	FString RightPad( int32 ChCount ) const;
+	UE_NODISCARD FString RightPad( int32 ChCount ) const;
 	
 	/** Returns true if the string only contains numeric characters */
-	bool IsNumeric() const;
+	UE_NODISCARD bool IsNumeric() const;
 	
 	/** Removes spaces from the string.  I.E. "Spaces Are Cool" --> "SpacesAreCool". */
 	void RemoveSpacesInline();
@@ -1552,7 +1552,7 @@ public:
 	 * @returns FString object that was constructed using format and additional parameters.
 	 */
 	template <typename FmtType, typename... Types>
-	static typename TEnableIf<TIsArrayOrRefOfType<FmtType, TCHAR>::Value, FString>::Type Printf(const FmtType& Fmt, Types... Args)
+	UE_NODISCARD static typename TEnableIf<TIsArrayOrRefOfType<FmtType, TCHAR>::Value, FString>::Type Printf(const FmtType& Fmt, Types... Args)
 	{
 		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
@@ -1585,7 +1585,7 @@ public:
 	 * @param InNamedArguments		A map of named arguments that match the tokens specified in InExpression
 	 * @return A string containing the formatted text
 	 */
-	static FString Format(const TCHAR* InFormatString, const FStringFormatNamedArguments& InNamedArguments);
+	UE_NODISCARD static FString Format(const TCHAR* InFormatString, const FStringFormatNamedArguments& InNamedArguments);
 
 	/**
 	 * Format the specified string using the specified arguments. Replaces instances of {0} with indices from the given array matching the index specified in the token
@@ -1593,10 +1593,10 @@ public:
 	 * @param InOrderedArguments	An array of ordered arguments that match the tokens specified in InExpression
 	 * @return A string containing the formatted text
 	 */
-	static FString Format(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InOrderedArguments);
+	UE_NODISCARD static FString Format(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InOrderedArguments);
 
 	/** Returns a string containing only the Ch character */
-	static FString Chr( TCHAR Ch );
+	UE_NODISCARD static FString Chr( TCHAR Ch );
 
 	/**
 	 * Returns a string that is full of a variable number of characters
@@ -1606,7 +1606,7 @@ public:
 	 * 
 	 * @return The string of NumCharacters characters.
 	 */
-	static FString ChrN( int32 NumCharacters, TCHAR Char );
+	UE_NODISCARD static FString ChrN( int32 NumCharacters, TCHAR Char );
 
 	/**
 	 * Serializes the string.
@@ -1625,7 +1625,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string begins with specified text, false otherwise
 	 */
-	bool StartsWith(const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	UE_NODISCARD bool StartsWith(const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/**
 	 * Test whether this string starts with given string.
@@ -1633,7 +1633,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string begins with specified text, false otherwise
 	 */
-	bool StartsWith(const FString& InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	UE_NODISCARD bool StartsWith(const FString& InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/**
 	 * Test whether this string ends with given string.
@@ -1641,7 +1641,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string ends with specified text, false otherwise
 	 */
-	bool EndsWith(const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	UE_NODISCARD bool EndsWith(const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/**
 	 * Test whether this string ends with given string.
@@ -1649,7 +1649,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string ends with specified text, false otherwise
 	 */
-	bool EndsWith(const FString& InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase ) const;
+	UE_NODISCARD bool EndsWith(const FString& InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase ) const;
 
 	/**
 	 * Searches this string for a given wild card
@@ -1659,7 +1659,7 @@ public:
 	 * @return true if this string matches the *?-type wildcard given. 
 	 * @warning This is a simple, SLOW routine. Use with caution
 	 */
-	bool MatchesWildcard(const TCHAR* Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	UE_NODISCARD bool MatchesWildcard(const TCHAR* Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/**
 	 * Searches this string for a given wild card
@@ -1669,7 +1669,7 @@ public:
 	 * @return true if this string matches the *?-type wildcard given.
 	 * @warning This is a simple, SLOW routine. Use with caution
 	 */
-	FORCEINLINE bool MatchesWildcard(const FString& Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
+	UE_NODISCARD FORCEINLINE bool MatchesWildcard(const FString& Wildcard, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const
 	{
 		return MatchesWildcard(*Wildcard, SearchCase);
 	}
@@ -1683,13 +1683,13 @@ public:
 	 * Removes whitespace characters from the start and end of this string.
 	 * @note Unlike Trim() this function returns a copy, and does not mutate the string.
 	 */
-	FString TrimStartAndEnd() const &;
+	UE_NODISCARD FString TrimStartAndEnd() const &;
 
 	/**
 	 * Removes whitespace characters from the start and end of this string.
 	 * @note Unlike Trim() this function returns a copy, and does not mutate the string.
 	 */
-	FString TrimStartAndEnd() &&;
+	UE_NODISCARD FString TrimStartAndEnd() &&;
 
 	/**
 	 * Removes whitespace characters from the start of this string. Modifies the string in-place.
@@ -1700,13 +1700,13 @@ public:
 	 * Removes whitespace characters from the start of this string.
 	 * @note Unlike Trim() this function returns a copy, and does not mutate the string.
 	 */
-	FString TrimStart() const &;
+	UE_NODISCARD FString TrimStart() const &;
 
 	/**
 	 * Removes whitespace characters from the start of this string.
 	 * @note Unlike Trim() this function returns a copy, and does not mutate the string.
 	 */
-	FString TrimStart() &&;
+	UE_NODISCARD FString TrimStart() &&;
 
 	/**
 	 * Removes whitespace characters from the end of this string. Modifies the string in-place.
@@ -1717,13 +1717,13 @@ public:
 	 * Removes whitespace characters from the end of this string.
 	 * @note Unlike TrimTrailing() this function returns a copy, and does not mutate the string.
 	 */
-	FString TrimEnd() const &;
+	UE_NODISCARD FString TrimEnd() const &;
 
 	/**
 	 * Removes whitespace characters from the end of this string.
 	 * @note Unlike TrimTrailing() this function returns a copy, and does not mutate the string.
 	 */
-	FString TrimEnd() &&;
+	UE_NODISCARD FString TrimEnd() &&;
 
 	/** 
 	 * Trims the inner array after the null terminator.
@@ -1739,12 +1739,12 @@ public:
 	/**
 	 * Returns a copy of this string with wrapping quotation marks removed.
 	 */
-	FString TrimQuotes( bool* bQuotesRemoved = nullptr ) const &;
+	UE_NODISCARD FString TrimQuotes( bool* bQuotesRemoved = nullptr ) const &;
 
 	/**
 	 * Returns this string with wrapping quotation marks removed.
 	 */
-	FString TrimQuotes(bool* bQuotesRemoved = nullptr) &&;
+	UE_NODISCARD FString TrimQuotes(bool* bQuotesRemoved = nullptr) &&;
 
 	/**
 	 * Breaks up a delimited string into elements of a string array.
@@ -1803,12 +1803,12 @@ public:
 	/**
 	 * Returns a copy of this string, with the characters in reverse order
 	 */
-	FString Reverse() const &;
+	UE_NODISCARD FString Reverse() const &;
 
 	/**
 	 * Returns this string, with the characters in reverse order
 	 */
-	FString Reverse() &&;
+	UE_NODISCARD FString Reverse() &&;
 
 	/**
 	 * Reverses the order of characters in this string
@@ -1823,7 +1823,7 @@ public:
 	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return a copy of this string with the replacement made
 	 */
-	FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const &;
+	UE_NODISCARD FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const &;
 
 	/**
 	 * Replace all occurrences of a substring in this string
@@ -1833,7 +1833,7 @@ public:
 	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return a copy of this string with the replacement made
 	 */
-	FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) &&;
+	UE_NODISCARD FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) &&;
 
 	/**
 	 * Replace all occurrences of SearchText with ReplacementText in this string.
@@ -1875,7 +1875,7 @@ public:
 	/**
 	 * Returns a copy of this string with all quote marks escaped (unless the quote is already escaped)
 	 */
-	FString ReplaceQuotesWithEscapedQuotes() const &
+	UE_NODISCARD FString ReplaceQuotesWithEscapedQuotes() const &
 	{
 		FString Result(*this);
 		return MoveTemp(Result).ReplaceQuotesWithEscapedQuotes();
@@ -1884,7 +1884,7 @@ public:
 	/**
 	 * Returns a copy of this string with all quote marks escaped (unless the quote is already escaped)
 	 */
-	FString ReplaceQuotesWithEscapedQuotes() &&;
+	UE_NODISCARD FString ReplaceQuotesWithEscapedQuotes() &&;
 
 	/**
 	 * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
@@ -1894,7 +1894,7 @@ public:
 	 *
 	 * @return	a string with all control characters replaced by the escaped version.
 	 */
-	FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) const &
+	UE_NODISCARD FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) const &
 	{
 		FString Result(*this);
 		return MoveTemp(Result).ReplaceCharWithEscapedChar(Chars);
@@ -1908,14 +1908,14 @@ public:
 	 *
 	 * @return	a string with all control characters replaced by the escaped version.
 	 */
-	FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) &&;
+	UE_NODISCARD FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) &&;
 
 	/**
 	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
 	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedChar().
 	 * @return copy of this string with replacement made
 	 */
-	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) const &
+	UE_NODISCARD FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) const &
 	{
 		FString Result(*this);
 		return MoveTemp(Result).ReplaceEscapedCharWithChar(Chars);
@@ -1926,7 +1926,7 @@ public:
 	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedChar().
 	 * @return copy of this string with replacement made
 	 */
-	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) &&;
+	UE_NODISCARD FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) &&;
 
 	/**
 	 * Replaces all instances of '\t' with TabWidth number of spaces
@@ -1939,7 +1939,7 @@ public:
 	 * @param InSpacesPerTab - Number of spaces that a tab represents
 	 * @return copy of this string with replacement made
 	 */
-	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) const &
+	UE_NODISCARD FString ConvertTabsToSpaces(const int32 InSpacesPerTab) const &
 	{
 		FString FinalString(*this);
 		FinalString.ConvertTabsToSpacesInline(InSpacesPerTab);
@@ -1951,14 +1951,14 @@ public:
 	 * @param InSpacesPerTab - Number of spaces that a tab represents
 	 * @return copy of this string with replacement made
 	 */
-	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) &&
+	UE_NODISCARD FString ConvertTabsToSpaces(const int32 InSpacesPerTab) &&
 	{
 		ConvertTabsToSpacesInline(InSpacesPerTab);
 		return MoveTemp(*this);
 	}
 
 	// Takes the number passed in and formats the string in comma format ( 12345 becomes "12,345")
-	static FString FormatAsNumber( int32 InNumber );
+	UE_NODISCARD static FString FormatAsNumber( int32 InNumber );
 
 	// To allow more efficient memory handling, automatically adds one for the string termination.
 	FORCEINLINE void Reserve(int32 CharacterCount)
@@ -1981,7 +1981,7 @@ public:
 
 
 	/** Converts an integer to a string. */
-	static FORCEINLINE FString FromInt( int32 Num )
+	UE_NODISCARD static FORCEINLINE FString FromInt( int32 Num )
 	{
 		FString Ret; 
 		Ret.AppendInt(Num); 
@@ -1998,7 +1998,7 @@ public:
 	 *
 	 * @return The boolean value
 	 */
-	bool ToBool() const;
+	UE_NODISCARD bool ToBool() const;
 
 	/**
 	 * Converts a buffer to a string
@@ -2008,7 +2008,7 @@ public:
 	 *
 	 * @return the blob in string form
 	 */
-	static FString FromBlob(const uint8* SrcBuffer,const uint32 SrcSize);
+	UE_NODISCARD static FString FromBlob(const uint8* SrcBuffer,const uint32 SrcSize);
 
 	/**
 	 * Converts a string into a buffer
@@ -2028,7 +2028,7 @@ public:
 	 *
 	 * @return the blob in string form
 	 */
-	static FString FromHexBlob(const uint8* SrcBuffer,const uint32 SrcSize);
+	UE_NODISCARD static FString FromHexBlob(const uint8* SrcBuffer,const uint32 SrcSize);
 
 	/**
 	 * Converts a string into a buffer
@@ -2049,7 +2049,7 @@ public:
 	 *
 	 * @return sanitized string version of float
 	 */
-	static FString SanitizeFloat( double InFloat, const int32 InMinFractionalDigits = 1 );
+	UE_NODISCARD static FString SanitizeFloat( double InFloat, const int32 InMinFractionalDigits = 1 );
 
 	/**
 	 * Joins a range of 'something that can be concatentated to strings with +=' together into a single string with separators.
@@ -2060,7 +2060,7 @@ public:
 	 * @return	The final, joined, separated string.
 	 */
 	template <typename RangeType>
-	static FString Join(const RangeType& Range, const TCHAR* Separator)
+	UE_NODISCARD static FString Join(const RangeType& Range, const TCHAR* Separator)
 	{
 		FString Result;
 		bool    First = true;
@@ -2091,7 +2091,7 @@ public:
 	 * @return	The final, joined, separated string.
 	 */
 	template <typename RangeType, typename ProjectionType>
-	static FString JoinBy(const RangeType& Range, const TCHAR* Separator, ProjectionType Proj)
+	UE_NODISCARD static FString JoinBy(const RangeType& Range, const TCHAR* Separator, ProjectionType Proj)
 	{
 		FString Result;
 		bool    First = true;
@@ -2155,7 +2155,7 @@ FORCEINLINE uint32 GetTypeHash(const FString& S)
  * @param Count number of bytes to convert
  * @return Valid string representing bytes.
  */
-inline FString BytesToString(const uint8* In, int32 Count)
+UE_NODISCARD inline FString BytesToString(const uint8* In, int32 Count)
 {
 	FString Result;
 	Result.Empty(Count);
@@ -2196,7 +2196,7 @@ inline int32 StringToBytes( const FString& String, uint8* OutBytes, int32 MaxBuf
 }
 
 /** Returns Char value of Nibble */
-inline TCHAR NibbleToTChar(uint8 Num)
+UE_NODISCARD inline TCHAR NibbleToTChar(uint8 Num)
 {
 	if (Num > 9)
 	{
@@ -2222,7 +2222,7 @@ inline void ByteToHex(uint8 In, FString& Result)
  * @param Count number of bytes to convert
  * @return Hex value in string.
  */
-inline FString BytesToHex(const uint8* In, int32 Count)
+UE_NODISCARD inline FString BytesToHex(const uint8* In, int32 Count)
 {
 	FString Result;
 	Result.Empty(Count * 2);
@@ -2240,7 +2240,7 @@ inline FString BytesToHex(const uint8* In, int32 Count)
  * @param Char		The character
  * @return	True if in 0-9 and A-F ranges
  */
-inline const bool CheckTCharIsHex( const TCHAR Char )
+UE_NODISCARD inline const bool CheckTCharIsHex( const TCHAR Char )
 {
 	return ( Char >= TEXT('0') && Char <= TEXT('9') ) || ( Char >= TEXT('A') && Char <= TEXT('F') ) || ( Char >= TEXT('a') && Char <= TEXT('f') );
 }
@@ -2250,7 +2250,7 @@ inline const bool CheckTCharIsHex( const TCHAR Char )
  * @param Hex		The character
  * @return	The uint8 value of a hex character
  */
-inline const uint8 TCharToNibble(const TCHAR Hex)
+UE_NODISCARD inline const uint8 TCharToNibble(const TCHAR Hex)
 {
 	if (Hex >= '0' && Hex <= '9')
 	{
@@ -2310,7 +2310,7 @@ inline void LexFromString(FString& OutValue, 	const TCHAR* Buffer)	{	OutValue = 
 
  /** Convert numeric types to a string */
 template<typename T>
-typename TEnableIf<TIsArithmetic<T>::Value, FString>::Type
+UE_NODISCARD typename TEnableIf<TIsArithmetic<T>::Value, FString>::Type
 LexToString(const T& Value)
 {
 	// TRemoveCV to remove potential volatile decorations. Removing const is pointless, but harmless because it's specified in the param declaration.
@@ -2318,42 +2318,42 @@ LexToString(const T& Value)
 }
 
 template<typename CharType>
-typename TEnableIf<TIsCharType<CharType>::Value, FString>::Type
+UE_NODISCARD typename TEnableIf<TIsCharType<CharType>::Value, FString>::Type
 LexToString(const CharType* Ptr)
 {
 	return FString(Ptr);
 }
 
-inline FString LexToString(bool Value)
+UE_NODISCARD inline FString LexToString(bool Value)
 {
 	return Value ? TEXT("true") : TEXT("false");
 }
 
-FORCEINLINE FString LexToString(FString&& Str)
+UE_NODISCARD FORCEINLINE FString LexToString(FString&& Str)
 {
 	return MoveTemp(Str);
 }
 
-FORCEINLINE FString LexToString(const FString& Str)
+UE_NODISCARD FORCEINLINE FString LexToString(const FString& Str)
 {
 	return Str;
 }
 
 /** Helper template to convert to sanitized strings */
 template<typename T>
-FString LexToSanitizedString(const T& Value)
+UE_NODISCARD FString LexToSanitizedString(const T& Value)
 {
 	return LexToString(Value);
 }
 
 /** Overloaded for floats */
-inline FString LexToSanitizedString(float Value)
+UE_NODISCARD inline FString LexToSanitizedString(float Value)
 {
 	return FString::SanitizeFloat(Value);
 }
 
 /** Overloaded for doubles */
-inline FString LexToSanitizedString(double Value)
+UE_NODISCARD inline FString LexToSanitizedString(double Value)
 {
 	return FString::SanitizeFloat(Value);
 }
@@ -2408,8 +2408,8 @@ static bool LexTryParseString(bool& OutValue, const TCHAR* Buffer)
 template<typename T>
 struct TTypeToString
 {
-	static FString ToString(const T& Value)				{ return LexToString(Value); }
-	static FString ToSanitizedString(const T& Value)	{ return LexToSanitizedString(Value); }
+	UE_NODISCARD static FString ToString(const T& Value)				{ return LexToString(Value); }
+	UE_NODISCARD static FString ToSanitizedString(const T& Value)	{ return LexToSanitizedString(Value); }
 };
 template<typename T>
 struct TTypeFromString
