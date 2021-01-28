@@ -239,27 +239,23 @@ public:
 	}
 
 	/** Populates the given array with points from the tree */
-	template <typename T>
-	void GetPoints(TArray<FLidarPointCloudPoint*, T>& Points, int64 StartIndex = 0, int64 Count = -1) { Octree.GetPoints(Points, StartIndex, Count); }
+	void GetPoints(TArray<FLidarPointCloudPoint*>& Points, int64 StartIndex = 0, int64 Count = -1);
+	void GetPoints(TArray64<FLidarPointCloudPoint*>& Points, int64 StartIndex = 0, int64 Count = -1);
 
 	/** Populates the array with the list of points within the given sphere. */
-	template <typename T>
-	void GetPointsInSphere(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly)
-	{
-		Sphere.Center -= LocationOffset.ToVector();
-		Octree.GetPointsInSphere(SelectedPoints, Sphere, bVisibleOnly);
-	}
+	void GetPointsInSphere(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly);
+	void GetPointsInSphere(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly);
 
 	/** Populates the array with the list of points within the given box. */
-	template <typename T>
-	void GetPointsInBox(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) { Octree.GetPointsInBox(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
+	void GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
+	void GetPointsInBox(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 
 	/**
 	 * Populates the array with the list of points within the given frustum.
 	 * Frustum is assumed to include the LocationOffset of the asset
 	 */
-	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly) { Octree.GetPointsInFrustum(SelectedPoints, Frustum, bVisibleOnly); }
-	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly) { Octree.GetPointsInFrustum(SelectedPoints, Frustum, bVisibleOnly); }
+	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
 
 	/**
 	 * Returns an array with copies of points from the tree
@@ -267,26 +263,17 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	TArray<FLidarPointCloudPoint> GetPointsAsCopies(bool bReturnWorldSpace, int32 StartIndex = 0, int32 Count = -1) const;
-	template <typename T>
-	void GetPointsAsCopies(TArray<FLidarPointCloudPoint, T>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const
-	{
-		FTransform LocalToWorld(LocationOffset.ToVector());
-		Octree.GetPointsAsCopies(Points, bReturnWorldSpace ? &LocalToWorld : nullptr, StartIndex, Count);
-	}
-	
+	void GetPointsAsCopies(TArray<FLidarPointCloudPoint>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const;
+	void GetPointsAsCopies(TArray64<FLidarPointCloudPoint>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const;
+
 	/**
 	 * Returns an array with copies of points within the given sphere
 	 * If ReturnWorldSpace is selected, the points' locations will be converted into absolute value, otherwise they will be relative to the center of the cloud.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	TArray<FLidarPointCloudPoint> GetPointsInSphereAsCopies(FVector Center, float Radius, bool bVisibleOnly, bool bReturnWorldSpace);
-	template <typename T>
-	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint, T>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace) const
-	{
-		FTransform LocalToWorld(LocationOffset.ToVector());
-		Sphere.Center -= LocationOffset.ToVector();
-		Octree.GetPointsInSphereAsCopies(SelectedPoints, Sphere, bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
-	}
+	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace) const;
+	void GetPointsInSphereAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace) const;
 
 	/**
 	 * Returns an array with copies of points within the given box
@@ -294,12 +281,8 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	TArray<FLidarPointCloudPoint> GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly, bool bReturnWorldSpace);
-	template <typename T>
-	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace) const
-	{
-		FTransform LocalToWorld(LocationOffset.ToVector());
-		Octree.GetPointsInBoxAsCopies(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
-	}
+	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace) const;
+	void GetPointsInBoxAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace) const;
 
 	/** Performs a raycast test against the point cloud. Returns the pointer if hit or nullptr otherwise. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (Keywords = "raycast"))
@@ -491,14 +474,12 @@ public:
 	 * May also provide progress callback, called approximately every 1% of progress.
 	 * Returns false if canceled.
 	 */
-	template<typename T>
-	bool InsertPoints(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>())
-	{
-		FScopeLock Lock(&Octree.DataLock);
-		return InsertPoints_NoLock(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
-	}
-	template<typename T>
-	bool InsertPoints_NoLock(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool InsertPoints(FLidarPointCloudPoint* InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool InsertPoints(const FLidarPointCloudPoint* InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool InsertPoints(FLidarPointCloudPoint** InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool InsertPoints_NoLock(FLidarPointCloudPoint* InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool InsertPoints_NoLock(const FLidarPointCloudPoint* InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool InsertPoints_NoLock(FLidarPointCloudPoint** InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
 
 	/** Attempts to remove the given point. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -532,11 +513,8 @@ public:
 		FScopeLock Lock(&Octree.DataLock);
 		RemovePoints_NoLock(Points);
 	}
-	template <typename T>
-	void RemovePoints_NoLock(TArray<FLidarPointCloudPoint*, T>& Points)
-	{
-		Octree.RemovePoints(Points);
-	}
+	void RemovePoints_NoLock(TArray<FLidarPointCloudPoint*>& Points) { Octree.RemovePoints(Points); }
+	void RemovePoints_NoLock(TArray64<FLidarPointCloudPoint*>& Points) { Octree.RemovePoints(Points); }
 
 	/** Removes all points within the given sphere  */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -572,8 +550,8 @@ public:
 	bool SetData(TArray<FLidarPointCloudPoint*>& Points) { return SetData(Points.GetData(), Points.Num()); }
 	bool SetData(const TArray64<FLidarPointCloudPoint>& Points) { return SetData(Points.GetData(), Points.Num()); }
 	bool SetData(TArray64<FLidarPointCloudPoint*>& Points) { return SetData(Points.GetData(), Points.Num()); }
-	template<typename T>
-	bool SetData(T Points, const int64& Count, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool SetData(const FLidarPointCloudPoint* Points, const int64& Count, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	bool SetData(FLidarPointCloudPoint** Points, const int64& Count, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
 
 	/** Merges this point cloud with the ones provided */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -622,18 +600,16 @@ public:
 	 */
 	template<typename T>
 	static ULidarPointCloud* CreateFromData(T Points, const int64& Count, const FLidarPointCloudAsyncParameters& AsyncParameters);
-	template <typename T>
-	static ULidarPointCloud* CreateFromData(const TArray<FLidarPointCloudPoint, T>& Points, const bool& bUseAsync) { return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync)); }
-	template <typename T>
-	static ULidarPointCloud* CreateFromData(const TArray<FLidarPointCloudPoint, T>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters) { return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters); }
-	template <typename T>
-	static ULidarPointCloud* CreateFromData(TArray<FLidarPointCloudPoint*, T>& Points, const bool& bUseAsync) { return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync)); }
-	template <typename T>
-	static ULidarPointCloud* CreateFromData(TArray<FLidarPointCloudPoint*, T>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters) { return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters); }
+	static ULidarPointCloud* CreateFromData(const TArray<FLidarPointCloudPoint>& Points, const bool& bUseAsync);
+	static ULidarPointCloud* CreateFromData(const TArray64<FLidarPointCloudPoint>& Points, const bool& bUseAsync);
+	static ULidarPointCloud* CreateFromData(const TArray<FLidarPointCloudPoint>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters);
+	static ULidarPointCloud* CreateFromData(const TArray64<FLidarPointCloudPoint>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters);
+	static ULidarPointCloud* CreateFromData(TArray<FLidarPointCloudPoint*>& Points, const bool& bUseAsync);
+	static ULidarPointCloud* CreateFromData(TArray64<FLidarPointCloudPoint*>& Points, const bool& bUseAsync);
+	static ULidarPointCloud* CreateFromData(TArray<FLidarPointCloudPoint*>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters);
+	static ULidarPointCloud* CreateFromData(TArray64<FLidarPointCloudPoint*>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters);
 
 	/** Returns bounds fitting the given list of points */
-	template <typename T>
-	static FBox CalculateBoundsFromPoints(T& Points) { return CalculateBoundsFromPoints(Points.GetData(), Points.Num()); }
 	static FBox CalculateBoundsFromPoints(const FLidarPointCloudPoint* Points, const int64& Count);
 	static FBox CalculateBoundsFromPoints(FLidarPointCloudPoint** Points, const int64& Count);
 
@@ -644,6 +620,29 @@ private:
 
 	void InitializeCollisionRendering();
 	void ReleaseCollisionRendering();
+
+	template <typename T>
+	void GetPoints_Internal(TArray<FLidarPointCloudPoint*, T>& Points, int64 StartIndex = 0, int64 Count = -1);
+	template <typename T>
+	void GetPointsInSphere_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly);
+	template <typename T>
+	void GetPointsInBox_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
+	template <typename T>
+	void GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	template <typename T>
+	void GetPointsAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const;
+	template <typename T>
+	void GetPointsInSphereAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace) const;
+	template <typename T>
+	void GetPointsInBoxAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace) const;
+
+	template<typename T>
+	bool InsertPoints_Internal(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+	template<typename T>
+	bool InsertPoints_NoLock_Internal(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled = nullptr, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
+
+	template<typename T>
+	bool SetData_Internal(T Points, const int64& Count, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
 };
 
 USTRUCT(BlueprintType)

@@ -350,11 +350,61 @@ bool ULidarPointCloud::HasCollisionData() const
 	return Octree.HasCollisionData();
 }
 
+void ULidarPointCloud::GetPoints(TArray64<FLidarPointCloudPoint*>& Points, int64 StartIndex /*= 0*/, int64 Count /*= -1*/)
+{
+	GetPoints_Internal(Points, StartIndex, Count);
+}
+
+void ULidarPointCloud::GetPoints(TArray<FLidarPointCloudPoint*>& Points, int64 StartIndex /*= 0*/, int64 Count /*= -1*/)
+{
+	GetPoints_Internal(Points, StartIndex, Count);
+}
+
+void ULidarPointCloud::GetPointsInSphere(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly)
+{
+	GetPointsInSphere_Internal(SelectedPoints, Sphere, bVisibleOnly);
+}
+
+void ULidarPointCloud::GetPointsInSphere(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly)
+{
+	GetPointsInSphere_Internal(SelectedPoints, Sphere, bVisibleOnly);
+}
+
+void ULidarPointCloud::GetPointsInBox(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly)
+{
+	GetPointsInBox_Internal(SelectedPoints, Box, bVisibleOnly);
+}
+
+void ULidarPointCloud::GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly)
+{
+	GetPointsInBox_Internal(SelectedPoints, Box, bVisibleOnly);
+}
+
+void ULidarPointCloud::GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+{
+	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+}
+
+void ULidarPointCloud::GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+{
+	GetPointsInFrustum_Internal(SelectedPoints, Frustum, bVisibleOnly);
+}
+
 TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsAsCopies(bool bReturnWorldSpace, int32 StartIndex, int32 Count) const
 {
 	TArray<FLidarPointCloudPoint> Points;
 	GetPointsAsCopies(Points, bReturnWorldSpace, StartIndex, Count);
 	return Points;
+}
+
+void ULidarPointCloud::GetPointsAsCopies(TArray64<FLidarPointCloudPoint>& Points, bool bReturnWorldSpace, int64 StartIndex /*= 0*/, int64 Count /*= -1*/) const
+{
+	GetPointsAsCopies_Internal(Points, bReturnWorldSpace, StartIndex, Count);
+}
+
+void ULidarPointCloud::GetPointsAsCopies(TArray<FLidarPointCloudPoint>& Points, bool bReturnWorldSpace, int64 StartIndex /*= 0*/, int64 Count /*= -1*/) const
+{
+	GetPointsAsCopies_Internal(Points, bReturnWorldSpace, StartIndex, Count);
 }
 
 TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsInSphereAsCopies(FVector Center, float Radius, bool bVisibleOnly, bool bReturnWorldSpace)
@@ -364,11 +414,31 @@ TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsInSphereAsCopies(FVecto
 	return Points;
 }
 
+void ULidarPointCloud::GetPointsInSphereAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace) const
+{
+	GetPointsInSphereAsCopies_Internal(SelectedPoints, Sphere, bVisibleOnly, bReturnWorldSpace);
+}
+
+void ULidarPointCloud::GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace) const
+{
+	GetPointsInSphereAsCopies_Internal(SelectedPoints, Sphere, bVisibleOnly, bReturnWorldSpace);
+}
+
 TArray<FLidarPointCloudPoint> ULidarPointCloud::GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly, bool bReturnWorldSpace)
 {
 	TArray<FLidarPointCloudPoint> Points;
 	GetPointsInBoxAsCopies(Points, FBox(Center - Extent, Center + Extent), bVisibleOnly, bReturnWorldSpace);
 	return Points;
+}
+
+void ULidarPointCloud::GetPointsInBoxAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace) const
+{
+	GetPointsInBoxAsCopies_Internal(SelectedPoints, Box, bVisibleOnly, bReturnWorldSpace);
+}
+
+void ULidarPointCloud::GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace) const
+{
+	GetPointsInBoxAsCopies_Internal(SelectedPoints, Box, bVisibleOnly, bReturnWorldSpace);
 }
 
 bool ULidarPointCloud::LineTraceSingle(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, FLidarPointCloudPoint& PointHit)
@@ -667,8 +737,38 @@ void ULidarPointCloud::InsertPoint(const FLidarPointCloudPoint& Point, ELidarPoi
 	PointCloudAssetRegistryCache.PointCount = FString::FromInt(Octree.GetNumPoints());
 }
 
+bool ULidarPointCloud::InsertPoints(FLidarPointCloudPoint* InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled /*= nullptr*/, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	return InsertPoints_Internal(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
+}
+
+bool ULidarPointCloud::InsertPoints(const FLidarPointCloudPoint* InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled /*= nullptr*/, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	return InsertPoints_Internal(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
+}
+
+bool ULidarPointCloud::InsertPoints(FLidarPointCloudPoint** InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled /*= nullptr*/, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	return InsertPoints_Internal(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
+}
+
+bool ULidarPointCloud::InsertPoints_NoLock(FLidarPointCloudPoint* InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled /*= nullptr*/, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	return InsertPoints_NoLock_Internal(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
+}
+
+bool ULidarPointCloud::InsertPoints_NoLock(const FLidarPointCloudPoint* InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled /*= nullptr*/, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	return InsertPoints_NoLock_Internal(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
+}
+
+bool ULidarPointCloud::InsertPoints_NoLock(FLidarPointCloudPoint** InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled /*= nullptr*/, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	return InsertPoints_NoLock_Internal(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
+}
+
 template<typename T>
-bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled, TFunction<void(float)> ProgressCallback)
+bool ULidarPointCloud::InsertPoints_NoLock_Internal(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled, TFunction<void(float)> ProgressCallback)
 {
 	const int32 MaxBatchSize = GetDefault<ULidarPointCloudSettings>()->MultithreadingInsertionBatchSize;
 	
@@ -739,7 +839,7 @@ bool ULidarPointCloud::InsertPoints_NoLock(T InPoints, const int64& Count, ELida
 }
 
 template<typename T>
-bool ULidarPointCloud::SetData(T Points, const int64& Count, TFunction<void(float)> ProgressCallback)
+bool ULidarPointCloud::SetData_Internal(T Points, const int64& Count, TFunction<void(float)> ProgressCallback)
 {
 	// Lock the point cloud
 	FScopeLock Lock(&ProcessingLock);
@@ -791,6 +891,16 @@ bool ULidarPointCloud::SetData(T Points, const int64& Count, TFunction<void(floa
 	}
 
 	return bSuccess;
+}
+
+bool ULidarPointCloud::SetData(const FLidarPointCloudPoint* Points, const int64& Count, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	return SetData_Internal(Points, Count, MoveTemp(ProgressCallback));
+}
+
+bool ULidarPointCloud::SetData(FLidarPointCloudPoint** Points, const int64& Count, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	return SetData_Internal(Points, Count, MoveTemp(ProgressCallback));
 }
 
 void ULidarPointCloud::Merge(TArray<ULidarPointCloud*> PointCloudsToMerge, TFunction<void(void)> ProgressCallback)
@@ -1046,6 +1156,46 @@ ULidarPointCloud* ULidarPointCloud::CreateFromData(T Points, const int64& Count,
 	return PC;
 }
 
+ULidarPointCloud* ULidarPointCloud::CreateFromData(const TArray<FLidarPointCloudPoint>& Points, const bool& bUseAsync)
+{
+	return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync));
+}
+
+ULidarPointCloud* ULidarPointCloud::CreateFromData(const TArray64<FLidarPointCloudPoint>& Points, const bool& bUseAsync)
+{
+	return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync));
+}
+
+ULidarPointCloud* ULidarPointCloud::CreateFromData(const TArray<FLidarPointCloudPoint>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters)
+{
+	return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters);
+}
+
+ULidarPointCloud* ULidarPointCloud::CreateFromData(const TArray64<FLidarPointCloudPoint>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters)
+{
+	return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters);
+}
+
+ULidarPointCloud* ULidarPointCloud::CreateFromData(TArray<FLidarPointCloudPoint*>& Points, const bool& bUseAsync)
+{
+	return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync));
+}
+
+ULidarPointCloud* ULidarPointCloud::CreateFromData(TArray64<FLidarPointCloudPoint*>& Points, const bool& bUseAsync)
+{
+	return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync));
+}
+
+ULidarPointCloud* ULidarPointCloud::CreateFromData(TArray<FLidarPointCloudPoint*>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters)
+{
+	return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters);
+}
+
+ULidarPointCloud* ULidarPointCloud::CreateFromData(TArray64<FLidarPointCloudPoint*>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters)
+{
+	return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters);
+}
+
 FBox ULidarPointCloud::CalculateBoundsFromPoints(const FLidarPointCloudPoint* Points, const int64& Count)
 {
 	FBox Bounds(EForceInit::ForceInit);
@@ -1092,6 +1242,60 @@ void ULidarPointCloud::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBody
 	}
 
 	bCollisionBuildInProgress = false;
+}
+
+template <typename T>
+void ULidarPointCloud::GetPoints_Internal(TArray<FLidarPointCloudPoint*, T>& Points, int64 StartIndex /*= 0*/, int64 Count /*= -1*/)
+{
+	Octree.GetPoints(Points, StartIndex, Count);
+}
+
+template <typename T>
+void ULidarPointCloud::GetPointsInSphere_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly)
+{
+	Sphere.Center -= LocationOffset.ToVector();
+	Octree.GetPointsInSphere(SelectedPoints, Sphere, bVisibleOnly);
+}
+
+template <typename T>
+void ULidarPointCloud::GetPointsInBox_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly)
+{
+	Octree.GetPointsInBox(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly);
+}
+
+template <typename T>
+void ULidarPointCloud::GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly)
+{
+	Octree.GetPointsInFrustum(SelectedPoints, Frustum, bVisibleOnly);
+}
+
+template <typename T>
+void ULidarPointCloud::GetPointsAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& Points, bool bReturnWorldSpace, int64 StartIndex /*= 0*/, int64 Count /*= -1*/) const
+{
+	FTransform LocalToWorld(LocationOffset.ToVector());
+	Octree.GetPointsAsCopies(Points, bReturnWorldSpace ? &LocalToWorld : nullptr, StartIndex, Count);
+}
+
+template <typename T>
+void ULidarPointCloud::GetPointsInSphereAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace) const
+{
+	FTransform LocalToWorld(LocationOffset.ToVector());
+	Sphere.Center -= LocationOffset.ToVector();
+	Octree.GetPointsInSphereAsCopies(SelectedPoints, Sphere, bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
+}
+
+template <typename T>
+void ULidarPointCloud::GetPointsInBoxAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace) const
+{
+	FTransform LocalToWorld(LocationOffset.ToVector());
+	Octree.GetPointsInBoxAsCopies(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
+}
+
+template<typename T>
+bool ULidarPointCloud::InsertPoints_Internal(T InPoints, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation, FThreadSafeBool* bCanceled /*= nullptr*/, TFunction<void(float)> ProgressCallback /*= TFunction<void(float)>()*/)
+{
+	FScopeLock Lock(&Octree.DataLock);
+	return InsertPoints_NoLock_Internal(InPoints, Count, DuplicateHandling, bRefreshPointsBounds, Translation, bCanceled, MoveTemp(ProgressCallback));
 }
 
 /*********************************************************************************************** ULidarPointCloudBlueprintLibrary */
@@ -1396,29 +1600,5 @@ ALidarClippingVolume::ALidarClippingVolume()
 
 	SetActorScale3D(FVector(50));
 }
-
-/*********************************************************************************************** Templates */
-
-template bool ULidarPointCloud::InsertPoints_NoLock<FLidarPointCloudPoint*>(FLidarPointCloudPoint*, const int64&, ELidarPointCloudDuplicateHandling, bool, const FVector&, FThreadSafeBool*, TFunction<void(float)>);
-template bool ULidarPointCloud::InsertPoints_NoLock<const FLidarPointCloudPoint*>(const FLidarPointCloudPoint*, const int64&, ELidarPointCloudDuplicateHandling, bool, const FVector&, FThreadSafeBool*, TFunction<void(float)>);
-template bool ULidarPointCloud::InsertPoints_NoLock<FLidarPointCloudPoint**>(FLidarPointCloudPoint**, const int64&, ELidarPointCloudDuplicateHandling, bool, const FVector&, FThreadSafeBool*, TFunction<void(float)>);
-template bool ULidarPointCloud::SetData<const FLidarPointCloudPoint*>(const FLidarPointCloudPoint*, const int64&, TFunction<void(float)>);
-template bool ULidarPointCloud::SetData<FLidarPointCloudPoint**>(FLidarPointCloudPoint**, const int64&, TFunction<void(float)>);
-template void ULidarPointCloud::GetPoints(TArray<FLidarPointCloudPoint*>&, int64, int64);
-template void ULidarPointCloud::GetPoints(TArray64<FLidarPointCloudPoint*>&, int64, int64);
-template void ULidarPointCloud::GetPointsInSphere(TArray<FLidarPointCloudPoint*>&, FSphere, const bool&);
-template void ULidarPointCloud::GetPointsInSphere(TArray64<FLidarPointCloudPoint*>&, FSphere, const bool&);
-template void ULidarPointCloud::GetPointsInBox(TArray<FLidarPointCloudPoint*>&, const FBox&, const bool&);
-template void ULidarPointCloud::GetPointsInBox(TArray64<FLidarPointCloudPoint*>&, const FBox&, const bool&);
-template void ULidarPointCloud::GetPointsAsCopies(TArray<FLidarPointCloudPoint>&, bool, int64, int64) const;
-template void ULidarPointCloud::GetPointsAsCopies(TArray64<FLidarPointCloudPoint>&, bool, int64, int64) const;
-template void ULidarPointCloud::GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>&, FSphere, const bool&, bool) const;
-template void ULidarPointCloud::GetPointsInSphereAsCopies(TArray64<FLidarPointCloudPoint>&, FSphere, const bool&, bool) const;
-template void ULidarPointCloud::GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>&, const FBox&, const bool&, bool) const;
-template void ULidarPointCloud::GetPointsInBoxAsCopies(TArray64<FLidarPointCloudPoint>&, const FBox&, const bool&, bool) const;
-template FBox ULidarPointCloud::CalculateBoundsFromPoints(TArray<FLidarPointCloudPoint*>&);
-template FBox ULidarPointCloud::CalculateBoundsFromPoints(TArray64<FLidarPointCloudPoint*>&);
-template FBox ULidarPointCloud::CalculateBoundsFromPoints(TArray<const FLidarPointCloudPoint>&);
-template FBox ULidarPointCloud::CalculateBoundsFromPoints(TArray64<const FLidarPointCloudPoint>&);
 
 #undef LOCTEXT_NAMESPACE

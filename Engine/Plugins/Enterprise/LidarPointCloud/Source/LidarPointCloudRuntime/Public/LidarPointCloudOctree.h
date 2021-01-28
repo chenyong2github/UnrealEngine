@@ -289,37 +289,37 @@ public:
 	const FTriMeshCollisionData* GetCollisionData() const { return &CollisionMesh; }
 
 	/** Populates the given array with points from the tree */
-	template <typename T>
-	void GetPoints(TArray<FLidarPointCloudPoint*, T>& Points, int64 StartIndex = 0, int64 Count = -1);
+	void GetPoints(TArray<FLidarPointCloudPoint*>& SelectedPoints, int64 StartIndex = 0, int64 Count = -1);
+	void GetPoints(TArray64<FLidarPointCloudPoint*>& SelectedPoints, int64 StartIndex = 0, int64 Count = -1);
 
 	/** Populates the array with the list of points within the given sphere. */
-	template <typename T>
-	void GetPointsInSphere(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly);
+	void GetPointsInSphere(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly);
+	void GetPointsInSphere(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly);
 
 	/** Populates the array with the list of pointers to points within the given box. */
-	template <typename T>
-	void GetPointsInBox(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 	void GetPointsInBox(TArray<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const;
 	void GetPointsInBox(TArray64<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const;
+	void GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
+	void GetPointsInBox(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
 
 	/** Populates the array with the list of points within the given frustum. */
-	template <typename T>
-	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
 
 	/** Populates the given array with copies of points from the tree */
-	template <typename T>
-	void GetPointsAsCopies(TArray<FLidarPointCloudPoint, T>& Points, const FTransform* LocalToWorld, int64 StartIndex = 0, int64 Count = -1) const;
+	void GetPointsAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FTransform* LocalToWorld, int64 StartIndex = 0, int64 Count = -1) const;
+	void GetPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform* LocalToWorld, int64 StartIndex = 0, int64 Count = -1) const;
 
 	/** Executes the provided action on batches of points. */
 	void GetPointsAsCopiesInBatches(TFunction<void(TSharedPtr<TArray64<FLidarPointCloudPoint>>)> Action, const int64& BatchSize, const bool& bVisibleOnly);
 
 	/** Populates the array with the list of points within the given sphere. */
-	template <typename T>
-	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint, T>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, const FTransform* LocalToWorld) const;
+	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, const FTransform* LocalToWorld) const;
+	void GetPointsInSphereAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, const FTransform* LocalToWorld) const;
 
 	/** Populates the array with the list of pointers to points within the given box. */
-	template <typename T>
-	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, const FTransform* LocalToWorld) const;
+	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, const FTransform* LocalToWorld) const;
+	void GetPointsInBoxAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, const FTransform* LocalToWorld) const;
 
 	/** Performs a raycast test against the point cloud. Returns the pointer if hit or nullptr otherwise. */
 	FLidarPointCloudPoint* RaycastSingle(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly);
@@ -405,27 +405,20 @@ public:
 	void Initialize(const FVector& InExtent);
 
 	/** Inserts the given point into the Octree structure, internally thread-safe. */
-	FORCEINLINE void InsertPoint(const FLidarPointCloudPoint* Point, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation) { InsertPoints(Point, 1, DuplicateHandling, bRefreshPointsBounds, Translation); }
+	void InsertPoint(const FLidarPointCloudPoint* Point, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation);
 
 	/** Inserts group of points into the Octree structure, internally thread-safe. */
-	template <typename T>
-	void InsertPoints(T Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation)
-	{
-		Root.InsertPoints(this, Points, Count, DuplicateHandling, Translation);
-		MarkTraversalOctreesForInvalidation();
-		if (bRefreshPointsBounds)
-		{
-			RefreshBounds();
-		}
-	}
+	void InsertPoints(FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation);
+	void InsertPoints(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation);
+	void InsertPoints(FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation);
 
 	/** Attempts to remove the given point.  */
 	void RemovePoint(const FLidarPointCloudPoint* Point);
 	void RemovePoint(FLidarPointCloudPoint Point);
 
 	/** Removes points in bulk */
-	template <typename T>
-	void RemovePoints(TArray<FLidarPointCloudPoint*, T>& Points);
+	void RemovePoints(TArray<FLidarPointCloudPoint*>& Points) { RemovePoints_Internal(Points); }
+	void RemovePoints(TArray64<FLidarPointCloudPoint*>& Points) { RemovePoints_Internal(Points); }
 
 	/** Removes all points within the given sphere */
 	void RemovePointsInSphere(const FSphere& Sphere, const bool& bVisibleOnly);
@@ -488,6 +481,29 @@ public:
 
 private:
 	void RefreshAllocatedSize();
+
+	template <typename T>
+	void InsertPoints_Internal(T Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, bool bRefreshPointsBounds, const FVector& Translation);
+
+	template <typename T>
+	void GetPoints_Internal(TArray<FLidarPointCloudPoint*, T>& Points, int64 StartIndex = 0, int64 Count = -1);
+	template <typename T>
+	void GetPointsInSphere_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly);
+	template <typename T>
+	void GetPointsInBox_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly);
+	template <typename T>
+	void GetPointsInBox_Internal(TArray<const FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) const;
+	template <typename T>
+	void GetPointsInFrustum_Internal(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly);
+	template <typename T>
+	void GetPointsAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& Points, const FTransform* LocalToWorld, int64 StartIndex = 0, int64 Count = -1) const;
+	template <typename T>
+	void GetPointsInSphereAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& SelectedPoints, const FSphere& Sphere, const bool& bVisibleOnly, const FTransform* LocalToWorld) const;
+	template <typename T>
+	void GetPointsInBoxAsCopies_Internal(TArray<FLidarPointCloudPoint, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, const FTransform* LocalToWorld) const;
+
+	template <typename T>
+	void RemovePoints_Internal(TArray<FLidarPointCloudPoint*, T>& Points);
 
 	void RemovePoint_Internal(FLidarPointCloudOctreeNode* Node, int32 Index);
 
