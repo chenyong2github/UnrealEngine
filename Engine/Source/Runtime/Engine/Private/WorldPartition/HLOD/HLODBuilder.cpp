@@ -13,6 +13,7 @@
 #include "Algo/ForEach.h"
 #include "Algo/RemoveIf.h"
 #include "Algo/Transform.h"
+#include "Misc/HashBuilder.h"
 #include "Templates/UniquePtr.h"
 
 #include "IMeshMergeUtilities.h"
@@ -38,7 +39,7 @@ public:
 		AWorldPartitionHLOD* HLODActor = nullptr;
 
 		// Compute HLODActor hash
-		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), Context->GridIndexX, Context->GridIndexY, Context->GridIndexZ);
+		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), Context->GridIndexX, Context->GridIndexY, Context->GridIndexZ, Context->DataLayersID);
 
 		int32 HLODActorRefIndex = INDEX_NONE;
 		FWorldPartitionHandle HLODActorHandle;

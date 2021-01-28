@@ -26,7 +26,9 @@ void FHLODActorDesc::Init(const AActor* InActor)
 		uint64 GridIndexZ;
 		HLODActor->GetGridIndices(GridIndexX, GridIndexY, GridIndexZ);
 
-		CellHash = ComputeCellHash(SubActorsHLODLayer->GetName(), GridIndexX, GridIndexY, GridIndexZ);
+		FDataLayersID DataLayersID(HLODActor->GetDataLayerObjects());
+
+		CellHash = ComputeCellHash(SubActorsHLODLayer->GetName(), GridIndexX, GridIndexY, GridIndexZ, DataLayersID);
 	}
 }
 
@@ -50,11 +52,12 @@ void FHLODActorDesc::Serialize(FArchive& Ar)
 	}
 }
 
-uint64 FHLODActorDesc::ComputeCellHash(const FString HLODLayerName, uint64 GridIndexX, uint64 GridIndexY, uint64 GridIndexZ)
+uint64 FHLODActorDesc::ComputeCellHash(const FString HLODLayerName, uint64 GridIndexX, uint64 GridIndexY, uint64 GridIndexZ, FDataLayersID DataLayersID)
 {
 	uint64 CellHash = FCrc::StrCrc32(*HLODLayerName);
 	CellHash = AppendCityHash(GridIndexX, CellHash);
 	CellHash = AppendCityHash(GridIndexY, CellHash);
-	return AppendCityHash(GridIndexZ, CellHash);
+	CellHash = AppendCityHash(GridIndexZ, CellHash);
+	return HashCombine(DataLayersID.GetHash(), CellHash);
 }
 #endif

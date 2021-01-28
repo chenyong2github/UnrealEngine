@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Containers/Array.h"
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "WorldPartition/DataLayer/DataLayersID.h"
 
 class AActor;
 class UWorldPartition;
@@ -22,6 +23,7 @@ struct ENGINE_API FHLODGenerationContext
 	int64 GridIndexX;
 	int64 GridIndexY;
 	int64 GridIndexZ;
+	FDataLayersID DataLayersID;
 	FName HLODLayerName;
 };
 

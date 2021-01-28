@@ -123,13 +123,11 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 	{
 		const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartitionedActors.GetCell(CellCoord);
 
-		// For now, HLOD only processes actors that are not in data layers
-		if (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk* GridCellDataChunk = GridCell.GetNoDataLayersDataChunk())
+		for (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk& GridCellDataChunk : GridCell.GetDataChunks())
 		{
-			check(!GridCellDataChunk->HasDataLayers());
 			const bool bIsCellAlwaysLoaded = &GridCell == &PartitionedActors.GetAlwaysLoadedCell();
 
-			if (!bIsCellAlwaysLoaded && GridCellDataChunk->GetActors().Num() != 0)
+			if (!bIsCellAlwaysLoaded && GridCellDataChunk.GetActors().Num() != 0)
 			{
 				NbCellsToProcess++;
 			}
@@ -147,29 +145,28 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 	{
 		const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartitionedActors.GetCell(CellCoord);
 
-		// For now, HLOD only processes actors that are not in data layers
-		if (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk* GridCellDataChunk = GridCell.GetNoDataLayersDataChunk())
+		for (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk& GridCellDataChunk : GridCell.GetDataChunks())
 		{
-			check(!GridCellDataChunk->HasDataLayers());
 			const bool bIsCellAlwaysLoaded = &GridCell == &PartitionedActors.GetAlwaysLoadedCell();
 
-			if (!bIsCellAlwaysLoaded && GridCellDataChunk->GetActors().Num() != 0)
+			if (!bIsCellAlwaysLoaded && GridCellDataChunk.GetActors().Num() != 0)
 			{
 				SlowTask.EnterProgressFrame(1);
 
 				FBox2D CellBounds2D;
 				PartitionedActors.GetCellBounds(CellCoord, CellBounds2D);
 
-				FName CellName = UWorldPartitionRuntimeSpatialHash::GetCellName(WorldPartition, RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y, GridCellDataChunk->GetDataLayersID());
+				FName CellName = UWorldPartitionRuntimeSpatialHash::GetCellName(WorldPartition, RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y, GridCellDataChunk.GetDataLayersID());
 				FBox CellBounds = FBox(FVector(CellBounds2D.Min, WorldBounds.Min.Z), FVector(CellBounds2D.Max, WorldBounds.Max.Z));
 
 				Context.GridIndexX = CellCoord.X;
 				Context.GridIndexY = CellCoord.Y;
 				Context.GridIndexZ = CellCoord.Z;
+				Context.DataLayersID = GridCellDataChunk.GetDataLayersID();
 
 				// Gather (and potentially load) actors
 				TArray<AActor*> CellActors;
-				for (const FGuid& ActorGuid : GridCellDataChunk->GetActors())
+				for (const FGuid& ActorGuid : GridCellDataChunk.GetActors())
 				{
 					FWorldPartitionReference& ActorRef = Context.ActorReferences.Emplace_GetRef(WorldPartition, ActorGuid);
 					FWorldPartitionActorDesc* ActorDesc = ActorRef.Get();
@@ -192,6 +189,12 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 
 					for (AWorldPartitionHLOD* CellHLODActor : CellHLODActors)
 					{
+						// Make sure the generated HLOD actor has the same data layers as the source actors
+						for(const UDataLayer* DataLayer : GridCellDataChunk.GetDataLayers())
+						{
+							CellHLODActor->AddDataLayer(DataLayer);
+						}
+
 						FGuid ActorGuid = CellHLODActor->GetActorGuid();
 						GridHLODActors.Add(ActorGuid);
 

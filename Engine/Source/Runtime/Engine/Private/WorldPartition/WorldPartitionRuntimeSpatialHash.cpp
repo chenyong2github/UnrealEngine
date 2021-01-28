@@ -68,33 +68,6 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributi
 	TEXT("Value between 0 and 1 that modulates the contribution of the angle between streaming source-to-cell vector and source-forward vector to the cell importance. The closest to 0, the less the angle will contribute to the cell importance."));
 
 // ------------------------------------------------------------------------------------------------
-
-#if WITH_EDITOR
-FDataLayersID::FDataLayersID()
-	: Hash(0)
-{}
-
-FDataLayersID::FDataLayersID(const TArray<const UDataLayer*>& InDataLayers)
-	: Hash(0)
-{
-	if (InDataLayers.Num())
-	{
-		Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayer* Item) { return Item->IsDynamicallyLoaded(); }, [](const UDataLayer* Item) { return Item->GetFName(); });
-
-		TArray<FName> SortedDataLayers = DataLayers;
-		SortedDataLayers.Sort([](const FName& A, const FName& B) { return A.ToString() < B.ToString(); });
-
-		for (FName LayerName: SortedDataLayers)
-		{
-			Hash = FCrc::StrCrc32(*LayerName.ToString(), Hash);
-		}
-
-		check(Hash);
-	}
-}
-#endif
-
-// ------------------------------------------------------------------------------------------------
 FSpatialHashStreamingGrid::FSpatialHashStreamingGrid()
 	: Origin(ForceInitToZero)
 	, CellSize(0)

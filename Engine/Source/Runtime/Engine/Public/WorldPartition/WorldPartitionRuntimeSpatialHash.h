@@ -8,6 +8,7 @@
 #include "GameFramework/Info.h"
 
 #include "WorldPartition.h"
+#include "WorldPartition/DataLayer/DataLayersID.h"
 #include "WorldPartitionRuntimeHash.h"
 #include "WorldPartitionRuntimeSpatialHashCell.h"
 #include "WorldPartitionRuntimeSpatialHash.generated.h"
@@ -181,31 +182,6 @@ public:
 	FSpatialHashRuntimeGrid	GridSettings;
 };
 
-#if WITH_EDITOR
-class FDataLayersID
-{
-public:
-	FDataLayersID();
-	FDataLayersID(const TArray<const UDataLayer*>& InDataLayers);
-
-	bool operator==(const FDataLayersID& Other) const
-	{
-		return (Hash == Other.Hash) && (DataLayers == Other.DataLayers);
-	}
-
-	bool operator!=(const FDataLayersID& Other) const
-	{
-		return !(*this == Other);
-	}
-
-	uint32 GetHash() const { return Hash; }
-
-private:
-	TArray<FName> DataLayers;
-	uint32 Hash;
-};
-#endif
-
 UCLASS()
 class ENGINE_API UWorldPartitionRuntimeSpatialHash : public UWorldPartitionRuntimeHash
 {
@@ -223,7 +199,7 @@ public:
 	virtual bool GenerateNavigationData() override;
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const override;
 
-	FName GetCellName(FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID = FDataLayersID()) const;
+	FName GetCellName(FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID) const;
 	static FName GetCellName(UWorldPartition* WorldPartition, FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID);
 #endif
 

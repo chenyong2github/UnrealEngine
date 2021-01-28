@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Containers/Map.h"
+
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/DataLayer/DataLayersID.h"
 
 class UHLODLayer;
 
@@ -21,7 +23,7 @@ public:
 	inline const TArray<FGuid>& GetSubActors() const { return SubActors; }
 	inline uint64 GetCellHash() const { return CellHash; }
 
-	static uint64 ComputeCellHash(const FString HLODLayerName, uint64 GridIndexX, uint64 GridIndexY, uint64 GridIndexZ);
+	static uint64 ComputeCellHash(const FString HLODLayerName, uint64 GridIndexX, uint64 GridIndexY, uint64 GridIndexZ, FDataLayersID DataLayersID);
 
 protected:
 	virtual void Init(const AActor* InActor) override;

@@ -8,6 +8,7 @@
 
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashActorCluster.h"
+#include "WorldPartition/DataLayer/DataLayersID.h"
 
 /**
   * Square 2D grid helper
