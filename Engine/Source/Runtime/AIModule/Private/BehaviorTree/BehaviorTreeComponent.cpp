@@ -955,10 +955,19 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 	if (SearchData.bFilterOutRequestFromDeactivatedBranch || bWaitingForAbortingTasks)
 	{
 		// request on same node or with higher priority doesn't require additional checks
-		if (SearchData.SearchRootNode != ExecutionIdx && SearchData.SearchRootNode.TakesPriorityOver(ExecutionIdx))
+		if (SearchData.SearchRootNode != ExecutionIdx && SearchData.SearchRootNode.TakesPriorityOver(ExecutionIdx) && SearchData.DeactivatedBranchStart.IsSet())
 		{
-			if (ExecutionIdx == SearchData.DeactivatedBranchStart ||
-				(SearchData.DeactivatedBranchStart.TakesPriorityOver(ExecutionIdx) && ExecutionIdx.TakesPriorityOver(SearchData.DeactivatedBranchEnd)))
+			ensureMsgf(SearchData.DeactivatedBranchStart.InstanceIndex == SearchData.DeactivatedBranchEnd.InstanceIndex, TEXT("Deactivated branch should always be in the same instance."));
+			if (ExecutionIdx.InstanceIndex > SearchData.DeactivatedBranchStart.InstanceIndex)
+			{
+				UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s in a deactivated instance [%s..%s[ (applying search data for %s)"),
+					*ExecutionIdx.Describe(), *SearchData.DeactivatedBranchStart.Describe(), *SearchData.DeactivatedBranchEnd.Describe(), *SearchData.SearchRootNode.Describe());
+				StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
+				return;
+			}
+			else if (ExecutionIdx.InstanceIndex == SearchData.DeactivatedBranchStart.InstanceIndex && 
+					ExecutionIdx.ExecutionIndex >= SearchData.DeactivatedBranchStart.ExecutionIndex &&
+					ExecutionIdx.ExecutionIndex < SearchData.DeactivatedBranchEnd.ExecutionIndex)
 			{
 				UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s in a deactivated branch [%s..%s[ (applying search data for %s)"),
 					*ExecutionIdx.Describe(), *SearchData.DeactivatedBranchStart.Describe(), *SearchData.DeactivatedBranchEnd.Describe(), *SearchData.SearchRootNode.Describe());
@@ -1580,11 +1589,9 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 				FBTNodeIndex NewDeactivatedBranchStart(ExecutionRequest.ExecuteInstanceIdx, ExecutionRequest.ExecuteNode->GetChildExecutionIndex(LastDeactivatedChildIndex, EBTChildIndex::FirstNode));
 				FBTNodeIndex NewDeactivatedBranchEnd(ExecutionRequest.ExecuteInstanceIdx, ExecutionRequest.ExecuteNode->GetChildExecutionIndex(LastDeactivatedChildIndex + 1, EBTChildIndex::FirstNode));
 
-				if (NewDeactivatedBranchStart.TakesPriorityOver(SearchData.DeactivatedBranchStart))
-				{
-					SearchData.DeactivatedBranchStart = NewDeactivatedBranchStart;
-				}
-				ensureMsgf( !SearchData.DeactivatedBranchEnd.IsSet() || SearchData.DeactivatedBranchEnd == NewDeactivatedBranchEnd, TEXT("There should not be a case of an exiting dead branch with a different end index (Previous end:%s, New end:%s"), *SearchData.DeactivatedBranchEnd.Describe(), *NewDeactivatedBranchEnd.Describe() );
+				ensureMsgf(!SearchData.DeactivatedBranchStart.IsSet(), TEXT("There should not have more than one deactivated branch. (Previous start:%s, New start:%s"), *SearchData.DeactivatedBranchStart.Describe(), *NewDeactivatedBranchStart.Describe());
+				SearchData.DeactivatedBranchStart = NewDeactivatedBranchStart;
+				ensureMsgf(!SearchData.DeactivatedBranchEnd.IsSet(), TEXT("There should not have more than one deactivated branch. (Previous end:%s, New end:%s"), *SearchData.DeactivatedBranchEnd.Describe(), *NewDeactivatedBranchEnd.Describe());
 				SearchData.DeactivatedBranchEnd = NewDeactivatedBranchEnd;
 			}
 		}
