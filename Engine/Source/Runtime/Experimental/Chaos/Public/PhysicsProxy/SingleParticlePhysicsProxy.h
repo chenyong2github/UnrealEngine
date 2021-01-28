@@ -17,9 +17,6 @@
 
 namespace Chaos
 {
-	template<typename T, int d>
-	class TGeometryParticle;
-
 	template <typename Traits>
 	class TPBDRigidsEvolutionGBF;
 
@@ -57,7 +54,7 @@ class FRigidBodyHandle_Internal;
 class CHAOS_API FSingleParticlePhysicsProxy : public IPhysicsProxyBase
 {
 public:
-	using PARTICLE_TYPE = Chaos::TGeometryParticle<Chaos::FReal, 3>;
+	using PARTICLE_TYPE = Chaos::FGeometryParticle;
 	using FParticleHandle = Chaos::TGeometryParticleHandle<Chaos::FReal,3>;
 
 	static FSingleParticlePhysicsProxy* Create(TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>&& Particle);

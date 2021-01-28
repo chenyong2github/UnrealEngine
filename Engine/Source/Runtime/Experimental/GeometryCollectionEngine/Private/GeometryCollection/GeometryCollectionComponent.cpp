@@ -915,8 +915,8 @@ void UGeometryCollectionComponent::UpdateRepData()
 
 		for(int32 Index = 0; Index < NumTransforms; ++Index)
 		{
-			TManagedArray<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>>& GTParticles = PhysicsProxy->GetExternalParticles();
-			Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle = GTParticles[Index].Get();
+			TManagedArray<TUniquePtr<Chaos::FGeometryParticle>>& GTParticles = PhysicsProxy->GetExternalParticles();
+			Chaos::FGeometryParticle* Particle = GTParticles[Index].Get();
 			if(!DynamicCollection->Active[Index] || DynamicCollection->DynamicState[Index] != static_cast<uint8>(Chaos::EObjectStateType::Dynamic))
 			{
 				continue;

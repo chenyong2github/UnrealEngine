@@ -108,7 +108,7 @@ namespace Chaos
 		typedef TPBDRigidsSOAs<float, 3> FParticlesType;
 		typedef FPBDRigidDirtyParticlesBuffer FDirtyParticlesBuffer;
 
-		typedef Chaos::TGeometryParticle<float, 3> FParticle;
+		typedef Chaos::FGeometryParticle FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
 		typedef Chaos::TPBDRigidsEvolutionGBF<Traits> FPBDRigidsEvolution;
 

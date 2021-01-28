@@ -20,7 +20,7 @@ public:
 	FSQCaptureFilterCallback(const FSQCapture& InCapture) : Capture(InCapture) {}
 	virtual ~FSQCaptureFilterCallback() {}
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit) override { /*check(false);*/  return ECollisionQueryHitType::Touch; }
-	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const Chaos::TGeometryParticle<float, 3>& Actor) override { return Capture.GetFilterResult(&Shape, &Actor); }
+	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const Chaos::FGeometryParticle& Actor) override { return Capture.GetFilterResult(&Shape, &Actor); }
 
 #if PHYSICS_INTERFACE_PHYSX
 	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit) override { return ECollisionQueryHitType::Touch; }
@@ -201,7 +201,7 @@ void FSQCapture::SerializeChaosActorToShapeHitsArray(Chaos::FChaosArchive& Ar)
 	{
 		for (int32 ActorIdx = 0; ActorIdx < NumActors; ++ActorIdx)
 		{
-			Chaos::TSerializablePtr<Chaos::TGeometryParticle<float, 3>>Actor;
+			Chaos::TSerializablePtr<Chaos::FGeometryParticle>Actor;
 			Ar << Actor;
 			int32 NumShapes;
 			Ar << NumShapes;
@@ -215,7 +215,7 @@ void FSQCapture::SerializeChaosActorToShapeHitsArray(Chaos::FChaosArchive& Ar)
 				Ar << HitType;
 				Pairs.Emplace(const_cast<Chaos::FPerShapeData*>(Shape.Get()), HitType);
 			}
-			ChaosActorToShapeHitsArray.Add(const_cast<Chaos::TGeometryParticle<float,3>*>(Actor.Get()), Pairs);
+			ChaosActorToShapeHitsArray.Add(const_cast<Chaos::FGeometryParticle*>(Actor.Get()), Pairs);
 		}
 	}
 	else if (Ar.IsSaving())
@@ -455,7 +455,7 @@ void FSQCapture::CaptureChaosFilterResults(const Chaos::FPBDRigidsEvolution& Tra
 
 	for (int32 Idx = 0; Idx < NumTransientActors; ++Idx)
 	{
-		TGeometryParticle<float, 3>* TransientActor = Particles.GetParticleHandles().Handle(Idx)->GTGeometryParticle();
+		FGeometryParticle* TransientActor = Particles.GetParticleHandles().Handle(Idx)->GTGeometryParticle();
 		const FShapesArray& TransientShapes = TransientActor->ShapesArray();
 		const int32 NumTransientShapes = TransientShapes.Num();
 		TArray<TPair<FPerShapeData*, ECollisionQueryHitType>> ShapeHitsArray; ShapeHitsArray.Reserve(NumTransientShapes);
@@ -488,7 +488,7 @@ ECollisionQueryHitType GetFilterResultHelper(const TShape* Shape, const TActor* 
 	return ECollisionQueryHitType::None;
 }
 
-ECollisionQueryHitType FSQCapture::GetFilterResult(const Chaos::FPerShapeData* Shape, const Chaos::TGeometryParticle<float, 3>* Actor) const
+ECollisionQueryHitType FSQCapture::GetFilterResult(const Chaos::FPerShapeData* Shape, const Chaos::FGeometryParticle* Actor) const
 {
 	return GetFilterResultHelper(Shape, Actor, ChaosActorToShapeHitsArray);
 }
@@ -803,7 +803,7 @@ void FSQCapture::CreateChaosFilterResults()
 #if WITH_PHYSX
 	for (auto Itr : PxActorToShapeHitsArray)
 	{
-		Chaos::TGeometryParticle<float, 3>* Actor = PhysSerializer.PhysXActorToChaosHandle(Itr.Key);
+		Chaos::FGeometryParticle* Actor = PhysSerializer.PhysXActorToChaosHandle(Itr.Key);
 		const auto& ShapesArray = Actor->ShapesArray();
 		TArray<TPair<Chaos::FPerShapeData*, ECollisionQueryHitType>> FilterResults;
 

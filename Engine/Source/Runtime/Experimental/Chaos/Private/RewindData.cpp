@@ -263,7 +263,7 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 
 }
 
-void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const TGeometryParticle<FReal,3>& InParticle,const FGeometryParticleStateBase& RewindState)
+void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticle& InParticle,const FGeometryParticleStateBase& RewindState)
 {
 	ensure(IsInGameThread());
 	const auto Particle = &InParticle;
@@ -500,7 +500,7 @@ void FRewindData::RemoveParticle(const FUniqueIdx UniqueIdx)
 }
 
 /* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-FGeometryParticleState FRewindData::GetPastStateAtFrame(const TGeometryParticle<FReal,3>& Particle,int32 Frame) const
+FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticle& Particle,int32 Frame) const
 {
 	ensure(!IsResim());
 	if(const FDirtyParticleInfo* Info = FindParticle(Particle.UniqueIdx()))
@@ -520,7 +520,7 @@ EFutureQueryResult FRewindData::GetFutureStateAtFrame(FGeometryParticleState& Ou
 {
 	ensure(IsResim());
 	ensure(IsInGameThread());
-	const TGeometryParticle<FReal,3>& Particle = OutState.GetParticle();
+	const FGeometryParticle& Particle = OutState.GetParticle();
 
 	if(const FDirtyParticleInfo* Info = FindParticle(Particle.UniqueIdx()))
 	{

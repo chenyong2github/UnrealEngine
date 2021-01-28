@@ -18,6 +18,7 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
 #include "CollisionShape.h"
+#include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDJointConstraintData.h"
 #include "Chaos/PBDSuspensionConstraintData.h"
 #include "Chaos/Collision/CollisionConstraintFlags.h"
@@ -1046,7 +1047,7 @@ FTransform FChaosEngineInterface::GetLocalPose(const FPhysicsConstraintHandle& I
 	return FTransform::Identity;
 }
 
-Chaos::TGeometryParticle<Chaos::FReal, 3>*
+Chaos::FGeometryParticle*
 GetParticleFromProxy(IPhysicsProxyBase* ProxyBase)
 {
 	if (ProxyBase)
@@ -1071,14 +1072,14 @@ FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& 
 
 			if (InFrame == EConstraintFrame::Frame1)
 			{
-				if (Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle = GetParticleFromProxy(BasePairs[0]))
+				if (Chaos::FGeometryParticle* Particle = GetParticleFromProxy(BasePairs[0]))
 				{
 					return FTransform(Particle->R(), Particle->X()) * M[0];
 				}
 			}
 			else if (InFrame == EConstraintFrame::Frame2)
 			{
-				if (Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle = GetParticleFromProxy(BasePairs[1]))
+				if (Chaos::FGeometryParticle* Particle = GetParticleFromProxy(BasePairs[1]))
 				{
 					return FTransform(Particle->R(), Particle->X()) * M[1];
 				}
@@ -1497,11 +1498,11 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 {
 	LLM_SCOPE(ELLMTag::Chaos);
 
-	TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>> Particle;
+	TUniquePtr<Chaos::FGeometryParticle> Particle;
 	// Set object state based on the requested particle type
 	if(InParams.bStatic)
 	{
-		Particle = Chaos::TGeometryParticle<float, 3>::CreateParticle();
+		Particle = Chaos::FGeometryParticle::CreateParticle();
 	}
 	else
 	{

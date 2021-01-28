@@ -185,7 +185,7 @@ namespace Chaos
 		delete &InSolver;
 	}
 
-	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete)
+	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle,bool bDelete)
 	{
 		//mark it as pending for async structure being built
 		TAccelerationStructureHandle<float,3> AccelerationHandle(Particle);
@@ -222,7 +222,7 @@ namespace Chaos
 	}
 #endif
 
-	void FPhysicsSolverBase::TrackGTParticle_External(TGeometryParticle<FReal, 3>& Particle)
+	void FPhysicsSolverBase::TrackGTParticle_External(FGeometryParticle& Particle)
 	{
 		const int32 Idx = Particle.UniqueIdx().Idx;
 		const int32 SlotsNeeded = Idx + 1 - UniqueIdxToGTParticles.Num();
@@ -234,7 +234,7 @@ namespace Chaos
 		UniqueIdxToGTParticles[Idx] = &Particle;
 	}
 
-	void FPhysicsSolverBase::ClearGTParticle_External(TGeometryParticle<FReal, 3>& Particle)
+	void FPhysicsSolverBase::ClearGTParticle_External(FGeometryParticle& Particle)
 	{
 		const int32 Idx = Particle.UniqueIdx().Idx;
 		if (ensure(Idx < UniqueIdxToGTParticles.Num()))

@@ -199,7 +199,7 @@ public:
 		return PhysicsThreadCollection;
 	}
 
-	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>>& GetExternalParticles()
+	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>>& GetExternalParticles()
 	{
 		return GTParticles;
 	}
@@ -267,7 +267,7 @@ private:
 	bool IsObjectDynamic; // Records current dynamic state
 	bool IsObjectLoading; // Indicate when loaded
 
-	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>> GTParticles;
+	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 	FCollisionFilterData SimFilter;
 	FCollisionFilterData QueryFilter;
 
