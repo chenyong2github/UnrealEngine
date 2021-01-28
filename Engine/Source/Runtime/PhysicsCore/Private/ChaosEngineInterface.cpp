@@ -879,7 +879,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 	{
 		if(InActorRef1 && InActorRef2)
 		{
-			if(InActorRef1 && InActorRef2)
+			if(InActorRef1->GetSolverBase() && InActorRef2->GetSolverBase())
 			{
 				LLM_SCOPE(ELLMTag::Chaos);
 
@@ -954,7 +954,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateSuspension(const FPhysicsA
 	{
 		if (InActorRef)
 		{
-			if (InActorRef)
+			if (InActorRef->GetSolverBase())
 			{
 				LLM_SCOPE(ELLMTag::Chaos);
 
