@@ -571,16 +571,12 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 
 		for (const FAsyncPhysicsDesiredState& State : AsyncData->Buffer)
 		{
-			// NOTE: This check should be replaced later. We might change GetPhysicsThreadAPI to return a ptr, and that could be checked instead.
-			if (State.Proxy->GetHandle_LowLevel() == nullptr)
-			{
-				continue;
-			}
-
 			//Proxy should exist because we are using latest and any pending deletes would have been enqueued after
 			FSingleParticlePhysicsProxy* Proxy = State.Proxy;
-			auto* Handle = &Proxy->GetPhysicsThreadAPI();
-			if(Handle->CanTreatAsRigid())
+			auto* Handle = Proxy->GetPhysicsThreadAPI();
+
+
+			if(Handle && Handle->CanTreatAsRigid())
 			{
 				const FVector TargetPos = State.WorldTM.GetLocation();
 				const FQuat TargetQuat = State.WorldTM.GetRotation();

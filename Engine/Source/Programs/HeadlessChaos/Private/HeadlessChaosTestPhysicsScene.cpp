@@ -1042,7 +1042,7 @@ namespace ChaosTest {
 			Scene.GetSolver()->EnqueueCommandImmediate([Proxy]()
 				{
 					//sees change immediately
-					EXPECT_EQ(Proxy->GetPhysicsThreadAPI().X()[2], 3);
+					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->X()[2], 3);
 				});
 
 			struct FCallback : public TSimCallbackObject<>

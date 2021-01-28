@@ -81,14 +81,16 @@ public:
 		return (const Chaos::FRigidBodyHandle_External&)*this;
 	}
 
-	FORCEINLINE Chaos::FRigidBodyHandle_Internal& GetPhysicsThreadAPI()
+	//Note this is a pointer because the internal handle may have already been deleted
+	FORCEINLINE Chaos::FRigidBodyHandle_Internal* GetPhysicsThreadAPI()
 	{
-		return (Chaos::FRigidBodyHandle_Internal&)*this;
+		return (Chaos::FRigidBodyHandle_Internal*)this;
 	}
 
-	FORCEINLINE const Chaos::FRigidBodyHandle_Internal& GetPhysicsThreadAPI() const
+	//Note this is a pointer because the internal handle may have already been deleted
+	FORCEINLINE const Chaos::FRigidBodyHandle_Internal* GetPhysicsThreadAPI() const
 	{
-		return (const Chaos::FRigidBodyHandle_Internal&)*this;
+		return (const Chaos::FRigidBodyHandle_Internal*)this;
 	}
 
 	/**/
