@@ -385,7 +385,11 @@ void USubmixEffectDynamicsProcessorPreset::ResetKey()
 
 void USubmixEffectDynamicsProcessorPreset::SetAudioBus(UAudioBus* InAudioBus)
 {
-	const int32 BusChannels = static_cast<int32>(InAudioBus->AudioBusChannels) + 1;
+	int32 BusChannels = 0;
+	if (InAudioBus)
+	{
+		BusChannels = static_cast<int32>(InAudioBus->AudioBusChannels) + 1;
+	}
 	SetKey(ESubmixEffectDynamicsKeySource::AudioBus, InAudioBus, BusChannels);
 }
 
