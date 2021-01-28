@@ -47,7 +47,7 @@ void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHi
 	{
 		// do not report to LLM here, the platform functions will do that
 		FScopeLock Lock(&OsAllocatorCacheLock);
-		void* Ptr = OsAllocatorCache.Allocate(Size);
+		void* Ptr = OsAllocatorCache.Allocate(Size, &OsAllocatorCacheLock);
 		return Ptr;
 	}
 	else
@@ -104,7 +104,7 @@ void FPooledVirtualMemoryAllocator::Free(void* Ptr, SIZE_T Size)
 	{
 		// do not report to LLM here, the platform functions will do that
 		FScopeLock Lock(&OsAllocatorCacheLock);
-		OsAllocatorCache.Free(Ptr, Size);
+		OsAllocatorCache.Free(Ptr, Size, &OsAllocatorCacheLock);
 	}
 	else
 	{
@@ -230,7 +230,7 @@ void FPooledVirtualMemoryAllocator::DestroyPool(FPoolDescriptorBase* Pool)
 void FPooledVirtualMemoryAllocator::FreeAll()
 {
 	FScopeLock Lock(&OsAllocatorCacheLock);
-	OsAllocatorCache.FreeAll();
+	OsAllocatorCache.FreeAll(&OsAllocatorCacheLock);
 
 	// Currently, there's nothing else to trim.
 	// We could avoid deleting pools on Free() and instead keep them in a separate list to delete on FreeAll() (unless they're reused before that).
