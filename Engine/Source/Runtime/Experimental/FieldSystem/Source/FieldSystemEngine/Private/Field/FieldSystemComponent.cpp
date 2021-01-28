@@ -245,12 +245,15 @@ void UFieldSystemComponent::BuildFieldCommand(bool Enabled, EFieldPhysicsType Ta
 
 void UFieldSystemComponent::AddFieldCommand(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
 {
-	if (Enabled && Field && FieldSystem)
+	if (Enabled && Field)
 	{
-		FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetFieldPhysicsName(Target), Field, MetaData);
-		SetupConstructionFields.Add(Command);
+		if (FieldSystem)
+		{
+			FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetFieldPhysicsName(Target), Field, MetaData);
+			SetupConstructionFields.Add(Command);
+		}
 
-		ConstructionCommands.AddFieldCommand(GetFieldPhysicsName(Target), Field, MetaData);
+		BufferCommands.AddFieldCommand(GetFieldPhysicsName(Target), Field, MetaData);
 	}
 }
 
@@ -328,8 +331,9 @@ void UFieldSystemComponent::ResetFieldSystem()
 	if (FieldSystem)
 	{
 		SetupConstructionFields.Reset();
-		ConstructionCommands.ResetFieldCommands();
 	}
+	ConstructionCommands.ResetFieldCommands();
+	BufferCommands.ResetFieldCommands();
 }
 
 

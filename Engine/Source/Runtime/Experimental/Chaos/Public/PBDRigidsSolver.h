@@ -316,6 +316,14 @@ namespace Chaos
 
 		void BeginDestroy();
 
+		/** Update the particles parameters based on field evaluation */
+		void FieldParameterUpdateCallback(
+			Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+			TMap<int32, int32>& TargetedParticles);
+
+		/** Update the particles forces based on field evaluation */
+		void FieldForcesUpdateCallback();
+
 	private:
 
 		/**/

@@ -51,12 +51,16 @@ public:
 	bool bIsChaosField;
 
 	/** List of solvers this field will affect. An empty list makes this field affect all solvers. */
-	UPROPERTY(EditAnywhere, Category = Field, meta = (EditCondition = "bIsChaosField == true", ToolTip = "List of chaos solvers that will used the field"))
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (EditCondition = "bIsChaosField == true", ToolTip = "List of chaos solvers that will used the field"))
 	TArray<TSoftObjectPtr<AChaosSolverActor>> SupportedSolvers;
 
 	/** List of all the construction command */
-	UPROPERTY(EditAnywhere, Category = Field)
+	UPROPERTY()
 	FFieldObjectCommands ConstructionCommands;
+
+	/** List of all the buffer command */
+	UPROPERTY()
+	FFieldObjectCommands BufferCommands;
 
 	//
 	// Blueprint based field interface
@@ -87,10 +91,10 @@ public:
 	*    @param Radius Radial influence from the position
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Change Dynamic State")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Set Dynamic State")
 	void ApplyStayDynamicField(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Center Position") FVector Position,
-			UPARAM(DisplayName = "Falloff Radius") float Radius);
+			UPARAM(DisplayName = "Field Radius") float Radius);
 
 	/**
 	*  ApplyRadialForce

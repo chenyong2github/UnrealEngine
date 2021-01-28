@@ -162,22 +162,14 @@ namespace Chaos
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
 				Chaos::TPBDPositionConstraints<float, 3> PositionTarget; // Dummy for now
-				TMap<int32, int32> PositionTargetedParticles;
-				//TArray<FKinematicProxy> AnimatedPositions;
-				Chaos::TArrayCollectionArray<float> Strains;
+				TMap<int32, int32> TargetedParticles;
 				{
-					FPerSolverFieldSystem& FieldObj = MSolver->GetPerSolverField();
-					auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
-					FieldObj.FieldParameterUpdateCallback(MSolver, GeomCollectionParticles, Strains,
-						PositionTarget, PositionTargetedParticles /*AnimatedPositions,*/);
-					auto& ClusteredParticles = MSolver->GetEvolution()->GetParticles().GetClusteredParticles();
-					FieldObj.FieldParameterUpdateCallback(MSolver, ClusteredParticles, Strains,
-						PositionTarget, PositionTargetedParticles /*AnimatedPositions,*/);
+					MSolver->FieldParameterUpdateCallback(PositionTarget, TargetedParticles);
 				}
 
-				for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
+				for (FGeometryCollectionPhysicsProxy* GeoclObj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
 				{
-					Obj->ParameterUpdateCallback(MSolver, MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles(), MSolver->GetSolverTime());
+					GeoclObj->FieldParameterUpdateCallback(MSolver);
 				}
 
 				MSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().ProcessPendingQueues();
@@ -219,18 +211,13 @@ namespace Chaos
 					const float DeltaTime = MaxDeltaTime > 0.f ? FMath::Min(TimeRemaining, MaxDeltaTime) : TimeRemaining;
 					TimeRemaining -= DeltaTime;
 
-					Chaos::TArrayCollectionArray<FVector> Forces, Torques;
 					{
-						FPerSolverFieldSystem& FieldObj = MSolver->GetPerSolverField();
-						auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
-						FieldObj.FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques);
-						auto& ClusteredParticles = MSolver->GetEvolution()->GetParticles().GetClusteredParticles();
-						FieldObj.FieldForcesUpdateCallback(MSolver, ClusteredParticles, Forces, Torques);
+						MSolver->FieldForcesUpdateCallback();
 					}
 
-					for (FGeometryCollectionPhysicsProxy* Obj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
+					for (FGeometryCollectionPhysicsProxy* GeoCollectionObj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
 					{
-						Obj->ParameterUpdateCallback(MSolver, MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles(), MSolver->GetSolverTime());
+						GeoCollectionObj->FieldForcesUpdateCallback(MSolver);
 					}
 
 					if(FRewindData* RewindData = MSolver->GetRewindData())
@@ -1300,6 +1287,20 @@ namespace Chaos
 		SetBreakingFilterSettings(InConfig.BreakingFilterSettings);
 		SetTrailingFilterSettings(InConfig.TrailingFilterSettings);
 		SetUseContactGraph(InConfig.bGenerateContactGraph);
+	}
+
+	template <typename Traits>
+	void Chaos::TPBDRigidsSolver<Traits>::FieldParameterUpdateCallback(
+		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+		TMap<int32, int32>& TargetedParticles)
+	{
+		GetPerSolverField().FieldParameterUpdateCallback(this, PositionTarget, TargetedParticles);
+	}
+
+	template <typename Traits>
+	void Chaos::TPBDRigidsSolver<Traits>::FieldForcesUpdateCallback()
+	{
+		GetPerSolverField().FieldForcesUpdateCallback(this);
 	}
 
 #define EVOLUTION_TRAIT(Trait) template class CHAOS_API TPBDRigidsSolver<Trait>;

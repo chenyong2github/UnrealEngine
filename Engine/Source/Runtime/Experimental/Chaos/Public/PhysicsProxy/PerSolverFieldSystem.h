@@ -33,12 +33,9 @@ public:
 	 */
 	template <typename Traits>
 	void FieldParameterUpdateCallback(
-		Chaos::TPBDRigidsSolver<Traits>* InSolver,
-		Chaos::TPBDRigidParticles<float, 3>& InParticles,
-		Chaos::TArrayCollectionArray<float>& Strains,
+		Chaos::TPBDRigidsSolver<Traits>* InSolver, 
 		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
-		TMap<int32, int32>& PositionTargetedParticles);
-		//const TArray<FKinematicProxy>& AnimatedPositions, );
+		TMap<int32, int32>& TargetedParticles);
 
 	/**
 	 * Services queued \c FFieldSystemCommand commands.
@@ -49,10 +46,7 @@ public:
 	 */
 	template <typename Traits>
 	void FieldForcesUpdateCallback(
-		Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-		Chaos::TPBDRigidParticles<float, 3>& Particles, 
-		Chaos::TArrayCollectionArray<FVector> & Force, 
-		Chaos::TArrayCollectionArray<FVector> & Torque);
+		Chaos::TPBDRigidsSolver<Traits>* RigidSolver);
 
 	/** Add the transient field command */
 	void AddTransientCommand(const FFieldSystemCommand& InCommand);
@@ -76,11 +70,10 @@ public:
 	 */
 
 	template <typename Traits>
-	static void GetParticleHandles(
-		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,
+	static void GetRelevantParticleHandles(
+		TArray<Chaos::TGeometryParticleHandle<float,3>*>& ParticleHandles,
 		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
-		const EFieldResolutionType ResolutionType,
-		const bool bForce = true);
+		const EFieldResolutionType ResolutionType);
 
 	/**
 	 * Generates a mapping between the Position array and the results array.
@@ -90,33 +83,26 @@ public:
 	 */
 
 	template <typename Traits>
-	static void FilterParticleHandles(
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
+	static void GetFilteredParticleHandles(
+		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles,
 		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
-		const EFieldFilterType FilterType,
-		const bool bForce = true);
+		const EFieldFilterType FilterType);
 
 private:
 
 	/** Forces update callback implementation */
 	template <typename Traits>
 	void FieldForcesUpdateInternal(
-		Chaos::TPBDRigidsSolver<Traits>* InSolver,
-		Chaos::TPBDRigidParticles<float, 3>& Particles,
-		Chaos::TArrayCollectionArray<FVector>& Force,
-		Chaos::TArrayCollectionArray<FVector>& Torque,
+		Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		TArray<FFieldSystemCommand>& Commands, 
 		const bool IsTransient);
 
 	/** Parameter update callback implementation */
 	template <typename Traits>
 	void FieldParameterUpdateInternal(
-		Chaos::TPBDRigidsSolver<Traits>* InSolver,
-		Chaos::TPBDRigidParticles<float, 3>& InParticles,
-		Chaos::TArrayCollectionArray<float>& Strains,
+		Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
 		TMap<int32, int32>& PositionTargetedParticles,
-		//const TArray<FKinematicProxy>& AnimatedPositions, 
 		TArray<FFieldSystemCommand>& Commands, 
 		const bool IsTransient);
 
@@ -130,28 +116,21 @@ private:
 #define EVOLUTION_TRAIT(Traits)\
 extern template CHAOS_API void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		Chaos::TPBDRigidParticles<float, 3>& InParticles, \
-		Chaos::TArrayCollectionArray<float>& Strains, \
 		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, \
-		TMap<int32, int32>& PositionTargetedParticles);\
+		TMap<int32, int32>& TargetedParticles);\
 \
 extern template CHAOS_API void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
-		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		Chaos::TPBDRigidParticles<float, 3>& Particles, \
-		Chaos::TArrayCollectionArray<FVector> & Force, \
-		Chaos::TArrayCollectionArray<FVector> & Torque);\
+		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 \
-extern template CHAOS_API void FPerSolverFieldSystem::GetParticleHandles(\
+extern template CHAOS_API void FPerSolverFieldSystem::GetRelevantParticleHandles(\
 		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
-		const EFieldResolutionType ResolutionType,\
-		const bool bForce);\
+		const EFieldResolutionType ResolutionType);\
 \
-extern template CHAOS_API void FPerSolverFieldSystem::FilterParticleHandles(\
+extern template CHAOS_API void FPerSolverFieldSystem::GetFilteredParticleHandles(\
 		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
-		const EFieldFilterType FilterType,\
-		const bool bForce);\
+		const EFieldFilterType FilterType);\
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT

@@ -221,7 +221,7 @@ public:
 	 * @param    ExteriorValue If the sample distance from the center is greater than radius, the intermediate value will be set the exterior value
 	 * @param    SetMaskConditionIn If the mask condition is set to always the output value will be the intermediate one. If set to not interior/exterior the output value will be the intermediate one if the input is different from the interior/exterior value
 	 */
-	UFUNCTION(BlueprintPure, Category = "Field", meta = (InteriorValue = "1.0"), DisplayName = "Set Radial Mask")
+	UFUNCTION(BlueprintPure, Category = "Field", meta = (InteriorValue = "1"), DisplayName = "Set Radial Mask")
 	URadialIntMask* SetRadialIntMask(UPARAM(DisplayName = "Mask Radius") float Radius,
 			UPARAM(DisplayName = "Center Position") FVector Position,
 			UPARAM(DisplayName = "Interior Value") int32 InteriorValue,
@@ -452,9 +452,9 @@ public:
 	 * @param    Magnitude Magnitude of the plane falloff field
 	 * @param    MinRange The initial function value between 0 and 1 will be scaled between MinRange and MaxRange before being multiplied by magnitude
 	 * @param    MaxRange The initial function value between 0 and 1 will be scaled between MinRange and MaxRange before being multiplied by magnitude
-	 * @param    Default The field value will be set to Default if the sample distance from the plane is higher than the distance
-	 * @param    Distance Distance limit for the plane falloff field
-	 * @param    Position Plane position of the plane falloff field
+	 * @param    Default The field value will be set to default if the sample projected distance ((Sample Position - Center Position).dot(Plane Normal)) is higher than the Plane Distance 
+	 * @param    Distance Distance limit for the plane falloff field starting from the center position and extending in the direction of the plane normal
+	 * @param    Position Plane center position of the plane falloff field
 	 * @param    Normal Plane normal of the plane falloff field
 	 * @param    Falloff Type of falloff function used to model the evolution of the field from the plane surface to the distance isosurface
 	 */
@@ -983,15 +983,15 @@ struct FIELDSYSTEMENGINE_API FFieldObjectCommands
 
 	/**Commands Target Name */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Target Names")
-		TArray<FName> TargetNames;
+	TArray<FName> TargetNames;
 
 	/** Commands Root Node */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Root Nodes")
-		TArray<UFieldNodeBase*> RootNodes;
+	TArray<UFieldNodeBase*> RootNodes;
 
 	/** Commands Meta Data*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Meta Datas")
-		TArray<UFieldSystemMetaData*> MetaDatas;
+	TArray<UFieldSystemMetaData*> MetaDatas;
 };
 
 
