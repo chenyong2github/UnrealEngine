@@ -102,14 +102,14 @@ TEST(ImplicitTests, ConvexHull) {
 TEST(CollisionTests, Collisions) {
 	GEnsureOnNANDiagnostic = 1;
 
-	ChaosTest::LevelsetConstraint<float>();
-	// ChaosTest::LevelsetConstraintGJK<float>();
-	ChaosTest::CollisionBoxPlane<float>();
-	ChaosTest::CollisionBoxPlaneZeroResitution<float>();
-	ChaosTest::CollisionBoxPlaneRestitution<float>();
-	ChaosTest::CollisionCubeCubeRestitution<float>();
-	ChaosTest::CollisionBoxToStaticBox<float>();
-	ChaosTest::CollisionConvexConvex<float>();
+	ChaosTest::LevelsetConstraint();
+	// ChaosTest::LevelsetConstraintGJK();
+	ChaosTest::CollisionBoxPlane();
+	ChaosTest::CollisionBoxPlaneZeroResitution();
+	ChaosTest::CollisionBoxPlaneRestitution();
+	ChaosTest::CollisionCubeCubeRestitution();
+	ChaosTest::CollisionBoxToStaticBox();
+	ChaosTest::CollisionConvexConvex();
 
 	// @ todo: Make this work at some point
 	//ChaosTest::SpatialHashing<float>();
@@ -118,8 +118,8 @@ TEST(CollisionTests, Collisions) {
 }
 
 TEST(CollisionTests, PGS) {
-	ChaosTest::CollisionPGS<float>();
-	ChaosTest::CollisionPGS2<float>();
+	ChaosTest::CollisionPGS();
+	ChaosTest::CollisionPGS2();
 	SUCCEED();
 }
 

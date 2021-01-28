@@ -12,37 +12,26 @@
 
 namespace ChaosTest {
 
-	template<class T>
 	void LevelsetConstraint();
 
-	template<class T>
 	void LevelsetConstraintGJK();
 		
-	template<class T>
 	void CollisionBoxPlane();
 
-	template<class T>
 	void CollisionConvexConvex();
 
-	template<class T>
 	void CollisionBoxPlaneZeroResitution();
 
-	template<class T>
 	void CollisionBoxPlaneRestitution();
 
-	template<class T>
 	void CollisionCubeCubeRestitution();
 
-	template<class T>
 	void CollisionBoxToStaticBox();
 
-	template<class T>
 	void CollisionPGS();
 
-	template<class T>
 	void CollisionPGS2();
 
-	template<class T>
 	void CollisionBroadphaseVelocityExpansion();
 
 }
