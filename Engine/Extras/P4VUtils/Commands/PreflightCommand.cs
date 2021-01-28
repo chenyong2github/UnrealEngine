@@ -32,6 +32,16 @@ namespace P4VUtils.Commands
 			ClientRecord Client = await Perforce.GetClientAsync(null, CancellationToken.None);
 			if(Client.Stream == null)
 			{
+				Logger.LogError("Not being run from a stream client");
+				return 1;
+			}
+
+			await Perforce.ShelveAsync(Change, ShelveOptions.Overwrite, new[] { "//..." }, CancellationToken.None);
+
+			List<DescribeRecord> Describe = await Perforce.DescribeAsync(DescribeOptions.Shelved, -1, new[] { Change }, CancellationToken.None);
+			if (Describe[0].Files.Count == 0)
+			{
+				Logger.LogError("No files are shelved in the given changelist");
 				return 1;
 			}
 

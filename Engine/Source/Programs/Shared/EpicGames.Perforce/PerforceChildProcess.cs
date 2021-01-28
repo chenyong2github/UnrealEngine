@@ -389,7 +389,10 @@ namespace EpicGames.Perforce
 								break;
 							}
 
-							Responses.Add(Response);
+							if (Response.Error == null || Response.Error.Generic != PerforceGenericCode.Empty)
+							{
+								Responses.Add(Response);
+							}
 						}
 
 						// If the stream is complete but we couldn't parse a response from the server, treat it as an error
