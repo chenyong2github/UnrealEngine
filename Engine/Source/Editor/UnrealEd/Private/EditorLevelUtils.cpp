@@ -66,6 +66,20 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 
 int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming, bool bMoveAllOrFail)
 {
+	const bool bCutActors = true;
+	const bool bMoveActors = true;
+	return CopyOrMoveActorsToLevel(ActorsToMove, DestLevel, bCutActors, bMoveActors, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail);
+}
+
+int32 UEditorLevelUtils::CopyActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming, bool bMoveAllOrFail)
+{
+	const bool bCutActors = false;
+	const bool bMoveActors = false;
+	return CopyOrMoveActorsToLevel(ActorsToMove, DestLevel, bCutActors, bMoveActors, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail);
+}
+
+int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bCutActors, bool bMoveActors, bool bWarnAboutReferences /*= true*/, bool bWarnAboutRenaming /*= true*/, bool bMoveAllOrFail /*= false*/)
+{
 	int32 NumMovedActors = 0;
 
 	if (DestLevel)
@@ -144,11 +158,8 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 				// Cache the old level
 				ULevel* OldCurrentLevel = OwningWorld->GetCurrentLevel();
 
-				// We are moving the actors so cut them to remove them from the existing level
-				const bool bShoudCut = true;
-				const bool bIsMove = true;
 				FString DestinationData;
-				GEditor->CopySelectedActorsToClipboard(OwningWorld, bShoudCut, bIsMove, bWarnAboutReferences, &DestinationData);
+				GEditor->CopySelectedActorsToClipboard(OwningWorld, bCutActors, bMoveActors, bWarnAboutReferences, &DestinationData);
 
 				const bool bLevelVisible = DestLevel->bIsVisible;
 				if (!bLevelVisible)
@@ -161,7 +172,7 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 					// Set the new level and force it visible while we do the paste
 					FLevelPartitionOperationScope LevelPartitionScope(DestLevel);
 					OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
-										
+
 					const bool bDuplicate = false;
 					const bool bOffsetLocations = false;
 					const bool bWarnIfHidden = false;
@@ -229,10 +240,10 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 						RenameData.Add(FAssetRenameData(Pair.Key, Pair.Value, true));
 					}
 				}
-					
+
 				if (RenameData.Num() > 0)
 				{
-					if(bWarnAboutRenaming)
+					if (bWarnAboutRenaming)
 					{
 						AssetToolsModule.Get().RenameAssetsWithDialog(RenameData);
 					}

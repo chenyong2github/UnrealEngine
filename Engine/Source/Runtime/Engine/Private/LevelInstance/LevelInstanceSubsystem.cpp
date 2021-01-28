@@ -809,7 +809,7 @@ bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceAc
 		const bool bWarnAboutReferences = true;
 		const bool bWarnAboutRenaming = true;
 		const bool bMoveAllOrFail = true;
-		if (!EditorLevelUtils::MoveActorsToLevel(ActorsToMove, DestinationLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
+		if (!EditorLevelUtils::CopyActorsToLevel(ActorsToMove, DestinationLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
 		{
 			UE_LOG(LogLevelInstance, Warning, TEXT("Failed to break Level Instance because not all actors could be moved"));
 			return false;
