@@ -297,7 +297,7 @@ namespace Chaos
 #else
 	extern template class TTriangleMesh<float>;
 #endif
-?	using FTriangleMesh = TTriangleMesh<FReal>;
+	using FTriangleMesh = TTriangleMesh<FReal>;
 }
 
 // Support ISPC enable/disable in non-shipping builds
