@@ -783,6 +783,12 @@ bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceAc
 		// Can only break the top level LevelInstance
 		check(LevelInstanceActor->GetLevel() == GetWorld()->GetCurrentLevel());
 
+		// Actors in a packed level instance will not be streamed in unless they are editing. Must force this before moving.
+		if (LevelInstanceActor->IsA<APackedLevelInstance>())
+		{
+			BlockLoadLevelInstance(LevelInstanceActor);
+		}
+
 		// need to ensure that LevelInstanceActor has been streamed in fully
 		GEngine->BlockTillLevelStreamingCompleted(LevelInstanceActor->GetWorld());
 
@@ -813,6 +819,11 @@ bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceAc
 		{
 			UE_LOG(LogLevelInstance, Warning, TEXT("Failed to break Level Instance because not all actors could be moved"));
 			return false;
+		}
+
+		if (LevelInstanceActor->IsA<APackedLevelInstance>())
+		{
+			BlockUnloadLevelInstance(LevelInstanceActor);
 		}
 
 		// Destroy the old LevelInstance instance actor
@@ -1513,6 +1524,22 @@ void ULevelInstanceSubsystem::BlockLoadLevelInstance(ALevelInstance* LevelInstan
 		UpdateStreamingState();
 	}
 }
+
+void ULevelInstanceSubsystem::BlockUnloadLevelInstance(ALevelInstance* LevelInstanceActor)
+{
+	check(!LevelInstanceActor->IsEditing());
+	RequestUnloadLevelInstance(LevelInstanceActor);
+
+	// Make sure blocking unloads can happen and are not part of transaction
+	TGuardValue<ITransaction*> TransactionGuard(GUndo, nullptr);
+
+	// Blocking until LevelInstance is loaded and all its child LevelInstances
+	while (LevelInstancesToUnload.Num())
+	{
+		UpdateStreamingState();
+	}
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE

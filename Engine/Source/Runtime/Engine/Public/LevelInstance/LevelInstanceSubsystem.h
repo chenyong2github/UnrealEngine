@@ -85,6 +85,7 @@ public:
 
 	ALevelInstance* GetParentLevelInstance(const AActor* Actor) const;
 	void BlockLoadLevelInstance(ALevelInstance* LevelInstanceActor);
+	void BlockUnloadLevelInstance(ALevelInstance* LevelInstanceActor);
 #endif
 
 private:
