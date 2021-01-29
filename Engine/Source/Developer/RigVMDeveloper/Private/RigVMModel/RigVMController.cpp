@@ -6654,7 +6654,7 @@ bool URigVMController::IsValidNodeForGraph(URigVMNode* InNode)
 
 	if (InNode->GetGraph() != GetGraph())
 	{
-		ReportErrorf(TEXT("InNode '%s' is on a different graph."), *InNode->GetNodePath());
+		ReportWarningf(TEXT("InNode '%s' is on a different graph. InNode graph is %s, this graph is %s"), *InNode->GetNodePath(), *GetNameSafe(InNode->GetGraph()), *GetNameSafe(GetGraph()));
 		return false;
 	}
 
