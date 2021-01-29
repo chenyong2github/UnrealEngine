@@ -1046,7 +1046,7 @@ namespace ChaosTest {
 	{
 		Chaos::FPBDRigidParticles Particles;
 		TArray<TVec3<int32>> CollisionMeshElements;
-		int32 BoxId = AppendParticleBox<FReal>(Particles, FVec3(1), &CollisionMeshElements);
+		int32 BoxId = AppendParticleBox(Particles, FVec3(1), &CollisionMeshElements);
 		TLevelSet<FReal, 3> Levelset = ConstructLevelset(*Particles.CollisionParticles(BoxId), CollisionMeshElements);
 
 		FVec3 Normal;

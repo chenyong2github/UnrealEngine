@@ -42,14 +42,14 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Box1 = AppendDynamicParticleBox<FReal>(Particles);
+		auto Box1 = AppendDynamicParticleBox(Particles);
 		Box1->X() = FVec3(1.f);
 		Box1->R() = FRotation3(FQuat::Identity);
 		Box1->P() = Box1->X();
 		Box1->Q() = Box1->R();
 		Box1->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		auto Box2 = AppendDynamicParticleBox<FReal>(Particles);
+		auto Box2 = AppendDynamicParticleBox(Particles);
 		Box2->X() = FVec3(1.5f, 1.5f, 1.9f);
 		Box2->R() = FRotation3(FQuat::Identity);
 		Box2->P() = Box2->X();
@@ -88,14 +88,14 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Box1 = AppendDynamicParticleConvexBox<FReal>(Particles, FVec3(1.f) );
+		auto Box1 = AppendDynamicParticleConvexBox(Particles, FVec3(1.f) );
 		Box1->X() = FVec3(0.f);
 		Box1->R() = FRotation3(FQuat::Identity);
 		Box1->P() = Box1->X();
 		Box1->Q() = Box1->R();
 		Box1->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		auto Box2 = AppendDynamicParticleBox<FReal>(Particles, FVec3(1.f) );
+		auto Box2 = AppendDynamicParticleBox(Particles, FVec3(1.f) );
 		Box2->X() = FVec3(1.25f, 0.f, 0.f);
 		Box2->R() = FRotation3(FQuat::Identity);
 		Box2->P() = Box2->X();
@@ -130,8 +130,8 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Floor = AppendStaticAnalyticFloor<FReal>(Particles);
-		auto Box = AppendDynamicParticleBox<FReal>(Particles);
+		auto Floor = AppendStaticAnalyticFloor(Particles);
+		auto Box = AppendDynamicParticleBox(Particles);
 		Box->X() = FVec3(0, 1, 0);
 		Box->R() = FRotation3(FQuat::Identity);
 		Box->V() = FVec3(0, 0, -1);
@@ -207,8 +207,8 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Floor = AppendStaticConvexFloor<FReal>(Particles);
-		auto Box = AppendDynamicParticleConvexBox<FReal>( Particles, FVec3(50) );
+		auto Floor = AppendStaticConvexFloor(Particles);
+		auto Box = AppendDynamicParticleConvexBox( Particles, FVec3(50) );
 		Box->X() = FVec3(0, 0, 49);
 		Box->R() = FRotation3(FQuat::Identity);
 		Box->V() = FVec3(0, 0, -1);
@@ -280,8 +280,8 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Floor = AppendStaticAnalyticFloor<FReal>(Particles);
-		auto Box = AppendDynamicParticleBox<FReal>(Particles);
+		auto Floor = AppendStaticAnalyticFloor(Particles);
+		auto Box = AppendDynamicParticleBox(Particles);
 		Box->X() = FVec3(0, 1, 0);
 		Box->R() = FRotation3(FQuat::Identity);
 		Box->V() = FVec3(0, 0, -1);
@@ -351,8 +351,8 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Floor = AppendStaticAnalyticFloor<FReal>(Particles);
-		auto Box = AppendDynamicParticleBox<FReal>(Particles);
+		auto Floor = AppendStaticAnalyticFloor(Particles);
+		auto Box = AppendDynamicParticleBox(Particles);
 		Box->X() = FVec3(0, 0, 0);
 		Box->R() = FRotation3(FQuat::Identity);
 		Box->V() = FVec3(0, 0, -100);
@@ -427,9 +427,9 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		FGeometryParticleHandle* StaticCube = AppendStaticParticleBox<FReal>(Particles, FVec3(100.0f));
+		FGeometryParticleHandle* StaticCube = AppendStaticParticleBox(Particles, FVec3(100.0f));
 		StaticCube->X() = FVec3(0, 0, -50.0f);
-		FPBDRigidParticleHandle* DynamicCube = AppendDynamicParticleBox<FReal>(Particles, FVec3(100.0f));
+		FPBDRigidParticleHandle* DynamicCube = AppendDynamicParticleBox(Particles, FVec3(100.0f));
 		DynamicCube->X() = FVec3(0, 0, 80); // Penetrating by about 5cm
 		DynamicCube->R() = FRotation3::FromElements( 0.27059805f, 0.27059805f, 0.0f, 0.923879532f ); // Rotate so that vertex collide
 		DynamicCube->V() = FVec3(0, 0, -100);
@@ -486,11 +486,11 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto StaticBox = AppendStaticParticleBox<FReal>(Particles);
+		auto StaticBox = AppendStaticParticleBox(Particles);
 		StaticBox->X() = FVec3(-0.05f, -0.05f, -0.1f);
 		StaticBox->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		auto Box2 = AppendDynamicParticleBox<FReal>(Particles);
+		auto Box2 = AppendDynamicParticleBox(Particles);
 		FVec3 StartingPoint(0.5f);
 		Box2->X() = StartingPoint;
 		Box2->P() = Box2->X();

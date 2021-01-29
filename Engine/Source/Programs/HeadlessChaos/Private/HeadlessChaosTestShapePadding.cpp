@@ -42,7 +42,7 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Box0 = AppendDynamicParticleBoxMargin<FReal>(Particles, Size, Margin0);
+		auto Box0 = AppendDynamicParticleBoxMargin(Particles, Size, Margin0);
 		Box0->X() = FVec3(0, 0, 0);
 		Box0->R() = FRotation3(FQuat::Identity);
 		Box0->V() = FVec3(0);
@@ -51,7 +51,7 @@ namespace ChaosTest {
 		Box0->Q() = Box0->R();
 		Box0->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		auto Box1 = AppendDynamicParticleBoxMargin<FReal>(Particles, Size, Margin1);
+		auto Box1 = AppendDynamicParticleBoxMargin(Particles, Size, Margin1);
 		Box1->X() = Delta;
 		Box1->R() = FRotation3(FQuat::Identity);
 		Box1->V() = FVec3(0);
@@ -148,7 +148,7 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Box0 = AppendDynamicParticleConvexBoxMargin<FReal>(Particles, 0.5f * Size, Margin0);
+		auto Box0 = AppendDynamicParticleConvexBoxMargin(Particles, 0.5f * Size, Margin0);
 		Box0->X() = FVec3(0, 0, 0);
 		Box0->R() = FRotation3(FQuat::Identity);
 		Box0->V() = FVec3(0);
@@ -157,7 +157,7 @@ namespace ChaosTest {
 		Box0->Q() = Box0->R();
 		Box0->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
-		auto Box1 = AppendDynamicParticleConvexBoxMargin<FReal>(Particles, 0.5f * Size, Margin1);
+		auto Box1 = AppendDynamicParticleConvexBoxMargin(Particles, 0.5f * Size, Margin1);
 		Box1->X() = Delta;
 		Box1->R() = FRotation3(FQuat::Identity);
 		Box1->V() = FVec3(0);
@@ -260,7 +260,7 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto Box0 = AppendDynamicParticleBoxMargin<FReal>(Particles, Size, Margin0);
+		auto Box0 = AppendDynamicParticleBoxMargin(Particles, Size, Margin0);
 		Box0->X() = FVec3(0, 0, 0);
 		Box0->R() = FRotation3(FQuat::Identity);
 		Box0->V() = FVec3(0);

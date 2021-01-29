@@ -29,9 +29,9 @@ namespace ChaosTest {
 		FPBDRigidClusteredParticles& ClusteredParticles = Particles.GetClusteredParticles();
 		
 		uint32 FirstId = ClusteredParticles.Size();
-		FPBDRigidParticleHandle* Box1 = AppendClusteredParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+		FPBDRigidParticleHandle* Box1 = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 		uint32 BoxId = FirstId++;
-		FPBDRigidParticleHandle* Box2 = AppendClusteredParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+		FPBDRigidParticleHandle* Box2 = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 		uint32 Box2Id = FirstId++;
 		
 		Box2->X() = FVec3((FReal)100, (FReal)0, (FReal)0);
@@ -81,7 +81,7 @@ namespace ChaosTest {
 		for (int i = 0; i < NumBoxes; ++i)
 		{
 			BoxIDs.Add(ClusteredParticles.Size());
-			FPBDRigidParticleHandle* Box = AppendClusteredParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			FPBDRigidParticleHandle* Box = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 			Box->X() = FVec3((FReal)i * (FReal)100, (FReal)0, (FReal)0);
 			Box->P() = Box->X();
 			Boxes.Add(Box);
@@ -205,7 +205,7 @@ namespace ChaosTest {
 		for (int i = 0; i < NumBoxes; ++i)
 		{
 			BoxIDs.Add(ClusteredParticles.Size());
-			FPBDRigidParticleHandle* Box = AppendClusteredParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			FPBDRigidParticleHandle* Box = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 			Box->X() = FVec3((FReal)i * (FReal)100, (FReal)0, (FReal)0);
 			Box->P() = Box->X();
 			Boxes.Add(Box);

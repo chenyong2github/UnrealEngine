@@ -482,8 +482,8 @@ namespace ChaosTest {
 
 		FPBDRigidsSOAs Particles;
 
-		auto StaticBox = AppendStaticParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
-		auto Box2 = AppendDynamicParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+		auto StaticBox = AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+		auto Box2 = AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 		StaticBox->X() = FVec3((FReal)0, (FReal)0, (FReal)1000);
 
 		Box2->X() = FVec3((FReal)500, (FReal)0, (FReal)1000);
@@ -524,8 +524,8 @@ namespace ChaosTest {
 		{
 			FPBDRigidsSOAs Particles;
 
-			auto& StaticBox = *AppendStaticParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
-			auto& Box2 = *AppendDynamicParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			auto& StaticBox = *AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			auto& Box2 = *AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 			StaticBox.X() = FVec3((FReal)0, (FReal)0, (FReal)500);
 
 			Box2.X() = FVec3((FReal)500, (FReal)0, (FReal)1000);
@@ -554,8 +554,8 @@ namespace ChaosTest {
 		{
 			FPBDRigidsSOAs Particles;
 
-			auto& StaticBox = *AppendStaticParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
-			auto& Box2 = *AppendDynamicParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			auto& StaticBox = *AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			auto& Box2 = *AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 			StaticBox.X() = FVec3((FReal)0, (FReal)0, (FReal)500);
 
 			Box2.X() = FVec3((FReal)500, (FReal)0, (FReal)1000);
