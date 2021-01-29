@@ -84,13 +84,13 @@ public:
 	//Note this is a pointer because the internal handle may have already been deleted
 	FORCEINLINE Chaos::FRigidBodyHandle_Internal* GetPhysicsThreadAPI()
 	{
-		return (Chaos::FRigidBodyHandle_Internal*)this;
+		return GetHandle_LowLevel() == nullptr ? nullptr : (Chaos::FRigidBodyHandle_Internal*)this;
 	}
 
 	//Note this is a pointer because the internal handle may have already been deleted
 	FORCEINLINE const Chaos::FRigidBodyHandle_Internal* GetPhysicsThreadAPI() const
 	{
-		return (const Chaos::FRigidBodyHandle_Internal*)this;
+		return GetHandle_LowLevel() == nullptr ? nullptr : (const Chaos::FRigidBodyHandle_Internal*)this;
 	}
 
 	/**/
