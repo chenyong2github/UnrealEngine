@@ -509,4 +509,20 @@ void UDataprepAddToLayerOperation::OnExecution_Implementation(const FDataprepCon
 	UDataprepOperationsLibrary::AddToLayer(InContext.Objects, LayerName);
 }
 
+void UDataprepSetCollisionComplexityOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger( TEXT("SetCollisionComplexity"), [&]( FText Text) { this->LogInfo( Text ); });
+#endif
+
+	// Execute operation
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetCollisionComplexity( InContext.Objects, CollisionTraceFlag, ModifiedStaticMeshes );
+
+	if(ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

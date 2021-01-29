@@ -672,4 +672,25 @@ void UDataprepOperationsLibrary::AddToLayer(const TArray<UObject*>& SelectedObje
 	}
 }
 
+void UDataprepOperationsLibrary::SetCollisionComplexity(const TArray<UObject*>& InSelectedObjects, const ECollisionTraceFlag InCollisionTraceFlag, TArray<UObject*>& InModifiedObjects)
+{
+	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(InSelectedObjects);
+
+	DataprepOperationsLibraryUtil::FStaticMeshBuilder StaticMeshBuilder( SelectedMeshes );
+
+	for (UStaticMesh* StaticMesh : SelectedMeshes)
+	{
+		if (StaticMesh)
+		{
+			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
+
+			if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+			{
+				BodySetup->CollisionTraceFlag = InCollisionTraceFlag;
+				InModifiedObjects.Add( StaticMesh );
+			}
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

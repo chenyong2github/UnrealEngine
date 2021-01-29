@@ -516,3 +516,29 @@ protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
 };
+
+UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName="Set Collision Complexity", ToolTip = "For each static mesh to process, set its collision complexity") )
+class UDataprepSetCollisionComplexityOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+	UDataprepSetCollisionComplexityOperation()
+		: CollisionTraceFlag(ECollisionTraceFlag::CTF_UseDefault)
+	{
+	}
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Collision complexity"))
+	TEnumAsByte<ECollisionTraceFlag> CollisionTraceFlag;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::MeshOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};

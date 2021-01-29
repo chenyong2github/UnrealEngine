@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
 					"ToolMenus",
 					"UnrealEd",
+					"PhysicsCore",
 				}
 			);
 		}

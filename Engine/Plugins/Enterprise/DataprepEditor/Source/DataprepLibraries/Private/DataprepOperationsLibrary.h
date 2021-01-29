@@ -319,6 +319,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
 	static void AddToLayer(const TArray<UObject*>& SelectedObjects, const FName& LayerName);
 
+	/**
+	 * Set collision complexity for selected meshes
+	 * @param	InSelectedObjects			Array of meshes to process.
+	 * @param	InCollisionTraceFlag		The new collision complexity.
+	 * @param	InModifiedObjects			List of modified meshes.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void SetCollisionComplexity(const TArray<UObject*>& InSelectedObjects, const ECollisionTraceFlag InCollisionTraceFlag, TArray<UObject*>& InModifiedObjects);
+
 private:
 	static void SubstituteMaterial(const TArray<UObject*>& SelectedObjects, const FString& MaterialSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UMaterialInterface*>& MaterialList, UMaterialInterface* MaterialSubstitute);
 	static void SubstituteMesh(const TArray<UObject*>& SelectedObjects, const FString& MeshSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UStaticMesh*>& MeshList, UStaticMesh* MeshSubstitute);
