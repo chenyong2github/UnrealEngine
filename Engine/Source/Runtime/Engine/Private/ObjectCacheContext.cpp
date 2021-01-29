@@ -714,3 +714,5 @@ void FObjectCacheEventSink::NotifyStaticMeshChanged_Concurrent(UStaticMeshCompon
 }
 
 #endif
+
+#undef LOCTEXT_NAMESPACE
