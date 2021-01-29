@@ -6,8 +6,8 @@
 #include "Stats/Stats.h"
 
 
-/** Maximum time that TickFetch will block waiting for samples (in seconds). */
-#define MEDIAUTILS_MAX_BLOCKONFETCH_SECONDS 5
+/** Maximum time that TickInput/Fetch will block waiting for samples (in seconds). */
+#define MEDIAUTILS_MAX_BLOCKONFETCH_SECONDS 10
 
 
 /** Declares a log category for this module. */

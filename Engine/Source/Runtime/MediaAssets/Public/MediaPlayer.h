@@ -722,13 +722,23 @@ public:
 	/**
 	 * Set the time on which to block.
 	 *
-	 * If set, this player will block in TickFetch until the video sample
+	 * If set, this player will block in TickInput or TickFetch until the video sample
 	 * for the specified time are actually available.
 	 *
 	 * @param Time The time to block on, or FTimespan::MinValue to disable.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
 	void SetBlockOnTime(const FTimespan& Time);
+
+	/**
+	 * Set the time range on which to block.
+	 *
+	 * If set, this player will block in TickInput or TickFetch until the video sample
+	 * for the specified time are actually available.
+	 *
+	 * @param TimeRange The time range to block on, or empty range to disable.
+	 */
+	void SetBlockOnTimeRange(const TRange<FTimespan>& TimeRange);
 
 	/**
 	 * Set the name of the desired native player.

@@ -209,6 +209,17 @@ public:
 	 */
 	virtual bool SetRate(float Rate) = 0;
 
+	/**
+	 * Hint for player indicating that blocked playback mode will be used / not used
+	 * 
+	 * @param bFacadeWillUseBlockingPlayback True if blocked playback will be used, false otherwiese
+	 * 
+	 * @note Implement as needed by the player.
+	 */
+	virtual void SetBlockingPlaybackHint(bool bFacadeWillUseBlockingPlayback)
+	{
+	}
+
 public:
 
 	/**
