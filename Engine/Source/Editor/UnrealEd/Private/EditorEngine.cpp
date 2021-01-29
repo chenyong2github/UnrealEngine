@@ -1513,7 +1513,13 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		DirectoryWatcherModule.Get()->Tick(DeltaSeconds);
 	}
 
+#if !UE_SERVER
+	static const FName MediaModuleName(TEXT("Media"));
+	IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
+#endif
+
 	bool bAWorldTicked = false;
+	bool bMediaModulePreEngineTickDone = false;
 	ELevelTick TickType = IsRealtime ? LEVELTICK_ViewportsOnly : LEVELTICK_TimeOnly;
 
 	if( bShouldTickEditorWorld )
@@ -1526,6 +1532,9 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			EditorContext.World()->Tick(TickType, DeltaSeconds);
 			bAWorldTicked = true;
 			FKismetDebugUtilities::NotifyDebuggerOfEndOfGameFrame(EditorContext.World());
+
+			// Track if the editor context has an active movie sequence tick associated -> if so it will have executed the MediaModule pre-engine tick already
+			bMediaModulePreEngineTickDone = (MediaModule != nullptr) && EditorContext.World()->IsMovieSceneSequenceTickHandlerBound();
 		}
 	}
 
@@ -1641,15 +1650,25 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	// if we have the side-by-side world for "Play From Here", tick it unless we are ensuring slate is responsive
 	if( FSlateThrottleManager::Get().IsAllowingExpensiveTasks() )
 	{
-		// Determine number of PIE worlds that should tick.
+		// Determine number of PIE worlds that should tick and if they feature an active movie sequence tick.
+		bool bMovieSequenceTickWillBeHandled = false;
 		TArray<FWorldContext*> LocalPieContextPtrs;
 		for (FWorldContext& PieContext : WorldList)
 		{
 			if (PieContext.WorldType == EWorldType::PIE && PieContext.World() != nullptr && PieContext.World()->ShouldTick())
 			{
 				LocalPieContextPtrs.Add(&PieContext);
+				bMovieSequenceTickWillBeHandled |= (MediaModule != nullptr) && PieContext.World()->IsMovieSceneSequenceTickHandlerBound();
 			}
 		}
+
+#if !UE_SERVER
+		// If we do not have any active movie sequence ticking, we will issue the pre-engine tick for the MediaModule as soon as we can
+		if ((MediaModule != nullptr) && !bMediaModulePreEngineTickDone && !bMovieSequenceTickWillBeHandled)
+		{
+			MediaModule->TickPreEngine();
+		}
+#endif
 
 		// Note: WorldList can change size within this loop during PIE when stopped at a breakpoint. In that case, we are
 		// running in a nested tick loop within this loop, where a new editor window with a preview viewport can be opened.
@@ -1738,20 +1757,30 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			RestoreEditorWorld( OldGWorld );
 		}
 	}
+	else
+	{
+#if !UE_SERVER
+	// If we do not tick anything of the above, we need to still make sure to issue the pre-tick to MediaModule
+		// (unless the Editor context had a movie sequence tick active and hence already did so)
+		if ((MediaModule != nullptr) && !bMediaModulePreEngineTickDone)
+		{
+			MediaModule->TickPreEngine();
+		}
+#endif
+	}
 
 	if (bAWorldTicked)
 	{
 		FTickableGameObject::TickObjects(nullptr, TickType, false, DeltaSeconds);
 	}
 
-	// tick media framework
-	static const FName MediaModuleName(TEXT("Media"));
-	IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
-
+#if !UE_SERVER
+	// tick media framework post engine ticks
 	if (MediaModule != nullptr)
 	{
 		MediaModule->TickPostEngine();
 	}
+#endif
 
 	if (bFirstTick)
 	{
