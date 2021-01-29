@@ -303,7 +303,7 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(int32, TileSize)
 		SHADER_PARAMETER(int32, bRectPrimitive)
-		SHADER_PARAMETER(FIntPoint, ClassificationResolution)
+		SHADER_PARAMETER(FIntPoint, ViewResolution)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClassificationTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileIndirectData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileListData)
@@ -546,7 +546,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			FStrataMaterialTileClassificationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataMaterialTileClassificationPassCS::FParameters>();
 			PassParameters->TileSize = GetStrataTileSize();
 			PassParameters->bRectPrimitive = GRHISupportsRectTopology ? 1 : 0;
-			PassParameters->ClassificationResolution = ClassificationTexture->Desc.Extent;
+			PassParameters->ViewResolution = View.ViewRect.Size();
 			PassParameters->ClassificationTexture = ClassificationTexture;
 			PassParameters->TileListData = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(View.StrataSceneData->ClassificationTileListBuffer), PF_R32_UINT);
 			PassParameters->TileIndirectData = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(View.StrataSceneData->ClassificationTileIndirectBuffer), PF_R32_UINT);
