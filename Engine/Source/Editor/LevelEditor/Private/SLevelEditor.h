@@ -183,10 +183,13 @@ private:
 	static FName GetEditorModeTabId( FEditorModeID ModeID );
 
 	/** Toggles the editor mode on and off, this is what the auto generated editor mode commands are mapped to. */
-	static void ToggleEditorMode( FEditorModeID ModeID );
+	void ToggleEditorMode( FEditorModeID ModeID );
 
 	/** Checks if the editor mode is active for the auto-generated editor mode command. */
-	static bool IsModeActive( FEditorModeID ModeID );
+	bool IsModeActive(FEditorModeID ModeID);
+
+	/** Checks if the editor mode is visible for the auto-generated editor mode command. */
+	bool ShouldShowModeInToolbar(FEditorModeID ModeID);
 
 	/**
 	 * Processes keybindings on the level editor

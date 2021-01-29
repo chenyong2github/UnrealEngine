@@ -117,7 +117,7 @@ void SLevelEditorToolBox::UpdateModeLegacyToolBar()
 		for ( const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
 		{
 			// If the mode isn't visible don't create a menu option for it.
-			if ( !Mode.bVisible )
+			if ( !Mode.IsVisible() )
 			{
 				continue;
 			}

@@ -15,16 +15,10 @@ void FLevelEditorModesCommands::RegisterCommands()
 	EditorModeCommands.Empty();
 
 	int editorMode = 0;
-	FKey EdModeKeys[9] = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine };
+	static const TArray<FKey, TInlineAllocator<9>> EdModeKeys = { EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine };
 
 	for ( const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
 	{
-		// If the mode isn't visible don't create a menu option for it.
-		if (!Mode.bVisible)
-		{
-			continue;
-		}
-
 		FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
 
 		TSharedPtr<FUICommandInfo> EditorModeCommand = 
@@ -34,23 +28,33 @@ void FLevelEditorModesCommands::RegisterCommands()
 		if ( !EditorModeCommand.IsValid() )
 		{
 			FFormatNamedArguments Args;
-			Args.Add( TEXT("Mode"), Mode.Name );
+			FText ModeName = Mode.Name;
+			if (ModeName.IsEmpty())
+			{
+				ModeName = FText::FromName(Mode.ID);
+			}
+			Args.Add(TEXT("Mode"), ModeName);
 			const FText Tooltip = FText::Format( NSLOCTEXT("LevelEditor", "ModeTooltipF", "Activate {Mode} Editing Mode"), Args );
+
+			FInputChord DefaultKeyBinding;
+			if (Mode.IsVisible() && editorMode < EdModeKeys.Num())
+			{
+				DefaultKeyBinding = FInputChord(EModifierKey::Shift, EdModeKeys[editorMode]);
+				++editorMode;
+			}
 
 			FUICommandInfo::MakeCommandInfo(
 				this->AsShared(),
 				EditorModeCommand,
 				EditorModeCommandName,
-				Mode.Name,
+				ModeName,
 				Tooltip,
 				Mode.IconBrush,
 				EUserInterfaceActionType::ToggleButton,
-				editorMode < 9 ? FInputChord( EModifierKey::Shift, EdModeKeys[editorMode] ) : FInputChord() );
+				DefaultKeyBinding);
 
 			EditorModeCommands.Add(EditorModeCommand);
 		}
-
-		editorMode++;
 	}
 }
 

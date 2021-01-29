@@ -6,6 +6,7 @@
 #include "Internationalization/Text.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/NameTypes.h"
+#include "Misc/Attribute.h"
 
 /** The shorthand identifier used for editor modes */
 typedef FName FEditorModeID;
@@ -20,7 +21,7 @@ struct FEditorModeInfo
 		FEditorModeID InID,
 		FText InName = FText(),
 		FSlateIcon InIconBrush = FSlateIcon(),
-		bool bInIsVisible = false,
+		TAttribute<bool> InVisibility = false,
 		int32 InPriorityOrder = MAX_int32
 		);
 
@@ -36,11 +37,14 @@ struct FEditorModeInfo
 	/** The mode icon */
 	FSlateIcon IconBrush;
 
-	/** Whether or not the mode should be visible in the mode menu */
-	bool bVisible;
-
 	/** The priority of this mode which will determine its default order and shift+X command assignment */
 	int32 PriorityOrder;
+
+	/** Whether or not the mode should be visible in the mode toolbar */
+	EDITORFRAMEWORK_API bool IsVisible() const;
+
+protected:
+	TAttribute<bool> Visibility;
 };
 
 DECLARE_MULTICAST_DELEGATE(FRegisteredModesChangedEvent);

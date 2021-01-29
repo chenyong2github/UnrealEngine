@@ -28,10 +28,11 @@ constexpr TCHAR UAssetPlacementEdMode::AssetPlacementEdModeID[];
 
 UAssetPlacementEdMode::UAssetPlacementEdMode()
 {
+	TAttribute<bool> IsEnabledAttr = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([]() -> bool { return GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode; }));
 	Info = FEditorModeInfo(UAssetPlacementEdMode::AssetPlacementEdModeID,
 		LOCTEXT("AssetPlacementEdModeName", "Placement"),
 		FSlateIcon(FAssetPlacementEdModeStyle::GetStyleSetName(), "PlacementBrowser.ShowAllContent"),
-		GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode);
+		MoveTemp(IsEnabledAttr));
 
 	SettingsClass = UAssetPlacementSettings::StaticClass();
 }
@@ -132,6 +133,11 @@ bool UAssetPlacementEdMode::ShouldDrawWidget() const
 	}
 
 	return Super::ShouldDrawWidget();
+}
+
+bool UAssetPlacementEdMode::IsEnabled()
+{
+	return GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode;
 }
 
 bool UAssetPlacementEdMode::DoesPaletteSupportElement(const FTypedElementHandle& InElementToCheck, const TArray<FPaletteItem>& InPaletteToCheck)

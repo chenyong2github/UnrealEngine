@@ -352,7 +352,7 @@ void FEditorModeTools::DeactivateOtherVisibleModes(FEditorModeID InMode)
 	TArray<UEdMode*> TempModes(ActiveScriptableModes);
 	for (const UEdMode* Mode : TempModes)
 	{
-		if (Mode->GetID() != InMode && Mode->GetModeInfo().bVisible)
+		if (Mode->GetID() != InMode && Mode->GetModeInfo().IsVisible())
 		{
 			DeactivateMode(Mode->GetID());
 		}
@@ -432,7 +432,7 @@ bool FEditorModeTools::IsOnlyVisibleActiveMode(FEditorModeID InMode) const
 	// Only return true if this is the *only* active mode
 	for (const UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (Mode->GetModeInfo().bVisible && Mode->GetID() != InMode)
+		if (Mode->GetModeInfo().IsVisible() && Mode->GetID() != InMode)
 		{
 			return false;
 		}
@@ -780,7 +780,7 @@ bool FEditorModeTools::ShouldShowModeToolbox() const
 {
 	for (const UEdMode* Mode : ActiveScriptableModes)
 	{
-		if (Mode->GetModeInfo().bVisible && Mode->UsesToolkits())
+		if (Mode->GetModeInfo().IsVisible() && Mode->UsesToolkits())
 		{
 			return true;
 		}
@@ -844,11 +844,11 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 	}
 
 	// Remove anything that isn't compatible with this mode
-	const bool bIsVisibleMode = ScriptableMode->GetModeInfo().bVisible;
+	const bool bIsVisibleMode = ScriptableMode->GetModeInfo().IsVisible();
 	for (int32 ModeIndex = ActiveScriptableModes.Num() - 1; ModeIndex >= 0; ModeIndex--)
 	{
 		const bool bModesAreCompatible = ScriptableMode->IsCompatibleWith(ActiveScriptableModes[ModeIndex]->GetID()) || ActiveScriptableModes[ModeIndex]->IsCompatibleWith(ScriptableMode->GetID());
-		if (!bModesAreCompatible || (bIsVisibleMode && ActiveScriptableModes[ModeIndex]->GetModeInfo().bVisible))
+		if (!bModesAreCompatible || (bIsVisibleMode && ActiveScriptableModes[ModeIndex]->GetModeInfo().IsVisible()))
 		{
 			DeactivateScriptableModeAtIndex(ModeIndex);
 		}

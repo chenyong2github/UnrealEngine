@@ -188,9 +188,12 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	// We need to register when modes list changes so that we can refresh the auto generated commands.
 	if (GEditor != nullptr)
 	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
+		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			AssetEditorSubsystem->OnEditorModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
+		}
 	}
-	GLevelEditorModeTools().OnEditorModeIDChanged().AddSP(this, &SLevelEditor::OnEditorModeIdChanged);
+	GetEditorModeManager().OnEditorModeIDChanged().AddSP(this, &SLevelEditor::OnEditorModeIdChanged);
 
 	// @todo This is a hack to get this working for now. This won't work with multiple worlds
 	if (GEditor != nullptr)
@@ -339,11 +342,12 @@ SLevelEditor::~SLevelEditor()
 
 	if (GEditor)
 	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll(this);
+		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			AssetEditorSubsystem->OnEditorModesChanged().RemoveAll(this);
+		}
 		GEditor->OnLevelActorOuterChanged().Remove(LevelActorOuterChangedHandle);
 		GEditor->GetEditorWorldContext(true).RemoveRef(World);
-
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll(this);
 	}
 
 	// Clear USelection from using our selected element list
@@ -688,7 +692,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if (TabIdentifier == FEditorModeTools::EditorModeToolbarTabName)
 	{
-		return GLevelEditorModeTools().MakeModeToolbarTab();
+		return GetEditorModeManager().MakeModeToolbarTab();
 	}
 	else if( TabIdentifier == TEXT("LevelEditorSelectionDetails") || TabIdentifier == TEXT("LevelEditorSelectionDetails2") || TabIdentifier == TEXT("LevelEditorSelectionDetails3") || TabIdentifier == TEXT("LevelEditorSelectionDetails4") )
 	{
@@ -957,7 +961,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 
 bool SLevelEditor::CanSpawnEditorModeToolbarTab(const FSpawnTabArgs& Args) const
 {
-	return GLevelEditorModeTools().ShouldShowModeToolbar();
+	return GetEditorModeManager().ShouldShowModeToolbar();
 }
 
 bool SLevelEditor::CanSpawnEditorModeToolboxTab(const FSpawnTabArgs& Args) const
@@ -1079,7 +1083,7 @@ void SLevelEditor::OnViewportTabClosed(TSharedRef<SDockTab> ClosedTab)
 
 void SLevelEditor::OnToolboxTabClosed(TSharedRef<SDockTab> ClosedTab)
 {
-	GLevelEditorModeTools().ActivateDefaultMode();
+	GetEditorModeManager().ActivateDefaultMode();
 }
 
 
@@ -1518,15 +1522,13 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 	// Prompt the user if Matinee must be closed before activating new mode
 	if (ModeID != FBuiltinEditorModes::EM_InterpEdit)
 	{
-		FEdMode* MatineeMode = GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
+		FEdMode* MatineeMode = GetEditorModeManager().GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
 		if (MatineeMode && !MatineeMode->IsCompatibleWith(ModeID))
 		{
-			FEditorModeInfo MatineeModeInfo;
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorModeInfo(ModeID, MatineeModeInfo);
 			FFormatNamedArguments Args;
-			Args.Add(TEXT("ModeName"), MatineeModeInfo.Name);
+			Args.Add(TEXT("ModeName"), MatineeMode->GetModeInfo().Name);
 			FText Msg = FText::Format(NSLOCTEXT("LevelEditor", "ModeSwitchCloseMatineeQ", "Activating '{ModeName}' editor mode will close UnrealMatinee.  Continue?"), Args);
-			
+
 			if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, Msg))
 			{
 				return;
@@ -1536,7 +1538,7 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 		
 	// *Important* - activate the mode first since FEditorModeTools::DeactivateMode will
 	// activate the default mode when the stack becomes empty, resulting in multiple active visible modes.
-	GLevelEditorModeTools().ActivateMode( ModeID );
+	GetEditorModeManager().ActivateMode( ModeID );
 
 	// Invoke the tab regardless if if the mode was activated or already activated so that it the mode tools come into the foreground
 	LevelEditorTabManager->TryInvokeTab(LevelEditorTabIds::LevelEditorToolBox);
@@ -1545,7 +1547,21 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )
 {
-	return GLevelEditorModeTools().IsModeActive( ModeID );
+	return GetEditorModeManager().IsModeActive( ModeID );
+}
+
+bool SLevelEditor::ShouldShowModeInToolbar(FEditorModeID ModeID)
+{
+	if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+	{
+		FEditorModeInfo ModeInfo;
+		if (AssetEditorSubsystem->FindEditorModeInfo(ModeID, ModeInfo))
+		{
+			return ModeInfo.IsVisible();
+		}
+	}
+
+	return false;
 }
 
 void SLevelEditor::EditorModeCommandsChanged()
@@ -1595,31 +1611,29 @@ void SLevelEditor::RefreshEditorModeCommands()
 	const FLevelEditorModesCommands& Commands = FLevelEditorModesCommands::Get();
 
 	int32 CommandIndex = 0;
-	for( const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority() )
+	if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
 	{
-		// If the mode isn't visible don't create a menu option for it.
-		if( !Mode.bVisible )
+		for (const FEditorModeInfo& Mode : AssetEditorSubsystem->GetEditorModeInfoOrderedByPriority())
 		{
-			continue;
+			FName EditorModeTabName = GetEditorModeTabId(Mode.ID);
+			FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
+
+			TSharedPtr<FUICommandInfo> EditorModeCommand =
+				FInputBindingManager::Get().FindCommandInContext(Commands.GetContextName(), EditorModeCommandName);
+
+			// If a command isn't yet registered for this mode, we need to register one.
+			if (EditorModeCommand.IsValid() && !LevelEditorCommands->IsActionMapped(Commands.EditorModeCommands[CommandIndex]))
+			{
+				LevelEditorCommands->MapAction(
+					Commands.EditorModeCommands[CommandIndex],
+					FExecuteAction::CreateSP(SharedThis(this), &SLevelEditor::ToggleEditorMode, Mode.ID),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(SharedThis(this), &SLevelEditor::IsModeActive, Mode.ID),
+					FIsActionButtonVisible::CreateSP(SharedThis(this), &SLevelEditor::ShouldShowModeInToolbar, Mode.ID));
+			}
+
+			CommandIndex++;
 		}
-
-		FName EditorModeTabName = GetEditorModeTabId( Mode.ID );
-		FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
-
-		TSharedPtr<FUICommandInfo> EditorModeCommand = 
-			FInputBindingManager::Get().FindCommandInContext(Commands.GetContextName(), EditorModeCommandName);
-
-		// If a command isn't yet registered for this mode, we need to register one.
-		if ( EditorModeCommand.IsValid() && !LevelEditorCommands->IsActionMapped(Commands.EditorModeCommands[CommandIndex]) )
-		{
-			LevelEditorCommands->MapAction(
-				Commands.EditorModeCommands[CommandIndex],
-				FExecuteAction::CreateStatic( &SLevelEditor::ToggleEditorMode, Mode.ID ),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP( GLevelEditorModeTools().AsShared(), &FEditorModeTools::IsModeActive, Mode.ID ));
-		}
-
-		CommandIndex++;
 	}
 
 	for( const auto& ToolBoxTab : ToolBoxTabs )

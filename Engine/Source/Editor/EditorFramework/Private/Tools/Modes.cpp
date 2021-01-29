@@ -5,8 +5,8 @@
 
 FEditorModeInfo::FEditorModeInfo()
 	: ID(NAME_None)
-	, bVisible(false)
 	, PriorityOrder(MAX_int32)
+	, Visibility(false)
 {
 }
 
@@ -14,18 +14,23 @@ FEditorModeInfo::FEditorModeInfo(
 	FEditorModeID InID,
 	FText InName,
 	FSlateIcon InIconBrush,
-	bool InIsVisible,
+	TAttribute<bool> InVisibility,
 	int32 InPriorityOrder
 	)
 	: ID(InID)
 	, ToolbarCustomizationName(*(InID.ToString() + TEXT("Toolbar")))
 	, Name(InName)
 	, IconBrush(InIconBrush)
-	, bVisible(InIsVisible)
 	, PriorityOrder(InPriorityOrder)
+	, Visibility(InVisibility)
 {
 	if (!InIconBrush.IsSet())
 	{
 		IconBrush = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditorModes");
 	}
+}
+
+bool FEditorModeInfo::IsVisible() const
+{
+	return Visibility.Get(false);
 }

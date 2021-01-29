@@ -37,6 +37,7 @@ public:
 	// End of UBaseLegacyWidgetEdMode interface
 	//////////////////
 
+	static bool IsEnabled();
 	static bool DoesPaletteSupportElement(const FTypedElementHandle& InElementToCheck, const TArray<FPaletteItem>& InPaletteToCheck);
 
 protected:

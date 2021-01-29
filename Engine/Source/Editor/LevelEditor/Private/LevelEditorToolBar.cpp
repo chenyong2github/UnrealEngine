@@ -1254,62 +1254,59 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.ModesToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
 	ModesToolbar->StyleName = "AssetEditorToolbar";
 	{
-		FToolMenuSection& Section = ModesToolbar->AddSection("EditorModes");
-
-		Section.AddSeparator(NAME_None);
-
-		const FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		const FLevelEditorModesCommands& Commands = LevelEditorModule.GetLevelEditorModesCommands();
-
-		TArray<FEditorModeInfo, TInlineAllocator<1>> DefaultModes;
-
-		TArray<FEditorModeInfo, TInlineAllocator<10>> NonDefaultModes;
-
-		for (const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
+		TWeakPtr<SLevelEditor> LevelEditorPtr = InLevelEditor;
+		ModesToolbar->AddDynamicSection("EditorModes", FNewToolMenuDelegate::CreateLambda([LevelEditorPtr](UToolMenu* ToolMenu)
 		{
-			// If the mode isn't visible don't create a menu option for it.
-			if (!Mode.bVisible)
+			FToolMenuSection& Section = ToolMenu->AddSection("EditorModes");
+			Section.AddSeparator(NAME_None);
+			const FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+			const FLevelEditorModesCommands& Commands = LevelEditorModule.GetLevelEditorModesCommands();
+
+			TArray<FEditorModeInfo, TInlineAllocator<1>> DefaultModes;
+
+			TArray<FEditorModeInfo, TInlineAllocator<10>> NonDefaultModes;
+
+			for (const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
 			{
-				continue;
-			}
-
-			if (GLevelEditorModeTools().IsDefaultMode(Mode.ID))
-			{
-				DefaultModes.Add(Mode.ID);
-			}
-			else
-			{
-				NonDefaultModes.Add(Mode.ID);
-			}
-
-		}
-
-		auto BuildEditorModes =
-			[&Commands, &Section](TArrayView<FEditorModeInfo> Modes)
-		{
-			for (const FEditorModeInfo& Mode : Modes)
-			{
-				FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
-
-				TSharedPtr<FUICommandInfo> EditorModeCommand =
-					FInputBindingManager::Get().FindCommandInContext(Commands.GetContextName(), EditorModeCommandName);
-
-				// If a command isn't yet registered for this mode, we need to register one.
-				if (!EditorModeCommand.IsValid())
+				TSharedPtr<SLevelEditor> LevelEditorPin = LevelEditorPtr.Pin();
+				if (LevelEditorPin.IsValid() && LevelEditorPin->GetEditorModeManager().IsDefaultMode(Mode.ID))
 				{
-					continue;
+					DefaultModes.Add(Mode.ID);
+				}
+				else
+				{
+					NonDefaultModes.Add(Mode.ID);
 				}
 
-				Section.AddEntry(FToolMenuEntry::InitToolBarButton(EditorModeCommand));
 			}
 
-		};
+			auto BuildEditorModes =
+				[&Commands, &Section](TArrayView<FEditorModeInfo> Modes)
+			{
+				for (const FEditorModeInfo& Mode : Modes)
+				{
+					FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
 
-		// Build Default Modes first
-		BuildEditorModes(MakeArrayView(DefaultModes));
+					TSharedPtr<FUICommandInfo> EditorModeCommand =
+						FInputBindingManager::Get().FindCommandInContext(Commands.GetContextName(), EditorModeCommandName);
 
-		// Build non-default modes second
-		BuildEditorModes(MakeArrayView(NonDefaultModes));
+					// If a command isn't yet registered for this mode, we need to register one.
+					if (!EditorModeCommand.IsValid())
+					{
+						continue;
+					}
+
+					Section.AddEntry(FToolMenuEntry::InitToolBarButton(EditorModeCommand));
+				}
+
+			};
+
+			// Build Default Modes first
+			BuildEditorModes(MakeArrayView(DefaultModes));
+
+			// Build non-default modes second
+			BuildEditorModes(MakeArrayView(NonDefaultModes));
+		}));
 	}
 
 	UToolMenu* SettingsToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.MarketplaceToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);

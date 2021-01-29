@@ -48,7 +48,7 @@ public:
 	bool bEnableExperimentalLevelEditor = false;
 
 	/** If enabled, the experimental asset placement mode will be available in the level editor */
-	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Editing, meta = (ConfigRestartRequired = true))
+	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Editing)
 	bool bEnableAssetPlacementMode = false;
 
 	/** If enabled, will avoid relabeling actors in UUnrealEdEngine::edactPasteSelected */

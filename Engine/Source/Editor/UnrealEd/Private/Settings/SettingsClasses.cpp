@@ -39,6 +39,7 @@
 #include "InstalledPlatformInfo.h"
 #include "DrawDebugHelpers.h"
 #include "ToolMenus.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SettingsClasses"
 
@@ -440,6 +441,14 @@ void ULevelEditorMiscSettings::PostEditChangeProperty( struct FPropertyChangedEv
 	{
 		FWorldContext &EditorContext = GEditor->GetEditorWorldContext();
 		FNavigationSystem::SetNavigationAutoUpdateEnabled(bNavigationAutoUpdate, EditorContext.World()->GetNavigationSystem());
+	}
+
+	if (Name == GET_MEMBER_NAME_CHECKED(ULevelEditorMiscSettings, bEnableAssetPlacementMode))
+	{
+		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			AssetEditorSubsystem->OnEditorModesChanged().Broadcast();
+		}
 	}
 
 	if (!FUnrealEdMisc::Get().IsDeletePreferences())
