@@ -1531,8 +1531,8 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 	// Setup at lower resolution from full resolution scene color and scene depth.
 	{
-		FullResGatherInputTextures = CreateTextures(GraphBuilder, FullResGatherInputDescs, TEXT("DOFFullResSetup"));
-		HalfResGatherInputTextures = CreateTextures(GraphBuilder, HalfResGatherInputDescs, TEXT("DOFHalfResSetup"));
+		FullResGatherInputTextures = CreateTextures(GraphBuilder, FullResGatherInputDescs, TEXT("DOF.FullResSetup"));
+		HalfResGatherInputTextures = CreateTextures(GraphBuilder, HalfResGatherInputDescs, TEXT("DOF.HalfResSetup"));
 
 		bool bOutputFullResolution = bRecombineDoesSlightOutOfFocus && !bProcessSceneAlpha;
 		bool bOutputHalfResolution = true; // TODO: there is a useless shader permutation.
@@ -1659,8 +1659,8 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FIntPoint SrcSize = HalfResGatherInputTextures.SceneColor->Desc.Extent;
 
 			static const TCHAR* OutputDebugNames[2] = {
-				TEXT("DOFFlattenFgdCoc"),
-				TEXT("DOFFlattenBgdCoc"),
+				TEXT("DOF.FlattenFgdCoc"),
+				TEXT("DOF.FlattenBgdCoc"),
 			};
 			FlattenedTileClassificationTextures = CreateTextures(GraphBuilder, TileClassificationDescs, OutputDebugNames);
 
@@ -1706,13 +1706,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		{
 			FDOFTileClassificationDescs OutputDescs = TileClassificationDescs;
 			const TCHAR* OutputDebugNames[2] = {
-				TEXT("DOFDilateFgdCoc"),
-				TEXT("DOFDilateBgdCoc"),
+				TEXT("DOF.DilateFgdCoc"),
+				TEXT("DOF.DilateBgdCoc"),
 			};
 			if (Mode == EDiaphragmDOFDilateCocMode::MinForegroundAndMaxBackground)
 			{
-				OutputDebugNames[0] = TEXT("DOFDilateMinFgdCoc");
-				OutputDebugNames[1] = TEXT("DOFDilateMaxBgdCoc");
+				OutputDebugNames[0] = TEXT("DOF.DilateMinFgdCoc");
+				OutputDebugNames[1] = TEXT("DOF.DilateMaxBgdCoc");
 				OutputDescs.Foreground.Format = PF_R16F;
 				OutputDescs.Background.Format = PF_R16F;
 			}
@@ -1870,7 +1870,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				ReducedGatherInputDescs.SeparateCoc.Format = PF_R16F;
 			}
 
-			ReducedGatherInputTextures = CreateTextures(GraphBuilder, ReducedGatherInputDescs, TEXT("DOFReduce"));
+			ReducedGatherInputTextures = CreateTextures(GraphBuilder, ReducedGatherInputDescs, TEXT("DOF.Reduce"));
 		}
 
 		// Downsample the gather color setup to have faster neighborhood comparisons.
@@ -1887,7 +1887,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				if (bRGBBufferSeparateCocBuffer && !bProcessSceneAlpha)
 					QuarterResGatherInputDescs.SceneColor.Format = PF_FloatR11G11B10;
 			
-				QuarterResGatherInputTextures = CreateTextures(GraphBuilder, QuarterResGatherInputDescs, TEXT("DOFDownsample"));
+				QuarterResGatherInputTextures = CreateTextures(GraphBuilder, QuarterResGatherInputDescs, TEXT("DOF.Downsample"));
 			}
 
 			FIntPoint PassViewSize = FIntPoint::DivideAndRoundUp(PreprocessViewSize, 2);
@@ -1921,9 +1921,9 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 			FRDGBufferDesc DrawListDescs = FRDGBufferDesc::CreateStructuredDesc(sizeof(float) * 4, 5 * MaxScatteringGroupCount);
 			if (bForegroundHybridScattering)
-				ForegroundScatterDrawListBuffer = GraphBuilder.CreateBuffer(DrawListDescs, TEXT("DOFForegroundDrawList"));
+				ForegroundScatterDrawListBuffer = GraphBuilder.CreateBuffer(DrawListDescs, TEXT("DOF.ForegroundDrawList"));
 			if (bBackgroundHybridScattering)
-				BackgroundScatterDrawListBuffer = GraphBuilder.CreateBuffer(DrawListDescs, TEXT("DOFBackgroundDrawList"));
+				BackgroundScatterDrawListBuffer = GraphBuilder.CreateBuffer(DrawListDescs, TEXT("DOF.BackgroundDrawList"));
 		}
 		
 		// Number of mip level that has been reduced.
@@ -2077,9 +2077,9 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		}
 
 		static const TCHAR* const DebugNames[] = {
-			TEXT("DOFScatterBokehLUT"),
-			TEXT("DOFRecombineBokehLUT"),
-			TEXT("DOFGatherBokehLUT"),
+			TEXT("DOF.ScatterBokehLUT"),
+			TEXT("DOF.RecombineBokehLUT"),
+			TEXT("DOF.GatherBokehLUT"),
 		};
 
 		FRDGTextureDesc BokehLUTDesc = FRDGTextureDesc::Create2D(
@@ -2171,13 +2171,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				{
 					const TCHAR* DebugName = nullptr;
 					if (ConvolutionSettings.LayerProcessing == EDiaphragmDOFLayerProcessing::ForegroundOnly)
-						DebugName = TEXT("DOFGatherForeground");
+						DebugName = TEXT("DOF.GatherForeground");
 					else if (ConvolutionSettings.LayerProcessing == EDiaphragmDOFLayerProcessing::ForegroundHoleFilling)
-						DebugName = TEXT("DOFGatherForegroundFill");
+						DebugName = TEXT("DOF.GatherForegroundFill");
 					else if (ConvolutionSettings.LayerProcessing == EDiaphragmDOFLayerProcessing::BackgroundOnly)
-						DebugName = TEXT("DOFGatherBackground");
+						DebugName = TEXT("DOF.GatherBackground");
 					else if (ConvolutionSettings.LayerProcessing == EDiaphragmDOFLayerProcessing::SlightOutOfFocus)
-						DebugName = TEXT("DOFGatherFocus");
+						DebugName = TEXT("DOF.GatherFocus");
 					else
 						check(0);
 
@@ -2203,7 +2203,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			
 					const TCHAR* DebugName = nullptr;
 					if (ConvolutionSettings.LayerProcessing == EDiaphragmDOFLayerProcessing::BackgroundOnly)
-						DebugName = TEXT("DOFScatterOcclusionBackground");
+						DebugName = TEXT("DOF.ScatterOcclusionBackground");
 					else
 						check(0);
 			
@@ -2586,7 +2586,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FRDGTextureDesc Desc = InputSceneColor->Desc;
 			Desc.Reset();
 			Desc.Flags |= TexCreate_UAV;
-			NewSceneColor = GraphBuilder.CreateTexture(Desc, TEXT("DOFRecombine"));
+			NewSceneColor = GraphBuilder.CreateTexture(Desc, TEXT("DOF.Recombine"));
 		}
 
 		const FSeparateTranslucencyDimensions SeparateTranslucencyDimensions = SeparateTranslucencyTextures.GetDimensions();

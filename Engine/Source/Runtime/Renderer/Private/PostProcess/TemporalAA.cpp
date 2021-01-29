@@ -546,13 +546,13 @@ void SetupSampleWeightParameters(FTAAStandaloneCS::FParameters* OutTAAParameters
 DECLARE_GPU_STAT(TAA)
 
 const TCHAR* const kTAAOutputNames[] = {
-	TEXT("TemporalAA"),
-	TEXT("TemporalAA"),
-	TEXT("TemporalAA"),
-	TEXT("SSRTemporalAA"),
-	TEXT("LightShaftTemporalAA"),
-	TEXT("DOFTemporalAA"),
-	TEXT("DOFTemporalAA"),
+	TEXT("TAA.History"),
+	TEXT("TAA.History"),
+	TEXT("TAA.History"),
+	TEXT("SSR.TemporalAA"),
+	TEXT("LightShaft.TemporalAA"),
+	TEXT("DOF.TemporalAA"),
+	TEXT("DOF.TemporalAA"),
 };
 
 const TCHAR* const kTAAPassNames[] = {

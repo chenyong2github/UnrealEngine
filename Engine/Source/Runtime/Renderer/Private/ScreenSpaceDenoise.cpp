@@ -370,8 +370,8 @@ class FMultiSPPDim : SHADER_PERMUTATION_BOOL("DIM_MULTI_SPP");
 
 const TCHAR* const kInjestResourceNames[] = {
 	// ShadowVisibilityMask
-	TEXT("ShadowDenoiserInjest0"),
-	TEXT("ShadowDenoiserInjest1"),
+	TEXT("Shadow.Denoiser.Injest0"),
+	TEXT("Shadow.Denoiser.Injest1"),
 	nullptr,
 	nullptr,
 
@@ -418,8 +418,8 @@ const TCHAR* const kInjestResourceNames[] = {
 	nullptr,
 
 	// VirtualShadowMapMask
-	TEXT("VirtualShadowDenoiserInjest0"),
-	TEXT("VirtualShadowDenoiserInjest1"),
+	TEXT("VirtualShadow.Denoiser.Injest0"),
+	TEXT("VirtualShadow.Denoiser.Injest1"),
 	nullptr,
 	nullptr,
 };
@@ -482,10 +482,10 @@ const TCHAR* const kReduceResourceNames[] = {
 
 const TCHAR* const kReconstructionResourceNames[] = {
 	// ShadowVisibilityMask
-	TEXT("ShadowReconstruction0"),
-	TEXT("ShadowReconstruction1"),
-	TEXT("ShadowReconstruction2"),
-	TEXT("ShadowReconstruction3"),
+	TEXT("Shadow.Denoiser.Reconstruction0"),
+	TEXT("Shadow.Denoiser.Reconstruction1"),
+	TEXT("Shadow.Denoiser.Reconstruction2"),
+	TEXT("Shadow.Denoiser.Reconstruction3"),
 
 	// PolychromaticPenumbraHarmonic
 	TEXT("PolychromaticPenumbraHarmonicReconstruction0"),
@@ -494,13 +494,13 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	TEXT("PolychromaticPenumbraHarmonicReconstruction3"),
 
 	// Reflections
-	TEXT("ReflectionsReconstruction0"),
-	TEXT("ReflectionsReconstruction1"),
+	TEXT("Reflections.Denoiser.Reconstruction0"),
+	TEXT("Reflections.Denoiser.Reconstruction1"),
 	nullptr,
 	nullptr,
 
 	// AmbientOcclusion
-	TEXT("AOReconstruction0"),
+	TEXT("AO.Denoiser.Reconstruction0"),
 	nullptr,
 	nullptr,
 	nullptr,
@@ -518,8 +518,8 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	TEXT("DiffuseHarmonicReconstruction3"),
 
 	// ScreenSpaceDiffuseIndirect
-	TEXT("SSGIReconstruction0"),
-	TEXT("SSGIReconstruction1"),
+	TEXT("SSGI.Denoiser.Reconstruction0"),
+	TEXT("SSGI.Denoiser.Reconstruction1"),
 	nullptr,
 	nullptr,
 
@@ -530,18 +530,18 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	nullptr,
 
 	// VirtualShadowMapMask
-	TEXT("VirtualShadowReconstruction0"),
-	TEXT("VirtualShadowReconstruction1"),
-	TEXT("VirtualShadowReconstruction2"),
-	TEXT("VirtualShadowReconstruction3"),
+	TEXT("VirtualShadow.Denoiser.Reconstruction0"),
+	TEXT("VirtualShadow.Denoiser.Reconstruction1"),
+	TEXT("VirtualShadow.Denoiser.Reconstruction2"),
+	TEXT("VirtualShadow.Denoiser.Reconstruction3"),
 };
 
 const TCHAR* const kPreConvolutionResourceNames[] = {
 	// ShadowVisibilityMask
-	TEXT("ShadowPreConvolution0"),
-	TEXT("ShadowPreConvolution1"),
-	TEXT("ShadowPreConvolution2"),
-	TEXT("ShadowPreConvolution3"),
+	TEXT("Shadow.Denoiser.PreConvolution0"),
+	TEXT("Shadow.Denoiser.PreConvolution1"),
+	TEXT("Shadow.Denoiser.PreConvolution2"),
+	TEXT("Shadow.Denoiser.PreConvolution3"),
 
 	// PolychromaticPenumbraHarmonic
 	nullptr,
@@ -550,13 +550,13 @@ const TCHAR* const kPreConvolutionResourceNames[] = {
 	nullptr,
 
 	// Reflections
-	TEXT("ReflectionsPreConvolution0"),
-	TEXT("ReflectionsPreConvolution1"),
+	TEXT("Reflections.Denoiser.PreConvolution0"),
+	TEXT("Reflections.Denoiser.PreConvolution1"),
 	nullptr,
 	nullptr,
 
 	// AmbientOcclusion
-	TEXT("AOPreConvolution0"),
+	TEXT("AO.Denoiser.PreConvolution0"),
 	nullptr,
 	nullptr,
 	nullptr,
@@ -586,18 +586,18 @@ const TCHAR* const kPreConvolutionResourceNames[] = {
 	nullptr,
 
 	// VirtualShadowMapMask
-	TEXT("VirtualShadowPreConvolution0"),
-	TEXT("VirtualShadowPreConvolution1"),
-	TEXT("VirtualShadowPreConvolution2"),
-	TEXT("VirtualShadowPreConvolution3"),
+	TEXT("VirtualShadow.Denoiser.PreConvolution0"),
+	TEXT("VirtualShadow.Denoiser.PreConvolution1"),
+	TEXT("VirtualShadow.Denoiser.PreConvolution2"),
+	TEXT("VirtualShadow.Denoiser.PreConvolution3"),
 };
 
 const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	// ShadowVisibilityMask
-	TEXT("ShadowRejectionPreConvolution0"),
-	TEXT("ShadowRejectionPreConvolution1"),
-	TEXT("ShadowRejectionPreConvolution2"),
-	TEXT("ShadowRejectionPreConvolution3"),
+	TEXT("Shadow.Denoiser.RejectionPreConvolution0"),
+	TEXT("Shadow.Denoiser.RejectionPreConvolution1"),
+	TEXT("Shadow.Denoiser.RejectionPreConvolution2"),
+	TEXT("Shadow.Denoiser.RejectionPreConvolution3"),
 
 	// PolychromaticPenumbraHarmonic
 	nullptr,
@@ -606,13 +606,13 @@ const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	nullptr,
 
 	// Reflections
-	TEXT("ReflectionsRejectionPreConvolution0"),
-	TEXT("ReflectionsRejectionPreConvolution1"),
-	TEXT("ReflectionsRejectionPreConvolution2"),
+	TEXT("Reflections.Denoiser.RejectionPreConvolution0"),
+	TEXT("Reflections.Denoiser.RejectionPreConvolution1"),
+	TEXT("Reflections.Denoiser.RejectionPreConvolution2"),
 	nullptr,
 
 	// AmbientOcclusion
-	TEXT("AORejectionPreConvolution0"),
+	TEXT("AO.Denoiser.RejectionPreConvolution0"),
 	nullptr,
 	nullptr,
 	nullptr,
@@ -642,18 +642,18 @@ const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	nullptr,
 
 	// VirtualShadowMapMask
-	TEXT("VirtualShadowRejectionPreConvolution0"),
-	TEXT("VirtualShadowRejectionPreConvolution1"),
-	TEXT("VirtualShadowRejectionPreConvolution2"),
-	TEXT("VirtualShadowRejectionPreConvolution3"),
+	TEXT("VirtualShadow.Denoiser.RejectionPreConvolution0"),
+	TEXT("VirtualShadow.Denoiser.RejectionPreConvolution1"),
+	TEXT("VirtualShadow.Denoiser.RejectionPreConvolution2"),
+	TEXT("VirtualShadow.Denoiser.RejectionPreConvolution3"),
 };
 
 const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	// ShadowVisibilityMask
-	TEXT("ShadowTemporalAccumulation0"),
-	TEXT("ShadowTemporalAccumulation1"),
-	TEXT("ShadowTemporalAccumulation2"),
-	TEXT("ShadowTemporalAccumulation3"),
+	TEXT("Shadow.Denoiser.TemporalAccumulation0"),
+	TEXT("Shadow.Denoiser.TemporalAccumulation1"),
+	TEXT("Shadow.Denoiser.TemporalAccumulation2"),
+	TEXT("Shadow.Denoiser.TemporalAccumulation3"),
 
 	// PolychromaticPenumbraHarmonic
 	TEXT("PolychromaticPenumbraHistory0"),
@@ -662,20 +662,20 @@ const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	nullptr,
 
 	// Reflections
-	TEXT("ReflectionsTemporalAccumulation0"),
-	TEXT("ReflectionsTemporalAccumulation1"),
+	TEXT("Reflections.Denoiser.TemporalAccumulation0"),
+	TEXT("Reflections.Denoiser.TemporalAccumulation1"),
 	nullptr,
 	nullptr,
 
 	// AmbientOcclusion
-	TEXT("AOTemporalAccumulation0"),
+	TEXT("AO.Denoiser.TemporalAccumulation0"),
 	nullptr,
 	nullptr,
 	nullptr,
 
 	// DiffuseIndirect
-	TEXT("DiffuseIndirectTemporalAccumulation0"),
-	TEXT("DiffuseIndirectTemporalAccumulation1"),
+	TEXT("DiffuseIndirect.Denoiser.TemporalAccumulation0"),
+	TEXT("DiffuseIndirect.Denoiser.TemporalAccumulation1"),
 	nullptr,
 	nullptr,
 
@@ -686,8 +686,8 @@ const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	TEXT("DiffuseHarmonicTemporalAccumulation3"),
 
 	// ScreenSpaceDiffuseIndirect
-	TEXT("SSGITemporalAccumulation0"),
-	TEXT("SSGITemporalAccumulation1"),
+	TEXT("SSGI.Denoiser.TemporalAccumulation0"),
+	TEXT("SSGI.Denoiser.TemporalAccumulation1"),
 	nullptr,
 	nullptr,
 
@@ -698,18 +698,18 @@ const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	nullptr,
 
 	// VirtualShadowMapMask
-	TEXT("VirtualShadowTemporalAccumulation0"),
-	TEXT("VirtualShadowTemporalAccumulation1"),
-	TEXT("VirtualShadowTemporalAccumulation2"),
-	TEXT("VirtualShadowTemporalAccumulation3"),
+	TEXT("VirtualShadow.Denoiser.TemporalAccumulation0"),
+	TEXT("VirtualShadow.Denoiser.TemporalAccumulation1"),
+	TEXT("VirtualShadow.Denoiser.TemporalAccumulation2"),
+	TEXT("VirtualShadow.Denoiser.TemporalAccumulation3"),
 };
 
 const TCHAR* const kHistoryConvolutionResourceNames[] = {
 	// ShadowVisibilityMask
-	TEXT("ShadowHistoryConvolution0"),
-	TEXT("ShadowHistoryConvolution1"),
-	TEXT("ShadowHistoryConvolution2"),
-	TEXT("ShadowHistoryConvolution3"),
+	TEXT("Shadow.Denoiser.HistoryConvolution0"),
+	TEXT("Shadow.Denoiser.HistoryConvolution1"),
+	TEXT("Shadow.Denoiser.HistoryConvolution2"),
+	TEXT("Shadow.Denoiser.HistoryConvolution3"),
 
 	// PolychromaticPenumbraHarmonic
 	nullptr,
@@ -718,20 +718,20 @@ const TCHAR* const kHistoryConvolutionResourceNames[] = {
 	nullptr,
 
 	// Reflections
-	TEXT("ReflectionsHistoryConvolution0"),
-	TEXT("ReflectionsHistoryConvolution1"),
+	TEXT("Reflections.Denoiser.HistoryConvolution0"),
+	TEXT("Reflections.Denoiser.HistoryConvolution1"),
 	nullptr,
 	nullptr,
 
 	// AmbientOcclusion
-	TEXT("AOHistoryConvolution0"),
+	TEXT("AO.Denoiser.HistoryConvolution0"),
 	nullptr,
 	nullptr,
 	nullptr,
 
 	// DiffuseIndirect
-	TEXT("DiffuseIndirectHistoryConvolution0"),
-	TEXT("DiffuseIndirectHistoryConvolution1"),
+	TEXT("DiffuseIndirect.Denoiser.HistoryConvolution0"),
+	TEXT("DiffuseIndirect.Denoiser.HistoryConvolution1"),
 	nullptr,
 	nullptr,
 
@@ -754,18 +754,18 @@ const TCHAR* const kHistoryConvolutionResourceNames[] = {
 	nullptr,
 
 	// VirtualShadowMapMask
-	TEXT("VirtualShadowHistoryConvolution0"),
-	TEXT("VirtualShadowHistoryConvolution1"),
-	TEXT("VirtualShadowHistoryConvolution2"),
-	TEXT("VirtualShadowHistoryConvolution3"),
+	TEXT("VirtualShadow.Denoiser.HistoryConvolution0"),
+	TEXT("VirtualShadow.Denoiser.HistoryConvolution1"),
+	TEXT("VirtualShadow.Denoiser.HistoryConvolution2"),
+	TEXT("VirtualShadow.Denoiser.HistoryConvolution3"),
 };
 
 const TCHAR* const kDenoiserOutputResourceNames[] = {
 	// ShadowVisibilityMask
-	TEXT("ShadowDenoiserOutput0"),
-	TEXT("ShadowDenoiserOutput1"),
-	TEXT("ShadowDenoiserOutput2"),
-	TEXT("ShadowDenoiserOutput3"),
+	TEXT("Shadow.Denoiser.DenoiserOutput0"),
+	TEXT("Shadow.Denoiser.DenoiserOutput1"),
+	TEXT("Shadow.Denoiser.DenoiserOutput2"),
+	TEXT("Shadow.Denoiser.DenoiserOutput3"),
 
 	// PolychromaticPenumbraHarmonic
 	nullptr,
@@ -810,10 +810,10 @@ const TCHAR* const kDenoiserOutputResourceNames[] = {
 	nullptr,
 
 	// VirtualShadowMapMask
-	TEXT("VirtualShadowDenoiserOutput0"),
-	TEXT("VirtualShadowDenoiserOutput1"),
-	TEXT("VirtualShadowDenoiserOutput2"),
-	TEXT("VirtualShadowDenoiserOutput3"),
+	TEXT("VirtualShadow.Denoiser.DenoiserOutput0"),
+	TEXT("VirtualShadow.Denoiser.DenoiserOutput1"),
+	TEXT("VirtualShadow.Denoiser.DenoiserOutput2"),
+	TEXT("VirtualShadow.Denoiser.DenoiserOutput3"),
 };
 
 static_assert(UE_ARRAY_COUNT(kReconstructionResourceNames) == int32(ESignalProcessing::MAX) * kMaxBufferProcessingCount, "You forgot me!");

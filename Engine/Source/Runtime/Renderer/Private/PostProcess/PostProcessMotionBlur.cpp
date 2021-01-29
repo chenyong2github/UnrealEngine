@@ -461,7 +461,7 @@ void AddMotionBlurVelocityPass(
 				PF_FloatR11G11B10,
 				FClearValueBinding::None,
 				GFastVRamConfig.VelocityFlat | TexCreate_ShaderResource | TexCreate_UAV),
-			TEXT("VelocityFlat"));
+			TEXT("MotionBlur.VelocityFlat"));
 
 	FRDGTextureRef VelocityTileTextureSetup =
 		GraphBuilder.CreateTexture(
@@ -470,7 +470,7 @@ void AddMotionBlurVelocityPass(
 				PF_FloatRGBA,
 				FClearValueBinding::None,
 				GFastVRamConfig.VelocityMax | TexCreate_ShaderResource | TexCreate_UAV),
-			TEXT("VelocityTile"));
+			TEXT("MotionBlur.VelocityTile"));
 
 	const FMotionBlurParameters MotionBlurParametersNoScale = GetMotionBlurParameters(View, Viewports.Color.Rect.Size(), 1.0f);
 
@@ -503,7 +503,7 @@ void AddMotionBlurVelocityPass(
 				PF_FloatRGBA,
 				FClearValueBinding::None,
 				GFastVRamConfig.MotionBlur | TexCreate_ShaderResource | (ScatterDilatation ? TexCreate_RenderTargetable : TexCreate_UAV)),
-			TEXT("DilatedVelocityTile"));
+			TEXT("MotionBlur.DilatedVelocityTile"));
 
 	FMotionBlurVelocityDilateParameters VelocityDilateParameters;
 	VelocityDilateParameters.MotionBlur = MotionBlurParametersNoScale;
@@ -519,7 +519,7 @@ void AddMotionBlurVelocityPass(
 					PF_ShadowDepth,
 					FClearValueBinding::DepthOne,
 					TexCreate_DepthStencilTargetable),
-				TEXT("DilatedVelocityDepth"));
+				TEXT("MotionBlur.DilatedVelocityDepth"));
 
 		FMotionBlurVelocityDilateScatterParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVelocityDilateScatterParameters>();
 		PassParameters->Dilate = VelocityDilateParameters;
@@ -681,7 +681,7 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	OutColorDesc.Flags |= GFastVRamConfig.MotionBlur;
 	OutColorDesc.Format =  IsPostProcessingWithAlphaChannelSupported() ? PF_FloatRGBA : PF_FloatRGB;
 
-	FRDGTextureRef ColorTextureOutput = GraphBuilder.CreateTexture(OutColorDesc, TEXT("MotionBlur"));
+	FRDGTextureRef ColorTextureOutput = GraphBuilder.CreateTexture(OutColorDesc, TEXT("MotionBlur.SceneColor"));
 
 	FMotionBlurFilterPermutationDomain PermutationVector;
 	PermutationVector.Set<FMotionBlurQualityDimension>(MotionBlurQuality);
@@ -734,7 +734,7 @@ FScreenPassTexture AddVisualizeMotionBlurPass(FRDGBuilder& GraphBuilder, const F
 
 	if (!Output.IsValid())
 	{
-		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, View.GetOverwriteLoadAction(), TEXT("VisualizeMotionBlur"));
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, View.GetOverwriteLoadAction(), TEXT("MotionBlur.Visualize"));
 	}
 
 	// NOTE: Scene depth is used as the velocity viewport because velocity can actually be a 1x1 black texture.
