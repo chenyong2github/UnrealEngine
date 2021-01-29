@@ -22,7 +22,7 @@ namespace GeometryCollectionTest
 		using Traits = TypeParam;
 		using namespace Chaos;
 
-		Chaos::TParticles<float, 3> Vertices;
+		Chaos::TParticles<FReal, 3> Vertices;
 		Vertices.AddParticles(8);
 		Vertices.X(0) = FVec3(-1, 1, -1);
 		Vertices.X(1) = FVec3(1, 1, -1);
@@ -53,11 +53,11 @@ namespace GeometryCollectionTest
 		Faces[9] = TVec3<int32>(4,5,1);
 		Faces[10] = TVec3<int32>(5,4,7);
 		Faces[11] = TVec3<int32>(5,7,6);
-		Chaos::TTriangleMesh<float> Surface(MoveTemp(Faces));
+		Chaos::TTriangleMesh<FReal> Surface(MoveTemp(Faces));
 
 		TMassProperties<FReal, 3> MassProperties;
 		MassProperties.Mass = 1.f;
-		//Chaos::TMassProperties<float, 3> MassProperties = Chaos::CalculateMassProperties(Vertices, Surface.GetElements(), 1.f);
+		//Chaos::TMassProperties<FReal, 3> MassProperties = Chaos::CalculateMassProperties(Vertices, Surface.GetElements(), 1.f);
 		{
 			const auto& SurfaceElements = Surface.GetElements();
 			CalculateVolumeAndCenterOfMass(Vertices, SurfaceElements, MassProperties.Volume, MassProperties.CenterOfMass);
@@ -113,7 +113,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-		TUniquePtr<TTriangleMesh<float>> TriMesh(
+		TUniquePtr<TTriangleMesh<FReal>> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
@@ -124,15 +124,15 @@ namespace GeometryCollectionTest
 		//TArray<Chaos::TVec3<int32>> Faces;
 		//Faces.SetNum(Indices.Num());
 		//for (int i = 0; i < Indices.Num(); i++) { Faces[i] = TVec3<int32>(Indices[i][0], Indices[i][1], Indices[i][2]); }
-		//Chaos::TTriangleMesh<float> TriMesh(MoveTemp(Faces));
+		//Chaos::TTriangleMesh<FReal> TriMesh(MoveTemp(Faces));
 
-		TArray<TMassProperties<float, 3>> MassPropertiesArray;
+		TArray<TMassProperties<FReal, 3>> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
-		TMassProperties<float, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+		TMassProperties<FReal, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
 		MassProperties.CenterOfMass = FVector(0);
-		MassProperties.Mass = 1.f;
+		MassProperties.Mass = 1.0;
 
-		TParticles<float, 3> MassSpaceParticles;
+		TParticles<FReal, 3> MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
@@ -151,7 +151,7 @@ namespace GeometryCollectionTest
 			MassSpaceParticles.X(Idx) -= MassProperties.CenterOfMass;
 		}
 
-		float Density = 1.f;
+		FReal Density = 1.0;
 		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
@@ -194,7 +194,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-		TUniquePtr<TTriangleMesh<float>> TriMesh(
+		TUniquePtr<TTriangleMesh<FReal>> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
@@ -202,11 +202,11 @@ namespace GeometryCollectionTest
 				Indices,
 				false));
 
-		TArray<TMassProperties<float, 3>> MassPropertiesArray;
+		TArray<TMassProperties<FReal, 3>> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
-		TMassProperties<float, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+		TMassProperties<FReal, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
 
-		TParticles<float, 3> MassSpaceParticles;
+		TParticles<FReal, 3> MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
@@ -220,7 +220,7 @@ namespace GeometryCollectionTest
 		// we'd expect the volume of the triangulation to approach the analytic volume as
 		// the number of polygons goes to infinity (MakeSphereElement() currently does 
 		// 16x16 divisions in U and V).
-		const float AnalyticVolume = (4.0/3) * (22.0/7) * Scale[0] * Scale[0] * Scale[0];
+		const FReal AnalyticVolume = (4.0/3) * (22.0/7) * Scale[0] * Scale[0] * Scale[0];
 		EXPECT_NEAR(MassProperties.Volume - AnalyticVolume, 0.0f, 0.2); // this should be 4.19047642
 		EXPECT_NEAR(MassProperties.CenterOfMass.X - GlobalTranslation[0], 0.0f, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(MassProperties.CenterOfMass.Y - GlobalTranslation[1], 0.0f, KINDA_SMALL_NUMBER);
@@ -232,7 +232,7 @@ namespace GeometryCollectionTest
 			MassSpaceParticles.X(Idx) -= MassProperties.CenterOfMass;
 		}
 
-		float Density = 0.01f;
+		FReal Density = 0.01;
 		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
@@ -275,7 +275,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-		TUniquePtr<TTriangleMesh<float>> TriMesh(
+		TUniquePtr<TTriangleMesh<FReal>> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
@@ -283,13 +283,13 @@ namespace GeometryCollectionTest
 				Indices,
 				false));
 
-		TArray<TMassProperties<float, 3>> MassPropertiesArray;
+		TArray<TMassProperties<FReal, 3>> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
-		TMassProperties<float, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
-		MassProperties.Mass = 1.0f;
+		TMassProperties<FReal, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+		MassProperties.Mass = 1.0;
 		MassProperties.CenterOfMass = FVector(0);
 
-		TParticles<float, 3> MassSpaceParticles;
+		TParticles<FReal, 3> MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
@@ -308,7 +308,7 @@ namespace GeometryCollectionTest
 			MassSpaceParticles.X(Idx) -= MassProperties.CenterOfMass;
 		}
 
-		float Density = 0.01f;
+		FReal Density = 0.01;
 		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
@@ -357,7 +357,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-		TUniquePtr<TTriangleMesh<float>> TriMesh(
+		TUniquePtr<TTriangleMesh<FReal>> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
@@ -366,12 +366,12 @@ namespace GeometryCollectionTest
 				false));
 
 
-		TArray<TMassProperties<float, 3>> MassPropertiesArray;
+		TArray<TMassProperties<FReal, 3>> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
-		TMassProperties<float, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+		TMassProperties<FReal, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
 
 		TArray<FVector> SomeVec;
-		TParticles<float, 3> MassSpaceParticles;
+		TParticles<FReal, 3> MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
@@ -393,7 +393,7 @@ namespace GeometryCollectionTest
 			MassSpaceParticles.X(Idx) -= MassProperties.CenterOfMass;
 		}
 
-		float Density = 0.01f;
+		FReal Density = 0.01;
 		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 

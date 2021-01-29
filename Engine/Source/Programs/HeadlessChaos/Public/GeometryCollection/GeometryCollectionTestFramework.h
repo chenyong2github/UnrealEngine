@@ -81,7 +81,7 @@ namespace GeometryCollectionTest
 		FVector InitialLinearVelocity = FVector::ZeroVector;
 		EObjectStateTypeEnum DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		bool Simulating = true;
-		float Mass = 1.0;
+		FReal Mass = 1.0;
 		bool bMassAsDensity = false;
 		ECollisionTypeEnum CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 		ESimplicialType SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere;
@@ -92,8 +92,8 @@ namespace GeometryCollectionTest
 		FTransform GeomTransform = FTransform::Identity;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		int32 MaxClusterLevel = 100;
-		TArray<float> DamageThreshold = { 1000.0f };
-		Chaos::FClusterCreationParameters<float>::EConnectionMethod ClusterConnectionMethod = Chaos::FClusterCreationParameters<float>::EConnectionMethod::PointImplicit;
+		TArray<FReal> DamageThreshold = { 1000.0 };
+		Chaos::FClusterCreationParameters<FReal>::EConnectionMethod ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::PointImplicit;
 		bool RemoveOnFractureEnabled = false;
 		int32 CollisionGroup = 0;
 		int32 MinLevelSetResolution = 5;
@@ -119,8 +119,8 @@ namespace GeometryCollectionTest
 	struct FrameworkParameters
 	{
 		FrameworkParameters() : Dt(1/60.) {}
-		FrameworkParameters(float dt) : Dt(Dt) {}
-		float Dt;
+		FrameworkParameters(FReal dt) : Dt(Dt) {}
+		FReal Dt;
 		Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread;
 	};
 

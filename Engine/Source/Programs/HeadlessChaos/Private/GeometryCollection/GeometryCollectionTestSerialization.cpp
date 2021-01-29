@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "GeometryCollection/GeometryCollectionTestSerialization.h"
 
+#include "Chaos/Real.h"
 #include "Chaos/SerializationTestUtility.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
@@ -15,7 +16,6 @@ namespace GeometryCollectionTests
 		return FPaths::EngineDir() / TEXT("Restricted/NotForLicensees/Source/Programs/GeometryCollectionTest/Resource/SerializedBinaries");
 	}
 
-	template <class T>
 	void GeometryCollectionSerialization()
 	{
 		FGeometryCollection GeometryCollection;
@@ -39,7 +39,7 @@ namespace GeometryCollectionTests
 		TCHAR const *BinaryFolderName = TEXT("GeometryCollection");
 		bool bSaveBinaryToDisk = false; // Flip to true and run to save current binary to disk for future tests.
 		TArray<FGeometryCollection> ObjectsToTest;
-		bool bResult = Chaos::SaveLoadUtility<T, FGeometryCollection>(GeometryCollection, *GetSerializedBinaryPath(), BinaryFolderName, bSaveBinaryToDisk, ObjectsToTest);
+		bool bResult = Chaos::SaveLoadUtility<Chaos::FReal, FGeometryCollection>(GeometryCollection, *GetSerializedBinaryPath(), BinaryFolderName, bSaveBinaryToDisk, ObjectsToTest);
 		EXPECT_TRUE(bResult);
 
 		for (FGeometryCollection const &TestCollection : ObjectsToTest)
@@ -58,6 +58,4 @@ namespace GeometryCollectionTests
 			EXPECT_EQ(TestCollection.Transform[3].GetTranslation(), FVector(-1.0f, 0.0f, 6.0f));
 		}
 	}
-
-	template void GeometryCollectionSerialization<float>();
 }

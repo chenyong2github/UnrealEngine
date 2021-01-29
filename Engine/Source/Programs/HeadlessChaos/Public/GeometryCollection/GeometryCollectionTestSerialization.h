@@ -5,6 +5,5 @@
 
 namespace GeometryCollectionTests
 {
-	template <typename T>
 	void GeometryCollectionSerialization();
 }

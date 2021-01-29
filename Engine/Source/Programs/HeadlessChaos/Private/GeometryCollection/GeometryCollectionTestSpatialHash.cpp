@@ -1013,16 +1013,15 @@ namespace GeometryCollectionTest
 		FVec3(321.722168, -401.531952, 301.523346)
 	};
 
-	template<class T>
 	void GetClosestPointsTest1()
 	{
-		TSpatialHash<float> SpatialHash(Particles_1000, 18.f);
-		// TSpatialHash<T>::Init() Time is 0.000123
-		TVec3<T> Particle_LookUp(122.0, 214.0, 3.0);
+		TSpatialHash<FReal> SpatialHash(Particles_1000, 18.0);
+		// TSpatialHash<FReal>::Init() Time is 0.000123
+		FVec3 Particle_LookUp(122.0, 214.0, 3.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000096
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000096
 
 		EXPECT_EQ(ClosestPoints.Num(), 7);
 
@@ -1043,11 +1042,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp1(-234.78, -19.31, 444.12);
+		FVec3 Particle_LookUp1(-234.78, -19.31, 444.12);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000121
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000121
 
 		EXPECT_EQ(ClosestPoints1.Num(), 24);
 
@@ -1081,11 +1080,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp2(499.0, 222.0, -12.0);
+		FVec3 Particle_LookUp2(499.0, 222.0, -12.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 52.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000008
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000008
 
 		EXPECT_EQ(ClosestPoints2.Num(), 1);
 
@@ -1096,11 +1095,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp3(-333.0, -129.0, -489.0);
+		FVec3 Particle_LookUp3(-333.0, -129.0, -489.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000035
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000035
 
 		EXPECT_EQ(ClosestPoints3.Num(), 5);
 
@@ -1113,18 +1112,16 @@ namespace GeometryCollectionTest
 
 		EXPECT_FALSE(CPSet3.Contains(1));
 	}
-	template void GetClosestPointsTest1<float>();
 
-	template<class T>
 	void GetClosestPointsTest2()
 	{
-		TSpatialHash<float> SpatialHash(Particles_1000);
-		// TSpatialHash<T>::Init() Time is 0.000080
-		TVec3<T> Particle_LookUp(122.0, 214.0, 3.0);
+		TSpatialHash<FReal> SpatialHash(Particles_1000);
+		// TSpatialHash<FReal>::Init() Time is 0.000080
+		FVec3 Particle_LookUp(122.0, 214.0, 3.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000039
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000039
 
 		EXPECT_EQ(ClosestPoints.Num(), 7);
 
@@ -1142,11 +1139,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp1(-234.78, -19.31, 444.12);
+		FVec3 Particle_LookUp1(-234.78, -19.31, 444.12);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000046
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000046
 
 		EXPECT_EQ(ClosestPoints1.Num(), 24);
 
@@ -1180,11 +1177,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp2(499.0, 222.0, -12.0);
+		FVec3 Particle_LookUp2(499.0, 222.0, -12.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 52.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000003
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000003
 
 		EXPECT_EQ(ClosestPoints2.Num(), 1);
 
@@ -1195,11 +1192,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp3(-333.0, -129.0, -489.0);
+		FVec3 Particle_LookUp3(-333.0, -129.0, -489.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000020
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000020
 
 		EXPECT_EQ(ClosestPoints3.Num(), 5);
 
@@ -1213,18 +1210,16 @@ namespace GeometryCollectionTest
 		EXPECT_FALSE(CPSet3.Contains(1));
 
 	}
-	template void GetClosestPointsTest2<float>();
 
-	template<class T>
 	void GetClosestPointsTest3()
 	{
-		TSpatialHash<float> SpatialHash(Particles_1000);
-		// TSpatialHash<T>::Init() Time is 0.000080
-		TVec3<T> Particle_LookUp(122.0, 214.0, 3.0);
+		TSpatialHash<FReal> SpatialHash(Particles_1000);
+		// TSpatialHash<FReal>::Init() Time is 0.000080
+		FVec3 Particle_LookUp(122.0, 214.0, 3.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 122.0, 12);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000050
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000050
 
 		EXPECT_EQ(ClosestPoints.Num(), 7);
 
@@ -1238,11 +1233,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp1(-234.78, -19.31, 444.12);
+		FVec3 Particle_LookUp1(-234.78, -19.31, 444.12);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints1 = SpatialHash.GetClosestPoints(Particle_LookUp1, 199.0, 20);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000065
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000065
 
 		EXPECT_EQ(ClosestPoints1.Num(), 20);
 
@@ -1269,11 +1264,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp2(499.0, 222.0, -12.0);
+		FVec3 Particle_LookUp2(499.0, 222.0, -12.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp2, 200.0, 5);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000048
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000048
 
 		EXPECT_EQ(ClosestPoints2.Num(), 5);
 
@@ -1285,11 +1280,11 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp3(-333.0, -129.0, -489.0);
+		FVec3 Particle_LookUp3(-333.0, -129.0, -489.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints3 = SpatialHash.GetClosestPoints(Particle_LookUp3, 122.0, 12);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000024
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000024
 
 		EXPECT_EQ(ClosestPoints3.Num(), 5);
 
@@ -1301,107 +1296,103 @@ namespace GeometryCollectionTest
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp4(1.1, 2.2, 3.3);
+		FVec3 Particle_LookUp4(1.1, 2.2, 3.3);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints4 = SpatialHash.GetClosestPoints(Particle_LookUp4, 250.0, 100000);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000147
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000147
 
 		EXPECT_EQ(ClosestPoints4.Num(), 63);
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp5(1.1, 2.2, 3.3);
+		FVec3 Particle_LookUp5(1.1, 2.2, 3.3);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints5 = SpatialHash.GetClosestPoints(Particle_LookUp5, 1250.0, 100000);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000782
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000782
 
 		EXPECT_EQ(ClosestPoints5.Num(), 1000);
 
 	}
-	template void GetClosestPointsTest3<float>();
-
-	template<class T>
+	
 	void GetClosestPointTest()
 	{
-		TSpatialHash<float> SpatialHash(Particles_1000);
-		// TSpatialHash<T>::Init() Time is 0.000087
-		TVec3<T> Particle_LookUp(0.0, 122.0, -23.0);
+		TSpatialHash<FReal> SpatialHash(Particles_1000);
+		// TSpatialHash<FReal>::Init() Time is 0.000087
+		FVec3 Particle_LookUp(0.0, 122.0, -23.0);
 
 		// Get all the points in MaxRadius
 		int32 ClosestPoint = SpatialHash.GetClosestPoint(Particle_LookUp);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000005
 
 		EXPECT_EQ(ClosestPoint, 568);
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp1(-34.0, -56.0, 444.0);
+		FVec3 Particle_LookUp1(-34.0, -56.0, 444.0);
 
 		// Get all the points in MaxRadius
 		int32 ClosestPoint1 = SpatialHash.GetClosestPoint(Particle_LookUp1);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000005
 
 		EXPECT_EQ(ClosestPoint1, 854);
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp2(12.34, 437.8, -345.67);
+		FVec3 Particle_LookUp2(12.34, 437.8, -345.67);
 
 		// Get all the points in MaxRadius
 		int32 ClosestPoint2 = SpatialHash.GetClosestPoint(Particle_LookUp2);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000005
 
 		EXPECT_EQ(ClosestPoint2, 500);
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp3(10000.0, 10000.0, 10000.0);
+		FVec3 Particle_LookUp3(10000.0, 10000.0, 10000.0);
 
 		int32 ClosestPoint3 = SpatialHash.GetClosestPoint(Particle_LookUp3);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000005
 
 		EXPECT_EQ(ClosestPoint3, 161);
 
 		// ----------------------------------------------------------
 
-		TVec3<T> Particle_LookUp4(-1234.0, 0.1234, 1234.0);
+		FVec3 Particle_LookUp4(-1234.0, 0.1234, 1234.0);
 
 		int32 ClosestPoint4 = SpatialHash.GetClosestPoint(Particle_LookUp4);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000005
 
 		EXPECT_EQ(ClosestPoint4, 431);
 
 	}
-	template void GetClosestPointTest<float>();
-
-	template<class T>
+	
 	void HashTableUpdateTest()
 	{
-		TSpatialHash<float> SpatialHash(Particles_1000);
-		// TSpatialHash<T>::Init() Time is 0.000087
-		TVec3<T> Particle_LookUp(0.0, 122.0, -23.0);
+		TSpatialHash<FReal> SpatialHash(Particles_1000);
+		// TSpatialHash<FReal>::Init() Time is 0.000087
+		FVec3 Particle_LookUp(0.0, 122.0, -23.0);
 
 		int32 ClosestPoint = SpatialHash.GetClosestPoint(Particle_LookUp);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000005
 
 		EXPECT_EQ(ClosestPoint, 568);
 
 		SpatialHash.Update(15.0);
 		int32 ClosestPoint1 = SpatialHash.GetClosestPoint(Particle_LookUp);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000005
 
 		EXPECT_EQ(ClosestPoint1, 568);
 
 		// ----------------------------------------------------------
 
-		TSpatialHash<float> SpatialHash2(Particles_1000);
-		TVec3<T> Particle_LookUp2(-333.0, -129.0, -489.0);
+		TSpatialHash<FReal> SpatialHash2(Particles_1000);
+		FVec3 Particle_LookUp2(-333.0, -129.0, -489.0);
 
 		// Get all the points in MaxRadius
 		TArray<int32> ClosestPoints2 = SpatialHash2.GetClosestPoints(Particle_LookUp2, 122.0, 12);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000024
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000024
 
 		EXPECT_EQ(ClosestPoints2.Num(), 5);
 
@@ -1413,7 +1404,7 @@ namespace GeometryCollectionTest
 
 		SpatialHash2.Update(35.0);
 		TArray<int32> ClosestPoints3 = SpatialHash2.GetClosestPoints(Particle_LookUp2, 122.0, 12);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.000005
 
 		EXPECT_EQ(ClosestPoints3.Num(), 5);
 
@@ -1424,34 +1415,31 @@ namespace GeometryCollectionTest
 		EXPECT_EQ(ClosestPoints3[4], 700);
 
 	}
-	template void HashTableUpdateTest<float>();
 
-	template<class T>
 	void HashTablePressureTest()
 	{
 		const int32 NUM_PARTICLES = 1000000;
-		const float BOUNDARY_MIN = -1000.0;
-		const float BOUNDARY_MAX = 1000.0;
+		const FReal BOUNDARY_MIN = -1000.0;
+		const FReal BOUNDARY_MAX = 1000.0;
 		TArray<FVec3> Particles;
 		for (int32 Idx = 0; Idx < NUM_PARTICLES; ++Idx)
 		{
 			Particles.Add(FVec3(FMath::RandRange(BOUNDARY_MIN, BOUNDARY_MAX), FMath::RandRange(BOUNDARY_MIN, BOUNDARY_MAX), FMath::RandRange(BOUNDARY_MIN, BOUNDARY_MAX)));
 		}
 
-		TSpatialHash<float> SpatialHash(Particles);
-		// TSpatialHash<T>::Init() Time is 0.029013
+		TSpatialHash<FReal> SpatialHash(Particles);
+		// TSpatialHash<FReal>::Init() Time is 0.029013
 		
-		TVec3<T> Particle_LookUp(0.0, 122.0, -23.0);
+		FVec3 Particle_LookUp(0.0, 122.0, -23.0);
 		TArray<int32> ClosestPoints = SpatialHash.GetClosestPoints(Particle_LookUp, 500.0, 150);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.073857
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.073857
 
 		TArray<int32> ClosestPoints2 = SpatialHash.GetClosestPoints(Particle_LookUp, 500.0);
-		// TSpatialHash<T>::GetClosestPoints() Time is 0.043953
+		// TSpatialHash<FReal>::GetClosestPoints() Time is 0.043953
 
 		EXPECT_EQ(ClosestPoints.Num(), 150);
 
 	}
-	template void HashTablePressureTest<float>();
-
+	
 }
 

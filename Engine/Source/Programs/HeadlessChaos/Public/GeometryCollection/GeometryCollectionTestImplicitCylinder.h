@@ -6,7 +6,6 @@
 namespace GeometryCollectionTest
 {	
 
-	template<class T>
 	void TestImplicitCylinder();
 	
 }

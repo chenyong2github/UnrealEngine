@@ -29,13 +29,13 @@ namespace GeometryCollectionTest
 		SphereGen.Generate();
 
 		// FSphereGenerator's points drift off the surface just a bit, so we correct for that.
-		Chaos::TSphere<float, 3> Sphere(Chaos::FVec3(0), SphereGen.Radius);
+		Chaos::TSphere<Chaos::FReal, 3> Sphere(Chaos::FVec3(0), SphereGen.Radius);
 		Chaos::FVec3 Normal;
 		for (int32 Idx = 0; Idx < SphereGen.Vertices.Num(); Idx++)
 		{
 			auto& SrcPt = SphereGen.Vertices[Idx]; // double precision
 			Chaos::FVec3 Pt(SrcPt[0], SrcPt[1], SrcPt[2]); // single precision
-			const float Phi = Sphere.PhiWithNormal(Pt, Normal);
+			const Chaos::FReal Phi = Sphere.PhiWithNormal(Pt, Normal);
 			SrcPt[0] -= Phi * Normal[0];
 			SrcPt[1] -= Phi * Normal[1];
 			SrcPt[2] -= Phi * Normal[2];
@@ -242,9 +242,9 @@ namespace GeometryCollectionTest
 	WrapperBase* TNewSimulationObject<GeometryType::RigidFloor>::Init(const CreationParameters Params)
 	{
 		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeShared<Chaos::FChaosPhysicsMaterial>(); InitMaterialToZero(PhysicalMaterial.Get());
-		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TGeometryParticle<float, 3>::CreateParticle());
+		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
 		auto& Particle = Proxy->GetGameThreadAPI();
-		Particle.SetGeometry(TUniquePtr<TPlane<float, 3>>(new TPlane<float, 3>(FVector(0), FVector(0, 0, 1))));
+		Particle.SetGeometry(TUniquePtr<TPlane<FReal, 3>>(new TPlane<FReal, 3>(FVector(0), FVector(0, 0, 1))));
 
 		FCollisionFilterData FilterData;
 		FilterData.Word1 = 0xFFFF;

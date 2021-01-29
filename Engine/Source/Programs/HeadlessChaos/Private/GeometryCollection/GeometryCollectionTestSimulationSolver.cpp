@@ -103,7 +103,7 @@ using namespace ChaosTest;
 
 		FVector StartingClusterPosition;
 		TManagedArray<FTransform>* Transform;
-		float StartingRigidDistance;
+		FReal StartingRigidDistance;
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
 		{
@@ -126,7 +126,7 @@ using namespace ChaosTest;
 			StartingClusterPosition = (*Transform)[2].GetTranslation();
 		});
 
-		float CurrentRigidDistance = 0.f;
+		FReal CurrentRigidDistance = 0.0;
 
 		for (int Frame = 0; Frame < 10; Frame++)
 		{
@@ -273,7 +273,7 @@ using namespace ChaosTest;
 	TYPED_TEST(AllTraits, GeometryCollection_Solver_CollisionEventFilter)
 	{
 		using Traits = TypeParam;
-		float TestMassThreshold = 7.0f;
+		FReal TestMassThreshold = 7.0;
 
 		TGeometryCollectionWrapper<Traits>* Collection[10];
 		for (int i=0; i<10; i++)
@@ -295,7 +295,7 @@ using namespace ChaosTest;
 		TFramework<Traits> UnitTest;
 		for (int i=0; i<10; i++)
 		{
-			TManagedArray<float>& Mass = Collection[i]->RestCollection->template GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
+			TManagedArray<FReal>& Mass = Collection[i]->RestCollection->template GetAttribute<FReal>("Mass", FTransformCollection::TransformGroup);
 			Mass[0] = i + 1;
 			UnitTest.AddSimulationObject(Collection[i]);
 		}
@@ -369,8 +369,8 @@ using namespace ChaosTest;
 		Collection->PhysObject->SetCollisionParticlesPerObjectFraction(1.0);		
 
 		UnitTest.Initialize();
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float,3>*> ParticleHandles;
-		float TestMass = 7.0f;
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal,3>*> ParticleHandles;
+		FReal TestMass = 7.0;
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
 		{
