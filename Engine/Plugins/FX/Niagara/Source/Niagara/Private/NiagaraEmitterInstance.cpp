@@ -224,8 +224,12 @@ void FNiagaraEmitterInstance::Dump()const
 	{
 		UE_LOG(LogNiagara, Log, TEXT("................. %s Combined Parameters ................."), TEXT("GPU Script"));
 		GPUExecContext->CombinedParamStore.DumpParameters();
+		//-TODO: Add dump for GPU particles
 	}
-	ParticleDataSet->Dump(0, INDEX_NONE, TEXT("Particle Data"));
+	else
+	{
+		ParticleDataSet->Dump(0, INDEX_NONE, TEXT("Particle Data"));
+	}
 }
 
 bool FNiagaraEmitterInstance::IsAllowedToExecute() const

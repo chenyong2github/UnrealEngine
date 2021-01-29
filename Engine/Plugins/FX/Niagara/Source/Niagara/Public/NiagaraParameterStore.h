@@ -19,9 +19,9 @@ struct FNiagaraBoundParameter
 	UPROPERTY()
 	FNiagaraVariable Parameter;
 	UPROPERTY()
-	int32 SrcOffset;
+	int32 SrcOffset = 0;
 	UPROPERTY()
-	int32 DestOffset;
+	int32 DestOffset = 0;
 
 };
 

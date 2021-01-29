@@ -38,7 +38,7 @@ struct FNiagaraMaterialOverride
 	TObjectPtr<class UMaterialInterface> Material = nullptr;
 
 	UPROPERTY()
-	uint32 MaterialSubIndex;
+	uint32 MaterialSubIndex = 0;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraRendererProperties> EmitterRendererProperty = nullptr;

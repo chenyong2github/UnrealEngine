@@ -13,13 +13,13 @@ struct FBasicParticleData
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(BlueprintReadOnly, Category = "Particle Data")
-	FVector Position;
+	FVector Position = FVector(ForceInitToZero);
 
 	UPROPERTY(BlueprintReadOnly, Category = "Particle Data")
-	float Size;
+	float Size = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Particle Data")
-	FVector Velocity;
+	FVector Velocity = FVector(ForceInitToZero);
 };
 
 UINTERFACE(BlueprintType)

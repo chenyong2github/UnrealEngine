@@ -47,7 +47,7 @@ public:
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntPoint,		NumTextureAttributes)
+		SHADER_PARAMETER(FIntVector4,		NumTextureAttributes)
 		SHADER_PARAMETER(int32,			NumAttributesToVisualize)
 		SHADER_PARAMETER(FIntVector4,	AttributesToVisualize)
 		SHADER_PARAMETER(FIntVector,	TextureDimensions)
@@ -262,7 +262,7 @@ void NiagaraDebugShaders::DrawDebugLines(
 void NiagaraDebugShaders::VisualizeTexture(
 	class FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassRenderTarget& Output,
 	const FIntPoint& Location, const int32& DisplayHeight,
-	const FIntVector4& InAttributesToVisualize, FRHITexture* Texture, const FIntPoint& NumTextureAttributes, uint32 TickCounter
+	const FIntVector4& InAttributesToVisualize, FRHITexture* Texture, const FIntVector4& NumTextureAttributes, uint32 TickCounter
 )
 {
 	FIntVector TextureSize = Texture->GetSizeXYZ();

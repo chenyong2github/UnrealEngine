@@ -116,7 +116,7 @@ static FAutoConsoleVariableRef CVarEnableNiagaraInstanceCountCulling(
 
 float GWorldLoopTime = 0.0f;
 static FAutoConsoleVariableRef CVarWorldLoopTime(
-	TEXT("fx.GlobalLoopTime"),
+	TEXT("fx.Niagara.Debug.GlobalLoopTime"),
 	GWorldLoopTime,
 	TEXT("If > 0 all Niagara FX will reset every N seconds. \n"),
 	ECVF_Default
@@ -315,10 +315,7 @@ void FNiagaraWorldManager::Init(UWorld* InWorld)
 	//PrimePoolForAllSystems();
 
 #if !UE_BUILD_SHIPPING
-	if ( World->IsGameWorld() )
-	{
-		NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
-	}
+	NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
 #endif
 }
 
@@ -1091,7 +1088,7 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 
 void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState)
 {
-	OutState.bPreviousCulled = OutState.bCulled;
+	OutState.bCulled = false;
 
 	DistanceCull(EffectType, ScalabilitySettings, Location, OutState);
 
@@ -1107,7 +1104,6 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 
 void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState)
 {
-	OutState.bPreviousCulled = OutState.bCulled;
 	OutState.bCulled = false;
 
 	DistanceCull(EffectType, ScalabilitySettings, Component, OutState);

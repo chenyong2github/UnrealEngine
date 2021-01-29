@@ -41,7 +41,7 @@ public:
 		FNiagaraSystemInstanceID	SystemInstanceID;
 		FName						SourceName;
 		FTextureRHIRef				Texture;
-		FIntPoint					NumTextureAttributes = FIntPoint::ZeroValue;
+		FIntVector4					NumTextureAttributes = FIntVector4(0,0,0,0);
 		FIntVector4					AttributesToVisualize = FIntVector4(-1, -1, -1, -1);
 	};
 
@@ -62,8 +62,14 @@ public:
 	void AddTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture);
 
 	// Add a texture to visualize that contains a number of attributes and select which attributes to push into RGBA where -1 means ignore that channel
-	// The first -1 in the attribute indices list will also limit the number of attributes we attempt to read
+	// The first -1 in the attribute indices list will also limit the number of attributes we attempt to read.
+	// NumTextureAttributes in this version is meant for a 2D atlas
 	void AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture, FIntPoint NumTextureAttributes, FIntVector4 AttributeIndices);
+
+	// Add a texture to visualize that contains a number of attributes and select which attributes to push into RGBA where -1 means ignore that channel
+	// The first -1 in the attribute indices list will also limit the number of attributes we attempt to read
+	// NumTextureAttributes in this version is meant for a 3D atlas
+	void AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture, FIntVector4 NumTextureAttributes, FIntVector4 AttributeIndices);
 
 	// Get Debug draw buffers for a system instance
 	FNiagaraSimulationDebugDrawData* GetSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID, bool bRequiresGpuBuffers);

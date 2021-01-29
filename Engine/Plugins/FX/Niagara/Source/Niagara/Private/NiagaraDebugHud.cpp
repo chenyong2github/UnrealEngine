@@ -55,6 +55,9 @@ namespace NiagaraDebugLocal
 	static uint32 GMaxParticlesToDisplay = 32;
 	static bool GShowParticlesInWorld = true;
 
+	static FDelegateHandle	GDebugDrawHandle;
+	static int32			GDebugDrawHandleUsers = 0;
+
 	static FAutoConsoleCommandWithWorldAndArgs CmdDebugHud(
 		TEXT("fx.Niagara.Debug.Hud"),
 		TEXT("Set options for debug hud display"),
@@ -347,13 +350,27 @@ namespace NiagaraDebugLocal
 
 FNiagaraDebugHud::FNiagaraDebugHud(UWorld* World)
 {
+	using namespace NiagaraDebugLocal;
+
 	WeakWorld = World;
-	DebugDrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateRaw(this, &FNiagaraDebugHud::DebugDrawNiagara));
+
+	if ( !GDebugDrawHandle.IsValid() )
+	{
+		GDebugDrawHandle = UDebugDrawService::Register(TEXT("Particles"), FDebugDrawDelegate::CreateStatic(&FNiagaraDebugHud::DebugDrawCallback));
+	}
+	++GDebugDrawHandleUsers;
 }
 
 FNiagaraDebugHud::~FNiagaraDebugHud()
 {
-	UDebugDrawService::Unregister(DebugDrawHandle);
+	using namespace NiagaraDebugLocal;
+
+	--GDebugDrawHandleUsers;
+	if (GDebugDrawHandleUsers == 0)
+	{
+		UDebugDrawService::Unregister(GDebugDrawHandle);
+		GDebugDrawHandle.Reset();
+	}
 }
 
 void FNiagaraDebugHud::GatherSystemInfo()
@@ -516,31 +533,34 @@ FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* Sy
 	return &EmitterInstance->GetData();
 }
 
-void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* Canvas, APlayerController* PC)
+void FNiagaraDebugHud::DebugDrawCallback(UCanvas* Canvas, APlayerController* PC)
 {
 	using namespace NiagaraDebugLocal;
 
-	if (!GEnabled || !Canvas || !Canvas->Canvas)
+	if (!GEnabled || !Canvas || !Canvas->Canvas || !Canvas->SceneView || !Canvas->SceneView->Family || !Canvas->SceneView->Family->Scene)
 	{
 		return;
 	}
 
-	UWorld* World = WeakWorld.Get();
-	if (World == nullptr)
+	if ( UWorld* World = Canvas->SceneView->Family->Scene->GetWorld())
 	{
-		return;
+		if ( FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World) )
+		{
+			if (FNiagaraDebugHud* DebugHud = WorldManager->GetNiagaraDebugHud())
+			{
+				DebugHud->Draw(WorldManager, Canvas, PC);
+			}
+		}
 	}
+}
 
-	if ( (World->GetNetMode() != ENetMode::NM_Standalone) && World->IsServer() )
-	{
-		return;
-	}
-
+void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas, APlayerController* PC)
+{
 	// Draw in world components
-	DrawComponents(World, Canvas, GEngine->GetTinyFont());
+	DrawComponents(WorldManager, Canvas, GEngine->GetTinyFont());
 
 	// Draw overview
-	DrawOverview(Canvas->Canvas, GEngine->GetSmallFont());
+	DrawOverview(WorldManager, Canvas->Canvas, GEngine->GetSmallFont());
 
 	// Scrub any gpu cached emitters we haven't used in a while
 	{
@@ -559,7 +579,7 @@ void FNiagaraDebugHud::DebugDrawNiagara(UCanvas* Canvas, APlayerController* PC)
 	}
 }
 
-void FNiagaraDebugHud::DrawOverview(FCanvas* DrawCanvas, UFont* Font)
+void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FCanvas* DrawCanvas, UFont* Font)
 {
 	using namespace NiagaraDebugLocal;
 
@@ -578,19 +598,46 @@ void FNiagaraDebugHud::DrawOverview(FCanvas* DrawCanvas, UFont* Font)
 		static const float ColumnOffset[] = { 0, 150, 300, 450 };
 		static const float GuessWidth = 600.0f;
 
-		const int32 NumLines = 2 + (GSystemFilter.IsEmpty() ? 0 : 1) + (GComponentFilter.IsEmpty() ? 0 : 1);
+		TStringBuilder<1024> DetailsString;
+		{
+			const TCHAR* Separator = TEXT("    ");
+			if (WorldManager->GetDebugPlaybackMode() != ENiagaraDebugPlaybackMode::Play)
+			{
+				DetailsString.Append(TEXT("PlaybackMode: "));
+				switch (WorldManager->GetDebugPlaybackMode())
+				{
+					case ENiagaraDebugPlaybackMode::Loop:	DetailsString.Append(TEXT("Looping")); break;
+					case ENiagaraDebugPlaybackMode::Paused:	DetailsString.Append(TEXT("Paused")); break;
+					case ENiagaraDebugPlaybackMode::Step:	DetailsString.Append(TEXT("Step")); break;
+					default:								DetailsString.Append(TEXT("Unknown")); break;
+				}
+				DetailsString.Append(Separator);
+			}
+			if ( !FMath::IsNearlyEqual(WorldManager->GetDebugPlaybackRate(), 1.0f) )
+			{
+				DetailsString.Appendf(TEXT("PlaybackRate: %.4f"), WorldManager->GetDebugPlaybackRate());
+				DetailsString.Append(Separator);
+			}
+			if (!GSystemFilter.IsEmpty())
+			{
+				DetailsString.Appendf(TEXT("SystemFilter: %s"), *GSystemFilter);
+				DetailsString.Append(Separator);
+			}
+			if (!GComponentFilter.IsEmpty())
+			{
+				DetailsString.Appendf(TEXT("ComponentFilter: %s"), *GComponentFilter);
+				DetailsString.Append(Separator);
+			}
+		}
+
+		const int32 NumLines = 2 + (DetailsString.Len() > 0 ? 1 : 0);
 		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
 
 		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Niagara DebugHud"), Font, HeadingColor);
 		TextLocation.Y += fAdvanceHeight;
-		if (!GSystemFilter.IsEmpty())
+		if ( DetailsString.Len() > 0 )
 		{
-			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *FString::Printf(TEXT("SystemFilter: %s"), *GSystemFilter), Font, HeadingColor);
-			TextLocation.Y += fAdvanceHeight;
-		}
-		if (!GComponentFilter.IsEmpty())
-		{
-			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *FString::Printf(TEXT("ComponentFilter: %s"), *GComponentFilter), Font, HeadingColor);
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, DetailsString.ToString(), Font, HeadingColor);
 			TextLocation.Y += fAdvanceHeight;
 		}
 
@@ -647,19 +694,14 @@ void FNiagaraDebugHud::DrawOverview(FCanvas* DrawCanvas, UFont* Font)
 	}
 }
 
-void FNiagaraDebugHud::DrawComponents(UWorld* World, UCanvas* Canvas, UFont* Font)
+void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanvas* Canvas, UFont* Font)
 {
 	using namespace NiagaraDebugLocal;
 
 	const FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
 
 	FCanvas* DrawCanvas = Canvas->Canvas;
-
-	FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
-	if (!ensure(WorldManager))
-	{
-		return;
-	}
+	UWorld* World = WorldManager->GetWorld();
 
 	// Draw in world components
 	UEnum* ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();

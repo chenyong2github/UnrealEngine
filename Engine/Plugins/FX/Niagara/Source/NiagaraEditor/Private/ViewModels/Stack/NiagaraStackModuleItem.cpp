@@ -313,7 +313,7 @@ UNiagaraNodeOutput* GetCompatibleTargetOutputNodeFromOrderedScripts(const TArray
 		if (UNiagaraScript::ContainsEquivilentUsage(CompatibleUsages, CurrentScript->GetUsage()))
 		{
 			UNiagaraScriptSource* CurrentScriptSource = CastChecked<UNiagaraScriptSource>(CurrentScript->GetSource());
-			UNiagaraNodeOutput* CurrentOutputNode = CurrentScriptSource->NodeGraph->FindOutputNode(CurrentScript->GetUsage(), CurrentScript->GetUsageId());
+			UNiagaraNodeOutput* CurrentOutputNode = CurrentScriptSource->NodeGraph->FindEquivalentOutputNode(CurrentScript->GetUsage(), CurrentScript->GetUsageId());
 			if (CurrentOutputNode != nullptr)
 			{
 				return CurrentOutputNode;

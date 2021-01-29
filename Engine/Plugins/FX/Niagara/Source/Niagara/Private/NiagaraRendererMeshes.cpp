@@ -126,7 +126,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 }
 
 FNiagaraRendererMeshes::~FNiagaraRendererMeshes()
-{
+{	
 }
 
 void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
@@ -914,6 +914,11 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			MeshBatchElement.VisualizeElementIndex = SectionIndex;
 #endif
 			RayTracingInstance.Materials.Add(MeshBatch);
+		}
+
+		if (RayTracingInstance.Materials.Num() == 0)
+		{
+			continue;
 		}
 
 		const FNiagaraRendererLayout* RendererLayout = RendererLayoutWithCustomSorting;
