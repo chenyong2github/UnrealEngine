@@ -404,6 +404,25 @@ void FNDIPhysicsAssetBuffer::ReleaseRHI()
 
 //------------------------------------------------------------------------------------------------------------
 
+ETickingGroup ComputeTickingGroup(const TArray<TWeakObjectPtr<class USkeletalMeshComponent>> SkeletalMeshes)
+{
+	ETickingGroup TickingGroup = NiagaraFirstTickGroup;
+	for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshes.Num(); ++ComponentIndex)
+	{
+		if (SkeletalMeshes[ComponentIndex].Get() != nullptr)
+		{
+			const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(SkeletalMeshes[ComponentIndex].Get());
+
+			const ETickingGroup ComponentTickGroup = FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup);
+			const ETickingGroup PhysicsTickGroup = Component->bBlendPhysics ? FMath::Max(ComponentTickGroup, TG_EndPhysics) : ComponentTickGroup;
+			const ETickingGroup ClampedTickGroup = FMath::Clamp(ETickingGroup(PhysicsTickGroup + 1), NiagaraFirstTickGroup, NiagaraLastTickGroup);
+
+			TickingGroup = FMath::Max(TickingGroup, ClampedTickGroup);
+		}
+	}
+	return TickingGroup;
+}
+
 void FNDIPhysicsAssetData::Release()
 {
 	if (AssetBuffer)
@@ -425,6 +444,7 @@ void FNDIPhysicsAssetData::Init(UNiagaraDataInterfacePhysicsAsset* Interface, FN
 	if (Interface != nullptr && SystemInstance != nullptr)
 	{
 		Interface->ExtractSourceComponent(SystemInstance);
+		TickingGroup = ComputeTickingGroup(Interface->SourceComponents);
 
 		if(0 < Interface->PhysicsAssets.Num() && Interface->PhysicsAssets[0].IsValid() && Interface->PhysicsAssets[0].Get() != nullptr && 
 			Interface->PhysicsAssets.Num() == Interface->SourceComponents.Num() )
@@ -461,6 +481,7 @@ void FNDIPhysicsAssetData::Update(UNiagaraDataInterfacePhysicsAsset* Interface, 
 	if (Interface != nullptr && SystemInstance != nullptr)
 	{
 		Interface->ExtractSourceComponent(SystemInstance);
+		TickingGroup = ComputeTickingGroup(Interface->SourceComponents);
 
 		if (0 < Interface->PhysicsAssets.Num() && Interface->PhysicsAssets[0].IsValid() && Interface->PhysicsAssets[0].Get() != nullptr &&
 			Interface->PhysicsAssets.Num() == Interface->SourceComponents.Num())
@@ -578,6 +599,7 @@ void FNDIPhysicsAssetProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 		TargetData->BoxOrigin = SourceData->BoxOrigin;
 		TargetData->BoxExtent = SourceData->BoxExtent;
 		TargetData->AssetArrays = SourceData->AssetArrays;
+		TargetData->TickingGroup = SourceData->TickingGroup;
 	}
 	else
 	{
@@ -734,6 +756,17 @@ bool UNiagaraDataInterfacePhysicsAsset::InitPerInstanceData(void* PerInstanceDat
 	InstanceData->Init(this, SystemInstance);
 
 	return true;
+}
+
+ETickingGroup UNiagaraDataInterfacePhysicsAsset::CalculateTickGroup(const void* PerInstanceData) const
+{
+	const FNDIPhysicsAssetData* InstanceData = static_cast<const FNDIPhysicsAssetData*>(PerInstanceData);
+
+	if (InstanceData)
+	{
+		return InstanceData->TickingGroup;
+	}
+	return NiagaraFirstTickGroup;
 }
 
 void UNiagaraDataInterfacePhysicsAsset::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
@@ -1220,6 +1253,7 @@ void UNiagaraDataInterfacePhysicsAsset::ProvidePerInstanceDataForRenderThread(vo
 		RenderThreadData->BoxOrigin = GameThreadData->BoxOrigin;
 		RenderThreadData->BoxExtent = GameThreadData->BoxExtent;
 		RenderThreadData->AssetArrays = GameThreadData->AssetArrays;
+		RenderThreadData->TickingGroup = GameThreadData->TickingGroup;
 	}
 	check(Proxy);
 }
