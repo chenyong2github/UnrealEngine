@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Serialization/BulkData.h"
 #include "LidarPointCloudShared.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLidarPointCloud, Log, All);
@@ -457,86 +456,6 @@ public:
 #endif
 };
 #pragma pack(pop)
-
-struct FLidarPointCloudBulkData : public FUntypedBulkData
-{
-private:
-	int32 ElementSize;
-	FLidarPointCloudPoint* DataPtr;
-	TAtomic<bool> bHasData;
-
-public:
-	FLidarPointCloudBulkData()
-		: ElementSize(sizeof(FLidarPointCloudPoint))
-		, DataPtr(nullptr)
-		, bHasData(false)
-	{
-	}
-
-	virtual int32 GetElementSize() const override
-	{
-		return ElementSize;
-	}
-	
-	virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) override
-	{
-		Ar.Serialize((FLidarPointCloudPoint*)Data + ElementIndex, sizeof(FLidarPointCloudPoint));
-	}
-	
-	virtual bool RequiresSingleElementSerialization(FArchive& Ar) override
-	{
-		return false;
-	}
-
-	/** Serves as a workaround for UnloadBulkData being editor-only */
-	void ReleaseData()
-	{
-		if (bHasData)
-		{
-			bHasData = false;
-			void* Temp = nullptr;
-			GetCopy(&Temp);
-			FMemory::Free(Temp);
-		}
-	}
-
-	FORCEINLINE FLidarPointCloudPoint* GetData() const
-	{
-		MakeSureDataIsLoaded();
-		return DataPtr;
-	}
-
-	void CopyToArray(TArray<FLidarPointCloudPoint>& Array)
-	{
-		Array.AddUninitialized(GetElementCount());
-		FMemory::Memcpy(Array.GetData(), GetData(), sizeof(FLidarPointCloudPoint) * Array.Num());
-	}
-
-	void CopyFromArray(TArray<FLidarPointCloudPoint>& Array)
-	{
-		Lock(LOCK_READ_WRITE);
-		DataPtr = (FLidarPointCloudPoint*)Realloc(Array.Num());
-		FMemory::Memcpy(DataPtr, Array.GetData(), Array.Num() * sizeof(FLidarPointCloudPoint));
-		bHasData = true;
-		Unlock();
-	}
-
-	void CustomSerialize(FArchive& Ar, UObject* Owner);
-
-	FORCEINLINE bool HasData() const { return bHasData; }
-
-private:
-	void MakeSureDataIsLoaded() const
-	{
-		if (!bHasData)
-		{
-			FLidarPointCloudBulkData* mutable_this = const_cast<FLidarPointCloudBulkData*>(this);
-			mutable_this->DataPtr = (FLidarPointCloudPoint*)LockReadOnly();
-			mutable_this->bHasData = true;
-			Unlock();
-		}
-	}
-};
 
 /** Used in blueprint latent function execution */
 UENUM(BlueprintType)

@@ -10,6 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Async/Async.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ScopeTryLock.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
 
@@ -29,6 +30,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Total Point Count [thousands]"), STAT_Point
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Points In Frustum"), STAT_PointCountFrustum, STATGROUP_LidarPointCloud)
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Point Budget"), STAT_PointBudget, STATGROUP_LidarPointCloud)
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Visible Points"), STAT_PointCount, STATGROUP_LidarPointCloud)
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Loaded Nodes"), STAT_LoadedNodes, STATGROUP_LidarPointCloud)
 
 static TAutoConsoleVariable<int32> CVarLidarPointBudget(
 	TEXT("r.LidarPointBudget"),
@@ -545,15 +547,6 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 		{
 			const FLidarPointCloudLODManager::FRegisteredProxy& RegisteredProxy = InRegisteredProxies[i];
 
-			// Only calculate if needed
-			if (RegisteredProxy.Component->PointSize > 0)
-			{
-				for (FLidarPointCloudTraversalOctreeNode* Node : SelectedNodesData[i])
-				{
-					Node->CalculateVirtualDepth(RegisteredProxy.TraversalOctree->LevelWeights, RegisteredProxy.TraversalOctree->VirtualDepthMultiplier, RegisteredProxy.Component->PointSizeBias);
-				}
-			}
-
 			FLidarPointCloudProxyUpdateData UpdateData;
 			UpdateData.SceneProxyWrapper = RegisteredProxy.SceneProxyWrapper;
 			UpdateData.NumElements = 0;
@@ -580,8 +573,16 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 
 					if (Node->DataNode->HasData())
 					{
+						uint8 VirtualDepth = 0;
+
+						// Only calculate if needed
+						if (RegisteredProxy.Component->PointSize > 0)
+						{
+							VirtualDepth = Node->CalculateVirtualDepth(RegisteredProxy.TraversalOctree->LevelWeights, RegisteredProxy.TraversalOctree->VirtualDepthMultiplier, RegisteredProxy.Component->PointSizeBias);
+						}
+
+						UpdateData.SelectedNodes.Emplace(VirtualDepth, Node->DataNode->GetNumVisiblePoints(), Node->DataNode);
 						UpdateData.NumElements += Node->DataNode->GetNumVisiblePoints();
-						UpdateData.SelectedNodes.Emplace(Node->VirtualDepth, Node->DataNode->GetNumVisiblePoints(), Node->DataNode);
 					}
 				}
 			}
@@ -605,6 +606,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 	}
 
 	// Begin streaming data
+	int32 LoadedNodes = 0;
 	for (int32 i = 0; i < InRegisteredProxies.Num(); ++i)
 	{
 		const FLidarPointCloudLODManager::FRegisteredProxy& RegisteredProxy = InRegisteredProxies[i];
@@ -612,7 +614,10 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 		FScopeLock OctreeLock(&RegisteredProxy.PointCloud->Octree.DataLock);
 		RegisteredProxy.PointCloud->Octree.UnloadOldNodes(CurrentTime);
 		RegisteredProxy.PointCloud->Octree.StreamQueuedNodes();
+
+		LoadedNodes += RegisteredProxy.PointCloud->Octree.GetNumNodesInUse();
 	}
+	SET_DWORD_STAT(STAT_LoadedNodes, LoadedNodes);
 
 	// Update Render Data
 	if (TotalPointsSelected > 0)

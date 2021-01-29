@@ -32,7 +32,7 @@
 #define IS_PROPERTY(Name) PropertyChangedEvent.MemberProperty->GetName().Equals(#Name)
 
 const FGuid ULidarPointCloud::PointCloudFileGUID('P', 'C', 'P', 'F');
-const int32 ULidarPointCloud::PointCloudFileVersion(19);
+const int32 ULidarPointCloud::PointCloudFileVersion(20);
 FCustomVersionRegistration PCPFileVersion(ULidarPointCloud::PointCloudFileGUID, ULidarPointCloud::PointCloudFileVersion, TEXT("LiDAR Point Cloud File Version"));
 
 #define LOCTEXT_NAMESPACE "LidarPointCloud"

@@ -76,13 +76,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Performance, meta = (EditCondition = "bUseAsyncImport"))
 	float RenderDataSmoothingMaxFrametime;
 
-	/**
-	 * Enabling this will compress data when saving the assets.
-	 * May introduce delay when streaming points on slower machines.
-	 */
-	UPROPERTY(config, EditAnywhere, Category=IO)
-	bool bUseCompression;
-
 	/** Affects the size of per-thread data for the meshing algorithm. */
 	UPROPERTY(config, EditAnywhere, Category=Collision)
 	int32 MeshingBatchSize;

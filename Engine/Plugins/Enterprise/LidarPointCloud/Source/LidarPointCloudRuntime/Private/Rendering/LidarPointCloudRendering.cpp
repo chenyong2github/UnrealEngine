@@ -10,7 +10,6 @@
 #include "PrimitiveSceneProxy.h"
 #include "MeshBatch.h"
 #include "Engine/Engine.h"
-#include "Misc/ScopeTryLock.h"
 #include "SceneManagement.h"
 #include "LocalVertexFactory.h"
 #include "Materials/Material.h"

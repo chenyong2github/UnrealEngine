@@ -7,8 +7,7 @@
 
 #define IS_VIS_CHECK_REQUIRED (bVisibleOnly && CurrentNode->NumVisiblePoints < CurrentNode->GetNumPoints())
 
-#define NODE_IN_BOX_EXTERN(Octree) (Box.Intersect(Child->GetBounds(Octree)))
-#define NODE_IN_BOX NODE_IN_BOX_EXTERN(this)
+#define NODE_IN_BOX (Box.Intersect(Child->GetBounds()))
 #define NODE_IN_FRUSTUM (Frustum.IntersectBox(Child->Center, SharedData[Child->Depth].Extent))
 
 #define ITERATE_NODES_BODY(Action, NodeTest, Const) \
@@ -62,7 +61,7 @@
 {\
 	if (!bVisibleOnly || CurrentNode->NumVisiblePoints > 0)\
 	{\
-		const bool bNodeFullyContained = CurrentNode->GetSphereBounds(Octree).IsInside(Sphere);\
+		const bool bNodeFullyContained = CurrentNode->GetSphereBounds().IsInside(Sphere);\
 		PROCESS_BODY(Action, POINT_IN_SPHERE, Mode) \
 	}\
 }
@@ -92,7 +91,7 @@
 {\
 	if (!bVisibleOnly || CurrentNode->NumVisiblePoints > 0)\
 	{\
-		if (Ray.Intersects(CurrentNode->GetBounds(this)))\
+		if (Ray.Intersects(CurrentNode->GetBounds()))\
 		{\
 			if (!IS_VIS_CHECK_REQUIRED) { FOR##Mode(Point, CurrentNode) { if (POINT_BY_RAY) { Action } } }\
 			else { FOR##Mode(Point, CurrentNode) { if (Point->bVisible && POINT_BY_RAY) { Action } } }\
@@ -115,7 +114,7 @@
 #define PROCESS_IN_SPHERE(Action) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES(PROCESS_IN_SPHERE_BODY(Action,), NODE_IN_BOX)) }
 #define PROCESS_IN_SPHERE_EX(Action, NodeAction) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES({PROCESS_IN_SPHERE_BODY(Action,)} {NodeAction}, NODE_IN_BOX)) }
 #define PROCESS_IN_SPHERE_CONST(Action) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES_CONST(PROCESS_IN_SPHERE_BODY(Action, _RO), NODE_IN_BOX)) }
-#define PROCESS_IN_SPHERE_EXTERN(Octree, Action) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES(PROCESS_IN_SPHERE_BODY_EXTERN(Octree, Action,), NODE_IN_BOX_EXTERN(Octree))) }
+#define PROCESS_IN_SPHERE_EXTERN(Octree, Action) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES(PROCESS_IN_SPHERE_BODY_EXTERN(Octree, Action,), NODE_IN_BOX)) }
 
 
 #define PROCESS_ALL(Action) { ITERATE_NODES(PROCESS_ALL_BODY(Action,), true) }
@@ -125,7 +124,7 @@
 #define PROCESS_IN_BOX(Action) { ITERATE_NODES(PROCESS_IN_BOX_BODY(Action,), NODE_IN_BOX) }
 #define PROCESS_IN_BOX_EX(Action, NodeAction) { ITERATE_NODES({PROCESS_IN_BOX_BODY(Action,)} {NodeAction}, NODE_IN_BOX) }
 #define PROCESS_IN_BOX_CONST(Action) { ITERATE_NODES_CONST(PROCESS_IN_BOX_BODY(Action, _RO), NODE_IN_BOX) }
-#define PROCESS_IN_BOX_EXTERN(Octree, Action) { ITERATE_NODES(PROCESS_IN_BOX_BODY_EXTERN(Octree, Action,), NODE_IN_BOX_EXTERN(Octree)) }
+#define PROCESS_IN_BOX_EXTERN(Octree, Action) { ITERATE_NODES(PROCESS_IN_BOX_BODY_EXTERN(Octree, Action,), NODE_IN_BOX) }
 
 #define PROCESS_IN_FRUSTUM(Action) { ITERATE_NODES(PROCESS_IN_FRUSTUM_BODY(Action,), NODE_IN_FRUSTUM) }
 #define PROCESS_IN_FRUSTUM_CONST(Action) { ITERATE_NODES_CONST(PROCESS_IN_FRUSTUM_BODY(Action, _RO), NODE_IN_FRUSTUM) }

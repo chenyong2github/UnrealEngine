@@ -11,6 +11,7 @@
 #include "Misc/ScopeLock.h"
 #include "ConvexVolume.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
+#include "Serialization/BulkData.h"
 
 class ULidarPointCloud;
 class FLidarPointCloudOctree;
@@ -22,16 +23,16 @@ struct FLidarPointCloudTraversalOctreeNode;
  * Use the FLidarPointCloudOctree::DataLock prior to such attempt
  */
 
- /**
- Child ordering
- 0	X- Y- Z-
- 1	X- Y- Z+
- 2	X- Y+ Z-
- 3	X- Y+ Z+
- 4	X+ Y- Z-
- 5	X+ Y- Z+
- 6	X+ Y+ Z-
- 7	X+ Y+ Z+
+/**
+ * Child ordering
+ * 0	X- Y- Z-
+ * 1	X- Y- Z+
+ * 2	X- Y+ Z-
+ * 3	X- Y+ Z+
+ * 4	X+ Y- Z-
+ * 5	X+ Y- Z+
+ * 6	X+ Y+ Z-
+ * 7	X+ Y+ Z+
  */
 
 /**
@@ -56,6 +57,9 @@ private:
 	// #todo: Change to TIndirectArray<> - investigate increased memory consumption, ~130 bytes / Node
 	TArray<FLidarPointCloudOctreeNode*> Children;
 
+	/** Pointer to the Tree holding this node */
+	FLidarPointCloudOctree* Tree;
+
 	/** Marks the node for visibility recalculation next time it's necessary */
 	bool bVisibilityDirty;
 
@@ -67,8 +71,25 @@ private:
 
 	FCriticalSection MapLock;
 
-	/** Used for streaming the data from disk */
-	FLidarPointCloudBulkData BulkData;
+	/**
+	 * Holds point data allocated to this node
+	 * Can be empty, if the data hasn't been streamed in yet
+	 */
+	TArray<FLidarPointCloudPoint> Data;
+
+	/**
+	 * Stores the number of points this node contains.
+	 * Needed, since Data may not have been streamed yet, and would return a count of 0.
+	 */
+	uint32 NumPoints;
+
+	/** True, if the node has its data loaded */
+	TAtomic<bool> bHasData;
+
+	/** Offset in the archive file, where the data for this node is located */
+	int64 BulkDataOffset;
+
+	uint32 BulkDataSize;
 
 	/** Holds render data for this node */
 	class FLidarPointCloudRenderBuffer* DataCache;
@@ -82,7 +103,6 @@ private:
 	TAtomic<bool> bCanReleaseData;
 
 public:
-	FORCEINLINE FLidarPointCloudOctreeNode() : FLidarPointCloudOctreeNode(nullptr, 0) {}
 	FORCEINLINE FLidarPointCloudOctreeNode(FLidarPointCloudOctree* Tree, const uint8& Depth) : FLidarPointCloudOctreeNode(Tree, Depth, 0, FVector::ZeroVector) {}
 	FLidarPointCloudOctreeNode(FLidarPointCloudOctree* Tree, const uint8& Depth, const uint8& LocationInParent, const FVector& Center);
 	~FLidarPointCloudOctreeNode();
@@ -92,7 +112,7 @@ public:
 	FLidarPointCloudOctreeNode& operator=(FLidarPointCloudOctreeNode&&) = delete;
 
 	/** Returns a pointer to the point data */
-	FORCEINLINE FLidarPointCloudPoint* GetData() const { return BulkData.GetData(); }
+	FLidarPointCloudPoint* GetData() const;
 
 	/** Returns a pointer to the point data and prevents it from being released */
 	FLidarPointCloudPoint* GetPersistentData() const;
@@ -103,16 +123,16 @@ public:
 	bool BuildDataCache();
 
 	/** Returns the sum of grid and padding points allocated to this node. */
-	FORCEINLINE int64 GetNumPoints() const { return BulkData.GetElementCount(); }
+	FORCEINLINE uint32 GetNumPoints() const { return NumPoints; }
 
 	/** Returns the sum of visible grid and padding points allocated to this node. */
 	uint32 GetNumVisiblePoints() const { return NumVisiblePoints; }
 
 	/** Calculates and returns the bounds of this node */
-	FBox GetBounds(const FLidarPointCloudOctree* Tree) const;
+	FORCEINLINE FBox GetBounds() const;
 
 	/** Calculates and returns the sphere bounds of this node */
-	FSphere GetSphereBounds(const FLidarPointCloudOctree* Tree) const;
+	FORCEINLINE FSphere GetSphereBounds() const;
 
 	/** Returns a pointer to the node at the given location, or null if one doesn't exist yet. */
 	FLidarPointCloudOctreeNode* GetChildNodeAtLocation(const uint8& Location) const;
@@ -120,8 +140,8 @@ public:
 	void UpdateNumVisiblePoints();
 
 	/** Attempts to insert given points to this node or passes it to the children, otherwise. */
-	void InsertPoints(FLidarPointCloudOctree* Tree, const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
-	void InsertPoints(FLidarPointCloudOctree* Tree, FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
+	void InsertPoints(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
+	void InsertPoints(FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
 
 	/** Removes all points. */
 	void Empty(bool bRecursive = true);
@@ -133,7 +153,7 @@ public:
 	int64 GetAllocatedSize(bool bRecursive, bool bIncludeBulkData) const;
 
 	/** Returns true, if the node has its data loaded */
-	bool HasData() const { return BulkData.HasData(); }
+	bool HasData() const { return bHasData; }
 
 	/**
 	 * Releases the BulkData
@@ -141,15 +161,13 @@ public:
 	 */
 	void ReleaseData(bool bForce = false);
 
-	/**
-	 * Convenience function, to add point statistics to the Tree table.
-	 * If parameter set to negative value, GetNumPoints will be used
-	 */
-	void AddPointCount(FLidarPointCloudOctree* Tree, int32 PointCount = INT32_MIN);
+	/** Convenience function, to add point statistics to the Tree table. */
+	void AddPointCount(int32 PointCount);
 
 	/** Sorts the points by visibility (visible first) to optimize data processing and rendering */
 	void SortVisiblePoints();
 
+private:
 	friend FLidarPointCloudOctree;
 	friend FLidarPointCloudTraversalOctree;
 	friend FLidarPointCloudTraversalOctreeNode;
@@ -220,6 +238,25 @@ private:
 	/** Pointer to the owner of this Octree */
 	ULidarPointCloud* Owner;
 
+	struct FLidarPointCloudBulkData : public FUntypedBulkData
+	{
+	private:
+		FLidarPointCloudOctree* Octree;
+		IAsyncReadFileHandle* ReadHandle;
+
+	public:
+		FLidarPointCloudBulkData(FLidarPointCloudOctree* Octree);
+		virtual ~FLidarPointCloudBulkData();
+		virtual int32 GetElementSize() const override { return 1; }
+		bool ReadRequest(int64 Offset, int64 BytesToRead, uint8* UserSuppliedMemory);
+		FORCEINLINE void CloseReadHandle();
+
+	protected:
+		virtual void SerializeElements(FArchive& Ar, void* Data) override;
+		virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) override { };
+		virtual bool RequiresSingleElementSerialization(FArchive& Ar) override { return true; }
+	} BulkData;
+
 	TQueue<FLidarPointCloudOctreeNode*> QueuedNodes;
 	TArray<FLidarPointCloudOctreeNode*> NodesInUse;
 
@@ -260,6 +297,9 @@ public:
 
 	/** Returns the total number of nodes. */
 	int32 GetNumNodes() const;
+
+	/** Returns the total number of nodes. */
+	FORCEINLINE int32 GetNumNodesInUse() const { return NodesInUse.Num(); }
 
 	/** Returns a pointer to the Point Cloud asset, which owns this Octree. */
 	ULidarPointCloud* GetOwner() const { return Owner; }
@@ -511,6 +551,9 @@ private:
 	void MarkTraversalOctreesForInvalidation();
 
 	void Serialize(FArchive& Ar);
+	void SerializeBulkData(FArchive& Ar);
+
+	void StreamNodeData(FLidarPointCloudOctreeNode* Node);
 
 	friend FArchive& operator<<(FArchive& Ar, FLidarPointCloudOctree& O)
 	{
@@ -537,9 +580,6 @@ struct FLidarPointCloudTraversalOctreeNode
 	/** Depth of this node */
 	uint8 Depth;
 
-	/** Calculated for use with adaptive sprite scaling */
-	uint8 VirtualDepth;
-
 	FLidarPointCloudTraversalOctreeNode* Parent;
 
 	/** Stores the children array */
@@ -555,9 +595,10 @@ struct FLidarPointCloudTraversalOctreeNode
 	/** Builds the traversal version of the given node. */
 	void Build(FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset);
 
-	// #refactor: This is ugly - refactor to avoid the const or call directly in the buffer update with no mutable
 	/** Calculates virtual depth of this node, to be used to estimate the best sprite size */
-	void CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& VDMultiplier, const float& PointSizeBias);
+	uint8 CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& VDMultiplier, const float& PointSizeBias) const;
+
+	FORCEINLINE bool IsAvailable() const { return bSelected && DataNode->HasData(); }
 };
 
 /**
