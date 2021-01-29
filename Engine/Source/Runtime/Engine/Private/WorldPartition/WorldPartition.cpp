@@ -470,6 +470,23 @@ void UWorldPartition::UnloadEditorCells(const FBox& Box)
 	UpdateEditorCells(GetCellsToUnload, /*bIsCellShouldBeLoaded*/false);
 }
 
+bool UWorldPartition::AreEditorCellsLoaded(const FBox& Box)
+{
+	TArray<UWorldPartitionEditorCell*> CellsToLoad;
+	if (EditorHash->GetIntersectingCells(Box, CellsToLoad))
+	{
+		for (UWorldPartitionEditorCell* Cell : CellsToLoad)
+		{
+			if (!Cell->bLoaded)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded)
 {
 	FWorldPartionCellUpdateContext CellUpdateContext(this);

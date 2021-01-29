@@ -22,8 +22,11 @@ public:
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder );
 private:
 	FReply OnResimulateClicked();
+	FReply OnLoadUnloadedAreas();
 	bool IsResimulateEnabled() const;
+	bool IsResimulateEnabledWithReason(FText& OutReason) const;
 	FText GetResimulateTooltipText() const;
+	bool HasUnloadedAreas() const;
 private:
 	TArray< TWeakObjectPtr<class UProceduralFoliageComponent> > SelectedComponents;
 
