@@ -476,7 +476,12 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 
-		OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FSMRTAdaptiveRayCountDim>())
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+		}
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
