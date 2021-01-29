@@ -26,20 +26,7 @@ public:
 #endif
 	}
 
-	void ResizeBuffers()
-	{
-		const int32 NumTotalCells = NumCells.X * NumCells.Y * NumCells.Z;
-		const int32 NumIntsInGridBuffer = NumTotalCells * MaxNeighborsPerCell;
-
-		NeighborhoodCountBuffer.Initialize(sizeof(int32), NumTotalCells, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborCount"));
-		NeighborhoodBuffer.Initialize(sizeof(int32), NumIntsInGridBuffer, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborsGrid"));
-
-#if STATS
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);
-		GPUMemory = NumTotalCells * sizeof(int32) + NumIntsInGridBuffer * sizeof(int32);
-		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);
-#endif
-	}
+	void ResizeBuffers();
 
 	FIntVector NumCells;
 	float CellSize;
