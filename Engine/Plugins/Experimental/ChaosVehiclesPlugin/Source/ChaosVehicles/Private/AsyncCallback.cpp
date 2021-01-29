@@ -60,7 +60,6 @@ void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 		auto Handle = VehicleInput.Actor.Proxy->GetHandle();
 		if (Handle->ObjectState() != Chaos::EObjectStateType::Dynamic)
 		{
-			UE_LOG(LogChaos, Warning, TEXT("Handle->ObjectState() %d"), Handle->ObjectState());
 			return;
 		}
 
