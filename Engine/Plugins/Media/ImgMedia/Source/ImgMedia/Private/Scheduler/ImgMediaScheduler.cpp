@@ -138,9 +138,13 @@ void FImgMediaScheduler::RemoveLoader(int32 LoaderIndex)
 
 
 /* IMediaClockSink interface
+* 
+* Note that this is ticked both from its own registration as clock sink with MFW,
+* but also explicitly at the end of any ImgMediaPlayer tick. The latter is done to
+* ensure we schedule jobs also when waiting for blocked playback to resolve.
  *****************************************************************************/
 
-void FImgMediaScheduler::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
+void FImgMediaScheduler::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 {
 	FScopeLock Lock(&CriticalSection);
 

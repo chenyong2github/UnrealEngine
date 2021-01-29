@@ -16,6 +16,7 @@
 #include "ImgMediaSettings.h"
 #include "ImgMediaTextureSample.h"
 
+#define IMG_MEDIA_PLAYER_VERSION 2
 #define LOCTEXT_NAMESPACE "FImgMediaPlayer"
 
 
@@ -47,6 +48,7 @@ FImgMediaPlayer::FImgMediaPlayer(IMediaEventSink& InEventSink, const TSharedRef<
 	, ShouldLoop(false)
 	, GlobalCache(InGlobalCache)
 	, RequestFrameHasRun(true)
+	, PlaybackIsBlocking(false)
 { }
 
 
@@ -80,6 +82,7 @@ void FImgMediaPlayer::Close()
 	LastFetchTime = FTimespan::MinValue();
 	PlaybackRestarted = false;
 	SelectedVideoTrack = INDEX_NONE;
+	PlaybackIsBlocking = false;
 
 	EventSink.ReceiveMediaEvent(EMediaEvent::TracksChanged);
 	EventSink.ReceiveMediaEvent(EMediaEvent::MediaClosed);
@@ -242,6 +245,8 @@ void FImgMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 		}
 	}
 
+#if IMG_MEDIA_PLAYER_VERSION == 1
+
 	if ((CurrentState != EMediaState::Playing) || (CurrentDuration == FTimespan::Zero()))
 	{
 		return; // nothing to play
@@ -308,10 +313,35 @@ void FImgMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 		Loader->RequestFrame(CurrentTime, CurrentRate, ShouldLoop);
 	}
 	RequestFrameHasRun = true;
+#else
+	// Tick the scheduler an extra time in addition to its hookup as media clock sink, so we also get it moving forward during blocked playback
+	Scheduler->TickInput(FTimespan::Zero(), FTimespan::MinValue());
+#endif // IMG_MEDIA_PLAYER_VERSION == 1
+}
+
+bool FImgMediaPlayer::FlushOnSeekStarted() const
+{
+#if IMG_MEDIA_PLAYER_VERSION == 1
+	return false;
+#else
+	// Flush on start, otherwise if we already have the frames ready during a seek,
+	// the frames we return will get flushed straight away.
+	return true;
+#endif
+}
+
+bool FImgMediaPlayer::FlushOnSeekCompleted() const
+{
+#if IMG_MEDIA_PLAYER_VERSION == 1
+	return true;
+#else
+	return false;
+#endif
 }
 
 void FImgMediaPlayer::ProcessVideoSamples()
 {
+#if IMG_MEDIA_PLAYER_VERSION == 1
 	// Did we already run this frame?
 	if (RequestFrameHasRun)
 	{
@@ -332,6 +362,25 @@ void FImgMediaPlayer::ProcessVideoSamples()
 			Scheduler->TickFetch(FTimespan::Zero(), FTimespan::Zero());
 		}
 	}
+#endif // IMG_MEDIA_PLAYER_VERSION == 1
+}
+
+//-----------------------------------------------------------------------------
+/**
+	Get special feature flags states
+*/
+bool FImgMediaPlayer::GetPlayerFeatureFlag(EFeatureFlag flag) const
+{
+#if IMG_MEDIA_PLAYER_VERSION >= 2
+	switch (flag)
+	{
+	case EFeatureFlag::UsePlaybackTimingV2:
+		return true;
+	default:
+		break;
+	}
+#endif  // IMG_MEDIA_PLAYER_VERSION >= 2
+	return IMediaPlayer::GetPlayerFeatureFlag(flag);
 }
 
 
@@ -383,14 +432,14 @@ bool FImgMediaPlayer::QueryCacheState(EMediaCacheState State, TRangeSet<FTimespa
 
 bool FImgMediaPlayer::CanControl(EMediaControl Control) const
 {
+	if (Control == EMediaControl::BlockOnFetch)
+	{
+		return true;
+	}
+
 	if (!IsInitialized())
 	{
 		return false;
-	}
-
-	if (Control == EMediaControl::BlockOnFetch)
-	{
-		return ((CurrentState == EMediaState::Paused) || (CurrentState == EMediaState::Playing));
 	}
 
 	if (Control == EMediaControl::Pause)
@@ -482,6 +531,7 @@ bool FImgMediaPlayer::Seek(const FTimespan& Time)
 		CurrentState = EMediaState::Paused;
 	}
 
+#if IMG_MEDIA_PLAYER_VERSION == 1
 	// more timing hacks for Sequencer
 	CurrentTime = Time + HackDeltaTimeOffset;
 	DeltaTimeHackApplied = true;
@@ -490,8 +540,10 @@ bool FImgMediaPlayer::Seek(const FTimespan& Time)
 	{
 		CurrentTime -= HackDeltaTimeOffset;
 	}
+#else
+	CurrentTime = Time;
+#endif // IMG_MEDIA_PLAYER_VERSION == 1
 
-	// update the loader
 	if (CurrentState == EMediaState::Paused)
 	{
 		Loader->RequestFrame(CurrentTime, CurrentRate, ShouldLoop);
@@ -536,10 +588,12 @@ bool FImgMediaPlayer::SetRate(float Rate)
 	{
 		if (CurrentState == EMediaState::Stopped)
 		{
+#if IMG_MEDIA_PLAYER_VERSION == 1
 			if (Rate < 0.0f)
 			{
 				CurrentTime = CurrentDuration - FTimespan(1);
 			}
+#endif // IMG_MEDIA_PLAYER_VERSION == 1
 
 			PlaybackRestarted = true;
 		}
@@ -559,7 +613,6 @@ bool FImgMediaPlayer::SetRate(float Rate)
 		CurrentState = EMediaState::Paused;
 
 		EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackSuspended);
-
 		return true;
 	}
 
@@ -568,12 +621,17 @@ bool FImgMediaPlayer::SetRate(float Rate)
 	return true;
 }
 
+void FImgMediaPlayer::SetBlockingPlaybackHint(bool FacadeWillUseBlockingPlayback)
+{
+	PlaybackIsBlocking = FacadeWillUseBlockingPlayback;
+}
 
 /* IMediaSamples interface
  *****************************************************************************/
 
 bool FImgMediaPlayer::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample)
 {
+#if IMG_MEDIA_PLAYER_VERSION == 1
 	if ((CurrentState != EMediaState::Paused) && (CurrentState != EMediaState::Playing))
 	{
 		return false; // nothing to play
@@ -602,18 +660,46 @@ bool FImgMediaPlayer::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaT
 	OutSample = Sample;
 
 	return true;
+#else // IMG_MEDIA_PLAYER_VERSION == 1
+	return false;
+#endif // IMG_MEDIA_PLAYER_VERSION == 1
 }
 
 
 void FImgMediaPlayer::FlushSamples()
 {
-	LastFetchTime = FTimespan::MinValue();
+	if (IsInitialized())
+	{
+		LastFetchTime = FTimespan::MinValue();
+		Loader->ResetFetchLogic();
+	}
 }
 
 
-bool FImgMediaPlayer::PeekVideoSampleTime(FMediaTimeStamp & TimeStamp)
+IMediaSamples::EFetchBestSampleResult FImgMediaPlayer::FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp>& TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse)
 {
-	// player does not support v2 timing control at this point -> no need for this method, yet
+	IMediaSamples::EFetchBestSampleResult SampleResult = EFetchBestSampleResult::NoSample;
+
+	if (Loader.IsValid())
+	{
+		// See if we have any samples in the specified time range.
+		SampleResult = Loader->FetchBestVideoSampleForTimeRange(TimeRange, OutSample, ShouldLoop, CurrentRate, PlaybackIsBlocking);
+		if (SampleResult == IMediaSamples::EFetchBestSampleResult::Ok)
+		{
+			CurrentTime = OutSample->GetTime().Time;
+		}
+	}
+	return SampleResult;
+}
+
+
+bool FImgMediaPlayer::PeekVideoSampleTime(FMediaTimeStamp& TimeStamp)
+{
+	if (Loader.IsValid())
+	{
+		// Do we have the current frame?
+		return Loader->PeekVideoSampleTime(TimeStamp, ShouldLoop, CurrentRate, GetTime());
+	}
 	return false;
 }
 
