@@ -77,6 +77,8 @@ void FDataprepEditorStyle::Initialize()
 		StyleSet->Set("DataprepAction.Steps.Padding", FMargin(11.f, 2.f, 6.f, 2.f));
 		StyleSet->Set("DataprepAction.DragAndDrop", FLinearColor(FColor(212, 212, 59)) );
 
+		StyleSet->Set("DataprepAction.Group.OutlineColor", FLinearColor(FColor(0, 102, 255)));
+
 		StyleSet->Set("DataprepAction.OutlineColor", FLinearColor(FColor(10, 177, 51)));
 		StyleSet->Set("DataprepAction.BackgroundColor", FLinearColor(FColor(61, 61, 61)));
 

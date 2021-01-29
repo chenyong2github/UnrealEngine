@@ -12,6 +12,7 @@
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 
 // Engine Includes
+#include "EditorFontGlyphs.h"
 #include "GraphEditorSettings.h"
 #include "NodeFactory.h"
 #include "SGraphPanel.h"
@@ -20,14 +21,15 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
 
-float SDataprepGraphActionNode::DefaultWidth = 350.f;
-float SDataprepGraphActionNode::DefaultHeight = 100.f;
+float SDataprepGraphBaseActionNode::DefaultWidth = 350.f;
+float SDataprepGraphBaseActionNode::DefaultHeight = 100.f;
 
 class SDataprepGraphActionProxyNode : public SGraphNode
 {
@@ -36,7 +38,7 @@ public:
 		SLATE_ARGUMENT( TSharedPtr<SInlineEditableTextBlock>, InlineEditableText )
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<SDataprepGraphActionNode>& InParentNode)
+	void Construct(const FArguments& InArgs, const TSharedRef<SDataprepGraphBaseActionNode>& InParentNode)
 	{
 		ParentNodePtr = InParentNode;
 		GraphNode = InParentNode->GetNodeObj();
@@ -94,11 +96,11 @@ public:
 
 	FVector2D GetSize()
 	{
-		static FVector2D DefaultSize(SDataprepGraphActionNode::DefaultWidth, SDataprepGraphActionNode::DefaultHeight);
+		static FVector2D DefaultSize(SDataprepGraphBaseActionNode::DefaultWidth, SDataprepGraphBaseActionNode::DefaultHeight);
 
 		FVector2D Size(DefaultSize);
 
-		if(SDataprepGraphActionNode* ParentNode = ParentNodePtr.Pin().Get())
+		if(SDataprepGraphBaseActionNode* ParentNode = ParentNodePtr.Pin().Get())
 		{
 			Size = ParentNode->GetCachedGeometry().GetLocalSize();
 
@@ -123,7 +125,7 @@ public:
 
 private:
 	/** Pointer to the SDataprepGraphTrackNode displayed in the graph editor  */
-	TWeakPtr<SDataprepGraphActionNode> ParentNodePtr;
+	TWeakPtr<SDataprepGraphBaseActionNode> ParentNodePtr;
 };
 
 /**
@@ -354,19 +356,11 @@ private:
 	int32 StepIndex;
 };
 
-void SDataprepGraphActionNode::Construct(const FArguments& InArgs, UDataprepGraphActionNode* InActionNode)
+void SDataprepGraphBaseActionNode::Initialize(TWeakPtr<FDataprepEditor> InDataprepEditor, int32 InExecutionOrder, UEdGraphNode* InNode)
 {
-	DataprepActionPtr = InActionNode->GetDataprepActionAsset();
-	check(DataprepActionPtr.IsValid());
-
-	ExecutionOrder = InActionNode->GetExecutionOrder();
-	DraggedIndex = INDEX_NONE;
-	InsertIndex = INDEX_NONE;
-
-	DataprepActionPtr->GetOnStepsOrderChanged().AddSP(this, &SDataprepGraphActionNode::OnStepsChanged);
-
-	GraphNode = InActionNode;
-	DataprepEditor = InArgs._DataprepEditor;
+	ExecutionOrder = InExecutionOrder;
+	GraphNode = InNode;
+	DataprepEditor = InDataprepEditor;
 
 	SetCursor(EMouseCursor::CardinalCross);
 	UpdateGraphNode();
@@ -375,9 +369,22 @@ void SDataprepGraphActionNode::Construct(const FArguments& InArgs, UDataprepGrap
 	.InlineEditableText(InlineEditableText);
 }
 
+void SDataprepGraphActionNode::Construct(const FArguments& InArgs, UDataprepGraphActionNode* InActionNode)
+{
+	DataprepActionPtr = InActionNode->GetDataprepActionAsset();
+	check(DataprepActionPtr.IsValid());
+
+	DraggedIndex = INDEX_NONE;
+	InsertIndex = INDEX_NONE;
+
+	SDataprepGraphBaseActionNode::Initialize(InArgs._DataprepEditor, InActionNode->GetExecutionOrder(), InActionNode);
+
+	DataprepActionPtr->GetOnStepsOrderChanged().AddSP(this, &SDataprepGraphActionNode::OnStepsChanged);
+}
+
 void SDataprepGraphActionNode::SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode)
 {
-	ParentTrackNodePtr = InParentTrackNode;
+	SDataprepGraphBaseActionNode::SetParentTrackNode(InParentTrackNode);
 
 	if(ActionStepListWidgetPtr.IsValid())
 	{
@@ -403,13 +410,7 @@ void SDataprepGraphActionNode::SetParentTrackNode(TSharedPtr<SDataprepGraphTrack
 	}
 }
 
-void SDataprepGraphActionNode::UpdateExecutionOrder()
-{
-	ensure(Cast<UDataprepGraphActionNode>(GraphNode));
-	ExecutionOrder = Cast<UDataprepGraphActionNode>(GraphNode)->GetExecutionOrder();
-}
-
-void SDataprepGraphActionNode::UpdateProxyNode(const FVector2D& Position)
+void SDataprepGraphBaseActionNode::UpdateProxyNode(const FVector2D& Position)
 {
 	if(ProxyNodePtr.IsValid())
 	{
@@ -459,7 +460,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 
 	PopulateActionStepListWidget();
 
-	TAttribute<FMargin> OuterPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphActionNode::GetOuterPadding));
+	TAttribute<FMargin> OuterPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphBaseActionNode::GetOuterPadding));
 
 	this->GetOrAddSlot( ENodeZone::Center )
 	.HAlign(HAlign_Fill)
@@ -494,21 +495,47 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 				+ SOverlay::Slot()
 				.Padding( FDataprepEditorStyle::GetMargin( "DataprepAction.Steps.Padding" ) )
 				.VAlign(VAlign_Top)
-				.HAlign(HAlign_Right)
+				.HAlign(HAlign_Fill)
 				[
 					SNew( SVerticalBox )
-
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
 						SNew( SHorizontalBox )
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(5.f, 5.f, 5.f, 2.f)
+						[
+							InlineEditableText.ToSharedRef()
+						]
+
+						+ SHorizontalBox::Slot()
+						[
+							SNew(SBox)
+						]
 
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
 						.Padding(5.f, 5.f, 5.f, 2.f)
-						.HAlign(EHorizontalAlignment::HAlign_Center)
 						[
-							InlineEditableText.ToSharedRef()
+							SNew(SButton)
+							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Primary")
+							.ButtonColorAndOpacity(FLinearColor::Transparent)
+							.ForegroundColor(FLinearColor::White)
+							.ContentPadding(FMargin(6, 2))
+							.Content()
+							[
+
+								SNew(STextBlock)
+								.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+								.Text_Lambda([this](){ return DataprepActionPtr->bIsExpanded ? FEditorFontGlyphs::Caret_Down : FEditorFontGlyphs::Caret_Up; })
+							]
+							.OnClicked_Lambda([this]()
+							{
+								DataprepActionPtr->bIsExpanded = !DataprepActionPtr->bIsExpanded;
+								return FReply::Handled();
+							})
 						]
 					]
 
@@ -521,6 +548,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						.Thickness(1.f)
 						.Orientation(EOrientation::Orient_Horizontal)
 						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
+						.Visibility_Lambda([this]() { return DataprepActionPtr->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
 					]
 
 					//The content of the action
@@ -528,7 +556,10 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 					.AutoHeight()
 					[
 						SNew( SHorizontalBox )
-
+						.Visibility_Lambda([this]()
+						{
+							return DataprepActionPtr->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
+						})
 						+ SHorizontalBox::Slot()
 						[
 							ActionStepListWidgetPtr.ToSharedRef()
@@ -564,7 +595,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 	];
 }
 
-TSharedRef<SWidget> SDataprepGraphActionNode::CreateBackground(const TAttribute<FSlateColor>& ColorAndOpacity)
+TSharedRef<SWidget> SDataprepGraphBaseActionNode::CreateBackground(const TAttribute<FSlateColor>& ColorAndOpacity)
 {
 	return SNew(SOverlay)
 
@@ -600,7 +631,7 @@ TSharedRef<SWidget> SDataprepGraphActionNode::CreateNodeContentArea()
 
 const FSlateBrush* SDataprepGraphActionNode::GetShadowBrush(bool bSelected) const
 {
-	return  FEditorStyle::GetNoBrush();
+	return FEditorStyle::GetNoBrush();
 }
 
 FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -648,6 +679,29 @@ FCursorReply SDataprepGraphActionNode::OnCursorQuery( const FGeometry& MyGeometr
 	return ( TheCursor.IsSet() )
 		? FCursorReply::Cursor( TheCursor.GetValue() )
 		: FCursorReply::Unhandled();
+}
+
+void SDataprepGraphActionGroupNode::SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel)
+{
+	if(!OwnerGraphPanelPtr.IsValid())
+	{
+		SGraphNode::SetOwner(OwnerPanel);
+		OwnerPanel->AttachGraphEvents(SharedThis(this));
+		OwnerPanel->AddGraphNode(SharedThis(ProxyNodePtr.Get()));
+
+		for(TSharedPtr<SDataprepGraphActionNode>& ActionGraphNode : ActionGraphNodes)
+		{
+			if (ActionGraphNode.IsValid())
+			{
+				ActionGraphNode->SetOwner(OwnerPanel);
+				OwnerPanel->AttachGraphEvents(ActionGraphNode);
+			}
+		}
+	}
+	else
+	{
+		ensure(OwnerPanel == OwnerGraphPanelPtr);
+	}
 }
 
 void SDataprepGraphActionNode::SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel)
@@ -743,12 +797,13 @@ void SDataprepGraphActionNode::SetHoveredIndex(int32 Index)
 	}
 }
 
-FMargin SDataprepGraphActionNode::GetOuterPadding() const
+FMargin SDataprepGraphBaseActionNode::GetOuterPadding() const
 {
 	static const FMargin Selected = FDataprepEditorStyle::GetMargin( "DataprepAction.Outter.Selected.Padding" );
 	static const FMargin Regular = FDataprepEditorStyle::GetMargin( "DataprepAction.Outter.Regular.Padding" );
 
-	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
+	TSharedPtr<SGraphPanel> OwnerPanel = GetOwnerPanel();
+	const bool bIsSelected = OwnerPanel.IsValid() ? GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode) : false;
 
 	return bIsSelected ? Selected : Regular;
 }
@@ -878,6 +933,327 @@ FText SDataprepGraphActionNode::GetBottomWidgetText() const
 	}
 
 	return LOCTEXT("DataprepEmptyActionStepNoLabel", "-----");
+}
+
+void SDataprepGraphActionNode::UpdateExecutionOrder()
+{
+	ensure(Cast<UDataprepGraphActionNode>(GraphNode));
+	ExecutionOrder = Cast<UDataprepGraphActionNode>(GraphNode)->GetExecutionOrder();
+}
+
+// SDataprepGraphActionGroupNode implementation
+
+void SDataprepGraphActionGroupNode::Construct(const FArguments& InArgs, UDataprepGraphActionGroupNode* InActionNode)
+{
+	SDataprepGraphBaseActionNode::Initialize(InArgs._DataprepEditor, InActionNode->GetExecutionOrder(), InActionNode);
+}
+
+void SDataprepGraphActionGroupNode::UpdateGraphNode()
+{
+	static bool bUseNew = true;
+	if(!bUseNew)
+	{
+		SGraphNode::UpdateGraphNode();
+		return;
+	}
+
+	// Reset SGraphNode members.
+	InputPins.Empty();
+	OutputPins.Empty();
+	RightNodeBox.Reset();
+	LeftNodeBox.Reset();
+
+	TAttribute<FText> NodeTitle = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateUObject(GraphNode, &UEdGraphNode::GetNodeTitle, ENodeTitleType::EditableTitle));
+	SAssignNew(InlineEditableText, SInlineEditableTextBlock)
+		.Style(FDataprepEditorStyle::Get(), "DataprepAction.TitleInlineEditableText")
+		.Text(NodeTitle)
+		.OnVerifyTextChanged(this, &SDataprepGraphActionGroupNode::OnVerifyNameTextChanged)
+		.OnTextCommitted(this, &SDataprepGraphActionGroupNode::OnNameTextCommited)
+		.IsReadOnly(this, &SDataprepGraphActionGroupNode::IsNameReadOnly)
+		.IsSelected(this, &SDataprepGraphActionGroupNode::IsSelectedExclusively);
+
+	PopulateActionsListWidget();
+
+	TAttribute<FMargin> OuterPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphBaseActionNode::GetOuterPadding));
+
+	this->GetOrAddSlot( ENodeZone::Center )
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Center)
+	[
+		SNew(SBox)
+		.WidthOverride(SDataprepGraphBaseActionNode::DefaultWidth)
+		[
+			SNew(SVerticalBox)
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SOverlay)
+
+				+ SOverlay::Slot()
+				.Padding(OuterPadding)
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				[
+					CreateBackground( FDataprepEditorStyle::GetColor( "DataprepAction.Group.OutlineColor" ) )
+				]
+
+				+ SOverlay::Slot()
+				.Padding(FDataprepEditorStyle::GetMargin( "DataprepAction.Body.Padding" ))
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				[
+					CreateBackground(FDataprepEditorStyle::GetColor( "DataprepAction.BackgroundColor" ))
+				]
+
+				+ SOverlay::Slot()
+				.Padding( FDataprepEditorStyle::GetMargin( "DataprepAction.Steps.Padding" ) )
+				.VAlign(VAlign_Top)
+				.HAlign(HAlign_Fill)
+				[
+					SNew( SVerticalBox )
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew( SHorizontalBox )
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(5.f, 5.f, 5.f, 2.f)
+						[
+							InlineEditableText.ToSharedRef()
+						]
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(5.f, 2.f)
+					[
+						SNew( SSeparator )
+						.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
+						.Thickness(1.f)
+						.Orientation(EOrientation::Orient_Horizontal)
+						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew( SHorizontalBox )
+						+ SHorizontalBox::Slot()
+						[
+							ActionsListWidgetPtr.ToSharedRef()
+						]
+					]
+				]
+			]
+		]
+	];
+}
+
+void SDataprepGraphActionGroupNode::PopulateActionsListWidget()
+{
+	if(!ActionsListWidgetPtr.IsValid())
+	{
+		ActionsListWidgetPtr = SNew(SVerticalBox);
+	}
+	else
+	{
+		ActionsListWidgetPtr->ClearChildren();
+	}
+
+	const float InterActionSpacing = 2.f;
+
+	UDataprepGraphActionGroupNode* GroupNode = Cast<UDataprepGraphActionGroupNode>(GraphNode);
+
+	const int32 ActionsCount = GroupNode->GetActionsCount();
+	const UClass* GraphActionNodeClass = UDataprepGraphActionNode::StaticClass();
+	
+	EdGraphActionNodes.Reset(ActionsCount);
+
+	TSharedPtr<SDataprepGraphTrackNode> TrackNodePtr = ParentTrackNodePtr.Pin();
+
+	ActionGraphNodes.SetNum(ActionsCount);
+
+	TSharedPtr<SGraphPanel> GraphPanelPtr = GetOwnerPanel();
+
+	for ( int32 Index = 0; Index < ActionsCount; ++Index )
+	{
+		EdGraphActionNodes.Emplace(NewObject<UDataprepGraphActionNode>( GraphNode->GetGraph(), GraphActionNodeClass, NAME_None, RF_Transactional ));
+		UDataprepGraphActionNode* ActionNode = EdGraphActionNodes.Last().Get();
+
+		ActionNode->CreateNewGuid();
+		ActionNode->PostPlacedNewNode();
+
+		ActionNode->NodePosX = GraphNode->NodePosX;
+		ActionNode->NodePosY = GraphNode->NodePosY;
+
+		UDataprepActionAsset* ActionAsset = GroupNode->GetAction(Index);
+		const UDataprepAsset* DataprepAsset = GroupNode->GetDataprepAsset();
+
+		ActionNode->Initialize(ActionAsset, DataprepAsset->GetActionIndex(ActionAsset));
+
+		TSharedPtr<SDataprepGraphActionNode> ActionGraphNode = SNew(SDataprepGraphActionNode, ActionNode/*, SharedThis(this)*/)
+			.DataprepEditor(DataprepEditor);
+
+		if(TrackNodePtr.IsValid())
+		{
+			ActionGraphNode->SetParentTrackNode(TrackNodePtr);
+		}
+
+		ActionsListWidgetPtr->AddSlot()
+		.AutoHeight()
+		[
+			ActionGraphNode.ToSharedRef()
+		];
+
+		ActionGraphNodes[Index] = ActionGraphNode;
+	}
+
+	if(GraphPanelPtr.IsValid())
+	{
+		for ( TSharedPtr<SDataprepGraphActionNode>& ActionGraphNode : ActionGraphNodes )
+		{
+			ActionGraphNode->SetOwner(GraphPanelPtr.ToSharedRef());
+		}
+	}
+}
+
+void SDataprepGraphActionGroupNode::SetParentTrackNode(TSharedPtr<SDataprepGraphTrackNode> InParentTrackNode)
+{
+	SDataprepGraphBaseActionNode::SetParentTrackNode(InParentTrackNode);
+
+	if(ActionsListWidgetPtr.IsValid())
+	{
+		FChildren* ListChildren = ActionsListWidgetPtr->GetChildren();
+
+		// Update parent track on step widgets
+		for(TSharedPtr<SDataprepGraphActionNode>& ActionGraphNode : ActionGraphNodes)
+		{
+			ActionGraphNode->SetParentTrackNode(InParentTrackNode);
+		}
+	}
+}
+
+FReply SDataprepGraphActionGroupNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	BorderBackgroundColor.Set(FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop"));
+
+	if( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
+	{
+		GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
+	}
+
+	// Take ownership of the mouse if right mouse button clicked to display contextual menu
+	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	{
+		if ( !GetOwnerPanel()->SelectionManager.SelectedNodes.Contains( GraphNode ) )
+		{
+			GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+		}
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SDataprepGraphActionGroupNode::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	{
+		ensure(OwnerGraphPanelPtr.IsValid());
+
+		const FVector2D Position = MouseEvent.GetScreenSpacePosition();
+		OwnerGraphPanelPtr.Pin()->SummonContextMenu(Position, Position, GraphNode, nullptr, TArray<UEdGraphPin*>());
+
+		// Release mouse capture
+		return FReply::Handled().ReleaseMouseCapture();
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SDataprepGraphActionGroupNode::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (UDataprepGraphActionGroupNode* Node = Cast<UDataprepGraphActionGroupNode>(GraphNode))
+	{
+		return FReply::Handled().BeginDragDrop(FDragDropActionNode::New(SharedThis(ParentTrackNodePtr.Pin().Get()), SharedThis(this)));
+	}
+
+	return FReply::Unhandled();
+}
+
+FCursorReply SDataprepGraphActionGroupNode::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
+{
+	TOptional<EMouseCursor::Type> TheCursor = GetCursor();
+	return ( TheCursor.IsSet() )
+		? FCursorReply::Cursor( TheCursor.GetValue() )
+		: FCursorReply::Unhandled();
+}
+
+void SDataprepGraphActionGroupNode::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	// Track node is not notified of drag left, do it
+	TSharedPtr<FDragDropActionNode> DragOperation = DragDropEvent.GetOperationAs<FDragDropActionNode>();
+	if (ParentTrackNodePtr.IsValid() && DragOperation.IsValid())
+	{
+		ParentTrackNodePtr.Pin()->OnDragLeave(DragDropEvent);
+	}
+
+	DraggedIndex = INDEX_NONE;
+
+	SGraphNode::OnDragEnter(MyGeometry, DragDropEvent);
+}
+
+TSharedRef<SWidget> SDataprepGraphActionGroupNode::CreateNodeContentArea()
+{
+	PopulateActionsListWidget();
+
+	return SNew(SVerticalBox)
+	+SVerticalBox::Slot()
+	.AutoHeight()
+	[
+		ActionsListWidgetPtr.ToSharedRef()
+	];
+}
+
+FReply SDataprepGraphActionGroupNode::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
+{
+	SetCursor(EMouseCursor::Default);
+
+	DraggedIndex = INDEX_NONE;
+
+	TSharedPtr<FDragDropActionNode> DragOperation = DragDropEvent.GetOperationAs<FDragDropActionNode>();
+	if (DragOperation.IsValid())
+	{
+		return FReply::Handled().EndDragDrop();
+	}
+
+	return SGraphNode::OnDrop(MyGeometry, DragDropEvent);
+}
+
+const FSlateBrush* SDataprepGraphActionGroupNode::GetShadowBrush(bool bSelected) const
+{
+	return FEditorStyle::GetNoBrush();
+}
+
+void SDataprepGraphActionGroupNode::UpdateExecutionOrder()
+{
+	ensure(Cast<UDataprepGraphActionGroupNode>(GraphNode));
+	ExecutionOrder = Cast<UDataprepGraphActionGroupNode>(GraphNode)->GetExecutionOrder();
+}
+
+int32 SDataprepGraphActionGroupNode::GetNumActions() const
+{
+	int32 NumActions = 0;
+	for (int32 Index = 0; Index < ActionGraphNodes.Num(); ++Index)
+	{
+		if (SDataprepGraphActionNode* Node = ActionGraphNodes[Index].Get())
+		{
+			NumActions += Node->GetDataprepAction() ? 1 : 0;
+		}
+	}
+	return NumActions;
 }
 
 #undef LOCTEXT_NAMESPACE

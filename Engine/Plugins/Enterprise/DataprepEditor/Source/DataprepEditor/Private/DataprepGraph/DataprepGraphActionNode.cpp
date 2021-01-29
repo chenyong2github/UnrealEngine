@@ -129,4 +129,48 @@ void UDataprepGraphActionStepNode::DestroyNode()
 	Super::DestroyNode();
 }
 
+UDataprepGraphActionGroupNode::UDataprepGraphActionGroupNode()
+	: ExecutionOrder(INDEX_NONE)
+{
+	bCanRenameNode = false;
+	NodeTitle = LOCTEXT("DefaultNodeTitle", "Action Group").ToString();
+}
+
+FText UDataprepGraphActionGroupNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
+{
+	return FText::FromString( NodeTitle );
+}
+
+void UDataprepGraphActionGroupNode::DestroyNode()
+{
+/*
+TODO
+	if ( DataprepActionAsset )
+	{
+		Modify();
+
+		DataprepActionAsset->NotifyDataprepSystemsOfRemoval();
+
+		// Force the transaction system to restore the action
+		DataprepActionAsset = nullptr;
+	}
+ */
+	Super::DestroyNode();
+}
+
+TSharedPtr<class INameValidatorInterface> UDataprepGraphActionGroupNode::MakeNameValidator() const
+{
+	// The name doesn't matter
+	return MakeShareable(new FDummyNameValidator(EValidatorResult::Ok));
+}
+
+int32 UDataprepGraphActionGroupNode::GetGroupId() const 
+{
+	if (Actions.Num() == 0)
+	{
+		return INDEX_NONE;
+	}
+	return Actions[0]->GroupId;
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -336,6 +336,11 @@ public:
 	UPROPERTY()
 	bool bIsEnabled;
 
+	UPROPERTY()
+	bool bIsExpanded;
+
+	UPROPERTY()
+	int32 GroupId;
 
 	/** Getter and Setter on the UI text of the action */
 	const TCHAR* GetLabel() const { return *Label; }

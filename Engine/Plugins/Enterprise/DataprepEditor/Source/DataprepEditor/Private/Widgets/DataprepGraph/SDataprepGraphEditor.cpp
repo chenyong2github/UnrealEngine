@@ -50,7 +50,7 @@ TSharedPtr<FDataprepGraphEditorNodeFactory> SDataprepGraphEditor::NodeFactory;
 
 namespace DataprepGraphEditorUtils
 {
-	void ForEachActionAndStep(const TSet<UObject*>& Nodes,  TFunctionRef<bool (UDataprepActionAsset*, bool /* bIsFromActionNode */)> OnEachAction, TFunctionRef<bool (UDataprepParameterizableObject*, UDataprepActionStep*)> OnEachStep)
+	void ForEachActionAndStep(const TSet<UObject*>& Nodes,  TFunctionRef<bool (UDataprepActionAsset*, UDataprepGraphActionNode*)> OnEachAction, TFunctionRef<bool (UDataprepParameterizableObject*, UDataprepActionStep*)> OnEachStep)
 	{
 		for (UObject* Node : Nodes)
 		{
@@ -58,7 +58,7 @@ namespace DataprepGraphEditorUtils
 			{
 				if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(Node))
 				{
-					if ( OnEachAction( ActionNode->GetDataprepActionAsset(), true ) )
+					if ( OnEachAction( ActionNode->GetDataprepActionAsset(), ActionNode ) )
 					{
 						break;
 					}
@@ -67,7 +67,7 @@ namespace DataprepGraphEditorUtils
 				{
 					if (UDataprepActionAsset* Action = StepNode->GetDataprepActionAsset())
 					{
-						if ( OnEachAction( Action, false ) )
+						if ( OnEachAction( Action, nullptr ) )
 						{
 							break;
 						}
@@ -90,7 +90,6 @@ namespace DataprepGraphEditorUtils
 	}
 }
 
-
 TSharedPtr<SGraphNode> FDataprepGraphNodeFactory::CreateNodeWidget(UEdGraphNode* InNode)
 {
 	if (UDataprepGraphRecipeNode* RecipeNode = Cast<UDataprepGraphRecipeNode>(InNode))
@@ -101,6 +100,11 @@ TSharedPtr<SGraphNode> FDataprepGraphNodeFactory::CreateNodeWidget(UEdGraphNode*
 	else if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(InNode))
 	{
 		return SNew(SDataprepGraphActionNode, ActionNode)
+			.DataprepEditor( DataprepEditor );
+	}
+	else if (UDataprepGraphActionGroupNode* GroupNode = Cast<UDataprepGraphActionGroupNode>(InNode))
+	{
+		return SNew(SDataprepGraphActionGroupNode, GroupNode)
 			.DataprepEditor( DataprepEditor );
 	}
 
@@ -116,6 +120,10 @@ TSharedPtr<SGraphNode> FDataprepGraphEditorNodeFactory::CreateNode(UEdGraphNode*
 	else if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(Node))
 	{
 		return SNew(SDataprepGraphActionNode, ActionNode);
+	}
+	else if (UDataprepGraphActionGroupNode* GroupNode = Cast<UDataprepGraphActionGroupNode>(Node))
+	{
+		return SNew(SDataprepGraphActionGroupNode, GroupNode);
 	}
 
 	return nullptr;
@@ -221,6 +229,15 @@ void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FData
 			if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
 			{
 				TrackGraphNode->OnActionsOrderChanged();
+			}
+			break;
+		}
+
+		case FDataprepAssetChangeType::ActionGrouped:
+		{
+			if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
+			{
+				NotifyGraphChanged();
 			}
 			break;
 		}
@@ -779,18 +796,52 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 	// Open contextual menu for action node
 	UClass* GraphNodeClass = InGraphNode->GetClass();
 	const bool bIsActionNode = GraphNodeClass == UDataprepGraphActionNode::StaticClass();
+	const bool bIsActionGroupNode = GraphNodeClass == UDataprepGraphActionGroupNode::StaticClass();
 	const UDataprepGraphActionStepNode* FirstStepNode = Cast<UDataprepGraphActionStepNode>( InGraphNode );
-	if( bIsActionNode || FirstStepNode )
+	
+	if (bIsActionGroupNode)
+	{
+		FUIAction BreakGroupAction;
+		BreakGroupAction.ExecuteAction.BindLambda([this, InGraphNode]() 
+		{
+			const UDataprepGraphActionGroupNode* ActionGroupNode = Cast<UDataprepGraphActionGroupNode>(InGraphNode);
+
+			for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
+			{
+				UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
+				Action->GroupId = INDEX_NONE;
+			}
+			NotifyGraphChanged();
+		});
+
+		MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
+		{
+			MenuBuilder->AddMenuEntry(LOCTEXT( "BreakGroup", "Break" ),
+									  LOCTEXT( "BreakGroupTooltip", "Break group to single actions" ),
+									  FSlateIcon(),
+									  BreakGroupAction);
+		}
+		MenuBuilder->EndSection();
+
+		return FActionMenuContent(MenuBuilder->MakeWidget());
+	}
+	else if( bIsActionNode || FirstStepNode )
 	{
 		FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+		// Actions and ActionNodes are in sync (thus same size) - Actions[N] comes from ActionNodes[N]
 		TArray<UDataprepActionAsset*> Actions;
+		TArray<UDataprepGraphActionNode*> ActionNodes;
+
 		TArray<UDataprepActionStep*> ActionSteps;
 
-		auto OnSaveActions = [&Actions](UDataprepActionAsset* Action, bool bIsFromActionNode) -> bool
+		auto OnSaveActions = [&Actions, &ActionNodes](UDataprepActionAsset* Action, UDataprepGraphActionNode* ActionNode) -> bool
 		{
+			const bool bIsFromActionNode = ActionNode != nullptr;
+
 			if (bIsFromActionNode)
 			{
 				Actions.Add(Action);
+				ActionNodes.Add(ActionNode);
 			}
 			return false;
 		};
@@ -858,6 +909,80 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 										  FSlateIcon(),
 										  EnableOrDisableItemsAction);
 			}
+
+			// Add collapse actions menu item
+			if (bIsActionNode && Actions.Num() > 1)
+			{
+				ActionNodes.Sort([](const UDataprepGraphActionNode& L, const UDataprepGraphActionNode& R) { return L.GetExecutionOrder() < R.GetExecutionOrder(); });
+
+				int32 PrevExecutionOrder = 0;
+				bool bActionsAreAdjacent = true;
+				for (int32 ActionIndex = 0; ActionIndex < ActionNodes.Num(); ++ActionIndex)
+				{
+					const int32 CurrExecutionOrder = ActionNodes[ActionIndex]->GetExecutionOrder();
+					if (ActionIndex > 0 && (CurrExecutionOrder - PrevExecutionOrder) != 1)
+					{
+						bActionsAreAdjacent = false;
+						break;
+					}
+
+					PrevExecutionOrder = CurrExecutionOrder;
+				}
+
+				if (bActionsAreAdjacent)
+				{
+					TArray<UDataprepActionAsset*> ActionsToCollapse;
+
+					for (int32 ActionIndex = 0; ActionIndex < ActionNodes.Num(); ++ActionIndex)
+					{
+						ActionsToCollapse.Add(ActionNodes[ActionIndex]->GetDataprepActionAsset());
+					}
+
+					FUIAction CollapseActions;
+					CollapseActions.ExecuteAction.BindLambda([this, ActionsToCollapse]() 
+					{
+						// Generate id for the new group: first get the ids of all current groups
+
+						TArray<int32> GroupIds;
+
+						int32 NewGroupId = 0;
+
+						for(int32 ActionIndex = 0; ActionIndex < DataprepAssetPtr->GetActionCount(); ++ActionIndex)
+						{
+							if(UDataprepActionAsset* ActionAsset = DataprepAssetPtr->GetAction(ActionIndex))
+							{
+								if (ActionAsset->GroupId != INDEX_NONE)
+								{
+									NewGroupId = FMath::Max(NewGroupId, ActionAsset->GroupId);
+								}
+							}
+						}
+
+						NewGroupId++;
+
+						// Apply groups to action assets
+						{
+							const FScopedTransaction Transaction(NSLOCTEXT("CollapseActions", "CollapseActions", "Collapse Actions"));
+
+							DataprepAssetPtr->Modify();
+
+							for (UDataprepActionAsset* Action : ActionsToCollapse)
+							{
+								Action->Modify();
+								Action->GroupId = NewGroupId;
+							}
+						}
+
+						NotifyGraphChanged();
+					});
+
+					FText Label = FText::FromString("Collapse");
+					MenuBuilder->AddMenuEntry(FText::Format( LOCTEXT( "CollapsActionsAction", "{0}" ), Label ),
+											  FText::Format( LOCTEXT( "CollapsActionsActionTooltip", "{0} steps/actions" ), Label ),
+											  FSlateIcon(),
+											  CollapseActions);
+				}
+			}
 		}
 		MenuBuilder->EndSection();
 
@@ -874,8 +999,10 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			const UDataprepActionAsset* ClickedAction = FirstStepNode->GetDataprepActionAsset();
 
 			// Check the if the selection is all from the same action and only from step node
-			auto OnEachAction = [&bAreFilterFromSameAction, &bIsSelectionOnlyFilters, ClickedAction] (UDataprepActionAsset* Action, bool bIsFromActionNode) -> bool
+			auto OnEachAction = [&bAreFilterFromSameAction, &bIsSelectionOnlyFilters, ClickedAction] (UDataprepActionAsset* Action, UDataprepGraphActionNode* ActionNode) -> bool
 				{
+					const bool bIsFromActionNode = ActionNode != nullptr;
+
 					if ( bIsFromActionNode )
 					{
 						bIsSelectionOnlyFilters = false;

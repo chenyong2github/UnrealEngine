@@ -117,7 +117,14 @@ void UDataprepAsset::PreEditUndo()
 	TArray<UDataprepActionAsset*> TempArray(ActionAssets);
 	Algo::Sort(TempArray);
 
+	TArray<int32> TempArrayGroups;
+	for (UDataprepActionAsset* Action : TempArray)
+	{
+		TempArrayGroups.Add(Action->GroupId);
+	}
+
 	SignatureBeforeUndoRedo = FMD5::HashBytes((uint8*)TempArray.GetData(), TempArray.Num() * sizeof(UDataprepActionAsset*));
+	GroupingSignatureBeforeUndoRedo = FMD5::HashBytes((uint8*)TempArrayGroups.GetData(), TempArrayGroups.Num() * sizeof(int32));
 }
 
 void UDataprepAsset::PostEditUndo()
@@ -128,11 +135,26 @@ void UDataprepAsset::PostEditUndo()
 	TArray<UDataprepActionAsset*> TempArray(ActionAssets);
 	Algo::Sort(TempArray);
 
-	FString SignatureAfterUndoRedo = FMD5::HashBytes((uint8*)TempArray.GetData(), TempArray.Num() * sizeof(UDataprepActionAsset*));
+	TArray<int32> TempArrayGroups;
+	for (UDataprepActionAsset* Action : TempArray)
+	{
+		TempArrayGroups.Add(Action->GroupId);
+	}
+
+	const FString SignatureAfterUndoRedo = FMD5::HashBytes((uint8*)TempArray.GetData(), TempArray.Num() * sizeof(UDataprepActionAsset*));
+	const FString GroupingSignatureAfterUndoRedo = FMD5::HashBytes((uint8*)TempArrayGroups.GetData(), TempArrayGroups.Num() * sizeof(int32));
 
 	if(!SignatureBeforeUndoRedo.IsEmpty())
 	{
-		OnActionChanged.Broadcast(nullptr, (SignatureAfterUndoRedo == SignatureBeforeUndoRedo) ? FDataprepAssetChangeType::ActionMoved : FDataprepAssetChangeType::ActionRemoved);
+		if (SignatureAfterUndoRedo != SignatureBeforeUndoRedo)
+		{
+			OnActionChanged.Broadcast(nullptr, FDataprepAssetChangeType::ActionRemoved);
+		}
+		else
+		{
+			// Grouped or moved
+			OnActionChanged.Broadcast(nullptr, (GroupingSignatureAfterUndoRedo == GroupingSignatureBeforeUndoRedo) ? FDataprepAssetChangeType::ActionMoved : FDataprepAssetChangeType::ActionGrouped);
+		}
 	}
 	else
 	{
@@ -140,6 +162,7 @@ void UDataprepAsset::PostEditUndo()
 	}
 
 	SignatureBeforeUndoRedo.Reset(0);
+	GroupingSignatureBeforeUndoRedo.Reset(0);
 }
 
 void UDataprepAsset::PostDuplicate(EDuplicateMode::Type DuplicateMode)
@@ -506,6 +529,47 @@ bool UDataprepAsset::MoveAction(int32 SourceIndex, int32 DestinationIndex)
 
 	ensure( false );
 	return false;
+}
+
+bool UDataprepAsset::MoveActions(int32 FirstIndex, int32 Count, int32 MovePositions)
+{
+	if ( MovePositions == 0 )
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::MoveAction: Nothing done. Moving to current location") );
+		return true;
+	}
+
+	if ( !ActionAssets.IsValidIndex( FirstIndex ) || !ActionAssets.IsValidIndex( FirstIndex + Count - 1 ) )
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::MoveAction: The source index is out of range") );
+		return false;
+	}
+	else if ( ( MovePositions > 0 && !ActionAssets.IsValidIndex( FirstIndex + Count - 1 + MovePositions ) ) || !ActionAssets.IsValidIndex( FirstIndex + MovePositions ) )
+	{
+		UE_LOG( LogDataprepCore, Error, TEXT("UDataprepAsset::MoveAction: The destination index is out of range") );
+		return false;
+	}
+
+	Modify();
+
+	if (MovePositions > 0)
+	{
+		for (int SourceIndex = FirstIndex + Count - 1; SourceIndex >= FirstIndex; --SourceIndex)
+		{
+			DataprepCorePrivateUtils::MoveArrayElement( ActionAssets, SourceIndex, SourceIndex + MovePositions );
+		}
+	}
+	else
+	{
+		for (int SourceIndex = FirstIndex; SourceIndex < FirstIndex + Count; ++SourceIndex)
+		{
+			DataprepCorePrivateUtils::MoveArrayElement( ActionAssets, SourceIndex, SourceIndex + MovePositions );
+		}
+	}
+	
+	OnActionChanged.Broadcast(ActionAssets[FirstIndex + MovePositions], FDataprepAssetChangeType::ActionMoved);
+
+	return true;
 }
 
 bool UDataprepAsset::SwapActions(int32 FirstActionIndex, int32 SecondActionIndex)

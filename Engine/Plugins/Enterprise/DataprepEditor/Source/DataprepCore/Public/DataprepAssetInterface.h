@@ -26,6 +26,7 @@ enum class FDataprepAssetChangeType : uint8
 	ActionModified,
 	ActionMoved,
 	ActionRemoved,
+	ActionGrouped,
 };
 
 /**

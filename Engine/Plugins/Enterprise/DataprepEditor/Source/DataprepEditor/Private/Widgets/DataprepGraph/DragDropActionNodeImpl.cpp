@@ -51,10 +51,10 @@ public:
 	// End of FDragDropOperation interface
 
 	TSharedPtr<SDataprepGraphTrackNode> TrackNodePtr;
-	TSharedPtr<SDataprepGraphActionNode> ActionNodePtr;
+	TSharedPtr<SDataprepGraphBaseActionNode> ActionNodePtr;
 };
 
-TSharedRef<FDragDropActionNode> FDragDropActionNode::New(const TSharedRef<SDataprepGraphTrackNode>& InTrackNodePtr, const TSharedRef<SDataprepGraphActionNode>& InDraggedNode)
+TSharedRef<FDragDropActionNode> FDragDropActionNode::New(const TSharedRef<SDataprepGraphTrackNode>& InTrackNodePtr, const TSharedRef<SDataprepGraphBaseActionNode>& InDraggedNode)
 {
 	TSharedPtr<FDragDropActionNodeImpl> OperationImpl = MakeShared<FDragDropActionNodeImpl>();
 
