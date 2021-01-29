@@ -20,8 +20,6 @@ float4 StrataEnvironmentLighting(
 	uint PixelStrataDataByteOffset,
 	inout float SSRReductionFactor)
 {
-	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
-
 	FLightAccumulator Out = (FLightAccumulator)0;
 
 	SSRReductionFactor = 1.0f;
@@ -31,21 +29,18 @@ float4 StrataEnvironmentLighting(
 	CommonFactor *= View.PreExposure;
 #endif
 
+
 #if STRATA_FASTPATH
 	uint BSDFIndex = 0;
-	if (StrataPixelHeader.BSDFCount == 1)
+	FStrataPixelHeader StrataPixelHeader = UnpackFastPathStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
 #else
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 #endif
 	{
 		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, PixelStrataDataByteOffset);
 #if STRATA_FASTPATH
-		BSDF_SETTYPE(BSDF, STRATA_BSDF_TYPE_SLAB);
-		BSDF_SETANISOTROPY(BSDF, 0);
-		BSDF_SETISTOPLAYER(BSDF, 0);
-		BSDF_SETHASSCATTERING(BSDF, 0);
-		BSDF_SETHASSSSPROFILE(BSDF, 0);
-		BSDF_SETHASHAZINESS(BSDF, 0);
+		SetStrataFastPathState(BSDF);
 #endif
 		const float3 BSDFThroughput = BSDF.Weight;
 

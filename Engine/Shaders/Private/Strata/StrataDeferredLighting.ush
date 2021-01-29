@@ -156,9 +156,7 @@ float4 StrataDeferredLighting(
 	FRectTexture RectTexture,
 	ByteAddressBuffer StrataDataBuffer,
 	uint PixelStrataDataByteOffset)
-{
-	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
-	
+{	
 	float3 PreintegratedIndicentIrradiance = 0;
 	if (LightData.bRectLight)
 	{
@@ -175,8 +173,9 @@ float4 StrataDeferredLighting(
 
 #if STRATA_FASTPATH
 	uint BSDFIndex = 0;
-	if (StrataPixelHeader.BSDFCount == 1)
+	FStrataPixelHeader StrataPixelHeader = UnpackFastPathStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
 #else
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, PixelStrataDataByteOffset);
 	LOOP
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 #endif
@@ -184,12 +183,7 @@ float4 StrataDeferredLighting(
 		// Unpack BSDF data
 		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, PixelStrataDataByteOffset);
 #if STRATA_FASTPATH
-		BSDF_SETTYPE(BSDF, STRATA_BSDF_TYPE_SLAB);
-		BSDF_SETANISOTROPY(BSDF, 0);
-		BSDF_SETISTOPLAYER(BSDF, 0);
-		BSDF_SETHASSCATTERING(BSDF, 0);
-		BSDF_SETHASSSSPROFILE(BSDF, 0);
-		BSDF_SETHASHAZINESS(BSDF, 0);
+		SetStrataFastPathState(BSDF);
 #endif
 		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, V, L);
 

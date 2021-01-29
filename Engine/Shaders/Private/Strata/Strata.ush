@@ -1354,6 +1354,39 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout ui
 	return Out;
 }
 
+// Unpack only strata header 
+// This version assume only a single slab (isotropic BSDF, with no subsurface scattering, and no haziness)
+FStrataPixelHeader UnpackFastPathStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout uint ByteOffset)
+{
+	FStrataPixelHeader Out = InitialiseStrataPixelHeader();
+	
+	// Skip over the header packed data
+	ByteOffset += 4; ;
+
+	Out.BSDFCount = 1;
+#if STRATA_INLINE_SHADING==0
+	Out.SharedNormalByteOffset = ByteOffset;
+	Out.StrataBuffer = StrataBuffer;
+	Out.SharedNormalTypes = STRATA_BASIS_TYPE_NORMAL;
+#endif
+
+	// Skip over the shared normal memory to be able to load the BSDF content
+	ByteOffset += STRATA_PACKED_NORMAL_STRIDE_BYTES;
+
+	return Out;
+}
+
+// Force a BSDF state to a single slabe with isotropic BSDF, with no subsurface scattering, and no haziness
+void SetStrataFastPathState(inout FStrataBSDF BSDF)
+{
+	BSDF_SETTYPE(BSDF, STRATA_BSDF_TYPE_SLAB);
+	BSDF_SETANISOTROPY(BSDF, 0);
+	BSDF_SETISTOPLAYER(BSDF, 0);
+	BSDF_SETHASSCATTERING(BSDF, 0);
+	BSDF_SETHASSSSPROFILE(BSDF, 0);
+	BSDF_SETHASHAZINESS(BSDF, 0);
+}
+
 // Unpack a single BSDF
 // Note: All BSDF lobes needs to be unpack in a sequential manner since each BSDF has a variable footprint.
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
