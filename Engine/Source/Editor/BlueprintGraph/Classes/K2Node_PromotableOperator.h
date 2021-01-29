@@ -78,6 +78,14 @@ private:
 	*/
 	bool HasAnyConnectionsOrDefaults() const;
 
+	/**
+	* @return	True if this is a comparison operator node and there are 
+	*			no connections/default values on input pins. The output pins
+	*			is not considered in this check, because it will always be a bool
+	*			so it does not determine the types.
+	*/
+	bool HasDeterminingComparisonTypes() const;
+
 	/** Recombines all split pins and sets the node to have default values (all wildcard pins) */
 	void ResetNodeToWildcard();
 
