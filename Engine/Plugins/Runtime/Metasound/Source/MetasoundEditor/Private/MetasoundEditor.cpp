@@ -93,6 +93,11 @@ namespace Metasound
 				Stop();
 			}
 
+			if (MetasoundMeterAnalyzer.IsValid() && ResultsDelegateHandle.IsValid())
+			{
+				MetasoundMeterAnalyzer->OnLatestPerChannelMeterResultsNative.Remove(ResultsDelegateHandle);
+			}
+
 			check(GEditor);
 			GEditor->UnregisterForUndo(this);
 		}
@@ -295,7 +300,7 @@ namespace Metasound
 
 			MetasoundMeterAnalyzer = TStrongObjectPtr<UMeterAnalyzer>(NewObject<UMeterAnalyzer>());
 
-			MetasoundMeterAnalyzer->OnLatestPerChannelMeterResultsNative.AddRaw(this, &FEditor::OnMeterOutput);
+			ResultsDelegateHandle = MetasoundMeterAnalyzer->OnLatestPerChannelMeterResultsNative.AddRaw(this, &FEditor::OnMeterOutput);
 
 			MetasoundMeterAnalyzerSettings = TStrongObjectPtr<UMeterSettings>(NewObject<UMeterSettings>());
 			MetasoundMeterAnalyzerSettings->PeakHoldTime = 4000.0f;

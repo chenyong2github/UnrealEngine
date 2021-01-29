@@ -215,6 +215,9 @@ namespace Metasound
 
 			TStrongObjectPtr<UMeterSettings> MetasoundMeterAnalyzerSettings;
 
+			/** Handle for results delegate for metasound meter analyzer. */
+			FDelegateHandle ResultsDelegateHandle;
+
 			/** Whether or not metasound being edited is valid */
 			bool bPassedValidation = true;
 
