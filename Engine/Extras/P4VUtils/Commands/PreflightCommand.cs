@@ -52,7 +52,7 @@ namespace P4VUtils.Commands
 			}
 
 			string Url = GetUrl(Stream.Stream, Change, ConfigValues);
-			Logger.LogDebug("Opening {Url}", Url);
+			Logger.LogInformation("Opening {Url}", Url);
 			OpenUrl(Url);
 
 			return 0;
