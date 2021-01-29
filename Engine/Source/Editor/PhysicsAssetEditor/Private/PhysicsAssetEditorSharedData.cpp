@@ -1922,7 +1922,7 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 		// Enable the PreviewInstance (containing the AnimNode_RigidBody)
 		EditorSkelComp->SetAnimationMode(EAnimationMode::AnimationCustomMode);
 		EditorSkelComp->InitAnim(true);
-
+		PhysicalAnimationComponent->SetSkeletalMeshComponent(EditorSkelComp);
 		// Add the floor
 		TSharedPtr<IPersonaPreviewScene> Scene = PreviewScene.Pin();
 		if (Scene != nullptr)
