@@ -8,6 +8,7 @@
 #include "DataprepAssetInstance.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepContentProducer.h"
+#include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorActions.h"
 #include "DataprepEditorLogCategory.h"
@@ -273,8 +274,9 @@ FDataprepEditor::FDataprepEditor()
 	, bIgnoreCloseRequest(false)
 	, PreviewSystem( MakeShared<FDataprepPreviewSystem>() )
 {
-	FName UniqueWorldName = MakeUniqueObjectName(GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("PreviewWorld", "Preview").ToString()) ));
-	PreviewWorld = NewObject<UWorld>(GetTransientPackage(), UniqueWorldName);
+	UPackage* DataprepPackage = NewObject<UPackage>(nullptr, *GetRootPackagePath(), RF_Transient);
+	FName UniqueWorldName = MakeUniqueObjectName(DataprepPackage, UWorld::StaticClass(), FName( *(LOCTEXT("PreviewWorld", "Preview").ToString()) ));
+	PreviewWorld = NewObject<UWorld>(DataprepPackage, UniqueWorldName);
 	PreviewWorld->WorldType = EWorldType::EditorPreview;
 
 	FWorldContext& WorldContext = GEngine->CreateNewWorldContext(PreviewWorld->WorldType);
@@ -503,8 +505,7 @@ const FString& FDataprepEditor::GetRootTemporaryDir()
 
 const FString& FDataprepEditor::GetRootPackagePath()
 {
-	static FString RootPackagePath( TEXT("/Engine/DataprepEditor/Transient") );
-	return RootPackagePath;
+	return DataprepCorePrivateUtils::GetRootPackagePath();
 }
 
 void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UDataprepAssetInterface* InDataprepAssetInterface)

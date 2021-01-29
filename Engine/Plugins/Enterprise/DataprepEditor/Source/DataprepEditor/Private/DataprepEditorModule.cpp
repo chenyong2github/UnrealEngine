@@ -67,9 +67,6 @@ public:
 		AssetTools.RegisterAssetTypeActions(DataprepAssetInstanceTypeAction.ToSharedRef());
 		AssetTypeActionsArray.Add(DataprepAssetInstanceTypeAction);
 
-		// Register mount point for Dataprep editors root package folder
-		FPackageName::RegisterMountPoint( FDataprepEditor::GetRootPackagePath() + TEXT("/"), FDataprepEditor::GetRootTemporaryDir() );
-
 		// Register the details customizer
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 		PropertyModule.RegisterCustomClassLayout( UDataprepAssetProducers::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic( &FDataprepAssetProducersDetails::MakeDetails ) );
@@ -108,9 +105,6 @@ public:
 		AssetTypeActionsArray.Empty();
 
 		FDataprepEditorStyle::Shutdown();
-
-		// Unregister mount point for Dataprep editors root package folder
-		FPackageName::UnRegisterMountPoint( FDataprepEditor::GetRootPackagePath() + TEXT("/"), FDataprepEditor::GetRootTemporaryDir() );
 
 		// Register the details customizer
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );

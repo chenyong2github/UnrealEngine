@@ -31,6 +31,15 @@ protected:
 	virtual void OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects) override;
 };
 
+UCLASS(Category = SelectionTransform, Meta = (DisplayName = "Select Referencers", ToolTip = "Return all the assets using/referencing the objects from previous filtering"))
+class UDataprepReferencedSelectionTransform : public UDataprepSelectionTransform
+{
+	GENERATED_BODY()
+
+protected:
+	virtual void OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects) override;
+};
+
 UCLASS(Category = SelectionTransform, Meta = (DisplayName="Select Hierarchy", ToolTip = "Return immediate children or all the descendants of the selected objects") )
 class UDataprepHierarchySelectionTransform : public UDataprepSelectionTransform
 {

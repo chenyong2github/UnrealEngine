@@ -31,6 +31,13 @@ namespace UnrealBuildTool.Rules
 					"PhysicsCore",
 				}
 			);
+
+			PrivateIncludePaths.AddRange(
+				new string[] 
+				{
+					"DataprepCore/Private/Shared",
+				}
+			);
 		}
 	}
 }
