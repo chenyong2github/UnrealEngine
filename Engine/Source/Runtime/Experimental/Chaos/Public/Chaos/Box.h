@@ -205,13 +205,13 @@ namespace Chaos
 			{
 				FReal ClosestDistanceSq = FLT_MAX;
 
-				const TArrayView<const int32> PlaneVertexIndices = GetPlaneVertices(PlaneIndexHint);
-				if (PlaneVertexIndices.Num() > 0)
+				int32 PlaneVerticesNum = NumPlaneVertices(PlaneIndexHint);
+				if (PlaneVerticesNum > 0)
 				{
-					FVec3 P0 = GetVertex(PlaneVertexIndices[PlaneVertexIndices.Num() - 1]);
-					for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVertexIndices.Num(); ++PlaneVertexIndex)
+					FVec3 P0 = GetVertex(GetPlaneVertex(PlaneIndexHint, PlaneVerticesNum - 1));
+					for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
 					{
-						const int32 VertexIndex = PlaneVertexIndices[PlaneVertexIndex];
+						const int32 VertexIndex = GetPlaneVertex(PlaneIndexHint, PlaneVertexIndex);
 						const TVector<T, d> P1 = GetVertex(VertexIndex);
 
 						const TVector<T, d> EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
@@ -235,23 +235,35 @@ namespace Chaos
 			return ClosestEdgePosition;
 		}
 
-		// Get the set of planes that pass through the specified vertex
-		TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
+		// The number of planes that use the specified vertex
+		int32 NumVertexPlanes(int32 VertexIndex) const
 		{
-			return MakeArrayView(SVertexPlanes[VertexIndex]);
+			return 3;
 		}
 
-		// Get the list of vertices that form the boundary of the specified face
-		TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const
+		// Get the plane index of one of the planes that uses the specified vertex
+		int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
 		{
-			return MakeArrayView(SPlaneVertices[FaceIndex]);
+			return SVertexPlanes[VertexIndex][VertexPlaneIndex];
+		}
+
+		// The number of vertices that make up the corners of the specified face
+		int32 NumPlaneVertices(int32 PlaneIndex) const
+		{
+			return 4;
+		}
+
+		// Get the vertex index of one of the vertices making up the corners of the specified face
+		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
+		{
+			return SPlaneVertices[PlaneIndex][PlaneVertexIndex];
 		}
 
 		int32 NumPlanes() const { return 6; }
 
 		int32 NumVertices() const { return 8; }
 
-		// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
+		// Get the plane at the specified index (e.g., indices from GetVertexPlane)
 		const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 		{
 			const FVec3& PlaneN = SNormals[FaceIndex];
@@ -259,7 +271,7 @@ namespace Chaos
 			return TPlaneConcrete<FReal, 3>(PlaneX, PlaneN);
 		}
 
-		// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
+		// Get the vertex at the specified index (e.g., indices from GetPlaneVertex)
 		const FVec3 GetVertex(int32 VertexIndex) const
 		{
 			const FVec3& Vertex = SVertices[VertexIndex];

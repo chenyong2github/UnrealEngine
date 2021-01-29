@@ -3,6 +3,7 @@
 
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/AABB.h"
+#include "Chaos/ConvexStructureData.h"
 #include "Chaos/MassProperties.h"
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
@@ -13,65 +14,6 @@
 
 namespace Chaos
 {
-	// Metadata for a convex shape used by the manifold generation system and anything
-	// else that can benefit from knowing which vertices are associated with the faces.
-	// @todo(chaos): support asset-dependent index size (8, 16, 32 bit). Make GetVertexPlanes and GetPlaneVertices return a converting array view.
-	class CHAOS_API FConvexStructureData
-	{
-	public:
-		bool IsValid() const
-		{
-			return PlaneVertices.Num() > 0;
-		}
-
-		TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
-		{
-			return MakeArrayView(VertexPlanes[VertexIndex]);
-		}
-		
-		TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const
-		{
-			return MakeArrayView(PlaneVertices[FaceIndex]);
-		}
-
-		void SetPlaneVertices(TArray<TArray<int32>>&& InPlaneVertices, int32 NumVerts)
-		{
-			// Steal the arrays of vertices per plane
-			PlaneVertices = MoveTemp(InPlaneVertices);
-
-			// Generate the arrays of planes per vertex
-			VertexPlanes.SetNum(NumVerts);
-			for (int32 PlaneIndex = 0; PlaneIndex < PlaneVertices.Num(); ++PlaneIndex)
-			{
-				for (int32 VertexIndex = 0; VertexIndex < PlaneVertices[PlaneIndex].Num(); ++VertexIndex)
-				{
-					const int32 PlaneVertexIndex = PlaneVertices[PlaneIndex][VertexIndex];
-					VertexPlanes[PlaneVertexIndex].Add(PlaneIndex);
-				}
-			}
-		}
-
-		void Serialize(FArchive& Ar)
-		{
-			Ar << PlaneVertices;
-			Ar << VertexPlanes;
-		}
-
-		friend FArchive& operator<<(FArchive& Ar, FConvexStructureData& Value)
-		{
-			Value.Serialize(Ar);
-			return Ar;
-		}
-
-	private:
-		// For each face: the set of vertex indices that form the corners of the face in counter-clockwise order
-		TArray<TArray<int32>> PlaneVertices;
-
-		// For each vertex: the set of face indices that use the vertex
-		TArray<TArray<int32>> VertexPlanes;
-	};
-
-
 	//
 	// Note: While Convex technically supports a margin, the margin is typically a property of the
 	// instance wrapper (ImplicitScaled, ImplicitTransformed, or ImplicitInstanced). Usually the
@@ -322,11 +264,18 @@ namespace Chaos
 		// Get the nearest point on an edge of the specified face
 		FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const;
 
-		// Get the set of planes that pass through the specified vertex
-		TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const;
 
-		// Get the list of vertices that form the boundary of the specified face
-		TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const;
+		// The number of planes that use the specified vertex
+		int32 NumVertexPlanes(int32 VertexIndex) const;
+
+		// Get the plane index of one of the planes that uses the specified vertex
+		int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const;
+
+		// The number of vertices that make up the corners of the specified face
+		int32 NumPlaneVertices(int32 PlaneIndex) const;
+
+		// Get the vertex index of one of the vertices making up the corners of the specified face
+		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const;
 
 		int32 NumPlanes() const
 		{
@@ -338,13 +287,13 @@ namespace Chaos
 			return (int32)SurfaceParticles.Size();
 		}
 
-		// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
+		// Get the plane at the specified index (e.g., indices from GetVertexPlane)
 		const TPlaneConcrete<FReal, 3>& GetPlane(int32 FaceIndex) const
 		{
 			return Planes[FaceIndex];
 		}
 
-		// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
+		// Get the vertex at the specified index (e.g., indices from GetPlaneVertex)
 		const FVec3& GetVertex(int32 VertexIndex) const
 		{
 			return SurfaceParticles.X(VertexIndex);
@@ -404,18 +353,21 @@ namespace Chaos
 			// This can be fixed with some extra data in the convex structure, but for now we accept the fact that large 
 			// margins on convexes with small faces can cause non-convex core shapes.
 
-			// Get 3 planes that contribute to this vertex
-			TArrayView<const int32> PlaneIndices = GetVertexPlanes(VertexIndex);
-			if (PlaneIndices.Num() >= 3)
+			// Get any 3 planes that contribute to this vertex
+			if (NumVertexPlanes(VertexIndex) >= 3)
 			{
+				const int32 PlaneIndex0 = GetVertexPlane(VertexIndex, 0);
+				const int32 PlaneIndex1 = GetVertexPlane(VertexIndex, 1);
+				const int32 PlaneIndex2 = GetVertexPlane(VertexIndex, 2);
+
 				// Move the planes by the margin and recalculate the interection
 				// @todo(chaos): calculate dV/dm per vertex and store it in StructureData
 				FVec3 PlanesPos;
 				FPlane NewPlanes[3] =
 				{
-					FPlane(Planes[PlaneIndices[0]].X() - InMargin * Planes[PlaneIndices[0]].Normal(), Planes[PlaneIndices[0]].Normal()),
-					FPlane(Planes[PlaneIndices[1]].X() - InMargin * Planes[PlaneIndices[1]].Normal(), Planes[PlaneIndices[1]].Normal()),
-					FPlane(Planes[PlaneIndices[2]].X() - InMargin * Planes[PlaneIndices[2]].Normal(), Planes[PlaneIndices[2]].Normal()),
+					FPlane(Planes[PlaneIndex0].X() - InMargin * Planes[PlaneIndex0].Normal(), Planes[PlaneIndex0].Normal()),
+					FPlane(Planes[PlaneIndex1].X() - InMargin * Planes[PlaneIndex1].Normal(), Planes[PlaneIndex1].Normal()),
+					FPlane(Planes[PlaneIndex2].X() - InMargin * Planes[PlaneIndex2].Normal(), Planes[PlaneIndex2].Normal()),
 				};
 				if (FMath::IntersectPlanes3(PlanesPos, NewPlanes[0], NewPlanes[1], NewPlanes[2]))
 				{
@@ -428,18 +380,21 @@ namespace Chaos
 
 		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, float InMargin, const FVec3& Scale) const
 		{
-			// Get 3 planes that contribute to this vertex
-			TArrayView<const int32> PlaneIndices = GetVertexPlanes(VertexIndex);
-			if (PlaneIndices.Num() >= 3)
+			// Get any 3 planes that contribute to this vertex
+			if (NumVertexPlanes(VertexIndex) >= 3)
 			{
+				const int32 PlaneIndex0 = GetVertexPlane(VertexIndex, 0);
+				const int32 PlaneIndex1 = GetVertexPlane(VertexIndex, 1);
+				const int32 PlaneIndex2 = GetVertexPlane(VertexIndex, 2);
+
 				// Move the planes by the margin and recalculate the interection
 				// @todo(chaos): calculate dV/dm per vertex and store it in StructureData (but see todo above)
 				const FVec3 NewPlaneX = Scale * GetVertex(VertexIndex);
 				const FVec3 NewPlaneNs[3] = 
 				{
-					(Scale * Planes[PlaneIndices[0]].Normal()).GetUnsafeNormal(),
-					(Scale * Planes[PlaneIndices[1]].Normal()).GetUnsafeNormal(),
-					(Scale * Planes[PlaneIndices[2]].Normal()).GetUnsafeNormal(),
+					(Scale * Planes[PlaneIndex0].Normal()).GetUnsafeNormal(),
+					(Scale * Planes[PlaneIndex1].Normal()).GetUnsafeNormal(),
+					(Scale * Planes[PlaneIndex2].Normal()).GetUnsafeNormal(),
 				};
 				FReal NewPlaneDs[3] = 
 				{

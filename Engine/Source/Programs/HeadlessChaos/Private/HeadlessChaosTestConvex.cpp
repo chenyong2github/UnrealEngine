@@ -91,10 +91,10 @@ namespace ChaosTest
 		for (int32 PlaneIndex = 0; PlaneIndex < Convex.NumPlanes(); ++PlaneIndex)
 		{
 			// All vertices should be on the plane
-			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < (int32)Convex.GetPlaneVertices(PlaneIndex).Num(); ++PlaneVertexIndex)
+			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < Convex.NumPlaneVertices(PlaneIndex); ++PlaneVertexIndex)
 			{
 				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
-				const int32 VertexIndex = Convex.GetPlaneVertices(PlaneIndex)[PlaneVertexIndex];
+				const int32 VertexIndex = Convex.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
 				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());
 				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
@@ -105,9 +105,9 @@ namespace ChaosTest
 		for (int32 VertexIndex = 0; VertexIndex < Convex.NumVertices(); ++VertexIndex)
 		{
 			// All planes should pass through the vertex
-			for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < Convex.GetVertexPlanes(VertexIndex).Num(); ++VertexPlaneIndex)
+			for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < Convex.NumVertexPlanes(VertexIndex); ++VertexPlaneIndex)
 			{
-				const int32 PlaneIndex = Convex.GetVertexPlanes(VertexIndex)[VertexPlaneIndex];
+				const int32 PlaneIndex = Convex.GetVertexPlane(VertexIndex, VertexPlaneIndex);
 				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
 				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
 				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());

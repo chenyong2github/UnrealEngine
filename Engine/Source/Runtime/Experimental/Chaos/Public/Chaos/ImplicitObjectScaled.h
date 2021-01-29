@@ -188,16 +188,29 @@ public:
 		return MObject->GetClosestEdgePosition(PlaneIndex, Position);
 	}
 
-	// Get the set of planes that pass through the specified vertex
-	TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
+
+	// The number of planes that use the specified vertex
+	int32 NumVertexPlanes(int32 VertexIndex) const
 	{
-		return MObject->GetVertexPlanes(VertexIndex);
+		return MObject->NumVertexPlanes(VertexIndex);
 	}
 
-	// Get the list of vertices that form the boundary of the specified face
-	TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const
+	// Get the plane index of one of the planes that uses the specified vertex
+	int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
 	{
-		return MObject->GetPlaneVertices(FaceIndex);
+		return MObject->GetVertexPlane(VertexIndex, VertexPlaneIndex);
+	}
+
+	// The number of vertices that make up the corners of the specified face
+	int32 NumPlaneVertices(int32 PlaneIndex) const
+	{
+		return MObject->NumPlaneVertices(PlaneIndex);
+	}
+
+	// Get the vertex index of one of the vertices making up the corners of the specified face
+	int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
+	{
+		return MObject->GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 	}
 
 	int32 NumPlanes() const
@@ -210,13 +223,13 @@ public:
 		return MObject->NumVertices();
 	}
 
-	// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
+	// Get the plane at the specified index (e.g., indices from GetVertexPlane)
 	const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 	{
 		return MObject->GetPlane(FaceIndex);
 	}
 
-	// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
+	// Get the vertex at the specified index (e.g., indices from GetPlaneVertex)
 	const FVec3 GetVertex(int32 VertexIndex) const
 	{
 		return MObject->GetVertex(VertexIndex);
@@ -516,16 +529,28 @@ public:
 		return MObject->GetClosestEdgePosition(PlaneIndex, MInvScale * Position) * MScale;
 	}
 
-	// Get the set of planes that pass through the specified vertex
-	TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
+	// The number of planes that use the specified vertex
+	int32 NumVertexPlanes(int32 VertexIndex) const
 	{
-		return MObject->GetVertexPlanes(VertexIndex);
+		return MObject->NumVertexPlanes(VertexIndex);
 	}
 
-	// Get the list of vertices that form the boundary of the specified face
-	TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const
+	// Get the plane index of one of the planes that uses the specified vertex
+	int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
 	{
-		return MObject->GetPlaneVertices(FaceIndex);
+		return MObject->GetVertexPlane(VertexIndex, VertexPlaneIndex);
+	}
+
+	// The number of vertices that make up the corners of the specified face
+	int32 NumPlaneVertices(int32 PlaneIndex) const
+	{
+		return MObject->NumPlaneVertices(PlaneIndex);
+	}
+
+	// Get the vertex index of one of the vertices making up the corners of the specified face
+	int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
+	{
+		return MObject->GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 	}
 
 	int32 NumPlanes() const
@@ -538,14 +563,14 @@ public:
 		return MObject->NumVertices();
 	}
 
-	// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
+	// Get the plane at the specified index (e.g., indices from GetVertexPlane)
 	const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 	{
 		const TPlaneConcrete<FReal, 3> InnerPlane = MObject->GetPlane(FaceIndex);
 		return TPlaneConcrete<FReal, 3>(MScale * InnerPlane.X(), GetScaledNormal(InnerPlane.Normal()));
 	}
 
-	// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
+	// Get the vertex at the specified index (e.g., indices from GetPlaneVertex)
 	const FVec3 GetVertex(int32 VertexIndex) const
 	{
 		const FVec3 InnerVertex = MObject->GetVertex(VertexIndex);

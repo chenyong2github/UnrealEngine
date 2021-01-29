@@ -491,24 +491,24 @@ namespace Chaos
 		)
 		{
 			// Populate the clipped vertices by the other face's vertices
-			TArrayView<const int32> OtherConvexFaceVertices = OtherConvex.GetPlaneVertices(OtherPlaneIndex);
-			ContactPointCount = FMath::Min(OtherConvexFaceVertices.Num(), (int32)MaxContactPointCount); // Number of face vertices
+			const int32 OtherConvexFaceVerticesNum = OtherConvex.NumPlaneVertices(OtherPlaneIndex);
+			ContactPointCount = FMath::Min(OtherConvexFaceVerticesNum, (int32)MaxContactPointCount); // Number of face vertices
 			for (int32 VertexIndex = 0; VertexIndex < (int32)ContactPointCount; ++VertexIndex)
 			{
 				// Todo Check for Grey code
-				const FVec3 OtherVertex = OtherConvex.GetVertex(OtherConvexFaceVertices[VertexIndex]);
+				const FVec3 OtherVertex = OtherConvex.GetVertex(OtherConvex.GetPlaneVertex(OtherPlaneIndex, VertexIndex));
 				VertexBuffer1[VertexIndex] = OtherToRefTransform.TransformPositionNoScale(OtherVertex);
 			}
 
 			// Now clip against all planes that belong to the reference plane's, edges
 			// Note winding order matters here, and we have to handle negative scales
 			const float RefWindingOrder = RefConvex.GetWindingOrder();
-			TArrayView<const int32> RefConvexFaceVertices = RefConvex.GetPlaneVertices(RefPlaneIndex);
-			int32 ClippingPlaneCount = RefConvexFaceVertices.Num();
-			FVec3 PrevPoint = RefConvex.GetVertex(RefConvexFaceVertices[ClippingPlaneCount - 1]);
+			const int32 RefConvexFaceVerticesNum = RefConvex.NumPlaneVertices(RefPlaneIndex);
+			int32 ClippingPlaneCount = RefConvexFaceVerticesNum;
+			FVec3 PrevPoint = RefConvex.GetVertex(RefConvex.GetPlaneVertex(RefPlaneIndex, ClippingPlaneCount - 1));
 			for (int32 ClippingPlaneIndex = 0; ClippingPlaneIndex < ClippingPlaneCount; ++ClippingPlaneIndex)
 			{
-				FVec3 CurrentPoint = RefConvex.GetVertex(RefConvexFaceVertices[ClippingPlaneIndex]);
+				FVec3 CurrentPoint = RefConvex.GetVertex(RefConvex.GetPlaneVertex(RefPlaneIndex, ClippingPlaneIndex));
 				FVec3 ClippingPlaneNormal = RefWindingOrder * FVec3::CrossProduct(RefPlaneNormal, PrevPoint - CurrentPoint);
 				ClippingPlaneNormal.SafeNormalize();
 				ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, MaxContactPointCount, ClippingPlaneNormal, FVec3::DotProduct(CurrentPoint, ClippingPlaneNormal));
