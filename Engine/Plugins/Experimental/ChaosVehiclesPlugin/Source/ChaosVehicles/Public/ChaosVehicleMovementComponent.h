@@ -13,7 +13,7 @@
 #include "AerofoilSystem.h"
 #include "ThrustSystem.h"
 
-#include "SimpleVehicle.h" // #todo: move
+#include "AsyncCallback.h"
 
 #include "ChaosVehicleMovementComponent.generated.h"
 
@@ -22,6 +22,60 @@ class CHAOSVEHICLES_API UChaosVehicleMovementComponent;
 DECLARE_LOG_CATEGORY_EXTERN(LogVehicle, Log, All);
 
 class UCanvas;
+
+struct FChaosVehicleAsyncInput;
+struct FChaosVehicleManagerAsyncOutput;
+
+
+struct FControlInputs
+{
+	FControlInputs()
+		: SteeringInput(0.f)
+		, ThrottleInput(0.f)
+		, BrakeInput(0.f)
+		, PitchInput(0.f)
+		, RollInput(0.f)
+		, YawInput(0.f)
+		, HandbrakeInput(0.f)
+		, TargetGearInput(0)
+		, SetGearImmediate(-1)
+		, TransmissionType(Chaos::ETransmissionType::Automatic)
+		, GearUpInput(false)
+		, GearDownInput(false)
+	{
+
+	}
+
+	// Steering output to physics system. Range -1...1
+	float SteeringInput;
+
+	// Accelerator output to physics system. Range 0...1
+	float ThrottleInput;
+
+	// Brake output to physics system. Range 0...1
+	float BrakeInput;
+
+	// Body Pitch output to physics system. Range -1...1
+	float PitchInput;
+
+	// Body Roll output to physics system. Range -1...1
+	float RollInput;
+
+	// Body Yaw output to physics system. Range -1...1
+	float YawInput;
+
+	// Handbrake output to physics system. Range 0...1
+	float HandbrakeInput;
+
+	int32 TargetGearInput;
+	int8 SetGearImmediate;
+	Chaos::ETransmissionType TransmissionType;
+
+
+	bool GearUpInput;
+	bool GearDownInput;
+};
+
 
 struct FVehicleDebugParams
 {
@@ -38,7 +92,8 @@ struct FVehicleDebugParams
 	bool BatchQueries = false;	// Turned off due to Issue with Overlap Queries on scaled terrain
 	float ForceDebugScaling = 0.0006f;
 	float SleepCounterThreshold = 15;
-	bool DisableVehicleSleep = true;
+	bool DisableVehicleSleep = false;
+	bool EnableMultithreading = false; // possibly not all entirely thread safe at present
 };
 
 struct FBodyInstance;
@@ -90,9 +145,22 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 
 };
 
+struct FChaosVehicleDefaultAsyncInput : public FChaosVehicleAsyncInput
+{
+	float GravityZ;
+	FControlInputs ControlInputs;
+	FCollisionQueryParams TraceParams;
+
+	FChaosVehicleDefaultAsyncInput();
+
+	TUniquePtr<FChaosVehicleAsyncOutput> Simulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, bool& bWakeOut) const override;
+};
+
+
 USTRUCT()
 struct FVehicleTorqueControlConfig
 {
+public:
 	GENERATED_USTRUCT_BODY()
 
 	/** Torque Control Enabled */
@@ -124,6 +192,12 @@ struct FVehicleTorqueControlConfig
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float RotationDamping;
 
+	const Chaos::FTorqueControlConfig& GetTorqueControlConfig()
+	{
+		FillTorqueControlSetup();
+		return PTorqueControlConfig;
+	}
+
 	void InitDefaults()
 	{
 		Enabled = false;
@@ -135,11 +209,28 @@ struct FVehicleTorqueControlConfig
 		RollFromSteering = 0.0f;
 		RotationDamping = 0.02f;
 	}
+
+private:
+	void FillTorqueControlSetup()
+	{
+		PTorqueControlConfig.Enabled = Enabled;
+		PTorqueControlConfig.YawTorqueScaling = YawTorqueScaling;
+		PTorqueControlConfig.YawFromSteering = YawFromSteering;
+		PTorqueControlConfig.YawFromRollTorqueScaling = YawFromRollTorqueScaling;
+		PTorqueControlConfig.PitchTorqueScaling = PitchTorqueScaling;
+		PTorqueControlConfig.RollTorqueScaling = RollTorqueScaling;
+		PTorqueControlConfig.RollFromSteering = RollFromSteering;
+		PTorqueControlConfig.RotationDamping = RotationDamping;
+
+	}
+
+	Chaos::FTorqueControlConfig PTorqueControlConfig;
 };
 
 USTRUCT()
 struct FVehicleTargetRotationControlConfig
 {
+public:
 	GENERATED_USTRUCT_BODY()
 
 	/** Rotation Control Enabled */
@@ -182,6 +273,11 @@ struct FVehicleTargetRotationControlConfig
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float AutoCentreYawStrength;
 
+	const Chaos::FTargetRotationControlConfig& GetTargetRotationControlConfig()
+	{
+		FillTargetRotationControlSetup();
+		return PTargetRotationControlConfig;
+	}
 
 	void InitDefaults()
 	{
@@ -202,11 +298,31 @@ struct FVehicleTargetRotationControlConfig
 		AutoCentrePitchStrength = 0.f;
 		AutoCentreYawStrength = 0.f;
 	}
+
+private:
+	void FillTargetRotationControlSetup()
+	{
+		PTargetRotationControlConfig.Enabled = Enabled;
+		PTargetRotationControlConfig.bRollVsSpeedEnabled = bRollVsSpeedEnabled;
+		PTargetRotationControlConfig.RollControlScaling = RollControlScaling;
+		PTargetRotationControlConfig.RollMaxAngle = RollMaxAngle;
+		PTargetRotationControlConfig.PitchControlScaling = PitchControlScaling;
+		PTargetRotationControlConfig.PitchMaxAngle = PitchMaxAngle;
+		PTargetRotationControlConfig.RotationStiffness = RotationStiffness;
+		PTargetRotationControlConfig.RotationDamping = RotationDamping;
+		PTargetRotationControlConfig.MaxAccel = MaxAccel;
+		PTargetRotationControlConfig.AutoCentreRollStrength = AutoCentreRollStrength;
+		PTargetRotationControlConfig.AutoCentrePitchStrength = AutoCentrePitchStrength;
+		PTargetRotationControlConfig.AutoCentreYawStrength = AutoCentreYawStrength;
+	}
+
+	Chaos::FTargetRotationControlConfig PTargetRotationControlConfig;
 };
 
 USTRUCT()
 struct FVehicleStabilizeControlConfig
 {
+public:
 	GENERATED_USTRUCT_BODY()
 
 	/** Torque Control Enabled */
@@ -220,12 +336,29 @@ struct FVehicleStabilizeControlConfig
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float PositionHoldXY;
 
+	const Chaos::FStabilizeControlConfig& GetStabilizeControlConfig()
+	{
+		FillStabilizeControlSetup();
+		return PStabilizeControlConfig;
+	}
+
 	void InitDefaults()
 	{
 		Enabled = false;
 		AltitudeHoldZ = 4.0f;
 		PositionHoldXY = 8.0f;
 	}
+
+private:
+	void FillStabilizeControlSetup()
+	{
+		PStabilizeControlConfig.Enabled = this->Enabled;
+		PStabilizeControlConfig.AltitudeHoldZ = this->AltitudeHoldZ;
+		PStabilizeControlConfig.PositionHoldXY = this->PositionHoldXY;
+	}
+
+	Chaos::FStabilizeControlConfig PStabilizeControlConfig;
+
 };
 
 /** Commonly used state - evaluated once used wherever required */
@@ -255,8 +388,11 @@ struct FVehicleState
 
 	}
 
-	/** Cache some useful data at the start of the frame */
-	void CaptureState(FBodyInstance* TargetInstance, float GravityZ, float DeltaTime);
+	/** Cache some useful data at the start of the frame from GT BodyInstance */
+	void CaptureState(const FBodyInstance* TargetInstance, float GravityZ, float DeltaTime);
+
+	/** Cache some useful data at the start of the frame from Physics thread Particle Handle */
+	void CaptureState(const Chaos::TPBDRigidParticleHandle<float, 3>* Handle, float GravityZ, float DeltaTime);
 
 	FTransform VehicleWorldTransform;
 	FVector VehicleWorldVelocity;
@@ -469,6 +605,71 @@ private:
 
 };
 
+class UChaosVehicleSimulation
+{
+public:
+	virtual ~UChaosVehicleSimulation()
+	{
+		PVehicle.Reset(nullptr);
+	}
+
+	virtual void Init(TUniquePtr<Chaos::FSimpleWheeledVehicle>& PVehicleIn)
+	{
+		PVehicle = MoveTemp(PVehicleIn);
+	}
+
+	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle);
+
+	/** Advance the vehicle simulation */
+	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle);
+	
+	virtual void FillOutputState(FChaosVehicleAsyncOutput& Output);
+
+	/** Are enough vehicle systems specified such that physics vehicle simulation is possible */
+	virtual bool CanSimulate() const { return true; }
+
+	/** Pass control Input to the vehicle systems */
+	virtual void ApplyInput(const FControlInputs& ControlInputs, float DeltaTime);
+
+	/** Apply aerodynamic forces to vehicle body */
+	virtual void ApplyAerodynamics(float DeltaTime);
+
+	/** Apply Aerofoil forces to vehicle body */
+	virtual void ApplyAerofoilForces(float DeltaTime);
+
+	/** Apply Thruster forces to vehicle body */
+	virtual void ApplyThrustForces(float DeltaTime);
+
+	/** Apply direct control over vehicle body rotation */
+	virtual void ApplyTorqueControl(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData);
+
+
+	/** Add a force to this vehicle */
+	void AddForce(const FVector& Force, bool bAllowSubstepping = true, bool bAccelChange = false);
+	/** Add a force at a particular position (world space when bIsLocalForce = false, body space otherwise) */
+	void AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false);
+	/** Add an impulse to this vehicle */
+	void AddImpulse(const FVector& Impulse, bool bVelChange);
+	/** Add an impulse to this vehicle and a particular world position */
+	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position);
+	/** Add a torque to this vehicle */
+	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);
+
+
+	/** Draw debug text for the wheels and suspension */
+	virtual void DrawDebug3D();
+	UWorld* World;
+
+	// Physics Thread Representation of chassis rigid body
+	Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle;
+
+	FVehicleState VehicleState;
+
+	// #todo: this isn't very configurable
+	TUniquePtr<Chaos::FSimpleWheeledVehicle> PVehicle;
+
+};
+
 
 /**
  * Base component to handle the vehicle simulation for an actor.
@@ -476,6 +677,8 @@ private:
 UCLASS(Abstract, hidecategories=(PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
 class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementComponent
 {
+	friend struct FChaosVehicleDefaultAsyncInput;
+
 	GENERATED_UCLASS_BODY()
 
 //#todo: these 2 oddities seem out of place
@@ -566,6 +769,10 @@ protected:
 	UPROPERTY(Transient)
 	uint32 bWasAvoidanceUpdated : 1;
 
+	int32 TargetGearInput;
+	int8 SetGearImmediate;
+	Chaos::ETransmissionType TransmissionType;
+
 public:
 
 	/** UObject interface */
@@ -593,10 +800,6 @@ public:
 	/** Return true if we are ready to create a vehicle, false if the setup has missing references */
 	virtual bool CanCreateVehicle() const;
 
-	/** Are enough vehicle systems specified such that physics vehicle simulation is possible */
-	virtual bool CanSimulate() const { return true; }
-
-
 	/** Used to create any physics engine information for this component */
 	virtual void OnCreatePhysicsState() override;
 
@@ -604,10 +807,7 @@ public:
 	virtual void OnDestroyPhysicsState() override;
 
 	/** Updates the vehicle tuning and other state such as user input. */
-	virtual void PreTick(float DeltaTime);
-
-	/** Tick this vehicle sim right before input is sent to the vehicle system */
-	virtual void TickVehicle( float DeltaTime );
+	virtual void PreTickGT(float DeltaTime);
 
 	/** Stops movement immediately (zeroes velocity, usually zeros acceleration for components with acceleration). */
 	virtual void StopMovementImmediately() override;
@@ -696,10 +896,42 @@ public:
 	/** location local coordinates of named bone in skeleton, apply additional offset or just use offset if no bone located */
 	FVector LocateBoneOffset(const FName InBoneName, const FVector& InExtraOffset) const;
 
-	TUniquePtr<Chaos::FSimpleWheeledVehicle>& PhysicsVehicle()
+	TUniquePtr<FPhysicsVehicleOutput>& PhysicsVehicleOutput()
 	{
-		return PVehicle;
+		return PVehicleOutput;
 	}
+
+	//----ASYNC----
+	TUniquePtr<FChaosVehicleAsyncInput> SetCurrentAsyncInputOutput(int32 InputIdx, FChaosVehicleManagerAsyncOutput* CurOutput, FChaosVehicleManagerAsyncOutput* NextOutput, float Alpha, int32 VehicleManagerTimestamp);
+
+	void SetCurrentAsyncInputOutputInternal(FChaosVehicleAsyncInput* CurInput, int32 InputIdx, FChaosVehicleManagerAsyncOutput* CurOutput, int32 VehicleManagerTimestamp);
+	void SetCurrentAsyncInputOutputInternal(FChaosVehicleAsyncInput* CurInput, int32 InputIdx, FChaosVehicleManagerAsyncOutput* CurOutput, FChaosVehicleManagerAsyncOutput* NextOutput, float Alpha, int32 VehicleManagerTimestamp);
+
+	void Update(float DeltaTime);
+
+	// Get output data from Physics Thread
+	virtual void ParallelUpdate(float DeltaSeconds);
+
+	void FinalizeSimCallbackData(FChaosVehicleManagerAsyncInput& Input);
+
+	EChaosAsyncVehicleDataType CurAsyncType;
+	FChaosVehicleAsyncInput* CurAsyncInput;
+	struct FChaosVehicleAsyncOutput* CurAsyncOutput;
+	struct FChaosVehicleAsyncOutput* NextAsyncOutput;
+	float OutputInterpAlpha;
+
+	struct FAsyncOutputWrapper
+	{
+		int32 Idx;
+		int32 Timestamp;
+
+		FAsyncOutputWrapper()
+			: Idx(INDEX_NONE)
+			, Timestamp(INDEX_NONE)
+		{
+		}
+	};
+	TArray<FAsyncOutputWrapper> OutputsWaitingOn;
 
 protected:
 
@@ -802,6 +1034,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = VehicleInput, AdvancedDisplay)
 	FVehicleInputRateConfig YawInputRate;
 
+
 	// input related
 
 	/** Compute steering input */
@@ -850,26 +1083,8 @@ protected:
 	/** Read current state for simulation */
 	virtual void UpdateState(float DeltaTime);
 
-	/** Advance the vehicle simulation */
-	virtual void UpdateSimulation(float DeltaTime);
-
-	/** Pass control Input to the vehicle systems */
-	virtual void ApplyInput(float DeltaTime);
-
-	/** Apply aerodynamic forces to vehicle body */
-	virtual void ApplyAerodynamics(float DeltaTime);
-
-	/** Apply Aerofoil forces to vehicle body */
-	virtual void ApplyAerofoilForces(float DeltaTime);
-
-	/** Apply Thruster forces to vehicle body */
-	virtual void ApplyThrustForces(float DeltaTime);
-
-	/** Apply direct control over vehicle body rotation */
-	virtual void ApplyTorqueControl(float DeltaTime);
-
 	/** Option to aggressively sleep the vehicle */
-	virtual void ProcessSleeping();
+	virtual void ProcessSleeping(const FControlInputs& ControlInputs);
 
 	/** Pass current state to server */
 	UFUNCTION(reliable, server, WithValidation)
@@ -894,13 +1109,13 @@ protected:
 	/** Create and setup the Chaos vehicle */
 	virtual void CreateVehicle();
 
-	virtual void CreatePhysicsVehicle();
+	virtual TUniquePtr<Chaos::FSimpleWheeledVehicle> CreatePhysicsVehicle();
 
 	/** Skeletal mesh needs some special handling in the vehicle case */
 	virtual void FixupSkeletalMesh() {}
 
 	/** Allocate and setup the Chaos vehicle */
-	virtual void SetupVehicle();
+	virtual void SetupVehicle(TUniquePtr<Chaos::FSimpleWheeledVehicle>& PVehicle);
 
 	/** Do some final setup after the Chaos vehicle gets created */
 	virtual void PostSetupVehicle();
@@ -920,9 +1135,6 @@ protected:
 	/** Draw debug text for the wheels and suspension */
 	virtual void DrawDebug(UCanvas* Canvas, float& YL, float& YPos);
 
-	/** Draw debug text for the wheels and suspension */
-	virtual void DrawDebug3D();
-
 	// draw 2D debug line to UI canvas
 	void DrawLine2D(UCanvas* Canvas, const FVector2D& StartPos, const FVector2D& EndPos, FColor Color, float Thickness = 1.f);
 
@@ -933,25 +1145,15 @@ protected:
 
 	FBodyInstance* GetBodyInstance();
 
-	FVehicleState VehicleState;
-
-	// #todo: this isn't very configurable
-	TUniquePtr<Chaos::FSimpleWheeledVehicle> PVehicle;
+	FVehicleState VehicleState;							/* Useful vehicle state captured at start of frame */
+	TUniquePtr<FPhysicsVehicleOutput> PVehicleOutput;	/* physics simulation data output from the async physics thread */
 
 	/** Handle for delegate registered on mesh component */
 	FDelegateHandle MeshOnPhysicsStateChangeHandle;
 
 protected:
-	/** Add a force to this vehicle */
-	void AddForce(const FVector& Force, bool bAllowSubstepping = true, bool bAccelChange = false);
-	/** Add a force at a particular position (world space when bIsLocalForce = false, body space otherwise) */
-	void AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false);
-	/** Add an impulse to this vehicle */
-	void AddImpulse(const FVector& Impulse, bool bVelChange);
-	/** Add an impulse to this vehicle and a particular world position */
-	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position);
-	/** Add a torque to this vehicle */
-	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);
+
+	TUniquePtr<UChaosVehicleSimulation> VehicleSimulationPT;	/* simulation code running on the physics thread async callback */
 
 private:
 	UPROPERTY(transient, Replicated)

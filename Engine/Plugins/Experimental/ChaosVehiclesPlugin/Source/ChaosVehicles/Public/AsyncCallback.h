@@ -1,0 +1,164 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "PhysicsPublic.h"
+#include "Chaos/SimCallbackInput.h"
+#include "Chaos/SimCallbackObject.h"
+#include "Chaos/GeometryParticlesfwd.h"
+
+class UChaosVehicleMovementComponent;
+
+enum EChaosAsyncVehicleDataType : int8
+{
+	AsyncInvalid,
+	AsyncDefault,
+};
+
+struct FWheelsOutput
+{
+	FWheelsOutput()
+		: InContact(false)
+		, SteeringAngle(0.f)
+		, AngularPosition(0.f)
+		, LateralAdhesiveLimit(0.f)
+		, LongitudinalAdhesiveLimit(0.f)
+		, bIsSlipping(false)
+		, SlipMagnitude(0.f)
+		, bIsSkidding(false)
+		, SkidMagnitude(0.f)
+		, SkidNormal(FVector(1,0,0))
+		, SuspensionOffset(0.f)
+		, SpringForce(0.f)
+		, NormalizedSuspensionLength(0.f)
+	{
+	}
+
+	// wheels
+	bool InContact;
+	float SteeringAngle;
+	float AngularPosition;
+
+	float LateralAdhesiveLimit;
+	float LongitudinalAdhesiveLimit;
+
+	bool bIsSlipping;
+	float SlipMagnitude;
+	bool bIsSkidding;
+	float SkidMagnitude;
+	FVector SkidNormal;
+
+	// suspension related
+	float SuspensionOffset;
+	float SpringForce;
+	float NormalizedSuspensionLength;
+
+};
+
+/**
+ * Per Vehicle Output State from Physics Thread to Game Thread                            
+ */
+struct FPhysicsVehicleOutput
+{
+	FPhysicsVehicleOutput()
+		: CurrentGear(0)
+		, TargetGear(0)
+		, EngineRPM(0.f)
+		, EngineTorque(0.f)
+		, TransmissionRPM(0.f)
+		, TransmissionTorque(0.f)
+	{
+	}
+
+	TArray<FWheelsOutput> Wheels;
+	int32 CurrentGear;
+	int32 TargetGear;
+	float EngineRPM;
+	float EngineTorque;
+	float TransmissionRPM;
+	float TransmissionTorque;
+};
+
+/**
+ * Per Vehicle Input State from Game Thread to Physics Thread
+ */                             
+struct FChaosVehicleAsyncInput
+{
+	const EChaosAsyncVehicleDataType Type;
+	UChaosVehicleMovementComponent* Vehicle;
+	
+	union {
+		FRigidParticlePhysicsProxy* Proxy;
+	} Actor;
+
+	/** 
+	* Vehicle simulation running on the Physics Thread
+	*/
+	virtual TUniquePtr<struct FChaosVehicleAsyncOutput> Simulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, bool& bWakeOut) const = 0;
+
+	FChaosVehicleAsyncInput(EChaosAsyncVehicleDataType InType = EChaosAsyncVehicleDataType::AsyncInvalid)
+		: Type(InType)
+		, Vehicle(nullptr)
+	{
+		Actor.Proxy = nullptr;	//indicates async/sync task not needed
+	}
+
+	virtual ~FChaosVehicleAsyncInput() = default;
+};
+
+struct FChaosVehicleManagerAsyncInput : public Chaos::FSimCallbackInput
+{
+	TArray<TUniquePtr<FChaosVehicleAsyncInput>> VehicleInputs;
+
+	TWeakObjectPtr<UWorld> World;
+	int32 Timestamp = INDEX_NONE;
+
+	void Reset()
+	{
+		VehicleInputs.Reset();
+		World.Reset();
+	}
+};
+
+/**
+ * Async Output Data
+ */
+struct FChaosVehicleAsyncOutput
+{
+	const EChaosAsyncVehicleDataType Type;
+	bool bValid;	// indicates no work was done
+	FPhysicsVehicleOutput VehicleSimOutput;
+
+	FChaosVehicleAsyncOutput(EChaosAsyncVehicleDataType InType = EChaosAsyncVehicleDataType::AsyncInvalid)
+		: Type(InType)
+		, bValid(false)
+	{ }
+
+	virtual ~FChaosVehicleAsyncOutput() = default;
+};
+
+
+/**
+ * Async Output for all of the vehicles handled by this Vehicle Manager
+ */
+struct FChaosVehicleManagerAsyncOutput : public Chaos::FSimCallbackOutput
+{
+	TArray<TUniquePtr<FChaosVehicleAsyncOutput>> VehicleOutputs;
+	int32 Timestamp = INDEX_NONE;
+
+	void Reset()
+	{
+		VehicleOutputs.Reset();
+	}
+};
+
+/**
+ * Async callback from the Physics Engine where we can perform our vehicle simulation
+ */
+class FChaosVehicleManagerAsyncCallback : public Chaos::TSimCallbackObject<FChaosVehicleManagerAsyncInput, FChaosVehicleManagerAsyncOutput>
+{
+private:
+	virtual void OnPreSimulate_Internal() override;
+	virtual void OnContactModification_Internal(const TArrayView<Chaos::FPBDCollisionConstraintHandleModification>& Modifications) override;
+};

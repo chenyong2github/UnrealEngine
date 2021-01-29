@@ -186,6 +186,15 @@ namespace Chaos
 		return;
 	}
 
+
+
+
+	FAxleSim::FAxleSim() : TVehicleSystem<FAxleConfig>(&Setup)
+	{
+	}
+
+
+
 } // namespace Chaos
 
 #if VEHICLE_DEBUGGING_ENABLED

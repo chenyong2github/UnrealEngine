@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 // Disable Optimizations in non debug build configurations
-#define VEHICLE_DEBUGGING_ENABLED 1
+#define VEHICLE_DEBUGGING_ENABLED 0
 
 namespace Chaos
 {

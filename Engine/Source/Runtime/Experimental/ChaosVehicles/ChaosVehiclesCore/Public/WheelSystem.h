@@ -61,6 +61,13 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		Multiply, // default - most correct
 		Average
 	};
+
+	enum EAxleType : uint8
+	{
+		Undefined = 0,
+		Front,
+		Rear
+	};
 	
 	FSimpleWheelConfig() 
 		: Offset(FVector(2.f, 1.f, 0.f))
@@ -76,6 +83,7 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, SteeringEnabled(true)
 		, EngineEnabled(false)
 		, TractionControlEnabled(false)
+		, AxleType(EAxleType::Undefined)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
 		, LateralFrictionMultiplier(1.0f)
 		, LongitudinalFrictionMultiplier(1.0f)
@@ -108,6 +116,8 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 	bool SteeringEnabled;		// Steering is operational on this wheel
 	bool EngineEnabled;			// Wheel is driven by an engine
 	bool TractionControlEnabled;// Straight Line Traction Control
+
+	EAxleType AxleType;
 
 	EFrictionCombineMethod FrictionCombineMethod; //#todo: use this variable
 
@@ -393,6 +403,24 @@ public:
 	float Spin;
 };
 
+
+struct CHAOSVEHICLESCORE_API FAxleConfig
+{
+	TArray<uint16> WheelIndex;	// reference to wheels on this axle
+	float RollbarScaling;
+};
+
+class CHAOSVEHICLESCORE_API FAxleSim : public TVehicleSystem<FAxleConfig>
+{
+public:
+
+	FAxleSim();
+
+	void Simulate(float DeltaTime) {}
+
+	FAxleConfig Setup;
+
+};
 
 } // namespace Chaos
 

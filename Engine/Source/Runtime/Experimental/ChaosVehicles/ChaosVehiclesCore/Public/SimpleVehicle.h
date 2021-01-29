@@ -11,6 +11,7 @@
 #include "AerodynamicsSystem.h"
 #include "AerofoilSystem.h"
 #include "ThrustSystem.h"
+#include "ArcadeSystem.h"
 //#include "FuelSystem.h"
 //#include "BallastSystem.h"
 
@@ -35,6 +36,10 @@ class FSimpleWheeledVehicle : public IVehicleInterface
 {
 public:
 	FSimpleWheeledVehicle()
+	: bSuspensionEnabled(true)
+	, bMechanicalSimEnabled(true)
+	, bWheelFrictionEnabled(true)
+	, NumDrivenWheels(0)
 	{
 
 	}
@@ -69,10 +74,32 @@ public:
 		return (Transmission.Num() > 0);
 	}
 
+	bool HasTorqueControlSetup()
+	{
+		return (TorqueControlSim.Num() > 0);
+	}
+
+	bool HasTargetRotationControlSetup()
+	{
+		return (TargetRotationControlSim.Num() > 0);
+	}
+
+	bool HasStabilizeControlSetup()
+	{
+		return (StabilizeControlSim.Num() > 0);
+	}
+
+
 	FSimpleTransmissionSim& GetTransmission()
 	{
 		check(Transmission.Num() == 1);
 		return Transmission[0];
+	}
+
+	FSimpleDifferentialSim& GetDifferential()
+	{
+		check(Differential.Num() == 1);
+		return Differential[0];
 	}
 
 	FSimpleWheelSim& GetWheel(int WheelIdx)
@@ -111,18 +138,53 @@ public:
 		return Thrusters[ThrusterIdx];
 	}
 
+	FTorqueControlSim& GetTorqueControl()
+	{
+		check(TorqueControlSim.Num() == 1);
+		return TorqueControlSim[0];
+	}
+
+	FTargetRotationControlSim& GetTargetRotationControl()
+	{
+		check(TargetRotationControlSim.Num() == 1);
+		return TargetRotationControlSim[0];
+	}
+
+	FStabilizeControlSim& GetStabilizeControl()
+	{
+		check(StabilizeControlSim.Num() == 1);
+		return StabilizeControlSim[0];
+	}
+
+	const TArray<FAxleSim>& GetAxles() const
+	{
+		return Axles;
+	}
+
+
 	TArray<FSimpleEngineSim> Engine;
 	TArray<FSimpleTransmissionSim> Transmission;
+	TArray<FSimpleDifferentialSim> Differential;
 	TArray<FSimpleWheelSim> Wheels;
 	TArray<FSimpleSuspensionSim> Suspension;
 	TArray<FSimpleSteeringSim> Steering;
 	TArray<FSimpleAerodynamicsSim> Aerodynamics;
 	TArray<FAerofoil> Aerofoils;
 	TArray<FSimpleThrustSim> Thrusters;
+	TArray<FAxleSim> Axles;
+
+	TArray<FTorqueControlSim> TorqueControlSim;
+	TArray<FTargetRotationControlSim> TargetRotationControlSim;
+	TArray<FStabilizeControlSim> StabilizeControlSim;
 	//TArray<FSimpleFuelSim> Fuel;
 	//TArray<FSimpleBallastSim> Ballast;
 	// turbo
 	// .. 
+
+	bool bSuspensionEnabled;
+	bool bMechanicalSimEnabled;
+	bool bWheelFrictionEnabled;
+	uint32 NumDrivenWheels;
 };
 
 

@@ -236,7 +236,7 @@ class UChaosWheeledVehicleMovementComponent;
 
 		/** The vehicle that owns us */
 		UPROPERTY(transient)
-		class UChaosWheeledVehicleMovementComponent* VehicleSim;
+		class UChaosWheeledVehicleMovementComponent* VehicleComponent;
 
 		// Our index in the vehicle's (and setup's) wheels array
 		UPROPERTY(transient)
@@ -354,6 +354,7 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.EngineEnabled = this->bAffectedByEngine;
 			PWheelConfig.ABSEnabled = this->bABSEnabled;
 			PWheelConfig.TractionControlEnabled = this->bTractionControlEnabled;
+			PWheelConfig.AxleType = static_cast<Chaos::FSimpleWheelConfig::EAxleType>(this->AxleType);
 			PWheelConfig.LongitudinalFrictionMultiplier = this->LongitudinalFrictionForceMultiplier;
 			PWheelConfig.LateralFrictionMultiplier = this->LateralFrictionForceMultiplier;
 			PWheelConfig.SideSlipModifier = this->SideSlipModifier;

@@ -61,6 +61,8 @@ enum class EVehicleDifferential : uint8
 	RearWheelDrive,
 };
 
+
+
 /**
  * Structure containing information about the status of a single wheel of the vehicle.
  */
@@ -173,11 +175,26 @@ struct FVehicleDifferentialConfig
 	//UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "1.0", UIMin = "1.0"))
 	//float RearBias;
 
+	const Chaos::FSimpleDifferentialConfig& GetPhysicsDifferentialConfig()
+	{
+		FillDifferentialSetup();
+		return PDifferentialConfig;
+	}
+
 	void InitDefaults()
 	{
 		DifferentialType = EVehicleDifferential::RearWheelDrive;
 		FrontRearSplit = 0.5f;
 	}
+
+	void FillDifferentialSetup()
+	{
+		PDifferentialConfig.DifferentialType = static_cast<Chaos::EDifferentialType>(this->DifferentialType);
+		PDifferentialConfig.FrontRearSplit = this->FrontRearSplit;
+	}
+
+	Chaos::FSimpleDifferentialConfig PDifferentialConfig;
+
 };
 
 USTRUCT()
@@ -229,6 +246,14 @@ struct FVehicleEngineConfig
 		EngineRevDownRate = 600.0f;
 	}
 
+	float GetTorqueFromRPM(float EngineRPM)
+	{
+		// The source curve does not need to be normalized, however we are normalizing it when it is passed on,
+		// since it's the MaxRPM and MaxTorque values that determine the range of RPM and Torque
+		float MinVal = 0.f, MaxVal = 0.f;
+		this->TorqueCurve.GetRichCurveConst()->GetValueRange(MinVal, MaxVal);
+		return TorqueCurve.GetRichCurve()->Eval(EngineRPM) / MaxVal * MaxTorque;
+	}
 private:
 
 	void FillEngineSetup()
@@ -328,6 +353,23 @@ struct FVehicleTransmissionConfig
 
 		TransmissionEfficiency = 0.9f;
 	}
+
+	float GetGearRatio(int32 InGear)
+	{
+		if (InGear > 0) // a forwards gear
+		{
+			return ForwardGearRatios[InGear - 1] * FinalRatio;
+		}
+		else if (InGear < 0) // a reverse gear
+		{
+			return -ReverseGearRatios[FMath::Abs(InGear) - 1] * FinalRatio;
+		}
+		else
+		{
+			return 0.f; // neutral has no ratio
+		}
+	}
+
 
 private:
 
@@ -472,12 +514,84 @@ struct CHAOSVEHICLES_API FWheelState
 
 	/** Commonly used Wheel state - evaluated once used wherever required for that frame */
 	void CaptureState(int WheelIdx, const FVector& WheelOffset, const FBodyInstance* TargetInstance);
+	void CaptureState(int WheelIdx, const FVector& WheelOffset, const Chaos::TPBDRigidParticleHandle<float, 3>* Handle);
+	FVector GetVelocityAtPoint(const Chaos::TPBDRigidParticleHandle<float, 3>* Rigid, const FVector& InPoint);
 
 	TArray<FVector> WheelWorldLocation;	/** Current Location Of Wheels In World Coordinates */
 	TArray<FVector> WorldWheelVelocity; /** Current velocity at wheel location In World Coordinates - combined linear and angular */
 	TArray<FVector> LocalWheelVelocity; /** Local velocity of Wheel */
 	TArray<Chaos::FSuspensionTrace> Trace;
 };
+
+//////////////////////////////////////////////////////////////////////////
+
+class UChaosWheeledVehicleSimulation : public UChaosVehicleSimulation
+{
+public:
+
+	UChaosWheeledVehicleSimulation(TArray<class UChaosVehicleWheel*>& WheelsIn, TArray<FPhysicsConstraintHandle>& ConstraintHandlesIn)
+		: Wheels(WheelsIn)
+		, ConstraintHandles(ConstraintHandlesIn)
+	{
+
+	}
+
+	virtual ~UChaosWheeledVehicleSimulation()
+	{
+	}
+
+	virtual void Init(TUniquePtr<Chaos::FSimpleWheeledVehicle>& PVehicleIn) override
+	{
+		UChaosVehicleSimulation::Init(PVehicleIn);
+
+		WheelState.Init(PVehicle->Wheels.Num());
+	}
+
+	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle) override;
+
+	/** Advance the vehicle simulation */
+	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle) override;
+
+	virtual void FillOutputState(FChaosVehicleAsyncOutput& Output) override;
+
+	/** Are enough vehicle systems specified such that physics vehicle simulation is possible */
+	virtual bool CanSimulate() const override;
+
+	/** Pass control Input to the vehicle systems */
+	virtual void ApplyInput(const FControlInputs& ControlInputs, float DeltaTime) override;
+
+	/** Perform suspension ray/shape traces */
+	virtual void PerformSuspensionTraces(const TArray<Chaos::FSuspensionTrace>& SuspensionTrace, const FCollisionQueryParams& TraceParams);
+
+
+	/** Update the engine/transmission simulation */
+	virtual void ProcessMechanicalSimulation(float DeltaTime);
+
+	/** Process steering mechanism */
+	virtual void ProcessSteering(const FControlInputs& ControlInputs);
+
+	/** calculate and apply lateral and longitudinal friction forces from wheels */
+	virtual void ApplyWheelFrictionForces(float DeltaTime);
+
+	/** calculate and apply chassis suspension forces */
+	virtual void ApplySuspensionForces(float DeltaTime);
+
+	bool IsWheelSpinning() const;
+
+
+	/** Draw 3D debug lines and things along side the 3D model */
+	virtual void DrawDebug3D() override;
+
+	// #TODO - should not exist here, now duplicated, best not to access at all from Physics 
+	TArray<class UChaosVehicleWheel*>& Wheels;
+
+	FWheelState WheelState;	/** Cached state that holds wheel data for this frame */
+
+	TArray<FPhysicsConstraintHandle>& ConstraintHandles;
+
+};
+
+//////////////////////////////////////////////////////////////////////////
 
 UCLASS(ClassGroup = (Physics), meta = (BlueprintSpawnableComponent), hidecategories = (PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
 class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVehicleMovementComponent
@@ -539,16 +653,6 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	static FWheelStatus MakeWheelStatus(bool bInContact, FVector& ContactPoint, UPhysicalMaterial* PhysMaterial
 			, float NormalizedSuspensionLength, float SpringForce, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal);
 
-
-
-
-
-
-
-
-
-
-
 	/** Get a wheels current simulation state */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	const FWheelStatus& GetWheelState(int WheelIndex) const
@@ -561,23 +665,20 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 
 	virtual void Serialize(FArchive & Ar) override;
 
+	// Get output data from Physics Thread
+	virtual void ParallelUpdate(float DeltaSeconds);
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	/** Are the configuration references configured sufficiently that the vehicle can be created */
 	virtual bool CanCreateVehicle() const override;
 
-	/** Are the appropriate vehicle systems specified such that physics vehicle simulation is possible */
-	virtual bool CanSimulate() const override;
-
 	/** Used to create any physics engine information for this component */
 	virtual void OnCreatePhysicsState() override;
 
 	/** Used to shut down and pysics engine structure for this component */
 	virtual void OnDestroyPhysicsState() override;
-
-	/** Tick this vehicle sim right before input is sent to the vehicle system  */
-	virtual void TickVehicle(float DeltaTime) override;
 
 	/** display next debug page */
 	static void NextDebugPage();
@@ -612,6 +713,15 @@ protected:
 	//////////////////////////////////////////////////////////////////////////
 	// Setup
 
+	/** */
+	virtual TUniquePtr<Chaos::FSimpleWheeledVehicle> CreatePhysicsVehicle() override
+	{
+		// Make the Vehicle Simulation class that will be updated from the physics thread async callback
+		VehicleSimulationPT = MakeUnique<UChaosWheeledVehicleSimulation>(Wheels, ConstraintHandles);
+
+		return UChaosVehicleMovementComponent::CreatePhysicsVehicle();
+	}
+
 	/** Re-Compute any runtime constants values that rely on setup data */
 	virtual void ComputeConstants() override;
 
@@ -619,7 +729,10 @@ protected:
 	virtual void FixupSkeletalMesh();
 
 	/** Allocate and setup the Chaos vehicle */
-	virtual void SetupVehicle() override;
+	virtual void SetupVehicle(TUniquePtr<Chaos::FSimpleWheeledVehicle>& PVehicle) override;
+
+	/** Create and setup the Chaos vehicle */
+	virtual void CreateVehicle();
 
 	/** Instantiate and setup our wheel objects */
 	virtual void CreateWheels();
@@ -631,7 +744,7 @@ protected:
 	virtual void SetupVehicleShapes();
 
 	/** Setup calculated suspension parameters */
-	void SetupSuspension();
+	void SetupSuspension(TUniquePtr<Chaos::FSimpleWheeledVehicle>& PVehicle);
 
 	/** Maps UChaosVehicleWheel Axle to a wheel index */
 	void RecalculateAxles();
@@ -641,36 +754,13 @@ protected:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Update
-
-	/** Advance the vehicle simulation */
-	virtual void UpdateSimulation(float DeltaTime) override;
-
-	/** Perform suspension ray/shape traces */
-	virtual void PerformSuspensionTraces(const TArray<Chaos::FSuspensionTrace>& SuspensionTrace);
-
-	/** Pass control Input to the vehicle systems */
-	virtual void ApplyInput(float DeltaTime);
-
-	/** Update the engine/transmission simulation */
-	virtual void ProcessMechanicalSimulation(float DeltaTime);
-
-	/** Process steering mechanism */
-	virtual void ProcessSteering();
-
-	/** calculate and apply lateral and longitudinal friction forces from wheels */
-	virtual void ApplyWheelFrictionForces(float DeltaTime);
-
-	/** calculate and apply chassis suspension forces */
-	virtual void ApplySuspensionForces(float DeltaTime);
+	void FillWheelOutputState();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Debug
 
 	/** Draw 2D debug text graphs on UI for the wheels, suspension and other systems */
 	virtual void DrawDebug(UCanvas* Canvas, float& YL, float& YPos);
-
-	/** Draw 3D debug lines and things along side the 3D model */
-	virtual void DrawDebug3D() override;
 
 	/** Get distances between wheels - primarily a debug display helper */
 	const FVector2D& GetWheelLayoutDimensions() const
@@ -680,11 +770,9 @@ protected:
 
 	private:
 
-	void FillWheelOutputState();
 
 	/** Get distances between wheels - primarily a debug display helper */
 	FVector2D CalculateWheelLayoutDimensions();
-	bool IsWheelSpinning() const;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	float CalcDialAngle(float CurrentValue, float MaxValue);
@@ -693,7 +781,6 @@ protected:
 
 	static EDebugPages DebugPage;
 	uint32 NumDrivenWheels; /** The number of wheels that have engine enabled checked */
-	FWheelState WheelState;	/** Cached state that hold wheel data for this frame */
 	FVector2D WheelTrackDimensions;	// Wheelbase (X) and track (Y) dimensions
 	TMap<UChaosVehicleWheel*, TArray<int>> AxleToWheelMap;
 	TArray<FPhysicsConstraintHandle> ConstraintHandles;
