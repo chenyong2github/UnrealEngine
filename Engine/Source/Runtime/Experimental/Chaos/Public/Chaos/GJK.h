@@ -681,6 +681,12 @@ namespace Chaos
 				}
 			}
 		}
+		else
+		{
+			// Initial overlap without MTD. These properties are not valid, but assigning them anyway so they don't contain NaNs and cause issues in invoking code.
+			OutNormal = { 0,0,1 };
+			OutPosition = { 0,0,0 };
+		}
 
 		return true;
 	}
