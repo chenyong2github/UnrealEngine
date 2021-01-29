@@ -3465,13 +3465,13 @@ void FSequencer::SetPerspectiveViewportCameraCutEnabled(bool bEnabled)
 	}
 }
 
-void FSequencer::ModifyViewportClientView(FMinimalViewInfo& ViewInfo)
+void FSequencer::ModifyViewportClientView(FEditorViewportViewModifierParams& Params)
 {
 	if (ViewModifierInfo.bApplyViewModifier)
 	{
-		ViewInfo.Location = ViewModifierInfo.ViewModifierLocation;
-		ViewInfo.Rotation = ViewModifierInfo.ViewModifierRotation;
-		ViewInfo.FOV = ViewModifierInfo.ViewModifierFOV;
+		Params.ViewInfo.Location = ViewModifierLocation;
+		Params.ViewInfo.Rotation = ViewModifierRotation;
+		Params.ViewInfo.FOV = ViewModifierFOV;
 	}
 }
 

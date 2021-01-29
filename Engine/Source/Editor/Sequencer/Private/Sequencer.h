@@ -73,6 +73,7 @@ struct FTransformData;
 struct ISequencerHotspot;
 struct FKeyAttributes;
 struct FNotificationInfo;
+struct FEditorViewportViewModifierParams;
 
 enum class EMapChangeType : uint8;
 
@@ -1163,7 +1164,7 @@ private:
 	void UpdateTimeBases();
 
 	/** View modifier for level editor viewports. */
-	void ModifyViewportClientView(FMinimalViewInfo& ViewInfo);
+	void ModifyViewportClientView(FEditorViewportViewModifierParams& Params);
 
 	/** User-supplied settings object for this sequencer */
 	USequencerSettings* Settings;

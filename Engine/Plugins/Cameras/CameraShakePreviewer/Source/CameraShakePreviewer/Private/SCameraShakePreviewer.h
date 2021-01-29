@@ -26,7 +26,7 @@ class UCameraShakeSourceComponent;
 class ULevel;
 class UWorld;
 struct FCameraShakeData;
-struct FMinimalViewInfo;
+struct FEditorViewportViewModifierParams;
 struct FTogglePreviewCameraShakesParams;
 
 class FCameraShakePreviewUpdater : public FTickableEditorObject, public FGCObject
@@ -49,7 +49,7 @@ public:
 	void RemoveCameraShake(UCameraShakeBase* ShakeInstance);
 	void RemoveAllCameraShakes();
 
-	void ModifyCamera(FMinimalViewInfo& InOutPOV);
+	void ModifyCamera(FEditorViewportViewModifierParams& Params);
 
 private:
 	ACameraActor* GetTempCameraActor();
@@ -115,7 +115,7 @@ private:
 	void OnNewCurrentLevel();
 	void OnMapLoaded(const FString&  Filename, bool bAsTemplate);
 
-	void OnModifyView(FMinimalViewInfo& InOutPOV);
+	void OnModifyView(FEditorViewportViewModifierParams& Params);
 
 private:
 	TArray<TSharedPtr<FCameraShakeData>> CameraShakes;
