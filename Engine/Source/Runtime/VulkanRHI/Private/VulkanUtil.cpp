@@ -630,7 +630,7 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 					check(Data[Index].sType == VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV);
 					uint32 Value = (uint32)(size_t)Data[Index].pCheckpointMarker;
 					const FString* Frame = CachedStrings.Find(Value);
-					UE_LOG(LogVulkanRHI, Error, TEXT("[VK_NV_device_diagnostic_checkpoints] %i: Stage 0x%x, %s (CRC 0x%x)"), Index, Data[Index].stage, Frame ? *(*Frame) : TEXT("<undefined>"), Value);
+					UE_LOG(LogVulkanRHI, Error, TEXT("[VK_NV_device_diagnostic_checkpoints] %i: Stage 0x%08x, %s (CRC 0x%x)"), Index, Data[Index].stage, Frame ? *(*Frame) : TEXT("<undefined>"), Value);
 				}
 				GLog->PanicFlushThreadedLogs();
 				GLog->Flush();
