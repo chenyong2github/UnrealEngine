@@ -8,4 +8,4 @@ That folder should be removed once all build configurations are moved over to us
 segmented layout that makes the conflicting header more clear.
 
 For more information please see: 
-http://blogs.msdn.com/b/chuckw/archive/2015/03/23/the-zombie-directx-sdk.aspx
+https://walbourn.github.io/the-zombie-directx-sdk/
