@@ -83,6 +83,9 @@ void FCameraShakePreviewUpdater::ModifyCamera(FEditorViewportViewModifierParams&
 	const float DeltaTime = LastDeltaTime.Get(-1.f);
 	if (DeltaTime > 0.f)
 	{
+		LastPostProcessSettings.Reset();
+		LastPostProcessBlendWeights.Reset();
+
 		FMinimalViewInfo OriginalPOV(Params.ViewInfo);
 
 		PreviewCameraShake->ModifyCamera(DeltaTime, Params.ViewInfo);
@@ -104,7 +107,14 @@ void FCameraShakePreviewUpdater::ModifyCamera(FEditorViewportViewModifierParams&
 		Params.ViewInfo.Rotation += LastRotationModifier;
 		Params.ViewInfo.FOV += LastFOVModifier;
 	}
+
+	for (int32 PPIndex = 0; PPIndex < LastPostProcessSettings.Num(); ++PPIndex)
+	{
+		Params.AddPostProcessBlend(LastPostProcessSettings[PPIndex], LastPostProcessBlendWeights[PPIndex]);
+	}
 }
+
+
 
 void FCameraShakePreviewUpdater::AddReferencedObjects(FReferenceCollector& Collector)
 {
@@ -189,17 +199,19 @@ ACameraActor* FCameraShakePreviewUpdater::GetTempCameraActor()
 void FCameraShakePreviewUpdater::UpdateCameraAnimInstance(UCameraAnimInst& CameraAnimInstance, float DeltaTime, FMinimalViewInfo& InOutPOV)
 {
 	ACameraActor* Actor = TempCameraActor.Get();
-	if (ensure(Actor != nullptr))
+	if (!ensure(Actor != nullptr))
 	{
-		Actor->SetActorLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+		return;
+	}
 
-		const ACameraActor* DefaultActor = GetDefault<ACameraActor>();
-		if (DefaultActor)
-		{
-			Actor->GetCameraComponent()->AspectRatio = DefaultActor->GetCameraComponent()->AspectRatio;
-			Actor->GetCameraComponent()->PostProcessSettings = CameraAnimInstance.CamAnim->BasePostProcessSettings;
-			Actor->GetCameraComponent()->PostProcessBlendWeight = CameraAnimInstance.CamAnim->BasePostProcessBlendWeight;
-		}
+	Actor->SetActorLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+
+	const ACameraActor* DefaultActor = GetDefault<ACameraActor>();
+	if (DefaultActor)
+	{
+		Actor->GetCameraComponent()->AspectRatio = DefaultActor->GetCameraComponent()->AspectRatio;
+		Actor->GetCameraComponent()->PostProcessSettings = CameraAnimInstance.CamAnim->BasePostProcessSettings;
+		Actor->GetCameraComponent()->PostProcessBlendWeight = CameraAnimInstance.CamAnim->BasePostProcessBlendWeight;
 	}
 
 	CameraAnimInstance.AdvanceAnim(DeltaTime, false);
@@ -207,6 +219,13 @@ void FCameraShakePreviewUpdater::UpdateCameraAnimInstance(UCameraAnimInst& Camer
 	if (CameraAnimInstance.CurrentBlendWeight > 0.f)
 	{
 		CameraAnimInstance.ApplyToView(InOutPOV);
+
+		if (Actor->GetCameraComponent()->PostProcessBlendWeight > 0.f)
+		{
+			AddPostProcessBlend(
+					Actor->GetCameraComponent()->PostProcessSettings, 
+					Actor->GetCameraComponent()->PostProcessBlendWeight * CameraAnimInstance.CurrentBlendWeight);
+		}
 	}
 }
 
@@ -220,6 +239,13 @@ void FCameraShakePreviewUpdater::CleanUpCameraAnimInstances()
 			ActiveAnims.RemoveAt(Index);
 		}
 	}
+}
+
+void FCameraShakePreviewUpdater::AddPostProcessBlend(const FPostProcessSettings& Settings, float Weight)
+{
+	check(LastPostProcessSettings.Num() == LastPostProcessBlendWeights.Num());
+	LastPostProcessSettings.Add(Settings);
+	LastPostProcessBlendWeights.Add(Weight);
 }
 
 /**

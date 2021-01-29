@@ -5,6 +5,7 @@
 #include "Camera/CameraModifier_CameraShake.h"
 #include "Containers/Array.h"
 #include "EditorUndoClient.h"
+#include "Engine/Scene.h"
 #include "Templates/SharedPointer.h"
 #include "TickableEditorObject.h"
 #include "UObject/GCObject.h"
@@ -56,6 +57,8 @@ private:
 	void UpdateCameraAnimInstance(UCameraAnimInst& CameraAnimInstance, float DeltaTime, FMinimalViewInfo& InOutPOV);
 	void CleanUpCameraAnimInstances();
 
+	void AddPostProcessBlend(const FPostProcessSettings& Settings, float Weight);
+
 private:
 	UCameraModifier_CameraShake* PreviewCameraShake;
 
@@ -68,6 +71,9 @@ private:
 	FVector LastLocationModifier;
 	FRotator LastRotationModifier;
 	float LastFOVModifier;
+
+	TArray<FPostProcessSettings> LastPostProcessSettings;
+	TArray<float> LastPostProcessBlendWeights;
 };
 
 /**
