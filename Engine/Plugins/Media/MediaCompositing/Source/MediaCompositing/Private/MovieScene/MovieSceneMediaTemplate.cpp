@@ -60,8 +60,9 @@ private:
 struct FMediaSectionExecutionToken
 	: IMovieSceneExecutionToken
 {
-	FMediaSectionExecutionToken(UMediaSource* InMediaSource, FTimespan InCurrentTime)
+	FMediaSectionExecutionToken(UMediaSource* InMediaSource, FTimespan InCurrentTime, FTimespan InFrameDuration)
 		: CurrentTime(InCurrentTime)
+		, FrameDuration(InFrameDuration)
 		, MediaSource(InMediaSource)
 		, PlaybackRate(1.0f)
 	{ }
@@ -80,12 +81,15 @@ struct FMediaSectionExecutionToken
 		if (MediaPlayer->GetUrl().IsEmpty())
 		{
 			SectionData.SeekOnOpen(CurrentTime);
+			// Setup an initial blocking range - MediaFramework will block (even through the opening process) in its next tick...
+			MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));
 			MediaPlayer->OpenSource(MediaSource);
 
 			return;
 		}
 
 		// seek on open if necessary
+		// (usually should not be needed as the blocking on open should ensure we never see the player preparing here)
 		if (MediaPlayer->IsPreparing())
 		{
 			SectionData.SeekOnOpen(CurrentTime);
@@ -100,8 +104,22 @@ struct FMediaSectionExecutionToken
 			return; // media has no length
 		}
 
+		//
 		// update media player
-		const FTimespan MediaTime = CurrentTime % MediaDuration;
+		//
+
+		// Setup media time (used for seeks)
+		FTimespan MediaTime;
+		if (!MediaPlayer->IsLooping())
+		{
+			// note: we use a small offset at the end to make sure we can indeed seek to it (exclusive end type range)
+			MediaTime = FMath::Clamp(CurrentTime, FTimespan::Zero(), MediaDuration - FrameDuration * 0.5);
+		}
+		else
+		{
+			// one always seeks into the original media time-range, hence: modulo the time
+			MediaTime = CurrentTime % MediaDuration;
+		}
 
 		#if MOVIESCENEMEDIATEMPLATE_TRACE_EVALUATION
 			GLog->Logf(ELogVerbosity::Log, TEXT("Executing time %s, MediaTime %s"), *CurrentTime.ToString(TEXT("%h:%m:%s.%t")), *MediaTime.ToString(TEXT("%h:%m:%s.%t")));
@@ -112,14 +130,43 @@ struct FMediaSectionExecutionToken
 			if (!MediaPlayer->IsPlaying())
 			{
 				MediaPlayer->Seek(MediaTime);
-				MediaPlayer->SetRate(1.0f);
+				// Set rate
+				// (note that the DIRECTION is important, but the magnitude is not - as we use blocked playback, the range setup to block on will serve as external clock to the player,
+				//  the direction is taken into account as hint for internal operation of the player)
+				if (!MediaPlayer->SetRate((Context.GetDirection() == EPlayDirection::Forwards) ? 1.0f : -1.0f))
+				{
+					// Failed to set needed rate: better switch off blocking and bail...
+					MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
+					return;
+				}
 			}
-			else if (Context.HasJumped())
+			else
 			{
-				MediaPlayer->Seek(MediaTime);
-			}
+				if (Context.HasJumped())
+				{
+					MediaPlayer->Seek(MediaTime);
+				}
 
-			MediaPlayer->SetBlockOnTime(MediaPlayer->GetTime());
+				float CurrentPlayerRate = MediaPlayer->GetRate();
+				if (Context.GetDirection() == EPlayDirection::Forwards && CurrentPlayerRate < 0.0f)
+				{
+					if (!MediaPlayer->SetRate(1.0f))
+					{
+						// Failed to set needed rate: better switch off blocking and bail...
+						MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
+						return;
+					}
+				}
+				else if (Context.GetDirection() == EPlayDirection::Backwards && CurrentPlayerRate > 0.0f)
+				{
+					if (!MediaPlayer->SetRate(-1.0f))
+					{
+						// Failed to set needed rate: better switch off blocking and bail...
+						MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>::Empty());
+						return;
+					}
+				}
+			}
 		}
 		else
 		{
@@ -129,13 +176,17 @@ struct FMediaSectionExecutionToken
 			}
 
 			MediaPlayer->Seek(MediaTime);
-			MediaPlayer->SetBlockOnTime(FTimespan::MinValue());
 		}
+
+	// Set blocking range / time-range to display
+	// (we always use the full current time for this, any adjustments to player timestamps are done internally)
+		MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));
 	}
 
 private:
 
 	FTimespan CurrentTime;
+	FTimespan FrameDuration;
 	UMediaSource* MediaSource;
 	float PlaybackRate;
 };
@@ -194,6 +245,7 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 		const int64 DenominatorTicks = FrameRate.Denominator * ETimespan::TicksPerSecond;
 		const int64 FrameTicks = FMath::DivideAndRoundNearest(int64(FrameTime.GetFrame().Value * DenominatorTicks), int64(FrameRate.Numerator));
 		const int64 FrameSubTicks = FMath::DivideAndRoundNearest(int64(FrameTime.GetSubFrame() * DenominatorTicks), int64(FrameRate.Numerator));
+		const int64 FrameDurationTicks = 1000 * FMath::DivideAndRoundNearest(DenominatorTicks, int64(FrameRate.Numerator));
 
 		#if MOVIESCENEMEDIATEMPLATE_TRACE_EVALUATION
 			GLog->Logf(ELogVerbosity::Log, TEXT("Evaluating frame %i+%f, FrameRate %i/%i, FrameTicks %d+%d"),
@@ -206,7 +258,7 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 			);
 		#endif
 
-		ExecutionTokens.Add(FMediaSectionExecutionToken(Params.MediaSource, FTimespan(FrameTicks + FrameSubTicks)));
+		ExecutionTokens.Add(FMediaSectionExecutionToken(Params.MediaSource, FTimespan(FrameTicks + FrameSubTicks), FTimespan(FrameDurationTicks)));
 	}
 }
 

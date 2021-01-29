@@ -80,7 +80,21 @@ void FMovieSceneMediaData::HandleMediaPlayerEvent(EMediaEvent Event)
 		return; // media can't seek
 	}
 
-	const FTimespan MediaTime = SeekOnOpenTime % MediaPlayer->GetDuration();
+	const FTimespan Duration = MediaPlayer->GetDuration();
+    if (Duration == FTimespan::Zero())
+    {
+	    return;
+    }
+
+	FTimespan MediaTime;
+	if (!MediaPlayer->IsLooping())
+	{
+		MediaTime = FMath::Clamp(SeekOnOpenTime, FTimespan::Zero(), Duration - FTimespan::FromSeconds(0.001));
+	}
+	else
+	{
+		MediaTime = SeekOnOpenTime % Duration;
+	}
 
 	MediaPlayer->SetRate(0.0f);
 	MediaPlayer->Seek(MediaTime);
