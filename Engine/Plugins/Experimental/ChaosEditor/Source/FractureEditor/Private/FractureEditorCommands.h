@@ -38,7 +38,10 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		// Generate Commands
 		TSharedPtr< FUICommandInfo > GenerateAsset;
 		TSharedPtr< FUICommandInfo > ResetAsset;
+
+		// Embed Commands
 		TSharedPtr< FUICommandInfo > AddEmbeddedGeometry;
+		TSharedPtr< FUICommandInfo > DeleteEmbeddedGeometry;
 		
 		// Fracture Commands
 		TSharedPtr< FUICommandInfo > Uniform;

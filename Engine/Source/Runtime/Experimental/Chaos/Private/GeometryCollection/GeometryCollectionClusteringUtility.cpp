@@ -746,7 +746,7 @@ void FGeometryCollectionClusteringUtility::ContextBasedClusterSelection(
 
 }
 
-void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, TArray<int32>& LeafBonesOut)
+void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, bool bOnlyRigids, TArray<int32>& LeafBonesOut)
 {
 	if (!ensure(BoneIndex >= 0))
 	{
@@ -756,19 +756,20 @@ void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* Geo
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 
-	if (SimulationType[BoneIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered && Children[BoneIndex].Num() > 0)
+	if (!bOnlyRigids && Children[BoneIndex].Num() == 0)
+	{
+		LeafBonesOut.Push(BoneIndex);
+	}
+	else if (bOnlyRigids && GeometryCollection->IsRigid(BoneIndex))
+	{
+		LeafBonesOut.Push(BoneIndex);
+	}
+	else if (Children[BoneIndex].Num() > 0)
 	{
 		for (int32 ChildElement : Children[BoneIndex])
 		{
-			GetLeafBones(GeometryCollection, ChildElement, LeafBonesOut);
+			GetLeafBones(GeometryCollection, ChildElement, bOnlyRigids, LeafBonesOut);
 		}
-	}
-	else
-	{
-		if (SimulationType[BoneIndex] == FGeometryCollection::ESimulationTypes::FST_Rigid)
-		{
-			LeafBonesOut.Push(BoneIndex);
-		}	
 	}
 
 }
