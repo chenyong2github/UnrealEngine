@@ -29,10 +29,10 @@ namespace ChaosTest {
 		Inertia.M[3][1] = 0.f;
 		Inertia.M[3][2] = 0.f;
 		Inertia.M[3][3] = 5.f;
-		auto Rotation = Chaos::TransformToLocalSpace<float, 3>(Inertia);
+		auto Rotation = Chaos::TransformToLocalSpace<FReal, 3>(Inertia);
 	}
 
-	Chaos::FMatrix33 RandInertia(float MinVal, float MaxVal)
+	Chaos::FMatrix33 RandInertia(FReal MinVal, FReal MaxVal)
 	{
 		return Chaos::FMatrix33(FMath::RandRange(MinVal, MaxVal), FMath::RandRange(MinVal, MaxVal), FMath::RandRange(MinVal, MaxVal));
 	}
@@ -68,7 +68,7 @@ namespace ChaosTest {
 			RandAxis(),
 		};
 
-		float Angles[] =
+		FReal Angles[] =
 		{
 			// No rotation
 			0.0f,
@@ -127,24 +127,24 @@ namespace ChaosTest {
 		{
 			for (FVector InputRotationAxis : Axes)
 			{
-				for (float InputRotationAngle : Angles)
+				for (FReal InputRotationAngle : Angles)
 				{
 					FQuat InputRotation = FQuat(InputRotationAxis, InputRotationAngle);
 					Chaos::FMatrix33 InputInertia = Utilities::ComputeWorldSpaceInertia(InputRotation, InputInertiaLocal);
 					Chaos::FMatrix33 OutputInertiaLocal = InputInertia;
-					Chaos::FRotation3 OutputRotation = Chaos::TransformToLocalSpace<float, 3>(OutputInertiaLocal);
+					Chaos::FRotation3 OutputRotation = Chaos::TransformToLocalSpace<FReal, 3>(OutputInertiaLocal);
 
 					// We should have recovered the local inertia matrix, but the axes may be switched
 					FVector OutputInertiaAxes[3], InputInertiaAxes[3];
 					OutputInertiaLocal.GetUnitAxes(OutputInertiaAxes[0], OutputInertiaAxes[1], OutputInertiaAxes[2]);
 					InputInertiaLocal.GetUnitAxes(InputInertiaAxes[0], InputInertiaAxes[1], InputInertiaAxes[2]);
 					int32 MatchedInertiaAxis[3] = { INDEX_NONE, INDEX_NONE, INDEX_NONE };
-					float MatchedInertiaDir[3] = { 0.0f, 0.0f, 0.0f };
+					FReal MatchedInertiaDir[3] = { 0.0, 0.0, 0.0 };
 					for (int OutputInertiaAxisIndex = 0; OutputInertiaAxisIndex < 3; ++OutputInertiaAxisIndex)
 					{
 						for (int InputInertiaAxisIndex = 0; InputInertiaAxisIndex < 3; ++InputInertiaAxisIndex)
 						{
-							float Dot = FVector::DotProduct(InputInertiaAxes[InputInertiaAxisIndex], OutputInertiaAxes[OutputInertiaAxisIndex]);
+							FReal Dot = FVector::DotProduct(InputInertiaAxes[InputInertiaAxisIndex], OutputInertiaAxes[OutputInertiaAxisIndex]);
 							if (FMath::IsNearlyEqual(FMath::Abs(Dot), 1.0f, KINDA_SMALL_NUMBER))
 							{
 								// We should only find each axis zero or one times
@@ -172,7 +172,7 @@ namespace ChaosTest {
 
 	void ComputeMassProperties()
 	{
-		Chaos::TParticles<float, 3> Particles;
+		Chaos::TParticles<FReal, 3> Particles;
 		Particles.AddParticles(8);
 		Particles.X(0) = FVec3(-1, -1, -1);
 		Particles.X(1) = FVec3(-1, -1, 1);
@@ -196,8 +196,8 @@ namespace ChaosTest {
 		Faces[9] = TVec3<int32>(6, 4, 0);
 		Faces[10] = TVec3<int32>(7, 3, 1);
 		Faces[11] = TVec3<int32>(1, 5, 7);
-		Chaos::TTriangleMesh<float> Surface(MoveTemp(Faces));
-		Chaos::TMassProperties<float, 3> MassProperties = Chaos::CalculateMassProperties(Particles, Surface.GetElements(), 1.f);
+		Chaos::FTriangleMesh Surface(MoveTemp(Faces));
+		Chaos::TMassProperties<FReal, 3> MassProperties = Chaos::CalculateMassProperties(Particles, Surface.GetElements(), 1.f);
 		EXPECT_TRUE(MassProperties.CenterOfMass.Size() < SMALL_NUMBER);
 		EXPECT_TRUE(MassProperties.RotationOfMass.Euler().Size() < SMALL_NUMBER);
 		EXPECT_TRUE(MassProperties.InertiaTensor.M[0][0] - ((FReal)2 / 3) < SMALL_NUMBER);

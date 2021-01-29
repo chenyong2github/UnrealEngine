@@ -75,12 +75,12 @@ namespace ChaosTest {
 		template <typename TLambda>
 		static void TestDynamicSphere(const TLambda& Lambda, int32 RewindHistorySize = 200)
 		{
-			TestEmpty([&Lambda, RewindHistorySize](auto* Solver, float SimDt, int32 Optimization)
+			TestEmpty([&Lambda, RewindHistorySize](auto* Solver, FReal SimDt, int32 Optimization)
 			{
-				auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+				auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 				// Make particles
-					auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+					auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 					auto& Particle = Proxy->GetGameThreadAPI();
 
 					Particle.SetGeometry(Sphere);
@@ -94,14 +94,14 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_MovingGeomChange)
 	{
-		TRewindHelper<TypeParam>::TestEmpty([](auto* Solver, float SimDt, int32 Optimization)
+		TRewindHelper<TypeParam>::TestEmpty([](auto* Solver, FReal SimDt, int32 Optimization)
 		{
-			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
-			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<float, 3>(FVec3(0), FVec3(1)));
-			auto Box2 = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<float, 3>(FVec3(2), FVec3(3)));
+			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
+			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(0), FVec3(1)));
+			auto Box2 = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(2), FVec3(3)));
 
 			// Make particles
-				auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+				auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 				auto& Particle = Proxy->GetGameThreadAPI();
 
 				Particle.SetGeometry(Sphere);
@@ -175,7 +175,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_AddForce)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			const int32 LastGameStep = 20;
@@ -213,7 +213,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_IntermittentForce)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			const int32 LastGameStep = 20;
@@ -281,11 +281,11 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_IntermittentGeomChange)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
-			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<float, 3>(FVec3(0), FVec3(1)));
-			auto Box2 = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<float, 3>(FVec3(2), FVec3(3)));
+			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(0), FVec3(1)));
+			auto Box2 = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(2), FVec3(3)));
 
 			const int32 LastGameStep = 20;
 
@@ -347,7 +347,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_FallingObjectWithTeleport)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
@@ -371,15 +371,15 @@ namespace ChaosTest {
 
 			//check state at every step except latest
 			const int32 LastSimStep = LastGameStep / SimDt;
-			float ExpectedVZ = 0;
-			float ExpectedXZ = 100;
+			FReal ExpectedVZ = 0;
+			FReal ExpectedXZ = 100;
 
 			for (int Step = 0; Step < LastSimStep - 1; ++Step)
 			{
 					const auto ParticleState = RewindData->GetPastStateAtFrame(*Proxy->GetParticle_LowLevel(), Step);
 
-				const float SimStart = SimDt * Step;
-				const float SimEnd = SimDt * (Step + 1);
+				const FReal SimStart = SimDt * Step;
+				const FReal SimEnd = SimDt * (Step + 1);
 					if (SimStart <= 5 && SimEnd > 5)
 				{
 					ExpectedVZ = 0;
@@ -398,7 +398,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleport)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
@@ -423,8 +423,8 @@ namespace ChaosTest {
 			Solver->DisableAsyncMode();	//during resim we sim directly at fixed dt
 
 			const int32 LastSimStep = LastGameStep / SimDt;
-			float ExpectedVZ = 0;
-			float ExpectedXZ = 100;
+			FReal ExpectedVZ = 0;
+			FReal ExpectedXZ = 100;
 
 			for (int Step = 0; Step < LastSimStep - 1; ++Step)
 			{
@@ -458,7 +458,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleportAsSlave)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
@@ -484,8 +484,8 @@ namespace ChaosTest {
 			Solver->DisableAsyncMode();	//during resim we sim directly at fixed dt
 
 			const int32 LastSimStep = LastGameStep / SimDt;
-			float ExpectedVZ = 0;
-			float ExpectedXZ = 100;
+			FReal ExpectedVZ = 0;
+			FReal ExpectedXZ = 100;
 
 			for (int Step = 0; Step < LastSimStep - 1; ++Step)
 			{
@@ -521,7 +521,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, RewindTest_ApplyRewind)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
@@ -553,8 +553,8 @@ namespace ChaosTest {
 
 				for (int Step = 0; Step < LastSimStep; ++Step)
 				{
-					const float SimStart = SimDt * Step;
-					const float SimEnd = SimDt * (Step + 1);
+					const FReal SimStart = SimDt * Step;
+					const FReal SimEnd = SimDt * (Step + 1);
 					if (SimStart <= 5 && SimEnd > 5)
 					{
 						ExpectedVZ = 0;
@@ -574,8 +574,8 @@ namespace ChaosTest {
 
 			//rewind to each frame and make sure data is recorded
 			{
-				float ExpectedVZ = 0;
-				float ExpectedXZ = 100;
+				FReal ExpectedVZ = 0;
+				FReal ExpectedXZ = 100;
 
 					for (int Step = 0; Step < LastSimStep - 1; ++Step)
 				{
@@ -609,7 +609,7 @@ namespace ChaosTest {
 	{
 		//this tests that particles that are not in the rewind data are left as they are
 		//but users of the system do not have to take special care
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
@@ -624,8 +624,8 @@ namespace ChaosTest {
 
 			//shows that state after first step was recorded
 			FRewindData* RewindData = Solver->GetRewindData();
-			float ExpectedVZ = -SimDt;
-			float ExpectedXZ = 100 + ExpectedVZ * SimDt;
+			FReal ExpectedVZ = -SimDt;
+			FReal ExpectedXZ = 100 + ExpectedVZ * SimDt;
 			{
 					const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Proxy->GetParticle_LowLevel(), 1);
 				EXPECT_EQ(State.X()[2], ExpectedXZ);
@@ -641,7 +641,7 @@ namespace ChaosTest {
 			{
 				// State should be the same as being at head because we removed it from solver (even though we're asking for info from the past)
 				{
-							const TGeometryParticle<float, 3>* RealParticle = Proxy->GetParticle_LowLevel();	//todo: this is still not thread safe, should probably restrict API to make this harder
+							const FGeometryParticle* RealParticle = Proxy->GetParticle_LowLevel();	//todo: this is still not thread safe, should probably restrict API to make this harder
 							const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*RealParticle, 1);
 							EXPECT_EQ(RealParticle->X(), State.X());
 				}
@@ -654,7 +654,7 @@ namespace ChaosTest {
 	TYPED_TEST(AllTraits, RewindTest_BufferLimit)
 	{
 		//test that we are getting as much of the history buffer as possible and that we properly wrap around
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, float SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 			{
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
@@ -672,8 +672,8 @@ namespace ChaosTest {
 					TickSolverHelper(Solver);
 				}
 
-				float ExpectedVZ = 0;
-				float ExpectedXZ = 100;
+				FReal ExpectedVZ = 0;
+				FReal ExpectedXZ = 100;
 
 				const int32 LastValidStep = NumSimSteps - 1;
 				const int32 FirstValid = NumSimSteps - RewindData->Capacity() + 1;	//we lose 1 step because we have to save head (should the API include this automatically?)
@@ -702,7 +702,7 @@ namespace ChaosTest {
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
 			if (TypeParam::IsRewindable() == false) { return; }
-			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -715,7 +715,7 @@ namespace ChaosTest {
 
 
 			// Make particles
-			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Particle = Proxy->GetGameThreadAPI();
 
 			Particle.SetGeometry(Sphere);
@@ -769,7 +769,7 @@ namespace ChaosTest {
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
 			if (TypeParam::IsRewindable() == false) { return; }
-			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -780,14 +780,14 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(5 , !!Optimization);
 
 			// Make particles
-			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Particle = Proxy->GetGameThreadAPI();
 
 			Particle.SetGeometry(Sphere);
 			Solver->RegisterObject(Proxy);
 			Particle.SetGravityEnabled(true);
 
-			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 			auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 			Kinematic.SetGeometry(Sphere);
@@ -903,7 +903,7 @@ namespace ChaosTest {
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
 			if (TypeParam::IsRewindable() == false) { return; }
-			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -914,7 +914,7 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
-			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Particle = Proxy->GetGameThreadAPI();
 
 			Particle.SetGeometry(Sphere);
@@ -988,7 +988,7 @@ namespace ChaosTest {
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
 			if (TypeParam::IsRewindable() == false) { return; }
-			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -999,7 +999,7 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
-			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Particle = Proxy->GetGameThreadAPI();
 
 			Particle.SetGeometry(Sphere);
@@ -1083,9 +1083,9 @@ namespace ChaosTest {
 			// Make particles
 
 
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
-			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 			auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Sphere);
@@ -1162,7 +1162,7 @@ namespace ChaosTest {
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
 			if (TypeParam::IsRewindable() == false) { return; }
-			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -1173,7 +1173,7 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
-			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Particle = Proxy->GetGameThreadAPI();
 
 			Particle.SetGeometry(Sphere);
@@ -1212,7 +1212,7 @@ namespace ChaosTest {
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
 			if (TypeParam::IsRewindable() == false) { return; }
-			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -1223,7 +1223,7 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
-			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Particle = Proxy->GetGameThreadAPI();
 
 			Particle.SetGeometry(Sphere);
@@ -1306,9 +1306,9 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
-			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 			auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Sphere);
@@ -1389,9 +1389,9 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(100, !!Optimization);
 
 			// Make particles
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
-			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 			auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Sphere);
@@ -1470,9 +1470,9 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(100, !!Optimization);
 
 			// Make particles
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
-			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 			auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Sphere);
@@ -1552,9 +1552,9 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
-			auto FullSimProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto FullSimProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& FullSim = FullSimProxy->GetGameThreadAPI();
-			auto SlaveSimProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto SlaveSimProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& SlaveSim = SlaveSimProxy->GetGameThreadAPI();
 
 			FullSim.SetGeometry(Box);
@@ -1625,9 +1625,9 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
-			auto ImpulsedObjProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto ImpulsedObjProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& ImpulsedObj = ImpulsedObjProxy->GetGameThreadAPI();
-			auto HitObjProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto HitObjProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& HitObj = HitObjProxy->GetGameThreadAPI();
 
 			ImpulsedObj.SetGeometry(Box);
@@ -1705,9 +1705,9 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(7, !!Optimization);
 
 			// Make particles
-			auto ImpulsedObjProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto ImpulsedObjProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& ImpulsedObj = ImpulsedObjProxy->GetGameThreadAPI();
-			auto HitObjProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto HitObjProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& HitObj = HitObjProxy->GetGameThreadAPI();
 
 			ImpulsedObj.SetGeometry(Box);
@@ -1789,9 +1789,9 @@ namespace ChaosTest {
 			Solver->EnableRewindCapture(100, !!Optimization);
 
 			// Make particles
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
-			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 			auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Sphere);
@@ -1883,9 +1883,9 @@ namespace ChaosTest {
 		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
 
 		// Make particles
-		auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+		auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 		auto& Dynamic = DynamicProxy->GetGameThreadAPI();
-		auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+		auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 		auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 		Dynamic.SetGeometry(Sphere);
@@ -1985,10 +1985,10 @@ namespace ChaosTest {
 		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
 
 		// Make particles
-		auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+		auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 		auto& Dynamic = DynamicProxy->GetGameThreadAPI();
 
-		auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+		auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 		auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 		Dynamic.SetGeometry(Sphere);
@@ -2227,7 +2227,7 @@ namespace ChaosTest {
 		const auto InitLambda = [&Box](auto& Solver)
 		{
 			TArray<FPhysicsActorHandle> Storage;
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Box);
@@ -2262,7 +2262,7 @@ namespace ChaosTest {
 		const auto InitLambda = [&Box, &StartPos, &StartRotation](auto& Solver)
 		{
 			TArray<FPhysicsActorHandle> Storage;
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Box);
@@ -2312,7 +2312,7 @@ namespace ChaosTest {
 		const auto InitLambda = [&Box](auto& Solver)
 		{
 			TArray<FPhysicsActorHandle> Storage;
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Box);
@@ -2347,7 +2347,7 @@ namespace ChaosTest {
 		const auto InitLambda = [&Box, Gravity](auto& Solver)
 		{
 			TArray<FPhysicsActorHandle> Storage;
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Box);
@@ -2401,7 +2401,7 @@ namespace ChaosTest {
 		const auto InitLambda = [&Sphere](auto& Solver)
 		{
 			TArray<FPhysicsActorHandle> Storage;
-			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic = DynamicProxy->GetGameThreadAPI();
 
 			Dynamic.SetGeometry(Sphere);
@@ -2411,7 +2411,7 @@ namespace ChaosTest {
 			Dynamic.SetV(FVec3(0, 0, -25));
 
 
-			auto DynamicProxy2 = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+			auto DynamicProxy2 = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			auto& Dynamic2 = DynamicProxy2->GetGameThreadAPI();
 
 			Dynamic2.SetGeometry(Sphere);
@@ -2451,7 +2451,7 @@ namespace ChaosTest {
 			TArray<FPhysicsActorHandle> Storage;
 			for (int Idx = 0; Idx < 5; ++Idx)
 			{
-				auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+				auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 				auto& Dynamic = DynamicProxy->GetGameThreadAPI();
 
 				Dynamic.SetGeometry(SmallBox);
@@ -2463,7 +2463,7 @@ namespace ChaosTest {
 				Storage.Add(DynamicProxy);
 			}
 
-			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::TKinematicGeometryParticle<float, 3>::CreateParticle());
+			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
 			auto& Kinematic = KinematicProxy->GetGameThreadAPI();
 
 			Kinematic.SetGeometry(Box);

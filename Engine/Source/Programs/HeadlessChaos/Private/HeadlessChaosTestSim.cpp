@@ -22,20 +22,20 @@ namespace ChaosTest {
 		// The goal is to make sure that the bounds are updated correctly and the dynamic rests on top of the static
 		// in its final position.
 
-		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 		// Create solver #TODO make TFramework a little more general instead of mostly geometry collection focused
 		GeometryCollectionTest::TFramework<TypeParam> Framework;
 
 		// Make a particle
-		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 		auto& Particle = Proxy->GetGameThreadAPI();
 		Particle.SetGeometry(Sphere);
 		Particle.SetX(FVec3(1000, 1000, 200));
 		Particle.SetGravityEnabled(true);
 		Framework.Solver->RegisterObject(Proxy);
 
-		auto StaticProxy = FSingleParticlePhysicsProxy::Create(Chaos::TGeometryParticle<float, 3>::CreateParticle());
+		auto StaticProxy = FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
 		auto& Static = StaticProxy->GetGameThreadAPI();
 		Static.SetGeometry(Sphere);
 		Static.SetX(FVec3(0, 0, 0));
@@ -62,7 +62,7 @@ namespace ChaosTest {
 	TYPED_TEST(AllEvolutions, SimTests_SphereSphereSimTest)
 	{
 		using TEvolution = TypeParam;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -85,7 +85,7 @@ namespace ChaosTest {
 		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
 
 		// The position of the static has changed and statics don't automatically update bounds, so update explicitly
-		Static->SetWorldSpaceInflatedBounds(Sphere->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Static->X(), Static->R())));
+		Static->SetWorldSpaceInflatedBounds(Sphere->BoundingBox().TransformedAABB(FRigidTransform3(Static->X(), Static->R())));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
@@ -103,7 +103,7 @@ namespace ChaosTest {
 	TYPED_TEST(AllEvolutions, SimTests_BoxBoxSimTest)
 	{
 		using TEvolution = TypeParam;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -145,7 +145,7 @@ namespace ChaosTest {
 	TYPED_TEST(AllEvolutions, DISABLED_SimTests_VeryLowInertiaSimTest)
 	{
 		using TEvolution = TypeParam;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -177,7 +177,7 @@ namespace ChaosTest {
 	TYPED_TEST(AllEvolutions, SimTests_SleepAndWakeSimTest)
 	{
 		using TEvolution = TypeParam;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);

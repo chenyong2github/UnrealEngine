@@ -70,33 +70,33 @@ IMPLEMENT_APPLICATION(HeadlessChaos, "HeadlessChaos");
 DEFINE_LOG_CATEGORY(LogHeadlessChaos);
 
 TEST(ImplicitTests, Implicit) {
-	ChaosTest::ImplicitPlane<float>();
-	ChaosTest::ImplicitCube<float>();
-	ChaosTest::ImplicitSphere<float>();
-	ChaosTest::ImplicitCylinder<float>();
-	ChaosTest::ImplicitTaperedCylinder<float>();
-	ChaosTest::ImplicitCapsule<float>();
-	ChaosTest::ImplicitScaled<float>();
-	ChaosTest::ImplicitScaled2<float>();
-	ChaosTest::ImplicitTransformed<float>();
-	ChaosTest::ImplicitIntersection<float>();
-	ChaosTest::ImplicitUnion<float>();
-	ChaosTest::UpdateImplicitUnion<float>();
+	ChaosTest::ImplicitPlane();
+	ChaosTest::ImplicitCube();
+	ChaosTest::ImplicitSphere();
+	ChaosTest::ImplicitCylinder();
+	ChaosTest::ImplicitTaperedCylinder();
+	ChaosTest::ImplicitCapsule();
+	ChaosTest::ImplicitScaled();
+	ChaosTest::ImplicitScaled2();
+	ChaosTest::ImplicitTransformed();
+	ChaosTest::ImplicitIntersection();
+	ChaosTest::ImplicitUnion();
+	ChaosTest::UpdateImplicitUnion();
 	// @todo: Make this work at some point
-	//ChaosTest::ImplicitLevelset<float>();
+	//ChaosTest::ImplicitLevelset();
 
 	SUCCEED();
 }
 
 TEST(ImplicitTests, Rasterization) {
-	ChaosTest::RasterizationImplicit<float>();
-	ChaosTest::RasterizationImplicitWithHole<float>();
+	ChaosTest::RasterizationImplicit();
+	ChaosTest::RasterizationImplicitWithHole();
 }
 
 TEST(ImplicitTests, ConvexHull) {
-	ChaosTest::ConvexHull<float>();
-	ChaosTest::ConvexHull2<float>();
-	ChaosTest::Simplify<float>();
+	ChaosTest::ConvexHull();
+	ChaosTest::ConvexHull2();
+	ChaosTest::Simplify();
 }
 
 TEST(CollisionTests, Collisions) {
@@ -131,14 +131,14 @@ TEST(Clustering, Clustering) {
 }
 
 TEST(SerializationTests, Serialization) {
-	ChaosTest::SimpleObjectsSerialization<float>();
-	ChaosTest::SharedObjectsSerialization<float>();
-	ChaosTest::GraphSerialization<float>();
-	ChaosTest::ObjectUnionSerialization<float>();
-	ChaosTest::ParticleSerialization<float>();
-	ChaosTest::BVHSerialization<float>();
-	ChaosTest::RigidParticlesSerialization<float>();
-	ChaosTest::BVHParticlesSerialization<float>();
+	ChaosTest::SimpleObjectsSerialization();
+	ChaosTest::SharedObjectsSerialization();
+	ChaosTest::GraphSerialization();
+	ChaosTest::ObjectUnionSerialization();
+	ChaosTest::ParticleSerialization();
+	ChaosTest::BVHSerialization();
+	ChaosTest::RigidParticlesSerialization();
+	ChaosTest::BVHParticlesSerialization();
 	SUCCEED();
 }
 
@@ -161,66 +161,66 @@ TEST(BroadphaseTests, Broadphase) {
 //}
 
 TEST(RaycastTests, Raycast) {
-	ChaosTest::SphereRaycast<float>();
-	ChaosTest::PlaneRaycast<float>();
-	//ChaosTest::CylinderRaycast<float>();
-	//ChaosTest::TaperedCylinderRaycast<float>();
-	ChaosTest::CapsuleRaycast<float>();
-	ChaosTest::TriangleRaycast<float>();
-	ChaosTest::BoxRaycast<float>();
-	ChaosTest::ScaledRaycast<float>();
-	//ChaosTest::TransformedRaycast<float>();
-	//ChaosTest::UnionRaycast<float>();
-	//ChaosTest::IntersectionRaycast<float>();
+	ChaosTest::SphereRaycast();
+	ChaosTest::PlaneRaycast();
+	//ChaosTest::CylinderRaycast();
+	//ChaosTest::TaperedCylinderRaycast();
+	ChaosTest::CapsuleRaycast();
+	ChaosTest::TriangleRaycast();
+	ChaosTest::BoxRaycast();
+	ChaosTest::ScaledRaycast();
+	//ChaosTest::TransformedRaycast();
+	//ChaosTest::UnionRaycast();
+	//ChaosTest::IntersectionRaycast();
 	
 	SUCCEED();
 }
 
 TEST(SweepTests, Sweep) {
-	ChaosTest::CapsuleSweepAgainstTriMeshReal<float>();
+	ChaosTest::CapsuleSweepAgainstTriMeshReal();
 }
 
 TEST(MostOpposingTests, MostOpposing) {
-	ChaosTest::TrimeshMostOpposing<float>();
-	ChaosTest::ConvexMostOpposing<float>();
-	ChaosTest::ScaledMostOpposing<float>();
+	ChaosTest::TrimeshMostOpposing();
+	ChaosTest::ConvexMostOpposing();
+	ChaosTest::ScaledMostOpposing();
 
 	SUCCEED();
 }
 
 TEST(GJK, Simplexes) {
-	ChaosTest::SimplexLine<float>();
-	ChaosTest::SimplexTriangle<float>();
-	ChaosTest::SimplexTetrahedron<float>();
+	ChaosTest::SimplexLine();
+	ChaosTest::SimplexTriangle();
+	ChaosTest::SimplexTetrahedron();
 	
 	SUCCEED();
 }
 
 TEST(GJK, GJKIntersectTests) {
-	ChaosTest::GJKSphereSphereTest<float>();
-	ChaosTest::GJKSphereBoxTest<float>();
-	ChaosTest::GJKSphereCapsuleTest<float>();
-	ChaosTest::GJKSphereConvexTest<float>();
-	ChaosTest::GJKSphereScaledSphereTest<float>();
+	ChaosTest::GJKSphereSphereTest();
+	ChaosTest::GJKSphereBoxTest();
+	ChaosTest::GJKSphereCapsuleTest();
+	ChaosTest::GJKSphereConvexTest();
+	ChaosTest::GJKSphereScaledSphereTest();
 	
 	SUCCEED();
 }
 
 TEST(GJK, GJKRaycastTests) {
-	ChaosTest::GJKSphereSphereSweep<float>();
-	ChaosTest::GJKSphereBoxSweep<float>();
-	ChaosTest::GJKSphereCapsuleSweep<float>();
-	ChaosTest::GJKSphereConvexSweep<float>();
-	ChaosTest::GJKSphereScaledSphereSweep<float>();
-	ChaosTest::GJKBoxCapsuleSweep<float>();
-	ChaosTest::GJKBoxBoxSweep<float>();
-	ChaosTest::GJKCapsuleConvexInitialOverlapSweep<float>();
+	ChaosTest::GJKSphereSphereSweep();
+	ChaosTest::GJKSphereBoxSweep();
+	ChaosTest::GJKSphereCapsuleSweep();
+	ChaosTest::GJKSphereConvexSweep();
+	ChaosTest::GJKSphereScaledSphereSweep();
+	ChaosTest::GJKBoxCapsuleSweep();
+	ChaosTest::GJKBoxBoxSweep();
+	ChaosTest::GJKCapsuleConvexInitialOverlapSweep();
 	SUCCEED();
 }
 
 TEST(EPA, EPATests) {
-	ChaosTest::EPAInitTest<float>();
-	ChaosTest::EPASimpleTest<float>();
+	ChaosTest::EPAInitTest();
+	ChaosTest::EPASimpleTest();
 	SUCCEED();
 }
 

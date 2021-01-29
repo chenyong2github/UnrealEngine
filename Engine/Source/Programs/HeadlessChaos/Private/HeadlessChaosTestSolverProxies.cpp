@@ -20,10 +20,10 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	template<typename Traits, class T>
+	template<typename Traits>
 	void SingleParticleProxySingleThreadTest()
 	{
-		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -33,7 +33,7 @@ namespace ChaosTest {
 		// Make a particle
 
 
-		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 		auto& Particle = Proxy->GetGameThreadAPI();
 		Particle.SetGeometry(Sphere);
 		Particle.SetX(FVec3(0, 0, 0));
@@ -62,11 +62,11 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	template<typename Traits, class T>
+	template<typename Traits>
 	void SingleParticleProxyWakeEventPropergationTest()
 	{
 		using namespace Chaos;
-		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(FVec3(0), 10));
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -75,7 +75,7 @@ namespace ChaosTest {
 
 		// Make a particle
 
-		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 		auto& Particle = Proxy->GetGameThreadAPI();
 		Particle.SetGeometry(Sphere);
 		Particle.SetX(FVec3(0, 0, 220));
@@ -83,7 +83,7 @@ namespace ChaosTest {
 		Solver->RegisterObject(Proxy);
 		Solver->AddDirtyProxy(Proxy);
 
-		auto Proxy2 = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<float, 3>::CreateParticle());
+		auto Proxy2 = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 		auto& Particle2 = Proxy2->GetGameThreadAPI();
 		Particle2.SetGeometry(Sphere);
 		Particle2.SetX(FVec3(0, 0, 100));
@@ -120,7 +120,7 @@ namespace ChaosTest {
 
 	TYPED_TEST(AllTraits, SingleParticleProxyTests)
 	{
-		ChaosTest::SingleParticleProxySingleThreadTest<TypeParam, float>();
-		ChaosTest::SingleParticleProxyWakeEventPropergationTest<TypeParam, float>();
+		ChaosTest::SingleParticleProxySingleThreadTest<TypeParam>();
+		ChaosTest::SingleParticleProxyWakeEventPropergationTest<TypeParam>();
 	}
 }

@@ -114,7 +114,7 @@ namespace ChaosTest {
 	}
 
 	template <typename TSolver>
-	void AdvanceSolverNoPushHelper(TSolver* Solver, float Dt)
+	void AdvanceSolverNoPushHelper(TSolver* Solver, FReal Dt)
 	{
 		Solver->AdvanceSolverBy(Dt);
 	}
@@ -925,7 +925,7 @@ namespace ChaosTest {
 		//forces are averaged
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		const float FixedDT = 1;
+		const FReal FixedDT = 1;
 		Scene.GetSolver()->EnableAsyncMode(1);	//tick 1 dt at a time
 
 		FActorCreationParams Params;
@@ -951,8 +951,8 @@ namespace ChaosTest {
 		TArray<FPhysicsActorHandle> Proxys = { Proxy, Proxy2 };
 		Scene.AddActorsToScene_AssumesLocked(Proxys);
 		Particle.SetObjectState(EObjectStateType::Dynamic);
-		const float ZVel = 10;
-		const float ZStart = 100;
+		const FReal ZVel = 10;
+		const FReal ZStart = 100;
 		const FVec3 ConstantForce(0, 0, 1 * Particle2.M());
 		Particle.SetV(FVec3(0, 0, ZVel));
 		Particle.SetX(FVec3(0, 0, ZStart));
@@ -977,8 +977,8 @@ namespace ChaosTest {
 
 		auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
 		Callback->NumPTSteps = NumPTSteps;
-		float Time = 0;
-		const float GTDt = FixedDT * 0.25f;
+		FReal Time = 0;
+		const FReal GTDt = FixedDT * 0.25f;
 		for (int32 Step = 0; Step < NumGTSteps; Step++)
 		{
 			//set force every external frame
@@ -989,8 +989,8 @@ namespace ChaosTest {
 			Scene.EndFrame();
 
 			Time += GTDt;
-			const float InterpolatedTime = Time - FixedDT * Chaos::AsyncInterpolationMultiplier;
-			const float ExpectedVFromForce = Time;
+			const FReal InterpolatedTime = Time - FixedDT * Chaos::AsyncInterpolationMultiplier;
+			const FReal ExpectedVFromForce = Time;
 			if (InterpolatedTime < 0)
 			{
 				//not enough time to interpolate so just take initial value
@@ -1006,7 +1006,7 @@ namespace ChaosTest {
 		}
 
 		EXPECT_EQ(Callback->Count, NumPTSteps);
-		const float LastInterpolatedTime = NumGTSteps * GTDt - FixedDT * Chaos::AsyncInterpolationMultiplier;
+		const FReal LastInterpolatedTime = NumGTSteps * GTDt - FixedDT * Chaos::AsyncInterpolationMultiplier;
 		EXPECT_NEAR(Particle.X()[2], ZStart + ZVel * LastInterpolatedTime, 1e-2);
 		EXPECT_NEAR(Particle.V()[2], ZVel, 1e-2);
 	}
@@ -1079,7 +1079,7 @@ namespace ChaosTest {
 
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		const float FixedDT = 1;
+		const FReal FixedDT = 1;
 		Scene.GetSolver()->EnableAsyncMode(FixedDT);	//tick 1 dt at a time
 
 		FActorCreationParams Params;
@@ -1120,8 +1120,8 @@ namespace ChaosTest {
 
 		auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
 
-		float Time = 0;
-		const float GTDt = FixedDT * 4;
+		FReal Time = 0;
+		const FReal GTDt = FixedDT * 4;
 		for (int32 Step = 0; Step < 10; Step++)
 		{
 			Callback->ExpectedFrame = Step;
@@ -1150,7 +1150,7 @@ namespace ChaosTest {
 
 		FChaosScene Scene(nullptr);
 		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		const float FixedDT = 1;
+		const FReal FixedDT = 1;
 		Scene.GetSolver()->EnableAsyncMode(FixedDT);	//tick 1 dt at a time
 
 		FActorCreationParams Params;
