@@ -398,7 +398,11 @@ public:
 	void RefreshErrors();
 
 	FSimpleMulticastDelegate& OnErrorsRefreshed();
+
 #endif
+
+    /** Method to add asset tags that are specific to this data interface. By default we add in how many instances of this class exist in the list.*/
+	virtual void GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const;
 	virtual bool CanExposeVariables() const { return false; }
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const {}
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const { return false; }

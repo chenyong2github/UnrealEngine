@@ -265,6 +265,33 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 	return MaxNumComponents;
 }
 
+void UNiagaraRendererProperties::GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraRendererProperties*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
+{
+	UClass* Class = GetClass();
+
+	// Default count up how many instances there are of this class and report to content browser
+	if (Class)
+	{
+		uint32 NumInstances = 0;
+		for (const UNiagaraRendererProperties* Prop : InProperties)
+		{
+			if (Prop && Prop->IsA(Class))
+			{
+				NumInstances++;
+			}
+		}
+
+		// Note that in order for these tags to be registered, we always have to put them in place for the CDO of the object, but 
+		// for readability's sake, we leave them out of non-CDO assets.
+		if (NumInstances > 0 || (InAsset && InAsset->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject)))
+		{
+			FString Key = TEXT("NumActive") + Class->GetName();
+			NumericKeys.Add(*Key) = NumInstances;
+		}
+	}
+}
+
+
 bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const
 {
 	// only keep enabled renderers that are parented to valid emitters
