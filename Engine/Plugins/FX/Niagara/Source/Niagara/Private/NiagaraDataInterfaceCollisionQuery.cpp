@@ -85,14 +85,18 @@ void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* 
 		Scripts.Add(System->GetSystemUpdateScript());
 		for (auto&& EmitterHandle : System->GetEmitterHandles())
 		{
-			if (EmitterHandle.GetInstance()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+			const UNiagaraEmitter* HandleEmitter = EmitterHandle.GetInstance();
+			if (HandleEmitter)
 			{
-				// Ignore gpu emitters
-				continue;
+				if (HandleEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+				{
+					// Ignore gpu emitters
+					continue;
+				}
+				TArray<UNiagaraScript*> OutScripts;
+				HandleEmitter->GetScripts(OutScripts, false);
+				Scripts.Append(OutScripts);
 			}
-			TArray<UNiagaraScript*> OutScripts;
-			EmitterHandle.GetInstance()->GetScripts(OutScripts, false);
-			Scripts.Append(OutScripts);
 		}
 	}
 	if (Emitter)
