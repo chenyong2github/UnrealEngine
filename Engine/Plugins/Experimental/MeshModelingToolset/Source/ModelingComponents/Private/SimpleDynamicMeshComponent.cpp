@@ -666,13 +666,27 @@ TFuture<bool> USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_Try
 		TFuture<void> ComputeSets = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this, &UpdateSetsOut, &Triangles]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexUpdatePrecomp_FindSets);
-			UpdateSetsOut.Reset();
-			for (int32 tid : Triangles)
+			int32 NumBuffers = Decomposition->Num();
+			TArray<std::atomic<bool>> BufferFlags;
+			BufferFlags.SetNum(NumBuffers);
+			for (int32 k = 0; k < NumBuffers; ++k)
 			{
-				int32 SetID = Decomposition->GetGroupForTriangle(tid);
-				UpdateSetsOut.AddUnique(SetID);
+				BufferFlags[k] = false;
 			}
-			UE_LOG(LogTemp, Warning, TEXT("FOUND %d dirty sets of %d"), UpdateSetsOut.Num(), Decomposition->Num());
+			ParallelFor(Triangles.Num(), [&](int32 k)
+			{
+				int32 SetID = Decomposition->GetGroupForTriangle(Triangles[k]);
+				BufferFlags[SetID] = true;
+			});
+			UpdateSetsOut.Reset();
+			for (int32 k = 0; k < NumBuffers; ++k)
+			{
+				if (BufferFlags[k])
+				{
+					UpdateSetsOut.Add(k);
+				}
+			}
+
 		});
 
 		ComputeSets.Wait();
