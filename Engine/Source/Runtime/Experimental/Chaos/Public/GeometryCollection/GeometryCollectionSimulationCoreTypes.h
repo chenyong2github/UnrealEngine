@@ -26,6 +26,7 @@ struct FSharedSimulationSizeSpecificData
 		, CollisionObjectReductionPercentage(0.f)
 		, CollisionParticlesFraction(1.f)
 		, MaximumCollisionParticles(60)
+		, DamageThreshold(250.f)
 	{
 	}
 
@@ -39,6 +40,7 @@ struct FSharedSimulationSizeSpecificData
 	float CollisionObjectReductionPercentage;
 	float CollisionParticlesFraction;
 	int32 MaximumCollisionParticles;
+	float DamageThreshold;
 
 	bool operator<(const FSharedSimulationSizeSpecificData& Rhs) const { return MaxSize < Rhs.MaxSize; }
 };
@@ -232,6 +234,7 @@ struct FSimulationParameters
 		, EnableClustering(true)
 		, ClusterGroupIndex(0)
 		, MaxClusterLevel(100)
+		, bUseSizeSpecificDamageThresholds(false)
 		, DamageThreshold({250.f})
 		, ClusterConnectionMethod(Chaos::FClusterCreationParameters<float>::EConnectionMethod::PointImplicit)
 		, CollisionGroup(0)
@@ -260,6 +263,7 @@ struct FSimulationParameters
 		, EnableClustering(Other.EnableClustering)
 		, ClusterGroupIndex(Other.ClusterGroupIndex)
 		, MaxClusterLevel(Other.MaxClusterLevel)
+		, bUseSizeSpecificDamageThresholds(Other.bUseSizeSpecificDamageThresholds)
 		, DamageThreshold(Other.DamageThreshold)
 		, ClusterConnectionMethod(Other.ClusterConnectionMethod)
 		, CollisionGroup(Other.CollisionGroup)
@@ -307,6 +311,7 @@ struct FSimulationParameters
 	bool EnableClustering;
 	int32 ClusterGroupIndex;
 	int32 MaxClusterLevel;
+	bool bUseSizeSpecificDamageThresholds;
 	TArray<float> DamageThreshold;
 	Chaos::FClusterCreationParameters<float>::EConnectionMethod ClusterConnectionMethod;
 

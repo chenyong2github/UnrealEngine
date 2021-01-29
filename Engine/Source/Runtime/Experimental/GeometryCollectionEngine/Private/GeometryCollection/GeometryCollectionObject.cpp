@@ -104,6 +104,7 @@ void FillSharedSimulationSizeSpecificData(FSharedSimulationSizeSpecificData& ToD
 	ToData.CollisionObjectReductionPercentage = FromData.CollisionObjectReductionPercentage;
 	ToData.CollisionParticlesFraction = FromData.CollisionParticlesFraction;
 	ToData.MaximumCollisionParticles = FromData.MaximumCollisionParticles;
+	ToData.DamageThreshold = FromData.DamageThreshold;
 }
 
 float KgCm3ToKgM3(float Density)

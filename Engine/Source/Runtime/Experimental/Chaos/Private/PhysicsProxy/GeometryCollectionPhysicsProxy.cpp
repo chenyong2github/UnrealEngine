@@ -938,6 +938,26 @@ DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters"), STAT_
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters:GlobalMatrices"), STAT_BuildClustersGlobalMatrices, STATGROUP_Chaos);
 
 
+int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeSpecificData, const FBox& Bounds)
+{
+	const FVector Extents = Bounds.GetExtent();
+	const float Size = Extents.GetAbsMin();
+	check(SizeSpecificData.Num());
+	int32 UseIdx = 0;
+	float PreSize = FLT_MAX;
+	for (int32 Idx = SizeSpecificData.Num() - 1; Idx >= 0; --Idx)
+	{
+		ensureMsgf(PreSize >= SizeSpecificData[Idx].MaxSize, TEXT("SizeSpecificData is not sorted"));
+		PreSize = SizeSpecificData[Idx].MaxSize;
+		if (Size < SizeSpecificData[Idx].MaxSize)
+			UseIdx = Idx;
+		else
+			break;
+	}
+	return UseIdx;
+}
+
+
 template <typename Traits>
 Chaos::TPBDRigidClusteredParticleHandle<float, 3>* 
 FGeometryCollectionPhysicsProxy::BuildClusters(
@@ -1044,7 +1064,23 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 		Damage = FLT_MAX;
 	}
 
+	if (Parameters.bUseSizeSpecificDamageThresholds)
+	{
+		const TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicit = DynamicCollection.Implicits;
+		if (Implicit[CollectionClusterIndex] && Implicit[CollectionClusterIndex]->HasBoundingBox())
+		{
+			FBox LocalBoundingBox(Implicit[CollectionClusterIndex]->BoundingBox().Min(), Implicit[CollectionClusterIndex]->BoundingBox().Max());
+			const int32 SizeSpecificIdx = FindSizeSpecificIdx(Parameters.Shared.SizeSpecificData, LocalBoundingBox);
+			if (0<= SizeSpecificIdx && SizeSpecificIdx < Parameters.Shared.SizeSpecificData.Num() )
+			{
+				const FSharedSimulationSizeSpecificData& SizeSpecificData = Parameters.Shared.SizeSpecificData[SizeSpecificIdx];
+				Damage = SizeSpecificData.DamageThreshold;
+			}
+		}
+	}
+
 	Parent->SetStrains(Damage);
+
 
 	// #BGTODO This will not automatically update - material properties should only ever exist in the material, not in other arrays
 	const Chaos::FChaosPhysicsMaterial* CurMaterial = Solver->GetSimMaterials().Get(Parameters.PhysicalMaterialHandle.InnerHandle);
@@ -1652,24 +1688,6 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 //==============================================================================
 
 
-int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeSpecificData, const FBox& Bounds)
-{
-	const FVector Extents = Bounds.GetExtent();
-	const float Size = Extents.GetAbsMin();
-	check(SizeSpecificData.Num());
-	int32 UseIdx = 0;
-	float PreSize = FLT_MAX;
-	for (int32 Idx = SizeSpecificData.Num() - 1; Idx >=0 ; --Idx)
-	{
-		ensureMsgf(PreSize >= SizeSpecificData[Idx].MaxSize, TEXT("SizeSpecificData is not sorted"));
-		PreSize = SizeSpecificData[Idx].MaxSize;
-		if (Size < SizeSpecificData[Idx].MaxSize)
-			UseIdx = Idx;
-		else
-			break;
-	}
-	return UseIdx;
-}
 
 /** 
 	NOTE - Making any changes to data stored on the rest collection below MUST be accompanied

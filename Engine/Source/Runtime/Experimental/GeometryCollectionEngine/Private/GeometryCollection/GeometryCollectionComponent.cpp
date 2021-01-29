@@ -212,6 +212,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, InitializationState(ESimulationInitializationState::Unintialized)
 	, ObjectType(EObjectStateTypeEnum::Chaos_Object_Dynamic)
 	, EnableClustering(true)
+	, bUseSizeSpecificDamageThreshold(false)
 	, ClusterGroupIndex(0)
 	, MaxClusterLevel(100)
 	, DamageThreshold({250.0})
@@ -1763,6 +1764,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				SimulationParameters.EnableClustering = EnableClustering;
 				SimulationParameters.ClusterGroupIndex = EnableClustering ? ClusterGroupIndex : 0;
 				SimulationParameters.MaxClusterLevel = MaxClusterLevel;
+				SimulationParameters.bUseSizeSpecificDamageThresholds = bUseSizeSpecificDamageThreshold;
 				SimulationParameters.DamageThreshold = DamageThreshold;
 				SimulationParameters.ClusterConnectionMethod = (Chaos::FClusterCreationParameters<float>::EConnectionMethod)ClusterConnectionType;
 				SimulationParameters.CollisionGroup = CollisionGroup;

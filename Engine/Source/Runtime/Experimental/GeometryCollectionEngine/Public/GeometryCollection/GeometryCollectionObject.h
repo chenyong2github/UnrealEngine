@@ -99,6 +99,12 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 MaximumCollisionParticles;
 
+	/**
+	 * Max number of particles.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Collisions")
+	int32 DamageThreshold;
+
 };
 
 class FGeometryCollectionNaniteData
