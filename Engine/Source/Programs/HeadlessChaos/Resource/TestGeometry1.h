@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
+#include "Chaos/Real.h"
+#include "Chaos/Array.h"
 class TestGeometry1
 {
 
@@ -9,12 +10,12 @@ public:
 	TestGeometry1();
 	~TestGeometry1() {};
 
-	static const TArray<float>	RawVertexArray;
-	static const TArray<int32>	RawIndicesArray;
+	static const TArray<Chaos::FReal>	RawVertexArray;
+	static const TArray<int32>			RawIndicesArray;
 };
 
 
-const TArray<float> TestGeometry1::RawVertexArray = {
+const TArray<Chaos::FReal> TestGeometry1::RawVertexArray = {
 														-0.118278, 2.164261, 0.478031,
 														0.718749, 2.083855, 0.478031,
 														1.996569, -3.569340, 108.680893,

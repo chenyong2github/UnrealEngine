@@ -7,7 +7,7 @@
 namespace GeometryCollectionTest 
 {
 
-	const TArray<float> FracturedGeometry::RawVertexArray = {
+	const TArray<Chaos::FReal> FracturedGeometry::RawVertexArray = {
 													50, 0, -50,
 													50, 50, -50,
 													0, 50, -50,
@@ -1954,7 +1954,7 @@ GlobalFracturedGeometry::GlobalFracturedGeometry()
 	}
 
 	// Measure the extent of the second point set.
-	Chaos::TAABB<float, 3> BBox(
+	Chaos::FAABB3 BBox(
 		Chaos::FVec3(
 			RawVertexArray[NumOrigFractured + 0],
 			RawVertexArray[NumOrigFractured + 1],

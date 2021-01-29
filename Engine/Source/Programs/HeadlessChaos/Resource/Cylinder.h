@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
-
+#include "Chaos/Real.h"
+#include "Chaos/Array.h"
 namespace GeometryCollectionTest
 {
 	class CylinderGeometry
@@ -12,11 +12,11 @@ namespace GeometryCollectionTest
 		CylinderGeometry();
 		~CylinderGeometry() {};
 
-		static const TArray<float>	RawVertexArray;
-		static const TArray<int32>	RawIndicesArray;
+		static const TArray<Chaos::FReal>	RawVertexArray;
+		static const TArray<int32>			RawIndicesArray;
 	};
 
-	const TArray<float> CylinderGeometry::RawVertexArray = {
+	const TArray<Chaos::FReal> CylinderGeometry::RawVertexArray = {
 																100.000000, 0.000000, 100.000000,
 																95.105652, 30.901701, 100.000000,
 																80.901703, 58.778526, 100.000000,
