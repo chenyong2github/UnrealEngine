@@ -127,10 +127,10 @@ static_assert(!TModels<CEqualityComparableWith, FMutableObjectPtr, char*>::Value
 static_assert(TModels<CEqualityComparableWith, FConstObjectPtr, TYPE_OF_NULLPTR>::Value, "Must be able to compare equality and inequality bidirectionally between TObjectPtr<const UObject> and nullptr");
 static_assert(TModels<CEqualityComparableWith, FMutableObjectPtr, TYPE_OF_NULLPTR>::Value, "Must be able to compare equality and inequality bidirectionally between TObjectPtr<UObject> and nullptr");
 
-#if !(PLATFORM_MICROSOFT) || !defined(_MSC_EXTENSIONS) // MSVC static analyzer is run in non-conformance mode, and that causes these checks to fail.
+#if !UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT // Specialized NULL support causes these checks to fail.
 static_assert(!TModels<CEqualityComparableWith, FConstObjectPtr, long>::Value, "Should not be able to compare equality and inequality bidirectionally between TObjectPtr<const UObject> and long");
 static_assert(!TModels<CEqualityComparableWith, FMutableObjectPtr, long>::Value, "Should not be able to compare equality and inequality bidirectionally between TObjectPtr<UObject> and long");
-#endif // #if !(PLATFORM_MICROSOFT) || !defined(_MSC_EXTENSIONS)
+#endif // #if !UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT
 
 // Ensure that the use of incomplete types doesn't provide a means to bypass type safety on TObjectPtr
 // NOTE: This is disabled because we're permitting this operation with a deprecation warning.

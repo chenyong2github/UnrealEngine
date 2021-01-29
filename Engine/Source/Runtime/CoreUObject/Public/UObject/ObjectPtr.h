@@ -25,6 +25,17 @@
  */
 #define UE_TRANSITIONAL_OBJECT_PTR(Type) auto 
 
+#if PLATFORM_MICROSOFT && defined(_MSC_EXTENSIONS)
+	/**
+	 * Non-conformance mode in MSVC has issues where the presence of a conversion operator to bool (even an explicit one)
+	 * leads to operator ambiguity for operator== and operator!= with a NULL (not nullptr).  This macro controls the presence
+	 * of code to deal with this issue.
+	 */
+	#define UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT 1
+#else
+	#define UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT 0
+#endif
+
 template <typename T>
 struct TObjectPtr;
 
@@ -123,6 +134,7 @@ public:
 	FORCEINLINE UObject& operator*() const { return *Get(); }
 
 	FORCEINLINE bool IsNull() const { return IsObjectHandleNull(Handle); }
+	FORCEINLINE bool operator!() const { return IsNull(); }
 	explicit FORCEINLINE operator bool() const { return !IsNull(); }
 	FORCEINLINE FObjectHandle GetHandle() const { return Handle; }
 	FORCEINLINE FObjectHandle& GetHandleRef() const { return Handle; }
@@ -283,6 +295,7 @@ public:
 	explicit FORCEINLINE operator T*& () { return GetInternalRef(); }
 
 	using FObjectPtr::IsNull;
+	using FObjectPtr::operator!;
 	using FObjectPtr::operator bool;
 	using FObjectPtr::GetHandle;
 
@@ -347,6 +360,20 @@ namespace ObjectPtr_Private
 	{
 		return Other;
 	}
+
+#if UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT
+	/**
+	 * Force acceptance of explicitly TYPE_OF_NULL to avoid ambiguity issues triggered by the presence of a type conversion operator to bool.
+	 * This has the negative consequence of making it possible to coerce an arbitrary integer for the purpose of use in the comparison operators.
+	 */
+	template <typename T>
+	UE_OBJPTR_DEPRECATED(5.0, "Coercing a NULL for operations with a TObjectPtr is deprecated when running in a non-standards conforming compiler mode.")
+	constexpr const T* CoerceToPointer(TYPE_OF_NULL Other)
+	{
+		checkfSlow(Other == 0, TEXT("TObjectPtr cannot be compared to a non-zero NULL type value."));
+		return nullptr;
+	}
+#endif
 
 	/** Coerce to pointer through implicit conversion to CommonPointerType where CommonPointerType is deduced, and must be a C++ pointer, not a wrapper type. */
 	template <
