@@ -379,7 +379,7 @@ bool FPThreadEvent::Wait(uint32 WaitTime, const bool bIgnoreThreadIdleStats /*= 
 	WaitForStats();
 
 	SCOPE_CYCLE_COUNTER(STAT_EventWait);
-	CSV_SCOPED_WAIT_CONDITIONAL(WaitTime > 0 && IsInGameThread());
+	CSV_SCOPED_WAIT(WaitTime);
 	FThreadIdleStats::FScopeIdle Scope(bIgnoreThreadIdleStats);
 
 	check(bInitialized);

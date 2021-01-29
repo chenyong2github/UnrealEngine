@@ -65,7 +65,8 @@
 	TRACE_CSV_PROFILER_INLINE_STAT_EXCLUSIVE(#StatName); \
 	FScopedCsvStatExclusiveConditional _ScopedCsvStatExclusive_ ## StatName (#StatName,Condition);
 
-#define CSV_SCOPED_WAIT_CONDITIONAL(Condition)					FScopedCsvWaitConditional _ScopedCsvWait(Condition);
+#define CSV_SCOPED_WAIT(WaitTime)							FScopedCsvWaitConditional _ScopedCsvWait(WaitTime>0 && FCsvProfiler::IsWaitTrackingEnabledOnCurrentThread());
+#define CSV_SCOPED_WAIT_CONDITIONAL(Condition)				FScopedCsvWaitConditional _ScopedCsvWait(Condition);
 
 #define CSV_SCOPED_SET_WAIT_STAT(StatName) \
 	TRACE_CSV_PROFILER_INLINE_STAT_EXCLUSIVE("EventWait/"#StatName); \
@@ -113,6 +114,7 @@
   #define CSV_SCOPED_TIMING_STAT_GLOBAL(StatName)					
   #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StatName)
   #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(StatName,Condition)
+  #define CSV_SCOPED_WAIT(WaitTime)
   #define CSV_SCOPED_WAIT_CONDITIONAL(Condition)
   #define CSV_SCOPED_SET_WAIT_STAT(StatName)
   #define CSV_SCOPED_SET_WAIT_STAT_IGNORE()
@@ -301,6 +303,9 @@ public:
 
 	CORE_API FString GetOutputFilename() const { return OutputFilename; }
 
+	CORE_API static bool IsWaitTrackingEnabledOnCurrentThread();
+
+
 	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileStart);
 	FOnCSVProfileStart& OnCSVProfileStart() { return OnCSVProfileStartDelegate; }
 
@@ -465,6 +470,7 @@ public:
 	}
 	bool bCondition;
 };
+
 
 class FScopedCsvSetWaitStat
 {
