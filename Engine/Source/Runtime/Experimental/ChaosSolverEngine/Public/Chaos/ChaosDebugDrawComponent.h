@@ -4,6 +4,7 @@
 
 #include "Components/ActorComponent.h"
 #include "Chaos/Declares.h"
+#include "Chaos/DebugDrawQueue.h"
 #include "Engine/World.h"
 #include "ChaosDebugDrawComponent.generated.h"
 
@@ -31,5 +32,7 @@ private:
 	static void CreateDebugDrawActor(UWorld* World);
 
 	bool bInPlay;
+
+	TArray<Chaos::FLatentDrawCommand> DrawCommands;
 };
 
