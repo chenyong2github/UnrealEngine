@@ -36,6 +36,10 @@ void APostProcessVolume::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
+EActorGridPlacement APostProcessVolume::GetGridPlacement() const
+{
+	return bUnbound ? EActorGridPlacement::AlwaysLoaded : AActor::GetGridPlacement();
+}
 
 void APostProcessVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -198,6 +202,11 @@ bool APostProcessVolume::CanEditChange(const FProperty* InProperty) const
 			{
 				return false;
 			}
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(APostProcessVolume, GridPlacement))
+		{
+			return !bUnbound;
 		}
 	}
 

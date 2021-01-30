@@ -69,6 +69,10 @@ class ENGINE_API APostProcessVolume : public AVolume, public IInterface_PostProc
 	//~ Begin AActor Interface
 	virtual void PostUnregisterAllComponents( void ) override;
 
+#if WITH_EDITOR
+	virtual EActorGridPlacement GetGridPlacement() const override;
+#endif
+
 protected:
 	virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface
