@@ -502,6 +502,12 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 				{
 					FCString::Strncat(CrashReporterClientArgs, TEXT(" -nullrhi"), CR_CLIENT_MAX_ARGS_LEN);
 				}
+
+				// Pass through any unattended flag
+				if (FParse::Param(ArgList[It], TEXT("unattended")))
+				{
+					FCString::Strncat(CrashReporterClientArgs, TEXT(" -unattended"), CR_CLIENT_MAX_ARGS_LEN);
+				}
 			}
 		}
 	}
