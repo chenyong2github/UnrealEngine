@@ -140,7 +140,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 
 bool FWorldPartitionMiniMapHelper::DoesActorContributeToBounds(AActor* Actor)
 {
-	return Actor && Actor->GridPlacement != EActorGridPlacement::AlwaysLoaded;
+	return Actor && Actor->GetGridPlacement() != EActorGridPlacement::AlwaysLoaded;
 }
 
 FBox FWorldPartitionMiniMapHelper::GetWorldBounds(UWorld* World)

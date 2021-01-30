@@ -98,7 +98,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 				DataChunkActor->SetActorLabel(FString::Printf(TEXT("NavDataChunkActor_%s_%s"), *GetName(), *CellName.ToString()));
 
 				// Set target grid
-				DataChunkActor->RuntimeGrid = RuntimeGrid.GridName;
+				DataChunkActor->SetRuntimeGrid(RuntimeGrid.GridName);
 				ValidNavigationDataChunkActors.Add(DataChunkActor);
 
 				UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Verbose, TEXT("%i) %s added."), ActorCount, *DataChunkActor->GetName());

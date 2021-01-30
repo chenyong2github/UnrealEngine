@@ -300,7 +300,7 @@ bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(const 
 			{
 				if (Actor)
 				{
-					Actor->GridPlacement = EActorGridPlacement::AlwaysLoaded;
+					Actor->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
 				}
 			}
 		}
@@ -316,7 +316,7 @@ bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(const 
 		{
 			if (Actor)
 			{
-				Actor->RuntimeGrid = RuntimeHash->GetActorRuntimeGrid(Actor);
+				Actor->SetRuntimeGrid(RuntimeHash->GetActorRuntimeGrid(Actor));
 			}
 		}
 	}
@@ -986,7 +986,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 						LandscapeInfos.Add(LandscapeInfo);
 					}
 					// Only override default grid placement on actors that are not marked as always loaded
-					else if (Actor->GridPlacement != EActorGridPlacement::AlwaysLoaded)
+					else if (Actor->GetGridPlacement() != EActorGridPlacement::AlwaysLoaded)
 					{
 						FVector BoundsLocation;
 						FVector BoundsExtent;
@@ -996,11 +996,11 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 						if (!WorldBounds.IsInside(ActorBounds))
 						{
-							Actor->GridPlacement = EActorGridPlacement::AlwaysLoaded;
+							Actor->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
 						}
 						else
 						{
-							Actor->GridPlacement = DefaultGridPlacement;
+							Actor->SetGridPlacement(DefaultGridPlacement);
 						}
 					}
 

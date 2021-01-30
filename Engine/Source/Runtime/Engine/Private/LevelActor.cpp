@@ -683,7 +683,7 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	EActorGridPlacement DefaultGridPlacement = Class->GetDefaultObject<AActor>()->GetDefaultGridPlacement();
 	if (DefaultGridPlacement != EActorGridPlacement::None)
 	{
-		Actor->GridPlacement = DefaultGridPlacement;
+		Actor->SetGridPlacement(DefaultGridPlacement);
 	}
 #endif
 

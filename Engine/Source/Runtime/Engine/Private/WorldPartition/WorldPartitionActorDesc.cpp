@@ -57,10 +57,10 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	}
 	else
 	{
-		GridPlacement = InActor->GridPlacement;
+		GridPlacement = InActor->GetGridPlacement();
 	}
 
-	RuntimeGrid = InActor->RuntimeGrid;
+	RuntimeGrid = InActor->GetRuntimeGrid();
 	bActorIsEditorOnly = InActor->IsEditorOnly();
 	bLevelBoundsRelevant = InActor->IsLevelBoundsRelevant();
 	DataLayers = InActor->GetDataLayerNames();

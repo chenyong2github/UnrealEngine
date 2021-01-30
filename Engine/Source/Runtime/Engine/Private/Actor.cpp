@@ -172,7 +172,9 @@ void AActor::InitializeDefaults()
 	}
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
 
+#if WITH_EDITORONLY_DATA
 	GridPlacement = EActorGridPlacement::Bounds;
+#endif
 }
 
 void FActorTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)

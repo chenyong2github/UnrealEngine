@@ -48,6 +48,7 @@ enum class EActorUpdateOverlapsMethod : uint8
 	NeverUpdate			// Never update overlap state on initialization.
 };
 
+#if WITH_EDITORONLY_DATA
 /** Enum defining how actor will be placed in the partition */
 UENUM()
 enum class EActorGridPlacement : uint8
@@ -57,7 +58,7 @@ enum class EActorGridPlacement : uint8
 	AlwaysLoaded,				// Actor is always loaded (not placed in the grid), also affects editor.
 	None UMETA(Hidden)
 };
-
+#endif
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogActor, Log, Warning);
 
@@ -546,6 +547,8 @@ public:
 	 */
 	float CreationTime;
 
+protected:
+#if WITH_EDITORONLY_DATA
 	/** 
 	 * Determine how this actor will be placed in the partition (if the world is partitioned). This value is not taken into account
 	 * if the function ActorClass->GetDefaultGridPlacement returns other than EActorGridPlacement::None.
@@ -559,8 +562,8 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category=WorldPartition)
 	FName RuntimeGrid;
+#endif
 
-private:
 	/**
 	 * Used for replicating attachment of this actor's RootComponent to another actor.
 	 * This is filled in via GatherCurrentMovement() when the RootComponent has an AttachParent.
@@ -799,6 +802,18 @@ public:
 	 / @return EActorGridPlacement::None if the placement should be on a per-instance basis, otherwise the default value wins.
 	 */
 	virtual EActorGridPlacement GetDefaultGridPlacement() const;
+	
+	/** Returns this actor's current grid placement. */
+	virtual EActorGridPlacement GetGridPlacement() const { return GridPlacement; }
+
+	/** Sets this actor's current grid placement. */
+	void SetGridPlacement(EActorGridPlacement InGridPLacement) { GridPlacement = InGridPLacement; }
+
+	/** Returns this actor's current target runtime grid. */
+	virtual FName GetRuntimeGrid() const { return RuntimeGrid; }
+
+	/** Sets this actor's current target runtime grid. */
+	void SetRuntimeGrid(FName InRuntimeGrid) { RuntimeGrid = InRuntimeGrid; }
 
 	/** Returns this actor's current Guid. Actor Guids are only available in development builds. */
 	inline const FGuid& GetActorGuid() const { return ActorGuid; }

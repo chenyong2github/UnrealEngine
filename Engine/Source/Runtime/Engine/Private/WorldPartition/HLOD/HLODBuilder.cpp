@@ -66,7 +66,7 @@ public:
 			HLODActor->Modify();
 			HLODActor->SetHLODPrimitives(HLODPrimitives);
 			HLODActor->SetChildrenPrimitives(InSubComponents);
-			HLODActor->RuntimeGrid = HLODLayer->GetRuntimeGrid(HLODLevel);
+			HLODActor->SetRuntimeGrid(HLODLayer->GetRuntimeGrid(HLODLevel));
 			HLODActor->SetLODLevel(HLODLevel);
 			HLODActor->SetHLODLayer(HLODLayer->GetParentLayer().LoadSynchronous());
 			HLODActor->SetSubActorsHLODLayer(HLODLayer);
