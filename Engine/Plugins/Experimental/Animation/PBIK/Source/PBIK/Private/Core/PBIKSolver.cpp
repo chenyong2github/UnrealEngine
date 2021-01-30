@@ -500,6 +500,12 @@ PBIK::FBoneSettings* FPBIKSolver::GetBoneSettings(const int32 Index)
 		return nullptr;
 	}
 
+	if (!Bones[Index].Body)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PBIK: trying to apply Bone Settings to bone that is not simulated (not between root and effector)."));
+		return nullptr;
+	}
+
 	return &Bones[Index].Body->J;
 }
 
