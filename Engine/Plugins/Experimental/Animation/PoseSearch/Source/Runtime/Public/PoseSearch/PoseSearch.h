@@ -20,6 +20,7 @@
 
 class UAnimSequence;
 struct FCompactPose;
+struct FPoseContext;
 struct FReferenceSkeleton;
 
 namespace UE { namespace PoseSearch {
