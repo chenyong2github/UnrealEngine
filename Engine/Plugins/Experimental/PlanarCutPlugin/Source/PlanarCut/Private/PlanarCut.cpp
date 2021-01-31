@@ -1277,15 +1277,13 @@ struct FDynamicMeshCollection
 	TArray<FMeshData> Meshes;
 	FAxisAlignedBox3d Bounds;
 
-	FDynamicMeshCollection(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCells)
+	FDynamicMeshCollection(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection)
 	{
-		Init(Collection, TransformIndices, TransformCells);
+		Init(Collection, TransformIndices, TransformCollection);
 	}
 
-	void Init(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCells)
+	void Init(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection)
 	{
-		FTransform WorldToCells = TransformCells.Inverse();
-
 		Meshes.Reset();
 		Bounds = FAxisAlignedBox3d::Empty();
 
@@ -1297,7 +1295,7 @@ struct FDynamicMeshCollection
 				continue;
 			}
 
-			FTransform3d CollectionToLocal = FTransform3d(GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, TransformIdx) * WorldToCells);
+			FTransform3d CollectionToLocal = FTransform3d(GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, TransformIdx) * TransformCollection);
 
 			FMeshData& MeshData = Meshes.Emplace_GetRef();
 			MeshData.TransformIndex = TransformIdx;
@@ -4131,7 +4129,7 @@ int32 CutWithPlanarCells(
 	int32 TransformIdx,
 	double Grout,
 	double CollisionSampleSpacing,
-	const TOptional<FTransform>& TransformCells,
+	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
 	bool bSetDefaultInternalMaterialsFromCollection,
@@ -4139,7 +4137,7 @@ int32 CutWithPlanarCells(
 )
 {
 	TArray<int32> TransformIndices { TransformIdx };
-	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, TransformCells, bIncludeOutsideCellInOutput, CheckDistanceAcrossOutsideCellForProximity, bSetDefaultInternalMaterialsFromCollection, VertexInterpolate);
+	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, TransformCollection, bIncludeOutsideCellInOutput, CheckDistanceAcrossOutsideCellForProximity, bSetDefaultInternalMaterialsFromCollection, VertexInterpolate);
 }
 
 int32 CutMultipleWithPlanarCells_MeshBooleanPath(
@@ -4148,7 +4146,7 @@ int32 CutMultipleWithPlanarCells_MeshBooleanPath(
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
 	double CollisionSampleSpacing,
-	const TOptional<FTransform>& TransformCells,
+	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
 	bool bSetDefaultInternalMaterialsFromCollection,
@@ -4162,7 +4160,7 @@ int32 CutMultipleWithPlanarCells(
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
 	double CollisionSampleSpacing,
-	const TOptional<FTransform>& TransformCells,
+	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
 	bool bSetDefaultInternalMaterialsFromCollection,
@@ -4177,7 +4175,7 @@ int32 CutMultipleWithPlanarCells(
 			TransformIndices,
 			Grout,
 			CollisionSampleSpacing,
-			TransformCells,
+			TransformCollection,
 			bIncludeOutsideCellInOutput,
 			CheckDistanceAcrossOutsideCellForProximity,
 			bSetDefaultInternalMaterialsFromCollection,
@@ -4187,7 +4185,7 @@ int32 CutMultipleWithPlanarCells(
 
 	int32 NewGeomStartIdx = -1;
 
-	FTransform CellsToWorld = TransformCells.Get(FTransform::Identity);
+	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
 
 	TArray<FPlane> TransformedPlanes;
 	TArray<FVector> TransformedPlaneBoundaries;
@@ -4246,7 +4244,7 @@ int32 CutMultipleWithPlanarCells(
 		TArrayView<const FVector> PlaneBoundaries;
 		FTransform LocalToPlaneSpaceTransform = FTransform::Identity;
 
-		LocalToPlaneSpaceTransform = GeometryCollectionAlgo::GlobalMatrix(Source.Transform, Source.Parent, ParentTransformIndex) * CellsToWorld.Inverse();
+		LocalToPlaneSpaceTransform = GeometryCollectionAlgo::GlobalMatrix(Source.Transform, Source.Parent, ParentTransformIndex) * CollectionToWorld;
 		FTransform PlanesToLocalTransform = LocalToPlaneSpaceTransform.Inverse();
 		TransformPlanes(PlanesToLocalTransform, Cells, TransformedPlanes, TransformedPlaneBoundaries);
 		Planes = TransformedPlanes;
@@ -4288,7 +4286,7 @@ int32 CutMultipleWithMultiplePlanes_old(
 	FInternalSurfaceMaterials& InternalSurfaceMaterials,
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
-	const TOptional<FTransform>& TransformCells,
+	const TOptional<FTransform>& TransformCollection,
 	bool bSetDefaultInternalMaterialsFromCollection,
 	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate
 )
@@ -4299,7 +4297,7 @@ int32 CutMultipleWithMultiplePlanes_old(
 	int32 OrigNumGeom = Collection.FaceCount.Num();
 	int32 CurNumGeom = OrigNumGeom;
 
-	FTransform CellsToWorld = TransformCells.Get(FTransform::Identity);
+	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
 
 	TArray<int32> NeedsCut;
 
@@ -4392,7 +4390,7 @@ int32 CutMultipleWithMultiplePlanes_old(
 			}
 
 			FPlane TransformedPlane = Plane;
-			FTransform LocalToPlaneSpaceTransform = GeometryCollectionAlgo::GlobalMatrix(Collection.Transform, Collection.Parent, ParentTransformIndex) * CellsToWorld.Inverse();
+			FTransform LocalToPlaneSpaceTransform = GeometryCollectionAlgo::GlobalMatrix(Collection.Transform, Collection.Parent, ParentTransformIndex) * CollectionToWorld;
 			FTransform PlanesToLocalTransform = LocalToPlaneSpaceTransform.Inverse();
 			FMatrix Matrix = PlanesToLocalTransform.ToMatrixWithScale();
 			TransformedPlane = Plane.TransformBy(Matrix);
@@ -4583,14 +4581,14 @@ int32 CutMultipleWithMultiplePlanes(
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
 	double CollisionSampleSpacing,
-	const TOptional<FTransform>& TransformCells,
+	const TOptional<FTransform>& TransformCollection,
 	bool bSetDefaultInternalMaterialsFromCollection,
 	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate
 )
 {
 	if (CVarFractureMethod.GetValueOnAnyThread() <= 0)
 	{
-		return CutMultipleWithMultiplePlanes_old(Planes, InternalSurfaceMaterials, Collection, TransformIndices, TransformCells, bSetDefaultInternalMaterialsFromCollection, VertexInterpolate);
+		return CutMultipleWithMultiplePlanes_old(Planes, InternalSurfaceMaterials, Collection, TransformIndices, TransformCollection, bSetDefaultInternalMaterialsFromCollection, VertexInterpolate);
 	}
 	int32 OrigNumGeom = Collection.FaceCount.Num();
 	int32 CurNumGeom = OrigNumGeom;
@@ -4606,10 +4604,9 @@ int32 CutMultipleWithMultiplePlanes(
 		Collection.AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
 	}
 
-	FTransform CellsToWorld = TransformCells.Get(FTransform::Identity);
-	FTransform WorldToCells = CellsToWorld.Inverse();
+	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
 
-	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CellsToWorld);
+	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
 	double OnePercentExtend = MeshCollection.Bounds.MaxDim() * .01;
 
 	int32 NewGeomStartIdx = -1;
@@ -4627,7 +4624,7 @@ int32 CutMultipleWithPlanarCells_MeshBooleanPath(
 	const TArrayView<const int32>& TransformIndices,
 	double Grout,
 	double CollisionSampleSpacing,
-	const TOptional<FTransform>& TransformCells,
+	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
 	bool bSetDefaultInternalMaterialsFromCollection,
@@ -4645,9 +4642,9 @@ int32 CutMultipleWithPlanarCells_MeshBooleanPath(
 		Cells.InternalSurfaceMaterials.SetUVScaleFromCollection(Source);
 	}
 
-	FTransform CellsToWorld = TransformCells.Get(FTransform::Identity);
+	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
 
-	FDynamicMeshCollection MeshCollection(&Source, TransformIndices, CellsToWorld);
+	FDynamicMeshCollection MeshCollection(&Source, TransformIndices, CollectionToWorld);
 	double OnePercentExtend = MeshCollection.Bounds.MaxDim() * .01;
 	FCellMeshes CellMeshes(Cells, MeshCollection.Bounds, Grout, OnePercentExtend, bIncludeOutsideCellInOutput);
 

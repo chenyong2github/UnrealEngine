@@ -35,8 +35,7 @@ public:
 	/** Return selection in sibling groups */
 	TMap<int32, TArray<int32>> GetClusteredSelections();
 
-	void TransformBoundsToWorld();
-
+	FBox GetWorldBounds() const { return Bounds.TransformBy(Transform); }
 	FBox GetBounds() const { return Bounds; }
 	void SetBounds(FBox& InBounds) { Bounds = InBounds; }
 	int32 GetSeed() const { return RandomSeed; }

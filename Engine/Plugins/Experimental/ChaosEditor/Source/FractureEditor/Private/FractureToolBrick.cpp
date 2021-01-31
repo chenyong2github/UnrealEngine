@@ -195,9 +195,8 @@ void UFractureToolBrick::GenerateBrickTransforms(const FBox& Bounds)
 	}
 }
 
-void UFractureToolBrick::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+void UFractureToolBrick::UpdateBrickTransforms()
 {
-	
 	FBox Bounds(ForceInitToZero);
 
 	USelection* SelectionSet = GEditor->GetSelectedActors();
@@ -237,10 +236,17 @@ void UFractureToolBrick::PostEditChangeChainProperty(struct FPropertyChangedChai
 	{
 		GenerateBrickTransforms(Bounds);
 	}
-
 }
 
+void UFractureToolBrick::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	UpdateBrickTransforms();
+}
 
+void UFractureToolBrick::FractureContextChanged()
+{
+	UpdateBrickTransforms();
+}
 
 void UFractureToolBrick::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
@@ -286,7 +292,7 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 	if (FractureContext.IsValid())
 	{
  		BrickTransforms.Empty();
-		GenerateBrickTransforms(FractureContext.GetBounds());
+		GenerateBrickTransforms(FractureContext.GetWorldBounds());
 
 		const FQuat HeaderRotation(FVector::UpVector, 1.5708);
 
@@ -320,7 +326,7 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 
-		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), 0, CollisionSettings->PointSpacing);
+		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), 0, CollisionSettings->PointSpacing, FractureContext.GetTransform());
 	}
 
 	return INDEX_NONE;

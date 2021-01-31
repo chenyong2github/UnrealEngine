@@ -88,12 +88,12 @@ void UFractureToolPlaneCut::FractureContextChanged()
 	for (FFractureToolContext& FractureContext : FractureContexts)
 	{
 		// Move the local bounds to the actor so we we'll draw in the correct location
-		FractureContext.TransformBoundsToWorld();
+		FBox Bounds = FractureContext.GetWorldBounds();
 		GenerateSliceTransforms(FractureContext, RenderCuttingPlanesTransforms);
 
-		if (FractureContext.GetBounds().GetExtent().GetMax() < RenderCuttingPlaneSize)
+		if (Bounds.GetExtent().GetMax() < RenderCuttingPlaneSize)
 		{
-			RenderCuttingPlaneSize = FractureContext.GetBounds().GetExtent().GetMax();
+			RenderCuttingPlaneSize = Bounds.GetExtent().GetMax();
 		}
 	}
 }
@@ -108,7 +108,7 @@ int32 UFractureToolPlaneCut::ExecuteFracture(const FFractureToolContext& Fractur
 		if (LocalCutSettings->ReferenceActor != nullptr)
 		{
 			FTransform Transform(LocalCutSettings->ReferenceActor->GetActorTransform());
-			CuttingPlanes.Add(FPlane(Transform.GetLocation() - FractureContext.GetTransform().GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
+			CuttingPlanes.Add(FPlane(Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
 		}
 		else
 		{
@@ -131,7 +131,7 @@ int32 UFractureToolPlaneCut::ExecuteFracture(const FFractureToolContext& Fractur
 			InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 
-		return CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CutterSettings->Grout, CollisionSettings->PointSpacing);
+		return CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CutterSettings->Grout, CollisionSettings->PointSpacing, FractureContext.GetTransform());
 	}
 
 	return INDEX_NONE;
@@ -141,12 +141,13 @@ void UFractureToolPlaneCut::GenerateSliceTransforms(const FFractureToolContext& 
 {
 	FRandomStream RandStream(Context.GetSeed());
 
-	const FVector Extent(Context.GetBounds().Max - Context.GetBounds().Min);
+	FBox Bounds = Context.GetWorldBounds();
+	const FVector Extent(Bounds.Max - Bounds.Min);
 
 	CuttingPlaneTransforms.Reserve(CuttingPlaneTransforms.Num() + PlaneCutSettings->NumberPlanarCuts);
 	for (int32 ii = 0; ii < PlaneCutSettings->NumberPlanarCuts; ++ii)
 	{
-		FVector Position(Context.GetBounds().Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
+		FVector Position(Bounds.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
 		CuttingPlaneTransforms.Emplace(FTransform(FRotator(RandStream.FRand() * 360.0f, RandStream.FRand() * 360.0f, 0.0f), Position));
 	}
 }

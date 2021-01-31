@@ -93,6 +93,7 @@ public:
 	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext ) override;
 	virtual TArray<UObject*> GetSettingsObjects() const override;
 	void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void FractureContextChanged() override;
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
@@ -104,6 +105,8 @@ private:
 	TObjectPtr<UFractureBrickSettings> BrickSettings;
 
 	void AddBoxEdges(const FVector& Min, const FVector& Max);
+
+	void UpdateBrickTransforms();
 
 	TArray<FTransform> BrickTransforms;
 	TArray<TTuple<FVector, FVector>> Edges;

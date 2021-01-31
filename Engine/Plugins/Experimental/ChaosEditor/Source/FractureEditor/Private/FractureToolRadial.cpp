@@ -49,7 +49,8 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureToolContext& Conte
 {
  	float RadialStep = RadialSettings->Radius / RadialSettings->RadialSteps;
 
-	const FVector Center(Context.GetBounds().GetCenter() + RadialSettings->Center);
+	FBox Bounds = Context.GetWorldBounds();
+	const FVector Center(Bounds.GetCenter() + RadialSettings->Center);
 
 	FRandomStream RandStream(Context.GetSeed());
 	FVector UpVector(RadialSettings->Normal);
