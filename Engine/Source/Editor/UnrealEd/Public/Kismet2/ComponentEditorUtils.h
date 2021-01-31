@@ -88,6 +88,13 @@ public:
 	static void GetComponentsFromClipboard(TMap<FName, FName>& OutParentMap, TMap<FName, UActorComponent*>& OutNewObjectMap, bool bGetComponentsAsArchetypes);
 
 	/**
+	 * Determines whether the indicated component can be deleted
+	 * @param ComponentToDelete The component to determine can be deleted
+	 * @return Whether the indicated component can be deleted
+	 */
+	static bool CanDeleteComponent(const UActorComponent* ComponentToDelete);
+
+	/**
 	 * Determines whether the indicated components can be deleted
 	 * @param ComponentsToDelete The list of components to determine can be deleted
 	 * @return Whether the indicated components can be deleted

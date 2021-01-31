@@ -91,6 +91,21 @@ FTypedElementListLegacySyncScopedBatch::~FTypedElementListLegacySyncScopedBatch(
 	}
 }
 
+bool FTypedElementListLegacySyncScopedBatch::IsDirty() const
+{
+	return ElementListLegacySync
+		&& ElementListLegacySync->IsBatchOperationDirty();
+}
+
+void FTypedElementListLegacySyncScopedBatch::ForceDirty()
+{
+	if (ElementListLegacySync)
+	{
+		ElementListLegacySync->ForceBatchOperationDirty();
+	}
+}
+
+
 UTypedElementList* UTypedElementList::Private_CreateElementList(UTypedElementRegistry* InRegistry)
 {
 	UTypedElementList* ElementList = NewObject<UTypedElementList>();

@@ -413,9 +413,67 @@ public:
 	virtual void edactSelectRelevantLights( UWorld* InWorld );
 
 	/**
+	 * Can the given component be deleted?
+	 * 
+	 * @param InComponent				Component to check
+	 * @param OutReason					Optional value to fill with the reason the component cannot be deleted, if any
+	 */
+	bool CanDeleteComponent(const UActorComponent* InComponent, FText* OutReason = nullptr) const;
+
+	/**
+	 * Can the given actor be deleted?
+	 *
+	 * @param InActor					Actor to check
+	 * @param OutReason					Optional value to fill with the reason the actor cannot be deleted, if any
+	 */
+	bool CanDeleteActor(const AActor* InActor, FText* OutReason = nullptr) const;
+
+	/**
+	 * Should the deletion of the given components be outright aborted?
+	 *
+	 * @param InComponentsToDelete		Components to check
+	 * @param OutReason					Optional value to fill with the reason the component deletion was aborted, if any
+	 */
+	bool ShouldAbortComponentDeletion(const TArray<UActorComponent*>& InComponentsToDelete, FText* OutReason = nullptr) const;
+
+	/**
+	 * Should the deletion of the given actors be outright aborted?
+	 *
+	 * @param InActorsToDelete			Actors to check
+	 * @param OutReason					Optional value to fill with the reason the actor deletion was aborted, if any
+	 */
+	bool ShouldAbortActorDeletion(const TArray<AActor*>& InActorsToDelete, FText* OutReason = nullptr) const;
+
+	/**
+	 * Delete the given components.
+	 *
+	 * @param	InComponentsToDelete		Array of components to delete
+	 * @param	InSelectionSet				The selection set potentially containing to components that are being deleted
+	 * @param	OutSuggestedNewSelection	Array to fill with suitable components to select post-delete
+	 * @param	bVerifyDeletionCanHappen	If true (default), verify that deletion can be performed
+	 * 
+	 * @return								true unless the delete operation was aborted.
+	 */
+	bool DeleteComponents(const TArray<UActorComponent*>& InComponentsToDelete, UTypedElementSelectionSet* InSelectionSet, const bool bVerifyDeletionCanHappen = true);
+
+	/**
+	 * Deletes the given actors.
+	 *
+	 * @param	InActorsToDelete			Array of actors to delete
+	 * @param	InWorld						World context
+	 * @param	InSelectionSet				The selection set potentially containing to actors that are being deleted
+	 * @param	bVerifyDeletionCanHappen	If true (default), verify that deletion can be performed
+	 * @param	bWarnAboutReferences		If true (default), we prompt the user about referenced actors they are about to delete
+	 * @param	bWarnAboutSoftReferences	If true (default), we prompt the user about soft references to actors they are about to delete
+	 * 
+	 * @return								true unless the delete operation was aborted.
+	 */
+	bool DeleteActors(const TArray<AActor*>& InActorsToDelete, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const bool bVerifyDeletionCanHappen = true, const bool bWarnAboutReferences = true, const bool bWarnAboutSoftReferences = true);
+
+	/**
 	 * Deletes all selected actors
 	 *
-	 * @param	InWorld				World context
+	 * @param	InWorld						World context
 	 * @param	bVerifyDeletionCanHappen	[opt] If true (default), verify that deletion can be performed.
 	 * @param	bWarnAboutReferences		[opt] If true (default), we prompt the user about referenced actors they are about to delete
 	 * @param	bWarnAboutSoftReferences	[opt] If true (default), we prompt the user about soft references to actors they are about to delete

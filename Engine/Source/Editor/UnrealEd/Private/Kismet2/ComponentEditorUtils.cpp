@@ -648,21 +648,23 @@ void FComponentEditorUtils::GetComponentsFromClipboard(TMap<FName, FName>& OutPa
 	OutNewObjectMap = MoveTemp(Factory->NewObjectMap);
 }
 
+bool FComponentEditorUtils::CanDeleteComponent(const UActorComponent* ComponentToDelete)
+{
+	// We can't delete non-instance components or the default scene root
+	return ComponentToDelete->CreationMethod == EComponentCreationMethod::Instance
+		&& ComponentToDelete->GetFName() != USceneComponent::GetDefaultSceneRootVariableName();
+}
+
 bool FComponentEditorUtils::CanDeleteComponents(const TArray<UActorComponent*>& ComponentsToDelete)
 {
-	bool bCanDelete = true;
-	for (UActorComponent* ComponentToDelete : ComponentsToDelete)
+	for (const UActorComponent* ComponentToDelete : ComponentsToDelete)
 	{
-		// We can't delete non-instance components or the default scene root
-		if (ComponentToDelete->CreationMethod != EComponentCreationMethod::Instance 
-			|| ComponentToDelete->GetFName() == USceneComponent::GetDefaultSceneRootVariableName())
+		if (!CanDeleteComponent(ComponentToDelete))
 		{
-			bCanDelete = false;
-			break;
+			return false;
 		}
 	}
-
-	return bCanDelete;
+	return true;
 }
 
 int32 FComponentEditorUtils::DeleteComponents(const TArray<UActorComponent*>& ComponentsToDelete, UActorComponent*& OutComponentToSelect)

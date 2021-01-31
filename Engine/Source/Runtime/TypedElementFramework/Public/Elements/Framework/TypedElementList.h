@@ -116,6 +116,9 @@ public:
 	FTypedElementListLegacySyncScopedBatch(FTypedElementListLegacySyncScopedBatch&&) = delete;
 	FTypedElementListLegacySyncScopedBatch& operator=(FTypedElementListLegacySyncScopedBatch&&) = delete;
 
+	bool IsDirty() const;
+	void ForceDirty();
+
 private:
 	FTypedElementListLegacySync* ElementListLegacySync = nullptr;
 	bool bNotify = true;
