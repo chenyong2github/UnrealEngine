@@ -10,6 +10,28 @@
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 
+bool UActorElementEditorWorldInterface::GetPivotOffset(const FTypedElementHandle& InElementHandle, FVector& OutPivotOffset)
+{
+	if (AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))
+	{
+		OutPivotOffset = Actor->GetPivotOffset();
+		return true;
+	}
+
+	return false;
+}
+
+bool UActorElementEditorWorldInterface::SetPivotOffset(const FTypedElementHandle& InElementHandle, const FVector& InPivotOffset)
+{
+	if (AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))
+	{
+		Actor->SetPivotOffset(InPivotOffset);
+		return true;
+	}
+
+	return false;
+}
+
 void UActorElementEditorWorldInterface::NotifyMovementStarted(const FTypedElementHandle& InElementHandle)
 {
 	if (AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))

@@ -5,6 +5,7 @@
 #include "Elements/Framework/TypedElementHandle.h"
 #include "TypedElementWorldInterface.generated.h"
 
+class ULevel;
 class UWorld;
 struct FCollisionShape;
 
@@ -15,10 +16,22 @@ class ENGINE_API UTypedElementWorldInterface : public UTypedElementInterface
 
 public:
 	/**
+	 * Is this element considered a template within its world (eg, a CDO or archetype).
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	virtual bool IsTemplateElement(const FTypedElementHandle& InElementHandle) { return false; }
+
+	/**
 	 * Can this element actually be edited in the world?
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
 	virtual bool CanEditElement(const FTypedElementHandle& InElementHandle) { return true; }
+
+	/**
+	 * Get the owner level associated with this element, if any.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	virtual ULevel* GetOwnerLevel(const FTypedElementHandle& InElementHandle) { return nullptr; }
 
 	/**
 	 * Get the owner world associated with this element, if any.
@@ -55,6 +68,18 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool SetRelativeTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) { return SetWorldTransform(InElementHandle, InTransform); }
+
+	/**
+	 * Get the local space offset of this element that should be added to its pivot location, if any.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	virtual bool GetPivotOffset(const FTypedElementHandle& InElementHandle, FVector& OutPivotOffset) { return false; }
+
+	/**
+	 * Attempt to set the local space offset of this element that should be added to its pivot location.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool SetPivotOffset(const FTypedElementHandle& InElementHandle, const FVector& InPivotOffset) { return false; }
 
 	/**
 	 * Notify that this element is about to be moved.
@@ -115,13 +140,17 @@ public:
 template <>
 struct TTypedElement<UTypedElementWorldInterface> : public TTypedElementBase<UTypedElementWorldInterface>
 {
+	bool IsTemplateElement() const { return InterfacePtr->IsTemplateElement(*this); }
 	bool CanEditElement() const { return InterfacePtr->CanEditElement(*this); }
+	ULevel* GetOwnerLevel() const { return InterfacePtr->GetOwnerLevel(*this); }
 	UWorld* GetOwnerWorld() const { return InterfacePtr->GetOwnerWorld(*this); }
 	bool GetBounds(FBoxSphereBounds& OutBounds) const { return InterfacePtr->GetBounds(*this, OutBounds); }
 	bool GetWorldTransform(FTransform& OutTransform) const { return InterfacePtr->GetWorldTransform(*this, OutTransform); }
 	bool SetWorldTransform(const FTransform& InTransform) const { return InterfacePtr->SetWorldTransform(*this, InTransform); }
 	bool GetRelativeTransform(FTransform& OutTransform) const { return InterfacePtr->GetRelativeTransform(*this, OutTransform); }
 	bool SetRelativeTransform(const FTransform& InTransform) const { return InterfacePtr->SetRelativeTransform(*this, InTransform); }
+	bool GetPivotOffset(FVector& OutPivotOffset) const { return InterfacePtr->GetPivotOffset(*this, OutPivotOffset); }
+	bool SetPivotOffset(const FVector& InPivotOffset) const { return InterfacePtr->SetPivotOffset(*this, InPivotOffset); }
 	void NotifyMovementStarted() const { InterfacePtr->NotifyMovementStarted(*this); }
 	void NotifyMovementOngoing() const { InterfacePtr->NotifyMovementOngoing(*this); }
 	void NotifyMovementEnded() const { InterfacePtr->NotifyMovementEnded(*this); }

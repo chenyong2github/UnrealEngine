@@ -7,6 +7,18 @@
 #include "Elements/Component/ComponentElementData.h"
 #include "Components/PrimitiveComponent.h"
 
+bool UActorElementWorldInterface::IsTemplateElement(const FTypedElementHandle& InElementHandle)
+{
+	const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
+	return Actor && Actor->IsTemplate();
+}
+
+ULevel* UActorElementWorldInterface::GetOwnerLevel(const FTypedElementHandle& InElementHandle)
+{
+	const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
+	return Actor ? Actor->GetLevel() : nullptr;
+}
+
 UWorld* UActorElementWorldInterface::GetOwnerWorld(const FTypedElementHandle& InElementHandle)
 {
 	const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);

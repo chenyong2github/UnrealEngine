@@ -20,6 +20,14 @@ void FComponentElementLevelEditorViewportInteractionCustomization::GetElementsTo
 	{
 		if (AActor* ComponentOwner = SceneComponent->GetOwner())
 		{
+#if DO_CHECK
+			{
+				FTypedElementHandle ComponentOwnerElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ComponentOwner, /*bAllowCreate*/false);
+				const bool bIsOwnerSelected = ComponentOwnerElementHandle && InSelectionSet->IsElementSelected(ComponentOwnerElementHandle, FTypedElementIsSelectedOptions());
+				ensureMsgf(bIsOwnerSelected, TEXT("Owner(%s) of %s is not selected"), *ComponentOwner->GetFullName(), *Component->GetFullName());
+			}
+#endif	// DO_CHECK
+
 			if (FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInViewport(ComponentOwner, InWorldType))
 			{
 				if (ComponentOwner->GetRootComponent() == SceneComponent)

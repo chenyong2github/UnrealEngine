@@ -767,11 +767,16 @@ UObject* FLegacyEdModeWidgetHelper::GetItemToTryDisplayingWidgetsFor(FTransform&
 
 void UBaseLegacyWidgetEdMode::Initialize()
 {
-	WidgetHelper = MakeShared<FLegacyEdModeWidgetHelper>();
+	WidgetHelper = CreateWidgetHelper();
 	WidgetHelper->Owner = this->Owner;
 	WidgetHelper->ParentModeInterface = this;
 
 	UEdMode::Initialize();
+}
+
+TSharedRef<FLegacyEdModeWidgetHelper> UBaseLegacyWidgetEdMode::CreateWidgetHelper()
+{
+	return MakeShared<FLegacyEdModeWidgetHelper>();
 }
 
 bool UBaseLegacyWidgetEdMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)

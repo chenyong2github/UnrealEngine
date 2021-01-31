@@ -11,13 +11,13 @@
 
 bool UComponentElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle);
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
 	return Component && IsComponentSelected(Component, InSelectionSet, InSelectionOptions);
 }
 
 bool UComponentElementEditorSelectionInterface::ShouldPreventTransactions(const FTypedElementHandle& InElementHandle)
 {
-	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle);
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
 	return Component && UObjectElementEditorSelectionInterface::ShouldObjectPreventTransactions(Component);
 }
 
@@ -44,9 +44,12 @@ bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActor
 		return false;
 	}
 
-	if (InSelectionSet->Contains(UEngineElementsLibrary::AcquireEditorComponentElementHandle(InComponent)))
+	if (FTypedElementHandle ComponentElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(InComponent, /*bAllowCreate*/false))
 	{
-		return true;
+		if (InSelectionSet->Contains(ComponentElement))
+		{
+			return true;
+		}
 	}
 
 	if (InSelectionOptions.AllowIndirect())
@@ -69,7 +72,10 @@ bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActor
 
 		if (ConsideredComponent)
 		{
-			return InSelectionSet->Contains(UEngineElementsLibrary::AcquireEditorComponentElementHandle(ConsideredComponent));
+			if (FTypedElementHandle ConsideredElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(ConsideredComponent, /*bAllowCreate*/false))
+			{
+				return InSelectionSet->Contains(ConsideredElement);
+			}
 		}
 	}
 

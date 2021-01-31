@@ -3422,6 +3422,24 @@ bool FLevelEditorViewportClient::HaveSelectedObjectsBeenChanged() const
 	return (TrackingTransaction.TransCount > 0 || TrackingTransaction.IsActive()) && (MouseDeltaTracker->HasReceivedDelta() || MouseDeltaTracker->WasExternalMovement());
 }
 
+bool FLevelEditorViewportClient::HasElementsToManipulate() const
+{
+	FLevelEditorViewportClient* MutableThis = const_cast<FLevelEditorViewportClient*>(this);
+	MutableThis->CacheElementsToManipulate();
+	const bool bHasElements = ElementsToManipulate->Num() > 0;
+	MutableThis->ElementsToManipulate->Reset();
+	return bHasElements;
+}
+
+TArray<FTypedElementHandle> FLevelEditorViewportClient::GetElementsToManipulate() const
+{
+	FLevelEditorViewportClient* MutableThis = const_cast<FLevelEditorViewportClient*>(this);
+	MutableThis->CacheElementsToManipulate();
+	TArray<FTypedElementHandle> ElementsToManipulateArray = ElementsToManipulate->GetElementHandles();
+	MutableThis->ElementsToManipulate->Reset();
+	return ElementsToManipulateArray;
+}
+
 void FLevelEditorViewportClient::CacheElementsToManipulate()
 {
 	const UTypedElementSelectionSet* SelectionSet = GetSelectionSet();

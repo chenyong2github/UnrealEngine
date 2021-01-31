@@ -325,6 +325,16 @@ public:
 	void MirrorSelectedActors(const FVector& InMirrorScale);
 	void MirrorSelectedElements(const FVector& InMirrorScale);
 
+	/**
+	 * Are there any elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo).
+	 */
+	bool HasElementsToManipulate() const;
+
+	/**
+	 * Get the array of elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo).
+	 */
+	TArray<FTypedElementHandle> GetElementsToManipulate() const;
+
 	virtual void SetIsSimulateInEditorViewport( bool bInIsSimulateInEditorViewport ) override;
 
 	/**

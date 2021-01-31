@@ -12,6 +12,8 @@ class ENGINE_API UComponentElementWorldInterface : public UTypedElementWorldInte
 
 public:
 	virtual bool CanEditElement(const FTypedElementHandle& InElementHandle) override;
+	virtual bool IsTemplateElement(const FTypedElementHandle& InElementHandle) override;
+	virtual ULevel* GetOwnerLevel(const FTypedElementHandle& InElementHandle) override;
 	virtual UWorld* GetOwnerWorld(const FTypedElementHandle& InElementHandle) override;
 	virtual bool GetBounds(const FTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds) override;
 	virtual bool GetWorldTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform) override;

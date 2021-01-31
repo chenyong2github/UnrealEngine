@@ -177,7 +177,7 @@ bool FActorElementLevelEditorSelectionCustomization::SelectActorElement(const TT
 		}
 	}
 
-	UE_LOG(LogActorLevelEditorSelection, Verbose, TEXT("Selected Actor: %s"), *Actor->GetClass()->GetName());
+	UE_LOG(LogActorLevelEditorSelection, Verbose, TEXT("Selected Actor: %s (%s)"), *Actor->GetActorLabel(), *Actor->GetClass()->GetName());
 
 	// Update the annotation state
 	GSelectedActorAnnotation.Set(Actor);
@@ -239,7 +239,7 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectActorElement(const 
 		}
 	}
 	
-	UE_LOG(LogActorLevelEditorSelection, Verbose, TEXT("Deselected Actor: %s"), *Actor->GetClass()->GetName());
+	UE_LOG(LogActorLevelEditorSelection, Verbose, TEXT("Deselected Actor: %s (%s)"), *Actor->GetActorLabel(), *Actor->GetClass()->GetName());
 	
 	// Update the annotation state
 	GSelectedActorAnnotation.Clear(Actor);

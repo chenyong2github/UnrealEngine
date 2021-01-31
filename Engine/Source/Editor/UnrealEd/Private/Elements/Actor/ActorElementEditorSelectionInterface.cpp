@@ -43,16 +43,22 @@ bool UActorElementEditorSelectionInterface::IsActorSelected(const AActor* InActo
 		return false;
 	}
 
-	if (InSelectionSet->Contains(UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor)))
+	if (FTypedElementHandle ActorElement = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor, /*bAllowCreate*/false))
 	{
-		return true;
+		if (InSelectionSet->Contains(ActorElement))
+		{
+			return true;
+		}
 	}
 
 	if (InSelectionOptions.AllowIndirect())
 	{
 		if (const AActor* RootSelectionActor = InActor->GetRootSelectionParent())
 		{
-			return InSelectionSet->Contains(UEngineElementsLibrary::AcquireEditorActorElementHandle(RootSelectionActor));
+			if (FTypedElementHandle RootSelectionElement = UEngineElementsLibrary::AcquireEditorActorElementHandle(RootSelectionActor, /*bAllowCreate*/false))
+			{
+				return InSelectionSet->Contains(RootSelectionElement);
+			}
 		}
 	}
 

@@ -5,6 +5,17 @@
 #include "EditorModes.h"
 #include "EditorStyleSet.h"
 #include "Textures/SlateIcon.h"
+#include "LevelEditorViewport.h"
+
+class FLevelEditorSelectModeWidgetHelper : public FLegacyEdModeWidgetHelper
+{
+public:
+	virtual bool ShouldDrawWidget() const override
+	{
+		return GCurrentLevelEditingViewportClient
+			&& GCurrentLevelEditingViewportClient->HasElementsToManipulate();
+	}
+};
 
 UEdModeDefault::UEdModeDefault()
 {
@@ -23,4 +34,9 @@ bool UEdModeDefault::UsesPropertyWidgets() const
 bool UEdModeDefault::UsesToolkits() const
 {
 	return false;
+}
+
+TSharedRef<FLegacyEdModeWidgetHelper> UEdModeDefault::CreateWidgetHelper()
+{
+	return MakeShared<FLevelEditorSelectModeWidgetHelper>();
 }

@@ -16,4 +16,7 @@ public:
 
 	virtual bool UsesPropertyWidgets() const override;
 	virtual bool UsesToolkits() const override;
+
+protected:
+	virtual TSharedRef<FLegacyEdModeWidgetHelper> CreateWidgetHelper() override;
 };

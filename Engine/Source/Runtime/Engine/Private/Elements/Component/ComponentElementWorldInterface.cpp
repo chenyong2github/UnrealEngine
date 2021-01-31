@@ -8,19 +8,38 @@
 
 bool UComponentElementWorldInterface::CanEditElement(const FTypedElementHandle& InElementHandle)
 {
-	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle);
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
 	return Component && Component->IsEditableWhenInherited();
+}
+
+bool UComponentElementWorldInterface::IsTemplateElement(const FTypedElementHandle& InElementHandle)
+{
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
+	return Component && Component->IsTemplate();
+}
+
+ULevel* UComponentElementWorldInterface::GetOwnerLevel(const FTypedElementHandle& InElementHandle)
+{
+	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
+	{
+		if (const AActor* ComponentOwner = Component->GetOwner())
+		{
+			return ComponentOwner->GetLevel();
+		}
+	}
+
+	return nullptr;
 }
 
 UWorld* UComponentElementWorldInterface::GetOwnerWorld(const FTypedElementHandle& InElementHandle)
 {
-	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle);
+	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
 	return Component ? Component->GetWorld() : nullptr;
 }
 
 bool UComponentElementWorldInterface::GetBounds(const FTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds)
 {
-	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle))
+	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
 	{
 		if (const USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 		{
@@ -34,7 +53,7 @@ bool UComponentElementWorldInterface::GetBounds(const FTypedElementHandle& InEle
 
 bool UComponentElementWorldInterface::GetWorldTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform)
 {
-	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle))
+	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
 	{
 		if (const USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 		{
@@ -48,7 +67,7 @@ bool UComponentElementWorldInterface::GetWorldTransform(const FTypedElementHandl
 
 bool UComponentElementWorldInterface::SetWorldTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform)
 {
-	if (UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle))
+	if (UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
 	{
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 		{
@@ -63,7 +82,7 @@ bool UComponentElementWorldInterface::SetWorldTransform(const FTypedElementHandl
 
 bool UComponentElementWorldInterface::GetRelativeTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform)
 {
-	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle))
+	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
 	{
 		if (const USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 		{
@@ -77,7 +96,7 @@ bool UComponentElementWorldInterface::GetRelativeTransform(const FTypedElementHa
 
 bool UComponentElementWorldInterface::SetRelativeTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform)
 {
-	if (UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle))
+	if (UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
 	{
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 		{
@@ -92,7 +111,7 @@ bool UComponentElementWorldInterface::SetRelativeTransform(const FTypedElementHa
 
 bool UComponentElementWorldInterface::FindSuitableTransformAlongPath(const FTypedElementHandle& InElementHandle, const FVector& InPathStart, const FVector& InPathEnd, const FCollisionShape& InTestShape, TArrayView<const FTypedElementHandle> InElementsToIgnore, FTransform& OutSuitableTransform)
 {
-	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle))
+	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
 	{
 		if (const UWorld* World = Component->GetWorld())
 		{

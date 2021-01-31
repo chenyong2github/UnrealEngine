@@ -22,14 +22,18 @@
 #include "ScopedTransaction.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
+#include "LevelEditorViewport.h"
 #include "StatsViewerModule.h"
 #include "SnappingUtils.h"
 #include "Logging/MessageLog.h"
 #include "ActorGroupingUtils.h"
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 #define LOCTEXT_NAMESPACE "EditorSelectUtils"
 
@@ -164,6 +168,11 @@ FVector UUnrealEdEngine::GetPivotLocation()
 
 void UUnrealEdEngine::SetPivot( FVector NewPivot, bool bSnapPivotToGrid, bool bIgnoreAxis, bool bAssignPivot/*=false*/ )
 {
+	if (!GCurrentLevelEditingViewportClient)
+	{
+		return;
+	}
+
 	FEditorModeTools& EditorModeTools = GLevelEditorModeTools();
 
 	if( !bIgnoreAxis )
@@ -185,64 +194,77 @@ void UUnrealEdEngine::SetPivot( FVector NewPivot, bool bSnapPivotToGrid, bool bI
 		EditorModeTools.PivotLocation = EditorModeTools.SnappedLocation;
 	}
 
-	// Check all actors.
-	int32 Count=0, SnapCount=0;
+	// Check all elements.
+	int32 NumElements = 0;
 
 	//default to using the x axis for the translate rotate widget
 	EditorModeTools.TranslateRotateXAxisAngle = 0.0f;
 	EditorModeTools.TranslateRotate2DAngle = 0.0f;
-	FVector TranslateRotateWidgetWorldXAxis;
+	
+	FVector TranslateRotateWidgetWorldXAxis = FVector::ZeroVector;
+	FVector Widget2DWorldXAxis = FVector::ZeroVector;
 
-	FVector Widget2DWorldXAxis;
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
-	AActor* LastSelectedActor = NULL;
-	for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
+	// Pick a new common pivot, or not.
+	TTypedElement<UTypedElementWorldInterface> SingleWorldElement;
 	{
-		AActor* Actor = static_cast<AActor*>( *It );
-		checkSlow( Actor->IsA(AActor::StaticClass()) );
-
-		if (Count==0)
+		const TArray<FTypedElementHandle> ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
+		for (const FTypedElementHandle& Element : ElementsToManipulate)
 		{
-			TranslateRotateWidgetWorldXAxis = Actor->ActorToWorld().TransformVector(FVector(1.0f, 0.0f, 0.0f));
-			//get the xy plane project of this vector
-			TranslateRotateWidgetWorldXAxis.Z = 0.0f;
-			if (!TranslateRotateWidgetWorldXAxis.Normalize())
+			if (TTypedElement<UTypedElementWorldInterface> WorldElement = Registry->GetElement<UTypedElementWorldInterface>(Element))
 			{
-				TranslateRotateWidgetWorldXAxis = FVector(1.0f, 0.0f, 0.0f);
-			}
+				if (NumElements == 0)
+				{
+					FTransform ElementWorldTransform;
+					WorldElement.GetWorldTransform(ElementWorldTransform);
 
-			Widget2DWorldXAxis = Actor->ActorToWorld().TransformVector(FVector(1, 0, 0));
-			Widget2DWorldXAxis.Y = 0;
-			if (!Widget2DWorldXAxis.Normalize())
-			{
-				Widget2DWorldXAxis = FVector(1, 0, 0);
+					TranslateRotateWidgetWorldXAxis = ElementWorldTransform.TransformVector(FVector(1.0f, 0.0f, 0.0f));
+					//get the xy plane project of this vector
+					TranslateRotateWidgetWorldXAxis.Z = 0.0f;
+					if (!TranslateRotateWidgetWorldXAxis.Normalize())
+					{
+						TranslateRotateWidgetWorldXAxis = FVector(1.0f, 0.0f, 0.0f);
+					}
+
+					Widget2DWorldXAxis = ElementWorldTransform.TransformVector(FVector(1, 0, 0));
+					Widget2DWorldXAxis.Y = 0;
+					if (!Widget2DWorldXAxis.Normalize())
+					{
+						Widget2DWorldXAxis = FVector(1, 0, 0);
+					}
+				}
+
+				SingleWorldElement = MoveTemp(WorldElement);
+				++NumElements;
 			}
 		}
-
-		LastSelectedActor = Actor;
-		++Count;
-		++SnapCount;
 	}
 	
-	if( bAssignPivot && LastSelectedActor && UActorGroupingUtils::IsGroupingActive())
+	if (bAssignPivot && UActorGroupingUtils::IsGroupingActive())
 	{
-		// set group pivot for the root-most group
-		AGroupActor* ActorGroupRoot = AGroupActor::GetRootForActor(LastSelectedActor, true, true);
-		if(ActorGroupRoot)
+		if (TTypedElement<UTypedElementObjectInterface> ObjectElement = Registry->GetElement<UTypedElementObjectInterface>(SingleWorldElement))
 		{
-			ActorGroupRoot->SetActorLocation( EditorModeTools.PivotLocation, false );
+			if (AActor* SingleActor = Cast<AActor>(ObjectElement.GetObject()))
+			{
+				// set group pivot for the root-most group
+				if (AGroupActor* ActorGroupRoot = AGroupActor::GetRootForActor(SingleActor, true, true))
+				{
+					ActorGroupRoot->SetActorLocation(EditorModeTools.PivotLocation, false);
+				}
+			}
 		}
 	}
 
-	//if there are multiple actors selected, just use the x-axis for the "translate/rotate" or 2D widgets
-	if (Count == 1)
+	//if there are multiple elements selected, just use the x-axis for the "translate/rotate" or 2D widgets
+	if (NumElements == 1)
 	{
 		EditorModeTools.TranslateRotateXAxisAngle = TranslateRotateWidgetWorldXAxis.Rotation().Yaw;
 		EditorModeTools.TranslateRotate2DAngle = FMath::RadiansToDegrees(FMath::Atan2(Widget2DWorldXAxis.Z, Widget2DWorldXAxis.X));
 	}
 
 	// Update showing.
-	EditorModeTools.PivotShown = SnapCount>0 || Count>1;
+	EditorModeTools.PivotShown = NumElements > 0;
 }
 
 
@@ -304,78 +326,69 @@ bool UUnrealEdEngine::IsPivotMovedIndependently() const
 
 void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 {
-	// Pick a new common pivot, or not.
-	AActor* SingleActor = nullptr;
-	USceneComponent* SingleComponent = nullptr;
-
-	if (GetSelectedComponentCount() > 0)
+	if (!GCurrentLevelEditingViewportClient)
 	{
-		for (FSelectedEditableComponentIterator It(*GetSelectedComponents()); It; ++It)
-		{
-			UActorComponent* Component = CastChecked<UActorComponent>(*It);
-			AActor* ComponentOwner = Component->GetOwner();
-
-			if (ComponentOwner != nullptr)
-			{
-				USelection* SelectedActors = GetSelectedActors();
-				const bool bIsOwnerSelected = SelectedActors->IsSelected(ComponentOwner);
-				ensureMsgf(bIsOwnerSelected, TEXT("Owner(%s) of %s is not selected"), *ComponentOwner->GetFullName(), *Component->GetFullName());
-
-				if (ComponentOwner->GetWorld() == GWorld)
-				{
-					SingleActor = ComponentOwner;
-					if (Component->IsA<USceneComponent>())
-					{
-						SingleComponent = CastChecked<USceneComponent>(Component);
-					}
-
-					const bool IsTemplate = ComponentOwner->IsTemplate();
-					const bool LevelLocked = !FLevelUtils::IsLevelLocked(ComponentOwner->GetLevel());
-					check(IsTemplate || LevelLocked);
-				}
-			}
-		}
+		return;
 	}
-	else
+
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+
+	// Pick a new common pivot, or not.
+	TTypedElement<UTypedElementWorldInterface> SingleWorldElement;
 	{
-		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+		const TArray<FTypedElementHandle> ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
+		for (const FTypedElementHandle& Element : ElementsToManipulate)
 		{
-			AActor* Actor = static_cast<AActor*>(*It);
-			checkSlow(Actor->IsA(AActor::StaticClass()));
+			if (TTypedElement<UTypedElementWorldInterface> WorldElement = Registry->GetElement<UTypedElementWorldInterface>(Element))
+			{
+#if DO_CHECK
+				{
+					ULevel* OwnerLevel = WorldElement.GetOwnerLevel();
+					const bool bIsTemplate = WorldElement.IsTemplateElement();
+					const bool bLevelLocked = FLevelUtils::IsLevelLocked(OwnerLevel);
+					check(bIsTemplate || !bLevelLocked);
+				}
+#endif	// DO_CHECK
 
-			const bool IsTemplate = Actor->IsTemplate();
-			const bool LevelLocked = !FLevelUtils::IsLevelLocked(Actor->GetLevel());
-			check(IsTemplate || LevelLocked);
-
-			SingleActor = Actor;
+				SingleWorldElement = MoveTemp(WorldElement);
+			}
 		}
 	}
 	
-	if (SingleComponent != NULL)
-	{
-		SetPivot(SingleComponent->GetComponentLocation(), false, true);
-	}
-	else if( SingleActor != NULL ) 
+	if (SingleWorldElement)
 	{
 		UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>();
-		const bool bGeometryMode = BrushSubsystem ? BrushSubsystem->IsGeometryEditorModeActive() : false;
+		const bool bGeometryMode = BrushSubsystem && BrushSubsystem->IsGeometryEditorModeActive();
 
 		// For geometry mode use current pivot location as it's set to selected face, not actor
-		if (!bGeometryMode || bOnChange == true)
+		// TODO: If geometry used elements for face selection, then this could work via the world interface and this special case could be removed
+		if (!bGeometryMode || bOnChange)
 		{
-			// Set pivot point to the actor's location, accounting for any set pivot offset
-			FVector PivotPoint = SingleActor->GetTransform().TransformPosition(SingleActor->GetPivotOffset());
+			FTransform ElementWorldTransform;
+			SingleWorldElement.GetWorldTransform(ElementWorldTransform);
 
-			// If grouping is active, see if this actor is part of a locked group and use that pivot instead
-			if(UActorGroupingUtils::IsGroupingActive())
+			FVector ElementPivotOffset = FVector::ZeroVector;
+			SingleWorldElement.GetPivotOffset(ElementPivotOffset);
+
+			// Set pivot point to the element location, accounting for any set pivot offset
+			FVector PivotPoint = ElementWorldTransform.TransformPosition(ElementPivotOffset);
+
+			// If grouping is active, see if this element is an actor that's part of a locked group and use that pivot instead
+			if (UActorGroupingUtils::IsGroupingActive())
 			{
-				AGroupActor* ActorGroupRoot = AGroupActor::GetRootForActor(SingleActor, true, true);
-				if(ActorGroupRoot)
+				if (TTypedElement<UTypedElementObjectInterface> ObjectElement = Registry->GetElement<UTypedElementObjectInterface>(SingleWorldElement))
 				{
-					PivotPoint = ActorGroupRoot->GetActorLocation();
+					if (AActor* SingleActor = Cast<AActor>(ObjectElement.GetObject()))
+					{
+						if (AGroupActor* ActorGroupRoot = AGroupActor::GetRootForActor(SingleActor, true, true))
+						{
+							PivotPoint = ActorGroupRoot->GetActorLocation();
+						}
+					}
 				}
 			}
-			SetPivot( PivotPoint, false, true );
+
+			SetPivot(PivotPoint, false, true);
 		}
 	}
 	else
@@ -385,8 +398,6 @@ void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 
 	SetPivotMovedIndependently(false);
 }
-
-
 
 void UUnrealEdEngine::NoteSelectionChange(bool bNotify)
 {

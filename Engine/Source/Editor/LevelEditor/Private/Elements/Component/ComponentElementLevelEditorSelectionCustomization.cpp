@@ -109,7 +109,7 @@ bool FComponentElementLevelEditorSelectionCustomization::SelectComponentElement(
 		return false;
 	}
 
-	UE_LOG(LogComponentLevelEditorSelection, Verbose, TEXT("Selected Component: %s"), *Component->GetClass()->GetName());
+	UE_LOG(LogComponentLevelEditorSelection, Verbose, TEXT("Selected Component: %s (%s)"), *Component->GetPathName(), *Component->GetClass()->GetName());
 	
 	// Update the annotation state
 	GSelectedComponentAnnotation.Set(Component);
@@ -148,7 +148,7 @@ bool FComponentElementLevelEditorSelectionCustomization::DeselectComponentElemen
 		return false;
 	}
 
-	UE_LOG(LogComponentLevelEditorSelection, Verbose, TEXT("Deselected Component: %s"), *Component->GetClass()->GetName());
+	UE_LOG(LogComponentLevelEditorSelection, Verbose, TEXT("Deselected Component: %s (%s)"), *Component->GetPathName(), *Component->GetClass()->GetName());
 
 	// Update the annotation state
 	GSelectedComponentAnnotation.Clear(Component);
