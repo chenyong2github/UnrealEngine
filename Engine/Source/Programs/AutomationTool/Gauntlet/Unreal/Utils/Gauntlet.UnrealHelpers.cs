@@ -117,7 +117,7 @@ namespace Gauntlet
 			// These platforms can be built as either game, server or client
 			if (IsDesktop)
 			{
-				Platform = (TargetPlatform == UnrealTargetPlatform.Win32 || TargetPlatform == UnrealTargetPlatform.Win64) ? "Windows" : TargetPlatform.ToString();
+				Platform = (TargetPlatform == UnrealTargetPlatform.Win64) ? "Windows" : TargetPlatform.ToString();
 
 				if (ProcessType == UnrealTargetRole.Client)
 				{

@@ -553,10 +553,6 @@ namespace UnrealBuildTool
 				{
 					ConfigFileContents.Append("platform=x64\n");
 				}
-				else if(Platform == UnrealTargetPlatform.Win32)
-				{
-					ConfigFileContents.Append("platform=Win32\n");
-				}
 				else
 				{
 					throw new BuildException("PVS-Studio does not support this platform");

@@ -37,8 +37,7 @@ public class XMPP : ModuleRules
 			TargetPlatformSupportsJingle = true;
 			TargetPlatformSupportsStrophe = true;
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64 ||
+		else if (Target.Platform == UnrealTargetPlatform.Win64 ||
 			Target.Platform == UnrealTargetPlatform.Android ||
 			Target.Platform == UnrealTargetPlatform.IOS ||
 			Target.Platform == UnrealTargetPlatform.Switch||
@@ -70,7 +69,6 @@ public class XMPP : ModuleRules
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.Win32 ||
 			Target.Platform == UnrealTargetPlatform.Mac ||
 			Target.Platform == UnrealTargetPlatform.PS4 ||
 			bRequireOpenSSL)

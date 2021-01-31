@@ -35,19 +35,6 @@ public class libPhonon : ModuleRules
             RuntimeDependencies.Add(BinaryPath + TrueAudioNextDllName);
             RuntimeDependencies.Add(BinaryPath + GPUUtilitiesDllName);
         }
-        else if (Target.Platform == UnrealTargetPlatform.Win32)
-        {
-            LibraryPath = LibraryPath + "/lib/Win32/";
-            PublicAdditionalLibraries.Add(LibraryPath + "phonon.lib");
-
-            string DllName = "phonon.dll";
-
-            PublicDelayLoadDLLs.Add(DllName);
-
-            BinaryPath += "Win32/";
-
-            RuntimeDependencies.Add(BinaryPath + DllName);
-        }
         else if (Target.Platform == UnrealTargetPlatform.Android)
         {
             PublicAdditionalLibraries.Add(LibraryPath + "/lib/Android/libphonon.so");

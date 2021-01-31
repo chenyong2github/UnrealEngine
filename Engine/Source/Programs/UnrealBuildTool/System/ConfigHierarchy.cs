@@ -1008,13 +1008,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static string GetIniPlatformName(UnrealTargetPlatform TargetPlatform)
 		{
-			if (TargetPlatform == UnrealTargetPlatform.Win32 || TargetPlatform == UnrealTargetPlatform.Win64)
+			if (TargetPlatform == UnrealTargetPlatform.Win64)
 			{
 				return "Windows";
-			}
-			else if (TargetPlatform == UnrealTargetPlatform.HoloLens)
-			{
-				return "HoloLens";
 			}
 			else
 			{

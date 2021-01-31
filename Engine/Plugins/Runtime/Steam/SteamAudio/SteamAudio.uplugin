@@ -22,7 +22,7 @@
 			"LoadingPhase" : "PreDefault",
 			"WhitelistPlatforms" :
 			[
-				"Win32", "Win64", "Android"
+				"Win64", "Android"
 			]
 		},
 		{
@@ -31,7 +31,7 @@
 			"LoadingPhase" : "PostEngineInit",
 			"WhitelistPlatforms" :
 			[
-				"Win32", "Win64"
+				"Win64"
 			]
 		}
 	]

@@ -15,8 +15,7 @@ public class RSAEncryptionHandlerComponent : ModuleRules
             }
         );
 
-        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-            (Target.Platform == UnrealTargetPlatform.Win32))
+        if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             AddEngineThirdPartyPrivateStaticDependencies(Target,
                 "CryptoPP"

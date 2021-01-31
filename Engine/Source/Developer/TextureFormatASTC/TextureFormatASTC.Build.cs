@@ -9,7 +9,7 @@ public class TextureFormatASTC : ModuleRules
         PrivateIncludePathModuleNames.AddRange(new string[] { "TargetPlatform", "TextureCompressor", "Engine" });
         PrivateDependencyModuleNames.AddRange(new string[] { "Core", "ImageCore", "ImageWrapper", "TextureFormatIntelISPCTexComp" });
 
-        if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+        if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
             RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Win32/astcenc.exe");
         }

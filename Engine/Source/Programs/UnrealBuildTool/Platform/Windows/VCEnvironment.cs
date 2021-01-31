@@ -144,22 +144,11 @@ namespace UnrealBuildTool
 			Environment.SetEnvironmentVariable("VC_COMPILER_PATH", CompilerPath.FullName, EnvironmentVariableTarget.Process);
 			Environment.SetEnvironmentVariable("VC_COMPILER_DIR", CompilerPath.Directory.FullName, EnvironmentVariableTarget.Process);
 
-			// Add both toolchain paths to the PATH environment variable. There are some support DLLs which are only added to one of the paths, but which the toolchain in the other directory
-			// needs to run (eg. mspdbcore.dll).
-			if (Architecture == WindowsArchitecture.x64)
+			AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, Architecture));
+			if (Architecture == WindowsArchitecture.ARM64)
 			{
-				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x64));
-				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x86));
-			}
-			else if (Architecture == WindowsArchitecture.x86)
-			{
-				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x86));
-				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x64));
-			}
-			else if (Architecture == WindowsArchitecture.ARM64)
-			{
-				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.ARM64));
-				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x86));
+				// Add both toolchain paths to the PATH environment variable. There are some support DLLs which are only added to one of the paths, but which the toolchain in the other directory
+				// needs to run (eg. mspdbcore.dll).
 				AddDirectoryToPath(GetVCToolPath(ToolChain, ToolChainDir, WindowsArchitecture.x64));
 			}
 
@@ -209,15 +198,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				if (Architecture == WindowsArchitecture.x86)
-				{
-					FileReference CompilerPath = FileReference.Combine(VCToolChainDir, "bin", "cl.exe");
-					if(FileReference.Exists(CompilerPath))
-					{
-						return CompilerPath.Directory;
-					}
-				}
-				else if (Architecture == WindowsArchitecture.x64)
+				if (Architecture == WindowsArchitecture.x64)
 				{
 					// Use the native 64-bit compiler if present
 					FileReference NativeCompilerPath = FileReference.Combine(VCToolChainDir, "bin", "amd64", "cl.exe");
@@ -228,22 +209,6 @@ namespace UnrealBuildTool
 
 					// Otherwise use the amd64-on-x86 compiler. VS2012 Express only includes the latter.
 					FileReference CrossCompilerPath = FileReference.Combine(VCToolChainDir, "bin", "x86_amd64", "cl.exe");
-					if (FileReference.Exists(CrossCompilerPath))
-					{
-						return CrossCompilerPath.Directory;
-					}
-				}
-				else if (Architecture == WindowsArchitecture.ARM32)
-				{
-					// Use the native 64-bit compiler if present
-					FileReference NativeCompilerPath = FileReference.Combine(VCToolChainDir, "bin", "amd64_arm", "cl.exe");
-					if (FileReference.Exists(NativeCompilerPath))
-					{
-						return NativeCompilerPath.Directory;
-					}
-
-					// Otherwise use the amd64-on-x86 compiler. VS2012 Express only includes the latter.
-					FileReference CrossCompilerPath = FileReference.Combine(VCToolChainDir, "bin", "x86_arm", "cl.exe");
 					if (FileReference.Exists(CrossCompilerPath))
 					{
 						return CrossCompilerPath.Directory;
@@ -265,14 +230,7 @@ namespace UnrealBuildTool
 			}
 			else if(Compiler == WindowsCompiler.Intel)
 			{
-				if(Platform == UnrealTargetPlatform.Win32)
-				{
-					return FileReference.Combine(CompilerDir, "bin", "ia32", "icl.exe");
-				}
-				else
-				{
-					return FileReference.Combine(CompilerDir, "bin", "intel64", "icl.exe");
-				}
+				return FileReference.Combine(CompilerDir, "bin", "intel64", "icl.exe");
 			}
 			else
 			{
@@ -304,7 +262,7 @@ namespace UnrealBuildTool
 			}
 			else if(Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowICLLinker)
 			{
-				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", (Platform == UnrealTargetPlatform.Win32)? "ia32" : "intel64", "xilink.exe");
+				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", "intel64", "xilink.exe");
 				if (FileReference.Exists(LinkerPath))
 				{
 					return LinkerPath;
@@ -326,7 +284,7 @@ namespace UnrealBuildTool
 			// Regardless of the target, if we're linking on a 64 bit machine, we want to use the 64 bit linker (it's faster than the 32 bit linker)
 			if (Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowICLLinker)
 			{
-				FileReference LibPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", Platform == UnrealTargetPlatform.Win32 ? "ia32" : "intel64", "xilib.exe");
+				FileReference LibPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", "intel64", "xilib.exe");
 				if (FileReference.Exists(LibPath))
 				{
 					return LibPath;
@@ -346,34 +304,18 @@ namespace UnrealBuildTool
 		virtual protected FileReference GetResourceCompilerToolPath(UnrealTargetPlatform Platform, DirectoryReference WindowsSdkDir, VersionNumber WindowsSdkVersion)
 		{
 			// 64 bit -- we can use the 32 bit version to target 64 bit on 32 bit OS.
-			if (Platform != UnrealTargetPlatform.Win32)
+			FileReference ResourceCompilerPath = FileReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), "x64", "rc.exe");
+			if(FileReference.Exists(ResourceCompilerPath))
 			{
-				FileReference ResourceCompilerPath = FileReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), "x64", "rc.exe");
-				if(FileReference.Exists(ResourceCompilerPath))
-				{
-					return ResourceCompilerPath;
-				}
-
-				ResourceCompilerPath = FileReference.Combine(WindowsSdkDir, "bin", "x64", "rc.exe");
-				if(FileReference.Exists(ResourceCompilerPath))
-				{
-					return ResourceCompilerPath;
-				}
+				return ResourceCompilerPath;
 			}
-			else
+
+			ResourceCompilerPath = FileReference.Combine(WindowsSdkDir, "bin", "x64", "rc.exe");
+			if(FileReference.Exists(ResourceCompilerPath))
 			{
-				FileReference ResourceCompilerPath = FileReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), "x86", "rc.exe");
-				if(FileReference.Exists(ResourceCompilerPath))
-				{
-					return ResourceCompilerPath;
-				}
-
-				ResourceCompilerPath = FileReference.Combine(WindowsSdkDir, "bin", "x86", "rc.exe");
-				if(FileReference.Exists(ResourceCompilerPath))
-				{
-					return ResourceCompilerPath;
-				}
+				return ResourceCompilerPath;
 			}
+
 			throw new BuildException("Unable to find path to the Windows resource compiler under {0} (version {1})", WindowsSdkDir, WindowsSdkVersion);
 		}
 
@@ -409,10 +351,6 @@ namespace UnrealBuildTool
 				if (Architecture == WindowsArchitecture.x64)
 				{
 					LibsPath = DirectoryReference.Combine(LibsPath, "amd64");
-				}
-				else if (Architecture == WindowsArchitecture.ARM32)
-				{
-					LibsPath = DirectoryReference.Combine(LibsPath, "arm");
 				}
 
 				LibraryPaths.Add(LibsPath);

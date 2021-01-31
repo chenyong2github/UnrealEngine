@@ -12,7 +12,7 @@ public class IntelVTune : ModuleRules
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
-			string PlatformName = (Target.Platform == UnrealTargetPlatform.Win32) ? "Win32" : "Win64";
+			string PlatformName = "Win64";
 
 			PublicSystemIncludePaths.Add(IntelVTunePath + "include/");
 

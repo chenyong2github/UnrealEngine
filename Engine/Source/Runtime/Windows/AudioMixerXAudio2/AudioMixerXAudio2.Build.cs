@@ -35,7 +35,7 @@ public class AudioMixerXAudio2 : ModuleRules
 			"XAudio2_9"
         );
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrecompileForTargets = PrecompileTargetsType.Any;
 		}

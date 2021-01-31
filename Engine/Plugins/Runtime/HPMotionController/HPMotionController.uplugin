@@ -15,7 +15,6 @@
 	"IsBetaVersion": false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Win32",
 		"Win64"
 	],
 	"Modules": [
@@ -24,7 +23,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64"
 			]
 		}
@@ -34,7 +32,6 @@
 			"Name": "OpenXR",
 			"Enabled": true,
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64"
 			]
 		}

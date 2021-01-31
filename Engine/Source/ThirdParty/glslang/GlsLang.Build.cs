@@ -11,33 +11,17 @@ public class GlsLang : ModuleRules
 		PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "glslang/glslang/src/glslang_lib");
 
 		string LibPath = Target.UEThirdPartySourceDirectory + "glslang/glslang/lib/";
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			LibPath = LibPath + (Target.Platform == UnrealTargetPlatform.Win32 ? "Win32/" : "Win64/");
-			LibPath = LibPath + "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			LibPath = LibPath + "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				if (Target.Platform == UnrealTargetPlatform.Win64)
-				{
-					PublicAdditionalLibraries.Add(LibPath + "/glslangd_64.lib");
-				}
-				else if (Target.Platform == UnrealTargetPlatform.Win32)
-				{
-					PublicAdditionalLibraries.Add(LibPath + "/glslangd.lib");
-				}
+				PublicAdditionalLibraries.Add(LibPath + "/glslangd_64.lib");
 			}
 			else
 			{
-				if (Target.Platform == UnrealTargetPlatform.Win64)
-				{
-					PublicAdditionalLibraries.Add(LibPath + "/glslang_64.lib");
-				}
-				else if (Target.Platform == UnrealTargetPlatform.Win32)
-				{
-					PublicAdditionalLibraries.Add(LibPath + "/glslang.lib");
-				}
+				PublicAdditionalLibraries.Add(LibPath + "/glslang_64.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)

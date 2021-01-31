@@ -26,10 +26,6 @@ public class DX11Input : ModuleRules
 		{
 			LibDir = DirectXSDKDir + "/Lib/x64/";
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			LibDir = DirectXSDKDir + "/Lib/x86/";
-		}
 
 		PublicAdditionalLibraries.AddRange(
 			new string[] {

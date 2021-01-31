@@ -26,9 +26,7 @@ namespace UnrealBuildTool.Rules
                 }
 			);
 
-            if (Target.Type == TargetType.Editor &&
-				(Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
-                )
+            if (Target.Type == TargetType.Editor && Target.Platform == UnrealTargetPlatform.Win64)
             {
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "UELibSampleRate");
             }

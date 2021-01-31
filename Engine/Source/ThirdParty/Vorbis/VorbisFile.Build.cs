@@ -22,23 +22,13 @@ public class VorbisFile : ModuleRules
 			PublicDelayLoadDLLs.Add("libvorbisfile_64.dll");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbisfile_64.dll");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32 )
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), "libvorbisfile.lib"));
-			PublicDelayLoadDLLs.Add("libvorbisfile.dll");
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbisfile.dll");
-		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
-            string LibFileName = "libvorbisfile";
-            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
-            {
-                LibFileName += "_64";
-            }
+            string LibFileName = "libvorbisfile_64";
 
             string PlatformSubpath = Target.Platform.ToString();
 			string LibDir;
-            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
                 LibDir = System.String.Format("{0}/{1}/VS{2}/{3}/", VorbisFileLibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
                 RuntimeDependencies.Add(

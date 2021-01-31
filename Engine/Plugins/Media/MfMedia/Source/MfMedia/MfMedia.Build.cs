@@ -32,8 +32,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Type != TargetType.Server)
 			{
-				if ((Target.Platform == UnrealTargetPlatform.Win32) ||
-					(Target.Platform == UnrealTargetPlatform.Win64))
+				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					PublicDelayLoadDLLs.Add("mf.dll");
 					PublicDelayLoadDLLs.Add("mfplat.dll");

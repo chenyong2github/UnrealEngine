@@ -23,14 +23,7 @@ public class DX11Audio : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			LibDir = DirectXSDKDir + "/Lib/x64/";
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			LibDir = DirectXSDKDir + "/Lib/x86/";
-		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
-		{
 			PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
 			PublicAdditionalLibraries.AddRange(

@@ -14,7 +14,6 @@ public class libWebSockets : ModuleRules
 				Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Platform == UnrealTargetPlatform.PS4 ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
-				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64;
 		}
 	}
@@ -34,7 +33,7 @@ public class libWebSockets : ModuleRules
 	{
 		get
 		{
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				return Path.Combine(WebSocketsPackagePath, "include", Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			}
@@ -53,7 +52,7 @@ public class libWebSockets : ModuleRules
 	{
 		get
 		{
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				return Path.Combine(WebSocketsPackagePath, "lib", Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigName);
 			}
@@ -77,7 +76,7 @@ public class libWebSockets : ModuleRules
 			return;
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicIncludePaths.Add(IncludeDirectory);
 			PublicAdditionalLibraries.Add(Path.Combine(WebSocketsPackagePath, "lib", Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigName, "websockets_static.lib"));

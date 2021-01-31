@@ -314,7 +314,6 @@ class BuildPlugin : BuildCommand
 			if (HostPlatform != UnrealTargetPlatform.Win64 && TargetPlatforms.Contains(UnrealTargetPlatform.Win64))
 			{
 				TargetPlatforms.Remove(UnrealTargetPlatform.Win64);
-				TargetPlatforms.Remove(UnrealTargetPlatform.Win32);
 			}
 			// build Linux on Windows and Linux
 			if (HostPlatform != UnrealTargetPlatform.Win64 && HostPlatform != UnrealTargetPlatform.Linux)

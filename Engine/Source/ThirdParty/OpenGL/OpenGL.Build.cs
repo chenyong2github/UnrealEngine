@@ -9,8 +9,7 @@ public class OpenGL : ModuleRules
 
 		PublicIncludePaths.Add(ModuleDirectory);
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicSystemLibraries.Add("opengl32.lib");
 		}

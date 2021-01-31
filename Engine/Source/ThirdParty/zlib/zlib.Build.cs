@@ -27,18 +27,17 @@ public class zlib : ModuleRules
 			string LibName = System.String.Format("zlibstatic{0}.lib", Target.Configuration != UnrealTargetConfiguration.Debug ? "" : "d");
 			PublicAdditionalLibraries.Add(LibDir + LibName);
 
-			string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
+			string PlatformSubpath = "Win64";
 			PublicIncludePaths.Add(System.String.Format("{0}/include/{1}/VS{2}", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64 ||
-				 Target.Platform == UnrealTargetPlatform.Win32 ||
 				 Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
-			string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
+			string PlatformSubpath = "Win64";
 			PublicIncludePaths.Add(System.String.Format("{0}/include/{1}/VS{2}", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
 			string LibDir;
 
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
                 LibDir = System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
             }

@@ -25,7 +25,7 @@ public class OpenSSL : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ||
+		else if (Target.Platform == UnrealTargetPlatform.Win64 || 
 				Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			// Our OpenSSL 1.1.1 libraries are built with zlib compression support

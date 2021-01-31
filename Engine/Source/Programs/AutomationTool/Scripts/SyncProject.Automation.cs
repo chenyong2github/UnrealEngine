@@ -284,8 +284,7 @@ class SyncProject : SyncProjectBase
 			{
 				Log.TraceVerbose("Generating project files for {0}", ProjectArgForEditor);
 
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 ||
-					BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
 					CommandUtils.Run("GenerateProjectFiles.bat", ProjectArgForEditor);
 				}

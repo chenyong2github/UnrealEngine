@@ -50,8 +50,7 @@ public class Launch : ModuleRules
 		// Enable the LauncherCheck module to be used for platforms that support the Launcher.
 		// Projects should set Target.bUseLauncherChecks in their Target.cs to enable the functionality.
 		if (Target.bUseLauncherChecks &&
-			((Target.Platform == UnrealTargetPlatform.Win32) ||
-			(Target.Platform == UnrealTargetPlatform.Win64) ||
+			((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Mac)))
 		{
 			PrivateDependencyModuleNames.Add("LauncherCheck");
@@ -70,7 +69,7 @@ public class Launch : ModuleRules
 					"MRMesh",
 			});
 
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				DynamicallyLoadedModuleNames.AddRange(new string[] {
 					"WindowsPlatformFeatures",
@@ -252,8 +251,7 @@ public class Launch : ModuleRules
 			PublicFrameworks.Add("QuartzCore");
 		}
 
-		if ((Target.Platform == UnrealTargetPlatform.Win32) ||
-			(Target.Platform == UnrealTargetPlatform.Win64) ||
+		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) && Target.Type != TargetType.Server))
 		{
 			// TODO: re-enable after implementing resource tables for OpenGL.

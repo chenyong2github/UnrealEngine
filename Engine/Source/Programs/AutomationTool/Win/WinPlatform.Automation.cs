@@ -10,10 +10,10 @@ using Microsoft.Win32;
 using System.Diagnostics;
 using EpicGames.Core;
 
-public abstract class BaseWinPlatform : Platform
+public abstract class Win64Platform : Platform
 {
-	public BaseWinPlatform(UnrealTargetPlatform P)
-		: base(P)
+	public Win64Platform()
+		: base(UnrealTargetPlatform.Win64)
 	{
 	}
 
@@ -38,6 +38,8 @@ public abstract class BaseWinPlatform : Platform
 	{
 		return ".exe";
 	}
+
+	public override bool IsSupported { get { return true; } }
 
 	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
 	{
@@ -150,8 +152,7 @@ public abstract class BaseWinPlatform : Platform
 			CommandUtils.SetFileAttributes(IntermediateFile.FullName, ReadOnly: false);
 	
 			// currently the icon updating doesn't run under mono
-			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 ||
-				UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
 				// Get the icon from the build directory if possible
 				GroupIconResource GroupIcon = null;
@@ -254,7 +255,7 @@ public abstract class BaseWinPlatform : Platform
 
 	public override bool UseAbsLog
 	{
-		get { return BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32; }
+		get { return BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64; }
 	}
 
 	public override bool CanHostPlatform(UnrealTargetPlatform Platform)
@@ -570,56 +571,6 @@ public abstract class BaseWinPlatform : Platform
 		get
 		{
 			return false;
-		}
-	}
-}
-
-public class Win64Platform : BaseWinPlatform
-{
-	public Win64Platform()
-		: base(UnrealTargetPlatform.Win64)
-	{
-	}
-
-	public override bool IsSupported { get { return true; } }
-
-	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
-	{
-		base.GetFilesToDeployOrStage(Params, SC);
-		
-		if(Params.Prereqs)
-		{
-			SC.StageFile(StagedFileType.NonUFS, FileReference.Combine(SC.EngineRoot, "Extras", "Redist", "en-us", "UE4PrereqSetup_x64.exe"));
-		}
-
-		if (!string.IsNullOrWhiteSpace(Params.AppLocalDirectory))
-		{
-			StageAppLocalDependencies(Params, SC, "Win64");
-		}
-	}
-}
-
-public class Win32Platform : BaseWinPlatform
-{
-	public Win32Platform()
-		: base(UnrealTargetPlatform.Win32)
-	{
-	}
-
-	public override bool IsSupported { get { return true; } }
-
-	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
-	{
-		base.GetFilesToDeployOrStage(Params, SC);
-
-		if (Params.Prereqs)
-		{
-			SC.StageFile(StagedFileType.NonUFS, FileReference.Combine(SC.EngineRoot, "Extras", "Redist", "en-us", "UE4PrereqSetup_x86.exe"));
-		}
-
-		if (!string.IsNullOrWhiteSpace(Params.AppLocalDirectory))
-		{
-			StageAppLocalDependencies(Params, SC, "Win32");
 		}
 	}
 }

@@ -46,7 +46,6 @@ public partial class Project : CommandUtils
 	{
 		return (
 			(InPlatform == UnrealTargetPlatform.Win64) ||
-			(InPlatform == UnrealTargetPlatform.Win32) ||
 			(InPlatform == UnrealTargetPlatform.Linux) ||
 			(InPlatform == UnrealTargetPlatform.LinuxAArch64) ||
 			(InPlatform == UnrealTargetPlatform.Mac)
@@ -172,7 +171,7 @@ public partial class Project : CommandUtils
 		}
 		if (!Params.NoBootstrapExe && !CommandUtils.IsEngineInstalled() && (TargetMask & ProjectBuildTargets.Bootstrap) == ProjectBuildTargets.Bootstrap)
 		{
-			UnrealBuildTool.UnrealTargetPlatform[] BootstrapPackagedGamePlatforms = { UnrealBuildTool.UnrealTargetPlatform.Win32, UnrealBuildTool.UnrealTargetPlatform.Win64 };
+			UnrealBuildTool.UnrealTargetPlatform[] BootstrapPackagedGamePlatforms = { UnrealBuildTool.UnrealTargetPlatform.Win64 };
 			foreach(UnrealBuildTool.UnrealTargetPlatform BootstrapPackagedGamePlatformType in BootstrapPackagedGamePlatforms)
 			{
 				if(Params.ClientTargetPlatforms.Contains(new TargetPlatformDescriptor(BootstrapPackagedGamePlatformType)))

@@ -17,11 +17,6 @@ public class MCPP : ModuleRules
             LibPath += ("Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			PublicAdditionalLibraries.Add(LibPath + "/mcpp_64.lib");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-        {
-            LibPath += ("Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			PublicAdditionalLibraries.Add(LibPath + "/mcpp.lib");
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicAdditionalLibraries.Add(LibPath + "Mac/libmcpp.a");

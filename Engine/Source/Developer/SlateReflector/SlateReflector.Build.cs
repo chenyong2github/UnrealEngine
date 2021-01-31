@@ -78,8 +78,7 @@ public class SlateReflector : ModuleRules
 		}
 
 		// DesktopPlatform is only available for Editor and Program targets (running on a desktop platform)
-		bool IsDesktopPlatformType = Target.Platform == UnrealBuildTool.UnrealTargetPlatform.Win32
-			|| Target.Platform == UnrealBuildTool.UnrealTargetPlatform.Win64
+		bool IsDesktopPlatformType = Target.Platform == UnrealBuildTool.UnrealTargetPlatform.Win64
 			|| Target.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac
 			|| Target.Platform == UnrealBuildTool.UnrealTargetPlatform.Linux;
 		if (Target.Type == TargetType.Editor || (Target.Type == TargetType.Program && IsDesktopPlatformType))

@@ -51,7 +51,6 @@ public class WebBrowser : ModuleRules
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Win64
-		||  Target.Platform == UnrealTargetPlatform.Win32
 		||  Target.Platform == UnrealTargetPlatform.Mac
 		||  Target.Platform == UnrealTargetPlatform.Linux)
 		{

@@ -162,7 +162,7 @@ namespace UnrealBuildTool
 				StripPath   = ObjcopyPath;
 
 				// When cross-compiling on Windows, use old FixDeps. It is slow, but it does not have timing issues
-				bUseFixdeps = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32);
+				bUseFixdeps = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64;
 
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 				{
@@ -215,7 +215,7 @@ namespace UnrealBuildTool
 
 		private string GetHostPlatformBinarySuffix()
 		{
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
 				return ".exe";
 			}
@@ -256,7 +256,7 @@ namespace UnrealBuildTool
 
 		internal string GetDumpEncodeDebugCommand(LinkEnvironment LinkEnvironment, FileItem OutputFile)
 		{
-			bool bUseCmdExe = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32;
+			bool bUseCmdExe = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64;
 			string DumpCommand = bUseCmdExe ? "\"{0}\" \"{1}\" \"{2}\" 2>NUL" : "\"{0}\" -c -o \"{2}\" \"{1}\"";
 			FileItem EncodedBinarySymbolsFile = FileItem.GetItemByPath(Path.Combine(LinkEnvironment.OutputDirectory.FullName, OutputFile.Location.GetFileNameWithoutExtension() + ".sym"));
 			FileItem SymbolsFile  = FileItem.GetItemByPath(Path.Combine(LinkEnvironment.LocalShadowDirectory.FullName, OutputFile.Location.GetFileName() + ".psym"));
@@ -639,7 +639,7 @@ namespace UnrealBuildTool
 				// Clang only options
 				if (CrossCompiling())
 				{
-					if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+					if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 					{
 						Result += " -fdiagnostics-format=msvc";     // make diagnostics compatible with MSVC when cross-compiling
 					}

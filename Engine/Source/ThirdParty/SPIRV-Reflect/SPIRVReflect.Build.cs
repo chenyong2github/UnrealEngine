@@ -25,7 +25,7 @@ public class SPIRVReflect : ModuleRules
 		}
         else if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-			LibPath = Path.Combine(LibPath, (Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64"), "VS2017");
+			LibPath = Path.Combine(LibPath, "Win64", "VS2017");
 
             if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
             {

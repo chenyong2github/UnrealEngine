@@ -109,7 +109,7 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			if ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac) || (Target.Platform == UnrealTargetPlatform.Linux))
+			if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac) || (Target.Platform == UnrealTargetPlatform.Linux))
 			{
 				bool bBuildShaderFormats = Target.bForceBuildShaderFormats;
 				if (!Target.bBuildRequiresCookedData)

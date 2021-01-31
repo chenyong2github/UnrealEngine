@@ -21,7 +21,6 @@
 			"LoadingPhase" : "Default",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
 				"Linux",
 				"Mac"
 			]
@@ -32,7 +31,6 @@
 			"LoadingPhase" : "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
 				"Linux",
 				"Mac"
 			]

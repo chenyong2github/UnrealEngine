@@ -8,8 +8,7 @@ public class ADO : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicIncludePaths.Add("$(CommonProgramFiles)");
 		}

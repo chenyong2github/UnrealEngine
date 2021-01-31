@@ -45,9 +45,7 @@ public class HLMedia : ModuleRules
 
         var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
-        if (Target.Platform == UnrealTargetPlatform.Win32
-            ||
-            Target.Platform == UnrealTargetPlatform.Win64
+        if (Target.Platform == UnrealTargetPlatform.Win64
             ||
             Target.Platform == UnrealTargetPlatform.HoloLens)
         {
@@ -73,7 +71,7 @@ public class HLMedia : ModuleRules
             PublicSystemLibraries.Add("mfuuid.lib");
         }
 
-        if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+        if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private/Windows"));
         }

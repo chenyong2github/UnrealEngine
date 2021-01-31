@@ -13,7 +13,7 @@ public class FreeImage : ModuleRules
 		string BinaryLibraryFolder = Path.Combine(Target.UEThirdPartyBinariesDirectory, "FreeImage", Target.Platform.ToString());
 		string LibraryFileName = "";
 		bool bWithFreeImage = false;
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			LibraryFileName = "FreeImage.dll";
 			string DynLibPath = Path.Combine(BinaryLibraryFolder, LibraryFileName);

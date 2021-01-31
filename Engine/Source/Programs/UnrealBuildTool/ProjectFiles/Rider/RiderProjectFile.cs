@@ -35,7 +35,6 @@ namespace UnrealBuildTool
 		/// For game: {GameRoot}/Intermediate/ProjectFiles/.Rider/{Platform}/{Configuration}/{TargetType}/{ProjectName}.json
 		/// </summary>
 		/// <remarks>
-		/// * <c>UnrealTargetPlatform.Win32</c> will be always ignored.
 		/// * <c>TargetType.Editor</c> will be generated for current platform only and will ignore <c>UnrealTargetConfiguration.Test</c> and <c>UnrealTargetConfiguration.Shipping</c> configurations
 		/// * <c>TargetType.Program</c>  will be generated for current platform only and <c>UnrealTargetConfiguration.Development</c> configuration only 
 		/// </remarks>

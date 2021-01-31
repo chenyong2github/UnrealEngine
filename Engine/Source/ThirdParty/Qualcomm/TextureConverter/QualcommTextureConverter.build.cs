@@ -9,7 +9,6 @@ public class QualcommTextureConverter : ModuleRules
 		Type = ModuleType.External;
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32) ||
 			(Target.Platform == UnrealTargetPlatform.Mac) ||
 			(Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64")))
 		{

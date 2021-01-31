@@ -1234,8 +1234,7 @@ namespace UnrealBuildTool
 							UHTResult = ((int)(UHTResult) == 130) ? CompilationResult.Canceled : CompilationResult.CrashOrAssert;
 						}
 
-						if ((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32 || 
-							BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) && 
+						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && 
 							(int)(UHTResult) < 0)
 						{
 							Log.TraceError(String.Format("UnrealHeaderTool failed with exit code 0x{0:X} - check that UE4 prerequisites are installed.", (int)UHTResult));

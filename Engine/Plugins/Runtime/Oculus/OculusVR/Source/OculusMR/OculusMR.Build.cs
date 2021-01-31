@@ -43,7 +43,7 @@ namespace UnrealBuildTool.Rules
                     "../../../../../Source/Runtime/MediaAssets/Private",
                 });
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+            if (Target.Platform == UnrealTargetPlatform.Win64)
             {
 				PublicDelayLoadDLLs.Add("OVRPlugin.dll");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Oculus/OVRPlugin/OVRPlugin/" + Target.Platform.ToString() + "/OVRPlugin.dll");

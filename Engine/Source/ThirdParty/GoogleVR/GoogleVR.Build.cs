@@ -25,12 +25,6 @@ public class GoogleVR : ModuleRules
 			PublicAdditionalLibraries.Add(GoogleVRBaseLibPath+"mac/libgvraux.a");
 		}
 
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			PublicAdditionalLibraries.Add(GoogleVRBaseLibPath+"win32/libgvr.lib");
-			PublicAdditionalLibraries.Add(GoogleVRBaseLibPath+"win32/libgvraux.lib");
-		}
-
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicAdditionalLibraries.Add(GoogleVRBaseLibPath+"win64/libgvr.lib");

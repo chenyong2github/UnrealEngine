@@ -82,7 +82,7 @@ namespace UnrealBuildTool.Rules
 
                 string TargetPlatform = "Windows.x64";
                 string TargetExtension = "lib";
-                if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32))
+                if (Target.Platform == UnrealTargetPlatform.Win64)
                 {
                     PublicDefinitions.Add("MI_PLATFORM_WINDOWS");
                 }

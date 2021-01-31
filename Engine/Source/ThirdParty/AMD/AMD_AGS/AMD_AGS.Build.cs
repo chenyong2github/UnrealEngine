@@ -15,16 +15,8 @@ public class AMD_AGS : ModuleRules
 		{
 			string AmdApiLibPath = AmdAgsPath + "lib/VS2017";
 
-			if (Target.Platform != UnrealTargetPlatform.Win32)
-			{
-				string LibraryName = "amd_ags_x64_2017_MD.lib";
-				PublicAdditionalLibraries.Add(Path.Combine(AmdApiLibPath, LibraryName));
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Win32)
-			{
-				string LibraryName = "amd_ags_x86_2017_MD.lib";
-				PublicAdditionalLibraries.Add(Path.Combine(AmdApiLibPath, LibraryName));
-			}
+			string LibraryName = "amd_ags_x64_2017_MD.lib";
+			PublicAdditionalLibraries.Add(Path.Combine(AmdApiLibPath, LibraryName));
 		}
 	}
 }

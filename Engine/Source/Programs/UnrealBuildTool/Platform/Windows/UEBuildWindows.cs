@@ -90,17 +90,9 @@ namespace UnrealBuildTool
 	public enum WindowsArchitecture
 	{
 		/// <summary>
-		/// x86
-		/// </summary>
-		x86,
-		/// <summary>
 		/// x64
 		/// </summary>
 		x64,
-		/// <summary>
-		/// ARM
-		/// </summary>
-		ARM32,
 		/// <summary>
 		/// ARM64
 		/// </summary>
@@ -788,10 +780,6 @@ namespace UnrealBuildTool
 			{
 				Target.WindowsPlatform.Architecture = WindowsArchitecture.x64;
 			}
-			else if (Platform == UnrealTargetPlatform.Win32)
-			{
-				Target.WindowsPlatform.Architecture = WindowsArchitecture.x86;
-			}
 
 			// Disable Simplygon support if compiling against the NULL RHI.
 			if (Target.GlobalDefinitions.Contains("USE_NULL_RHI=1"))
@@ -981,7 +969,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the directory was found, false otherwise.</returns>
 		public static bool TryGetVSInstallDir(WindowsCompiler Compiler, [NotNullWhen(true)] out DirectoryReference? InstallDir)
 		{
-			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64 && BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win32)
+			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64)
 			{
 				InstallDir = null;
 				return false;
@@ -1012,7 +1000,7 @@ namespace UnrealBuildTool
 			if(!CachedVisualStudioInstallations.TryGetValue(Compiler, out Installations))
 			{
 				Installations = new List<VisualStudioInstallation>();
-			    if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+			    if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			    {
 				    if(Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
 				    {
@@ -1104,7 +1092,7 @@ namespace UnrealBuildTool
 			if(!CachedToolChainInstallations.TryGetValue(Compiler, out ToolChainInstallations))
 			{
 				ToolChainInstallations = new Dictionary<VersionNumber, ToolChainInstallation>();
-			    if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+			    if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			    {
 					if(Compiler == WindowsCompiler.Clang)
 					{
@@ -1528,15 +1516,7 @@ namespace UnrealBuildTool
 		public static string GetArchitectureSubpath(WindowsArchitecture arch)
 		{
 			string archPath = "Unknown";
-			if (arch == WindowsArchitecture.x86)
-			{
-				archPath = "x86";
-			}
-			else if (arch == WindowsArchitecture.ARM32)
-			{
-				archPath = "arm";
-			}
-			else if (arch == WindowsArchitecture.x64)
+			if (arch == WindowsArchitecture.x64)
 			{
 				archPath = "x64";
 			}
@@ -1707,20 +1687,6 @@ namespace UnrealBuildTool
 
 		public override bool HasDefaultBuildConfig(UnrealTargetPlatform Platform, DirectoryReference ProjectPath)
 		{
-			if (Platform == UnrealTargetPlatform.Win32)
-			{
-				string[] StringKeys = new string[] {
-					"MinimumOSVersion"
-				};
-
-				// look up OS specific settings
-				if (!DoProjectSettingsMatchDefault(Platform, ProjectPath, "/Script/WindowsTargetPlatform.WindowsTargetSettings",
-					null, null, StringKeys))
-				{
-					return false;
-				}
-			}
-
 			// check the base settings
 			return base.HasDefaultBuildConfig(Platform, ProjectPath);
 		}
@@ -1814,7 +1780,7 @@ namespace UnrealBuildTool
 
 			if (ModuleName == "D3D12RHI")
 			{
-				if (Target.WindowsPlatform.bPixProfilingEnabled && Target.Platform != UnrealTargetPlatform.Win32 && Target.Configuration != UnrealTargetConfiguration.Shipping)
+				if (Target.WindowsPlatform.bPixProfilingEnabled && Target.Configuration != UnrealTargetConfiguration.Shipping)
 				{
 					// Define to indicate profiling enabled (64-bit only)
 					Rules.PublicDefinitions.Add("D3D12_PROFILING_ENABLED=1");
@@ -1870,7 +1836,7 @@ namespace UnrealBuildTool
 			// Add path to Intel math libraries when using ICL based on target platform
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
 			{
-				string Result = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "compiler", "lib", Target.Platform == UnrealTargetPlatform.Win32 ? "ia32" : "intel64");
+				string Result = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "compiler", "lib", "intel64");
 				if (!Directory.Exists(Result))
 				{
 					throw new BuildException("ICL was selected but the required math libraries were not found.  Could not find: " + Result);
@@ -1964,10 +1930,7 @@ namespace UnrealBuildTool
 
 			// For 64-bit builds, we'll forcibly ignore a linker warning with DirectInput.  This is
 			// Microsoft's recommended solution as they don't have a fixed .lib for us.
-			if (Target.Platform != UnrealTargetPlatform.Win32)
-			{
-				LinkEnvironment.AdditionalArguments += " /ignore:4078";
-			}
+			LinkEnvironment.AdditionalArguments += " /ignore:4078";
 
 			// Set up default stack size
 			LinkEnvironment.DefaultStackSize = Target.WindowsPlatform.DefaultStackSize;

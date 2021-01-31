@@ -43,8 +43,7 @@ public class Slate : ModuleRules
 				"Runtime/Slate/Private/Widgets/Views",
 			});
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "XInput");
 		}

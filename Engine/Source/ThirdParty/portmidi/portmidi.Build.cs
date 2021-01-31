@@ -10,11 +10,7 @@ public class portmidi : ModuleRules
 
 		PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "portmidi/include");
 
-        if (Target.Platform == UnrealTargetPlatform.Win32)
-        {
-            PublicAdditionalLibraries.Add(Target.UEThirdPartySourceDirectory + "portmidi/lib/Win32/portmidi.lib");
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Win64)
+        if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             PublicAdditionalLibraries.Add(Target.UEThirdPartySourceDirectory + "portmidi/lib/Win64/portmidi_64.lib");
         }

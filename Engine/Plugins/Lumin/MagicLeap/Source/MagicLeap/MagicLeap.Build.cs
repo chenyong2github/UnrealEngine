@@ -80,7 +80,7 @@ namespace UnrealBuildTool.Rules
 			}
 
 			// Add direct rendering dependencies on a per-platform basis
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PrivateDependencyModuleNames.AddRange(new string[] { "D3D11RHI" });
 				PrivateIncludePaths.AddRange(
@@ -124,14 +124,14 @@ namespace UnrealBuildTool.Rules
 				PrivateIncludePaths.AddRange(
 					new string[] {
 						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private"),
-						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private", ((Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64) ? "Windows" : Target.Platform.ToString()))
+						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private", Target.Platform.ToString())
 						// ... add other private include paths required here ...
 					}
 				);
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 			}
 
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Lumin)
+			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Lumin)
 			{
 				PrivateDependencyModuleNames.AddRange(new string[] { "OpenGLDrv" });
 				PrivateIncludePaths.AddRange(

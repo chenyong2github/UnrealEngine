@@ -92,48 +92,6 @@ public class NvCloth : ModuleRules
 				PublicDefinitions.Add("UE_NVCLOTH_SUFFIX=" + LibrarySuffix);
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			LibDir = Path.Combine(NvClothLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
-			string[] StaticLibrariesX64 = new string[]
-			{
-				"NvCloth{0}_x86.lib"
-			};
-
-			string[] RuntimeDependenciesX64 =
-			{
-				"NvCloth{0}_x86.dll",
-			};
-
-			string[] DelayLoadDLLsX64 =
-			{
-				"NvCloth{0}_x86.dll",
-			};
-
-            foreach (string Lib in StaticLibrariesX64)
-            {
-                PublicAdditionalLibraries.Add(Path.Combine(LibDir, String.Format(Lib, LibrarySuffix)));
-            }
-
-			foreach (string DLL in DelayLoadDLLsX64)
-			{
-				PublicDelayLoadDLLs.Add(String.Format(DLL, LibrarySuffix));
-			}
-
-			string NvClothBinariesDir = Path.Combine(EngineBinThirdPartyPath, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			foreach (string RuntimeDependency in RuntimeDependenciesX64)
-			{
-				string FileName = Path.Combine(NvClothBinariesDir, String.Format(RuntimeDependency, LibrarySuffix));
-				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
-				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
-			}
-
-			if (LibrarySuffix != "")
-			{
-				PublicDefinitions.Add("UE_NVCLOTH_SUFFIX=" + LibrarySuffix);
-			}
-		}
 
 		// the following platforms uses "LibraryFormatString" at the end of this object
 

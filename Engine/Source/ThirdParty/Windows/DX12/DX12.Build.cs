@@ -24,10 +24,6 @@ public class DX12 : ModuleRules
 		{
 			LibDir = DirectXSDKDir + "/Lib/x64/";
         }
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			LibDir = DirectXSDKDir + "/Lib/x86/";
-		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			PublicSystemLibraries.Add("dxgi.lib"); // For DXGIGetDebugInterface1

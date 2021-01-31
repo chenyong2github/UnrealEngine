@@ -31,7 +31,7 @@ public class DatasmithSDKTarget : TargetRules
 		bHasExports = true;
 		bIsBuildingConsoleApplication = true;
 
-		if (Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32)
+		if (Platform == UnrealTargetPlatform.Win64)
 		{
 			AddWindowsPostBuildSteps();
 		}

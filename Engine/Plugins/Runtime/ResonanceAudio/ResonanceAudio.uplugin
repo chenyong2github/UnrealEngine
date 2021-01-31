@@ -24,7 +24,6 @@
 			"iOS",
 			"Linux",
 			"Mac",
-			"Win32",
 			"Win64",
 			"Lumin",
 			"PS4"
@@ -37,7 +36,6 @@
       "WhitelistPlatforms": [
         "Linux",
         "Mac",
-        "Win32",
         "Win64"
       ]
     }

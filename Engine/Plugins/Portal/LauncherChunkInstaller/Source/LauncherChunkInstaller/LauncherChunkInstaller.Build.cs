@@ -14,7 +14,7 @@ public class LauncherChunkInstaller : ModuleRules
             }
         );
 
-        if (Target.Platform != UnrealTargetPlatform.Linux && Target.Platform != UnrealTargetPlatform.Win32 && Target.Platform != UnrealTargetPlatform.Win64 && Target.Platform != UnrealTargetPlatform.Mac)
+        if (Target.Platform != UnrealTargetPlatform.Linux && Target.Platform != UnrealTargetPlatform.Win64 && Target.Platform != UnrealTargetPlatform.Mac)
         {
             PrecompileForTargets = PrecompileTargetsType.None;
         }

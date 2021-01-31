@@ -244,15 +244,8 @@ namespace UnrealBuildTool
 
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 			{
-				// Tell the Clang compiler whether we want to generate 32-bit code or 64-bit code
-				if (CompileEnvironment.Platform != UnrealTargetPlatform.Win32)
-				{
-					Arguments.Add("--target=x86_64-pc-windows-msvc");
-				}
-				else
-				{
-					Arguments.Add("--target=i686-pc-windows-msvc");
-				}
+				// Tell the Clang compiler to generate 64-bit code
+				Arguments.Add("--target=x86_64-pc-windows-msvc");
 
 				// This matches Microsoft's default support floor for SSE.
 				Arguments.Add("-mssse3");
@@ -420,13 +413,6 @@ namespace UnrealBuildTool
 				AddDefinition(Arguments, "PLATFORM_MAYBE_HAS_AVX=1");
 				AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_AVX=1");
 			}
-			// SSE options are not allowed when using the 64 bit toolchain
-			// (enables SSE2 automatically)
-			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x86)
-			{
-				// Allow the compiler to generate SSE2 instructions.
-				Arguments.Add("/arch:SSE2");
-			}
 
 			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Intel)
 			{
@@ -529,16 +515,8 @@ namespace UnrealBuildTool
 				Arguments.Add("/Zo");
 			}
 
-			if (CompileEnvironment.Platform == UnrealTargetPlatform.Win32)
-			{
-				// Pack struct members on 4-byte boundaries.
-				Arguments.Add("/Zp4");
-			}
-			else
-			{
-				// Pack struct members on 8-byte boundaries.
-				Arguments.Add("/Zp8");
-			}
+			// Pack struct members on 8-byte boundaries.
+			Arguments.Add("/Zp8");
 
 			//@todo: Disable warnings for VS2015. These should be reenabled as we clear the reasons for them out of the engine source and the VS2015 toolchain evolves.
 			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
@@ -595,13 +573,6 @@ namespace UnrealBuildTool
  				Arguments.Add("/wd4244");
 				Arguments.Add("/wd4838");
  			}
-
-			// If using WindowsSDK 10.0.18362.0 or later and compiling Win32 we need to add a definition
-			//   for ignoring packing mismatches.
-			if(CompileEnvironment.Platform == UnrealTargetPlatform.Win32 && EnvVars.WindowsSdkVersion >= VersionNumber.Parse("10.0.18362.0"))
-			{
-				AddDefinition(Arguments, "WINDOWS_IGNORE_PACKING_MISMATCH");
-			}
 		}
 
 		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -864,13 +835,6 @@ namespace UnrealBuildTool
 				// Allow the OS to load the EXE at different base addresses than its preferred base address.
 				Arguments.Add("/FIXED:No");
 
-				// Option is only relevant with 32 bit toolchain.
-				if ((LinkEnvironment.Platform == UnrealTargetPlatform.Win32) && Target.WindowsPlatform.bBuildLargeAddressAwareBinary)
-				{
-					// Disables the 2GB address space limit on 64-bit Windows and 32-bit Windows with /3GB specified in boot.ini
-					Arguments.Add("/LARGEADDRESSAWARE");
-				}
-
 				// Explicitly declare that the executable is compatible with Data Execution Prevention.
 				Arguments.Add("/NXCOMPAT");
 
@@ -882,15 +846,6 @@ namespace UnrealBuildTool
 				else
 				{
 					Arguments.Add("/STACK:" + LinkEnvironment.DefaultStackSize);
-				}
-
-				// E&C can't use /SAFESEH.  Also, /SAFESEH isn't compatible with 64-bit linking
-				if (!LinkEnvironment.bSupportEditAndContinue &&
-					LinkEnvironment.Platform == UnrealTargetPlatform.Win32)
-				{
-					// Generates a table of Safe Exception Handlers.  Documentation isn't clear whether they actually mean
-					// Structured Exception Handlers.
-					Arguments.Add("/SAFESEH");
 				}
 
 				// Allow delay-loaded DLLs to be explicitly unloaded.
@@ -1717,14 +1672,7 @@ namespace UnrealBuildTool
 			// Add any forced references to functions
 			foreach(string IncludeFunction in LinkEnvironment.IncludeFunctions)
 			{
-				if(LinkEnvironment.Platform == UnrealTargetPlatform.Win32)
-				{
-					Arguments.Add(String.Format("/INCLUDE:_{0}", IncludeFunction)); // Assume decorated cdecl name
-				}
-				else
-				{
-					Arguments.Add(String.Format("/INCLUDE:{0}", IncludeFunction));
-				}
+				Arguments.Add(String.Format("/INCLUDE:{0}", IncludeFunction));
 			}
 
 			// Allow the toolchain to adjust/process the link arguments

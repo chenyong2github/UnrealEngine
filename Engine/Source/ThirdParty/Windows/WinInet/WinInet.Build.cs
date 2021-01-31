@@ -8,8 +8,7 @@ public class WinInet : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicSystemLibraries.Add("wininet.lib");
 		}

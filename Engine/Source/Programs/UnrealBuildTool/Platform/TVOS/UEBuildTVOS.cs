@@ -99,7 +99,7 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			if ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac))
+			if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac))
 			{
 				// allow standalone tools to use targetplatform modules, without needing Engine
 				if (Target.bForceBuildTargetPlatforms)

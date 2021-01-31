@@ -43,8 +43,7 @@ namespace UnrealBuildTool.Rules
 		{
 			bEnableExceptions = true;
 
-			if (Target.Platform == UnrealTargetPlatform.Win32 ||
-				Target.Platform == UnrealTargetPlatform.Win64 ||
+			if (Target.Platform == UnrealTargetPlatform.Win64 ||
 				Target.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				PublicDependencyModuleNames.AddRange(
@@ -110,8 +109,7 @@ namespace UnrealBuildTool.Rules
 					"../../../../Source/Runtime/Renderer/Private",
 					});
 
-				if (Target.Platform == UnrealTargetPlatform.Win32 ||
-					Target.Platform == UnrealTargetPlatform.Win64)
+				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows");
 				}

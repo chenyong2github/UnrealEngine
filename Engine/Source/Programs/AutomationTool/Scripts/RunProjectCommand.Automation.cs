@@ -852,7 +852,7 @@ public partial class Project : CommandUtils
 		{
 			TempCmdLine += "-abslog=" + CommandUtils.MakePathSafeToUseWithCommandLine(ClientLogFile) + " ";
 		}
-		if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.Win32 || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.Win64)
+		if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.Win64)
 		{
 			TempCmdLine += "-Messaging -Windowed ";
 		}

@@ -38,14 +38,9 @@ public class TargetPlatform : ModuleRules
             DynamicallyLoadedModuleNames.Add("ShaderFormatVectorVM");
             DynamicallyLoadedModuleNames.Add("ImageWrapper");
 
-			if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32))
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				DynamicallyLoadedModuleNames.Add("TextureFormatIntelISPCTexComp");
-			}
-
-			if (Target.Platform == UnrealTargetPlatform.Win32 ||
-				Target.Platform == UnrealTargetPlatform.Win64)
-			{
 
 				// these are needed by multiple platform specific target platforms, so we make sure they are built with the base editor
 				DynamicallyLoadedModuleNames.Add("ShaderFormatD3D");

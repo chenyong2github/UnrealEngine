@@ -24,16 +24,7 @@ public class OpenVR : ModuleRules
 
 		string LibraryPath = SdkBase + "/lib/";
 
-		if(Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			LibraryPath += "win32/";
-			PublicAdditionalLibraries.Add(LibraryPath + "openvr_api.lib");
-			PublicDelayLoadDLLs.Add("openvr_api.dll");
-
-			string OpenVRBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/OpenVR/OpenVR{0}/Win32/", OpenVRVersion);
-			RuntimeDependencies.Add(OpenVRBinariesDir + "openvr_api.dll");
-		}
-		else if(Target.Platform == UnrealTargetPlatform.Win64)
+		if(Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			LibraryPath += "win64/";
 			PublicAdditionalLibraries.Add(LibraryPath + "openvr_api.lib");

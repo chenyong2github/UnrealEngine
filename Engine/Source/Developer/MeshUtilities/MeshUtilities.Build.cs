@@ -75,7 +75,7 @@ public class MeshUtilities : ModuleRules
         AddEngineThirdPartyPrivateStaticDependencies(Target, "MikkTSpace");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTessLib");
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
             AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
 		}

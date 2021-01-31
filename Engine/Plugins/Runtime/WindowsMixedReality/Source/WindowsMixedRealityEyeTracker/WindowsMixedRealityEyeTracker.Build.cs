@@ -17,8 +17,7 @@ namespace UnrealBuildTool.Rules
 
             AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 ||
-				Target.Platform == UnrealTargetPlatform.Win64 ||
+            if (Target.Platform == UnrealTargetPlatform.Win64 ||
 				Target.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				PublicDependencyModuleNames.AddRange(

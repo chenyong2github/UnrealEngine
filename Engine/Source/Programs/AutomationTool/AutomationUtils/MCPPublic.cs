@@ -260,10 +260,6 @@ namespace EpicGames.MCP.Automation
 			{
 				return MCPPlatform.Windows;
 			}
-			else if (TargetPlatform == UnrealTargetPlatform.Win32)
-			{
-				return MCPPlatform.Win32;
-			}
 			else if (TargetPlatform == UnrealTargetPlatform.Mac)
 			{
 				return MCPPlatform.Mac;
@@ -311,10 +307,6 @@ namespace EpicGames.MCP.Automation
 			if (TargetPlatform == MCPPlatform.Windows)
 			{
 				return UnrealTargetPlatform.Win64;
-			}
-			else if (TargetPlatform == MCPPlatform.Win32)
-			{
-				return UnrealTargetPlatform.Win32;
 			}
 			else if (TargetPlatform == MCPPlatform.Mac)
 			{

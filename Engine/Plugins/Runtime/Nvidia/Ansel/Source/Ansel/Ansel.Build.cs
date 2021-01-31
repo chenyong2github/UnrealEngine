@@ -40,9 +40,7 @@ public class Ansel : ModuleRules
         }
 
         string LibName;
-        if ((Target.Platform == UnrealTargetPlatform.Win64 ||
-             Target.Platform == UnrealTargetPlatform.Win32)
-             && FoundAnselDirs)
+        if (Target.Platform == UnrealTargetPlatform.Win64 && FoundAnselDirs)
         {
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {

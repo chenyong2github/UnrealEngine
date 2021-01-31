@@ -9,7 +9,7 @@ public class TextureFormatPVR : ModuleRules
         PrivateIncludePathModuleNames.AddRange(new string[] { "TargetPlatform", "TextureCompressor", "Engine" });
         PrivateDependencyModuleNames.AddRange(new string[] { "Core", "ImageCore", "ImageWrapper" });
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ImgTec/PVRTexToolCLI.exe");
 		}

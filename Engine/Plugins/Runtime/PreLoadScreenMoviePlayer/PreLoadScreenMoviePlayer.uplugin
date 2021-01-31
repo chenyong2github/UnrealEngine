@@ -23,8 +23,7 @@
 			[
         "Android",
         "IOS",
-        "Win64",
-        "Win32"
+        "Win64"
 			]
 		}
 	]

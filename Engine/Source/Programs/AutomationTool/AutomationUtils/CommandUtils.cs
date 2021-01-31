@@ -2113,7 +2113,7 @@ namespace AutomationTool
 		/// <param name="Platform">Specific platform</param>
 		public static string GetGenericPlatformName(UnrealBuildTool.UnrealTargetPlatform Platform)
 		{
-			if(Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64)
+			if(Platform == UnrealTargetPlatform.Win64)
 			{
 				return "Windows";
 			}

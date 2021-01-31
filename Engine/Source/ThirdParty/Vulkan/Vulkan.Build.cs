@@ -39,7 +39,7 @@ public class Vulkan : ModuleRules
             PublicSystemIncludePaths.Add(RootPath + "/Include/vulkan");
         }
 
-        if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+        if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             // Let's always delay load the vulkan dll as not everyone has it installed
             PublicDelayLoadDLLs.Add("vulkan-1.dll");

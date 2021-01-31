@@ -9,7 +9,6 @@ public class WebSockets : ModuleRules
 		get
 		{
 			return
-				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64 ||
 				Target.Platform == UnrealTargetPlatform.Android ||
 				Target.Platform == UnrealTargetPlatform.Mac ||

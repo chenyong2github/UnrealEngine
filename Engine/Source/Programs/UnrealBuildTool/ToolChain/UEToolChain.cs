@@ -236,15 +236,11 @@ namespace UnrealBuildTool
 		{
 			string ISPCArch = "";
 
-			if ((UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) && Platform != UnrealTargetPlatform.Win32) ||
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows) ||
 				(UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) && Platform != UnrealTargetPlatform.LinuxAArch64) ||
 				Platform == UnrealTargetPlatform.Mac)
 			{
 				ISPCArch += "x86-64";
-			}
-			else if (Platform == UnrealTargetPlatform.Win32)
-			{
-				ISPCArch += "x86";
 			}
 			else if (Platform == UnrealTargetPlatform.LinuxAArch64)
 			{

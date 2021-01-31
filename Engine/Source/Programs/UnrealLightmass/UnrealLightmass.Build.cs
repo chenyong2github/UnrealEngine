@@ -12,7 +12,7 @@ public class UnrealLightmass : ModuleRules
 
 		PublicDefinitions.Add("UE_LIGHTMASS=1");
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			// Unreallightmass requires GetProcessMemoryInfo exported by psapi.dll. http://msdn.microsoft.com/en-us/library/windows/desktop/ms683219(v=vs.85).aspx
 			PublicSystemLibraries.Add("psapi.lib");

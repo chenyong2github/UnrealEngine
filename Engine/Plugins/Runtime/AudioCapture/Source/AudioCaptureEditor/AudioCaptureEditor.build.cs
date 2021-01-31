@@ -29,8 +29,7 @@ public class AudioCaptureEditor : ModuleRules
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			// Allow us to use direct sound
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectSound");

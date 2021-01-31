@@ -1686,8 +1686,7 @@ public class IOSPlatform : Platform
 	private string GetPathToLibiMobileDeviceTool(string LibimobileExec)
 	{
 		string ExecWithPath = "";
-		if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32 ||
-			UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+		if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 		{
 			ExecWithPath = CombinePaths(CmdEnv.LocalRoot, "Engine/Extras/ThirdPartyNotUE/libimobiledevice/x64/" + LibimobileExec + ".exe");
 		}

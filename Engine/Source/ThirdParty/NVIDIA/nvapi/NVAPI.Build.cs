@@ -24,15 +24,10 @@ public class NVAPI : ModuleRules
 
 		PublicSystemIncludePaths.Add(nvApiPath);
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			string nvApiLibPath = nvApiPath + "amd64/";
 			PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi64.lib");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			string nvApiLibPath = nvApiPath + "x86/";
-			PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi.lib");
 		}
 	}
 }

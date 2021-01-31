@@ -3,7 +3,7 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-[SupportedPlatforms("Win32", "Win64", "Mac", "Linux")]
+[SupportedPlatforms("Win64", "Mac", "Linux")]
 [SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping)]
 public class BuildPatchToolTarget : TargetRules
 {

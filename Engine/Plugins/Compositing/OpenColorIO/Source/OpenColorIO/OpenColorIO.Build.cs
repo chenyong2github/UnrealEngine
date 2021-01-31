@@ -44,8 +44,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bBuildEditor == true)
 			{
-				if (Target.Platform == UnrealTargetPlatform.Win64 ||
-						Target.Platform == UnrealTargetPlatform.Win32)
+				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					//There are some dynamic_cast in OCIO library.
 					bUseRTTI = true;

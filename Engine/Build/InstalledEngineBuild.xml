@@ -675,7 +675,7 @@
 			<Tag Files="Engine/Binaries/DotNET/Ionic.Zip.Reduced.dll" With="#ToCopy"/>
 			<Tag Files="Engine/Binaries/DotNET/OneSky.dll" With="#ToCopy"/>
 			<Tag Files="Templates/TemplateResources/..." With="#ToCopy"/>
-			<Expand Name="TagDDCEngineFiles" ExceptPlugins="Plugins/.../Binaries/Win64/...;Plugins/.../Binaries/Win32/..."/>
+			<Expand Name="TagDDCEngineFiles" ExceptPlugins="Plugins/.../Binaries/Win64/..."/>
 			<!-- Filter out the files not needed to build DDC. Removing confidential folders can affect DDC keys, so we want to be sure that we're making DDC with a build that can use it. -->
 			<Tag Files="#ToCopy" Except="$(ConfidentialExceptions);$(RootDir)/.../Source/...;$(RootDir)/.../Intermediate/..." With="#FilteredCopyList"/>
 			
@@ -718,7 +718,7 @@
 			<Tag Files="Engine/Binaries/DotNET/Ionic.Zip.Reduced.dll" With="#ToCopy"/>
 			<Tag Files="Engine/Binaries/DotNET/OneSky.dll" With="#ToCopy"/>
 			<Tag Files="Templates/TemplateResources/..." With="#ToCopy"/>
-			<Expand Name="TagDDCEngineFiles" ExceptPlugins="Plugins/.../Binaries/Win32/...;Plugins/.../Binaries/Mac/..."/>
+			<Expand Name="TagDDCEngineFiles" ExceptPlugins="Plugins/.../Binaries/Mac/..."/>
 			<!-- Filter out the files not needed to build DDC. Removing confidential folders can affect DDC keys, so we want to be sure that we're making DDC with a build that can use it. -->
 			<Tag Files="#ToCopy" Except="$(ConfidentialExceptions);$(RootDir)/.../Source/...;$(RootDir)/.../Intermediate/..." With="#FilteredCopyList"/>
 			

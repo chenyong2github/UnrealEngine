@@ -26,18 +26,6 @@ public class ForsythTriOptimizer : ModuleRules
 				PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "/ForsythTriOptimizer_64.lib");
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-            ForsythTriOptimizerLibPath += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-			{
-				PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "/ForsythTriOptimizerD.lib");
-			}
-			else
-			{
-				PublicAdditionalLibraries.Add(ForsythTriOptimizerLibPath + "/ForsythTriOptimizer.lib");
-			}
-		}
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
             string Postfix = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "d" : "";

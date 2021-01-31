@@ -12,8 +12,7 @@ public class OpenColorIOLib : ModuleRules
 		bool bIsPlatformAdded = false;
 		if(Target.bBuildEditor == true)
 		{
-			if (Target.Platform == UnrealTargetPlatform.Win64 ||
-						Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				string PlatformDir = Target.Platform.ToString();
 				string IncPath = Path.Combine(ModuleDirectory, "distribution", "include");

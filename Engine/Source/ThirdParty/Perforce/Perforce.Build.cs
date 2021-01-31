@@ -9,7 +9,7 @@ public class Perforce : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string Windows_P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2018.1/";
 

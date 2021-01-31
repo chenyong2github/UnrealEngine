@@ -18,7 +18,7 @@ public class SwitchboardListener : ModuleRules
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
         {
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {

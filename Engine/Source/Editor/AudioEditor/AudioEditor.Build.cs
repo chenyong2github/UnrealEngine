@@ -77,7 +77,7 @@ public class AudioEditor : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			string PlatformName = Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64";
+			string PlatformName = "Win64";
 
 			string LibSndFilePath = Target.UEThirdPartyBinariesDirectory + "libsndfile/";
 			LibSndFilePath += PlatformName;

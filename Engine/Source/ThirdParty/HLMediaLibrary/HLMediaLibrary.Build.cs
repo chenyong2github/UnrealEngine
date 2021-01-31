@@ -28,8 +28,7 @@ public class HLMediaLibrary : ModuleRules
 		string dll = String.Format("{0}.dll", LibraryName);
 
 		// windows desktop x64 target
-		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64 ||
+		if (Target.Platform == UnrealTargetPlatform.Win64 ||
 			Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			// Add the import library

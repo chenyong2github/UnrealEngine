@@ -446,7 +446,7 @@ namespace HoloLens.Automation
 				foreach (string DeviceAddress in ProjParams.DeviceNames)
 				{
 					//We have to choose architecture of the device to run
-					WindowsArchitecture Arch = Environment.Is64BitOperatingSystem ? WindowsArchitecture.x64 : WindowsArchitecture.x86;
+					WindowsArchitecture Arch = WindowsArchitecture.x64;
 					if (!IsLocalDevice(DeviceAddress))
 					{
 						Arch = RemoteDeviceArchitecture(DeviceAddress, ProjParams);
@@ -1359,11 +1359,7 @@ namespace HoloLens.Automation
 
 			string osArchBlock = osBlocks[2].ToLower();
 
-			if (osArchBlock.StartsWith("x86"))
-			{
-				return WindowsArchitecture.x86;
-			}
-			else if (osArchBlock.StartsWith("amd64"))
+			if (osArchBlock.StartsWith("amd64"))
 			{
 				return WindowsArchitecture.x64;
 			}

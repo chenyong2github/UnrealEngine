@@ -18,10 +18,6 @@ public class CEF3 : ModuleRules
 		{
 			CEFPlatform = "windows64";
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			CEFPlatform = "windows32";
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			CEFPlatform = "macosx64";
@@ -41,7 +37,7 @@ public class CEF3 : ModuleRules
 			string LibraryPath = Path.Combine(PlatformPath, "Release");
             string RuntimePath = Path.Combine(Target.UEThirdPartyBinariesDirectory , "CEF3", Target.Platform.ToString());
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
                 PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libcef.lib"));
 

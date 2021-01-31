@@ -16,7 +16,7 @@ public class AVEncoder : ModuleRules
 			"RenderCore",
 		});
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicDefinitions.Add("AVENCODER_SUPPORTED_MICROSOFT_PLATFORM=1");
 

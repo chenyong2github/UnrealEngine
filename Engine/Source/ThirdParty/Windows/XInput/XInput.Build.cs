@@ -33,11 +33,6 @@ public class XInput : ModuleRules
 				PublicAdditionalLibraries.Add(DirectXSDKDir + "/Lib/x64/XInput.lib");
 				PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Win32)
-			{
-				PublicAdditionalLibraries.Add(DirectXSDKDir + "/Lib/x86/XInput.lib");
-				PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
-			}
 		}
 	}
 }

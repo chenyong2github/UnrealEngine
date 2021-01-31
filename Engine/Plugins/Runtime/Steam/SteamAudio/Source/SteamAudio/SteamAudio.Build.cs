@@ -59,13 +59,7 @@ namespace UnrealBuildTool.Rules
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "libPhonon");
 
-			if (Target.Platform == UnrealTargetPlatform.Win32)
-			{
-				PrivateDependencyModuleNames.Add("XAudio2");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
-                RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Phonon/Win32/...");
-            }
-			else if (Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
                 PrivateDependencyModuleNames.Add("XAudio2");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");

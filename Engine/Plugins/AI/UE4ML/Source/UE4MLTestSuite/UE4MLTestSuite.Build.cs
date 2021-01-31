@@ -34,8 +34,7 @@ namespace UnrealBuildTool.Rules
             }
 
             // RPCLib disabled on other platforms at the moment
-            if (Target.Platform == UnrealTargetPlatform.Win64 ||
-                Target.Platform == UnrealTargetPlatform.Win32)
+            if (Target.Platform == UnrealTargetPlatform.Win64)
             {
                 PublicDefinitions.Add("WITH_RPCLIB=1");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "RPCLib");

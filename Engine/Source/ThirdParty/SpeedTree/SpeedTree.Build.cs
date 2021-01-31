@@ -8,8 +8,7 @@ public class SpeedTree : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		var bPlatformAllowed = ((Target.Platform == UnrealTargetPlatform.Win32) ||
-								(Target.Platform == UnrealTargetPlatform.Win64) ||
+		var bPlatformAllowed = ((Target.Platform == UnrealTargetPlatform.Win64) ||
 								(Target.Platform == UnrealTargetPlatform.Mac) || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix));
 
 		if (bPlatformAllowed &&
@@ -35,20 +34,6 @@ public class SpeedTree : ModuleRules
 					else
 					{
 						PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Windows/VC14.x64/SpeedTreeCore_Windows_v7.0_VC14_MTDLL64_Static.lib");
-					}
-				}
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Win32)
-			{
-				if (Target.WindowsPlatform.Compiler != WindowsCompiler.Intel)
-				{
-					if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-					{
-                        PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Windows/VC14/SpeedTreeCore_Windows_v7.0_VC14_MTDLL_Static_d.lib");
-					}
-					else
-					{
-                        PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Windows/VC14/SpeedTreeCore_Windows_v7.0_VC14_MTDLL_Static.lib");
 					}
 				}
 			}

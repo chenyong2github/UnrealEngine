@@ -261,17 +261,17 @@ public class UnrealEd : ModuleRules
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Mac)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			DynamicallyLoadedModuleNames.Add("IOSPlatformEditor");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			DynamicallyLoadedModuleNames.Add("AndroidPlatformEditor");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Mac)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			DynamicallyLoadedModuleNames.Add("LuminPlatformEditor");
 		}
@@ -320,8 +320,7 @@ public class UnrealEd : ModuleRules
 		);
 
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicDependencyModuleNames.Add("XAudio2");
 			PublicDependencyModuleNames.Add("AudioMixerXAudio2");

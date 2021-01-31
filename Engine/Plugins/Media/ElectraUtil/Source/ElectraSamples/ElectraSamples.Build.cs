@@ -47,12 +47,8 @@ namespace UnrealBuildTool.Rules
                 {
                     DirectXSDKDir += "/Lib/x64/";
                 }
-                else if (Target.Platform == UnrealTargetPlatform.Win32)
-                {
-                    DirectXSDKDir += "/Lib/x86/";
-                }
 
-				if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
 

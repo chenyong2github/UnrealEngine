@@ -11,7 +11,7 @@ public class mimalloc : ModuleRules
 
 		string miPath = Target.UEThirdPartySourceDirectory + "mimalloc\\";
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			bool bUseDebugCRT = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT;
 

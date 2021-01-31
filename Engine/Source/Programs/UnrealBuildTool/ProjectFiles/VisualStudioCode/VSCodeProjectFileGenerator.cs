@@ -458,7 +458,6 @@ namespace UnrealBuildTool
 						if (HostPlatform != UnrealTargetPlatform.Win64)
 						{
 							Platforms.Remove(UnrealTargetPlatform.Win64);
-							Platforms.Remove(UnrealTargetPlatform.Win32);
 						}
 
 						foreach (UnrealTargetPlatform Platform in Platforms)

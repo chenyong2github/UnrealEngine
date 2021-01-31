@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				// VS2015 updated some of the CRT definitions but not all of the Windows SDK has been updated to match.
 				// Microsoft provides this shim library to enable building with VS2015 until they fix everything up.

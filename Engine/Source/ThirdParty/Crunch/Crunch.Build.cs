@@ -16,10 +16,9 @@ public class Crunch : ModuleRules
             // link with lib to allow encoding
             string LibPath = BasePath + "Lib/";
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 ||
-                Target.Platform == UnrealTargetPlatform.Win64)
+            if (Target.Platform == UnrealTargetPlatform.Win64)
             {
-                LibPath += (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64/" : "Win32/";
+                LibPath += "Win64/";
                 PublicAdditionalLibraries.Add(LibPath + "crnlib.lib");
             }
         }

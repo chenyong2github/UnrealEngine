@@ -56,8 +56,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("HeadMountedDisplay");
 			}
 
-			if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-				(Target.Platform == UnrealTargetPlatform.Win32))
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PrivateDependencyModuleNames.AddRange(
 				  new string[] {

@@ -11,7 +11,7 @@ public class LibWebM : ModuleRules
 
 		string RootPath = ModuleDirectory;
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			string LibPath = RootPath + "/lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 

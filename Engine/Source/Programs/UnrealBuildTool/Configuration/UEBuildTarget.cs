@@ -209,11 +209,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// 32-bit Windows
-		/// </summary>
-		public static UnrealTargetPlatform Win32 = FindOrAddByName("Win32");
-
-		/// <summary>
 		/// 64-bit Windows
 		/// </summary>
 		public static UnrealTargetPlatform Win64 = FindOrAddByName("Win64");
@@ -1718,7 +1713,7 @@ namespace UnrealBuildTool
 			// Compile the resource files common to all DLLs on Windows
 			if (!ShouldCompileMonolithic())
 			{
-				if (Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64)
+				if (Platform == UnrealTargetPlatform.Win64)
 				{
 					if(!Rules.bFormalBuild)
 					{
@@ -2398,7 +2393,7 @@ namespace UnrealBuildTool
 
 			if (!bCompileMonolithic)
 			{
-				if (Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32)
+				if (Platform == UnrealTargetPlatform.Win64)
 				{
 					// On Windows create import libraries for all binaries ahead of time, since linking binaries often causes bottlenecks
 					foreach (UEBuildBinary Binary in Binaries)
@@ -3694,7 +3689,7 @@ namespace UnrealBuildTool
 			}
 
 			// Set the define for whether we're compiling with CEF3
-			if (Rules.bCompileCEF3 && (Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Mac || Platform == UnrealTargetPlatform.Linux))
+			if (Rules.bCompileCEF3 && (Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Mac || Platform == UnrealTargetPlatform.Linux))
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_CEF3=1");
 			}

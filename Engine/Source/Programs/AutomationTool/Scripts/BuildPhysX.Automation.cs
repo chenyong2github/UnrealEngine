@@ -1361,34 +1361,6 @@ abstract class BuildPhysX_WindowsCommon : BuildPhysX.MSBuildTargetPlatform
 	}
 }
 
-class BuildPhysX_Win32 : BuildPhysX_WindowsCommon
-{
-	public BuildPhysX_Win32(string Compiler = "VS2015")
-		: base(Compiler)
-	{ }
-
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win32;
-
-	public override Dictionary<string, string> BuildSuffix => new Dictionary<string, string>()
-	{
-		{ "debug",   "DEBUG_x86"   },
-		{ "checked", "CHECKED_x86" },
-		{ "profile", "PROFILE_x86" },
-		{ "release", "_x86"        }
-	};
-
-	public override string GetAdditionalCMakeArguments(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration)
-	{
-		switch (TargetLib)
-		{
-			case BuildPhysX.PhysXTargetLib.APEX:	return " -AWin32";
-			case BuildPhysX.PhysXTargetLib.NvCloth: return " -AWin32 -DNV_CLOTH_ENABLE_CUDA=0 -DNV_CLOTH_ENABLE_DX11=0";
-			case BuildPhysX.PhysXTargetLib.PhysX:   return " -AWin32";
-			default: throw new ArgumentException("TargetLib");
-		}
-	}
-}
-
 class BuildPhysX_Win64 : BuildPhysX_WindowsCommon
 {
 	public BuildPhysX_Win64(string Compiler = "VS2015")

@@ -362,8 +362,7 @@ public class Engine : ModuleRules
 			PrivateIncludePathModuleNames.Add("ClothingSystemEditorInterface");
 		}
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			// Head Mounted Display support
 			//			PrivateIncludePathModuleNames.AddRange(new string[] { "HeadMountedDisplay" });

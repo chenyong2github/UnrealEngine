@@ -18,12 +18,12 @@ public class IntelTBB : ModuleRules
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
 			(Target.Platform == UnrealTargetPlatform.HoloLens))
 		{
-			string PlatformSubPath = (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86) ? "Win32" : "Win64";
+			string PlatformSubPath = "Win64";
 			
 			string LibDirTBB = Path.Combine(IntelTBBLibPath, PlatformSubPath, "vc14");
 			string LibDirTBBMalloc = LibDirTBB;
 			
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
 			{
 				LibDirTBBMalloc = Path.Combine(LibDirTBBMalloc, Target.WindowsPlatform.GetArchitectureSubpath());
 			}

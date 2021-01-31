@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+            if (Target.Platform == UnrealTargetPlatform.Win64)
             {
                 PrivateIncludePaths.Add(EngineDir + "/Source/Runtime/VulkanRHI/Private/Windows");
             }
@@ -56,7 +56,7 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("UnrealEd");
 			}
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
+            if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
             {
                 PrivateDependencyModuleNames.AddRange(new string[] {
 					"D3D11RHI",
@@ -81,7 +81,7 @@ namespace UnrealBuildTool.Rules
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
             }
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+            if (Target.Platform == UnrealTargetPlatform.Win64)
             {
                 PrivateDependencyModuleNames.AddRange(new string[] {
                     "OpenGLDrv",

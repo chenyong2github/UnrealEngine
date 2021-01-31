@@ -9,8 +9,7 @@ public class OpenCV : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string PlatformDir = Target.Platform.ToString();
 			string IncPath = Path.Combine(ModuleDirectory, "include");

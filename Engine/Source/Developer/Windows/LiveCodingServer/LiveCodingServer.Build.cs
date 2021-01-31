@@ -14,7 +14,7 @@ public class LiveCodingServer : ModuleRules
 
         AddEngineThirdPartyPrivateStaticDependencies(Target, "Distorm");
 
-        if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+        if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrivateIncludePaths.Add("Developer/Windows/LiveCoding/Private");
 			PrivateIncludePaths.Add("Developer/Windows/LiveCoding/Private/External");

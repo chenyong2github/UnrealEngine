@@ -71,7 +71,7 @@ public class OnlineSubsystemFacebook : ModuleRules
 				PublicDefinitions.Add("WITH_FACEBOOK=0");
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			bUsesRestfulImpl = true;
 			PublicDefinitions.Add("WITH_FACEBOOK=1");

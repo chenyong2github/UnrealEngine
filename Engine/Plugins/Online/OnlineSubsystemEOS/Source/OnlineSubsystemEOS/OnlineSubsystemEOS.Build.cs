@@ -50,16 +50,6 @@ public class OnlineSubsystemEOS : ModuleRules
 				string EOSDLLPath = Path.Combine(EOSPath, "Bin", "EOSSDK-Win64-Shipping.dll");
 				RuntimeDependencies.Add(EOSDLLPath);
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Win32)
-			{
-				string EOSLibPath = Path.Combine(EOSPath, "Lib");
-				PublicAdditionalLibraries.Add(Path.Combine(EOSLibPath, "EOSSDK-Win32-Shipping.lib"));
-
-//				PublicDelayLoadDLLs.Add("EOSSDK-Win32-Shipping.dll");
-
-				string EOSDLLPath = Path.Combine(EOSPath, "Bin", "EOSSDK-Win32-Shipping.dll");
-				RuntimeDependencies.Add(EOSDLLPath);
-			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				string DylibName = Path.Combine(EOSPath, "Bin", "libEOSSDK-Mac-Shipping.dylib");

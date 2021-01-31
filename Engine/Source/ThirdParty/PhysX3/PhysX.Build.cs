@@ -114,7 +114,7 @@ public class PhysX : ModuleRules
 		string EngineBinThirdPartyPath = Path.Combine("$(EngineDir)", "Binaries", "ThirdParty", "PhysX3");
 
 		// Libraries and DLLs for windows platform
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			string[] StaticLibrariesX64 = new string[] {
 				"PhysX3{0}_x64.lib",
@@ -167,51 +167,6 @@ public class PhysX : ModuleRules
 			{
 				RuntimeDependencies.Add(Path.Combine(PhysXBinariesDir, String.Format(DLL, LibrarySuffix)));
 			}
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			string[] StaticLibrariesX86 = new string[] {
-				"PhysX3{0}_x86.lib",
-				"PhysX3Extensions{0}_x86.lib",
-				"PhysX3Cooking{0}_x86.lib",
-				"PhysX3Common{0}_x86.lib",
-				"PsFastXml{0}_x86.lib",
-				"PxFoundation{0}_x86.lib",
-				"PxPvdSDK{0}_x86.lib",
-				"PxTask{0}_x86.lib",
-			};
-
-			string[] DelayLoadDLLsX86 = new string[] {
-				"PxFoundation{0}_x86.dll",
-				"PxPvdSDK{0}_x86.dll",
-				"PhysX3{0}_x86.dll",
-				"PhysX3Cooking{0}_x86.dll",
-				"PhysX3Common{0}_x86.dll"
-			};
-
-			foreach (string Lib in StaticLibrariesX86)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), String.Format(Lib, LibrarySuffix)));
-			}
-
-			foreach (string DLL in DelayLoadDLLsX86)
-			{
-				PublicDelayLoadDLLs.Add(String.Format(DLL, LibrarySuffix));
-			}
-
-			string PhysXBinariesDir = Path.Combine(EngineBinThirdPartyPath, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			foreach (string DLL in DelayLoadDLLsX86)
-			{
-				string FileName = Path.Combine(PhysXBinariesDir, String.Format(DLL, LibrarySuffix));
-				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
-				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
-			}
-
-			if (LibrarySuffix != "")
-			{
-				PublicDefinitions.Add("UE_PHYSX_SUFFIX=" + LibrarySuffix);
-			}
-
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{

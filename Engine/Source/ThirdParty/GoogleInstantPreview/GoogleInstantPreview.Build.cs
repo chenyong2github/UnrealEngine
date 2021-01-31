@@ -18,9 +18,9 @@ public class GoogleInstantPreview : ModuleRules
         // Instant preview only supported by Editor
         if (Target.Type == TargetType.Editor)
         {
-            if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+            if (Target.Platform == UnrealTargetPlatform.Win64)
             {
-                string IpSharedPlatform = Target.Platform == UnrealTargetPlatform.Win64 ? "x64" : "Win32";
+                string IpSharedPlatform = "x64";
                 string IpSharedLibSourceDir = Path.Combine(GoogleInstantPreviewSourceDir, IpSharedPlatform, "Release");
                 PublicAdditionalLibraries.Add(Path.Combine(IpSharedLibSourceDir, "ip_shared.lib"));
                 string[] dllDeps = {

@@ -304,8 +304,7 @@ namespace UnrealBuildTool
 						}
 
 					} 
-					else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 ||
-							 BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
+					else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 					{
 						ExecutableToRun = TargetName;
 						if ((ProjectTargetType == TargetType.Game) || (ProjectTargetType == TargetType.Program))
@@ -416,8 +415,7 @@ namespace UnrealBuildTool
 					CodeLiteConfigurationCustomBuild.Add(CustomBuildCommand);
 
 					string BuildTarget = TargetName + " " + ProjectPlatformName + " " + CurConf.ToString();
-					if( (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64) &&
-						(BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win32))
+					if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Win64)
 					{
 						string PlatformName = "Linux";
 						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)

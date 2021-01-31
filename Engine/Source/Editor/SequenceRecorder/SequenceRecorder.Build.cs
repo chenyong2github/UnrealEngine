@@ -70,7 +70,7 @@ namespace UnrealBuildTool.Rules
                 }
 				);
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				// Add __WINDOWS_WASAPI__ so that RtAudio compiles with WASAPI
 				PublicDefinitions.Add("__WINDOWS_WASAPI__");

@@ -10,7 +10,7 @@ public class IntelExtensionsFramework : ModuleRules
 
 		string IntelExtensionsFrameworkPath = Target.UEThirdPartySourceDirectory + "Intel/" + "ExtensionsFramework/";
 
-		if ( (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32) )
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicSystemIncludePaths.Add(IntelExtensionsFrameworkPath);
 

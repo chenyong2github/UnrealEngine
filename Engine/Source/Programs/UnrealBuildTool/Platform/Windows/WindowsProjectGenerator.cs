@@ -28,7 +28,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override IEnumerable<UnrealTargetPlatform> GetPlatforms()
 		{
-			yield return UnrealTargetPlatform.Win32;
 			yield return UnrealTargetPlatform.Win64;
 		}
 

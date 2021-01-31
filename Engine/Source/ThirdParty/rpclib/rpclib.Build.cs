@@ -4,7 +4,7 @@ using System.IO;
 using UnrealBuildTool;
 
 // @todo rcplib does support both Max and Linux, got to compile for those platforms first
-[SupportedPlatforms("Win32", "Win64"/*, "Mac", "Linux"*/)]
+[SupportedPlatforms("Win64"/*, "Mac", "Linux"*/)]
 public class RPCLib : ModuleRules
 {
     public RPCLib(ReadOnlyTargetRules Target) : base(Target)
@@ -19,10 +19,6 @@ public class RPCLib : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             LibraryPath = Path.Combine(ModuleDirectory, "Lib", ConfigName, "Win64");
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Win32)
-        {
-            LibraryPath = Path.Combine(ModuleDirectory, "Lib", ConfigName, "Win32");
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {

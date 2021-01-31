@@ -15,7 +15,6 @@
 	"IsBetaVersion" : true,
 	"Installed" : false,
 	"SupportedTargetPlatforms": [
-		"Win32",
 		"Win64",
 		"Android",
 		"HoloLens"
@@ -26,7 +25,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"Android",
 				"HoloLens"
@@ -37,7 +35,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"Android",
 				"HoloLens"
@@ -48,7 +45,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"Android",
 				"HoloLens"

@@ -14,7 +14,7 @@ public class ShaderCompileWorkerTarget : TargetRules
 
 		LaunchModuleName = "ShaderCompileWorker";
 
-        if (bUseXGEController && (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64) && Configuration == UnrealTargetConfiguration.Development)
+        if (bUseXGEController && (Target.Platform == UnrealTargetPlatform.Win64) && Configuration == UnrealTargetConfiguration.Development)
         {
             // The interception interface in XGE requires that the parent and child processes have different filenames on disk.
             // To avoid building an entire separate worker just for this, we duplicate the ShaderCompileWorker in a post build step.

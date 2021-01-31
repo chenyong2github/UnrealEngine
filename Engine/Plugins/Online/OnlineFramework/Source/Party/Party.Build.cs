@@ -34,8 +34,7 @@ public class Party : ModuleRules
 			}
 			);
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)

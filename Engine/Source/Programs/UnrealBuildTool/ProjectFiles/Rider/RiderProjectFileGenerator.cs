@@ -32,7 +32,7 @@ namespace UnrealBuildTool
 		/// Don't generate project model for these platforms unless they are specified in "Platforms" console arguments. 
 		/// </summary>
 		/// <returns></returns>
-		private readonly HashSet<UnrealTargetPlatform> DeprecatedPlatforms = new HashSet<UnrealTargetPlatform> { UnrealTargetPlatform.Win32};
+		private readonly HashSet<UnrealTargetPlatform> DeprecatedPlatforms = new HashSet<UnrealTargetPlatform> { };
 
 
 		/// <summary>

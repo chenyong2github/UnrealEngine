@@ -15,7 +15,7 @@ public class Python3 : ModuleRules
 
 		PythonSDKPaths PythonSDK = null;
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			// Check for an explicit version before using the auto-detection logic
 			var PythonRoot = System.Environment.GetEnvironmentVariable("UE_PYTHON_DIR");
@@ -47,11 +47,11 @@ public class Python3 : ModuleRules
 		// Make sure the Python SDK is the correct architecture
 		if (PythonSDK != null)
 		{
-			string ExpectedPointerSizeResult = Target.Platform == UnrealTargetPlatform.Win32 ? "4" : "8";
+			string ExpectedPointerSizeResult = "8";
 
 			// Invoke Python to query the pointer size of the interpreter so we can work out whether it's 32-bit or 64-bit
 			// todo: We probably need to do this for all platforms, but right now it's only an issue on Windows
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				string Result = InvokePython(PythonSDK.PythonRoot, "-c \"import struct; print(struct.calcsize('P'))\"");
 				Result = Result != null ? Result.Replace("\r", "").Replace("\n", "") : null;
@@ -90,7 +90,7 @@ public class Python3 : ModuleRules
 			PublicDefinitions.Add(string.Format("UE_PYTHON_DIR=\"{0}\"", EngineRelativePythonRoot.Replace('\\', '/')));
 
 			// Some versions of Python need this define set when building on MSVC
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PublicDefinitions.Add("HAVE_ROUND=1");
 			}
@@ -111,9 +111,9 @@ public class Python3 : ModuleRules
 		var PotentialSDKs = new List<PythonSDKPaths>();
 
 		// todo: This isn't correct for cross-compilation, we need to consider the host platform too
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			var PlatformDir = Target.Platform == UnrealTargetPlatform.Win32 ? "Win32" : "Win64";
+			var PlatformDir = "Win64";
 
 			PotentialSDKs.AddRange(
 				new PythonSDKPaths[] {
@@ -230,7 +230,7 @@ public class Python3 : ModuleRules
 		{
 			string LibFolder = null;
 			string LibNamePattern = null;
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				LibFolder = "libs";
 				LibNamePattern = "python*.lib";

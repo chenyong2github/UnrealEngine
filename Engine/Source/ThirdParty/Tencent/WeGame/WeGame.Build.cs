@@ -22,7 +22,7 @@ public class WeGame : ModuleRules
 		// RailSDK (Wegame platform)
 		bool bRailEnabled = true;
 		bool bValidTargetRail = Target.Type != TargetRules.TargetType.Server;
-		bool bValidPlatformRail = Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32;
+		bool bValidPlatformRail = Target.Platform == UnrealTargetPlatform.Win64;
 		if (bRailEnabled && bValidTargetRail && bValidPlatformRail)
 		{
 			PublicDefinitions.Add("WITH_TENCENT_RAIL_SDK=1");
@@ -30,22 +30,11 @@ public class WeGame : ModuleRules
 			// add header include
 			PublicSystemIncludePaths.Add(RailSdkPath);
 			// add dll dependencies
-			string DLLName = "rail_api.dll";
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				DLLName = DLLName.Replace(".dll", "64.dll");
-			}
+			string DLLName = "rail_api64.dll";
 			if (Target.ProjectFile != null)
 			{
 				// Can't add this DLL as a dependency of the base editor
-				if (Target.Platform == UnrealTargetPlatform.Win64)
-				{
-					RuntimeDependencies.Add(Path.Combine(TenDllPath, "Win64", DLLName));
-				}
-				else if (Target.Platform == UnrealTargetPlatform.Win32)
-				{
-					RuntimeDependencies.Add(Path.Combine(TenDllPath, "Win32", DLLName));
-				}
+				RuntimeDependencies.Add(Path.Combine(TenDllPath, "Win64", DLLName));
 			}
 			PublicDelayLoadDLLs.Add(DLLName);
 		}

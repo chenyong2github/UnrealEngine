@@ -80,7 +80,7 @@ public class SteamVRInputDevice : ModuleRules
 
         AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenVR");
 
-        if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64")))
+        if (Target.Platform == UnrealTargetPlatform.Win64 || (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64")))
         {
             AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
             PrivateDependencyModuleNames.Add("OpenGLDrv");

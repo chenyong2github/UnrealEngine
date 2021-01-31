@@ -24,14 +24,6 @@ namespace UnrealBuildTool.Rules
 				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "ortp_x64.dll"), Path.Combine(VivoxLibPath, "ortp_x64.dll"));
 				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "vivoxsdk_x64.dll"), Path.Combine(VivoxLibPath, "vivoxsdk_x64.dll"));
 			}
-			else if(Target.Platform == UnrealTargetPlatform.Win32)
-			{
-				PublicAdditionalLibraries.Add(VivoxLibPath + "vivoxsdk.lib");
-				PublicDelayLoadDLLs.Add("ortp.dll");
-				PublicDelayLoadDLLs.Add("vivoxsdk.dll");
-				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "ortp.dll"), Path.Combine(VivoxLibPath, "ortp.dll"));
-				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "vivoxsdk.dll"), Path.Combine(VivoxLibPath, "vivoxsdk.dll"));
-			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				string TargetDir = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Vivox", "Mac");

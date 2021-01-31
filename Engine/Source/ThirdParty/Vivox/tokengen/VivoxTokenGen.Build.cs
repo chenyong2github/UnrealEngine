@@ -13,8 +13,7 @@ public class VivoxTokenGen : ModuleRules
 
 		//bool bUseDebugBuild = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
 		//string ConfigurationSubdir = bUseDebugBuild ? "Debug" : "Release";
-		if (Target.Platform == UnrealTargetPlatform.Win64
-			|| Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PlatformSubdir = Path.Combine(PlatformSubdir, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), PlatformSubdir);
 			PublicAdditionalLibraries.Add(Path.Combine(PlatformSubdir, "tokengen.lib"));

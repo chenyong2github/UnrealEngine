@@ -271,7 +271,7 @@ chmod +x {0}
 
 	public override bool CanHostPlatform(UnrealTargetPlatform Platform)
 	{
-		if (Platform == UnrealTargetPlatform.Mac || Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64)
+		if (Platform == UnrealTargetPlatform.Mac || Platform == UnrealTargetPlatform.Win64)
 		{
 			return false;
 		}

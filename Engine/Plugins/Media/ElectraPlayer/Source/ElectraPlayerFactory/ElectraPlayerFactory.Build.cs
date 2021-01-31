@@ -47,7 +47,7 @@ namespace UnrealBuildTool.Rules
                 PrivateIncludePathModuleNames.Add("Settings");
             }
 
-            if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+            if (Target.Platform == UnrealTargetPlatform.Win64)
             {
                 PublicDefinitions.Add("_CRT_SECURE_NO_WARNINGS");
             }

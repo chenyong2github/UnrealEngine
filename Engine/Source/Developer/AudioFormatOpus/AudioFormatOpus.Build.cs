@@ -16,7 +16,6 @@ public class AudioFormatOpus : ModuleRules
 		);
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32) ||
 			(Target.Platform == UnrealTargetPlatform.HoloLens) ||
 			Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ||
 			(Target.Platform == UnrealTargetPlatform.Mac)

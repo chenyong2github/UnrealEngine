@@ -25,16 +25,7 @@ public class LibJpegTurbo : ModuleRules
 
 		// **** NOTE - Only Win64 has been tested - other platforms are usable at your own risk, but have not been tested
 
-/*		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			string LibPath = Path.Combine(ModuleDirectory, "lib/Win32");
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "turbojpeg.lib"));
-
-			PublicDelayLoadDLLs.Add("turbojpeg.dll");
-			string BinPath = Path.Combine(ModuleDirectory, "bin/Win32");
-			RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "turbojpeg.dll"), Path.Combine(BinPath, "turbojpeg.dll"));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Mac)
+/*		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			string LibPath = Path.Combine(ModuleDirectory, "lib/Mac");
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libturbojpeg.dylib"));

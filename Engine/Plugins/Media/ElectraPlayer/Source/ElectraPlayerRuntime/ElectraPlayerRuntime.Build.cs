@@ -47,10 +47,6 @@ namespace UnrealBuildTool.Rules
                 {
                     DirectXSDKDir += "/Lib/x64/";
                 }
-                else if (Target.Platform == UnrealTargetPlatform.Win32)
-                {
-                    DirectXSDKDir += "/Lib/x86/";
-                }
 
 				PrivateDefinitions.Add("_CRT_SECURE_NO_WARNINGS=1");
 
@@ -70,7 +66,7 @@ namespace UnrealBuildTool.Rules
 					PrivateDefinitions.Add("ELECTRA_HAVE_DX11");    // video decoding for DX11 enabled (Win8+)
 				}
 
-				if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					PublicAdditionalLibraries.AddRange(new string[] {
 						DirectXSDKDir + "dxerr.lib",

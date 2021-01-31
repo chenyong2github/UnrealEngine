@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win32", "Win64", "Mac", "Linux")]
+[SupportedPlatforms("Win64", "Mac", "Linux")]
 [SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping)]
 public class UnrealCEFSubProcessTarget : TargetRules
 {

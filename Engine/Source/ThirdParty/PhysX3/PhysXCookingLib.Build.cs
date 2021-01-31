@@ -27,16 +27,6 @@ public class PhysXCookingLib : ModuleRules
             RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
             RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
         }
-        else if (Target.Platform == UnrealTargetPlatform.Win32)
-        {
-            PublicAdditionalLibraries.Add(String.Format("{0}/Win32/VS{1}/PhysX3Cooking{2}_x86.lib", PhysXLibDir, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), LibrarySuffix));
-            PublicDelayLoadDLLs.Add(String.Format("PhysX3Cooking{0}_x86.dll", LibrarySuffix));
-
-            string PhysXBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win32/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-            string FileName = PhysXBinariesDir + String.Format("PhysX3Cooking{0}_x86.dll", LibrarySuffix);
-            RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
-            RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
-        }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
             string PhysXBinariesDir = Target.UEThirdPartyBinariesDirectory + "PhysX3/Mac/";

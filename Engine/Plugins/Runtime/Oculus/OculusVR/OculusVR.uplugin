@@ -15,7 +15,6 @@
 	"IsBetaVersion": false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Win32",
 		"Win64",
 		"Android"
 	],
@@ -26,7 +25,6 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
 				"Android"
 			]
 		},
@@ -36,7 +34,6 @@
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
 				"Android"
 			]
 		},
@@ -46,7 +43,6 @@
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
 				"Android"
 			]
 		},

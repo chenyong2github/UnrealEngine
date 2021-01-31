@@ -16,14 +16,7 @@ public class OpenXR : ModuleRules
 		PublicSystemIncludePaths.Add(RootPath + "/include");
 		PublicDefinitions.Add("XR_NO_PROTOTYPES");
 
-		if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			PublicAdditionalLibraries.Add(LoaderPath + "/win32/openxr_loader.lib");
-
-			PublicDelayLoadDLLs.Add("openxr_loader.dll");
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/OpenXR/win32/openxr_loader.dll");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicAdditionalLibraries.Add(LoaderPath + "/win64/openxr_loader.lib");
 

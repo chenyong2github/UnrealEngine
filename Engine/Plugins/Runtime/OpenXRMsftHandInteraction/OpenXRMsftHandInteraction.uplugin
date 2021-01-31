@@ -15,7 +15,6 @@
 	"IsBetaVersion": true,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Win32",
 		"Win64",
 		"HoloLens",
 		"Android"
@@ -26,7 +25,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"HoloLens",
 				"Android"
@@ -38,7 +36,6 @@
 			"Name": "OpenXR",
 			"Enabled": true,
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"HoloLens",
 				"Android"

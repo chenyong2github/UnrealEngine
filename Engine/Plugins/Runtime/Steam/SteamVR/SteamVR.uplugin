@@ -15,7 +15,6 @@
 	"IsBetaVersion": false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Win32",
 		"Win64",
 		"Linux"
 	],
@@ -26,7 +25,6 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
 				"Linux"
 			]
 		},
@@ -35,8 +33,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"
+				"Win64"
 			]
 		},
 		{
@@ -44,8 +41,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"		
+				"Win64"
 			]
 		},
 		{
@@ -53,8 +49,7 @@
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
-				"Win64",
-				"Win32"
+				"Win64"
 			]
 		}
 	],

@@ -68,7 +68,7 @@ public class OnlineSubsystemGoogle : ModuleRules
 			PrivateIncludePaths.Add("Private/Android");
 			
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			bUsesRestfulImpl = true;
 		}

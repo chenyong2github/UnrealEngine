@@ -10,7 +10,7 @@ public class WebRTC : ModuleRules
 	{
 		get
 		{
-			return Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Mac ||
+			return Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac ||
 				(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"));
 		}
 	}
@@ -22,7 +22,7 @@ public class WebRTC : ModuleRules
 		Type = ModuleType.External;
 
 		bool bShouldUseWebRTC = false;
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			bShouldUseWebRTC = true;
 		}
@@ -45,7 +45,7 @@ public class WebRTC : ModuleRules
 
 			string PlatformSubdir = Target.Platform.ToString();
 
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PublicDefinitions.Add("WEBRTC_WIN=1");
 

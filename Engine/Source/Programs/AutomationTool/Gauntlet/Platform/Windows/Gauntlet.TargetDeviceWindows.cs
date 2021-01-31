@@ -186,19 +186,6 @@ namespace Gauntlet
 		}
 	}
 
-	public class Wind32DeviceFactory : IDeviceFactory
-	{
-		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)
-		{
-			return Platform == UnrealTargetPlatform.Win32;
-		}
-
-		public ITargetDevice CreateDevice(string InRef, string InParam)
-		{
-			return new TargetDeviceWindows(InRef, InParam, false);
-		}
-	}
-
 	/// <summary>
 	/// Win32/64 implementation of a device to run applications
 	/// </summary>
@@ -208,14 +195,12 @@ namespace Gauntlet
 
 		protected string UserDir { get; set; }
 
-		protected bool IsWin64 { get; set; }
-
 		/// <summary>
 		/// Our mappings of Intended directories to where they actually represent on this platform.
 		/// </summary>
 		protected Dictionary<EIntendedBaseCopyDirectory, string> LocalDirectoryMappings { get; set; }
 
-		public TargetDeviceWindows(string InName, string InTempDir, bool InIsWin64=true)
+		public TargetDeviceWindows(string InName, string InTempDir)
 		{
 			Name = InName;
 			TempDir = InTempDir;
@@ -223,8 +208,6 @@ namespace Gauntlet
 
 			UserDir = Path.Combine(TempDir, string.Format("{0}_UserDir", Name));
             LocalDirectoryMappings = new Dictionary<EIntendedBaseCopyDirectory, string>();
-
-			IsWin64 = InIsWin64;
 		}
 
 		#region IDisposable Support
@@ -511,7 +494,7 @@ namespace Gauntlet
 			return string.Compare(Path.GetPathRoot(InPath), Path.GetPathRoot(this.TempDir), StringComparison.OrdinalIgnoreCase) == 0;
 		}
 
-		public UnrealTargetPlatform? Platform { get { return IsWin64 ? UnrealTargetPlatform.Win64 : UnrealTargetPlatform.Win32; } }
+		public UnrealTargetPlatform? Platform { get { return UnrealTargetPlatform.Win64; } }
 
 		public string TempDir { get; private set; }
 		public bool IsAvailable { get { return true; } }

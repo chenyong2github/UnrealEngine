@@ -836,10 +836,6 @@ namespace UnrealBuildTool
 				{
 					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
 				}
-				else if (InPlatforms.Contains(UnrealTargetPlatform.Win32))
-				{
-					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win32, GetCompilerForIntellisense(), null) + ";");
-				}
 				else if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
 				{
 					SharedIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
@@ -1889,11 +1885,7 @@ namespace UnrealBuildTool
 		{
 			// Find the matching platform name
 			string ProjectPlatformName;
-			if(SolutionPlatform == UnrealTargetPlatform.Win32 && Platforms.Contains("x86"))
-			{
-				ProjectPlatformName = "x86";
-			}
-			else if(Platforms.Contains("x64"))
+			if(Platforms.Contains("x64"))
 			{
 				ProjectPlatformName = "x64";
 			}

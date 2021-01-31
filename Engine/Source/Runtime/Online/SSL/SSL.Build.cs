@@ -10,7 +10,6 @@ public class SSL : ModuleRules
 		{
 			return
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.Win64 ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
 	            Target.Platform == UnrealTargetPlatform.IOS ||
@@ -52,8 +51,7 @@ public class SSL : ModuleRules
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 
-			if (Target.Platform == UnrealTargetPlatform.Win32 ||
-				Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PublicSystemLibraries.Add("crypt32.lib");
 			}

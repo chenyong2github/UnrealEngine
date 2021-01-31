@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
 					"ProceduralMeshComponent",
 				});			
 
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/Windows");
 			}
@@ -71,7 +71,7 @@ namespace UnrealBuildTool.Rules
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
 
-			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				// D3D
 				{

@@ -51,7 +51,7 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames.Add("EditorFramework");
 				PrivateDependencyModuleNames.Add("UnrealEd");
-				if(Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+				if(Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64)
 				{	
 					PublicIncludePaths.Add("Developer/Android/AndroidDeviceDetection/Public");
 					PublicIncludePaths.Add("Developer/Android/AndroidDeviceDetection/Public/Interfaces");

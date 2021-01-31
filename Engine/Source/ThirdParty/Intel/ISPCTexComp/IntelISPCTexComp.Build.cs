@@ -15,9 +15,9 @@ public class IntelISPCTexComp : ModuleRules
         //NOTE: If you change bUseDebugBuild, you must also change FTextureFormatIntelISPCTexCompModule.GetTextureFormat() to load the corresponding DLL
         bool bUseDebugBuild = false;
 
-		if ( (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32) )
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-            string platformName = (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64" : "Win32";
+            string platformName = "Win64";
 			string configName = bUseDebugBuild ? "Debug" : "Release";
             string LibFolder = LibraryPath + "lib/" + platformName + "-" + configName + "/";
             string DLLFolder = BinaryFolder + platformName + "-" + configName;

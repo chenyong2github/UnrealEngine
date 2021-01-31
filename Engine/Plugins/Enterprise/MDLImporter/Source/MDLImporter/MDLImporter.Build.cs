@@ -109,7 +109,7 @@ namespace UnrealBuildTool.Rules
 
                 PrivateDefinitions.Add("USE_MDLSDK");
 
-                if ((Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32))
+                if (Target.Platform == UnrealTargetPlatform.Win64)
                 {
                     PublicDefinitions.Add("MI_PLATFORM_WINDOWS");
                 }

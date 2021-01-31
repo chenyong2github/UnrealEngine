@@ -240,7 +240,7 @@ namespace UnrealBuildTool
 			{
 				foreach (string PlatformName in UnrealTargetPlatform.GetValidPlatformNames())
 				{
-					string AltName = PlatformName == "Win32" || PlatformName == "Win64" ? "windows" : PlatformName.ToLower();
+					string AltName = PlatformName == "Win64" ? "windows" : PlatformName.ToLower();
 					if ((SourceFile.Reference.FullName.ToLower().Contains("/" + PlatformName.ToLower() + "/") || SourceFile.Reference.FullName.ToLower().Contains("/" + AltName + "/"))
 						&& PlatformName != "Mac" && PlatformName != "IOS" && PlatformName != "TVOS")
 					{

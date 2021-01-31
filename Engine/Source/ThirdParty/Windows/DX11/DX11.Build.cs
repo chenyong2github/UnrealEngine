@@ -19,19 +19,11 @@ public class DX11 : ModuleRules
 			DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64 )
 		{
 			PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
 
-			string LibDir = null;
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				LibDir = DirectXSDKDir + "/Lib/x64/";
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Win32)
-			{
-				LibDir = DirectXSDKDir + "/Lib/x86/";
-			}
+			string LibDir = DirectXSDKDir + "/Lib/x64/";
 
 			PublicAdditionalLibraries.AddRange(
 				new string[] {

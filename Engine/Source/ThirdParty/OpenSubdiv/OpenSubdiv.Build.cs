@@ -13,8 +13,8 @@ public class OpenSubdiv : ModuleRules
 
 		PublicIncludePaths.Add( OpenSubdivPath + "/opensubdiv" );
 
-		// @todo mesheditor subdiv: Support other platforms, 32-bit Windows, and older/newer compiler toolchains
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
+		// @todo mesheditor subdiv: Support other platforms, and older/newer compiler toolchains
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
             string LibFolder = "/lib/Win64/VS2015";
             if (LibFolder != "")

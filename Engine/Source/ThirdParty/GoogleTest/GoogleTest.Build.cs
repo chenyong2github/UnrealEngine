@@ -19,7 +19,7 @@ public class GoogleTest : ModuleRules
         string PartialLibraryPath = "lib/" + Target.Platform.ToString() + "/";
         string LibraryPath = RootPath;
        
-        if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+        if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             PartialLibraryPath += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 

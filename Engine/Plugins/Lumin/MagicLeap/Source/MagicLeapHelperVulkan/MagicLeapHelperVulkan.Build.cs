@@ -43,7 +43,7 @@ namespace UnrealBuildTool.Rules
 					new string[] {
 						"MagicLeapHelperVulkan/Private",
 						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private"),
-						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private", ((Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64) ? "Windows" : Target.Platform.ToString()))
+						Path.Combine(EngineSourceDirectory, "Runtime/VulkanRHI/Private", (Target.Platform == UnrealTargetPlatform.Win64 ? "Windows" : Target.Platform.ToString()))
 					});
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");

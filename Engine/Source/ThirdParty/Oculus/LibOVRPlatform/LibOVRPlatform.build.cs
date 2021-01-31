@@ -13,12 +13,7 @@ public class LibOVRPlatform : ModuleRules
 
 		bool isLibrarySupported = false;
 		
-		if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			PublicAdditionalLibraries.Add(OculusThirdPartyDirectory + "lib/LibOVRPlatform32_1.lib");
-			isLibrarySupported = true;
-		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicAdditionalLibraries.Add(OculusThirdPartyDirectory + "lib/LibOVRPlatform64_1.lib");
 			isLibrarySupported = true;

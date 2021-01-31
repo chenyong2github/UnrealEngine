@@ -20,10 +20,6 @@ public class BLAKE3 : ModuleRules
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", "Release", "BLAKE3.lib"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win32", "Release", "BLAKE3.lib"));
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Mac", "Release", "libBLAKE3.a"));

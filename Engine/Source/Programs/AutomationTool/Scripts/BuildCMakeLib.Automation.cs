@@ -714,48 +714,6 @@ public sealed class BuildCMakeLib : BuildCommand
 	}
 }
 
-class VS2017TargetPlatform_Win32 : BuildCMakeLib.VS2017TargetPlatform
-{
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win32;
-	public override string DebugDatabaseExtension => "pdb";
-	public override string DynamicLibraryExtension => "dll";
-	public override string StaticLibraryExtension => "lib";
-	public override bool IsPlatformExtension => false;
-
-	public override string GetCMakeSetupArguments(BuildCMakeLib.TargetLib TargetLib, string TargetConfiguration)
-		=> base.GetCMakeSetupArguments(TargetLib, TargetConfiguration) + " -A Win32";
-}
-
-class VS2019TargetPlatform_Win32 : BuildCMakeLib.VS2019TargetPlatform
-{
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win32;
-	public override string DebugDatabaseExtension => "pdb";
-	public override string DynamicLibraryExtension => "dll";
-	public override string StaticLibraryExtension => "lib";
-	public override bool IsPlatformExtension => false;
-
-	public override string GetCMakeSetupArguments(BuildCMakeLib.TargetLib TargetLib, string TargetConfiguration)
-		=> base.GetCMakeSetupArguments(TargetLib, TargetConfiguration) + " -A Win32";
-}
-
-class NMakeTargetPlatform_Win32 : BuildCMakeLib.NMakeTargetPlatform
-{
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win32;
-	public override string DebugDatabaseExtension => "pdb";
-	public override string DynamicLibraryExtension => "dll";
-	public override string StaticLibraryExtension => "lib";
-	public override bool IsPlatformExtension => false;
-}
-
-class MakefileTargetPlatform_Win32 : BuildCMakeLib.MakefileTargetPlatform
-{
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win32;
-	public override string DebugDatabaseExtension => "pdb";
-	public override string DynamicLibraryExtension => "dll";
-	public override string StaticLibraryExtension => "lib";
-	public override bool IsPlatformExtension => false;
-}
-
 class VS2017TargetPlatform_Win64 : BuildCMakeLib.VS2017TargetPlatform
 {
 	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win64;

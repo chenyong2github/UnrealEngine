@@ -30,16 +30,6 @@ public class UEOgg : ModuleRules
 
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Ogg/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libogg_64.dll");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			LibDir = Path.Combine(OggLibPath, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libogg.lib"));
-
-			PublicDelayLoadDLLs.Add("libogg.dll");
-
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Ogg/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libogg.dll");
-		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             string LibFileName = "libogg";
@@ -49,7 +39,7 @@ public class UEOgg : ModuleRules
                 LibFileName += "_64";
             }
 
-            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
                 LibDir = System.String.Format("{0}/{1}/VS{2}/{3}/", OggLibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath());
                 RuntimeDependencies.Add(

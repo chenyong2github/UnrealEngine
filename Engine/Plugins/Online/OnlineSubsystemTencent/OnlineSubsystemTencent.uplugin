@@ -18,7 +18,6 @@
 			"WhitelistPlatforms": 
 			[
 				"Linux",
-				"Win32",
 				"Win64"
 			]
 		}

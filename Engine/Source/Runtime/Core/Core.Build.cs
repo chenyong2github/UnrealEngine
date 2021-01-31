@@ -58,7 +58,7 @@ public class Core : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"zlib");
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
+			AddEngineThirdPartyPrivateStaticDependencies(Target, 
 				"IntelTBB",
 				"IntelVTune"
 				);
@@ -66,7 +66,7 @@ public class Core : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"mimalloc");
 
-			if (Target.Platform != UnrealTargetPlatform.Win32 && Target.WindowsPlatform.bUseBundledDbgHelp)
+			if (Target.WindowsPlatform.bUseBundledDbgHelp)
 			{
 				PublicDelayLoadDLLs.Add("DBGHELP.DLL");
 				PrivateDefinitions.Add("USE_BUNDLED_DBGHELP=1");
@@ -98,7 +98,7 @@ public class Core : ModuleRules
 				"rd_route"
 				);
 			PublicFrameworks.AddRange(new string[] { "Cocoa", "Carbon", "IOKit", "Security" });
-
+			
 			if (Target.bBuildEditor == true)
 			{
 				string SDKROOT = Utils.RunLocalProcessAndReturnStdOut("/usr/bin/xcrun", "--sdk macosx --show-sdk-path");
@@ -171,7 +171,7 @@ public class Core : ModuleRules
 			string VisualStudioInstallation = Target.WindowsPlatform.IDEDir;
 			if (VisualStudioInstallation != null && VisualStudioInstallation != string.Empty && Directory.Exists(VisualStudioInstallation))
 			{
-				string SubFolderName = (Target.Platform == UnrealTargetPlatform.Win32) ? "PerfSDK/" : "x64/PerfSDK/";
+				string SubFolderName = "x64/PerfSDK/";
 				string PerfIncludeDirectory = Path.Combine(VisualStudioInstallation, String.Format("Team Tools/Performance Tools/{0}", SubFolderName));
 
 				if (File.Exists(Path.Combine(PerfIncludeDirectory, "VSPerf.h"))
@@ -204,7 +204,7 @@ public class Core : ModuleRules
 			}
 
 			string SuperluminalApiDir = Path.Combine(SuperluminalInstallDir, "API/");
-			string SubFolderName = (Target.Platform == UnrealTargetPlatform.Win32) ? "lib/x86/" : "lib/x64/";
+			string SubFolderName = "lib/x64/";
 			string SuperluminalLibDir = Path.Combine(SuperluminalApiDir, SubFolderName);
 
 			if (Target.Configuration != UnrealTargetConfiguration.Shipping &&
@@ -220,7 +220,7 @@ public class Core : ModuleRules
 			}
 		}
 
-		if (Target.bWithDirectXMath && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.bWithDirectXMath && Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicDefinitions.Add("WITH_DIRECTXMATH=1");
 		}
@@ -254,7 +254,6 @@ public class Core : ModuleRules
 				|| Target.Platform == UnrealTargetPlatform.Linux
 				|| Target.Platform == UnrealTargetPlatform.LinuxAArch64
 				|| Target.Platform == UnrealTargetPlatform.Win64
-				// || Target.Platform == UnrealTargetPlatform.Win32				// 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
 				|| Target.Platform.IsInGroup(UnrealPlatformGroup.XboxCommon)	// Base Xbox will run out of virtual memory very quickly but it can be utilized on some hardware configs
 				)
 			{

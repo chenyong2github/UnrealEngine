@@ -29,14 +29,9 @@ public class UEOpenExr : ModuleRules
             bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
             string LibDir = Target.UEThirdPartySourceDirectory + DeployDir + "/OpenEXR//lib/";
 			string Platform = "";
-			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
             {
                     Platform = "x64";
-                    LibDir += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Win32)
-			{
-                    Platform = "Win32";
                     LibDir += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)

@@ -19,20 +19,9 @@ public class libOpus : ModuleRules
 		PublicIncludePaths.Add(OpusIncPath);
 		string LibraryPath = OpusLibPath + "/";
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			LibraryPath += "Windows/VS2012/";
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				LibraryPath += "x64/";
-			}
-			else
-			{
-				LibraryPath += "win32/";
-			}
-
-			LibraryPath += "Release/";
+			LibraryPath += "Windows/VS2012/x64/Release/";
 
  			PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
  			PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
@@ -46,16 +35,6 @@ public class libOpus : ModuleRules
 			{
 				LibraryPath += "Windows/VS2012/";
 				LibraryPath += "x64/";
-			}
-			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x86)
-			{
-				LibraryPath += "Windows/VS2012/";
-				LibraryPath += "win32/";
-			}
-			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32)
-			{
-				LibraryPath += "Windows/VS" + (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED ? "2015" : "2012");
-				LibraryPath += "/ARM/";
 			}
 			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
 			{

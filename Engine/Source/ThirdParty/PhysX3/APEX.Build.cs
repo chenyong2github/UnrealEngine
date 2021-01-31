@@ -88,32 +88,6 @@ public class APEX : ModuleRules
 			}
 
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win32)
-		{
-			ApexLibDir = Path.Combine(ApexLibDir, "Win32", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
-			PublicAdditionalLibraries.Add(Path.Combine(ApexLibDir, String.Format("APEXFramework{0}_x86.lib", LibrarySuffix)));
-			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x86.dll", LibrarySuffix));
-
-			string[] RuntimeDependenciesX86 =
-			{
-				"APEX_Clothing{0}_x86.dll",
-				"APEX_Legacy{0}_x86.dll",
-				"ApexFramework{0}_x86.dll",
-			};
-
-			string ApexBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win32/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			foreach (string RuntimeDependency in RuntimeDependenciesX86)
-			{
-				string FileName = ApexBinariesDir + String.Format(RuntimeDependency, LibrarySuffix);
-				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
-				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
-			}
-			if (LibrarySuffix != "")
-			{
-				PublicDefinitions.Add("UE_APEX_SUFFIX=" + LibrarySuffix);
-			}
-		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
             string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
