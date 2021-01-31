@@ -14,6 +14,7 @@
 #include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
+#include "UObject/StrongObjectPtr.h"
 #include "InputCoreTypes.h"
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -83,6 +84,9 @@
 #include "MatineeExporter.h"
 #include "FbxExporter.h"
 #include "DesktopPlatformModule.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementCommonActions.h"
 #include "SnappingUtils.h"
 #include "AssetSelection.h"
 #include "HighResScreenshot.h"
@@ -2486,18 +2490,16 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 	}
 	else if( FParse::Command(&Str,TEXT("DELETE")) )		// ACTOR SELECT DELETE
 	{
-	
-		bool bHandled = false;
-		bHandled |= GLevelEditorModeTools().ProcessEditDelete();
-
-		// if not specially handled by the current editing mode,
-		if (!bHandled)
+		if (TSharedPtr<ILevelEditor> LevelEditor = GCurrentLevelEditingViewportClient->ParentLevelEditor.Pin())
 		{
-			UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
-
-			if (EditorActorSubsystem)
+			if (UTypedElementCommonActions* CommonActions = LevelEditor->GetCommonActions())
 			{
-				EditorActorSubsystem->DeleteSelectedActors(InWorld);
+				UTypedElementSelectionSet* SelectionSet = GetSelectedActors()->GetElementSelectionSet();
+
+				TStrongObjectPtr<UTypedElementList> ElementsToDelete(UTypedElementRegistry::GetInstance()->CreateElementList());
+				CommonActions->GetSelectedElementsToDelete(SelectionSet, ElementsToDelete.Get());
+				CommonActions->DeleteElements(ElementsToDelete.Get(), InWorld, SelectionSet, FTypedElementDeletionOptions());
+				ElementsToDelete->Reset();
 			}
 		}
 		return true;

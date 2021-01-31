@@ -7,7 +7,34 @@
 
 class ULevel;
 class UWorld;
+class UTypedElementSelectionSet;
 struct FCollisionShape;
+
+USTRUCT(BlueprintType)
+struct FTypedElementDeletionOptions
+{
+	GENERATED_BODY()
+
+public:
+	FTypedElementDeletionOptions& SetVerifyDeletionCanHappen(const bool InVerifyDeletionCanHappen) { bVerifyDeletionCanHappen = InVerifyDeletionCanHappen; return *this; }
+	bool VerifyDeletionCanHappen() const { return bVerifyDeletionCanHappen; }
+
+	FTypedElementDeletionOptions& SetWarnAboutReferences(const bool InWarnAboutReferences) { bWarnAboutReferences = InWarnAboutReferences; return *this; }
+	bool WarnAboutReferences() const { return bWarnAboutReferences; }
+
+	FTypedElementDeletionOptions& SetWarnAboutSoftReferences(const bool InWarnAboutSoftReferences) { bWarnAboutSoftReferences = InWarnAboutSoftReferences; return *this; }
+	bool WarnAboutSoftReferences() const { return bWarnAboutSoftReferences; }
+	
+private:
+	UPROPERTY(BlueprintReadWrite, Category="TypedElementInterfaces|World|DeletionOptions", meta=(AllowPrivateAccess=true))
+	bool bVerifyDeletionCanHappen = false;
+
+	UPROPERTY(BlueprintReadWrite, Category="TypedElementInterfaces|World|DeletionOptions", meta=(AllowPrivateAccess=true))
+	bool bWarnAboutReferences = true;
+
+	UPROPERTY(BlueprintReadWrite, Category="TypedElementInterfaces|World|DeletionOptions", meta=(AllowPrivateAccess=true))
+	bool bWarnAboutSoftReferences = true;
+};
 
 UCLASS(Abstract)
 class ENGINE_API UTypedElementWorldInterface : public UTypedElementInterface
@@ -117,6 +144,28 @@ public:
 	}
 
 	/**
+	 * Can the given element be deleted?
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool CanDeleteElement(const FTypedElementHandle& InElementHandle) { return false; }
+
+	/**
+	 * Delete the given element.
+	 * @note Default version calls DeleteElements with a single element.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool DeleteElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
+	{
+		return DeleteElements(MakeArrayView(&InElementHandle, 1), InWorld, InSelectionSet, InDeletionOptions);
+	}
+
+	/**
+	 * Delete the given set of elements.
+	 * @note If you want to delete an array of elements that are potentially different types, you probably want to use the higher-level UTypedElementCommonActions::DeleteElements function instead.
+	 */
+	virtual bool DeleteElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions) { return false; }
+
+	/**
 	 * Duplicate the given element.
 	 * @note Default version calls DuplicateElements with a single element.
 	 */
@@ -130,7 +179,7 @@ public:
 
 	/**
 	 * Duplicate the given set of elements.
-	 * @note If you want to duplicate an array of elements that are potentially different types, you probably want to use the higher-level UEngineElementsLibrary::DuplicateElements function instead.
+	 * @note If you want to duplicate an array of elements that are potentially different types, you probably want to use the higher-level UTypedElementCommonActions::DuplicateElements function instead.
 	 */
 	virtual void DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, bool bOffsetLocations, TArray<FTypedElementHandle>& OutNewElements)
 	{
@@ -156,5 +205,7 @@ struct TTypedElement<UTypedElementWorldInterface> : public TTypedElementBase<UTy
 	void NotifyMovementEnded() const { InterfacePtr->NotifyMovementEnded(*this); }
 	bool FindSuitableTransformAtPoint(const FTransform& InPotentialTransform, FTransform& OutSuitableTransform) const { return InterfacePtr->FindSuitableTransformAtPoint(*this, InPotentialTransform, OutSuitableTransform); }
 	bool FindSuitableTransformAlongPath(const FVector& InPathStart, const FVector& InPathEnd, const FCollisionShape& InTestShape, TArrayView<const FTypedElementHandle> InElementsToIgnore, FTransform& OutSuitableTransform) const { return InterfacePtr->FindSuitableTransformAlongPath(*this, InPathStart, InPathEnd, InTestShape, InElementsToIgnore, OutSuitableTransform); }
+	bool CanDeleteElement() const { return InterfacePtr->CanDeleteElement(*this); }
+	bool DeleteElement(UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions) const { return InterfacePtr->DeleteElement(*this, InWorld, InSelectionSet, InDeletionOptions); }
 	FTypedElementHandle DuplicateElement(UWorld* InWorld, bool bOffsetLocations) const { return InterfacePtr->DuplicateElement(*this, InWorld, bOffsetLocations); }
 };

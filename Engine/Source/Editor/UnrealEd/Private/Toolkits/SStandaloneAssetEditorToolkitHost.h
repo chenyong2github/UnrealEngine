@@ -56,6 +56,7 @@ public:
 	virtual void OnToolkitHostingStarted( const TSharedRef< class IToolkit >& Toolkit ) override;
 	virtual void OnToolkitHostingFinished( const TSharedRef< class IToolkit >& Toolkit ) override;
 	virtual UWorld* GetWorld() const override;
+	virtual UTypedElementCommonActions* GetCommonActions() const override;
 	void CreateDefaultStandaloneMenuBar(UToolMenu* MenuBar);
 
 	/** SWidget overrides */

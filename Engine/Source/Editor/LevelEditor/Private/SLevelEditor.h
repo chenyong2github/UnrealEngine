@@ -129,6 +129,7 @@ public:
 	virtual void SetActorDetailsSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> InActorDetailsSCSEditorUICustomization) override;
 	virtual TSharedRef<SWidget> CreateToolBox() override;
 	virtual FEditorModeTools& GetEditorModeManager() const override;
+	virtual UTypedElementCommonActions* GetCommonActions() const override;
 
 	/** SWidget overrides */
 	virtual bool SupportsKeyboardFocus() const override
@@ -274,6 +275,9 @@ private:
 
 	// The list of selected elements (also set on the global USelection for actors and components).
 	UTypedElementSelectionSet* SelectedElements = nullptr;
+
+	// The common actions implementation for the level editor
+	UTypedElementCommonActions* CommonActions = nullptr;
 
 	// The box that holds the title bar messages.
 	TSharedPtr<SHorizontalBox> TtileBarMessageBox;

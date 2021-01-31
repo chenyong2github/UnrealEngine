@@ -344,6 +344,12 @@ UWorld* SStandaloneAssetEditorToolkitHost::GetWorld() const
 }
 
 
+UTypedElementCommonActions* SStandaloneAssetEditorToolkitHost::GetCommonActions() const
+{
+	return nullptr;
+}
+
+
 FReply SStandaloneAssetEditorToolkitHost::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
 {
 	// Check to see if any of the actions for the level editor can be processed by the current event

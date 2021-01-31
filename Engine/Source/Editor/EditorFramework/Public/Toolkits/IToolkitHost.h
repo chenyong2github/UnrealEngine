@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 class FEditorModeTools;
+class UTypedElementCommonActions;
 
 /**
  * Base interface class for toolkit hosts
@@ -35,5 +36,7 @@ public:
 
 	/** Returns the mode manager for this toolkit host. For standalone toolkits */
 	virtual FEditorModeTools& GetEditorModeManager() const = 0;
-};
 
+	/** Returns the common actions implementation for this toolkit host */
+	virtual UTypedElementCommonActions* GetCommonActions() const = 0;
+};

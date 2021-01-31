@@ -40,6 +40,7 @@
 #include "EditorSupportDelegates.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementCommonActions.h"
 #include "Elements/Framework/TypedElementListObjectUtil.h"
 #include "Elements/Framework/TypedElementViewportInteraction.h"
 #include "Elements/Actor/ActorElementLevelEditorViewportInteractionCustomization.h"
@@ -2573,10 +2574,12 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 						{
 							bDuplicateOnNextDrag = false;
 							
-							if (!ModeTools->ProcessEditDuplicate())
+							TSharedPtr<ILevelEditor> LevelEditor = ParentLevelEditor.Pin();
+							UTypedElementCommonActions* CommonActions = LevelEditor ? LevelEditor->GetCommonActions() : nullptr;
+							if (CommonActions)
 							{
 								CacheElementsToManipulate();
-								TArray<FTypedElementHandle> DuplicatedElements = UEngineElementsLibrary::DuplicateElements(ElementsToManipulate, GetWorld(), /*bOffsetLocations*/false);
+								TArray<FTypedElementHandle> DuplicatedElements = CommonActions->DuplicateElements(ElementsToManipulate, GetWorld(), /*bOffsetLocations*/false);
 								ElementsToManipulate->Reset();
 
 								// Exclusively select the new elements, so that future gizmo interaction manipulates those items instead
@@ -2589,9 +2592,9 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 
 									SelectionSet->SetSelection(DuplicatedElements, SelectionOptions);
 								}
-							}
 
-							RedrawAllViewportsIntoThisScene();
+								RedrawAllViewportsIntoThisScene();
+							}
 						}
 					}
 				}

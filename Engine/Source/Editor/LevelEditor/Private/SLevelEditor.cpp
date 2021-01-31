@@ -61,8 +61,11 @@
 #include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
 #include "Misc/MessageDialog.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementCommonActions.h"
 #include "Elements/Actor/ActorElementLevelEditorSelectionCustomization.h"
+#include "Elements/Actor/ActorElementLevelEditorCommonActionsCustomization.h"
 #include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
+#include "Elements/Component/ComponentElementLevelEditorCommonActionsCustomization.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
@@ -244,6 +247,21 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 	GUnrealEd->GetSelectedActors()->SetElementSelectionSet(SelectedElements);
 	GUnrealEd->GetSelectedComponents()->SetElementSelectionSet(SelectedElements);
 
+	CommonActions = NewObject<UTypedElementCommonActions>();
+	CommonActions->AddToRoot();
+
+	// Register the level editor specific selection behavior
+	{
+		TUniquePtr<FActorElementLevelEditorCommonActionsCustomization> ActorCustomization = MakeUnique<FActorElementLevelEditorCommonActionsCustomization>();
+		ActorCustomization->SetToolkitHost(this);
+		CommonActions->RegisterInterfaceCustomizationByTypeName(NAME_Actor, MoveTemp(ActorCustomization));
+	}
+	{
+		TUniquePtr<FComponentElementLevelEditorCommonActionsCustomization> ComponentCustomization = MakeUnique<FComponentElementLevelEditorCommonActionsCustomization>();
+		ComponentCustomization->SetToolkitHost(this);
+		CommonActions->RegisterInterfaceCustomizationByTypeName(NAME_Components, MoveTemp(ComponentCustomization));
+	}
+
 	// Bind the level editor tab's label to the currently loaded level name string in the main frame
 	OwnerTab->SetLabel( TAttribute<FText>( this, &SLevelEditor::GetTabTitle) );
 	OwnerTab->SetTabLabelSuffix(TAttribute<FText>(this, &SLevelEditor::GetTabSuffix));
@@ -364,6 +382,9 @@ SLevelEditor::~SLevelEditor()
 		}
 		SelectedElements->RemoveFromRoot();
 		SelectedElements = nullptr;
+
+		CommonActions->RemoveFromRoot();
+		CommonActions = nullptr;
 	}
 }
 
@@ -1977,6 +1998,11 @@ TSharedRef<SWidget> SLevelEditor::CreateToolBox()
 FEditorModeTools& SLevelEditor::GetEditorModeManager() const
 {
 	return GLevelEditorModeTools();
+}
+
+UTypedElementCommonActions* SLevelEditor::GetCommonActions() const
+{
+	return CommonActions;
 }
 
 #undef LOCTEXT_NAMESPACE
