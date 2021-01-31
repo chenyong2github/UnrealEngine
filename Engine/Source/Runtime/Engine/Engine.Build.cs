@@ -150,42 +150,24 @@ public class Engine : ModuleRules
 			PrivateDependencyModuleNames.Add("RawMesh");
 		}
 
-		bool bVariadicTemplatesSupported = true;
-		if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			// Use reflection to allow type not to exist if console code is not present
-			System.Type XboxOnePlatformType = System.Type.GetType("UnrealBuildTool.XboxOnePlatform,UnrealBuildTool");
-			if (XboxOnePlatformType != null)
-			{
-				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				if (VersionName.ToString().Equals("2012"))
-				{
-					bVariadicTemplatesSupported = false;
-				}
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"MessagingRpc",
+				"PortalRpc",
+				"PortalServices",
 			}
-		}
+		);
 
-		if (bVariadicTemplatesSupported)
+		if (Target.Type == TargetType.Editor)
 		{
-			PrivateIncludePathModuleNames.AddRange(
+			// these modules require variadic templates
+			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"MessagingRpc",
 					"PortalRpc",
 					"PortalServices",
 				}
 			);
-
-			if (Target.Type == TargetType.Editor)
-			{
-				// these modules require variadic templates
-				PrivateDependencyModuleNames.AddRange(
-					new string[] {
-						"MessagingRpc",
-						"PortalRpc",
-						"PortalServices",
-					}
-				);
-			}
 		}
 
 		CircularlyReferencedDependentModules.Add("GameplayTags");

@@ -76,7 +76,7 @@ namespace Gauntlet.SelfTest
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
 				BuildPath = @"P:\Builds\Fortnite\++Fortnite+Main-CL-3874645";
-				SupportedClientPlatforms = new[] { UnrealTargetPlatform.Win64, UnrealTargetPlatform.PS4, UnrealTargetPlatform.Android, UnrealTargetPlatform.XboxOne };
+				SupportedClientPlatforms = new[] { UnrealTargetPlatform.Win64, UnrealTargetPlatform.PS4, UnrealTargetPlatform.Android };
 				SupportedServerPlatforms = new[] { UnrealTargetPlatform.Win64, UnrealTargetPlatform.Linux };
 
 			}

@@ -401,7 +401,7 @@ namespace Gauntlet
 			UnrealTestRoleContext ClientContext = Context.GetRoleContext(UnrealTargetRole.Client);
 
 			// because these need deployed we want them in flight asap
-			if (ClientContext.Platform == UnrealTargetPlatform.PS4 || ClientContext.Platform == UnrealTargetPlatform.XboxOne)
+			if (ClientContext.Platform == UnrealTargetPlatform.PS4)
 			{
 				return TestPriority.High;
 			}

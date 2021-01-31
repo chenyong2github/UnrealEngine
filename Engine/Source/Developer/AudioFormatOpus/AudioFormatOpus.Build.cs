@@ -19,8 +19,7 @@ public class AudioFormatOpus : ModuleRules
 			(Target.Platform == UnrealTargetPlatform.Win32) ||
 			(Target.Platform == UnrealTargetPlatform.HoloLens) ||
 			Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ||
-			(Target.Platform == UnrealTargetPlatform.Mac) ||
-			(Target.Platform == UnrealTargetPlatform.XboxOne)
+			(Target.Platform == UnrealTargetPlatform.Mac)
 		)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,

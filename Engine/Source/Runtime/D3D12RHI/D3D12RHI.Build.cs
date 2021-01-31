@@ -33,7 +33,7 @@ public class D3D12RHI : ModuleRules
         // Platform specific defines
         ///////////////////////////////////////////////////////////////
 
-        if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.XboxOne)
+        if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
         {
             PrecompileForTargets = PrecompileTargetsType.None;
         }

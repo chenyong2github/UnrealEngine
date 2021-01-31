@@ -68,7 +68,6 @@ namespace Gauntlet
 			// todo - need to return values of discovered builds
 			return Platform == UnrealTargetPlatform.Win64
 				|| Platform == UnrealTargetPlatform.PS4
-				|| Platform == UnrealTargetPlatform.XboxOne
 				|| Platform == UnrealTargetPlatform.Android
 				|| Platform == UnrealTargetPlatform.Mac;
 		}

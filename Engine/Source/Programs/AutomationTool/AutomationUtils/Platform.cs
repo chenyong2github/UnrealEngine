@@ -787,7 +787,7 @@ namespace AutomationTool
 				return PlatformExeExtension;
 			}
 
-			if (Target == UnrealTargetPlatform.Win32 || Target == UnrealTargetPlatform.Win64 || Target == UnrealTargetPlatform.XboxOne|| Target == UnrealTargetPlatform.HoloLens)
+			if (Target == UnrealTargetPlatform.Win32 || Target == UnrealTargetPlatform.Win64 || Target == UnrealTargetPlatform.HoloLens)
 			{
 				return ".exe";
 			}

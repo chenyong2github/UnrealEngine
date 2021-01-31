@@ -17,11 +17,6 @@ public class AudioCaptureRtAudio : ModuleRules
 			// Allow us to use direct sound
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectSound");
 		}
-		else if(Target.Platform == UnrealTargetPlatform.XboxOne)
-        {
-            PublicDefinitions.Add("WITH_RTAUDIO=1");
-            PublicDefinitions.Add("WITH_AUDIOCAPTURE=1");
-        }
 		else if(Target.Platform == UnrealTargetPlatform.Mac)
         {
             PublicFrameworks.AddRange(new string[] { "CoreAudio", "AudioUnit", "AudioToolbox" });

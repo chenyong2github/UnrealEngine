@@ -1009,7 +1009,7 @@ namespace Gauntlet
 
 			List<UnrealTargetPlatform> ServicePlatforms = new List<UnrealTargetPlatform>()
 			{
-				UnrealTargetPlatform.PS4, UnrealTargetPlatform.XboxOne, UnrealTargetPlatform.Switch
+				UnrealTargetPlatform.PS4, UnrealTargetPlatform.Switch
 			};
 
 			// support Android over wifi, though not on workers

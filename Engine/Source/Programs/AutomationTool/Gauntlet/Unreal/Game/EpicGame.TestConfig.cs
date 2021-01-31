@@ -216,14 +216,6 @@ namespace EpicGame
 					McpString += " -FastCook";
 				}
 
-				// turn off XboxAuth for NoMcp, or if specified, but only if there's an Xbox client somewhere
-				bool SkipAuth = ConfigRole.RoleType.IsServer() && (NoMCP || XboxAuthSkip) && OtherRoles.Any(R => R.Platform == UnrealTargetPlatform.XboxOne);
-
-				if (SkipAuth)
-				{
-					AppConfig.CommandLine += " -ini:Game:[/Script/FortniteGame.FortGameModeZone]:bTrustXboxPlatformId=true";
-				}
-
 				AppConfig.CommandLine += McpString;
 			}
 
@@ -250,7 +242,7 @@ namespace EpicGame
 				}
 
 				// select an account
-				if (NoMCP == false && ConfigRole.Platform != UnrealTargetPlatform.PS4 && ConfigRole.Platform != UnrealTargetPlatform.XboxOne && PreAssignAccount == true)
+				if (NoMCP == false && ConfigRole.Platform != UnrealTargetPlatform.PS4 && PreAssignAccount == true)
 				{
 					Account UserAccount = AccountPool.Instance.ReserveAccount();
 					UserAccount.ApplyToConfig(AppConfig);

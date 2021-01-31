@@ -38,7 +38,7 @@ public class RigLogicLibTest : ModuleRules
             }
         );
 
-        if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.XboxOne)
+        if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
         {
             PublicDefinitions.Add("GTEST_OS_WINDOWS=1");
         }

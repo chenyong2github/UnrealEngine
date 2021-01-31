@@ -39,7 +39,6 @@ public class XMPP : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32 ||
 			Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.XboxOne ||
 			Target.Platform == UnrealTargetPlatform.Android ||
 			Target.Platform == UnrealTargetPlatform.IOS ||
 			Target.Platform == UnrealTargetPlatform.Switch||

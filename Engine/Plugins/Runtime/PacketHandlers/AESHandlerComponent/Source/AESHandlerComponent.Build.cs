@@ -30,16 +30,7 @@ public class AESHandlerComponent : ModuleRules
 			}
 			);
 
-		if (Target.Platform == UnrealTargetPlatform.XboxOne)
-		{
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"PlatformCryptoBCrypt",
-				}
-				);
-		}
-		else if (DefaultToSSL)
+		if (DefaultToSSL)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]

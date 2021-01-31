@@ -111,7 +111,7 @@ namespace Turnkey
 				SourcePlatforms = UnrealTargetPlatform.GetValidPlatforms().ToList();
 			}
 
-			return SourcePlatforms.Where(x => x != UnrealTargetPlatform.Win32 && x != UnrealTargetPlatform.XboxOne && UEBuildPlatformSDK.GetSDKForPlatform(x.ToString()) != null).ToList();
+			return SourcePlatforms.Where(x => x != UnrealTargetPlatform.Win32 && UEBuildPlatformSDK.GetSDKForPlatform(x.ToString()) != null).ToList();
 		}
 
 		public static List<UnrealTargetPlatform> GetPlatformsFromCommandLineOrUser(string[] CommandOptions, List<UnrealTargetPlatform> PossiblePlatforms)

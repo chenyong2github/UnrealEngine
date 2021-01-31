@@ -15,7 +15,7 @@
 		{
 			"Name" : "VivoxVoiceChat",
 			"Type" : "ClientOnly",
-			"WhitelistPlatforms" : [ "Win32", "Win64", "XboxOne", "PS4", "Mac", "IOS", "Switch", "Android" ]
+			"WhitelistPlatforms" : [ "Win32", "Win64", "PS4", "Mac", "IOS", "Switch", "Android" ]
 		}
 	]
 }

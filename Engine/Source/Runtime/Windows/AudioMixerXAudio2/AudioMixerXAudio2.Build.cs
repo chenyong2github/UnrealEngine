@@ -20,11 +20,6 @@ public class AudioMixerXAudio2 : ModuleRules
 			"Vorbis",
 			"VorbisFile"
 			);
-	
-            if (Target.Platform == UnrealTargetPlatform.XboxOne)
-            {
-                PrivateDependencyModuleNames.Add("XMA2");
-            }
         }
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -40,7 +35,7 @@ public class AudioMixerXAudio2 : ModuleRules
 			"XAudio2_9"
         );
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.XboxOne)
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrecompileForTargets = PrecompileTargetsType.Any;
 		}

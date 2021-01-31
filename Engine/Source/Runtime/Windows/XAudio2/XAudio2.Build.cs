@@ -30,10 +30,6 @@ public class XAudio2 : ModuleRules
 			}
 
 		}
-        else if (Target.Platform == UnrealTargetPlatform.XboxOne)
-        {
-            PrivateDependencyModuleNames.Add("XMA2");
-        }
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, 
 			"DX11Audio",

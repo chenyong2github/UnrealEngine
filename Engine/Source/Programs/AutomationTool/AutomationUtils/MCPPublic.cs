@@ -147,11 +147,6 @@ namespace EpicGames.MCP.Automation
 		Switch,
 
 		/// <summary>
-		/// Xbox One Platform
-		/// </summary>
-		XboxOne,
-
-		/// <summary>
 		/// Xbox One with GDK Platform
 		/// </summary>
 		XboxOneGDK,
@@ -293,10 +288,6 @@ namespace EpicGames.MCP.Automation
 			{
 				return MCPPlatform.PS5;
 			}
-			else if (TargetPlatform == UnrealTargetPlatform.XboxOne)
-			{
-				return MCPPlatform.XboxOne;
-			}
 			else if (TargetPlatform.ToString() == "XboxOneGDK")
 			{
 				return MCPPlatform.XboxOneGDK;
@@ -344,10 +335,6 @@ namespace EpicGames.MCP.Automation
 			else if (TargetPlatform == MCPPlatform.PS4)
 			{
 				return UnrealTargetPlatform.PS4;
-			}
-			else if (TargetPlatform == MCPPlatform.XboxOne)
-			{
-				return UnrealTargetPlatform.XboxOne;
 			}
 			else if (TargetPlatform == MCPPlatform.Switch)
 			{

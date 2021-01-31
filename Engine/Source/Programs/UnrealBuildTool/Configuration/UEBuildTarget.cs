@@ -229,11 +229,6 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Mac = FindOrAddByName("Mac");
 
 		/// <summary>
-		/// XboxOne
-		/// </summary>
-		public static UnrealTargetPlatform XboxOne = FindOrAddByName("XboxOne");
-
-		/// <summary>
 		/// Playstation 4
 		/// </summary>
 		public static UnrealTargetPlatform PS4 = FindOrAddByName("PS4");

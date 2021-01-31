@@ -28,7 +28,7 @@ public class TextureShareD3D11 : ModuleRules
 		///////////////////////////////////////////////////////////////
 		// Platform specific defines
 		///////////////////////////////////////////////////////////////
-		if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.XboxOne)
+		if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			PrecompileForTargets = PrecompileTargetsType.None;
 		}

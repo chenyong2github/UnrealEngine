@@ -29,11 +29,6 @@ namespace UnrealBuildTool.Rules
 					"MfMediaFactory/Private",
 				});
 
-			if (Target.Platform == UnrealTargetPlatform.XboxOne)
-			{
-				DynamicallyLoadedModuleNames.Add("MfMedia");
-			}
-
 			if (DoAllowHTTPSPlayback())
 			{
 				PrivateDefinitions.Add("MFMEDIAFACTORY_ALLOW_HTTPS=1");

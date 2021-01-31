@@ -27,8 +27,7 @@
 				"Win32",
 				"Win64",
 				"Linux",
-				"PS4",
-				"XboxOne"
+				"PS4"
 			],
 			"BlacklistPlatforms": [
 				"TVOS"
@@ -46,8 +45,7 @@
 				"Win32",
 				"Win64",
 				"Linux",
-				"PS4",
-				"XboxOne"
+				"PS4"
 			],
 			"BlacklistPlatforms": [
 				"TVOS"
@@ -67,19 +65,6 @@
 				"PS4"
 			],
 			"BlacklistPlatforms": [
-				"TVOS"
-			]
-		},
-		{
-			"Name": "PlatformCryptoBCrypt",
-			"Type": "RuntimeAndProgram",
-			"LoadingPhase": "EarliestPossible",
-			"WhitelistPlatforms": [
-				"XboxOne"
-			],
-			"BlacklistPlatforms": [
-				"Android",
-				"IOS",
 				"TVOS"
 			]
 		}
