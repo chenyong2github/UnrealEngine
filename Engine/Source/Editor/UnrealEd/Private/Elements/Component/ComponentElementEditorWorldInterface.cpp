@@ -44,6 +44,12 @@ void UComponentElementEditorWorldInterface::NotifyMovementEnded(const FTypedElem
 	}
 }
 
+bool UComponentElementEditorWorldInterface::CanDeleteElement(const FTypedElementHandle& InElementHandle)
+{
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
+	return Component && GUnrealEd->CanDeleteComponent(Component);
+}
+
 bool UComponentElementEditorWorldInterface::DeleteElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
 {
 	const TArray<UActorComponent*> ComponentsToDelete = ComponentElementDataUtil::GetComponentsFromHandles(InElementHandles);

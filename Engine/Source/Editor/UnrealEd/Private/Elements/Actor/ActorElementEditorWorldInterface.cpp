@@ -61,6 +61,12 @@ void UActorElementEditorWorldInterface::NotifyMovementEnded(const FTypedElementH
 	}
 }
 
+bool UActorElementEditorWorldInterface::CanDeleteElement(const FTypedElementHandle& InElementHandle)
+{
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
+	return Actor && GUnrealEd->CanDeleteActor(Actor);
+}
+
 bool UActorElementEditorWorldInterface::DeleteElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
 {
 	const TArray<AActor*> ActorsToDelete = ActorElementDataUtil::GetActorsFromHandles(InElementHandles);
