@@ -19,20 +19,9 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	if (IsValidForSearch())
-	{
-		ComposedQuery.Init(Database->Schema);
-
-		// Set initial pose features
-		UE::PoseSearch::IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<UE::PoseSearch::IPoseHistoryProvider>();
-		if (PoseHistoryProvider)
-		{
-			UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-			ComposedQuery.SetPoseFeatures(&History);
-		}
-	}
-
 	DbPoseIdx = INDEX_NONE;
+	DbSequenceIdx = INDEX_NONE;
+	ElapsedPoseJumpTime = ThrottleTime;
 
 	Source.SetLinkNode(&SequencePlayerNode);
 	Source.Initialize(Context);
@@ -52,9 +41,17 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 	GetEvaluateGraphExposedInputs().Execute(Context);
 	// Note: What if the input database changes? That's not being handled at all!
 
+	bool bJumpedToPose = false;
+
 	if (IsValidForSearch())
 	{
-		float AssetTime = SequencePlayerNode.GetAccumulatedTime();
+		if (!ComposedQuery.IsInitialized())
+		{
+			ComposedQuery.Init(Database->Schema);
+		}
+
+		const float AssetTime = SequencePlayerNode.GetAccumulatedTime();
+		const float AssetLength = SequencePlayerNode.GetCurrentAssetLength();
 
 		// Step the pose forward
 		if (DbPoseIdx != INDEX_NONE)
@@ -72,8 +69,18 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 			}
 		}
 
+		if (DbPoseIdx == INDEX_NONE)
+		{
+			UE::PoseSearch::IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<UE::PoseSearch::IPoseHistoryProvider>();
+			if (PoseHistoryProvider)
+			{
+				UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
+				ComposedQuery.SetPoseFeatures(&History);
+			}
+		}
+
 		// Update features in the query with the latest inputs
-		ComposeQuery();
+		ComposeQuery(Context);
 
 		// Determine how much the updated query vector deviates from the current pose vector
 		float CurrentDissimilarity = MAX_flt;
@@ -83,21 +90,13 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 		}
 
 		// Search the database for the nearest match to the updated query vector
-
-		UE::PoseSearch::IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<UE::PoseSearch::IPoseHistoryProvider>();
-		if (PoseHistoryProvider)
-		{
-			UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-			ComposedQuery.SetPoseFeatures(&History);
-		}
-
 		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, ComposedQuery.GetValues());
-		if (Result.IsValid())
+		if (Result.IsValid() && (ElapsedPoseJumpTime >= ThrottleTime))
 		{
 			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
 
 			// Consider the search result better if it is more similar to the query than the current pose we're playing back from the database
-			bool bBetterPose = Result.Dissimilarity < CurrentDissimilarity;
+			bool bBetterPose = Result.Dissimilarity * (1.0f + SimilarityThreshold) < CurrentDissimilarity;
 
 			// We'll ignore the candidate pose if it is too near to our current pose
 			bool bNearbyPose = false;
@@ -106,22 +105,54 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 				bNearbyPose = FMath::Abs(AssetTime - Result.TimeOffsetSeconds) < PoseJumpThreshold;
 				if (!bNearbyPose && ResultDbSequence.bLoopAnimation)
 				{
-					bNearbyPose = FMath::Abs(SequencePlayerNode.GetCurrentAssetLength() - AssetTime - Result.TimeOffsetSeconds) < PoseJumpThreshold;
+					bNearbyPose = FMath::Abs(AssetLength - AssetTime - Result.TimeOffsetSeconds) < PoseJumpThreshold;
 				}
 			}
 
 			// And we won't bother to jump to another pose within the same looping sequence we're already playing
 			// (This should probably be configurable)
-			bool bSameCycle = (DbSequenceIdx == Result.DbSequenceIdx) && ResultDbSequence.bLoopAnimation;
-
 			bool bSameSequence = DbSequenceIdx == Result.DbSequenceIdx;
+			bool bSameCycle = bSameSequence && ResultDbSequence.bLoopAnimation;
 
 			// Start playback from the candidate pose if we determined it was a better option
 			if (bBetterPose && !bNearbyPose && !bSameCycle && !bSameSequence)
 			{
 				JumpToPose(Context, Result);
+				bJumpedToPose = true;
 			}
 		}
+
+		// Continue with the follow up sequence if we're finishing a one shot anim
+		if (!bJumpedToPose && SequencePlayerNode.Sequence && !SequencePlayerNode.bLoopAnimation)
+		{
+			float AssetTimeAfterUpdate = AssetTime + Context.GetDeltaTime();
+			if (AssetTimeAfterUpdate > AssetLength)
+			{
+				const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[DbSequenceIdx];
+				int32 FollowUpDbSequenceIdx = Database->Sequences.IndexOfByPredicate([&](const FPoseSearchDatabaseSequence& Entry){ return Entry.Sequence == DbSequence.FollowUpSequence; });
+				if (FollowUpDbSequenceIdx != INDEX_NONE)
+				{
+					const FPoseSearchDatabaseSequence& FollowUpDbSequence = Database->Sequences[FollowUpDbSequenceIdx];
+					float FollowUpAssetTime = AssetTimeAfterUpdate - AssetLength;
+					int32 FollowUpPoseIdx = Database->GetPoseIndexFromAssetTime(FollowUpDbSequenceIdx, FollowUpAssetTime);
+
+					UE::PoseSearch::FDbSearchResult FollowUpResult;
+					FollowUpResult.DbSequenceIdx = FollowUpDbSequenceIdx;
+					FollowUpResult.PoseIdx = FollowUpPoseIdx;
+					JumpToPose(Context, FollowUpResult);
+					bJumpedToPose = true;
+				}
+			}
+		}
+	}
+
+	if (bJumpedToPose)
+	{
+		ElapsedPoseJumpTime = 0.0f;
+	}
+	else
+	{
+		ElapsedPoseJumpTime += Context.GetDeltaTime();
 	}
 
 	Source.Update(Context);
@@ -145,12 +176,13 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 		check(SkeletalMeshComponent);
 
 		UE::PoseSearch::FDebugDrawParams DrawParams;
-		DrawParams.RootTransform = SkeletalMeshComponent->GetBoneTransform(0);
+		DrawParams.RootTransform = SkeletalMeshComponent->GetComponentTransform();
 		DrawParams.Flags = UE::PoseSearch::EDebugDrawFlags::DrawQuery;
 		DrawParams.Database = Database;
 		DrawParams.Query = ComposedQuery.GetValues();
 		DrawParams.World = SkeletalMeshComponent->GetWorld();
 		DrawParams.DefaultLifeTime = 0.0f;
+		DrawParams.HighlightPoseIdx = DbPoseIdx;
 		UE::PoseSearch::Draw(DrawParams);
 	}
 #endif
@@ -166,8 +198,17 @@ bool FAnimNode_MotionMatching::IsValidForSearch() const
 	return Database && Database->IsValidForSearch();
 }
 
-void FAnimNode_MotionMatching::ComposeQuery()
+void FAnimNode_MotionMatching::ComposeQuery(const FAnimationBaseContext& Context)
 {
+	// Set past trajectory features
+	UE::PoseSearch::IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<UE::PoseSearch::IPoseHistoryProvider>();
+	if (PoseHistoryProvider)
+	{
+		UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
+		ComposedQuery.SetPastTrajectoryFeatures(&History);
+	}
+
+	// Merge goal features into the query vector
 	if (ComposedQuery.IsCompatible(Goal))
 	{
 		ComposedQuery.MergeReplace(Goal);

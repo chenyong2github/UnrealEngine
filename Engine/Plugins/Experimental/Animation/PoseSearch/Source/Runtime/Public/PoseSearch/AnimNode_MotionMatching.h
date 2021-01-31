@@ -32,6 +32,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float PoseJumpThreshold = 0.5f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
+	float SimilarityThreshold = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
+	float ThrottleTime = 0.1f;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category=Debug)
 	bool bDebugDraw = false;
@@ -60,7 +66,10 @@ private:
 	// The current query feature vector used to search the database for pose candidates
 	FPoseSearchFeatureVectorBuilder ComposedQuery;
 
+	// Time since the last pose jump
+	float ElapsedPoseJumpTime = 0.0f;
+
 	bool IsValidForSearch() const;
-	void ComposeQuery();
+	void ComposeQuery(const FAnimationBaseContext& Context);
 	void JumpToPose(const FAnimationUpdateContext& Context, UE::PoseSearch::FDbSearchResult Result);
 };

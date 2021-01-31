@@ -57,7 +57,7 @@ void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Outp
 
 	Source.Evaluate(Output);
 
-	PoseHistory.Update(EvalDeltaTime, Output.Pose);
+	PoseHistory.Update(EvalDeltaTime, Output);
 
 	EvalDeltaTime = 0.0f;
 }

@@ -275,6 +275,26 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	bool bLoopAnimation = false;
 
+	// Used for sampling past pose information at the beginning of the main sequence.
+	// This setting is intended for transitions between cycles. It is optional and only used
+	// for one shot anims with past sampling. When past sampling is used without a lead in sequence,
+	// the sampling range of the main sequence will be clamped if necessary.
+	UPROPERTY(EditAnywhere, Category="Sequence")
+	UAnimSequence* LeadInSequence = nullptr;
+
+	UPROPERTY(EditAnywhere, Category="Sequence")
+	bool bLoopLeadInAnimation = false;
+
+	// Used for sampling future pose information at the end of the main sequence.
+	// This setting is intended for transitions between cycles. It is optional and only used
+	// for one shot anims with future sampling. When future sampling is used without a follow up sequence,
+	// the sampling range of the main sequence will be clamped if necessary.
+	UPROPERTY(EditAnywhere, Category="Sequence")
+	UAnimSequence* FollowUpSequence = nullptr;
+
+	UPROPERTY(EditAnywhere, Category="Sequence")
+	bool bLoopFollowUpAnimation = false;
+
 	UPROPERTY()
 	int32 FirstPoseIdx = 0;
 
@@ -314,7 +334,7 @@ public: // UObject
 /** 
 * Helper object for writing features into a float buffer according to a feature vector layout.
 * Keeps track of which features are present, allowing the feature vector to be built up piecemeal.
-* FPoseSearchFeatureVectorBuilder is used to build search queries at runtime and during search index construction.
+* FFeatureVectorBuilder is used to build search queries at runtime and for adding samples during search index construction.
 */
 
 USTRUCT(BlueprintType, Category = "Animation|PoseSearch")
@@ -335,6 +355,7 @@ public:
 	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector);
 	bool SetPoseFeatures(UE::PoseSearch::FPoseHistory* History);
+	bool SetPastTrajectoryFeatures(UE::PoseSearch::FPoseHistory* History);
 
 	void Copy(TArrayView<const float> FeatureVector);
 	void CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx);
@@ -364,8 +385,9 @@ class POSESEARCH_API FPoseHistory
 public:
 	void Init(int32 InNumPoses, float InTimeHorizon);
 	void Init(const FPoseHistory& History);
-	bool Sample(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones);
-	void Update(float SecondsElapsed, const FCompactPose& EvalContext);
+	bool SamplePose(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones);
+	bool SampleRoot(float SecondsAgo, FTransform* OutTransform) const;
+	void Update(float SecondsElapsed, const FPoseContext& PoseContext);
 	float GetSampleInterval() const;
 	TArrayView<const FTransform> GetLocalPoseSample() const { return SampledLocalPose; }
 	TArrayView<const FTransform> GetComponentPoseSample() const { return SampledComponentPose; }
@@ -380,6 +402,7 @@ private:
 	struct FPose
 	{
 		TArray<FTransform> LocalTransforms;
+		FTransform WorldComponentTransform;
 	};
 
 	TRingBuffer<FPose> Poses;
