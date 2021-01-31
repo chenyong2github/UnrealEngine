@@ -75,31 +75,16 @@ void UEdMode::Initialize()
 
 bool UEdMode::MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
 {
-	if (ToolsContext->MouseEnter(ViewportClient, Viewport, x, y))
-	{
-		return true;
-	}
-
 	return false;
 }
 
 bool UEdMode::MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport)
 {
-	if (ToolsContext->MouseLeave(ViewportClient, Viewport))
-	{
-		return true;
-	}
-
 	return false;
 }
 
 bool UEdMode::MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
 {
-	if (ToolsContext->MouseMove(ViewportClient, Viewport, x, y))
-	{
-		return true;
-	}
-
 	return false;
 }
 
@@ -115,12 +100,6 @@ bool UEdMode::LostFocus(FEditorViewportClient* ViewportClient, FViewport* Viewpo
 
 bool UEdMode::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
 {
-	// if alt is down we will not allow client to see this event
-	if (ToolsContext->CapturedMouseMove(InViewportClient, InViewport, InMouseX, InMouseY))
-	{
-		return true;
-	}
-
 	return false;
 }
 
@@ -129,11 +108,6 @@ bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewpor
 	if (!Viewport)
 	{
 		return false;
-	}
-
-	if (ToolsContext->InputKey(ViewportClient, Viewport, Key, Event))
-	{
-		return true;
 	}
 
 	if (Event != IE_Released)
@@ -181,23 +155,15 @@ bool UEdMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InV
 
 void UEdMode::SelectNone()
 {
-	GEditor->SelectNone(true, true);
 }
 
 bool UEdMode::ProcessEditDelete()
 {
-	if (ToolsContext->ProcessEditDelete())
-	{
-		return true;
-	}
-
 	return false;
 }
 
 void UEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
-	// Tick the ToolsContext
-	ToolsContext->Tick(ViewportClient, DeltaTime);
 }
 
 
@@ -308,21 +274,10 @@ UTexture2D* UEdMode::GetVertexTexture()
 
 void UEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	// give ToolsContext a chance to render
-	if (ToolsContext.IsValid())
-	{
-		ToolsContext->Render(View, Viewport, PDI);
-	}
 }
 
 void UEdMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
-	// give ToolsContext a chance to draw in screen space
-	if (ToolsContext != nullptr)
-	{
-		ToolsContext->DrawHUD(ViewportClient, Viewport, View, Canvas);
-	}
-
 	// Render the drag tool.
 	ViewportClient->RenderDragTool(View, Canvas);
 
@@ -458,21 +413,11 @@ class FEditorModeTools* UEdMode::GetModeManager() const
 
 bool UEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	if (ToolsContext->StartTracking(InViewportClient, InViewport))
-	{
-		return true;
-	}
-
 	return false; 
 }
 
 bool UEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	if (ToolsContext->EndTracking(InViewportClient, InViewport))
-	{
-		return true;
-	}
-
 	return false; 
 }
 

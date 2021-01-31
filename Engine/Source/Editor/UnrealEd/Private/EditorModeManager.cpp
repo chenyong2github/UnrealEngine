@@ -229,7 +229,7 @@ bool FEditorModeTools::ProcessEditDuplicate()
 
 bool FEditorModeTools::ProcessEditDelete()
 {
-	bool bHandled = false;
+	bool bHandled = InteractiveToolsContext->ProcessEditDelete();
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		bHandled = Mode->ProcessEditDelete();
@@ -1015,10 +1015,9 @@ EAxisList::Type FEditorModeTools::GetWidgetAxisToDraw( UE::Widget::EWidgetMode I
 bool FEditorModeTools::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	bIsTracking = true;
-	bool bTransactionHandled = false;
-
 	CachedLocation = PivotLocation;	// Cache the pivot location
 
+	bool bTransactionHandled = InteractiveToolsContext->StartTracking(InViewportClient, InViewport);
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		bTransactionHandled |= Mode->StartTracking(InViewportClient, InViewportClient->Viewport);
@@ -1031,7 +1030,7 @@ bool FEditorModeTools::StartTracking(FEditorViewportClient* InViewportClient, FV
 bool FEditorModeTools::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	bIsTracking = false;
-	bool bTransactionHandled = false;
+	bool bTransactionHandled = InteractiveToolsContext->EndTracking(InViewportClient, InViewport);
 
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
@@ -1218,6 +1217,7 @@ void FEditorModeTools::Tick( FEditorViewportClient* ViewportClient, float DeltaT
 		ActivateDefaultMode();
 	}
 
+	InteractiveToolsContext->Tick(ViewportClient, DeltaTime);
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		Mode->Tick(ViewportClient, DeltaTime);
@@ -1238,7 +1238,7 @@ bool FEditorModeTools::InputDelta( FEditorViewportClient* InViewportClient,FView
 /** Notifies all active modes of captured mouse movement */	
 bool FEditorModeTools::CapturedMouseMove( FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY )
 {
-	bool bHandled = false;
+	bool bHandled = InteractiveToolsContext->CapturedMouseMove(InViewportClient, InViewport, InMouseX, InMouseY);
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		bHandled |= Mode->CapturedMouseMove(InViewportClient, InViewport, InMouseX, InMouseY);
@@ -1260,14 +1260,21 @@ bool FEditorModeTools::ProcessCapturedMouseMoves( FEditorViewportClient* InViewp
 /** Notifies all active modes of keyboard input */
 bool FEditorModeTools::InputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
+	bool bToolsContextHandled = InteractiveToolsContext->InputKey(InViewportClient, Viewport, Key, Event);
 	bool bHandled = false;
+	
 	//Copy the modes and iterate of that since a key may remove the edit mode and change CopyActiveScriptableModes
 	TArray<UEdMode*> CopyActiveScriptableModes(ActiveScriptableModes);
 	for (UEdMode* Mode : CopyActiveScriptableModes)
 	{
-		bHandled |= Mode->InputKey(InViewportClient, Viewport, Key, Event);
+		// If the interactive tools context did not handle the InputKey, then pass along to the UEdMode
+		// Always pass through for the FEdModes to handle for backwards compat.
+		if (!bToolsContextHandled || Mode->AsLegacyMode())
+		{
+			bHandled |= Mode->InputKey(InViewportClient, Viewport, Key, Event);
+		}
 	}
-	return bHandled;
+	return bHandled || bToolsContextHandled;
 }
 
 /** Notifies all active modes of axis movement */
@@ -1297,7 +1304,7 @@ bool FEditorModeTools::GetPivotForOrbit( FVector& Pivot ) const
 bool FEditorModeTools::MouseEnter( FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 X, int32 Y )
 {
 	HoveredViewportClient = InViewportClient;
-	bool bHandled = false;
+	bool bHandled = InteractiveToolsContext->MouseEnter(InViewportClient, Viewport, X, Y);;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		bHandled |= Mode->MouseEnter(InViewportClient, Viewport, X, Y);
@@ -1307,7 +1314,8 @@ bool FEditorModeTools::MouseEnter( FEditorViewportClient* InViewportClient, FVie
 
 bool FEditorModeTools::MouseLeave( FEditorViewportClient* InViewportClient, FViewport* Viewport )
 {
-	bool bHandled = false;
+	bool bHandled = InteractiveToolsContext->MouseLeave(InViewportClient, Viewport);
+
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		bHandled |= Mode->MouseLeave(InViewportClient, Viewport);
@@ -1318,7 +1326,8 @@ bool FEditorModeTools::MouseLeave( FEditorViewportClient* InViewportClient, FVie
 /** Notifies all active modes that the mouse has moved */
 bool FEditorModeTools::MouseMove( FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 X, int32 Y )
 {
-	bool bHandled = false;
+	bool bHandled = InteractiveToolsContext->MouseMove(InViewportClient, Viewport, X, Y);
+
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		bHandled |= Mode->MouseMove(InViewportClient, Viewport, X, Y);
@@ -1362,6 +1371,7 @@ void FEditorModeTools::DrawActiveModes( const FSceneView* InView, FPrimitiveDraw
 /** Renders all active modes */
 void FEditorModeTools::Render( const FSceneView* InView, FViewport* Viewport, FPrimitiveDrawInterface* PDI )
 {
+	InteractiveToolsContext->Render(InView, Viewport, PDI);
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		Mode->Render(InView, Viewport, PDI);
@@ -1371,6 +1381,7 @@ void FEditorModeTools::Render( const FSceneView* InView, FViewport* Viewport, FP
 /** Draws the HUD for all active modes */
 void FEditorModeTools::DrawHUD( FEditorViewportClient* InViewportClient,FViewport* Viewport, const FSceneView* View, FCanvas* Canvas )
 {
+	InteractiveToolsContext->DrawHUD(InViewportClient, Viewport, View, Canvas);
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		Mode->DrawHUD(InViewportClient, Viewport, View, Canvas);
