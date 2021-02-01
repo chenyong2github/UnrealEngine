@@ -63,13 +63,15 @@ public:
 		FMeshTangentsd& ResultTangents,
 		FSimpleShapeSet3d& ResultCollision,
 		UE::GeometryFlow::FNormalMapImage& NormalMap,
-		TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages);
+		TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
+		FProgressCancel* Progress);
 
 	void EvaluateResultParallel(FDynamicMesh3& ResultMesh,
-						   FMeshTangentsd& ResultTangents,
-						   FSimpleShapeSet3d& ResultCollision,
-						   UE::GeometryFlow::FNormalMapImage& NormalMap,
-						   TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages);
+								FMeshTangentsd& ResultTangents,
+								FSimpleShapeSet3d& ResultCollision,
+								UE::GeometryFlow::FNormalMapImage& NormalMap,
+								TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
+								FProgressCancel* Progress);
 
 protected:
 	TUniquePtr<UE::GeometryFlow::FGraph> Graph;

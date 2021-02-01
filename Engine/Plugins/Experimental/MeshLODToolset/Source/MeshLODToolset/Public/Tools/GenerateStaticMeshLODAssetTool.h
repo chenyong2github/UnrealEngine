@@ -6,6 +6,7 @@
 #include "UObject/NoExportTypes.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
+#include "ModelingOperators.h" //IDynamicMeshOperatorFactory
 #include "DynamicMesh3.h"
 #include "PreviewMesh.h"
 #include "Drawing/PreviewGeometryActor.h"
@@ -18,7 +19,12 @@
 struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class IAssetGenerationAPI;
-
+class UMeshOpPreviewWithBackgroundCompute;
+class UGenerateStaticMeshLODAssetTool;
+namespace GenerateStaticMeshLODAssetLocals
+{
+	class FGenerateStaticMeshLODAssetOperatorFactory;
+}
 
 UENUM()
 enum class EGenerateLODAssetOutputMode : uint8
@@ -29,7 +35,7 @@ enum class EGenerateLODAssetOutputMode : uint8
 
 
 /**
- *
+ * Tool builder
  */
 UCLASS()
 class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolBuilder : public UInteractiveToolBuilder
@@ -66,7 +72,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bParallelExecution = false;
 
-	/** Base name for newly-generated asset */
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FGenerateStaticMeshLODProcessSettings GeneratorSettings;
 
@@ -103,11 +108,13 @@ public:
 
 protected:
 
+	friend class GenerateStaticMeshLODAssetLocals::FGenerateStaticMeshLODAssetOperatorFactory;
+
 	UPROPERTY()
 	UGenerateStaticMeshLODAssetToolProperties* BasicProperties;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	UMeshOpPreviewWithBackgroundCompute* PreviewWithBackgroundCompute = nullptr;
 
 	UPROPERTY()
 	TArray<UTexture2D*> PreviewTextures;
@@ -137,10 +144,9 @@ protected:
 	UPROPERTY()
 	UGenerateStaticMeshLODProcess* GenerateProcess;
 
-	void OnSettingsModified();
+	TUniquePtr<IDynamicMeshOperatorFactory> OpFactory;
 
-	bool bPreviewValid;
-	void ValidatePreview();
+	void OnSettingsModified();
 
 	bool bCollisionVisualizationDirty = false;
 	void UpdateCollisionVisualization();

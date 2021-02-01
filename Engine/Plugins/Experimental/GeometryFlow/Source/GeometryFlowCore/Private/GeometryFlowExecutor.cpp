@@ -81,11 +81,8 @@ void FGeometryFlowExecutor::TopologicalSort()
 }
 
 
-void FGeometryFlowExecutor::AsyncRunGraph()
+void FGeometryFlowExecutor::AsyncRunGraph(FProgressCancel* Progress)
 {
-	DebugNodeExecutionLog.Reset();
-	DebugNodeExecutionTime.Reset();
-
 	// Track nodes as they are added to the TaskGraph
 	GeometryFlowNodeToGraphTask.Reset();
 
@@ -150,6 +147,11 @@ void FGeometryFlowExecutor::AsyncRunGraph()
 					DataFlags.bIsMutableData = true;
 				}
 
+				if (EvalInfo && EvalInfo->Progress && EvalInfo->Progress->Cancelled())
+				{
+					return;
+				}
+
 				// TODO: Error if upstream node hasn't executed yet.
 
 				FGraph::FHandle UpstreamNodeHandle = Connection.FromNode;
@@ -171,17 +173,16 @@ void FGeometryFlowExecutor::AsyncRunGraph()
 				DatasOut.Add(NodeOutput.Name);
 			}
 
+			if (EvalInfo && EvalInfo->Progress && EvalInfo->Progress->Cancelled())
+			{
+				return;
+			}
+
 			double T0 = FPlatformTime::Seconds();
 			
 			Node->Evaluate(DatasIn, DatasOut, EvalInfo);
 
 			double T1 = FPlatformTime::Seconds();
-
-			// Debug logging
-			DebugNodeExecutionLogLock.Lock();
-			DebugNodeExecutionLog.Add(NodeHandle.Identifier);
-			DebugNodeExecutionTime.Add(Node.Get(), T1 - T0);
-			DebugNodeExecutionLogLock.Unlock();
 		};
 		
 		// TODO: Create but don't dispatch? Possible?
@@ -194,9 +195,15 @@ void FGeometryFlowExecutor::AsyncRunGraph()
 
 
 EGeometryFlowResult FGeometryFlowExecutor::ComputeOutputs(const TArray<NodeOutputSpec>& DesiredOutputs,
-														  TArray<TSafeSharedPtr<IData>>& OutputDatas)
+														  TArray<TSafeSharedPtr<IData>>& OutputDatas,
+														  FProgressCancel* Progress)
 {
-	AsyncRunGraph();
+	AsyncRunGraph(Progress);
+
+	if (Progress && Progress->Cancelled())
+	{
+		return EGeometryFlowResult::OperationCancelled;
+	}
 
 	for (const NodeOutputSpec& Out : DesiredOutputs)
 	{

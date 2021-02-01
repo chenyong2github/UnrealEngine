@@ -6,6 +6,7 @@
 #include "DynamicMesh3.h"
 #include "ShapeApproximation/SimpleShapeSet3.h"
 
+class FProgressCancel;
 
 /**
  * EDetectedSimpleShapeType is used to identify auto-detected simple shapes for a mesh/etc
@@ -92,7 +93,7 @@ public:
 	/**
 	 * Fit containing minimal-volume oriented boxes to each input mesh and store in ShapeSetOut
 	 */
-	void Generate_OrientedBoxes(FSimpleShapeSet3d& ShapeSetOut);
+	void Generate_OrientedBoxes(FSimpleShapeSet3d& ShapeSetOut, FProgressCancel* Progress = nullptr);
 
 	/**
 	 * Fit containing minimal-volume spheres to each input mesh and store in ShapeSetOut

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryFlowGraph.h"
+#include "Util/ProgressCancel.h"
 
 using namespace UE::GeometryFlow;
 
@@ -244,11 +245,16 @@ TSafeSharedPtr<IData> FGraph::ComputeOutputData(
 		}
 
 		// recursively fetch Data coming in to this Input via Connection
-		TSafeSharedPtr<IData> OutputData = 
+		TSafeSharedPtr<IData> UpstreamData = 
 			ComputeOutputData(Connection.FromNode, Connection.FromOutput, EvaluationInfo, bStealDataForInput);
-	
+
 		// add to named data map
-		DataIn.Add(InputName, OutputData, DataFlags);
+		DataIn.Add(InputName, UpstreamData, DataFlags);
+	}
+
+	if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+	{
+		return nullptr;
 	}
 
 	// evalute node
@@ -256,6 +262,11 @@ TSafeSharedPtr<IData> FGraph::ComputeOutputData(
 	DataOut.Add(OutputName);
 	Node->Evaluate(DataIn, DataOut, EvaluationInfo);
 	EvaluationInfo->CountEvaluation(Node.Get());
+
+	if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+	{
+		return nullptr;
+	}
 
 	// collect (and optionally take/steal) desired Output data
 	TSafeSharedPtr<IData> Result = (bStealOutputData) ? 

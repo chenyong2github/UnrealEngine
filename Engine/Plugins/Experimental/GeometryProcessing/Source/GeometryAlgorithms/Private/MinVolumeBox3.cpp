@@ -21,6 +21,7 @@ THIRD_PARTY_INCLUDES_END
 #include "ConvexHull3.h"
 
 #include "GteUtil.h"
+#include "Util/ProgressCancel.h"
 
 template <typename RealType>
 struct TMinVolumeBox3Internal
@@ -40,7 +41,7 @@ struct TMinVolumeBox3Internal
 		DoubleInput[Index] = DVector3{ {(double)Point.X, (double)Point.Y, (double)Point.Z} };
 	}
 
-	bool ComputeResult()
+	bool ComputeResult(FProgressCancel* Progress)
 	{
 		gte::OrientedBox3<double> MinimalBox = gte::OrientedBox3<double>();
 
@@ -63,17 +64,22 @@ struct TMinVolumeBox3Internal
 			return false;
 		}
 
+		if (Progress && Progress->Cancelled())
+		{
+			return false;
+		}
+
 		const int* Indices = static_cast<const int*>(&(HullCompute.GetTriangles()[0][0]));		// Eww
 
 		if (bUseExactBox)
 		{
 			gte::MinimumVolumeBox3<double, PreciseBoxNumberType> BoxCompute;
-			MinimalBox = BoxCompute(DoubleInput.Num(), &DoubleInput[0], NumIndices, Indices);
+			MinimalBox = BoxCompute(DoubleInput.Num(), &DoubleInput[0], NumIndices, Indices, Progress);
 		}
 		else
 		{
 			gte::MinimumVolumeBox3<double, double> DoubleCompute;
-			MinimalBox = DoubleCompute(DoubleInput.Num(), &DoubleInput[0], NumIndices, Indices);
+			MinimalBox = DoubleCompute(DoubleInput.Num(), &DoubleInput[0], NumIndices, Indices, Progress);
 		}
 		bSolutionOK = true;
 
@@ -100,7 +106,7 @@ struct TMinVolumeBox3Internal
 
 
 template<typename RealType>
-bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox)
+bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox, FProgressCancel* Progress )
 {
 	Initialize(NumPoints, bUseExactBox);
 	check(Internal);
@@ -111,7 +117,7 @@ bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<Real
 		Internal->SetPoint(k, Point);
 	}
 	
-	return Internal->ComputeResult();
+	return Internal->ComputeResult(Progress);
 }
 
 template<typename RealType>

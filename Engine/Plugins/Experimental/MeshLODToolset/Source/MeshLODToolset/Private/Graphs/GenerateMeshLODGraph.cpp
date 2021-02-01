@@ -135,12 +135,18 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 	FMeshTangentsd& ResultTangents,
 	FSimpleShapeSet3d& ResultCollision,
 	UE::GeometryFlow::FNormalMapImage& NormalMap,
-	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages)
+	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
+	FProgressCancel* Progress)
 {
 	//FScopedDurationTimeLogger Timer(TEXT("FGenerateMeshLODGraph::EvaluateResult -- parallel execution"));
 
 	FGeometryFlowExecutor Exec(*Graph);
-	Exec.AsyncRunGraph();
+	Exec.AsyncRunGraph(Progress);
+
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
 
 	NormalMap = FNormalMapImage();
 	bool bTakeNormalMap = true;
@@ -149,6 +155,10 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 													   NormalMap, 
 													   (int)EMeshProcessingDataTypes::NormalMapImage, 
 													   bTakeNormalMap);
+	if (ExtractResult == EGeometryFlowResult::OperationCancelled)
+	{
+		return;
+	}
 	check(ExtractResult == EGeometryFlowResult::Ok);
 
 	for (FBakeTextureGraphInfo& TexBakeStep : BakeTextureNodes)
@@ -160,6 +170,10 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 									   *NewImage,
 									   (int)EMeshProcessingDataTypes::TextureImage,
 									   bTakeNormalMap);
+		if (ExtractResult == EGeometryFlowResult::OperationCancelled)
+		{
+			return;
+		}
 		check(ExtractResult == EGeometryFlowResult::Ok);
 		TextureImages.Add(MoveTemp(NewImage));
 	}
@@ -170,6 +184,10 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 								   FCollisionGeometryTransferNode::OutParamValue(),
 								   ResultCollision,
 								   (int)FCollisionGeometry::DataTypeIdentifier, bTakeResultCollision);
+	if (ExtractResult == EGeometryFlowResult::OperationCancelled)
+	{
+		return;
+	}
 	check(ExtractResult == EGeometryFlowResult::Ok);
 
 	bool bTakeResultTangents = false;
@@ -179,6 +197,10 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 								   ResultTangents, 
 								   (int)EMeshProcessingDataTypes::MeshTangentSet, 
 								   bTakeResultTangents);
+	if (ExtractResult == EGeometryFlowResult::OperationCancelled)
+	{
+		return;
+	}
 	check(ExtractResult == EGeometryFlowResult::Ok);
 	
 
@@ -189,6 +211,10 @@ void FGenerateMeshLODGraph::EvaluateResultParallel(
 								   ResultMesh, 
 								   (int32)EMeshProcessingDataTypes::DynamicMesh, 
 								   bTakeResultMesh);
+	if (ExtractResult == EGeometryFlowResult::OperationCancelled)
+	{
+		return;
+	}
 	check(ExtractResult == EGeometryFlowResult::Ok);
 }
 
@@ -245,9 +271,15 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	FMeshTangentsd& ResultTangents,
 	FSimpleShapeSet3d& ResultCollision,
 	UE::GeometryFlow::FNormalMapImage& NormalMap,
-	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages)
+	TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
+	FProgressCancel* Progress)
 {
 	//FScopedDurationTimeLogger Timer(TEXT("FGenerateMeshLODGraph::EvaluateResult -- serial execution"));
+
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
 
 	//
 	// evaluate normal map
@@ -255,11 +287,18 @@ void FGenerateMeshLODGraph::EvaluateResult(
 
 	NormalMap = FNormalMapImage();
 	TUniquePtr<FEvaluationInfo> NormalMapEvalInfo = MakeUnique<FEvaluationInfo>();
+	NormalMapEvalInfo->Progress = Progress;
 	EGeometryFlowResult NormalMapEvalResult = Graph->EvaluateResult(BakeNormalMapNode, FBakeMeshNormalMapNode::OutParamNormalMap(),
 		NormalMap, (int)EMeshProcessingDataTypes::NormalMapImage, NormalMapEvalInfo, true);
-	ensure(NormalMapEvalResult == EGeometryFlowResult::Ok);
 
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
+
+	ensure(NormalMapEvalResult == EGeometryFlowResult::Ok);
 	UE_LOG(LogTemp, Warning, TEXT("NormalMapPass - Evaluated %d Nodes, Recomputed %d"), NormalMapEvalInfo->NumEvaluations(), NormalMapEvalInfo->NumComputes());
+
 
 	//
 	// evaluate transferred textures
@@ -269,27 +308,20 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	{
 		TUniquePtr<UE::GeometryFlow::FTextureImage> NewImage = MakeUnique<UE::GeometryFlow::FTextureImage>();
 		TUniquePtr<FEvaluationInfo> TexBakeEvalInfo = MakeUnique<FEvaluationInfo>();
+		TexBakeEvalInfo->Progress = Progress;
 		EGeometryFlowResult TexBakeEvalResult = Graph->EvaluateResult(TexBakeStep.BakeNode, FBakeMeshTextureImageNode::OutParamTextureImage(),
 			*NewImage, (int)EMeshProcessingDataTypes::TextureImage, TexBakeEvalInfo, true);
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
 		TextureImages.Add(MoveTemp(NewImage));
 		ensure(TexBakeEvalResult == EGeometryFlowResult::Ok);
 
 		UE_LOG(LogTemp, Warning, TEXT("TextureBakePass %s - Evaluated %d Nodes, Recomputed %d"), *TexBakeStep.Identifier, TexBakeEvalInfo->NumEvaluations(), TexBakeEvalInfo->NumComputes());
 	}
-
-	//
-	// evaluate collision
-	//
-
-	bool bTakeResultCollision = false;
-	ResultCollision = FSimpleShapeSet3d();
-
-	TUniquePtr<FEvaluationInfo> CollisionEvalInfo = MakeUnique<FEvaluationInfo>();
-	EGeometryFlowResult CollisionEvalResult = Graph->EvaluateResult(CollisionOutputNode, FCollisionGeometryTransferNode::OutParamValue(),
-		ResultCollision, FCollisionGeometry::DataTypeIdentifier, CollisionEvalInfo, bTakeResultCollision);
-	ensure(CollisionEvalResult == EGeometryFlowResult::Ok);
-
-	UE_LOG(LogTemp, Warning, TEXT("OutputCollisionPass - Evaluated %d Nodes, Recomputed %d"), CollisionEvalInfo->NumEvaluations(), CollisionEvalInfo->NumComputes());
 
 	// 
 	// evaluate tangents
@@ -299,10 +331,16 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	ResultTangents = FMeshTangentsd();
 
 	TUniquePtr<FEvaluationInfo> TangentsEvalInfo = MakeUnique<FEvaluationInfo>();
+	TangentsEvalInfo->Progress = Progress;
 	EGeometryFlowResult TangentsEvalResult = Graph->EvaluateResult(TangentsOutputNode, FMeshTangentsTransferNode::OutParamValue(),
 		ResultTangents, (int)EMeshProcessingDataTypes::MeshTangentSet, TangentsEvalInfo, bTakeResultTangents);
-	ensure(TangentsEvalResult == EGeometryFlowResult::Ok);
 
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
+
+	ensure(TangentsEvalResult == EGeometryFlowResult::Ok);
 	UE_LOG(LogTemp, Warning, TEXT("OutputTangentsPass - Evaluated %d Nodes, Recomputed %d"), TangentsEvalInfo->NumEvaluations(), TangentsEvalInfo->NumComputes());
 
 
@@ -315,11 +353,38 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	ResultMesh.Clear();
 
 	TUniquePtr<FEvaluationInfo> MeshEvalInfo = MakeUnique<FEvaluationInfo>();
+	MeshEvalInfo->Progress = Progress;
 	EGeometryFlowResult EvalResult = Graph->EvaluateResult(MeshOutputNode, FDynamicMeshTransferNode::OutParamValue(),
 		ResultMesh, (int32)EMeshProcessingDataTypes::DynamicMesh, MeshEvalInfo, bTakeResultMesh);
-	ensure(EvalResult == EGeometryFlowResult::Ok);
 
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
+
+	ensure(EvalResult == EGeometryFlowResult::Ok);
 	UE_LOG(LogTemp, Warning, TEXT("OutputMeshPass - Evaluated %d Nodes, Recomputed %d"), MeshEvalInfo->NumEvaluations(), MeshEvalInfo->NumComputes());
+
+	//
+	// evaluate collision
+	//
+
+	bool bTakeResultCollision = false;
+	ResultCollision = FSimpleShapeSet3d();
+
+	TUniquePtr<FEvaluationInfo> CollisionEvalInfo = MakeUnique<FEvaluationInfo>();
+	CollisionEvalInfo->Progress = Progress;
+	EGeometryFlowResult CollisionEvalResult = Graph->EvaluateResult(CollisionOutputNode, FCollisionGeometryTransferNode::OutParamValue(),
+																	ResultCollision, FCollisionGeometry::DataTypeIdentifier, CollisionEvalInfo, bTakeResultCollision);
+
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
+
+	ensure(CollisionEvalResult == EGeometryFlowResult::Ok);
+	UE_LOG(LogTemp, Warning, TEXT("OutputCollisionPass - Evaluated %d Nodes, Recomputed %d"), CollisionEvalInfo->NumEvaluations(), CollisionEvalInfo->NumComputes());
+
 }
 
 

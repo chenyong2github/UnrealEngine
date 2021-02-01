@@ -4,6 +4,7 @@
 
 #include "GeometryFlowGraph.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Util/ProgressCancel.h"
 
 namespace UE
 {
@@ -36,11 +37,12 @@ public:
 	// NOTE: If NodeOutputSpec::bStealOutput is false for a given output, you must *not* call IData::GiveTo on the 
 	// corresponding output data!
 	EGeometryFlowResult ComputeOutputs(const TArray<NodeOutputSpec>& DesiredOutputs,
-									   TArray<TSafeSharedPtr<IData>>& OutputDatas);
+									   TArray<TSafeSharedPtr<IData>>& OutputDatas,
+									   FProgressCancel* Progress);
 
 	// 2a.
 	// Launch graph execution on background threads and return
-	void AsyncRunGraph();
+	void AsyncRunGraph(FProgressCancel* Progress);
 
 	// 2b.
 	// Wait for a given node to finish executing, then grab the requested data
@@ -61,6 +63,11 @@ public:
 		// Wait for the node to finish executing
 		(*GraphEvent)->Wait();
 
+		if (EvalInfo && EvalInfo->Progress && EvalInfo->Progress->Cancelled())
+		{
+			return EGeometryFlowResult::OperationCancelled;
+		}	
+		
 		TSafeSharedPtr<FNode> GeoFlowNode = GeometryFlowGraph.FindNode(NodeHandle);
 		if (!GeoFlowNode)
 		{
@@ -101,11 +108,6 @@ protected:
 	void TopologicalSort();
 
 	TMap<FGraph::FHandle, FGraphEventRef> GeometryFlowNodeToGraphTask;
-
-	// Debug helpers
-	TArray<int32> DebugNodeExecutionLog;		        // when a node executes it adds its ID to this array
-	TMap<FNode*, double> DebugNodeExecutionTime;		// log execution time
-	FCriticalSection DebugNodeExecutionLogLock;
 
 };
 

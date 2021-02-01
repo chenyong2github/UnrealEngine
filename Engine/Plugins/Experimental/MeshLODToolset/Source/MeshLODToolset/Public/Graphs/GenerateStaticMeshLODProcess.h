@@ -32,11 +32,11 @@ enum class EGenerateStaticMeshLODBakeResolution
 	Resolution8192 = 8192 UMETA(DisplayName = "8192 x 8192")
 };
 
+// NOTE: This must be kept in sync with ESimpleCollisionGeometryType in GenerateSimpleCollisionNode.h
+
 UENUM()
 enum class EGenerateStaticMeshLODSimpleCollisionGeometryType : uint8
 {
-	// NOTE: This must be kept in sync with ESimpleCollisionGeometryType in GenerateSimpleCollisionNode.h
-
 	AlignedBoxes,
 	OrientedBoxes,
 	MinimalSpheres,
@@ -46,11 +46,11 @@ enum class EGenerateStaticMeshLODSimpleCollisionGeometryType : uint8
 	MinVolume
 };
 
+// NOTE: This must be kept in sync with FMeshSimpleShapeApproximation::EProjectedHullAxisMode in MeshSimpleShapeApproximation.h
+
 UENUM()
 enum class EGenerateStaticMeshLODProjectedHullAxisMode : uint8
 {
-	// NOTE: This must be kept in sync with FMeshSimpleShapeApproximation::EProjectedHullAxisMode in MeshSimpleShapeApproximation.h
-
 	X = 0,
 	Y = 1,
 	Z = 2,
@@ -164,7 +164,7 @@ public:
 
 	void CalculateDerivedPathName(FString NewAssetSuffix);
 
-	bool ComputeDerivedSourceData();
+	bool ComputeDerivedSourceData(FProgressCancel* Progress);
 	const FDynamicMesh3& GetDerivedLOD0Mesh() const { return DerivedLODMesh; }
 	const FMeshTangentsd& GetDerivedLOD0MeshTangents() const { return DerivedLODMeshTangents; }
 	const FSimpleShapeSet3d& GetDerivedCollision() const { return DerivedCollision; }
@@ -190,6 +190,8 @@ public:
 	void GetDerivedMaterialsPreview(FPreviewMaterials& MaterialSetOut);
 
 	bool bUseParallelExecutor = false;
+
+	FCriticalSection GraphEvalCriticalSection;
 
 protected:
 

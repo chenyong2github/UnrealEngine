@@ -80,6 +80,15 @@ public:
 		const FNamedDataMap& DatasIn,
 		FNamedDataMap& DatasOut,
 		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override;
+
+protected:
+
+	EGeometryFlowResult EvaluateInternal(const FDynamicMesh3& Mesh,
+										 const FIndexSets& IndexData,
+										 const FGenerateSimpleCollisionSettings& Settings,
+										 TUniquePtr<FEvaluationInfo>& EvaluationInfo,
+										 FCollisionGeometry& OutCollisionGeometry);
+
 };
 
 }	// end namespace GeometryFlow

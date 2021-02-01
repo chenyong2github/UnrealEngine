@@ -212,6 +212,22 @@ TSafeSharedPtr<IData> FNode::GetOutput(const FString& OutputName) const
 	return nullptr;
 }
 
+void FNode::ClearOutput(const FString& OutputName)
+{
+	int32 Index = NodeOutputs.IndexOfByPredicate([&](const FNodeOutputInfo& Output) { return Output.Name == OutputName; });
+	if (ensure(Index != INDEX_NONE))
+	{
+		NodeOutputs[Index].Output->ClearOutputCache();
+	}
+}
+
+void FNode::ClearAllOutputs()
+{
+	for (FNodeOutputInfo& OutputInfo : NodeOutputs)
+	{
+		OutputInfo.Output->ClearOutputCache();
+	}
+}
 
 TSafeSharedPtr<IData> FNode::FindAndUpdateInputForEvaluate(const FString& InputName, const FNamedDataMap& DatasIn,
 	bool& bAccumModifiedOut, bool& bAccumValidOut)

@@ -19,7 +19,7 @@ void FMeshRepackUVsNode::RepackUVsForMesh(FDynamicMesh3& EditMesh, const FMeshRe
 	Packer.bAllowFlips = Settings.bAllowFlips;
 
 	bool bOK = Packer.StandardPack();
-	ensure(bOK);
+	if (!ensure(bOK)) { return; }
 
 
 	if (Settings.UVScale != FVector2f::One() || Settings.UVTranslation != FVector2f::Zero())

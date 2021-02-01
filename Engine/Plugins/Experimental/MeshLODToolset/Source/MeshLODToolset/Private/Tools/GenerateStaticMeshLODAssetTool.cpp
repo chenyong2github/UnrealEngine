@@ -37,6 +37,9 @@
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 
 #include "Graphs/GenerateStaticMeshLODProcess.h"
+#include "ModelingOperators.h"
+#include "MeshOpPreviewHelpers.h"
+#include "Generators/GridBoxMeshGenerator.h"
 
 
 #if WITH_EDITOR
@@ -45,6 +48,94 @@
 
 
 #define LOCTEXT_NAMESPACE "UGenerateStaticMeshLODAssetTool"
+
+
+//
+// Local Op Stuff
+//
+
+namespace GenerateStaticMeshLODAssetLocals
+{
+
+	class FGenerateStaticMeshLODAssetOperatorOp : public FDynamicMeshOperator, public FGCObject
+	{
+	public:
+
+		// Inputs
+		UGenerateStaticMeshLODProcess* GenerateProcess;
+		FGenerateStaticMeshLODProcessSettings GeneratorSettings;
+		
+		// Outputs
+		// Inherited: 	TUniquePtr<FDynamicMesh3> ResultMesh;
+		// 				FTransform3d ResultTransform;
+		FMeshTangentsd ResultTangents;
+		FSimpleShapeSet3d ResultCollision;
+
+		void AddReferencedObjects(FReferenceCollector& Collector) override
+		{
+			Collector.AddReferencedObject(GenerateProcess);
+		}
+
+		void CalculateResult(FProgressCancel* Progress) override
+		{
+			auto DoCompute = [this](FProgressCancel* Progress)		// bracket this computation with lock/unlock
+			{
+				if (Progress && Progress->Cancelled())
+				{
+					return;
+				}
+
+				GenerateProcess->UpdateSettings(GeneratorSettings);
+
+				if (Progress && Progress->Cancelled())
+				{
+					return;
+				}
+
+				GenerateProcess->ComputeDerivedSourceData(Progress);
+
+				if (Progress && Progress->Cancelled())
+				{
+					return;
+				}
+
+				*ResultMesh = GenerateProcess->GetDerivedLOD0Mesh();
+				ResultTangents = GenerateProcess->GetDerivedLOD0MeshTangents();
+				ResultCollision = GenerateProcess->GetDerivedCollision();
+			};
+
+			GenerateProcess->GraphEvalCriticalSection.Lock();
+			DoCompute(Progress);
+			GenerateProcess->GraphEvalCriticalSection.Unlock();
+		}
+	};
+
+	class FGenerateStaticMeshLODAssetOperatorFactory : public IDynamicMeshOperatorFactory
+	{
+
+	public:
+
+		FGenerateStaticMeshLODAssetOperatorFactory(UGenerateStaticMeshLODAssetTool* AutoLODTool, FTransform3d ResultTransform) : 
+			AutoLODTool(AutoLODTool), 
+			ResultTransform(ResultTransform) 
+		{}
+
+		// IDynamicMeshOperatorFactory API
+		virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override
+		{
+			check(AutoLODTool);
+			TUniquePtr<FGenerateStaticMeshLODAssetOperatorOp> Op = MakeUnique<FGenerateStaticMeshLODAssetOperatorOp>();		
+			Op->GenerateProcess = AutoLODTool->GenerateProcess;
+			Op->GeneratorSettings = AutoLODTool->BasicProperties->GeneratorSettings;
+			Op->SetResultTransform(ResultTransform);
+			return Op;
+		}
+
+		UGenerateStaticMeshLODAssetTool* AutoLODTool = nullptr;
+		FTransform3d ResultTransform;
+	};
+
+}
 
 
 /*
@@ -98,6 +189,8 @@ void UGenerateStaticMeshLODAssetTool::SetWorld(UWorld* World)
 
 void UGenerateStaticMeshLODAssetTool::Setup()
 {
+	using GenerateStaticMeshLODAssetLocals::FGenerateStaticMeshLODAssetOperatorFactory;
+
 	UInteractiveTool::Setup();
 
 	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
@@ -120,7 +213,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	if (StaticMesh)
 	{
-		GenerateProcess->Initialize(StaticMesh);
+		GenerateProcess->Initialize(StaticMesh);		// Must happen on main thread
 	}
 
 	BasicProperties->GeneratorSettings = GenerateProcess->GetCurrentSettings();
@@ -145,10 +238,53 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	FTransform PreviewTransform = SourceComponent->GetWorldTransform();
 	PreviewTransform.AddToTranslation(FVector(0, 2.5f*Bounds.BoxExtent.Y, 0));
 
-	PreviewMesh = NewObject<UPreviewMesh>(this);
-	PreviewMesh->CreateInWorld(TargetWorld, PreviewTransform);
-	PreviewMesh->SetVisible(true);
-	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
+	this->OpFactory = MakeUnique<FGenerateStaticMeshLODAssetOperatorFactory>(this, (FTransform3d)PreviewTransform);
+	PreviewWithBackgroundCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
+	PreviewWithBackgroundCompute->Setup(this->TargetWorld, this->OpFactory.Get());
+
+	// For the first computation, display a bounding box with the working material. Otherwise it looks like nothing
+	// is happening. And we don't want to copy over the potentially huge input mesh to be the preview mesh.
+	FGridBoxMeshGenerator MeshGen;
+	MeshGen.Box = FOrientedBox3d(Bounds.Origin, Bounds.BoxExtent);
+	MeshGen.Generate();
+	FDynamicMesh3 BoxMesh(&MeshGen);
+	PreviewWithBackgroundCompute->PreviewMesh->UpdatePreview(MoveTemp(BoxMesh));
+	PreviewWithBackgroundCompute->PreviewMesh->SetTransform(FTransform(FVector(0, 2.5f * Bounds.BoxExtent.Y, 0)));
+
+	PreviewWithBackgroundCompute->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator* Op)
+	{
+		const GenerateStaticMeshLODAssetLocals::FGenerateStaticMeshLODAssetOperatorOp* GenerateLODOp =
+			(const GenerateStaticMeshLODAssetLocals::FGenerateStaticMeshLODAssetOperatorOp*)(Op);
+		check(GenerateLODOp);
+
+		// Must happen on main thread
+		FPhysicsDataCollection PhysicsData;
+		PhysicsData.Geometry = GenerateLODOp->ResultCollision;
+		PhysicsData.CopyGeometryToAggregate();
+		UE::PhysicsTools::InitializePreviewGeometryLines(PhysicsData,
+														 CollisionPreview,
+														 CollisionVizSettings->Color, CollisionVizSettings->LineThickness, 0.0f, 16);
+
+		// Must happen on main thread, and GenerateProcess might be in use by an Op somewhere else
+		GenerateProcess->GraphEvalCriticalSection.Lock();
+
+		UGenerateStaticMeshLODProcess::FPreviewMaterials PreviewMaterialSet;
+		GenerateProcess->GetDerivedMaterialsPreview(PreviewMaterialSet);
+		if (PreviewMaterialSet.Materials.Num() > 0)
+		{
+			PreviewTextures = PreviewMaterialSet.Textures;
+			PreviewMaterials = PreviewMaterialSet.Materials;
+			PreviewWithBackgroundCompute->PreviewMesh->SetMaterials(PreviewMaterials);
+			BasicProperties->PreviewTextures = PreviewTextures;
+		}
+
+		GenerateProcess->GraphEvalCriticalSection.Unlock();
+	});
+
+	PreviewWithBackgroundCompute->ConfigureMaterials(
+		ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager()),
+		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
+	);
 
 	CollisionVizSettings = NewObject<UCollisionGeometryVisualizationProperties>(this);
 	CollisionVizSettings->RestoreProperties(this);
@@ -163,40 +299,23 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	// Recompute if we switch between parallel and serial
 	int32 WatcherIndex = BasicProperties->WatchProperty(BasicProperties->bParallelExecution, [this](bool bNewParallelExec)
 	{
-		// TODO: We crash if we don't recreate the Process and reinitialize it. Why?
-
-		GenerateProcess = NewObject<UGenerateStaticMeshLODProcess>(this);
-
-		TUniquePtr<FPrimitiveComponentTarget>& SourceComponent = ComponentTargets[0];
-		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(SourceComponent->GetOwnerComponent());
-		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-		if (StaticMesh)
-		{
-			GenerateProcess->Initialize(StaticMesh);
-		}
-
-		bPreviewValid = false;
-		//ValidatePreview();
+		GenerateProcess->bUseParallelExecutor = BasicProperties->bParallelExecution;
+		OnSettingsModified();
 	});
+
 	BasicProperties->SilentUpdateWatcherAtIndex(WatcherIndex);
 
-	bPreviewValid = false;
 }
 
 void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
 {
-	GenerateProcess->UpdateSettings(BasicProperties->GeneratorSettings);
-	bPreviewValid = false;
+	PreviewWithBackgroundCompute->InvalidateResult();
 }
 
 void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
 	CollisionVizSettings->SaveProperties(this);
-
-	PreviewMesh->SetVisible(false);
-	PreviewMesh->Disconnect();
-	PreviewMesh = nullptr;
 
 	CollisionPreview->Disconnect();
 	CollisionPreview = nullptr;
@@ -211,8 +330,9 @@ void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			CreateNewAsset();
 		}
-
 	}
+
+	FDynamicMeshOpResult Result = PreviewWithBackgroundCompute->Shutdown();
 }
 
 void UGenerateStaticMeshLODAssetTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
@@ -223,57 +343,22 @@ void UGenerateStaticMeshLODAssetTool::SetAssetAPI(IAssetGenerationAPI* AssetAPII
 
 bool UGenerateStaticMeshLODAssetTool::CanAccept() const
 {
-	return true;
+	return (PreviewWithBackgroundCompute && PreviewWithBackgroundCompute->HaveValidResult());
 }
 
 
 void UGenerateStaticMeshLODAssetTool::OnTick(float DeltaTime)
 {
-	ValidatePreview();
+	if (PreviewWithBackgroundCompute)
+	{
+		PreviewWithBackgroundCompute->Tick(DeltaTime);
+	}
 
 	if (bCollisionVisualizationDirty)
 	{
 		UpdateCollisionVisualization();
 		bCollisionVisualizationDirty = false;
 	}
-}
-
-void UGenerateStaticMeshLODAssetTool::ValidatePreview()
-{
-	if (bPreviewValid) return;
-
-	GenerateProcess->bUseParallelExecutor = BasicProperties->bParallelExecution;
-
-	GenerateProcess->ComputeDerivedSourceData();
-	const FDynamicMesh3& ResultMesh = GenerateProcess->GetDerivedLOD0Mesh();
-	const FMeshTangentsd& ResultTangents = GenerateProcess->GetDerivedLOD0MeshTangents();
-	const FSimpleShapeSet3d& ResultCollision = GenerateProcess->GetDerivedCollision();
-
-	PreviewMesh->EditMesh([&](FDynamicMesh3& MeshToUpdate)
-	{
-		MeshToUpdate = GenerateProcess->GetDerivedLOD0Mesh();
-	});
-	PreviewMesh->UpdateTangents(&ResultTangents, true);
-
-	UGenerateStaticMeshLODProcess::FPreviewMaterials PreviewMaterialSet;
-	GenerateProcess->GetDerivedMaterialsPreview(PreviewMaterialSet);
-	if (PreviewMaterialSet.Materials.Num() > 0)
-	{
-		PreviewTextures = PreviewMaterialSet.Textures;
-		PreviewMaterials = PreviewMaterialSet.Materials;
-		PreviewMesh->SetMaterials(PreviewMaterials);
-
-		BasicProperties->PreviewTextures = PreviewTextures;
-	}
-
-
-	FPhysicsDataCollection PhysicsData;
-	PhysicsData.Geometry = ResultCollision;
-	PhysicsData.CopyGeometryToAggregate();
-	UE::PhysicsTools::InitializePreviewGeometryLines(PhysicsData, CollisionPreview,
-		CollisionVizSettings->Color, CollisionVizSettings->LineThickness, 0.0f, 16);
-
-	bPreviewValid = true;
 }
 
 
@@ -295,18 +380,24 @@ void UGenerateStaticMeshLODAssetTool::UpdateCollisionVisualization()
 
 void UGenerateStaticMeshLODAssetTool::CreateNewAsset()
 {
+	check(PreviewWithBackgroundCompute->HaveValidResult());
 	GenerateProcess->CalculateDerivedPathName(BasicProperties->GeneratedSuffix);
-	//GenerateProcess->ComputeDerivedSourceData();
+
+	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
 	GenerateProcess->WriteDerivedAssetData();
+	GenerateProcess->GraphEvalCriticalSection.Unlock();
 }
 
 
 
 void UGenerateStaticMeshLODAssetTool::UpdateExistingAsset()
 {
+	check(PreviewWithBackgroundCompute->HaveValidResult());
 	GenerateProcess->CalculateDerivedPathName(BasicProperties->GeneratedSuffix);
-	//GenerateProcess->ComputeDerivedSourceData();
+
+	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
 	GenerateProcess->UpdateSourceAsset();
+	GenerateProcess->GraphEvalCriticalSection.Unlock();
 }
 
 

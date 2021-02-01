@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "GeometryFlowNode.h"
 #include "Templates/TypeHash.h"
+#include "Util/ProgressCancel.h"
+
+class FProgressCancel;
 
 namespace UE
 {
@@ -74,9 +77,14 @@ public:
 	TSet<FHandle> GetNodesWithNoConnectedInputs() const;
 
 	template<typename T>
-	EGeometryFlowResult EvaluateResult(FHandle Node, FString OutputName, T& Storage, int32 StorageTypeIdentifier)
+	EGeometryFlowResult EvaluateResult(FHandle Node, 
+									   FString OutputName, 
+									   T& Storage, 
+									   int32 StorageTypeIdentifier,
+									   FProgressCancel* Progress)
 	{
 		TUniquePtr<FEvaluationInfo> EvalInfo = MakeUnique<FEvaluationInfo>();
+		EvalInfo->Progress = Progress;
 		return EvaluateResult(Node, OutputName, Storage, StorageTypeIdentifier, EvalInfo);
 	}
 
@@ -102,11 +110,19 @@ public:
 		if (bTryTakeResult)
 		{
 			TSafeSharedPtr<IData> Data = ComputeOutputData(Node, OutputName, EvaluationInfo, true);
+			if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+			{
+				return EGeometryFlowResult::OperationCancelled;
+			}
 			Data->GiveTo(Storage, StorageTypeIdentifier);
 		}
 		else
 		{
 			TSafeSharedPtr<IData> Data = ComputeOutputData(Node, OutputName, EvaluationInfo, false);
+			if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+			{
+				return EGeometryFlowResult::OperationCancelled;
+			}
 			Data->GetDataCopy(Storage, StorageTypeIdentifier);
 		}
 		return EGeometryFlowResult::Ok;

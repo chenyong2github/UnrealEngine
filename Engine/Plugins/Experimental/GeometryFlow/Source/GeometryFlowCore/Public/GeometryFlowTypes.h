@@ -39,7 +39,8 @@ enum class EGeometryFlowResult
 	UnmatchedTypes = 4,
 	ConnectionDoesNotExist = 5,
 	NoMatchesFound = 6,
-	MultipleMatchingAmbiguityFound = 7
+	MultipleMatchingAmbiguityFound = 7,
+	OperationCancelled = 8
 };
 
 

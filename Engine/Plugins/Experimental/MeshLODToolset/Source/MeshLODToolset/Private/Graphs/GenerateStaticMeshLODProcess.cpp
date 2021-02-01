@@ -127,25 +127,27 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn)
 
 
 	// extract all the texture params
-	TFuture<void> ReadTextures = Async(GenerateSMLODAsyncExecTarget, [&]()
-	{
-		ParallelFor(ReadJobs.Num(), [&](int32 ji)
-		{
-			FReadTextureJob job = ReadJobs[ji];
-			FTextureInfo& TexInfo = SourceMaterials[job.MatIndex].SourceTextures[job.TexIndex];
-			UE::AssetUtils::ReadTexture(TexInfo.SourceTexture, TexInfo.Dimensions, TexInfo.Image);
-		});
-	});
-	// single-thread path
-	//for (FReadTextureJob job : ReadJobs)
+	// TODO: this triggers a checkSlow in the serialization code when it runs async. Find out why. Jira: UETOOL-2985
+	//TFuture<void> ReadTextures = Async(GenerateSMLODAsyncExecTarget, [&]()
 	//{
-	//	FTextureInfo& TexInfo = SourceMaterials[job.MatIndex].SourceTextures[job.TexIndex];
-	//	UE::AssetUtils::ReadTexture(TexInfo.SourceTexture, TexInfo.Dimensions, TexInfo.Image);
-	//}
+	//	ParallelFor(ReadJobs.Num(), [&](int32 ji)
+	//	{
+	//		FReadTextureJob job = ReadJobs[ji];
+	//		FTextureInfo& TexInfo = SourceMaterials[job.MatIndex].SourceTextures[job.TexIndex];
+	//		UE::AssetUtils::ReadTexture(TexInfo.SourceTexture, TexInfo.Dimensions, TexInfo.Image);
+	//	});
+	//});
+
+	// single-thread path
+	for (FReadTextureJob job : ReadJobs)
+	{
+		FTextureInfo& TexInfo = SourceMaterials[job.MatIndex].SourceTextures[job.TexIndex];
+		UE::AssetUtils::ReadTexture(TexInfo.SourceTexture, TexInfo.Dimensions, TexInfo.Image);
+	}
 
 
 	ConvertMesh.Wait();
-	ReadTextures.Wait();
+	//ReadTextures.Wait();
 
 
 	FString FullPathWithExtension = UEditorAssetLibrary::GetPathNameForLoadedAsset(SourceStaticMesh);
@@ -312,7 +314,7 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 
 
 
-bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
+bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData(FProgressCancel* Progress)
 {
 	DerivedTextureImages.Reset();
 	if (bUseParallelExecutor)
@@ -322,7 +324,8 @@ bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
 			this->DerivedLODMeshTangents,
 			this->DerivedCollision,
 			this->DerivedNormalMapImage,
-			this->DerivedTextureImages);
+			this->DerivedTextureImages,
+			Progress);
 	}
 	else
 	{
@@ -331,9 +334,14 @@ bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData()
 			this->DerivedLODMeshTangents,
 			this->DerivedCollision,
 			this->DerivedNormalMapImage,
-			this->DerivedTextureImages);
+			this->DerivedTextureImages,
+			Progress);
 	}
 
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
 
 	// copy all materials for now...we are going to replace all the images though, and
 	// should not copy those?

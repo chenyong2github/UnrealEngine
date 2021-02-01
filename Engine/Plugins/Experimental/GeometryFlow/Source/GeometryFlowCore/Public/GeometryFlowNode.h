@@ -16,6 +16,7 @@
 // - can we have the concept of data shared between nodes? ie when recomputing normals, we currently 'steal'
 //   but really we are only partially modifying input data...   (maybe cleaner to just separate out compute and set normals?)
 
+class FProgressCancel;
 
 namespace UE
 {
@@ -149,6 +150,11 @@ public:
 		return (CachedValue != nullptr);
 	}
 
+	virtual void ClearOutputCache()
+	{
+		CachedValue = TSafeSharedPtr<IData>();
+	}
+
 	virtual TSafeSharedPtr<IData> GetOutput() const
 	{
 		check(CachedValue != nullptr);
@@ -253,6 +259,8 @@ public:
 
 	virtual void CountCompute(FNode* Node);
 	int NumComputes() const { return ComputesCount; }
+
+	FProgressCancel* Progress = nullptr;
 
 protected:
 	std::atomic<int> EvaluationsCount;
@@ -369,6 +377,9 @@ protected:
 		const FString& OutputName,
 		TSafeSharedPtr<IData> NewData
 	);
+
+	virtual void ClearOutput(const FString& OutputName);
+	virtual void ClearAllOutputs();
 
 	TArray<FNodeInputInfo> NodeInputs;
 	TArray<FNodeOutputInfo> NodeOutputs;

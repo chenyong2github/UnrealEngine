@@ -5,6 +5,7 @@
 #include "MeshIndexUtil.h"
 #include "Async/ParallelFor.h"
 #include "DynamicSubmesh3.h"
+#include "Util/ProgressCancel.h"
 
 using namespace UE::GeometryFlow;
 
@@ -107,6 +108,83 @@ namespace GenerateSimpleCollisionNodeHelpers
 } // namespace GenerateSimpleCollisionNodeHelpers
 
 
+EGeometryFlowResult FGenerateSimpleCollisionNode::EvaluateInternal(const FDynamicMesh3& Mesh,
+																   const FIndexSets& IndexData,
+																   const FGenerateSimpleCollisionSettings& Settings,
+																   TUniquePtr<FEvaluationInfo>& EvaluationInfo,
+																   FCollisionGeometry& OutCollisionGeometry)
+{
+	 FMeshSimpleShapeApproximation ShapeApproximator;
+
+	 // Don't cache anything, just compute when asked to
+	 ShapeApproximator.bDetectSpheres = false;
+	 ShapeApproximator.bDetectBoxes = false;
+	 ShapeApproximator.bDetectCapsules = false;
+	 ShapeApproximator.bDetectConvexes = false;
+
+	 TArray<FDynamicMesh3> SubMeshes;
+	 GenerateSimpleCollisionNodeHelpers::GenerateSubMeshes(Mesh, IndexData, SubMeshes);
+
+	 if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+	 {
+		 return EGeometryFlowResult::OperationCancelled;
+	 }
+
+	 TArray<const FDynamicMesh3*> SubMeshPointers;
+	 for (FDynamicMesh3& SubMesh : SubMeshes)
+	 {
+		 SubMeshPointers.Add(&SubMesh);
+	 }
+	 ShapeApproximator.InitializeSourceMeshes(SubMeshPointers);
+
+	 if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+	 {
+		 return EGeometryFlowResult::OperationCancelled;
+	 }
+
+	 FProgressCancel* Progress = EvaluationInfo ? EvaluationInfo->Progress : nullptr;
+
+	 switch (Settings.Type)
+	 {
+	 case ESimpleCollisionGeometryType::AlignedBoxes:
+		 ShapeApproximator.bDetectBoxes = true;
+		 ShapeApproximator.Generate_AlignedBoxes(OutCollisionGeometry.Geometry);
+		 break;
+	 case ESimpleCollisionGeometryType::OrientedBoxes:
+		 ShapeApproximator.bDetectBoxes = true;
+		 ShapeApproximator.Generate_OrientedBoxes(OutCollisionGeometry.Geometry, Progress);
+		 break;
+	 case ESimpleCollisionGeometryType::MinimalSpheres:
+		 ShapeApproximator.bDetectSpheres = true;
+		 ShapeApproximator.Generate_MinimalSpheres(OutCollisionGeometry.Geometry);
+		 break;
+	 case ESimpleCollisionGeometryType::Capsules:
+		 ShapeApproximator.bDetectCapsules = true;
+		 ShapeApproximator.Generate_Capsules(OutCollisionGeometry.Geometry);
+		 break;
+	 case ESimpleCollisionGeometryType::ConvexHulls:
+		 GenerateSimpleCollisionNodeHelpers::GenerateConvexHulls(Mesh, IndexData, Settings, OutCollisionGeometry);
+		 break;
+	 case ESimpleCollisionGeometryType::SweptHulls:
+		 ShapeApproximator.bDetectConvexes = true;
+		 ShapeApproximator.bSimplifyHulls = Settings.SweptHullSettings.bSimplifyPolygons;
+		 ShapeApproximator.HullSimplifyTolerance = Settings.SweptHullSettings.HullTolerance;
+		 ShapeApproximator.Generate_ProjectedHulls(OutCollisionGeometry.Geometry, Settings.SweptHullSettings.SweepAxis);
+		 break;
+	 case ESimpleCollisionGeometryType::MinVolume:
+		 ShapeApproximator.Generate_MinVolume(OutCollisionGeometry.Geometry);
+		 break;
+	 }
+
+	 if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+	 {
+		 return EGeometryFlowResult::OperationCancelled;
+	 }
+
+	 return EGeometryFlowResult::Ok;
+}
+
+
 void FGenerateSimpleCollisionNode::Evaluate(
 	const FNamedDataMap& DatasIn,
 	FNamedDataMap& DatasOut,
@@ -139,55 +217,15 @@ void FGenerateSimpleCollisionNode::Evaluate(
 		{
 			if (bRecomputeRequired)
 			{
-				FMeshSimpleShapeApproximation ShapeApproximator;
-
-				// Don't cache anything, just compute when asked to
-				ShapeApproximator.bDetectSpheres = false;
-				ShapeApproximator.bDetectBoxes = false;
-				ShapeApproximator.bDetectCapsules = false;
-				ShapeApproximator.bDetectConvexes = false;
-
-				TArray<FDynamicMesh3> SubMeshes;
-				GenerateSimpleCollisionNodeHelpers::GenerateSubMeshes(Mesh, IndexData, SubMeshes);
-
-				TArray<const FDynamicMesh3*> SubMeshPointers;
-				for (FDynamicMesh3& SubMesh : SubMeshes)
-				{
-					SubMeshPointers.Add(&SubMesh);
-				}
-				ShapeApproximator.InitializeSourceMeshes(SubMeshPointers);
+				// if execution is interrupted by ProgressCancel, make sure this node is recomputed next time through
+				ClearAllOutputs();
 
 				FCollisionGeometry CollisionGeometry;
-				switch (Settings.Type)
+				EGeometryFlowResult Result = EvaluateInternal(Mesh, IndexData, Settings, EvaluationInfo, CollisionGeometry);
+
+				if (Result == EGeometryFlowResult::OperationCancelled)
 				{
-				case ESimpleCollisionGeometryType::AlignedBoxes:
-					ShapeApproximator.bDetectBoxes = true;
-					ShapeApproximator.Generate_AlignedBoxes(CollisionGeometry.Geometry);
-					break;
-				case ESimpleCollisionGeometryType::OrientedBoxes:
-					ShapeApproximator.bDetectBoxes = true;
-					ShapeApproximator.Generate_OrientedBoxes(CollisionGeometry.Geometry);
-					break;
-				case ESimpleCollisionGeometryType::MinimalSpheres:
-					ShapeApproximator.bDetectSpheres = true;
-					ShapeApproximator.Generate_MinimalSpheres(CollisionGeometry.Geometry);
-					break;
-				case ESimpleCollisionGeometryType::Capsules:
-					ShapeApproximator.bDetectCapsules = true;
-					ShapeApproximator.Generate_Capsules(CollisionGeometry.Geometry);
-					break;
-				case ESimpleCollisionGeometryType::ConvexHulls:
-					GenerateSimpleCollisionNodeHelpers::GenerateConvexHulls(Mesh, IndexData, Settings, CollisionGeometry);
-					break;
-				case ESimpleCollisionGeometryType::SweptHulls:
-					ShapeApproximator.bDetectConvexes = true;					
-					ShapeApproximator.bSimplifyHulls = Settings.SweptHullSettings.bSimplifyPolygons;
-					ShapeApproximator.HullSimplifyTolerance = Settings.SweptHullSettings.HullTolerance;
-					ShapeApproximator.Generate_ProjectedHulls(CollisionGeometry.Geometry, Settings.SweptHullSettings.SweepAxis);
-					break;
-				case ESimpleCollisionGeometryType::MinVolume:
-					ShapeApproximator.Generate_MinVolume(CollisionGeometry.Geometry);
-					break;
+					return;
 				}
 
 				SetOutput(OutParamGeometry(), MakeMovableData<FCollisionGeometry>(MoveTemp(CollisionGeometry)));
