@@ -1,17 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorConfigModule.h"
-#include "EditorConfig.h"
-#include "EditorConfigSubsystem.h"
-#include "EditorMetadataOverrides.h"
-#include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 
-void FEditorConfigModule::StartupModule()
-{
-}
-
-void FEditorConfigModule::ShutdownModule()
-{
-}
-
-IMPLEMENT_MODULE(FEditorConfigModule, EditorConfig)
+IMPLEMENT_MODULE(FEditorConfigModule, EditorConfig);
