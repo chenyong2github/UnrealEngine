@@ -73,3 +73,67 @@ private:
 	// Holds the synchronization object to aggregate and scope manage.
 	FCriticalSection* SynchObject;
 };
+
+/**
+ * Implements a scope unlock.
+ *
+ * This is a utility class that handles scope level unlocking. It's very useful
+ * to allow access to a protected object when you are sure it can happen.
+ * Example:
+ *
+ * <code>
+ *	{
+ *		// Access data that is shared among multiple threads
+ *		FScopeUnlock ScopeUnlock(SynchObject);
+ *		...
+ *		// When ScopeUnlock goes out of scope, other threads can no longer access data
+ *	}
+ * </code>
+ */
+class FScopeUnlock
+{
+public:
+
+	/**
+	 * Constructor that performs a unlock on the synchronization object
+	 *
+	 * @param InSynchObject The synchronization object to manage, can be null.
+	 */
+	FScopeUnlock(FCriticalSection* InSynchObject)
+		: SynchObject(InSynchObject)
+	{
+		if (InSynchObject)
+		{
+			InSynchObject->Unlock();
+		}
+	}
+
+	/** Destructor that performs a lock on the synchronization object. */
+	~FScopeUnlock()
+	{
+		if (SynchObject)
+		{
+			SynchObject->Lock();
+		}
+	}
+private:
+
+	/** Default constructor (hidden on purpose). */
+	FScopeUnlock();
+
+	/** Copy constructor( hidden on purpose). */
+	FScopeUnlock(const FScopeUnlock& InScopeLock);
+
+	/** Assignment operator (hidden on purpose). */
+	FScopeUnlock& operator=(FScopeUnlock& InScopeLock)
+	{
+		return *this;
+	}
+
+private:
+
+	// Holds the synchronization object to aggregate and scope manage.
+	FCriticalSection* SynchObject;
+};
+
+

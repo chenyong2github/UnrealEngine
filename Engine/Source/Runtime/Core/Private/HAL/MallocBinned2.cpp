@@ -807,7 +807,7 @@ void* FMallocBinned2::MallocExternalLarge(SIZE_T Size, uint32 Alignment)
 		FScopeLock Lock(&Mutex);
 
 		// Use OS for non-pooled allocations.
-		Result = CachedOSPageAllocator.Allocate(AlignedSize);
+		Result = CachedOSPageAllocator.Allocate(AlignedSize, 0, &Mutex);
 		if (!Result)
 		{
 			Private::OutOfMemory(AlignedSize);
@@ -979,7 +979,7 @@ void FMallocBinned2::FreeExternal(void* Ptr)
 		checkf(PoolOSRequestedBytes <= PoolOsBytes, TEXT("FMallocBinned2::FreeExternal %d %d"), int32(PoolOSRequestedBytes), int32(PoolOsBytes));
 		Pool->SetCanary(FPoolInfo::ECanary::Unassigned, true, false);
 		// Free an OS allocation.
-		CachedOSPageAllocator.Free(Ptr, PoolOsBytes);
+		CachedOSPageAllocator.Free(Ptr, PoolOsBytes, &Mutex);
 	}
 }
 
@@ -1121,7 +1121,7 @@ void FMallocBinned2::Trim(bool bTrimThreadCaches)
 	{
 		//double StartTime = FPlatformTime::Seconds();
 		FScopeLock Lock(&Mutex);
-		CachedOSPageAllocator.FreeAll();
+		CachedOSPageAllocator.FreeAll(&Mutex);
 		//UE_LOG(LogTemp, Display, TEXT("Trim CachedOSPageAllocator = %6.2fms"), 1000.0f * float(FPlatformTime::Seconds() - StartTime));
 	}
 }
