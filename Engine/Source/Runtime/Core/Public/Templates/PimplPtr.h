@@ -52,11 +52,11 @@ namespace UE4PimplPtr_Private
 	struct TPimplHeapObjectImpl
 	{
 		template <typename... ArgTypes>
-		explicit TPimplHeapObjectImpl(ArgTypes... Args)
+		explicit TPimplHeapObjectImpl(ArgTypes&&... Args)
 			: Deleter(&DeleterFunc<T>)
 			, Val(Forward<ArgTypes>(Args)...)
 		{
-			// This should never file, unless a compiler has laid out this struct in an unexpected way
+			// This should never fire, unless a compiler has laid out this struct in an unexpected way
 			static_assert(STRUCT_OFFSET(TPimplHeapObjectImpl, Val) == RequiredAlignment, "Unexpected alignment of T within the pimpl object");
 		}
 
