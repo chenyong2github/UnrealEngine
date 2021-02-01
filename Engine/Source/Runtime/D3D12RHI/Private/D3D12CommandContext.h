@@ -48,6 +48,7 @@ public:
 	FRHIGPUMask GetGPUMask() const { return GPUMask; }
 
 	bool IsDefaultContext() const { return bIsDefaultContext; }
+	bool IsAsyncComputeContext() const { return bIsAsyncComputeContext; }
 
 	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) {}
 
