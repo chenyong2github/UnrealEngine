@@ -12,7 +12,7 @@ namespace LowLevelTasks
 
 	thread_local FScheduler::FLocalQueueType* FScheduler::LocalQueue = nullptr;
 	thread_local FTask* FScheduler::ActiveTask = nullptr;
-	thread_local bool FScheduler::bIsBackgroundWorker = false;
+	thread_local FScheduler::EWorkerType FScheduler::WorkerType = FScheduler::EWorkerType::None;
 
 	FScheduler FScheduler::Singleton;
 
@@ -116,6 +116,7 @@ namespace LowLevelTasks
 		if (ActiveWorkers.load(std::memory_order_relaxed))
 		{			
 			const bool bIsBackgroundTask = Task.IsBackgroundTask();
+			const bool bIsBackgroundWorker = WorkerType == EWorkerType::Background;
 			if (bIsBackgroundTask && !bIsBackgroundWorker)
 			{
 				QueuePreference = EQueuePreference::GlobalQueuePreference;
@@ -155,6 +156,11 @@ namespace LowLevelTasks
 		return ActiveTask;
 	}
 
+	bool FScheduler::IsWorkerThread() const
+	{
+		return WorkerType != EWorkerType::None;
+	}
+
 	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)(bool)>
 	bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork)
 	{
@@ -176,8 +182,10 @@ namespace LowLevelTasks
 
 	void FScheduler::WorkerMain(FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork)
 	{
+		FTaskTagScope WorkerScope(ETaskTag::EWorkerThread);
+
 		FMemory::SetupTLSCachesOnCurrentThread();
-		bIsBackgroundWorker = bPermitBackgroundWork;
+		WorkerType = bPermitBackgroundWork ? EWorkerType::Background : EWorkerType::Foreground;
 
 		checkSlow(LocalQueue == nullptr);
 		if(ExternalWorkerLocalQueue)
@@ -216,7 +224,7 @@ namespace LowLevelTasks
 
 			if (WaitCount < WorkerSpinCycles)
 			{
-				OutOfWork.Start();			
+				OutOfWork.Start();
 				for (uint32 i = 0; i < WaitCycles; i++)
 				{
 					FPlatformProcess::Yield();
@@ -233,14 +241,14 @@ namespace LowLevelTasks
 		FLocalQueueType::DeleteLocalQueue(WorkerLocalQueue, bPermitBackgroundWork, ExternalWorkerLocalQueue != nullptr);
 		LocalQueue = nullptr;
 
-		bIsBackgroundWorker = false;
+		WorkerType = EWorkerType::None;
 		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
 	}
 
 	void FScheduler::BusyWaitInternal(const FConditional& Conditional)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FScheduler::BusyWaitInternal);
-		FTaskTagScope NoneScope(ETaskTag::EBusyWait);
+		FTaskTagScope WorkerScope(ETaskTag::EWorkerThread);
 
 		checkSlow(LocalQueue != nullptr);
 		check(ActiveWorkers.load(std::memory_order_relaxed));
@@ -276,6 +284,7 @@ namespace LowLevelTasks
 				return;
 			}
 
+			const bool bIsBackgroundWorker = WorkerType == EWorkerType::Background;
 			if (WaitCount < WorkerSpinCycles)
 			{
 				OutOfWork.Start();

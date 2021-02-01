@@ -29,7 +29,15 @@ namespace LowLevelTasks
 
 		static thread_local FLocalQueueType* LocalQueue;
 		static thread_local FTask* ActiveTask;
-		static thread_local bool bIsBackgroundWorker;
+
+		enum class EWorkerType
+		{
+			None,
+			Background,
+			Foreground,
+		};
+
+		static thread_local EWorkerType WorkerType;
 		static CORE_API FScheduler Singleton;
 
 		// using 16 bytes here because it fits the vtable and one additional pointer
@@ -77,6 +85,8 @@ namespace LowLevelTasks
 
 		//get the active task if any
 		CORE_API const FTask* GetActiveTask() const;
+
+		CORE_API bool IsWorkerThread() const;
 
 	private: //Private Interface of the Scheduler	
 		enum class ESleepState
