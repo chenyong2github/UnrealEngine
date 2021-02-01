@@ -4182,35 +4182,6 @@ void FEngineLoop::Exit()
 	FVisualLogger::Get().Shutdown();
 #endif
 
-
-	// Make sure we're not in the middle of loading something.
-	{
-		// From now on it's not allowed to request new async loads
-		SetAsyncLoadingAllowed(false);
-
-		bool bFlushOnExit = true;
-		if (GConfig)
-		{
-			FBoolConfigValueHelper FlushStreamingOnExitHelper(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.FlushStreamingOnExit"), GEngineIni);
-			bFlushOnExit = FlushStreamingOnExitHelper;			
-		}
-		if (bFlushOnExit)
-		{
-			FlushAsyncLoading();
-		}
-		else
-		{
-			CancelAsyncLoading();
-		}
-	}
-
-	// Block till all outstanding resource streaming requests are fulfilled.
-	if (!IStreamingManager::HasShutdown())
-	{
-		UTexture2D::CancelPendingTextureStreaming();
-		IStreamingManager::Get().BlockTillAllRequestsFinished();
-	}
-
 #if WITH_ENGINE
 	// shut down messaging
 	delete EngineService;
@@ -4239,6 +4210,34 @@ void FEngineLoop::Exit()
 		GEngine->PreExit();
 	}
 
+
+	// Make sure we're not in the middle of loading something.
+	{
+		// From now on it's not allowed to request new async loads
+		SetAsyncLoadingAllowed(false);
+
+		bool bFlushOnExit = true;
+		if (GConfig)
+		{
+			FBoolConfigValueHelper FlushStreamingOnExitHelper(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.FlushStreamingOnExit"), GEngineIni);
+			bFlushOnExit = FlushStreamingOnExitHelper;
+		}
+		if (bFlushOnExit)
+		{
+			FlushAsyncLoading();
+		}
+		else
+		{
+			CancelAsyncLoading();
+		}
+	}
+
+	// Block till all outstanding resource streaming requests are fulfilled.
+	if (!IStreamingManager::HasShutdown())
+	{
+		UTexture2D::CancelPendingTextureStreaming();
+		IStreamingManager::Get().BlockTillAllRequestsFinished();
+	}
 	FAudioDeviceManager::Shutdown();
 
 	// close all windows
