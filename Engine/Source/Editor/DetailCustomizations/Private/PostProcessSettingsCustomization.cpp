@@ -117,16 +117,6 @@ void FPostProcessSettingsCustomization::CustomizeChildren( TSharedRef<IPropertyH
 	TMap<FString, FCategoryOrGroup> NameToCategoryBuilderMap;
 	TMap<FString, FPostProcessGroup> NameToGroupMap;
 
-	static const auto VarTonemapperFilm = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.TonemapperFilm"));
-	static const auto VarMobileTonemapperFilm = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.TonemapperFilm"));
-	static const FName LegacyTonemapperName("LegacyTonemapper");
-	static const FName TonemapperCategory("Film");
-	static const FName MobileTonemapperCategory("Mobile Tonemapper");
-	const bool bDesktopTonemapperFilm = VarTonemapperFilm->GetValueOnGameThread() == 1;
-	const bool bMobileTonemapperFilm = VarMobileTonemapperFilm->GetValueOnGameThread() == 1;
-	const bool bUsingFilmTonemapper = bDesktopTonemapperFilm || bMobileTonemapperFilm;		// Are any platforms use film tonemapper
-	const bool bUsingLegacyTonemapper = !bDesktopTonemapperFilm || !bMobileTonemapperFilm;	// Are any platforms use legacy tonemapper
-
 	static const auto VarDefaultAutoExposureExtendDefaultLuminanceRange = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"));
 	const bool bExtendedLuminanceRange = VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnGameThread() == 1;
 	static const FName ExposureCategory("Lens|Exposure");
@@ -147,28 +137,7 @@ void FPostProcessSettingsCustomization::CustomizeChildren( TSharedRef<IPropertyH
 
 				FName CategoryFName = FObjectEditorUtils::GetCategoryFName(Property);
 					
-				if (CategoryFName == TonemapperCategory)
-				{
-					bool bIsLegacyTonemapperPropery = ChildHandle->HasMetaData(LegacyTonemapperName);
-
-					// Hide in case no platforms use legacy tonemapper
-					// Hide in case no platforms use film tonemapper
-					if ((bIsLegacyTonemapperPropery && !bUsingLegacyTonemapper) || (!bIsLegacyTonemapperPropery && !bUsingFilmTonemapper))
-					{
-						ChildHandle->MarkHiddenByCustomization();
-						continue;
-					}
-
-					// In case platforms use different tonemappers, place mobile settings into separate category
-					if (bMobileTonemapperFilm != bDesktopTonemapperFilm)
-					{
-						if (bMobileTonemapperFilm == !bIsLegacyTonemapperPropery)
-						{
-							CategoryFName = MobileTonemapperCategory;
-						}
-					}
-				}
-				else if (CategoryFName == ExposureCategory && bExtendedLuminanceRange)
+				if (CategoryFName == ExposureCategory && bExtendedLuminanceRange)
 				{
 					if (Property->GetName() == TEXT("AutoExposureMinBrightness"))
 					{

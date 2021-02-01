@@ -31,8 +31,6 @@ float LUTWeights[5];
 half3 ColorScale;
 half4 OverlayColor;
 
-uint bUseMobileTonemapper;
-
 static const float LUTSize = 32;
 
 // Accurate for 1000K < Temp < 15000K
@@ -275,37 +273,34 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	float3 ColorAP1 = mul( sRGB_2_AP1, BalancedColor );
 
 	// Expand bright saturated colors outside the sRGB gamut to fake wide gamut rendering.
-    if (!bUseMobileTonemapper)
+ 	float  LumaAP1 = dot( ColorAP1, AP1_RGB2Y );
+	float3 ChromaAP1 = ColorAP1 / LumaAP1;
+
+	float ChromaDistSqr = dot( ChromaAP1 - 1, ChromaAP1 - 1 );
+	float ExpandAmount = ( 1 - exp2( -4 * ChromaDistSqr ) ) * ( 1 - exp2( -4 * ExpandGamut * LumaAP1*LumaAP1 ) );
+
+	// Bizarre matrix but this expands sRGB to between P3 and AP1
+	// CIE 1931 chromaticities:	x		y
+	//				Red:		0.6965	0.3065
+	//				Green:		0.245	0.718
+	//				Blue:		0.1302	0.0456
+	//				White:		0.3127	0.329
+	const float3x3 Wide_2_XYZ_MAT = 
 	{
-		float  LumaAP1 = dot( ColorAP1, AP1_RGB2Y );
-		float3 ChromaAP1 = ColorAP1 / LumaAP1;
+		0.5441691,  0.2395926,  0.1666943,
+		0.2394656,  0.7021530,  0.0583814,
+		-0.0023439,  0.0361834,  1.0552183,
+	};
 
-		float ChromaDistSqr = dot( ChromaAP1 - 1, ChromaAP1 - 1 );
-		float ExpandAmount = ( 1 - exp2( -4 * ChromaDistSqr ) ) * ( 1 - exp2( -4 * ExpandGamut * LumaAP1*LumaAP1 ) );
+	const float3x3 Wide_2_AP1 = mul( XYZ_2_AP1_MAT, Wide_2_XYZ_MAT );
+	const float3x3 ExpandMat = mul( Wide_2_AP1, AP1_2_sRGB );
 
-		// Bizarre matrix but this expands sRGB to between P3 and AP1
-		// CIE 1931 chromaticities:	x		y
-		//				Red:		0.6965	0.3065
-		//				Green:		0.245	0.718
-		//				Blue:		0.1302	0.0456
-		//				White:		0.3127	0.329
-		const float3x3 Wide_2_XYZ_MAT = 
-		{
-			0.5441691,  0.2395926,  0.1666943,
-			0.2394656,  0.7021530,  0.0583814,
-			-0.0023439,  0.0361834,  1.0552183,
-		};
-
-		const float3x3 Wide_2_AP1 = mul( XYZ_2_AP1_MAT, Wide_2_XYZ_MAT );
-		const float3x3 ExpandMat = mul( Wide_2_AP1, AP1_2_sRGB );
-
-		float3 ColorExpand = mul( ExpandMat, ColorAP1 );
-		ColorAP1 = lerp( ColorAP1, ColorExpand, ExpandAmount );
-	}
+	float3 ColorExpand = mul( ExpandMat, ColorAP1 );
+	ColorAP1 = lerp( ColorAP1, ColorExpand, ExpandAmount );
 
 	ColorAP1 = ColorCorrectAll( ColorAP1 );
 
-	// Store for Legacy tonemap later and for Linear HDR output without tone curve
+	// Store for Linear HDR output without tone curve
 	float3 GradedColor = mul( AP1_2_sRGB, ColorAP1 );
 
 	const float3x3 BlueCorrect =
@@ -335,15 +330,6 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 	// Convert from AP1 to sRGB and clip out-of-gamut values
 	float3 FilmColor = max(0, mul( AP1_2_sRGB, ColorAP1 ));
-
-#if FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 // Mobile path uses separate shader for legacy tone mapper
-	BRANCH
-	if (bUseMobileTonemapper)
-	{
-		// Legacy tone mapper
-		FilmColor = FilmPostProcess(GradedColor);
-	}
-#endif // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
 
 #if BLENDCOUNT > 1
 	{

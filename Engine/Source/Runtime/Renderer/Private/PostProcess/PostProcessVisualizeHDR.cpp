@@ -16,7 +16,6 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FMobileFilmTonemapParameters, MobileTonemap)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTonemapperOutputDeviceParameters, OutputDevice)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
@@ -27,6 +26,11 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, HDRSceneColorSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 		SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
+		SHADER_PARAMETER(float, FilmSlope)
+		SHADER_PARAMETER(float, FilmToe)
+		SHADER_PARAMETER(float, FilmShoulder)
+		SHADER_PARAMETER(float, FilmBlackClip)
+		SHADER_PARAMETER(float, FilmWhiteClip)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -67,6 +71,8 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 
 	FRHISamplerState* BilinearClampSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
+
 	FVisualizeHDRPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeHDRPS::FParameters>();
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 	PassParameters->View = View.ViewUniformBuffer;
@@ -80,12 +86,12 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 	PassParameters->EyeAdaptationTexture = Inputs.EyeAdaptationTexture;
 	PassParameters->EyeAdaptation = *Inputs.EyeAdaptationParameters;
 	PassParameters->OutputDevice = GetTonemapperOutputDeviceParameters(*View.Family);
-	PassParameters->MobileTonemap = GetMobileFilmTonemapParameters(
-		View.FinalPostProcessSettings,
-		/* UseColorMatrix = */ true,
-		/* UseShadowTint = */ true,
-		/* UseContrast = */ true);
 	PassParameters->MiniFontTexture = GetMiniFontTexture();
+	PassParameters->FilmSlope = Settings.FilmSlope;
+	PassParameters->FilmToe = Settings.FilmToe;
+	PassParameters->FilmShoulder = Settings.FilmShoulder;
+	PassParameters->FilmBlackClip = Settings.FilmBlackClip;
+	PassParameters->FilmWhiteClip = Settings.FilmWhiteClip;
 
 	TShaderMapRef<FVisualizeHDRPS> PixelShader(View.ShaderMap);
 

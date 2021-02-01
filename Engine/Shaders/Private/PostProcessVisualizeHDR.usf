@@ -384,7 +384,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		// HDR > 0
 		float3 AdpatedLuminance = EyeAdaptationResult * float3(LuminanceVal, LuminanceVal, LuminanceVal);
 		// 0..1
-		float3 TonemappedLuminance = FilmPostProcess(AdpatedLuminance);
+		float3 TonemappedLuminance = FilmToneMap(AdpatedLuminance);
 		float3 DistMask = saturate(1.0 - 100.0 * abs(TonemappedLuminance - (1.0 - InsetUV.y)));
 		OutColor = lerp(OutColor, float4(1, 1, 1, 0), float4(DistMask, 0.0));
 	}

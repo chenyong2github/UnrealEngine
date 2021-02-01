@@ -1409,10 +1409,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	bool bSRGBAwareTarget = View.Family->RenderTarget->GetDisplayGamma() == 1.0f
 		&& View.bIsSceneCapture
 		&& IsMetalMobilePlatform(View.GetShaderPlatform());
-
-	static const auto VarTonemapperFilm = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.TonemapperFilm"));
-	const bool bUseTonemapperFilm = View.GetFeatureLevel() == ERHIFeatureLevel::ES3_1 && GSupportsRenderTargetFormat_PF_FloatRGBA && (VarTonemapperFilm && VarTonemapperFilm->GetValueOnRenderThread());
-		
+	
 	const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
 	const bool bUseEyeAdaptation = IsMobileEyeAdaptationEnabled(View);
 
@@ -1623,15 +1620,12 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 
 				DofOutput = DofBlurOutputs.DofBlur;
 
-				if (bUseTonemapperFilm)
-				{
-					FMobileIntegrateDofInputs IntegrateDofInputs;
-					IntegrateDofInputs.DofBlur = DofBlurOutputs.DofBlur;
-					IntegrateDofInputs.SceneColor = SceneColor;
-					IntegrateDofInputs.SunShaftAndDof = PostProcessSunShaftAndDof;
+				FMobileIntegrateDofInputs IntegrateDofInputs;
+				IntegrateDofInputs.DofBlur = DofBlurOutputs.DofBlur;
+				IntegrateDofInputs.SceneColor = SceneColor;
+				IntegrateDofInputs.SunShaftAndDof = PostProcessSunShaftAndDof;
 
-					SceneColor = AddMobileIntegrateDofPass(GraphBuilder, View, IntegrateDofInputs);
-				}
+				SceneColor = AddMobileIntegrateDofPass(GraphBuilder, View, IntegrateDofInputs);
 			}
 			else
 			{
@@ -1878,95 +1872,58 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			BloomOutput = BlackAlphaOneDummy;
 		}
 
-		if (bUseTonemapperFilm)
+		bool bDoGammaOnly = false;
+
+		FRDGTextureRef ColorGradingTexture = nullptr;
+
+		if (IStereoRendering::IsAPrimaryView(View))
 		{
-			bool bDoGammaOnly = false;
-
-			FRDGTextureRef ColorGradingTexture = nullptr;
-
-			if (IStereoRendering::IsAPrimaryView(View))
-			{
-				ColorGradingTexture = AddCombineLUTPass(GraphBuilder, View);
-			}
-			// We can re-use the color grading texture from the primary view.
-			else if (View.GetTonemappingLUT())
-			{
-				ColorGradingTexture = TryRegisterExternalTexture(GraphBuilder, View.GetTonemappingLUT());
-			}
-			else
-			{
-				const FViewInfo* PrimaryView = static_cast<const FViewInfo*>(View.Family->Views[0]);
-				ColorGradingTexture = TryRegisterExternalTexture(GraphBuilder, PrimaryView->GetTonemappingLUT());
-			}
-
-			FTonemapInputs TonemapperInputs;
-			PassSequence.AcceptOverrideIfLastPass(EPass::Tonemap, TonemapperInputs.OverrideOutput);
-
-			// This is the view family render target.
-			if (TonemapperInputs.OverrideOutput.Texture)
-			{
-				FIntRect OutputViewRect;
-				if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput)
-				{
-					OutputViewRect = View.ViewRect;
-				}
-				else
-				{
-					OutputViewRect = View.UnscaledViewRect;
-				}
-				ERenderTargetLoadAction  OutputLoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
-
-				TonemapperInputs.OverrideOutput.ViewRect = OutputViewRect;
-				TonemapperInputs.OverrideOutput.LoadAction = OutputLoadAction;
-			}
-			
-			TonemapperInputs.SceneColor = SceneColor;
-			TonemapperInputs.Bloom = BloomOutput;
-			TonemapperInputs.EyeAdaptationTexture = nullptr;
-			TonemapperInputs.ColorGradingTexture = ColorGradingTexture;
-			TonemapperInputs.bWriteAlphaChannel = View.AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported() || bUseMobileDof;
-			TonemapperInputs.bFlipYAxis = RHINeedsToSwitchVerticalAxis(View.GetShaderPlatform()) && !PassSequence.IsEnabled(EPass::PostProcessMaterialAfterTonemapping);
-			TonemapperInputs.bOutputInHDR = bHDRTonemapperOutput;
-			TonemapperInputs.bGammaOnly = bDoGammaOnly;
-			TonemapperInputs.bMetalMSAAHDRDecode = bMetalMSAAHDRDecode;
-			TonemapperInputs.EyeAdaptationBuffer = bUseEyeAdaptation && View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList) ? View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList)->SRV : nullptr;
-
-			SceneColor = AddTonemapPass(GraphBuilder, View, TonemapperInputs);
+			ColorGradingTexture = AddCombineLUTPass(GraphBuilder, View);
+		}
+		// We can re-use the color grading texture from the primary view.
+		else if (View.GetTonemappingLUT())
+		{
+			ColorGradingTexture = TryRegisterExternalTexture(GraphBuilder, View.GetTonemappingLUT());
 		}
 		else
 		{
-			FMobileTonemapperInputs TonemapperInputs;
-			PassSequence.AcceptOverrideIfLastPass(EPass::Tonemap, TonemapperInputs.OverrideOutput);
-			if (TonemapperInputs.OverrideOutput.Texture)
-			{
-				FIntRect OutputViewRect;
-				if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput)
-				{
-					OutputViewRect = View.ViewRect;
-				}
-				else
-				{
-					OutputViewRect = View.UnscaledViewRect;
-				}
-				ERenderTargetLoadAction  OutputLoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
-
-				TonemapperInputs.OverrideOutput.ViewRect = OutputViewRect;
-				TonemapperInputs.OverrideOutput.LoadAction = OutputLoadAction;
-			}
-
-			TonemapperInputs.bFlipYAxis = RHINeedsToSwitchVerticalAxis(View.GetShaderPlatform()) && !PassSequence.IsEnabled(EPass::PostProcessMaterialAfterTonemapping);
-			TonemapperInputs.bMetalMSAAHDRDecode = bMetalMSAAHDRDecode;
-			TonemapperInputs.bOutputInHDR = bHDRTonemapperOutput;
-			TonemapperInputs.bSRGBAwareTarget = bSRGBAwareTarget;
-			TonemapperInputs.bUseEyeAdaptation = bUseEyeAdaptation;
-			TonemapperInputs.SceneColor = SceneColor;
-			TonemapperInputs.BloomOutput = BloomOutput;
-			TonemapperInputs.DofOutput = DofOutput;
-			TonemapperInputs.SunShaftAndDof = PostProcessSunShaftAndDof;
-			TonemapperInputs.EyeAdaptationBuffer = bUseEyeAdaptation && View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList) ? View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList)->SRV : nullptr;
-
-			SceneColor = AddMobileTonemapperPass(GraphBuilder, View, TonemapperInputs);
+			const FViewInfo* PrimaryView = static_cast<const FViewInfo*>(View.Family->Views[0]);
+			ColorGradingTexture = TryRegisterExternalTexture(GraphBuilder, PrimaryView->GetTonemappingLUT());
 		}
+
+		FTonemapInputs TonemapperInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::Tonemap, TonemapperInputs.OverrideOutput);
+
+		// This is the view family render target.
+		if (TonemapperInputs.OverrideOutput.Texture)
+		{
+			FIntRect OutputViewRect;
+			if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput)
+			{
+				OutputViewRect = View.ViewRect;
+			}
+			else
+			{
+				OutputViewRect = View.UnscaledViewRect;
+			}
+			ERenderTargetLoadAction  OutputLoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
+
+			TonemapperInputs.OverrideOutput.ViewRect = OutputViewRect;
+			TonemapperInputs.OverrideOutput.LoadAction = OutputLoadAction;
+		}
+			
+		TonemapperInputs.SceneColor = SceneColor;
+		TonemapperInputs.Bloom = BloomOutput;
+		TonemapperInputs.EyeAdaptationTexture = nullptr;
+		TonemapperInputs.ColorGradingTexture = ColorGradingTexture;
+		TonemapperInputs.bWriteAlphaChannel = View.AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported() || bUseMobileDof;
+		TonemapperInputs.bFlipYAxis = RHINeedsToSwitchVerticalAxis(View.GetShaderPlatform()) && !PassSequence.IsEnabled(EPass::PostProcessMaterialAfterTonemapping);
+		TonemapperInputs.bOutputInHDR = bHDRTonemapperOutput;
+		TonemapperInputs.bGammaOnly = bDoGammaOnly;
+		TonemapperInputs.bMetalMSAAHDRDecode = bMetalMSAAHDRDecode;
+		TonemapperInputs.EyeAdaptationBuffer = bUseEyeAdaptation && View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList) ? View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList)->SRV : nullptr;
+
+		SceneColor = AddTonemapPass(GraphBuilder, View, TonemapperInputs);
 
 		//The output color should been decoded to linear space after tone mapper apparently
 		bMetalMSAAHDRDecode = false;
