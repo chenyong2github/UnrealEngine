@@ -38,7 +38,7 @@ public:
 	// corresponding output data!
 	EGeometryFlowResult ComputeOutputs(const TArray<NodeOutputSpec>& DesiredOutputs,
 									   TArray<TSafeSharedPtr<IData>>& OutputDatas,
-									   FProgressCancel* Progress);
+									   FProgressCancel* Progress = nullptr);
 
 	// 2a.
 	// Launch graph execution on background threads and return
