@@ -495,7 +495,7 @@ namespace LevelInstanceMenuUtils
 					return true;
 				});
 
-			if (ContextLevelInstance && !ContextLevelInstance->IsEditing())
+			if (ContextLevelInstance && !ContextLevelInstance->IsEditing() && !LevelInstanceSubsystem->LevelInstanceHasLevelScriptBlueprint(ContextLevelInstance))
 			{
 				FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
 
