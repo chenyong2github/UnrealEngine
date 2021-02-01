@@ -8,6 +8,7 @@
 #include "K2Node_PromotableOperator.generated.h"
 
 class UEdGraphPin;
+class UToolMenu;
 
 /** The promotable operator node allows for pin types to be promoted to others, i.e. float to double */
 UCLASS(MinimalAPI)
@@ -108,9 +109,10 @@ private:
 	* Re-evaluates the in types on this node based on all the current connections
 	* and the given pin that has changed. 
 	* 
-	* @param ChangedPin		The pin that has been change
+	* @param ChangedPin			The pin that has been change
+	* @param bFromConversion	True if the pin modification is coming from a conversion.
 	*/
-	void EvaluatePinsFromChange(UEdGraphPin* ChangedPin);
+	void EvaluatePinsFromChange(UEdGraphPin* ChangedPin, const bool bFromConversion = false);
 
 	/** Helper to make sure we have the most up to date operation name. Returns true upon success */
 	bool UpdateOpName();
@@ -135,6 +137,26 @@ private:
 	* @param OutArray	Array to populate with the considered pins
 	*/
 	void GetPinsToConsider(TArray<UEdGraphPin*>& OutArray) const;
+
+	/**
+	* Convert the given pin to the new pin type. If the new type is wildcard then break 
+	* all connections and reset the node. Invalidates tooltips upon completion. 
+	* This function is to be used by the context menu and includes a transaction. 
+	* 
+	* @param PinToChange		The Pin to convert
+	* @param NewPinType			The pin's new type
+	*/
+	void ConvertPinType(UEdGraphPin* PinToChange, const FEdGraphPinType NewPinType);
+	
+	/**
+	* Build the context menu to convert the given pin to a different type. 
+	* If the pin is a wildcard, offer any possible types. Otherwise, offer 
+	* to reset the node to wildcard.
+	* 
+	* @param Menu			The parent context menu
+	* @param ContextPin		The pin to convert
+	*/
+	void CreateConversionSubMenu(UToolMenu* Menu, UEdGraphPin* ContextPin) const;
 
 	/** The name that this operation uses ("Add", "Multiply", etc) */
 	FName OperationName;

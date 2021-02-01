@@ -226,13 +226,14 @@ private:
 	 */
 	bool ReconnectPureExecPins(TArray<UEdGraphPin*>& OldPins);
 
-	/** Invalidates current pin tool tips, so that they will be refreshed before being displayed: */
-	void InvalidatePinTooltips();
-
 	/** Conforms container pins */
 	void ConformContainerPins();
 
 protected:
+
+	/** Invalidates current pin tool tips, so that they will be refreshed before being displayed: */
+	void InvalidatePinTooltips();
+
 	/** Helper function to ensure function is called in our context */
 	virtual void FixupSelfMemberContext();
 
