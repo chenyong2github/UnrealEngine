@@ -14,6 +14,7 @@
 
 class UGeometryCollection;
 class UFractureModalTool;
+class FFractureToolContext;
 
 template <typename T>
 class TManagedArray;
@@ -32,19 +33,6 @@ public:
 
 	UPROPERTY()
 	UFractureModalTool* OwnerTool;
-};
-
-
-struct FFractureToolContext
-{
-	AActor* OriginalActor;
-	UPrimitiveComponent* OriginalPrimitiveComponent;
-	UGeometryCollection* FracturedGeometryCollection;
-	FString ParentName;
-	FTransform Transform;
-	FBox Bounds;
-	int32 RandomSeed;
-	TArray<int32> SelectedBones;
 };
 
 
@@ -72,8 +60,7 @@ public:
 
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) {}
 
-	virtual void GetFractureToolContexts(TArray<FFractureToolContext>& FractureToolContexts) const {}
-
+	virtual TArray<FFractureToolContext> GetFractureToolContexts() const;
 	
 protected:
 	static bool IsStaticMeshSelected();
@@ -81,6 +68,9 @@ protected:
 	static void AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollectionObject);
 	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
 	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
+	static void Refresh(FFractureToolContext& Context, FFractureEditorModeToolkit* Toolkit);
+	static void SetOutlinerComponents(TArray<FFractureToolContext>& InContexts, FFractureEditorModeToolkit* Toolkit);
+
 
 protected:
 	TSharedPtr<FUICommandInfo> UICommandInfo;
@@ -107,29 +97,14 @@ public:
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual bool CanExecute() const override;
 
-	virtual void ExecuteFracture(const FFractureToolContext& FractureContext) {}
+	/** Executes function that generates new geometry. Returns the first new geometry index. */
+	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) { return INDEX_NONE; }
 
 	/** Draw callback from edmode*/
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) {}
 
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void FractureContextChanged() {}
-
-protected:
-
-	virtual void GetFractureContexts(TArray<FFractureToolContext>& FractureContexts) const;
-	virtual TArray<int32> FilterBones(const TArray<int32>& SelectedBonesOriginal, const FGeometryCollection* const GeometryCollection) const;
-
-	void GenerateFractureToolContext(
-		AActor* InActor,
-		UGeometryCollectionComponent* InComponent,
-		UGeometryCollection* InGeometryCollection,
-		const TArray<int32>& InSelectedBones,
-		TMap<int32, FBox>& InBoundsToBone,
-		const TManagedArray<int32>& TransformToGeometryIndex,
-		int32 RandomSeed,
-		TArray<FFractureToolContext>& OutFractureContexts
-	) const;
 
 };
 

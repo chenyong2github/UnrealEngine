@@ -1878,18 +1878,28 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 #endif
 			};
 
-			// @todo(temporary) : This is Temporary code for the collection to match the ObjectType
-			//                    attribute on initialization. Once proper per-object manipulation is 
-			//                    in place this code will need to be removed.
-			//
-			TManagedArray<int32> & DynamicState = DynamicCollection->DynamicState;
+			// If the Component is set to Dynamic, we look to the RestCollection for initial dynamic state override per transform.
+			TManagedArray<int32>& DynamicState = DynamicCollection->DynamicState;
+
 			if (ObjectType != EObjectStateTypeEnum::Chaos_Object_UserDefined)
 			{
-				for (int i = 0; i < DynamicState.Num(); i++)
+				if (RestCollection && (ObjectType == EObjectStateTypeEnum::Chaos_Object_Dynamic))
 				{
-					DynamicState[i] = (int32)ObjectType;
+					TManagedArray<int32>& InitialDynamicState = RestCollection->GetGeometryCollection()->InitialDynamicState;
+					for (int i = 0; i < DynamicState.Num(); i++)
+					{
+						DynamicState[i] = (InitialDynamicState[i] == static_cast<int32>(Chaos::EObjectStateType::Uninitialized)) ? static_cast<int32>(ObjectType) : InitialDynamicState[i];
+					}
+				}
+				else
+				{
+					for (int i = 0; i < DynamicState.Num(); i++)
+					{
+						DynamicState[i] = static_cast<int32>(ObjectType);
+					}
 				}
 			}
+
 			TManagedArray<bool> & Active = DynamicCollection->Active;
 			{
 				for (int i = 0; i < Active.Num(); i++)
@@ -2211,7 +2221,7 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			for (int32 RootElement : Roots)
 			{
 				TArray<int32> LeafBones;
-				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), RootElement, LeafBones);
+				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), RootElement, true, LeafBones);
 				AppendSelectedBones(LeafBones);
 			}
 		}
@@ -2225,7 +2235,7 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			for (int32 RootElement : Roots)
 			{
 				TArray<int32> LeafBones;
-				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), RootElement, LeafBones);
+				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), RootElement, true, LeafBones);
 
 				for (int32 Element : LeafBones)
 				{
@@ -2307,7 +2317,7 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			{
 				int32 ParentBone = Parents[Bone];
 				TArray<int32> LeafBones;
-				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), ParentBone, LeafBones);
+				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), ParentBone, true, LeafBones);
 
 				for (int32 Element : LeafBones)
 				{

@@ -12,9 +12,10 @@
 class IDetailsView;
 class IPropertyHandle;
 class SScrollBox;
-struct FFractureToolContext;
+class FFractureToolContext;
 class FGeometryCollection;
 class SGeometryCollectionOutliner;
+class SGeometryCollectionHistogram;
 class AGeometryCollectionActor;
 class UGeometryCollectionComponent;
 class UGeometryCollection;
@@ -27,6 +28,12 @@ namespace GeometryCollection
 enum class ESelectionMode: uint8;
 }
 
+namespace Chaos
+{
+	template<class T, int d>
+	class TParticles;
+}
+
 class FFractureViewSettingsCustomization : public IDetailCustomization
 {
 public:
@@ -35,13 +42,39 @@ public:
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
-	private:
-		FFractureEditorModeToolkit* Toolkit;
+private:
+	FFractureEditorModeToolkit* Toolkit;
+};
+
+class FHistogramSettingsCustomization : public IDetailCustomization
+{
+public:
+	FHistogramSettingsCustomization(FFractureEditorModeToolkit* FractureToolkit);
+	static TSharedRef<IDetailCustomization> MakeInstance(FFractureEditorModeToolkit* FractureToolkit);
+
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+private:
+	FFractureEditorModeToolkit* Toolkit;
+};
+
+class FOutlinerSettingsCustomization : public IDetailCustomization
+{
+public:
+	FOutlinerSettingsCustomization(FFractureEditorModeToolkit* FractureToolkit);
+	static TSharedRef<IDetailCustomization> MakeInstance(FFractureEditorModeToolkit* FractureToolkit);
+
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+private:
+	FFractureEditorModeToolkit* Toolkit;
 };
 
 class FRACTUREEDITOR_API FFractureEditorModeToolkit : public FModeToolkit, public FGCObject
 {
 public:
+
+	using FGeometryCollectionPtr = TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>;
 
 	FFractureEditorModeToolkit();
 	~FFractureEditorModeToolkit();
@@ -93,6 +126,10 @@ public:
 	FReply OnModalClicked();
 	bool CanExecuteModal() const;
 
+	// Filter callbacks
+	FReply ResetHistogramSelection();
+	bool CanResetFilter() const;
+
 	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
 
 	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
@@ -114,6 +151,9 @@ public:
 
 	void UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const;
 
+	void RegenerateOutliner();
+	void RegenerateHistogram();
+
 	TSharedPtr<SWidget> ExplodedViewWidget;
 	TSharedPtr<SWidget> LevelViewWidget;
 	TSharedPtr<SWidget> ShowBoneColorsWidget;
@@ -123,7 +163,11 @@ protected:
 	static bool IsSelectedActorsInEditorWorld();	
 
 private:
+	static void UpdateGeometryComponentAttributes(UGeometryCollectionComponent* Component);
+	static void UpdateVolumes(FGeometryCollectionPtr GeometryCollection, const Chaos::TParticles<float, 3>& MassSpaceParticles, int32 TransformIndex);
+
 	void OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
+	void OnHistogramBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
 	void BindCommands();
 
 private:
@@ -131,7 +175,10 @@ private:
 
 	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<IDetailsView> ViewSettingsDetailsView;
+	TSharedPtr<IDetailsView> HistogramDetailsView;
+	TSharedPtr<IDetailsView> OutlinerDetailsView;
 	TSharedPtr<SWidget> ToolkitWidget;
 	TSharedPtr<SGeometryCollectionOutliner> OutlinerView;
+	TSharedPtr<SGeometryCollectionHistogram> HistogramView;
 
 };

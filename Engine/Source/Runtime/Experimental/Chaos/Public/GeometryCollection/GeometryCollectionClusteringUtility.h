@@ -89,7 +89,7 @@ public:
 	static void CollapseSelectedHierarchy(int8 Level, const TArray<int32>& SelectedBones, FGeometryCollection* GeometryCollection);
 
 	/** reparent source bones under root bone */
-	static void ClusterBonesUnderExistingRoot(FGeometryCollection* GeometryCollection, TArray<int32>& SourceElements);
+	static void ClusterBonesUnderExistingRoot(FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements);
 
 	/** moved the selected bones closer to the root */
 	static void CollapseHierarchyOneLevel(FGeometryCollection* GeometryCollection, TArray<int32>& SourceElements);
@@ -103,11 +103,17 @@ public:
 	/** Make logical editor selections based on the current selected hierarchy view level */
 	static void ContextBasedClusterSelection(FGeometryCollection* GeometryCollection, int ViewLevel, const TArray<int32>& SelectedComponentBonesIn, TArray<int32>& SelectedComponentBonesOut, TArray<int32>& HighlightedComponentBonesOut);
 
-	/** return an array of all child leaf nodes below the specified node */
-	static void GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, TArray<int32>& LeafBonesOut);
+	/** return an array of all child leaf nodes below the specified node. If bOnlyRigids is true, the first Rigid node dound is considered a leaf, regardless of an children it might have. */
+	static void GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, bool bOnlyRigids, TArray<int32>& LeafBonesOut);
 
 	/** move the selected node up a level in direction of root */
 	static void MoveUpOneHierarchyLevel(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
+
+	/** Find the lowest common ancestor index of currently selected nodes. Returns INDEX_NODE if there is no common ancestor. */
+	static int32 FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
+
+	/** Delete any cluster nodes discovered to have no children */
+	static void RemoveDanglingClusters(FGeometryCollection* GeometryCollection);
 
 	static void ValidateResults(FGeometryCollection* GeometryCollection);
 private:
@@ -117,5 +123,5 @@ private:
 	
 	static void RecursivelyUpdateHierarchyLevelOfChildren(TManagedArray<int32>& Levels, const TManagedArray<TSet<int32>>& Children, int32 ParentElement);
 
-
+	static int32 FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, int32 N0, int32 N1);
 };

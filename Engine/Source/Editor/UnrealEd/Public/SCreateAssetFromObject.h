@@ -33,6 +33,9 @@ public:
 	/** The label for the create button */
 	SLATE_ARGUMENT(FText, CreateButtonText)
 
+	/** The path we begin naviagation at */
+	SLATE_ARGUMENT(FString, AssetPath)
+
 	SLATE_ARGUMENT(FText, DefaultNameOverride)
 
 	/** Action to perform when create clicked */

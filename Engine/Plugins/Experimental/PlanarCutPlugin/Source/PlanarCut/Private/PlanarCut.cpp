@@ -851,12 +851,14 @@ struct OutputCells
 					Output.BoneColor[TransformIdx] = Output.BoneColor[TransformParent];
 					Output.Parent[TransformIdx] = TransformParent;
 					Output.Children[TransformParent].Add(TransformIdx);
+					Output.SimulationType[TransformParent] = FGeometryCollection::ESimulationTypes::FST_Clustered;
 				}
 
 
 				// Set the transform for the child geometry
 				// Note to make it easier to procedurally texture later, it's better to leave it in the same space
 				Output.Transform[TransformIdx] = FTransform::Identity;
+				Output.SimulationType[TransformIdx] = FGeometryCollection::ESimulationTypes::FST_Rigid;
 				ChildInverseTransforms.Emplace(FVector::ZeroVector);
 
 				GeometrySubIdx++;

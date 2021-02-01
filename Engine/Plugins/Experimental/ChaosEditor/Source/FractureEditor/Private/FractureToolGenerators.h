@@ -17,6 +17,7 @@ public:
 
 	UFractureToolGenerateAsset(const FObjectInitializer& ObjInit) 
 		: Super(ObjInit)
+		, AssetPath(FString(TEXT("/Game")))
 	{}
 
 	// UFractureActionTool Interface
@@ -38,6 +39,8 @@ private:
 private:
 	TWeakPtr<FFractureEditorModeToolkit> Toolkit;
 
+	UPROPERTY()
+	FString AssetPath;
 };
 
 
@@ -57,4 +60,5 @@ public:
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual bool CanExecute() const override;
 };
+
 

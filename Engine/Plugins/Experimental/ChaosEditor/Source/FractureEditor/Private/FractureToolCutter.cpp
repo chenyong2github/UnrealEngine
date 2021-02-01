@@ -2,6 +2,8 @@
 
 #include "FractureToolCutter.h"
 
+#include "FractureToolContext.h"
+
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
@@ -9,12 +11,16 @@
 #include "Voronoi/Voronoi.h"
 #include "PlanarCut.h"
 
+#define LOCTEXT_NAMESPACE "FractureToolCutter"
+
 
 UFractureToolCutterBase::UFractureToolCutterBase(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
 	CutterSettings = NewObject<UFractureCutterSettings>(GetTransientPackage(), UFractureCutterSettings::StaticClass());
 	CutterSettings->OwnerTool = this;
+	CollisionSettings = NewObject<UFractureCollisionSettings>(GetTransientPackage(), UFractureCollisionSettings::StaticClass());
+	CollisionSettings->OwnerTool = this;
 }
 
 bool UFractureToolCutterBase::CanExecute() const
@@ -29,134 +35,75 @@ bool UFractureToolCutterBase::CanExecute() const
 		return false;
 	}
 
-	return IsLeafBoneSelected();
+	return true;
 }
 
-
-void UFractureToolCutterBase::GetFractureContexts(TArray<FFractureToolContext>& FractureContexts) const
+TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() const
 {
+	TArray<FFractureToolContext> Contexts;
+
 	FRandomStream RandomStream(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed : FMath::Rand());
 
-	TSet<UGeometryCollectionComponent*> GeometryCollectionComponents;
-	GetSelectedGeometryCollectionComponents(GeometryCollectionComponents);
+	// A context is gathered for each selected GeometryCollection component, or for each individual bone if Group Fracture is not used.
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection);
 
-	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeometryCollectionComponents)
+	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
 	{
-		FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
-		UGeometryCollection* FracturedGeometryCollection = RestCollection.GetRestCollection();
-		if (FracturedGeometryCollection == nullptr)
-		{
-			continue;
-		}
-
-		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
-		FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
-
-		TArray<int32> FilteredBones = FilterBones(GeometryCollectionComponent->GetSelectedBones(), OutGeometryCollection);
-
-
-		const TManagedArray<FTransform>& Transform = OutGeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-		const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
-		const TManagedArray<FBox>& BoundingBoxes = OutGeometryCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
+		// Generate a context for each selected node
+		FFractureToolContext FullSelection(GeometryCollectionComponent);
+		FullSelection.ConvertSelectionToRigidNodes();
+		
+		// Update global transforms and bounds		
+		const TManagedArray<FTransform>& Transform = FullSelection.GetGeometryCollection()->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& TransformToGeometryIndex = FullSelection.GetGeometryCollection()->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
+		const TManagedArray<FBox>& BoundingBoxes = FullSelection.GetGeometryCollection()->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
 
 		TArray<FTransform> Transforms;
-		GeometryCollectionAlgo::GlobalMatrices(Transform, OutGeometryCollection->Parent, Transforms);
-
+		GeometryCollectionAlgo::GlobalMatrices(Transform, FullSelection.GetGeometryCollection()->Parent, Transforms);
 
 		TMap<int32, FBox> BoundsToBone;
-		for (int32 Idx = 0, ni = FracturedGeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
+		int32 TransformCount = Transform.Num();
+		for (int32 Index = 0; Index < TransformCount; ++Index)
 		{
-			if (TransformToGeometryIndex[Idx] > -1)
+			if (TransformToGeometryIndex[Index] > INDEX_NONE)
 			{
-				ensure(TransformToGeometryIndex[Idx] > -1);
-				BoundsToBone.Add(Idx, BoundingBoxes[TransformToGeometryIndex[Idx]].TransformBy(Transforms[Idx]));
+				BoundsToBone.Add(Index, BoundingBoxes[TransformToGeometryIndex[Index]].TransformBy(Transforms[Index]));
 			}
 		}
 
 		if (CutterSettings->bGroupFracture)
 		{
-			GenerateFractureToolContext(
-				GeometryCollectionComponent->GetOwner(),
-				GeometryCollectionComponent,
-				FracturedGeometryCollection,
-				FilteredBones,
-				BoundsToBone,
-				TransformToGeometryIndex,
-				CutterSettings->RandomSeed,
-				FractureContexts);
+			FullSelection.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed : FMath::Rand());
+
+			FBox Bounds(ForceInit);
+			for (int32 BoneIndex : FullSelection.GetSelection())
+			{
+				if (TransformToGeometryIndex[BoneIndex] > INDEX_NONE)
+				{
+					Bounds += BoundsToBone[BoneIndex];
+				}
+			}
+			FullSelection.SetBounds(Bounds);
+
+			Contexts.Add(FullSelection);
 		}
 		else
 		{
-			for (int32 BoneIndex : FilteredBones)
+			// Generate a context for each selected node
+			for (int32 Index : FullSelection.GetSelection())
 			{
-				GenerateFractureToolContext(
-					GeometryCollectionComponent->GetOwner(),
-					GeometryCollectionComponent,
-					FracturedGeometryCollection,
-					{ BoneIndex },
-					BoundsToBone,
-					TransformToGeometryIndex,
-					CutterSettings->RandomSeed + FractureContexts.Num(),
-					FractureContexts);
-			}
-		}
-		
-	}
-}
+				Contexts.Emplace(GeometryCollectionComponent);
+				FFractureToolContext& FractureContext = Contexts.Last();
 
-
-bool UFractureToolCutterBase::IsLeafBoneSelected()
-{
-	TSet<UGeometryCollectionComponent*> GeomCompSelection;
-	GetSelectedGeometryCollectionComponents(GeomCompSelection);
-	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
-	{
-		const TArray<int32> SelectedBones = GeometryCollectionComponent->GetSelectedBones();
-
-		if (SelectedBones.Num() > 0)
-		{
-			if (const UGeometryCollection* GCObject = GeometryCollectionComponent->GetRestCollection())
-			{
-				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
-				if (const FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
-				{
-					const TManagedArray<TSet<int32>>& Children = GeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
-
-					for (int32 BoneIndex : SelectedBones)
-					{
-						if (BoneIndex < Children.Num() && Children[BoneIndex].Num() == 0)
-						{
-							return true;
-						}
-					}
-				}
+				FractureContext.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed + Index : FMath::Rand());
+				FractureContext.SetBounds(BoundsToBone[Index]);
 			}
 		}
 	}
-	return false;
+
+	return Contexts;
 }
-
-TArray<int32> UFractureToolCutterBase::FilterBones(const TArray<int32>& SelectedBonesOriginal, const FGeometryCollection* const GeometryCollection) const
-{
-	FRandomStream RandomStream(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed : FMath::Rand());
-
-	// Keep only leaf nodes and implement skip probability
-	const TManagedArray<TSet<int32>>& Children = GeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
-
-	TArray<int32> SelectedBones;
-	SelectedBones.Reserve(SelectedBonesOriginal.Num());
-	for (int32 BoneIndex : SelectedBonesOriginal)
-	{
-		if (BoneIndex < Children.Num() && Children[BoneIndex].Num() == 0 && RandomStream.FRand() < CutterSettings->ChanceToFracture)
-		{
-			SelectedBones.Add(BoneIndex);
-		}
-	}
-
-	return SelectedBones;
-}
-
-
 
 UFractureToolVoronoiCutterBase::UFractureToolVoronoiCutterBase(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -189,8 +136,7 @@ void UFractureToolVoronoiCutterBase::Render(const FSceneView* View, FViewport* V
 
 void UFractureToolVoronoiCutterBase::FractureContextChanged()
 {
-	TArray<FFractureToolContext> FractureContexts;
-	GetFractureContexts(FractureContexts);
+	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
 	VoronoiSites.Empty();
 	CellMember.Empty();
@@ -199,45 +145,44 @@ void UFractureToolVoronoiCutterBase::FractureContextChanged()
 	for (FFractureToolContext& FractureContext : FractureContexts)
 	{
 		// Move the local bounds to the actor so we we'll draw in the correct location
-		FractureContext.Bounds = FractureContext.Bounds.TransformBy(FractureContext.Transform);
+		FractureContext.TransformBoundsToWorld();
 		GenerateVoronoiSites(FractureContext, VoronoiSites);
 		if (CutterSettings->bDrawDiagram)
 		{
-			GetVoronoiEdges(VoronoiSites, FractureContext.Bounds, VoronoiEdges, CellMember);
+			GetVoronoiEdges(VoronoiSites, FractureContext.GetBounds(), VoronoiEdges, CellMember);
 		}
 	}
 }
 
-void UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext& FractureContext)
+int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
-	if (FractureContext.FracturedGeometryCollection != nullptr)
+	if (FractureContext.IsValid())
 	{
-		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FractureContext.FracturedGeometryCollection->GetGeometryCollection();
-		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
+		TArray<FVector> Sites;
+		GenerateVoronoiSites(FractureContext, Sites);
+		FBox VoronoiBounds = FractureContext.GetBounds();
+			
+		// expand bounds to make sure noise-perturbed voronoi cells still contain the whole input mesh
+		VoronoiBounds = VoronoiBounds.ExpandBy(CutterSettings->Amplitude + CutterSettings->Grout);
+			
+		FVoronoiDiagram Voronoi(Sites, VoronoiBounds, .1f);
+
+		FPlanarCells VoronoiPlanarCells = FPlanarCells(Sites, Voronoi);
+
+		FNoiseSettings NoiseSettings;
+		if (CutterSettings->Amplitude > 0.0f)
 		{
-			TArray<FVector> Sites;
-			GenerateVoronoiSites(FractureContext, Sites);
-			FBox VoronoiBounds = FractureContext.Bounds;
-			if (CutterSettings->Amplitude > 0.0f)
-			{
-				// expand bounds to make sure noise-perturbed voronoi cells still contain the whole input mesh
-				VoronoiBounds = VoronoiBounds.ExpandBy(CutterSettings->Amplitude);
-			}
-			FVoronoiDiagram Voronoi(Sites, VoronoiBounds, .1f);
-
-			FPlanarCells VoronoiPlanarCells = FPlanarCells(Sites, Voronoi);
-
-			FNoiseSettings NoiseSettings;
-			if (CutterSettings->Amplitude > 0.0f)
-			{
-				NoiseSettings.Amplitude = CutterSettings->Amplitude;
-				NoiseSettings.Frequency = CutterSettings->Frequency;
-				NoiseSettings.Octaves = CutterSettings->OctaveNumber;
-				NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
-				VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
-			}
-
-			CutMultipleWithPlanarCells(VoronoiPlanarCells, *GeometryCollection, FractureContext.SelectedBones);
+			NoiseSettings.Amplitude = CutterSettings->Amplitude;
+			NoiseSettings.Frequency = CutterSettings->Frequency;
+			NoiseSettings.Octaves = CutterSettings->OctaveNumber;
+			NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
+			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
+
+		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *(FractureContext.GetGeometryCollection()), FractureContext.GetSelection());
 	}
+
+	return INDEX_NONE;
 }
+
+#undef LOCTEXT_NAMESPACE

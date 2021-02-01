@@ -6,6 +6,7 @@
 #include "Misc/Crc.h"
 #include "GeometryCollection/ManagedArray.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
+#include "Chaos/ChaosSolverActor.h"
 #include "GeometryCollectionObject.generated.h"
 
 class UMaterialInterface;
@@ -110,7 +111,6 @@ class GEOMETRYCOLLECTIONENGINE_API UGeometryCollection : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	UGeometryCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** UObject Interface */
@@ -135,8 +135,8 @@ public:
 	void Reset();
 	
 	int32 AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials = false, const FTransform& TransformRoot = FTransform::Identity);
-	int32 NumElements(const FName & Group) const;
-	void RemoveElements(const FName & Group, const TArray<int32>& SortedDeletionList);
+	int32 NumElements(const FName& Group) const;
+	void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
 
 	/** ReindexMaterialSections */
 	void ReindexMaterialSections();
@@ -150,8 +150,10 @@ public:
 	/** Invalidates this collection signaling a structural change and renders any previously recorded caches unable to play with this collection */
 	void InvalidateCollection();
 
+#if WITH_EDITOR
 	/** Check to see if Simulation Data requires regeneration */
 	bool IsSimulationDataDirty() const;
+#endif
 
 #if WITH_EDITOR
 	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
@@ -160,6 +162,9 @@ public:
 	/** Create the simulation data that can be shared among all instances (mass, volume, etc...)*/
 	void CreateSimulationData();
 #endif
+
+	void InitResources();
+	void ReleaseResources();
 
 	/** Fills params struct with parameters used for precomputing content. */
 	void GetSharedSimulationParams(FSharedSimulationParameters& OutParams) const;
@@ -171,7 +176,26 @@ public:
 
 	/** The editable mesh representation of this geometry collection */
 	class UObject* EditableMesh;
-	
+
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	bool EnableClustering;
+
+	/** Maximum level for cluster breaks. */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	int32 ClusterGroupIndex;
+
+	/** Maximum level for cluster breaks. */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	int32 MaxClusterLevel;
+
+	/** Damage threshold for clusters at different levels. */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	TArray<float> DamageThreshold;
+
+	/** */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	EClusterConnectionTypeEnum ClusterConnectionType;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	TArray<FGeometryCollectionSource> GeometrySource;
 	
@@ -252,7 +276,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Collisions")
 	TArray<FGeometryCollectionSizeSpecificData> SizeSpecificData;
-	
+
 	/**
 	* Enable remove pieces on fracture
 	*/
@@ -265,7 +289,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Fracture")
 	TArray<UMaterialInterface*> RemoveOnFractureMaterials;
 
-	FORCEINLINE const int GetBoneSelectedMaterialIndex() const { return BoneSelectedMaterialIndex; }
+	FORCEINLINE const int32 GetBoneSelectedMaterialIndex() const { return BoneSelectedMaterialIndex; }
 
 #if WITH_EDITORONLY_DATA
 	/** Information for thumbnail rendering */
@@ -273,14 +297,12 @@ public:
 	class UThumbnailInfo* ThumbnailInfo;
 #endif // WITH_EDITORONLY_DATA
 
-
 private:
 #if WITH_EDITOR
 	void CreateSimulationDataImp(bool bCopyFromDDC, const TCHAR* OverrideVersion = nullptr);
 #endif
 
 private:
-
 	/** Guid created on construction of this collection. It should be used to uniquely identify this collection */
 	UPROPERTY()
 	FGuid PersistentGuid;
@@ -307,5 +329,3 @@ private:
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection;
 };
-
-

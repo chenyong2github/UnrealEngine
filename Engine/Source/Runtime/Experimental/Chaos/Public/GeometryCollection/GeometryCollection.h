@@ -96,8 +96,7 @@ public:
 	{
 		FST_None = 0,
 		FST_Rigid = 1,
-		FST_Clustered = 2,
-		FST_Not_Simulatable = 3
+		FST_Clustered = 2
 	};
 
 	enum ENodeFlags : uint32
@@ -199,6 +198,7 @@ public:
 
 	FORCEINLINE bool IsGeometry(int32 Element) const { return TransformToGeometryIndex[Element] != INDEX_NONE; }
 	FORCEINLINE bool IsClustered(int32 Element) const { const TManagedArray<int32>& SimType = SimulationType;  return !!(SimType[Element] == ESimulationTypes::FST_Clustered); }
+	FORCEINLINE bool IsRigid(int32 Element) const { const TManagedArray<int32>& SimType = SimulationType;  return !!(SimType[Element] == ESimulationTypes::FST_Rigid); }
 	FORCEINLINE bool IsTransform(int32 Element) const { return !IsGeometry(Element); }
 	FORCEINLINE void SetFlags(int32 Element, int32 InFlags) { TManagedArray<int32>& Status = StatusFlags; Status[Element] |= InFlags; }
 	FORCEINLINE void ClearFlags(int32 Element, int32 InFlags) { TManagedArray<int32>& Status = StatusFlags; Status[Element] = Status[Element] & ~InFlags; }
@@ -231,6 +231,7 @@ public:
 	TManagedArray<int32>		TransformToGeometryIndex;
 	TManagedArray<int32>        SimulationType;
 	TManagedArray<int32>        StatusFlags;
+	TManagedArray<int32>		InitialDynamicState;
 
 	// Vertices Group
 	TManagedArray<FVector>		Vertex;

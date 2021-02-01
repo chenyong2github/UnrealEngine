@@ -6,6 +6,7 @@
 
 #include "FractureToolCutter.generated.h"
 
+class FFractureToolContext;
 
 /** Settings specifically related to the one-time destructive fracturing of a mesh **/
 UCLASS(config = EditorPerProjectUserSettings)
@@ -48,6 +49,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Draw Diagram"))
 	bool bDrawDiagram;
 
+	/** Amount of space to leave between cut pieces */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (UIMin = "0.0", ClampMin = "0.0"))
+	float Grout = 0.0f;
+
 	/** Size of the noise displacement in centimeters */
 	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "0.0"))
 	float Amplitude;
@@ -61,11 +66,26 @@ public:
 	int32 OctaveNumber;
 
 	/** Spacing between vertices on cut surfaces, where noise is added.  Larger spacing between vertices will create more efficient meshes with fewer triangles, but less resolution to see the shape of the added noise  */
-	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1", ClampMin = "0.1"))
+	UPROPERTY(EditAnywhere, Category = Noise, meta = (DisplayName = "Point Spacing", UIMin = "1", ClampMin = "0.1"))
 	float SurfaceResolution;
-
 };
 
+/** Settings related to the collision properties of the fractured mesh pieces */
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureCollisionSettings : public UFractureToolSettings
+{
+public:
+	GENERATED_BODY()
+
+	UFractureCollisionSettings(const FObjectInitializer& ObjInit)
+	: Super(ObjInit) {}
+
+	/** Target spacing between collision samples on the mesh surface. */
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "1", ClampMin = "0.1"))
+	float PointSpacing = 50.0f;
+
+	// TODO: add remeshing options here as well
+};
 
 UCLASS(Abstract, DisplayName = "Cutter Base", Category = "FractureTools")
 class UFractureToolCutterBase : public UFractureInteractiveTool
@@ -80,16 +100,14 @@ public:
 
 	virtual bool CanExecute() const override;
 
-	virtual void GetFractureContexts(TArray<FFractureToolContext>& FractureContexts) const;
-
-	TArray<int32> FilterBones(const TArray<int32>& SelectedBonesOriginal, const FGeometryCollection* const GeometryCollection) const override;
+	virtual TArray<FFractureToolContext> GetFractureToolContexts() const override;
 
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	UFractureCutterSettings* CutterSettings;
 
-private:
-	static bool IsLeafBoneSelected();
+	UPROPERTY(EditAnywhere, Category = Collision)
+	UFractureCollisionSettings* CollisionSettings;
 
 };
 
@@ -105,7 +123,7 @@ public:
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
 	virtual void FractureContextChanged() override;
-	virtual void ExecuteFracture(const FFractureToolContext& FractureContext) override;
+	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
 protected:
 	virtual void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) {}

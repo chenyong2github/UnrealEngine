@@ -4,6 +4,7 @@
 
 #include "FractureEditorStyle.h"
 #include "FractureEditorCommands.h"
+#include "FractureToolContext.h"
 
 #include "AutoClusterFracture.h"
 
@@ -60,25 +61,22 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 {
 	if (InToolkit.IsValid())
 	{
-		TSet<UGeometryCollectionComponent*> GeomCompSelection;
-		GetSelectedGeometryCollectionComponents(GeomCompSelection);
-		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
 		{
-			FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-			int32 CurrentLevelView = EditBoneColor.GetViewLevel();
+			Context.ConvertSelectionToClusterNodes();
 
-			UAutoClusterFractureCommand::ClusterChildBonesOfASingleMesh(GeometryCollectionComponent, AutoClusterSettings->AutoClusterMode, AutoClusterSettings->SiteCount);
+			UAutoClusterFractureCommand::ClusterChildBonesOfASingleMesh(Context.GetGeometryCollectionComponent(), AutoClusterSettings->AutoClusterMode, AutoClusterSettings->SiteCount);
 
-			EditBoneColor.ResetBoneSelection();
-			EditBoneColor.SetLevelViewMode(CurrentLevelView);
-
-			GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-			GeometryCollectionComponent->MarkRenderStateDirty();
+			Refresh(Context, Toolkit);
 		}
 
-		InToolkit.Pin()->SetOutlinerComponents(GeomCompSelection.Array());
+		SetOutlinerComponents(Contexts, Toolkit);
 	}
 }
-
+	
 #undef LOCTEXT_NAMESPACE
 

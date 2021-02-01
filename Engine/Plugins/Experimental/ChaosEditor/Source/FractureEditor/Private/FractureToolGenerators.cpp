@@ -10,12 +10,14 @@
 #include "AssetRegistryModule.h"
 #include "Layers/LayersSubsystem.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionConversion.h"
+#include "FractureToolContext.h"
 
 
 #define LOCTEXT_NAMESPACE "FractureToolGenerators"
@@ -44,8 +46,8 @@ void UFractureToolGenerateAsset::RegisterUICommand(FFractureEditorCommands* Bind
 
 bool UFractureToolGenerateAsset::CanExecute() const
 {
-	// We can execute this command if static meshes are selected.
-	return IsStaticMeshSelected();
+	// We can execute this command if only static meshes are selected.
+	return (IsStaticMeshSelected() && (!IsGeometryCollectionSelected()));
 }
 
 void UFractureToolGenerateAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
@@ -81,6 +83,7 @@ void UFractureToolGenerateAsset::OpenGenerateAssetDialog(TArray<AActor*>& Actors
 		.AssetFilenameSuffix(TEXT("GeometryCollection"))
 		.HeadingText(LOCTEXT("CreateGeometryCollection_Heading", "Geometry Collection Name"))
 		.CreateButtonText(LOCTEXT("CreateGeometryCollection_ButtonLabel", "Create Geometry Collection"))
+		.AssetPath(AssetPath)
 		.OnCreateAssetAction(FOnPathChosen::CreateUObject(this, &UFractureToolGenerateAsset::OnGenerateAssetPathChosen, Actors))
 	);
 
@@ -99,7 +102,14 @@ void UFractureToolGenerateAsset::OpenGenerateAssetDialog(TArray<AActor*>& Actors
 void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAssetPath, TArray<AActor*> Actors)
 {
 		
-	UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;//  = Cast<UGeometryCollectionComponent>(FractureContext.OriginalPrimitiveComponent);
+	//Record the path
+	int32 LastSlash = INDEX_NONE;
+	if (InAssetPath.FindLastChar('/', LastSlash))
+	{
+		AssetPath = InAssetPath.LeftChop(LastSlash);
+	}
+
+	UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
 
 	if (Actors.Num() > 0)
 	{
@@ -128,6 +138,8 @@ void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAsse
 			TSharedPtr<FFractureEditorModeToolkit> SharedToolkit(Toolkit.Pin());
 			SharedToolkit->SetOutlinerComponents({ GeometryCollectionComponent });
 			SharedToolkit->SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
+
+			SharedToolkit->OnSetLevelViewValue(-1);
 		}
 		
 		GeometryCollectionComponent->MarkRenderDynamicDataDirty();
@@ -169,12 +181,13 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertStaticMeshToGeometr
 			if (StaticMeshComponent != nullptr)
 			{
 				UStaticMesh* ComponentStaticMesh = StaticMeshComponent->GetStaticMesh();
+				
 				FTransform ComponentTransform(StaticMeshComponent->GetComponentTransform());
 				ComponentTransform.SetTranslation((ComponentTransform.GetTranslation() - ActorTransform.GetTranslation()) + ActorOffset);
 
 				// Record the contributing source on the asset.
 				FSoftObjectPath SourceSoftObjectPath(ComponentStaticMesh);
-				TArray<UMaterialInterface*> SourceMaterials = StaticMeshComponent->GetMaterials();
+				decltype(FGeometryCollectionSource::SourceMaterial) SourceMaterials(StaticMeshComponent->GetMaterials());
 				FracturedGeometryCollection->GeometrySource.Add({ SourceSoftObjectPath, ComponentTransform, SourceMaterials });
 
 				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, SourceMaterials, ComponentTransform, FracturedGeometryCollection, true);
@@ -183,6 +196,7 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertStaticMeshToGeometr
 
 		FracturedGeometryCollection->InitializeMaterials();
 	}
+
 	AddSingleRootNodeIfRequired(FracturedGeometryCollection);
 
 	return NewActor;
@@ -342,8 +356,14 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 			}
 			GeometryCollectionObject->MarkPackageDirty();
 		}
+		
+		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+		EditBoneColor.ResetBoneSelection();
+		EditBoneColor.ResetHighlightedBones();
 	}
+	InToolkit.Pin()->OnSetLevelViewValue(-1);
 	InToolkit.Pin()->SetOutlinerComponents(GeomCompSelection.Array());
 }
+
 
 #undef LOCTEXT_NAMESPACE

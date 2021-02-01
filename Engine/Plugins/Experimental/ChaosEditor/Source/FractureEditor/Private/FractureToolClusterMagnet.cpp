@@ -5,6 +5,7 @@
 #include "FractureTool.h"
 #include "FractureEditorStyle.h"
 #include "FractureEditorCommands.h"
+#include "FractureToolContext.h"
 
 #include "Chaos/TriangleMesh.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
@@ -44,7 +45,7 @@ FText UFractureToolClusterMagnet::GetTooltipText() const
 
 FText UFractureToolClusterMagnet::GetApplyText() const
 {
-	return FText(NSLOCTEXT("Fracturet", "ExecuteClusterMagnet", "Cluster Magnet"));
+	return FText(NSLOCTEXT("Fracture", "ExecuteClusterMagnet", "Cluster Magnet"));
 }
 
 FSlateIcon UFractureToolClusterMagnet::GetToolIcon() const
@@ -62,106 +63,79 @@ TArray<UObject*> UFractureToolClusterMagnet::GetSettingsObjects() const
 
 void UFractureToolClusterMagnet::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "ClusterMagnet", "Cluster Magnet", "Builds clusters at local level by collecting bones adjacent to clusters or bones with highest mass.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "ClusterMagnet", "Magnet", "Builds clusters at local level by collecting bones adjacent to clusters or bones with highest mass.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->ClusterMagnet = UICommandInfo;
 }
 
+
 void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	
 	if (InToolkit.IsValid())
 	{
-		TSet<UGeometryCollectionComponent*> GeomCompSelection;
-		GetSelectedGeometryCollectionComponents(GeomCompSelection);
-		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
 		{
-			const UGeometryCollection* RestCollection = GeometryCollectionComponent->GetRestCollection();
-			if (RestCollection)
+			// We require certain attributes present to proceed.
+			if (!CheckPresenceOfNecessaryAttributes(Context.GetGeometryCollection()))
 			{
-				FGeometryCollectionPtr GeometryCollection = RestCollection->GetGeometryCollection();
+				continue;
+			}
 
-				// We require certain attributes present to proceed.
-				if (!CheckPresenceOfNecessaryAttributes(GeometryCollection))
-				{
-					return;
-				}
+			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->Children;
+			const TManagedArray<int32>& Levels = Context.GetGeometryCollection()->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 
-				// If no bones are selected, assume that we're working on the root's children
-				TArray<int32> SelectedBones = GeometryCollectionComponent->GetSelectedBones();
-				if (SelectedBones.Num() == 0)
-				{
-					FGeometryCollectionClusteringUtility::GetRootBones(GeometryCollection.Get(), SelectedBones);
-				}
+			Context.Sanitize();
+			TMap<int32, TArray<int32>> ClusteredSelection = Context.GetClusteredSelections();
 
-				for (int32 CurrentRoot : SelectedBones)
+			for (TPair<int32, TArray<int32>>& Group : ClusteredSelection)
+			{
+				// We have the connections for the leaf nodes of our geometry collection. We want to percolate those up to the top nodes.
+				TMap<int32, TSet<int32>> TopNodeConnectivity = InitializeConnectivity(Children[Group.Key], Context.GetGeometryCollection(), Levels[Group.Key]+1);
+
+				// Separate the top nodes into cluster magnets and a pool of available nodes.
+				TArray<FClusterMagnet> ClusterMagnets;
+				TSet<int32> RemainingPool;
+				SeparateClusterMagnets(Children[Group.Key], Group.Value, TopNodeConnectivity, ClusterMagnets, RemainingPool);
+
+				for (uint32 Iteration = 0; Iteration < ClusterMagnetSettings->Iterations; ++Iteration)
 				{
-					const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
-					if (Children[CurrentRoot].Num() > 0)
+					bool bNeighborsAbsorbed = false;
+
+					// each cluster gathers adjacent nodes from the pool
+					for (FClusterMagnet& ClusterMagnet : ClusterMagnets)
 					{
-						const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
-						const int32 OperatingLevel = Levels[CurrentRoot] + 1;
-						//const TArray<int32> TopNodes = GatherTopNodes(GeometryCollection, CurrentRoot);
-						const TSet<int32> TopNodes = Children[CurrentRoot];
+						bNeighborsAbsorbed |= AbsorbClusterNeighbors(TopNodeConnectivity, ClusterMagnet, RemainingPool);
+					}
 
-						UpdateMasses(GeometryCollection, TopNodes);
-
-						float CutoffMass = FindCutoffMass(ClusterMagnetSettings->MassPercentile, GeometryCollection, TopNodes);
-
-						// We have the connections for the leaf nodes of our geometry collection. We want to percolate those up to the top nodes.
-						TMap<int32, TSet<int32>> TopNodeConnectivity = InitializeConnectivity(TopNodes, GeometryCollection, OperatingLevel);
-
-						// Separate the top nodes into cluster magnets and a pool of available nodes.
-						TArray<FClusterMagnet> ClusterMagnets;
-						TSet<int32> RemainingPool;
-						SeparateClusterMagnets(GeometryCollection, TopNodes, CutoffMass, TopNodeConnectivity, ClusterMagnets, RemainingPool);
-
-						for (uint32 Iteration = 0; Iteration < ClusterMagnetSettings->Iterations; ++Iteration)
-						{
-							bool bNeighborsAbsorbed = false;
-
-							// each cluster gathers adjacent nodes from the pool
-							for (FClusterMagnet& ClusterMagnet : ClusterMagnets)
-							{
-								bNeighborsAbsorbed |= AbsorbClusterNeighbors(TopNodeConnectivity, ClusterMagnet, RemainingPool);
-							}
-
-							// early termination
-							if (!bNeighborsAbsorbed)
-							{
-								break;
-							}
-						}
-
-						// Create new clusters from the cluster magnets
-						for (const FClusterMagnet& ClusterMagnet : ClusterMagnets)
-						{
-							if (ClusterMagnet.ClusteredNodes.Num() > 1)
-							{
-								TArray<int32> NewChildren = ClusterMagnet.ClusteredNodes.Array();
-								NewChildren.Sort();
-								FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(GeometryCollection.Get(), NewChildren[0], NewChildren, false, false);
-								
-							}
-						}
-
-						FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection.Get(), CurrentRoot);
+					// early termination
+					if (!bNeighborsAbsorbed)
+					{
+						break;
 					}
 				}
 
-				FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-				EditBoneColor.ResetBoneSelection();
-				EditBoneColor.ResetHighlightedBones();
-				InToolkit.Pin()->SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
+				// Create new clusters from the cluster magnets
+				for (const FClusterMagnet& ClusterMagnet : ClusterMagnets)
+				{
+					if (ClusterMagnet.ClusteredNodes.Num() > 1)
+					{
+						TArray<int32> NewChildren = ClusterMagnet.ClusteredNodes.Array();
+						NewChildren.Sort();
+						FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(Context.GetGeometryCollection().Get(), NewChildren[0], NewChildren, false, false);
 
-				GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-				GeometryCollectionComponent->MarkRenderStateDirty();				
+					}
+				}
 			}
+
+			Refresh(Context, Toolkit);
 		}
 
-		InToolkit.Pin()->SetOutlinerComponents(GeomCompSelection.Array());
+		SetOutlinerComponents(Contexts, Toolkit);
 	}
 }
-
 
 bool UFractureToolClusterMagnet::CheckPresenceOfNecessaryAttributes(const FGeometryCollectionPtr GeometryCollection) const
 {
@@ -178,97 +152,6 @@ bool UFractureToolClusterMagnet::CheckPresenceOfNecessaryAttributes(const FGeome
 	}
 
 	return true;
-}
-
-float UFractureToolClusterMagnet::FindCutoffMass(float Percentile, const FGeometryCollectionPtr GeometryCollection, const TSet<int32>& TopNodes) const
-{
-	check(Percentile >= 0.0);
-	check(Percentile <= 1.0);
-	
-	const TManagedArray<float>& Mass = GeometryCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
-
-	// Collect the top node masses, sort by mass, return the threshold mass at the cutoff threshold. 
-	TArray<float> Masses;
-	Masses.Reserve(TopNodes.Num());
-	for (int32 Index : TopNodes)
-	{
-		Masses.Add(Mass[Index]);
-	}
-	Masses.Sort();
-
-	int32 ThresholdIndex = FMath::Floor(TopNodes.Num() * Percentile);
-	return Masses[ThresholdIndex];
-}
-
-
-void UFractureToolClusterMagnet::UpdateMasses(FGeometryCollectionPtr GeometryCollection, const TSet<int32>& TopNodes) const 
-{
-	if (!GeometryCollection->HasAttribute("Mass", FTransformCollection::TransformGroup))
-	{
-		GeometryCollection->AddAttribute<Chaos::FReal>("Mass", FTransformCollection::TransformGroup);
-		UE_LOG(LogFractureTool, Warning, TEXT("Added Mass attribute needed to execute ClusterMagnet."));
-	}
-	
-	TArray<FTransform> Transform;
-	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, Transform);
-
-	const TManagedArray<FVector>& Vertex = GeometryCollection->Vertex;
-	const TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
-	
-	Chaos::TParticles<float, 3> MassSpaceParticles;
-	MassSpaceParticles.AddParticles(Vertex.Num());
-	for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
-	{
-		MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(Vertex[Idx]);
-	}
-
-	for (int32 Index : TopNodes)
-	{
-		UpdateMasses(GeometryCollection, MassSpaceParticles, Index);
-	}
-}
-
-void UFractureToolClusterMagnet::UpdateMasses(FGeometryCollectionPtr GeometryCollection, const Chaos::TParticles<float, 3>& MassSpaceParticles, int32 TransformIndex) const
-{
-	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
-	const TManagedArray<bool>& Visible = GeometryCollection->Visible;
-	const TManagedArray<int32>& FaceCount = GeometryCollection->FaceCount;
-	const TManagedArray<int32>& FaceStart = GeometryCollection->FaceStart;
-	const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
-	const TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
-	TManagedArray<float>& Mass = GeometryCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
-	
-	if (Children[TransformIndex].Num() == 0) // leaf node
-	{
-		int32 GeometryIndex = TransformToGeometryIndex[TransformIndex];
-
-		TUniquePtr<Chaos::TTriangleMesh<float>> TriMesh(
-			CreateTriangleMesh(
-				FaceStart[GeometryIndex],
-				FaceCount[GeometryIndex],
-				Visible,
-				Indices,
-				true));
-		
-		float Volume = 0.0;
-		Chaos::TVector<Chaos::FReal,3> CenterOfMass;
-		Chaos::CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), Volume, CenterOfMass);
-
-		// Since we're only interested in relative mass, we assume density = 1.0
-		Mass[TransformIndex] = Volume;
-	}
-	else
-	{
-		// Recurse to children and sum the masses for this node
-		float LocalMass = 0.0;
-		for (int32 ChildIndex : Children[TransformIndex])
-		{
-			UpdateMasses(GeometryCollection, MassSpaceParticles, ChildIndex);
-			LocalMass += Mass[ChildIndex];
-		}
-
-		Mass[TransformIndex] = LocalMass;
-	}
 }
 
 TMap<int32, TSet<int32>> UFractureToolClusterMagnet::InitializeConnectivity(const TSet<int32>& TopNodes, FGeometryCollectionPtr GeometryCollection, int32 OperatingLevel) const
@@ -318,23 +201,20 @@ void UFractureToolClusterMagnet::CollectTopNodeConnections(FGeometryCollectionPt
 }
 
 void UFractureToolClusterMagnet::SeparateClusterMagnets(
-	const FGeometryCollectionPtr GeometryCollection,
 	const TSet<int32>& TopNodes,
-	float CutoffMass,
+	const TArray<int32>& Selection,
 	const TMap<int32, TSet<int32>>& TopNodeConnectivity,
 	TArray<FClusterMagnet>& OutClusterMagnets,
 	TSet<int32>& OutRemainingPool) const
 {
 	// Push any top nodes over the mass threshold into cluster magnets.
 	
-	const TManagedArray<float>& Mass = GeometryCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
-	
 	OutClusterMagnets.Reserve(TopNodes.Num());
 	OutRemainingPool.Reserve(TopNodes.Num());
-
+	
 	for (int32 Index : TopNodes)
 	{
-		if (Mass[Index] > CutoffMass)
+		if (Selection.Contains(Index))
 		{
 			OutClusterMagnets.AddDefaulted();
 			FClusterMagnet& NewMagnet = OutClusterMagnets.Last();

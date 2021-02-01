@@ -9,14 +9,14 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
+#include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 
 #include <iostream>
 #include <fstream>
 #include "Chaos/ChaosArchive.h"
 #include "Voronoi/Voronoi.h"
 
-DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionLogging, NoLogging, All);
-
+DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionLogging, Log, All);
 
 // @todo: update names 
 const FName FGeometryCollection::FacesGroup = "Faces";
@@ -47,6 +47,7 @@ void FGeometryCollection::Construct()
 	AddExternalAttribute<int32>("TransformToGeometryIndex", FTransformCollection::TransformGroup, TransformToGeometryIndex);
 	AddExternalAttribute<int32>("SimulationType", FTransformCollection::TransformGroup, SimulationType);
 	AddExternalAttribute<int32>("StatusFlags", FTransformCollection::TransformGroup, StatusFlags);
+	AddExternalAttribute<int32>("InitialDynamicState", FTransformCollection::TransformGroup, InitialDynamicState);
 
 	// Vertices Group
 	AddExternalAttribute<FVector>("Vertex", FGeometryCollection::VerticesGroup, Vertex);
@@ -88,6 +89,7 @@ void FGeometryCollection::SetDefaults(FName Group, uint32 StartSize, uint32 NumE
 			Parent[Idx] = FGeometryCollection::Invalid;
 			SimulationType[Idx] = FGeometryCollection::ESimulationTypes::FST_None;
 			StatusFlags[Idx] = 0;
+			InitialDynamicState[Idx] = static_cast<int32>(Chaos::EObjectStateType::Uninitialized);
 		}
 	}
 }
@@ -136,12 +138,14 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 
 	const TManagedArray<int32>& ElementSimulationType = Element.SimulationType;
 	const TManagedArray<int32>& ElementStatusFlags = Element.StatusFlags;
+	const TManagedArray<int32>& ElementInitialDynamicState = Element.InitialDynamicState;
 
 	// --- TRANSFORM ---
 	for (int TransformIdx = 0; TransformIdx < NumNewTransforms; TransformIdx++)
 	{
 		SimulationType[TransformIdx + StartTransformIndex] = ElementSimulationType[TransformIdx];
 		StatusFlags[TransformIdx + StartTransformIndex] = ElementStatusFlags[TransformIdx];
+		InitialDynamicState[TransformIdx + StartTransformIndex] = ElementInitialDynamicState[TransformIdx];
 	}
 
 	// --- VERTICES GROUP ---
@@ -811,6 +815,8 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
 	Super::Serialize(Ar);
 
+
+
 	if (Ar.IsLoading())
 	{
 		// Versioning - correct assets that were saved before material sections were introduced
@@ -882,6 +888,54 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 
 		RemoveAttribute("ExplodedTransform", FTransformCollection::TransformGroup);
 		RemoveAttribute("ExplodedVector", FTransformCollection::TransformGroup);
+
+		// Version 5 introduced accurate SimulationType tagging
+		if (Version < 5)
+		{
+			UE_LOG(FGeometryCollectionLogging, Warning, TEXT("GeometryCollection is has inaccurate simulation type tags. Updating tags based on transform topology."));
+			TManagedArray<bool>* SimulatableParticles = FindAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
+			TArray<bool> RigidChildren; RigidChildren.Init(false,NumElements(FTransformCollection::TransformGroup));
+			const TArray<int32> RecursiveOrder = GeometryCollectionAlgo::ComputeRecursiveOrder(*this);
+			for (const int32 TransformGroupIndex : RecursiveOrder)
+			{
+				//SimulationType[TransformGroupIndex] = ESimulationTypes::FST_None;
+				SimulationType[TransformGroupIndex] = ESimulationTypes::FST_Rigid;
+				
+				if(!Children[TransformGroupIndex].Num())
+				{ // leaf nodes
+					if (TransformToGeometryIndex[TransformGroupIndex] > INDEX_NONE)
+					{
+						SimulationType[TransformGroupIndex] = ESimulationTypes::FST_Rigid;
+					}
+
+					if (SimulatableParticles && !(*SimulatableParticles)[TransformGroupIndex])
+					{
+						SimulationType[TransformGroupIndex] = ESimulationTypes::FST_None;
+					}
+				}
+				else
+				{ // interior nodes
+					if (RigidChildren[TransformGroupIndex])
+					{
+						SimulationType[TransformGroupIndex] = ESimulationTypes::FST_Clustered;
+					}
+					else if (TransformToGeometryIndex[TransformGroupIndex] > INDEX_NONE)
+					{
+						SimulationType[TransformGroupIndex] = ESimulationTypes::FST_Rigid;
+					}
+				}
+
+				if (SimulationType[TransformGroupIndex] != ESimulationTypes::FST_None &&
+					Parent[TransformGroupIndex] != INDEX_NONE )
+				{
+					RigidChildren[Parent[TransformGroupIndex]] = true;
+				}
+
+			}
+			
+			// Structure is conditioned, now considered up to date.
+			Version = 5;
+		}
 
 	}
 }
@@ -1365,6 +1419,7 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	TManagedArray<TSet<int32>>& Children = RestCollection->Children;
 	TManagedArray<int32>& SimulationType = RestCollection->SimulationType;
 	TManagedArray<int32>& StatusFlags = RestCollection->StatusFlags;
+	TManagedArray<int32>& InitialDynamicState = RestCollection->InitialDynamicState;
 
 	// set the vertex information
 	for (int32 Idx = 0; Idx < NumNewVertices; ++Idx)
@@ -1507,9 +1562,7 @@ TArray<TArray<int32>> FGeometryCollection::ConnectionGraph()
 	return Connectivity;
 }
 
-
-void
-FGeometryCollection::UpdateOldAttributeNames()
+void FGeometryCollection::UpdateOldAttributeNames()
 {
 
 	// Faces Group

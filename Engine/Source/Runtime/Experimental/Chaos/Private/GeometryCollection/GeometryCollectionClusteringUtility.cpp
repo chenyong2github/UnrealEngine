@@ -15,6 +15,7 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(FGeometryCol
 	TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
 	TManagedArray<int32>& Parents = GeometryCollection->Parent;
 	TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	TManagedArray<int32>& SimType = GeometryCollection->SimulationType;
 
 	// insert a new node between the selected bones and their shared parent
 	int NewBoneIndex = GeometryCollection->AddElements(1, FGeometryCollection::TransformGroup);
@@ -23,8 +24,9 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(FGeometryCol
 	int32 SourceBoneIndex = InsertAtIndex;
 	int32 OriginalParentIndex = Parents[SourceBoneIndex];
 	BoneNames[NewBoneIndex] = BoneNames[SourceBoneIndex];
-	Parents[NewBoneIndex] = Parents[SourceBoneIndex];
+	Parents[NewBoneIndex] = OriginalParentIndex;
 	Children[NewBoneIndex] = TSet<int32>(SelectedBones);
+	SimType[NewBoneIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;
 
 	Transforms[NewBoneIndex] = FTransform::Identity;
 
@@ -109,7 +111,7 @@ void FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(FGeometry
 	BoneNames[RootNoneIndex] = "ClusterBone";
 	Parents[RootNoneIndex] = FGeometryCollection::Invalid;
 	Children[RootNoneIndex] = TSet<int32>(ChildBones);
-	SimulationType[RootNoneIndex] = FGeometryCollection::ESimulationTypes::FST_Rigid;
+	SimulationType[RootNoneIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;
 	check(GeometryCollection->IsTransform(RootNoneIndex));
 
 	if (GeometryCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup) &&
@@ -135,8 +137,6 @@ void FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(FGeometry
 	for (int32 ChildBoneIndex : ChildBones)
 	{
 		Parents[ChildBoneIndex] = RootNoneIndex;
-		GeometryCollection->SimulationType[ChildBoneIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;
-
 	}
 
 	Transforms[RootNoneIndex] = FTransform::Identity;
@@ -148,7 +148,7 @@ void FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(FGeometry
 }
 
 
-void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingRoot(FGeometryCollection* GeometryCollection, TArray<int32>& SourceElements)
+void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingRoot(FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements)
 {
 	check(GeometryCollection);
 	bool CalcNewLocalTransform = true;
@@ -224,8 +224,10 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(FGeomet
 	TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 	TManagedArray<FTransform>& Transforms = GeometryCollection->Transform;
 	TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
-	TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
-	TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+
+	// These attributes are apparently deprecated?
+	//TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
+	//TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
 
 	// remove Merge Node if it's in the list - happens due to the way selection works
 	TArray<int32> SourceElements;
@@ -258,17 +260,17 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(FGeomet
 				ParentsToUpdateNames.AddUnique(Parents[SourceElement]);
 			}
 
-			ResetSliderTransforms(ExplodedTransforms, Transforms);
+			//ResetSliderTransforms(ExplodedTransforms, Transforms);
 
 			// re-parent all the geometry nodes under existing merge node
 			GeometryCollectionAlgo::ParentTransforms(GeometryCollection, MergeNode, SourceElements);
 
 			// update source levels and transforms in our custom attributes
-			for (int32 Element : SourceElements)
-			{
-				ExplodedTransforms[Element] = Transforms[Element];
-				ExplodedVectors[Element] = Transforms[Element].GetLocation();
-			}
+			//for (int32 Element : SourceElements)
+			//{
+			//	ExplodedTransforms[Element] = Transforms[Element];
+			//	ExplodedVectors[Element] = Transforms[Element].GetLocation();
+			//}
 
 			UpdateHierarchyLevelOfChildren(GeometryCollection, MergeNode);
 
@@ -744,7 +746,7 @@ void FGeometryCollectionClusteringUtility::ContextBasedClusterSelection(
 
 }
 
-void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, TArray<int32>& LeafBonesOut)
+void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, bool bOnlyRigids, TArray<int32>& LeafBonesOut)
 {
 	if (!ensure(BoneIndex >= 0))
 	{
@@ -752,17 +754,22 @@ void FGeometryCollectionClusteringUtility::GetLeafBones(FGeometryCollection* Geo
 	}
 
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 
-	if (Children[BoneIndex].Num() > 0)
+	if (!bOnlyRigids && Children[BoneIndex].Num() == 0)
+	{
+		LeafBonesOut.Push(BoneIndex);
+	}
+	else if (bOnlyRigids && GeometryCollection->IsRigid(BoneIndex))
+	{
+		LeafBonesOut.Push(BoneIndex);
+	}
+	else if (Children[BoneIndex].Num() > 0)
 	{
 		for (int32 ChildElement : Children[BoneIndex])
 		{
-			GetLeafBones(GeometryCollection, ChildElement, LeafBonesOut);
+			GetLeafBones(GeometryCollection, ChildElement, bOnlyRigids, LeafBonesOut);
 		}
-	}
-	else
-	{
-		LeafBonesOut.Push(BoneIndex);
 	}
 
 }
@@ -794,5 +801,81 @@ void FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(FGeometryColl
 	}
 	ValidateResults(GeometryCollection);
 }
+
+
+int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones)
+{
+	const int32 SelectionCount = SelectedBones.Num();
+	if (SelectionCount == 0)
+	{
+		return INDEX_NONE;
+	}
+
+	int32 LCA = SelectedBones[0];
+	for (int32 Index = 1; Index < SelectionCount; ++Index)
+	{
+		if (LCA == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
+		LCA = FindLowestCommonAncestor(GeometryCollection, LCA, SelectedBones[Index]);
+	}
+	return LCA;
+}
+
+int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, int32 N0, int32 N1)
+{
+	const TManagedArray<int32>& Parent = GeometryCollection->GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+
+	// Record the path to root from the first 
+	TArray<int32> PathToRoot0;
+	PathToRoot0.Add(N0);
+	while (PathToRoot0.Last() != INDEX_NONE)
+	{
+		PathToRoot0.Add(Parent[PathToRoot0.Last()]);
+	}
+
+	// Traverse from the second node to root and return the first node found that is in the first path.
+	int32 LCA = N1;
+	while (LCA != INDEX_NONE)
+	{
+		if (PathToRoot0.Contains(LCA))
+		{
+			return LCA;
+		}
+		LCA = Parent[LCA];
+	}
+
+	// No common ancestor
+	return INDEX_NONE;
+}
+
+void FGeometryCollectionClusteringUtility::RemoveDanglingClusters(FGeometryCollection* GeometryCollection)
+{
+	check(GeometryCollection);
+
+	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	const TManagedArray<FTransform>& Transforms = GeometryCollection->Transform;
+	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
+
+	const int32 TransformCount = Transforms.Num();
+	TArray<int32> DeletionList;
+	for (int32 Idx = 0; Idx < TransformCount; ++Idx)
+	{
+		if(GeometryCollection->IsClustered(Idx))
+		{
+			if (Children[Idx].Num() == 0)
+			{
+				DeletionList.Add(Idx);
+			}
+		}
+	}
+
+	if (DeletionList.Num())
+	{
+		GeometryCollection->RemoveElements(FGeometryCollection::TransformGroup, DeletionList);
+	}
+}
+
 
 

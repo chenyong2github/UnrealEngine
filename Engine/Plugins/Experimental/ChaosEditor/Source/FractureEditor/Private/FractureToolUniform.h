@@ -6,7 +6,7 @@
 
 #include "FractureToolUniform.generated.h"
 
-
+class FFractureToolContext;
 
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureUniformSettings : public UFractureToolSettings
@@ -52,6 +52,6 @@ public:
 	UFractureUniformSettings* UniformSettings;
 
 protected:
-	void GenerateVoronoiSites(const FFractureToolContext&Context, TArray<FVector>& Sites) override;
+	void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) override;
 };
 
