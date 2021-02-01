@@ -6468,6 +6468,8 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 	const FString ProjectPath = FPaths::ProjectDir();
 	const FString ProjectPathSandbox = ConvertToFullSandboxPath(*ProjectPath, true);
 
+	const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
+
 	SavePackageContexts.Reserve(TargetPlatforms.Num());
 
 	for (const ITargetPlatform* TargetPlatform: TargetPlatforms)
@@ -6477,7 +6479,7 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
-		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedProjectPath);
+		FPackageStoreBulkDataManifest* BulkDataManifest	= bIsDiffOnly == false ? new FPackageStoreBulkDataManifest(ResolvedProjectPath) : nullptr;
 		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
 		FConfigFile PlatformEngineIni;
