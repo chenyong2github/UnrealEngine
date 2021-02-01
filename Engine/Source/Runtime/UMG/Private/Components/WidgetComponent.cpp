@@ -1495,24 +1495,25 @@ void UWidgetComponent::InitWidget()
 	// Don't do any work if Slate is not initialized
 	if ( FSlateApplication::IsInitialized() )
 	{
-		UWorld* World = GetWorld();
-
-		if ( WidgetClass && Widget == nullptr && World && !World->bIsTearingDown)
+		if (UWorld* World = GetWorld())
 		{
-			Widget = CreateWidget(GetWorld(), WidgetClass);
-			SetTickMode(TickMode);
-		}
-		
-#if WITH_EDITOR
-		if ( Widget && !World->IsGameWorld() && !bEditTimeUsable )
-		{
-			if( !GEnableVREditorHacks )
+			if (WidgetClass && Widget == nullptr && !World->bIsTearingDown)
 			{
-				// Prevent native ticking of editor component previews
-				Widget->SetDesignerFlags(EWidgetDesignFlags::Designing);
+				Widget = CreateWidget(World, WidgetClass);
+				SetTickMode(TickMode);
 			}
-		}
+
+#if WITH_EDITOR
+			if (Widget && !World->IsGameWorld() && !bEditTimeUsable)
+			{
+				if (!GEnableVREditorHacks)
+				{
+					// Prevent native ticking of editor component previews
+					Widget->SetDesignerFlags(EWidgetDesignFlags::Designing);
+				}
+			}
 #endif
+		}
 	}
 }
 
