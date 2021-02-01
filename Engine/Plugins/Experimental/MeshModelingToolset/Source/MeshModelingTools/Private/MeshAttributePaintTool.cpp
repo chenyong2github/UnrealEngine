@@ -5,6 +5,8 @@
 #include "ToolBuilderUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "ToolSetupUtil.h"
+#include "Selections/MeshConnectedComponents.h"
+
 
 #include "MeshDescription.h"
 
@@ -144,6 +146,11 @@ void UMeshAttributePaintTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 
 void UMeshAttributePaintTool::Setup()
 {
+	// want this before brush size/etc
+	BrushActionProps = NewObject<UMeshAttributePaintBrushOperationProperties>(this);
+	BrushActionProps->RestoreProperties(this);
+	AddToolPropertySource(BrushActionProps);
+
 	UDynamicMeshBrushTool::Setup();
 
 	// hide strength and falloff
@@ -453,16 +460,51 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 		return;
 	}
 
+	FAttributeData& AttribData = Attributes[CurrentAttributeIndex];
+
+	FStampActionData ActionData;
+	CalculateVertexROI(Stamp, ActionData.ROIVertices);
+
+	if (BrushActionProps->BrushAction == EBrushActionMode::FloodFill)
+	{
+		ApplyStamp_FloodFill(Stamp, ActionData);
+	}
+	else
+	{
+		ApplyStamp_Paint(Stamp, ActionData);
+	}
+
+
+	// track changes
+	if (ActiveChangeBuilder)
+	{
+		ActiveChangeBuilder->UpdateValues(ActionData.ROIVertices, ActionData.ROIBefore, ActionData.ROIAfter);
+	}
+
+	// update values and colors
+	PreviewMesh->DeferredEditMesh([&](FDynamicMesh3& Mesh)
+	{
+		int32 NumVertices = ActionData.ROIVertices.Num();
+		for (int32 k = 0; k < NumVertices; ++k)
+		{
+			int32 vid = ActionData.ROIVertices[k];
+			AttribData.CurrentValues[vid] = ActionData.ROIAfter[k];
+			FVector3f NewColor = ColorMapper->ToColor(ActionData.ROIAfter[k]);
+			Mesh.SetVertexColor(vid, NewColor);
+		}
+	}, false);
+	PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate, EMeshRenderAttributeFlags::VertexColors, false);
+}
+
+
+void UMeshAttributePaintTool::ApplyStamp_Paint(const FBrushStampData& Stamp, FStampActionData& ActionData)
+{
 	FTransform3d Transform(ComponentTarget->GetWorldTransform());
 	FVector3d StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
 
-	TArray<int32> ROIVertices;
-	CalculateVertexROI(Stamp, ROIVertices);
-	int NumVertices = ROIVertices.Num();
-
-	TArray<float> ROIBefore, ROIAfter;
-	ROIBefore.SetNum(NumVertices);
-	ROIAfter.SetNum(NumVertices);
+	int32 NumVertices = ActionData.ROIVertices.Num();
+	ActionData.ROIBefore.SetNum(NumVertices);
+	ActionData.ROIAfter.SetNum(NumVertices);
 
 	FAttributeData& AttribData = Attributes[CurrentAttributeIndex];
 
@@ -473,7 +515,7 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 
 		for (int32 k = 0; k < NumVertices; ++k)
 		{
-			int32 vid = ROIVertices[k];
+			int32 vid = ActionData.ROIVertices[k];
 			FVector3d Position = CurrentMesh->GetVertex(vid);
 			float ValueSum = 0, WeightSum = 0;
 			for (int32 NbrVID : CurrentMesh->VtxVerticesItr(vid))
@@ -488,8 +530,8 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 			float Falloff = (float)CalculateBrushFalloff(Position.Distance(StampPosLocal));
 			float NewValue = FMathf::Lerp(AttribData.CurrentValues[vid], ValueSum, SmoothSpeed*Falloff);
 
-			ROIBefore[k] = AttribData.CurrentValues[vid];
-			ROIAfter[k] = CurrentValueRange.Clamp(NewValue);
+			ActionData.ROIBefore[k] = AttribData.CurrentValues[vid];
+			ActionData.ROIAfter[k] = CurrentValueRange.Clamp(NewValue);
 		}
 	}
 	else
@@ -499,33 +541,69 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 		float UseStrength = Sign * BrushProperties->BrushStrength * CurrentValueRange.Length();
 		for (int32 k = 0; k < NumVertices; ++k)
 		{
-			int32 vid = ROIVertices[k];
+			int32 vid = ActionData.ROIVertices[k];
 			FVector3d Position = CurrentMesh->GetVertex(vid);
 			float Falloff = (float)CalculateBrushFalloff(Position.Distance(StampPosLocal));
-			ROIBefore[k] = AttribData.CurrentValues[vid];
-			ROIAfter[k] = CurrentValueRange.Clamp(ROIBefore[k] + UseStrength * Falloff);
+			ActionData.ROIBefore[k] = AttribData.CurrentValues[vid];
+			ActionData.ROIAfter[k] = CurrentValueRange.Clamp(ActionData.ROIBefore[k] + UseStrength*Falloff);
 		}
 	}
-
-	// track changes
-	if (ActiveChangeBuilder)
-	{
-		ActiveChangeBuilder->UpdateValues(ROIVertices, ROIBefore, ROIAfter);
-	}
-
-	// update values and colors
-	PreviewMesh->DeferredEditMesh([&](FDynamicMesh3& Mesh)
-	{
-		for (int32 k = 0; k < NumVertices; ++k)
-		{
-			int32 vid = ROIVertices[k];
-			AttribData.CurrentValues[vid] = ROIAfter[k];
-			FVector3f NewColor = ColorMapper->ToColor(ROIAfter[k]);
-			Mesh.SetVertexColor(vid, NewColor);
-		}
-	}, false);
-	PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate, EMeshRenderAttributeFlags::VertexColors, false);
 }
+
+
+void UMeshAttributePaintTool::ApplyStamp_FloodFill(const FBrushStampData& Stamp, FStampActionData& ActionData)
+{
+	FAttributeData& AttribData = Attributes[CurrentAttributeIndex];
+	const FDynamicMesh3* CurrentMesh = PreviewMesh->GetMesh();
+
+	// convert to connected triangle set
+	TSet<int32> RemainingTriangles;
+	for (int32 vid : ActionData.ROIVertices)
+	{
+		CurrentMesh->EnumerateVertexTriangles(vid, [&](int32 tid) { RemainingTriangles.Add(tid); });
+	}
+
+	float SetValue = BrushProperties->BrushStrength * CurrentValueRange.Length();
+	if (bInRemoveStroke)
+	{
+		SetValue = CurrentValueRange.Min;
+	}
+
+	ActionData.ROIVertices.Reset();
+	TArray<int32> InputTriROI, OutputTriROI, QueueTempBuffer;
+	TSet<int32> DoneTempBuffer, DoneVertices;
+	while (RemainingTriangles.Num() > 0)
+	{
+		OutputTriROI.Reset();
+		QueueTempBuffer.Reset();
+		DoneTempBuffer.Reset();
+		InputTriROI.Reset();
+		for (int32 tid : RemainingTriangles)
+		{
+			InputTriROI.Add(tid);		// stupid way to get first set element
+			break;
+		}
+		FMeshConnectedComponents::GrowToConnectedTriangles(CurrentMesh, InputTriROI, OutputTriROI, &QueueTempBuffer, &DoneTempBuffer);
+		for (int32 tid : OutputTriROI)
+		{
+			RemainingTriangles.Remove(tid);
+			FIndex3i TriVertices = CurrentMesh->GetTriangle(tid);
+			for (int32 j = 0; j < 3; ++j)
+			{
+				if (DoneVertices.Contains(TriVertices[j]) == false)
+				{
+					ActionData.ROIVertices.Add(TriVertices[j]);
+					ActionData.ROIBefore.Add(AttribData.CurrentValues[TriVertices[j]]);
+					ActionData.ROIAfter.Add(SetValue);
+					DoneVertices.Add(TriVertices[j]);
+				}
+			}
+		}
+	}
+	
+
+}
+
 
 
 
@@ -553,6 +631,7 @@ void UMeshAttributePaintTool::UpdateSelectedAttribute(int32 NewSelectedIndex)
 void UMeshAttributePaintTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	BrushProperties->SaveProperties(this);
+	BrushActionProps->SaveProperties(this);
 
 	StoreCurrentAttribute();
 

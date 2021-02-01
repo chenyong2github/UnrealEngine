@@ -57,8 +57,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayPriority = 6))
 	bool bHitBackFaces = true;
 
+	/** Brush stamps are applied at this time interval. 0 for a single stamp, 1 for continuous stamps, 0.5 is a stamp every half-second */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 7, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowFlowRate"))
+	float FlowRate = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 7, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowLazyness"))
+	/** Minimum world-space spacing between stamps, defined along the brush path. Zero spacing means continuous stamps. */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "4.0", ClampMin = "0.0", ClampMax = "1000.0", DisplayPriority = 8, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowSpacing"))
+	float Spacing = 0.0f;
+
+	/** Lazy brush smooths out the brush path by averaging the cursor positions */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 9, HideEditConditionToggle, EditConditionHides, EditCondition = "bShowLazyness"))
 	float Lazyness = 0;
 
 	/**  */
@@ -68,6 +76,14 @@ public:
 	/**  */
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bShowLazyness = true;
+
+	/**  */
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bShowFlowRate = true;
+
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bShowSpacing = true;
+
 };
 
 
@@ -215,6 +231,12 @@ protected:
 	void InitializeSculptMeshComponent(UBaseDynamicMeshComponent* Component);
 
 
+	/**
+	 * Subclass can override this to change what results are written.
+	 * Default is to apply a default vertex positions update to the target object.
+	 */
+	virtual void CommitResult(UBaseDynamicMeshComponent* Component);
+
 
 	//
 	// Brush Types
@@ -236,7 +258,7 @@ protected:
 	virtual void SaveAllBrushTypeProperties(UInteractiveTool* SaveFromTool);
 	virtual void RestoreAllBrushTypeProperties(UInteractiveTool* RestoreToTool);
 
-private:
+protected:
 	TUniquePtr<FMeshSculptBrushOp> PrimaryBrushOp;
 	UMeshSculptBrushOpProps* PrimaryVisiblePropSet = nullptr;		// BrushOpPropSets prevents GC of this
 
@@ -244,7 +266,7 @@ private:
 	UMeshSculptBrushOpProps* SecondaryVisiblePropSet = nullptr;
 
 	bool bBrushOpPropsVisible = true;
-protected:
+
 	void SetActivePrimaryBrushType(int32 Identifier);
 	void SetActiveSecondaryBrushType(int32 Identifier);
 	TUniquePtr<FMeshSculptBrushOp>& GetActiveBrushOp();
@@ -253,9 +275,9 @@ protected:
 	//
 	// Falloff types
 	//
-private:
-	TSharedPtr<FMeshSculptFallofFunc> PrimaryFalloff;
 protected:
+	TSharedPtr<FMeshSculptFallofFunc> PrimaryFalloff;
+
 	void SetPrimaryFalloffType(EMeshSculptFalloffType Falloff);
 
 
@@ -298,11 +320,11 @@ public:
 	//
 	// Brush/Stroke stuff
 	//
-private:
+protected:
 	FFrame3d LastBrushFrameWorld;
 	FFrame3d LastBrushFrameLocal;
 	int32 LastBrushTriangleID;
-protected:
+
 	const FFrame3d& GetBrushFrameWorld() const { return LastBrushFrameWorld; }
 	const FFrame3d& GetBrushFrameLocal() const { return LastBrushFrameLocal; }
 	int32 GetBrushTriangleID() const { return LastBrushTriangleID; }
@@ -325,59 +347,64 @@ protected:
 	//
 	// Brush Target Plane is plane that some brushes move on
 	//
-private:
-	FFrame3d ActiveBrushTargetPlaneWorld;
 protected:
-	void UpdateBrushTargetPlaneFromHit(const FRay& WorldRay, const FHitResult& Hit);
+	FFrame3d ActiveBrushTargetPlaneWorld;
+	virtual void UpdateBrushTargetPlaneFromHit(const FRay& WorldRay, const FHitResult& Hit);
 
 
 	//
 	// Stroke Modifiers
 	//
-private:
+protected:
 	bool bInStroke = false;
 	bool bSmoothing = false;
 	bool bInvert = false;
-protected:
-	void SaveActiveStrokeModifiers();
-	bool InStroke() const { return bInStroke; }
-	bool GetInSmoothingStroke() const { return bSmoothing; }
-	bool GetInInvertStroke() const { return bInvert; }
+	virtual void SaveActiveStrokeModifiers();
+	virtual bool InStroke() const { return bInStroke; }
+	virtual bool GetInSmoothingStroke() const { return bSmoothing; }
+	virtual bool GetInInvertStroke() const { return bInvert; }
 
-	void ApplyStrokeFlowInTick();
+	// when in a stroke, this function determines when a new stamp should be emitted, based on spacing and flow rate settings
+	virtual void UpdateStampPendingState();
+
+	// for tracking stroke time and length, to apply spacing and flow rate settings
+	double ActiveStrokeTime = 0.0;
+	double ActiveStrokePathArcLen = 0.0;
+	int LastFlowTimeStamp = 0;
+	int LastSpacingTimestamp = 0;
+	virtual void ResetStrokeTime();
+	virtual void AccumulateStrokeTime(float DeltaTime);
 
 	//
 	// Stamps
 	//
-private:
+protected:
 	bool bIsStampPending = false;
 	FRay PendingStampRay;
-protected:
 	FSculptBrushStamp HoverStamp;
 	FSculptBrushStamp CurrentStamp;
 	FSculptBrushStamp LastStamp;
-	void UpdateHoverStamp(const FFrame3d& StampFrame);
-	bool IsStampPending() const { return bIsStampPending; }
-	const FRay& GetPendingStampRayWorld() const { return PendingStampRay;  }
+	virtual void UpdateHoverStamp(const FFrame3d& StampFrame);
+	virtual bool IsStampPending() const { return bIsStampPending; }
+	virtual const FRay& GetPendingStampRayWorld() const { return PendingStampRay;  }
 
 
 	//
 	// Stamp ROI Plane is a plane used by some brush ops
 	//
-private:
-	FFrame3d StampRegionPlane;
 protected:
+	FFrame3d StampRegionPlane;
+	virtual FFrame3d ComputeStampRegionPlane(const FFrame3d& StampFrame, const TArray<int32>& StampTriangles, bool bIgnoreDepth, bool bViewAligned, bool bInvDistFalloff = true);
 	virtual FFrame3d ComputeStampRegionPlane(const FFrame3d& StampFrame, const TSet<int32>& StampTriangles, bool bIgnoreDepth, bool bViewAligned, bool bInvDistFalloff = true);
 
 
 	// Stroke plane is a plane used by some brush ops
 	//
-private:
-	FFrame3d StrokePlane;
 protected:
+	FFrame3d StrokePlane;
 	virtual const FFrame3d& GetCurrentStrokeReferencePlane() const { return StrokePlane; }
 
-	virtual void UpdateStrokeReferencePlaneForROI(const FFrame3d& StampFrame, const TSet<int32>& TriangleROI, bool bViewAligned);
+	virtual void UpdateStrokeReferencePlaneForROI(const FFrame3d& StampFrame, const TArray<int32>& TriangleROI, bool bViewAligned);
 	virtual void UpdateStrokeReferencePlaneFromWorkPlane();
 
 
@@ -450,12 +477,12 @@ protected:
 	virtual void UpdateWorkPlane();
 	virtual bool ShowWorkPlane() const { return false; };
 
-private:
+protected:
 	TValueWatcher<FVector> GizmoPositionWatcher;
 	TValueWatcher<FQuat> GizmoRotationWatcher;
 
-	void UpdateGizmoFromProperties();
-	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
+	virtual void UpdateGizmoFromProperties();
+	virtual void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
 
 	enum class EPendingWorkPlaneUpdate
 	{
@@ -465,9 +492,9 @@ private:
 		MoveToHitPositionViewAligned
 	};
 	EPendingWorkPlaneUpdate PendingWorkPlaneUpdate;
-	void SetFixedSculptPlaneFromWorldPos(const FVector& Position, const FVector& Normal, EPendingWorkPlaneUpdate UpdateType);
-	void UpdateFixedSculptPlanePosition(const FVector& Position);
-	void UpdateFixedSculptPlaneRotation(const FQuat& Rotation);
-	void UpdateFixedPlaneGizmoVisibility(bool bVisible);
+	virtual void SetFixedSculptPlaneFromWorldPos(const FVector& Position, const FVector& Normal, EPendingWorkPlaneUpdate UpdateType);
+	virtual void UpdateFixedSculptPlanePosition(const FVector& Position);
+	virtual void UpdateFixedSculptPlaneRotation(const FQuat& Rotation);
+	virtual void UpdateFixedPlaneGizmoVisibility(bool bVisible);
 
 };

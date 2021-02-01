@@ -10,6 +10,7 @@
 #include "MeshNormals.h"
 #include "MeshIndexUtil.h"
 #include "Util/BufferUtil.h"
+#include "AssetUtils/Texture2DUtil.h"
 
 #include "Changes/MeshVertexChange.h"
 
@@ -79,7 +80,7 @@ void UMeshVertexSculptTool::Setup()
 	} 
 	else
 	{
-		Octree.RootDimension = Bounds.MaxDim();
+		Octree.RootDimension = Bounds.MaxDim() / 2.0;
 		Octree.SetMaxTreeDepth(8);
 	}
 	Octree.Initialize(Mesh);
@@ -104,7 +105,7 @@ void UMeshVertexSculptTool::Setup()
 
 	// initialize other properties
 	SculptProperties = NewObject<UVertexBrushSculptProperties>(this);
-
+	
 	// init state flags flags
 	ActiveVertexChange = nullptr;
 
@@ -114,9 +115,13 @@ void UMeshVertexSculptTool::Setup()
 	AddToolPropertySource(UMeshSculptToolBase::BrushProperties);
 	UMeshSculptToolBase::BrushProperties->bShowPerBrushProps = false;
 	UMeshSculptToolBase::BrushProperties->bShowFalloff = false;
+	SculptProperties->RestoreProperties(this);
 	AddToolPropertySource(SculptProperties);
 	CalculateBrushRadius();
-	SculptProperties->RestoreProperties(this);
+
+	AlphaProperties = NewObject<UVertexBrushAlphaProperties>(this);
+	AlphaProperties->RestoreProperties(this);
+	AddToolPropertySource(AlphaProperties);
 
 	this->BaseMeshQueryFunc = [&](int32 VertexID, const FVector3d& Position, double MaxDist, FVector3d& PosOut, FVector3d& NormalOut)
 	{
@@ -205,11 +210,18 @@ void UMeshVertexSculptTool::Setup()
 	SculptProperties->WatchProperty( SculptProperties->PrimaryFalloffType,
 		[this](EMeshSculptFalloffType NewType) { SetPrimaryFalloffType(NewType); });
 
+	SculptProperties->WatchProperty(AlphaProperties->Alpha,
+		[this](UTexture2D* NewAlpha) { UpdateBrushAlpha(AlphaProperties->Alpha); });
+
 	// must call before updating brush type so that we register all brush properties?
 	UMeshSculptToolBase::OnCompleteSetup();
 
 	UpdateBrushType(SculptProperties->PrimaryBrushType);
+	SetPrimaryFalloffType(SculptProperties->PrimaryFalloffType);
+	UpdateBrushAlpha(AlphaProperties->Alpha);
 	SetActiveSecondaryBrushType((int32)EMeshVertexSculptBrushType::Smooth);
+
+	StampRandomStream = FRandomStream(31337);
 }
 
 void UMeshVertexSculptTool::Shutdown(EToolShutdownType ShutdownType)
@@ -220,6 +232,7 @@ void UMeshVertexSculptTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	SculptProperties->SaveProperties(this);
+	AlphaProperties->SaveProperties(this);
 
 	// this call will commit result, unregister and destroy DynamicMeshComponent
 	UMeshSculptToolBase::Shutdown(ShutdownType);
@@ -241,7 +254,7 @@ void UMeshVertexSculptTool::OnBeginStroke(const FRay& WorldRay)
 		SculptProperties->PrimaryBrushType == EMeshVertexSculptBrushType::PlaneViewAligned)
 	{
 		UpdateROI(GetBrushFrameLocal().Origin);
-		UpdateStrokeReferencePlaneForROI(GetBrushFrameLocal(), TriangleROI,
+		UpdateStrokeReferencePlaneForROI(GetBrushFrameLocal(), TriangleROIArray,
 			(SculptProperties->PrimaryBrushType == EMeshVertexSculptBrushType::PlaneViewAligned));
 	}
 	else if (SculptProperties->PrimaryBrushType == EMeshVertexSculptBrushType::FixedPlane)
@@ -288,46 +301,124 @@ void UMeshVertexSculptTool::OnEndStroke()
 
 void UMeshVertexSculptTool::UpdateROI(const FVector3d& BrushPos)
 {
-	SCOPE_CYCLE_COUNTER(VtxSculptTool_UpdateROI);
+	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_UpdateROI);
 
 	float RadiusSqr = GetCurrentBrushRadius() * GetCurrentBrushRadius();
 	FAxisAlignedBox3d BrushBox(
 		BrushPos - GetCurrentBrushRadius() * FVector3d::One(),
 		BrushPos + GetCurrentBrushRadius() * FVector3d::One());
 
-	VertexSetBuffer.Reset();
-	TriangleROI.Reset();
+	// do a parallel range quer
+	RangeQueryTriBuffer.Reset();
 	FDynamicMesh3* Mesh = GetSculptMesh();
-	Octree.RangeQuery(BrushBox,
-		[&](int TriIdx) {
-		FIndex3i TriV = Mesh->GetTriangle(TriIdx);
-		int Count = 0;
-		for (int j = 0; j < 3; ++j)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_UpdateROI_RangeQuery);
+		Octree.ParallelRangeQuery(BrushBox, RangeQueryTriBuffer);
+	}
+
+#if 1
+	// in this path we use more memory but this lets us do more in parallel
+
+	// Construct array of inside/outside flags for each triangle's vertices. If no
+	// vertices are inside, clear the triangle ID from the range query buffer.
+	// This can be done in parallel and it's cheaper to do repeated distance computations
+	// than to try to do it inside the ROI building below (todo: profile this some more?)
+	TriangleROIInBuf.SetNum(RangeQueryTriBuffer.Num(), false);
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateROI_TriVerts);
+		ParallelFor(RangeQueryTriBuffer.Num(), [&](int k)
 		{
-			if (VertexSetBuffer.Contains(TriV[j]))
+			const FIndex3i& TriV = Mesh->GetTriangleRef(RangeQueryTriBuffer[k]);
+			TriangleROIInBuf[k].A = (BrushPos.DistanceSquared(Mesh->GetVertexRef(TriV.A)) < RadiusSqr) ? 1 : 0;
+			TriangleROIInBuf[k].B = (BrushPos.DistanceSquared(Mesh->GetVertexRef(TriV.B)) < RadiusSqr) ? 1 : 0;
+			TriangleROIInBuf[k].C = (BrushPos.DistanceSquared(Mesh->GetVertexRef(TriV.C)) < RadiusSqr) ? 1 : 0;
+			if (TriangleROIInBuf[k].A + TriangleROIInBuf[k].B + TriangleROIInBuf[k].C == 0)
 			{
-				Count++;
+				RangeQueryTriBuffer[k] = -1;
 			}
-			else if (BrushPos.DistanceSquared(Mesh->GetVertex(TriV[j])) < RadiusSqr)
+		});
+	}
+
+	// collect set of vertices inside brush sphere, from that box
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateROI_3Collect);
+		VertexROIBuilder.Initialize(Mesh->MaxVertexID());
+		TriangleROIBuilder.Initialize(Mesh->MaxTriangleID());
+		int32 N = RangeQueryTriBuffer.Num();
+		for ( int32 k = 0; k < N; ++k )
+		{
+			int32 tid = RangeQueryTriBuffer[k];
+			if (tid == -1) continue;		// triangle was deleted in previous step
+			const FIndex3i& TriV = Mesh->GetTriangleRef(RangeQueryTriBuffer[k]);
+			const FIndex3i& Inside = TriangleROIInBuf[k];
+			int InsideCount = 0;
+			for (int j = 0; j < 3; ++j)
 			{
-				VertexSetBuffer.Add(TriV[j]);
-				Count++;
+				if (Inside[j])
+				{
+					VertexROIBuilder.Add(TriV[j]);
+					InsideCount++;
+				}
+			}
+			if (InsideCount > 0)
+			{
+				TriangleROIBuilder.Add(tid);
 			}
 		}
-		if (Count > 0)
+		VertexROIBuilder.SwapValuesWith(VertexROI);
+		TriangleROIBuilder.SwapValuesWith(TriangleROIArray);
+	}
+
+#else
+	// In this path we combine everything into one loop. Does fewer distance checks
+	// but nothing can be done in parallel (would change if ROIBuilders had atomic-try-add)
+
+	// collect set of vertices and triangles inside brush sphere, from range query result
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateROI_2Collect);
+		VertexROIBuilder.Initialize(Mesh->MaxVertexID());
+		TriangleROIBuilder.Initialize(Mesh->MaxTriangleID());
+		for (int32 TriIdx : RangeQueryTriBuffer)
 		{
-			TriangleROI.Add(TriIdx);
+			FIndex3i TriV = Mesh->GetTriangle(TriIdx);
+			int InsideCount = 0;
+			for (int j = 0; j < 3; ++j)
+			{
+				if (VertexROIBuilder.Contains(TriV[j]))
+				{
+					InsideCount++;
+				} 
+				else if (BrushPos.DistanceSquared(Mesh->GetVertexRef(TriV[j])) < RadiusSqr)
+				{
+					VertexROIBuilder.Add(TriV[j]);
+					InsideCount++;
+				}
+			}
+			if (InsideCount > 0)
+			{
+				TriangleROIBuilder.Add(tid);
+			}
 		}
-	});
+		VertexROIBuilder.SwapValuesWith(VertexROI);
+		TriangleROIBuilder.SwapValuesWith(TriangleROIArray);
+	}
+#endif
 
-	VertexROI.SetNum(0, false);
-	BufferUtil::AppendElements(VertexROI, VertexSetBuffer);
-
-	ROIPositionBuffer.SetNum(VertexROI.Num(), false);
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshSculptTool_UpdateROI_4ROI);
+		ROIPositionBuffer.SetNum(VertexROI.Num(), false);
+		ROIPrevPositionBuffer.SetNum(VertexROI.Num(), false);
+		ParallelFor(VertexROI.Num(), [&](int i)
+		{
+			ROIPrevPositionBuffer[i] = Mesh->GetVertexRef(VertexROI[i]);
+		});
+	}
 }
 
 bool UMeshVertexSculptTool::UpdateStampPosition(const FRay& WorldRay)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_UpdateStampPosition);
+
 	CalculateBrushRadius();
 
 	TUniquePtr<FMeshSculptBrushOp>& UseBrushOp = GetActiveBrushOp();
@@ -352,10 +443,24 @@ bool UMeshVertexSculptTool::UpdateStampPosition(const FRay& WorldRay)
 	}
 
 	CurrentStamp = LastStamp;
-	CurrentStamp.DeltaTime = FMathd::Min((FDateTime::Now() - LastStamp.TimeStamp).GetTotalSeconds(), 1.0);
+	//CurrentStamp.DeltaTime = FMathd::Min((FDateTime::Now() - LastStamp.TimeStamp).GetTotalSeconds(), 1.0);
+	CurrentStamp.DeltaTime = 0.03;		// 30 fps - using actual time is no good now that we support variable stamps!
 	CurrentStamp.WorldFrame = GetBrushFrameWorld();
 	CurrentStamp.LocalFrame = GetBrushFrameLocal();
 	CurrentStamp.Power = GetActivePressure() * GetCurrentBrushStrength();
+
+	if (bHaveBrushAlpha && (AlphaProperties->RotationAngle != 0 || AlphaProperties->bRandomize))
+	{
+		float UseAngle = AlphaProperties->RotationAngle;
+		if (AlphaProperties->bRandomize)
+		{
+			UseAngle += (StampRandomStream.GetFraction() - 0.5f) * 2.0f * AlphaProperties->RandomRange;
+		}
+
+		// possibly should be done in base brush...
+		CurrentStamp.WorldFrame.Rotate(FQuaterniond(CurrentStamp.WorldFrame.Z(), UseAngle, true));
+		CurrentStamp.LocalFrame.Rotate(FQuaterniond(CurrentStamp.LocalFrame.Z(), UseAngle, true));
+	}
 
 	CurrentStamp.PrevLocalFrame = LastStamp.LocalFrame;
 	CurrentStamp.PrevWorldFrame = LastStamp.WorldFrame;
@@ -370,44 +475,73 @@ bool UMeshVertexSculptTool::UpdateStampPosition(const FRay& WorldRay)
 }
 
 
-void UMeshVertexSculptTool::ApplyStamp()
+TFuture<void> UMeshVertexSculptTool::ApplyStamp()
 {
-	SCOPE_CYCLE_COUNTER(VtxSculptToolApplyStamp);
+	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_ApplyStamp);
 
 	TUniquePtr<FMeshSculptBrushOp>& UseBrushOp = GetActiveBrushOp();
+
+	// compute region plane if necessary. This may currently be expensive?
 	if (UseBrushOp->WantsStampRegionPlane())
 	{
-		CurrentStamp.RegionPlane = ComputeStampRegionPlane(CurrentStamp.LocalFrame, TriangleROI, true, false, false);
+		CurrentStamp.RegionPlane = ComputeStampRegionPlane(CurrentStamp.LocalFrame, TriangleROIArray, true, false, false);
 	}
 
-	FDynamicMesh3* Mesh = GetSculptMesh();
-	UseBrushOp->ApplyStamp(Mesh, CurrentStamp, VertexROI, ROIPositionBuffer);
+	// set up alpha function if we have one
+	if (bHaveBrushAlpha)
+	{
+		CurrentStamp.StampAlphaFunc = [this](const FSculptBrushStamp& Stamp, const FVector3d& Position)
+		{
+			return this->SampleBrushAlpha(Stamp, Position);
+		};
+	}
 
-	SyncMeshWithPositionBuffer(Mesh);
+	// apply the stamp, which computes new positions
+	FDynamicMesh3* Mesh = GetSculptMesh();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_ApplyStamp_Apply);
+		UseBrushOp->ApplyStamp(Mesh, CurrentStamp, VertexROI, ROIPositionBuffer);
+	}
+
+	// can discard alpha now
+	CurrentStamp.StampAlphaFunc = nullptr;
+
+	// once stamp is applied, we can start updating vertex change, which can happen async as we saved all necessary info
+	TFuture<void> SaveVertexFuture;
+	if (ActiveVertexChange != nullptr)
+	{
+		SaveVertexFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_SyncMeshWithPositionBuffer_UpdateChange);
+			const int32 NumV = ROIPositionBuffer.Num();
+			for (int k = 0; k < NumV; ++k)
+			{
+				int VertIdx = VertexROI[k];
+				ActiveVertexChange->UpdateVertex(VertIdx, ROIPrevPositionBuffer[k], ROIPositionBuffer[k]);
+			}
+		});
+	}
+
+	// now actually update the mesh, which happens 
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_ApplyStamp_Sync);
+		const int32 NumV = ROIPositionBuffer.Num();
+		ParallelFor(NumV, [&](int32 k)
+		{
+			int VertIdx = VertexROI[k];
+			const FVector3d& NewPos = ROIPositionBuffer[k];
+			Mesh->SetVertex_NoTimeStampUpdate(VertIdx, NewPos);
+		});
+		Mesh->IncrementTimeStamps(1, true, false);
+	}
 
 	LastStamp = CurrentStamp;
 	LastStamp.TimeStamp = FDateTime::Now();
+
+	// let caller wait for this to finish
+	return SaveVertexFuture;
 }
 
-
-
-
-void UMeshVertexSculptTool::SyncMeshWithPositionBuffer(FDynamicMesh3* Mesh)
-{
-	const int32 NumV = ROIPositionBuffer.Num();
-	checkSlow(VertexROI.Num() <= NumV);
-
-	// change update could be async here if we collected array of <idx,orig,new> and dispatched independenlty
-	for ( int32 k = 0; k < NumV; ++k)
-	{
-		int VertIdx = VertexROI[k];
-		const FVector3d& NewPos = ROIPositionBuffer[k];
-		FVector3d OrigPos = Mesh->GetVertex(VertIdx);
-		Mesh->SetVertex(VertIdx, NewPos);
-
-		ActiveVertexChange->UpdateVertex(VertIdx, OrigPos, NewPos);
-	}
-}
 
 
 
@@ -416,6 +550,9 @@ void UMeshVertexSculptTool::SyncMeshWithPositionBuffer(FDynamicMesh3* Mesh)
 
 int32 UMeshVertexSculptTool::FindHitSculptMeshTriangle(const FRay3d& LocalRay)
 {
+	// need this to finish before we can touch Octree
+	WaitForPendingStampUpdate();
+
 	if (GetBrushCanHitBackFaces())
 	{
 		return Octree.FindNearestHitObject(LocalRay);
@@ -515,7 +652,7 @@ void UMeshVertexSculptTool::OnTick(float DeltaTime)
 {
 	UMeshSculptToolBase::OnTick(DeltaTime);
 
-	SCOPE_CYCLE_COUNTER(VtxSculptToolTick);
+	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick);
 
 	// process the undo update
 	if (bUndoUpdatePending)
@@ -540,61 +677,111 @@ void UMeshVertexSculptTool::OnTick(float DeltaTime)
 		bTargetDirty = false;
 	}
 
-
-	if (IsStampPending())
+	if (InStroke())
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("dt is %.3f, tick fps %.2f - roi size %d/%d"), DeltaTime, 1.0 / DeltaTime, VertexROI.Num(), TriangleROI.Num());
-		SCOPE_CYCLE_COUNTER(VtxSculptTool_Tick_ApplyStampBlock);
-
-		ApplyStrokeFlowInTick();
+		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_StrokeUpdate);
+		FDynamicMesh3* Mesh = GetSculptMesh();
 
 		// update brush position
 		if (UpdateStampPosition(GetPendingStampRayWorld()) == false)
 		{
 			return;
 		}
+		UpdateStampPendingState();
+		if (IsStampPending() == false)
+		{
+			return;
+		}
+
+		// need to make sure previous stamp finished
+		WaitForPendingStampUpdate();
 
 		// update sculpt ROI
 		UpdateROI(CurrentStamp.LocalFrame.Origin);
 
-		// append updated ROI to modified region (async)
+		// Append updated ROI to modified region (async). For some reason this is very expensive,
+		// maybe because of TSet? but we have a lot of time to do it.
 		TFuture<void> AccumulateROI = Async(VertexSculptToolAsyncExecTarget, [&]()
 		{
-			AccumulatedTriangleROI.Append(TriangleROI);
+			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_AccumROI);
+			for (int32 tid : TriangleROIArray)
+			{
+				AccumulatedTriangleROI.Add(tid);
+			}
 		});
 
-		// apply the stamp
-		ApplyStamp();
+		// Start precomputing the normals ROI. This is currently the most expensive single thing we do next
+		// to Octree re-insertion, despite it being almost trivial. Why?!?
+		bool bUsingOverlayNormals = false;
+		TFuture<void> NormalsROI = Async(VertexSculptToolAsyncExecTarget, [&]()
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_NormalsROI);
+
+
+			//TODO WHY DOES NORMALS FLAGS NOT WORK?? 
+
+			//UE::SculptUtil::PrecalculateNormalsROI(Mesh, TriangleROIArray, NormalsROIBuilder, bUsingOverlayNormals, false);
+			UE::SculptUtil::PrecalculateNormalsROI(Mesh, TriangleROIArray, NormalsFlags, bUsingOverlayNormals, false);
+		});
+
+		// NOTE: you might try to speculatively do the octree remove here, to save doing it later on Reinsert().
+		// This will not improve things, as Reinsert() checks if it needs to actually re-insert, which avoids many
+		// removes, and does much of the work of Remove anyway.
+
+		// Apply the stamp. This will return a future that is updating the vertex-change record, 
+		// which can run until the end of the frame, as it is using cached information
+		TFuture<void> UpdateChangeFuture = ApplyStamp();
 
 		// begin octree rebuild calculation
-		TFuture<void> OctreeRebuild = Async(VertexSculptToolAsyncExecTarget, [&]()
+		StampUpdateOctreeFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
 		{
-			SCOPE_CYCLE_COUNTER(VtxSculptTool_Tick_ApplyStamp_Insert);
-			Octree.ReinsertTriangles(TriangleROI);
+			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_OctreeReinsert);
+			static TArray<uint32> TempBuffer;
+			static TArray<bool> TempFlagBuffer;
+			Octree.ReinsertTrianglesParallel(TriangleROIArray, TempBuffer, TempFlagBuffer);
 		});
+		bStampUpdatePending = true;
+		//TFuture<void> OctreeRebuild = Async(VertexSculptToolAsyncExecTarget, [&]()
+		//{
+		//	TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_OctreeReinsert);
+		//	Octree.ReinsertTriangles(TriangleROIArray);
+		//});
+
+		// TODO: first step of RecalculateROINormals() is to convert TriangleROI into vertex or element ROI.
+		// We can do this while we are computing stamp!
+
+		// precompute dynamic mesh update info
+		TArray<int32> RenderUpdateSets; FAxisAlignedBox3d RenderUpdateBounds;
+		TFuture<bool> RenderUpdatePrecompute = DynamicMeshComponent->FastNotifyTriangleVerticesUpdated_TryPrecompute(
+				TriangleROIArray, RenderUpdateSets, RenderUpdateBounds);
 
 		// recalculate normals. This has to complete before we can update component
 		// (in fact we could do it per-chunk...)
-		FDynamicMesh3* Mesh = GetSculptMesh();
 		{
-			SCOPE_CYCLE_COUNTER(VtxSculptTool_Tick_NormalsBlock);
-			UE::SculptUtil::RecalculateROINormals(Mesh, TriangleROI, VertexSetBuffer, NormalsBuffer);
+			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_RecalcNormals);
+			NormalsROI.Wait();
+			UE::SculptUtil::RecalculateROINormals(Mesh, NormalsFlags, bUsingOverlayNormals);
+			//UE::SculptUtil::RecalculateROINormals(Mesh, NormalsROIBuilder.Indices(), bUsingOverlayNormals);
 		}
 
 		{
-			SCOPE_CYCLE_COUNTER(VtxSculptTool_Tick_UpdateMeshBlock);
-			DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(TriangleROI,
-				EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
+			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_UpdateMesh);
+			RenderUpdatePrecompute.Wait();
+			DynamicMeshComponent->FastNotifyTriangleVerticesUpdated_ApplyPrecompute(TriangleROIArray,
+				EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals,
+				RenderUpdatePrecompute, RenderUpdateSets, RenderUpdateBounds);
+
 			GetToolManager()->PostInvalidation();
 		}
 
 		// we don't really need to wait for these to happen to end Tick()...
+		UpdateChangeFuture.Wait();
 		AccumulateROI.Wait();
-		OctreeRebuild.Wait();
 	} 
 	else if (bTargetDirty)
 	{
-		SCOPE_CYCLE_COUNTER(VtxSculptTool_Tick_UpdateTargetBlock);
+		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_UpdateTarget);
 		check(InStroke() == false);
 
 		// this spawns futures that we could allow to run while other things happen...
@@ -606,6 +793,16 @@ void UMeshVertexSculptTool::OnTick(float DeltaTime)
 
 }
 
+
+
+void UMeshVertexSculptTool::WaitForPendingStampUpdate()
+{
+	if (bStampUpdatePending)
+	{
+		StampUpdateOctreeFuture.Wait();
+		bStampUpdatePending = true;
+	}
+}
 
 
 
@@ -623,6 +820,7 @@ void UMeshVertexSculptTool::UpdateBaseMesh(const TSet<int32>* TriangleSet)
 	const FDynamicMesh3* SculptMesh = GetSculptMesh();
 	if ( ! TriangleSet )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Target_FullUpdate);
 		BaseMesh.Copy(*SculptMesh, false, false, false, false);
 		BaseMesh.EnableVertexNormals(FVector3f::UnitZ());
 		FMeshNormals::QuickComputeVertexNormals(BaseMesh);
@@ -641,12 +839,14 @@ void UMeshVertexSculptTool::UpdateBaseMesh(const TSet<int32>* TriangleSet)
 			BaseMesh.SetVertex(Tri.C, SculptMesh->GetVertex(Tri.C));
 			BaseMeshIndexBuffer.Add(tid);
 		}
-		auto UpdateBaseNormals = Async(EAsyncExecution::Thread, [&]()
+		auto UpdateBaseNormals = Async(VertexSculptToolAsyncExecTarget, [&]()
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Target_UpdateBaseNormals);
 			FMeshNormals::QuickComputeVertexNormalsForTriangles(BaseMesh, BaseMeshIndexBuffer);
 		});
-		auto ReinsertTriangles = Async(EAsyncExecution::Thread, [&]()
+		auto ReinsertTriangles = Async(VertexSculptToolAsyncExecTarget, [&]()
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Target_Reinsert);
 			BaseMeshSpatial.ReinsertTriangles(*TriangleSet);
 		});
 		UpdateBaseNormals.Wait();
@@ -677,8 +877,48 @@ void UMeshVertexSculptTool::DecreaseBrushSpeedAction()
 	//SculptProperties->PrimaryBrushSpeed = FMath::Clamp(SculptProperties->PrimaryBrushSpeed - 0.05f, 0.0f, 1.0f);
 }
 
+void UMeshVertexSculptTool::UpdateBrushAlpha(UTexture2D* NewAlpha)
+{
+	if (this->BrushAlpha != NewAlpha)
+	{
+		this->BrushAlpha = NewAlpha;
+		if (this->BrushAlpha != nullptr)
+		{
+			TImageBuilder<FVector4f> AlphaValues;
+			FImageDimensions AlphaDimensions;
+
+			bool bReadOK = UE::AssetUtils::ReadTexture(this->BrushAlpha, AlphaDimensions, AlphaValues, true);
+			if (bReadOK)
+			{
+				BrushAlphaValues = MoveTemp(AlphaValues);
+				BrushAlphaDimensions = AlphaDimensions;
+				bHaveBrushAlpha = true;
+				return;
+			}
+		}
+		bHaveBrushAlpha = false;
+		BrushAlphaValues = TImageBuilder<FVector4f>();
+		BrushAlphaDimensions = FImageDimensions();
+	}
+}
 
 
+double UMeshVertexSculptTool::SampleBrushAlpha(const FSculptBrushStamp& Stamp, const FVector3d& Position) const
+{
+	if (! bHaveBrushAlpha) return 1.0;
+
+	static const FVector4f InvalidValue(0, 0, 0, 0);
+
+	FVector2d AlphaUV = Stamp.LocalFrame.ToPlaneUV(Position, 2);
+	double u = AlphaUV.X / Stamp.Radius;
+	u = 1.0 - (u + 1.0) / 2.0;
+	double v = AlphaUV.Y / Stamp.Radius;
+	v = 1.0 - (v + 1.0) / 2.0;
+	if (u < 0 || u > 1) return 0.0;
+	if (v < 0 || v > 1) return 0.0;
+	FVector4f AlphaValue = BrushAlphaValues.BilinearSampleUV<float>(FVector2d(u, v), InvalidValue);
+	return FMathd::Clamp(AlphaValue.X, 0.0, 1.0);
+}
 
 
 
@@ -722,6 +962,9 @@ void UMeshVertexSculptTool::WaitForPendingUndoRedo()
 
 void UMeshVertexSculptTool::OnDynamicMeshComponentChanged(USimpleDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert)
 {
+	// have to wait for any outstanding stamp update to finish...
+	WaitForPendingStampUpdate();
+
 	// update octree
 	FDynamicMesh3* Mesh = GetSculptMesh();
 
@@ -741,21 +984,21 @@ void UMeshVertexSculptTool::OnDynamicMeshComponentChanged(USimpleDynamicMeshComp
 	}
 
 	// start the normal recomputation
-	UndoNormalsFuture = Async(EAsyncExecution::Thread, [&]()
+	UndoNormalsFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
 	{
-		UE::SculptUtil::RecalculateROINormals(Mesh, AccumulatedTriangleROI, VertexSetBuffer, NormalsBuffer);
+		UE::SculptUtil::RecalculateROINormals(Mesh, AccumulatedTriangleROI, NormalsROIBuilder);
 		return true;
 	});
 
 	// start the octree update
-	UndoUpdateOctreeFuture = Async(EAsyncExecution::Thread, [&]()
+	UndoUpdateOctreeFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
 	{
 		Octree.ReinsertTriangles(AccumulatedTriangleROI);
 		return true;
 	});
 
 	// start the base mesh update
-	UndoUpdateBaseMeshFuture = Async(EAsyncExecution::Thread, [&]()
+	UndoUpdateBaseMeshFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
 	{
 		UpdateBaseMesh(&AccumulatedTriangleROI);
 		return true;
@@ -784,6 +1027,18 @@ void UMeshVertexSculptTool::UpdateBrushType(EMeshVertexSculptBrushType BrushType
 		Builder.AppendLine(LOCTEXT("FixedPlaneTip", "Use T to reposition Work Plane at cursor, Shift+T to align to Normal, Ctrl+Shift+T to align to View"));
 		SetToolPropertySourceEnabled(GizmoProperties, true);
 	}
+
+
+	bool bEnableAlpha = false;
+	switch (BrushType)
+	{
+	case EMeshVertexSculptBrushType::Offset:
+	case EMeshVertexSculptBrushType::SculptView:
+	case EMeshVertexSculptBrushType::SculptMax:
+		bEnableAlpha = true; break;
+	}
+	SetToolPropertySourceEnabled(AlphaProperties, bEnableAlpha);
+
 
 	GetToolManager()->DisplayMessage(Builder.ToText(), EToolMessageLevel::UserNotification);
 }

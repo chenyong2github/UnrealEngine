@@ -90,6 +90,30 @@ public:
 
 
 
+UENUM()
+enum class EBrushActionMode
+{
+	Paint,
+	FloodFill
+};
+
+
+/**
+ * Selected-Attribute settings Attribute Paint Tool
+ */
+UCLASS()
+class MESHMODELINGTOOLS_API UMeshAttributePaintBrushOperationProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category = Attribute)
+	EBrushActionMode BrushAction = EBrushActionMode::Paint;
+};
+
+
+
+
+
 
 /**
  * Selected-Attribute settings Attribute Paint Tool
@@ -185,10 +209,25 @@ public:
 protected:
 	virtual void ApplyStamp(const FBrushStampData& Stamp);
 
+
+	struct FStampActionData
+	{
+		TArray<int32> ROIVertices;
+		TArray<float> ROIBefore;
+		TArray<float> ROIAfter;
+	};
+
+
+	virtual void ApplyStamp_Paint(const FBrushStampData& Stamp, FStampActionData& ActionData);
+	virtual void ApplyStamp_FloodFill(const FBrushStampData& Stamp, FStampActionData& ActionData);
+
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 	
 
 protected:
+	UPROPERTY()
+	UMeshAttributePaintBrushOperationProperties* BrushActionProps;
+
 	UPROPERTY()
 	UMeshAttributePaintToolProperties* AttribProps;
 

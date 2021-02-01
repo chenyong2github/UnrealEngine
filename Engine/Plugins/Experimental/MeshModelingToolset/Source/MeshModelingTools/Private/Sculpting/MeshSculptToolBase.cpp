@@ -137,11 +137,7 @@ void UMeshSculptToolBase::Shutdown(EToolShutdownType ShutdownType)
 
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("SculptMeshToolTransactionName", "Sculpt Mesh"));
-			ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
-			{
-				FConversionToMeshDescriptionOptions ConversionOptions;
-				DynamicMeshComponent->Bake(CommitParams.MeshDescription, false, ConversionOptions);
-			});
+			CommitResult(DynamicMeshComponent);
 			GetToolManager()->EndUndoTransaction();
 		}
 
@@ -152,6 +148,16 @@ void UMeshSculptToolBase::Shutdown(EToolShutdownType ShutdownType)
 
 }
 
+
+
+void UMeshSculptToolBase::CommitResult(UBaseDynamicMeshComponent* Component)
+{
+	ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	{
+		FConversionToMeshDescriptionOptions ConversionOptions;
+		Component->Bake(CommitParams.MeshDescription, false, ConversionOptions);
+	});
+}
 
 
 void UMeshSculptToolBase::OnTick(float DeltaTime)
@@ -165,6 +171,10 @@ void UMeshSculptToolBase::OnTick(float DeltaTime)
 	{
 		SaveActiveStrokeModifiers();
 	}
+	else
+	{
+		AccumulateStrokeTime(DeltaTime);
+	}
 
 	// update cached falloff
 	CurrentBrushFalloff = 0.5;
@@ -174,6 +184,11 @@ void UMeshSculptToolBase::OnTick(float DeltaTime)
 	}
 
 	UpdateHoverStamp(GetBrushFrameWorld());
+
+	// update brush position here?
+	BrushIndicator->Update((float)GetCurrentBrushRadius(),
+		(FVector)HoverStamp.WorldFrame.Origin, (FVector)HoverStamp.WorldFrame.Z(),
+		1.0f - (float)GetCurrentBrushFalloff());
 
 	UpdateWorkPlane();
 }
@@ -187,9 +202,6 @@ void UMeshSculptToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 
 	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
 
-	BrushIndicator->Update((float)GetCurrentBrushRadius(),
-		(FVector)HoverStamp.WorldFrame.Origin, (FVector)HoverStamp.WorldFrame.Z(),
-		1.0f - (float)GetCurrentBrushFalloff());
 	if (BrushIndicatorMaterial)
 	{
 		double FixedDimScale = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(RenderCameraState, HoverStamp.WorldFrame.Origin, 1.5f);
@@ -440,6 +452,7 @@ void UMeshSculptToolBase::OnBeginDrag(const FRay& WorldRay)
 	if (HitTest(WorldRay, OutHit))
 	{
 		bInStroke = true;
+		ResetStrokeTime();
 
 		UpdateBrushTargetPlaneFromHit(WorldRay, OutHit);
 
@@ -459,7 +472,6 @@ void UMeshSculptToolBase::OnUpdateDrag(const FRay& WorldRay)
 	if (InStroke())
 	{
 		PendingStampRay = WorldRay;
-		bIsStampPending = true;
 	}
 }
 
@@ -467,7 +479,7 @@ void UMeshSculptToolBase::OnEndDrag(const FRay& Ray)
 {
 	bInStroke = false;
 
-	// cancel these! otherwise change record could become invalid
+	// cancel any outstanding stamps! otherwise change record could become invalid
 	bIsStampPending = false;
 
 	OnEndStroke();
@@ -488,10 +500,29 @@ FRay3d UMeshSculptToolBase::GetLocalRay(const FRay& WorldRay) const
 
 void UMeshSculptToolBase::UpdateBrushFrameWorld(const FVector3d& NewPosition, const FVector3d& NewNormal)
 {
+	FFrame3d PrevBrushFrameWorld = LastBrushFrameWorld;
+
+	bool bTriedFrameRepair = false;
+retry_frame_update:
 	FFrame3d NewFrame = LastBrushFrameWorld;
 	NewFrame.Origin = NewPosition;
 	NewFrame.AlignAxis(2, NewNormal);
-	NewFrame.ConstrainedAlignPerpAxes();
+	FVector3d CameraUp = CameraState.Up();
+
+	if (FMathd::Abs(CameraUp.Dot(NewNormal)) < 0.98)
+	{
+		NewFrame.ConstrainedAlignAxis(1, CameraUp, NewFrame.Z());
+	}
+
+	if ( (NewFrame.Rotation.Length() - 1.0) > 0.1 )		// try to recover from normalization failure
+	{
+		LastBrushFrameWorld = FFrame3d(LastBrushFrameWorld.Origin);
+		if (bTriedFrameRepair == false)
+		{
+			bTriedFrameRepair = true;
+			goto retry_frame_update;
+		}
+	}
 
 	if (InStroke() && BrushProperties->Lazyness > 0)
 	{
@@ -502,8 +533,9 @@ void UMeshSculptToolBase::UpdateBrushFrameWorld(const FVector3d& NewPosition, co
 	else
 	{
 		LastBrushFrameWorld = NewFrame;
-
 	}
+
+	ActiveStrokePathArcLen += LastBrushFrameWorld.Origin.Distance(PrevBrushFrameWorld.Origin);
 
 	LastBrushFrameLocal = LastBrushFrameWorld;
 	LastBrushFrameLocal.Transform(CurTargetTransform.Inverse());
@@ -606,14 +638,78 @@ void UMeshSculptToolBase::UpdateHoverStamp(const FFrame3d& StampFrame)
 	HoverStamp.WorldFrame = StampFrame;
 }
 
-void UMeshSculptToolBase::ApplyStrokeFlowInTick()
+void UMeshSculptToolBase::UpdateStampPendingState()
 {
-	bIsStampPending = InStroke();
+	if (InStroke() == false) return;
+
+	bool bFlowStampPending = false;
+	if (BrushProperties->FlowRate >= 1.0)
+	{
+		bFlowStampPending = true;
+	}
+	else if (BrushProperties->FlowRate == 0.0)
+	{
+		bFlowStampPending = (LastFlowTimeStamp++ == 0);
+	}
+	else
+	{
+		double dt = (1.0 - BrushProperties->FlowRate);
+		int FlowTimestamp = (int)(ActiveStrokeTime / dt);
+		if (FlowTimestamp > LastFlowTimeStamp)
+		{
+			LastFlowTimeStamp = FlowTimestamp;
+			bFlowStampPending = true;
+		}
+	}
+
+	// if brush does not support variable spacing, we only use flow
+	if (GetActiveBrushOp()->SupportsVariableSpacing() == false)
+	{
+		bIsStampPending = bFlowStampPending;
+		return;
+	}
+
+	bool bSpacingStampPending = false;
+	if (BrushProperties->Spacing == 0)
+	{
+		bSpacingStampPending = true;
+	}
+	else
+	{
+		double ArcSpacing = BrushProperties->Spacing * (2 * GetCurrentBrushRadius());
+		int SpacingTimestamp = 1 + (int)(ActiveStrokePathArcLen / ArcSpacing);
+		if (SpacingTimestamp > LastSpacingTimestamp)
+		{
+			LastSpacingTimestamp = SpacingTimestamp;
+			bSpacingStampPending = true;
+		}
+	}
+
+	bIsStampPending = bFlowStampPending && bSpacingStampPending;
 }
 
 
+void UMeshSculptToolBase::ResetStrokeTime()
+{
+	ActiveStrokeTime = 0.0;
+	LastFlowTimeStamp = 0;
+	ActiveStrokePathArcLen = 0;
+	LastSpacingTimestamp = 0;
+}
+
+void UMeshSculptToolBase::AccumulateStrokeTime(float DeltaTime)
+{
+	ActiveStrokeTime += DeltaTime;
+}
+
 
 FFrame3d UMeshSculptToolBase::ComputeStampRegionPlane(const FFrame3d& StampFrame, const TSet<int32>& StampTriangles, bool bIgnoreDepth, bool bViewAligned, bool bInvDistFalloff)
+{
+	check(false);
+	return FFrame3d();
+}
+
+FFrame3d UMeshSculptToolBase::ComputeStampRegionPlane(const FFrame3d& StampFrame, const TArray<int32>& StampTriangles, bool bIgnoreDepth, bool bViewAligned, bool bInvDistFalloff)
 {
 	const FDynamicMesh3* Mesh = GetSculptMesh();
 	double FalloffRadius = GetCurrentBrushRadius();
@@ -677,7 +773,7 @@ FFrame3d UMeshSculptToolBase::ComputeStampRegionPlane(const FFrame3d& StampFrame
 
 
 
-void UMeshSculptToolBase::UpdateStrokeReferencePlaneForROI(const FFrame3d& StampFrame, const TSet<int32>& TriangleROI, bool bViewAligned)
+void UMeshSculptToolBase::UpdateStrokeReferencePlaneForROI(const FFrame3d& StampFrame, const TArray<int32>& TriangleROI, bool bViewAligned)
 {
 	StrokePlane = ComputeStampRegionPlane(GetBrushFrameLocal(), TriangleROI, false, bViewAligned);
 }
@@ -713,6 +809,7 @@ void UMeshSculptToolBase::CalculateBrushRadius()
 }
 
 
+
 double UMeshSculptToolBase::GetCurrentBrushStrength()
 {
 	TUniquePtr<FMeshSculptBrushOp>& BrushOp = GetActiveBrushOp();
@@ -732,6 +829,8 @@ double UMeshSculptToolBase::GetCurrentBrushDepth()
 	}
 	return 0.0;
 }
+
+
 
 
 

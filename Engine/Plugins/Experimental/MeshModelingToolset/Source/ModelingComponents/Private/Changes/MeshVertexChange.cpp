@@ -62,6 +62,25 @@ void FMeshVertexChangeBuilder::UpdateVertex(int VertexID, const FVector3d& OldPo
 	}
 }
 
+
+void FMeshVertexChangeBuilder::UpdateVertexColor(int32 VertexID, const FVector3f& OldColor, const FVector3f& NewColor)
+{
+	const int* FoundIndex = SavedVertices.Find(VertexID);
+	if (FoundIndex == nullptr)
+	{
+		int NewIndex = Change->Vertices.Num();
+		SavedVertices.Add(VertexID, NewIndex);
+		Change->Vertices.Add(VertexID);
+		Change->OldColors.Add(OldColor);
+		Change->NewColors.Add(NewColor);
+	}
+	else
+	{
+		Change->NewColors[*FoundIndex] = NewColor;
+	}
+}
+
+
 void FMeshVertexChangeBuilder::UpdateVertexFinal(int VertexID, const FVector3d& NewPosition)
 {
 	check(SavedVertices.Contains(VertexID));

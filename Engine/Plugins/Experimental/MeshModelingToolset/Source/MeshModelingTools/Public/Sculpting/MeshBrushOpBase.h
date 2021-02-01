@@ -46,6 +46,10 @@ struct MESHMODELINGTOOLS_API FSculptBrushStamp
 	// only initialized if current op requires it
 	FFrame3d RegionPlane;
 
+	// stamp alpha
+	TFunction<double(const FSculptBrushStamp& Stamp, const FVector3d& Position)> StampAlphaFunc;
+	bool HasAlpha() const { return !!StampAlphaFunc; }
+
 	FSculptBrushStamp()
 	{
 		TimeStamp = FDateTime::Now();
@@ -114,7 +118,7 @@ public:
 
 	virtual void BeginStroke(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& InitialVertices) {}
 	virtual void EndStroke(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& FinalVertices) {}
-	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewPositionsOut) = 0;
+	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewValuesOut) = 0;
 
 
 
@@ -139,6 +143,11 @@ public:
 
 
 	virtual bool WantsStampRegionPlane() const
+	{
+		return false;
+	}
+
+	virtual bool SupportsVariableSpacing() const
 	{
 		return false;
 	}

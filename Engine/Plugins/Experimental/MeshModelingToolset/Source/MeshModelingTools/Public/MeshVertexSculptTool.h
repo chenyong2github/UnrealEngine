@@ -13,25 +13,13 @@
 #include "TransformTypes.h"
 #include "Sculpting/MeshSculptToolBase.h"
 #include "Sculpting/MeshBrushOpBase.h"
+#include "Image/ImageBuilder.h"
+#include "Util/UniqueIndexSet.h"
 #include "MeshVertexSculptTool.generated.h"
 
 class UTransformGizmo;
 class UTransformProxy;
 class UMaterialInstanceDynamic;
-
-DECLARE_STATS_GROUP(TEXT("VertexSculptTool"), STATGROUP_VtxSculptTool, STATCAT_Advanced);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_UpdateROI"), VtxSculptTool_UpdateROI, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_ApplyStamp"), VtxSculptToolApplyStamp, STATGROUP_VtxSculptTool );
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Tick"), VtxSculptToolTick, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Tick_ApplyStampBlock"), VtxSculptTool_Tick_ApplyStampBlock, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Tick_ApplyStamp_Remove"), VtxSculptTool_Tick_ApplyStamp_Remove, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Tick_ApplyStamp_Insert"), VtxSculptTool_Tick_ApplyStamp_Insert, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Tick_NormalsBlock"), VtxSculptTool_Tick_NormalsBlock, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Tick_UpdateMeshBlock"), VtxSculptTool_Tick_UpdateMeshBlock, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Tick_UpdateTargetBlock"), VtxSculptTool_Tick_UpdateTargetBlock, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Normals_Collect"), VtxSculptTool_Normals_Collect, STATGROUP_VtxSculptTool);
-DECLARE_CYCLE_STAT(TEXT("VertexSculptTool_Normals_Compute"), VtxSculptTool_Normals_Compute, STATGROUP_VtxSculptTool);
-
 class FMeshVertexChangeBuilder;
 class UPreviewMesh;
 
@@ -114,7 +102,6 @@ enum class EMeshVertexSculptBrushType : uint8
 
 
 
-
 UCLASS()
 class MESHMODELINGTOOLS_API UVertexBrushSculptProperties : public UInteractiveToolPropertySet
 {
@@ -137,6 +124,34 @@ public:
 	//UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Shift-Smooth Erases", EditCondition = "bFreezeTarget == true"))
 	UPROPERTY()
 	bool bSmoothErases = false;
+};
+
+
+
+/**
+ * Tool Properties for a brush alpha mask
+ */
+UCLASS()
+class MESHMODELINGTOOLS_API UVertexBrushAlphaProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Alpha mask applied to brush stamp. Red channel is used. */
+	UPROPERTY(EditAnywhere, Category = Alpha, meta = (DisplayName = "Alpha Mask"))
+	UTexture2D* Alpha = nullptr;
+
+	/** Alpha is rotated by this angle, inside the brush stamp frame (vertically aligned) */
+	UPROPERTY(EditAnywhere, Category = Alpha, meta = (DisplayName = "Rotation", UIMin = "-180.0", UIMax = "180.0", ClampMin = "-360.0", ClampMax = "360.0"))
+	float RotationAngle = 0.0;
+
+	/** If true, a random angle in +/- RandomRange is added to Rotation angle for each stamp */
+	UPROPERTY(EditAnywhere, Category = Alpha, AdvancedDisplay)
+	bool bRandomize = false;
+
+	/** Bounds of random generation (positive and negative) for randomized stamps */
+	UPROPERTY(EditAnywhere, Category = Alpha, AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "180.0"))
+	float RandomRange = 180.0;
 };
 
 
@@ -170,9 +185,17 @@ public:
 	UPROPERTY()
 	UVertexBrushSculptProperties* SculptProperties;
 
+	UPROPERTY()
+	UVertexBrushAlphaProperties* AlphaProperties;
+
+	UPROPERTY()
+	UTexture2D* BrushAlpha;
+
 public:
 	virtual void IncreaseBrushSpeedAction() override;
 	virtual void DecreaseBrushSpeedAction() override;
+
+	virtual void UpdateBrushAlpha(UTexture2D* NewAlpha);
 
 protected:
 	// UMeshSculptToolBase API
@@ -205,17 +228,31 @@ protected:
 	TArray<int> NormalsBuffer;
 	void WaitForPendingUndoRedo();
 
+	TFuture<void> StampUpdateOctreeFuture;
+	bool bStampUpdatePending = false;
+	void WaitForPendingStampUpdate();
+
+	TArray<int> RangeQueryTriBuffer;
+	FUniqueIndexSet VertexROIBuilder;
+	FUniqueIndexSet TriangleROIBuilder;
+	TArray<FIndex3i> TriangleROIInBuf;
 	TArray<int> VertexROI;
-	TSet<int> VertexSetBuffer;
-	TSet<int> TriangleROI;
+	TArray<int> TriangleROIArray;
 	void UpdateROI(const FVector3d& BrushPos);
+
+	FUniqueIndexSet NormalsROIBuilder;
+	TArray<std::atomic<bool>> NormalsFlags;		// set of per-vertex or per-element-id flags that indicate
+												// whether normal needs recompute. Fast to do it this way
+												// than to use a TSet or UniqueIndexSet...
 
 	bool bTargetDirty;
 
 	EMeshVertexSculptBrushType PendingStampType = EMeshVertexSculptBrushType::Smooth;
 
 	bool UpdateStampPosition(const FRay& WorldRay);
-	void ApplyStamp();
+	TFuture<void> ApplyStamp();
+
+	FRandomStream StampRandomStream;
 
 	FDynamicMesh3 BaseMesh;
 	FDynamicMeshOctree3 BaseMeshSpatial;
@@ -231,8 +268,13 @@ protected:
 
 	double SculptMaxFixedHeight = -1.0;
 
+	bool bHaveBrushAlpha = false;
+	TImageBuilder<FVector4f> BrushAlphaValues;
+	FImageDimensions BrushAlphaDimensions;
+	double SampleBrushAlpha(const FSculptBrushStamp& Stamp, const FVector3d& Position) const;
+
 	TArray<FVector3d> ROIPositionBuffer;
-	void SyncMeshWithPositionBuffer(FDynamicMesh3* Mesh);
+	TArray<FVector3d> ROIPrevPositionBuffer;
 
 	FMeshVertexChangeBuilder* ActiveVertexChange = nullptr;
 	void BeginChange();

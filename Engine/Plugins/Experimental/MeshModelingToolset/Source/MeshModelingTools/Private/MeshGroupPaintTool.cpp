@@ -1054,14 +1054,17 @@ void UMeshGroupPaintTool::OnTick(float DeltaTime)
 
 	if (IsInBrushSubMode())
 	{
-		if (IsStampPending())
+		if (InStroke())
 		{
 			SCOPE_CYCLE_COUNTER(GroupPaintTool_Tick_ApplyStampBlock);
 
-			ApplyStrokeFlowInTick();
-
 			// update brush position
 			if (UpdateStampPosition(GetPendingStampRayWorld()) == false)
+			{
+				return;
+			}
+			UpdateStampPendingState();
+			if (IsStampPending() == false)
 			{
 				return;
 			}

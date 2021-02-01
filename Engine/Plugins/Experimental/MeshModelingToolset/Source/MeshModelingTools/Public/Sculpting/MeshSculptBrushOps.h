@@ -45,11 +45,17 @@ public:
 	{
 		return ESculptBrushOpTargetType::TargetMesh;
 	}
+	virtual bool SupportsVariableSpacing() const override
+	{
+		return true;
+	}
 
 	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewPositionsOut) override
 	{
 		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * Stamp.DeltaTime * BrushSpeedTuning;
 		double MaxOffset = Stamp.Radius;
+
+		bool bHaveAlpha = Stamp.HasAlpha();
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
 		{
@@ -64,8 +70,10 @@ public:
 			}
 			else
 			{
+				double Alpha = (bHaveAlpha) ? Stamp.StampAlphaFunc(Stamp, OrigPos) : 1.0;
+
 				FVector3d MoveVec = UsePower * BaseNormal;
-				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
+				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos) * Alpha;
 				FVector3d NewPos = OrigPos + Falloff * MoveVec;
 				NewPositionsOut[k] = NewPos;
 			}
@@ -115,7 +123,11 @@ public:
 		return ESculptBrushOpTargetType::TargetMesh;
 	}
 
-	virtual bool GetAlignStampToView() const
+	virtual bool GetAlignStampToView() const override
+	{
+		return true;
+	}
+	virtual bool SupportsVariableSpacing() const override
 	{
 		return true;
 	}
@@ -126,6 +138,8 @@ public:
 
 		double UsePower = Stamp.Direction * Stamp.Power * Stamp.Radius * Stamp.DeltaTime * BrushSpeedTuning;
 		double MaxOffset = Stamp.Radius;
+
+		bool bHaveAlpha = Stamp.HasAlpha();
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
 		{
@@ -140,8 +154,10 @@ public:
 			}
 			else
 			{
+				double Alpha = (bHaveAlpha) ? Stamp.StampAlphaFunc(Stamp, OrigPos) : 1.0;
+
 				FVector3d MoveVec = UsePower * StampNormal;
-				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
+				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos) * Alpha;
 				FVector3d NewPos = OrigPos + Falloff * MoveVec;
 				NewPositionsOut[k] = NewPos;
 			}
@@ -203,6 +219,10 @@ public:
 	{
 		return ESculptBrushOpTargetType::TargetMesh;
 	}
+	virtual bool SupportsVariableSpacing() const override
+	{
+		return true;
+	}
 
 	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewPositionsOut) override
 	{
@@ -210,6 +230,8 @@ public:
 
 		USculptMaxBrushOpProps* Props = GetPropertySetAs<USculptMaxBrushOpProps>();
 		double MaxOffset = (Props->bUseFixedHeight) ? Props->FixedHeight : (Props->MaxHeight * Stamp.Radius);
+
+		bool bHaveAlpha = Stamp.HasAlpha();
 
 		ParallelFor(Vertices.Num(), [&](int32 k)
 		{
@@ -224,8 +246,10 @@ public:
 			}
 			else
 			{
+				double Alpha = (bHaveAlpha) ? Stamp.StampAlphaFunc(Stamp, OrigPos) : 1.0;
+
 				FVector3d MoveVec = UsePower * BaseNormal;
-				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
+				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos) * Alpha;
 				FVector3d NewPos = OrigPos + Falloff * MoveVec;
 
 				FVector3d DeltaPos = NewPos - BasePos;

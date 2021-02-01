@@ -88,6 +88,9 @@ public:
 	// currently only used in vertex sculpt tool. cannot be used if bSaveColors = true
 	void UpdateVertex(int32 VertexID, const FVector3d& OldPosition, const FVector3d& NewPosition);
 
+	// currently only used in element paint tool. Can only be used if bSaveColors=true and bSavePositions=false
+	void UpdateVertexColor(int32 VertexID, const FVector3f& OldColor, const FVector3f& NewColor);
+
 protected:
 	void UpdateVertexFinal(int32 VertexID, const FVector3d& NewPosition);
 
