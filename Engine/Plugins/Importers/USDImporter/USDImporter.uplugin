@@ -14,6 +14,9 @@
 	"CanContainContent": true,
 	"IsBetaVersion": true,
 	"Installed": false,
+	"SupportedTargetPlatforms": [
+		"Win64", "Mac", "Linux"
+	],
 	"Modules": [
 		{
 			"Name": "UnrealUSDWrapper",
