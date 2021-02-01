@@ -122,9 +122,10 @@ TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflow
 							// reverse node index temporarily because of a bug in NodeGuidToIndexMap
 							AnimNodeIndex = Class->GetAnimNodeProperties().Num() - AnimNodeIndex - 1;
 
-							if (FAnimBlueprintDebugData::FBlendSpacePlayerRecord* DebugInfo = Class->GetAnimBlueprintDebugData().BlendSpacePlayerRecordsThisFrame.FindByPredicate([AnimNodeIndex](const FAnimBlueprintDebugData::FBlendSpacePlayerRecord& InRecord){ return InRecord.NodeID == AnimNodeIndex; }))
+							if (FAnimBlueprintDebugData::FBlendSpacePlayerRecord* DebugInfo = Class->GetAnimBlueprintDebugData().BlendSpacePlayerRecordsThisFrame.FindByPredicate(
+								[AnimNodeIndex](const FAnimBlueprintDebugData::FBlendSpacePlayerRecord& InRecord){ return InRecord.NodeID == AnimNodeIndex; }))
 							{
-								return FVector(DebugInfo->PositionX, DebugInfo->PositionY, DebugInfo->PositionZ);
+								return DebugInfo->Position;
 							}
 						}
 					}
@@ -135,7 +136,37 @@ TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflow
 		return FVector::ZeroVector;
 	});
 
-	Args.OnSetPreviewPosition = FOnSetBlendSpacePreviewPosition::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](FVector InSampleValue)
+	Args.PreviewFilteredPosition = MakeAttributeLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)]()
+	{
+		if (WeakBlendSpaceNode.Get())
+		{
+			if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(WeakBlendSpaceNode.Get()))
+			{
+				if (UObject* ActiveObject = Blueprint->GetObjectBeingDebugged())
+				{
+					if (UAnimBlueprintGeneratedClass* Class = Cast<UAnimBlueprintGeneratedClass>(ActiveObject->GetClass()))
+					{
+						if (int32* NodeIndexPtr = Class->GetAnimBlueprintDebugData().NodePropertyToIndexMap.Find(WeakBlendSpaceNode))
+						{
+							int32 AnimNodeIndex = *NodeIndexPtr;
+							// reverse node index temporarily because of a bug in NodeGuidToIndexMap
+							AnimNodeIndex = Class->GetAnimNodeProperties().Num() - AnimNodeIndex - 1;
+
+							if (FAnimBlueprintDebugData::FBlendSpacePlayerRecord* DebugInfo = Class->GetAnimBlueprintDebugData().BlendSpacePlayerRecordsThisFrame.FindByPredicate(
+								[AnimNodeIndex](const FAnimBlueprintDebugData::FBlendSpacePlayerRecord& InRecord) { return InRecord.NodeID == AnimNodeIndex; }))
+							{
+								return DebugInfo->FilteredPosition;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return FVector::ZeroVector;
+	});
+
+	Args.OnSetPreviewPosition = FOnSetBlendSpacePreviewPosition::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](FVector InPreviewPosition)
 	{
 		if(WeakBlendSpaceNode.Get())
 		{
@@ -147,7 +178,7 @@ TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflow
 					{
 						if(FAnimNode_BlendSpaceGraphBase* BlendSpaceGraphNode = Class->GetPropertyInstance<FAnimNode_BlendSpaceGraphBase>(ActiveObject, WeakBlendSpaceNode.Get()))
 						{
-							BlendSpaceGraphNode->SetPreviewSampleValue(InSampleValue);
+							BlendSpaceGraphNode->SetPreviewPosition(InPreviewPosition);
 						}
 					}
 				}

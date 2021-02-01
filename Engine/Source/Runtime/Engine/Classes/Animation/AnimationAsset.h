@@ -142,7 +142,7 @@ struct FBlendFilter
 	{
 	}
 
-	FVector GetFilterLastOutput()
+	FVector GetFilterLastOutput() const
 	{
 		return FVector (FilterPerAxis[0].LastOutput, FilterPerAxis[1].LastOutput, FilterPerAxis[2].LastOutput);
 	}

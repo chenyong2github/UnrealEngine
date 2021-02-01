@@ -16,6 +16,12 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpacePlayer : public FAnimNode_AssetP
 {
 	GENERATED_USTRUCT_BODY()
 
+	// @return the current sample coordinates that this node is using to sample the blendspace
+	FVector GetPosition() const { return FVector(X, Y, Z); }
+
+	// @return the current sample coordinates after going through the filtering
+	FVector GetFilteredPosition() const { return BlendFilter.GetFilterLastOutput(); }
+
 public:
 	// The X coordinate to sample in the blendspace
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Coordinates, meta=(PinShownByDefault))

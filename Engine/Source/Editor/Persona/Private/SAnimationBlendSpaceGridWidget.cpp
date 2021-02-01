@@ -41,6 +41,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 	BlendSpaceBase = InArgs._BlendSpaceBase;
 	PreviousBlendSpaceBase = BlendSpaceBase.Get();
 	Position = InArgs._Position;
+	FilteredPosition = InArgs._FilteredPosition;
 	NotifyHook = InArgs._NotifyHook;
 	OnSampleAdded = InArgs._OnSampleAdded;
 	OnSampleMoved = InArgs._OnSampleMoved;
@@ -63,9 +64,11 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 	bPreviewPositionSet = true;
 	bHighlightPreviewPin = false;
 	// Initialize preview value to center or the grid
-	LastPreviewingSampleValue.X = BlendSpaceBase.Get() != nullptr ? (BlendSpaceBase.Get()->GetBlendParameter(0).GetRange() * .5f) + BlendSpaceBase.Get()->GetBlendParameter(0).Min : 0.0f;
-	LastPreviewingSampleValue.Y = BlendSpaceBase.Get() != nullptr ? (GridType == EGridType::TwoAxis ? (BlendSpaceBase.Get()->GetBlendParameter(1).GetRange() * .5f) + BlendSpaceBase.Get()->GetBlendParameter(1).Min : 0.0f) : 0.0f;
-	LastPreviewingSampleValue.Z = 0.0f;
+	PreviewPosition.X = BlendSpaceBase.Get() != nullptr ? (BlendSpaceBase.Get()->GetBlendParameter(0).GetRange() * .5f) + BlendSpaceBase.Get()->GetBlendParameter(0).Min : 0.0f;
+	PreviewPosition.Y = BlendSpaceBase.Get() != nullptr ? (GridType == EGridType::TwoAxis ? (BlendSpaceBase.Get()->GetBlendParameter(1).GetRange() * .5f) + BlendSpaceBase.Get()->GetBlendParameter(1).Min : 0.0f) : 0.0f;
+	PreviewPosition.Z = 0.0f;
+
+	PreviewFilteredPosition = PreviewPosition;
 
 	bShowTriangulation = false;
 	bMouseIsOverGeometry = false;
@@ -433,10 +436,16 @@ void SBlendSpaceGridWidget::PaintSampleKeys(const FGeometry& AllottedGeometry, c
 			FSlateDrawElement::MakeBox( OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(GridPosition, KeySize), KeyBrush, ESlateDrawEffect::None, DrawColor );
 		}
 
+		// Always draw the filtered position which comes back from whatever is running
+		{
+			FVector2D GridPosition = SampleValueToGridPosition(PreviewFilteredPosition) - (KeySize * .5f);
+			FSlateDrawElement::MakeBox(OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(GridPosition, KeySize), KeyBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor() * 0.5);
+		}
+
 		if (bPreviewPositionSet)
 		{
-			const FVector2D MouseGridPosition = SampleValueToGridPosition(LastPreviewingSampleValue) - (KeySize * .5f);
-			FSlateDrawElement::MakeBox( OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(MouseGridPosition, KeySize), KeyBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor() );
+			FVector2D GridPosition = SampleValueToGridPosition(PreviewPosition) - (KeySize * .5f);
+			FSlateDrawElement::MakeBox(OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(GridPosition, KeySize), KeyBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor());
 		}
 
 		if (DragState == EDragState::DragDrop || DragState == EDragState::InvalidDragDrop)
@@ -1326,7 +1335,8 @@ void SBlendSpaceGridWidget::StartPreviewing()
 	LastPreviewingMousePosition = LocalMousePosition;
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 	bool bIsManualPreviewing = (ModifierKeyState.IsLeftShiftDown() || ModifierKeyState.IsRightShiftDown()) || DragState == EDragState::DragPreview;
-	LastPreviewingSampleValue = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
+	PreviewPosition = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
+	PreviewFilteredPosition = FilteredPosition.IsSet() ? FilteredPosition.Get() : PreviewPosition;
 	bPreviewPositionSet = true;	
 	bPreviewToolTipHidden = true;
 }
@@ -1454,7 +1464,7 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 
 		if(bReadOnly)
 		{
-			ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y)));
+			ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(PreviewPosition.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(PreviewPosition.Y)));
 
 			AddAdvancedPreview();
 		}
@@ -1467,7 +1477,7 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 				{		
 					if (bHighlightPreviewPin)
 					{
-						ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y)));
+						ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(PreviewPosition.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(PreviewPosition.Y)));
 
 						AddAdvancedPreview();
 					}
@@ -1487,7 +1497,7 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 					}
 					else if(Position.IsSet())
 					{
-						ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y)));
+						ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(PreviewPosition.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(PreviewPosition.Y)));
 
 						AddAdvancedPreview();
 					}
@@ -1545,7 +1555,7 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 				case EDragState::DragPreview:
 				case EDragState::Preview:
 				{
-					ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(LastPreviewingSampleValue.Y)));
+					ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(PreviewPosition.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(PreviewPosition.Y)));
 
 					AddAdvancedPreview();
 					break;
@@ -1892,7 +1902,7 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 			{
 				// Check if we are highlighting preview pin
 				float Distance;
-				bHighlightPreviewPin = IsSampleValueWithinMouseRange(LastPreviewingSampleValue, Distance);
+				bHighlightPreviewPin = IsSampleValueWithinMouseRange(PreviewPosition, Distance);
 				if (bHighlightPreviewPin)
 				{
 					if (bHighlightPreviewPin != bPreviousHighlightPreviewPin)
@@ -1993,18 +2003,22 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 		// Check if we should update the preview sample value
 		if (bSamplePreviewing)
 		{
-			// Ensure the preview mouse position is clamped to the grid
-			LastPreviewingMousePosition.X = LocalMousePosition.X; //FMath::Clamp(LocalMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right);
-			LastPreviewingMousePosition.Y = LocalMousePosition.Y; //FMath::Clamp(LocalMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom);
+			// Clamping happens later
+			LastPreviewingMousePosition.X = LocalMousePosition.X;
+			LastPreviewingMousePosition.Y = LocalMousePosition.Y;
 			FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 			bool bIsManualPreviewing = (ModifierKeyState.IsLeftShiftDown() || ModifierKeyState.IsRightShiftDown()) || DragState == EDragState::DragPreview;
-			LastPreviewingSampleValue = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
-						
-			LastPreviewingSampleValue = BlendSpace->GetClampedAndWrappedBlendInput(LastPreviewingSampleValue);
-					
+			PreviewPosition = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
+			PreviewPosition = BlendSpace->GetClampedAndWrappedBlendInput(PreviewPosition);
+
+			if (FilteredPosition.IsSet())
+			{
+				PreviewFilteredPosition = BlendSpace->GetClampedAndWrappedBlendInput(FilteredPosition.Get());
+			}
+
 			// Retrieve and cache weighted samples
 			PreviewedSamples.Empty(4);
-			BlendSpace->GetSamplesFromBlendInput(GetBlendPreviewValue(), PreviewedSamples);
+			BlendSpace->GetSamplesFromBlendInput(PreviewPosition, PreviewedSamples);
 		}
 	}
 
@@ -2022,9 +2036,23 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 	CalculateGridPoints();
 }
 
-const FVector SBlendSpaceGridWidget::GetBlendPreviewValue()
+const FVector SBlendSpaceGridWidget::GetPreviewPosition() const
 {	
-	return LastPreviewingSampleValue;
+	return PreviewPosition;
+}
+
+void SBlendSpaceGridWidget::SetPreviewingState(const FVector& InPosition, const FVector& InFilteredPosition)
+{
+	if (const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	{
+		PreviewFilteredPosition = BlendSpace->GetClampedAndWrappedBlendInput(InFilteredPosition);
+		PreviewPosition = BlendSpace->GetClampedAndWrappedBlendInput(InPosition);
+	}
+	else
+	{
+		PreviewFilteredPosition = InFilteredPosition;
+		PreviewPosition = InPosition;
+	}
 }
 
 void SBlendSpaceGridWidget::InvalidateCachedData()

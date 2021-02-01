@@ -35,6 +35,8 @@ UE_TRACE_EVENT_BEGIN(Animation, TickRecord)
 	UE_TRACE_EVENT_FIELD(float, PlayRate)
 	UE_TRACE_EVENT_FIELD(float, BlendSpacePositionX)
 	UE_TRACE_EVENT_FIELD(float, BlendSpacePositionY)
+	UE_TRACE_EVENT_FIELD(float, BlendSpaceFilteredPositionX)
+	UE_TRACE_EVENT_FIELD(float, BlendSpaceFilteredPositionY)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
 	UE_TRACE_EVENT_FIELD(bool, Looping)
 	UE_TRACE_EVENT_FIELD(bool, IsBlendSpace)
@@ -401,11 +403,15 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 
 		float BlendSpacePositionX = 0.0f;
 		float BlendSpacePositionY = 0.0f;
+		float BlendSpaceFilteredPositionX = 0.0f;
+		float BlendSpaceFilteredPositionY = 0.0f;
 		const bool bIsBlendSpace = InTickRecord.SourceAsset->IsA<UBlendSpaceBase>();
 		if(bIsBlendSpace)
 		{
 			BlendSpacePositionX = InTickRecord.BlendSpace.BlendSpacePositionX;
 			BlendSpacePositionY = InTickRecord.BlendSpace.BlendSpacePositionY;
+			BlendSpaceFilteredPositionX = InTickRecord.BlendSpace.BlendFilter->GetFilterLastOutput().X;
+			BlendSpaceFilteredPositionY = InTickRecord.BlendSpace.BlendFilter->GetFilterLastOutput().Y;
 		}
 
 		UE_TRACE_LOG(Animation, TickRecord, AnimationChannel)
@@ -419,6 +425,8 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 			<< TickRecord.PlayRate(InTickRecord.PlayRateMultiplier)
 			<< TickRecord.BlendSpacePositionX(BlendSpacePositionX)
 			<< TickRecord.BlendSpacePositionY(BlendSpacePositionY)
+			<< TickRecord.BlendSpaceFilteredPositionX(BlendSpaceFilteredPositionX)
+			<< TickRecord.BlendSpaceFilteredPositionY(BlendSpaceFilteredPositionY)
 			<< TickRecord.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
 			<< TickRecord.Looping(InTickRecord.bLooping)
 			<< TickRecord.IsBlendSpace(bIsBlendSpace);

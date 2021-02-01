@@ -58,7 +58,7 @@ public:
 	FAnimSingleNodeInstanceProxy(UAnimInstance* InAnimInstance)
 		: FAnimInstanceProxy(InAnimInstance)
 		, CurrentAsset(nullptr)
-		, BlendSpaceInput(0.0f, 0.0f, 0.0f)
+		, BlendSpacePosition(0.0f, 0.0f, 0.0f)
 		, CurrentTime(0.0f)
 #if WITH_EDITORONLY_DATA
 		, PreviewPoseCurrentTime(0.0f)
@@ -146,7 +146,9 @@ public:
 
 	void SetReverse(bool bInReverse);
 
-	void SetBlendSpaceInput(const FVector& InBlendInput);
+	void SetBlendSpacePosition(const FVector& InPosition);
+
+	void GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const;
 
 #if WITH_EDITOR
 	bool CanProcessAdditiveAnimations() const
@@ -188,7 +190,7 @@ protected:
 
 private:
 	/** Random cached values to play each asset **/
-	FVector BlendSpaceInput;
+	FVector BlendSpacePosition;
 
 	/** Random cached values to play each asset **/
 	TArray<FBlendSampleData> BlendSampleData;

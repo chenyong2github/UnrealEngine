@@ -40,6 +40,8 @@ FString FTickRecordSeries::FormatValue(double Value) const
 	case ESeriesType::PlayRate:
 	case ESeriesType::BlendSpacePositionX:
 	case ESeriesType::BlendSpacePositionY:
+	case ESeriesType::BlendSpaceFilteredPositionX:
+	case ESeriesType::BlendSpaceFilteredPositionY:
 		return FText::AsNumber(Value).ToString();
 	}
 
@@ -150,6 +152,18 @@ void FAnimationTickRecordsTrack::AddAllSeries()
 						LOCTEXT("SeriesNameBlendSpacePositionY", "BlendSpace Position Y"),
 						LOCTEXT("SeriesDescBlendSpacePositionY", "The Y value used to sample this blend space"),
 						FTickRecordSeries::ESeriesType::BlendSpacePositionY,
+						false
+					},
+					{
+						LOCTEXT("SeriesNameBlendSpaceFilteredPositionX", "BlendSpace Filtered Position X"),
+						LOCTEXT("SeriesDescBlendSpaceFilteredPositionX", "The X value after filtering used to sample this blend space"),
+						FTickRecordSeries::ESeriesType::BlendSpaceFilteredPositionX,
+						false
+					},
+					{
+						LOCTEXT("SeriesNameBlendSpaceFilteredPositionY", "BlendSpace Filtered Position Y"),
+						LOCTEXT("SeriesDescBlendSpaceFilteredPositionY", "The Y value after filtering used to sample this blend space"),
+						FTickRecordSeries::ESeriesType::BlendSpaceFilteredPositionY,
 						false
 					},
 				};
@@ -277,6 +291,10 @@ bool FAnimationTickRecordsTrack::UpdateSeriesBounds(FGameplayGraphSeries& InSeri
 		return UpdateSeriesBoundsHelper(TickRecordSeries, InViewport, &FTickRecordMessage::BlendSpacePositionX);
 	case FTickRecordSeries::ESeriesType::BlendSpacePositionY:
 		return UpdateSeriesBoundsHelper(TickRecordSeries, InViewport, &FTickRecordMessage::BlendSpacePositionY);
+	case FTickRecordSeries::ESeriesType::BlendSpaceFilteredPositionX:
+		return UpdateSeriesBoundsHelper(TickRecordSeries, InViewport, &FTickRecordMessage::BlendSpaceFilteredPositionX);
+	case FTickRecordSeries::ESeriesType::BlendSpaceFilteredPositionY:
+		return UpdateSeriesBoundsHelper(TickRecordSeries, InViewport, &FTickRecordMessage::BlendSpaceFilteredPositionY);
 	}
 
 	return false;
@@ -304,6 +322,12 @@ void FAnimationTickRecordsTrack::UpdateSeries(FGameplayGraphSeries& InSeries, co
 		break;
 	case FTickRecordSeries::ESeriesType::BlendSpacePositionY:
 		UpdateSeriesHelper(TickRecordSeries, InViewport, &FTickRecordMessage::BlendSpacePositionY);
+		break;
+	case FTickRecordSeries::ESeriesType::BlendSpaceFilteredPositionX:
+		UpdateSeriesHelper(TickRecordSeries, InViewport, &FTickRecordMessage::BlendSpaceFilteredPositionX);
+		break;
+	case FTickRecordSeries::ESeriesType::BlendSpaceFilteredPositionY:
+		UpdateSeriesHelper(TickRecordSeries, InViewport, &FTickRecordMessage::BlendSpaceFilteredPositionY);
 		break;
 	}
 }
@@ -464,6 +488,8 @@ void FAnimationTickRecordsTrack::GetVariantsAtFrame(const TraceServices::FFrame&
 					{
 						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionX", "Blend Space Position X"), InMessage.BlendSpacePositionX));
 						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpacePositionY", "Blend Space Position Y"), InMessage.BlendSpacePositionY));
+						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpaceFilteredPositionX", "Blend Space Filtered Position X"), InMessage.BlendSpaceFilteredPositionX));
+						Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("BlendSpaceFilteredPositionY", "Blend Space Filtered Position Y"), InMessage.BlendSpaceFilteredPositionY));
 					}
 				}
 				return TraceServices::EEventEnumerate::Continue;

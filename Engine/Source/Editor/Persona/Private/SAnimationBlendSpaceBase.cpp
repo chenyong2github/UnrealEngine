@@ -36,7 +36,7 @@ void SBlendSpaceEditorBase::Construct(const FArguments& InArgs)
 	OnBlendSpaceSampleReplaced = InArgs._OnBlendSpaceSampleReplaced;
 	OnSetPreviewPosition = InArgs._OnSetPreviewPosition;
 
-	bShouldSetPreviewValue = false;
+	bShouldSetPreviewPosition = false;
 
 	SAnimEditorBase::Construct(SAnimEditorBase::FArguments()
 		.DisplayAnimTimeline(false)
@@ -72,6 +72,7 @@ void SBlendSpaceEditorBase::Construct(const FArguments& InArgs)
 							.BlendSpaceBase(BlendSpace)
 							.NotifyHook(this)
 							.Position(InArgs._PreviewPosition)
+							.FilteredPosition(InArgs._PreviewFilteredPosition)
 							.OnSampleMoved(this, &SBlendSpaceEditorBase::OnSampleMoved)
 							.OnSampleRemoved(this, &SBlendSpaceEditorBase::OnSampleRemoved)
 							.OnSampleAdded(this, &SBlendSpaceEditorBase::OnSampleAdded)
@@ -194,7 +195,12 @@ void SBlendSpaceEditorBase::PostUndoRedo()
 	NewBlendSpaceGridWidget->InvalidateState();
 
 	// Set flag which will update the preview value in the next tick (this due the recreation of data after Undo)
-	bShouldSetPreviewValue = true;
+	bShouldSetPreviewPosition = true;
+}
+
+TSharedPtr<class IPersonaPreviewScene> SBlendSpaceEditorBase::GetPreviewScene() const
+{
+	return PreviewScenePtr.Pin();
 }
 
 void SBlendSpaceEditorBase::UpdatePreviewParameter() const
@@ -207,32 +213,48 @@ void SBlendSpaceEditorBase::UpdatePreviewParameter() const
 		{
 			if (Component->PreviewInstance->GetCurrentAsset() == BlendSpace)
 			{
-				const FVector BlendInput = NewBlendSpaceGridWidget->GetBlendPreviewValue();
-				Component->PreviewInstance->SetBlendSpaceInput(BlendInput);
+				const FVector PreviewPosition = NewBlendSpaceGridWidget->GetPreviewPosition();
+				Component->PreviewInstance->SetBlendSpacePosition(PreviewPosition);
 				GetPreviewScene()->InvalidateViews();			
 			}
 		}
 	}
 	else if(OnSetPreviewPosition.IsBound())
 	{
-		const FVector BlendInput = NewBlendSpaceGridWidget->GetBlendPreviewValue();
-		OnSetPreviewPosition.Execute(BlendInput);
+		const FVector PreviewPosition = NewBlendSpaceGridWidget->GetPreviewPosition();
+		OnSetPreviewPosition.Execute(PreviewPosition);
 	}
 }
 
-TSharedPtr<class IPersonaPreviewScene> SBlendSpaceEditorBase::GetPreviewScene() const
+void SBlendSpaceEditorBase::UpdateFromBlendSpaceState() const
 {
-	return PreviewScenePtr.Pin();
+	if (GetPreviewScene().IsValid())
+	{
+		class UDebugSkelMeshComponent* Component = GetPreviewScene()->GetPreviewMeshComponent();
+
+		if (Component != nullptr && Component->IsPreviewOn())
+		{
+			if (Component->PreviewInstance->GetCurrentAsset() == BlendSpace)
+			{
+				FVector FilteredPosition;
+				FVector Position;
+				Component->PreviewInstance->GetBlendSpaceState(Position, FilteredPosition);
+				NewBlendSpaceGridWidget->SetPreviewingState(Position, FilteredPosition);
+			}
+		}
+	}
 }
 
 void SBlendSpaceEditorBase::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	// Update the preview as long as its enabled
-	if (NewBlendSpaceGridWidget->IsPreviewing() || bShouldSetPreviewValue)
+	if (NewBlendSpaceGridWidget->IsPreviewing() || bShouldSetPreviewPosition)
 	{
 		UpdatePreviewParameter();
-		bShouldSetPreviewValue = false;
+		bShouldSetPreviewPosition = false;
 	}
+
+	UpdateFromBlendSpaceState();
 }
 
 void SBlendSpaceEditorBase::OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent)

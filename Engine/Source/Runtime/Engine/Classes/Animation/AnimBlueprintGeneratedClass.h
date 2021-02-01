@@ -232,19 +232,17 @@ public:
 	// Record of a blend space player's state
 	struct FBlendSpacePlayerRecord
 	{
-		FBlendSpacePlayerRecord(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ)
+		FBlendSpacePlayerRecord(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition)
 			: NodeID(InNodeID)
 			, BlendSpace(InBlendSpace)
-			, PositionX(InPositionX)
-			, PositionY(InPositionY) 
-			, PositionZ(InPositionY)
+			, Position(InPosition)
+			, FilteredPosition(InFilteredPosition)
 		{}
 
 		int32 NodeID;
 		TWeakObjectPtr<const UBlendSpaceBase> BlendSpace;
-		float PositionX;
-		float PositionY;
-		float PositionZ;
+		FVector Position;
+		FVector FilteredPosition;
 	};
 
 	// All blend space player records this frame
@@ -286,7 +284,7 @@ public:
 	void RecordStateData(int32 StateMachineIndex, int32 StateIndex, float Weight, float ElapsedTime);
 	void RecordNodeValue(int32 InNodeID, const FString& InText);
 	void RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount);
-	void RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ);
+	void RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition);
 
 	void AddPoseWatch(int32 NodeID, FColor Color);
 	void RemovePoseWatch(int32 NodeID);

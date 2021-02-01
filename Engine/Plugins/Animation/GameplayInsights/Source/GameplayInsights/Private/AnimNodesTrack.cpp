@@ -369,7 +369,7 @@ void FAnimNodesTrack::UpdateDebugData(const TraceServices::FFrame& InFrame)
 												BlendSpaceBase = TSoftObjectPtr<UBlendSpaceBase>(FSoftObjectPath(BlendSpaceInfo->PathName)).LoadSynchronous();
 											}
 
-											DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpaceBase, InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ);
+											DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpaceBase, FVector(InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ), FVector(InMessage.FilteredPositionX, InMessage.FilteredPositionY, InMessage.FilteredPositionZ));
 											return TraceServices::EEventEnumerate::Continue;
 										});
 									});

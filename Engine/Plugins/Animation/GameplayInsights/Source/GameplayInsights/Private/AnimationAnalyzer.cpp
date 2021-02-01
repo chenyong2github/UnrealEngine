@@ -62,10 +62,12 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		float PlayRate = EventData.GetValue<float>("PlayRate");
 		float BlendSpacePositionX = EventData.GetValue<float>("BlendSpacePositionX");
 		float BlendSpacePositionY = EventData.GetValue<float>("BlendSpacePositionY");
+		float BlendSpaceFilteredPositionX = EventData.GetValue<float>("BlendSpaceFilteredPositionX");
+		float BlendSpaceFilteredPositionY = EventData.GetValue<float>("BlendSpaceFilteredPositionY");
 		uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
 		bool bLooping = EventData.GetValue<bool>("Looping");
 		bool bIsBlendSpace = EventData.GetValue<bool>("IsBlendSpace");
-		AnimationProvider.AppendTickRecord(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), AssetId, NodeId, BlendWeight, PlaybackTime, RootMotionWeight, PlayRate, BlendSpacePositionX, BlendSpacePositionY, FrameCounter, bLooping, bIsBlendSpace);
+		AnimationProvider.AppendTickRecord(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), AssetId, NodeId, BlendWeight, PlaybackTime, RootMotionWeight, PlayRate, BlendSpacePositionX, BlendSpacePositionY, BlendSpaceFilteredPositionX, BlendSpaceFilteredPositionY, FrameCounter, bLooping, bIsBlendSpace);
 		break;
 	}
 	case RouteId_SkeletalMesh:
@@ -279,10 +281,9 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
 		uint64 BlendSpaceId = EventData.GetValue<uint64>("BlendSpaceId");
 		int32 NodeId = EventData.GetValue<int32>("NodeId");
-		float PositionX = EventData.GetValue<float>("PositionX");
-		float PositionY = EventData.GetValue<float>("PositionY");
-		float PositionZ = EventData.GetValue<float>("PositionZ");
-		AnimationProvider.AppendBlendSpacePlayer(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), NodeId, BlendSpaceId, PositionX, PositionY, PositionZ);
+		FVector BlendPosition(EventData.GetValue<float>("BlendPositionX"), EventData.GetValue<float>("BlendPositionY"), EventData.GetValue<float>("BlendPositionZ"));
+		FVector FilteredBlendPosition(EventData.GetValue<float>("FilteredBlendPositionX"), EventData.GetValue<float>("FilteredBlendPositionY"), EventData.GetValue<float>("FilteredBlendPositionZ"));
+		AnimationProvider.AppendBlendSpacePlayer(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), NodeId, BlendSpaceId, BlendPosition, FilteredBlendPosition);
 		break;
 	}
 	case RouteId_StateMachineState:

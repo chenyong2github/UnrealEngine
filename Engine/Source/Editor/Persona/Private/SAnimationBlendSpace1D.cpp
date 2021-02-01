@@ -22,6 +22,7 @@ void SBlendSpaceEditor1D::Construct(const FArguments& InArgs)
 		.OnExtendSampleTooltip(InArgs._OnExtendSampleTooltip)
 		.OnSetPreviewPosition(InArgs._OnSetPreviewPosition)
 		.PreviewPosition(InArgs._PreviewPosition)
+		.PreviewFilteredPosition(InArgs._PreviewFilteredPosition)
 		.StatusBarName(InArgs._StatusBarName));
 }
 
@@ -38,6 +39,7 @@ void SBlendSpaceEditor1D::Construct(const FArguments& InArgs, const TSharedRef<I
 		.OnExtendSampleTooltip(InArgs._OnExtendSampleTooltip)
 		.OnSetPreviewPosition(InArgs._OnSetPreviewPosition)
 		.PreviewPosition(InArgs._PreviewPosition)
+		.PreviewFilteredPosition(InArgs._PreviewFilteredPosition)
 		.StatusBarName(InArgs._StatusBarName),
 		InPreviewScene);
 }

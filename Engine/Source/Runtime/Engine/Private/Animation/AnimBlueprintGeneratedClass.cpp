@@ -224,9 +224,9 @@ void FAnimBlueprintDebugData::RecordSequencePlayer(int32 InNodeID, float InPosit
 	SequencePlayerRecordsThisFrame.Emplace(InNodeID, InPosition, InLength, InFrameCount);
 }
 
-void FAnimBlueprintDebugData::RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ)
+void FAnimBlueprintDebugData::RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition)
 {
-	BlendSpacePlayerRecordsThisFrame.Emplace(InNodeID, InBlendSpace, InPositionX, InPositionY, InPositionZ);
+	BlendSpacePlayerRecordsThisFrame.Emplace(InNodeID, InBlendSpace, InPosition, InFilteredPosition);
 }
 
 void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, FColor Color)

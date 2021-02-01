@@ -372,18 +372,20 @@ TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(const FBlendSp
 		.Cursor(EMouseCursor::Crosshairs)
 		.BlendSpaceBase(InArgs.PreviewBlendSpace)
 		.Position(InArgs.PreviewPosition)
+		.FilteredPosition(InArgs.PreviewFilteredPosition)
 		.ReadOnly(true)
 		.ShowAxisLabels(false)
 		.ShowSettingsButtons(false)
 		.OnGetBlendSpaceSampleName(InArgs.OnGetBlendSpaceSampleName);
 }
 
-TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition) const
+TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition, TAttribute<FVector> InFilteredPosition) const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FBlendSpacePreviewArgs Args;
 	Args.PreviewBlendSpace = InBlendSpace;
 	Args.PreviewPosition = InPosition;
+	Args.PreviewFilteredPosition = InFilteredPosition;
 
 	return CreateBlendSpacePreviewWidget(Args);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1533,6 +1535,7 @@ TSharedRef<SWidget> FPersonaModule::CreateBlendSpaceEditWidget(UBlendSpaceBase* 
 			.OnExtendSampleTooltip(InArgs.OnExtendSampleTooltip)
 			.OnSetPreviewPosition(InArgs.OnSetPreviewPosition)
 			.PreviewPosition(InArgs.PreviewPosition)
+			.PreviewFilteredPosition(InArgs.PreviewFilteredPosition)
 			.StatusBarName(InArgs.StatusBarName);
 	}
 	else if (UBlendSpace1D* BlendSpace1D = Cast<UBlendSpace1D>(InBlendSpace))
@@ -1548,6 +1551,7 @@ TSharedRef<SWidget> FPersonaModule::CreateBlendSpaceEditWidget(UBlendSpaceBase* 
 			.OnExtendSampleTooltip(InArgs.OnExtendSampleTooltip)
 			.OnSetPreviewPosition(InArgs.OnSetPreviewPosition)
 			.PreviewPosition(InArgs.PreviewPosition)
+			.PreviewFilteredPosition(InArgs.PreviewFilteredPosition)
 			.StatusBarName(InArgs.StatusBarName);
 	}
 

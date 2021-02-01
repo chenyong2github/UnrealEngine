@@ -38,6 +38,7 @@ public:
 	{}
 		SLATE_ATTRIBUTE(const UBlendSpaceBase*, BlendSpaceBase)
 		SLATE_ATTRIBUTE(FVector, Position)
+		SLATE_ATTRIBUTE(FVector, FilteredPosition)
 		SLATE_ARGUMENT(FNotifyHook*, NotifyHook)
 		SLATE_ARGUMENT(bool, ReadOnly)
 		SLATE_ARGUMENT(bool, ShowAxisLabels)
@@ -111,7 +112,11 @@ public:
 	// End of SWidget
 
 	/** Returns the sample value for previewing the blend space */
-	const FVector GetBlendPreviewValue();
+	const FVector GetPreviewPosition() const;
+
+	/** Records the state of the blend space being used for previewing so it can be displayed */
+	void SetPreviewingState(const FVector& InPosition, const FVector& InFilteredPosition);
+
 	/** Flag whether or not the user is actively previewing the blend space (moving the sample value) */
 	const bool IsPreviewing() const;
 
@@ -221,9 +226,11 @@ private:
 	TAttribute<const UBlendSpaceBase*> BlendSpaceBase;
 	/** Previous blendspace, cached here to allow us to update cached data when it changes. */
 	TWeakObjectPtr<const UBlendSpaceBase> PreviousBlendSpaceBase;
-	/** Current position (driven from outside the widget) */
+	/** Current BlendSpace params (driven from outside the widget) */
 	TAttribute<FVector> Position;
-	/** Notfiy hook (ptr to SAnimationBlendSpace instance), which is required for transacting FBlendSample object when edited using the context-menu/structure details panel */
+	/** Current BlendSpace state - filtered version of Position (driven from outside the widget) */
+	TAttribute<FVector> FilteredPosition;
+	/** Notify hook (ptr to SAnimationBlendSpace instance), which is required for transacting FBlendSample object when edited using the context-menu/structure details panel */
 	FNotifyHook* NotifyHook;
 	/** Number of Blend Parameters to draw */
 	uint32 BlendParametersToDraw;
@@ -250,10 +257,13 @@ private:
 	/** Currently set preview blend sample value and state data */
 	bool bSamplePreviewing;
 	FVector2D LastPreviewingMousePosition;
-	FVector LastPreviewingSampleValue;
+	FVector PreviewPosition;
 	bool bPreviewPositionSet;
 	bool bAdvancedPreview;
 	TArray<FBlendSampleData> PreviewedSamples;
+
+	/** Preview state that may have been returned */
+	FVector PreviewFilteredPosition;
 
 	/** Tooltip ptr which is shown when hovering/dropping/dragging a sample*/
 	TSharedPtr<SToolTip> ToolTip;

@@ -20,7 +20,8 @@ void SBlendSpacePreview::Construct(const FArguments& InArgs, UAnimGraphNode_Base
 	FBlendSpacePreviewArgs Args;
 
 	Args.PreviewBlendSpace = MakeAttributeLambda([this](){ return CachedBlendSpace.Get(); });
-	Args.PreviewPosition = MakeAttributeLambda([this](){ return CachedPosition;	});
+	Args.PreviewPosition = MakeAttributeLambda([this]() { return CachedPosition; });
+	Args.PreviewFilteredPosition = MakeAttributeLambda([this]() { return CachedFilteredPosition; });
 	Args.OnGetBlendSpaceSampleName = InArgs._OnGetBlendSpaceSampleName;
 
 	ChildSlot
@@ -38,7 +39,7 @@ void SBlendSpacePreview::Construct(const FArguments& InArgs, UAnimGraphNode_Base
 
 	RegisterActiveTimer(1.0f / 60.0f, FWidgetActiveTimerDelegate::CreateLambda([this](double InCurrentTime, float InDeltaTime)
 	{
-		GetBlendSpaceInfo(CachedBlendSpace, CachedPosition);
+		GetBlendSpaceInfo(CachedBlendSpace, CachedPosition, CachedFilteredPosition);
 		return EActiveTimerReturnType::Continue;
 	}));
 }
@@ -62,7 +63,7 @@ EVisibility SBlendSpacePreview::GetBlendSpaceVisibility() const
 	return EVisibility::Collapsed;
 }
 
-bool SBlendSpacePreview::GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>& OutBlendSpace, FVector& OutPosition) const
+bool SBlendSpacePreview::GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>& OutBlendSpace, FVector& OutPosition, FVector& OutFilteredPosition) const
 {
 	if (Node.Get() != nullptr)
 	{
@@ -78,10 +79,12 @@ bool SBlendSpacePreview::GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>
 						// reverse node index temporarily because of a bug in NodeGuidToIndexMap
 						AnimNodeIndex = Class->GetAnimNodeProperties().Num() - AnimNodeIndex - 1;
 
-						if (FAnimBlueprintDebugData::FBlendSpacePlayerRecord* DebugInfo = Class->GetAnimBlueprintDebugData().BlendSpacePlayerRecordsThisFrame.FindByPredicate([AnimNodeIndex](const FAnimBlueprintDebugData::FBlendSpacePlayerRecord& InRecord){ return InRecord.NodeID == AnimNodeIndex; }))
+						if (FAnimBlueprintDebugData::FBlendSpacePlayerRecord* DebugInfo = Class->GetAnimBlueprintDebugData().BlendSpacePlayerRecordsThisFrame.FindByPredicate(
+							[AnimNodeIndex](const FAnimBlueprintDebugData::FBlendSpacePlayerRecord& InRecord){ return InRecord.NodeID == AnimNodeIndex; }))
 						{
 							OutBlendSpace = DebugInfo->BlendSpace.Get();
-							OutPosition = FVector(DebugInfo->PositionX, DebugInfo->PositionY, DebugInfo->PositionZ);
+							OutPosition = DebugInfo->Position;
+							OutFilteredPosition = DebugInfo->FilteredPosition;
 							return true;
 						}
 					}
@@ -92,5 +95,6 @@ bool SBlendSpacePreview::GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>
 
 	OutBlendSpace = nullptr;
 	OutPosition = FVector::ZeroVector;
+	OutFilteredPosition = FVector::ZeroVector;
 	return false;
 }

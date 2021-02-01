@@ -23,9 +23,10 @@ public:
 
 protected:
 	EVisibility GetBlendSpaceVisibility() const;
-	bool GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>& OutBlendSpace, FVector& OutPosition) const;
+	bool GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>& OutBlendSpace, FVector& OutPosition, FVector& OutFilteredPosition) const;
 
 	TWeakObjectPtr<const UAnimGraphNode_Base> Node;
 	TWeakObjectPtr<const UBlendSpaceBase> CachedBlendSpace;
 	FVector CachedPosition;
+	FVector CachedFilteredPosition;
 };

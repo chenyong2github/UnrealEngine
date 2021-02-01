@@ -410,7 +410,7 @@ bool FAnimationProvider::HasAnyData() const
 	return bHasAnyData;
 }
 
-void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime, uint64 InAssetId, int32 InNodeId, float InBlendWeight, float InPlaybackTime, float InRootMotionWeight, float InPlayRate, float InBlendSpacePositionX, float InBlendSpacePositionY, uint16 InFrameCounter, bool bInLooping, bool bInIsBlendSpace)
+void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime, uint64 InAssetId, int32 InNodeId, float InBlendWeight, float InPlaybackTime, float InRootMotionWeight, float InPlayRate, float InBlendSpacePositionX, float InBlendSpacePositionY, float InBlendSpaceFilteredPositionX, float InBlendSpaceFilteredPositionY, uint16 InFrameCounter, bool bInLooping, bool bInIsBlendSpace)
 {
 	Session.WriteAccessCheck();
 
@@ -444,6 +444,8 @@ void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime
 	Message.PlayRate = InPlayRate;
 	Message.BlendSpacePositionX = InBlendSpacePositionX;
 	Message.BlendSpacePositionY = InBlendSpacePositionY;
+	Message.BlendSpaceFilteredPositionX = InBlendSpaceFilteredPositionX;
+	Message.BlendSpaceFilteredPositionY = InBlendSpaceFilteredPositionY;
 	Message.FrameCounter = InFrameCounter;
 	Message.bLooping = bInLooping;
 	Message.bIsBlendSpace = bInIsBlendSpace;
@@ -750,7 +752,7 @@ void FAnimationProvider::AppendAnimSequencePlayer(uint64 InAnimInstanceId, doubl
 	Session.UpdateDurationSeconds(InTime);
 }
 
-void FAnimationProvider::AppendBlendSpacePlayer(uint64 InAnimInstanceId, double InTime, int32 InNodeId, uint64 InBlendSpaceId, float InPositionX, float InPositionY, float InPositionZ)
+void FAnimationProvider::AppendBlendSpacePlayer(uint64 InAnimInstanceId, double InTime, int32 InNodeId, uint64 InBlendSpaceId, const FVector& InBlendPosition, const FVector& InFilteredBlendPosition)
 {
 	Session.WriteAccessCheck();
 
@@ -774,9 +776,12 @@ void FAnimationProvider::AppendBlendSpacePlayer(uint64 InAnimInstanceId, double 
 	Message.AnimInstanceId = InAnimInstanceId;
 	Message.BlendSpaceId = InBlendSpaceId;
 	Message.NodeId = InNodeId;
-	Message.PositionX = InPositionX;
-	Message.PositionY = InPositionY;
-	Message.PositionZ = InPositionZ;
+	Message.PositionX = InBlendPosition.X;
+	Message.PositionY = InBlendPosition.Y;
+	Message.PositionZ = InBlendPosition.Z;
+	Message.FilteredPositionX = InFilteredBlendPosition.X;
+	Message.FilteredPositionY = InFilteredBlendPosition.Y;
+	Message.FilteredPositionZ = InFilteredBlendPosition.Z;
 
 	Timeline->AppendEvent(InTime, Message);
 

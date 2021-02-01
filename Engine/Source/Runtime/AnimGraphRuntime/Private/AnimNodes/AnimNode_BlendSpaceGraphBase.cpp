@@ -38,18 +38,18 @@ void FAnimNode_BlendSpaceGraphBase::UpdateInternal(const FAnimationUpdateContext
 	check(BlendSpace != nullptr);
 
 	// Filter input and update blend samples
-	FVector BlendInput(X, Y, Z);
+	FVector BlendParams(X, Y, Z);
 #if WITH_EDITORONLY_DATA
-	if(bUsePreviewSampleValue)
+	if(bUsePreviewPosition)
 	{
 		// Consume any preview sample we have set
-		BlendInput = PreviewSample;
-		bUsePreviewSampleValue = false;
+		BlendParams = PreviewPosition;
+		bUsePreviewPosition = false;
 	}
 #endif
 	const float DeltaTime = Context.GetDeltaTime();
-	const FVector FilteredInput = BlendSpace->FilterInput(&BlendFilter, BlendInput, DeltaTime);
-	BlendSpace->UpdateBlendSamples(FilteredInput, DeltaTime, BlendSampleDataCache);
+	const FVector FilteredBlendParams = BlendSpace->FilterInput(&BlendFilter, BlendParams, DeltaTime);
+	BlendSpace->UpdateBlendSamples(FilteredBlendParams, DeltaTime, BlendSampleDataCache);
 
 	for(int32 SampleIndex = 0; SampleIndex < BlendSampleDataCache.Num(); ++SampleIndex)
 	{
@@ -62,7 +62,7 @@ void FAnimNode_BlendSpaceGraphBase::UpdateInternal(const FAnimationUpdateContext
 #if WITH_EDITORONLY_DATA
 	if (FAnimBlueprintDebugData* DebugData = Context.AnimInstanceProxy->GetAnimBlueprintDebugData())
 	{
-		DebugData->RecordBlendSpacePlayer(Context.GetCurrentNodeId(), BlendSpace, BlendInput.X, BlendInput.Y, BlendInput.Z);
+		DebugData->RecordBlendSpacePlayer(Context.GetCurrentNodeId(), BlendSpace, BlendParams, FilteredBlendParams);
 	}
 #endif
 
@@ -103,9 +103,9 @@ void FAnimNode_BlendSpaceGraphBase::GatherDebugData(FNodeDebugData& DebugData)
 }
 
 #if WITH_EDITORONLY_DATA
-void FAnimNode_BlendSpaceGraphBase::SetPreviewSampleValue(FVector InVector)
+void FAnimNode_BlendSpaceGraphBase::SetPreviewPosition(FVector InVector)
 {
-	bUsePreviewSampleValue = true;
-	PreviewSample = InVector;
+	bUsePreviewPosition = true;
+	PreviewPosition = InVector;
 }
 #endif

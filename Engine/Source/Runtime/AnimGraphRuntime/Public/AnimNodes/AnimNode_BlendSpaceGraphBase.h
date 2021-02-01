@@ -22,11 +22,14 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceGraphBase : public FAnimNode_Bas
 	const UBlendSpaceBase* GetBlendSpace() const { return BlendSpace; }
 
 	// @return the current sample coordinates that this node is using to sample the blendspace
-	FVector GetSampleCoordinates() const { return FVector(X, Y, Z); }
+	FVector GetPosition() const { return FVector(X, Y, Z); }
+
+	// @return the current sample coordinates after going through the filtering
+	FVector GetFilteredPosition() const { return BlendFilter.GetFilterLastOutput(); }
 
 #if WITH_EDITORONLY_DATA
 	// Set the node to preview a supplied sample value
-	void SetPreviewSampleValue(FVector InVector);
+	void SetPreviewPosition(FVector InVector);
 #endif
 
 protected:
@@ -66,11 +69,11 @@ protected:
 	TArray<FBlendSampleData> BlendSampleDataCache;
 
 #if WITH_EDITORONLY_DATA
-	// Preview sample value - set in editor only
-	FVector PreviewSample = FVector::ZeroVector;
+	// Preview blend params - set in editor only
+	FVector PreviewPosition = FVector::ZeroVector;
 
-	// Whether to use the preview sample value
-	bool bUsePreviewSampleValue = false;
+	// Whether to use the preview blend params
+	bool bUsePreviewPosition = false;
 #endif
 
 	// Internal update handler, skipping evaluation of exposed inputs

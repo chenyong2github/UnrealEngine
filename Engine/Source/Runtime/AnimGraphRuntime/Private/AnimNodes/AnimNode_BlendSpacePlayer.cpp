@@ -90,12 +90,12 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 			Reinitialize(bResetPlayTimeWhenBlendSpaceChanges);
 		}
 
-		const FVector BlendInput(X, Y, Z);
+		const FVector Position(X, Y, Z);
 
 		// Create a tick record and push into the closest scope
 		UE::Anim::FAnimSyncGroupScope& SyncScope = Context.GetMessageChecked<UE::Anim::FAnimSyncGroupScope>();
 
-		FAnimTickRecord TickRecord(BlendSpace, BlendInput, BlendSampleDataCache, BlendFilter, bLoop, PlayRate, Context.GetFinalBlendWeight(), /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
+		FAnimTickRecord TickRecord(BlendSpace, Position, BlendSampleDataCache, BlendFilter, bLoop, PlayRate, Context.GetFinalBlendWeight(), /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 		TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
 		UE::Anim::FAnimSyncParams SyncParams(GroupName, GroupRole, Method);
 
@@ -106,7 +106,7 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 #if WITH_EDITORONLY_DATA
 		if (FAnimBlueprintDebugData* DebugData = Context.AnimInstanceProxy->GetAnimBlueprintDebugData())
 		{
-			DebugData->RecordBlendSpacePlayer(Context.GetCurrentNodeId(), BlendSpace, BlendInput.X, BlendInput.Y, BlendInput.Z);
+			DebugData->RecordBlendSpacePlayer(Context.GetCurrentNodeId(), BlendSpace, Position, BlendFilter.GetFilterLastOutput());
 		}
 #endif
 

@@ -24,6 +24,8 @@ public:
 		PlayRate,
 		BlendSpacePositionX,
 		BlendSpacePositionY,
+		BlendSpaceFilteredPositionX,
+		BlendSpaceFilteredPositionY,
 
 		Count,
 	};

@@ -36,6 +36,8 @@ public:
 
 	SLATE_ATTRIBUTE(FVector, PreviewPosition)
 
+	SLATE_ATTRIBUTE(FVector, PreviewFilteredPosition)
+
 	SLATE_ARGUMENT(FName, StatusBarName)
 
 	SLATE_END_ARGS()

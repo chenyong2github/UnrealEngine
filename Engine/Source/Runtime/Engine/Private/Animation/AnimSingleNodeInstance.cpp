@@ -375,9 +375,14 @@ void UAnimSingleNodeInstance::SetPosition(float InPosition, bool bFireNotifies)
 	SetPositionWithPreviousTime(InPosition, PreviousTime, bFireNotifies);
 }
 
-void UAnimSingleNodeInstance::SetBlendSpaceInput(const FVector& InBlendInput)
+void UAnimSingleNodeInstance::SetBlendSpacePosition(const FVector& InPosition)
 {
-	GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>().SetBlendSpaceInput(InBlendInput);
+	GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>().SetBlendSpacePosition(InPosition);
+}
+
+void UAnimSingleNodeInstance::GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const
+{
+	GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>().GetBlendSpaceState(OutPosition, OutFilteredPosition);
 }
 
 float UAnimSingleNodeInstance::GetLength()

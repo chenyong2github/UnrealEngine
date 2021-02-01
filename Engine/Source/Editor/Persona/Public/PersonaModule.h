@@ -117,8 +117,11 @@ struct FBlendSpaceEditorArgs
 	// Called to get the overridden name of a blend sample
 	FOnGetBlendSpaceSampleName OnGetBlendSpaceSampleName;
 
-	// Allows the preview position to be programmatically driven
+	// Allows the target preview position to be programmatically driven
 	TAttribute<FVector> PreviewPosition;
+
+	// Allows the current position to be programmatically driven
+	TAttribute<FVector> PreviewFilteredPosition;
 
 	// Allows an external widget to be inserted into a sample's tooltip
 	FOnExtendBlendSpaceSampleTooltip OnExtendSampleTooltip;
@@ -134,8 +137,11 @@ struct FBlendSpacePreviewArgs
 {
 	TAttribute<const UBlendSpaceBase*> PreviewBlendSpace;
 
-	// Allows the preview position to be programmatically driven
+	// Allows the target preview position to be programatically driven
 	TAttribute<FVector> PreviewPosition;
+
+	// Allows the current preview position to be programatically driven
+	TAttribute<FVector> PreviewFilteredPosition;
 
 	// Called to get the overridden name of a blend sample
 	FOnGetBlendSpaceSampleName OnGetBlendSpaceSampleName;
@@ -294,7 +300,7 @@ public:
 
 	/** Deprecated */
 	UE_DEPRECATED(5.0, "Please use the overload that takes a FBlendSpacePreviewArgs struct")
-	virtual TSharedRef<SWidget> CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition) const;
+	virtual TSharedRef<SWidget> CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InBlendPosition, TAttribute<FVector> InFilteredBlendPosition) const;
 
 	/** Create a widget to preview a blendspace */
 	virtual TSharedRef<SWidget> CreateBlendSpacePreviewWidget(const FBlendSpacePreviewArgs& InArgs) const;

@@ -44,6 +44,8 @@ public:
 
 	SLATE_ATTRIBUTE(FVector, PreviewPosition)
 
+	SLATE_ATTRIBUTE(FVector, PreviewFilteredPosition)
+
 	SLATE_ARGUMENT(FName, StatusBarName)
 
 	SLATE_END_ARGS()
@@ -85,6 +87,9 @@ protected:
 	/** Updates Persona's preview window */
 	void UpdatePreviewParameter() const;
 	
+	/** Updates Persona's preview window with additional data that should always be shown. */
+	void UpdateFromBlendSpaceState() const;
+
 	/** Retrieves the preview scene shown by Persona */
 	TSharedPtr<class IPersonaPreviewScene> GetPreviewScene() const;
 
@@ -119,5 +124,5 @@ protected:
 	FOnSetBlendSpacePreviewPosition OnSetPreviewPosition;
 
 	/** Flag to check whether or not the preview value should be (re-)set on the next tick */
-	bool bShouldSetPreviewValue;
+	bool bShouldSetPreviewPosition;
 };

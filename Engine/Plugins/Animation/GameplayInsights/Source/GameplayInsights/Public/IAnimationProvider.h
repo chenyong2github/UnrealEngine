@@ -53,6 +53,8 @@ struct FTickRecordMessage
 	float PlayRate = 0.0f;
 	float BlendSpacePositionX = 0.0f;
 	float BlendSpacePositionY = 0.0f;
+	float BlendSpaceFilteredPositionX = 0.0f;
+	float BlendSpaceFilteredPositionY = 0.0f;
 	uint16 FrameCounter = 0;
 	bool bLooping = false;
 	bool bIsBlendSpace = false;
@@ -183,6 +185,9 @@ struct FBlendSpacePlayerMessage
 	float PositionX = 0.0f;
 	float PositionY = 0.0f;
 	float PositionZ = 0.0f;
+	float FilteredPositionX = 0.0f;
+	float FilteredPositionY = 0.0f;
+	float FilteredPositionZ = 0.0f;
 };
 
 struct FAnimStateMachineMessage

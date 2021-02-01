@@ -55,7 +55,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Animation")
 	void SetPositionWithPreviousTime(float InPosition, float InPreviousTime, bool bFireNotifies=true);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void SetBlendSpaceInput(const FVector& InBlendInput);
+	void SetBlendSpacePosition(const FVector& InPosition);
 	UFUNCTION(BlueprintCallable, Category="Animation")
 	void SetPlaying(bool bIsPlaying);
 	UFUNCTION(BlueprintCallable, Category="Animation")
@@ -75,6 +75,9 @@ public:
  	UFUNCTION(BlueprintCallable, Category = "Animation")
  	void SetPreviewCurveOverride(const FName& PoseName, float Value, bool bRemoveIfZero);
 public:
+	/** Gets the current state of any BlendSpace */
+	void GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const;
+
 	/** AnimSequence specific **/
 	void StepForward();
 	void StepBackward();

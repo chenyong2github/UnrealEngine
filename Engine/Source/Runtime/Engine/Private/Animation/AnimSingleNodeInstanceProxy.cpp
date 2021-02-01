@@ -28,7 +28,7 @@ void FAnimSingleNodeInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 	UpdateCounter.Reset();
 
 	// it's already doing it when evaluate
-	BlendSpaceInput = FVector::ZeroVector;
+	BlendSpacePosition = FVector::ZeroVector;
 	CurrentTime = 0.f;
 
 	// initialize node manually 
@@ -198,10 +198,10 @@ void FAnimSingleNodeInstanceProxy::SetAnimationAsset(class UAnimationAsset* NewA
 	bLooping = bIsLooping;
 	PlayRate = InPlayRate;
 	CurrentTime = 0.f;
-	BlendSpaceInput = FVector::ZeroVector;
+	BlendSpacePosition = FVector::ZeroVector;
 	BlendSampleData.Reset();
 	MarkerTickRecord.Reset();
-	UpdateBlendspaceSamples(BlendSpaceInput);
+	UpdateBlendspaceSamples(BlendSpacePosition);
 
 #if WITH_EDITORONLY_DATA
 	PreviewPoseCurrentTime = 0.0f;
@@ -253,9 +253,15 @@ void FAnimSingleNodeInstanceProxy::SetReverse(bool bInReverse)
 	}*/
 }
 
-void FAnimSingleNodeInstanceProxy::SetBlendSpaceInput(const FVector& InBlendInput)
+void FAnimSingleNodeInstanceProxy::SetBlendSpacePosition(const FVector& InPosition)
 {
-	BlendSpaceInput = InBlendInput;
+	BlendSpacePosition = InPosition;
+}
+
+void FAnimSingleNodeInstanceProxy::GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const
+{
+	OutFilteredPosition = BlendFilter.GetFilterLastOutput();
+	OutPosition = BlendSpacePosition;
 }
 
 void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
@@ -528,7 +534,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 
 		if (UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(Proxy->CurrentAsset))
 		{
-			FAnimTickRecord TickRecord(BlendSpace, Proxy->BlendSpaceInput, Proxy->BlendSampleData, Proxy->BlendFilter, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			FAnimTickRecord TickRecord(BlendSpace, Proxy->BlendSpacePosition, Proxy->BlendSampleData, Proxy->BlendFilter, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
 			SyncScope.AddTickRecord(TickRecord);
 
 			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
