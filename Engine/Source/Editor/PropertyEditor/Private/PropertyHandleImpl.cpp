@@ -2315,15 +2315,6 @@ class SDefaultPropertyButtonWidgets : public SCompoundWidget
 			];
 		}
 
-		ButtonBox->AddSlot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.Padding(4.0f, 0.0f)
-		[
-			SNew(SResetToDefaultPropertyEditor, PropertyEditor->GetPropertyHandle())
-		];
-
 		ChildSlot
 		[
 			ButtonBox
