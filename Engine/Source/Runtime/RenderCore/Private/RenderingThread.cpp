@@ -1124,9 +1124,9 @@ static FAutoConsoleVariableRef CVarTimeoutForBlockOnRenderFence(
  */
 static void GameThreadWaitForTask(const FGraphEventRef& Task, ENamedThreads::Type TriggerThreadIndex = ENamedThreads::ActualRenderingThread, bool bEmptyGameThreadTasks = false)
 {
+	TaskTrace::FWaitingScope WaitingScope(GetTraceIds({ Task }));
 	TRACE_CPUPROFILER_EVENT_SCOPE(GameThreadWaitForTask);
 	SCOPE_TIME_GUARD(TEXT("GameThreadWaitForTask"));
-	TaskTrace::FWaitingScope WaitingScope(GetTraceIds({ Task }));
 
 	check(IsInGameThread());
 	check(IsValidRef(Task));	
