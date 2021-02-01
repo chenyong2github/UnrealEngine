@@ -611,11 +611,6 @@ void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInp
 			PTransmission.AccessSetup().TransmissionType = ModifiedInputs.TransmissionType;
 		}
 
-		if (ModifiedInputs.SetGearImmediate >= 0 && ModifiedInputs.TargetGearInput != PTransmission.GetTargetGear())
-		{
-			PTransmission.SetGear(ModifiedInputs.TargetGearInput, ModifiedInputs.SetGearImmediate?true:false);
-		}
-
 		if (ModifiedInputs.GearUpInput)
 		{
 			PTransmission.ChangeUp();
@@ -1459,8 +1454,8 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 				, TransmissionSetup.ChangeUpRPM
 				, TransmissionSetup.ChangeDownRPM), 4, YPos);
 
-			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Gear: %d (Target %d)(Target %d)")
-				, GetCurrentGear(), TargetGearInput, PVehicleOutput->TargetGear), 4, YPos);
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Gear: %d (Target %d)")
+				, GetCurrentGear(), GetTargetGear()), 4, YPos);
 		}
 		//YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Drag: %.1f"), DebugDragMagnitude), 4, YPos);
 

@@ -418,6 +418,7 @@ namespace ChaosTest
 			Setup.ForwardRatios.Add(2.f);
 			Setup.ForwardRatios.Add(1.f);
 			Setup.ReverseRatios.Add(3.f);
+			Setup.ReverseRatios.Add(6.f);
 			Setup.FinalDriveRatio = 4.f;
 			Setup.ChangeUpRPM = 3000;
 			Setup.ChangeDownRPM = 1200;
@@ -453,7 +454,16 @@ namespace ChaosTest
 		EXPECT_EQ(Transmission.GetCurrentGear(), -1);
 
 		Transmission.ChangeDown();
+		EXPECT_EQ(Transmission.GetCurrentGear(), -2);
+
+		Transmission.ChangeDown();
+		EXPECT_EQ(Transmission.GetCurrentGear(), -2);
+
+		Transmission.ChangeUp();
 		EXPECT_EQ(Transmission.GetCurrentGear(), -1);
+
+		Transmission.ChangeUp();
+		EXPECT_EQ(Transmission.GetCurrentGear(), 0);
 
 		Transmission.SetGear(1);
 
@@ -488,6 +498,7 @@ namespace ChaosTest
 			Setup.ForwardRatios.Add(2.f);
 			Setup.ForwardRatios.Add(1.f);
 			Setup.ReverseRatios.Add(3.f);
+			Setup.ReverseRatios.Add(6.f);
 			Setup.FinalDriveRatio = 4.f;
 			Setup.ChangeUpRPM = 3000;
 			Setup.ChangeDownRPM = 1200;
@@ -519,6 +530,31 @@ namespace ChaosTest
 		Transmission.SetEngineRPM(1000);
 		Transmission.Simulate(0.25f);
 		EXPECT_EQ(Transmission.GetCurrentGear(), 1);
+
+		// stays in first, doesn't change to neutral
+		Transmission.SetEngineRPM(1000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), 1);
+
+		Transmission.SetGear(-2, true);
+
+		Transmission.SetEngineRPM(3000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), -2);
+
+		Transmission.SetEngineRPM(1000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), -1);
+
+		// stays in reverse first, doesn't change to neutral
+		Transmission.SetEngineRPM(1000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), -1);
+
+		// changes to next reverse gear
+		Transmission.SetEngineRPM(3000);
+		Transmission.Simulate(0.25f);
+		EXPECT_EQ(Transmission.GetCurrentGear(), -2);
 
 	}
 

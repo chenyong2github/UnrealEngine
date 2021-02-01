@@ -24,14 +24,17 @@ namespace Chaos
 
 		TargetGear = InGear;
 
-		if (Immediate || Setup().GearChangeTime == 0.f)
+		if (TargetGear != CurrentGear)
 		{
-			CurrentGear = TargetGear;
-		}
-		else
-		{
-			CurrentGear = 0;	// go through neutral for GearChangeTime time period
-			CurrentGearChangeTime = Setup().GearChangeTime;
+			if (Immediate || Setup().GearChangeTime == 0.f)
+			{
+				CurrentGear = TargetGear;
+			}
+			else
+			{
+				CurrentGear = 0;	// go through neutral for GearChangeTime time period
+				CurrentGearChangeTime = Setup().GearChangeTime;
+			}
 		}
 	}
 
@@ -62,11 +65,25 @@ namespace Chaos
 			{
 				if (EngineRPM >= Setup().ChangeUpRPM)
 				{
-					ChangeUp();
+					if (CurrentGear > 0)
+					{
+						ChangeUp();
+					}
+					else
+					{
+						ChangeDown();
+					}
 				}
-				else if (EngineRPM <= Setup().ChangeDownRPM && CurrentGear > 1) // don't change down to neutral
+				else if (EngineRPM <= Setup().ChangeDownRPM && FMath::Abs(CurrentGear) > 1) // don't change down to neutral
 				{
-					ChangeDown();
+					if (CurrentGear > 0)
+					{
+						ChangeDown();
+					}
+					else
+					{
+						ChangeUp();
+					}
 				}
 			}
 		}

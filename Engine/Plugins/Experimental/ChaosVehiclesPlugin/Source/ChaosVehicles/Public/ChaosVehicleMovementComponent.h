@@ -38,8 +38,6 @@ struct FControlInputs
 		, YawInput(0.f)
 		, HandbrakeInput(0.f)
 		, ParkingEnabled(false)
-		, TargetGearInput(0)
-		, SetGearImmediate(-1)
 		, TransmissionType(Chaos::ETransmissionType::Automatic)
 		, GearUpInput(false)
 		, GearDownInput(false)
@@ -71,10 +69,7 @@ struct FControlInputs
 	// ParkingEnabled
 	bool ParkingEnabled;
 
-	int32 TargetGearInput;
-	int8 SetGearImmediate;
 	Chaos::ETransmissionType TransmissionType;
-
 
 	bool GearUpInput;
 	bool GearDownInput;
@@ -776,8 +771,6 @@ protected:
 	UPROPERTY(Transient)
 	uint8 bParkEnabled : 1;
 
-	int32 TargetGearInput;
-	int8 SetGearImmediate;
 	Chaos::ETransmissionType TransmissionType;
 
 public:

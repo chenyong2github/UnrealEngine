@@ -97,7 +97,7 @@ namespace Chaos
 		/** set the target gear to one higher than current target, will clamp gear index within rage */
 		void ChangeUp()
 		{
-			SetGear(TargetGear + 1);
+			SetGear(TargetGear + 1);		
 		}
 
 		/** set the target gear to one lower than current target, will clamp gear index within rage */

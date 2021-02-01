@@ -624,8 +624,6 @@ UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInit
 	RollInputRate.FallRate = 10.0f;
 	YawInputRate.RiseRate = 6.0f;
 	YawInputRate.FallRate = 10.0f;
-	TargetGearInput = 0;
-	SetGearImmediate = -1;
 	TransmissionType = Chaos::ETransmissionType::Automatic;
 
 	SetIsReplicatedByDefault(true);
@@ -884,10 +882,20 @@ void UChaosVehicleMovementComponent::SetChangeDownInput(bool bNewGearDown)
 
 void UChaosVehicleMovementComponent::SetTargetGear(int32 GearNum, bool bImmediate)
 {
-	if (GearNum != TargetGearInput)
+	if (GearNum != PVehicleOutput->TargetGear)
 	{
-		TargetGearInput = GearNum;
-		SetGearImmediate = bImmediate?1:0; // true == 1, false == 0, don't transmit to physics thread == -1
+		FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
+
+		if (TargetInstance)
+		{
+			FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+				{
+					if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && VehicleSimulationPT->PVehicle->HasTransmission())
+					{
+						VehicleSimulationPT->PVehicle->GetTransmission().SetGear(GearNum, bImmediate);
+					}
+				});
+		}
 	}
 }
 
@@ -1117,7 +1125,7 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 		HandbrakeInput = HandbrakeInputRate.InterpInputValue(DeltaTime, HandbrakeInput, CalcHandbrakeInput());
 
 		// and send to server - (ServerUpdateState_Implementation below)
-		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, TargetGearInput, RollInput, PitchInput, YawInput);
+		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, GetTargetGear(), RollInput, PitchInput, YawInput);
 
 		if (PawnOwner && PawnOwner->IsNetMode(NM_Client))
 		{
@@ -1650,8 +1658,6 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 				AsyncInput->ControlInputs.YawInput = YawInput;
 				AsyncInput->ControlInputs.GearUpInput = bRawGearUpInput;
 				AsyncInput->ControlInputs.GearDownInput = bRawGearDownInput;
-				AsyncInput->ControlInputs.TargetGearInput = TargetGearInput;
-				AsyncInput->ControlInputs.SetGearImmediate = SetGearImmediate;
 				AsyncInput->ControlInputs.TransmissionType = TransmissionType;
 
 				AsyncInput->ControlInputs.ParkingEnabled = bParkEnabled;
@@ -1701,11 +1707,6 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 			// than copying into the vehicle, think about non-async path
 			PVehicleOutput->CurrentGear = CurAsyncOutput->VehicleSimOutput.CurrentGear;
 			PVehicleOutput->TargetGear = CurAsyncOutput->VehicleSimOutput.TargetGear;
-
-			if (TargetGearInput == PVehicleOutput->TargetGear)
-			{
-				SetGearImmediate = -1; // clear this otherwise can get gear change handshake issues between threads
-			}
 
 			// WHEN RUNNING WITH ASYNC ON & FIXED TIMESTEP THEN WE NEED TO INTERPOLATE BETWEEN THE CURRENT AND NEXT OUTPUT RESULTS
 			if (const FChaosVehicleAsyncOutput* NextOutput = static_cast<FChaosVehicleAsyncOutput*>(NextAsyncOutput))
