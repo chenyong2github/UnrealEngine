@@ -323,6 +323,9 @@ public:
 		OutEnvironment.SetDefine(TEXT("USING_VERTEX_SHADER_LAYER"), (uint32)(ShaderMode == VertexShadowDepth_VSLayer));
 		OutEnvironment.SetDefine(TEXT("POSITION_ONLY"), (uint32)bUsePositionOnlyStream);
 		OutEnvironment.SetDefine(TEXT("IS_FOR_GEOMETRY_SHADER"), (uint32)bIsForGeometryShader);
+#if defined(GPUCULL_TODO)
+		OutEnvironment.SetDefine(TEXT("ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS"), UseGPUScene(Parameters.Platform) ? 1 : 0);
+#endif // defined(GPUCULL_TODO)
 
 		uint32 bEnableNonNaniteVSM = (uint32)(ENABLE_NON_NANITE_VSM != 0 && UseGPUScene(Parameters.Platform));
 		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), bEnableNonNaniteVSM);
@@ -1223,7 +1226,7 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 	FIntRect OriginalViewRect = FoundView->ViewRect;
 	FoundView->ViewRect = GetOuterViewRect();
 
-	//FoundView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
+	FoundView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
 
 	if (CascadeSettings.bFarShadowCascade)
 	{
@@ -1236,9 +1239,7 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 	FoundView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 	// Override the view matrix so that billboarding primitives will be aligned to the light
-	FoundView->ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClipOuter, -PreShadowTranslation);
-	FoundView->PrevViewInfo.ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClipOuter, -PreShadowTranslation);
-
+	FoundView->ViewMatrices.HackOverrideViewMatrixForShadows(TranslatedWorldToView);
 	FBox VolumeBounds[TVC_MAX];
 	FoundView->SetupUniformBufferParameters(
 		VolumeBounds,
@@ -1371,10 +1372,10 @@ static void UpdatePackedViewParamsFromPrevShadowState(Nanite::FPackedViewParams&
 	}
 }
 
-static void UpdateCurrentFrameHZB(FLightSceneInfo& LightSceneInfo, const FPersistentShadowStateKey& ShadowKey, const FProjectedShadowInfo* ProjectedShadowInfo, const TRefCountPtr<IPooledRenderTarget>& HZB)
+static void UpdateCurrentFrameHZB(FLightSceneInfo& LightSceneInfo, const FPersistentShadowStateKey& ShadowKey, const FProjectedShadowInfo* ProjectedShadowInfo, const TRefCountPtr<IPooledRenderTarget>& HZB, int32 CubeFaceIndex = -1)
 {
 	FPersistentShadowState State;
-	State.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
+	State.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(CubeFaceIndex);
 	State.HZBTestViewRect = ProjectedShadowInfo->GetInnerViewRect();
 	State.HZB = HZB;
 	LightSceneInfo.PersistentShadows.Add(ShadowKey, State);
@@ -1411,7 +1412,7 @@ static void RenderShadowDepthAtlasNanite(
 		}
 
 		Nanite::FPackedViewParams Initializer;
-		Initializer.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
+		Initializer.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices();
 		Initializer.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
 		Initializer.RasterContextSize = AtlasSize;
 		Initializer.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
@@ -1531,7 +1532,7 @@ static void RenderShadowDepthAtlasNanite(
 				ShadowMap,
 				AtlasViewRect,
 				AtlasViewRect.Min,
-				ProjectedShadowInfo->ShadowDepthView->ViewMatrices.GetProjectionMatrix(),
+				ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices().GetProjectionMatrix(),
 				ProjectedShadowInfo->GetShaderDepthBias(),
 				ProjectedShadowInfo->bDirectionalLight
 			);
@@ -1910,20 +1911,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						{
 							Nanite::FPackedViewParams Params = BaseParams;
 							Params.TargetLayerIndex = ProjectedShadowInfo->VirtualShadowMaps[i]->ID;
-
-							if( ProjectedShadowInfo->bOnePassPointLightShadow )
-							{
-								FViewMatrices::FMinimalInitializer MatricesInitializer;
-								MatricesInitializer.ViewOrigin = -ProjectedShadowInfo->PreShadowTranslation;
-								MatricesInitializer.ViewRotationMatrix = ProjectedShadowInfo->OnePassShadowViewMatrices[i] * FScaleMatrix(FVector(1, -1, 1));	// TODO add cull direction to FPackedView instead of this scale nonsense.
-								MatricesInitializer.ProjectionMatrix = ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix;
-								MatricesInitializer.ConstrainedViewRect = BaseParams.ViewRect;
-								Params.ViewMatrices = FViewMatrices(MatricesInitializer);
-							}
-							else
-							{
-								Params.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
-							}
+							Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(i, true);
 
 							int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (i << 24);
 							FVirtualShadowMapHZBMetadata& PrevHZB = CacheManager->HZBMetadata.FindOrAdd(HZBKey);
@@ -2120,14 +2108,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					// Setup packed view
 					TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
 					{
-						FViewMatrices::FMinimalInitializer MatricesInitializer;
-						MatricesInitializer.ViewOrigin = -ProjectedShadowInfo->PreShadowTranslation;
-						MatricesInitializer.ViewRotationMatrix = ProjectedShadowInfo->OnePassShadowViewMatrices[CubemapFaceIndex];
-						MatricesInitializer.ProjectionMatrix = ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix;
-						MatricesInitializer.ConstrainedViewRect = ShadowViewRect;
-
 						Nanite::FPackedViewParams Params;
-						Params.ViewMatrices = FViewMatrices(MatricesInitializer);
+						Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(CubemapFaceIndex);
 						Params.ViewRect = ShadowViewRect;
 						Params.RasterContextSize = TargetSize;
 						Params.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
@@ -2181,7 +2163,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 						ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, HZB);
 					}
-					UpdateCurrentFrameHZB(LightSceneInfo, ShadowKey, ProjectedShadowInfo, HZB);
+					UpdateCurrentFrameHZB(LightSceneInfo, ShadowKey, ProjectedShadowInfo, HZB, CubemapFaceIndex);
 				}
 			}
 		}

@@ -2043,14 +2043,8 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 			// Setup packed view
 			TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
 			{
-				FViewMatrices::FMinimalInitializer MatricesInitializer;
-				MatricesInitializer.ViewOrigin = -PreShadowTranslation;
-				MatricesInitializer.ViewRotationMatrix = OnePassShadowViewMatrices[CubemapFaceIndex];
-				MatricesInitializer.ProjectionMatrix = OnePassShadowFaceProjectionMatrix;
-				MatricesInitializer.ConstrainedViewRect = ShadowViewRect;
-
 				Nanite::FPackedViewParams Params;
-				Params.ViewMatrices = FViewMatrices(MatricesInitializer);
+				Params.ViewMatrices = GetShadowDepthRenderingViewMatrices(CubemapFaceIndex);
 				// TODO: Real prev frame matrices
 				Params.PrevViewMatrices = Params.ViewMatrices;	
 				Params.ViewRect = ShadowViewRect;
@@ -2077,7 +2071,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	else
 	{
 		Nanite::FPackedViewParams Params;
-		Params.ViewMatrices = ShadowDepthView->ViewMatrices;
+		Params.ViewMatrices = GetShadowDepthRenderingViewMatrices();
 		// TODO: Real prev frame matrices
 		Params.PrevViewMatrices = Params.ViewMatrices;
 		Params.ViewRect = GetInnerViewRect();
@@ -2250,7 +2244,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		FMatrix OriginalViewMatrix = ShadowDepthView->ViewMatrices.GetViewMatrix();
 
 		// Override the view matrix so that billboarding primitives will be aligned to the light
-		ShadowDepthView->ViewMatrices.HackOverrideMatrixForShadows(TranslatedWorldToView, ViewToClipOuter, -PreShadowTranslation);
+		ShadowDepthView->ViewMatrices.HackOverrideViewMatrixForShadows(TranslatedWorldToView);
 
 		ReusedViewsArray[0] = ShadowDepthView;
 

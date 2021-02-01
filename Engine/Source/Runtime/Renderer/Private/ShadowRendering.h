@@ -247,7 +247,15 @@ class FProjectedShadowInfo : public FRefCountedObject
 public:
 	typedef TArray<const FPrimitiveSceneInfo*,SceneRenderingAllocator> PrimitiveArrayType;
 
-	/** The view to be used when rendering this shadow's depths. */
+	/** 
+	 * The view to be used when rendering this shadow's depths. 
+	 * WARNING: This view is a bastardization of the 'main view' - i.e., the view used to render the visible geometry (or one of them in the case of multi-view, e.g., split screen)
+	 * the only substantial differences are that the _view_ matrix is overridden (using the 'HackOverrideViewMatrixForShadows')
+	 * and the 'HackRemoveTemporalAAProjectionJitter' has been called, to presumably remove the AA Jitter.
+	 * IT DOES NOT contain the correct shadow projection matrix, PreViewTranslation, or much else that you would expect.
+	 * Instead use the GetShadowDepthRenderingViewMatrices() function to get these for rendering shadows.
+	 * Main reason for this state of affairs is to facilitate code that depends on the 'main' view matrices for LOD calculations in various places.
+	 */
 	FViewInfo* ShadowDepthView;
 
 	/** The depth or color targets this shadow was rendered to. */
@@ -460,6 +468,13 @@ public:
 		float InMaxNonFarCascadeDistance
 		);
 #endif // ENABLE_NON_NANITE_VSM
+
+	/**
+	 * Get `FViewMatrices` instance set up for drawing geometry to the SM, using the outer projection,
+	 * @parameter bUseForVSMCubeFaceWorkaround - If true, when get a cube face the OnePassShadowViewMatrices is flipped in Y to undo the 
+	 *                                           flip used when creating OnePassShadowViewMatrices. This is also done when sampling the VSM.
+	 */
+	FViewMatrices GetShadowDepthRenderingViewMatrices(int32 CubeFaceIndex = -1, bool bUseForVSMCubeFaceWorkaround = false) const;
 
 	float GetShaderDepthBias() const { return ShaderDepthBias; }
 	float GetShaderSlopeDepthBias() const { return ShaderSlopeDepthBias; }

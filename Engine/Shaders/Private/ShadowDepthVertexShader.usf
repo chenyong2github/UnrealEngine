@@ -465,9 +465,9 @@ void Main(
 
 	OutPosition = OutParameters.GSPosition = WorldPos;
 	OutParameters.WorldNormal = WorldNormal;
-#if defined(GPUCULL_TODO) && ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
+#if defined(GPUCULL_TODO) && ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS && IS_FOR_GEOMETRY_SHADER
 	OutParameters.ViewIndex = VertexFactoryGetViewIndex(VFIntermediates);
-#endif // !ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS
+#endif // defined(GPUCULL_TODO) && ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS && IS_FOR_GEOMETRY_SHADER
 
 	#if INTERPOLATE_VF_ATTRIBUTES
 		// Masked materials need texture coords to clip

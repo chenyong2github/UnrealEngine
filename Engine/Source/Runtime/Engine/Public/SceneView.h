@@ -406,45 +406,10 @@ public:
 		return ProjectionMatrix.M[3][3] < 1.0f;
 	}
 
-	inline void HackOverrideMatrixForShadows(
-		const FMatrix& InViewRotationMatrix,
-		const FMatrix& InProjectionMatrix,
-		const FVector& InViewOrigin
-		)
+	inline void HackOverrideViewMatrixForShadows(const FMatrix& InViewMatrix)
 	{
-		ViewOrigin = InViewOrigin;
-
-		FMatrix ViewRotationMatrix = InViewRotationMatrix;
-		if (!ViewRotationMatrix.GetOrigin().IsNearlyZero(0.0f))
-		{
-			ViewOrigin += ViewRotationMatrix.InverseTransformPosition(FVector::ZeroVector);
-			ViewRotationMatrix = ViewRotationMatrix.RemoveTranslation();
-		}
-
-		ViewMatrix = FTranslationMatrix(-ViewOrigin) * ViewRotationMatrix;
-
-		ProjectionMatrix = InProjectionMatrix;
-		InvProjectionMatrix = InvertProjectionMatrix( ProjectionMatrix );
-
-		// For precision reasons the view matrix inverse is calculated independently.
-		InvViewMatrix = ViewRotationMatrix.GetTransposed() * FTranslationMatrix( ViewOrigin );
-
-		// Translate world-space so its origin is at ViewOrigin for improved precision.
-		// Note that this isn't exactly right for orthogonal projections (See the above special case), but we still use ViewOrigin
-		// in that case so the same value may be used in shaders for both the world-space translation and the camera's world position.
-		PreViewTranslation = -FVector(ViewOrigin);
-
-		// Compute a transform from view origin centered world-space to clip space.
-		OverriddenTranslatedViewMatrix = ViewRotationMatrix;
-		OverriddenInvTranslatedViewMatrix = ViewRotationMatrix.GetTransposed();
-
-		// Compute the view projection matrix and its inverse.
-		ViewProjectionMatrix = GetViewMatrix() * GetProjectionMatrix();
-		InvViewProjectionMatrix = GetInvProjectionMatrix() * GetInvViewMatrix();
-
-		// Compute a transform from view origin centered world-space to clip space.
-		TranslatedViewProjectionMatrix = OverriddenTranslatedViewMatrix * GetProjectionMatrix();
-		InvTranslatedViewProjectionMatrix = GetInvProjectionMatrix() * OverriddenInvTranslatedViewMatrix;
+		OverriddenTranslatedViewMatrix = ViewMatrix = InViewMatrix;
+		OverriddenInvTranslatedViewMatrix = InViewMatrix.Inverse();
 	}
 
 	void SaveProjectionNoAAMatrix()

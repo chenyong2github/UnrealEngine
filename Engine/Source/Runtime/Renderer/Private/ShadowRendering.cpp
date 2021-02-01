@@ -2268,5 +2268,36 @@ void FEmptyTranslucentSelfShadowUniformBuffer::InitDynamicRHI()
 	Super::InitDynamicRHI();
 }
 
+
+FViewMatrices FProjectedShadowInfo::GetShadowDepthRenderingViewMatrices(int32 CubeFaceIndex, bool bUseForVSMCubeFaceWorkaround) const
+{
+	FViewMatrices::FMinimalInitializer MatricesInitializer;
+	MatricesInitializer.ViewOrigin = -PreShadowTranslation;
+	MatricesInitializer.ConstrainedViewRect = GetOuterViewRect();
+
+	ensure(!bOnePassPointLightShadow || CubeFaceIndex >= 0 && CubeFaceIndex < 6);
+	if (bOnePassPointLightShadow && CubeFaceIndex >= 0 && CubeFaceIndex < 6)
+	{
+		if (bUseForVSMCubeFaceWorkaround)
+		{
+			// TODO add cull direction to FPackedView instead of this scale nonsense.
+			MatricesInitializer.ViewRotationMatrix = OnePassShadowViewMatrices[CubeFaceIndex] * FScaleMatrix(FVector(1, -1, 1));
+		}
+		else
+		{
+			MatricesInitializer.ViewRotationMatrix = OnePassShadowViewMatrices[CubeFaceIndex];
+		}
+		MatricesInitializer.ProjectionMatrix = OnePassShadowFaceProjectionMatrix;
+	}
+	else
+	{
+		MatricesInitializer.ViewRotationMatrix = TranslatedWorldToView;
+		MatricesInitializer.ProjectionMatrix = ViewToClipOuter;
+	}
+
+	return FViewMatrices(MatricesInitializer);
+}
+
+
 /** */
 TGlobalResource< FEmptyTranslucentSelfShadowUniformBuffer > GEmptyTranslucentSelfShadowUniformBuffer;
