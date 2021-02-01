@@ -163,7 +163,7 @@ struct TRestrictedPageArrayView
 
 	int32 GetNum() const
 	{
-		return PageArray.Num();
+		return EndItemIdx - StartItemIdx;
 	}
 
 private:
