@@ -99,6 +99,8 @@ struct FTextureBuildSettings
 	uint32 bUseLegacyGamma : 1;
 	/** Whether the border of the image should be maintained during mipmap generation. */
 	uint32 bPreserveBorder : 1;
+	/** Whether we should not discard the alpha channel when it contains 1 for the entire texture. */
+	uint32 bForceAlphaChannel : 1;
 	/** Whether the alpha channel should contain a dithered alpha value. */
 	uint32 bDitherMipMapAlpha : 1;
 	/** Whether bokeh alpha values should be computed for the texture. */
@@ -185,6 +187,7 @@ struct FTextureBuildSettings
 		, bSRGB(false)
 		, bUseLegacyGamma(false)
 		, bPreserveBorder(false)
+		, bForceAlphaChannel(false)
 		, bDitherMipMapAlpha(false)
 		, bComputeBokehAlpha(false)
 		, bReplicateRed(false)

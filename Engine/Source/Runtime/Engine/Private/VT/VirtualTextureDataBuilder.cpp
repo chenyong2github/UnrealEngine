@@ -607,6 +607,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		TBSettings.bSRGB = BuildSettingsForLayer.bSRGB;
 		TBSettings.bUseLegacyGamma = BuildSettingsForLayer.bUseLegacyGamma;
 		TBSettings.MipGenSettings = TMGS_NoMipmaps;
+		TBSettings.bForceAlphaChannel = BuildSettingsForLayer.bForceAlphaChannel;
 		TBSettings.bVirtualStreamable = true;
 
 		check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());
@@ -829,7 +830,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		FVirtualTextureSourceLayerData& LayerData = SourceLayers[LayerIndex];
 
 		LayerData.GammaSpace = BuildSettingsForLayer.GetGammaSpace();
-		LayerData.bHasAlpha = false;
+		LayerData.bHasAlpha = BuildSettingsForLayer.bForceAlphaChannel;
 
 		const FName TextureFormatName = RemovePlatformPrefixFromName(BuildSettingsForLayer.TextureFormatName);
 
@@ -894,6 +895,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			TBSettings.TextureFormatName = LayerData.FormatName;
 			TBSettings.bSRGB = BuildSettingsForLayer.bSRGB;
 			TBSettings.bUseLegacyGamma = BuildSettingsForLayer.bUseLegacyGamma;
+			TBSettings.bForceAlphaChannel = BuildSettingsForLayer.bForceAlphaChannel;
 			TBSettings.bApplyYCoCgBlockScale = BuildSettingsForLayer.bApplyYCoCgBlockScale;
 			TBSettings.bReplicateRed = BuildSettingsForLayer.bReplicateRed;
 			TBSettings.bReplicateAlpha = BuildSettingsForLayer.bReplicateAlpha;

@@ -82,6 +82,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	uint8 TempByte;
 	FColor TempColor;
 	FVector4 TempVector4;
+	FGuid TempGuid;
 
 	TempFloat = Settings.ColorAdjustment.AdjustBrightness; Ar << TempFloat;
 	TempFloat = Settings.ColorAdjustment.AdjustBrightnessCurve; Ar << TempFloat;
@@ -157,6 +158,12 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	{
 		TempFloat = Settings.Downscale; Ar << TempFloat;
 		TempByte = Settings.DownscaleOptions; Ar << TempByte;
+	}
+
+	if (Settings.bForceAlphaChannel)
+	{
+		TempGuid = FGuid(0x2C9DF7E3, 0xBC9D413B, 0xBF963C7A, 0x3F27E8B1); // Guid reserved for bForceAlphaChannel feature
+		Ar << TempGuid;
 	}
 }
 
@@ -320,6 +327,7 @@ static void FinalizeBuildSettingsForLayer(const UTexture& Texture, int32 LayerIn
 
 	OutSettings.bHDRSource = Texture.HasHDRSource(LayerIndex);
 	OutSettings.bSRGB = FormatSettings.SRGB;
+	OutSettings.bForceAlphaChannel = FormatSettings.CompressionForceAlpha;
 	OutSettings.bApplyYCoCgBlockScale = FormatSettings.CompressionYCoCg;
 
 	if (FormatSettings.CompressionSettings == TC_Displacementmap || FormatSettings.CompressionSettings == TC_DistanceFieldFont)

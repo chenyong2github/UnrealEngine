@@ -614,6 +614,7 @@ struct FTextureFormatSettings
 	FTextureFormatSettings()
 		: CompressionSettings(TC_Default)
 		, CompressionNoAlpha(false)
+		, CompressionForceAlpha(false)
 		, CompressionNone(false)
 		, CompressionYCoCg(false)
 		, SRGB(false)
@@ -624,6 +625,9 @@ struct FTextureFormatSettings
 
 	UPROPERTY()
 	uint8 CompressionNoAlpha : 1;
+
+	UPROPERTY()
+	uint8 CompressionForceAlpha : 1;
 
 	UPROPERTY()
 	uint8 CompressionNone : 1;

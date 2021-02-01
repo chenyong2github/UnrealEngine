@@ -2060,7 +2060,7 @@ static bool CompressMipChain(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CompressMipChain)
 
-	const bool bImageHasAlphaChannel = DetectAlphaChannel(MipChain[0]);
+	const bool bImageHasAlphaChannel = Settings.bForceAlphaChannel || DetectAlphaChannel(MipChain[0]);
 
 	// now call the Ex version now that we have the proper MipChain
 	const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilitiesEx(Settings, MipChain.Num(), MipChain[0], bImageHasAlphaChannel);
