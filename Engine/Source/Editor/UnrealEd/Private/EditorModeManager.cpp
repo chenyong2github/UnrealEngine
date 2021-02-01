@@ -649,7 +649,6 @@ void FEditorModeTools::RebuildModeToolBar()
 						if (PaletteCount > 1)
 						{
 							PaletteTabBox->AddSlot()
-							.AutoWidth()
 							.Padding(FMargin(0.f, 1.0f, 1.0f, 0.0f))
 							[
 								SNew(SCheckBox)
