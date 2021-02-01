@@ -41,6 +41,7 @@ TArray<UObject*> UFractureToolUniform::GetSettingsObjects() const
 { 
 	TArray<UObject*> AllSettings; 
 	AllSettings.Add(CutterSettings);
+	AllSettings.Add(CollisionSettings);
 	AllSettings.Add(UniformSettings);
 	return AllSettings;
 }
