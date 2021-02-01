@@ -120,7 +120,6 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 			uint32 MaterialType : 4;
 			uint32 TileSize : 12;
 			uint32 TileBorderSize : 4;
-			uint32 StreamLowMips : 4;
 			uint32 LODGroup : 8;
 			uint32 CompressTextures : 1;
 			uint32 SinglePhysicalSpace : 1;
@@ -134,7 +133,6 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	Settings.MaterialType = (uint32)VirtualTexture->GetMaterialType();
 	Settings.TileSize = (uint32)VirtualTexture->GetTileSize();
 	Settings.TileBorderSize = (uint32)VirtualTexture->GetTileBorderSize();
-	Settings.StreamLowMips = (uint32)StreamLowMips;
 	Settings.LODGroup = (uint32)VirtualTexture->GetLODGroup();
 	Settings.CompressTextures = (uint32)VirtualTexture->GetCompressTextures();
 	Settings.ContinuousUpdate = (uint32)VirtualTexture->GetContinuousUpdate();
@@ -157,7 +155,7 @@ bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
 		return false;
 	}
 #endif
-	return StreamLowMips > 0 && IsStreamingTextureValid();
+	return IsStreamingTextureValid();
 }
 
 #if WITH_EDITOR
@@ -214,13 +212,17 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 bool URuntimeVirtualTextureComponent::CanEditChange(const FProperty* InProperty) const
 {
 	bool bCanEdit = Super::CanEditChange(InProperty);
-	if (InProperty->GetFName() == TEXT("bEnableCompressCrunch"))
+	if (InProperty->GetFName() == TEXT("bUseStreamingLowMipsInEditor"))
 	{
-		bCanEdit &= NumStreamingMips() > 0 && GetVirtualTexture() != nullptr && GetVirtualTexture()->GetCompressTextures();
+		bCanEdit &= GetVirtualTexture() != nullptr && GetStreamingTexture() != nullptr;
 	}
-	else if (InProperty->GetFName() == TEXT("bUseStreamingLowMipsInEditor"))
+	else if (InProperty->GetFName() == TEXT("bEnableCompressCrunch"))
 	{
-		bCanEdit &= GetStreamingTexture() != nullptr && NumStreamingMips() > 0;
+		bCanEdit &= GetVirtualTexture() != nullptr && GetVirtualTexture()->GetCompressTextures();
+	}
+	else if (InProperty->GetFName() == TEXT("bBuildDebugStreamingMips"))
+	{
+		bCanEdit = GetVirtualTexture() != nullptr && GetVirtualTexture()->GetMaterialType() != ERuntimeVirtualTextureMaterialType::WorldHeight;
 	}
 	return bCanEdit;
 }

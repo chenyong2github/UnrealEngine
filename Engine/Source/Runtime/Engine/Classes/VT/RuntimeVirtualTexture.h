@@ -181,11 +181,15 @@ class UVirtualTexture2D;
 
 namespace RuntimeVirtualTexture
 {
-	/** Helper function to wrap a runtime virtual texture producer with a streaming producer. */
+	/** Helper function to create a streaming virtual texture producer. */
 	ENGINE_API IVirtualTexture* CreateStreamingTextureProducer(
-		IVirtualTexture* InProducer,
-		FVTProducerDescription const& InProducerDesc,
 		UVirtualTexture2D* InStreamingTexture,
-		int32 InMaxLevel,
-		int32& OutTransitionLevel);
+		FVTProducerDescription const& InOwnerProducerDesc,
+		FVTProducerDescription& OutStreamingProducerDesc);
+
+	/** Helper function to bind a runtime virtual texture producer to a streaming producer. Returns the new combined producer. */
+	ENGINE_API IVirtualTexture* BindStreamingTextureProducer(
+		IVirtualTexture* InProducer,
+		IVirtualTexture* InStreamingProducer,
+		int32 InTransitionLevel);
 }

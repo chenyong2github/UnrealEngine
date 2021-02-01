@@ -37,32 +37,38 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		// The producer description is calculated using the transform to determine the aspect ratio
-		FVTProducerDescription Desc;
-		VirtualTexture->GetProducerDescription(Desc, InitSettings, Transform);
-		VirtualTextureSize = FIntPoint(Desc.BlockWidthInTiles * Desc.TileSize, Desc.BlockHeightInTiles * Desc.TileSize);
+		FVTProducerDescription ProducerDesc;
+		VirtualTexture->GetProducerDescription(ProducerDesc, InitSettings, Transform);
+		VirtualTextureSize = FIntPoint(ProducerDesc.BlockWidthInTiles * ProducerDesc.TileSize, ProducerDesc.BlockHeightInTiles * ProducerDesc.TileSize);
 		// We only need to dirty flush up to the producer description MaxLevel which accounts for the RemoveLowMips
-		MaxDirtyLevel = Desc.MaxLevel;
+		MaxDirtyLevel = ProducerDesc.MaxLevel;
 
 		const ERuntimeVirtualTextureMaterialType MaterialType = VirtualTexture->GetMaterialType();
 		const bool bClearTextures = VirtualTexture->GetClearTextures();
 
-		// The Producer object created here will be passed into the virtual texture system which will take ownership.
-		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, bClearTextures, InComponent->GetScene(), Transform, Bounds);
+		// The producer object created here will be passed into the virtual texture system which will take ownership.
+		IVirtualTexture* Producer = new FRuntimeVirtualTextureProducer(ProducerDesc, ProducerId, MaterialType, bClearTextures, InComponent->GetScene(), Transform, Bounds);
 
+		// Create a producer for the streaming low mips. 
+		// This is bound with the main producer so that one allocated VT can use both runtime or streaming producers dependent on mip level.
 		if (InComponent->IsStreamingLowMips())
 		{
 			UVirtualTexture2D* StreamingTexture = InComponent->GetStreamingTexture()->Texture;
-			// Streaming mips start from the MaxLevel before taking into account the RemoveLowMips
-			const int32 MaxLevel = FMath::CeilLogTwo(FMath::Max(Desc.BlockWidthInTiles, Desc.BlockHeightInTiles));
-			// Wrap our producer to use a streaming producer for low mips
-			int32 StreamingTransitionLevel;
-			Producer = RuntimeVirtualTexture::CreateStreamingTextureProducer(Producer, Desc, StreamingTexture, MaxLevel, StreamingTransitionLevel);
+
+			FVTProducerDescription StreamingProducerDesc;
+			IVirtualTexture* StreamingProducer = RuntimeVirtualTexture::CreateStreamingTextureProducer(StreamingTexture, ProducerDesc, StreamingProducerDesc);
+
+			ensure(ProducerDesc.MaxLevel >= StreamingProducerDesc.MaxLevel);
+			const int32 TransitionLevel = ProducerDesc.MaxLevel - StreamingProducerDesc.MaxLevel;
+
+			Producer = RuntimeVirtualTexture::BindStreamingTextureProducer(Producer, StreamingProducer, TransitionLevel);
+
 			// Any dirty flushes don't need to flush the streaming mips (they only change with a build step).
-			MaxDirtyLevel = FMath::Clamp(StreamingTransitionLevel, 0, MaxDirtyLevel);
+			MaxDirtyLevel = TransitionLevel - 1;
 		}
 
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
-		VirtualTexture->Initialize(Producer, Desc, Transform, Bounds);
+		VirtualTexture->Initialize(Producer, ProducerDesc, Transform, Bounds);
 	}
 }
 
@@ -122,20 +128,24 @@ void FRuntimeVirtualTextureSceneProxy::FlushDirtyPages()
 	// If Producer handle is not initialized yet it's safe to do nothing because we won't have rendered anything to the VT that needs flushing.
 	if (ProducerHandle.PackedValue != 0)
 	{
-		//todo[vt]: 
-		// Profile to work out best heuristic for when we should use the CombinedDirtyRect
-		// Also consider using some other structure to represent dirty area such as a course 2D bitfield
-		const bool bCombinedFlush = (DirtyRects.Num() > 2 || CombinedDirtyRect == FIntRect(0, 0, VirtualTextureSize.X, VirtualTextureSize.Y));
+		// Don't do any work if we won't mark anything dirty.
+		if (MaxDirtyLevel >= 0 && CombinedDirtyRect.Area() > 0)
+		{
+			//todo[vt]: 
+			// Profile to work out best heuristic for when we should use the CombinedDirtyRect
+			// Also consider using some other structure to represent dirty area such as a course 2D bitfield
+			const bool bCombinedFlush = (DirtyRects.Num() > 2 || CombinedDirtyRect == FIntRect(0, 0, VirtualTextureSize.X, VirtualTextureSize.Y));
 
-		if (bCombinedFlush)
-		{
-			FVirtualTextureSystem::Get().FlushCache(ProducerHandle, CombinedDirtyRect, MaxDirtyLevel);
-		}
-		else
-		{
-			for (FIntRect Rect : DirtyRects)
+			if (bCombinedFlush)
 			{
-				FVirtualTextureSystem::Get().FlushCache(ProducerHandle, Rect, MaxDirtyLevel);
+				FVirtualTextureSystem::Get().FlushCache(ProducerHandle, CombinedDirtyRect, MaxDirtyLevel);
+			}
+			else
+			{
+				for (FIntRect Rect : DirtyRects)
+				{
+					FVirtualTextureSystem::Get().FlushCache(ProducerHandle, Rect, MaxDirtyLevel);
+				}
 			}
 		}
 	}

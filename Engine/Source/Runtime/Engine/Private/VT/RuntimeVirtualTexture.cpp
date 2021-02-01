@@ -591,42 +591,51 @@ void URuntimeVirtualTexture::PostEditChangeProperty(FPropertyChangedEvent& Prope
 namespace RuntimeVirtualTexture
 {
 	IVirtualTexture* CreateStreamingTextureProducer(
-		IVirtualTexture* InProducer,
-		FVTProducerDescription const& InProducerDesc,
 		UVirtualTexture2D* InStreamingTexture,
-		int32 InMaxLevel,
-		int32& OutTransitionLevel)
+		FVTProducerDescription const& InOwnerProducerDesc,
+		FVTProducerDescription& OutStreamingProducerDesc)
 	{
-		if (InProducer != nullptr && InStreamingTexture != nullptr)
+		OutStreamingProducerDesc = InOwnerProducerDesc;
+
+		if(InStreamingTexture != nullptr)
 		{
+			OutStreamingProducerDesc.Name = InStreamingTexture->GetFName();
+
 			FTexturePlatformData* StreamingTextureData = InStreamingTexture->GetPlatformData();
-			if (StreamingTextureData != nullptr)
+			if(ensure(StreamingTextureData != nullptr))
 			{
 				FVirtualTextureBuiltData* VTData = StreamingTextureData->VTData;
-
-				ensure(InProducerDesc.TileSize == VTData->TileSize);
-				ensure(InProducerDesc.TileBorderSize == VTData->TileBorderSize);
-				if (InProducerDesc.TileSize == VTData->TileSize && InProducerDesc.TileBorderSize == VTData->TileBorderSize)
+				if(ensure(VTData != nullptr))
 				{
+					ensure(InOwnerProducerDesc.TileSize == VTData->TileSize);
+					ensure(InOwnerProducerDesc.TileBorderSize == VTData->TileBorderSize);
+					ensure(VTData->GetNumMips() > 0);
+
 					// Note that streaming data may have mips added/removed during cook.
-					const uint32 Size = FMath::Max(VTData->Width, VTData->Height);
-					const uint32 NumTiles = FMath::DivideAndRoundUp(Size, VTData->TileSize);
-					const uint32 NumMips = FMath::CeilLogTwo(NumTiles) + 1;
+					const uint32 BlockWidthInTiles = VTData->GetWidthInTiles();
+					const uint32 BlockHeightInTiles = VTData->GetHeightInTiles();
+					const uint32 MaxLevel = FMath::CeilLogTwo(FMath::Max(BlockWidthInTiles, BlockHeightInTiles));
 
-					// If the streaming texture is bigger then the runtime virtual texture then offset the first mip.
-					const int32 TransitionLevel = InMaxLevel - (int32)NumMips + 1;
-					const int32 FirstStreamingMip = TransitionLevel < 0 ? -TransitionLevel : 0;
-					const int32 AdjustedTransitionLevel = TransitionLevel + FirstStreamingMip;
-					OutTransitionLevel = TransitionLevel;
+					// Clamp the streaming texture size to the runtime virtual texture.
+					const uint32 FirstMipToUse = MaxLevel > InOwnerProducerDesc.MaxLevel ? MaxLevel - InOwnerProducerDesc.MaxLevel : 0;
 
-					IVirtualTexture* StreamingProducer = new FUploadingVirtualTexture(InStreamingTexture->GetFName(), VTData, FirstStreamingMip);
-					return new FVirtualTextureLevelRedirector(InProducer, StreamingProducer, AdjustedTransitionLevel);
+					OutStreamingProducerDesc.BlockWidthInTiles = BlockWidthInTiles >> FirstMipToUse;
+					OutStreamingProducerDesc.BlockHeightInTiles = BlockHeightInTiles >> FirstMipToUse;
+					OutStreamingProducerDesc.MaxLevel = MaxLevel - FirstMipToUse;
+
+					return new FUploadingVirtualTexture(InStreamingTexture->GetFName(), VTData, FirstMipToUse);
 				}
 			}
 		}
 
-		// Can't create a streaming producer so return original producer.
-		OutTransitionLevel = InMaxLevel;
-		return InProducer;
+		return nullptr;
+	}
+
+	IVirtualTexture* BindStreamingTextureProducer(
+		IVirtualTexture* InProducer,
+		IVirtualTexture* InStreamingProducer,
+		int32 InTransitionLevel)
+	{
+		return (InStreamingProducer == nullptr) ? InProducer : new FVirtualTextureLevelRedirector(InProducer, InStreamingProducer, InTransitionLevel);
 	}
 }
