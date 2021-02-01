@@ -497,6 +497,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.Clustered);
 		ToolbarBuilder.AddToolBarButton(Commands.Radial);
 		ToolbarBuilder.AddToolBarButton(Commands.Planar);
+		ToolbarBuilder.AddToolBarButton(Commands.Mesh);
 		ToolbarBuilder.AddToolBarButton(Commands.Slice);
 		ToolbarBuilder.AddToolBarButton(Commands.Brick);
 		ToolbarBuilder.AddToolBarButton(Commands.Resample);

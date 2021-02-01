@@ -18,7 +18,9 @@ namespace UnrealBuildTool.Rules
 					"GeometricObjects",
 					"DynamicMesh",
 					"Chaos",
-					"GeometryAlgorithms"
+					"GeometryAlgorithms",
+					"MeshDescription",
+					"MeshConversion",
                 }
                 );
 		}

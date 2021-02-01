@@ -6,6 +6,7 @@
 #include "Spatial/FastWinding.h"
 #include "Spatial/PointHashGrid3.h"
 #include "Spatial/MeshSpatialSort.h"
+#include "Util/IndexUtil.h"
 #include "Arrangement2d.h"
 #include "MeshAdapter.h"
 #include "FrameTypes.h"
@@ -29,6 +30,8 @@
 #include "DynamicVertexAttribute.h"
 #include "MeshNormals.h"
 #include "ConstrainedDelaunay2.h"
+
+#include "MeshDescriptionToDynamicMesh.h"
 
 #include "Algo/Rotate.h"
 
@@ -360,6 +363,31 @@ struct FCellMeshes
 	FCellMeshes(const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
 	{
 		Init(Cells, DomainBounds, Grout, ExtendDomain, bIncludeOutsideCell);
+	}
+
+	FCellMeshes(FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform)
+	{
+		CellMeshes.Reset();
+		CellMeshes.SetNum(2);
+
+		if (Transform.IsSet())
+		{
+			MeshTransforms::ApplyTransform(SingleCutter, FTransform3d(Transform.GetValue()));
+		}
+
+		// Mesh should already be augmented
+		if (!ensure(UE::PlanarCutInternals::AugmentDynamicMesh::IsAugmented(SingleCutter)))
+		{
+			UE::PlanarCutInternals::AugmentDynamicMesh::Augment(SingleCutter);
+		}
+
+		CellMeshes[0].AugMesh = SingleCutter;
+
+		// first mesh is the same as the second mesh, but will be subtracted b/c it's the "outside cell"
+		// TODO: special case this logic so we don't have to hold two copies of the exact same mesh!
+		CellMeshes[1].AugMesh = CellMeshes[0].AugMesh;
+		OutsideCellIndex = 1;
+
 	}
 	
 	// Special function to just make the "grout" part of the planar mesh cells
@@ -4653,6 +4681,117 @@ int32 CutMultipleWithPlanarCells_MeshBooleanPath(
 	NewGeomStartIdx = MeshCollection.CutWithCellMeshes(Cells.InternalSurfaceMaterials, Cells.PlaneCells, CellMeshes, &Source, bSetDefaultInternalMaterialsFromCollection, CollisionSampleSpacing);
 
 	Source.ReindexMaterials();
+	return NewGeomStartIdx;
+}
+
+
+
+
+int32 CutWithMesh(
+	FMeshDescription* CuttingMesh,
+	FTransform CuttingMeshTransform,
+	FInternalSurfaceMaterials& InternalSurfaceMaterials,
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	double CollisionSampleSpacing,
+	const TOptional<FTransform>& TransformCollection,
+	bool bSetDefaultInternalMaterialsFromCollection
+)
+{
+	int32 NewGeomStartIdx = -1;
+
+	// populate the BaseMesh with a conversion of the input mesh.
+	FMeshDescriptionToDynamicMesh Converter;
+	FDynamicMesh3 FullMesh; // full-featured conversion of the source mesh
+	Converter.Convert(CuttingMesh, FullMesh, true);
+	FDynamicMesh3 DynamicCuttingMesh; // version of mesh that is split apart at seams to be compatible w/ geometry collection, with corresponding attributes set
+	UE::PlanarCutInternals::AugmentDynamicMesh::Augment(DynamicCuttingMesh);
+	// Note: This conversion will likely go away, b/c I plan to switch over to doing the boolean operations on the fuller rep, but the code can be adapted
+	//		 to the dynamic mesh -> geometry collection conversion phase, as this same splitting will then need to happen there.
+	if (ensure(FullMesh.HasAttributes() && FullMesh.Attributes()->NumUVLayers() >= 1 && FullMesh.Attributes()->NumNormalLayers() == 3))
+	{
+		if (!ensure(FullMesh.IsCompact()))
+		{
+			FullMesh.CompactInPlace();
+		}
+		// Triangles array is 1:1 with the input mesh
+		TArray<FIndex3i> Triangles; Triangles.Init(FIndex3i::Invalid(), FullMesh.TriangleCount());
+		
+		FDynamicMesh3& OutMesh = DynamicCuttingMesh;
+		FDynamicMeshAttributeSet& Attribs = *FullMesh.Attributes();
+		FDynamicMeshNormalOverlay* NTB[3]{ Attribs.PrimaryNormals(), Attribs.PrimaryTangents(), Attribs.PrimaryBiTangents() };
+		FDynamicMeshUVOverlay* UV = Attribs.PrimaryUV();
+		TMap<FIndex4i, int> ElIDsToVID;
+		int OrigMaxVID = FullMesh.MaxVertexID();
+		for (int VID = 0; VID < OrigMaxVID; VID++)
+		{
+			check(FullMesh.IsVertex(VID));
+			FVector3d Pos = FullMesh.GetVertex(VID);
+
+			ElIDsToVID.Reset();
+			FullMesh.EnumerateVertexTriangles(VID, [&FullMesh, &Triangles, &OutMesh, &NTB, &UV, &ElIDsToVID, Pos, VID](int32 TID)
+			{
+				FIndex3i InTri = FullMesh.GetTriangle(TID);
+				int VOnT = IndexUtil::FindTriIndex(VID, InTri);
+				FIndex4i ElIDs(
+					NTB[0]->GetTriangle(TID)[VOnT],
+					NTB[1]->GetTriangle(TID)[VOnT],
+					NTB[2]->GetTriangle(TID)[VOnT],
+					UV->GetTriangle(TID)[VOnT]);
+				const int* FoundVID = ElIDsToVID.Find(ElIDs);
+
+				FIndex3i& OutTri = Triangles[TID];
+				if (FoundVID)
+				{
+					OutTri[VOnT] = *FoundVID;
+				}
+				else
+				{
+					FVector3f Normal = NTB[0]->GetElement(ElIDs.A);
+					FVertexInfo Info(Pos, Normal, FVector3f(1, 1, 1), UV->GetElement(ElIDs.D));
+
+					int OutVID = OutMesh.AppendVertex(Info);
+					OutTri[VOnT] = OutVID;
+					UE::PlanarCutInternals::AugmentDynamicMesh::SetTangent(OutMesh, OutVID, Normal, NTB[1]->GetElement(ElIDs.B), NTB[2]->GetElement(ElIDs.C));
+					ElIDsToVID.Add(ElIDs, OutVID);
+				}
+			});
+		}
+
+		FDynamicMeshMaterialAttribute* OutMaterialID = OutMesh.Attributes()->GetMaterialID();
+		for (int TID = 0; TID < Triangles.Num(); TID++)
+		{
+			FIndex3i& Tri = Triangles[TID];
+			OutMesh.AppendTriangle(Tri);
+			OutMaterialID->SetValue(TID, -1); // just use a single negative material ID by convention to indicate internal material
+			UE::PlanarCutInternals::AugmentDynamicMesh::SetVisibility(OutMesh, TID, true);
+		}
+	}
+
+	if (!Collection.HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
+	{
+		const FManagedArrayCollection::FConstructionParameters GeometryDependency(FGeometryCollection::GeometryGroup);
+		Collection.AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
+	}
+
+	if (bSetDefaultInternalMaterialsFromCollection)
+	{
+		InternalSurfaceMaterials.SetUVScaleFromCollection(Collection);
+	}
+
+	ensureMsgf(!InternalSurfaceMaterials.NoiseSettings.IsSet(), TEXT("Noise settings not yet supported for mesh-based fracture"));
+
+	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
+
+	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
+	FCellMeshes CellMeshes(DynamicCuttingMesh, InternalSurfaceMaterials, CuttingMeshTransform);
+
+	TArray<TPair<int32, int32>> CellConnectivity;
+	CellConnectivity.Add(TPair<int32, int32>(0, -1)); // there's only one 'inside' cell (0), so all cut surfaces are connecting the 'inside' cell (0) to the 'outside' cell (-1)
+
+	NewGeomStartIdx = MeshCollection.CutWithCellMeshes(InternalSurfaceMaterials, CellConnectivity, CellMeshes, &Collection, bSetDefaultInternalMaterialsFromCollection, CollisionSampleSpacing);
+
+	Collection.ReindexMaterials();
 	return NewGeomStartIdx;
 }
 
