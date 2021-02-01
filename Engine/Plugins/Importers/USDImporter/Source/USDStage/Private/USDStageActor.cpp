@@ -147,13 +147,16 @@ struct FUsdStageActorImpl
 	static void CloseEditorsForAssets( const TMap< FString, UObject* >& AssetsCache )
 	{
 #if WITH_EDITOR
-		if ( UAssetEditorSubsystem* AssetEditorSubsysttem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() )
+		if ( GIsEditor && GEditor )
 		{
-			for ( const TPair<FString, UObject*>& Pair : AssetsCache )
+			if ( UAssetEditorSubsystem* AssetEditorSubsysttem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() )
 			{
-				if ( UObject* Asset = Pair.Value )
+				for ( const TPair<FString, UObject*>& Pair : AssetsCache )
 				{
-					AssetEditorSubsysttem->CloseAllEditorsForAsset( Asset );
+					if ( UObject* Asset = Pair.Value )
+					{
+						AssetEditorSubsysttem->CloseAllEditorsForAsset( Asset );
+					}
 				}
 			}
 		}
@@ -525,7 +528,7 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	BlendShapesByPath.Reset();
 	MaterialToPrimvarToUVIndex.Reset();
 
-	if ( LevelSequence )
+	if ( LevelSequence && GEditor )
 	{
 #if WITH_EDITOR
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
@@ -539,7 +542,10 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	RootUsdTwin->PrimPath = TEXT("/");
 
 #if WITH_EDITOR
-	GEditor->BroadcastLevelActorListChanged();
+	if ( GEditor )
+	{
+		GEditor->BroadcastLevelActorListChanged();
+	}
 #endif // WITH_EDITOR
 
 	RootLayer.FilePath.Empty();
@@ -992,7 +998,7 @@ void AUsdStageActor::ReloadAnimations()
 		{
 			// The sequencer won't update on its own, so let's at least force it closed
 #if WITH_EDITOR
-			if ( GIsEditor )
+			if ( GIsEditor && GEditor )
 			{
 				bLevelSequenceEditorWasOpened = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence) > 0;
 			}
