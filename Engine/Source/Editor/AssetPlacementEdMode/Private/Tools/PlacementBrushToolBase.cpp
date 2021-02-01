@@ -20,7 +20,7 @@
 
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return PlacementSettings && PlacementSettings->PaletteItems.Num();
+	return PlacementSettings.IsValid() && PlacementSettings->PaletteItems.Num();
 }
 
 UInteractiveTool* UPlacementToolBuilderBase::BuildTool(const FToolBuilderState& SceneState) const
@@ -170,7 +170,7 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() 
 			continue;
 		}
 
-		// Don't place foliage on invisible walls / triggers / volumes
+		// Don't place assets on invisible walls / triggers / volumes
 		if (HitComponent->IsA<UBrushComponent>())
 		{
 			continue;

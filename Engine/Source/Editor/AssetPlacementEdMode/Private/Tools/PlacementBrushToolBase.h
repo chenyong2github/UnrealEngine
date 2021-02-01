@@ -21,7 +21,7 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
 	UPROPERTY()
-	TObjectPtr<UAssetPlacementSettings> PlacementSettings;
+	TWeakObjectPtr<UAssetPlacementSettings> PlacementSettings;
 
 protected:
 	virtual UPlacementBrushToolBase* FactoryToolInstance(UObject* Outer) const PURE_VIRTUAL(UPlacementToolBuilderBase::FactoryToolInstance, return nullptr; );

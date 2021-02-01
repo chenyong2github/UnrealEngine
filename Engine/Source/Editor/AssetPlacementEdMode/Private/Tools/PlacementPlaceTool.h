@@ -7,8 +7,6 @@
 
 #include "PlacementPlaceTool.generated.h"
 
-class FScopedTransaction;
-
 UCLASS(Transient, MinimalAPI)
 class UPlacementModePlacementToolBuilder : public UPlacementToolBuilderBase
 {
@@ -32,6 +30,4 @@ protected:
 	virtual void OnTick(float DeltaTime) override;
 
 	void GetRandomVectorInBrush(FVector& OutStart, FVector& OutEnd);
-
-	TUniquePtr<FScopedTransaction> TransactionScope;
 };

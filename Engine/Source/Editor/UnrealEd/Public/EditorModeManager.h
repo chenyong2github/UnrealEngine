@@ -26,6 +26,7 @@ class UEdMode;
 class UInteractiveGizmoManager;
 class UInputRouter;
 class UEdModeInteractiveToolsContext;
+class UTypedElementSelectionSet;
 
 /**
  * A helper class to store the state of the various editor modes.
@@ -444,6 +445,12 @@ public:
 	 * Returns the set of selected components.
 	 */
 	virtual USelection* GetSelectedComponents() const;
+
+	/**
+	 * Returns the selection set for the toolkit host.
+	 * (i.e. the selection set for the level editor)
+	 */
+	UTypedElementSelectionSet* GetEditorSelectionSet() const;
 
 	/**
 	 * Returns the world that is being edited by this mode manager

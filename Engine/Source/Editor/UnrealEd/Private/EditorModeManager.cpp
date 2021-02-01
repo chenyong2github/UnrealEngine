@@ -34,6 +34,7 @@
 #include "InteractiveGizmoManager.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "Tools/LegacyEdModeInterfaces.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
@@ -157,6 +158,11 @@ USelection* FEditorModeTools::GetSelectedObjects() const
 USelection* FEditorModeTools::GetSelectedComponents() const
 {
 	return GEditor->GetSelectedComponents();
+}
+
+UTypedElementSelectionSet* FEditorModeTools::GetEditorSelectionSet() const
+{
+	return GetSelectedActors()->GetElementSelectionSet();
 }
 
 UWorld* FEditorModeTools::GetWorld() const
@@ -553,6 +559,7 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 	check(InIndex >= 0 && InIndex < ActiveScriptableModes.Num());
 
 	UEdMode* Mode = ActiveScriptableModes[InIndex];
+	ActiveScriptableModes.RemoveAt(InIndex);
 
 	Mode->Exit();
 
@@ -570,7 +577,6 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 	RebuildModeToolBar();
 
 	RecycledScriptableModes.Add(Mode->GetID(), Mode);
-	ActiveScriptableModes.RemoveAt(InIndex);
 }
 
 void FEditorModeTools::OnModeUnregistered(FEditorModeID ModeID)

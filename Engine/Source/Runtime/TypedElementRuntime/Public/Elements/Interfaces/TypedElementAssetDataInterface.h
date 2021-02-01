@@ -33,5 +33,5 @@ template <>
 struct TTypedElement<UTypedElementAssetDataInterface> : public TTypedElementBase<UTypedElementAssetDataInterface>
 {
 	TArray<FAssetData> GetAllReferencedAssetDatas() const { return InterfacePtr->GetAllReferencedAssetDatas(*this); }
-	FAssetData GetAssetData() { return InterfacePtr->GetAssetData(*this); }
+	FAssetData GetAssetData() const { return InterfacePtr->GetAssetData(*this); }
 };

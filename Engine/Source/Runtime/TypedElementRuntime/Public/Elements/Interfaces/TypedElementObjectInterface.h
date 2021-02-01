@@ -62,11 +62,11 @@ template <>
 struct TTypedElement<UTypedElementObjectInterface> : public TTypedElementBase<UTypedElementObjectInterface>
 {
 	UObject* GetObject() const { return InterfacePtr->GetObject(*this); }
-	UClass* GetObjectClass() { return InterfacePtr->GetObjectClass(*this); }
+	UClass* GetObjectClass() const { return InterfacePtr->GetObjectClass(*this); }
 
 	template <class CastTo>
-	CastTo* GetObjectAs() { return InterfacePtr->GetObjectAs<CastTo>(*this); }
+	CastTo* GetObjectAs() const { return InterfacePtr->GetObjectAs<CastTo>(*this); }
 
 	template <class CastTo>
-	CastTo* GetObjectAs(TSubclassOf<CastTo> TargetClass) { return InterfacePtr->GetObjectAs<CastTo>(*this, TargetClass); }
+	CastTo* GetObjectAs(TSubclassOf<CastTo> TargetClass) const { return InterfacePtr->GetObjectAs<CastTo>(*this, TargetClass); }
 };

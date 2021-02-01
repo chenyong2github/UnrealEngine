@@ -23,6 +23,7 @@ public:
 	////////////////
 	// UEdMode interface
 	virtual void Enter() override;
+	virtual void Exit() override;
 	virtual void CreateToolkit() override;
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const override;
 	virtual void BindCommands() override;
@@ -41,20 +42,16 @@ public:
 	static bool DoesPaletteSupportElement(const FTypedElementHandle& InElementToCheck, const TArray<FPaletteItem>& InPaletteToCheck);
 
 protected:
-	enum class EPaletteFilter
-	{
-		EntirePalette,
-		ActivePaletteOnly,
-	};
-
 	enum class ESelectMode
 	{
 		Select,
 		Deselect,
 	};
 
-	void SelectAssets(EPaletteFilter InSelectAllType, ESelectMode InSelectMode);
-	void DeleteAssets();
-	void MoveAssetToActivePartition();
-	bool HasAnyAssetsInPalette(EPaletteFilter InSelectAllType);
+	void DeleteSelection();
+	void ClearSelection();
+	bool HasAnyAssetsInPalette() const;
+	bool HasActiveSelection() const;
+
+	TWeakObjectPtr<UAssetPlacementSettings> SettingsObjectAsPlacementSettings;
 };

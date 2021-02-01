@@ -8,6 +8,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
 #include "Selection.h"
+#include "EngineUtils.h"
 
 #include "Tools/PlacementSelectTool.h"
 #include "Tools/PlacementLassoSelectTool.h"
@@ -19,8 +20,14 @@
 #include "Factories/AssetFactoryInterface.h"
 #include "Elements/Actor/ActorElementData.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementAssetDataInterface.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 #include "Settings/LevelEditorMiscSettings.h"
+
+#include "Subsystems/EditorActorSubsystem.h"
+#include "InstancedFoliageActor.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementEdMode"
 
@@ -45,24 +52,24 @@ void UAssetPlacementEdMode::Enter()
 {
 	Super::Enter();
 
-	UAssetPlacementSettings* PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
+	SettingsObjectAsPlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
 
 	const FAssetPlacementEdModeCommands& PlacementModeCommands = FAssetPlacementEdModeCommands::Get();
 	RegisterTool(PlacementModeCommands.Select, UPlacementModeSelectTool::ToolName, NewObject<UPlacementModeSelectToolBuilder>(this));
 	RegisterTool(PlacementModeCommands.LassoSelect, UPlacementModeLassoSelectTool::ToolName, NewObject<UPlacementModeLassoSelectToolBuilder>(this));
 
 	UPlacementModePlacementToolBuilder* PlaceToolBuilder = NewObject<UPlacementModePlacementToolBuilder>(this);
-	PlaceToolBuilder->PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
+	PlaceToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
 	RegisterTool(PlacementModeCommands.Place, UPlacementModePlacementTool::ToolName, PlaceToolBuilder);
 
 	UPlacementModePlaceSingleToolBuilder* SinglePlaceToolBuilder = NewObject<UPlacementModePlaceSingleToolBuilder>(this);
-	SinglePlaceToolBuilder->PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
+	SinglePlaceToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
 	RegisterTool(PlacementModeCommands.PlaceSingle, UPlacementModePlaceSingleTool::ToolName, SinglePlaceToolBuilder);
 
 	RegisterTool(PlacementModeCommands.Fill, UPlacementModeFillTool::ToolName, NewObject<UPlacementModeFillToolBuilder>(this));
 
 	UPlacementModeEraseToolBuilder* EraseToolBuilder = NewObject<UPlacementModeEraseToolBuilder>(this);
-	EraseToolBuilder->PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
+	EraseToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
 	RegisterTool(PlacementModeCommands.Erase, UPlacementModeEraseTool::ToolName, EraseToolBuilder);
 
 	ToolsContext->ToolManager->SelectActiveToolType(EToolSide::Mouse, UPlacementModeSelectTool::ToolName);
@@ -73,9 +80,16 @@ void UAssetPlacementEdMode::Enter()
 	Owner->GetSelectedComponents()->GetElementSelectionSet()->ClearSelection(FTypedElementSelectionOptions());
 }
 
+void UAssetPlacementEdMode::Exit()
+{
+	SettingsObjectAsPlacementSettings.Reset();
+
+	Super::Exit();
+}
+
 void UAssetPlacementEdMode::CreateToolkit()
 {
-	Toolkit = MakeShareable(new FAssetPlacementEdModeToolkit(Cast<UAssetPlacementSettings>(SettingsObject)));
+	Toolkit = MakeShareable(new FAssetPlacementEdModeToolkit(SettingsObjectAsPlacementSettings));
 }
 
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> UAssetPlacementEdMode::GetModeCommands() const
@@ -88,17 +102,13 @@ void UAssetPlacementEdMode::BindCommands()
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 	const FAssetPlacementEdModeCommands& PlacementModeCommands = FAssetPlacementEdModeCommands::Get();
 
-	CommandList->MapAction(PlacementModeCommands.SelectAll,
-		FExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::SelectAssets, EPaletteFilter::ActivePaletteOnly, ESelectMode::Select),
-		FCanExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::HasAnyAssetsInPalette, EPaletteFilter::ActivePaletteOnly));
-
 	CommandList->MapAction(PlacementModeCommands.Deselect,
-		FExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::SelectAssets, EPaletteFilter::ActivePaletteOnly, ESelectMode::Deselect),
-		FCanExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::HasAnyAssetsInPalette, EPaletteFilter::ActivePaletteOnly));
+		FExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::ClearSelection),
+		FCanExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::HasActiveSelection));
 
 	CommandList->MapAction(PlacementModeCommands.Delete,
-		FExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::DeleteAssets),
-		FCanExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::HasAnyAssetsInPalette, EPaletteFilter::ActivePaletteOnly));
+		FExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::DeleteSelection),
+		FCanExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::HasActiveSelection));
 }
 
 bool UAssetPlacementEdMode::IsSelectionAllowed(AActor* InActor, bool bInSelection) const
@@ -109,10 +119,8 @@ bool UAssetPlacementEdMode::IsSelectionAllowed(AActor* InActor, bool bInSelectio
 		return false;
 	}
 
-	UAssetPlacementSettings* PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
 	FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor);
-
-	return DoesPaletteSupportElement(ActorHandle, PlacementSettings->PaletteItems);
+	return DoesPaletteSupportElement(ActorHandle, SettingsObjectAsPlacementSettings->PaletteItems);
 }
 
 bool UAssetPlacementEdMode::UsesPropertyWidgets() const
@@ -142,11 +150,20 @@ bool UAssetPlacementEdMode::IsEnabled()
 
 bool UAssetPlacementEdMode::DoesPaletteSupportElement(const FTypedElementHandle& InElementToCheck, const TArray<FPaletteItem>& InPaletteToCheck)
 {
-	if (!InElementToCheck.IsSet())
+	if (TTypedElement<UTypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementAssetDataInterface>(InElementToCheck))
 	{
-		return false;
+		TArray<FAssetData> ReferencedAssetDatas = AssetDataInterface.GetAllReferencedAssetDatas();
+		for (const FPaletteItem& Item : InPaletteToCheck)
+		{
+			if (ReferencedAssetDatas.Find(Item.AssetData) != INDEX_NONE)
+			{
+				return true;
+			}
+		}
 	}
 
+	// The current implementation of the asset data interface for actors requires that individual actors report on assets contained within their components.
+	// Not all actors do this reliably, so additionally check the supplied factory for a match. 
 	for (const FPaletteItem& Item : InPaletteToCheck)
 	{
 		FAssetData FoundAssetDataFromFactory = Item.FactoryOverride->GetAssetDataFromElementHandle(InElementToCheck);
@@ -159,22 +176,82 @@ bool UAssetPlacementEdMode::DoesPaletteSupportElement(const FTypedElementHandle&
 	return false;
 }
 
-void UAssetPlacementEdMode::SelectAssets(EPaletteFilter InSelectAllType, ESelectMode InSelectMode)
+void UAssetPlacementEdMode::DeleteSelection()
 {
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("PlacementDeleteAllSelected", "Delete Selected Assets"));
+
+	// Todo - replace with delete in world interface and replace foliage with element handles
+	UEditorActorSubsystem* ActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+	auto DeleteSelectedElement = [ActorSubsystem](const TTypedElement<UTypedElementObjectInterface>& InElementInterface)
+	{
+		if (InElementInterface.IsSet())
+		{
+			if (AActor* Actor = InElementInterface.GetObjectAs<AActor>())
+			{
+				if (ActorSubsystem)
+				{
+					ActorSubsystem->DestroyActor(Actor);
+				}
+			}
+		}
+	};
+
+	// Gather a copy of the selected handles, since the delete operation will remove them from the selection set.
+	TArray<FTypedElementHandle> SelectedElementHandles;
+	Owner->GetEditorSelectionSet()->GetSelectedElementHandles(SelectedElementHandles, UTypedElementObjectInterface::StaticClass());
+	for (const FTypedElementHandle& ElementHandle : SelectedElementHandles)
+	{
+		if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(ElementHandle))
+		{
+			DeleteSelectedElement(ObjectInterface);
+		}
+	}
+
+	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
+	{
+		if (AInstancedFoliageActor* FoliageActor = *It)
+		{
+			for (auto& FoliageInfo : FoliageActor->FoliageInfos)
+			{
+				TArray<int32> SelectedIndices = FoliageInfo.Value->SelectedIndices.Array();
+				FoliageInfo.Value->RemoveInstances(FoliageActor, SelectedIndices, true);
+			}
+		}
+	}
+
+	GetToolManager()->EndUndoTransaction();
 }
 
-void UAssetPlacementEdMode::DeleteAssets()
+void UAssetPlacementEdMode::ClearSelection()
 {
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("PlacementClearSelection", "Clear Selection"));
+	if (UTypedElementSelectionSet* SelectionSet = Owner->GetEditorSelectionSet())
+	{
+		SelectionSet->ClearSelection(FTypedElementSelectionOptions());
+	}
+
+	// Todo - remove with instanced handles
+	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
+	{
+		if (AInstancedFoliageActor* FoliageActor = *It)
+		{
+			for (auto& FoliageInfo : FoliageActor->FoliageInfos)
+			{
+				FoliageInfo.Value->ClearSelection();
+			}
+		}
+	}
+	GetToolManager()->EndUndoTransaction();
 }
 
-void UAssetPlacementEdMode::MoveAssetToActivePartition()
+bool UAssetPlacementEdMode::HasAnyAssetsInPalette() const
 {
+	return (SettingsObjectAsPlacementSettings->PaletteItems.Num() > 0);
 }
 
-bool UAssetPlacementEdMode::HasAnyAssetsInPalette(EPaletteFilter InSelectAllType)
+bool UAssetPlacementEdMode::HasActiveSelection() const
 {
-	UAssetPlacementSettings* PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
-	return (PlacementSettings->PaletteItems.Num() > 0);
+	return HasAnyAssetsInPalette() && Owner->GetEditorSelectionSet()->HasSelectedElements();
 }
 
 #undef LOCTEXT_NAMESPACE
