@@ -1276,7 +1276,7 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 	// Compute inputs in this referential
 	float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
 	float3 UpVectorLocal = float3(0.0, 0.0, 1.0);
-	float3 WorldDirLocal = mul(ViewDir, LocalReferencial);
+	float3 WorldDirLocal = mul(LocalReferencial, ViewDir);
 	float ViewZenithCosAngle = dot(WorldDirLocal, UpVectorLocal);
 
 	float2 Sol = RayIntersectSphere(WorldPosLocal, WorldDirLocal, float4(0.0f, 0.0f, 0.0f, ResolvedView.SkyAtmosphereBottomRadiusKm));
