@@ -7,6 +7,7 @@
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartition.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
@@ -83,6 +84,19 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 			}
 		}
 	}
+
+	for (IWorldPartitionStreamingSourceProvider* StreamingSourceProvider : WorldPartition->StreamingSourceProviders)
+	{
+		FWorldPartitionStreamingSource StreamingSource;
+		if (StreamingSourceProvider->GetStreamingSource(StreamingSource))
+		{
+			// Transform to Local
+			StreamingSource.Location = WorldToLocal.TransformPosition(StreamingSource.Location);
+			StreamingSource.Rotation = WorldToLocal.TransformRotation(StreamingSource.Rotation.Quaternion()).Rotator();
+
+			StreamingSources.Add(StreamingSource);
+		}
+	}
 }
 
 void UWorldPartitionStreamingPolicy::UpdateStreamingState()
@@ -137,11 +151,11 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			{
 				UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: CellsToLoad(%d), CellsToUnload(%d)"), ToLoadCells.Num(), ToUnloadCells.Num());
 				
-				FTransform WorldToLocal = WorldPartition->GetInstanceTransform();
+				FTransform LocalToWorld = WorldPartition->GetInstanceTransform();
 				for (int i = 0; i < StreamingSources.Num(); ++i)
 				{
-					FVector ViewLocation = WorldToLocal.TransformPosition(StreamingSources[i].Location);
-					FRotator ViewRotation = WorldToLocal.TransformRotation(StreamingSources[i].Rotation.Quaternion()).Rotator();
+					FVector ViewLocation = LocalToWorld.TransformPosition(StreamingSources[i].Location);
+					FRotator ViewRotation = LocalToWorld.TransformRotation(StreamingSources[i].Rotation.Quaternion()).Rotator();
 					UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: Sources[%d] = %s,%s"), i, *ViewLocation.ToString(), *ViewRotation.ToString());
 				}
 			}

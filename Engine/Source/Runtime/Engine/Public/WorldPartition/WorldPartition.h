@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/ActorDescContainer.h"
 
 #if WITH_EDITOR
@@ -22,6 +23,8 @@ class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
 class FHLODActorDesc;
+
+struct IWorldPartitionStreamingSourceProvider;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartition, Log, All);
 
@@ -156,6 +159,9 @@ public:
 
 	virtual UWorld* GetWorld() const override;
 
+	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
+	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
+
 	UPROPERTY(Transient)
 	TObjectPtr<UWorld> World;
 
@@ -186,6 +192,8 @@ private:
 
 	UPROPERTY(Transient, DuplicateTransient)
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;
+
+	TArray<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
 
 #if WITH_EDITORONLY_DATA
 	FLinkerInstancingContext InstancingContext;

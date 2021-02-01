@@ -10,6 +10,7 @@
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "Algo/Accumulate.h"
 #include "Algo/Transform.h"
 #include "Algo/RemoveIf.h"
@@ -281,6 +282,16 @@ UWorld* UWorldPartition::GetWorld() const
 		return World;
 	}
 	return Super::GetWorld();
+}
+
+void UWorldPartition::RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
+{
+	StreamingSourceProviders.Add(StreamingSource);
+}
+
+bool UWorldPartition::UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
+{
+	return !!StreamingSourceProviders.Remove(StreamingSource);
 }
 
 // This will trap all broadcast of LevelRemovedFromWorld and Uninitialize world partition if existing

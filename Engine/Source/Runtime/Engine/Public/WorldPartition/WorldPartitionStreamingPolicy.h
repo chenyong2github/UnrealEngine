@@ -11,20 +11,10 @@
 
 #include "Containers/Set.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartitionStreamingPolicy.generated.h"
 
 class UWorldPartition;
-
-struct FWorldPartitionStreamingSource
-{
-	FWorldPartitionStreamingSource(const FVector& InLocation, const FRotator& InRotation)
-		: Location(InLocation)
-		, Rotation(InRotation)
-	{}
-
-	FVector Location;
-	FRotator Rotation;
-};
 
 UCLASS(Abstract, Within = WorldPartition)
 class UWorldPartitionStreamingPolicy : public UObject
