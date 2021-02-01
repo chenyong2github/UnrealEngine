@@ -7,6 +7,10 @@
 #include "ContextualAnimAsset.h"
 #include "ContextualAnimComponent.generated.h"
 
+class UAnimInstance;
+class UAnimMontage;
+class AActor;
+
 USTRUCT(BlueprintType)
 struct FContextualAnimDebugParams
 {
@@ -42,4 +46,23 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Animation")
 	bool QueryData(const FContextualAnimQueryParams& QueryParams, FContextualAnimQueryResult& Result) const;
+
+	bool TryStartContextualAnimation(AActor* Actor, const FContextualAnimQueryResult& Data);
+
+	bool TryEndContextualAnimation(AActor* Actor);
+
+	bool IsActorPlayingContextualAnimation(AActor* Actor) const;
+
+	void SetIgnoreOwnerComponentsWhenMovingForActor(AActor* Actor, bool bShouldIgnore);
+
+	UAnimInstance* GetAnimInstanceForActor(AActor* Actor) const;
+
+protected:
+
+	UPROPERTY()
+	TMap<UAnimMontage*, AActor*> MontageToActorMap;
+
+	UFUNCTION()
+	void OnMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
+
 };

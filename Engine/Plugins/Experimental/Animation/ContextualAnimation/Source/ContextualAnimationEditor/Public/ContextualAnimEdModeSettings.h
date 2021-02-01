@@ -18,8 +18,5 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TSubclassOf<ACharacter> TestCharacterClass;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FName MotionWarpSyncPointName;
-
 	UContextualAnimEdModeSettings(const FObjectInitializer& ObjectInitializer);
 };

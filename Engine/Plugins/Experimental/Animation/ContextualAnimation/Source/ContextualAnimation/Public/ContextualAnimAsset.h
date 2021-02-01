@@ -71,6 +71,8 @@ struct FContextualAnimQueryResult
 		AnimStartTime = 0.f;
 		DataIndex = INDEX_NONE;
 	}
+
+	FORCEINLINE bool IsValid() const { return DataIndex != INDEX_NONE; }
 };
 
 /** Stores the parameters passed into query function */
@@ -179,6 +181,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alignment", meta = (ClampMin = "1", ClampMax = "60"))
 	int32 SampleRate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alignment")
+	FName MotionWarpSyncPointName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alignment")
 	FTransform MeshToComponent;

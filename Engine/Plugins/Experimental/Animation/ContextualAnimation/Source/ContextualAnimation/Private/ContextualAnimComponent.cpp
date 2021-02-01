@@ -2,6 +2,10 @@
 
 #include "ContextualAnimComponent.h"
 #include "DrawDebugHelpers.h"
+#include "MotionWarpingComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
+#include "GameFramework/Character.h"
 
 UContextualAnimComponent::UContextualAnimComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -20,6 +24,185 @@ UContextualAnimComponent::UContextualAnimComponent(const FObjectInitializer& Obj
 bool UContextualAnimComponent::QueryData(const FContextualAnimQueryParams& QueryParams, FContextualAnimQueryResult& Result) const
 {
 	return ContextualAnimAsset ? ContextualAnimAsset->QueryData(Result, QueryParams, GetComponentTransform()) : false;
+}
+
+UAnimInstance* UContextualAnimComponent::GetAnimInstanceForActor(AActor* Actor) const
+{
+	//@TODO: Replace with an Interface in the future
+	ACharacter* Character = Actor ? Cast<ACharacter>(Actor) : nullptr;
+	USkeletalMeshComponent* SkelMeshComp = Character ? Character->GetMesh() : nullptr;
+	return SkelMeshComp ? SkelMeshComp->GetAnimInstance() : nullptr;
+}
+
+bool UContextualAnimComponent::IsActorPlayingContextualAnimation(AActor* Actor) const
+{
+	UAnimInstance* AnimInstance = GetAnimInstanceForActor(Actor);
+	UAnimMontage* CurrentMontage = AnimInstance ? AnimInstance->GetCurrentActiveMontage() : nullptr;
+	AActor*const* ActorPtr = CurrentMontage ? MontageToActorMap.Find(CurrentMontage) : nullptr;
+	return (ActorPtr && *ActorPtr == Actor);
+}
+
+bool UContextualAnimComponent::TryStartContextualAnimation(AActor* Actor, const FContextualAnimQueryResult& Data)
+{
+	if(!Data.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("TryStartContextualAnimation. QueryResult is not valid. Owner: %s Actor: %s"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Actor));
+
+		return false;
+	}
+
+	// Early out if the actor doesn't have a valid anim instance
+	UAnimInstance* AnimInstance = GetAnimInstanceForActor(Actor);
+	if (AnimInstance == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("TryStartContextualAnimation. Can't find AnimInstance for the supplied actor. Owner: %s Actor: %s"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Actor));
+
+		return false;
+	}
+
+	// Early out if the actor doesn't have a motion warping component
+	UMotionWarpingComponent* MotionWarpingComp = Actor->FindComponentByClass<UMotionWarpingComponent>();
+	if (MotionWarpingComp == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("TryStartContextualAnimation. Can't find MotionWarpingComp for the supplied actor. Owner: %s Actor: %s"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Actor));
+
+		return false;
+	}
+
+	// Early out if the actor is playing the animation already
+	UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
+	AActor** ActorPtr = CurrentMontage ? MontageToActorMap.Find(CurrentMontage) : nullptr;
+	if (ActorPtr && *ActorPtr == Actor)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("TryStartContextualAnimation. The supplied actor is playing the animation already. Owner: %s Actor: %s Anim: %s"), 
+		*GetNameSafe(GetOwner()), *GetNameSafe(Actor), *GetNameSafe(CurrentMontage));
+
+		return false;
+	}
+
+	// Early out if the animation is not valid
+	UAnimMontage* Montage = Data.Animation.Get();
+	if (Montage == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("TryStartContextualAnimation. The animation has not been loaded yet. Owner: %s Actor: %s Anim: %s"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Actor), *Data.Animation.GetAssetName());
+
+		return false;
+	}
+
+	// Set sync point for motion warping
+	const FName SyncPointName = ContextualAnimAsset->MotionWarpSyncPointName;
+	MotionWarpingComp->AddOrUpdateSyncPoint(SyncPointName, Data.SyncTransform);
+
+	// Play animation
+	AnimInstance->Montage_Play(Montage, 1.f, EMontagePlayReturnType::MontageLength, Data.AnimStartTime);
+
+	// Listen to when the montage ends for clean up purposes
+	AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimComponent::OnMontageBlendingOut);
+
+	// Ignore collision between actors
+	SetIgnoreOwnerComponentsWhenMovingForActor(Actor, true);
+
+	// Keep track of the actor
+	MontageToActorMap.Add(Montage, Actor);
+
+	UE_LOG(LogContextualAnim, Log, TEXT("TryStartContextualAnimation. Starting contextual anim. Owner: %s Actor: %s Anim: %s StartTime: %f SyncPointName: %s"),
+		*GetNameSafe(GetOwner()), *GetNameSafe(Actor), *GetNameSafe(Montage), Data.AnimStartTime, *SyncPointName.ToString());
+
+	return true;
+}
+
+bool UContextualAnimComponent::TryEndContextualAnimation(AActor* Actor)
+{
+	// Early out if the actor doesn't have a valid anim instance
+	UAnimInstance* AnimInstance = GetAnimInstanceForActor(Actor);
+	if(AnimInstance == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("TryEndContextualAnimation. Can't find AnimInstance for the supplied actor. Owner: %s Actor: %s"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Actor));
+
+		return false;
+	}
+
+	// Early out if the actor is not playing a contextual animation
+	UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
+	AActor** ActorPtr = CurrentMontage ? MontageToActorMap.Find(CurrentMontage) : nullptr;
+	if(ActorPtr == nullptr || *ActorPtr != Actor)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("TryEndContextualAnimation. The supplied actor is not playing a contextual anim. Owner: %s Actor: %s CurrentMontage: %s"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Actor), *GetNameSafe(CurrentMontage));
+
+		return false;
+	}
+
+	// Check if we have an exit section and transition to it, otherwise just stop the montage
+	static const FName ExitSectionName = FName(TEXT("Exit"));
+	const int32 SectionIdx = CurrentMontage->GetSectionIndex(ExitSectionName);
+	if(SectionIdx != INDEX_NONE)
+	{
+		// Unbind blend out delegate for a moment so we don't get it during the transition
+		AnimInstance->OnMontageBlendingOut.RemoveDynamic(this, &UContextualAnimComponent::OnMontageBlendingOut);
+
+		AnimInstance->Montage_Play(CurrentMontage, 1.f);
+		AnimInstance->Montage_JumpToSection(ExitSectionName, CurrentMontage);
+
+		AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimComponent::OnMontageBlendingOut);
+
+		UE_LOG(LogContextualAnim, Log, TEXT("TryEndContextualAnimation. Playing 'Exit' transition. Owner: %s Actor: %s Anim: %s"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Actor), *GetNameSafe(CurrentMontage));
+	}
+	else
+	{
+		UE_LOG(LogContextualAnim, Log, TEXT("TryEndContextualAnimation. Forcing montage to stop. Owner: %s Actor: %s Anim: %s"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Actor), *GetNameSafe(CurrentMontage));
+
+		AnimInstance->Montage_Stop(CurrentMontage->BlendOut.GetBlendTime(), CurrentMontage);
+	}
+	
+	return true;
+}
+
+void UContextualAnimComponent::OnMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted)
+{
+	// Remove actor from the map
+	AActor* Actor = nullptr;
+	if(MontageToActorMap.RemoveAndCopyValue(Montage, Actor))
+	{
+		// Unbind events
+		if (UAnimInstance* AnimInstance = GetAnimInstanceForActor(Actor))
+		{
+			AnimInstance->OnMontageBlendingOut.RemoveDynamic(this, &UContextualAnimComponent::OnMontageBlendingOut);
+		}
+
+		// Restore collision between actors
+		SetIgnoreOwnerComponentsWhenMovingForActor(Actor, false);
+
+		UE_LOG(LogContextualAnim, Log, TEXT("OnMontageBlendingOut. Clean up completed. Actor: %s Montage: %s bInterrupted: %d"), *GetNameSafe(Actor), *GetNameSafe(Montage), bInterrupted);
+	}
+	else
+	{
+		UE_LOG(LogContextualAnim, Log, TEXT("OnMontageBlendingOut. Can't find actor playing this montage. Montage: %s bInterrupted: %d"), *GetNameSafe(Montage), bInterrupted);
+	}
+}
+
+void UContextualAnimComponent::SetIgnoreOwnerComponentsWhenMovingForActor(AActor* Actor, bool bShouldIgnore)
+{
+	UPrimitiveComponent* ActorRootPrimitiveComp = Actor ? Cast<UPrimitiveComponent>(Actor->GetRootComponent()) : nullptr;
+	if (ActorRootPrimitiveComp)
+	{
+		const TSet<UActorComponent*> Comps = GetOwner()->GetComponents();
+		for (UActorComponent* Comp : Comps)
+		{
+			UPrimitiveComponent* OwnerPrimitiveComp = (Comp != this) ? Cast<UPrimitiveComponent>(Comp) : nullptr;
+			if (OwnerPrimitiveComp)
+			{
+				ActorRootPrimitiveComp->IgnoreComponentWhenMoving(OwnerPrimitiveComp, bShouldIgnore);
+			}
+		}
+	}
 }
 
 FBoxSphereBounds UContextualAnimComponent::CalcBounds(const FTransform& LocalToWorld) const

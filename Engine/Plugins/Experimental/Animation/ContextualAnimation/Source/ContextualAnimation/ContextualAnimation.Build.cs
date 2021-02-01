@@ -27,7 +27,8 @@ public class ContextualAnimation : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-                "Engine"
+                "Engine",
+				"MotionWarping"
 			}
 			);
 			

@@ -8,6 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimTypes.h"
+#include "Containers/ArrayView.h"
 
 DEFINE_LOG_CATEGORY(LogContextualAnim);
 
@@ -77,28 +78,34 @@ float FContextualAnimData::FindBestAnimStartTime(const FVector& LocalLocation) c
 {
 	float BestTime = 0.f;
 
-	const FTransform TransformAtEntryTime = GetAlignmentTransformAtEntryTime();
-	const FVector Direction = (LocalLocation - TransformAtEntryTime.GetLocation()).GetSafeNormal2D();
-	const float Dot = FVector::DotProduct(Direction, TransformAtEntryTime.GetRotation().GetForwardVector());
-	if (Dot > 0.f)
+	if(AnimMinStartTime < 0.f)
 	{
-		float BestDistance = MAX_FLT;	
-		const TArray<FVector>& PosKeys = AlignmentData.Track.PosKeys;
+		return BestTime;
+	}
 
-		//@TODO: Very simple search for now
+	const FVector SyncPointLocation = GetAlignmentTransformAtSyncTime().GetLocation();
+	const float PerfectDistToSyncPointSq = GetAlignmentTransformAtEntryTime().GetTranslation().SizeSquared2D();
+	const float ActualDistToSyncPointSq = FVector::DistSquared2D(LocalLocation, SyncPointLocation);
+
+	if(ActualDistToSyncPointSq < PerfectDistToSyncPointSq)
+	{
+		float BestDistance = MAX_FLT;
+		TArrayView<const FVector> PosKeys(AlignmentData.Track.PosKeys.GetData(), AlignmentData.Track.PosKeys.Num());
+
+		//@TODO: Very simple search for now. Replace with Distance Matching + Pose Matching
 		for (int32 Idx = 0; Idx < PosKeys.Num(); Idx++)
 		{
 			const float Time = Idx * AlignmentData.SampleInterval;
-			if(AnimMinStartTime > 0.f && Time >= AnimMinStartTime)
+			if (AnimMinStartTime > 0.f && Time >= AnimMinStartTime)
 			{
 				break;
 			}
 
-			const float DistSquared2D = FVector::DistSquared2D(LocalLocation, PosKeys[Idx]);
-			if (DistSquared2D < BestDistance)
+			const float DistFromCurrentFrameToSyncPointSq = FVector::DistSquared2D(SyncPointLocation, PosKeys[Idx]);
+			if (DistFromCurrentFrameToSyncPointSq < ActualDistToSyncPointSq)
 			{
-				BestDistance = DistSquared2D;
 				BestTime = Time;
+				break;
 			}
 		}
 	}
@@ -114,6 +121,7 @@ UContextualAnimAsset::UContextualAnimAsset(const FObjectInitializer& ObjectIniti
 {
 	SampleRate = 15;
 	MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));
+	MotionWarpSyncPointName = FName(TEXT("Interact"));
 }
 
 void UContextualAnimAsset::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -140,10 +148,9 @@ void UContextualAnimAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 		Animation->GetSectionStartAndEndTime(0, SectionStartTime, SectionEndTime);
 
 		float Time = 0.f;
-		float EndTime = SectionEndTime;
+		float EndTime = SectionEndTime; 
 		int32 SampleIndex = 0;
 
-		Data.SyncTime = EndTime;
 		Data.AlignmentData.Initialize(SampleInterval);
 		FRawAnimSequenceTrack& NewTrack = Data.AlignmentData.Track;
 
@@ -289,9 +296,12 @@ bool UContextualAnimAsset::QueryData(FContextualAnimQueryResult& OutResult, cons
 			//--------------------------------------------------
 			if (Data.Facing.Tolerance > 0.f)
 			{
+				const FTransform SyncTransform = Data.GetAlignmentTransformAtSyncTime() * ToWorldTransform;
+
 				//@TODO: Cache this
 				const float FacingCos = FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(Data.Facing.Tolerance), 0.f, PI));
-				if (FVector::DotProduct(QueryTransform.GetRotation().GetForwardVector(), EntryTransform.GetRotation().GetForwardVector()) < FacingCos)
+				const FVector ToSyncPoint = (SyncTransform.GetLocation() - QueryTransform.GetLocation()).GetSafeNormal2D();
+				if (FVector::DotProduct(QueryTransform.GetRotation().GetForwardVector(), ToSyncPoint) < FacingCos)
 				{
 					continue;
 				}

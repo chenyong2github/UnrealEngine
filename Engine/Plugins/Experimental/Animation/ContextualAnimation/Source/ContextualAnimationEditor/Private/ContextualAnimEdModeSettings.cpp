@@ -5,5 +5,4 @@
 UContextualAnimEdModeSettings::UContextualAnimEdModeSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	MotionWarpSyncPointName = FName(TEXT("Interact"));
 }
