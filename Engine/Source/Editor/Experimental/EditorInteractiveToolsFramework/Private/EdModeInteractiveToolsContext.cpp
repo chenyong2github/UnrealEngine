@@ -927,41 +927,6 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 	bool bHandled = false;
 
-
-	// escape key cancels current tool
-	if (Key == EKeys::Escape && Event == IE_Released )
-	{
-		if (ToolManager->HasAnyActiveTool())
-		{
-			if (ToolManager->HasActiveTool(EToolSide::Mouse))
-			{
-				DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Cancel);
-			}
-			return true;
-		}
-	}
-
-	// enter key accepts current tool, or ends tool if it does not have accept state
-	if (Key == EKeys::Enter && Event == IE_Released && ToolManager->HasAnyActiveTool())
-	{
-		if (ToolManager->HasActiveTool(EToolSide::Mouse))
-		{
-			if (ToolManager->GetActiveTool(EToolSide::Mouse)->HasAccept())
-			{
-				if (ToolManager->CanAcceptActiveTool(EToolSide::Mouse))
-				{
-					DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Accept);
-					return true;
-				}
-			}
-			else
-			{
-				DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Completed);
-				return true;
-			}
-		}
-	}
-
 	// This is true if we are using the fly camera controls (ie right-mouse possibly + WASD). 
 	// Those controls do *not* capture the mouse and so we still get the events, and we need to ignore them.
 	// Note that it is possible to enter fly camera by holding right-mouse, then hold another button and release right-mouse,
