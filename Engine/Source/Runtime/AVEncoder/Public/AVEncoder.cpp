@@ -8,9 +8,6 @@
 	#include "Microsoft/Windows/NvVideoEncoder.h"
 	#include "Microsoft/Windows/AmfVideoEncoder.h"
 	#include "Microsoft/WmfAudioEncoder.h"
-#elif (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
-	#include "Microsoft/WmfAudioEncoder.h"
-	#include "XboxOneVideoEncoder.h"
 #endif
 #endif
 
@@ -176,14 +173,9 @@ void RegisterDefaultFactories()
 	static FAmfVideoEncoderFactory AmfVideoEncoderFactory;
 	FAmfVideoEncoderFactory::RegisterFactory(AmfVideoEncoderFactory);
 
-#elif (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
-
-	static FXboxOneVideoEncoderFactory XboxOneVideoEncoderFactory;
-	FVideoEncoderFactory::RegisterFactory(XboxOneVideoEncoderFactory);
-
 #endif
 
-#if PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
+#if PLATFORM_WINDOWS
 	// Generic Windows/XBox Wmf encoder
 	static FWmfAudioEncoderFactory WmfAudioEncoderFactory;
 	FAudioEncoderFactory::RegisterFactory(WmfAudioEncoderFactory);

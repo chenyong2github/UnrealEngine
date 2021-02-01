@@ -12,8 +12,6 @@
 	#endif //PLATFORM_SWITCH
 #elif WITH_WINHTTPWEBSOCKETS
 	#include "WinHttp/WinHttpWebSocketsManager.h"
-#elif PLATFORM_XBOXONE && WITH_LEGACY_XDK
-	#include "XboxOneWebSocketsManager.h"
 #elif PLATFORM_HOLOLENS
 	#include "HoloLens/HoloLensWebSocketsManager.h"
 #else
@@ -28,8 +26,6 @@
 	#endif // !PLATFORM_SWITCH
 #elif WITH_WINHTTPWEBSOCKETS
 	typedef FWinHttpWebSocketsManager FPlatformWebSocketsManager;
-#elif PLATFORM_XBOXONE && WITH_LEGACY_XDK
-	typedef FXboxOneWebSocketsManager FPlatformWebSocketsManager;
 #elif PLATFORM_HOLOLENS
 	typedef FHoloLensWebSocketsManager FPlatformWebSocketsManager;
 #endif

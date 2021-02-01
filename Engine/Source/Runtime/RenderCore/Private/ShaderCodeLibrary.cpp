@@ -45,9 +45,6 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "PakFileUtilities.h"
 #endif
 
-// FORT-93125
-#define CHECK_SHADER_CREATION (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
-
 // allow introspection (e.g. dumping the contents) for easier debugging
 #define UE_SHADERLIB_WITH_INTROSPECTION			!UE_BUILD_SHIPPING
 

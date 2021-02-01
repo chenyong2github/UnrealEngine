@@ -2891,12 +2891,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						{
 							FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::CustomSplashScreen);
 						}
-#if PLATFORM_XBOXONE && WITH_LEGACY_XDK && ENABLE_XBOXONE_FAST_ACTIVATION
-						else
-						{
-							UE_LOG(LogInit, Warning, TEXT("Enable fast activation without enabling a custom splash screen may cause garbage frame buffer being presented"));
-						}
-#endif
 					}
 				}
 
