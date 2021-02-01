@@ -382,6 +382,16 @@ bool FChaosEngineInterface::IsSleeping(const FPhysicsActorHandle& InActorReferen
 
 bool FChaosEngineInterface::IsCcdEnabled(const FPhysicsActorHandle& InActorReference)
 {
+	// #TODO: Implement
+	/*if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (Rigid)
+		{
+			return Rigid->CCDEnabled();
+		}
+	}*/
+
 	return false;
 }
 
@@ -470,8 +480,15 @@ void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHand
 
 void FChaosEngineInterface::SetCcdEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bIsCcdEnabled)
 {
-	// #todo: Implement
-	//check(bIsCcdEnabled == false);
+	// #todo implement
+	/*if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (Rigid)
+		{
+			Rigid->SetCCDEnabled(bIsCcdEnabled);
+		}
+	}*/
 }
 
 void FChaosEngineInterface::SetIgnoreAnalyticCollisions_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bIgnoreAnalyticCollisions)

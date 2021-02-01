@@ -136,6 +136,12 @@ public:
 	}
 
 	template <typename TParticle>
+	bool CCDEnabled(const TParticle& Particle) const
+	{
+		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().CCDEnabled() : Particle.CastToRigidParticle()->CCDEnabled();
+	}
+
+	template <typename TParticle>
 	int32 CollisionGroup(const TParticle& Particle) const
 	{
 		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().CollisionGroup() : Particle.CastToRigidParticle()->CollisionGroup();
@@ -302,6 +308,11 @@ public:
 	bool GravityEnabled() const
 	{
 		return State.GravityEnabled(Particle);
+	}
+
+	bool CCDEnabled() const
+	{
+		return State.CCDEnabled(Particle);
 	}
 
 	int32 CollisionGroup() const

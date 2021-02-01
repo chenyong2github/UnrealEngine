@@ -41,9 +41,11 @@ struct TPBDRigidParticleParameters : public TKinematicGeometryParticleParameters
 		: TKinematicGeometryParticleParameters<T, d>()
 		, bStartSleeping(false)
 		, bGravityEnabled(true)
+		, bCCDEnabled(false)
 	{}
 	bool bStartSleeping;
 	bool bGravityEnabled;
+	bool bCCDEnabled;
 };
 
 /** Concrete can either be the game thread or physics representation, but API stays the same. Useful for keeping initialization and other logic the same*/
@@ -77,6 +79,7 @@ void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const TPBDRigidPartic
 	Concrete.SetLinearEtherDrag(0.f);
 	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
+	Concrete.SetCCDEnabled(Params.bCCDEnabled);
 	Concrete.SetResimType(EResimType::FullResim);
 }
 
@@ -798,6 +801,7 @@ public:
 		SetAngularEtherDrag(DynamicMisc.AngularEtherDrag());
 		SetCollisionGroup(DynamicMisc.CollisionGroup());
 		SetGravityEnabled(DynamicMisc.GravityEnabled());
+		SetCCDEnabled(DynamicMisc.CCDEnabled());
 		SetResimType(DynamicMisc.ResimType());
 		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
 		AddCollisionConstraintFlag((Chaos::ECollisionConstraintFlags)DynamicMisc.CollisionConstraintFlag());
@@ -862,6 +866,14 @@ public:
 	bool GravityEnabled() const { return PBDRigidParticles->GravityEnabled(ParticleIdx); }
 
 	void SetGravityEnabled(bool bEnabled){ PBDRigidParticles->GravityEnabled(ParticleIdx) = bEnabled; }
+
+	bool CCDEnabled() const {
+		return PBDRigidParticles->CCDEnabled(ParticleIdx);
+	}
+
+	void SetCCDEnabled(bool bEnabled) {
+		PBDRigidParticles->CCDEnabled(ParticleIdx) = bEnabled;
+	}
 
 	bool OneWayInteraction() const { return PBDRigidParticles->OneWayInteraction(ParticleIdx); }
 
@@ -2089,6 +2101,13 @@ public:
 	void SetCollisionConstraintFlag(const uint32 InCollisionConstraintFlag)
 	{
 		MMiscData.Modify(true, MDirtyFlags, Proxy, [InCollisionConstraintFlag](auto& Data) { Data.SetCollisionConstraintFlag(InCollisionConstraintFlag); });
+	}
+
+	bool CCDEnabled() const { return MMiscData.Read().CCDEnabled(); }
+
+	void SetCCDEnabled(bool bInCCDEnabled)
+	{
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInCCDEnabled](auto& Data) {Data.SetCCDEnabled(bInCCDEnabled); });
 	}
 
 	//todo: remove this

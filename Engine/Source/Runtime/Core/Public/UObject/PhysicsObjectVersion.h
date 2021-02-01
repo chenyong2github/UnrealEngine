@@ -27,6 +27,9 @@ struct CORE_API FPhysicsObjectVersion
 		// Chaos Convex StructureData supports different index sizes based on num verts/planes
 		VariableConvexStructureData,
 
+		// Add the ability to enable or disable Continuous Collision Detection
+		AddCCDEnableFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

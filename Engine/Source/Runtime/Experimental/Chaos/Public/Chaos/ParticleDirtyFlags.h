@@ -12,6 +12,7 @@
 #include "Chaos/KinematicTargets.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
+#include "UObject/PhysicsObjectVersion.h"
 
 class FName;
 
@@ -262,6 +263,10 @@ public:
 		{
 			MOneWayInteraction = false;
 		}
+		if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::AddCCDEnableFlag)
+		{
+			Ar << bCCDEnabled;
+		}
 	}
 
 	template <typename TOther>
@@ -275,6 +280,7 @@ public:
 		SetResimType(Other.ResimType());
 		SetOneWayInteraction(Other.OneWayInteraction());
 		SetCollisionConstraintFlag(Other.CollisionConstraintFlag());
+		SetCCDEnabled(Other.CCDEnabled());
 	}
 
 	template <typename TOther>
@@ -287,7 +293,8 @@ public:
 			&& CollisionGroup() == Other.CollisionGroup()
 			&& ResimType() == Other.ResimType()
 			&& OneWayInteraction() == Other.OneWayInteraction() 
-			&& CollisionConstraintFlag() == Other.CollisionConstraintFlag();
+			&& CollisionConstraintFlag() == Other.CollisionConstraintFlag()
+			&& CCDEnabled() == Other.CCDEnabled();
 	}
 
 	bool operator==(const FParticleDynamicMisc& Other) const
@@ -306,6 +313,9 @@ public:
 
 	bool GravityEnabled() const { return MGravityEnabled; }
 	void SetGravityEnabled(bool InGravity){ MGravityEnabled = InGravity; }
+
+	bool CCDEnabled() const { return bCCDEnabled; }
+	void SetCCDEnabled(bool bInCCDEnabled) { bCCDEnabled = bInCCDEnabled; }
 
 	int32 CollisionGroup() const { return MCollisionGroup; }
 	void SetCollisionGroup(int32 InGroup){ MCollisionGroup = InGroup; }
@@ -330,6 +340,7 @@ private:
 	bool MOneWayInteraction = false;
 	uint32 MCollisionConstraintFlag = 0;
 
+	bool bCCDEnabled;
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleDynamicMisc& Data)

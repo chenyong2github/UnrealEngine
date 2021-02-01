@@ -141,7 +141,7 @@ namespace Chaos
 			}
 
 			auto* RigidParticle = SweptParticle->CastToRigidParticle();
-			if (RigidParticle)
+			if (RigidParticle  && RigidParticle->CCDEnabled())
 			{
 				Dir = RigidParticle->P() - RigidParticle->X();
 				Length = Dir.Size();
