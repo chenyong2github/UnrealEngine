@@ -142,6 +142,11 @@ void FHotReloadClassReinstancer::SerializeCDOProperties(UObject* InObject, FHotR
 
 			return *this;
 		}
+		virtual FArchive& operator<<(FObjectPtr& InObj) override
+		{
+			// Invoke the method above
+			return FArchiveUObject::SerializeObjectPtr(*this, InObj);
+		}
 		/** Serializes an FName as its index and number */
 		virtual FArchive& operator<<(FName& InName) override
 		{
@@ -381,6 +386,11 @@ void FHotReloadClassReinstancer::UpdateDefaultProperties()
 				Ar << UnusedName;
 			}
 			return *this;
+		}
+		virtual FArchive& operator<<(FObjectPtr& InObj) override
+		{
+			// Invoke the method above
+			return FArchiveUObject::SerializeObjectPtr(*this, InObj);
 		}
 		virtual FArchive& operator<<(FName& InName) override
 		{
