@@ -5,7 +5,6 @@
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Transform.h"
 #include "Chaos/ImplicitObject.h"
-#include "HAL/CriticalSection.h"
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;
@@ -171,9 +170,6 @@ namespace Chaos
 		// Local space simulation
 		FVec3 OldLocalSpaceLocation;
 		FVec3 LocalSpaceLocation;  // This is used to translate between world space and simulation space. Add this to simulation space coordinates to get world space coordinates
-
-		// Mutex
-		FCriticalSection AddCollisionParticlesMutex;
 
 		// Time stepping
 		float Time;

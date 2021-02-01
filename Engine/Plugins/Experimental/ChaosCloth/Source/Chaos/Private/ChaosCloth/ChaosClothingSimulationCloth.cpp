@@ -612,6 +612,27 @@ int32 FClothingSimulationCloth::GetReferenceBoneIndex() const
 	return Mesh ? Mesh->GetReferenceBoneIndex() : INDEX_NONE;
 }
 
+void FClothingSimulationCloth::PreUpdate(FClothingSimulationSolver* Solver)
+{
+	check(Solver);
+
+	// Exit if the input mesh is missing
+	if (!Mesh)
+	{
+		return;
+	}
+
+	// Update Cloth Colliders
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ClothUpdateCollisions);
+
+		for (FClothingSimulationCollider* Collider : Colliders)
+		{
+			Collider->PreUpdate(Solver, this);
+		}
+	}
+}
+
 void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 {
 	check(Solver);

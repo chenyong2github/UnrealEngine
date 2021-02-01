@@ -47,6 +47,7 @@ namespace Chaos
 		void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 		void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 
+		void PreUpdate(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 		void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 		void ResetStartPose(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 		// ---- End of the Cloth interface ----
@@ -115,6 +116,7 @@ namespace Chaos
 		const FClothCollisionData* CollisionData;
 		bool bUseLODIndexOverride;
 		int32 LODIndexOverride;
+		bool bHasExternalCollisionChanged;
 
 		// Collision primitives
 		TArray<FLODData> LODData;  // Actual LODs start at LODStart

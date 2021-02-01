@@ -640,7 +640,7 @@ void FClothingSimulationCollider::Remove(FClothingSimulationSolver* Solver, FClo
 	}
 }
 
-void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
+void FClothingSimulationCollider::PreUpdate(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
 {
 	check(Solver);
 	check(Cloth);
@@ -650,7 +650,21 @@ void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClo
 	// Add or re-add the external collision particles
 	const int32 ExternalCollisionNumGeometries = GetNumGeometries((int32)ECollisionDataType::External);
 	const int32 ExternalCollisionOffset = GetOffset(Solver, Cloth, (int32)ECollisionDataType::External);
+
 	LODData[(int32)ECollisionDataType::External].Add(Solver, Cloth, CollisionData ? *CollisionData : FClothCollisionData());
+	
+	// TODO: Find a better way in case the same number but different collisions are being re-added (hash collision data? Provide user dirty function?)
+	bHasExternalCollisionChanged =
+		ExternalCollisionNumGeometries != GetNumGeometries((int32)ECollisionDataType::External) ||
+		ExternalCollisionOffset != GetOffset(Solver, Cloth, (int32)ECollisionDataType::External);
+}
+
+void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
+{
+	check(Solver);
+	check(Cloth);
+
+	SCOPE_CYCLE_COUNTER(STAT_ChaosClothingSimulationColliderUpdate);
 
 	// Update the collision transforms
 	// Note: All the LODs are updated at once, so that the previous transforms are always correct during LOD switching
@@ -670,9 +684,7 @@ void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClo
 	}
 
 	// Enable particle if the external collisions have changed
-	// TODO: Find a better way in case the same number but different collisions are being re-added (hash collision data? Provide user dirty function?)
-	if (ExternalCollisionNumGeometries != GetNumGeometries((int32)ECollisionDataType::External) ||
-		ExternalCollisionOffset != GetOffset(Solver, Cloth, (int32)ECollisionDataType::External))
+	if (bHasExternalCollisionChanged)
 	{
 		// Enable non LOD collisions at first initialization
 		LODData[(int32)ECollisionDataType::External].Enable(Solver, Cloth, true);

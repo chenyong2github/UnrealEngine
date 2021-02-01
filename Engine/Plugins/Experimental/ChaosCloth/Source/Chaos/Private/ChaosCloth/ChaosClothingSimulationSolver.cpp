@@ -6,7 +6,6 @@
 #include "ChaosCloth/ChaosClothingSimulation.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Chaos/PBDEvolution.h"
-#include "Misc/ScopeLock.h"
 
 #if !UE_BUILD_SHIPPING
 #include "FramePro/FramePro.h"
@@ -352,9 +351,6 @@ void FClothingSimulationSolver::ResetCollisionParticles(int32 InCollisionParticl
 
 int32 FClothingSimulationSolver::AddCollisionParticles(int32 NumCollisionParticles, uint32 GroupId, int32 RecycledOffset)
 {
-	// This could be called simultaneously by multiple cloths updates
-	FScopeLock Lock(&AddCollisionParticlesMutex);
-
 	// Try reusing the particle range
 	// This is used by external collisions so that they can be added/removed between every solver update.
 	// If it doesn't match then remove all ranges above the given offset to start again.
@@ -723,6 +719,13 @@ void FClothingSimulationSolver::Update(float InDeltaTime)
 		// Clear external collisions so that they can be re-added
 		CollisionParticlesSize = 0;
 
+		// Run sequential pre-updates first
+		for (FClothingSimulationCloth* const Cloth : Cloths)
+		{
+			Cloth->PreUpdate(this);
+		}
+
+		// Run parallel update
 		PhysicsParallelFor(Cloths.Num(), [this](int32 ClothIndex)
 		{
 			FClothingSimulationCloth* const Cloth = Cloths[ClothIndex];

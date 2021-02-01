@@ -123,6 +123,7 @@ namespace Chaos
 		void Add(FClothingSimulationSolver* Solver);
 		void Remove(FClothingSimulationSolver* Solver);
 
+		void PreUpdate(FClothingSimulationSolver* Solver);
 		void Update(FClothingSimulationSolver* Solver);
 		void PostUpdate(FClothingSimulationSolver* Solver);
 		// ---- End of the Solver interface ----
