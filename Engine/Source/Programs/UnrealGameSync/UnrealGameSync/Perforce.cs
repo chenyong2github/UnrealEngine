@@ -232,6 +232,8 @@ namespace UnrealGameSync
 		public long FileSize;
 		public PerforceFileFlags Flags;
 		public int Revision;
+		public int HeadRevision;
+		public int HeadChange;
 		public bool IsMapped;
 		public bool Unmap;
 		public string Digest;
@@ -283,9 +285,21 @@ namespace UnrealGameSync
 			Unmap = Tags.ContainsKey("unmap");
 
 			string RevisionString;
-			if(Tags.TryGetValue("rev", out RevisionString))
+			if (Tags.TryGetValue("rev", out RevisionString))
 			{
 				int.TryParse(RevisionString, out Revision);
+			}
+
+			string HeadRevisionString;
+			if (Tags.TryGetValue("headRev", out HeadRevisionString))
+			{
+				int.TryParse(HeadRevisionString, out HeadRevision);
+			}
+
+			string HeadChangeString;
+			if (Tags.TryGetValue("headChange", out HeadChangeString))
+			{
+				int.TryParse(HeadChangeString, out HeadChange);
 			}
 
 			Tags.TryGetValue("digest", out Digest);
@@ -766,7 +780,7 @@ namespace UnrealGameSync
 
 		public bool FindFiles(string Filter, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			bool bResult = RunCommand(String.Format("fstat \"{0}\"", Filter), out FileRecords, CommandOptions.None, Log);
+			bool bResult = RunCommand("", "fstat", new List<string> { Filter }, out FileRecords, CommandOptions.None, Log);
 			if(bResult)
 			{
                  FileRecords.RemoveAll(x => x.Action != null && x.Action.Contains("delete"));
@@ -861,22 +875,27 @@ namespace UnrealGameSync
 
 		public bool FindChanges(IEnumerable<string> Filters, string ByUser, int MaxResults, out List<PerforceChangeSummary> Changes, TextWriter Log)
 		{
-			string Arguments = "changes -s submitted -t -L";
-			if(MaxResults > 0)
+			string Command = "changes";
+			List<string> Arguments = new List<string>();
+			Arguments.Add("-ssubmitted");
+			Arguments.Add("-t");
+			Arguments.Add("-L");
+
+			if (MaxResults > 0)
 			{
-				Arguments += String.Format(" -m {0}", MaxResults);
+				Arguments.Add(String.Format("-m {0}", MaxResults));
 			}
-			if(ByUser != null)
+			if (ByUser != null)
 			{
-				Arguments += String.Format(" -u \"{0}\"", ByUser);
+				Arguments.Add(String.Format("-u \"{0}\"", ByUser));
 			}
-			foreach(string Filter in Filters)
+			foreach (string Filter in Filters)
 			{
-				Arguments += String.Format(" \"{0}\"", Filter);
+				Arguments.Add(String.Format("{0}", Filter));
 			}
 
 			List<string> Lines;
-			if(!RunCommand(Arguments, out Lines, CommandOptions.IgnoreFilesNotInClientViewError, Log))
+			if(!RunCommand("", Command, Arguments, out Lines, CommandOptions.IgnoreFilesNotInClientViewError, Log))
 			{
 				Changes = null;
 				return false;
@@ -1232,18 +1251,15 @@ namespace UnrealGameSync
 			return RunCommand(String.Format("fstat \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreProtectedNamespaceError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
-		public bool Stat(string Options, List<string> Files, out List<PerforceFileRecord> FileRecords, TextWriter Log)
+		public bool Stat(List<string> Options, List<string> Files, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			StringBuilder Arguments = new StringBuilder("fstat");
-			if(!String.IsNullOrEmpty(Options))
+			List<string> Arguments = new List<string>();
+			if (Options != null)
 			{
-				Arguments.AppendFormat(" {0}", Options);
+				Arguments.AddRange(Options);
 			}
-			foreach(string File in Files)
-			{
-				Arguments.AppendFormat(" \"{0}\"", File);
-			}
-			return RunCommand(Arguments.ToString(), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreProtectedNamespaceError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+			Arguments.AddRange(Files);
+			return RunCommand("", "fstat", Arguments, out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreProtectedNamespaceError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
 		public bool Sync(string Filter, TextWriter Log)
@@ -1345,36 +1361,61 @@ namespace UnrealGameSync
 
 		public bool SyncPreview(string Filter, int ChangeNumber, bool bOnlyFilesInThisChange, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			return RunCommand(String.Format("sync --parallel=0 -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber), out FileRecords, CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+			List<string> Arguments = new List<string>();
+			Arguments.Add("--parallel=0");
+			Arguments.Add("-n");
+			Arguments.Add(String.Format("{0}@{1}{2}", Filter, bOnlyFilesInThisChange ? "=" : "", ChangeNumber));
+
+			return RunCommand("", "sync", Arguments, out FileRecords, CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
 		public bool SyncPreview(string Filter, int ChangeNumber, bool bOnlyFilesInThisChange, Action<PerforceFileRecord> SyncOutput, TextWriter Log)
 		{
 			using(PerforceTagRecordParser Parser = new PerforceTagRecordParser(x => SyncOutput(new PerforceFileRecord(x))))
 			{
-				string CommandLine = String.Format("-ztag sync --parallel=0 -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber);
-				return RunCommand(CommandLine.ToString(), null, Line => FilterTaggedOutput(Line, Parser, Log), CommandOptions.NoFailOnErrors | CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreExitCode | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+				List<string> Arguments = new List<string>();
+				Arguments.Add("--parallel=0");
+				Arguments.Add("-n");
+				Arguments.Add(String.Format("{0}@{1}{2}", Filter, bOnlyFilesInThisChange ? "=" : "", ChangeNumber));
+				return RunCommand("-ztag", "sync", Arguments, null, Line => FilterTaggedOutput(Line, Parser, Log), CommandOptions.NoFailOnErrors | CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreExitCode | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 			}
 		}
 
 		public bool ForceSync(string Filter, TextWriter Log)
 		{
-			return RunCommand(String.Format("sync --parallel=0 -f \"{0}\"", Filter), CommandOptions.IgnoreFilesUpToDateError, Log);
+			List<string> Arguments = new List<string>();
+			Arguments.Add("--parallel=0");
+			Arguments.Add("-f");
+			Arguments.Add(Filter);
+
+			return RunCommand("", "sync", Arguments, CommandOptions.IgnoreFilesUpToDateError, Log);
 		}
 
 		public bool ForceSync(string Filter, int ChangeNumber, TextWriter Log)
 		{
-			return RunCommand(String.Format("sync --parallel=0 -f \"{0}\"@{1}", Filter, ChangeNumber), CommandOptions.IgnoreFilesUpToDateError, Log);
+			List<string> Arguments = new List<string>();
+			Arguments.Add("--parallel=0");
+			Arguments.Add("-f");
+			Arguments.Add(String.Format("{0}@{1}", Filter, ChangeNumber));
+
+			return RunCommand("", "sync", Arguments, CommandOptions.IgnoreFilesUpToDateError, Log);
 		}
 
 		public bool GetOpenFiles(string Filter, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			return RunCommand(String.Format("opened \"{0}\"", Filter), out FileRecords, CommandOptions.None, Log);
+			List<string> Arguments = new List<string>();
+			Arguments.Add(Filter);
+
+			return RunCommand("", "opened", Arguments, out FileRecords, CommandOptions.None, Log);
 		}
 
 		public bool GetUnresolvedFiles(string Filter, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			return RunCommand(String.Format("fstat -Ru \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotOpenedOnThisClientError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+			List<string> Arguments = new List<string>();
+			Arguments.Add("-Ru");
+			Arguments.Add(Filter);
+
+			return RunCommand("", "fstat", Arguments, out FileRecords, CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotOpenedOnThisClientError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
 		public bool AutoResolveFile(string File, TextWriter Log)
@@ -1394,6 +1435,21 @@ namespace UnrealGameSync
 			{
 				StreamName = null;
 				return false;
+			}
+		}
+
+		private bool RunCommand(string GlobalOptions, string Command, List<string> Arguments, out List<PerforceFileRecord> FileRecords, CommandOptions Options, TextWriter Log)
+		{
+			List<Dictionary<string, string>> TagRecords;
+			if (!RunCommand(GlobalOptions, Command, Arguments, out TagRecords, Options, Log))
+			{
+				FileRecords = null;
+				return false;
+			}
+			else
+			{
+				FileRecords = TagRecords.Select(x => new PerforceFileRecord(x)).ToList();
+				return true;
 			}
 		}
 
@@ -1425,6 +1481,28 @@ namespace UnrealGameSync
 				ClientRecords = TagRecords.Select(x => new PerforceClientRecord(x)).ToList();
 				return true;
 			}
+		}
+
+		private bool RunCommand(string GlobalOptions, string Command, List<string> Arguments, out List<Dictionary<string, string>> TagRecords, CommandOptions Options, TextWriter Log)
+		{
+			List<string> Lines;
+			if (!RunCommand(GlobalOptions + " -ztag", Command, Arguments, PerforceOutputChannel.TaggedInfo, out Lines, Options, Log))
+			{
+				TagRecords = null;
+				return false;
+			}
+
+			List<Dictionary<string, string>> LocalOutput = new List<Dictionary<string, string>>();
+			using (PerforceTagRecordParser Parser = new PerforceTagRecordParser(Record => LocalOutput.Add(Record)))
+			{
+				foreach (string Line in Lines)
+				{
+					Parser.OutputLine(Line);
+				}
+			}
+			TagRecords = LocalOutput;
+
+			return true;
 		}
 
 		private bool RunCommand(string CommandLine, out List<Dictionary<string, string>> TagRecords, CommandOptions Options, TextWriter Log)
@@ -1463,14 +1541,63 @@ namespace UnrealGameSync
 			return bResult;
 		}
 
+		private bool RunCommand(string GlobalOptions, string Command, List<string> Arguments, CommandOptions Options, TextWriter Log)
+		{
+			List<string> Lines;
+			bool bResult = RunCommand(GlobalOptions, Command, Arguments, out Lines, Options, Log);
+			if (Lines != null)
+			{
+				foreach (string Line in Lines)
+				{
+					Log.WriteLine("p4>   {0}", Line);
+				}
+			}
+			return bResult;
+		}
+
+		/**
+		 * See the comments for GetFullCommandLine as to why a verison of this function is needed that takes a List of arguments
+		 * instead of a single string. 
+		 */
+		private bool RunCommand(string GlobalOptions, string Command, List<string> Arguments, out List<string> Lines, CommandOptions Options, TextWriter Log)
+		{
+			return RunCommand(GlobalOptions, Command, Arguments, PerforceOutputChannel.Info, out Lines, Options, Log);
+		}
+
+		private bool RunCommand(string GlobalOptions, string CommandLine, List<string> Arguments, PerforceOutputChannel Channel, out List<string> Lines, CommandOptions Options, TextWriter Log)
+		{
+			// get commandline which uses an args file in a temp file
+			string FilenameToDelete;
+			string FullCommandLine = GetFullCommandLine(GlobalOptions, CommandLine, Arguments, Options, out FilenameToDelete);
+
+			bool Result = ExecuteP4Process(FullCommandLine, Channel, out Lines, Options, Log);
+
+			// delete the temp file
+			File.Delete(FilenameToDelete);
+
+			return Result;
+		}
+
 		private bool RunCommand(string CommandLine, out List<string> Lines, CommandOptions Options, TextWriter Log)
 		{
-			return RunCommand(CommandLine, PerforceOutputChannel.Info, out Lines, Options, Log);
+			string FullCommandLine = GetFullCommandLine(CommandLine, Options);
+			return RunCommand(FullCommandLine, PerforceOutputChannel.Info, out Lines, Options, Log);
 		}
 
 		private bool RunCommand(string CommandLine, PerforceOutputChannel Channel, out List<string> Lines, CommandOptions Options, TextWriter Log)
 		{
+			// catch operations that have // and *, but are not using the List of arguments mode (see GetFullCommandLine comment)
+			if (CommandLine.Contains("//") && CommandLine.Contains("*"))
+			{
+				Log.WriteLine("Command {0} contained a filespec that will cause Windows to lockup or never complete(eg. //Foo/*). You must use the version of RunCommand that takes the options in an array of Arguments.", CommandLine);
+			}
+
 			string FullCommandLine = GetFullCommandLine(CommandLine, Options);
+			return ExecuteP4Process(FullCommandLine, Channel, out Lines, Options, Log);
+		}
+
+		private bool ExecuteP4Process(string FullCommandLine, PerforceOutputChannel Channel, out List<string> Lines, CommandOptions Options, TextWriter Log)
+		{
 			Log.WriteLine("p4> p4.exe {0}", FullCommandLine);
 
 			List<string> RawOutputLines;
@@ -1526,6 +1653,45 @@ namespace UnrealGameSync
 				bResult = false;
 			}
 			return bResult;
+		}
+
+		private bool RunCommand(string GlobalOptions, string Command, List<string> Arguments, string Input, HandleOutputDelegate HandleOutput, CommandOptions Options, TextWriter Log)
+		{
+			string FilenameToDelete;
+			string FullCommandLine = GetFullCommandLine(GlobalOptions, Command, Arguments, Options, out FilenameToDelete);
+
+			bool bResult = true;
+			Log.WriteLine("p4> p4.exe {0}", FullCommandLine);
+			if (Utility.ExecuteProcess("p4.exe", null, FullCommandLine, Input, Line => { bResult &= ParseCommandOutput(Line, HandleOutput, Options); }) != 0 && !Options.HasFlag(CommandOptions.IgnoreExitCode))
+			{
+				bResult = false;
+			}
+			File.Delete(FilenameToDelete);
+			return bResult;
+		}
+
+		/**
+		 * p4 operations that have a * in a filespec (like //depot/UE4/Engine/*) can cause Windows to either delay a lot (or never complete) as the commandline
+		 * is thought to be a UNC path (\\server\share\ style) and it tries to expand the * - and Windows can be very slow to time out looking for a server named
+		 * depot. The workaround is to put the parameters into a args file with the -x option. However, the args file must have one option per line, while the
+		 * global options must be specified as normal. So, any operation that has a // and * will need to go through this function to put the options into a file.
+		 * The command 'p4 -c someclient changes -s submitted -m 100 //depot/UE4/Engine/*' would be 'p4 -c someclient -x TempFile changes' and the TempFile wouild contain:
+		 *    -ssubmitted
+		 *    -m 100
+		 *    //depot/UE4/Engine/*
+		 * Note that for some reason, -s submitted requires there be no space between -s and submitted when in an args file. Possibly params with a string option, as -m 100 works fine
+		 */
+		private string GetFullCommandLine(string GlobalOptions, string Command, List<string> Arguments, CommandOptions Options, out string FilenameToDelete)
+		{
+			// write arguments to the command, one per line, to temp file
+			FilenameToDelete = Path.Combine(Path.GetTempPath(), Path.GetTempFileName());
+			File.WriteAllLines(FilenameToDelete, Arguments);
+
+			// build up the commandline: <global options> -x <args file> <command>
+			string FullGlobalOptions = string.Format("{0} {1}", GetFullCommandLine("", Options), GlobalOptions);
+			string FullCommandLine = string.Format("{0} -x \"{1}\" {2}", FullGlobalOptions, FilenameToDelete, Command);
+
+			return FullCommandLine;
 		}
 
 		private string GetFullCommandLine(string CommandLine, CommandOptions Options)

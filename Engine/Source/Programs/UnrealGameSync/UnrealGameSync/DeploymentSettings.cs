@@ -47,6 +47,16 @@ namespace UnrealGameSync
 		/// </summary>
 		public static readonly string DefaultDepotPath = null;
 
+		/// <summary>
+		/// Depot path to sync additional tools from
+		/// </summary>
+		public static readonly string ToolsDepotPath = null;
+
+		/// <summary>
+		/// URL to send info about NET Core versions to.
+		/// </summary>
+		public static readonly string NetCoreTelemetryUrl = null;
+
 #if WITH_TELEMETRY
 		/// <summary>
 		/// Delegate used to create a new telemetry sink

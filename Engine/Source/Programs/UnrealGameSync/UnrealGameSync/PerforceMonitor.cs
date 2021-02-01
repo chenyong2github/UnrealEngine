@@ -686,7 +686,7 @@ namespace UnrealGameSync
 			ConfigFile ProjectConfig = new ConfigFile();
 
 			List<PerforceFileRecord> FileRecords;
-			if(Perforce.Stat("-Ol", ConfigFilePaths, out FileRecords, Log))
+			if(Perforce.Stat(new List<string> { "-Ol" }, ConfigFilePaths, out FileRecords, Log))
 			{
 				foreach(PerforceFileRecord FileRecord in FileRecords)
 				{

@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using IdentityModel.Client;
 using EpicGames.Core;
-using EpicGames.Core.Jupiter;
+using EpicGames.Jupiter;
 
 namespace UnrealGameSync
 {
@@ -211,6 +211,8 @@ namespace UnrealGameSync
 			{
 				get { return null; } 
 			}
+
+			public string Target => throw new NotImplementedException();
 
 			public bool Exists()
 			{

@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -665,6 +666,7 @@ namespace UnrealGameSync
 
 		void PollForUpdates()
 		{
+			Stopwatch NetCoreTimer = Stopwatch.StartNew();
 			EventData Event = null;
 			CommentData Comment = null;
 			bool bUpdateThrottledRequests = true;
@@ -705,9 +707,38 @@ namespace UnrealGameSync
 					}
 				}
 
+				// Post info about whether net core is installed
+				if (DeploymentSettings.NetCoreTelemetryUrl != null && NetCoreTimer.Elapsed > TimeSpan.FromMinutes(60.0))
+				{
+					try
+					{
+						RESTApi.POST(DeploymentSettings.NetCoreTelemetryUrl, "netcore", "{ }", "User=" + CurrentUserName, "Machine=" + Environment.MachineName, "NetCore=" + HasNetCore3().ToString());
+					}
+					catch
+					{
+					}
+					NetCoreTimer.Restart();
+				}
+
 				// Wait for something else to do
 				bUpdateThrottledRequests = RefreshEvent.WaitOne(30 * 1000);
 			}
+		}
+
+		public static bool HasNetCore3()
+		{
+			DirectoryInfo BaseDirInfo = new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet", "shared", "Microsoft.NETCore.App"));
+			if (BaseDirInfo.Exists)
+			{
+				foreach (DirectoryInfo SubDir in BaseDirInfo.EnumerateDirectories())
+				{
+					if (SubDir.Name.StartsWith("3.", StringComparison.Ordinal))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		bool SendEventToBackend(EventData Event)

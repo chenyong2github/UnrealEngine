@@ -1065,12 +1065,12 @@ namespace UnrealGameSync
 										if(Context.Options.HasFlag(WorkspaceUpdateOptions.Clean) || bForceClean)
 										{
 											Log.WriteLine("ubt> Running {0} {1} -clean", BuildBat, CommandLine);
-											Utility.ExecuteProcess(CmdExe, null, "/C " + BuildBat + " " + CommandLine + " -clean", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
+											Utility.ExecuteProcess(CmdExe, null, "/C \"\"" + BuildBat + "\" " + CommandLine + " -clean\"", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
 										}
 
 										Log.WriteLine("ubt> Running {0} {1} -progress", BuildBat, CommandLine);
 
-										int ResultFromBuild = Utility.ExecuteProcess(CmdExe, null, "/C " + BuildBat + " "+ CommandLine + " -progress", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
+										int ResultFromBuild = Utility.ExecuteProcess(CmdExe, null, "/C \"\"" + BuildBat + "\" "+ CommandLine + " -progress\"", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
 										if(ResultFromBuild != 0)
 										{
 											StepStopwatch.Stop("Failed");

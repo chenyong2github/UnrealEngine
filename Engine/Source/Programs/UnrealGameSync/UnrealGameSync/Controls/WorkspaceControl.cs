@@ -1079,7 +1079,7 @@ namespace UnrealGameSync
 
 		void UpdateCompleteCallback(WorkspaceUpdateContext Context, WorkspaceUpdateResult Result, string ResultMessage)
 		{
-			MainThreadSynchronizationContext.Post((o) => UpdateComplete(Context, Result, ResultMessage), null);
+			MainThreadSynchronizationContext.Post((o) => { if (!bIsDisposing) { UpdateComplete(Context, Result, ResultMessage); } }, null);
 		}
 
 		void UpdateComplete(WorkspaceUpdateContext Context, WorkspaceUpdateResult Result, string ResultMessage)
@@ -2482,6 +2482,27 @@ namespace UnrealGameSync
 			}
 		}
 
+		private static void SafeProcessStart(string Url, string Arguments, string WorkingDir)
+		{
+			try
+			{
+				ProcessStartInfo StartInfo = new ProcessStartInfo();
+				StartInfo.FileName = Url;
+				StartInfo.Arguments = Arguments;
+				StartInfo.WorkingDirectory = WorkingDir;
+				Process.Start(StartInfo).Dispose();
+			}
+			catch
+			{
+				MessageBox.Show(String.Format("Unable to open {0} {1}", Url, Arguments));
+			}
+		}
+
+		public void UpdateSettings()
+		{
+			UpdateStatusPanel();
+		}
+
 		private string ReplaceRegexMatches(string Text, Match MatchResult)
 		{
 			if (Text != null)
@@ -3020,12 +3041,12 @@ namespace UnrealGameSync
 			ProcessNames.Add("UE4Editor-Win64-Debug-Cmd");
 			ProcessNames.Add("UE4Editor-Win64-DebugGame");
 			ProcessNames.Add("UE4Editor-Win64-DebugGame-Cmd");
-			ProcessNames.Add("UE5Editor");
-			ProcessNames.Add("UE5Editor-Cmd");
-			ProcessNames.Add("UE5Editor-Win64-Debug");
-			ProcessNames.Add("UE5Editor-Win64-Debug-Cmd");
-			ProcessNames.Add("UE5Editor-Win64-DebugGame");
-			ProcessNames.Add("UE5Editor-Win64-DebugGame-Cmd");
+			ProcessNames.Add("UnrealEditor");
+			ProcessNames.Add("UnrealEditor-Cmd");
+			ProcessNames.Add("UnrealEditor-Win64-Debug");
+			ProcessNames.Add("UnrealEditor-Win64-Debug-Cmd");
+			ProcessNames.Add("UnrealEditor-Win64-DebugGame");
+			ProcessNames.Add("UnrealEditor-Win64-DebugGame-Cmd");
 			ProcessNames.Add("CrashReportClient");
 			ProcessNames.Add("CrashReportClient-Win64-Development");
 			ProcessNames.Add("CrashReportClient-Win64-Debug");
@@ -3193,6 +3214,18 @@ namespace UnrealGameSync
 			SafeProcessStart("p4v.exe", CommandLine.ToString());
 		}
 
+		private void OpenUshell()
+		{
+			StringBuilder CommandLine = new StringBuilder();
+			CommandLine.AppendFormat("/C \"\"{0}\"", Path.Combine(DataFolder, "Tools", "Ushell", "Current", "ushell.bat"));
+			if (SelectedFileName.EndsWith(".uproject"))
+			{
+				CommandLine.AppendFormat(" --project=\"{0}\"", SelectedFileName);
+			}
+			CommandLine.Append("\"");
+			SafeProcessStart(Environment.GetEnvironmentVariable("COMSPEC"), CommandLine.ToString(), BranchDirectoryName);
+		}
+
 		private void UpdateStatusPanel()
 		{
 			int NewContentWidth = Math.Max(TextRenderer.MeasureText(String.Format("Opened {0}  |  Browse...  |  Connect...", SelectedFileName), StatusPanel.Font).Width, 400);
@@ -3323,6 +3356,11 @@ namespace UnrealGameSync
 				if (!ShouldSyncPrecompiledEditor)
 				{
 					ProgramsLine.AddLink("Visual Studio", FontStyle.Regular, () => { OpenSolution(); });
+					ProgramsLine.AddText("  |  ");
+				}
+				if (Settings.bEnableUshell)
+				{
+					ProgramsLine.AddLink("Ushell", FontStyle.Regular, () => { OpenUshell(); });
 					ProgramsLine.AddText("  |  ");
 				}
 				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { SafeProcessStart("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
