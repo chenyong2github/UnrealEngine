@@ -3469,9 +3469,9 @@ void FSequencer::ModifyViewportClientView(FEditorViewportViewModifierParams& Par
 {
 	if (ViewModifierInfo.bApplyViewModifier)
 	{
-		Params.ViewInfo.Location = ViewModifierLocation;
-		Params.ViewInfo.Rotation = ViewModifierRotation;
-		Params.ViewInfo.FOV = ViewModifierFOV;
+		Params.ViewInfo.Location = ViewModifierInfo.ViewModifierLocation;
+		Params.ViewInfo.Rotation = ViewModifierInfo.ViewModifierRotation;
+		Params.ViewInfo.FOV = ViewModifierInfo.ViewModifierFOV;
 	}
 }
 
