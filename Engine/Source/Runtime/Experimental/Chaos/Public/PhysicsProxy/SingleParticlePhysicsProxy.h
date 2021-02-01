@@ -851,6 +851,27 @@ public:
 	void MergeShapesArray(FShapesArray&& OtherShapesArray) { VerifyContext(); GetParticle_LowLevel()->MergeShapesArray(MoveTemp(OtherShapesArray)); }
 
 	void MergeGeometry(TArray<TUniquePtr<FImplicitObject>>&& Objects) { VerifyContext(); GetParticle_LowLevel()->MergeGeometry(MoveTemp(Objects)); }
+
+	void SetCCDEnabled(bool bEnabled)
+	{
+		VerifyContext();
+		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			Rigid->SetCCDEnabled(bEnabled);
+		}
+	}
+
+	bool CCDEnabled() const
+	{
+		VerifyContext();
+		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			return Rigid->CCDEnabled();
+		}
+
+		return false;
+	}
+
 };
 
 static_assert(sizeof(FRigidBodyHandle_External) == sizeof(FSingleParticlePhysicsProxy), "Derived types only used to constrain API, all data lives in base class ");
