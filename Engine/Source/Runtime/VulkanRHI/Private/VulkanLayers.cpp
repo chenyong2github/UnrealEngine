@@ -467,6 +467,13 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		}
 	}
 
+	TArray<const ANSICHAR*> PlatformLayers;
+	FVulkanPlatform::GetInstanceLayers(PlatformLayers);
+	for (const ANSICHAR* PlatformLayer : PlatformLayers)
+	{
+		OutInstanceLayers.Add(PlatformLayer);
+	}
+
 	for (int32 j = 0; GInstanceExtensions[j] != nullptr; j++)
 	{
 		if (FindLayerExtensionInList(GlobalLayerExtensions, GInstanceExtensions[j]))
@@ -698,6 +705,13 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 		{
 			OutDeviceExtensions.Add(PlatformExtension);
 		}
+	}
+
+	TArray<const ANSICHAR*> PlatformLayers;
+	FVulkanPlatform::GetDeviceLayers(VendorId, PlatformLayers);
+	for (const ANSICHAR* PlatformLayer : PlatformLayers)
+	{
+		OutDeviceLayers.Add(PlatformLayer);
 	}
 
 	for (uint32 Index = 0; Index < UE_ARRAY_COUNT(GDeviceExtensions) && GDeviceExtensions[Index] != nullptr; ++Index)

@@ -1300,6 +1300,32 @@ namespace UnrealBuildTool
 					CopyFileDirectory(VulkanLayersDir, DestDir);
 				}
 			}
+
+			// Copy debug validation layers
+			if (bSupportsVulkan && Configuration != "Shipping")
+			{
+				String LayerDir = "";
+				AndroidPlatformSDK.GetPath(Ini, "/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "DebugVulkanLayerDirectory", out LayerDir);
+
+				Log.TraceInformation("DebugVulkanLayerDirectory {0}", LayerDir);
+
+				if (LayerDir != "")
+				{
+					string VulkanLayersDir = Path.Combine(Environment.ExpandEnvironmentVariables(LayerDir), NDKArch);
+
+					if (Directory.Exists(VulkanLayersDir))
+					{
+						string DestDir = Path.Combine(UE4BuildPath, "libs", NDKArch);
+						Log.TraceInformation("Copying Debug vulkan layers from {0} to {1}", VulkanLayersDir, DestDir);
+
+						if (!Directory.Exists(DestDir))
+						{
+							Directory.CreateDirectory(DestDir);
+						}
+						CopyFileDirectory(VulkanLayersDir, DestDir);
+					}
+				}
+			}
 		}
 
 		void CopyClangSanitizerLib(string UE4BuildPath, string UE4Arch, string NDKArch, AndroidToolChain.ClangSanitizer Sanitizer)

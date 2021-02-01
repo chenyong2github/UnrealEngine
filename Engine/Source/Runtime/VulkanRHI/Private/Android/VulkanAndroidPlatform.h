@@ -57,7 +57,9 @@ public:
 	static void FreeVulkanLibrary();
 
 	static void GetInstanceExtensions(TArray<const ANSICHAR*>& OutExtensions);
+	static void GetInstanceLayers(TArray<const ANSICHAR*>& OutLayers);
 	static void GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions);
+	static void GetDeviceLayers(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutLayers);
 	static void NotifyFoundDeviceLayersAndExtensions(VkPhysicalDevice PhysicalDevice, const TArray<FString>& Layers, const TArray<FString>& Extensions);
 
 	static void CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface);
@@ -146,6 +148,8 @@ protected:
 	static int32 CachedFramePace;
 	static int32 CachedRefreshRate;
 	static int32 CachedSyncInterval;
+	static TArray<TArray<ANSICHAR>> DebugVulkanDeviceLayers;
+	static TArray<TArray<ANSICHAR>> DebugVulkanInstanceLayers;
 };
 
 #if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING

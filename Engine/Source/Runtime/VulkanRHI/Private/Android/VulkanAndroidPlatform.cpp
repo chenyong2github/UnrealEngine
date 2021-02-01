@@ -57,6 +57,8 @@ TUniquePtr<struct FAndroidVulkanFramePacer> FVulkanAndroidPlatform::FramePacer;
 int32 FVulkanAndroidPlatform::CachedFramePace = 60;
 int32 FVulkanAndroidPlatform::CachedRefreshRate = 60;
 int32 FVulkanAndroidPlatform::CachedSyncInterval = 1;
+TArray<TArray<ANSICHAR>> FVulkanAndroidPlatform::DebugVulkanDeviceLayers;
+TArray<TArray<ANSICHAR>> FVulkanAndroidPlatform::DebugVulkanInstanceLayers;
 
 #define CHECK_VK_ENTRYPOINTS(Type,Func) if (VulkanDynamicAPI::Func == NULL) { bFoundAllEntryPoints = false; UE_LOG(LogRHI, Warning, TEXT("Failed to find entry point for %s"), TEXT(#Func)); }
 
@@ -355,6 +357,33 @@ void FVulkanAndroidPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutE
 	OutExtensions.Add(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
 }
 
+void FVulkanAndroidPlatform::GetInstanceLayers(TArray<const ANSICHAR*>& OutLayers)
+{
+#if !UE_BUILD_SHIPPING
+	if (DebugVulkanInstanceLayers.IsEmpty())
+	{
+		TArray<FString> LayerNames;
+		GConfig->GetArray(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("DebugVulkanInstanceLayers"), LayerNames, GEngineIni);
+
+		if (!LayerNames.IsEmpty())
+		{
+			uint32 Index = 0;
+			for (auto& LayerName : LayerNames)
+			{
+				TArray<ANSICHAR> LayerNameANSI{ TCHAR_TO_ANSI(*LayerName), LayerName.Len() + 1 };
+				DebugVulkanInstanceLayers.Add(LayerNameANSI);
+			}
+		}
+	}
+
+	for (const TArray<ANSICHAR>& LayerName : DebugVulkanInstanceLayers)
+	{
+		OutLayers.Add(LayerName.GetData());
+	}
+#endif
+}
+
+
 static int32 GVulkanQcomRenderPassTransform = 0;
 static FAutoConsoleVariableRef CVarVulkanQcomRenderPassTransform(
 	TEXT("r.Vulkan.UseQcomRenderPassTransform"),
@@ -378,6 +407,32 @@ void FVulkanAndroidPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 
 #if !UE_BUILD_SHIPPING
 	OutExtensions.Add(VULKAN_MALI_LAYER_NAME);
+#endif
+}
+
+void FVulkanAndroidPlatform::GetDeviceLayers(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutLayers)
+{
+#if !UE_BUILD_SHIPPING
+	if (DebugVulkanDeviceLayers.IsEmpty())
+	{
+		TArray<FString> LayerNames;
+		GConfig->GetArray(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("DebugVulkanDeviceLayers"), LayerNames, GEngineIni);
+
+		if (!LayerNames.IsEmpty())
+		{
+			uint32 Index = 0;
+			for (auto& LayerName : LayerNames)
+			{
+				TArray<ANSICHAR> LayerNameANSI{ TCHAR_TO_ANSI(*LayerName), LayerName.Len() + 1 };
+				DebugVulkanDeviceLayers.Add(LayerNameANSI);
+			}
+		}
+	}
+
+	for (auto& LayerName : DebugVulkanDeviceLayers)
+	{
+		OutLayers.Add(LayerName.GetData());
+	}
 #endif
 }
 

@@ -412,6 +412,18 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Support Vulkan Desktop [Experimental]"))
 	bool bSupportsVulkanSM5;
 
+	/** Directory for Debug Vulkan Layers to package */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Debug Vulkan Layer Directory"))
+	FDirectoryPath DebugVulkanLayerDirectory;
+
+	/** Debug Vulkan Device Layers to enable */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Debug Vulkan Device Layers"))
+	TArray<FString> DebugVulkanDeviceLayers;
+
+	/** Debug Vulkan Instance Layers to enable */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Debug Vulkan Instance Layers"))
+	TArray<FString> DebugVulkanInstanceLayers;
+
 	// Select a Clang's sanitizer to build the project with
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
 	TEnumAsByte<EClangSanitizer::Type> ClangSanitizer;
