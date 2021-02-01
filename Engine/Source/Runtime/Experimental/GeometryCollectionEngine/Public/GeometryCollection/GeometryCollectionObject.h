@@ -150,10 +150,8 @@ public:
 	/** Invalidates this collection signaling a structural change and renders any previously recorded caches unable to play with this collection */
 	void InvalidateCollection();
 
-#if WITH_EDITOR
 	/** Check to see if Simulation Data requires regeneration */
 	bool IsSimulationDataDirty() const;
-#endif
 
 #if WITH_EDITOR
 	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
