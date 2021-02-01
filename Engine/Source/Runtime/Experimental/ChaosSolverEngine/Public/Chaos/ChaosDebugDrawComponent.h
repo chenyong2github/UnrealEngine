@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
+#include "Chaos/ChaosDebugDrawDeclares.h"
 #include "Chaos/Declares.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Engine/World.h"
@@ -33,6 +34,8 @@ private:
 
 	bool bInPlay;
 
+#if CHAOS_DEBUG_DRAW
 	TArray<Chaos::FLatentDrawCommand> DrawCommands;
+#endif
 };
 

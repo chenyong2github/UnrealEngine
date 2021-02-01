@@ -229,17 +229,17 @@ void UChaosDebugDrawComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 		{
 			FDebugDrawQueue::GetInstance().SetRegionOfInterest(World->ViewLocationsRenderedLastFrame[0], ChaosDebugDraw_Radius);
 		}
+
+		FDebugDrawQueue::GetInstance().SetMaxCost(ChaosDebugDraw_MaxElements);
+
+		// Get the latest commands unless we are paused (in which case we redraw the previous ones)
+		if (!World->IsPaused())
+		{
+			FDebugDrawQueue::GetInstance().ExtractAllElements(DrawCommands);
+		}
+
+		DebugDrawChaos(GetOwner(), DrawCommands);
 	}
-
-	FDebugDrawQueue::GetInstance().SetMaxCost(ChaosDebugDraw_MaxElements);
-
-	// Get the latest commands unless we are paused (in which case we redraw the previous ones)
-	if (!World->IsPaused())
-	{
-		FDebugDrawQueue::GetInstance().ExtractAllElements(DrawCommands);
-	}
-
-	DebugDrawChaos(GetOwner(), DrawCommands);
 #endif
 }
 
