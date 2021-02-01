@@ -17,7 +17,7 @@ void FD3D12Fence::InternalSignal(ED3D12CommandQueueType InQueueType, uint64 Fenc
 		check(FenceCore);
 
 	#if DEBUG_FENCES
-		UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU SIGNAL (CmdQueueType: %u) Fence: %016llX (%s), Value: %u ***"), InQueueType, FenceCore->GetFence(), *GetName().ToString(), FenceToSignal);
+		UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU SIGNAL (CmdQueueType: %u) Fence: %016llX (%s), Value: %u ***"), InQueueType, FenceCore->GetFence(), *Name.ToString(), FenceToSignal);
 	#endif
 		VERIFYD3D12RESULT(CommandQueue->Signal(FenceCore->GetFence(), FenceToSignal));
 	}
@@ -37,7 +37,7 @@ void FD3D12Fence::WaitForFence(uint64 FenceValue)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_D3D12WaitForFenceTime);
 #if DEBUG_FENCES
-				UE_LOG(LogD3D12RHI, Log, TEXT("*** CPU WAIT Fence: %016llX (%s), Value: %u ***"), FenceCore->GetFence(), *GetName().ToString(), FenceValue);
+				UE_LOG(LogD3D12RHI, Log, TEXT("*** CPU WAIT Fence: %016llX (%s), Value: %u ***"), FenceCore->GetFence(), *Name.ToString(), FenceValue);
 #endif
 				// Multiple threads can be using the same FD3D12Fence (texture streaming).
 				FScopeLock Lock(&WaitForFenceCS);
