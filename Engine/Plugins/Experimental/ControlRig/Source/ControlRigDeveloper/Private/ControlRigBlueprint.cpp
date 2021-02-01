@@ -313,7 +313,7 @@ void UControlRigBlueprint::PostLoad()
 			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
 			for (URigVMNode* Node : Nodes)
 			{
-				GetOrCreateController()->RepopulatePinsOnNode(Node);
+				GetOrCreateController(GraphToDetach)->RepopulatePinsOnNode(Node);
 			}
 		}
 		SetupPinRedirectorsForBackwardsCompatibility();
@@ -1252,6 +1252,8 @@ void UControlRigBlueprint::SetTransientControlValue(const FRigElementKey& InElem
 void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UControlRigGraph* InGraph)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	
+	
 
 	// temporarily disable default value validation during load time, serialized values should always be accepted
 	TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);

@@ -4810,14 +4810,14 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		return false;
 	}
 
-	if (GetGraph()->IsA<URigVMFunctionLibrary>())
+	if (InPin->GetBoundVariablePath() == InNewBoundVariablePath)
 	{
-		ReportError(TEXT("Cannot bind pins to variables in function library graphs."));
 		return false;
 	}
 
-	if (InPin->GetBoundVariablePath() == InNewBoundVariablePath)
+	if (GetGraph()->IsA<URigVMFunctionLibrary>())
 	{
+		ReportError(TEXT("Cannot bind pins to variables in function library graphs."));
 		return false;
 	}
 
