@@ -31,9 +31,11 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdShadeMaterialTranslator::CreateAssets );
+
 	FString MaterialHashString = UsdUtils::HashShadeMaterial( ShadeMaterial ).ToString();
 
-	UMaterialInterface* ConvertedMaterial = Cast<UMaterialInterface>( Context->AssetCache.GetCachedAsset( MaterialHashString ) );
+	UMaterialInterface* ConvertedMaterial = Cast<UMaterialInterface>( Context->AssetCache->GetCachedAsset( MaterialHashString ) );
 
 	if ( !ConvertedMaterial )
 	{
@@ -46,7 +48,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			if ( GIsEditor ) // Also have to prevent Standalone game from going with MaterialInstanceConstants
 			{
 #if WITH_EDITOR
-				if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage() ) )
+				if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, Context->ObjectFlags ) )
 				{
 					NewMaterial->SetParentEditorOnly( MasterMaterial );
 
@@ -57,7 +59,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 					TMap<FString, int32> Unused;
 					TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;
 
-					UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, &Context->AssetCache, PrimvarToUVIndex );
+					UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex );
 
 					FMaterialUpdateContext UpdateContext( FMaterialUpdateContext::EOptions::Default, GMaxRHIShaderPlatform );
 					UpdateContext.AddMaterialInstance( NewMaterial );
@@ -73,7 +75,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				TMap<FString, int32> Unused;
 				TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;
 
-				UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, &Context->AssetCache, PrimvarToUVIndex );
+				UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex );
 
 				ConvertedMaterial = NewMaterial;
 			}
@@ -82,7 +84,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 	if ( ConvertedMaterial )
 	{
-		Context->AssetCache.CacheAsset( MaterialHashString, ConvertedMaterial, PrimPath.GetString() );
+		Context->AssetCache->CacheAsset( MaterialHashString, ConvertedMaterial, PrimPath.GetString() );
 	}
 }
 

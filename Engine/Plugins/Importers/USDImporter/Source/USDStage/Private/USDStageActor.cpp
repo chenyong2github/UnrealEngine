@@ -235,7 +235,7 @@ AUsdStageActor::AUsdStageActor()
 
 	RootComponent = SceneComponent;
 
-	AssetCache = MakeShared<FUsdAssetCache>();
+	AssetCache = CreateDefaultSubobject< UUsdAssetCache >( TEXT("AssetCache") );
 
 	RootUsdTwin = NewObject<UUsdPrimTwin>(this, TEXT("RootUsdTwin"), DefaultObjFlag);
 	RootUsdTwin->PrimPath = TEXT( "/" );
@@ -1108,12 +1108,6 @@ void AUsdStageActor::Serialize(FArchive& Ar)
 		Ar << ObjectsToWatch;
 		Ar << BlendShapesByPath;
 		Ar << MaterialToPrimvarToUVIndex;
-
-		if ( !AssetCache.IsValid() )
-		{
-			AssetCache = MakeShared<FUsdAssetCache>();
-		}
-		Ar << *AssetCache;
 	}
 }
 

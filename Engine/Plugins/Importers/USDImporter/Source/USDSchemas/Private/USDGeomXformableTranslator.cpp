@@ -168,6 +168,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents()
 
 USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSubclassOf< USceneComponent > > ComponentType, TOptional< bool > bNeedsActor )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomXformableTranslator::CreateComponentsEx );
+
 	if ( !Context->IsValid() )
 	{
 		return nullptr;
@@ -246,6 +248,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		FActorSpawnParameters SpawnParameters;
 		SpawnParameters.ObjectFlags = Context->ObjectFlags;
 		SpawnParameters.OverrideLevel =  Context->Level;
+		SpawnParameters.Name = Prim.GetName();
+		SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested; // Will generate a unique name in case of a conflict
 
 		UClass* ActorClass = UsdUtils::GetActorTypeForPrim( Prim );
 		AActor* SpawnedActor = Context->Level->GetWorld()->SpawnActor( ActorClass, nullptr, SpawnParameters );
@@ -253,7 +257,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		if ( SpawnedActor )
 		{
 #if WITH_EDITOR
-			SpawnedActor->SetActorLabel( Prim.GetName().ToString() );
+			const bool bMarkDirty = false;
+			SpawnedActor->SetActorLabel( Prim.GetName().ToString(), bMarkDirty );
 #endif // WITH_EDITOR
 
 			// Hack to show transient actors in world outliner
@@ -292,7 +297,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 				if ( CollapsesChildren( ECollapsingType::Assets ) )
 				{
-					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) ) )
+					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) ) )
 					{
 						// At this time, we only support collapsing static meshes together
 						ComponentType = UStaticMeshComponent::StaticClass();
@@ -346,6 +351,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneComponent )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomXformableTranslator::UpdateComponents );
+
 	if ( SceneComponent )
 	{
 		SceneComponent->Modify();
@@ -356,7 +363,7 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 		// so we must check for this and assign the new StaticMesh
 		if ( UStaticMeshComponent* StaticMeshComponent = Cast< UStaticMeshComponent >( SceneComponent ) )
 		{
-			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) );
+			UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) );
 
 			if ( PrimStaticMesh != StaticMeshComponent->GetStaticMesh() )
 			{

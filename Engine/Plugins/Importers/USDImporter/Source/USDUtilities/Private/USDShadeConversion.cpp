@@ -345,7 +345,7 @@ namespace UsdShadeConversionImpl
 	};
 	using FParameterValue = TVariant<float, FVector, FTextureParameterValue>;
 
-	bool GetTextureParameterValue( pxr::UsdShadeInput& ShadeInput, TextureGroup LODGroup, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, FUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
+	bool GetTextureParameterValue( pxr::UsdShadeInput& ShadeInput, TextureGroup LODGroup, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, UUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
 	{
 		FScopedUsdAllocs UsdAllocs;
 
@@ -371,11 +371,17 @@ namespace UsdShadeConversionImpl
 				{
 					OutValue.Set<FTextureParameterValue>( FTextureParameterValue{} );
 				}
+				else
+				{
+					return false;
+				}
+
+				const FString TextureHash = LexToString( FMD5Hash::HashFile( *TexturePath ) );
 
 				// We only actually want to retrieve the textures if we have a cache to put them in
 				if ( TexturesCache )
 				{
-					UTexture* Texture = Cast< UTexture >( TexturesCache->GetCachedAsset( TexturePath ) );
+					UTexture* Texture = Cast< UTexture >( TexturesCache->GetCachedAsset( TextureHash ) );
 					if ( !Texture )
 					{
 						// Give the same prim path to the texture, so that it ends up imported right next to the material
@@ -390,7 +396,7 @@ namespace UsdShadeConversionImpl
 						}
 #endif // WITH_EDITOR
 
-						Texture = UsdUtils::CreateTexture( FileInput.GetAttr(), MaterialPrimPath, LODGroup );
+						Texture = UsdUtils::CreateTexture( FileInput.GetAttr(), MaterialPrimPath, LODGroup, TexturesCache );
 					}
 
 					if ( Texture )
@@ -419,7 +425,7 @@ namespace UsdShadeConversionImpl
 							);
 						}
 
-						TexturesCache->CacheAsset( TexturePath, Texture );
+						TexturesCache->CacheAsset( TextureHash, Texture );
 
 						FTextureParameterValue OutTextureValue;
 						OutTextureValue.Texture = Texture;
@@ -473,7 +479,7 @@ namespace UsdShadeConversionImpl
 		return OutValue.IsType<FTextureParameterValue>();
 	}
 
-	bool GetFloatParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, float DefaultValue, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, FUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr)
+	bool GetFloatParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, float DefaultValue, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, UUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr)
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -508,7 +514,7 @@ namespace UsdShadeConversionImpl
 		return true;
 	}
 
-	bool GetVec3ParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, const FLinearColor& DefaultValue, FParameterValue& OutValue, bool bIsNormalMap = false, UMaterialInterface* Material = nullptr, FUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
+	bool GetVec3ParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, const FLinearColor& DefaultValue, FParameterValue& OutValue, bool bIsNormalMap = false, UMaterialInterface* Material = nullptr, UUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -687,7 +693,7 @@ namespace UsdShadeConversionImpl
 		Visit( Visitor, ParameterValue );
 	}
 
-	UTexture* CreateTextureWithEditor( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup )
+	UTexture* CreateTextureWithEditor( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup, UObject* Outer )
 	{
 		UTexture* Texture = nullptr;
 #if WITH_EDITOR
@@ -736,7 +742,18 @@ namespace UsdShadeConversionImpl
 				// Not inside an USDZ archive, just a regular texture
 				if ( !Texture )
 				{
-					Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), GetTransientPackage(), NAME_None, RF_Transient, ResolvedTexturePath, TEXT( "" ), bOutCancelled ) );
+					EObjectFlags ObjectFlags = RF_Transactional;
+					if ( !Outer )
+					{
+						Outer = GetTransientPackage();
+					}
+
+					if ( Outer == GetTransientPackage() )
+					{
+						ObjectFlags = ObjectFlags | RF_Transient;
+					}
+
+					Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), Outer, NAME_None, ObjectFlags, ResolvedTexturePath, TEXT( "" ), bOutCancelled ) );
 
 					if ( Texture )
 					{
@@ -1216,12 +1233,11 @@ namespace UsdShadeConversionImpl
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material )
 {
-	FUsdAssetCache EmptyCache;
 	TMap<FString, int32> PrimvarToUVIndex;
-	return ConvertMaterial( UsdShadeMaterial, Material, &EmptyCache, PrimvarToUVIndex );
+	return ConvertMaterial( UsdShadeMaterial, Material, nullptr, PrimvarToUVIndex );
 }
 
-bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, FUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
 {
 	bool bHasMaterialInfo = false;
 
@@ -1318,12 +1334,11 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material )
 {
-	FUsdAssetCache EmptyCache;
 	TMap<FString, int32> PrimvarToUVIndex;
-	return ConvertMaterial( UsdShadeMaterial, Material, &EmptyCache, PrimvarToUVIndex );
+	return ConvertMaterial( UsdShadeMaterial, Material, nullptr, PrimvarToUVIndex );
 }
 
-bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, FUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
+bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
 {
 	bool bHasMaterialInfo = false;
 
@@ -1415,32 +1430,6 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	return bHasMaterialInfo;
 }
 
-bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, TMap< FString, UObject* >& TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
-{
-	FUsdAssetCache TempCache{ TexturesCache };
-
-	bool bSuccess = ConvertMaterial( UsdShadeMaterial, Material, &TempCache, PrimvarToUVIndex );
-	if ( bSuccess )
-	{
-		TexturesCache = TempCache.GetCachedAssets();
-	}
-
-	return bSuccess;
-}
-
-bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex )
-{
-	FUsdAssetCache TempCache{ TexturesCache };
-
-	bool bSuccess = ConvertMaterial( UsdShadeMaterial, Material, &TempCache, PrimvarToUVIndex );
-	if ( bSuccess )
-	{
-		TexturesCache = TempCache.GetCachedAssets();
-	}
-
-	return bSuccess;
-}
-
 #if WITH_EDITOR
 bool UnrealToUsd::ConvertMaterialToBakedSurface( const UMaterialInterface& InMaterial, const TArray<FPropertyEntry>& InMaterialProperties, const FIntPoint& InDefaultTextureSize, const FDirectoryPath& InTexturesDir, pxr::UsdPrim& OutUsdShadeMaterialPrim )
 {
@@ -1494,12 +1483,14 @@ FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetP
 	return ResolvedTexturePath;
 }
 
-UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup )
+UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup, UObject* Outer )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( UsdUtils::CreateTexture );
+
 	// Standalone game does have WITH_EDITOR defined, but it can't use the texture factories, so we need to check this instead
 	if ( GIsEditor )
 	{
-		return UsdShadeConversionImpl::CreateTextureWithEditor( TextureAssetPathAttr, PrimPath, LODGroup );
+		return UsdShadeConversionImpl::CreateTextureWithEditor( TextureAssetPathAttr, PrimPath, LODGroup, Outer );
 	}
 	else
 	{

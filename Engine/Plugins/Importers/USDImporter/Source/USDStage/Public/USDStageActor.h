@@ -138,7 +138,7 @@ public:
 	void Refresh() const;
 	void ReloadAnimations();
 	float GetTime() { return Time; }
-	TWeakPtr<FUsdAssetCache> GetAssetCache() { return AssetCache; }
+	UUsdAssetCache* GetAssetCache() { return AssetCache; }
 	TMap< FString, TMap< FString, int32 > > GetMaterialToPrimvarToUVIndex() { return MaterialToPrimvarToUVIndex; }
 
 public:
@@ -185,9 +185,10 @@ private:
 	UPROPERTY(Transient)
 	TMap< UObject*, FString > ObjectsToWatch;
 
-private:
-	TSharedPtr<FUsdAssetCache> AssetCache;
+	UPROPERTY(VisibleAnywhere, Category = "USD", AdvancedDisplay)
+	UUsdAssetCache* AssetCache;
 
+private:
 	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
 	UsdUtils::FBlendShapeMap BlendShapesByPath;
 

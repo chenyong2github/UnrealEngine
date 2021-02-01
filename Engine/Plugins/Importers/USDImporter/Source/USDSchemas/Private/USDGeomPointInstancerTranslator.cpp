@@ -65,7 +65,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 		return true;
 	}
 
-	bool SetStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent, const FUsdAssetCache& AssetCache )
+	bool SetStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent, const UUsdAssetCache& AssetCache )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
 
@@ -186,7 +186,7 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 
 						if ( UHierarchicalInstancedStaticMeshComponent* HismComponent = Cast< UHierarchicalInstancedStaticMeshComponent >( UsdGeomPrimComponent ) )
 						{
-							UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( PrototypeGeomMesh, *HismComponent, Context->AssetCache );
+							UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( PrototypeGeomMesh, *HismComponent, *Context->AssetCache.Get() );
 							UsdGeomPointInstancerTranslatorImpl::ConvertGeomPointInstancer( Prim.GetStage(), PointInstancer, PrototypeIndex, *HismComponent, pxr::UsdTimeCode( Context->Time ) );
 						}
 					}

@@ -4296,7 +4296,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 				TextureName = *ShortPackageName;
 
 				// Don't try to rename the package if its the transient package
-				if ( InParent != GetTransientPackage() )
+				if ( InParent != GetTransientPackage() && InParent->IsA<UPackage>() )
 				{
 					// Need to rename the package to match the new texture name, since package was already created
 					// Package name will be the same as the object name, except will contain additional path information,

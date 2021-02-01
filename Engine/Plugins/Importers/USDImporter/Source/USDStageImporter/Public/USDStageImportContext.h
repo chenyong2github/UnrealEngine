@@ -13,7 +13,7 @@
 
 #include "USDStageImportContext.generated.h"
 
-class FUsdAssetCache;
+class UUsdAssetCache;
 class UUsdStageImportOptions;
 
 USTRUCT()
@@ -48,7 +48,8 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	/** Level sequence that will contain the animation data during the import process */
 	FUsdLevelSequenceHelper LevelSequenceHelper;
 
-	TSharedPtr<FUsdAssetCache> AssetCache;
+	UPROPERTY()
+	UUsdAssetCache* AssetCache;
 
 	/**
 	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.

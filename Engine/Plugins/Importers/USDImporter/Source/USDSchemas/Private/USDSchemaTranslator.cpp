@@ -124,9 +124,9 @@ void FUsdSchemaTranslatorRegistry::Unregister( const FRegisteredSchemaTranslator
 	}
 }
 
-FUsdSchemaTranslationContext::FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, FUsdAssetCache& InAssetCache )
+FUsdSchemaTranslationContext::FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, UUsdAssetCache& InAssetCache )
 	: Stage( InStage )
-	, AssetCache( InAssetCache )
+	, AssetCache( &InAssetCache )
 {
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 	RenderContext = UsdSchemasModule.GetRenderContextRegistry().GetUniversalRenderContext();

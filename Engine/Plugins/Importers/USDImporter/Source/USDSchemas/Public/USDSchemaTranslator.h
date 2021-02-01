@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAssetCache.h"
 #include "USDMemory.h"
 #include "USDSkeletalDataConversion.h"
 
@@ -18,6 +19,7 @@
 #include "Misc/Optional.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/StrongObjectPtr.h"
 
 class FRegisteredSchemaTranslator;
 class FUsdSchemaTranslator;
@@ -25,7 +27,6 @@ class FUsdSchemaTranslatorTaskChain;
 class ULevel;
 class USceneComponent;
 class UStaticMesh;
-class FUsdAssetCache;
 struct FUsdBlendShape;
 struct FUsdSchemaTranslationContext;
 
@@ -121,7 +122,7 @@ protected:
 
 struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUsdSchemaTranslationContext >
 {
-	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, FUsdAssetCache& InAssetCache );
+	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, UUsdAssetCache& InAssetCache );
 
 	/** pxr::UsdStage we're translating from */
 	UE::FUsdStage Stage;
@@ -145,7 +146,7 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	FName RenderContext;
 
 	/** Where the translated assets will be stored */
-	FUsdAssetCache& AssetCache;
+	TStrongObjectPtr< UUsdAssetCache > AssetCache;
 
 
 	/** Where we place imported blend shapes, if available */

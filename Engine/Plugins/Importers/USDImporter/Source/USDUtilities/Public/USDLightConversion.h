@@ -26,7 +26,7 @@ template< typename T > class TfRefPtr;
 using UsdStageRefPtr = TfRefPtr< UsdStage >;
 PXR_NAMESPACE_CLOSE_SCOPE
 
-class FUsdAssetCache;
+class UUsdAssetCache;
 class UDirectionalLightComponent;
 class ULightComponentBase;
 class UPointLightComponent;
@@ -54,10 +54,7 @@ namespace UsdToUnreal
 	USDUTILITIES_API bool ConvertRectLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxRectLight& RectLight, URectLightComponent& LightComponent, double TimeCode );
 	USDUTILITIES_API bool ConvertDiskLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDiskLight& DiskLight, URectLightComponent& LightComponent, double TimeCode );
 	USDUTILITIES_API bool ConvertSphereLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxSphereLight& SphereLight, UPointLightComponent& LightComponent, double TimeCode );
-	USDUTILITIES_API bool ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, FUsdAssetCache* TexturesCache, double TimeCode );
-
-	// DEPRECATED: Prefer the version receiving an FUsdAssetCache object
-	USDUTILITIES_API bool ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, TMap< FString, UObject* >& TexturesCache, double TimeCode );
+	USDUTILITIES_API bool ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, UUsdAssetCache* TexturesCache, double TimeCode );
 	USDUTILITIES_API bool ConvertLuxShapingAPI( const FUsdStageInfo& StageInfo, const pxr::UsdLuxShapingAPI& ShapingAPI, USpotLightComponent& LightComponent, double TimeCode );
 }
 

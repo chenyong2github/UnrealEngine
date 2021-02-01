@@ -54,7 +54,7 @@ namespace UsdSkelRootTranslatorImpl
 		const pxr::UsdPrim& UsdPrim,
 		TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo,
 		USkeletalMesh* SkeletalMesh,
-		FUsdAssetCache& AssetCache,
+		UUsdAssetCache& AssetCache,
 		float Time, EObjectFlags Flags,
 		bool bSkeletalMeshHasMorphTargets
 	)
@@ -312,7 +312,7 @@ namespace UsdSkelRootTranslatorImpl
 		TSet<FString>& InOutUsedMorphTargetNames,
 		const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarsUVSetNames,
 		float InTime,
-		const FUsdAssetCache& AssetCache,
+		const UUsdAssetCache& AssetCache,
 		bool bInInterpretLODs
 	)
 	{
@@ -513,7 +513,7 @@ namespace UsdSkelRootTranslatorImpl
 	}
 
 	/** Warning: This function will temporarily switch the active LOD variant if one exists, so it's *not* thread safe! */
-	void SetMaterialOverrides( const pxr::UsdPrim& SkelRootPrim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, FUsdAssetCache& AssetCache, float Time, EObjectFlags Flags, bool bInterpretLODs )
+	void SetMaterialOverrides( const pxr::UsdPrim& SkelRootPrim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, UUsdAssetCache& AssetCache, float Time, EObjectFlags Flags, bool bInterpretLODs )
 	{
 		pxr::UsdSkelRoot SkelRoot{ SkelRootPrim };
 		if ( !SkelRoot )
@@ -729,7 +729,7 @@ namespace UsdSkelRootTranslatorImpl
 					UsedMorphTargetNames,
 					*MaterialToPrimvarToUVIndex,
 					Context->Time,
-					Context->AssetCache,
+					*Context->AssetCache.Get(),
 					Context->bAllowInterpretingLODs
 				);
 
@@ -743,7 +743,7 @@ namespace UsdSkelRootTranslatorImpl
 				FString SkelRootPath = PrimPath.GetString();
 				FSHAHash SkeletalMeshHash = UsdSkelRootTranslatorImpl::ComputeSHAHash( LODIndexToSkeletalMeshImportData, SkeletonBones );
 
-				USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache.GetCachedAsset( SkeletalMeshHash.ToString() ) );
+				USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache->GetCachedAsset( SkeletalMeshHash.ToString() ) );
 
 				bool bIsNew = false;
 				if ( !SkeletalMesh )
@@ -760,7 +760,7 @@ namespace UsdSkelRootTranslatorImpl
 							GetPrim(),
 							LODIndexToMaterialInfo,
 							SkeletalMesh,
-							Context->AssetCache,
+							*Context->AssetCache.Get(),
 							Context->Time,
 							Context->ObjectFlags,
 							NewBlendShapes.Num() > 0
@@ -776,11 +776,11 @@ namespace UsdSkelRootTranslatorImpl
 						ImportData->PrimPath = SkelRootPath;
 						SkeletalMesh->SetAssetImportData(ImportData);
 
-						Context->AssetCache.CacheAsset( SkeletalMeshHash.ToString(), SkeletalMesh );
-						Context->AssetCache.CacheAsset( SkeletalMeshHash.ToString() + TEXT( "_Skeleton" ), SkeletalMesh->GetSkeleton() );
+						Context->AssetCache->CacheAsset( SkeletalMeshHash.ToString(), SkeletalMesh );
+						Context->AssetCache->CacheAsset( SkeletalMeshHash.ToString() + TEXT( "_Skeleton" ), SkeletalMesh->GetSkeleton() );
 					}
 
-					Context->AssetCache.LinkAssetToPrim( SkelRootPath, SkeletalMesh );
+					Context->AssetCache->LinkAssetToPrim( SkelRootPath, SkeletalMesh );
 
 					// We may be reusing a skeletal mesh we got in the cache, but we always need the BlendShapesByPath stored on the
 					// actor to be up-to-date with the Skeletal Mesh that is actually being displayed
@@ -804,7 +804,7 @@ namespace UsdSkelRootTranslatorImpl
 					return false;
 				}
 
-				USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) );
+				USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) );
 				if ( !SkeletalMesh )
 				{
 					return false;
@@ -836,7 +836,7 @@ namespace UsdSkelRootTranslatorImpl
 
 						FSHAHash Hash = UsdSkelRootTranslatorImpl::ComputeSHAHash( SkelQuery );
 						FString HashString = Hash.ToString();
-						UAnimSequence* AnimSequence = Cast< UAnimSequence >( Context->AssetCache.GetCachedAsset( HashString ) );
+						UAnimSequence* AnimSequence = Cast< UAnimSequence >( Context->AssetCache->GetCachedAsset( HashString ) );
 
 						if ( !AnimSequence || AnimSequence->GetSkeleton() != SkeletalMesh->GetSkeleton() )
 						{
@@ -863,7 +863,7 @@ namespace UsdSkelRootTranslatorImpl
 								ImportData->PrimPath = GetPrim().GetPrimPath().GetString(); // Point to the SkelRoot so that it ends up next to the skeletal mesh
 								AnimSequence->AssetImportData = ImportData;
 
-								Context->AssetCache.CacheAsset( HashString, AnimSequence );
+								Context->AssetCache->CacheAsset( HashString, AnimSequence );
 							}
 							else
 							{
@@ -912,7 +912,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 #if WITH_EDITOR
 	// Re-set the skeletal mesh if we created a new one (maybe the hash changed, a skinned UsdGeomMesh was hidden, etc.)
-	USkeletalMesh* TargetSkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache.GetAssetForPrim( PrimPath.GetString() ) );
+	USkeletalMesh* TargetSkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) );
 	if ( PoseableMeshComponent->SkeletalMesh != TargetSkeletalMesh )
 	{
 		PoseableMeshComponent->SetSkeletalMesh(TargetSkeletalMesh);
@@ -937,7 +937,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 						GetPrim(),
 						ExistingAssignments,
 						*PoseableMeshComponent,
-						Context->AssetCache,
+						*Context->AssetCache.Get(),
 						Context->Time,
 						Context->ObjectFlags,
 						Context->bAllowInterpretingLODs

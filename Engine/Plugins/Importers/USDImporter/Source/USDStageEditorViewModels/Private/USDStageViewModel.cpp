@@ -228,7 +228,7 @@ void FUsdStageViewModel::ImportStage()
 
 			// Let the importer reuse our assets, but force it to spawn new actors and components always
 			// This allows a different setting for asset/component collapsing, and doesn't require modifying the PrimTwins
-			ImportContext.AssetCache = StageActor->GetAssetCache().Pin();
+			ImportContext.AssetCache = StageActor->GetAssetCache();
 			ImportContext.MaterialToPrimvarToUVIndex = StageActor->GetMaterialToPrimvarToUVIndex();
 
 			UUsdStageImporter* USDImporter = IUsdStageImporterModule::Get().GetImporter();

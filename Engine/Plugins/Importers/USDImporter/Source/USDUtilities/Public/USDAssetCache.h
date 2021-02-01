@@ -4,33 +4,27 @@
 
 #include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "UObject/GCObject.h"
+
+#include "USDAssetCache.generated.h"
 
 /** Owns the assets generated and reused by the USD stage, allowing thread-safe retrieval/storage */
-class USDUTILITIES_API FUsdAssetCache final : public FGCObject
+UCLASS()
+class USDUTILITIES_API UUsdAssetCache final : public UObject
 {
+	GENERATED_BODY()
+
 public:
-	FUsdAssetCache() = default;
-
-	// Temporary constructor to allow quickly building one of these while we still maintain deprecated signatures to functions
-	// that receive asset caches as direct maps
-	explicit FUsdAssetCache( TMap< FString, UObject* >& InHashToAssets );
-
-	//~ Begin FGCObject interface
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
-	//~ End FGCObject interface
-
 	void CacheAsset( const FString& Hash, UObject* Asset, const FString& PrimPath = FString() );
 	void DiscardAsset( const FString& Hash );
 	UObject* GetCachedAsset( const FString& Hash ) const;
-	TMap< FString, UObject* > GetCachedAssets() const { return HashToAssets; }; // Can't return a reference as it wouldn't be thread-safe
+	TMap< FString, UObject* > GetCachedAssets() const;
 
 	void LinkAssetToPrim( const FString& PrimPath, UObject* Asset );
 	void RemoveAssetPrimLink( const FString& PrimPath );
 	UObject* GetAssetForPrim( const FString& PrimPath ) const;
 	TMap< FString, UObject* > GetAssetPrimLinks() const { return PrimPathToAssets; }; // Can't return a reference as it wouldn't be thread-safe
 
-	int32 GetNumAssets() const { return HashToAssets.Num(); }
+	int32 GetNumAssets() const { return TransientStorage.Num() + PersistentStorage.Num(); }
 	void Reset();
 
 	/**
@@ -47,11 +41,14 @@ public:
 	TSet<UObject*> GetActiveAssets() const;
 
 	// We need to be serializable so that AUsdStageActor can duplicate us for PIE
-	USDUTILITIES_API friend FArchive& operator<<( FArchive&, FUsdAssetCache& );
+	virtual void Serialize( FArchive& Ar ) override;
 
 private:
-	// Primary storage
-	TMap< FString, UObject* > HashToAssets;
+	UPROPERTY(transient, VisibleAnywhere, Category="Assets")
+	TMap< FString, UObject* > TransientStorage;
+
+	UPROPERTY(VisibleAnywhere, Category="Assets")
+	TMap< FString, UObject* > PersistentStorage;
 
 	// Points to the assets in primary storage, used to quickly check if we own an asset
 	TSet< UObject* > OwnedAssets;

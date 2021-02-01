@@ -987,7 +987,7 @@ UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* Identifier, EUsdInitialL
 		}
 	}
 
-	if ( !bUseStageCache )
+	if ( !bUseStageCache && Stage )
 	{
 		// Layers are cached in the layer registry independently of the stage cache. If the layer is already in the registry by the time
 		// we try to open a stage, even if we're not using a stage cache at all the layer will be reused and the file will *not* be re-read.

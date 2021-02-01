@@ -1158,9 +1158,9 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	UsdUtils::FBlendShapeMap BlendShapesByPath;
 
 	// Ensure a valid asset cache
-	if ( !ImportContext.AssetCache.IsValid() )
+	if ( !ImportContext.AssetCache )
 	{
-		ImportContext.AssetCache = MakeShared<FUsdAssetCache>();
+		ImportContext.AssetCache = NewObject<UUsdAssetCache>();
 	}
 	ImportContext.AssetCache->MarkAssetsAsStale();
 
@@ -1220,9 +1220,9 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	UsdUtils::FBlendShapeMap BlendShapesByPath;
 
 	// Ensure a valid asset cache
-	if ( !ImportContext.AssetCache.IsValid() )
+	if ( !ImportContext.AssetCache )
 	{
-		ImportContext.AssetCache = MakeShared<FUsdAssetCache>();
+		ImportContext.AssetCache = NewObject<UUsdAssetCache>();
 	}
 	ImportContext.AssetCache->MarkAssetsAsStale();
 
