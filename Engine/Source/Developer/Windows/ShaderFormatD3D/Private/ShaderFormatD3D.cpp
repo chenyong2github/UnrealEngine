@@ -5,9 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
-#include "DxcWrapper.h"
-#include "HAL/PlatformProcess.h"
-#include "Misc/Paths.h"
+#include "DXCWrapper.h"
 
 static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
@@ -28,20 +26,31 @@ class FShaderFormatD3D : public IShaderFormat
 		check(Format == NAME_PCD3D_SM6 || Format == NAME_PCD3D_SM5 || Format == NAME_PCD3D_ES3_1);
 	}
 
+	uint32 DxcVersionHash = 0;
+
 public:
+
+	FShaderFormatD3D(uint32 InDxcVersionHash)
+		: DxcVersionHash(InDxcVersionHash)
+	{
+	}
+
 	virtual uint32 GetVersion(FName Format) const override
 	{
 		CheckFormat(Format);
 		if (Format == NAME_PCD3D_SM6)
 		{
-			return UE_SHADER_PCD3D_SM6_VER;
+			return HashCombine(DxcVersionHash, GetTypeHash(UE_SHADER_PCD3D_SM6_VER));
 		}
 		else if (Format == NAME_PCD3D_SM5)
 		{
-			return UE_SHADER_PCD3D_SM5_VER;
+			// Technically not needed for regular SM5 commpiled with legacy compiler,
+			// but PCD3D_SM5 currently includes ray tracing shaders that are compiled with new compiler stack.
+			return HashCombine(DxcVersionHash, GetTypeHash(UE_SHADER_PCD3D_SM5_VER));
 		}
 		else if (Format == NAME_PCD3D_ES3_1) 
 		{
+			// Shader DXC signature is intentionally not included, as ES3_1 target always uses legacy compiler.
 			return UE_SHADER_PCD3D_ES3_1_VER;
 		}
 		checkf(0, TEXT("Unknown Format %s"), *Format.ToString());
@@ -89,55 +98,9 @@ static IShaderFormat* Singleton = nullptr;
 
 class FShaderFormatD3DModule : public IShaderFormatModule, public FDxcModuleWrapper
 {
-	void* DllHandleSC = nullptr;
-	void* DllHandleDXC = nullptr;
-	void* DllHandleDXIL = nullptr;
-
 public:
-	FShaderFormatD3DModule()
-	{
-		FString DllPath;
-		{
-#if PLATFORM_WINDOWS
-			DllPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/ShaderConductor/Win64/ShaderConductor.dll");
-#endif
-			checkf(DllPath.Len() > 0, TEXT("Unable to load %s"), *DllPath);
-			DllHandleSC = FPlatformProcess::GetDllHandle(*DllPath);
-		}
-		{
-#if PLATFORM_WINDOWS
-			DllPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/ShaderConductor/Win64/dxcompiler.dll");
-#endif
-			checkf(DllPath.Len() > 0, TEXT("Unable to load %s"), *DllPath);
-			DllHandleDXC = FPlatformProcess::GetDllHandle(*DllPath);
-		}
-		{
-#if PLATFORM_WINDOWS
-			DllPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Windows/DirectX/x64/dxil.dll");
-#endif
-			checkf(DllPath.Len() > 0, TEXT("Unable to load %s"), *DllPath);
-			DllHandleDXIL = FPlatformProcess::GetDllHandle(*DllPath);
-		}
-	}
-
 	virtual ~FShaderFormatD3DModule()
 	{
-		if (DllHandleDXC)
-		{
-			FPlatformProcess::FreeDllHandle(DllHandleDXC);
-			DllHandleDXC = nullptr;
-		}
-		if (DllHandleDXIL)
-		{
-			FPlatformProcess::FreeDllHandle(DllHandleDXIL);
-			DllHandleDXIL = nullptr;
-		}
-		if (DllHandleSC)
-		{
-			FPlatformProcess::FreeDllHandle(DllHandleSC);
-			DllHandleSC = nullptr;
-		}
-
 		delete Singleton;
 		Singleton = nullptr;
 	}
@@ -146,7 +109,7 @@ public:
 	{
 		if (!Singleton)
 		{
-			Singleton = new FShaderFormatD3D();
+			Singleton = new FShaderFormatD3D(FDxcModuleWrapper::ModuleVersionHash);
 		}
 		return Singleton;
 	}

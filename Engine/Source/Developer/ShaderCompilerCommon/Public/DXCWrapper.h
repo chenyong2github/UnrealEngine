@@ -19,7 +19,7 @@ class SHADERCOMPILERCOMMON_API FDxcModuleWrapper
 {
 protected:
 	TRefCountPtr<FDllHandle> Dxc;
-
+	uint32 ModuleVersionHash = 0;
 public:
 	FDxcModuleWrapper();
 	virtual ~FDxcModuleWrapper();
@@ -29,7 +29,7 @@ class SHADERCOMPILERCOMMON_API FShaderConductorModuleWrapper : public FDxcModule
 {
 protected:
 	TRefCountPtr<FDllHandle> ShaderConductor;
-
+	uint32 ModuleVersionHash = 0;
 public:
 	FShaderConductorModuleWrapper();
 	virtual ~FShaderConductorModuleWrapper();

@@ -48,14 +48,25 @@ class FShaderFormatVulkan : public IShaderFormat
 		return -1;
 	}
 
+	uint32 ShaderConductorVersionHash;
+
 public:
+
+	FShaderFormatVulkan(uint32 InShaderConductorVersionHash)
+		: ShaderConductorVersionHash(InShaderConductorVersionHash)
+	{
+	}
+
 	virtual uint32 GetVersion(FName Format) const override
 	{
-		const uint8 HLSLCCVersion = ((HLSLCC_VersionMajor & 0x0f) << 4) | (HLSLCC_VersionMinor & 0x0f);
-		uint16 Version = ((HLSLCCVersion & 0xff) << 8) | (InternalGetVersion(Format) & 0xff);
-#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
-		Version = (Version << 1) + Version;
-#endif
+		uint32 Version = HashCombine(GetTypeHash(HLSLCC_VersionMajor), GetTypeHash(HLSLCC_VersionMinor));
+		Version = HashCombine(Version, GetTypeHash(InternalGetVersion(Format)));
+		Version = HashCombine(Version, GetTypeHash(ShaderConductorVersionHash));
+
+	#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
+		Version = HashCombine(Version, 0xFC0848E2);
+	#endif
+
 		return Version;
 	}
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const
@@ -140,7 +151,7 @@ public:
 	{
 		if (!Singleton)
 		{
-			Singleton = new FShaderFormatVulkan();
+			Singleton = new FShaderFormatVulkan(FShaderConductorModuleWrapper::ModuleVersionHash);
 		}
 
 		return Singleton;

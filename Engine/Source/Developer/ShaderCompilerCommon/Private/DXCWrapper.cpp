@@ -4,9 +4,50 @@
 #include "HAL/PlatformProcess.h"
 #include "Templates/RefCounting.h"
 #include "Misc/Paths.h"
+#include "Hash/CityHash.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/WindowsHWrapper.h"
+#endif // PLATFORM_WINDOWS
 
 static TRefCountPtr<FDllHandle> GDxcHandle;
 static TRefCountPtr<FDllHandle> GShaderConductorHandle;
+
+static uint64 GetLoadedModuleVersion(const TCHAR* ModuleName)
+{
+#if PLATFORM_WINDOWS
+	HMODULE ModuleDll = ::GetModuleHandleW(ModuleName);
+	if (ModuleDll == INVALID_HANDLE_VALUE)
+	{
+		return 0;
+	}
+
+	TCHAR DllPath[4096] = {};
+	int32 PathLen = ::GetModuleFileNameW(ModuleDll, DllPath, UE_ARRAY_COUNT(DllPath));
+	if (PathLen == 0)
+	{
+		return 0;
+	}
+	check(PathLen < UE_ARRAY_COUNT(DllPath));
+
+	// Official shader compiler binaries will have the the version, but anything that we compile ourselves won't
+	uint64 FileVersion = FPlatformMisc::GetFileVersion(DllPath);
+	if (FileVersion == 0)
+	{
+		TUniquePtr<FArchive> FileReader(IFileManager::Get().CreateFileReader(DllPath));
+		if (FileReader)
+		{
+			TArray<char> FileContents;
+			FileContents.SetNumUninitialized(FileReader->TotalSize());
+			FileReader->Serialize(FileContents.GetData(), FileContents.Num());
+			FileVersion = CityHash64(FileContents.GetData(), FileContents.Num());
+		}
+	}
+	return FileVersion;
+#else // PLATFORM_WINDOWS
+	return 0;
+#endif // PLATFORM_WINDOWS
+}
 
 FDllHandle::FDllHandle(const TCHAR* InFilename)
 {
@@ -39,6 +80,15 @@ FDxcModuleWrapper::FDxcModuleWrapper()
 	{
 		GDxcHandle->AddRef();
 	}
+
+	static uint64 DxcVersion = GetLoadedModuleVersion(TEXT("dxcompiler.dll"));
+
+	// If dxil.dll is present, it's automatically loaded by dxcompiler.dll and used for validation and signing.
+	// If dxil.dll is not present, shaders will silently be unsigned and will fail to load outside of development environment.
+	// This must be taken into account when computing DDC key for D3D shaders.
+	static uint64 DxilVersion = GetLoadedModuleVersion(TEXT("dxil.dll"));
+
+	ModuleVersionHash = HashCombine(GetTypeHash(DxcVersion), GetTypeHash(DxilVersion));
 }
 
 FDxcModuleWrapper::~FDxcModuleWrapper()
@@ -57,6 +107,10 @@ FShaderConductorModuleWrapper::FShaderConductorModuleWrapper()
 	{
 		GShaderConductorHandle->AddRef();
 	}
+
+	static uint64 DllVersion = GetLoadedModuleVersion(TEXT("ShaderConductor.dll"));
+
+	ModuleVersionHash = HashCombine(GetTypeHash(DllVersion), FDxcModuleWrapper::ModuleVersionHash);
 }
 
 FShaderConductorModuleWrapper::~FShaderConductorModuleWrapper()
