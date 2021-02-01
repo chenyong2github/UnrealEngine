@@ -9,7 +9,7 @@
 #define TILE_SIZE 8
 #define GROUP_THREAD_COUNT (TILE_SIZE*TILE_SIZE)
 
-#if SHADER_CATEGORIZATION
+#if SHADER_CATEGORIZATION 
 
 // Note: 
 // This code is partial copy of PackStrataOut in Strata.ush. 
