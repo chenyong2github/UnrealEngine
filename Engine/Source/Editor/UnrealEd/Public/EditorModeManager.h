@@ -117,6 +117,7 @@ protected:
 		
 private:
 	void RebuildModeToolBar();
+	void SpawnOrUpdateModeToolbar();
 public:
 
 	/**
@@ -497,6 +498,11 @@ public:
 	void ActorPropChangeNotify();
 	void UpdateInternalData();
 	bool IsOnlyVisibleActiveMode(FEditorModeID InMode) const;
+
+	/*
+	* Sets the active Modes ToolBar Palette Tab to the named Palette
+	*/
+	void  InvokeToolPaletteTab(FEditorModeID InMode, FName InPaletteName);
 
 	/** returns true if all active EdModes are OK with an AutoSave happening now  */
 	bool CanAutoSave() const;

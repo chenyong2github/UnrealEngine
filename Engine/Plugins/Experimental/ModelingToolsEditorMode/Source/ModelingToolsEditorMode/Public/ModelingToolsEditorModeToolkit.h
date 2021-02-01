@@ -44,6 +44,8 @@ public:
 	virtual FText GetToolPaletteDisplayName(FName PaletteName) const; 
 	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
+	virtual bool HasIntegratedToolPalettes() const { return false; }
+	virtual bool HasExclusiveToolPalettes() const { return false; }
 
 	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
 	virtual FText GetActiveToolMessage() const override { return ActiveToolMessage; }

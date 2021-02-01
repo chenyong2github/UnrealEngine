@@ -1779,13 +1779,13 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		
 		PaletteToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Recessed));
 
-		PaletteToolBarStyle.SetLabelPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+		PaletteToolBarStyle.SetLabelPadding(FMargin(0.0f, 1.0f, 0.0f, 0.0f));
 
-		PaletteToolBarStyle.SetButtonPadding(       FMargin(2.0f, 2.0f));
-		PaletteToolBarStyle.SetCheckBoxPadding(     FMargin(1.0f, 1.0f));
-		PaletteToolBarStyle.SetComboButtonPadding(  FMargin(1.0f, 1.0f));
-		PaletteToolBarStyle.SetIndentedBlockPadding(FMargin(1.0f, 1.0f));
-		PaletteToolBarStyle.SetBlockPadding(        FMargin(1.0f, 1.0f));
+		PaletteToolBarStyle.SetButtonPadding(       FMargin(0.0f, 0.0f));
+		PaletteToolBarStyle.SetCheckBoxPadding(     FMargin(0.0f, 0.0f));
+		PaletteToolBarStyle.SetComboButtonPadding(  FMargin(0.0f, 0.0f));
+		PaletteToolBarStyle.SetIndentedBlockPadding(FMargin(0.0f, 0.0f));
+		PaletteToolBarStyle.SetBlockPadding(        FMargin(0.0f, 0.0f));
 
 		Set( "PaletteToolBar.Tab",  FCheckBoxStyle()
 			.SetCheckBoxType(            ESlateCheckBoxType::ToggleButton)
@@ -1806,8 +1806,11 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetPadding(FMargin(2.f, 6.f))
 		);
 
-		Set("PaletteToolBar.MaxUniformToolbarSize", 64.f);
-		Set("PaletteToolBar.MinUniformToolbarSize", 64.f);
+		Set("PaletteToolBar.MaxUniformToolbarSize", 48.f);
+		Set("PaletteToolBar.MinUniformToolbarSize", 48.f);
+
+		Set("PaletteToolBar.ExpandableAreaHeader", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0, 4.0, 0.0, 0.0)));
+		Set("PaletteToolBar.ExpandableAreaBody", new FSlateRoundedBoxBrush(FStyleColors::Recessed, FVector4(0.0, 0.0, 4.0, 4.0)));
 		
 		FLinearColor ButtonHoverColor(FColor(81, 81, 81));
 

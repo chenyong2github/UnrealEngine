@@ -17,7 +17,6 @@
 #include "EdMode.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SUniformWrapPanel.h"
 #include "StatusBarSubsystem.h"
@@ -173,95 +172,100 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 
 			TWeakPtr<FModeToolkit> ModeToolkit = StaticCastSharedPtr<FModeToolkit>(Toolkit);
 
-			TSharedRef< SUniformWrapPanel> PaletteTabBox = SNew(SUniformWrapPanel)
-				.SlotPadding( FMargin(1.f, 2.f) )
-				.HAlign(HAlign_Center);
-
-			// Only show if there is more than one child in the switcher
-			PaletteTabBox->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([PaletteTabBox]() -> EVisibility { return PaletteTabBox->GetChildren()->Num() > 1 ? EVisibility::Visible : EVisibility::Collapsed; }) ));
-
-			// Also build the toolkit here 
-			TArray<FName> PaletteNames;
-			ModeToolkit.Pin()->GetToolPaletteNames(PaletteNames);
-
-			TSharedPtr<FUICommandList> CommandList;
-			CommandList = ModeToolkit.Pin()->GetToolkitCommands();
-
-			TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher)
-			.WidgetIndex_Lambda( [PaletteNames, ModeToolkit] () -> int32 { 
-				int32 FoundIndex;
-				TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
-				if (PinnedToolkit.IsValid() && PaletteNames.Find(PinnedToolkit->GetCurrentPalette(), FoundIndex))
-				{
-					return FoundIndex;	
-				}
-				return 0;
-			} );
-			
-			for(auto Palette : PaletteNames)
+			if (ModeToolkit.Pin()->HasIntegratedToolPalettes())
 			{
-				FName ToolbarCustomizationName = ModeToolkit.Pin()->GetEditorMode() ? ModeToolkit.Pin()->GetEditorMode()->GetModeInfo().ToolbarCustomizationName : ModeToolkit.Pin()->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
-				FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
-				ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
+				TSharedRef< SUniformWrapPanel> PaletteTabBox = SNew(SUniformWrapPanel)
+					.SlotPadding( FMargin(1.f, 2.f) )
+					.HAlign(HAlign_Center);
 
-				ModeToolkit.Pin()->BuildToolPalette(Palette, ModeToolbarBuilder);
+				// Only show if there is more than one child in the switcher
+				PaletteTabBox->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([PaletteTabBox]() -> EVisibility { return PaletteTabBox->GetChildren()->Num() > 1 ? EVisibility::Visible : EVisibility::Collapsed; }) ));
 
-				TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
+				// Also build the toolkit here 
+				TArray<FName> PaletteNames;
+				ModeToolkit.Pin()->GetToolPaletteNames(PaletteNames);
 
-				PaletteTabBox->AddSlot()
-				[
-					SNew(SCheckBox)
-					.Padding(FMargin(8.f, 4.f, 8.f, 5.f))
-					.Style( FEditorStyle::Get(),  "PaletteToolBar.Tab" )
-					.OnCheckStateChanged_Lambda([/*PaletteSwitcher, PaletteWidget, */ModeToolkit, Palette](const ECheckBoxState) {
-							TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
-							if (PinnedToolkit.IsValid())
-							{
-								PinnedToolkit->SetCurrentPalette(Palette);
-							}
-						} 
-					)
-					// .IsChecked_Lambda( [PaletteSwitcher, PaletteWidget] () -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-					.IsChecked_Lambda([ModeToolkit, Palette]() -> ECheckBoxState {
-						TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
-						if (PinnedToolkit.IsValid() && (PinnedToolkit->GetCurrentPalette() == Palette))
-						{
-							return ECheckBoxState::Checked;
-						}
-						return ECheckBoxState::Unchecked;
-					})
+				TSharedPtr<FUICommandList> CommandList;
+				CommandList = ModeToolkit.Pin()->GetToolkitCommands();
+
+				TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher)
+				.WidgetIndex_Lambda( [PaletteNames, ModeToolkit] () -> int32 { 
+					int32 FoundIndex;
+					TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
+					if (PinnedToolkit.IsValid() && PaletteNames.Find(PinnedToolkit->GetCurrentPalette(), FoundIndex))
+					{
+						return FoundIndex;	
+					}
+					return 0;
+				} );
+				
+				
+				for(auto Palette : PaletteNames)
+				{
+					FName ToolbarCustomizationName = ModeToolkit.Pin()->GetEditorMode() ? ModeToolkit.Pin()->GetEditorMode()->GetModeInfo().ToolbarCustomizationName : ModeToolkit.Pin()->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
+					FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
+					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
+
+					ModeToolkit.Pin()->BuildToolPalette(Palette, ModeToolbarBuilder);
+
+					TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
+
+					PaletteTabBox->AddSlot()
 					[
-						SNew(STextBlock)
-						.TextStyle(FAppStyle::Get(), "NormalText")
-						.Text(ModeToolkit.Pin()->GetToolPaletteDisplayName(Palette))
-						.Justification(ETextJustify::Center)
+						SNew(SCheckBox)
+						.Padding(FMargin(8.f, 4.f, 8.f, 5.f))
+						.Style( FEditorStyle::Get(),  "PaletteToolBar.Tab" )
+						.OnCheckStateChanged_Lambda([ModeToolkit, Palette](const ECheckBoxState) {
+								TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
+								if (PinnedToolkit.IsValid())
+								{
+									PinnedToolkit->SetCurrentPalette(Palette);
+								}
+							} 
+						)
+						// .IsChecked_Lambda( [PaletteSwitcher, PaletteWidget] () -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+						.IsChecked_Lambda([ModeToolkit, Palette]() -> ECheckBoxState {
+							TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
+							if (PinnedToolkit.IsValid() && (PinnedToolkit->GetCurrentPalette() == Palette))
+							{
+								return ECheckBoxState::Checked;
+							}
+							return ECheckBoxState::Unchecked;
+						})
+						[
+							SNew(STextBlock)
+							.TextStyle(FAppStyle::Get(), "NormalText")
+							.Text(ModeToolkit.Pin()->GetToolPaletteDisplayName(Palette))
+							.Justification(ETextJustify::Center)
+						]
+					];
+
+
+					PaletteSwitcher->AddSlot()
+					[
+						PaletteWidget
+					]; 
+				}
+
+
+				ModeToolHeader->SetContent(
+					SNew(SVerticalBox)
+
+					+SVerticalBox::Slot()
+					.Padding(8.f, 0.f, 0.f, 8.f)
+					.AutoHeight()
+					[
+						PaletteTabBox
 					]
-				];
 
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						PaletteSwitcher
+					]
+				);
 
-				PaletteSwitcher->AddSlot()
-				[
-					PaletteWidget
-				]; 
 			}
-
-
-			ModeToolHeader->SetContent(
-				SNew(SVerticalBox)
-
-				+SVerticalBox::Slot()
-				.Padding(8.f, 0.f, 0.f, 8.f)
-				.AutoHeight()
-				[
-					PaletteTabBox
-				]
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					PaletteSwitcher
-				]
-			);
 
 			if (StatusBarMessageHandle.IsValid())
 			{

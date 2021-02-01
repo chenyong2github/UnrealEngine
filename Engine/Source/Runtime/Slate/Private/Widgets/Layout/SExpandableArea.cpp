@@ -36,8 +36,7 @@ void SExpandableArea::Construct( const FArguments& InArgs )
 		HeaderContent = 
 			SNew(STextBlock)
 			.Text(InArgs._AreaTitle)
-			.Font(InArgs._AreaTitleFont)
-			.ShadowOffset(FVector2D(1.0f, 1.0f));
+			.Font(InArgs._AreaTitleFont);
 	}
 
 	// If the user wants the body of the expanded section to be different from the title area,

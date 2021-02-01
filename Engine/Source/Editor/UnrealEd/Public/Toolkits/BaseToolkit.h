@@ -138,6 +138,12 @@ public:
 	 **/
 	virtual FText GetToolPaletteDisplayName(FName Palette) const { return FText(); }
 
+	/* Exclusive Tool Palettes only allow users to use tools from one palette at a time */
+	virtual bool HasExclusiveToolPalettes() const { return true; }
+
+	/* Integrated Tool Palettes show up in the same panel as their details */
+	virtual bool HasIntegratedToolPalettes() const { return true; }
+
 	/**
 	 * @param PaletteIndex      The index of the ToolPalette to build
 	 * @param ToolbarBuilder    The builder to use for given PaletteIndex
