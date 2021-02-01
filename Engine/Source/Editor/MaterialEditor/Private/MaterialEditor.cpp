@@ -5110,7 +5110,7 @@ void FMaterialEditor::JumpToExpression(UMaterialExpression* Expression)
 		else
 		{
 			UMaterialExpressionParameter* GraphExpression = Material->FindExpressionByGUID<UMaterialExpressionParameter>(Expression->GetParameterExpressionId());
-			ExpressionNode = GraphExpression ? GraphExpression->GraphNode : nullptr;
+			ExpressionNode = GraphExpression ? ToRawPtr(GraphExpression->GraphNode) : nullptr;
 		}
 	}
 	else if (UMaterialExpressionFunctionOutput* ExpressionOutput = Cast<UMaterialExpressionFunctionOutput>(Expression))
@@ -5122,7 +5122,7 @@ void FMaterialEditor::JumpToExpression(UMaterialExpression* Expression)
 			{
 				return GraphExpressionOutput->Id == ExpressionOutput->Id;
 			});
-		ExpressionNode = GraphExpression ? (*GraphExpression)->GraphNode : nullptr;
+		ExpressionNode = GraphExpression ? ToRawPtr((*GraphExpression)->GraphNode) : nullptr;
 	}
 
 	JumpToNode(ExpressionNode);
@@ -5871,7 +5871,7 @@ void FMaterialEditor::OnExpandNodes()
 		MoveNodesToAveragePos(ExpandedNodes, FVector2D(SourceNode->NodePosX, SourceNode->NodePosY), bExpandedNodesNeedUniqueGuid);
 	}
 
-	UMaterialExpression* SubgraphExpression = FocusedGraphEd ? Cast<UMaterialGraph>(FocusedGraphEd->GetCurrentGraph())->SubgraphExpression : Material->MaterialGraph->SubgraphExpression;
+	UMaterialExpression* SubgraphExpression = FocusedGraphEd ? ToRawPtr(Cast<UMaterialGraph>(FocusedGraphEd->GetCurrentGraph())->SubgraphExpression) : ToRawPtr(Material->MaterialGraph->SubgraphExpression);
 
 	for (UEdGraphNode* ExpandedNode : ExpandedNodes)
 	{

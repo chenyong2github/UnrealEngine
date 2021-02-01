@@ -2033,7 +2033,7 @@ bool UPlayerInput::ExecInputCommands( UWorld* InWorld, const TCHAR* Cmd, FOutput
 		if(CurrentEvent == IE_Pressed || (CurrentEvent == IE_Released && FParse::Command(&Str,TEXT("OnRelease"))))
 		{
 			APlayerController*	Actor = Cast<APlayerController>(GetOuter());
-			UPlayer* Player = Actor ? Actor->Player : NULL;
+			UPlayer* Player = Actor ? ToRawPtr(Actor->Player) : NULL;
 			if(ProcessConsoleExec(Str,Ar,this))
 			{
 				bResult = true;

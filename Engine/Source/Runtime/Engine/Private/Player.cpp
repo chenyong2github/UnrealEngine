@@ -95,7 +95,7 @@ bool UPlayer::Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 	if (!ExecActor)
 	{
 		UNetConnection* NetConn = Cast<UNetConnection>(this);
-		ExecActor = (NetConn && NetConn->OwningActor) ? NetConn->OwningActor : nullptr;
+		ExecActor = (NetConn && NetConn->OwningActor) ? ToRawPtr(NetConn->OwningActor) : nullptr;
 	}
 
 	if (ExecActor)

@@ -14,7 +14,7 @@
 void FRootMotionModifier::Update(UMotionWarpingComponent& OwnerComp)
 {
 	const FAnimMontageInstance* RootMotionMontageInstance = OwnerComp.GetCharacterOwner()->GetRootMotionAnimMontageInstance();
-	const UAnimMontage* Montage = RootMotionMontageInstance ? RootMotionMontageInstance->Montage : nullptr;
+	const UAnimMontage* Montage = RootMotionMontageInstance ? ToRawPtr(RootMotionMontageInstance->Montage) : nullptr;
 
 	// Mark for removal if our animation is not relevant anymore
 	if (Montage == nullptr || Montage != Animation)

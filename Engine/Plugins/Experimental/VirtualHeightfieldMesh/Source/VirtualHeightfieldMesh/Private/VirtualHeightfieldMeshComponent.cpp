@@ -26,7 +26,7 @@ void UVirtualHeightfieldMeshComponent::OnRegister()
 {
 	VirtualTextureRef = VirtualTexture.Get();
 
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? ToRawPtr(VirtualTextureRef->VirtualTextureComponent) : nullptr;
 	if (RuntimeVirtualTextureComponent)
 	{
 		// Bind to delegate so that we dirty render state whenever RuntimeVirtualTextureComponent is moved.
@@ -41,7 +41,7 @@ void UVirtualHeightfieldMeshComponent::OnRegister()
 
 void UVirtualHeightfieldMeshComponent::OnUnregister()
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? ToRawPtr(VirtualTextureRef->VirtualTextureComponent) : nullptr;
 	if (RuntimeVirtualTextureComponent)
 	{
 		RuntimeVirtualTextureComponent->TransformUpdated.RemoveAll(this);
@@ -61,13 +61,13 @@ ARuntimeVirtualTextureVolume* UVirtualHeightfieldMeshComponent::GetVirtualTextur
 
 URuntimeVirtualTexture* UVirtualHeightfieldMeshComponent::GetVirtualTexture() const
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? ToRawPtr(VirtualTextureRef->VirtualTextureComponent) : nullptr;
 	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetVirtualTexture() : nullptr;
 }
 
 FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? ToRawPtr(VirtualTextureRef->VirtualTextureComponent) : nullptr;
 	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
 }
 
@@ -123,7 +123,7 @@ void UVirtualHeightfieldMeshComponent::PostEditChangeProperty(FPropertyChangedEv
 	if (PropertyName == HideInEditorName)
 	{
 		// Force RuntimeVirtualTextureComponent to poll the HidePrimitives settings.
-		URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
+		URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? ToRawPtr(VirtualTextureRef->VirtualTextureComponent) : nullptr;
 		if (RuntimeVirtualTextureComponent != nullptr)
 		{
 			RuntimeVirtualTextureComponent->MarkRenderStateDirty();

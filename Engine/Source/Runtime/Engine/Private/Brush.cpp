@@ -158,7 +158,7 @@ void ABrush::SetIsTemporarilyHiddenInEditor( bool bIsHidden )
 		Super::SetIsTemporarilyHiddenInEditor(bIsHidden);
 		
 		ULevel* Level = GetLevel();
-		UModel* Model = Level ? Level->Model : nullptr;
+		UModel* Model = Level ? ToRawPtr(Level->Model) : nullptr;
 
 		if (Level && Model)
 		{

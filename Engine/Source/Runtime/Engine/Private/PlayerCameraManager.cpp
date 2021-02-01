@@ -363,7 +363,7 @@ UCameraAnimInst* APlayerCameraManager::AllocCameraAnimInst()
 {
 	check(IsInGameThread());
 
-	UCameraAnimInst* FreeAnim = (FreeAnims.Num() > 0) ? FreeAnims.Pop() : NULL;
+	UCameraAnimInst* FreeAnim = (FreeAnims.Num() > 0) ? ToRawPtr(FreeAnims.Pop()) : NULL;
 	if (FreeAnim)
 	{
 		UCameraAnimInst const* const DefaultInst = GetDefault<UCameraAnimInst>();

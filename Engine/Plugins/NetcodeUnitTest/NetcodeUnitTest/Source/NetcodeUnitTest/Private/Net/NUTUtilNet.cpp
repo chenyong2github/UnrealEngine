@@ -529,8 +529,8 @@ UWorld* NUTNet::CreateUnitTestWorld(bool bHookTick/*=true*/)
 			if (CurSettings != NULL)
 			{
 				ULocalPlayer* PrimLocPlayer = GEngine->GetFirstGamePlayer(NUTUtil::GetPrimaryWorld());
-				APlayerController* PrimPC = (PrimLocPlayer != NULL ? PrimLocPlayer->PlayerController : NULL);
-				APlayerState* PrimState = (PrimPC != NULL ? PrimPC->PlayerState : NULL);
+				APlayerController* PrimPC = (PrimLocPlayer != NULL ? ToRawPtr(PrimLocPlayer->PlayerController) : NULL);
+				APlayerState* PrimState = (PrimPC != NULL ? ToRawPtr(PrimPC->PlayerState) : NULL);
 
 				if (PrimState != NULL)
 				{

@@ -2246,7 +2246,7 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 
 	AnimEvaluationContext.SkeletalMesh = SkeletalMesh;
 	AnimEvaluationContext.AnimInstance = AnimScriptInstance;
-	AnimEvaluationContext.PostProcessAnimInstance = (ShouldEvaluatePostProcessInstance())? PostProcessAnimInstance: nullptr;
+	AnimEvaluationContext.PostProcessAnimInstance = (ShouldEvaluatePostProcessInstance())? ToRawPtr(PostProcessAnimInstance): nullptr;
 
 	if (CurrentAnimCurveUIDFinder)
 	{

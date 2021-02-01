@@ -120,7 +120,7 @@ namespace VirtualHeightfieldMesh
 		}
 
 		ARuntimeVirtualTextureVolume* VirtualTextureVolume = InComponent->GetVirtualTextureVolume();
-		URuntimeVirtualTextureComponent* VirtualTextureComponent = VirtualTextureVolume != nullptr ? VirtualTextureVolume->VirtualTextureComponent : nullptr;
+		URuntimeVirtualTextureComponent* VirtualTextureComponent = VirtualTextureVolume != nullptr ? ToRawPtr(VirtualTextureVolume->VirtualTextureComponent) : nullptr;
 
 		if (VirtualTextureComponent == nullptr)
 		{

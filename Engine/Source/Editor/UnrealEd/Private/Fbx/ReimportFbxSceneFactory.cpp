@@ -105,7 +105,7 @@ UFbxSceneImportData *GetFbxSceneImportData(UObject *Obj)
 
 		if (ImportData != nullptr)
 		{
-			SceneImportData = ImportData->bImportAsScene ? ImportData->FbxSceneImportDataReference : nullptr;
+			SceneImportData = ImportData->bImportAsScene ? ToRawPtr(ImportData->FbxSceneImportDataReference) : nullptr;
 		}
 	}
 	return SceneImportData;

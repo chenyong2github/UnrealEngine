@@ -1110,7 +1110,7 @@ void FMaterialInstanceEditor::RefreshPreviewAsset()
 		UMaterialInterface* ParentMaterial = MaterialEditorInstance->SourceInstance->Parent;
 
 		UObject* ParentPreview = ParentMaterial != nullptr ? ParentMaterial->PreviewMesh.TryLoad() : nullptr;
-		PreviewAsset = ParentPreview != nullptr ? ParentPreview : GUnrealEd->GetThumbnailManager()->EditorSphere;
+		PreviewAsset = ParentPreview != nullptr ? ParentPreview : ToRawPtr(GUnrealEd->GetThumbnailManager()->EditorSphere);
 
 		USceneThumbnailInfoWithPrimitive* ThumbnailInfo = Cast<USceneThumbnailInfoWithPrimitive>(MaterialEditorInstance->SourceInstance->ThumbnailInfo);
 		if (ThumbnailInfo)
@@ -1148,7 +1148,7 @@ void FMaterialInstanceEditor::RebuildInheritanceList()
 			FunctionParentList.Insert(Parent, 0);
 
 			Current = Cast<UMaterialFunctionInstance>(Parent);
-			Parent = Current ? Current->Parent : nullptr;
+			Parent = Current ? ToRawPtr(Current->Parent) : nullptr;
 		}
 	}
 	else

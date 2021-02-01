@@ -84,7 +84,7 @@ void FAnimModel_AnimComposite::RecalculateSequenceLength()
 			// Reset view if we changed length (note: has to be done after ->SetCompositeLength)!
 			UpdateRange();
 
-			UAnimPreviewInstance* PreviewInstance = (GetPreviewScene()->GetPreviewMeshComponent()) ? GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance : nullptr;
+			UAnimPreviewInstance* PreviewInstance = (GetPreviewScene()->GetPreviewMeshComponent()) ? ToRawPtr(GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance) : nullptr;
 			if (PreviewInstance)
 			{
 				// Re-set the position, so instance is clamped properly

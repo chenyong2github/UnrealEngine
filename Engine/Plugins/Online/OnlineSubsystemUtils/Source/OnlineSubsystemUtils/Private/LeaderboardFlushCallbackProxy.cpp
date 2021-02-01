@@ -17,7 +17,7 @@ void ULeaderboardFlushCallbackProxy::TriggerFlush(APlayerController* PlayerContr
 {
 	bFailedToEvenSubmit = true;
 
-	if (APlayerState* PlayerState = (PlayerController != NULL) ? PlayerController->PlayerState : NULL)
+	if (APlayerState* PlayerState = (PlayerController != NULL) ? ToRawPtr(PlayerController->PlayerState) : NULL)
 	{
 		TSharedPtr<const FUniqueNetId> UserID = PlayerState->GetUniqueId().GetUniqueNetId();
 		if (UserID.IsValid())

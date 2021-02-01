@@ -72,7 +72,7 @@ UNetConnection* ANUTActor::GetNetConnection() const
 	if (ReturnVal == NULL)
 	{
 		UNetDriver* NetDriver = GetNetDriver();
-		UNetConnection* ServerConn = (NetDriver != NULL ? NetDriver->ServerConnection : NULL);
+		UNetConnection* ServerConn = (NetDriver != NULL ? ToRawPtr(NetDriver->ServerConnection) : NULL);
 
 		if (ServerConn != NULL)
 		{

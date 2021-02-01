@@ -1997,7 +1997,7 @@ void UUnitTestManager::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosit
 			{
 				// @todo #JohnB: This chain of getting the desired world is very messy...but it's hard to get the correct world.
 				UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-				UGameInstance* GameInstance = GameEngine != nullptr ? GameEngine->GameInstance : nullptr;
+				UGameInstance* GameInstance = GameEngine != nullptr ? ToRawPtr(GameEngine->GameInstance) : nullptr;
 				UGameViewportClient* GameViewport = GameInstance != nullptr ? GameInstance->GetGameViewportClient() : nullptr;
 				UWorld* BaseWorld = GameViewport != nullptr ? GameViewport->GetWorld() : nullptr;
 

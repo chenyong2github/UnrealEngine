@@ -8263,7 +8263,7 @@ void UCharacterMovementComponent::CallServerMovePacked(const FSavedMove_Characte
 	// Extract the net package map used for serializing object references.
 	APlayerController* PC = Cast<APlayerController>(CharacterOwner->GetController());
 	UNetConnection* NetConnection = PC ? PC->GetNetConnection() : nullptr;
-	ServerMoveBitWriter.PackageMap = NetConnection ? NetConnection->PackageMap : nullptr;
+	ServerMoveBitWriter.PackageMap = NetConnection ? ToRawPtr(NetConnection->PackageMap) : nullptr;
 	if (ServerMoveBitWriter.PackageMap == nullptr)
 	{
 		UE_LOG(LogNetPlayerMovement, Error, TEXT("CallServerMovePacked: Failed to find a NetConnection/PackageMap for data serialization!"));
@@ -9584,7 +9584,7 @@ void UCharacterMovementComponent::ServerSendMoveResponse(const FClientAdjustment
 	// Extract the net package map used for serializing object references.
 	APlayerController* PC = Cast<APlayerController>(CharacterOwner->GetController());
 	UNetConnection* NetConnection = PC ? PC->GetNetConnection() : nullptr;
-	MoveResponseBitWriter.PackageMap = NetConnection ? NetConnection->PackageMap : nullptr;
+	MoveResponseBitWriter.PackageMap = NetConnection ? ToRawPtr(NetConnection->PackageMap) : nullptr;
 	if (MoveResponseBitWriter.PackageMap == nullptr)
 	{
 		UE_LOG(LogNetPlayerMovement, Error, TEXT("ServerSendMoveResponse: Failed to find a NetConnection/PackageMap for data serialization!"));
@@ -11535,7 +11535,7 @@ bool UCharacterMovementComponent::CanDelaySendingMove(const FSavedMovePtr& NewMo
 
 float UCharacterMovementComponent::GetClientNetSendDeltaTime(const APlayerController* PC, const FNetworkPredictionData_Client_Character* ClientData, const FSavedMovePtr& NewMove) const
 {
-	const UPlayer* Player = (PC ? PC->Player : nullptr);
+	const UPlayer* Player = (PC ? ToRawPtr(PC->Player) : nullptr);
 	const UWorld* MyWorld = GetWorld();
 	const AGameStateBase* const GameState = MyWorld->GetGameState();
 	const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());

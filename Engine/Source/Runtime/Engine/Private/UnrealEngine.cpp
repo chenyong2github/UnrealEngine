@@ -6543,7 +6543,7 @@ bool UEngine::HandleDumpParticleCountsCommand( const TCHAR* Cmd, FOutputDevice& 
 					FParticleEmitterInstance* EmitInst = PSysComp->EmitterInstances[EmitterIndex];
 					if (EmitInst)
 					{
-						UParticleLODLevel* LODLevel = EmitInst->SpriteTemplate ? EmitInst->SpriteTemplate->LODLevels[0] : NULL;
+						UParticleLODLevel* LODLevel = EmitInst->SpriteTemplate ? ToRawPtr(EmitInst->SpriteTemplate->LODLevels[0]) : NULL;
 						if (bTrackUsageOnly == false)
 						{
 							Ar.Logf( TEXT("\t\tEmitter %2d:\tActive = %4d\tMaxActive = %4d"), 
@@ -13991,7 +13991,7 @@ static void AsyncMapChangeLevelLoadCompletionCallback(const FName& PackageName, 
 			}
 		}
 
-		ULevel* Level = World ? World->PersistentLevel : nullptr;	
+		ULevel* Level = World ? ToRawPtr(World->PersistentLevel) : nullptr;	
 
 		// Print out a warning and set the error if we couldn't find a level in this package.
 		if( !Level )

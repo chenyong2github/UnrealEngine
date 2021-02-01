@@ -585,7 +585,7 @@ bool UMinimalClient::PostSendRPC(FString RPCName, UObject* Target/*=nullptr*/)
 
 void UMinimalClient::ResetConnTimeout(float Duration)
 {
-	UNetDriver* UnitDriver = (UnitConn != nullptr ? UnitConn->Driver : nullptr);
+	UNetDriver* UnitDriver = (UnitConn != nullptr ? ToRawPtr(UnitConn->Driver) : nullptr);
 
 	if (UnitDriver != nullptr && UnitConn->State != USOCK_Closed)
 	{

@@ -23,7 +23,7 @@ void UInAppPurchaseCallbackProxy2::Trigger(APlayerController* PlayerController, 
 {
 	bFailedToEvenSubmit = true;
 	WorldPtr = (PlayerController != nullptr) ? PlayerController->GetWorld() : nullptr;
-	if (APlayerState* PlayerState = (PlayerController != nullptr) ? PlayerController->PlayerState : nullptr)
+	if (APlayerState* PlayerState = (PlayerController != nullptr) ? ToRawPtr(PlayerController->PlayerState) : nullptr)
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
@@ -65,7 +65,7 @@ void UInAppPurchaseCallbackProxy2::Trigger(APlayerController* PlayerController, 
 void UInAppPurchaseCallbackProxy2::TriggerGetUnprocessedPurchases(APlayerController* PlayerController)
 {
 	WorldPtr = (PlayerController != nullptr) ? PlayerController->GetWorld() : nullptr;
-	if (APlayerState* PlayerState = (PlayerController != nullptr) ? PlayerController->PlayerState : nullptr)
+	if (APlayerState* PlayerState = (PlayerController != nullptr) ? ToRawPtr(PlayerController->PlayerState) : nullptr)
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
@@ -95,7 +95,7 @@ void UInAppPurchaseCallbackProxy2::TriggerGetOwnedPurchases(APlayerController* P
 {
 	bFailedToEvenSubmit = true;
 	WorldPtr = (PlayerController != nullptr) ? PlayerController->GetWorld() : nullptr;
-	if (APlayerState* PlayerState = (PlayerController != nullptr) ? PlayerController->PlayerState : nullptr)
+	if (APlayerState* PlayerState = (PlayerController != nullptr) ? ToRawPtr(PlayerController->PlayerState) : nullptr)
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{

@@ -137,7 +137,7 @@ void UMotionWarpingComponent::Update()
 	check(GetCharacterOwner());
 
 	const FAnimMontageInstance* RootMotionMontageInstance = GetCharacterOwner()->GetRootMotionAnimMontageInstance();
-	UAnimMontage* Montage = RootMotionMontageInstance ? RootMotionMontageInstance->Montage : nullptr;
+	UAnimMontage* Montage = RootMotionMontageInstance ? ToRawPtr(RootMotionMontageInstance->Montage) : nullptr;
 	if (Montage)
 	{
 		const float PreviousPosition = RootMotionMontageInstance->GetPreviousPosition();

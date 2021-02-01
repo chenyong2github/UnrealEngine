@@ -1347,7 +1347,7 @@ void UMaterialInstance::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent)
 					MaterialInstanceToUse = CurrentMaterialInstance;
 				}
 
-				CurrentMaterialInterface = CurrentMaterialInstance ? CurrentMaterialInstance->Parent : nullptr;
+				CurrentMaterialInterface = CurrentMaterialInstance ? ToRawPtr(CurrentMaterialInstance->Parent) : nullptr;
 			}
 		}
 
@@ -4517,7 +4517,7 @@ bool UMaterialInstance::IsChildOf(const UMaterialInterface* ParentMaterialInterf
 	while (Material != ParentMaterialInterface && Material != nullptr)
 	{
 		const UMaterialInstance* MaterialInstance = Cast<const UMaterialInstance>(Material);
-		Material = (MaterialInstance != nullptr) ? MaterialInstance->Parent : nullptr;
+		Material = (MaterialInstance != nullptr) ? ToRawPtr(MaterialInstance->Parent) : nullptr;
 	}
 
 	return (Material != nullptr);

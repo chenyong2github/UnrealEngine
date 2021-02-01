@@ -1162,7 +1162,7 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				UWorld* ThisWorld = GetWorld();
 
 				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
-				APlayerController* PlayerController = TargetPlayer ? TargetPlayer->PlayerController : nullptr;
+				APlayerController* PlayerController = TargetPlayer ? ToRawPtr(TargetPlayer->PlayerController) : nullptr;
 
 				if ( TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->IsHidden()))
 				{

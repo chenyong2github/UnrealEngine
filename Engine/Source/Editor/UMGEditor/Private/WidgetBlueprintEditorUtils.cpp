@@ -580,7 +580,7 @@ void FWidgetBlueprintEditorUtils::FindAllAncestorNamedSlotHostWidgetsForContent(
 	OutSlotHostWidgets.Empty();
 	UUserWidget* Preview = BlueprintEditor->GetPreview();
 	UWidgetBlueprint* WidgetBP = BlueprintEditor->GetWidgetBlueprintObj();
-	UWidgetTree* WidgetTree = (WidgetBP != nullptr) ? WidgetBP->WidgetTree : nullptr;
+	UWidgetTree* WidgetTree = (WidgetBP != nullptr) ? ToRawPtr(WidgetBP->WidgetTree) : nullptr;
 
 	if (Preview != nullptr && WidgetTree != nullptr)
 	{

@@ -3111,7 +3111,7 @@ TSharedPtr<SWidget> SAnimNotifyTrack::SummonContextMenu(const FGeometry& MyGeome
 	if (NotifyEvent)
 	{
 		UObject* NotifyObject = NotifyEvent->Notify;
-		NotifyObject = NotifyObject ? NotifyObject : NotifyEvent->NotifyStateClass;
+		NotifyObject = NotifyObject ? NotifyObject : ToRawPtr(NotifyEvent->NotifyStateClass);
 
 		MenuBuilder.BeginSection("ViewSource", LOCTEXT("NotifyViewHeading", "View"));
 

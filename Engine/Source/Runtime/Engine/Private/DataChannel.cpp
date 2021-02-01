@@ -2361,7 +2361,7 @@ void UActorChannel::NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch)
 				DemoNetDriver->GetNetworkObjectList().FindOrAdd(Actor, DemoNetDriver);
 				DemoNetDriver->FlushActorDormancy(Actor);
 
-				UNetConnection* DemoClientConnection = (DemoNetDriver->ClientConnections.Num() > 0) ? DemoNetDriver->ClientConnections[0] : nullptr;
+				UNetConnection* DemoClientConnection = (DemoNetDriver->ClientConnections.Num() > 0) ? ToRawPtr(DemoNetDriver->ClientConnections[0]) : nullptr;
 				if (DemoClientConnection)
 				{
 					DemoNetDriver->GetNetworkObjectList().MarkActive(Actor, DemoClientConnection, DemoNetDriver);

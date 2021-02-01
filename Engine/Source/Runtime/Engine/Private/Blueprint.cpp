@@ -1717,7 +1717,7 @@ bool UBlueprint::ChangeOwnerOfTemplates()
 
 			for (USCS_Node* SCSNode : SCS->GetAllNodes())
 			{
-				UActorComponent* Component = SCSNode ? SCSNode->ComponentTemplate : NULL;
+				UActorComponent* Component = SCSNode ? ToRawPtr(SCSNode->ComponentTemplate) : NULL;
 				if (Component && Component->GetOuter() == this)
 				{
 					const bool bRenamed = Component->Rename(FUniqueNewNameHelper(Component->GetName(), BPGClass).Get(), BPGClass, REN_ForceNoResetLoaders | REN_DoNotDirty);

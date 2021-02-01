@@ -56,7 +56,7 @@ void UTakeRecorderCameraCutSource::TickRecording(const FQualifiedFrameTime& Curr
 	else 
 	{
 		APlayerController* PC = World->GetGameInstance() ? World->GetGameInstance()->GetFirstLocalPlayerController() : nullptr;
-		APlayerCameraManager* PlayerCameraManager = PC ? PC->PlayerCameraManager : nullptr;
+		APlayerCameraManager* PlayerCameraManager = PC ? ToRawPtr(PC->PlayerCameraManager) : nullptr;
 		if (PlayerCameraManager)
 		{
 			Target = PlayerCameraManager->ViewTarget.Target;

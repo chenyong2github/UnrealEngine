@@ -37,7 +37,7 @@ public:
 	virtual FText GetSectionTitle() const override 
 	{ 
 		UMovieSceneCameraAnimSection const* const AnimSection = Cast<UMovieSceneCameraAnimSection>(WeakSection.Get());
-		UCameraAnim const* const Anim = AnimSection ? AnimSection->AnimData.CameraAnim : nullptr;
+		UCameraAnim const* const Anim = AnimSection ? ToRawPtr(AnimSection->AnimData.CameraAnim) : nullptr;
 		if (Anim)
 		{
 			return FText::FromString(Anim->GetName());

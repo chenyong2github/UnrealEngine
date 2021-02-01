@@ -324,7 +324,7 @@ void StatelessConnectHandlerComponent::NotifyHandshakeBegin()
 {
 	if (Handler->Mode == Handler::Mode::Client)
 	{
-		UNetConnection* ServerConn = (Driver != nullptr ? Driver->ServerConnection : nullptr);
+		UNetConnection* ServerConn = (Driver != nullptr ? ToRawPtr(Driver->ServerConnection) : nullptr);
 
 		if (ServerConn != nullptr)
 		{
@@ -465,7 +465,7 @@ void StatelessConnectHandlerComponent::SendConnectChallenge(TSharedPtr<const FIn
 
 void StatelessConnectHandlerComponent::SendChallengeResponse(uint8 InSecretId, double InTimestamp, uint8 InCookie[COOKIE_BYTE_SIZE])
 {
-	UNetConnection* ServerConn = (Driver != nullptr ? Driver->ServerConnection : nullptr);
+	UNetConnection* ServerConn = (Driver != nullptr ? ToRawPtr(Driver->ServerConnection) : nullptr);
 
 	if (ServerConn != nullptr)
 	{
@@ -792,7 +792,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 					{
 						if (!bRestartedHandshake)
 						{
-							UNetConnection* ServerConn = (Driver != nullptr ? Driver->ServerConnection : nullptr);
+							UNetConnection* ServerConn = (Driver != nullptr ? ToRawPtr(Driver->ServerConnection) : nullptr);
 
 							// Extract the initial packet sequence from the random Cookie data
 							if (ensure(ServerConn != nullptr))
@@ -831,7 +831,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 
 						if (!bRestartedHandshake)
 						{
-							UNetConnection* ServerConn = (Driver != nullptr ? Driver->ServerConnection : nullptr);
+							UNetConnection* ServerConn = (Driver != nullptr ? ToRawPtr(Driver->ServerConnection) : nullptr);
 							double LastNetConnPacketTime = (ServerConn != nullptr ? ServerConn->LastReceiveRealtime : 0.0);
 
 							// The server may send multiple restart handshake packets, so have a 10 second delay between accepting them

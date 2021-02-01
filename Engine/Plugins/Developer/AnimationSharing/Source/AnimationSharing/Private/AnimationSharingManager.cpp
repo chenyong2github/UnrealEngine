@@ -830,7 +830,7 @@ void UAnimSharingInstance::SetupState(FPerStateData& StateData, const FAnimation
 	/** Setup overall data and flags */
 	StateData.bIsOnDemand = StateEntry.bOnDemand;
 	StateData.bIsAdditive = StateEntry.bAdditive;
-	StateData.AdditiveAnimationSequence = (StateEntry.bAdditive && StateEntry.AnimationSetups.IsValidIndex(0)) ? StateEntry.AnimationSetups[0].AnimSequence : nullptr;
+	StateData.AdditiveAnimationSequence = (StateEntry.bAdditive && StateEntry.AnimationSetups.IsValidIndex(0)) ? ToRawPtr(StateEntry.AnimationSetups[0].AnimSequence) : nullptr;
 
 	/** Keep hard reference to animation sequence */
 	if (StateData.AdditiveAnimationSequence)

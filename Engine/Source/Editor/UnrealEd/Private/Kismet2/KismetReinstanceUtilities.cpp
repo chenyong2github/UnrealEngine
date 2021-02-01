@@ -1676,7 +1676,7 @@ UClass* FBlueprintCompileReinstancer::MoveCDOToNewClass(UClass* OwnerClass, cons
 	}
 #endif
 
-	UFunction* DuplicatedClassUberGraphFunction = BPGDuplicatedClass ? BPGDuplicatedClass->UberGraphFunction : nullptr;
+	UFunction* DuplicatedClassUberGraphFunction = BPGDuplicatedClass ? ToRawPtr(BPGDuplicatedClass->UberGraphFunction) : nullptr;
 	if (DuplicatedClassUberGraphFunction)
 	{
 		DuplicatedClassUberGraphFunction->Bind();

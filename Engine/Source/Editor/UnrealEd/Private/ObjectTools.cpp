@@ -196,7 +196,7 @@ namespace ObjectTools
 
 		if (!CVarUseLegacyGetReferencersForDeletion.GetValueOnAnyThread())
 		{
-			const UTransactor* Transactor = GEditor ? GEditor->Trans : nullptr;
+			const UTransactor* Transactor = GEditor ? ToRawPtr(GEditor->Trans) : nullptr;
 			bool bIsGatheringPackageRef = InObject->IsA<UPackage>();
 
 			// Get the cluster of objects that are going to be deleted

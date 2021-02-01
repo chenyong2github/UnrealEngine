@@ -23,7 +23,7 @@ void USoundNodeWavePlayer::Serialize(FArchive& Ar)
 		}
 		else if (Ar.IsSaving())
 		{
-			USoundWave* HardReference = (ShouldHardReferenceAsset(Ar.CookingTarget()) ? SoundWave : nullptr);
+			USoundWave* HardReference = (ShouldHardReferenceAsset(Ar.CookingTarget()) ? ToRawPtr(SoundWave) : nullptr);
 			Ar << HardReference;
 		}
 	}

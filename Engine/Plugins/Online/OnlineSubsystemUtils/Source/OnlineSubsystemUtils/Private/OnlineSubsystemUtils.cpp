@@ -809,7 +809,7 @@ void FOnlineSubsystemBPCallHelper::QueryIDFromPlayerController(APlayerController
 {
 	UserID.Reset();
 
-	if (APlayerState* PlayerState = (PlayerController != NULL) ? PlayerController->PlayerState : NULL)
+	if (APlayerState* PlayerState = (PlayerController != NULL) ? ToRawPtr(PlayerController->PlayerState) : NULL)
 	{
 		UserID = PlayerState->GetUniqueId().GetUniqueNetId();
 		if (!UserID.IsValid())

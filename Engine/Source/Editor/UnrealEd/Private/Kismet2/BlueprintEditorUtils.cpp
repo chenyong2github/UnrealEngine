@@ -3170,7 +3170,7 @@ bool FBlueprintEditorUtils::IsDataOnlyBlueprint(const UBlueprint* Blueprint)
 	}
 
 	// Make sure there's nothing in the user construction script, other than an entry node
-	UEdGraph* UserConstructionScript = (Blueprint->FunctionGraphs.Num() == 1) ? Blueprint->FunctionGraphs[0] : nullptr;
+	UEdGraph* UserConstructionScript = (Blueprint->FunctionGraphs.Num() == 1) ? ToRawPtr(Blueprint->FunctionGraphs[0]) : nullptr;
 	if (UserConstructionScript && Blueprint->ParentClass)
 	{
 		//Call parent construction script may be added automatically

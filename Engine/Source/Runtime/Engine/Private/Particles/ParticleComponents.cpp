@@ -5424,7 +5424,7 @@ void UParticleSystemComponent::FinalizeTickComponent()
 		}
 
 		UWorld* World = GetWorld();
-		AParticleEventManager* EventManager = (World ? World->MyParticleEventManager : NULL);
+		AParticleEventManager* EventManager = (World ? ToRawPtr(World->MyParticleEventManager) : NULL);
 		if (EventManager)
 		{
 			if (SpawnEvents.Num() > 0) EventManager->HandleParticleSpawnEvents(this, SpawnEvents);

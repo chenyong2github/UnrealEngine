@@ -192,7 +192,7 @@ public:
 		// UObject pointer are serialized as Index in ActorInstanceData
 		int32 ReferenceIndex = INDEX_NONE;
 		*this << ReferenceIndex;
-		Object = ActorInstanceData.ReferencedObjects.IsValidIndex(ReferenceIndex) ? ActorInstanceData.ReferencedObjects[ReferenceIndex] : nullptr;
+		Object = ActorInstanceData.ReferencedObjects.IsValidIndex(ReferenceIndex) ? ToRawPtr(ActorInstanceData.ReferencedObjects[ReferenceIndex]) : nullptr;
 		return *this;
 	}
 

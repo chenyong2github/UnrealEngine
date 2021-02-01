@@ -37,7 +37,7 @@ namespace VirtualHeightfieldMesh
 				It->MarkRenderStateDirty();
 
 				ARuntimeVirtualTextureVolume* VirtualTextureVolume = It->GetVirtualTextureVolume();
-				URuntimeVirtualTextureComponent* VirtualTextureComponent = VirtualTextureVolume != nullptr ? VirtualTextureVolume->VirtualTextureComponent : nullptr;
+				URuntimeVirtualTextureComponent* VirtualTextureComponent = VirtualTextureVolume != nullptr ? ToRawPtr(VirtualTextureVolume->VirtualTextureComponent) : nullptr;
 				URuntimeVirtualTexture* VirtualTexture = VirtualTextureComponent != nullptr ? VirtualTextureComponent->GetVirtualTexture() : nullptr;
 
 				if (VirtualTextureComponent != nullptr)

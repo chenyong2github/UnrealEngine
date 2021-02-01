@@ -224,13 +224,13 @@ const AActor* UHLODProxy::FindFirstActor(const ALODActor* LODActor)
 {
 	auto RecursiveFindFirstActor = [&](const ALODActor* InLODActor)
 	{
-		const AActor* FirstActor = InLODActor->SubActors.IsValidIndex(0) ? InLODActor->SubActors[0] : nullptr;
+		const AActor* FirstActor = InLODActor->SubActors.IsValidIndex(0) ? ToRawPtr(InLODActor->SubActors[0]) : nullptr;
 		while (FirstActor != nullptr && FirstActor->IsA<ALODActor>())
 		{
 			const ALODActor* SubLODActor = Cast<ALODActor>(FirstActor);
 			if (SubLODActor)
 			{
-				FirstActor = SubLODActor->SubActors.IsValidIndex(0) ? SubLODActor->SubActors[0] : nullptr; 
+				FirstActor = SubLODActor->SubActors.IsValidIndex(0) ? ToRawPtr(SubLODActor->SubActors[0]) : nullptr; 
 			}
 			else
 			{

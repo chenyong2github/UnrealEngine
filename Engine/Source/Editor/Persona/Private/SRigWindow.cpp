@@ -304,7 +304,7 @@ const struct FReferenceSkeleton& SRigWindow::GetReferenceSkeleton() const
 {
 	// have to change this to preview mesh because that's what the retarget base pose will be
 	UDebugSkelMeshComponent* PreviewMeshComp = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-	USkeletalMesh* PreviewMesh = (PreviewMeshComp) ? PreviewMeshComp->SkeletalMesh : nullptr;
+	USkeletalMesh* PreviewMesh = (PreviewMeshComp) ? ToRawPtr(PreviewMeshComp->SkeletalMesh) : nullptr;
 	// it's because retarget base pose leaves in mesh, so if you give ref skeleton of skeleton, you might have joint that your mesh doesn't have
 	return (PreviewMesh)? PreviewMesh->GetRefSkeleton() : EditableSkeletonPtr.Pin()->GetSkeleton().GetReferenceSkeleton();
 }

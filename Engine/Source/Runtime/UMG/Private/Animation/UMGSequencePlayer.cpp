@@ -145,7 +145,7 @@ void UUMGSequencePlayer::Tick(float DeltaTime)
 			if (bIsRunningTickManager)
 			{
 				UUserWidget* Widget = UserWidget.Get();
-				UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+				UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
 
 				if (!TickManager)
 				{
@@ -224,7 +224,7 @@ void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int3
 	PlayerStatus = EMovieScenePlayerStatus::Playing;
 
 	UUserWidget* Widget = UserWidget.Get();
-	UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+	UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
 
 	// Playback assumes the start frame has already been evaulated, so we also want to evaluate any events on the start frame here.
 	if (TickManager && RootTemplateInstance.IsValid())
@@ -279,7 +279,7 @@ void UUMGSequencePlayer::Pause()
 	if (RootTemplateInstance.HasEverUpdated())
 	{
 		UUserWidget* Widget = UserWidget.Get();
-		UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+		UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
 
 		if (TickManager)
 		{
@@ -308,7 +308,7 @@ void UUMGSequencePlayer::Stop()
 	PlayerStatus = EMovieScenePlayerStatus::Stopped;
 
 	UUserWidget* Widget = UserWidget.Get();
-	UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+	UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
 
 	if (TickManager && RootTemplateInstance.IsValid())
 	{
@@ -413,7 +413,7 @@ void UUMGSequencePlayer::QueueLatentAction(FMovieSceneSequenceLatentActionDelega
 	if (CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
 	{
 		UUserWidget* Widget = UserWidget.Get();
-		UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+		UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
 
 		if (ensure(TickManager))
 		{
@@ -431,7 +431,7 @@ void UUMGSequencePlayer::ApplyLatentActions()
 	if (CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
 	{
 		UUserWidget* Widget = UserWidget.Get();
-		UUMGSequenceTickManager* TickManager = Widget ? Widget->AnimationTickManager : nullptr;
+		UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
 		if (TickManager)
 		{
 			TickManager->RunLatentActions();

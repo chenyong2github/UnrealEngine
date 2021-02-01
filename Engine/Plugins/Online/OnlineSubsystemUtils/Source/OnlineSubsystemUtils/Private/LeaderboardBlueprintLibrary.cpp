@@ -18,7 +18,7 @@ ULeaderboardBlueprintLibrary::ULeaderboardBlueprintLibrary(const FObjectInitiali
 
 bool ULeaderboardBlueprintLibrary::WriteLeaderboardObject(APlayerController* PlayerController, class FOnlineLeaderboardWrite& WriteObject)
 {
-	if (APlayerState* PlayerState = (PlayerController != NULL) ? PlayerController->PlayerState : NULL)
+	if (APlayerState* PlayerState = (PlayerController != NULL) ? ToRawPtr(PlayerController->PlayerState) : NULL)
 	{
 		TSharedPtr<const FUniqueNetId> UserId = PlayerState->GetUniqueId().GetUniqueNetId();
 		if (UserId.IsValid())

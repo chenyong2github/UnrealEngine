@@ -1108,7 +1108,7 @@ bool UGameInstance::ClientTravelToSession(int32 ControllerId, FName InSessionNam
 	if (UOnlineEngineInterface::Get()->GetResolvedConnectString(World, InSessionName, URL))
 	{
 		ULocalPlayer* LP = GEngine->GetLocalPlayerFromControllerId(World, ControllerId);
-		APlayerController* PC = LP ? LP->PlayerController : nullptr;
+		APlayerController* PC = LP ? ToRawPtr(LP->PlayerController) : nullptr;
 		if (PC)
 		{
 			PC->ClientTravel(URL, TRAVEL_Absolute);

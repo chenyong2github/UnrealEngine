@@ -5801,7 +5801,7 @@ UReplicationDriver* UReplicationDriver::CreateReplicationDriver(UNetDriver* NetD
 		return nullptr;
 	}
 
-	UClass* ReplicationDriverClass = NetDriver ? NetDriver->ReplicationDriverClass : nullptr;
+	UClass* ReplicationDriverClass = NetDriver ? ToRawPtr(NetDriver->ReplicationDriverClass) : nullptr;
 	if (ReplicationDriverClass == nullptr)
 	{
 		UE_LOG(LogNet, Log, TEXT("ReplicationDriverClass is null! Not using ReplicationDriver."));

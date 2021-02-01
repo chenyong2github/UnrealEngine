@@ -246,8 +246,8 @@ void UBlackboardComponent::PopulateSynchronizedKeys()
 						uint8* RawData = GetKeyRawData(KeyID) + DataOffset;
 						uint8* RawSource = OtherBlackboard->GetKeyRawData(OtherKeyID) + DataOffset;
 
-						UBlackboardKeyType* KeyOb = bKeyHasInstance ? KeyInstances[KeyID] : Key.KeyType;
-						const UBlackboardKeyType* SourceKeyOb = bKeyHasInstance ? OtherBlackboard->KeyInstances[OtherKeyID] : Key.KeyType;
+						UBlackboardKeyType* KeyOb = bKeyHasInstance ? ToRawPtr(KeyInstances[KeyID]) : ToRawPtr(Key.KeyType);
+						const UBlackboardKeyType* SourceKeyOb = bKeyHasInstance ? ToRawPtr(OtherBlackboard->KeyInstances[OtherKeyID]) : ToRawPtr(Key.KeyType);
 
 						KeyOb->CopyValues(*this, RawData, SourceKeyOb, RawSource);
 					}

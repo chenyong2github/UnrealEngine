@@ -980,7 +980,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 				if(!bUseDefMaterial)
 				{
 					uint8 DominantLayerIdx = DominantLayers ? DominantLayers[SrcSampleIndex] : -1;
-					ULandscapeLayerInfoObject* Layer = ComponentLayerInfos.IsValidIndex(DominantLayerIdx) ? ComponentLayerInfos[DominantLayerIdx] : nullptr;
+					ULandscapeLayerInfoObject* Layer = ComponentLayerInfos.IsValidIndex(DominantLayerIdx) ? ToRawPtr(ComponentLayerInfos[DominantLayerIdx]) : nullptr;
 
 					if(Layer == ALandscapeProxy::VisibilityLayer)
 					{

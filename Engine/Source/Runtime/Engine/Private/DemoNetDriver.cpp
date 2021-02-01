@@ -2921,7 +2921,7 @@ int32 UDemoNetDriver::CleanUpSplitscreenConnections(bool bDeleteOwner)
 
 	for (APlayerController* CurController : SpectatorControllers)
 	{
-		UNetConnection* ControllerNetConnection = (CurController != nullptr) ? CurController->NetConnection : nullptr;
+		UNetConnection* ControllerNetConnection = (CurController != nullptr) ? ToRawPtr(CurController->NetConnection) : nullptr;
 		if (ControllerNetConnection != nullptr && ControllerNetConnection->IsA(UChildConnection::StaticClass()))
 		{
 			++NumSplitscreenConnectionsCleaned;

@@ -1887,7 +1887,7 @@ void FEmitDefaultValueHelper::GenerateCustomDynamicClassInitialization(FEmitterL
 		{
 			// >>> This code should be removed, once UE-39168 is fixed
 			//TODO: it's an ugly workaround - template from DefaultSceneRootNode is unnecessarily cooked :(
-			UActorComponent* DefaultSceneRootComponentTemplate = SCS->GetDefaultSceneRootNode() ? SCS->GetDefaultSceneRootNode()->ComponentTemplate : nullptr;
+			UActorComponent* DefaultSceneRootComponentTemplate = SCS->GetDefaultSceneRootNode() ? ToRawPtr(SCS->GetDefaultSceneRootNode()->ComponentTemplate) : nullptr;
 			if (DefaultSceneRootComponentTemplate)
 			{
 				ActorComponentTempatesOwnedByClass.Add(DefaultSceneRootComponentTemplate);

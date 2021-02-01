@@ -12,14 +12,14 @@ UVirtualTextureBuilderThumbnailRenderer::UVirtualTextureBuilderThumbnailRenderer
 bool UVirtualTextureBuilderThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {
 	UVirtualTextureBuilder* VirtualTextureBuilder = Cast<UVirtualTextureBuilder>(Object);
-	UVirtualTexture2D* Texture = VirtualTextureBuilder != nullptr ? VirtualTextureBuilder->Texture : nullptr;
+	UVirtualTexture2D* Texture = VirtualTextureBuilder != nullptr ? ToRawPtr(VirtualTextureBuilder->Texture) : nullptr;
 	return Texture != nullptr ? UTextureThumbnailRenderer::CanVisualizeAsset(Texture) : false;
 }
 
 void UVirtualTextureBuilderThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UVirtualTextureBuilder* VirtualTextureBuilder = Cast<UVirtualTextureBuilder>(Object);
-	UVirtualTexture2D* Texture = VirtualTextureBuilder != nullptr ? VirtualTextureBuilder->Texture : nullptr;
+	UVirtualTexture2D* Texture = VirtualTextureBuilder != nullptr ? ToRawPtr(VirtualTextureBuilder->Texture) : nullptr;
 	if (Texture != nullptr)
 	{
 		UTextureThumbnailRenderer::Draw(Texture, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
