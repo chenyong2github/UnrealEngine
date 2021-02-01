@@ -601,9 +601,9 @@ bool QuadTreeTriangleAabbOverlap(FDISkelMeshContext DIContext, float2 UvRef, flo
 
 		// evaluate whether our triangle intersects with our AABB, if it does, then generate the barycentric coordinate for the center of the AABB
 		const bool Intersection = NormalizedAabbTriangleIntersection(
-				mad(UV0, UvExtentScale, UvExtentBias),
-				mad(UV1, UvExtentScale, UvExtentBias),
-				mad(UV2, UvExtentScale, UvExtentBias));
+				UV0 * UvExtentScale + UvExtentBias,
+				UV1 * UvExtentScale + UvExtentBias,
+				UV2 * UvExtentScale + UvExtentBias);
 
 		if (Intersection)
 		{
