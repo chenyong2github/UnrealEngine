@@ -37,6 +37,7 @@ struct FControlInputs
 		, RollInput(0.f)
 		, YawInput(0.f)
 		, HandbrakeInput(0.f)
+		, ParkingEnabled(false)
 		, TargetGearInput(0)
 		, SetGearImmediate(-1)
 		, TransmissionType(Chaos::ETransmissionType::Automatic)
@@ -66,6 +67,9 @@ struct FControlInputs
 
 	// Handbrake output to physics system. Range 0...1
 	float HandbrakeInput;
+
+	// ParkingEnabled
+	bool ParkingEnabled;
 
 	int32 TargetGearInput;
 	int8 SetGearImmediate;
@@ -769,6 +773,9 @@ protected:
 	UPROPERTY(Transient)
 	uint32 bWasAvoidanceUpdated : 1;
 
+	UPROPERTY(Transient)
+	uint8 bParkEnabled : 1;
+
 	int32 TargetGearInput;
 	int8 SetGearImmediate;
 	Chaos::ETransmissionType TransmissionType;
@@ -849,6 +856,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetHandbrakeInput(bool bNewHandbrake);
 
+	/** Set the vehicle in park mode */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void SetParked(bool bParked);
+
 	/** Set the user input for gear up */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetChangeUpInput(bool bNewGearUp);
@@ -884,6 +895,10 @@ public:
 	/** How fast the vehicle is moving forward */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	float GetForwardSpeedMPH() const;
+
+	/** Is the vehicle in park mode */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	bool IsParked() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	void EnableSelfRighting(bool InState)

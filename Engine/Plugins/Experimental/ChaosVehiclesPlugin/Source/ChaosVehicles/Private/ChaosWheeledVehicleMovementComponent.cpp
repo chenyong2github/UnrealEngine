@@ -662,9 +662,10 @@ void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInp
 			PWheel.SetBrakeTorque(MToCm(EngineBraking));
 		}
 
-		if (ModifiedInputs.HandbrakeInput && PWheel.Setup().HandbrakeEnabled)
+		if ((ModifiedInputs.HandbrakeInput && PWheel.Setup().HandbrakeEnabled) || ModifiedInputs.ParkingEnabled)
 		{
-			PWheel.SetBrakeTorque(MToCm(ModifiedInputs.HandbrakeInput * PWheel.Setup().HandbrakeTorque));
+			float HandbrakeForce = ModifiedInputs.ParkingEnabled ? PWheel.Setup().HandbrakeTorque : (ModifiedInputs.HandbrakeInput * PWheel.Setup().HandbrakeTorque);
+			PWheel.SetBrakeTorque(MToCm(HandbrakeForce));
 		}
 	}
 

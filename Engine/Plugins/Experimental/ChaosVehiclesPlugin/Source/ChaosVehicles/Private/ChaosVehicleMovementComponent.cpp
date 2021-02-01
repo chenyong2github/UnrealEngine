@@ -591,6 +591,7 @@ UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInit
 	: Super(ObjectInitializer)
 {
 	bReverseAsBrake = true;
+	bParkEnabled = false;
 	Mass = 1500.0f;
 	ChassisWidth = 180.f;
 	ChassisHeight = 140.f;
@@ -793,6 +794,7 @@ void UChaosVehicleMovementComponent::PreTickGT(float DeltaTime)
 		ControlInputs.RollInput = RollInput;
 		ControlInputs.PitchInput = PitchInput;
 		ControlInputs.YawInput = YawInput;
+		ControlInputs.ParkingEnabled = bParkEnabled;
 		ProcessSleeping(ControlInputs);
 	}
 
@@ -864,6 +866,12 @@ void UChaosVehicleMovementComponent::SetHandbrakeInput(bool bNewHandbrake)
 	bRawHandbrakeInput = bNewHandbrake;
 }
 
+
+void UChaosVehicleMovementComponent::SetParked(bool bParked)
+{
+	bParkEnabled = bParked;
+}
+
 void UChaosVehicleMovementComponent::SetChangeUpInput(bool bNewGearUp)
 {
 	bRawGearUpInput = bNewGearUp;
@@ -915,6 +923,10 @@ float UChaosVehicleMovementComponent::GetForwardSpeedMPH() const
 	return Chaos::CmSToMPH(GetForwardSpeed());
 }
 
+bool UChaosVehicleMovementComponent::IsParked() const
+{
+	return (bParkEnabled > 0);
+}
 
 // input related
 float UChaosVehicleMovementComponent::CalcSteeringInput()
@@ -1641,6 +1653,8 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 				AsyncInput->ControlInputs.TargetGearInput = TargetGearInput;
 				AsyncInput->ControlInputs.SetGearImmediate = SetGearImmediate;
 				AsyncInput->ControlInputs.TransmissionType = TransmissionType;
+
+				AsyncInput->ControlInputs.ParkingEnabled = bParkEnabled;
 
 				AsyncInput->GravityZ = GetGravityZ();
 
