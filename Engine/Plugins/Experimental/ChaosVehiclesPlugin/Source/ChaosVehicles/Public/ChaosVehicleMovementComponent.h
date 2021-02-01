@@ -654,6 +654,8 @@ public:
 	/** Add a torque to this vehicle */
 	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);
 
+	/** Reinitialize a wheel at runtime */
+	void InitializeWheel(int WheelIndex, const Chaos::FSimpleWheelConfig* InWheelSetup);
 
 	/** Draw debug text for the wheels and suspension */
 	virtual void DrawDebug3D();

@@ -583,6 +583,15 @@ void UChaosVehicleSimulation::AddTorqueInRadians(const FVector& Torque, bool bAl
 	}
 }
 
+void UChaosVehicleSimulation::InitializeWheel(int WheelIndex, const Chaos::FSimpleWheelConfig* InWheelSetup)
+{
+	if (PVehicle->IsValid() && InWheelSetup && WheelIndex < PVehicle->Wheels.Num())
+	{
+		PVehicle->Wheels[WheelIndex].SetupPtr = InWheelSetup;
+		PVehicle->Wheels[WheelIndex].SetWheelRadius(InWheelSetup->WheelRadius);
+	}
+
+}
 
 /**
  * UChaosVehicleMovementComponent

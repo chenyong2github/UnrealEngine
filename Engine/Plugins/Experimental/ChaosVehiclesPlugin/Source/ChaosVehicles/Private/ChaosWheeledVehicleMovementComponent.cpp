@@ -1917,6 +1917,30 @@ void UChaosWheeledVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 	FillWheelOutputState(); // expose wheel/suspensionm data to blueprint
 }
 
+void UChaosWheeledVehicleMovementComponent::SetWheelClass(int WheelIndex, TSubclassOf<UChaosVehicleWheel> InWheelClass)
+{
+	if (UpdatedPrimitive && InWheelClass)
+	{
+		FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
+
+		if (TargetInstance && WheelIndex < Wheels.Num())
+		{
+			UChaosVehicleWheel* Wheel = Wheels[WheelIndex];
+			Wheel->Shutdown();
+			Wheel = NewObject<UChaosVehicleWheel>(this, InWheelClass);
+			Wheel->Init(this, WheelIndex);
+
+			FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+				{
+					if (VehicleSimulationPT)
+					{
+						VehicleSimulationPT->InitializeWheel(WheelIndex, &Wheel->GetPhysicsWheelConfig());
+					}
+				});
+		}
+	}
+}
+
 #endif
 
 FChaosWheelSetup::FChaosWheelSetup()
