@@ -18,7 +18,7 @@
 
 namespace Chaos
 {
-	extern bool TriMeshPerPolySupport;
+	extern CHAOS_API bool TriMeshPerPolySupport;
 
 	template<typename T>
 	class TCapsule;
