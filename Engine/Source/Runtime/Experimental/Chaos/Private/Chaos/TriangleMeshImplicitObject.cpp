@@ -10,6 +10,9 @@
 namespace Chaos
 {
 
+	// Note that if this is re-enabled when previously off, the cooked trimeshes won't have the vertex map serialized, so the change will not take effect until re-cooked.
+	bool TriMeshPerPolySupport = 1;
+	FAutoConsoleVariableRef CVarPerPolySupport(TEXT("p.Chaos.TriMeshPerPolySupport"), TriMeshPerPolySupport, TEXT("Disabling removes memory cost of vertex map on triangle mesh. Note: Changing at runtime will not work."));
 
 
 template <typename QueryGeomType, typename T, int d>
@@ -888,8 +891,9 @@ TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlowImp
 	{
 		ExternalFaceIndexMapCopy = MakeUnique<TArray<int32>>(*ExternalFaceIndexMap.Get());
 	}
+
 	TUniquePtr<TArray<int32>> ExternalVertexIndexMapCopy = nullptr;
-	if (ExternalVertexIndexMap)
+	if (ExternalVertexIndexMap && TriMeshPerPolySupport)
 	{
 		ExternalVertexIndexMapCopy = MakeUnique<TArray<int32>>(*ExternalVertexIndexMap.Get());
 	}
@@ -1024,6 +1028,13 @@ void Chaos::FTriangleMeshImplicitObject::RebuildBV()
 
 void FTriangleMeshImplicitObject::UpdateVertices(const TArray<FVector>& NewPositions)
 {
+	if(TriMeshPerPolySupport == false)
+	{
+		// We don't have vertex map, this will not be correct.
+		ensure(false);
+		return;
+	}
+
 	const bool bRemapIndices = ExternalVertexIndexMap != nullptr;
 
 	for (int32 i = 0; i < NewPositions.Num(); ++i)

@@ -18,6 +18,8 @@
 
 namespace Chaos
 {
+	extern bool TriMeshPerPolySupport;
+
 	template<typename T>
 	class TCapsule;
 
