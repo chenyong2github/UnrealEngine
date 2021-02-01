@@ -65,7 +65,7 @@ bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View)
 		? View.FinalPostProcessSettings.RayTracingAO > 0
 		: GRayTracingAmbientOcclusion != 0;
 
-	bEnabled &= (View.FinalPostProcessSettings.AmbientOcclusionIntensity > 0.0f);
+	bEnabled &= (View.FinalPostProcessSettings.RayTracingAOIntensity > 0.0f);
 
 	return ShouldRenderRayTracingEffect(bEnabled);
 }
