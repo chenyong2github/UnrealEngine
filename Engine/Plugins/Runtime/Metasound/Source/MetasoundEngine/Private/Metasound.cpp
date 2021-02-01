@@ -72,17 +72,3 @@ const FMetasoundFrontendArchetype& UMetasound::GetPreferredMetasoundArchetype(co
 	return InDocument.Archetype;
 }
 
-// This can be used to update the metadata (name, author, etc) for this metasound.
-// @param InMetadata may be updated with any corrections we do to the input metadata.
-void UMetasound::SetMetadata(FMetasoundFrontendClassMetadata& InMetadata)
-{
-	FMetasoundAssetBase::SetMetadata(InMetadata);
-	MarkPackageDirty();
-}
-
-void UMetasound::PostLoad()
-{
-	ConformDocumentToMetasoundArchetype();
-	Super::PostLoad();
-}
-

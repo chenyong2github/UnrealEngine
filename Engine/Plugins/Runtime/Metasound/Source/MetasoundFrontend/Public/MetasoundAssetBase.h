@@ -120,6 +120,9 @@ public:
 	// This must be called on UObject::PostLoad, as well as in this asset's UFactory, to fix up the root document based on the most recent version of the archetype.
 	void ConformDocumentToMetasoundArchetype();
 
+	// Calls the outermost package and marks it dirty. 
+	bool MarkMetasoundDocumentDirty() const;
+
 protected:
 
 	// Returns an access pointer to the document.
@@ -129,7 +132,10 @@ protected:
 	virtual Metasound::Frontend::TAccessPtr<const FMetasoundFrontendDocument> GetDocument() const = 0;
 
 	// Returns the owning asset responsible for transactions applied to metasound
-	virtual UObject* GetOwningAsset() const = 0;
+	virtual UObject* GetOwningAsset() = 0;
+
+	// Returns the owning asset responsible for transactions applied to metasound
+	virtual const UObject* GetOwningAsset() const = 0;
 
 private:
 

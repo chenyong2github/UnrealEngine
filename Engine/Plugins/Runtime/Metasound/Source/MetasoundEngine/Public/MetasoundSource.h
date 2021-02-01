@@ -98,23 +98,21 @@ public:
 
 #endif // WITH_EDITOR
 
-	UObject* GetOwningAsset() const override
+	UObject* GetOwningAsset() override
 	{
-		// Hack to allow handles to manipulate while providing
-		// ability to inspect via a handle from the const version of GetRootGraphHandle()
-		return const_cast<UObject*>(CastChecked<const UObject>(this));
+		return this;
 	}
 
-	// Updates the Metasound's metadata (name, author, etc).
-	// @param InMetadata Metadata containing corrections to the class metadata.
-	void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata) override;
+	const UObject* GetOwningAsset() const override
+	{
+		return this;
+	}
 
 	bool IsPlayable() const override;
 	bool SupportsSubtitles() const override;
 	float GetDuration() override;
 	ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 	TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const override;
-	void PostLoad() override;
 
 	// Get the most up to date archetype for metasound sources.
 	const TArray<FMetasoundFrontendArchetype>& GetPreferredMetasoundArchetypes() const override;

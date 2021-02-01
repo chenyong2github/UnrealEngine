@@ -68,11 +68,14 @@ public:
 	virtual void SetGraph(UEdGraph* InGraph) override;
 #endif // WITH_EDITORONLY_DATA
 
-	UObject* GetOwningAsset() const override
+	UObject* GetOwningAsset() override
 	{
-		// Hack to allow handles to manipulate while providing
-		// ability to inspect via a handle from the const version of GetRootGraphHandle()
-		return const_cast<UObject*>(CastChecked<const UObject>(this));
+		return this;
+	}
+
+	const UObject* GetOwningAsset() const override
+	{
+		return this;
 	}
 
 	const TArray<FMetasoundFrontendArchetype>& GetPreferredMetasoundArchetypes() const override;
@@ -80,11 +83,5 @@ public:
 	bool IsMetasoundArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const override;
 
 	const FMetasoundFrontendArchetype& GetPreferredMetasoundArchetype(const FMetasoundFrontendDocument& InDocument) const override;
-
-	// Updates the Metasound's metadata (name, author, etc).
-	// @param InMetadata Metadata containing corrections to the class metadata.
-	void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata) override;
-
-	void PostLoad() override;
 
 };

@@ -40,11 +40,6 @@ UMetasoundSource::UMetasoundSource(const FObjectInitializer& ObjectInitializer)
 
 }
 
-void UMetasoundSource::SetMetadata(FMetasoundFrontendClassMetadata& InMetadata)
-{
-	RootMetasoundDocument.RootGraph.Metadata = InMetadata;
-}
-
 #if WITH_EDITOR
 
 void UMetasoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
@@ -207,13 +202,6 @@ TUniquePtr<IAudioInstanceTransmitter> UMetasoundSource::CreateInstanceTransmitte
 	}
 
 	return MakeUnique<Metasound::FMetasoundInstanceTransmitter>(InitParams);
-}
-
-void UMetasoundSource::PostLoad()
-{
-	Super::PostLoad();
-
-	ConformDocumentToMetasoundArchetype();
 }
 
 bool UMetasoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const

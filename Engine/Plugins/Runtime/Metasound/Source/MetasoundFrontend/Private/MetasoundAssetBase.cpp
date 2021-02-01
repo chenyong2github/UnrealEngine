@@ -33,6 +33,8 @@ void FMetasoundAssetBase::SetMetadata(FMetasoundFrontendClassMetadata& InMetadat
 		UE_LOG(LogMetasound, Display, TEXT("Forcing class type to EMetasoundFrontendClassType::Graph on root graph metadata"));
 		Doc.RootGraph.Metadata.Type = EMetasoundFrontendClassType::Graph;
 	}
+
+	MarkMetasoundDocumentDirty();
 }
 
 const FMetasoundFrontendArchetype& FMetasoundAssetBase::GetMetasoundArchetype() const
@@ -106,6 +108,17 @@ void FMetasoundAssetBase::ConformDocumentToMetasoundArchetype()
 
 	Metasound::Frontend::FMatchRootGraphToArchetype Transform;
 	Transform.Transform(GetDocumentHandle());
+
+	MarkMetasoundDocumentDirty();
+}
+
+bool FMetasoundAssetBase::MarkMetasoundDocumentDirty() const
+{
+	if (const UObject* OwningAsset = GetOwningAsset())
+	{
+		return ensure(OwningAsset->MarkPackageDirty());
+	}
+	return false;
 }
 
 FMetasoundFrontendClassMetadata FMetasoundAssetBase::GetMetadata()
@@ -138,7 +151,14 @@ bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> Document = GetDocument();
 	if (ensure(Document.IsValid()))
 	{
-		return Metasound::Frontend::ImportJSONToMetasound(InJSON, *Document);
+		bool bSuccess = Metasound::Frontend::ImportJSONToMetasound(InJSON, *Document);
+
+		if (bSuccess)
+		{
+			ensure(MarkMetasoundDocumentDirty());
+		}
+
+		return bSuccess;
 	}
 	return false;
 }
@@ -148,7 +168,14 @@ bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 	Metasound::Frontend::TAccessPtr<FMetasoundFrontendDocument> Document = GetDocument();
 	if (ensure(Document.IsValid()))
 	{
-		return Metasound::Frontend::ImportJSONAssetToMetasound(InAbsolutePath, *Document);
+		bool bSuccess = Metasound::Frontend::ImportJSONAssetToMetasound(InAbsolutePath, *Document);
+
+		if (bSuccess)
+		{
+			ensure(MarkMetasoundDocumentDirty());
+		}
+
+		return bSuccess;
 	}
 	return false;
 }
