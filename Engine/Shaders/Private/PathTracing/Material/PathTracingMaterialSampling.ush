@@ -13,6 +13,8 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingGlossy.ush"
 #include "PathTracingSpecularReflection.ush"
 #include "PathTracingSpecularTransmission.ush"
+#include "PathTracingSolidGlass.ush"
+#include "PathTracingThinGlass.ush"
 #include "PathTracingDefaultLit.ush"
 #include "PathTracingClearCoat.ush"
 #include "PathTracingTwoSidedFoliage.ush"
@@ -42,14 +44,27 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 		case SHADINGMODELID_DEFAULT_LIT:		
 		case SHADINGMODELID_CLEAR_COAT:			
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:	
+		case SHADINGMODELID_THIN_TRANSLUCENT:
 		default:
 			return true;
 	}
 #endif
 }
 
-float3 GetMaterialTransparency(FMaterialClosestHitPayload Payload)
+float3 GetMaterialTransparency(FMaterialClosestHitPayload Payload, float3 RayDirection)
 {
+	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+	{
+		if (Payload.Ior == 1.0)
+		{
+			float VoN = dot(RayDirection, Payload.WorldNormal);
+			return (1 - Payload.Opacity) * pow(Payload.CustomData.xyz, 1.0 / abs(VoN));
+		}
+		else
+		{
+			return 0;
+		}
+	}
 	switch (Payload.BlendingMode)
 	{
 		case RAY_TRACING_BLEND_MODE_TRANSLUCENT:
@@ -125,6 +140,7 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 	if (HasRefraction)
 	{
 		// glass is currently perfectly clear - so has unit albedo
+		// TODO: estimate some kind of albedo for thin-translucent case since that one uses a color?
 		float3 White = 1;
 		Albedo = lerp(White, Albedo, Payload.Opacity);
 	}
@@ -146,6 +162,7 @@ void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, in
 			// fallthrough
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 		case SHADINGMODELID_DEFAULT_LIT:
+		case SHADINGMODELID_THIN_TRANSLUCENT:
 			Payload.Roughness = max(Payload.Roughness, PathRoughness);
 			break;
 		default:
@@ -232,8 +249,12 @@ void SampleMaterial(
 		// we randomly decided to sample the translucent portion
 		RandSample.x = (RandSample.x - BrdfProb) / (1 - BrdfProb);
 
-		// only case that should reach this point is the refraction model
-		if (Payload.Roughness == 0)
+		// only case that should reach this point is the refraction model (which can be thin or solid)
+		if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+		{
+			RoughThinGlass_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+		}
+		else if (Payload.Roughness == 0)
 		{
 			SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
 		}
@@ -368,24 +389,20 @@ void EvalMaterial(
 		{
 			float3 GlassWeight = 0;
 			float GlassPdf = 0;
-			RoughGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, GlassWeight, GlassPdf);
+			if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+			{
+				// just a thin slab (reflection-like lobe on both sides)
+				RoughThinGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, GlassWeight, GlassPdf);
+			}
+			else
+			{
+				// real solid glass, reflection and refraction
+				RoughGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, GlassWeight, GlassPdf);
+			}
+			
 
 			AddLobeWithMIS(OutWeight, OutPdf, GlassWeight, GlassPdf, 1.0 - BrdfProb);
 		}
 	}
 #endif
-}
-
-
-void PdfMaterial(
-	float3 IncomingDirection,
-	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	bool bForceRadianceProbe,
-	out float OutPdf
-)
-{
-	// NOTE: rely on compiler to optimize unused calculations
-	float3 Weight = 0;
-	EvalMaterial(IncomingDirection, OutgoingDirection, Payload, bForceRadianceProbe, Weight, OutPdf);
 }

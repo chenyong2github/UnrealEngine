@@ -1,0 +1,138 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================================
+PathTracingSolidGlass.ush: Microfacet Refractive BSDF for solid glass
+===============================================================================================*/
+
+#pragma once
+
+#include "PathTracingMaterialCommon.ush"
+#include "PathTracingFresnel.ush"
+#include "PathTracingGlossy.ush"
+
+void RoughGlass_SampleMaterial(
+	float3 RayDirection,
+	FMaterialClosestHitPayload Payload,
+	float4 RandSample,
+	out float3 OutDirection,
+	out float3 OutWeight,
+	out float OutPdf,
+	out float OutPositionBiasSign)
+{
+	OutDirection = 0;
+	OutWeight = 0;
+	OutPdf = 0;
+	OutPositionBiasSign = 1;
+
+	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
+	bool bIsEntering = Payload.IsFrontFace();
+	float3 N_World = GetWorldNormal(Payload);
+	float3 V_World = -RayDirection;
+
+	// #dxr_todo: Maintain a refraction stack on the path tracing payload
+	float Ior = Payload.Ior;
+	float Eta = bIsEntering ? Ior : 1.0 / Ior;
+
+	float2 Alpha;
+	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
+
+	float3 V = mul(Basis, V_World);
+	float NoV = saturate(V.z);
+
+	if (NoV == 0)
+	{
+		// invalid grazing angle
+		return;
+	}
+
+	float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
+	float3 N = float3(0, 0, 1);
+	float NoH = saturate(H.z);
+	float VoH = saturate(dot(V, H));
+
+	float3 L = 0;
+	float F = 0;
+	if (SampleRefraction(-V, H, Eta, RandSample.z, L, F))
+	{
+		const float2 GGXResult = GGXEvalRefraction(L, V, H, Alpha, Eta);
+
+		OutWeight = GGXResult.x;
+		OutPdf = F * GGXResult.y;
+
+		OutPositionBiasSign = -1;
+	}
+	else
+	{
+		const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
+		OutWeight = GGXResult.x;
+		OutPdf = F * GGXResult.y;
+	}
+
+	// transform to world space
+	OutDirection = normalize(mul(L, Basis));
+}
+
+void RoughGlass_EvalMaterial(
+	float3 IncomingDirection,
+	float3 OutgoingDirection,
+	FMaterialClosestHitPayload Payload,
+	out float3 OutWeight,
+	out float OutPdf)
+{
+	OutWeight = 0;
+	OutPdf = 0;
+
+	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
+	bool bIsEntering = Payload.IsFrontFace();
+	float3 V_World = -IncomingDirection;
+	float3 L_World = OutgoingDirection;
+	float3 N_World = GetWorldNormal(Payload);
+
+	// #dxr_todo: Maintain a refraction stack on the path tracing payload
+	float Ior = Payload.Ior;
+	float Eta = bIsEntering ? Ior : 1.0 / Ior;
+
+	float2 Alpha;
+	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
+
+	// move vectors into right shading frame
+	float3 V = mul(Basis, V_World);
+	float3 L = mul(Basis, L_World);
+
+	if (V.z <= 0)
+	{
+		// invalid input
+		return;
+	}
+
+	float NoV = saturate(V.z);
+	if (L.z > 0)
+	{
+		// reflection side
+		const float3 H = normalize(L + V);
+		const float VoH = saturate(dot(V, H));
+		const float F = FresnelReflectance(VoH, Eta);
+
+		const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
+		OutWeight = GGXResult.x;
+		OutPdf = F * GGXResult.y;
+	}
+	else if (L.z < 0)
+	{
+		// refraction side
+		float NoL = saturate(-L.z);
+		float3 Ht = -(Eta * L + V);
+		Ht = (Eta < 1.0f) ? -Ht : Ht;
+		float3 Htn = normalize(Ht);
+
+		float VoH = dot(V, Htn);
+		float F = 1.0f - FresnelReflectance(VoH, Eta);
+		if (F > 0)
+		{
+			const float2 GGXResult = GGXEvalRefraction(L, V, Htn, Alpha, Eta);
+
+			OutWeight = GGXResult.x;
+			OutPdf = F * GGXResult.y;
+		}
+	}
+}

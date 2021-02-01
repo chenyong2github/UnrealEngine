@@ -98,7 +98,7 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 			AccumulateRadiance(Radiance, PathThroughput * HitPayload.Radiance);
 		}
 
-		float3 Transparency = GetMaterialTransparency(HitPayload);
+		float3 Transparency = GetMaterialTransparency(HitPayload, Ray.Direction);
 
 		if (!LastBounce)
 		{
@@ -173,11 +173,8 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 	// The payload is used to carry the path throughput (for transparent shadows)
 	// and current path roughness (for approximate caustics)
 	PackedPayload.SetPathTracingVisibilityRay();
-	PackedPayload.RadianceAndNormal[0] = asuint(1.0);
-	PackedPayload.RadianceAndNormal[1] = asuint(1.0);
-	PackedPayload.RadianceAndNormal[2] = asuint(1.0);
-	PackedPayload.MetallicAndSpecularAndRoughness = asuint(PathRoughness);
-
+	PackedPayload.SetRayThroughput(1.0);
+	PackedPayload.SetPathRoughness(PathRoughness);
 	PackedPayload.SetPixelCoord(PixelCoord);
 
 	// Trace the ray
@@ -194,11 +191,7 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 	if (PackedPayload.IsMiss())
 	{
 		// we didn't hit any geo - just return whatever throughput is left
-		return float3(
-			asfloat(PackedPayload.RadianceAndNormal[0]),
-			asfloat(PackedPayload.RadianceAndNormal[1]),
-			asfloat(PackedPayload.RadianceAndNormal[2])
-		);
+		return PackedPayload.GetRayThroughput();
 	}
 
 	// we registered a hit -- assumed to be fully opaque

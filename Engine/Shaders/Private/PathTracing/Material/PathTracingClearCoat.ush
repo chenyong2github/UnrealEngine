@@ -74,10 +74,8 @@ void ClearCoat_EvalMaterial(
 
 	float CoatSelectionPdf = CalcClearCoatSelectionPdf(Payload);
 
-	// No anisotropy, just pick an arbitrary basis
-	float Roughness = max(GetClearCoatRoughness(Payload), GGX_MIN_ROUGHNESS);
-	float2 Alpha = Roughness * Roughness;
-	float3x3 Basis = GetTangentBasis(N_World);
+	float2 Alpha = 0;
+	float3x3 Basis = GetGGXBasis(GetClearCoatRoughness(Payload), Payload.WorldNormal, Alpha);
 
 	// move vectors into right shading frame
 	float3 V = mul(Basis, V_World);
@@ -90,25 +88,13 @@ void ClearCoat_EvalMaterial(
 	float VoH = saturate(dot(V, H));
 
 	// Specular lobe
-	if (NoL > 0 && NoV > 0)
-	{
-		// Assume NoH > 0
-		// FIXME: this can be further simplified
-		const float CosThetaM4 = Pow2(NoH);
-		const float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(NoH);
-		const float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
-		const float Lambda_o = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(L.x * Alpha.x) + Pow2(L.y * Alpha.y)) / Pow2(L.z)));
-		const float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
-		const float G2 = 1 / (Lambda_i + Lambda_o + 1);
-		const float G1 = 1 / (Lambda_i + 1);
+	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
+	const float F = GetClearCoat(Payload) * ClearCoatFresnel(VoH);
+	const float3 SpecWeight = F * GGXResult.x;
+	const float SpecPdf = GGXResult.y;
 
-		const float F = GetClearCoat(Payload) * ClearCoatFresnel(VoH);
-
-		const float3 SpecWeight = F * (G2 / G1);
-		const float SpecPdf = (G1 * D * 0.25f) / NoV;
-
-		AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, CoatSelectionPdf);
-	}
+	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, CoatSelectionPdf);
+	
 
 	// bottom-layer clear coat evaluation
 	float3 BottomWeight = 0;
