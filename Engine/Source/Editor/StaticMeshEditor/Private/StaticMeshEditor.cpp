@@ -1261,7 +1261,15 @@ bool FStaticMeshEditor::GetLastSelectedPrimTransform(FTransform& OutTransform) c
 
 		const FPrimData& PrimData = SelectedPrims.Last();
 
-		check(IsPrimValid(PrimData));
+		// The SME is not notified of external changes to Simple Collision of the active object, and the UBodySetup
+		// does not have any kind of change notification to hook into to do this. So, the SelectedPrims can become
+		// invalid if an external change is made. In that case we will just return false here and hope that the 
+		// FStaticMeshEditorViewportClient caller will error-handle correctly.
+		if (IsPrimValid(PrimData) == false)
+		{
+			return false;
+		}
+
 		switch (PrimData.PrimType)
 		{
 		case EAggCollisionShape::Sphere:

@@ -422,8 +422,11 @@ FVector FStaticMeshEditorViewportClient::GetWidgetLocation() const
 	{
 		return PrimTransform.GetLocation();
 	}
-
-	return FVector::ZeroVector;
+	else
+	{
+		StaticMeshEditorPtr.Pin()->ClearSelectedPrims();
+		return FVector::ZeroVector;
+	}
 }
 
 FMatrix FStaticMeshEditorViewportClient::GetWidgetCoordSystem() const 
@@ -447,8 +450,11 @@ FMatrix FStaticMeshEditorViewportClient::GetWidgetCoordSystem() const
 	{
 		return FRotationMatrix(PrimTransform.Rotator());
 	}
-
-	return FMatrix::Identity;
+	else
+	{
+		StaticMeshEditorPtr.Pin()->ClearSelectedPrims();
+		return FMatrix::Identity;
+	}
 }
 
 ECoordSystem FStaticMeshEditorViewportClient::GetWidgetCoordSystemSpace() const
