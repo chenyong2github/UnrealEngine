@@ -97,7 +97,7 @@ bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 
 	StaticMesh = InLODActor->StaticMeshComponent ? InLODActor->StaticMeshComponent->GetStaticMesh() : nullptr;
 
-	const TMap<FHLODInstancingKey, UInstancedStaticMeshComponent*>& ISMComponents = InLODActor->InstancedStaticMeshComponents;
+	const TMap<FHLODInstancingKey, TObjectPtr<UInstancedStaticMeshComponent>>& ISMComponents = InLODActor->InstancedStaticMeshComponents;
 	ISMComponentsDesc.Reset(ISMComponents.Num());
 	for (auto const& Pair : ISMComponents)
 	{
@@ -161,7 +161,7 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 	}
 
 	TArray<FHLODISMComponentDesc> LocalISMComponentsDesc;
-	const TMap<FHLODInstancingKey, UInstancedStaticMeshComponent*>& ISMComponents = InLODActor->InstancedStaticMeshComponents;
+	const TMap<FHLODInstancingKey, TObjectPtr<UInstancedStaticMeshComponent>>& ISMComponents = InLODActor->InstancedStaticMeshComponents;
 	LocalISMComponentsDesc.Reset(ISMComponents.Num());
 	for (auto const& Pair : ISMComponents)
 	{

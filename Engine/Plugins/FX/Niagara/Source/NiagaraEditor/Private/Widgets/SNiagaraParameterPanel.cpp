@@ -627,10 +627,10 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 	{
 		for (TWeakObjectPtr<UNiagaraGraph>& Graph : Graphs)
 		{
-			TMap<FNiagaraVariable, UNiagaraScriptVariable*> GraphParameters = Graph.Get()->GetAllMetaData(); //@todo(ng) try an array view so we can sort it without copying
+			TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> GraphParameters = Graph.Get()->GetAllMetaData(); //@todo(ng) try an array view so we can sort it without copying
 			GraphParameters.KeySort([](const FNiagaraVariable& A, const FNiagaraVariable& B) { return A.GetName().LexicalLess(B.GetName()); }); //@todo(ng) sort by scope
 
-			for (TTuple<FNiagaraVariable, UNiagaraScriptVariable*>& GraphParameter : GraphParameters)
+			for (TTuple<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GraphParameter : GraphParameters)
 			{
 				FNiagaraVariable Variable = GraphParameter.Key;
 				const FText Category = LOCTEXT("NiagaraAddExistingParameterMenu", "Add Existing Parameter");

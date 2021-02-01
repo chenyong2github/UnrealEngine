@@ -83,11 +83,11 @@ void FClothPhysicalMeshData::ClearWeightMaps()
 	AddWeightMap(EWeightMapTargetCommon::AnimDriveMultiplier);
 }
 
-void FClothPhysicalMeshData::BuildSelfCollisionData(const TMap<FName, UClothConfigBase*>& ClothConfigs)
+void FClothPhysicalMeshData::BuildSelfCollisionData(const TMap<FName, TObjectPtr<UClothConfigBase>>& ClothConfigs)
 {
 #if WITH_APEX_CLOTHING  // Only apex clothing needs to build the SelfCollisionIndices
 	float SCRadius = 0.f;
-	for (const TPair<FName, UClothConfigBase*>& ClothConfig : ClothConfigs)
+	for (const TPair<FName, TObjectPtr<UClothConfigBase>>& ClothConfig : ClothConfigs)
 	{
 		SCRadius = ClothConfig.Value->NeedsSelfCollisionIndices();
 		if (SCRadius > 0.f)

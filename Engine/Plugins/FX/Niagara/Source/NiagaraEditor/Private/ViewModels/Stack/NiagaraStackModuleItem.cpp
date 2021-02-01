@@ -145,7 +145,7 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 		{
 			UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionCallNode->FunctionScript->GetSource());
 			UNiagaraGraph* Graph = CastChecked<UNiagaraGraph>(Source->NodeGraph);
-			const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& MetaDataMap = Graph->GetAllMetaData();
+			const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& MetaDataMap = Graph->GetAllMetaData();
 			auto Iter = MetaDataMap.CreateConstIterator();
 			while (Iter)
 			{

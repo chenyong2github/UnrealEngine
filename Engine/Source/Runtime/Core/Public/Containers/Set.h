@@ -1218,30 +1218,6 @@ public:
 		Elements.CheckAddress(Addr);
 	}
 
-	/** Implicit conversion operator to container of compatible element type. */
-	template <
-		typename AliasElementType = ElementType,
-		typename std::enable_if_t<TIsContainerElementTypeReinterpretable<AliasElementType>::Value>* = nullptr
-		>
-	operator TSet<typename TContainerElementTypeCompatibility<AliasElementType>::ReinterpretType>& ()
-	{
-		using ElementCompat = TContainerElementTypeCompatibility<ElementType>;
-		ElementCompat::ReinterpretRange(begin(), end());
-		return *reinterpret_cast<TSet<typename ElementCompat::ReinterpretType>*>(this);
-	}
-
-	/** Implicit conversion operator to constant container of compatible element type. */
-	template <
-		typename AliasElementType = ElementType,
-		typename std::enable_if_t<TIsContainerElementTypeReinterpretable<AliasElementType>::Value>* = nullptr
-		>
-	operator const TSet<typename TContainerElementTypeCompatibility<AliasElementType>::ReinterpretType>& () const
-	{
-		using ElementCompat = TContainerElementTypeCompatibility<ElementType>;
-		ElementCompat::ReinterpretRange(begin(), end());
-		return *reinterpret_cast<const TSet<typename ElementCompat::ReinterpretType>*>(this);
-	}
-
 	/**
 	 * Move assignment operator.
 	 * Compatible element type version.

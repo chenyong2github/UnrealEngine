@@ -136,7 +136,7 @@ public:
 
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 
-	NIAGARAEDITOR_API const TMap<FGuid, UNiagaraMessageData*>& GetMessages() const { return MessageKeyToMessageMap; };
+	NIAGARAEDITOR_API const TMap<FGuid, TObjectPtr<UNiagaraMessageData>>& GetMessages() const { return MessageKeyToMessageMap; };
 	NIAGARAEDITOR_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageData* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
 	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };

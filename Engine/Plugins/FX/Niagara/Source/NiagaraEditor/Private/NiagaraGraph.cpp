@@ -767,7 +767,7 @@ void UNiagaraGraph::StandardizeParameterNames()
 
 	// Since we'll be modifying the keys, make a copy of the map and then clear the original so it cal be 
 	// repopulated.
-	TMap<FNiagaraVariable, UNiagaraScriptVariable*> OldVariableToScriptVariable = VariableToScriptVariable;
+	TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> OldVariableToScriptVariable = VariableToScriptVariable;
 	VariableToScriptVariable.Empty();
 	for (TPair<FNiagaraVariable, UNiagaraScriptVariable*> VariableScriptVariablePair : OldVariableToScriptVariable)
 	{
@@ -1297,12 +1297,12 @@ void UNiagaraGraph::GetParameters(TArray<FNiagaraVariable>& Inputs, TArray<FNiag
 // 	Outputs.Sort(SortVars);
 }
 
-const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& UNiagaraGraph::GetAllMetaData() const
+const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& UNiagaraGraph::GetAllMetaData() const
 {
 	return VariableToScriptVariable;
 }
 
-TMap<FNiagaraVariable, UNiagaraScriptVariable*>& UNiagaraGraph::GetAllMetaData()
+TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& UNiagaraGraph::GetAllMetaData()
 {
 	return VariableToScriptVariable;
 }
@@ -1767,7 +1767,7 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 
 void UNiagaraGraph::ScriptVariableChanged(FNiagaraVariable Variable)
 {
-	UNiagaraScriptVariable** ScriptVariable = GetAllMetaData().Find(Variable);
+	TObjectPtr<UNiagaraScriptVariable>* ScriptVariable = GetAllMetaData().Find(Variable);
 	if (!ScriptVariable || !*ScriptVariable || (*ScriptVariable)->Metadata.GetIsStaticSwitch()) {
 		return;
 	}
@@ -1943,8 +1943,8 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 	}
 
 	// We need to sort the variables in a stable manner.
-	TArray<UNiagaraScriptVariable*> Values;
-	ToRawPtrTMapUnsafe(VariableToScriptVariable).GenerateValueArray(Values);
+	TArray<TObjectPtr<UNiagaraScriptVariable>> Values;
+	VariableToScriptVariable.GenerateValueArray(Values);
 	Values.Remove(nullptr);
 	Values.Sort([&](const UNiagaraScriptVariable& A, const UNiagaraScriptVariable& B)
 	{

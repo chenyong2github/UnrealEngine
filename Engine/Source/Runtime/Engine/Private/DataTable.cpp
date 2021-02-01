@@ -461,9 +461,9 @@ void UDataTable::CleanBeforeStructChange()
 		{
 			class FRawStructWriter : public FObjectWriter
 			{
-				TSet<UObject*>& TemporarilyReferencedObjects;
+				TSet<TObjectPtr<UObject>>& TemporarilyReferencedObjects;
 			public:
-				FRawStructWriter(TArray<uint8>& InBytes, TSet<UObject*>& InTemporarilyReferencedObjects)
+				FRawStructWriter(TArray<uint8>& InBytes, TSet<TObjectPtr<UObject>>& InTemporarilyReferencedObjects)
 					: FObjectWriter(InBytes), TemporarilyReferencedObjects(InTemporarilyReferencedObjects) {}
 				virtual FArchive& operator<<(class UObject*& Res) override
 				{

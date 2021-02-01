@@ -2321,8 +2321,8 @@ void FSceneComponentInstanceData::AddReferencedObjects(FReferenceCollector& Coll
 
 void FSceneComponentInstanceData::FindAndReplaceInstances(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	TArray<USceneComponent*> SceneComponents;
-	ToRawPtrTMapUnsafe(AttachedInstanceComponents).GenerateKeyArray(SceneComponents);
+	TArray<TObjectPtr<USceneComponent>> SceneComponents;
+	AttachedInstanceComponents.GenerateKeyArray(SceneComponents);
 
 	for (USceneComponent* SceneComponent : SceneComponents)
 	{

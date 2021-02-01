@@ -297,8 +297,8 @@ class UNiagaraGraph : public UEdGraph
 	void SetPerScriptMetaData(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InMetaData);
 
 
-	const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& GetAllMetaData() const;
-	TMap<FNiagaraVariable, UNiagaraScriptVariable*>& GetAllMetaData();
+	const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GetAllMetaData() const;
+	TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GetAllMetaData();
 
 	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetParameterReferenceMap() const; // NOTE: The const is a lie! (This indirectly calls RefreshParameterReferences, which can recreate the entire map)
 

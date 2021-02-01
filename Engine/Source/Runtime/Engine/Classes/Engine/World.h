@@ -731,7 +731,7 @@ struct ENGINE_API FLevelCollection
 	void SetDemoNetDriver(UDemoNetDriver* const InDemoNetDriver) { DemoNetDriver = InDemoNetDriver; }
 
 	/** Returns the set of levels in this collection. */
-	const TSet<ULevel*>& GetLevels() const { return Levels; }
+	const TSet<TObjectPtr<ULevel>>& GetLevels() const { return Levels; }
 
 	/** Adds a level to this collection and caches the collection pointer on the level for fast access. */
 	void AddLevel(ULevel* const Level);

@@ -549,7 +549,7 @@ void FDatasmithImporterModule::ExecuteReimportDatasmithMaterials( TArray<FAssetD
 
 void FDatasmithImporterModule::DiffAgainstTemplates( UObject* Outer )
 {
-	TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* ObjectTemplates = FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates( Outer );
+	TMap< TSubclassOf< UDatasmithObjectTemplate >, TObjectPtr<UDatasmithObjectTemplate> >* ObjectTemplates = FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates( Outer );
 
 	if ( !ObjectTemplates )
 	{
@@ -579,7 +579,7 @@ void FDatasmithImporterModule::DiffAgainstTemplates( UObject* Outer )
 
 void FDatasmithImporterModule::ResetFromTemplates( UObject* Outer )
 {
-	if ( TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* ObjectTemplates = FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates( Outer ) )
+	if ( TMap< TSubclassOf< UDatasmithObjectTemplate >, TObjectPtr<UDatasmithObjectTemplate> >* ObjectTemplates = FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates( Outer ) )
 	{
 		for ( auto It = ObjectTemplates->CreateConstIterator(); It; ++It )
 		{

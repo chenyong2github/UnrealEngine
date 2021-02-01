@@ -125,7 +125,7 @@ void UNiagaraNodeWithDynamicPins::UpdateAddedPinMetaData(const UEdGraphPin* Adde
 		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 		FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(AddedPin, false);
 		
-		if (UNiagaraScriptVariable** ScriptVariable = Graph->GetAllMetaData().Find(PinVariable))
+		if (TObjectPtr<UNiagaraScriptVariable>* ScriptVariable = Graph->GetAllMetaData().Find(PinVariable))
 		{
 			Graph->UpdateUsageForScriptVariable(*ScriptVariable);
 		}
@@ -324,7 +324,7 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 		// Resolve the unique parameter name before adding to the graph as the pin needs to be created first to resolve the parameter metadata usage.
 		if (FNiagaraConstants::FindEngineConstant(Parameter) == nullptr)
 		{
-			UNiagaraScriptVariable** FoundScriptVariable = Graph->GetAllMetaData().Find(Parameter);
+			TObjectPtr<UNiagaraScriptVariable>* FoundScriptVariable = Graph->GetAllMetaData().Find(Parameter);
 			if (!FoundScriptVariable)
 			{
 				Parameter.SetName(Graph->MakeUniqueParameterName(Parameter.GetName()));
@@ -387,7 +387,7 @@ void UNiagaraNodeWithDynamicPins::RemoveDynamicPin(UEdGraphPin* Pin)
 					return;
 				}
 
-				UNiagaraScriptVariable** PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(PinVariable);
+				TObjectPtr<UNiagaraScriptVariable>* PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(PinVariable);
 				if (PinAssociatedScriptVariable != nullptr)
 				{
 					bool bShouldRemoveScriptVariable = !Graph->UpdateUsageForScriptVariable(*PinAssociatedScriptVariable);

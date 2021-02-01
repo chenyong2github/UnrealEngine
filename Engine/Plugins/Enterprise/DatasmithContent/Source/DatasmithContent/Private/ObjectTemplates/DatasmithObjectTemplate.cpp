@@ -71,12 +71,12 @@ UDatasmithAssetUserData* FDatasmithObjectTemplateUtils::FindOrCreateDatasmithUse
 	return UserData;
 }
 
-TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates(UObject* Outer)
+TMap< TSubclassOf< UDatasmithObjectTemplate >, TObjectPtr<UDatasmithObjectTemplate> >* FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates(UObject* Outer)
 {
 #if WITH_EDITORONLY_DATA
 	if (UDatasmithAssetUserData* UserAssetData = FindOrCreateDatasmithUserData(Outer))
 	{
-		return &ToRawPtrTMapUnsafe(UserAssetData->ObjectTemplates);
+		return &UserAssetData->ObjectTemplates;
 	}
 #endif // #if WITH_EDITORONLY_DATA
 return nullptr;
@@ -95,14 +95,14 @@ void UDatasmithObjectTemplate::Apply(UObject* Destination, bool bForce)
 UDatasmithObjectTemplate* FDatasmithObjectTemplateUtils::GetObjectTemplate(UObject* Outer, TSubclassOf< UDatasmithObjectTemplate > Subclass)
 {
 #if WITH_EDITORONLY_DATA
-	TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* ObjectTemplatesMap = FindOrCreateObjectTemplates(Outer);
+	TMap< TSubclassOf< UDatasmithObjectTemplate >, TObjectPtr<UDatasmithObjectTemplate> >* ObjectTemplatesMap = FindOrCreateObjectTemplates(Outer);
 
 	if (!ObjectTemplatesMap)
 	{
 		return nullptr;
 	}
 
-	UDatasmithObjectTemplate** ObjectTemplatePtr = ObjectTemplatesMap->Find(Subclass);
+	TObjectPtr<UDatasmithObjectTemplate>* ObjectTemplatePtr = ObjectTemplatesMap->Find(Subclass);
 
 	return ObjectTemplatePtr ? *ObjectTemplatePtr : nullptr;
 #else
@@ -115,7 +115,7 @@ void FDatasmithObjectTemplateUtils::SetObjectTemplate(UObject* Outer, UDatasmith
 #if WITH_EDITORONLY_DATA
 	if (UDatasmithAssetUserData* UserData = FindOrCreateDatasmithUserData(Outer))
 	{
-		TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >& ObjectTemplatesMap = UserData->ObjectTemplates;
+		TMap< TSubclassOf< UDatasmithObjectTemplate >, TObjectPtr<UDatasmithObjectTemplate> >& ObjectTemplatesMap = UserData->ObjectTemplates;
 		ObjectTemplatesMap.FindOrAdd(ObjectTemplate->GetClass()) = ObjectTemplate;
 		ObjectTemplate->SetFlags(RF_Public);
 

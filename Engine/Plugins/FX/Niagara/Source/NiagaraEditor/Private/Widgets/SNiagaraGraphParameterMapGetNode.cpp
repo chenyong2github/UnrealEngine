@@ -185,7 +185,7 @@ FReply SNiagaraGraphParameterMapGetNode::OnBorderMouseButtonDown(const FGeometry
 				if (Schema)
 				{
 					FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPins[InWhichPin-1]->GetPinObj());
-					UNiagaraScriptVariable** PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(Var);
+					TObjectPtr<UNiagaraScriptVariable>* PinAssociatedScriptVariable = Graph->GetAllMetaData().Find(Var);
 					if (PinAssociatedScriptVariable != nullptr)
 					{
 						Graph->OnSubObjectSelectionChanged().Broadcast(*PinAssociatedScriptVariable);

@@ -515,7 +515,7 @@ const TArray<FNiagaraScriptVariableAndViewInfo> FNiagaraSystemToolkitParameterPa
 	{
 		if (ensureMsgf(Graph.IsValid(), TEXT("Invalid Graph visited when trying to get viewed parameters for system toolkit parameter panel!")))
 		{
-			const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& GraphVarToScriptVarMap = Graph->GetAllMetaData();
+			const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GraphVarToScriptVarMap = Graph->GetAllMetaData();
 			for (auto Iter = GraphVarToScriptVarMap.CreateConstIterator(); Iter; ++Iter)
 			{
 				const FNiagaraVariableMetaData& MetaData = Iter.Value()->Metadata;
@@ -831,7 +831,7 @@ bool FNiagaraScriptToolkitParameterPanelViewModel::GetCanRenameParameterAndToolT
 void FNiagaraScriptToolkitParameterPanelViewModel::HandleActionSelected(const TSharedPtr<FEdGraphSchemaAction>& InAction, ESelectInfo::Type InSelectionType)
 {
 	const FNiagaraScriptVarAndViewInfoAction* Action = static_cast<FNiagaraScriptVarAndViewInfoAction*>(InAction.Get());
-	UNiagaraScriptVariable** ScriptVarPtr = ScriptViewModel->GetGraphViewModel()->GetGraph()->GetAllMetaData().Find(Action->ScriptVariableAndViewInfo.ScriptVariable);
+	TObjectPtr<UNiagaraScriptVariable>* ScriptVarPtr = ScriptViewModel->GetGraphViewModel()->GetGraph()->GetAllMetaData().Find(Action->ScriptVariableAndViewInfo.ScriptVariable);
 	if (ensureMsgf(ScriptVarPtr != nullptr, TEXT("Failed to get UNiagaraScriptVariable from selected action!")))
 	{
 		VariableObjectSelection->SetSelectedObject(*ScriptVarPtr);
@@ -965,7 +965,7 @@ TSharedRef<SWidget> FNiagaraScriptToolkitParameterPanelViewModel::GetScriptParam
 	else
 	{
 		// Failed to find the parameter name in the cache, try to find the variable in the graph script variables and generate view info.
-		const UNiagaraScriptVariable* const* ScriptVarPtr = ScriptViewModel->GetGraphViewModel()->GetGraph()->GetAllMetaData().Find(PinVar);
+		TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ScriptViewModel->GetGraphViewModel()->GetGraph()->GetAllMetaData().Find(PinVar);
 		if (ScriptVarPtr != nullptr)
 		{
 			const UNiagaraScriptVariable* ScriptVar = *ScriptVarPtr;
@@ -1058,7 +1058,7 @@ const TArray<FNiagaraScriptVariableAndViewInfo> FNiagaraScriptToolkitParameterPa
 	UNiagaraGraph* ViewedGraph = ScriptViewModel->GetGraphViewModel()->GetGraph();
 	if (ensureMsgf(ViewedGraph != nullptr, TEXT("Invalid Graph found when trying to get viewed parameters for script toolkit parameter panel!")))
 	{
-		const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& GraphVarToScriptVarMap = ViewedGraph->GetAllMetaData();
+		const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GraphVarToScriptVarMap = ViewedGraph->GetAllMetaData();
 		for (auto Iter = GraphVarToScriptVarMap.CreateConstIterator(); Iter; ++Iter)
 		{
 			const FNiagaraVariable& Variable = Iter.Value()->Variable;

@@ -340,7 +340,7 @@ public:
 	TMap<FConcurrencyGroupID, FConcurrencySoundData> ConcurrencyGroupData;
 
 	/** Optional USoundConcurrency to override for the sound. */
-	TSet<USoundConcurrency*> ConcurrencySet;
+	TSet<TObjectPtr<USoundConcurrency>> ConcurrencySet;
 
 private:
 	/** Optional SoundClass to override for the sound. */

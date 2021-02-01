@@ -30,7 +30,7 @@ void UChaosGameplayEventDispatcher::OnUnregister()
 }
 
 // internal
-static void DispatchPendingBreakEvents(TArray<FChaosBreakEvent> const& Events, TMap<UPrimitiveComponent*, FBreakEventCallbackWrapper> const& Registrations)
+static void DispatchPendingBreakEvents(TArray<FChaosBreakEvent> const& Events, TMap<TObjectPtr<UPrimitiveComponent>, FBreakEventCallbackWrapper> const& Registrations)
 {
 	for (FChaosBreakEvent const& E : Events)
 	{

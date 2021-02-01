@@ -67,7 +67,7 @@ struct FChaosHandlerSet
 struct FChaosPendingCollisionNotify
 {
 	FChaosPhysicsCollisionInfo CollisionInfo;
-	TSet<UObject*> NotifyRecipients;
+	TSet<TObjectPtr<UObject>> NotifyRecipients;
 };
 
 

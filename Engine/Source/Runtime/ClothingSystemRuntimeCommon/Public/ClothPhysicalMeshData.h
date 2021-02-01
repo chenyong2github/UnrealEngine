@@ -33,7 +33,7 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothPhysicalMeshData
 	void ClearWeightMaps();
 
 	/** Build the self collision indices for the relevant config. */
-	void BuildSelfCollisionData(const TMap<FName, UClothConfigBase*>& ClothConfigs);
+	void BuildSelfCollisionData(const TMap<FName, TObjectPtr<UClothConfigBase>>& ClothConfigs);
 
 	/** Retrieve whether a vertex weight array has already been registered. */
 	template<typename T>

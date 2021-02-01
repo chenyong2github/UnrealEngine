@@ -402,7 +402,7 @@ void UNiagaraNodeParameterMapBase::SelectParameterFromPin(const UEdGraphPin* InP
 
 			FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(InPin);
 			FNiagaraVariable PinVariable = FNiagaraVariable(TypeDef, InPin->PinName);
-			UNiagaraScriptVariable** PinAssociatedScriptVariable = NiagaraGraph->GetAllMetaData().Find(PinVariable);
+			TObjectPtr<UNiagaraScriptVariable>* PinAssociatedScriptVariable = NiagaraGraph->GetAllMetaData().Find(PinVariable);
 			if (PinAssociatedScriptVariable != nullptr)
 			{
 				NiagaraGraph->OnSubObjectSelectionChanged().Broadcast(*PinAssociatedScriptVariable);

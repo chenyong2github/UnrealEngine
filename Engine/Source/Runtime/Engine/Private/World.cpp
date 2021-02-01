@@ -933,7 +933,7 @@ void UWorld::BeginDestroy()
 
 	for (FLevelCollection& LevelCollection : LevelCollections)
 	{
-		TSet<ULevel*> CollectionLevels = LevelCollection.GetLevels();
+		TSet<TObjectPtr<ULevel>> CollectionLevels = LevelCollection.GetLevels();
 		for (ULevel* CollectionLevel : CollectionLevels)
 		{
 			LevelCollection.RemoveLevel(CollectionLevel);
