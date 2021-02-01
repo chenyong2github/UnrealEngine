@@ -708,38 +708,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 #endif
 }
 
-#if PLATFORM_WINDOWS
-static D3D_SHADER_MODEL FindHighestShaderModel(ID3D12Device* Device)
-{
-	// Because we can't guarantee older Windows versions will know about newer shader models, we need to check them all
-	// in descending order and return the first result that succeeds.
-	const D3D_SHADER_MODEL ShaderModelsToCheck[] =
-	{
-		D3D_SHADER_MODEL_6_6,
-		D3D_SHADER_MODEL_6_5,
-		D3D_SHADER_MODEL_6_4,
-		D3D_SHADER_MODEL_6_3,
-		D3D_SHADER_MODEL_6_2,
-		D3D_SHADER_MODEL_6_1,
-		D3D_SHADER_MODEL_6_0,
-	};
-
-	D3D12_FEATURE_DATA_SHADER_MODEL FeatureShaderModel{};
-	for (const D3D_SHADER_MODEL ShaderModelToCheck : ShaderModelsToCheck)
-	{
-		FeatureShaderModel.HighestShaderModel = ShaderModelToCheck;
-
-		if (SUCCEEDED(Device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &FeatureShaderModel, sizeof(FeatureShaderModel))))
-		{
-			return FeatureShaderModel.HighestShaderModel;
-		}
-	}
-
-	// Last ditch effort, the minimum requirement for DX12 is 5.1
-	return D3D_SHADER_MODEL_5_1;
-}
-#endif
-
 void FD3D12Adapter::InitializeDevices()
 {
 	check(IsInGameThread());
@@ -853,10 +821,6 @@ void FD3D12Adapter::InitializeDevices()
 			D3D12Caps2.ProgrammableSamplePositionsTier = D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_NOT_SUPPORTED;
 		}
 		bDepthBoundsTestSupported = !!D3D12Caps2.DepthBoundsTestSupported;
-#endif
-
-#if PLATFORM_WINDOWS
-		HighestShaderModel = FindHighestShaderModel(RootDevice);
 #endif
 
 		D3D12_FEATURE_DATA_ROOT_SIGNATURE D3D12RootSignatureCaps = {};

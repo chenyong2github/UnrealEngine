@@ -45,16 +45,12 @@ class FD3D12DynamicRHI;
 
 struct FD3D12AdapterDesc
 {
-	FD3D12AdapterDesc()
-		: AdapterIndex(-1)
-		, MaxSupportedFeatureLevel((D3D_FEATURE_LEVEL)0)
-		, NumDeviceNodes(0)
-	{
-	}
+	FD3D12AdapterDesc() = default;
 
-	FD3D12AdapterDesc(DXGI_ADAPTER_DESC& DescIn , int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, uint32 NumNodes)
+	FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& DescIn , int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, D3D_SHADER_MODEL InMaxSupportedShaderModel, uint32 NumNodes)
 		: AdapterIndex(InAdapterIndex)
 		, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
+		, MaxSupportedShaderModel(InMaxSupportedShaderModel)
 		, Desc(DescIn)
 		, NumDeviceNodes(NumNodes)
 	{
@@ -63,13 +59,16 @@ struct FD3D12AdapterDesc
 	bool IsValid() const { return MaxSupportedFeatureLevel != (D3D_FEATURE_LEVEL)0 && AdapterIndex >= 0; }
 
 	/** -1 if not supported or FindAdpater() wasn't called. Ideally we would store a pointer to IDXGIAdapter but it's unlikely the adpaters change during engine init. */
-	int32 AdapterIndex;
+	int32 AdapterIndex{ -1 };
+
 	/** The maximum D3D12 feature level supported. 0 if not supported or FindAdpater() wasn't called */
-	D3D_FEATURE_LEVEL MaxSupportedFeatureLevel;
+	D3D_FEATURE_LEVEL MaxSupportedFeatureLevel{ (D3D_FEATURE_LEVEL)0 };
 
-	DXGI_ADAPTER_DESC Desc;
+	D3D_SHADER_MODEL MaxSupportedShaderModel{ D3D_SHADER_MODEL_5_1 };
 
-	uint32 NumDeviceNodes;
+	DXGI_ADAPTER_DESC Desc{};
+
+	uint32 NumDeviceNodes{ 0 };
 };
 
 enum class ED3D12GPUCrashDebugginMode
@@ -96,6 +95,7 @@ public:
 	// Getters
 	FORCEINLINE const uint32 GetAdapterIndex() const { return Desc.AdapterIndex; }
 	FORCEINLINE const D3D_FEATURE_LEVEL GetFeatureLevel() const { return Desc.MaxSupportedFeatureLevel; }
+	FORCEINLINE D3D_SHADER_MODEL GetHighestShaderModel() const { return Desc.MaxSupportedShaderModel; }
 	FORCEINLINE ID3D12Device* GetD3DDevice() const { return RootDevice.GetReference(); }
 	FORCEINLINE ID3D12Device1* GetD3DDevice1() const { return RootDevice1.GetReference(); }
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
@@ -318,8 +318,6 @@ public:
 	void SubmitGapRecorderTimestamps();
 #endif
 
-	FORCEINLINE D3D_SHADER_MODEL GetHighestShaderModel() const { return HighestShaderModel; }
-
 protected:
 
 	virtual void CreateRootDevice(bool bWithDebug);
@@ -356,7 +354,6 @@ protected:
 	D3D12_RESOURCE_HEAP_TIER ResourceHeapTier;
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
-	D3D_SHADER_MODEL HighestShaderModel = D3D_SHADER_MODEL_5_1;
 	bool bDepthBoundsTestSupported;
 	bool bHeapNotZeroedSupported;
 

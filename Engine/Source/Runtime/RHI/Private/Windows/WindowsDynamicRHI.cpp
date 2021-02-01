@@ -50,6 +50,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 	}
 
 	bool bForceSM5 = FParse::Param(FCommandLine::Get(), TEXT("sm5"));
+	bool bForceSM6 = FParse::Param(FCommandLine::Get(), TEXT("sm6"));
 	bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
 	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || (bForceSM5 && !bForceVulkan);
 	bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
@@ -109,7 +110,11 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 	}
 	else
 	{
-		if (bForceSM5)
+		if (bForceSM6)
+		{
+			DesiredFeatureLevel = ERHIFeatureLevel::SM6;
+		}
+		else if (bForceSM5)
 		{
 			DesiredFeatureLevel = ERHIFeatureLevel::SM5;
 		}

@@ -195,11 +195,41 @@ static D3D_FEATURE_LEVEL GetRequiredD3DFeatureLevel()
 	return D3D_FEATURE_LEVEL_11_0;
 }
 
+static D3D_SHADER_MODEL FindHighestShaderModel(ID3D12Device* Device)
+{
+	// Because we can't guarantee older Windows versions will know about newer shader models, we need to check them all
+	// in descending order and return the first result that succeeds.
+	const D3D_SHADER_MODEL ShaderModelsToCheck[] =
+	{
+		D3D_SHADER_MODEL_6_6,
+		D3D_SHADER_MODEL_6_5,
+		D3D_SHADER_MODEL_6_4,
+		D3D_SHADER_MODEL_6_3,
+		D3D_SHADER_MODEL_6_2,
+		D3D_SHADER_MODEL_6_1,
+		D3D_SHADER_MODEL_6_0,
+	};
+
+	D3D12_FEATURE_DATA_SHADER_MODEL FeatureShaderModel{};
+	for (const D3D_SHADER_MODEL ShaderModelToCheck : ShaderModelsToCheck)
+	{
+		FeatureShaderModel.HighestShaderModel = ShaderModelToCheck;
+
+		if (SUCCEEDED(Device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &FeatureShaderModel, sizeof(FeatureShaderModel))))
+		{
+			return FeatureShaderModel.HighestShaderModel;
+		}
+	}
+
+	// Last ditch effort, the minimum requirement for DX12 is 5.1
+	return D3D_SHADER_MODEL_5_1;
+}
+
 /**
  * Attempts to create a D3D12 device for the adapter using at minimum MinFeatureLevel.
  * If creation is successful, true is returned and the max supported feature level is set in OutMaxFeatureLevel.
  */
-static bool SafeTestD3D12CreateDevice(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL MinFeatureLevel, D3D_FEATURE_LEVEL& OutMaxFeatureLevel, uint32& OutNumDeviceNodes)
+static bool SafeTestD3D12CreateDevice(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL MinFeatureLevel, D3D_FEATURE_LEVEL& OutMaxFeatureLevel, D3D_SHADER_MODEL& OutMaxShaderModel, uint32& OutNumDeviceNodes)
 {
 	const D3D_FEATURE_LEVEL FeatureLevels[] =
 	{
@@ -224,6 +254,8 @@ static bool SafeTestD3D12CreateDevice(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL M
 			{
 				MaxFeatureLevel = FeatureLevelCaps.MaxSupportedFeatureLevel;
 			}
+
+			OutMaxShaderModel = FindHighestShaderModel(pDevice);
 
 			OutMaxFeatureLevel = MaxFeatureLevel;
 			OutNumDeviceNodes = pDevice->GetNodeCount();
@@ -398,8 +430,10 @@ void FD3D12DynamicRHIModule::FindAdapter()
 		if (TempAdapter)
 		{
 			D3D_FEATURE_LEVEL MaxSupportedFeatureLevel = static_cast<D3D_FEATURE_LEVEL>(0);
+			D3D_SHADER_MODEL MaxSupportedShaderModel = D3D_SHADER_MODEL_5_1;
 			uint32 NumNodes = 0;
-			if (SafeTestD3D12CreateDevice(TempAdapter, MinRequiredFeatureLevel, MaxSupportedFeatureLevel, NumNodes))
+
+			if (SafeTestD3D12CreateDevice(TempAdapter, MinRequiredFeatureLevel, MaxSupportedFeatureLevel, MaxSupportedShaderModel, NumNodes))
 			{
 				check(NumNodes > 0);
 				// Log some information about the available D3D12 adapters.
@@ -448,7 +482,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description, TEXT("NVIDIA PerfHUD"));
 
-				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, MaxSupportedFeatureLevel, NumNodes);
+				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, MaxSupportedFeatureLevel, MaxSupportedShaderModel, NumNodes);
 				
 				// If requested WARP, then reject all other adapters. If WARP not requested, then reject the WARP device.
 				const bool bSkipRequestedWARP = (bRequestedWARP && !bIsWARP) || (!bRequestedWARP && bIsWARP);
@@ -530,8 +564,56 @@ void FD3D12DynamicRHIModule::FindAdapter()
 	}
 }
 
+static bool DoesAnyAdapterSupportSM6(const TArray<TSharedPtr<FD3D12Adapter>>& Adapters)
+{
+	for (const TSharedPtr<FD3D12Adapter>& Adapter : Adapters)
+	{
+		// TODO: D3D_FEATURE_LEVEL_12_2
+		if (Adapter->GetFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && Adapter->GetHighestShaderModel() >= D3D_SHADER_MODEL_6_5)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
+	const bool bAllowSM6 = GAllowShaderModel6
+		|| (RequestedFeatureLevel != ERHIFeatureLevel::Num && RequestedFeatureLevel >= ERHIFeatureLevel::SM6);
+
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
+	if (bAllowSM6)
+	{
+		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM6] = SP_PCD3D_SM6;
+	}
+
+	ERHIFeatureLevel::Type PreviewFeatureLevel;
+	if (!GIsEditor && RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
+	{
+		check(PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
+
+		// ES3.1 feature level emulation in D3D
+		GMaxRHIFeatureLevel = PreviewFeatureLevel;
+		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
+		{
+			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
+		}
+	}
+	else
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
+		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
+
+		if (bAllowSM6 && DoesAnyAdapterSupportSM6(ChosenAdapters))
+		{
+			GMaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
+			GMaxRHIShaderPlatform = SP_PCD3D_SM6;
+		}
+	}
+
 #if USE_PIX
 	bool bPixEventEnabled = (WindowsPixDllHandle != nullptr);
 #else
@@ -955,41 +1037,6 @@ void FD3D12Device::InitPlatformSpecific()
 	CommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_DIRECT, ED3D12CommandQueueType::Direct);
 	CopyCommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_COPY, ED3D12CommandQueueType::Copy);
 	AsyncCommandListManager = new FD3D12CommandListManager(this, D3D12_COMMAND_LIST_TYPE_COMPUTE, ED3D12CommandQueueType::Async);
-
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
-	if (GAllowShaderModel6)
-	{
-		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM6] = SP_PCD3D_SM6;
-	}
-
-	ERHIFeatureLevel::Type PreviewFeatureLevel;
-	if (!GIsEditor && RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
-	{
-		check(PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
-
-		// ES3.1 feature level emulation in D3D
-		GMaxRHIFeatureLevel = PreviewFeatureLevel;
-		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
-		{
-			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
-		}
-	}
-	else 
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
-
-		if (GAllowShaderModel6)
-		{
-			// TODO: D3D_FEATURE_LEVEL_12_2
-			if (GetParentAdapter()->GetFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && GetParentAdapter()->GetHighestShaderModel() >= D3D_SHADER_MODEL_6_5)
-			{
-				GMaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
-				GMaxRHIShaderPlatform = SP_PCD3D_SM6;
-			}
-		}
-	}
 }
 
 void FD3D12Device::CreateSamplerInternal(const D3D12_SAMPLER_DESC& Desc, D3D12_CPU_DESCRIPTOR_HANDLE Descriptor)
