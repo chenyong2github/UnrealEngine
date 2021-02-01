@@ -140,6 +140,36 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("QueryTargetWindow", "Target Window"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(QueryTargetComboBox, SComboBox<TSharedPtr<Insights::FQueryTargetWindowSpec>>)
+				.ToolTipText(LOCTEXT("QueryTargetWindowTooltip", "Select an existing or new window where the query results will be displayed"))
+				.OptionsSource(GetAvailableQueryTargets())
+				.OnSelectionChanged(this, &SMemInvestigationView::QueryTarget_OnSelectionChanged)
+				.OnGenerateWidget(this, &SMemInvestigationView::QueryTarget_OnGenerateWidget)
+				[
+					SNew(STextBlock)
+					.Text(this, &SMemInvestigationView::QueryTarget_GetSelectedText)
+				]
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		.HAlign(HAlign_Right)
 		[
 			SNew(SButton)
@@ -338,6 +368,80 @@ FText SMemInvestigationView::QueryRule_GetTooltipText() const
 		if (SharedState.GetCurrentMemoryRule())
 		{
 			return SharedState.GetCurrentMemoryRule()->GetDescription();
+		}
+	}
+	return FText::GetEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>>* SMemInvestigationView::GetAvailableQueryTargets()
+{
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		return &SharedState.GetQueryTargets();
+	}
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemInvestigationView::QueryTarget_OnSelectionChanged(TSharedPtr<Insights::FQueryTargetWindowSpec> InTarget, ESelectInfo::Type SelectInfo)
+{
+	if (SelectInfo != ESelectInfo::Type::Direct)
+	{
+		if (ProfilerWindow.IsValid() && InTarget)
+		{
+			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+			SharedState.SetCurrentQueryTarget(InTarget);
+		}
+	}
+	else
+	{
+		QueryTargetComboBox->SetSelectedItem(InTarget);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SMemInvestigationView::QueryTarget_OnGenerateWidget(TSharedPtr<Insights::FQueryTargetWindowSpec> InTarget)
+{
+	TSharedRef<SHorizontalBox> Widget = SNew(SHorizontalBox);
+
+	Widget->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Padding(2.0f, 2.0f, 0.0f, 2.0f)
+		[
+			SNew(SImage)
+			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
+			.Visibility_Lambda([Widget]() { return Widget->GetParentWidget()->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; })
+		];
+
+	Widget->AddSlot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(InTarget->GetText())
+			.Margin(2.0f)
+		];
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemInvestigationView::QueryTarget_GetSelectedText() const
+{
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		TSharedPtr<Insights::FQueryTargetWindowSpec> Target = SharedState.GetCurrentQueryTarget();
+		if (Target)
+		{
+			return Target->GetText();
 		}
 	}
 	return FText::GetEmpty();

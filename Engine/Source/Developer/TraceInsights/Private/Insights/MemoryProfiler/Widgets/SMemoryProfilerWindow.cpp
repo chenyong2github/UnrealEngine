@@ -393,7 +393,30 @@ void SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab
 {
 	TSharedRef<Insights::SMemAllocTableTreeView> MemAllocTableTreeView = StaticCastSharedRef<Insights::SMemAllocTableTreeView>(TabBeingClosed->GetContent());
 
-	//FMemoryProfilerManager::Get()->SetMemAllocTableTreeViewVisible(MemAllocTableTreeView->GetTabIndex(), false);
+	FName ClosingTabId = FMemoryProfilerTabs::MemAllocTableTreeViewID;
+	ClosingTabId.SetNumber(MemAllocTableTreeView->GetTabIndex());
+
+	TSharedPtr<Insights::FQueryTargetWindowSpec> TargetToDelete;
+	const TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>>& Targets = this->GetSharedState().GetQueryTargets();
+	for (int32 Index = 0; Index < Targets.Num(); ++Index)
+	{
+		if (Targets[Index]->GetName() == ClosingTabId)
+		{
+			TargetToDelete = Targets[Index];
+			break;
+		}
+	}
+
+	if (TargetToDelete.IsValid())
+	{
+		this->GetSharedState().RemoveQueryTarget(TargetToDelete);
+	}
+
+	TSharedPtr<Insights::FQueryTargetWindowSpec> NewSelection = this->GetSharedState().GetQueryTargets()[0];
+	this->GetSharedState().SetCurrentQueryTarget(NewSelection);
+	MemInvestigationView->QueryTarget_OnSelectionChanged(NewSelection, ESelectInfo::Type::Direct);
+
+	TabManager->UnregisterTabSpawner(ClosingTabId);
 
 	MemAllocTableTreeView->OnClose();
 	MemAllocTableTreeViews.Remove(MemAllocTableTreeView);
@@ -403,17 +426,37 @@ void SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab
 
 TSharedPtr<Insights::SMemAllocTableTreeView> SMemoryProfilerWindow::ShowMemAllocTableTreeViewTab()
 {
-	LastMemAllocTableTreeViewIndex = (LastMemAllocTableTreeViewIndex + 1) % MaxMemAllocTableTreeViews;
-	FName TabId = FMemoryProfilerTabs::MemAllocTableTreeViewID;
-	TabId.SetNumber(LastMemAllocTableTreeViewIndex);
+	if (SharedState->GetCurrentQueryTarget()->GetName() == Insights::FQueryTargetWindowSpec::NewWindow)
+	{
+		LastMemAllocTableTreeViewIndex = ++LastMemAllocTableTreeViewIndex;
+		FName TabId = FMemoryProfilerTabs::MemAllocTableTreeViewID;
+		TabId.SetNumber(LastMemAllocTableTreeViewIndex);
 
+		FText MemAllocTableTreeViewTabDisplayName = FText::Format(LOCTEXT("MemoryProfiler.MemAllocTableTreeViewTabTitle", "Allocs Table {0}"), FText::AsNumber(LastMemAllocTableTreeViewIndex));
+		TabManager->RegisterTabSpawner(TabId, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView, LastMemAllocTableTreeViewIndex))
+			.SetDisplayName(MemAllocTableTreeViewTabDisplayName)
+			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemAllocTableTreeView.Icon.Small"))
+			.SetGroup(AppMenuGroup.ToSharedRef());
+
+
+		TSharedPtr<Insights::FQueryTargetWindowSpec> NewTarget = MakeShared<Insights::FQueryTargetWindowSpec>(TabId, MemAllocTableTreeViewTabDisplayName);
+		SharedState->AddQueryTarget(NewTarget);
+		SharedState->SetCurrentQueryTarget(NewTarget);
+		MemInvestigationView->QueryTarget_OnSelectionChanged(NewTarget, ESelectInfo::Type::Direct);
+	}
+
+	FName TabId = SharedState->GetCurrentQueryTarget()->GetName();
 	if (TabManager->HasTabSpawner(TabId))
 	{
 		TSharedPtr<SDockTab> Tab = TabManager->TryInvokeTab(TabId);
 		if (Tab)
 		{
 			TSharedRef<Insights::SMemAllocTableTreeView> MemAllocTableTreeView = StaticCastSharedRef<Insights::SMemAllocTableTreeView>(Tab->GetContent());
-			ensure(MemAllocTableTreeView->GetTabIndex() == LastMemAllocTableTreeViewIndex);
+
+			if (SharedState->GetCurrentQueryTarget()->GetName() == Insights::FQueryTargetWindowSpec::NewWindow)
+			{
+				Tab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed));
+			}
 			return MemAllocTableTreeView;
 		}
 	}
@@ -433,38 +476,27 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	};
 	TabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateLambda(PersistLayout));
 
-	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("MemoryProfilerMenuGroupName", "Memory Insights"));
+	AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("MemoryProfilerMenuGroupName", "Memory Insights"));
 
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::ToolbarID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_Toolbar))
 		.SetDisplayName(LOCTEXT("DeviceToolbarTabTitle", "Toolbar"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Toolbar.Icon.Small"))
-		.SetGroup(AppMenuGroup);
+		.SetGroup(AppMenuGroup.ToSharedRef());
 
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::TimingViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_TimingView))
 		.SetDisplayName(LOCTEXT("MemoryProfiler.TimingViewTabTitle", "Timing View"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Small"))
-		.SetGroup(AppMenuGroup);
+		.SetGroup(AppMenuGroup.ToSharedRef());
 
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemInvestigationViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemInvestigationView))
 		.SetDisplayName(LOCTEXT("MemoryProfiler.MemInvestigationViewTabTitle", "Investigation"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemInvestigationView.Icon.Small"))
-		.SetGroup(AppMenuGroup);
+		.SetGroup(AppMenuGroup.ToSharedRef());
 
 	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemTagTreeViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemTagTreeView))
 		.SetDisplayName(LOCTEXT("MemoryProfiler.MemTagTreeViewTabTitle", "LLM Tags"))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemTagTreeView.Icon.Small"))
-		.SetGroup(AppMenuGroup);
-
-	FName MemAllocTableTreeViewTabId = FMemoryProfilerTabs::MemAllocTableTreeViewID;
-	for (int32 TabIndex = 0; TabIndex < MaxMemAllocTableTreeViews; ++TabIndex)
-	{
-		MemAllocTableTreeViewTabId.SetNumber(TabIndex);
-		FText MemAllocTableTreeViewTabDisplayName = FText::Format(LOCTEXT("MemoryProfiler.MemAllocTableTreeViewTabTitle", "Allocs Table {0}"), FText::AsNumber(TabIndex));
-		TabManager->RegisterTabSpawner(MemAllocTableTreeViewTabId, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView, TabIndex))
-			.SetDisplayName(MemAllocTableTreeViewTabDisplayName)
-			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemAllocTableTreeView.Icon.Small"))
-			.SetGroup(AppMenuGroup);
-	}
+		.SetGroup(AppMenuGroup.ToSharedRef());
 
 	TSharedPtr<FMemoryProfilerManager> MemoryProfilerManager = FMemoryProfilerManager::Get();
 	ensure(MemoryProfilerManager.IsValid());

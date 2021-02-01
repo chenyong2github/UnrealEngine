@@ -51,6 +51,25 @@ private:
 	FText Description;     // ex.: "Allocations allocated and freed between time A and time B (A <= a <= f <= B)."
 };
 
+class FQueryTargetWindowSpec
+{
+public:
+	FQueryTargetWindowSpec(const FName& InName, const FText& InText)
+		: Text(InText)
+		, Name(InName)
+	{}
+
+	FText GetText() const { return Text; }
+	FName GetName() const { return Name; }
+
+public:
+	static const FName NewWindow;
+
+private:
+	FText Text;
+	FName Name;
+};
+
 } // namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +130,13 @@ public:
 	TSharedPtr<Insights::FMemoryRuleSpec> GetCurrentMemoryRule() const { return CurrentMemoryRule; }
 	void SetCurrentMemoryRule(TSharedPtr<Insights::FMemoryRuleSpec> InRule) { CurrentMemoryRule = InRule; OnMemoryRuleChanged(); }
 
+	const TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>>& GetQueryTargets() const { return QueryTargetSpecs; }
+
+	TSharedPtr<Insights::FQueryTargetWindowSpec> GetCurrentQueryTarget() const { return CurrentQueryTarget; }
+	void SetCurrentQueryTarget(TSharedPtr<Insights::FQueryTargetWindowSpec> InTarget) { CurrentQueryTarget = InTarget; }
+	void AddQueryTarget(TSharedPtr<Insights::FQueryTargetWindowSpec> InPtr);
+	void RemoveQueryTarget(TSharedPtr<Insights::FQueryTargetWindowSpec> InPtr);
+
 private:
 	void SyncTrackers();
 	void OnTrackerChanged();
@@ -142,6 +168,9 @@ private:
 
 	TArray<TSharedPtr<Insights::FMemoryRuleSpec>> MemoryRules;
 	TSharedPtr<Insights::FMemoryRuleSpec> CurrentMemoryRule;
+
+	TSharedPtr<Insights::FQueryTargetWindowSpec> CurrentQueryTarget;
+	TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>> QueryTargetSpecs;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

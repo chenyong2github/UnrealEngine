@@ -22,6 +22,7 @@ namespace TraceServices
 namespace Insights
 {
 	class FMemoryRuleSpec;
+	class FQueryTargetWindowSpec;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,6 +49,8 @@ public:
 
 	void Reset();
 
+	void QueryTarget_OnSelectionChanged(TSharedPtr<Insights::FQueryTargetWindowSpec> InRule, ESelectInfo::Type SelectInfo);
+
 private:
 	TSharedRef<SWidget> ConstructInvestigationWidgetArea();
 	TSharedRef<SWidget> ConstructTimeMarkerWidget(uint32 TimeMarkerIndex);
@@ -55,6 +58,9 @@ private:
 	/** Called when the analysis session has changed. */
 	void InsightsManager_OnSessionChanged();
 
+	const TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>>* GetAvailableQueryTargets();
+	TSharedRef<SWidget> QueryTarget_OnGenerateWidget(TSharedPtr<Insights::FQueryTargetWindowSpec> InRule);
+	FText QueryTarget_GetSelectedText() const;
 	const TArray<TSharedPtr<Insights::FMemoryRuleSpec>>* GetAvailableQueryRules();
 	void QueryRule_OnSelectionChanged(TSharedPtr<Insights::FMemoryRuleSpec> InRule, ESelectInfo::Type SelectInfo);
 	TSharedRef<SWidget> QueryRule_OnGenerateWidget(TSharedPtr<Insights::FMemoryRuleSpec> InRule);
@@ -78,6 +84,8 @@ private:
 	TSharedPtr<const TraceServices::IAnalysisSession>/*Weak*/ Session;
 
 	TSharedPtr<SComboBox<TSharedPtr<Insights::FMemoryRuleSpec>>> QueryRuleComboBox;
+
+	TSharedPtr<SComboBox<TSharedPtr<Insights::FQueryTargetWindowSpec>>> QueryTargetComboBox;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

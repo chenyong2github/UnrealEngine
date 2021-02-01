@@ -19,6 +19,7 @@
 
 class FActiveTimerHandle;
 class FMenuBuilder;
+class FWorkspaceItem;
 
 class FMemorySharedState;
 class SMemInvestigationView;
@@ -196,6 +197,8 @@ private:
 
 	/** Holds the tab manager that manages the front-end's tabs. */
 	TSharedPtr<FTabManager> TabManager;
+
+	TSharedPtr<FWorkspaceItem> AppMenuGroup;
 
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
