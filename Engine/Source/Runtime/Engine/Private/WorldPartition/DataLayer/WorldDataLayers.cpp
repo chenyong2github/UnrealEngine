@@ -6,6 +6,7 @@
 
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "EngineUtils.h"
 #if WITH_EDITOR
 #include "WorldPartition/DataLayer/DataLayerEditorPerProjectUserSettings.h"
@@ -250,6 +251,23 @@ void AWorldDataLayers::PostLoad()
 		NameToDataLayer.Add(DataLayer->GetFName(), DataLayer);
 	}
 #endif
+}
+
+void AWorldDataLayers::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Activate initially loaded data layers
+	if (UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>())
+	{
+		for (const UDataLayer* DataLayer : WorldDataLayers)
+		{
+			if (DataLayer && DataLayer->IsInitiallyActive())
+			{
+				DataLayerSubsystem->ActivateDataLayer(DataLayer, true);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

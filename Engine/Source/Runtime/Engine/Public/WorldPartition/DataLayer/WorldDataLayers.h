@@ -20,6 +20,8 @@ class ENGINE_API AWorldDataLayers : public AInfo
 public:
 	static const AWorldDataLayers* Get(UWorld* World);
 	virtual void PostLoad() override;
+	
+	virtual void BeginPlay() override;
 
 #if WITH_EDITOR
 	static AWorldDataLayers* Get(UWorld* World, bool bCreateIfNotFound);

@@ -32,6 +32,7 @@ public:
 	FName GetDataLayerLabel() const  { return DataLayerLabel; }
 	bool IsVisible() const { return bIsVisible; }
 	bool IsDynamicallyLoaded() const { return bIsDynamicallyLoaded; }
+	bool IsInitiallyActive() const { return IsDynamicallyLoaded() && bIsInitiallyActive; }
 
 private:
 	/** The display name of the DataLayer */
@@ -45,6 +46,10 @@ private:
 	/** Whether the DataLayer affects actor runtime loading */
 	UPROPERTY(Category = DataLayer, EditAnywhere)
 	uint32 bIsDynamicallyLoaded : 1;
+
+	/** Whether a dynamically loaded DataLayer should be initially active at runtime */
+	UPROPERTY(Category = DataLayer, EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsDynamicallyLoaded"))
+	uint32 bIsInitiallyActive : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** Whether the DataLayer affects actor editor loading */
