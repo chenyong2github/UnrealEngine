@@ -390,7 +390,7 @@ TArray< FDatasmithImporterImpl::FMigratedTemplatePairType > FDatasmithImporterIm
 		return Results;
 	}
 
-	for ( const TPair< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >& SourceTemplatePair : *SourceTemplates )
+	for ( const TPair< TSubclassOf< UDatasmithObjectTemplate >, TObjectPtr<UDatasmithObjectTemplate> >& SourceTemplatePair : *SourceTemplates )
 	{
 		if ( bIsForActor == SourceTemplatePair.Value->bIsActorTemplate )
 		{
