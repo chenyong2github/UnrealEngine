@@ -614,6 +614,32 @@ namespace Audio
 		}
 	}
 
+
+	void FStateVariableFilter::ProcessAudio(const float* InSamples, const int32 InNumSamples
+		, float* LpfOutput, float* HpfOutput, float* BpfOutput, float* BsfOutput)
+	{
+		for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex += NumChannels)
+		{
+			for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+			{
+				const float HPF = InputScale * (InSamples[SampleIndex + Channel] - Feedback * FilterState[Channel].Z1_1 - FilterState[Channel].Z1_2);
+				float BPF = Audio::FastTanh(A0 * HPF + FilterState[Channel].Z1_1);
+
+				const float LPF = A0 * BPF + FilterState[Channel].Z1_2;
+				const float Dampening = 0.5f / Q;
+				const float BSF = BandStopParam * HPF + (1.0f - BandStopParam) * LPF;
+
+				FilterState[Channel].Z1_1 = A0 * HPF + BPF;
+				FilterState[Channel].Z1_2 = A0 * BPF + LPF;
+
+				LpfOutput[SampleIndex + Channel] = LPF;
+				HpfOutput[SampleIndex + Channel] = HPF;
+				BpfOutput[SampleIndex + Channel] = BPF;
+				BsfOutput[SampleIndex + Channel] = BSF;
+			}
+		}
+	}
+
 	FLadderFilter::FLadderFilter()
 		: K(0.0f)
 		, Gamma(0.0f)

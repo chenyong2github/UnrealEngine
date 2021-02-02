@@ -32,10 +32,10 @@ namespace Audio
 		void StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength = 1);
 
 		// interpolates coefficient and processes a sample
-		void ProcessAudioFrame(float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
+		void ProcessAudioFrame(const float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
 
 		// interpolates coefficient and processes a buffer
-		void ProcessAudioBuffer(float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
+		void ProcessAudioBuffer(const float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
 
 		/*
 			StopFrequencyInterpolation() needs to be called manually when the interpolation should be done.
@@ -97,10 +97,10 @@ namespace Audio
 		void StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength = 1);
 
 		// interpolates coefficient and processes a sample
-		void ProcessAudioFrame(float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
+		void ProcessAudioFrame(const float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
 
 		// interpolates coefficient and processes a buffer
-		void ProcessAudioBuffer(float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
+		void ProcessAudioBuffer(const float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
 
 		/*
 			StopFrequencyInterpolation() needs to be called manually when the interpolation should be done.

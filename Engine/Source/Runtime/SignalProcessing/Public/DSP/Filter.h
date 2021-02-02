@@ -262,6 +262,9 @@ namespace Audio
 		virtual void Update() override;
 		virtual void ProcessAudio(const float* InSamples, const int32 InNumSamples, float* OutSamples) override;
 
+		void ProcessAudio(const float* InSamples, const int32 InNumSamples
+			, float* LpfOutput, float* HpfOutput, float* BpfOutput, float* BsfOutput);
+
 	protected:
 		float InputScale;
 		float A0;
@@ -293,7 +296,9 @@ namespace Audio
 		virtual void Update() override;
 		virtual void SetQ(const float InQ) override;
 		virtual void SetPassBandGainCompensation(const float InPassBandGainCompensation) override;
+
 		virtual void ProcessAudio(const float* InSamples, const int32 InNumSamples, float* OutSamples) override;
+
 
 	protected:
 
