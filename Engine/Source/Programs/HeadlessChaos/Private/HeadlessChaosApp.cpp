@@ -439,9 +439,9 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	ensure(RUN_ALL_TESTS() == 0);
 
-	FCoreDelegates::OnExit.Broadcast();
+	FEngineLoop::AppPreExit();
 	FModuleManager::Get().UnloadModulesAtShutdown();
-
+	FEngineLoop::AppExit();
 	FPlatformMisc::RequestExit(false);
 
 	return 0;
