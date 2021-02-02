@@ -26,7 +26,7 @@ public:
 private:
 
 	/** Creates a SoundCue of the same name for the sound, if one does not already exist */
-	void ExecuteCreateSoundCue(TArray<TWeakObjectPtr<USoundWave>> Objects);
+	void ExecuteCreateSoundCue(TArray<TWeakObjectPtr<USoundWave>> Objects, bool bCreateCueForEachSoundWave = true);
 
 	/** Creates a DialogueWave of the same name for the sound, if one does not already exist */
 	void ExecuteCreateDialogueWave(const struct FAssetData& AssetData, TArray<TWeakObjectPtr<USoundWave>> Objects);
