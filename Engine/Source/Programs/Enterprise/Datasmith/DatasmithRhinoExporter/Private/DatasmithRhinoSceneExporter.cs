@@ -44,18 +44,7 @@ namespace DatasmithRhino
 			}
 		}
 
-		public static Rhino.Commands.Result ExportToDirectLink(DatasmithRhinoDirectLinkManager DirectLinkManager)
-		{
-			FDatasmithFacadeScene DatasmithScene = DirectLinkManager.DatasmithScene;
-			//#ueent-todo Reuse and update the DirectLinkManager context for successive exports. For now we simply create a new context to avoid crashing on iterative export.
-			DatasmithRhinoExportContext ExportContext = new DatasmithRhinoExportContext(DirectLinkManager.ExportContext.ExportOptions);
-			FDatasmithFacadeDirectLink DirectLinkInstance = DirectLinkManager.DirectLink;
-
-
-			return ExportScene(DatasmithScene, ExportContext, DirectLinkInstance.UpdateScene);
-		}
-
-		private static Rhino.Commands.Result ExportScene(FDatasmithFacadeScene DatasmithScene, DatasmithRhinoExportContext ExportContext, Func<FDatasmithFacadeScene, bool> OnSceneExportCompleted)
+		public static Rhino.Commands.Result ExportScene(FDatasmithFacadeScene DatasmithScene, DatasmithRhinoExportContext ExportContext, Func<FDatasmithFacadeScene, bool> OnSceneExportCompleted)
 		{
 			bool bExportSuccess = false;
 			try
@@ -66,12 +55,21 @@ namespace DatasmithRhino
 				DatasmithScene.PreExport();
 
 				DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
-				ExportContext.ParseDocument();
+				bool bIsFirstSync = !ExportContext.bIsParsed;
+				if (bIsFirstSync)
+				{
+					ExportContext.ParseDocument();
+				}
 
 				if (SynchronizeScene(ExportContext, DatasmithScene) == Rhino.Commands.Result.Success)
 				{
 					DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Scene..", 1);
 					bExportSuccess = OnSceneExportCompleted(DatasmithScene);
+				}
+
+				if (!bIsFirstSync)
+				{
+					ExportContext.Cleanup();
 				}
 			}
 			catch (DatasmithExportCancelledException)
@@ -105,7 +103,7 @@ namespace DatasmithRhino
 			DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Meshes", 0.7f);
 			DatasmithRhinoMeshExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
-			DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Actors", 0.8f);
+			DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Exporting Actors", 0.9f);
 			DatasmithRhinoActorExporter.Instance.SynchronizeElements(DatasmithScene, ExportContext);
 
 			return Rhino.Commands.Result.Success;
