@@ -175,19 +175,18 @@ namespace UnrealBuildTool
 							OutputText = Writer.ToString();
 						}
 
-						// And only write it to disk if it's been modified. Note that if a manifest is out of date, we should have generated a new build id causing the contents to differ.
-						string CurrentText = FileReference.ReadAllText(ManifestFile);
-						if(CurrentText != OutputText)
+						// Check if the manifest has changed. Note that if a manifest is out of date, we should have generated a new build id causing the contents to differ.
+						if (bNoManifestChanges)
 						{
-							if(bNoManifestChanges)
+							string CurrentText = FileReference.ReadAllText(ManifestFile);
+							if (CurrentText != OutputText)
 							{
 								Log.TraceError("Build modifies {0}. This is not permitted. Before:\n    {1}\nAfter:\n    {2}", ManifestFile, CurrentText.Replace("\n", "\n    "), OutputText.Replace("\n", "\n    "));
 							}
-							else
-							{
-								FileReference.WriteAllText(ManifestFile, OutputText);
-							}
 						}
+
+						// Write it to disk
+						FileReference.WriteAllText(ManifestFile, OutputText);
 					}
 				}
 			}
