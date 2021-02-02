@@ -685,7 +685,7 @@ public class AndroidPlatform : Platform
 				
 				TargetReceipt Receipt = SC.StageTargets[0].Receipt;
 				              
-				// when we make an embedded executable, all we do is output to libUE4.so - we don't need to make an APK at all
+				// when we make an embedded executable, all we do is output to libUnreal.so - we don't need to make an APK at all
 				// however, we still let package go through to make the .obb file
 				string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
 				if (!Params.Prebuilt)
@@ -1237,7 +1237,7 @@ public class AndroidPlatform : Platform
 				if (bBuildWithHiddenSymbolVisibility || bSaveSymbols)
 				{
 					string SymbolizedSODirectory = GetFinalSymbolizedSODirectory(ApkName, SC, Architecture, GPUArchitecture);
-					string SymbolizedSOPath = Path.Combine(Path.Combine(Path.GetDirectoryName(ApkName), SymbolizedSODirectory), "libUE4.so");
+					string SymbolizedSOPath = Path.Combine(Path.Combine(Path.GetDirectoryName(ApkName), SymbolizedSODirectory), "libUnreal.so");
 					if (!FileExists(SymbolizedSOPath))
 					{
 						throw new AutomationException(ExitCode.Error_SymbolizedSONotFound, "ARCHIVE FAILED - {0} was not found", SymbolizedSOPath);
@@ -2147,13 +2147,13 @@ public class AndroidPlatform : Platform
 		return ReturnValue;
 	}
 
-	/** Returns the launch activity name to launch (must call GetPackageInfo first), returns "com.epicgames.ue4.SplashActivity" default if not found */
+	/** Returns the launch activity name to launch (must call GetPackageInfo first), returns "com.epicgames.unreal.SplashActivity" default if not found */
 	public static string GetLaunchableActivityName()
 	{
-		string ReturnValue = "com.epicgames.ue4.SplashActivity";
+		string ReturnValue = "com.epicgames.unreal.SplashActivity";
 		if (LaunchableActivityLine != null)
 		{
-			// the line should look like: launchable-activity: name='com.epicgames.ue4.SplashActivity'  label='TappyChicken' icon=''
+			// the line should look like: launchable-activity: name='com.epicgames.unreal.SplashActivity'  label='TappyChicken' icon=''
 			string[] Tokens = LaunchableActivityLine.Split("'".ToCharArray());
 			if (Tokens.Length >= 2)
 			{
@@ -2169,7 +2169,7 @@ public class AndroidPlatform : Platform
 		string ReturnValue = "";
 		if (MetaAppTypeLine != null)
 		{
-			// the line should look like: meta-data: name='com.epicgames.ue4.GameActivity.AppType' value='Client'
+			// the line should look like: meta-data: name='com.epicgames.unreal.GameActivity.AppType' value='Client'
 			string[] Tokens = MetaAppTypeLine.Split("'".ToCharArray());
 			if (Tokens.Length >= 4)
 			{
@@ -2205,7 +2205,7 @@ public class AndroidPlatform : Platform
 			if (MetaAppTypeLine == null)
 			{
 				string Line = Event.Data;
-				if (Line.StartsWith("meta-data: name='com.epicgames.ue4.GameActivity.AppType'"))
+				if (Line.StartsWith("meta-data: name='com.epicgames.unreal.GameActivity.AppType'"))
 				{
 					MetaAppTypeLine = Line;
 				}
@@ -2313,7 +2313,7 @@ public class AndroidPlatform : Platform
 		IProcessResult ABIResult = RunAdbCommand(Params, DeviceName, " shell getprop ro.product.cpu.abi", null, ERunOptions.AppMustExist);
 
 		// the output is just the architecture
-		string DeviceArch = UnrealBuildTool.AndroidExports.GetUE4Arch(ABIResult.Output.Trim());
+		string DeviceArch = UnrealBuildTool.AndroidExports.GetUnrealArch(ABIResult.Output.Trim());
 
 		// if the architecture wasn't built, look for a backup
 		if (!AppArchitectures.Contains(DeviceArch))
@@ -2418,7 +2418,7 @@ public class AndroidPlatform : Platform
 
 			PackageNames.Add(PackageName);
 
-			// Message back to the UE4 Editor to correctly set the app id for each device
+			// Message back to the Unreal Editor to correctly set the app id for each device
 			Console.WriteLine("Running Package@Device:{0}@{1}", PackageName, DeviceName);
 
 			// clear the log for the device
@@ -2475,7 +2475,7 @@ public class AndroidPlatform : Platform
 				if(FinishedRunning)
 				{
 					// this is just to get the ue4 log to go to the output
-					RunAdbCommand(Params, DeviceName, "logcat -d -s UE4 -s Debug");
+					RunAdbCommand(Params, DeviceName, "logcat -d -s UE debug Debug DEBUG");
 
 					// get the log we actually want to save
 					IProcessResult LogFileProcess = RunAdbCommand(Params, DeviceName, "logcat -d", null, ERunOptions.AppMustExist);

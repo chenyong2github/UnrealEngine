@@ -21,14 +21,14 @@
 			<true>
 				<addElements tag="application">
 					<service
-					  android:name="com.epicgames.ue4.notifications.EpicFirebaseInstanceIDService"
+					  android:name="com.epicgames.unreal.notifications.EpicFirebaseInstanceIDService"
 					  android:exported="false" >
 						<intent-filter>
 							<action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
 						</intent-filter>
 					</service>
 					<service
-					  android:name="com.epicgames.ue4.notifications.EpicFirebaseMessagingService"
+					  android:name="com.epicgames.unreal.notifications.EpicFirebaseMessagingService"
 					  android:exported="false">
 						<intent-filter>
 							<action android:name="com.google.firebase.MESSAGING_EVENT"/>
@@ -69,7 +69,7 @@ apply plugin: 'com.google.gms.google-services'
 	<prebuildCopies>
 		<if condition="bEnabled">
 			<true>
-				<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/ue4"/>
+				<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/unreal"/>
 			</true>
 		</if>
 	</prebuildCopies>

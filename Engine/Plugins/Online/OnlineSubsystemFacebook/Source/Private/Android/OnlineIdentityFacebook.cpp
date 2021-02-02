@@ -287,7 +287,7 @@ bool AndroidThunkCpp_Facebook_Login(const TArray<FString>& InScopeFields)
 	return bSuccess;
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_FacebookLogin_nativeLoginComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken)
+JNI_METHOD void Java_com_epicgames_unreal_FacebookLogin_nativeLoginComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken)
 {
 	EFacebookLoginResponse LoginResponse = (EFacebookLoginResponse)responseCode;
 
@@ -331,7 +331,7 @@ bool AndroidThunkCpp_Facebook_Logout()
 	return bSuccess;
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_FacebookLogin_nativeLogoutComplete(JNIEnv* jenv, jobject thiz, jsize responseCode)
+JNI_METHOD void Java_com_epicgames_unreal_FacebookLogin_nativeLogoutComplete(JNIEnv* jenv, jobject thiz, jsize responseCode)
 {
 	EFacebookLoginResponse LogoutResponse = (EFacebookLoginResponse)responseCode;
 	UE_LOG_ONLINE_IDENTITY(VeryVerbose, TEXT("nativeLogoutComplete %s"), ToString(LogoutResponse));

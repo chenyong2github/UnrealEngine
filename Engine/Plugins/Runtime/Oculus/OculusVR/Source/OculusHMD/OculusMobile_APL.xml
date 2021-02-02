@@ -85,7 +85,7 @@
 				<!-- update the GameActivity activity -->
 				<loopElements tag="activity">
 					<setStringFromAttribute result="activityName" tag="$" name="android:name"/>
-					<setBoolIsEqual result="bGameActivity" arg1="$S(activityName)" arg2="com.epicgames.ue4.GameActivity"/>
+					<setBoolIsEqual result="bGameActivity" arg1="$S(activityName)" arg2="com.epicgames.unreal.GameActivity"/>
 					<if condition="bGameActivity">
 						<true>
 							<!-- do not want application to show in recents -->
@@ -134,7 +134,7 @@
 		<!-- Add Activity Specific Flags -->
 		<loopElements tag="activity">
 			<setStringFromAttribute result="activityName" tag="$" name="android:name"/>
-			<setBoolIsEqual result="bGameActivity" arg1="$S(activityName)" arg2="com.epicgames.ue4.GameActivity"/>
+			<setBoolIsEqual result="bGameActivity" arg1="$S(activityName)" arg2="com.epicgames.unreal.GameActivity"/>
 			<if condition="bGameActivity">
 				<true>
 					<!-- Add VR Intent Filter, Permissions, and Features -->
@@ -352,7 +352,7 @@
 	</gameActivityOnActivityResultAdditions>
 	-->
 
-	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	<soLoadLibrary>
 		<!-- need this if plugin enabled and supported architecture, even if not packaged for Oculus mobile -->
 		<if condition="bSupported">

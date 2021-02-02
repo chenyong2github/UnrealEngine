@@ -173,7 +173,7 @@
 		<!-- Add intents -->
 		<loopElements tag="activity">
 			<setStringFromAttribute result="activityName" tag="$" name="android:name" />
-			<setBoolIsEqual result="bGameActivity" arg1="$S(activityName)" arg2="com.epicgames.ue4.GameActivity" />
+			<setBoolIsEqual result="bGameActivity" arg1="$S(activityName)" arg2="com.epicgames.unreal.GameActivity" />
 			<if condition="bGameActivity">
 				<true>
 					<!-- Check for existing intent filter -->
@@ -586,7 +586,7 @@
 		</addElements>
 	</iosPListUpdates>
 
-	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	<soLoadLibrary>
 		<loadLibrary name="gvr" failmsg="GoogleVR library not loaded and required!" />
 	</soLoadLibrary>

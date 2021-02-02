@@ -100,7 +100,7 @@ bool ULocationServicesAndroidImpl::IsLocationServiceEnabled()
 }
 
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeHandleLocationChanged(JNIEnv* jenv, jobject thiz, jlong time, jdouble longitude, jdouble latitude, jfloat accuracy, jdouble altitude)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeHandleLocationChanged(JNIEnv* jenv, jobject thiz, jlong time, jdouble longitude, jdouble latitude, jfloat accuracy, jdouble altitude)
 {
 	//we're passing this value up to Blueprints, which only takes floats.
 	FLocationServicesData LocationData;

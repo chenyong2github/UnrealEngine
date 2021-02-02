@@ -356,7 +356,7 @@ int32 AndroidThunkCpp_Google_Login(const TArray<FString>& InScopeFields)
 	return ReturnVal;
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GoogleLogin_nativeLoginComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring javaData)
+JNI_METHOD void Java_com_epicgames_unreal_GoogleLogin_nativeLoginComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring javaData)
 {
 	EGoogleLoginResponse LoginResponse = (EGoogleLoginResponse)responseCode;
 	auto JavaData = FJavaHelper::FStringFromParam(jenv, javaData);
@@ -410,7 +410,7 @@ int32 AndroidThunkCpp_Google_Logout()
 	return ReturnVal;
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GoogleLogin_nativeLogoutComplete(JNIEnv* jenv, jobject thiz, jsize responseCode)
+JNI_METHOD void Java_com_epicgames_unreal_GoogleLogin_nativeLogoutComplete(JNIEnv* jenv, jobject thiz, jsize responseCode)
 {
 	EGoogleLoginResponse LogoutResponse = (EGoogleLoginResponse)responseCode;
 	UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("nativeLogoutComplete %s"), ToString(LogoutResponse));

@@ -111,7 +111,7 @@ namespace Electra
 	private:
 		static FName GetClassName()
 		{
-			return FName("com/epicgames/ue4/ElectraVideoDecoderH264");
+			return FName("com/epicgames/unreal/ElectraVideoDecoderH264");
 		}
 
 		void PostError(int32_t ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK)
@@ -241,7 +241,7 @@ namespace Electra
 	FAndroidJavaH264VideoDecoder::FAndroidJavaH264VideoDecoder(IPlayerSessionServices* InPlayerSessionServices)
 		: FJavaClassObject(GetClassName(), "()V")
 		, PlayerSessionServices(InPlayerSessionServices)
-		, CreateDecoderFN(GetClassMethod("CreateDecoder", "(Lcom/epicgames/ue4/ElectraVideoDecoderH264$FCreateParameters;)I"))
+		, CreateDecoderFN(GetClassMethod("CreateDecoder", "(Lcom/epicgames/unreal/ElectraVideoDecoderH264$FCreateParameters;)I"))
 		, ReleaseDecoderFN(GetClassMethod("ReleaseDecoder", "()I"))
 		, ReleaseFN(GetClassMethod("release", "()I"))
 		, StartFN(GetClassMethod("Start", "()I"))
@@ -252,16 +252,16 @@ namespace Electra
 		, QueueInputBufferFN(GetClassMethod("QueueInputBuffer", "(IJ[B)I"))
 		, QueueCSDInputBufferFN(GetClassMethod("QueueCSDInputBuffer", "(IJ[B)I"))
 		, QueueEOSInputBufferFN(GetClassMethod("QueueEOSInputBuffer", "(IJ)I"))
-		, GetDecoderInformationFN(GetClassMethod("GetDecoderInformation", "()Lcom/epicgames/ue4/ElectraVideoDecoderH264$FDecoderInformation;"))
-		, GetOutputFormatInfoFN(GetClassMethod("GetOutputFormatInfo", "(I)Lcom/epicgames/ue4/ElectraVideoDecoderH264$FOutputFormatInfo;"))
-		, DequeueOutputBufferFN(GetClassMethod("DequeueOutputBuffer", "(I)Lcom/epicgames/ue4/ElectraVideoDecoderH264$FOutputBufferInfo;"))
+		, GetDecoderInformationFN(GetClassMethod("GetDecoderInformation", "()Lcom/epicgames/unreal/ElectraVideoDecoderH264$FDecoderInformation;"))
+		, GetOutputFormatInfoFN(GetClassMethod("GetOutputFormatInfo", "(I)Lcom/epicgames/unreal/ElectraVideoDecoderH264$FOutputFormatInfo;"))
+		, DequeueOutputBufferFN(GetClassMethod("DequeueOutputBuffer", "(I)Lcom/epicgames/unreal/ElectraVideoDecoderH264$FOutputBufferInfo;"))
 		, GetOutputBufferFN(GetClassMethod("GetOutputBuffer", "(I)[B"))
 		, ReleaseOutputBufferFN(GetClassMethod("ReleaseOutputBuffer", "(IZJ)I"))
 	{
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 
 		// Get field IDs for FCreateParameters class members
-		jclass localCreateParametersClass = AndroidJavaEnv::FindJavaClass("com/epicgames/ue4/ElectraVideoDecoderH264$FCreateParameters");
+		jclass localCreateParametersClass = AndroidJavaEnv::FindJavaClass("com/epicgames/unreal/ElectraVideoDecoderH264$FCreateParameters");
 		FCreateParametersClass = (jclass)JEnv->NewGlobalRef(localCreateParametersClass);
 		JEnv->DeleteLocalRef(localCreateParametersClass);
 		FCreateParametersCTOR = FindMethod(JEnv, FCreateParametersClass, "<init>", "()V", false);
@@ -282,13 +282,13 @@ namespace Electra
 		FCreateParameters_bSurfaceIsView = FindField(JEnv, FCreateParametersClass, "bSurfaceIsView", "Z", false);
 
 		// Get field IDs for FDecoderInformation class members
-		jclass localDecoderInformationClass = AndroidJavaEnv::FindJavaClass("com/epicgames/ue4/ElectraVideoDecoderH264$FDecoderInformation");
+		jclass localDecoderInformationClass = AndroidJavaEnv::FindJavaClass("com/epicgames/unreal/ElectraVideoDecoderH264$FDecoderInformation");
 		FDecoderInformationClass = (jclass)JEnv->NewGlobalRef(localDecoderInformationClass);
 		JEnv->DeleteLocalRef(localDecoderInformationClass);
 		FDecoderInformation_bIsAdaptive = FindField(JEnv, FDecoderInformationClass, "bIsAdaptive", "Z", false);
 
 		// Get field IDs for FOutputFormatInfo class members
-		jclass localOutputFormatInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/ue4/ElectraVideoDecoderH264$FOutputFormatInfo");
+		jclass localOutputFormatInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/unreal/ElectraVideoDecoderH264$FOutputFormatInfo");
 		FOutputFormatInfoClass = (jclass)JEnv->NewGlobalRef(localOutputFormatInfoClass);
 		JEnv->DeleteLocalRef(localOutputFormatInfoClass);
 		FOutputFormatInfo_Width = FindField(JEnv, FOutputFormatInfoClass, "Width", "I", false);
@@ -302,7 +302,7 @@ namespace Electra
 		FOutputFormatInfo_ColorFormat = FindField(JEnv, FOutputFormatInfoClass, "ColorFormat", "I", false);
 
 		// Get field IDs for FOutputBufferInfo class members
-		jclass localOutputBufferInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/ue4/ElectraVideoDecoderH264$FOutputBufferInfo");
+		jclass localOutputBufferInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/unreal/ElectraVideoDecoderH264$FOutputBufferInfo");
 		FOutputBufferInfoClass = (jclass)JEnv->NewGlobalRef(localOutputBufferInfoClass);
 		JEnv->DeleteLocalRef(localOutputBufferInfoClass);
 		FOutputBufferInfo_BufferIndex = FindField(JEnv, FOutputBufferInfoClass, "BufferIndex", "I", false);

@@ -73,19 +73,19 @@
 	<!-- optional additions to proguard -->
 	<proguardAdditions>
 		<insert>
--keep class com.epicgames.ue4.CameraPlayer14 {
+-keep class com.epicgames.unreal.CameraPlayer14 {
    public *;
 }
--keep class com.epicgames.ue4.CameraPlayer14$FrameUpdateInfo {
+-keep class com.epicgames.unreal.CameraPlayer14$FrameUpdateInfo {
         public *;
 }
--keep class com.epicgames.ue4.CameraPlayer14$AudioTrackInfo {
+-keep class com.epicgames.unreal.CameraPlayer14$AudioTrackInfo {
         public *;
 }
--keep class com.epicgames.ue4.CameraPlayer14$CaptionTrackInfo {
+-keep class com.epicgames.unreal.CameraPlayer14$CaptionTrackInfo {
         public *;
 }
--keep class com.epicgames.ue4.CameraPlayer14$VideoTrackInfo {
+-keep class com.epicgames.unreal.CameraPlayer14$VideoTrackInfo {
         public *;
 }
 		</insert>
@@ -207,7 +207,7 @@
 	</gameActivityOnActivityResultAdditions>
 	-->
 
-	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	<soLoadLibrary>
 	</soLoadLibrary>
 </root>

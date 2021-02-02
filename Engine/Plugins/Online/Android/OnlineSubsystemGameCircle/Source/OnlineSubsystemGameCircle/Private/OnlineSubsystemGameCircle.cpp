@@ -204,7 +204,7 @@ std::string FOnlineSubsystemGameCircle::ConvertFStringToStdString(const FString&
 }
 
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnAmazonGamesInitCallback(JNIEnv* jenv, jobject thiz, jboolean bServiceIsReady)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnAmazonGamesInitCallback(JNIEnv* jenv, jobject thiz, jboolean bServiceIsReady)
 {
 	FOnlineSubsystemGameCircle * Subsystem = (FOnlineSubsystemGameCircle *)(FOnlineSubsystemGameCircle::Get());
 
@@ -220,11 +220,11 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnAmazonGamesInitCallb
 	}
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGameCircleOnResume(JNIEnv* jenv, jobject thiz)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeGameCircleOnResume(JNIEnv* jenv, jobject thiz)
 {
 	FOnlineSubsystemGameCircle * Subsystem = (FOnlineSubsystemGameCircle *)(FOnlineSubsystemGameCircle::Get());
 
-	FPlatformMisc::LowLevelOutputDebugString(TEXT("Java_com_epicgames_ue4_GameActivity_nativeGameCircleOnResume"));
+	FPlatformMisc::LowLevelOutputDebugString(TEXT("Java_com_epicgames_unreal_GameActivity_nativeGameCircleOnResume"));
 
 	if(Subsystem && Subsystem->GetExternalUIGameCircle().IsValid())
 	{

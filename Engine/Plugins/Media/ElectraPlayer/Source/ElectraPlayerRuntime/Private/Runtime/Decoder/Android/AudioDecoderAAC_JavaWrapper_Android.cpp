@@ -51,7 +51,7 @@ public:
 private:
 	static FName GetClassName()
 	{
-		return FName("com/epicgames/ue4/ElectraAudioDecoderAAC");
+		return FName("com/epicgames/unreal/ElectraAudioDecoderAAC");
 	}
 
 	jfieldID FindField(JNIEnv* JEnv, jclass InClass, const ANSICHAR* InFieldName, const ANSICHAR* InFieldType, bool bIsOptional)
@@ -128,14 +128,14 @@ FAndroidJavaAACAudioDecoder::FAndroidJavaAACAudioDecoder()
 	, FlushFN(GetClassMethod("Flush", "()I"))
 	, DequeueInputBufferFN(GetClassMethod("DequeueInputBuffer", "(I)I"))
 	, QueueInputBufferFN(GetClassMethod("QueueInputBuffer", "(IJ[B)I"))
-	, GetOutputFormatInfoFN(GetClassMethod("GetOutputFormatInfo", "(I)Lcom/epicgames/ue4/ElectraAudioDecoderAAC$FOutputFormatInfo;"))
-	, DequeueOutputBufferFN(GetClassMethod("DequeueOutputBuffer", "(I)Lcom/epicgames/ue4/ElectraAudioDecoderAAC$FOutputBufferInfo;"))
+	, GetOutputFormatInfoFN(GetClassMethod("GetOutputFormatInfo", "(I)Lcom/epicgames/unreal/ElectraAudioDecoderAAC$FOutputFormatInfo;"))
+	, DequeueOutputBufferFN(GetClassMethod("DequeueOutputBuffer", "(I)Lcom/epicgames/unreal/ElectraAudioDecoderAAC$FOutputBufferInfo;"))
 	, GetOutputBufferAndReleaseFN(GetClassMethod("GetOutputBufferAndRelease", "(I)[B"))
 {
 	JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 
 	// Get field IDs for FOutputFormatInfo class members
-	jclass localOutputFormatInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/ue4/ElectraAudioDecoderAAC$FOutputFormatInfo");
+	jclass localOutputFormatInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/unreal/ElectraAudioDecoderAAC$FOutputFormatInfo");
 	FOutputFormatInfoClass = (jclass)JEnv->NewGlobalRef(localOutputFormatInfoClass);
 	JEnv->DeleteLocalRef(localOutputFormatInfoClass);
 	FOutputFormatInfo_SampleRate     = FindField(JEnv, FOutputFormatInfoClass, "SampleRate", "I", false);
@@ -143,7 +143,7 @@ FAndroidJavaAACAudioDecoder::FAndroidJavaAACAudioDecoder()
 	FOutputFormatInfo_BytesPerSample = FindField(JEnv, FOutputFormatInfoClass, "BytesPerSample", "I", false);
 
 	// Get field IDs for FOutputBufferInfo class members
-	jclass localOutputBufferInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/ue4/ElectraAudioDecoderAAC$FOutputBufferInfo");
+	jclass localOutputBufferInfoClass = AndroidJavaEnv::FindJavaClass("com/epicgames/unreal/ElectraAudioDecoderAAC$FOutputBufferInfo");
 	FOutputBufferInfoClass = (jclass)JEnv->NewGlobalRef(localOutputBufferInfoClass);
 	JEnv->DeleteLocalRef(localOutputBufferInfoClass);
 	FOutputBufferInfo_BufferIndex   		= FindField(JEnv, FOutputBufferInfoClass, "BufferIndex", "I", false);

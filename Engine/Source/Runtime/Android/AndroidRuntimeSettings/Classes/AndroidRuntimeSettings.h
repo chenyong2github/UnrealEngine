@@ -339,7 +339,7 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced APK Packaging", Meta = (DisplayName = "Extra Tags for <application> node"))
 	TArray<FString> ExtraApplicationNodeTags;
 
-	// Any extra tags for the com.epicgames.UE4.GameActivity <activity> node
+	// Any extra tags for the com.epicgames.unreal.GameActivity <activity> node
 	// Any extra settings for the <application> section (an optional file <Project>/Build/Android/ManifestApplicationAdditions.txt will also be included)
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced APK Packaging", Meta = (DisplayName = "Extra Settings for <application> section (\\n to separate lines)"))
 	FString ExtraApplicationSettings;
@@ -441,7 +441,7 @@ public:
 	bool bBuildWithHiddenSymbolVisibility;
 
 	// Always save .so file with symbols allowing use of addr2line on raw callstack addresses.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Always save a copy of the libUE4.so with symbols. [Experimental]"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Always save a copy of the libUnreal.so with symbols. [Experimental]"))
 	bool bSaveSymbols;
 
 	// Use legacy ld instead of new lld linker.

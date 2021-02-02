@@ -108,7 +108,7 @@ void FAndroidApplication::HandleDeviceOrientation()
         
         if (getOrientationMethod == 0)
         {
-            jclass MainClass = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
+            jclass MainClass = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/unreal/GameActivity");
             if (MainClass != nullptr)
             {
                 getOrientationMethod = JEnv->GetMethodID(MainClass, "AndroidThunkJava_GetDeviceOrientation", "()I");

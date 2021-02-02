@@ -880,7 +880,7 @@ namespace UnrealBuildTool
 			}
 
 			// make sure the DT_SONAME field is set properly (or we can a warning toast at startup on new Android)
-			Result += " -Wl,-soname,libUE4.so";
+			Result += " -Wl,-soname,libUnreal.so";
 
 			// exclude defaults, add at end
 			Result += "	-Wl,--exclude-libs,libgcc_real.a";
@@ -1194,11 +1194,11 @@ namespace UnrealBuildTool
 		protected static string ArPathArm64;
 		protected static string ArPathx64;
 
-		static public string GetStripExecutablePath(string UE4Arch)
+		static public string GetStripExecutablePath(string UnrealArch)
 		{
 			string StripPath;
 
-			switch (UE4Arch)
+			switch (UnrealArch)
 			{
 				case "-arm64": StripPath = ArPathArm64; break;
 				case "-x64": StripPath = ArPathx64; break;

@@ -401,7 +401,7 @@ void FOnlineSubsystemGooglePlay::OnActivityResult(JNIEnv *env, jobject thiz, job
 	AndroidSupport::OnActivityResult(env, activity, requestCode, resultCode, data);
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGoogleClientConnectCompleted(JNIEnv* jenv, jobject thiz, jboolean bSuccess, jstring accessToken)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeGoogleClientConnectCompleted(JNIEnv* jenv, jobject thiz, jboolean bSuccess, jstring accessToken)
 {
 	FString AccessToken;
 	if (bSuccess)

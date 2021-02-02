@@ -319,13 +319,13 @@ static struct
 extern "C"
 {
 
-	JNIEXPORT void Java_com_epicgames_ue4_HeadsetReceiver_stateChanged(JNIEnv * jni, jclass clazz, jint state)
+	JNIEXPORT void Java_com_epicgames_unreal_HeadsetReceiver_stateChanged(JNIEnv * jni, jclass clazz, jint state)
 	{
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("nativeHeadsetEvent(%i)"), state);
 		HeadPhonesArePluggedIn = (state == 1);
 	}
 
-	JNIEXPORT void Java_com_epicgames_ue4_VolumeReceiver_volumeChanged(JNIEnv * jni, jclass clazz, jint volume)
+	JNIEXPORT void Java_com_epicgames_unreal_VolumeReceiver_volumeChanged(JNIEnv * jni, jclass clazz, jint volume)
 	{
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("nativeVolumeEvent(%i)"), volume);
 		ReceiversLock.Lock();
@@ -334,7 +334,7 @@ extern "C"
 		ReceiversLock.Unlock();
 	}
 
-	JNIEXPORT void Java_com_epicgames_ue4_BatteryReceiver_dispatchEvent(JNIEnv * jni, jclass clazz, jint status, jint level, jint temperature)
+	JNIEXPORT void Java_com_epicgames_unreal_BatteryReceiver_dispatchEvent(JNIEnv * jni, jclass clazz, jint status, jint level, jint temperature)
 	{
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("nativeBatteryEvent(stat = %i, lvl = %i %, temp = %3.2f \u00B0C)"), status, level, float(temperature)/10.f);
 
@@ -375,9 +375,9 @@ static struct
 	jmethodID		StopReceiver;
 } JavaEventReceivers[] =
 {
-	{ "com/epicgames/ue4/VolumeReceiver",{ "volumeChanged", "(I)V",  (void *)Java_com_epicgames_ue4_VolumeReceiver_volumeChanged } },
-	{ "com/epicgames/ue4/BatteryReceiver",{ "dispatchEvent", "(III)V",(void *)Java_com_epicgames_ue4_BatteryReceiver_dispatchEvent } },
-	{ "com/epicgames/ue4/HeadsetReceiver",{ "stateChanged",  "(I)V",  (void *)Java_com_epicgames_ue4_HeadsetReceiver_stateChanged } },
+	{ "com/epicgames/unreal/VolumeReceiver",{ "volumeChanged", "(I)V",  (void *)Java_com_epicgames_unreal_VolumeReceiver_volumeChanged } },
+	{ "com/epicgames/unreal/BatteryReceiver",{ "dispatchEvent", "(III)V",(void *)Java_com_epicgames_unreal_BatteryReceiver_dispatchEvent } },
+	{ "com/epicgames/unreal/HeadsetReceiver",{ "stateChanged",  "(I)V",  (void *)Java_com_epicgames_unreal_HeadsetReceiver_stateChanged } },
 };
 
 void InitializeJavaEventReceivers()
@@ -1689,7 +1689,7 @@ int32 FAndroidMisc::GetAndroidBuildVersion()
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 		if (nullptr != JEnv)
 		{
-			jclass Class = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
+			jclass Class = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/unreal/GameActivity");
 			if (nullptr != Class)
 			{
 				jfieldID Field = JEnv->GetStaticFieldID(Class, "ANDROID_BUILD_VERSION", "I");
@@ -1718,7 +1718,7 @@ bool FAndroidMisc::IsSupportedAndroidDevice()
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 		if (nullptr != JEnv)
 		{
-			jclass Class = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
+			jclass Class = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/unreal/GameActivity");
 			if (nullptr != Class)
 			{
 				jfieldID Field = JEnv->GetStaticFieldID(Class, "bSupportedDevice", "Z");
@@ -2377,7 +2377,7 @@ FString* FAndroidMisc::GetConfigRulesVariable(const FString& Key)
 	return ConfigRulesVariables.Find(Key);
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetConfigRulesVariables(JNIEnv* jenv, jobject thiz, jobjectArray KeyValuePairs)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetConfigRulesVariables(JNIEnv* jenv, jobject thiz, jobjectArray KeyValuePairs)
 {
 	int32 Count = jenv->GetArrayLength(KeyValuePairs);
 	int32 Index = 0;
@@ -2395,7 +2395,7 @@ extern bool AndroidThunkCpp_HasMetaDataKey(const FString& Key);
 bool FAndroidMisc::IsDaydreamApplication()
 {
 #if USE_ANDROID_JNI
-	static const bool bIsDaydreamApplication = AndroidThunkCpp_HasMetaDataKey(TEXT("com.epicgames.ue4.GameActivity.bDaydream"));
+	static const bool bIsDaydreamApplication = AndroidThunkCpp_HasMetaDataKey(TEXT("com.epicgames.unreal.GameActivity.bDaydream"));
 	return bIsDaydreamApplication;
 #else
 	return false;
@@ -2404,7 +2404,7 @@ bool FAndroidMisc::IsDaydreamApplication()
 
 static bool bDetectedDebugger = false;
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetAndroidStartupState(JNIEnv* jenv, jobject thiz, jboolean bDebuggerAttached)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetAndroidStartupState(JNIEnv* jenv, jobject thiz, jboolean bDebuggerAttached)
 {
 	// if Java debugger attached, mark detected (but don't lose previous trigger state)
 	if (bDebuggerAttached)

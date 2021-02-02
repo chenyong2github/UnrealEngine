@@ -87,7 +87,7 @@ void FAppEventManager::Tick()
 		case APP_EVENT_STATE_WINDOW_CHANGED:
 			// React on device orientation/windowSize changes only when application has window
 			// In case window was created this tick it should already has correct size
-			// see 'Java_com_epicgames_ue4_GameActivity_nativeOnConfigurationChanged' for event thread/game thread mismatches.
+			// see 'Java_com_epicgames_unreal_GameActivity_nativeOnConfigurationChanged' for event thread/game thread mismatches.
 			ExecWindowResized();
 		break;
 		case APP_EVENT_STATE_SAVE_STATE:

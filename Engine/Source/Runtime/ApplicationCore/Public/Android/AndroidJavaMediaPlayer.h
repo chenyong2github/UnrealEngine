@@ -30,7 +30,7 @@ private:
 };
 
 
-// Wrapper for com/epicgames/ue4/MediaPlayer*.java.
+// Wrapper for com/epicgames/unreal/MediaPlayer*.java.
 class FJavaAndroidMediaPlayer : public FJavaClassObject
 {
 public:

@@ -132,7 +132,7 @@ FAndroidWebAuth::~FAndroidWebAuth()
 #if USE_ANDROID_JNI
 // This function is declared in the Java-defined class, GameActivity.java: "public native void handleAuthSessionResponse(String redirectURL);"
 // Auto merged from <ProjectName>_UPL.xml
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_handleAuthSessionResponse(JNIEnv* jenv, jobject thiz, jstring redirectURL)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_handleAuthSessionResponse(JNIEnv* jenv, jobject thiz, jstring redirectURL)
 {
 	auto RedirectURL = FJavaHelper::FStringFromParam(jenv, redirectURL);
 

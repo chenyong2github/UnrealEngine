@@ -43,7 +43,7 @@ FName FJavaAndroidMessageBox::GetClassName()
 {
 	if (FAndroidMisc::GetAndroidBuildVersion() >= 1)
 	{
-		return FName("com/epicgames/ue4/MessageBox01");
+		return FName("com/epicgames/unreal/MessageBox01");
 	}
 	else
 	{

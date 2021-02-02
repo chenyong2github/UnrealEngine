@@ -78,11 +78,11 @@ void FAndroidPlatformStackWalk::ProgramCounterToSymbolInfo(uint64 ProgramCounter
 	}
 
 	// No line number available.
-	// TODO open libUE4.so from the apk and get the DWARF-2 data.
+	// TODO open libUnreal.so from the apk and get the DWARF-2 data.
 	FCStringAnsi::Strcat(out_SymbolInfo.Filename, "Unknown");
 	out_SymbolInfo.LineNumber = 0;
 
-	// Offset of the symbol in the module, eg offset into libUE4.so needed for offline addr2line use.
+	// Offset of the symbol in the module, eg offset into libUnreal.so needed for offline addr2line use.
 	out_SymbolInfo.OffsetInModule = ProgramCounter - (uint64)DylibInfo.dli_fbase;
 
 	// Write out Module information.

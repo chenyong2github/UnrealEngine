@@ -101,7 +101,7 @@ void OnTriggerEvent(void* UserParam)
 
 #if GOOGLEVRHMD_SUPPORTED_ANDROID_PLATFORMS
 
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnUiLayerBack(JNIEnv* jenv, jobject thiz)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnUiLayerBack(JNIEnv* jenv, jobject thiz)
 {
 	// Need to be on game thread to dispatch handler
 	bBackDetected = true;

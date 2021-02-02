@@ -8,7 +8,7 @@
 
 #include "AndroidJava.h"
 
-// Wrapper for com/epicgames/ue4/MessageBox*.java.
+// Wrapper for com/epicgames/unreal/MessageBox*.java.
 class FJavaAndroidMessageBox : public FJavaClassObject
 {
 public:

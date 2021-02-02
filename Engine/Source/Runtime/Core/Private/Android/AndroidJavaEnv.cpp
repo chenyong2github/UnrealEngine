@@ -67,7 +67,7 @@ void AndroidJavaEnv::InitializeJavaEnv( JavaVM* VM, jint Version, jobject Global
 		CurrentJavaVersion = Version;
 
 		JNIEnv* Env = GetJavaEnv(false);
-		jclass MainClass = Env->FindClass("com/epicgames/ue4/GameActivity");
+		jclass MainClass = Env->FindClass("com/epicgames/unreal/GameActivity");
 		jclass classClass = Env->FindClass("java/lang/Class");
 		jclass classLoaderClass = Env->FindClass("java/lang/ClassLoader");
 		jmethodID getClassLoaderMethod = Env->GetMethodID(classClass, "getClassLoader", "()Ljava/lang/ClassLoader;");

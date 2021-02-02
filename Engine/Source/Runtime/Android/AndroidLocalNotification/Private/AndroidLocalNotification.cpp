@@ -33,7 +33,7 @@ public:
 
 
 #if USE_ANDROID_JNI
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeAppOpenedWithLocalNotification(JNIEnv* jenv, jobject thiz, jstring jactivationEvent, int32 jFireDate)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeAppOpenedWithLocalNotification(JNIEnv* jenv, jobject thiz, jstring jactivationEvent, int32 jFireDate)
 {
 	auto ActivationEvent = FJavaHelper::FStringFromParam(jenv, jactivationEvent);
 	

@@ -1,4 +1,4 @@
-package com.epicgames.ue4.notifications;
+package com.epicgames.unreal.notifications;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -12,10 +12,10 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.text.TextUtils;
 
-import com.epicgames.ue4.GameActivity;
-import com.epicgames.ue4.GameApplication;
-import com.epicgames.ue4.LocalNotificationReceiver;
-import com.epicgames.ue4.Logger;
+import com.epicgames.unreal.GameActivity;
+import com.epicgames.unreal.GameApplication;
+import com.epicgames.unreal.LocalNotificationReceiver;
+import com.epicgames.unreal.Logger;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
@@ -26,11 +26,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 
-import static com.epicgames.ue4.GameActivity.LocalNotificationGetID;
-import static com.epicgames.ue4.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION_ACTION;
-import static com.epicgames.ue4.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION_BODY;
-import static com.epicgames.ue4.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION_ID;
-import static com.epicgames.ue4.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION_TITLE;
+import static com.epicgames.unreal.GameActivity.LocalNotificationGetID;
+import static com.epicgames.unreal.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION_ACTION;
+import static com.epicgames.unreal.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION_BODY;
+import static com.epicgames.unreal.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION_ID;
+import static com.epicgames.unreal.LocalNotificationReceiver.KEY_LOCAL_NOTIFICATION_TITLE;
 
 public class EpicFirebaseMessagingService extends FirebaseMessagingService {
 

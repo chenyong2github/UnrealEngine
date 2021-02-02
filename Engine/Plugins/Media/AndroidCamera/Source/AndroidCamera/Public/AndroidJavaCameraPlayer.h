@@ -7,7 +7,7 @@
 #include "RHI.h"
 #include "RHIResources.h"
 
-// Wrapper for com/epicgames/ue4/CameraPlayer*.java.
+// Wrapper for com/epicgames/unreal/CameraPlayer*.java.
 class FJavaAndroidCameraPlayer : public FJavaClassObject
 {
 public:

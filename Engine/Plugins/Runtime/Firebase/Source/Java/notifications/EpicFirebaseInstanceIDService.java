@@ -1,4 +1,4 @@
-package com.epicgames.ue4.notifications;
+package com.epicgames.unreal.notifications;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -6,7 +6,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
-import com.epicgames.ue4.Logger;
+import com.epicgames.unreal.Logger;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.FirebaseInstanceIdService;

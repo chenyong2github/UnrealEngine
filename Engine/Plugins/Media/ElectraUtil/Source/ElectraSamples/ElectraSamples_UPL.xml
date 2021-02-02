@@ -26,10 +26,10 @@
 	<!-- optional additions to proguard -->
 	<proguardAdditions>
 		<insert>
--keep class com.epicgames.ue4.ElectraTextureSample {
+-keep class com.epicgames.unreal.ElectraTextureSample {
    public *;
 }
--keep class com.epicgames.ue4.ElectraTextureSample$FFrameUpdateInfo {
+-keep class com.epicgames.unreal.ElectraTextureSample$FFrameUpdateInfo {
    public *;
 }
 		</insert>
@@ -106,7 +106,7 @@
 	</gameActivityOnActivityResultAdditions>
 	-->
 
-	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	<soLoadLibrary>
 	</soLoadLibrary>
 </root>

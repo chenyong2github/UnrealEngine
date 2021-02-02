@@ -99,7 +99,7 @@ public boolean AndroidThunkJava_IapBeginPurchase(String ProductId, String Accoun
 	<!-- optional additions to GameActivity imports in GameActivity.java -->
 	<gameActivityImportAdditions>
 		<insert>
-import com.epicgames.ue4.GooglePlayStoreHelper;
+import com.epicgames.unreal.GooglePlayStoreHelper;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

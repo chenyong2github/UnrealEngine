@@ -1848,7 +1848,7 @@ FVideoDecoderOutput* FElectraPlayerPlatformVideoDecoderOutputFactory::Create()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 #if USE_ANDROID_JNI
-JNI_METHOD void Java_com_epicgames_ue4_ElectraVideoDecoderH264_nativeSignalNewDataAvailable(JNIEnv* jenv, jobject thiz, jint NativeDecoderID)
+JNI_METHOD void Java_com_epicgames_unreal_ElectraVideoDecoderH264_nativeSignalNewDataAvailable(JNIEnv* jenv, jobject thiz, jint NativeDecoderID)
 {
 	Electra::FVideoDecoderH264::JavaCallback_NewDataAvailable(NativeDecoderID);
 }

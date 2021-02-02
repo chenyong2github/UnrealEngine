@@ -87,7 +87,7 @@ private:
 
 	static FName GetClassName()
 	{
-		return FName("com/epicgames/ue4/ElectraTextureSample");
+		return FName("com/epicgames/unreal/ElectraTextureSample");
 	}
 
 	jfieldID FindField(JNIEnv* JEnv, jclass InClass, const ANSICHAR* InFieldName, const ANSICHAR* InFieldType, bool bIsOptional)
@@ -122,14 +122,14 @@ FElectraTextureSampleSupport::FElectraTextureSampleSupport()
 	, InitializeFN(GetClassMethod("Initialize", "(Z)V"))
 	, ReleaseFN(GetClassMethod("Release", "()V"))
 	, GetCodecSurfaceFN(GetClassMethod("GetCodecSurface", "()Landroid/view/Surface;"))
-	, GetVideoFrameUpdateInfoFN(GetClassMethod("GetVideoFrameUpdateInfo", "(III)Lcom/epicgames/ue4/ElectraTextureSample$FFrameUpdateInfo;"))
+	, GetVideoFrameUpdateInfoFN(GetClassMethod("GetVideoFrameUpdateInfo", "(III)Lcom/epicgames/unreal/ElectraTextureSample$FFrameUpdateInfo;"))
 	, CodecSurface(nullptr)
 	, SurfaceInitEvent(nullptr)
 {
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 
 	// Get field IDs for FFrameUpdateInfo class members
-	jclass localFrameUpdateInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/ElectraTextureSample$FFrameUpdateInfo");
+	jclass localFrameUpdateInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/unreal/ElectraTextureSample$FFrameUpdateInfo");
 	FFrameUpdateInfoClass = (jclass)JEnv->NewGlobalRef(localFrameUpdateInfoClass);
 	JEnv->DeleteLocalRef(localFrameUpdateInfoClass);
 	FFrameUpdateInfo_Buffer = FindField(JEnv, FFrameUpdateInfoClass, "Buffer", "Ljava/nio/Buffer;", false);

@@ -313,7 +313,7 @@ static int64 GetAndroidLibraryBaseAddress()
 {
 	int64 BaseAddress = 0;
 
-	const char *LibraryName = "libUE4.so";
+	const char *LibraryName = "libUnreal.so";
 	int32 LibraryLength = strlen(LibraryName);
 
 	// try to open process map file

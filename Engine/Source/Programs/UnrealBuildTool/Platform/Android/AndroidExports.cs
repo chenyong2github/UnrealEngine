@@ -119,9 +119,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="NDKArch"></param>
 		/// <returns></returns>
-		public static string GetUE4Arch(string NDKArch)
+		public static string GetUnrealArch(string NDKArch)
 		{
-			return UEDeployAndroid.GetUE4Arch(NDKArch);
+			return UEDeployAndroid.GetUnrealArch(NDKArch);
 		}
 
 		/// <summary>

@@ -34,21 +34,21 @@ dependencies {
         <addPermission android:name="com.google.android.c2dm.permission.RECEIVE" />
         <addElements tag="application">
           <service
-            android:name="com.epicgames.ue4.RemoteNotificationsListener"
+            android:name="com.epicgames.unreal.RemoteNotificationsListener"
             android:exported="false" >
             <intent-filter>
               <action android:name="com.google.android.c2dm.intent.RECEIVE" />
             </intent-filter>
           </service>
           <service
-            android:name="com.epicgames.ue4.RemoteNotificationsInstanceIDListener"
+            android:name="com.epicgames.unreal.RemoteNotificationsInstanceIDListener"
             android:exported="false">
             <intent-filter>
               <action android:name="com.google.android.gms.iid.InstanceID"/>
             </intent-filter>
           </service>
           <service
-            android:name="com.epicgames.ue4.RemoteNotificationsRegistrationIntentService"
+            android:name="com.epicgames.unreal.RemoteNotificationsRegistrationIntentService"
             android:exported="false">
           </service>
         </addElements>
@@ -93,7 +93,7 @@ dependencies {
   <prebuildCopies>
     <if condition="GCMEnabled">
       <true>
-        <copyDir src="$S(PluginDir)/../Java" dst="$S(BuildDir)/src/com/epicgames/ue4" />
+        <copyDir src="$S(PluginDir)/../Java" dst="$S(BuildDir)/src/com/epicgames/unreal" />
       </true>
     </if>
   </prebuildCopies>
@@ -193,7 +193,7 @@ dependencies {
 	</gameActivityOnActivityResultAdditions>
 	-->
 
-  <!-- optional libraries to load in GameActivity.java before libUE4.so
+  <!-- optional libraries to load in GameActivity.java before libUnreal.so
 	<soLoadLibrary>
 	</soLoadLibrary>
 	-->

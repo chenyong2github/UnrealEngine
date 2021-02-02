@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4;
+package com.epicgames.unreal;
 
 import java.io.IOException;
 import android.app.IntentService;
@@ -12,7 +12,7 @@ public class RemoteNotificationsRegistrationIntentService extends IntentService
 {
   public RemoteNotificationsRegistrationIntentService()
   {
-    super( "com.epicgames.ue4.RemoteNotificationsRegistrationIntentService" );
+    super( "com.epicgames.unreal.RemoteNotificationsRegistrationIntentService" );
   }
 
   public RemoteNotificationsRegistrationIntentService( String name )

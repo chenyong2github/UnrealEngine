@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4;
+package com.epicgames.unreal;
 
 import android.content.Intent;
 import com.google.android.gms.iid.InstanceID;

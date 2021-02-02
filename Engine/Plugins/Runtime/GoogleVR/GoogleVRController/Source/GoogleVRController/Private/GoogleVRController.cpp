@@ -75,7 +75,7 @@ class FGoogleVRControllerPlugin : public IGoogleVRControllerPlugin
 		JNIEnv* jenv = FAndroidApplication::GetJavaEnv();
 		static jmethodID Method = FJavaWrapper::FindMethod(jenv, FJavaWrapper::GameActivityClassID, "getApplicationContext", "()Landroid/content/Context;", false);
 		static jobject ApplicationContext = FJavaWrapper::CallObjectMethod(jenv, FJavaWrapper::GameActivityThis, Method);
-		jclass MainClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
+		jclass MainClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/unreal/GameActivity");
 		jclass classClass = jenv->FindClass("java/lang/Class");
 		jmethodID getClassLoaderMethod = jenv->GetMethodID(classClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
 		auto classLoader = NewScopedJavaObject(jenv, jenv->CallObjectMethod(MainClass, getClassLoaderMethod));

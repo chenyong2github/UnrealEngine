@@ -280,7 +280,7 @@ namespace UnrealBuildTool
 					string BinaryPath;
 					if (Target.bShouldCompileAsDLL)
 					{
-						BinaryPath = Path.Combine(BinaryName.Directory.FullName, Target.Configuration.ToString(), "libUE4.so");
+						BinaryPath = Path.Combine(BinaryName.Directory.FullName, Target.Configuration.ToString(), "libUnreal.so");
 					}
 					else
 					{

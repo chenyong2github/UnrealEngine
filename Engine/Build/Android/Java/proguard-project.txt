@@ -13,91 +13,91 @@
 # Add any project specific keep options here:
 
 # Needed to keep the JNI functions around
--keepclassmembers class com.epicgames.ue4.GameActivity {
+-keepclassmembers class com.epicgames.unreal.GameActivity {
 	public *;
 }
 -keep class * extends android.media.MediaPlayer {
 	public *;
 }
--keep class com.epicgames.ue4.MediaPlayer14 {
+-keep class com.epicgames.unreal.MediaPlayer14 {
 	public *;
 }
--keep class com.epicgames.ue4.VideoDecoder {
+-keep class com.epicgames.unreal.VideoDecoder {
 	public *;
 }
--keep class com.epicgames.ue4.AudioDecoder {
+-keep class com.epicgames.unreal.AudioDecoder {
 	public *;
 }
--keep class com.epicgames.ue4.MessageBox01 {
+-keep class com.epicgames.unreal.MessageBox01 {
 	public *;
 }
--keep class com.epicgames.ue4.WebViewControl {
+-keep class com.epicgames.unreal.WebViewControl {
 	public *;
 }
--keep class com.epicgames.ue4.BatteryReceiver {
+-keep class com.epicgames.unreal.BatteryReceiver {
 	public *;
 }
--keep class com.epicgames.ue4.HeadsetReceiver {
+-keep class com.epicgames.unreal.HeadsetReceiver {
 	public *;
 }
--keep class com.epicgames.ue4.VolumeReceiver {
+-keep class com.epicgames.unreal.VolumeReceiver {
 	public *;
 }
--keep class com.epicgames.ue4.LocalNotificationReceiver {
+-keep class com.epicgames.unreal.LocalNotificationReceiver {
 	public *;
 }
--keep class com.epicgames.ue4.MulticastBroadcastReceiver {
+-keep class com.epicgames.unreal.MulticastBroadcastReceiver {
 	public *;
 }
 
 # Needed...
 
--keep class com.epicgames.ue4.GameActivity$LaunchNotification {
+-keep class com.epicgames.unreal.GameActivity$LaunchNotification {
 	public *;
 }
 
--keep class com.epicgames.ue4.GameActivity$InputDeviceInfo {
+-keep class com.epicgames.unreal.GameActivity$InputDeviceInfo {
 	public *;
 }
--keep class com.epicgames.ue4.GameActivity$JavaAchievement {
+-keep class com.epicgames.unreal.GameActivity$JavaAchievement {
 	public *;
 }
--keep class com.epicgames.ue4.MediaPlayer14$FrameUpdateInfo {
+-keep class com.epicgames.unreal.MediaPlayer14$FrameUpdateInfo {
 	public *;
 }
--keep class com.epicgames.ue4.MediaPlayer14$AudioTrackInfo {
+-keep class com.epicgames.unreal.MediaPlayer14$AudioTrackInfo {
 	public *;
 }
--keep class com.epicgames.ue4.MediaPlayer14$CaptionTrackInfo {
+-keep class com.epicgames.unreal.MediaPlayer14$CaptionTrackInfo {
 	public *;
 }
--keep class com.epicgames.ue4.MediaPlayer14$VideoTrackInfo {
-	public *;
-}
-
--keep class com.epicgames.ue4.WebViewControl {
-	public *;
-}
--keep class com.epicgames.ue4.WebViewControl$ViewClient {
-	public *;
-}
--keep class com.epicgames.ue4.WebViewControl$ChromeClient {
+-keep class com.epicgames.unreal.MediaPlayer14$VideoTrackInfo {
 	public *;
 }
 
--keep class com.epicgames.ue4.WebViewControl$ViewClient {
+-keep class com.epicgames.unreal.WebViewControl {
+	public *;
+}
+-keep class com.epicgames.unreal.WebViewControl$ViewClient {
+	public *;
+}
+-keep class com.epicgames.unreal.WebViewControl$ChromeClient {
 	public *;
 }
 
--keep class com.epicgames.ue4.WebViewControl$ChromeClient {
+-keep class com.epicgames.unreal.WebViewControl$ViewClient {
 	public *;
 }
 
--keep class com.epicgames.ue4.WebViewControl$FrameUpdateInfo {
+-keep class com.epicgames.unreal.WebViewControl$ChromeClient {
 	public *;
 }
 
--keep class com.epicgames.ue4.VideoDecoder$FrameUpdateInfo {
+-keep class com.epicgames.unreal.WebViewControl$FrameUpdateInfo {
+	public *;
+}
+
+-keep class com.epicgames.unreal.VideoDecoder$FrameUpdateInfo {
 	public *;
 }
 

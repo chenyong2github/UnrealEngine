@@ -19,7 +19,7 @@
 		</isArch>
 	</resourceCopies>
 
-	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	<soLoadLibrary>
 		<if condition="bSupported">
 			<true>

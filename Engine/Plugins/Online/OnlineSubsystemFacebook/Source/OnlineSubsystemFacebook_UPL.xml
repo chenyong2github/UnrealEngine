@@ -24,7 +24,7 @@
 			<true>
 				<log text="Copying Facebook buildtime files to staging"/>
 				<copyDir src="$S(PluginDir)/ThirdParty/Android/Java"
-					dst = "$S(BuildDir)/src/com/epicgames/ue4" /> 	
+					dst = "$S(BuildDir)/src/com/epicgames/unreal" /> 	
 			</true>
 		</if>
 	</prebuildCopies>
@@ -309,7 +309,7 @@ dependencies {
 		</if>
 	</gameActivityOnActivityResultAdditions>
 
-	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	<soLoadLibrary>
 	</soLoadLibrary>
 </root>

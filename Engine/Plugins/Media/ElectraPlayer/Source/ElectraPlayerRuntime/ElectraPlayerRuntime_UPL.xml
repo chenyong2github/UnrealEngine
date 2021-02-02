@@ -26,28 +26,28 @@
 	<!-- optional additions to proguard -->
 	<proguardAdditions>
 		<insert>
--keep class com.epicgames.ue4.ElectraAudioDecoderAAC {
+-keep class com.epicgames.unreal.ElectraAudioDecoderAAC {
 	public *;
 }
--keep class com.epicgames.ue4.ElectraAudioDecoderAAC$FOutputFormatInfo {
+-keep class com.epicgames.unreal.ElectraAudioDecoderAAC$FOutputFormatInfo {
 	public *;
 }
--keep class com.epicgames.ue4.ElectraAudioDecoderAAC$FOutputBufferInfo {
+-keep class com.epicgames.unreal.ElectraAudioDecoderAAC$FOutputBufferInfo {
 	public *;
 }
--keep class com.epicgames.ue4.ElectraVideoDecoderH264 {
+-keep class com.epicgames.unreal.ElectraVideoDecoderH264 {
 	public *;
 }
--keep class com.epicgames.ue4.ElectraVideoDecoderH264$FCreateParameters {
+-keep class com.epicgames.unreal.ElectraVideoDecoderH264$FCreateParameters {
 	public *;
 }
--keep class com.epicgames.ue4.ElectraVideoDecoderH264$FDecoderInformation {
+-keep class com.epicgames.unreal.ElectraVideoDecoderH264$FDecoderInformation {
 	public *;
 }
--keep class com.epicgames.ue4.ElectraVideoDecoderH264$FOutputFormatInfo {
+-keep class com.epicgames.unreal.ElectraVideoDecoderH264$FOutputFormatInfo {
 	public *;
 }
--keep class com.epicgames.ue4.ElectraVideoDecoderH264$FOutputBufferInfo {
+-keep class com.epicgames.unreal.ElectraVideoDecoderH264$FOutputBufferInfo {
 	public *;
 }
 		</insert>
@@ -124,7 +124,7 @@
 	</gameActivityOnActivityResultAdditions>
 	-->
 
-	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	<soLoadLibrary>
 	</soLoadLibrary>
 </root>

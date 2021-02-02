@@ -49,7 +49,7 @@ void FJavaAndroidMediaPlayer::AddMediaDataSourcePtr(int64 Identifier, TSharedPtr
 	AllMediaDataSources.Add(Identifier, MediaDataSource);
 }
 
-JNI_METHOD int32 Java_com_epicgames_ue4_MediaPlayer14_nativeReadAt(JNIEnv* jenv, jobject thiz, jlong Identifier, jlong Position, jobject Buffer, jint Offset, jint Count)
+JNI_METHOD int32 Java_com_epicgames_unreal_MediaPlayer14_nativeReadAt(JNIEnv* jenv, jobject thiz, jlong Identifier, jlong Position, jobject Buffer, jint Offset, jint Count)
 {
 	//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("MediaPlayer14_ReadAt(%llu, %llu, , %d, %d)"), Identifier, Position, Offset, Count);
 
@@ -147,12 +147,12 @@ FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkan
 	, PauseMethod(GetClassMethod("pause", "()V"))
 	, StopMethod(GetClassMethod("stop", "()V"))
 	, GetVideoLastFrameMethod(GetClassMethod("getVideoLastFrame", "(I)Z"))
-	, GetAudioTracksMethod(GetClassMethod("GetAudioTracks", "()[Lcom/epicgames/ue4/MediaPlayer14$AudioTrackInfo;"))
-	, GetCaptionTracksMethod(GetClassMethod("GetCaptionTracks", "()[Lcom/epicgames/ue4/MediaPlayer14$CaptionTrackInfo;"))
-	, GetVideoTracksMethod(GetClassMethod("GetVideoTracks", "()[Lcom/epicgames/ue4/MediaPlayer14$VideoTrackInfo;"))
+	, GetAudioTracksMethod(GetClassMethod("GetAudioTracks", "()[Lcom/epicgames/unreal/MediaPlayer14$AudioTrackInfo;"))
+	, GetCaptionTracksMethod(GetClassMethod("GetCaptionTracks", "()[Lcom/epicgames/unreal/MediaPlayer14$CaptionTrackInfo;"))
+	, GetVideoTracksMethod(GetClassMethod("GetVideoTracks", "()[Lcom/epicgames/unreal/MediaPlayer14$VideoTrackInfo;"))
 	, DidResolutionChangeMethod(GetClassMethod("didResolutionChange", "()Z"))
 	, GetExternalTextureIdMethod(GetClassMethod("getExternalTextureId", "()I"))
-	, UpdateVideoFrameMethod(GetClassMethod("updateVideoFrame", "(I)Lcom/epicgames/ue4/MediaPlayer14$FrameUpdateInfo;"))
+	, UpdateVideoFrameMethod(GetClassMethod("updateVideoFrame", "(I)Lcom/epicgames/unreal/MediaPlayer14$FrameUpdateInfo;"))
 {
 	VideoTexture = nullptr;
 	bVideoTextureValid = false;
@@ -171,7 +171,7 @@ FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkan
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 
 	// get field IDs for FrameUpdateInfo class members
-	FrameUpdateInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/MediaPlayer14$FrameUpdateInfo");
+	FrameUpdateInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/unreal/MediaPlayer14$FrameUpdateInfo");
 	FrameUpdateInfo_CurrentPosition = FindField(JEnv, FrameUpdateInfoClass, "CurrentPosition", "I", false);
 	FrameUpdateInfo_FrameReady = FindField(JEnv, FrameUpdateInfoClass, "FrameReady", "Z", false);
 	FrameUpdateInfo_RegionChanged = FindField(JEnv, FrameUpdateInfoClass, "RegionChanged", "Z", false);
@@ -181,7 +181,7 @@ FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkan
 	FrameUpdateInfo_VOffset = FindField(JEnv, FrameUpdateInfoClass, "VOffset", "F", false);
 
 	// get field IDs for AudioTrackInfo class members
-	AudioTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/MediaPlayer14$AudioTrackInfo");
+	AudioTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/unreal/MediaPlayer14$AudioTrackInfo");
 	AudioTrackInfo_Index = FindField(JEnv, AudioTrackInfoClass, "Index", "I", false);
 	AudioTrackInfo_MimeType = FindField(JEnv, AudioTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	AudioTrackInfo_DisplayName = FindField(JEnv, AudioTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
@@ -190,14 +190,14 @@ FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkan
 	AudioTrackInfo_SampleRate = FindField(JEnv, AudioTrackInfoClass, "SampleRate", "I", false);
 
 	// get field IDs for CaptionTrackInfo class members
-	CaptionTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/MediaPlayer14$CaptionTrackInfo");
+	CaptionTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/unreal/MediaPlayer14$CaptionTrackInfo");
 	CaptionTrackInfo_Index = FindField(JEnv, CaptionTrackInfoClass, "Index", "I", false);
 	CaptionTrackInfo_MimeType = FindField(JEnv, CaptionTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	CaptionTrackInfo_DisplayName = FindField(JEnv, CaptionTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
 	CaptionTrackInfo_Language = FindField(JEnv, CaptionTrackInfoClass, "Language", "Ljava/lang/String;", false);
 
 	// get field IDs for VideoTrackInfo class members
-	VideoTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/MediaPlayer14$VideoTrackInfo");
+	VideoTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/unreal/MediaPlayer14$VideoTrackInfo");
 	VideoTrackInfo_Index = FindField(JEnv, VideoTrackInfoClass, "Index", "I", false);
 	VideoTrackInfo_MimeType = FindField(JEnv, VideoTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	VideoTrackInfo_DisplayName = FindField(JEnv, VideoTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
@@ -465,7 +465,7 @@ FName FJavaAndroidMediaPlayer::GetClassName()
 {
 	if (FAndroidMisc::GetAndroidBuildVersion() >= 14)
 	{
-		return FName("com/epicgames/ue4/MediaPlayer14");
+		return FName("com/epicgames/unreal/MediaPlayer14");
 	}
 	else
 	{

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="UE4BaseTheme" parent = "@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+    <style name="UnrealBaseTheme" parent = "@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
-    <style name="UE4SplashTheme" parent = "UE4BaseTheme">
+    <style name="UnrealSplashTheme" parent = "UnrealBaseTheme">
         <item name="android:windowBackground">@drawable/splashscreen_l</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>

@@ -59,7 +59,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 
-import com.epicgames.ue4.GameActivity;
+import com.epicgames.unreal.GameActivity;
 
 /**
  * This is sample code for a project built against the downloader library. It

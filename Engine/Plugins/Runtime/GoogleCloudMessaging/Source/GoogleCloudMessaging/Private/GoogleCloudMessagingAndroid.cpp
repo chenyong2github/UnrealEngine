@@ -24,7 +24,7 @@ static TArray<uint8> GCMTokenBytes;
 static FString GCMErrorMessage = TEXT("");
 
 // registered for remote notifications
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGCMRegisteredForRemoteNotifications( JNIEnv* jenv, jobject thiz, jstring jGCMToken )
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeGCMRegisteredForRemoteNotifications( JNIEnv* jenv, jobject thiz, jstring jGCMToken )
 {
 	auto GCMTokenLength = jenv->GetStringUTFLength( jGCMToken );
 	const char* GCMTokenChars = jenv->GetStringUTFChars( jGCMToken, 0 );
@@ -47,7 +47,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGCMRegisteredForRemote
 }
 
 // failed to register for remote notifications
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGCMFailedToRegisterForRemoteNotifications( JNIEnv* jenv, jobject thiz, jstring jErrorMessage )
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeGCMFailedToRegisterForRemoteNotifications( JNIEnv* jenv, jobject thiz, jstring jErrorMessage )
 {
 	FString ErrorMessage;
 	const char* GCMErrorMessageChars = jenv->GetStringUTFChars( jErrorMessage, 0 );
@@ -63,7 +63,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGCMFailedToRegisterFor
 }
 
 // received message
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGCMReceivedRemoteNotification( JNIEnv* jenv, jobject thiz, jstring jMessage )
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeGCMReceivedRemoteNotification( JNIEnv* jenv, jobject thiz, jstring jMessage )
 {
 	auto Message = FJavaHelper::FStringFromParam(jenv, jMessage);
 

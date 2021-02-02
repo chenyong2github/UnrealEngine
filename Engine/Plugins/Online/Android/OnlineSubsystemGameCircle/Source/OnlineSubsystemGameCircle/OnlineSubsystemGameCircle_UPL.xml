@@ -94,7 +94,7 @@
 				</if>
 
 				<addElements tag="application">
-					<meta-data android:name="com.epicgames.ue4.GameActivity.bGameCircleIsEnabled" android:value="true"/>
+					<meta-data android:name="com.epicgames.unreal.GameActivity.bGameCircleIsEnabled" android:value="true"/>
 					<receiver android:name="com.amazon.identity.auth.device.authorization.PackageIntentReceiver" android:enabled="true">
 						<intent-filter>
 							<action android:name="android.intent.action.PACKAGE_INSTALL"/>
@@ -166,7 +166,7 @@
 				<if condition="bSupportsInAppPurchasing">
 					<false>
 						<log text="Amazon IAP Disabled. Removing IAP-related files."/>
-						<deleteFiles filespec="src/com/epicgames/ue4/AmazonStoreHelper.java"/>
+						<deleteFiles filespec="src/com/epicgames/unreal/AmazonStoreHelper.java"/>
 						<deleteFiles filespec="libs/in-app-purchasing-*.jar"/>
 					</false>
 				</if>
@@ -181,7 +181,7 @@
 			</true>
 			<false>
 				<log text="GameCircle Is Not Enabled. Removing GameCircle Files"/>
-				<deleteFiles filespec="src/com/epicgames/ue4/AmazonStoreHelper.java"/>
+				<deleteFiles filespec="src/com/epicgames/unreal/AmazonStoreHelper.java"/>
 				<deleteFiles filespec="libs/in-app-purchasing-*.jar"/>
 				<deleteFiles filespec="libs/AmazonInsights*.jar"/>
 				<deleteFiles filespec="libs/gamecirclesdk.jar"/>
@@ -294,9 +294,9 @@
 		<if condition="bGameCircleIsEnabled">
 			<true>
 				<insert>
-					if(bundle.containsKey("com.epicgames.ue4.GameActivity.bGameCircleIsEnabled"))
+					if(bundle.containsKey("com.epicgames.unreal.GameActivity.bGameCircleIsEnabled"))
 					{
-						bAGSIsEnabled = bundle.getBoolean("com.epicgames.ue4.GameActivity.bGameCircleIsEnabled");
+						bAGSIsEnabled = bundle.getBoolean("com.epicgames.unreal.GameActivity.bGameCircleIsEnabled");
 						Log.debug( "Amazon Games Services Support is set to " + bAGSIsEnabled );
 					}
 					else
@@ -403,7 +403,7 @@
 	</gameActivityOnActivityResultAdditions>
 	-->
 
-	<!-- optional libraries to load in GameActivity.java before libUE4.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
 	<soLoadLibrary>
 		<if condition="bGameCircleIsEnabled">
 			<true>

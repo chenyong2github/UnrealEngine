@@ -72,7 +72,7 @@ FString const FAndroidDeviceProfileSelectorRuntimeModule::GetRuntimeDeviceProfil
 		}
 
 #if !(PLATFORM_ANDROID_X86 || PLATFORM_ANDROID_X64)
-		// Not running an Intel libUE4.so with Houdini library present means we're emulated
+		// Not running an Intel libUnreal.so with Houdini library present means we're emulated
 		bool bUsingHoudini = (access("/system/lib/libhoudini.so", F_OK) != -1);
 #else
 		bool bUsingHoudini = false;

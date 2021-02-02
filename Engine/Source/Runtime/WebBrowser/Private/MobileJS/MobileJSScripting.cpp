@@ -17,8 +17,8 @@
 
 // Inseterted as a part of an URL to send a message to the front end.
 // Note, we can't use a custom protocol due to cross-domain issues.
-const FString FMobileJSScripting::JSMessageTag = TEXT("/!!com.epicgames.ue4.message/");
-const FString FMobileJSScripting::JSMessageHandler = TEXT("com_epicgames_ue4_message");
+const FString FMobileJSScripting::JSMessageTag = TEXT("/!!com.epicgames.unreal.message/");
+const FString FMobileJSScripting::JSMessageHandler = TEXT("com_epicgames_unreal_message");
 
 
 namespace

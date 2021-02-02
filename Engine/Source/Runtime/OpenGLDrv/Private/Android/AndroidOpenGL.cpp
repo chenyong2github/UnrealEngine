@@ -908,9 +908,9 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	FString FileHostIP;
 	bCookOnTheFly = FParse::Value(FCommandLine::Get(), TEXT("filehostip"), FileHostIP);
 #endif
-	if (!bCookOnTheFly && AndroidThunkCpp_GetMetaDataBoolean(TEXT("com.epicgames.ue4.GameActivity.bValidateTextureFormats")))
+	if (!bCookOnTheFly && AndroidThunkCpp_GetMetaDataBoolean(TEXT("com.epicgames.unreal.GameActivity.bValidateTextureFormats")))
 	{
-		FString CookedFlavorsString = AndroidThunkCpp_GetMetaDataString(TEXT("com.epicgames.ue4.GameActivity.CookedFlavors"));
+		FString CookedFlavorsString = AndroidThunkCpp_GetMetaDataString(TEXT("com.epicgames.unreal.GameActivity.CookedFlavors"));
 		if (!CookedFlavorsString.IsEmpty())
 		{
 			TArray<FString> CookedFlavors;

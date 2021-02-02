@@ -29,10 +29,10 @@ FJavaAndroidWebBrowser::FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRe
 	jlong widgetPtr, bool bEnableRemoteDebugging, bool bUseTransparency)
 	: FJavaClassObject(GetClassName(), "(JIIZZZZ)V", widgetPtr, width, height,  swizzlePixels, vulkanRenderer, bEnableRemoteDebugging, bUseTransparency)
 	, ReleaseMethod(GetClassMethod("release", "()V"))
-	, GetVideoLastFrameDataMethod(GetClassMethod("getVideoLastFrameData", "()Lcom/epicgames/ue4/WebViewControl$FrameUpdateInfo;"))
-	, GetVideoLastFrameMethod(GetClassMethod("getVideoLastFrame", "(I)Lcom/epicgames/ue4/WebViewControl$FrameUpdateInfo;"))
+	, GetVideoLastFrameDataMethod(GetClassMethod("getVideoLastFrameData", "()Lcom/epicgames/unreal/WebViewControl$FrameUpdateInfo;"))
+	, GetVideoLastFrameMethod(GetClassMethod("getVideoLastFrame", "(I)Lcom/epicgames/unreal/WebViewControl$FrameUpdateInfo;"))
 	, DidResolutionChangeMethod(GetClassMethod("didResolutionChange", "()Z"))
-	, UpdateVideoFrameMethod(GetClassMethod("updateVideoFrame", "(I)Lcom/epicgames/ue4/WebViewControl$FrameUpdateInfo;"))
+	, UpdateVideoFrameMethod(GetClassMethod("updateVideoFrame", "(I)Lcom/epicgames/unreal/WebViewControl$FrameUpdateInfo;"))
 	, UpdateMethod(GetClassMethod("Update", "(IIII)V"))
 	, ExecuteJavascriptMethod(GetClassMethod("ExecuteJavascript", "(Ljava/lang/String;)V"))
 	, LoadURLMethod(GetClassMethod("LoadURL", "(Ljava/lang/String;)V"))
@@ -50,7 +50,7 @@ FJavaAndroidWebBrowser::FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRe
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 
 	// get field IDs for FrameUpdateInfo class members
-	FrameUpdateInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/WebViewControl$FrameUpdateInfo");
+	FrameUpdateInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/unreal/WebViewControl$FrameUpdateInfo");
 	FrameUpdateInfo_Buffer = FindField(JEnv, FrameUpdateInfoClass, "Buffer", "Ljava/nio/Buffer;", false);
 	FrameUpdateInfo_FrameReady = FindField(JEnv, FrameUpdateInfoClass, "FrameReady", "Z", false);
 	FrameUpdateInfo_RegionChanged = FindField(JEnv, FrameUpdateInfoClass, "RegionChanged", "Z", false);
@@ -156,7 +156,7 @@ bool FJavaAndroidWebBrowser::GetVideoLastFrame(int32 destTexture)
 
 FName FJavaAndroidWebBrowser::GetClassName()
 {
-	return FName("com/epicgames/ue4/WebViewControl");
+	return FName("com/epicgames/unreal/WebViewControl");
 }
 
 void FJavaAndroidWebBrowser::Update(const int posX, const int posY, const int sizeX, const int sizeY)
