@@ -107,15 +107,6 @@ public:
 					SNew(SBorder)
 					.BorderImage_Lambda(GetScrollbarWellBrush)
 					.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollBarPadding, 0))
-					[
-						SNew(SBox)
-						.VAlign(VAlign_Fill)
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder.Open"))
-							.Visibility(bIsTopNode ? EVisibility::Visible : EVisibility::Collapsed)
-						]
-					]
 				]
 			]
 		];
