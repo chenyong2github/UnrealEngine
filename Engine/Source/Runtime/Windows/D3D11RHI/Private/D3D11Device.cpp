@@ -425,6 +425,7 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 	}
 
 	{
+#if 0
 		D3D11_FEATURE_DATA_D3D11_OPTIONS2 Data;
 		HRESULT Result = Direct3DDevice->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS2, &Data, sizeof(Data));
 		GRHISupportsStencilRefFromPixelShader = SUCCEEDED(Result) && Data.PSSpecifiedStencilRefSupported;
@@ -432,6 +433,9 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 		{
 			UE_LOG(LogD3D11RHI, Log, TEXT("Stencil ref from pixel shader is supported"));
 		}
+#else
+		GRHISupportsStencilRefFromPixelShader = false; // this boolean is later used to choose a code path that requires DXIL shaders. Cannot set to true without fixing that first.
+#endif
 	}
 
 	{
