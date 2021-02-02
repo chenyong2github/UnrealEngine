@@ -961,7 +961,7 @@ public:
 	inline void Reset() { *this = TCbBufferRef(); }
 
 	/** Whether this reference has ownership of the memory in its buffer. */
-	inline bool IsOwned() const { return Buffer.IsOwned(); }
+	inline bool IsOwned() const { return Buffer && Buffer.IsOwned(); }
 
 	/** Clone the value, if necessary, to a buffer that this reference has ownership of. */
 	inline void MakeOwned()

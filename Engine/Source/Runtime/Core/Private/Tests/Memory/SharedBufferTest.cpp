@@ -129,7 +129,7 @@ bool FUniqueBufferTest::RunTest(const FString& Parameters)
 	// Test Null
 	{
 		FUniqueBuffer Buffer;
-		TestFalse(TEXT("FUniqueBuffer().IsOwned()"), Buffer.IsOwned());
+		TestTrue(TEXT("FUniqueBuffer().IsOwned()"), Buffer.IsOwned());
 		TestEqual(TEXT("FUniqueBuffer().GetSize()"), Buffer.GetSize(), uint64(0));
 		TestEqual(TEXT("FUniqueBuffer().GetView().GetSize()"), Buffer.GetView().GetSize(), uint64(0));
 		TestEqual(TEXT("FUniqueBuffer().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
@@ -186,7 +186,7 @@ bool FUniqueBufferTest::RunTest(const FString& Parameters)
 	// Test MakeUnique
 	{
 		FUniqueBuffer Buffer = FUniqueBuffer::MakeUnique(FSharedBuffer());
-		TestFalse(TEXT("FUniqueBuffer::MakeUnique(Null).IsOwned()"), Buffer.IsOwned());
+		TestTrue(TEXT("FUniqueBuffer::MakeUnique(Null).IsOwned()"), Buffer.IsOwned());
 		TestEqual(TEXT("FUniqueBuffer::MakeUnique(Null).GetSize()"), Buffer.GetSize(), uint64(0));
 	}
 	{
@@ -247,7 +247,7 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 	// Test Null
 	{
 		FSharedBuffer Buffer;
-		TestFalse(TEXT("FSharedBuffer().IsOwned()"), Buffer.IsOwned());
+		TestTrue(TEXT("FSharedBuffer().IsOwned()"), Buffer.IsOwned());
 		TestEqual(TEXT("FSharedBuffer().GetSize()"), Buffer.GetSize(), uint64(0));
 		TestEqual(TEXT("FSharedBuffer().GetView().GetSize()"), Buffer.GetView().GetSize(), uint64(0));
 		TestEqual(TEXT("FSharedBuffer().GetView().GetData()"), Buffer.GetView().GetData(), Buffer.GetData());
