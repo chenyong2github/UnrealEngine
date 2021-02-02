@@ -818,6 +818,11 @@ void FD3D12DynamicRHI::Init()
 
 			UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
 		}
+
+		if (GRHISupportsRayTracing)
+		{
+			GRHISupportsRayTracingAMDHitToken = (GetAmdSupportedExtensionFlags() & AGS_DX12_EXTENSION_INTRINSIC_RAY_TRACE_HIT_TOKEN) != 0;
+		}
 	}
 #endif // AMD_API_ENABLE
 
@@ -965,6 +970,18 @@ void FD3D12DynamicRHI::Init()
 		GVariableRateShadingTier 			= D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
 		GRHISupportsVariableRateShading 	= false;
 		GVariableRateShadingImageTileSize 	= 1;
+	}
+
+	if (GRHISupportsRayTracing)
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 D3D12Caps5 = {};
+		if (SUCCEEDED(GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &D3D12Caps5, sizeof(D3D12Caps5))))
+		{
+			if (D3D12Caps5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
+			{
+				GRHISupportsRayTracingDispatchIndirect = true;
+			}
+		}
 	}
 
 	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
