@@ -35,31 +35,29 @@ static int32 KeepCacheMissBufferOnFlushCVar = 1;
 FAutoConsoleVariableRef CVarKeepCacheMissBufferOnFlush(
 	TEXT("au.streamcaching.KeepCacheMissBufferOnFlush"),
 	KeepCacheMissBufferOnFlushCVar,
-	TEXT("IF set to 1, this will maintain the buffer of recorded cache misses after calling AudioMemReport. Otherwise, calling audiomemreport will flush all previous recorded cache misses.\n")
-	TEXT("1: All cache misses from the  whole session will show up in audiomemreport. 0: Only cache misses since the previous call to audiomemreport will show up in the current audiomemreport."),
+	TEXT("If set to 1, this will maintain the buffer of recorded cache misses after calling AudioMemReport. Otherwise, calling audiomemreport will flush all previous recorded cache misses.\n")
+	TEXT("1: All cache misses from the whole session will show up in audiomemreport. 0: Only cache misses since the previous call to audiomemreport will show up in the current audiomemreport."),
 	ECVF_Default);
 
 static int32 ForceBlockForLoadCVar = 0;
 FAutoConsoleVariableRef CVarForceBlockForLoad(
 	TEXT("au.streamcaching.ForceBlockForLoad"),
 	ForceBlockForLoadCVar,
-	TEXT("when set to a nonzero value, blocks GetLoadedChunk until the disk read is complete.\n")
-	TEXT("n: Number of elements to display on screen."),
+	TEXT("When set to a nonzero value, blocks GetLoadedChunk until the disk read is complete.\n"),
 	ECVF_Default);
 
 static int32 TrimCacheWhenOverBudgetCVar = 1;
 FAutoConsoleVariableRef CVarTrimCacheWhenOverBudget(
 	TEXT("au.streamcaching.TrimCacheWhenOverBudget"),
 	TrimCacheWhenOverBudgetCVar,
-	TEXT("when set to a nonzero value, TrimMemory will be called in AddOrTouchChunk to ensure we never go over budget.\n")
-	TEXT("n: Number of elements to display on screen."),
+	TEXT("When set to a nonzero value, TrimMemory will be called in AddOrTouchChunk to ensure we never go over budget.\n"),
 	ECVF_Default);
 	
 static int32 AlwaysLogCacheMissesCVar = 0;
 FAutoConsoleVariableRef CVarAlwaysLogCacheMisses(
 	TEXT("au.streamcaching.AlwaysLogCacheMisses"),
 	AlwaysLogCacheMissesCVar,
-	TEXT("when set to a nonzero value, all cache misses will be added to the audiomemreport.\n")
+	TEXT("When set to a nonzero value, all cache misses will be added to the audiomemreport.\n")
 	TEXT("0: Don't log cache misses until au.streamcaching.StartProfiling is called. 1: Always log cache misses."),
 	ECVF_Default);
 
@@ -75,7 +73,7 @@ static int32 PlaybackRequestPriorityCVar = 0;
 FAutoConsoleVariableRef CVarPlaybackRequestPriority(
 	TEXT("au.streamcaching.PlaybackRequestPriority"),
 	PlaybackRequestPriorityCVar,
-	TEXT("This cvar sets the default request priority for audio chunks that are about to play back but aren't in the cache.\n")
+	TEXT("This cvar sets the default request priority for audio chunks that are about to play back, but aren't in the cache.\n")
 	TEXT("0: High, 1: Normal, 2: Below Normal, 3: Low, 4: Min"),
 	ECVF_Default);
 
@@ -83,8 +81,8 @@ static int32 BlockForPendingLoadOnCacheOverflowCVar = 0;
 FAutoConsoleVariableRef CVarBlockForPendingLoadOnCacheOverflow(
 	TEXT("au.streamcaching.BlockForPendingLoadOnCacheOverflow"),
 	BlockForPendingLoadOnCacheOverflowCVar,
-	TEXT("This cvar sets the default request priority for audio chunks that are about to play back but aren't in the cache.\n")
-	TEXT("0: when we blow the cache we clear any soundwave retainers. 1: when we blow the cache we attempt to cancel a load in flight."),
+	TEXT("This cvar sets the default request priority for audio chunks that are about to play back, but aren't in the cache.\n")
+	TEXT("0: When we blow the cache we clear any soundwave retainers. 1:When we blow the cache we attempt to cancel a load in flight."),
 	ECVF_Default);
 
 static int32 NumSoundWavesToClearOnCacheOverflowCVar = 0;

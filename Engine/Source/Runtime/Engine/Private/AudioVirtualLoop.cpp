@@ -25,7 +25,7 @@ static float VirtualLoopsForceUpdateListenerMoveDistanceCVar = 2500.0f;
 FAutoConsoleVariableRef CVarVirtualLoopsForceUpdateListenerMoveDistance(
 	TEXT("au.VirtualLoops.ForceUpdateListenerMoveDistance"),
 	VirtualLoopsForceUpdateListenerMoveDistanceCVar,
-	TEXT("Sets distance threshold required to force an update to check for virtualized sounds to realize if listener moves in a single frame over the given distance.\n"),
+	TEXT("Sets distance threshold required to force an update on virtualized sounds to check for if listener moves in a single frame over the given distance.\n"),
 	ECVF_Default);
 
 static float VirtualLoopsUpdateRateMinCVar = 0.1f;

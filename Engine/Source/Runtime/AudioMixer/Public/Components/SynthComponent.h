@@ -157,11 +157,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)
 	uint32 bEnableBusSends : 1;
 
-	/** Whether or not to render to the main submix */
+	/** If enabled, sound will route to the Master Submix by default or to the Base Submix if defined. If disabled, sound will route ONLY to the Submix Sends and/or Bus Sends */
 	UPROPERTY(EditAnywhere, Category = Effects)
 	uint32 bEnableBaseSubmix : 1;
 
-	/** Whether or not to enable Submix Sends in addition to the Main Submix*/
+	/** Whether or not to enable Submix Sends other than the Base Submix.*/
 	UPROPERTY(EditAnywhere, Category = Effects, meta = (DisplayAfter = "SoundSubmixObject"))
 	uint32 bEnableSubmixSends : 1;
 

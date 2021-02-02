@@ -30,8 +30,7 @@ static int32 PrimeSoundOnAudioComponentSpawnCVar = 0;
 FAutoConsoleVariableRef CVarPrimeSoundOnAudioComponentSpawn(
 	TEXT("au.streamcaching.PrimeSoundOnAudioComponents"),
 	PrimeSoundOnAudioComponentSpawnCVar,
-	TEXT("When set to 1, automatically primes a USoundBase when a UAudioComponent is spawned with that sound, or when UAudioComponent::SetSound is called.\n")
-	TEXT("Value: The time in seconds to shift the timeline."),
+	TEXT("When set to 1, automatically primes a USoundBase when a UAudioComponent is spawned with that sound, or when UAudioComponent::SetSound is called.\n"),
 	ECVF_Default);
 
 
