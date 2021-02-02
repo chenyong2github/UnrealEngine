@@ -382,13 +382,7 @@ bool FChaosEngineInterface::IsSleeping(const FPhysicsActorHandle& InActorReferen
 
 bool FChaosEngineInterface::IsCcdEnabled(const FPhysicsActorHandle& InActorReference)
 {
-	// #TODO: Implement
-	/*if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
-	{
-		return InActorReference->GetGameThreadAPI().CCDEnabled();
-	}*/
-
-	return false;
+	return InActorReference->GetGameThreadAPI().CCDEnabled();
 }
 
 
@@ -476,11 +470,7 @@ void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHand
 
 void FChaosEngineInterface::SetCcdEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bIsCcdEnabled)
 {
-	// #todo implement
-	/*if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
-	{
-		InActorReference->GetGameThreadAPI().SetCCDEnabled(bIsCcdEnabled);
-	}*/
+	InActorReference->GetGameThreadAPI().SetCCDEnabled(bIsCcdEnabled);
 }
 
 void FChaosEngineInterface::SetIgnoreAnalyticCollisions_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bIgnoreAnalyticCollisions)

@@ -330,6 +330,30 @@ public:
 		});
 	}
 
+	bool CCDEnabled() const
+	{
+		return Read([](auto* Particle)
+			{
+				if (auto Rigid = Particle->CastToRigidParticle())
+				{
+					return Rigid->CCDEnabled();
+				}
+
+				return false;
+			});
+	}
+
+	void SetCCDEnabled(const bool InCCDEnabled)
+	{
+		Write([InCCDEnabled](auto* Particle)
+			{
+				if (auto Rigid = Particle->CastToRigidParticle())
+				{
+					return Rigid->SetCCDEnabled(InCCDEnabled);
+				}
+			});
+	}
+
 	bool OneWayInteraction() const
 	{
 		return Read([](auto* Particle)
