@@ -82,6 +82,31 @@
 			</Do>
 			<Log Message="The property changed inside the conditional block is now set to $(LocalPropertyOutsideConditional)"/>
 
+			<Do If="Exists('Engine/Build/Graph/Examples/Properties.xml')">
+				<Log Message="This file does exist!"/>
+			</Do>
+
+			<Property Name="HaystackString" Value="One Two Three" />
+			<Property Name="HaystackItems" Value="One;Two;Three" />
+			<Property Name="Needle" Value="One" />
+			<Property Name="NotNeedle" Value="Foo" />
+		
+			<Do If="Contains('$(HaystackString)', '$(Needle)')">
+				<Log Message="$(HaystackString) contains $(Needle)"/>
+			</Do>
+
+			<Do If="Contains('$(HaystackString)', '$(NotNeedle)')">
+				<Log Message="This string shouldn't be shown as $(HaystackString) doesn't contain $(NotNeedle)"/>
+			</Do>
+
+			<Do If="ContainsItem('$(HaystackItems)', '$(Needle)',';')">
+				<Log Message="$(HaystackItems) contains $(Needle)"/>
+			</Do>
+
+			<Do If="ContainsItem('$(HaystackItems)', '$(NotNeedle)', ';')">
+				<Log Message="This string shouldn't be shown as $(HaystackItems) doesn't contain $(NotNeedle)"/>
+			</Do>
+
 			<!-- Choose blocks -->
 			<Switch>
 				<Case If="0 == 1">
@@ -104,5 +129,7 @@
 			<!-- Show the value passed in on the command line -->
 			<Log Message="Value of CommandLineProperty is $(CommandLineProperty)"/>
 		</Node>
+		<Label Category="Test" Name="Agent Label" Requires="Property Examples" />
 	</Agent>
+	<Label Category="Test" Name="Root Label" Requires="Property Examples" />
 </BuildGraph>
