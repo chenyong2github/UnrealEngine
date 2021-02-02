@@ -106,7 +106,7 @@ public:
 	PROPERTYEDITOR_API const static float DefaultValueMaxWidth;
 
 	FDetailWidgetRow()
-		: NameWidget( *this, 0.0f, 0.0f, HAlign_Right, VAlign_Center )
+		: NameWidget( *this, 0.0f, 0.0f, HAlign_Left, VAlign_Center )
 		, ValueWidget( *this, DefaultValueMinWidth, DefaultValueMaxWidth, HAlign_Left, VAlign_Fill )
 		, WholeRowWidget( *this, 0.0f, 0.0f, HAlign_Fill, VAlign_Fill )
 		, VisibilityAttr( EVisibility::Visible )

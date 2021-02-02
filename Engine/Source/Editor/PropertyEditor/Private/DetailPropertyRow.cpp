@@ -657,7 +657,7 @@ bool FDetailPropertyRow::GetForceAutoExpansion() const
 void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TSharedPtr<FDetailWidgetRow> InCustomRow ) const
 {
 	EVerticalAlignment VerticalAlignment = VAlign_Center;
-	EHorizontalAlignment HorizontalAlignment = HAlign_Right;
+	EHorizontalAlignment HorizontalAlignment = HAlign_Left;
 
 	// We will only use key widgets for non-struct keys
 	const bool bHasKeyNode = PropertyKeyEditor.IsValid() && !PropertyHandle->HasMetaData(TEXT("ReadOnlyKeys"));
@@ -720,7 +720,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 	}
 
 	SHorizontalBox::FSlot& Slot = NameHorizontalBox->AddSlot()
-	.HAlign(HAlign_Right)
+	.HAlign(HAlign_Left)
 	[
 		NameWidget.ToSharedRef()
 	];
