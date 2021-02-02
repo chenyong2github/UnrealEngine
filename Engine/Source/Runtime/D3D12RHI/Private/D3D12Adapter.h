@@ -334,7 +334,7 @@ protected:
 		FD3D12ResourceLocation& ResourceLocation);
 
 	// Creates default root and execute indirect signatures
-	void CreateSignatures();
+	virtual void CreateCommandSignatures();
 
 	FD3D12DynamicRHI* OwningRHI;
 

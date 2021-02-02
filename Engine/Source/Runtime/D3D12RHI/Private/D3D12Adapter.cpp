@@ -834,7 +834,7 @@ void FD3D12Adapter::InitializeDevices()
 		StagingFence = new FD3D12Fence(this, FRHIGPUMask::All(), L"Staging Fence");
 		StagingFence->CreateFence();
 
-		CreateSignatures();
+		CreateCommandSignatures();
 
 		// Context redirectors allow RHI commands to be executed on multiple GPUs at the
 		// same time in a multi-GPU system. Redirectors have a physical mask for the GPUs
@@ -905,7 +905,7 @@ void FD3D12Adapter::InitializeRayTracing()
 #endif // D3D12_RHI_RAYTRACING
 }
 
-void FD3D12Adapter::CreateSignatures()
+void FD3D12Adapter::CreateCommandSignatures()
 {
 	ID3D12Device* Device = GetD3DDevice();
 
@@ -930,26 +930,7 @@ void FD3D12Adapter::CreateSignatures()
 	commandSignatureDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
 	VERIFYD3D12RESULT(Device->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(DispatchIndirectGraphicsCommandSignature.GetInitReference())));
 
-#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
-	indirectParameterDesc[0].Type = D3D12XBOX_INDIRECT_ARGUMENT_TYPE_DISPATCH_L2; // D3D12XBOX_INDIRECT_ARGUMENT_TYPE_DISPATCH_SINGLE
-#endif
-	VERIFYD3D12RESULT(Device->CreateCommandSignature(&commandSignatureDesc, nullptr, IID_PPV_ARGS(DispatchIndirectComputeCommandSignature.GetInitReference())));
-
-#if D3D12_RHI_RAYTRACING
-	if (GRHISupportsRayTracingDispatchIndirect)
-	{
-		D3D12_COMMAND_SIGNATURE_DESC SignatureDesc = {};
-		SignatureDesc.NumArgumentDescs = 1;
-		SignatureDesc.ByteStride = sizeof(D3D12_DISPATCH_RAYS_DESC);
-		SignatureDesc.NodeMask = FRHIGPUMask::All().GetNative();
-
-		D3D12_INDIRECT_ARGUMENT_DESC ArgumentDesc[1] = {};
-		ArgumentDesc[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS;
-		SignatureDesc.pArgumentDescs = ArgumentDesc;
-
-		VERIFYD3D12RESULT(Device->CreateCommandSignature(&SignatureDesc, nullptr, IID_PPV_ARGS(DispatchRaysIndirectCommandSignature.GetInitReference())));
-	}
-#endif // D3D12_RHI_RAYTRACING
+	checkf(DispatchIndirectComputeCommandSignature.IsValid(), TEXT("Indirect compute dispatch command signature is expected to be created by platform-specific D3D12 adapter implementation."))
 }
 
 
