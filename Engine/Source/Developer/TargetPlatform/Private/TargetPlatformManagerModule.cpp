@@ -552,7 +552,10 @@ public:
 			}
 		}
 
-		check(Result);
+		if (!Result)
+		{
+			UE_LOG(LogTargetPlatformManager, Fatal, TEXT("No ShaderFormat found for %s!"), *Name.ToString());
+		}
 
 		return *Result;
 	}
