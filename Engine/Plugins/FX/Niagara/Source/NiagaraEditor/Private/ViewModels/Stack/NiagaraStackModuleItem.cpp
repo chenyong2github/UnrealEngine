@@ -797,6 +797,16 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					GetStackEditorDataKey(),
 					true));
 			}
+
+			if (!FunctionCallNode->FunctionScript->NoteMessage.IsEmptyOrWhitespace())
+			{
+				NewIssues.Add(FStackIssue(
+                    EStackIssueSeverity::Info,
+                    LOCTEXT("ModuleScriptNoteShort", "Module note"),
+                    FunctionCallNode->FunctionScript->NoteMessage,
+                    GetStackEditorDataKey(),
+                    true));
+			}
 		}
 
 		NewIssues.Append(MessageManagerIssues);
