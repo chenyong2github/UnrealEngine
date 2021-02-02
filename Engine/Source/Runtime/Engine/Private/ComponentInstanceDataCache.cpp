@@ -385,10 +385,7 @@ void FActorComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 
 		FComponentPropertyReader ComponentPropertyReader(Component, *this);
 
-		if (Component->IsRegistered())
-		{
-			Component->ReregisterComponent();
-		}
+		Component->PostApplyToComponent();
 	}
 }
 

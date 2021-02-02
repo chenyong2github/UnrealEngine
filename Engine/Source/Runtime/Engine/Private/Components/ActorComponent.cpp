@@ -2175,6 +2175,14 @@ void UActorComponent::Serialize(FArchive& Ar)
 	}
 }
 
+void UActorComponent::PostApplyToComponent()
+{
+	if (IsRegistered())
+	{
+		ReregisterComponent();
+	}
+}
+
 AActor* UActorComponent::GetActorOwnerNoninline() const
 {
 	// This is defined out-of-line because AActor isn't defined where the inlined function is.

@@ -100,6 +100,7 @@ DEFINE_STAT(STAT_DestroyObject);
 
 DECLARE_CYCLE_STAT(TEXT("InstanceSubobjects"), STAT_InstanceSubobjects, STATGROUP_Object);
 DECLARE_CYCLE_STAT(TEXT("PostInitProperties"), STAT_PostInitProperties, STATGROUP_Object);
+DECLARE_CYCLE_STAT(TEXT("PostReinitProperties"), STAT_PostReinitProperties, STATGROUP_Object);
 
 CSV_DEFINE_CATEGORY(UObject, false);
 
@@ -2588,7 +2589,9 @@ UObject* StaticAllocateObject
 
 //@todo UE4 - move this stuff to UnObj.cpp or something
 
-
+void UObject::PostReinitProperties()
+{
+}
 
 void UObject::PostInitProperties()
 {
@@ -2890,6 +2893,14 @@ void FObjectInitializer::PostConstructInit()
 	if (bNeedInstancing || bNeedSubobjectInstancing)
 	{
 		InstanceSubobjects(Class, bNeedInstancing, bNeedSubobjectInstancing);
+	}
+
+	// Make sure subobjects knows that they had their properties overwritten
+	for (int32 Index = 0; Index < ComponentInits.SubobjectInits.Num(); Index++)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_PostReinitProperties);
+		UObject* Subobject = ComponentInits.SubobjectInits[Index].Subobject;
+		Subobject->PostReinitProperties();
 	}
 
 	{

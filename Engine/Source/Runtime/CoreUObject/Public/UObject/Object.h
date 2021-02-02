@@ -192,6 +192,12 @@ public:
 	 * This is called before any serialization or other setup has happened.
 	 */
 	virtual void PostInitProperties();
+	
+	/**
+	 * Called after properties are overwritten, including after subobjects initialization from a CDO.
+	 * This could be called multiple times during an object lifetime, which is not the case for PostInitProperties which is expected to be called only once.
+	 */
+	virtual void PostReinitProperties();
 
 	/**
 	* Called after the C++ constructor has run on the CDO for a class. This is an obscure routine used to deal with the recursion 

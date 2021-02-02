@@ -860,6 +860,9 @@ public:
 	/** Called before we throw away components during RerunConstructionScripts, to cache any data we wish to persist across that operation */
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const;
 
+	/** Called after ApplyToComponent has run. */
+	virtual void PostApplyToComponent();
+
 	//~ Begin UObject Interface.
 	virtual void BeginDestroy() override;
 	virtual bool NeedsLoadForClient() const override;
