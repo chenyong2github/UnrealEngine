@@ -185,6 +185,8 @@ void SMemAllocTableTreeView::OnQueryInvalidated()
 		Allocs.Reset(10 * 1024 * 1024);
 	}
 
+	UpdateQueryInfo();
+
 	StartQuery();
 
 	RebuildTree(true);
@@ -649,6 +651,15 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructFooter()
 		SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.Padding(2.0f)
+		[
+			SNew(STextBlock)
+			.Text(this, &SMemAllocTableTreeView::GetQueryInfo)
+			.ToolTipText(this, &SMemAllocTableTreeView::GetQueryInfoTooltip)
+		]
+
+		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
 		.Padding(2.0f)
 		[
@@ -667,6 +678,20 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 	ModuleProvider->GetStats(&Stats);
 
 	return FText::Format(LOCTEXT("SymbolsResolved", "{0} / {1} symbols resolved. {2} failed."), Stats.SymbolsResolved, Stats.SymbolsDiscovered, Stats.SymbolsFailed);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::GetQueryInfo() const
+{
+	return QueryInfo;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::GetQueryInfoTooltip() const
+{
+	return QueryInfoTooltip;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -696,6 +721,54 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(false), Index++);
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(true), Index++);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::UpdateQueryInfo()
+{
+	if (Rule.IsValid())
+	{
+		FString RuleDesc = Rule->GetDescription().ToString();
+		FText TimeMarkersText;
+		int NumMarkers = Rule->GetNumTimeMarkers();
+
+		switch (NumMarkers)
+		{
+		case 1:
+		{
+			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0}"), FText::AsNumber(TimeMarkers[0]));
+			QueryInfoTooltip = FText::Format(Rule->GetDescription(), FText::AsNumber(TimeMarkers[0]));
+			break;
+		}
+		case 2:
+		{
+			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0} B={1}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]));
+			QueryInfoTooltip = FText::Format(Rule->GetDescription(), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]));
+			break;
+		}
+		case 3:
+		{
+			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0} B={1} C={2}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]));
+			QueryInfoTooltip = FText::Format(Rule->GetDescription(), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]));
+			break;
+		}
+		case 4:
+		{
+			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0} B={1} C={2} D={3}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]), FText::AsNumber(TimeMarkers[3]));
+			QueryInfoTooltip = FText::Format(Rule->GetDescription(), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]), FText::AsNumber(TimeMarkers[3]));
+			break;
+		}
+		default:
+		{
+			// Unhandled value
+			check(false);
+		}
+		}
+
+		QueryInfo = Rule->GetVerboseName();
+		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "Showing {0} for markers {1}"), QueryInfo, TimeMarkersText);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

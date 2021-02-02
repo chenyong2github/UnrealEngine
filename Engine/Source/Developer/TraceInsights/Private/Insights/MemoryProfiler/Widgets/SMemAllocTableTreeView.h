@@ -106,14 +106,19 @@ private:
 	FReply OnCallstackViewClicked(bool bIsInverted);
 
 	FText GetSymbolResolutionStatus() const;
+	FText GetQueryInfo() const;
+	FText GetQueryInfoTooltip() const;
 
 	void ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset);
+	void UpdateQueryInfo();
 
 private:
 	int32 TabIndex = -1;
 	TSharedPtr<FMemoryRuleSpec> Rule = nullptr;
 	double TimeMarkers[4];
 	TraceServices::IAllocationsProvider::FQueryHandle Query = 0;
+	FText QueryInfo;
+	FText QueryInfoTooltip;
 
 	FStopwatch QueryStopwatch;
 };

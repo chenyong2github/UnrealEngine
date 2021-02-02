@@ -367,7 +367,34 @@ FText SMemInvestigationView::QueryRule_GetTooltipText() const
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
 		if (SharedState.GetCurrentMemoryRule())
 		{
-			return SharedState.GetCurrentMemoryRule()->GetDescription();
+			switch (SharedState.GetCurrentMemoryRule()->GetNumTimeMarkers())
+			{
+			case 1:
+			{
+				return FText::Format(SharedState.GetCurrentMemoryRule()->GetDescription(), FText::FromString(TEXT("A")));
+				break;
+			}
+			case 2:
+			{
+				return FText::Format(SharedState.GetCurrentMemoryRule()->GetDescription(), FText::FromString(TEXT("A")), FText::FromString(TEXT("B")));
+				break;
+			}
+			case 3:
+			{
+				return FText::Format(SharedState.GetCurrentMemoryRule()->GetDescription(), FText::FromString(TEXT("A")), FText::FromString(TEXT("B")), FText::FromString(TEXT("C")));
+				break;
+			}
+			case 4:
+			{
+				return FText::Format(SharedState.GetCurrentMemoryRule()->GetDescription(), FText::FromString(TEXT("A")), FText::FromString(TEXT("B")), FText::FromString(TEXT("C")), FText::FromString(TEXT("D")));
+				break;
+			}
+			default:
+			{
+				// Unhandled value
+				check(false);
+			}
+			}
 		}
 	}
 	return FText::GetEmpty();

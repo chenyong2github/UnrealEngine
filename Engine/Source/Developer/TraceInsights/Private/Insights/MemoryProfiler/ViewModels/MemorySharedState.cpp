@@ -946,67 +946,67 @@ void FMemorySharedState::InitMemoryRules()
 		ERule::aAf, 1,
 		LOCTEXT("MemRule_aAf_Short", "*A*"),
 		LOCTEXT("MemRule_aAf_Verbose", "Active Allocs"),
-		LOCTEXT("MemRule_aAf_Desc", "Identifies active allocations at time A.\n(a ≤ A ≤ f)")));
+		LOCTEXT("MemRule_aAf_Desc_Fmt", "Identifies active allocations at time {0}.\n(a ≤ {0} ≤ f)")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::afA, 1,
 		LOCTEXT("MemRule_afA_Short", "**A"),
 		LOCTEXT("MemRule_afA_Verbose", "Before"),
-		LOCTEXT("MemRule_afA_Desc", "Identifies allocations allocated and freed before time A.\n(a ≤ f ≤ A)")));
+		LOCTEXT("MemRule_afA_Desc_Fmt", "Identifies allocations allocated and freed before time {0}.\n(a ≤ f ≤ {0})")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::Aaf, 1,
 		LOCTEXT("MemRule_Aaf_Short", "A**"),
 		LOCTEXT("MemRule_Aaf_Verbose", "After"),
-		LOCTEXT("MemRule_Aaf_Desc", "Identifies allocations allocated and freed after time A.\n(A ≤ a ≤ f)")));
+		LOCTEXT("MemRule_Aaf_Desc_Fmt", "Identifies allocations allocated and freed after time {0}.\n({0} ≤ a ≤ f)")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::aAfB, 2,
 		LOCTEXT("MemRule_aAfB_Short", "*A*B"),
 		LOCTEXT("MemRule_aAfB_Verbose", "Decline"),
-		LOCTEXT("MemRule_aAfB_Desc", "Identifies allocations allocated before time A and freed between time A and time B.\n(a ≤ A ≤ f ≤ B)")));
+		LOCTEXT("MemRule_aAfB_Desc_Fmt", "Identifies allocations allocated before time {0} and freed between time {0} and time {1}.\n(a ≤ {0} ≤ f ≤ {1})")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::AaBf, 2,
 		LOCTEXT("MemRule_AaBf_Short", "A*B*"),
 		LOCTEXT("MemRule_AaBf_Verbose", "Growth"),
-		LOCTEXT("MemRule_AaBf_Desc", "Identifies allocations allocated between time A and time B and freed after time B.\n(A ≤ a ≤ B ≤ f)")));
+		LOCTEXT("MemRule_AaBf_Desc_Fmt", "Identifies allocations allocated between time {0} and time {1} and freed after time {1}.\n({0} ≤ a ≤ {1} ≤ f)")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::AafB, 2,
 		LOCTEXT("MemRule_AafB_Short", "A**B"),
 		LOCTEXT("MemRule_AafB_Verbose", "Short Living Allocs"),
-		LOCTEXT("MemRule_AafB_Desc", "Identifies allocations allocated and freed between time A and time B.\n(A ≤ a ≤ f ≤ B)")));
+		LOCTEXT("MemRule_AafB_Desc_Fmt", "Identifies allocations allocated and freed between time {0} and time {1}.\n({0} ≤ a ≤ f ≤ {1})")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::aABf, 2,
 		LOCTEXT("MemRule_aABf_Short", "*A B*"),
 		LOCTEXT("MemRule_aABf_Verbose", "Long Living Allocs"),
-		LOCTEXT("MemRule_aABf_Desc", "Identifies allocations allocated before time A and freed after time B.\n(a ≤ A ≤ B ≤ f)")));
+		LOCTEXT("MemRule_aABf_Desc_Fmt", "Identifies allocations allocated before time {0} and freed after time {1}.\n(a ≤ {0} ≤ {1} ≤ f)")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::AaBCf, 3,
 		LOCTEXT("MemRule_AaBCf_Short", "A*B C*"),
 		LOCTEXT("MemRule_AaBCf_Verbose", "Memory Leaks"),
-		LOCTEXT("MemRule_AaBCf_Desc", "Identifies allocations allocated between time A and time B and freed after time C.\n(A ≤ a ≤ B ≤ C ≤ f)")));
+		LOCTEXT("MemRule_AaBCf_Desc_Fmt", "Identifies allocations allocated between time {0} and time {1} and freed after time {2}.\n({0} ≤ a ≤ {1} ≤ {2} ≤ f)")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::AaBfC, 3,
 		LOCTEXT("MemRule_AaBfC_Short", "A*B*C"),
 		LOCTEXT("MemRule_AaBfC_Verbose", "Limited Lifetime"),
-		LOCTEXT("MemRule_AaBfC_Desc", "Identifies allocations allocated between time A and time B and freed between time B and time C.\n(A ≤ a ≤ B ≤ f ≤ C)")));
+		LOCTEXT("MemRule_AaBfC_Desc_Fmt", "Identifies allocations allocated between time {0} and time {1} and freed between time {1} and time {2}.\n({0} ≤ a ≤ {1} ≤ f ≤ {2})")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::aABfC, 3,
 		LOCTEXT("MemRule_aABfC_Short", "*A B*C"),
 		LOCTEXT("MemRule_aABfC_Verbose", "Decline of Long Living Allocs"),
-		LOCTEXT("MemRule_aABfC_Desc", "Identifies allocations allocated before time A and freed between time B and time C.\n(a ≤ A ≤ B ≤ f ≤ C)")));
+		LOCTEXT("MemRule_aABfC_Desc_Fmt", "Identifies allocations allocated before time {0} and freed between time {1} and time {2}.\n(a ≤ {0} ≤ {1} ≤ f ≤ {2})")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::AaBCfD, 4,
 		LOCTEXT("MemRule_AaBCfD_Short", "A*B C*D"),
 		LOCTEXT("MemRule_AaBCfD_Verbose", "Specific Lifetime"),
-		LOCTEXT("MemRule_AaBCfD_Desc", "Identifies allocations allocated between time A and time B and freed between time C and time D.\n(A ≤ a ≤ B ≤ C ≤ f ≤ D)")));
+		LOCTEXT("MemRule_AaBCfD_Desc_Fmt", "Identifies allocations allocated between time {0} and time {1} and freed between time {2} and time {3}.\n({0} ≤ a ≤ {1} ≤ {2} ≤ f ≤ {3})")));
 
 	//TODO
 	//MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
