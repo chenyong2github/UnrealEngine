@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -40,6 +41,10 @@
 #include "Editor.h"
 #include "LevelEditor.h"
 #include "Templates/UnrealTemplate.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
+#include "IDocumentation.h"
+#include "Framework/Text/SlateHyperlinkRun.h"
 
 
 #define LOCTEXT_NAMESPACE "SequenceRecorder"
@@ -273,6 +278,95 @@ private:
 	TWeakObjectPtr<UActorRecording> RecordingPtr;
 };
 
+static void OnDocLinkClicked(const FSlateHyperlinkRun::FMetadata& Metadata)
+{
+	const FString* Url = Metadata.Find(TEXT("href"));
+	if (Url)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			TArray<FAnalyticsEventAttribute> EventAttributes;
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("DocLink"), *Url));
+
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.SequenceRecorder.DeprecationWarning.DocLinkClicked"), EventAttributes);
+		}
+
+		IDocumentation::Get()->Open(*Url, FDocumentationSourceInfo(TEXT("editor")));
+	}
+}
+
+class SSequenceRecorderDeprecationMessage : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SSequenceRecorderDeprecationMessage)
+	{}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		ChildSlot
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.4f, 0.f, 0.f, 1.f))
+			.BorderImage(FEditorStyle::GetBrush(TEXT("WhiteBrush")))
+			.Visibility(this, &SSequenceRecorderDeprecationMessage::GetWarningMessageVisibility)
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				.Padding(4, 0, 0, 0)
+				[
+					SNew(SRichTextBlock)
+					.Text(LOCTEXT("SequenceRecorderLastVersionSupported", "As of 4.26, Sequence Recorder is no longer supported by UE4 and will be removed from the engine in the near future. Once removed, you will <NormalText.Important>no longer be able to run Sequence Recorder</>.\nPlease use <a id=\"TakeRecorderDoc\" href=\"/Engine/Sequencer/Workflow/TakeRecorder\" style=\"DarkHyperlink\">Take Recorder</>"))
+					.AutoWrapText(true)
+					.DecoratorStyleSet(&FEditorStyle::Get())
+					+ SRichTextBlock::HyperlinkDecorator(TEXT("TakeRecorderDoc"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnDocLinkClicked))
+
+				]
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("DismissSequenceRecorderSupportWarning", "Dismiss"))
+					.OnClicked(this, &SSequenceRecorderDeprecationMessage::DismissWarningForever)
+				]
+			]
+		];
+	}
+
+	FReply DismissWarningForever() 
+	{
+		if (GConfig)
+		{
+			GConfig->SetBool(TEXT("SequenceRecorder"), TEXT("HasDismissedDeprecationWarning"), true, GEditorIni);
+
+			if (FEngineAnalytics::IsAvailable())
+			{
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.SequenceRecorder.DeprecationWarning.Dimissed"));
+			}
+		}
+
+		return FReply::Handled();
+	}
+
+	EVisibility GetWarningMessageVisibility() const
+	{
+		if (GConfig)
+		{
+			bool bDismissed = false;
+			GConfig->GetBool(TEXT("SequenceRecorder"), TEXT("HasDismissedDeprecationWarning"), bDismissed, GEditorIni);
+
+			return bDismissed ? EVisibility::Collapsed : EVisibility::Visible;
+		}
+
+		return EVisibility::Collapsed;
+	}
+};
+
 void SSequenceRecorder::Construct(const FArguments& Args)
 {
 	bInsideSelectionChanged = false;
@@ -325,6 +419,12 @@ void SSequenceRecorder::Construct(const FArguments& Args)
 		.Value(0.33f)
 		[
 			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SSequenceRecorderDeprecationMessage)
+			]
+
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
