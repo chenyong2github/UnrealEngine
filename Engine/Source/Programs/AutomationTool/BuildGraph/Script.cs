@@ -939,6 +939,9 @@ namespace AutomationTool
 					case "Error":
 						ReadDiagnostic(ChildElement, LogEventType.Error, null, ParentAgent, ControllingTrigger);
 						break;
+					case "Label":
+						ReadLabel(ChildElement);
+						break;
 					case "Do":
 						ReadBlock(ChildElement, x => ReadAgentBody(x, ParentAgent, ControllingTrigger));
 						break;
