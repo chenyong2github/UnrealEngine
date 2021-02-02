@@ -8,6 +8,7 @@
 #include "RenderGraphUtils.h"
 #include "PipelineStateCache.h"
 #include "Misc/ConfigCacheIni.h"
+#include "RenderGraphResourcePool.h"
 
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"
@@ -42,6 +43,17 @@ void FTextureWithRDG::InitRDG(const TCHAR* Name)
 {
 	check(TextureRHI);
 	RenderTarget = CreateRenderTarget(TextureRHI, Name);
+}
+
+FBufferWithRDG::FBufferWithRDG() = default;
+FBufferWithRDG::FBufferWithRDG(const FBufferWithRDG & Other) = default;
+FBufferWithRDG& FBufferWithRDG::operator=(const FBufferWithRDG & Other) = default;
+FBufferWithRDG::~FBufferWithRDG() = default;
+
+void FBufferWithRDG::ReleaseRHI()
+{
+	Buffer = nullptr;
+	FRenderResource::ReleaseRHI();
 }
 
 const uint16 GCubeIndices[12*3] =
@@ -236,6 +248,31 @@ public:
 };
 
 FVertexBufferWithSRV* GWhiteVertexBufferWithSRV = new TGlobalResource<FWhiteVertexBuffer>;
+
+class FWhiteVertexBufferWithRDG : public FBufferWithRDG
+{
+public:
+
+	/**
+	 * Initialize RHI resources.
+	 */
+	virtual void InitRHI() override
+	{
+		if (!Buffer.IsValid())
+		{
+			FRHICommandList* UnusedCmdList = new FRHICommandList(FRHIGPUMask::All());
+			GetPooledFreeBuffer(*UnusedCmdList, FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), 1), Buffer, TEXT("WhiteVertexBufferWithRDG"));
+
+			FVector4* BufferData = (FVector4*)RHILockBuffer(Buffer->GetRHI(), 0, sizeof(FVector4), RLM_WriteOnly);
+			*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+			RHIUnlockBuffer(Buffer->GetRHI());
+			delete UnusedCmdList;
+			UnusedCmdList = nullptr;
+		}
+	}
+};
+
+FBufferWithRDG* GWhiteVertexBufferWithRDG = new TGlobalResource<FWhiteVertexBufferWithRDG>();
 
 /**
  * A class representing a 1x1x1 black volume texture.

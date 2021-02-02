@@ -478,12 +478,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 
 		// Initialize the view's RHI resources.
 		View.InitRHIResources();
-
-		// Get the custom 1x1 target used to store exposure value and Toggle the two render targets used to store new and old.
-		if (IsMobileEyeAdaptationEnabled(View))
-		{
-			View.SwapEyeAdaptationBuffers();
-		}
 	}
 
 	Scene->GPUScene.Update(GraphBuilder, *Scene);

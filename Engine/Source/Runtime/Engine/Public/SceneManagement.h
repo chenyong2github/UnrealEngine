@@ -222,7 +222,7 @@ public:
 	virtual IPooledRenderTarget* GetCurrentEyeAdaptationTexture() const = 0;
 
 	/** Returns the eye adaptation buffer (mobile only). */
-	virtual const FExposureBufferData* GetCurrentEyeAdaptationBuffer() const = 0;
+	virtual FRDGPooledBuffer* GetCurrentEyeAdaptationBuffer() const = 0;
 
 	virtual void SetSequencerState(ESequencerState InSequencerState) = 0;
 

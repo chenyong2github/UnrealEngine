@@ -83,14 +83,14 @@ FRDGTextureRef GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FSceneVi
 	}
 }
 
-FRHIShaderResourceView* GetEyeAdaptationBuffer(const FSceneView& View)
+FRDGBufferRef GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder, const FSceneView& View)
 {
 	if (View.HasValidEyeAdaptationBuffer())
 	{
-		return View.GetEyeAdaptationBuffer()->SRV;
+		return GraphBuilder.RegisterExternalBuffer(View.GetEyeAdaptationBuffer(), ERDGBufferFlags::MultiFrame);
 	}
 	else
 	{
-		return GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
+		return GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer);
 	}
 }

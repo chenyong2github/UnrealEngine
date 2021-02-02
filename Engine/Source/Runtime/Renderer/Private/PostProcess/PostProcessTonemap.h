@@ -56,7 +56,7 @@ struct FTonemapInputs
 	FRDGTextureRef EyeAdaptationTexture = nullptr;
 
 	// [Optional, ES31] Eye adaptation buffer used to compute exposure. 
-	FRHIShaderResourceView* EyeAdaptationBuffer = nullptr;
+	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
 	// [Raster Only, Mobile] Flips the image vertically on output.
 	bool bFlipYAxis = false;
@@ -90,7 +90,7 @@ struct FMobileTonemapperInputs
 
 	FScreenPassTexture SunShaftAndDof;
 
-	FRHIShaderResourceView* EyeAdaptationBuffer = nullptr;
+	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
 	// [Raster Only, Mobile] Flips the image vertically on output.
 	bool bFlipYAxis = false;

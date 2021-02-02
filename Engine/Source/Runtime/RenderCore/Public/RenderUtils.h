@@ -9,6 +9,9 @@
 #include "RenderResource.h"
 #include "RHIDefinitions.h"
 
+class FBufferWithRDG;
+class FRDGBuffer;
+class FRDGPooledBuffer;
 class FTextureWithRDG;
 class FRDGTexture;
 class FRDGBuilder;
@@ -33,6 +36,19 @@ protected:
 
 private:
 	TRefCountPtr<IPooledRenderTarget> RenderTarget;
+};
+
+class RENDERCORE_API FBufferWithRDG : public FRenderResource
+{
+public:
+	FBufferWithRDG();
+	FBufferWithRDG(const FBufferWithRDG& Other);
+	FBufferWithRDG& operator=(const FBufferWithRDG& Other);
+	~FBufferWithRDG() override;
+
+	void ReleaseRHI() override;
+
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
 };
 
 extern RENDERCORE_API void RenderUtilsInit();
@@ -137,6 +153,8 @@ extern RENDERCORE_API class FTextureWithSRV* GTransparentBlackTextureWithSRV;
 extern RENDERCORE_API class FVertexBufferWithSRV* GEmptyVertexBufferWithUAV;
 
 extern RENDERCORE_API class FVertexBufferWithSRV* GWhiteVertexBufferWithSRV;
+
+extern RENDERCORE_API class FBufferWithRDG* GWhiteVertexBufferWithRDG;
 
 /** A global black array texture. */
 extern RENDERCORE_API class FTexture* GBlackArrayTexture;

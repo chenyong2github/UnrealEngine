@@ -2018,35 +2018,35 @@ void FViewInfo::SwapEyeAdaptationTextures(FRDGBuilder& GraphBuilder) const
 	}
 }
 
-const FExposureBufferData* FViewInfo::GetEyeAdaptationBuffer(FRHICommandListImmediate& RHICmdList) const
+FRDGPooledBuffer* FViewInfo::GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const
 {
 	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		return EffectiveViewState->GetCurrentEyeAdaptationBuffer(RHICmdList);
+		return EffectiveViewState->GetCurrentEyeAdaptationBuffer(GraphBuilder);
 	}
 	return nullptr;
 }
 
-const FExposureBufferData* FViewInfo::GetLastEyeAdaptationBuffer(FRHICommandListImmediate& RHICmdList) const
+FRDGPooledBuffer* FViewInfo::GetLastEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const
 {
 	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		return EffectiveViewState->GetLastEyeAdaptationBuffer(RHICmdList);
+		return EffectiveViewState->GetLastEyeAdaptationBuffer(GraphBuilder);
 	}
 	return nullptr;
 }
 
-void FViewInfo::SwapEyeAdaptationBuffers() const
+void FViewInfo::SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder) const
 {
 	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		EffectiveViewState->SwapEyeAdaptationBuffers();
+		EffectiveViewState->SwapEyeAdaptationBuffers(GraphBuilder);
 	}
 }
 

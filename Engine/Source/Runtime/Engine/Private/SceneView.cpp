@@ -2470,7 +2470,7 @@ IPooledRenderTarget* FSceneView::GetEyeAdaptationTexture() const
 	return nullptr;
 }
 
-const FExposureBufferData* FSceneView::GetEyeAdaptationBuffer() const
+FRDGPooledBuffer* FSceneView::GetEyeAdaptationBuffer() const
 {
 	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 	if (EyeAdaptationViewState)

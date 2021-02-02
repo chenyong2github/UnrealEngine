@@ -1921,7 +1921,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		TonemapperInputs.bOutputInHDR = bHDRTonemapperOutput;
 		TonemapperInputs.bGammaOnly = bDoGammaOnly;
 		TonemapperInputs.bMetalMSAAHDRDecode = bMetalMSAAHDRDecode;
-		TonemapperInputs.EyeAdaptationBuffer = bUseEyeAdaptation && View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList) ? View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList)->SRV : nullptr;
+		TonemapperInputs.EyeAdaptationBuffer = bUseEyeAdaptation ? TryRegisterExternalBuffer(GraphBuilder, View.GetLastEyeAdaptationBuffer(GraphBuilder), ERDGBufferFlags::MultiFrame) : nullptr;
 
 		SceneColor = AddTonemapPass(GraphBuilder, View, TonemapperInputs);
 

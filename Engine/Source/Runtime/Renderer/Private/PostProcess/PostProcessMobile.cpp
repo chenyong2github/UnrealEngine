@@ -2135,9 +2135,9 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
-		SHADER_PARAMETER_SRV(Buffer<float4>, EyeAdaptationBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, EyeAdaptationBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, LogLuminanceWeightBuffer)
-		SHADER_PARAMETER_UAV(RWBuffer<float4>, OutputBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, OutputBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	/** Static Shader boilerplate */
@@ -2168,9 +2168,9 @@ class FMobileHistogramEyeAdaptationCS : public FGlobalShader
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
-		SHADER_PARAMETER_SRV(Buffer<float4>, EyeAdaptationBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, EyeAdaptationBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HistogramBuffer)
-		SHADER_PARAMETER_UAV(RWBuffer<float4>, OutputBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, OutputBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -2190,15 +2190,14 @@ IMPLEMENT_GLOBAL_SHADER(FMobileHistogramEyeAdaptationCS, "/Engine/Private/PostPr
 
 void AddMobileEyeAdaptationPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FEyeAdaptationParameters& EyeAdaptationParameters, const FMobileEyeAdaptationInputs& Inputs)
 {
-	const FExposureBufferData* EyeAdaptationThisFrameBuffer = View.GetEyeAdaptationBuffer(GraphBuilder.RHICmdList);
-	const FExposureBufferData* EyeAdaptationLastFrameBuffer = View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList);
+	// Get the custom 1x1 target used to store exposure value and Toggle the two render targets used to store new and old.
+	View.SwapEyeAdaptationBuffers(GraphBuilder);
 
-	check(EyeAdaptationThisFrameBuffer && EyeAdaptationLastFrameBuffer);
+	FRDGBufferRef EyeAdaptationBuffer = GraphBuilder.RegisterExternalBuffer(View.GetLastEyeAdaptationBuffer(GraphBuilder), ERDGBufferFlags::MultiFrame);
+	FRDGBufferSRVRef EyeAdaptationBufferSRV = GraphBuilder.CreateSRV(EyeAdaptationBuffer, PF_A32B32G32R32F);
 
-	AddPass(GraphBuilder, [EyeAdaptationThisFrameBuffer](FRHIComputeCommandList& RHICmdList)
-	{
-		RHICmdList.Transition(FRHITransitionInfo(EyeAdaptationThisFrameBuffer->UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask));
-	});
+	FRDGBufferRef OutputBuffer = GraphBuilder.RegisterExternalBuffer(View.GetEyeAdaptationBuffer(GraphBuilder), ERDGBufferFlags::MultiFrame);
+	FRDGBufferUAVRef OutputBufferUAV = GraphBuilder.CreateUAV(OutputBuffer, PF_A32B32G32R32F);
 
 	if (Inputs.bUseBasicEyeAdaptation)
 	{
@@ -2206,9 +2205,9 @@ void AddMobileEyeAdaptationPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 
 		PassParameters->EyeAdaptation = EyeAdaptationParameters;
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->EyeAdaptationBuffer = EyeAdaptationLastFrameBuffer->SRV;
+		PassParameters->EyeAdaptationBuffer = EyeAdaptationBufferSRV;
 		PassParameters->LogLuminanceWeightBuffer = Inputs.EyeAdaptationSetupSRV;
-		PassParameters->OutputBuffer = EyeAdaptationThisFrameBuffer->UAV;
+		PassParameters->OutputBuffer = OutputBufferUAV;
 
 		TShaderMapRef<FMobileBasicEyeAdaptationCS> ComputeShader(View.ShaderMap);
 
@@ -2224,9 +2223,9 @@ void AddMobileEyeAdaptationPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 		FMobileHistogramEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileHistogramEyeAdaptationCS::FParameters>();
 
 		PassParameters->EyeAdaptation = EyeAdaptationParameters;
-		PassParameters->EyeAdaptationBuffer = EyeAdaptationLastFrameBuffer->SRV;
+		PassParameters->EyeAdaptationBuffer = EyeAdaptationBufferSRV;
 		PassParameters->HistogramBuffer = Inputs.EyeAdaptationSetupSRV;
-		PassParameters->OutputBuffer = EyeAdaptationThisFrameBuffer->UAV;
+		PassParameters->OutputBuffer = OutputBufferUAV;
 
 		TShaderMapRef<FMobileHistogramEyeAdaptationCS> ComputeShader(View.ShaderMap);
 

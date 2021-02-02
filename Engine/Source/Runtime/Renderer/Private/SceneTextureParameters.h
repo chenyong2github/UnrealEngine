@@ -42,4 +42,4 @@ FSceneLightingChannelParameters GetSceneLightingChannelParameters(FRDGBuilder& G
 RENDERER_API FRDGTextureRef GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FSceneView& View);
 
 /** Returns a render graph buffer resource reference onto the eye adaptation or fallback. */
-RENDERER_API FRHIShaderResourceView* GetEyeAdaptationBuffer(const FSceneView& View);
+RENDERER_API FRDGBufferRef GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder, const FSceneView& View);

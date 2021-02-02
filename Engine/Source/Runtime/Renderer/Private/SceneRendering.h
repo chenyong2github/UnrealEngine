@@ -1477,8 +1477,8 @@ public:
 
 	/** Allocates and returns the current eye adaptation buffer. */
 	using FSceneView::GetEyeAdaptationBuffer;
-	const FExposureBufferData* GetEyeAdaptationBuffer(FRHICommandListImmediate& RHICmdList) const;
-	const FExposureBufferData* GetLastEyeAdaptationBuffer(FRHICommandListImmediate& RHICmdList) const;
+	FRDGPooledBuffer* GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const;
+	FRDGPooledBuffer* GetLastEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const;
 
 #if WITH_MGPU
 	void BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList);
@@ -1493,7 +1493,7 @@ public:
 
 	/**Swap the order of the two eye adaptation targets in the double buffer system */
 	void SwapEyeAdaptationTextures(FRDGBuilder& GraphBuilder) const;
-	void SwapEyeAdaptationBuffers() const;
+	void SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder) const;
 	
 	/** Returns the load action to use when overwriting all pixels of a target that you intend to read from. Takes into account the HMD hidden area mesh. */
 	ERenderTargetLoadAction GetOverwriteLoadAction() const;

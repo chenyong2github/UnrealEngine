@@ -692,25 +692,6 @@ struct FHLODSceneNodeVisibilityState
 	uint16 bIsFading	: 1;
 };
 
-struct FExposureBufferData
-{
-	FBufferRHIRef Buffer;
-	FShaderResourceViewRHIRef SRV;
-	FUnorderedAccessViewRHIRef UAV;
-
-	bool IsValid() const
-	{
-		return Buffer.IsValid();
-	}
-
-	void SafeRelease()
-	{
-		Buffer.SafeRelease();
-		SRV.SafeRelease();
-		UAV.SafeRelease();
-	}
-};
-
 /**
  * The scene manager's private implementation of persistent view state.
  * This class is associated with a particular camera across multiple frames by the game thread.
@@ -883,28 +864,28 @@ private:
 		/** Get the last frame average scene luminance (used for exposure compensation curve) */
 		float GetLastAverageSceneLuminance() const { return LastAverageSceneLuminance; }
 
-		const FExposureBufferData* GetCurrentBuffer() const
+		const TRefCountPtr<FRDGPooledBuffer>& GetCurrentBuffer() const
 		{
 			return GetBuffer(CurrentBuffer);
 		}
 
-		const FExposureBufferData* GetCurrentBuffer(FRHICommandListImmediate& RHICmdList)
+		const TRefCountPtr<FRDGPooledBuffer>& GetCurrentBuffer(FRDGBuilder& GraphBuilder)
 		{
-			return GetOrCreateBuffer(RHICmdList, CurrentBuffer);
+			return GetOrCreateBuffer(GraphBuilder, CurrentBuffer);
 		}
 
-		const FExposureBufferData* GetLastBuffer(FRHICommandListImmediate& RHICmdList)
+		const TRefCountPtr<FRDGPooledBuffer>& GetLastBuffer(FRDGBuilder& GraphBuilder)
 		{
-			return GetOrCreateBuffer(RHICmdList, 1 - CurrentBuffer);
+			return GetOrCreateBuffer(GraphBuilder, 1 - CurrentBuffer);
 		}
 
-		void SwapBuffers(bool bUpdateLastExposure);
+		void SwapBuffers(FRDGBuilder& GraphBuilder, bool bUpdateLastExposure);
 	private:
 		const TRefCountPtr<IPooledRenderTarget>& GetTexture(uint32 TextureIndex) const;
 		const TRefCountPtr<IPooledRenderTarget>& GetOrCreateTexture(FRHICommandList& RHICmdList, uint32 TextureIndex);
 
-		const FExposureBufferData* GetBuffer(uint32 BufferIndex) const;
-		FExposureBufferData* GetOrCreateBuffer(FRHICommandListImmediate& RHICmdList, uint32 BufferIndex);
+		const TRefCountPtr<FRDGPooledBuffer>& GetBuffer(uint32 BufferIndex) const;
+		const TRefCountPtr<FRDGPooledBuffer>& GetOrCreateBuffer(FRDGBuilder& GraphBuilder, uint32 BufferIndex);
 
 		int32 CurrentBuffer = 0;
 
@@ -918,7 +899,7 @@ private:
 		TUniquePtr<FRHIGPUTextureReadback> ExposureTextureReadback[3];
 
 		// ES3.1 feature level. For efficent readback use buffers instead of textures
-		FExposureBufferData ExposureBufferData[2];
+		TRefCountPtr<FRDGPooledBuffer> ExposureBufferData[2];
 		TUniquePtr<FRHIGPUBufferReadback> ExposureBufferReadback;
 
 	} EyeAdaptationManager;
@@ -1281,27 +1262,27 @@ public:
 		EyeAdaptationManager.SwapTextures(GraphBuilder, bUpdateLastExposure && bValidEyeAdaptationTexture);
 	}
 
-	const FExposureBufferData* GetCurrentEyeAdaptationBuffer() const override final
+	FRDGPooledBuffer* GetCurrentEyeAdaptationBuffer() const override final
 	{
-		const FExposureBufferData* Buffer = EyeAdaptationManager.GetCurrentBuffer();
+		FRDGPooledBuffer* Buffer = EyeAdaptationManager.GetCurrentBuffer().GetReference();
 		check(bValidEyeAdaptationBuffer && Buffer);
 		return Buffer;
 	}
 
-	const FExposureBufferData* GetCurrentEyeAdaptationBuffer(FRHICommandListImmediate& RHICmdList)
+	FRDGPooledBuffer* GetCurrentEyeAdaptationBuffer(FRDGBuilder& GraphBuilder)
 	{
 		bValidEyeAdaptationBuffer = true;
-		return EyeAdaptationManager.GetCurrentBuffer(RHICmdList);
+		return EyeAdaptationManager.GetCurrentBuffer(GraphBuilder).GetReference();
 	}
 
-	const FExposureBufferData* GetLastEyeAdaptationBuffer(FRHICommandListImmediate& RHICmdList)
+	FRDGPooledBuffer* GetLastEyeAdaptationBuffer(FRDGBuilder& GraphBuilder)
 	{
-		return EyeAdaptationManager.GetLastBuffer(RHICmdList);
+		return EyeAdaptationManager.GetLastBuffer(GraphBuilder).GetReference();
 	}
 
-	void SwapEyeAdaptationBuffers()
+	void SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder)
 	{
-		EyeAdaptationManager.SwapBuffers(bUpdateLastExposure && bValidEyeAdaptationBuffer);
+		EyeAdaptationManager.SwapBuffers(GraphBuilder, bUpdateLastExposure && bValidEyeAdaptationBuffer);
 	}
 
 #if WITH_MGPU

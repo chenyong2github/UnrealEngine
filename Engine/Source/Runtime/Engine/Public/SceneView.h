@@ -28,7 +28,6 @@ class FSceneViewFamily;
 class FVolumetricFogViewResources;
 class FIESLightProfileResource;
 class ITemporalUpscaler;
-struct FExposureBufferData;
 
 enum class ERayTracingRenderMode
 {
@@ -1382,7 +1381,7 @@ public:
 	IPooledRenderTarget* GetEyeAdaptationTexture() const;
 
 	/** Returns the eye adaptation buffer (mobile) or null if it doesn't exist. */
-	const FExposureBufferData* GetEyeAdaptationBuffer() const;
+	FRDGPooledBuffer* GetEyeAdaptationBuffer() const;
 
 
 protected:

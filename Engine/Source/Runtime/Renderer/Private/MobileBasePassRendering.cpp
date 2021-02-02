@@ -190,7 +190,7 @@ void SetupMobileBasePassUniformParameters(
 		}
 	}
 
-	BasePassParameters.EyeAdaptationBuffer = GetEyeAdaptationBuffer(View);
+	BasePassParameters.EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View), PF_A32B32G32R32F);
 
 	if (BasePass == EMobileBasePass::Opaque && HasBeenProduced(ScreenSpaceAOTexture))
 	{
