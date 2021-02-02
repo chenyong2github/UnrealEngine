@@ -628,7 +628,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 
 			uint32 MaxPointsPerNode = 0;
 
-			double Time = FPlatformTime::Seconds();
+			const double ProcessingTime = FPlatformTime::Seconds();
 			const bool bUseRenderDataSmoothing = GetDefault<ULidarPointCloudSettings>()->bUseRenderDataSmoothing;
 			const float RenderDataSmoothingMaxFrametime = GetDefault<ULidarPointCloudSettings>()->RenderDataSmoothingMaxFrametime;
 
@@ -648,7 +648,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 							}
 
 							// Split building render data across multiple frames, to avoid stuttering
-							if (bUseRenderDataSmoothing && (FPlatformTime::Seconds() - Time > RenderDataSmoothingMaxFrametime))
+							if (bUseRenderDataSmoothing && (FPlatformTime::Seconds() - ProcessingTime > RenderDataSmoothingMaxFrametime))
 							{
 								break;
 							}
