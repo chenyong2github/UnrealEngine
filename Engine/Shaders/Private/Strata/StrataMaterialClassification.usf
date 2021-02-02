@@ -201,8 +201,6 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	if (all(DispatchThreadId == 0))
 	{
 		TileIndirectData[0] = bRectPrimitive > 0 ? 4 : 6;
-		TileIndirectData[2] = 0;
-		TileIndirectData[3] = 0;
 	}
 
 	// TODO: add a SM6 permutation with ballot?
