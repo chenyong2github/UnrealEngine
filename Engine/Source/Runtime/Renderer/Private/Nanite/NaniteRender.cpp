@@ -556,7 +556,7 @@ class FInstanceCull_CS : public FNaniteShader
 		SHADER_PARAMETER( uint32, NumInstances )
 		SHADER_PARAMETER( uint32, MaxNodes )
 		SHADER_PARAMETER( int32,  ImposterMaxPixels )
-		SHADER_PARAMETER( int32,  IsDepthOnlyPass )
+		SHADER_PARAMETER( int32,  OnlyCastShadowsPrimitives )
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
@@ -2471,7 +2471,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->CullingParameters = CullingParameters;
 
 		const ERasterTechnique Technique = RasterContext.RasterTechnique;
-		PassParameters->IsDepthOnlyPass = Technique == ERasterTechnique::DepthOnly ? 1 : 0;
+		PassParameters->OnlyCastShadowsPrimitives = Technique == ERasterTechnique::DepthOnly ? 1 : 0;
 
 		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetRootPagesSRV();
 

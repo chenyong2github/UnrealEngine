@@ -84,7 +84,7 @@ uint NumInstances;
 uint NumViews;
 uint NumPrimaryViews;
 int ImposterMaxPixels;
-int IsDepthOnlyPass;
+int OnlyCastShadowsPrimitives;
 
 StructuredBuffer<FInstanceDraw>			InInstanceDraws;
 Buffer<uint>							InOccludedInstancesArgs;
@@ -130,8 +130,9 @@ void InstanceCull(
 		bool bCastShadows = (PrimitiveData.Flags & 1u) != 0u;
 
 		// JonO/Note: Depth-Only pass indicates its a shadow map... but this may not technically always be the case?
-		//if(IsDepthOnlyPass && !InstanceData.CastShadows) {
-		if(IsDepthOnlyPass && !bCastShadows) {
+		//if(OnlyCastShadowsPrimitives && !InstanceData.CastShadows) 
+		if(OnlyCastShadowsPrimitives && !bCastShadows) 
+		{
 			return;
 		}
 
