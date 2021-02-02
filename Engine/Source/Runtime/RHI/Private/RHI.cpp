@@ -809,7 +809,6 @@ int32 GRHIMaximumReccommendedOustandingOcclusionQueries = MAX_int32;
 bool GRHISupportsExactOcclusionQueries = true;
 bool GSupportsVolumeTextureRendering = true;
 bool GSupportsSeparateRenderTargetBlendState = false;
-bool GSupportsDepthRenderTargetWithoutColorRenderTarget = true;
 bool GRHINeedsUnatlasedCSMDepthsWorkaround = false;
 bool GSupportsTexture3D = true;
 bool GSupportsMobileMultiView = false;

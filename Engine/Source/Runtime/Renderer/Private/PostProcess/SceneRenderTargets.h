@@ -344,7 +344,6 @@ public:
 	const FTextureRHIRef& GetSceneColorSurface() const;
 	const FTexture2DRHIRef& GetSceneDepthSurface() const							{ return (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().TargetableTexture; }
 	const FTexture2DRHIRef& GetSmallDepthSurface() const							{ return (const FTexture2DRHIRef&)SmallDepthZ->GetRenderTargetItem().TargetableTexture; }
-	const FTexture2DRHIRef& GetOptionalShadowDepthColorSurface(FRHICommandList& RHICmdList, int32 Width, int32 Height) const;
 
 	const FTexture2DRHIRef& GetDirectionalOcclusionTexture() const 
 	{	
@@ -505,8 +504,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> MobileCustomStencil;
 	// used by the CustomDepth material feature for stencil
 	TRefCountPtr<FRHIShaderResourceView> CustomStencilSRV;
-	// optional in case this RHI requires a color render target (adjust up if necessary)
-	TRefCountPtr<IPooledRenderTarget> OptionalShadowDepthColor[4];
 
 	/** 2 scratch cubemaps used for filtering reflections. */
 	TRefCountPtr<IPooledRenderTarget> ReflectionColorScratchCubemap[2];

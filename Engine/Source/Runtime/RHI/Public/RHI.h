@@ -339,9 +339,6 @@ extern RHI_API bool GSupportsVolumeTextureRendering;
 /** True if the RHI supports separate blend states per render target. */
 extern RHI_API bool GSupportsSeparateRenderTargetBlendState;
 
-/** True if the RHI can render to a depth-only render target with no additional color render target. */
-extern RHI_API bool GSupportsDepthRenderTargetWithoutColorRenderTarget;
-
 /** True if the RHI has artifacts with atlased CSM depths. */
 extern RHI_API bool GRHINeedsUnatlasedCSMDepthsWorkaround;
 
