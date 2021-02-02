@@ -76,7 +76,7 @@ public:
 	ALevelInstance* CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, const FNewLevelInstanceParams& CreationParams);
 	bool MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel) const;
 	bool MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove);
-	bool BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels = 1);
+	bool BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels = 1, TArray<AActor*>* OutMovedActors = nullptr);
 
 	bool CanMoveActorToLevel(const AActor* Actor, FText* OutReason = nullptr) const;
 	void DiscardEdits();
@@ -99,6 +99,7 @@ private:
 	FLevelInstanceID ComputeLevelInstanceID(ALevelInstance* LevelInstanceActor) const;
 #if WITH_EDITOR
 	void CommitChildrenLevelInstances(ALevelInstance* LevelInstanceActor);
+	void BreakLevelInstance_Impl(ALevelInstance* LevelInstanceActor, uint32 Levels, TArray<AActor*>& OutMovedActors);
 
 	static bool ShouldIgnoreDirtyPackage(UPackage* DirtyPackage, const UWorld* EditingWorld);
 
