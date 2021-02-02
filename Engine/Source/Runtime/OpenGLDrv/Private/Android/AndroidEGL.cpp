@@ -1183,6 +1183,7 @@ void BlockRendering()
 
 	FGraphEventRef RTBlockTask = FFunctionGraphTask::CreateAndDispatchWhenReady([RTBlockedTrigger]()
 	{
+		FTaskTagScope TagScope(ETaskTag::ERenderingThread);
 		BlockOnLostWindowRenderCommand(RTBlockedTrigger);
 	}, TStatId(), NULL, ENamedThreads::GetRenderThread());
 

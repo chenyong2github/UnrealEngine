@@ -509,6 +509,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		FTaskTagScope TagScope(ETaskTag::ERhiThread);
 		check(IsRunningRHIInDedicatedThread() && IsInRHIThread()); // this should never be used on a platform that doesn't support the RHI thread, and it can't quite work when running the RHI stuff on task threads
 		if (bWait)
 		{
