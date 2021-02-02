@@ -199,6 +199,7 @@ void FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* Linker)
 		return;
 	}
 
+	Linker->EntityManager.IncrementSystemSerial();
 	bFinished = true;
 	Ledger.UnlinkEverything(Linker);
 
