@@ -9,6 +9,7 @@
 #include "IPropertyChangeListener.h"
 
 #include "Niagara/Private/NiagaraDebugHud.h"
+#include "NiagaraWorldManager.h"
 #include "SNiagaraDebugger.generated.h"
 
 USTRUCT()
@@ -33,9 +34,12 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnChanged);
 	FOnChanged OnChangedDelegate;
 
-	/** Enables the Debug HUD display. */
+	/**
+	Changes the verbosity of the HUD display.
+	The default will only disable information if you enable a feature that impacts playback.
+	*/
 	UPROPERTY(EditAnywhere, Category = "Debug General")
-	bool bEnabled = false;
+	ENiagaraDebugHudSystemVerbosity HudVerbosity = ENiagaraDebugHudSystemVerbosity::Minimal;
 
 	/**
 	When enabled GPU particles will be debuggable by copying the data to CPU
@@ -49,7 +53,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Debug General")
 	FIntPoint HUDLocation = FIntPoint(30.0f, 150.0f);
 
-	UPROPERTY(EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bSystemFilterEnabled = true;
 
 	/**
@@ -59,7 +63,27 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bSystemFilterEnabled"))
 	FString SystemFilter;
 
-	UPROPERTY(EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bEmitterFilterEnabled = true;
+
+	/**
+	Wildcard filter used to match emitters when generating particle variable view.
+	For example,. "Fluid*" would match all emtiters starting with Fluid and only particle variables for those would be visible.
+	*/
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bEmitterFilterEnabled"))
+	FString EmitterFilter;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bActorFilterEnabled = true;
+
+	/**
+	Wildcard filter which is compared against the Components Actor name to narrow down the detailed information.
+	For example, "*Water*" would match all actors that contain the string "water".
+	*/
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bActorFilterEnabled"))
+	FString ActorFilter;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bComponentFilterEnabled = true;
 
 	/**
@@ -115,7 +139,22 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
 	TArray<FNiagaraDebugHUDVariable> ParticlesVariables;
 
+	ENiagaraDebugPlaybackMode PlaybackMode = ENiagaraDebugPlaybackMode::Play;
+
+	UPROPERTY()
+	bool bPlaybackRateEnabled = false;
+
+	UPROPERTY(Config)
+	float PlaybackRate = 0.25f;
+
+	UPROPERTY(Config)
+	bool bLoopTimeEnabled = false;
+
+	UPROPERTY(Config)
+	float LoopTime = 1.0f;
+
 #if WITH_EDITOR
+	void PostEditChangeProperty();
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };
@@ -126,13 +165,15 @@ class SNiagaraDebugger : public SCompoundWidget, public FGCObject
 	{
 		FTargetDeviceId			DeviceId;
 		ITargetDeviceWeakPtr	DeviceWeakPtr;
-		const FSlateBrush*		DeviceIconBrush = nullptr;
+		FText					PlatformName;
+		FName					DeviceIconStyle;
 	};
 
 	typedef TSharedPtr<FTargetDeviceEntry> FTargetDeviceEntryPtr;
 
 public:
 	SLATE_BEGIN_ARGS(SNiagaraDebugger) {}
+		SLATE_ARGUMENT(TSharedPtr<class FTabManager>, TabManager)
 	SLATE_END_ARGS();
 
 	SNiagaraDebugger();
@@ -140,13 +181,22 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	static void RegisterTabSpawner();
+	static void UnregisterTabSpawner();
+	static TSharedRef<class SDockTab> SpawnNiagaraDebugger(const class FSpawnTabArgs& Args);
+
 	// SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
+	void ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld);
+	void ExecHUDConsoleCommand();
+
 private:
+	TSharedRef<SWidget> MakeToolbar();
+	TSharedRef<SWidget> MakePlaybackOptionsMenu();
 	TSharedRef<SWidget> MakeDeviceComboButtonMenu();
 
 	void InitDeviceList();
@@ -157,25 +207,15 @@ private:
 	
 	void SelectDevice(FTargetDeviceEntryPtr DeviceEntry);
 
-	const FSlateBrush* GetTargetDeviceBrush(FTargetDeviceEntryPtr DeviceEntry) const;
 	FText GetTargetDeviceText(FTargetDeviceEntryPtr DeviceEntry) const;
 
-	const FSlateBrush* GetSelectedTargetDeviceBrush() const;
-	FText GetSelectedTargetDeviceText() const;
-
-	void ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld);
-	void ExecHUDConsoleCommand();
-
-	float GetPlaybackRate() const;
-	void SetPlaybackRate(float Rate);
-
-	TOptional<float> GetGlobalLoopTime() const;
-	void SetGlobalLoopTime(float Time);
-
 protected:
+	TSharedPtr<FTabManager>			TabManager;
+
 	TArray<FTargetDeviceEntryPtr>	TargetDeviceList;
 	FTargetDeviceEntryPtr			SelectedTargetDevice;
 	bool							bWasDeviceConnected = true;
-	float							PlaybackRate = 1.0f;
-	float							GlobalLoopTime = 0.0f;
+
+	bool							bPlaybackLooping = false;
+	ENiagaraDebugPlaybackMode		PlaybackMode = ENiagaraDebugPlaybackMode::Play;
 };
