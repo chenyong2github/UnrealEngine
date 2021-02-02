@@ -155,18 +155,33 @@ FTransform FRootMotionModifier_Warp::ProcessRootMotion(UMotionWarpingComponent& 
 	return FinalRootMotion;
 }
 
-FQuat FRootMotionModifier_Warp::WarpRotation(UMotionWarpingComponent& OwnerComp, const FTransform& RootMotionDelta, const FTransform& RootMotionTotal, float DeltaSeconds)
+FQuat FRootMotionModifier_Warp::GetTargetRotation(UMotionWarpingComponent& OwnerComp) const
 {
 	const FTransform& CharacterTransform = OwnerComp.GetCharacterOwner()->GetActorTransform();
 
-	const FQuat CurrentRotation = CharacterTransform.GetRotation();
-	const float TimeRemaining = EndTime - PreviousPosition;
-	const FQuat Desired = CachedSyncPoint.GetRotation();
+	if (RotationType == EMotionWarpRotationType::Default)
+	{
+		return CachedSyncPoint.GetRotation();
+	}
+	else if (RotationType == EMotionWarpRotationType::Facing)
+	{
+		const FVector ToSyncPoint = (CachedSyncPoint.GetLocation() - CharacterTransform.GetLocation()).GetSafeNormal2D();
+		return FRotationMatrix::MakeFromXZ(ToSyncPoint, FVector::UpVector).ToQuat();
+	}
 
+	return FQuat::Identity;
+}
+
+FQuat FRootMotionModifier_Warp::WarpRotation(UMotionWarpingComponent& OwnerComp, const FTransform& RootMotionDelta, const FTransform& RootMotionTotal, float DeltaSeconds)
+{
+	const FTransform& CharacterTransform = OwnerComp.GetCharacterOwner()->GetActorTransform();
+	const FQuat CurrentRotation = CharacterTransform.GetRotation();
+	const FQuat TargetRotation = GetTargetRotation(OwnerComp);
+	const float TimeRemaining = (EndTime - PreviousPosition) * WarpRotationTimeMultiplier;
 	const FQuat RemainingRootRotationInWorld = RootMotionTotal.GetRotation();
 	const FQuat CurrentPlusRemainingRootMotion = RemainingRootRotationInWorld * CurrentRotation;
 	const float PercentThisStep = FMath::Clamp(DeltaSeconds / TimeRemaining, 0.f, 1.f);
-	const FQuat TargetRotThisFrame = FQuat::Slerp(CurrentPlusRemainingRootMotion, Desired, PercentThisStep);
+	const FQuat TargetRotThisFrame = FQuat::Slerp(CurrentPlusRemainingRootMotion, TargetRotation, PercentThisStep);
 	const FQuat DeltaOut = TargetRotThisFrame * CurrentPlusRemainingRootMotion.Inverse();
 
 	return (DeltaOut * RootMotionDelta.GetRotation());
@@ -200,7 +215,7 @@ void FRootMotionModifier_Warp::PrintLog(const UMotionWarpingComponent& OwnerComp
 // URootMotionModifierConfig_Warp
 ///////////////////////////////////////////////////////////////
 
-void URootMotionModifierConfig_Warp::AddRootMotionModifierSimpleWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation)
+void URootMotionModifierConfig_Warp::AddRootMotionModifierSimpleWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier)
 {
 	if (ensureAlways(InMotionWarpingComp))
 	{
@@ -212,6 +227,8 @@ void URootMotionModifierConfig_Warp::AddRootMotionModifierSimpleWarp(UMotionWarp
 		NewModifier->bWarpTranslation = bInWarpTranslation;
 		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
 		NewModifier->bWarpRotation = bInWarpRotation;
+		NewModifier->RotationType = InRotationType;
+		NewModifier->WarpRotationTimeMultiplier = InWarpRotationTimeMultiplier;
 		InMotionWarpingComp->AddRootMotionModifier(NewModifier);
 	}
 }

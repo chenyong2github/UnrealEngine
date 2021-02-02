@@ -148,7 +148,7 @@ void FRootMotionModifier_AdjustmentBlendWarp::PrecomputeWarpedTracks(UMotionWarp
 	FQuat RootTotalAdditiveRotation = FQuat::Identity;
 	if (bWarpRotation)
 	{
-		const FQuat TargetRotation = CachedSyncPoint.GetRotation();
+		const FQuat TargetRotation = GetTargetRotation(OwnerComp);
 		const FQuat OriginalRotation = CachedMeshRelativeTransform.GetRotation().Inverse() * (CachedRootMotion * CachedMeshTransform).GetRotation();
 		RootTotalAdditiveRotation = FQuat::FindBetweenNormals(OriginalRotation.GetForwardVector(), TargetRotation.GetForwardVector());
 	}

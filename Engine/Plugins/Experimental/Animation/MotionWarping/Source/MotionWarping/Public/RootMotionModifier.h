@@ -133,6 +133,16 @@ protected:
 // FRootMotionModifier_Warp
 ///////////////////////////////////////////////////////////////
 
+UENUM(BlueprintType)
+enum class EMotionWarpRotationType : uint8
+{
+	/** Character rotates to match the rotation of the sync point */
+	Default,
+
+	/** Character rotates to face the sync point */
+	Facing,
+};
+
 USTRUCT()
 struct MOTIONWARPING_API FRootMotionModifier_Warp : public FRootMotionModifier
 {
@@ -156,6 +166,17 @@ public:
 	UPROPERTY()
 	bool bWarpRotation = true;
 
+	/** Whether rotation should be warp to match the rotation of the sync point or to face the sync point */
+	UPROPERTY()
+	EMotionWarpRotationType RotationType;
+
+	/** 
+	 * Allow to modify how fast the rotation is warped. 
+	 * e.g if the window duration is 2sec and this is 0.5, the target rotation will be reached in 1sec instead of 2sec
+	 */
+	UPROPERTY()
+	float WarpRotationTimeMultiplier = 1.f;
+
 	/** Sync Point used by this modifier as target for the warp. Cached during the Update */
 	UPROPERTY()
 	FMotionWarpingSyncPoint CachedSyncPoint;
@@ -178,6 +199,7 @@ public:
 
 protected:
 
+	FQuat GetTargetRotation(UMotionWarpingComponent& OwnerComp) const;
 	FQuat WarpRotation(UMotionWarpingComponent& OwnerComp, const FTransform& RootMotionDelta, const FTransform& RootMotionTotal, float DeltaSeconds);
 };
 
@@ -204,15 +226,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
 	bool bWarpRotation = true;
 
+	/** Whether rotation should be warp to match the rotation of the sync point or to face the sync point */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
+	EMotionWarpRotationType RotationType;
+
+	/**
+	 * Allow to modify how fast the rotation is warped.
+	 * e.g if the window duration is 2sec and this is 0.5, the target rotation will be reached in 1sec instead of 2sec
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
+	float WarpRotationTimeMultiplier = 1.f;
+
 	URootMotionModifierConfig_Warp(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 
 	virtual void AddRootMotionModifier(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
 	{
-		URootMotionModifierConfig_Warp::AddRootMotionModifierSimpleWarp(MotionWarpingComp, Animation, StartTime, EndTime, SyncPointName, bWarpTranslation, bIgnoreZAxis, bWarpRotation);
+		URootMotionModifierConfig_Warp::AddRootMotionModifierSimpleWarp(MotionWarpingComp, Animation, StartTime, EndTime, SyncPointName, bWarpTranslation, bIgnoreZAxis, bWarpRotation, RotationType, WarpRotationTimeMultiplier);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	static void AddRootMotionModifierSimpleWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation);
+	static void AddRootMotionModifierSimpleWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier = 1.f);
 };
 
 // FRootMotionModifier_Scale
