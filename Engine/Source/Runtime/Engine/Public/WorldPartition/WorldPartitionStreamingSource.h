@@ -11,11 +11,13 @@ struct ENGINE_API FWorldPartitionStreamingSource
 	FWorldPartitionStreamingSource()
 	{}
 
-	FWorldPartitionStreamingSource(const FVector& InLocation, const FRotator& InRotation)
-		: Location(InLocation)
+	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation)
+		: Name(InName)
+		, Location(InLocation)
 		, Rotation(InRotation)
 	{}
 
+	FName Name;
 	FVector Location;
 	FRotator Rotation;
 };

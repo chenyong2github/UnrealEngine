@@ -414,7 +414,20 @@ void UWorldPartition::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunction
 		}
 	}
 }
+#endif
 
+const TArray<FWorldPartitionStreamingSource>& UWorldPartition::GetStreamingSources() const
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		return GetStreamingPolicy()->GetStreamingSources();
+	}
+
+	static TArray<FWorldPartitionStreamingSource> EmptyStreamingSources;
+	return EmptyStreamingSources;
+}
+
+#if WITH_EDITOR
 const FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid) const
 {
 	const TUniquePtr<FWorldPartitionActorDesc>* const * ActorDesc = Actors.Find(Guid);

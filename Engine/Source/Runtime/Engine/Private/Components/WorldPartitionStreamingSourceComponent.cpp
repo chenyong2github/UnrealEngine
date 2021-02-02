@@ -5,6 +5,7 @@
 
 UWorldPartitionStreamingSourceComponent::UWorldPartitionStreamingSourceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bStreamingSourceEnabled(true)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
@@ -24,17 +25,7 @@ void UWorldPartitionStreamingSourceComponent::OnRegister()
 
 	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 	{
-		AActor* Actor = GetOwner();
-		ULevel* ActorLevel = Actor->GetLevel();
-
-		if (ActorLevel == World->PersistentLevel)
-		{
-			WorldPartition->RegisterStreamingSourceProvider(this);
-		}
-		else
-		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Attaching a WorldPartitionStreamingSourceComponent to an actor that is in the grid will result in never unloading the affected cells (%s)"), *Actor->GetName());
-		}
+		WorldPartition->RegisterStreamingSourceProvider(this);
 	}
 }
 
@@ -53,17 +44,29 @@ void UWorldPartitionStreamingSourceComponent::OnUnregister()
 
 	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 	{
-		AActor* Actor = GetOwner();
-		ULevel* ActorLevel = Actor->GetLevel();
-
-		verify(WorldPartition->UnregisterStreamingSourceProvider(this) || (ActorLevel != World->PersistentLevel));
+		verify(WorldPartition->UnregisterStreamingSourceProvider(this));
 	}
 }
 
 bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource)
 {
-	AActor* Actor = GetOwner();
-	OutStreamingSource.Location = Actor->GetActorLocation();
-	OutStreamingSource.Rotation = Actor->GetActorRotation();
-	return true;
+	if (bStreamingSourceEnabled)
+	{
+		AActor* Actor = GetOwner();
+
+		FName SourceName = Actor->GetFName();
+
+#if WITH_EDITOR
+		const FString& ActorLabel = Actor->GetActorLabel(false);
+		if (!ActorLabel.IsEmpty())
+		{
+			SourceName = *ActorLabel;
+		}
+#endif
+		OutStreamingSource.Name = SourceName;
+		OutStreamingSource.Location = Actor->GetActorLocation();
+		OutStreamingSource.Rotation = Actor->GetActorRotation();
+		return true;
+	}
+	return false;
 }

@@ -38,6 +38,8 @@ public:
 	virtual void OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath) {}
 #endif
 
+	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const { return StreamingSources; }
+
 protected:
 	void UpdateStreamingSources();
 

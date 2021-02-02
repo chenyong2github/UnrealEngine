@@ -52,11 +52,11 @@ private:
 	const UWorldPartition* GetMainWorldPartition() const;
 	void RegisterWorldPartition(UWorldPartition* WorldPartition);
 	void UnregisterWorldPartition(UWorldPartition* WorldPartition);
-	void DrawRuntimeHash2D(class UCanvas* Canvas, class APlayerController* PC);
+	void Draw(class UCanvas* Canvas, class APlayerController* PC);
 	friend class UWorldPartition;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
 
-	FDelegateHandle	DrawRuntimeHash2DHandle;
+	FDelegateHandle	DrawHandle;
 };

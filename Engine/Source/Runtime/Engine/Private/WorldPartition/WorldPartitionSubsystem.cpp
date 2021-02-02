@@ -22,6 +22,12 @@ static FAutoConsoleCommand CVarDrawRuntimeHash2D(
 	TEXT("Toggles 2D debug display of world partition runtime hash."),
 	FConsoleCommandDelegate::CreateLambda([] { GDrawRuntimeHash2D = !GDrawRuntimeHash2D; }));
 
+static int32 GDrawStreamingSources = 0;
+static FAutoConsoleCommand CVarDrawStreamingSources(
+	TEXT("wp.Runtime.ToggleDrawStreamingSources"),
+	TEXT("Toggles debug display of world partition streaming sources."),
+	FConsoleCommandDelegate::CreateLambda([] { GDrawStreamingSources = !GDrawStreamingSources; }));
+
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 {}
 
@@ -60,17 +66,17 @@ void UWorldPartitionSubsystem::PostInitialize()
 
 		if (GetWorld()->IsGameWorld() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
 		{
-			DrawRuntimeHash2DHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::DrawRuntimeHash2D));
+			DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
 		}
 	}
 }
 
 void UWorldPartitionSubsystem::Deinitialize()
 {
-	if (DrawRuntimeHash2DHandle.IsValid())
+	if (DrawHandle.IsValid())
 	{
-		UDebugDrawService::Unregister(DrawRuntimeHash2DHandle);
-		DrawRuntimeHash2DHandle.Reset();
+		UDebugDrawService::Unregister(DrawHandle);
+		DrawHandle.Reset();
 	}
 
 	while (RegisteredWorldPartitions.Num() > 0)
@@ -152,36 +158,67 @@ void UWorldPartitionSubsystem::UpdateStreamingState()
 	}
 }
 
-void UWorldPartitionSubsystem::DrawRuntimeHash2D(UCanvas* Canvas, class APlayerController* PC)
+void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC)
 {
-	if (!GDrawRuntimeHash2D || !Canvas || !Canvas->SceneView)
+	if (!Canvas || !Canvas->SceneView)
 	{
 		return;
 	}
 
-	const float MaxScreenRatio = 0.75f;
 	const FVector2D CanvasTopLeftPadding(10.f, 10.f);
-	const FVector2D CanvasBottomRightPadding(10.f, 10.f);
-	const FVector2D CanvasMinimumSize(100.f, 100.f);
-	const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CanvasTopLeftPadding, CanvasMinimumSize);
+	FVector2D Pos = CanvasTopLeftPadding;
 
-	FVector2D TotalFootprint(ForceInitToZero);
-	for (UWorldPartition* Partition : RegisteredWorldPartitions)
+	auto DrawText = [](UCanvas* Canvas, const FString& Text, UFont* Font, const FColor& Color, FVector2D& Pos)
 	{
-		FVector2D Footprint = Partition->GetDrawRuntimeHash2DDesiredFootprint(CanvasMaxScreenSize);
-		TotalFootprint.X += Footprint.X;
-	}
+		float TextWidth, TextHeight;
+		Canvas->StrLen(Font, Text, TextWidth, TextHeight);
+		Canvas->SetDrawColor(Color);
+		Canvas->DrawText(Font, Text, Pos.X, Pos.Y);
+		Pos.Y += TextHeight + 1;
+	};
 
-	if (TotalFootprint.X > 0.f)
+	if (GDrawRuntimeHash2D)
 	{
-		FVector2D PartitionCanvasOffset(CanvasTopLeftPadding);
+		const float MaxScreenRatio = 0.75f;
+		const FVector2D CanvasBottomRightPadding(10.f, 10.f);
+		const FVector2D CanvasMinimumSize(100.f, 100.f);
+		const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CanvasTopLeftPadding, CanvasMinimumSize);
+
+		FVector2D TotalFootprint(ForceInitToZero);
 		for (UWorldPartition* Partition : RegisteredWorldPartitions)
 		{
 			FVector2D Footprint = Partition->GetDrawRuntimeHash2DDesiredFootprint(CanvasMaxScreenSize);
-			float FootprintRatio = Footprint.X / TotalFootprint.X;
-			FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X * FootprintRatio, CanvasMaxScreenSize.Y);
-			Partition->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
-			PartitionCanvasOffset.X += PartitionCanvasSize.X;
+			TotalFootprint.X += Footprint.X;
+		}
+
+		if (TotalFootprint.X > 0.f)
+		{
+			FVector2D PartitionCanvasOffset(CanvasTopLeftPadding);
+			for (UWorldPartition* Partition : RegisteredWorldPartitions)
+			{
+				FVector2D Footprint = Partition->GetDrawRuntimeHash2DDesiredFootprint(CanvasMaxScreenSize);
+				float FootprintRatio = Footprint.X / TotalFootprint.X;
+				FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X * FootprintRatio, CanvasMaxScreenSize.Y);
+				Partition->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
+				PartitionCanvasOffset.X += PartitionCanvasSize.X;
+			}
+		}
+	}
+
+	if (GDrawStreamingSources)
+	{
+		if (const UWorldPartition* WorldPartition = GetMainWorldPartition())
+		{
+			const TArray<FWorldPartitionStreamingSource>& StreamingSources = WorldPartition->GetStreamingSources();
+
+			FString Title(TEXT("Streaming Sources"));
+			DrawText(Canvas, Title, GEngine->GetSmallFont(), FColor::Yellow, Pos);
+			UFont* Font = GEngine->GetTinyFont();
+			for (const FWorldPartitionStreamingSource& StreamingSource : StreamingSources)
+			{
+				const FString Text = FString::Printf(TEXT("%s %s %s"), *StreamingSource.Name.ToString(), *StreamingSource.Location.ToString(), *StreamingSource.Rotation.ToString());
+				DrawText(Canvas, Text, Font, FColor::White, Pos);
+			}
 		}
 	}
 }
