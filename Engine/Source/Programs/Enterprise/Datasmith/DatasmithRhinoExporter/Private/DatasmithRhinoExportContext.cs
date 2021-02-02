@@ -397,6 +397,7 @@ namespace DatasmithRhino
 		private DatasmithRhinoUniqueNameGenerator MaterialLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 		private DatasmithRhinoUniqueNameGenerator TextureLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
 		private ViewportInfo ActiveViewportInfo;
+		private int DummyLayerIndex = -1;
 
 		public DatasmithRhinoExportContext(DatasmithRhinoExportOptions InOptions)
 		{
@@ -744,11 +745,12 @@ namespace DatasmithRhino
 				string DummyLayerName = RhinoDocument.Path;
 				string DummyLayerLabel = RhinoDocument.Name;
 				const int DefaultMaterialIndex = -1;
-				int[] DummyLayerIndex = { -1 };
+				//Decrement the dummy layer index for each dummy layer added to ensure unique id for each document.
+				int[] DummyLayerIndices = { DummyLayerIndex-- };
 
-				DummyDocumentNode = GenerateDummyNodeInfo(DummyLayerName, DummyLayerLabel, DefaultMaterialIndex, DummyLayerIndex);
+				DummyDocumentNode = GenerateDummyNodeInfo(DummyLayerName, DummyLayerLabel, DefaultMaterialIndex, DummyLayerIndices);
 				SceneRoot.AddChild(DummyDocumentNode);
-				LayerIndexToLayerString.Add(DummyLayerIndex[0], BuildLayerString(DummyDocumentNode.Label, SceneRoot));
+				LayerIndexToLayerString.Add(DummyLayerIndices[0], BuildLayerString(DummyDocumentNode.Label, SceneRoot));
 			}
 
 			foreach (var CurrentLayer in RhinoDocument.Layers)
