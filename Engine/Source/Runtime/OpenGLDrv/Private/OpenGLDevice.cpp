@@ -737,7 +737,7 @@ static void InitRHICapabilitiesForGL()
 	// Verify some assumptions.
 	// Android seems like reports one color attachment even when it supports MRT
 #if !PLATFORM_ANDROID
-	check(Value_GL_MAX_COLOR_ATTACHMENTS >= MaxSimultaneousRenderTargets || !FOpenGL::SupportsMultipleRenderTargets());
+	check(Value_GL_MAX_COLOR_ATTACHMENTS >= MaxSimultaneousRenderTargets);
 #endif
 
 	// We don't check for compressed formats right now because vendors have not
@@ -840,7 +840,6 @@ static void InitRHICapabilitiesForGL()
 
 	GSupportsRenderTargetFormat_PF_FloatRGBA = FOpenGL::SupportsColorBufferHalfFloat();
 
-	GSupportsMultipleRenderTargets = FOpenGL::SupportsMultipleRenderTargets();
 	GSupportsWideMRT = FOpenGL::SupportsWideMRT();
 	GSupportsTexture3D = FOpenGL::SupportsTexture3D();
 	GSupportsMobileMultiView = FOpenGL::SupportsMobileMultiView();

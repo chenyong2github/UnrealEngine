@@ -521,6 +521,8 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 				Mask,
 				GL_NEAREST
 				);
+
+			REPORT_GL_FRAMEBUFFER_BLIT_EVENT( Mask );
 		}
 		else
 		{
@@ -544,8 +546,7 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 										1);
 		}
 
-		REPORT_GL_FRAMEBUFFER_BLIT_EVENT( Mask );
-		
+	
 		// For CPU readback resolve targets we should issue the resolve to the internal PBO immediately.
 		// This makes any subsequent locking of that texture much cheaper as it won't have to stall on a pixel pack op.
 		bool bLockableTarget = DestTextureRHI->GetTexture2D() && (DestTextureRHI->GetFlags() & TexCreate_CPUReadback) && !(DestTextureRHI->GetFlags() & (TexCreate_RenderTargetable|TexCreate_DepthStencilTargetable)) && !DestTextureRHI->IsMultisampled();
@@ -1127,18 +1128,15 @@ void FOpenGLDynamicRHI::BindPendingFramebuffer( FOpenGLContextState& ContextStat
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, PendingState.Framebuffer);
 
-			if ( FOpenGL::SupportsMultipleRenderTargets() )
-			{
-				FOpenGL::ReadBuffer( PendingState.FirstNonzeroRenderTarget >= 0 ? GL_COLOR_ATTACHMENT0 + PendingState.FirstNonzeroRenderTarget : GL_NONE);
-				GLenum DrawFramebuffers[MaxSimultaneousRenderTargets];
-				const GLint MaxDrawBuffers = GMaxOpenGLDrawBuffers;
+			FOpenGL::ReadBuffer( PendingState.FirstNonzeroRenderTarget >= 0 ? GL_COLOR_ATTACHMENT0 + PendingState.FirstNonzeroRenderTarget : GL_NONE);
+			GLenum DrawFramebuffers[MaxSimultaneousRenderTargets];
+			const GLint MaxDrawBuffers = GMaxOpenGLDrawBuffers;
 
-				for (int32 RenderTargetIndex = 0; RenderTargetIndex < MaxDrawBuffers; ++RenderTargetIndex)
-				{
-					DrawFramebuffers[RenderTargetIndex] = PendingState.RenderTargets[RenderTargetIndex] ? GL_COLOR_ATTACHMENT0 + RenderTargetIndex : GL_NONE;
-				}
-				FOpenGL::DrawBuffers(MaxDrawBuffers, DrawFramebuffers);
+			for (int32 RenderTargetIndex = 0; RenderTargetIndex < MaxDrawBuffers; ++RenderTargetIndex)
+			{
+				DrawFramebuffers[RenderTargetIndex] = PendingState.RenderTargets[RenderTargetIndex] ? GL_COLOR_ATTACHMENT0 + RenderTargetIndex : GL_NONE;
 			}
+			FOpenGL::DrawBuffers(MaxDrawBuffers, DrawFramebuffers);
 		}
 		else
 		{

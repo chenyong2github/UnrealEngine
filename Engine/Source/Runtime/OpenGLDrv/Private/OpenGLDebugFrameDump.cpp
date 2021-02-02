@@ -903,58 +903,47 @@ void FOpenGLDebugFrameDumper::DumpRenderTargetsState( FOutputDeviceFile& LogFile
 {
 	LogFile.Log( TEXT("Render Targets") LINE_TERMINATOR );
 
-	if ( FOpenGL::SupportsMultipleRenderTargets() )
+	GLint DrawFramebuffer;
+	glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &DrawFramebuffer );
+	ASSERT_NO_GL_ERROR();
+
+	GLint MaxDrawBuffers = 0;
+	glGetIntegerv( GL_MAX_DRAW_BUFFERS, &MaxDrawBuffers );
+	ASSERT_NO_GL_ERROR();
+	LogFile.Logf( TEXT("\tGL_MAX_DRAW_BUFFERS: %d") LINE_TERMINATOR, MaxDrawBuffers );
+
+	GLint AttachedBufferIndex;
+	for( GLint DrawBufferIndex = 0; DrawBufferIndex < MaxDrawBuffers; ++DrawBufferIndex )
 	{
-		GLint DrawFramebuffer;
-		glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &DrawFramebuffer );
+		glGetIntegerv( GL_DRAW_BUFFER0+DrawBufferIndex, &AttachedBufferIndex );
 		ASSERT_NO_GL_ERROR();
-
-		GLint MaxDrawBuffers = 0;
-		glGetIntegerv( GL_MAX_DRAW_BUFFERS, &MaxDrawBuffers );
-		ASSERT_NO_GL_ERROR();
-		LogFile.Logf( TEXT("\tGL_MAX_DRAW_BUFFERS: %d") LINE_TERMINATOR, MaxDrawBuffers );
-
-		GLint AttachedBufferIndex;
-		for( GLint DrawBufferIndex = 0; DrawBufferIndex < MaxDrawBuffers; ++DrawBufferIndex )
+		if( AttachedBufferIndex )
 		{
-			glGetIntegerv( GL_DRAW_BUFFER0+DrawBufferIndex, &AttachedBufferIndex );
-			ASSERT_NO_GL_ERROR();
-			if( AttachedBufferIndex )
+			const TCHAR* AttachedBufferName = GetAttachedBufferName( ( DrawFramebuffer == 0 ), AttachedBufferIndex );
+			if( AttachedBufferName )
 			{
-				const TCHAR* AttachedBufferName = GetAttachedBufferName( ( DrawFramebuffer == 0 ), AttachedBufferIndex );
-				if( AttachedBufferName )
-				{
-					LogFile.Logf( TEXT("\t\tGL_DRAW_BUFFER%d: %s") LINE_TERMINATOR, DrawBufferIndex, AttachedBufferName );
-				}
-				else
-				{
-					LogFile.Logf( TEXT("\t\tGL_DRAW_BUFFER%d: 0x%x") LINE_TERMINATOR, DrawBufferIndex, AttachedBufferIndex );
-				}
+				LogFile.Logf( TEXT("\t\tGL_DRAW_BUFFER%d: %s") LINE_TERMINATOR, DrawBufferIndex, AttachedBufferName );
+			}
+			else
+			{
+				LogFile.Logf( TEXT("\t\tGL_DRAW_BUFFER%d: 0x%x") LINE_TERMINATOR, DrawBufferIndex, AttachedBufferIndex );
 			}
 		}
+	}
 
-		GLint ReadFramebuffer;
-		glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &ReadFramebuffer );
-		ASSERT_NO_GL_ERROR();
-		glGetIntegerv( GL_READ_BUFFER, &AttachedBufferIndex );
-		ASSERT_NO_GL_ERROR();
-		const TCHAR* AttachedBufferName = GetAttachedBufferName( ( ReadFramebuffer == 0 ), AttachedBufferIndex );
-		if( AttachedBufferName )
-		{
-			LogFile.Logf( TEXT("\tGL_READ_BUFFER: %s") LINE_TERMINATOR, AttachedBufferName );
-		}
-		else
-		{
-			LogFile.Logf( TEXT("\tGL_READ_BUFFER: 0x%x") LINE_TERMINATOR, AttachedBufferIndex );
-		}
+	GLint ReadFramebuffer;
+	glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &ReadFramebuffer );
+	ASSERT_NO_GL_ERROR();
+	glGetIntegerv( GL_READ_BUFFER, &AttachedBufferIndex );
+	ASSERT_NO_GL_ERROR();
+	const TCHAR* AttachedBufferName = GetAttachedBufferName( ( ReadFramebuffer == 0 ), AttachedBufferIndex );
+	if( AttachedBufferName )
+	{
+		LogFile.Logf( TEXT("\tGL_READ_BUFFER: %s") LINE_TERMINATOR, AttachedBufferName );
 	}
 	else
 	{
-		//@todo-mobile: More debug info
-		GLint CurrentFBO;
-		glGetIntegerv(GL_FRAMEBUFFER_BINDING, &CurrentFBO);
-		ASSERT_NO_GL_ERROR();
-		LogFile.Logf( TEXT("\GL_FRAMEBUFFER_BINDING: %d") LINE_TERMINATOR, CurrentFBO );
+		LogFile.Logf( TEXT("\tGL_READ_BUFFER: 0x%x") LINE_TERMINATOR, AttachedBufferIndex );
 	}
 }
 

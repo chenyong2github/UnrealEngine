@@ -93,7 +93,6 @@ public:
 	static FORCEINLINE bool SupportsExactOcclusionQueries()				{ return true; }
 	static FORCEINLINE bool SupportsDepthStencilReadSurface()			{ return true; }
 	static FORCEINLINE bool SupportsFloatReadSurface()					{ return true; }
-	static FORCEINLINE bool SupportsMultipleRenderTargets()				{ return true; }
 	static FORCEINLINE bool SupportsWideMRT()							{ return true; }
 	static FORCEINLINE bool SupportsMultisampledTextures()				{ return true; }
 	static FORCEINLINE bool SupportsPolygonMode()						{ return true; }

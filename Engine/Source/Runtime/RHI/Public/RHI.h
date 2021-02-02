@@ -351,9 +351,6 @@ extern RHI_API bool GSupportsMobileMultiView;
 /** true if the RHI supports image external */
 extern RHI_API bool GSupportsImageExternal;
 
-/** true if the RHI supports MRT */
-extern RHI_API TRHIGlobal<bool> GSupportsMultipleRenderTargets;
-
 /** true if the RHI supports 256bit MRT */
 extern RHI_API bool GSupportsWideMRT;
 

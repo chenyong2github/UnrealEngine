@@ -186,7 +186,6 @@ struct FOpenGLES : public FOpenGLBase
 	static bool SupportsDisjointTimeQueries();
 	static FORCEINLINE bool SupportsDepthStencilRead() { return false; }
 	static FORCEINLINE bool SupportsFloatReadSurface() { return SupportsColorBufferHalfFloat(); }
-	static FORCEINLINE bool SupportsMultipleRenderTargets() { return true; }
 	static FORCEINLINE bool SupportsWideMRT() { return true; }
 	static FORCEINLINE bool SupportsMultisampledTextures() { return false; }
 	static FORCEINLINE bool SupportsPolygonMode() { return false; }
@@ -632,7 +631,7 @@ struct FOpenGLES : public FOpenGLBase
 				Attachment == GL_DEPTH_ATTACHMENT || 
 				Attachment == GL_STENCIL_ATTACHMENT ||
 				Attachment == GL_DEPTH_STENCIL_ATTACHMENT ||
-				(SupportsMultipleRenderTargets() && Attachment >= GL_COLOR_ATTACHMENT0 && Attachment <= GL_COLOR_ATTACHMENT7));
+				(Attachment >= GL_COLOR_ATTACHMENT0 && Attachment <= GL_COLOR_ATTACHMENT7));
 
 		glFramebufferTexture2D(Target, Attachment, TexTarget, Texture, Level);
 		VERIFY_GL(FramebufferTexture_2D);

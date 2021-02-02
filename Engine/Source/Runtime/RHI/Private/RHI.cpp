@@ -816,7 +816,6 @@ bool GSupportsImageExternal = false;
 bool GSupportsResourceView = true;
 bool GRHISupportsDrawIndirect = true;
 bool GRHISupportsMultithreading = false;
-TRHIGlobal<bool> GSupportsMultipleRenderTargets(true);
 bool GSupportsWideMRT = true;
 float GMinClipZ = 0.0f;
 float GProjectionSignY = 1.0f;
