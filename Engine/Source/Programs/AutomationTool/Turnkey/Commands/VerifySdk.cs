@@ -215,7 +215,8 @@ namespace Turnkey.Commands
 							DeviceState |= SdkUtils.LocalAvailability.Device_CannotConnect;
 						}
 
-						TurnkeyUtils.Report("{0}@{1}: (Status={2}, Installed={3}, MinAllowed={4}, MaxAllowed={5}, Flags=\"{6}\")", Platform, Device.Name, StatusString, Device.SoftwareVersion,
+						// @todo turnkey: if Name has a comma in it, we are in trouble, and maybe a )
+						TurnkeyUtils.Report("{0}@{1}: (Name={2}, Status={3}, Installed={4}, MinAllowed={5}, MaxAllowed={6}, Flags=\"{7}\")", Platform, Device.Id, Device.Name, StatusString, Device.SoftwareVersion,
 							MinSoftwareAllowedVersion, MaxSoftwareAllowedVersion, DeviceState.ToString());
 
 						if (bForceDeviceInstall || !bIsSoftwareValid)

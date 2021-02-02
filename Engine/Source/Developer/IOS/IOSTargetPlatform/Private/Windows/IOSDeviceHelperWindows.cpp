@@ -19,6 +19,67 @@ struct FDeviceNotificationCallbackInformation
 	uint32 msgType;
 };
 
+
+	struct LibIMobileDevice
+	{
+		FString DeviceName;
+		FString DeviceID;
+		FString DeviceType;
+	};
+
+	static TArray<LibIMobileDevice> GetLibIMobileDevices()
+	{
+		FString OutStdOut;
+		FString OutStdErr;
+		FString LibimobileDeviceId = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Extras/ThirdPartyNotUE/libimobiledevice/x64/idevice_id.exe"));
+		int ReturnCode;
+		// get the list of devices UDID
+		FPlatformProcess::ExecProcess(*LibimobileDeviceId, TEXT(""), &ReturnCode, &OutStdOut, &OutStdErr);
+
+		TArray<LibIMobileDevice> ToReturn;
+
+		// separate out each line
+		TArray<FString> CurrentDeviceIds;
+		OutStdOut.ParseIntoArray(CurrentDeviceIds, TEXT("\n"), true);
+		for (int32 Index = 0; Index != CurrentDeviceIds.Num(); ++Index)
+		{
+			if (CurrentDeviceIds[Index].Contains("Network"))
+			{
+				CurrentDeviceIds.RemoveAt(Index);
+				continue;
+			}
+			CurrentDeviceIds[Index].Split(TEXT(" "), &CurrentDeviceIds[Index], nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+		}
+		TArray<FString> DeviceStrings;
+		for (int32 StringIndex = 0; StringIndex < CurrentDeviceIds.Num(); ++StringIndex)
+		{
+
+			const FString& DeviceID = CurrentDeviceIds[StringIndex];
+
+			FString OutStdOutInfo;
+			FString OutStdErrInfo;
+			FString LibimobileDeviceInfo = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Extras/ThirdPartyNotUE/libimobiledevice/x64/ideviceinfo.exe"));
+			int ReturnCodeInfo;
+			FString Arguments = "-u " + DeviceID;
+			// get the list of devices UDID
+			FPlatformProcess::ExecProcess(*LibimobileDeviceInfo, *Arguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo);
+
+			// parse product type and device name
+			FString DeviceName;
+			OutStdOutInfo.Split(TEXT("DeviceName: "), nullptr, &DeviceName, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			DeviceName.Split(TEXT("\r\n"), &DeviceName, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			FString ProductType;
+			OutStdOutInfo.Split(TEXT("ProductType: "), nullptr, &ProductType, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			ProductType.Split(TEXT("\r\n"), &ProductType, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			LibIMobileDevice ToAdd;
+			ToAdd.DeviceID = DeviceID;
+			ToAdd.DeviceName = DeviceName;
+			ToAdd.DeviceType = ProductType;
+			ToReturn.Add(ToAdd);
+		}
+		return ToReturn;
+	}
+
 class FIOSDevice
 {
 public:
@@ -107,16 +168,16 @@ public:
 #if WITH_EDITOR
 				if (!IsRunningCommandlet())
 				{
-					if (NeedSDKCheck)
-					{
-						NeedSDKCheck = false;
-						FProjectStatus ProjectStatus;
-						if (!IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) || (!ProjectStatus.IsTargetPlatformSupported(TEXT("IOS")) && !ProjectStatus.IsTargetPlatformSupported(TEXT("TVOS"))))
-						{
-							Enable(false);
-						}
-					}
-					else
+					//if (NeedSDKCheck)
+					//{
+					//	NeedSDKCheck = false;
+					//	FProjectStatus ProjectStatus;
+					//	if (!IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) || (!ProjectStatus.IsTargetPlatformSupported(TEXT("IOS")) && !ProjectStatus.IsTargetPlatformSupported(TEXT("TVOS"))))
+					//	{
+					//		Enable(false);
+					//	}
+					//}
+					//else
 					{
 						// BHP - Turning off device check to prevent it from interfering with packaging
 						QueryDevices();
@@ -160,13 +221,16 @@ private:
 
 	void QueryDevices()
 	{
-		FString StdOut;
-		// get the list of devices
-		int Response = FIOSTargetDeviceOutput::ExecuteDSCommand("listdevices", &StdOut);
-		if (Response <= 0)
+		FString OutStdOut;
+		FString OutStdErr;
+		FString LibimobileDeviceId = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Extras/ThirdPartyNotUE/libimobiledevice/x64/idevice_id.exe"));
+		int ReturnCode;
+		// get the list of devices UDID
+		FPlatformProcess::ExecProcess(*LibimobileDeviceId, TEXT(""), &ReturnCode, &OutStdOut, &OutStdErr);
+		if (OutStdOut.Len() == 0)
 		{
 			RetryQuery--;
-			if (RetryQuery < 0 || Response < 0)
+			if (RetryQuery < 0)
 			{
 				UE_LOG(LogIOSDeviceHelper, Verbose, TEXT("IOS device listing is disabled for 1 minute (too many failed attempts)!"));
 				Enable(false);
@@ -174,53 +238,27 @@ private:
 			return;
 		}
 		RetryQuery = 5;
-		// separate out each line
-		TArray<FString> DeviceStrings;
-		StdOut = StdOut.Replace(TEXT("\r"), TEXT("\n"));
-		StdOut.ParseIntoArray(DeviceStrings, TEXT("\n"), true);
+	
+		TArray<LibIMobileDevice> ParsedDevices = GetLibIMobileDevices();
 
-		TArray<FString> CurrentDeviceIds;
-		for (int32 StringIndex = 0; StringIndex < DeviceStrings.Num(); ++StringIndex)
+		for (int32 Index = 0; Index < ParsedDevices.Num(); ++Index)
 		{
-			const FString& DeviceString = DeviceStrings[StringIndex];
-
-			if(!DeviceString.StartsWith("[DD] FOUND: "))
-			{
-				continue;
-			}
-
-			// grab the device serial number
-			int32 typeIndex = DeviceString.Find(TEXT("TYPE: "));
-			int32 idIndex = DeviceString.Find(TEXT("ID: "));
-			int32 nameIndex = DeviceString.Find(TEXT("NAME: "));
-			if (typeIndex < 0 || idIndex < 0 || nameIndex < 0)
-			{
-				continue;
-			}
-
-			FString SerialNumber = DeviceString.Mid(idIndex + 4, nameIndex - 1 - (idIndex + 4));
-			CurrentDeviceIds.Add(SerialNumber);
-
 			// move on to next device if this one is already a known device
-			if (ConnectedDeviceIds.Find(SerialNumber) != INDEX_NONE)
+			if (ConnectedDeviceIds.Find(ParsedDevices[Index].DeviceID) != INDEX_NONE)
 			{
-				ConnectedDeviceIds.Remove(SerialNumber);
+				ConnectedDeviceIds.Remove(ParsedDevices[Index].DeviceID);
 				continue;
 			}
-
-			// parse product type and device name
-			FString ProductType = DeviceString.Mid(typeIndex + 6, idIndex - 1 - (typeIndex + 6));
-			FString DeviceName = DeviceString.Mid(nameIndex + 6, DeviceString.Len() - (nameIndex + 6));
 
 			// create an FIOSDevice
 			FDeviceNotificationCallbackInformation CallbackInfo;
-			CallbackInfo.DeviceName = DeviceName;
-			CallbackInfo.UDID = SerialNumber;
-			CallbackInfo.ProductType = ProductType;
+			CallbackInfo.DeviceName = ParsedDevices[Index].DeviceName;
+			CallbackInfo.UDID = ParsedDevices[Index].DeviceID;
+			CallbackInfo.ProductType = ParsedDevices[Index].DeviceType;
 			CallbackInfo.msgType = 1;
 			DeviceNotification.Broadcast(&CallbackInfo);
 		}
-
+		
 		// remove all devices no longer found
 		for (int32 DeviceIndex = 0; DeviceIndex < ConnectedDeviceIds.Num(); ++DeviceIndex)
 		{
@@ -229,7 +267,11 @@ private:
 			CallbackInfo.msgType = 2;
 			DeviceNotification.Broadcast(&CallbackInfo);
 		}
-		ConnectedDeviceIds = CurrentDeviceIds;
+		ConnectedDeviceIds.Empty();
+		for (int32 Index = 0; Index < ParsedDevices.Num(); ++Index)
+		{
+			ConnectedDeviceIds.Add(ParsedDevices[Index].DeviceID);
+		}
 	}
 
 	bool Stopping;
@@ -264,18 +306,6 @@ bool FIOSDeviceHelper::MessageTickDelegate(float DeltaTime)
 
 void FIOSDeviceHelper::Initialize(bool bIsTVOS)
 {
-	// Create a dummy device to hand over
-	const FString DummyDeviceName = FString::Printf(TEXT("All_%s_On_%s"), bIsTVOS ? TEXT("tvOS") : TEXT("iOS"), FPlatformProcess::ComputerName());
-	
-	FIOSLaunchDaemonPong Event;
-	Event.DeviceID = FString::Printf(TEXT("%s@%s"), bIsTVOS ? TEXT("TVOS") : TEXT("IOS"), *DummyDeviceName);
-	Event.bCanReboot = false;
-	Event.bCanPowerOn = false;
-	Event.bCanPowerOff = false;
-	Event.DeviceName = DummyDeviceName;
-	Event.DeviceType = bIsTVOS ? TEXT("AppleTV") : TEXT("");
-	FIOSDeviceHelper::OnDeviceConnected().Broadcast(Event);
-
 	if(!bIsTVOS)
 	{
 		// add the message pump

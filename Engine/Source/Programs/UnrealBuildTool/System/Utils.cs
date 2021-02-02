@@ -445,6 +445,7 @@ namespace UnrealBuildTool
 			StartInfo.RedirectStandardOutput = true;
 			StartInfo.RedirectStandardError = true;
 			StartInfo.CreateNoWindow = true;
+			StartInfo.StandardOutputEncoding = Encoding.UTF8;
 
 			string FullOutput = "";
 			string ErrorOutput = "";

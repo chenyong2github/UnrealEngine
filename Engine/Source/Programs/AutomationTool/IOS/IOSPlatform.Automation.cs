@@ -501,31 +501,69 @@ public class IOSPlatform : Platform
 
 	public override DeviceInfo[] GetDevices()
 	{
-		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
-		{
-			return base.GetDevices();
-		}
-
-		string DeviceType = TargetPlatformType == UnrealTargetPlatform.TVOS ? "tvOS" : "iOS";
-
-		// print out each connected device's udid, os version, and name (which might have spaces)
-		string Params = "-e 'require \"fastlane\"; FastlaneCore::DeviceManager.connected_devices(\"" + DeviceType + "\").each { |x| puts \"#{x.udid} #{x.os_type} #{x.os_version} #{x.name}\" }'";
-		string StdOut = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("ruby", Params);
-
 		List<DeviceInfo> Devices = new List<DeviceInfo>();
-		foreach (string Line in StdOut.Split("\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries))
+
+		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Mac)
 		{
-			string[] Tokens = Line.Split(" ".ToCharArray());
+			string DeviceType = TargetPlatformType == UnrealTargetPlatform.TVOS ? "tvOS" : "iOS";
 
-			DeviceInfo Device = new DeviceInfo(TargetPlatformType);
-			Device.Id = Tokens[0];
-			Device.Type = Tokens[1];
-			Device.SoftwareVersion = Tokens[2];
-			Device.Name = string.Join(" ", Tokens.Skip(3));
+			// print out each connected device's udid, os version, and name (which might have spaces)
+			string Params = "-e 'require \"fastlane\"; FastlaneCore::DeviceManager.connected_devices(\"" + DeviceType + "\").each { |x| puts \"#{x.udid} #{x.os_type} #{x.os_version} #{x.name}\" }'";
+			string StdOut = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("ruby", Params);
 
-			Devices.Add(Device);
+			foreach (string Line in StdOut.Split("\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries))
+			{
+				string[] Tokens = Line.Split(" ".ToCharArray());
+
+				DeviceInfo Device = new DeviceInfo(TargetPlatformType);
+				Device.Id = Tokens[0];
+				Device.Type = Tokens[1];
+				Device.SoftwareVersion = Tokens[2];
+				Device.Name = string.Join(" ", Tokens.Skip(3));
+
+				Devices.Add(Device);
+			}
 		}
+		else if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
+		{
+			string UtilPath = Path.Combine(CommandUtils.EngineDirectory.FullName, "Extras/ThirdPartyNotUE/libimobiledevice/x64/ideviceinfo");
+			string Output = Utils.RunLocalProcessAndReturnStdOut(UtilPath, "");
 
+			DeviceInfo CurrentDevice = null;
+			foreach (string Line in Output.Split("\r\n".ToCharArray()))
+			{
+				if (Line.StartsWith("ActivationState:"))
+				{
+					CurrentDevice = new DeviceInfo(TargetPlatformType);
+					Devices.Add(CurrentDevice);
+				}
+				else if (Line.StartsWith("DeviceName:"))
+				{
+					CurrentDevice.Name = Line.Split(": ").Last();
+				}
+				// check we are returning the proper device for this class
+				else if (Line.StartsWith("DeviceClass:"))
+				{
+					bool bIsDeviceTVOS = Line.Split(": ").Last().ToLower() == "tvos";
+					if (bIsDeviceTVOS != (TargetPlatformType == UnrealTargetPlatform.TVOS))
+					{
+						Devices.Remove(CurrentDevice);
+					}
+				}
+				else if (Line.StartsWith("UniqueDeviceID: "))
+				{
+					CurrentDevice.Id = Line.Split(": ").Last();
+				}
+				else if (Line.StartsWith("ProductType: "))
+				{
+					CurrentDevice.Type = Line.Split(": ").Last();
+				}
+				else if (Line.StartsWith("ProductVersion: "))
+				{
+					CurrentDevice.SoftwareVersion = Line.Split(": ").Last();
+				}
+			}
+		}
 		return Devices.ToArray();
 	}
 
