@@ -71,8 +71,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = MaterialPreview)
 	ESetMeshMaterialMode MaterialMode = ESetMeshMaterialMode::KeepOriginal;
 
-	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0", EditCondition = "MaterialMode == ESetMeshMaterialMode::Checkerboard"))
+	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0", EditConditionHides, EditCondition = "MaterialMode == ESetMeshMaterialMode::Checkerboard"))
 	float CheckerDensity = 20.0f;
+
+	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (DisplayName = "Show UV Channel", EditConditionHides, EditCondition = "MaterialMode == ESetMeshMaterialMode::Checkerboard"))
+	int UVChannel = 0;
 
 	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (EditCondition = "MaterialMode == ESetMeshMaterialMode::Override"))
 	UMaterialInterface* OverrideMaterial = nullptr;

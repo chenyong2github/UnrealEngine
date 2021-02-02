@@ -32,6 +32,7 @@ void UExistingMeshMaterialProperties::Setup()
 		if (CheckerMaterial != nullptr)
 		{
 			CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
+			CheckerMaterial->SetScalarParameterValue("UVChannel", (float)UVChannel);
 		}
 	}
 }
@@ -41,6 +42,7 @@ void UExistingMeshMaterialProperties::UpdateMaterials()
 	if (CheckerMaterial != nullptr)
 	{
 		CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
+		CheckerMaterial->SetScalarParameterValue("UVChannel", (float)UVChannel);
 	}
 }
 

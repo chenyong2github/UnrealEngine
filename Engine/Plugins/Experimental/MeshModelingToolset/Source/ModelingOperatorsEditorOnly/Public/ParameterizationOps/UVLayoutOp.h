@@ -25,6 +25,7 @@ public:
 
 	EUVLayoutOpLayoutModes UVLayoutMode = EUVLayoutOpLayoutModes::RepackToUnitRect;
 
+	int UVLayerIndex = 0;
 	int TextureResolution = 128;
 	bool bAllowFlips = false;
 	bool bAlwaysSplitBowties = true;

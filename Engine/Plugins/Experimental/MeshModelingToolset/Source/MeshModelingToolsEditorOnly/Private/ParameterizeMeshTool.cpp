@@ -89,6 +89,11 @@ void UParameterizeMeshTool::Setup()
 
 	Preview->PreviewMesh->InitializeMesh(ComponentTarget->GetMesh());
 
+	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
+	{
+		MaterialSettings->UpdateMaterials();
+	});
+
 	// Initialize the preview mesh with a copy of the source mesh.
 	bool bHasGroups = false;
 	{
@@ -114,11 +119,22 @@ void UParameterizeMeshTool::Setup()
 	}
 
 	// initialize our properties
+
+	UVChannelProperties = NewObject<UMeshUVChannelProperties>(this);
+	UVChannelProperties->RestoreProperties(this);
+	UVChannelProperties->Initialize(ComponentTarget->GetMesh(), false);
+	UVChannelProperties->ValidateSelection(true);
+	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue) 
+	{
+		MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+	});
+
+	AddToolPropertySource(UVChannelProperties);
+
 	Settings = NewObject<UParameterizeMeshToolProperties>(this);
 	Settings->RestoreProperties(this);
 	Settings->bIsGlobalMode = bDoAutomaticGlobalUnwrap;
 	AddToolPropertySource(Settings);
-
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
 	MaterialSettings->RestoreProperties(this);
@@ -148,23 +164,28 @@ void UParameterizeMeshTool::Setup()
 
 void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (PropertySet == MaterialSettings)
-	{
-		MaterialSettings->UpdateMaterials();
-		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
-	}
-	if (PropertySet == Settings)
+	bool bForceMaterialUpdate = false;
+	if (PropertySet == Settings || PropertySet == UVChannelProperties)
 	{
 		// One of the UV generation properties must have changed.  Dirty the result to force a recompute
 		Preview->InvalidateResult();
+		bForceMaterialUpdate = true;
+	}
+
+	if (PropertySet == MaterialSettings || bForceMaterialUpdate)
+	{
+		MaterialSettings->UpdateMaterials();
+		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	}
 }
 
 
 void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	UVChannelProperties->SaveProperties(this);
 	Settings->SaveProperties(this);
 	MaterialSettings->SaveProperties(this);
+
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -202,6 +223,7 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 	ParameterizeMeshOp->Stretch   = Settings->ChartStretch;
 	ParameterizeMeshOp->NumCharts = 0;
 	ParameterizeMeshOp->InputMesh = InputMesh;
+	ParameterizeMeshOp->UVLayer = UVChannelProperties->GetSelectedChannelIndex(true);
 	
 	if (bDoAutomaticGlobalUnwrap)
 	{

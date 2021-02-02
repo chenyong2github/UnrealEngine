@@ -401,13 +401,33 @@ public:
 		FMeshRenderBufferSet* RenderBuffers,
 		const FDynamicMesh3* Mesh,
 		int NumTriangles, TriangleEnumerable Enumerable,
-		FDynamicMeshUVOverlay* UVOverlay,
-		FDynamicMeshNormalOverlay* NormalOverlay,
+		const FDynamicMeshUVOverlay* UVOverlay,
+		const FDynamicMeshNormalOverlay* NormalOverlay,
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr,
 		bool bTrackTriangles = false)
 	{
-		//SCOPE_CYCLE_COUNTER(STAT_SculptToolOctree_InitializeBufferFromOverlay);
+		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
+		UVOverlays.Add(UVOverlay);
+		InitializeBuffersFromOverlays(RenderBuffers, Mesh, NumTriangles, Enumerable,
+			UVOverlays, NormalOverlay, TangentsFunc, bTrackTriangles);
+	}
 
+
+
+	/**
+	 * Initialize rendering buffers from given attribute overlays.
+	 * Creates three vertices per triangle, IE no shared vertices in buffers.
+	 */
+	template<typename TriangleEnumerable>
+	void InitializeBuffersFromOverlays(
+		FMeshRenderBufferSet* RenderBuffers,
+		const FDynamicMesh3* Mesh,
+		int NumTriangles, TriangleEnumerable Enumerable,
+		const TArray<const FDynamicMeshUVOverlay*>& UVOverlays,
+		const FDynamicMeshNormalOverlay* NormalOverlay,
+		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr,
+		bool bTrackTriangles = false)
+	{
 		RenderBuffers->TriangleCount = NumTriangles;
 		if (NumTriangles == 0)
 		{
@@ -417,7 +437,9 @@ public:
 		bool bHaveColors = Mesh->HasVertexColors() && (bIgnoreVertexColors == false);
 
 		int NumVertices = NumTriangles * 3;
-		int NumTexCoords = 1;		// no! zero!
+		int NumTexCoords = UVOverlays.Num();
+		TArray<FIndex3i, TFixedAllocator<MAX_STATIC_TEXCOORDS>> UVTriangles;
+		UVTriangles.SetNum(NumTexCoords);
 
 		{
 			RenderBuffers->PositionVertexBuffer.Init(NumVertices);
@@ -438,7 +460,10 @@ public:
 		for (int TriangleID : Enumerable)
 		{
 			FIndex3i Tri = Mesh->GetTriangle(TriangleID);
-			FIndex3i TriUV = (UVOverlay != nullptr) ? UVOverlay->GetTriangle(TriangleID) : FIndex3i::Zero();
+			for (int32 k = 0; k < NumTexCoords; ++k)
+			{
+				UVTriangles[k] = (UVOverlays[k] != nullptr) ? UVOverlays[k]->GetTriangle(TriangleID) : FIndex3i::Invalid();
+			}
 			FIndex3i TriNormal = (NormalOverlay != nullptr) ? NormalOverlay->GetTriangle(TriangleID) : FIndex3i::Zero();
 
 			FColor TriColor = ConstantVertexColor;
@@ -466,9 +491,12 @@ public:
 				}
 				RenderBuffers->StaticMeshVertexBuffer.SetVertexTangents(VertIdx, (FVector)TangentX, (FVector)TangentY, (FVector)Normal);
 
-				FVector2f UV = (UVOverlay != nullptr && TriUV[j] != FDynamicMesh3::InvalidID) ?
-					UVOverlay->GetElement(TriUV[j]) : FVector2f::Zero();
-				RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, 0, (FVector2D)UV);
+				for (int32 k = 0; k < NumTexCoords; ++k)
+				{
+					FVector2f UV = (UVTriangles[k][j] != FDynamicMesh3::InvalidID) ?
+						UVOverlays[k]->GetElement(UVTriangles[k][j]) : FVector2f::Zero();
+					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, k, (FVector2D)UV);
+				}
 
 				RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = (bHaveColors) ?
 					(FColor)Mesh->GetVertexColor(Tri[j]) : TriColor;
@@ -490,6 +518,8 @@ public:
 			UpdateSecondaryTriangleBuffer(RenderBuffers, Mesh, false);
 		}
 	}
+
+
 
 
 	/**

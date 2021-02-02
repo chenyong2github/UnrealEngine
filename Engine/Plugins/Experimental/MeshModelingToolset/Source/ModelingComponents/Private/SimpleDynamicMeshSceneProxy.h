@@ -152,15 +152,20 @@ public:
 	 */
 	void InitializeSingleBufferSet(FMeshRenderBufferSet* RenderBuffers)
 	{
-		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
+		const FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
 		// find suitable overlays
-		FDynamicMeshUVOverlay* UVOverlay = nullptr;
-		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
+		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
+		const FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
 		if (Mesh->HasAttributes())
 		{
-			UVOverlay = Mesh->Attributes()->PrimaryUV();
-			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+			const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+			NormalOverlay = Attributes->PrimaryNormals();
+			UVOverlays.SetNum(Attributes->NumUVLayers());
+			for (int32 k = 0; k < UVOverlays.Num(); ++k)
+			{
+				UVOverlays[k] = Attributes->GetUVLayer(k);
+			}
 		}
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
@@ -175,7 +180,7 @@ public:
 
 		InitializeBuffersFromOverlays(RenderBuffers, Mesh,
 			Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
-			UVOverlay, NormalOverlay, TangentsFunc);
+			UVOverlays, NormalOverlay, TangentsFunc);
 
 		ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyInitializeSingle)(
 			[RenderBuffers](FRHICommandListImmediate& RHICmdList)
@@ -191,13 +196,21 @@ public:
 	 */
 	void InitializeByMaterial(TArray<FMeshRenderBufferSet*>& BufferSets)
 	{
-		FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
+		const FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 		check(Mesh->HasAttributes() && Mesh->Attributes()->HasMaterialID());
 
+		const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+
 		// find suitable overlays
-		FDynamicMeshUVOverlay* UVOverlay = Mesh->Attributes()->PrimaryUV();
-		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
-		FDynamicMeshMaterialAttribute* MaterialID = Mesh->Attributes()->GetMaterialID();
+		const FDynamicMeshMaterialAttribute* MaterialID = Attributes->GetMaterialID();
+		const FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+
+		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
+		UVOverlays.SetNum(Attributes->NumUVLayers());
+		for (int32 k = 0; k < UVOverlays.Num(); ++k)
+		{
+			UVOverlays[k] = Attributes->GetUVLayer(k);
+		}
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
 		const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
@@ -257,7 +270,7 @@ public:
 
 				InitializeBuffersFromOverlays(RenderBuffers, Mesh,
 					Triangles.Num(), Triangles,
-					UVOverlay, NormalOverlay, TangentsFunc);
+					UVOverlays, NormalOverlay, TangentsFunc);
 
 				RenderBuffers->Triangles = Triangles;
 

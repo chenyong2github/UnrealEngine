@@ -34,8 +34,8 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 
-	int UVLayerInput = 0, UVLayerOutput = 0;
-	FDynamicMeshUVOverlay* UVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerInput);
+	int UVLayerInput = UVLayerIndex, UVLayerOutput = UVLayerIndex;
+	FDynamicMeshUVOverlay* UseUVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerInput);
 	
 
 	bool bWillRepackIslands = (UVLayoutMode != EUVLayoutOpLayoutModes::TransformOnly);
@@ -43,7 +43,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 	// split bowties so that we can process islands independently
 	if (bWillRepackIslands || bAlwaysSplitBowties)
 	{
-		UVLayer->SplitBowties();
+		UseUVLayer->SplitBowties();
 	}
 
 	if (Progress && Progress->Cancelled())
@@ -51,7 +51,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
-	FDynamicMeshUVPacker Packer(UVLayer);
+	FDynamicMeshUVPacker Packer(UseUVLayer);
 	Packer.TextureResolution = this->TextureResolution;
 	Packer.GutterSize = this->GutterSize;
 	Packer.bAllowFlips = this->bAllowFlips;
@@ -80,11 +80,11 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 
 	if (UVScaleFactor != 1.0 || UVTranslation != FVector2f::Zero() )
 	{
-		for (int ElementID : UVLayer->ElementIndicesItr())
+		for (int ElementID : UseUVLayer->ElementIndicesItr())
 		{
-			FVector2f UV = UVLayer->GetElement(ElementID);
+			FVector2f UV = UseUVLayer->GetElement(ElementID);
 			UV = (UV * UVScaleFactor) + UVTranslation;
-			UVLayer->SetElement(ElementID, UV);
+			UseUVLayer->SetElement(ElementID, UV);
 		}
 	}
 

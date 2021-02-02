@@ -9,6 +9,7 @@
 #include "DynamicMesh3.h"
 #include "MeshOpPreviewHelpers.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "Properties/MeshUVChannelProperties.h"
 
 #include "ParameterizeMeshTool.generated.h"
 
@@ -164,6 +165,9 @@ public:
 	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 protected:
+	UPROPERTY()
+	UMeshUVChannelProperties* UVChannelProperties = nullptr;
+
 	UPROPERTY()
 	UParameterizeMeshToolProperties* Settings = nullptr;
 

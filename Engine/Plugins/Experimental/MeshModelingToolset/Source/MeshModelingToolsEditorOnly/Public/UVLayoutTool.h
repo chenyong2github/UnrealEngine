@@ -11,6 +11,7 @@
 #include "DynamicMesh3.h"
 #include "BaseTools/SingleClickTool.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "Properties/MeshUVChannelProperties.h"
 #include "Drawing/UVLayoutPreview.h"
 
 #include "UVLayoutTool.generated.h"
@@ -136,10 +137,18 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
+
+public:
+	int32 GetSelectedUVChannel() const;
+
+
 protected:
 
 	UPROPERTY()
-	UUVLayoutToolProperties* BasicProperties;
+	UMeshUVChannelProperties* UVChannelProperties = nullptr;
+
+	UPROPERTY()
+	UUVLayoutToolProperties* BasicProperties = nullptr;
 
 	UPROPERTY()
 	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
@@ -150,8 +159,8 @@ protected:
 protected:
 	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
 
-	UWorld* TargetWorld;
-	IAssetGenerationAPI* AssetAPI;
+	UWorld* TargetWorld = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	FViewCameraState CameraState;
 

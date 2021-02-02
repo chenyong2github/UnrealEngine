@@ -86,9 +86,22 @@ void UUVLayoutTool::Setup()
 		ComponentTarget->SetOwnerVisibility(false);
 	}
 
-	BasicProperties = NewObject<UUVLayoutToolProperties>(this, TEXT("UV Projection Settings"));
-	BasicProperties->RestoreProperties(this);
+	// if we only have one object, add ability to set UV channel
+	if (ComponentTargets.Num() == 1)
+	{
+		UVChannelProperties = NewObject<UMeshUVChannelProperties>(this);
+		UVChannelProperties->RestoreProperties(this);
+		UVChannelProperties->Initialize(ComponentTargets[0]->GetMesh(), false);
+		UVChannelProperties->ValidateSelection(true);
+		AddToolPropertySource(UVChannelProperties);
+		UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue)
+		{
+			MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+		});
+	}
 
+	BasicProperties = NewObject<UUVLayoutToolProperties>(this);
+	BasicProperties->RestoreProperties(this);
 	AddToolPropertySource(BasicProperties);
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
@@ -115,7 +128,7 @@ void UUVLayoutTool::Setup()
 
 	UpdateVisualization();
 
-	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVLayoutTool", "Transform/Rotate/Scale existing UV Islands/Shells/Charts using various strategies"),
+	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVLayoutTool", "Transform/Rotate/Scale existing UV Charts using various strategies"),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -220,6 +233,8 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 		break;
 	}
 
+
+	Op->UVLayerIndex = Tool->GetSelectedUVChannel();
 	//Op->bSeparateUVIslands = Tool->BasicProperties->bSeparateUVIslands;
 	Op->TextureResolution = Tool->BasicProperties->TextureResolution;
 	Op->bAllowFlips = Tool->BasicProperties->bAllowFlips;
@@ -230,6 +245,11 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 	return Op;
 }
 
+
+int32 UUVLayoutTool::GetSelectedUVChannel() const
+{
+	return UVChannelProperties->GetSelectedChannelIndex(true);
+}
 
 
 void UUVLayoutTool::Render(IToolsContextRenderAPI* RenderAPI)
@@ -262,7 +282,7 @@ void UUVLayoutTool::OnTick(float DeltaTime)
 
 void UUVLayoutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (PropertySet == BasicProperties)
+	if (PropertySet == BasicProperties || PropertySet == UVChannelProperties)
 	{
 		UpdateNumPreviews();
 		for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
@@ -287,7 +307,7 @@ void UUVLayoutTool::OnPreviewMeshUpdated(UMeshOpPreviewWithBackgroundCompute* Co
 		{
 			return;
 		}
-		UVLayoutView->UpdateUVMesh(&ResultMesh);
+		UVLayoutView->UpdateUVMesh(&ResultMesh, GetSelectedUVChannel());
 	}
 
 }
