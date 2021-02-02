@@ -13,20 +13,15 @@
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "Widgets/Text/STextBlock.h"
 
-class FCategoryPropertyNode;
-class FItemPropertyNode;
-
 class SPropertyEditorTitle : public SCompoundWidget
 {
 
 public:
 
 	SLATE_BEGIN_ARGS( SPropertyEditorTitle )
-		: _StaticDisplayName()
-		, _PropertyFont( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
+		: _PropertyFont( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
 		, _CategoryFont( FEditorStyle::GetFontStyle( PropertyEditorConstants::CategoryFontStyle ) )
 		{}
-		SLATE_ARGUMENT( FText, StaticDisplayName )
 		SLATE_ATTRIBUTE( FSlateFontInfo, PropertyFont )
 		SLATE_ATTRIBUTE( FSlateFontInfo, CategoryFont )
 		SLATE_EVENT( FOnClicked, OnDoubleClicked )
@@ -38,41 +33,78 @@ public:
 		OnDoubleClicked = InArgs._OnDoubleClicked;
 
 		const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-		FCategoryPropertyNode* CategoryNode = PropertyNode->AsCategoryNode();
-		FItemPropertyNode* ItemPropertyNode = PropertyNode->AsItemPropertyNode();
+		const bool bIsCategory = PropertyNode->AsCategoryNode() != nullptr;
+		const TAttribute<FSlateFontInfo> NameFont = bIsCategory ? InArgs._CategoryFont : InArgs._PropertyFont;
 
-		TSharedPtr<SWidget> NameWidget;
-		const bool bHasStaticName = !InArgs._StaticDisplayName.IsEmpty();
-		if ( CategoryNode != NULL )
+		TSharedPtr<STextBlock> NameTextBlock;
+
+		// If our property has title support we want to fetch the value every tick, otherwise we can just use a static value
+		static const FName NAME_TitleProperty = FName(TEXT("TitleProperty"));
+		const bool bHasTitleProperty = InPropertyEditor->GetProperty() && InPropertyEditor->GetProperty()->HasMetaData(NAME_TitleProperty);
+		if (bHasTitleProperty)
 		{
-			NameWidget =
+			NameTextBlock =
 				SNew( STextBlock )
-				.Text( bHasStaticName ? InArgs._StaticDisplayName : InPropertyEditor->GetDisplayName() )
-				.Font( InArgs._CategoryFont );
-		}
-		else if ( ItemPropertyNode != NULL )
-		{
-			if( bHasStaticName )
-			{
-				NameWidget =
-					SNew( STextBlock )
-					.Text( InArgs._StaticDisplayName )
-					.Font( InArgs._PropertyFont );
-			}		
-			else
-			{
-				NameWidget =
-					SNew( STextBlock )
-					.Text( InPropertyEditor, &FPropertyEditor::GetDisplayName )
-					.Font( InArgs._PropertyFont );
-			}
-		}
+				.Text( InPropertyEditor, &FPropertyEditor::GetDisplayName )
+				.Font( NameFont );
+		}		
 		else
 		{
-			NameWidget = 
+			NameTextBlock =
 				SNew( STextBlock )
-				.Text( bHasStaticName ? InArgs._StaticDisplayName : InPropertyEditor->GetDisplayName() )
-				.Font( InArgs._PropertyFont );
+				.Text( InPropertyEditor->GetDisplayName() )
+				.Font( NameFont );
+		}
+
+		TSharedPtr<SWidget> NameWidget = NameTextBlock;
+		const bool bInArray = PropertyNode->GetProperty() != nullptr && PropertyNode->GetArrayIndex() != INDEX_NONE;
+		if (bInArray && !bHasTitleProperty)
+		{
+			const bool bNameIsIndex = NameTextBlock->GetText().EqualTo(FText::AsNumber(PropertyNode->GetArrayIndex()));
+			if (bNameIsIndex)
+			{
+				NameWidget = SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(0, 0, 3, 0)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("PropertyEditor", "Index", "Index"))
+					.Font(NameFont)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(0, 0, 3, 0)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("PropertyEditor", "OpenBracket", "["))
+					.Font(NameFont)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(0, 0, 3, 0)
+				.AutoWidth()
+				[
+					NameTextBlock.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("PropertyEditor", "CloseBracket", "]"))
+					.Font(NameFont)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				];
+			}
 		}
 
 		ChildSlot
@@ -80,7 +112,6 @@ public:
 			NameWidget.ToSharedRef()
 		];
 	}
-
 
 private:
 
