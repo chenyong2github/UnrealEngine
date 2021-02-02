@@ -693,7 +693,7 @@ int32 ReportCrashForMonitor(
 	}
 
 #if !UE_EDITOR
-	if (BuildSettings::IsLicenseeVersion())
+	if (!FEngineBuildSettings::IsInternalBuild())
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
@@ -860,7 +860,7 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 	}
 
 #if !UE_EDITOR
-	if (BuildSettings::IsLicenseeVersion())
+	if (!FEngineBuildSettings::IsInternalBuild())
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
