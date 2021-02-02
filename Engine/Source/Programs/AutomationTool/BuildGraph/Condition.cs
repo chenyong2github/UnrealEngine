@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -196,6 +196,56 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Evaluates arguments from a token string. Arguments are all comma-separated tokens until a closing ) is encountered
+		/// </summary>
+		/// <param name="Tokens">List of tokens in the expression</param>
+		/// <param name="Idx">Current position in the token stream. Will be incremented as tokens are consumed.</param>
+		/// <returns>The result of evaluating the expression</returns>
+		static IEnumerable<string> EvaluateArguments(List<string> Tokens, ref int Idx)
+		{
+			List<string> Arguments = new List<string>();
+
+			// skip opening bracket
+			if (Tokens[Idx++] != "(")
+			{
+				throw new ConditionException("Expected '('");
+			}
+
+			bool DidCloseBracket = false;
+
+			while (Idx < Tokens.Count)
+			{
+				string NextToken = Tokens.ElementAt(Idx++);
+
+				if (NextToken == EndToken)
+				{
+					// ran out of items
+					break;
+				}
+				else if (NextToken == ")")
+				{
+					DidCloseBracket = true;
+					break;
+				}
+				else if (NextToken != ",")
+				{
+					if (NextToken.First() == '\'' && NextToken.Last() == '\'')
+					{
+						NextToken = NextToken.Substring(1, NextToken.Length - 2);
+					}
+					Arguments.Add(NextToken);
+				}
+			}
+
+			if (!DidCloseBracket)
+			{
+				throw new ConditionException("Expected ')'");
+			}
+
+			return Arguments;
+		}
+
+		/// <summary>
 		/// Evaluates a "scalar" production.
 		/// </summary>
 		/// <param name="Tokens">List of tokens in the expression</param>
@@ -236,6 +286,32 @@ namespace AutomationTool
 				string Argument = EvaluateScalar(Tokens, ref Idx);
 				Result = (Argument.Length > 0 && (Argument[Argument.Length - 1] == Path.DirectorySeparatorChar || Argument[Argument.Length - 1] == Path.AltDirectorySeparatorChar))? "true" : "false";
 			}
+			else if (String.Compare(Tokens[Idx], "Contains", true) == 0 && Tokens[Idx + 1] == "(")
+			{
+				// Check a string contains a substring. If a separator is supplied the string is first split
+				Idx++;
+				IEnumerable<string> Arguments = EvaluateArguments(Tokens, ref Idx);
+
+				if (Arguments.Count() != 2)
+				{
+					throw new ConditionException("Invalid argument count for 'Contains'. Expected (Haystack,Needle)");
+				}
+
+				Result = Contains(Arguments.ElementAt(0), Arguments.ElementAt(1)) ? "true" : "false";
+			}
+			else if (String.Compare(Tokens[Idx], "ContainsItem", true) == 0 && Tokens[Idx + 1] == "(")
+			{
+				// Check a string contains a substring. If a separator is supplied the string is first split
+				Idx++;
+				IEnumerable<string> Arguments = EvaluateArguments(Tokens, ref Idx);
+
+				if (Arguments.Count() != 3)
+				{
+					throw new ConditionException("Invalid argument count for 'ContainsItem'. Expected (Haystack,Needle,HaystackSeparator)");
+				}
+
+				Result = ContainsItem(Arguments.ElementAt(0), Arguments.ElementAt(1), Arguments.ElementAt(2)) ? "true" : "false";
+			}
 			else
 			{
 				// Raw scalar. Remove quotes from strings, and allow literals and simple identifiers to pass through directly.
@@ -269,6 +345,44 @@ namespace AutomationTool
 			{
 				string FullPath = Path.Combine(CommandUtils.RootDirectory.FullName, Scalar);
 				return CommandUtils.FileExists(FullPath) || CommandUtils.DirectoryExists(FullPath);
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Checks whether Haystack contains "Needle". 
+		/// </summary>
+		/// <param name="Haystack">The string to search</param>
+		/// <param name="Needle">The string to search for</param>
+		/// <returns>True if the path exists, false otherwise.</returns>
+		static bool Contains(string Haystack, string Needle)
+		{
+			try
+			{
+				return Haystack.IndexOf(Needle, StringComparison.CurrentCultureIgnoreCase) >= 0;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Checks whether HaystackItems contains "Needle". 
+		/// </summary>
+		/// <param name="Haystack">The separated list of items to check</param>
+		/// <param name="Needle">The item to check for</param>
+		/// <param name="HaystackSeparator">The separator used in Haystack</param>
+		/// <returns>True if the path exists, false otherwise.</returns>
+		static bool ContainsItem(string Haystack, string Needle, string HaystackSeparator)
+		{
+			try
+			{
+				IEnumerable<string> HaystackItems = Haystack.Split(new string[] { HaystackSeparator }, StringSplitOptions.RemoveEmptyEntries);
+				return HaystackItems.Any(I => I.ToLower() == Needle.ToLower());
 			}
 			catch
 			{
