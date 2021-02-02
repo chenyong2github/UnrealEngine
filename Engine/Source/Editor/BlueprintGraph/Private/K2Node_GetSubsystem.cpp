@@ -19,7 +19,8 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Subsystems/WorldSubsystem.h"
-
+#include "SourceCodeNavigation.h"
+#include "BlueprintEditorSettings.h"
 
 // ************************************************************************************
 //    UK2Node_GetSubsystem
@@ -713,8 +714,34 @@ FText UK2Node_GetEditorSubsystem::GetTooltipText() const
 	{
 		return FText::FormatNamed(NSLOCTEXT("K2Node", "GetEditorSubsystem_TooltipFormat", "Get {ClassName} an Editor Subsystem"), TEXT("ClassName"), CustomClass->GetDisplayNameText());
 	}
-
+	 
 	return NSLOCTEXT("K2Node", "GetEditorSubsystem_InvalidSubsystemTypeTooltip", "Invalid Subsystem Type");
+}
+
+bool UK2Node_GetSubsystem::CanJumpToDefinition() const
+{
+	return CustomClass != nullptr;
+}
+
+void UK2Node_GetSubsystem::JumpToDefinition() const
+{
+	bool bSucceeded = false;
+	
+	// Attempt to navigate to the header file where the class is defined if the 
+	// blueprint preferences allow for it
+	if (GetDefault<UBlueprintEditorSettings>()->bNavigateToNativeFunctionsFromCallNodes)
+	{
+		if (FSourceCodeNavigation::CanNavigateToClass(CustomClass))
+		{
+			bSucceeded = FSourceCodeNavigation::NavigateToClass(CustomClass);
+		}
+	}
+
+	// Otherwise fall back to the base class which will just bring focus to this node
+	if (!bSucceeded)
+	{
+		Super::JumpToDefinition();
+	}
 }
 
 bool UK2Node_GetEditorSubsystem::IsActionFilteredOut(class FBlueprintActionFilter const& Filter)

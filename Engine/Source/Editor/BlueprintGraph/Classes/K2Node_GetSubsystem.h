@@ -24,7 +24,8 @@ public:
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
-
+	virtual bool CanJumpToDefinition() const override;
+	virtual void JumpToDefinition() const override;
 	virtual FText GetTooltipText() const override;
 	//~End UEdGraphNode interface.
 
