@@ -149,7 +149,10 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 	Opacity = WindowAlpha;
 	if (bRenderInitialized)
 	{
-		[super setAlphaValue:WindowAlpha];
+		MainThreadCall(^{
+			[super setAlphaValue:WindowAlpha];
+		}, UE4ShowEventMode, false);
+
 	}
 }
 
@@ -158,7 +161,9 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 	if (!bRenderInitialized)
 	{
 		bRenderInitialized = true;
-		[super setAlphaValue:Opacity];
+		MainThreadCall(^{
+			[super setAlphaValue:Opacity];
+		}, UE4ShowEventMode, false);
 	}
 }
 

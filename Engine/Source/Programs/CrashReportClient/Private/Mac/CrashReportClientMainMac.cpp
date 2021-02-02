@@ -18,7 +18,7 @@ void CrashReporterCrashHandler(const FGenericCrashContext& GenericContext)
 }
 
 static FString GSavedCommandLine;
-static bool GIsUnattended;
+static bool GIsUnattended = false;
 
 @interface UE4AppDelegate : NSObject <NSApplicationDelegate, NSFileManagerDelegate>
 {
