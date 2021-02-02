@@ -4459,7 +4459,8 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					LightSceneInfo,
 					WorldToLight,
 					View.ViewMatrices,
-					View.ViewRect.Size()
+					View.ViewRect.Size(),
+					&View
 				));
 
 				// TODO: Not clear we need both of these in this path, but keep it consistent for now

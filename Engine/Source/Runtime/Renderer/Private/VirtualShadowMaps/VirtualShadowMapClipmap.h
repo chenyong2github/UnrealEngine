@@ -23,7 +23,8 @@ public:
 		const FLightSceneInfo& InLightSceneInfo,
 		const FMatrix& WorldToLightRotationMatrix,
 		const FViewMatrices& CameraViewMatrices,
-		FIntPoint CameraViewRectSize
+		FIntPoint CameraViewRectSize,
+		const FViewInfo* InDependentView
 	);
 
 	FViewMatrices GetViewMatrices(int32 ClipmapIndex) const;
@@ -58,8 +59,16 @@ public:
 
 	float GetMaxRadius() const { return MaxRadius; }
 
+	const FViewInfo* GetDependentView() const { return DependentView; }
+
 private:
 	const FLightSceneInfo& LightSceneInfo;
+
+	/**
+	 * DependentView is the 'main' or visible geometry view that this view-dependent clipmap was created for. Should only be used to 
+	 * identify the view during shadow projection (note: this should be refactored to be more explicit instead).
+	 */
+	const FViewInfo* DependentView;
 
 	/** Origin of the clipmap in world space
 	* Usually aligns with the camera position from which it was created.

@@ -61,6 +61,7 @@
 #include "SingleLayerWaterRendering.h"
 #include "HairStrands/HairStrandsVisibility.h"
 #include "SystemTextures.h"
+#include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -437,6 +438,28 @@ bool IsStaticLightingAllowed()
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	return CVar->GetValueOnRenderThread() != 0;
 }
+
+
+TSharedPtr<FVirtualShadowMapClipmap> FVisibleLightInfo::FindShadowClipmapForView(const FViewInfo* View) const
+{
+	for (const auto& Clipmap : VirtualShadowMapClipmaps)
+	{
+		if (Clipmap->GetDependentView() == View)
+		{
+			return Clipmap;
+		}
+	}
+	
+	// This has to mirror the if (IStereoRendering::IsAPrimaryView(View)) test in ShadowSetup.cpp, which ensures only one view dependent shadow is set up for a stereo pair.
+	// TODO: this should very much be explicitly linked.
+	if (!IStereoRendering::IsAPrimaryView(*View) && VirtualShadowMapClipmaps.Num() > 0)
+	{
+		return VirtualShadowMapClipmaps[0];
+	}
+
+	return TSharedPtr<FVirtualShadowMapClipmap>();
+}
+
 
 #if !UE_BUILD_SHIPPING
 namespace

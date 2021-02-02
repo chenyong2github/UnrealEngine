@@ -44,8 +44,10 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	const FLightSceneInfo& InLightSceneInfo,
 	const FMatrix& WorldToLightRotationMatrix,
 	const FViewMatrices& CameraViewMatrices,
-	FIntPoint CameraViewRectSize)
-	: LightSceneInfo(InLightSceneInfo)
+	FIntPoint CameraViewRectSize,
+	const FViewInfo* InDependentView)
+	: LightSceneInfo(InLightSceneInfo),
+	  DependentView(InDependentView)
 {
 	check(WorldToLightRotationMatrix.GetOrigin() == FVector(0, 0, 0));	// Should not contain translation or scaling
 

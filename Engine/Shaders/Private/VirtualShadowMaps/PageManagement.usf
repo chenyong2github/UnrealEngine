@@ -62,7 +62,7 @@ float GetDeviceZFromPixel(uint2 PixelPos)
 	float DeviceZ = 0.0f;
 #if LOAD_DEPTH_FROM_NANITE_BUFFER
 	// Load Nanite Depth
-	UlongType VisPixel = VisBuffer64[PixelPos];
+	UlongType VisPixel = VisBuffer64[uint2(View.ViewRectMin.xy) + PixelPos];
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
 	uint TriIndex = 0;

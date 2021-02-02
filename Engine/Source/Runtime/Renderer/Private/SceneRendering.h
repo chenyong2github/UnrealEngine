@@ -191,6 +191,12 @@ public:
 
 	/** FProjectedShadowInfo set up to receive a dense copy of all types of geometry (nanite+trad) to be able to sample from e.g., volumetric effects */
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> CompleteProjectedShadows;
+
+	/**
+	 * Search VirtualShadowMapClipmaps for the one that was set up with the given view. 
+	 * TODO: should VirtualShadowMapClipmap move to FVisibleLightViewInfo?
+	 */
+	TSharedPtr<FVirtualShadowMapClipmap> FindShadowClipmapForView(const FViewInfo* View) const;
 };
 
 // Stores the primitive count of each translucency pass (redundant, could be computed after sorting but this way we touch less memory)

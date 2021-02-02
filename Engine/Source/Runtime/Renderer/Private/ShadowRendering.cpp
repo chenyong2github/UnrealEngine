@@ -1926,8 +1926,6 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 	if (VirtualShadowMaps.Num() > 0 || VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 	{
 		check(!bProjectingForForwardShading);		// Not yet implemented/tested
-		check(Views.Num() == 1);					// TODO: Test multiview
-		
 
 		if (VirtualShadowMapArray.HasAnyShadowData())
 		{
@@ -1968,9 +1966,8 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 						bool bUseTemporal = false;
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
-							check(VisibleLightInfo.VirtualShadowMapClipmaps.Num() == 1);
 							RenderVirtualShadowMapProjectionForDenoising(
-								VisibleLightInfo.VirtualShadowMapClipmaps[0],
+								VisibleLightInfo.FindShadowClipmapForView(&View),
 								GraphBuilder,
 								View,
 								VirtualShadowMapArray,
@@ -2021,9 +2018,8 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 					{
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
-							check(VisibleLightInfo.VirtualShadowMapClipmaps.Num() == 1);
 							RenderVirtualShadowMapProjection(
-								VisibleLightInfo.VirtualShadowMapClipmaps[0],
+								VisibleLightInfo.FindShadowClipmapForView(&View),
 								GraphBuilder,
 								View,
 								VirtualShadowMapArray,
