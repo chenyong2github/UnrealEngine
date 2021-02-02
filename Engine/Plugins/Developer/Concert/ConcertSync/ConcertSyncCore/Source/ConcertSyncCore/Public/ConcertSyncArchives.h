@@ -49,6 +49,7 @@ public:
 	//~ Begin FArchive Interface
 	virtual FArchive& operator<<(UObject*& Obj) override;
 	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override;
+	virtual FArchive& operator<<(FObjectPtr& Obj) override;
 	virtual FArchive& operator<<(FSoftObjectPtr& AssetPtr) override;
 	virtual FArchive& operator<<(FSoftObjectPath& AssetPtr) override;
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
@@ -76,6 +77,7 @@ public:
 	//~ Begin FArchive Interface
 	virtual FArchive& operator<<(UObject*& Obj) override;
 	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override;
+	virtual FArchive& operator<<(FObjectPtr& Obj) override;
 	virtual FArchive& operator<<(FSoftObjectPtr& AssetPtr) override;
 	virtual FArchive& operator<<(FSoftObjectPath& AssetPtr) override;
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;

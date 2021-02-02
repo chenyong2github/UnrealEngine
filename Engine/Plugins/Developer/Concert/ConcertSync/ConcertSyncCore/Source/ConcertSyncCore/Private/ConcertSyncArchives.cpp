@@ -131,6 +131,12 @@ FArchive& FConcertSyncObjectWriter::operator<<(FLazyObjectPtr& LazyObjectPtr)
 	return *this;
 }
 
+FArchive& FConcertSyncObjectWriter::operator<<(FObjectPtr& Obj)
+{
+	UObject* RawObjPtr = Obj.Get();
+	return *this << RawObjPtr;
+}
+
 FArchive& FConcertSyncObjectWriter::operator<<(FSoftObjectPtr& AssetPtr)
 {
 	FSoftObjectPath Obj = AssetPtr.ToSoftObjectPath();
@@ -261,6 +267,14 @@ FArchive& FConcertSyncObjectReader::operator<<(FLazyObjectPtr& LazyObjectPtr)
 	// technically the saved object guid should be the same as the resolved object guid if any.
 	ensure(!ObjectGuid.IsValid() || ObjectGuid == SavedObjectGuid);
 
+	return *this;
+}
+
+FArchive& FConcertSyncObjectReader::operator<<(FObjectPtr& Obj)
+{
+	UObject* RawObj = nullptr;
+	*this << RawObj;
+	Obj = RawObj;
 	return *this;
 }
 
