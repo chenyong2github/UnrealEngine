@@ -9033,19 +9033,27 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 			Section->Rename(nullptr, Track);
 			Track->AddSection(*Section);
-			if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
-			{
-				Section->SetRowIndex(TrackNode->GetRowIndex());
-			}
-			else
-			{
-				Section->SetRowIndex(MovieSceneToolHelpers::FindAvailableRowIndex(Track, Section));
-			}
-
 			if (Section->HasStartFrame())
 			{
 				FFrameNumber NewStartFrame = LocalTime + (Section->GetInclusiveStartFrame() - FirstFrame.GetValue());
 				Section->MoveSection(NewStartFrame - Section->GetInclusiveStartFrame());
+			}
+
+			if (Track->SupportsMultipleRows())
+			{
+				int32 AvailableRowIndex = MovieSceneToolHelpers::FindAvailableRowIndex(Track, Section);
+
+				if (AvailableRowIndex == Track->GetMaxRowIndex() + 1)
+				{
+					Section->SetRowIndex(AvailableRowIndex);
+				}
+				else
+				{
+					if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
+					{
+						Section->SetRowIndex(TrackNode->GetRowIndex());
+					}
+				}
 			}
 
 			NewSections.Add(Section);
