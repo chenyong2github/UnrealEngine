@@ -653,12 +653,12 @@ public:
 	/**
 	 * Sets a name for the event for debugging purposes.
 	 */
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	void SetDebugName(const TCHAR* Name)
 	{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		DebugName = Name;
-	}
 #endif
+	}
 
 private:
 	friend class TRefCountPtr<FGraphEvent>;
