@@ -951,6 +951,16 @@ void ULightComponent::SetTemperature(float NewTemperature)
 	}
 }
 
+void ULightComponent::SetUseTemperature(bool bNewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& bUseTemperature != bNewValue)
+	{
+		bUseTemperature = bNewValue;
+		MarkRenderStateDirty();
+	}
+}
+
 void ULightComponent::SetLightFunctionMaterial(UMaterialInterface* NewLightFunctionMaterial)
 {
 	// Can't set light function on a static light

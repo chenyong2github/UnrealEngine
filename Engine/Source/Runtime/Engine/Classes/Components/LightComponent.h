@@ -245,6 +245,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
 	void SetTemperature(float NewTemperature);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
+	void SetUseTemperature(bool bNewValue);
+
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
 	void SetLightFunctionMaterial(UMaterialInterface* NewLightFunctionMaterial);
 
