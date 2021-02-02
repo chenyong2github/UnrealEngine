@@ -112,7 +112,7 @@ struct FLuminOpenGL : public FOpenGLES
 	}
 
 	// MRT triggers black rendering for the SensoryWare plugin. Turn it off for now.
-	static FORCEINLINE bool SupportsMultipleRenderTargets()				{ return false; }
+	static FORCEINLINE bool SupportsMultipleRenderTargets()				{ return true; }
 	static FORCEINLINE bool SupportsImageExternal()						{ return bSupportsImageExternal; }
 
 	enum class EImageExternalType : uint8
