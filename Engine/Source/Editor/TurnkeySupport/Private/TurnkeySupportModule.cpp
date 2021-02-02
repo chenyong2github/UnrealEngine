@@ -1428,30 +1428,21 @@ void FTurnkeySupportModule::MakeTurnkeyMenu(FToolMenuSection& MenuSection) const
 	MenuSection.AddEntry(Entry);
 }
 
+static FString GetLogAndReportCommandline(FString& LogFilename, FString& ReportFilename)
+{
+	static int ReportIndex = 0;
 
+	LogFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyLog_%d.log"), ReportIndex)));
+	ReportFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyReport_%d.log"), ReportIndex++)));
 
+	return FString::Printf(TEXT("-ReportFilename=\"%s\" -log=\"%s\""), *ReportFilename, *LogFilename);
+}
 
 // some shared functionality
 static void PrepForTurnkeyReport(FString& BaseCommandline, FString& ReportFilename)
 {
-	static int ReportIndex = 0;
-
-	FString LogFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyLog_%d.log"), ReportIndex)));
-	ReportFilename = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), *FString::Printf(TEXT("TurnkeyReport_%d.log"), ReportIndex++)));
-
 	// make sure intermediate directory exists
 	IFileManager::Get().MakeDirectory(*FPaths::ProjectIntermediateDir());
-
-#if PLATFORM_WINDOWS
-	FString RunUATScriptName = TEXT("RunUAT.bat");
-#elif PLATFORM_MAC
-	FString RunUATScriptName = TEXT("RunUAT.command");
-#elif PLATFORM_LINUX
-	FString RunUATScriptName = TEXT("RunUAT.sh");
-#endif
-
-	FString UatPath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Build/BatchFiles") / RunUATScriptName);
-	BaseCommandline = FString::Printf(TEXT("\"%s\""), *UatPath);
 
 	const FString ProjectPath = GetProjectPathForTurnkey();
 	// now pass a project to UAT
@@ -1460,7 +1451,10 @@ static void PrepForTurnkeyReport(FString& BaseCommandline, FString& ReportFilena
 		BaseCommandline.Appendf(TEXT(" -ScriptsForProject=\"%s\" "), *ProjectPath);
 	}
 
-	BaseCommandline = BaseCommandline.Appendf(TEXT("Turnkey -utf8output -WaitForUATMutex -command=VerifySdk -ReportFilename=\"%s\" -log=\"%s\""), *ReportFilename, *LogFilename);
+	FString LogFilename;
+	FString LogAndReportParams = GetLogAndReportCommandline(LogFilename, ReportFilename);
+
+	BaseCommandline = BaseCommandline.Appendf(TEXT("Turnkey -utf8output -WaitForUATMutex -command=VerifySdk %s"), *LogAndReportParams);
 	// now pass a project to Turnkey
 	if (!ProjectPath.IsEmpty())
 	{
@@ -1524,104 +1518,7 @@ bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId,
 	return true;
 }
 
-DECLARE_DELEGATE_ThreeParams(FOnSerializedProcessComplete, int32 /*ExitCode*/, bool /*bLaunchFailed*/, bool /*bWasCanceled*/);
 
-class FSerializedUATProcess
-{
-public:
-	FSerializedUATProcess(const FString& Params, bool bDeleteOnCompletion, FOnSerializedProcessComplete CompletionDelegate)
-		: Process(nullptr)
-	{
-		Async(EAsyncExecution::Thread, [this, Params, bDeleteOnCompletion, CompletionDelegate]()
-			{
-				// don't let this do anything if another process is running
-				Serializer.Lock();
-
-				FString FinalParams;
-#if PLATFORM_WINDOWS
-				FinalParams = TEXT("/c \"");
-#elif PLATFORM_LINUX
-				FinalParams = TEXT("-c ");
-#endif			
-				FinalParams += Params;
-				if (bHasSucceededOnce)
-				{
-					FinalParams += TEXT(" -nocompile");
-				}
-#if PLATFORM_WINDOWS
-				// On Windows, cmd /c needs a set of quotes around the whole command line including parameters
-				FinalParams += TEXT("\"");	
-#endif
-
-#if PLATFORM_WINDOWS
-				FString URL = TEXT("cmd.exe");
-#elif PLATFORM_MAC
-				FString URL = TEXT("/bin/sh");
-#elif PLATFORM_LINUX
-				FString URL = TEXT("/bin/bash");
-#endif
-
-				Process = new FMonitoredProcess(URL, FinalParams, true, false);
-				Process->OnCompleted().BindLambda([this, bDeleteOnCompletion, CompletionDelegate](int32 ExitCode)
-					{
-						if (ExitCode == 0 || ExitCode == 10)
-						{
-							bHasSucceededOnce = true;
-						}
-						CompletionDelegate.Execute(ExitCode, false, false);
-
-						// let another one in
-						Serializer.Unlock();
-
-						if (bDeleteOnCompletion)
-						{
-							delete this;
-						}
-					});
-				Process->OnCanceled().BindLambda([this, bDeleteOnCompletion, CompletionDelegate]()
-					{
-						CompletionDelegate.Execute(-1, false, true);
-
-						// let another one in
-						Serializer.Unlock();
-
-						if (bDeleteOnCompletion)
-						{
-							delete this;
-						}
-					});
-				
-				UE_LOG(LogTurnkeySupport, Log, TEXT("Running Serialized UAT: '%s %s'"), *URL, *FinalParams);
-
-				if (Process->Launch() == false)
-				{
-					CompletionDelegate.Execute(-1, true, false);
-
-					// let another one in
-					Serializer.Unlock();
-
-					if (bDeleteOnCompletion)
-					{
-						delete this;
-					}
-				}
-			});
-	}
-
-	~FSerializedUATProcess()
-	{
-		delete Process;
-	}
-
-private:
-
-	static bool bHasSucceededOnce;
-	static FCriticalSection Serializer;
-
-	FMonitoredProcess* Process;
-};
-bool FSerializedUATProcess::bHasSucceededOnce = false;
-FCriticalSection FSerializedUATProcess::Serializer;
 static constexpr bool bDeleteTurnkeyProcessOnCompletion = (PLATFORM_WINDOWS);
 
 
@@ -1663,11 +1560,12 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 		ClearDeviceStatus();
 	}
 
-	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Commandline, bDeleteTurnkeyProcessOnCompletion, FOnSerializedProcessComplete::CreateLambda([this, ReportFilename](int32 ExitCode, bool bLaunchFailed, bool bWasCanceled)
+	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Commandline, true, false);
+	TurnkeyProcess->OnCompleted().BindLambda([this, ReportFilename, TurnkeyProcess](int32 ExitCode)
 	{
-		UE_LOG(LogTurnkeySupport, Log, TEXT("Completed SDK detection: Code = %d, bLaunchFailed = %d, bWasCanceled = %d"), ExitCode, bLaunchFailed, bWasCanceled);
+		UE_LOG(LogTurnkeySupport, Log, TEXT("Completed SDK detection: ExitCode = %d"), ExitCode);
 
-		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, ExitCode]()
+		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, ExitCode, TurnkeyProcess]()
 		{
 			FScopeLock Lock(&GTurnkeySection);
 
@@ -1748,10 +1646,12 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 			}
 
 			// cleanup
-//			delete TurnkeyProcess;
+			delete TurnkeyProcess;
 			IFileManager::Get().Delete(*ReportFilename);
 		});
-	}));
+	});
+
+	TurnkeyProcess->Launch();
 }
 
 void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDeviceIds)
@@ -1777,11 +1677,12 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 		}
 	}
 
-	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Commandline, bDeleteTurnkeyProcessOnCompletion, FOnSerializedProcessComplete::CreateLambda([this, ReportFilename, PlatformDeviceIds](int32 ExitCode, bool bLaunchFailed, bool bWasCanceled)
+	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Commandline, true, false);
+	TurnkeyProcess->OnCompleted().BindLambda([this, ReportFilename, PlatformDeviceIds, TurnkeyProcess](int32 ExitCode)
 	{
-		UE_LOG(LogTurnkeySupport, Log, TEXT("Completed device detection: Code = %d, bLaunchFailed = %d, bWasCanceled = %d"), ExitCode, bLaunchFailed, bWasCanceled);
+		UE_LOG(LogTurnkeySupport, Log, TEXT("Completed device detection: Code = %d"), ExitCode);
 
-		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, PlatformDeviceIds, ExitCode]()
+		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, PlatformDeviceIds, ExitCode, TurnkeyProcess]()
 		{
 			FScopeLock Lock(&GTurnkeySection);
 
@@ -1834,10 +1735,12 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 			}
 
 			// cleanup
-//			delete TurnkeyProcess;
+			delete TurnkeyProcess;
 			IFileManager::Get().Delete(*ReportFilename);
 		});
-	}));
+	});
+
+	TurnkeyProcess->Launch();
 }
 
 /**

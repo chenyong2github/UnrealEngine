@@ -385,18 +385,6 @@ public:
 
 	virtual void CreateUatTask( const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText &TaskShortName, const FSlateBrush* TaskIcon, UatTaskResultCallack ResultCallback, const FString& ResultLocation)
 	{
-		// make sure that the UAT batch file is in place
-	#if PLATFORM_WINDOWS
-		FString RunUATScriptName = TEXT("RunUAT.bat");
-		FString CmdExe = TEXT("cmd.exe");
-	#elif PLATFORM_LINUX
-		FString RunUATScriptName = TEXT("RunUAT.sh");
-		FString CmdExe = TEXT("/bin/bash");
-	#else
-		FString RunUATScriptName = TEXT("RunUAT.command");
-		FString CmdExe = TEXT("/bin/sh");
-	#endif
-
 		// If this is a packaging or cooking task, clear the PackagingResults log
 		if (!TaskShortName.CompareToCaseIgnored(FText::FromString(TEXT("Packaging"))) || 
 			!TaskShortName.CompareToCaseIgnored(FText::FromString(TEXT("Cooking"))))
@@ -409,14 +397,14 @@ public:
 			}
 		}
 
-		FString UatPath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Build/BatchFiles") / RunUATScriptName);
 		FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
 		bool bHasCode = GameProjectModule.Get().ProjectHasCodeFiles();
 		
-		if (!FPaths::FileExists(UatPath))
+		// make sure UAT exists
+		if (!FPaths::FileExists(FSerializedUATProcess::GetUATPath()))
 		{
 			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("File"), FText::FromString(UatPath));
+			Arguments.Add(TEXT("File"), FText::FromString(FSerializedUATProcess::GetUATPath()));
 			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("RequiredFileNotFoundMessage", "A required file could not be found:\n{File}"), Arguments));
 
 			TArray<FAnalyticsEventAttribute> ParamArray;
@@ -427,13 +415,7 @@ public:
 			return;
 		}
 
-	#if PLATFORM_WINDOWS
-		FString FullCommandLine = FString::Printf(TEXT("/c \"\"%s\" %s\""), *UatPath, *CommandLine);
-	#else
-		FString FullCommandLine = FString::Printf(TEXT("\"%s\" %s"), *UatPath, *CommandLine);
-	#endif
-
-		TSharedPtr<FMonitoredProcess> UatProcess = MakeShareable(new FMonitoredProcess(CmdExe, FullCommandLine, true));
+		TSharedPtr<FSerializedUATProcess> UatProcess = MakeShareable(new FSerializedUATProcess(CommandLine, true));
 
 		FPackagingErrorHandler::ClearAssetErrors();
 
@@ -494,33 +476,13 @@ public:
 		UatProcess->OnCanceled().BindStatic(&FUATHelperModule::HandleUatProcessCanceled, NotificationItemPtr, PlatformDisplayName, TaskShortName, Data);
 		UatProcess->OnCompleted().BindStatic(&FUATHelperModule::HandleUatProcessCompleted, NotificationItemPtr, PlatformDisplayName, TaskShortName, Data, ResultLocation);
 		UatProcess->OnOutput().BindStatic(&FUATHelperModule::HandleUatProcessOutput, NotificationItemPtr, PlatformDisplayName, TaskShortName);
+		UatProcess->OnLaunchFailed().BindStatic(&FUATHelperModule::HandleUatLaunchFailed, NotificationItemPtr, PlatformDisplayName, TaskShortName, Data);
 
-		TWeakPtr<FMonitoredProcess> UatProcessPtr(UatProcess);
+		TWeakPtr<FSerializedUATProcess> UatProcessPtr(UatProcess);
 		FEditorDelegates::OnShutdownPostPackagesSaved.Add(FSimpleDelegate::CreateStatic(&FUATHelperModule::HandleUatCancelButtonClicked, UatProcessPtr));
 
-		if (UatProcess->Launch())
-		{
-			GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileStart_Cue.CompileStart_Cue"));
-		}
-		else
-		{
-			GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
-
-			NotificationItem->SetText(LOCTEXT("UatLaunchFailedNotification", "Failed to launch Unreal Automation Tool (UAT)!"));
-
-			NotificationItem->SetExpireDuration(3.0f);
-			NotificationItem->SetFadeOutDuration(0.5f);
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
-			NotificationItem->ExpireAndFadeout();
-
-			TArray<FAnalyticsEventAttribute> ParamArray;
-			ParamArray.Add(FAnalyticsEventAttribute(TEXT("Time"), 0.0));
-			FEditorAnalytics::ReportEvent(EventName + TEXT(".Failed"), PlatformDisplayName.ToString(), bHasCode, EAnalyticsErrorCodes::UATLaunchFailure, ParamArray);
-			if (ResultCallback)
-			{
-				ResultCallback(TEXT("FailedToStart"), 0.0f);
-			}
-		}
+		UatProcess->Launch();
+		GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileStart_Cue.CompileStart_Cue"));
 	}
 
 	static void HandleUatHyperlinkNavigate()
@@ -536,7 +498,7 @@ public:
 		}
 	}
 
-	static void HandleUatCancelButtonClicked(TSharedPtr<FMonitoredProcess> PackagerProcess)
+	static void HandleUatCancelButtonClicked(TSharedPtr<FSerializedUATProcess> PackagerProcess)
 	{
 		if ( PackagerProcess.IsValid() )
 		{
@@ -544,7 +506,7 @@ public:
 		}
 	}
 
-	static void HandleUatCancelButtonClicked(TWeakPtr<FMonitoredProcess> PackagerProcessPtr)
+	static void HandleUatCancelButtonClicked(TWeakPtr<FSerializedUATProcess> PackagerProcessPtr)
 	{
 		TSharedPtr<FMonitoredProcess> PackagerProcess = PackagerProcessPtr.Pin();
 		if ( PackagerProcess.IsValid() )
@@ -683,8 +645,25 @@ public:
 				// Deal with any cook errors that may have been encountered.
 				FPackagingErrorHandler::ProcessAndHandleCookErrorOutput(Output);
 			}
+		}
+	}
 
+	static void HandleUatLaunchFailed(TWeakPtr<SNotificationItem> NotificationItemPtr, FText PlatformDisplayName, FText TaskName, EventData Event)
+	{
+		GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
 
+		TGraphTask<FMainFrameActionsNotificationTask>::CreateTask().ConstructAndDispatchWhenReady(
+			NotificationItemPtr,
+			SNotificationItem::CS_Fail,
+			LOCTEXT("UatLaunchFailedNotification", "Failed to launch Unreal Automation Tool (UAT)!")
+		);
+
+		TArray<FAnalyticsEventAttribute> ParamArray;
+		ParamArray.Add(FAnalyticsEventAttribute(TEXT("Time"), 0.0));
+		FEditorAnalytics::ReportEvent(Event.EventName + TEXT(".Failed"), PlatformDisplayName.ToString(), Event.bProjectHasCode, EAnalyticsErrorCodes::UATLaunchFailure, ParamArray);
+		if (Event.ResultCallback)
+		{
+			Event.ResultCallback(TEXT("FailedToStart"), 0.0f);
 		}
 	}
 

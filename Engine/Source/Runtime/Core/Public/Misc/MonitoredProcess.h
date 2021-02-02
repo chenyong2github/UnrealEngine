@@ -56,7 +56,7 @@ public:
 	FMonitoredProcess( const FString& InURL, const FString& InParams, const FString& InWorkingDir, bool InHidden, bool InCreatePipes = true );
 
 	/** Destructor. */
-	~FMonitoredProcess();
+	virtual ~FMonitoredProcess();
 
 public:
 
@@ -96,7 +96,7 @@ public:
 	bool Update();
 
 	/** Launches the process. */
-	bool Launch();
+	virtual bool Launch();
 
 	/**
 	 * Sets the sleep interval to be used in the main thread loop.
@@ -187,7 +187,7 @@ protected:
 	 */
 	void ProcessOutput( const FString& Output );
 
-private:
+protected:
 	void TickInternal();
 
 
@@ -242,7 +242,7 @@ private:
 	// Buffered output text which does not contain a newline
 	FString OutputBuffer;
 
-private:
+protected:
 
 	// Holds a delegate that is executed when the process has been canceled. */
 	FSimpleDelegate CanceledDelegate;
@@ -252,4 +252,43 @@ private:
 
 	// Holds a delegate that is executed when a monitored process produces output. */
 	FOnMonitoredProcessOutput OutputDelegate;
+};
+
+
+class CORE_API FSerializedUATProcess : public FMonitoredProcess
+{
+public:
+	/**
+	 * Get the host-platform-specific path to the UAT running script
+	 */
+	static FString GetUATPath();
+
+public:
+	FSerializedUATProcess(const FString& RunUATCommandline, bool InHidden, bool InCreatePipes=true);
+
+	/**
+	 * Run UAT, serially with other FSerializedUATProcess objects. Because the actual call is delayed, this will
+	 * always return true, and the LaunchFailedDelegate will be called later if an error happens
+	 */
+	virtual bool Launch() override;
+
+	/**
+	 * Returns a delegate that is executed when the process has been canceled.
+	 *
+	 * @return The delegate.
+	 */
+	FSimpleDelegate& OnLaunchFailed()
+	{
+		return LaunchFailedDelegate;
+	}
+
+
+private:
+
+	// Holds a delegate that is executed when the process fails to launch (delayed, in a thread). Used in place of the return value
+	// of Launch in the parent class, since it's async
+	FSimpleDelegate LaunchFailedDelegate;
+
+	static FCriticalSection Serializer;
+	static bool bHasSucceededOnce;
 };

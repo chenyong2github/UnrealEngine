@@ -3,7 +3,11 @@
 #include "Misc/MonitoredProcess.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/Paths.h"
+#include "Logging/LogMacros.h"
+#include "Async/Async.h"
 #include <atomic>
+
+DEFINE_LOG_CATEGORY_STATIC(LogMonitoredProcess, Log, All);
 
 /* FMonitoredProcess structors
  *****************************************************************************/
@@ -183,3 +187,89 @@ void FMonitoredProcess::Tick()
 	}
 }
 
+
+
+
+FCriticalSection FSerializedUATProcess::Serializer;
+
+FSerializedUATProcess::FSerializedUATProcess(const FString& RunUATCommandline, bool InHidden, bool InCreatePipes)
+	// we will modify URL and Params in this constructor, so there's no need to pass anything up to base
+	: FMonitoredProcess("", "", InHidden, InCreatePipes)
+{
+	// replace the URL and Params freom base with the shelled version
+
+#if PLATFORM_WINDOWS
+	URL = TEXT("cmd.exe");
+	Params = FString::Printf(TEXT("/c \"\"%s\" %s\""), *GetUATPath(), *RunUATCommandline);
+#elif PLATFORM_LINUX
+	URL = TEXT("/bin/bash");
+	Params = FString::Printf(TEXT("\"%s\" %s"), *GetUATPath(), *RunUATCommandline);
+#elif PLATFORM_MAC
+	URL = TEXT("/bin/sh");
+	Params = FString::Printf(TEXT("\"%s\" %s"), *GetUATPath(), *RunUATCommandline);
+#endif
+}
+
+bool FSerializedUATProcess::Launch()
+{
+	Async(EAsyncExecution::Thread, [this]()
+		{
+			// don't let this do anything if another process is running
+			Serializer.Lock();
+
+			if (bHasSucceededOnce)
+			{
+				Params += TEXT(" -nocompile");
+			}
+
+			FOnMonitoredProcessCompleted OriginalCompletedDelegate = CompletedDelegate;
+			FSimpleDelegate OriginalCanceledDelegate = CanceledDelegate;
+
+			CompletedDelegate.BindLambda([this, OriginalCompletedDelegate](int32 ExitCode)
+				{
+					if (ExitCode == 0 || ExitCode == 10)
+					{
+						bHasSucceededOnce = true;
+					}
+					OriginalCompletedDelegate.ExecuteIfBound(ExitCode);
+
+					// let another one in
+					Serializer.Unlock();
+				});
+			CanceledDelegate.BindLambda([this, OriginalCanceledDelegate]()
+				{
+					OriginalCanceledDelegate.ExecuteIfBound();
+
+					// let another one in
+					Serializer.Unlock();
+				});
+
+			UE_LOG(LogMonitoredProcess, Log, TEXT("Running Serialized UAT: '%s %s'"), *URL, *Params);
+
+			if (FMonitoredProcess::Launch() == false)
+			{
+				LaunchFailedDelegate.ExecuteIfBound();
+
+				// let another one in
+				Serializer.Unlock();
+			}
+		});
+
+	return true;
+}
+
+
+bool FSerializedUATProcess::bHasSucceededOnce = false;
+
+FString FSerializedUATProcess::GetUATPath()
+{
+#if PLATFORM_WINDOWS
+	FString RunUATScriptName = TEXT("RunUAT.bat");
+#elif PLATFORM_LINUX
+	FString RunUATScriptName = TEXT("RunUAT.sh");
+#else
+	FString RunUATScriptName = TEXT("RunUAT.command");
+#endif
+
+	return FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Build/BatchFiles") / RunUATScriptName);
+}
