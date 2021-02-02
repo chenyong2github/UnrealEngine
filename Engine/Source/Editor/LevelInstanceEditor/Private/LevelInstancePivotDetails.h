@@ -6,6 +6,7 @@
 #include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
 #include "LevelInstance/LevelInstanceTypes.h"
+#include "Input/Reply.h"
 
 class ALevelInstancePivot;
 
