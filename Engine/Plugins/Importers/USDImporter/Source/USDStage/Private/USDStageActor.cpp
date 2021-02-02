@@ -528,10 +528,13 @@ USDSTAGE_API void AUsdStageActor::Reset()
 	BlendShapesByPath.Reset();
 	MaterialToPrimvarToUVIndex.Reset();
 
-	if ( LevelSequence && GEditor )
+	if ( LevelSequence )
 	{
 #if WITH_EDITOR
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
+		if (GEditor)
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
+		}
 #endif // WITH_EDITOR
 		LevelSequence = nullptr;
 	}
