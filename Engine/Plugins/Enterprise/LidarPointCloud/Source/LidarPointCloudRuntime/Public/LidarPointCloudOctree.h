@@ -457,8 +457,8 @@ public:
 	void RemovePoint(FLidarPointCloudPoint Point);
 
 	/** Removes points in bulk */
-	void RemovePoints(TArray<FLidarPointCloudPoint*>& Points) { RemovePoints_Internal(Points); }
-	void RemovePoints(TArray64<FLidarPointCloudPoint*>& Points) { RemovePoints_Internal(Points); }
+	void RemovePoints(TArray<FLidarPointCloudPoint*>& Points);
+	void RemovePoints(TArray64<FLidarPointCloudPoint*>& Points);
 
 	/** Removes all points within the given sphere */
 	void RemovePointsInSphere(const FSphere& Sphere, const bool& bVisibleOnly);

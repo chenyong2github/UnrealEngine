@@ -1706,6 +1706,16 @@ void FLidarPointCloudOctree::RemovePoint(FLidarPointCloudPoint Point)
 	RefreshBounds();
 }
 
+void FLidarPointCloudOctree::RemovePoints(TArray<FLidarPointCloudPoint*>& Points)
+{
+	RemovePoints_Internal(Points);
+}
+
+void FLidarPointCloudOctree::RemovePoints(TArray64<FLidarPointCloudPoint*>& Points)
+{
+	RemovePoints_Internal(Points);
+}
+
 template <typename T>
 void FLidarPointCloudOctree::RemovePoints_Internal(TArray<FLidarPointCloudPoint*, T>& Points)
 {
