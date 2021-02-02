@@ -1323,7 +1323,8 @@ public:
 			StackSize = 384 * 1024;
 #endif
 
-			GConfig->GetInt(TEXT("Core.System"), TEXT("TaskThreadStackSize"), StackSize, GEngineIni);
+			// GConfig is not initialized yet, the only solution for now is to hardcode desired values
+			//GConfig->GetInt(TEXT("Core.System"), TEXT("TaskThreadStackSize"), StackSize, GEngineIni);
 
 			if (GroupName != PrevGroupName)
 			{

@@ -2170,7 +2170,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		SCOPED_BOOT_TIMING("Init FQueuedThreadPool's");
 
 		int32 StackSize = 128 * 1024;
-		GConfig->GetInt(TEXT("Core.System"), TEXT("PoolThreadStackSize"), StackSize, GEngineIni);
+		// GConfig is not initialized yet, the only solution for now is to hardcode desired values
+		// GConfig->GetInt(TEXT("Core.System"), TEXT("PoolThreadStackSize"), StackSize, GEngineIni);
 
 		bool bForceEditorStackSize = false;
 #if WITH_EDITOR
