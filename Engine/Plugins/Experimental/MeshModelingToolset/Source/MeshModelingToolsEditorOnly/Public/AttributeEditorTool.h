@@ -94,15 +94,25 @@ UENUM()
 enum class EAttributeEditorToolActions
 {
 	NoAction,
+
+	OptimizeForEditing,
+
 	ClearNormals,
-	ClearSelectedUVs,
 	ClearAllUVs,
+	ClearSelectedUVs,
+	AddUVSet,
+	DeleteSelectedUVSet,
+	DuplicateSelectedUVSet,
 	AddAttribute,
 	AddWeightMapLayer,
 	AddPolyGroupLayer,
 	DeleteAttribute,
 	ClearAttribute,
-	CopyAttributeFromTo
+	CopyAttributeFromTo,
+
+	EnableLightmapUVs,
+	DisableLightmapUVs,
+	ResetLightmapUVChannels
 };
 
 
@@ -119,6 +129,21 @@ public:
 	void PostAction(EAttributeEditorToolActions Action);
 
 };
+
+
+UCLASS()
+class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorOptimizeActions : public UAttributeEditorActionPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Optimize this Asset for Mesh Editing by disabling expensive Static Mesh Rebuild Settings and reducing Distance Field resolution */
+	UFUNCTION(CallInEditor, Category = Optimize, meta = (DisplayPriority = 1))
+	void OptimizeForEditing()
+	{
+		PostAction(EAttributeEditorToolActions::OptimizeForEditing);
+	}
+};
+
 
 
 UCLASS()
@@ -142,49 +167,83 @@ class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorUVActions : public UAttrib
 	GENERATED_BODY()
 public:
 
-	/** Clear data from UV layer */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName = "Layer 0", HideEditConditionToggle, EditConditionHides, EditCondition = "NumUVLayers > 0"))
-	bool bClearUVLayer0;
-	/** Clear data from UV layer */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName = "Layer 1", HideEditConditionToggle, EditConditionHides, EditCondition = "NumUVLayers > 1"))
-	bool bClearUVLayer1;
-	/** Clear data from UV layer */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName = "Layer 2", HideEditConditionToggle, EditConditionHides, EditCondition = "NumUVLayers > 2"))
-	bool bClearUVLayer2;
-	/** Clear data from UV layer */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName = "Layer 3", HideEditConditionToggle, EditConditionHides, EditCondition = "NumUVLayers > 3"))
-	bool bClearUVLayer3;
-	/** Clear data from UV layer */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName = "Layer 4", HideEditConditionToggle, EditConditionHides, EditCondition = "NumUVLayers > 4"))
-	bool bClearUVLayer4;
-	/** Clear data from UV layer */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName = "Layer 5", HideEditConditionToggle, EditConditionHides, EditCondition = "NumUVLayers > 5"))
-	bool bClearUVLayer5;
-	/** Clear data from UV layer */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName = "Layer 6", HideEditConditionToggle, EditConditionHides, EditCondition = "NumUVLayers > 6"))
-	bool bClearUVLayer6;
-	/** Clear data from UV layer */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName = "Layer 7", HideEditConditionToggle, EditConditionHides, EditCondition = "NumUVLayers > 7"))
-	bool bClearUVLayer7;
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (GetOptions = GetUVLayerNamesFunc))
+	FString UVLayer;
+
+	UFUNCTION()
+	TArray<FString> GetUVLayerNamesFunc();
 
 	UPROPERTY()
-	int NumUVLayers = 0;
-
-	/** Clear the selected UV layers, setting all UV values to (0,0) */
-	UFUNCTION(CallInEditor, Category = UVs, meta = (DisplayPriority = 1))
-	void ClearSelectedUVSets()
-	{
-		PostAction(EAttributeEditorToolActions::ClearSelectedUVs);
-	}
+	TArray<FString> UVLayerNamesList;
 
 	/** Clear all UV layers, setting all UV values to (0,0) */
-	UFUNCTION(CallInEditor, Category = UVs, meta = (DisplayPriority = 2))
-	void ClearAllUVSets()
+	UFUNCTION(CallInEditor, Category = UVs, meta = (DisplayPriority = 1))
+	void ClearAll()
 	{
 		PostAction(EAttributeEditorToolActions::ClearAllUVs);
 	}
+
+	/** Clear the selected UV layers, setting all UV values to (0,0) */
+	UFUNCTION(CallInEditor, Category = UVs, meta = (DisplayPriority = 2))
+	void AddNew()
+	{
+		PostAction(EAttributeEditorToolActions::AddUVSet);
+	}
+
+	/** Clear the selected UV layers, setting all UV values to (0,0) */
+	UFUNCTION(CallInEditor, Category = UVs, meta = (DisplayPriority = 3))
+	void DeleteSelected()
+	{
+		PostAction(EAttributeEditorToolActions::DeleteSelectedUVSet);
+	}
+
+	/** Clear the selected UV layers, setting all UV values to (0,0) */
+	UFUNCTION(CallInEditor, Category = UVs, meta = (DisplayPriority = 4))
+	void DuplicateSelected()
+	{
+		PostAction(EAttributeEditorToolActions::DuplicateSelectedUVSet);
+	}
 };
 
+
+
+
+UCLASS()
+class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorLightmapUVActions : public UAttributeEditorActionPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Whether or not Lightmap UVs are enabled in the Static Mesh Build Settings. Use the Static Mesh Editor to change this value. */
+	UPROPERTY(VisibleAnywhere, Category = LightmapUVs)
+	bool bGenerateLightmapUVs;
+
+	/** Source UV channel used to compute Lightmap UVs. Use the Static Mesh Editor to change this value. */
+	UPROPERTY(VisibleAnywhere, Category = LightmapUVs, meta = (DisplayName = "Source Channel"))
+	int32 SourceUVIndex;
+
+	/** Lightmap UVs are stored in this UV Channel. Use the Static Mesh Editor to change this value. */
+	UPROPERTY(VisibleAnywhere, Category = LightmapUVs, meta = (DisplayName = "Dest Channel"))
+	int32 DestinationUVIndex;
+
+	UFUNCTION(CallInEditor, Category = LightmapUVs, meta = (DisplayPriority = 1))
+	void Enable()
+	{
+		PostAction(EAttributeEditorToolActions::EnableLightmapUVs);
+	}
+
+	UFUNCTION(CallInEditor, Category = LightmapUVs, meta = (DisplayPriority = 2))
+	void Disable()
+	{
+		PostAction(EAttributeEditorToolActions::DisableLightmapUVs);
+	}
+
+	/** Reset Lightmap UV channels to Source Channel UV0 and Destination as UVMax+1 */
+	UFUNCTION(CallInEditor, Category = LightmapUVs, meta = (DisplayPriority = 3))
+	void Reset()
+	{
+		PostAction(EAttributeEditorToolActions::ResetLightmapUVChannels);
+	}
+};
 
 
 UCLASS()
@@ -306,10 +365,16 @@ public:
 protected:
 
 	UPROPERTY()
+	UAttributeEditorOptimizeActions* OptimizeActions;
+
+	UPROPERTY()
 	UAttributeEditorNormalsActions* NormalsActions;
 
 	UPROPERTY()
 	UAttributeEditorUVActions* UVActions;
+
+	UPROPERTY()
+	UAttributeEditorLightmapUVActions* LightmapUVActions;
 
 	UPROPERTY()
 	UAttributeEditorAttribProperties* AttributeProps;
@@ -336,18 +401,25 @@ protected:
 
 
 	bool bAttributeListsValid = false;
+	bool bHaveAutoGeneratedLightmapUVSet = false;
 	void InitializeAttributeLists();
 
-
+	void UpdateAutoGeneratedLightmapUVChannel(TUniquePtr<FPrimitiveComponentTarget>& Target, int32 NewMaxUVChannels);
 
 	EAttributeEditorToolActions PendingAction = EAttributeEditorToolActions::NoAction;
+	void OptimizeForEditing();
 	void ClearNormals();
-	void ClearUVs(bool bSelectedOnly);
+	void ClearUVs();
+	void DeleteSelectedUVSet();
+	void DuplicateSelectedUVSet();
+	void AddUVSet();
 	void AddNewAttribute();
 	void AddNewWeightMap();
 	void AddNewGroupsLayer();
 	void DeleteAttribute();
 	void ClearAttribute();
+	void SetLightmapUVsEnabled(bool bEnabled);
+	void ResetLightmapUVsChannels();
 
 	void AddNewAttribute(EAttributeEditorElementType ElemType, EAttributeEditorAttribType AttribType, FName AttributeName);
 };
