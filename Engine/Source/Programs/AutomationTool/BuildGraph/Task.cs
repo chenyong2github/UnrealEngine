@@ -165,10 +165,6 @@ namespace AutomationTool
 					if (ParameterAttribute != null)
 					{
 						object Value = Field.GetValue(Parameters);
-						if (Value != null && Field.FieldType == typeof(bool) && (bool)Value == false)
-						{
-							Value = null;
-						}
 						if (Value != null)
 						{
 							Writer.WriteAttributeString(Field.Name, Value.ToString());
