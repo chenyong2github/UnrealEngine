@@ -370,18 +370,33 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 
 static FString D3DCreateDXCCompileBatchFile(const FDxcArguments& Args, const FString& ShaderPath)
 {
-	FString BatchFileHeader = TEXT("@ECHO OFF\nSET DXC=\"C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.18362.0\\x64\\dxc.exe\"\n"\
-		"IF EXIST %DXC% (\nREM\n) ELSE (\nECHO Couldn't find Windows 10.0.18362 SDK, falling back to dxc.exe in PATH...\n"\
-		"SET DXC=dxc.exe)\n");
+	FString DxcPath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir());
 
-	FString DXCCommandline = FString(TEXT("%DXC%"));
+	DxcPath = FPaths::Combine(DxcPath, TEXT("Binaries/ThirdParty/ShaderConductor/Win64"));
+	FPaths::MakePlatformFilename(DxcPath);
 
-	DXCCommandline += Args.GetBatchCommandLineString(ShaderPath);
+	FString DxcFilename = FPaths::Combine(DxcPath, TEXT("dxc.exe"));
+	FPaths::MakePlatformFilename(DxcFilename);
 
-	DXCCommandline += TEXT(" ");
-	DXCCommandline += ShaderPath;
+	const FString BatchCmdLineArgs = Args.GetBatchCommandLineString(ShaderPath);
 
-	return BatchFileHeader + DXCCommandline + TEXT("\npause\n");
+	return FString::Printf(
+		TEXT(
+			"@ECHO OFF\n"
+			"SET DXC=\"%s\"\n"
+			"IF NOT EXIST %%DXC%% (\n"
+			"\tECHO Couldn't find dxc.exe under \"%s\"\n"
+			"\tGOTO :END\n"
+			")\n"
+			"%%DXC%%%s %s\n"
+			":END\n"
+			"PAUSE\n"
+		),
+		*DxcFilename,
+		*DxcPath,
+		*BatchCmdLineArgs,
+		*ShaderPath
+	);
 }
 
 inline bool IsCompatibleBinding(const D3D12_SHADER_INPUT_BIND_DESC& BindDesc, uint32 BindingSpace)
