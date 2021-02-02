@@ -18,11 +18,12 @@
  * the implications for all of our target platforms need further analysis, so
  * we're using the simpler sequentially consistent model for now.
  *
- * @param ElementType The type of elements held in the queue.
+ * @param T The type of elements held in the queue.
  */
-template<typename ElementType> class TCircularQueue
+template<typename T> class TCircularQueue
 {
 public:
+	using FElementType = T;
 
 	/**
 	 * Constructor.
@@ -64,7 +65,7 @@ public:
 	 * @return true if an element has been returned, false if the queue was empty.
 	 * @note To be called only from consumer thread.
 	 */
-	bool Dequeue(ElementType& OutElement)
+	bool Dequeue(FElementType& OutElement)
 	{
 		const uint32 CurrentHead = Head.Load();
 
@@ -117,7 +118,7 @@ public:
 	 * @return true if the item was added, false if the queue was full.
 	 * @note To be called only from producer thread.
 	 */
-	bool Enqueue(const ElementType& Element)
+	bool Enqueue(const FElementType& Element)
 	{
 		const uint32 CurrentTail = Tail.Load();
 		uint32 NewTail = Buffer.GetNextIndex(CurrentTail);
@@ -140,7 +141,7 @@ public:
 	 * @return true if the item was added, false if the queue was full.
 	 * @note To be called only from producer thread.
 	 */
-	bool Enqueue(ElementType&& Element)
+	bool Enqueue(FElementType&& Element)
 	{
 		const uint32 CurrentTail = Tail.Load();
 		uint32 NewTail = Buffer.GetNextIndex(CurrentTail);
@@ -191,7 +192,7 @@ public:
 	 * @return true if an item has been returned, false if the queue was empty.
 	 * @note To be called only from consumer thread.
 	 */
-	bool Peek(ElementType& OutItem) const
+	bool Peek(FElementType& OutItem) const
 	{
 		const uint32 CurrentHead = Head.Load();
 
@@ -208,11 +209,11 @@ public:
 	/**
 	 * Returns the oldest item in the queue without removing it.
 	 *
-	 * @return an ElementType pointer if an item has been returned, nullptr if the queue was empty.
+	 * @return an FElementType pointer if an item has been returned, nullptr if the queue was empty.
 	 * @note To be called only from consumer thread.
 	 * @note The return value is only valid until Dequeue, Empty, or the destructor has been called.
 	 */
-	const ElementType* Peek() const
+	const FElementType* Peek() const
 	{
 		const uint32 CurrentHead = Head.Load();
 
@@ -227,7 +228,7 @@ public:
 private:
 
 	/** Holds the buffer. */
-	TCircularBuffer<ElementType> Buffer;
+	TCircularBuffer<FElementType> Buffer;
 
 	/** Holds the index to the first item in the buffer. */
 	TAtomic<uint32> Head;
