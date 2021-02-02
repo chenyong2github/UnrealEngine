@@ -17,6 +17,7 @@
 #include "Android/AndroidPlatformFramePacer.h"
 #include "Math/UnrealMathUtility.h"
 #include "Android/AndroidPlatformMisc.h"
+#include "Misc/ConfigCacheIni.h"
 
 // From VulklanSwapChain.cpp
 extern int32 GVulkanCPURenderThreadFramePacer;
