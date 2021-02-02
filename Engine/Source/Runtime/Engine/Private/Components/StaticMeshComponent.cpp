@@ -334,8 +334,24 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 	NotifyIfStaticMeshChanged();
 }
 
+void UStaticMeshComponent::PostApplyToComponent()
+{
+	NotifyIfStaticMeshChanged();
+
+	Super::PostApplyToComponent();
+}
+
+void UStaticMeshComponent::PostReinitProperties()
+{
+	NotifyIfStaticMeshChanged();
+
+	Super::PostReinitProperties();
+}
+
 void UStaticMeshComponent::PostInitProperties()
 {
+	NotifyIfStaticMeshChanged();
+
 	Super::PostInitProperties();
 
 	for (int32 LODIndex = 0; LODIndex < LODData.Num(); LODIndex++)
@@ -563,6 +579,24 @@ void UStaticMeshComponent::NotifyIfStaticMeshChanged()
 }
 
 #if WITH_EDITOR
+
+void UStaticMeshComponent::OutdatedKnownStaticMeshDetected() const
+{
+	ensureMsgf(
+		KnownStaticMesh == StaticMesh, 
+		TEXT("There is a missing call to NotifyIfStaticMeshChanged for %s (%s -> %s) after StaticMesh has been overwritten"),
+		this, 
+		*GetFullName(),
+		KnownStaticMesh,
+		KnownStaticMesh ? *KnownStaticMesh->GetFullName() : TEXT("nullptr"),
+		StaticMesh,
+		StaticMesh ? *StaticMesh->GetFullName() : TEXT("nullptr")
+		);
+
+	// This is a last resort, call the notification now
+	UStaticMeshComponent* MutableThis = const_cast<UStaticMeshComponent*>(this);
+	MutableThis->NotifyIfStaticMeshChanged();
+}
 
 void UStaticMeshComponent::InitializeComponent()
 {

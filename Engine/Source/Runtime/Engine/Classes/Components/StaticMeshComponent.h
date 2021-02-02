@@ -383,13 +383,10 @@ public:
 	UStaticMesh* GetStaticMesh() const 
 	{ 
 #if WITH_EDITOR
+		// This should never happen and is a last resort, we should have catched the property overwrite well before we reach this code
 		if (KnownStaticMesh != StaticMesh)
 		{
-			//ensureMsgf(KnownStaticMesh == StaticMesh, TEXT("There is a missing call to NotifyIfStaticMeshChanged after StaticMesh has been overwritten"));
-
-			// This is a last resort, we should have catched the property overwrite well before we reach this code
-			UStaticMeshComponent* MutableThis = const_cast<UStaticMeshComponent*>(this);
-			MutableThis->NotifyIfStaticMeshChanged();
+			OutdatedKnownStaticMeshDetected();
 		}
 #endif
 		return StaticMesh; 
@@ -427,6 +424,8 @@ public:
 	virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;	
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostInitProperties() override;
+	virtual void PostReinitProperties() override;
+	virtual void PostApplyToComponent() override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 	virtual void PreEditUndo() override;
@@ -665,6 +664,9 @@ private:
 #if WITH_EDITOR
 	/** Update the vertex override colors */
 	void PrivateFixupOverrideColors();
+
+	/** Called when the StaticMesh property gets overwritten without us knowing about it */
+	void OutdatedKnownStaticMeshDetected() const;
 #endif
 protected:
 
