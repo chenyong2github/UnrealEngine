@@ -64,6 +64,11 @@ struct FTrackTransforms
 			SceneComponent = Actor ? Actor->GetRootComponent() : nullptr;
 		}
 
+		if (!SceneComponent)
+		{
+			return;
+		}
+
 		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 
 		TRange<FFrameNumber> ViewRange(TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetLowerBoundValue()), TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetUpperBoundValue()));
