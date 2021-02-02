@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"Projects", // So that we can use the plugin manager to find out our content dir and cook the master materials
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
+					"USDClasses",
 					"USDSchemas",
 					"USDUtilities",
 				}

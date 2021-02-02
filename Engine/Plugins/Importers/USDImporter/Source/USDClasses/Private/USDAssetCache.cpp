@@ -4,13 +4,13 @@
 
 #include "Misc/ScopeLock.h"
 
-#include "USDLog.h"
+//#include "USDLog.h"
 
 void UUsdAssetCache::CacheAsset( const FString& Hash, UObject* Asset, const FString& PrimPath /*= FString() */ )
 {
 	if ( !Asset )
 	{
-		UE_LOG( LogUsd, Warning, TEXT( "Attempted to add a null asset to USD Asset Cache with hash '%s' and PrimPath '%s'!" ), *Hash, *PrimPath );
+		//UE_LOG( LogUsd, Warning, TEXT( "Attempted to add a null asset to USD Asset Cache with hash '%s' and PrimPath '%s'!" ), *Hash, *PrimPath );
 		return;
 	}
 
@@ -105,7 +105,7 @@ void UUsdAssetCache::LinkAssetToPrim( const FString& PrimPath, UObject* Asset )
 
 	if ( !OwnedAssets.Contains( Asset ) )
 	{
-		UE_LOG( LogUsd, Warning, TEXT( "Tried to set prim path '%s' to asset '%s', but it is not currently owned by the USD stage cache!" ), *PrimPath, *Asset->GetName() );
+		//UE_LOG( LogUsd, Warning, TEXT( "Tried to set prim path '%s' to asset '%s', but it is not currently owned by the USD stage cache!" ), *PrimPath, *Asset->GetName() );
 		return;
 	}
 

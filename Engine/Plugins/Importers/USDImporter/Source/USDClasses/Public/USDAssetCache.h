@@ -9,7 +9,7 @@
 
 /** Owns the assets generated and reused by the USD stage, allowing thread-safe retrieval/storage */
 UCLASS()
-class USDUTILITIES_API UUsdAssetCache final : public UObject
+class USDCLASSES_API UUsdAssetCache : public UObject
 {
 	GENERATED_BODY()
 
