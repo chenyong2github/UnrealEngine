@@ -1414,9 +1414,10 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 		{
 			// If parent widget can only have one child and that slot is already occupied, we will remove its contents so the pasted widgets can be inserted in their place
 			UWidget* ChildWidgetToDelete = nullptr;
-			if ( !ParentWidget->CanHaveMultipleChildren() )
+			if (!ParentWidget->CanHaveMultipleChildren() && ParentWidget->GetChildrenCount() > 0)
 			{
-				if ( ParentWidget->GetChildrenCount() > 0 || RootPasteWidgets.Num() > 1 )
+				// We do not Remove child if there is nothing to paste.
+				if (RootPasteWidgets.Num() > 0)
 				{
 					// Delete the singular child
 					ChildWidgetToDelete = ParentWidget->GetAllChildren()[0];
