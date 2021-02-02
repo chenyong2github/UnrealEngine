@@ -20,6 +20,7 @@
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "SceneView.h"
 #include "Math/NumericLimits.h"
+#include "BuoyancyManager.h"
 #include "WaterRuntimeSettings.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
@@ -255,7 +256,13 @@ void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	World->OnBeginPostProcessSettings.AddUObject(this, &UWaterSubsystem::ComputeUnderwaterPostProcess);
 	World->InsertPostProcessVolume(&UnderwaterPostProcessVolume);
-
+	{
+		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnInfo.ObjectFlags = RF_Transient;
+		// Store the buoyancy manager we create for future use.
+		BuoyancyManager = World->SpawnActor<ABuoyancyManager>(SpawnInfo);
+	}
 	UCollisionProfile::Get()->OnLoadProfileConfig.AddUObject(this, &UWaterSubsystem::OnLoadProfileConfig);
 	AddWaterCollisionProfile();
 

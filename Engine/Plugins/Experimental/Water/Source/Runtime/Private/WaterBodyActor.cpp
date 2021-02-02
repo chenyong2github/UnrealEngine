@@ -64,18 +64,6 @@ const FName AWaterBody::OverriddenWaterDepthName(TEXT("Overridden Water Depth"))
 
 // ----------------------------------------------------------------------------------
 
-float FWaterBodyQueryResult::LazilyComputeSplineKey(const AWaterBody& InWaterBody, const FVector& InWorldLocation)
-{
-	// only compute if not done (or set) before : 
-	if (!SplineInputKey.IsSet())
-	{
-		SplineInputKey = TOptional<float>(InWaterBody.FindInputKeyClosestToWorldLocation(InWorldLocation));
-	}
-	return SplineInputKey.GetValue();
-}
-
-// ----------------------------------------------------------------------------------
-
 AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
