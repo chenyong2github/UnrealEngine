@@ -73,14 +73,8 @@ void FClothPhysicalMeshData::Reset(const int32 InNumVerts, const int32 InNumIndi
 
 void FClothPhysicalMeshData::ClearWeightMaps()
 {
-	// Clear all weight maps (and reserve 4 slots)
+	// Clear all weight maps (and reserve a few slots)
 	WeightMaps.Empty(4);
-
-	// Add default (empty) optional maps, as these are always expected to be found
-	AddWeightMap(EWeightMapTargetCommon::MaxDistance);
-	AddWeightMap(EWeightMapTargetCommon::BackstopDistance);
-	AddWeightMap(EWeightMapTargetCommon::BackstopRadius);
-	AddWeightMap(EWeightMapTargetCommon::AnimDriveMultiplier);
 }
 
 void FClothPhysicalMeshData::BuildSelfCollisionData(const TMap<FName, UClothConfigBase*>& ClothConfigs)

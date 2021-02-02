@@ -233,7 +233,6 @@ namespace ChaosClothingSimulationDefault
 {
 	static const FVector Gravity(0.f, 0.f, -980.665f);
 	static const float MaxDistancesMultipliers = 1.f;
-	static const float AnimDriveSpringStiffness = 1.f;
 }
 
 FClothingSimulation::FClothingSimulation()
@@ -242,7 +241,6 @@ FClothingSimulation::FClothingSimulation()
 	, bUseGravityOverride(false)
 	, GravityOverride(ChaosClothingSimulationDefault::Gravity)
 	, MaxDistancesMultipliers(ChaosClothingSimulationDefault::MaxDistancesMultipliers)
-	, AnimDriveSpringStiffness(ChaosClothingSimulationDefault::AnimDriveSpringStiffness)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	, StepCount(0)
 #endif
@@ -345,7 +343,6 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 	Colliders[ColliderIndex]->SetCollisionData(&ExternalCollisionData);
 
 	// Create cloth node
-	AnimDriveSpringStiffness = ClothConfig->AnimDriveSpringStiffness;
 	const int32 ClothIndex = Cloths.Emplace(MakeUnique<FClothingSimulationCloth>(
 		Meshes[MeshIndex].Get(),
 		TArray<FClothingSimulationCollider*>({ Colliders[ColliderIndex].Get() }),
@@ -363,8 +360,9 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->LimitScale,
 		(FClothingSimulationCloth::ETetherMode)ClothConfig->TetherMode,
 		/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
-		AnimDriveSpringStiffness,  // Animatable
-		ClothConfig->ShapeTargetStiffness,
+		TVector<float, 2>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
+		TVector<float, 2>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
+		ClothConfig->ShapeTargetStiffness,  // TODO: This is now deprecated
 		/*bUseXPBDConstraints =*/ false,  // Experimental
 		ClothConfig->GravityScale,
 		ClothConfig->bUseGravityOverride,
@@ -465,8 +463,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		// Check teleport modes
 		for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 		{
-			// Update Cloth animatable parameters
-			Cloth->SetAnimDriveSpringStiffness(AnimDriveSpringStiffness);
+			// Update Cloth animatable parameters while in the cloth loop
 			Cloth->SetMaxDistancesMultiplier(Context->MaxDistanceScale);
 
 			if (bNeedsReset)
@@ -676,7 +673,6 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 		const uint32 GroupId = Cloth->GetGroupId();
 		const UChaosClothConfig* const ClothConfig = Mesh->GetAsset()->GetClothConfig<UChaosClothConfig>();
 
-		AnimDriveSpringStiffness = ClothConfig->AnimDriveSpringStiffness;
 		Cloth = MakeUnique<FClothingSimulationCloth>(
 			Mesh,
 			MoveTemp(ClothColliders),
@@ -694,7 +690,8 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->LimitScale,
 			(FClothingSimulationCloth::ETetherMode)ClothConfig->TetherMode,
 			/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
-			AnimDriveSpringStiffness,  // Animatable
+			TVector<float, 2>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
+			TVector<float, 2>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
 			ClothConfig->ShapeTargetStiffness,
 			/*bUseXPBDConstraints =*/ false,  // Experimental
 			ClothConfig->GravityScale,
@@ -734,7 +731,19 @@ void FClothingSimulation::RefreshPhysicsAsset()
 
 void FClothingSimulation::SetAnimDriveSpringStiffness(float InAnimDriveSpringStiffness)
 {
-	AnimDriveSpringStiffness = InAnimDriveSpringStiffness;
+	// This is a legacy function used to set the AnimDrive stiffness from the Blueprint
+	for (TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
+	{
+		// Retrieve damping
+		TVector<float, 2> AnimDriveStiffness;
+		TVector<float, 2> AnimDriveDamping;
+		Cloth->GetAnimDriveProperties(AnimDriveStiffness, AnimDriveDamping);
+
+		// Override stiffness
+		Cloth->SetAnimDriveProperties(
+			TVector<float, 2>(0.f, InAnimDriveSpringStiffness),
+			AnimDriveDamping);
+	}
 }
 
 void FClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
@@ -1575,20 +1584,25 @@ void FClothingSimulation::DebugDrawAnimDrive(FPrimitiveDrawInterface* PDI) const
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 		if (const TPBDAnimDriveConstraint<float, 3>* const AnimDriveConstraint = ClothConstraints.GetAnimDriveConstraints().Get())
 		{
-			const float SpringStiffness = AnimDriveConstraint->GetSpringStiffness();
-
-			const TConstArrayView<float>& AnimDriveMultipliers = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::AnimDriveMultiplier];
+			const TConstArrayView<float>& AnimDriveStiffnessMultipliers = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
 			const TConstArrayView<FVec3> AnimationPositions = Cloth->GetAnimationPositions(Solver.Get());
 			const TConstArrayView<FVec3> ParticlePositions = Cloth->GetParticlePositions(Solver.Get());
-			check(AnimDriveMultipliers.Num() == AnimationPositions.Num());
-			check(AnimDriveMultipliers.Num() == ParticlePositions.Num());
 
-			for (int32 Index = 0; Index < AnimDriveMultipliers.Num(); ++Index)
+			const TVector<float, 2> AnimDriveStiffness = AnimDriveConstraint->GetStiffness();
+			const float StiffnessOffset = AnimDriveStiffness[0];
+			const float StiffnessRange = AnimDriveStiffness[1] - AnimDriveStiffness[0];
+
+			check(ParticlePositions.Num() == AnimationPositions.Num());
+
+			for (int32 Index = 0; Index < ParticlePositions.Num(); ++Index)
 			{
-				const float AnimDriveMultiplier = AnimDriveMultipliers[Index];
+				const float Stiffness = AnimDriveStiffnessMultipliers.IsValidIndex(Index) ?
+					StiffnessOffset + AnimDriveStiffnessMultipliers[Index] * StiffnessRange :
+					StiffnessOffset;
+
 				const FVector AnimationPosition = LocalSpaceLocation + AnimationPositions[Index];
 				const FVector ParticlePosition = LocalSpaceLocation + ParticlePositions[Index];
-				DrawLine(PDI, AnimationPosition, ParticlePosition, FLinearColor(FColor::Cyan) * AnimDriveMultiplier * SpringStiffness);
+				DrawLine(PDI, AnimationPosition, ParticlePosition, FLinearColor(FColor::Cyan) * Stiffness);
 			}
 		}
 	}

@@ -5,6 +5,7 @@
 #include "ChaosClothConfigCustomVersion.h"
 #include "ChaosClothSharedConfigCustomVersion.h"
 #include "ClothingSimulationInteractor.h"
+#include "UObject/PhysicsObjectVersion.h"
 
 // Legacy parameters not yet migrated to Chaos parameters:
 //  VerticalConstraintConfig.CompressionLimit
@@ -21,8 +22,6 @@
 //  AngularDrag
 //  StiffnessFrequency
 //  TetherLimit
-//  AnimDriveSpringStiffness
-//  AnimDriveDamperStiffness
 
 UChaosClothConfig::UChaosClothConfig()
 {}
@@ -48,7 +47,11 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 		ClothConfig.ShearConstraintConfig.Stiffness *
 		ClothConfig.ShearConstraintConfig.StiffnessMultiplier, 0.f, 1.f);
 
-	AnimDriveSpringStiffness = FMath::Clamp(ClothConfig.AnimDriveSpringStiffness, 0.f, 1.f);
+	AnimDriveStiffness.Low = 0.f;
+	AnimDriveStiffness.High = FMath::Clamp(ClothConfig.AnimDriveSpringStiffness, 0.f, 1.f);
+
+	AnimDriveDamping.Low = 0.f;
+	AnimDriveDamping.High = FMath::Clamp(ClothConfig.AnimDriveDamperStiffness, 0.f, 1.f);
 
 	FrictionCoefficient = FMath::Clamp(ClothConfig.Friction, 0.f, 10.f);
 
@@ -108,12 +111,14 @@ void UChaosClothConfig::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FChaosClothConfigCustomVersion::GUID);
+	Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 }
 
 void UChaosClothConfig::PostLoad()
 {
 	Super::PostLoad();
 	const int32 ChaosClothConfigCustomVersion = GetLinkerCustomVersion(FChaosClothConfigCustomVersion::GUID);
+	const int32 PhysicsObjectVersion = GetLinkerCustomVersion(FPhysicsObjectVersion::GUID);
 
 	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::UpdateDragDefault)
 	{
@@ -128,6 +133,11 @@ void UChaosClothConfig::PostLoad()
 	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::AddLegacyBackstopParameter)
 	{
 		bUseLegacyBackstop = true;
+	}
+	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothAddWeightedValue)
+	{
+		AnimDriveStiffness.Low = 0.f;
+		AnimDriveStiffness.High = FMath::Clamp(FMath::Loge(AnimDriveSpringStiffness_DEPRECATED) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f);
 	}
 }
 

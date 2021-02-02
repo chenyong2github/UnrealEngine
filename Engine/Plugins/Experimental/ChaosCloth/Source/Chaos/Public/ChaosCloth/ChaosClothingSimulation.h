@@ -151,7 +151,6 @@ namespace Chaos
 		bool bUseGravityOverride;
 		FVector GravityOverride;
 		float MaxDistancesMultipliers;
-		float AnimDriveSpringStiffness;
 
 #if WITH_EDITOR
 		// Visualization material

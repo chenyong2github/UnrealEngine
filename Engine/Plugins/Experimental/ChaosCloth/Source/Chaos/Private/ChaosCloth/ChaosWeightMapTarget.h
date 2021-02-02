@@ -9,10 +9,11 @@
 UENUM()
 enum class EChaosWeightMapTarget : uint8
 {
-	None                = (uint8)EWeightMapTargetCommon::None,
-	MaxDistance         = (uint8)EWeightMapTargetCommon::MaxDistance,
-	BackstopDistance    = (uint8)EWeightMapTargetCommon::BackstopDistance,
-	BackstopRadius      = (uint8)EWeightMapTargetCommon::BackstopRadius,
-	AnimDriveMultiplier = (uint8)EWeightMapTargetCommon::AnimDriveMultiplier
+	None               = (uint8)EWeightMapTargetCommon::None,
+	MaxDistance        = (uint8)EWeightMapTargetCommon::MaxDistance,
+	BackstopDistance   = (uint8)EWeightMapTargetCommon::BackstopDistance,
+	BackstopRadius     = (uint8)EWeightMapTargetCommon::BackstopRadius,
+	AnimDriveStiffness = (uint8)EWeightMapTargetCommon::AnimDriveStiffness,
+	AnimDriveDamping = (uint8)EWeightMapTargetCommon::AnimDriveDamping
 	// Add Chaos specific maps below this line
 };

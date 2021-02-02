@@ -218,10 +218,11 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 
 	// Animation Drive Constraints
-	const TConstArrayView<float>& AnimDriveMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveMultiplier];
-	if (AnimDriveMultipliers.Num())
+	const TConstArrayView<float>& AnimDriveStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
+	if (Cloth->AnimDriveStiffness[0] > 0.f || (AnimDriveStiffnessMultipliers.Num() == NumParticles && Cloth->AnimDriveStiffness[1] > 0.f))
 	{
-		ClothConstraints.SetAnimDriveConstraints(AnimDriveMultipliers);
+		const TConstArrayView<float>& AnimDriveDampingMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveDamping];
+		ClothConstraints.SetAnimDriveConstraints(AnimDriveStiffnessMultipliers, AnimDriveDampingMultipliers);
 	}
 
 	// Shape target constraint
@@ -266,7 +267,7 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 	// Update the animatable constraint parameters
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 	ClothConstraints.SetMaxDistancesMultiplier(Cloth->MaxDistancesMultiplier);
-	ClothConstraints.SetAnimDriveSpringStiffness(Cloth->AnimDriveSpringStiffness);
+	ClothConstraints.SetAnimDriveProperties(Cloth->AnimDriveStiffness, Cloth->AnimDriveDamping);
 }
 
 void FClothingSimulationCloth::FLODData::Enable(FClothingSimulationSolver* Solver, bool bEnable) const
@@ -333,7 +334,8 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	float InLimitScale,
 	ETetherMode InTetherMode,
 	float InMaxDistancesMultiplier,
-	float InAnimDriveSpringStiffness,
+	const TVector<float, 2>& InAnimDriveStiffness,
+	const TVector<float, 2>& InAnimDriveDamping,
 	float InShapeTargetStiffness,
 	bool bInUseXPBDConstraints,
 	float InGravityScale,
@@ -369,7 +371,8 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, LimitScale(InLimitScale)
 	, TetherMode(InTetherMode)
 	, MaxDistancesMultiplier(InMaxDistancesMultiplier)
-	, AnimDriveSpringStiffness(InAnimDriveSpringStiffness)
+	, AnimDriveStiffness(InAnimDriveStiffness)
+	, AnimDriveDamping(InAnimDriveDamping)
 	, ShapeTargetStiffness(InShapeTargetStiffness)
 	, bUseXPBDConstraints(bInUseXPBDConstraints)
 	, GravityScale(InGravityScale)

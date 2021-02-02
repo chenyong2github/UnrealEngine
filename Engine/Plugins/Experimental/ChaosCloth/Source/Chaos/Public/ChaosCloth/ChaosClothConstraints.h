@@ -35,6 +35,7 @@ namespace Chaos
 		void Initialize(
 			TPBDEvolution<float, 3>* InEvolution,
 			const TArray<FVec3>& InAnimationPositions,
+			const TArray<FVec3>& InOldAnimationPositions,
 			const TArray<FVec3>& InAnimationNormals,
 			int32 InParticleOffset,
 			int32 InNumParticles);
@@ -50,7 +51,7 @@ namespace Chaos
 		void SetLongRangeConstraints(const TMap<int32, TSet<uint32>>& PointToNeighborsMap, float StrainLimitingStiffness, float LimitScale, ETetherMode TetherMode, bool bUseXPBDConstraints);
 		void SetMaximumDistanceConstraints(const TConstArrayView<float>& MaxDistances);
 		void SetBackstopConstraints(const TConstArrayView<float>& BackstopDistances, const TConstArrayView<float>& BackstopRadiuses, bool bUseLegacyBackstop);
-		void SetAnimDriveConstraints(const TConstArrayView<float>& AnimDriveMultipliers);
+		void SetAnimDriveConstraints(const TConstArrayView<float>& AnimDriveStiffnessMultipliers, const TConstArrayView<float>& AnimDriveDampingMultipliers);
 		void SetShapeTargetConstraints(float ShapeTargetStiffness);
 		void SetSelfCollisionConstraints(const TArray<TVec3<int32>>& SurfaceElements, TSet<TVec2<int32>>&& DisabledCollisionElements, float SelfCollisionThickness);
 
@@ -58,7 +59,7 @@ namespace Chaos
 		void Enable(bool bEnable);
 
 		void SetMaxDistancesMultiplier(float InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
-		void SetAnimDriveSpringStiffness(float InAnimDriveSpringStiffness) { AnimDriveSpringStiffness = InAnimDriveSpringStiffness; }
+		void SetAnimDriveProperties(const TVector<float, 2>& InAnimDriveStiffness, const TVector<float, 2>& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
 		// ---- End of Cloth interface ----
 
 		// ---- Debug functions ----
@@ -100,6 +101,7 @@ namespace Chaos
 		
 		TPBDEvolution<float, 3>* Evolution;
 		const TArray<FVec3>* AnimationPositions;
+		const TArray<FVec3>* OldAnimationPositions;
 		const TArray<FVec3>* AnimationNormals;
 
 		int32 ParticleOffset;
@@ -111,6 +113,7 @@ namespace Chaos
 
 		// Animatable parameters
 		float MaxDistancesMultiplier;
-		float AnimDriveSpringStiffness;
+		TVector<float, 2> AnimDriveStiffness;
+		TVector<float, 2> AnimDriveDamping;
 	};
 } // namespace Chaos

@@ -18,6 +18,7 @@ using namespace Chaos;
 FClothConstraints::FClothConstraints()
 	: Evolution(nullptr)
 	, AnimationPositions(nullptr)
+	, OldAnimationPositions(nullptr)
 	, AnimationNormals(nullptr)
 	, ParticleOffset(0)
 	, NumParticles(0)
@@ -26,7 +27,8 @@ FClothConstraints::FClothConstraints()
 	, NumConstraintInits(0)
 	, NumConstraintRules(0)
 	, MaxDistancesMultiplier(1.f)
-	, AnimDriveSpringStiffness(0.f)
+	, AnimDriveStiffness(0.f)
+	, AnimDriveDamping(0.f)
 {
 }
 
@@ -37,12 +39,14 @@ FClothConstraints::~FClothConstraints()
 void FClothConstraints::Initialize(
 	TPBDEvolution<float, 3>* InEvolution,
 	const TArray<FVec3>& InAnimationPositions,
+	const TArray<FVec3>& InOldAnimationPositions,
 	const TArray<FVec3>& InAnimationNormals,
 	int32 InParticleOffset,
 	int32 InNumParticles)
 {
 	Evolution = InEvolution;
 	AnimationPositions = &InAnimationPositions;
+	OldAnimationPositions = &InOldAnimationPositions;
 	AnimationNormals = &InAnimationNormals;
 	ParticleOffset = InParticleOffset;
 	NumParticles = InNumParticles;
@@ -97,7 +101,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (EdgeConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
 				EdgeConstraints->Apply(Particles, Dt);
@@ -212,7 +216,7 @@ void FClothConstraints::CreateRules()
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& Particles, const float Dt)
 			{
-				AnimDriveConstraints->SetSpringStiffness(FMath::Clamp(AnimDriveSpringStiffness, 0.f, 1.f));
+				AnimDriveConstraints->SetProperties(AnimDriveStiffness, AnimDriveDamping, Dt, Evolution->GetIterations());  // TODO: Move to init function, this isn't a per iteration call
 				AnimDriveConstraints->Apply(Particles, Dt);
 			};
 	}
@@ -368,13 +372,15 @@ void FClothConstraints::SetBackstopConstraints(const TConstArrayView<float>& Bac
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetAnimDriveConstraints(const TConstArrayView<float>& AnimDriveMultipliers)
+void FClothConstraints::SetAnimDriveConstraints(const TConstArrayView<float>& AnimDriveStiffnessMultipliers, const TConstArrayView<float>& AnimDriveDampingMultipliers)
 {
 	AnimDriveConstraints = MakeShared<TPBDAnimDriveConstraint<float, 3>>(
 		ParticleOffset,
 		NumParticles,
 		*AnimationPositions,
-		AnimDriveMultipliers);
+		*OldAnimationPositions,
+		AnimDriveStiffnessMultipliers,
+		AnimDriveDampingMultipliers);
 	++NumConstraintRules;
 }
 

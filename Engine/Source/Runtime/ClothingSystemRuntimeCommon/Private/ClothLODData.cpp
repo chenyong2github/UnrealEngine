@@ -41,7 +41,7 @@ bool FClothLODDataCommon::Serialize(FArchive& Ar)
 		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance).Values = MoveTemp(PhysicalMeshData.MaxDistances_DEPRECATED);
 		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::BackstopDistance).Values = MoveTemp(PhysicalMeshData.BackstopDistances_DEPRECATED);
 		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::BackstopRadius).Values = MoveTemp(PhysicalMeshData.BackstopRadiuses_DEPRECATED);
-		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::AnimDriveMultiplier).Values = MoveTemp(PhysicalMeshData.AnimDriveMultipliers_DEPRECATED);
+		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::AnimDriveStiffness).Values = MoveTemp(PhysicalMeshData.AnimDriveMultipliers_DEPRECATED);
 
 #if WITH_EDITORONLY_DATA
 		// Migrate editor maps

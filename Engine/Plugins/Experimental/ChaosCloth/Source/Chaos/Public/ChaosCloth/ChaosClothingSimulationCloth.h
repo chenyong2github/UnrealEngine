@@ -43,7 +43,8 @@ namespace Chaos
 			float InLimitScale,
 			ETetherMode InTetherMode,
 			float InMaxDistancesMultiplier,
-			float InAnimDriveSpringStiffness,
+			const TVector<float, 2>& InAnimDriveStiffness,
+			const TVector<float, 2>& InAnimDriveDamping,
 			float InShapeTargetStiffness,
 			bool bInUseXPBDConstraints,
 			float InGravityScale,
@@ -73,7 +74,8 @@ namespace Chaos
 
 		// ---- Animatable property setters ----
 		void SetMaxDistancesMultiplier(float InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
-		void SetAnimDriveSpringStiffness(float InAnimDriveSpringStiffness) { AnimDriveSpringStiffness = InAnimDriveSpringStiffness; }
+		void SetAnimDriveProperties(const TVector<float, 2>& InAnimDriveStiffness, const TVector<float, 2>& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
+		void GetAnimDriveProperties(TVector<float, 2>& OutAnimDriveStiffness, TVector<float, 2>& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
 
 		void Reset() { bNeedsReset = true; }
 		void Teleport() { bNeedsTeleport = true; }
@@ -183,7 +185,8 @@ namespace Chaos
 		float LimitScale;
 		ETetherMode TetherMode;
 		float MaxDistancesMultiplier;  // Animatable
-		float AnimDriveSpringStiffness;  // Animatable
+		TVector<float, 2> AnimDriveStiffness;  // Animatable
+		TVector<float, 2> AnimDriveDamping;  // Animatable
 		float ShapeTargetStiffness;
 		bool bUseXPBDConstraints;
 		float GravityScale;

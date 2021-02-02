@@ -1800,7 +1800,7 @@ void FClothingActorNv::UpdateAnimDrive(FClothingSimulationContextNv* InContext)
 	SCOPE_CYCLE_COUNTER(STAT_NvClothUpdateAnimDrive);
 
 	const FClothPhysicalMeshData& MeshDataBase = AssetCreatedFrom->LodData[CurrentLodIndex].PhysicalMeshData;
-	const FPointWeightMap* const AnimDriveMultipliers = MeshDataBase.FindWeightMap(EWeightMapTargetCommon::AnimDriveMultiplier);
+	const FPointWeightMap* const AnimDriveMultipliers = MeshDataBase.FindWeightMap(EWeightMapTargetCommon::AnimDriveStiffness);
 	if(AnimDriveMultipliers && AnimDriveMultipliers->Num())
 	{
 		const TArray<FVector> CurrentSkinPositions = GetCurrentSkinnedPositions();
