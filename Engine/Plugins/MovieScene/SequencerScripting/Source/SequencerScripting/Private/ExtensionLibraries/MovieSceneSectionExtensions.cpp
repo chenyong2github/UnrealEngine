@@ -252,7 +252,8 @@ void GetScriptingChannelsForChannel(FMovieSceneChannelProxy& ChannelProxy,TWeakO
 			if (MetaData[Index].bEnabled)
 			{
 				const FName ChannelName = MetaData[Index].Name;
-				ScriptingChannelType* ScriptingChannel = NewObject<ScriptingChannelType>(GetTransientPackage(), ChannelName);
+				FName ScriptingChannelName = MakeUniqueObjectName(GetTransientPackage(), ScriptingChannelType::StaticClass(), ChannelName);
+				ScriptingChannelType* ScriptingChannel = NewObject<ScriptingChannelType>(GetTransientPackage());
 				ScriptingChannel->ChannelHandle = ChannelProxy.MakeHandle<ChannelType>(Index);
 				ScriptingChannel->OwningSection = Section;
 				ScriptingChannel->OwningSequence = Sequence;
