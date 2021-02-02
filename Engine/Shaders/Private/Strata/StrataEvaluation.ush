@@ -8,6 +8,7 @@
 #include "../MonteCarlo.ush"
 #include "../SHCommon.ush"
 #include "../ShadingModels.ush"
+#include "../ThinFilmBSDF.ush"
 
 
 
@@ -234,7 +235,20 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 					HazePDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2Haze);
 				}
 			}
-			float3 F = F_Schlick(F0, F90, BSDFContext.Context.VoH);
+
+			float3 F = 0;
+			const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
+			BRANCH
+			if (!bHasThinFilm)
+			{
+				F = F_Schlick(F0, F90, BSDFContext.Context.VoH);
+			}
+			else
+			{
+				float ThinFilmIOR		= SLAB_THINFILM_IOR(BSDFContext.BSDF);
+				float ThinFilmThickness = SLAB_THINFILM_THICKNESS(BSDFContext.BSDF);
+				F = F_ThinFilm(BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
+			}
 
 			Sample.SpecularPathProbability	= bHaziness		? (1.0f - SPECULAR_HAZINESS_WEIGHT) : 1.0f;
 			Sample.SpecularHazePathProbability= bHaziness	? SPECULAR_HAZINESS_WEIGHT			: 0.0f;
@@ -443,8 +457,18 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			BRANCH
 			if (bEnableSpecular)
 			{
-				const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
+				float3 F0 = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
 				const float3 F90 = ComputeF90(F0, SLAB_EDGECOLOR(BSDFContext.BSDF), Metallic);
+
+				float3 FresnelWeight = 1;
+				const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
+				if (bHasThinFilm)
+				{
+					float ThinFilmIOR = SLAB_THINFILM_IOR(BSDFContext.BSDF);
+					float ThinFilmThickness = SLAB_THINFILM_THICKNESS(BSDFContext.BSDF);
+					FresnelWeight = F_ThinFilm(BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
+					F0 = 1.f;
+				}
 
 				float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 
@@ -464,7 +488,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
 				}
 
-				float3 EvalEnvBRDF = EnvBRDFApprox(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
+				float3 EvalEnvBRDF = FresnelWeight * EnvBRDFApprox(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
 
 				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughnessX);
 				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;

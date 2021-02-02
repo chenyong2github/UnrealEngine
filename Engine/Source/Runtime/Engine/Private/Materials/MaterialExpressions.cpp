@@ -19761,6 +19761,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	uint8 SharedNormalIndex = bAnisotropyPotentiallyUsed ? StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk) : StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
 	const bool bHasEdgeColor = HasEdgeColor();
+	const bool bHasThinFilm = HasThinFilm();
 
 	int32 SSSProfileCodeChunk = INDEX_NONE;
 	const bool bHasScattering = HasScattering();
@@ -19782,10 +19783,11 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat1(Compiler, SSSDMFPScale, 1.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
+		CompileWithDefaultFloat1(Compiler, ThinFilmThickness, 0.0f),
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasEdgeColor, bHasScattering);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasEdgeColor, bHasScattering, bHasThinFilm);
 
 	return OutputCodeChunk;
 }
@@ -19839,6 +19841,9 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 		break;
 	case 11:
 		return MCT_Float1; // Haziness
+		break;
+	case 12:
+		return MCT_Float1; // ThinFilm Thickness
 		break;
 	}
 
@@ -19896,6 +19901,10 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	{
 		return TEXT("Haziness");
 	}
+	else if (InputIndex == 12)
+	{
+		return TEXT("ThinFilm Thickness");
+	}
 	return TEXT("Unknown");
 }
 
@@ -19928,6 +19937,11 @@ bool UMaterialExpressionStrataSlabBSDF::HasScattering() const
 bool UMaterialExpressionStrataSlabBSDF::HasEdgeColor() const
 {
 	return EdgeColor.IsConnected();
+}
+
+bool UMaterialExpressionStrataSlabBSDF::HasThinFilm() const
+{
+	return ThinFilmThickness.IsConnected();
 }
 
 #endif // WITH_EDITOR

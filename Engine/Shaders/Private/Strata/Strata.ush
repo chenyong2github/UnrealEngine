@@ -55,7 +55,8 @@ struct FStrataBSDF
 #define STATE_BITS_GREYWEIGHT			1
 #define STATE_BITS_HAZINESS				1
 #define STATE_BITS_EDGECOLOR			1
-#define STATE_BITS___UNUSED___			11
+#define STATE_BITS_THINFILM				1
+#define STATE_BITS___UNUSED___			10
 #define STATE_BITS_WEIGHT10F			10
 
 // Bit offset of each component store in BSDF state 
@@ -68,6 +69,7 @@ struct FStrataBSDF
 #define STATE_BIT_OFFSET_GREYWEIGHT		(STATE_BIT_OFFSET_HASSSSPROFILE		+ STATE_BITS_HASSSSPROFILE)
 #define STATE_BIT_OFFSET_HAZINESS		(STATE_BIT_OFFSET_GREYWEIGHT		+ STATE_BITS_GREYWEIGHT)
 #define STATE_BIT_OFFSET_EDGECOLOR		(STATE_BIT_OFFSET_HAZINESS			+ STATE_BITS_HAZINESS)
+#define STATE_BIT_OFFSET_THINFILM		(STATE_BIT_OFFSET_EDGECOLOR			+ STATE_BITS_EDGECOLOR)
 #define STATE_BIT_OFFSET_WEIGHT10F		22
 
 #define TO_BITMASK(BitCount)							((1<<BitCount)-1)
@@ -112,6 +114,10 @@ struct FStrataBSDF
 #define BSDF_GETHASEDGECOLOR(X)			BSDF_GETSTATE(X, STATE_BITS_EDGECOLOR, STATE_BIT_OFFSET_EDGECOLOR)
 #define BSDF_SETHASEDGECOLOR(X, Col)	BSDF_SETSTATE(X, STATE_BITS_EDGECOLOR, STATE_BIT_OFFSET_EDGECOLOR, Col)
 
+// Indicates if the BSDF has thin film
+#define BSDF_GETHASTHINFILM(X)			BSDF_GETSTATE(X, STATE_BITS_THINFILM, STATE_BIT_OFFSET_THINFILM)
+#define BSDF_SETHASTHINFILM(X, Thin)	BSDF_SETSTATE(X, STATE_BITS_THINFILM, STATE_BIT_OFFSET_THINFILM, Thin)
+
 // Accessors for the 10bits float weight used if is it detected being a grey scale
 #define BSDF_GETWEIGHT10F(X)			BSDF_GETSTATE(X, STATE_BITS_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F)
 #define BSDF_SETWEIGHT10F(X, Weight)	BSDF_SETSTATE(X, STATE_BITS_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F, Weight)
@@ -136,6 +142,9 @@ struct FStrataBSDF
 #define SLAB_SSSPROFILERADIUSSCALE(X)	X.VGPRs[2].y
 // Or explicit DMFP
 #define SLAB_SSSDMFP(X)					X.VGPRs[2].xyz
+// Thin film. IOR is harcoded to oil IOR in order to save VGPR
+#define SLAB_THINFILM_THICKNESS(X)		X.VGPRs[2].w
+#define SLAB_THINFILM_IOR(X)			1.44f
 
 #define SHEEN_BASECOLOR(X)				X.VGPRs[0].xyz
 #define SHEEN_ROUGHNESS(X)				X.VGPRs[0].w
@@ -163,8 +172,6 @@ struct FStrataBSDF
 #define SLW_WATERPHASEG(X)				X.InlineVGPRs[0].w
 #define SLW_COLORSCALEBEHINDWATER(X)	X.InlineVGPRs[2].xyz
 #endif
-
-
 
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
@@ -325,7 +332,7 @@ FStrataData GetInitialisedStrataData()
 FStrataData GetStrataSlabBSDF(
 	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic, float2 Roughness,
 	float SSSProfileID, float3 SSSDMFP, float SSSDMFPScale,
-	float3 Emissive, float Haziness, 
+	float3 Emissive, float Haziness, float ThinFilmThickness, 
 	uint SharedNormalIndex, inout uint SharedNormalTypes)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
@@ -333,6 +340,7 @@ FStrataData GetStrataSlabBSDF(
 
 	const uint bHasEdgeColor = any(EdgeColor < 1);
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
+	const uint bHasThinFilm = ThinFilmThickness > 0.0f ? 1 : 0;
 	const uint bHasAnisotropy = StrataHasAnisotropy(Roughness.x, Roughness.y) ? 1 : 0;
 	if (bHasAnisotropy)
 	{
@@ -353,6 +361,7 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETHASSSSPROFILE	(StrataData.Layers[0].BSDFs[0],		bHasSSSProfile ? 1 : 0);
 	BSDF_SETHASHAZINESS		(StrataData.Layers[0].BSDFs[0],		bHasHaziness);
 	BSDF_SETHASEDGECOLOR	(StrataData.Layers[0].BSDFs[0],		bHasEdgeColor);
+	BSDF_SETHASTHINFILM		(StrataData.Layers[0].BSDFs[0],		bHasThinFilm);
 
 	SLAB_BASECOLOR			(StrataData.Layers[0].BSDFs[0])		= BaseColor;
 	SLAB_EDGECOLOR			(StrataData.Layers[0].BSDFs[0])		= EdgeColor;
@@ -361,6 +370,7 @@ FStrataData GetStrataSlabBSDF(
 	SLAB_ROUGHNESSX			(StrataData.Layers[0].BSDFs[0])		= Roughness.x;
 	SLAB_ROUGHNESSY			(StrataData.Layers[0].BSDFs[0])		= Roughness.y;
 	SLAB_HAZINESS			(StrataData.Layers[0].BSDFs[0])		= Haziness;
+	SLAB_THINFILM_THICKNESS	(StrataData.Layers[0].BSDFs[0])		= ThinFilmThickness;
 	if (bHasSSSProfile)
 	{
 		SLAB_SSSPROFILEID	(StrataData.Layers[0].BSDFs[0])		= SSSProfileID;
@@ -655,6 +665,7 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 	SLAB_ROUGHNESSX(BSDF) = saturate(SLAB_ROUGHNESSX(BSDF));
 	SLAB_ROUGHNESSY(BSDF) = saturate(SLAB_ROUGHNESSY(BSDF));
 	SLAB_HAZINESS(BSDF) = saturate(SLAB_HAZINESS(BSDF));
+	SLAB_THINFILM_THICKNESS(BSDF) = saturate(SLAB_THINFILM_THICKNESS(BSDF));
 	SLAB_SSSPROFILERADIUSSCALE(BSDF) = saturate(SLAB_SSSPROFILERADIUSSCALE(BSDF));
 	SLAB_SSSDMFP(BSDF) = clamp(SLAB_SSSDMFP(BSDF), 0.0f, Max111110BitsFloat3);
 }
@@ -1292,9 +1303,9 @@ void PackStrataOut(
 				STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLAB_BASECOLOR(BSDF), SLAB_ROUGHNESSX(BSDF))));
 				STRATA_STORE_UINT1(PackRGBA8(float4(SLAB_SPECULAR(BSDF), SLAB_METALLIC(BSDF), SLAB_ROUGHNESSY(BSDF), SLAB_HAZINESS(BSDF))));
 
-				if (BSDF_GETHASEDGECOLOR(BSDF))
+				if (BSDF_GETHASEDGECOLOR(BSDF) || BSDF_GETHASTHINFILM(BSDF))
 				{
-					STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLAB_EDGECOLOR(BSDF), 0)));
+					STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLAB_EDGECOLOR(BSDF), SLAB_THINFILM_THICKNESS(BSDF))));
 				}
 
 				if (BSDF_GETHASSCATTERING(BSDF))
@@ -1376,7 +1387,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout ui
 }
 
 // Unpack only strata header 
-// This version assume only a single slab (isotropic BSDF, with no edge color, no subsurface scattering, and no haziness)
+// This version assume only a single slab (isotropic BSDF, with no edge color, no subsurface scattering, no haziness, and no thin film)
 FStrataPixelHeader UnpackFastPathStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout uint ByteOffset)
 {
 	FStrataPixelHeader Out = InitialiseStrataPixelHeader();
@@ -1407,6 +1418,7 @@ void SetStrataFastPathState(inout FStrataBSDF BSDF)
 	BSDF_SETHASSCATTERING(BSDF, 0);
 	BSDF_SETHASSSSPROFILE(BSDF, 0);
 	BSDF_SETHASHAZINESS(BSDF, 0);
+	BSDF_SETHASTHINFILM(BSDF, 0);
 }
 
 // Unpack a single BSDF
@@ -1445,10 +1457,10 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 		}
 
 		SLAB_EDGECOLOR(OutBSDF) = 1.0f;
-		if (BSDF_GETHASEDGECOLOR(OutBSDF))
+		SLAB_THINFILM_THICKNESS(OutBSDF) = 0.0f;
+		if (BSDF_GETHASEDGECOLOR(OutBSDF) || BSDF_GETHASTHINFILM(OutBSDF))
 		{
-			float Unused;
-			StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLAB_EDGECOLOR(OutBSDF), Unused);
+			StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, ByteOffset, SLAB_EDGECOLOR(OutBSDF), SLAB_THINFILM_THICKNESS(OutBSDF));
 		}
 
 		if (BSDF_GETHASSCATTERING(OutBSDF))
@@ -1493,4 +1505,3 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout uint ByteOf
 
 	return OutBSDF;
 }
-
