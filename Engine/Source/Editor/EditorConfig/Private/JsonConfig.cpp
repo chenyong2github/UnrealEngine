@@ -1007,7 +1007,7 @@ namespace UE
 				return true;
 
 			case EJson::Array:
-				if (CurrentValue->Type != EJson::Object || CurrentValue->Type != EJson::Array)
+				if (CurrentValue->Type != EJson::Object && CurrentValue->Type != EJson::Array)
 				{
 					return false;
 				}
