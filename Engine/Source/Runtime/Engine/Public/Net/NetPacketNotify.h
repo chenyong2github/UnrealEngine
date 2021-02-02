@@ -188,6 +188,7 @@ void FNetPacketNotify::ProcessReceivedAcks(const FNotificationHeader& Notificati
 		SequenceNumberT CurrentAck(OutAckSeq);
 		++CurrentAck;
 
+		// Warn if the received sequence number is greater than our history buffer, since if that is the case we have to treat the data as lost.
 		if (AckCount > (SequenceNumberT::DifferenceT)(SequenceHistoryT::Size))
 		{
 			UE_LOG_PACKET_NOTIFY_WARNING(TEXT("Notification::ProcessReceivedAcks - Missed Acks: AckedSeq: %u, OutAckSeq: %u, FirstMissingSeq: %u Count: %u"), NotificationData.AckedSeq.Get(), OutAckSeq.Get(), CurrentAck.Get(), AckCount - (SequenceNumberT::DifferenceT)(SequenceHistoryT::Size));

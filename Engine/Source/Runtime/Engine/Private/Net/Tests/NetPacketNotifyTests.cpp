@@ -2,6 +2,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "Net/NetPacketNotify.h"
+#include "Logging/LogScopedVerbosityOverride.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -305,6 +306,9 @@ bool FNetPacketNotifyTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Test Seq {0, FNetPacketNotify::MaxSequenceHistoryLength - 1}"), FNetPacketNotifyTestUtil::TestNotificationSequence(TestSeqs));
 	}
 	{
+		// This test will trigger a warning since the sequence delta is larger than the history window so we supress it
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogNetTraffic, ELogVerbosity::Error);
+
 		static const FNetPacketNotify::SequenceNumberT TestSeqs[] = {0, FNetPacketNotify::MaxSequenceHistoryLength};	
 		TestFalse(TEXT("Test Seq {0, FNetPacketNotify::MaxSequenceHistoryLength}"), FNetPacketNotifyTestUtil::TestNotificationSequence(TestSeqs));
 	}
@@ -321,6 +325,9 @@ bool FNetPacketNotifyTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("Test Seq {FNetPacketNotify::SequenceNumberT::SeqNumberMax, 0} From 0;"), FNetPacketNotifyTestUtil::TestNotificationSequence(TestSeqs));
 	}
 	{
+		// This test will trigger a warning since the sequence delta is larger than the history window so we supress it
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogNetTraffic, ELogVerbosity::Error);
+
 		static const FNetPacketNotify::SequenceNumberT TestSeqs[] = {FNetPacketNotify::SequenceNumberT::SeqNumberMax, 0};
 		TestTrue(TEXT("Test Seq {FNetPacketNotify::SequenceNumberT::SeqNumberMax, 0} From SeqNumberHalf + 1;"), FNetPacketNotifyTestUtil::TestNotificationSequence(TestSeqs, FNetPacketNotify::SequenceNumberT::SeqNumberHalf + 2));
 	}
