@@ -46,6 +46,7 @@ struct FDeviceNotificationCallbackInformation
 			if (CurrentDeviceIds[Index].Contains("Network"))
 			{
 				CurrentDeviceIds.RemoveAt(Index);
+				Index--;
 				continue;
 			}
 			CurrentDeviceIds[Index].Split(TEXT(" "), &CurrentDeviceIds[Index], nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
