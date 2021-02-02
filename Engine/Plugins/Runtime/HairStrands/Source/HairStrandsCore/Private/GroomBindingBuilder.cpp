@@ -50,7 +50,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomBindingBuilder, Log, All);
 FString FGroomBindingBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("1c");
+	return TEXT("1ce");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -538,7 +538,7 @@ namespace GroomBinding_RootProjection
 			}
 			
 			int32 Kernel = 1;
-			while (!bIsValid)
+			do
 			{
 				for (int32 Z = -Kernel; Z <= Kernel; ++Z)
 				for (int32 Y = -Kernel; Y <= Kernel; ++Y)
@@ -568,7 +568,7 @@ namespace GroomBinding_RootProjection
 				{
 					break;
 				}
-			}
+			} while (!bIsValid);
 
 			return Out;
 		}
