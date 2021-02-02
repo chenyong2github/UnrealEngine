@@ -21,7 +21,7 @@ void FCacheRecord::SetBinary(FSharedBuffer Value)
 	check(Value);
 	Package.Reset();
 	Binary = MoveTemp(Value);
-	BinaryHash = Binary.GetSize() ? FIoHash::HashBuffer(Value) : FIoHash();
+	BinaryHash = Binary.GetSize() ? FIoHash::HashBuffer(Binary) : FIoHash();
 	Type = ECacheRecordType::Binary;
 }
 
