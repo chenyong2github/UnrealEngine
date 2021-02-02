@@ -1773,7 +1773,7 @@ void SSCS_RowWidget::Construct( const FArguments& InArgs, TSharedPtr<SSCSEditor>
 		.Style(bIsSeparator ?
 			&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow") :
 			&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow")) //@todo create editor style for the SCS tree
-		.Padding(FMargin(0.f, 0.f, 0.f, 4.f))
+		.Padding(FMargin(0.f, 4.f, 0.f, 4.f))
 		.ShowSelection(!bIsSeparator)
 		.OnDragDetected(this, &SSCS_RowWidget::HandleOnDragDetected)
 		.OnDragEnter(this, &SSCS_RowWidget::HandleOnDragEnter)
@@ -1820,7 +1820,7 @@ TSharedRef<SWidget> SSCS_RowWidget::GenerateWidgetForColumn( const FName& Column
 		
 		TSharedRef<SToolTip> Tooltip = CreateToolTipWidget();
 
-		return	SNew(SHorizontalBox)
+		return SNew(SHorizontalBox)
 				.ToolTip(Tooltip)
 				+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -1838,7 +1838,6 @@ TSharedRef<SWidget> SSCS_RowWidget::GenerateWidgetForColumn( const FName& Column
 					]
 				+SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
-					.Padding(2, 0, 0, 0)
 					[
 						InlineWidget.ToSharedRef()
 					];
@@ -1849,7 +1848,6 @@ TSharedRef<SWidget> SSCS_RowWidget::GenerateWidgetForColumn( const FName& Column
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.Padding(2, 0, 0, 0)
 			[
 				SNew(STextBlock)
 				.Visibility(this, &SSCS_RowWidget::GetAssetVisibility)
@@ -1868,6 +1866,7 @@ TSharedRef<SWidget> SSCS_RowWidget::GenerateWidgetForColumn( const FName& Column
 				.ToolTip(MobilityTooltip)
 				.Visibility(EVisibility::Visible) // so we still get tooltip text for an empty SHorizontalBox
 				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
 				.FillWidth(1.0f)
 				[
 					SNew(SImage)
@@ -3576,21 +3575,24 @@ TSharedRef<SWidget> SSCS_RowWidget_ActorRoot::GenerateWidgetForColumn(const FNam
 
 	NodePtr->SetRenameRequestedDelegate(FSCSEditorTreeNode::FOnRenameRequested::CreateSP(InlineEditableWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode));
 
+	const bool IsRootActorNode = NodePtr->GetNodeType() == FSCSEditorTreeNode::ENodeType::RootActorNode;
+
 	return SNew(SHorizontalBox)
 		.ToolTip(CreateToolTipWidget())
 
 	+ SHorizontalBox::Slot()
+		.Padding(FMargin(IsRootActorNode ? 0.f : 4.f, 0.f, 0.f, 0.f))
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SExpanderArrow, SharedThis(this))
-			.Visibility(NodePtr->GetNodeType() == FSCSEditorTreeNode::ENodeType::RootActorNode ? EVisibility::Collapsed : EVisibility::Visible)
+			.Visibility(IsRootActorNode ? EVisibility::Collapsed : EVisibility::Visible)
 		]
 
 	+ SHorizontalBox::Slot()
+		.Padding(FMargin(IsRootActorNode ? 4.f : 0.f, 0.f, 0.f, 0.f))
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.Padding(FMargin(0.f, 0.f, 6.f, 0.f))
 		[
 			SNew(SImage)
 			.Image(GetIconBrush())
@@ -3600,15 +3602,15 @@ TSharedRef<SWidget> SSCS_RowWidget_ActorRoot::GenerateWidgetForColumn(const FNam
 		.AutoWidth()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
-		.Padding(0.0f, 0.0f)
+		.Padding(6.f, 0.f, 0.f, 0.f)
 		[
 			InlineEditableWidget.ToSharedRef()
 		]
 
-	+SHorizontalBox::Slot()
+	+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
-		.Padding(0.0f, 0.0f)
+		.Padding(4.f, 0.f, 0.f, 0.f)
 		[
 			SNew(STextBlock)
 			.Text(this, &SSCS_RowWidget_ActorRoot::GetActorContextText)
@@ -4041,29 +4043,22 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 
 	Contents = SNew(SVerticalBox)
 	+ SVerticalBox::Slot()
-	.Padding(0.0f)
+	.AutoHeight()
+	.VAlign(VAlign_Top)
+	.Padding(4.f, 0, 4.f, 4.f)
 	[
-		SNew(SVerticalBox)
+		SAssignNew(HeaderBox, SVerticalBox)
+	]
 
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		.Padding(4.0)
+	+ SVerticalBox::Slot()
+	[
+		SNew(SBorder)
+		.BorderImage(FAppStyle::Get().GetBrush("SCSEditor.Background"))
+		.Padding(4.f)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ComponentsPanel")))
+		.Visibility(this, &SSCSEditor::GetComponentsTreeVisibility)
 		[
-			SAssignNew(HeaderBox, SVerticalBox)
-		]
-
-		+ SVerticalBox::Slot()
-		.Padding(4.0)
-		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-			.Padding(0.0)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ComponentsPanel")))
-			.Visibility(this, &SSCSEditor::GetComponentsTreeVisibility)
-			[
-				SCSTreeWidget.ToSharedRef()
-			]
+			SCSTreeWidget.ToSharedRef()
 		]
 	];
 

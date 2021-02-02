@@ -4240,6 +4240,7 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 			.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)));
 
 		Set("SCSEditor.TreePanel", new FSlateNoResource());
+		Set("SCSEditor.Background", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 4.0f));
 
 		//
 

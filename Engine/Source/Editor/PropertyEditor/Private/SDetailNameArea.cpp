@@ -119,7 +119,7 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 		.AutoWidth()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
-		.Padding(0,0,6,0)
+		.Padding(0)
 		[
 			SNew(SImage)
 			.Image(ActorIcon)
@@ -139,7 +139,7 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 
 			ObjectNameArea->AddSlot()
 				.FillWidth(1.0)
-				.Padding(5, 0, 3, 0)
+				.Padding(8, 0, 3, 0)
 				[
 					SNew(SBox)
 					.WidthOverride(200.0f)

@@ -131,26 +131,25 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	GEditor->RegisterForUndo(this);
 
 	ComponentsBox = SNew(SBox)
-		.Visibility(this, &SActorDetails::GetComponentsBoxVisibility);
-
-	SCSEditor = SNew(SSCSEditor)
-		.EditorMode(EComponentEditorMode::ActorInstance)
-		.AllowEditing(this, &SActorDetails::GetAllowComponentTreeEditing)
-		.ActorContext(this, &SActorDetails::GetActorContext)
-		.OnSelectionUpdated(this, &SActorDetails::OnSCSEditorTreeViewSelectionChanged)
-		.OnItemDoubleClicked(this, &SActorDetails::OnSCSEditorTreeViewItemDoubleClicked);
-		
-	ComponentsBox->SetContent(SCSEditor.ToSharedRef());
+		.Padding(FMargin(2,0,2,0))
+		.Visibility(this, &SActorDetails::GetComponentsBoxVisibility)
+		[
+			SAssignNew(SCSEditor, SSCSEditor)
+			.EditorMode(EComponentEditorMode::ActorInstance)
+			.AllowEditing(this, &SActorDetails::GetAllowComponentTreeEditing)
+			.ActorContext(this, &SActorDetails::GetActorContext)
+			.OnSelectionUpdated(this, &SActorDetails::OnSCSEditorTreeViewSelectionChanged)
+			.OnItemDoubleClicked(this, &SActorDetails::OnSCSEditorTreeViewItemDoubleClicked)
+		];
 
 	TSharedRef<SWidget> ButtonBox = SCSEditor->GetToolButtonsBox().ToSharedRef();
 	DetailsView->SetNameAreaCustomContent( ButtonBox );
-	
 
 	ChildSlot
 	[
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
-		.Padding(0.0f, 4.0f, 0.0f, 4.0f)
+		.Padding(10.f, 4.f, 0.f, 0.f)
 		.AutoHeight()
 		[
 			DetailsView->GetNameAreaWidget().ToSharedRef()
@@ -167,7 +166,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 				SNew( SVerticalBox )
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding( FMargin( 0,0,0,1) )
+				.Padding( FMargin(0,0,0,1) )
 				[
 					SNew(SActorDetailsUneditableComponentWarning)
 					.Visibility(this, &SActorDetails::GetUCSComponentWarningVisibility)
@@ -176,7 +175,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 				]
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding( FMargin( 0,0,0,1) )
+				.Padding( FMargin(0,0,0,1) )
 				[
 					SNew(SActorDetailsUneditableComponentWarning)
 					.Visibility(this, &SActorDetails::GetInheritedBlueprintComponentWarningVisibility)
@@ -185,7 +184,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 				]
 				+SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding( FMargin( 0,0,0,1) )
+				.Padding( FMargin(0,0,0,1) )
 				[
 					SNew(SActorDetailsUneditableComponentWarning)
 					.Visibility(this, &SActorDetails::GetNativeComponentWarningVisibility)
