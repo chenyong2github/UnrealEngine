@@ -705,6 +705,20 @@ void UModelingToolsEditorMode::BindCommands()
 		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->CanCompleteActiveTool(); }),
 		EUIActionRepeatMode::RepeatDisabled
 		);
+
+	// These aren't activated by buttons but have default chords that bind the keypresses to the action.
+	CommandList->MapAction(
+		ToolManagerCommands.AcceptOrCompleteActiveTool,
+		FExecuteAction::CreateLambda([this]() {
+			const EToolShutdownType ShutdownType = ToolsContext->CanAcceptActiveTool() ? EToolShutdownType::Accept : EToolShutdownType::Completed;
+			ToolsContext->EndTool(ShutdownType);
+			}),
+		FCanExecuteAction::CreateLambda([this]() {
+				return ToolsContext->CanAcceptActiveTool() || ToolsContext->CanCompleteActiveTool();
+			}),
+		FGetActionCheckState(),
+		FIsActionButtonVisible(),
+		EUIActionRepeatMode::RepeatDisabled);
 	CommandList->MapAction(
 		ToolManagerCommands.CancelOrCompleteActiveTool,
 		FExecuteAction::CreateLambda([this]() {
@@ -714,9 +728,9 @@ void UModelingToolsEditorMode::BindCommands()
 		FCanExecuteAction::CreateLambda([this]() {
 				return ToolsContext->CanCompleteActiveTool() || ToolsContext->CanCancelActiveTool();
 			}),
-				FGetActionCheckState(),
-				FIsActionButtonVisible::CreateLambda([this]() { return ToolsContext->CanCompleteActiveTool() || ToolsContext->CanCancelActiveTool(); }),
-				EUIActionRepeatMode::RepeatDisabled);
+		FGetActionCheckState(),
+		FIsActionButtonVisible(),
+		EUIActionRepeatMode::RepeatDisabled);
 }
 
 void UModelingToolsEditorMode::ModelingModeShortcutRequested(EModelingModeActionCommands Command)
@@ -753,6 +767,20 @@ bool UModelingToolsEditorMode::GetPivotForOrbit(FVector& OutPivot) const
 		return true;
 	}
 	return false;
+}
+
+bool UModelingToolsEditorMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
+{
+	// TODO: This is a bit of a hack around the fact that when we fly around with right click + wasd,
+	// we still get the key presses passed to us. UEdMode currently does this check  for ToolCommandList,
+	// but we want our hotkeys to live in the toolkit command list so that we respond to them when the
+	// viewport is not focused.
+	// This should get removed when we have fixed wasd flying to capture its keys properly.
+	if (ToolsContext->ShouldIgnoreHotkeys())
+	{
+		return false;
+	}
+	return UEdMode::InputKey(ViewportClient, Viewport, Key, Event);
 }
 
 
