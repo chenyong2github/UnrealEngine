@@ -21,7 +21,7 @@ void Main(
 #if PER_INSTANCE_HITPROXY_ID
 	float4 InstanceHitProxyId : HIT_PROXY_ID,
 #endif
-	float4 PixelPosition	: TEXCOORD8,
+	float4 PixelPosition	: TEXCOORD6,
 #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 	float3 PixelPositionExcludingWPO : TEXCOORD7,
 #endif
