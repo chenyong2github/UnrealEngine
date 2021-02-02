@@ -1052,7 +1052,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 
 	// We always use local vertex factory, which gets its primitive data from
 	// GPUScene, so we can skip expensive primitive uniform buffer updates.
-	bVFRequiresPrimitiveUniformBuffer = true;
+	bVFRequiresPrimitiveUniformBuffer = false;
 
 	// Indicates if 1 or more materials contain settings not supported by Nanite.
 	bHasMaterialErrors = false;
