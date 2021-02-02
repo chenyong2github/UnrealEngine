@@ -21,8 +21,6 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "GeometryCache.h"
-#include "GeometryCacheTrackUSD.h"
-#include "GeometryCacheUSDComponent.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Materials/Material.h"
@@ -38,6 +36,8 @@
 #include "UObject/SoftObjectPath.h"
 
 #if WITH_EDITOR
+#include "GeometryCacheTrackUSD.h"
+#include "GeometryCacheUSDComponent.h"
 #include "IMeshBuilderModule.h"
 #endif // WITH_EDITOR
 
@@ -50,8 +50,10 @@
 	#include "pxr/usd/usdShade/material.h"
 #include "USDIncludesEnd.h"
 
+#if WITH_EDITOR  // The GeometryCacheStreamer module is editor-only
 // Can toggle on/off to compare performance with StaticMesh instead of GeometryCache
 static bool bUseGeometryCacheUSD = true;
+#endif // WITH_EDITOR
 
 namespace UsdGeomMeshTranslatorImpl
 {
@@ -164,6 +166,7 @@ namespace UsdGeomMeshTranslatorImpl
 		return bMaterialAssignementsHaveChanged;
 	}
 
+#if WITH_EDITOR
 	// #ueent_todo: Merge the code with ProcessMaterials
 	bool ProcessGeometryCacheMaterials( const pxr::UsdPrim& UsdPrim, const TArray< UsdUtils::FUsdPrimMaterialAssignmentInfo >& LODIndexToMaterialInfo, UGeometryCache& GeometryCache, UUsdAssetCache& AssetCache, float Time, EObjectFlags Flags)
 	{
@@ -201,11 +204,10 @@ namespace UsdGeomMeshTranslatorImpl
 							if ( GIsEditor )  // Editor, PIE => true; Standlone, packaged => false
 							{
 								MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceConstant( DisplayColorDesc.GetValue() );
-#if WITH_EDITOR
+
 								// Leave PrimPath as empty as it likely will be reused by many prims
 								UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( MaterialInstance, TEXT( "USDAssetImportData" ) );
 								MaterialInstance->AssetImportData = ImportData;
-#endif // WITH_EDITOR
 							}
 							else
 							{
@@ -291,11 +293,10 @@ namespace UsdGeomMeshTranslatorImpl
 							if ( GIsEditor )  // Editor, PIE => true; Standlone, packaged => false
 							{
 								MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceConstant( DisplayColorDesc.GetValue() );
-#if WITH_EDITOR
+
 								// Leave PrimPath as empty as it likely will be reused by many prims
 								UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( MaterialInstance, TEXT( "USDAssetImportData" ) );
 								MaterialInstance->AssetImportData = ImportData;
-#endif // WITH_EDITOR
 							}
 							else
 							{
@@ -323,6 +324,7 @@ namespace UsdGeomMeshTranslatorImpl
 
 		return bMaterialAssignementsHaveChanged;
 	}
+#endif // WITH_EDITOR
 
 	// If UsdMesh is a LOD, will parse it and all of the other LODs, and and place them in OutLODIndexToMeshDescription and OutLODIndexToMaterialInfo.
 	// Note that these other LODs will be hidden in other variants, and won't show up on traversal unless we actively switch the variants (which we do here).
@@ -566,6 +568,7 @@ namespace UsdGeomMeshTranslatorImpl
 #endif // WITH_EDITOR
 	}
 
+#if WITH_EDITOR
 	void GeometryCacheDataForMeshDescription( FGeometryCacheMeshData& OutMeshData, FMeshDescription& MeshDescription );
 
 	UGeometryCache* CreateGeometryCache( const FString& InPrimPath, TArray< FMeshDescription >& LODIndexToMeshDescription, TSharedRef< FUsdSchemaTranslationContext> Context, bool& bOutIsNew )
@@ -768,6 +771,7 @@ namespace UsdGeomMeshTranslatorImpl
 			OutMeshData.BatchesInfo.Add( BatchInfo );
 		}
 	}
+#endif // WITH_EDITOR
 
 	/** Warning: This function will temporarily switch the active LOD variant if one exists, so it's *not* thread safe! */
 	void SetMaterialOverrides( const pxr::UsdPrim& Prim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, UUsdAssetCache& AssetCache, float Time, EObjectFlags Flags, bool bInterpretLODs, const FName& RenderContext )
@@ -1052,6 +1056,7 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 	FBuildStaticMeshTaskChain::SetupTasks();
 }
 
+#if WITH_EDITOR
 class FGeometryCacheCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
 public:
@@ -1113,25 +1118,21 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			const FString PrimPathString = PrimPath.GetString();
 			UGeometryCache* GeometryCache = UsdGeomMeshTranslatorImpl::CreateGeometryCache( PrimPathString, LODIndexToMeshDescription, Context, bIsNew );
 
-#if WITH_EDITOR
 			if ( bIsNew && GeometryCache )
 			{
 				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( GeometryCache, TEXT( "UUSDAssetImportData" ) );
 				ImportData->PrimPath = PrimPathString;
 				GeometryCache->AssetImportData = ImportData;
 			}
-#endif // WITH_EDITOR
 
 			bool bMaterialsHaveChanged = false;
 			if ( GeometryCache )
 			{
 				Context->AssetCache->LinkAssetToPrim( PrimPathString, GeometryCache );
 
-#if WITH_EDITOR
 				// Only process the materials if we own the GeometryCache. If it's new we know we do
 				UUsdAssetImportData* ImportData = Cast< UUsdAssetImportData >( GeometryCache->AssetImportData );
 				if ( ImportData && ImportData->PrimPath == PrimPathString )
-#endif // WITH_EDITOR
 				{
 					bMaterialsHaveChanged = UsdGeomMeshTranslatorImpl::ProcessGeometryCacheMaterials( GetPrim(), LODIndexToMaterialInfo, *GeometryCache, *Context->AssetCache.Get(), Context->Time, Context->ObjectFlags );
 				}
@@ -1141,11 +1142,13 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			return bContinueTaskChain;
 		} );
 }
+#endif // WITH_EDITOR
 
 void FUsdGeomMeshTranslator::CreateAssets()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomMeshTranslator::CreateAssets );
 
+#if WITH_EDITOR
 	if ( bUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
 	{
 		// Create the GeometryCache TaskChain
@@ -1154,6 +1157,7 @@ void FUsdGeomMeshTranslator::CreateAssets()
 		Context->TranslatorTasks.Add( MoveTemp( AssetsTaskChain ) );
 	}
 	else
+#endif // WITH_EDITOR
 	{
 		TSharedRef< FGeomMeshCreateAssetsTaskChain > AssetsTaskChain = MakeShared< FGeomMeshCreateAssetsTaskChain >( Context, PrimPath );
 
@@ -1163,12 +1167,14 @@ void FUsdGeomMeshTranslator::CreateAssets()
 
 USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 {
+#if WITH_EDITOR
 	// Animated meshes as GeometryCache
 	if ( bUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
 	{
 		TOptional< TSubclassOf< USceneComponent > > GeometryCacheComponent( UGeometryCacheUsdComponent::StaticClass() );
 		return CreateComponentsEx( GeometryCacheComponent, {} );
 	}
+#endif // WITH_EDITOR
 
 	// Animated and static meshes as StaticMesh
 	USceneComponent* SceneComponent = CreateComponentsEx( {}, {} );
@@ -1218,12 +1224,18 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		SceneComponent->Modify();
 	}
 
-	if ( !bUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
+	if (
+#if WITH_EDITOR
+		!bUseGeometryCacheUSD &&
+#endif // !WITH_EDITOR
+		UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() )
+	)
 	{
 		// The assets might have changed since our attributes are animated
 		CreateAssets();
 	}
 
+#if WITH_EDITOR
 	// Set the initial GeometryCache on the GeometryCacheUsdComponent
 	if ( UGeometryCacheUsdComponent* GeometryCacheUsdComponent = Cast< UGeometryCacheUsdComponent >( SceneComponent ) )
 	{
@@ -1247,6 +1259,7 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 			GeometryCacheUsdComponent->TickAtThisTime( Context->Time, true, false, true );
 		}
 	}
+#endif // WITH_EDITOR
 
 	Super::UpdateComponents( SceneComponent );
 }

@@ -19,7 +19,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"GeometryCache",
-					"GeometryCacheUSD",
 					"MeshDescription",
 					"RenderCore",
 					"RHI", // For FMaterialUpdateContext and the right way of updating material instance constants
@@ -37,6 +36,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
+						"GeometryCacheUSD",
 						"MaterialEditor",
 						"MeshUtilities",
 						"PropertyEditor",
