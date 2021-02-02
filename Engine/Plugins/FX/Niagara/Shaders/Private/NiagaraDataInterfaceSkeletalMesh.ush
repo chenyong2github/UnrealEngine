@@ -64,7 +64,7 @@ struct FDISkelMeshContext
 	Buffer<int>		UvMappingBuffer;
 	uint			UvMappingBufferLength;
 	uint			UvMappingSet;
-	ByteAddressBuffer	ConnectivityBuffer;
+	Buffer<uint>		ConnectivityBuffer;
 	uint			ConnectivityMaxAdjacentPerVertex;
 	uint			ConnectivityBufferLength;
 	float4x4		InstanceTransform;
@@ -996,28 +996,28 @@ void DISkelMesh_GetFilteredSocketOrBoneAt(in FDISkelMeshContext DIContext, int F
 
 void DISkelMesh_GetAdjacentTriangleIndex(in FDISkelMeshContext DIContext, int VertexId, int AdjacencyIndex, out int TriangleIndex)
 {
-	uint BufferLength = 0;
-	DIContext.ConnectivityBuffer.GetDimensions(BufferLength);
-
+	if (AdjacencyIndex < DIContext.ConnectivityMaxAdjacentPerVertex)
+	{
 #if DISKELMESH_ADJ_INDEX_FORMAT == DISKELMESH_ADJ_INDEX_FORMAT_FULL
-	const uint ReadIndex = 4 * (VertexId * DIContext.ConnectivityMaxAdjacentPerVertex + AdjacencyIndex);
-	if (ReadIndex < DIContext.ConnectivityBufferLength)
-	{
-		TriangleIndex = DIContext.ConnectivityBuffer.Load(ReadIndex);
-		return;
-	}
+		const uint ReadIndex = (VertexId * DIContext.ConnectivityMaxAdjacentPerVertex + AdjacencyIndex);
+		if (ReadIndex < DIContext.ConnectivityBufferLength)
+		{
+			TriangleIndex = DIContext.ConnectivityBuffer[ReadIndex];
+			return;
+		}
 #elif DISKELMESH_ADJ_INDEX_FORMAT == DISKELMESH_ADJ_INDEX_FORMAT_HALF
-	const uint ReadIndex = (2 * (VertexId * DIContext.ConnectivityMaxAdjacentPerVertex + AdjacencyIndex)) & ~0x3;
-	if (ReadIndex < DIContext.ConnectivityBufferLength)
-	{
-		uint PackedIndices = DIContext.ConnectivityBuffer.Load(ReadIndex);
-		uint2 UnpackedIndices = uint2(PackedIndices >> 16, PackedIndices & 0xFFFF);
-		TriangleIndex = UnpackedIndices[AdjacencyIndex & 1];
-		return;
-	}
+		const uint ReadIndex = ((VertexId * DIContext.ConnectivityMaxAdjacentPerVertex + AdjacencyIndex) & ~0x1) >> 1;
+		if (ReadIndex < DIContext.ConnectivityBufferLength)
+		{
+			uint PackedIndices = DIContext.ConnectivityBuffer[ReadIndex];
+			uint2 UnpackedIndices = uint2(PackedIndices >> 16, PackedIndices & 0xFFFF);
+			TriangleIndex = UnpackedIndices[AdjacencyIndex & 1];
+			return;
+		}
 #else
-	#error Unsupported index format for adjacency information
+		#error Unsupported index format for adjacency information
 #endif
+	}
 
 	TriangleIndex = -1;
 }
@@ -1106,7 +1106,7 @@ void DISkelMesh_GetTriangleNeighbor(in FDISkelMeshContext DIContext, int Triangl
 	Buffer<int>		UvMappingBuffer_ ## NAME; \
 	uint			UvMappingBufferLength_ ## NAME; \
 	uint			UvMappingSet_ ## NAME; \
-	ByteAddressBuffer		ConnectivityBuffer_ ## NAME; \
+	Buffer<uint>		ConnectivityBuffer_ ## NAME; \
 	uint			ConnectivityBufferLength_ ## NAME; \
 	uint			ConnectivityMaxAdjacentPerVertex_ ## NAME; \
 	float4x4		InstanceTransform_ ## NAME; \
