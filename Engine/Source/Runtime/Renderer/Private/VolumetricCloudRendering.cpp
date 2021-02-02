@@ -1565,7 +1565,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 						const FIntPoint DownscaledResolution = FIntPoint((*TracedCloudTextureOutput)->Desc.Extent.X * DownscaleFactor, (*TracedCloudTextureOutput)->Desc.Extent.Y * DownscaleFactor);
 						FRDGTextureRef CloudShadowTexture2 = GraphBuilder.CreateTexture(
 							FRDGTextureDesc::Create2D(DownscaledResolution, PF_FloatR11G11B10,
-								FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), bSkyAOPass ? TEXT("CloudSkyAOTexture2") : TEXT("CloudShadowTexture2"));
+								FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), bSkyAOPass ? TEXT("Cloud.SkyAOTexture2") : TEXT("Cloud.ShadowTexture2"));
 
 						FCloudShadowFilterCS::FPermutationDomain Permutation;
 						Permutation.Set<FCloudShadowFilterCS::FFilterSkyAO>(bSkyAOPass);
@@ -1593,7 +1593,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 						const uint32 VolumetricCloudSkyAOResolution = GetVolumetricCloudSkyAOResolution(SkyLight);
 						FRDGTextureRef CloudSkyAOTexture = GraphBuilder.CreateTexture(
 							FRDGTextureDesc::Create2D(FIntPoint(VolumetricCloudSkyAOResolution, VolumetricCloudSkyAOResolution), PF_FloatR11G11B10,
-								FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("CloudSkyAOTexture"));
+								FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Cloud.SkyAOTexture"));
 
 						// We need to make a copy of the parameters on CPU to morph them because the creation is deferred.
 						FRenderVolumetricCloudGlobalParameters& VolumetricCloudParamsAO = *GraphBuilder.AllocParameters<FRenderVolumetricCloudGlobalParameters>();
@@ -1634,7 +1634,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 
 							FRDGTextureRef NewCloudShadowTexture = GraphBuilder.CreateTexture(
 								FRDGTextureDesc::Create2D(TracingResolution2D, CloudShadowPixelFormat,
-									FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable), TEXT("CloudShadowTexture"));
+									FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable), TEXT("Cloud.ShadowTexture"));
 
 							VolumetricCloudParams.TraceShadowmap = 1 + LightIndex;
 							TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> TraceVolumetricCloudShadowParamsUB = GraphBuilder.CreateUniformBuffer(&VolumetricCloudParams);
@@ -1849,7 +1849,7 @@ static void GetOutputTexturesWithFallback(FRDGBuilder& GraphBuilder, FCloudRende
 	{
 		CloudColorCubeTexture = GraphBuilder.CreateTexture(
 			FRDGTextureDesc::CreateCube(1, PF_FloatRGBA, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
-			TEXT("CloudColorCubeDummy"));
+			TEXT("Cloud.ColorCubeDummy"));
 	}
 
 	CloudColorTexture = CloudRC.RenderTargets[0].GetTexture();
@@ -1857,7 +1857,7 @@ static void GetOutputTexturesWithFallback(FRDGBuilder& GraphBuilder, FCloudRende
 	{
 		CloudColorTexture = GraphBuilder.CreateTexture(
 			FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_FloatRGBA, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
-			TEXT("CloudColorDummy"));
+			TEXT("Cloud.ColorDummy"));
 	}
 
 	CloudDepthTexture = CloudRC.RenderTargets[1].GetTexture();
@@ -1865,7 +1865,7 @@ static void GetOutputTexturesWithFallback(FRDGBuilder& GraphBuilder, FCloudRende
 	{
 		CloudDepthTexture = GraphBuilder.CreateTexture(
 			FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_G16R16F, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
-			TEXT("CloudDepthDummy"));
+			TEXT("Cloud.DepthDummy"));
 	}
 }
 
@@ -2120,7 +2120,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 						FIntPoint IntermadiateTargetResolution = FIntPoint(DestinationRT->Desc.GetSize().X, DestinationRT->Desc.GetSize().Y);
 						IntermediateRT = GraphBuilder.CreateTexture(
 							FRDGTextureDesc::Create2D(IntermadiateTargetResolution, PF_FloatRGBA, FClearValueBinding(FLinearColor(63000.0f, 63000.0f, 63000.0f, 63000.0f)),
-								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("RGBCloudIntermediate"));
+								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("Cloud.HighQualityAPIntermediate"));
 					}
 
 					// No action because we only need to render volumetric clouds so we do not blend in that render target.
@@ -2143,11 +2143,11 @@ bool FSceneRenderer::RenderVolumetricCloud(
 						FIntPoint IntermadiateTargetResolution = FIntPoint(RtSize.X, RtSize.Y);
 						IntermediateRT = GraphBuilder.CreateTexture(
 							FRDGTextureDesc::Create2D(IntermadiateTargetResolution, PF_FloatRGBA, FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)),
-								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("RGBCloudIntermediate"));
+								TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("Cloud.HighQualityAPIntermediate"));
 					}
 
 					DestinationRTDepth = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(RtSize.X, RtSize.Y), PF_G16R16F, FClearValueBinding::Black,
-						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("DummyDepth"));
+						TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV), TEXT("Cloud.DummyDepth"));
 					CloudRC.RenderTargets[0] = FRenderTargetBinding(bShouldUseHighQualityAerialPerspective ? IntermediateRT : DestinationRT, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 					CloudRC.RenderTargets[1] = FRenderTargetBinding(DestinationRTDepth, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction);
 

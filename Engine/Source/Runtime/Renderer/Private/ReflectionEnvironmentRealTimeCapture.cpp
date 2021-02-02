@@ -328,13 +328,13 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	if (!ConvolvedSkyRenderTarget[0].IsValid() || CubeResolutionInvalidated)
 	{
 		// Always allocated
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget[0], TEXT("ConvolvedSkyRenderTarget"), ERenderTargetTransience::NonTransient);
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, SkyCubeTexDesc, CapturedSkyRenderTarget, TEXT("CapturedSkyRenderTarget"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget[0], TEXT("SkyLight.ConvolvedSkyRenderTarget0"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, SkyCubeTexDesc, CapturedSkyRenderTarget, TEXT("SkyLight.CapturedSkyRenderTarget"), ERenderTargetTransience::NonTransient);
 	}
 	if (bTimeSlicedRealTimeCapture && (CubeResolutionInvalidated || !ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex].IsValid()))
 	{
 		// Additional allocation for time slicing
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget[1], TEXT("ConvolvedSkyRenderTarget"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget[1], TEXT("SkyLight.ConvolvedSkyRenderTarget1"), ERenderTargetTransience::NonTransient);
 	}
 
 	auto ClearCubeFace = [&](FRDGTextureRef SkyCubeTexture, int32 CubeFace)
@@ -560,7 +560,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 							{
 								FRDGTextureDesc CubeDepthTextureDesc = FRDGTextureDesc::Create2D(FIntPoint(CubeWidth, CubeWidth), PF_DepthStencil, GetSceneDepthClearValue(),
 									TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
-								CubeDepthTexture = GraphBuilder.CreateTexture(CubeDepthTextureDesc, TEXT("CubeDepthTexture"));
+								CubeDepthTexture = GraphBuilder.CreateTexture(CubeDepthTextureDesc, TEXT("SkyLight.CubeDepthTexture"));
 								PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(CubeDepthTexture, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);
 							}
 

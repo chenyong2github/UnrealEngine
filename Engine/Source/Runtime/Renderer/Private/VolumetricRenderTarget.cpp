@@ -246,7 +246,7 @@ FRDGTextureRef FVolumetricRenderTargetViewStateData::GetOrCreateVolumetricTracin
 		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			VolumetricTracingRTResolution, PF_FloatRGBA, FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)),
 			TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false);
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, VolumetricTracingRT, TEXT("RDGVolumetricTracingRT"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, VolumetricTracingRT, TEXT("VolumetricRenderTarget.Tracing"), ERenderTargetTransience::NonTransient);
 	}
 
 	return GraphBuilder.RegisterExternalTexture(VolumetricTracingRT);
@@ -261,7 +261,7 @@ FRDGTextureRef FVolumetricRenderTargetViewStateData::GetOrCreateVolumetricTracin
 		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			VolumetricTracingRTResolution, PF_G16R16F, FClearValueBinding(FLinearColor(63000.0f, 63000.0f, 63000.0f, 63000.0f)),
 			TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false);
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, VolumetricTracingRTDepth, TEXT("RDGVolumetricTracingRTDepth"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, VolumetricTracingRTDepth, TEXT("VolumetricRenderTarget.TracingDepth"), ERenderTargetTransience::NonTransient);
 	}
 
 	return GraphBuilder.RegisterExternalTexture(VolumetricTracingRTDepth);
@@ -277,7 +277,7 @@ FRDGTextureRef FVolumetricRenderTargetViewStateData::GetOrCreateDstVolumetricRec
 		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			VolumetricReconstructRTResolution, PF_FloatRGBA, FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)),
 			TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable, false);
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, VolumetricReconstructRT[CurrentRT], TEXT("RDGVolumetricVolumetricReconstructRTRT"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, VolumetricReconstructRT[CurrentRT], TEXT("VolumetricRenderTarget.Reconstruct"), ERenderTargetTransience::NonTransient);
 	}
 
 	return GraphBuilder.RegisterExternalTexture(VolumetricReconstructRT[CurrentRT]);
@@ -293,7 +293,7 @@ FRDGTextureRef FVolumetricRenderTargetViewStateData::GetOrCreateDstVolumetricRec
 		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			VolumetricReconstructRTResolution, PF_G16R16F, FClearValueBinding(FLinearColor(63000.0f, 63000.0f, 63000.0f, 63000.0f)),
 			TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable, false);
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, VolumetricReconstructRTDepth[CurrentRT], TEXT("RDGVolumetricVolumetricReconstructRTRTDepth"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, VolumetricReconstructRTDepth[CurrentRT], TEXT("VolumetricRenderTarget.ReconstructDepth"), ERenderTargetTransience::NonTransient);
 	}
 
 	return GraphBuilder.RegisterExternalTexture(VolumetricReconstructRTDepth[CurrentRT]);
@@ -814,7 +814,7 @@ FRDGTextureRef FTemporalRenderTargetState::GetOrCreateCurrentRT(FRDGBuilder& Gra
 
 	FRDGTextureRef RDGTexture = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(Resolution, Format, FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)), 
-			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable), TEXT("TemporalRenderTarget"));
+			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable), TEXT("VolumetricRenderTarget.GeneralTemporalTexture"));
 	return RDGTexture;
 }
 void FTemporalRenderTargetState::ExtractCurrentRT(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGTexture)
