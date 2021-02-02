@@ -7210,8 +7210,8 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 				// Cache off the newest history, the last history sent to this connection, and then update the state
 				// to notify that we're going to send it the newest history.
 				const uint32 NewChangelistHistory = FastArrayState.HistoryEnd;
-				const uint32 LastSentHistory = NewArrayDeltaState->ChangelistHistory;
-				const uint32 LastSentChangelistDelta = NewChangelistHistory - LastSentHistory;
+				const uint32 LastAckedHistory = NewArrayDeltaState->LastAckedHistory;
+				const uint32 LastAckedChangelistDelta = NewChangelistHistory - LastAckedHistory;
 
 				NewArrayDeltaState->ChangelistHistory = NewChangelistHistory;
 
@@ -7458,16 +7458,18 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 				// and send all changes (happens in the block below, Changelists.Num() == 0).
 
 				// Note, this won't be all changes since the beginning, but just all changes for the currently dirty items.
+				const uint32 LastHistory = LastAckedHistory;
+				const uint32 LastChangelistDelta = LastAckedChangelistDelta;
 
-				if (LastSentHistory != 0 && LastSentChangelistDelta > 0 && LastSentChangelistDelta < (FDeltaArrayHistoryState::MAX_CHANGE_HISTORY - 1))
+				if (LastHistory != 0 && LastChangelistDelta > 0 && LastChangelistDelta < (FDeltaArrayHistoryState::MAX_CHANGE_HISTORY - 1))
 				{
 					const FConstRepObjectDataBuffer ConstObjectData(ObjectData);
 					Changelists.SetNum(ChangedElements.Num());
 
 					// Note, we iterate from LastSentHistory + 1, because we don't want to send something if
-					// we think its already been sent.
+					// we think it's already been sent/received.
 					// Similarly, we do <= NewChangelistHistory because we need to send the newest history.
-					for (uint32 ChangelistHistory = LastSentHistory + 1; ChangelistHistory <= NewChangelistHistory; ++ChangelistHistory)
+					for (uint32 ChangelistHistory = LastHistory + 1; ChangelistHistory <= NewChangelistHistory; ++ChangelistHistory)
 					{
 						const uint32 RelativeHistory = ChangelistHistory % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
 						FDeltaArrayHistoryItem& HistoryItem = FastArrayState.ChangeHistory[RelativeHistory];
@@ -7870,6 +7872,12 @@ const ELifetimeCondition FRepLayout::GetLifetimeCustomDeltaPropertyCondition(con
 {
 	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->GetCustomDeltaProperty(CustomDeltaPropertyIndex);
 	return Parents[CustomDeltaProperty.PropertyRepIndex].Condition;
+}
+
+bool FRepLayout::IsAFastArray(const uint16 CustomDeltaPropertyIndex) const
+{
+	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->GetCustomDeltaProperty(CustomDeltaPropertyIndex);
+	return CustomDeltaProperty.FastArrayNumber != INDEX_NONE;
 }
 
 void FReceivingRepState::CountBytes(FArchive& Ar) const
