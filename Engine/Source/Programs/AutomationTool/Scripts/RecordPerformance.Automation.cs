@@ -120,7 +120,7 @@ class RecordPerformance : BuildCommand
 
 	private IEnumerable<string> GetRhisForPlatform(string PlatformName)
 	{
-		if (PlatformName == "Win64" || PlatformName == "Win32")
+		if (PlatformName == "Win64")
 		{
 			return new string[] { "d3d11", "d3d12", "vulkan" };
 		}

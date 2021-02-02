@@ -133,8 +133,7 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 
 				FName UBTPlatformName = PlatformInfo->DataDrivenPlatformInfo->UBTPlatformName;
 				// Hack to allow clients for PS4/XboxOne (etc.) to build the nativized assets plugin
-				const bool bIsClientValidForPlatform = UBTPlatformName == TEXT("Win32") ||
-					UBTPlatformName == TEXT("Win64") ||
+				const bool bIsClientValidForPlatform = UBTPlatformName == TEXT("Win64") ||
 					UBTPlatformName == TEXT("Linux") ||
 					UBTPlatformName == TEXT("LinuxAArch64") ||
 					UBTPlatformName == TEXT("Mac");

@@ -1045,7 +1045,7 @@ protected:
 			{
 				PlatformInfo::EPlatformSDKStatus Status = PlatArray[Index+2].Contains(TEXT("INVALID")) ? PlatformInfo::EPlatformSDKStatus::NotInstalled : PlatformInfo::EPlatformSDKStatus::Installed;
 				FString PlatformName = PlatArray[Index+1];
-				if (PlatformName == TEXT("Win32") || PlatformName == TEXT("Win64"))
+				if (PlatformName == TEXT("Win64"))
 				{
 					PlatformName = TEXT("WindowsEditor");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
