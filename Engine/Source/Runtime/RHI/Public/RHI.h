@@ -725,6 +725,11 @@ extern RHI_API void GetShadingPathName(ERHIShadingPath::Type InShadingPath, FStr
 /** Creates an FName for the given shading path. */
 extern RHI_API void GetShadingPathName(ERHIShadingPath::Type InShadingPath, FName& OutName);
 
+/** Returns a string of friendly name bits for the buffer usage flags enum. */
+extern RHI_API FString GetBufferUsageFlagsName(EBufferUsageFlags BufferUsage);
+
+/** Returns a string of friendly name bits for the texture create flags enum. */
+extern RHI_API FString GetTextureCreateFlagsName(ETextureCreateFlags TextureCreateFlags);
 
 enum class ERHIPipeline : uint8
 {
