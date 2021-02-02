@@ -276,6 +276,17 @@ bool FDataRegistryResolverScope::IsStackVolatile()
 	return false;
 }
 
+bool UDataRegistrySettings::CanIgnoreMissingAssetData() const
+{
+#if !WITH_EDITORONLY_DATA
+	if (bIgnoreMissingCookedAssetRegistryData)
+	{
+		return true;
+	}
+#endif
+	return false;
+}
+
 #if WITH_EDITOR
 
 void UDataRegistrySettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

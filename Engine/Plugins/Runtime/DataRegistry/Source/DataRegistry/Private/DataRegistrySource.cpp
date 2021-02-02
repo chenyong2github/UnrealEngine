@@ -226,7 +226,7 @@ void UMetaDataRegistrySource::DetermineRuntimeNames(TArray<FName>& OutRuntimeNam
 	}
 }
 
-bool UMetaDataRegistrySource::DoesAssetPassFilter(const FAssetData& AssetData, bool bRegisteredAsset)
+bool UMetaDataRegistrySource::DoesAssetPassFilter(const FAssetData& AssetData, bool bNewRegisteredAsset)
 {
 	return false;
 }

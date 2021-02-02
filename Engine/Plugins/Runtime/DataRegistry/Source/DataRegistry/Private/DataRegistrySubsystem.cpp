@@ -664,17 +664,16 @@ void UDataRegistrySubsystem::ApplyPreregisterMap(UDataRegistry* Registry)
 			{
 				Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
 			}
-#if !WITH_EDITORONLY_DATA
-			else if (Settings->bIgnoreMissingCookedAssetRegistryData)
+			else if (Settings->CanIgnoreMissingAssetData())
 			{
+				// Construct fake asset data and register that
 				AssetData = FAssetData(AssetPath.GetLongPackageName(), AssetPath.GetAssetPathString(), NAME_Object);
-
 				Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
 			}
-#endif
 		}
 	}
 
+	// Now check 
 	FoundPreregister = PreregisterAssetMap.Find(FDataRegistryType());
 
 	if (FoundPreregister)
@@ -687,14 +686,11 @@ void UDataRegistrySubsystem::ApplyPreregisterMap(UDataRegistry* Registry)
 			{
 				Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
 			}
-#if !WITH_EDITORONLY_DATA
-			else if (Settings->bIgnoreMissingCookedAssetRegistryData)
+			else if (Settings->CanIgnoreMissingAssetData())
 			{
-				AssetData = FAssetData(AssetPath.GetLongPackageName(), AssetPath.GetAssetPathString(), NAME_Object);
-
-				Registry->RegisterSpecificAsset(AssetData, (*FoundPreregister)[i].Value);
+				// This is not safe without a specified type as it can't know which registry is the proper destination
+				UE_LOG(LogDataRegistry, Warning, TEXT("ApplyPreregisterMap failed to register %s, Type must be specified if asset data is missing"), *AssetPath.ToString());
 			}
-#endif
 		}
 	}
 }

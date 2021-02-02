@@ -326,39 +326,32 @@ bool UMetaDataRegistrySource_DataTable::SetDataForChild(FName SourceId, UDataReg
 	return false;
 }
 
-bool UMetaDataRegistrySource_DataTable::DoesAssetPassFilter(const FAssetData& AssetData, bool bRegisteredAsset)
+bool UMetaDataRegistrySource_DataTable::DoesAssetPassFilter(const FAssetData& AssetData, bool bNewRegisteredAsset)
 {
+	const UDataRegistrySettings* Settings = GetDefault<UDataRegistrySettings>();
+	
 	// Call into parent to check search rules if needed	
-	if (bRegisteredAsset)
+	if (bNewRegisteredAsset)
 	{
-		bool bPassesFilter = UAssetManager::Get().DoesAssetMatchSearchRules(AssetData, SearchRules);
-		if (!bPassesFilter)
+		FAssetManagerSearchRules ModifiedRules = SearchRules;
+
+		if (Settings->CanIgnoreMissingAssetData())
 		{
-#if !WITH_EDITORONLY_DATA
-			const UDataRegistrySettings* Settings = GetDefault<UDataRegistrySettings>();
-			if (Settings->bIgnoreMissingCookedAssetRegistryData)
-			{
-				// Drop the class and tag check, only do basic path validation
-				FAssetManagerSearchRules ModifiedRules = SearchRules;
-				ModifiedRules.AssetBaseClass = nullptr;
+			// Drop the class check, only do basic path validation
+			ModifiedRules.AssetBaseClass = nullptr;
+		}
 
-				bPassesFilter = UAssetManager::Get().DoesAssetMatchSearchRules(AssetData, ModifiedRules);
-				if (bPassesFilter)
-				{
-					return true;
-				}
-			}
-#endif
-
+		if (!UAssetManager::Get().DoesAssetMatchSearchRules(AssetData, ModifiedRules))
+		{
 			return false;
 		}
 	}
 
-	const UScriptStruct* ItemStruct = GetItemStruct();
 	static const FName RowStructureTagName("RowStructure");
 	FString RowStructureString;
 	if (AssetData.GetTagValue(RowStructureTagName, RowStructureString))
 	{
+		const UScriptStruct* ItemStruct = GetItemStruct();
 		if (RowStructureString == ItemStruct->GetName())
 		{
 			return true;
@@ -374,15 +367,11 @@ bool UMetaDataRegistrySource_DataTable::DoesAssetPassFilter(const FAssetData& As
 			}
 		}
 	}
-
-	//TODO -- Temp hack per Ben Zeigler to workaround calls into here with cooked data.  He will adjust in a subsequent CL.
-#if !WITH_EDITORONLY_DATA
-	const UDataRegistrySettings* Settings = GetDefault<UDataRegistrySettings>();
-	if (Settings->bIgnoreMissingCookedAssetRegistryData)
+	else if (Settings->CanIgnoreMissingAssetData())
 	{
+		// Row may have been stripped out, so assume it is valid
 		return true;
 	}
-#endif
 
 	return false;
 }
