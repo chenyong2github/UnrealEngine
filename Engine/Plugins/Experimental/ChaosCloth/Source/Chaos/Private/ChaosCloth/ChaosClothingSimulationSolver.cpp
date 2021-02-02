@@ -152,6 +152,7 @@ void FClothingSimulationSolver::SetCloths(TArray<FClothingSimulationCloth*>&& In
 		Cloth->Add(this);
 
 		// Set initial state
+		Cloth->PreUpdate(this);
 		Cloth->Update(this);
 	}
 
@@ -178,6 +179,7 @@ void FClothingSimulationSolver::AddCloth(FClothingSimulationCloth* InCloth)
 	InCloth->Add(this);
 
 	// Set initial state
+	InCloth->PreUpdate(this);
 	InCloth->Update(this);
 
 	// Update external collision's offset
@@ -210,6 +212,7 @@ void FClothingSimulationSolver::RemoveCloth(FClothingSimulationCloth* InCloth)
 		Cloth->Add(this);
 
 		// Set initial state
+		Cloth->PreUpdate(this);
 		Cloth->Update(this);
 	}
 
@@ -266,6 +269,7 @@ void FClothingSimulationSolver::RefreshCloths()
 		Cloth->Add(this);
 
 		// Set initial state
+		Cloth->PreUpdate(this);
 		Cloth->Update(this);
 	}
 
