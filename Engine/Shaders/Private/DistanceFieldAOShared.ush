@@ -173,8 +173,15 @@ float3 ComputeBentNormal(float3 RecordWorldNormal, uint RelativeRecordIndex)
 
 float2 AOBufferBilinearUVMax;
 
-float3 UpsampleDFAO(float2 BufferUV, float SceneDepth, float3 WorldNormal)
+struct FUpsampleDFAOOutput
 {
+	float3 BentNormal;
+	float FadeAlpha;
+};
+FUpsampleDFAOOutput UpsampleDFAO(float2 BufferUV, float SceneDepth)
+{
+	FUpsampleDFAOOutput UpsampleDFAOOutput;
+
 	// Distance field AO was computed at 0,0 regardless of viewrect min
 	float2 DistanceFieldUVs = BufferUV - View.ViewRectMin.xy * View.BufferSizeAndInvSize.zw;
 	DistanceFieldUVs = min(DistanceFieldUVs, AOBufferBilinearUVMax);
@@ -219,11 +226,22 @@ float3 UpsampleDFAO(float2 BufferUV, float SceneDepth, float3 WorldNormal)
 
 #endif
 
+	UpsampleDFAOOutput.BentNormal = BentNormal;
 	// Fade to unoccluded in the distance
-	float FadeAlpha = saturate((AOMaxViewDistance - SceneDepth) * DistanceFadeScale);
-	BentNormal = lerp(WorldNormal, BentNormal, FadeAlpha);
+	UpsampleDFAOOutput.FadeAlpha = saturate((AOMaxViewDistance - SceneDepth) * DistanceFadeScale);
 
-	return BentNormal;
+	return UpsampleDFAOOutput;
+}
+
+float3 ApplyDFAO(FUpsampleDFAOOutput UpsampleDFAOOutput, float3 WorldNormal)
+{
+	return lerp(WorldNormal, UpsampleDFAOOutput.BentNormal, UpsampleDFAOOutput.FadeAlpha);
+}
+
+float3 UpsampleDFAO(float2 BufferUV, float SceneDepth, float3 WorldNormal)
+{
+	FUpsampleDFAOOutput UpsampleDFAOOutput = UpsampleDFAO(BufferUV, SceneDepth);
+	return ApplyDFAO(UpsampleDFAOOutput, WorldNormal);
 }
 
 #ifndef CULLED_TILE_SIZEX

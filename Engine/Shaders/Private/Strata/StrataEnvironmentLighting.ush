@@ -10,7 +10,8 @@
 // Unpack BSDF on-the-fly
 float4 StrataEnvironmentLighting(
 	float2 BufferUV,
-	FGBufferData GBuffer,
+	float SceneDepth,
+	float GBufferAO,
 	float3 WorldPosition,
 	float3 CameraToPixel,
 	float3 V,
@@ -29,6 +30,8 @@ float4 StrataEnvironmentLighting(
 	CommonFactor *= View.PreExposure;
 #endif
 
+	// Sample DFAO only once
+	FUpsampleDFAOOutput UpsampleDFAOOutput = UpsampleDFAO(BufferUV, SceneDepth);
 
 #if STRATA_FASTPATH
 	uint BSDFIndex = 0;
@@ -59,12 +62,12 @@ float4 StrataEnvironmentLighting(
 			// Apply bent normal if needed
 			#if APPLY_SKY_SHADOWING
 			{
-				StrataEnvLight.DiffuseNormal = UpsampleDFAO(BufferUV, GBuffer.Depth, StrataEnvLight.DiffuseNormal); // Bent normal
+				StrataEnvLight.DiffuseNormal = ApplyDFAO(UpsampleDFAOOutput, StrataEnvLight.DiffuseNormal); // Bent normal
 			}
 			#endif
 
 			// Compute the common sky visibility factors
-			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(GBuffer, AmbientOcclusion, StrataEnvLight.DiffuseNormal);
+			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, GBufferAO, AmbientOcclusion, StrataEnvLight.DiffuseNormal);
 
 			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
 			float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb;			// STRATA_TODO compute SH coefficients for ON or Chan

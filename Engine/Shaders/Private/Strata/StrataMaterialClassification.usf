@@ -146,6 +146,7 @@ void MainPS(
 	FStrataTopLayerData TopLayerData			= (FStrataTopLayerData)0;
 
 	ClassificationData.bIsStrataMaterial = GBuffer.ShadingModelID == SHADINGMODELID_STRATA;
+	ClassificationData.GBufferAO = GBuffer.GBufferAO;
 	ClassificationData.bIsSimple = true; // non strata material or sky pixels are considered as simple.
 	if (ClassificationData.bIsStrataMaterial)
 	{

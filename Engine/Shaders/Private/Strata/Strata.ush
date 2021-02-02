@@ -171,6 +171,7 @@ float3 StrataUnpackNormal(uint PackedNormal);
 struct FStrataClassification
 {
 	uint ShadingModels;
+	uint GBufferAO;
 	bool bIsStrataMaterial;
 	bool bHasSubsurface;
 	bool bHasSubsurfaceProfile;
@@ -182,22 +183,24 @@ uint StrataPackClassificationData(FStrataClassification In)
 {
 	return 
 		(In.ShadingModels & 0xFF) | 
-		((In.bIsStrataMaterial		? 1 : 0) << 8 ) |
-		((In.bHasSubsurface			? 1 : 0) << 9 ) | 
-		((In.bHasSubsurfaceProfile	? 1 : 0) << 10) |
-		((In.bHasTransmission		? 1 : 0) << 11) |
-		((In.bIsSimple				? 1 : 0) << 12);
+		((In.GBufferAO & 0xFF)				 << 8  ) |
+		((In.bIsStrataMaterial		? 1 : 0) << 16 ) |
+		((In.bHasSubsurface			? 1 : 0) << 17 ) | 
+		((In.bHasSubsurfaceProfile	? 1 : 0) << 18) |
+		((In.bHasTransmission		? 1 : 0) << 19) |
+		((In.bIsSimple				? 1 : 0) << 20);
 }
 
 FStrataClassification StrataUnpackClassificationData(uint In)
 {
 	FStrataClassification Out;
-	Out.ShadingModels			= (In & 0xFF);
-	Out.bIsStrataMaterial		= (In >> 8 ) & 0x1;
-	Out.bHasSubsurface			= (In >> 9 ) & 0x1;
-	Out.bHasSubsurfaceProfile	= (In >> 10) & 0x1;
-	Out.bHasTransmission		= (In >> 11) & 0x1;
-	Out.bIsSimple				= (In >> 12) & 0x1;
+	Out.ShadingModels			= (In >> 0 ) & 0xFF;
+	Out.GBufferAO				= (In >> 8 ) & 0xFF;
+	Out.bIsStrataMaterial		= (In >> 16) & 0x1;
+	Out.bHasSubsurface			= (In >> 17) & 0x1;
+	Out.bHasSubsurfaceProfile	= (In >> 18) & 0x1;
+	Out.bHasTransmission		= (In >> 19) & 0x1;
+	Out.bIsSimple				= (In >> 20) & 0x1;
 	return Out;
 }
 
