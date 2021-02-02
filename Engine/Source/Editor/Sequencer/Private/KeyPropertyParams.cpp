@@ -84,7 +84,7 @@ FKeyPropertyParams::FKeyPropertyParams(TArray<UObject*> InObjectsToKey, const FP
 
 FKeyPropertyParams::FKeyPropertyParams(TArray<UObject*> InObjectsToKey, const IPropertyHandle& InPropertyHandle, ESequencerKeyMode InKeyMode)
 	: ObjectsToKey(InObjectsToKey)
-	, PropertyPath(PropertyHandleToPropertyPath(InObjectsToKey[0]->GetClass(), InPropertyHandle))
+	, PropertyPath(InObjectsToKey.Num() > 0 ? PropertyHandleToPropertyPath(InObjectsToKey[0]->GetClass(), InPropertyHandle) : FPropertyPath())
 	, KeyMode(InKeyMode)
 {
 }
