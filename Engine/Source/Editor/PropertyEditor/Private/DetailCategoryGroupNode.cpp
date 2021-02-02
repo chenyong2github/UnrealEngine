@@ -29,6 +29,7 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
+		.Padding(5,0,0,0)
 		.AutoWidth()
 		[
 			SNew(SDetailExpanderArrow, SharedThis(this))

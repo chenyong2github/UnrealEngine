@@ -28,7 +28,7 @@
 
 namespace DetailWidgetConstants
 {
-	const FMargin LeftRowPadding( 12.0f, 2.5f, 12.0f, 2.5f );
+	const FMargin LeftRowPadding( 20.0f, 2.5f, 10.0f, 2.5f );
 	const FMargin RightRowPadding( 12.0f, 2.5f, 2.0f, 2.5f );
 }
 
@@ -360,7 +360,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			NameColumnBox->AddSlot()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Fill)
-				.Padding(0,0,0,0)
+				.Padding(0)
 				.AutoWidth()
 				[
 					SNew(SDetailRowIndent, SharedThis(this))
@@ -369,7 +369,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			NameColumnBox->AddSlot()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
-				.Padding(0)
+				.Padding(5,0,0,0)
 				.AutoWidth()
 				[
 					SNew(SDetailExpanderArrow, SharedThis(this))
@@ -383,11 +383,15 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					TSharedPtr<SDetailSingleItemRow> InRow = SharedThis(this);
 					TSharedRef<SWidget> ArrayHandle = PropertyEditorHelpers::MakePropertyReorderHandle(PropertyNode.ToSharedRef(), InRow);
 					ArrayHandle->SetEnabled(IsEnabledAttribute);
+					ArrayHandle->SetVisibility(TAttribute<EVisibility>::Create([this]() 
+					{
+						return this->IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
+					}));
 
 					NameColumnBox->AddSlot()
-						.Padding(5,0,0,0)
 						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
+						.Padding(0)
 						.AutoWidth()
 						[
 							ArrayHandle
@@ -407,12 +411,20 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				}
 			}
 
+			const bool bIsReorderable = PropertyNode.IsValid() && PropertyNode->IsReorderable();
+			auto GetLeftRowPadding = [this, bIsReorderable]()
+			{
+				FMargin Padding = DetailWidgetConstants::LeftRowPadding;
+				Padding.Left -= bIsReorderable ? 16 : 0;
+				return Padding;
+			};
+
 			if (bHasMultipleColumns)
 			{
 				NameColumnBox->AddSlot()
 					.HAlign(WidgetRow.NameWidget.HorizontalAlignment)
 					.VAlign(WidgetRow.NameWidget.VerticalAlignment)
-					.Padding(DetailWidgetConstants::LeftRowPadding)
+					.Padding(TAttribute<FMargin>::Create(GetLeftRowPadding))
 					[
 						NameWidget.ToSharedRef()
 					];
@@ -459,7 +471,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				NameColumnBox->AddSlot()
 					.HAlign(WidgetRow.WholeRowWidget.HorizontalAlignment)
 					.VAlign(WidgetRow.WholeRowWidget.VerticalAlignment)
-					.Padding(DetailWidgetConstants::LeftRowPadding)
+					.Padding(TAttribute<FMargin>::Create(GetLeftRowPadding))
 					[
 						WidgetRow.WholeRowWidget.Widget
 					];
@@ -950,7 +962,6 @@ FReply SArrayRowHandle::OnDragDetected(const FGeometry& MyGeometry, const FPoint
 	}
 
 	return FReply::Unhandled();
-
 }
 
 TSharedPtr<FArrayRowDragDropOp> SArrayRowHandle::CreateDragDropOperation(TSharedPtr<SDetailSingleItemRow> InRow)
