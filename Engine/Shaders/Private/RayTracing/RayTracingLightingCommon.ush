@@ -2,11 +2,6 @@
 
 #pragma once
 
-// Whether to use a miss shader to evaluate light source instead of doing it in the ray generation shader.
-#ifndef DIM_MISS_SHADER_LIGHTING
-#define DIM_MISS_SHADER_LIGHTING 0
-#endif
-
 #include "RayTracingCommon.ush"
 
 #include "../DeferredLightingCommon.ush"
@@ -402,14 +397,11 @@ float3 ComputeDirectLighting(
 	// Preserve current custom data value from the material payload, as it will be overwritten during shadow ray tracing.
 	uint SavedPackedCustomData = Payload.PackedCustomData;
 
-
-#if DIM_MISS_SHADER_LIGHTING
 	// Repurpose some fields in the material payload to pass parameters into lighting miss shader.
 	float3 OldRadiance = Payload.GetRadiance();
 	float3 OldIndirectIrradiance = Payload.GetIndirectIrradiance();
 	Payload.SetRadiance(float3(0, 0, 0));
 	Payload.SetIndirectIrradiance(ViewDirection);
-#endif
 
 	FCulledLightList CullData = FCulledLightList::Create(WorldPosition);
 	const uint LightCount = CullData.NumLights();
@@ -480,8 +472,6 @@ float3 ComputeDirectLighting(
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif // !ENABLE_TWO_SIDED_GEOMETRY
 
-#if DIM_MISS_SHADER_LIGHTING
-
 		// Light index is packed into HitT as this component is only accessed by closest hit or miss shaders.
 		// Since closest hit execution is disabled using a ray flag, it is safe to pack custom data here.
 		Payload.HitT = asfloat(LightIndex);
@@ -489,54 +479,14 @@ float3 ComputeDirectLighting(
 		// use the bound miss shader lighting evaluation if lighting, else nothing
 		uint MissShaderIndex = Lit ? RAY_TRACING_MISS_SHADER_SLOT_LIGHTING : RAY_TRACING_MISS_SHADER_SLOT_DEFAULT;
 		TraceShadowRayMissShaderLighting(ShadowRay, RayFlags, InstanceInclusionMask, TLAS, MissShaderIndex, PixelCoord, Payload);
-
-#else // DIM_MISS_SHADER_LIGHTING
-
-		TraceVisibilityRayPacked(
-			Payload,
-			TLAS,
-			RayFlags,
-			InstanceInclusionMask,
-			PixelCoord,
-			ShadowRay);
-		IsLightVisible = Payload.IsMiss() && Lit;
-
-		if (!IsLightVisible) continue;
-
-		FRectTexture RectTexture = GetRayTracingRectTextureData();
-
-#if USE_SOURCE_TEXTURE_ARRAY
-		RectTexture.SourceTextureIndex = RectLightTextureIndex;
-#endif // USE_SOURCE_TEXTURE_ARRAY
-
-		float LightProfileMultiplier = 1.0;
-
-		if (LightProfileIndex >= 0)
-		{
-			LightProfileMultiplier = ComputeRayTracingLightProfileMultiplier(WorldPosition, LightData.Position, LightData.Direction, LightProfileIndex);
-		}
-
-		float SurfaceShadow = 1.0f;
-		float4 LightAttenuation = 1.0f;
-
-		FGBufferData GBufferData = GetGBufferDataFromPayload(Payload);
-
-		float3 LightContribution = GetDynamicLighting(WorldPosition, ViewDirection, GBufferData, 1.0, GBufferData.ShadingModelID, LightData, LightAttenuation, 0.5, uint2(0, 0), RectTexture, SurfaceShadow).xyz;
-		DirectLighting += LightContribution * LightProfileMultiplier;
-#endif
 	}
 
-
-#if DIM_MISS_SHADER_LIGHTING
 	DirectLighting = Payload.GetRadiance();
 	Payload.SetRadiance(OldRadiance);
 	Payload.SetIndirectIrradiance(OldIndirectIrradiance);
-#endif // DIM_MISS_SHADER_LIGHTING
 
 	return DirectLighting;
 }
-
-
 
 void ComputeBottomLayerMaterialProperties(RayDesc Ray, inout FMaterialClosestHitPayload Payload)
 {

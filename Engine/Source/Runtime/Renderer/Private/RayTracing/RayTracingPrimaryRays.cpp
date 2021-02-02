@@ -24,9 +24,8 @@ class FRayTracingPrimaryRaysRGS : public FGlobalShader
 
 	class FDenoiserOutput : SHADER_PERMUTATION_BOOL("DIM_DENOISER_OUTPUT");
 	class FEnableTwoSidedGeometryForShadowDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
-	class FMissShaderLighting : SHADER_PERMUTATION_BOOL("DIM_MISS_SHADER_LIGHTING");
 
-	using FPermutationDomain = TShaderPermutationDomain<FDenoiserOutput, FEnableTwoSidedGeometryForShadowDim, FMissShaderLighting>;
+	using FPermutationDomain = TShaderPermutationDomain<FDenoiserOutput, FEnableTwoSidedGeometryForShadowDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, SamplesPerPixel)
@@ -76,9 +75,6 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInf
 	if (GetRayTracingTranslucencyOptions().bEnabled || View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug)
 	{
 		FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
-
-		const bool bLightingMissShader = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
-		PermutationVector.Set<FRayTracingPrimaryRaysRGS::FMissShaderLighting>(bLightingMissShader);
 
 		PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
 
@@ -160,11 +156,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	// TODO: should be converted to RDG
 	PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(View.RayTracingSubSurfaceProfileTexture);
 
-	const bool bMissShaderLighting = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
-
 	FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
-	PermutationVector.Set< FRayTracingPrimaryRaysRGS::FMissShaderLighting>(bMissShaderLighting);
 
 	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingPrimaryRaysRGS>(PermutationVector);
 

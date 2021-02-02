@@ -48,8 +48,6 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		bool bEnableMissShaderLighting = false;
-		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DYNAMIC_MISS_SHADER"), bEnableMissShaderLighting);
 		OutEnvironment.SetDefine(TEXT("LUMEN_HARDWARE_RAYTRACING"), 1);
 		OutEnvironment.SetDefine(TEXT("DIFFUSE_TRACE_CARDS"), 1);
 	}

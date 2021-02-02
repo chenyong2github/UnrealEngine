@@ -510,13 +510,11 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 	Initializer.MaxPayloadSizeInBytes = 64; // sizeof(FPackedMaterialClosestHitPayload)
 	Initializer.bAllowHitGroupIndexing = true;
 
-	const bool bLightingMissShader = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
-
 	FRHIRayTracingShader* DefaultMissShader = View.ShaderMap->GetShader<FPackedMaterialClosestHitPayloadMS>().GetRayTracingShader();
 
 	FRHIRayTracingShader* RayTracingMissShaderLibrary[RAY_TRACING_NUM_MISS_SHADER_SLOTS] = {};
 	RayTracingMissShaderLibrary[RAY_TRACING_MISS_SHADER_SLOT_DEFAULT] = DefaultMissShader;
-	RayTracingMissShaderLibrary[RAY_TRACING_MISS_SHADER_SLOT_LIGHTING] = bLightingMissShader ? GetRayTracingLightingMissShader(View) : DefaultMissShader;
+	RayTracingMissShaderLibrary[RAY_TRACING_MISS_SHADER_SLOT_LIGHTING] = GetRayTracingLightingMissShader(View);
 	Initializer.SetMissShaderTable(RayTracingMissShaderLibrary);
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);

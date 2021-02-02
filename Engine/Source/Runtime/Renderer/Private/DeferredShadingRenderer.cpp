@@ -1434,10 +1434,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 				});
 			}
 
-			if (CanUseRayTracingLightingMissShader(View.GetShaderPlatform()))
-			{
-				SetupRayTracingLightingMissShader(RHICmdList, View);
-			}
+			SetupRayTracingLightingMissShader(RHICmdList, View);
 		}
 
 		if (RayTracingDynamicGeometryUpdateEndTransition)

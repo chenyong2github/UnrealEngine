@@ -62,7 +62,6 @@ extern bool CanOverlayRayTracingOutput(const FViewInfo& View);
 extern bool EnableRayTracingShadowTwoSidedGeometry();
 extern float GetRaytracingMaxNormalBias();
 
-extern bool CanUseRayTracingLightingMissShader(EShaderPlatform ShaderPlatform);
 extern bool CanUseRayTracingAMDHitToken();
 
 #else // RHI_RAYTRACING
@@ -120,11 +119,6 @@ FORCEINLINE bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoComp
 FORCEINLINE bool CanOverlayRayTracingOutput(const FViewInfo& View)
 {
 	return true;
-}
-
-FORCEINLINE bool CanUseRayTracingLightingMissShader(EShaderPlatform)
-{
-	return false;
 }
 
 FORCEINLINE bool CanUseRayTracingAMDHitToken()

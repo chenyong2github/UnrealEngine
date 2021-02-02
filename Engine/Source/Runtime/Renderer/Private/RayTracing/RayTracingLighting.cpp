@@ -8,12 +8,6 @@
 
 #include "SceneRendering.h"
 
-static TAutoConsoleVariable<int32> CVarRayTracingLightingMissShader(
-	TEXT("r.RayTracing.LightingMissShader"),
-	1,
-	TEXT("Whether evaluate lighting using a miss shader when rendering reflections and translucency instead of doing it in ray generation shader. (default = 1)"),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarRayTracingLightingCells(
 	TEXT("r.RayTracing.LightCulling.Cells"),
 	16,
@@ -28,10 +22,6 @@ static TAutoConsoleVariable<float> CVarRayTracingLightingCellSize(
 	ECVF_RenderThreadSafe
 );
 
-bool CanUseRayTracingLightingMissShader(EShaderPlatform ShaderPlatform)
-{
-	return CVarRayTracingLightingMissShader.GetValueOnRenderThread() != 0;
-}
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, "RaytracingLightsDataPacked");
 
