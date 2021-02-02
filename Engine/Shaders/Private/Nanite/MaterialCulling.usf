@@ -16,12 +16,11 @@
 Texture2D<UlongType> VisBuffer64;
 ByteAddressBuffer MaterialDepthTable;
 
+// .xy = min, .zw = max
+uint4 ViewRect;
 #if MATERIAL_CULLING_METHOD == 1 || MATERIAL_CULLING_METHOD == 2
 
 RWStructuredBuffer<uint> VisibleMaterials;
-
-// .xy = min, .zw = max
-uint4 ViewRect;
 
 [numthreads(8, 8, 1)]
 void ClassifyMaterials(uint3 PixelPos : SV_DispatchThreadID)
@@ -84,7 +83,7 @@ groupshared uint2 TileMinMax;
 [numthreads(16, 16, 1)]
 void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupIndex : SV_GroupID)
 {
-	uint2 PixelPos = ThreadIndex.xy + GroupIndex.xy * 64u;
+	uint2 PixelPos = ThreadIndex.xy + GroupIndex.xy * 64u + ViewRect.xy;
 
 	if (all(ThreadIndex.xy == 0u))
 	{

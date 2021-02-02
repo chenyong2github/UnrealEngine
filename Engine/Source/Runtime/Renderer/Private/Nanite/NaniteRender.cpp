@@ -4097,11 +4097,26 @@ void DrawBasePass(
 	{
 		// Invalid culling method, platform does not support wave operations
 		// Default to 64x64 tile grid method instead.
+		UE_LOG(LogNanite, Warning, TEXT("r.Nanite.MaterialCulling set to %d which requires wave-ops (not supported on this platform), switching to mode 4"), GNaniteMaterialCulling);
 		GNaniteMaterialCulling = 4;
 	}
 
-	const bool b32BitMaskCulling = (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2);
-	const bool bTileGridCulling  = (GNaniteMaterialCulling == 3 || GNaniteMaterialCulling == 4);
+	// Use local copy so we can override without modifying for all views
+	int32 NaniteMaterialCulling = GNaniteMaterialCulling;
+	if ((NaniteMaterialCulling == 1 || NaniteMaterialCulling == 2) && (View.ViewRect.Min.X != 0 || View.ViewRect.Min.Y != 0))
+	{
+		NaniteMaterialCulling = 4;
+
+		static bool bLoggedAlready = false;
+		if (!bLoggedAlready)
+		{
+			bLoggedAlready = true;
+			UE_LOG(LogNanite, Warning, TEXT("View has non-zero viewport offset, using material culling mode 4 (overrides r.Nanite.MaterialCulling = %d)."), GNaniteMaterialCulling);
+		}
+	}
+
+	const bool b32BitMaskCulling = (NaniteMaterialCulling == 1 || NaniteMaterialCulling == 2);
+	const bool bTileGridCulling  = (NaniteMaterialCulling == 3 || NaniteMaterialCulling == 4);
 
 	const FIntPoint TileGridDim = bTileGridCulling ? FMath::DivideAndRoundUp(ViewSize, { 64, 64 }) : FIntPoint(1, 1);
 
@@ -4132,12 +4147,12 @@ void DrawBasePass(
 
 		uint32 DispatchGroupSize = 0;
 
+		PassParameters->ViewRect = FIntVector4(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y);
 		if (b32BitMaskCulling)
 		{
 			// TODO: Don't currently support offset views.
 			checkf(View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
 			DispatchGroupSize = 8;
-			PassParameters->ViewRect = FIntVector4(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y);
 			PassParameters->VisibleMaterials = VisibleMaterialsUAV;
 
 		}
@@ -4148,10 +4163,10 @@ void DrawBasePass(
 			PassParameters->MaterialRange = MaterialRangeUAV;
 		}
 
-		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, DispatchGroupSize);
+		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max - View.ViewRect.Min, DispatchGroupSize);
 
 		FClassifyMaterialsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FClassifyMaterialsCS::FCullingMethodDim>(GNaniteMaterialCulling);
+		PermutationVector.Set<FClassifyMaterialsCS::FCullingMethodDim>(NaniteMaterialCulling);
 		auto ComputeShader = View.ShaderMap->GetShader<FClassifyMaterialsCS>(PermutationVector.ToDimensionValueId());
 
 		FComputeShaderUtils::AddPass(
@@ -4188,7 +4203,7 @@ void DrawBasePass(
 		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
 		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures, nullptr);
 
-		switch (GNaniteMaterialCulling)
+		switch (NaniteMaterialCulling)
 		{
 		// Rendering 32 tiles in a 8x4 grid
 		// 32bits, 1 bit per tile
@@ -4201,7 +4216,7 @@ void DrawBasePass(
 		// Rendering grid of 64x64 pixel tiles
 		case 3:
 		case 4:
-			PassParameters->GridSize = FMath::DivideAndRoundUp(View.ViewRect.Max, { 64, 64 });
+			PassParameters->GridSize = FMath::DivideAndRoundUp(View.ViewRect.Max - View.ViewRect.Min, { 64, 64 });
 			break;
 
 		// Rendering a full screen quad
@@ -4228,7 +4243,7 @@ void DrawBasePass(
 			RDG_EVENT_NAME("Emit GBuffer"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, &Scene, NaniteVertexShader, ViewRect = View.ViewRect](FRHICommandListImmediate& RHICmdList)
+			[PassParameters, &Scene, NaniteVertexShader, ViewRect = View.ViewRect, NaniteMaterialCulling](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
@@ -4238,18 +4253,18 @@ void DrawBasePass(
 			UniformParams.MaxNodes = PassParameters->MaxNodes;
 			UniformParams.RenderFlags = PassParameters->RenderFlags;
 
-			UniformParams.MaterialConfig.X = GNaniteMaterialCulling;
+			UniformParams.MaterialConfig.X = NaniteMaterialCulling;
 			UniformParams.MaterialConfig.Y = PassParameters->GridSize.X;
 			UniformParams.MaterialConfig.Z = PassParameters->GridSize.Y;
 			UniformParams.MaterialConfig.W = 0;
 
 			UniformParams.RectScaleOffset = FVector4(1.0f, 1.0f, 0.0f, 0.0f); // Render a rect that covers the entire screen
 
-			if (GNaniteMaterialCulling == 3 || GNaniteMaterialCulling == 4)
+			if (NaniteMaterialCulling == 3 || NaniteMaterialCulling == 4)
 			{
 				FIntPoint ScaledSize = PassParameters->GridSize * 64;
-				UniformParams.RectScaleOffset.X = float(ScaledSize.X) / float(ViewRect.Max.X);
-				UniformParams.RectScaleOffset.Y = float(ScaledSize.Y) / float(ViewRect.Max.Y);
+				UniformParams.RectScaleOffset.X = float(ScaledSize.X) / float(ViewRect.Max.X - ViewRect.Min.X);
+				UniformParams.RectScaleOffset.Y = float(ScaledSize.Y) / float(ViewRect.Max.Y - ViewRect.Min.Y);
 			}
 
 			UniformParams.ClusterPageData = PassParameters->ClusterPageData;
