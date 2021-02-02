@@ -2394,7 +2394,7 @@ namespace EpicGames.Perforce
 		/// <param name="FileSpecs">Files to sync</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public Task<PerforceResponseList<ShelveRecord>> TryShelveAsync(int ChangeNumber, ShelveOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
+		public async Task<PerforceResponseList<ShelveRecord>> TryShelveAsync(int ChangeNumber, ShelveOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("shelve");
 			Arguments.AppendFormat(" -c {0}", ChangeNumber);
@@ -2411,7 +2411,9 @@ namespace EpicGames.Perforce
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
 
-			return CommandAsync<ShelveRecord>(Arguments.ToString(), null, CancellationToken);
+			PerforceResponseList<ShelveRecord> Records = await CommandAsync<ShelveRecord>(Arguments.ToString(), null, CancellationToken);
+			Records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return Records;
 		}
 
 		/// <summary>
