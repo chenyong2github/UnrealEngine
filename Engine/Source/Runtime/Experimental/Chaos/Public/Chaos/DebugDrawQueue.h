@@ -7,6 +7,7 @@
 #include "Math/Vector.h"
 #include "Math/Color.h"
 #include "Math/Quat.h"
+#include "Misc/ScopeLock.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/IConsoleManager.h"
 
