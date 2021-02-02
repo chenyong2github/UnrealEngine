@@ -1882,6 +1882,7 @@ public partial class Project : CommandUtils
 
 			if (bMatched)
 			{
+				bool bOverrideChunkAssignment = false;
 				if (ModifyPakList != null && ModifyPakList.Count > 0)
 				{
 					// Only override the existing list if bOverrideChunkManifest is set
@@ -1890,6 +1891,7 @@ public partial class Project : CommandUtils
 						return;
 					}
 
+					bOverrideChunkAssignment = true;
 					if (PakRules.OverridePaks != null)
 					{
 						LogInformation("Overridding chunk assignment {0} to {1}, this can cause broken references", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
@@ -1903,22 +1905,28 @@ public partial class Project : CommandUtils
 				bExcludeFromPaks = PakRules.bExcludeFromPaks;
 				if (PakRules.OverridePaks != null && ModifyPakList != null && ChunkNameToDefinition != null)
 				{
-					ModifyPakList.Clear();
-					ModifyPakList.UnionWith(PakRules.OverridePaks.Select(x =>
+					if (!bOverrideChunkAssignment)
 					{
-						if (!ChunkNameToDefinition.ContainsKey(x))
+						LogInformation("Setting pak assignment for file {0} to {1}", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
+					}
+
+					ModifyPakList.Clear();
+					ModifyPakList.UnionWith(PakRules.OverridePaks.Select(OverrideChunkName =>
+					{
+						if (!ChunkNameToDefinition.ContainsKey(OverrideChunkName))
 						{
-							LogInformation("With pak rules, {0} is moved to {1}", StagingFile.Key, x);
-							ChunkNameToDefinition.TryAdd(x, new ChunkDefinition(x));
+							ChunkNameToDefinition.TryAdd(OverrideChunkName, new ChunkDefinition(OverrideChunkName));
 						}
 
-						return ChunkNameToDefinition[x];
+						return ChunkNameToDefinition[OverrideChunkName];
 					}));
-					//LogInformation("Setting pak assignment for file {0} to {1}", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
 				}
 				else if (bExcludeFromPaks)
 				{
-					//LogInformation("Excluding {0} from pak file", StagingFile.Key);
+					if (!bOverrideChunkAssignment)
+					{
+						LogInformation("Excluding {0} from pak files", StagingFile.Key);
+					}
 				}
 
 				return;
