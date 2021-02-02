@@ -878,8 +878,29 @@ namespace Gauntlet
 
 				if (IsDesktop)
 				{
-					string ClientTempDir = Path.Combine(LocalTempDir, "DeviceCache", Def.Platform.ToString());
-					int DeviceCount = AvailableDevices.Union(ReservedDevices).Where(D => D.Platform == Def.Platform).Count();
+					// Give the desktop platform a temp folder with its name under the device cache 
+					string PlatformCache = Path.Combine(LocalTempDir, "DeviceCache", Def.Platform.ToString());
+					string ClientTempDir = Path.Combine(PlatformCache, Def.Name);
+
+					int CleanAttempts = 1;
+
+					// Make sure this is a fresh directory 
+					while (Directory.Exists(ClientTempDir))
+					{						
+						try
+						{
+							Directory.Delete(ClientTempDir, true);
+						}
+						catch (Exception Ex)
+						{
+							// warn and use a different directory
+							Log.Warning("Failed to delete {0}. {1}", ClientTempDir, Ex.Message);
+							ClientTempDir = Path.Combine(PlatformCache, string.Format("{0}_{1}", Def.Name, CleanAttempts++));
+						}
+					}
+			
+					// create this path
+					Directory.CreateDirectory(ClientTempDir);
 
 					NewDevice = Factory.CreateDevice(Def.Name, ClientTempDir);
 				}
