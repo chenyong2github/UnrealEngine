@@ -4,10 +4,9 @@
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "ChaosClothEditorPrivate.h"
 
 #define LOCTEXT_NAMESPACE "FChaosClothWeightedValueCustomization"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogChaosClothEditor, Log, All);
 
 TSharedRef<IPropertyTypeCustomization> FChaosClothWeightedValueCustomization::MakeInstance() 
 {
@@ -325,3 +324,5 @@ void FChaosClothWeightedValueCustomization::OnDynamicSliderMinValueChanged(Numer
 		OnNumericEntryBoxDynamicSliderMinValueChanged.Broadcast((float)NewMinSliderValue, InValueChangedSourceWidget, false, UpdateOnlyIfLower);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
