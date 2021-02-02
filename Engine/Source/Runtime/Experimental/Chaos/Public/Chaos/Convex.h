@@ -77,10 +77,12 @@ namespace Chaos
 			FConvexBuilder::Build(InParticles, Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
 			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
 
-			// @chaos(todo): this only works with triangles. Fix that an we can run MergeFaces before calling this
+			// @todo(chaos): this only works with triangles. Fix that an we can run MergeFaces before calling this
 			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 
-			FConvexBuilder::MergeFaces(Planes, FaceIndices, SurfaceParticles);
+			// @todo(chaos): DistanceTolerance should be based on size, or passed in
+			const FReal DistanceTolerance = 1.0f;
+			FConvexBuilder::MergeFaces(Planes, FaceIndices, SurfaceParticles, DistanceTolerance);
 			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
 
 			CreateStructureData(MoveTemp(FaceIndices));
@@ -105,61 +107,20 @@ namespace Chaos
 		}
 
 		// Return the distance to the surface
-		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override
+		virtual FReal PhiWithNormal(const FVec3& X, FVec3& Normal) const override
 		{
-			float Phi = PhiWithNormalInternal(x, Normal);
-			if (Phi > 0)
-			{
-				//Outside convex, so test against bounding box - this is done to avoid
-				//inaccurate results given by PhiWithNormalInternal when x is far outside
-
-				FVec3 SnappedPosition, BoundingNormal;
-				const float BoundingPhi = LocalBoundingBox.PhiWithNormal(x, BoundingNormal);
-				if (BoundingPhi <= 0)
-				{
-					//Inside bounding box - snap to convex
-					SnappedPosition = x - Phi * Normal;
-				}
-				else
-				{
-					//Snap to bounding box, and test convex
-					SnappedPosition = x - BoundingPhi * BoundingNormal;
-					Phi = PhiWithNormalInternal(SnappedPosition, Normal);
-					SnappedPosition -= Phi * Normal;
-				}
-
-				//one final snap to ensure we're on the surface
-				Phi = PhiWithNormalInternal(SnappedPosition, Normal);
-				SnappedPosition -= Phi * Normal;
-
-				//Return phi/normal based on distance from original position to snapped position
-				const FVec3 Difference = x - SnappedPosition;
-				Phi = Difference.Size();
-				if (CHAOS_ENSURE(Phi > TNumericLimits<float>::Min())) //Phi shouldn't be 0 here since we only enter this block if x was outside the convex
-				{
-					Normal = (Difference) / Phi;
-				}
-				else
-				{
-					Normal = FVector::ForwardVector;
-				}
-			}
-			return Phi;
+			return PhiWithNormalInternal(X, Normal);
 		}
 
 		FReal PhiWithNormalScaled(const FVec3& X, const FVec3& Scale, const FVec3& InvScale, FVec3& Normal) const
 		{
-			const FVec3 UnscaledX = InvScale * X;
-			FVec3 UnscaledNormal;
-			const FReal ScaledPhi = PhiWithNormalScaledInternal(UnscaledX, Scale.GetAbs(), UnscaledNormal);
-			Normal = (Scale * UnscaledNormal).GetSafeNormal();
-			return ScaledPhi;
+			return PhiWithNormalScaledInternal(X, Scale, Normal);
 		}
 
 
 	private:
 		// Distance to the surface
-		FReal PhiWithNormalInternal(const FVec3& x, FVec3& Normal) const
+		FReal PhiWithNormalInternal(const FVec3& X, FVec3& Normal) const
 		{
 			const int32 NumPlanes = Planes.Num();
 			if (NumPlanes == 0)
@@ -173,7 +134,7 @@ namespace Chaos
 
 			for (int32 Idx = 0; Idx < NumPlanes; ++Idx)
 			{
-				const FReal Phi = Planes[Idx].SignedDistance(x);
+				const FReal Phi = Planes[Idx].SignedDistance(X);
 				if (Phi > MaxPhi)
 				{
 					MaxPhi = Phi;
@@ -181,12 +142,49 @@ namespace Chaos
 				}
 			}
 
-			return Planes[MaxPlane].PhiWithNormal(x, Normal);
+			FReal Phi = Planes[MaxPlane].PhiWithNormal(X, Normal);
+			if (Phi <= 0)
+			{
+				return Phi;
+			}
+
+			// If x is outside the convex mesh, we should find for the nearest point to triangles on the plane
+			const int32 PlaneVerticesNum = NumPlaneVertices(MaxPlane);
+			const FVec3 XOnPlane = X - Phi * Normal;
+			FReal ClosestDistance = TNumericLimits<FReal>::Max();
+			FVec3 ClosestPoint;
+			for (int32 Index = 0; Index < PlaneVerticesNum - 2; Index++)
+			{
+				const FVec3 A(GetVertex(GetPlaneVertex(MaxPlane, 0)));
+				const FVec3 B(GetVertex(GetPlaneVertex(MaxPlane, Index + 1)));
+				const FVec3 C(GetVertex(GetPlaneVertex(MaxPlane, Index + 2)));
+
+				const FVec3 Point = FindClosestPointOnTriangle(XOnPlane, A, B, C, X);
+				if (XOnPlane == X)
+				{
+					return Phi;
+				}
+
+				const FReal Distance = (Point - XOnPlane).Size();
+				if (Distance < ClosestDistance)
+				{
+					ClosestDistance = Distance;
+					ClosestPoint = Point;
+				}
+			}
+
+			const TVector<FReal, 3> Difference = X - ClosestPoint;
+			Phi = Difference.Size();
+			if (Phi > SMALL_NUMBER)
+			{
+				Normal = (Difference) / Phi;
+			}
+			return Phi;
 		}
 
 		// Distance from a point to the surface for use in the scaled version. When the convex
-		// is scaled, we need to correct the depth calculation to take into account the world-space scale
-		FReal PhiWithNormalScaledInternal(const FVec3& LocalX, const FVec3& ScaleAbs, FVec3& LocalNormal) const
+		// is scaled, we need to bias the depth calculation to take into account the world-space scale
+		FReal PhiWithNormalScaledInternal(const FVec3& X, const FVec3& Scale, FVec3& Normal) const
 		{
 			const int32 NumPlanes = Planes.Num();
 			if (NumPlanes == 0)
@@ -196,20 +194,60 @@ namespace Chaos
 			check(NumPlanes > 0);
 
 			FReal MaxPhi = TNumericLimits<FReal>::Lowest();
-			FVec3 MaxNormal = FVec3(0);
-
+			FVec3 MaxNormal = FVec3(0,0,1);
+			int32 MaxPlane = 0;
 			for (int32 Idx = 0; Idx < NumPlanes; ++Idx)
 			{
-				const FReal PhiScale = FVec3::DotProduct(ScaleAbs, Planes[Idx].Normal().GetAbs());
-				const FReal Phi = Planes[Idx].SignedDistance(LocalX) * PhiScale;
-				if (Phi > MaxPhi)
+				FVec3 PlaneNormal = (Planes[Idx].Normal() * Scale).GetUnsafeNormal();
+				FVec3 PlanePos = Planes[Idx].X() * Scale;
+				FReal PlaneDistance = FVec3::DotProduct(X - PlanePos, PlaneNormal);
+				if (PlaneDistance > MaxPhi)
 				{
-					MaxPhi = Phi;
-					MaxNormal = Planes[Idx].Normal();
+					MaxPhi = PlaneDistance;
+					MaxNormal = PlaneNormal;
+					MaxPlane = Idx;
 				}
 			}
 
-			LocalNormal = MaxNormal;
+			Normal = MaxNormal;
+
+			if (MaxPhi < 0)
+			{
+				return MaxPhi;
+			}
+
+			// If X is outside the convex mesh, we should find for the nearest point to triangles on the plane
+			const int32 PlaneVerticesNum = NumPlaneVertices(MaxPlane);
+			const FVec3 XOnPlane = X - MaxPhi * Normal;
+			FReal ClosestDistance = TNumericLimits<FReal>::Max();
+			FVec3 ClosestPoint;
+			for (int32 Index = 0; Index < PlaneVerticesNum - 2; Index++)
+			{
+				const FVec3 A(Scale * GetVertex(GetPlaneVertex(MaxPlane, 0)));
+				const FVec3 B(Scale * GetVertex(GetPlaneVertex(MaxPlane, Index + 1)));
+				const FVec3 C(Scale * GetVertex(GetPlaneVertex(MaxPlane, Index + 2)));
+
+				const FVec3 Point = FindClosestPointOnTriangle(XOnPlane, A, B, C, X);
+				if (XOnPlane == X)
+				{
+					return MaxPhi;
+				}
+
+				const FReal Distance = (Point - XOnPlane).Size();
+				if (Distance < ClosestDistance)
+				{
+					ClosestDistance = Distance;
+					ClosestPoint = Point;
+				}
+			}
+
+			const FVec3 Difference = X - ClosestPoint;
+			const FReal DifferenceLen = Difference.Size();
+			if (DifferenceLen > SMALL_NUMBER)
+			{
+				Normal = Difference / DifferenceLen;
+				MaxPhi = DifferenceLen;
+			}
 			return MaxPhi;
 		}
 
@@ -254,6 +292,9 @@ namespace Chaos
 
 		// Whether the structure data has been created for this convex (will eventually always be true)
 		bool HasStructureData() const { return StructureData.IsValid(); }
+
+		// The convex structure data (mainly exposed for testing)
+		const FConvexStructureData& GetStructureData() const { return StructureData; }
 
 		// Get the index of the plane that most opposes the normal
 		int32 GetMostOpposingPlane(const FVec3& Normal) const;
@@ -624,7 +665,11 @@ namespace Chaos
 		{
 			TArray<TArray<int32>> FaceIndices;
 			FConvexBuilder::Simplify(Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
-			FConvexBuilder::MergeFaces(Planes, FaceIndices, SurfaceParticles);
+
+			// @todo(chaos): DistanceTolerance should be based on size, or passed in
+			const FReal DistanceTolerance = 1.0f;
+			FConvexBuilder::MergeFaces(Planes, FaceIndices, SurfaceParticles, DistanceTolerance);
+
 			CreateStructureData(MoveTemp(FaceIndices));
 		}
 

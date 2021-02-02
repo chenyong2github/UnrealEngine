@@ -199,6 +199,6 @@ namespace ChaosTest {
 	}
 
 
+	extern FImplicitConvex3 CreateConvexBox(const FVec3& BoxSize, const FReal Margin);
 	extern TImplicitObjectScaled<FImplicitConvex3> CreateScaledConvexBox(const FVec3& BoxSize, const FVec3 BoxScale, const FReal Margin);
-
 }

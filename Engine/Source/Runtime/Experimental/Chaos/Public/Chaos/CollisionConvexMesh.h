@@ -528,7 +528,7 @@ namespace Chaos
 		}
 
 		// Convert multi-triangle faces to single n-gons
-		static void MergeFaces(TArray<TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaceVertexIndices, const TParticles<FReal, 3>& SurfaceParticles)
+		static void MergeFaces(TArray<TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaceVertexIndices, const TParticles<FReal, 3>& SurfaceParticles, float DistanceThreshold)
 		{
 			const FReal NormalThreshold = 1.e-4f;
 
@@ -543,19 +543,49 @@ namespace Chaos
 					const TPlaneConcrete<FReal, 3>& Plane1 = InOutPlanes[PlaneIndex1];
 					const TArray<int32>& Vertices1 = InOutFaceVertexIndices[PlaneIndex1];
 
+					// First similarity test: normals are close - this will reject all very dissimilar faces
 					const FReal PlaneNormalDot = FVec3::DotProduct(Plane0.Normal(), Plane1.Normal());
 					if (PlaneNormalDot > 1.0f - NormalThreshold)
 					{
-						// Merge the verts from the second plane into the first
-						for (int32 VertexIndex1 = 0; VertexIndex1 < Vertices1.Num(); ++VertexIndex1)
+						// Second similarity test: vertices of one plane are within threshold distance of the other. This is slower but more accurate
+						bool bWithinDistanceThreshold = true;
+						for (int32 Plane0VertexIndex : Vertices0)
 						{
-							Vertices0.AddUnique(Vertices1[VertexIndex1]);
+							const FVec3 Plane0Vertex = SurfaceParticles.X(Plane0VertexIndex);
+							const FReal Plane0VertexDistance = FMath::Abs(FVec3::DotProduct(Plane1.X() - Plane0Vertex, Plane1.Normal()));
+							if (Plane0VertexDistance > DistanceThreshold)
+							{
+								bWithinDistanceThreshold = false;
+								break;
+							}
+						}
+						if (bWithinDistanceThreshold)
+						{
+							for (int32 Plane1VertexIndex : Vertices1)
+							{
+								const FVec3 Plane1Vertex = SurfaceParticles.X(Plane1VertexIndex);
+								const FReal Plane1VertexDistance = FMath::Abs(FVec3::DotProduct(Plane0.X() - Plane1Vertex, Plane0.Normal()));
+								if (Plane1VertexDistance > DistanceThreshold)
+								{
+									bWithinDistanceThreshold = false;
+									break;
+								}
+							}
 						}
 
-						// Erase the second plane
-						InOutPlanes.RemoveAtSwap(PlaneIndex1, 1, false);
-						InOutFaceVertexIndices.RemoveAtSwap(PlaneIndex1, 1, false);
-						--PlaneIndex1;
+						if (bWithinDistanceThreshold)
+						{
+							// Merge the verts from the second plane into the first
+							for (int32 VertexIndex1 = 0; VertexIndex1 < Vertices1.Num(); ++VertexIndex1)
+							{
+								Vertices0.AddUnique(Vertices1[VertexIndex1]);
+							}
+
+							// Erase the second plane
+							InOutPlanes.RemoveAtSwap(PlaneIndex1, 1, false);
+							InOutFaceVertexIndices.RemoveAtSwap(PlaneIndex1, 1, false);
+							--PlaneIndex1;
+						}
 					}
 				}
 			}

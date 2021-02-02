@@ -9,6 +9,7 @@
 #include "Chaos/Convex.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Particles.h"
+#include "../Resource/TestGeometry2.h"
 
 namespace ChaosTest
 {
@@ -32,7 +33,7 @@ namespace ChaosTest
 		TAABB<FReal, 3> LocalBounds;
 
 		FConvexBuilder::Build(Particles, Planes, FaceVertices, SurfaceParticles, LocalBounds);
-		FConvexBuilder::MergeFaces(Planes, FaceVertices, SurfaceParticles);
+		FConvexBuilder::MergeFaces(Planes, FaceVertices, SurfaceParticles, 1.0f);
 
 		// Check that we have the right number of faces and particles
 		EXPECT_EQ(SurfaceParticles.Size(), 8);
@@ -87,6 +88,10 @@ namespace ChaosTest
 	// Check that the convex structure data is consistent (works for TBox and TConvex)
 	template<typename T_GEOM> void TestConvexStructureDataImpl(const T_GEOM& Convex)
 	{
+		// Note: This tolerance matches the one passed to FConvexBuilder::MergeFaces in the FConvex constructor, but it should be dependent on size
+		//const FReal Tolerance = 1.e-4f * Convex.BoundingBox().OriginRadius();
+		const FReal Tolerance = 1.0f;
+
 		// Check all per-plane data
 		for (int32 PlaneIndex = 0; PlaneIndex < Convex.NumPlanes(); ++PlaneIndex)
 		{
@@ -97,7 +102,7 @@ namespace ChaosTest
 				const int32 VertexIndex = Convex.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
 				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());
-				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
+				EXPECT_NEAR(VertexDistance, 0.0f, Tolerance);
 			}
 		}
 
@@ -111,7 +116,7 @@ namespace ChaosTest
 				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
 				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
 				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());
-				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
+				EXPECT_NEAR(VertexDistance, 0.0f, Tolerance);
 			}
 		}
 	}
@@ -191,6 +196,89 @@ namespace ChaosTest
 			const TPlaneConcrete<FReal, 3> Plane = Box.GetPlane(PlaneIndex);
 			EXPECT_NEAR(FVec3::DotProduct(Plane.X(), Plane.Normal()), 50.0f, KINDA_SMALL_NUMBER);
 		}
+	}
+
+	// Check the reverse mapping planes->vertices->planes is intact
+	template<typename T_STRUCTUREDATA>
+	void TestConvexStructureDataMapping(const T_STRUCTUREDATA& StructureData)
+	{
+		// For each plane, get the list of vertices that make its edges.
+		// Then check that we list of planes used by that vertex contains the original plane
+		for (int32 PlaneIndex = 0; PlaneIndex < StructureData.NumPlanes(); ++PlaneIndex)
+		{
+			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < StructureData.NumPlaneVertices(PlaneIndex); ++PlaneVertexIndex)
+			{
+				const int32 VertexIndex = StructureData.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
+
+				// Check that the plane's vertex has the plane in its list
+				bool bFoundPlane = false;
+				for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < StructureData.NumVertexPlanes(VertexIndex); ++VertexPlaneIndex)
+				{
+					const int32 SearchPlaneIndex = StructureData.GetVertexPlane(VertexIndex, VertexPlaneIndex);
+					if (PlaneIndex == SearchPlaneIndex)
+					{
+						bFoundPlane = true;
+						break;
+					}
+				}
+				EXPECT_TRUE(bFoundPlane);
+			}
+		}
+	}
+
+	// Check that the structure data is good for convex shapes that have faces merged during construction
+	// This test uses the small index size in StructureData.
+	GTEST_TEST(ConvexStructureTests, TestSmallIndexStructureData)
+	{
+		FMath::RandInit(53799058);
+		const FReal Radius = 1000.0f;
+
+		const int32 NumVertices = TestGeometry2::RawVertexArray.Num() / 3;
+		TParticles<FReal, 3> Particles;
+		Particles.AddParticles(NumVertices);
+		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
+		{
+			const FVec3 VertexPos = FVec3(
+				TestGeometry2::RawVertexArray[3 * ParticleIndex + 0],
+				TestGeometry2::RawVertexArray[3 * ParticleIndex + 1],
+				TestGeometry2::RawVertexArray[3 * ParticleIndex + 2]
+			);
+			Particles.X(ParticleIndex) = VertexPos;
+		}
+
+		FConvex Convex(Particles, 0.0f);
+
+		const FConvexStructureDataU8& StructureData = Convex.GetStructureData().Data8();
+		TestConvexStructureDataMapping(StructureData);
+		TestConvexStructureDataImpl(Convex);
+	}
+
+	// Check that the structure data is good for convex shapes that have faces merged during construction
+	// This test uses the large index size in StructureData.
+	GTEST_TEST(ConvexStructureTests, TestLargeIndexStructureData2)
+	{
+		FMath::RandInit(53799058);
+		const FReal Radius = 1000.0f;
+		const int32 NumVertices = 1000;
+
+		// Make a convex with points on a sphere.
+		TParticles<FReal, 3> Particles;
+		Particles.AddParticles(NumVertices);
+		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
+		{
+			const FReal Theta = FMath::RandRange(-PI, PI);
+			const FReal Phi = FMath::RandRange(-0.5f * PI, 0.5f * PI);
+			const FVec3 VertexPos = Radius * FVec3(FMath::Cos(Theta), FMath::Sin(Theta), FMath::Sin(Phi));
+			Particles.X(ParticleIndex) = VertexPos;
+		}
+		FConvex Convex(Particles, 0.0f);
+
+		EXPECT_GT(Convex.NumVertices(), 800);
+		EXPECT_GT(Convex.NumPlanes(), 500);
+
+		const FConvexStructureDataS32& StructureData = Convex.GetStructureData().Data32();
+		TestConvexStructureDataMapping(StructureData);
+		TestConvexStructureDataImpl(Convex);
 	}
 
 }
