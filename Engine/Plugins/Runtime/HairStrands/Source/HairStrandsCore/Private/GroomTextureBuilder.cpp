@@ -825,35 +825,35 @@ static void InternalBuildStrandsTextures_GPU(
 	Desc.Format = PF_G16;
 	Desc.ClearValue = FClearValueBinding::White;
 	FRDGTextureRef DepthTexture[2];
-	DepthTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("DepthTexture"));
-	DepthTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("DepthTexture"));
+	DepthTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.DepthTexture"));
+	DepthTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.DepthTexture"));
 
 	Desc.Format = PF_B8G8R8A8;
 	Desc.ClearValue = FClearValueBinding::Transparent;
 	FRDGTextureRef CoverageTexture[2];
-	CoverageTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("CoverageTexture"));
-	CoverageTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("CoverageTexture"));
+	CoverageTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.CoverageTexture"));
+	CoverageTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.CoverageTexture"));
 
 	Desc.Format = PF_B8G8R8A8;
 	Desc.ClearValue = FClearValueBinding::Transparent;
 	FRDGTextureRef TangentTexture[2];
-	TangentTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("TangentTexture"));
-	TangentTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("TangentTexture"));
+	TangentTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.TangentTexture"));
+	TangentTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.TangentTexture"));
 
 	Desc.Format = PF_B8G8R8A8;
 	Desc.ClearValue = FClearValueBinding::Transparent;
 	FRDGTextureRef AttributeTexture[2];
-	AttributeTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("AttributeTexture"));
-	AttributeTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("AttributeTexture"));
+	AttributeTexture[0] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.AttributeTexture"));
+	AttributeTexture[1] = GraphBuilder.CreateTexture(Desc, TEXT("Hair.AttributeTexture"));
 
 	Desc.Format = PF_R32_UINT;
 	Desc.ClearValue = FClearValueBinding::Black;
-	FRDGTextureRef TriangleMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("TriangleMaskTexture"));
+	FRDGTextureRef TriangleMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.TriangleMaskTexture"));
 	
 	Desc.ClearValue = FClearValueBinding(1);
 	Desc.Format = PF_DepthStencil;
 	Desc.Flags = TexCreate_DepthStencilTargetable;
-	FRDGTextureRef DepthTestTexture = GraphBuilder.CreateTexture(Desc, TEXT("DepthTestTexture"));
+	FRDGTextureRef DepthTestTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.DepthTestTexture"));
 
 	bool bClear = true;
 	const uint32 GroupCount = InInfo.GroomAsset->GetNumHairGroups();

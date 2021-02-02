@@ -188,7 +188,7 @@ static FRDGTextureRef AddHairDOFDepthPass(
 	FRDGTextureRef OutDOFDepthTexture = nullptr;
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(OutputResolution, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1);
-		OutDOFDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairDOFDepth"));
+		OutDOFDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.DOFDepth"));
 	}
 
 	FHairDOFDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDOFDepthPS::FParameters>();
@@ -285,7 +285,7 @@ static void AddHairVisibilityFastResolveMSAAPass(
 		Desc.Format = PF_R8G8B8A8;
 		Desc.Flags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(0);
-		DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairDummyTexture"));
+		DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.DummyTexture"));
 	}
 
 	FVector2D PixelVelocity(1.f / (Resolution.X * 2), 1.f / (Resolution.Y * 2));
@@ -384,7 +384,7 @@ static void AddHairVisibilityFastResolveMaskPass(
 	FRDGTextureRef DummyTexture;
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable);
-		DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairDummyTexture"));
+		DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.DummyTexture"));
 	}
 
 	FHairVisibilityFastResolveMaskPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityFastResolveMaskPS::FParameters>();

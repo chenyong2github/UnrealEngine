@@ -862,7 +862,7 @@ void RunHairStrandsDebug(
 			FRDGTextureRef DepthTexture;
 			{
 				const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(SceneColorTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
-				DepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairInterpolationDepthTexture"));
+				DepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.InterpolationDepthTexture"));
 			}
 
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)

@@ -269,7 +269,7 @@ void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuf
 		if (GUsingNullRHI) { return; }
 		FMemMark Mark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList);
-		InternalCreateVertexBufferRDG<FHairStrandsAttributeFormat>(GraphBuilder, VertexCount, *LocalAttributeBuffer, TEXT("HairStrands_DebugAttributeBuffer"));
+		InternalCreateVertexBufferRDG<FHairStrandsAttributeFormat>(GraphBuilder, VertexCount, *LocalAttributeBuffer, TEXT("Hair.Strands_DebugAttributeBuffer"));
 		GraphBuilder.Execute();
 	});
 }
@@ -302,9 +302,9 @@ FHairCardsRestResource::FHairCardsRestResource(const FHairCardsDatas::FRenderDat
 void FHairCardsRestResource::InitRHI()
 {
 	// These resources are kept as regular (i.e., non-RDG resources) as they need to be bound at the input assembly stage by the Vertex declaraction which requires FVertexBuffer type
-	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer, TEXT("HairCardsRest_PositionBuffer"));
-	CreateBuffer<FHairCardsNormalFormat>(RenderData.Normals, NormalsBuffer, TEXT("HairCardsRest_NormalBuffer"));
-	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer, TEXT("HairCardsRest_UVBuffer"));
+	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer, TEXT("Hair.CardsRest_PositionBuffer"));
+	CreateBuffer<FHairCardsNormalFormat>(RenderData.Normals, NormalsBuffer, TEXT("Hair.CardsRest_NormalBuffer"));
+	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer, TEXT("Hair.CardsRest_UVBuffer"));
 
 	FSamplerStateRHIRef DefaultSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	DepthSampler = DefaultSampler;
@@ -358,19 +358,19 @@ void FHairCardsProceduralResource::InitRHI()
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	InternalCreateVertexBufferRDG<FHairCardsAtlasRectFormat>(GraphBuilder, RenderData.CardsRect, AtlasRectBuffer, TEXT("HairCardsProcedural_AtlasRectBuffer"));
-	InternalCreateVertexBufferRDG<FHairCardsDimensionFormat>(GraphBuilder, RenderData.CardsLengths, LengthBuffer, TEXT("HairCardsProcedural_LengthBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsAtlasRectFormat>(GraphBuilder, RenderData.CardsRect, AtlasRectBuffer, TEXT("Hair.CardsProcedural_AtlasRectBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsDimensionFormat>(GraphBuilder, RenderData.CardsLengths, LengthBuffer, TEXT("Hair.CardsProcedural_LengthBuffer"));
 
-	InternalCreateVertexBufferRDG<FHairCardsOffsetAndCount>(GraphBuilder, RenderData.CardItToCluster, CardItToClusterBuffer, TEXT("HairCardsProcedural_CardItToClusterBuffer"));
-	InternalCreateVertexBufferRDG<FHairCardsOffsetAndCount>(GraphBuilder, RenderData.ClusterIdToVertices, ClusterIdToVerticesBuffer, TEXT("HairCardsProcedural_ClusterIdToVerticesBuffer"));
-	InternalCreateVertexBufferRDG<FHairCardsBoundsFormat>(GraphBuilder, RenderData.ClusterBounds, ClusterBoundBuffer, TEXT("HairCardsProcedural_ClusterBoundBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsOffsetAndCount>(GraphBuilder, RenderData.CardItToCluster, CardItToClusterBuffer, TEXT("Hair.CardsProcedural_CardItToClusterBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsOffsetAndCount>(GraphBuilder, RenderData.ClusterIdToVertices, ClusterIdToVerticesBuffer, TEXT("Hair.CardsProcedural_ClusterIdToVerticesBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsBoundsFormat>(GraphBuilder, RenderData.ClusterBounds, ClusterBoundBuffer, TEXT("Hair.CardsProcedural_ClusterBoundBuffer"));
 
-	InternalCreateVertexBufferRDG<FHairCardsVoxelDensityFormat>(GraphBuilder, RenderData.VoxelDensity, CardVoxel.DensityBuffer, TEXT("HairCardsProcedural_VoxelDensityBuffer"));
-	InternalCreateVertexBufferRDG<FHairCardsVoxelTangentFormat>(GraphBuilder, RenderData.VoxelTangent, CardVoxel.TangentBuffer, TEXT("HairCardsProcedural_VoxelTangentBuffer"));
-	InternalCreateVertexBufferRDG<FHairCardsVoxelTangentFormat>(GraphBuilder, RenderData.VoxelNormal, CardVoxel.NormalBuffer, TEXT("HairCardsProcedural_VoxelNormalBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsVoxelDensityFormat>(GraphBuilder, RenderData.VoxelDensity, CardVoxel.DensityBuffer, TEXT("Hair.CardsProcedural_VoxelDensityBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsVoxelTangentFormat>(GraphBuilder, RenderData.VoxelTangent, CardVoxel.TangentBuffer, TEXT("Hair.CardsProcedural_VoxelTangentBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsVoxelTangentFormat>(GraphBuilder, RenderData.VoxelNormal, CardVoxel.NormalBuffer, TEXT("Hair.CardsProcedural_VoxelNormalBuffer"));
 
-	InternalCreateVertexBufferRDG<FHairCardsStrandsPositionFormat>(GraphBuilder, RenderData.CardsStrandsPositions, CardsStrandsPositions, TEXT("HairCardsProcedural_CardsStrandsPositions"));
-	InternalCreateVertexBufferRDG<FHairCardsStrandsAttributeFormat>(GraphBuilder, RenderData.CardsStrandsAttributes, CardsStrandsAttributes, TEXT("HairCardsProcedural_CardsStrandsAttributes"));
+	InternalCreateVertexBufferRDG<FHairCardsStrandsPositionFormat>(GraphBuilder, RenderData.CardsStrandsPositions, CardsStrandsPositions, TEXT("Hair.CardsProcedural_CardsStrandsPositions"));
+	InternalCreateVertexBufferRDG<FHairCardsStrandsAttributeFormat>(GraphBuilder, RenderData.CardsStrandsAttributes, CardsStrandsAttributes, TEXT("Hair.CardsProcedural_CardsStrandsAttributes"));
 
 	GraphBuilder.Execute();
 }
@@ -407,18 +407,18 @@ void FHairCardsDeformedResource::InitRHI()
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
-		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[0], TEXT("HairCardsDeformed_Position0"));
+		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[0], TEXT("Hair.CardsDeformed_Position0"));
 		if (bDynamic)
 		{
-			InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[1], TEXT("HairCardsDeformed_Position1"));
+			InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[1], TEXT("Hair.CardsDeformed_Position1"));
 		}
 	}
 	else
 	{
-		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[0], TEXT("HairCardsDeformed_Position0"));
+		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[0], TEXT("Hair.CardsDeformed_Position0"));
 		if (bDynamic)
 		{
-			InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[1], TEXT("HairCardsDeformed_Position1"));
+			InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[1], TEXT("Hair.CardsDeformed_Position1"));
 		}
 	}
 	GraphBuilder.Execute();
@@ -451,9 +451,9 @@ FHairMeshesRestResource::FHairMeshesRestResource(const FHairMeshesDatas::FRender
 void FHairMeshesRestResource::InitRHI()
 {
 	// These resources are kept as regular (i.e., non-RDG resources) as they need to be bound at the input assembly stage by the Vertex declaraction which requires FVertexBuffer type
-	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer, TEXT("HairMeshesRest_Positions"));
-	CreateBuffer<FHairCardsNormalFormat>(RenderData.Normals, NormalsBuffer, TEXT("HairMeshesRest_Normals"));
-	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer, TEXT("HairMeshesRest_UVs"));
+	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer, TEXT("Hair.MeshesRest_Positions"));
+	CreateBuffer<FHairCardsNormalFormat>(RenderData.Normals, NormalsBuffer, TEXT("Hair.MeshesRest_Normals"));
+	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer, TEXT("Hair.MeshesRest_UVs"));
 }
 
 void FHairMeshesRestResource::ReleaseRHI()
@@ -496,18 +496,18 @@ void FHairMeshesDeformedResource::InitRHI()
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
-		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[0], TEXT("HairMeshesDeformed_Positions0"));
+		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[0], TEXT("Hair.MeshesDeformed_Positions0"));
 		if (bDynamic)
 		{
-			InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[1], TEXT("HairMeshesDeformed_Positions1"));
+			InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[1], TEXT("Hair.MeshesDeformed_Positions1"));
 		}
 	}
 	else
 	{
-		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[0], TEXT("HairMeshesDeformed_Positions0"));
+		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[0], TEXT("Hair.MeshesDeformed_Positions0"));
 		if (bDynamic)
 		{
-			InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[1], TEXT("HairMeshesDeformed_Positions1"));
+			InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[1], TEXT("Hair.MeshesDeformed_Positions1"));
 		}
 	}
 
@@ -536,9 +536,9 @@ void FHairStrandsRestResource::InitRHI()
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, RenderData.Positions, RestPositionBuffer, TEXT("HairStrandsRest_RestPositionBuffer"));
-	InternalCreateVertexBufferRDG<FHairStrandsAttributeFormat>(GraphBuilder, RenderData.Attributes, AttributeBuffer, TEXT("HairStrandsRest_AttributeBuffer"));
-	InternalCreateVertexBufferRDG<FHairStrandsMaterialFormat>(GraphBuilder, RenderData.Materials, MaterialBuffer, TEXT("HairStrandsRest_MaterialBuffer"));
+	InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, RenderData.Positions, RestPositionBuffer, TEXT("Hair.StrandsRest_RestPositionBuffer"));
+	InternalCreateVertexBufferRDG<FHairStrandsAttributeFormat>(GraphBuilder, RenderData.Attributes, AttributeBuffer, TEXT("Hair.StrandsRest_AttributeBuffer"));
+	InternalCreateVertexBufferRDG<FHairStrandsMaterialFormat>(GraphBuilder, RenderData.Materials, MaterialBuffer, TEXT("Hair.StrandsRest_MaterialBuffer"));
 
 	GraphBuilder.Execute();
 }
@@ -566,26 +566,26 @@ void FHairStrandsDeformedResource::InitRHI()
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
-		InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[0], TEXT("HairStrandsDeformed_DeformedPositionBuffer0")); // , bDynamic ? ERHIAccess::UAVCompute : ERHIAccess::SRVMask
+		InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[0], TEXT("Hair.StrandsDeformed_DeformedPositionBuffer0")); // , bDynamic ? ERHIAccess::UAVCompute : ERHIAccess::SRVMask
 		if (bDynamic)
 		{
-			InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[1], TEXT("HairStrandsDeformed_DeformedPositionBuffer1")); // , ERHIAccess::UAVCompute
+			InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, RenderData.Positions, DeformedPositionBuffer[1], TEXT("Hair.StrandsDeformed_DeformedPositionBuffer1")); // , ERHIAccess::UAVCompute
 		}
 	}
 	else
 	{
-		InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[0], TEXT("HairStrandsDeformed_DeformedPositionBuffer0"));
+		InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[0], TEXT("Hair.StrandsDeformed_DeformedPositionBuffer0"));
 		if (bDynamic)
 		{
-			InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[1], TEXT("HairStrandsDeformed_DeformedPositionBuffer1"));
+			InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[1], TEXT("Hair.StrandsDeformed_DeformedPositionBuffer1"));
 		}
 	}
-	InternalCreateVertexBufferRDG<FHairStrandsTangentFormat>(GraphBuilder, VertexCount * FHairStrandsTangentFormat::ComponentCount, TangentBuffer, TEXT("HairStrandsDeformed_TangentBuffer"));
+	InternalCreateVertexBufferRDG<FHairStrandsTangentFormat>(GraphBuilder, VertexCount * FHairStrandsTangentFormat::ComponentCount, TangentBuffer, TEXT("Hair.StrandsDeformed_TangentBuffer"));
 
 	TArray<FVector4> DefaultOffsets;
 	DefaultOffsets.Add(DefaultOffset);
-	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[0], TEXT("HairStrandsDeformed_DeformedOffsetBuffer0"));
-	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[1], TEXT("HairStrandsDeformed_DeformedOffsetBuffer1"));
+	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[0], TEXT("Hair.StrandsDeformed_DeformedOffsetBuffer0"));
+	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[1], TEXT("Hair.StrandsDeformed_DeformedOffsetBuffer1"));
 
 	GraphBuilder.Execute();
 }
@@ -659,11 +659,11 @@ void FHairStrandsClusterCullingResource::InitRHI()
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	InternalCreateStructuredBufferRDG(GraphBuilder, Data.PackedClusterInfos, sizeof(FHairStrandsClusterCullingData::FHairClusterInfo::Packed), ClusterInfoBuffer, TEXT("HairStrandsClusterCulling_ClusterInfoBuffer"));
-	InternalCreateStructuredBufferRDG(GraphBuilder, Data.ClusterLODInfos, sizeof(FHairStrandsClusterCullingData::FHairClusterLODInfo), ClusterLODInfoBuffer, TEXT("HairStrandsClusterCulling_ClusterLODInfoBuffer"));
+	InternalCreateStructuredBufferRDG(GraphBuilder, Data.PackedClusterInfos, sizeof(FHairStrandsClusterCullingData::FHairClusterInfo::Packed), ClusterInfoBuffer, TEXT("Hair.StrandsClusterCulling_ClusterInfoBuffer"));
+	InternalCreateStructuredBufferRDG(GraphBuilder, Data.ClusterLODInfos, sizeof(FHairStrandsClusterCullingData::FHairClusterLODInfo), ClusterLODInfoBuffer, TEXT("Hair.StrandsClusterCulling_ClusterLODInfoBuffer"));
 
-	InternalCreateVertexBufferRDG(GraphBuilder, Data.ClusterVertexIds, PF_R32_UINT, ClusterVertexIdBuffer, TEXT("HairStrandsClusterCulling_ClusterVertexIds"));
-	InternalCreateVertexBufferRDG(GraphBuilder, Data.VertexToClusterIds, PF_R32_UINT, VertexToClusterIdBuffer, TEXT("HairStrandsClusterCulling_VertexToClusterIds"));
+	InternalCreateVertexBufferRDG(GraphBuilder, Data.ClusterVertexIds, PF_R32_UINT, ClusterVertexIdBuffer, TEXT("Hair.StrandsClusterCulling_ClusterVertexIds"));
+	InternalCreateVertexBufferRDG(GraphBuilder, Data.VertexToClusterIds, PF_R32_UINT, VertexToClusterIdBuffer, TEXT("Hair.StrandsClusterCulling_VertexToClusterIds"));
 
 	GraphBuilder.Execute();
 }
@@ -712,9 +712,9 @@ void FHairStrandsRestRootResource::InitRHI()
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		FRDGBuilder GraphBuilder(RHICmdList);
 
-		InternalCreateVertexBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, RootData.VertexToCurveIndexBuffer, VertexToCurveIndexBuffer, TEXT("HairStrandsRestRoot_VertexToCurveIndexBuffer"));
-		InternalCreateVertexBufferRDG<FHairStrandsRootPositionFormat>(GraphBuilder, RootData.RootPositionBuffer, RootPositionBuffer, TEXT("HairStrandsRestRoot_RootPositionBuffer"));
-		InternalCreateVertexBufferRDG<FHairStrandsRootNormalFormat>(GraphBuilder, RootData.RootNormalBuffer, RootNormalBuffer, TEXT("HairStrandsRestRoot_RootNormalBuffer"));
+		InternalCreateVertexBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, RootData.VertexToCurveIndexBuffer, VertexToCurveIndexBuffer, TEXT("Hair.StrandsRestRoot_VertexToCurveIndexBuffer"));
+		InternalCreateVertexBufferRDG<FHairStrandsRootPositionFormat>(GraphBuilder, RootData.RootPositionBuffer, RootPositionBuffer, TEXT("Hair.StrandsRestRoot_RootPositionBuffer"));
+		InternalCreateVertexBufferRDG<FHairStrandsRootNormalFormat>(GraphBuilder, RootData.RootNormalBuffer, RootNormalBuffer, TEXT("Hair.StrandsRestRoot_RootNormalBuffer"));
 		
 		check(LODs.Num() == RootData.MeshProjectionLODs.Num());
 		for (uint32 LODIt=0, LODCount = LODs.Num(); LODIt<LODCount; ++LODIt)
@@ -728,29 +728,29 @@ void FHairStrandsRestRootResource::InitRHI()
 				GPUData.Status = FLOD::EStatus::Completed;
 
 				check(CPUData.RootTriangleBarycentricBuffer.Num() > 0);
-				InternalCreateVertexBufferRDG<FHairStrandsCurveTriangleBarycentricFormat>(GraphBuilder, CPUData.RootTriangleBarycentricBuffer, GPUData.RootTriangleBarycentricBuffer, TEXT("HairStrandsRestRoot_RootTriangleBarycentricBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsCurveTriangleBarycentricFormat>(GraphBuilder, CPUData.RootTriangleBarycentricBuffer, GPUData.RootTriangleBarycentricBuffer, TEXT("Hair.StrandsRestRoot_RootTriangleBarycentricBuffer"));
 
 				check(CPUData.RootTriangleIndexBuffer.Num() > 0);
-				InternalCreateVertexBufferRDG<FHairStrandsCurveTriangleIndexFormat>(GraphBuilder, CPUData.RootTriangleIndexBuffer, GPUData.RootTriangleIndexBuffer, TEXT("HairStrandsRestRoot_RootTriangleIndexBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsCurveTriangleIndexFormat>(GraphBuilder, CPUData.RootTriangleIndexBuffer, GPUData.RootTriangleIndexBuffer, TEXT("Hair.StrandsRestRoot_RootTriangleIndexBuffer"));
 
 				check(CPUData.RestRootTrianglePosition0Buffer.Num() > 0);
 				check(CPUData.RestRootTrianglePosition1Buffer.Num() > 0);
 				check(CPUData.RestRootTrianglePosition2Buffer.Num() > 0);
-				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.RestRootTrianglePosition0Buffer, GPUData.RestRootTrianglePosition0Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition0Buffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.RestRootTrianglePosition1Buffer, GPUData.RestRootTrianglePosition1Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition1Buffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.RestRootTrianglePosition2Buffer, GPUData.RestRootTrianglePosition2Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition2Buffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.RestRootTrianglePosition0Buffer, GPUData.RestRootTrianglePosition0Buffer, TEXT("Hair.StrandsRestRoot_RestRootTrianglePosition0Buffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.RestRootTrianglePosition1Buffer, GPUData.RestRootTrianglePosition1Buffer, TEXT("Hair.StrandsRestRoot_RestRootTrianglePosition1Buffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.RestRootTrianglePosition2Buffer, GPUData.RestRootTrianglePosition2Buffer, TEXT("Hair.StrandsRestRoot_RestRootTrianglePosition2Buffer"));
 			}
 			else
 			{
 				GPUData.Status = FLOD::EStatus::Initialized;
 
-				InternalCreateVertexBufferRDG<FHairStrandsCurveTriangleBarycentricFormat>(GraphBuilder, RootData.RootCount, GPUData.RootTriangleBarycentricBuffer, TEXT("HairStrandsRestRoot_RootTriangleBarycentricBuffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsCurveTriangleIndexFormat>(GraphBuilder, RootData.RootCount, GPUData.RootTriangleIndexBuffer, TEXT("HairStrandsRestRoot_RootTriangleIndexBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsCurveTriangleBarycentricFormat>(GraphBuilder, RootData.RootCount, GPUData.RootTriangleBarycentricBuffer, TEXT("Hair.StrandsRestRoot_RootTriangleBarycentricBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsCurveTriangleIndexFormat>(GraphBuilder, RootData.RootCount, GPUData.RootTriangleIndexBuffer, TEXT("Hair.StrandsRestRoot_RootTriangleIndexBuffer"));
 
 				// Create buffers. Initialization will be done by render passes
-				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootData.RootCount, GPUData.RestRootTrianglePosition0Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition0Buffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootData.RootCount, GPUData.RestRootTrianglePosition1Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition1Buffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootData.RootCount, GPUData.RestRootTrianglePosition2Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition2Buffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootData.RootCount, GPUData.RestRootTrianglePosition0Buffer, TEXT("Hair.StrandsRestRoot_RestRootTrianglePosition0Buffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootData.RootCount, GPUData.RestRootTrianglePosition1Buffer, TEXT("Hair.StrandsRestRoot_RestRootTrianglePosition1Buffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootData.RootCount, GPUData.RestRootTrianglePosition2Buffer, TEXT("Hair.StrandsRestRoot_RestRootTrianglePosition2Buffer"));
 			}
 
 			GPUData.SampleCount = CPUData.SampleCount;
@@ -761,15 +761,15 @@ void FHairStrandsRestRootResource::InitRHI()
 				check(CPUData.MeshSampleIndicesBuffer.Num() == CPUData.SampleCount);
 				check(CPUData.RestSamplePositionsBuffer.Num() == CPUData.SampleCount);
 
-				InternalCreateVertexBufferRDG<FHairStrandsWeightFormat>(GraphBuilder, CPUData.MeshInterpolationWeightsBuffer, GPUData.MeshInterpolationWeightsBuffer, TEXT("HairStrandsRestRoot_MeshInterpolationWeightsBuffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, CPUData.MeshSampleIndicesBuffer, GPUData.MeshSampleIndicesBuffer, TEXT("HairStrandsRestRoot_MeshSampleIndicesBuffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.RestSamplePositionsBuffer, GPUData.RestSamplePositionsBuffer, TEXT("HairStrandsRestRoot_RestSamplePositionsBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsWeightFormat>(GraphBuilder, CPUData.MeshInterpolationWeightsBuffer, GPUData.MeshInterpolationWeightsBuffer, TEXT("Hair.StrandsRestRoot_MeshInterpolationWeightsBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, CPUData.MeshSampleIndicesBuffer, GPUData.MeshSampleIndicesBuffer, TEXT("Hair.StrandsRestRoot_MeshSampleIndicesBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.RestSamplePositionsBuffer, GPUData.RestSamplePositionsBuffer, TEXT("Hair.StrandsRestRoot_RestSamplePositionsBuffer"));
 			}
 			else
 			{
-				InternalCreateVertexBufferRDG<FHairStrandsWeightFormat>(GraphBuilder, (CPUData.SampleCount+4) * (CPUData.SampleCount+4), GPUData.MeshInterpolationWeightsBuffer, TEXT("HairStrandsRestRoot_MeshInterpolationWeightsBuffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, CPUData.SampleCount, GPUData.MeshSampleIndicesBuffer, TEXT("HairStrandsRestRoot_MeshSampleIndicesBuffer"));
-				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.SampleCount, GPUData.RestSamplePositionsBuffer, TEXT("HairStrandsRestRoot_RestSamplePositionsBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsWeightFormat>(GraphBuilder, (CPUData.SampleCount+4) * (CPUData.SampleCount+4), GPUData.MeshInterpolationWeightsBuffer, TEXT("Hair.StrandsRestRoot_MeshInterpolationWeightsBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, CPUData.SampleCount, GPUData.MeshSampleIndicesBuffer, TEXT("Hair.StrandsRestRoot_MeshSampleIndicesBuffer"));
+				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.SampleCount, GPUData.RestSamplePositionsBuffer, TEXT("Hair.StrandsRestRoot_RestSamplePositionsBuffer"));
 			}
 		}
 		GraphBuilder.Execute();
@@ -836,12 +836,12 @@ void FHairStrandsDeformedRootResource::InitRHI()
 		for (FLOD& LOD : LODs)
 		{		
 			LOD.Status = FLOD::EStatus::Initialized;
-			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, LOD.SampleCount, LOD.DeformedSamplePositionsBuffer, TEXT("HairStrandsRootDeformed_DeformedSamplePositionsBuffer"));
-			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, LOD.SampleCount + 4, LOD.MeshSampleWeightsBuffer, TEXT("HairStrandsRootDeformed_MeshSampleWeightsBuffer"));
+			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, LOD.SampleCount, LOD.DeformedSamplePositionsBuffer, TEXT("Hair.StrandsRootDeformed_DeformedSamplePositionsBuffer"));
+			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, LOD.SampleCount + 4, LOD.MeshSampleWeightsBuffer, TEXT("Hair.StrandsRootDeformed_MeshSampleWeightsBuffer"));
 
-			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootCount, LOD.DeformedRootTrianglePosition0Buffer, TEXT("HairStrandsRootDeformed_DeformedRootTrianglePosition0Buffer"));
-			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootCount, LOD.DeformedRootTrianglePosition1Buffer, TEXT("HairStrandsRootDeformed_DeformedRootTrianglePosition1Buffer"));
-			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootCount, LOD.DeformedRootTrianglePosition2Buffer, TEXT("HairStrandsRootDeformed_DeformedRootTrianglePosition2Buffer"));
+			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootCount, LOD.DeformedRootTrianglePosition0Buffer, TEXT("Hair.StrandsRootDeformed_DeformedRootTrianglePosition0Buffer"));
+			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootCount, LOD.DeformedRootTrianglePosition1Buffer, TEXT("Hair.StrandsRootDeformed_DeformedRootTrianglePosition1Buffer"));
+			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootCount, LOD.DeformedRootTrianglePosition2Buffer, TEXT("Hair.StrandsRootDeformed_DeformedRootTrianglePosition2Buffer"));
 		}
 	}
 	GraphBuilder.Execute();
@@ -1017,9 +1017,9 @@ void FHairStrandsInterpolationResource::InitRHI()
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	InternalCreateVertexBufferRDG<FHairStrandsInterpolation0Format>(GraphBuilder, RenderData.Interpolation0, Interpolation0Buffer, TEXT("HairStrandsInterpolation_Interpolation0Buffer"));
-	InternalCreateVertexBufferRDG<FHairStrandsInterpolation1Format>(GraphBuilder, RenderData.Interpolation1, Interpolation1Buffer, TEXT("HairStrandsInterpolation_Interpolation1Buffer"));
-	InternalCreateVertexBufferRDG<FHairStrandsRootIndexFormat>(GraphBuilder, SimRootPointIndex, SimRootPointIndexBuffer, TEXT("HairStrandsInterpolation_SimRootPointIndex"));
+	InternalCreateVertexBufferRDG<FHairStrandsInterpolation0Format>(GraphBuilder, RenderData.Interpolation0, Interpolation0Buffer, TEXT("Hair.StrandsInterpolation_Interpolation0Buffer"));
+	InternalCreateVertexBufferRDG<FHairStrandsInterpolation1Format>(GraphBuilder, RenderData.Interpolation1, Interpolation1Buffer, TEXT("Hair.StrandsInterpolation_Interpolation1Buffer"));
+	InternalCreateVertexBufferRDG<FHairStrandsRootIndexFormat>(GraphBuilder, SimRootPointIndex, SimRootPointIndexBuffer, TEXT("Hair.StrandsInterpolation_SimRootPointIndex"));
 	GraphBuilder.Execute();
 	//SimRootPointIndex.SetNum(0);
 }
@@ -1068,7 +1068,7 @@ void FHairCardsInterpolationResource::InitRHI()
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	InternalCreateVertexBufferRDG<FHairCardsInterpolationFormat>(GraphBuilder, RenderData.Interpolation, InterpolationBuffer, TEXT("HairCardsInterpolation_InterpolationBuffer"));
+	InternalCreateVertexBufferRDG<FHairCardsInterpolationFormat>(GraphBuilder, RenderData.Interpolation, InterpolationBuffer, TEXT("Hair.CardsInterpolation_InterpolationBuffer"));
 	GraphBuilder.Execute();
 }
 
@@ -1101,7 +1101,7 @@ void FHairStrandsRaytracingResource::InitRHI()
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, TEXT("HairStrandsRaytracing_PositionBuffer"));
+	InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, TEXT("Hair.StrandsRaytracing_PositionBuffer"));
 	GraphBuilder.Execute();
 }
 

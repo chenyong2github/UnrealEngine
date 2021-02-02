@@ -210,7 +210,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	FRDGBufferRef OutBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(
 		4 * sizeof(float),
 		Params.HairVisibilityNodeData->Desc.NumElements),
-		TEXT("HairTransmittanceNodeData"));
+		TEXT("Hair.TransmittanceNodeData"));
 
 	FDeepTransmittanceMaskCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDeepTransmittanceMaskCS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
@@ -406,7 +406,7 @@ static void AddDeepShadowOpaqueMaskPass(
 	{
 		FRDGTextureDesc Desc = OutShadowMask->Desc;
 		Desc.Flags |= TexCreate_ShaderResource;
-		RayMarchMask = GraphBuilder.CreateTexture(Desc, TEXT("RayMarchMask"));
+		RayMarchMask = GraphBuilder.CreateTexture(Desc, TEXT("Hair.RayMarchMask"));
 		FRHICopyTextureInfo CopyInfo;
 		CopyInfo.Size = OutShadowMask->Desc.GetSize();
 		AddCopyTexturePass(GraphBuilder, OutShadowMask, RayMarchMask, CopyInfo);

@@ -225,7 +225,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 				RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsAABB");
 				RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsAABB);
 
-				MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 6 * MacroGroupCount), TEXT("HairMacroGroupAABBBuffer"));
+				MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 6 * MacroGroupCount), TEXT("Hair.MacroGroupAABBBuffer"));
 				FRDGBufferUAVRef MacroGroupAABBBufferUAV = GraphBuilder.CreateUAV(MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 				for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups.Datas)
 				{				

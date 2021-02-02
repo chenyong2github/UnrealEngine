@@ -111,7 +111,7 @@ static FRDGBufferRef AddMeshSectionId(
 		return nullptr;
 
 	// Initialized the section ID to a large number, as the shader will do an atomic min on the section ID.
-	FRDGBufferRef VertexSectionIdBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MeshData.Sections[0].TotalVertexCount), TEXT("SectionId"));
+	FRDGBufferRef VertexSectionIdBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MeshData.Sections[0].TotalVertexCount), TEXT("Hair.SectionId"));
 	FRDGBufferUAVRef VertexSectionIdBufferUAV = GraphBuilder.CreateUAV(VertexSectionIdBuffer, PF_R32_UINT);
 	AddClearUAVPass(GraphBuilder, VertexSectionIdBufferUAV, ~0u);
 	for (const FHairStrandsProjectionMeshData::Section& MeshSection : MeshData.Sections)
@@ -270,7 +270,7 @@ static void AddMeshTransferPass(
 		return;
 	}
 	
-	FRDGBufferRef PositionDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TargetSectionData.TotalVertexCount), TEXT("DistanceBuffer"));
+	FRDGBufferRef PositionDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TargetSectionData.TotalVertexCount), TEXT("Hair.DistanceBuffer"));
 	FRDGBufferUAVRef PositionDistanceBufferUAV = GraphBuilder.CreateUAV(PositionDistanceBuffer, PF_R32_UINT);
 
 	// For projecting hair onto a skeletal mesh, 1 thread is spawn for each hair which iterates over all triangles.
@@ -462,7 +462,7 @@ void ProjectHairStrandsOntoMesh(
 
 	const uint32 RootCount = RestResources->RootData.RootCount;
 	FHairStrandsRestRootResource::FLOD& RestLODDatas = RestResources->LODs[LODIndex];
-	FRDGBufferRef RootDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float), RootCount), TEXT("HairStrandsTriangleDistance"));
+	FRDGBufferRef RootDistanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float), RootCount), TEXT("Hair.TriangleDistance"));
 
 	bool ClearDistance = true;
 	for (const FHairStrandsProjectionMeshData::Section& MeshSection : ProjectionMeshData.LODs[LODIndex].Sections)
@@ -1658,7 +1658,7 @@ void GenerateFolliculeMask(
 	if (OutTexture == nullptr)
 	{
 		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(Resolution, Format, FClearValueBinding(ClearColor), TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, MipCount);
-		OutTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FollicleMask"));
+		OutTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("Hair.FollicleMask"));
 	}
 
 	AddFollicleMaskPass(GraphBuilder, ShaderMap, bClear, KernelSizeInPixels, Channel, LODIndex, RestResources, OutTexture);
@@ -1681,7 +1681,7 @@ void GenerateFolliculeMask(
 	if (OutTexture == nullptr)
 	{
 		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(Resolution, Format, FClearValueBinding(ClearColor), TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, MipCount);
-		OutTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FollicleMask"));
+		OutTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("Hair.FollicleMask"));
 	}
 
 	for (const FRDGBufferRef& RootUVBuffer : RootUVBuffers)

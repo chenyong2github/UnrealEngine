@@ -276,7 +276,7 @@ static void AddHairCardAtlasTexturePass(
 	FRDGTextureRef OutCoverageTexture,
 	FRDGTextureRef OutAttributeTexture)
 {
-	FRDGTextureRef DepthTestTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(OutAttributeTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthOne, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, 1), TEXT("CardsDepthTest"));
+	FRDGTextureRef DepthTestTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(OutAttributeTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthOne, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, 1), TEXT("Hair.CardsDepthTest"));
 
 	bool bClear = true;
 	for (const FHairCardsProceduralAtlas::Rect& Rect : InAtlas.Rects)
@@ -3846,10 +3846,10 @@ void RunHairCardsAtlasQueries(
 			continue;
 
 		// Allocate resources for generating the atlas texture (for editor mode only)
-		FRDGTextureRef DepthTexture		= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardsDepth"));
-		FRDGTextureRef TangentTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardTangent"));
-		FRDGTextureRef CoverageTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardCoverage"));
-		FRDGTextureRef AttributeTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("CardAttribute"));
+		FRDGTextureRef DepthTexture		= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("Hair.CardsDepth"));
+		FRDGTextureRef TangentTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("Hair.CardTangent"));
+		FRDGTextureRef CoverageTexture	= GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("Hair.CardCoverage"));
+		FRDGTextureRef AttributeTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("Hair.CardAttribute"));
 		AddHairCardAtlasTexturePass(
 			GraphBuilder,
 			Q.ProceduralData->Atlas,

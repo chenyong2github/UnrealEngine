@@ -56,7 +56,7 @@ static FRDGTextureRef AddPreScatterComposePass(
 		Desc.Format = InSceneColorTexture->Desc.Format;
 		Desc.Flags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 		Desc.ClearValue = FClearValueBinding(0);
-		OutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairComposedTexture"));
+		OutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.ComposedTexture"));
 	}
 
 	FVector2D PixelVelocity(1.f / (Resolution.X * 2), 1.f / (Resolution.Y * 2));
@@ -167,7 +167,7 @@ static FRDGTextureRef AddScatterPass(
 		PixelRadiusAtDepth1 = DiameterAtDepth1 * DiameterToRadius;
 	}
 
-	FRDGTextureRef OutDiffusionOutput = GraphBuilder.CreateTexture(InDiffusionInput->Desc, TEXT("HairDiffusionOutput"));
+	FRDGTextureRef OutDiffusionOutput = GraphBuilder.CreateTexture(InDiffusionInput->Desc, TEXT("Hair.DiffusionOutput"));
 
 	FHairScatterPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairScatterPS::FParameters>();
 	Parameters->Enable = GHairStrandsScatter_Enable > 0 ? 1 : 0;
