@@ -224,6 +224,12 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalyticR
 	AnalyticsAttributes.Emplace(TEXT("SessionTickCount"), Session.SessionTickCount);
 	AnalyticsAttributes.Emplace(TEXT("EngineTickCount"), Session.EngineTickCount);
 	AnalyticsAttributes.Emplace(TEXT("UserInteractionCount"), Session.UserInteractionCount);
+	AnalyticsAttributes.Emplace(TEXT("TotalStallCount"), Session.TotalStallCount);
+	AnalyticsAttributes.Emplace(TEXT("TotalStallReported"), Session.TotalStallReported);
+	AnalyticsAttributes.Emplace(TEXT("TopStallName"), Session.TopStallName);
+	AnalyticsAttributes.Emplace(TEXT("TopStallBudgetSeconds"), Session.TopStallBudgetSeconds);
+	AnalyticsAttributes.Emplace(TEXT("TopStallOverageSeconds"), Session.TopStallOverageSeconds);
+	AnalyticsAttributes.Emplace(TEXT("TopStallTriggerCount"), Session.TopStallTriggerCount);
 	AnalyticsAttributes.Emplace(TEXT("Plugins"), PluginsString);
 	AnalyticsAttributes.Emplace(TEXT("DesktopGPUAdapter"), Session.DesktopGPUAdapter);
 	AnalyticsAttributes.Emplace(TEXT("RenderingGPUAdapter"), Session.RenderingGPUAdapter);

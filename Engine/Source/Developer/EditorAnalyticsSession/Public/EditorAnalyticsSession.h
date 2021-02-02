@@ -55,6 +55,13 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	uint64 EngineTickCount = 0;  // Number or times the engine was ticked.
 	uint32 UserInteractionCount = 0; // Number of slate user interactions. Zero is the interesting value. If the Editor UI hang at start up, some users may be prompt to kill it.
 
+	uint64 TotalStallCount = 0;    // The total number of stalls detected, across every detector
+	uint64 TotalStallReported = 0; // The total number of stalls reported (by default we only report the first instance, or skip reporting some detectors entirely)
+	FString TopStallName;
+	double TopStallBudgetSeconds = 0.0;
+	double TopStallOverageSeconds = 0.0;
+	uint64 TopStallTriggerCount = 0;
+
 	FString DesktopGPUAdapter;
 	FString RenderingGPUAdapter;
 	uint32 GPUVendorID = 0;

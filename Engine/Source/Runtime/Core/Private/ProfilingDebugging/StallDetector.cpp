@@ -107,7 +107,7 @@ uint32 UE::FStallDetectorRunnable::Run()
 
 		// Check the detectors
 		{
-			FScopeLock ScopeLock(&FStallDetector::GetCriticalSection());
+			FScopeLock ScopeLock(&FStallDetector::GetInstancesSection());
 			for (FStallDetector* Detector : FStallDetector::GetInstances())
 			{
 				Detector->Check(false, Seconds);
@@ -125,7 +125,7 @@ uint32 UE::FStallDetectorRunnable::Run()
 * Stall Detector Stats
 **/
 
-FCriticalSection UE::FStallDetectorStats::CriticalSection;
+FCriticalSection UE::FStallDetectorStats::InstancesSection;
 TSet<UE::FStallDetectorStats*> UE::FStallDetectorStats::Instances;
 std::atomic<uint32> UE::FStallDetectorStats::TotalTriggeredCount;
 std::atomic<uint32> UE::FStallDetectorStats::TotalReportedCount;
@@ -134,26 +134,91 @@ UE::FStallDetectorStats::FStallDetectorStats(const TCHAR* InName, const double I
 	: Name(InName)
 	, BudgetSeconds(InBudgetSeconds)
 	, ReportingMode(InReportingMode)
+	, bReported(false)
 	, TriggerCount(0)
 	, OverageSeconds(0.0)
 {
 	// Add at the end of construction
-	FScopeLock ScopeLock(&CriticalSection);
+	FScopeLock ScopeLock(&InstancesSection);
 	Instances.Add(this);
 }
 
 UE::FStallDetectorStats::~FStallDetectorStats()
 {
 	// Remove at the beginning of destruction
-	FScopeLock ScopeLock(&CriticalSection);
+	FScopeLock ScopeLock(&InstancesSection);
 	Instances.Remove(this);
 }
+
+void UE::FStallDetectorStats::OnStallCompleted(double InOverageSeconds)
+{
+	// we sync access around these for coherency reasons, can be polled from another thread (tabulation)
+	FScopeLock StatsLock(&StatsSection);
+	TriggerCount++;
+	OverageSeconds += InOverageSeconds;
+}
+
+void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedResults)
+{
+	TabulatedResults.Empty();
+
+	struct SortableStallStats
+	{
+		explicit SortableStallStats(const UE::FStallDetectorStats* InStats)
+			: StallStats(InStats)
+			, OverageRatio(0.0)
+		{
+			FScopeLock Lock(&InStats->StatsSection);
+			if (InStats->TriggerCount && InStats->BudgetSeconds > 0.0)
+			{
+				OverageRatio = (InStats->OverageSeconds / InStats->TriggerCount) / InStats->BudgetSeconds;
+			}
+		}
+
+		bool operator<(const SortableStallStats& InRhs) const
+		{
+			// NOTE THIS IS REVERSED TO PUT THE MOST OVERAGE AT THE FRONT
+			return OverageRatio > InRhs.OverageRatio;
+		}
+
+		const UE::FStallDetectorStats* StallStats;
+		double OverageRatio;
+	};
+
+	TArray<SortableStallStats> StatsArray;
+	FScopeLock InstancesLock(&UE::FStallDetectorStats::GetInstancesSection());
+	for (const UE::FStallDetectorStats* StallStats : UE::FStallDetectorStats::GetInstances())
+	{
+		if (StallStats->TriggerCount && StallStats->ReportingMode != UE::EStallDetectorReportingMode::Disabled)
+		{
+			StatsArray.Emplace(StallStats);
+		}
+	}
+
+	if (!StatsArray.IsEmpty())
+	{
+		StatsArray.Sort();
+
+		for (const SortableStallStats& Stat : StatsArray)
+		{
+			TabulatedResults.Emplace(TabulatedResult());
+			TabulatedResult& Result(TabulatedResults.Last());
+			Result.Stats = Stat.StallStats;
+
+			// we sync access around these for coherency reasons, can be polled from another thread (detector or scope)
+			FScopeLock Lock(&Result.Stats->StatsSection);
+			Result.TriggerCount = Result.Stats->TriggerCount;
+			Result.OverageSeconds = Result.Stats->OverageSeconds;
+		}
+	}
+}
+
 
 /**
 * Stall Detector
 **/
 
-FCriticalSection UE::FStallDetector::CriticalSection;
+FCriticalSection UE::FStallDetector::InstancesSection;
 TSet<UE::FStallDetector*> UE::FStallDetector::Instances;
 
 UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
@@ -167,7 +232,7 @@ UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
 	StartSeconds = FStallDetector::Seconds();
 
 	// Add at the end of construction
-	FScopeLock ScopeLock(&CriticalSection);
+	FScopeLock ScopeLock(&InstancesSection);
 	Instances.Add(this);
 }
 
@@ -175,7 +240,7 @@ UE::FStallDetector::~FStallDetector()
 {
 	// Remove at the beginning of destruction
 	{
-		FScopeLock ScopeLock(&CriticalSection);
+		FScopeLock ScopeLock(&InstancesSection);
 		Instances.Remove(this);
 	}
 
@@ -200,7 +265,7 @@ void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
 	{
 		if (bIsComplete)
 		{
-			Stats.OverageSeconds += OverageSeconds;
+			Stats.OnStallCompleted(OverageSeconds);
 
 #if STALL_DETECTOR_DEBUG
 			FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Overage of %f\n"), Stats.Name, OverageSeconds);
@@ -220,7 +285,6 @@ void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
 				FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Triggered at %f\n"), Stats.Name, CheckSeconds);
 				FPlatformMisc::LocalPrint(OverageString.GetCharArray().GetData());
 #endif
-				Stats.TriggerCount++;
 				OnStallDetected(ThreadId, DeltaSeconds);
 			}
 		}
@@ -260,15 +324,19 @@ void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElaps
 	EStallDetectorReportingMode ReportingMode = Stats.ReportingMode;
 
 	bool bDisableReporting = false;
+
 #if UE_BUILD_DEBUG
 	bDisableReporting |= true; // Do not generate a report in debug configurations due to performance characteristics
 #endif
+
+#if !STALL_DETECTOR_DEBUG
 	bDisableReporting |= FPlatformMisc::IsDebuggerPresent(); // Do not generate a report if we detect the debugger mucking with things
+#endif
 
 	if (bDisableReporting)
 	{
 #if !STALL_DETECTOR_DEBUG
-		ReportingMode = EStallDetectorReportingMode::Never;
+		ReportingMode = EStallDetectorReportingMode::Disabled;
 #endif
 	}
 
@@ -280,7 +348,7 @@ void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElaps
 	switch (ReportingMode)
 	{
 	case EStallDetectorReportingMode::First:
-		bSendReport = Stats.TriggerCount == 1;
+		bSendReport = !Stats.bReported;
 		break;
 
 	case EStallDetectorReportingMode::Always:
@@ -297,6 +365,7 @@ void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElaps
 
 	if (bSendReport)
 	{
+		Stats.bReported = true;
 		Stats.TotalReportedCount++;
 		const int NumStackFramesToIgnore = FPlatformTLS::GetCurrentThreadId() == InThreadId ? 2 : 0;
 		ReportStall(Stats.Name, InThreadId, NumStackFramesToIgnore);

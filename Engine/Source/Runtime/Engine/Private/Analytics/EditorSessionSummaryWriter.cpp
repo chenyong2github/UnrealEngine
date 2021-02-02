@@ -27,6 +27,7 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/Guid.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "ProfilingDebugging/StallDetector.h"
 
 #include "EditorAnalyticsSession.h"
 #include "IVREditorModule.h"
@@ -340,6 +341,23 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 		}
 		NextDebuggerCheckSecs = CurrentTimeSecs + EditorSessionWriterDefs::DebuggerCheckPeriodSeconds;
 	}
+
+	// Accumulate stall stats
+#if STALL_DETECTOR
+	TArray<UE::FStallDetectorStats::TabulatedResult> StallResults;
+	UE::FStallDetectorStats::TabulateStats(StallResults);
+	if (!StallResults.IsEmpty())
+	{
+		UE::FStallDetectorStats::TabulatedResult TopResult(StallResults[0]);
+		CurrentSession->TopStallName = TopResult.Stats->Name;
+		CurrentSession->TopStallBudgetSeconds = TopResult.Stats->BudgetSeconds;
+		CurrentSession->TopStallOverageSeconds = TopResult.OverageSeconds;
+		CurrentSession->TopStallTriggerCount = TopResult.TriggerCount;
+	}
+
+	CurrentSession->TotalStallCount = UE::FStallDetectorStats::TotalTriggeredCount;
+	CurrentSession->TotalStallReported = UE::FStallDetectorStats::TotalReportedCount;
+#endif // STALL_DETECTOR
 
 	if (bSaveSession)
 	{

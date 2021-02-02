@@ -29,13 +29,15 @@ namespace EditorAnalyticsDefs
 	//   Version 1_2 : Removed TotalUserInactivitySeconds and added SessionDuration.
 	//   Version 1_3 : Added SessionTickCount, UserInteractionCount, IsCrcExeMissing, IsUserLoggingOut, MonitorExitCode and readded lost code to save/load/delete IsLowDriveSpace for 4.26.0.
 	//   Version 1_4 : Added CommandLine, EngineTickCount, LastTickTimestamp, DeathTimestamp and IsDebuggerIgnored for 4.26.0.
+	//   Version 1_5 : Added Stall Detector stats for 5.0.
 	static const FString StoreId(TEXT("Epic Games"));
 	static const FString SessionSummaryRoot(TEXT("Unreal Engine/Session Summary"));
 	static const FString SessionSummarySection_1_0 = SessionSummaryRoot / TEXT("1_0"); // The session format used by older versions.
 	static const FString SessionSummarySection_1_1 = SessionSummaryRoot / TEXT("1_1");
 	static const FString SessionSummarySection_1_2 = SessionSummaryRoot / TEXT("1_2");
 	static const FString SessionSummarySection_1_3 = SessionSummaryRoot / TEXT("1_3");
-	static const FString SessionSummarySection = SessionSummaryRoot / TEXT("1_4"); // The current session format.
+	static const FString SessionSummarySection_1_4 = SessionSummaryRoot / TEXT("1_4");
+	static const FString SessionSummarySection = SessionSummaryRoot / TEXT("1_5"); // The current session format.
 	static const FString GlobalLockName(TEXT("UE4_SessionSummary_Lock"));
 	static const FString SessionListStoreKey(TEXT("SessionList"));
 
@@ -59,6 +61,14 @@ namespace EditorAnalyticsDefs
 	static const FString EngineTickCountStoreKey(TEXT("EngineTickCount"));
 	static const FString UserInteractionCountStoreKey(TEXT("UserInteractionCount"));
 	static const FString CommandLineStoreKey(TEXT("CommandLine"));
+
+	// stall detector
+	static const FString TotalStallCountStoreKey(TEXT("TotalStallCount"));
+	static const FString TotalStallReportedStoreKey(TEXT("TotalStallReported"));
+	static const FString TopStallNameStoreKey(TEXT("TopStallName"));
+	static const FString TopStallBudgetSecondsStoreKey(TEXT("TopStallBudgetSeconds"));
+	static const FString TopStallOverageSecondsStoreKey(TEXT("TopStallOverageSeconds"));
+	static const FString TopStallTriggerCountStoreKey(TEXT("TopStallTriggerCount"));
 
 	// timestamps
 	static const FString StartupTimestampStoreKey(TEXT("StartupTimestamp"));
@@ -308,12 +318,23 @@ namespace EditorAnalyticsUtils
 	}
 
 // Utility macros to make it easier to check that all fields are being written to.
-#define GET_STORED_STRING(FieldName) FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs:: FieldName ## StoreKey, Session.FieldName)
+#define GET_STORED_STRING(FieldName) \
+	{ \
+		FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs:: FieldName ## StoreKey, Session.FieldName); \
+	}
+
 #define GET_STORED_INT(FieldName) \
 	{ \
 		FString FieldName ## Temp; \
 		FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs:: FieldName ## StoreKey, FieldName ## Temp); \
 		Session.FieldName = FCString::Atoi(*FieldName ## Temp); \
+	}
+
+#define GET_STORED_FLOAT(FieldName) \
+	{ \
+		FString FieldName ## Temp; \
+		FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs:: FieldName ## StoreKey, FieldName ## Temp); \
+		Session.FieldName = FCString::Atof(*FieldName ## Temp); \
 	}
 
 	static void LoadInternal(FEditorAnalyticsSession& Session, const FString& InSessionId)
@@ -400,15 +421,18 @@ namespace EditorAnalyticsUtils
 			PluginsString.ParseIntoArray(Session.Plugins, TEXT(","));
 		}
 
-		{
-			FString AverageFPSString;
-			FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::AverageFPSStoreKey, AverageFPSString);
-			Session.AverageFPS = FCString::Atof(*AverageFPSString);
-		}
+		GET_STORED_FLOAT(AverageFPS);
 
 		GET_STORED_INT(SessionTickCount);
 		GET_STORED_INT(EngineTickCount);
 		GET_STORED_INT(UserInteractionCount);
+
+		GET_STORED_INT(TotalStallCount);
+		GET_STORED_INT(TotalStallReported);
+		GET_STORED_STRING(TopStallName);
+		GET_STORED_FLOAT(TopStallBudgetSeconds);
+		GET_STORED_FLOAT(TopStallOverageSeconds);
+		GET_STORED_INT(TopStallTriggerCount);
 
 		GET_STORED_STRING(DesktopGPUAdapter);
 		GET_STORED_STRING(RenderingGPUAdapter);
@@ -613,6 +637,12 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::SessionTickCountStoreKey, FString::FromInt(SessionTickCount)},
 			{EditorAnalyticsDefs::EngineTickCountStoreKey,  FString::FromInt(EngineTickCount)},
 			{EditorAnalyticsDefs::UserInteractionCountStoreKey, FString::FromInt(UserInteractionCount)},
+			{EditorAnalyticsDefs::TotalStallCountStoreKey,        FString::FromInt(TotalStallCount)},
+			{EditorAnalyticsDefs::TotalStallReportedStoreKey,     FString::FromInt(TotalStallReported)},
+			{EditorAnalyticsDefs::TopStallNameStoreKey,           TopStallName},
+			{EditorAnalyticsDefs::TopStallBudgetSecondsStoreKey,  FString::SanitizeFloat(TopStallBudgetSeconds)},
+			{EditorAnalyticsDefs::TopStallOverageSecondsStoreKey, FString::SanitizeFloat(TopStallOverageSeconds)},
+			{EditorAnalyticsDefs::TopStallTriggerCountStoreKey,   FString::FromInt(TopStallTriggerCount)},
 			{EditorAnalyticsDefs::IsDebuggerStoreKey,       EditorAnalyticsUtils::BoolToStoredString(bIsDebugger)},
 			{EditorAnalyticsDefs::IsDebuggerIgnoredStoreKey,EditorAnalyticsUtils::BoolToStoredString(bIsDebuggerIgnored)},
 			{EditorAnalyticsDefs::WasDebuggerStoreKey,      EditorAnalyticsUtils::BoolToStoredString(bWasEverDebugger)},
@@ -704,6 +734,13 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::EngineTickCountStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::UserInteractionCountStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::CommandLineStoreKey);
+
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TotalStallCountStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TotalStallReportedStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TopStallNameStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TopStallBudgetSecondsStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TopStallOverageSecondsStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TopStallTriggerCountStoreKey);
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::DesktopGPUAdapterStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::RenderingGPUAdapterStoreKey);
@@ -847,6 +884,7 @@ void FEditorAnalyticsSession::CleanupOutdatedIncompatibleSessions(const FTimespa
 	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_1);
 	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_2);
 	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_3);
+	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_4);
 }
 
 void FEditorAnalyticsSession::LogEvent(EEventType InEventType, const FDateTime& InTimestamp)
