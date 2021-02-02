@@ -3677,10 +3677,10 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			}
 
 			MoveConnectionTo(BaseColor, SlabBSDF, 0);		// BaseColor
-			MoveConnectionTo(Metallic, SlabBSDF, 1);		// Metallic
-			MoveConnectionTo(Specular, SlabBSDF, 2);		// Specular
-			MoveConnectionTo(Normal, SlabBSDF, 5);			// Normal
-			MoveConnectionTo(Tangent, SlabBSDF, 6);			// Tangent
+			MoveConnectionTo(Metallic, SlabBSDF, 2);		// Metallic
+			MoveConnectionTo(Specular, SlabBSDF, 3);		// Specular
+			MoveConnectionTo(Normal, SlabBSDF, 6);			// Normal
+			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
 			// Opacity can remain on the end point node
 			// Opacity mask can remain on the end point node
 			// WorldPositionOffset can remain on the end point node

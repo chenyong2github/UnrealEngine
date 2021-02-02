@@ -9029,13 +9029,14 @@ int32 FHLSLMaterialTranslator::StrataCreateAndRegisterNullMaterial()
 }
 
 int32 FHLSLMaterialTranslator::StrataSlabBSDF(
-	int32 BaseColor, int32 Specular, int32 Metallic, int32 RoughnessX, int32 RoughnessY,
+	int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 RoughnessX, int32 RoughnessY,
 	int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale, int32 EmissiveColor,
 	int32 Haziness, int32 Normal, int32 Tangent, uint8 SharedNormalIndex)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, float2(%s, %s), %s, %s, %s, %s, %s, %u, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
+		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, %s, float2(%s, %s), %s, %s, %s, %s, %s, %u, Parameters.SharedNormals.NormalTypes) /* Normal = %s ; Tangent = %s */"),
 		*GetParameterCode(BaseColor),
+		*GetParameterCode(EdgeColor),
 		*GetParameterCode(Specular),
 		*GetParameterCode(Metallic),
 		*GetParameterCode(RoughnessX),

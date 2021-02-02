@@ -19760,6 +19760,8 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent);
 	uint8 SharedNormalIndex = bAnisotropyPotentiallyUsed ? StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk) : StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
+	const bool bHasEdgeColor = HasEdgeColor();
+
 	int32 SSSProfileCodeChunk = INDEX_NONE;
 	const bool bHasScattering = HasScattering();
 	if (bHasScattering)
@@ -19770,6 +19772,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 
 	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
 		CompileWithDefaultFloat3(Compiler, BaseColor, 0.18f, 0.18f, 0.18f),
+		CompileWithDefaultFloat3(Compiler, EdgeColor, 1.0f, 1.0f, 1.0f),
 		CompileWithDefaultFloat1(Compiler, Specular, 0.5f),
 		CompileWithDefaultFloat1(Compiler, Metallic, 0.0f),
 		RoughnessXCodeChunk,
@@ -19782,7 +19785,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasScattering);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasEdgeColor, bHasScattering);
 
 	return OutputCodeChunk;
 }
@@ -19805,33 +19808,36 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 		return MCT_Float3; // BaseColor
 		break;
 	case 1:
-		return MCT_Float1; // Metallic
+		return MCT_Float3; // EdgeColor
 		break;
 	case 2:
-		return MCT_Float1; // Specular
+		return MCT_Float1; // Metallic
 		break;
 	case 3:
-		return MCT_Float1; // RoughnessX
+		return MCT_Float1; // Specular
 		break;
 	case 4:
-		return MCT_Float1; // RoughnessY
+		return MCT_Float1; // RoughnessX
 		break;
 	case 5:
-		return MCT_Float3; // Normal
+		return MCT_Float1; // RoughnessY
 		break;
 	case 6:
-		return MCT_Float3; // Tangent
+		return MCT_Float3; // Normal
 		break;
 	case 7:
-		return MCT_Float3; // SSSDMFP
+		return MCT_Float3; // Tangent
 		break;
 	case 8:
-		return MCT_Float1; // SSSDMFPScale
+		return MCT_Float3; // SSSDMFP
 		break;
 	case 9:
-		return MCT_Float3; // Emissive Color
+		return MCT_Float1; // SSSDMFPScale
 		break;
 	case 10:
+		return MCT_Float3; // Emissive Color
+		break;
+	case 11:
 		return MCT_Float1; // Haziness
 		break;
 	}
@@ -19848,41 +19854,45 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == 1)
 	{
-		return TEXT("Metallic");
+		return TEXT("EdgeColor");
 	}
 	else if (InputIndex == 2)
 	{
-		return TEXT("Specular");
+		return TEXT("Metallic");
 	}
 	else if (InputIndex == 3)
 	{
-		return TEXT("RoughnessX");
+		return TEXT("Specular");
 	}
 	else if (InputIndex == 4)
 	{
-		return TEXT("RoughnessY");
+		return TEXT("RoughnessX");
 	}
 	else if (InputIndex == 5)
 	{
-		return TEXT("Normal");
+		return TEXT("RoughnessY");
 	}
 	else if (InputIndex == 6)
 	{
-		return TEXT("Tangent");
+		return TEXT("Normal");
 	}
 	else if (InputIndex == 7)
 	{
-		return TEXT("SSS Diffuse MFP");
+		return TEXT("Tangent");
 	}
 	else if (InputIndex == 8)
 	{
-		return TEXT("SSS Diffuse MFP Scale");
+		return TEXT("SSS Diffuse MFP");
 	}
 	else if (InputIndex == 9)
 	{
-		return TEXT("Emissive Color");
+		return TEXT("SSS Diffuse MFP Scale");
 	}
 	else if (InputIndex == 10)
+	{
+		return TEXT("Emissive Color");
+	}
+	else if (InputIndex == 11)
 	{
 		return TEXT("Haziness");
 	}
@@ -19914,6 +19924,12 @@ bool UMaterialExpressionStrataSlabBSDF::HasScattering() const
 {
 	return SubsurfaceProfile != nullptr || SSSDMFP.IsConnected();
 }
+
+bool UMaterialExpressionStrataSlabBSDF::HasEdgeColor() const
+{
+	return EdgeColor.IsConnected();
+}
+
 #endif // WITH_EDITOR
 
 

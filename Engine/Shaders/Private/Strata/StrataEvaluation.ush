@@ -184,9 +184,8 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			Sample.DiffusePDF		= BSDFContext.SatNoV / PI;
 			Sample.bSubsurface		= BSDF_GETHASSCATTERING(BSDFContext.BSDF) > 0;
 
-
-			const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
-			// STRATA_TODO F82 or edge color
+			const float3 F0  = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
+			const float3 F90 = ComputeF90(F0, SLAB_EDGECOLOR(BSDFContext.BSDF), Metallic);
 
 			const float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 			const float SafeRoughnessY = MakeRoughnessSafe(SLAB_ROUGHNESSY(BSDFContext.BSDF));
@@ -235,7 +234,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 					HazePDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2Haze);
 				}
 			}
-			float3 F = F_Schlick(F0, BSDFContext.Context.VoH);
+			float3 F = F_Schlick(F0, F90, BSDFContext.Context.VoH);
 
 			Sample.SpecularPathProbability	= bHaziness		? (1.0f - SPECULAR_HAZINESS_WEIGHT) : 1.0f;
 			Sample.SpecularHazePathProbability= bHaziness	? SPECULAR_HAZINESS_WEIGHT			: 0.0f;
@@ -445,7 +444,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			if (bEnableSpecular)
 			{
 				const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
-				// STRATA_TODO F82
+				const float3 F90 = ComputeF90(F0, SLAB_EDGECOLOR(BSDFContext.BSDF), Metallic);
 
 				float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 
@@ -465,7 +464,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
 				}
 
-				float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughnessX, BSDFContext.SatNoV);
+				float3 EvalEnvBRDF = EnvBRDFApprox(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
 
 				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughnessX);
 				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;
@@ -484,7 +483,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 					// Compute the second specular weight and roughness
 					float SafeRoughnessHaze = ComputeHazyLobeRoughness(SafeRoughnessX, Haziness);
-					StrataEnvLightResult.SpecularHazeWeight = lerp(0.0f, SPECULAR_HAZINESS_WEIGHT, HazinessFadeIn) * EnvBRDFApprox(F0, SafeRoughnessHaze, BSDFContext.SatNoV);
+					StrataEnvLightResult.SpecularHazeWeight = lerp(0.0f, SPECULAR_HAZINESS_WEIGHT, HazinessFadeIn) * EnvBRDFApprox(F0, F90, SafeRoughnessHaze, BSDFContext.SatNoV);
 					StrataEnvLightResult.SpecularHazeSafeRoughness = SafeRoughnessHaze;
 				}
 			}

@@ -105,6 +105,13 @@ float3 ComputeF0(float Specular, float3 BaseColor, float Metallic)
 	return lerp(DielectricSpecularToF0(Specular).xxx, BaseColor, Metallic.xxx);
 }
 
+float3 ComputeF90(float3 F0, float3 EdgeColor, float Metallic)
+{
+	// Anything less than 2% is physically impossible and is instead considered to be shadowing
+	const float MicroOcclusion = saturate(F0.g * 50.f);
+	return lerp(MicroOcclusion.xxx, MicroOcclusion * EdgeColor, Metallic.xxx);
+}
+
 float MakeRoughnessSafe(float Roughness, float MinRoughness=0.001f)
 {
 	return clamp(Roughness, MinRoughness, 1.0f);

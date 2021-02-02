@@ -49,7 +49,8 @@ void ComputePostProcessBSDFData(
 	{
 	case STRATA_BSDF_TYPE_SLAB:
 	{
-		const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDF), SLAB_BASECOLOR(BSDF), SLAB_METALLIC(BSDF));
+		const float3 F0  = ComputeF0(SLAB_SPECULAR(BSDF), SLAB_BASECOLOR(BSDF), SLAB_METALLIC(BSDF));
+		const float3 F90 = ComputeF90(F0, SLAB_BASECOLOR(BSDF), SLAB_METALLIC(BSDF));
 
 		if (bTopLayer)
 		{
@@ -58,7 +59,7 @@ void ComputePostProcessBSDFData(
 			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
 
 			const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDF));
-			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
+			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, F90, SafeRoughness, saturate(ContextNoLight.NoV));
 		}
 
 		Classification.bIsSimple =

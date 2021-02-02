@@ -441,7 +441,12 @@ float3 F_Schlick( float3 SpecularColor, float VoH )
 	
 	// Anything less than 2% is physically impossible and is instead considered to be shadowing
 	return saturate( 50.0 * SpecularColor.g ) * Fc + (1 - Fc) * SpecularColor;
-	
+}
+
+float3 F_Schlick(float3 F0, float3 F90, float VoH)
+{
+	float Fc = Pow5(1 - VoH);
+	return F90 * Fc + (1 - Fc) * F0;
 }
 
 float3 F_Fresnel( float3 SpecularColor, float VoH )
@@ -528,7 +533,7 @@ half3 EnvBRDF( half3 SpecularColor, half Roughness, half NoV )
 	return GF;
 }
 
-half2 EnvBRDFApproxLazarov(half3 SpecularColor, half Roughness, half NoV)
+half2 EnvBRDFApproxLazarov(half Roughness, half NoV)
 {
 	// [ Lazarov 2013, "Getting More Physical in Call of Duty: Black Ops II" ]
 	// Adaptation to fit our G term.
@@ -537,18 +542,24 @@ half2 EnvBRDFApproxLazarov(half3 SpecularColor, half Roughness, half NoV)
 	half4 r = Roughness * c0 + c1;
 	half a004 = min( r.x * r.x, exp2( -9.28 * NoV ) ) * r.x + r.y;
 	half2 AB = half2( -1.04, 1.04 ) * a004 + r.zw;
-
-	// Anything less than 2% is physically impossible and is instead considered to be shadowing
-	// Note: this is needed for the 'specular' show flag to work, since it uses a SpecularColor of 0
-	AB.y *= saturate( 50.0 * SpecularColor.g );
-
 	return AB;
 }
 
 half3 EnvBRDFApprox( half3 SpecularColor, half Roughness, half NoV )
 {
-	half2 AB = EnvBRDFApproxLazarov(SpecularColor, Roughness, NoV);
-	return SpecularColor * AB.x + AB.y;
+	half2 AB = EnvBRDFApproxLazarov(Roughness, NoV);
+
+	// Anything less than 2% is physically impossible and is instead considered to be shadowing
+	// Note: this is needed for the 'specular' show flag to work, since it uses a SpecularColor of 0
+	float F90 = saturate( 50.0 * SpecularColor.g );
+
+	return SpecularColor * AB.x + F90 * AB.y;
+}
+
+half3 EnvBRDFApprox(half3 F0, half3 F90, half Roughness, half NoV)
+{
+	half2 AB = EnvBRDFApproxLazarov(Roughness, NoV);
+	return F0 * AB.x + F90 * AB.y;
 }
 
 half EnvBRDFApproxNonmetal( half Roughness, half NoV )

@@ -42,6 +42,12 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput BaseColor;
 
 	/**
+	 * Defines the edge color of the Material. This is only applied on metallic material (type = float3, unit = unitless, defaults to 1.0)
+	 */
+	UPROPERTY()
+	FExpressionInput EdgeColor;
+
+	/**
 	 * Controls how \"metal-like\" your surface looks like. 0 means dielectric, 1 means conductor (type = float, unit = unitless, defaults to 0)
 	 */
 	UPROPERTY()
@@ -117,6 +123,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
 	virtual FName GetInputName(int32 InputIndex) const override;
 
+	bool HasEdgeColor() const;
 	bool HasScattering() const;
 #endif
 	//~ End UMaterialExpression Interface
