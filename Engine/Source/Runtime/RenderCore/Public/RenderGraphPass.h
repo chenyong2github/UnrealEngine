@@ -379,8 +379,18 @@ private:
 	IF_RDG_CPU_SCOPES(FRDGCPUScopes CPUScopes);
 	IF_RDG_GPU_SCOPES(FRDGGPUScopes GPUScopes);
 
+#if RDG_GPU_SCOPES && RDG_ENABLE_TRACE
+	const FRDGEventScope* TraceEventScope = nullptr;
+#endif
+
+#if RDG_ENABLE_TRACE
+	TArray<FRDGTextureHandle, FRDGArrayAllocator> Textures;
+	TArray<FRDGBufferHandle, FRDGArrayAllocator> Buffers;
+#endif
+
 	friend FRDGBuilder;
 	friend FRDGPassRegistry;
+	friend FRDGTrace;
 };
 
 /** Render graph pass with lambda execute function. */

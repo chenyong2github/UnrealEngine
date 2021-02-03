@@ -3,47 +3,8 @@
 #pragma once
 
 template <typename TScopeType>
-TRDGScopeStack<TScopeType>::TRDGScopeStack(
-	FRHIComputeCommandList& InRHICmdList,
-	FPushFunction InPushFunction,
-	FPopFunction InPopFunction)
-	: RHICmdList(InRHICmdList)
-	, MemStack(FMemStack::Get())
-	, PushFunction(InPushFunction)
-	, PopFunction(InPopFunction)
-	, ScopeStack(MakeUniformStaticArray<const TScopeType*, kScopeStackDepthMax>(nullptr))
-{}
-
-template <typename TScopeType>
-TRDGScopeStack<TScopeType>::~TRDGScopeStack()
-{
-	ClearScopes();
-}
-
-template <typename TScopeType>
-template <typename... TScopeConstructArgs>
-void TRDGScopeStack<TScopeType>::BeginScope(TScopeConstructArgs... ScopeConstructArgs)
-{
-	auto Scope = new(MemStack) TScopeType(CurrentScope, Forward<TScopeConstructArgs>(ScopeConstructArgs)...);
-	Scopes.Add(Scope);
-	CurrentScope = Scope;
-}
-
-template <typename TScopeType>
-void TRDGScopeStack<TScopeType>::EndScope()
-{
-	checkf(CurrentScope != nullptr, TEXT("Current scope is null."));
-	CurrentScope = CurrentScope->ParentScope;
-}
-
-template <typename TScopeType>
-void TRDGScopeStack<TScopeType>::BeginExecute()
-{
-	checkf(CurrentScope == nullptr, TEXT("Render graph needs to have all scopes ended to execute."));
-}
-
-template <typename TScopeType>
-void TRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
+template <typename PushFunctionType, typename PopFunctionType>
+void TRDGScopeStackHelper<TScopeType>::BeginExecutePass(const TScopeType* ParentScope, PushFunctionType PushFunction, PopFunctionType PopFunction)
 {
 	// Find out how many scopes needs to be popped.
 	TStaticArray<const TScopeType*, kScopeStackDepthMax> TraversedScopes;
@@ -81,21 +42,22 @@ void TRDGScopeStack<TScopeType>::BeginExecutePass(const TScopeType* ParentScope)
 			break;
 		}
 
-		PopFunction(RHICmdList, ScopeStack[i]);
+		PopFunction(ScopeStack[i]);
 		ScopeStack[i] = nullptr;
 	}
 
 	// Push new scopes.
 	for (int32 i = TraversedScopeCount - 1; i >= 0 && CommonScopeId + 1 < static_cast<int32>(kScopeStackDepthMax); i--)
 	{
-		PushFunction(RHICmdList, TraversedScopes[i]);
+		PushFunction(TraversedScopes[i]);
 		CommonScopeId++;
 		ScopeStack[CommonScopeId] = TraversedScopes[i];
 	}
 }
 
 template <typename TScopeType>
-void TRDGScopeStack<TScopeType>::EndExecute()
+template <typename PopFunctionType>
+void TRDGScopeStackHelper<TScopeType>::EndExecute(PopFunctionType PopFunction)
 {
 	for (uint32 ScopeIndex = 0; ScopeIndex < kScopeStackDepthMax; ++ScopeIndex)
 	{
@@ -104,8 +66,71 @@ void TRDGScopeStack<TScopeType>::EndExecute()
 			break;
 		}
 
-		PopFunction(RHICmdList, ScopeStack[ScopeIndex]);
+		PopFunction(ScopeStack[ScopeIndex]);
 	}
+}
+
+template <typename TScopeType>
+TRDGScopeStack<TScopeType>::TRDGScopeStack(
+	FRHIComputeCommandList& InRHICmdList,
+	FPushFunction InPushFunction,
+	FPopFunction InPopFunction)
+	: RHICmdList(InRHICmdList)
+	, MemStack(FMemStack::Get())
+	, PushFunction(InPushFunction)
+	, PopFunction(InPopFunction)
+{}
+
+template <typename TScopeType>
+TRDGScopeStack<TScopeType>::~TRDGScopeStack()
+{
+	ClearScopes();
+}
+
+template <typename TScopeType>
+template <typename... TScopeConstructArgs>
+void TRDGScopeStack<TScopeType>::BeginScope(TScopeConstructArgs... ScopeConstructArgs)
+{
+	auto Scope = new(MemStack) TScopeType(CurrentScope, Forward<TScopeConstructArgs>(ScopeConstructArgs)...);
+	Scopes.Add(Scope);
+	CurrentScope = Scope;
+}
+
+template <typename TScopeType>
+void TRDGScopeStack<TScopeType>::EndScope()
+{
+	checkf(CurrentScope != nullptr, TEXT("Current scope is null."));
+	CurrentScope = CurrentScope->ParentScope;
+}
+
+template <typename TScopeType>
+void TRDGScopeStack<TScopeType>::BeginExecute()
+{
+	checkf(CurrentScope == nullptr, TEXT("Render graph needs to have all scopes ended to execute."));
+}
+
+template <typename ScopeType>
+void TRDGScopeStack<ScopeType>::BeginExecutePass(const ScopeType* ParentScope)
+{
+	Helper.BeginExecutePass(
+		ParentScope,
+		[this](const ScopeType* Scope)
+		{
+			PushFunction(RHICmdList, Scope);
+		},
+		[this](const ScopeType* Scope)
+		{
+			PopFunction(RHICmdList, Scope);
+		});
+}
+
+template <typename TScopeType>
+void TRDGScopeStack<TScopeType>::EndExecute()
+{
+	Helper.EndExecute([this](const TScopeType* Scope)
+	{
+		PopFunction(RHICmdList, Scope);
+	});
 	ClearScopes();
 }
 

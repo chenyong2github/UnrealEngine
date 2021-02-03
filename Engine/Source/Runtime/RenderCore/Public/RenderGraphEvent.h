@@ -49,11 +49,29 @@
 /** Returns whether the current frame is emitting render graph events. */
 RENDERCORE_API bool GetEmitRDGEvents();
 
+template <typename TScopeType>
+class TRDGScopeStackHelper
+{
+	static constexpr uint32 kScopeStackDepthMax = 8;
+public:
+	TRDGScopeStackHelper()
+		: ScopeStack(MakeUniformStaticArray<const TScopeType*, kScopeStackDepthMax>(nullptr))
+	{}
+
+	template <typename PushFunctionType, typename PopFunctionType>
+	void BeginExecutePass(const TScopeType* ParentScope, PushFunctionType PushFunction, PopFunctionType PopFunction);
+
+	template <typename PopFunctionType>
+	void EndExecute(PopFunctionType PopFunction);
+
+private:
+	TStaticArray<const TScopeType*, kScopeStackDepthMax> ScopeStack;
+};
+
 /** A helper profiler class for tracking and evaluating hierarchical scopes in the context of render graph. */
 template <typename TScopeType>
 class TRDGScopeStack final
 {
-	static constexpr uint32 kScopeStackDepthMax = 8;
 public:
 	using FPushFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
 	using FPopFunction = void(*)(FRHIComputeCommandList&, const TScopeType*);
@@ -105,8 +123,7 @@ private:
 	/** Tracks scopes allocated through MemStack for destruction. */
 	TArray<TScopeType*, FRDGArrayAllocator> Scopes;
 
-	/** Stacks of scopes pushed to the RHI command list during execution. */
-	TStaticArray<const TScopeType*, kScopeStackDepthMax> ScopeStack;
+	TRDGScopeStackHelper<TScopeType> Helper;
 };
 
 class FRDGPass;

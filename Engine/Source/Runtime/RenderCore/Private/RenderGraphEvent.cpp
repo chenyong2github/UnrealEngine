@@ -9,7 +9,7 @@ RENDERCORE_API bool GetEmitRDGEvents()
 {
 	check(IsInRenderingThread());
 #if RDG_EVENTS != RDG_EVENTS_NONE
-	return GetEmitDrawEvents() || GRDGDebug;
+	return GetEmitDrawEvents() || GRDGDebug || UE_TRACE_CHANNELEXPR_IS_ENABLED(RDGChannel);
 #else
 	return false;
 #endif

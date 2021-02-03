@@ -20,6 +20,15 @@
 /** Whether render graph debugging is enabled and we are compiling with the engine. */
 #define RDG_ENABLE_DEBUG_WITH_ENGINE (RDG_ENABLE_DEBUG && WITH_ENGINE)
 
+/** Whether render graph insight tracing is enabled. */
+#define RDG_ENABLE_TRACE UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
+
+#if RDG_ENABLE_TRACE
+	#define IF_RDG_ENABLE_TRACE(Op) Op
+#else
+	#define IF_RDG_ENABLE_TRACE(Op)
+#endif
+
 /** The type of GPU events the render graph system supports.
  *  RDG_EVENTS == 0 means there is no string processing at all.
  *  RDG_EVENTS == 1 means the format component of the event name is stored as a const TCHAR*.
@@ -234,11 +243,12 @@ public:
 
 	explicit inline TRDGHandle(int32 InIndex)
 	{
-		check(InIndex >= 0 && InIndex < kNullIndex);
+		check(InIndex >= 0 && InIndex <= kNullIndex);
 		Index = InIndex;
 	}
 
 	FORCEINLINE IndexType GetIndex() const { check(IsValid()); return Index; }
+	FORCEINLINE IndexType GetIndexUnchecked() const { return Index; }
 	FORCEINLINE bool IsNull()  const { return Index == kNullIndex; }
 	FORCEINLINE bool IsValid() const { return Index != kNullIndex; }
 	FORCEINLINE bool operator==(TRDGHandle Other) const { return Index == Other.Index; }
@@ -499,3 +509,5 @@ template <typename InElementType, typename InAllocatorType = FDefaultAllocator>
 using TRDGTextureSubresourceArray = TArray<InElementType, TInlineAllocator<1, InAllocatorType>>;
 
 using FRDGPassHandlesByPipeline = TRHIPipelineArray<FRDGPassHandle>;
+
+class FRDGTrace;

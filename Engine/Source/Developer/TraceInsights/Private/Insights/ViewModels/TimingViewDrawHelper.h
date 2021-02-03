@@ -169,6 +169,8 @@ public:
 	virtual FLinearColor GetTrackNameTextColor(const FBaseTimingTrack& Track) const override;
 	virtual int32 GetHeaderBackgroundLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
 	virtual int32 GetHeaderTextLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }
+	virtual int32 GetFirstLayerId() const override { return ReservedLayerId; }
+	virtual int32 GetNumLayerIds() const override { return ToInt32(EDrawLayer::Count); }
 
 	const FDrawContext& GetDrawContext() const { return DrawContext; }
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }

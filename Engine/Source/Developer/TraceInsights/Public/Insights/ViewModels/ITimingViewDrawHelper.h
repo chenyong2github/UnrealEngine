@@ -18,4 +18,6 @@ public:
 	virtual FLinearColor GetTrackNameTextColor(const FBaseTimingTrack& Track) const = 0;
 	virtual int32 GetHeaderBackgroundLayerId() const = 0;
 	virtual int32 GetHeaderTextLayerId() const = 0;
+	virtual int32 GetFirstLayerId() const = 0;
+	virtual int32 GetNumLayerIds() const = 0;
 };

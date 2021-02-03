@@ -2,6 +2,7 @@
 
 #include "RenderGraphBuilder.h"
 #include "RenderGraphPrivate.h"
+#include "RenderGraphTrace.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphResourcePool.h"
 #include "VisualizeTexture.h"
@@ -1311,6 +1312,7 @@ void FRDGBuilder::Execute()
 
 	IF_RDG_CPU_SCOPES(CPUScopeStacks.BeginExecute());
 	IF_RDG_GPU_SCOPES(GPUScopeStacks.BeginExecute());
+	IF_RDG_ENABLE_TRACE(Trace.OutputGraphBegin());
 
 	if (!GRDGImmediateMode)
 	{
@@ -1358,6 +1360,7 @@ void FRDGBuilder::Execute()
 		*Query.Value = Query.Key->PooledBuffer;
 	}
 
+	IF_RDG_ENABLE_TRACE(Trace.OutputGraphEnd(*this));
 	IF_RDG_GPU_SCOPES(GPUScopeStacks.Graphics.EndExecute());
 	IF_RDG_CPU_SCOPES(CPUScopeStacks.EndExecute());
 
@@ -1510,6 +1513,10 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 
 	IF_RDG_CPU_SCOPES(Pass->CPUScopes = CPUScopeStacks.GetCurrentScopes());
 	IF_RDG_GPU_SCOPES(Pass->GPUScopes = GPUScopeStacks.GetCurrentScopes(PassPipeline));
+
+#if RDG_GPU_SCOPES && RDG_ENABLE_TRACE
+	Pass->TraceEventScope = GPUScopeStacks.GetCurrentScopes(ERHIPipeline::Graphics).Event;
+#endif
 
 #if RDG_GPU_SCOPES && RDG_ENABLE_DEBUG
 	if (const FRDGEventScope* Scope = Pass->GPUScopes.Event)
@@ -1782,6 +1789,11 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 		FRDGTextureRef Texture = TexturePair.Key;
 		AddTransition(PassHandle, Texture, TexturePair.Value.MergeState, LastUntrackedPassHandle);
 		Texture->bCulled = false;
+
+	#if RDG_ENABLE_TRACE
+		Pass->Textures.Add(Texture->Handle);
+		Texture->Passes.Add(PassHandle);
+	#endif
 	}
 
 	for (const auto& BufferPair : Pass->BufferStates)
@@ -1789,6 +1801,11 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 		FRDGBufferRef Buffer = BufferPair.Key;
 		AddTransition(PassHandle, Buffer, *BufferPair.Value.MergeState, LastUntrackedPassHandle);
 		Buffer->bCulled = false;
+
+	#if RDG_ENABLE_TRACE
+		Pass->Buffers.Add(Buffer->Handle);
+		Buffer->Passes.Add(PassHandle);
+	#endif
 	}
 }
 

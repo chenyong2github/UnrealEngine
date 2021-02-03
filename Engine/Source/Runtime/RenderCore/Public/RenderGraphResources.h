@@ -220,6 +220,12 @@ public:
 		return bExternal;
 	}
 
+	/** Whether this resource is has been queued for extraction at the end of graph execution. */
+	bool IsExtracted() const
+	{
+		return bExtracted;
+	}
+
 	/** Whether a prior pass added to the graph produced contents for this resource. External resources are not considered produced
 	 *  until used for a write operation. This is a union of all subresources, so any subresource write will set this to true.
 	 */
@@ -267,6 +273,10 @@ private:
 	FRDGPassHandle FirstPass;
 	FRDGPassHandle LastPass;
 
+#if RDG_ENABLE_TRACE
+	TArray<FRDGPassHandle, FRDGArrayAllocator> Passes;
+#endif
+
 #if RDG_ENABLE_DEBUG
 	struct FRDGParentResourceDebugData* ParentDebugData = nullptr;
 	FRDGParentResourceDebugData& GetParentDebugData() const;
@@ -275,6 +285,7 @@ private:
 	friend FRDGBuilder;
 	friend FRDGUserValidation;
 	friend FRDGBarrierBatchBegin;
+	friend FRDGTrace;
 };
 
 /** A render graph resource (e.g. a view) which references a single parent resource (e.g. a texture / buffer). Provides an abstract way to access the parent resource. */
@@ -609,6 +620,11 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 
+	FRDGTextureHandle GetHandle() const
+	{
+		return Handle;
+	}
+
 	FRDGTextureSubresourceLayout GetSubresourceLayout() const
 	{
 		return Layout;
@@ -699,6 +715,7 @@ private:
 	friend FRDGTextureRegistry;
 	friend FRDGAllocator;
 	friend FPooledRenderTarget;
+	friend FRDGTrace;
 };
 
 /** Render graph tracked SRV. */
@@ -1189,6 +1206,11 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 
+	FRDGBufferHandle GetHandle() const
+	{
+		return Handle;
+	}
+
 private:
 	FRDGBuffer(const TCHAR* InName, const FRDGBufferDesc& InDesc, ERDGBufferFlags InFlags)
 		: FRDGParentResource(InName, ERDGParentResourceType::Buffer)
@@ -1240,6 +1262,7 @@ private:
 	friend FRDGUserValidation;
 	friend FRDGBufferRegistry;
 	friend FRDGAllocator;
+	friend FRDGTrace;
 };
 
 /** Render graph tracked buffer SRV. */

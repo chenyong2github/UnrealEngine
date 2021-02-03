@@ -6,6 +6,7 @@
 #include "RenderGraphEvent.h"
 #include "RenderGraphResources.h"
 #include "RenderGraphPass.h"
+#include "RenderGraphTrace.h"
 #include "RenderGraphValidation.h"
 #include "RenderGraphBlackboard.h"
 #include "ShaderParameterMacros.h"
@@ -295,6 +296,8 @@ private:
 	IF_RDG_CPU_SCOPES(FRDGCPUScopeStacks CPUScopeStacks);
 	IF_RDG_GPU_SCOPES(FRDGGPUScopeStacksByPipeline GPUScopeStacks);
 
+	IF_RDG_ENABLE_TRACE(FRDGTrace Trace);
+
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation UserValidation;
 	FRDGBarrierValidation BarrierValidation;
@@ -363,6 +366,7 @@ private:
 	void ClobberPassOutputs(const FRDGPass* Pass);
 #endif
 
+	friend FRDGTrace;
 	friend FRDGEventScopeGuard;
 	friend FRDGGPUStatScopeGuard;
 	friend FRDGAsyncComputeBudgetScopeGuard;
