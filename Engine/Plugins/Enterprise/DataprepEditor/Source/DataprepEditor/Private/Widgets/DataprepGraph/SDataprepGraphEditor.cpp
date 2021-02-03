@@ -233,7 +233,7 @@ void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FData
 			break;
 		}
 
-		case FDataprepAssetChangeType::ActionGrouped:
+		case FDataprepAssetChangeType::ActionAppearanceModified:
 		{
 			if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
 			{
@@ -809,7 +809,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
 			{
 				UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
-				Action->GroupId = INDEX_NONE;
+				Action->Appearance->GroupId = INDEX_NONE;
 			}
 			NotifyGraphChanged();
 		});
@@ -951,9 +951,9 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 						{
 							if(UDataprepActionAsset* ActionAsset = DataprepAssetPtr->GetAction(ActionIndex))
 							{
-								if (ActionAsset->GroupId != INDEX_NONE)
+								if (ActionAsset->Appearance->GroupId != INDEX_NONE)
 								{
-									NewGroupId = FMath::Max(NewGroupId, ActionAsset->GroupId);
+									NewGroupId = FMath::Max(NewGroupId, ActionAsset->Appearance->GroupId);
 								}
 							}
 						}
@@ -969,7 +969,8 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 							for (UDataprepActionAsset* Action : ActionsToCollapse)
 							{
 								Action->Modify();
-								Action->GroupId = NewGroupId;
+								Action->Appearance->Modify();
+								Action->Appearance->GroupId = NewGroupId;
 							}
 						}
 

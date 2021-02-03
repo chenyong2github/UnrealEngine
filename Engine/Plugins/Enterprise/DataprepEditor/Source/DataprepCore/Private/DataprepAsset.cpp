@@ -109,6 +109,40 @@ bool UDataprepAsset::Rename(const TCHAR* NewName/* =nullptr */, UObject* NewOute
 	return bWasRename;
 }
 
+FString UDataprepAsset::HashActionsAppearance() const
+{
+	TArray<UDataprepActionAsset*> TempArrayActions(ActionAssets);
+	Algo::Sort(TempArrayActions);
+
+	TArray<int32> TempArrayGroups;
+	TempArrayGroups.Reserve(TempArrayActions.Num());
+	for (UDataprepActionAsset* Action : TempArrayActions)
+	{
+		TempArrayGroups.Add(Action->Appearance->GroupId);
+	}
+	TArray<FVector2D> TempArrayNodeSizes;
+	TempArrayNodeSizes.Reserve(TempArrayActions.Num());
+	for (UDataprepActionAsset* Action : TempArrayActions)
+	{
+		TempArrayNodeSizes.Add(Action->Appearance->NodeSize);
+	}
+
+	uint8 Digest[16];
+
+	FMD5 AppearanceHash;
+	AppearanceHash.Update((uint8*)TempArrayGroups.GetData(), TempArrayGroups.Num() * sizeof(int32));
+	AppearanceHash.Update((uint8*)TempArrayNodeSizes.GetData(), TempArrayNodeSizes.Num() * sizeof(FVector2D));
+	AppearanceHash.Final(Digest);
+
+	FString Result;
+	for (int32 i = 0; i < 16; i++)
+	{
+		Result += FString::Printf(TEXT("%02x"), Digest[i]);
+	}
+	
+	return Result;
+}
+
 void UDataprepAsset::PreEditUndo()
 {
 	UDataprepAssetInterface::PreEditUndo();
@@ -117,14 +151,9 @@ void UDataprepAsset::PreEditUndo()
 	TArray<UDataprepActionAsset*> TempArray(ActionAssets);
 	Algo::Sort(TempArray);
 
-	TArray<int32> TempArrayGroups;
-	for (UDataprepActionAsset* Action : TempArray)
-	{
-		TempArrayGroups.Add(Action->GroupId);
-	}
-
 	SignatureBeforeUndoRedo = FMD5::HashBytes((uint8*)TempArray.GetData(), TempArray.Num() * sizeof(UDataprepActionAsset*));
-	GroupingSignatureBeforeUndoRedo = FMD5::HashBytes((uint8*)TempArrayGroups.GetData(), TempArrayGroups.Num() * sizeof(int32));
+
+	AppearanceSignatureBeforeUndoRedo = HashActionsAppearance();
 }
 
 void UDataprepAsset::PostEditUndo()
@@ -135,14 +164,8 @@ void UDataprepAsset::PostEditUndo()
 	TArray<UDataprepActionAsset*> TempArray(ActionAssets);
 	Algo::Sort(TempArray);
 
-	TArray<int32> TempArrayGroups;
-	for (UDataprepActionAsset* Action : TempArray)
-	{
-		TempArrayGroups.Add(Action->GroupId);
-	}
-
 	const FString SignatureAfterUndoRedo = FMD5::HashBytes((uint8*)TempArray.GetData(), TempArray.Num() * sizeof(UDataprepActionAsset*));
-	const FString GroupingSignatureAfterUndoRedo = FMD5::HashBytes((uint8*)TempArrayGroups.GetData(), TempArrayGroups.Num() * sizeof(int32));
+	const FString AppearanceSignatureAfterUndoRedo = HashActionsAppearance();
 
 	if(!SignatureBeforeUndoRedo.IsEmpty())
 	{
@@ -152,8 +175,8 @@ void UDataprepAsset::PostEditUndo()
 		}
 		else
 		{
-			// Grouped or moved
-			OnActionChanged.Broadcast(nullptr, (GroupingSignatureAfterUndoRedo == GroupingSignatureBeforeUndoRedo) ? FDataprepAssetChangeType::ActionMoved : FDataprepAssetChangeType::ActionGrouped);
+			// Moved or appearance changed (includes grouping)
+			OnActionChanged.Broadcast(nullptr, (AppearanceSignatureBeforeUndoRedo != AppearanceSignatureAfterUndoRedo) ? FDataprepAssetChangeType::ActionAppearanceModified : FDataprepAssetChangeType::ActionMoved);
 		}
 	}
 	else
@@ -162,7 +185,7 @@ void UDataprepAsset::PostEditUndo()
 	}
 
 	SignatureBeforeUndoRedo.Reset(0);
-	GroupingSignatureBeforeUndoRedo.Reset(0);
+	AppearanceSignatureBeforeUndoRedo.Reset(0);
 }
 
 void UDataprepAsset::PostDuplicate(EDuplicateMode::Type DuplicateMode)

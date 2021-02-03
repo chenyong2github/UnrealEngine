@@ -358,6 +358,10 @@ private:
 
 void SDataprepGraphBaseActionNode::Initialize(TWeakPtr<FDataprepEditor> InDataprepEditor, int32 InExecutionOrder, UEdGraphNode* InNode)
 {
+	UserSize = FVector2D( 
+		FMath::Max(static_cast<float>(InNode->NodeWidth), SDataprepGraphActionNode::DefaultWidth),
+		FMath::Max(static_cast<float>(InNode->NodeHeight), SDataprepGraphActionNode::DefaultHeight));
+
 	ExecutionOrder = InExecutionOrder;
 	GraphNode = InNode;
 	DataprepEditor = InDataprepEditor;
@@ -367,6 +371,22 @@ void SDataprepGraphBaseActionNode::Initialize(TWeakPtr<FDataprepEditor> InDatapr
 
 	ProxyNodePtr = SNew(SDataprepGraphActionProxyNode, SharedThis(this))
 	.InlineEditableText(InlineEditableText);
+}
+
+FVector2D SDataprepGraphBaseActionNode::ComputeDesiredSize(float f) const 
+{
+	const FVector2D Size = SGraphNodeResizable::ComputeDesiredSize(f);
+	return FVector2D(FMath::Max(Size.X, UserSize.X), FMath::Max(Size.Y, UserSize.Y));
+}
+
+FVector2D SDataprepGraphBaseActionNode::GetNodeMinimumSize() const
+{
+	return FVector2D( SDataprepGraphActionNode::DefaultWidth, SDataprepGraphActionNode::DefaultHeight );
+}
+
+FVector2D SDataprepGraphBaseActionNode::GetNodeMaximumSize() const
+{
+	return FVector2D( UserSize.X + 100, UserSize.Y + 0 );
 }
 
 void SDataprepGraphActionNode::Construct(const FArguments& InArgs, UDataprepGraphActionNode* InActionNode)
@@ -494,7 +514,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 
 				+ SOverlay::Slot()
 				.Padding( FDataprepEditorStyle::GetMargin( "DataprepAction.Steps.Padding" ) )
-				.VAlign(VAlign_Top)
+				.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				[
 					SNew( SVerticalBox )
@@ -529,11 +549,11 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 								SNew(STextBlock)
 								.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
 								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-								.Text_Lambda([this](){ return DataprepActionPtr->bIsExpanded ? FEditorFontGlyphs::Caret_Down : FEditorFontGlyphs::Caret_Up; })
+								.Text_Lambda([this](){ return DataprepActionPtr->Appearance->bIsExpanded ? FEditorFontGlyphs::Caret_Down : FEditorFontGlyphs::Caret_Up; })
 							]
 							.OnClicked_Lambda([this]()
 							{
-								DataprepActionPtr->bIsExpanded = !DataprepActionPtr->bIsExpanded;
+								DataprepActionPtr->Appearance->bIsExpanded = !DataprepActionPtr->Appearance->bIsExpanded;
 								return FReply::Handled();
 							})
 						]
@@ -548,7 +568,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						.Thickness(1.f)
 						.Orientation(EOrientation::Orient_Horizontal)
 						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
-						.Visibility_Lambda([this]() { return DataprepActionPtr->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
+						.Visibility_Lambda([this]() { return DataprepActionPtr->Appearance->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
 					]
 
 					//The content of the action
@@ -558,7 +578,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						SNew( SHorizontalBox )
 						.Visibility_Lambda([this]()
 						{
-							return DataprepActionPtr->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
+							return DataprepActionPtr->Appearance->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
 						})
 						+ SHorizontalBox::Slot()
 						[
@@ -636,49 +656,66 @@ const FSlateBrush* SDataprepGraphActionNode::GetShadowBrush(bool bSelected) cons
 
 FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	BorderBackgroundColor.Set(FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop"));
+	FReply Reply = SGraphNodeResizable::OnMouseButtonDown( MyGeometry, MouseEvent );
 
-	if( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
+	if ( !Reply.IsEventHandled() )
 	{
-		GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
-		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
-	}
+		BorderBackgroundColor.Set(FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop"));
 
-	// Take ownership of the mouse if right mouse button clicked to display contextual menu
-	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
-	{
-		if ( !GetOwnerPanel()->SelectionManager.SelectedNodes.Contains( GraphNode ) )
+		if( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 		{
 			GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+			return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 		}
-		return FReply::Handled();
+
+		// Take ownership of the mouse if right mouse button clicked to display contextual menu
+		if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+		{
+			if ( !GetOwnerPanel()->SelectionManager.SelectedNodes.Contains( GraphNode ) )
+			{
+				GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+			}
+			return FReply::Handled();
+		}
 	}
 
-	return FReply::Unhandled();
+	return Reply;
 }
 
 FReply SDataprepGraphActionNode::OnMouseButtonUp(const FGeometry & MyGeometry, const FPointerEvent & MouseEvent)
 {
-	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	FReply Reply = SGraphNodeResizable::OnMouseButtonUp( MyGeometry, MouseEvent );
+
+	if ( !Reply.IsEventHandled() )
 	{
-		ensure(OwnerGraphPanelPtr.IsValid());
+		if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+		{
+			ensure(OwnerGraphPanelPtr.IsValid());
 
-		const FVector2D Position = MouseEvent.GetScreenSpacePosition();
-		OwnerGraphPanelPtr.Pin()->SummonContextMenu(Position, Position, GraphNode, nullptr, TArray<UEdGraphPin*>());
+			const FVector2D Position = MouseEvent.GetScreenSpacePosition();
+			OwnerGraphPanelPtr.Pin()->SummonContextMenu(Position, Position, GraphNode, nullptr, TArray<UEdGraphPin*>());
 
-		// Release mouse capture
-		return FReply::Handled().ReleaseMouseCapture();
+			// Release mouse capture
+			return FReply::Handled().ReleaseMouseCapture();
+		}
 	}
 
-	return FReply::Unhandled();
+	return Reply;
 }
 
 FCursorReply SDataprepGraphActionNode::OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const
 {
-	TOptional<EMouseCursor::Type> TheCursor = GetCursor();
-	return ( TheCursor.IsSet() )
-		? FCursorReply::Cursor( TheCursor.GetValue() )
-		: FCursorReply::Unhandled();
+	FCursorReply CursorReply = SGraphNodeResizable::OnCursorQuery( MyGeometry, CursorEvent );
+
+	if ( !CursorReply.IsEventHandled() )
+	{
+		TOptional<EMouseCursor::Type> TheCursor = GetCursor();
+		CursorReply = ( TheCursor.IsSet() )
+			? FCursorReply::Cursor( TheCursor.GetValue() )
+			: FCursorReply::Unhandled();
+	}
+
+	return CursorReply;
 }
 
 void SDataprepGraphActionGroupNode::SetOwner(const TSharedRef<SGraphPanel>& OwnerPanel)
@@ -1008,7 +1045,7 @@ void SDataprepGraphActionGroupNode::UpdateGraphNode()
 
 				+ SOverlay::Slot()
 				.Padding( FDataprepEditorStyle::GetMargin( "DataprepAction.Steps.Padding" ) )
-				.VAlign(VAlign_Top)
+				.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				[
 					SNew( SVerticalBox )
@@ -1088,9 +1125,9 @@ void SDataprepGraphActionGroupNode::PopulateActionsListWidget()
 		ActionNode->NodePosY = GraphNode->NodePosY;
 
 		UDataprepActionAsset* ActionAsset = GroupNode->GetAction(Index);
-		const UDataprepAsset* DataprepAsset = GroupNode->GetDataprepAsset();
+		UDataprepAsset* DataprepAsset = GroupNode->GetDataprepAsset();
 
-		ActionNode->Initialize(ActionAsset, DataprepAsset->GetActionIndex(ActionAsset));
+		ActionNode->Initialize(DataprepAsset, ActionAsset, DataprepAsset->GetActionIndex(ActionAsset));
 
 		TSharedPtr<SDataprepGraphActionNode> ActionGraphNode = SNew(SDataprepGraphActionNode, ActionNode/*, SharedThis(this)*/)
 			.DataprepEditor(DataprepEditor);
@@ -1136,41 +1173,51 @@ void SDataprepGraphActionGroupNode::SetParentTrackNode(TSharedPtr<SDataprepGraph
 
 FReply SDataprepGraphActionGroupNode::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	BorderBackgroundColor.Set(FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop"));
+	FReply Reply = SGraphNodeResizable::OnMouseButtonDown( MyGeometry, MouseEvent );
 
-	if( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
+	if ( !Reply.IsEventHandled() )
 	{
-		GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
-		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
-	}
+		BorderBackgroundColor.Set(FDataprepEditorStyle::GetColor("DataprepActionStep.DragAndDrop"));
 
-	// Take ownership of the mouse if right mouse button clicked to display contextual menu
-	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
-	{
-		if ( !GetOwnerPanel()->SelectionManager.SelectedNodes.Contains( GraphNode ) )
+		if( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 		{
 			GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+			return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 		}
-		return FReply::Handled();
+
+		// Take ownership of the mouse if right mouse button clicked to display contextual menu
+		if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+		{
+			if ( !GetOwnerPanel()->SelectionManager.SelectedNodes.Contains( GraphNode ) )
+			{
+				GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+			}
+			return FReply::Handled();
+		}
 	}
 
-	return FReply::Unhandled();
+	return Reply;
 }
 
 FReply SDataprepGraphActionGroupNode::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+	FReply Reply = SGraphNodeResizable::OnMouseButtonUp( MyGeometry, MouseEvent );
+
+	if ( !Reply.IsEventHandled() )
 	{
-		ensure(OwnerGraphPanelPtr.IsValid());
+		if ( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+		{
+			ensure(OwnerGraphPanelPtr.IsValid());
 
-		const FVector2D Position = MouseEvent.GetScreenSpacePosition();
-		OwnerGraphPanelPtr.Pin()->SummonContextMenu(Position, Position, GraphNode, nullptr, TArray<UEdGraphPin*>());
+			const FVector2D Position = MouseEvent.GetScreenSpacePosition();
+			OwnerGraphPanelPtr.Pin()->SummonContextMenu(Position, Position, GraphNode, nullptr, TArray<UEdGraphPin*>());
 
-		// Release mouse capture
-		return FReply::Handled().ReleaseMouseCapture();
+			// Release mouse capture
+			return FReply::Handled().ReleaseMouseCapture();
+		}
 	}
 
-	return FReply::Unhandled();
+	return Reply;
 }
 
 FReply SDataprepGraphActionGroupNode::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -1185,10 +1232,17 @@ FReply SDataprepGraphActionGroupNode::OnDragDetected(const FGeometry& MyGeometry
 
 FCursorReply SDataprepGraphActionGroupNode::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
 {
-	TOptional<EMouseCursor::Type> TheCursor = GetCursor();
-	return ( TheCursor.IsSet() )
-		? FCursorReply::Cursor( TheCursor.GetValue() )
-		: FCursorReply::Unhandled();
+	FCursorReply CursorReply = SGraphNodeResizable::OnCursorQuery( MyGeometry, CursorEvent );
+
+	if ( !CursorReply.IsEventHandled() )
+	{
+		TOptional<EMouseCursor::Type> TheCursor = GetCursor();
+		return ( TheCursor.IsSet() )
+			? FCursorReply::Cursor( TheCursor.GetValue() )
+			: FCursorReply::Unhandled();
+	}
+
+	return CursorReply;
 }
 
 void SDataprepGraphActionGroupNode::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SGraphNode.h"
+#include "SGraphNodeResizable.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
@@ -19,7 +19,7 @@ class FDataprepEditor;
 /**
  * Base class for graph action nodes
  */
-class SDataprepGraphBaseActionNode : public SGraphNode
+class SDataprepGraphBaseActionNode : public SGraphNodeResizable
 {
 public:
 	void Initialize(TWeakPtr<FDataprepEditor> InDataprepEditor, int32 InExecutionOrder, UEdGraphNode* InNode);
@@ -43,6 +43,15 @@ public:
 	void UpdateProxyNode(const FVector2D& Position);
 
 	FMargin GetOuterPadding() const;
+
+	//~ Begin SPanel Interface
+	virtual FVector2D ComputeDesiredSize(float f) const override;
+	//~ End SPanel Interface
+
+	//~ Begin SGraphNodeResizable Interface
+	virtual FVector2D GetNodeMinimumSize() const override;
+	virtual FVector2D GetNodeMaximumSize() const override;
+	//~ Begin SGraphNodeResizable Interface
 
 protected:
 	friend SDataprepGraphActionProxyNode;

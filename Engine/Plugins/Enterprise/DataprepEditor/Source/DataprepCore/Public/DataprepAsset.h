@@ -231,6 +231,9 @@ private:
 	/** Handler for when an Dataprep asset from version prior to 4.25 is loaded */
 	void OnOldAssetLoaded(UObject* Asset);
 
+	/** Create string hash from all of the current actions's appearances */
+	FString HashActionsAppearance() const;
+
 private:
 	/** DEPRECATED: Pointer to the entry node of the pipeline blueprint previously used to process input data */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Using directly ActionAssets property instead of Blueprint to manage actions."))
@@ -248,5 +251,5 @@ private:
 
 	/** Used on undo/redo to detect addition/removal compared to change in execution order of actions */
 	FString SignatureBeforeUndoRedo;
-	FString GroupingSignatureBeforeUndoRedo;
+	FString AppearanceSignatureBeforeUndoRedo;
 };

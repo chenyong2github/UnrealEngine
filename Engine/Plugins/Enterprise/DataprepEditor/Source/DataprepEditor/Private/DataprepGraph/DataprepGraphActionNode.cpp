@@ -32,13 +32,16 @@ UDataprepGraphActionNode::UDataprepGraphActionNode()
 	ActionTitle = LOCTEXT("DefaultNodeTitle", "New Action").ToString();
 }
 
-void UDataprepGraphActionNode::Initialize(UDataprepActionAsset* InDataprepActionAsset, int32 InExecutionOrder)
+void UDataprepGraphActionNode::Initialize(TWeakObjectPtr<UDataprepAsset> InDataprepAssetPtr, UDataprepActionAsset* InDataprepActionAsset, int32 InExecutionOrder)
 {
 	if(InDataprepActionAsset)
 	{
+		DataprepAssetPtr = InDataprepAssetPtr;
 		DataprepActionAsset = InDataprepActionAsset;
 		ActionTitle = DataprepActionAsset->GetLabel();
 		ExecutionOrder = InExecutionOrder;
+		NodeWidth = InDataprepActionAsset->Appearance->NodeSize.X;
+		NodeHeight = InDataprepActionAsset->Appearance->NodeSize.Y;
 	}
 	else
 	{
@@ -84,6 +87,17 @@ TSharedPtr<class INameValidatorInterface> UDataprepGraphActionNode::MakeNameVali
 {
 	// The name doesn't matter
 	return MakeShareable(new FDummyNameValidator(EValidatorResult::Ok));
+}
+
+void UDataprepGraphActionNode::ResizeNode(const FVector2D& NewSize)
+{
+	if ( DataprepActionAsset )
+	{
+		DataprepAssetPtr->Modify();
+		DataprepActionAsset->Modify();
+		DataprepActionAsset->Appearance->Modify();
+		DataprepActionAsset->Appearance->NodeSize = NewSize;
+	}
 }
 
 UDataprepGraphActionStepNode::UDataprepGraphActionStepNode()
@@ -136,26 +150,38 @@ UDataprepGraphActionGroupNode::UDataprepGraphActionGroupNode()
 	NodeTitle = LOCTEXT("DefaultNodeTitle", "Action Group").ToString();
 }
 
+void UDataprepGraphActionGroupNode::Initialize(TWeakObjectPtr<UDataprepAsset> InDataprepAssetPtr, TArray<UDataprepActionAsset*>& InActions, int32 InExecutionOrder) 
+{
+	DataprepAssetPtr = InDataprepAssetPtr;
+	Actions = InActions;
+	ExecutionOrder = InExecutionOrder;
+
+	NodeWidth = 0;
+	NodeHeight = 0;
+
+	for ( const UDataprepActionAsset* Action : Actions )
+	{
+		NodeWidth = FMath::Max( static_cast<int32>( Action->Appearance->NodeSize.X ), NodeWidth );
+		NodeHeight = FMath::Max( static_cast<int32>( Action->Appearance->NodeSize.Y ), NodeHeight );
+	}
+}
+
 FText UDataprepGraphActionGroupNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	return FText::FromString( NodeTitle );
 }
 
-void UDataprepGraphActionGroupNode::DestroyNode()
+void UDataprepGraphActionGroupNode::ResizeNode(const FVector2D& NewSize)
 {
-/*
-TODO
-	if ( DataprepActionAsset )
+	DataprepAssetPtr->Modify();
+
+	// Resize grouped actions
+	for ( UDataprepActionAsset* Action : Actions )
 	{
-		Modify();
-
-		DataprepActionAsset->NotifyDataprepSystemsOfRemoval();
-
-		// Force the transaction system to restore the action
-		DataprepActionAsset = nullptr;
+		Action->Modify();
+		Action->Appearance->Modify();
+		Action->Appearance->NodeSize = NewSize;
 	}
- */
-	Super::DestroyNode();
 }
 
 TSharedPtr<class INameValidatorInterface> UDataprepGraphActionGroupNode::MakeNameValidator() const
@@ -170,7 +196,7 @@ int32 UDataprepGraphActionGroupNode::GetGroupId() const
 	{
 		return INDEX_NONE;
 	}
-	return Actions[0]->GroupId;
+	return Actions[0]->Appearance->GroupId;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -450,7 +450,7 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 		return FReply::Handled().EndDragDrop();
 	}
 
-	const int32 ActionInsertIndex = TrackNodePtr.Pin()->GetActionIndex(InsertIndex);
+	int32 ActionInsertIndex = TrackNodePtr.Pin()->GetActionIndex(InsertIndex);
 
 	if(DraggedSteps.Num() > 0)
 	{
@@ -497,7 +497,7 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 				}
 			}
 
-			if(InsertIndex >= 0 && InsertIndex < TargetDataprepAsset->GetActionCount())
+			if(ActionInsertIndex >= 0 && ActionInsertIndex < TargetDataprepAsset->GetActionCount())
 			{
 				TargetDataprepAsset->InsertAction(Steps, ActionInsertIndex);
 			}
@@ -518,17 +518,17 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 
 		UDataprepActionAsset* Action = nullptr;
 
-		if(InsertIndex >= 0 && InsertIndex < TargetDataprepAsset->GetActionCount())
+		if(ActionInsertIndex >= 0 && ActionInsertIndex < TargetDataprepAsset->GetActionCount())
 		{
 			bTransactionSuccessful = TargetDataprepAsset->InsertAction(ActionInsertIndex);
-			Action = TargetDataprepAsset->GetAction(InsertIndex);
+			Action = TargetDataprepAsset->GetAction(ActionInsertIndex);
 		}
 		else
 		{
-			InsertIndex = TargetDataprepAsset->AddAction();
-			Action = TargetDataprepAsset->GetAction(InsertIndex);
+			ActionInsertIndex = TargetDataprepAsset->AddAction();
+			Action = TargetDataprepAsset->GetAction(ActionInsertIndex);
 
-			bTransactionSuccessful = InsertIndex != INDEX_NONE;
+			bTransactionSuccessful = ActionInsertIndex != INDEX_NONE;
 		}
 
 		if ( !bTransactionSuccessful )
@@ -544,7 +544,7 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 
 		if ( !bTransactionSuccessful )
 		{
-			TargetDataprepAsset->RemoveAction(InsertIndex);
+			TargetDataprepAsset->RemoveAction(ActionInsertIndex);
 			Transaction.Cancel();
 		}
 	}

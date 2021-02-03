@@ -168,6 +168,23 @@ struct FDataprepActionContext
 	DataprepActionAsset::FActionsContextChangedFunc ContextChangedCallback;
 };
 
+// Persists graphical state of the node associated with this action asset
+UCLASS()
+class UActionAppearance : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	bool bIsExpanded;
+
+	UPROPERTY()
+	FVector2D NodeSize;
+
+	UPROPERTY()
+	int32 GroupId;
+};
+
 class UDataprepActionAsset;
 DECLARE_EVENT(UDataprepActionAsset, FOnStepsOrderChanged);
 DECLARE_EVENT_OneParam(UDataprepActionAsset, FOnStepAboutToBeRemoved, UDataprepParameterizableObject* /** The step object */ );
@@ -337,10 +354,7 @@ public:
 	bool bIsEnabled;
 
 	UPROPERTY()
-	bool bIsExpanded;
-
-	UPROPERTY()
-	int32 GroupId;
+	UActionAppearance* Appearance;
 
 	/** Getter and Setter on the UI text of the action */
 	const TCHAR* GetLabel() const { return *Label; }
