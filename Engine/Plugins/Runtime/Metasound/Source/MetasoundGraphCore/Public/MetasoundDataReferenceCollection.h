@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundDataReference.h"
+#include "MetasoundVertex.h"
 
 namespace Metasound
 {
@@ -212,6 +213,31 @@ namespace Metasound
 				else
 				{
 					return FDataRefType::CreateNew(Forward<ConstructorArgTypes>(ConstructorArgs)...);
+				}
+			}
+
+			/** Returns a readable data ref from the collection or construct one
+			 * if one is not there with the default provided from the given input vertex collection.
+			 *
+			 * @param InName - Name of readable data.
+			 * @param InputVertices - Collection of input vertices to retrieve default from if reference is not available
+			 * @param ConstructorArgs - Arguments to pass to constructor of TDataReadReference<DataType>
+			 *
+			 * @return A readable data reference.
+			 */
+			template<typename DataType, typename DefaultDataType, typename... ConstructorArgTypes>
+			TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FInputVertexInterface& InputVertices, const FString& InName, ConstructorArgTypes&&... ConstructorArgs) const
+			{
+				using FDataRefType = TDataReadReference<DataType>;
+
+				if (ContainsDataReadReference<DataType>(InName))
+				{
+					return GetDataReadReference<DataType>(InName);
+				}
+				else
+				{
+					const DefaultDataType DefaultValue = InputVertices[InName].GetDefaultValue().Value.Get<DefaultDataType>();
+					return FDataRefType::CreateNew(DefaultValue, Forward<ConstructorArgTypes>(ConstructorArgs)...);
 				}
 			}
 

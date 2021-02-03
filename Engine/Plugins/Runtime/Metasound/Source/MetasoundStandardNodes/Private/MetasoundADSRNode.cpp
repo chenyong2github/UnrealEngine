@@ -297,10 +297,10 @@ namespace Metasound
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 		FADSRReferences ADSRReferences =
 		{
-			GetOrConstructTime(InputInterface, TEXT("Attack")),
-			GetOrConstructTime(InputInterface, TEXT("Decay")),
-			GetOrConstructFloat(InputInterface, TEXT("Sustain Level")),
-			GetOrConstructTime(InputInterface, TEXT("Release"))
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Attack")),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Decay")),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float, float>(InputInterface, TEXT("Sustain Level")),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Release")),
 		};
 
 		return MakeUnique<FADSROperator>(InParams.OperatorSettings, TriggerAttack, TriggerRelease, ADSRReferences);

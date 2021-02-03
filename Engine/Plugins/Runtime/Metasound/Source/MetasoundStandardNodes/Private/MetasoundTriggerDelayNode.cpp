@@ -22,11 +22,9 @@ namespace Metasound
 
 	class FTriggerDelayOperator : public TExecutableOperator<FTriggerDelayOperator>
 	{
-		static constexpr float DefaultDelay = 1.0f; // In Seconds
-
 		public:
 			static const FNodeClassMetadata& GetNodeInfo();
-			static FVertexInterface DeclareVertexInterface();
+			static const FVertexInterface& GetVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
 			FTriggerDelayOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FFloatTimeReadRef& InDelay);
@@ -132,14 +130,16 @@ namespace Metasound
 	{
 		const FTriggerDelayNode& DelayNode = static_cast<const FTriggerDelayNode&>(InParams.Node);
 
-		FFloatTimeReadRef Delay = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FFloatTime>(TEXT("Delay"), DefaultDelay);
+		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
+		FFloatTimeReadRef Delay = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Delay"));
+
 		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("In"), InParams.OperatorSettings);
 		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Reset"), InParams.OperatorSettings);
 
 		return MakeUnique<FTriggerDelayOperator>(InParams.OperatorSettings, TriggerReset, TriggerIn, Delay);
 	}
 
-	FVertexInterface FTriggerDelayOperator::DeclareVertexInterface()
+	const FVertexInterface& FTriggerDelayOperator::GetVertexInterface()
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
@@ -167,7 +167,7 @@ namespace Metasound
 			Info.Description = LOCTEXT("Metasound_TriggerDelayNodeDescription", "Executes output trigger after the given delay time from the most recent execution of the input trigger .");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
-			Info.DefaultInterface = DeclareVertexInterface();
+			Info.DefaultInterface = GetVertexInterface();
 
 			return Info;
 		};
