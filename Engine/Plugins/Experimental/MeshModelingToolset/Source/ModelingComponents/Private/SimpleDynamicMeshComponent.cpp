@@ -329,7 +329,7 @@ void USimpleDynamicMeshComponent::FastNotifyPositionsUpdated(bool bNormals, bool
 	{
 		// calculate bounds while we are updating vertices
 		TFuture<void> UpdateBoundsCalc;
-		UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [&]()
+		UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastPositionsUpdate_AsyncBoundsUpdate);
 			LocalBounds = Mesh->GetBounds(true);
@@ -391,7 +391,7 @@ void USimpleDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderA
 		TFuture<void> UpdateBoundsCalc;
 		if (bPositions)
 		{
-			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [&]()
+			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this]()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexAttribUpdate_AsyncBoundsUpdate);
 				LocalBounds = Mesh->GetBounds(true);
@@ -491,7 +491,7 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TArray
 		TFuture<void> UpdateBoundsCalc;
 		if (bPositions)
 		{
-			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [&]()
+			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this]()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexUpdate_AsyncBoundsUpdate);
 				LocalBounds = Mesh->GetBounds(true);
@@ -570,7 +570,7 @@ void USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated(const TSet<i
 		TFuture<void> UpdateBoundsCalc;
 		if (bPositions)
 		{
-			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [&]()
+			UpdateBoundsCalc = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this]()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SimpleDynamicMeshComponent_FastVertexUpdate_AsyncBoundsUpdate);
 				LocalBounds = Mesh->GetBounds(true);
@@ -652,10 +652,10 @@ TFuture<bool> USimpleDynamicMeshComponent::FastNotifyTriangleVerticesUpdated_Try
 	if ((!!RenderMeshPostProcessor) || (GetCurrentSceneProxy() == nullptr) || (!Decomposition))
 	{
 		// is there a simpler way to do this? cannot seem to just make a TFuture<bool>...
-		return Async(SimpleDynamicMeshComponentAsyncExecTarget, [&]() { return false; });
+		return Async(SimpleDynamicMeshComponentAsyncExecTarget, []() { return false; });
 	}
 
-	return Async(SimpleDynamicMeshComponentAsyncExecTarget, [&]() 
+	return Async(SimpleDynamicMeshComponentAsyncExecTarget, [this, &Triangles, &UpdateSetsOut, &BoundsOut]()
 	{
 		TFuture<void> ComputeBounds = Async(SimpleDynamicMeshComponentAsyncExecTarget, [this, &BoundsOut, &Triangles]()
 		{

@@ -228,6 +228,8 @@ protected:
 	TArray<int> NormalsBuffer;
 	void WaitForPendingUndoRedo();
 
+	TArray<uint32> OctreeUpdateTempBuffer;
+	TArray<bool> OctreeUpdateTempFlagBuffer;
 	TFuture<void> StampUpdateOctreeFuture;
 	bool bStampUpdatePending = false;
 	void WaitForPendingStampUpdate();

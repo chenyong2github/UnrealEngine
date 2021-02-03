@@ -248,6 +248,8 @@ void UMeshVertexSculptTool::OnPropertyModified(UObject* PropertySet, FProperty* 
 
 void UMeshVertexSculptTool::OnBeginStroke(const FRay& WorldRay)
 {
+	WaitForPendingUndoRedo();		// cannot start stroke if there is an outstanding undo/redo update
+
 	UpdateBrushPosition(WorldRay);
 
 	if (SculptProperties->PrimaryBrushType == EMeshVertexSculptBrushType::Plane ||
@@ -510,7 +512,7 @@ TFuture<void> UMeshVertexSculptTool::ApplyStamp()
 	TFuture<void> SaveVertexFuture;
 	if (ActiveVertexChange != nullptr)
 	{
-		SaveVertexFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
+		SaveVertexFuture = Async(VertexSculptToolAsyncExecTarget, [this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_SyncMeshWithPositionBuffer_UpdateChange);
 			const int32 NumV = ROIPositionBuffer.Num();
@@ -702,7 +704,7 @@ void UMeshVertexSculptTool::OnTick(float DeltaTime)
 
 		// Append updated ROI to modified region (async). For some reason this is very expensive,
 		// maybe because of TSet? but we have a lot of time to do it.
-		TFuture<void> AccumulateROI = Async(VertexSculptToolAsyncExecTarget, [&]()
+		TFuture<void> AccumulateROI = Async(VertexSculptToolAsyncExecTarget, [this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_AccumROI);
 			for (int32 tid : TriangleROIArray)
@@ -713,16 +715,13 @@ void UMeshVertexSculptTool::OnTick(float DeltaTime)
 
 		// Start precomputing the normals ROI. This is currently the most expensive single thing we do next
 		// to Octree re-insertion, despite it being almost trivial. Why?!?
-		bool bUsingOverlayNormals = false;
-		TFuture<void> NormalsROI = Async(VertexSculptToolAsyncExecTarget, [&]()
+		bool bUsingOverlayNormalsOut = false;
+		TFuture<void> NormalsROI = Async(VertexSculptToolAsyncExecTarget, [Mesh, &bUsingOverlayNormalsOut, this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_NormalsROI);
 
-
-			//TODO WHY DOES NORMALS FLAGS NOT WORK?? 
-
 			//UE::SculptUtil::PrecalculateNormalsROI(Mesh, TriangleROIArray, NormalsROIBuilder, bUsingOverlayNormals, false);
-			UE::SculptUtil::PrecalculateNormalsROI(Mesh, TriangleROIArray, NormalsFlags, bUsingOverlayNormals, false);
+			UE::SculptUtil::PrecalculateNormalsROI(Mesh, TriangleROIArray, NormalsFlags, bUsingOverlayNormalsOut, false);
 		});
 
 		// NOTE: you might try to speculatively do the octree remove here, to save doing it later on Reinsert().
@@ -734,12 +733,10 @@ void UMeshVertexSculptTool::OnTick(float DeltaTime)
 		TFuture<void> UpdateChangeFuture = ApplyStamp();
 
 		// begin octree rebuild calculation
-		StampUpdateOctreeFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
+		StampUpdateOctreeFuture = Async(VertexSculptToolAsyncExecTarget, [this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_OctreeReinsert);
-			static TArray<uint32> TempBuffer;
-			static TArray<bool> TempFlagBuffer;
-			Octree.ReinsertTrianglesParallel(TriangleROIArray, TempBuffer, TempFlagBuffer);
+			Octree.ReinsertTrianglesParallel(TriangleROIArray, OctreeUpdateTempBuffer, OctreeUpdateTempFlagBuffer);
 		});
 		bStampUpdatePending = true;
 		//TFuture<void> OctreeRebuild = Async(VertexSculptToolAsyncExecTarget, [&]()
@@ -761,7 +758,7 @@ void UMeshVertexSculptTool::OnTick(float DeltaTime)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Tick_RecalcNormals);
 			NormalsROI.Wait();
-			UE::SculptUtil::RecalculateROINormals(Mesh, NormalsFlags, bUsingOverlayNormals);
+			UE::SculptUtil::RecalculateROINormals(Mesh, NormalsFlags, bUsingOverlayNormalsOut);
 			//UE::SculptUtil::RecalculateROINormals(Mesh, NormalsROIBuilder.Indices(), bUsingOverlayNormals);
 		}
 
@@ -839,12 +836,12 @@ void UMeshVertexSculptTool::UpdateBaseMesh(const TSet<int32>* TriangleSet)
 			BaseMesh.SetVertex(Tri.C, SculptMesh->GetVertex(Tri.C));
 			BaseMeshIndexBuffer.Add(tid);
 		}
-		auto UpdateBaseNormals = Async(VertexSculptToolAsyncExecTarget, [&]()
+		auto UpdateBaseNormals = Async(VertexSculptToolAsyncExecTarget, [this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Target_UpdateBaseNormals);
 			FMeshNormals::QuickComputeVertexNormalsForTriangles(BaseMesh, BaseMeshIndexBuffer);
 		});
-		auto ReinsertTriangles = Async(VertexSculptToolAsyncExecTarget, [&]()
+		auto ReinsertTriangles = Async(VertexSculptToolAsyncExecTarget, [TriangleSet, this]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(VtxSculptTool_Target_Reinsert);
 			BaseMeshSpatial.ReinsertTriangles(*TriangleSet);
@@ -964,41 +961,31 @@ void UMeshVertexSculptTool::OnDynamicMeshComponentChanged(USimpleDynamicMeshComp
 {
 	// have to wait for any outstanding stamp update to finish...
 	WaitForPendingStampUpdate();
+	// wait for previous Undo to finish (possibly never hit because the change records do it?)
+	WaitForPendingUndoRedo();
 
-	// update octree
 	FDynamicMesh3* Mesh = GetSculptMesh();
 
-	// make sure any previous async computations are done, and update the undo ROI
-	if (bUndoUpdatePending)
-	{
-		// we should never hit this anymore, because of pre-change calling WaitForPendingUndoRedo()
-		WaitForPendingUndoRedo();
-
-		// this is not right because now we are going to do extra recomputation, but it's very messy otherwise...
-		MeshIndexUtil::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
-	}
-	else
-	{
-		AccumulatedTriangleROI.Reset();
-		MeshIndexUtil::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
-	}
+	// figure out the set of modified triangles
+	AccumulatedTriangleROI.Reset();
+	MeshIndexUtil::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
 
 	// start the normal recomputation
-	UndoNormalsFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
+	UndoNormalsFuture = Async(VertexSculptToolAsyncExecTarget, [this, Mesh]()
 	{
 		UE::SculptUtil::RecalculateROINormals(Mesh, AccumulatedTriangleROI, NormalsROIBuilder);
 		return true;
 	});
 
 	// start the octree update
-	UndoUpdateOctreeFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
+	UndoUpdateOctreeFuture = Async(VertexSculptToolAsyncExecTarget, [this, Mesh]()
 	{
 		Octree.ReinsertTriangles(AccumulatedTriangleROI);
 		return true;
 	});
 
 	// start the base mesh update
-	UndoUpdateBaseMeshFuture = Async(VertexSculptToolAsyncExecTarget, [&]()
+	UndoUpdateBaseMeshFuture = Async(VertexSculptToolAsyncExecTarget, [this, Mesh]()
 	{
 		UpdateBaseMesh(&AccumulatedTriangleROI);
 		return true;
