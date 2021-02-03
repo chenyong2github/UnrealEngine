@@ -52,7 +52,7 @@ public:
 	static FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, float InLoadingRange);
 #endif
 
-	static bool ShouldIncludeInHLOD(const AActor* InActor);
+	static bool ShouldIncludeInHLOD(const AActor* InActor, bool bInFromLevelInstance = false);
 
 #if WITH_EDITORONLY_DATA
 private:

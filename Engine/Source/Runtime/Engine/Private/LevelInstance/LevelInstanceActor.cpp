@@ -77,7 +77,7 @@ void ALevelInstance::PostRegisterAllComponents()
 	{
 		LevelInstanceID = LevelInstanceSubsystem->RegisterLevelInstance(this);
 
-		if (!IsRunningCommandlet())
+		if (LevelInstanceSubsystem->ShouldLoadInstancesOnRegistration())
 		{
 			LoadLevelInstance();
 		}
@@ -98,7 +98,7 @@ void ALevelInstance::PostUnregisterAllComponents()
 
 		LevelInstanceSubsystem->UnregisterLevelInstance(this);
 
-		if (!IsRunningCommandlet())
+		if (LevelInstanceSubsystem->ShouldLoadInstancesOnRegistration())
 		{
 			UnloadLevelInstance();
 		}

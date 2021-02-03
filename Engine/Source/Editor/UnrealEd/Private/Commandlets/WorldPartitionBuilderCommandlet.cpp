@@ -12,6 +12,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Trace/Trace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilderCommandlet, All, All);
@@ -95,6 +96,12 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	{
 		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Commandlet only works on partitioned maps."));
 		return 1;
+	}
+
+	// Commandlets aren't loading level instances by default, change that behavior
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
+	{
+		LevelInstanceSubsystem->SetLoadInstancesOnRegistration(true);
 	}
 
 	// Retrieve the world partition.

@@ -50,7 +50,7 @@ void AWorldPartitionHLOD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 #if WITH_EDITOR
 
-void AWorldPartitionHLOD::OnSubActorLoaded(AActor& Actor)
+void AWorldPartitionHLOD::OnSubActorLoaded(const AActor& Actor)
 {
 	bool bIsAlreadyInSet = false;
 	LoadedSubActors.Add(&Actor, &bIsAlreadyInSet);
@@ -64,7 +64,7 @@ void AWorldPartitionHLOD::OnSubActorLoaded(AActor& Actor)
 	}
 }
 
-void AWorldPartitionHLOD::OnSubActorUnloaded(AActor& Actor)
+void AWorldPartitionHLOD::OnSubActorUnloaded(const AActor& Actor)
 {
 	LoadedSubActors.Remove(&Actor);
 
@@ -88,7 +88,7 @@ void AWorldPartitionHLOD::SetupLoadedSubActors()
 		for (const FGuid& SubActorGuid : SubActors)
 		{
 			const FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
-			AActor* SubActor = SubActorDesc->IsLoaded() ? SubActorDesc->GetActor() : nullptr;
+			AActor* SubActor = SubActorDesc && SubActorDesc->IsLoaded() ? SubActorDesc->GetActor() : nullptr;
 			if (SubActor)
 			{
 				OnSubActorLoaded(*SubActor);
@@ -104,7 +104,7 @@ void AWorldPartitionHLOD::ResetLoadedSubActors()
 	UWorld* World = GetWorld();
 	if (World && !World->IsGameWorld())
 	{
-		for (const TWeakObjectPtr<AActor>& SubActor : LoadedSubActors)
+		for (const TWeakObjectPtr<const AActor>& SubActor : LoadedSubActors)
 		{
 			if (!SubActor.IsValid())
 			{
@@ -192,20 +192,15 @@ void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& 
 	}
 }
 
-void AWorldPartitionHLOD::SetChildrenPrimitives(const TArray<UPrimitiveComponent*>& InChildrenPrimitives)
+void AWorldPartitionHLOD::SetSubActors(const TArray<const AActor*>& InSubActors)
 {
 	check(GetHLODComponent());
 
 	ResetLoadedSubActors();
 	SubActors.Empty();
 
-	UPrimitiveComponent* HLODComponent = GetHLODComponent();
-	check(HLODComponent);
-
-	for (UPrimitiveComponent* ChildPrimitive : InChildrenPrimitives)
+	for (const AActor* SubActor : InSubActors)
 	{
-		AActor* SubActor = ChildPrimitive->GetOwner();
-		
 		if (!LoadedSubActors.Contains(SubActor))
 		{
 			OnSubActorLoaded(*SubActor);

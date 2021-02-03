@@ -8,12 +8,16 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 
 #if WITH_EDITOR
+#include "Algo/Copy.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInterface.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/HLOD/HLODBuilder.h"
+
+#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 #endif
 
 UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
@@ -35,13 +39,19 @@ TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* In
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::GenerateHLODForCell);
 
 	TMap<UHLODLayer*, TArray<const AActor*>> HLODLayersActors;
-	for (const AActor* Actor : InCellActors)
+	for (AActor* Actor : InCellActors)
 	{
 		if (ShouldIncludeInHLOD(Actor))
 		{
 			UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(Actor);
 			if (HLODLayer)
 			{
+				if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(Actor))
+				{
+					// Wait for level instance loading
+					LevelInstance->GetLevelInstanceSubsystem()->BlockLoadLevelInstance(LevelInstance);
+				}
+
 				HLODLayersActors.FindOrAdd(HLODLayer).Add(Actor);
 			}
 		}
@@ -50,7 +60,10 @@ TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* In
 	TArray<AWorldPartitionHLOD*> HLODActors;
 	for (const auto& HLODLayerActors : HLODLayersActors)
 	{
-		HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InContext, InCellName, InCellBounds, HLODLayerActors.Key, InHLODLevel, HLODLayerActors.Value);
+		if (!HLODLayerActors.Value.IsEmpty())
+		{
+			HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InContext, InCellName, InCellBounds, HLODLayerActors.Key, InHLODLevel, HLODLayerActors.Value);
+		}
 	}
 	return HLODActors;
 }
@@ -94,11 +107,23 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 	bool bIsHLOD0 = !InActor->IsA<AWorldPartitionHLOD>();
 	if (bIsHLOD0) 
 	{
+		// Check if this actor is part of a DataLayer that has a default HLOD layer
+		for(const UDataLayer* DataLayer : InActor->GetDataLayerObjects())
+		{
+			UHLODLayer* HLODLayer = DataLayer ? DataLayer->GetDefaultHLODLayer() : nullptr;
+			if (HLODLayer)
+			{
+				return HLODLayer;
+			}
+		}
+
+		// Fallback to the world partition default HLOD layer
 		if (UWorldPartition* WorldPartition = InActor->GetWorld()->GetWorldPartition())
 		{
 			return WorldPartition->DefaultHLODLayer;
 		}
 	}
+
 	return nullptr;
 }
 
@@ -118,7 +143,7 @@ FName UHLODLayer::GetRuntimeGrid(uint32 InHLODLevel) const
 
 #endif // WITH_EDITOR
 
-bool UHLODLayer::ShouldIncludeInHLOD(const AActor* InActor)
+bool UHLODLayer::ShouldIncludeInHLOD(const AActor* InActor, bool bInFromLevelInstance)
 {
 	if (!InActor)
 	{
@@ -135,7 +160,7 @@ bool UHLODLayer::ShouldIncludeInHLOD(const AActor* InActor)
 		return false;
 	}
 
-	if (InActor->HasAnyFlags(RF_Transient))
+	if (!bInFromLevelInstance && InActor->HasAnyFlags(RF_Transient))
 	{
 		return false;
 	}

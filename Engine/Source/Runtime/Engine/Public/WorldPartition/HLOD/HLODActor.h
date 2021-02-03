@@ -25,12 +25,12 @@ public:
 	inline uint32 GetLODLevel() const { return LODLevel; }
 
 #if WITH_EDITOR
-	void OnSubActorLoaded(AActor& Actor);
-	void OnSubActorUnloaded(AActor& Actor);
+	void OnSubActorLoaded(const AActor& Actor);
+	void OnSubActorUnloaded(const AActor& Actor);
 
 	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives);
-	void SetChildrenPrimitives(const TArray<UPrimitiveComponent*>& InChildrenPrimitives);
 
+	void SetSubActors(const TArray<const AActor*>& InSubActors);
 	const TArray<FGuid>& GetSubActors() const;
 
 	void SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer) { SubActorsHLODLayer = InSubActorsHLODLayer; }
@@ -95,7 +95,7 @@ private:
 	UPROPERTY()
 	int64 GridIndexZ;
 
-	TSet<TWeakObjectPtr<AActor>> LoadedSubActors;
+	TSet<TWeakObjectPtr<const AActor>> LoadedSubActors;
 #endif
 
 	UPROPERTY(NonPIEDuplicateTransient, TextExportTransient, NonTransactional)

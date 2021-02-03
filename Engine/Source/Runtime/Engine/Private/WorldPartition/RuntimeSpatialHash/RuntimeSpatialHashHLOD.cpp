@@ -79,7 +79,26 @@ static void DeletePackage(const FString& PackageName, ISourceControlHelper* Sour
 
 static void DeletePackage(UPackage* Package, ISourceControlHelper* SourceControlHelper)
 {
-	DeletePackage(Package->GetName(), SourceControlHelper);
+	if (SourceControlHelper)
+	{
+		SourceControlHelper->Delete(Package);
+	}
+	else
+	{
+		DeletePackage(Package->GetName(), SourceControlHelper);
+	}
+}
+
+static void DeletePackage(FWorldPartitionActorDesc* ActorDesc, ISourceControlHelper* SourceControlHelper)
+{
+	if (ActorDesc->IsLoaded())
+	{
+		DeletePackage(ActorDesc->GetActor()->GetPackage(), SourceControlHelper);
+	}
+	else
+	{
+		DeletePackage(ActorDesc->GetActorPackage().ToString(), SourceControlHelper);
+	}
 }
 
 static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, FHLODGenerationContext& Context, ISourceControlHelper* SourceControlHelper, const TArray<FActorCluster>& ActorClusters)
@@ -474,9 +493,9 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	// Create actor clusters - ignore HLOD actors
 	TArray<FActorCluster> ActorClusters = CreateActorClusters(WorldPartition, [](const FWorldPartitionActorDesc& ActorDesc)
-		{
-			return !ActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
-		});
+	{
+		return !ActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
+	});
 
 	TArray<TArray<FActorCluster>> GridsClusters;
 	GridsClusters.InsertDefaulted(0, Grids.Num());
@@ -549,7 +568,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 		FWorldPartitionActorDesc* HLODActorDesc = ActorHandle.Get();
 		check(HLODActorDesc);
 
-		DeletePackage(HLODActorDesc->GetActorPackage().ToString(), SourceControlHelper);
+		DeletePackage(HLODActorDesc, SourceControlHelper);
 	};
 
 	// Destroy all unreferenced HLOD actors

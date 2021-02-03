@@ -43,6 +43,7 @@ public:
 	void RequestLoadLevelInstance(ALevelInstance* LevelInstanceActor, bool bUpdate);
 	void RequestUnloadLevelInstance(ALevelInstance* LevelInstanceActor);
 	bool IsLoaded(const ALevelInstance* LevelInstanceActor) const;
+	bool ShouldLoadInstancesOnRegistration() const;
 	void ForEachLevelInstanceAncestorsAndSelf(AActor* Actor, TFunctionRef<bool(ALevelInstance*)> Operation) const;
 
 #if WITH_EDITOR
@@ -88,6 +89,8 @@ public:
 	ALevelInstance* GetParentLevelInstance(const AActor* Actor) const;
 	void BlockLoadLevelInstance(ALevelInstance* LevelInstanceActor);
 	void BlockUnloadLevelInstance(ALevelInstance* LevelInstanceActor);
+
+	void SetLoadInstancesOnRegistration(bool bLoadInstancesOnRegistration);
 #endif
 
 private:
@@ -131,6 +134,8 @@ private:
 	TUniquePtr<FLevelsToRemoveScope> LevelsToRemoveScope;
 	
 	TMap<FName, FLevelInstanceEdit> LevelInstanceEdits;
+
+	bool bLoadInstancesOnRegistration;
 #endif
 
 	struct FLevelInstance
