@@ -3,12 +3,19 @@
 #pragma once
 
 #include "Trace/Config.h"
+#include "Containers/Array.h"
 
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define UE_TASK_TRACE_ENABLED 1
 #else
 #define UE_TASK_TRACE_ENABLED 0
 #endif
+
+namespace ENamedThreads
+{
+	// Forward declare
+	enum Type : int32;
+}
 
 namespace TaskTrace
 {
