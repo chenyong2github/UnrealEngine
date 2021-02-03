@@ -217,8 +217,6 @@ FBacktracer::FBacktracer(FMalloc* InMalloc)
 	// We cannot start worker threads directly on creation. Delay them until the
 	// engine has gotten a little bit further.
 	FCoreDelegates::GetPreMainInitDelegate().AddStatic(FBacktracer::StartWorker);
-	// The exit() call will just kill all threads, need controlled shutdown
-	FCoreDelegates::OnExit.AddStatic(FBacktracer::StopWorker);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -264,6 +262,8 @@ void FBacktracer::StartWorkerThread()
 	{
 		FCallstackProcWorker::Thread = FRunnableThread::Create(ProcessingThreadRunnable, TEXT("TraceMemCallstacks"), 0, TPri_BelowNormal);
 	}
+	// The exit() call will just kill all threads, need controlled shutdown
+	FCoreDelegates::OnExit.AddStatic(FBacktracer::StopWorker);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
