@@ -5,16 +5,21 @@
 // *INDENT-OFF*
 #if !defined(TRIO_WINDOWS_FILE_MAPPING_AVAILABLE) && !defined(TRIO_MMAP_AVAILABLE)
 
-#include "trio/streams/FileStream.h"
 #include "trio/streams/MemoryMappedFileStream.h"
-#include "trio/streams/StreamStatus.h"
 #include "trio/types/Aliases.h"
 
-#include <pma/ScopedPtr.h>
 #include <pma/TypeDefs.h>
+#include <status/Provider.h>
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <cstddef>
-#include <cstdint>
+#include <cstdio>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 namespace trio {
 
@@ -31,22 +36,23 @@ class MemoryMappedFileStreamFallback : public MemoryMappedFileStream {
 
         void open() override;
         void close() override;
-        std::uint64_t tell() override;
-        void seek(std::uint64_t position) override;
-        std::uint64_t size() override;
-        std::size_t read(char* destination, std::size_t size) override;
-        std::size_t read(Writable* destination, std::size_t size) override;
-        std::size_t write(const char* source, std::size_t size) override;
-        std::size_t write(Readable* source, std::size_t size) override;
+        std::size_t tell() override;
+        void seek(std::size_t position) override;
+        std::size_t size() override;
+        void read(char* buffer, std::size_t size) override;
+        void write(const char* buffer, std::size_t size) override;
         void flush() override;
-        void resize(std::uint64_t size) override;
-        const char* path() const override;
-        AccessMode accessMode() const override;
+        void resize(std::size_t size) override;
 
         MemoryResource* getMemoryResource();
 
     private:
-        pma::ScopedPtr<FileStream> stream;
+        static sc::StatusProvider status;
+
+        std::FILE* stream;
+        pma::String<char> path;
+        AccessMode accessMode;
+        std::size_t fileSize;
         MemoryResource* memRes;
 };
 

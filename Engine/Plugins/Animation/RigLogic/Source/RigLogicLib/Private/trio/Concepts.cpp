@@ -10,8 +10,5 @@ Seekable::~Seekable() = default;
 Openable::~Openable() = default;
 Closeable::~Closeable() = default;
 Controllable::~Controllable() = default;
-Bounded::~Bounded() = default;
-Buffered::~Buffered() = default;
-Resizable::~Resizable() = default;
 
 }  // namespace trio

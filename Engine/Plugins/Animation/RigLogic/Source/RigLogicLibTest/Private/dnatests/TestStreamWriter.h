@@ -26,7 +26,7 @@ class StreamWriterTest : public ::testing::Test {
         }
 
     protected:
-        pma::ScopedPtr<trio::MemoryStream, pma::FactoryDestroy<trio::MemoryStream> > stream;
+        pma::ScopedPtr<trio::MemoryStream, pma::FactoryDestroy<trio::MemoryStream>> stream;
         pma::DefaultMemoryResource memRes;
         dna::StreamWriter* writer;
         dna::StreamReader* reader;

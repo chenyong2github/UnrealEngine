@@ -164,7 +164,7 @@ static void copyDefinition(const DefinitionReader* source, DefinitionWriter* des
 
     for (std::uint16_t i = 0u; i < source->getMeshBlendShapeChannelMappingCount(); ++i) {
         auto mapping = source->getMeshBlendShapeChannelMapping(i);
-        destination->setMeshBlendShapeChannelMapping(i, mapping.meshIndex, mapping.blendShapeChannelIndex);
+        destination->addMeshBlendShapeChannelMapping(mapping.meshIndex, mapping.blendShapeChannelIndex);
     }
 
     auto jointCount = source->getJointCount();
@@ -312,15 +312,14 @@ static void copyGeometry(const GeometryReader* source, GeometryWriter* destinati
 
         destination->setMaximumInfluencePerVertex(meshIndex, source->getMaximumInfluencePerVertex(meshIndex));
 
-        const auto skinWeightsCount = source->getSkinWeightsCount(meshIndex);
-        for (std::uint32_t skinWeightsIndexPlusOne = skinWeightsCount; skinWeightsIndexPlusOne > 0u; --skinWeightsIndexPlusOne) {
-            const auto skinWeightsIndex = skinWeightsIndexPlusOne - 1u;
-            auto skinWeights = source->getSkinWeightsValues(meshIndex, skinWeightsIndex);
-            destination->setSkinWeightsValues(meshIndex, skinWeightsIndex, skinWeights.data(),
+        for (std::uint32_t vertexIndexPlusOne = vertexCount; vertexIndexPlusOne > 0u; --vertexIndexPlusOne) {
+            const auto vertexIndex = vertexIndexPlusOne - 1u;
+            auto skinWeights = source->getSkinWeightsValues(meshIndex, vertexIndex);
+            destination->setSkinWeightsValues(meshIndex, vertexIndex, skinWeights.data(),
                                               static_cast<std::uint16_t>(skinWeights.size()));
 
-            auto skinWeightsJoints = source->getSkinWeightsJointIndices(meshIndex, skinWeightsIndex);
-            destination->setSkinWeightsJointIndices(meshIndex, skinWeightsIndex, skinWeightsJoints.data(),
+            auto skinWeightsJoints = source->getSkinWeightsJointIndices(meshIndex, vertexIndex);
+            destination->setSkinWeightsJointIndices(meshIndex, vertexIndex, skinWeightsJoints.data(),
                                                     static_cast<std::uint16_t>(skinWeightsJoints.size()));
         }
     }

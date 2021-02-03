@@ -32,10 +32,6 @@ class DNAAPI DescriptorWriter {
         virtual void setGender(Gender gender) = 0;
         virtual void setAge(std::uint16_t age) = 0;
         /**
-            @brief Empties the metadata storage, delete all key-value pairs.
-        */
-        virtual void clearMetaData() = 0;
-        /**
             @brief Associate the metadata value with the given key.
             @param key
                 A unique, null-terminated key, to which the given value will be assigned.
@@ -43,8 +39,6 @@ class DNAAPI DescriptorWriter {
                 A null-terminated, metadata value, which is to be assigned to the given key.
             @note
                 Consecutive calls using the same key will overwrite any existing data.
-            @note
-                Passing nullptr as the value argument will cause the associated key to be deleted.
         */
         virtual void setMetaData(const char* key, const char* value) = 0;
         virtual void setTranslationUnit(TranslationUnit unit) = 0;

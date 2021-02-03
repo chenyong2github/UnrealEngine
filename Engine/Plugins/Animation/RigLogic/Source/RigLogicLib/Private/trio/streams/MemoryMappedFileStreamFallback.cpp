@@ -7,16 +7,44 @@
 
 #include "trio/utils/ScopedEnumEx.h"
 
-#include <pma/ScopedPtr.h>
+#include <status/Provider.h>
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
+#include <cassert>
 #include <cstddef>
-#include <cstdint>
+#include <cstring>
+#include <cstdio>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 namespace trio {
 
+static std::size_t getFileSizeFallback(const char* path) {
+    FILE* stream = nullptr;
+    #if defined(_MSC_VER) && !defined(__clang__)
+        fopen_s(&stream, path, "rb");
+    #else
+        stream = fopen(path, "rb");
+    #endif
+    std::size_t fileSize{};
+    if (stream != nullptr) {
+        fseek(stream, 0, SEEK_END);
+        fileSize = static_cast<std::size_t>(ftell(stream));
+        fclose(stream);
+    }
+    return fileSize;
+}
+
 MemoryMappedFileStreamFallback::MemoryMappedFileStreamFallback(const char* path_, AccessMode accessMode_,
                                                                MemoryResource* memRes_) :
-    stream{pma::makeScoped<FileStream>(path_, accessMode_, OpenMode::Binary, memRes_)},
+    stream{nullptr},
+    path{path_, memRes_},
+    accessMode{accessMode_},
+    fileSize{getFileSizeFallback(path_)},
     memRes{memRes_} {
 }
 
@@ -25,55 +53,71 @@ MemoryMappedFileStreamFallback::~MemoryMappedFileStreamFallback() {
 }
 
 void MemoryMappedFileStreamFallback::open() {
-    stream->open();
+    status.reset();
+    if (stream != nullptr) {
+        status.set(AlreadyOpenError, path.c_str());
+        return;
+    }
+
+    const char* openMode = "";
+    if (accessMode == AccessMode::ReadWrite) {
+        openMode = "r+b";
+    } else {
+        openMode = (contains(accessMode, AccessMode::Write) ? "wb" : "rb");
+    }
+
+    #if defined(_MSC_VER) && !defined(__clang__)
+        fopen_s(&stream, path.c_str(), openMode);
+    #else
+        stream = fopen(path.c_str(), openMode);
+    #endif
+    if (stream == nullptr) {
+        status.set(OpenError, path.c_str());
+        return;
+    }
+    setvbuf(stream, nullptr, _IONBF, 0ul);
+
+    fseek(stream, 0, SEEK_END);
+    fileSize = static_cast<std::size_t>(ftell(stream));
+    rewind(stream);
 }
 
 void MemoryMappedFileStreamFallback::close() {
-    stream->close();
+    fclose(stream);
 }
 
-std::uint64_t MemoryMappedFileStreamFallback::tell() {
-    return stream->tell();
+std::size_t MemoryMappedFileStreamFallback::tell() {
+    return static_cast<std::size_t>(ftell(stream));
 }
 
-void MemoryMappedFileStreamFallback::seek(std::uint64_t position) {
-    stream->seek(position);
+void MemoryMappedFileStreamFallback::seek(std::size_t position) {
+    fseek(stream, static_cast<int>(position), SEEK_SET);
 }
 
-std::size_t MemoryMappedFileStreamFallback::read(char* destination, std::size_t size) {
-    return stream->read(destination, size);
+void MemoryMappedFileStreamFallback::read(char* buffer, std::size_t size) {
+    const auto bytesRead = fread(buffer, 1ul, size, stream);
+    if ((bytesRead != size) && ferror(stream)) {
+        status.set(ReadError, path.c_str());
+    }
 }
 
-std::size_t MemoryMappedFileStreamFallback::read(Writable* destination, std::size_t size) {
-    return stream->read(destination, size);
-}
-
-std::size_t MemoryMappedFileStreamFallback::write(const char* source, std::size_t size) {
-    return stream->write(source, size);
-}
-
-std::size_t MemoryMappedFileStreamFallback::write(Readable* source, std::size_t size) {
-    return stream->write(source, size);
+void MemoryMappedFileStreamFallback::write(const char* buffer, std::size_t size) {
+    const auto bytesWritten = fwrite(buffer, 1ul, size, stream);
+    if ((bytesWritten != size) || ferror(stream)) {
+        status.set(WriteError, path.c_str());
+    }
 }
 
 void MemoryMappedFileStreamFallback::flush() {
     // Unbuffered, so noop
 }
 
-void MemoryMappedFileStreamFallback::resize(std::uint64_t  /*unused*/) {
+void MemoryMappedFileStreamFallback::resize(std::size_t  /*unused*/) {
     // No-op, as it's written to disk directly
 }
 
-std::uint64_t MemoryMappedFileStreamFallback::size() {
-    return stream->size();
-}
-
-const char* MemoryMappedFileStreamFallback::path() const {
-    return stream->path();
-}
-
-AccessMode MemoryMappedFileStreamFallback::accessMode() const {
-    return stream->accessMode();
+std::size_t MemoryMappedFileStreamFallback::size() {
+    return fileSize;
 }
 
 MemoryResource* MemoryMappedFileStreamFallback::getMemoryResource() {

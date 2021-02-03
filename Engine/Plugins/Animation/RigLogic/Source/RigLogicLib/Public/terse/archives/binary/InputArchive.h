@@ -99,14 +99,7 @@ class ExtendableBinaryInputArchive : public Archive<TExtender> {
     protected:
         void process(ArchiveOffset<OffsetType>& dest) {
             // Store the position of the offset itself, so it can be seeked to when writing the stream
-            #if !defined(__clang__) && defined(__GNUC__)
-                #pragma GCC diagnostic push
-                #pragma GCC diagnostic ignored "-Wuseless-cast"
-            #endif
-            dest.position = static_cast<decltype(dest.position)>(stream->tell());
-            #if !defined(__clang__) && defined(__GNUC__)
-                #pragma GCC diagnostic pop
-            #endif
+            dest.position = stream->tell();
             // Load the offset value itself (this points forward within the stream to the position of
             // the data with which the offset is associated)
             process(dest.value);

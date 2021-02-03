@@ -105,10 +105,6 @@ class FakeReader : public Reader {
             return {};
         }
 
-        std::uint16_t getJointIndexListCount() const override {
-            return {};
-        }
-
         ConstArrayView<std::uint16_t> getJointIndicesForLOD(std::uint16_t lod) const override {
             return {};
         }
@@ -125,19 +121,11 @@ class FakeReader : public Reader {
             return {};
         }
 
-        std::uint16_t getBlendShapeChannelIndexListCount() const override {
-            return {};
-        }
-
         ConstArrayView<std::uint16_t> getBlendShapeChannelIndicesForLOD(std::uint16_t lod) const override {
             return {};
         }
 
         std::uint16_t getAnimatedMapCount() const override {
-            return {};
-        }
-
-        std::uint16_t getAnimatedMapIndexListCount() const override {
             return {};
         }
 
@@ -166,10 +154,6 @@ class FakeReader : public Reader {
         }
 
         ConstArrayView<std::uint16_t> getMeshBlendShapeChannelMappingIndicesForLOD(std::uint16_t lod) const override {
-            return {};
-        }
-
-        std::uint16_t getMeshIndexListCount() const override {
             return {};
         }
 

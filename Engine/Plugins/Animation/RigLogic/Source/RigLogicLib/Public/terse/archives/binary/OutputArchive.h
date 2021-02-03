@@ -48,14 +48,7 @@ class ExtendableBinaryOutputArchive : public Archive<TExtender> {
         void process(ArchiveOffset<OffsetType>& source) {
             // Record the position where the offset is going to be written so it can be seeked to later when
             // it's proxy is found
-            #if !defined(__clang__) && defined(__GNUC__)
-                #pragma GCC diagnostic push
-                #pragma GCC diagnostic ignored "-Wuseless-cast"
-            #endif
-            source.position = static_cast<decltype(source.position)>(stream->tell());
-            #if !defined(__clang__) && defined(__GNUC__)
-                #pragma GCC diagnostic pop
-            #endif
+            source.position = stream->tell();
             // Since the actual offset value is not yet known at the time when it's declaration is encountered,
             // fill it's place with zeros as a placeholder, and it will be later populated when it's associated
             // proxy is found

@@ -44,7 +44,7 @@ static void WriteDNAToStream(const IDNAReader* Source, EDNADataLayer Layer, rl4:
 	auto DNAWriter = rl4::makeScoped<dna::StreamWriter>(Destination, FMemoryResource::Instance());
 	if (Source != nullptr)
 	{
-		DNAWriter->setFrom(Source->Unwrap(), static_cast<dna::DataLayer>(Layer), FMemoryResource::Instance());
+		DNAWriter->setFrom(Source->Unwrap(), static_cast<dna::DataLayer>(Layer));
 	}
 	DNAWriter->write();
 }
@@ -79,24 +79,7 @@ static TSharedPtr<IDNAReader> CreateEmptyDNA(uint32 PredictedSize)
 	return ReadDNAFromBuffer(&MemoryBuffer, EDNADataLayer::All);
 }
 
-static void InvalidateSharedRigRuntimeContext(TSharedPtr<FSharedRigRuntimeContext> Context)
-{
-	Context->RigLogic = nullptr;
-	Context->InputCurveIndices.Empty();
-	Context->HierarchyBoneIndices.Empty();
-	Context->MorphTargetCurveIndices.Empty();
-	Context->BlendShapeIndices.Empty();
-	Context->CurveContainerIndicesForAnimMaps.Empty();
-	Context->RigLogicIndicesForAnimMaps.Empty();
-}
-
-UDNAAsset::UDNAAsset() :
-	DNAFileName{},
-	Context{MakeShared<FSharedRigRuntimeContext>()}
-{
-}
-
-bool UDNAAsset::Init(const FString& DNAFilename)
+bool UDNAAsset::Init(const FString DNAFilename)
 {
 	if (!rl4::Status::isOk())
 	{
@@ -120,10 +103,9 @@ bool UDNAAsset::Init(const FString& DNAFilename)
 		return false;
 	}
 	
-	// Load run-time data (behavior) from whole-DNA buffer into BehaviorReader
-	InvalidateSharedRigRuntimeContext(Context);
-	Context->BehaviorReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Behavior, 0u); //0u = MaxLOD
-	if (!Context->BehaviorReader.IsValid())
+	// Load run-time data (behavior) from whole-DNA buffer into BehaviorStreamReader
+	BehaviorStreamReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Behavior, 0u); //0u = MaxLOD
+	if (!BehaviorStreamReader.IsValid())
 	{
 		return false;
 	}
@@ -131,8 +113,8 @@ bool UDNAAsset::Init(const FString& DNAFilename)
 #if WITH_EDITORONLY_DATA
 	//We use geometry part of the data in MHC only (for updating the SkeletalMesh with
 	//result of GeneSplicer), so we can drop geometry part when cooking for runtime
-	Context->GeometryReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Geometry, 0u); //0u = MaxLOD
-	if (!Context->GeometryReader.IsValid())
+	GeometryStreamReader = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Geometry, 0u); //0u = MaxLOD
+	if (!GeometryStreamReader.IsValid())
 	{
 		return false;
 	}
@@ -157,10 +139,8 @@ void UDNAAsset::Serialize(FArchive& Ar)
 
 		if (Ar.IsLoading())
 		{
-			InvalidateSharedRigRuntimeContext(Context);
-
 			FArchiveMemoryStream BehaviorStream{&Ar};
-			Context->BehaviorReader = ReadDNAFromStream(&BehaviorStream, EDNADataLayer::Behavior, 0u); //0u = max LOD
+			BehaviorStreamReader = ReadDNAFromStream(&BehaviorStream, EDNADataLayer::Behavior, 0u); //0u = max LOD
 
 			// Geometry data is always present (even if only as an empty placeholder), just so the uasset
 			// format remains consistent between editor and non-editor builds
@@ -168,36 +148,35 @@ void UDNAAsset::Serialize(FArchive& Ar)
 			auto Reader = ReadDNAFromStream(&GeometryStream, EDNADataLayer::Geometry, 0u); //0u = max LOD
 #if WITH_EDITORONLY_DATA
 			// Geometry data is discarded unless in Editor
-			Context->GeometryReader = Reader;
+			GeometryStreamReader = Reader;
 #endif // #if WITH_EDITORONLY_DATA
 		}
 
 		if (Ar.IsSaving())
 		{
 			TSharedPtr<IDNAReader> EmptyDNA = CreateEmptyDNA(AVG_EMPTY_SIZE);
-			IDNAReader* BehaviorReaderPtr = (Context->BehaviorReader.IsValid() ? static_cast<IDNAReader*>(Context->BehaviorReader.Get()) : EmptyDNA.Get());
+			IDNAReader* BehaviorStreamReaderPtr = (BehaviorStreamReader.IsValid() ? static_cast<IDNAReader*>(BehaviorStreamReader.Get()) : EmptyDNA.Get());
 			FArchiveMemoryStream BehaviorStream{&Ar};
-			WriteDNAToStream(BehaviorReaderPtr, EDNADataLayer::Behavior, &BehaviorStream);
+			WriteDNAToStream(BehaviorStreamReaderPtr, EDNADataLayer::Behavior, &BehaviorStream);
 
 			// When cooking (or when there was no Geometry data available), an empty DNA structure is written
 			// into the stream, serving as a placeholder just so uasset files can be conveniently loaded
 			// regardless if they were cooked or prepared for in-editor work
-			IDNAReader* GeometryReaderPtr = (Context->GeometryReader.IsValid() && !Ar.IsCooking() ? static_cast<IDNAReader*>(Context->GeometryReader.Get()) : EmptyDNA.Get());
+			IDNAReader* GeometryStreamReaderPtr = (GeometryStreamReader.IsValid() && !Ar.IsCooking() ? static_cast<IDNAReader*>(GeometryStreamReader.Get()) : EmptyDNA.Get());
 			FArchiveMemoryStream GeometryStream{&Ar};
-			WriteDNAToStream(GeometryReaderPtr, EDNADataLayer::Geometry, &GeometryStream);
+			WriteDNAToStream(GeometryStreamReaderPtr, EDNADataLayer::Geometry, &GeometryStream);
 		}
 	}
 }
 
-void UDNAAsset::SetBehaviorReader(TSharedPtr<IDNAReader> SourceDNAReader)
+void UDNAAsset::SetBehaviorReader(const TSharedPtr<IDNAReader> SourceDNAReader)
 {
-	InvalidateSharedRigRuntimeContext(Context);
-	Context->BehaviorReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Behavior, AVG_BEHAVIOR_SIZE);
+	BehaviorStreamReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Behavior, AVG_BEHAVIOR_SIZE);
 }
 
-void UDNAAsset::SetGeometryReader(TSharedPtr<IDNAReader> SourceDNAReader)
+void UDNAAsset::SetGeometryReader(const TSharedPtr<IDNAReader> SourceDNAReader)
 {
 #if WITH_EDITORONLY_DATA
-	Context->GeometryReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Geometry, AVG_GEOMETRY_SIZE);
+	GeometryStreamReader = CopyDNALayer(SourceDNAReader.Get(), EDNADataLayer::Geometry, AVG_GEOMETRY_SIZE);
 #endif // #if WITH_EDITORONLY_DATA
 }

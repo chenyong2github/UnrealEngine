@@ -29,14 +29,6 @@ std::uint16_t LODMapping::getLODCount() const {
     return static_cast<std::uint16_t>(lods.size());
 }
 
-void LODMapping::resetIndices() {
-    indices.clear();
-}
-
-void LODMapping::resetLODs() {
-    lods.clear();
-}
-
 void LODMapping::reset() {
     lods.clear();
     indices.clear();
@@ -74,10 +66,6 @@ ConstArrayView<std::uint16_t> LODMapping::getIndices(std::uint16_t lod) const {
     assert(lods[lod] < indices.size());
     const auto it = extd::advanced(indices.cbegin(), lods[lod]);
     return (it == indices.cend() ? ConstArrayView<std::uint16_t>{} : ConstArrayView<std::uint16_t>{it->data(), it->size()});
-}
-
-std::uint16_t LODMapping::getIndexListCount() const {
-    return static_cast<std::uint16_t>(indices.size());
 }
 
 void LODMapping::clearIndices(std::uint16_t index) {

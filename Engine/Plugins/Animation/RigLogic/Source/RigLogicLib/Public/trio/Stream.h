@@ -4,26 +4,20 @@
 
 #include "trio/Concepts.h"
 #include "trio/Defs.h"
-#include "trio/types/Aliases.h"
-#include "trio/types/Parameters.h"
 
-#include <cstdint>
+#include <cstddef>
 
 namespace trio {
 
-class TRIOAPI BoundedIOStream : public Controllable, public Readable, public Writable, public Seekable, public Bounded {
-    public:
-        using AccessMode = trio::AccessMode;
-        using OpenMode = trio::OpenMode;
-
-        static const sc::StatusCode OpenError;
-        static const sc::StatusCode ReadError;
-        static const sc::StatusCode WriteError;
-        static const sc::StatusCode AlreadyOpenError;
-        static const sc::StatusCode SeekError;
-
+class TRIOAPI BoundedIOStream : public Controllable, public Readable, public Writable, public Seekable {
     public:
         virtual ~BoundedIOStream();
+        /**
+            @brief Obtain size of stream in bytes.
+            @return
+                Size in bytes.
+        */
+        virtual std::size_t size() = 0;
 };
 
 }  // namespace trio

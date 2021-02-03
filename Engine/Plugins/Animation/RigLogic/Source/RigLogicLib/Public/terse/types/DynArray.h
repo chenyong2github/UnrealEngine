@@ -59,9 +59,7 @@ class DynArray {
         DynArray(const value_type* source, std::size_t size, const allocator_type& allocator = allocator_type{}) :
             DynArray{size, allocator} {
 
-            if ((data() != nullptr) && (source != nullptr)) {
-                std::memcpy(data(), source, size * sizeof(value_type));
-            }
+            std::memcpy(data(), source, size * sizeof(value_type));
         }
 
         template<typename TIterator>
@@ -69,9 +67,7 @@ class DynArray {
             DynArray{static_cast<std::size_t>(std::distance(start, end)), allocator} {
 
             #if defined(_MSC_VER) && !defined(__clang__)
-                if (size() != 0ul) {
-                    std::copy(start, end, stdext::checked_array_iterator<value_type*>(data(), size()));
-                }
+                std::copy(start, end, stdext::checked_array_iterator<value_type*>(data(), size()));
             #else
                 std::copy(start, end, data());
             #endif
@@ -80,9 +76,8 @@ class DynArray {
         ~DynArray() = default;
 
         DynArray(const DynArray& rhs) : DynArray{rhs.size(), rhs.get_allocator()} {
-            if ((data() != nullptr) && (rhs.data() != nullptr)) {
-                std::memcpy(data(), rhs.data(), rhs.size() * sizeof(value_type));
-            }
+            assert(ptr != nullptr);
+            std::memcpy(data(), rhs.data(), rhs.size() * sizeof(value_type));
         }
 
         DynArray& operator=(const DynArray& rhs) {
@@ -176,9 +171,7 @@ class DynArray {
                                  }};
                 ptr = create(size, alloc);
                 assert(ptr != nullptr);
-                if (old != nullptr) {
-                    std::memcpy(ptr.get(), old.get(), sz * sizeof(value_type));
-                }
+                std::memcpy(ptr.get(), old.get(), sz * sizeof(value_type));
                 std::fill_n(begin() + sz, size - sz, value);
             }
             sz = size;
@@ -190,14 +183,7 @@ class DynArray {
 
         void resize_uninitialized(std::size_t size) {
             if (size > sz) {
-                pointer_type old{ptr.release(), [this](value_type* p) {
-                                     alloc.deallocate(p, sz);
-                                 }};
                 ptr = create(size, alloc);
-                assert(ptr != nullptr);
-                if (old != nullptr) {
-                    std::memcpy(ptr.get(), old.get(), sz * sizeof(value_type));
-                }
             }
             sz = size;
         }
@@ -206,9 +192,7 @@ class DynArray {
         void assign(TIterator start, TIterator end) {
             resize_uninitialized(static_cast<std::size_t>(std::distance(start, end)));
             #if defined(_MSC_VER) && !defined(__clang__)
-                if (size() != 0ul) {
-                    std::copy(start, end, stdext::checked_array_iterator<value_type*>(data(), size()));
-                }
+                std::copy(start, end, stdext::checked_array_iterator<value_type*>(data(), size()));
             #else
                 std::copy(start, end, data());
             #endif

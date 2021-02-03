@@ -4,6 +4,8 @@
 
 #include "trio/Defs.h"
 #include "trio/Stream.h"
+#include "trio/types/Aliases.h"
+#include "trio/types/Parameters.h"
 
 namespace trio {
 
@@ -11,6 +13,15 @@ namespace trio {
     @brief Standard file stream.
 */
 class TRIOAPI FileStream : public BoundedIOStream {
+    public:
+        using AccessMode = trio::AccessMode;
+        using OpenMode = trio::OpenMode;
+
+        static const sc::StatusCode OpenError;
+        static const sc::StatusCode ReadError;
+        static const sc::StatusCode WriteError;
+        static const sc::StatusCode AlreadyOpenError;
+
     public:
         /**
             @brief Factory method for creation of a FileStream instance.
@@ -45,11 +56,6 @@ class TRIOAPI FileStream : public BoundedIOStream {
 
         FileStream(FileStream&&) = default;
         FileStream& operator=(FileStream&&) = default;
-
-        virtual const char* path() const = 0;
-        virtual AccessMode accessMode() const = 0;
-        virtual OpenMode openMode() const = 0;
-
 };
 
 }  // namespace trio
