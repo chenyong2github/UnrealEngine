@@ -243,6 +243,8 @@ public:
 		OutViewModeIndex = EViewModeIndex::VMI_PathTracing;
 	}
 	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
+
+	virtual bool IsAntiAliasingSupported() const { return false; }
 };
 
 struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool : public TSharedFromThis<FAccumulatorPool>

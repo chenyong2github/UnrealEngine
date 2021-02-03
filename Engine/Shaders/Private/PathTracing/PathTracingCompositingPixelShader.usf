@@ -48,7 +48,7 @@ void CompositeMain(
 
 	OutColor = float4(Radiance.rgb * View.PreExposure, 1.0);
 
-	if (ProgressDisplayEnabled && Iteration < MaxSamples)
+	if (ProgressDisplayEnabled && (Iteration + 1) < MaxSamples)
 	{
 		// Draw a progress meter for how far along we are to the max number of passes
 		float Aspect = View.BufferSizeAndInvSize.y * View.BufferSizeAndInvSize.z;
@@ -60,6 +60,7 @@ void CompositeMain(
 		// center progress in middle-bottom of the frame
 		float2 Center = float2(lerp(RectMin.x, RectMax.x, 0.5), RectMax.y) * View.BufferSizeAndInvSize.zz - float2(0, Size * 0.75);
 		P -= Center;
+		float Fraction = saturate(float(Iteration + 1) / float(MaxSamples));
 #if 0
 		// measure progress like a clock
 		float R2 = dot(P, P);
@@ -71,7 +72,6 @@ void CompositeMain(
 		// point is on the progress ring
 		if (R2 < ROuter2 + R2f && R2 > RInner2 - R2f)
 		{
-			float Fraction = saturate(float(Iteration) / float(MaxSamples));
 			float Angle = (atan2(-P.x, P.y) + PI) / (2 * PI);
 			// anti-alias progress bar edge
 			float Blend = smoothstep(Fraction - fwidth(Angle), Fraction + fwidth(Angle), Angle);
@@ -89,7 +89,6 @@ void CompositeMain(
 		{
 			P += ProgressSize;
 			P /= ProgressSize * 2;
-			float Fraction = saturate(float(Iteration) / float(MaxSamples));
 			float Blend = smoothstep(Fraction - fwidth(P.x), Fraction + fwidth(P.x), P.x);
 			// Grey/Red blend
 			float4 ProgressBarColor = lerp(float4(1.0, 0.1, 0.1, 1), float4(0.5, 0.5, 0.5, 1), Blend);

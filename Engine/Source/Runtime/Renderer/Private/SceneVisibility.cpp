@@ -3428,17 +3428,27 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			
 #if RHI_RAYTRACING
 			// Note: 0.18 deg is the minimum angle for avoiding numerical precision issue (which would cause constant invalidation)
-			const bool bIsThereALargeMomvement= IsLargeCameraMovement(
-				View, ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(),
+			const bool bIsCameraMove = IsLargeCameraMovement(
+				View,
+				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(),
 				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(),
 				0.18f /*degree*/, 0.1f /*cm*/);
 			const bool bIsProjMatrixDifferent = View.ViewMatrices.GetProjectionNoAAMatrix() != View.ViewState->PrevFrameViewInfo.ViewMatrices.GetProjectionNoAAMatrix();
-			const bool bInvalidatePathTracer = (
-				bResetCamera ||
-				Scene->bPathTracingNeedsInvalidation ||
-				bIsProjMatrixDifferent ||
-				bIsThereALargeMomvement
-			);
+			bool bInvalidatePathTracer = false;
+			
+			if (View.bIsOfflineRender)
+			{
+				// for offline renders, we want to allow motion blur so don't let geometry changes or camera moves invalidate the path tracer accumulation
+				bInvalidatePathTracer = View.bCameraCut || View.bForceCameraVisibilityReset;
+			}
+			else
+			{
+				// for interactive usage - any movement or scene change should restart the path tracer
+				bInvalidatePathTracer = bResetCamera ||
+					Scene->bPathTracingNeedsInvalidation ||
+					bIsProjMatrixDifferent ||
+					bIsCameraMove;
+			}
 
 			if (bInvalidatePathTracer)
 			{
