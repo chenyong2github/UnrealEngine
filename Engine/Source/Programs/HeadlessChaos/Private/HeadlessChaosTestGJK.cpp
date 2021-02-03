@@ -1770,4 +1770,77 @@ namespace ChaosTest
 		GJKConvexConvexEPABoundaryCondition();
 	}
 
+
+	void NegativeScaleConvexTest()
+	{
+		TArray<FVec3> ConvexVerts =
+		{
+			{512.000061, -1279.99988, -383.999939},
+			{511.999969, 6.81566016e-05, 2.23802308e-05},
+			{512.000000, -255.999939, 2.23802308e-05},
+			{-2.36513770e-05, -1.52587909e-05, -2.84217094e-14},
+			{1.80563184e-05, -256.000031, -2.84217094e-14},
+			{2.26354750e-05, -1024.00000, -383.999969},
+			{7.96019594e-05, -1280.00000, -383.999969},
+			{512.000061, -1023.99994, -383.999939}
+		};
+		TArray<FVec3> ConvexVertices(MoveTemp(ConvexVerts));
+		TUniquePtr<FImplicitConvex3> CoreConvex = MakeUnique<FImplicitConvex3>(ConvexVertices, 0.0f);
+		const TImplicitObjectScaled<FImplicitConvex3> ScaledConvex(MakeSerializable(CoreConvex), FVec3(-1,1,1), 38.4000015);
+		const TSphere<FReal, 3> Sphere(FVec3(0,0,0), 32);
+		const FRigidTransform3 StartTM(FVec3( -172.000000, -48.0000000, 52.0000000 ), FRotation3::FromIdentity());
+
+
+		FVec3 Dir(0, 0, -1);
+		FReal Length = 200;
+		FVec3 OutNormal;
+		FReal OutTime = -1;
+		FVec3 OutPos(0, 0, 0);
+		int32 OutFaceIdx = -1;
+		const bool bSuccess = GJKRaycast2(ScaledConvex, Sphere, StartTM, Dir, Length, OutTime, OutPos, OutNormal, 0.f, true);
+		EXPECT_TRUE(bSuccess);
+	}
+
+	void NegativeScaleConvexTest2()
+	{
+		//TArray<FVec3> ConvexVerts =
+		//{
+		//	// subset of verts from above test.
+		//	{512.000061, -1279.99988, -383.999939},    // Uncommenting this will cause sweep to miss. Why?
+		//	{511.999969, 6.81566016e-05, 2.23802308e-05},
+		//	{512.000000, -255.999939, 2.23802308e-05},
+		//	{-2.36513770e-05, -1.52587909e-05, -2.84217094e-14},
+		//	{1.80563184e-05, -256.000031, -2.84217094e-14},
+		//};
+		TArray<FVec3> ConvexVerts =
+		{
+			// subset of verts from above test.
+			FVec3(-512, -1280, -384),
+			FVec3(-512, 0, 0),
+			FVec3(-512, -256, 0),
+			FVec3(0, 0, 0),
+			FVec3(0, -256, 0),
+		};
+		TArray<FVec3> ConvexVertices(MoveTemp(ConvexVerts));
+		FImplicitConvex3 CoreConvex = FImplicitConvex3(ConvexVertices, 38.4000015);
+		const TSphere<FReal, 3> Sphere(FVec3(0, 0, 0), 32);
+		const FRigidTransform3 StartTM(FVec3(-172.000000, -48.0000000, 52.0000000), FRotation3::FromIdentity());
+
+
+		FVec3 Dir(0, 0, -1);
+		FReal Length = 200;
+		FVec3 OutNormal;
+		FReal OutTime = -1;
+		FVec3 OutPos(0, 0, 0);
+		int32 OutFaceIdx = -1;
+		const bool bSuccess = GJKRaycast2(CoreConvex, Sphere, StartTM, Dir, Length, OutTime, OutPos, OutNormal, 0.f, true);
+		EXPECT_TRUE(bSuccess);
+	}
+
+	// Disabled until we use different margins for sweeping
+	GTEST_TEST(GJKTests, DISABLED_TestGJKConvexNegativeScale)
+	{
+		NegativeScaleConvexTest();
+		NegativeScaleConvexTest2();
+	}
 }

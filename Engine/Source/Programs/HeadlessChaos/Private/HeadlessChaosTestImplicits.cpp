@@ -1454,9 +1454,9 @@ namespace ChaosTest {
 			TArray<FVec3> Particles;
 			Particles.SetNum(6);
 			Particles[0] = Chaos::FVec3(-1, -1, -1);
-			Particles[1] = Chaos::TVec3(1, -1, -1);
-			Particles[2] = Chaos::TVec3(1, 1, -1);
-			Particles[3] = Chaos::TVec3(0, 0, 0.5);
+			Particles[1] = Chaos::FVec3(1, -1, -1);
+			Particles[2] = Chaos::FVec3(1, 1, -1);
+			Particles[3] = Chaos::FVec3(0, 0, 0.5);
 			Particles[4] = (Particles[3]- Particles[1]) * 0.5 + Particles[1] + Chaos::TVec3<float>(0, 0, 0.1);
 			Particles[5] = Particles[4]+ Chaos::TVec3<float>(-0.1, 0, 0);
 			TArray<TVector<int32, 3>> Indices;
@@ -1504,7 +1504,7 @@ namespace ChaosTest {
 			// only the original box - ignoring all interior and coplanar points.
 			// Note: If hull generation is changed to support non-triangular faces the conditions here
 			// will need to change as a correct hull in that method will produce only 6 faces not 12
-			TArray<TVec3<T>> Particles;
+			TArray<FVec3> Particles;
 			int32 NumParticles = 3600;
 			Particles.SetNum(NumParticles);
 			Particles[0] = Chaos::FVec3(-1, -1, -1);
@@ -1572,7 +1572,7 @@ namespace ChaosTest {
 		FAABB3 OriginalBoundingBox = Convex.BoundingBox();
 
 		const TArray<FVec3>& CulledParticles = Convex.GetVertices();
-		const TArray<TPlaneConcrete<T, 3>> Planes = Convex.GetFaces();
+		const TArray<TPlaneConcrete<FReal, 3>> Planes = Convex.GetFaces();
 
 		// set target number of particles in simplified convex
 		FConvexBuilder::PerformGeometryReduction = 1;

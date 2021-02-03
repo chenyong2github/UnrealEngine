@@ -234,19 +234,19 @@ namespace ChaosTest
 		const FReal Radius = 1000.0f;
 
 		const int32 NumVertices = TestGeometry2::RawVertexArray.Num() / 3;
-		TParticles<FReal, 3> Particles;
-		Particles.AddParticles(NumVertices);
-		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
+		TArray<FVec3> Vertices;
+		Vertices.SetNum(NumVertices);
+		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 		{
 			const FVec3 VertexPos = FVec3(
-				TestGeometry2::RawVertexArray[3 * ParticleIndex + 0],
-				TestGeometry2::RawVertexArray[3 * ParticleIndex + 1],
-				TestGeometry2::RawVertexArray[3 * ParticleIndex + 2]
+				TestGeometry2::RawVertexArray[3 * VertexIndex + 0],
+				TestGeometry2::RawVertexArray[3 * VertexIndex + 1],
+				TestGeometry2::RawVertexArray[3 * VertexIndex + 2]
 			);
-			Particles.X(ParticleIndex) = VertexPos;
+			Vertices[VertexIndex] = VertexPos;
 		}
 
-		FConvex Convex(Particles, 0.0f);
+		FConvex Convex(Vertices, 0.0f);
 
 		const FConvexStructureDataU8& StructureData = Convex.GetStructureData().Data8();
 		TestConvexStructureDataMapping(StructureData);
@@ -262,16 +262,16 @@ namespace ChaosTest
 		const int32 NumVertices = 1000;
 
 		// Make a convex with points on a sphere.
-		TParticles<FReal, 3> Particles;
-		Particles.AddParticles(NumVertices);
-		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
+		TArray<FVec3> Vertices;
+		Vertices.SetNum(NumVertices);
+		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 		{
 			const FReal Theta = FMath::RandRange(-PI, PI);
 			const FReal Phi = FMath::RandRange(-0.5f * PI, 0.5f * PI);
 			const FVec3 VertexPos = Radius * FVec3(FMath::Cos(Theta), FMath::Sin(Theta), FMath::Sin(Phi));
-			Particles.X(ParticleIndex) = VertexPos;
+			Vertices[VertexIndex] = VertexPos;
 		}
-		FConvex Convex(Particles, 0.0f);
+		FConvex Convex(Vertices, 0.0f);
 
 		EXPECT_GT(Convex.NumVertices(), 800);
 		EXPECT_GT(Convex.NumPlanes(), 500);
