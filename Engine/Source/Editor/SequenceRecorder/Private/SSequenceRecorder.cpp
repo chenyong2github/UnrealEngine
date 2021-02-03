@@ -45,6 +45,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "IDocumentation.h"
 #include "Framework/Text/SlateHyperlinkRun.h"
+#include "Misc/ConfigCacheIni.h"
 
 
 #define LOCTEXT_NAMESPACE "SequenceRecorder"
