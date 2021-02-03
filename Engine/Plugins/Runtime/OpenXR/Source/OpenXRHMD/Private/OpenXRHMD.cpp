@@ -1078,7 +1078,7 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 
 	XrSwapchainSubImage& ColorImage = LayerState.ColorImages[ViewIndex];
 	ColorImage.swapchain = Swapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle() : XR_NULL_HANDLE;
-	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
+	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled && ViewIndex < 2 ? ViewIndex : 0;
 	ColorImage.imageRect = {
 		{ FinalViewRect.Min.X, FinalViewRect.Min.Y },
 		{ FinalViewRect.Width(), FinalViewRect.Height() }
@@ -1088,8 +1088,14 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 	if (bDepthExtensionSupported)
 	{
 		DepthImage.swapchain = DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle() : XR_NULL_HANDLE;
-		DepthImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
+		DepthImage.imageArrayIndex = bIsMobileMultiViewEnabled && ViewIndex < 2 ? ViewIndex : 0;
 		DepthImage.imageRect = ColorImage.imageRect;
+	}
+
+	if (!PipelineState.PluginViews.IsValidIndex(ViewIndex))
+	{
+		// This plugin is no longer providing this view.
+		return;
 	}
 
 	if (PipelineState.PluginViews[ViewIndex])
@@ -1191,10 +1197,11 @@ bool FOpenXRHMD::GetRelativeEyePose(int32 InDeviceId, EStereoscopicPass InEye, F
 
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
 
+	const uint32 ViewIndex = GetViewIndexForPass(InEye);
 	if (FrameState.ViewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT &&
-		FrameState.ViewState.viewStateFlags & XR_VIEW_STATE_POSITION_VALID_BIT)
+		FrameState.ViewState.viewStateFlags & XR_VIEW_STATE_POSITION_VALID_BIT &&
+		FrameState.Views.IsValidIndex(ViewIndex))
 	{
-		const uint32 ViewIndex = GetViewIndexForPass(InEye);
 		OutOrientation = ToFQuat(FrameState.Views[ViewIndex].pose.orientation);
 		OutPosition = ToFVector(FrameState.Views[ViewIndex].pose.position, GetWorldToMetersScale());
 		return true;
@@ -2345,7 +2352,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 			TArray<XrSwapchainSubImage> DepthImages;
 			for (int32 i = 0; i < PipelineState.PluginViews.Num(); i++)
 			{
-				if (PipelineState.PluginViews[i] == Module)
+				if (PipelineState.PluginViews[i] == Module && LayerState.ColorImages.IsValidIndex(i))
 				{
 					ColorImages.Add(LayerState.ColorImages[i]);
 					if (bDepthExtensionSupported)
