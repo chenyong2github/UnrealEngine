@@ -128,6 +128,7 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 	TileRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
 	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_B8G8R8A8, false);
+	TileRenderTarget->AddToRoot();
 
 	AccumulatorPool = MakeShared<TAccumulatorPool<FMaskOverlappedAccumulator>, ESPMode::ThreadSafe>(6);
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_B8G8R8A8, 3, false);
@@ -164,6 +165,11 @@ void UMoviePipelineObjectIdRenderPass::TeardownImpl()
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
 	OutstandingTasks.Reset();
 	ManifestAnnotation.RemoveAnnotation(this);
+
+	if (TileRenderTarget.IsValid())
+	{
+		TileRenderTarget->RemoveFromRoot();
+	}
 
 	// Preserve our view state until the rendering thread has been flushed.
 	Super::TeardownImpl();
