@@ -27,6 +27,7 @@
 #include "Serialization/FileRegions.h"
 #include "Misc/ICompressionFormat.h"
 #include "Misc/KeyChainUtilities.h"
+#include "Algo/MaxElement.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -261,8 +262,18 @@ private:
 
 bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile, bool bMergeOrder)
 {
-	int32 OrderOffset = (bSecondaryOrderFile || bMergeOrder) ? OrderMap.Num() + 1 : 1;
+	int32 OrderOffset = 0; 
 	int32 OpenOrderNumber = 0;
+
+	if (bSecondaryOrderFile || bMergeOrder)
+	{
+		const auto* maxValue = Algo::MaxElementBy(OrderMap, [](const auto& data) { return data.Value; });
+		if (maxValue)
+		{
+			OrderOffset = maxValue->Value + 1;
+		}
+	}
+
 	if (bSecondaryOrderFile)
 	{
 		MaxPrimaryOrderIndex = OrderOffset;
@@ -278,11 +289,24 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 		for (int32 EntryIndex = 0; EntryIndex < Lines.Num(); EntryIndex++)
 		{
 			FString Path;
+			Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
+			Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
 			const TCHAR* OrderLinePtr = *(Lines[EntryIndex]);
 			if (!FParse::Token(OrderLinePtr, Path, false))
 			{
 				UE_LOG(LogPakFile, Error, TEXT("Invlaid entry in the response file %s."), *Lines[EntryIndex]);
 				return false;
+			}
+
+			if(Lines[EntryIndex].FindLastChar('"', OpenOrderNumber))
+			{
+				FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
+				Lines[EntryIndex].LeftInline(OpenOrderNumber + 1, false);
+				ReadNum.TrimStartInline();
+				if (ReadNum.IsNumeric())
+				{
+					OpenOrderNumber = FCString::Atoi(*ReadNum);
+				}
 			}
 
 			FPaths::NormalizeFilename(Path);
@@ -293,8 +317,7 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 				continue;
 			}
 
-			OpenOrderNumber = OrderOffset++;
-			OrderMap.Add(Path, OpenOrderNumber);
+			OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 		}
 
 		UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);
