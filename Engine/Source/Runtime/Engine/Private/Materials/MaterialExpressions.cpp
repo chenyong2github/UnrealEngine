@@ -19719,15 +19719,6 @@ static int32 CompileWithDefaultTangentWS(class FMaterialCompiler* Compiler, FExp
 UMaterialExpressionStrataBSDF::UMaterialExpressionStrataBSDF(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	struct FConstructorStatics
-	{
-		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Strata);
-#endif
 }
 
 UMaterialExpressionStrataSlabBSDF::UMaterialExpressionStrataSlabBSDF(const FObjectInitializer& ObjectInitializer)
@@ -20050,7 +20041,7 @@ int32 UMaterialExpressionStrataVolumetricFogCloudBSDF::Compile(class FMaterialCo
 
 void UMaterialExpressionStrataVolumetricFogCloudBSDF::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Strata Volumetric Fog Cloud BSDF"));
+	OutCaptions.Add(TEXT("Strata Volumetric-Fog-Cloud BSDF"));
 }
 
 uint32 UMaterialExpressionStrataVolumetricFogCloudBSDF::GetOutputType(int32 OutputIndex)
@@ -20400,7 +20391,7 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 
 void UMaterialExpressionStrataHorizontalMixing::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Strata Horizontal Mixing"));
+	OutCaptions.Add(TEXT("Strata BSDF Horizontal Blend"));
 }
 
 uint32 UMaterialExpressionStrataHorizontalMixing::GetOutputType(int32 OutputIndex)
@@ -20476,7 +20467,7 @@ int32 UMaterialExpressionStrataVerticalLayering::Compile(class FMaterialCompiler
 
 void UMaterialExpressionStrataVerticalLayering::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Strata Vertical Layering"));
+	OutCaptions.Add(TEXT("Strata BSDF Vertical Layer"));
 }
 
 uint32 UMaterialExpressionStrataVerticalLayering::GetOutputType(int32 OutputIndex)
@@ -20552,7 +20543,7 @@ int32 UMaterialExpressionStrataAdd::Compile(class FMaterialCompiler* Compiler, i
 
 void UMaterialExpressionStrataAdd::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Strata Add"));
+	OutCaptions.Add(TEXT("Strata BSDF Add"));
 }
 
 uint32 UMaterialExpressionStrataAdd::GetOutputType(int32 OutputIndex)
@@ -20624,7 +20615,7 @@ int32 UMaterialExpressionStrataMultiply::Compile(class FMaterialCompiler* Compil
 
 void UMaterialExpressionStrataMultiply::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Strata Multiply"));
+	OutCaptions.Add(TEXT("Strata BSDF Weight"));
 }
 
 uint32 UMaterialExpressionStrataMultiply::GetOutputType(int32 OutputIndex)
@@ -20687,7 +20678,7 @@ int32 UMaterialExpressionStrataAnisotropyToRoughness::Compile(class FMaterialCom
 
 void UMaterialExpressionStrataAnisotropyToRoughness::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Strata Anisotropy to roughnesses"));
+	OutCaptions.Add(TEXT("Strata Anisotropy-To-Roughnesses"));
 }
 
 uint32 UMaterialExpressionStrataAnisotropyToRoughness::GetOutputType(int32 OutputIndex)
