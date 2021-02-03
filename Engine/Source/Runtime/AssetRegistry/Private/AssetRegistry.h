@@ -3,18 +3,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryState.h"
-#include "PathTree.h"
-#include "PackageDependencyData.h"
-#include "AssetDataGatherer.h"
-#include "BackgroundGatherResults.h"
+#include "Containers/RingBuffer.h"
 #include "ModuleDescriptor.h"
+#include "PackageDependencyData.h"
+#include "PathTree.h"
+#include "Templates/UniquePtr.h"
+
 #include "AssetRegistry.generated.h"
 
 class FDependsNode;
 struct FARFilter;
+class FAssetDataGatherer;
+class FPackageReader;
 
 /**
  * The AssetRegistry singleton gathers information about .uasset files in the background so things
@@ -28,6 +32,7 @@ class UAssetRegistryImpl : public UObject, public IAssetRegistry
 	GENERATED_BODY()
 public:
 	UAssetRegistryImpl(const FObjectInitializer& ObjectInitializer);
+	UAssetRegistryImpl(FVTableHelper& Helper);
 	virtual ~UAssetRegistryImpl();
 
 	/** Gets the asset registry singleton for asset registry module use */
@@ -167,21 +172,26 @@ private:
 	 */
 	void InternalRunAssetsThroughFilter(TArray<FAssetData>& AssetDataList, const FARFilter& Filter, bool bInclusive) const;
 
+	/* Construct the gatherer if it does not already exist */
+	void ConstructGatherer();
+	/**  Called to set up timing variables and launch the on-constructor SearchAllAssets async call */
+	void SearchAllAssetsInitialAsync();
+	/** Read any results from the gatherer, if it is running asynchronously */
+	void TickGatherer(float DeltaTime, TArray<FName>* OutFoundAssets=nullptr);
 	/** Internal handler for ScanPathsSynchronous */
-	void ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode);
-	void ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode, TArray<FName>* OutFoundAssets, TArray<FName>* OutFoundPaths);
+	void ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles, bool bForceRescan, bool bIgnoreBlackListScanFilters, TArray<FName>* OutFoundAssets);
 
 	/** Called every tick to when data is retrieved by the background asset search. If TickStartTime is < 0, the entire list of gathered assets will be cached. Also used in sychronous searches */
-	void AssetSearchDataGathered(const double TickStartTime, TBackgroundGatherResults<FAssetData*>& AssetResults);
+	void AssetSearchDataGathered(const double TickStartTime, TRingBuffer<FAssetData*>& AssetResults);
 
 	/** Called every tick when data is retrieved by the background path search. If TickStartTime is < 0, the entire list of gathered assets will be cached. Also used in sychronous searches */
-	void PathDataGathered(const double TickStartTime, TBackgroundGatherResults<FString>& PathResults);
+	void PathDataGathered(const double TickStartTime, TRingBuffer<FString>& PathResults);
 
 	/** Called every tick when data is retrieved by the background dependency search */
-	void DependencyDataGathered(const double TickStartTime, TBackgroundGatherResults<FPackageDependencyData>& DependsResults);
+	void DependencyDataGathered(const double TickStartTime, TRingBuffer<FPackageDependencyData>& DependsResults);
 
 	/** Called every tick when data is retrieved by the background search for cooked packages that do not contain asset data */
-	void CookedPackageNamesWithoutAssetDataGathered(const double TickStartTime, TBackgroundGatherResults<FString>& CookedPackageNamesWithoutAssetDataResults);
+	void CookedPackageNamesWithoutAssetDataGathered(const double TickStartTime, TRingBuffer<FString>& CookedPackageNamesWithoutAssetDataResults);
 
 	/** Adds an asset to the empty package list which contains packages that have no assets left in them */
 	void AddEmptyPackage(FName PackageName);
@@ -210,13 +220,6 @@ private:
 	/** Removes the asset data associated with this package from the look-up maps */
 	void RemovePackageData(const FName PackageName);
 
-	/**
-	 * Adds a root path to be discover files in, when asynchronously scanning the disk for asset files
-	 *
-	 * @param	Path	The path on disk to scan
-	 */
-	void AddPathToSearch(const FString& Path);
-
 	/** Adds a list of files which will be searched for asset data */
 	void AddFilesToSearch (const TArray<FString>& Files);
 
@@ -228,7 +231,7 @@ private:
 	void OnAssetLoaded(UObject *AssetLoaded);
 
 	/** Process Loaded Assets to update cache */
-	void ProcessLoadedAssetsToUpdateCache(const double TickStartTime);
+	void ProcessLoadedAssetsToUpdateCache(const double TickStartTime, bool bUpdateDeferredList);
 
 	/** Update Redirect collector with redirects loaded from asset registry */
 	void UpdateRedirectCollector();
@@ -301,12 +304,6 @@ private:
 	void RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDataList, const FARFilter& Filter, const EARFilterMode FilterMode) const;
 
 	/**
-	 * Add sub content blacklist filter for a new mount point
-	 * @param InMount The mount point
-	 */
-	void AddSubContentBlacklist(const FString& InMount);
-
-	/**
 	 * Returns true if path belongs to one of the mount points provided
 	 *
 	 * @param	Path				Path to check if mounted, example "/MyPlugin/SomeAsset"
@@ -365,20 +362,14 @@ private:
 	/** The tree of known cached paths that assets may reside within */
 	FPathTree CachedPathTree;
 
-	/** Set of blacklist paths to filter during full asset scans. */
-	TArray<FString> BlacklistScanFilters;
-
-	/** List of sub content path to filter on every mount during full asset scans. */
-	TArray<FString> BlacklistContentSubPaths;
-
 	/** Async task that gathers asset information from disk */
-	TSharedPtr< class FAssetDataGatherer > BackgroundAssetSearch;
+	TUniquePtr<FAssetDataGatherer> GlobalGatherer;
 
 	/** A list of results that were gathered from the background thread that are waiting to get processed by the main thread */
-	TBackgroundGatherResults<FAssetData*> BackgroundAssetResults;
-	TBackgroundGatherResults<FString> BackgroundPathResults;
-	TBackgroundGatherResults<FPackageDependencyData> BackgroundDependencyResults;
-	TBackgroundGatherResults<FString> BackgroundCookedPackageNamesWithoutAssetDataResults;
+	TRingBuffer<FAssetData*> BackgroundAssetResults;
+	TRingBuffer<FString> BackgroundPathResults;
+	TRingBuffer<FPackageDependencyData> BackgroundDependencyResults;
+	TRingBuffer<FString> BackgroundCookedPackageNamesWithoutAssetDataResults;
 
 	/** The max number of results to process per tick */
 	float MaxSecondsPerFrame;
@@ -418,17 +409,18 @@ private:
 	double AmortizeStartTime;
 	double TotalAmortizeTime;
 
-	/** Flag to enable/disable dependency gathering */
-	bool bGatherDependsData;
-
+	/** Flag to indicate if we used an initial async search */
+	bool bInitialSearchStarted;
 	/** Flag to indicate if the initial background search has completed */
 	bool bInitialSearchCompleted;
+	/** Flag that indicates the background search is idle, so we can take actions when idle changes */
+	bool bGatherIdle;
 
 	/** Enables extra check to make sure path still mounted before adding. Removing mount point can happen between scan (background thread + multiple ticks and the add). */
 	bool bVerifyMountPointAfterGather;
 
-	/** A set used to ignore repeated requests to synchronously scan the same folder or file multiple times */
-	TSet<FString> SynchronouslyScannedPathsAndFiles;
+	/** Record whether SearchAllAssets has been called; if so we will also search new mountpoints when added */
+	bool bSearchAllAssets;
 
 	/** List of all class names derived from Blueprint (including Blueprint itself) */
 	mutable TSet<FName> ClassGeneratorNames;

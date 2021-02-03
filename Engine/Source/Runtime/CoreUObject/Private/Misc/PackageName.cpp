@@ -613,7 +613,14 @@ bool FPackageName::TryConvertToMountedPath(FStringView InPath, FString* OutLocal
 		if (OutFailureReason) *OutFailureReason = EErrorCode::PackageNameFullObjectPathNotAllowed;
 		return false;
 	}
-	if (!IsValidTextForLongPackageName(PackageName, &FailureReason))
+	FStringView PackageNameNoTrailingSlash = PackageName;
+	if (PackageName.Len() > 0 && FPathViews::IsSeparator(PackageName[PackageName.Len() - 1]))
+	{
+		// IsValidTextForLongPackageName rejects packagenames with a trailing slash, but we want to allow that
+		// because this function allows both files and directories
+		PackageNameNoTrailingSlash.LeftChopInline(1);
+	}
+	if (!IsValidTextForLongPackageName(PackageNameNoTrailingSlash, &FailureReason))
 	{
 		ClearSuccessOutputs();
 		if (OutFailureReason) *OutFailureReason = FailureReason;

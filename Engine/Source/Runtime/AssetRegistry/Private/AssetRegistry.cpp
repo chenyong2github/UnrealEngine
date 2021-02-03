@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistry.h"
+
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -11,6 +12,7 @@
 #include "UObject/MetaData.h"
 #include "UObject/CoreRedirects.h"
 #include "Blueprint/BlueprintSupport.h"
+#include "AssetDataGatherer.h"
 #include "AssetRegistryPrivate.h"
 #include "AssetRegistry/ARFilter.h"
 #include "DependsNode.h"
@@ -242,7 +244,10 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 
 	const double StartupStartTime = FPlatformTime::Seconds();
 
+	bInitialSearchStarted = false;
 	bInitialSearchCompleted = true;
+	bGatherIdle = false;
+	bSearchAllAssets = false;
 	AmortizeStartTime = 0;
 	TotalAmortizeTime = 0;
 
@@ -276,16 +281,23 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	// Read default serialization options
 	InitializeSerializationOptionsFromIni(SerializationOptions, FString());
 
-	// Read the scan filters for global asset scanning
-	InitializeBlacklistScanFiltersFromIni();
-
-	// If in the editor, we scan all content right now
-	// If in the game, we expect user to make explicit sync queries using ScanPathsSynchronous
-	// If in a commandlet, we expect the commandlet to decide when to perform a synchronous scan
-	if (GIsEditor && !IsRunningCommandlet())
+	// If in the editor or cookcommandlet, we start the GlobalGatherer now
+	// In the game or other commandlets, we do not construct it until project or commandlet code calls SearchAllAssets or ScanPathsSynchronous
+	bool bSearchAllAssetsAtStart = GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet());
+#if !UE_BUILD_SHIPPING
+	bool bCommandlineAllAssetsAtStart;
+	if (FParse::Bool(FCommandLine::Get(), TEXT("AssetGatherAll="), bCommandlineAllAssetsAtStart))
 	{
-		bInitialSearchCompleted = false;
-		SearchAllAssets(false);
+		bSearchAllAssetsAtStart = bCommandlineAllAssetsAtStart;
+	}
+#endif
+	if (bSearchAllAssetsAtStart)
+	{
+		ConstructGatherer();
+		if (!GlobalGatherer->IsSynchronous())
+		{
+			SearchAllAssetsInitialAsync();
+		}
 	}
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
 	if (GIsEditor && !!LoadPremadeAssetRegistryInEditor)
@@ -406,6 +418,10 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	}
 }
 
+UAssetRegistryImpl::UAssetRegistryImpl(FVTableHelper& Helper)
+{
+}
+
 bool UAssetRegistryImpl::ResolveRedirect(const FString& InPackageName, FString& OutPackageName)
 {
 	int32 DotIndex = InPackageName.Find(TEXT("."), ESearchCase::CaseSensitive);
@@ -463,15 +479,13 @@ void UAssetRegistryImpl::InitRedirectors()
 			FString RootPackageName = FString::Printf(TEXT("/%s/"), *Plugin->GetName());
 			PathsToSearch.Add(RootPackageName);
 
-			const bool bForceRescan = false;
-			ScanPathsAndFilesSynchronous(PathsToSearch, TArray<FString>(), TArray<FString>(), bForceRescan, EAssetDataCacheMode::UseModularCache);
+			ScanPathsSynchronous(PathsToSearch, false /* bForceRescan */, false /* bIgnoreBlacklistScanFilters */);
 		}
 		
 		FName PluginPackageName = FName(*FString::Printf(TEXT("/%s/"), *Plugin->GetName()));
 		TArray<FAssetData> AssetList;
 		GetAssetsByPath(PluginPackageName, AssetList, true, false);
 
-#if 1 // new way
 		for (const FAssetData& Asset : AssetList)
 		{
 			FString NewPackageNameString = Asset.PackageName.ToString();
@@ -488,30 +502,12 @@ void UAssetRegistryImpl::InitRedirectors()
 		FCoreDelegates::FResolvePackageNameDelegate PackageResolveDelegate;
 		PackageResolveDelegate.BindUObject(this, &UAssetRegistryImpl::ResolveRedirect);
 		FCoreDelegates::PackageNameResolvers.Add(PackageResolveDelegate);
-#else
-		TArray<FCoreRedirect> PackageRedirects;
-
-		for ( const FAssetData& Asset : AssetList )
-		{
-			FString NewPackageNameString = Asset.PackageName.ToString();
-			FString RootPackageName = FString::Printf(TEXT("/%s/"), *Plugin->GetName());
-
-			FString OriginalPackageNameString = NewPackageNameString.Replace(*RootPackageName, TEXT("/Game/"));
-
-
-			PackageRedirects.Add( FCoreRedirect(ECoreRedirectFlags::Type_Package, OriginalPackageNameString, NewPackageNameString) );
-
-		}
-
-
-		FCoreRedirects::AddRedirectList(PackageRedirects, Plugin->GetName() );
-#endif
 	}
 }
 
 void UAssetRegistryImpl::RegisterReadOfScriptPackages()
 {
-	if (!BackgroundAssetSearch.IsValid())
+	if (!GlobalGatherer.IsValid())
 	{
 		return;
 	}
@@ -538,16 +534,15 @@ void UAssetRegistryImpl::OnPluginLoadingPhaseComplete(ELoadingPhase::Type Loadin
 
 void UAssetRegistryImpl::ReadScriptPackages()
 {
-	if (BackgroundAssetSearch.IsValid())
+	if (GlobalGatherer.IsValid())
 	{
-		BackgroundAssetSearch->SetInitialPluginsLoaded();
-		if (BackgroundAssetSearch->IsGatheringDependencies())
+		GlobalGatherer->SetInitialPluginsLoaded();
+		if (GlobalGatherer->IsGatheringDependencies())
 		{
 			// Now that all scripts have been loaded, we need to create AssetPackageDatas for every script
 			// This is also done whenever scripts are referenced in our gather of existing packages,
 			// but we need to complete it for all scripts that were referenced but not yet loaded for packages
 			// that we already gathered
-			// CODEREVIEWTODO: Is there a faster way to get the list of loaded script packages?
 			for (TObjectIterator<UPackage> It; It; ++It)
 			{
 				UPackage* Package = *It;
@@ -701,25 +696,6 @@ static void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOpt
 	}
 }
 
-void UAssetRegistryImpl::InitializeBlacklistScanFiltersFromIni()
-{
-	FConfigFile* EngineIni = GConfig->FindConfigFile(GEngineIni);
-	if (EngineIni)
-	{
-		TArray<FString> IniFilters;
-		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistPackagePathScanFilters"), IniFilters);
-		BlacklistScanFilters.Append(MoveTemp(IniFilters));
-		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistContentSubPathScanFilters"), BlacklistContentSubPaths);
-
-		TArray<FString> ContentRoots;
-		FPackageName::QueryRootContentPaths(ContentRoots);		
-		for (const FString& ContentRoot : ContentRoots)
-		{
-			AddSubContentBlacklist(ContentRoot);
-		}
-	}
-}
-
 void UAssetRegistryImpl::CollectCodeGeneratorClasses() const
 {
 	// Only refresh the list if our registered classes have changed
@@ -758,13 +734,6 @@ UAssetRegistryImpl::~UAssetRegistryImpl()
 		check(UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton == this && IAssetRegistryInterface::Default == &GAssetRegistryInterface);
 		UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton = nullptr;
 		IAssetRegistryInterface::Default = nullptr;
-	}
-
-	// Make sure the asset search thread is closed
-	if (BackgroundAssetSearch.IsValid())
-	{
-		BackgroundAssetSearch->EnsureCompletion();
-		BackgroundAssetSearch.Reset();
 	}
 
 	// Stop listening for content mount point events
@@ -818,49 +787,74 @@ UAssetRegistryImpl& UAssetRegistryImpl::Get()
 	return static_cast<UAssetRegistryImpl&>(*UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton);
 }
 
+void UAssetRegistryImpl::ConstructGatherer()
+{
+	if (GlobalGatherer.IsValid())
+	{
+		return;
+	}
+
+	TArray<FString> BlacklistPaths;
+	TArray<FString> BlacklistContentSubPaths;
+	if (FConfigFile* EngineIni = GConfig->FindConfigFile(GEngineIni))
+	{
+		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistPackagePathScanFilters"), BlacklistPaths);
+		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistContentSubPathScanFilters"), BlacklistContentSubPaths);
+	}
+
+	bool bIsSynchronous = IsRunningGame();
+	GlobalGatherer = MakeUnique<FAssetDataGatherer>(BlacklistPaths, BlacklistContentSubPaths, bIsSynchronous);
+	RegisterReadOfScriptPackages();
+}
+
+void UAssetRegistryImpl::SearchAllAssetsInitialAsync()
+{
+	bInitialSearchStarted = true;
+	bInitialSearchCompleted = false;
+	FullSearchStartTime = FPlatformTime::Seconds();
+	SearchAllAssets(false);
+}
+
 void UAssetRegistryImpl::SearchAllAssets(bool bSynchronousSearch)
 {
-	// Mark the time before the first search started
-	FullSearchStartTime = FPlatformTime::Seconds();
+	ConstructGatherer();
+	FAssetDataGatherer& Gatherer = *GlobalGatherer;
+	if (Gatherer.IsSynchronous())
+	{
+		UE_CLOG(!bSynchronousSearch, LogAssetRegistry, Warning, TEXT("SearchAllAssets: Gatherer is in synchronous mode; forcing bSynchronousSearch=true."));
+		bSynchronousSearch = true;
+	}
 
-	// Figure out what all of the root asset directories are.  This will include Engine content, Game content, but also may include
-	// mounted content directories for one or more plugins.	Also keep in mind that plugins may become loaded later on.  We'll listen
-	// for that via a delegate, and add those directories to scan later as them come in.
-	TArray<FString> PathsToSearch;
-	FPackageName::QueryRootContentPaths(PathsToSearch);
+	Gatherer.SetUseMonolithicCache(true);
 
-	// Start the asset search (synchronous in commandlets)
+	// Add all existing mountpoints to the GlobalGatherer
+	// This will include Engine content, Game content, but also may include mounted content directories for one or more plugins.
+	TArray<FString> PackagePathsToSearch;
+	FPackageName::QueryRootContentPaths(PackagePathsToSearch);
+	for (const FString& PackagePath : PackagePathsToSearch)
+	{
+		const FString& MountLocalPath = FPackageName::LongPackageNameToFilename(PackagePath);
+		Gatherer.AddMountPoint(MountLocalPath, PackagePath);
+		Gatherer.SetIsWhitelisted(MountLocalPath, true);
+	}
+	bSearchAllAssets = true; // Mark that future mounts and directories should be scanned
+
 	if (bSynchronousSearch)
 	{
+		Gatherer.WaitForIdle();
+		TickGatherer(-1.f);
 #if WITH_EDITOR
-		if (IsLoadingAssets())
+		if (!bInitialSearchStarted)
 		{
-			// Force a flush of the current gatherer instead
-			UE_LOG(LogAssetRegistry, Log, TEXT("Flushing asset discovery search because of synchronous request, this can take several seconds..."));
-
-			WaitForCompletion();
-		}
-		else
-#endif
-		{
-			const bool bForceRescan = false;
-			ScanPathsAndFilesSynchronous(PathsToSearch, TArray<FString>(), BlacklistScanFilters, bForceRescan, EAssetDataCacheMode::UseMonolithicCache);
-		}
-
-
-#if WITH_EDITOR
-		if (IsRunningCommandlet())
-		{
-			// Update redirectors
+			// We have a contract that we call UpdateRedirectCollector after the call to SearchAllAssets completes.
+			// If we ran the initial async call asynchronously it is done in TickGatherer; for later synchronous calls it is done here
 			UpdateRedirectCollector();
 		}
 #endif
 	}
-	else if (!BackgroundAssetSearch.IsValid())
+	else
 	{
-		// if the BackgroundAssetSearch is already valid then we have already called it before
-		BackgroundAssetSearch = MakeShared<FAssetDataGatherer>(PathsToSearch, TArray<FString>(), BlacklistScanFilters, bSynchronousSearch, EAssetDataCacheMode::UseMonolithicCache);
-		RegisterReadOfScriptPackages();
+		Gatherer.StartAsync();
 	}
 }
 
@@ -1568,19 +1562,6 @@ void UAssetRegistryImpl::RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDat
 	}
 }
 
-void UAssetRegistryImpl::AddSubContentBlacklist(const FString& InMount)
-{
-	for (const FString& SubContentPath : BlacklistContentSubPaths)
-	{
-		BlacklistScanFilters.AddUnique(InMount / SubContentPath);
-	}
-
-	if (BackgroundAssetSearch.IsValid())
-	{
-		BackgroundAssetSearch->SetBlacklistScanFilters(BlacklistScanFilters);
-	}
-}
-
 void UAssetRegistryImpl::ExpandRecursiveFilter(const FARFilter& InFilter, FARFilter& ExpandedFilter) const
 {
 	FARCompiledFilter CompiledFilter;
@@ -1736,11 +1717,17 @@ void UAssetRegistryImpl::PrioritizeAssetInstall(const FAssetData& AssetData) con
 
 bool UAssetRegistryImpl::AddPath(const FString& PathToAdd)
 {
-	if (AssetDataDiscoveryUtil::PassesScanFilters(BlacklistScanFilters, PathToAdd))
+	bool bBlacklisted = false;
+	// If no GlobalGatherer, then we are in the game or non-cook commandlet and we do not implement blacklisting
+	if (GlobalGatherer.IsValid())
 	{
-		return AddAssetPath(FName(*PathToAdd));
+		bBlacklisted = GlobalGatherer->IsBlacklisted(PathToAdd);
 	}
-	return false;
+	if (bBlacklisted)
+	{
+		return false;
+	}
+	return AddAssetPath(FName(*PathToAdd));
 }
 
 bool UAssetRegistryImpl::RemovePath(const FString& PathToRemove)
@@ -1760,52 +1747,41 @@ bool UAssetRegistryImpl::PathExists(const FName PathToTest) const
 
 void UAssetRegistryImpl::ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan, bool bIgnoreBlackListScanFilters)
 {
-	// When ignoring blacklist scan filters, and forcing a rescan of one of the blacklisted folders, remove that folder from the blacklist.
-	// That way, we can now receive assets events such as added / removed / updated.
-	if (bForceRescan && bIgnoreBlackListScanFilters)
-	{
-		for (const FString& Path : InPaths)
-		{
-			for (int i = 0; i < BlacklistScanFilters.Num(); ++i)
-			{
-				if (Path.StartsWith(BlacklistScanFilters[i]))
-				{
-					BlacklistScanFilters.RemoveAt(i--);
-				}
-			}
-		}
-
-		if (BackgroundAssetSearch.IsValid())
-		{
-			BackgroundAssetSearch->SetBlacklistScanFilters(BlacklistScanFilters);
-		}
-	}
-
-	ScanPathsAndFilesSynchronous(InPaths, TArray<FString>(), BlacklistScanFilters, bForceRescan, EAssetDataCacheMode::UseModularCache);
+	ScanPathsSynchronousInternal(InPaths, TArray<FString>(), bForceRescan, bIgnoreBlackListScanFilters, nullptr /* OutFindAssets */);
 }
 
 void UAssetRegistryImpl::ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan)
 {
-	ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, BlacklistScanFilters, bForceRescan, EAssetDataCacheMode::UseModularCache);
+	return ScanPathsSynchronousInternal(TArray<FString>(), InFilePaths, bForceRescan, false /* bIgnoreBlackListScanFilters */, nullptr /* OutFindAssets */);
 }
 
 void UAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
 {
-	// Prioritize the background search
-	if (BackgroundAssetSearch.IsValid())
+	if (!GlobalGatherer.IsValid())
 	{
-		BackgroundAssetSearch->PrioritizeSearchPath(PathToPrioritize);
+		return;
 	}
+	GlobalGatherer->PrioritizeSearchPath(PathToPrioritize);
 
 	// Also prioritize the queue of background search results
-	BackgroundAssetResults.Prioritize([&PathToPrioritize](const FAssetData* BackgroundAssetResult)
+	int32 FirstNonPriorityIndex = 0;
+	for (int Index = 0; Index < BackgroundAssetResults.Num(); ++Index)
 	{
-		return BackgroundAssetResult && BackgroundAssetResult->PackagePath.ToString().StartsWith(PathToPrioritize);
-	});
-	BackgroundPathResults.Prioritize([&PathToPrioritize](const FString& BackgroundPathResult)
+		FAssetData* PriorityElement = BackgroundAssetResults[Index];
+		if (PriorityElement && PriorityElement->PackagePath.ToString().StartsWith(PathToPrioritize))
+		{
+			Swap(BackgroundAssetResults[FirstNonPriorityIndex++], BackgroundAssetResults[Index]);
+		}
+	}
+	FirstNonPriorityIndex = 0;
+	for (int Index = 0; Index < BackgroundPathResults.Num(); ++Index)
 	{
-		return BackgroundPathResult.StartsWith(PathToPrioritize);
-	});
+		FString& PriorityElement = BackgroundPathResults[Index];
+		if (PriorityElement.StartsWith(PathToPrioritize))
+		{
+			Swap(BackgroundPathResults[FirstNonPriorityIndex++], BackgroundPathResults[Index]);
+		}
+	}
 }
 
 void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
@@ -1931,6 +1907,16 @@ bool UAssetRegistryImpl::IsLoadingAssets() const
 
 void UAssetRegistryImpl::Tick(float DeltaTime)
 {
+	TickGatherer(DeltaTime);
+}
+
+void UAssetRegistryImpl::TickGatherer(float DeltaTime, TArray<FName>* OutFoundAssets)
+{
+	if (!GlobalGatherer.IsValid())
+	{
+		return;
+	}
+
 	double TickStartTime = FPlatformTime::Seconds();
 
 	if (DeltaTime < 0)
@@ -1938,10 +1924,6 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 		// Force a full flush
 		TickStartTime = -1;
 	}
-	
-	bool bOldTemporaryCachingMode = GetTemporaryCachingMode();
-	SetTemporaryCachingMode(true);
-	ON_SCOPE_EXIT { SetTemporaryCachingMode(bOldTemporaryCachingMode); };
 
 	// Gather results from the background search
 	bool bIsSearching = false;
@@ -1949,16 +1931,17 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 	int32 NumFilesToSearch = 0;
 	int32 NumPathsToSearch = 0;
 	bool bIsDiscoveringFiles = false;
-	if (BackgroundAssetSearch.IsValid())
-	{
-		bIsSearching = BackgroundAssetSearch->GetAndTrimSearchResults(BackgroundAssetResults, BackgroundPathResults, BackgroundDependencyResults, BackgroundCookedPackageNamesWithoutAssetDataResults, SearchTimes, NumFilesToSearch, NumPathsToSearch, bIsDiscoveringFiles);
-	}
-
+	GlobalGatherer->GetAndTrimSearchResults(bIsSearching, BackgroundAssetResults, BackgroundPathResults, BackgroundDependencyResults, BackgroundCookedPackageNamesWithoutAssetDataResults, SearchTimes, NumFilesToSearch, NumPathsToSearch, bIsDiscoveringFiles);
 	// Report the search times
 	for (int32 SearchTimeIdx = 0; SearchTimeIdx < SearchTimes.Num(); ++SearchTimeIdx)
 	{
 		UE_LOG(LogAssetRegistry, Verbose, TEXT("### Background search completed in %0.4f seconds"), SearchTimes[SearchTimeIdx]);
 	}
+
+	// Go into temporary caching mode to speed up class queries while adding assets
+	bool bOldTemporaryCachingMode = GetTemporaryCachingMode();
+	SetTemporaryCachingMode(true);
+	ON_SCOPE_EXIT{ SetTemporaryCachingMode(bOldTemporaryCachingMode); };
 
 	// Add discovered paths
 	if (BackgroundPathResults.Num())
@@ -1974,6 +1957,15 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 		if (AmortizeStartTime == 0)
 		{
 			AmortizeStartTime = FPlatformTime::Seconds();
+		}
+		if (OutFoundAssets)
+		{
+			OutFoundAssets->Reset();
+			OutFoundAssets->Reserve(BackgroundAssetResults.Num());
+			for (FAssetData* AssetData : BackgroundAssetResults)
+			{
+				OutFoundAssets->Add(AssetData->ObjectPath);
+			}
 		}
 
 		AssetSearchDataGathered(TickStartTime, BackgroundAssetResults);
@@ -2016,7 +2008,10 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 	}
 
 	// If completing an initial search, refresh the content browser
-	if (!bIsSearching && NumPending == 0)
+	bool bIsIdle = !bIsSearching && NumPending == 0;
+	bool bBecameIdle = !bGatherIdle && bIsIdle;
+	bGatherIdle = bIsIdle;
+	if (bIsIdle)
 	{
 		HighestPending = 0;
 
@@ -2033,13 +2028,13 @@ void UAssetRegistryImpl::Tick(float DeltaTime)
 
 			FileLoadedEvent.Broadcast();
 		}
-#if WITH_EDITOR
-		else if (bUpdateDiskCacheAfterLoad)
-		{
-			ProcessLoadedAssetsToUpdateCache(TickStartTime);
-		}
-#endif
 	}
+#if WITH_EDITOR
+	if (bUpdateDiskCacheAfterLoad && (bIsIdle || TickStartTime < 0))
+	{
+		ProcessLoadedAssetsToUpdateCache(TickStartTime, bBecameIdle);
+	}
+#endif
 }
 
 void UAssetRegistryImpl::Serialize(FArchive& Ar)
@@ -2108,7 +2103,7 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 	uint32 StateSize = State.GetAllocatedSize(bLogDetailed);
 
 	uint32 StaticSize = sizeof(UAssetRegistryImpl) + CachedEmptyPackages.GetAllocatedSize() + CachedBPInheritanceMap.GetAllocatedSize()  + ClassGeneratorNames.GetAllocatedSize() + OnDirectoryChangedDelegateHandles.GetAllocatedSize();
-	uint32 SearchSize = BackgroundAssetResults.GetAllocatedSize() + BackgroundPathResults.GetAllocatedSize() + BackgroundDependencyResults.GetAllocatedSize() + BackgroundCookedPackageNamesWithoutAssetDataResults.GetAllocatedSize() + SynchronouslyScannedPathsAndFiles.GetAllocatedSize() + CachedPathTree.GetAllocatedSize();
+	uint32 SearchSize = BackgroundAssetResults.GetAllocatedSize() + BackgroundPathResults.GetAllocatedSize() + BackgroundDependencyResults.GetAllocatedSize() + BackgroundCookedPackageNamesWithoutAssetDataResults.GetAllocatedSize() + CachedPathTree.GetAllocatedSize();
 
 	if (bIsTempCachingEnabled && !bIsTempCachingAlwaysEnabled)
 	{
@@ -2117,16 +2112,10 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 		UE_LOG(LogAssetRegistry, Warning, TEXT("Asset Registry Temp caching enabled, wasting memory: %dk"), TempCacheMem / 1024);
 	}
 
-	StaticSize += BlacklistScanFilters.GetAllocatedSize();
-	for (const FString& ScanFilter : BlacklistScanFilters)
+	if (GlobalGatherer.IsValid())
 	{
-		StaticSize += ScanFilter.GetAllocatedSize();
-	}
-
-	StaticSize += BlacklistContentSubPaths.GetAllocatedSize();
-	for (const FString& ScanFilter : BlacklistContentSubPaths)
-	{
-		StaticSize += ScanFilter.GetAllocatedSize();
+		SearchSize += sizeof(*GlobalGatherer);
+		SearchSize += GlobalGatherer->GetAllocatedSize();
 	}
 
 	StaticSize += SerializationOptions.CookFilterlistTagsByClass.GetAllocatedSize();
@@ -2187,136 +2176,156 @@ const TSet<FName>& UAssetRegistryImpl::GetCachedEmptyPackages() const
 	return CachedEmptyPackages;
 }
 
-void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode)
-{
-	ScanPathsAndFilesSynchronous(InPaths, InSpecificFiles, InBlacklistScanFilters, bForceRescan, AssetDataCacheMode, nullptr, nullptr);
-}
-
-void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode, TArray<FName>* OutFoundAssets, TArray<FName>* OutFoundPaths)
+void UAssetRegistryImpl::ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles, bool bForceRescan, bool bIgnoreBlackListScanFilters, TArray<FName>* OutFoundAssets)
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 	const double SearchStartTime = FPlatformTime::Seconds();
-
-	// Only scan paths that were not previously synchronously scanned, unless we were asked to force rescan.
-	TArray<FString> PathsToScan;
-	TArray<FString> FilesToScan;
-	bool bPathsRemoved = false;
-
-	for (const FString& Path : InPaths)
+	if (OutFoundAssets)
 	{
-		bool bAlreadyScanned = false;
-		FString PathWithSlash = Path;
-		if (!PathWithSlash.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
-		{
-			// Add / if it's missing so the substring check is safe
-			PathWithSlash += TEXT("/");
-		}
+		OutFoundAssets->Empty();
+	}
+	if (bIgnoreBlackListScanFilters && !bForceRescan)
+	{
+		// This restriction is necessary because we have not yet implemented some of the required behavior to handle bIgnoreBlackListScanFilters without bForceRescan;
+		// For skipping of directories that we have already scanned, we would have to check whether the directory has been set to be monitored with the proper flag (ignore blacklist or not)
+		// rather than just checking whether it has been set to be monitored at all
+		UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: bIgnoreBlacklistScanFilters==true is only valid when bForceRescan==true. Setting bForceRescan=true."));
+		bForceRescan = true;
+	}
 
-		// Check that it starts with /
-		for (const FString& ScannedPath : SynchronouslyScannedPathsAndFiles)
+	TArray<FString> PackageDirs;
+	TArray<FString> LocalDirs;
+	TArray<FString> PackageFiles;
+	TArray<FString> LocalFiles;
+	FString LocalPath;
+	FString PackageName;
+	FString Extension;
+	FPackageName::EFlexNameType FlexNameType;
+	LocalFiles.Reserve(InFiles.Num());
+	PackageFiles.Reserve(InFiles.Num());
+	for (const FString& InFile : InFiles)
+	{
+		if (!FPackageName::TryConvertToMountedPath(InFile, &LocalPath, &PackageName, nullptr, nullptr, &Extension, &FlexNameType))
 		{
-			if (PathWithSlash.StartsWith(ScannedPath))
+			UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: %s is not in a mounted path, will not scan."), *InFile);
+			continue;
+		}
+		if (Extension.IsEmpty())
+		{
+			// The empty extension is not a valid Package extension; it might exist, but we will pay the price to check it
+			if (!IFileManager::Get().FileExists(*LocalPath))
 			{
-				bAlreadyScanned = true;
-				break;
+				// Find the extension
+				FPackagePath PackagePath = FPackagePath::FromLocalPath(LocalPath);
+				if (!FPackageName::DoesPackageExist(PackagePath, &PackagePath))
+				{
+					UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: Package %s does not exist, will not scan."), *InFile);
+					continue;
+				}
+				Extension = LexToString(PackagePath.GetHeaderExtension());
 			}
 		}
-
-		if (bForceRescan || !bAlreadyScanned)
+		LocalFiles.Add(LocalPath + Extension);
+		PackageFiles.Add(PackageName);
+	}
+	LocalDirs.Reserve(InDirs.Num());
+	PackageDirs.Reserve(InDirs.Num());
+	for (const FString& InDir : InDirs)
+	{
+		if (!FPackageName::TryConvertToMountedPath(InDir, &LocalPath, &PackageName, nullptr, nullptr, &Extension, &FlexNameType))
 		{
-			PathsToScan.Add(Path);
-			SynchronouslyScannedPathsAndFiles.Add(PathWithSlash);
+			UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: %s is not in a mounted path, will not scan."), *InDir);
+			continue;
 		}
-		else
-		{
-			bPathsRemoved = true;
-		}
+		LocalDirs.Add(LocalPath + Extension);
+		PackageDirs.Add(PackageName + Extension);
 	}
 
-	for (const FString& SpecificFile : InSpecificFiles)
+	ConstructGatherer();
+	FAssetDataGatherer& Gatherer = *GlobalGatherer;
+
+	// Add a cache file for any not-yet-scanned dirs
+	TArray<FString> CacheFilePackagePaths;
+	if (!bForceRescan && Gatherer.IsCacheEnabled())
 	{
-		if (bForceRescan || !SynchronouslyScannedPathsAndFiles.Contains(SpecificFile))
+		for (int n = 0; n < LocalDirs.Num(); ++n)
 		{
-			FilesToScan.Add(SpecificFile);
-			SynchronouslyScannedPathsAndFiles.Add(SpecificFile);
-		}
-		else
-		{
-			bPathsRemoved = true;
-		}
-	}
-
-	// If we removed paths, we can't use the monolithic cache as this will replace it with invalid data
-	if (AssetDataCacheMode == EAssetDataCacheMode::UseMonolithicCache && bPathsRemoved)
-	{
-		AssetDataCacheMode = EAssetDataCacheMode::UseModularCache;
-	}
-
-	if (PathsToScan.Num() > 0 || FilesToScan.Num() > 0)
-	{
-		// Start the sync asset search
-		FAssetDataGatherer AssetSearch(PathsToScan, FilesToScan, InBlacklistScanFilters, /*bSynchronous=*/true, AssetDataCacheMode);
-
-		// Get the search results
-		TBackgroundGatherResults<FAssetData*> AssetResults;
-		TBackgroundGatherResults<FString> PathResults;
-		TBackgroundGatherResults<FPackageDependencyData> DependencyResults;
-		TBackgroundGatherResults<FString> CookedPackageNamesWithoutAssetDataResults;
-		TArray<double> SearchTimes;
-		int32 NumFilesToSearch = 0;
-		int32 NumPathsToSearch = 0;
-		bool bIsDiscoveringFiles = false;
-		AssetSearch.GetAndTrimSearchResults(AssetResults, PathResults, DependencyResults, CookedPackageNamesWithoutAssetDataResults, SearchTimes, NumFilesToSearch, NumPathsToSearch, bIsDiscoveringFiles);
-
-		if (OutFoundAssets)
-		{
-			OutFoundAssets->Reserve(OutFoundAssets->Num() + AssetResults.Num());
-			for (int32 i = 0; i < AssetResults.Num(); ++i)
+			if (!Gatherer.IsWhitelisted(LocalDirs[n]))
 			{
-				OutFoundAssets->Add(AssetResults[i]->ObjectPath);
+				CacheFilePackagePaths.Add(PackageDirs[n]);
 			}
 		}
-
-		if (OutFoundPaths)
-		{
-			OutFoundPaths->Reserve(OutFoundPaths->Num() + PathResults.Num());
-			for (int32 i = 0; i < PathResults.Num(); ++i)
-			{
-				OutFoundPaths->Add(*PathResults[i]);
-			}
-		}
-
-		// Cache the search results
-		const int32 NumResults = AssetResults.Num();
-		AssetSearchDataGathered(-1, AssetResults);
-		PathDataGathered(-1, PathResults);
-		DependencyDataGathered(-1, DependencyResults);
-		CookedPackageNamesWithoutAssetDataGathered(-1, CookedPackageNamesWithoutAssetDataResults);
-
-#if WITH_EDITOR
-		if (bUpdateDiskCacheAfterLoad && bInitialSearchCompleted)
-		{
-			ProcessLoadedAssetsToUpdateCache(-1);
-		}
-#endif
-
-		// Log stats
-		TArray<FString> LogPathsAndFilenames = PathsToScan;
-		LogPathsAndFilenames.Append(FilesToScan);
-
-		const FString& Path = LogPathsAndFilenames[0];
-		FString PathsString;
-		if (LogPathsAndFilenames.Num() > 1)
-		{
-			PathsString = FString::Printf(TEXT("'%s' and %d other paths/filenames"), *Path, LogPathsAndFilenames.Num() - 1);
-		}
-		else
-		{
-			PathsString = FString::Printf(TEXT("'%s'"), *Path);
-		}
-
-		UE_LOG(LogAssetRegistry, Verbose, TEXT("ScanPathsSynchronous completed scanning %s to find %d assets in %0.4f seconds"), *PathsString, NumResults, FPlatformTime::Seconds() - SearchStartTime);
 	}
+	TArray<FString> LocalPaths;
+	LocalPaths.Reserve(LocalFiles.Num() + LocalDirs.Num());
+	LocalPaths.Append(MoveTemp(LocalDirs));
+	LocalPaths.Append(MoveTemp(LocalFiles));
+	if (LocalPaths.IsEmpty())
+	{
+		return;
+	}
+	Gatherer.AddRequiredMountPoints(LocalPaths);
+
+	FString CacheFilename;
+	if (!CacheFilePackagePaths.IsEmpty())
+	{
+		CacheFilename = Gatherer.GetCacheFilename(CacheFilePackagePaths);
+		Gatherer.LoadCacheFile(CacheFilename);
+	}
+
+	TArray<FName> FoundAssetsBuffer;
+	TArray<FName>* FoundAssets = OutFoundAssets;
+	if (!FoundAssets)
+	{
+		FoundAssets = &FoundAssetsBuffer;
+	}
+	Gatherer.ScanPathsSynchronous(LocalPaths, bForceRescan, bIgnoreBlackListScanFilters, CacheFilename, PackageDirs);
+	TickGatherer(-1.f, FoundAssets);
+	// The gatherer may have added other assets that were scanned as part of the ongoing background scan; remove any assets that were not in the requested paths
+	if (OutFoundAssets)
+	{
+		FoundAssets->RemoveAll([&PackageFiles, &PackageDirs](FName ObjectPath)
+			{
+				TStringBuilder<128> ObjectPathStr;
+				ObjectPath.ToString(ObjectPathStr);
+				FStringView UnusedClassName;
+				FStringView PackageName;
+				FStringView UnusedObjectName;
+				FStringView UnusedSubObjectName;
+				FPackageName::SplitFullObjectPath(ObjectPathStr, UnusedClassName, PackageName, UnusedObjectName, UnusedSubObjectName);
+				bool bIsInRequestedPaths = false;
+				for (const FString& RequestedPackageDir : PackageDirs)
+				{
+					if (FPathViews::IsParentPathOf(RequestedPackageDir, PackageName))
+					{
+						bIsInRequestedPaths = true;
+						break;
+					}
+				}
+				for (const FString& RequestedPackageFile : PackageFiles)
+				{
+					if (PackageName.Equals(RequestedPackageFile, ESearchCase::IgnoreCase))
+					{
+						bIsInRequestedPaths = true;
+						break;
+					}
+				}
+				return !bIsInRequestedPaths;
+			});
+	}
+
+	// Log stats
+	FString PathsString;
+	if (LocalPaths.Num() > 1)
+	{
+		PathsString = FString::Printf(TEXT("'%s' and %d other paths"), *LocalPaths[0], LocalPaths.Num() - 1);
+	}
+	else
+	{
+		PathsString = FString::Printf(TEXT("'%s'"), *LocalPaths[0]);
+	}
+
+	UE_LOG(LogAssetRegistry, Verbose, TEXT("ScanPathsSynchronous completed scanning %s to find %d assets in %0.4f seconds"), *PathsString, FoundAssets->Num(), FPlatformTime::Seconds() - SearchStartTime);
 }
 
 bool UAssetRegistryImpl::IsPathMounted(const FString& Path, const TSet<FString>& MountPointsNoTrailingSlashes, FString& StringBuffer) const
@@ -2342,7 +2351,7 @@ bool UAssetRegistryImpl::IsPathMounted(const FString& Path, const TSet<FString>&
 	return false;
 }
 
-void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBackgroundGatherResults<FAssetData*>& AssetResults)
+void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TRingBuffer<FAssetData*>& AssetResults)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
@@ -2362,8 +2371,7 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 	// Add the found assets
 	while (AssetResults.Num() > 0)
 	{
-		FAssetData*& BackgroundResult = AssetResults.Pop();
-
+		FAssetData* BackgroundResult = AssetResults.PopFrontValue();
 		CA_ASSUME(BackgroundResult);
 
 		// Try to update any asset data that may already exist
@@ -2387,8 +2395,14 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 			// If this ensure fires then we've somehow processed the same result more than once, and that should never happen
 			if (ensure(AssetData != BackgroundResult))
 			{
-				// The asset exists in the cache, update it
-				UpdateAssetData(AssetData, *BackgroundResult);
+				// If the current AssetData came from a loaded asset, don't overwrite it with the new one from disk; loaded asset is more authoritative because it has run the postload steps
+#if WITH_EDITOR
+				if (!AssetDataObjectPathsUpdatedOnLoad.Contains(BackgroundResult->ObjectPath))
+#endif
+				{
+					// The asset exists in the cache from disk and has not yet been loaded into memory, update it with the new background data
+					UpdateAssetData(AssetData, *BackgroundResult);
+				}
 
 				// Delete the result that was originally created by an FPackageReader
 				delete BackgroundResult;
@@ -2416,12 +2430,9 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 			return;
 		}
 	}
-
-	// Trim the results array
-	AssetResults.Trim();
 }
 
-void UAssetRegistryImpl::PathDataGathered(const double TickStartTime, TBackgroundGatherResults<FString>& PathResults)
+void UAssetRegistryImpl::PathDataGathered(const double TickStartTime, TRingBuffer<FString>& PathResults)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
@@ -2436,7 +2447,7 @@ void UAssetRegistryImpl::PathDataGathered(const double TickStartTime, TBackgroun
 
 	while (PathResults.Num() > 0)
 	{
-		const FString& Path = PathResults.Pop();
+		FString Path = PathResults.PopFrontValue();
 
 		// Skip stale results caused by mount then unmount of a path within short period.
 		if (!bVerifyMountPointAfterGather || IsPathMounted(Path, MountPoints, PackageRoot))
@@ -2450,19 +2461,16 @@ void UAssetRegistryImpl::PathDataGathered(const double TickStartTime, TBackgroun
 			return;
 		}
 	}
-
-	// Trim the results array
-	PathResults.Trim();
 }
 
-void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBackgroundGatherResults<FPackageDependencyData>& DependsResults)
+void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TRingBuffer<FPackageDependencyData>& DependsResults)
 {
 	using namespace UE::AssetRegistry;
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	while (DependsResults.Num() > 0)
 	{
-		FPackageDependencyData& Result = DependsResults.Pop();
+		FPackageDependencyData Result = DependsResults.PopFrontValue();
 
 		// Update package data
 		FAssetPackageData* PackageData = State.CreateOrGetAssetPackageData(Result.PackageName);
@@ -2596,12 +2604,9 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 			return;
 		}
 	}
-
-	// Trim the results array
-	DependsResults.Trim();
 }
 
-void UAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(const double TickStartTime, TBackgroundGatherResults<FString>& CookedPackageNamesWithoutAssetDataResults)
+void UAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(const double TickStartTime, TRingBuffer<FString>& CookedPackageNamesWithoutAssetDataResults)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
@@ -2626,7 +2631,7 @@ void UAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(const double
 		{
 			// If this data is cooked and it we couldn't find any asset in its export table then try to load the entire package 
 			// Loading the entire package will make all of its assets searchable through the in-memory scanning performed by GetAsseets
-			const FString& BackgroundResult = CookedPackageNamesWithoutAssetDataResults.Pop();
+			FString BackgroundResult = CookedPackageNamesWithoutAssetDataResults.PopFrontValue();
 			LoadPackage(nullptr, *BackgroundResult, 0);
 
 			// Check to see if we have run out of time in this tick
@@ -2643,9 +2648,6 @@ void UAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(const double
 		// kill performance. We need a better way.
 		CookedPackageNamesWithoutAssetDataResults.Empty();
 	}
-
-	// Trim the results array
-	CookedPackageNamesWithoutAssetDataResults.Trim();
 }
 
 void UAssetRegistryImpl::AddEmptyPackage(FName PackageName)
@@ -2821,30 +2823,6 @@ void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 	}
 }
 
-void UAssetRegistryImpl::AddPathToSearch(const FString& Path)
-{
-	if (BackgroundAssetSearch.IsValid())
-	{
-		BackgroundAssetSearch->AddPathToSearch(Path);
-	}
-	else if (GIsEditor)
-	{
-		ScanPathsSynchronous({Path});
-	}
-}
-
-void UAssetRegistryImpl::AddFilesToSearch(const TArray<FString>& Files)
-{
-	if (BackgroundAssetSearch.IsValid())
-	{
-		BackgroundAssetSearch->AddFilesToSearch(Files);
-	}
-	else if (GIsEditor)
-	{
-		ScanFilesSynchronous(Files);
-	}
-}
-
 #if WITH_EDITOR
 
 void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileChanges)
@@ -2876,6 +2854,7 @@ void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileC
 		}
 	}
 
+	TArray<FString> NewDirs;
 	TArray<FString> NewFiles;
 	TArray<FString> ModifiedFiles;
 
@@ -2918,11 +2897,10 @@ void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileC
 			{
 			case FFileChangeData::FCA_Added:
 			{
-				if (FPaths::DirectoryExists(File) && LongPackageName != TEXT("/Game/Collections"))
+				if (FPaths::DirectoryExists(File))
 				{
-					AddPath(LongPackageName);
+					NewDirs.Add(File);
 					UE_LOG(LogAssetRegistry, Verbose, TEXT("Directory was added to content directory: %s"), *File);
-					AddPathToSearch(LongPackageName);
 				}
 				break;
 			}
@@ -2938,9 +2916,20 @@ void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileC
 		}
 	}
 
-	if (NewFiles.Num())
+	if (NewFiles.Num() || NewDirs.Num())
 	{
-		AddFilesToSearch(NewFiles);
+		if (GlobalGatherer.IsValid())
+		{
+			for (FString& NewDir : NewDirs)
+			{
+				GlobalGatherer->OnDirectoryCreated(NewDir);
+			}
+			GlobalGatherer->OnFilesCreated(NewFiles);
+			if (GlobalGatherer->IsSynchronous())
+			{
+				ScanPathsSynchronousInternal(NewDirs, NewFiles, false /* bForceRescan */, false /* bIgnoreBlacklistScanFilters */, nullptr /* OutFoundAssets */);
+			}
+		}
 	}
 
 	ScanModifiedAssetFiles(ModifiedFiles);
@@ -2951,14 +2940,13 @@ void UAssetRegistryImpl::OnAssetLoaded(UObject *AssetLoaded)
 	LoadedAssetsToProcess.Add(AssetLoaded);
 }
 
-void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStartTime)
+void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStartTime, bool bUpdateDeferredList)
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
-	check(bInitialSearchCompleted && bUpdateDiskCacheAfterLoad);
 
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
-	if (bFlushFullBuffer)
+	if (bFlushFullBuffer || bUpdateDeferredList)
 	{
 		// Retry the previous failures on a flush
 		LoadedAssetsToProcess.Append(LoadedAssetsThatDidNotHaveCachedData);
@@ -3087,7 +3075,7 @@ void UAssetRegistryImpl::ScanModifiedAssetFiles(const TArray<FString>& InFilePat
 
 		// Re-scan and update the asset registry with the new asset data
 		TArray<FName> FoundAssets;
-		ScanPathsAndFilesSynchronous(TArray<FString>(), InFilePaths, BlacklistScanFilters, true, EAssetDataCacheMode::NoCache, &FoundAssets, nullptr);
+		ScanPathsSynchronousInternal(TArray<FString>(), InFilePaths, true /* bForceRescan */, false /* bIgnoreBlackListScanFilters */, &FoundAssets);
 
 		// Remove any assets that are no longer present in the package
 		for (const TArray<FAssetData*, TInlineAllocator<1>>& OldPackageAssets : ExistingFilesAssetData)
@@ -3105,8 +3093,6 @@ void UAssetRegistryImpl::ScanModifiedAssetFiles(const TArray<FString>& InFilePat
 
 void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const FString& FileSystemPath)
 {
-	AddSubContentBlacklist(InAssetPath);
-
 	// Sanitize
 	FString AssetPathWithTrailingSlash;
 	if (!InAssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
@@ -3122,8 +3108,18 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 	// Content roots always exist
 	AddPath(AssetPathWithTrailingSlash);
 
-	// Add this to our list of root paths to process
-	AddPathToSearch(AssetPathWithTrailingSlash);
+	if (GlobalGatherer.IsValid() && bSearchAllAssets)
+	{
+		if (GlobalGatherer->IsSynchronous())
+		{
+			ScanPathsSynchronous({ FileSystemPath });
+		}
+		else
+		{
+			GlobalGatherer->AddMountPoint(FileSystemPath, InAssetPath);
+			GlobalGatherer->SetIsWhitelisted(FileSystemPath, true);
+		}
+	}
 
 	// Listen for directory changes in this content path
 #if WITH_EDITOR
@@ -3162,6 +3158,11 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 	{
 		// We don't want a trailing slash here as it could interfere with RemoveAssetPath
 		AssetPathNoTrailingSlash.LeftChopInline(1, false);
+	}
+
+	if (GlobalGatherer.IsValid())
+	{
+		GlobalGatherer->RemoveMountPoint(FileSystemPath);
 	}
 
 	// Remove all cached assets found at this location

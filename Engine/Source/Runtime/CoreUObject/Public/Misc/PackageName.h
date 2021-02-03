@@ -500,12 +500,11 @@ public:
 	 * @param	Filename to test. 
 	 * @return	True if the filename ends with a package extension.
 	 */
-	static FORCEINLINE bool IsPackageFilename(const FString& Filename)
+	static FORCEINLINE bool IsPackageFilename(FStringView Filename)
 	{
 		FStringView AssetPackageExtension(LexToString(EPackageExtension::Asset));
 		FStringView MapPackageExtension(LexToString(EPackageExtension::Map));
-		FStringView FilenameView(Filename);
-		return FilenameView.EndsWith(AssetPackageExtension) || FilenameView.EndsWith(MapPackageExtension);
+		return Filename.EndsWith(AssetPackageExtension) || Filename.EndsWith(MapPackageExtension);
 	}
 
 	/**
@@ -675,6 +674,22 @@ public:
 		return DoesPackageExistOverrideDelegate;
 	}
 
+	/**
+	 * Find a mount point that contains the given LocalFilePath or PackageName, and if found, return the MountPoint and RelativePath
+	 *
+	 * @param InFilePathOrPackageName The path to test, either a LocalFilePath or a PackageName or an ObjectPath
+	 * @param OutMountPointPackageName If the MountPoint is found, the PackageName of the MountPoint is copied into this variable, otherwise it is set to empty string
+	 * @param OutMountPointFilePath If the MountPoint is found, the LocalFilePath of the MountPoint is copied into this variable, otherwise it is set to empty string
+	 * @param OutRelPath If the MountPoint is found, the RelativePath from the MountPoint to InFilePathOrPackageName is copied into this variable, otherwise it is set to empty string
+	 * 					 If InFilePathOrPackageName was a filepath, the extension is removed before copying it into OutRelpath
+	 *					 The OutRelPath is the same for both the LocalFilePath and the PackageName
+	 * @param OutFlexNameType If non-null, will be set to whether InFilePathOrPackageName was a PackageName or Filename if the MountPoint is found, otherwise it is set to EFlexNameType::Invalid
+	 * @param OutFailureReason If non-null, will be set to the reason InPath could not be converted, or to EErrorCode::Unknown if the function was successful.
+	 * @return True if the MountPoint was found, else false
+	 */
+	static bool TryGetMountPointForPath(FStringView InFilePathOrPackageName, FStringBuilderBase& OutMountPointPackageName, FStringBuilderBase& OutMountPointFilePath, FStringBuilderBase& OutRelPath,
+		EFlexNameType* OutFlexNameType = nullptr, EErrorCode* OutFailureReason = nullptr);
+
 private:
 
 	/**
@@ -701,22 +716,6 @@ private:
 	 */
 	static bool TryConvertToMountedPathComponents(FStringView InPath, FStringBuilderBase& OutMountPointPackageName, FStringBuilderBase& OutMountPointFilePath, FStringBuilderBase& OutRelPath,
 		FStringBuilderBase& OutObjectName, EPackageExtension& OutExtension, FStringBuilderBase& OutCustomExtension, EFlexNameType* OutFlexNameType = nullptr, EErrorCode* OutFailureReason = nullptr);
-
-	/**
-	 * Internal helper to find a mount point that contains the given LocalFilePath or PackageName, and if found, return the MountPoint and RelativePath
-	 *
-	 * @param InFilePathOrPackageName The path to test, either a LocalFilePath or a PackageName or an ObjectPath
-	 * @param OutMountPointPackageName If the MountPoint is found, the PackageName of the MountPoint is copied into this variable, otherwise it is set to empty string
-	 * @param OutMountPointFilePath If the MountPoint is found, the LocalFilePath of the MountPoint is copied into this variable, otherwise it is set to empty string
-	 * @param OutRelPath If the MountPoint is found, the RelativePath from the MountPoint to InFilePathOrPackageName is copied into this variable, otherwise it is set to empty string
-	 * 					 If InFilePathOrPackageName was a filepath, the extension is removed before copying it into OutRelpath
-	 *					 The OutRelPath is the same for both the LocalFilePath and the PackageName
-	 * @param OutFlexNameType If non-null, will be set to whether InFilePathOrPackageName was a PackageName or Filename if the MountPoint is found, otherwise it is set to EFlexNameType::Invalid
-	 * @param OutFailureReason If non-null, will be set to the reason InPath could not be converted, or to EErrorCode::Unknown if the function was successful.
-	 * @return True if the MountPoint was found, else false
-	 */
-	static bool TryGetMountPointForPath(FStringView InFilePathOrPackageName, FStringBuilderBase& OutMountPointPackageName, FStringBuilderBase& OutMountPointFilePath, FStringBuilderBase& OutRelPath,
-		EFlexNameType* OutFlexNameType = nullptr, EErrorCode* OutFailureReason = nullptr);
 
 	/** Event that is triggered when a new content path is mounted */
 	static FOnContentPathMountedEvent OnContentPathMountedEvent;

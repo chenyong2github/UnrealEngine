@@ -22,6 +22,7 @@ public:
 	FAutoConsoleCommand GetDependenciesCommand;
 	FAutoConsoleCommand GetReferencersCommand;
 	FAutoConsoleCommand FindInvalidUAssetsCommand;
+	FAutoConsoleCommand ScanPathCommand;
 
 	FAssetRegistryConsoleCommands()
 		: GetByNameCommand(
@@ -52,6 +53,10 @@ public:
 		TEXT( "AssetRegistry.Debug.FindInvalidUAssets" ),
 		*LOCTEXT("CommandText_FindInvalidUAssets", "Finds a list of all assets which are in UAsset files but do not share the name of the package").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::FindInvalidUAssets ) )
+	, ScanPathCommand(
+		TEXT("AssetRegistry.ScanPath"),
+		*LOCTEXT("CommandText_ScanPath", "Scan the given filename or directoryname for package files and load them into the assetregistry. Extra string parameters: -forcerescan, -ignoreblacklists, -asfile, -asdir").ToString(),
+		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAssetRegistryConsoleCommands::ScanPath ) )
 	{}
 
 	void GetByName(const TArray<FString>& Args)
@@ -200,6 +205,67 @@ public:
 			}
 		}
 	}
+
+	void ScanPath(const TArray<FString>& Args)
+	{
+		bool bForceRescan = false;
+		bool bIgnoreBlacklists = false;
+		bool bAsFile = false;
+		bool bAsDir = false;
+
+		FString InPath;
+		for (const FString& Arg : Args)
+		{
+			if (Arg.StartsWith(TEXT("-")))
+			{
+				bForceRescan = bForceRescan || Arg.Equals(TEXT("-forcerescan"), ESearchCase::IgnoreCase);
+				bIgnoreBlacklists = bIgnoreBlacklists || Arg.Equals(TEXT("-ignoreblacklists"), ESearchCase::IgnoreCase);
+				bAsDir = bAsDir || Arg.Equals(TEXT("-asdir"), ESearchCase::IgnoreCase);
+				bAsFile = bAsFile || Arg.Equals(TEXT("-asfile"), ESearchCase::IgnoreCase);
+			}
+			else
+			{
+				InPath = Arg;
+			}
+		}
+		if (InPath.IsEmpty())
+		{
+			UE_LOG(LogAssetRegistry, Log, TEXT("Usage: AssetRegistry.ScanPath [-forcerescan] [-ignoreblacklists] [-asfile] [-asdir] FileOrDirectoryPath"));
+			return;
+		}
+
+		if (!bAsDir && !bAsFile)
+		{
+			bAsDir = true;
+			if (FPackageName::IsValidLongPackageName(InPath))
+			{
+				FString LocalPath;
+				if (FPackageName::TryConvertLongPackageNameToFilename(InPath, LocalPath))
+				{
+					FPackagePath PackagePath = FPackagePath::FromLocalPath(LocalPath);
+					if (FPackageName::DoesPackageExist(PackagePath, &PackagePath))
+					{
+						bAsFile = true;
+						bAsDir = false;
+					}
+				}
+			}
+			else if (IFileManager::Get().FileExists(*InPath))
+			{
+				bAsFile = true;
+				bAsDir = false;
+			}
+		}
+		if (bAsDir)
+		{
+			IAssetRegistry::GetChecked().ScanPathsSynchronous({ InPath }, bForceRescan, bIgnoreBlacklists);
+		}
+		else
+		{
+			IAssetRegistry::GetChecked().ScanFilesSynchronous({ InPath }, bForceRescan);
+		}
+	}
+
 };
 
 #undef LOCTEXT_NAMESPACE
