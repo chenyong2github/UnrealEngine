@@ -6,6 +6,7 @@
 #include "Misc/PackageName.h"
 #include "Features/IModularFeatures.h"
 #include "Stats/Stats.h"
+#include "Framework/Application/SlateApplication.h"
 
 void UContentBrowserDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -24,11 +25,18 @@ void UContentBrowserDataSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 	ModularFeatures.OnModularFeatureRegistered().AddUObject(this, &UContentBrowserDataSubsystem::HandleDataSourceRegistered);
 	ModularFeatures.OnModularFeatureUnregistered().AddUObject(this, &UContentBrowserDataSubsystem::HandleDataSourceUnregistered);
 
+	// Tick during normal operation
 	TickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("ContentBrowserData"), 0.1f, [this](const float InDeltaTime)
 	{
 		Tick(InDeltaTime);
 		return true;
 	});
+
+	// Tick during modal dialog operation
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().GetOnModalLoopTickEvent().AddUObject(this, &UContentBrowserDataSubsystem::Tick);
+	}
 }
 
 void UContentBrowserDataSubsystem::Deinitialize()
@@ -45,6 +53,11 @@ void UContentBrowserDataSubsystem::Deinitialize()
 	{
 		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
+	}
+
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
 	}
 }
 
