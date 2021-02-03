@@ -946,6 +946,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	SourceSkeletalMesh = nullptr; 
 	NiagaraComponents.Empty();
 	PhysicsAsset = nullptr;
+	bCanEverAffectNavigation = false;
 
 	SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 
