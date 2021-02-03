@@ -371,6 +371,13 @@ void FMovieSceneTrackEvaluator::CallSetupTearDown(IMovieScenePlayer& Player, FDe
 				Player.PreAnimatedState.RestorePreAnimatedState(Player, Key);
 			}
 		}
+		else
+		{
+			// If the track has been destroyed since it was last evaluated, we can still restore state for anything it made
+			// In particular this is needed for movie renders, where it will enable/disable shots between cuts in order
+			// to render handle frames
+			Player.PreAnimatedState.RestorePreAnimatedState(Player, Key);
+		}
 	}
 
 	for (const FMovieSceneOrderedEvaluationKey& OrderedKey : NewEntities)
