@@ -577,7 +577,7 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	}
 }
 
-void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform)
+void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled)
 {
 	// To update the gizmo location without triggering any callbacks, we temporarily
 	// store a copy of the callback list, detach them, reposition, and then reattach
@@ -585,7 +585,12 @@ void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform)
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
 	auto temp = GizmoComponent->TransformUpdated;
 	GizmoComponent->TransformUpdated.Clear();
-	GizmoComponent->SetWorldTransform(NewTransform);
+	FTransform GizmoTransform = NewTransform;
+	if (bKeepGizmoUnscaled)
+	{
+		GizmoTransform.SetScale3D(FVector(1, 1, 1));
+	}
+	GizmoComponent->SetWorldTransform(GizmoTransform);
 	GizmoComponent->TransformUpdated = temp;
 
 	// The underlying proxy has an existing way to reinitialize its transform without callbacks.
@@ -595,21 +600,25 @@ void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform)
 	ActiveTarget->bSetPivotMode = bSavedSetPivotMode;
 }
 
-void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)
+void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled)
 {
 	check(ActiveTarget != nullptr);
 
 	StateTarget->BeginUpdate();
 
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
-	GizmoComponent->SetWorldTransform(NewTransform);
+	FTransform GizmoTransform = NewTransform;
+	if (bKeepGizmoUnscaled)
+	{
+		GizmoTransform.SetScale3D(FVector(1, 1, 1));
+	}
+	GizmoComponent->SetWorldTransform(GizmoTransform);
 	ActiveTarget->SetTransform(NewTransform);
 
 	StateTarget->EndUpdate();
 }
 
 
-// TODO: This should either be named to "SetScale" or removed, since it can be done with ReinitializeGizmoTransform
 void UTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
 {
 	FTransform NewTransform = ActiveTarget->GetTransform();

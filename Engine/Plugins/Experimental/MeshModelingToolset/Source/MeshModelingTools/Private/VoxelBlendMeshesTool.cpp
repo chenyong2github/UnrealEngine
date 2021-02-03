@@ -62,9 +62,7 @@ TUniquePtr<FDynamicMeshOperator> UVoxelBlendMeshesTool::MakeNewOperator()
 	for (int Idx = 0; Idx < ComponentTargets.Num(); Idx++)
 	{
 		Op->Meshes[Idx] = OriginalDynamicMeshes[Idx];
-		FTransform UseTransform = TransformProxies[Idx]->GetTransform();
-		UseTransform.MultiplyScale3D(TransformInitialScales[Idx]);
-		Op->Transforms[Idx] = UseTransform;
+		Op->Transforms[Idx] = TransformProxies[Idx]->GetTransform();
 	}
 
 	Op->BlendFalloff = BlendProperties->BlendFalloff;

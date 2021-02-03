@@ -109,9 +109,7 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 			MaterialIDs->SetValue(TID, MaterialRemap[ComponentIdx][MaterialIDs->GetValue(TID)]);
 		}
 		// TODO: center the meshes
-		FTransform UseTransform = TransformProxies[ComponentIdx]->GetTransform();
-		UseTransform.MultiplyScale3D(TransformInitialScales[ComponentIdx]);
-		FTransform3d WorldTransform = (FTransform3d)UseTransform;
+		FTransform3d WorldTransform = (FTransform3d)TransformProxies[ComponentIdx]->GetTransform();
 		if (WorldTransform.GetDeterminant() < 0)
 		{
 			ComponentMesh.ReverseOrientation(false);

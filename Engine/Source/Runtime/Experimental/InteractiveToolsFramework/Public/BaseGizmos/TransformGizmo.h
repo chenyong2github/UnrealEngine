@@ -309,14 +309,16 @@ public:
 	 * Repositions the gizmo without issuing undo/redo changes, triggering callbacks, 
 	 * or moving any components. Useful for resetting the gizmo to a new location without
 	 * it being viewed as a gizmo manipulation.
+	 * @param bKeepGizmoUnscaled If true, the scale component of NewTransform is passed through to the target but gizmo scale is set to 1
 	 */
-	void ReinitializeGizmoTransform(const FTransform& NewTransform);
+	void ReinitializeGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
 
 	/**
 	 * Set a new position for the Gizmo. This is done via the same mechanisms as the sub-gizmos,
 	 * so it generates the same Change/Modify() events, and hence works with Undo/Redo
+	 * @param bKeepGizmoUnscaled If true, the scale component of NewTransform is passed through to the target but gizmo scale is set to 1
 	 */
-	virtual void SetNewGizmoTransform(const FTransform& NewTransform);
+	virtual void SetNewGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
 
 	/**
 	 * Explicitly set the child scale. Mainly useful to "reset" the child scale to (1,1,1) when re-using Gizmo across multiple transform actions.

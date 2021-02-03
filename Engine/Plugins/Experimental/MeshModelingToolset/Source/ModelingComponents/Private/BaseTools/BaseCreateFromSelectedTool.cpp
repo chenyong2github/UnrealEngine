@@ -100,11 +100,18 @@ void UBaseCreateFromSelectedTool::Setup()
 		if (NewType == EBaseCreateFromSelectedTargetType::NewAsset)
 		{
 			HandleSourcesProperties->OutputAsset = TEXT("");
+			HideGizmoIndex = -1;
+			UpdateGizmoVisibility();
 		}
 		else
 		{
 			int32 Index = (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : ComponentTargets.Num() - 1;
 			HandleSourcesProperties->OutputAsset = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[Index]->GetOwnerComponent(), false);
+			HideGizmoIndex = Index;
+			// Reset the hidden gizmo to its initial position
+			FTransform ComponentTransform = ComponentTargets[Index]->GetWorldTransform();
+			TransformGizmos[Index]->SetNewGizmoTransform(ComponentTransform, true);
+			UpdateGizmoVisibility();
 		}
 	});
 
@@ -138,11 +145,13 @@ void UBaseCreateFromSelectedTool::OnTick(float DeltaTime)
 
 void UBaseCreateFromSelectedTool::UpdateGizmoVisibility()
 {
-	for (UTransformGizmo* Gizmo : TransformGizmos)
+	for (int32 GizmoIndex = 0; GizmoIndex < TransformGizmos.Num(); GizmoIndex++)
 	{
-		Gizmo->SetVisibility(TransformProperties->bShowTransformUI);
+		UTransformGizmo* Gizmo = TransformGizmos[GizmoIndex];
+		Gizmo->SetVisibility(TransformProperties->bShowTransformUI && GizmoIndex != HideGizmoIndex);
 	}
 }
+
 
 
 void UBaseCreateFromSelectedTool::SetTransformGizmos()
@@ -151,14 +160,10 @@ void UBaseCreateFromSelectedTool::SetTransformGizmos()
 
 	for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& Target = ComponentTargets[ComponentIdx];
 		UTransformProxy* Proxy = TransformProxies.Add_GetRef(NewObject<UTransformProxy>(this));
 		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
+		Proxy->SetTransform(ComponentTargets[ComponentIdx]->GetWorldTransform());
 		Gizmo->SetActiveTarget(Proxy, GetToolManager());
-		FTransform InitialTransform = Target->GetWorldTransform();
-		TransformInitialScales.Add(InitialTransform.GetScale3D());
-		InitialTransform.SetScale3D(FVector::OneVector);
-		Gizmo->ReinitializeGizmoTransform(InitialTransform);
 		Proxy->OnTransformChanged.AddUObject(this, &UBaseCreateFromSelectedTool::TransformChanged);
 	}
 	UpdateGizmoVisibility();
@@ -230,35 +235,20 @@ void UBaseCreateFromSelectedTool::UpdateAsset(const FDynamicMeshOpResult& Result
 	check(Result.Mesh.Get() != nullptr);
 
 	FTransform3d TargetToWorld = (FTransform3d)UpdateTarget->GetWorldTransform();
-	FTransform3d WorldToTarget = TargetToWorld.Inverse();
 
-	FTransform3d NewTransform;
-	if (ComponentTargets.Num() == 1) // in the single-selection case, shove the result back into the original component space
-	{
-		MeshTransforms::ApplyTransform(*Result.Mesh, WorldToTarget);
-		UpdateTarget->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
-		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
-		});
-	}
-	else // in the multi-selection case, center the pivot for the combined result
-	{
-		FTransform3d ResultTransform = Result.Transform;
-		MeshTransforms::ApplyTransform(*Result.Mesh, ResultTransform);
-		MeshTransforms::ApplyTransform(*Result.Mesh, WorldToTarget);
+	FTransform3d ResultTransform = Result.Transform;
+	MeshTransforms::ApplyTransform(*Result.Mesh, ResultTransform);
+	MeshTransforms::ApplyTransformInverse(*Result.Mesh, TargetToWorld);
 
-		UpdateTarget->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
-		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
-		});
-	}
+	UpdateTarget->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	{
+		FDynamicMeshToMeshDescription Converter;
+		Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
+	});
 
 	FComponentMaterialSet MaterialSet;
 	MaterialSet.Materials = GetOutputMaterials();
 	UpdateTarget->CommitMaterialSetUpdate(MaterialSet, true);
-
 }
 
 

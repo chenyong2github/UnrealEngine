@@ -198,12 +198,10 @@ protected:
 	UPROPERTY()
 	TArray<UTransformGizmo*> TransformGizmos;
 
-	UPROPERTY()
-	TArray<FVector> TransformInitialScales;
-
 
 	UWorld* TargetWorld = nullptr;
 	IAssetGenerationAPI* AssetAPI = nullptr;
 
+	int32 HideGizmoIndex = -1; // Override UI setting and always hide this gizmo
 };
 
