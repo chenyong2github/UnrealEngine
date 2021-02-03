@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/Real.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/Rotation.h"
