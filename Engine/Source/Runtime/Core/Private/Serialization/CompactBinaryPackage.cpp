@@ -95,9 +95,9 @@ void FCbAttachment::Load(FCbFieldRefIterator& Fields)
 		Buffer = FSharedBuffer::MakeView(View, Fields.GetOuterBuffer());
 		Buffer.MakeOwned();
 		++Fields;
-		Hash = Fields.AsReference();
+		Hash = Fields.AsAttachment();
 		checkf(!Fields.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
-		if (Fields.IsCompactBinaryReference())
+		if (Fields.IsCompactBinaryAttachment())
 		{
 			CompactBinary = FCbFieldIterator::MakeRange(Buffer);
 		}
@@ -130,9 +130,9 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 				HashBuffer.SetNumUninitialized(int32(Size));
 				return FUniqueBuffer::MakeView(HashBuffer.GetData(), Size);
 			});
-		Hash = HashField.AsReference();
+		Hash = HashField.AsAttachment();
 		checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
-		if (HashField.IsCompactBinaryReference())
+		if (HashField.IsCompactBinaryAttachment())
 		{
 			CompactBinary = FCbFieldIterator::MakeRange(Buffer);
 		}
@@ -158,12 +158,12 @@ void FCbAttachment::Save(FCbWriter& Writer) const
 		{
 			Writer.Binary(AsBinary());
 		}
-		Writer.CompactBinaryReference(Hash);
+		Writer.CompactBinaryAttachment(Hash);
 	}
 	else if (Buffer.GetSize())
 	{
 		Writer.Binary(Buffer);
-		Writer.BinaryReference(Hash);
+		Writer.BinaryAttachment(Hash);
 	}
 	else // Null
 	{
@@ -256,12 +256,12 @@ const FCbAttachment* FCbPackage::FindAttachment(const FIoHash& Hash) const
 
 void FCbPackage::GatherAttachments(const FCbFieldIterator& Fields, FAttachmentResolver Resolver)
 {
-	Fields.IterateRangeReferences([this, &Resolver](FCbField Field)
+	Fields.IterateRangeAttachments([this, &Resolver](FCbField Field)
 		{
-			const FIoHash& Hash = Field.AsReference();
+			const FIoHash& Hash = Field.AsAttachment();
 			if (FSharedBuffer Buffer = Resolver(Hash))
 			{
-				if (Field.IsCompactBinaryReference())
+				if (Field.IsCompactBinaryAttachment())
 				{
 					AddAttachment(FCbAttachment(FCbFieldRefIterator::MakeRange(MoveTemp(Buffer)), Hash), &Resolver);
 				}
@@ -297,8 +297,8 @@ void FCbPackage::Load(FCbFieldRefIterator& Fields)
 			++Fields;
 			if (Object.CreateIterator())
 			{
-				ObjectHash = Fields.AsCompactBinaryReference();
-				checkf(!Fields.HasError(), TEXT("Object must be followed by a CompactBinaryReference with the object hash."));
+				ObjectHash = Fields.AsCompactBinaryAttachment();
+				checkf(!Fields.HasError(), TEXT("Object must be followed by a CompactBinaryAttachment with the object hash."));
 				++Fields;
 			}
 			else
@@ -333,9 +333,9 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 				FSharedBuffer Buffer = FSharedBuffer::MakeView(View, ValueField.GetOuterBuffer());
 				Buffer.MakeOwned();
 				FCbFieldRef HashField = LoadCompactBinary(Ar, StackAllocator);
-				const FIoHash& Hash = HashField.AsReference();
+				const FIoHash& Hash = HashField.AsAttachment();
 				checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
-				if (HashField.IsCompactBinaryReference())
+				if (HashField.IsCompactBinaryAttachment())
 				{
 					AddAttachment(FCbAttachment(FCbFieldRefIterator::MakeRange(MoveTemp(Buffer)), Hash));
 				}
@@ -353,8 +353,8 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 			if (Object.CreateIterator())
 			{
 				FCbFieldRef HashField = LoadCompactBinary(Ar, StackAllocator);
-				ObjectHash = HashField.AsCompactBinaryReference();
-				checkf(!HashField.HasError(), TEXT("Object must be followed by a CompactBinaryReference with the object hash."));
+				ObjectHash = HashField.AsCompactBinaryAttachment();
+				checkf(!HashField.HasError(), TEXT("Object must be followed by a CompactBinaryAttachment with the object hash."));
 			}
 			else
 			{
@@ -369,7 +369,7 @@ void FCbPackage::Save(FCbWriter& Writer) const
 	if (Object.CreateIterator())
 	{
 		Writer.Object(Object);
-		Writer.CompactBinaryReference(ObjectHash);
+		Writer.CompactBinaryAttachment(ObjectHash);
 	}
 	for (const FCbAttachment& Attachment : Attachments)
 	{

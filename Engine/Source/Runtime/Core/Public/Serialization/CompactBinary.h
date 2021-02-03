@@ -38,7 +38,7 @@
  *
  * void BeginBuild(FCbObjectRef Params)
  * {
- *     if (FSharedBuffer Data = Storage().Load(Params["Data"].AsBinaryReference()))
+ *     if (FSharedBuffer Data = Storage().Load(Params["Data"].AsBinaryAttachment()))
  *     {
  *         SetData(Data);
  *     }
@@ -146,19 +146,19 @@ enum class ECbFieldType : uint8
 	BoolTrue        = 0x0d,
 
 	/**
-	 * CompactBinaryReference is a reference to compact binary data stored externally.
+	 * CompactBinaryAttachment is a reference to a compact binary attachment stored externally.
 	 *
-	 * Payload is a 256-bit hash digest of the compact binary data.
+	 * Payload is a 160-bit hash digest of the referenced compact binary data.
 	 */
-	CompactBinaryReference = 0x0e,
+	CompactBinaryAttachment = 0x0e,
 	/**
-	 * BinaryReference is a reference to binary data stored externally.
+	 * BinaryAttachment is a reference to a binary attachment stored externally.
 	 *
-	 * Payload is a 256-bit hash digest of the binary data.
+	 * Payload is a 160-bit hash digest of the referenced binary data.
 	 */
-	BinaryReference = 0x0f,
+	BinaryAttachment = 0x0f,
 
-	/** Hash. Payload is a 256-bit hash digest. */
+	/** Hash. Payload is a 160-bit hash digest. */
 	Hash            = 0x10,
 	/** UUID/GUID. Payload is a 128-bit UUID as defined by RFC 4122. */
 	Uuid            = 0x11,
@@ -213,8 +213,8 @@ class FCbFieldType
 	static constexpr ECbFieldType BoolMask              = ECbFieldType(0b0011'1110);
 	static constexpr ECbFieldType BoolBase              = ECbFieldType(0b0000'1100);
 
-	static constexpr ECbFieldType ReferenceMask      = ECbFieldType(0b0011'1110);
-	static constexpr ECbFieldType ReferenceBase      = ECbFieldType(0b0000'1110);
+	static constexpr ECbFieldType AttachmentMask        = ECbFieldType(0b0011'1110);
+	static constexpr ECbFieldType AttachmentBase        = ECbFieldType(0b0000'1110);
 
 	static void StaticAssertTypeConstants();
 
@@ -241,9 +241,9 @@ public:
 	static constexpr inline bool IsFloat(ECbFieldType Type)      { return (Type & FloatMask) == FloatBase; }
 	static constexpr inline bool IsBool(ECbFieldType Type)       { return (Type & BoolMask) == BoolBase; }
 
-	static constexpr inline bool IsCompactBinaryReference(ECbFieldType Type) { return GetType(Type) == ECbFieldType::CompactBinaryReference; }
-	static constexpr inline bool IsBinaryReference(ECbFieldType Type)        { return GetType(Type) == ECbFieldType::BinaryReference; }
-	static constexpr inline bool IsReference(ECbFieldType Type)   { return (Type & ReferenceMask) == ReferenceBase; }
+	static constexpr inline bool IsCompactBinaryAttachment(ECbFieldType Type) { return GetType(Type) == ECbFieldType::CompactBinaryAttachment; }
+	static constexpr inline bool IsBinaryAttachment(ECbFieldType Type)        { return GetType(Type) == ECbFieldType::BinaryAttachment; }
+	static constexpr inline bool IsAttachment(ECbFieldType Type) { return (Type & AttachmentMask) == AttachmentBase; }
 
 	static constexpr inline bool IsHash(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Hash; }
 	static constexpr inline bool IsUuid(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Uuid; }
@@ -251,11 +251,11 @@ public:
 	static constexpr inline bool IsDateTime(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::DateTime; }
 	static constexpr inline bool IsTimeSpan(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::TimeSpan; }
 
-	/** Whether the type is or may contain fields of any reference type. */
-	static constexpr inline bool MayContainReferences(ECbFieldType Type)
+	/** Whether the type is or may contain fields of any attachment type. */
+	static constexpr inline bool MayContainAttachments(ECbFieldType Type)
 	{
 		// The use of !! will suppress V792 from static analysis. Using //-V792 did not work.
-		return !!IsObject(Type) | !!IsArray(Type) | !!IsReference(Type);
+		return !!IsObject(Type) | !!IsArray(Type) | !!IsAttachment(Type);
 	}
 };
 
@@ -340,8 +340,8 @@ public:
 	/** Copy the field range into an archive, as if calling CopyTo on every field. */
 	CORE_API void CopyRangeTo(FArchive& Ar) const;
 
-	/** Invoke the visitor for every reference or binary reference in the field range. */
-	CORE_API void IterateRangeReferences(FCbFieldVisitor Visitor) const;
+	/** Invoke the visitor for every attachment in the field range. */
+	CORE_API void IterateRangeAttachments(FCbFieldVisitor Visitor) const;
 
 	/** Create a view of every field in the range. */
 	inline FMemoryView GetRangeView() const
@@ -496,12 +496,12 @@ public:
 	/** Access the field as a bool. Returns the provided default on error. */
 	CORE_API bool AsBool(bool bDefault = false);
 
-	/** Access the field as a hash referencing compact binary data. Returns the provided default on error. */
-	CORE_API FIoHash AsCompactBinaryReference(const FIoHash& Default = FIoHash());
-	/** Access the field as a hash referencing binary data. Returns the provided default on error. */
-	CORE_API FIoHash AsBinaryReference(const FIoHash& Default = FIoHash());
-	/** Access the field as a hash referencing compact binary data or binary data. Returns the provided default on error. */
-	CORE_API FIoHash AsReference(const FIoHash& Default = FIoHash());
+	/** Access the field as a hash referencing a compact binary attachment. Returns the provided default on error. */
+	CORE_API FIoHash AsCompactBinaryAttachment(const FIoHash& Default = FIoHash());
+	/** Access the field as a hash referencing a binary attachment. Returns the provided default on error. */
+	CORE_API FIoHash AsBinaryAttachment(const FIoHash& Default = FIoHash());
+	/** Access the field as a hash referencing an attachment. Returns the provided default on error. */
+	CORE_API FIoHash AsAttachment(const FIoHash& Default = FIoHash());
 
 	/** Access the field as a hash. Returns the provided default on error. */
 	CORE_API FIoHash AsHash(const FIoHash& Default = FIoHash());
@@ -544,9 +544,9 @@ public:
 	constexpr inline bool IsFloat() const           { return FCbFieldType::IsFloat(Type); }
 	constexpr inline bool IsBool() const            { return FCbFieldType::IsBool(Type); }
 
-	constexpr inline bool IsCompactBinaryReference() const { return FCbFieldType::IsCompactBinaryReference(Type); }
-	constexpr inline bool IsBinaryReference() const { return FCbFieldType::IsBinaryReference(Type); }
-	constexpr inline bool IsReference() const       { return FCbFieldType::IsReference(Type); }
+	constexpr inline bool IsCompactBinaryAttachment() const { return FCbFieldType::IsCompactBinaryAttachment(Type); }
+	constexpr inline bool IsBinaryAttachment() const        { return FCbFieldType::IsBinaryAttachment(Type); }
+	constexpr inline bool IsAttachment() const              { return FCbFieldType::IsAttachment(Type); }
 
 	constexpr inline bool IsHash() const            { return FCbFieldType::IsHash(Type); }
 	constexpr inline bool IsUuid() const            { return FCbFieldType::IsUuid(Type); }
@@ -596,8 +596,8 @@ public:
 	/** Copy the field into an archive, including its type and name. */
 	CORE_API void CopyTo(FArchive& Ar) const;
 
-	/** Invoke the visitor for every reference or binary reference in the field. */
-	CORE_API void IterateReferences(FCbFieldVisitor Visitor) const;
+	/** Invoke the visitor for every attachment in the field. */
+	CORE_API void IterateAttachments(FCbFieldVisitor Visitor) const;
 
 	/** Returns a view of the field, including the type and name when present. */
 	CORE_API FMemoryView GetView() const;
@@ -785,8 +785,8 @@ public:
 	/** Copy the array into an archive. This will write GetSize() bytes, with no name. */
 	CORE_API void CopyTo(FArchive& Ar) const;
 
-	/** Invoke the visitor for every reference or binary reference in the array. */
-	inline void IterateReferences(FCbFieldVisitor Visitor) const { CreateIterator().IterateRangeReferences(Visitor); }
+	/** Invoke the visitor for every attachment in the array. */
+	inline void IterateAttachments(FCbFieldVisitor Visitor) const { CreateIterator().IterateRangeAttachments(Visitor); }
 
 	/** Returns a view of the array, including the type and name when present. */
 	using FCbField::GetView;
@@ -883,8 +883,8 @@ public:
 	/** Copy the object into an archive. This will write GetSize() bytes, with no name. */
 	CORE_API void CopyTo(FArchive& Ar) const;
 
-	/** Invoke the visitor for every reference or binary reference in the object. */
-	inline void IterateReferences(FCbFieldVisitor Visitor) const { CreateIterator().IterateRangeReferences(Visitor); }
+	/** Invoke the visitor for every attachment in the object. */
+	inline void IterateAttachments(FCbFieldVisitor Visitor) const { CreateIterator().IterateRangeAttachments(Visitor); }
 
 	/** Returns a view of the object, including the type and name when present. */
 	using FCbField::GetView;

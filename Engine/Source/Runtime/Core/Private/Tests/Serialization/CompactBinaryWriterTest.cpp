@@ -563,8 +563,8 @@ bool FCbWriterBoolTest::RunTest(const FString& Parameters)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterCompactBinaryReferenceTest, "System.Core.Serialization.CbWriter.CompactBinaryReference", CompactBinaryWriterTestFlags)
-bool FCbWriterCompactBinaryReferenceTest::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterCompactBinaryAttachmentTest, "System.Core.Serialization.CbWriter.CompactBinaryAttachment", CompactBinaryWriterTestFlags)
+bool FCbWriterCompactBinaryAttachmentTest::RunTest(const FString& Parameters)
 {
 	TCbWriter<256> Writer;
 
@@ -574,17 +574,17 @@ bool FCbWriterCompactBinaryReferenceTest::RunTest(const FString& Parameters)
 	const FIoHash Values[] = { FIoHash(ZeroBytes), FIoHash(SequentialBytes) };
 	for (const FIoHash& Value : Values)
 	{
-		Writer.CompactBinaryReference(Value);
+		Writer.CompactBinaryAttachment(Value);
 	}
 
 	FCbFieldRefIterator Fields = Writer.Save();
-	if (TestEqual(TEXT("FCbWriter(CompactBinaryReference) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
+	if (TestEqual(TEXT("FCbWriter(CompactBinaryAttachment) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FIoHash* CheckValue = Values;
 		for (FCbField Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(CompactBinaryReference).AsCompactBinaryReference()"), Field.AsCompactBinaryReference(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(CompactBinaryReference) Error"), Field.HasError());
+			TestEqual(TEXT("FCbWriter(CompactBinaryAttachment).AsCompactBinaryAttachment()"), Field.AsCompactBinaryAttachment(), *CheckValue++);
+			TestFalse(TEXT("FCbWriter(CompactBinaryAttachment) Error"), Field.HasError());
 		}
 	}
 
@@ -593,8 +593,8 @@ bool FCbWriterCompactBinaryReferenceTest::RunTest(const FString& Parameters)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterBinaryReferenceTest, "System.Core.Serialization.CbWriter.BinaryReference", CompactBinaryWriterTestFlags)
-bool FCbWriterBinaryReferenceTest::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterBinaryAttachmentTest, "System.Core.Serialization.CbWriter.BinaryAttachment", CompactBinaryWriterTestFlags)
+bool FCbWriterBinaryAttachmentTest::RunTest(const FString& Parameters)
 {
 	TCbWriter<256> Writer;
 
@@ -604,17 +604,17 @@ bool FCbWriterBinaryReferenceTest::RunTest(const FString& Parameters)
 	const FIoHash Values[] = { FIoHash(ZeroBytes), FIoHash(SequentialBytes) };
 	for (const FIoHash& Value : Values)
 	{
-		Writer.BinaryReference(Value);
+		Writer.BinaryAttachment(Value);
 	}
 
 	FCbFieldRefIterator Fields = Writer.Save();
-	if (TestEqual(TEXT("FCbWriter(BinaryReference) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
+	if (TestEqual(TEXT("FCbWriter(BinaryAttachment) Validate"), ValidateCompactBinaryRange(Fields.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FIoHash* CheckValue = Values;
 		for (FCbField Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(BinaryReference).AsBinaryReference()"), Field.AsBinaryReference(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(BinaryReference) Error"), Field.HasError());
+			TestEqual(TEXT("FCbWriter(BinaryAttachment).AsBinaryAttachment()"), Field.AsBinaryAttachment(), *CheckValue++);
+			TestFalse(TEXT("FCbWriter(BinaryAttachment) Error"), Field.HasError());
 		}
 	}
 
@@ -816,8 +816,8 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.Name("False"_ASV).Bool(false);
 		Writer.Name("True"_ASV).Bool(true);
 
-		Writer.Name("CompactBinaryReference"_ASV).CompactBinaryReference(FIoHash());
-		Writer.Name("BinaryReference"_ASV).BinaryReference(FIoHash());
+		Writer.Name("CompactBinaryAttachment"_ASV).CompactBinaryAttachment(FIoHash());
+		Writer.Name("BinaryAttachment"_ASV).BinaryAttachment(FIoHash());
 
 		Writer.Name("Hash"_ASV).Hash(FIoHash());
 		Writer.Name("Uuid"_ASV).Uuid(FGuid());

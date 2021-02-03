@@ -21,7 +21,7 @@ template <typename FuncType> class TFunctionRef;
  *
  * Attachments are serialized as one or two compact binary fields with no name. A Binary field is
  * written first with its content. The content hash is omitted when the content size is zero, and
- * is otherwise written as a BinaryReference or CompactBinaryReference depending on the type.
+ * is otherwise written as a BinaryAttachment or CompactBinaryAttachment depending on the type.
  */
 class FCbAttachment
 {
@@ -144,11 +144,11 @@ inline uint32 GetTypeHash(const FCbAttachment& Attachment)
  *
  * A package is serialized as a sequence of compact binary fields with no name. The object may be
  * both preceded and followed by attachments. The object itself is written as an Object field and
- * followed by its hash in a CompactBinaryReference field when the object is non-empty. A package
+ * followed by its hash in a CompactBinaryAttachment field, if the object is non-empty. A package
  * ends with a Null field. The canonical order of components is the object and its hash, followed
  * by the attachments ordered by hash, followed by a Null field. It is valid for the a package to
  * have its components serialized in any order, provided there is at most one object and the null
- * field is written last.
+ * field is written last, and the object hash immediately follows the object when present.
  */
 class FCbPackage
 {

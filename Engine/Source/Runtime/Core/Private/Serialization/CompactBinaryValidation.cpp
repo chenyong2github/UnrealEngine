@@ -353,8 +353,8 @@ static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbVali
 	case ECbFieldType::Float64:
 		ValidateCbFloat64(View, Mode, Error);
 		break;
-	case ECbFieldType::CompactBinaryReference:
-	case ECbFieldType::BinaryReference:
+	case ECbFieldType::CompactBinaryAttachment:
+	case ECbFieldType::BinaryAttachment:
 	case ECbFieldType::Hash:
 		ValidateFixedPayload(20);
 		break;
@@ -410,7 +410,7 @@ static FIoHash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& View, E
 	{
 		if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
 		{
-			const FIoHash Hash = HashField.AsReference();
+			const FIoHash Hash = HashField.AsAttachment();
 			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 			{
 				if (HashField.HasError())
@@ -440,7 +440,7 @@ static FIoHash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, ECbVa
 	}
 	else if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
 	{
-		const FIoHash Hash = HashField.AsReference();
+		const FIoHash Hash = HashField.AsAttachment();
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
 			if (!Object.CreateIterator())

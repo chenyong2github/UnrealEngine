@@ -65,10 +65,10 @@ void FCbFieldType::StaticAssertTypeConstants()
 	static_assert(!(BoolMask & (BoolBase ^ ECbFieldType::BoolTrue)), "BoolMask or BoolBase is invalid!");
 	static_assert(TypeMask == (BoolMask | (BoolBase ^ ECbFieldType::BoolTrue)), "BoolMask or BoolBase is invalid!");
 
-	static_assert(ReferenceBase == ECbFieldType::CompactBinaryReference, "ReferenceBase is invalid!");
-	static_assert((ReferenceMask & (AllFlags | ECbFieldType::BinaryReference)) == ECbFieldType::CompactBinaryReference, "ReferenceMask is invalid!");
-	static_assert(!(ReferenceMask & (ReferenceBase ^ ECbFieldType::BinaryReference)), "ReferenceMask or ReferenceBase is invalid!");
-	static_assert(TypeMask == (ReferenceMask | (ReferenceBase ^ ECbFieldType::BinaryReference)), "ReferenceMask or ReferenceBase is invalid!");
+	static_assert(AttachmentBase == ECbFieldType::CompactBinaryAttachment, "AttachmentBase is invalid!");
+	static_assert((AttachmentMask & (AllFlags | ECbFieldType::BinaryAttachment)) == ECbFieldType::CompactBinaryAttachment, "AttachmentMask is invalid!");
+	static_assert(!(AttachmentMask & (AttachmentBase ^ ECbFieldType::BinaryAttachment)), "AttachmentMask or AttachmentBase is invalid!");
+	static_assert(TypeMask == (AttachmentMask | (AttachmentBase ^ ECbFieldType::BinaryAttachment)), "AttachmentMask or AttachmentBase is invalid!");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -254,9 +254,9 @@ bool FCbField::AsBool(const bool bDefault)
 	return (uint8(bIsBool) & uint8(LocalType) & 1) | ((!bIsBool) & bDefault);
 }
 
-FIoHash FCbField::AsCompactBinaryReference(const FIoHash& Default)
+FIoHash FCbField::AsCompactBinaryAttachment(const FIoHash& Default)
 {
-	if (FCbFieldType::IsCompactBinaryReference(Type))
+	if (FCbFieldType::IsCompactBinaryAttachment(Type))
 	{
 		Error = ECbFieldError::None;
 		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Payload));
@@ -268,9 +268,9 @@ FIoHash FCbField::AsCompactBinaryReference(const FIoHash& Default)
 	}
 }
 
-FIoHash FCbField::AsBinaryReference(const FIoHash& Default)
+FIoHash FCbField::AsBinaryAttachment(const FIoHash& Default)
 {
-	if (FCbFieldType::IsBinaryReference(Type))
+	if (FCbFieldType::IsBinaryAttachment(Type))
 	{
 		Error = ECbFieldError::None;
 		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Payload));
@@ -282,9 +282,9 @@ FIoHash FCbField::AsBinaryReference(const FIoHash& Default)
 	}
 }
 
-FIoHash FCbField::AsReference(const FIoHash& Default)
+FIoHash FCbField::AsAttachment(const FIoHash& Default)
 {
-	if (FCbFieldType::IsReference(Type))
+	if (FCbFieldType::IsAttachment(Type))
 	{
 		Error = ECbFieldError::None;
 		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Payload));
@@ -416,8 +416,8 @@ uint64 FCbField::GetPayloadSize() const
 	case ECbFieldType::BoolFalse:
 	case ECbFieldType::BoolTrue:
 		return 0;
-	case ECbFieldType::CompactBinaryReference:
-	case ECbFieldType::BinaryReference:
+	case ECbFieldType::CompactBinaryAttachment:
+	case ECbFieldType::BinaryAttachment:
 	case ECbFieldType::Hash:
 		return 20;
 	case ECbFieldType::Uuid:
@@ -470,18 +470,18 @@ void FCbField::CopyTo(FArchive& Ar) const
 	Ar.Serialize(const_cast<void*>(Source.GetData()), static_cast<int64>(Source.GetSize()));
 }
 
-void FCbField::IterateReferences(FCbFieldVisitor Visitor) const
+void FCbField::IterateAttachments(FCbFieldVisitor Visitor) const
 {
 	switch (FCbFieldType::GetType(Type))
 	{
 	case ECbFieldType::Object:
 	case ECbFieldType::UniformObject:
-		return FCbObject::FromField(*this).IterateReferences(Visitor);
+		return FCbObject::FromField(*this).IterateAttachments(Visitor);
 	case ECbFieldType::Array:
 	case ECbFieldType::UniformArray:
-		return FCbArray::FromField(*this).IterateReferences(Visitor);
-	case ECbFieldType::CompactBinaryReference:
-	case ECbFieldType::BinaryReference:
+		return FCbArray::FromField(*this).IterateAttachments(Visitor);
+	case ECbFieldType::CompactBinaryAttachment:
+	case ECbFieldType::BinaryAttachment:
 		return Visitor(*this);
 	default:
 		return;
@@ -760,27 +760,27 @@ void TCbFieldIterator<FieldType>::CopyRangeTo(FArchive& Ar) const
 }
 
 template <typename FieldType>
-void TCbFieldIterator<FieldType>::IterateRangeReferences(FCbFieldVisitor Visitor) const
+void TCbFieldIterator<FieldType>::IterateRangeAttachments(FCbFieldVisitor Visitor) const
 {
-	// Always iterate over non-uniform ranges because we do not know if they contain a reference.
+	// Always iterate over non-uniform ranges because we do not know if they contain an attachment.
 	if (FCbFieldType::HasFieldType(FieldType::GetType()))
 	{
 		for (TCbFieldIterator It(*this); It; ++It)
 		{
-			if (FCbFieldType::MayContainReferences(It.GetType()))
+			if (FCbFieldType::MayContainAttachments(It.GetType()))
 			{
-				It.IterateReferences(Visitor);
+				It.IterateAttachments(Visitor);
 			}
 		}
 	}
-	// Only iterate over uniform ranges if the uniform type may contain a reference.
+	// Only iterate over uniform ranges if the uniform type may contain an attachment.
 	else
 	{
-		if (FCbFieldType::MayContainReferences(FieldType::GetType()))
+		if (FCbFieldType::MayContainAttachments(FieldType::GetType()))
 		{
 			for (TCbFieldIterator It(*this); It; ++It)
 			{
-				It.IterateReferences(Visitor);
+				It.IterateAttachments(Visitor);
 			}
 		}
 	}

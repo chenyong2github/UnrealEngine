@@ -477,18 +477,18 @@ void FCbWriter::Bool(const bool bValue)
 	EndField(bValue ? ECbFieldType::BoolTrue : ECbFieldType::BoolFalse);
 }
 
-void FCbWriter::CompactBinaryReference(const FIoHash& Value)
+void FCbWriter::CompactBinaryAttachment(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
-	EndField(ECbFieldType::CompactBinaryReference);
+	EndField(ECbFieldType::CompactBinaryAttachment);
 }
 
-void FCbWriter::BinaryReference(const FIoHash& Value)
+void FCbWriter::BinaryAttachment(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
-	EndField(ECbFieldType::BinaryReference);
+	EndField(ECbFieldType::BinaryAttachment);
 }
 
 void FCbWriter::Hash(const FIoHash& Value)

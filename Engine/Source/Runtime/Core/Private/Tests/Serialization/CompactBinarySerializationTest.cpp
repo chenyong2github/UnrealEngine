@@ -115,8 +115,8 @@ bool FCbMeasureTest::RunTest(const FString& Parameters)
 	TestMeasure(TEXT("BoolFalse"), {uint8(EType::BoolFalse)}, true, 1, EType::BoolFalse);
 	TestMeasure(TEXT("BoolTrue"), {uint8(EType::BoolTrue)}, true, 1, EType::BoolTrue);
 
-	TestMeasure(TEXT("CompactBinaryReference"), {uint8(EType::CompactBinaryReference)}, true, 21, EType::CompactBinaryReference);
-	TestMeasure(TEXT("BinaryReference"), {uint8(EType::BinaryReference)}, true, 21, EType::BinaryReference);
+	TestMeasure(TEXT("CompactBinaryAttachment"), {uint8(EType::CompactBinaryAttachment)}, true, 21, EType::CompactBinaryAttachment);
+	TestMeasure(TEXT("BinaryAttachment"), {uint8(EType::BinaryAttachment)}, true, 21, EType::BinaryAttachment);
 
 	TestMeasure(TEXT("Hash"), {uint8(EType::Hash)}, true, 21, EType::Hash);
 	TestMeasure(TEXT("Uuid"), {uint8(EType::Uuid)}, true, 17, EType::Uuid);

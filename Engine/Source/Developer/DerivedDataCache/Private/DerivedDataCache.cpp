@@ -828,9 +828,9 @@ void FCache::Get(
 
 	// Validate that the record was serialized in the expected format.
 	if ((MetaField && !MetaField.IsObject()) ||
-		(ValueField && !ValueField.IsReference()) ||
+		(ValueField && !ValueField.IsAttachment()) ||
 		(AttachmentsField && !AttachmentsField.IsArray()) ||
-		!Algo::AllOf(AttachmentsArray, &FCbField::IsReference))
+		!Algo::AllOf(AttachmentsArray, &FCbField::IsAttachment))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with invalid format for %s from '%.*s'"),
 			*TToString<96>(Key), Context.Len(), Context.GetData());
@@ -840,9 +840,9 @@ void FCache::Get(
 	// Check for existence of the value and attachments if they are being skipped.
 	{
 		TArray<FIoHash, TInlineAllocator<1>> KeysToCheck;
-		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsReference())
+		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsAttachment())
 		{
-			KeysToCheck.Add(ValueField.AsReference());
+			KeysToCheck.Add(ValueField.AsAttachment());
 			if (KeysToCheck.Last().IsZero())
 			{
 				KeysToCheck.Pop();
@@ -853,7 +853,7 @@ void FCache::Get(
 			KeysToCheck.Reserve(KeysToCheck.Num() + AttachmentsArray.Num());
 			for (FCbField AttachmentField : AttachmentsArray)
 			{
-				KeysToCheck.Add(AttachmentField.AsReference());
+				KeysToCheck.Add(AttachmentField.AsAttachment());
 			}
 		}
 		if (KeysToCheck.Num())
@@ -872,18 +872,18 @@ void FCache::Get(
 	}
 
 	// Read the value and attachments if they have been requested.
-	const auto GetContent = [&Key, Context](FCbField ReferenceField) -> FCbAttachment
+	const auto GetContent = [&Key, Context](FCbField AttachmentField) -> FCbAttachment
 	{
 		TArray<uint8> ContentData;
-		const FIoHash Hash = ReferenceField.AsReference();
-		check(!ReferenceField.HasError());
+		const FIoHash Hash = AttachmentField.AsAttachment();
+		check(!AttachmentField.HasError());
 		const FCacheAttachmentKey ContentKey(Key, Hash);
 		if (GetDerivedDataCacheRef().GetSynchronous(*MakeContentKey(ContentKey), ContentData, Context))
 		{
 			if (FIoHash::HashBuffer(MakeMemoryView(ContentData)) == Hash)
 			{
 				FSharedBuffer ContentBuffer = FSharedBuffer::Clone(MakeMemoryView(ContentData));
-				if (ReferenceField.IsCompactBinaryReference())
+				if (AttachmentField.IsCompactBinaryAttachment())
 				{
 					return FCbAttachment(FCbFieldRefIterator::MakeRange(MoveTemp(ContentBuffer)), Hash);
 				}
@@ -907,7 +907,7 @@ void FCache::Get(
 	};
 
 	FCbAttachment Value;
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsReference() && !(Value = GetContent(ValueField)))
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsAttachment() && !(Value = GetContent(ValueField)))
 	{
 		return;
 	}
@@ -932,7 +932,7 @@ void FCache::Get(
 		FCbPackage Package;
 		if (Value && Value.IsCompactBinary())
 		{
-			Package.SetObject(Value.AsCompactBinary().AsObjectRef(), ValueField.AsReference());
+			Package.SetObject(Value.AsCompactBinary().AsObjectRef(), ValueField.AsAttachment());
 		}
 		for (FCbAttachment Attachment : Attachments)
 		{
@@ -945,12 +945,12 @@ void FCache::Get(
 		// Object
 		if (Value.IsCompactBinary())
 		{
-			Params.Record.SetObject(Value.AsCompactBinary().AsObjectRef(), ValueField.AsReference());
+			Params.Record.SetObject(Value.AsCompactBinary().AsObjectRef(), ValueField.AsAttachment());
 		}
 		// Binary
 		else
 		{
-			Params.Record.SetBinary(Value.AsBinary(), ValueField.AsReference());
+			Params.Record.SetBinary(Value.AsBinary(), ValueField.AsAttachment());
 		}
 	}
 
@@ -1051,11 +1051,11 @@ void FCache::Put(
 	{
 		if (Value.IsCompactBinary())
 		{
-			Writer.Name("Value"_ASV).CompactBinaryReference(Value.GetHash());
+			Writer.Name("Value"_ASV).CompactBinaryAttachment(Value.GetHash());
 		}
 		else if (Value.IsBinary())
 		{
-			Writer.Name("Value"_ASV).BinaryReference(Value.GetHash());
+			Writer.Name("Value"_ASV).BinaryAttachment(Value.GetHash());
 		}
 
 		if (Record.GetType() == ECacheRecordType::Package)
@@ -1066,11 +1066,11 @@ void FCache::Put(
 			{
 				if (Attachment.IsCompactBinary())
 				{
-					Writer.CompactBinaryReference(Attachment.GetHash());
+					Writer.CompactBinaryAttachment(Attachment.GetHash());
 				}
 				else
 				{
-					Writer.BinaryReference(Attachment.GetHash());
+					Writer.BinaryAttachment(Attachment.GetHash());
 				}
 			}
 			Writer.EndArray();

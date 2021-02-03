@@ -166,9 +166,9 @@ public:
 	CORE_API void Bool(bool bValue);
 
 	/** Write a field referencing compact binary data by its hash. */
-	CORE_API void CompactBinaryReference(const FIoHash& Value);
+	CORE_API void CompactBinaryAttachment(const FIoHash& Value);
 	/** Write a field referencing binary data by its hash. */
-	CORE_API void BinaryReference(const FIoHash& Value);
+	CORE_API void BinaryAttachment(const FIoHash& Value);
 
 	/** Write a hash field. */
 	CORE_API void Hash(const FIoHash& Value);
