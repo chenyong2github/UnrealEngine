@@ -479,6 +479,44 @@ void DrawDebugCircle(const UWorld* InWorld, FVector Center, float Radius, int32 
 	);
 }
 
+void DrawDebugCircleArc(const UWorld* InWorld, const FVector& Center, float Radius, const FVector& Direction, float AngleWidth, int32 Segments, const FColor& Color, bool PersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
+{
+	if (GEngine->GetNetMode(InWorld) != NM_DedicatedServer)
+	{
+		if (ULineBatchComponent* const LineBatcher = GetDebugLineBatcher(InWorld, PersistentLines, LifeTime, (DepthPriority == SDPG_Foreground)))
+		{
+			const float LineLifeTime = GetDebugLineLifeTime(LineBatcher, LifeTime, PersistentLines);
+
+			// Need at least 4 segments
+			Segments = FMath::Max(Segments, 4);
+			const float AngleStep = AngleWidth / float(Segments) * 2.f;
+
+			FVector AxisY, AxisZ;
+			FVector DirectionNorm = Direction.GetSafeNormal();
+			DirectionNorm.FindBestAxisVectors(AxisZ, AxisY);
+
+			TArray<FBatchedLine> Lines;
+			Lines.Empty(Segments);
+			float Angle = -AngleWidth;
+			FVector PrevVertex = Center + Radius * (AxisY * -FMath::Sin(Angle) + DirectionNorm * FMath::Cos(Angle));
+			while (Segments--)
+			{
+				Angle += AngleStep;
+				FVector NextVertex = Center + Radius * (AxisY * -FMath::Sin(Angle) + DirectionNorm * FMath::Cos(Angle));
+				Lines.Emplace(FBatchedLine(PrevVertex, NextVertex, Color, LineLifeTime, Thickness, DepthPriority));
+				PrevVertex = NextVertex;
+			}
+
+			LineBatcher->DrawLines(Lines);
+		}
+	}
+	else
+	{
+		UE_DRAW_SERVER_DEBUG_ON_EACH_CLIENT(DrawDebugCircleArc, Center, Radius, Direction, AngleWidth, Segments, AdjustColorForServer(Color), PersistentLines, LifeTime, DepthPriority, Thickness);
+	}
+
+}
+
 void DrawDebug2DDonut(const UWorld* InWorld, const FMatrix& TransformMatrix, float InnerRadius, float OuterRadius, int32 Segments, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 {
 	// no debug line drawing on dedicated server
