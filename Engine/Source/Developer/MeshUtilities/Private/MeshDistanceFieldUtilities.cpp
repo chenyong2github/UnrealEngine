@@ -305,7 +305,8 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 			for (int32 TaskIndex = 0; TaskIndex < AsyncTasks.Num(); TaskIndex++)
 			{
 				FAsyncTask<FMeshDistanceFieldAsyncTask>& Task = AsyncTasks[TaskIndex];
-				Task.EnsureCompletion(false);
+				extern CORE_API int32 GUseNewTaskBackend;
+				Task.EnsureCompletion(!!GUseNewTaskBackend);
 				bNegativeAtBorder = bNegativeAtBorder || Task.GetTask().WasNegativeAtBorder();
 			}
 

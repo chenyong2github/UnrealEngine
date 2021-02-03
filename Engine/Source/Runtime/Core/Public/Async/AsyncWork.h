@@ -17,6 +17,7 @@
 #include "Misc/IQueuedWork.h"
 #include "Misc/QueuedThreadPool.h"
 #include "ProfilingDebugging/TagTrace.h"
+#include "Async/Fundamental/Scheduler.h"
 
 /**
 	FAutoDeleteAsyncTask - template task for jobs that delete themselves when complete
@@ -354,6 +355,11 @@ class FAsyncTask
 		{
 			FScopeCycleCounter Scope( Task.GetStatId() );
 			DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FAsyncTask::SyncCompletion" ), STAT_FAsyncTask_SyncCompletion, STATGROUP_ThreadPoolAsyncTasks );
+
+			if (LowLevelTasks::FScheduler::Get().GetActiveTask())
+			{
+				LowLevelTasks::BusyWaitUntil([this]() { return IsWorkDone(); });
+			}
 
 			check(DoneEvent); // if it is not done yet, we must have an event
 			DoneEvent->Wait();
