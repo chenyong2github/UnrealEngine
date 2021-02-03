@@ -74,6 +74,20 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 		}
 	}
 
+	if (Manager.OnFilterGameplayTag.IsBound())
+	{
+		for (int32 Idx = TagItems.Num() - 1; Idx >= 0; --Idx)
+		{
+			bool DelegateShouldHide = false;
+			FGameplayTagSource* Source = Manager.FindTagSource(TagItems[Idx]->SourceName);
+			Manager.OnFilterGameplayTag.Broadcast(UGameplayTagsManager::FFilterGameplayTagContext(RootFilterString, TagItems[Idx], Source, PropertyHandle), DelegateShouldHide);
+			if (DelegateShouldHide)
+			{
+				TagItems.RemoveAtSwap(Idx);
+			}
+		}
+	}
+
 	// Tag the assets as transactional so they can support undo/redo
 	TArray<UObject*> ObjectsToMarkTransactional;
 	if (PropertyHandle.IsValid())
@@ -376,9 +390,14 @@ bool SGameplayTagWidget::FilterChildrenCheck( TSharedPtr<FGameplayTagNode> InIte
 		return false;
 	});
 
-
+	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 	bool DelegateShouldHide = false;
-	UGameplayTagsManager::Get().OnFilterGameplayTagChildren.Broadcast(RootFilterString, InItem, DelegateShouldHide);
+	Manager.OnFilterGameplayTagChildren.Broadcast(RootFilterString, InItem, DelegateShouldHide);
+	if (!DelegateShouldHide && Manager.OnFilterGameplayTag.IsBound())
+	{
+		FGameplayTagSource* Source = Manager.FindTagSource(InItem->SourceName);
+		Manager.OnFilterGameplayTag.Broadcast(UGameplayTagsManager::FFilterGameplayTagContext(RootFilterString, InItem, Source, PropertyHandle), DelegateShouldHide);
+	}
 	if (DelegateShouldHide)
 	{
 		// The delegate wants to hide, see if any children need to show
@@ -1248,6 +1267,20 @@ void SGameplayTagWidget::RefreshTags()
 		for (int32 Idx = TagItems.Num() - 1; Idx >= 0; --Idx)
 		{
 			if (!TagItems[Idx]->IsRestrictedGameplayTag())
+			{
+				TagItems.RemoveAtSwap(Idx);
+			}
+		}
+	}
+
+	if (Manager.OnFilterGameplayTag.IsBound())
+	{
+		for (int32 Idx = TagItems.Num() - 1; Idx >= 0; --Idx)
+		{
+			bool DelegateShouldHide = false;
+			FGameplayTagSource* Source = Manager.FindTagSource(TagItems[Idx]->SourceName);
+			Manager.OnFilterGameplayTag.Broadcast(UGameplayTagsManager::FFilterGameplayTagContext(RootFilterString, TagItems[Idx], Source, PropertyHandle), DelegateShouldHide);
+			if (DelegateShouldHide)
 			{
 				TagItems.RemoveAtSwap(Idx);
 			}

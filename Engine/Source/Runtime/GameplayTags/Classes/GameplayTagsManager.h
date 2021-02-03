@@ -583,6 +583,24 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	/** Allows dynamic hiding of gameplay tags in SGameplayTagWidget. Allows higher order structs to dynamically change which tags are visible based on its own data */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnFilterGameplayTagChildren, const FString&  /** FilterString */, TSharedPtr<FGameplayTagNode>& /* TagNode */, bool& /* OUT OutShouldHide */)
 	FOnFilterGameplayTagChildren OnFilterGameplayTagChildren;
+
+	struct FFilterGameplayTagContext
+	{
+		const FString& FilterString;
+		const TSharedPtr<FGameplayTagNode>& TagNode;
+		const FGameplayTagSource* TagSource;
+		const TSharedPtr<IPropertyHandle>& ReferencingPropertyHandle;
+
+		FFilterGameplayTagContext(const FString& InFilterString, const TSharedPtr<FGameplayTagNode>& InTagNode, const FGameplayTagSource* InTagSource, const TSharedPtr<IPropertyHandle>& InReferencingPropertyHandle)
+			: FilterString(InFilterString), TagNode(InTagNode), TagSource(InTagSource), ReferencingPropertyHandle(InReferencingPropertyHandle)
+		{}
+	};
+	/*
+	 * Allows dynamic hiding of gameplay tags in SGameplayTagWidget. Allows higher order structs to dynamically change which tags are visible based on its own data
+	 * Applies to all tags, and has more context than OnFilterGameplayTagChildren
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFilterGameplayTag, const FFilterGameplayTagContext& /** InContext */, bool& /* OUT OutShouldHide */)
+	FOnFilterGameplayTag OnFilterGameplayTag;
 	
 	void NotifyGameplayTagDoubleClickedEditor(FString TagName);
 	
@@ -702,9 +720,9 @@ private:
 	/** Our aggregated, sorted list of commonly replicated tags. These tags are given lower indices to ensure they replicate in the first bit segment. */
 	TArray<FGameplayTag> CommonlyReplicatedTags;
 
-	/** List of gameplay tag sources */
+	/** Map of gameplay tag source names to source objects */
 	UPROPERTY()
-	TArray<FGameplayTagSource> TagSources;
+	TMap<FName, FGameplayTagSource> TagSources;
 
 	/** List of native tags to add when reconstructing tree */
 	TSet<FName> NativeTagsToAdd;

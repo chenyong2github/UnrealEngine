@@ -1615,35 +1615,21 @@ bool UGameplayTagsManager::ShowGameplayTagAsHyperLinkEditor(FString TagName)
 
 const FGameplayTagSource* UGameplayTagsManager::FindTagSource(FName TagSourceName) const
 {
-	for (const FGameplayTagSource& TagSource : TagSources)
-	{
-		if (TagSource.SourceName == TagSourceName)
-		{
-			return &TagSource;
-		}
-	}
-	return nullptr;
+	return TagSources.Find(TagSourceName);
 }
 
 FGameplayTagSource* UGameplayTagsManager::FindTagSource(FName TagSourceName)
 {
-	for (FGameplayTagSource& TagSource : TagSources)
-	{
-		if (TagSource.SourceName == TagSourceName)
-		{
-			return &TagSource;
-		}
-	}
-	return nullptr;
+	return TagSources.Find(TagSourceName);
 }
 
 void UGameplayTagsManager::FindTagSourcesWithType(EGameplayTagSourceType TagSourceType, TArray<const FGameplayTagSource*>& OutArray) const
 {
-	for (const FGameplayTagSource& TagSource : TagSources)
+	for (auto TagSourceIt = TagSources.CreateConstIterator(); TagSourceIt; ++TagSourceIt)
 	{
-		if (TagSource.SourceType == TagSourceType)
+		if (TagSourceIt.Value().SourceType == TagSourceType)
 		{
-			OutArray.Add(&TagSource);
+			OutArray.Add(&TagSourceIt.Value());
 		}
 	}
 }
@@ -1663,7 +1649,7 @@ FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName
 
 	// Need to make a new one
 
-	FGameplayTagSource* NewSource = new(TagSources) FGameplayTagSource(TagSourceName, SourceType);
+	FGameplayTagSource* NewSource = &TagSources.Add(TagSourceName, FGameplayTagSource(TagSourceName, SourceType));
 
 	if (SourceType == EGameplayTagSourceType::DefaultTagList)
 	{
