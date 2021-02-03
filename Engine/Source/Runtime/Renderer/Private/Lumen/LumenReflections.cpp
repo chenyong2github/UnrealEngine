@@ -66,7 +66,7 @@ FAutoConsoleVariableRef CVarLumenReflectionTemporalFilter(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenReflectionHistoryWeight = .9f;
+float GLumenReflectionHistoryWeight = .99f;
 FAutoConsoleVariableRef CVarLumenReflectionHistoryWeight(
 	TEXT("r.Lumen.Reflections.Temporal.HistoryWeight"),
 	GLumenReflectionHistoryWeight,
@@ -106,11 +106,11 @@ FAutoConsoleVariableRef CVarLumenReflectionScreenSpaceReconstructionNumSamples(
 	ECVF_RenderThreadSafe
 	);
 
-float GLumenReflectionScreenSpaceReconstructionScreenWidth = .02f;
+float GLumenReflectionScreenSpaceReconstructionKernelRadius = 8.0;
 FAutoConsoleVariableRef CVarLumenReflectionScreenSpaceReconstructionKernelScreenWidth(
-	TEXT("r.Lumen.Reflections.ScreenSpaceReconstruction.KernelScreenWidth"),
-	GLumenReflectionScreenSpaceReconstructionScreenWidth,
-	TEXT("Size of the kernel in a fraction of the screen"),
+	TEXT("r.Lumen.Reflections.ScreenSpaceReconstruction.KernelRadius"),
+	GLumenReflectionScreenSpaceReconstructionKernelRadius,
+	TEXT("Screen space reflection filter kernel radius in pixels"),
 	ECVF_RenderThreadSafe
 	);
 
@@ -250,7 +250,7 @@ class FReflectionResolveCS : public FGlobalShader
 		SHADER_PARAMETER(float, MaxRoughnessToTrace)
 		SHADER_PARAMETER(float, InvRoughnessFadeLength)
 		SHADER_PARAMETER(uint32, NumSpatialReconstructionSamples)
-		SHADER_PARAMETER(float, SpatialReconstructionScreenWidth)
+		SHADER_PARAMETER(float, SpatialReconstructionKernelRadius)
 		SHADER_PARAMETER(float, SpatialReconstructionRoughnessScale)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
@@ -612,7 +612,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 		PassParameters->InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
 		PassParameters->NumSpatialReconstructionSamples = GLumenReflectionScreenSpaceReconstructionNumSamples;
-		PassParameters->SpatialReconstructionScreenWidth = GLumenReflectionScreenSpaceReconstructionScreenWidth;
+		PassParameters->SpatialReconstructionKernelRadius = GLumenReflectionScreenSpaceReconstructionKernelRadius;
 		PassParameters->SpatialReconstructionRoughnessScale = GLumenReflectionScreenSpaceReconstructionRoughnessScale;
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->View = View.ViewUniformBuffer;

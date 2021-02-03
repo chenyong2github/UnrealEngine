@@ -170,7 +170,7 @@ void ReflectionGenerateRaysCS(
 RWTexture2D<float4> RWSpecularIndirect;
 
 uint NumSpatialReconstructionSamples;
-float SpatialReconstructionScreenWidth;
+float SpatialReconstructionKernelRadius;
 float SpatialReconstructionRoughnessScale;
 
 float Luma(float3 Color) 
@@ -179,7 +179,7 @@ float Luma(float3 Color)
 	return dot(Color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
-#define TONEMAP_DURING_RESOLVE 0
+#define TONEMAP_DURING_RESOLVE 1
 
 float3 TonemapLighting(float3 Lighting)
 {
@@ -211,6 +211,8 @@ void ReflectionResolveCS(
 	float3 ReflectionLighting = 0;
 	float DepthForReprojection = SceneDepth;
 
+	const bool bUseCenterSample = ReflectionDownsampleFactor == 1;
+
 	if (SceneDepth < 1000000.0f)
 	{
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
@@ -233,25 +235,31 @@ void ReflectionResolveCS(
 				float4 ScenePlane = float4(GBufferData.WorldNormal, dot(WorldPosition, GBufferData.WorldNormal));
 
 				float TotalWeight = 0;
-				uint KernelWidth = max(SpatialReconstructionScreenWidth * min(ReflectionTracingViewSize.x, ReflectionTracingViewSize.y), 1);
 				float a2 = Pow4(clamp(TopLayerRoughness * SpatialReconstructionRoughnessScale, 0.0f, 1.0f));
 				uint2 RandomSeed = Rand3DPCG16(int3(ScreenCoord, View.StateFrameIndex % 8)).xy;
 
 				// Center sample
-				float CenterTraceHitDistance;
+				float CenterTraceHitDistance = ClosestHitDepth;
+
 				{
 					bool bUnused;
 					CenterTraceHitDistance = DecodeRayDistance(TraceHit[ReflectionScreenCoord].x, bUnused);
-
-					ReflectionLighting = TraceRadiance[ReflectionScreenCoord];
-					TotalWeight = 1.0f;
 					ClosestHitDepth = CenterTraceHitDistance;
+
+					if (bUseCenterSample)
+					{
+						ReflectionLighting = TonemapLighting(TraceRadiance[ReflectionScreenCoord]);
+						TotalWeight = 1.0f;
+					}
 				}
 
+				float MinKernelRadius = ReflectionDownsampleFactor;
+				float MaxKernelRadius = SpatialReconstructionKernelRadius;
+				float KernelDiameter = 2.0 * lerp(MinKernelRadius, MaxKernelRadius, saturate(GBufferData.Roughness * 8));
 				for (uint SampleIndex = 0; SampleIndex < NumSpatialReconstructionSamples; SampleIndex++)
 				{
-					int2 Offset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f) * KernelWidth;
-					int2 NeighborTracingCoord = ReflectionScreenCoord + Offset;
+					float2 Offset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f) * KernelDiameter;
+					int2 NeighborTracingCoord = (int2)(ReflectionScreenCoord + Offset);
 
 					if (all(NeighborTracingCoord >= int2(0, 0) && NeighborTracingCoord < (int2)View.ViewSizeAndInvSize.xy))
 					{
@@ -282,15 +290,16 @@ void ReflectionResolveCS(
 							// Re-weight neighbor ray by the ratio of our PDF to neighbor PDF
 							float NewPDF = min(VisibleGGXPDF(TangentV, TangentH, a2), 1.0f / MinReflectionConeAngle);
 							float Weight = NewPDF / RayData.PDF;
+							float ClampedWeight = max(1e-6, Weight);
 
-							ReflectionLighting += TonemapLighting(TraceRadiance[NeighborTracingCoord]) * Weight;
+							ReflectionLighting += TonemapLighting(TraceRadiance[NeighborTracingCoord]) * ClampedWeight;
 
 							if (Weight > .001f)
 							{
 								ClosestHitDepth = min(ClosestHitDepth, TraceHitDistance);
 							}
 							
-							TotalWeight += Weight;
+							TotalWeight += ClampedWeight;
 						}
 					}
 				}
