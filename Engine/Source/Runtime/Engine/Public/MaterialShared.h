@@ -1746,6 +1746,7 @@ public:
 	virtual uint32 GetStencilRefValue() const { return 0; }
 	virtual uint32 GetStencilCompare() const { return 0; }
 	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
+	virtual bool HasMaterialLayers() const { return false; }
 	virtual bool CastsRayTracedShadows() const { return true; }
 	virtual EMaterialShadingRate GetShadingRate() const { return MSR_1x1; }
 	/**
@@ -2597,6 +2598,7 @@ public:
 	ENGINE_API virtual bool IsSky() const override;
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
+	ENGINE_API virtual bool HasMaterialLayers() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 	ENGINE_API  virtual UMaterialInterface* GetMaterialInterface() const override;
 	/**
