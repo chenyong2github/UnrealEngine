@@ -775,10 +775,16 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 
 	check(PlayerController && PlayerController->GetWorld());
 
-	int ViewIndex = 0;
-	if (IStereoRendering::IsStereoEyePass(StereoPass))
+	uint32 ViewIndex = 0;
+	if (GEngine->StereoRenderingDevice.IsValid())
 	{
-		ViewIndex = StereoPass - 1;
+		ViewIndex = GEngine->StereoRenderingDevice->GetViewIndexForPass(StereoPass);
+	}
+
+	if (!ViewStates.IsValidIndex(ViewIndex))
+	{
+		ViewStates.EmplaceAt(ViewIndex);
+		ViewStates[ViewIndex].Allocate();
 	}
 
 	ViewInitOptions.SceneViewStateInterface = ViewStates[ViewIndex].GetReference();
