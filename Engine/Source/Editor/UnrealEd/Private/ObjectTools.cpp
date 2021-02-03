@@ -2320,6 +2320,14 @@ namespace ObjectTools
 				}
 			}
 		}
+
+		// Allows to inject extra assets to delete without modifying the engine source.
+		FEditorDelegates::OnAssetsAddExtraObjectsToDelete.Broadcast(ObjectsToDelete);
+
+		//This method is called 2x in the deletion flow. Make sure there is no duplicates in the array as we can't rely on the methods registered to the delegate to uniquely add.
+		TSet<UObject*> CleanupDuplicatesSet(MoveTemp(ObjectsToDelete)); // Move items into the set to remove duplicate pointers.
+		ObjectsToDelete = CleanupDuplicatesSet.Array(); // Copy elements back again
+
 	}
 
 	bool ContainsWorldInUse(const TArray< UObject* >& ObjectsToDelete)
