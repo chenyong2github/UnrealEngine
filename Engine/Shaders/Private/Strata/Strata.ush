@@ -1357,6 +1357,9 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 
 	// Now skip over the shared normal memory to be able to load the BSDF content
 	StrataAddressing.CurrentAddr += NormalCount * STRATA_PACKED_NORMAL_STRIDE_BYTES;
+
+	// And account for the space used by normal for the debug information
+	StrataAddressing.ReadBytes += NormalCount * STRATA_PACKED_NORMAL_STRIDE_BYTES;
 #endif
 
 	return Out;
@@ -1384,17 +1387,45 @@ FStrataPixelHeader UnpackFastPathStrataHeaderIn(ByteAddressBuffer StrataBuffer, 
 	return Out;
 }
 
-// Force a BSDF state to a single slabe with isotropic BSDF, with no subsurface scattering, and no haziness
-void SetStrataFastPathState(inout FStrataBSDF BSDF)
+void UnpackFastPathSlabBSDF(inout FStrataBSDF OutBSDF, uint2 PackedData01)
 {
-	BSDF_SETTYPE(BSDF, STRATA_BSDF_TYPE_SLAB);
-	BSDF_SETHASEDGECOLOR(BSDF, 0);
-	BSDF_SETANISOTROPY(BSDF, 0);
-	BSDF_SETISTOPLAYER(BSDF, 1);
-	BSDF_SETHASSCATTERING(BSDF, 0);
-	BSDF_SETHASSSSPROFILE(BSDF, 0);
-	BSDF_SETHASHAZINESS(BSDF, 0);
-	BSDF_SETHASTHINFILM(BSDF, 0);
+	float4 Data0 = UnpackColorGamma2ToLinearAlphaLinear(PackedData01.x);
+	SLAB_BASECOLOR(OutBSDF)		= Data0.rgb;
+	SLAB_ROUGHNESSX(OutBSDF)	= Data0.a;
+
+	float4 Data1 = UnpackRGBA8(PackedData01.y);
+	SLAB_SPECULAR(OutBSDF)		= Data1.x;
+	SLAB_METALLIC(OutBSDF)		= Data1.y;
+	SLAB_ROUGHNESSY(OutBSDF)	= Data1.z;
+	SLAB_HAZINESS(OutBSDF)		= Data1.w;
+}
+
+FStrataBSDF UnpackFastPathStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing)
+{
+	FStrataBSDF OutBSDF = (FStrataBSDF)0;
+
+	OutBSDF.State = StrataLoadUint1(StrataBuffer, StrataAddressing);
+
+	// In the fast path the single slab BSDF is always on top so the weight must be grey scale.
+	OutBSDF.Weight = Unpack10F(BSDF_GETWEIGHT10F(OutBSDF));
+
+	// Now unpack the simple Slab BSDF
+	uint DataX = StrataLoadUint1(StrataBuffer, StrataAddressing);
+	uint DataY = StrataLoadUint1(StrataBuffer, StrataAddressing);
+	UnpackFastPathSlabBSDF(OutBSDF, uint2(DataX, DataY));
+
+	// Force a BSDF state to a single slab with isotropic specular, no subsurface scattering or any other options.
+	// This is to help the compiler understand disabled path.
+	BSDF_SETTYPE(OutBSDF, STRATA_BSDF_TYPE_SLAB);
+	BSDF_SETHASEDGECOLOR(OutBSDF, 0);
+	BSDF_SETANISOTROPY(OutBSDF, 0);
+	BSDF_SETISTOPLAYER(OutBSDF, 1);
+	BSDF_SETHASSCATTERING(OutBSDF, 0);
+	BSDF_SETHASSSSPROFILE(OutBSDF, 0);
+	BSDF_SETHASHAZINESS(OutBSDF, 0);
+	BSDF_SETHASTHINFILM(OutBSDF, 0);
+
+	return OutBSDF;
 }
 
 // Unpack a single BSDF
@@ -1423,14 +1454,9 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddr
 	{
 	case STRATA_BSDF_TYPE_SLAB:
 	{
-		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, SLAB_BASECOLOR(OutBSDF), SLAB_ROUGHNESSX(OutBSDF));
-		{
-			float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
-			SLAB_SPECULAR(OutBSDF) = Data.x;
-			SLAB_METALLIC(OutBSDF) = Data.y;
-			SLAB_ROUGHNESSY(OutBSDF) = Data.z;
-			SLAB_HAZINESS(OutBSDF) = Data.w;
-		}
+		uint DataX = StrataLoadUint1(StrataBuffer, StrataAddressing);
+		uint DataY = StrataLoadUint1(StrataBuffer, StrataAddressing);
+		UnpackFastPathSlabBSDF(OutBSDF, uint2(DataX, DataY));
 
 		SLAB_EDGECOLOR(OutBSDF) = 1.0f;
 		SLAB_THINFILM_THICKNESS(OutBSDF) = 0.0f;

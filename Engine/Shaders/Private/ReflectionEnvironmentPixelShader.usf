@@ -341,34 +341,24 @@ void ReflectionEnvironmentSkyLighting(
 
 #if ENABLE_DYNAMIC_SKY_LIGHT
 #if ENABLE_SKY_LIGHT
+	// STRATA_TODO handle the ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING case 
 
 	FStrataClassification StrataClassification = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelPos, 0)));
-
-	// STRATA_TODO handle the ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING case 
 	BRANCH
-	if (StrataClassification.bIsStrataMaterial)
+	if (StrataClassification.bIsStrataMaterial) // This test is also enough to exclude sky pixels
 	{
-		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
-
 		float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 		float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
+		// STRATA_TODO: when GCN TA command FIFO is not longer the bottleneck, try to compute TopLayerData.EnvBRDF in StrataEnvironmentLighting to avoid reading that TopLayerData texture.
+		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
+
 		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
 		float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
-		float3 N = TopLayerData.Normal;
 		float3 V = -CameraToPixel;
-		float NoV = saturate(dot(N, V));
 
 		// Sample the ambient occlusion that is dynamically generated every frame.
 		float AmbientOcclusion = AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, BufferUV, 0).r;
-
-		// STRATA_TODO: the top layer should handle the bent normal...
-		float3 BentNormal = N; 
-#if APPLY_SKY_SHADOWING
-		{
-			BentNormal = UpsampleDFAO(BufferUV, SceneDepth, N);
-		}
-#endif
 
 		const float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
 

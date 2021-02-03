@@ -181,9 +181,10 @@ float4 StrataDeferredLighting(
 #endif
 	{
 		// Unpack BSDF data
-		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, StrataAddressing);
 #if STRATA_FASTPATH
-		SetStrataFastPathState(BSDF);
+		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(StrataDataBuffer, StrataAddressing);
+#else
+		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, StrataAddressing);
 #endif
 		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, V, L);
 

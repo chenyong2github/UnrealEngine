@@ -41,9 +41,10 @@ float4 StrataEnvironmentLighting(
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 #endif
 	{
-		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, StrataAddressing);
 #if STRATA_FASTPATH
-		SetStrataFastPathState(BSDF);
+		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(StrataDataBuffer, StrataAddressing);
+#else
+		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, StrataAddressing);
 #endif
 		const float3 BSDFThroughput = BSDF.Weight;
 
