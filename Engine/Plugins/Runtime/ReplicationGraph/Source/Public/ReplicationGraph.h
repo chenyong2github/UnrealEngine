@@ -1071,11 +1071,35 @@ protected:
 
 	virtual void AddReplayViewers(UNetConnection* NetConnection, FNetViewerArray& Viewers) {}
 
+	/** Collects basic stats on the replicated actors */
+	struct FFrameReplicationStats
+	{
+		// Total number of actors replicated.
+		int32 NumReplicatedActors = 0;
+        
+        // Number of actors who did not send any data when ReplicateActor was called on them.
+		int32 NumReplicatedCleanActors = 0;
+
+		// Number of actors replicated using the fast path.
+		int32 NumReplicatedFastPathActors = 0;
+
+		void Reset()
+		{
+			*this = FFrameReplicationStats();
+		}
+	};
+	
+	/** Event called after ServerReplicateActors to dispatch the replication stats from this frame */
+	virtual void PostServerReplicateStats(const FFrameReplicationStats& Stats) {};
+
 private:
 
 	UNetReplicationGraphConnection* FixGraphConnectionList(TArray<UNetReplicationGraphConnection*>& OutList, int32& ConnectionId, UNetConnection* RemovedNetConnection);
 
 private:
+
+	/** Collect replication data during ServerReplicateActors */
+	FFrameReplicationStats FrameReplicationStats;
 
 	/** Whether or not a connection was saturated during an update. */
 	bool bWasConnectionSaturated = false;

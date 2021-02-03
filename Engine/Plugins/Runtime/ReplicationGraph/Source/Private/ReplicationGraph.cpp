@@ -866,6 +866,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 
 	++NetDriver->ReplicationFrame;	// This counter is used by RepLayout to utilize CL/serialization sharing. We must increment it ourselves, but other places can increment it too, in order to invalidate the shared state.
 	const uint32 FrameNum = ReplicationGraphFrame; // This counter is used internally and drives all frame based replication logic.
+	FrameReplicationStats.Reset();
 
 	bWasConnectionSaturated = false;
 
@@ -1117,12 +1118,16 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	
 	SET_DWORD_STAT(STAT_NumProcessedConnections, Connections.Num() + NumChildrenConnectionsProcessed);
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (CVar_RepGraph_PrintTrackClassReplication)
 	{
 		CVar_RepGraph_PrintTrackClassReplication = 0;
 		UE_LOG(LogReplicationGraph, Display, TEXT("Changed Classes: %s"), *ChangeClassAccumulator.BuildString());
 		UE_LOG(LogReplicationGraph, Display, TEXT("No Change Classes: %s"), *NoChangeClassAccumulator.BuildString());
 	}
+#endif
+
+	PostServerReplicateStats(FrameReplicationStats);
 
 	CSVTracker.EndReplicationFrame();
 	return 0;
@@ -1620,6 +1625,8 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 		return 0;
 	}
 
+	FrameReplicationStats.NumReplicatedFastPathActors++;
+
 	// Allocate the shared bunch if it hasn't been already
 	if (GlobalActorInfo.FastSharedReplicationInfo.IsValid() == false)
 	{
@@ -1752,6 +1759,8 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		}
 	}
 
+	FrameReplicationStats.NumReplicatedActors++;
+
 	ActorInfo.LastRepFrameNum = FrameNum;
 	ActorInfo.NextReplicationFrameNum = FrameNum + ActorInfo.ReplicationPeriodFrame;
 
@@ -1816,10 +1825,12 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 	}
 
 	const double DeltaReplicateActorTimeSeconds = GReplicateActorTimeSeconds - StartingReplicateActorTimeSeconds;
+	const bool bWasDataSent = BitsWritten > 0;
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (bTrackClassReplication)
 	{
-		if (BitsWritten > 0)
+		if (bWasDataSent)
 		{
 			ChangeClassAccumulator.Increment(ActorClass);
 		}
@@ -1827,6 +1838,12 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		{
 			NoChangeClassAccumulator.Increment(ActorClass);
 		}
+	}
+#endif
+
+	if (bWasDataSent == false)
+	{
+		FrameReplicationStats.NumReplicatedCleanActors++;
 	}
 
 	const bool bIsTrafficActorDiscovery = ActorDiscoveryMaxBitsPerFrame > 0 && (ActorInfo.Channel && ActorInfo.Channel->SpawnAcked == false);
