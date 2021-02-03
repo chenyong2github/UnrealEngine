@@ -2550,14 +2550,18 @@ void AInstancedFoliageActor::ForEachFoliageInfo(TFunctionRef<bool(UFoliageType* 
 TUniqueObj<FFoliageInfo>& AInstancedFoliageActor::AddFoliageInfo(UFoliageType* FoliageType)
 {
 	TUniqueObj<FFoliageInfo>& NewFoliageInfo = FoliageInfos.Add(FoliageType);
+#if WITH_EDITORONLY_DATA
 	NewFoliageInfo->IFA = this;
+#endif
 	return NewFoliageInfo;
 }
 
 TUniqueObj<FFoliageInfo>& AInstancedFoliageActor::AddFoliageInfo(UFoliageType* FoliageType, TUniqueObj<FFoliageInfo>&& FoliageInfo)
 {
 	TUniqueObj<FFoliageInfo>& NewFoliageInfo = FoliageInfos.Add(FoliageType, MoveTemp(FoliageInfo));
+#if WITH_EDITORONLY_DATA
 	NewFoliageInfo->IFA = this;
+#endif
 	return NewFoliageInfo;
 }
 
