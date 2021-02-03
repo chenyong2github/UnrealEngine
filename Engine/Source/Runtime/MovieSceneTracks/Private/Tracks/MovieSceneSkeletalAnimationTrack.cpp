@@ -529,6 +529,8 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 
 			FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *ValidAnimSequence->GetSkeleton());
 			OutPose.ResetToRefPose(BoneContainer);
+			FBlendedCurve OutCurve;
+			OutCurve.InitFrom(BoneContainer);
 			TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
 			RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
 			RootMotionParams.EndFrame = AnimationSections[AnimationSections.Num() - 1]->GetExclusiveEndFrame() - 1;
@@ -558,7 +560,6 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 					{
 						UMovieSceneSkeletalAnimationSection* AnimSection = CastChecked<UMovieSceneSkeletalAnimationSection>(Section);
 
-						FBlendedCurve OutCurve;
 						FStackCustomAttributes TempAttributes;
 						FAnimationPoseData AnimationPoseData(OutPose, OutCurve, TempAttributes);
 						bool bIsAdditive = false;

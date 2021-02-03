@@ -26,7 +26,7 @@
 static TAutoConsoleVariable<int32> CVarKeepNotifyAndCurvesOnAnimationRecord(
 	TEXT("a.KeepNotifyAndCurvesOnAnimationRecord"),
 	1,
-	TEXT("If nonzero we keep anim notifies, curves and sycn markers when animation recording, if 0 we discard them before recording."),
+	TEXT("If nonzero we keep anim notifies, curves and sync markers when animation recording, if 0 we discard them before recording."),
 	ECVF_Default);
 
 /////////////////////////////////////////////////////
