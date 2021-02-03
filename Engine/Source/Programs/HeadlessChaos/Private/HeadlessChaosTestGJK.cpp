@@ -546,12 +546,12 @@ namespace ChaosTest
 
 		{
 			//Tetrahedron
-			TParticles<FReal, 3> HullParticles;
-			HullParticles.AddParticles(4);
-			HullParticles.X(0) = { -1,-1,-1 };
-			HullParticles.X(1) = { 1,-1,-1 };
-			HullParticles.X(2) = { 0,1,-1 };
-			HullParticles.X(3) = { 0,0,1 };
+			TArray<Chaos::FVec3> HullParticles;
+			HullParticles.SetNum(4);
+			HullParticles[0] = { -1,-1,-1 };
+			HullParticles[1] = { 1,-1,-1 };
+			HullParticles[2] = { 0,1,-1 };
+			HullParticles[3] = { 0,0,1 };
 			FConvex B(HullParticles, 0.0f);
 
 			for (const FVec3& InitialDir : InitialDirs)
@@ -581,11 +581,11 @@ namespace ChaosTest
 
 		{
 			//Triangle
-			TParticles<FReal, 3> TriangleParticles;
-			TriangleParticles.AddParticles(3);
-			TriangleParticles.X(0) = { -1,-1,-1 };
-			TriangleParticles.X(1) = { 1,-1,-1 };
-			TriangleParticles.X(2) = { 0,1,-1 };
+			TArray<Chaos::FVec3> TriangleParticles;
+			TriangleParticles.SetNum(3);
+			TriangleParticles[0] = { -1,-1,-1 };
+			TriangleParticles[1] = { 1,-1,-1 };
+			TriangleParticles[2] = { 0,1,-1 };
 			FConvex B(TriangleParticles, 0.0f);
 
 			//triangle
@@ -916,12 +916,12 @@ namespace ChaosTest
 	void GJKSphereConvexSweep()
 	{
 		//Tetrahedron
-		TParticles<FReal, 3> HullParticles;
-		HullParticles.AddParticles(4);
-		HullParticles.X(0) = { 3,0,4 };
-		HullParticles.X(1) = { 3,1,0 };
-		HullParticles.X(2) = { 3,-1,0 };
-		HullParticles.X(3) = { 4,0,2 };
+		TArray<Chaos::FVec3> HullParticles;
+		HullParticles.SetNum(4);
+		HullParticles[0] = { 3,0,4 };
+		HullParticles[1] = { 3,1,0 };
+		HullParticles[2] = { 3,-1,0 };
+		HullParticles[3] = { 4,0,2 };
 		FConvex A(HullParticles, 0.0f);
 		TSphere<FReal, 3> B(FVec3(0, 0, 0), 1);
 
@@ -1346,19 +1346,19 @@ namespace ChaosTest
 
 		{
 			//based on real sweep from game
-			TParticles<FReal, 3> ConvexParticles;
-			ConvexParticles.AddParticles(10);
+			TArray<Chaos::FVec3> ConvexParticles;
+			ConvexParticles.SetNum(10);
 
-			ConvexParticles.X(0) = { 51870.2305, 54369.6719, 19200.0000 };
-			ConvexParticles.X(1) = { -91008.5625, -59964.0000, -19199.9629 };
-			ConvexParticles.X(2) = { 51870.2305, 54369.6758, -19199.9668 };
-			ConvexParticles.X(3) = { 22164.4883, 124647.500, -19199.9961 };
-			ConvexParticles.X(4) = { 34478.5000, 123975.492, -19199.9961 };
-			ConvexParticles.X(5) = { -91008.5000, -59963.9375, 19200.0000 };
-			ConvexParticles.X(6) = { -91008.5000, 33715.5625, 19200.0000 };
-			ConvexParticles.X(7) = { 34478.4961, 123975.500, 19200.0000 };
-			ConvexParticles.X(8) = { 22164.4922, 124647.500, 19200.0000 };
-			ConvexParticles.X(9) = { -91008.5000, 33715.5625, -19199.9961 };
+			ConvexParticles[0] = { 51870.2305, 54369.6719, 19200.0000 };
+			ConvexParticles[1] = { -91008.5625, -59964.0000, -19199.9629 };
+			ConvexParticles[2] = { 51870.2305, 54369.6758, -19199.9668 };
+			ConvexParticles[3] = { 22164.4883, 124647.500, -19199.9961 };
+			ConvexParticles[4] = { 34478.5000, 123975.492, -19199.9961 };
+			ConvexParticles[5] = { -91008.5000, -59963.9375, 19200.0000 };
+			ConvexParticles[6] = { -91008.5000, 33715.5625, 19200.0000 };
+			ConvexParticles[7] = { 34478.4961, 123975.500, 19200.0000 };
+			ConvexParticles[8] = { 22164.4922, 124647.500, 19200.0000 };
+			ConvexParticles[9] = { -91008.5000, 33715.5625, -19199.9961 };
 
 
 			const FConvex A(ConvexParticles, 0.0f);
@@ -1377,17 +1377,17 @@ namespace ChaosTest
 	void GJKCapsuleConvexInitialOverlapSweep()
 	{
 		{
-			TParticles<FReal,3> ConvexParticles;
-			ConvexParticles.AddParticles(8);
+			TArray<Chaos::FVec3> ConvexParticles;
+			ConvexParticles.SetNum(8);
 
-			ConvexParticles.X(0) ={-256.000031,12.0000601,384.000061};
-			ConvexParticles.X(1) ={256.000031,12.0000601,384.000061};
-			ConvexParticles.X(2) ={256.000031,12.0000601,6.10351563e-05};
-			ConvexParticles.X(3) ={-256.000031,-11.9999399,6.10351563e-05};
-			ConvexParticles.X(4) ={-256.000031,12.0000601,6.10351563e-05};
-			ConvexParticles.X(5) ={-256.000031,-11.9999399,384.000061};
-			ConvexParticles.X(6) ={256.000031,-11.9999399,6.10351563e-05};
-			ConvexParticles.X(7) ={256.000031,-11.9999399,384.000061};
+			ConvexParticles[0] ={-256.000031,12.0000601,384.000061};
+			ConvexParticles[1] ={256.000031,12.0000601,384.000061};
+			ConvexParticles[2] ={256.000031,12.0000601,6.10351563e-05};
+			ConvexParticles[3] ={-256.000031,-11.9999399,6.10351563e-05};
+			ConvexParticles[4] ={-256.000031,12.0000601,6.10351563e-05};
+			ConvexParticles[5] ={-256.000031,-11.9999399,384.000061};
+			ConvexParticles[6] ={256.000031,-11.9999399,6.10351563e-05};
+			ConvexParticles[7] ={256.000031,-11.9999399,384.000061};
 
 			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles, 0.0f);
 			TSerializablePtr<FConvex> AConv(UniqueConvex);
@@ -1411,25 +1411,25 @@ namespace ChaosTest
 		}
 
 		{
-			TParticles<FReal,3> ConvexParticles;
-			ConvexParticles.AddParticles(16);
+			TArray<FVec3> ConvexParticles;
+			ConvexParticles.SetNum(16);
 
-			ConvexParticles.X(0) ={-127.216454,203.240234,124.726524};
-			ConvexParticles.X(1) ={125.708847,203.240295,124.726524};
-			ConvexParticles.X(2) ={-120.419685,207.124924,-0.386817127};
-			ConvexParticles.X(3) ={-32.9052734,91.5147095,199.922119};
-			ConvexParticles.X(4) ={118.912071,91.3693237,155.363205};
-			ConvexParticles.X(5) ={31.3977623,91.5147705,199.922150};
-			ConvexParticles.X(6) ={115.392204,91.6678925,162.647476};
-			ConvexParticles.X(7) ={-120.419701,91.1026840,-0.386809498};
-			ConvexParticles.X(8) ={118.912086,207.124985,-0.386806667};
-			ConvexParticles.X(9) ={118.912086,91.1027603,-0.386806667};
-			ConvexParticles.X(10) ={-120.419685,91.3692703,155.363174};
-			ConvexParticles.X(11) ={-110.103012,199.020554,160.910324};
-			ConvexParticles.X(12) ={-116.899742,91.6678467,162.647491};
-			ConvexParticles.X(13) ={31.3977337,194.240265,194.534988};
-			ConvexParticles.X(14) ={-32.9052925,194.240204,194.534958};
-			ConvexParticles.X(15) ={108.595482,199.020599,160.910309};
+			ConvexParticles[0] ={-127.216454,203.240234,124.726524};
+			ConvexParticles[1] ={125.708847,203.240295,124.726524};
+			ConvexParticles[2] ={-120.419685,207.124924,-0.386817127};
+			ConvexParticles[3] ={-32.9052734,91.5147095,199.922119};
+			ConvexParticles[4] ={118.912071,91.3693237,155.363205};
+			ConvexParticles[5] ={31.3977623,91.5147705,199.922150};
+			ConvexParticles[6] ={115.392204,91.6678925,162.647476};
+			ConvexParticles[7] ={-120.419701,91.1026840,-0.386809498};
+			ConvexParticles[8] ={118.912086,207.124985,-0.386806667};
+			ConvexParticles[9] ={118.912086,91.1027603,-0.386806667};
+			ConvexParticles[10] ={-120.419685,91.3692703,155.363174};
+			ConvexParticles[11] ={-110.103012,199.020554,160.910324};
+			ConvexParticles[12] ={-116.899742,91.6678467,162.647491};
+			ConvexParticles[13] ={31.3977337,194.240265,194.534988};
+			ConvexParticles[14] ={-32.9052925,194.240204,194.534958};
+			ConvexParticles[15] ={108.595482,199.020599,160.910309};
 
 			auto Convex = MakeShared<FConvex, ESPMode::ThreadSafe>(ConvexParticles, 0.0f);
 			const auto& A = *Convex;
@@ -1480,18 +1480,18 @@ namespace ChaosTest
 
 		{
 			//capsule vs triangle as we make the sweep longer the world space point of impact should stay the same
-			TParticles<FReal,3> ConvexParticles;
-			ConvexParticles.AddParticles(3);
+			TArray<FVec3> ConvexParticles;
+			ConvexParticles.SetNum(3);
 
-			ConvexParticles.X(0) ={7400.00000, 12600.0000, 206.248123};
-			ConvexParticles.X(1) ={7500.00000, 12600.0000, 199.994904};
-			ConvexParticles.X(2) ={7500.00000, 12700.0000, 189.837433};
+			ConvexParticles[0] ={7400.00000, 12600.0000, 206.248123};
+			ConvexParticles[1] ={7500.00000, 12600.0000, 199.994904};
+			ConvexParticles[2] ={7500.00000, 12700.0000, 189.837433};
 			
 			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles, 0.0f);
 			TSerializablePtr<FConvex> AConv(UniqueConvex);
 			const TImplicitObjectScaled<FConvex> AConvScaled(AConv,FVec3(1.0,1.0,1.0));
 
-			TTriangle<FReal> A(ConvexParticles.X(0),ConvexParticles.X(1),ConvexParticles.X(2));
+			TTriangle<FReal> A(ConvexParticles[0],ConvexParticles[1],ConvexParticles[2]);
 
 			const FVec3 Pt0(0.0,0.0,-29.6999969);
 			FVec3 Pt1 = Pt0;
@@ -1721,8 +1721,7 @@ namespace ChaosTest
 		const FVec3 Scale = FVec3(50.0f);
 		const FReal Margin = 0.75f;
 
-		TParticles<FReal, 3> CoreShapeParticles(MoveTemp(CoreShapeVerts));
-		TUniquePtr<FImplicitConvex3> CoreConvexShapePtr = MakeUnique<FImplicitConvex3>(CoreShapeParticles, 0.0f);
+		TUniquePtr<FImplicitConvex3> CoreConvexShapePtr = MakeUnique<FImplicitConvex3>(CoreShapeVerts, 0.0f);
 		const TImplicitObjectScaled<FImplicitConvex3> ShapeA(MakeSerializable(CoreConvexShapePtr), Scale, Margin);
 		const TImplicitObjectScaled<FImplicitConvex3> ShapeB(MakeSerializable(CoreConvexShapePtr), Scale, Margin);
 		const FRigidTransform3 TransformA(FVec3(0.000000000f, 0.000000000f, 182.378937f), FRotation3::FromElements(0.000000000f, 0.000000000f, 0.707106650f, 0.707106888f));	// Top

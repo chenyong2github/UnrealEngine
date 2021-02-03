@@ -74,15 +74,15 @@ namespace ChaosTest
 		FVec3 Normal;
 		int32 FaceIndex;
 
-		TParticles<FReal, 3> Particles;
-		Particles.AddParticles(6);
-		Particles.X(0) = FVec3(1, 1, 1);
-		Particles.X(1) = FVec3(5, 1, 1);
-		Particles.X(2) = FVec3(1, 5, 1);
+		TArray<FVec3> Particles;
+		Particles.SetNum(6);
+		Particles[0] = FVec3(1, 1, 1);
+		Particles[1] = FVec3(5, 1, 1);
+		Particles[2] = FVec3(1, 5, 1);
 
-		Particles.X(3) = FVec3(1, 1, 1);
-		Particles.X(4) = FVec3(1, 5, 1);
-		Particles.X(5) = FVec3(1, 1, -5);
+		Particles[3] = FVec3(1, 1, 1);
+		Particles[4] = FVec3(1, 5, 1);
+		Particles[5] = FVec3(1, 1, -5);
 
 		FConvex Convex(MoveTemp(Particles), 0.0f);
 
@@ -128,15 +128,15 @@ namespace ChaosTest
 		FVec3 Normal;
 		int32 FaceIndex;
 
-		TParticles<FReal, 3> Particles;
-		Particles.AddParticles(6);
-		Particles.X(0) = FVec3(0, -1, 1);
-		Particles.X(1) = FVec3(1, -1, -1);
-		Particles.X(2) = FVec3(0, 1, 1);
+		TArray<FVec3> Particles;
+		Particles.SetNum(6);
+		Particles[0] = FVec3(0, -1, 1);
+		Particles[1] = FVec3(1, -1, -1);
+		Particles[2] = FVec3(0, 1, 1);
 
-		Particles.X(3) = FVec3(0, -1, 1);
-		Particles.X(4) = FVec3(0, 1, 1);
-		Particles.X(5) = FVec3(-1, -1, -1);
+		Particles[3] = FVec3(0, -1, 1);
+		Particles[4] = FVec3(0, 1, 1);
+		Particles[5] = FVec3(-1, -1, -1);
 
 		TUniquePtr<FImplicitObject> Convex = MakeUnique<FConvex>(MoveTemp(Particles), 0.0f);
 

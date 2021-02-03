@@ -660,7 +660,7 @@ namespace ChaosTest
 					{{768.000000, -448.000000, 3.81469727e-06}, {6.62273836e-09, 6.62273836e-09, -1.00000000}}
 				});
 
-			TParticles<FReal, 3> SurfaceParticles(
+			TArray<FVec3> SurfaceParticles(
 				{
 					{0.000000000, -1024.00000, 2.84217094e-14},
 					{768.000000, -1024.00000, 2.84217094e-14},
@@ -755,7 +755,7 @@ namespace ChaosTest
 					{{0.000000000,0.000000000,0.000000000},{-0.000000000,0.000000000,1.00000000}}
 					});
 
-				TParticles<FReal,3> SurfaceParticles(
+				TArray<FVec3> SurfaceParticles(
 					{
 						{0.000000000,-512.000000,-32.0000000},
 					{512.000000,0.000000000,-32.0000000},
@@ -808,7 +808,7 @@ namespace ChaosTest
 		}
 
 		// Defining boat geom data outside of single test scope as it's used in multiple.
-		const TArray<FVec3> BoatSurfaceParticles(
+		const TArray<Chaos::FVec3> BoatSurfaceVertices(
 			{
 				{-118.965088, -100.379936, 105.818298},
 				{-128.562881, 80.0933762, 107.703270},
@@ -1018,7 +1018,7 @@ namespace ChaosTest
 					{{0.000000000,0.000000000,0.000000000},{-0.000000000,0.000000000,1.00000000}}
 				});
 
-			TParticles<FReal, 3> GroundSurfaceParticles(
+			TArray<FVec3> GroundSurfaceParticles(
 				{
 					{0.000000000,-512.000000,-32.0000000},
 					{512.000000,0.000000000,-32.0000000},
@@ -1039,8 +1039,8 @@ namespace ChaosTest
 
 
 			auto BoatConvexPlanesCopy = BoatConvexPlanes;
-			auto BoatSurfaceParticlesCopy = TParticles<FReal, 3>(CopyTemp(BoatSurfaceParticles));
-			FConvex BoatConvex = FConvex(MoveTemp(BoatConvexPlanesCopy), MoveTemp(BoatSurfaceParticlesCopy));
+			TArray<Chaos::FVec3> BoatSurfaceVerticesCopy = TArray<Chaos::FVec3>(CopyTemp(BoatSurfaceVertices));
+			FConvex BoatConvex = FConvex(MoveTemp(BoatConvexPlanesCopy), MoveTemp(BoatSurfaceVerticesCopy));
 
 
 			TRigidTransform<FReal, 3> BoatTransform(FVec3(-5421.507324, 2335.360840, 6.972876), FQuat(-0.016646, -0.008459, 0.915564, -0.401738), FVec3(1.0f));
@@ -1071,8 +1071,8 @@ namespace ChaosTest
 			ExpectedNormal.Normalize();
 
 			auto BoatConvexPlanesCopy = BoatConvexPlanes;
-			auto BoatSurfaceParticlesCopy = TParticles<FReal, 3>(CopyTemp(BoatSurfaceParticles));
-			FConvex BoatConvex = FConvex(MoveTemp(BoatConvexPlanesCopy), MoveTemp(BoatSurfaceParticlesCopy));
+			TArray<Chaos::FVec3> BoatSurfaceVerticesCopy = TArray<Chaos::FVec3>(CopyTemp(BoatSurfaceVertices));
+			FConvex BoatConvex = FConvex(MoveTemp(BoatConvexPlanesCopy), MoveTemp(BoatSurfaceVerticesCopy));
 
 			TRigidTransform<FReal, 3> QueryTM(FVec3(-10831.1875, -11206.3750, -6140.38135), FQuat(-0.524916053, -0.0370868668, -0.126528814, 0.840879321), FVec3(1.0f));
 
@@ -1183,7 +1183,7 @@ namespace ChaosTest
 		GTEST_TEST(EPATests, EPARealFailures_ConvexTrimeshRotationalDifferencesBreakNormal)
 		{
 			using namespace Chaos;
-			TParticles<FReal, 3> ConvexBoxSurfaceParticles(
+			TArray<FVec3> ConvexBoxSurfaceParticles(
 				{
 				{50.0999985, -50.1124992, -50.1250000},
 				{-50.0999985, 50.1250000, -50.1250000},

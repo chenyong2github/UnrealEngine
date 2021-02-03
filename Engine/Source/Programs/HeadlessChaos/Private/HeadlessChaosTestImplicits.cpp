@@ -1358,17 +1358,23 @@ namespace ChaosTest {
 				EXPECT_NE(Tri.Z, 8);
 			}
 
-			FConvex Convex(Particles, 0.0f);
-			const TParticles<FReal, 3>& CulledParticles = Convex.GetSurfaceParticles();
-			EXPECT_EQ(CulledParticles.Size(), 8);
-
-			for (uint32 Idx = 0; Idx < CulledParticles.Size(); ++Idx)
+			TArray<FVec3> Vertices;
+			Vertices.SetNum((int32)Particles.Size());
+			for (int32 VertexIndex = 0; VertexIndex < (int32)Particles.Size(); ++VertexIndex)
 			{
-				EXPECT_NE(Particles.X(8), CulledParticles.X(Idx));	//interior particle gone
+				Vertices[VertexIndex] = Particles.X(VertexIndex);
+			}
+			FConvex Convex(Vertices, 0.0f);
+			const TArray<FVec3>& CulledParticles = Convex.GetVertices();
+			EXPECT_EQ(CulledParticles.Num(), 8);
+
+			for (int32 Idx = 0; Idx < CulledParticles.Num(); ++Idx)
+			{
+				EXPECT_NE(Particles.X(8), CulledParticles[Idx]);	//interior particle gone
 				bool bFound = false;
 				for (uint32 InnerIdx = 0; InnerIdx < Particles.Size(); ++InnerIdx)	//remaining particles are from the original set
 				{
-					if (Particles.X(InnerIdx) == CulledParticles.X(Idx))
+					if (Particles.X(InnerIdx) == CulledParticles[Idx])
 					{
 						bFound = true;
 						break;
@@ -1398,32 +1404,31 @@ namespace ChaosTest {
 	{
 		{
 			//degenerates
-			Chaos::TParticles<FReal, 3> Particles;
-			Particles.AddParticles(3);
-			Particles.X(0) = FVec3(-1, -1, -1);
-			Particles.X(1) = FVec3(1, -1, -1);
-			Particles.X(2) = FVec3(1, 1, -1);
-			TArray<TVec3<int32>>Indices;
+			TArray<Chaos::FVec3> Particles;
+			Particles.SetNum(3);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(1, -1, -1);
+			Particles[2] = Chaos::FVec3(1, 1, -1);
+			TArray<TVector<int32, 3>>Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 0);
-			Particles.AddParticles(1);
-			Particles.X(3) = FVec3(2, 3, -1);
+			Particles.Add(Chaos::FVec3( 2, 3, -1 ));
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 0);
 		}
 		{
-			Chaos::TParticles<FReal, 3> Particles;
-			Particles.AddParticles(9);
-			Particles.X(0) = FVec3(-1, -1, -1);
-			Particles.X(1) = FVec3(-1, -1, 1);
-			Particles.X(2) = FVec3(-1, 1, -1);
-			Particles.X(3) = FVec3(-1, 1, 1);
-			Particles.X(4) = FVec3(1, -1, -1);
-			Particles.X(5) = FVec3(1, -1, 1);
-			Particles.X(6) = FVec3(1, 1, -1);
-			Particles.X(7) = FVec3(1, 1, 1);
-			Particles.X(8) = FVec3(0, 0, 0);
-			TArray<TVec3<int32>>Indices;
+			TArray <Chaos::FVec3> Particles;
+			Particles.SetNum(9);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(-1, -1, 1);
+			Particles[2] = Chaos::FVec3(-1, 1, -1);
+			Particles[3] = Chaos::FVec3(-1, 1, 1);
+			Particles[4] = Chaos::FVec3(1, -1, -1);
+			Particles[5] = Chaos::FVec3(1, -1, 1);
+			Particles[6] = Chaos::FVec3(1, 1, -1);
+			Particles[7] = Chaos::FVec3(1, 1, 1);
+			Particles[8] = Chaos::FVec3(0, 0, 0);
+			TArray<TVector<int32, 3>>Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 12);
 			for (const auto& Tri : Indices)
@@ -1434,27 +1439,27 @@ namespace ChaosTest {
 			}
 		}
 		{
-			Chaos::TParticles<FReal, 3> Particles;
-			Particles.AddParticles(5);
-			Particles.X(0) = FVec3(-1, -1, -1);
-			Particles.X(1) = FVec3(1, -1, -1);
-			Particles.X(2) = FVec3(1, 1, -1);
-			Particles.X(3) = FVec3(0, 0, 0.5);
-			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + FVec3(0, 0, 0.1);
-			TArray<TVec3<int32>> Indices;
+			TArray<FVec3> Particles;
+			Particles.SetNum(5);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(1, -1, -1);
+			Particles[2] = Chaos::FVec3(1, 1, -1);
+			Particles[3] = Chaos::FVec3(0, 0, 0.5);
+			Particles[4] = (Particles[3]- Particles[1]) * 0.5 + Particles[1]+ Chaos::TVec3<float>(0, 0, 0.1);
+			TArray<TVector<int32, 3>> Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 6);
 		}
 		{
-			Chaos::TParticles<FReal, 3> Particles;
-			Particles.AddParticles(6);
-			Particles.X(0) = FVec3(-1, -1, -1);
-			Particles.X(1) = FVec3(1, -1, -1);
-			Particles.X(2) = FVec3(1, 1, -1);
-			Particles.X(3) = FVec3(0, 0, 0.5);
-			Particles.X(4) = (Particles.X(3) - Particles.X(1)) * 0.5 + Particles.X(1) + FVec3(0, 0, 0.1);
-			Particles.X(5) = Particles.X(4) + FVec3(-0.1, 0, 0);
-			TArray<TVec3<int32>> Indices;
+			TArray<FVec3> Particles;
+			Particles.SetNum(6);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::TVec3(1, -1, -1);
+			Particles[2] = Chaos::TVec3(1, 1, -1);
+			Particles[3] = Chaos::TVec3(0, 0, 0.5);
+			Particles[4] = (Particles[3]- Particles[1]) * 0.5 + Particles[1] + Chaos::TVec3<float>(0, 0, 0.1);
+			Particles[5] = Particles[4]+ Chaos::TVec3<float>(-0.1, 0, 0);
+			TArray<TVector<int32, 3>> Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 8);
 		}
@@ -1463,17 +1468,17 @@ namespace ChaosTest {
 			// a large enough epsilon for building horizons in hull generation
 			// (tested to fail with 1e-1) we will generate a non-convex hull
 			// Using a scaled epsilon resolves this case
-			Chaos::TParticles<FReal, 3> Particles;
-			Particles.AddParticles(9);
-			Particles.X(0) = FVec3(-1, -1, -1);
-			Particles.X(1) = FVec3(-1, -1, 1);
-			Particles.X(2) = FVec3(-1, 1, -1);
-			Particles.X(3) = FVec3(-1, 1, 1);
-			Particles.X(4) = FVec3(1, -1, -1);
-			Particles.X(5) = FVec3(1, -1, 1);
-			Particles.X(6) = FVec3(1, 1, -1);
-			Particles.X(7) = FVec3(1, 1, 1);
-			Particles.X(8) = FVec3(0.966962576, -0.0577232838, 0.959515572);
+			TArray<FVec3> Particles;
+			Particles.SetNum(9);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(-1, -1, 1);
+			Particles[2] = Chaos::FVec3(-1, 1, -1);
+			Particles[3] = Chaos::FVec3(-1, 1, 1);
+			Particles[4] = Chaos::FVec3(1, -1, -1);
+			Particles[5] = Chaos::FVec3(1, -1, 1);
+			Particles[6] = Chaos::FVec3(1, 1, -1);
+			Particles[7] = Chaos::FVec3(1, 1, 1);
+			Particles[8] = Chaos::FVec3(0.966962576, -0.0577232838, 0.959515572);
 			
 			TArray<TVec3<int32>> Indices;
 			Chaos::FConvexBuilder::Params BuildParams;
@@ -1487,7 +1492,7 @@ namespace ChaosTest {
 			{
 				for (int32 i = 0; i < 3; ++i)
 				{
-					FVec3 V = Particles.X(Tri[i]);
+					FVec3 V = Particles[Tri[i]];
 					FVec3 VAbs = V.GetAbs();
 					FReal Max = VAbs.GetMax();
 					EXPECT_GE(Max, 1 - 1e-2);
@@ -1499,21 +1504,21 @@ namespace ChaosTest {
 			// only the original box - ignoring all interior and coplanar points.
 			// Note: If hull generation is changed to support non-triangular faces the conditions here
 			// will need to change as a correct hull in that method will produce only 6 faces not 12
-			Chaos::TParticles<FReal, 3> Particles;
+			TArray<TVec3<T>> Particles;
 			int32 NumParticles = 3600;
-			Particles.AddParticles(NumParticles);
-			Particles.X(0) = FVec3(-1, -1, -1);
-			Particles.X(1) = FVec3(-1, -1, 1);
-			Particles.X(2) = FVec3(-1, 1, -1);
-			Particles.X(3) = FVec3(-1, 1, 1);
-			Particles.X(4) = FVec3(1, -1, -1);
-			Particles.X(5) = FVec3(1, -1, 1);
-			Particles.X(6) = FVec3(1, 1, -1);
-			Particles.X(7) = FVec3(1, 1, 1);
+			Particles.SetNum(NumParticles);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(-1, -1, 1);
+			Particles[2] = Chaos::FVec3(-1, 1, -1);
+			Particles[3] = Chaos::FVec3(-1, 1, 1);
+			Particles[4] = Chaos::FVec3(1, -1, -1);
+			Particles[5] = Chaos::FVec3(1, -1, 1);
+			Particles[6] = Chaos::FVec3(1, 1, -1);
+			Particles[7] = Chaos::FVec3(1, 1, 1);
 			FRandomStream Stream(42);
 			for(int i = 8; i < NumParticles; ++i)
 			{
-				Particles.X(i) = FVec3(Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f));
+				Particles[i]= Chaos::FVec3(Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f));
 			}
 			TArray<TVec3<int32>> Indices;
 
@@ -1527,7 +1532,7 @@ namespace ChaosTest {
 			{
 				for(int i = 0; i < 3; ++i)
 				{
-					FVec3 V = Particles.X(Tri[i]);
+					FVec3 V = Particles[Tri[i]];
 					FVec3 VAbs = V.GetAbs();
 					FReal Max = VAbs.GetMax();
 					EXPECT_GE(Max, 1 - 1e-2);
@@ -1538,46 +1543,46 @@ namespace ChaosTest {
 
 	void Simplify()
 	{
-		Chaos::TParticles<FReal, 3> Particles;
-		Particles.AddParticles(18);
-		Particles.X(0) = FVec3(0, 0, 12.0f);
-		Particles.X(1) = FVec3(-0.707f, -0.707f, 10.0f);
-		Particles.X(2) = FVec3(0, -1, 10.0f);
-		Particles.X(3) = FVec3(0.707f, -0.707f, 10.0f);
-		Particles.X(4) = FVec3(1, 0, 10.0f);
-		Particles.X(5) = FVec3(0.707f, 0.707f, 10.0f);
-		Particles.X(6) = FVec3(0.0f, 1.0f, 10.0f);
-		Particles.X(7) = FVec3(-0.707f, 0.707f, 10.0f);
-		Particles.X(8) = FVec3(-1.0f, 0.0f, 10.0f);
-		Particles.X(9) = FVec3(-0.707f, -0.707f, 0.0f);
-		Particles.X(10) = FVec3(0, -1, 0.0f);
-		Particles.X(11) = FVec3(0.707f, -0.707f, 0.0f);
-		Particles.X(12) = FVec3(1, 0, 0.0f);
-		Particles.X(13) = FVec3(0.707f, 0.707f, 0.0f);
-		Particles.X(14) = FVec3(0.0f, 1.0f, 0.0f);
-		Particles.X(15) = FVec3(-0.707f, 0.707f, 0.0f);
-		Particles.X(16) = FVec3(-1.0f, 0.0f, 0.0f);
-		Particles.X(17) = FVec3(0, 0, -2.0f);
-
+		TArray<FVec3> Particles;
+		Particles.SetNum(18);
+		Particles[0] = Chaos::FVec3(0, 0, 12.0f);
+		Particles[1] = Chaos::FVec3(-0.707f, -0.707f, 10.0f);
+		Particles[2] = Chaos::FVec3(0, -1, 10.0f);
+		Particles[3] = Chaos::FVec3(0.707f, -0.707f, 10.0f);
+		Particles[4] = Chaos::FVec3(1, 0, 10.0f);
+		Particles[5] = Chaos::FVec3(0.707f, 0.707f, 10.0f);
+		Particles[6] = Chaos::FVec3(0.0f, 1.0f, 10.0f);
+		Particles[7] = Chaos::FVec3(-0.707f, 0.707f, 10.0f);
+		Particles[8] = Chaos::FVec3(-1.0f, 0.0f, 10.0f);
+		Particles[9] = Chaos::FVec3(-0.707f, -0.707f, 0.0f);
+		Particles[10] = Chaos::FVec3(0, -1, 0.0f);
+		Particles[11] = Chaos::FVec3(0.707f, -0.707f, 0.0f);
+		Particles[12] = Chaos::FVec3(1, 0, 0.0f);
+		Particles[13] = Chaos::FVec3(0.707f, 0.707f, 0.0f);
+		Particles[14] = Chaos::FVec3(0.0f, 1.0f, 0.0f);
+		Particles[15] = Chaos::FVec3(-0.707f, 0.707f, 0.0f);
+		Particles[16] = Chaos::FVec3(-1.0f, 0.0f, 0.0f);
+		Particles[17] = Chaos::FVec3(0, 0, -2.0f);
+					
 		FConvex Convex(Particles, 0.0f);
 
 		// capture original details
-		uint32 OriginalNumberParticles = Convex.GetSurfaceParticles().Size();
+		int32 OriginalNumberParticles = Convex.NumVertices();
 		int32 OriginalNumberFaces = Convex.GetFaces().Num();
 		FAABB3 OriginalBoundingBox = Convex.BoundingBox();
 
-		const TParticles<FReal, 3>& CulledParticles = Convex.GetSurfaceParticles();
-		const TArray<TPlaneConcrete<FReal, 3>> Planes = Convex.GetFaces();
+		const TArray<FVec3>& CulledParticles = Convex.GetVertices();
+		const TArray<TPlaneConcrete<T, 3>> Planes = Convex.GetFaces();
 
 		// set target number of particles in simplified convex
 		FConvexBuilder::PerformGeometryReduction = 1;
-		FConvexBuilder::ParticlesThreshold = 10;
+		FConvexBuilder::VerticesThreshold = 10;
 
 		// simplify
 		Convex.PerformanceWarningAndSimplifaction();
 
 		// capture new details
-		uint32 NewNumberParticles = Convex.GetSurfaceParticles().Size();
+		int32 NewNumberParticles = Convex.NumVertices();
 		int32 NewNumberFaces = Convex.GetFaces().Num();
 		FAABB3 NewBoundingBox = Convex.BoundingBox();
 

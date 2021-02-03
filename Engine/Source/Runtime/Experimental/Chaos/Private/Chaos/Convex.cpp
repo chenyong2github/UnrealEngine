@@ -38,7 +38,7 @@ namespace Chaos
 		//
 		//  @todo(chaos) : Collision Manifold 
 		//     Create a correspondence between the faces and surface particles on construction.
-		//     The correspondence will provide an index between the Planes and the SurfaceParticles,
+		//     The correspondence will provide an index between the Planes and the Vertices,
 		//     removing the need for the exhaustive search here. 
 		//
 
@@ -50,13 +50,13 @@ namespace Chaos
 			FReal AbsOfSignedDistance = FMath::Abs(Plane.SignedDistance(Position));
 			if (AbsOfSignedDistance < SearchDist)
 			{
-				for (int32 Fdx = 0; Fdx < (int32)SurfaceParticles.Size(); Fdx++)
+				for (int32 Fdx = 0; Fdx < (int32)Vertices.Num(); Fdx++)
 				{
 					if (!IncludedParticles.Contains(Fdx))
 					{
-						if (FMath::Abs(Plane.SignedDistance(SurfaceParticles.X(Fdx))) < SearchDist)
+						if (FMath::Abs(Plane.SignedDistance(Vertices[Fdx])) < SearchDist)
 						{
-							FaceVertices.Add(SurfaceParticles.X(Fdx));
+							FaceVertices.Add(Vertices[Fdx]);
 							IncludedParticles.Add(Fdx);
 						}
 					}
@@ -182,7 +182,7 @@ namespace Chaos
 	// Store the structure data with the convex. This is used by manifold generation, for example
 	void FConvex::CreateStructureData(TArray<TArray<int32>>&& PlaneVertexIndices)
 	{
-		StructureData.SetPlaneVertices(MoveTemp(PlaneVertexIndices), SurfaceParticles.Size());
+		StructureData.SetPlaneVertices(MoveTemp(PlaneVertexIndices), Vertices.Num());
 	}
 
 	void FConvex::MovePlanesAndRebuild(const FReal InDelta)
@@ -284,12 +284,6 @@ namespace Chaos
 
 
 		// Use the new surface points
-		TParticles<FReal, 3> NewParticles;
-		NewParticles.AddParticles(NewPoints.Num());
-		for (int32 PointIndex = 0; PointIndex < NewPoints.Num(); ++PointIndex)
-		{
-			NewParticles.X(PointIndex) = NewPoints[PointIndex];
-		}
-		SurfaceParticles = MoveTemp(NewParticles);
+		Vertices = MoveTemp(NewPoints);
 	}
 }

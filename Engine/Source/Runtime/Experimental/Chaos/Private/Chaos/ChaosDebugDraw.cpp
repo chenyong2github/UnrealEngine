@@ -280,7 +280,7 @@ namespace Chaos
 
 			if (bChaosDebugDebugDrawCollisionParticles && (Particle != nullptr))
 			{
-				if (const TPBDRigidParticleHandle<FReal, 3> * Rigid = Particle->CastToRigidParticle())
+				if (const TPBDRigidParticleHandle<FReal, 3>* Rigid = Particle->CastToRigidParticle())
 				{
 					const TUniquePtr<TBVHParticles<FReal, 3>>& Particles = Rigid->CollisionParticles();
 					if (Particles != nullptr)
