@@ -274,6 +274,15 @@ float UPhysicsConstraintComponent::GetConstraintScale() const
 	return GetComponentScale().GetAbsMin();
 }
 
+void UPhysicsConstraintComponent::GetConstrainedComponents(UPrimitiveComponent*& OutComponent1, FName& OutBoneName1, UPrimitiveComponent*& OutComponent2, FName& OutBoneName2)
+{
+	OutComponent1 = GetComponentInternal(EConstraintFrame::Frame1);
+	OutBoneName1 = ConstraintInstance.ConstraintBone1;
+
+	OutComponent2 = GetComponentInternal(EConstraintFrame::Frame2);
+	OutBoneName2 = ConstraintInstance.ConstraintBone2;
+}
+
 void UPhysicsConstraintComponent::SetConstrainedComponents(UPrimitiveComponent* Component1, FName BoneName1, UPrimitiveComponent* Component2, FName BoneName2)
 {
 	if(Component1 != NULL)

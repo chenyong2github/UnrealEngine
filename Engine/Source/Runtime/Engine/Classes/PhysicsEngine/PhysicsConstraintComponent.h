@@ -103,6 +103,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Physics|Components|PhysicsConstraint")
 	void SetConstrainedComponents(UPrimitiveComponent* Component1, FName BoneName1, UPrimitiveComponent* Component2, FName BoneName2);
 
+	/** Get connected components and potential related attachement bones */
+	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
+	void GetConstrainedComponents(UPrimitiveComponent*& OutComponent1, FName& OutBoneName1, UPrimitiveComponent*& OutComponent2, FName& OutBoneName2);
+
 	/** Break this constraint */
 	UFUNCTION(BlueprintCallable, Category="Physics|Components|PhysicsConstraint")
 	void BreakConstraint();
