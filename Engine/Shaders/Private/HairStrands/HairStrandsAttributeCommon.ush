@@ -1,0 +1,110 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once 
+
+#if HAIR_STRAND_MESH_FACTORY
+
+#include "/Engine/Private/HairStrands/HairStrandsVertexFactoryCommon.ush"
+
+////////////////////////////////////////////////////////////////////////////////
+
+float  HairStrandsVF_Radius;
+float  HairStrandsVF_Length;
+
+Buffer<uint4>  HairStrandsVF_PositionBuffer;
+Buffer<uint4>  HairStrandsVF_AttributeBuffer;
+Buffer<float4> HairStrandsVF_MaterialBuffer;
+
+struct FHairVertexAttributes
+{
+	float2 HairUV;
+	float2 HairRootUV;
+	float2 HairDimensions;
+	float3 HairBaseColor;
+	float  HairSeed;
+	float  HairRoughness;
+};
+
+FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 VertexUV)
+{
+	const uint VertexId0 = HairPrimitiveId;
+	const uint VertexId1 = HairPrimitiveId+1;
+
+	// Instead of doing the actual interpolation we could rely on dithering as an optimization
+	const FHairAttributes Attributes0 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId0]);
+	const FHairAttributes Attributes1 = DecodeHairAttribute(HairStrandsVF_AttributeBuffer[VertexId1]);
+
+	const uint4 PackedData = HairStrandsVF_PositionBuffer[VertexId0];
+	const uint PackedAlpha = asuint(PackedData.a);
+	const float WorldRadius = ((PackedAlpha & 0x00FC) >> 2) / 63.f * HairStrandsVF_Radius;
+	const float WorldLength = ((PackedAlpha & 0xFF00) >> 8) / 255.f * HairStrandsVF_Length;
+
+	FHairVertexAttributes Out;
+	// Constant along the strand
+	Out.HairDimensions	= float2(WorldLength, WorldRadius);
+	Out.HairSeed		= Attributes0.Seed;
+	Out.HairRootUV		= Attributes0.RootUV;
+
+	// Varying along the strand
+	Out.HairUV.y		= VertexUV.y;
+	Out.HairUV.x		= lerp(Attributes0.UCoord, Attributes1.UCoord, VertexUV.x);
+
+	// Instead of doing the actual interpolation we could rely on dithering as an optimization
+	const float4 Material0 = HairStrandsVF_MaterialBuffer[VertexId0];
+	const float4 Material1 = HairStrandsVF_MaterialBuffer[VertexId1];
+
+	// Cheap/manual sRGB decoding as the underlying format is linear quantization
+	Out.HairBaseColor	= lerp(Material0.xyz*Material0.xyz, Material1.xyz*Material1.xyz, VertexUV.x);
+	Out.HairRoughness	= lerp(Material0.w, Material1.w, VertexUV.x);
+
+	return Out; 
+}
+
+float GetHairStrandsDepth(float2 InUV)
+{
+	return 0; // TODO: what should we do for the strands cards as we don't want to override the depth output, but we still want to share the same shader than the non cards one
+}
+
+float GetHairStrandsCoverage(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return 1;
+}
+
+float2 GetHairStrandsUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairUV;
+}
+
+float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairDimensions;
+}
+
+float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRootUV;
+}
+
+float  GetHairStrandsSeed(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairSeed;
+}
+
+float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairBaseColor;
+}
+
+float GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRoughness;
+}
+
+float GetHairStrandsDepth(uint HairPrimitiveId, float2 InUV, float InDeviceZ)
+{
+	return 0.f;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#endif // HAIR_STRAND_MESH_FACTORY

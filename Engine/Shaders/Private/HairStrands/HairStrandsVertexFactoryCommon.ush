@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #define HAIR_CONTROLPOINT_INSIDE 0
 #define HAIR_CONTROLPOINT_START	1
 #define HAIR_CONTROLPOINT_END	2
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair control points
 
 struct FHairControlPoint
 {
@@ -34,3 +39,27 @@ bool IsValidHairStrandsSegment(const FHairControlPoint CP0, const FHairControlPo
 	return !(CP0.Type == HAIR_CONTROLPOINT_END && CP1.Type == HAIR_CONTROLPOINT_START);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair attributes
+
+struct FHairAttributes
+{
+	float2 RootUV;
+	float	Seed;
+	float	UCoord;
+};
+
+FHairAttributes DecodeHairAttribute(uint4 Attributes)
+{
+	float2 RootUV, RootIndex;
+	RootUV.x = float(Attributes.x & 0xFF) / 255.f;
+	RootUV.y = 1.0 - (float((Attributes.x >> 8) & 0xFF) / 255.f); // Invert V to compensate image origin flip
+	RootIndex.x = float(Attributes.z & 0xFF);
+	RootIndex.y = float((Attributes.z >> 8) & 0xFF);
+
+	FHairAttributes Out;
+	Out.RootUV = RootUV + RootIndex;
+	Out.UCoord = (Attributes.y & 0xFF) / 255.f;
+	Out.Seed = ((Attributes.y >> 8) & 0xFF) / 255.f;
+	return Out;
+}

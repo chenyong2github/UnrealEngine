@@ -1,0 +1,100 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#if HAIR_CARD_MESH_FACTORY
+
+#include "/Engine/Private/HairStrands/HairStrandsVertexFactoryCommon.ush"
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct FHairVertexAttributes
+{
+	float2 HairUV;
+	float2 HairRootUV;
+	float2 HairDimensions;
+	float3 HairBaseColor;
+	float  HairSeed;
+	float  HairRoughness;
+};
+
+float GetHairStrandsDepth(uint HairPrimitiveId, float2 InUV, float InDeviceZ)
+{
+	InUV.y = HairCardsVF.bInvertUV ? 1 - InUV.y : InUV.y;
+	const float SceneDepthOffset = Texture2DSample(HairCardsVF.DepthTexture, HairCardsVF.DepthSampler, InUV).x;
+	const float SceneDepth = ConvertFromDeviceZ(InDeviceZ);
+
+	return ConvertToDeviceZ(SceneDepth + SceneDepthOffset);
+}
+
+float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 InUV, half3x3 TangentToWorld, bool bUseTangentSpace)
+{
+	InUV.y = HairCardsVF.bInvertUV ? 1 - InUV.y : InUV.y;
+	const float3 LocalTangent = Texture2DSample(HairCardsVF.TangentTexture, HairCardsVF.TangentSampler, InUV).xyz * 2 - 1;
+	const float3 WorldTangent = mul(LocalTangent, TangentToWorld);
+	return bUseTangentSpace ? LocalTangent : WorldTangent;
+}
+
+float GetHairStrandsCoverage(uint HairPrimitiveId, float2 InUV)
+{
+	InUV.y = HairCardsVF.bInvertUV ? 1 - InUV.y : InUV.y;
+	return Texture2DSample(HairCardsVF.CoverageTexture, HairCardsVF.CoverageSampler, InUV).x;
+}
+
+FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 InUV)
+{
+	InUV.y = HairCardsVF.bInvertUV ? 1 - InUV.y : InUV.y;
+	const float4 Value = Texture2DSample(HairCardsVF.AttributeTexture, HairCardsVF.AttributeSampler, InUV);
+
+	FHairVertexAttributes Out;
+	Out.HairUV = float2(Value.z, 0.5f);
+	Out.HairRootUV = Value.xy;
+	Out.HairDimensions = 0;
+	Out.HairBaseColor = 0;
+	Out.HairSeed = Value.w;
+	Out.HairRoughness = 0;
+	return Out;
+}
+
+float4 GetHairStrandsAuxilaryData(uint HairPrimitiveId, float2 InUV)
+{
+	return Texture2DSample(HairCardsVF.AuxilaryDataTexture, HairCardsVF.AuxilaryDataSampler, InUV);
+}
+
+float2 GetHairStrandsUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairUV;
+}
+
+float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairDimensions;
+}
+
+float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+#if MANUAL_VERTEX_FETCH
+	return HairCardsVF.UVsBuffer[HairPrimitiveId].zw;
+#else
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRootUV; // TODO fix me?
+#endif
+}
+
+float  GetHairStrandsSeed(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairSeed;
+}
+
+float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairBaseColor;
+}
+
+float GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV)
+{
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRoughness;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#endif // HAIR_CARD_MESH_FACTORY

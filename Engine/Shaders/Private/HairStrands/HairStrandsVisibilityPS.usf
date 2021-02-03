@@ -87,7 +87,7 @@ void MainVisibility(
 	float Coverage = 1;
 	{
 		bool bUseStableRasterization = false;
-	#if VF_STRAND_HAIR
+	#if HAIR_STRAND_MESH_FACTORY
 		bUseStableRasterization = UseStableRasterization();
 	#endif
 
@@ -107,7 +107,7 @@ void MainVisibility(
 #endif
 
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
-  #if VF_STRAND_HAIR
+  #if HAIR_STRAND_MESH_FACTORY
 	float3 Tangent = normalize(Interpolants.TangentToWorld2.xyz);
 	const uint PrimitiveId = Interpolants.HairPrimitiveId;
 	const bool bUseScatterSceneLighting = UseScatterSceneLighting();
@@ -191,7 +191,7 @@ void MainVisibility(
 #endif
 
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
-  #if VF_STRAND_HAIR
+  #if HAIR_STRAND_MESH_FACTORY
 	OutColor0 = PackHairVisSample(HairPrimitiveId, HairVisibilityPass_HairMaterialId);
   #else
 	OutColor0 = 0;

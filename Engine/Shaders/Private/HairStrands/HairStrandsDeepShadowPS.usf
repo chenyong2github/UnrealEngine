@@ -71,7 +71,7 @@ void MainVoxel(
 	const float3 WorldPosition = WorldPositon_Coverage.xyz;
 	const float HairCoverage = WorldPositon_Coverage.w;
 
-#if VF_STRAND_HAIR  
+#if HAIR_STRAND_MESH_FACTORY  
 	const FPackedVirtualVoxelNodeDesc PackedNode = VoxelRasterPass.VirtualVoxel.NodeDescBuffer[VoxelRasterPass.MacroGroupId];
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VoxelRasterPass.VirtualVoxel.PageResolution);
 

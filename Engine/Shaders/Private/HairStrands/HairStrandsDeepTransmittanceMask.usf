@@ -15,9 +15,6 @@
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
 
-#include "../ShaderDrawDebug.ush"
-#include "../ShaderPrintCommon.ush"
-
 #define PERMUTATION_TRANSMITTANCE_DEEP_SHADOW 0
 #define PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL 1
 
@@ -30,7 +27,11 @@
 	#endif
 	#define VOXEL_TRAVERSAL_DEBUG 0
 	#include "HairStrandsVoxelPageTraversal.ush"
+	#if VOXEL_TRAVERSAL_DEBUG
+	#include "../ShaderPrintCommon.ush"
+	#endif
 #endif
+
 
 float3 ToWorldPosition(float2 UV, float Depth)
 {
