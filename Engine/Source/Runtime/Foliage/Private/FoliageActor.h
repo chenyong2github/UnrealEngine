@@ -13,8 +13,9 @@ struct FFoliageActor : public FFoliageImpl
 	UClass* ActorClass;
 	bool bShouldAttachToBaseComponent;
 	
-	FFoliageActor()
-		: ActorClass(nullptr)
+	FFoliageActor(FFoliageInfo* Info)
+		: FFoliageImpl(Info)
+		, ActorClass(nullptr)
 		, bShouldAttachToBaseComponent(true)
 #if WITH_EDITOR
 		, bActorsDestroyed(false)
@@ -28,12 +29,12 @@ struct FFoliageActor : public FFoliageImpl
 
 #if WITH_EDITOR
 	virtual bool IsInitialized() const override;
-	virtual void Initialize(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType) override;
+	virtual void Initialize(const UFoliageType* FoliageType) override;
 	virtual void Uninitialize() override;
 	virtual int32 GetInstanceCount() const override;
-	virtual void PreAddInstances(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, int32 Count) override;
-	virtual void AddInstance(AInstancedFoliageActor* IFA, const FFoliageInstance& NewInstance) override;
-	virtual void AddExistingInstance(AInstancedFoliageActor* IFA, const FFoliageInstance& ExistingInstance, UObject* InstanceImplementation) override;
+	virtual void PreAddInstances(const UFoliageType* FoliageType, int32 Count) override;
+	virtual void AddInstance(const FFoliageInstance& NewInstance) override;
+	virtual void AddExistingInstance(const FFoliageInstance& ExistingInstance, UObject* InstanceImplementation) override;
 	virtual void RemoveInstance(int32 InstanceIndex) override;
 	virtual void MoveInstance(int32 InstanceIndex, UObject*& OutInstanceImplementation) override;
 	virtual void SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport) override;
@@ -51,17 +52,17 @@ struct FFoliageActor : public FFoliageImpl
 
 	virtual void BeginUpdate() override;
 	virtual void EndUpdate() override;
-	virtual void Refresh(AInstancedFoliageActor* IFA, const TArray<FFoliageInstance>& Instances, bool Async, bool Force) override;
+	virtual void Refresh(const TArray<FFoliageInstance>& Instances, bool Async, bool Force) override;
 	virtual void OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews) override;
-	virtual void PostEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices) override;
-	virtual void PreMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved) override;
-	virtual void PostMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved, bool bFinished) override;
-	virtual void NotifyFoliageTypeChanged(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged) override;
-	void Reapply(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, bool bPostLoad = false);
-	AActor* Spawn(AInstancedFoliageActor* IFA, const FFoliageInstance& Instance);
+	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices) override;
+	virtual void PreMoveInstances(const TArray<int32>& InInstancesMoved) override;
+	virtual void PostMoveInstances(const TArray<int32>& InInstancesMoved, bool bFinished) override;
+	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged) override;
+	void Reapply(const UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, bool bPostLoad = false);
+	AActor* Spawn(const FFoliageInstance& Instance);
 	TArray<AActor*> GetActorsFromSelectedIndices(const TSet<int32>& SelectedIndices) const;
 	virtual bool ShouldAttachToBaseComponent() const override { return bShouldAttachToBaseComponent; }
-	bool UpdateInstanceFromActor(AInstancedFoliageActor* IFA, int32 Index, FFoliageInfo& FoliageInfo);
+	bool UpdateInstanceFromActor(int32 Index, FFoliageInfo& FoliageInfo);
 	void GetInvalidInstances(TArray<int32>& InvalidInstances);
 
 private:

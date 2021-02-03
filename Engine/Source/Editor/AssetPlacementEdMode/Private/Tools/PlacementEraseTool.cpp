@@ -57,17 +57,18 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 			// Since the foliage static mesh instances do not currently operate with element handles, we have to drill in manually here.
 			if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(Actor))
 			{
-				for (auto& FoliageInfo : FoliageActor->FoliageInfos)
+				FoliageActor->ForEachFoliageInfo([this](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 				{
-					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageInfo.Key->GetSource());
+					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageType->GetSource());
 					if (UAssetPlacementEdMode::DoesPaletteSupportElement(SourceObjectHandle, PlacementSettings->PaletteItems))
 					{
 						TArray<int32> Instances;
 						FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
-						FoliageInfo.Value->GetInstancesInsideSphere(SphereToCheck, Instances);
-						FoliageInfo.Value->RemoveInstances(FoliageActor, Instances, true);
+						FoliageInfo.GetInstancesInsideSphere(SphereToCheck, Instances);
+						FoliageInfo.RemoveInstances(Instances, true);
 					}
-				}
+					return true; // continue iteraton
+				});
 			}
 			else if (ActorSubsystem)
 			{

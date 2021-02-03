@@ -86,7 +86,7 @@ void FFoliageEditUtility::ReplaceFoliageTypeObject(UWorld* InWorld, UFoliageType
 		AInstancedFoliageActor* IFA = *It;
 		IFA->Modify();
 		TUniqueObj<FFoliageInfo> OldInfo;
-		IFA->FoliageInfos.RemoveAndCopyValue(OldType, OldInfo);
+		IFA->RemoveFoliageInfoAndCopyValue(OldType, OldInfo);
 
 		// Old component needs to go
 		if (OldInfo->IsInitialized())
@@ -96,17 +96,17 @@ void FFoliageEditUtility::ReplaceFoliageTypeObject(UWorld* InWorld, UFoliageType
 
 		// Append instances if new foliage type is already exists in this actor
 		// Otherwise just replace key entry for instances
-		TUniqueObj<FFoliageInfo>* NewInfo = IFA->FoliageInfos.Find(NewType);
+		FFoliageInfo* NewInfo = IFA->FindInfo(NewType);
 		if (NewInfo)
 		{
-			(*NewInfo)->Instances.Append(OldInfo->Instances);
-			(*NewInfo)->ReallocateClusters(IFA, NewType);
+			NewInfo->Instances.Append(OldInfo->Instances);
+			NewInfo->ReallocateClusters(NewType);
 		}
 		else
 		{
 			// Make sure if type changes we have proper implementation
-			TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->FoliageInfos.Add(NewType, MoveTemp(OldInfo));
-			NewFoliageInfo->ReallocateClusters(IFA, NewType);
+			TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->AddFoliageInfo(NewType, MoveTemp(OldInfo));
+			NewFoliageInfo->ReallocateClusters(NewType);
 		}
 	}
 }
@@ -179,7 +179,7 @@ void FFoliageEditUtility::MoveActorFoliageInstancesToLevel(ULevel* InTargetLevel
 					{
 						// Restore previous selection for move operation
 						FFoliageInfo* MeshInfo = IFA->FindInfo(NewFoliageType);
-						MeshInfo->SelectInstances(IFA, true, PreviousSelectionArray);
+						MeshInfo->SelectInstances(true, PreviousSelectionArray);
 					}
 				}
 			}

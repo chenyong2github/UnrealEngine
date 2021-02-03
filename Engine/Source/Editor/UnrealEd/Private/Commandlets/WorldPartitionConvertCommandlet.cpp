@@ -861,36 +861,32 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PartitionFoliage);
 
-		for (auto& Pair : IFA->FoliageInfos)
+		IFA->ForEachFoliageInfo([IFA, ActorPartitionSubsystem, MainWorld](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 		{
-			FFoliageInfo* FoliageInfo = &Pair.Value.Get();
-			if (FoliageInfo)
+			if (FoliageInfo.Type == EFoliageImplType::Actor)
 			{
-				if (FoliageInfo->Type == EFoliageImplType::Actor)
-				{
-					// We don't support Actor Foliage in WP
-					FoliageInfo->ExcludeActors();
-				}
-				else if (FoliageInfo->Instances.Num())
-				{
-					FBox InstanceBounds = FoliageInfo->GetApproximatedInstanceBounds();
-					FActorPartitionGridHelper::ForEachIntersectingCell(AInstancedFoliageActor::StaticClass(), InstanceBounds, MainWorld->PersistentLevel, [IFA, FoliageInfo, ActorPartitionSubsystem](const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FBox& InCellBounds)
-					{
-						TArray<int32> Indices;
-						FoliageInfo->GetInstancesInsideBounds(InCellBounds, Indices);
-						if (Indices.Num())
-						{
-							AInstancedFoliageActor* CellIFA = Cast<AInstancedFoliageActor>(ActorPartitionSubsystem->GetActor(AInstancedFoliageActor::StaticClass(), InCellCoord, true));
-							check(CellIFA);
-							FoliageInfo->MoveInstances(IFA, CellIFA, TSet<int32>(Indices), false);
-						}
-
-						return true;
-					});
-					check(!FoliageInfo->Instances.Num());
-				}
+				// We don't support Actor Foliage in WP
+				FoliageInfo.ExcludeActors();
 			}
-		}
+			else if (FoliageInfo.Instances.Num())
+			{
+				FBox InstanceBounds = FoliageInfo.GetApproximatedInstanceBounds();
+				FActorPartitionGridHelper::ForEachIntersectingCell(AInstancedFoliageActor::StaticClass(), InstanceBounds, MainWorld->PersistentLevel, [IFA, &FoliageInfo, ActorPartitionSubsystem](const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FBox& InCellBounds)
+				{
+					TArray<int32> Indices;
+					FoliageInfo.GetInstancesInsideBounds(InCellBounds, Indices);
+					if (Indices.Num())
+					{
+						AInstancedFoliageActor* CellIFA = Cast<AInstancedFoliageActor>(ActorPartitionSubsystem->GetActor(AInstancedFoliageActor::StaticClass(), InCellCoord, true));
+						check(CellIFA);
+						FoliageInfo.MoveInstances(CellIFA, TSet<int32>(Indices), false);
+					}
+					return true;
+				});
+				check(!FoliageInfo.Instances.Num());
+			}
+			return true; // continue iterating
+		});
 
 		IFA->GetLevel()->GetWorld()->DestroyActor(IFA);
 	};

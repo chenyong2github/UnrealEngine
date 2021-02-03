@@ -733,12 +733,12 @@ void FEdModeFoliage::OnObjectsReplaced(const TMap<UObject*, UObject*>& Replaceme
 			if (UFoliageType* ReplacedFoliageType = Cast<UFoliageType>(ReplacementPair.Key))
 			{
 				TUniqueObj<FFoliageInfo> FoliageInfo;
-				if (IFA->FoliageInfos.RemoveAndCopyValue(ReplacedFoliageType, FoliageInfo))
+				if (IFA->RemoveFoliageInfoAndCopyValue(ReplacedFoliageType, FoliageInfo))
 				{
 					// Re-add the unique mesh info associated with the replaced foliage type
 					UFoliageType* ReplacementFoliageType = Cast<UFoliageType>(ReplacementPair.Value);
-					TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->FoliageInfos.Add(ReplacementFoliageType, MoveTemp(FoliageInfo));
-					NewFoliageInfo->ReallocateClusters(IFA, ReplacementFoliageType);
+					TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->AddFoliageInfo(ReplacementFoliageType, MoveTemp(FoliageInfo));
+					NewFoliageInfo->ReallocateClusters(ReplacementFoliageType);
 
 					bAnyFoliageTypeReplaced = true;
 				}
@@ -1375,10 +1375,10 @@ static void SpawnFoliageInstance(UWorld* InWorld, const UFoliageType* Settings, 
 		FFoliageInfo* Info = nullptr;
 		UFoliageType* FoliageSettings = IFA->AddFoliageType(Settings, &Info);
 
-		Info->AddInstances(IFA, FoliageSettings, PlacedLevelInstances.Value);
+		Info->AddInstances(FoliageSettings, PlacedLevelInstances.Value);
 		if (InRebuildFoliageTree)
 		{
-			Info->Refresh(IFA, true, false);
+			Info->Refresh(true, false);
 		}
 	}
 }
@@ -1393,7 +1393,7 @@ void FEdModeFoliage::RebuildFoliageTree(const UFoliageType* Settings)
 
 			if (FoliageInfo != nullptr)
 			{
-				FoliageInfo->Refresh(IFA, true, false);
+				FoliageInfo->Refresh(true, false);
 			}
 		}
 	}
@@ -1629,7 +1629,7 @@ void FEdModeFoliage::RemoveInstancesForBrush(UWorld* InWorld, const UFoliageType
 		{
 			CurrentFoliageTraceBrushAffectedIFAs.Add(IFA);
 
-			FoliageInfo->RemoveInstances(IFA, PotentialInstancesToRemove, false);
+			FoliageInfo->RemoveInstances(PotentialInstancesToRemove, false);
 		}
 		return true;
 	};
@@ -1652,7 +1652,7 @@ void FEdModeFoliage::SelectInstanceAtLocation(UWorld* InWorld, const UFoliageTyp
 		{
 			TArray<int32> Instances;
 			Instances.Add(Instance);
-			FoliageInfo->SelectInstances(IFA, bSelect, Instances);
+			FoliageInfo->SelectInstances(bSelect, Instances);
 		}
 
 		return true;
@@ -1673,7 +1673,7 @@ void FEdModeFoliage::SelectInstancesForBrush(UWorld* InWorld, const UFoliageType
 		{
 			return true;
 		}
-		FoliageInfo->SelectInstances(IFA, bSelect, Instances);
+		FoliageInfo->SelectInstances(bSelect, Instances);
 
 		return true;
 	};
@@ -1717,10 +1717,10 @@ void FEdModeFoliage::ExcludeFoliageActors(const TArray<const UFoliageType *>& Fo
 		{
 			for (auto& Pair : ActorFoliageTypes)
 			{
-				if (TUniqueObj<FFoliageInfo>* FoliageInfoPtr = IFA->FoliageInfos.Find(Pair.Value))
+				if (FFoliageInfo* FoliageInfoPtr = IFA->FindInfo(Pair.Value))
 				{
 					IFA->Modify();
-					(*FoliageInfoPtr)->ExcludeActors();
+					FoliageInfoPtr->ExcludeActors();
 					OnInstanceCountUpdated(Pair.Value);
 				}
 			}
@@ -1776,7 +1776,7 @@ void FEdModeFoliage::IncludeNonFoliageActors(const TArray<const UFoliageType*>& 
 							if (FoliageInfo)
 							{
 
-								FoliageInfo->IncludeActor(IFA, FoliageType, CurrentActor);
+								FoliageInfo->IncludeActor(FoliageType, CurrentActor);
 								UpdateFoliageTypes.Add(FoliageType);
 							}
 						}
@@ -1844,7 +1844,7 @@ void FEdModeFoliage::SelectInstances(UWorld* InWorld, const UFoliageType* Settin
 		FFoliageInfo* FoliageInfo = (*It);
 		AInstancedFoliageActor* IFA = It.GetActor();
 
-		FoliageInfo->SelectInstances(IFA, bSelect);
+		FoliageInfo->SelectInstances(bSelect);
 	}
 }
 
@@ -1871,13 +1871,12 @@ void FEdModeFoliage::UpdateInstancePartitioning(UWorld* InWorld)
 	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
 	{
 		AInstancedFoliageActor* IFA = *It;
-		for (auto& MeshPair : IFA->FoliageInfos)
+		IFA->ForEachFoliageInfo([InWorld, IFA, ActorPartitionSubsystem](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 		{
-			FFoliageInfo& FoliageInfo = *MeshPair.Value;
 			if (FoliageInfo.Type == EFoliageImplType::Actor && 
 				ActorPartitionSubsystem->IsLevelPartition())
 			{
-				continue; // Actors are handled through the Partitioning code
+				return true; // Actors are handled through the Partitioning code
 			}
 
 			AInstancedFoliageActor* TargetIFA = nullptr;
@@ -1903,12 +1902,14 @@ void FEdModeFoliage::UpdateInstancePartitioning(UWorld* InWorld)
 				if (InstancesToMove.Num())
 				{
 					// TargetIFA can be null (if target is unloaded cell). Meaning instances will be deleted.
-					FoliageInfo.MoveInstances(IFA, TargetIFA, InstancesToMove, true);
+					FoliageInfo.MoveInstances(TargetIFA, InstancesToMove, true);
 					bMovedInstances = true;
 				}
 
 			} while (bMovedInstances && FoliageInfo.SelectedIndices.Num() > 0);
-		}
+
+			return true; // continue iteration
+		});
 	}
 }
 
@@ -1925,17 +1926,17 @@ void FEdModeFoliage::PostTransformSelectedInstances(UWorld* InWorld)
 		AInstancedFoliageActor* IFA = *It;
 		bool bFoundSelection = false;
 
-		for (auto& MeshPair : IFA->FoliageInfos)
+		IFA->ForEachFoliageInfo([](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 		{
-			FFoliageInfo& FoliageInfo = *MeshPair.Value;
 			TArray<int32> SelectedIndices = FoliageInfo.SelectedIndices.Array();
 
 			if (SelectedIndices.Num() > 0)
 			{
 				const bool bFinished = true;
-				FoliageInfo.PostMoveInstances(IFA, SelectedIndices, bFinished);
+				FoliageInfo.PostMoveInstances(SelectedIndices, bFinished);
 			}
-		}
+			return true; // continue iteration
+		});
 	}
 }
 
@@ -1946,9 +1947,8 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 		AInstancedFoliageActor* IFA = *It;
 		bool bFoundSelection = false;
 
-		for (auto& MeshPair : IFA->FoliageInfos)
+		IFA->ForEachFoliageInfo([this, IFA, &bFoundSelection, InDrag, InRot, InScale, bDuplicate](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 		{
-			FFoliageInfo& FoliageInfo = *MeshPair.Value;
 			TArray<int32> SelectedIndices = FoliageInfo.SelectedIndices.Array();
 
 			if (SelectedIndices.Num() > 0)
@@ -1962,12 +1962,12 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 
 				if (bDuplicate)
 				{
-					FoliageInfo.DuplicateInstances(IFA, MeshPair.Key, SelectedIndices);
-					OnInstanceCountUpdated(MeshPair.Key);
+					FoliageInfo.DuplicateInstances(FoliageType, SelectedIndices);
+					OnInstanceCountUpdated(FoliageType);
 				}
 
 				bMoving = true;
-				FoliageInfo.PreMoveInstances(IFA, SelectedIndices);
+				FoliageInfo.PreMoveInstances(SelectedIndices);
 
 				for (int32 SelectedInstanceIdx : SelectedIndices)
 				{
@@ -1979,9 +1979,10 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 				}
 
 				const bool bFinished = false;
-				FoliageInfo.PostMoveInstances(IFA, SelectedIndices, bFinished);
+				FoliageInfo.PostMoveInstances(SelectedIndices, bFinished);
 			}
-		}
+			return true; // continue iteration
+		});
 
 		if (bFoundSelection)
 		{
@@ -2026,7 +2027,7 @@ void FEdModeFoliage::RemoveSelectedInstances(UWorld* InWorld)
 	{
 		AInstancedFoliageActor* IFA = *It;
 		bool bHasSelection = false;
-		for (auto& MeshPair : IFA->FoliageInfos)
+		for (auto& MeshPair : IFA->GetFoliageInfos())
 		{
 			if (MeshPair.Value->SelectedIndices.Num())
 			{
@@ -2038,17 +2039,17 @@ void FEdModeFoliage::RemoveSelectedInstances(UWorld* InWorld)
 		if (bHasSelection)
 		{
 			IFA->Modify();
-			for (auto& MeshPair : IFA->FoliageInfos)
+			IFA->ForEachFoliageInfo([this](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 			{
-				FFoliageInfo& Mesh = *MeshPair.Value;
-				if (Mesh.SelectedIndices.Num() > 0)
+				if (FoliageInfo.SelectedIndices.Num() > 0)
 				{
-					TArray<int32> InstancesToDelete = Mesh.SelectedIndices.Array();
-					Mesh.RemoveInstances(IFA, InstancesToDelete, true);
+					TArray<int32> InstancesToDelete = FoliageInfo.SelectedIndices.Array();
+					FoliageInfo.RemoveInstances(InstancesToDelete, true);
 
-					OnInstanceCountUpdated(MeshPair.Key);
+					OnInstanceCountUpdated(FoliageType);
 				}
-			}
+				return true; // continue iteration
+			});
 		}
 	}
 }
@@ -2070,7 +2071,7 @@ void FEdModeFoliage::GetSelectedInstanceFoliageTypes(TArray<const UFoliageType*>
 	{
 		AInstancedFoliageActor* IFA = *It;
 		bool bHasSelection = false;
-		for (auto& MeshPair : IFA->FoliageInfos)
+		for (auto& MeshPair : IFA->GetFoliageInfos())
 		{
 			if (MeshPair.Value->SelectedIndices.Num())
 			{
@@ -2171,7 +2172,7 @@ void FEdModeFoliage::SelectInvalidInstances(const UFoliageType* Settings)
 
 		if (InvalidInstances.Num() > 0)
 		{
-			FoliageInfo->SelectInstances(IFA, true, InvalidInstances);
+			FoliageInfo->SelectInstances(true, InvalidInstances);
 		}
 	}
 }
@@ -2528,13 +2529,13 @@ void FEdModeFoliage::ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliage
 
 	if (UpdatedInstances.Num() > 0)
 	{
-		FoliageInfo->PostUpdateInstances(IFA, UpdatedInstances);
+		FoliageInfo->PostUpdateInstances(UpdatedInstances);
 		IFA->RegisterAllComponents();
 	}
 
 	if (InstancesToDelete.Num())
 	{
-		FoliageInfo->RemoveInstances(IFA, InstancesToDelete.Array(), true);
+		FoliageInfo->RemoveInstances(InstancesToDelete.Array(), true);
 	}
 }
 
@@ -3031,9 +3032,8 @@ void FEdModeFoliage::SnapSelectedInstancesToGround(UWorld* InWorld)
 			AInstancedFoliageActor* IFA = *It;
 			bool bFoundSelection = false;
 
-			for (auto& MeshPair : IFA->FoliageInfos)
+			IFA->ForEachFoliageInfo([this, IFA, &bFoundSelection, &bMovedInstance](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 			{
-				FFoliageInfo& FoliageInfo = *MeshPair.Value;
 				TArray<int32> SelectedIndices = FoliageInfo.SelectedIndices.Array();
 
 				if (SelectedIndices.Num() > 0)
@@ -3045,16 +3045,17 @@ void FEdModeFoliage::SnapSelectedInstancesToGround(UWorld* InWorld)
 						bFoundSelection = true;
 					}
 
-					FoliageInfo.PreMoveInstances(IFA, SelectedIndices);
+					FoliageInfo.PreMoveInstances(SelectedIndices);
 
 					for (int32 InstanceIndex : SelectedIndices)
 					{
-						bMovedInstance |= SnapInstanceToGround(IFA, MeshPair.Key->AlignMaxAngle, FoliageInfo, InstanceIndex);
+						bMovedInstance |= SnapInstanceToGround(IFA, FoliageType->AlignMaxAngle, FoliageInfo, InstanceIndex);
 					}
 
-					FoliageInfo.PostMoveInstances(IFA, SelectedIndices);
+					FoliageInfo.PostMoveInstances(SelectedIndices);
 				}
-			}
+				return true; // continue iteration
+			});
 		}
 
 		if (bMovedInstance)
@@ -3161,7 +3162,7 @@ void FEdModeFoliage::PopulateFoliageMeshList()
 	for (TActorIterator<AInstancedFoliageActor> It(World); It; ++It)
 	{
 		AInstancedFoliageActor* IFA = *It;
-		for (auto& MeshPair : IFA->FoliageInfos)
+		for (const auto& MeshPair : IFA->GetFoliageInfos())
 		{
 			//@todo_ow: this doesn't make sense in WP
 			if (!CanPaint(MeshPair.Key, CurrentLevel))
@@ -3258,7 +3259,7 @@ void FEdModeFoliage::CalcTotalInstanceCount(int32& OutInstanceCountTotal, int32&
 	{
 		AInstancedFoliageActor* IFA = *It;
 		int32 IFAInstanceCount = 0;
-		for (const auto& MeshPair : IFA->FoliageInfos)
+		for (const auto& MeshPair : IFA->GetFoliageInfos())
 		{
 			const FFoliageInfo& FoliageInfo = *MeshPair.Value;
 			IFAInstanceCount += FoliageInfo.Instances.Num();
@@ -3386,7 +3387,7 @@ void FEdModeFoliage::MoveSelectedFoliageToLevel(ULevel* InTargetLevel)
 						{
 							// Restore previous selection for move operation
 							FFoliageInfo* FoliageInfo = IFA->FindInfo(NewFoliageType);
-							FoliageInfo->SelectInstances(IFA, true, PreviousSelectionArray);
+							FoliageInfo->SelectInstances(true, PreviousSelectionArray);
 						}
 					}
 				}
@@ -3529,7 +3530,7 @@ void FEdModeFoliage::BakeFoliage(UFoliageType* Settings, bool bSelectedOnly)
 		}
 
 		// Remove
-		FoliageInfo->RemoveInstances(IFA, InstancesToConvert, true);
+		FoliageInfo->RemoveInstances(InstancesToConvert, true);
 	}
 }
 
@@ -3542,10 +3543,10 @@ UFoliageType* FEdModeFoliage::CopySettingsObject(UFoliageType* Settings)
 	IFA->Modify();
 
 	TUniqueObj<FFoliageInfo> FoliageInfo;
-	if (IFA->FoliageInfos.RemoveAndCopyValue(Settings, FoliageInfo))
+	if (IFA->RemoveFoliageInfoAndCopyValue(Settings, FoliageInfo))
 	{
 		Settings = (UFoliageType*)StaticDuplicateObject(Settings, IFA, NAME_None, RF_AllFlags & ~(RF_Standalone | RF_Public));
-		IFA->FoliageInfos.Add(Settings, MoveTemp(FoliageInfo));
+		IFA->AddFoliageInfo(Settings, MoveTemp(FoliageInfo));
 		return Settings;
 	}
 	else
@@ -3583,7 +3584,7 @@ void FEdModeFoliage::ReallocateClusters(UFoliageType* Settings)
 	for (FFoliageInfoIterator It(World, Settings); It; ++It)
 	{
 		FFoliageInfo* FoliageInfo = (*It);
-		FoliageInfo->ReallocateClusters(It.GetActor(), Settings);
+		FoliageInfo->ReallocateClusters(Settings);
 	}
 }
 

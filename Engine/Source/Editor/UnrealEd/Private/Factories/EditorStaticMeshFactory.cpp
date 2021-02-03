@@ -37,7 +37,7 @@ TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPla
 			// Create or find the instanced static mesh foliage type for the given mesh
 			UObject* AssetDataObject = InPlacementInfo.AssetToPlace.GetAsset();
 			UFoliageType_InstancedStaticMesh* FoundOrCreatedType = nullptr;
-			for (auto& FoliageTypePair : FoliageActor->FoliageInfos)
+			for (const auto& FoliageTypePair : FoliageActor->GetFoliageInfos())
 			{
 				FAssetData FoliageTypeSource(FoliageTypePair.Key->GetSource());
 				if (FoliageTypeSource == InPlacementInfo.AssetToPlace)
@@ -59,7 +59,7 @@ TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPla
 			FoliagePlacementInfo.Location = InPlacementInfo.FinalizedTransform.GetLocation();
 			FoliagePlacementInfo.Rotation = InPlacementInfo.FinalizedTransform.Rotator();
 			FoliagePlacementInfo.DrawScale3D = InPlacementInfo.FinalizedTransform.GetScale3D();
-			FoliageInfo->AddInstance(FoliageActor, FoundOrCreatedType, FoliagePlacementInfo);
+			FoliageInfo->AddInstance(FoundOrCreatedType, FoliagePlacementInfo);
 
 			// Todo: deal with returning instanced handles
 			// In the meantime, we return the handle of the the HISM component added.

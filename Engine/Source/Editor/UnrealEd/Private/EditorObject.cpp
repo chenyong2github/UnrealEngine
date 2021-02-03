@@ -385,7 +385,7 @@ static const TCHAR* ImportProperties(
 						Algo::Transform(Pair.Value, InstancePtrs, [](const FFoliageInstance& FoliageInstance) { return &FoliageInstance; });
 						if (MeshInfo)
 						{
-							MeshInfo->AddInstances(IFA, FoliageType, InstancePtrs);
+							MeshInfo->AddInstances(FoliageType, InstancePtrs);
 						}
 					}
 				}

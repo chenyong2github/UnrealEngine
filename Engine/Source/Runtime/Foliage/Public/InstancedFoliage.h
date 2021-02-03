@@ -168,32 +168,43 @@ enum class EFoliageImplType : uint8
 	Actor = 2
 };
 
+struct FFoliageInfo;
+
 ///
 /// FFoliageInfoImpl
 ///
 struct FFoliageImpl
 {
-	FFoliageImpl() {}
+	FFoliageImpl(FFoliageInfo* InInfo) 
+#if WITH_EDITORONLY_DATA
+		: Info(InInfo)
+#endif
+	{}
 	virtual ~FFoliageImpl() {}
 
 	virtual void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector) {}
 	virtual void Serialize(FArchive& Ar) = 0;
 
+#if WITH_EDITORONLY_DATA
+	// Not serialized but FFoliageInfo will make sure it stays valid (mostly Undo/Redo)
+	FFoliageInfo* Info;
+#endif
+
 #if WITH_EDITOR
 	virtual bool IsInitialized() const = 0;
-	virtual void Initialize(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType) = 0;
+	virtual void Initialize(const UFoliageType* FoliageType) = 0;
 	virtual void Uninitialize() = 0;
 	virtual int32 GetInstanceCount() const = 0;
-	virtual void PreAddInstances(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, int32 Count) = 0;
-	virtual void AddInstance(AInstancedFoliageActor* IFA, const FFoliageInstance& NewInstance) = 0;
+	virtual void PreAddInstances(const UFoliageType* FoliageType, int32 Count) = 0;
+	virtual void AddInstance(const FFoliageInstance& NewInstance) = 0;
 	virtual void RemoveInstance(int32 InstanceIndex) = 0;
 	virtual void MoveInstance(int32 InstanceIndex, UObject*& OutInstanceImplementation) { RemoveInstance(InstanceIndex); }
-	virtual void AddExistingInstance(AInstancedFoliageActor* IFA, const FFoliageInstance& ExistingInstance, UObject* InstanceImplementation) { AddInstance(IFA, ExistingInstance); }
+	virtual void AddExistingInstance(const FFoliageInstance& ExistingInstance, UObject* InstanceImplementation) { AddInstance(ExistingInstance); }
 	virtual void SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport) = 0;
 	virtual FTransform GetInstanceWorldTransform(int32 InstanceIndex) const = 0;
 	virtual void PostUpdateInstances() {}
-	virtual void PreMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved) {}
-	virtual void PostMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved, bool bFinished) {}
+	virtual void PreMoveInstances(const TArray<int32>& InInstancesMoved) {}
+	virtual void PostMoveInstances(const TArray<int32>& InInstancesMoved, bool bFinished) {}
 	virtual bool IsOwnedComponent(const UPrimitiveComponent* Component) const = 0;
 	virtual int32 FindIndex(const UPrimitiveComponent* HitComponent) const { return INDEX_NONE; }
 
@@ -206,15 +217,18 @@ struct FFoliageImpl
 
 	virtual void BeginUpdate() {}
 	virtual void EndUpdate() {}
-	virtual void Refresh(AInstancedFoliageActor* IFA, const TArray<FFoliageInstance>& Instances, bool Async, bool Force) {}
+	virtual void Refresh(const TArray<FFoliageInstance>& Instances, bool Async, bool Force) {}
 	virtual void OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews) = 0;
-	virtual void PreEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType) {}
-	virtual void PostEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices) = 0;
-	virtual void NotifyFoliageTypeWillChange(AInstancedFoliageActor* IFA, UFoliageType* FoliageType) {}
-	virtual void NotifyFoliageTypeChanged(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged) = 0;
+	virtual void PreEditUndo(UFoliageType* FoliageType) {}
+	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices) { Info = InInfo; }
+	virtual void NotifyFoliageTypeWillChange(UFoliageType* FoliageType) {}
+	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged) = 0;
 	virtual void EnterEditMode() {}
 	virtual void ExitEditMode() {}
 	virtual bool ShouldAttachToBaseComponent() const { return true; }
+
+	AInstancedFoliageActor* GetIFA() const;
+	FFoliageInfo* GetInfo() const { check(Info); return Info; }
 #endif
 
 	virtual int32 GetOverlappingSphereCount(const FSphere& Sphere) const { return 0; }
@@ -232,6 +246,9 @@ struct FFoliageInfo
 	TUniquePtr<FFoliageImpl> Implementation;
 
 #if WITH_EDITORONLY_DATA
+	// Owning IFA
+	AInstancedFoliageActor* IFA;
+
 	// Allows us to detect if FoliageType was updated while this level wasn't loaded
 	FGuid FoliageTypeUpdateGuid;
 
@@ -263,7 +280,7 @@ struct FFoliageInfo
 	void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 		
 	FOLIAGE_API void CreateImplementation(EFoliageImplType InType);
-	FOLIAGE_API void Initialize(AInstancedFoliageActor* InIFA, const UFoliageType* FoliageType);
+	FOLIAGE_API void Initialize(const UFoliageType* FoliageType);
 	FOLIAGE_API void Uninitialize();
 	FOLIAGE_API bool IsInitialized() const;
 		
@@ -275,41 +292,41 @@ struct FFoliageInfo
 #if WITH_EDITOR
 	
 	FOLIAGE_API void CreateImplementation(const UFoliageType* FoliageType);
-	FOLIAGE_API void NotifyFoliageTypeWillChange(AInstancedFoliageActor* IFA, UFoliageType* FoliageType);
-	FOLIAGE_API void NotifyFoliageTypeChanged(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, bool bSourceChanged);
+	FOLIAGE_API void NotifyFoliageTypeWillChange(UFoliageType* FoliageType);
+	FOLIAGE_API void NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged);
 	
 	FOLIAGE_API void ClearSelection();
 
 	FOLIAGE_API void SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport);
 
 	FOLIAGE_API void SetRandomSeed(int32 seed);
-	FOLIAGE_API void AddInstance(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const FFoliageInstance& InNewInstance);
-	FOLIAGE_API void AddInstance(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const FFoliageInstance& InNewInstance, UActorComponent* InBaseComponent);
-	FOLIAGE_API void AddInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances);
-	FOLIAGE_API void ReserveAdditionalInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, uint32 ReserveNum);
+	FOLIAGE_API void AddInstance(const UFoliageType* InSettings, const FFoliageInstance& InNewInstance);
+	FOLIAGE_API void AddInstance(const UFoliageType* InSettings, const FFoliageInstance& InNewInstance, UActorComponent* InBaseComponent);
+	FOLIAGE_API void AddInstances(const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances);
+	FOLIAGE_API void ReserveAdditionalInstances(const UFoliageType* InSettings, uint32 ReserveNum);
 
-	FOLIAGE_API void RemoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree);
+	FOLIAGE_API void RemoveInstances(const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree);
 
-	FOLIAGE_API void MoveInstances(AInstancedFoliageActor* InFromIFA, AInstancedFoliageActor* InToIFA, const TSet<int32>& InInstancesToMove, bool bKeepSelection);
+	FOLIAGE_API void MoveInstances(AInstancedFoliageActor* InToIFA, const TSet<int32>& InInstancesToMove, bool bKeepSelection);
 
 	// Apply changes in the FoliageType to the component
-	FOLIAGE_API void PreMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesToMove);
-	FOLIAGE_API void PostMoveInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesMoved, bool bFinished = false);
-	FOLIAGE_API void PostUpdateInstances(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesUpdated, bool bReAddToHash = false, bool InUpdateSelection = false);
-	FOLIAGE_API void DuplicateInstances(AInstancedFoliageActor* InIFA, UFoliageType* InSettings, const TArray<int32>& InInstancesToDuplicate);
-	FOLIAGE_API void GetInstancesInsideBounds(const FBox& Box, TArray<int32>& OutInstances);
-	FOLIAGE_API void GetInstancesInsideSphere(const FSphere& Sphere, TArray<int32>& OutInstances);
-	FOLIAGE_API void GetInstanceAtLocation(const FVector& Location, int32& OutInstance, bool& bOutSucess);
-	FOLIAGE_API bool CheckForOverlappingSphere(const FSphere& Sphere);
-	FOLIAGE_API bool CheckForOverlappingInstanceExcluding(int32 TestInstanceIdx, float Radius, TSet<int32>& ExcludeInstances);
+	FOLIAGE_API void PreMoveInstances(const TArray<int32>& InInstancesToMove);
+	FOLIAGE_API void PostMoveInstances(const TArray<int32>& InInstancesMoved, bool bFinished = false);
+	FOLIAGE_API void PostUpdateInstances(const TArray<int32>& InInstancesUpdated, bool bReAddToHash = false, bool InUpdateSelection = false);
+	FOLIAGE_API void DuplicateInstances(UFoliageType* InSettings, const TArray<int32>& InInstancesToDuplicate);
+	FOLIAGE_API void GetInstancesInsideBounds(const FBox& Box, TArray<int32>& OutInstances) const;
+	FOLIAGE_API void GetInstancesInsideSphere(const FSphere& Sphere, TArray<int32>& OutInstances) const;
+	FOLIAGE_API void GetInstanceAtLocation(const FVector& Location, int32& OutInstance, bool& bOutSucess) const;
+	FOLIAGE_API bool CheckForOverlappingSphere(const FSphere& Sphere) const;
+	FOLIAGE_API bool CheckForOverlappingInstanceExcluding(int32 TestInstanceIdx, float Radius, TSet<int32>& ExcludeInstances) const;
 	FOLIAGE_API TArray<int32> GetInstancesOverlappingBox(const FBox& Box) const;
 
 	// Destroy existing clusters and reassign all instances to new clusters
-	FOLIAGE_API void ReallocateClusters(AInstancedFoliageActor* InIFA, UFoliageType* InSettings);
+	FOLIAGE_API void ReallocateClusters(UFoliageType* InSettings);
 
-	FOLIAGE_API void SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect, TArray<int32>& Instances);
+	FOLIAGE_API void SelectInstances(bool bSelect, TArray<int32>& Instances);
 
-	FOLIAGE_API void SelectInstances(AInstancedFoliageActor* InIFA, bool bSelect);
+	FOLIAGE_API void SelectInstances(bool bSelect);
 
 	FOLIAGE_API FBox GetSelectionBoundingBox() const;
 
@@ -323,15 +340,15 @@ struct FFoliageInfo
 	// For debugging. Validate state after editing.
 	void CheckValid();
 		
-	FOLIAGE_API void Refresh(AInstancedFoliageActor* IFA, bool Async, bool Force);
+	FOLIAGE_API void Refresh(bool Async, bool Force);
 	FOLIAGE_API void OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews);
-	FOLIAGE_API void PostEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType);
-	FOLIAGE_API void PreEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType);
+	FOLIAGE_API void PostEditUndo(AInstancedFoliageActor* InIFA, UFoliageType* FoliageType);
+	FOLIAGE_API void PreEditUndo(UFoliageType* FoliageType);
 	FOLIAGE_API void EnterEditMode();
 	FOLIAGE_API void ExitEditMode();
 
 	FOLIAGE_API void RemoveBaseComponentOnInstances();
-	FOLIAGE_API void IncludeActor(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, AActor* InActor);
+	FOLIAGE_API void IncludeActor(const UFoliageType* FoliageType, AActor* InActor);
 	FOLIAGE_API void ExcludeActors();
 
 	FOLIAGE_API FBox GetApproximatedInstanceBounds() const;
@@ -345,11 +362,11 @@ struct FFoliageInfo
 
 private:
 	using FAddImplementationFunc = TFunctionRef<void(FFoliageImpl*, AInstancedFoliageActor*, const FFoliageInstance&)>;
-	void AddInstancesImpl(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances, FFoliageInfo::FAddImplementationFunc ImplementationFunc);
-	void AddInstanceImpl(AInstancedFoliageActor* InIFA, const FFoliageInstance& InNewInstance, FAddImplementationFunc ImplementationFunc);
+	void AddInstancesImpl(const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances, FFoliageInfo::FAddImplementationFunc ImplementationFunc);
+	void AddInstanceImpl(const FFoliageInstance& InNewInstance, FAddImplementationFunc ImplementationFunc);
 
 	using FRemoveImplementationFunc = TFunctionRef<void(FFoliageImpl*, int32)>;
-	void RemoveInstancesImpl(AInstancedFoliageActor* InIFA, const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree, FRemoveImplementationFunc ImplementationFunc);
+	void RemoveInstancesImpl(const TArray<int32>& InInstancesToRemove, bool RebuildFoliageTree, FRemoveImplementationFunc ImplementationFunc);
 };
 
 

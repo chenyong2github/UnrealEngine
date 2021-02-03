@@ -2022,12 +2022,8 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 			continue;
 		}
 			
-		for (auto& Pair : IFA->FoliageInfos)
+		IFA->ForEachFoliageInfo([this, IFA, BaseId, &InInstanceBox](UFoliageType* Settings, FFoliageInfo& MeshInfo)
 		{
-			// Find the per-mesh info matching the mesh.
-			UFoliageType* Settings = Pair.Key;
-			FFoliageInfo& MeshInfo = *Pair.Value;
-			
 			const auto* InstanceSet = MeshInfo.ComponentHash.Find(BaseId);
 			if (InstanceSet)
 			{
@@ -2114,14 +2110,15 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 				}
 
 				// Remove any unused instances
-				MeshInfo.RemoveInstances(IFA, InstancesToRemove, true);
+				MeshInfo.RemoveInstances(InstancesToRemove, true);
 
 				for (UHierarchicalInstancedStaticMeshComponent* FoliageComp : AffectedFoliageComponents)
 				{
 					FoliageComp->InvalidateLightingCache();
 				}
 			}
-		}
+			return true; // continue iterating
+		});
 	}
 }
 #endif // WITH_EDITORONLY_DATA

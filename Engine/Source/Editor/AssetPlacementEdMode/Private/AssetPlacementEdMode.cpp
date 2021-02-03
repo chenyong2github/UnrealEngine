@@ -211,11 +211,12 @@ void UAssetPlacementEdMode::DeleteSelection()
 	{
 		if (AInstancedFoliageActor* FoliageActor = *It)
 		{
-			for (auto& FoliageInfo : FoliageActor->FoliageInfos)
+			FoliageActor->ForEachFoliageInfo([](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 			{
-				TArray<int32> SelectedIndices = FoliageInfo.Value->SelectedIndices.Array();
-				FoliageInfo.Value->RemoveInstances(FoliageActor, SelectedIndices, true);
-			}
+				TArray<int32> SelectedIndices = FoliageInfo.SelectedIndices.Array();
+				FoliageInfo.RemoveInstances(SelectedIndices, true);
+				return true; // continue iteration
+			});
 		}
 	}
 
@@ -235,10 +236,11 @@ void UAssetPlacementEdMode::ClearSelection()
 	{
 		if (AInstancedFoliageActor* FoliageActor = *It)
 		{
-			for (auto& FoliageInfo : FoliageActor->FoliageInfos)
+			FoliageActor->ForEachFoliageInfo([](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 			{
-				FoliageInfo.Value->ClearSelection();
-			}
+				FoliageInfo.ClearSelection();
+				return true; // continue iteration
+			});
 		}
 	}
 	GetToolManager()->EndUndoTransaction();
