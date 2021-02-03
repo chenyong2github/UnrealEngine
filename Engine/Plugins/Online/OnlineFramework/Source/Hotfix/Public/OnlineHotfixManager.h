@@ -205,7 +205,7 @@ protected:
 	/** @return the config file name with full path info */
 	FString GetConfigFileNamePath(const FString& IniName);
 	/** @return the config file name after stripping any extra info (platform, debug prefix, etc.) */
-	FString GetStrippedConfigFileName(const FString& IniName);
+	virtual FString GetStrippedConfigFileName(const FString& IniName);
 
 	/** @return the human readable name of the file */
 	const FString GetFriendlyNameFromDLName(const FString& DLName) const;
