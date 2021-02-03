@@ -42,6 +42,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, NIAGARAVER
 	SHADER_PARAMETER(int, MaterialParam1DataOffset)
 	SHADER_PARAMETER(int, MaterialParam2DataOffset)
 	SHADER_PARAMETER(int, MaterialParam3DataOffset)
+	SHADER_PARAMETER(int, DistanceFromStartOffset)
 	SHADER_PARAMETER(int, U0OverrideDataOffset)
 	SHADER_PARAMETER(int, V0RangeOverrideDataOffset)
 	SHADER_PARAMETER(int, U1OverrideDataOffset)
