@@ -802,7 +802,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			{
 				NewIssues.Add(FStackIssue(
                     EStackIssueSeverity::Info,
-                    LOCTEXT("ModuleScriptNoteShort", "Module note"),
+                    LOCTEXT("ModuleScriptNoteShort", "Module Usage Note"),
                     FunctionCallNode->FunctionScript->NoteMessage,
                     GetStackEditorDataKey(),
                     true));
