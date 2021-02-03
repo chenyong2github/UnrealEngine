@@ -213,9 +213,9 @@ void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockM
 				// Fill the staging buffer with the data on the device.
 				VkBufferCopy Regions;
 				Regions.size = Size;
-				Regions.srcOffset = Offset;
+				Regions.srcOffset = Offset + Buffers[DynamicBufferIndex].Offset;
 				Regions.dstOffset = 0;
-
+				
 				VulkanRHI::vkCmdCopyBuffer(CmdBuffer->GetHandle(), Buffers[DynamicBufferIndex].GetBufferHandle(), StagingBuffer->GetHandle(), 1, &Regions);
 
 				// Setup barrier.
