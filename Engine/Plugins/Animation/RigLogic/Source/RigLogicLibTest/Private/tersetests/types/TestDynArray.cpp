@@ -5,6 +5,7 @@
 #include "terse/types/DynArray.h"
 
 #include <pma/PolyAllocator.h>
+#include <pma/TypeDefs.h>
 #include <pma/resources/AlignedMemoryResource.h>
 
 
@@ -44,6 +45,12 @@ TEST(DynArrayTest, CreateFromRange) {
     for (std::size_t i{}; i < arr.size(); ++i) {
         ASSERT_EQ(arr[i], values[i]);
     }
+}
+
+TEST(DynArrayTest, CreateFromEmptyRange) {
+    pma::Vector<int> values;
+    terse::DynArray<int, pma::PolyAllocator<int> > arr{values.begin(), values.end()};
+    ASSERT_TRUE(arr.empty());
 }
 
 TEST(DynArrayTest, CreateFromPointerSize) {
@@ -123,4 +130,87 @@ TEST(DynArrayTest, MoveAssign) {
     }
 
     ASSERT_NE(arrCopy.data(), values);
+}
+
+TEST(DynArrayTest, SubscriptOperator) {
+    int values[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    terse::DynArray<int, pma::PolyAllocator<int> > arr{values, 10ul};
+
+    auto raw = arr.data();
+    for (std::size_t i{}; i < 10ul; ++i) {
+        ASSERT_EQ(arr[i], raw[i]);
+    }
+}
+
+TEST(DynArrayTest, ResizeToSmaller) {
+    int values[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    terse::DynArray<int, pma::PolyAllocator<int> > arr{values, 10ul};
+
+    ASSERT_EQ(arr.size(), 10ul);
+
+    auto preResize = arr.data();
+    arr.resize(5ul);
+    // Ensure pointer does not change, just the size is reduced
+    ASSERT_EQ(preResize, arr.data());
+    ASSERT_EQ(arr.size(), 5ul);
+
+    for (std::size_t i{}; i < 5ul; ++i) {
+        ASSERT_EQ(arr[i], values[i]);
+    }
+}
+
+TEST(DynArrayTest, ResizeToLarger) {
+    int values[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    terse::DynArray<int, pma::PolyAllocator<int> > arr{values, 10ul};
+
+    ASSERT_EQ(arr.size(), 10ul);
+
+    auto preResize = arr.data();
+    arr.resize(15ul, 42);
+    // Ensure pointer has changed
+    ASSERT_NE(preResize, arr.data());
+    ASSERT_EQ(arr.size(), 15ul);
+    // Ensure existing data has been migrated
+    for (std::size_t i{}; i < 10ul; ++i) {
+        ASSERT_EQ(arr[i], values[i]);
+    }
+    // Ensure rest of the storage was filled with given value
+    for (std::size_t i = 10ul; i < 15ul; ++i) {
+        ASSERT_EQ(arr[i], 42);
+    }
+}
+
+TEST(DynArrayTest, ResizeUninitializedToSmaller) {
+    int values[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    terse::DynArray<int, pma::PolyAllocator<int> > arr{values, 10ul};
+
+    ASSERT_EQ(arr.size(), 10ul);
+
+    auto preResize = arr.data();
+    arr.resize_uninitialized(5ul);
+    // Ensure pointer does not change, just the size is reduced
+    ASSERT_EQ(preResize, arr.data());
+    ASSERT_EQ(arr.size(), 5ul);
+
+    for (std::size_t i{}; i < 5ul; ++i) {
+        ASSERT_EQ(arr[i], values[i]);
+    }
+}
+
+TEST(DynArrayTest, ResizeUninitializedToLarger) {
+    int values[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    terse::DynArray<int, pma::PolyAllocator<int> > arr{values, 10ul};
+
+    ASSERT_EQ(arr.size(), 10ul);
+
+    auto preResize = arr.data();
+    arr.resize_uninitialized(15ul);
+    // Ensure pointer has changed
+    ASSERT_NE(preResize, arr.data());
+    ASSERT_EQ(arr.size(), 15ul);
+    // Ensure existing data has been migrated
+    for (std::size_t i{}; i < 10ul; ++i) {
+        ASSERT_EQ(arr[i], values[i]);
+    }
+    // Rest of the storage was not initialized, no way to test
 }

@@ -22,6 +22,18 @@ class DNAAPI GeometryWriter : public virtual DefinitionWriter {
 
     public:
         /**
+            @brief Delete all meshes.
+        */
+        virtual void clearMeshes() = 0;
+        /**
+            @brief Delete the specified mesh.
+            @param meshIndex
+                A mesh's position in the zero-indexed array of meshes.
+            @warning
+                meshIndex must be less than the value returned by getMeshCount.
+        */
+        virtual void deleteMesh(std::uint16_t meshIndex) = 0;
+        /**
             @brief List of vertex positions.
             @param meshIndex
                 A mesh's position in the zero-indexed array of meshes.
@@ -66,15 +78,23 @@ class DNAAPI GeometryWriter : public virtual DefinitionWriter {
             @brief List of vertex layouts the belong to the specified mesh.
             @param meshIndex
                 A mesh's position in the zero-indexed array of meshes.
-            @param vertices
-                The source address from which the vertices are to be copied.
+            @param layouts
+                The source address from which the layouts are to be copied.
             @param count
-                The number of vertices to copy.
+                The number of layouts to copy.
             @note
                 The mesh storage will be implicitly resized (if needed) to provide
                 storage for the number of meshes that is inferred from the specified index.
         */
         virtual void setVertexLayouts(std::uint16_t meshIndex, const VertexLayout* layouts, std::uint32_t count) = 0;
+        /**
+            @brief Delete all lists of vertex layout indices for the specified mesh.
+            @param meshIndex
+                A mesh's position in the zero-indexed array of meshes.
+            @warning
+                meshIndex must be less than the value returned by getMeshCount.
+        */
+        virtual void clearFaceVertexLayoutIndices(std::uint16_t meshIndex) = 0;
         /**
             @brief Vertex layout indices that belong to the specified face.
             @param meshIndex
@@ -104,6 +124,14 @@ class DNAAPI GeometryWriter : public virtual DefinitionWriter {
                 The maximum number of joints that may influence any single vertex.
         */
         virtual void setMaximumInfluencePerVertex(std::uint16_t meshIndex, std::uint16_t maxInfluenceCount) = 0;
+        /**
+            @brief Delete all skin weights for the specified mesh.
+            @param meshIndex
+                A mesh's position in the zero-indexed array of meshes.
+            @warning
+                meshIndex must be less than the value returned by getMeshCount.
+        */
+        virtual void clearSkinWeights(std::uint16_t meshIndex) = 0;
         /**
             @brief List of skin weights influencing the referenced vertex.
             @param meshIndex
@@ -147,6 +175,14 @@ class DNAAPI GeometryWriter : public virtual DefinitionWriter {
                                                 std::uint32_t vertexIndex,
                                                 const std::uint16_t* jointIndices,
                                                 std::uint16_t count) = 0;
+        /**
+            @brief Delete all blend shape targets for the specified mesh.
+            @param meshIndex
+                A mesh's position in the zero-indexed array of meshes.
+            @warning
+                meshIndex must be less than the value returned by getMeshCount.
+        */
+        virtual void clearBlendShapeTargets(std::uint16_t meshIndex) = 0;
         /** @brief The matching blend shape channel index of the specified blend shape target.
             @note
                 Associate the mesh-local blend shape target index with the absolute blend shape channel

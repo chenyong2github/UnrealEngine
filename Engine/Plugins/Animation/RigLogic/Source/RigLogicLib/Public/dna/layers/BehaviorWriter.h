@@ -62,21 +62,26 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
         /**
             @brief Computational values(slope/gradient) used for calculating the
                 output value during gui to raw control mapping.
-            @return View over the array of computational values.
-            @see Controls
-        */
-        virtual void setGUIToRawSlopeValues(const float* slopeValues, std::uint16_t count) = 0;
-        /**
-            @brief Computational values(vertical intercept) used for calculating the
-                output value during gui to raw control mapping.
             @param slopeValues
                 The source address from which the computational values are to be copied.
             @param count
                 The number of computational values to copy.
             @see Controls
         */
+        virtual void setGUIToRawSlopeValues(const float* slopeValues, std::uint16_t count) = 0;
+        /**
+            @brief Computational values(vertical intercept) used for calculating the
+                output value during gui to raw control mapping.
+            @param cutValues
+                The source address from which the computational values are to be copied.
+            @param count
+                The number of computational values to copy.
+            @see Controls
+        */
         virtual void setGUIToRawCutValues(const float* cutValues, std::uint16_t count) = 0;
-
+        /**
+            @brief The number of distinct PSD expressions.
+        */
         virtual void setPSDCount(std::uint16_t count) = 0;
         /**
             @brief PSD(input) indices which will become the rows of the PSD matrix.
@@ -115,6 +120,18 @@ class DNAAPI BehaviorWriter : public virtual DefinitionWriter {
             @see Joints
         */
         virtual void setJointColumnCount(std::uint16_t columnCount) = 0;
+        /**
+            @brief Delete all joint groups.
+        */
+        virtual void clearJointGroups() = 0;
+        /**
+            @brief Delete the specified joint group.
+            @param jointGroupIndex
+                A joint group's position in the zero-indexed array of joint groups.
+            @warning
+                jointGroupIndex must be less than the value returned by getJointGroupCount.
+        */
+        virtual void deleteJointGroup(std::uint16_t jointGroupIndex) = 0;
         /**
             @brief Number of rows per each level of detail for the specified joint group.
             @note

@@ -13,7 +13,7 @@ namespace dna {
 class Reader;
 
 /**
-    @brief The abstract Writer which it's implementations are expected to inherit.
+    @brief The abstract Writer which its implementations are expected to inherit.
     @note
         This class combines the various different writer interfaces into a single interface.
         The artificial separation into multiple interfaces in this case just mirrors the

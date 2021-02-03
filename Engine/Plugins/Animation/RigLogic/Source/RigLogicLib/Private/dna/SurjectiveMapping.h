@@ -40,6 +40,15 @@ struct SurjectiveMapping {
             to.push_back(to_);
         }
 
+        void set(std::size_t index, TFrom from_, TTo to_) {
+            if (index >= size()) {
+                from.resize(index + 1ul);
+                to.resize(index + 1ul);
+            }
+            from[index] = from_;
+            to[index] = to_;
+        }
+
         void removeIf(std::function<bool(const TFrom&, const TTo&)> predicate) {
             assert(from.size() == to.size());
 
@@ -68,6 +77,11 @@ struct SurjectiveMapping {
         std::size_t size() const {
             assert(from.size() == to.size());
             return from.size();
+        }
+
+        void clear() {
+            from.clear();
+            to.clear();
         }
 
     private:

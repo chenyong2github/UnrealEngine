@@ -23,10 +23,13 @@ class LODMapping {
         explicit LODMapping(MemoryResource* memRes_);
 
         std::uint16_t getLODCount() const;
+        void resetIndices();
+        void resetLODs();
         void reset();
         void setLODCount(std::uint16_t lodCount);
         void discardLODs(const LODConstraint& lodConstraint);
         ConstArrayView<std::uint16_t> getIndices(std::uint16_t lod) const;
+        std::uint16_t getIndexListCount() const;
         void clearIndices(std::uint16_t index);
         void addIndices(std::uint16_t index, const std::uint16_t* source, std::uint16_t count);
         void associateLODWithIndices(std::uint16_t lod, std::uint16_t index);
