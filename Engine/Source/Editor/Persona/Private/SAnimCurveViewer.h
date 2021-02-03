@@ -36,7 +36,7 @@ public:
 	TSharedPtr<SInlineEditableTextBlock> EditableText;	// The editable text box in the list, used to focus from the context menu
 	FName ContainerName;	// The container in the skeleton this name resides in
 	class UEditorAnimCurveBoneLinks* EditorMirrorObject;
-
+	bool bShown;
 	/** Static function for creating a new item, but ensures that you can only have a TSharedRef to one */
 	static TSharedRef<FDisplayedAnimCurveInfo> Make(TWeakPtr<class IEditableSkeleton> InEditableSkeleton, const FName& InContainerName, const FSmartName& InSmartName, class UEditorAnimCurveBoneLinks* InEditorMirrorObject)
 	{
@@ -52,6 +52,7 @@ protected:
 		, EditableSkeleton(InEditableSkeleton)
 		, ContainerName(InContainerName)
 		, EditorMirrorObject(InEditorMirrorObject)
+		, bShown(false)
 	{}
 };
 
@@ -242,7 +243,7 @@ public:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
 
-	void RefreshCurveList();
+	void RefreshCurveList(bool bInFullRefresh);
 
 	// When a name is committed after being edited in the list
 	virtual void OnNameCommitted(const FText& NewName, ETextCommit::Type CommitType, TSharedPtr<FDisplayedAnimCurveInfo> Item);
@@ -261,7 +262,7 @@ private:
 	* @param SearchText - Optional search string
 	*
 	*/
-	void CreateAnimCurveList( const FString& SearchText = FString() );
+	void CreateAnimCurveList( const FString& SearchText = FString(), bool bInFullRefresh = false );
 	void CreateAnimCurveTypeList(TSharedRef<SHorizontalBox> HorizontalBox);
 
 	void ApplyCustomCurveOverride(UAnimInstance* AnimInstance) const;
@@ -304,6 +305,9 @@ private:
 	/** A list of animation curve. Used by the AnimCurveListView. */
 	TArray< TSharedPtr<FDisplayedAnimCurveInfo> > AnimCurveList;
 
+	/** Tracking array of anim curves indexed by UID */
+	TArray< TSharedPtr<FDisplayedAnimCurveInfo> > AnimCurvesByUID;
+	
 	/** The skeletal mesh that we grab the animation curve from */
 	UAnimInstance* CachedPreviewInstance;						
 
