@@ -218,7 +218,8 @@ protected:
 	void UpdateKeyFromSettings(const FSubmixEffectDynamicsProcessorSettings& InSettings);
 	bool UpdateKeySourcePatch();
 
-	void OnNewDeviceCreated(Audio::FDeviceId InDeviceId);
+	void OnDeviceCreated(Audio::FDeviceId InDeviceId);
+	void OnDeviceDestroyed(Audio::FDeviceId InDeviceId);
 	
 	Audio::AlignedFloatBuffer AudioExternal;
 
@@ -295,7 +296,9 @@ private:
 
 	FKeySource KeySource;
 	Audio::FDynamicsProcessor DynamicsProcessor;
+
 	FDelegateHandle DeviceCreatedHandle;
+	FDelegateHandle DeviceDestroyedHandle;
 
 	friend class USubmixEffectDynamicsProcessorPreset;
 };

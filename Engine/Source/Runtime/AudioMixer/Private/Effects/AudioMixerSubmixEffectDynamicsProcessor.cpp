@@ -21,12 +21,16 @@ FAutoConsoleVariableRef CVarBypassDynamicsProcessor(
 
 FSubmixEffectDynamicsProcessor::FSubmixEffectDynamicsProcessor()
 {
+	DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FSubmixEffectDynamicsProcessor::OnDeviceCreated);
+	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FSubmixEffectDynamicsProcessor::OnDeviceDestroyed);
 }
 
 FSubmixEffectDynamicsProcessor::~FSubmixEffectDynamicsProcessor()
 {
-	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
 	ResetKey();
+
+	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+	FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
 }
 
 Audio::FDeviceId FSubmixEffectDynamicsProcessor::GetDeviceId() const
@@ -171,11 +175,15 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 		return true;
 	}
 
-	if (Audio::FMixerDevice* MixerDevice = GetMixerDevice())
+	switch (KeySource.Type)
 	{
-		switch (KeySource.Type)
+		case ESubmixEffectDynamicsKeySource::AudioBus:
 		{
-			case ESubmixEffectDynamicsKeySource::AudioBus:
+			// Retrieving/mutating the MixerDevice is only safe during OnProcessAudio calls if
+			// it is not called during Teardown.  The DynamicsProcessor should be Reset via
+			// the OnDeviceDestroyed callback (prior to FAudioDevice::Teardown), so this call
+			// should never be hit during Teardown.
+			if (Audio::FMixerDevice* MixerDevice = GetMixerDevice())
 			{
 				KeySource.Patch = MixerDevice->AddPatchForAudioBus(KeySource.ObjectId, 1.0f /* PatchGain */);
 				if (KeySource.Patch.IsValid())
@@ -184,9 +192,16 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 					return true;
 				}
 			}
-			break;
+		}
+		break;
 
-			case ESubmixEffectDynamicsKeySource::Submix:
+		case ESubmixEffectDynamicsKeySource::Submix:
+		{
+			// Retrieving/mutating the MixerDevice is only safe during OnProcessAudio calls if
+			// it is not called during Teardown.  The DynamicsProcessor should be Reset via
+			// the OnDeviceDestroyed callback (prior to FAudioDevice::Teardown), so this call
+			// should never be hit during Teardown.
+			if (Audio::FMixerDevice* MixerDevice = GetMixerDevice())
 			{
 				KeySource.Patch = MixerDevice->AddPatchForSubmix(KeySource.ObjectId, 1.0f /* PatchGain */);
 				if (KeySource.Patch.IsValid())
@@ -201,14 +216,14 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 					}
 				}
 			}
-			break;
-
-			case ESubmixEffectDynamicsKeySource::Default:
-			default:
-			{
-			}
-			break;
 		}
+		break;
+
+		case ESubmixEffectDynamicsKeySource::Default:
+		default:
+		{
+		}
+		break;
 	}
 
 	return false;
@@ -326,7 +341,7 @@ void FSubmixEffectDynamicsProcessor::UpdateKeyFromSettings(const FSubmixEffectDy
 	KeySource.Update(InSettings.KeySource, ObjectId, SourceNumChannels);
 }
 
-void FSubmixEffectDynamicsProcessor::OnNewDeviceCreated(Audio::FDeviceId InDeviceId)
+void FSubmixEffectDynamicsProcessor::OnDeviceCreated(Audio::FDeviceId InDeviceId)
 {
 	if (InDeviceId == DeviceId)
 	{
@@ -334,6 +349,17 @@ void FSubmixEffectDynamicsProcessor::OnNewDeviceCreated(Audio::FDeviceId InDevic
 		UpdateKeyFromSettings(Settings);
 
 		FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+	}
+}
+
+void FSubmixEffectDynamicsProcessor::OnDeviceDestroyed(Audio::FDeviceId InDeviceId)
+{
+	if (InDeviceId == DeviceId)
+	{
+		// Reset the key on device destruction to avoid reinitializing
+		// it during FAudioDevice::Teardown via ProcessAudio.
+		ResetKey();
+		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
 	}
 }
 
