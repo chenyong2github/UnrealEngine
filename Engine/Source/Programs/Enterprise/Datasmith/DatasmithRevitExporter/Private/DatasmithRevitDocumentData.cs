@@ -1125,14 +1125,19 @@ namespace DatasmithRevitExporter
 
 			if (SectionBoxOutlines.Count > 0)
 			{
-				Outline InstanceOutline = GetOutline(InWorldTransform, InInstanceType.get_BoundingBox(CurrentDocument.ActiveView));
+				BoundingBoxXYZ InstanceBoundingBox = InInstanceType.get_BoundingBox(CurrentDocument.ActiveView);
 
-				foreach (Outline SectionBoxOutline in SectionBoxOutlines)
+				if (InstanceBoundingBox != null)
 				{
-					bIntersectedBySectionBox = (SectionBoxOutline.Intersects(InstanceOutline, 0) != SectionBoxOutline.ContainsOtherOutline(InstanceOutline, 0));
-					if (bIntersectedBySectionBox)
+					Outline InstanceOutline = GetOutline(InWorldTransform, InstanceBoundingBox);
+
+					foreach (Outline SectionBoxOutline in SectionBoxOutlines)
 					{
-						break;
+						bIntersectedBySectionBox = (SectionBoxOutline.Intersects(InstanceOutline, 0) != SectionBoxOutline.ContainsOtherOutline(InstanceOutline, 0));
+						if (bIntersectedBySectionBox)
+						{
+							break;
+						}
 					}
 				}
 			}
