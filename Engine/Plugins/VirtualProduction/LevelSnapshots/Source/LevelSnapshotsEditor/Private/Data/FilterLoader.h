@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "AssetRegistry/AssetData.h"
+
 #include "FilterLoader.generated.h"
 
 class UDisjunctiveNormalFormFilter;

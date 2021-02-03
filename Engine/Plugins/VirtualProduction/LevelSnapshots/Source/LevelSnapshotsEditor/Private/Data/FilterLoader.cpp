@@ -7,6 +7,7 @@
 
 #include "FileHelpers.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Misc/Paths.h"
 
 void UFilterLoader::OverwriteExisting()
 {
