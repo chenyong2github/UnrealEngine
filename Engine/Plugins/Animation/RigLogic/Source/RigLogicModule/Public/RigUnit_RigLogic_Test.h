@@ -225,6 +225,26 @@ public:
 		}
 	}
 
+	uint16 GetJointIndexListCount() const override
+	{
+		return {};
+	}
+
+	uint16 GetBlendShapeChannelIndexListCount() const override
+	{
+		return {};
+	}
+
+	uint16 GetAnimatedMapIndexListCount() const override
+	{
+		return {};
+	}
+
+	uint16 GetMeshIndexListCount() const override
+	{
+		return {};
+	}
+
 	FVector GetNeutralJointTranslation(uint16 Index) const override
 	{
 		return {};
@@ -468,36 +488,36 @@ struct FRigUnit_RigLogic::TestAccessor
 
 	 /** MapInputCurve Tests **/
 
-	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderEmpty();
-	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderOneCurve(FString ControlNameStr);
+	TSharedPtr<TestBehaviorReader> CreateBehaviorReaderEmpty();
+	TSharedPtr<TestBehaviorReader> CreateBehaviorReaderOneCurve(FString ControlNameStr);
 
 	TUniquePtr<FRigCurveContainer> CreateCurveContainerEmpty();
 	TUniquePtr<FRigCurveContainer> CreateCurveContainerOneCurve(FString CurveNameStr);
 
-	void Exec_MapInputCurve(TestBehaviorReader* TestReader, FRigCurveContainer* TestCurveContainer);
+	void Exec_MapInputCurve(FSharedRigRuntimeContext* Context, FRigCurveContainer* TestCurveContainer);
 
 	/** MapJoints Tests **/
 
-	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderTwoJoints(FString Joint1NameStr, FString Joint2NameStr);
+	TSharedPtr<TestBehaviorReader> CreateBehaviorReaderTwoJoints(FString Joint1NameStr, FString Joint2NameStr);
 	TUniquePtr<FRigBoneHierarchy> CreateBoneHierarchyEmpty();
 	TUniquePtr<FRigBoneHierarchy> CreateBoneHierarchyTwoBones(FString Bone1NameStr, FString Bone2NameStr);
 
-	void Exec_MapJoints(TestBehaviorReader* TestReader, FRigBoneHierarchy* MockHierachy);
+	void Exec_MapJoints(FSharedRigRuntimeContext* Context, FRigBoneHierarchy* MockHierachy);
 
 	/** MapBlendShapes Tests **/
 
-	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderNoBlendshapes(FString MeshNameStr);
-	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderOneBlendShape(FString MeshNameStr, FString BlendShapeNameStr);
+	TSharedPtr<TestBehaviorReader> CreateBehaviorReaderNoBlendshapes(FString MeshNameStr);
+	TSharedPtr<TestBehaviorReader> CreateBehaviorReaderOneBlendShape(FString MeshNameStr, FString BlendShapeNameStr);
 	TUniquePtr<FRigCurveContainer> CreateCurveContainerOneMorphTarget(FString MorphTargetStr);
-	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderTwoBlendShapes(FString MeshNameStr, FString BlendShape1Str, FString BlendShape2Str);
+	TSharedPtr<TestBehaviorReader> CreateBehaviorReaderTwoBlendShapes(FString MeshNameStr, FString BlendShape1Str, FString BlendShape2Str);
 	TUniquePtr<FRigCurveContainer> CreateCurveContainerTwoMorphTargets(FString MorphTarget1Str, FString MorphTarget2Str);
 
-	void Exec_MapMorphTargets(TestBehaviorReader* TestReader, FRigCurveContainer* TestCurveContainer);
+	void Exec_MapMorphTargets(FSharedRigRuntimeContext* Context, FRigCurveContainer* TestCurveContainer);
 
 	/** MapMaskMultipliers Tests **/
-	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderOneAnimatedMap(FString AnimatedMapNameStr);
+	TSharedPtr<TestBehaviorReader> CreateBehaviorReaderOneAnimatedMap(FString AnimatedMapNameStr);
 
-	void Exec_MapMaskMultipliers(TestBehaviorReader* TestReader, FRigCurveContainer* TestCurveContainer);
+	void Exec_MapMaskMultipliers(FSharedRigRuntimeContext* Context, FRigCurveContainer* TestCurveContainer);
 
 	static const uint8 MAX_ATTRS_PER_JOINT;
 
@@ -506,7 +526,7 @@ struct FRigUnit_RigLogic::TestAccessor
 	FTransformArrayView CreateTwoJointNeutralTransforms(float *InValueArray);
 	TArrayView<const uint16> CreateTwoJointVariableAttributes(uint16* InVariableAttributeIndices, uint8 LOD);
 
-	void Exec_UpdateJoints(FRigHierarchyContainer* TestHierarchyContainer, FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams);
+	void Exec_UpdateJoints(FSharedRigRuntimeContext* Context, FRigHierarchyContainer* TestHierarchyContainer, FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams);
 
 
 private:

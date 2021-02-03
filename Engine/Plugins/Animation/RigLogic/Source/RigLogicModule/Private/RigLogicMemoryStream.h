@@ -13,15 +13,20 @@ class FRigLogicMemoryStream: public rl4::BoundedIOStream
 {
 public:
 	/** The buffer is not copied, the pointer to it is stored inside this object**/
-	FRigLogicMemoryStream(TArray<uint8>* Buffer);
+	explicit FRigLogicMemoryStream(TArray<uint8>* Buffer);
 
-	void seek(size_t Position) override;
-	size_t tell() override;
+	void seek(std::uint64_t Position) override;
+	std::uint64_t tell() override;
 	void open() override;
 	void close() override {}
-	void read(char* ReadToBuffer, size_t Size) override;
-	void write(const char* WriteFromBuffer, size_t Size) override;
-	size_t size() override;
+	size_t read(char* ReadToBuffer, size_t Size) override;
+	size_t read(Writable* Destination, size_t Size) override;
+	size_t write(const char* WriteFromBuffer, size_t Size) override;
+	size_t write(Readable* Source, size_t Size) override;
+	std::uint64_t size() override;
+
+private:
+	void Grow(size_t NewSize);
 
 private:
 	TArray<uint8>* BitStreamBuffer; //doesn't contain the array, only points to the array given to it

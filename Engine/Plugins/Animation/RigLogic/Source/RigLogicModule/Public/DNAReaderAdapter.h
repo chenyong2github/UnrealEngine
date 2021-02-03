@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DNAReader.h"
+#include "FMemoryResource.h"
 
 template <class TWrappedReader>
 class FDNAReader : public IDNAReader
@@ -39,16 +40,20 @@ public:
 	FString GetRawControlName(uint16 Index) const override;
 	uint16 GetJointCount() const override;
 	FString GetJointName(uint16 Index) const override;
+	uint16 GetJointIndexListCount() const override;
 	TArrayView<const uint16> GetJointIndicesForLOD(uint16 LOD) const override;
 	uint16 GetJointParentIndex(uint16 Index) const override;
 	uint16 GetBlendShapeChannelCount() const override;
 	FString GetBlendShapeChannelName(uint16 Index) const override;
+	uint16 GetBlendShapeChannelIndexListCount() const override;
 	TArrayView<const uint16> GetBlendShapeChannelIndicesForLOD(uint16 LOD) const override;
 	uint16 GetAnimatedMapCount() const override;
 	FString GetAnimatedMapName(uint16 Index) const override;
+	uint16 GetAnimatedMapIndexListCount() const override;
 	TArrayView<const uint16> GetAnimatedMapIndicesForLOD(uint16 LOD) const override;
 	uint16 GetMeshCount() const override;
 	FString GetMeshName(uint16 Index) const override;
+	uint16 GetMeshIndexListCount() const override;
 	TArrayView<const uint16> GetMeshIndicesForLOD(uint16 LOD) const override;
 	uint16 GetMeshBlendShapeChannelMappingCount() const override;
 	FMeshBlendShapeChannelMapping GetMeshBlendShapeChannelMapping(uint16 Index) const override;
@@ -116,6 +121,8 @@ private:
 	dna::Reader* Unwrap() const override;
 
 private:
+	TSharedPtr<FMemoryResource> MemoryResource;
+
 	struct FWrappedReaderDeleter
 	{
 		void operator()(TWrappedReader* Pointer);
@@ -125,6 +132,7 @@ private:
 
 template <class TWrappedReader>
 FDNAReader<TWrappedReader>::FDNAReader(TWrappedReader* Source) :
+	MemoryResource{FMemoryResource::SharedInstance()},
 	ReaderPtr{Source}
 {
 }
@@ -271,6 +279,12 @@ FString FDNAReader<TWrappedReader>::GetJointName(uint16 Index) const
 }
 
 template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetJointIndexListCount() const
+{
+	return ReaderPtr->getJointIndexListCount();
+}
+
+template <class TWrappedReader>
 TArrayView<const uint16> FDNAReader<TWrappedReader>::GetJointIndicesForLOD(uint16 LOD) const
 {
 	const auto Indices = ReaderPtr->getJointIndicesForLOD(LOD);
@@ -296,6 +310,12 @@ FString FDNAReader<TWrappedReader>::GetBlendShapeChannelName(uint16 Index) const
 }
 
 template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetBlendShapeChannelIndexListCount() const
+{
+	return ReaderPtr->getBlendShapeChannelIndexListCount();
+}
+
+template <class TWrappedReader>
 TArrayView<const uint16> FDNAReader<TWrappedReader>::GetBlendShapeChannelIndicesForLOD(uint16 LOD) const
 {
 	const auto Indices = ReaderPtr->getBlendShapeChannelIndicesForLOD(LOD);
@@ -315,6 +335,12 @@ FString FDNAReader<TWrappedReader>::GetAnimatedMapName(uint16 Index) const
 }
 
 template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetAnimatedMapIndexListCount() const
+{
+	return ReaderPtr->getAnimatedMapIndexListCount();
+}
+
+template <class TWrappedReader>
 TArrayView<const uint16> FDNAReader<TWrappedReader>::GetAnimatedMapIndicesForLOD(uint16 LOD) const
 {
 	const auto Indices = ReaderPtr->getAnimatedMapIndicesForLOD(LOD);
@@ -331,6 +357,12 @@ template <class TWrappedReader>
 FString FDNAReader<TWrappedReader>::GetMeshName(uint16 Index) const
 {
 	return FString(ANSI_TO_TCHAR(ReaderPtr->getMeshName(Index).data()));
+}
+
+template <class TWrappedReader>
+uint16 FDNAReader<TWrappedReader>::GetMeshIndexListCount() const
+{
+	return ReaderPtr->getMeshIndexListCount();
 }
 
 template <class TWrappedReader>

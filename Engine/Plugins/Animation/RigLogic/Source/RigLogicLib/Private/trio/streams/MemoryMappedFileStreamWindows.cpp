@@ -8,7 +8,6 @@
 #include "trio/utils/ScopedEnumEx.h"
 
 #include <pma/PolyAllocator.h>
-#include <status/Provider.h>
 
 #ifdef _MSC_VER
     #pragma warning(push)
@@ -17,8 +16,10 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <ios>
+#include <limits>
 #include <type_traits>
 #ifdef _MSC_VER
     #pragma warning(pop)
@@ -26,113 +27,412 @@
 
 namespace trio {
 
-#ifdef __clang__
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wglobal-constructors"
-#endif
-sc::StatusProvider MemoryMappedFileStreamWindows::status{OpenError, ReadError, WriteError, AlreadyOpenError};
-#ifdef __clang__
-    #pragma clang diagnostic pop
-#endif
+namespace {
 
-static std::size_t getFileSizeWindows(const char* path) {
+constexpr std::size_t minViewSizeWindows = 65536ul;
+
+inline std::uint64_t getFileSizeWindows(const char* path) {
     WIN32_FILE_ATTRIBUTE_DATA w32fad;
     if (GetFileAttributesExA(path, GetFileExInfoStandard, &w32fad) == 0) {
         return 0ul;
     }
-    LARGE_INTEGER size;
-    size.HighPart = static_cast<LONG>(w32fad.nFileSizeHigh);
+    ULARGE_INTEGER size;
+    size.HighPart = w32fad.nFileSizeHigh;
     size.LowPart = w32fad.nFileSizeLow;
-    return static_cast<std::size_t>(size.QuadPart);
+    return static_cast<std::uint64_t>(size.QuadPart);
 }
 
+inline std::uint64_t getPageSizeWindows() {
+    SYSTEM_INFO SystemInfo;
+    GetSystemInfo(&SystemInfo);
+    return SystemInfo.dwAllocationGranularity;
+}
+
+inline std::uint64_t alignOffsetWindows(std::uint64_t offset) {
+    const std::uint64_t pageSize = getPageSizeWindows();
+    return offset / pageSize * pageSize;
+}
+
+class MemoryReaderWindows : public Readable {
+public:
+    explicit MemoryReaderWindows(const char* source_) : source{source_} {}
+
+    std::size_t read(char* destination, std::size_t size) override {
+        CopyMemory(destination, source, size);
+        source += size;
+        return size;
+    }
+
+    std::size_t read(Writable* destination, std::size_t size) override {
+        destination->write(source, size);
+        source += size;
+        return size;
+    }
+
+private:
+    const char* source;
+};
+
+class MemoryWriterWindows : public Writable {
+public:
+    explicit MemoryWriterWindows(char* destination_) : destination{destination_} {}
+
+    std::size_t write(const char* source, std::size_t size) override {
+        CopyMemory(destination, source, size);
+        destination += size;
+        return size;
+    }
+
+    std::size_t write(Readable* source, std::size_t size) override {
+        source->read(destination, size);
+        destination += size;
+        return size;
+    }
+
+private:
+    char* destination;
+};
+
+}  // namespace
+
 MemoryMappedFileStreamWindows::MemoryMappedFileStreamWindows(const char* path_, AccessMode accessMode_, MemoryResource* memRes_) :
+    filePath{path_, memRes_},
+    fileAccessMode{accessMode_},
+    memRes{memRes_},
     file{INVALID_HANDLE_VALUE},
     mapping{nullptr},
     data{nullptr},
     position{},
-    path{path_, memRes_},
-    accessMode{accessMode_},
     fileSize{getFileSizeWindows(path_)},
-    memRes{memRes_} {
+    viewOffset{},
+    viewSize{},
+    delayedMapping{false},
+    dirty{false} {
 }
 
 MemoryMappedFileStreamWindows::~MemoryMappedFileStreamWindows() {
-    MemoryMappedFileStreamWindows::close();
+    delayedMapping = false;
+    flush();
+    unmapFile();
+    closeFile();
+}
+
+MemoryResource* MemoryMappedFileStreamWindows::getMemoryResource() {
+    return memRes;
+}
+
+std::uint64_t MemoryMappedFileStreamWindows::size() {
+    return fileSize;
+}
+
+const char* MemoryMappedFileStreamWindows::path() const {
+    return filePath.c_str();
+}
+
+AccessMode MemoryMappedFileStreamWindows::accessMode() const {
+    return fileAccessMode;
 }
 
 void MemoryMappedFileStreamWindows::open() {
-    status.reset();
+    status->reset();
     if (file != INVALID_HANDLE_VALUE) {
-        status.set(AlreadyOpenError, path.c_str());
+        status->set(AlreadyOpenError, filePath.c_str());
         return;
     }
 
-    // Create file handle
-    DWORD access{};
-    access |= (contains(accessMode, AccessMode::Read) ? GENERIC_READ : access);
-    access |= (contains(accessMode, AccessMode::Write) ? GENERIC_WRITE : access);
+    delayedMapping = false;
 
-    // 0 == no sharing in any way
-    DWORD sharing{};
-
-    // If the file does not exist, and it's to be opened in write-only mode, the actual mapping
-    // will be delayed until the file is resized to a non-zero size
-    DWORD creationDisposition{};
-    if (accessMode == AccessMode::ReadWrite) {
-        creationDisposition = static_cast<DWORD>(OPEN_EXISTING);
-    } else {
-        creationDisposition = static_cast<DWORD>(contains(accessMode, AccessMode::Write) ? CREATE_NEW : OPEN_EXISTING);
-    }
-
-    file = CreateFileA(path.c_str(), access, sharing, nullptr, creationDisposition, FILE_ATTRIBUTE_NORMAL, nullptr);
+    openFile();
     if (file == INVALID_HANDLE_VALUE) {
-        status.set(OpenError, path.c_str());
+        status->set(OpenError, filePath.c_str());
         return;
     }
 
     // Retrieve file size
     LARGE_INTEGER size{};
-    GetFileSizeEx(file, &size);
-    fileSize = static_cast<std::size_t>(size.QuadPart);
-    // Due to the above mentioned reason, mapping of 0-length files is delayed.
-    if (fileSize == 0ul) {
-        if (accessMode == AccessMode::Read) {
-            // Read-only access to 0-length files is not possible.
-            status.set(OpenError, path.c_str());
-            close();
-        }
+    if (GetFileSizeEx(file, &size) == 0) {
+        fileSize = 0ul;
+        closeFile();
+        status->set(OpenError, filePath.c_str());
+        return;
+    }
+
+    fileSize = static_cast<std::uint64_t>(size.QuadPart);
+    // Mapping of 0-length files is delayed until the file is resized to a non-zero size.
+    delayedMapping = (fileSize == 0ul);
+    if (delayedMapping) {
         return;
     }
 
     // Create file mapping
-    const auto protect = static_cast<DWORD>(contains(accessMode, AccessMode::Write) ? PAGE_READWRITE : PAGE_READONLY);
+    mapFile(0ul, fileSize);
+    if (data == nullptr) {
+        status->set(OpenError, filePath.c_str());
+        delayedMapping = false;
+        unmapFile();
+        closeFile();
+        return;
+    }
+
+    seek(0ul);
+    dirty = false;
+}
+
+void MemoryMappedFileStreamWindows::close() {
+    delayedMapping = false;
+
+    flush();
+    unmapFile();
+    closeFile();
+}
+
+std::uint64_t MemoryMappedFileStreamWindows::tell() {
+    return position;
+}
+
+void MemoryMappedFileStreamWindows::seek(std::uint64_t position_) {
+    const bool seekable = ((position_ == 0ul) || (position_ <= size())) && (data != nullptr);
+    if (!seekable) {
+        status->set(SeekError, filePath.c_str());
+        return;
+    }
+
+    position = position_;
+    if ((position < viewOffset) || (position >= (viewOffset + viewSize))) {
+        flush();
+        if (dirty) {
+            return;
+        }
+        unmapFile();
+        mapFile(position, fileSize - position);
+    }
+}
+
+std::size_t MemoryMappedFileStreamWindows::read(char* destination, std::size_t size) {
+    if (destination == nullptr) {
+        status->set(ReadError, filePath.c_str());
+        return 0ul;
+    }
+
+    MemoryWriterWindows writer{destination};
+    return read(&writer, size);
+}
+
+std::size_t MemoryMappedFileStreamWindows::read(Writable* destination, std::size_t size) {
+    if ((destination == nullptr) || !contains(fileAccessMode, AccessMode::Read)) {
+        status->set(ReadError, filePath.c_str());
+        return 0ul;
+    }
+
+    if (data == nullptr) {
+        if (!delayedMapping) {
+            status->set(ReadError, filePath.c_str());
+        }
+        return 0ul;
+    }
+
+    const std::uint64_t bytesAvailable = fileSize - position;
+    const std::size_t bytesToRead = static_cast<std::size_t>(std::min(static_cast<std::uint64_t>(size), bytesAvailable));
+    std::size_t bytesRead = 0ul;
+
+    while (bytesRead != bytesToRead) {
+        const std::size_t bytesRemaining = bytesToRead - bytesRead;
+        std::size_t viewPosition = static_cast<std::size_t>(position - viewOffset);
+        std::size_t bytesReadable = static_cast<std::size_t>(viewSize - viewPosition);
+        // If the view is exhausted during reading, remap a new view till the end of file if possible,
+        // starting at the current position
+        if (bytesReadable == 0ul) {
+            unmapFile();
+            mapFile(position, fileSize - position);
+            if (data == nullptr) {
+                // Failed to map new view
+                status->set(ReadError, filePath.c_str());
+                break;
+            }
+            viewPosition = static_cast<std::size_t>(position - viewOffset);
+            bytesReadable = static_cast<std::size_t>(viewSize - viewPosition);
+        }
+
+        const std::size_t chunkSize = std::min(bytesRemaining, bytesReadable);
+        const std::size_t chunkCopied = destination->write(static_cast<char*>(data) + viewPosition, chunkSize);
+        bytesRead += chunkCopied;
+        position += chunkCopied;
+    }
+
+    return bytesRead;
+}
+
+std::size_t MemoryMappedFileStreamWindows::write(const char* source, std::size_t size) {
+    if (source == nullptr) {
+        status->set(WriteError, filePath.c_str());
+        return 0ul;
+    }
+
+    MemoryReaderWindows reader{source};
+    return write(&reader, size);
+}
+
+std::size_t MemoryMappedFileStreamWindows::write(Readable* source, std::size_t size) {
+    if ((source == nullptr) || !contains(fileAccessMode, AccessMode::Write)) {
+        status->set(WriteError, filePath.c_str());
+        return 0ul;
+    }
+
+    if ((data == nullptr) && !delayedMapping) {
+        status->set(WriteError, filePath.c_str());
+        return 0ul;
+    }
+
+    if (size == 0ul) {
+        return 0ul;
+    }
+
+    if (position + size > fileSize) {
+        resize(position + size);
+        if (fileSize != (position + size)) {
+            // Resize not successful (resize sets status in such cases)
+            return 0ul;
+        }
+    }
+
+    std::size_t bytesWritten = 0ul;
+
+    while (bytesWritten != size) {
+        const std::size_t bytesRemaining = size - bytesWritten;
+        std::size_t viewPosition = static_cast<std::size_t>(position - viewOffset);
+        std::size_t bytesWritable = static_cast<std::size_t>(viewSize - viewPosition);
+        // If the view is exhausted during writing, remap a new view till the end of file if possible,
+        // starting at the current position
+        if (bytesWritable == 0ul) {
+            flush();
+            if (dirty) {
+                break;
+            }
+            unmapFile();
+            mapFile(position, fileSize - position);
+            if (data == nullptr) {
+                // Failed to map new view
+                status->set(WriteError, filePath.c_str());
+                break;
+            }
+            viewPosition = static_cast<std::size_t>(position - viewOffset);
+            bytesWritable = static_cast<std::size_t>(viewSize - viewPosition);
+        }
+
+        const std::size_t chunkSize = std::min(bytesRemaining, bytesWritable);
+        const std::size_t chunkCopied = source->read(static_cast<char*>(data) + viewPosition, chunkSize);
+        bytesWritten += chunkCopied;
+        position += chunkCopied;
+    }
+
+    dirty = (bytesWritten > 0ul);
+
+    return bytesWritten;
+}
+
+void MemoryMappedFileStreamWindows::flush() {
+    if ((data != nullptr) && (fileAccessMode != AccessMode::Read)) {
+        if (!FlushViewOfFile(data, 0ul)) {
+            status->set(WriteError, filePath.c_str());
+            return;
+        }
+    }
+    dirty = false;
+}
+
+void MemoryMappedFileStreamWindows::resize(std::uint64_t size) {
+    if (fileAccessMode == AccessMode::Read) {
+        status->set(WriteError, filePath.c_str());
+        return;
+    }
+
+    flush();
+    if (dirty) {
+        return;
+    }
+
+    unmapFile();
+
+    resizeFile(size);
+    if (fileSize != size) {
+        status->set(WriteError, filePath.c_str());
+        return;
+    }
+
+    // Remap file from current position, till the end of file
+    mapFile(position, fileSize - position);
+    if (data == nullptr) {
+        status->set(WriteError, filePath.c_str());
+        return;
+    }
+}
+
+void MemoryMappedFileStreamWindows::openFile() {
+    DWORD access{GENERIC_READ};
+    access |= (contains(fileAccessMode, AccessMode::Write) ? GENERIC_WRITE : access);
+
+    // 0 == no sharing in any way
+    DWORD sharing{};
+
+    // Non-existing files are created unless in read-only mode
+    DWORD creationDisposition{};
+    if (fileAccessMode == AccessMode::Read) {
+        creationDisposition = static_cast<DWORD>(OPEN_EXISTING);
+    } else {
+        creationDisposition = static_cast<DWORD>(OPEN_ALWAYS);
+    }
+
+    file = CreateFileA(filePath.c_str(), access, sharing, nullptr, creationDisposition, FILE_ATTRIBUTE_NORMAL, nullptr);
+}
+
+void MemoryMappedFileStreamWindows::closeFile() {
+    if (file != INVALID_HANDLE_VALUE) {
+        CloseHandle(file);
+        file = INVALID_HANDLE_VALUE;
+    }
+}
+
+void MemoryMappedFileStreamWindows::mapFile(std::uint64_t offset, std::uint64_t size) {
+    // Create file mapping
+    const auto protect = static_cast<DWORD>(contains(fileAccessMode, AccessMode::Write) ? PAGE_READWRITE : PAGE_READONLY);
     mapping = CreateFileMapping(file, nullptr, protect, 0u, 0u, nullptr);
     if (mapping == nullptr) {
-        status.set(OpenError, path.c_str());
-        close();
         return;
     }
 
     // Map a view of the file mapping into the address space
     DWORD desiredAccess{};
-    desiredAccess |= (contains(accessMode, AccessMode::Write) ? FILE_MAP_WRITE : desiredAccess);
-    desiredAccess |= (contains(accessMode, AccessMode::Read) ? FILE_MAP_READ : desiredAccess);
-    data = MapViewOfFile(mapping, desiredAccess, 0u, 0u, 0ul);
-    if (data == nullptr) {
-        status.set(OpenError, path.c_str());
-        close();
-        return;
-    }
+    desiredAccess |= (contains(fileAccessMode, AccessMode::Write) ? FILE_MAP_WRITE : desiredAccess);
+    desiredAccess |= (contains(fileAccessMode, AccessMode::Read) ? FILE_MAP_READ : desiredAccess);
 
-    seek(0ul);
+    ULARGE_INTEGER alignedOffset{};
+    alignedOffset.QuadPart = static_cast<decltype(alignedOffset.QuadPart)>(alignOffsetWindows(offset));
+
+    // Make sure size does not exceed system limits
+    std::size_t safeSize = static_cast<std::size_t>(std::min(static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()), size));
+    // Increase to-be-mapped size by the difference caused by alignment
+    safeSize = std::max(static_cast<std::size_t>(safeSize + (offset - alignedOffset.QuadPart)), safeSize);
+
+    // Try mapping requested size, but if it fails keep repeating by halving the view size each time (e.g. if not enough VA space)
+    std::size_t nextSize = safeSize;
+    do {
+        safeSize = nextSize;
+        data = MapViewOfFile(mapping, desiredAccess, alignedOffset.HighPart, alignedOffset.LowPart, safeSize);
+        if (data != nullptr) {
+            break;
+        }
+        nextSize = safeSize / 2ul;
+    }
+    while (nextSize > minViewSizeWindows);
+
+    if (data != nullptr) {
+        viewOffset = alignedOffset.QuadPart;
+        viewSize = safeSize;
+    }
 }
 
-void MemoryMappedFileStreamWindows::close() {
+void MemoryMappedFileStreamWindows::unmapFile() {
     if (data != nullptr) {
-        if (!FlushViewOfFile(data, 0ul)) {
-            status.set(WriteError, path.c_str());
-        }
         UnmapViewOfFile(data);
         data = nullptr;
     }
@@ -142,92 +442,28 @@ void MemoryMappedFileStreamWindows::close() {
         mapping = nullptr;
     }
 
-    if (file != INVALID_HANDLE_VALUE) {
-        CloseHandle(file);
-        file = INVALID_HANDLE_VALUE;
-    }
+    viewOffset = 0ul;
+    viewSize = 0ul;
 }
 
-std::size_t MemoryMappedFileStreamWindows::tell() {
-    return position;
-}
-
-void MemoryMappedFileStreamWindows::seek(std::size_t position_) {
-    position = position_;
-}
-
-void MemoryMappedFileStreamWindows::read(char* buffer, std::size_t size) {
-    const std::size_t available = fileSize - position;
-    const std::size_t bytesToRead = std::min(size, available);
-    std::memcpy(buffer, static_cast<char*>(data) + position, bytesToRead);
-    position += bytesToRead;
-}
-
-void MemoryMappedFileStreamWindows::write(const char* buffer, std::size_t size) {
-    if (position + size > fileSize) {
-        resize(position + size);
-        if (fileSize != (position + size)) {
-            return;
-        }
-    }
-    std::memcpy(static_cast<char*>(data) + position, buffer, size);
-    position += size;
-}
-
-void MemoryMappedFileStreamWindows::flush() {
-    if (data != nullptr) {
-        if (!FlushViewOfFile(data, 0ul)) {
-            status.set(WriteError, path.c_str());
-        }
-    }
-}
-
-void MemoryMappedFileStreamWindows::resize(std::size_t size) {
-    if (data != nullptr) {
-        UnmapViewOfFile(data);
-        CloseHandle(mapping);
+void MemoryMappedFileStreamWindows::resizeFile(std::uint64_t size) {
+    if (file == INVALID_HANDLE_VALUE) {
+        return;
     }
 
     // Seek to the new size
     LARGE_INTEGER moveBy{};
     moveBy.QuadPart = static_cast<decltype(moveBy.QuadPart)>(size);
     if (SetFilePointerEx(file, moveBy, nullptr, FILE_BEGIN) == 0) {
-        status.set(WriteError, path.c_str());
         return;
     }
 
     // Resize the file to it's current position
     if (SetEndOfFile(file) == 0) {
-        status.set(WriteError, path.c_str());
-        return;
-    }
-
-    // Recreate the file mapping of the resized file
-    mapping = CreateFileMapping(file, nullptr, PAGE_READWRITE, 0u, 0u, nullptr);
-    if (mapping == nullptr) {
-        status.set(WriteError, path.c_str());
-        return;
-    }
-
-    // Map a view of the file mapping into the address space
-    DWORD desiredAccess{};
-    desiredAccess |= (contains(accessMode, AccessMode::Write) ? FILE_MAP_WRITE : desiredAccess);
-    desiredAccess |= (contains(accessMode, AccessMode::Read) ? FILE_MAP_READ : desiredAccess);
-    data = MapViewOfFile(mapping, desiredAccess, 0u, 0u, 0ul);
-    if (data == nullptr) {
-        status.set(WriteError, path.c_str());
         return;
     }
 
     fileSize = size;
-}
-
-std::size_t MemoryMappedFileStreamWindows::size() {
-    return fileSize;
-}
-
-MemoryResource* MemoryMappedFileStreamWindows::getMemoryResource() {
-    return memRes;
 }
 
 }  // namespace trio
