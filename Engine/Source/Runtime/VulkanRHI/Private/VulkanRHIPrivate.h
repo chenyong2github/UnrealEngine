@@ -158,7 +158,7 @@ protected:
 	VkAttachmentReference ResolveReferences[MaxSimultaneousRenderTargets];
 	VkAttachmentReference InputAttachments[MaxSimultaneousRenderTargets + 1];
 
-	// Depth goes in the "+1" slot and the Fixed Foveation texture goes in the "+2" slot.
+	// Depth goes in the "+1" slot and the Shading Rate texture goes in the "+2" slot.
 	VkAttachmentDescription Desc[MaxSimultaneousRenderTargets * 2 + 2];
 
 	uint8 NumAttachmentDescriptions;

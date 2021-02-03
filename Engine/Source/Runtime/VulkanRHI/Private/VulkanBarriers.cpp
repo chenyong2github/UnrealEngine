@@ -1572,14 +1572,14 @@ void FVulkanLayoutManager::BeginRenderPass(FVulkanCommandListContext& Context, F
 		}
 	}
 
-	FRHITexture* FoveationTexture = RPInfo.FoveationTexture;
-	if (FoveationTexture)
+	FRHITexture* ShadingRateTexture = RPInfo.ShadingRateTexture;
+	if (ShadingRateTexture)
 	{
-		FVulkanSurface& Surface = FVulkanTextureBase::Cast(FoveationTexture)->Surface;
+		FVulkanSurface& Surface = FVulkanTextureBase::Cast(ShadingRateTexture)->Surface;
 		VkImageLayout& DSLayout = FindOrAddLayoutRW(Surface, VK_IMAGE_LAYOUT_UNDEFINED);
 		VkImageLayout ExpectedLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
 
-		// transition foveation textures to the foveation layout for rendering
+		// transition shading rate textures to the fragment density map layout for rendering
 		if (DSLayout != ExpectedLayout)
 		{
 			Barrier.AddImageLayoutTransition(Surface.Image, DSLayout, ExpectedLayout, FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT));

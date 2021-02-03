@@ -1073,9 +1073,9 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		}
 	}
 
-	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RTInfo.FoveationTexture)
+	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RTInfo.ShadingRateTexture)
 	{
-		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(RTInfo.FoveationTexture);
+		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(RTInfo.ShadingRateTexture);
 		check(Texture);
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
@@ -1084,8 +1084,8 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		const VkImageLayout FragmentDensityLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
 
 		CurrDesc.flags = 0;
-		CurrDesc.format = UEToVkTextureFormat(RTInfo.FoveationTexture->GetFormat(), false);
-		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(RTInfo.FoveationTexture->GetNumSamples());
+		CurrDesc.format = UEToVkTextureFormat(RTInfo.ShadingRateTexture->GetFormat(), false);
+		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(RTInfo.ShadingRateTexture->GetNumSamples());
 		CurrDesc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		CurrDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -1339,9 +1339,9 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		}
 	}
 
-	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RPInfo.FoveationTexture)
+	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RPInfo.ShadingRateTexture)
 	{
-		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(RPInfo.FoveationTexture);
+		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(RPInfo.ShadingRateTexture);
 		check(Texture);
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
@@ -1350,8 +1350,8 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		const VkImageLayout FragmentDensityLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
 
 		CurrDesc.flags = 0;
-		CurrDesc.format = UEToVkTextureFormat(RPInfo.FoveationTexture->GetFormat(), false);
-		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(RPInfo.FoveationTexture->GetNumSamples());
+		CurrDesc.format = UEToVkTextureFormat(RPInfo.ShadingRateTexture->GetFormat(), false);
+		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(RPInfo.ShadingRateTexture->GetNumSamples());
 		CurrDesc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		CurrDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;

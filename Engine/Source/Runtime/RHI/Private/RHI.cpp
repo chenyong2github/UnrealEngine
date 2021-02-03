@@ -1341,7 +1341,7 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 	OutRTInfo.bClearDepth = (DepthLoadAction == ERenderTargetLoadAction::EClear);
 	OutRTInfo.bClearStencil = (StencilLoadAction == ERenderTargetLoadAction::EClear);
 
-	OutRTInfo.FoveationTexture = FoveationTexture;
+	OutRTInfo.ShadingRateTexture = ShadingRateTexture;
 	OutRTInfo.MultiViewCount = MultiViewCount;
 }
 

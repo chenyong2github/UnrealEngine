@@ -873,11 +873,11 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		}
 	}
 
-	FRHITexture* FoveationTexture = nullptr;
+	FRHITexture* ShadingRateTexture = nullptr;
 	
-	if (SceneContext.IsFoveationTextureAllocated()	&& !View.bIsSceneCapture && !View.bIsReflectionCapture)
+	if (SceneContext.IsShadingRateTextureTextureAllocated()	&& !View.bIsSceneCapture && !View.bIsReflectionCapture)
 	{
-		FoveationTexture = SceneContext.GetFoveationTexture();
+		ShadingRateTexture = SceneContext.GetShadingRateTexture();
 	}
 
 	FRHIRenderPassInfo SceneColorRenderPassInfo(
@@ -887,7 +887,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		SceneDepth,
 		DepthTargetAction,
 		nullptr, // we never resolve scene depth on mobile
-		FoveationTexture,
+		ShadingRateTexture,
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
@@ -1002,7 +1002,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 			SceneDepth,
 			DepthTargetAction, 
 			nullptr,
-			FoveationTexture,
+			ShadingRateTexture,
 			ExclusiveDepthStencil
 		);
 		TranslucentRenderPassInfo.NumOcclusionQueries = 0;
@@ -1108,7 +1108,7 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 	BasePassInfo.SubpassHint = ESubpassHint::DeferredShadingSubpass;
 	BasePassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
 	BasePassInfo.bOcclusionQueries = BasePassInfo.NumOcclusionQueries != 0;
-	BasePassInfo.FoveationTexture = nullptr;
+	BasePassInfo.ShadingRateTexture = nullptr;
 	BasePassInfo.bIsMSAA = false;
 	BasePassInfo.MultiViewCount = 0;
 

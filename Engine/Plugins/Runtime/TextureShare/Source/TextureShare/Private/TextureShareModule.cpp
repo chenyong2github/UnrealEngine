@@ -256,7 +256,7 @@ bool FTextureShareModule::SendSceneContext_RenderThread(FRHICommandListImmediate
 			//SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::LightingChannels, SceneContext.LightingChannels);
 
 			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::GBufferVelocity, SceneContext.SceneVelocity);
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::Foveation, SceneContext.FoveationTexture);
+			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::ShadingRate, SceneContext.ShadingRateTexture);
 
 			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::DirectionalOcclusion, SceneContext.DirectionalOcclusion);
 			//@todo: Add more textures

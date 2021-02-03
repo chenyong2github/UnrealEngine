@@ -434,7 +434,7 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 
 	if (RTLayout.GetHasFragmentDensityAttachment() && Device.GetOptionalExtensions().HasEXTFragmentDensityMap)
 	{
-		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(InRTInfo.FoveationTexture);
+		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(InRTInfo.ShadingRateTexture);
 		FragmentDensityImage = Texture->Surface.Image;
 
 		ensure(Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D || Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY);
@@ -519,7 +519,7 @@ bool FVulkanFramebuffer::Matches(const FRHISetRenderTargetsInfo& InRTInfo) const
 	}
 
 	{
-		FRHITexture* Texture = InRTInfo.FoveationTexture;
+		FRHITexture* Texture = InRTInfo.ShadingRateTexture;
 		if (Texture)
 		{
 			VkImage AImage = FragmentDensityImage;

@@ -268,7 +268,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
 	, EditorPrimitivesColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesColor))
 	, EditorPrimitivesDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesDepth))
-	, FoveationTexture(GRenderTargetPool.MakeSnapshot(SnapshotSource.FoveationTexture))
+	, ShadingRateTexture(GRenderTargetPool.MakeSnapshot(SnapshotSource.ShadingRateTexture))
 	, bScreenSpaceAOIsValid(SnapshotSource.bScreenSpaceAOIsValid)
 	, bCustomDepthIsValid(SnapshotSource.bCustomDepthIsValid)
 	, GBufferRefCount(SnapshotSource.GBufferRefCount)
@@ -297,7 +297,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, DefaultDepthClear(SnapshotSource.DefaultDepthClear)
 	, bHMDAllocatedDepthTarget(SnapshotSource.bHMDAllocatedDepthTarget)
 	, bKeepDepthContent(SnapshotSource.bKeepDepthContent)
-	, bAllocatedFoveationTexture(SnapshotSource.bAllocatedFoveationTexture)
+	, bAllocatedShadingRateTexture(SnapshotSource.bAllocatedShadingRateTexture)
 	, bRequireMultiView(SnapshotSource.bRequireMultiView)
 {
 	FMemory::Memcpy(LargestDesiredSizes, SnapshotSource.LargestDesiredSizes);
@@ -1385,7 +1385,7 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	// on mobile we don't do on demand allocation of SceneColor yet (in other platforms it's released in the Tonemapper Process())
 	AllocSceneColor(RHICmdList);
 	AllocateCommonDepthTargets(RHICmdList);
-	AllocateFoveationTexture(RHICmdList);
+	AllocateShadingRateTexture(RHICmdList);
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 	AllocateDebugViewModeTargets(RHICmdList);
 }
@@ -1599,7 +1599,7 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 	}
 }
 
-void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
+void FSceneRenderTargets::AllocateShadingRateTexture(FRHICommandList& RHICmdList)
 {
 	const bool bStereo = GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
 	IStereoRenderTargetManager* const StereoRenderTargetManager = bStereo ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
@@ -1608,18 +1608,18 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 	FIntPoint TextureSize;
 
 	// Allocate variable resolution texture for VR foveation if supported
-	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateFoveationTexture(FoveationTexture))
+	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateShadingRateTexture(ShadingRateTexture))
 	{
-		FoveationTexture.SafeRelease();
+		ShadingRateTexture.SafeRelease();
 	}
-	bAllocatedFoveationTexture = StereoRenderTargetManager && StereoRenderTargetManager->AllocateFoveationTexture(0, BufferSize.X, BufferSize.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
-	if (bAllocatedFoveationTexture)
+	bAllocatedShadingRateTexture = StereoRenderTargetManager && StereoRenderTargetManager->AllocateShadingRateTexture(0, BufferSize.X, BufferSize.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
+	if (bAllocatedShadingRateTexture)
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TextureSize, PF_R8G8, FClearValueBinding::White, TexCreate_None, TexCreate_None, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, FoveationTexture, TEXT("FixedFoveation"));
-		const uint32 OldElementSize = FoveationTexture->ComputeMemorySize();
-		FoveationTexture->GetRenderTargetItem().ShaderResourceTexture = FoveationTexture->GetRenderTargetItem().TargetableTexture = Texture;
-		GRenderTargetPool.UpdateElementSize(FoveationTexture, OldElementSize);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadingRateTexture, TEXT("ShadingRate"));
+		const uint32 OldElementSize = ShadingRateTexture->ComputeMemorySize();
+		ShadingRateTexture->GetRenderTargetItem().ShaderResourceTexture = ShadingRateTexture->GetRenderTargetItem().TargetableTexture = Texture;
+		GRenderTargetPool.UpdateElementSize(ShadingRateTexture, OldElementSize);
 	}
 }
 
@@ -2037,7 +2037,7 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	EditorPrimitivesColor.SafeRelease();
 	EditorPrimitivesDepth.SafeRelease();
 
-	FoveationTexture.SafeRelease();
+	ShadingRateTexture.SafeRelease();
 
 	SceneDepthAux.SafeRelease();
 }
@@ -2312,7 +2312,7 @@ bool FSceneRenderTargets::IsAllocateRenderTargetsRequired() const
 	IStereoRenderTargetManager* const StereoRenderTargetManager = bStereo ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
 
 	// HMD controlled foveation textures may be destroyed externally and need a new allocation
-	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateFoveationTexture(FoveationTexture))
+	if (StereoRenderTargetManager && StereoRenderTargetManager->NeedReAllocateShadingRateTexture(ShadingRateTexture))
 	{
 		bAllocateRequired = true;
 	}

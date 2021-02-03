@@ -198,7 +198,7 @@ protected:
 		DefaultDepthClear(FClearValueBinding::DepthFar),
 		bHMDAllocatedDepthTarget(false),
 		bKeepDepthContent(true),
-		bAllocatedFoveationTexture(false)
+		bAllocatedShadingRateTexture(false)
 		{
 			FMemory::Memset(LargestDesiredSizes, 0);
 #if PREVENT_RENDERTARGET_SIZE_THRASHING
@@ -339,7 +339,7 @@ public:
 	const FTexture2DRHIRef& GetGBufferETexture() const { return (const FTexture2DRHIRef&)GBufferE->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferFTexture() const { return (const FTexture2DRHIRef&)GBufferF->GetRenderTargetItem().ShaderResourceTexture; }
 	const FTexture2DRHIRef& GetGBufferVelocityTexture() const { return (const FTexture2DRHIRef&)SceneVelocity->GetRenderTargetItem().ShaderResourceTexture; }
-	const FTexture2DRHIRef& GetFoveationTexture() const { return (const FTexture2DRHIRef&)FoveationTexture->GetRenderTargetItem().ShaderResourceTexture; }
+	const FTexture2DRHIRef& GetShadingRateTexture() const { return (const FTexture2DRHIRef&)ShadingRateTexture->GetRenderTargetItem().ShaderResourceTexture; }
 
 	const FTextureRHIRef& GetSceneColorSurface() const;
 	const FTexture2DRHIRef& GetSceneDepthSurface() const							{ return (const FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().TargetableTexture; }
@@ -453,7 +453,7 @@ public:
 	void ReleaseSceneColor();
 	
 	ERHIFeatureLevel::Type GetCurrentFeatureLevel() const { return CurrentFeatureLevel; }
-	bool IsFoveationTextureAllocated() const { return bAllocatedFoveationTexture;  }
+	bool IsShadingRateTextureTextureAllocated() const { return bAllocatedShadingRateTexture;  }
 
 private: // Get...() methods instead of direct access
 	// 0 before BeginRenderingSceneColor and after tone mapping in deferred shading
@@ -525,7 +525,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> EditorPrimitivesDepth;
 
 	/** Texture to control variable resolution rendering */
-	TRefCountPtr<IPooledRenderTarget> FoveationTexture;
+	TRefCountPtr<IPooledRenderTarget> ShadingRateTexture;
 
 	/** Virtual Texture feedback buffer bound as UAV during the base pass */
 	FVertexBufferRHIRef VirtualTextureFeedback;
@@ -596,7 +596,7 @@ private:
 	void AllocateCommonDepthTargets(FRHICommandList& RHICmdList);
 
 	/** Allocates a texture for controlling variable resolution rendering. */
-	void AllocateFoveationTexture(FRHICommandList& RHICmdList);
+	void AllocateShadingRateTexture(FRHICommandList& RHICmdList);
 
 	/** Determine the appropriate render target dimensions. */
 	FIntPoint ComputeDesiredSize(const FSceneViewFamily& ViewFamily);
@@ -708,7 +708,7 @@ private:
 	bool bKeepDepthContent;
 
 	/** True if the a variable resolution texture is allocated to control sampling or shading rate */
-	bool bAllocatedFoveationTexture;
+	bool bAllocatedShadingRateTexture;
 
 	/** True if scenecolor and depth should be multiview-allocated */
 	bool bRequireMultiView;

@@ -26,7 +26,7 @@ namespace TextureShareStrings
 		static constexpr auto LightingChannels = TEXT("LightingChannels");
 
 		static constexpr auto GBufferVelocity = TEXT("GBufferVelocity");
-		static constexpr auto Foveation = TEXT("Foveation");
+		static constexpr auto ShadingRate = TEXT("ShadingRate");
 
 		static constexpr auto DirectionalOcclusion = TEXT("DirectionalOcclusion");
 
