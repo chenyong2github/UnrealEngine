@@ -29,6 +29,164 @@ public class AndroidPlatform : Platform
 
 	}
 
+
+	public override string[] GetCodeSpecifiedSdkVersions()
+	{
+		UEBuildPlatformSDK AndroidSDK = UEBuildPlatformSDK.GetSDKForPlatform("Android");
+
+		return new string[] { AndroidSDK.GetMainVersion() };
+	}
+
+	public override bool GetSDKInstallCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
+	{
+		// run the Setup.bat in the engine, not coming from a normal FileSource
+
+		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
+		{
+			Command = "$(EngineDir)/Extras/Android/SetupAndroid.bat";
+		}
+		else if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Mac)
+		{
+			Command = "$(EngineDir)/Extras/Android/SetupAndroid.command";
+		}
+		else
+		{
+			Command = "$(EngineDir)/Extras/Android/SetupAndroid.sh";
+		}
+
+		// pull the desired version numbers to install
+		UEBuildPlatformSDK AndroidSDK = UEBuildPlatformSDK.GetSDKForPlatform("Android");
+		string PlatformsVersion = AndroidSDK.GetPlatformSpecificVersion("platforms");
+		string BuildToolsVersion = AndroidSDK.GetPlatformSpecificVersion("build-tools");
+		string CMakeVersion = AndroidSDK.GetPlatformSpecificVersion("cmake");
+		string NDKVersion = AndroidSDK.GetPlatformSpecificVersion("ndk");
+
+		Params = $"{PlatformsVersion} {BuildToolsVersion} {CMakeVersion} {NDKVersion} -noninteractive";
+
+		bRequiresPrivilegeElevation = false;
+
+		return true;
+	}
+
+	private static string GetAndroidStudioExe()
+	{
+		string DefaultAndroidStudioInstallDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Android", "Android Studio");
+		string RegValue = Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Android", "Path", null) as string;
+		string AndroidStudioInstallDir = RegValue == null ? DefaultAndroidStudioInstallDir : RegValue;
+		return Path.Combine(AndroidStudioInstallDir, "bin", "studio64.exe");
+	}
+	private static string GetSdkDir()
+	{
+		string DefaultSdkDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Android", "Sdk");
+		string RegValue = Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Android", "SdkPath", null) as string;
+		return RegValue == null ? DefaultSdkDir : RegValue;
+	}
+
+	public override bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
+	{
+		// @todo turnkey: Handle Mac/Linux
+		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Win64)
+		{
+			return false;
+		}
+
+		string AndroidStudioExe = GetAndroidStudioExe();
+		string SdkDir = GetSdkDir();
+
+		bool bIsInstalled = File.Exists(AndroidStudioExe) && Directory.Exists(SdkDir);
+
+		// if we are only verifying, just return the status, and if it's installed, we are done!
+		if (bVerifyOnly || bIsInstalled)
+		{
+			if (!File.Exists(AndroidStudioExe))
+			{
+//				Retriever.ReportError("Android Studio is not installed correctly.");
+				Retriever.PauseForUser("Android Studio is not installed correctly.");
+			}
+			if (!Directory.Exists(SdkDir))
+			{
+//				Retriever.ReportError("Android SDK directory is not set correctly.");
+				Retriever.PauseForUser("Android SDK directory is not set correctly.");
+			}
+			return bIsInstalled;
+		}
+
+		if (!File.Exists(AndroidStudioExe))
+		{
+			// get AS installer
+			string OutputPath = Retriever.RetrieveFileSource("AndroidStudio");
+
+			// Unset some envvars in case autosdk ran - they will mess up the first run of Android Studio
+			string[] Vars = new string[]
+			{
+					"ANDROID_HOME",
+					"ANDROID_SDK_HOME",
+					"JAVA_HOME",
+					"NDKROOT",
+					"NDK_ROOT",
+					"ANDROID_NDK_ROOT",
+					"ANDROID_SWT"
+			};
+			Array.ForEach(Vars, x => Environment.SetEnvironmentVariable(x, null));
+
+			if (OutputPath == null)
+			{
+				Retriever.PauseForUser("Unable to find Android Studio installer. Please download and install Android Studio 3.5.3 from https://developer.android.com/studio before continuing.\n\nMake sure to use the Run Android Studio and complete the first-time setup!\n\nChoose all default options unless you know what you are doing.");
+			}
+			else
+			{
+				Retriever.PauseForUser("Running the Android Studio installer, and then Android Studio for first-time setup!\n\nChoose all default options unless you know what you are doing.");
+				int ExitCode;
+				Utils.RunLocalProcessAndReturnStdOut(OutputPath, "/S", out ExitCode, true);
+				//				Utils.RunLocalProcessAndReturnStdOut(OutputPath, "", out ExitCode, true);
+
+				// AS installer returns 1223 even on success ("user canceled" even tho there's no UI to cancel it...) when running with /S
+				if (ExitCode != 0 && ExitCode != 1223)
+				{
+//					Retriever.ReportError($"Android Studio installer failed. ExitCode = {ExitCode}");
+					Retriever.PauseForUser($"Android Studio installer failed. ExitCode = {ExitCode}");
+					return false;
+				}
+
+				Utils.RunLocalProcessAndReturnStdOut(GetAndroidStudioExe(), "", out _, false);
+			}
+		}
+		else
+		{
+			Retriever.PauseForUser("The Sdk directory was not found. Running the Android Studio to perform first-time setup.\n\nChoose all default options unless you know what you are doing.");
+
+			Utils.RunLocalProcessAndReturnStdOut(AndroidStudioExe, "", out _, false);
+		}
+
+		// check to see if the installation worked. If so, continue on!
+		AndroidStudioExe = GetAndroidStudioExe();
+		SdkDir = GetSdkDir();
+
+		bIsInstalled = File.Exists(AndroidStudioExe) && Directory.Exists(SdkDir);
+
+		if (!File.Exists(AndroidStudioExe))
+		{
+//			Retriever.ReportError("Android Studio is not installed correctly, after attempted installation.");
+			Retriever.PauseForUser("Android Studio is not installed correctly, after attempted installation.");
+		}
+		if (!Directory.Exists(SdkDir))
+		{
+//			Retriever.ReportError("Android SDK directory is not set correctly, after attempted installation.");
+			Retriever.PauseForUser("Android SDK directory is not set correctly, after attempted installation.");
+		}
+
+		return bIsInstalled;
+	}
+
+
+
+
+
+
+
+
+
+
 	private static string GetSONameWithoutArchitecture(ProjectParams Params, string DecoratedExeName)
 	{
 		return Path.Combine(Path.GetDirectoryName(Params.GetProjectExeForPlatform(UnrealTargetPlatform.Android).ToString()), DecoratedExeName) + ".so";

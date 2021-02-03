@@ -33,10 +33,19 @@ namespace UnrealBuildTool
 			MinVersion = MaxVersion = null;
 		}
 
+		public override string GetPlatformSpecificVersion(string VersionType)
+		{
+			switch (VersionType.ToLower())
+			{
+				case "platforms": return "android-28";
+				case "build-tools": return "28.0.3";
+				case "cmake": return "3.10.2.4988404";
+				case "ndk": return "21.4.7075529";
+			}
 
+			return "";
+		}
 
-		// the version we prefer
-		private string RecommendedVersion = "r21b";
 
 		public override string GetInstalledSDKVersion()
 		{
@@ -120,9 +129,9 @@ namespace UnrealBuildTool
 		{
 			SDKStatus Validity = base.PrintSDKInfoAndReturnValidity(Verbosity, Options, ErrorVerbosity, ErrorOptions);
 
-			if (GetInstalledVersion() != RecommendedVersion)
+			if (GetInstalledVersion() != GetMainVersion())
 			{
-				Log.WriteLine(Verbosity, Options, "Note: Android toolchain NDK {0} recommended", RecommendedVersion);
+				Log.WriteLine(Verbosity, Options, "Note: Android toolchain NDK {0} recommended", GetMainVersion());
 			}
 
 			return Validity;

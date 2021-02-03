@@ -194,15 +194,8 @@ namespace AutomationTool
 			return null;
 		}
 
-		public virtual bool InstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, object HintObject, DeviceInfo Device)
+		public virtual bool InstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, DeviceInfo Device)
 		{
-			string DownloadedSDK = Retriever.RetrieveFileSource(HintObject);
-
-			if (string.IsNullOrEmpty(DownloadedSDK))
-			{
-				return false;
-			}
-
 			string Command, Params, Preamble="", SuccessPostamble="", FailurePostamble="";
 
 			bool bRequiresPrivilegeElevation;
@@ -216,6 +209,16 @@ namespace AutomationTool
 			}
 
 			return false;
+		}
+
+		/// <summary>
+		/// Return a list of versions that will be used to create "fake" FileSource objects which are used
+		/// for install Sdks where no file downloads are needed
+		/// </summary>
+		/// <returns></returns>
+		public virtual string[] GetCodeSpecifiedSdkVersions()
+		{
+			return new string[] { };
 		}
 
 		public virtual bool GetSDKInstallCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
@@ -237,20 +240,6 @@ namespace AutomationTool
 		public virtual string GetSDKCreationHelp()
 		{
 			return null;
-		}
-
-		public virtual bool ShouldPerformManualSDKInstall()
-		{
-			return false;
-		}
-		public virtual bool ShouldPerformManualDeviceSoftwareInstall()
-		{
-			return false;
-		}
-
-		public virtual bool ManualInstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, DeviceInfo Device = null)
-		{
-			return false;
 		}
 
 		public virtual bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)

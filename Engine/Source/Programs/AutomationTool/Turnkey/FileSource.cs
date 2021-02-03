@@ -113,7 +113,17 @@ namespace Turnkey
 		public string BuildPlatformEnumerationSuffix;
 
 
+		public static FileSource CreateCodeSpecifiedSource(string Name, string Version, UnrealTargetPlatform Platform)
+		{
+			FileSource NewSource = new FileSource();
+			NewSource.PlatformString = Platform.ToString();
+			NewSource.Platforms = new List<UnrealTargetPlatform>() { Platform };
+			NewSource.Name = Name;
+			NewSource.Version = Version;
+			NewSource.Sources = new CopySource[] { };
 
+			return NewSource;
+		}
 
 		public FileSource CloneForExpansion(string NewValue, Action<FileSource, string> Setter)
 		{
@@ -333,8 +343,24 @@ namespace Turnkey
 				return SdkUtils.SetupAutoSdk(this, Platform, bUnattended);
 			}
 
+			CopyProviderRetriever Retriever = new CopyProviderRetriever();
+
+			// if we have sources, make sure we can download something. if we have a null Sources, that indicates
+			// it was code generated, and we don't need to download anything
+			if (Sources.Length != 0)
+			{
+				// this will set the $(CopyOutputPath) variable which the Sdks will generally need to use
+				string DownloadedSDK = Retriever.RetrieveFileSource(this);
+
+				if (string.IsNullOrEmpty(DownloadedSDK))
+				{
+//					Retriever.ReportError($"Unable to download anInstaller for {Platform}. Your Studio's TurnkeyManifest.xml file(s) may need to be fixed.");
+					return false;
+				}
+			}
+
 			// let the platform decide how to install
-			return AutomationTool.Platform.GetPlatform(Platform).InstallSDK(TurnkeyUtils.CommandUtilHelper, new CopyProviderRetriever(), this, Device);
+			return AutomationTool.Platform.GetPlatform(Platform).InstallSDK(TurnkeyUtils.CommandUtilHelper, Retriever, Device);
 		}
 
 

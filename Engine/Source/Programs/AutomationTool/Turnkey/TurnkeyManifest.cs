@@ -166,6 +166,17 @@ namespace Turnkey
 						DiscoveredFileSources.AddRange(x.FileSources);
 					}
 				});
+
+				// also manually create local "FileSource" objects specified via code
+				foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
+				{
+					// this is usually going to be empty
+					foreach (string SpecifiedVersion in AutomationTool.Platform.GetPlatform(Platform).GetCodeSpecifiedSdkVersions())
+					{
+						FileSource CodeSource = FileSource.CreateCodeSpecifiedSource($"{Platform} SDK {SpecifiedVersion}", SpecifiedVersion, Platform);
+						DiscoveredFileSources.Add(CodeSource);
+					}
+				}
 			}
 		}
 

@@ -114,24 +114,6 @@ namespace Turnkey.Commands
 				// install if out of date, or if forcing it
 				if (bForceSdkInstall || (bUpdateIfNeeded && bHasOutOfDateSDK))
 				{
-// 						if (!bUnattended)
-// 						{
-// 							string Response = TurnkeyUtils.ReadInput("Your Sdk installation is not up to date. Would you like to install a valid Sdk? [Y/n]", "Y");
-// 							if (string.Compare(Response, "Y", true) != 0)
-// 							{
-// 								continue;
-// 							}
-// 						}
-
-					if (AutomationPlatform.ShouldPerformManualSDKInstall())
-					{
-						if (AutomationPlatform.ManualInstallSDK(TurnkeyUtils.CommandUtilHelper, new CopyProviderRetriever(), null) == false)
-						{
-							TurnkeyUtils.Log("Install failed!");
-						}
-						continue;
-					}
-
 					// if the platform has a valid sdk but isn't the "installed one", then try to switch to it
 					if ((LocalState & SdkUtils.LocalAvailability.InstalledSdk_ValidInactiveVersionExists) != 0)
 					{

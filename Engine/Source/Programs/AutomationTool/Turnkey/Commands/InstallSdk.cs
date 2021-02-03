@@ -242,6 +242,20 @@ namespace Turnkey.Commands
 						}
 					}
 
+					// make sure prerequisites are in good shape
+					CopyProviderRetriever Retriever = new CopyProviderRetriever();
+					if (AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, Retriever, false) == false)
+					{
+						// Retriever.ReportError("Failed to update host prerequisites");
+						return;
+					}
+					if (InstallDevice != null && 
+						AutomationPlatform.UpdateDevicePrerequisites(InstallDevice, TurnkeyUtils.CommandUtilHelper, Retriever, false) == false)
+					{
+						// Retriever.ReportError("Failed to update device prerequisites");
+						return;
+					}
+
 					Sdk.DownloadOrInstall(Platform, InstallDevice);
 				}
 			}
