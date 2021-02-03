@@ -37,6 +37,7 @@
 #include "IDesktopPlatform.h"
 #include "Input/HittestGrid.h"
 #include "Internationalization/Internationalization.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "LevelSequence.h"
 #include "LevelVariantSets.h"
 #include "Materials/Material.h"
@@ -46,6 +47,7 @@
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
 #include "PropertyHandle.h"
+#include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -54,6 +56,9 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithFileProducer"
 
@@ -90,6 +95,71 @@ namespace FDatasmithFileProducerUtils
 
 	/** Display OS browser, i.e. Windows explorer, to let user select a directory */
 	FString SelectDirectory();
+
+
+	class SFileProducerImportOptionsWindow : public SCompoundWidget
+	{
+	public:
+		SLATE_BEGIN_ARGS(SFileProducerImportOptionsWindow)
+		{}
+		SLATE_ARGUMENT(TArray<UObject*>, ImportOptions)
+		SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
+		SLATE_ARGUMENT(int32, MinDetailHeight)
+		SLATE_ARGUMENT(int32, MinDetailWidth)
+		SLATE_END_ARGS()
+
+	public:
+		void Construct(const FArguments& InArgs)
+		{
+			ImportOptions = InArgs._ImportOptions;
+			Window = InArgs._WidgetWindow;
+
+			TSharedPtr<SBox> DetailsViewBox;
+
+			ChildSlot
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2)
+				[
+					SAssignNew(DetailsViewBox, SBox)
+					.MinDesiredHeight(InArgs._MinDetailHeight)
+					.MinDesiredWidth(InArgs._MinDetailWidth)
+				]
+			];
+
+			FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+			FDetailsViewArgs DetailsViewArgs;
+			DetailsViewArgs.bAllowSearch = false;
+			DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
+			DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+			TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+
+			DetailsViewBox->SetContent(DetailsView.ToSharedRef());
+			DetailsView->SetObjects(ImportOptions);
+		}
+
+		virtual bool SupportsKeyboardFocus() const override { return true; }
+
+		virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
+		{
+			if (InKeyEvent.GetKey() == EKeys::Escape)
+			{
+				if (Window.IsValid())
+				{
+					Window.Pin()->RequestDestroyWindow();
+				}
+				return FReply::Handled();
+			}
+
+			return FReply::Unhandled();
+		}
+
+	private:
+		TArray<UObject*> ImportOptions;
+		TWeakPtr< SWindow > Window;
+	};
 }
 
 bool UDatasmithFileProducer::Initialize()
@@ -124,14 +194,8 @@ bool UDatasmithFileProducer::Initialize()
 	DatasmithScene =  NewObject< UDatasmithScene >( TransientPackage, *GetName() );
 	check( DatasmithScene->IsValidLowLevel() );
 
-	// Translate the source into a Datasmith scene element
-	FDatasmithSceneSource Source;
-	Source.SetSourceFile( FilePath );
-
-	TranslatableSourcePtr = MakeUnique< FDatasmithTranslatableSceneSource >( Source );
-	if ( !TranslatableSourcePtr->IsTranslatable() )
+	if (!TranslatableSourcePtr.IsValid() && !InitTranslator())
 	{
-		LogError( LOCTEXT( "DatasmithFileProducer_CannotImport", "No suitable translator found for this source." ) );
 		return false;
 	}
 
@@ -157,6 +221,8 @@ bool UDatasmithFileProducer::Initialize()
 			Translator->SetSceneImportOptions( Options );
 		}
 	}
+
+	const FDatasmithSceneSource& Source = TranslatorPtr->GetSource();
 
 	// Create and initialize context
 	ImportContextPtr = MakeUnique< FDatasmithImportContext >( Source.GetSourceFile(), false, TEXT("DatasmithFileProducer"), LOCTEXT("DatasmithFileProducerDescription", "Datasmith File Producer"), TranslatableSourcePtr->GetTranslator() );
@@ -192,6 +258,22 @@ bool UDatasmithFileProducer::Initialize()
 	if (!TranslatableSourcePtr->Translate( SceneElement ))
 	{
 		LogError( LOCTEXT( "DatasmithFileProducer_Translation", "Translation to Datasmith scene failed." ) );
+		return false;
+	}
+
+	return true;
+}
+
+bool UDatasmithFileProducer::InitTranslator()
+{
+	FDatasmithSceneSource Source;
+	Source.SetSourceFile( FilePath );
+
+	TranslatableSourcePtr = MakeUnique< FDatasmithTranslatableSceneSource >( Source );
+	if ( !TranslatableSourcePtr->IsTranslatable() )
+	{
+		LogError( LOCTEXT( "DatasmithFileProducer_CannotInit", "No suitable translator found for this source." ) );
+		TranslatableSourcePtr.Reset();
 		return false;
 	}
 
@@ -613,6 +695,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 void UDatasmithFileProducer::OnFilePathChanged()
 {
 	FilePath = FPaths::ConvertRelativePathToFull( FilePath );
+	TranslatableSourcePtr.Reset();
 	UpdateName();
 	OnChanged.Broadcast( this );
 }
@@ -651,6 +734,55 @@ void UDatasmithFileProducer::SetFilePath( const FString& InFilePath )
 	FilePath = InFilePath;
 
 	OnFilePathChanged();
+}
+
+void UDatasmithFileProducer::OnChangeImportSettings()
+{
+	if (!TranslatableSourcePtr.IsValid() && !InitTranslator())
+	{
+		return;
+	}
+
+	TSharedPtr<SWindow> ParentWindow;
+
+	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+	{
+		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+		ParentWindow = MainFrame.GetParentWindow();
+	}
+
+	TSharedPtr<IDatasmithTranslator> TranslatorPtr = TranslatableSourcePtr->GetTranslator();
+
+	TSharedRef<SWindow> Window = SNew(SWindow)
+		.Title(FText::Format(LOCTEXT("ImportSettingsTitle", "{0} Import Settings"), FText::FromName(TranslatorPtr->GetFName())))
+		.SizingRule(ESizingRule::Autosized);
+
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options;
+	TranslatorPtr->GetSceneImportOptions( Options );
+
+	if (Options.Num() == 0)
+	{
+		UE_LOG(LogDatasmithImport, Warning, TEXT( "No import settings for selected file type." ));
+		return;
+	}
+
+	TArray<UObject*> OptionsRaw;
+	for(TStrongObjectPtr<UDatasmithOptionsBase>& ObjectPtr : Options)
+	{
+		OptionsRaw.Add(ObjectPtr.Get());
+	}
+
+	TSharedPtr<FDatasmithFileProducerUtils::SFileProducerImportOptionsWindow> OptionsWindow;
+	Window->SetContent
+	(
+		SAssignNew(OptionsWindow, FDatasmithFileProducerUtils::SFileProducerImportOptionsWindow)
+		.ImportOptions(OptionsRaw)
+		.WidgetWindow(Window)
+		.MinDetailHeight(320.f)
+		.MinDetailWidth(450.f)
+	);
+
+	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
 }
 
 void UDatasmithFileProducer::UpdateName()
@@ -1351,6 +1483,27 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	CustomAssetImportRow.NameContent()
 	[
 		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		.Padding(3, 0, 3, 0)
+		[
+			SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.IsFocusable(false)
+				.OnClicked_Lambda( [FileProducer]() -> FReply 
+				{ 
+					FileProducer->OnChangeImportSettings(); 
+					return FReply::Handled(); 
+				})
+				.ToolTipText(LOCTEXT("ChangeImportSettings_Tooltip", "Import Settings"))
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+					.ColorAndOpacity(FLinearColor::White)
+					.Text(FEditorFontGlyphs::Cog)
+				]
+		]
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
