@@ -4345,7 +4345,7 @@ void FScene::FlushAsyncLightPrimitiveInteractionCreation() const
 
 bool FScene::IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) const
 {
-	check(IsInRenderingThread() || IsInParallelRenderingThread());
+	check(IsInParallelRenderingThread() || IsInRenderingThread());
 	return RemovedPrimitiveSceneInfos.Contains(PrimitiveSceneInfo);
 }
 
