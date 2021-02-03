@@ -3128,6 +3128,13 @@ const FMaterial& FMaterialRenderProxy::GetIncompleteMaterialWithFallback(ERHIFea
 			Material = FallbackMaterialProxy->GetMaterialNoFallback(InFeatureLevel);
 		} while (!Material);
 	}
+	if (Material->GetTessellationMode() != MTM_NoTessellation)
+	{
+		// Incomplete tesselation shaders can result in a mismatch between rendering data and shaders used that cause fatal issues.
+		// Because of this, it's better for us to return the fallback even if we're asked for an incomplete material.
+		const FMaterialRenderProxy* Unused{};
+		return GetMaterialWithFallback(InFeatureLevel, Unused);
+	}
 	return *Material;
 }
 
