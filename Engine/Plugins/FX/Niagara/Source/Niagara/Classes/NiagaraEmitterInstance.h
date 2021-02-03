@@ -155,6 +155,10 @@ public:
 	int32 GetRandomSeed() const { return RandomSeed; }
 	int32 GetInstanceSeed() const { return InstanceSeed; }
 
+	void SetParticleComponentActive(FObjectKey ComponentKey, int32 ParticleID) const;
+
+	bool IsParticleComponentActive(FObjectKey ComponentKey, int32 ParticleID) const;
+
 private:
 	void CheckForErrors();
 
@@ -237,4 +241,8 @@ private:
 	uint32 bResetPending : 1;
 	/** Allows event spawn to be combined into a single spawn.  This is only safe when not using things like ExecIndex(). */
 	uint32 bCombineEventSpawn : 1;
+
+	// This is used to keep track which particles have spawned a component. This is needed when the bOnlyCreateComponentsOnParticleSpawn flag is set in the renderer.
+	// Without this bookkeeping, the particles would lose their components when the render state is recreated or the visibility tag flips them off and on again.
+	mutable TMap<FObjectKey, TSet<int32>> ParticlesWithComponents;
 };

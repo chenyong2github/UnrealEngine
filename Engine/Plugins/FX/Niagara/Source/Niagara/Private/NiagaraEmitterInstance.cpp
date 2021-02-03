@@ -537,6 +537,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 	TickCount = 0;
 	InstanceSeed = FGenericPlatformMath::Rand();
 	CachedBounds.Init();
+	ParticlesWithComponents.Empty();
 
 	if (MinOverallocation > 100 && GbNiagaraShowAllocationWarnings)
 	{
@@ -577,6 +578,16 @@ void FNiagaraEmitterInstance::OnPooledReuse()
 	{
 		GPUExecContext->Reset(Batcher);
 	}
+}
+
+void FNiagaraEmitterInstance::SetParticleComponentActive(FObjectKey ComponentKey, int32 ParticleID) const
+{
+	ParticlesWithComponents.FindOrAdd(ComponentKey).Add(ParticleID);
+}
+
+bool FNiagaraEmitterInstance::IsParticleComponentActive(FObjectKey ComponentKey, int32 ParticleID) const
+{
+	return ParticlesWithComponents.FindOrAdd(ComponentKey).Contains(ParticleID);
 }
 
 void FNiagaraEmitterInstance::CheckForErrors()
