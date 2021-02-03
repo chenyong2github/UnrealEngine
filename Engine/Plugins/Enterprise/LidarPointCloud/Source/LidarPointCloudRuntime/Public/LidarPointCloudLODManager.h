@@ -39,6 +39,7 @@ struct FLidarPointCloudNodeSelectionParams
 	int32 MinDepth;
 	int32 MaxDepth;
 	float BoundsScale;
+	bool bUseFrustumCulling;
 	const TArray<const ALidarClippingVolume*>* ClippingVolumes;
 };
 

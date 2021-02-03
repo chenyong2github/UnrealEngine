@@ -70,7 +70,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DatasmithRhino.cs" />
+    <Compile Include="DatasmithRhino6.cs" />
     <Compile Include="$(AssemblyInfo)">
       <Link>Properties\AssemblyInfo.cs</Link>
     </Compile>
@@ -95,7 +95,8 @@
   -->
   <PropertyGroup>
     <PostBuildEvent>
-      Copy "$(TargetPath)" "$(TargetDir)$(TargetName).rhp"
+		Copy "$(TargetPath)" "$(TargetDir)$(TargetName).rhp"
+		Copy "$(MSBuildProjectDirectory)\..\SharedResources\DatasmithRhino.rui" "$(TargetDir)$(TargetName).rui"
     </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>

@@ -8,6 +8,7 @@
 #include "UObject/GCObject.h"
 #include "NiagaraCurveOwner.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
+#include "NiagaraOverviewNode.h"
 #include "ISequencer.h"
 
 #include "TickableEditorObject.h"
@@ -20,6 +21,7 @@ class UNiagaraSequence;
 class UMovieSceneNiagaraEmitterTrack;
 struct FNiagaraVariable;
 struct FNiagaraEmitterHandle;
+class UNiagaraOverviewNode;
 class FNiagaraEmitterHandleViewModel;
 class FNiagaraSystemScriptViewModel;
 class UNiagaraStackViewModel;
@@ -114,6 +116,7 @@ public:
 	{
 		FString SystemPath;
 		FGuid EmitterHandleId;
+		UNiagaraOverviewNode* OverviewNode = nullptr;
 		bool operator==(const FEmitterHandleToDuplicate& Other) const
 		{
 			return SystemPath == Other.SystemPath && EmitterHandleId == Other.EmitterHandleId;

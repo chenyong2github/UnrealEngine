@@ -179,7 +179,10 @@ public:
 	const TArray<const FNiagaraVariableAttributeBinding*>& GetAttributeBindings() const { return AttributeBindings; }
 	uint32 ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const;
 
-	virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const override;	
+	virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const override;
+
+	/** Method to add asset tags that are specific to this renderer. By default we add in how many instances of this class exist in the list.*/
+	virtual void GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraRendererProperties*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const;
 
 	/** In the case that we need parameters bound in that aren't Particle variables, these should be set up here so that the data is appropriately populated after the simulation.*/
 	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) { return false; }

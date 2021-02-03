@@ -8,6 +8,10 @@
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "Containers/Queue.h"
 
+#ifndef WITH_TODO_COLLISION_DISABLE
+#define WITH_TODO_COLLISION_DISABLE 0
+#endif
+
 namespace Chaos
 {
 	enum class ECollisionConstraintFlags : uint32

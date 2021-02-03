@@ -22,6 +22,9 @@ struct CHAOSSOLVERENGINE_API FChaosBreakEvent
 	GENERATED_BODY()
 
 public:
+
+	FChaosBreakEvent();
+
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
 	TObjectPtr<UPrimitiveComponent> Component = nullptr;
 

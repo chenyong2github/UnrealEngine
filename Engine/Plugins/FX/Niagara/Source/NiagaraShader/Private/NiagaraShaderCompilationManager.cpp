@@ -70,7 +70,7 @@ void FNiagaraShaderCompilationManager::ProcessAsyncResults()
 	{
 		auto CurrentJob = JobQueue[JobIndex]->GetSingleShaderJob();
 
-		if (!CurrentJob->bFinalized)
+		if (!CurrentJob->bReleased)
 		{
 			continue;
 		}

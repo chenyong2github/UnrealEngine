@@ -81,6 +81,9 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 
 		+ SHeaderRow::Column(ICurveEditorTreeItem::ColumnNames.Label)
 
+		+ SHeaderRow::Column(ICurveEditorTreeItem::ColumnNames.SelectHeader)
+		.FixedWidth(24.f)
+
 		+ SHeaderRow::Column(ICurveEditorTreeItem::ColumnNames.PinHeader)
 		.FixedWidth(24.f);
 

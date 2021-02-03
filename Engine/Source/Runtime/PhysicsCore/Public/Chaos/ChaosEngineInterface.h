@@ -7,6 +7,7 @@
 #include "PhysicsInterfaceDeclaresCore.h"
 #include "PhysicsInterfaceWrapperShared.h"
 #include "PhysicsInterfaceTypesCore.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "ChaosEngineInterface.generated.h"
 
 //NOTE: Do not include Chaos headers directly as it means recompiling all of engine. This should be reworked to avoid allocations
@@ -416,7 +417,7 @@ public:
 
 	static FVector GetWorldVelocityAtPoint_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InPoint);
 #if WITH_CHAOS
-	static FVector GetWorldVelocityAtPoint_AssumesLocked(const Chaos::TKinematicGeometryParticleHandle<float,3>* InActorReference, const FVector& InPoint);
+	static FVector GetWorldVelocityAtPoint_AssumesLocked(const Chaos::FRigidBodyHandle_Internal* InActorReference, const FVector& InPoint);
 #endif
 
 	static FTransform GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference);

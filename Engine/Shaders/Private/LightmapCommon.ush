@@ -47,10 +47,15 @@ half4 SampleLightmapVT(VTPageTableResult LightmapVTPageTableResult, uint LayerIn
 }
 #endif // LIGHTMAP_VT_ENABLED
 
-half4 GetLightMapColorLQ( float2 LightmapUV0, float2 LightmapUV1, uint LightmapDataIndex, half3 WorldNormal )
+half4 GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, float2 LightmapUV0, float2 LightmapUV1, uint LightmapDataIndex, half3 WorldNormal )
 {
+#if LIGHTMAP_VT_ENABLED
+	half4 Lightmap0 = SampleLightmapVT(LightmapVTPageTableResult, 0u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture, LightmapResourceCluster.LightMapSampler);
+	half4 Lightmap1 = SampleLightmapVT(LightmapVTPageTableResult, 1u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture_1, LightmapResourceCluster.LightMapSampler_1);
+#else
 	half4 Lightmap0 = Texture2DSample( LightmapResourceCluster.LightMapTexture, LightmapResourceCluster.LightMapSampler, LightmapUV0 );
 	half4 Lightmap1 = Texture2DSample( LightmapResourceCluster.LightMapTexture, LightmapResourceCluster.LightMapSampler, LightmapUV1 );
+#endif
 		
 	// Range scale
 	half3 LogRGB = Lightmap0.rgb * GetLightmapData(LightmapDataIndex).LightMapScale[0].xyz + GetLightmapData(LightmapDataIndex).LightMapAdd[0].xyz;	// 1 vmad
@@ -239,7 +244,7 @@ half4 GetPrecomputedShadowMasks(VTPageTableResult LightmapVTPageTableResult, FVe
 }
 
 // Used by mobile renderer only
-half GetPrimaryPrecomputedShadowMask(FVertexFactoryInterpolantsVSToPS Interpolants, FMaterialPixelParameters MaterialParameters)
+half GetPrimaryPrecomputedShadowMask(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, FMaterialPixelParameters MaterialParameters)
 {
 	#if STATICLIGHTING_TEXTUREMASK && STATICLIGHTING_SIGNEDDISTANCEFIELD
 
@@ -248,7 +253,11 @@ half GetPrimaryPrecomputedShadowMask(FVertexFactoryInterpolantsVSToPS Interpolan
 		GetShadowMapCoordinate(Interpolants, ShadowMapCoordinate, LightmapDataIndex);
 
 		// Fetch the distance field data
+#if LIGHTMAP_VT_ENABLED
+		half DistanceField = SampleLightmapVT(LightmapVTPageTableResult, 2u, LightmapDataIndex, LightmapResourceCluster.VTStaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler);
+#else
 		half DistanceField = Texture2DSample(LightmapResourceCluster.StaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler, ShadowMapCoordinate).r;
+#endif
 		float4 InvUniformPenumbraSizes = GetLightmapData(LightmapDataIndex).InvUniformPenumbraSizes;
 		float DistanceFieldBias = -.5f * InvUniformPenumbraSizes.x + .5f;
 		// Compute shadow factors by scaling and biasing the distance

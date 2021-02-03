@@ -5,12 +5,14 @@
 
 namespace Chaos
 {
-	// CVars variables for controlling geometry complexity checking and simplification
+	// CVars variables for controlling geometry complexity checking and simplification 
 	int32 FConvexBuilder::PerformGeometryCheck = 0;
 
 	int32 FConvexBuilder::PerformGeometryReduction = 0;
 
 	int32 FConvexBuilder::VerticesThreshold = 50;
+
+	int32 FConvexBuilder::ComputeHorizonEpsilonFromMeshExtends = 1;
 
 	FAutoConsoleVariableRef CVarConvexGeometryCheckEnable(TEXT("p.Chaos.ConvexGeometryCheckEnable"), FConvexBuilder::PerformGeometryCheck, TEXT("Perform convex geometry complexity check for Chaos physics."));
 

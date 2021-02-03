@@ -103,7 +103,7 @@ public:
 	 */
 	void AddObject(UPrimitiveComponent* Component, FSkeletalMeshPhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FStaticMeshPhysicsProxy* InObject);
-	void AddObject(UPrimitiveComponent* Component, FGeometryParticlePhysicsProxy* InObject);
+	void AddObject(UPrimitiveComponent* Component, FSingleParticlePhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsProxy* InObject);
 	
 	void AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
@@ -115,7 +115,7 @@ public:
 	 */
 	void RemoveObject(FSkeletalMeshPhysicsProxy* InObject);
 	void RemoveObject(FStaticMeshPhysicsProxy* InObject);
-	void RemoveObject(FGeometryParticlePhysicsProxy* InObject);
+	void RemoveObject(FSingleParticlePhysicsProxy* InObject);
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
 
 	FPhysicsReplication* GetPhysicsReplication();
@@ -279,12 +279,12 @@ private:
 	void RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint);
 
 #if 0
-	void AddForce(const Chaos::TVector<float,3>& Force,FPhysicsActorHandle& Handle)
+	void AddForce(const Chaos::FVec3& Force,FPhysicsActorHandle& Handle)
 	{
 		// #todo : Implement
 	}
 
-	void AddTorque(const Chaos::TVector<float,3>& Torque,FPhysicsActorHandle& Handle)
+	void AddTorque(const Chaos::FVec3& Torque,FPhysicsActorHandle& Handle)
 	{
 		// #todo : Implement
 	}

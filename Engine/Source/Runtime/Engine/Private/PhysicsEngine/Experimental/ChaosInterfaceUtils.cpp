@@ -23,6 +23,7 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/SphereElem.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "PhysXIncludes.h"
@@ -32,8 +33,15 @@
 
 namespace ChaosInterface
 {
+	float Chaos_Collision_MarginFraction = -1.0f;
+	FAutoConsoleVariableRef CVarChaosCollisionMarginFraction(TEXT("p.Chaos.Collision.MarginFraction"), Chaos_Collision_MarginFraction, TEXT("Override the collision margin fraction set in Physics Settings (if >= 0)"));
+
+	float Chaos_Collision_MarginMax = -1.0f;
+	FAutoConsoleVariableRef CVarChaosCollisionMarginMax(TEXT("p.Chaos.Collision.MarginMax"), Chaos_Collision_MarginMax, TEXT("Override the max collision margin set in Physics Settings (if >= 0)"));
+
+
 	template<class PHYSX_MESH>
-	TArray<Chaos::TVector<int32, 3>> GetMeshElements(const PHYSX_MESH* PhysXMesh)
+	TArray<Chaos::TVec3<int32>> GetMeshElements(const PHYSX_MESH* PhysXMesh)
 	{
 		check(false);
 	}
@@ -41,9 +49,9 @@ namespace ChaosInterface
 #if PHYSICS_INTERFACE_PHYSX
 
 	template<>
-	TArray<Chaos::TVector<int32, 3>> GetMeshElements(const physx::PxConvexMesh* PhysXMesh)
+	TArray<Chaos::TVec3<int32>> GetMeshElements(const physx::PxConvexMesh* PhysXMesh)
 	{
-		TArray<Chaos::TVector<int32, 3>> CollisionMeshElements;
+		TArray<Chaos::TVec3<int32>> CollisionMeshElements;
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 		int32 offset = 0;
 		int32 NbPolygons = static_cast<int32>(PhysXMesh->getNbPolygons());
@@ -55,7 +63,7 @@ namespace ChaosInterface
 
 			for (int32 j = 2; j < static_cast<int32>(Poly.mNbVerts); j++)
 			{
-				CollisionMeshElements.Add(Chaos::TVector<int32, 3>(Indices[offset], Indices[offset + j], Indices[offset + j - 1]));
+				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[offset], Indices[offset + j], Indices[offset + j - 1]));
 			}
 		}
 #endif
@@ -63,21 +71,21 @@ namespace ChaosInterface
 	}
 
 	template<>
-	TArray<Chaos::TVector<int32, 3>> GetMeshElements(const physx::PxTriangleMesh* PhysXMesh)
+	TArray<Chaos::TVec3<int32>> GetMeshElements(const physx::PxTriangleMesh* PhysXMesh)
 	{
-		TArray<Chaos::TVector<int32, 3>> CollisionMeshElements;
+		TArray<Chaos::TVec3<int32>> CollisionMeshElements;
 		const auto MeshFlags = PhysXMesh->getTriangleMeshFlags();
 		for (int32 j = 0; j < static_cast<int32>(PhysXMesh->getNbTriangles()); ++j)
 		{
 			if (MeshFlags | physx::PxTriangleMeshFlag::e16_BIT_INDICES)
 			{
 				const physx::PxU16* Indices = reinterpret_cast<const physx::PxU16*>(PhysXMesh->getTriangles());
-				CollisionMeshElements.Add(Chaos::TVector<int32, 3>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
+				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
 			}
 			else
 			{
 				const physx::PxU32* Indices = reinterpret_cast<const physx::PxU32*>(PhysXMesh->getTriangles());
-				CollisionMeshElements.Add(Chaos::TVector<int32, 3>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
+				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
 			}
 		}
 		return CollisionMeshElements;
@@ -87,13 +95,13 @@ namespace ChaosInterface
 	TUniquePtr<Chaos::FImplicitObject> ConvertPhysXMeshToLevelset(const PHYSX_MESH* PhysXMesh, const FVector& Scale)
 	{
 #if WITH_CHAOS && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-		TArray<Chaos::TVector<int32, 3>> CollisionMeshElements = GetMeshElements(PhysXMesh);
+		TArray<Chaos::TVec3<int32>> CollisionMeshElements = GetMeshElements(PhysXMesh);
 		Chaos::TParticles<float, 3> CollisionMeshParticles;
 		CollisionMeshParticles.AddParticles(PhysXMesh->getNbVertices());
 		for (uint32 j = 0; j < CollisionMeshParticles.Size(); ++j)
 		{
 			const auto& Vertex = PhysXMesh->getVertices()[j];
-			CollisionMeshParticles.X(j) = Scale * Chaos::TVector<float, 3>(Vertex.x, Vertex.y, Vertex.z);
+			CollisionMeshParticles.X(j) = Scale * Chaos::FVec3(Vertex.x, Vertex.y, Vertex.z);
 		}
 		Chaos::TAABB<float, 3> BoundingBox(CollisionMeshParticles.X(0), CollisionMeshParticles.X(0));
 		for (uint32 j = 1; j < CollisionMeshParticles.Size(); ++j)
@@ -118,7 +126,7 @@ namespace ChaosInterface
 		{
 			MaxAxis = 2;
 		}
-		Chaos::TVector<int32, 3> Counts(MaxAxisSize * Extents[0] / Extents[MaxAxis], MaxAxisSize * Extents[1] / Extents[MaxAxis], MaxAxisSize * Extents[2] / Extents[MaxAxis]);
+		Chaos::TVec3<int32> Counts(MaxAxisSize * Extents[0] / Extents[MaxAxis], MaxAxisSize * Extents[1] / Extents[MaxAxis], MaxAxisSize * Extents[2] / Extents[MaxAxis]);
 		Counts[0] = Counts[0] < 1 ? 1 : Counts[0];
 		Counts[1] = Counts[1] < 1 ? 1 : Counts[1];
 		Counts[2] = Counts[2] < 1 ? 1 : Counts[2];
@@ -164,8 +172,18 @@ namespace ChaosInterface
 			CollisionTraceType = UPhysicsSettings::Get()->DefaultShapeComplexity;
 		}
 
-		const float CollisionMarginFraction = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
-		const float CollisionMarginMax = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
+		float CollisionMarginFraction = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
+		float CollisionMarginMax = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
+
+		// Test margins without changing physics settings
+		if (Chaos_Collision_MarginFraction >= 0.0f)
+		{
+			CollisionMarginFraction = Chaos_Collision_MarginFraction;
+		}
+		if (Chaos_Collision_MarginMax >= 0.0f)
+		{
+			CollisionMarginMax = Chaos_Collision_MarginMax;
+		}
 
 #if WITH_CHAOS
 		// Complex as simple should not create simple geometry, unless there is no complex geometry.  Otherwise both get queried against.
@@ -221,7 +239,7 @@ namespace ChaosInterface
 				const FKBoxElem& BoxElem = InParams.Geometry->BoxElems[i];
 				const FKBoxElem ScaledBoxElem = BoxElem.GetFinalScaled(Scale, InParams.LocalTransform);
 				const FTransform& BoxTransform = ScaledBoxElem.GetTransform();
-				Chaos::TVector<float, 3> HalfExtents = Chaos::TVector<float, 3>(ScaledBoxElem.X * 0.5f, ScaledBoxElem.Y * 0.5f, ScaledBoxElem.Z * 0.5f);
+				Chaos::FVec3 HalfExtents = Chaos::FVec3(ScaledBoxElem.X * 0.5f, ScaledBoxElem.Y * 0.5f, ScaledBoxElem.Z * 0.5f);
 
 				HalfExtents.X = FMath::Max(HalfExtents.X, KINDA_SMALL_NUMBER);
 				HalfExtents.Y = FMath::Max(HalfExtents.Y, KINDA_SMALL_NUMBER);
@@ -263,7 +281,7 @@ namespace ChaosInterface
 				}
 				else
 				{
-					Chaos::TVector<float, 3> HalfExtents = ScaledSphylElem.Rotation.RotateVector(Chaos::TVector<float, 3>(0, 0, HalfHeight));
+					Chaos::FVec3 HalfExtents = ScaledSphylElem.Rotation.RotateVector(Chaos::FVec3(0, 0, HalfHeight));
 
 					auto ImplicitCapsule = MakeUnique<Chaos::TCapsule<float>>(ScaledSphylElem.Center - HalfExtents, ScaledSphylElem.Center + HalfExtents, Radius);
 					TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(ImplicitCapsule),Shapes.Num(), (void*)UnscaledSphyl.GetUserData(), UnscaledSphyl.GetCollisionEnabled());
@@ -284,7 +302,7 @@ namespace ChaosInterface
 				}
 				else
 				{
-					Chaos::TVector<float, 3> half_extents(0, 0, TCapsule.Length / 2 * Scale[0]);
+					Chaos::FVec3 half_extents(0, 0, TCapsule.Length / 2 * Scale[0]);
 					auto ImplicitCylinder = MakeUnique<Chaos::TCylinder<float>>(-half_extents, half_extents, TCapsule.Radius * Scale[0]);
 					if (PhysicsProxy) PhysicsProxy->ImplicitObjects_GameThread.Add(MoveTemp(ImplicitSphere));
 					else if (OutOptShapes) OutOptShapes->Add({ ImplicitSphere,true,true,InActor });
@@ -435,7 +453,7 @@ namespace ChaosInterface
 			{
 				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
 				{
-					FTransform WorldTransform(ShapeHandle.ActorRef->R(), ShapeHandle.ActorRef->X());
+					FTransform WorldTransform(ShapeHandle.ActorRef->GetGameThreadAPI().R(), ShapeHandle.ActorRef->GetGameThreadAPI().X());
 					Chaos::TMassProperties<float, 3> MassProperties;
 					if (CalculateMassPropertiesOfImplicitType(MassProperties, WorldTransform, ImplicitObject, InDensityKGPerCM))
 					{

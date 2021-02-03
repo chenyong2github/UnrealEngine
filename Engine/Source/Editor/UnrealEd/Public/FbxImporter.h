@@ -462,6 +462,7 @@ struct FbxSceneInfo
 	
 	/* true if it has animation */
 	bool bHasAnimation;
+	bool bHasAnimationOnSkeletalMesh;
 	double FrameRate;
 	double TotalTime;
 
@@ -475,6 +476,7 @@ struct FbxSceneInfo
 		MeshInfo.Empty();
 		HierarchyInfo.Empty();
 		bHasAnimation = false;
+		bHasAnimationOnSkeletalMesh = false;
 		FrameRate = 0.0;
 		TotalTime = 0.0;
 	}
@@ -1020,6 +1022,13 @@ public:
 	* @param outMeshArray return Fbx meshes with no LOD group
 	*/
 	UNREALED_API void FillFbxMeshAndLODGroupArray(FbxNode* Node, TArray<FbxNode*>& outLODGroupArray, TArray<FbxNode*>& outMeshArray);
+
+	/**
+	 * Returns if the passed FbxNode can be used as a skeleton bone in Unreal.
+	 * 
+	 * @return bool
+	 */
+	bool IsUnrealBone(FbxNode* Link);
 
 	/**
 	* Fill FBX skeletons to OutSortedLinks recursively

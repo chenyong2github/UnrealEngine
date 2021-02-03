@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UnrealUSDWrapper.h"
+#include "USDLevelSequenceHelper.h"
 #include "USDMemory.h"
 
 #include "UsdWrappers/UsdStage.h"
@@ -12,6 +13,7 @@
 
 #include "USDStageImportContext.generated.h"
 
+class UUsdAssetCache;
 class UUsdStageImportOptions;
 
 USTRUCT()
@@ -38,17 +40,22 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 
 	UPROPERTY()
 	UUsdStageImportOptions* ImportOptions;
-
-	/** Main property responsible for keeping imported assets alive until they are published*/
+	
+	/** Keep track of the last imported object so that we have something valid to return to upstream code that calls the import factories */
 	UPROPERTY()
-	TMap<FString, UObject*> AssetsCache;
+	UObject* ImportedAsset;
+
+	/** Level sequence that will contain the animation data during the import process */
+	FUsdLevelSequenceHelper LevelSequenceHelper;
 
 	UPROPERTY()
-	TMap<FString, UObject*> PrimPathsToAssets;
+	UUsdAssetCache* AssetCache;
 
-	/** Keep track of the parent imported package so that we have something valid to return to upstream code that calls the import factories */
-	UPROPERTY()
-	UPackage* ImportedPackage;
+	/**
+	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
+	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
+	 */
+	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
 
 	UE::FUsdStage Stage;
 

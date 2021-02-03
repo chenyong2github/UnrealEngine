@@ -42,7 +42,7 @@ bool IsHairStrandsGeometrySupported(const EShaderPlatform Platform)
 	check(Platform != SP_NumPlatforms);
 	return
 		(
-			((IsD3DPlatform(Platform, false) || IsVulkanSM5Platform(Platform)) && IsPCPlatform(Platform) && !IsMobilePlatform(Platform)) || (IsConsolePlatform(Platform) && !IsSwitchPlatform(Platform))
+			((IsD3DPlatform(Platform) || IsVulkanSM5Platform(Platform)) && IsPCPlatform(Platform) && !IsMobilePlatform(Platform)) || (IsConsolePlatform(Platform) && !IsSwitchPlatform(Platform))
 		)
 		&&
 		GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;

@@ -93,6 +93,7 @@ public:
 		TArrayCollection::AddArray(&MGravityEnabled);
 		TArrayCollection::AddArray(&MOneWayInteraction);
 		TArrayCollection::AddArray(&MResimType);
+		TArrayCollection::AddArray(&bCCDEnabled);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
 	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
@@ -115,6 +116,7 @@ public:
 		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
 		, MOneWayInteraction(MoveTemp(Other.MOneWayInteraction))
 		, MResimType(MoveTemp(Other.MResimType))
+		, bCCDEnabled(MoveTemp(Other.bCCDEnabled))
 	{
 		TArrayCollection::AddArray(&MVSmooth);
 		TArrayCollection::AddArray(&MWSmooth);
@@ -140,6 +142,7 @@ public:
 		TArrayCollection::AddArray(&MGravityEnabled);
 		TArrayCollection::AddArray(&MOneWayInteraction);
 		TArrayCollection::AddArray(&MResimType);
+		TArrayCollection::AddArray(&bCCDEnabled);
 	}
 
 	CHAOS_API virtual ~TRigidParticles()
@@ -224,6 +227,10 @@ public:
 	FORCEINLINE EResimType ResimType(const int32 Index) const { return MResimType[Index]; }
 	FORCEINLINE EResimType& ResimType(const int32 Index) { return MResimType[Index]; }
 
+	FORCEINLINE const bool& CCDEnabled(const int32 Index) const { return bCCDEnabled[Index]; }
+	FORCEINLINE bool& CCDEnabled(const int32 Index) { return bCCDEnabled[Index]; }
+
+
 	FORCEINLINE TArray<TSleepData<T, d>>& GetSleepData() { return MSleepData; }
 	FORCEINLINE	void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
 	{ 
@@ -302,6 +309,7 @@ public:
 	FORCEINLINE TArray<bool>& AllDisabled() { return MDisabled; }
 	FORCEINLINE TArray<EObjectStateType>& AllObjectState() { return MObjectState; }
 	FORCEINLINE TArray<bool>& AllGravityEnabled() { return MGravityEnabled; }
+	FORCEINLINE TArray<bool>& AllCCDEnabled() { return bCCDEnabled; }
 
 private:
 	TArrayCollectionArray<TVector<T, d>> MVSmooth;
@@ -328,6 +336,7 @@ private:
 	TArrayCollectionArray<bool> MGravityEnabled;
 	TArrayCollectionArray<bool> MOneWayInteraction;
 	TArrayCollectionArray<EResimType> MResimType;
+	TArrayCollectionArray<bool> bCCDEnabled;
 
 	TArray<TSleepData<T, d>> MSleepData;
 	FRWLock SleepDataLock;

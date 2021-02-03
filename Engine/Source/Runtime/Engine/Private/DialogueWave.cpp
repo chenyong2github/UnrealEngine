@@ -825,7 +825,9 @@ void UDialogueWave::CopySoundBasePropertiesToProxy(const USoundBase* InSoundBase
 	Proxy->SoundClassObject = InSoundBase->SoundClassObject;
 	Proxy->bDebug = InSoundBase->bDebug;
 	Proxy->bOverrideConcurrency = InSoundBase->bOverrideConcurrency;
-	Proxy->bOutputToBusOnly = InSoundBase->bOutputToBusOnly;
+	Proxy->bEnableBusSends = InSoundBase->bEnableBusSends;
+	Proxy->bEnableBaseSubmix = InSoundBase->bEnableBaseSubmix;
+	Proxy->bEnableSubmixSends = InSoundBase->bEnableSubmixSends;
 	Proxy->bHasDelayNode = InSoundBase->bHasDelayNode;
 	Proxy->bHasConcatenatorNode = InSoundBase->bHasConcatenatorNode;
 	Proxy->VirtualizationMode = InSoundBase->VirtualizationMode;

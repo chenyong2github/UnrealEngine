@@ -31,29 +31,31 @@
 namespace GeometryCollectionTest
 {
 	
-	Chaos::TParticles<float, 3>
+	using namespace Chaos;
+
+	Chaos::TParticles<FReal, 3>
 	BuildParticlesFeomGeomCollection(FGeometryCollection *TestCollection)
 	{
 		TManagedArray<FVector> &Vertex = TestCollection->Vertex;
 		const int numParticles = Vertex.Num();
-		Chaos::TParticles<float, 3> particles;
+		Chaos::TParticles<FReal, 3> particles;
 		particles.AddParticles(numParticles);
 		for (int i = 0; i < numParticles; i++)
 			particles.X(i).Set(Vertex[i][0], Vertex[i][1], Vertex[i][2]);
 		return particles;
 	}
 
-	Chaos::TTriangleMesh<float>
+	Chaos::TTriangleMesh<FReal>
 	BuildTriMeshFromGeomCollection(FGeometryCollection *TestCollection)
 	{
 		TManagedArray<FIntVector>& Indices = TestCollection->Indices;
 		const int numTris = Indices.Num();
-		TArray<Chaos::TVector<int32, 3>> tris;
+		TArray<Chaos::TVec3<int32>> tris;
 		tris.SetNumUninitialized(numTris);
 		for (int i = 0; i < numTris; i++)
-			tris[i] = Chaos::TVector<int32, 3>(Indices[i][0], Indices[i][1], Indices[i][2]);
+			tris[i] = Chaos::TVec3<int32>(Indices[i][0], Indices[i][1], Indices[i][2]);
 
-		Chaos::TTriangleMesh<float> triMesh(MoveTemp(tris));
+		Chaos::TTriangleMesh<FReal> triMesh(MoveTemp(tris));
 		return triMesh;
 	}
 
@@ -130,12 +132,11 @@ namespace GeometryCollectionTest
 		PrintBoolArray(visibility);
 	}
 
-	template <class T>
 	bool
 	RunGeomDecimationTest(FGeometryCollection* TestCollection, const char *BaseName, const char *OutputDir, const uint32 ExpectedHash, const bool RestrictToLocalIndexRange = false)
 	{
-		Chaos::TParticles<T, 3> Particles = BuildParticlesFeomGeomCollection(TestCollection);
-		Chaos::TTriangleMesh<T> TriMesh = BuildTriMeshFromGeomCollection(TestCollection);
+		Chaos::TParticles<FReal, 3> Particles = BuildParticlesFeomGeomCollection(TestCollection);
+		Chaos::TTriangleMesh<FReal> TriMesh = BuildTriMeshFromGeomCollection(TestCollection);
 
 		TArray<int32> CoincidentVertices;
 		const TArray<int32> Importance = TriMesh.GetVertexImportanceOrdering(Particles.X(), &CoincidentVertices, RestrictToLocalIndexRange);
@@ -172,7 +173,7 @@ namespace GeometryCollectionTest
 		//return true;	//todo: update hash
 	}
 
-	template <class T, class TGeom>
+	template <class TGeom>
 	bool
 	RunGeomDecimationTest(const char *BaseName, const char *OutputDir, const uint32 ExpectedHash, const bool RestrictToLocalIndexRange = false)
 	{
@@ -181,10 +182,10 @@ namespace GeometryCollectionTest
 			FGeometryCollection::NewGeometryCollection(
 				Geom.RawVertexArray,
 				Geom.RawIndicesArray);
-		return RunGeomDecimationTest<T>(TestCollection, BaseName, OutputDir, ExpectedHash, RestrictToLocalIndexRange);
+		return RunGeomDecimationTest(TestCollection, BaseName, OutputDir, ExpectedHash, RestrictToLocalIndexRange);
 	}
 
-	template <class T, class TGeom>
+	template <class TGeom>
 	bool
 	RunGlobalGeomDecimationTest(const char *BaseName, const char *OutputDir, const uint32 ExpectedHash, const bool RestrictToLocalIndexRange = true)
 	{
@@ -193,32 +194,30 @@ namespace GeometryCollectionTest
 			FGeometryCollection::NewGeometryCollection(
 				Geom.RawVertexArray,
 				Geom.RawIndicesArray1);
-		return RunGeomDecimationTest<T>(TestCollection, BaseName, OutputDir, ExpectedHash, RestrictToLocalIndexRange);
+		return RunGeomDecimationTest(TestCollection, BaseName, OutputDir, ExpectedHash, RestrictToLocalIndexRange);
 	}
 
-	template<class T>
 	void TestGeometryDecimation()
 	{
 		bool Success = true;
 		// If E:\TestGeometry\Decimation doesn't already exist, the files aren't written.
 
 		// Standalone point pools.
-		Success &= RunGeomDecimationTest<T, BoxGeometry>("box", "E:\\TestGeometry\\Decimation\\", 4024338882);
-		Success &= RunGeomDecimationTest<T, CylinderGeometry>("cylinder", "E:\\TestGeometry\\Decimation\\", 2477299646);
-		Success &= RunGeomDecimationTest<T, EllipsoidGeometry>("ellipsoid", "E:\\TestGeometry\\Decimation\\", 1158371240);
-		Success &= RunGeomDecimationTest<T, EllipsoidGeometry2>("ellipsoid2", "E:\\TestGeometry\\Decimation\\", 554754926);
-		Success &= RunGeomDecimationTest<T, EllipsoidGeometry3>("ellipsoid3", "E:\\TestGeometry\\Decimation\\", 2210765036);
-		Success &= RunGeomDecimationTest<T, FracturedGeometry>("fractured", "E:\\TestGeometry\\Decimation\\", 2030682536);
-		Success &= RunGeomDecimationTest<T, SphereGeometry>("sphere", "E:\\TestGeometry\\Decimation\\", 4119721232);
-		Success &= RunGeomDecimationTest<T, TorusGeometry>("torus", "E:\\TestGeometry\\Decimation\\", 2519379615);
+		Success &= RunGeomDecimationTest<BoxGeometry>("box", "E:\\TestGeometry\\Decimation\\", 4024338882);
+		Success &= RunGeomDecimationTest<CylinderGeometry>("cylinder", "E:\\TestGeometry\\Decimation\\", 2477299646);
+		Success &= RunGeomDecimationTest<EllipsoidGeometry>("ellipsoid", "E:\\TestGeometry\\Decimation\\", 1158371240);
+		Success &= RunGeomDecimationTest<EllipsoidGeometry2>("ellipsoid2", "E:\\TestGeometry\\Decimation\\", 554754926);
+		Success &= RunGeomDecimationTest<EllipsoidGeometry3>("ellipsoid3", "E:\\TestGeometry\\Decimation\\", 2210765036);
+		Success &= RunGeomDecimationTest<FracturedGeometry>("fractured", "E:\\TestGeometry\\Decimation\\", 2030682536);
+		Success &= RunGeomDecimationTest<SphereGeometry>("sphere", "E:\\TestGeometry\\Decimation\\", 4119721232);
+		Success &= RunGeomDecimationTest<TorusGeometry>("torus", "E:\\TestGeometry\\Decimation\\", 2519379615);
 		
 		// Geometry in a global point pool.
-		Success &= RunGeomDecimationTest<T, GlobalFracturedGeometry>("globalFractured", "E:\\TestGeometry\\Decimation\\", 4227374796, true);
-		Success &= RunGlobalGeomDecimationTest<T, GlobalFracturedGeometry>("globalFracturedMerged", "E:\\TestGeometry\\Decimation\\", 4227374796, true);
+		Success &= RunGeomDecimationTest<GlobalFracturedGeometry>("globalFractured", "E:\\TestGeometry\\Decimation\\", 4227374796, true);
+		Success &= RunGlobalGeomDecimationTest<GlobalFracturedGeometry>("globalFracturedMerged", "E:\\TestGeometry\\Decimation\\", 4227374796, true);
 
 		EXPECT_TRUE(Success);
 	}
-	template void TestGeometryDecimation<float>();
 	
 }
 

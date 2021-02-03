@@ -123,6 +123,12 @@ class DevicenDisplay(DeviceUnreal):
             value="", 
             tool_tip=f'ExecCmds to be passed. No need for outer double quotes.',
         ),
+        'ndisplay_dp_cvars': Setting(
+            attr_name='ndisplay_dp_cvars',
+            nice_name="DPCVars",
+            value='',
+            tool_tip="Device profile console variables (comma separated)."
+        ),
         'max_gpu_count': Setting(
             attr_name="max_gpu_count", 
             nice_name="Number of GPUs",
@@ -232,6 +238,7 @@ class DevicenDisplay(DeviceUnreal):
         return [
             DevicenDisplay.csettings['ndisplay_cmd_args'],
             DevicenDisplay.csettings['ndisplay_exec_cmds'],
+            DevicenDisplay.csettings['ndisplay_dp_cvars'],
             DevicenDisplay.csettings['max_gpu_count'],
             CONFIG.ENGINE_DIR, 
             CONFIG.SOURCE_CONTROL_WORKSPACE, 
@@ -247,8 +254,11 @@ class DevicenDisplay(DeviceUnreal):
         return False
 
     def generate_unreal_command_line(self, map_name=""):
-
         uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
+
+        # Device profile CVars
+        dp_cvars = f"{self.csettings['ndisplay_dp_cvars'].get_value(self.name)}".strip()
+        dp_cvars = f'-DPCVars="{dp_cvars}"' if len(dp_cvars) else ''
 
         # Extra arguments specified in settings
         additional_args = self.csettings['ndisplay_cmd_args'].get_value(self.name)
@@ -268,7 +278,6 @@ class DevicenDisplay(DeviceUnreal):
         no_texture_streaming = "-notexturestreaming" if not DevicenDisplay.csettings['texture_streaming'].get_value(self.name) else ""
 
         # MaxGPUCount (mGPU)
-        #
         max_gpu_count = DevicenDisplay.csettings["max_gpu_count"].get_value(self.name)
         try:
             max_gpu_count = f"-MaxGPUCount={max_gpu_count}" if int(max_gpu_count) > 1 else ''
@@ -277,8 +286,6 @@ class DevicenDisplay(DeviceUnreal):
             max_gpu_count = ''
 
         # Overridden classes at runtime
-        #
-
         ini_engine = "-ini:Engine"\
             ":[/Script/Engine.Engine]:GameEngine=/Script/DisplayCluster.DisplayClusterGameEngine"\
             ",[/Script/Engine.Engine]:GameViewportClientClassName=/Script/DisplayCluster.DisplayClusterViewportClient"
@@ -286,8 +293,6 @@ class DevicenDisplay(DeviceUnreal):
         ini_game = "-ini:Game:[/Script/EngineSettings.GeneralProjectSettings]:bUseBorderlessWindow=True"
 
         # VP roles
-        #
-
         vproles, missing_roles = self.get_vproles()
 
         if missing_roles:
@@ -296,18 +301,14 @@ class DevicenDisplay(DeviceUnreal):
         vproles = '-VPRole=' + '|'.join(vproles) if vproles else ''
 
         # Session ID
-        #
         session_id = DeviceUnreal.csettings["stage_session_id"].get_value(self.name)
         session_id = f"-StageSessionId={session_id}" if session_id > 0 else ''
 
         # Friendly name. Avoid spaces to avoid parsing issues.
-        #
         friendly_name = f'-StageFriendlyName={self.name.replace(" ", "_")}'
 
         # fill in fixed arguments
-        #
         # TODO: Consider -unattended as an option to avoid crash window from appearing.
-
         args = [
             f'"{uproject}"',
             f'{map_name}',                     # map to open
@@ -324,6 +325,7 @@ class DevicenDisplay(DeviceUnreal):
             f'{friendly_name}',                # Stage Friendly Name
             f'{session_id}',                   # Session ID. 
             f'{max_gpu_count}',                # Max GPU count (mGPU)
+            f'{dp_cvars}',                     # Device profile CVars
             f'-dc_cfg="{cfg_file}"',           # nDisplay config file
             f'{render_api}',                   # dx11/12
             f'{render_mode}',                  # mono/...
@@ -336,17 +338,15 @@ class DevicenDisplay(DeviceUnreal):
         ]
 
         # fill in ExecCmds
-
-        exec_cmds = f'{self.csettings["ndisplay_exec_cmds"].get_value(self.name)}'.strip().split(';')
+        exec_cmds = f'{self.csettings["ndisplay_exec_cmds"].get_value(self.name)}'.strip().split(',')
         exec_cmds.append('DisableAllScreenMessages')
         exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
 
         if len(exec_cmds):
-            exec_cmds_expanded = ';'.join(exec_cmds)
-            args.append(f'ExecCmds="{exec_cmds_expanded}"')
+            exec_cmds_expanded = ','.join(exec_cmds)
+            args.append(f'-ExecCmds="{exec_cmds_expanded}"')
 
         # when in fullscreen, the window parameters should not be passed
-
         if fullscreen:
             args.extend([
                 '-fullscreen',
@@ -362,7 +362,6 @@ class DevicenDisplay(DeviceUnreal):
             ])
 
         # MultiUser parameters
-
         if CONFIG.MUSERVER_AUTO_JOIN:
             args.extend([
                 f'-CONCERTRETRYAUTOCONNECTONERROR',
@@ -388,14 +387,12 @@ class DevicenDisplay(DeviceUnreal):
         super().launch(map_name=self.map_name_to_launch)
 
     def on_get_sync_status(self, message):
-        ''' Called when 'get sync status' is received.
-        '''
+        ''' Called when 'get sync status' is received. '''
         self.__class__.ndisplay_monitor.on_get_sync_status(device=self, message=message)
 
     @classmethod
     def parse_config_json(cls, cfg_file):
-        ''' Parses nDisplay config file of type json
-        '''
+        ''' Parses nDisplay config file of type json '''
 
         js = json.loads(open(cfg_file, 'r').read())
 
@@ -430,8 +427,7 @@ class DevicenDisplay(DeviceUnreal):
 
     @classmethod
     def parse_config_cfg(cls, cfg_file):
-        ''' Parses nDisplay config file in the original format (currently version 23)
-        '''
+        ''' Parses nDisplay config file in the original format (currently version 23) '''
         nodes = []
 
         cluster_node_lines = []
@@ -522,9 +518,7 @@ class DevicenDisplay(DeviceUnreal):
 
     @classmethod
     def parse_config(cls, cfg_file):
-        ''' Parses an nDisplay file and returns the nodes with the relevant information
-        '''
-
+        ''' Parses an nDisplay file and returns the nodes with the relevant information '''
         ext = os.path.splitext(cfg_file)[1].lower()
 
         try:
@@ -542,9 +536,7 @@ class DevicenDisplay(DeviceUnreal):
         return []
 
     def update_settings_controlled_by_config(self, cfg_file):
-        ''' Updates settings that are exclusively controlled by the config file
-        '''
-
+        ''' Updates settings that are exclusively controlled by the config file '''
         nodes = self.__class__.parse_config(cfg_file)
 
         # find which node is self:
@@ -556,12 +548,11 @@ class DevicenDisplay(DeviceUnreal):
 
         self.nodeconfig = menode
 
-        self.settings['window_position'].update_value(menode['kwargs'].get("window_position", (0.0)))
+        self.settings['window_position'].update_value(menode['kwargs'].get("window_position", (0,0)))
         self.settings['window_resolution'].update_value(menode['kwargs'].get("window_resolution", (100,100)))
         self.settings['fullscreen'].update_value(menode['kwargs'].get("fullscreen", False))
 
     def launch(self, map_name):
-
         self.map_name_to_launch = map_name
 
         # Update settings controlled exclusively by the nDisplay config file.
@@ -588,9 +579,7 @@ class DevicenDisplay(DeviceUnreal):
 
     @classmethod
     def plug_into_ui(cls, menubar, tabs):
-        ''' Implementation of base class function that allows plugin to inject UI elements.
-        '''
-
+        ''' Implementation of base class function that allows plugin to inject UI elements. '''
         cls.create_monitor_if_necessary()
 
         # Create Monitor UI if it doesn't exist
@@ -602,9 +591,7 @@ class DevicenDisplay(DeviceUnreal):
 
     @classmethod
     def added_device(cls, device):
-        ''' Implementation of base class function. Called when one of our plugin devices has een added.
-        '''
-
+        ''' Implementation of base class function. Called when one of our plugin devices has been added. '''
         if not cls.ndisplay_monitor:
             return
 
@@ -612,37 +599,22 @@ class DevicenDisplay(DeviceUnreal):
 
     @classmethod
     def removed_device(cls, device):
-        ''' Implementation of base class function. Called when one of our plugin devices has been removed.
-        '''
-
+        ''' Implementation of base class function. Called when one of our plugin devices has been removed. '''
         if not cls.ndisplay_monitor:
             return
 
         cls.ndisplay_monitor.removed_device(device)
 
     @classmethod
-    def soft_kill_cluster(cls, devices):
-        ''' Kills the cluster by sending a message to the master.
-        '''
+    def send_cluster_event(cls, devices, cluster_event):
         # find the master nodes (only one expected to be master)
-
-        masters = [dev for dev in devices if dev.nodeconfig['master']]
+        masters = [dev for dev in devices if dev.nodeconfig.get('master',False)]
                 
         if len(masters) != 1:
             LOGGER.warning(f"{len(masters)} masters detected but there can only be one")
             raise ValueError
 
         master = masters[0]
-
-        # send quit cluster event
-
-        cluster_event = {
-            "Category":"nDisplay",
-            "Name":"quit",
-            "Parameters":{},
-            "Type":"control", 
-            "bIsSystemEvent":"true",
-        }
 
         msg = bytes(json.dumps(cluster_event), 'utf-8')
         msg = struct.pack('I', len(msg)) + msg
@@ -655,9 +627,41 @@ class DevicenDisplay(DeviceUnreal):
         sock.send(msg)
 
     @classmethod
+    def soft_kill_cluster(cls, devices):
+        ''' Kills the cluster by sending a message to the master. '''
+        LOGGER.info('Issuing nDisplay cluster soft kill')
+
+        quit_event = {
+            "bIsSystemEvent":"true",
+            "Category":"nDisplay",
+            "Type":"control", 
+            "Name":"quit",
+            "Parameters":{},
+        }
+
+        cls.send_cluster_event(devices, quit_event)
+
+    @classmethod
+    def console_exec_cluster(cls, devices, exec_str, executor=''):
+        ''' Executes a console command on the cluster. '''
+        LOGGER.info(f"Issuing nDisplay cluster console exec: '{exec_str}'")
+
+        exec_event = {
+            "bIsSystemEvent":"true",
+            "Category":"nDisplay",
+            "Type":"control",
+            "Name":"console exec",
+            "Parameters":{
+                "ExecString":exec_str,
+                "Executor":executor,
+            },
+        }
+
+        cls.send_cluster_event(devices, exec_event)
+
+    @classmethod
     def close_all(cls, devices):
-        ''' Closes all devices in the plugin
-        '''
+        ''' Closes all devices in the plugin '''
         try:
             cls.soft_kill_cluster(devices)
 

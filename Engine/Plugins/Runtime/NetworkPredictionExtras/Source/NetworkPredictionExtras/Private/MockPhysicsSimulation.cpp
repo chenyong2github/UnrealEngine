@@ -18,6 +18,7 @@
 #include "DrawDebugHelpers.h"
 #include "Logging/LogMacros.h"
 #include "NetworkPredictionCues.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 #if WITH_CHAOS
 
@@ -94,7 +95,7 @@ void FMockPhysicsSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 						if (FBodyInstance* Instance = PrimitiveComp->GetBodyInstance())
 						{
 							FPhysicsActorHandle HitHandle = Instance->GetPhysicsActorHandle();
-							const FVector PhysicsLocation = HitHandle->X();
+							const FVector PhysicsLocation = HitHandle->GetGameThreadAPI().X();
 
 							const FVector Delta = PhysicsLocation - PrimitiveComp->GetComponentLocation();
 							if (Delta.Size2D() > 0.1f)

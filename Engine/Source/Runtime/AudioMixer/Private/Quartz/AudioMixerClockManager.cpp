@@ -307,6 +307,20 @@ namespace Audio
 		return false;
 	}
 
+	FMixerDevice* FQuartzClockManager::GetMixerDevice() const
+	{
+		if (MixerDevice)
+		{
+			return MixerDevice;
+		}
+
+
+		// we should have a mixer device
+		// error if this function is being called outside of the Audio Render Thread
+		check(MixerDevice);
+		return nullptr;
+	}
+
 	void FQuartzClockManager::TickClocks(int32 NumFramesToTick)
 	{
 		// This function should only be called on the Audio Render Thread

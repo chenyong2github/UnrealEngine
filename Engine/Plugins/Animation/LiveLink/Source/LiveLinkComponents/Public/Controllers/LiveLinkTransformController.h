@@ -16,7 +16,7 @@ struct LIVELINKCOMPONENTS_API FLiveLinkTransformControllerData
 
 	/** Set the transform of the component in world space of in its local reference frame. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LiveLink")
-	bool bWorldTransform = true;
+	bool bWorldTransform = false;
 
 	UPROPERTY(EditAnywhere, Category = "LiveLink", AdvancedDisplay)
 	bool bUseScale = true;

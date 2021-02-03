@@ -291,7 +291,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 			return false;
 		}
 
-		if (PermutationVector.Get<FAMDHitToken>() && !IsD3DPlatform(Parameters.Platform, false))
+		if (PermutationVector.Get<FAMDHitToken>() && !(IsD3DPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform)))
 		{
 			return false;
 		}

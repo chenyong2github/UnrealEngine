@@ -1752,6 +1752,18 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Indicates whether target rules should be used to explicitly enable or disable plugins. Usually not needed for project generation unless project files indicate whether referenced plugins should be built or not.
+		/// </summary>
+		public bool bShouldTargetRulesTogglePlugins
+		{
+			get
+			{
+				return ((ProjectFileGenerator.Current != null) && ProjectFileGenerator.Current.ShouldTargetRulesTogglePlugins())
+					|| ((ProjectFileGenerator.Current == null) && !ProjectFileGenerator.bGenerateProjectFiles);
+			}
+		}
+
+		/// <summary>
 		/// Expose a setting for whether or not the engine is installed
 		/// </summary>
 		/// <returns>Flag for whether the engine is installed</returns>

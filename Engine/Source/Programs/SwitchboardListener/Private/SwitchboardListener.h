@@ -7,6 +7,9 @@
 #include "Containers/Queue.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 
+#include "CpuUtilizationMonitor.h"
+
+
 struct FRunningProcess;
 struct FSwitchboardTask;
 struct FSwitchboardDisconnectTask;
@@ -70,4 +73,5 @@ private:
 	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> RunningProcesses;
 	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> FlipModeMonitors;
 	TArray<FSwitchboardMessageFuture> MessagesFutures;
+	TUniquePtr<FCpuUtilizationMonitor> CpuMonitor;
 };

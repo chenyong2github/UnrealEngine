@@ -7,8 +7,8 @@ ULightMapVirtualTexture2D::ULightMapVirtualTexture2D(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 {
 	VirtualTextureStreaming = true;
-	SetLayerForType(ELightMapVirtualTextureType::HqLayer0, 0u);
-	SetLayerForType(ELightMapVirtualTextureType::HqLayer1, 1u);
+	SetLayerForType(ELightMapVirtualTextureType::LightmapLayer0, 0u);
+	SetLayerForType(ELightMapVirtualTextureType::LightmapLayer1, 1u);
 }
 
 void ULightMapVirtualTexture2D::SetLayerForType(ELightMapVirtualTextureType InType, uint8 InLayer)

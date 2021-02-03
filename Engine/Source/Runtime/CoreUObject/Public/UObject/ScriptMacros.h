@@ -33,6 +33,10 @@ enum {MAX_VARIABLE_SIZE = 0x0FFF };
 	ParamType ParamName = (ParamType)0;															\
 	Stack.StepCompiledIn<PropertyType>(&ParamName);
 
+#define PARAM_PASSED_BY_VAL_INITED(ParamName, PropertyType, ParamType, ...)                     \
+	ParamType ParamName{__VA_ARGS__};                                                           \
+	Stack.StepCompiledIn<PropertyType>(&ParamName);
+
 #define PARAM_PASSED_BY_REF(ParamName, PropertyType, ParamType)									\
 	ParamType ParamName##Temp;																	\
 	ParamType& ParamName = Stack.StepCompiledInRef<PropertyType, ParamType>(&ParamName##Temp);

@@ -123,9 +123,9 @@ TRigidTransform<float, 3> Chaos::FClothingSimulationMesh::GetReferenceBoneTransf
 bool FClothingSimulationMesh::WrapDeformLOD(
 	int32 PrevLODIndex,
 	int32 LODIndex,
-	const TVector<float, 3>* Normals,
-	const TVector<float, 3>* Positions,
-	TVector<float, 3>* OutPositions) const
+	const FVec3* Normals,
+	const FVec3* Positions,
+	FVec3* OutPositions) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformMesh);
 
@@ -161,12 +161,12 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 bool FClothingSimulationMesh::WrapDeformLOD(
 	int32 PrevLODIndex,
 	int32 LODIndex,
-	const TVector<float, 3>* Normals,
-	const TVector<float, 3>* Positions,
-	const TVector<float, 3>* Velocities,
-	TVector<float, 3>* OutPositions0,
-	TVector<float, 3>* OutPositions1,
-	TVector<float, 3>* OutVelocities) const
+	const FVec3* Normals,
+	const FVec3* Positions,
+	const FVec3* Velocities,
+	FVec3* OutPositions0,
+	FVec3* OutPositions1,
+	FVec3* OutVelocities) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformClothLOD);
 
@@ -211,7 +211,7 @@ FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, c
 	OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
 }
 
-void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const TVector<float, 3>& LocalSpaceLocation, TVector<float, 3>* OutPositions, TVector<float, 3>* OutNormals) const
+void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& LocalSpaceLocation, FVec3* OutPositions, FVec3* OutNormals) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSkinPhysicsMesh);
 	SCOPE_CYCLE_COUNTER(STAT_ClothSkinPhysMesh);
@@ -228,8 +228,8 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const TVector<floa
 	ComponentToLocalSpace.AddToTranslation(-LocalSpaceLocation);
 
 	// Zero out positions & normals
-	FMemory::Memzero((uint8*)OutPositions, NumPoints * sizeof(TVector<float, 3>));  // PS4 performance note: It is faster to zero the memory first
-	FMemory::Memzero((uint8*)OutNormals, NumPoints * sizeof(TVector<float, 3>));    // instead of changing this function to work with uninitialized memory
+	FMemory::Memzero((uint8*)OutPositions, NumPoints * sizeof(FVec3));  // PS4 performance note: It is faster to zero the memory first
+	FMemory::Memzero((uint8*)OutNormals, NumPoints * sizeof(FVec3));    // instead of changing this function to work with uninitialized memory
 
 	const int32* const RESTRICT BoneMap = Asset->UsedBoneIndices.GetData();
 	const FMatrix* const RESTRICT BoneMatrices = Context->RefToLocals.GetData();
@@ -245,10 +245,10 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const TVector<floa
 		// done this way because this is a pretty tight and performance critical loop. essentially
 		// rather than checking each influence we can just jump into this switch and fall through
 		// everything to compose the final skinned data
-		const TVector<float, 3>& RefParticle = PhysicalMeshData.Vertices[VertIndex];
-		const TVector<float, 3>& RefNormal = PhysicalMeshData.Normals[VertIndex];
-		TVector<float, 3>& OutPosition = OutPositions[VertIndex];
-		TVector<float, 3>& OutNormal = OutNormals[VertIndex];
+		const FVec3& RefParticle = PhysicalMeshData.Vertices[VertIndex];
+		const FVec3& RefNormal = PhysicalMeshData.Normals[VertIndex];
+		FVec3& OutPosition = OutPositions[VertIndex];
+		FVec3& OutNormal = OutNormals[VertIndex];
 		switch (PhysicalMeshData.BoneData[VertIndex].NumInfluences)
 		{
 		case 12: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[11]]], BoneWeights[11]);  // Intentional fall through
@@ -288,9 +288,9 @@ void FClothingSimulationMesh::Update(
 	}
 
 	// Skin current LOD positions
-	const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
-	TVector<float, 3>* const OutPositions = Solver->GetAnimationPositions(Offset);
-	TVector<float, 3>* const OutNormals = Solver->GetAnimationNormals(Offset);
+	const FVec3& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
+	FVec3* const OutPositions = Solver->GetAnimationPositions(Offset);
+	FVec3* const OutNormals = Solver->GetAnimationNormals(Offset);
 	
 	SkinPhysicsMesh(LODIndex, LocalSpaceLocation, OutPositions, OutNormals);
 
@@ -298,9 +298,9 @@ void FClothingSimulationMesh::Update(
 	if (LODIndex != PrevLODIndex)
 	{
 		// TODO: Using the more accurate skinning method here would require double buffering the context at the skeletal mesh level
-		const TVector<float, 3>* const SrcWrapNormals = Solver->GetAnimationNormals(PrevOffset);  // No need to keep an old normals array around, since the LOD has just changed
-		const TVector<float, 3>* const SrcWrapPositions = Solver->GetOldAnimationPositions(PrevOffset);
-		TVector<float, 3>* const OutOldPositions = Solver->GetOldAnimationPositions(Offset);
+		const FVec3* const SrcWrapNormals = Solver->GetAnimationNormals(PrevOffset);  // No need to keep an old normals array around, since the LOD has just changed
+		const FVec3* const SrcWrapPositions = Solver->GetOldAnimationPositions(PrevOffset);
+		FVec3* const OutOldPositions = Solver->GetOldAnimationPositions(Offset);
 
 		const bool bValidWrap = WrapDeformLOD(PrevLODIndex, LODIndex, SrcWrapNormals, SrcWrapPositions, OutOldPositions);
 	

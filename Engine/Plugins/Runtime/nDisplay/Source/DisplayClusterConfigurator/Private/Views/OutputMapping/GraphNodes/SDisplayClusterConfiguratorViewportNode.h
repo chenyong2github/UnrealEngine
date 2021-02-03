@@ -24,41 +24,37 @@ public:
 
 	void Construct(const FArguments& InArgs,
 		UDisplayClusterConfiguratorViewportNode* InViewportNode,
-		const TSharedRef<FDisplayClusterConfiguratorOutputMappingViewportSlot>& InViewportSlot,
 		const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
 
 	//~ Begin SGraphNode interface
 	virtual void UpdateGraphNode() override;
+	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
+	virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End of SGraphNode interface
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
 	virtual UObject* GetEditingObject() const override;
-	virtual void SetNodePositionOffset(const FVector2D InLocalOffset) override;
-	virtual void SetNodeSize(const FVector2D InLocalSize) override;
+	virtual void SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio) override;
 	virtual void OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
-
-	virtual void SetBackgroundDefaultBrush() override;
-
-	virtual void SetBackgroundBrushFromTexture(UTexture* InTexture) override;
+	virtual bool IsNodeVisible() const override;
+	virtual int32 GetNodeLayerIndex() const override { return DefaultZOrder; }
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 
-private:
-	FSlateColor GetDefaultBackgroundColor() const;
-	FSlateColor GetImageBackgroundColor() const;
+	void SetPreviewTexture(UTexture* InTexture);
 
+private:
+	FSlateColor GetBackgroundColor() const;
+	const FSlateBrush* GetBackgroundBrush() const;
 	const FSlateBrush* GetBorderBrush() const;
 	FText GetPositionAndSizeText() const;
-
+	FMargin GetBackgroundPosition() const;
 	FMargin GetAreaResizeHandlePosition() const;
+	bool IsAspectRatioFixed() const;
 
 private:
-	TWeakObjectPtr<UDisplayClusterConfiguratorViewportNode> ViewportNodePtr;
-
-	TWeakPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlotPtr;
-
-	TWeakObjectPtr<UDisplayClusterConfigurationViewport> CfgViewportPtr;
-
 	FSlateBrush BackgroundActiveBrush;
-
 	TSharedPtr<SImage> BackgroundImage;
+
+private:
+	static const int32 DefaultZOrder;
 };

@@ -449,6 +449,7 @@ namespace DisplaceMeshToolLocals{
 		};
 
 
+
 		// compute Displaced positions in PositionBuffer
 		switch (DisplacementType)
 		{

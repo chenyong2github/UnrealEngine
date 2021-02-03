@@ -254,7 +254,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		{
 			// Could not create session
 			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Session, failing request"));
-			StrongThis->FinishRequest();
+			StrongThis->FinishRequestOnGameThread();
 			return;
 		}
 
@@ -265,7 +265,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		if (!Connection.IsValid())
 		{
 			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Connection, failing request"));
-			StrongThis->FinishRequest();
+			StrongThis->FinishRequestOnGameThread();
 			return;
 		}
 
@@ -280,7 +280,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		if (!Connection->StartRequest())
 		{
 			UE_LOG(LogHttp, Warning, TEXT("Unable to start WinHttp Connection, failing request"));
-			StrongThisRef->FinishRequest();
+			StrongThisRef->FinishRequestOnGameThread();
 			return;
 		}
 
@@ -310,20 +310,7 @@ void FWinHttpHttpRequest::CancelRequest()
 
 	bRequestCancelled = true;
 
-
-	// FinishRequest will cleanup connection
-	if (!IsInGameThread())
-	{
-		// Always finish on the game thread
-		FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared())]()
-		{
-			StrongThis->FinishRequest();
-		});
-	}
-	else
-	{
-		FinishRequest();
-	}
+	FinishRequestOnGameThread();
 }
 
 EHttpRequestStatus::Type FWinHttpHttpRequest::GetStatus() const
@@ -371,7 +358,19 @@ bool FWinHttpHttpRequest::StartThreadedRequest()
 
 bool FWinHttpHttpRequest::IsThreadedRequestComplete()
 {
-	return EHttpRequestStatus::IsFinished(State);
+	if(bRequestCancelled)
+	{
+		return true;
+	}
+
+	if (EHttpRequestStatus::IsFinished(State))
+	{
+		if(RequestStartTimeSeconds.IsSet())
+		{
+			return (FPlatformTime::Seconds() - RequestStartTimeSeconds.GetValue()) >= FHttpModule::Get().GetHttpDelayTime();
+		}		
+	}
+	return false;	
 }
 
 void FWinHttpHttpRequest::TickThreadedRequest(float DeltaSeconds)
@@ -384,8 +383,24 @@ void FWinHttpHttpRequest::TickThreadedRequest(float DeltaSeconds)
 	}
 }
 
+void FWinHttpHttpRequest::FinishRequestOnGameThread()
+{	
+	if (!IsInGameThread())
+	{
+		FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared())]()
+		{
+			StrongThis->FinishRequest();
+		});
+	}
+	else
+	{
+		FinishRequest();
+	}
+}
+
 void FWinHttpHttpRequest::FinishRequest()
 {
+	UE_LOG(LogHttp, Verbose, TEXT("FWinHttpHttpRequest::FinishRequest()  req %p State==[%s]"), this,  EHttpRequestStatus::ToString(State));
 	if (RequestFinishTimeSeconds.IsSet())
 	{
 		// Already finished
@@ -394,11 +409,15 @@ void FWinHttpHttpRequest::FinishRequest()
 	RequestFinishTimeSeconds = FPlatformTime::Seconds();
 
 	// Set our final state if it's not set yet
-	if (!EHttpRequestStatus::IsFinished(State))
+	if (!EHttpRequestStatus::IsFinished(State) && !EHttpRequestStatus::IsFinished(CompletionStatus))
 	{
 		State = EHttpRequestStatus::Failed;
 	}
-
+	else if(!EHttpRequestStatus::IsFinished(State))
+	{
+		State = CompletionStatus;
+	}
+	UE_LOG(LogHttp, Verbose, TEXT("FWinHttpHttpRequest::FinishRequest() req %p State becomes %s]"), this, EHttpRequestStatus::ToString(State));
 	// Shutdown our connection
 	if (Connection.IsValid())
 	{
@@ -447,19 +466,19 @@ void FWinHttpHttpRequest::HandleHeaderReceived(const FString& HeaderKey, const F
 	OnHeaderReceived().ExecuteIfBound(AsShared(), HeaderKey, HeaderValue);
 }
 
-void FWinHttpHttpRequest::HandleRequestComplete(EHttpRequestStatus::Type CompletionStatus)
+void FWinHttpHttpRequest::HandleRequestComplete(EHttpRequestStatus::Type CompletionStatusUpdate)
 {
 	check(IsInGameThread());
-	check(EHttpRequestStatus::IsFinished(CompletionStatus));
+	check(EHttpRequestStatus::IsFinished(CompletionStatusUpdate));
 
-	State = CompletionStatus;
+	CompletionStatus = CompletionStatusUpdate;
 
 	if (CompletionStatus == EHttpRequestStatus::Succeeded)
 	{
 		UpdateResponseBody(true);
 	}
 
-	FinishRequest();
+	FinishRequestOnGameThread();
 }
 
 void FWinHttpHttpRequest::UpdateResponseBody(bool bForceResponseExist)

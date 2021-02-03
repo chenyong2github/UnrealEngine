@@ -233,7 +233,7 @@ namespace Chaos
 
 				//Convert into local space of A to get better precision
 
-				TTriangle<FReal> Triangle(TVec3<FReal>(0), B-A, C-A);
+				TTriangle<FReal> Triangle(FVec3(0), B-A, C-A);
 
 				FReal Time;
 				FVec3 LocalHitPosition;
@@ -532,12 +532,12 @@ namespace Chaos
 		}
 	}
 
-	bool Chaos::FHeightField::GetCellBounds2D(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<FReal, 2>& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::GetCellBounds2D(const TVec2<int32> InCoord, FBounds2D& OutBounds, const FVec2& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
-			OutBounds.Min = TVector<FReal, 2>(InCoord[0], InCoord[1]);
-			OutBounds.Max = TVector<FReal, 2>(InCoord[0] + 1, InCoord[1] + 1);
+			OutBounds.Min = FVec2(InCoord[0], InCoord[1]);
+			OutBounds.Max = FVec2(InCoord[0] + 1, InCoord[1] + 1);
 			OutBounds.Min -= InInflate;
 			OutBounds.Max += InInflate;
 
@@ -598,13 +598,13 @@ namespace Chaos
 	};
 
 	template<bool bFillHeight, bool bFillNormal>
-	FHeightNormalResult GetHeightNormalAt(const TVector<FReal, 2>& InGridLocationLocal, const Chaos::FHeightField::FDataType& InGeomData, const TUniformGrid<Chaos::FReal, 2>& InGrid)
+	FHeightNormalResult GetHeightNormalAt(const FVec2& InGridLocationLocal, const Chaos::FHeightField::FDataType& InGeomData, const TUniformGrid<Chaos::FReal, 2>& InGrid)
 	{
 		FHeightNormalResult Result;
 
 		if(CHAOS_ENSURE(InGridLocationLocal == InGrid.Clamp(InGridLocationLocal)))
 		{
-			TVector<int32, 2> CellCoord = InGrid.Cell(InGridLocationLocal);
+			TVec2<int32> CellCoord = InGrid.Cell(InGridLocationLocal);
 
 			const int32 SingleIndex = CellCoord[1] * (InGeomData.NumCols) + CellCoord[0];
 			FVec3 Pts[4];
@@ -663,16 +663,16 @@ namespace Chaos
 		return GetHeightNormalAt<true, false>(InGridLocationLocal, GeomData, FlatGrid).Height;
 	}
 
-	bool Chaos::FHeightField::GetCellBounds3D(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::GetCellBounds3D(const TVec2<int32> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
 			//todo: just compute max height, avoid extra work since this is called from tight loop
-			TVec3<FReal> Min,Max;
+			FVec3 Min,Max;
 			CalcCellBounds3D(InCoord,Min,Max);
 
-			OutMin = TVec3<FReal>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<FReal>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
+			OutMin = FVec3(InCoord[0], InCoord[1], GeomData.GetMinHeight());
+			OutMax = FVec3(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin - InInflate;
 			OutMax = OutMax + InInflate;
 
@@ -682,15 +682,15 @@ namespace Chaos
 		return false;
 	}
 
-	bool Chaos::FHeightField::GetCellBounds2DScaled(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<FReal, 2>& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::GetCellBounds2DScaled(const TVec2<int32> InCoord, FBounds2D& OutBounds, const FVec2& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
-			OutBounds.Min = TVector<FReal, 2>(InCoord[0], InCoord[1]);
-			OutBounds.Max = TVector<FReal, 2>(InCoord[0] + 1, InCoord[1] + 1);
+			OutBounds.Min = FVec2(InCoord[0], InCoord[1]);
+			OutBounds.Max = FVec2(InCoord[0] + 1, InCoord[1] + 1);
 			OutBounds.Min -= InInflate;
 			OutBounds.Max += InInflate;
-			const TVector<float, 2> Scale2D = TVector<FReal, 2>(GeomData.Scale[0], GeomData.Scale[1]);
+			const FVec2 Scale2D = FVec2(GeomData.Scale[0], GeomData.Scale[1]);
 			OutBounds.Min *= Scale2D;
 			OutBounds.Max *= Scale2D;
 			return true;
@@ -699,16 +699,16 @@ namespace Chaos
 		return false;
 	}
 
-	bool Chaos::FHeightField::GetCellBounds3DScaled(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::GetCellBounds3DScaled(const TVec2<int32> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
 		{
 			//todo: just compute max height, avoid extra work since this is called from tight loop
-			TVec3<FReal> Min,Max;
+			FVec3 Min,Max;
 			CalcCellBounds3D(InCoord,Min,Max);
 
-			OutMin = TVec3<FReal>(InCoord[0], InCoord[1], GeomData.GetMinHeight());
-			OutMax = TVec3<FReal>(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
+			OutMin = FVec3(InCoord[0], InCoord[1], GeomData.GetMinHeight());
+			OutMax = FVec3(InCoord[0] + 1, InCoord[1] + 1, Max[2]);
 			OutMin = OutMin * GeomData.Scale - InInflate;
 			OutMax = OutMax * GeomData.Scale + InInflate;
 			return true;
@@ -717,7 +717,7 @@ namespace Chaos
 		return false;
 	}
 
-	bool Chaos::FHeightField::CalcCellBounds3D(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
+	bool Chaos::FHeightField::CalcCellBounds3D(const TVec2<int32> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
 	{
 		if(FlatGrid.IsValid(InCoord))
 		{
@@ -753,8 +753,8 @@ namespace Chaos
 		}
 
 		FReal CurrentLength = Length;
-		TVector<FReal, 2> ClippedFlatRayStart;
-		TVector<FReal, 2> ClippedFlatRayEnd;
+		FVec2 ClippedFlatRayStart;
+		FVec2 ClippedFlatRayEnd;
 
 		// Data for fast box cast
 		FVec3 Min, Max, HitPoint;
@@ -771,23 +771,23 @@ namespace Chaos
 		FReal TOI;
 		const FBounds2D FlatBounds = GetFlatBounds();
 		TAABB<FReal, 3> Bounds(
-			TVec3<FReal>(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
-			TVec3<FReal>(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
+			FVec3(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
+			FVec3(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
 			);
 		FVec3 NextStart;
 
 		if(Bounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvCurrentLength, TOI, NextStart))
 		{
-			const TVector<FReal, 2> Scale2D(GeomData.Scale[0],GeomData.Scale[1]);
-			TVector<int32,2> CellIdx = FlatGrid.Cell(TVector<int32,2>(NextStart[0] / Scale2D[0], NextStart[1] / Scale2D[1]));
+			const FVec2 Scale2D(GeomData.Scale[0],GeomData.Scale[1]);
+			TVec2<int32> CellIdx = FlatGrid.Cell(TVec2<int32>(NextStart[0] / Scale2D[0], NextStart[1] / Scale2D[1]));
 
 			// Boundaries might push us one cell over
 			CellIdx = FlatGrid.ClampIndex(CellIdx);
 			const FReal ZDx = Bounds.Extents()[2];
 			const FReal ZMidPoint = Bounds.Min()[2] + ZDx * 0.5;
 			const FVec3 ScaledDx(FlatGrid.Dx()[0] * Scale2D[0],FlatGrid.Dx()[1] * Scale2D[1],ZDx);
-			const TVector<FReal, 2> ScaledDx2D(ScaledDx[0],ScaledDx[1]);
-			const TVector<FReal, 2> ScaledMin = FlatGrid.MinCorner() * Scale2D;
+			const FVec2 ScaledDx2D(ScaledDx[0],ScaledDx[1]);
+			const FVec2 ScaledMin = FlatGrid.MinCorner() * Scale2D;
 
 			//START
 			do
@@ -811,7 +811,7 @@ namespace Chaos
 				//find next cell
 
 				//We want to know which plane we used to cross into next cell
-				const TVector<FReal, 2> ScaledCellCenter2D = ScaledMin + TVector<FReal, 2>(CellIdx[0] + 0.5,CellIdx[1] + 0.5) * ScaledDx2D;
+				const FVec2 ScaledCellCenter2D = ScaledMin + FVec2(CellIdx[0] + 0.5,CellIdx[1] + 0.5) * ScaledDx2D;
 				const FVec3 ScaledCellCenter(ScaledCellCenter2D[0], ScaledCellCenter2D[1], ZMidPoint);
 
 				FReal Times[3];
@@ -841,7 +841,7 @@ namespace Chaos
 					return false;
 				}
 
-				const TVector<int32,2> PrevIdx = CellIdx;
+				const TVec2<int32> PrevIdx = CellIdx;
 
 				for(int Axis = 0; Axis < 2; ++Axis)
 				{
@@ -867,7 +867,7 @@ namespace Chaos
 
 	struct F2DGridSet
 	{
-		F2DGridSet(TVector<int32, 2> Size)
+		F2DGridSet(TVec2<int32> Size)
 			: NumX(Size[0])
 			, NumY(Size[1])
 		{
@@ -877,7 +877,7 @@ namespace Chaos
 			FMemory::Memzero(Data.Get(), DataSize);
 		}
 
-		bool Contains(const TVector<int32, 2>& Coordinate)
+		bool Contains(const TVec2<int32>& Coordinate)
 		{
 			int32 Idx = Coordinate[1] * NumX + Coordinate[0];
 			int32 ByteIdx = Idx / 8;
@@ -887,7 +887,7 @@ namespace Chaos
 			return bContains;
 		}
 
-		void Add(const TVector<int32, 2>& Coordinate)
+		void Add(const TVec2<int32>& Coordinate)
 		{
 			int32 Idx = Coordinate[1] * NumX + Coordinate[0];
 			int32 ByteIdx = Idx / 8;
@@ -905,7 +905,7 @@ namespace Chaos
 	};
 
 	template<typename SQVisitor>
-	bool FHeightField::GridSweep(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const TVector<FReal, 2> InHalfExtents, SQVisitor& Visitor) const
+	bool FHeightField::GridSweep(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FVec2 InHalfExtents, SQVisitor& Visitor) const
 	{
 		FReal CurrentLength = Length;
 
@@ -916,18 +916,18 @@ namespace Chaos
 		FVec3 HalfExtents3D(InHalfExtents[0], InHalfExtents[1], InHalfExtents[1]);
 
 		const FVec3 EndPoint = StartPoint + Dir * Length;
-		const TVector<FReal, 2> Start2D(StartPoint[0], StartPoint[1]);
-		const TVector<FReal, 2> End2D(EndPoint[0], EndPoint[1]);
-		const TVector<FReal, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
+		const FVec2 Start2D(StartPoint[0], StartPoint[1]);
+		const FVec2 End2D(EndPoint[0], EndPoint[1]);
+		const FVec2 Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
 
-		TVector<FReal, 2> ClippedStart;
-		TVector<FReal, 2> ClippedEnd;
+		FVec2 ClippedStart;
+		FVec2 ClippedEnd;
 
 		if(InflatedBounds.ClipLine(StartPoint, StartPoint + Dir * Length, ClippedStart, ClippedEnd))
 		{
 			// Rasterize the line over the grid
-			TVector<int32, 2> StartCell = FlatGrid.Cell(ClippedStart / Scale2D);
-			TVector<int32, 2> EndCell = FlatGrid.Cell(ClippedEnd / Scale2D);
+			TVec2<int32> StartCell = FlatGrid.Cell(ClippedStart / Scale2D);
+			TVec2<int32> EndCell = FlatGrid.Cell(ClippedEnd / Scale2D);
 
 			// Boundaries might push us one cell over
 			StartCell = FlatGrid.ClampIndex(StartCell);
@@ -940,11 +940,11 @@ namespace Chaos
 			const int32 DirX = StartCell[0] < EndCell[0] ? 1 : -1;
 			const int32 DirY = StartCell[1] < EndCell[1] ? 1 : -1;
 			int32 Error = DeltaX + DeltaY;
-			const TVector<int32, 2> ThickenDir = FMath::Abs(DeltaX) > FMath::Abs(DeltaY) ? TVector<int32, 2>(0, 1) : TVector<int32, 2>(1, 0);
+			const TVec2<int32> ThickenDir = FMath::Abs(DeltaX) > FMath::Abs(DeltaY) ? TVec2<int32>(0, 1) : TVec2<int32>(1, 0);
 
 			struct FQueueEntry
 			{
-				TVector<int32, 2> Index;
+				TVec2<int32> Index;
 				FReal ToI;
 			};
 
@@ -990,16 +990,16 @@ namespace Chaos
 
 					// Flatten out a double loop and skip the centre cell
 					// to search cells immediately adjacent to the current cell
-					static const TVector<int32, 2> Neighbors[] =
+					static const TVec2<int32> Neighbors[] =
 					{
 						{-1, -1}, {0, -1}, {1, -1},
 						{-1, 0}, {1, 0},
 						{-1, 1}, {0, 1}, {1, 1}
 					};
 
-					for(const TVector<int32, 2>& Neighbor : Neighbors)
+					for(const TVec2<int32>& Neighbor : Neighbors)
 					{
-						TVector<int32, 2> NeighCoord = CellCoord.Index + Neighbor;
+						TVec2<int32> NeighCoord = CellCoord.Index + Neighbor;
 
 						FBounds2D CellBounds;
 						if(GetCellBounds3DScaled(NeighCoord, Min, Max, HalfExtents3D) && !Seen.Contains(NeighCoord))
@@ -1019,9 +1019,9 @@ namespace Chaos
 					// it's cheaper to just expand in the cardinal opposite the current major direction. We end up
 					// doing a broad test on more cells but avoid having to run many rasterize/walk steps for each
 					// perpendicular step.
-					auto Expand = [&](const TVector<int32, 2>& Begin, const TVector<int32, 2>& Direction, const int32 NumSteps)
+					auto Expand = [&](const TVec2<int32>& Begin, const TVec2<int32>& Direction, const int32 NumSteps)
 					{
-						TVector<int32, 2> CurrentCell = Begin;
+						TVec2<int32> CurrentCell = Begin;
 
 						for(int32 CurrStep = 0; CurrStep < NumSteps; ++CurrStep)
 						{
@@ -1044,7 +1044,7 @@ namespace Chaos
 					};
 
 					// Check the current cell, if we hit its 3D bound we can move on to narrow phase
-					const TVector<int32, 2> Coord = CellCoord.Index;
+					const TVec2<int32> Coord = CellCoord.Index;
 					if(GetCellBounds3DScaled(Coord, Min, Max, HalfExtents3D) &&
 						TAABB<FReal, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
 					{
@@ -1114,7 +1114,7 @@ namespace Chaos
 
 		if(Thickness > 0)
 		{
-			GridSweep(StartPoint, Dir, Length, TVector<FReal, 2>(Thickness), Visitor);
+			GridSweep(StartPoint, Dir, Length, FVec2(Thickness), Visitor);
 		}
 		else
 		{
@@ -1133,17 +1133,17 @@ namespace Chaos
 		return false;
 	}
 
-	bool Chaos::FHeightField::GetGridIntersections(FBounds2D InFlatBounds, TArray<TVector<int32, 2>>& OutInterssctions) const
+	bool Chaos::FHeightField::GetGridIntersections(FBounds2D InFlatBounds, TArray<TVec2<int32>>& OutInterssctions) const
 	{
 		OutInterssctions.Reset();
 
 		const FBounds2D FlatBounds = GetFlatBounds();
-		const TVector<FReal, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
+		const FVec2 Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
 
 		InFlatBounds.Min = FlatBounds.Clamp(InFlatBounds.Min);
 		InFlatBounds.Max = FlatBounds.Clamp(InFlatBounds.Max);
-		TVector<int32, 2> MinCell = FlatGrid.Cell(InFlatBounds.Min / Scale2D);
-		TVector<int32, 2> MaxCell = FlatGrid.Cell(InFlatBounds.Max / Scale2D);
+		TVec2<int32> MinCell = FlatGrid.Cell(InFlatBounds.Min / Scale2D);
+		TVec2<int32> MaxCell = FlatGrid.Cell(InFlatBounds.Max / Scale2D);
 		MinCell = FlatGrid.ClampIndex(MinCell);
 		MaxCell = FlatGrid.ClampIndex(MaxCell);
 
@@ -1155,7 +1155,7 @@ namespace Chaos
 		{
 			for(int32 CurrY = 0; CurrY < NumY; ++CurrY)
 			{
-				OutInterssctions.Add(FlatGrid.ClampIndex(TVector<int32, 2>(MinCell[0] + CurrX, MinCell[1] + CurrY)));
+				OutInterssctions.Add(FlatGrid.ClampIndex(TVec2<int32>(MinCell[0] + CurrX, MinCell[1] + CurrY)));
 			}
 		}
 
@@ -1165,8 +1165,8 @@ namespace Chaos
 	typename Chaos::FHeightField::FBounds2D Chaos::FHeightField::GetFlatBounds() const
 	{
 		FBounds2D Result;
-		Result.Min = TVector<FReal, 2>(CachedBounds.Min()[0], CachedBounds.Min()[1]);
-		Result.Max = TVector<FReal, 2>(CachedBounds.Max()[0], CachedBounds.Max()[1]);
+		Result.Min = FVec2(CachedBounds.Min()[0], CachedBounds.Min()[1]);
+		Result.Max = FVec2(CachedBounds.Max()[0], CachedBounds.Max()[1]);
 		return Result;
 	}
 
@@ -1200,15 +1200,15 @@ namespace Chaos
 		QueryBounds.Thicken(Thickness);
 
 		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = TVector<FReal, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = TVector<FReal, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+		FlatQueryBounds.Min = FVec2(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
 
-		TArray<TVector<int32, 2>> Intersections;
+		TArray<TVec2<int32>> Intersections;
 		FVec3 Points[4];
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
-		for(const TVector<int32, 2>& Cell : Intersections)
+		for(const TVec2<int32>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
 			GeomData.GetPointsScaled(SingleIndex, Points);
@@ -1243,7 +1243,7 @@ namespace Chaos
 			TTriangle<FReal> TriangleConvex(A, B, C);
 
 			FReal Penetration;
-			TVec3<FReal> ClosestA, ClosestB, Normal;
+			FVec3 ClosestA, ClosestB, Normal;
 
 			if (bOneSidedHeightField)
 			{
@@ -1286,17 +1286,17 @@ namespace Chaos
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 
 		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = TVector<FReal, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = TVector<FReal, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+		FlatQueryBounds.Min = FVec2(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
 
-		TArray<TVector<int32, 2>> Intersections;
+		TArray<TVec2<int32>> Intersections;
 		FVec3 Points[4];
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
 		FReal LocalContactPhi = FLT_MAX;
 		FVec3 LocalContactLocation, LocalContactNormal;
-		for (const TVector<int32, 2>& Cell : Intersections)
+		for (const TVec2<int32>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * GeomData.NumCols + Cell[0];
 			const int32 CellIndex = Cell[1] * (GeomData.NumCols - 1) + Cell[0];
@@ -1382,7 +1382,7 @@ namespace Chaos
 	{
 		if (OutMTD)
 		{
-			OutMTD->Normal = TVec3<FReal>(0);
+			OutMTD->Normal = FVec3(0);
 			OutMTD->Penetration = TNumericLimits<FReal>::Lowest();
 		}
 
@@ -1398,10 +1398,10 @@ namespace Chaos
 			TTriangle<FReal> TriangleConvex(A, B, C);
 			if (InnerMTD)
 			{
-				TVec3<FReal> TriangleNormal(0);
+				FVec3 TriangleNormal(0);
 				FReal Penetration = 0;
-				TVec3<FReal> ClosestA(0);
-				TVec3<FReal> ClosestB(0);
+				FVec3 ClosestA(0);
+				FVec3 ClosestB(0);
 				int32 ClosestVertexIndexA, ClosestVertexIndexB;
 				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
 				{
@@ -1428,16 +1428,16 @@ namespace Chaos
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 
 		FBounds2D FlatQueryBounds;
-		FlatQueryBounds.Min = TVector<FReal, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
-		FlatQueryBounds.Max = TVector<FReal, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+		FlatQueryBounds.Min = FVec2(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
 
-		TArray<TVector<int32, 2>> Intersections;
+		TArray<TVec2<int32>> Intersections;
 		FVec3 Points[4];
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
 		bool bOverlaps = false;
-		for(const TVector<int32, 2>& Cell : Intersections)
+		for(const TVec2<int32>& Cell : Intersections)
 		{
 			const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
 			GeomData.GetPointsScaled(SingleIndex, Points);
@@ -1513,7 +1513,7 @@ namespace Chaos
 		const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 
 		const FVec3 Inflation3D = QueryBounds.Extents() * 0.5 + FVec3(Thickness);
-		GridSweep(StartPoint, Dir, Length, TVector<FReal, 2>(Inflation3D[0], Inflation3D[1]), SQVisitor);
+		GridSweep(StartPoint, Dir, Length, FVec2(Inflation3D[0], Inflation3D[1]), SQVisitor);
 
 		if(SQVisitor.OutTime <= Length)
 		{
@@ -1573,7 +1573,7 @@ namespace Chaos
 
 		TAABB<FReal, 3> QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
 		const FBounds2D FlatBounds(QueryBounds);
-		TArray<TVector<int32, 2>> PotentialIntersections;
+		TArray<TVec2<int32>> PotentialIntersections;
 		GetGridIntersections(FlatBounds, PotentialIntersections);
 
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
@@ -1606,7 +1606,7 @@ namespace Chaos
 		};
 
 		ensure(PotentialIntersections.Num());
-		for(const TVector<int32, 2>& CellCoord : PotentialIntersections)
+		for(const TVec2<int32>& CellCoord : PotentialIntersections)
 		{
 			const int32 CellIndex = CellCoord[1] * (GeomData.NumCols - 1) + CellCoord[0];
 			const int32 SubX = CellIndex % (GeomData.NumCols - 1);
@@ -1746,10 +1746,10 @@ namespace Chaos
 	void FHeightField::BuildQueryData()
 	{
 		// NumCols and NumRows are the actual heights, there are n-1 cells between those heights
-		TVector<int32, 2> Cells(GeomData.NumCols - 1, GeomData.NumRows - 1);
+		TVec2<int32> Cells(GeomData.NumCols - 1, GeomData.NumRows - 1);
 		
-		TVector<FReal, 2> MinCorner(0, 0);
-		TVector<FReal, 2> MaxCorner(GeomData.NumCols - 1, GeomData.NumRows - 1);
+		FVec2 MinCorner(0, 0);
+		FVec2 MaxCorner(GeomData.NumCols - 1, GeomData.NumRows - 1);
 		//MaxCorner *= {GeomData.Scale[0], GeomData.Scale[1]};
 
 		FlatGrid = TUniformGrid<FReal, 2>(MinCorner, MaxCorner, Cells);

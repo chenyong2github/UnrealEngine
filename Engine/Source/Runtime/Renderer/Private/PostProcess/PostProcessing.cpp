@@ -1356,6 +1356,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		Tonemap,
 		PostProcessMaterialAfterTonemapping,
 		TAA,
+		FXAA,
 		HighResolutionScreenshotMask,
 		SelectionOutline,
 		EditorPrimitive,
@@ -1378,6 +1379,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		TEXT("Tonemap"),
 		TEXT("PostProcessMaterial (AfterTonemapping)"),
 		TEXT("TAA"),
+		TEXT("FXAA"),
 		TEXT("HighResolutionScreenshotMask"),
 		TEXT("SelectionOutline"),
 		TEXT("EditorPrimitive"),
@@ -1497,7 +1499,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			// Skip if we don't have any exposure range to generate (eye adaptation will clamp).
 			View.FinalPostProcessSettings.AutoExposureMinBrightness < View.FinalPostProcessSettings.AutoExposureMaxBrightness;
 
-		bool bUseAa = View.AntiAliasingMethod == AAM_TemporalAA;
+		bool bUseTAA = View.AntiAliasingMethod == AAM_TemporalAA;
 
 		bool bUseDistortion = IsMobileDistortionActive(View);
 
@@ -1514,7 +1516,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		PassSequence.SetEnabled(EPass::SunMerge, bUseBloom || bUseSun);
 		PassSequence.SetEnabled(EPass::SeparateTranslucency, bUseSeparateTranslucency);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
-		PassSequence.SetEnabled(EPass::TAA, bUseAa);
+		PassSequence.SetEnabled(EPass::TAA, bUseTAA);
+		PassSequence.SetEnabled(EPass::FXAA, View.AntiAliasingMethod == AAM_FXAA);
 		PassSequence.Finalize();
 			
 		if (PassSequence.IsEnabled(EPass::Distortion))
@@ -1811,17 +1814,16 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			SunMergeInputs.SunBlur = SunBlurOutputs;
 			SunMergeInputs.bUseBloom = bUseBloom;
 			SunMergeInputs.bUseSun = bUseSun;
-			SunMergeInputs.bUseAa = bUseAa;
 
 			BloomOutput = AddMobileSunMergePass(GraphBuilder, View, SunMergeInputs);
 
-			if (bUseAa && View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
+			if (bUseTAA && View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
 			{
 				GraphBuilder.QueueTextureExtraction(BloomOutput.Texture, &View.ViewState->PrevFrameViewInfo.MobileAaBloomSunVignette);
 			}
 
 			// Mobile temporal AA requires a composite of two of these frames.
-			if (bUseAa)
+			if (bUseTAA)
 			{
 				FMobileSunAvgInputs SunAvgInputs;
 				SunAvgInputs.SunMerge = BloomOutput;
@@ -1951,6 +1953,16 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			}
 
 			SceneColor = AddMobileTAAPass(GraphBuilder, View, TAAInputs);
+		}
+
+		if (PassSequence.IsEnabled(EPass::FXAA))
+		{
+			FFXAAInputs PassInputs;
+			PassSequence.AcceptOverrideIfLastPass(EPass::FXAA, PassInputs.OverrideOutput);
+			PassInputs.SceneColor = SceneColor;
+			PassInputs.Quality = GetFXAAQuality();
+
+			SceneColor = AddFXAAPass(GraphBuilder, View, PassInputs);
 		}
 	}
 

@@ -2471,7 +2471,7 @@ namespace CrossCompiler
 			// Break if EOL
 			if (Match(ShaderSource, '\n'))
 			{
-				break;
+				return true;
 			}
 
 			// Has to be a comma!
@@ -2485,7 +2485,8 @@ namespace CrossCompiler
 			return false;
 		}
 
-		return true;
+		// Last character must be EOL
+		return Match(ShaderSource, '\n');
 	}
 
 } // namespace CrossCompiler

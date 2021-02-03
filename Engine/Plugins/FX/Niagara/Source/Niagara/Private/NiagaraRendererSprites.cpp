@@ -286,7 +286,6 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	PerViewUniformParameters.NormalsType = 0.0f;
 	PerViewUniformParameters.NormalsSphereCenter = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
 	PerViewUniformParameters.NormalsCylinderUnitDirection = FVector4(0.0f, 0.0f, 1.0f, 0.0f);
-	PerViewUniformParameters.PivotOffset = PivotInUVSpace * -1.0f; // We do this because we want to slide the coordinates back since 0,0 is the upper left corner.
 	PerViewUniformParameters.MacroUVParameters = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
 	PerViewUniformParameters.CameraFacingBlend = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
 	PerViewUniformParameters.RemoveHMDRoll = bRemoveHMDRollInVR;
@@ -296,6 +295,7 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());
 	PerViewUniformParameters.DefaultSize = FVector2D(50.f, 50.0f);
 	PerViewUniformParameters.DefaultUVScale = FVector2D(1.0f, 1.0f);
+	PerViewUniformParameters.DefaultPivotOffset = PivotInUVSpace;
 	PerViewUniformParameters.DefaultVelocity = FVector(0.f, 0.0f, 0.0f);
 	PerViewUniformParameters.DefaultRotation =  0.0f;
 	PerViewUniformParameters.DefaultColor = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -327,6 +327,7 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 		PerViewUniformParameters.AlignmentDataOffset = VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset();
 		PerViewUniformParameters.CameraOffsetDataOffset = VFVariables[ENiagaraSpriteVFLayout::CameraOffset].GetGPUOffset();
 		PerViewUniformParameters.UVScaleDataOffset = VFVariables[ENiagaraSpriteVFLayout::UVScale].GetGPUOffset();
+		PerViewUniformParameters.PivotOffsetDataOffset = VFVariables[ENiagaraSpriteVFLayout::PivotOffset].GetGPUOffset();
 		PerViewUniformParameters.NormalizedAgeDataOffset = VFVariables[ENiagaraSpriteVFLayout::NormalizedAge].GetGPUOffset();
 		PerViewUniformParameters.MaterialRandomDataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialRandom].GetGPUOffset();
 	}
@@ -346,6 +347,7 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 		PerViewUniformParameters.AlignmentDataOffset = INDEX_NONE;
 		PerViewUniformParameters.CameraOffsetDataOffset = INDEX_NONE;
 		PerViewUniformParameters.UVScaleDataOffset = INDEX_NONE;
+		PerViewUniformParameters.PivotOffsetDataOffset = INDEX_NONE;
 		PerViewUniformParameters.NormalizedAgeDataOffset = INDEX_NONE;
 		PerViewUniformParameters.MaterialRandomDataOffset = INDEX_NONE;
 	}
@@ -414,6 +416,9 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 					break;
 				case ENiagaraSpriteVFLayout::Type::UVScale:					
 					memcpy(&PerViewUniformParameters.DefaultUVScale, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector2D));
+					break;
+				case ENiagaraSpriteVFLayout::Type::PivotOffset:
+					memcpy(&PerViewUniformParameters.DefaultPivotOffset, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(FVector2D));
 					break;
 				case ENiagaraSpriteVFLayout::Type::MaterialRandom:	
 					memcpy(&PerViewUniformParameters.DefaultMatRandom, DynamicDataSprites->ParameterDataBound.GetData() + VFBoundOffsetsInParamStore[i], sizeof(float));

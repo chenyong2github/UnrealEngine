@@ -523,7 +523,10 @@ uint32 FAssetDataGatherer::Run()
 				if (FAssetRegistryVersion::SerializeVersion(*FileAr, RegistryVersion) && RegistryVersion == FAssetRegistryVersion::LatestVersion)
 				{
 					FAssetRegistryReader RegistryReader(*FileAr);
-					SerializeCache(RegistryReader);
+					if (!RegistryReader.IsError())
+					{
+						SerializeCache(RegistryReader);
+					}	
 				}
 			}
 		}

@@ -30,7 +30,7 @@ FText UDataprepSelectionTransform::GetTooltip_Implementation() const
 
 FText UDataprepSelectionTransform::GetCategory_Implementation() const
 {
-	return LOCTEXT("DefaultSelectionTransformCategory", "");
+	return LOCTEXT("DefaultSelectionTransformCategory", "Selection Transform");
 }
 
 FText UDataprepSelectionTransform::GetAdditionalKeyword_Implementation() const

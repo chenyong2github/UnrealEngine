@@ -830,7 +830,7 @@ static bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, ESha
 		SignalProcessing == ESignalProcessing::VirtualShadowMapMask
 		)
 	{
-		return Platform == SP_PCD3D_SM5 || FDataDrivenShaderPlatformInfo::GetCompileSignalProcessingPipeline(FStaticShaderPlatform(Platform)) || Platform == SP_XBOXONE_D3D12 || Platform == SP_METAL_SM5 || FDataDrivenShaderPlatformInfo::GetSupportsSSDIndirect(Platform);
+		return Platform == SP_PCD3D_SM5 || FDataDrivenShaderPlatformInfo::GetCompileSignalProcessingPipeline(FStaticShaderPlatform(Platform)) || Platform == SP_METAL_SM5 || FDataDrivenShaderPlatformInfo::GetSupportsSSDIndirect(Platform);
 	}
 	else if (SignalProcessing == ESignalProcessing::Reflections)
 	{

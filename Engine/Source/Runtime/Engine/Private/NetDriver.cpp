@@ -1266,14 +1266,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 
 	if ( CurrentRealtimeSeconds - LastCleanupTime > CleanupTimeSeconds )
 	{
-		for ( auto It = RepChangedPropertyTrackerMap.CreateIterator(); It; ++It )
-		{
-			if ( !It.Value().IsObjectValid() )
-			{
-				It.RemoveCurrent();
-			}
-		}
-
 		for ( auto It = ReplicationChangeListMap.CreateIterator(); It; ++It )
 		{
 			if ( !It.Value().IsObjectValid() )
@@ -3492,6 +3484,14 @@ void UNetDriver::PostGarbageCollect()
 	}
 
 	for (auto It = ReplicationChangeListMap.CreateIterator(); It; ++It)
+	{
+		if (!It.Value().IsObjectValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	for (auto It = RepChangedPropertyTrackerMap.CreateIterator(); It; ++It)
 	{
 		if (!It.Value().IsObjectValid())
 		{

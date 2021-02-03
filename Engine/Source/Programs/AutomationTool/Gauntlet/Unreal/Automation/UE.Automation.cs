@@ -374,8 +374,9 @@ namespace UE
 		{
 			int ExitCode = base.GetExitCodeAndReason(InArtifacts, out ExitReason);
 
-			// The editor is the main arbiter of success
-			if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
+			// The editor is an additional arbiter of success
+			if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor 
+				&& InArtifacts.LogSummary.HasAbnormalExit == false)
 			{
 				// if no fatal errors, check test results
 				if (InArtifacts.LogParser.GetFatalError() == null)
@@ -441,6 +442,12 @@ namespace UE
 		{
 			MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
 
+			// If there were abnormal exits then don't add any custom summary. It just confuses things.
+			if (GetArtifactsThatExitedAbnormally().Any())
+			{
+				return MB.ToString();
+			}
+
 			// Everything we need is in the editor artifacts
 			var EditorArtifacts = SessionArtifacts.Where(A => A.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
 
@@ -491,7 +498,7 @@ namespace UE
 						foreach (AutomationTestResult Result in IncompleteTests)
 						{
 							MB.H4(string.Format("{0}", Result.FullName));
-							MB.UnorderedList(Result.Events);
+							MB.UnorderedList(Result.WarningAndErrorEvents.Distinct());
 						}
 					}
 

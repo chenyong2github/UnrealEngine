@@ -1940,6 +1940,28 @@ void SAssetView::RefreshFilteredItems()
 	UE_LOG(LogContentBrowser, VeryVerbose, TEXT("AssetView - RefreshFilteredItems completed in %0.4f seconds"), FPlatformTime::Seconds() - RefreshFilteredItemsStartTime);
 }
 
+void SAssetView::ToggleShowAllFolder()
+{
+	GetMutableDefault<UContentBrowserSettings>()->ShowAllFolder = !GetDefault<UContentBrowserSettings>()->ShowAllFolder;
+	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+}
+
+bool SAssetView::IsShowingAllFolder() const
+{
+	return GetDefault<UContentBrowserSettings>()->ShowAllFolder;
+}
+
+void SAssetView::ToggleOrganizeFolders()
+{
+	GetMutableDefault<UContentBrowserSettings>()->OrganizeFolders = !GetDefault<UContentBrowserSettings>()->OrganizeFolders;
+	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+}
+
+bool SAssetView::IsOrganizingFolders() const
+{
+	return GetDefault<UContentBrowserSettings>()->OrganizeFolders;
+}
+
 void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 {
 	if (CurrentViewType != EAssetViewType::Column)
@@ -2382,6 +2404,32 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 			),
 			EUserInterfaceActionType::ToggleButton
 		);
+
+		//Section.AddMenuEntry(
+		//	"ShowAllFolder",
+		//	LOCTEXT("ShowAllFolderOption", "Show All Folder"),
+		//	LOCTEXT("ShowAllFolderOptionToolTip", "Show the all folder in the view?"),
+		//	FSlateIcon(),
+		//	FUIAction(
+		//		FExecuteAction::CreateSP(this, &SAssetView::ToggleShowAllFolder),
+		//		FCanExecuteAction(),
+		//		FIsActionChecked::CreateSP(this, &SAssetView::IsShowingAllFolder)
+		//	),
+		//	EUserInterfaceActionType::ToggleButton
+		//);
+
+		//Section.AddMenuEntry(
+		//	"OrganizeFolders",
+		//	LOCTEXT("OrganizeFoldersOption", "Organize Folders"),
+		//	LOCTEXT("OrganizeFoldersOptionToolTip", "Organize folders in the view?"),
+		//	FSlateIcon(),
+		//	FUIAction(
+		//		FExecuteAction::CreateSP(this, &SAssetView::ToggleOrganizeFolders),
+		//		FCanExecuteAction(),
+		//		FIsActionChecked::CreateSP(this, &SAssetView::IsOrganizingFolders)
+		//	),
+		//	EUserInterfaceActionType::ToggleButton
+		//);
 
 		if (bShowPathViewFilters)
 		{

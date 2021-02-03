@@ -11,6 +11,10 @@
 #define UE_USE_VERYLARGEPAGEALLOCATOR 0
 #endif
 
+#ifndef UE_ALLOW_OSMEMORYLOCKFREE
+#define UE_ALLOW_OSMEMORYLOCKFREE 0
+#endif
+
 
 // Sizes.
 

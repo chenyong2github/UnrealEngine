@@ -13,6 +13,7 @@
 class FBlueprintActionDatabaseRegistrar;
 class UDataprepActionAsset;
 class UDataprepActionStep;
+class UDataprepAsset;
 
 /**
  * The UDataprepGraphActionStepNode class is used as the UEdGraphNode associated
@@ -96,4 +97,60 @@ protected:
 
 	UPROPERTY()
 	int32 ExecutionOrder;
+};
+
+UCLASS(MinimalAPI)
+class UDataprepGraphActionGroupNode final : public UEdGraphNode
+{
+	GENERATED_BODY()
+
+public:
+	UDataprepGraphActionGroupNode();
+
+	// Begin EdGraphNode interface
+	virtual bool ShowPaletteIconOnNode() const override { return false; }
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual void DestroyNode() override;
+	TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
+	// End EdGraphNode interface
+
+	void Initialize(TWeakObjectPtr<UDataprepAsset> InDataprepAssetPtr, TArray<UDataprepActionAsset*>& InActions, int32 InExecutionOrder) 
+	{
+		DataprepAssetPtr = InDataprepAssetPtr;
+		Actions = InActions;
+		ExecutionOrder = InExecutionOrder;
+	}
+
+	int32 GetExecutionOrder() const { return ExecutionOrder; }
+
+	int32 GetGroupId() const;
+
+	UDataprepActionAsset* GetAction(int32 Index) const
+	{
+		check(Index < Actions.Num());
+		return Actions[Index];
+	}
+
+	UDataprepAsset* GetDataprepAsset()
+	{
+		return DataprepAssetPtr.Get();
+	}
+
+	int32 GetActionsCount() const
+	{
+		return Actions.Num();
+	}
+
+protected:
+	UPROPERTY()
+	int32 ExecutionOrder;
+
+	UPROPERTY()
+	FString NodeTitle;
+
+	UPROPERTY()
+	TArray<UDataprepActionAsset*> Actions;
+
+	UPROPERTY()
+	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 };

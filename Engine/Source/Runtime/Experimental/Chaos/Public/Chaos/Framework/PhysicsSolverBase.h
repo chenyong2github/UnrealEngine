@@ -174,9 +174,9 @@ namespace Chaos
 		//Because of this we keep the index alive for as long as the async callback can lag behind. This way as long as you immediately consume the output, you will always be sure the unique index was not released.
 		//Practically the flow should always be like this:
 		//advance the solver and trigger callbacks. Callbacks write to outputs. Consume the outputs on GT and use this function _before_ advancing solver again
-		TGeometryParticle<FReal, 3>* UniqueIdxToGTParticle_External(const FUniqueIdx& UniqueIdx) const
+		FGeometryParticle* UniqueIdxToGTParticle_External(const FUniqueIdx& UniqueIdx) const
 		{
-			TGeometryParticle<FReal, 3>* Result = nullptr;
+			FGeometryParticle* Result = nullptr;
 			if (ensure(UniqueIdx.Idx < UniqueIdxToGTParticles.Num()))	//asking for particle on index that has never been allocated
 			{
 				Result = UniqueIdxToGTParticles[UniqueIdx.Idx];
@@ -369,7 +369,7 @@ namespace Chaos
 			}
 		}
 
-		void UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete);
+		void UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle,bool bDelete);
 
 		bool IsPaused_External() const
 		{
@@ -494,7 +494,7 @@ namespace Chaos
 		FReal AsyncDt;
 		FReal AccumulatedTime;
 		int32 ExternalSteps;
-		TArray<TGeometryParticle<FReal, 3>*> UniqueIdxToGTParticles;
+		TArray<FGeometryParticle*> UniqueIdxToGTParticles;
 
 	public:
 		/** Events */
@@ -520,8 +520,8 @@ namespace Chaos
 		FSolverPreBuffer EventPreBuffer;
 		FSolverPostAdvance EventPostSolve;
 
-		void TrackGTParticle_External(TGeometryParticle<FReal, 3>& Particle);
-		void ClearGTParticle_External(TGeometryParticle<FReal, 3>& Particle);
+		void TrackGTParticle_External(FGeometryParticle& Particle);
+		void ClearGTParticle_External(FGeometryParticle& Particle);
 		
 
 #if !UE_BUILD_SHIPPING

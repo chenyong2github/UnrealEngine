@@ -13,7 +13,6 @@
 
 namespace GeometryCollectionTest
 {
-	template<class T>
 	void BuildProximity()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
@@ -48,9 +47,7 @@ namespace GeometryCollectionTest
 		EXPECT_FALSE((Proximity)[0].Contains(2));
 		EXPECT_FALSE((Proximity)[2].Contains(0));
 	}
-	template void BuildProximity<float>();
 
-	template<class T>
 	void GeometryDeleteFromStart()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
@@ -177,11 +174,7 @@ namespace GeometryCollectionTest
 
 		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 5);
 	}
-	template void GeometryDeleteFromStart<float>();
 
-
-
-	template<class T>
 	void GeometryDeleteFromEnd()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
@@ -308,9 +301,7 @@ namespace GeometryCollectionTest
 
 		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 5);
 	}
-	template void GeometryDeleteFromEnd<float>();
 
-	template<class T>
 	void GeometryDeleteFromMiddle()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
@@ -438,9 +429,7 @@ namespace GeometryCollectionTest
 
 		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 5);
 	}
-	template void GeometryDeleteFromMiddle<float>();
 
-	template<class T>
 	void GeometryDeleteMultipleFromMiddle()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
@@ -553,9 +542,7 @@ namespace GeometryCollectionTest
 
 		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 3);
 	}
-	template void GeometryDeleteMultipleFromMiddle<float>();
 
-	template<class T>
 	void GeometryDeleteRandom()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
@@ -668,9 +655,7 @@ namespace GeometryCollectionTest
 
 		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 3);
 	}
-	template void GeometryDeleteRandom<float>(); 
 
-	template<class T>
 	void GeometryDeleteRandom2()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
@@ -776,9 +761,7 @@ namespace GeometryCollectionTest
 
 		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 2);
 	}
-	template void GeometryDeleteRandom2<float>();
 
-	template<class T>
 	void GeometryDeleteAll()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f, 0.f, 0.f)), FVector(0.f, 0.f, 0.f)), FVector(1.0));
@@ -870,9 +853,7 @@ namespace GeometryCollectionTest
 
 		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 0);
 	}
-	template void GeometryDeleteAll<float>();
 
-	template<class T>
 	void GeometrySwapFlat()
 	{
 		FGeometryCollection Coll;
@@ -953,10 +934,7 @@ namespace GeometryCollectionTest
 			}
 		}
 	}
-	template void GeometrySwapFlat<float>();
-
 	
-	template<class T>
 	void TestFracturedGeometry()
 	{
 		FGeometryCollection* TestCollection = FGeometryCollection::NewGeometryCollection(FracturedGeometry::RawVertexArray,
@@ -971,8 +949,6 @@ namespace GeometryCollectionTest
 
 		EXPECT_EQ(TestCollection->NumElements(FGeometryCollection::GeometryGroup), 11);
 	}
-	template void TestFracturedGeometry<float>();
-
 
 }
 

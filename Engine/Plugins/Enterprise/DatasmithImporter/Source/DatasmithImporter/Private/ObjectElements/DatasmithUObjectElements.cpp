@@ -1373,11 +1373,11 @@ UDatasmithBasePropertyCaptureElement* UDatasmithActorBindingElement::GetProperty
 		DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithActorBindingElement, DatasmithElement, nullptr);
 		TSharedPtr<IDatasmithBasePropertyCaptureElement> PropertyElement = Element->GetPropertyCapture(Index);
 
-		if (PropertyElement->IsSubType((uint64)EDatasmithElementVariantSubType::PropertyCapture))
+		if (PropertyElement->IsSubType(EDatasmithElementVariantSubType::PropertyCapture))
 		{
 			return Scene->FindOrAddElement(StaticCastSharedPtr<IDatasmithPropertyCaptureElement>(PropertyElement));
 		}
-		else if (PropertyElement->IsSubType((uint64)EDatasmithElementVariantSubType::ObjectPropertyCapture))
+		else if (PropertyElement->IsSubType(EDatasmithElementVariantSubType::ObjectPropertyCapture))
 		{
 			return Scene->FindOrAddElement(StaticCastSharedPtr<IDatasmithObjectPropertyCaptureElement>(PropertyElement));
 		}

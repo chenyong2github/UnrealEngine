@@ -55,6 +55,8 @@ UDataprepActionAsset::UDataprepActionAsset()
 {
 	bExecutionInterrupted = false;
 	bIsEnabled = true;
+	bIsExpanded = true;
+	GroupId = INDEX_NONE;
 
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{

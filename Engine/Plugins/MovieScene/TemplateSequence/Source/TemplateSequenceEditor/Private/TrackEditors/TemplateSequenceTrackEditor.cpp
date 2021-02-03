@@ -15,6 +15,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "ICollectionManager.h"
 #include "IContentBrowserSingleton.h"
+#include "Misc/ConfigCacheIni.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Sections/MovieSceneCameraAnimSection.h"
@@ -122,6 +123,8 @@ public:
 		LegacyBaseClass = InLegacyBaseClass;
 
 		TrackEditor = InTrackEditor;
+
+		GConfig->GetBool(TEXT("TemplateSequence"), TEXT("ShowOutdatedAssetsInCameraAnimationTrackEditor"), bShowingHiddenAssets, GEditorPerProjectIni);
 
 		// Find all the class names that derive from this class.
 		FARFilter Filter;
@@ -241,6 +244,8 @@ public:
 	FReply OnShowHiddenAssets()
 	{
 		bShowingHiddenAssets = !bShowingHiddenAssets;
+		GConfig->SetBool(TEXT("TemplateSequence"), TEXT("ShowOutdatedAssetsInCameraAnimationTrackEditor"), bShowingHiddenAssets, GEditorPerProjectIni);
+
 		NumLegacyAssets = 0;
 		NumAssetsRequiringSave = 0;
 		RefreshAssetViewDelegate.ExecuteIfBound(true);

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAssetCache.h"
 #include "USDMemory.h"
 #include "USDSkeletalDataConversion.h"
 
@@ -18,15 +19,16 @@
 #include "Misc/Optional.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/StrongObjectPtr.h"
 
 class FRegisteredSchemaTranslator;
-struct FUsdSchemaTranslationContext;
 class FUsdSchemaTranslator;
 class FUsdSchemaTranslatorTaskChain;
 class ULevel;
 class USceneComponent;
 class UStaticMesh;
 struct FUsdBlendShape;
+struct FUsdSchemaTranslationContext;
 
 class USDSCHEMAS_API FRegisteredSchemaTranslatorHandle
 {
@@ -61,15 +63,23 @@ class USDSCHEMAS_API FUsdSchemaTranslatorRegistry
 	using FSchemaTranslatorsStack = TArray< FRegisteredSchemaTranslator, TInlineAllocator< 1 > >;
 
 public:
+	/**
+	 * Returns the translator to use for InSchema
+	 */
 	TSharedPtr< FUsdSchemaTranslator > CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const UE::FUsdTyped& InSchema );
 
-	template< typename TSchemaTranslator >
+	/**
+	 * Registers SchemaTranslatorType to translate schemas of type SchemaName.
+	 * Registration order is important as the last to register for a given schema will be the one handling it.
+	 * Thus, you will want to register base schemas before the more specialized ones.
+	 */
+	template< typename SchemaTranslatorType >
 	FRegisteredSchemaTranslatorHandle Register( const FString& SchemaName )
 	{
 		auto CreateSchemaTranslator =
 		[]( TSharedRef< FUsdSchemaTranslationContext > InContext, const UE::FUsdTyped& InSchema ) -> TSharedRef< FUsdSchemaTranslator >
 		{
-			return MakeShared< TSchemaTranslator >( InContext, InSchema );
+			return MakeShared< SchemaTranslatorType >( InContext, InSchema );
 		};
 
 		return Register( SchemaName, CreateSchemaTranslator );
@@ -94,16 +104,25 @@ public:
 	FCreateTranslator CreateFunction;
 };
 
+class USDSCHEMAS_API FUsdRenderContextRegistry
+{
+public:
+	FUsdRenderContextRegistry();
+
+	void Register( const FName& RenderContextToken ) { RegisteredRenderContexts.Add( RenderContextToken ); }
+	void Unregister( const FName& RenderContextToken ) { RegisteredRenderContexts.Remove( RenderContextToken ); }
+
+	const TSet< FName >& GetRenderContexts() const { return RegisteredRenderContexts; }
+	const FName& GetUniversalRenderContext() const { return UniversalRenderContext; }
+
+protected:
+	TSet< FName > RegisteredRenderContexts;
+	FName UniversalRenderContext;
+};
+
 struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUsdSchemaTranslationContext >
 {
-	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, TMap< FString, UObject* >& InPrimPathsToAssets, TMap< FString, UObject* >& InAssetsCache, UsdUtils::FBlendShapeMap* InBlendShapesByPath = nullptr )
-		: Stage( InStage )
-		, PrimPathsToAssets( InPrimPathsToAssets )
-		, AssetsCache( InAssetsCache )
-		, BlendShapesByPath( InBlendShapesByPath )
-	{
-		MaterialToPrimvarToUVIndex = nullptr;
-	}
+	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, UUsdAssetCache& InAssetCache );
 
 	/** pxr::UsdStage we're translating from */
 	UE::FUsdStage Stage;
@@ -123,24 +142,21 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** We're only allowed to load prims with purposes that match these flags */
 	EUsdPurpose PurposesToLoad;
 
-	/** Map of translated UsdPrims to UAssets */
-	TMap< FString, UObject* >& PrimPathsToAssets;
+	/** The render context to use when translating materials */
+	FName RenderContext;
 
-	TMap< FString, UObject* >& AssetsCache;
+	/** Where the translated assets will be stored */
+	TStrongObjectPtr< UUsdAssetCache > AssetCache;
 
-	/** Subset of AssetsCache with assets that were created for/reused by the current translation context. Useful as AssetsCache may contain older/other things */
-	TSet<UObject*> CurrentlyUsedAssets;
 
 	/** Where we place imported blend shapes, if available */
-	UsdUtils::FBlendShapeMap* BlendShapesByPath;
+	UsdUtils::FBlendShapeMap* BlendShapesByPath = nullptr;
 
 	/**
 	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
 	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
 	 */
-	TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex;
-
-	FCriticalSection CriticalSection;
+	TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = nullptr;
 
 	bool bAllowCollapsing = true;
 

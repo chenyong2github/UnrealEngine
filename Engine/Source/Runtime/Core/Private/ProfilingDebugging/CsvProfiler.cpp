@@ -136,6 +136,14 @@ static bool GGameThreadIsCsvProcessingThread = true;
 
 static uint32 GCsvProfilerFrameNumber = 0;
 
+
+static bool GCsvTrackWaitsOnAllThreads = false;
+static bool GCsvTrackWaitsOnGameThread = true;
+static bool GCsvTrackWaitsOnRenderThread = true;
+
+static FAutoConsoleVariableRef CVarTrackWaitsAllThreads(TEXT("csv.trackWaitsAllThreads"), GCsvTrackWaitsOnAllThreads, TEXT("Determines whether to track waits on all threads. Note that this incurs a lot of overhead"), ECVF_Default);
+static FAutoConsoleVariableRef CVarTrackWaitsGT(TEXT("csv.trackWaitsGT"), GCsvTrackWaitsOnGameThread, TEXT("Determines whether to track game thread waits. Note that this incurs overhead"), ECVF_Default);
+static FAutoConsoleVariableRef CVarTrackWaitsRT(TEXT("csv.trackWaitsRT"), GCsvTrackWaitsOnRenderThread, TEXT("Determines whether to track render thread waits. Note that this incurs overhead"), ECVF_Default);
 //
 // Categories
 //
@@ -148,6 +156,8 @@ static bool GCsvProfilerIsCapturingRT = false; // Renderthread version of the ab
 static bool GCsvProfilerIsWritingFile = false;
 static FString GCsvFileName = FString();
 static bool GCsvExitOnCompletion = false;
+
+static thread_local bool GCsvThreadLocalWaitsEnabled = false;
 
 bool IsContinuousWriteEnabled(bool bGameThread)
 {
@@ -2539,6 +2549,9 @@ void FCsvProfiler::BeginFrame()
 
 	check(IsInGameThread());
 
+	// Set the thread-local waits enabled flag
+	GCsvThreadLocalWaitsEnabled = GCsvTrackWaitsOnGameThread;
+
 	if (bInsertEndFrameAtFrameStart)
 	{
 		bInsertEndFrameAtFrameStart = false;
@@ -2865,6 +2878,9 @@ void FCsvProfiler::BeginFrameRT()
 		CSVTest();
 	}
 #endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
+
+	// Set the thread-local waits enabled flag
+	GCsvThreadLocalWaitsEnabled = GCsvTrackWaitsOnRenderThread;
 }
 
 void FCsvProfiler::EndFrameRT()
@@ -3241,7 +3257,6 @@ void FCsvProfiler::Init()
 			}
 		}
 	}
-
 	if (FParse::Param(FCommandLine::Get(), TEXT("csvNoProcessingThread")))
 	{
 		GCsvUseProcessingThread = false;
@@ -3297,6 +3312,11 @@ bool FCsvProfiler::IsWritingFile()
 {
 	check(IsInGameThread());
 	return GCsvProfilerIsWritingFile;
+}
+
+bool FCsvProfiler::IsWaitTrackingEnabledOnCurrentThread()
+{
+	return GCsvTrackWaitsOnAllThreads || GCsvThreadLocalWaitsEnabled;
 }
 
 /*Get the current frame capture count*/

@@ -61,9 +61,9 @@ struct FPooledVirtualMemoryAllocator
 {
 	FPooledVirtualMemoryAllocator();
 
-	void* Allocate(SIZE_T Size, uint32 AllocationHint = 0);
-	void Free(void* Ptr, SIZE_T Size);
-	void FreeAll();
+	void* Allocate(SIZE_T Size, uint32 AllocationHint = 0, FCriticalSection* Mutex = nullptr);
+	void Free(void* Ptr, SIZE_T Size, FCriticalSection* Mutex = nullptr);
+	void FreeAll(FCriticalSection* Mutex = nullptr);
 
 	/** A structure that describes a pool of a particular size */
 	struct FPoolDescriptorBase

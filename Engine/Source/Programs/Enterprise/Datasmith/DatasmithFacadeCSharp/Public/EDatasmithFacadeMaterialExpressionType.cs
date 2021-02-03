@@ -12,12 +12,13 @@
 
 
 public enum EDatasmithFacadeMaterialExpressionType {
-  ConstantBool,
-  ConstantColor,
-  ConstantScalar,
-  FlattenNormal,
-  FunctionCall,
-  Generic,
-  Texture,
-  TextureCoordinate
+  None = 0,
+  ConstantBool = 1 << 0,
+  ConstantColor = 1 << 1,
+  ConstantScalar = 1 << 2,
+  FlattenNormal = 1 << 3,
+  FunctionCall = 1 << 4,
+  Generic = 1 << 5,
+  Texture = 1 << 6,
+  TextureCoordinate = 1 << 7
 }

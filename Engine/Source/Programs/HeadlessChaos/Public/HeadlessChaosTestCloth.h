@@ -5,11 +5,9 @@
 namespace ChaosTest {
 
 	/**/
-	template<class T>
 	void DeformableGravity();
 
 	/**/
-	template<class T>
 	void EdgeConstraints();
 
 }

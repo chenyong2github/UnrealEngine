@@ -48,8 +48,8 @@ namespace Chaos
 			bool bInUseXPBDConstraints,
 			float InGravityScale,
 			bool bIsGravityOverridden,
-			const TVector<float, 3>& InGravityOverride,
-			const TVector<float, 3>& InLinearVelocityScale,
+			const FVec3& InGravityOverride,
+			const FVec3& InLinearVelocityScale,
 			float InAngularVelocityScale,
 			float InDragCoefficient,
 			float InLiftCoefficient,
@@ -92,19 +92,19 @@ namespace Chaos
 
 		// ---- Debugging/visualization functions
 		// Return the solver's input positions for this cloth source current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<TVector<float, 3>> GetAnimationPositions(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<FVec3> GetAnimationPositions(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's input normals for this cloth source current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<TVector<float, 3>> GetAnimationNormals(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<FVec3> GetAnimationNormals(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's positions for this cloth current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<TVector<float, 3>> GetParticlePositions(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<FVec3> GetParticlePositions(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's previous frame positions for this cloth current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<TVector<float, 3>> GetParticleOldPositions(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<FVec3> GetParticleOldPositions(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's normals for this cloth current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<TVector<float, 3>> GetParticleNormals(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<FVec3> GetParticleNormals(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's normals for this cloth current LOD, not thread safe, call must be done right after the solver update.
 		TConstArrayView<float> GetParticleInvMasses(const FClothingSimulationSolver* Solver) const;
 		// Return the current gravity as applied by the solver using the various overrides, not thread safe, call must be done right after the solver update.
-		TVector<float, 3> GetGravity(const FClothingSimulationSolver* Solver) const;
+		FVec3 GetGravity(const FClothingSimulationSolver* Solver) const;
 		// Return the current bounding box based on a given solver, not thread safe, call must be done right after the solver update.
 		TAABB<float, 3> CalculateBoundingBox(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Offset in the solver's particle array, or INDEX_NONE if no LOD is currently selected
@@ -123,6 +123,7 @@ namespace Chaos
 		void Add(FClothingSimulationSolver* Solver);
 		void Remove(FClothingSimulationSolver* Solver);
 
+		void PreUpdate(FClothingSimulationSolver* Solver);
 		void Update(FClothingSimulationSolver* Solver);
 		void PostUpdate(FClothingSimulationSolver* Solver);
 		// ---- End of the Solver interface ----
@@ -187,8 +188,8 @@ namespace Chaos
 		bool bUseXPBDConstraints;
 		float GravityScale;
 		bool bIsGravityOverridden;
-		TVector<float, 3> GravityOverride;
-		TVector<float, 3> LinearVelocityScale;  // Linear ratio applied to the reference bone transforms
+		FVec3 GravityOverride;
+		FVec3 LinearVelocityScale;  // Linear ratio applied to the reference bone transforms
 		float AngularVelocityScale;  // Angular ratio factor applied to the reference bone transforms
 		float DragCoefficient;
 		float LiftCoefficient;

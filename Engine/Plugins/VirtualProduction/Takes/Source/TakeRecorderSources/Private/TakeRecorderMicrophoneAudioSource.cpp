@@ -148,7 +148,12 @@ void UTakeRecorderMicrophoneAudioSource::StartRecording(const FTimecode& InSecti
 	AudioRecorder = Recorder.CreateAudioRecorder();
 	if (AudioRecorder)
 	{
+		UE_LOG(LogTakesCore, Verbose, TEXT("Microphone Audio Source AudioRecorder Start: %s"), *AssetName);
 		AudioRecorder->Start(AudioSettings);
+	}
+	else
+	{
+		UE_LOG(LogTakesCore, Error, TEXT("Microphone Audio Source could not start. Please check that the AudioCapture plugin is enabled"));
 	}
 }
 

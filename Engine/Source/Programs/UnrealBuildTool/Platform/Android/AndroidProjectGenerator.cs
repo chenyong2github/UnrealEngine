@@ -29,7 +29,13 @@ namespace UnrealBuildTool
 		bool VSPropsFileWritten = false;     // This is for the file VSAndroidUnreal.props which only needs to be written once
 
 		bool VSSandboxedSDK = false;         // Checks if VS has installed the sandboxed SDK version to support Unreal
-													// If this sandboxed SDK is present change the config to consume it instead of the main VS Android SDK
+											 // If this sandboxed SDK is present change the config to consume it instead of the main VS Android SDK
+
+		/// <summary>
+		/// Whether Android Game Development Extension is installed in the system. See https://developer.android.com/games/preview for more details.
+		/// May be disabled by using -noagde on commandline
+		/// </summary>
+		private bool AGDEInstalled = false;
 
 		public AndroidProjectGenerator(CommandLineArguments Arguments)
 			: base(Arguments)
@@ -37,6 +43,12 @@ namespace UnrealBuildTool
 			if (Arguments.HasOption("-vsdebugandroid"))
 			{
 				VSDebugCommandLineOptionPresent = true;
+			}
+
+			AGDEInstalled = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Google\AndroidGameDevelopmentExtension")?.ValueCount > 0;
+			if (Arguments.HasOption("-noagde"))
+			{
+				AGDEInstalled = false;
 			}
 		}
 
@@ -188,7 +200,7 @@ namespace UnrealBuildTool
 		public override bool HasVisualStudioSupport(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, VCProjectFileFormat ProjectFileFormat)
 		{
 			// Debugging, etc. are dependent on the TADP being installed
-			return IsNsightInstalled(ProjectFileFormat) || IsVSAndroidSupportInstalled();
+			return AGDEInstalled || IsNsightInstalled(ProjectFileFormat) || IsVSAndroidSupportInstalled();
 		}
 
 		/// <summary>
@@ -203,7 +215,11 @@ namespace UnrealBuildTool
 
 			if (InPlatform == UnrealTargetPlatform.Android)
 			{
-				if (IsVSAndroidSupportInstalled())
+				if (AGDEInstalled)
+				{
+					PlatformName = "Android-arm64-v8a";
+				}
+				else if (IsVSAndroidSupportInstalled())
 				{
 					PlatformName = "ARM";
 				}
@@ -225,7 +241,7 @@ namespace UnrealBuildTool
 		/// <returns>string    The custom property import lines for the project file; Empty string if it doesn't require one</returns>
 		public override void GetAdditionalVisualStudioPropertyGroups(UnrealTargetPlatform InPlatform, VCProjectFileFormat ProjectFileFormat, StringBuilder ProjectFileBuilder)
 		{
-			if(IsVSAndroidSupportInstalled() || !IsNsightInstalled(ProjectFileFormat))
+			if (AGDEInstalled || IsVSAndroidSupportInstalled() || !IsNsightInstalled(ProjectFileFormat))
 			{
 				base.GetAdditionalVisualStudioPropertyGroups(InPlatform, ProjectFileFormat, ProjectFileBuilder);
 			}
@@ -247,7 +263,7 @@ namespace UnrealBuildTool
 		{
 			string ConfigurationType = "";
 
-			if(IsVSAndroidSupportInstalled())
+			if (AGDEInstalled || IsVSAndroidSupportInstalled())
 			{
 				ConfigurationType = "Makefile";
 			}
@@ -275,7 +291,7 @@ namespace UnrealBuildTool
 		{
 			VCProjectFileGenerator.AppendPlatformToolsetProperty(ProjectFileBuilder, InProjectFileFormat);
 
-			if (IsVSAndroidSupportInstalled() || !IsNsightInstalled(InProjectFileFormat))
+			if (AGDEInstalled || IsVSAndroidSupportInstalled() || !IsNsightInstalled(InProjectFileFormat))
 			{
 			}
 			else
@@ -299,7 +315,18 @@ namespace UnrealBuildTool
 		/// <returns>The custom path lines for the project file; Empty string if it doesn't require one</returns>
 		public override void GetVisualStudioPathsEntries(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, TargetType TargetType, FileReference TargetRulesPath, FileReference ProjectFilePath, FileReference NMakeOutputPath, VCProjectFileFormat InProjectFileFormat, StringBuilder ProjectFileBuilder)
 		{
-			if (!IsVSAndroidSupportInstalled() && IsNsightInstalled(InProjectFileFormat))
+			if (AGDEInstalled)
+			{
+				string apkLocation = Path.Combine(
+					Path.GetDirectoryName(NMakeOutputPath.FullName),
+					Path.GetFileNameWithoutExtension(NMakeOutputPath.FullName) + "-arm64.apk");
+
+				ProjectFileBuilder.AppendLine($"    <AndroidApkLocation>{apkLocation}</AndroidApkLocation>");
+				string intermediatePath = Path.GetFullPath(Path.GetDirectoryName(NMakeOutputPath.FullName) + @"\..\..\Intermediate\Android\arm64\");
+				string symbolLocations = $@"{intermediatePath}jni\arm64-v8a;{intermediatePath}libs\arm64-v8a";
+				ProjectFileBuilder.AppendLine($"    <AndroidSymbolDirectories>{symbolLocations}</AndroidSymbolDirectories>");
+			}
+			else if (!IsVSAndroidSupportInstalled() && IsNsightInstalled(InProjectFileFormat))
 			{
 
 				// NOTE: We are intentionally overriding defaults for these paths with empty strings.  We never want Visual Studio's
@@ -713,6 +740,11 @@ namespace UnrealBuildTool
 
 		}
 
+		public override string GetExtraBuildArguments(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration)
+		{
+			// do not need to check InPlatform since it will always be UnrealTargetPlatform.Android
+			return (AGDEInstalled ? " -Architectures=arm64 -ForceAPKGeneration" : "") + base.GetExtraBuildArguments(InPlatform, InConfiguration);
+		}
 	}
 
 

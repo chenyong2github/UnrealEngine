@@ -147,7 +147,6 @@ struct FMobileSunMergeInputs
 	FScreenPassTexture BloomUp;
 	bool bUseBloom;
 	bool bUseSun;
-	bool bUseAa;
 };
 
 FScreenPassTexture AddMobileSunMergePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileSunMergeInputs& Inputs);

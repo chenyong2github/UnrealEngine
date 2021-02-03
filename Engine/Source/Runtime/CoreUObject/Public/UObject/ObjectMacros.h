@@ -1599,6 +1599,20 @@ public: \
 #define DEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(TClass) \
 	static void __DefaultConstructor(const FObjectInitializer& X) { new((EInternal*)X.GetObj())TClass(X); }
 
+#if CHECK_PUREVIRTUALS
+#define DEFINE_ABSTRACT_DEFAULT_CONSTRUCTOR_CALL(TClass) \
+	static void __DefaultConstructor(const FObjectInitializer& X) { }
+
+#define DEFINE_ABSTRACT_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(TClass) \
+	static void __DefaultConstructor(const FObjectInitializer& X) { }
+#else
+#define DEFINE_ABSTRACT_DEFAULT_CONSTRUCTOR_CALL(TClass) \
+	DEFINE_DEFAULT_CONSTRUCTOR_CALL(TClass)
+
+#define DEFINE_ABSTRACT_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(TClass) \
+	DEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(TClass)
+#endif
+
 #define DECLARE_VTABLE_PTR_HELPER_CTOR(API, TClass) \
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */ \
 	API TClass(FVTableHelper& Helper);
@@ -1612,16 +1626,16 @@ public: \
 		return nullptr; \
 	}
 
-#if WITH_HOT_RELOAD
+#if WITH_HOT_RELOAD && !CHECK_PUREVIRTUALS
 	#define DEFINE_VTABLE_PTR_HELPER_CTOR_CALLER(TClass) \
 		static UObject* __VTableCtorCaller(FVTableHelper& Helper) \
 		{ \
 			return new (EC_InternalUseOnlyConstructor, (UObject*)GetTransientPackage(), NAME_None, RF_NeedLoad | RF_ClassDefaultObject | RF_TagGarbageTemp) TClass(Helper); \
 		}
-#else // WITH_HOT_RELOAD
+#else // WITH_HOT_RELOAD && !CHECK_PUREVIRTUALS
 	#define DEFINE_VTABLE_PTR_HELPER_CTOR_CALLER(TClass) \
 		DEFINE_VTABLE_PTR_HELPER_CTOR_CALLER_DUMMY()
-#endif // WITH_HOT_RELOAD
+#endif // WITH_HOT_RELOAD && !CHECK_PUREVIRTUALS
 
 #define DECLARE_CLASS_INTRINSIC_NO_CTOR(TClass,TSuperClass,TStaticFlags,TPackage) \
 	DECLARE_CLASS(TClass, TSuperClass, TStaticFlags | CLASS_Intrinsic, CASTCLASS_None, TPackage, NO_API) \

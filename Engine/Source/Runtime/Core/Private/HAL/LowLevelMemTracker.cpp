@@ -759,10 +759,10 @@ void FLowLevelMemTracker::TickInternal()
 
 	// calculate memory the platform thinks we have allocated, compared to what we have tracked, including the program memory
 	FPlatformMemoryStats PlatformStats = FPlatformMemory::GetStats();
-#if PLATFORM_ANDROID || PLATFORM_IOS || UE_SERVER
-	int64 PlatformProcessMemory = static_cast<int64>(PlatformStats.UsedPhysical);
-#elif PLATFORM_DESKTOP
+#if PLATFORM_DESKTOP
 	int64 PlatformProcessMemory = static_cast<int64>(PlatformStats.UsedVirtual);  // virtual is working set + paged out memory
+#elif PLATFORM_ANDROID || PLATFORM_IOS || UE_SERVER
+	int64 PlatformProcessMemory = static_cast<int64>(PlatformStats.UsedPhysical);
 #else
 	int64 PlatformProcessMemory = static_cast<int64>(PlatformStats.TotalPhysical) - static_cast<int64>(PlatformStats.AvailablePhysical);
 #endif

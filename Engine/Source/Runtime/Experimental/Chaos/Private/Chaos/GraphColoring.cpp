@@ -5,7 +5,7 @@
 
 using namespace Chaos;
 
-bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec2<int32>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
 {
 	for (int32 i = 0; i < ColorGraph.Num(); ++i)
 	{
@@ -37,7 +37,7 @@ bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 2
 	return true;
 }
 
-bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 3>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec3<int32>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
 {
 	for (int32 i = 0; i < ColorGraph.Num(); ++i)
 	{
@@ -80,7 +80,7 @@ bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 3
 }
 
 
-TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<int32>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
 {
 	TArray<TArray<int32>> ColorGraph;
 	TArray<FGraphNode> Nodes;
@@ -91,7 +91,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 
 	for (int32 i = 0; i < Graph.Num(); ++i)
 	{
-		const TVector<int32, 2>& Constraint = Graph[i];
+		const TVec2<int32>& Constraint = Graph[i];
 		Edges[i].FirstNode = Constraint[0];
 		Edges[i].SecondNode = Constraint[1];
 		Nodes[Constraint[0]].Edges.Add(i);
@@ -206,7 +206,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 	return ColorGraph;
 }
 
-TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<int32, 3>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<int32>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
 {
 	TArray<TArray<int32>> ColorGraph;
 	TArray<FGraphNode> Nodes;
@@ -217,7 +217,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 
 	for (int32 i = 0; i < Graph.Num(); ++i)
 	{
-		const TVector<int32, 3>& Constraint = Graph[i];
+		const TVec3<int32>& Constraint = Graph[i];
 		Edges[i].FirstNode = Constraint[0];
 		Edges[i].SecondNode = Constraint[1];
 		Edges[i].ThirdNode = Constraint[2];

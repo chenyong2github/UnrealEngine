@@ -31,7 +31,7 @@ enum class ETrackSupport
 /**
  * Abstract base class for movie scene animations (C++ version).
  */
-UCLASS(MinimalAPI, Config = Engine, BlueprintType)
+UCLASS(abstract, MinimalAPI, Config = Engine, BlueprintType)
 class UMovieSceneSequence
 	: public UMovieSceneSignedObject
 {

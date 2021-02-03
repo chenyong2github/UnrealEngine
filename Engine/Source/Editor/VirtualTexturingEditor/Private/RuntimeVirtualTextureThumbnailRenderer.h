@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ThumbnailRendering/ThumbnailRenderer.h"
+#include "ThumbnailRendering/DefaultSizedThumbnailRenderer.h"
 #include "RuntimeVirtualTextureThumbnailRenderer.generated.h"
 
 UCLASS(MinimalAPI)
-class URuntimeVirtualTextureThumbnailRenderer : public UThumbnailRenderer
+class URuntimeVirtualTextureThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
 

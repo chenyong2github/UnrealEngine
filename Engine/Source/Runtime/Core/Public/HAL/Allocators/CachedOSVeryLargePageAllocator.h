@@ -53,11 +53,11 @@ public:
 		// this leaks everything!
 	}
 
-	void* Allocate(SIZE_T Size, uint32 AllocationHint = 0);
+	void* Allocate(SIZE_T Size, uint32 AllocationHint = 0, FCriticalSection* Mutex = nullptr);
 
-	void Free(void* Ptr, SIZE_T Size);
+	void Free(void* Ptr, SIZE_T Size, FCriticalSection* Mutex = nullptr);
 
-	void FreeAll();
+	void FreeAll(FCriticalSection* Mutex = nullptr);
 
 	uint64 GetCachedFreeTotal()
 	{

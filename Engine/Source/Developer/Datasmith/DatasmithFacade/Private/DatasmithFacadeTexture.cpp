@@ -122,19 +122,6 @@ void FDatasmithFacadeTexture::SetSRGB( EColorSpace Option )
 	GetDatasmithTextureElement()->SetSRGB( static_cast<EDatasmithColorSpace>( Option ) );
 }
 
-void FDatasmithFacadeTexture::BuildScene( FDatasmithFacadeScene& SceneRef )
-{
-	// Make sure ElementHash is valid
-	TSharedRef<IDatasmithTextureElement> TextureElement = GetDatasmithTextureElement();
-
-	FMD5Hash FileHash = FMD5Hash::HashFile(TextureElement->GetFile());
-	TextureElement->SetFileHash(FileHash);
-
-	TextureElement->CalculateElementHash(true);
-
-	SceneRef.GetScene()->AddTexture( TextureElement );
-}
-
 TSharedRef<IDatasmithTextureElement> FDatasmithFacadeTexture::GetDatasmithTextureElement() const
 { 
 	return StaticCastSharedRef<IDatasmithTextureElement>( InternalDatasmithElement );

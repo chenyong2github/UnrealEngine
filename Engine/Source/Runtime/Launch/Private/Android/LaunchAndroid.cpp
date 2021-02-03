@@ -797,22 +797,54 @@ static int32_t HandleInputCB(struct android_app* app, AInputEvent* event)
 	{
 		static int32 previousButtonState = 0;
 
+		const int32 device = AInputEvent_getDeviceId(event);
+		const int32 action = AMotionEvent_getAction(event);
+		const int32 actionType = action & AMOTION_EVENT_ACTION_MASK;
+		int32 buttonState = AMotionEvent_getButtonState(event);
+
 		if (!GAndroidEnableMouse)
 		{
-			// this will block event
+			if (actionType == AMOTION_EVENT_ACTION_DOWN || actionType == AMOTION_EVENT_ACTION_UP)
+			{
+				const bool bDown = (actionType == AMOTION_EVENT_ACTION_DOWN);
+				if (!bDown)
+				{
+					buttonState = previousButtonState;
+				}
+				if (buttonState & AMOTION_EVENT_BUTTON_PRIMARY)
+				{
+					const int32 ReplacementKeyEvent = FAndroidInputInterface::GetAlternateKeyEventForMouse(device, 0);
+					if (ReplacementKeyEvent != 0)
+					{
+						FAndroidInputInterface::JoystickButtonEvent(device, ReplacementKeyEvent, bDown);
+					}
+				}
+				if (buttonState & AMOTION_EVENT_BUTTON_SECONDARY)
+				{
+					const int32 ReplacementKeyEvent = FAndroidInputInterface::GetAlternateKeyEventForMouse(device, 1);
+					if (ReplacementKeyEvent != 0)
+					{
+						FAndroidInputInterface::JoystickButtonEvent(device, ReplacementKeyEvent, bDown);
+					}
+				}
+				if (buttonState & AMOTION_EVENT_BUTTON_TERTIARY)
+				{
+					const int32 ReplacementKeyEvent = FAndroidInputInterface::GetAlternateKeyEventForMouse(device, 2);
+					if (ReplacementKeyEvent != 0)
+					{
+						FAndroidInputInterface::JoystickButtonEvent(device, ReplacementKeyEvent, bDown);
+					}
+				}
+				previousButtonState = buttonState;
+			}
 			return 1;
 		}
-
-		int32 action = AMotionEvent_getAction(event);
-		int32 actionType = action & AMOTION_EVENT_ACTION_MASK;
-		int32 device = AInputEvent_getDeviceId(event);
-		int32 buttonState = AMotionEvent_getButtonState(event);
 
 //		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("-- EVENT: %d, device: %d, action: %x, actionType: %x, buttonState: %x"), EventType, device, action, actionType, buttonState);
 
 		if (actionType == AMOTION_EVENT_ACTION_DOWN || actionType == AMOTION_EVENT_ACTION_UP)
 		{
-			bool bDown = (actionType == AMOTION_EVENT_ACTION_DOWN);
+			const bool bDown = (actionType == AMOTION_EVENT_ACTION_DOWN);
 			if (!bDown)
 			{
 				buttonState = previousButtonState;
@@ -825,12 +857,12 @@ static int32_t HandleInputCB(struct android_app* app, AInputEvent* event)
 			if (buttonState & AMOTION_EVENT_BUTTON_SECONDARY)
 			{
 //				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mouse button 1: %d"), bDown ? 1 : 0);
-				FAndroidInputInterface::MouseButtonEvent(device, 0, bDown);
+				FAndroidInputInterface::MouseButtonEvent(device, 1, bDown);
 			}
 			if (buttonState & AMOTION_EVENT_BUTTON_TERTIARY)
 			{
 //				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mouse button 2: %d"), bDown ? 1 : 0);
-				FAndroidInputInterface::MouseButtonEvent(device, 0, bDown);
+				FAndroidInputInterface::MouseButtonEvent(device, 2, bDown);
 			}
 			previousButtonState = buttonState;
 			return 1;

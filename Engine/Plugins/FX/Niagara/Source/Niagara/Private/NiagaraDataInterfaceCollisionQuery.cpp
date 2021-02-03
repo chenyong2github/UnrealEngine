@@ -69,6 +69,88 @@ void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 	}
 }
 
+void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
+{
+#if WITH_EDITOR
+	const UNiagaraSystem* System = Cast<UNiagaraSystem>(InAsset);
+	const UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(InAsset);
+
+	// We need to check if the DI is used to access collisions in a cpu context so that artists can surface potential perf problems
+	// through the content browser.
+
+	TArray<const UNiagaraScript*> Scripts;
+	if (System)
+	{
+		Scripts.Add(System->GetSystemSpawnScript());
+		Scripts.Add(System->GetSystemUpdateScript());
+		for (auto&& EmitterHandle : System->GetEmitterHandles())
+		{
+			const UNiagaraEmitter* HandleEmitter = EmitterHandle.GetInstance();
+			if (HandleEmitter)
+			{
+				if (HandleEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+				{
+					// Ignore gpu emitters
+					continue;
+				}
+				TArray<UNiagaraScript*> OutScripts;
+				HandleEmitter->GetScripts(OutScripts, false);
+				Scripts.Append(OutScripts);
+			}
+		}
+	}
+	if (Emitter)
+	{
+		if (Emitter->SimTarget != ENiagaraSimTarget::GPUComputeSim)
+		{
+			TArray<UNiagaraScript*> OutScripts;
+			Emitter->GetScripts(OutScripts, false);
+			Scripts.Append(OutScripts);
+		}
+	}
+
+	// Check if any CPU script uses Collsion query CPU functions
+	//TODO: This is the same as in the skel mesh DI for GetFeedback, it doesn't guarantee that the DI used by these functions are THIS DI.
+	// Has a possibility of false positives
+	bool bHaCPUQueriesWarning = [this, &Scripts]()
+	{
+		for (const auto Script : Scripts)
+		{
+			if (Script)
+			{
+				for (const auto& Info : Script->GetVMExecutableData().DataInterfaceInfo)
+				{
+					if (Info.MatchesClass(GetClass()))
+					{
+						for (const auto& Func : Info.RegisteredFunctions)
+						{
+							if (Func.Name == SyncTraceName || Func.Name == AsyncTraceName)
+							{
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}();
+
+	// Note that in order for these tags to be registered, we always have to put them in place for the CDO of the object, but 
+	// for readability's sake, we leave them out of non-CDO assets.
+	if (bHaCPUQueriesWarning || (InAsset && InAsset->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject)))
+	{
+		StringKeys.Add("CPUCollision") = bHaCPUQueriesWarning ? TEXT("True") : TEXT("False");
+
+	}
+
+#endif
+	
+	// Make sure and get the base implementation tags
+	Super::GetAssetTagsForContext(InAsset, InProperties, NumericKeys, StringKeys);
+	
+}
+
 void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
 	FNiagaraFunctionSignature SigDepth;

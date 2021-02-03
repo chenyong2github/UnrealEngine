@@ -9,6 +9,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Sphere.h"
 #include "ChaosCheck.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 
 const FConstraintProfileProperties UPhysicalAnimationComponent::PhysicalAnimationProfile = []()
@@ -202,7 +203,7 @@ FTransform UPhysicalAnimationComponent::GetBodyTargetTransform(FName BodyName) c
 				if (FPhysicsActorHandle TargetActor = InstanceData.TargetActor)
 				{
 					// TODO: If kinematic targets implemented, fetch target and don't use position.
-					return FTransform(TargetActor->R(), TargetActor->X());
+					return FTransform(TargetActor->GetGameThreadAPI().R(), TargetActor->GetGameThreadAPI().X());
 				}
 #endif
 
@@ -304,7 +305,7 @@ void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 					}
 				}
 #else
-				if (FPhysicsActor* TargetActor = InstanceData.TargetActor)
+				if (FPhysicsActorHandle TargetActor = InstanceData.TargetActor)
 				{
 					const int32 BoneIdx = RefSkeleton.FindBoneIndex(PhysAnimData.BodyName);
 					if (BoneIdx != INDEX_NONE)	//It's possible the skeletal mesh has changed out from under us. In that case we should probably reset, but at the very least don't do work on non-existent bones
@@ -428,9 +429,9 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngineImp()
 							
 							// Chaos requires our particles have geometry.
 							auto Sphere = MakeUnique<Chaos::FImplicitSphere3>(FVector(0,0,0), 0);
-							KineActor->SetGeometry(MoveTemp(Sphere));
+							KineActor->GetGameThreadAPI().SetGeometry(MoveTemp(Sphere));
 
-							KineActor->SetUserData(nullptr);
+							KineActor->GetGameThreadAPI().SetUserData(nullptr);
 
 							TArray<FPhysicsActorHandle> ActorHandles({ KineActor });
 							Scene->AddActorsToScene_AssumesLocked(ActorHandles, /*bImmediate=*/false);
@@ -558,7 +559,7 @@ void UPhysicalAnimationComponent::DebugDraw(FPrimitiveDrawInterface* PDI) const
 #if PHYSICS_INTERFACE_PHYSX
 			PDI->DrawPoint(P2UVector(PhysAnimData.TargetActor->getGlobalPose().p), TargetActorColor, 3.f, SDPG_World);
 #elif WITH_CHAOS
-			PDI->DrawPoint(PhysAnimData.TargetActor->X(), TargetActorColor, 3.f, SDPG_World);
+			PDI->DrawPoint(PhysAnimData.TargetActor->GetGameThreadAPI().X(), TargetActorColor, 3.f, SDPG_World);
 #endif
 		}
 	}

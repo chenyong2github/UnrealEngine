@@ -16,7 +16,7 @@ extern int32 GCapsuleIndirectShadows;
 inline bool DoesPlatformSupportCapsuleShadows(const FStaticShaderPlatform Platform)
 {
 	// Hasn't been tested elsewhere yet
-	return Platform == SP_PCD3D_SM5 || Platform == SP_XBOXONE_D3D12
+	return Platform == SP_PCD3D_SM5
 		|| IsMetalSM5Platform(Platform)
 		|| IsVulkanSM5Platform(Platform)
 		|| Platform == SP_SWITCH

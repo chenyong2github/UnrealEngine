@@ -36,12 +36,9 @@ namespace Chaos
 		return EngineAdapterPriotityBegin;
 	}
 
-	template<typename ProxyType>
-	void RecordToCacheInternal(ProxyType* InProxy, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime)
+	void RecordToCacheInternal(FSingleParticlePhysicsProxy* InProxy, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime)
 	{
-		typename ProxyType::FParticleHandle* Handle = InProxy->GetHandle();
-
-		if(Handle)
+		if(TGeometryParticleHandle<FReal,3>* Handle = InProxy->GetHandle_LowLevel())
 		{
 			if(TPBDRigidParticleHandle<float, 3> * AsRigid = Handle->CastToRigidParticle())
 			{
@@ -61,41 +58,20 @@ namespace Chaos
 
 		UStaticMeshComponent* MeshComp = CastChecked<UStaticMeshComponent>(InComponent);
 
-		IPhysicsProxyBase* PhysProxy = MeshComp->BodyInstance.ActorHandle->GetProxy();
+		FSingleParticlePhysicsProxy* PhysProxy = MeshComp->BodyInstance.ActorHandle;
 
-		switch(PhysProxy->GetType())
-		{
-		case EPhysicsProxyType::SingleRigidParticleType:
-		{
-			FRigidParticlePhysicsProxy* Proxy = static_cast<FRigidParticlePhysicsProxy*>(PhysProxy);
-			RecordToCacheInternal(Proxy, InRootTransform, OutFrame, InTime);
-			break;
-		}
-		case EPhysicsProxyType::SingleKinematicParticleType:
-		{
-			FKinematicGeometryParticlePhysicsProxy* Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(PhysProxy);
-			RecordToCacheInternal(Proxy, InRootTransform, OutFrame, InTime);
-			break;
-		}
-		case EPhysicsProxyType::SingleGeometryParticleType:
-		{
-			FGeometryParticlePhysicsProxy* Proxy = static_cast<FGeometryParticlePhysicsProxy*>(PhysProxy);
-			RecordToCacheInternal(Proxy, InRootTransform, OutFrame, InTime);
-			break;
-		}
-		}
+		RecordToCacheInternal(PhysProxy, InRootTransform, OutFrame, InTime);
 #endif // WITH_CHAOS
 	}
 
-	template<typename ProxyType>
-	void PlayFromCacheInternal(ProxyType* InProxy, UChaosCache* InCache, FPlaybackTickRecord& TickRecord, TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids)
+	void PlayFromCacheInternal(FSingleParticlePhysicsProxy* InProxy, UChaosCache* InCache, FPlaybackTickRecord& TickRecord, TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids)
 	{
 		if(!InCache || InCache->GetDuration() == 0.0f)
 		{
 			return;
 		}
 
-		typename ProxyType::FParticleHandle* Handle = InProxy->GetHandle();
+		TGeometryParticleHandle<FReal,3>* Handle = InProxy->GetHandle_LowLevel();
 		
 		if(Handle && Handle->ObjectState() == EObjectStateType::Kinematic)
 		{
@@ -126,29 +102,9 @@ namespace Chaos
 
 		UStaticMeshComponent* MeshComp = CastChecked<UStaticMeshComponent>(InComponent);
 
-		IPhysicsProxyBase* PhysProxy = MeshComp->BodyInstance.ActorHandle->GetProxy();
+		FSingleParticlePhysicsProxy* PhysProxy = MeshComp->BodyInstance.ActorHandle;
 
-		switch(PhysProxy->GetType())
-		{
-		case EPhysicsProxyType::SingleRigidParticleType:
-		{
-			FRigidParticlePhysicsProxy* Proxy = static_cast<FRigidParticlePhysicsProxy*>(PhysProxy);
-			PlayFromCacheInternal(Proxy, InCache, TickRecord, OutUpdatedRigids);
-			break;
-		}
-		case EPhysicsProxyType::SingleKinematicParticleType:
-		{
-			FKinematicGeometryParticlePhysicsProxy* Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(PhysProxy);
-			PlayFromCacheInternal(Proxy, InCache, TickRecord, OutUpdatedRigids);
-			break;
-		}
-		case EPhysicsProxyType::SingleGeometryParticleType:
-		{
-			FGeometryParticlePhysicsProxy* Proxy = static_cast<FGeometryParticlePhysicsProxy*>(PhysProxy);
-			PlayFromCacheInternal(Proxy, InCache, TickRecord, OutUpdatedRigids);
-			break;
-		}
-		}
+		PlayFromCacheInternal(PhysProxy, InCache, TickRecord, OutUpdatedRigids);
 #endif // WITH_CHAOS
 	}
 
@@ -205,4 +161,3 @@ namespace Chaos
 }    // namespace Chaos
 
 Chaos::TAutoRegisterCacheAdapter<Chaos::FStaticMeshCacheAdapter> StaticMeshAdapter;
-

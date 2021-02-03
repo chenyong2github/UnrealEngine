@@ -37,6 +37,8 @@ struct CORE_API FUnixTime : public FGenericPlatformTime
 		return static_cast<uint64>(static_cast<uint64>(ts.tv_sec) * 1000000ULL + static_cast<uint64>(ts.tv_nsec) / 1000ULL);
 	}
 
+	static bool UpdateCPUTime(float DeltaSeconds);
+
 	static FCPUTime GetCPUTime();	
 
 	/**

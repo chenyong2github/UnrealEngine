@@ -108,7 +108,7 @@ namespace Chaos
 		typedef TPBDRigidsSOAs<float, 3> FParticlesType;
 		typedef FPBDRigidDirtyParticlesBuffer FDirtyParticlesBuffer;
 
-		typedef Chaos::TGeometryParticle<float, 3> FParticle;
+		typedef Chaos::FGeometryParticle FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
 		typedef Chaos::TPBDRigidsEvolutionGBF<Traits> FPBDRigidsEvolution;
 
@@ -132,11 +132,8 @@ namespace Chaos
 		//  Object API
 		//
 
-		Chaos::FSingleParticleProxy* RegisterObject_External(TUniquePtr<Chaos::FGeometryParticleBuffer>&& GTParticleBuffer);
-		void UnregisterObject_External(Chaos::FSingleParticleProxy* Proxy);
-
-		void RegisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
-		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
+		void RegisterObject(FSingleParticlePhysicsProxy* Proxy);
+		void UnregisterObject(FSingleParticlePhysicsProxy* Proxy);
 
 		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
 		void UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
@@ -319,6 +316,14 @@ namespace Chaos
 
 		void BeginDestroy();
 
+		/** Update the particles parameters based on field evaluation */
+		void FieldParameterUpdateCallback(
+			Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+			TMap<int32, int32>& TargetedParticles);
+
+		/** Update the particles forces based on field evaluation */
+		void FieldForcesUpdateCallback();
+
 	private:
 
 		/**/
@@ -382,9 +387,7 @@ namespace Chaos
 		THandleArray<FChaosPhysicsMaterial> SimMaterials;
 		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
 
-		TArray<FRigidParticlePhysicsProxy*> PendingDestroyRigidProxy;
-		TArray<FKinematicGeometryParticlePhysicsProxy*> PendingDestroyKinematicProxy;
-		TArray<FGeometryParticlePhysicsProxy*> PendingDestroyGeometryProxy;
+		TArray<FSingleParticlePhysicsProxy*> PendingDestroyPhysicsProxy;
 
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
 		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;

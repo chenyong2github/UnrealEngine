@@ -81,8 +81,8 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		else if(bSleeping)
 		{
 			//being put to sleep, so zero out velocities
-			this->V(Index) = TVector<FReal,3>(0);
-			this->W(Index) = TVector<FReal,3>(0);
+			this->V(Index) = FVec3(0);
+			this->W(Index) = FVec3(0);
 		}
 
 		bool CurrentlySleeping = this->ObjectState(Index) == EObjectStateType::Sleeping;
@@ -201,10 +201,12 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 };
 
 #if PLATFORM_MAC || PLATFORM_LINUX
-extern template class CHAOS_API TPBDRigidParticles<float,3>;
+extern template class CHAOS_API TPBDRigidParticles<FReal,3>;
 #else
-extern template class TPBDRigidParticles<float,3>;
+extern template class TPBDRigidParticles<FReal,3>;
 #endif
+
+using FPBDRigidParticles = TPBDRigidParticles<FReal, 3>;
 
 template <typename T, int d>
 FChaosArchive& operator<<(FChaosArchive& Ar, TPBDRigidParticles<T, d>& Particles)

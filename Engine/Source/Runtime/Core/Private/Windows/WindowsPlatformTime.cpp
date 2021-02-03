@@ -111,11 +111,11 @@ bool FWindowsPlatformTime::UpdateCPUTime( float /*DeltaTime*/ )
 
 		LastTotalProcessTime = CurrentTotalProcessTime;
 		LastTotalUserAndKernelTime = CurrentTotalUserAndKernelTime;
+		LastIntervalCPUTimeInSeconds = IntervalUserAndKernelTime;
 	}
 
 	return true;
 }
-
 
 FCPUTime FWindowsPlatformTime::GetCPUTime()
 {

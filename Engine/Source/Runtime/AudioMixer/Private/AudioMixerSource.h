@@ -116,6 +116,9 @@ namespace Audio
 		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 		FMixerSourceVoice* MixerSourceVoice;
 
+		uint32 bPreviousBusEnablement;
+		uint32 bPreviousBaseSubmixEnablement;
+
 		// This holds data copied from FSoundSourceBusSendInfo when a new sound starts playing
 		// so that distance-based level control can be calculated during rendering
 		struct FDynamicBusSendInfo

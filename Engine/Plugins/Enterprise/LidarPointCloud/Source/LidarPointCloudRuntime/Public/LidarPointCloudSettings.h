@@ -68,12 +68,13 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Performance, meta = (ClampMin = "0"))
 	float CachedNodeLifetime;
 
-	/**
-	 * Enabling this will compress data when saving the assets.
-	 * May introduce delay when streaming points on slower machines.
-	 */
-	UPROPERTY(config, EditAnywhere, Category=IO)
-	bool bUseCompression;
+	/** If enabled, the render data generation will be spread across multiple frames to avoid freezes */
+	UPROPERTY(config, EditAnywhere, Category=Performance)
+	bool bUseRenderDataSmoothing;
+
+	/** If UseRenderDataSmoothing is enabled, this will determine how much of the frame time can be spent on render data generation. */
+	UPROPERTY(config, EditAnywhere, Category=Performance, meta = (EditCondition = "bUseAsyncImport"))
+	float RenderDataSmoothingMaxFrametime;
 
 	/** Affects the size of per-thread data for the meshing algorithm. */
 	UPROPERTY(config, EditAnywhere, Category=Collision)

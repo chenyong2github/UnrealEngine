@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFeatureAction.h"
+#include "Engine/CurveTable.h"
+#include "Engine/DataTable.h"
 #include "GameFeatureAction_DataRegistrySource.generated.h"
 
-class UDataTable;
-class UCurveTable;
-
+/** Defines which source assets to add and conditions for adding */
 USTRUCT()
 struct FDataRegistrySourceToAdd
 {
@@ -20,31 +20,32 @@ struct FDataRegistrySourceToAdd
 		, bServerSource(false)
 	{}
 
-	// Name of the registry to add to
+	/** Name of the registry to add to */
 	UPROPERTY(EditAnywhere, Category="Registry Data")
 	FName RegistryToAddTo;
 
-	// Priority to use when adding to the registry.  Higher priorities are searched first
+	/** Priority to use when adding to the registry.  Higher priorities are searched first */
 	UPROPERTY(EditAnywhere, Category = "Registry Data")
 	int32 AssetPriority;
 
-	// Should this component be added for clients
+	/** Should this component be added for clients */
 	UPROPERTY(EditAnywhere, Category = "Registry Data")
 	uint8 bClientSource : 1;
 
-	// Should this component be added on servers
+	/** Should this component be added on servers */
 	UPROPERTY(EditAnywhere, Category = "Registry Data")
 	uint8 bServerSource : 1;
 
-	// Link to the data table to add to the registry
+	/** Link to the data table to add to the registry */
 	UPROPERTY(EditAnywhere, Category = "Registry Data")
 	TSoftObjectPtr<UDataTable> DataTableToAdd;
 
-	// TODO: Should this also support curve tables?
+	/** Link to the curve table to add to the registry */
 	UPROPERTY(EditAnywhere, Category = "Registry Data")
 	TSoftObjectPtr<UCurveTable> CurveTableToAdd;
 };
 
+/** Specifies a list of source assets to add to Data Registries when this feature is activated */
 UCLASS(MinimalAPI, meta = (DisplayName = "Add Data Registry Source"))
 class UGameFeatureAction_DataRegistrySource : public UGameFeatureAction
 {

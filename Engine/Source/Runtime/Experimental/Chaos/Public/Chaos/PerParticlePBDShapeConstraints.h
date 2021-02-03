@@ -19,7 +19,7 @@ class TPerParticlePBDShapeConstraints : public TPerParticleRule<T, d>, public TP
 	    : Base(Stiffness)
 	{
 	}
-	TPerParticlePBDShapeConstraints(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<float, 3>>& TargetPositions, const T Stiffness = (T)1)
+	TPerParticlePBDShapeConstraints(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<T, 3>>& TargetPositions, const T Stiffness = (T)1)
 	    : Base(InParticles, TargetPositions, Stiffness)
 	{
 	}

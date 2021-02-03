@@ -1203,6 +1203,7 @@ namespace GeometryCollectionAlgo
 		return true;
 	}
 
+
 	TArray<int32> ComputeRecursiveOrder(const FGeometryCollection& Collection)
 	{
 		const int32 NumTransforms = Collection.NumElements(FGeometryCollection::TransformGroup);
@@ -1267,5 +1268,6 @@ namespace GeometryCollectionAlgo
 		return TransformOrder;
 	}
 
-
 }
+
+

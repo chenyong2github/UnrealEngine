@@ -1003,6 +1003,9 @@ void ProcessNewlyLoadedUObjects(FName Package, bool bCanProcessNewlyLoadedObject
 		bNewUObjects = true;
 		UObjectProcessRegistrants();
 		UObjectLoadAllCompiledInStructs();
+
+		FCoreUObjectDelegates::CompiledInUObjectsRegisteredDelegate.Broadcast(Package);
+
 		UObjectLoadAllCompiledInDefaultProperties();
 	}
 #if WITH_HOT_RELOAD

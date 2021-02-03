@@ -15,6 +15,7 @@
 	#include "Chaos/PBDJointConstraintTypes.h"
 	#include "Chaos/PBDJointConstraintData.h"
 	#include "Chaos/Sphere.h"
+	#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #endif
 
 #include "ChaosCheck.h"
@@ -226,8 +227,8 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 		Params.InitialTM = FTransform(Rotation, Location);
 		FPhysicsInterface::CreateActor(Params, KinematicHandle);
 
-		KinematicHandle->SetGeometry(TUniquePtr<FImplicitObject>(new TSphere<FReal, 3>(TVector<FReal, 3>(0.f), 1000.f)));
-		KinematicHandle->SetObjectState(EObjectStateType::Kinematic);
+		KinematicHandle->GetGameThreadAPI().SetGeometry(TUniquePtr<FImplicitObject>(new TSphere<FReal, 3>(TVector<FReal, 3>(0.f), 1000.f)));
+		KinematicHandle->GetGameThreadAPI().SetObjectState(EObjectStateType::Kinematic);
 
 		if (FPhysScene* Scene = BodyInstance->GetPhysicsScene())
 		{
@@ -241,10 +242,10 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 	// set target and current, so we don't need another "Tick" call to have it right
 	TargetTransform = CurrentTransform = KinematicTransform;
 
-	KinematicHandle->SetX(KinematicTransform.GetLocation());
-	KinematicHandle->SetR(KinematicTransform.GetRotation());	
+	KinematicHandle->GetGameThreadAPI().SetX(KinematicTransform.GetLocation());
+	KinematicHandle->GetGameThreadAPI().SetR(KinematicTransform.GetRotation());	
 	
-	FTransform GrabbedTransform(InHandle->R(), InHandle->X());
+	FTransform GrabbedTransform(InHandle->GetGameThreadAPI().R(), InHandle->GetGameThreadAPI().X());
 	ConstraintLocalPosition = GrabbedTransform.InverseTransformPosition(Location);
 	ConstraintLocalRotation = FRotator(GrabbedTransform.InverseTransformRotation(FQuat(Rotation)));
 
@@ -288,8 +289,8 @@ void UPhysicsHandleComponent::UpdateDriveSettings()
 					Chaos::EJointMotionType RotationMotionType = (bSoftAngularConstraint || !bRotationConstrained) ? Chaos::EJointMotionType::Free : Chaos::EJointMotionType::Locked;
 
 					Constraint->SetCollisionEnabled(false);
-					Constraint->SetLinearVelocityDriveEnabled(Chaos::TVector<bool, 3>(LocationMotionType != Chaos::EJointMotionType::Locked));
-					Constraint->SetLinearPositionDriveEnabled(Chaos::TVector<bool, 3>(LocationMotionType != Chaos::EJointMotionType::Locked));
+					Constraint->SetLinearVelocityDriveEnabled(Chaos::TVec3<bool>(LocationMotionType != Chaos::EJointMotionType::Locked));
+					Constraint->SetLinearPositionDriveEnabled(Chaos::TVec3<bool>(LocationMotionType != Chaos::EJointMotionType::Locked));
 					Constraint->SetLinearMotionTypesX(LocationMotionType);
 					Constraint->SetLinearMotionTypesY(LocationMotionType);
 					Constraint->SetLinearMotionTypesZ(LocationMotionType);
@@ -450,8 +451,8 @@ void UPhysicsHandleComponent::UpdateHandleTransform(const FTransform& NewTransfo
 	{
 		FPhysicsCommand::ExecuteWrite(KinematicHandle, [&](const FPhysicsActorHandle& InKinematicHandle)
 			{
-				KinematicHandle->SetX(CurrentTransform.GetTranslation());
-				KinematicHandle->SetR(CurrentTransform.GetRotation());
+				KinematicHandle->GetGameThreadAPI().SetX(CurrentTransform.GetTranslation());
+				KinematicHandle->GetGameThreadAPI().SetR(CurrentTransform.GetRotation());
 			});
 
 		PreviousTransform = CurrentTransform;
@@ -494,24 +495,21 @@ void UPhysicsHandleComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 	}
 	else if (KinematicHandle && GrabbedHandle)
 	{
-		if (KinematicHandle->GetProxy())
+		using namespace Chaos;
+
+		ConstraintHandle = FChaosEngineInterface::CreateConstraint(KinematicHandle, GrabbedHandle, FTransform::Identity, FTransform::Identity); // Correct transforms will be set in the update
+		if (ConstraintHandle.IsValid() && ConstraintHandle.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 		{
-			using namespace Chaos;
-
-			ConstraintHandle = FChaosEngineInterface::CreateConstraint(KinematicHandle, GrabbedHandle, FTransform::Identity, FTransform::Identity); // Correct transforms will be set in the update
-			if (ConstraintHandle.IsValid() && ConstraintHandle.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
+			if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(ConstraintHandle.Constraint))
 			{
-				if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(ConstraintHandle.Constraint))
-				{
-					// need to tie together the instance and the handle for scene read/write locks
-					Constraint->SetUserData(&PhysicsUserData/*has a (void*)FConstraintInstanceBase*/);
-					ConstraintInstance.ConstraintHandle = ConstraintHandle;
+				// need to tie together the instance and the handle for scene read/write locks
+				Constraint->SetUserData(&PhysicsUserData/*has a (void*)FConstraintInstanceBase*/);
+				ConstraintInstance.ConstraintHandle = ConstraintHandle;
 
-					UpdateDriveSettings();
-				}
+				UpdateDriveSettings();
 			}
-			bPendingConstraint = true;
 		}
+		bPendingConstraint = true;
 	}
 #endif
 }

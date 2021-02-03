@@ -1365,7 +1365,7 @@ bool FEventWin::Wait(uint32 WaitTime, const bool bIgnoreThreadIdleStats /*= fals
 	WaitForStats();
 
 	SCOPE_CYCLE_COUNTER( STAT_EventWait );
-	CSV_SCOPED_WAIT_CONDITIONAL(WaitTime > 0 && IsInGameThread());
+	CSV_SCOPED_WAIT(WaitTime);
 	check(Event);
 
 	FThreadIdleStats::FScopeIdle Scope( bIgnoreThreadIdleStats );

@@ -44,7 +44,7 @@ struct FURL;
 
 DECLARE_DELEGATE_RetVal_ThreeParams(UReplicationDriver*, FCreateReplicationDriver, UNetDriver*, const FURL&, UWorld*);
 
-UCLASS(transient, config=Engine)
+UCLASS(abstract, transient, config=Engine)
 class ENGINE_API UReplicationDriver :public UObject
 {
 	GENERATED_BODY()
@@ -108,8 +108,8 @@ public:
 };
 
 /** Class/interface for replication extension that is per connection. It is up to the replication driver to create and associate these with a UNetConnection */
-UCLASS(transient)
-class ENGINE_API UReplicationConnectionDriver :public UObject
+UCLASS(abstract, transient)
+class ENGINE_API UReplicationConnectionDriver : public UObject
 {
 	GENERATED_BODY()
 

@@ -18,7 +18,14 @@ class UTestBTTask_SetFlag : public UBTTaskNode
 	bool bValue;
 
 	UPROPERTY()
+	FName OnAbortKeyName;
+
+	UPROPERTY()
+	bool bOnAbortValue;
+
+	UPROPERTY()
 	TEnumAsByte<EBTNodeResult::Type> TaskResult;
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 };

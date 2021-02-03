@@ -34,25 +34,25 @@ namespace Chaos
 		// ---- Solver interface ----
 		void Initialize(
 			TPBDEvolution<float, 3>* InEvolution,
-			const TArray<TVector<float, 3>>& InAnimationPositions,
-			const TArray<TVector<float, 3>>& InAnimationNormals,
+			const TArray<FVec3>& InAnimationPositions,
+			const TArray<FVec3>& InAnimationNormals,
 			int32 InParticleOffset,
 			int32 InNumParticles);
 		// ---- End of Solver interface ----
 
 		// ---- Cloth interface ----
-		void SetEdgeConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, float EdgeStiffness, bool bUseXPBDConstraints);
-		void SetBendingConstraints(TArray<TVector<int32, 2>>&& Edges, float BendingStiffness, bool bUseXPBDConstraints);
-		void SetBendingConstraints(TArray<TVector<int32, 4>>&& BendingElements, float BendingStiffness);
-		void SetAreaConstraints(TArray<TVector<int32, 3>>&& SurfaceElements, float AreaStiffness, bool bUseXPBDConstraints);
-		void SetVolumeConstraints(TArray<TVector<int32, 2>>&& DoubleBendingEdges, float VolumeStiffness);
-		void SetVolumeConstraints(TArray<TVector<int32, 3>>&& SurfaceElements, float VolumeStiffness);
+		void SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, float EdgeStiffness, bool bUseXPBDConstraints);
+		void SetBendingConstraints(TArray<TVec2<int32>>&& Edges, float BendingStiffness, bool bUseXPBDConstraints);
+		void SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, float BendingStiffness);
+		void SetAreaConstraints(TArray<TVec3<int32>>&& SurfaceElements, float AreaStiffness, bool bUseXPBDConstraints);
+		void SetVolumeConstraints(TArray<TVec2<int32>>&& DoubleBendingEdges, float VolumeStiffness);
+		void SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceElements, float VolumeStiffness);
 		void SetLongRangeConstraints(const TMap<int32, TSet<uint32>>& PointToNeighborsMap, float StrainLimitingStiffness, float LimitScale, ETetherMode TetherMode, bool bUseXPBDConstraints);
 		void SetMaximumDistanceConstraints(const TConstArrayView<float>& MaxDistances);
 		void SetBackstopConstraints(const TConstArrayView<float>& BackstopDistances, const TConstArrayView<float>& BackstopRadiuses, bool bUseLegacyBackstop);
 		void SetAnimDriveConstraints(const TConstArrayView<float>& AnimDriveMultipliers);
 		void SetShapeTargetConstraints(float ShapeTargetStiffness);
-		void SetSelfCollisionConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, TSet<TVector<int32, 2>>&& DisabledCollisionElements, float SelfCollisionThickness);
+		void SetSelfCollisionConstraints(const TArray<TVec3<int32>>& SurfaceElements, TSet<TVec2<int32>>&& DisabledCollisionElements, float SelfCollisionThickness);
 
 		void CreateRules();
 		void Enable(bool bEnable);
@@ -99,8 +99,8 @@ namespace Chaos
 		TSharedPtr<TPBDCollisionSpringConstraints<float, 3>> SelfCollisionConstraints;
 		
 		TPBDEvolution<float, 3>* Evolution;
-		const TArray<TVector<float, 3>>* AnimationPositions;
-		const TArray<TVector<float, 3>>* AnimationNormals;
+		const TArray<FVec3>* AnimationPositions;
+		const TArray<FVec3>* AnimationNormals;
 
 		int32 ParticleOffset;
 		int32 NumParticles;

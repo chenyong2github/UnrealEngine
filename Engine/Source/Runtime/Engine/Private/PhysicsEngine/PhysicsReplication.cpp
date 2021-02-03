@@ -352,7 +352,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 				AsyncDesiredState.WorldTM = IdealWorldTM;
 				AsyncDesiredState.LinearVelocity = NewState.LinVel;
 				AsyncDesiredState.AngularVelocity = NewState.AngVel;
-				AsyncDesiredState.Proxy = static_cast<FRigidParticlePhysicsProxy*>(BI->GetPhysicsActorHandle()->GetProxy());
+				AsyncDesiredState.Proxy = static_cast<FSingleParticlePhysicsProxy*>(BI->GetPhysicsActorHandle());
 				AsyncDesiredState.bShouldSleep = bShouldSleep;
 
 				CurAsyncData->Buffer.Add(AsyncDesiredState);
@@ -572,8 +572,11 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 		for (const FAsyncPhysicsDesiredState& State : AsyncData->Buffer)
 		{
 			//Proxy should exist because we are using latest and any pending deletes would have been enqueued after
-			FRigidParticlePhysicsProxy* Proxy = State.Proxy;
-			if(TPBDRigidParticleHandle<float, 3>* Handle = Proxy->GetHandle())
+			FSingleParticlePhysicsProxy* Proxy = State.Proxy;
+			auto* Handle = Proxy->GetPhysicsThreadAPI();
+
+
+			if(Handle && Handle->CanTreatAsRigid())
 			{
 				const FVector TargetPos = State.WorldTM.GetLocation();
 				const FQuat TargetQuat = State.WorldTM.GetRotation();
@@ -609,7 +612,7 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 					ObjectStateType = EObjectStateType::Sleeping;
 				}
 				auto* Solver = Proxy->GetSolver<FPBDRigidsSolver>();
-				Solver->GetEvolution()->SetParticleObjectState(Handle, ObjectStateType);
+				Solver->GetEvolution()->SetParticleObjectState(Proxy->GetHandle_LowLevel()->CastToRigidParticle(), ObjectStateType);	//todo: move object state into physics thread api
 			}
 		}
 	}

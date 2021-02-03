@@ -14,13 +14,17 @@
 
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
-#include "MaterialEditingLibrary.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "MeshDescription.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshResources.h"
+
+#if WITH_EDITOR
+#include "MaterialEditingLibrary.h"
+#endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/ar/resolver.h"
@@ -353,19 +357,22 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 	return ConvertGeomMesh( UsdSchema, MeshDescription, MaterialAssignments, AdditionalTransform, MaterialToPrimvarsUVSetNames, TimeCode );
 }
 
-bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const pxr::UsdTimeCode TimeCode )
+bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
+	const pxr::UsdTimeCode TimeCode, const pxr::TfToken& RenderContext )
 {
 	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarsUVSetNames;
-	return ConvertGeomMesh( UsdSchema, MeshDescription, MaterialAssignments, FTransform::Identity, MaterialToPrimvarsUVSetNames, TimeCode );
+	return ConvertGeomMesh( UsdSchema, MeshDescription, MaterialAssignments, FTransform::Identity, MaterialToPrimvarsUVSetNames, TimeCode, RenderContext );
 }
 
-bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const FTransform& AdditionalTransform, const pxr::UsdTimeCode TimeCode )
+bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const FTransform& AdditionalTransform,
+	const pxr::UsdTimeCode TimeCode, const pxr::TfToken& RenderContext )
 {
 	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarsUVSetNames;
-	return ConvertGeomMesh( UsdSchema, MeshDescription, MaterialAssignments, AdditionalTransform, MaterialToPrimvarsUVSetNames, TimeCode );
+	return ConvertGeomMesh( UsdSchema, MeshDescription, MaterialAssignments, AdditionalTransform, MaterialToPrimvarsUVSetNames, TimeCode, RenderContext );
 }
 
-bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const FTransform& AdditionalTransform, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::UsdTimeCode TimeCode )
+bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const FTransform& AdditionalTransform, 
+	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::UsdTimeCode TimeCode, const pxr::TfToken& RenderContext )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertGeomMesh );
 
@@ -386,7 +393,8 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 	const double TimeCodeValue = TimeCode.GetValue();
 
 	// Material assignments
-	UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( UsdPrim, TimeCode );
+	const bool bProvideMaterialIndices = true;
+	UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( UsdPrim, TimeCode, bProvideMaterialIndices, RenderContext );
 	MaterialAssignments.Slots.Append( LocalInfo.Slots ); // We always want to keep individual slots, even when collapsing
 
 	TArray< UsdUtils::FUsdPrimMaterialSlot >& LocalMaterialSlots = LocalInfo.Slots;
@@ -568,6 +576,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 			OpacityInterpolation = OpacityPrimvar.GetInterpolation();
 		}
 
+		TPolygonGroupAttributesRef<FName> MaterialSlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
 		for ( int32 PolygonIndex = 0; PolygonIndex < FaceCounts.size(); ++PolygonIndex )
 		{
 			int32 PolygonVertexCount = FaceCounts[PolygonIndex];
@@ -676,6 +685,9 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 			{
 				FPolygonGroupID NewPolygonGroup = MeshDescription.CreatePolygonGroup();
 				PolygonGroupMapping.Add( CombinedMaterialIndex, NewPolygonGroup );
+
+				// This is important for runtime, where the material slots are matched to LOD sections based on their material slot name
+				MaterialSlotNames[ NewPolygonGroup ] = *LexToString( NewPolygonGroup.GetValue() );
 			}
 
 			if ( bFlipThisGeometry )
@@ -696,6 +708,9 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 
 bool UsdToUnreal::ConvertDisplayColor( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription, UMaterialInstanceConstant& Material )
 {
+	FUsdLogManager::LogMessage( EMessageSeverity::Warning, LOCTEXT( "DeprecatedConvertDisplayColor", "Converting existing instances with UsdToUnreal::ConvertDisplayColor is deprecated in favor of just calling UsdUtils::CreateDisplayColorMaterialInstanceConstant instead, and may be removed in a future release." ) );
+
+#if WITH_EDITOR
 	FString ParentPath = DisplayColorDescription.bHasOpacity
 		? TEXT("Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'")
 		: TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'");
@@ -711,11 +726,88 @@ bool UsdToUnreal::ConvertDisplayColor( const UsdUtils::FDisplayColorMaterial& Di
 		Material.BasePropertyOverrides.TwoSided = DisplayColorDescription.bIsDoubleSided;
 		Material.PostEditChange();
 	}
+#endif // WITH_EDITOR
 
 	return true;
 }
 
-UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, bool bProvideMaterialIndices )
+UMaterialInstanceDynamic* UsdUtils::CreateDisplayColorMaterialInstanceDynamic( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription )
+{
+	FString ParentPath;
+	if ( DisplayColorDescription.bHasOpacity )
+	{
+		if ( DisplayColorDescription.bIsDoubleSided )
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacityDoubleSided.DisplayColorAndOpacityDoubleSided'" );
+		}
+		else
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'" );
+		}
+	}
+	else
+	{
+		if ( DisplayColorDescription.bIsDoubleSided )
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorDoubleSided.DisplayColorDoubleSided'" );
+		}
+		else
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColor.DisplayColor'" );
+		}
+	}
+
+	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( FSoftObjectPath( ParentPath ).TryLoad() ) )
+	{
+		if ( UMaterialInstanceDynamic* NewMaterial = UMaterialInstanceDynamic::Create( ParentMaterial, GetTransientPackage() ) )
+		{
+			return NewMaterial;
+		}
+	}
+
+	return nullptr;
+}
+
+UMaterialInstanceConstant* UsdUtils::CreateDisplayColorMaterialInstanceConstant( const FDisplayColorMaterial& DisplayColorDescription )
+{
+#if WITH_EDITOR
+	FString ParentPath;
+	if ( DisplayColorDescription.bHasOpacity )
+	{
+		if ( DisplayColorDescription.bIsDoubleSided )
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacityDoubleSided.DisplayColorAndOpacityDoubleSided'" );
+		}
+		else
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'" );
+		}
+	}
+	else
+	{
+		if ( DisplayColorDescription.bIsDoubleSided )
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorDoubleSided.DisplayColorDoubleSided'" );
+		}
+		else
+		{
+			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColor.DisplayColor'" );
+		}
+	}
+
+	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( FSoftObjectPath( ParentPath ).TryLoad() ) )
+	{
+		if ( UMaterialInstanceConstant* MaterialInstance = NewObject< UMaterialInstanceConstant >( GetTransientPackage(), NAME_None, RF_NoFlags ) )
+		{
+			UMaterialEditingLibrary::SetMaterialInstanceParent( MaterialInstance, ParentMaterial );
+			return MaterialInstance;
+		}
+	}
+#endif // WITH_EDITOR
+	return nullptr;
+}
+
+UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, bool bProvideMaterialIndices, const pxr::TfToken& RenderContext )
 {
 	if ( !UsdPrim )
 	{
@@ -772,7 +864,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 		return {};
 	};
 
-	auto FetchMaterialByComputingBoundMaterial = []( const pxr::UsdPrim& UsdPrim ) -> TOptional<FString>
+	auto FetchMaterialByComputingBoundMaterial = [ &RenderContext ]( const pxr::UsdPrim& UsdPrim ) -> TOptional<FString>
 	{
 		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
 		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial();
@@ -782,7 +874,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 		}
 
 		// Ignore this material if UsdToUnreal::ConvertMaterial would as well
-		pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource();
+		pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource( RenderContext );
 		if ( !SurfaceShader )
 		{
 			return {};
@@ -802,7 +894,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 		return {};
 	};
 
-	auto FetchMaterialByMaterialRelationship = []( const pxr::UsdPrim& UsdPrim ) -> TOptional<FString>
+	auto FetchMaterialByMaterialRelationship = [ &RenderContext ]( const pxr::UsdPrim& UsdPrim ) -> TOptional<FString>
 	{
 		if ( pxr::UsdRelationship Relationship = UsdPrim.GetRelationship( pxr::UsdShadeTokens->materialBinding ) )
 		{
@@ -816,13 +908,27 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 				pxr::UsdShadeMaterial UsdShadeMaterial{ MaterialPrim };
 				if ( !UsdShadeMaterial )
 				{
+					FUsdLogManager::LogMessage(
+						EMessageSeverity::Warning,
+						FText::Format( LOCTEXT( "IgnoringMaterialInvalid", "Ignoring material '{0}' bound to prim '{1}' as it does not possess the UsdShadeMaterial schema" ),
+							FText::FromString( UsdToUnreal::ConvertPath( TargetMaterialPrimPath ) ),
+							FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) )
+						)
+					);
 					return {};
 				}
 
 				// Ignore this material if UsdToUnreal::ConvertMaterial would as well
-				pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
+				pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource( RenderContext );
 				if ( !SurfaceShader )
 				{
+					FUsdLogManager::LogMessage(
+						EMessageSeverity::Warning,
+						FText::Format( LOCTEXT( "IgnoringMaterialSurface", "Ignoring material '{0}' bound to prim '{1}' as it contains no valid surface shader source" ),
+							FText::FromString( UsdToUnreal::ConvertPath( TargetMaterialPrimPath ) ),
+							FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) )
+						)
+					);
 					return {};
 				}
 
@@ -832,7 +938,9 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 					FUsdLogManager::LogMessage(
 						EMessageSeverity::Warning,
 						FText::Format( LOCTEXT( "MoreThanOneMaterialBinding", "Found more than on material:binding targets on prim '{0}'. The first material ('{1}') will be used, and the rest ignored." ),
-						FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) ), FText::FromString( MaterialPrimPath ) )
+							FText::FromString( UsdToUnreal::ConvertPath( UsdPrim.GetPath() ) ),
+							FText::FromString( MaterialPrimPath )
+						)
 					);
 				}
 
@@ -1098,7 +1206,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		pxr::SdfPath LODPrimPath = ParentPrimPath.AppendPath(pxr::SdfPath(VariantName));
 
 		// Enable the variant edit context, if we are creating variant LODs
-		TUniquePtr< pxr::UsdEditContext > EditContext;
+		TOptional< pxr::UsdEditContext > EditContext;
 		if ( bExportMultipleLODs )
 		{
 			pxr::UsdVariantSet VariantSet = VariantSets.GetVariantSet( UnrealIdentifiers::LOD );
@@ -1109,7 +1217,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 			}
 
 			VariantSet.SetVariantSelection( VariantName );
-			EditContext = MakeUnique< pxr::UsdEditContext>( VariantSet.GetVariantEditContext() );
+			EditContext.Emplace( VariantSet.GetVariantEditContext() );
 		}
 
 		pxr::UsdGeomMesh TargetMesh;

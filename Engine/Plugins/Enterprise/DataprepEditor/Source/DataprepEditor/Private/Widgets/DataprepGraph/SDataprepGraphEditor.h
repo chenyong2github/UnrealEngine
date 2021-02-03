@@ -151,7 +151,7 @@ private:
 	/** Dimensions of pipeline being displayed */
 	FSlateRect WorkingArea;
 
-	/** Size of graph being displayed */
+	/** The dataprep asset associated with this graph */
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
 	/** Size of graph being displayed */

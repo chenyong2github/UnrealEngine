@@ -315,6 +315,12 @@ FString FDataRegistryIdCustomization::OnGetTypeValueString() const
 	{
 		return CurrentId.RegistryType.ToString();
 	}
+	
+	FName TempName;
+	if (TypePropertyHandle.IsValid() && TypePropertyHandle->GetValue(TempName) == FPropertyAccess::MultipleValues)
+	{
+		return LOCTEXT("MultipleValues", "Multiple Values").ToString();
+	}
 
 	return LOCTEXT("NoneValue", "None").ToString();
 }
@@ -325,6 +331,12 @@ FText FDataRegistryIdCustomization::OnGetNameValueText() const
 	if (!CurrentId.ItemName.IsNone())
 	{
 		return FText::FromName(CurrentId.ItemName);
+	}
+
+	FName TempName;
+	if (NamePropertyHandle.IsValid() && NamePropertyHandle->GetValue(TempName) == FPropertyAccess::MultipleValues)
+	{
+		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
 
 	return LOCTEXT("NoneValue", "None");

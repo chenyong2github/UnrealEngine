@@ -10,7 +10,6 @@
 #include "PrimitiveSceneProxy.h"
 #include "MeshBatch.h"
 #include "Engine/Engine.h"
-#include "Misc/ScopeTryLock.h"
 #include "SceneManagement.h"
 #include "LocalVertexFactory.h"
 #include "Materials/Material.h"
@@ -314,6 +313,7 @@ public:
 		UserDataElement.VirtualDepth = RenderData.VDMultiplier * Node.VirtualDepth;
 		UserDataElement.SpriteSize = RenderData.RootCellSize / FMath::Pow(2.0f, UserDataElement.VirtualDepth);
 		UserDataElement.SpriteSizeMultiplier = Component->PointSize * Component->GetComponentScale().GetAbsMax();
+		UserDataElement.bUseScreenSizeScaling = Component->bUseScreenSizeScaling;
 
 		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
 		UserDataElement.LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();		
@@ -323,7 +323,7 @@ public:
 		UserDataElement.BoundsSize = BoundsSize;
 		UserDataElement.ElevationColorBottom = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorBottom);
 		UserDataElement.ElevationColorTop = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorTop);
-		UserDataElement.bUseCircle = bUsesSprites && Component->PointShape == ELidarPointCloudSpriteShape::Circle;
+		UserDataElement.bUseCircle = bUsesSprites && Component->GetPointShape() == ELidarPointCloudSpriteShape::Circle;
 		UserDataElement.bUseColorOverride = Component->ColorSource != ELidarPointCloudColorationMode::Data;
 		UserDataElement.bUseElevationColor = Component->ColorSource == ELidarPointCloudColorationMode::Elevation || Component->ColorSource == ELidarPointCloudColorationMode::None;
 		UserDataElement.Offset = Component->Offset;

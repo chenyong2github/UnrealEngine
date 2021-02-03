@@ -7,7 +7,7 @@
                     "ArPackageResolver": {}
                 }
             },
-            "LibraryPath": "../../../../../Binaries/Mac/libar.dylib", 
+            "LibraryPath": "../../../../../../../../Binaries/Mac/libar.dylib", 
             "Name": "ar", 
             "ResourcePath": "resources", 
             "Root": "..", 

@@ -380,7 +380,7 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 						}
 
 						Output = SourceData;
-
+    
 						FAnimationPoseData BaseAnimationPoseData(Output);
 						const FAnimationPoseData AdditiveAnimationPoseData(CurrentPose);
 						FAnimationRuntime::AccumulateAdditivePose(BaseAnimationPoseData, AdditiveAnimationPoseData, 1.f, EAdditiveAnimationType::AAT_LocalSpaceBase);

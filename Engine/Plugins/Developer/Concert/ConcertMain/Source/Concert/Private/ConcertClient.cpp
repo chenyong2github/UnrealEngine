@@ -1289,6 +1289,7 @@ void FConcertClient::TimeoutDiscovery(const FDateTime& UtcNow)
 void FConcertClient::SendDiscoverServersEvent()
 {
 	FConcertAdmin_DiscoverServersEvent DiscoverServersEvent;
+	DiscoverServersEvent.ConcertProtocolVersion = EConcertMessageVersion::LatestVersion;
 	DiscoverServersEvent.RequiredRole = Role;
 	DiscoverServersEvent.RequiredVersion = VERSION_STRINGIFY(ENGINE_MAJOR_VERSION) TEXT(".") VERSION_STRINGIFY(ENGINE_MINOR_VERSION);
 	DiscoverServersEvent.ClientAuthenticationKey = Settings->ClientSettings.ClientAuthenticationKey;
@@ -1298,6 +1299,11 @@ void FConcertClient::SendDiscoverServersEvent()
 void FConcertClient::HandleServerDiscoveryEvent(const FConcertMessageContext& Context)
 {
 	const FConcertAdmin_ServerDiscoveredEvent* Message = Context.GetMessage<FConcertAdmin_ServerDiscoveredEvent>();
+
+	if (Message->ConcertProtocolVersion != EConcertMessageVersion::LatestVersion)
+	{
+		return;
+	}
 
 	FKnownServer* Info = KnownServers.Find(Message->ConcertEndpointId);
 	if (Info == nullptr)

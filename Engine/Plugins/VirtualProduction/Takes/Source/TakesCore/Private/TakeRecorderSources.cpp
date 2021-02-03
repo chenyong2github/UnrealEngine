@@ -473,16 +473,16 @@ void UTakeRecorderSources::PreRecording(class ULevelSequence* InSequence, FManif
 	RecordedTimes.Empty();
 
 	PreRecordSources(Sources);
-
 }
 
 void UTakeRecorderSources::StartRecording(class ULevelSequence* InSequence, const FTimecode& InTimecodeSource, FManifestSerializer* InManifestSerializer)
 {
-
 	bIsRecording = true;
 	TimeSinceRecordingStarted = 0.f;
 	TargetLevelSequenceTickResolution = InSequence->GetMovieScene()->GetTickResolution();
 	TargetLevelSequenceDisplayRate = InSequence->GetMovieScene()->GetDisplayRate();
+
+	UE_LOG(LogTakesCore, Log, TEXT("StartRecording: %s"), *InTimecodeSource.ToString());
 
 	InSequence->GetMovieScene()->TimecodeSource = InTimecodeSource;
 	StartRecordingTimecodeSource = InTimecodeSource;
@@ -491,6 +491,10 @@ void UTakeRecorderSources::StartRecording(class ULevelSequence* InSequence, cons
 
 FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence, const FTimecode& InTimecodeSource, float DeltaTime)
 {
+#if !NO_LOGGING
+	UE_LOG(LogTakesCore, VeryVerbose, TEXT("TickRecording: %s"), *InTimecodeSource.ToString());
+#endif
+
 	FQualifiedFrameTime FrameTime = GetCurrentRecordingFrameTime();
 	FQualifiedFrameTime SourceFrameTime(FrameTime);
 	bool bTimeIncremented = DeltaTime > 0.0f;
@@ -549,6 +553,8 @@ FQualifiedFrameTime UTakeRecorderSources::GetCurrentRecordingFrameTime() const
 
 void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, FTakeRecorderSourcesSettings TakeRecorderSourcesSettings)
 {
+	UE_LOG(LogTakesCore, Log, TEXT("StopRecording"));
+
 	bIsRecording = false;
 	TimeSinceRecordingStarted = 0.f;
 

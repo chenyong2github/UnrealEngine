@@ -8,6 +8,7 @@
 #include "VulkanMemory.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "HAL/PlatformStackWalk.h"
+#include "VulkanContext.h"
 #include "VulkanLLM.h"
 #include "Containers/SortedMap.h"
 

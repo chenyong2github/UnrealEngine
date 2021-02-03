@@ -30,10 +30,10 @@ namespace ChaosTest {
 	void Position()
 	{
 		{
-			TPBDRigidsSOAs<FReal, 3> Particles;
+			FPBDRigidsSOAs Particles;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
-			TArray<TPBDRigidParticleHandle<FReal, 3>*> Dynamics = Evolution.CreateDynamicParticles(1);
+			TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(1);
 			TArray<FVec3> Positions = { FVec3(0) };
 			TPBDPositionConstraints<FReal, 3> PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 1.f);
 			auto ConstraintRule = TPBDConstraintIslandRule<TPBDPositionConstraints<FReal, 3>>(PositionConstraints);
@@ -45,11 +45,11 @@ namespace ChaosTest {
 			EXPECT_LT(Evolution.GetParticleHandles().Handle(0)->X().SizeSquared(), SMALL_NUMBER);
 		}
 		{
-			TPBDRigidsSOAs<FReal, 3> Particles;
+			FPBDRigidsSOAs Particles;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			InitEvolutionSettings(Evolution);
-			TArray<TPBDRigidParticleHandle<FReal, 3>*> Dynamics = Evolution.CreateDynamicParticles(1);
+			TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(1);
 			Dynamics[0]->SetGravityEnabled(false);
 
 			TArray<FVec3> Positions = { FVec3(1) };
@@ -86,11 +86,11 @@ namespace ChaosTest {
 	void PositionAndJoint()
 	{
 		const int32 Iterations = 10;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
-		TArray<TPBDRigidParticleHandle<FReal, 3>*> Dynamics = Evolution.CreateDynamicParticles(2);
+		TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(2);
 		TArray<FVec3> PositionConstraintPositions = { FVec3(0, 0, 0) };
 
 		Evolution.SetNumIterations(Iterations);
@@ -98,12 +98,12 @@ namespace ChaosTest {
 		Dynamics[1]->X() = FVec3(500, 0, 0);
 		FVec3 JointConstraintPosition = FVec3(0, 0, 0);
 
-		TArray<TPBDRigidParticleHandle<FReal, 3>*> PositionParticles = { Dynamics[0] };
+		TArray<FPBDRigidParticleHandle*> PositionParticles = { Dynamics[0] };
 		TPBDPositionConstraints<FReal, 3> PositionConstraints(MoveTemp(PositionConstraintPositions), MoveTemp(PositionParticles), 1.f);
 		auto PositionConstraintRule = TPBDConstraintIslandRule<TPBDPositionConstraints<FReal, 3>>(PositionConstraints);
 		Evolution.AddConstraintRule(&PositionConstraintRule);
 
-		TVector<TGeometryParticleHandle<FReal, 3>*, 2> JointParticles = { Dynamics[0], Dynamics[1] };
+		TVec2<TGeometryParticleHandle<FReal, 3>*> JointParticles = { Dynamics[0], Dynamics[1] };
 		FPBDJointConstraints JointConstraints;
 		JointConstraints.AddConstraint(JointParticles, FRigidTransform3(JointConstraintPosition, FRotation3::FromIdentity()));
 		auto JointConstraintRule = TPBDConstraintIslandRule<FPBDJointConstraints>(JointConstraints);
@@ -144,7 +144,7 @@ namespace ChaosTest {
 		SuspensionSettings.Axis = FVec3(0.0f, 0.0f, 1.0f);
 
 		{
-			TPBDRigidsSOAs<FReal, 3> Particles;
+			FPBDRigidsSOAs Particles;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			InitEvolutionSettings(Evolution);
@@ -160,7 +160,7 @@ namespace ChaosTest {
 			DynamicParticle->InvI() = FMatrix33(1.0f / 100.0f, 1.0f / 100.0f, 1.0f / 100.0f);
 
 			FPBDSuspensionConstraints SuspensionConstraints;
-			FVec3 SuspensionLocalLocationA(FVector(0, 0, 0));
+			FVec3 SuspensionLocalLocationA(FVec3(0, 0, 0));
 
 			SuspensionSettings.Target = FVec3(0, 0, 9);
 
@@ -194,7 +194,7 @@ namespace ChaosTest {
 
 		{
 
-			TPBDRigidsSOAs<FReal, 3> Particles;
+			FPBDRigidsSOAs Particles;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			InitEvolutionSettings(Evolution);
@@ -251,7 +251,7 @@ namespace ChaosTest {
 	template<typename TEvolution>
 	void SuspensionConstraintSpring()
 	{
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);

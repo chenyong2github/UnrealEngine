@@ -1061,7 +1061,12 @@ bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOpt
 	else
 	{
 		FAssetRegistryReader Reader(OriginalAr, Options.ParallelWorkers);
-	
+
+		if (Reader.IsError())
+		{
+			return false;
+		}
+
 		// Load won't resolve asset registry tag values loaded in parallel
 		// and can run before WaitForTasks
 		Load(Reader, Version, Options);

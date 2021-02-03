@@ -2,6 +2,7 @@
 
 #include "USDStageImportContext.h"
 
+#include "USDAssetCache.h"
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDStageImportOptions.h"
@@ -16,11 +17,13 @@
 
 FUsdStageImportContext::FUsdStageImportContext()
 {
+	World = nullptr;
 	ImportOptions = NewObject< UUsdStageImportOptions >();
 	bReadFromStageCache = false;
 	bStageWasOriginallyOpen = false;
 	SceneActor = nullptr;
-	ImportedPackage = nullptr;
+	ImportedAsset = nullptr;
+	AssetCache = nullptr;
 	OriginalMetersPerUnit = 0.01f;
 }
 
@@ -31,12 +34,14 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 	bIsAutomated = bInIsAutomated;
 	ImportObjectFlags = InFlags | RF_Public | RF_Standalone | RF_Transactional;
 	World = GEditor->GetEditorWorldContext().World();
-	PackagePath = TEXT("/Game/"); // Trailing '/' is needed to set the default path
+	PackagePath = InInitialPackagePath;
+
+	if ( !PackagePath.EndsWith( TEXT("/") ) )
+	{
+		PackagePath.Append( TEXT("/") );
+	}
 
 	FPaths::NormalizeFilename(FilePath);
-
-	AssetsCache.Empty();
-	PrimPathsToAssets.Empty();
 
 	if(!bIsAutomated)
 	{
@@ -52,7 +57,7 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 			{
 				return false;
 			}
-			PackagePath = PickContentPathDlg->GetPath().ToString() + "/";
+			PackagePath = PickContentPathDlg->GetPath().ToString() + TEXT("/");
 		}
 
 		ImportOptions->EnableActorImport( bAllowActorImport );

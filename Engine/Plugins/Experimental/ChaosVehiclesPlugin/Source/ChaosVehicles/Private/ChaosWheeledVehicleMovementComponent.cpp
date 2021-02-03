@@ -21,6 +21,7 @@
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #endif
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 using namespace Chaos;
 
@@ -87,7 +88,7 @@ void FWheelState::CaptureState(int WheelIdx, const FVector& WheelOffset, const F
 	LocalWheelVelocity[WheelIdx] = WorldTransform.InverseTransformVector(WorldWheelVelocity[WheelIdx]);
 }
 
-void FWheelState::CaptureState(int WheelIdx, const FVector& WheelOffset, const Chaos::TPBDRigidParticleHandle<float, 3>* Handle)
+void FWheelState::CaptureState(int WheelIdx, const FVector& WheelOffset, const Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	check(Handle);
 	const FTransform WorldTransform(Handle->R(), Handle->X());
@@ -96,7 +97,7 @@ void FWheelState::CaptureState(int WheelIdx, const FVector& WheelOffset, const C
 	LocalWheelVelocity[WheelIdx] = WorldTransform.InverseTransformVector(WorldWheelVelocity[WheelIdx]);
 }
 
-FVector FWheelState::GetVelocityAtPoint(const Chaos::TPBDRigidParticleHandle<float, 3>* Rigid, const FVector& InPoint)
+FVector FWheelState::GetVelocityAtPoint(const Chaos::FRigidBodyHandle_Internal* Rigid, const FVector& InPoint)
 {
 	const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
 	const Chaos::FVec3 Diff = InPoint - COM;
@@ -118,12 +119,12 @@ bool UChaosWheeledVehicleSimulation::CanSimulate() const
 		&& Wheels.Num() > 0 && Wheels.Num() == PVehicle->Suspension.Num());
 }
 
-void UChaosWheeledVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle)
+void UChaosWheeledVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	UChaosVehicleSimulation::TickVehicle(WorldIn, DeltaTime, InputData, OutputData, Handle);
 }
 
-void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle)
+void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	// Inherit common vehicle simulation stages ApplyAerodynamics, ApplyTorqueControl, etc
 	UChaosVehicleSimulation::UpdateSimulation(DeltaTime, InputData, Handle);

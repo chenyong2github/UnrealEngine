@@ -106,6 +106,8 @@ public:
 	virtual bool UpdateThumbnail(const FContentBrowserItemData& InItem, FAssetThumbnail& InThumbnail) override;
 
 protected:
+	virtual void EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback) override;
+
 	struct FFileMount
 	{
 		FString DiskPath;

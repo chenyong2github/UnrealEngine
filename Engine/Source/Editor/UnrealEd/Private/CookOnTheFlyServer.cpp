@@ -2856,7 +2856,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 					if (CookByTheBookOptions)
 					{
 						FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(PlatformsForPackage[iResultIndex])->RegistryGenerator.Get();
-						UpdateAssetRegistryPackageData(Generator, Package->GetFName(), SavePackageResult);
+						UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
 					}
 				}
 				else
@@ -2924,11 +2924,15 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 	}
 }
 
-void UCookOnTheFlyServer::UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const FName& PackageName, FSavePackageResultStruct& SavePackageResult)
+void UCookOnTheFlyServer::UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const UPackage& Package, FSavePackageResultStruct& SavePackageResult)
 {
 	if (!Generator)
 		return;
 
+	// Ensure all assets in the package are recorded in the registry
+	Generator->CreateOrFindAssetDatas(Package);
+
+	const FName PackageName = Package.GetFName();
 	FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(PackageName);
 	AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
 	// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
@@ -6988,6 +6992,8 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 	const FString ProjectPath = FPaths::ProjectDir();
 	const FString ProjectPathSandbox = ConvertToFullSandboxPath(*ProjectPath, true);
 
+	const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
+
 	SavePackageContexts.Reserve(TargetPlatforms.Num());
 
 	for (const ITargetPlatform* TargetPlatform: TargetPlatforms)
@@ -6997,7 +7003,7 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
-		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedProjectPath);
+		FPackageStoreBulkDataManifest* BulkDataManifest	= bIsDiffOnly == false ? new FPackageStoreBulkDataManifest(ResolvedProjectPath) : nullptr;
 		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
 		FConfigFile PlatformEngineIni;
@@ -8506,7 +8512,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 							{
 								UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(PlatformManager->ReadLockPlatforms());
 								FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
-								UpdateAssetRegistryPackageData(Generator, Package->GetFName(), SaveResult);
+								UpdateAssetRegistryPackageData(Generator, *Package, SaveResult);
 							}
 
 							FPlatformAtomics::InterlockedIncrement(&ParallelSavedPackages);

@@ -1177,23 +1177,30 @@ namespace Gauntlet
 			else if (InArtifacts.AppInstance.WasKilled)
 			{
 				ExitReason = "Process was killed";
+				ExitCode = 0;
 			}
 			else if (LogSummary.HasTestExitCode)
 			{
 				if (LogSummary.TestExitCode == 0)
 				{
-					ExitReason = "Process exited with code 0";
+					ExitReason = "Tests exited with code 0";
 				}
 				else
 				{
-					ExitReason = string.Format("Process exited with error code {0}", LogSummary.TestExitCode);
+					ExitReason = string.Format("Tests exited with error code {0}", LogSummary.TestExitCode);
 				}
 
-				ExitCode = LogSummary.TestExitCode;
+				// tests failed but the process didn't
+				ExitCode = 0;
+			}
+			else if (LogSummary.EngineInitialized == false)
+			{
+				ExitReason = string.Format("Engine initialization failed");
+				ExitCode = -1;
 			}
 			else if (LogSummary.RequestedExit)
 			{
-				ExitReason = string.Format("Process requested exit with no fatal errors");
+				ExitReason = string.Format("Exit was requested: %s", LogSummary.RequestedExitReason);
 				ExitCode = 0;
 			}
 			else
@@ -1358,19 +1365,17 @@ namespace Gauntlet
 
 			MarkdownBuilder MB = new MarkdownBuilder();
 
-			MB.H3(string.Format("Process Role: {0} ({1} {2})", InArtifacts.SessionRole.RoleType, InArtifacts.SessionRole.Platform, InArtifacts.SessionRole.Configuration));
 			MB.HorizontalLine();
+			MB.H3(string.Format("Role: {0} ({1} {2})", InArtifacts.SessionRole.RoleType, InArtifacts.SessionRole.Platform, InArtifacts.SessionRole.Configuration));
+		
+			MB.Paragraph(string.Format("Result: {0} (Code={1})", ExitReason, ExitCode));
 
-			if (ExitCode != 0)
-			{
-				MB.H4(string.Format("Result: Abnormal Exit: Reason={0}, Code={1}", ExitReason, ExitCode));
-			}
-			else
-			{
-				MB.H4(string.Format("Result: Reason={0}, Code=0", ExitReason));
-			}
-
-			int FatalErrors = LogSummary.FatalError != null ? 1 : 0;
+			MB.UnorderedList(new string[] {
+				LogSummary.FatalError != null ? "Fatal Errors: 1" : null,
+				LogSummary.Ensures.Count() > 0 ? string.Format("Ensures: {0}", LogSummary.Ensures.Count()) : null,
+				LogSummary.Errors.Count() > 0 ? string.Format("Log Errors: {0}", LogSummary.Errors.Count()) : null,
+				LogSummary.Warnings.Count() > 0 ? string.Format("Log Warnings: {0}", LogSummary.Warnings.Count()) : null,
+			});
 
 			if (LogSummary.FatalError != null)
 			{
@@ -1397,36 +1402,84 @@ namespace Gauntlet
 				}
 			}
 
-			MB.Paragraph(string.Format("FatalErrors: {0}, Ensures: {1}, Errors: {2}, Warnings: {3}, Hash: {4}",
-				FatalErrors, LogSummary.Ensures.Count(), LogSummary.Errors.Count(), LogSummary.Warnings.Count(), GetRoleResultHash(InArtifacts)));
+			// Show warnings if that option is set, or the process exited abnormally
+			bool ShouldShowErrors = GetCachedConfiguration().ShowErrorsInSummary || (InArtifacts.AppInstance.WasKilled == false && InArtifacts.LogSummary.HasAbnormalExit);
+			bool ShouldShowWarnings = GetCachedConfiguration().ShowWarningsInSummary || (InArtifacts.AppInstance.WasKilled == false && InArtifacts.LogSummary.HasAbnormalExit);
 
-			if (GetCachedConfiguration().ShowErrorsInSummary && InArtifacts.LogSummary.Errors.Count() > 0)
+			if (ShouldShowErrors)
 			{
-				MB.H4("Errors");
-				MB.UnorderedList(LogSummary.Errors.Take(MaxLogLines));
-
-				if (LogSummary.Errors.Count() > MaxLogLines)
+				if (InArtifacts.LogSummary.Errors.Count() > 0)
 				{
-					MB.Paragraph(string.Format("(First {0} of {1} errors)", MaxLogLines, LogSummary.Errors.Count()));
+					IEnumerable<string> Errors = LogSummary.Errors.Distinct();
+
+					string TrimStatement = "";
+
+					if (Errors.Count() > MaxLogLines)
+					{
+						// too many errors. If there was an abnormal exit show the last ones as they may be relevant
+						if (LogSummary.HasAbnormalExit)
+						{
+							Errors = Errors.Skip(Errors.Count() - MaxLogLines);
+							TrimStatement = string.Format("(Last {0} of {1} errors)", MaxLogLines, LogSummary.Errors.Count());
+						}
+						else
+						{
+							Errors = Errors.Take(MaxLogLines);
+							TrimStatement = string.Format("(First {0} of {1} errors)", MaxLogLines, LogSummary.Errors.Count());
+						}
+					}
+
+					MB.H4("Errors");
+					MB.UnorderedList(Errors);
+
+					if (!string.IsNullOrEmpty(TrimStatement))
+					{
+						MB.Paragraph(TrimStatement);
+					}
 				}
 			}
 
-			if (GetCachedConfiguration().ShowWarningsInSummary && InArtifacts.LogSummary.Warnings.Count() > 0)
+			if (ShouldShowWarnings)
 			{
-				MB.H4("Warnings");
-				MB.UnorderedList(LogSummary.Warnings.Take(MaxLogLines));
-
-				if (LogSummary.Warnings.Count() > MaxLogLines)
+				if (InArtifacts.LogSummary.Warnings.Count() > 0)
 				{
-					MB.Paragraph(string.Format("(First {0} of {1} warnings)", MaxLogLines, LogSummary.Warnings.Count()));
+					IEnumerable<string> Warnings = LogSummary.Warnings.Distinct();
+
+					string TrimStatement = "";
+
+					if (Warnings.Count() > MaxLogLines)
+					{
+						// too many warnings. If there was an abnormal exit show the last ones as they may be relevant
+						if (LogSummary.HasAbnormalExit)
+						{
+							Warnings = Warnings.Skip(Warnings.Count() - MaxLogLines);
+							TrimStatement = string.Format("(Last {0} of {1} warnings)", MaxLogLines, LogSummary.Warnings.Count());
+						}
+						else
+						{
+							Warnings = Warnings.Take(MaxLogLines);
+							TrimStatement = string.Format("(First {0} of {1} warnings)", MaxLogLines, LogSummary.Warnings.Count());
+						}
+					}
+
+					MB.H4("Warnings");
+					MB.UnorderedList(Warnings);
+
+					if (!string.IsNullOrEmpty(TrimStatement))
+					{
+						MB.Paragraph(TrimStatement);
+					}
 				}
 			}
 
 			MB.H4("Artifacts");
-			MB.Paragraph(string.Format("Log: {0}", InArtifacts.LogPath));
-			MB.Paragraph(string.Format("Commandline: {0}", InArtifacts.AppInstance.CommandLine));
-			MB.Paragraph(InArtifacts.ArtifactPath);
-
+			string[] ArtifactList = new string[]
+			{
+				string.Format("Log: {0}", InArtifacts.LogPath),
+				string.Format("SavedDir: {0}", InArtifacts.ArtifactPath),
+				string.Format("Commandline: {0}", InArtifacts.AppInstance.CommandLine),
+			};
+			MB.UnorderedList(ArtifactList);
 			Summary = MB.ToString();
 			return ExitCode;
 		}
@@ -1479,6 +1532,22 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Return all artifacts that are exited abnormally. An abnormal exit is termed as a fatal error,
+		/// crash, assert, or other exit that does not appear to have been caused by completion of a process
+		/// </summary>
+		/// <returns></returns>
+		protected virtual IEnumerable<UnrealRoleArtifacts> GetArtifactsThatExitedAbnormally()
+		{
+			if (SessionArtifacts == null)
+			{
+				Log.Warning("SessionArtifacts was null, unable to check for failures");
+				return Enumerable.Empty<UnrealRoleArtifacts>();
+			}
+
+			return SessionArtifacts.Where(A => A.AppInstance.WasKilled == false && A.LogSummary.HasAbnormalExit);
+		}
+
+		/// <summary>
 		/// Return all artifacts that are considered to have caused the test to fail
 		/// </summary>
 		/// <returns></returns>
@@ -1508,7 +1577,8 @@ namespace Gauntlet
 				return ExitCode != 0;
 			});
 
-			return FailureList.OrderByDescending(A =>
+			// Put less suspect issues at the top since the user is likely going to stare at the last lines of the log and read up
+			return FailureList.OrderBy(A =>
 			{
 				int Score = 0;
 
@@ -1564,55 +1634,82 @@ namespace Gauntlet
 			int Errors = 0;
 			int Warnings = 0;
 
-			// create a quicck summary of total failures, ensures, errors, etc
-			foreach (var Artifact in SessionArtifacts)
-			{
-				string Summary;
-				int ExitCode = GetRoleSummary(Artifact, out Summary);
-
-				if (ExitCode != 0 && Artifact.AppInstance.WasKilled == false)
-				{
-					AbnormalExits++;
-				}
-
-				FatalErrors += Artifact.LogSummary.FatalError != null ? 1 : 0;
-				Ensures += Artifact.LogSummary.Ensures.Count();
-				Errors += Artifact.LogSummary.Errors.Count();
-				Warnings += Artifact.LogSummary.Warnings.Count();
-			}
-
 			MarkdownBuilder MB = new MarkdownBuilder();
-
-			string WarningStatement = HasWarnings ? " With Warnings" : "";
-
-			var FailureArtifacts = GetArtifactsWithFailures();
-
-			// Create a summary
-			MB.H3(string.Format("{0} {1}{2}", Name, GetTestResult(), WarningStatement));
-
+			
 			if (GetTestResult() != TestResult.Passed)
 			{
-				if (FailureArtifacts.Count() > 0)
-				{
-					foreach (var FailedArtifact in FailureArtifacts)
-					{
-						string FirstProcessCause = "";
-						int FirstExitCode = GetExitCodeAndReason(FailedArtifact, out FirstProcessCause);
-						MB.H3(string.Format("{0}: {1}", FailedArtifact.SessionRole.RoleType, FirstProcessCause));
+				// If the test didn't pass then show a brief summary of any roles that had an abnormal exit, or failing that
+				// are reported as having a failure. Tests should overload GetArtifactsWithFailures if necessary
+				IEnumerable<UnrealRoleArtifacts> RolesCausingFailure = GetArtifactsThatExitedAbnormally();
+				bool HadAbnormalExit = RolesCausingFailure.Any();
 
-						if (FailedArtifact.LogSummary.FatalError != null)
+				if (!HadAbnormalExit)
+				{
+					RolesCausingFailure = GetArtifactsWithFailures();
+				}
+
+				if (RolesCausingFailure.Any())
+				{
+					MB.Paragraph(string.Format("{0} failed", this.Name));
+
+					List<string> RoleItems = new List<string>();
+
+					foreach (var Artifact in RolesCausingFailure)
+					{
+						string ProcessCause = "";
+						int ExitCode = GetExitCodeAndReason(Artifact, out ProcessCause);
+						MB.H3(Artifact.SessionRole.RoleType.ToString());
+
+						if (Artifact.LogSummary.FatalError != null)
 						{
-							MB.H4(FailedArtifact.LogSummary.FatalError.Message);
+							MB.Paragraph(Artifact.LogSummary.FatalError.Message);
 						}
+
+						MB.Paragraph(string.Format("\tResult: {0} (ExitCode {1})", ProcessCause, ExitCode));
+
+						//RoleItems.Add(string.Format("{0}: {1}", Artifact.SessionRole.RoleType, ))
 					}
 
-					MB.Paragraph("See below for logs and any callstacks");
+					MB.Paragraph(string.Format("See Role {0} above for logs and any callstacks", RolesCausingFailure.First().SessionRole.ToString()));
+				}
+				else
+				{
+					MB.Paragraph(string.Format("{0} failed due to undiagnosed reasons", this.Name));
+					MB.Paragraph("See above for logs and any callstacks");
 				}
 			}
-			MB.Paragraph(string.Format("Context: {0}", Context.ToString()));
-			MB.Paragraph(string.Format("FatalErrors: {0}, Ensures: {1}, Errors: {2}, Warnings: {3}", FatalErrors, Ensures, Errors, Warnings));
-			MB.Paragraph(string.Format("Result: {0}, ResultHash: {1}", GetTestResult(), GetTestResultHash()));
-			//MB.Paragraph(string.Format("Artifacts: {0}", CachedArtifactPath));
+			else
+			{
+				// create a quicck summary of total failures, ensures, errors, etc
+				foreach (var Artifact in SessionArtifacts)
+				{
+					string Summary;
+					int ExitCode = GetRoleSummary(Artifact, out Summary);
+
+					if (ExitCode != 0 && Artifact.AppInstance.WasKilled == false)
+					{
+						AbnormalExits++;
+					}
+
+					FatalErrors += Artifact.LogSummary.FatalError != null ? 1 : 0;
+					Ensures += Artifact.LogSummary.Ensures.Count();
+					Errors += Artifact.LogSummary.Errors.Count();
+					Warnings += Artifact.LogSummary.Warnings.Count();
+				}
+
+				MB.UnorderedList(new string[] {
+					string.Format("Context: {0}", Context.ToString()),
+					FatalErrors > 0 ? string.Format("FatalErrors: {0}", FatalErrors) : null,
+					Ensures > 0 ? string.Format("Ensures: {0}", Ensures) : null,
+					Errors > 0 ? string.Format("Log Errors: {0}", Errors) : null,
+					Warnings > 0 ? string.Format("Log Warnings: {0}", Warnings) : null,
+					string.Format("Result: {0}", GetTestResult())
+				});
+
+				// Create a summary
+				string WarningStatement = HasWarnings ? " With Warnings" : "";
+				MB.H3(string.Format("{0} {1}{2}", Name, GetTestResult(), WarningStatement));
+			}
 
 			return MB.ToString();
 		}

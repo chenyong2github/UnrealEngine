@@ -51,7 +51,7 @@ private:
 	FOnForceRedraw OnForceRedrawEvent;
 };
 
-UCLASS(config=EditorSettings)
+UCLASS(config=EditorSettings, BlueprintType)
 class MOVIESCENETOOLS_API UMovieSceneUserImportFBXSettings : public UObject
 {
 public:

@@ -17,7 +17,6 @@
 #include "BodySetupCore.h"
 #include "BodySetup.generated.h"
 
-
 class ITargetPlatform;
 class UPhysicalMaterial;
 class UPhysicalMaterialMask;
@@ -47,8 +46,8 @@ namespace physx
 namespace Chaos
 {
 	class FImplicitObject;
-
 	class FTriangleMeshImplicitObject;
+	struct FCookHelper;
 }
 
 template<typename T, int d>
@@ -278,8 +277,11 @@ public:
 
 #if PHYSICS_INTERFACE_PHYSX
 	/** References the current async cook helper. Used to be able to abort a cook task */
-	FPhysXCookHelper* CurrentCookHelper;
+	using FAsyncCookHelper = FPhysXCookHelper;
+#elif WITH_CHAOS
+	using FAsyncCookHelper = Chaos::FCookHelper;
 #endif
+	FAsyncCookHelper* CurrentCookHelper;
 
 public:
 	//~ Begin UObject Interface.
@@ -326,15 +328,25 @@ private:
 	friend class UMRMeshComponent;
 	/** Finish creating the physics meshes and update the body setup data with cooked data */
 	ENGINE_API void FinishCreatingPhysicsMeshes_PhysX(const TArray<physx::PxConvexMesh*>& ConvexMeshes, const TArray<physx::PxConvexMesh*>& ConvexMeshesNegX, const TArray<physx::PxTriangleMesh*>& TriMeshes);
-	/** Finalize game thread data before calling back user's delegate */
-	void FinishCreatePhysicsMeshesAsync(FPhysXCookHelper* AsyncPhysicsCookHelper, FOnAsyncPhysicsCookFinished OnAsyncPhysicsCookFinished);
 #elif WITH_CHAOS
 	// TODO: ProcessFormatData_Chaos is calling ProcessFormatData_Chaos directly - it's better if CreatePhysicsMeshes can be used but that code path requires WITH_EDITOR
 	friend class UMRMeshComponent;
 	bool ProcessFormatData_Chaos(FByteBulkData* FormatData);
 	bool RuntimeCookPhysics_Chaos();
 	void FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float, 3>& InReader);
+	void FinishCreatingPhysicsMeshes_Chaos(Chaos::FCookHelper& InHelper);
+	void FinishCreatingPhysicsMeshes_Chaos(TArray<TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>>& InConvexImplicits, 
+										   TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>>& InTrimeshImplicits,
+										   FBodySetupUVInfo& InUvInfo,
+										   TArray<int32>& InFaceRemap);
 #endif
+
+	/** 
+	 * Finalize game thread data before calling back user's delegate 
+	 * @param AsyncPhysicsCookHelper - The cook helper that has finished async cooking
+	 * @param OnAsyncPhysicsCookFinished - User callback to call once we're finished
+	 */
+	void FinishCreatePhysicsMeshesAsync(FAsyncCookHelper* AsyncPhysicsCookHelper, FOnAsyncPhysicsCookFinished OnAsyncPhysicsCookFinished);
 
 	/**
 	* Given a format name returns its cooked data.

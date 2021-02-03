@@ -89,7 +89,7 @@ void FVehicleState::CaptureState(const FBodyInstance* TargetInstance, float Grav
 	}
 }
 
-void FVehicleState::CaptureState(const Chaos::TPBDRigidParticleHandle<float, 3>* Handle, float GravityZ, float DeltaTime)
+void FVehicleState::CaptureState(const Chaos::FRigidBodyHandle_Internal* Handle, float GravityZ, float DeltaTime)
 {
 	if (Handle)
 	{
@@ -118,7 +118,7 @@ void FVehicleState::CaptureState(const Chaos::TPBDRigidParticleHandle<float, 3>*
 /**
  * UChaosVehicleSimulation
  */
-void UChaosVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle)
+void UChaosVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	World = WorldIn;
 	RigidHandle = Handle;
@@ -142,7 +142,7 @@ void UChaosVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, cons
 #endif
 }
 
-void UChaosVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle)
+void UChaosVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	VehicleState.CaptureState(Handle, InputData.GravityZ, DeltaTime);
 
@@ -245,7 +245,7 @@ void UChaosVehicleSimulation::ApplyAerodynamics(float DeltaTime)
 	}
 }
 
-FVector GetWorldVelocityAtPoint(const Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle, const FVector& WorldLocation)
+FVector GetWorldVelocityAtPoint(const Chaos::FRigidBodyHandle_Internal* RigidHandle, const FVector& WorldLocation)
 {
 	const Chaos::FVec3 COM = RigidHandle ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(RigidHandle).GetTranslation();
 	const Chaos::FVec3 Diff = WorldLocation - COM;
@@ -473,11 +473,11 @@ void UChaosVehicleSimulation::AddForce(const FVector& Force, bool bAllowSubstepp
 			{
 				const float RigidMass = RigidHandle->M();
 				const Chaos::TVector<float, 3> Acceleration = Force * RigidMass;
-				RigidHandle->SetF(RigidHandle->F() + Acceleration);
+				RigidHandle->AddForce(Acceleration);
 			}
 			else
 			{
-				RigidHandle->SetF(RigidHandle->F() + Force);
+				RigidHandle->AddForce(Force);
 			}
 
 		}
@@ -501,8 +501,8 @@ void UChaosVehicleSimulation::AddForceAtPosition(const FVector& Force, const FVe
 		const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle);
 		RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
 		const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
-		RigidHandle->SetF(Force + RigidHandle->F());
-		RigidHandle->SetTorque(WorldTorque + RigidHandle->Torque());
+		RigidHandle->AddForce(Force);
+		RigidHandle->AddTorque(WorldTorque);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (GVehicleDebugParams.ShowAllForces)
@@ -568,11 +568,11 @@ void UChaosVehicleSimulation::AddTorqueInRadians(const FVector& Torque, bool bAl
 		{
 			if (bAccelChange)
 			{
-				RigidHandle->SetTorque(RigidHandle->Torque() + Chaos::FParticleUtilitiesXR::GetWorldInertia(RigidHandle) * Torque);
+				RigidHandle->AddTorque(Chaos::FParticleUtilitiesXR::GetWorldInertia(RigidHandle) * Torque);
 			}
 			else
 			{
-				RigidHandle->SetTorque(RigidHandle->Torque() + Torque);
+				RigidHandle->AddTorque(Torque);
 			}
 		}
 
@@ -1634,7 +1634,7 @@ TUniquePtr<FChaosVehicleAsyncOutput> FChaosVehicleDefaultAsyncInput::Simulate(UW
 	}
 
 	// We now have access to the physics representation of the chassis on the physics thread async tick
-	Chaos::TPBDRigidParticleHandle<float, 3>* Handle = Actor.Proxy->GetHandle();
+	Chaos::FRigidBodyHandle_Internal* Handle = Actor.Proxy->GetPhysicsThreadAPI();
 
 	// FILL OUTPUT DATA HERE THAT WILL GET PASSED BACK TO THE GAME THREAD
 	Vehicle->VehicleSimulationPT->TickVehicle(World, DeltaSeconds, *this, *Output.Get(), Handle);
@@ -1655,7 +1655,7 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 		{
 			if (auto Handle = BodyInstance->ActorHandle)
 			{
-				CurAsyncInput->Actor.Proxy = static_cast<FRigidParticlePhysicsProxy*>(Handle->GetProxy());	// vehicles are never static
+				CurAsyncInput->Actor.Proxy = Handle;	// vehicles are never static
 
 				FChaosVehicleDefaultAsyncInput* AsyncInput = static_cast<FChaosVehicleDefaultAsyncInput*>(CurAsyncInput);
 				AsyncInput->ControlInputs.ThrottleInput = ThrottleInput;

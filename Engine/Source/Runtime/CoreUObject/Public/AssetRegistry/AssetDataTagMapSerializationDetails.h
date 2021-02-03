@@ -205,8 +205,8 @@ namespace FixedTagPrivate
 		COREUOBJECT_API TRefCountPtr<const FStore> LoadFinalData(FArchive& Ar);
 
 	private:
-		FStore* Store = nullptr;
-		ELoadOrder Order;
+		TRefCountPtr<FStore> Store;
+		TOptional<ELoadOrder> Order;
 	};
 
 } // end namespace FixedTagPrivate

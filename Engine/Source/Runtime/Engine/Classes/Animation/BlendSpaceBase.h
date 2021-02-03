@@ -237,7 +237,7 @@ namespace ENotifyTriggerMode
 /**
  * Allows multiple animations to be blended between based on input parameters
  */
-UCLASS(config=Engine, hidecategories=Object, MinimalAPI, BlueprintType)
+UCLASS(abstract, config=Engine, hidecategories=Object, MinimalAPI, BlueprintType)
 class UBlendSpaceBase : public UAnimationAsset, public IInterpolationIndexProvider
 {
 	GENERATED_UCLASS_BODY()

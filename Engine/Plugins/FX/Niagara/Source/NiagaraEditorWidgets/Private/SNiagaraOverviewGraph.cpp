@@ -37,6 +37,7 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 	ViewModel = InViewModel;
 	ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraOverviewGraph::ViewModelSelectionChanged);
 	ViewModel->GetSystemViewModel()->OnPreClose().AddSP(this, &SNiagaraOverviewGraph::PreClose);
+	ViewModel->OnNodesPasted().AddSP(this, &SNiagaraOverviewGraph::NodesPasted);
 
 	bUpdatingViewModelSelectionFromGraph = false;
 	bUpdatingGraphSelectionFromViewModel = false;
@@ -300,6 +301,40 @@ void SNiagaraOverviewGraph::OnNodeTitleCommitted(const FText& NewText, ETextComm
 			NodeBeingChanged->Modify();
 			NodeBeingChanged->OnRenameNode(NewText.ToString());
 		}
+	}
+}
+
+void SNiagaraOverviewGraph::NodesPasted(const TSet<UEdGraphNode*>& PastedNodes)
+{
+	if (PastedNodes.Num() != 0)
+	{
+		PositionPastedNodes(PastedNodes);
+		GraphEditor->NotifyGraphChanged();
+	}
+}
+
+void SNiagaraOverviewGraph::PositionPastedNodes(const TSet<UEdGraphNode*>& PastedNodes)
+{
+	FVector2D AvgNodePosition(0.0f, 0.0f);
+
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		AvgNodePosition.X += PastedNode->NodePosX;
+		AvgNodePosition.Y += PastedNode->NodePosY;
+	}
+
+	float InvNumNodes = 1.0f / float(PastedNodes.Num());
+	AvgNodePosition.X *= InvNumNodes;
+	AvgNodePosition.Y *= InvNumNodes;
+
+	FVector2D PasteLocation = GraphEditor->GetPasteLocation();
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		
+		PastedNode->NodePosX = (PastedNode->NodePosX - AvgNodePosition.X) + PasteLocation.X;
+		PastedNode->NodePosY = (PastedNode->NodePosY - AvgNodePosition.Y) + PasteLocation.Y;
+
+		PastedNode->SnapToGrid(16);
 	}
 }
 

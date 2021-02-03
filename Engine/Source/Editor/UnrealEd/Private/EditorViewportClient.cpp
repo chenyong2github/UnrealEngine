@@ -889,33 +889,33 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	const ELevelViewportType EffectiveViewportType = GetViewportType();
 
 	// Apply view modifiers.
-	FMinimalViewInfo ModifiedViewInfo;
+	FEditorViewportViewModifierParams ViewModifierParams;
 	{
-		ModifiedViewInfo.Location = ViewTransform.GetLocation();
-		ModifiedViewInfo.Rotation = ViewTransform.GetRotation();
+		ViewModifierParams.ViewInfo.Location = ViewTransform.GetLocation();
+		ViewModifierParams.ViewInfo.Rotation = ViewTransform.GetRotation();
 
 		if (bUseControllingActorViewInfo)
 		{
-			ModifiedViewInfo.FOV = ControllingActorViewInfo.FOV;
+			ViewModifierParams.ViewInfo.FOV = ControllingActorViewInfo.FOV;
 		}
 		else
 		{
-			ModifiedViewInfo.FOV = ViewFOV;
+			ViewModifierParams.ViewInfo.FOV = ViewFOV;
 		}
 
 		if (bShouldApplyViewModifiers)
 		{
-			ViewModifiers.Broadcast(ModifiedViewInfo);
+			ViewModifiers.Broadcast(ViewModifierParams);
 		}
 	}
-	const FVector ModifiedViewLocation = ModifiedViewInfo.Location;
-	FRotator ModifiedViewRotation = ModifiedViewInfo.Rotation;
-	const float ModifiedViewFOV = ModifiedViewInfo.FOV;
+	const FVector ModifiedViewLocation = ViewModifierParams.ViewInfo.Location;
+	FRotator ModifiedViewRotation = ViewModifierParams.ViewInfo.Rotation;
+	const float ModifiedViewFOV = ViewModifierParams.ViewInfo.FOV;
 	if (bUseControllingActorViewInfo)
 	{
-		ControllingActorViewInfo.Location = ModifiedViewInfo.Location;
-		ControllingActorViewInfo.Rotation = ModifiedViewInfo.Rotation;
-		ControllingActorViewInfo.FOV = ModifiedViewInfo.FOV;
+		ControllingActorViewInfo.Location = ViewModifierParams.ViewInfo.Location;
+		ControllingActorViewInfo.Rotation = ViewModifierParams.ViewInfo.Rotation;
+		ControllingActorViewInfo.FOV = ViewModifierParams.ViewInfo.FOV;
 	}
 
 	ViewInitOptions.ViewOrigin = ModifiedViewLocation;
@@ -1258,6 +1258,18 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	else
 	{
 		OverridePostProcessSettings(*View);
+	}
+
+	if (ViewModifierParams.ViewInfo.PostProcessBlendWeight > 0.f)
+	{
+		View->OverridePostProcessSettings(ViewModifierParams.ViewInfo.PostProcessSettings, ViewModifierParams.ViewInfo.PostProcessBlendWeight);
+	}
+	const int32 PPNum = FMath::Min(ViewModifierParams.PostProcessSettings.Num(), ViewModifierParams.PostProcessBlendWeights.Num());
+	for (int32 PPIndex = 0; PPIndex < PPNum; ++PPIndex)
+	{
+		const FPostProcessSettings& PPSettings = ViewModifierParams.PostProcessSettings[PPIndex];
+		const float PPWeight = ViewModifierParams.PostProcessBlendWeights[PPIndex];
+		View->OverridePostProcessSettings(PPSettings, PPWeight);
 	}
 
 	View->EndFinalPostprocessSettings(ViewInitOptions);

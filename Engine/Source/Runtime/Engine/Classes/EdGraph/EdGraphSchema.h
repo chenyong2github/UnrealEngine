@@ -805,6 +805,16 @@ class ENGINE_API UEdGraphSchema : public UObject
 #if WITH_EDITORONLY_DATA
 	/** Get the name to show in the editor */
 	virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const;
+
+	/**
+	 * Calculate the weight priority of a given action for the context menu. 
+	 * 
+	 * @param InCurrentAction				The current graph action to calculate the weight of. Higher weight = higher preference
+	 * @param InFilterTerms					Filter terms that the user has entered into the search box
+	 * @param InSanitizedFilterTerms		Sanitized search filters in all caps with no symbols or spaces
+	 * @param DraggedFromPins				Any pins that this action was dragged off of
+	 */
+	virtual float GetActionFilteredWeight(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, const TArray<UEdGraphPin*>& DraggedFromPins) const;
 #endif // WITH_EDITORONLY_DATA
 
 	/**

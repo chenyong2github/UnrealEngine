@@ -85,6 +85,8 @@ namespace UE
 		FString GetIdentifier() const;
 		FString GetDisplayName() const;
 
+		bool IsAnonymous() const;
+
 		bool HasStartTimeCode() const;
 		double GetStartTimeCode() const;
 		void SetStartTimeCode( double TimeCode );

@@ -517,7 +517,7 @@ void EvaluatePlaneFalloffScalar(in float3 SamplePosition, in int NodeOffset, ino
 void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset, inout int LocalIndex)
 {
 	float ScalarDatas = NodesParams[NodeOffset + BOX_FALLOFF_DEFAULT];
-	const float HalfBox = 0.5;
+	const float HalfBox = 50.0;
 	
 	const float DeltaRange = NodesParams[NodeOffset + BOX_FALLOFF_MAX_RANGE] - NodesParams[NodeOffset + BOX_FALLOFF_MIN_RANGE];
 

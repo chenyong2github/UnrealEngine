@@ -46,10 +46,22 @@ public:
 	 * @param Sections All the sections
 	 * @param Section The section that was modified 
 	 * @param bDelete Was this a deletion?
+	 * @param bCleanUp Should we cleanup any invalid sections?
+	 * @return Whether the list of sections was modified as part of the clean-up
 	 */
-	static void FixupConsecutiveSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete);
+	static bool FixupConsecutiveSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete, bool bCleanUp = false);
 
-	static void FixupConsecutiveBlendingSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete);
+	/**
+	 * Fix up consecutive sections so that there are no gaps, but there can be overlaps, in which case the sections
+	 * blend together.
+	 *
+	 * @param Sections All the sections
+	 * @param Section The section that was modified 
+	 * @param bDelete Was this a deletion?
+	 * @param bCleanUp Should we cleanup any invalid sections?
+	 * @return Whether the list of sections was modified as part of the clean-up
+	 */
+	static bool FixupConsecutiveBlendingSections(TArray<UMovieSceneSection*>& Sections, UMovieSceneSection& Section, bool bDelete, bool bCleanUp = false);
 
 	/*
  	 * Sort consecutive sections so that they are in order based on start time

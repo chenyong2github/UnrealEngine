@@ -3392,6 +3392,12 @@ TSharedPtr<SWidget> SContentBrowser::GetItemContextMenu(TArrayView<const FConten
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		Context->bCanBeModified = AssetToolsModule.Get().AllPassWritableFolderFilter(SelectedPackagePaths);
 
+		if (SelectedPackagePaths.Num() == 0)
+		{
+			Context->bNoFolderOnDisk = true;
+			Context->bCanBeModified = false;
+		}
+
 		FToolMenuContext MenuContext(Commands, Extender, Context);
 
 		{

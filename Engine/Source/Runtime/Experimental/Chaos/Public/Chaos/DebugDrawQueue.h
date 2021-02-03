@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/ChaosDebugDrawDeclares.h"
+#include "Chaos/AABB.h"
 #include "Containers/List.h"
 #include "Math/Vector.h"
 #include "Math/Color.h"
@@ -258,57 +259,75 @@ public:
 		External = 1
 	};
 
-	void ExtractAllElements(TArray<FLatentDrawCommand>& OutDrawCommands, bool bClear = true)
+	void ExtractAllElements(TArray<FLatentDrawCommand>& OutDrawCommands, bool bPaused = false)
 	{
-		// We do not always want to flip and clear the buffers (e.g., when paused)
-		if (bClear)
-		{
-			Flush();
-		}
+		FScopeLock Lock(&CommandQueueCS);
 
-		//make a copy so that alloc/free is all taken care of by debug draw code (avoid dll crossing, and other badness). Also ensures order is the same as it was originally pushed in
-		TList<FLatentDrawCommand>* List = Queue[!DoubleBuffer].ExtractAll();
-		while(List)
-		{
-			OutDrawCommands.Insert(List->Element, 0);
-			TList<FLatentDrawCommand>* Prev = List;
-			List = List->Next;
-			//if (bClear)
-			//{
-			//	delete Prev;
-			//}
-		}
+		// Move the buffer into the output, and reserve space in the new buffer to prevent excess allocations and copies
+		int Capacity = CommandQueue.Max();
+		OutDrawCommands = MoveTemp(CommandQueue);
+		CommandQueue.Reserve(Capacity);
+		RequestedCommandCost = 0;
 	}
 
 	void DrawDebugPoint(const FVector& Position, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 	{
-		if (!IsDebugDrawingEnabled()) { return; }
-		Queue[DoubleBuffer].AddElement(new TList<FLatentDrawCommand>(FLatentDrawCommand::DrawPoint(Position, Color, bPersistentLines, LifeTime, DepthPriority, Thickness)));
+		if (IsDebugDrawingEnabled())
+		{
+			FScopeLock Lock(&CommandQueueCS);
+			if (AcceptCommand(1) && IsInRegionOfInterest(Position))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawPoint(Position, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
+			}
+		}
 	}
 
 	void DrawDebugLine(const FVector& LineStart, const FVector& LineEnd, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
 	{
-		if (!IsDebugDrawingEnabled()) { return; }
-		Queue[DoubleBuffer].AddElement(new TList<FLatentDrawCommand>(FLatentDrawCommand::DrawLine(LineStart, LineEnd, Color, bPersistentLines, LifeTime, DepthPriority, Thickness)));
+		if (IsDebugDrawingEnabled())
+		{
+			FScopeLock Lock(&CommandQueueCS);
+			if (AcceptCommand(1) && IsInRegionOfInterest(LineStart))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawLine(LineStart, LineEnd, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
+			}
+		}
 	}
 
 	void DrawDebugDirectionalArrow(const FVector& LineStart, const FVector& LineEnd, float ArrowSize, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
 	{
-		if (!IsDebugDrawingEnabled()) { return; }
-		Queue[DoubleBuffer].AddElement(new TList<FLatentDrawCommand>(FLatentDrawCommand::DrawDirectionalArrow(LineStart, LineEnd, ArrowSize, Color, bPersistentLines, LifeTime, DepthPriority, Thickness)));
+		if (IsDebugDrawingEnabled())
+		{
+			FScopeLock Lock(&CommandQueueCS);
+			if (AcceptCommand(3) && IsInRegionOfInterest(LineStart))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawDirectionalArrow(LineStart, LineEnd, ArrowSize, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
+			}
+		}
 	}
 
 	void DrawDebugSphere(FVector const& Center, float Radius, int32 Segments, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
 	{
-		if (!IsDebugDrawingEnabled()) { return; }
-		Queue[DoubleBuffer].AddElement(new TList<FLatentDrawCommand>(FLatentDrawCommand::DrawDebugSphere(Center, Radius, Segments, Color, bPersistentLines, LifeTime, DepthPriority, Thickness)));
+		if (IsDebugDrawingEnabled())
+		{
+			FScopeLock Lock(&CommandQueueCS);
+			const int Cost = Segments * Segments;
+			if (AcceptCommand(Cost) && IsInRegionOfInterest(Center))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugSphere(Center, Radius, Segments, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
+			}
+		}
 	}
 
 	void DrawDebugBox(FVector const& Center, FVector const& Extent, const FQuat& Rotation, FColor const& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 	{
 		if (IsDebugDrawingEnabled())
 		{
-			Queue[DoubleBuffer].AddElement(new TList<FLatentDrawCommand>(FLatentDrawCommand::DrawDebugBox(Center, Extent, Rotation, Color, bPersistentLines, LifeTime, DepthPriority, Thickness)));
+			FScopeLock Lock(&CommandQueueCS);
+			if (AcceptCommand(12) && IsInRegionOfInterest(Center))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugBox(Center, Extent, Rotation, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
+			}
 		}
 	}
 
@@ -316,7 +335,12 @@ public:
 	{
 		if (IsDebugDrawingEnabled())
 		{
-			Queue[DoubleBuffer].AddElement(new TList<FLatentDrawCommand>(FLatentDrawCommand::DrawDebugString(TextLocation, Text, TestBaseActor, Color, Duration, bDrawShadow, FontScale)));
+			FScopeLock Lock(&CommandQueueCS);
+			int Cost = Text.Len();
+			if (AcceptCommand(Cost) && IsInRegionOfInterest(TextLocation))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugString(TextLocation, Text, TestBaseActor, Color, Duration, bDrawShadow, FontScale));
+			}
 		}
 	}
 
@@ -324,7 +348,11 @@ public:
 	{
 		if (IsDebugDrawingEnabled())
 		{
-			Queue[DoubleBuffer].AddElement(new TList<FLatentDrawCommand>(FLatentDrawCommand::DrawDebugCircle(Center, Radius, Segments, Color, bPersistentLines, LifeTime, DepthPriority, Thickness, YAxis, ZAxis, bDrawAxis)));
+			FScopeLock Lock(&CommandQueueCS);
+			if (AcceptCommand(Segments) && IsInRegionOfInterest(Center))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugCircle(Center, Radius, Segments, Color, bPersistentLines, LifeTime, DepthPriority, Thickness, YAxis, ZAxis, bDrawAxis));
+			}
 		}
 	}
 
@@ -332,52 +360,85 @@ public:
 	{
 		if (IsDebugDrawingEnabled())
 		{
-			Queue[DoubleBuffer].AddElement(new TList<FLatentDrawCommand>(FLatentDrawCommand::DrawDebugCapsule(Center, HalfHeight, Radius, Rotation, Color, bPersistentLines, LifeTime, DepthPriority, Thickness)));
+			FScopeLock Lock(&CommandQueueCS);
+			if (AcceptCommand(16) && IsInRegionOfInterest(Center))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugCapsule(Center, HalfHeight, Radius, Rotation, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
+			}
 		}
+	}
+
+	void SetEnabled(bool bInEnabled)
+	{
+		FScopeLock Lock(&CommandQueueCS);
+		bEnableDebugDrawing = bInEnabled;
+	}
+
+	void SetMaxCost(int32 InMaxCost)
+	{
+		FScopeLock Lock(&CommandQueueCS);
+		MaxCommandCost = InMaxCost;
+	}
+
+	void SetRegionOfInterest(const FVector& Pos, float InRadius)
+	{
+		FScopeLock Lock(&CommandQueueCS);
+		CenterOfInterest = Pos;
+		RadiusOfInterest = InRadius;
 	}
 
 	void SetConsumerActive(void* Consumer, bool bConsumerActive);
 
 	static FDebugDrawQueue& GetInstance()
 	{
-		static FDebugDrawQueue Singleton;
-		return Singleton;
+		static FDebugDrawQueue* PSingleton = nullptr;
+		if (PSingleton == nullptr)
+		{
+			static FDebugDrawQueue Singleton;
+			PSingleton = &Singleton;
+		}
+		return *PSingleton;
 	}
 
 	static bool IsDebugDrawingEnabled()
 	{
 		// Don't queue up debug draws unless something is consuming the queue, otherwise it can build up forever
-		return !!EnableDebugDrawing && (NumConsumers > 0);
+		return GetInstance().bEnableDebugDrawing && (GetInstance().NumConsumers > 0);
 	}
-
-	static FAutoConsoleVariableRef MakeCVarRef();
 
 private:
-	friend class FAutoConsoleVariableRef;
-
-	FDebugDrawQueue() {}
+	FDebugDrawQueue()
+		: RequestedCommandCost(0)
+		, MaxCommandCost(0)
+		, CenterOfInterest(FVector::ZeroVector)
+		, RadiusOfInterest(0)
+		, bEnableDebugDrawing(false)
+	{}
 	~FDebugDrawQueue() {}
 
-	void Flush()
+	bool AcceptCommand(int Cost)
 	{
-		DoubleBuffer = !DoubleBuffer;
-		TList<FLatentDrawCommand>* List = Queue[DoubleBuffer].ExtractAll();
-		while (List)
-		{
-			TList<FLatentDrawCommand>* Prev = List;
-			List = List->Next;
-			delete Prev;
-		}
+		RequestedCommandCost += Cost;
+		return (MaxCommandCost <= 0) || (RequestedCommandCost <= MaxCommandCost);
 	}
 
-	TListThreadSafe<FLatentDrawCommand> Queue[2];
-	FThreadSafeBool DoubleBuffer;
+	bool IsInRegionOfInterest(FVector Pos) const
+	{
+		return (RadiusOfInterest <= 0.0f) || ((Pos - CenterOfInterest).SizeSquared() < RadiusOfInterest * RadiusOfInterest);
+	}
+
+	TArray<FLatentDrawCommand> CommandQueue;
+	int32 RequestedCommandCost;
+	int32 MaxCommandCost;
+	FCriticalSection CommandQueueCS;
 
 	TArray<void*> Consumers;
+	int32 NumConsumers;
 	FCriticalSection ConsumersCS;
 
-	static int32 EnableDebugDrawing;
-	static int32 NumConsumers;
+	FVector CenterOfInterest;
+	float RadiusOfInterest;
+	bool bEnableDebugDrawing;
 };
 }
 #endif

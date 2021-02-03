@@ -7,6 +7,7 @@
 #include "DisplayClusterConfiguratorCanvasNode.generated.h"
 
 class UDisplayClusterConfigurationCluster;
+class UDisplayClusterConfiguratorWindowNode;
 
 UCLASS()
 class UDisplayClusterConfiguratorCanvasNode final
@@ -15,5 +16,13 @@ class UDisplayClusterConfiguratorCanvasNode final
 	GENERATED_BODY()
 
 public:
-	UDisplayClusterConfigurationCluster* GetCfgCluster();
+	//~ Begin EdGraphNode Interface
+	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
+	//~ End EdGraphNode Interface
+
+	void AddWindowNode(UDisplayClusterConfiguratorWindowNode* WindowNode);
+	const TArray<UDisplayClusterConfiguratorWindowNode*>& GetChildWindows() const;
+
+private:
+	TArray<UDisplayClusterConfiguratorWindowNode*> ChildWindows;
 };

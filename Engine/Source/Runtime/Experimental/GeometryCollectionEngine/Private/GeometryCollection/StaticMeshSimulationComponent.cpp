@@ -159,7 +159,7 @@ void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 						{
 							if ((InParams.InitialTransform.GetScale3D() - FVector(1.f, 1.f, 1.f)).SizeSquared() < SMALL_NUMBER)
 							{
-								auto& TVectorArray = reinterpret_cast<TArray<Chaos::TVector<float, 3>>&>(CollisionData.Vertices);
+								auto& TVectorArray = reinterpret_cast<TArray<Chaos::FVec3>&>(CollisionData.Vertices);
 								InParams.MeshVertexPositions = MoveTemp(TVectorArray);
 							}
 							else
@@ -170,8 +170,8 @@ void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 									InParams.MeshVertexPositions.X(i) = CollisionData.Vertices[i] * InParams.InitialTransform.GetScale3D();
 								}
 							}
-							check(sizeof(Chaos::TVector<int32, 3>) == sizeof(FTriIndices)); // binary compatible?
-							InParams.TriIndices = MoveTemp(*reinterpret_cast<TArray<Chaos::TVector<int32, 3>>*>(&CollisionData.Indices));
+							check(sizeof(Chaos::TVec3<int32>) == sizeof(FTriIndices)); // binary compatible?
+							InParams.TriIndices = MoveTemp(*reinterpret_cast<TArray<Chaos::TVec3<int32>>*>(&CollisionData.Indices));
 
 							TargetComponent->SetMobility(EComponentMobility::Movable);
 							InParams.bSimulating = Simulating;
@@ -328,8 +328,8 @@ void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 											InParams.MeshVertexPositions[i] = CollisionData.Vertices[i] * InParams.InitialTransform.GetScale3D();
 										}
 									}
-									check(sizeof(Chaos::TVector<int32, 3>) == sizeof(FTriIndices)); // binary compatible?
-									InParams.TriIndices = MoveTemp(*reinterpret_cast<TArray<Chaos::TVector<int32, 3>>*>(&CollisionData.Indices));
+									check(sizeof(Chaos::TVec3<int32>) == sizeof(FTriIndices)); // binary compatible?
+									InParams.TriIndices = MoveTemp(*reinterpret_cast<TArray<Chaos::TVec3<int32>>*>(&CollisionData.Indices));
 									// If there are multiple static meshes we are just going to use the first one for now.
 									break;
 								}

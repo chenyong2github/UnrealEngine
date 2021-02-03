@@ -190,7 +190,7 @@ namespace GeometryCollectionTest
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
 		TManagedArray<int32>& DynamicState = Collection->DynamicCollection->DynamicState;
 
-		float PreviousY = 0.f;
+		FReal PreviousY = 0.f;
 		EXPECT_EQ(Transform[0].GetTranslation().X, 0);
 		EXPECT_EQ(Transform[0].GetTranslation().Y, 0);
 
@@ -226,7 +226,7 @@ namespace GeometryCollectionTest
 	{
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
-		float PreviousHeight = 5.f;
+		FReal PreviousHeight = 5.0;
 
 		// Physics Object Setup
 		CreationParameters Params;
@@ -294,7 +294,7 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float PreviousY = 0.f;
+		FReal PreviousY = 0.0;
 		for (int Frame = 0; Frame < 10; Frame++)
 		{
 			if (Frame >= 5)
@@ -343,7 +343,7 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float PreviousY = 0.f;
+		FReal PreviousY = 0.0;
 		for (int Frame = 0; Frame < 10; Frame++)
 		{
 			if (Frame >= 5)
@@ -438,7 +438,7 @@ namespace GeometryCollectionTest
 		UnitTest.Solver->GetPerSolverField().AddTransientCommand( { TargetName, VectorField->NewCopy() });
 		UnitTest.Advance();
 
-		float PreviousX = 0.f;
+		FReal PreviousX = 0.0;
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
 		for (int Frame = 1; Frame < 10; Frame++)
 		{
@@ -552,7 +552,7 @@ namespace GeometryCollectionTest
 
 		UnitTest.Advance();
 		
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		{
 			FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain);
 			UnitTest.Solver->GetPerSolverField().AddTransientCommand( { TargetName, FalloffField->NewCopy() });
@@ -630,7 +630,7 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();	
 		UnitTest.Advance();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 
@@ -722,7 +722,7 @@ namespace GeometryCollectionTest
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 
 		UnitTest.Advance();
 
@@ -805,7 +805,7 @@ namespace GeometryCollectionTest
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		{
 			FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain);
 			UnitTest.Solver->GetPerSolverField().AddTransientCommand( { TargetName, FalloffField->NewCopy() });

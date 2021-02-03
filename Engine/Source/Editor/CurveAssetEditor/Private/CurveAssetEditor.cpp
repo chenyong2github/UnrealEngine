@@ -23,6 +23,7 @@
 #include "CommonFrameRates.h"
 #include "Tree/ICurveEditorTreeItem.h"
 #include "Tree/SCurveEditorTree.h"
+#include "Tree/SCurveEditorTreeSelect.h"
 #include "Tree/SCurveEditorTreePin.h"
 
 #define LOCTEXT_NAMESPACE "CurveAssetEditor"
@@ -59,6 +60,10 @@ struct FCurveAssetEditorTreeItem : public ICurveEditorTreeItem
 				.Text(CurveName)
 				.ColorAndOpacity(FSlateColor(CurveColor))
 			];
+		}
+		else if (InColumnName == ColumnNames.SelectHeader)
+		{
+			return SNew(SCurveEditorTreeSelect, InCurveEditor, InTreeItemID, TableRow);
 		}
 		else if (InColumnName == ColumnNames.PinHeader)
 		{

@@ -85,10 +85,13 @@ void UPartyMember::InitializePartyMember(const FOnlinePartyMemberConstRef& InOss
 			}, false);
 		check(SocialUser);
 
+		UE_LOG(LogParty, Log, TEXT("%s - QUDA returned SocialUser %s (%x)"), ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(SocialUser), SocialUser);
+
 		// Local player already has all the data they need, everyone else we want to wait for
 		bHasReceivedInitialData = IsLocalPlayer();
 
 		OnInitializationComplete().Add(OnInitComplete);
+		UE_LOG(LogParty, Log, TEXT("%s - Registering Init Complete Handler for [%s], SocialUser: %s (%x)"), ANSI_TO_TCHAR(__FUNCTION__), *ToDebugString(), *GetFullNameSafe(SocialUser), SocialUser);
 		SocialUser->RegisterInitCompleteHandler(FOnNewSocialUserInitialized::CreateUObject(this, &UPartyMember::HandleSocialUserInitialized));
 
 		UE_LOG(LogParty, Verbose, TEXT("Created new party member [%s]"), *ToDebugString());

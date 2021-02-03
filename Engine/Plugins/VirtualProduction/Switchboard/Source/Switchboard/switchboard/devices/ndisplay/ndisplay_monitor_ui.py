@@ -9,11 +9,23 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
     def __init__(self, parent, monitor):
         QtWidgets.QWidget.__init__(self, parent)
 
-        # create buttons
+        # create button row
         #
-        self.btnForceFocus = QPushButton("Force Focus")
-        self.btnForceFocus.setToolTip("Forces focus on the nDisplay window")
-        self.btnForceFocus.clicked.connect(monitor.btnForceFocus_clicked)
+        self.labelConsoleExec = QtWidgets.QLabel("Console:")
+
+        self.cmbConsoleExec = QtWidgets.QComboBox()
+        self.cmbConsoleExec.setEditable(True)
+        self.cmbConsoleExec.lineEdit().returnPressed.connect(lambda: monitor.do_console_exec(self.cmbConsoleExec.lineEdit().text()))
+        size = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        size.setHorizontalStretch(3)
+        self.cmbConsoleExec.setSizePolicy(size)
+        self.cmbConsoleExec.setMinimumWidth(150)
+
+        self.btnConsoleExec = QPushButton("Exec")
+        self.btnConsoleExec.setToolTip("Issues a console command via nDisplay cluster event")
+        self.btnConsoleExec.clicked.connect(lambda: monitor.do_console_exec(self.cmbConsoleExec.lineEdit().text()))
+
+        monitor.console_exec_issued.connect(lambda: self.cmbConsoleExec.lineEdit().clear())
 
         self.btnFixExeFlags = QPushButton("Fix ExeFlags")
         self.btnFixExeFlags.setToolTip("Disables fullscreen optimizations on the executable.")
@@ -27,8 +39,10 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
 
         # arrange them in a horizontal layout
         layout_buttons = QHBoxLayout()
-        layout_buttons.addStretch()
-        layout_buttons.addWidget(self.btnForceFocus)
+        layout_buttons.addWidget(self.labelConsoleExec)
+        layout_buttons.addWidget(self.cmbConsoleExec)
+        layout_buttons.addWidget(self.btnConsoleExec)
+        layout_buttons.addStretch(1)
         layout_buttons.addWidget(self.btnFixExeFlags)
         layout_buttons.addWidget(self.btnSoftKill)
 
@@ -55,6 +69,3 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
         layout.addWidget(self.tableview)
 
         self.setLayout(layout)
-
-        
-

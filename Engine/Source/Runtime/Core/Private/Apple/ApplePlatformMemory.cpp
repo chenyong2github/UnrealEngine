@@ -31,6 +31,7 @@
 #include <mach/vm_map.h>
 #include <mach/vm_region.h>
 #include <mach/vm_statistics.h>
+#include <mach/vm_page_size.h>
 #include "HAL/LowLevelMemTracker.h"
 #include "Apple/AppleLLM.h"
 
@@ -401,10 +402,6 @@ const FPlatformMemoryConstants& FApplePlatformMemory::GetConstants()
 	{
 		// Gather platform memory constants.
 		
-		// Get page size.
-		vm_size_t PageSize;
-		host_page_size(mach_host_self(), &PageSize);
-		
 		// Get memory.
 		int64 AvailablePhysical = 0;
 #if PLATFORM_IOS
@@ -447,9 +444,9 @@ const FPlatformMemoryConstants& FApplePlatformMemory::GetConstants()
 		
 		MemoryConstants.TotalPhysical = AvailablePhysical;
 		MemoryConstants.TotalVirtual = AvailablePhysical;
-		MemoryConstants.PageSize = (uint32)PageSize;
-		MemoryConstants.OsAllocationGranularity = (uint32)PageSize;
-		MemoryConstants.BinnedPageSize = FMath::Max((SIZE_T)65536, (SIZE_T)PageSize);
+		MemoryConstants.PageSize = (uint32)vm_page_size;
+		MemoryConstants.OsAllocationGranularity = (uint32)vm_page_size;
+		MemoryConstants.BinnedPageSize = FMath::Max((SIZE_T)65536, (SIZE_T)vm_page_size);
 		MemoryConstants.TotalPhysicalGB = (MemoryConstants.TotalPhysical + 1024 * 1024 * 1024 - 1) / 1024 / 1024 / 1024;
 	}
 	
@@ -808,13 +805,9 @@ void LLMFree(void* Addr, size_t Size)
 bool FApplePlatformMemory::GetLLMAllocFunctions(void*_Nonnull(*_Nonnull&OutAllocFunction)(size_t), void(*_Nonnull&OutFreeFunction)(void*, size_t), int32& OutAlignment)
 {
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-    // Get page size.
-    vm_size_t PageSize;
-    host_page_size(mach_host_self(), &PageSize);
-
     OutAllocFunction = LLMAlloc;
     OutFreeFunction = LLMFree;
-    OutAlignment = PageSize;
+    OutAlignment = vm_page_size;
     return true;
 #else
     return false;

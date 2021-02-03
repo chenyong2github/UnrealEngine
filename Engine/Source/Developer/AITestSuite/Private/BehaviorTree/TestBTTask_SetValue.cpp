@@ -10,10 +10,21 @@ UTestBTTask_SetValue::UTestBTTask_SetValue(const FObjectInitializer& ObjectIniti
 	TaskResult = EBTNodeResult::Succeeded;
 	KeyName = TEXT("Int");
 	Value = 1;
+	OnAbortKeyName = FName();
+	OnAbortValue = 1;
 }
 
 EBTNodeResult::Type UTestBTTask_SetValue::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	OwnerComp.GetBlackboardComponent()->SetValue<UBlackboardKeyType_Int>(KeyName, Value);
 	return TaskResult;
+}
+
+EBTNodeResult::Type UTestBTTask_SetValue::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+{
+	if (OnAbortKeyName.IsValid())
+	{
+		OwnerComp.GetBlackboardComponent()->SetValue<UBlackboardKeyType_Int>(OnAbortKeyName, OnAbortValue);
+	}
+	return EBTNodeResult::Aborted;	
 }

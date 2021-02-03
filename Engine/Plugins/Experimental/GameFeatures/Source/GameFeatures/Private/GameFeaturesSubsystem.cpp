@@ -19,6 +19,9 @@
 
 DEFINE_LOG_CATEGORY(LogGameFeatures);
 
+FGameFeaturePluginLoadCompleteDataReady UGameFeaturesSubsystem::PluginLoadedGameFeatureDataReadyDelegate;
+FGameFeaturePluginDeativated UGameFeaturesSubsystem::PluginDeactivatedDelegate;
+
 void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	UE_LOG(LogGameFeatures, Log, TEXT("Initializing game features subsystem"));
@@ -258,14 +261,14 @@ void UGameFeaturesSubsystem::RemoveObserver(UGameFeatureStateChangeObserver* Obs
 	Observers.Remove(Observer);
 }
 
-void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData)
+void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName)
 {
 	check(GameFeatureData);
 	AddGameFeatureToAssetManager(GameFeatureData);
 
 	for (UGameFeatureStateChangeObserver* Observer : Observers)
 	{
-		Observer->OnGameFeatureRegistering(GameFeatureData);
+		Observer->OnGameFeatureRegistering(GameFeatureData, PluginName);
 	}
 
 	for (UGameFeatureAction* Action : GameFeatureData->GetActions())
@@ -511,6 +514,20 @@ bool UGameFeaturesSubsystem::GetPluginURLForBuiltInPluginByName(const FString& P
 	return false;
 }
 
+FString UGameFeaturesSubsystem::GetPluginFilenameFromPluginURL(const FString& PluginURL)
+{
+	FString PluginFilename;
+	if (UGameFeaturePluginStateMachine* GFSM = GetGameFeaturePluginStateMachine(PluginURL, false))
+	{
+		GFSM->GetPluginFilename(PluginFilename);
+	}
+	else
+	{
+		UE_LOG(LogGameFeatures, Error, TEXT("UGameFeaturesSubsystem could not get the plugin path form the plugin URL. URL:%s "), *PluginURL);
+	}
+	return PluginFilename;
+}
+
 void UGameFeaturesSubsystem::GetLoadedGameFeaturePluginFilenamesForCooking(TArray<FString>& OutLoadedPluginFilenames) const
 {
 	for (auto StateMachineIt = GameFeaturePluginStateMachines.CreateConstIterator(); StateMachineIt; ++StateMachineIt)
@@ -663,6 +680,11 @@ void UGameFeaturesSubsystem::LoadExternallyRequestedGameFeaturePluginComplete(UG
 {
 	LoadGameFeaturePluginComplete(Machine, Result);
 	CompleteDelegate.ExecuteIfBound(Result);
+	
+	if (UGameFeatureData* GameFeatureData = Machine ? Machine->GetGameFeatureDataForActivePlugin() : nullptr)
+	{
+		PluginLoadedGameFeatureDataReadyDelegate.Broadcast(Machine->GetGameFeatureName(), GameFeatureData);
+	}
 }
 
 void UGameFeaturesSubsystem::DeactivateGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginLoadComplete CompleteDelegate)
@@ -670,6 +692,11 @@ void UGameFeaturesSubsystem::DeactivateGameFeaturePluginComplete(UGameFeaturePlu
 	// @todo: DO we need a DeactivateGameFeaturePluginComplete like "LoadExternallyRequestedGameFeaturePluginComplete" has?
 	// Note: LoadGameFeaturePluginComplete is just used for logging.
 	CompleteDelegate.ExecuteIfBound(Result);
+	
+	if (UGameFeatureData* GameFeatureData = Machine ? Machine->GetGameFeatureDataForActivePlugin() : nullptr)
+	{
+		PluginDeactivatedDelegate.Broadcast(Machine->GetGameFeatureName(), GameFeatureData);
+	}
 }
 
 void UGameFeaturesSubsystem::UnloadGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginLoadComplete CompleteDelegate)

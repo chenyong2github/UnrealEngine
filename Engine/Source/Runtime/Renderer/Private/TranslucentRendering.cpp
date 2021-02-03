@@ -614,6 +614,11 @@ void SetupDownsampledTranslucencyViewParameters(
 		ViewRect,
 		View.ViewMatrices,
 		View.PrevViewInfo.ViewMatrices);
+
+	// instead of using the expected ratio, use the actual dimentions to avoid rounding errors
+	float ActualDownsampleX = float(ViewRect.Width()) / float(View.ViewRect.Width());
+	float ActualDownsampleY = float(ViewRect.Height()) / float(View.ViewRect.Height());
+	DownsampledTranslucencyViewParameters.LightProbeSizeRatioAndInvSizeRatio = FVector4(ActualDownsampleX, ActualDownsampleY, 1.0f / ActualDownsampleX, 1.0f / ActualDownsampleY);
 }
 
 TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(

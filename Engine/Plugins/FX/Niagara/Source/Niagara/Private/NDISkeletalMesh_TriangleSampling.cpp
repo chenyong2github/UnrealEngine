@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceSkeletalMesh.h"
-#include "NiagaraComponent.h"
+
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "SkeletalMeshTypes.h"
-#include "NiagaraStats.h"
-#include "Templates/AlignmentTemplates.h"
 #include "NDISkeletalMeshCommon.h"
+#include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceArrayInt.h"
+#include "NiagaraStats.h"
+#include "SkeletalMeshTypes.h"
+#include "Templates/AlignmentTemplates.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSkeletalMesh_TriangleSampling"
 
@@ -25,6 +27,7 @@ DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetFilteredTriangleCou
 DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetFilteredTriangleAt);
 DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordVertices);
 DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriangleCoordAtUV);
+DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriangleCoordInAabb);
 
 const FName FSkeletalMeshInterfaceHelper::RandomTriCoordName("RandomTriCoord");
 const FName FSkeletalMeshInterfaceHelper::IsValidTriCoordName("IsValidTriCoord");
@@ -34,13 +37,16 @@ const FName FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataInterpName("GetS
 const FName FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSInterpName("GetSkinnedTriangleDataWSInterpolated");
 const FName FSkeletalMeshInterfaceHelper::GetTriColorName("GetTriColor");
 const FName FSkeletalMeshInterfaceHelper::GetTriUVName("GetTriUV");
-const FName FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName("GetTriangleCoordAtUV");
 const FName FSkeletalMeshInterfaceHelper::GetTriCoordVerticesName("GetTriCoordVertices");
 const FName FSkeletalMeshInterfaceHelper::RandomTriangleName("RandomTriangle");
 const FName FSkeletalMeshInterfaceHelper::GetTriangleCountName("GetTriangleCount");
 const FName FSkeletalMeshInterfaceHelper::RandomFilteredTriangleName("RandomFilteredTriangle");
 const FName FSkeletalMeshInterfaceHelper::GetFilteredTriangleCountName("GetFilteredTriangleCount");
 const FName FSkeletalMeshInterfaceHelper::GetFilteredTriangleAtName("GetFilteredTriangle");
+const FName FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName("GetTriangleCoordAtUV");
+const FName FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName("GetTriangleCoordInAabb");
+const FName FSkeletalMeshInterfaceHelper::GetAdjacentTriangleIndexName("GetAdjacentTriangleIndex");
+const FName FSkeletalMeshInterfaceHelper::GetTriangleNeighborName("GetTriangleNeighbor");
 
 void UNiagaraDataInterfaceSkeletalMesh::GetTriangleSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
@@ -170,19 +176,6 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleSamplingFunctions(TArray<FNia
 
 	{
 		FNiagaraFunctionSignature Sig;
-		Sig.Name = FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("SkeletalMesh")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("UV Set")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UV")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FMeshTriCoordinate::StaticStruct()), TEXT("Coord")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		OutFunctions.Add(Sig);
-	}
-
-	{
-		FNiagaraFunctionSignature Sig;
 		Sig.Name = FSkeletalMeshInterfaceHelper::GetTriCoordVerticesName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("SkeletalMesh")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("TriangleIndex")));
@@ -244,6 +237,77 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleSamplingFunctions(TArray<FNia
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FMeshTriCoordinate::StaticStruct()), TEXT("Coord")));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("SkeletalMesh")));
+
+		FNiagaraVariable EnabledVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled"));
+		EnabledVariable.SetValue(true);
+		Sig.Inputs.Add(EnabledVariable);
+
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UV")));
+
+		FNiagaraVariable ToleranceVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Tolerance"));
+		ToleranceVariable.SetValue(KINDA_SMALL_NUMBER);
+		Sig.Inputs.Add(ToleranceVariable);
+
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FMeshTriCoordinate::StaticStruct()), TEXT("Coord")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bExperimental = true;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("SkeletalMesh")));
+
+		FNiagaraVariable EnabledVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled"));
+		EnabledVariable.SetValue(true);
+		Sig.Inputs.Add(EnabledVariable);
+
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UvMin")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UvMax")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FMeshTriCoordinate::StaticStruct()), TEXT("Coord")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bExperimental = true;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = FSkeletalMeshInterfaceHelper::GetAdjacentTriangleIndexName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("SkeletalMesh")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Vertex ID")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Adjacency Index")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Triangle Index")));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bExperimental = true;
+		Sig.bSupportsCPU = false;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = FSkeletalMeshInterfaceHelper::GetTriangleNeighborName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("SkeletalMesh")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Triangle Index")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Edge Index")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Neighbor Triangle Index")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Neighbor Edge Index")));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bExperimental = true;
+		Sig.bSupportsCPU = false;
 		OutFunctions.Add(Sig);
 	}
 }
@@ -328,11 +392,6 @@ void UNiagaraDataInterfaceSkeletalMesh::BindTriangleSamplingFunction(const FVMEx
 		check(BindingInfo.GetNumInputs() == 6 && BindingInfo.GetNumOutputs() == 2);
 		TVertexAccessorBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriCoordUV)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
-	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName)
-	{
-		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 5);
-		TVertexAccessorBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriangleCoordAtUV)>::Bind(this, BindingInfo, InstanceData, OutFunc);
-	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetTriCoordVerticesName)
 	{
 		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3);
@@ -362,6 +421,16 @@ void UNiagaraDataInterfaceSkeletalMesh::BindTriangleSamplingFunction(const FVMEx
 	{
 		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 4);
 		TFilterModeBinder<TAreaWeightingModeBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetFilteredTriangleAt)>>::Bind(this, BindingInfo, InstanceData, OutFunc);
+	}
+	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName)
+	{
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 5);
+		TVertexAccessorBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriangleCoordAtUV)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+	}
+	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName)
+	{
+		check(BindingInfo.GetNumInputs() == 6 && BindingInfo.GetNumOutputs() == 5);
+		TVertexAccessorBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetTriangleCoordInAabb)>::Bind(this, BindingInfo, InstanceData, OutFunc);
 	}
 }
 
@@ -961,8 +1030,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordAtUV(FVectorVMContext& C
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Sample);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
-	FNDIInputParam<int32> UVSetParam(Context);
+	FNDIInputParam<bool> InEnabled(Context);
 	FNDIInputParam<FVector2D> InUV(Context);
+	FNDIInputParam<float> InTolerance(Context);
 
 	FNDIOutputParam<int32> OutTriangleIndex(Context);
 	FNDIOutputParam<FVector> OutBaryCoord(Context);
@@ -975,10 +1045,17 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordAtUV(FVectorVMContext& C
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
+			const bool Enabled = InEnabled.GetAndAdvance();
 			const FVector2D SourceUv = InUV.GetAndAdvance();
+			const float Tolerance = InTolerance.GetAndAdvance();
 
-			FVector BaryCoord;
-			const int32 TriangleIndex = InstData->UvMapping.FindFirstTriangle(SourceUv, BaryCoord);
+			FVector BaryCoord(ForceInitToZero);
+			int32 TriangleIndex = INDEX_NONE;
+
+			if (Enabled)
+			{
+				TriangleIndex = InstData->UvMapping.FindFirstTriangle(SourceUv, Tolerance, BaryCoord);
+			}
 
 			OutTriangleIndex.SetAndAdvance(TriangleIndex);
 			OutBaryCoord.SetAndAdvance(BaryCoord);
@@ -1001,8 +1078,77 @@ template<>
 void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordAtUV<FSkelMeshVertexAccessorNoop>(FVectorVMContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
-	FNDIInputParam<int32> UVSetParam(Context);
+	FNDIInputParam<bool> InEnabled(Context);
 	FNDIInputParam<FVector2D> InUV(Context);
+	FNDIInputParam<float> InTolerance(Context);
+
+	FNDIOutputParam<int32> OutTriangleIndex(Context);
+	FNDIOutputParam<FVector> OutBaryCoord(Context);
+	FNDIOutputParam<bool> OutIsValid(Context);
+
+	for (int32 i = 0; i < Context.NumInstances; ++i)
+	{
+		OutTriangleIndex.SetAndAdvance(INDEX_NONE);
+		OutBaryCoord.SetAndAdvance(FVector::ZeroVector);
+		OutIsValid.SetAndAdvance(false);
+	}
+}
+
+
+template<typename VertexAccessorType>
+void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordInAabb(FVectorVMContext& Context)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Sample);
+	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+	FNDIInputParam<bool> InEnabled(Context);
+	FNDIInputParam<FVector2D> InMinExtent(Context);
+	FNDIInputParam<FVector2D> InMaxExtent(Context);
+
+	FNDIOutputParam<int32> OutTriangleIndex(Context);
+	FNDIOutputParam<FVector> OutBaryCoord(Context);
+	FNDIOutputParam<FNiagaraBool> OutIsValid(Context);
+
+	checkf(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
+	checkf(InstData->bMeshValid, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
+
+	if (InstData->UvMapping)
+	{
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			const bool Enabled = InEnabled.GetAndAdvance();
+			const FVector2D MinExtent = InMinExtent.GetAndAdvance();
+			const FVector2D MaxExtent = InMaxExtent.GetAndAdvance();
+
+			FVector BaryCoord(ForceInitToZero);
+			int32 TriangleIndex = INDEX_NONE;
+			if (Enabled)
+			{
+				TriangleIndex = InstData->UvMapping.FindFirstTriangle(FBox2D(MinExtent, MaxExtent), BaryCoord);
+			}
+
+			OutTriangleIndex.SetAndAdvance(TriangleIndex);
+			OutBaryCoord.SetAndAdvance(BaryCoord);
+			OutIsValid.SetAndAdvance(TriangleIndex != INDEX_NONE);
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			OutTriangleIndex.SetAndAdvance(INDEX_NONE);
+			OutBaryCoord.SetAndAdvance(FVector::ZeroVector);
+			OutIsValid.SetAndAdvance(false);
+		}
+	}
+}
+
+template<>
+void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordInAabb<FSkelMeshVertexAccessorNoop>(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+	FNDIInputParam<bool> InEnabled(Context);
+	FNDIInputParam<FVector2D> InMinExtent(Context);
+	FNDIInputParam<FVector2D> InMaxExtent(Context);
 
 	FNDIOutputParam<int32> OutTriangleIndex(Context);
 	FNDIOutputParam<FVector> OutBaryCoord(Context);

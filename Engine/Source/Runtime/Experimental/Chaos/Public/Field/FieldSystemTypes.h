@@ -53,7 +53,7 @@ UENUM(BlueprintType)
 enum EFieldCullingOperationType
 {
 	Field_Culling_Inside  UMETA(DisplayName = "Inside", ToolTip = "Evaluate the input field if the result of the culling field is equal to 0"),
-	Field_Culling_Outside UMETA(DisplayName = "Outside", ToolTip = "Evaluate the input field if the result of the culling field is diferent from 0"),
+	Field_Culling_Outside UMETA(DisplayName = "Outside", ToolTip = "Evaluate the input field if the result of the culling field is different from 0"),
 	//~~~
 	//256th entry
 	Field_Culling_Operation_Max                 UMETA(Hidden)
@@ -66,8 +66,8 @@ enum EFieldCullingOperationType
 UENUM(BlueprintType)
 enum EFieldResolutionType
 {
-	Field_Resolution_Minimal  UMETA(DisplayName = "Minimum", ToolTip = "Apply the field to all the non disabled particles"),
-	Field_Resolution_DisabledParents  UMETA(DisplayName = "Children", ToolTip = "Apply the field to all the children particles"),
+	Field_Resolution_Minimal  UMETA(DisplayName = "Minimum", ToolTip = "Apply the field to all the active particles"),
+	Field_Resolution_DisabledParents  UMETA(DisplayName = "Parents", ToolTip = "Apply the field to all the parent particles"),
 	Field_Resolution_Maximum  UMETA(DisplayName = "Maximum", ToolTip = "Apply the field to all the solver particles"),
 	//~~~
 	//256th entry
@@ -122,12 +122,12 @@ enum EFieldPhysicsType
 	Field_InternalClusterStrain		UMETA(DisplayName = "Internal Strain", ToolTip = "Add a strain field to the particles internal one."),
 	Field_DisableThreshold			UMETA(DisplayName = "Disable Threshold", ToolTip = "Disable the particles if their linear and angular velocity are less than the threshold."),
 	Field_SleepingThreshold			UMETA(DisplayName = "Sleeping Threshold", ToolTip = "Set particles in sleeping mode if their linear and angular velocity are less than the threshold."),
-	Field_PositionStatic			UMETA(DisplayName = "Position Static", ToolTip = "Disabled for now (WIP)"),
-	Field_PositionAnimated			UMETA(DisplayName = "Position Animated", ToolTip = "Disabled for now (WIP)"),
-	Field_PositionTarget			UMETA(DisplayName = "Position Target", ToolTip = "Disabled for now (WIP)"),
-	Field_DynamicConstraint			UMETA(DisplayName = "Dynamic Constraint", ToolTip = "Disabled for now (WIP)"),
+	Field_PositionStatic			UMETA(DisplayName = "Position Static", ToolTip = "Add a position constraint to the particles to remain static", Hidden),
+	Field_PositionAnimated			UMETA(DisplayName = "Position Animated", ToolTip = "Add a position constraint to the particles to follow its kinematic position", Hidden),
+	Field_PositionTarget			UMETA(DisplayName = "Position Target", ToolTip = "Add a position constraint to the particles to follow a target position", Hidden),
+	Field_DynamicConstraint			UMETA(DisplayName = "Dynamic Constraint", ToolTip = "Add the particles to a spring constraint holding them together", Hidden),
 	Field_CollisionGroup			UMETA(DisplayName = "Collision Group", ToolTip = "Set the particles collision group."),
-	Field_ActivateDisabled			UMETA(DisplayName = "Activate Disabled", ToolTip = "Disabled for now (WIP)"),
+	Field_ActivateDisabled			UMETA(DisplayName = "Activate Disabled", ToolTip = "Activate all the disabled particles for which the field value will be 0"),
 	//~~~
 	//256th entry
 	Field_PhysicsType_Max           UMETA(Hidden)
@@ -141,7 +141,7 @@ enum EFieldVectorType
 	Vector_LinearVelocity			UMETA(DisplayName = "Linear Velocity", ToolTip = "Add a vector field to the particles linear velocity."),
 	Vector_AngularVelocity			UMETA(DisplayName = "Angular Velocity", ToolTip = "Add a vector field to the particles angular velocity."),
 	Vector_AngularTorque			UMETA(DisplayName = "Angular Torque", ToolTip = "Add a vector field to the particles angular torque."),
-	Vector_PositionTarget			UMETA(DisplayName = "Position Target", ToolTip = "Disabled for now (WIP)"),
+	Vector_PositionTarget			UMETA(DisplayName = "Position Target", ToolTip = "Add a position constraint to the particles to follow a target position", Hidden),
 	//~~~
 	//256th entry
 	Vector_TargetMax           UMETA(Hidden)
@@ -155,7 +155,7 @@ enum EFieldScalarType
 	Scalar_DisableThreshold				UMETA(DisplayName = "Disable Threshold", ToolTip = "Disable the particles if their linear and angular velocity are less than the threshold."),
 	Scalar_SleepingThreshold			UMETA(DisplayName = "Sleeping Threshold", ToolTip = "Set particles in sleeping mode if their linear and angular velocity are less than the threshold."),
 	Scalar_InternalClusterStrain		UMETA(DisplayName = "Internal Strain", ToolTip = "Add a strain field to the particles internal one."),
-	Scalar_DynamicConstraint			UMETA(DisplayName = "Dynamic Constraint", ToolTip = "Disabled for now (WIP)"),
+	Scalar_DynamicConstraint			UMETA(DisplayName = "Dynamic Constraint", ToolTip = "Add the particles to a spring constraint holding them together", Hidden),
 	//~~~
 	//256th entry
 	Scalar_TargetMax           UMETA(Hidden)
@@ -165,10 +165,10 @@ UENUM(BlueprintType)
 enum EFieldIntegerType
 {
 	Integer_DynamicState				UMETA(DisplayName = "Dynamic State", ToolTip = "Set the dynamic state of a particle (static, dynamic, kinematic...)"),
-	Integer_ActivateDisabled			UMETA(DisplayName = "Activate Disabled", ToolTip = "Disabled for now (WIP)"),
+	Integer_ActivateDisabled			UMETA(DisplayName = "Activate Disabled", ToolTip = "Activate all the disabled particles for which the field value will be 0"),
 	Integer_CollisionGroup				UMETA(DisplayName = "Collision Group", ToolTip = "Set the particles collision group."),
-	Integer_PositionAnimated			UMETA(DisplayName = "Position Animated", ToolTip = "Disabled for now (WIP)"),
-	Integer_PositionStatic				UMETA(DisplayName = "Position Static", ToolTip = "Disabled for now (WIP)"),
+	Integer_PositionAnimated			UMETA(DisplayName = "Position Animated", ToolTip = "Add a position constraint to the particles to follow its kinematic position", Hidden),
+	Integer_PositionStatic				UMETA(DisplayName = "Position Static", ToolTip = "Add a position constraint to the particles to remain static", Hidden),
 	//~~~
 	//256th entry
 	Integer_TargetMax           UMETA(Hidden)
@@ -273,6 +273,21 @@ EFieldOutputType CHAOS_API GetFieldTargetOutput(const EFieldPhysicsType FieldTar
 
 	int32 TargetIndex = INDEX_NONE;
 	return GetFieldTargetIndex(VectorTypes, ScalarTypes, IntegerTypes, FieldTarget, TargetIndex);
+}
+
+inline
+FName CHAOS_API GetFieldOutputName(const EFieldOutputType Type)
+{
+	switch (Type)
+	{
+	case EFieldOutputType::Field_Output_Vector:
+		return "Vector";
+	case EFieldOutputType::Field_Output_Scalar:
+		return "Scalar";
+	case EFieldOutputType::Field_Output_Integer:
+		return "Integer";
+	}
+	return "None";
 }
 
 inline 

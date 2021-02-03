@@ -60,6 +60,12 @@ FValidationRHI::FValidationRHI(FDynamicRHI* InRHI)
 	SeenFailureHashes.Reserve(256);
 }
 
+static inline bool IsTessellationPrimitive(EPrimitiveType Type)
+{
+	return (Type >= PT_1_ControlPointPatchList && Type <= PT_32_ControlPointPatchList);
+}
+
+
 FValidationRHI::~FValidationRHI()
 {
 	GRHIValidationEnabled = false;
@@ -138,6 +144,13 @@ void FValidationRHI::ValidatePipeline(const FGraphicsPipelineStateInitializer& P
 				&& PSOInitializer.StencilTargetStoreAction == ERenderTargetStoreAction::ENoAction,
 				TEXT("No depth/stencil target set, yet PSO wants to store into it!"));
 		}
+	}
+
+	if (IsTessellationPrimitive(PSOInitializer.PrimitiveType ))
+	{
+		ensureMsgf(RHISupportsTessellation(GMaxRHIShaderPlatform), TEXT("Tried to create a tessellation PSO but RHI doesn't support it!"));
+		ensureMsgf(PSOInitializer.BoundShaderState.HullShaderRHI && PSOInitializer.BoundShaderState.DomainShaderRHI, 
+			TEXT("Tried to create a tessellation PSO but no Hull or Domain shader set!"));
 	}
 }
 

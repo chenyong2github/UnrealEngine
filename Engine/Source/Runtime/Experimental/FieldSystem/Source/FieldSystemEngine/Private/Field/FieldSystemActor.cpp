@@ -50,6 +50,8 @@ void AFieldSystemActor::OnConstruction(const FTransform& Transform)
 				}
 			}
 		}
+		Component->ConstructionCommands = Component->BufferCommands;
+		Component->BufferCommands.ResetFieldCommands();
 	}
 }
 

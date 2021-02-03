@@ -163,7 +163,7 @@ namespace GeometryCollectionTest
 		CreationParameters Params;
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Sleeping;
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
-		float InitialStartHeight = 5.0f;
+		FReal InitialStartHeight = 5.0;
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, InitialStartHeight));
 		TGeometryCollectionWrapper<Traits>* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
@@ -199,7 +199,7 @@ namespace GeometryCollectionTest
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, 15.f));
 		TGeometryCollectionWrapper<Traits>* MovingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
-		float InitialStartHeight = 5.0f;
+		FReal InitialStartHeight = 5.0;
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Sleeping;
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, InitialStartHeight));
 		TGeometryCollectionWrapper<Traits>* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
@@ -270,7 +270,7 @@ namespace GeometryCollectionTest
 
 		Solver->AdvanceSolverBy(1 / 24.);
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
-		Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
+		Chaos::TPBDRigidParticles<FReal, 3>& Particles = Solver->GetRigidParticles();
 
 		for (int Frame = 1; Frame < 200; Frame++)
 		{
@@ -327,7 +327,7 @@ namespace GeometryCollectionTest
 	TYPED_TEST(AllTraits, GeometryCollection_TestImplicitCollisionGeometry)
 	{
 		using Traits = TypeParam;
-		typedef Chaos::TVector<FReal, 3> Vec;
+		typedef Chaos::FVec3 Vec;
 
 		CreationParameters Params; 
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_GriddleBox;
@@ -338,11 +338,11 @@ namespace GeometryCollectionTest
 			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(
 				Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
-		const TManagedArray<TUniquePtr<Chaos::TBVHParticles<float,3>>>& Simplicials =
-			Collection->RestCollection->template GetAttribute<TUniquePtr<Chaos::TBVHParticles<float,3>>>(
+		const TManagedArray<TUniquePtr<Chaos::TBVHParticles<FReal,3>>>& Simplicials =
+			Collection->RestCollection->template GetAttribute<TUniquePtr<Chaos::TBVHParticles<FReal,3>>>(
 				FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
 		EXPECT_EQ(Simplicials.Num(), 1);
-		const Chaos::TBVHParticles<float, 3>& Simplicial = *Simplicials[0];
+		const Chaos::TBVHParticles<FReal, 3>& Simplicial = *Simplicials[0];
 
 		const TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicits = 
 			Collection->RestCollection->template GetAttribute<FGeometryDynamicCollection::FSharedImplicit>(
@@ -353,7 +353,7 @@ namespace GeometryCollectionTest
 
 		// Ensure all simplicial particles are on the surface of the implicit shape.
 		check(Implicit.GetType() == Chaos::ImplicitObjectType::LevelSet);
-		const Chaos::TLevelSet<float, 3>* LevelSet = static_cast<const Chaos::TLevelSet<float, 3>*>(&Implicit);
+		const Chaos::TLevelSet<FReal, 3>* LevelSet = static_cast<const Chaos::TLevelSet<FReal, 3>*>(&Implicit);
 		const FReal DxSize = LevelSet->GetGrid().Dx().Size();
 
 		FReal MinX = TNumericLimits<FReal>::Max();
@@ -385,7 +385,7 @@ namespace GeometryCollectionTest
 		check(MinZ < MaxZ);
 
 		// Cast a ray through the level set, and make sure it's as we expect.
-		for(float x = 2*MinX; x < 2*MaxX; x += (MaxX-MinX)/10)
+		for(FReal x = 2*MinX; x < 2*MaxX; x += (MaxX-MinX)/10)
 		{
 			Vec Normal;
 			const FReal phi = Implicit.PhiWithNormal(Vec(x, 0, 0), Normal);

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Real.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/DynamicParticles.h"
 
@@ -30,4 +31,6 @@ class TPBDParticles : public TDynamicParticles<T, d>
   private:
 	TArrayCollectionArray<TVector<T, d>> MP;
 };
+
+using FPBDParticles = TPBDParticles<FReal, 3>;
 }

@@ -174,14 +174,24 @@ void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Acto
 {
 #if WITH_CHAOS
 	using namespace Chaos;
-	if(GetSpacialAcceleration() && Actor->UniqueIdx().IsValid())
-	{
-		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
-		Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor);
-		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle,Actor->SpatialIdx());
-	}
+	RemoveActorFromAccelerationStructureImp(Actor->GetParticle_LowLevel());
 #endif
 }
+
+#if WITH_CHAOS
+
+void FChaosScene::RemoveActorFromAccelerationStructureImp(Chaos::TGeometryParticle<float, 3>* Particle)
+{
+	using namespace Chaos;
+	if (GetSpacialAcceleration() && Particle->UniqueIdx().IsValid())
+	{
+		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
+		Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Particle);
+		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle, Particle->SpatialIdx());
+	}
+}
+#endif
+
 
 void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor)
 {
@@ -193,23 +203,24 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
 
 		auto SpatialAcceleration = GetSpacialAcceleration();
+		const Chaos::FRigidBodyHandle_External& Body_External = Actor->GetGameThreadAPI();
 
 		if(SpatialAcceleration)
 		{
 
 			TAABB<FReal,3> WorldBounds;
-			const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
+			const bool bHasBounds = Body_External.Geometry()->HasBoundingBox();
 			if(bHasBounds)
 			{
-				WorldBounds = Actor->Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal,3>(Actor->X(),Actor->R()));
+				WorldBounds = Body_External.Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal,3>(Body_External.X(), Body_External.R()));
 			}
 
 
-			Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor);
-			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Actor->SpatialIdx());
+			Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor->GetParticle_LowLevel());
+			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds, Body_External.SpatialIdx());
 		}
 
-		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
+		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor->GetParticle_LowLevel(),/*bDelete=*/false);
 	}
 #endif
 }
@@ -231,18 +242,19 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 			for(int32 ActorIndex = 0; ActorIndex < NumActors; ++ActorIndex)
 			{
 				const FPhysicsActorHandle& Actor = Actors[ActorIndex];
-				if(Actor != nullptr)
+				const Chaos::FRigidBodyHandle_External& Body_External = Actor->GetGameThreadAPI();
+				if(Actor)
 				{
 					// @todo(chaos): dedupe code in UpdateActorInAccelerationStructure
 					TAABB<FReal,3> WorldBounds;
-					const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
+					const bool bHasBounds = Body_External.Geometry()->HasBoundingBox();
 					if(bHasBounds)
 					{
-						WorldBounds = Actor->Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal,3>(Actor->X(),Actor->R()));
+						WorldBounds = Body_External.Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal,3>(Body_External.X(), Body_External.R()));
 					}
 
-					Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor);
-					SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Actor->SpatialIdx());
+					Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor->GetParticle_LowLevel());
+					SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds, Body_External.SpatialIdx());
 				}
 			}
 		}
@@ -250,9 +262,9 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 		for(int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex)
 		{
 			const FPhysicsActorHandle& Actor = Actors[ActorIndex];
-			if(Actor != nullptr)
+			if(Actor)
 			{
-				GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
+				GetSolver()->UpdateParticleInAccelerationStructure_External(Actor->GetParticle_LowLevel(),/*bDelete=*/false);
 			}
 		}
 	}
@@ -273,18 +285,19 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 		// Optionally add this to the game-thread acceleration structure immediately
 		if(bImmediate && SpatialAcceleration)
 		{
+			const Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
 			// Get the bounding box for the particle if it has one
-			bool bHasBounds = Handle->Geometry()->HasBoundingBox();
+			bool bHasBounds = Body_External.Geometry()->HasBoundingBox();
 			Chaos::TAABB<float,3> WorldBounds;
 			if(bHasBounds)
 			{
-				const Chaos::TAABB<float,3> LocalBounds = Handle->Geometry()->BoundingBox();
-				WorldBounds = LocalBounds.TransformedAABB(Chaos::TRigidTransform<float,3>(Handle->X(),Handle->R()));
+				const Chaos::TAABB<float,3> LocalBounds = Body_External.Geometry()->BoundingBox();
+				WorldBounds = LocalBounds.TransformedAABB(Chaos::TRigidTransform<float,3>(Body_External.X(), Body_External.R()));
 			}
 
 			// Insert the particle
-			Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Handle);
-			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Handle->SpatialIdx());
+			Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Handle->GetParticle_LowLevel());
+			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds, Body_External.SpatialIdx());
 		}
 	}
 #endif
@@ -298,7 +311,7 @@ void FChaosSceneSimCallback::OnPreSimulate_Internal()
 	}
 }
 
-void FChaosScene::SetGravity(const Chaos::TVector<float, 3>& Acceleration)
+void FChaosScene::SetGravity(const Chaos::FVec3& Acceleration)
 {
 	SimCallback->GetProducerInputData_External()->Gravity = Acceleration;
 }

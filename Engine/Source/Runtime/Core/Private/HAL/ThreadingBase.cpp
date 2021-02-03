@@ -19,6 +19,10 @@
 #define IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD 0
 #endif
 
+#ifndef DEFAULT_FORK_PROCESS_MULTITHREAD
+	#define DEFAULT_FORK_PROCESS_MULTITHREAD 0
+#endif
+
 DEFINE_STAT( STAT_EventWaitWithId );
 DEFINE_STAT( STAT_EventTriggerWithId );
 
@@ -1009,7 +1013,7 @@ protected:
 
 	/** The work queue to pull from. */
 	FThreadPoolPriorityQueue QueuedWork;
-
+	
 	/** The thread pool to dole work out to. */
 	TArray<FQueuedThread*> QueuedThreads;
 
@@ -1490,17 +1494,18 @@ bool FForkProcessHelper::IsForkedMultithreadInstance()
 	return bIsForkedMultithreadInstance;
 }
 
-bool FForkProcessHelper::IsAForkingProcess()
-{
-	static bool bForkingProcess = FParse::Param(FCommandLine::Get(), TEXT("WaitAndFork")) || FParse::Param(FCommandLine::Get(), TEXT("FakeForking"));
-	return bForkingProcess;
-}
-
 bool FForkProcessHelper::SupportsMultithreadingPostFork()
 {
 	check(FCommandLine::IsInitialized());
-	static bool bSupportsMultithreadingPostFork = FParse::Param(FCommandLine::Get(), TEXT("PostForkThreading"));
-	return bSupportsMultithreadingPostFork;
+#if DEFAULT_FORK_PROCESS_MULTITHREAD
+	// Always multi thread unless manually turned off via command line
+	static bool bSupportsMT = FParse::Param(FCommandLine::Get(), TEXT("DisablePostForkThreading")) == false;
+	return bSupportsMT;
+#else
+	// Always single thread unless manually turned on via command line
+	static bool bSupportsMT = FParse::Param(FCommandLine::Get(), TEXT("PostForkThreading")) == true;
+	return bSupportsMT;
+#endif
 }
 
 FRunnableThread* FForkProcessHelper::CreateForkableThread(class FRunnable* InRunnable, const TCHAR* InThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags)

@@ -510,6 +510,22 @@ namespace Gauntlet
 		{
 			string Summary = TestInfo.TestNode.GetTestSummary();
 
+			Log.SuspendSanitization();
+
+			// Show summary
+			Summary.Split('\n').ToList().ForEach(L => Log.Info("  " + L));
+
+			Log.ResumeSanitization();
+
+			// list warnings/errors if the test wants that
+			if (TestInfo.TestNode.LogWarningsAndErrorsAfterSummary)
+			{
+				TestInfo.TestNode.GetErrors().ToList().ForEach(E => Log.Error("{0}", E));
+
+				TestInfo.TestNode.GetWarnings().ToList().ForEach(E => Log.Warning("{0}", E));
+			}
+
+			// display the final result
 			if (TestInfo.FinalResult != TestResult.Passed)
 			{
 				string Cause = TestInfo.FinalResult.ToString();
@@ -519,26 +535,18 @@ namespace Gauntlet
 					Cause = TestInfo.CancellationReason;
 				}
 
-				Log.Error("{0} result={1}", TestInfo, Cause);
+				Log.Info("{0} result={1}", TestInfo, Cause);
 			}
 			else
 			{
 				if (TestInfo.TestNode.GetWarnings().Any())
 				{
-					Log.Warning("{0} result={1}", TestInfo, TestInfo.FinalResult);
+					Log.Info("{0} result={1} with warnings", TestInfo, TestInfo.FinalResult);
 				}
 				else
 				{
 					Log.Info("{0} result={1}", TestInfo, TestInfo.FinalResult);
 				}
-			}
-			Summary.Split('\n').ToList().ForEach(L => Log.Info("  " + L));
-
-			if (TestInfo.TestNode.LogWarningsAndErrorsAfterSummary)
-			{
-				TestInfo.TestNode.GetErrors().ToList().ForEach(E => Log.Error("{0}", E));
-
-				TestInfo.TestNode.GetWarnings().ToList().ForEach(E => Log.Warning("{0}", E));
 			}
 
 		}
@@ -581,10 +589,28 @@ namespace Gauntlet
 				});
 			}
 
-			Log.Info("Completed test pass {0} of {1}.", CurrentPass, NumPasses);
+			// write all test results at once
+			if (Options.DeferReports)
+			{
+				// write each tests full summary
+				foreach (TestExecutionInfo Info in SortedInfo)
+				{
+					ReportTestSummary(Info);
+				}
+			}
 
-			MB.H2(string.Format("{0} of {1} Tests Passed in {2:mm\\:ss}. ({3} Failed, {4} Passed with Warnings)",
-				TestCount - FailedCount, TestCount, Duration, FailedCount, WarningCount));
+			// only show pass info for multiple passes
+			if (NumPasses > 1)
+			{
+				Log.Info("Completed test pass {0} of {1}.", CurrentPass, NumPasses);
+			}
+
+			// only show count of passed/failed etc for multiple test
+			if (TestCount > 1)
+			{
+				MB.H2(string.Format("{0} of {1} Tests Passed in {2:mm\\:ss}. ({3} Failed, {4} Passed with Warnings)",
+					TestCount - FailedCount, TestCount, Duration, FailedCount, WarningCount));
+			}
 
 			// write out a list of tests and results
 			List<string> TestResults = new List<string>();
@@ -598,15 +624,6 @@ namespace Gauntlet
 
 			// write the markdown out with each line indented
 			MB.ToString().Split('\n').ToList().ForEach(L => Log.Info("  " + L));
-
-			if (Options.DeferReports)
-			{
-				// write each tests full summary
-				foreach (TestExecutionInfo Info in SortedInfo)
-				{
-					ReportTestSummary(Info);
-				}
-			}
 		}
 
 		TestResult TickTest(TestExecutionInfo TestInfo)

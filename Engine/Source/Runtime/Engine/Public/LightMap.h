@@ -240,7 +240,9 @@ public:
 
 	UTexture2D* GetAOMaterialMaskTexture() const;
 
-	ULightMapVirtualTexture2D* GetVirtualTexture() const { return VirtualTexture; }
+	ULightMapVirtualTexture2D* GetVirtualTexture(uint32 BasisIndex) const { return VirtualTextures[BasisIndex]; }
+
+	bool IsVirtualTextureValid() const;
 
 	/**
 	 * Returns whether the specified basis has a valid lightmap texture or not.
@@ -329,7 +331,7 @@ public:
 	UShadowMapTexture2D* ShadowMapTexture;
 
 	/** The virtual textures containing the light-map data. */
-	ULightMapVirtualTexture2D *VirtualTexture;
+	ULightMapVirtualTexture2D *VirtualTextures[2];
 
 	/** A scale to apply to the coefficients. */
 	FVector4 ScaleVectors[NUM_STORED_LIGHTMAP_COEF];

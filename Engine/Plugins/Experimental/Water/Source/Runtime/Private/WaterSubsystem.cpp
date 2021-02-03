@@ -655,7 +655,7 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	ShowOnScreenDebugInfo(UnderwaterPostProcessDebugInfo);
+	ShowOnScreenDebugInfo(ViewLocation, UnderwaterPostProcessDebugInfo);
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)						
 }
 
@@ -687,7 +687,7 @@ void UWaterSubsystem::AdjustUnderwaterWaterInfoQueryFlags(EWaterBodyQueryFlags& 
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-void UWaterSubsystem::ShowOnScreenDebugInfo(const FUnderwaterPostProcessDebugInfo& InDebugInfo)
+void UWaterSubsystem::ShowOnScreenDebugInfo(const FVector& InViewLocation, const FUnderwaterPostProcessDebugInfo& InDebugInfo)
 {
 	// Visualize the active post process if any
 	if (VisualizeActiveUnderwaterPostProcess == 0)
@@ -696,6 +696,9 @@ void UWaterSubsystem::ShowOnScreenDebugInfo(const FUnderwaterPostProcessDebugInf
 	}
 
 	TArray<FText, TInlineAllocator<8>> OutputStrings;
+
+	OutputStrings.Add(FText::Format(LOCTEXT("VisualizeActiveUnderwaterPostProcess_ViewLocationDetails", "Underwater post process debug : view location : {0}"), FText::FromString(InViewLocation.ToCompactString())));
+
 	if (InDebugInfo.ActiveWaterBody.IsValid())
 	{
 		UMaterialInstanceDynamic* MID = InDebugInfo.ActiveWaterBody->GetUnderwaterPostProcessMaterialInstance();

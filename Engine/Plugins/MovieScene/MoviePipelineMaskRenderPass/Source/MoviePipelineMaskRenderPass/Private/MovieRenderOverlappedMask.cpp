@@ -8,6 +8,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Math/Float16.h"
 #include "HAL/PlatformTime.h"
+#include "Async/ParallelFor.h"
 
 DECLARE_CYCLE_STAT(TEXT("MaskedAccumulator_AccumulateSinglePlane"), STAT_AccumulateSinglePlane, STATGROUP_MoviePipeline);
 DECLARE_CYCLE_STAT(TEXT("MaskedAccumulator_AccumulateMultiplePlanes"), STAT_AccumulateMultiplePlanes, STATGROUP_MoviePipeline);
@@ -263,7 +264,7 @@ void FMaskOverlappedAccumulator::AccumulateMultipleRanks(const TArray<float>& In
 									}
 
 									// Repeat the for loop searching this new sparse block.
-									CurrentSampleStack = &SparsePixelData[CurrentSampleStack->ExtraDataOffset];
+									CurrentSampleStack = SparsePixelData[CurrentSampleStack->ExtraDataOffset].Get();
 								}
 							}
 						}
@@ -312,91 +313,123 @@ void FMaskOverlappedAccumulator::AccumulateSingleRank(const float* InRawData, FI
 		PixelWeight[1][1] = (WeightX) * (WeightY);
 	}
 
-	// This is the reversed reference. Instead of taking a tile and applying it to the accumulation, we start from the
-	// accumulation point and figure out the source pixels that affect it. I.e. all the math is backwards, but it should
-	// be faster.
-	//
-	// Given a position on the current tile (x,y), we apply the sum of the 4 points (x+0,y+0), (x+1,y+0), (x+0,y+1), (x+1,y+1) to the destination index.
-	// So in reverse, given a destination position, our source sample positions are (x-1,y-1), (x+0,y-1), (x-1,y+0), (x+0,y+0).
-	// That's why we make sure to start at a minimum of index 1, instead of 0.
-	for (int32 CurrY = 0; CurrY < InSize.Y; CurrY++)
-	{
-		for (int32 CurrX = 0; CurrX < InSize.X; CurrX++)
+	// For each pixel in the final image, we read the incoming image 4 times. This lets us do the accumulation in scanlines
+	// because each destination pixel is only touched once.
+	int32 ActualDstX0 = StartX + SubRectOffset.X;
+	int32 ActualDstY0 = StartY + SubRectOffset.Y;
+	int32 ActualDstX1 = StartX + SubRectOffset.X + SubRectSize.X;
+	int32 ActualDstY1 = StartY + SubRectOffset.Y + SubRectSize.Y;
+
+	ActualDstX0 = FMath::Clamp<int32>(ActualDstX0, 0, PlaneSize.X);
+	ActualDstX1 = FMath::Clamp<int32>(ActualDstX1, 0, PlaneSize.X);
+
+	ActualDstY0 = FMath::Clamp<int32>(ActualDstY0, 0, PlaneSize.Y);
+	ActualDstY1 = FMath::Clamp<int32>(ActualDstY1, 0, PlaneSize.Y);
+
+	const float PixelWeight00 = PixelWeight[0][0];
+	const float PixelWeight01 = PixelWeight[0][1];
+	const float PixelWeight10 = PixelWeight[1][0];
+	const float PixelWeight11 = PixelWeight[1][1];
+
+	// Mutex to prevent multiple threads from trying to allocate SparsePixelData at the same time.
+	FCriticalSection	SparsePixelDataCS;
+	int32 NumScanlines = ActualDstY1 - ActualDstY0;
+
+	ParallelFor(NumScanlines, [&](int32 InScanlineIndex = 0)
 		{
-			int32 DstY = StartY + CurrY;
-			int32 DstX = StartX + CurrX;
+			int32 DstY = InScanlineIndex + ActualDstY0;
 
-			if (DstX >= 0 && DstY >= 0 &&
-				DstX < PlaneSize.X && DstY < PlaneSize.Y)
+			int32 CurrY = DstY - StartY;
+			int32 SrcY0 = FMath::Max<int32>(0, CurrY + (0 - 1));
+			int32 SrcY1 = FMath::Max<int32>(0, CurrY + (1 - 1));
+
+			const float* SrcLineWeight = WeightDataX.GetData();
+
+			const float RowWeight0 = WeightDataY[SrcY0];
+			const float RowWeight1 = WeightDataY[SrcY1];
+
+			const float* SrcLineRaw0 = &InRawData[SrcY0 * InSize.X];
+			const float* SrcLineRaw1 = &InRawData[SrcY1 * InSize.X];
+
+			for (int32 DstX = ActualDstX0; DstX < ActualDstX1; DstX++)
 			{
-				for (int32 OffsetY = 0; OffsetY < 2; OffsetY++)
+				// For each X pixel in the destination image, we need to get the four ids that will contribute to this pixel from our incoming image.
+				struct FRank
 				{
-					for (int32 OffsetX = 0; OffsetX < 2; OffsetX++)
+					float Id;
+					float Weight;
+				};
+
+				int32 CurrX = DstX - StartX;
+				int32 X0 = FMath::Max<int32>(0, CurrX - 1 + 0);
+				int32 X1 = FMath::Max<int32>(0, CurrX - 1 + 1);
+
+				FRank NewData[4];
+				NewData[0].Id = SrcLineRaw0[X0];
+				NewData[0].Weight = RowWeight0 * SrcLineWeight[X0] * PixelWeight[1][1];
+				NewData[1].Id = SrcLineRaw0[X1];
+				NewData[1].Weight = RowWeight0 * SrcLineWeight[X1] * PixelWeight[1][0];
+				NewData[2].Id = SrcLineRaw1[X0];
+				NewData[2].Weight = RowWeight1 * SrcLineWeight[X0] * PixelWeight[0][1];
+				NewData[3].Id = SrcLineRaw1[X1];
+				NewData[3].Weight = RowWeight1 * SrcLineWeight[X1] * PixelWeight[0][0];
+
+				// Now that we have all 4, we can find their ids in our destination pixel and add them + the correct weight.
+				for (int32 NewDataIndex = 0; NewDataIndex < UE_ARRAY_COUNT(NewData); NewDataIndex++)
+				{
+					if (NewData[NewDataIndex].Weight < SMALL_NUMBER)
 					{
-						int32 SrcX = FMath::Max<int32>(CurrX - 1 + OffsetX, 0);
-						int32 SrcY = FMath::Max<int32>(CurrY - 1 + OffsetY, 0);
+						continue;
+					}
 
-						float Val = InRawData[SrcY * InSize.X + SrcX];
-
-						float WX = WeightDataX[SrcX];
-						float WY = WeightDataY[SrcY];
-						float BaseWeight = WX * WY;
-
-						float SampleWeight = 1.f;
-
-						// To support falloff for overlapped images, two 1D masks are provided to this function which gives a [0,1] weight value for each pixel. Thus,
-						// we add the full RGBA value to the total, and accumulate a weight plane as well which specifies how much influence each pixel actually recieves
-						// as there are edge cases (such as the outer edges of the image) where they don't recieve a full weight due to no overlap.
-						float Weight = BaseWeight * PixelWeight[1 - OffsetY][1 - OffsetX] * SampleWeight;
-
-						if (Weight < SMALL_NUMBER)
+					const int32 TargetIndex = DstY * PlaneSize.X + DstX;
+					FMaskPixelSamples* CurrentSampleStack = &ImageData[TargetIndex];
+					bool bSuccess = false;
+					while (!bSuccess)
+					{
+						for (int32 SampleIndex = 0; SampleIndex < 6; SampleIndex++)
 						{
-							continue;
+							if (CurrentSampleStack->Id[SampleIndex] == *(int32*)(&NewData[NewDataIndex].Id))
+							{
+								// The ID has already been recorded on this pixel, so we just increase the weight. 
+								CurrentSampleStack->Weight[SampleIndex] += NewData[NewDataIndex].Weight;
+								bSuccess = true;
+								break;
+							}
+							else if (CurrentSampleStack->Id[SampleIndex] == -1)
+							{
+								// If this slot hasn't been used before, we can assume control.
+								CurrentSampleStack->Weight[SampleIndex] = NewData[NewDataIndex].Weight;
+								CurrentSampleStack->Id[SampleIndex] = *(int32*)(&NewData[NewDataIndex].Id);
+								bSuccess = true;
+								break;
+							}
 						}
 
-						int32 TargetIndex = DstY * PlaneSize.X + DstX;
-						FMaskPixelSamples* CurrentSampleStack = &ImageData[TargetIndex];
-						bool bSuccess = false;
-						while (!bSuccess)
+						// If we didn't succeed in putting the pixel into the stack above then it is full. Now we need to search the sparse data.
+						if (!bSuccess)
 						{
-							for (int32 SampleIndex = 0; SampleIndex < 6; SampleIndex++)
+							// Don't allow another thread to allocate extra data while we're allocating data as we don't
+							// want the indexes messed up.
+							FScopeLock ScopeLock(&SparsePixelDataCS);
+
+							if (CurrentSampleStack->ExtraDataOffset < 0)
 							{
-								if (CurrentSampleStack->Id[SampleIndex] == *(int32*)(&Val))
-								{
-									// The ID has already been recorded on this pixel, so we just increase the weight. 
-									CurrentSampleStack->Weight[SampleIndex] += Weight;
-									bSuccess = true;
-									break;
-								}
-								else if (CurrentSampleStack->Id[SampleIndex] == -1)
-								{
-									// If this slot hasn't been used before, we can assume control.
-									CurrentSampleStack->Weight[SampleIndex] = Weight;
-									CurrentSampleStack->Id[SampleIndex] = *(int32*)(&Val);
-									bSuccess = true;
-									break;
-								}
+								// Allocate a new sparse data block to hold onto the data for us.
+								TSharedPtr<FMaskPixelSamples, ESPMode::ThreadSafe> NewSampleData = MakeShared<FMaskPixelSamples, ESPMode::ThreadSafe>();
+								int32 NewIndex = SparsePixelData.Add(NewSampleData);
+								CurrentSampleStack->ExtraDataOffset = NewIndex;
 							}
 
-							// If we didn't succeed in putting the pixel into the stack above then it is full. Now we need to search the sparse data.
-							if (!bSuccess)
-							{
-								if (CurrentSampleStack->ExtraDataOffset < 0)
-								{
-									// Allocate a new sparse data block to hold onto the data for us.
-									int32 NewIndex = SparsePixelData.AddDefaulted();
-									CurrentSampleStack->ExtraDataOffset = NewIndex;
-								}
-
-								// Repeat the for loop searching this new sparse block.
-								CurrentSampleStack = &SparsePixelData[CurrentSampleStack->ExtraDataOffset];
-							}
+							// Repeat the for loop searching this new sparse block. This is a pointer to the memory the TSharedPtr
+							// owns, so it's okay if another thread causes a reallocation fo the SparsePixelData array, the destination
+							// memory won't change.
+							CurrentSampleStack = SparsePixelData[CurrentSampleStack->ExtraDataOffset].Get();
 						}
 					}
 				}
 			}
-		}
-	}
+		});
 }
 
 void FMaskOverlappedAccumulator::FetchFinalPixelDataLinearColor(TArray<TArray64<FLinearColor>>& OutPixelDataLayers) const
@@ -421,81 +454,90 @@ void FMaskOverlappedAccumulator::FetchFinalPixelDataLinearColor(TArray<TArray64<
 		float Weight;
 	};
 
-	for (int32 FullY = 0L; FullY < FullSizeY; FullY++)
-	{
-		for (int32 FullX = 0L; FullX < FullSizeX; FullX++)
+	// Process them in scanlines since we're reading shared data and outputting to distinct indexes
+	ParallelFor(FullSizeY,
+		[&](int32 FullY = 0)
 		{
 			TArray<FRank> Ranks;
 
-			// be careful with this index, make sure to use 64bit math, not 32bit
-			int64 DstIndex = int64(FullY) * int64(FullSizeX) + int64(FullX);
-
-			// We look at the linked list of samples per pixel, and then sort them by weight so we can take the top influences. 
-			FMaskPixelSamples const* CurrentSampleStack = &ImageData[FullY * PlaneSize.X + FullX];
-			while (CurrentSampleStack)
+			for (int32 FullX = 0L; FullX < FullSizeX; FullX++)
 			{
-				for (int32 Index = 0; Index < 6; Index++)
+				Ranks.Reset();
+
+				// be careful with this index, make sure to use 64bit math, not 32bit
+				int64 DstIndex = int64(FullY) * int64(FullSizeX) + int64(FullX);
+
+				// We look at the linked list of samples per pixel, and then sort them by weight so we can take the top influences. 
+				FMaskPixelSamples const* CurrentSampleStack = &ImageData[FullY * PlaneSize.X + FullX];
+				while (CurrentSampleStack)
 				{
-					// They are inserted in order so the first invalid id means no more.
-					if (CurrentSampleStack->Id[Index] == -1)
+					for (int32 Index = 0; Index < 6; Index++)
 					{
-						break;
+						// They are inserted in order so the first invalid id means no more.
+						if (CurrentSampleStack->Id[Index] == -1)
+						{
+							break;
+						}
+
+						FRank& Rank = Ranks.AddDefaulted_GetRef();
+						Rank.Id = CurrentSampleStack->Id[Index];
+						Rank.Weight = CurrentSampleStack->Weight[Index];
 					}
 
-					FRank& Rank = Ranks.AddDefaulted_GetRef();
-					Rank.Id = CurrentSampleStack->Id[Index];
-					Rank.Weight = CurrentSampleStack->Weight[Index];
+					if (CurrentSampleStack->ExtraDataOffset >= 0)
+					{
+						CurrentSampleStack = SparsePixelData[CurrentSampleStack->ExtraDataOffset].Get();
+					}
+					else
+					{
+						CurrentSampleStack = nullptr;
+					}
 				}
 
-				if (CurrentSampleStack->ExtraDataOffset >= 0)
+				// We now have a list of ranks, we can sort them.
+				Ranks.Sort([](const FRank& A, const FRank& B)
+					{
+						return B.Weight < A.Weight;
+					});
+
+				// Pad this up to the number of outputs we have.
+				for (int32 Index = Ranks.Num(); Index < (OutPixelDataLayers.Num() * 2); Index++)
 				{
-					CurrentSampleStack = &SparsePixelData[CurrentSampleStack->ExtraDataOffset];
+					Ranks.AddDefaulted();
 				}
-				else
+
+				// Normalize the weights
+				float TotalWeight = 0.0f;
 				{
-					CurrentSampleStack = nullptr;
+					for (int32 Index = 0; Index < Ranks.Num(); Index++)
+					{
+						TotalWeight += Ranks[Index].Weight;
+					}
+				}
+				
+				// Shouldn't get a zero weight unless these have been called out of order, but better odd behavior than crash.
+				if(TotalWeight <= 0.f)
+				{
+					TotalWeight = KINDA_SMALL_NUMBER;
+				}
+
+				for (int32 LayerIndex = 0; LayerIndex < OutPixelDataLayers.Num(); LayerIndex++)
+				{
+					FLinearColor& Color = OutPixelDataLayers[LayerIndex][DstIndex];
+
+					for (int32 ChannelIndex = 0; ChannelIndex < 2; ChannelIndex++)
+					{
+						int32 RankIndex = (LayerIndex * 2) + ChannelIndex;
+						// R, B
+						Color.Component((ChannelIndex * 2) + 0) = *(float*)(&Ranks[RankIndex].Id);
+
+						float RawWeight = WeightPlane.ChannelData[FullY * FullSizeX + FullX];
+						float Scale = 1.0f / (FMath::Max<float>(RawWeight, 0.0001f) * TotalWeight);
+
+						// G, A
+						Color.Component((ChannelIndex * 2) + 1) = Ranks[RankIndex].Weight / TotalWeight;
+					}
 				}
 			}
-
-			// We now have a list of ranks, we can sort them.
-			Ranks.Sort([](const FRank& A, const FRank& B)
-				{
-					return B.Weight < A.Weight;
-				});
-
-			// Pad this up to the number of outputs we have.
-			for (int32 Index = Ranks.Num(); Index < (OutPixelDataLayers.Num() * 2); Index++)
-			{
-				Ranks.AddDefaulted();
-			}
-
-			// Normalize the weights
-			float TotalWeight = 0.0f;
-			{
-				for (int32 Index = 0; Index < Ranks.Num(); Index++)
-				{
-					TotalWeight += Ranks[Index].Weight;
-				}
-			}
-			
-			for (int32 LayerIndex = 0; LayerIndex < OutPixelDataLayers.Num(); LayerIndex++)
-			{
-				FLinearColor& Color = OutPixelDataLayers[LayerIndex][DstIndex];
-
-				for (int32 ChannelIndex = 0; ChannelIndex < 2; ChannelIndex++)
-				{
-					int32 RankIndex = (LayerIndex * 2) + ChannelIndex;
-					// R, B
-					Color.Component((ChannelIndex * 2) + 0) = *(float*)(&Ranks[RankIndex].Id);
-
-					float RawWeight = WeightPlane.ChannelData[FullY * FullSizeX + FullX];
-					float Scale = 1.0f / (FMath::Max<float>(RawWeight, 0.0001f) * TotalWeight);
-
-					// G, A
-					Color.Component((ChannelIndex * 2) + 1) = Ranks[RankIndex].Weight / TotalWeight;
-				}
-			}
-
-		}
-	}
+		});
 }

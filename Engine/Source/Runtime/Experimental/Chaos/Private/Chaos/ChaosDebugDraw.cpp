@@ -252,34 +252,15 @@ namespace Chaos
 					{
 						for (int32 PlaneIndex = 0; PlaneIndex < Convex->GetFaces().Num(); ++PlaneIndex)
 						{
-							TArrayView<const int32> VertexIndices = Convex->GetPlaneVertices(PlaneIndex);
-							for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < VertexIndices.Num(); ++PlaneVertexIndex)
+							const int32 PlaneVerticesNum = Convex->NumPlaneVertices(PlaneIndex);
+							for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
 							{
-								const int32 VertexIndex0 = VertexIndices[PlaneVertexIndex];
-								const int32 VertexIndex1 = VertexIndices[Utilities::WrapIndex(PlaneVertexIndex + 1, 0, VertexIndices.Num())];
+								const int32 VertexIndex0 = Convex->GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
+								const int32 VertexIndex1 = Convex->GetPlaneVertex(PlaneIndex, Utilities::WrapIndex(PlaneVertexIndex + 1, 0, PlaneVerticesNum));
 								const FVec3 P0 = ShapeTransform.TransformPosition(Convex->GetVertex(VertexIndex0));
 								const FVec3 P1 = ShapeTransform.TransformPosition(Convex->GetVertex(VertexIndex1));
 								FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
 							}
-						}
-					}
-					else
-					{
-						// TODO: This is horrendously slow. Figure out a way to cache
-						// the generated trimeshes on the debug draw queue instance.
-						
-						// Copy the vertices then move them into particles..
-						TArray<FVec3> Vertices = Convex->GetVertices();
-						const TParticles<FReal, 3>& Particles(MoveTemp(Vertices));
-						TTriangleMesh<FReal> Triangles = TTriangleMesh<FReal>::GetConvexHullFromParticles(Particles);
-						for (const TVector<int32, 3>& Elem : Triangles.GetElements())
-						{
-							const FVec3 P0 = ShapeTransform.TransformPosition(Particles.X(Elem[0]));
-							const FVec3 P1 = ShapeTransform.TransformPosition(Particles.X(Elem[1]));
-							const FVec3 P2 = ShapeTransform.TransformPosition(Particles.X(Elem[2]));
-							FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
-							FDebugDrawQueue::GetInstance().DrawDebugLine(P1, P2, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
-							FDebugDrawQueue::GetInstance().DrawDebugLine(P2, P0, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
 						}
 					}
 				}
@@ -660,7 +641,7 @@ namespace Chaos
 
 		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FPBDJointConstraintHandle* ConstraintHandle, FReal ColorScale, uint32 FeatureMask, const FChaosDebugDrawSettings& Settings)
 		{
-			TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
+			TVec2<TGeometryParticleHandle<FReal, 3>*> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
 			auto RigidParticle0 = ConstrainedParticles[0]->CastToRigidParticle();
 			auto RigidParticle1 = ConstrainedParticles[1]->CastToRigidParticle();
 			if ((RigidParticle0 && RigidParticle0->ObjectState() == EObjectStateType::Dynamic) || (RigidParticle1 && RigidParticle1->ObjectState() == EObjectStateType::Dynamic))
@@ -883,7 +864,7 @@ namespace Chaos
 			{
 				for (const Chaos::FPBDCollisionConstraintHandle * ConstraintHandle : Collisions.GetConstConstraintHandles())
 				{
-					TVector<const TGeometryParticleHandle<float, 3>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
+					TVec2<const TGeometryParticleHandle<float, 3>*> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
 					if ((ConstrainedParticles[0] == Particle) || (ConstrainedParticles[1] == Particle))
 					{
 						DrawCollisionImpl(SpaceTransform, ConstraintHandle, 1.0f, GetChaosDebugDrawSettings(Settings));

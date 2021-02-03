@@ -8,6 +8,7 @@
 #include "Tree/SCurveEditorTreeTextFilter.h"
 #include "Tree/SCurveEditorTreeFilterStatusBar.h"
 #include "Tree/SCurveEditorTree.h"
+#include "Tree/SCurveEditorTreeSelect.h"
 #include "Tree/SCurveEditorTreePin.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Tree/ICurveEditorTreeItem.h"
@@ -245,6 +246,10 @@ public:
 					.Text(CurveDisplayName)
 					.ColorAndOpacity(FSlateColor(CurveColor))
 				];
+		}
+		else if (InColumnName == ColumnNames.SelectHeader)
+		{
+			return SNew(SCurveEditorTreeSelect, InCurveEditor, InTreeItemID, InTableRow);
 		}
 		else if (InColumnName == ColumnNames.PinHeader)
 		{

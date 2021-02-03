@@ -2017,6 +2017,16 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 	
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleShowTransformBox);
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleShowStretchBox);
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().TranslateLeft);
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().TranslateRight);
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().TrimOrExtendSectionLeft);
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().TrimOrExtendSectionRight);
+
+	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
+	{
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().BakeTransform);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SyncSectionsUsingSourceTimecode);
+	}
 
 	MenuBuilder.EndSection();
 
@@ -2090,13 +2100,6 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 			EUserInterfaceActionType::RadioButton);
 	}
 	MenuBuilder.EndSection();
-
-
-	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
-	{
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().BakeTransform);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SyncSectionsUsingSourceTimecode);
-	}
 
 	// selection range actions
 	MenuBuilder.BeginSection("SelectionRange", LOCTEXT("SelectionRangeHeader", "Selection Range"));

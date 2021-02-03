@@ -100,7 +100,12 @@ bool FGeometryCacheUsdStream::RequestFrameData(int32 FrameIndex)
 		FramesRequested.Add(ReadRequest);
 
 		// Schedule asynchronous read of the MeshData
-		Async(EAsyncExecution::LargeThreadPool,
+		Async(
+#if WITH_EDITOR
+			EAsyncExecution::LargeThreadPool,
+#else
+			EAsyncExecution::ThreadPool,
+#endif // WITH_EDITOR
 			[this, ReadRequest]()
 			{
 				if (!bCancellationRequested)

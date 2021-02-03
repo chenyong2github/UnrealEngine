@@ -13,38 +13,41 @@
 /** Element type is used to identify its class like Mesh, Actor, Light, etc. */
 enum class EDatasmithElementType : uint64
 {
-	None                           = 0,
-	StaticMesh                     = 1 <<  0,
-	Actor                          = 1 <<  1,
-	StaticMeshActor                = 1 <<  2,
-	Light                          = 1 <<  3,
-	PointLight                     = 1 <<  4,
-	SpotLight                      = 1 <<  5,
-	DirectionalLight               = 1 <<  6,
-	AreaLight                      = 1 <<  7,
-	LightmassPortal                = 1 <<  8,
-	EnvironmentLight               = 1 <<  9,
-	Camera                         = 1 << 10,
-	Shader                         = 1 << 11,
-	BaseMaterial                   = 1 << 12,
-	MasterMaterial                 = 1 << 13,
-	KeyValueProperty               = 1 << 14,
-	Texture                        = 1 << 15,
-	MaterialId                     = 1 << 16,
-	PostProcess                    = 1 << 17,
-	Scene                          = 1 << 18,
-	MetaData                       = 1 << 19,
-	CustomActor                    = 1 << 20,
-	Material                       = 1 << 21,
-	Landscape                      = 1 << 22,
-	UEPbrMaterial                  = 1 << 23,
-	PostProcessVolume              = 1 << 24,
-	LevelSequence                  = 1 << 25,
-	Animation                      = 1 << 26,
-	HierarchicalInstanceStaticMesh = 1 << 27,
-	Variant                        = 1 << 28,
-	Decal                          = 1 << 29,
-	DecalMaterial                  = 1 << 30,
+	None                           = 0ull,
+	StaticMesh                     = 1ull <<  0,
+	Actor                          = 1ull <<  1,
+	StaticMeshActor                = 1ull <<  2,
+	Light                          = 1ull <<  3,
+	PointLight                     = 1ull <<  4,
+	SpotLight                      = 1ull <<  5,
+	DirectionalLight               = 1ull <<  6,
+	AreaLight                      = 1ull <<  7,
+	LightmassPortal                = 1ull <<  8,
+	EnvironmentLight               = 1ull <<  9,
+	Camera                         = 1ull << 10,
+	Shader                         = 1ull << 11,
+	BaseMaterial                   = 1ull << 12,
+	MasterMaterial                 = 1ull << 13,
+	KeyValueProperty               = 1ull << 14,
+	Texture                        = 1ull << 15,
+	MaterialId                     = 1ull << 16,
+	PostProcess                    = 1ull << 17,
+	Scene                          = 1ull << 18,
+	MetaData                       = 1ull << 19,
+	CustomActor                    = 1ull << 20,
+	Material                       = 1ull << 21,
+	Landscape                      = 1ull << 22,
+	UEPbrMaterial                  = 1ull << 23,
+	PostProcessVolume              = 1ull << 24,
+	LevelSequence                  = 1ull << 25,
+	Animation                      = 1ull << 26,
+	HierarchicalInstanceStaticMesh = 1ull << 27,
+	Variant                        = 1ull << 28,
+	Decal                          = 1ull << 29,
+	DecalMaterial                  = 1ull << 30,
+	MaterialExpression             = 1ull << 31,
+	MaterialExpressionInput        = 1ull << 32,
+	MaterialExpressionOutput       = 1ull << 33,
 };
 
 ENUM_CLASS_FLAGS( EDatasmithElementType ); // Define bitwise operators for EDatasmithElementType
@@ -73,6 +76,24 @@ enum class EDatasmithElementVariantSubType : uint64
 };
 
 ENUM_CLASS_FLAGS( EDatasmithElementVariantSubType ); // Define bitwise operators for EDatasmithElementVariantSubType
+
+/** Subtype of the MaterialExpression EDatasmithElementType, containing property value, variant, variant set, etc. */
+enum class EDatasmithMaterialExpressionType : uint64
+{
+	None              = 0,
+	ConstantBool      = 1 << 0,
+	ConstantColor     = 1 << 1,
+	ConstantScalar    = 1 << 2,
+	FlattenNormal     = 1 << 3,
+	FunctionCall      = 1 << 4,
+	Generic           = 1 << 5,
+	Texture           = 1 << 6,
+	TextureCoordinate = 1 << 7,
+	Custom            = 1 << 8,
+};
+
+ENUM_CLASS_FLAGS( EDatasmithMaterialExpressionType ); // Define bitwise operators for EDatasmithMaterialExpressionType
+
 
 /**
  * Describes a set of channels from a transform animation. Used to enable/disable those channels on import/export.
@@ -286,6 +307,17 @@ enum class EDatasmithBlendMode
 	Softlight
 };
 
+/** material shader data Types */
+// see ECustomMaterialOutputType
+enum class EDatasmithShaderDataType
+{
+	Float1 = 1,
+	Float2 = 2,
+	Float3 = 3,
+	Float4 = 4,
+	MaterialAttribute = 5,
+};
+
 /** Key-value property */
 UENUM(BlueprintType)
 enum class EDatasmithKeyValuePropertyType : uint8
@@ -311,7 +343,7 @@ enum class EDatasmithShaderUsage
 
 static const TCHAR* DatasmithShadingModelStrings[] = { TEXT("DefaultLit"), TEXT("ThinTranslucent") };
 
-enum class EDatasmithShadingModel
+enum class EDatasmithShadingModel : uint8
 {
 	DefaultLit,
 	ThinTranslucent,

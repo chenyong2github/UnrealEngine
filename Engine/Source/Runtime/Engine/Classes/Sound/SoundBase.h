@@ -73,11 +73,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voice Management|Concurrency")
 	uint8 bOverrideConcurrency : 1;
 
+#if WITH_EDITORONLY_DATA
 	/** Whether or not to only send this audio's output to a bus. If true, will not be this sound won't be audible except through bus sends. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source")
-	uint8 bOutputToBusOnly : 1;
+	UPROPERTY()
+	uint8 bOutputToBusOnly_DEPRECATED : 1;
+#endif //WITH_EDITORONLY_DATA
 
-	/** Whether or not to only send this audio's output to a bus. If true, will not be this sound won't be audible except through bus sends. */
+	/** Whether or not to enable sending this audio's output to buses.  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source")
+	uint8 bEnableBusSends : 1;
+
+	/** If enabled, sound will route to the Master Submix by default or to the Base Submix if defined. If disabled, sound will route ONLY to the Submix Sends and/or Bus Sends */
+	UPROPERTY(EditAnywhere, Category = "Effects|Submix")
+	uint8 bEnableBaseSubmix : 1;
+
+	/** Whether or not to enable Submix Sends other than the Base Submix. */
+	UPROPERTY(EditAnywhere, Category = "Effects|Submix", meta = (DisplayAfter = "SoundSubmixObject"))
+	uint8 bEnableSubmixSends : 1;
+
+	/** Whether or not this sound has a delay node */
 	UPROPERTY()
 	uint8 bHasDelayNode : 1;
 
@@ -155,11 +169,11 @@ public:
 
 	/** Submix to route sound output to. If unset, falls back to referenced SoundClass submix.
 	  * If SoundClass submix is unset, sends to the 'Master Submix' as set in the 'Audio' category of Project Settings'. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Submix", meta = (DisplayName = "Submix"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Submix", meta = (DisplayName = "Base Submix", EditCondition = "bEnableBaseSubmix"))
 	TObjectPtr<USoundSubmixBase> SoundSubmixObject;
 
 	/** Array of submix sends to which a prescribed amount (see 'Send Level') of this sound is sent. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Submix", meta = (DisplayName = "Submix Sends"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Submix", meta = (DisplayName = "Submix Sends", EditCondition = "bEnableSubmixSends"))
 	TArray<FSoundSubmixSendInfo> SoundSubmixSends;
 
 	/** The source effect chain to use for this sound. */
@@ -167,11 +181,11 @@ public:
 	TObjectPtr<USoundEffectSourcePresetChain> SourceEffectChain;
 
 	/** This sound will send its audio output to this list of buses if there are bus instances playing after source effects are processed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source", meta = (DisplayName = "Post-Effect Bus Sends"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source", meta = (DisplayName = "Post-Effect Bus Sends", EditCondition = "bEnableBusSends"))
 	TArray<FSoundSourceBusSendInfo> BusSends;
 
 	/** This sound will send its audio output to this list of buses if there are bus instances playing before source effects are processed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source", meta = (DisplayName = "Pre-Effect Bus Sends"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source", meta = (DisplayName = "Pre-Effect Bus Sends", EditCondition = "bEnableBusSends"))
 	TArray<FSoundSourceBusSendInfo> PreEffectBusSends;
 
 	/** Array of user data stored with the asset */

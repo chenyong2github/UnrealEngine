@@ -205,7 +205,8 @@ namespace Chaos
 		TConstGenericParticleHandle<FReal, 3> Particle1 = Particle[1];
 
 		// @todo(chaos): determine potentially resting contact case based on contact velocity
-		ManifoldPoint.bPotentialRestingContact = true;
+		// @todo(chaos): support static friction position correction for non-manifold contacts (spheres, point clouds, etc)
+		ManifoldPoint.bPotentialRestingContact = bUseManifold;
 
 		// Calculate and store the data required for static friction and restitution in PushOut
 		//	- contact point on second shape at previous location (to enforce static friction)

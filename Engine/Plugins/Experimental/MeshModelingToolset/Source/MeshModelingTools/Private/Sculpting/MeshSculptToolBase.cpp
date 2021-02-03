@@ -1045,7 +1045,21 @@ void UMeshSculptToolBase::UpdateWorkPlane()
 
 	if (PendingWorkPlaneUpdate != EPendingWorkPlaneUpdate::NoUpdatePending)
 	{
-		SetFixedSculptPlaneFromWorldPos((FVector)HoverStamp.WorldFrame.Origin, (FVector)HoverStamp.WorldFrame.Z(), PendingWorkPlaneUpdate);
+		// raycast into scene and current sculpt and place plane at closest hit point
+		FRay CursorWorldRay = UMeshSurfacePointTool::LastWorldRay;
+		FHitResult Result;
+		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, CursorWorldRay);
+		FRay3d LocalRay = GetLocalRay(CursorWorldRay);
+		bool bObjectHit = ( FindHitSculptMeshTriangle(LocalRay) != IndexConstants::InvalidID );
+		if (bWorldHit && 
+			(bObjectHit == false || (CursorWorldRay.GetParameter(Result.ImpactPoint) < CursorWorldRay.GetParameter((FVector)HoverStamp.WorldFrame.Origin))))
+		{
+			SetFixedSculptPlaneFromWorldPos(Result.ImpactPoint, Result.ImpactNormal, PendingWorkPlaneUpdate);
+		}
+		else
+		{
+			SetFixedSculptPlaneFromWorldPos((FVector)HoverStamp.WorldFrame.Origin, (FVector)HoverStamp.WorldFrame.Z(), PendingWorkPlaneUpdate);
+		}
 		PendingWorkPlaneUpdate = EPendingWorkPlaneUpdate::NoUpdatePending;
 	}
 }

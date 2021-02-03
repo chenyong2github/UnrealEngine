@@ -12,6 +12,9 @@ struct CHAOSSOLVERENGINE_API FChaosPhysicsCollisionInfo
 {
 	GENERATED_BODY()
 public:
+
+	FChaosPhysicsCollisionInfo();
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Chaos")
 	TObjectPtr<UPrimitiveComponent> Component = nullptr;
 

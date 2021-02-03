@@ -73,6 +73,7 @@ struct FTransformData;
 struct ISequencerHotspot;
 struct FKeyAttributes;
 struct FNotificationInfo;
+struct FEditorViewportViewModifierParams;
 
 enum class EMapChangeType : uint8;
 
@@ -145,6 +146,12 @@ public:
 
 	/** Select all keys that fall into the current selection range. */
 	void SelectInSelectionRange(bool bSelectKeys, bool bSelectSections);
+
+	/** Select all keys and sections forward from the current time */
+	void SelectForward();
+
+	/** Select all keys and sections backward from the current time */
+	void SelectBackward();
 
 	/**
 	 * Get the currently viewed sub sequence range
@@ -1032,6 +1039,9 @@ protected:
 	/** Trim a section to the left or right */
 	void TrimSection(bool bTrimLeft);
 
+	/** Trim or extend section to the current time */
+	void TrimOrExtendSection(bool bTrimOrExtendLeft);
+
 	/** Split a section */
 	void SplitSection();
 
@@ -1165,7 +1175,7 @@ private:
 	void UpdateTimeBases();
 
 	/** View modifier for level editor viewports. */
-	void ModifyViewportClientView(FMinimalViewInfo& ViewInfo);
+	void ModifyViewportClientView(FEditorViewportViewModifierParams& Params);
 
 	/** User-supplied settings object for this sequencer */
 	USequencerSettings* Settings;

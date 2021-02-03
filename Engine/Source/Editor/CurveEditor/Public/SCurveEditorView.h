@@ -141,9 +141,21 @@ public:
 	 *
 	 * @param WidgetRectangle  The rectangle to hit test against. May not hit points that would exist outside of the view's visible bounds.
 	 * @param OutPoints        (required) pointer to an array to populate with overlapping points
+	 * @return Whether any points were within the widget range
 	 */
-	virtual void GetPointsWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const
-	{}
+	virtual bool GetPointsWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const
+	{ return false; }
+
+	/**
+	 * Retrieve all the curve points, if any of the interpolating points overlap the specified rectangle in widget space
+	 *
+	 * @param WidgetRectangle  The rectangle to hit test against. May not hit points that would exist outside of the view's visible bounds.
+	 * @param OutPoints        (required) pointer to an array to populate with overlapping points
+	 * @return Whether any points were within the widget range
+	 */
+	virtual bool GetCurveWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const
+	{ return false; }
+
 
 	/**
 	 * Bind UI commands for this view

@@ -1016,6 +1016,30 @@ private:
 						}
 					}
 					break;
+					case GCRT_Optional:
+					{
+						const FGCSkipInfo SkipInfo = TokenStream->ReadSkipInfo(TokenStreamIndex);
+						uint32 ValueSize = TokenStream->ReadStride(TokenStreamIndex); // Size of value in bytes. This is also the offset to the bIsSet variable stored thereafter.
+						const bool& bIsSet = *((bool*)(StackEntryData + ReferenceInfo.Offset + ValueSize));
+						if (bIsSet)
+						{
+							// It's set - push a stack entry for processing the value
+							// This is somewhat suboptimal since there is only ever just one value, but this approach avoids any changes to the surrounding code
+							StackEntry++;
+							StackEntryData += ReferenceInfo.Offset;
+							StackEntry->Data = StackEntryData;
+							StackEntry->Stride = ValueSize;
+							StackEntry->Count = 1;
+							StackEntry->LoopStartIndex = TokenStreamIndex;
+						}
+						else
+						{
+							// It's unset - keep going by jumping to skip index
+							TokenStreamIndex = SkipInfo.SkipIndex;
+						}
+						TokenReturnCount = 0;
+					}
+					break;
 					case GCRT_EndOfPointer:
 					{
 						TokenReturnCount = ReferenceInfo.ReturnCount;

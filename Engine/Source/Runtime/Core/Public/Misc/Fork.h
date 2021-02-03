@@ -30,11 +30,6 @@ public:
 	static bool IsForkedMultithreadInstance();
 
 	/**
-	 * Indicates that this is a process that will be forked
-	 */
-	 static bool IsAForkingProcess();
-
-	/**
 	 * Is this a process that was forked
 	 */
 	static bool IsForkedChildProcess();
@@ -51,7 +46,9 @@ public:
 
 	/**
 	 * Tells if we allow multithreading on forked processes.
-	 * Enabled via the commandline option: -PostForkThreading
+	 * Default is set to false but can be configured to always be true via DEFAULT_MULTITHREAD_FORKED_PROCESSES
+	 * Enabled via -PostForkThreading
+	 * Disabled via -DisablePostForkThreading
 	 */
 	static bool SupportsMultithreadingPostFork();
 

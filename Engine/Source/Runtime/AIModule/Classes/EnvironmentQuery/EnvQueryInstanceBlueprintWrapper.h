@@ -23,6 +23,12 @@ class AIMODULE_API UEnvQueryInstanceBlueprintWrapper : public UObject, public IE
 public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEQSQueryDoneSignature, UEnvQueryInstanceBlueprintWrapper*, QueryInstance, EEnvQueryStatus::Type, QueryStatus);
 
+	/** IEQSQueryResultSourceInterface function. Returns the Query Result. */
+	virtual const FEnvQueryResult* GetQueryResult() const { return QueryResult.Get(); }
+
+	/** IEQSQueryResultSourceInterface function. Returns the Query Instance. */
+	virtual const FEnvQueryInstance* GetQueryInstance() const { return QueryInstance.Get(); }
+
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "EQS")
 	int32 QueryID;

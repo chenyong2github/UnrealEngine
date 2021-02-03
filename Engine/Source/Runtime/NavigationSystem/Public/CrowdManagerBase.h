@@ -22,6 +22,6 @@ public:
 	/** Called by the nav system when a navigation data instance is removed. */
 	virtual void OnNavDataUnregistered(ANavigationData& NavDataInstance) PURE_VIRTUAL(UCrowdManagerBase::OnNavDataUnregistered, );
 
-	virtual void CleanUp(float DeltaTime) PURE_VIRTUAL(UCrowdManagerBase::Tick, );
+	virtual void CleanUp(float DeltaTime) PURE_VIRTUAL(UCrowdManagerBase::CleanUp, );
 };
 

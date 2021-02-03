@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Serialization/BulkData.h"
 #include "LidarPointCloudShared.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLidarPointCloud, Log, All);
@@ -300,6 +299,8 @@ public:
 	FLidarPointCloudNormal(const FVector& Normal) { SetFromVector(Normal); }
 	FLidarPointCloudNormal(const float& X, const float& Y, const float& Z) { SetFromFloats(X, Y, Z); }
 
+	bool operator==(const FLidarPointCloudNormal& Other) const { return X == Other.X && Y == Other.Y && Z == Other.Z; }
+
 	FORCEINLINE bool IsValid() const { return X != 127 || Y != 127 || Z != 127; }
 
 	FORCEINLINE void SetFromVector(const FVector& Normal)
@@ -385,6 +386,12 @@ public:
 	{
 		Color = FLinearColor(R, G, B, A).ToFColor(false);
 	}
+	FLidarPointCloudPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A, const float& NX, const float& NY, const float& NZ)
+		: FLidarPointCloudPoint(X, Y, Z)
+	{
+		Color = FLinearColor(R, G, B, A).ToFColor(false);
+		Normal.SetFromFloats(NX, NY, NZ);
+	}
 	FLidarPointCloudPoint(const FVector& Location) : FLidarPointCloudPoint(Location.X, Location.Y, Location.Z) {}
 	FLidarPointCloudPoint(const FVector& Location, const float& R, const float& G, const float& B, const float& A = 1.0f)
 		: FLidarPointCloudPoint(Location)
@@ -409,9 +416,18 @@ public:
 		this->bVisible = bVisible;
 		this->ClassificationID = ClassificationID;
 	}
-	FLidarPointCloudPoint(const FLidarPointCloudPoint& Other)
-		: FLidarPointCloudPoint(Other.Location, Other.Color, Other.bVisible, Other.ClassificationID)
+	FLidarPointCloudPoint(const FVector& Location, const FColor& Color, const bool& bVisible, const uint8& ClassificationID, const FLidarPointCloudNormal& Normal)
+		: FLidarPointCloudPoint(Location)
 	{
+		this->Color = Color;
+		this->bVisible = bVisible;
+		this->ClassificationID = ClassificationID;
+		this->Normal = Normal;
+	}
+	FLidarPointCloudPoint(const FLidarPointCloudPoint& Other)
+		: FLidarPointCloudPoint()
+	{
+		CopyFrom(Other);
 	}
 	FLidarPointCloudPoint(const FLidarPointCloudPoint_Legacy& Other)
 		: FLidarPointCloudPoint(Other.Location, Other.Color, Other.bVisible, Other.ClassificationID)
@@ -422,6 +438,7 @@ public:
 	{
 		Location = Other.Location;
 		Color = Other.Color;
+		Normal = Other.Normal;
 		bVisible = Other.bVisible;
 		ClassificationID = Other.ClassificationID;
 	}
@@ -431,7 +448,7 @@ public:
 		return FLidarPointCloudPoint(Transform.TransformPosition(Location), Color, bVisible, ClassificationID);
 	}
 
-	bool operator==(const FLidarPointCloudPoint& P) const { return Location == P.Location && Color == P.Color && bVisible == P.bVisible && ClassificationID == P.ClassificationID; }
+	bool operator==(const FLidarPointCloudPoint& P) const { return Location == P.Location && Color == P.Color && bVisible == P.bVisible && ClassificationID == P.ClassificationID && Normal == P.Normal; }
 
 	friend class FLidarPointCloudOctree;
 #if WITH_EDITOR
@@ -439,86 +456,6 @@ public:
 #endif
 };
 #pragma pack(pop)
-
-struct FLidarPointCloudBulkData : public FUntypedBulkData
-{
-private:
-	int32 ElementSize;
-	FLidarPointCloudPoint* DataPtr;
-	TAtomic<bool> bHasData;
-
-public:
-	FLidarPointCloudBulkData()
-		: ElementSize(sizeof(FLidarPointCloudPoint))
-		, DataPtr(nullptr)
-		, bHasData(false)
-	{
-	}
-
-	virtual int32 GetElementSize() const override
-	{
-		return ElementSize;
-	}
-	
-	virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) override
-	{
-		Ar.Serialize((FLidarPointCloudPoint*)Data + ElementIndex, sizeof(FLidarPointCloudPoint));
-	}
-	
-	virtual bool RequiresSingleElementSerialization(FArchive& Ar) override
-	{
-		return false;
-	}
-
-	/** Serves as a workaround for UnloadBulkData being editor-only */
-	void ReleaseData()
-	{
-		if (bHasData)
-		{
-			bHasData = false;
-			void* Temp = nullptr;
-			GetCopy(&Temp);
-			FMemory::Free(Temp);
-		}
-	}
-
-	FORCEINLINE FLidarPointCloudPoint* GetData() const
-	{
-		MakeSureDataIsLoaded();
-		return DataPtr;
-	}
-
-	void CopyToArray(TArray<FLidarPointCloudPoint>& Array)
-	{
-		Array.AddUninitialized(GetElementCount());
-		FMemory::Memcpy(Array.GetData(), GetData(), sizeof(FLidarPointCloudPoint) * Array.Num());
-	}
-
-	void CopyFromArray(TArray<FLidarPointCloudPoint>& Array)
-	{
-		Lock(LOCK_READ_WRITE);
-		DataPtr = (FLidarPointCloudPoint*)Realloc(Array.Num());
-		FMemory::Memcpy(DataPtr, Array.GetData(), Array.Num() * sizeof(FLidarPointCloudPoint));
-		bHasData = true;
-		Unlock();
-	}
-
-	void CustomSerialize(FArchive& Ar, UObject* Owner);
-
-	FORCEINLINE bool HasData() const { return bHasData; }
-
-private:
-	void MakeSureDataIsLoaded() const
-	{
-		if (!bHasData)
-		{
-			FLidarPointCloudBulkData* mutable_this = const_cast<FLidarPointCloudBulkData*>(this);
-			mutable_this->DataPtr = (FLidarPointCloudPoint*)LockReadOnly();
-			mutable_this->bHasData = true;
-			Unlock();
-		}
-	}
-};
 
 /** Used in blueprint latent function execution */
 UENUM(BlueprintType)
@@ -569,7 +506,8 @@ private:
 class FLidarPointCloudDataBufferManager
 {
 public:
-	FLidarPointCloudDataBufferManager(const int32& BufferSize);
+	/** If MaxNumberOfBuffers is 0, no limit is applied */
+	FLidarPointCloudDataBufferManager(const int32& BufferSize, const int32& MaxNumberOfBuffers = 0);
 	~FLidarPointCloudDataBufferManager();
 	FLidarPointCloudDataBufferManager(const FLidarPointCloudDataBufferManager&) = delete;
 	FLidarPointCloudDataBufferManager(FLidarPointCloudDataBufferManager&&) = delete;
@@ -582,6 +520,8 @@ public:
 
 private:
 	int32 BufferSize;
+	int32 MaxNumberOfBuffers;
+	int32 NumBuffersCreated;
 	TList<FLidarPointCloudDataBuffer> Head;
 	TList<FLidarPointCloudDataBuffer>* Tail;
 };

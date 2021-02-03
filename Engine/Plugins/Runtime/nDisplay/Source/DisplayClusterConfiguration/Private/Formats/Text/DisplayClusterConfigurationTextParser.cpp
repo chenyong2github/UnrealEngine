@@ -83,7 +83,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 			Comp->TrackerId      = CfgComp.TrackerId;
 			Comp->TrackerChannel = CfgComp.TrackerCh;
 			// Screen specific
-			Comp->Size = CfgComp.Size * 100;
+			Comp->Size = CfgComp.Size;
 
 			Config->Scene->Screens.Emplace(CfgComp.Id, Comp);
 		}
@@ -104,7 +104,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 			Comp->TrackerId      = CfgComp.TrackerId;
 			Comp->TrackerChannel = CfgComp.TrackerCh;
 			// Camera specific
-			Comp->InterpupillaryDistance = CfgComp.EyeDist * 100.f;
+			Comp->InterpupillaryDistance = CfgComp.EyeDist;
 			Comp->bSwapEyes              = CfgComp.EyeSwap;
 			Comp->StereoOffset           = EyeOffset;
 

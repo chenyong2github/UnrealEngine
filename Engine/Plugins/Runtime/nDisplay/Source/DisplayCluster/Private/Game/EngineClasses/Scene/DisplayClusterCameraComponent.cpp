@@ -12,7 +12,7 @@
 
 UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, InterpupillaryDistance(6.4f)
+	, InterpupillaryDistance(0.064f)
 	, bSwapEyes(false)
 	, StereoOffset(EDisplayClusterEyeStereoOffset::None)
 {

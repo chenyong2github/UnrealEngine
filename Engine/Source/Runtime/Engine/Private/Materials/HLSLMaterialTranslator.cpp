@@ -2133,7 +2133,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		}
 
 		if(ShadingModels.HasShadingModel(MSM_SingleLayerWater) && 
-			(IsSwitchPlatform(Platform) || IsVulkanMobileSM5Platform(Platform) || FDataDrivenShaderPlatformInfo::GetRequiresDisableForwardLocalLights(Platform) || Platform == SP_XBOXONE_D3D12))
+			(IsSwitchPlatform(Platform) || IsVulkanMobileSM5Platform(Platform) || FDataDrivenShaderPlatformInfo::GetRequiresDisableForwardLocalLights(Platform)))
 		{
 			OutEnvironment.SetDefine(TEXT("DISABLE_FORWARD_LOCAL_LIGHTS"), TEXT("1"));
 		}

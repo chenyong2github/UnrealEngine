@@ -3352,7 +3352,7 @@ void ExportVTableHelperCtorAndCaller(FOutputDevice& Out, FClassMetaData* ClassDa
 	{
 		Out.Logf(TEXT("\tDECLARE_VTABLE_PTR_HELPER_CTOR(%s_API, %s);" LINE_TERMINATOR), API, ClassCPPName);
 	}
-	Out.Logf(TEXT("DEFINE_VTABLE_PTR_HELPER_CTOR_CALLER(%s);" LINE_TERMINATOR), ClassCPPName);
+	Out.Logf(TEXT("\tDEFINE_VTABLE_PTR_HELPER_CTOR_CALLER(%s);" LINE_TERMINATOR), ClassCPPName);
 }
 
 /**
@@ -3370,7 +3370,15 @@ void ExportStandardConstructorsMacro(FOutputDevice& Out, FClass* Class, FClassMe
 		Out.Logf(TEXT("\t%s_API %s(const FObjectInitializer& ObjectInitializer%s);\r\n"), API, ClassCPPName,
 			ClassData->bDefaultConstructorDeclared ? TEXT("") : TEXT(" = FObjectInitializer::Get()"));
 	}
-	Out.Logf(TEXT("\tDEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+	if (Class->HasAnyClassFlags(CLASS_Abstract))
+	{
+		Out.Logf(TEXT("\tDEFINE_ABSTRACT_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+	}
+	else
+	{
+		Out.Logf(TEXT("\tDEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+
+	}
 
 	ExportVTableHelperCtorAndCaller(Out, ClassData, API, ClassCPPName);
 	ExportCopyConstructorDefinition(Out, API, ClassCPPName);
@@ -3433,15 +3441,29 @@ void ExportConstructorDefinition(FOutputDevice& Out, FClass* Class, FClassMetaDa
  * @param Out Output device to generate to.
  * @param Class Class to generate constructor call definition for.
  */
-void ExportDefaultConstructorCallDefinition(FOutputDevice& Out, FClassMetaData* ClassData, const TCHAR* ClassCPPName)
+void ExportDefaultConstructorCallDefinition(FOutputDevice& Out, FClass* Class, FClassMetaData* ClassData, const TCHAR* ClassCPPName)
 {
 	if (ClassData->bObjectInitializerConstructorDeclared)
 	{
-		Out.Logf(TEXT("\tDEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+		if (Class->HasAnyClassFlags(CLASS_Abstract))
+		{
+			Out.Logf(TEXT("\tDEFINE_ABSTRACT_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+		}
+		else
+		{
+			Out.Logf(TEXT("\tDEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+		}
 	}
 	else if (ClassData->bDefaultConstructorDeclared)
 	{
-		Out.Logf(TEXT("\tDEFINE_DEFAULT_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+		if (Class->HasAnyClassFlags(CLASS_Abstract))
+		{
+			Out.Logf(TEXT("\tDEFINE_ABSTRACT_DEFAULT_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+		}
+		else
+		{
+			Out.Logf(TEXT("\tDEFINE_DEFAULT_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
+		}
 	}
 	else
 	{
@@ -3460,7 +3482,7 @@ void ExportEnhancedConstructorsMacro(FOutputDevice& Out, FClass* Class, FClassMe
 {
 	ExportConstructorDefinition(Out, Class, ClassData, API, ClassCPPName);
 	ExportVTableHelperCtorAndCaller(Out, ClassData, API, ClassCPPName);
-	ExportDefaultConstructorCallDefinition(Out, ClassData, ClassCPPName);
+	ExportDefaultConstructorCallDefinition(Out, Class, ClassData, ClassCPPName);
 }
 
 /**

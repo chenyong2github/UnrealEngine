@@ -854,8 +854,8 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				HSplineSegmentProxy* SegmentProxy = (HSplineSegmentProxy*)VisProxy;
 
-
-				ChangeSelectionState(SegmentProxy->SegmentIndex, InViewportClient->IsCtrlPressed());
+				// Ignore Ctrl key, segments should only be selected one at time
+				ChangeSelectionState(SegmentProxy->SegmentIndex, false);
 				SelectionState->SetSelectedSegmentIndex(SegmentProxy->SegmentIndex);
 				SelectionState->ClearSelectedTangentHandle();
 
@@ -914,7 +914,21 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				HSplineTangentHandleProxy* KeyProxy = (HSplineTangentHandleProxy*)VisProxy;
 
-				// Note: don't change key selection when a tangent handle is clicked
+				// Note: don't change key selection when a tangent handle is clicked.
+				// Ignore Ctrl-modifier, cannot select multiple tangent handles at once.
+				// To do: replace the following section with new method ClearMetadataSelectionState()
+				// since this is the only reason ChangeSelectionState is being called here.
+				TSet<int32> SelectedKeysCopy(SelectionState->GetSelectedKeys());
+				ChangeSelectionState(KeyProxy->KeyIndex, false);
+				TSet<int32>& SelectedKeys = SelectionState->ModifySelectedKeys();
+				for (int32 KeyIndex : SelectedKeysCopy)
+				{
+					if (KeyIndex != KeyProxy->KeyIndex)
+					{
+						SelectedKeys.Add(KeyIndex);
+					}
+				}
+
 				SelectionState->ClearSelectedSegmentIndex();
 				SelectionState->SetSelectedTangentHandle(KeyProxy->KeyIndex);
 				SelectionState->SetSelectedTangentHandleType(KeyProxy->bArriveTangent ? ESelectedTangentHandle::Arrive : ESelectedTangentHandle::Leave);
@@ -3025,7 +3039,29 @@ void FSplineComponentVisualizer::OnSelectPrevNextSplinePoint(bool bNextPoint, bo
 				}
 			}
 
-			SelectSplinePoint(SelectIndex, bAddToSelection);
+			if (SelectIndex != INDEX_NONE)
+			{
+				if (!bAddToSelection)
+				{	
+					SelectSplinePoint(SelectIndex, false);
+				}
+				else
+				{
+					// To do: change the following to use SelectSplinePoint(), with a parameter bClearMetadataSelectionState set to false.
+					check(SelectionState);
+					SelectionState->Modify();
+
+					TSet<int32>& SelectedKeys = SelectionState->ModifySelectedKeys();
+					SelectedKeys.Add(SelectIndex);
+
+					SelectionState->SetLastKeyIndexSelected(SelectIndex);
+					SelectionState->ClearSelectedSegmentIndex();
+					SelectionState->ClearSelectedTangentHandle();
+					SelectionState->SetCachedRotation(SplineComp->GetQuaternionAtSplinePoint(SelectionState->GetLastKeyIndexSelected(), ESplineCoordinateSpace::World));
+
+					GEditor->RedrawLevelEditingViewports(true);
+				}
+			}
 		}
 	}
 }

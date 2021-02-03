@@ -36,7 +36,7 @@ namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
 
-	bool ClusterMapContains(const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints, float, 3>::FClusterMap& ClusterMap, const TPBDRigidParticleHandle<float, 3>* Key, TArray<TPBDRigidParticleHandle<float, 3>*> Elements)
+	bool ClusterMapContains(const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints, FReal, 3>::FClusterMap& ClusterMap, const FPBDRigidParticleHandle* Key, TArray<FPBDRigidParticleHandle*> Elements)
 	{
 		if (ClusterMap.Num())
 		{
@@ -44,7 +44,7 @@ namespace GeometryCollectionTest
 			{
 				if(ClusterMap[Key].Num() == Elements.Num())
 				{
-					for(TPBDRigidParticleHandle<float, 3> * Element : Elements)
+					for(FPBDRigidParticleHandle* Element : Elements)
 					{
 						if(!ClusterMap[Key].Contains(Element))
 						{
@@ -74,7 +74,7 @@ namespace GeometryCollectionTest
 
 		FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(RestCollection.Get());
 		EXPECT_EQ(RestCollection->Transform.Num(), 3);
-		RestCollection->Transform[2] = FTransform(FQuat::MakeFromEuler(FVector(90.f, 0, 0.)), FVector(0, 0, 40));
+		RestCollection->Transform[2] = FTransform(FQuat::MakeFromEuler(FVector(90.0, 0, 0.)), FVector(0, 0, 40));
 
 		//GeometryCollectionAlgo::PrintParentHierarchy(RestCollection.Get());
 
@@ -91,7 +91,7 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
 
 		TManagedArray<bool>& Active = Collection->DynamicCollection->Active;
 
@@ -108,7 +108,7 @@ namespace GeometryCollectionTest
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection->PhysObject->GetSolverClusterHandles()[0], 
 			{ Collection->PhysObject->GetSolverParticleHandles()[0],Collection->PhysObject->GetSolverParticleHandles()[1] }));
 
-		float InitialZ = Collection->RestCollection->Transform[2].GetTranslation().Z;
+		FReal InitialZ = Collection->RestCollection->Transform[2].GetTranslation().Z;
 		for (int Frame = 1; Frame < 10; Frame++)
 		{			
 			UnitTest.Advance();
@@ -171,11 +171,11 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();		
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
 
 		UnitTest.Advance();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*> &ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();		
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*> &ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto & ClusterMap = Clustering.GetChildrenMap();
@@ -293,11 +293,11 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
 
 		UnitTest.Advance();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
@@ -317,7 +317,7 @@ namespace GeometryCollectionTest
 
 			if (Frame == 2)
 			{
-				TMap<TGeometryParticleHandle<float, 3>*, float> ExternalStrains = { {ParticleHandles[0], 50.0f} };
+				TMap<FGeometryParticleHandle*, FReal> ExternalStrains = { {ParticleHandles[0], 50.0f} };
 				Clustering.BreakingModel(&ExternalStrains);
 			}
 
@@ -418,7 +418,7 @@ namespace GeometryCollectionTest
 		Collection->PhysObject->SetCollisionParticlesPerObjectFraction(1.0);
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
 
 		UnitTest.Advance();
 
@@ -428,7 +428,7 @@ namespace GeometryCollectionTest
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection->PhysObject->GetSolverClusterHandles()[0],
 			{ Collection->PhysObject->GetSolverParticleHandles()[0],Collection->PhysObject->GetSolverParticleHandles()[1] }));
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 
 		// Particles array contains the following:		
 		// 0: Box1 (top)
@@ -516,11 +516,11 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 		
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
 
 		UnitTest.Advance();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();		
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
@@ -615,7 +615,7 @@ namespace GeometryCollectionTest
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		TArray<FTransform> Collection1_InitialTM; GeometryCollectionAlgo::GlobalMatrices(Collection1->RestCollection->Transform, Collection1->RestCollection->Parent, Collection1_InitialTM);
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
@@ -708,13 +708,13 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
 
 		TArray<bool> Conditions = { false,false,false,false };
 
 		UnitTest.Advance();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();		
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
@@ -873,8 +873,8 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
-		float CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
+		FReal CurrentRigidDistance = 0;
 
 		// Staged conditions
 		// Initial state should set up the heirachy correctly, leaving correct disabled flags on frame 1
@@ -889,8 +889,8 @@ namespace GeometryCollectionTest
 		// Tick once to fush commands
 		UnitTest.Advance();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
 
 		using FClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
 		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
@@ -932,13 +932,13 @@ namespace GeometryCollectionTest
 
 			// Verify that the kinematic particle remains kinematic (InvMass == 0.0)
 			// and the the dynamic particles have a non-zero inv mass
-			EXPECT_NE(ParticleHandles[0]->InvM(), 0.f); // dynamic rigid
-			EXPECT_EQ(ParticleHandles[1]->InvM(), 0.f); // kinematic rigid
-			EXPECT_NE(ParticleHandles[2]->InvM(), 0.f); // dynamic rigid
-			EXPECT_NE(ParticleHandles[3]->InvM(), 0.f); // dynamic rigid
-			EXPECT_NE(ParticleHandles[4]->InvM(), 0.f); // dynamic rigid
-			EXPECT_NE(ParticleHandles[5]->InvM(), 0.f); // dynamic rigid
-			EXPECT_NE(ParticleHandles[6]->InvM(), 0.f); // dynamic cluster
+			EXPECT_NE(ParticleHandles[0]->InvM(), 0); // dynamic rigid
+			EXPECT_EQ(ParticleHandles[1]->InvM(), 0); // kinematic rigid
+			EXPECT_NE(ParticleHandles[2]->InvM(), 0); // dynamic rigid
+			EXPECT_NE(ParticleHandles[3]->InvM(), 0); // dynamic rigid
+			EXPECT_NE(ParticleHandles[4]->InvM(), 0); // dynamic rigid
+			EXPECT_NE(ParticleHandles[5]->InvM(), 0); // dynamic rigid
+			EXPECT_NE(ParticleHandles[6]->InvM(), 0); // dynamic cluster
 
 			// Storage for positions for particles 0, 1, 6 for testing assumptions
 			FVector Ref0;
@@ -1163,8 +1163,8 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
-		float CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
+		FReal CurrentRigidDistance = 0.f;
 
 		// Staged conditions
 		// Initial state should set up the hierachy correctly, leaving correct disabled flags on frame 1
@@ -1179,8 +1179,8 @@ namespace GeometryCollectionTest
 		// Tick once to fush commands
 		UnitTest.Advance();
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
 
 		using FClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
 		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
@@ -1450,7 +1450,7 @@ namespace GeometryCollectionTest
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection2 = Collection2->DynamicCollection;
 
 
-		TArray<float> Distances;
+		TArray<FReal> Distances;
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		TManagedArray<FTransform>& Transform2 = DynamicCollection2->Transform;
 
@@ -1501,7 +1501,7 @@ namespace GeometryCollectionTest
 		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, GlobalTransform2);
 
 		// build relative transforms distances
-		TArray<float> Distances2;
+		TArray<FReal> Distances2;
 		for (int32 i = 0; i < (int32)GlobalTransform.Num() - 1; i++)
 		{
 			for (int j = 0; j < (int32)GlobalTransform2.Num() - 1; j++)
@@ -1558,7 +1558,7 @@ namespace GeometryCollectionTest
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection2 = Collection2->DynamicCollection;
 
 
-		TArray<float> Distances;
+		TArray<FReal> Distances;
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		TManagedArray<FTransform>& Transform2 = DynamicCollection2->Transform;
 
@@ -1663,7 +1663,7 @@ namespace GeometryCollectionTest
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = Collection->DynamicCollection;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection2 = Collection2->DynamicCollection;
 
-		TArray<float> Distances;
+		TArray<FReal> Distances;
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		TManagedArray<FTransform>& Transform2 = DynamicCollection2->Transform;
 
@@ -1773,8 +1773,8 @@ namespace GeometryCollectionTest
 		TArray<FTransform> Collection1_InitialTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection1->Transform, DynamicCollection1->Parent, Collection1_InitialTM);
 		TArray<FTransform> Collection2_InitialTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, Collection2_InitialTM);
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection2Handles = Collection2->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& Collection2Handles = Collection2->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 		
 
@@ -1870,8 +1870,8 @@ namespace GeometryCollectionTest
 		TArray<FTransform> Collection1_InitialTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection1->Transform, DynamicCollection1->Parent, Collection1_InitialTM);
 		TArray<FTransform> Collection2_InitialTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, Collection2_InitialTM);
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection2Handles = Collection2->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& Collection2Handles = Collection2->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
@@ -1957,7 +1957,7 @@ namespace GeometryCollectionTest
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		TArray<FTransform> Collection1_InitialTM; GeometryCollectionAlgo::GlobalMatrices(DynamicCollection1->Transform, DynamicCollection1->Parent, Collection1_InitialTM);
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
@@ -2027,13 +2027,13 @@ namespace GeometryCollectionTest
 		// that's all that exists in the solver.
 		struct FRigidParticleWrapper
 		{
-			FRigidParticleWrapper(TGeometryParticleHandles<float, 3>& InParticlesRef)
+			FRigidParticleWrapper(TGeometryParticleHandles<FReal, 3>& InParticlesRef)
 				: Particles(InParticlesRef)
 			{}
 
-			TGeometryParticleHandles<float, 3>& Particles;
+			TGeometryParticleHandles<FReal, 3>& Particles;
 
-			TPBDRigidParticleHandle<float, 3>* operator[](int32 InIndex)
+			TPBDRigidParticleHandle<FReal, 3>* operator[](int32 InIndex)
 			{
 				return Particles.Handle(InIndex)->CastToRigidParticle();
 			}
@@ -2138,11 +2138,11 @@ namespace GeometryCollectionTest
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 
 		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
+		FReal StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size(), CurrentRigidDistance = 0.f;
 		
 		// #todo: is this even used?
 		/*
-		Chaos::TArrayCollectionArray<float>& InternalStrain = Clustering.GetStrainArray();
+		Chaos::TArrayCollectionArray<FReal>& InternalStrain = Clustering.GetStrainArray();
 		*/
 
 		FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_ExternalClusterStrain);
@@ -2205,14 +2205,14 @@ namespace GeometryCollectionTest
 
 		UnitTest.Advance();		
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 
-		float CollisionParticlesPerObjectFractionDefault = 0.5f;
+		FReal CollisionParticlesPerObjectFractionDefault = (FReal)0.5;
 		IConsoleVariable*  CVarCollisionParticlesPerObjectFractionDefault = IConsoleManager::Get().FindConsoleVariable(TEXT("p.CollisionParticlesPerObjectFractionDefault"));
 		EXPECT_NE(CVarCollisionParticlesPerObjectFractionDefault, nullptr);
 		if (CVarCollisionParticlesPerObjectFractionDefault != nullptr)
 		{
-			CollisionParticlesPerObjectFractionDefault = CVarCollisionParticlesPerObjectFractionDefault->GetFloat();
+			CollisionParticlesPerObjectFractionDefault = (FReal)CVarCollisionParticlesPerObjectFractionDefault->GetFloat();
 		}
 		
 /*

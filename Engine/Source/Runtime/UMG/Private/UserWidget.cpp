@@ -1383,6 +1383,12 @@ void UUserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
 void UUserWidget::TickActionsAndAnimation(float InDeltaTime)
 {
+	// Don't tick the animation if inside of a PostLoad
+	if (FUObjectThreadContext::Get().IsRoutingPostLoad)
+	{
+		return;
+	}
+
 	// Update active movie scenes, none will be removed here, but new
 	// ones can be added during the tick, if a player ends and triggers
 	// starting another animation

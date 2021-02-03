@@ -2961,7 +2961,7 @@ void FPropertyNode::GatherInstancesAffectedByContainerPropertyChange(UObject* Mo
 					checkf(false, TEXT("PropagateContainerPropertyChange tried to propagate a change onto itself!"));
 				}
 
-				const bool bIsDefaultContainerContent = ConvertedProperty->Identical(OriginalContainerAddr, Addr);
+				const bool bIsDefaultContainerContent = ConvertedProperty->Identical(OriginalContainerAddr, Addr, PPF_DeepComparison);
 				if (bIsDefaultContainerContent)
 				{
 					OutAffectedInstances.Add(ActualObjToChange);
@@ -3153,7 +3153,7 @@ void FPropertyNode::PropagatePropertyChange( UObject* ModifiedObject, const TCHA
 		}
 	}
 
-	static FName FNAME_EditableWhenInherited = GET_MEMBER_NAME_CHECKED(UActorComponent,bEditableWhenInherited);
+	static const FName FNAME_EditableWhenInherited = GET_MEMBER_NAME_CHECKED(UActorComponent,bEditableWhenInherited);
 	if (GetProperty()->GetFName() == FNAME_EditableWhenInherited && ModifiedObject->IsA<UActorComponent>() && FString(TEXT("False")) == NewValue)
 	{
 		FBlueprintEditorUtils::HandleDisableEditableWhenInherited(ModifiedObject, ArchetypeInstances);
@@ -3235,7 +3235,7 @@ void FPropertyNode::PropagatePropertyChange( UObject* ModifiedObject, const TCHA
 					FString CurrentValue;
 					ComplexProperty->ExportText_Direct(CurrentValue, ModifiedComplexPropAddr, ModifiedComplexPropAddr, ModifiedObject, PPF_None);
 					ComplexProperty->ImportText(*PreviousValue, TempComplexPropAddr, PPF_None, ModifiedObject);
-					bShouldImport = ComplexProperty->Identical(DestComplexPropAddr, TempComplexPropAddr, PPF_None);
+					bShouldImport = ComplexProperty->Identical(DestComplexPropAddr, TempComplexPropAddr, PPF_DeepComparison);
 					ComplexProperty->ImportText(*CurrentValue, TempComplexPropAddr, PPF_None, ModifiedObject);
 				}
 

@@ -70,173 +70,173 @@ IMPLEMENT_APPLICATION(HeadlessChaos, "HeadlessChaos");
 DEFINE_LOG_CATEGORY(LogHeadlessChaos);
 
 TEST(ImplicitTests, Implicit) {
-	ChaosTest::ImplicitPlane<float>();
-	ChaosTest::ImplicitCube<float>();
-	ChaosTest::ImplicitSphere<float>();
-	ChaosTest::ImplicitCylinder<float>();
-	ChaosTest::ImplicitTaperedCylinder<float>();
-	ChaosTest::ImplicitCapsule<float>();
-	ChaosTest::ImplicitScaled<float>();
-	ChaosTest::ImplicitScaled2<float>();
-	ChaosTest::ImplicitTransformed<float>();
-	ChaosTest::ImplicitIntersection<float>();
-	ChaosTest::ImplicitUnion<float>();
-	ChaosTest::UpdateImplicitUnion<float>();
+	ChaosTest::ImplicitPlane();
+	ChaosTest::ImplicitCube();
+	ChaosTest::ImplicitSphere();
+	ChaosTest::ImplicitCylinder();
+	ChaosTest::ImplicitTaperedCylinder();
+	ChaosTest::ImplicitCapsule();
+	ChaosTest::ImplicitScaled();
+	ChaosTest::ImplicitScaled2();
+	ChaosTest::ImplicitTransformed();
+	ChaosTest::ImplicitIntersection();
+	ChaosTest::ImplicitUnion();
+	ChaosTest::UpdateImplicitUnion();
 	// @todo: Make this work at some point
-	//ChaosTest::ImplicitLevelset<float>();
+	//ChaosTest::ImplicitLevelset();
 
 	SUCCEED();
 }
 
 TEST(ImplicitTests, Rasterization) {
-	ChaosTest::RasterizationImplicit<float>();
-	ChaosTest::RasterizationImplicitWithHole<float>();
+	ChaosTest::RasterizationImplicit();
+	ChaosTest::RasterizationImplicitWithHole();
 }
 
 TEST(ImplicitTests, ConvexHull) {
-	ChaosTest::ConvexHull<float>();
-	ChaosTest::ConvexHull2<float>();
-	ChaosTest::Simplify<float>();
+	ChaosTest::ConvexHull();
+	ChaosTest::ConvexHull2();
+	ChaosTest::Simplify();
 }
 
 TEST(CollisionTests, Collisions) {
 	GEnsureOnNANDiagnostic = 1;
 
-	ChaosTest::LevelsetConstraint<float>();
-	// ChaosTest::LevelsetConstraintGJK<float>();
-	ChaosTest::CollisionBoxPlane<float>();
-	ChaosTest::CollisionBoxPlaneZeroResitution<float>();
-	ChaosTest::CollisionBoxPlaneRestitution<float>();
-	ChaosTest::CollisionCubeCubeRestitution<float>();
-	ChaosTest::CollisionBoxToStaticBox<float>();
-	ChaosTest::CollisionConvexConvex<float>();
+	ChaosTest::LevelsetConstraint();
+	// ChaosTest::LevelsetConstraintGJK();
+	ChaosTest::CollisionBoxPlane();
+	ChaosTest::CollisionBoxPlaneZeroResitution();
+	ChaosTest::CollisionBoxPlaneRestitution();
+	ChaosTest::CollisionCubeCubeRestitution();
+	ChaosTest::CollisionBoxToStaticBox();
+	ChaosTest::CollisionConvexConvex();
 
 	// @ todo: Make this work at some point
-	//ChaosTest::SpatialHashing<float>();
+	//ChaosTest::SpatialHashing();
 
 	SUCCEED();
 }
 
 TEST(CollisionTests, PGS) {
-	ChaosTest::CollisionPGS<float>();
-	ChaosTest::CollisionPGS2<float>();
+	ChaosTest::CollisionPGS();
+	ChaosTest::CollisionPGS2();
 	SUCCEED();
 }
 
 TEST(Clustering, Clustering) {
-	ChaosTest::ImplicitCluster<float>();
-	ChaosTest::FractureCluster<float>();
-	ChaosTest::PartialFractureCluster<float>();
+	ChaosTest::ImplicitCluster();
+	ChaosTest::FractureCluster();
+	ChaosTest::PartialFractureCluster();
 	SUCCEED();
 }
 
 TEST(SerializationTests, Serialization) {
-	ChaosTest::SimpleObjectsSerialization<float>();
-	ChaosTest::SharedObjectsSerialization<float>();
-	ChaosTest::GraphSerialization<float>();
-	ChaosTest::ObjectUnionSerialization<float>();
-	ChaosTest::ParticleSerialization<float>();
-	ChaosTest::BVHSerialization<float>();
-	ChaosTest::RigidParticlesSerialization<float>();
-	ChaosTest::BVHParticlesSerialization<float>();
+	ChaosTest::SimpleObjectsSerialization();
+	ChaosTest::SharedObjectsSerialization();
+	ChaosTest::GraphSerialization();
+	ChaosTest::ObjectUnionSerialization();
+	ChaosTest::ParticleSerialization();
+	ChaosTest::BVHSerialization();
+	ChaosTest::RigidParticlesSerialization();
+	ChaosTest::BVHParticlesSerialization();
 	SUCCEED();
 }
 
 TEST(BroadphaseTests, Broadphase) {
-	ChaosTest::BPPerfTest<float>();
-	//ChaosTest::SpatialAccelerationDirtyAndGlobalQueryStrestTest<float>();
+	ChaosTest::BPPerfTest();
+	//ChaosTest::SpatialAccelerationDirtyAndGlobalQueryStrestTest();
 	SUCCEED();
 }
 
 //TEST(ClothTests, DeformableGravity) {
-//	ChaosTest::DeformableGravity<float>();
+//	ChaosTest::DeformableGravity();
 //
 //	SUCCEED();
 //}
 //
 //TEST(ClothTests, EdgeConstraints) {
-//	ChaosTest::EdgeConstraints<float>();
+//	ChaosTest::EdgeConstraints();
 //
 //	SUCCEED();
 //}
 
 TEST(RaycastTests, Raycast) {
-	ChaosTest::SphereRaycast<float>();
-	ChaosTest::PlaneRaycast<float>();
-	//ChaosTest::CylinderRaycast<float>();
-	//ChaosTest::TaperedCylinderRaycast<float>();
-	ChaosTest::CapsuleRaycast<float>();
-	ChaosTest::TriangleRaycast<float>();
-	ChaosTest::BoxRaycast<float>();
-	ChaosTest::ScaledRaycast<float>();
-	//ChaosTest::TransformedRaycast<float>();
-	//ChaosTest::UnionRaycast<float>();
-	//ChaosTest::IntersectionRaycast<float>();
+	ChaosTest::SphereRaycast();
+	ChaosTest::PlaneRaycast();
+	//ChaosTest::CylinderRaycast();
+	//ChaosTest::TaperedCylinderRaycast();
+	ChaosTest::CapsuleRaycast();
+	ChaosTest::TriangleRaycast();
+	ChaosTest::BoxRaycast();
+	ChaosTest::ScaledRaycast();
+	//ChaosTest::TransformedRaycast();
+	//ChaosTest::UnionRaycast();
+	//ChaosTest::IntersectionRaycast();
 	
 	SUCCEED();
 }
 
 TEST(SweepTests, Sweep) {
-	ChaosTest::CapsuleSweepAgainstTriMeshReal<float>();
+	ChaosTest::CapsuleSweepAgainstTriMeshReal();
 }
 
 TEST(MostOpposingTests, MostOpposing) {
-	ChaosTest::TrimeshMostOpposing<float>();
-	ChaosTest::ConvexMostOpposing<float>();
-	ChaosTest::ScaledMostOpposing<float>();
+	ChaosTest::TrimeshMostOpposing();
+	ChaosTest::ConvexMostOpposing();
+	ChaosTest::ScaledMostOpposing();
 
 	SUCCEED();
 }
 
 TEST(GJK, Simplexes) {
-	ChaosTest::SimplexLine<float>();
-	ChaosTest::SimplexTriangle<float>();
-	ChaosTest::SimplexTetrahedron<float>();
+	ChaosTest::SimplexLine();
+	ChaosTest::SimplexTriangle();
+	ChaosTest::SimplexTetrahedron();
 	
 	SUCCEED();
 }
 
 TEST(GJK, GJKIntersectTests) {
-	ChaosTest::GJKSphereSphereTest<float>();
-	ChaosTest::GJKSphereBoxTest<float>();
-	ChaosTest::GJKSphereCapsuleTest<float>();
-	ChaosTest::GJKSphereConvexTest<float>();
-	ChaosTest::GJKSphereScaledSphereTest<float>();
+	ChaosTest::GJKSphereSphereTest();
+	ChaosTest::GJKSphereBoxTest();
+	ChaosTest::GJKSphereCapsuleTest();
+	ChaosTest::GJKSphereConvexTest();
+	ChaosTest::GJKSphereScaledSphereTest();
 	
 	SUCCEED();
 }
 
 TEST(GJK, GJKRaycastTests) {
-	ChaosTest::GJKSphereSphereSweep<float>();
-	ChaosTest::GJKSphereBoxSweep<float>();
-	ChaosTest::GJKSphereCapsuleSweep<float>();
-	ChaosTest::GJKSphereConvexSweep<float>();
-	ChaosTest::GJKSphereScaledSphereSweep<float>();
-	ChaosTest::GJKBoxCapsuleSweep<float>();
-	ChaosTest::GJKBoxBoxSweep<float>();
-	ChaosTest::GJKCapsuleConvexInitialOverlapSweep<float>();
+	ChaosTest::GJKSphereSphereSweep();
+	ChaosTest::GJKSphereBoxSweep();
+	ChaosTest::GJKSphereCapsuleSweep();
+	ChaosTest::GJKSphereConvexSweep();
+	ChaosTest::GJKSphereScaledSphereSweep();
+	ChaosTest::GJKBoxCapsuleSweep();
+	ChaosTest::GJKBoxBoxSweep();
+	ChaosTest::GJKCapsuleConvexInitialOverlapSweep();
 	SUCCEED();
 }
 
 TEST(EPA, EPATests) {
-	ChaosTest::EPAInitTest<float>();
-	ChaosTest::EPASimpleTest<float>();
+	ChaosTest::EPAInitTest();
+	ChaosTest::EPASimpleTest();
 	SUCCEED();
 }
 
 TEST(BP, BroadphaseTests) {
-	ChaosTest::GridBPTest<float>();
-	ChaosTest::GridBPTest2<float>();
-	ChaosTest::AABBTreeTest<float>();
-	ChaosTest::AABBTreeTimesliceTest<float>();
-	ChaosTest::BroadphaseCollectionTest<float>();
+	ChaosTest::GridBPTest();
+	ChaosTest::GridBPTest2();
+	ChaosTest::AABBTreeTest();
+	ChaosTest::AABBTreeTimesliceTest();
+	ChaosTest::BroadphaseCollectionTest();
 	SUCCEED();
 }
 
 TEST(ParticleHandle, ParticleHandleTests)
 {
-	ChaosTest::ParticleIteratorTest<float>();
-	ChaosTest::ParticleHandleTest<float>();
+	ChaosTest::ParticleIteratorTest();
+	ChaosTest::ParticleHandleTest();
 	ChaosTest::AccelerationStructureHandleComparison();
 	ChaosTest::HandleObjectStateChangeTest();
 	SUCCEED();
@@ -250,9 +250,9 @@ TEST(Perf, PerfTests)
 
 TEST(Handles, FrameworkTests)
 {
-	ChaosTest::Handles::HandleArrayTest<float>();
-	ChaosTest::Handles::HandleHeapTest<float>();
-	ChaosTest::Handles::HandleSerializeTest<float>();
+	ChaosTest::Handles::HandleArrayTest();
+	ChaosTest::Handles::HandleHeapTest();
+	ChaosTest::Handles::HandleSerializeTest();
 }
 
 //TEST(Vehicle, VehicleTests) {
@@ -280,63 +280,63 @@ TEST(Handles, FrameworkTests)
 
 
 // Matrices Tests
-TEST(GeometryCollection_MatricesTest,BasicGlobalMatrices) { GeometryCollectionTest::BasicGlobalMatrices<float>();SUCCEED(); }
-TEST(GeometryCollection_MatricesTest,TransformMatrixElement) { GeometryCollectionTest::TransformMatrixElement<float>(); SUCCEED(); }
-TEST(GeometryCollection_MatricesTest,ReparentingMatrices) { GeometryCollectionTest::ReparentingMatrices<float>(); SUCCEED(); }
+TEST(GeometryCollection_MatricesTest,BasicGlobalMatrices) { GeometryCollectionTest::BasicGlobalMatrices();SUCCEED(); }
+TEST(GeometryCollection_MatricesTest,TransformMatrixElement) { GeometryCollectionTest::TransformMatrixElement(); SUCCEED(); }
+TEST(GeometryCollection_MatricesTest,ReparentingMatrices) { GeometryCollectionTest::ReparentingMatrices(); SUCCEED(); }
 
 // Creation Tests
-TEST(GeometryCollection_CreationTest,CheckIncrementMask) { GeometryCollectionTest::CheckIncrementMask<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,Creation) { GeometryCollectionTest::Creation<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,Empty) { GeometryCollectionTest::Empty<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,AppendTransformHierarchy) { GeometryCollectionTest::AppendTransformHierarchy<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,ParentTransformTest) { GeometryCollectionTest::ParentTransformTest<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,DeleteFromEnd) { GeometryCollectionTest::DeleteFromEnd<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,DeleteFromStart) { GeometryCollectionTest::DeleteFromStart<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,DeleteFromMiddle) { GeometryCollectionTest::DeleteFromMiddle<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,DeleteBranch) { GeometryCollectionTest::DeleteBranch<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,DeleteRootLeafMiddle) { GeometryCollectionTest::DeleteRootLeafMiddle<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,DeleteEverything) { GeometryCollectionTest::DeleteEverything<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,ReindexMaterialsTest) { GeometryCollectionTest::ReindexMaterialsTest<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,ContiguousElementsTest) { GeometryCollectionTest::ContiguousElementsTest<float>(); SUCCEED(); }
-TEST(GeometryCollection_CreationTest,AttributeDependencyTest) { GeometryCollectionTest::AttributeDependencyTest<float>(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,CheckIncrementMask) { GeometryCollectionTest::CheckIncrementMask(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,Creation) { GeometryCollectionTest::Creation(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,Empty) { GeometryCollectionTest::Empty(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,AppendTransformHierarchy) { GeometryCollectionTest::AppendTransformHierarchy(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,ParentTransformTest) { GeometryCollectionTest::ParentTransformTest(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,DeleteFromEnd) { GeometryCollectionTest::DeleteFromEnd(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,DeleteFromStart) { GeometryCollectionTest::DeleteFromStart(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,DeleteFromMiddle) { GeometryCollectionTest::DeleteFromMiddle(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,DeleteBranch) { GeometryCollectionTest::DeleteBranch(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,DeleteRootLeafMiddle) { GeometryCollectionTest::DeleteRootLeafMiddle(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,DeleteEverything) { GeometryCollectionTest::DeleteEverything(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,ReindexMaterialsTest) { GeometryCollectionTest::ReindexMaterialsTest(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,ContiguousElementsTest) { GeometryCollectionTest::ContiguousElementsTest(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,AttributeDependencyTest) { GeometryCollectionTest::AttributeDependencyTest(); SUCCEED(); }
 
 
 // Proximity Tests
-TEST(GeometryCollection_ProximityTest,BuildProximity) { GeometryCollectionTest::BuildProximity<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,GeometryDeleteFromStart) { GeometryCollectionTest::GeometryDeleteFromStart<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,GeometryDeleteFromEnd) { GeometryCollectionTest::GeometryDeleteFromEnd<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,GeometryDeleteFromMiddle) { GeometryCollectionTest::GeometryDeleteFromMiddle<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,GeometryDeleteMultipleFromMiddle) { GeometryCollectionTest::GeometryDeleteMultipleFromMiddle<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,GeometryDeleteRandom) { GeometryCollectionTest::GeometryDeleteRandom<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,GeometryDeleteRandom2) { GeometryCollectionTest::GeometryDeleteRandom2<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,GeometryDeleteAll) { GeometryCollectionTest::GeometryDeleteAll<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,GeometrySwapFlat) { GeometryCollectionTest::GeometrySwapFlat<float>(); SUCCEED(); }
-TEST(GeometryCollection_ProximityTest,TestFracturedGeometry) { GeometryCollectionTest::TestFracturedGeometry<float>(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,BuildProximity) { GeometryCollectionTest::BuildProximity(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,GeometryDeleteFromStart) { GeometryCollectionTest::GeometryDeleteFromStart(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,GeometryDeleteFromEnd) { GeometryCollectionTest::GeometryDeleteFromEnd(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,GeometryDeleteFromMiddle) { GeometryCollectionTest::GeometryDeleteFromMiddle(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,GeometryDeleteMultipleFromMiddle) { GeometryCollectionTest::GeometryDeleteMultipleFromMiddle(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,GeometryDeleteRandom) { GeometryCollectionTest::GeometryDeleteRandom(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,GeometryDeleteRandom2) { GeometryCollectionTest::GeometryDeleteRandom2(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,GeometryDeleteAll) { GeometryCollectionTest::GeometryDeleteAll(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,GeometrySwapFlat) { GeometryCollectionTest::GeometrySwapFlat(); SUCCEED(); }
+TEST(GeometryCollection_ProximityTest,TestFracturedGeometry) { GeometryCollectionTest::TestFracturedGeometry(); SUCCEED(); }
 
 // Clean Tests
-TEST(GeometryCollection_CleanTest,TestDeleteCoincidentVertices) { GeometryCollectionTest::TestDeleteCoincidentVertices<float>(); SUCCEED(); }
-TEST(GeometryCollection_CleanTest,TestDeleteCoincidentVertices2) { GeometryCollectionTest::TestDeleteCoincidentVertices2<float>(); SUCCEED(); }
-TEST(GeometryCollection_CleanTest,TestDeleteZeroAreaFaces) { GeometryCollectionTest::TestDeleteZeroAreaFaces<float>(); SUCCEED(); }
-TEST(GeometryCollection_CleanTest,TestDeleteHiddenFaces) { GeometryCollectionTest::TestDeleteHiddenFaces<float>(); SUCCEED(); }
-TEST(GeometryCollection_CleanTest,TestFillHoles) { GeometryCollectionTest::TestFillHoles<float>(); SUCCEED(); }
+TEST(GeometryCollection_CleanTest,TestDeleteCoincidentVertices) { GeometryCollectionTest::TestDeleteCoincidentVertices(); SUCCEED(); }
+TEST(GeometryCollection_CleanTest,TestDeleteCoincidentVertices2) { GeometryCollectionTest::TestDeleteCoincidentVertices2(); SUCCEED(); }
+TEST(GeometryCollection_CleanTest,TestDeleteZeroAreaFaces) { GeometryCollectionTest::TestDeleteZeroAreaFaces(); SUCCEED(); }
+TEST(GeometryCollection_CleanTest,TestDeleteHiddenFaces) { GeometryCollectionTest::TestDeleteHiddenFaces(); SUCCEED(); }
+TEST(GeometryCollection_CleanTest,TestFillHoles) { GeometryCollectionTest::TestFillHoles(); SUCCEED(); }
 
 // SpatialHash Tests
-TEST(GeometryCollection_SpatialHashTest,GetClosestPointsTest1) { GeometryCollectionTest::GetClosestPointsTest1<float>(); SUCCEED(); }
-TEST(GeometryCollection_SpatialHashTest,GetClosestPointsTest2) { GeometryCollectionTest::GetClosestPointsTest2<float>(); SUCCEED(); }
-TEST(GeometryCollection_SpatialHashTest,GetClosestPointsTest3) { GeometryCollectionTest::GetClosestPointsTest3<float>(); SUCCEED(); }
-TEST(GeometryCollection_SpatialHashTest,GetClosestPointTest) { GeometryCollectionTest::GetClosestPointTest<float>(); SUCCEED(); }
-TEST(GeometryCollection_SpatialHashTest,HashTableUpdateTest) { GeometryCollectionTest::HashTableUpdateTest<float>(); SUCCEED(); }
-TEST(GeometryCollection_SpatialHashTest,HashTablePressureTest) { GeometryCollectionTest::HashTablePressureTest<float>(); SUCCEED(); }
+TEST(GeometryCollection_SpatialHashTest,GetClosestPointsTest1) { GeometryCollectionTest::GetClosestPointsTest1(); SUCCEED(); }
+TEST(GeometryCollection_SpatialHashTest,GetClosestPointsTest2) { GeometryCollectionTest::GetClosestPointsTest2(); SUCCEED(); }
+TEST(GeometryCollection_SpatialHashTest,GetClosestPointsTest3) { GeometryCollectionTest::GetClosestPointsTest3(); SUCCEED(); }
+TEST(GeometryCollection_SpatialHashTest,GetClosestPointTest) { GeometryCollectionTest::GetClosestPointTest(); SUCCEED(); }
+TEST(GeometryCollection_SpatialHashTest,HashTableUpdateTest) { GeometryCollectionTest::HashTableUpdateTest(); SUCCEED(); }
+TEST(GeometryCollection_SpatialHashTest,HashTablePressureTest) { GeometryCollectionTest::HashTablePressureTest(); SUCCEED(); }
 
 // HideVertices Test
-TEST(GeometryCollection_HideVerticesTest,TestHideVertices) { GeometryCollectionTest::TestHideVertices<float>(); SUCCEED(); }
+TEST(GeometryCollection_HideVerticesTest,TestHideVertices) { GeometryCollectionTest::TestHideVertices(); SUCCEED(); }
 
 // Object Collision Test
-//TEST(GeometryCollection_CollisionTest, DISABLED_TestGeometryDecimation) { GeometryCollectionTest::TestGeometryDecimation<float>(); SUCCEED(); }  Fix or remove support for decimation
-TEST(GeometryCollection_CollisionTest,TestImplicitCapsule) { GeometryCollectionTest::TestImplicitCapsule<float>(); SUCCEED(); }
-TEST(GeometryCollection_CollisionTest,TestImplicitCylinder) { GeometryCollectionTest::TestImplicitCylinder<float>(); SUCCEED(); }
-TEST(GeometryCollection_CollisionTest,TestImplicitSphere) { GeometryCollectionTest::TestImplicitSphere<float>(); SUCCEED(); }
-TEST(GeometryCollection_CollisionTest,TestImplicitBoneHierarchy) { GeometryCollectionTest::TestImplicitBoneHierarchy<float>(); SUCCEED(); }
+//TEST(GeometryCollection_CollisionTest, DISABLED_TestGeometryDecimation) { GeometryCollectionTest::TestGeometryDecimation(); SUCCEED(); }  Fix or remove support for decimation
+TEST(GeometryCollection_CollisionTest,TestImplicitCapsule) { GeometryCollectionTest::TestImplicitCapsule(); SUCCEED(); }
+TEST(GeometryCollection_CollisionTest,TestImplicitCylinder) { GeometryCollectionTest::TestImplicitCylinder(); SUCCEED(); }
+TEST(GeometryCollection_CollisionTest,TestImplicitSphere) { GeometryCollectionTest::TestImplicitSphere(); SUCCEED(); }
+TEST(GeometryCollection_CollisionTest,TestImplicitBoneHierarchy) { GeometryCollectionTest::TestImplicitBoneHierarchy(); SUCCEED(); }
 
 // Fields Tests
 TEST(GeometryCollection_FieldTest,Fields_NoiseSample) { GeometryCollectionTest::Fields_NoiseSample(); SUCCEED(); }
@@ -395,7 +395,7 @@ TEST(SkeletalMeshPhysicsProxyTest, DynamicBonesMoveCorrectly){GeometryCollection
 */
 
 // Serialization
-TEST(GeometryCollectionSerializationTests,GeometryCollectionSerializesCorrectly){ GeometryCollectionTests::GeometryCollectionSerialization<float>();SUCCEED(); }
+TEST(GeometryCollectionSerializationTests,GeometryCollectionSerializesCorrectly){ GeometryCollectionTests::GeometryCollectionSerialization();SUCCEED(); }
 
 
 /**/

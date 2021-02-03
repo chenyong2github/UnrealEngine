@@ -693,6 +693,17 @@ protected:
 	 */
 	void NotifyItemDataRefreshed();
 
+	/**
+	 * Iterate over each of the root paths in this data source. Path passed to callback must not contain trailing forward slash.
+	 */
+	virtual void EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback);
+
+	/**
+	 * Convert virtual path to one or more internal paths and any number of virtual paths
+	 * Example: The "/All" virtual path corresponds to more than one internal root paths such as "/Game" and possibly multiple virtual paths such as "/All/Plugins"
+	 */
+	void ExpandVirtualPath(const FName InPath, const FContentBrowserDataFilter& InFilter, FName& OutInternalPath, TSet<FName>& OutInternalPaths, TMap<FName, TArray<FName>>& OutVirtualPaths);
+
 private:
 	/**
 	 * True if this data source is currently initialized.

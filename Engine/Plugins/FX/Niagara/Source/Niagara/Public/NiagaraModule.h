@@ -167,6 +167,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_Lifetime() { return Particles_Lifetime; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_MeshOrientation() { return Particles_MeshOrientation; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_UVScale() { return Particles_UVScale; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_PivotOffset() { return Particles_PivotOffset; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_CameraOffset() { return Particles_CameraOffset; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_MaterialRandom() { return Particles_MaterialRandom; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_LightRadius() { return Particles_LightRadius; }
@@ -279,6 +280,7 @@ private:
 	static FNiagaraVariable Particles_VisibilityTag;
 	static FNiagaraVariable Particles_MeshIndex;
 	static FNiagaraVariable Particles_UVScale;
+	static FNiagaraVariable Particles_PivotOffset;
 	static FNiagaraVariable Particles_CameraOffset;
 	static FNiagaraVariable Particles_MaterialRandom;
 	static FNiagaraVariable Particles_LightRadius;

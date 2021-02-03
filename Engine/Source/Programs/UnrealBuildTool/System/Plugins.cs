@@ -169,6 +169,34 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns a filtered list of plugins as a name:plugin dictionary to ensure that any game plugins override engine plugins with the same
+		/// name, and otherwise that no two plugins with the same name exist. 
+		/// </summary>
+		/// <param name="Plugins">List of plugins to filter</param>
+		/// <returns>Filtered Dictionary of plugins</returns>
+		public static Dictionary<string, PluginInfo> ToFilteredDictionary(IEnumerable<PluginInfo> Plugins)
+		{
+			Dictionary<string, PluginInfo> NameToPluginInfo = new Dictionary<string, PluginInfo>(StringComparer.InvariantCultureIgnoreCase);
+			foreach (PluginInfo Plugin in Plugins)
+			{
+				PluginInfo? ExistingPluginInfo;
+				if (!NameToPluginInfo.TryGetValue(Plugin.Name, out ExistingPluginInfo))
+				{
+					NameToPluginInfo.Add(Plugin.Name, Plugin);
+				}
+				else if (Plugin.Type > ExistingPluginInfo.Type)
+				{
+					NameToPluginInfo[Plugin.Name] = Plugin;
+				}
+				else if (Plugin.Type == ExistingPluginInfo.Type)
+				{
+					throw new BuildException(String.Format("Found '{0}' plugin in two locations ({1} and {2}). Plugin names must be unique.", Plugin.Name, ExistingPluginInfo.File, Plugin.File));
+				}
+			}
+			return NameToPluginInfo;
+		}
+
+		/// <summary>
 		/// Filters the list of plugins to ensure that any game plugins override engine plugins with the same name, and otherwise that no two
 		/// plugins with the same name exist. 
 		/// </summary>
@@ -176,23 +204,7 @@ namespace UnrealBuildTool
 		/// <returns>Filtered list of plugins in the original order</returns>
 		public static IEnumerable<PluginInfo> FilterPlugins(IEnumerable<PluginInfo> Plugins)
 		{
-			Dictionary<string, PluginInfo> NameToPluginInfo = new Dictionary<string, PluginInfo>(StringComparer.InvariantCultureIgnoreCase);
-			foreach(PluginInfo Plugin in Plugins)
-			{
-				PluginInfo? ExistingPluginInfo;
-				if(!NameToPluginInfo.TryGetValue(Plugin.Name, out ExistingPluginInfo))
-				{
-					NameToPluginInfo.Add(Plugin.Name, Plugin);
-				}
-				else if(Plugin.Type > ExistingPluginInfo.Type)
-				{
-					NameToPluginInfo[Plugin.Name] = Plugin;
-				}
-				else if(Plugin.Type == ExistingPluginInfo.Type)
-				{
-					throw new BuildException(String.Format("Found '{0}' plugin in two locations ({1} and {2}). Plugin names must be unique.", Plugin.Name, ExistingPluginInfo.File, Plugin.File));
-				}
-			}
+			Dictionary<string, PluginInfo> NameToPluginInfo = ToFilteredDictionary(Plugins);
 			return Plugins.Where(x => NameToPluginInfo[x.Name] == x);
 		}
 

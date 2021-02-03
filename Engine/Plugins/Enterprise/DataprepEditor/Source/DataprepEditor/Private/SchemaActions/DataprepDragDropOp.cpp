@@ -450,6 +450,8 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 		return FReply::Handled().EndDragDrop();
 	}
 
+	const int32 ActionInsertIndex = TrackNodePtr.Pin()->GetActionIndex(InsertIndex);
+
 	if(DraggedSteps.Num() > 0)
 	{
 		FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
@@ -497,7 +499,7 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 
 			if(InsertIndex >= 0 && InsertIndex < TargetDataprepAsset->GetActionCount())
 			{
-				TargetDataprepAsset->InsertAction(Steps, InsertIndex);
+				TargetDataprepAsset->InsertAction(Steps, ActionInsertIndex);
 			}
 			else
 			{
@@ -518,7 +520,7 @@ FReply FDataprepDragDropOp::DoDropOnTrack(UDataprepAsset* TargetDataprepAsset, i
 
 		if(InsertIndex >= 0 && InsertIndex < TargetDataprepAsset->GetActionCount())
 		{
-			bTransactionSuccessful = TargetDataprepAsset->InsertAction(InsertIndex);
+			bTransactionSuccessful = TargetDataprepAsset->InsertAction(ActionInsertIndex);
 			Action = TargetDataprepAsset->GetAction(InsertIndex);
 		}
 		else

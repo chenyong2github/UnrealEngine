@@ -126,7 +126,8 @@
 			<Tag Files="Engine/Source/Programs/AutomationTool/..." Filter="*.csproj" With="#UAT Projects"/>
 			<Tag Files="Engine/Platforms/..." Filter="*.Automation.csproj" With="#UAT Projects"/>
 			<Tag Files="$(RootDir)/.../Build/Scripts/..." Filter="*.Automation.csproj" With="#UAT Projects"/>
-			<CsCompile Project="#UAT Projects" Configuration="Development" Platform="AnyCPU" Properties="EngineDir=$(RootDir)/Engine" Tag="#ArchiveFiles" EnumerateOnly="true"/>
+			<CsCompile Project="#UAT Projects" Configuration="Development" 
+Platform="AnyCPU"  Properties="EngineDir=$(RootDir)/Engine" Tag="#ArchiveFiles" EnumerateOnly="true"/>
 			
 			<!-- Write a text file marker indicating that we're using precompiled binaries -->
 			<Spawn Exe="cmd.exe" Arguments="/C echo. &gt;&quot;$(RootDir)/Engine/Build/PrecompiledBinaries.txt&quot;"/>

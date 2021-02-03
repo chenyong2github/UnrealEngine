@@ -21,14 +21,14 @@ namespace ChaosTest
 
 			}
 
-			TempStruct(float InFVal, int32 InIVal)
+			TempStruct(FReal InFVal, int32 InIVal)
 				: FVal(InFVal)
 				, IVal(InIVal)
 			{
 
 			}
 
-			float FVal;
+			FReal FVal;
 			int32 IVal;
 
 			friend FArchive operator <<(FArchive& Ar, TempStruct& InVal)
@@ -69,7 +69,6 @@ namespace ChaosTest
 			return Result;
 		}
 
-		template<typename T>
 		void HandleArrayTest()
 		{
 			TArray<THandleArray<TempStruct>::FHandle> TempHandles;
@@ -78,7 +77,7 @@ namespace ChaosTest
 			
 			for(int32 i = 0; i < 1000; ++i)
 			{
-				TempHandles.Add(HandleArray0.Create((float)i, i));
+				TempHandles.Add(HandleArray0.Create((FReal)i, i));
 			}
 
 			for(int32 i = 99; i < 1000; i += 100)
@@ -93,7 +92,7 @@ namespace ChaosTest
 			// Add a few to test the free list
 			for(int32 i = 0; i < 10; ++i)
 			{
-				TempHandles.Add(HandleArray0.Create((float)i, i));
+				TempHandles.Add(HandleArray0.Create((FReal)i, i));
 			}
 
 			// Test that handles are tracked correctly and invalidate on removal
@@ -121,7 +120,6 @@ namespace ChaosTest
 			EXPECT_NE(SumArray(HandleArray0), SumArray(HandleArray1));
 		}
 
-		template<typename T>
 		void HandleHeapTest()
 		{
 			TArray<THandleHeap<TempStruct>::FHandle> TempHandles;
@@ -130,7 +128,7 @@ namespace ChaosTest
 
 			for(int32 i = 0; i < 1000; ++i)
 			{
-				TempHandles.Add(HandleArray0.Create((float)i, i));
+				TempHandles.Add(HandleArray0.Create((FReal)i, i));
 			}
 
 			for(int32 i = 99; i < 1000; i += 100)
@@ -146,7 +144,7 @@ namespace ChaosTest
 			// Add a few to test the free list
 			for(int32 i = 0; i < 10; ++i)
 			{
-				TempHandles.Add(HandleArray0.Create((float)i, i));
+				TempHandles.Add(HandleArray0.Create((FReal)i, i));
 			}
 
 			// Test that handles are tracked correctly and invalidate on removal
@@ -171,7 +169,6 @@ namespace ChaosTest
 			EXPECT_NE(SumArray(HandleArray0), SumArray(HandleArray1));
 		}
 
-		template<typename T>
 		void HandleSerializeTest()
 		{
 			THandleArray<TempStruct> AsArray;
@@ -181,8 +178,8 @@ namespace ChaosTest
 
 			for(int i = 0; i < 500; ++i)
 			{
-				ArrayHandles.Add(AsArray.Create((float)i, i));
-				HeapHandles.Add(AsHeap.Create((float)i, i));
+				ArrayHandles.Add(AsArray.Create((FReal)i, i));
+				HeapHandles.Add(AsHeap.Create((FReal)i, i));
 			}
 
 			// Make some holes
@@ -197,8 +194,8 @@ namespace ChaosTest
 			// Fill in to use the freelist
 			for(int i = 0; i < 25; ++i)
 			{
-				ArrayHandles.Add(AsArray.Create((float)i, i));
-				HeapHandles.Add(AsHeap.Create((float)i, i));
+				ArrayHandles.Add(AsArray.Create((FReal)i, i));
+				HeapHandles.Add(AsHeap.Create((FReal)i, i));
 			}
 
 			TArray<uint8> Bytes;
@@ -237,9 +234,5 @@ namespace ChaosTest
 			EXPECT_EQ(AsHeap.Num(), AsHeapRead.Num());
 			EXPECT_EQ(AsHeap.GetNumActive(), AsHeapRead.GetNumActive());
 		}
-
-		template void HandleArrayTest<float>();
-		template void HandleHeapTest<float>();
-		template void HandleSerializeTest<float>();
 	}
 }

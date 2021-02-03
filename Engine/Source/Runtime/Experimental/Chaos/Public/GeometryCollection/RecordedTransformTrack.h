@@ -247,7 +247,7 @@ struct FRecordedFrame
 	TSet<FSolverTrailingData> Trailings;
 
 	UPROPERTY()
-	float Timestamp;
+	float Timestamp = 0.0f;
 
 	void Reset(int32 InNum = 0)
 	{

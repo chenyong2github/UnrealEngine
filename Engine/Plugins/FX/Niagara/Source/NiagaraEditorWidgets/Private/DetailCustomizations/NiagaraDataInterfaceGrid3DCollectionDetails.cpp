@@ -101,39 +101,37 @@ void FNiagaraDataInterfaceGrid3DCollectionDetails::GeneratePreviewAttributes(TAr
 
 	if ( UNiagaraDataInterfaceGrid3DCollection* Grid3DInterface = Grid3DInterfacePtr.Get() )
 	{
-		//-TODO: Once we have attributes
+		// Discover attributes by name
+		FName VariableName;
+		if (UNiagaraNodeInput* NodeInput = Cast<UNiagaraNodeInput>(Grid3DInterface->GetOuter()))
+		{
+			VariableName = NodeInput->Input.GetName();
+		}
 
-		//// Discover attributes by name
-		//FName VariableName;
-		//if (UNiagaraNodeInput* NodeInput = Cast<UNiagaraNodeInput>(Grid3DInterface->GetOuter()))
-		//{
-		//	VariableName = NodeInput->Input.GetName();
-		//}
+		if ( !VariableName.IsNone() )
+		{
+			// Resolve namespace
+			TMap<FString, FString> AliasesToResolve;
+			if (UNiagaraEmitter* OwnerEmitter = Grid3DInterface->GetTypedOuter<UNiagaraEmitter>())
+			{
+				AliasesToResolve.Emplace(FNiagaraConstants::EmitterNamespace.ToString(), OwnerEmitter->GetUniqueEmitterName());
+			}
+			if (AliasesToResolve.Num() > 0)
+			{
+				VariableName = FNiagaraVariable::ResolveAliases(FNiagaraVariable(UNiagaraDataInterfaceGrid3DCollection::StaticClass(), VariableName), AliasesToResolve).GetName();
+			}
 
-		//if ( !VariableName.IsNone() )
-		//{
-		//	// Resolve namespace
-		//	TMap<FString, FString> AliasesToResolve;
-		//	if (UNiagaraEmitter* OwnerEmitter = Grid3DInterface->GetTypedOuter<UNiagaraEmitter>())
-		//	{
-		//		AliasesToResolve.Emplace(FNiagaraConstants::EmitterNamespace.ToString(), OwnerEmitter->GetUniqueEmitterName());
-		//	}
-		//	if (AliasesToResolve.Num() > 0)
-		//	{
-		//		VariableName = FNiagaraVariable::ResolveAliases(FNiagaraVariable(UNiagaraDataInterfaceGrid3DCollection::StaticClass(), VariableName), AliasesToResolve).GetName();
-		//	}
+			// Add named attributes
+			TArray<FNiagaraVariableBase> FoundVariables;
+			TArray<uint32> FoundVariableOffsets;
+			int32 FoundNumAttribChannelsFound;
+			Grid3DInterface->FindAttributesByName(VariableName, FoundVariables, FoundVariableOffsets, FoundNumAttribChannelsFound);
 
-		//	// Add named attributes
-		//	TArray<FNiagaraVariableBase> FoundVariables;
-		//	TArray<uint32> FoundVariableOffsets;
-		//	int32 FoundNumAttribChannelsFound;
-		//	Grid3DInterface->FindAttributesByName(VariableName, FoundVariables, FoundVariableOffsets, FoundNumAttribChannelsFound);
-
-		//	for (const FNiagaraVariableBase& Variable : FoundVariables)
-		//	{
-		//		SourceArray.Add(MakeShared<FName>(FName(Variable.GetName())));
-		//	}
-		//}
+			for (const FNiagaraVariableBase& Variable : FoundVariables)
+			{
+				SourceArray.Add(MakeShared<FName>(FName(Variable.GetName())));
+			}
+		}
 
 		// Add anonymous attributes
 		for (int32 i = 0; i < Grid3DInterface->NumAttributes; ++i)

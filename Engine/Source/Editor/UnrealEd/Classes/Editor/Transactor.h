@@ -728,7 +728,7 @@ public:
 	friend class FObjectRecord::FWriter;
 };
 
-UCLASS(transient)
+UCLASS(abstract, transient)
 class UNREALED_API UTransactor : public UObject
 {
     GENERATED_UCLASS_BODY()

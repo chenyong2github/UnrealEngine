@@ -2503,6 +2503,7 @@ void USkeletalMeshComponent::PostAnimEvaluation(FAnimationEvaluationContext& Eva
 				*GetNameSafe(SkeletalMesh), AnimCurves.NumValidCurveCount);
 			CachedCurve.CopyFrom(AnimCurves);
 		}
+
 	
 		if (EvaluationContext.bDuplicateToCachedAttributes)
 		{

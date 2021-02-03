@@ -758,7 +758,7 @@ private:
 
 		FString Result(MoveTempIfPossible(Lhs), RhsLen);
 		Result.AppendChars(Rhs, RhsLen);
-
+		
 		return Result;
 	}
 

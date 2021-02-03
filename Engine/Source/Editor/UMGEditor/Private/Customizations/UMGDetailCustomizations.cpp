@@ -97,10 +97,19 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 {
 	const FName PropertyName = InPropertyHandle->GetProperty()->GetFName();
 
-	TArray<UObject*> Objects;
-	InPropertyHandle->GetOuterObjects(Objects);
+	TArray<TWeakObjectPtr<UObject>> Objects;
+	{
+		TArray<UObject*> RawObjects;
+		InPropertyHandle->GetOuterObjects(RawObjects);
 
-	UWidget* Widget = CastChecked<UWidget>(Objects[0]);
+		Objects.Reserve(RawObjects.Num());
+		for (UObject* RawObject : RawObjects)
+		{
+			Objects.Add(RawObject);
+		}
+	}
+
+	UWidget* Widget = Objects.Num() ? Cast<UWidget>(Objects[0]) : nullptr;
 
 	FString WidgetName;
 	if ( Widget && !Widget->IsGeneratedName() )
@@ -124,17 +133,19 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 			//TODO UMG O(N) Isn't good for this, needs to be map, but map isn't serialized, need cached runtime map for fast lookups.
 
-			for ( int32 ObjectIndex = 0; ObjectIndex < Objects.Num(); ObjectIndex++ )
+			for (const TWeakObjectPtr<UObject>& ObjectPtr : Objects)
 			{
+				UObject* Object = ObjectPtr.Get();
+
 				// Ignore null outer objects
-				if ( Objects[ObjectIndex] == nullptr )
+				if ( Object == nullptr )
 				{
 					continue;
 				}
 
 				for ( const FDelegateEditorBinding& Binding : ThisBlueprint->Bindings )
 				{
-					if ( Binding.ObjectName == Objects[ObjectIndex]->GetName() && Binding.PropertyName == InPropertyName )
+					if ( Binding.ObjectName == Object->GetName() && Binding.PropertyName == InPropertyName )
 					{
 						if ( Binding.Kind == EBindingKind::Function )
 						{
@@ -170,17 +181,19 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 		{
 			UWidgetBlueprint* ThisBlueprint = InEditor.Pin()->GetWidgetBlueprintObj();
 
-			for ( int32 ObjectIndex = 0; ObjectIndex < Objects.Num(); ObjectIndex++ )
+			for (const TWeakObjectPtr<UObject>& ObjectPtr : Objects)
 			{
+				UObject* Object = ObjectPtr.Get();
+
 				// Ignore null outer objects
-				if ( Objects[ObjectIndex] == nullptr )
+				if ( Object == nullptr )
 				{
 					continue;
 				}
 
 				for ( const FDelegateEditorBinding& Binding : ThisBlueprint->Bindings )
 				{
-					if ( Binding.ObjectName == Objects[ObjectIndex]->GetName() && Binding.PropertyName == InPropertyName )
+					if ( Binding.ObjectName == Object->GetName() && Binding.PropertyName == InPropertyName )
 					{
 						if ( Binding.Kind == EBindingKind::Function )
 						{
@@ -284,10 +297,18 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 			check(Function != nullptr || Property != nullptr);
 
-			for ( UObject* SelectedObject : Objects )
+			for (const TWeakObjectPtr<UObject>& ObjectPtr : Objects)
 			{
+				UObject* Object = ObjectPtr.Get();
+
+				// Ignore null outer objects
+				if ( Object == nullptr )
+				{
+					continue;
+				}
+
 				FDelegateEditorBinding Binding;
-				Binding.ObjectName = SelectedObject->GetName();
+				Binding.ObjectName = Object->GetName();
 				Binding.PropertyName = InPropertyName;
 				Binding.SourcePath = FEditorPropertyPath(FieldChain);
 
@@ -327,10 +348,18 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 			ThisBlueprint->Modify();
 
-			for ( UObject* SelectedObject : Objects )
+			for (const TWeakObjectPtr<UObject>& ObjectPtr : Objects)
 			{
+				UObject* Object = ObjectPtr.Get();
+
+				// Ignore null outer objects
+				if ( Object == nullptr )
+				{
+					continue;
+				}
+
 				FDelegateEditorBinding Binding;
-				Binding.ObjectName = SelectedObject->GetName();
+				Binding.ObjectName = Object->GetName();
 				Binding.PropertyName = InPropertyName;
 
 				ThisBlueprint->Bindings.Remove(Binding);
@@ -343,11 +372,19 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 		{
 			UWidgetBlueprint* ThisBlueprint = InEditor.Pin()->GetWidgetBlueprintObj();
 
-			for ( UObject* SelectedObject : Objects )
+			for (const TWeakObjectPtr<UObject>& ObjectPtr : Objects)
 			{
+				UObject* Object = ObjectPtr.Get();
+
+				// Ignore null outer objects
+				if ( Object == nullptr )
+				{
+					continue;
+				}
+
 				for ( const FDelegateEditorBinding& Binding : ThisBlueprint->Bindings )
 				{
-					if ( Binding.ObjectName == SelectedObject->GetName() && Binding.PropertyName == InPropertyName )
+					if ( Binding.ObjectName == Object->GetName() && Binding.PropertyName == InPropertyName )
 					{
 						return true;
 					}
@@ -363,10 +400,12 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 			//TODO UMG O(N) Isn't good for this, needs to be map, but map isn't serialized, need cached runtime map for fast lookups.
 
-			for ( int32 ObjectIndex = 0; ObjectIndex < Objects.Num(); ObjectIndex++ )
+			for (const TWeakObjectPtr<UObject>& ObjectPtr : Objects)
 			{
+				UObject* Object = ObjectPtr.Get();
+
 				// Ignore null outer objects
-				if ( Objects[ObjectIndex] == nullptr )
+				if ( Object == nullptr )
 				{
 					continue;
 				}
@@ -375,7 +414,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 				for ( const FDelegateEditorBinding& Binding : ThisBlueprint->Bindings )
 				{
-					if ( Binding.ObjectName == Objects[ObjectIndex]->GetName() && Binding.PropertyName == PropertyName )
+					if ( Binding.ObjectName == Object->GetName() && Binding.PropertyName == PropertyName )
 					{
 						if ( !Binding.SourcePath.IsEmpty() )
 						{
@@ -431,10 +470,12 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 			//TODO UMG O(N) Isn't good for this, needs to be map, but map isn't serialized, need cached runtime map for fast lookups.
 
-			for ( int32 ObjectIndex = 0; ObjectIndex < Objects.Num(); ObjectIndex++ )
+			for (const TWeakObjectPtr<UObject>& ObjectPtr : Objects)
 			{
+				UObject* Object = ObjectPtr.Get();
+
 				// Ignore null outer objects
-				if ( Objects[ObjectIndex] == NULL )
+				if ( Object == nullptr )
 				{
 					continue;
 				}
@@ -443,7 +484,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 				for ( const FDelegateEditorBinding& Binding : ThisBlueprint->Bindings )
 				{
-					if ( Binding.ObjectName == Objects[ObjectIndex]->GetName() && Binding.PropertyName == PropertyName )
+					if ( Binding.ObjectName == Object->GetName() && Binding.PropertyName == PropertyName )
 					{
 						if ( Binding.Kind == EBindingKind::Function )
 						{

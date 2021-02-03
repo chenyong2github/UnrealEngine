@@ -1388,9 +1388,11 @@ FReply FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerDeleteClicke
 	{
 		FScopedTransaction Transaction(LOCTEXT("Undo_Delete", "Delete Layer"));
 
+		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+		FScopedSetLandscapeEditingLayer Scope(LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr, LandscapeEdMode ? LandscapeEdMode->GetCurrentLayerGuid() : FGuid());
+
 		Target->LandscapeInfo->DeleteLayer(Target->LayerInfoObj.Get(), Target->LayerName);
 
-		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 		if (LandscapeEdMode)
 		{
 			LandscapeEdMode->UpdateTargetList();

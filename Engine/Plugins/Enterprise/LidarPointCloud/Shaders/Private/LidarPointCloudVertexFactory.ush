@@ -37,6 +37,7 @@ float SpriteSizeMultiplier;
 float3 ViewRightVector;
 float3 ViewUpVector;
 uint bUseCameraFacing;
+uint bUseScreenSizeScaling;
 
 // Used for coloration override
 float3 BoundsSize;
@@ -118,7 +119,6 @@ struct FVertexFactoryIntermediates
     half TangentToWorldSign;
     half4 Color;
 	float3 Position;
-	half3 Normal;
 	half2 Scale;
 };
 
@@ -128,7 +128,7 @@ struct FPointCloudInstanceData
 	uint Color;
 	uint bSelected;
 	uint Classification;
-	half3 Normal;
+	half3x3 TangentToLocal;
 	half2 Scale;
 };
 
@@ -154,15 +154,49 @@ FPointCloudInstanceData LidarGetInstanceData(uint VertexId)
 
 	if (bUseCameraFacing)
 	{
-		InstanceData.Normal = half3(0, 0, 0);
+		InstanceData.TangentToLocal[0] = ViewRightVector;
+		InstanceData.TangentToLocal[1] = ViewUpVector;
+		InstanceData.TangentToLocal[2] = cross(InstanceData.TangentToLocal[0], InstanceData.TangentToLocal[1]);
 	}
 	else
 	{
-		uint Normal = asuint(DataBuffer[Idx + 4]);
-		InstanceData.Normal = half3((0x000000FF & Normal) / 127.5f - 1, (0x000000FF & (Normal >> 8)) / 127.5f - 1, (0x000000FF & (Normal >> 16)) / 127.5f - 1);
+		uint NormalAsInt = asuint(DataBuffer[Idx + 4]);
+		
+		half3 Normal = half3((0x000000FF & NormalAsInt) / 127.5f - 1, (0x000000FF & (NormalAsInt >> 8)) / 127.5f - 1, (0x000000FF & (NormalAsInt >> 16)) / 127.5f - 1);
+		
+		// Force camera facing
+		if (dot(Normal, Normal) < 0.1f)
+		{
+			InstanceData.TangentToLocal[0] = ViewRightVector;
+			InstanceData.TangentToLocal[1] = ViewUpVector;
+			InstanceData.TangentToLocal[2] = cross(InstanceData.TangentToLocal[0], InstanceData.TangentToLocal[1]);
+		}
+		else
+		{
+			half3 N = abs(Normal);
+
+			half3 Tangent = half3(1, 0, 0);
+
+			// Find best basis vectors.
+			if (N.z > N.x && N.z > N.y)
+			{
+				Tangent = half3(1, 0, 0);
+			}
+			else
+			{
+				Tangent = half3(0, 0, 1);
+			}
+
+			Tangent = (Tangent - Normal * dot(Tangent, Normal));
+			Tangent = Tangent * rsqrt(dot(Tangent, Tangent));
+
+			InstanceData.TangentToLocal[0] = Tangent;
+			InstanceData.TangentToLocal[1] = cross(Tangent, Normal);
+			InstanceData.TangentToLocal[2] = Normal;
+		}
 	}
 
-    InstanceData.Scale = SpriteSize * PrecomputedUV_Quad[VertexId % 4];
+	InstanceData.Scale = PrecomputedUV_Quad[VertexId % 4];
 
 	// Only process clipping if not in the editor view
 	if (!bEditorView)
@@ -205,35 +239,10 @@ half3x3 CalcTangentToWorldNoScale(in half3x3 TangentToLocal)
 	return mul(TangentToLocal, LocalToWorld);
 }
 
-float3 ProcessPosition(float3 Position, half3 Normal, half2 Scale)
+float3 ProcessPosition(float3 Position, half3x3 TangentToLocal, half2 Scale)
 {
-	if (dot(Normal, Normal) < 0.1f || bUseCameraFacing)
-	{
-		return Position + (ViewRightVector * Scale.x + ViewUpVector * Scale.y) * SpriteSizeMultiplier;
-	}
-	else
-	{
-		half3 N = abs(Normal);
-
-		half3 Axis1 = half3(1, 0, 0);
-
-		// Find best basis vectors.
-		if (N.z > N.x && N.z > N.y)
-		{
-			Axis1 = half3(1, 0, 0);
-		}
-		else
-		{
-			Axis1 = half3(0, 0, 1);
-		}
-
-		Axis1 = (Axis1 - Normal * dot(Axis1, Normal));
-		Axis1 = Axis1 * rsqrt(dot(Axis1, Axis1));
-
-		half3 Axis2 = cross(Axis1, Normal);
-
-		return Position + (Axis1 * Scale.x + Axis2 * Scale.y) * SpriteSizeMultiplier;
-	}
+	float Size = bUseScreenSizeScaling ? mul(float4(Position.xyz, 1), ResolvedView.TranslatedWorldToView).z * 0.01f : SpriteSize;
+	return Position + (TangentToLocal[0] * Scale.x + TangentToLocal[1] * Scale.y) * SpriteSizeMultiplier * Size;
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
@@ -243,9 +252,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	
 	Intermediates.Position = InstanceData.Position;
 	Intermediates.Scale = InstanceData.Scale;
-	Intermediates.Normal = InstanceData.Normal;
 
-	Intermediates.TangentToLocal = half3x3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+	Intermediates.TangentToLocal = InstanceData.TangentToLocal;
 	Intermediates.TangentToWorldSign = Primitive.InvNonUniformScaleAndDeterminantSign.w;
 	Intermediates.TangentToWorld = CalcTangentToWorldNoScale(Intermediates.TangentToLocal);
 	
@@ -306,7 +314,7 @@ half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactory
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	float4 WorldPosition = TransformLocalToTranslatedWorld(Intermediates.Position);
-	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, Intermediates.Normal, Intermediates.Scale);
+	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, Intermediates.TangentToLocal, Intermediates.Scale);
 	return WorldPosition;
 }
 float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
@@ -314,19 +322,19 @@ float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 	FPointCloudInstanceData InstanceData = LidarGetInstanceData(Input.VertexId);
 
 	float4 WorldPosition = TransformLocalToTranslatedWorld(InstanceData.Position);
-	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.Normal, InstanceData.Scale);
+	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, InstanceData.Scale);
 	return WorldPosition;
 }
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition) { return InWorldPosition; }
 float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition) { return TranslatedWorldPosition; }
 
-float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input) { return RotateLocalToWorld(Input.Normal.xyz, 0); }
+float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input) { return RotateLocalToWorld(GetInstanceData(Input.VertexId).TangentToLocal[2], 0); }
 float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
 	FPointCloudInstanceData InstanceData = LidarGetInstanceData(Input.VertexId);
 
 	float4 WorldPosition = TransformLocalToTranslatedWorld(InstanceData.Position, 0);
-	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.Normal, InstanceData.Scale);
+	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, InstanceData.Scale);
 	return WorldPosition;
 }
 float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates) { return Intermediates.TangentToWorld[2]; }
@@ -348,7 +356,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
     
 	Result.WorldPosition = WorldPosition;
     Result.TangentToWorld = Intermediates.TangentToWorld;
-    Result.PreSkinnedNormal = half3(-1, -1, 1);
+    Result.PreSkinnedNormal = TangentToLocal[2];
     Result.PreSkinnedPosition = WorldPosition;
     Result.VertexColor = Intermediates.Color;
 

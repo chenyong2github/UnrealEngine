@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePathModuleNames.Add("Engine");
 
             AddEngineThirdPartyPrivateStaticDependencies(Target, "UELibSampleRate");
-        }
+			PrivateDefinitions.Add("WITH_LIBSAMPLERATE=1");
+		}
 	}
 }

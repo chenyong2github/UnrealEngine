@@ -99,8 +99,8 @@ void FLightmap::CreateGameThreadResources()
 	
 	// TODO: add more layers based on layer settings
 	{
-		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::HqLayer0, 0);
-		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::HqLayer1, 1);
+		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::LightmapLayer0, 0);
+		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::LightmapLayer1, 1);
 		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::ShadowMask, 2);
 	}
 
@@ -119,10 +119,10 @@ void FLightmap::CreateGameThreadResources()
 			LightmapObject->AddVectors[CoefIndex] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 		}
 	}
-	LightmapObject->VirtualTexture = TextureUObject;
+	LightmapObject->VirtualTextures[0] = TextureUObject;
 
 	ResourceCluster = MakeUnique<FLightmapResourceCluster>();
-	ResourceCluster->Input.LightMapVirtualTexture = TextureUObject;
+	ResourceCluster->Input.LightMapVirtualTextures[0] = TextureUObject;
 
 	MeshMapBuildData = MakeUnique<FMeshMapBuildData>();
 	MeshMapBuildData->LightMap = LightmapObject;

@@ -18,6 +18,8 @@ class DATASMITHCORE_API FDatasmithSceneFactory
 public:
 	static TSharedPtr< IDatasmithElement > CreateElement( EDatasmithElementType InType, const TCHAR* InName );
 
+	static TSharedPtr< IDatasmithElement > CreateElement( EDatasmithElementType InType, uint64 InSubType, const TCHAR* InName );
+
 	static TSharedRef< IDatasmithActorElement > CreateActor( const TCHAR* InName );
 
 	static TSharedRef< IDatasmithCameraActorElement > CreateCameraActor( const TCHAR* InName );
@@ -51,6 +53,25 @@ public:
 	static TSharedRef< IDatasmithMasterMaterialElement > CreateMasterMaterial( const TCHAR* InName );
 
 	static TSharedRef< IDatasmithUEPbrMaterialElement > CreateUEPbrMaterial( const TCHAR* InName );
+
+	/**
+	 * Creates a MaterialExpression from the given type.
+	 * Warning: This function's main purpose is to allow the creation of serialized material expressions.
+	 *          Creating and adding new expressions to a UEPbrMaterial should be done with the IDatasmithUEPbrMaterialElement::AddMaterialExpression() function.
+	 */
+	static TSharedPtr< IDatasmithMaterialExpression > CreateMaterialExpression( EDatasmithMaterialExpressionType MaterialExpression );
+
+	/**
+	 * Creates an ExpressionInput from the given type.
+	 * Warning: This function's main purpose is to allow the creation of serialized expression inputs. It should not be used to add inputs to a material expression.
+	 */
+	static TSharedRef< IDatasmithExpressionInput > CreateExpressionInput( const TCHAR* InName );
+
+	/**
+	 * Creates an ExpressionOutput from the given type.
+	 * Warning: This function's main purpose is to allow the creation of serialized expression outputs. It should not be used to add outputs to a material expression.
+	 */
+	static TSharedRef< IDatasmithExpressionOutput > CreateExpressionOutput( const TCHAR* InName );
 
 	static TSharedRef< IDatasmithMetaDataElement > CreateMetaData( const TCHAR* InName );
 

@@ -497,12 +497,14 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 #endif
 
 	// Update user parameter binding
+	bool bIsRenderTargetUserParam = false;
 	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.GetValue())
 	{
 		if (UTextureRenderTarget2DArray* UserTargetTexture = Cast<UTextureRenderTarget2DArray>(UserParamObject))
 		{
 			if (InstanceData->TargetTexture != UserTargetTexture)
 			{
+				bIsRenderTargetUserParam = true;
 				InstanceData->TargetTexture = UserTargetTexture;
 
 				extern int32 GNiagaraReleaseResourceOnRemove;
@@ -525,6 +527,18 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 	{
 		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->Slices != InstanceData->Size.Z) || (InstanceData->TargetTexture->OverrideFormat != InstanceData->Format) || !InstanceData->TargetTexture->bCanCreateUAV)
 		{
+			//////////////////////////////////////////////////////////////////////////
+			//-TOFIX: Workaround FORT-315375 GT / RT Race
+			extern int32 GNiagaraSamplerStateWorkaroundCreateNew;
+			if (!bIsRenderTargetUserParam && GNiagaraSamplerStateWorkaroundCreateNew)
+			{
+				InstanceData->TargetTexture->ReleaseResource();
+
+				InstanceData->TargetTexture = NewObject<UTextureRenderTarget2DArray>(this);
+				ManagedRenderTargets[SystemInstance->GetId()] = InstanceData->TargetTexture;
+			}
+			//////////////////////////////////////////////////////////////////////////
+
 			InstanceData->TargetTexture->bCanCreateUAV = true;
 			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);

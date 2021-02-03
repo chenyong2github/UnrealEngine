@@ -29,7 +29,15 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
 					"ToolMenus",
 					"UnrealEd",
+					"PhysicsCore",
 					"StaticMeshEditor"
+				}
+			);
+
+			PrivateIncludePaths.AddRange(
+				new string[] 
+				{
+					"DataprepCore/Private/Shared",
 				}
 			);
 		}

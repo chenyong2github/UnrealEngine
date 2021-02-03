@@ -281,19 +281,6 @@ namespace Chaos
 		return ::GetTypeHash(Unique.GlobalID);
 	}
 
-	//Used for down casting when iterating over multiple SOAs.
-	enum class EParticleType : uint8
-	{
-		Static,
-		Kinematic,
-		Rigid,
-		Clustered,	//only applicable on physics thread side
-		StaticMesh,
-		SkeletalMesh,
-		GeometryCollection,
-		Unknown
-	};
-
 	//Holds the data for getting back at the real handle if it's still valid
 	//Systems should not use this unless clean-up of direct handle is slow, this uses thread safe shared ptr which is not cheap
 	class FWeakParticleHandle

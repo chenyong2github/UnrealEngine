@@ -38,27 +38,27 @@ namespace Generator
 			case mi::neuraylib::IValue::VK_BOOL:
 			{
 				auto Value = mi::base::make_handle(MDLConstant.get_interface<const mi::neuraylib::IValue_bool>());
-				return {NewMaterialExpressionStaticBool(CurrentMaterial, Value->get_value())};
+				return {AddExpression(NewMaterialExpressionStaticBool(CurrentMaterial, Value->get_value()))};
 			}
 			case mi::neuraylib::IValue::VK_INT:
 			{
 				auto Value = mi::base::make_handle(MDLConstant.get_interface<const mi::neuraylib::IValue_int>());
-				return {NewMaterialExpressionConstant(CurrentMaterial, (float)Value->get_value())};
+				return {AddExpression(NewMaterialExpressionConstant(CurrentMaterial, (float)Value->get_value()))};
 			}
 			case mi::neuraylib::IValue::VK_ENUM:
 			{
 				auto Value = mi::base::make_handle(MDLConstant.get_interface<const mi::neuraylib::IValue_enum>());
-				return {NewMaterialExpressionConstant(CurrentMaterial, (float)Value->get_value())};
+				return {AddExpression(NewMaterialExpressionConstant(CurrentMaterial, (float)Value->get_value()))};
 			}
 			case mi::neuraylib::IValue::VK_FLOAT:
 			{
 				auto Value = mi::base::make_handle(MDLConstant.get_interface<const mi::neuraylib::IValue_float>());
-				return {NewMaterialExpressionConstant(CurrentMaterial, Value->get_value())};
+				return {AddExpression(NewMaterialExpressionConstant(CurrentMaterial, Value->get_value()))};
 			}
 			case mi::neuraylib::IValue::VK_DOUBLE:
 			{
 				auto Value = mi::base::make_handle(MDLConstant.get_interface<const mi::neuraylib::IValue_double>());
-				return {NewMaterialExpressionConstant(CurrentMaterial, (float)Value->get_value())};
+				return {AddExpression(NewMaterialExpressionConstant(CurrentMaterial, (float)Value->get_value()))};
 			}
 			case mi::neuraylib::IValue::VK_STRING:
 			{
@@ -77,13 +77,13 @@ namespace Generator
 				switch (Value->get_size())
 				{
 					case 2:
-						return {NewMaterialExpressionConstant(CurrentMaterial, Values[0]->get_value(), Values[1]->get_value())};
+						return {AddExpression(NewMaterialExpressionConstant(CurrentMaterial, Values[0]->get_value(), Values[1]->get_value()))};
 					case 3:
-						return {NewMaterialExpressionConstant(  //
-						    CurrentMaterial, Values[0]->get_value(), Values[1]->get_value(), Values[2]->get_value())};
+						return {AddExpression(NewMaterialExpressionConstant(  //
+						    CurrentMaterial, Values[0]->get_value(), Values[1]->get_value(), Values[2]->get_value()))};
 					case 4:
-						return {NewMaterialExpressionConstant(  //
-						    CurrentMaterial, Values[0]->get_value(), Values[1]->get_value(), Values[2]->get_value(), Values[3]->get_value())};
+						return {AddExpression(NewMaterialExpressionConstant(  //
+						    CurrentMaterial, Values[0]->get_value(), Values[1]->get_value(), Values[2]->get_value(), Values[3]->get_value()))};
 				}
 				break;
 			}
@@ -107,7 +107,7 @@ namespace Generator
 				auto Red   = mi::base::make_handle<const mi::neuraylib::IValue_float>(Value->get_value(0));
 				auto Green = mi::base::make_handle<const mi::neuraylib::IValue_float>(Value->get_value(1));
 				auto Blue  = mi::base::make_handle<const mi::neuraylib::IValue_float>(Value->get_value(2));
-				return {NewMaterialExpressionConstant(CurrentMaterial, Red->get_value(), Green->get_value(), Blue->get_value())};
+				return {AddExpression(NewMaterialExpressionConstant(CurrentMaterial, Red->get_value(), Green->get_value(), Blue->get_value()))};
 			}
 			case mi::neuraylib::IValue::VK_ARRAY:
 			{
@@ -138,7 +138,7 @@ namespace Generator
 			}
 			case mi::neuraylib::IValue::VK_INVALID_DF:
 			{
-				return {NewMaterialExpressionMakeMaterialAttributes(CurrentMaterial, {0.0f, 0.0f, 0.0f}, 0.0f, 0.0f, 0.0f)};
+				return {AddExpression(NewMaterialExpressionMakeMaterialAttributes(CurrentMaterial, {0.0f, 0.0f, 0.0f}, 0.0f, 0.0f, 0.0f))};
 			}
 			case mi::neuraylib::IValue::VK_TEXTURE:
 			{
@@ -156,7 +156,7 @@ namespace Generator
 						Property.CompressionSettings = TC_Normalmap;
 					}
 					UTexture2D* Texture = TextureFactory->CreateTexture(CurrentMaterial->GetOuter(), Property, CurrentMaterial->GetFlags());
-					return { NewMaterialExpressionTextureObject(CurrentMaterial, Texture) };
+					return {AddExpression(NewMaterialExpressionTextureObject(CurrentMaterial, Texture))};
 				}
 				else
 				{
@@ -170,13 +170,25 @@ namespace Generator
 
 				LogMessages.Emplace(MDLImporterLogging::EMessageSeverity::Error, TEXT("Measured BSDF or BTF textures aren't supported."));
 
-				return {NewMaterialExpressionConstant(CurrentMaterial, 0.0f, 0.0f, 0.0f)};
+				return {AddExpression(NewMaterialExpressionConstant(CurrentMaterial, 0.0f, 0.0f, 0.0f))};
 			}
 		}
 		ensure(false);
 		return {};
 	}
 
+	void FConstantExpressionFactory::CleanupMaterialExpressions()
+	{
+		for (FMaterialExpressionHandle& ExpressionHandle: Expressions)
+		{
+			if (!ExpressionHandle.Expression->UserCount)
+			{
+				CurrentMaterial->Expressions.Remove(ExpressionHandle.GetMaterialExpression());
+				ExpressionHandle.DestroyExpression();
+			}
+		}
+
+	}
 
 }  // namespace Generator
 

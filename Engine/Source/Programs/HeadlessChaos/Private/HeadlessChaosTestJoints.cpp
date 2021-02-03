@@ -47,7 +47,7 @@ namespace ChaosTest {
 			Evolution.AddConstraintRule(&JointsRule);
 		}
 
-		FPBDJointConstraintHandle* AddJoint(const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& InConstrainedParticleIndices, const FVec3& InLocation)
+		FPBDJointConstraintHandle* AddJoint(const TVec2<FGeometryParticleHandle*>& InConstrainedParticleIndices, const FVec3& InLocation)
 		{
 			return Joints.AddConstraint(InConstrainedParticleIndices, FRigidTransform3(InLocation, FRotation3::FromIdentity()));
 		}
@@ -61,7 +61,7 @@ namespace ChaosTest {
 
 			for (int32 JointIndex = 0; JointIndex < JointPositions.Num(); ++JointIndex)
 			{
-				const TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstraintedParticleIds(GetParticle(JointParticleIndices[JointIndex][0]), GetParticle(JointParticleIndices[JointIndex][1]));
+				const TVec2<FGeometryParticleHandle*> ConstraintedParticleIds(GetParticle(JointParticleIndices[JointIndex][0]), GetParticle(JointParticleIndices[JointIndex][1]));
 				AddJoint(ConstraintedParticleIds, JointPositions[JointIndex]);
 			}
 		}
@@ -73,7 +73,7 @@ namespace ChaosTest {
 
 		// Initial joints setup
 		TArray<FVec3> JointPositions;
-		TArray<TVector<int32, 2>> JointParticleIndices;
+		TArray<TVec2<int32>> JointParticleIndices;
 
 		// Solver state
 		FPBDJointConstraints Joints;
@@ -121,7 +121,7 @@ namespace ChaosTest {
 
 		const int32 Box1Id = 0;
 		const int32 Box2Id = 1;
-		const float ExpectedDistance = (Test.ParticlePositions[1] - Test.ParticlePositions[0]).Size();
+		const FReal ExpectedDistance = (Test.ParticlePositions[1] - Test.ParticlePositions[0]).Size();
 		const FVec3 Box2LocalSpaceJointPosition = Test.JointPositions[0] - Test.ParticlePositions[1];
 
 		const FReal Dt = 0.01f;
@@ -181,7 +181,7 @@ namespace ChaosTest {
 
 		const int32 Box1Id = 0;
 		const int32 Box2Id = 1;
-		const float ExpectedDistance = (Test.ParticlePositions[1] - Test.ParticlePositions[0]).Size();
+		const FReal ExpectedDistance = (Test.ParticlePositions[1] - Test.ParticlePositions[0]).Size();
 		const FVec3 Box2LocalSpaceJointPosition = Test.JointPositions[0] - Test.ParticlePositions[1];
 
 		// Everything should be in a stable state
@@ -211,7 +211,7 @@ namespace ChaosTest {
 
 			// Particles should remain fixed distance apart (joint point is at Box1 location)
 			const FVec3 Delta = Test.GetParticle(Box2Id)->CastToRigidParticle()->P() - Test.GetParticle(Box1Id)->X();
-			const float Distance = Delta.Size();
+			const FReal Distance = Delta.Size();
 			EXPECT_NEAR(Distance, ExpectedDistance, (FReal)0.01 * BoxSize) << "Post-move instability on frame " << i;
 
 			// Joint position calculted from pose and local-space joint pos
@@ -266,7 +266,7 @@ namespace ChaosTest {
 
 		const int32 Box1Id = 0;
 		const int32 Box2Id = 1;
-		const float ExpectedDistance = (Test.ParticlePositions[1] - Test.ParticlePositions[0]).Size();
+		const FReal ExpectedDistance = (Test.ParticlePositions[1] - Test.ParticlePositions[0]).Size();
 		const FVec3 Box2LocalSpaceJointPosition = Test.JointPositions[0] - Test.ParticlePositions[1];
 
 		for (int32 i = 0; i < 1000; ++i)
@@ -285,7 +285,7 @@ namespace ChaosTest {
 
 			// Particles should remain fixed distance apart (joint point is at Box1 location)
 			const FVec3 Delta = Test.GetParticle(Box2Id)->CastToRigidParticle()->P() - Test.GetParticle(Box1Id)->X();
-			const float Distance = Delta.Size();
+			const FReal Distance = Delta.Size();
 			EXPECT_NEAR(Distance, ExpectedDistance, (FReal)1) << "Failed on frame " << i;
 
 			// Joint position calculated from pose and local-space joint pos
@@ -365,11 +365,11 @@ namespace ChaosTest {
 				const int32 ParticleIndex1 = Test.JointParticleIndices[JointIndex][0];
 				const int32 ParticleIndex2 = Test.JointParticleIndices[JointIndex][1];
 				const FVec3 Delta = Test.GetParticle(ParticleIndex2)->CastToRigidParticle()->P() - Test.GetParticle(ParticleIndex1)->X();
-				const float Distance = Delta.Size();
-				const float ExpectedDistance = (Test.ParticlePositions[ParticleIndex2] - Test.ParticlePositions[ParticleIndex1]).Size();
+				const FReal Distance = Delta.Size();
+				const FReal ExpectedDistance = (Test.ParticlePositions[ParticleIndex2] - Test.ParticlePositions[ParticleIndex1]).Size();
 				EXPECT_NEAR(Distance, ExpectedDistance, AcceptableDistanceError) << "Joint " << JointIndex << " on frame " << FrameIndex;
 
-				const float DistanceError = FMath::Abs(Distance - ExpectedDistance);
+				const FReal DistanceError = FMath::Abs(Distance - ExpectedDistance);
 				if (DistanceError > MaxDistanceError)
 				{
 					MaxDistanceError = DistanceError;
@@ -452,12 +452,12 @@ namespace ChaosTest {
 				const int32 ParticleIndex1 = Test.JointParticleIndices[JointIndex][0];
 				const int32 ParticleIndex2 = Test.JointParticleIndices[JointIndex][1];
 				const FVec3 Delta = Test.GetParticle(ParticleIndex2)->CastToRigidParticle()->P() - Test.GetParticle(ParticleIndex1)->X();
-				const float Distance = Delta.Size();
-				const float ExpectedDistance = (Test.ParticlePositions[ParticleIndex2] - Test.ParticlePositions[ParticleIndex1]).Size();
+				const FReal Distance = Delta.Size();
+				const FReal ExpectedDistance = (Test.ParticlePositions[ParticleIndex2] - Test.ParticlePositions[ParticleIndex1]).Size();
 				EXPECT_NEAR(Distance, ExpectedDistance, AcceptableDistanceError) << "Joint " << JointIndex << " on frame " << FrameIndex;
 
 				// Track largest error that exceeds threshold
-				const float DistanceError = FMath::Abs(Distance - ExpectedDistance);
+				const FReal DistanceError = FMath::Abs(Distance - ExpectedDistance);
 				if (DistanceError > MaxDistanceError)
 				{
 					MaxDistanceError = DistanceError;
@@ -480,18 +480,18 @@ namespace ChaosTest {
 		PhysicalMaterial->DisabledLinearThreshold = 0;
 		PhysicalMaterial->DisabledAngularThreshold = 0;
 
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		FPBDRigidsSOAs Particles;
 
-		auto StaticBox = AppendStaticParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
-		auto Box2 = AppendDynamicParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+		auto StaticBox = AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+		auto Box2 = AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 		StaticBox->X() = FVec3((FReal)0, (FReal)0, (FReal)1000);
 
 		Box2->X() = FVec3((FReal)500, (FReal)0, (FReal)1000);
 		Box2->P() = Box2->X();
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
-		TVector<TGeometryParticleHandle<FReal, 3>*,2> ConstrainedParticles = TVector<TGeometryParticleHandle<FReal,3>*, 2>(StaticBox, Box2);
-		TVector<FVec3, 2> Points = { FVec3((FReal)100, (FReal)0, (FReal)1000), FVec3((FReal)400, (FReal)0, (FReal)1000) };
+		TVec2<FGeometryParticleHandle*> ConstrainedParticles = TVec2<FGeometryParticleHandle*>(StaticBox, Box2);
+		TVec2<FVec3> Points = { FVec3((FReal)100, (FReal)0, (FReal)1000), FVec3((FReal)400, (FReal)0, (FReal)1000) };
 
 		Evolution.SetPhysicsMaterial(StaticBox, MakeSerializable(PhysicalMaterial));
 		Evolution.SetPhysicsMaterial(Box2, MakeSerializable(PhysicalMaterial));
@@ -522,10 +522,10 @@ namespace ChaosTest {
 		PhysicalMaterial->DisabledAngularThreshold = 0;
 
 		{
-			TPBDRigidsSOAs<FReal, 3> Particles;
+			FPBDRigidsSOAs Particles;
 
-			auto& StaticBox = *AppendStaticParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
-			auto& Box2 = *AppendDynamicParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			auto& StaticBox = *AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			auto& Box2 = *AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 			StaticBox.X() = FVec3((FReal)0, (FReal)0, (FReal)500);
 
 			Box2.X() = FVec3((FReal)500, (FReal)0, (FReal)1000);
@@ -533,7 +533,7 @@ namespace ChaosTest {
 
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
-			TArray<TVector<TGeometryParticleHandle<FReal,3>*, 2>> Constraints = { TVector<TGeometryParticleHandle<FReal,3>*, 2>(&StaticBox, &Box2) };
+			TArray<TVec2<FGeometryParticleHandle*>> Constraints = { TVec2<FGeometryParticleHandle*>(&StaticBox, &Box2) };
 
 			Evolution.SetPhysicsMaterial(&StaticBox, MakeSerializable(PhysicalMaterial));
 			Evolution.SetPhysicsMaterial(&Box2, MakeSerializable(PhysicalMaterial));
@@ -552,10 +552,10 @@ namespace ChaosTest {
 		}
 
 		{
-			TPBDRigidsSOAs<FReal, 3> Particles;
+			FPBDRigidsSOAs Particles;
 
-			auto& StaticBox = *AppendStaticParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
-			auto& Box2 = *AppendDynamicParticleBox<FReal>(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			auto& StaticBox = *AppendStaticParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			auto& Box2 = *AppendDynamicParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 			StaticBox.X() = FVec3((FReal)0, (FReal)0, (FReal)500);
 
 			Box2.X() = FVec3((FReal)500, (FReal)0, (FReal)1000);
@@ -563,7 +563,7 @@ namespace ChaosTest {
 
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
-			TArray<TVector<TGeometryParticleHandle<FReal,3>*, 2>> Constraints = { TVector<TGeometryParticleHandle<FReal,3>*, 2>(&StaticBox, &Box2) };
+			TArray<TVec2<FGeometryParticleHandle*>> Constraints = { TVec2<FGeometryParticleHandle*>(&StaticBox, &Box2) };
 
 			Evolution.SetPhysicsMaterial(&StaticBox, MakeSerializable(PhysicalMaterial));
 			Evolution.SetPhysicsMaterial(&Box2, MakeSerializable(PhysicalMaterial));

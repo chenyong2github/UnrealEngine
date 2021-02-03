@@ -10,13 +10,13 @@ template<class T>
 class CHAOS_API TSpatialHash
 {
  public:
-	TSpatialHash(const TArray<TVector<T, 3>>& Particles, const T Radius)
+	TSpatialHash(const TArray<TVec3<T>>& Particles, const T Radius)
 	: MParticles(Particles)
 	{
 		Init(Radius);
 	}
 
-	TSpatialHash(const TArray<TVector<T, 3>>& Particles)
+	TSpatialHash(const TArray<TVec3<T>>& Particles)
 	: MParticles(Particles)
 	{
 		Init();
@@ -24,15 +24,15 @@ class CHAOS_API TSpatialHash
 
 	~TSpatialHash() {}
 
-	void Update(const TArray<TVector<T, 3>>& Particles, const T Radius);
-	void Update(const TArray<TVector<T, 3>>& Particles);
+	void Update(const TArray<TVec3<T>>& Particles, const T Radius);
+	void Update(const TArray<TVec3<T>>& Particles);
 	void Update(const T Radius);
 
 	// Returns all the points in MaxRadius, result not sorted
-	TArray<int32> GetClosestPoints(const TVector<T, 3>& Particle, const T MaxRadius);
+	TArray<int32> GetClosestPoints(const TVec3<T>& Particle, const T MaxRadius);
 	// Returns all the points in MaxRadius, no more than MaxCount, result always sorted
-	TArray<int32> GetClosestPoints(const TVector<T, 3>& Particle, const T MaxRadius, const int32 MaxPoints);
-	int32 GetClosestPoint(const TVector<T, 3>& Particle);
+	TArray<int32> GetClosestPoints(const TVec3<T>& Particle, const T MaxRadius, const int32 MaxPoints);
+	int32 GetClosestPoint(const TVec3<T>& Particle);
 	
 private:
 	void Init(const T Radius);
@@ -40,7 +40,7 @@ private:
 	
 	T SmallestAxis() const
 	{
-		TVector<T, 3> Extents = MBoundingBox.Extents();
+		TVec3<T> Extents = MBoundingBox.Extents();
 
 		if (Extents[0] < Extents[1] && Extents[0] < Extents[2])
 		{
@@ -56,15 +56,15 @@ private:
 		}
 	}
 
-	int32 ComputeMaxN(const TVector<T, 3>& Particle, const T Radius);
-	TSet<int32> GetNRing(const TVector<T, 3>& Particle, const int32 N);
-	void ComputeGridXYZ(const TVector<T, 3>& Particle, int32& XIndex, int32& YIndex, int32& ZIndex);
+	int32 ComputeMaxN(const TVec3<T>& Particle, const T Radius);
+	TSet<int32> GetNRing(const TVec3<T>& Particle, const int32 N);
+	void ComputeGridXYZ(const TVec3<T>& Particle, int32& XIndex, int32& YIndex, int32& ZIndex);
 
-	int32 HashFunction(const TVector<T, 3>& Particle);
+	int32 HashFunction(const TVec3<T>& Particle);
 	int32 HashFunction(const int32 XIndex, const int32 YIndex, const int32 ZIndex);
 
 private:
-	TArray<TVector<T, 3>> MParticles;
+	TArray<TVec3<T>> MParticles;
 	T MCellSize;
 	TAABB<T, 3> MBoundingBox;
 	int32 MNumberOfCellsX, MNumberOfCellsY, MNumberOfCellsZ;

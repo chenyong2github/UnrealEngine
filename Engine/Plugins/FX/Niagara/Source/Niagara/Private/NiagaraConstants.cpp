@@ -241,6 +241,7 @@ void FNiagaraConstants::Init()
 		Attributes.Add(SYS_PARAM_PARTICLES_MESH_INDEX);
 		Attributes.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET);
 		Attributes.Add(SYS_PARAM_PARTICLES_UV_SCALE);
+		Attributes.Add(SYS_PARAM_PARTICLES_PIVOT_OFFSET);
 		Attributes.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM);
 		Attributes.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS);
 		Attributes.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED);
@@ -281,6 +282,7 @@ void FNiagaraConstants::Init()
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MESH_INDEX, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_MESH_INDEX));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_CAMERA_OFFSET));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_UV_SCALE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_PIVOT_OFFSET, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_PIVOT_OFFSET));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_MATERIAL_RANDOM));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_LIGHT_ENABLED));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_LIGHT_RADIUS));
@@ -395,6 +397,11 @@ void FNiagaraConstants::Init()
 		Var.SetValue<FVector2D>(FVector2D(1.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, Var);
 
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_PIVOT_OFFSET, TEXT("X=0.5 Y=0.5"));
+		Var = SYS_PARAM_PARTICLES_PIVOT_OFFSET;
+		Var.SetValue<FVector2D>(FVector2D(0.5f, 0.5f));
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_PIVOT_OFFSET, Var);
+
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, TEXT("0.0"));
 		Var = SYS_PARAM_PARTICLES_MATERIAL_RANDOM;
 		Var.SetValue<float>(0.0f);
@@ -498,6 +505,7 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_MESH_INDEX, LOCTEXT("MeshIndexParamDesc", "The index of the mesh to use to render this particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET, LOCTEXT("CamOffsetParamDesc", "Used to offset position in the direction of the camera. The value is multiplied by the direction vector from the camera to the particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, LOCTEXT("UVScalerParamDesc", "Used to multiply the generated UVs for Sprite renderers."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_PIVOT_OFFSET, LOCTEXT("PivotOffsetParamDesc", "The central pivot point of the sprite in UV space"));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, LOCTEXT("MaterialRandomParamDesc", "Used to drive the Particle Random node in the Material Editor. Without this set, any Particle Randoms will get 0.0."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS, LOCTEXT("LightRadiusParamDesc", "Used to drive the radius of the light when using a Light renderer."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED, LOCTEXT("LightEnabledParamDesc", "This can be used with the Light renderer control the spawn-rate of lights on a per-particle basis."));

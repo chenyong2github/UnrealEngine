@@ -519,15 +519,19 @@ jbyteArray SAndroidWebBrowserWidget::HandleShouldInterceptRequest(jstring JUrl)
 	}
 	else
 	{
-		if (WebBrowserWindowPtr.IsValid())
-		{
-			TSharedPtr<FAndroidWebBrowserWindow> BrowserWindow = WebBrowserWindowPtr.Pin();
-			if (BrowserWindow.IsValid() && BrowserWindow->OnLoadUrl().IsBound())
+	    FGraphEventRef OnLoadUrl = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
+	    {
+			if (WebBrowserWindowPtr.IsValid())
 			{
-				FString Method = TEXT(""); // We don't support passing anything but the requested URL
-				bOverrideResponse = BrowserWindow->OnLoadUrl().Execute(Method, Url, Response);
+				TSharedPtr<FAndroidWebBrowserWindow> BrowserWindow = WebBrowserWindowPtr.Pin();
+				if (BrowserWindow.IsValid() && BrowserWindow->OnLoadUrl().IsBound())
+				{
+					FString Method = TEXT(""); // We don't support passing anything but the requested URL
+					bOverrideResponse = BrowserWindow->OnLoadUrl().Execute(Method, Url, Response);
+				}
 			}
-		}
+		}, TStatId(), NULL, ENamedThreads::GameThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(OnLoadUrl);
 	}
 
 	if ( bOverrideResponse )
@@ -546,54 +550,63 @@ bool SAndroidWebBrowserWidget::HandleShouldOverrideUrlLoading(jstring JUrl)
 
 	FString Url = FJavaHelper::FStringFromParam(JEnv, JUrl);
 	bool Retval = false;
-
-	if (WebBrowserWindowPtr.IsValid())
+	FGraphEventRef OnBeforeBrowse = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
 	{
-		TSharedPtr<FAndroidWebBrowserWindow> BrowserWindow = WebBrowserWindowPtr.Pin();
-		if (BrowserWindow.IsValid())
+		if (WebBrowserWindowPtr.IsValid())
 		{
-			if (BrowserWindow->OnBeforeBrowse().IsBound())
+			TSharedPtr<FAndroidWebBrowserWindow> BrowserWindow = WebBrowserWindowPtr.Pin();
+			if (BrowserWindow.IsValid())
 			{
-				FWebNavigationRequest RequestDetails;
-				RequestDetails.bIsRedirect = false;
-				RequestDetails.bIsMainFrame = true; // shouldOverrideUrlLoading is only called on the main frame
+				if (BrowserWindow->OnBeforeBrowse().IsBound())
+				{
+					FWebNavigationRequest RequestDetails;
+					RequestDetails.bIsRedirect = false;
+					RequestDetails.bIsMainFrame = true; // shouldOverrideUrlLoading is only called on the main frame
 
-				Retval = BrowserWindow->OnBeforeBrowse().Execute(Url, RequestDetails);
+					Retval = BrowserWindow->OnBeforeBrowse().Execute(Url, RequestDetails);
+				}
 			}
 		}
-	}
+	}, TStatId(), NULL, ENamedThreads::GameThread);
+	FTaskGraphInterface::Get().WaitUntilTaskCompletes(OnBeforeBrowse);
+
 	return Retval;
 }
 
 bool SAndroidWebBrowserWidget::HandleJsDialog(TSharedPtr<IWebBrowserDialog>& Dialog)
 {
 	bool Retval = false;
-	if (WebBrowserWindowPtr.IsValid())
+	FGraphEventRef OnShowDialog = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
 	{
-		TSharedPtr<FAndroidWebBrowserWindow> BrowserWindow = WebBrowserWindowPtr.Pin();
-		if (BrowserWindow.IsValid() && BrowserWindow->OnShowDialog().IsBound())
+		if (WebBrowserWindowPtr.IsValid())
 		{
-			EWebBrowserDialogEventResponse EventResponse = BrowserWindow->OnShowDialog().Execute(TWeakPtr<IWebBrowserDialog>(Dialog));
-			switch (EventResponse)
+			TSharedPtr<FAndroidWebBrowserWindow> BrowserWindow = WebBrowserWindowPtr.Pin();
+			if (BrowserWindow.IsValid() && BrowserWindow->OnShowDialog().IsBound())
 			{
-			case EWebBrowserDialogEventResponse::Handled:
-				Retval = true;
-				break;
-			case EWebBrowserDialogEventResponse::Continue:
-				Dialog->Continue(true, (Dialog->GetType() == EWebBrowserDialogType::Prompt) ? Dialog->GetDefaultPrompt() : FText::GetEmpty());
-				Retval = true;
-				break;
-			case EWebBrowserDialogEventResponse::Ignore:
-				Dialog->Continue(false);
-				Retval = true;
-				break;
-			case EWebBrowserDialogEventResponse::Unhandled:
-			default:
-				Retval = false;
-				break;
+				EWebBrowserDialogEventResponse EventResponse = BrowserWindow->OnShowDialog().Execute(TWeakPtr<IWebBrowserDialog>(Dialog));
+				switch (EventResponse)
+				{
+				case EWebBrowserDialogEventResponse::Handled:
+					Retval = true;
+					break;
+				case EWebBrowserDialogEventResponse::Continue:
+					Dialog->Continue(true, (Dialog->GetType() == EWebBrowserDialogType::Prompt) ? Dialog->GetDefaultPrompt() : FText::GetEmpty());
+					Retval = true;
+					break;
+				case EWebBrowserDialogEventResponse::Ignore:
+					Dialog->Continue(false);
+					Retval = true;
+					break;
+				case EWebBrowserDialogEventResponse::Unhandled:
+				default:
+					Retval = false;
+					break;
+				}
 			}
 		}
-	}
+	}, TStatId(), NULL, ENamedThreads::GameThread);
+	FTaskGraphInterface::Get().WaitUntilTaskCompletes(OnShowDialog);
+
 	return Retval;
 }
 

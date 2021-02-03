@@ -233,6 +233,12 @@ void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 	half3 ProjectedCaptureVector = GetOffSpecularPeakReflectionDir(MaterialParameters.WorldNormal, MaterialParameters.ReflectionVector, Roughness);
 
 #if HQ_REFLECTIONS
+
+	if (ReflectionPositionsAndRadii[ReflectionIndex].w == 0.0f)
+	{
+		return;
+	}
+	
 	half DistanceAlpha = 0.0;
 
 	half3 CaptureVector = MaterialParameters.AbsoluteWorldPosition - ReflectionPositionsAndRadii[ReflectionIndex].xyz;
@@ -466,7 +472,7 @@ inout half3 Color)
 	#define PIXELSHADER_EARLYDEPTHSTENCIL 	
 #endif
 
-half ComputeIndirect(FVertexFactoryInterpolantsVSToPS Interpolants, float3 DiffuseDir, FMobileShadingModelContext ShadingModelContext, out half IndirectIrradiance, out half3 Color)
+half ComputeIndirect(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, float3 DiffuseDir, FMobileShadingModelContext ShadingModelContext, out half IndirectIrradiance, out half3 Color)
 {
 	//To keep IndirectLightingCache conherence with PC, initialize the IndirectIrradiance to zero.
 	IndirectIrradiance = 0;
@@ -478,7 +484,7 @@ half ComputeIndirect(FVertexFactoryInterpolantsVSToPS Interpolants, float3 Diffu
 	uint LightmapDataIndex;
 	GetLightMapCoordinates(Interpolants, LightmapUV0, LightmapUV1, LightmapDataIndex);
 
-	half4 LightmapColor = GetLightMapColorLQ(LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir);
+	half4 LightmapColor = GetLightMapColorLQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir);
 	Color += LightmapColor.rgb * ShadingModelContext.DiffuseColor * View.IndirectLightingColorScale;
 	IndirectIrradiance = LightmapColor.a;
 #elif CACHED_POINT_INDIRECT_LIGHTING
@@ -671,13 +677,29 @@ void Main(
 	DiffuseDir = L;
 	ShadingModelContext.DiffuseColor = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
 #endif
+
+	VTPageTableResult LightmapVTPageTableResult = (VTPageTableResult)0.0f;
+#if LIGHTMAP_VT_ENABLED
+	{
+		float2 LightmapUV0, LightmapUV1;
+		uint LightmapDataIndex;
+		GetLightMapCoordinates(Interpolants, LightmapUV0, LightmapUV1, LightmapDataIndex);
+		LightmapVTPageTableResult = LightmapGetVTSampleInfo(LightmapUV0, LightmapDataIndex, SvPosition.xy);
+	}
+#endif
+
+#if LIGHTMAP_VT_ENABLED
+	// This must occur after CalcMaterialParameters(), which is required to initialize the VT feedback mechanism
+	// Lightmap request is always the first VT sample in the shader
+	StoreVirtualTextureFeedback(MaterialParameters.VirtualTextureFeedback, 0, LightmapVTPageTableResult.PackedRequest);
+#endif
+
 	half IndirectIrradiance;
 	half3 IndirectColor;
-	ComputeIndirect(Interpolants, DiffuseDir, ShadingModelContext, IndirectIrradiance, IndirectColor);
+	ComputeIndirect(LightmapVTPageTableResult, Interpolants, DiffuseDir, ShadingModelContext, IndirectIrradiance, IndirectColor);
 	Color += IndirectColor;
 
-	// Shadow
-	half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants, MaterialParameters).r;
+	half Shadow = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters).r;
 
 #if DEFERRED_SHADING_PATH
 	float4 OutGBufferD;

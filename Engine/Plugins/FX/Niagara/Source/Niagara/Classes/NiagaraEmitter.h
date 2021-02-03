@@ -250,6 +250,7 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual bool IsEditorOnly() const override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//End UObject Interface
 
 	bool IsEnabledOnPlatform(const FString& PlatformName)const;

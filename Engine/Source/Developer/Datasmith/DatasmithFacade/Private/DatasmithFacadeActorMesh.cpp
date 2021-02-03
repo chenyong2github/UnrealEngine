@@ -69,6 +69,11 @@ void FDatasmithFacadeActorMesh::RemoveMaterialOverride(
 	GetDatasmithMeshActorElement()->RemoveMaterialOverride(Material.GetMaterialIDElement());
 }
 
+void FDatasmithFacadeActorMesh::ResetMaterialOverrides()
+{
+	GetDatasmithMeshActorElement()->ResetMaterialOverrides();
+}
+
 TSharedRef<IDatasmithMeshActorElement> FDatasmithFacadeActorMesh::GetDatasmithMeshActorElement() const
 {
 	return StaticCastSharedRef<IDatasmithMeshActorElement>(InternalDatasmithElement);

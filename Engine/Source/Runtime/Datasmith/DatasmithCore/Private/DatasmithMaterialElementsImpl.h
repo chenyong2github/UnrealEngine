@@ -10,87 +10,44 @@
 template<typename>
 class FDatasmithMaterialExpressionImpl;
 
-/**
- * Class created for direct link serialization of PbrMaterial in 4.26 post-feature-freeze.
- * It's a temporary class to avoid changing the IDatasmithExpressionInput and it should be removed at a later date before 4.27 is released.
- */
-class FDatasmithExpressionInputElement : public IDatasmithExpressionInput, public IDatasmithElement {};
 
-/**
- * Class created for direct link serialization of PbrMaterial in 4.26 post-feature-freeze.
- * It's a temporary class to avoid changing the IDatasmithExpressionOutput and it should be removed at a later date before 4.27 is released.
- */
-class FDatasmithExpressionOutputElement : public IDatasmithExpressionOutput, public IDatasmithElement {};
-
-/**
- * Class created for direct link serialization of PbrMaterial in 4.26 post-feature-freeze.
- * It's a temporary class to avoid changing the IDatasmithMaterialExpression and it should be removed at a later date before 4.27 is released.
- */
-template< typename InterfaceType >
-class FDatasmithMaterialExpressionElement : public InterfaceType, public IDatasmithElement {};
-
-
-class FDatasmithExpressionInputImpl : public FDatasmithElementImpl < FDatasmithExpressionInputElement >
+class FDatasmithExpressionInputImpl : public FDatasmithElementImpl < IDatasmithExpressionInput >
 {
 public:
 	explicit FDatasmithExpressionInputImpl( const TCHAR* InInputName );
 	virtual ~FDatasmithExpressionInputImpl() = default;
 
-	virtual const TCHAR* GetInputName() const override { return GetName(); }
-
-	virtual IDatasmithMaterialExpression* GetExpression() override;
-	virtual const IDatasmithMaterialExpression* GetExpression() const override;
+	virtual IDatasmithMaterialExpression* GetExpression() override { return Expression.Edit().Get(); }
+	virtual const IDatasmithMaterialExpression* GetExpression() const { return Expression.View().Get(); }
 	virtual void SetExpression( IDatasmithMaterialExpression* InExpression ) override;
 
 	virtual int32 GetOutputIndex() const override { return OutputIndex; }
 	virtual void SetOutputIndex( int32 InOutputIndex ) override { OutputIndex = InOutputIndex; }
 
 protected:
-	TDatasmithReferenceProxy<IDatasmithElement> Expression;
-	TReflected<EDatasmithMaterialExpressionType, int32> ExpressionType;
+	TDatasmithReferenceProxy<IDatasmithMaterialExpression> Expression;
 	TReflected<int32> OutputIndex;
 };
 
-/**
- * Helper class created for direct link serialization of PbrMaterial in 4.26 post-feature-freeze.
- * This is a temporary class that should be removed at a later date before 4.27 is released.
- */
-class FDatasmithUEPbrInternalHelper
-{
-public:
-	/**
-	 * Those values are cast as EDatasmithElementType and are stored as the Element type.
-	 * Even if they are outside the declared enum values they are still inside the underlying type range, as so the C++ standard tells us the value won't be changed.
-	 */
-	constexpr static uint64 MaterialExpressionType = 1ull << 31;
-	constexpr static uint64 MaterialExpressionInputType = 1ull << 32;
-	constexpr static uint64 MaterialExpressionOutputType = 1ull << 33;
-
-	static TSharedPtr<IDatasmithElement> ConvertMaterialExpressionToElementSharedPtr( IDatasmithMaterialExpression* InExpression );
-	static IDatasmithMaterialExpression* ConvertElementToMaterialExpression( IDatasmithElement* InElement, EDatasmithMaterialExpressionType ExpressionType );
-	static TSharedPtr< IDatasmithMaterialExpression > CreateMaterialExpression( EDatasmithMaterialExpressionType MaterialExpression );
-};
-
-class FDatasmithExpressionOutputImpl : public FDatasmithElementImpl < FDatasmithExpressionOutputElement >
+class FDatasmithExpressionOutputImpl : public FDatasmithElementImpl < IDatasmithExpressionOutput >
 {
 public:
 	explicit FDatasmithExpressionOutputImpl( const TCHAR* InOutputName )
-		: FDatasmithElementImpl< FDatasmithExpressionOutputElement >( InOutputName, static_cast< const EDatasmithElementType >(FDatasmithUEPbrInternalHelper::MaterialExpressionOutputType ) )
+		: FDatasmithElementImpl< IDatasmithExpressionOutput >( InOutputName, EDatasmithElementType::MaterialExpressionOutput )
 	{}
-
-	virtual const TCHAR* GetOutputName() const override { return GetName(); }
-	virtual void SetOutputName( const TCHAR* InOutputName ) override { SetName( InOutputName ); }
 };
 
 template< typename InterfaceType >
-class FDatasmithMaterialExpressionImpl : public FDatasmithElementImpl < FDatasmithMaterialExpressionElement<InterfaceType> >, public TSharedFromThis< FDatasmithMaterialExpressionImpl< InterfaceType > >
+class FDatasmithMaterialExpressionImpl : public FDatasmithElementImpl< InterfaceType >, public TSharedFromThis< FDatasmithMaterialExpressionImpl< InterfaceType > >
 {
 public:
-	FDatasmithMaterialExpressionImpl( EDatasmithMaterialExpressionType InSubType );
+	explicit FDatasmithMaterialExpressionImpl( EDatasmithMaterialExpressionType InSubType );
 
 	virtual ~FDatasmithMaterialExpressionImpl() = default;
 
-	virtual EDatasmithMaterialExpressionType GetType() const override { return static_cast<EDatasmithMaterialExpressionType>( this->Subtype.Get( this->Store ) ); }
+	virtual EDatasmithMaterialExpressionType GetExpressionType() const override { return static_cast<EDatasmithMaterialExpressionType>( this->Subtype.Get( this->Store ) ); }
+
+	virtual bool IsSubType( const EDatasmithMaterialExpressionType ExpressionType ) const override { return FDatasmithElementImpl< InterfaceType >::IsSubTypeInternal( (uint64)ExpressionType ); }
 
 	virtual void ConnectExpression( IDatasmithExpressionInput& ExpressionInput ) override
 	{
@@ -224,15 +181,15 @@ class FDatasmithMaterialExpressionFlattenNormalImpl : public FDatasmithMaterialE
 public:
 	FDatasmithMaterialExpressionFlattenNormalImpl();
 
-	virtual IDatasmithExpressionInput& GetNormal() override { return *Normal.Inner.Get(); }
-	virtual const IDatasmithExpressionInput& GetNormal() const override { return *Normal.Inner.Get(); }
+	virtual IDatasmithExpressionInput& GetNormal() override { return *Normal.Edit(); }
+	virtual const IDatasmithExpressionInput& GetNormal() const override { return *Normal.View(); }
 
-	virtual IDatasmithExpressionInput& GetFlatness() override { return *Flatness.Inner.Get(); }
-	virtual const IDatasmithExpressionInput& GetFlatness() const override { return *Flatness.Inner.Get(); }
+	virtual IDatasmithExpressionInput& GetFlatness() override { return *Flatness.Edit(); }
+	virtual const IDatasmithExpressionInput& GetFlatness() const override { return *Flatness.View(); }
 
 	virtual int32 GetInputCount() const override { return 2; }
-	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return Index == 0 ? Normal.Inner.Get() : Flatness.Inner.Get(); }
-	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Index == 0 ? Normal.Inner.Get() : Flatness.Inner.Get(); }
+	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return Index == 0 ? Normal.Edit().Get() : Flatness.Edit().Get(); }
+	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Index == 0 ? Normal.View().Get() : Flatness.View().Get(); }
 
 protected:
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Normal;
@@ -317,23 +274,63 @@ protected:
 	TReflected<FString> FunctionPathName;
 };
 
+class FDatasmithMaterialExpressionCustomImpl : public FDatasmithMaterialExpressionImpl< IDatasmithMaterialExpressionCustom >
+{
+public:
+	FDatasmithMaterialExpressionCustomImpl();
+
+	virtual int32 GetInputCount() const override { return Inputs.Num(); }
+	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override;
+	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index].Get() : nullptr; }
+
+	virtual void SetCode(const TCHAR* InCode) override { Code = InCode; }
+	virtual const TCHAR* GetCode() const override { return *Code.Get(this->Store); }
+
+	virtual void SetDescription(const TCHAR* InDescription) override { Description = InDescription; }
+	virtual const TCHAR* GetDescription() const override { return *Description.Get(this->Store); }
+
+	virtual void SetOutputType(EDatasmithShaderDataType InOutputType) override { OutputType = InOutputType; }
+	virtual EDatasmithShaderDataType GetOutputType() const override { return OutputType; }
+
+	virtual int32 GetIncludeFilePathCount() const override { return IncludeFilePaths.Get(Store).Num(); }
+	virtual void AddIncludeFilePath(const TCHAR* Path) override { IncludeFilePaths.Edit(Store).Add(Path); }
+	virtual const TCHAR* GetIncludeFilePath(int32 Index) const override { return IncludeFilePaths.Get(Store).IsValidIndex(Index) ? *IncludeFilePaths.Get(Store)[Index] : TEXT(""); }
+
+	virtual int32 GetAdditionalDefineCount() const override { return Defines.Get(Store).Num(); }
+	virtual void AddAdditionalDefine(const TCHAR* Define) override { Defines.Edit(Store).Add(Define); }
+	virtual const TCHAR* GetAdditionalDefine(int32 Index) const override { return Defines.Get(Store).IsValidIndex(Index) ? *Defines.Get(Store)[Index] : TEXT(""); }
+
+	virtual int32 GetArgumentNameCount() const override { return ArgNames.Get(Store).Num(); }
+	virtual void SetArgumentName(int32 ArgIndex, const TCHAR* ArgName) override;
+	virtual const TCHAR* GetArgumentName(int32 Index) const override { return ArgNames.Get(Store).IsValidIndex(Index) ? *ArgNames.Get(Store)[Index] : TEXT("");}
+
+protected:
+	TReflected<FString> Code;
+	TReflected<FString> Description;
+	TReflected<EDatasmithShaderDataType, uint32> OutputType = EDatasmithShaderDataType::Float1;
+	TReflected<TArray<FString>> IncludeFilePaths;
+	TReflected<TArray<FString>> Defines;
+	TReflected<TArray<FString>> ArgNames;
+	TDatasmithReferenceArrayProxy< FDatasmithExpressionInputImpl > Inputs;
+};
+
 class DATASMITHCORE_API FDatasmithUEPbrMaterialElementImpl : public FDatasmithBaseMaterialElementImpl< IDatasmithUEPbrMaterialElement >
 {
 public:
 	explicit FDatasmithUEPbrMaterialElementImpl( const TCHAR* InName );
 	virtual ~FDatasmithUEPbrMaterialElementImpl() = default;
 
-	virtual IDatasmithExpressionInput& GetBaseColor() override { return *BaseColor.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetMetallic() override { return *Metallic.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetSpecular() override { return *Specular.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetRoughness() override { return *Roughness.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetEmissiveColor() override { return *EmissiveColor.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetOpacity() override { return *Opacity.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetNormal() override { return *Normal.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetWorldDisplacement() override { return *WorldDisplacement.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetRefraction() override { return *Refraction.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetAmbientOcclusion() override { return *AmbientOcclusion.Inner.Get(); }
-	virtual IDatasmithExpressionInput& GetMaterialAttributes() override { return *MaterialAttributes.Inner.Get(); }
+	virtual IDatasmithExpressionInput& GetBaseColor() override { return *BaseColor.Edit(); }
+	virtual IDatasmithExpressionInput& GetMetallic() override { return *Metallic.Edit(); }
+	virtual IDatasmithExpressionInput& GetSpecular() override { return *Specular.Edit(); }
+	virtual IDatasmithExpressionInput& GetRoughness() override { return *Roughness.Edit(); }
+	virtual IDatasmithExpressionInput& GetEmissiveColor() override { return *EmissiveColor.Edit(); }
+	virtual IDatasmithExpressionInput& GetOpacity() override { return *Opacity.Edit(); }
+	virtual IDatasmithExpressionInput& GetNormal() override { return *Normal.Edit(); }
+	virtual IDatasmithExpressionInput& GetWorldDisplacement() override { return *WorldDisplacement.Edit(); }
+	virtual IDatasmithExpressionInput& GetRefraction() override { return *Refraction.Edit(); }
+	virtual IDatasmithExpressionInput& GetAmbientOcclusion() override { return *AmbientOcclusion.Edit(); }
+	virtual IDatasmithExpressionInput& GetMaterialAttributes() override { return *MaterialAttributes.Edit(); }
 
 	virtual int GetBlendMode() const override {return BlendMode; }
 	virtual void SetBlendMode( int InBlendMode ) override { BlendMode = InBlendMode; }
@@ -350,7 +347,7 @@ public:
 	virtual float GetOpacityMaskClipValue() const override { return OpacityMaskClipValue; }
 	virtual void SetOpacityMaskClipValue(float InClipValue) override { OpacityMaskClipValue = InClipValue; }
 
-	virtual int32 GetExpressionsCount() const override { return Expressions.Inner.Num(); }
+	virtual int32 GetExpressionsCount() const override { return Expressions.View().Num(); }
 	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) override;
 	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const override;
 
@@ -375,14 +372,12 @@ protected:
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > AmbientOcclusion;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > MaterialAttributes;
 
-	TDatasmithReferenceArrayProxy< IDatasmithElement > Expressions;
-	TReflected<TArray<EDatasmithMaterialExpressionType>, TArray<int32>> ExpressionTypes;
+	TDatasmithReferenceArrayProxy< IDatasmithMaterialExpression > Expressions;
 
 	TReflected<int32> BlendMode;
 	TReflected<bool> bTwoSided;
 	TReflected<bool> bUseMaterialAttributes;
 	TReflected<bool> bMaterialFunctionOnly;
-
 	TReflected<float> OpacityMaskClipValue;
 
 	TReflected<FString> ParentLabel;
@@ -391,7 +386,7 @@ protected:
 
 template< typename InterfaceType >
 FDatasmithMaterialExpressionImpl< InterfaceType >::FDatasmithMaterialExpressionImpl( EDatasmithMaterialExpressionType InSubType )
-	: FDatasmithElementImpl< FDatasmithMaterialExpressionElement< InterfaceType > >( nullptr, static_cast< const EDatasmithElementType >(FDatasmithUEPbrInternalHelper::MaterialExpressionType ), (uint64)InSubType )
+	: FDatasmithElementImpl< InterfaceType >( nullptr, EDatasmithElementType::MaterialExpression, (uint64)InSubType )
 	, DefaultOutputIndex( 0 )
 {
 	this->RegisterReferenceProxy( Outputs, "Outputs" );

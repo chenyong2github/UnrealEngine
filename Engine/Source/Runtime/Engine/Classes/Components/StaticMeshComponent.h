@@ -176,8 +176,8 @@ class ENGINE_API UStaticMeshComponent : public UMeshComponent
 	int32 ForcedLodModel;
 
 	/** LOD that was desired for rendering this StaticMeshComponent last frame. */
-	UPROPERTY()
-	int32 PreviousLODLevel;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated and no longer supported."))
+	int32 PreviousLODLevel_DEPRECATED;
 
 	/** 
 	 * Specifies the smallest LOD that will be used for this component.  

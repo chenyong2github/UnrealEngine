@@ -6677,6 +6677,36 @@ const TMap<FWaveInstance*, FSoundSource*>& FAudioDevice::GetWaveInstanceSourceMa
 	return WaveInstanceSourceMap;
 }
 
+FName FAudioDevice::GetAudioStateProperty(const FName& PropertyName) const
+{
+	check(IsInAudioThread());
+	if (const FName* Property = AudioStateProperties.Find(PropertyName))
+	{
+		return *Property;
+	}
+	
+	return FName();
+}
+
+void FAudioDevice::SetAudioStateProperty(const FName& PropertyName, const FName& PropertyValue)
+{
+	if (!IsInAudioThread())
+	{
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetAudioStateProperty"), STAT_SetAudioStateProperty, STATGROUP_AudioThreadCommands);
+
+		FAudioDevice* AudioDevice = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDevice, PropertyName, PropertyValue]()
+		{
+			AudioDevice->SetAudioStateProperty(PropertyName, PropertyValue);
+		}, GET_STATID(STAT_SetAudioStateProperty));
+
+		return;
+	}
+
+	FName& Property = AudioStateProperties.FindOrAdd(PropertyName);
+	Property = PropertyValue;
+}
+
 bool FAudioDevice::ShouldUseAttenuation(const UWorld* World) const
 {
 	// We use attenuation settings:

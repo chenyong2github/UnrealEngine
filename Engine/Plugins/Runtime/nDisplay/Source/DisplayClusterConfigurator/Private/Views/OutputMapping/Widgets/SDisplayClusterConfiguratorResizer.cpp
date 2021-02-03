@@ -15,7 +15,10 @@ void SDisplayClusterConfiguratorResizer::Construct(const FArguments& InArgs, con
 {
 	ToolkitPtr = InToolkit;
 	BaseNodePtr = InBaseNode;
+	CurrentAspectRatio = 1;
 	bResizing = false;
+
+	IsFixedAspectRatio = InArgs._IsFixedAspectRatio;
 
 	SetCursor(EMouseCursor::GrabHandClosed);
 
@@ -31,6 +34,21 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseButtonDown(const FGeometry& My
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		bResizing = true;
+
+		// Store the current aspect ratio here so that it isn't suspectible to drift due to float->int conversion while dragging.
+		TSharedPtr<SDisplayClusterConfiguratorBaseNode> BaseNode = BaseNodePtr.Pin();
+		check(BaseNode.IsValid());
+
+		const FVector2D CurrentNodeSize = BaseNode->GetSize();
+		if (CurrentNodeSize.Y != 0)
+		{
+			CurrentAspectRatio = CurrentNodeSize.X / CurrentNodeSize.Y;
+		}
+		else
+		{
+			CurrentAspectRatio = 1;
+		}
+
 		return FReply::Handled().CaptureMouse(SharedThis(this));
 	}
 
@@ -60,6 +78,23 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 
 		FVector2D NewNodeSize = MouseEvent.GetScreenSpacePosition() - BaseNode->GetTickSpaceGeometry().GetAbsolutePosition();
 
+		bool bIsFixedAspectRatio = IsFixedAspectRatio.Get(false);
+		if (bIsFixedAspectRatio)
+		{
+			// If the aspect ratio is fixed, first get the node's current size to compute the ratio from,
+			// then force the new node size to match that aspect ratio.
+			const FVector2D CurrentNodeSize = BaseNode->GetSize();
+
+			if (NewNodeSize.X > NewNodeSize.Y * CurrentAspectRatio)
+			{
+				NewNodeSize.X = NewNodeSize.Y * CurrentAspectRatio;
+			}
+			else
+			{
+				NewNodeSize.Y = NewNodeSize.X / CurrentAspectRatio;
+			}
+		}
+
 		NewNodeSize /= GraphPanel->GetZoomAmount();
 
 		// Never node size less then 0
@@ -72,7 +107,7 @@ FReply SDisplayClusterConfiguratorResizer::OnMouseMove(const FGeometry& MyGeomet
 			NewNodeSize.Y = 0.f;
 		}
 
-		BaseNode->SetNodeSize(NewNodeSize);
+		BaseNode->SetNodeSize(NewNodeSize, bIsFixedAspectRatio);
 
 		return FReply::Handled();
 	}

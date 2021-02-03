@@ -241,8 +241,14 @@ public:
 	/** An offset/seek time to play this wave instance. */
 	float StartTime;
 
-	/** Whether or not to only output this wave instances audio to buses only. Audio mixer only. */
-	uint32 bOutputToBusOnly:1;
+	/** Whether or not to enable sending this audio's output to buses.*/
+	uint32 bEnableBusSends : 1;
+
+	/** Whether or not to render to the main submix */
+	uint32 bEnableBaseSubmix : 1;
+
+	/** Whether or not to enable Submix Sends in addition to the Main Submix*/
+	uint32 bEnableSubmixSends : 1;
 
 	/** Set to true if the sound nodes state that the radio filter should be applied */
 	uint32 bApplyRadioFilter:1;

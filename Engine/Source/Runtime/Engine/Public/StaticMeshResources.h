@@ -654,6 +654,8 @@ public:
 
 	uint8 CurrentFirstLODIdx;
 
+	uint8 LODBiasModifier;
+
 #if WITH_EDITORONLY_DATA
 
 	/** The derived data key associated with this render data. */

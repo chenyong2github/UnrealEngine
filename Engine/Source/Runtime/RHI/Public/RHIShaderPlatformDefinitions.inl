@@ -6,7 +6,7 @@
 
 #pragma once
 
-static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShaderPlatform)
+static FText GetFriendlyShaderPlatformName(const EShaderPlatform InShaderPlatform)
 {
 	switch (InShaderPlatform)
 	{
@@ -24,20 +24,6 @@ static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShader
 	case SP_METAL_MRT:
 	{
 		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Metal_SM5_loc", "Metal SM5");
-		return Description;
-	}
-	break;
-
-	case SP_PS4:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Playstation_4_loc", "PlayStation 4");
-		return Description;
-	}
-	break;
-
-	case SP_XBOXONE_D3D12:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "XBox_One_loc", "XBox One");
 		return Description;
 	}
 	break;
@@ -109,6 +95,10 @@ static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShader
 	break;
 
 	default:
+		if (FStaticShaderPlatformNames::IsStaticPlatform(InShaderPlatform))
+		{
+			return FDataDrivenShaderPlatformInfo::GetFriendlyName(InShaderPlatform);
+		}
 		break;
 	};
 

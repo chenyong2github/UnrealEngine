@@ -44,7 +44,7 @@ public:
 	virtual int8 GetEvaluationFieldVersion() const override;
 	
 #if WITH_EDITOR
-	virtual void OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) override;
+	virtual EMovieSceneSectionMovedResult OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) override;
 #endif
 
 #if WITH_EDITORONLY_DATA

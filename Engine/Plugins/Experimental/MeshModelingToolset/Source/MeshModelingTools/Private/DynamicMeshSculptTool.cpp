@@ -1422,6 +1422,9 @@ FInputRayHit UDynamicMeshSculptTool::BeginHoverSequenceHitTest(const FInputDevic
 
 bool UDynamicMeshSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
+	// 4.26 HOTFIX: update LastWorldRay position so that we have it for updating WorkPlane position
+	UMeshSurfacePointTool::LastWorldRay = DevicePos.WorldRay;
+	
 	PendingStampType = SculptProperties->PrimaryBrushType;
 
 	if (bInDrag)
@@ -1503,7 +1506,23 @@ void UDynamicMeshSculptTool::OnTick(float DeltaTime)
 
 	if (PendingWorkPlaneUpdate != EPendingWorkPlaneUpdate::NoUpdatePending)
 	{
-		SetFixedSculptPlaneFromWorldPos((FVector)LastBrushPosWorld, (FVector)LastBrushPosNormalWorld, PendingWorkPlaneUpdate);
+		// raycast into scene and current sculpt and place plane at closest hit point
+		FRay CursorWorldRay = UMeshSurfacePointTool::LastWorldRay;
+		FHitResult Result;
+		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, CursorWorldRay);
+		FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(CursorWorldRay.Origin), CurTargetTransform.InverseTransformVector(CursorWorldRay.Direction));
+		LocalRay.Direction.Normalize();
+		bool bObjectHit = (FindHitSculptMeshTriangle(LocalRay) != IndexConstants::InvalidID);
+		if (bWorldHit &&
+			(bObjectHit == false || (CursorWorldRay.GetParameter(Result.ImpactPoint) < CursorWorldRay.GetParameter((FVector)LastBrushPosWorld))))
+		{
+			SetFixedSculptPlaneFromWorldPos(Result.ImpactPoint, Result.ImpactNormal, PendingWorkPlaneUpdate);
+		}
+		else
+		{
+			SetFixedSculptPlaneFromWorldPos((FVector)LastBrushPosWorld, (FVector)LastBrushPosNormalWorld, PendingWorkPlaneUpdate);
+		}
+
 		PendingWorkPlaneUpdate = EPendingWorkPlaneUpdate::NoUpdatePending;
 	}
 

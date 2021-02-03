@@ -3,7 +3,8 @@
 #include "GameFeatureAction_DataRegistrySource.h"
 #include "Engine/AssetManager.h"
 #include "GameFeaturesSubsystemSettings.h"
-#include "DataRegistryId.h"
+#include "GameFeaturesSubsystem.h"
+#include "GameFeaturesProjectPolicies.h"
 #include "DataRegistrySubsystem.h"
 #include "Engine/Engine.h"
 
@@ -16,59 +17,50 @@ void UGameFeatureAction_DataRegistrySource::OnGameFeatureActivating()
 	UDataRegistrySubsystem* DataRegistrySubsystem = UDataRegistrySubsystem::Get();
 	if (ensure(DataRegistrySubsystem))
 	{
-		bool bIsServer = IsRunningDedicatedServer();
-		//@TODO: GameFeaturePluginEnginePush: RIP listen servers (don't intend to add support for them, but we should surface that and warn if the world is NM_ListenServer or something like that)
-		bool bIsClient = !bIsServer;
-#if WITH_EDITOR
-		// If we have any server world contexts, we should act like we are the server
-		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-		{
-			UWorld* World = WorldContext.World();
-			UGameInstance* GameInstance = WorldContext.OwningGameInstance;
+		UGameFeaturesProjectPolicies& Policy = UGameFeaturesSubsystem::Get().GetPolicy<UGameFeaturesProjectPolicies>();
+		bool bIsClient, bIsServer;
 
-			if ((GameInstance != nullptr) && (World != nullptr) && World->IsGameWorld())
-			{
-				checkSlow(GameInstance->GetWorldContext());
-				if (GameInstance->GetWorldContext()->RunAsDedicated)
-				{
-					bIsServer = true;
-				}
-				else
-				{
-					bIsClient = true;
-				}
-			}
-		}
-#endif
+		Policy.GetGameFeatureLoadingMode(bIsClient, bIsServer);
 
 		for (const FDataRegistrySourceToAdd& RegistrySource : SourcesToAdd)
 		{
 			const bool bShouldAdd = (bIsServer && RegistrySource.bServerSource) || (bIsClient && RegistrySource.bClientSource);
 			if(bShouldAdd)
 			{
+				TMap<FDataRegistryType, TArray<FSoftObjectPath>> AssetMap;
+				TArray<FSoftObjectPath>& AssetList = AssetMap.Add(RegistrySource.RegistryToAddTo);
+
 				if (!RegistrySource.DataTableToAdd.IsNull())
 				{
-					FAssetData DataTableToRegister;
-					if (!UAssetManager::Get().GetAssetDataForPath(RegistrySource.DataTableToAdd.ToSoftObjectPath(), DataTableToRegister))
-					{
-						// Use in memory one
-						DataTableToRegister = FAssetData(DataTableToRegister.GetAsset());
-					}
-
-					DataRegistrySubsystem->RegisterSpecificAsset(RegistrySource.RegistryToAddTo, DataTableToRegister, RegistrySource.AssetPriority);
+					AssetList.Add(RegistrySource.DataTableToAdd.ToSoftObjectPath());
 				}
 
 				if (!RegistrySource.CurveTableToAdd.IsNull())
 				{
-					FAssetData CurveTableDataToRegister;
-					if (!UAssetManager::Get().GetAssetDataForPath(RegistrySource.CurveTableToAdd.ToSoftObjectPath(), CurveTableDataToRegister))
+					AssetList.Add(RegistrySource.CurveTableToAdd.ToSoftObjectPath());
+				}
+
+#if !UE_BUILD_SHIPPING
+				// If we're after data registry startup, then this asset should already exist in memory from either the bundle preload or game-specific logic
+				if (DataRegistrySubsystem->AreRegistriesInitialized())
+				{
+					if (!RegistrySource.DataTableToAdd.IsNull() && !RegistrySource.DataTableToAdd.IsValid())
 					{
-						// Use in memory one
-						CurveTableDataToRegister = FAssetData(CurveTableDataToRegister.GetAsset());
+						UE_LOG(LogGameFeatures, Log, TEXT("OnGameFeatureActivating %s: DataRegistry source asset %s was not loaded before activation, this may cause a long hitch"), *GetPathName(), *RegistrySource.DataTableToAdd.ToString())
 					}
 
-					DataRegistrySubsystem->RegisterSpecificAsset(RegistrySource.RegistryToAddTo, CurveTableDataToRegister, RegistrySource.AssetPriority);
+					if (!RegistrySource.CurveTableToAdd.IsNull() && !RegistrySource.CurveTableToAdd.IsValid())
+					{
+						UE_LOG(LogGameFeatures, Log, TEXT("OnGameFeatureActivating %s: DataRegistry source asset %s was not loaded before activation, this may cause a long hitch"), *GetPathName(), *RegistrySource.DataTableToAdd.ToString())
+					}
 				}
+
+				// @TODO: If game features get an editor refresh function, this code should be changed to handle it
+				// @TODO: Registry sources that are late-loaded may not show correct picker UI in editor
+#endif
+
+				// This will either load the sources immediately, or schedule them for load when registries are initialized
+				DataRegistrySubsystem->PreregisterSpecificAssets(AssetMap, RegistrySource.AssetPriority);
 			}
 		}
 	}
@@ -102,6 +94,9 @@ void UGameFeatureAction_DataRegistrySource::AddAdditionalAssetBundleData(FAssetB
 	Super::AddAdditionalAssetBundleData(AssetBundleData);
 	for (const FDataRegistrySourceToAdd& RegistrySource : SourcesToAdd)
 	{
+		// Register table assets for preloading, this will only work if the game uses client/server bundle states
+		// @TODO: If another way of preloading data is added, client+server sources should use that instead
+
 		if(!RegistrySource.DataTableToAdd.IsNull())
 		{
 			const FSoftObjectPath DataTableSourcePath = RegistrySource.DataTableToAdd.ToSoftObjectPath();

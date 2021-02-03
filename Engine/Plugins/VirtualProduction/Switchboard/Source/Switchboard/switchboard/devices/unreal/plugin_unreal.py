@@ -235,6 +235,12 @@ class DeviceUnreal(Device):
             value="", 
             tool_tip=f'ExecCmds to be passed. No need for outer double quotes.',
         ),
+        'dp_cvars': Setting(
+            attr_name='dp_cvars',
+            nice_name="DPCVars",
+            value='',
+            tool_tip="Device profile console variables (comma separated)."
+        ),
         'port': Setting(
             attr_name="port", 
             nice_name="Listener Port", 
@@ -333,6 +339,7 @@ class DeviceUnreal(Device):
             Device.csettings['is_recording_device'],
             DeviceUnreal.csettings['command_line_arguments'],
             DeviceUnreal.csettings['exec_cmds'],
+            DeviceUnreal.csettings['dp_cvars'],
             DeviceUnreal.csettings['max_gpu_count'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
@@ -831,7 +838,6 @@ class DeviceUnreal(Device):
         return vproles, missing_roles
 
     def generate_unreal_command_line_args(self, map_name):
-
         command_line_args = f'{DeviceUnreal.csettings["command_line_arguments"].get_value(self.name)}'
         if CONFIG.MUSERVER_AUTO_JOIN:
             command_line_args += f' -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name}'
@@ -839,6 +845,9 @@ class DeviceUnreal(Device):
         exec_cmds = f'{DeviceUnreal.csettings["exec_cmds"].get_value(self.name)}'.strip()
         if len(exec_cmds):
             command_line_args += f' -ExecCmds="{exec_cmds}" '
+
+        # DPCVars may need to be appended to, so we don't concatenate them until the end.
+        dp_cvars = f'{DeviceUnreal.csettings["dp_cvars"].get_value(self.name)}'.strip()
 
         selected_roles = self.setting_roles.get_value()
         unsupported_roles = [role for role in selected_roles if role not in self.setting_roles.possible_values]
@@ -863,8 +872,14 @@ class DeviceUnreal(Device):
         try:
             if int(max_gpu_count) > 1:
                 command_line_args += f" -MaxGPUCount={max_gpu_count} "
+                if len(dp_cvars):
+                    dp_cvars += ','
+                dp_cvars += 'r.AllowMultiGPUInEditor=1'
         except ValueError:
             LOGGER.warning(f"Invalid Number of GPUs '{max_gpu_count}'")
+
+        if len(dp_cvars):
+            command_line_args += f' -DPCVars="{dp_cvars}" '
 
         args = f'"{CONFIG.UPROJECT_PATH.get_value(self.name)}" {map_name} {command_line_args}'
         return args
@@ -886,7 +901,6 @@ class DeviceUnreal(Device):
             prog_name=program_name, 
             caller=self.name, 
             update_clients_with_stdout=False,
-            force_window_focus = True,
         )
 
         self.program_start_queue.add(
@@ -926,8 +940,7 @@ class DeviceUnreal(Device):
         self.program_start_queue.update_running_program(prog=prog)
 
     def on_program_started(self, message):
-        ''' Handler of the "start program" command
-        '''
+        ''' Handler of the "start program" command '''
         # check if the operation failed
         if not message['bAck']:
             # when we send the start program command, the listener will use the message uuid as program uuid
@@ -1104,8 +1117,7 @@ class DeviceUnreal(Device):
 
 
     def on_program_killed(self, message):
-        ''' Handler of killed program. Expect on_program_ended for anything other than a fail.
-        '''
+        ''' Handler of killed program. Expect on_program_ended for anything other than a fail. '''
         if not message['bAck']:
 
             # remove from list of puuids (if it exists)
@@ -1181,29 +1193,33 @@ class DeviceUnreal(Device):
         ''' Message expected to be received upon connection with the listener.
         It contains the state of the listener. Particularly useful when Switchboard reconnects.
         '''
-        
+
         self.program_start_queue.clear_running_programs()
 
         try:
-            version = message['version']
-
-            major = (version >> 16) & 0xFF
-            minor = (version >>  8) & 0xFF
-            patch = (version >>  0) & 0xFF
-
-            LOGGER.info(f"{self.name} Connected to listener version {major}.{minor}.{patch}")
-
-            desired_major = 0x01
-            min_minor = 0x02
-
-            if not((major == desired_major) and (minor >= min_minor)):
-                LOGGER.error(f"This version of the listener is incompatible with Switchboard. "\
-                             f"We expected {desired_major}.>={min_minor}.xx. Disconnecting...")
-                self.disconnect_listener()
-
-        except KeyError:
-            LOGGER.error(f"This unversioned listener is TOO OLD. Disconnecting...")
+            version = int(message['version'])
+        except (KeyError, ValueError):
+            LOGGER.error(f"Unable to parse listener version. Disconnecting...")
             self.disconnect_listener()
+            return
+
+        major = (version >> 16) & 0xFF
+        minor = (version >>  8) & 0xFF
+        patch = (version >>  0) & 0xFF
+
+        LOGGER.info(f"{self.name} Connected to listener version {major}.{minor}.{patch}")
+
+        desired_major = 0x01
+        min_minor = 0x03
+
+        if not((major == desired_major) and (minor >= min_minor)):
+            LOGGER.error(f"This version of the listener is incompatible with Switchboard. "\
+                         f"We expected {desired_major}.>={min_minor}.xx. Disconnecting...")
+            self.disconnect_listener()
+
+        self.os_version_label = message.get('osVersionLabel', '')
+        self.os_version_label_sub = message.get('osVersionLabelSub', '')
+        self.os_version_number = message.get('osVersionNumber', '')
 
         # update list of running processes
         #

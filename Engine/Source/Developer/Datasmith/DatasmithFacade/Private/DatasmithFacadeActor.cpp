@@ -179,30 +179,6 @@ void FDatasmithFacadeActor::SetIsComponent(
 	GetDatasmithActorElement()->SetIsAComponent(bInIsComponent);
 }
 
-void FDatasmithFacadeActor::SetAsSelector(
-	bool bInIsASelector
-)
-{
-	GetDatasmithActorElement()->SetAsSelector(bInIsASelector);
-}
-
-bool FDatasmithFacadeActor::IsASelector() const
-{
-	return GetDatasmithActorElement()->IsASelector();
-}
-
-void FDatasmithFacadeActor::SetSelectionIndex(
-	int32 InSelectionID
-)
-{
-	GetDatasmithActorElement()->SetSelectionIndex(InSelectionID);
-}
-
-int32 FDatasmithFacadeActor::GetSelectionIndex() const
-{
-	return GetDatasmithActorElement()->GetSelectionIndex();
-}
-
 void FDatasmithFacadeActor::SetVisibility(
 	bool bInVisibility
 )
@@ -439,15 +415,6 @@ FTransform FDatasmithFacadeActor::ConvertTransform(
 		: ConvertPosition(InSourceMatrix[12], InSourceMatrix[13], InSourceMatrix[14]);
 
 	return FTransform(TransformRotation, TransformTranslation, TransformScale3D);
-}
-
-
-void FDatasmithFacadeActor::BuildScene(
-	FDatasmithFacadeScene& SceneRef
-)
-{
-	// Create and initialize a Datasmith actor hierarchy.
-	SceneRef.GetScene()->AddActor(GetDatasmithActorElement());
 }
 
 TSharedRef<IDatasmithActorElement> FDatasmithFacadeActor::GetDatasmithActorElement() const

@@ -734,6 +734,16 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 				MeshActor->RegisterAllComponents();
 			}
 
+			//Delete binding from default animating rig
+			FGuid CompGuid = WeakSequencer.Pin()->FindObjectId(*(MeshActor->GetSkeletalMeshComponent()), WeakSequencer.Pin()->GetFocusedTemplateID());
+			if (CompGuid.IsValid())
+			{
+				if (!MovieScene->RemovePossessable(CompGuid))
+				{
+					MovieScene->RemoveSpawnable(CompGuid);
+				}
+			}
+
 			UMovieSceneControlRigParameterTrack* Track = MovieScene->AddTrack<UMovieSceneControlRigParameterTrack>(ActorTrackGuid);
 			if (Track)
 			{
@@ -758,6 +768,7 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 				Track->SetTrackName(FName(*ObjectName));
 				Track->SetDisplayName(FText::FromString(ObjectName));
 				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(NewSection);
+			
 				FBakeToControlDelegate BakeCallback = FBakeToControlDelegate::CreateLambda([this, WeakSequencer, LevelSequence, 
 					AnimSequence, MovieScene, ControlRig, ParamSection,ActorTrackGuid, Skeleton]
 				(bool bKeyReduce, float KeyReduceTolerance)

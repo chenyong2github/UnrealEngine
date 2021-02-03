@@ -916,7 +916,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			RayTracingInstance.Materials.Add(MeshBatch);
 		}
 
-		if (RayTracingInstance.Materials.Num() == 0)
+		if (RayTracingInstance.Materials.Num() == 0 || LODModel.Sections.Num() != RayTracingInstance.Materials.Num())
 		{
 			continue;
 		}

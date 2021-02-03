@@ -9,7 +9,7 @@ template<typename OptionalType>
 struct TOptional;
 
 // So we can construct TNonNullPtrs
-enum class EDefaultConstruct { UnsafeDoNotUse };
+enum class EDefaultConstructNonNullPtr { UnsafeDoNotUse };
 
 /**
  * TNonNullPtr is a non-nullable, non-owning, raw/naked/unsafe pointer.
@@ -22,7 +22,7 @@ public:
 	/**
 	 * Hack that can be used under extraordinary circumstances
 	 */
-	FORCEINLINE TNonNullPtr(EDefaultConstruct)
+	FORCEINLINE TNonNullPtr(EDefaultConstructNonNullPtr)
 		: Object(nullptr)
 	{	
 	}

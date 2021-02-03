@@ -27,6 +27,32 @@
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixPixelComponent"
 
+
+namespace
+{
+	/** Helper function to get the correct word size of an attribute in 4.26.1 */
+	uint8 MatrixCellGetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName)
+	{
+		if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+		{
+			if (FixturePatch->CanReadActiveMode())
+			{
+				const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
+
+				const FDMXFixtureFunction* FunctionPtr = Mode.Functions.FindByPredicate([&AttributeName](const FDMXFixtureFunction& Function) {
+					return Function.Attribute.Name == AttributeName;
+					});
+				if (FunctionPtr)
+				{
+					return FixtureType->NumChannelsToOccupy(FunctionPtr->DataType);
+				}
+			}
+		}
+
+		return 1;
+	}
+}
+
 const FVector2D UDMXPixelMappingMatrixCellComponent::MixPixelSize = FVector2D(1.f);
 
 UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
@@ -217,60 +243,70 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 	{
 		if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
 		{
-			int32 ActiveMode = FixturePatch->ActiveMode;
-
-			check(ParentFixtureType->Modes.IsValidIndex(ActiveMode));
-
-			const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[ActiveMode];
-			const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
-
-			// If there are any cell attribures
-			int32 NumChannels = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
-			if (NumChannels > 0)
+			if (FixturePatch->CanReadActiveMode())
 			{
-				TArray<FColor> LocalSurfaceBuffer;
-				GetSurfaceBuffer([this, &LocalSurfaceBuffer](const TArray<FColor>& InSurfaceBuffer, const FIntRect& InSurfaceRect)
-					{
-						LocalSurfaceBuffer = InSurfaceBuffer;
-					});
+				const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[FixturePatch->ActiveMode];
+				const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
 
-				if (LocalSurfaceBuffer.Num() == 1)
+				// If there are any cell attribures
+				int32 NumChannels = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
+				if (NumChannels > 0)
 				{
-					const FColor& Color = LocalSurfaceBuffer[0];
+					TArray<FColor> LocalSurfaceBuffer;
+					GetSurfaceBuffer([this, &LocalSurfaceBuffer](const TArray<FColor>& InSurfaceBuffer, const FIntRect& InSurfaceRect)
+						{
+							LocalSurfaceBuffer = InSurfaceBuffer;
+						});
 
-					if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
+					if (LocalSurfaceBuffer.Num() == 1)
 					{
-						if (MatrixComponent->AttributeRExpose)
-						{
-							DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeR, Color.R);
-						}
+						const FColor& Color = LocalSurfaceBuffer[0];
 
-						if (MatrixComponent->AttributeGExpose)
+						if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
 						{
-							DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeG, Color.G);
-						}
+							if (MatrixComponent->AttributeRExpose)
+							{
+								const uint8 ByteOffset = MatrixCellGetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeR.Name) - 1;
+								const int32 ColorRValue = int32(Color.R) << (ByteOffset * 8);
 
-						if (MatrixComponent->AttributeBExpose)
+								DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeR, ColorRValue);
+							}
+
+							if (MatrixComponent->AttributeGExpose)
+							{
+								const uint8 ByteOffset = MatrixCellGetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeG.Name) - 1;
+								const int32 ColorGValue = int32(Color.G) << (ByteOffset * 8);
+
+								DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeG, ColorGValue);
+							}
+
+							if (MatrixComponent->AttributeBExpose)
+							{
+								const uint8 ByteOffset = MatrixCellGetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeB.Name) - 1;
+								const int32 ColorBValue = int32(Color.B) << (ByteOffset * 8);
+
+								DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeB, ColorBValue);
+							}
+						}
+						else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
 						{
-							DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->AttributeB, Color.B);
+							if (MatrixComponent->bMonochromeExpose)
+							{
+								const uint8 ByteOffset = MatrixCellGetNumChannelsOfAttribute(FixturePatch, MatrixComponent->MonochromeIntensity.Name) - 1;
+
+								// https://www.w3.org/TR/AERT/#color-contrast
+								int32 Intensity = int32(0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B) << (ByteOffset * 8);
+								DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->MonochromeIntensity, Intensity);
+							}
 						}
 					}
-					else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
-					{
-						if (MatrixComponent->bMonochromeExpose)
-						{
-							// https://www.w3.org/TR/AERT/#color-contrast
-							uint8 Intensity = (0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B);
-							DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, MatrixComponent->MonochromeIntensity, Intensity);
-						}
-					}
-				}
 
-				// Send Extra Cell Attributes
-				UDMXPixelMappingMatrixComponent* ParentMatrix = CastChecked<UDMXPixelMappingMatrixComponent>(Parent);
-				for (const FDMXPixelMappingExtraAttribute& ExtraAttribute : ParentMatrix->ExtraCellAttributes)
-				{
-					DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, ExtraAttribute.Attribute, ExtraAttribute.Value);
+					// Send Extra Cell Attributes
+					UDMXPixelMappingMatrixComponent* ParentMatrix = CastChecked<UDMXPixelMappingMatrixComponent>(Parent);
+					for (const FDMXPixelMappingExtraAttribute& ExtraAttribute : ParentMatrix->ExtraCellAttributes)
+					{
+						DMXSubsystem->SetMatrixCellValue(FixturePatch, CellCoordinate, ExtraAttribute.Attribute, ExtraAttribute.Value);
+					}
 				}
 			}
 		}

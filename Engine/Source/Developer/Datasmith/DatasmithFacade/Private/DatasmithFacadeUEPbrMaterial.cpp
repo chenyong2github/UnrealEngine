@@ -12,7 +12,7 @@ FDatasmithFacadeMaterialExpression* CreateFacadeExpression( IDatasmithMaterialEx
 {
 	if ( MaterialExpression )
 	{
-		switch ( MaterialExpression->GetType() )
+		switch ( MaterialExpression->GetExpressionType() )
 		{
 		case EDatasmithMaterialExpressionType::ConstantBool:
 			return new FDatasmithFacadeMaterialExpressionBool( MaterialExpression, ReferencedMaterial );
@@ -38,9 +38,14 @@ FDatasmithFacadeMaterialExpression* CreateFacadeExpression( IDatasmithMaterialEx
 	return nullptr;
 }
 
-const TCHAR* FDatasmithFacadeExpressionInput::GetInputName() const
+const TCHAR* FDatasmithFacadeExpressionInput::GetName() const
 {
-	return InternalExpressionInput->GetInputName();
+	return InternalExpressionInput->GetName();
+}
+
+void FDatasmithFacadeExpressionInput::SetName(const TCHAR* InName)
+{
+	InternalExpressionInput->SetName(InName);
 }
 
 FDatasmithFacadeMaterialExpression* FDatasmithFacadeExpressionInput::GetNewFacadeExpression()
@@ -63,7 +68,6 @@ void FDatasmithFacadeExpressionInput::SetOutputIndex( int32 InOutputIndex )
 	InternalExpressionInput->SetOutputIndex( InOutputIndex );
 }
 
-
 const TCHAR* FDatasmithFacadeMaterialExpression::GetName() const
 {
 	return InternalMaterialExpression->GetName();
@@ -76,7 +80,7 @@ void FDatasmithFacadeMaterialExpression::SetName( const TCHAR* InName )
 
 EDatasmithFacadeMaterialExpressionType FDatasmithFacadeMaterialExpression::GetExpressionType() const
 {
-	return static_cast<EDatasmithFacadeMaterialExpressionType>(InternalMaterialExpression->GetType());
+	return static_cast<EDatasmithFacadeMaterialExpressionType>(InternalMaterialExpression->GetExpressionType());
 }
 
 void FDatasmithFacadeMaterialExpression::ConnectExpression( FDatasmithFacadeExpressionInput& ExpressionInput )
@@ -206,7 +210,7 @@ void FDatasmithFacadeMaterialExpressionTexture::SetTexturePathName( const TCHAR*
 
 FDatasmithFacadeExpressionInput FDatasmithFacadeMaterialExpressionTexture::GetInputCoordinate()
 {
-	return FDatasmithFacadeExpressionInput(&static_cast<IDatasmithMaterialExpressionTexture*>( InternalMaterialExpression )->GetInputCoordinate(), ReferencedMaterial );
+	return FDatasmithFacadeExpressionInput( &static_cast<IDatasmithMaterialExpressionTexture*>( InternalMaterialExpression )->GetInputCoordinate(), ReferencedMaterial );
 }
 
 const TCHAR* FDatasmithFacadeMaterialExpressionTexture::GetGroupName() const
@@ -251,22 +255,12 @@ void FDatasmithFacadeMaterialExpressionTextureCoordinate::SetVTiling( float InVT
 
 FDatasmithFacadeExpressionInput FDatasmithFacadeMaterialExpressionFlattenNormal::GetNormal() const
 {
-	return FDatasmithFacadeExpressionInput(&static_cast<IDatasmithMaterialExpressionFlattenNormal*>( InternalMaterialExpression )->GetNormal(), ReferencedMaterial );
-}
-
-void FDatasmithFacadeMaterialExpressionFlattenNormal::SetNormal( FDatasmithFacadeExpressionInput InNormal )
-{
-	static_cast<IDatasmithMaterialExpressionFlattenNormal*>( InternalMaterialExpression )->GetNormal() = InNormal.GetExpressionInput();
+	return FDatasmithFacadeExpressionInput( &static_cast<IDatasmithMaterialExpressionFlattenNormal*>( InternalMaterialExpression )->GetNormal(), ReferencedMaterial );
 }
 
 FDatasmithFacadeExpressionInput FDatasmithFacadeMaterialExpressionFlattenNormal::GetFlatness() const
 {
-	return FDatasmithFacadeExpressionInput(&static_cast<IDatasmithMaterialExpressionFlattenNormal*>( InternalMaterialExpression )->GetFlatness(), ReferencedMaterial );
-}
-
-void FDatasmithFacadeMaterialExpressionFlattenNormal::SetFlatness( FDatasmithFacadeExpressionInput InFlatness ) const
-{
-	static_cast<IDatasmithMaterialExpressionFlattenNormal*>( InternalMaterialExpression )->GetFlatness() = InFlatness.GetExpressionInput();
+	return FDatasmithFacadeExpressionInput( &static_cast<IDatasmithMaterialExpressionFlattenNormal*>( InternalMaterialExpression )->GetFlatness(), ReferencedMaterial );
 }
 
 void FDatasmithFacadeMaterialExpressionGeneric::SetExpressionName( const TCHAR* InExpressionName )
@@ -326,20 +320,10 @@ FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetBaseColor() co
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetBaseColor(), UEPbrMaterial );
 }
 
-void FDatasmithFacadeUEPbrMaterial::SetBaseColor( FDatasmithFacadeExpressionInput& InBaseColor )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InBaseColor.GetExpressionInput();
-}
-
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetMetallic() const
 {
 	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetMetallic(), UEPbrMaterial );
-}
-
-void FDatasmithFacadeUEPbrMaterial::SetMetallic( FDatasmithFacadeExpressionInput&  InMetallic )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InMetallic.GetExpressionInput();
 }
 
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetSpecular() const
@@ -348,20 +332,10 @@ FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetSpecular() con
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetSpecular(), UEPbrMaterial );
 }
 
-void FDatasmithFacadeUEPbrMaterial::SetSpecular( FDatasmithFacadeExpressionInput& InSpecular )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InSpecular.GetExpressionInput();
-}
-
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetRoughness() const
 {
 	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetRoughness(), UEPbrMaterial );
-}
-
-void FDatasmithFacadeUEPbrMaterial::SetRoughness( FDatasmithFacadeExpressionInput& InRoughness )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InRoughness.GetExpressionInput();
 }
 
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetEmissiveColor() const
@@ -370,20 +344,10 @@ FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetEmissiveColor(
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetEmissiveColor(), UEPbrMaterial );
 }
 
-void FDatasmithFacadeUEPbrMaterial::SetEmissiveColor( FDatasmithFacadeExpressionInput& InEmissiveColor )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InEmissiveColor.GetExpressionInput();
-}
-
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetOpacity() const
 {
 	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetOpacity(), UEPbrMaterial );
-}
-
-void FDatasmithFacadeUEPbrMaterial::SetOpacity( FDatasmithFacadeExpressionInput& InOpacity )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InOpacity.GetExpressionInput();
 }
 
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetNormal() const
@@ -392,20 +356,10 @@ FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetNormal() const
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetNormal(), UEPbrMaterial );
 }
 
-void FDatasmithFacadeUEPbrMaterial::SetNormal( FDatasmithFacadeExpressionInput& InNormal )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InNormal.GetExpressionInput();
-}
-
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetWorldDisplacement() const
 {
 	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetWorldDisplacement(), UEPbrMaterial );
-}
-
-void FDatasmithFacadeUEPbrMaterial::SetWorldDisplacement( FDatasmithFacadeExpressionInput& InWorldDisplacement )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InWorldDisplacement.GetExpressionInput();
 }
 
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetRefraction() const
@@ -414,31 +368,16 @@ FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetRefraction() c
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetRefraction(), UEPbrMaterial );
 }
 
-void FDatasmithFacadeUEPbrMaterial::SetRefraction( FDatasmithFacadeExpressionInput& InRefraction )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InRefraction.GetExpressionInput();
-}
-
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetAmbientOcclusion() const
 {
 	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetAmbientOcclusion(), UEPbrMaterial );
 }
 
-void FDatasmithFacadeUEPbrMaterial::SetAmbientOcclusion( FDatasmithFacadeExpressionInput& InAmbientOcclusion )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InAmbientOcclusion.GetExpressionInput();
-}
-
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetMaterialAttributes() const
 {
 	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetMaterialAttributes(), UEPbrMaterial );
-}
-
-void FDatasmithFacadeUEPbrMaterial::SetMaterialAttributes( FDatasmithFacadeExpressionInput& InMaterialAttributes )
-{
-	GetDatasmithUEPbrMaterialElement()->GetBaseColor() = InMaterialAttributes.GetExpressionInput();
 }
 
 int FDatasmithFacadeUEPbrMaterial::GetBlendMode() const
@@ -520,14 +459,6 @@ void FDatasmithFacadeUEPbrMaterial::SetParentLabel( const TCHAR* InParentLabel )
 const TCHAR* FDatasmithFacadeUEPbrMaterial::GetParentLabel() const
 {
 	return GetDatasmithUEPbrMaterialElement()->GetParentLabel();
-}
-
-void FDatasmithFacadeUEPbrMaterial::BuildScene(
-	FDatasmithFacadeScene& SceneRef
-)
-{
-	// Add the master material to the Datasmith scene.
-	SceneRef.GetScene()->AddMaterial( GetDatasmithUEPbrMaterialElement() );
 }
 
 TSharedRef<IDatasmithUEPbrMaterialElement> FDatasmithFacadeUEPbrMaterial::GetDatasmithUEPbrMaterialElement() const

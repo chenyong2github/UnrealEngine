@@ -218,7 +218,8 @@ int32 FEntityFactories::ComputeChildComponents(const FComponentMask& ParentCompo
 	int32 NumNewComponents = 0;
 
 	// Any child components keyed off an invalid parent component type are always relevant
-	for (auto Child = ParentToChildComponentTypes.CreateConstKeyIterator(FComponentTypeID::Invalid()); Child; ++Child)
+	FComponentTypeID InvalidComponent = FComponentTypeID::Invalid();
+	for (auto Child = ParentToChildComponentTypes.CreateConstKeyIterator(InvalidComponent); Child; ++Child)
 	{
 		if (!ChildComponentMask.Contains(Child.Value()))
 		{

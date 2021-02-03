@@ -90,20 +90,18 @@ void UBaseWidgetBlueprint::ForEachSourceWidgetImpl(TFunctionRef<void(UWidget*)> 
 	// functions may create a CDO before the class has been linked, or even before
 	// all member variables have been generated:
 	UWidgetTree* WidgetTreeForCapture = WidgetTree;
+	bool bIncludeNestedObjects = true;
 	ForEachObjectWithOuter(
 		WidgetTree,
 		[Fn, WidgetTreeForCapture](UObject* Inner)
-	{
-		FString Path = Inner->GetPathName();
-		if (UWidget* AsWidget = Cast<UWidget>(Inner))
 		{
-			// Widgets owned by another UWidgetBlueprint aren't really 'source' widgets, E.g. widgets
-			// created by the user *in this blueprint*
-			if (AsWidget->GetTypedOuter<UWidgetTree>() == WidgetTreeForCapture)
+			if (UWidget* AsWidget = Cast<UWidget>(Inner))
 			{
 				Fn(AsWidget);
 			}
-		}
-	}
+		},
+		!bIncludeNestedObjects,// Reject nested objects
+		RF_NoFlags,
+		EInternalObjectFlags::PendingKill // Exclude Pending Kills
 	);
 }

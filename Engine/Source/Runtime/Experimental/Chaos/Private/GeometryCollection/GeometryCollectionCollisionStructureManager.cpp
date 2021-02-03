@@ -44,7 +44,7 @@ FCollisionStructureManager::NewSimplicial(
 		int32 LSVCounter = 0;
 		TSet<int32> Indices;
 		TriMesh.GetVertexSet(Indices);
-		TArray<Chaos::TVector<float, 3>> OutsideVertices;
+		TArray<Chaos::FVec3> OutsideVertices;
 
 		bool bFullCopy = true;
 		int32 LocalCollisionParticlesMax = CollisionParticlesMaxInput > 0 ? FMath::Min(CollisionParticlesMaxInput, CollisionParticlesMax) : CollisionParticlesMax;
@@ -60,7 +60,7 @@ FCollisionStructureManager::NewSimplicial(
 			OutsideVertices.AddUninitialized(Indices.Num());
 			for (int32 Idx : Indices)
 			{
-				const Chaos::TVector<float, 3>& SamplePoint = Vertices.X(Idx);
+				const Chaos::FVec3& SamplePoint = Vertices.X(Idx);
 				if (Implicit->SignedDistance(SamplePoint) > Threshold)
 				{
 					OutsideVertices[LSVCounter] = SamplePoint;
@@ -112,7 +112,7 @@ FCollisionStructureManager::NewSimplicial(
 		if(!Simplicial->Size())
 		{
 			Simplicial->AddParticles(1);
-			Simplicial->X(0) = Chaos::TVector<float, 3>(0);
+			Simplicial->X(0) = Chaos::FVec3(0);
 		}
 
 		Simplicial->UpdateAccelerationStructures();
@@ -138,8 +138,8 @@ FCollisionStructureManager::NewSimplicial(
 		// @todo : Clean collision particles need to operate on the collision mask from the DynamicCollection,
 		//         then transfer only the good collision particles during the initialization. `
 		FCollisionStructureManager::FSimplicial * Simplicial = new FCollisionStructureManager::FSimplicial();
-		const TArrayView<const Chaos::TVector<float, 3>> ArrayView(&AllParticles.X(0), AllParticles.Size());
-		const TArray<Chaos::TVector<float,3>>& Result = Chaos::CleanCollisionParticles(TriMesh, ArrayView, CollisionParticlesFraction);
+		const TArrayView<const Chaos::FVec3> ArrayView(&AllParticles.X(0), AllParticles.Size());
+		const TArray<Chaos::FVec3>& Result = Chaos::CleanCollisionParticles(TriMesh, ArrayView, CollisionParticlesFraction);
 
 		if (Result.Num())
 		{
@@ -159,7 +159,7 @@ FCollisionStructureManager::NewSimplicial(
 		if (!Simplicial->Size())
 		{
 			Simplicial->AddParticles(1);
-			Simplicial->X(0) = Chaos::TVector<float, 3>(0);
+			Simplicial->X(0) = Chaos::FVec3(0);
 		}
 
 		Simplicial->UpdateAccelerationStructures();
@@ -232,7 +232,7 @@ FCollisionStructureManager::NewImplicitSphere(
 	const float CollisionObjectReduction,
 	const ECollisionTypeEnum CollisionType)
 {
-	Chaos::FImplicitObject* Implicit = new Chaos::TSphere<float, 3>(Chaos::TVector<float, 3>(0), Radius * (1 - CollisionObjectReduction / 100.f));
+	Chaos::FImplicitObject* Implicit = new Chaos::TSphere<float, 3>(Chaos::FVec3(0), Radius * (1 - CollisionObjectReduction / 100.f));
 	UpdateImplicitFlags(Implicit, CollisionType);
 	return Implicit;
 }
@@ -260,7 +260,7 @@ FCollisionStructureManager::NewImplicitLevelset(
 		const float FilledVolume = LevelSet->ApproximateNegativeMaterial();
 		if (FilledVolume < DomainVolume * 0.05)
 		{
-			const Chaos::TVector<float,3> Extent = LevelSet->BoundingBox().Extents();
+			const Chaos::FVec3 Extent = LevelSet->BoundingBox().Extents();
 			ErrorReporter.ReportLog(
 				*FString::Printf(TEXT(
 					"Level set is small or empty:\n"
@@ -352,7 +352,7 @@ FCollisionStructureManager::CalculateUnitMassInertiaTensor(
 	FVector Tensor(1);
 	if (ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 	{
-		const Chaos::TVector<float, 3> Size = Bounds.GetSize();
+		const Chaos::FVec3 Size = Bounds.GetSize();
 		const Chaos::PMatrix<float, 3, 3> I = Chaos::TAABB<float, 3>::GetInertiaTensor(1.0, Size);
 		Tensor = { I.M[0][0], I.M[1][1], I.M[2][2] };
 	}

@@ -1075,6 +1075,7 @@ bool FMediaPlayerFacade::ContinueOpen(IMediaPlayerLifecycleManagerDelegate::ICon
 	// (in case it was setup with the facade prior to open)
 	SetBlockOnTimeRangeInternal(BlockOnTimeRange);
 
+
 	if (bCreateNewPlayer)
 	{
 		NotifyLifetimeManagerDelegate_PlayerCreated();

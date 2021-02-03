@@ -502,7 +502,7 @@ void UNiagaraMeshRendererProperties::BeginDestroy()
 {
 	Super::BeginDestroy();
 #if WITH_EDITOR
-	if (GIsEditor)
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		for (const auto& MeshProperties : Meshes)
 		{

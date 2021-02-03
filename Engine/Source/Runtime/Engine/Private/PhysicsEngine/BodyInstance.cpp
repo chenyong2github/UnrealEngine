@@ -44,6 +44,7 @@
 
 #if WITH_CHAOS
 #include "Chaos/ParticleHandle.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #endif // WITH_CHAOS
 
 #if PHYSICS_INTERFACE_PHYSX
@@ -1400,24 +1401,25 @@ void FInitBodiesHelperBase::InitBodies()
 						ActorHandles.Add(ActorHandle);
 
 #if WITH_CHAOS
-							const int32 NumShapes = FPhysicsInterface::GetNumShapes(ActorHandle);
+						Chaos::FRigidBodyHandle_External& Body_External = ActorHandle->GetGameThreadAPI();
+						const int32 NumShapes = FPhysicsInterface::GetNumShapes(ActorHandle);
 
-							// If this shape shouldn't collide in the sim we disable it here until we support
-							// a separation of unions for these shapes
-							if(BI->GetCollisionEnabled() == ECollisionEnabled::QueryOnly || BI->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+						// If this shape shouldn't collide in the sim we disable it here until we support
+						// a separation of unions for these shapes
+						if(BI->GetCollisionEnabled() == ECollisionEnabled::QueryOnly || BI->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+						{
+							for(int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 							{
-								for(int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
-								{
-									ActorHandle->SetShapeSimCollisionEnabled(ShapeIndex, false);
-								}
+								Body_External.SetShapeSimCollisionEnabled(ShapeIndex, false);
 							}
-							if (BI->BodySetup.IsValid())
+						}
+						if (BI->BodySetup.IsValid())
+						{
+							for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 							{
-								for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
-								{
-									ActorHandle->SetShapeCollisionTraceType(ShapeIndex, ChaosInterface::ConvertCollisionTraceFlag(BI->BodySetup->CollisionTraceFlag)) ;
-								}
+								Body_External.SetShapeCollisionTraceType(ShapeIndex, ChaosInterface::ConvertCollisionTraceFlag(BI->BodySetup->CollisionTraceFlag)) ;
 							}
+						}
 
 #endif
 /*
@@ -1441,7 +1443,7 @@ void FInitBodiesHelperBase::InitBodies()
 					if (FPhysicsInterface::IsValid(ActorHandle))
 					{
 
-						PhysScene->AddToComponentMaps(BI->OwnerComponent.Get(), ActorHandle->GetProxy());
+						PhysScene->AddToComponentMaps(BI->OwnerComponent.Get(), ActorHandle);
 					}
 					if (BI->bNotifyRigidBodyCollision)
 					{
@@ -1575,7 +1577,7 @@ void FBodyInstance::TermBody(bool bNeverDeferRelease)
 		{
 			if (FPhysicsInterface::IsValid(ActorHandle))
 			{
-				PhysScene->RemoveFromComponentMaps(ActorHandle->GetProxy());
+				PhysScene->RemoveFromComponentMaps(ActorHandle);
 			}
 			if (bNotifyRigidBodyCollision)
 			{
@@ -2034,7 +2036,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 
 					// TODO: For Transformed implicit, do not bake this in. Set Transform instead.
 					FVec3 Center = RelativeTM.TransformPosition(SphylElem->Center) * AdjustedScale3D;
-					const FVec3 Axis = SphylElem->Rotation.RotateVector(Chaos::TVector<float, 3>(0, 0, 1));
+					const FVec3 Axis = SphylElem->Rotation.RotateVector(Chaos::FVec3(0, 0, 1));
 
 					const FVec3 X1 = Center - HalfLength * Axis;
 					const FVec3 X2 = Center + HalfLength * Axis;
@@ -2157,7 +2159,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 		// Only follow through with update if all shapes succeeded.
 		if (CHAOS_ENSURE(NewGeometry.Num() == Shapes.Num()))
 		{
-			ActorHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(NewGeometry)));
+			ActorHandle->GetGameThreadAPI().SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(NewGeometry)));
 		}
 		else
 		{

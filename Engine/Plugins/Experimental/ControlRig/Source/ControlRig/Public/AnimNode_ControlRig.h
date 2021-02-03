@@ -56,6 +56,9 @@ private:
 	uint8 bAlphaBoolEnabled : 1;
 
 	UPROPERTY(EditAnywhere, Category=Settings)
+	uint8 bSetRefPoseFromSkeleton : 1;
+
+	UPROPERTY(EditAnywhere, Category=Settings)
 	FInputScaleBias AlphaScaleBias;
 
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (DisplayName = "Blend Settings"))

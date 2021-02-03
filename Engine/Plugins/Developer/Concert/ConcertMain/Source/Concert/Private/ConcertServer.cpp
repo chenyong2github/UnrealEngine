@@ -885,11 +885,15 @@ void FConcertServer::HandleDiscoverServersEvent(const FConcertMessageContext& Co
 {
 	const FConcertAdmin_DiscoverServersEvent* Message = Context.GetMessage<FConcertAdmin_DiscoverServersEvent>();
 
-	if (ServerAdminEndpoint.IsValid() && Message->RequiredRole == Role && Message->RequiredVersion == VERSION_STRINGIFY(ENGINE_MAJOR_VERSION) TEXT(".") VERSION_STRINGIFY(ENGINE_MINOR_VERSION))
+	if (Message->ConcertProtocolVersion == EConcertMessageVersion::LatestVersion && 
+		ServerAdminEndpoint.IsValid() && 
+		Message->RequiredRole == Role &&
+		Message->RequiredVersion == VERSION_STRINGIFY(ENGINE_MAJOR_VERSION) TEXT(".") VERSION_STRINGIFY(ENGINE_MINOR_VERSION))
 	{
 		if (Settings->AuthorizedClientKeys.Num() == 0 || Settings->AuthorizedClientKeys.Contains(Message->ClientAuthenticationKey)) // Can the client discover this server?
 		{
 			FConcertAdmin_ServerDiscoveredEvent DiscoveryInfo;
+			DiscoveryInfo.ConcertProtocolVersion = EConcertMessageVersion::LatestVersion;
 			DiscoveryInfo.ServerName = ServerInfo.ServerName;
 			DiscoveryInfo.InstanceInfo = ServerInfo.InstanceInfo;
 			DiscoveryInfo.ServerFlags = ServerInfo.ServerFlags;

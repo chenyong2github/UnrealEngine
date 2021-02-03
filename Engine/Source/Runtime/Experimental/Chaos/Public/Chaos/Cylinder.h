@@ -341,7 +341,7 @@ namespace Chaos
 			// At this point, Points are centered about the origin (0,0,0), built
 			// along the Z axis.  Transform them to where they should be.
 			const T HalfHeight = Height / 2;
-			const TRotation<float, 3> Rotation = TRotation<float, 3>::FromRotatedVector(TVector<float, 3>(0, 0, 1), Axis);
+			const TRotation<T, 3> Rotation = TRotation<T, 3>::FromRotatedVector(TVector<T, 3>(0, 0, 1), Axis);
 			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(TVector<T, 3>(0, 0, Height)) + Origin)).Size() < KINDA_SMALL_NUMBER);
 			for (int32 i = Offset; i < Points.Num(); i++)
 			{

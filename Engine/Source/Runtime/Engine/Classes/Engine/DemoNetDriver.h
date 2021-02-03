@@ -440,6 +440,9 @@ public:
 
 	virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider) override;
 
+	virtual void LowLevelSend(TSharedPtr<const FInternetAddr> Address, void* Data, int32 CountBits, FOutPacketTraits& Traits) override {}
+	virtual class ISocketSubsystem* GetSocketSubsystem() override { return nullptr; }
+
 protected:
 	virtual UChannel* InternalCreateChannelByName(const FName& ChName) override;
 

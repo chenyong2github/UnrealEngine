@@ -41,7 +41,7 @@ FPooledVirtualMemoryAllocator::FPooledVirtualMemoryAllocator()
 	}
 }
 
-void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHint = 0*/)
+void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHint = 0*/, FCriticalSection* /*Mutex = nullptr*/)
 {
 	if (Size > Limits::MaxAllocationSizeToPool)
 	{
@@ -98,7 +98,7 @@ void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHi
 	}
 };
 
-void FPooledVirtualMemoryAllocator::Free(void* Ptr, SIZE_T Size)
+void FPooledVirtualMemoryAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSection* /*Mutex = nullptr*/)
 {
 	if (Size > Limits::MaxAllocationSizeToPool)
 	{
@@ -227,7 +227,7 @@ void FPooledVirtualMemoryAllocator::DestroyPool(FPoolDescriptorBase* Pool)
 	VMBlock.FreeVirtual();
 }
 
-void FPooledVirtualMemoryAllocator::FreeAll()
+void FPooledVirtualMemoryAllocator::FreeAll(FCriticalSection* /*Mutex = nullptr*/)
 {
 	FScopeLock Lock(&OsAllocatorCacheLock);
 	OsAllocatorCache.FreeAll();

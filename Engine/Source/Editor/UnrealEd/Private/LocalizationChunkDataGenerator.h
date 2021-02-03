@@ -35,6 +35,9 @@ private:
 	/** Cached localization target helpers, to avoid redundant work for each chunk */
 	TArray<TSharedPtr<FLocTextHelper>> CachedLocalizationTargetHelpers;
 
+	/** Array of potential content roots, including plugins that aren't currently loaded */
+	TArray<FString> AllPotentialContentRoots;
+
 	/** Array of plugin content roots that should be mapped onto /Game during cook */
 	TArray<FString> PluginContentRootsMappedToGameRoot;
 };

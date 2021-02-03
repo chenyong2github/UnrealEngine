@@ -19,8 +19,10 @@ FLocalizationChunkDataGenerator::FLocalizationChunkDataGenerator(const int32 InC
 	, LocalizationTargetsToChunk(MoveTemp(InLocalizationTargetsToChunk))
 	, AllCulturesToCook(MoveTemp(InAllCulturesToCook))
 {
-	// Some plugins may re-map their content onto /Game during cook, so we need to take this into account when chunking the localization data
-	// We cache this information here so that we can use it repeatedly later to re-map the source information of the localized assets
+	AllPotentialContentRoots.Add(TEXT("/Engine/"));
+	AllPotentialContentRoots.Add(TEXT("/Game/"));
+
+	// Cache information about potential plugin content roots, including plugins that aren't currently loaded that we may have gathered localization data from
 	{
 		TArray<TSharedRef<IPlugin>> AllPlugins = IPluginManager::Get().GetDiscoveredPlugins();
 		for (TSharedRef<IPlugin> Plugin : AllPlugins)
@@ -30,6 +32,9 @@ FLocalizationChunkDataGenerator::FLocalizationChunkDataGenerator(const int32 InC
 				continue;
 			}
 
+			AllPotentialContentRoots.Add(FString::Printf(TEXT("/%s/"), *Plugin->GetName()));
+
+			// Some plugins may re-map their content onto /Game during cook, so we need to take this into account when chunking the localization data
 			const FString PluginConfigFilename = Plugin->GetBaseDir() / TEXT("Config") / FString::Printf(TEXT("Default%s.ini"), *Plugin->GetName());
 
 			// Note: We don't use GConfig directly here, as not all of these plugins may currently be loaded
@@ -98,10 +103,10 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 			{
 				bool bIncludeInChunk = bIsCatchAllChunk;
 				{
+					// Note: We can't use FPackageName::IsValidLongPackageName in the tests below, as not all plugins we gathered localization from may be loaded during cook meaning the unmapped path wouldn't be recognized as a valid package root
 					FString SourcePackageName = FPackageName::ObjectPathToPackageName(ManifestContext.SourceLocation);
 
 					// Some plugins may re-map their content onto /Game during cook, so we need to take this into account when chunking the localization data
-					// Note: We can't use FPackageName::IsValidLongPackageName before doing this mapping, as not all plugins we gathered localization from may be loaded during cook meaning the unmapped path wouldn't be recognized as a valid package root
 					for (const FString& PluginContentRootMappedToGameRoot : PluginContentRootsMappedToGameRoot)
 					{
 						if (SourcePackageName.RemoveFromStart(PluginContentRootMappedToGameRoot))
@@ -111,9 +116,14 @@ void FLocalizationChunkDataGenerator::GenerateChunkDataFiles(const int32 InChunk
 						}
 					}
 
-					if (FPackageName::IsValidLongPackageName(SourcePackageName))
+					// Is this from a potential content root? If so, treat it as an asset and test whether it was cooked into this chunk
+					for (const FString& PotentialContentRoot : AllPotentialContentRoots)
 					{
-						bIncludeInChunk = InPackagesInChunk.Contains(*SourcePackageName);
+						if (SourcePackageName.StartsWith(PotentialContentRoot))
+						{
+							bIncludeInChunk = InPackagesInChunk.Contains(*SourcePackageName);
+							break;
+						}
 					}
 				}
 

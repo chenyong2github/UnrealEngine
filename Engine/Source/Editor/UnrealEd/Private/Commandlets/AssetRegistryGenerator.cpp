@@ -2194,6 +2194,33 @@ void FAssetRegistryGenerator::GetChunkAssignments(TArray<TSet<FName>>& OutAssign
 	}
 }
 
+FAssetRegistryGenerator::FCreateOrFindArray FAssetRegistryGenerator::CreateOrFindAssetDatas(const UPackage& Package)
+{
+	FCreateOrFindArray OutputAssets;
+
+	ForEachObjectWithOuter(&Package, [&OutputAssets, this](UObject* const Object)
+	{
+		if (Object->IsAsset())
+		{
+			OutputAssets.Add(CreateOrFindAssetData(*Object));
+		}
+	}, /*bIncludeNestedObjects*/ false);
+
+	return OutputAssets;
+}
+
+const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object)
+{
+	const FAssetData* const AssetData = State.GetAssetByObjectPath(FName(Object.GetPathName()));
+	if (!AssetData)
+	{
+		FAssetData* const NewAssetData = new FAssetData(&Object);
+		State.AddAssetData(NewAssetData);
+		return NewAssetData;
+	}
+	return AssetData;
+}
+
 void FAssetRegistryGenerator::InitializeChunkIdPakchunkIndexMapping()
 {
 	FConfigFile PlatformIniFile;

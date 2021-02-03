@@ -805,7 +805,7 @@ bool UMapBuildDataRegistry::IsVTLightingValid() const
 			const FLightMap2D* Lightmap2D = Data.LightMap->GetLightMap2D();
 			if (Lightmap2D)
 			{
-				if (Lightmap2D->GetVirtualTexture() != nullptr)
+				if (Lightmap2D->IsVirtualTextureValid())
 				{
 					return true;
 				}
@@ -827,7 +827,8 @@ FLightmapClusterResourceInput GetClusterInput(const FMeshMapBuildData& MeshBuild
 		ClusterInput.LightMapTextures[1] = LightMap2D->GetTexture(1);
 		ClusterInput.SkyOcclusionTexture = LightMap2D->GetSkyOcclusionTexture();
 		ClusterInput.AOMaterialMaskTexture = LightMap2D->GetAOMaterialMaskTexture();
-		ClusterInput.LightMapVirtualTexture = LightMap2D->GetVirtualTexture();
+		ClusterInput.LightMapVirtualTextures[0] = LightMap2D->GetVirtualTexture(0);
+		ClusterInput.LightMapVirtualTextures[1] = LightMap2D->GetVirtualTexture(1);
 	}
 
 	FShadowMap2D* ShadowMap2D = MeshBuildData.ShadowMap ? MeshBuildData.ShadowMap->GetShadowMap2D() : nullptr;

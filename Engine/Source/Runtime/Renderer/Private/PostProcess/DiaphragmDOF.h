@@ -121,7 +121,6 @@ inline bool IsSupported(const FStaticShaderPlatform ShaderPlatform)
 	// Only compile diaphragm DOF on platform it has been tested to ensure this is not blocking anyone else.
 	return 
 		ShaderPlatform == SP_PCD3D_SM5 ||
-		ShaderPlatform == SP_XBOXONE_D3D12 ||
 		IsVulkanSM5Platform(ShaderPlatform) ||
 		IsMetalSM5Platform(ShaderPlatform) ||
 		ShaderPlatform == SP_SWITCH ||

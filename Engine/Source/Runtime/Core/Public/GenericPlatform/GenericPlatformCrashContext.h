@@ -9,7 +9,9 @@
 #include "Misc/Optional.h"
 #include "Containers/UnrealString.h"
 
+#ifndef WITH_ADDITIONAL_CRASH_CONTEXTS
 #define WITH_ADDITIONAL_CRASH_CONTEXTS 0
+#endif
 
 struct FProgramCounterSymbolInfo;
 

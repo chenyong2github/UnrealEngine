@@ -8,7 +8,7 @@
 		<isArch arch="armeabi-v7a">
 			<setBool result="bSupported" value="true"/>
 		</isArch>
-        <isArch arch="arm64-v8a">
+		<isArch arch="arm64-v8a">
 			<setBool result="bSupported" value="true"/>
 		</isArch>
 
@@ -16,12 +16,17 @@
 		<setBool result="bRemoveOSIG" value="true"/>
 
 		<!-- get packaging for Oculus Mobile from ini and reset it if architecture not supported -->
-		<setBoolFromProperty result="bFocusAware" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="bFocusAware" default="false"/>
-		<setBoolFromPropertyContains result="bPackageForOculusGo" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Go"/>
+		<setBoolFromProperty
+			result="bFocusAware"
+			ini="Engine"
+			section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="bFocusAware"
+			default="true"/>
 		<setBoolFromPropertyContains result="bPackageForOculusQuest" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Quest"/>
-		
-<setStringFromProperty result="HandTrackingSupport" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="HandTrackingSupport" default="ControllersOnly"/>
-		<setBoolOr result="bPackageForOculusMobile" arg1="$B(bPackageForOculusGo)" arg2="$B(bPackageForOculusQuest)" />
+		<setBoolFromPropertyContains result="bPackageForOculusQuest2" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Quest2"/>
+		<setBoolFromProperty result="bRequiresSystemKeyboard" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="bRequiresSystemKeyboard" default="false"/>
+		<setStringFromProperty result="HandTrackingSupport" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="HandTrackingSupport" default="ControllersOnly"/>
+		<setBoolOr result="bPackageForOculusMobile"
+			arg1="$B(bPackageForOculusQuest)" arg2="$B(bPackageForOculusQuest2)"/>
 		<if condition="bPackageForOculusMobile">
 			<true>
 				<if condition="bSupported">
@@ -42,7 +47,7 @@
 						</if>
 					</true>
 					<false>
-						<setBool result="bPackageForOculusMobile" value="false"/> 
+						<setBool result="bPackageForOculusMobile" value="false"/>
 						<log text="Oculus mobile not supported for this architecture, disabled."/>
 					</false>
 				</if>
@@ -106,35 +111,12 @@
 				</loopElements>
 			</true>
 		</if>
-		<if condition="bPackageForOculusMobile">
-			<true>
-				<addElements tag="application">
-					<meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only"/>
-				</addElements>
-				<addPermission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-				<addFeature android:name="android.hardware.usb.host"/>
-			</true>
-		</if>
-		<setBool result="bOculus3Dof" value="$B(bPackageForOculusGo)" />
-		<setBool result="bOculus6Dof" value="$B(bPackageForOculusQuest)" />
-		<setBoolNot result="bNotOculus3Dof" source="$B(bOculus3Dof)" />
+		<setBool result="bOculus6Dof" value="$B(bPackageForOculusMobile)" />
+
+		<!-- Add Quest Specific Flags -->
 		<if condition="bOculus6Dof">
 			<true>
-				
-<!-- Add Focus Aware Flag -->
-				<addFeature android:name="android.hardware.vr.headtracking" android:version="1" android:required="$B(bNotOculus3Dof)" />
-
-				<if condition="bNotOculus3Dof">
-					<true>
-						<if condition="bFocusAware">
-							<true>
-								<addElements tag="activity">
-									<meta-data android:name="com.oculus.vr.focusaware" android:value="true"/>
-								</addElements>
-							</true>
-						</if>
-					</true>
-				</if>
+				<addFeature android:name="android.hardware.vr.headtracking" android:version="1" android:required="true" />
 
 				<!-- Add Hand Tracking Flag -->
 				<setBoolIsEqual result="bHandsOnly" arg1="$S(HandTrackingSupport)" arg2="HandsOnly"/>
@@ -148,17 +130,83 @@
 				</if>
 			</true>
 		</if>
+
+		<!-- Add Activity Specific Flags -->
+		<loopElements tag="activity">
+			<setStringFromAttribute result="activityName" tag="$" name="android:name"/>
+			<setBoolIsEqual result="bGameActivity" arg1="$S(activityName)" arg2="com.epicgames.ue4.GameActivity"/>
+			<if condition="bGameActivity">
+				<true>
+					<!-- Add VR Intent Filter, Permissions, and Features -->
+					<if condition="bPackageForOculusMobile">
+						<true>
+							<setElement result="vrIntent" value="category"/>
+							<addAttribute tag="$vrIntent" name="android:name" value="com.oculus.intent.category.VR"/>
+							<addElement tag="intent-filter" name="vrIntent"/>
+							<addFeature android:name="android.hardware.usb.host"/>
+						</true>
+					</if>
+
+					<!-- Quest Specific Activity Tags -->
+					<if condition="bOculus6Dof">
+						<true>
+							<!-- Add Focus Aware Flag -->
+							<setElement result="focusAware" value="meta-data" />
+							<addAttribute tag="$focusAware" name="android:name" value="com.oculus.vr.focusaware" />
+							<addAttribute tag="$focusAware" name="android:value" value="$B(bFocusAware)" />
+							<addElement tag="activity" name="focusAware"/>
+
+							<!-- Add System Keyboard Flag -->
+							<if condition="bFocusAware">
+								<true>
+									<if condition="bRequiresSystemKeyboard">
+										<true>
+											<addFeature android:name="oculus.software.overlay_keyboard" android:required="false"/>
+										</true>
+									</if>
+								</true>
+							</if>
+						</true>
+					</if>
+				</true>
+			</if>
+		</loopElements>
+
+		<!-- Add Application Specific Flags -->
+		<loopElements tag="application">
+			<!-- Add SupportedDevices Tag -->
+			<setElement result ="supportedDevices" value="meta-data" />
+			<addAttribute tag="$supportedDevices" name="android:name" value="com.oculus.supportedDevices" />
+			<setBoolAnd result="bPackageForOculusQuestAndQuest2" arg1="$B(bPackageForOculusQuest)" arg2="$B(bPackageForOculusQuest2)"/>
+			<if condition="bPackageForOculusQuestAndQuest2">
+				<true>
+					<addAttribute tag="$supportedDevices" name="android:value" value="quest|delmar" />
+				</true>
+				<false>
+					<if condition="bPackageForOculusQuest2">
+						<true>
+							<addAttribute tag="$supportedDevices" name="android:value" value="delmar" />
+						</true>
+						<false>
+							<addAttribute tag="$supportedDevices" name="android:value" value="quest" />
+						</false>
+					</if>
+				</false>
+			</if>
+			<addElement tag="application" name="supportedDevices"/>
+		</loopElements>
+
 	</androidManifestUpdates>
 
 	<!-- optional additions to proguard -->
 	<proguardAdditions>
 		<insert>
--keep class com.oculus.** {
-   *;
-}
--keep class android.app.** {
-   *;
-}
+			-keep class com.oculus.** {
+			*;
+			}
+			-keep class android.app.** {
+			*;
+			}
 		</insert>
 	</proguardAdditions>
 
@@ -169,22 +217,12 @@
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OculusOpenXRLoader/OculusOpenXRLoader/Lib/armeabi-v7a/libopenxr_loader.so"
             			dst="$S(BuildDir)/libs/armeabi-v7a/libopenxr_loader.so" />
 		</isArch>
-        
-        <isArch arch="arm64-v8a">
+
+		<isArch arch="arm64-v8a">
 			<log text="Copying libopenxr_loader.so"/>
 			<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OculusOpenXRLoader/OculusOpenXRLoader/Lib/arm64-v8a/libopenxr_loader.so"
             			dst="$S(BuildDir)/libs/arm64-v8a/libopenxr_loader.so" />
 		</isArch>
-
-		<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/SystemUtils.jar"
-					dst="$S(BuildDir)/libs/SystemUtils.jar" />
-
-		<if condition="bEntitlementCheck">
-			<true>
-				<copyFile src="$S(EngineDir)/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/vrplatlib.jar"
-							dst="$S(BuildDir)/libs/vrplatlib.jar" />
-			</true>
-		</if>
 
 		<if condition="bRemoveOSIG">
 			<true>
@@ -217,19 +255,39 @@
 		<if condition="bSupported">
 			<true>
 				<insert>
+					boolean hasVR = false;
+
+					Intent vrIntent = new Intent(Intent.ACTION_MAIN, null);
+					vrIntent.addCategory("com.oculus.intent.category.VR");
+					vrIntent.addFlags(PackageManager.GET_INTENT_FILTERS);
+					vrIntent.setPackage(getApplicationContext().getPackageName());
+
+					PackageManager pkgManager = getApplicationContext().getPackageManager();
+					if (pkgManager != null)
+					{
+					if(!pkgManager.queryIntentActivities(vrIntent, PackageManager.GET_INTENT_FILTERS).isEmpty())
+					{
+					hasVR = true;
+					}
+					}
+
 					if (bundle.containsKey("com.samsung.android.vr.application.mode"))
 					{
-						PackagedForOculusMobile = true;
-						String VRMode = bundle.getString("com.samsung.android.vr.application.mode");
-						bUsesVrKeyboard = true;
-						Log.debug("Found Oculus Mobile mode = " + VRMode);
+					hasVR = true;
+					}
+
+					if (hasVR)
+					{
+					PackagedForOculusMobile = true;
+					bUsesVrKeyboard = true;
+					Log.debug("Found Oculus Mobile mode.");
 				</insert>
 				<insert>
 					}
 					else
 					{
-						PackagedForOculusMobile = false;
-						Log.debug("No Oculus Mobile mode detected.");
+					PackagedForOculusMobile = false;
+					Log.debug("No Oculus Mobile mode detected.");
 					}
 				</insert>
 			</true>
@@ -271,14 +329,8 @@
 	</gameActivityOnActivityResultAdditions>
 	-->
 
-	<!-- optional libraries to load in GameActivity.java before libUnreal.so -->
+	<!-- optional libraries to load in GameActivity.java before libUnreal.so
 	<soLoadLibrary>
-		<!-- need this if plugin enabled and supported architecture, even if not packaged for Oculus mobile -->
-		<if condition="bSupported">
-			<true>
-				<loadLibrary name="vrapi" failmsg="vrapi library not loaded and may be required for Oculus VR." />
-        		<loadLibrary name="OVRPlugin" failmsg="OVRPlugin library not loaded and may be required for Oculus VR." />
-      		</true>
-		</if>
 	</soLoadLibrary>
+	-->
 </root>

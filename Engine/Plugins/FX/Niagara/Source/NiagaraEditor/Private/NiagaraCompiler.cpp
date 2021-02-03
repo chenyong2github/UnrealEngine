@@ -1323,13 +1323,13 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 
 	TArray<int32> ShaderMapIDs;
 	ShaderMapIDs.Add(JobID);
-	if (bWait && !CompilationJob->ShaderCompileJob->bFinalized)
+	if (bWait && !CompilationJob->ShaderCompileJob->bReleased)
 	{
 		GShaderCompilingManager->FinishCompilation(NULL, ShaderMapIDs);
-		check(CompilationJob->ShaderCompileJob->bFinalized);
+		check(CompilationJob->ShaderCompileJob->bReleased);
 	}
 
-	if (!CompilationJob->ShaderCompileJob->bFinalized)
+	if (!CompilationJob->ShaderCompileJob->bReleased)
 	{
 		return TOptional<FNiagaraCompileResults>();
 	}

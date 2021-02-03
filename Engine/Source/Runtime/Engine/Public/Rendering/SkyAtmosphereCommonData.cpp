@@ -177,8 +177,8 @@ void FAtmosphereSetup::ComputeViewData(const FVector& WorldCameraOrigin, const F
 	FVector& SkyWorldCameraOrigin, FVector4& SkyPlanetCenterAndViewHeight, FMatrix& SkyViewLutReferential) const
 {
 	// The constants below should match the one in SkyAtmosphereCommon.ush
-	// Always force to be 1 meters above the ground/sea level (to always see the sky and not be under the virtual planet occluding ray tracing) and lower for small planet radius
-	const float PlanetRadiusOffset = 0.001f;		
+	// Always force to be 5 meters above the ground/sea level (to always see the sky and not be under the virtual planet occluding ray tracing) and lower for small planet radius
+	const float PlanetRadiusOffset = 0.005f;		
 
 	const float Offset = PlanetRadiusOffset * SkyUnitToCm;
 	const float BottomRadiusWorld = BottomRadiusKm * SkyUnitToCm;
@@ -195,19 +195,35 @@ void FAtmosphereSetup::ComputeViewData(const FVector& WorldCameraOrigin, const F
 	FVector PlanetCenterToWorldCameraPos = (SkyWorldCameraOrigin - PlanetCenterWorld) * CmToSkyUnit;
 	FVector Up = PlanetCenterToWorldCameraPos;
 	Up.Normalize();
-	FVector	Forward = ViewForward;		// This can make texel visible when the camera is rotating. Use constant worl direction instead?
+	FVector	Forward = ViewForward;		// This can make texel visible when the camera is rotating. Use constant world direction instead?
 	//FVector	Left = normalize(cross(Forward, Up)); 
 	FVector	Left; 
 	Left = FVector::CrossProduct(Forward, Up);
 	Left.Normalize();
-	if (FMath::Abs(FVector::DotProduct(Forward, Up)) > 0.99f)
+	const float DotMainDir = FMath::Abs(FVector::DotProduct(Up, Forward));
+	if (DotMainDir > 0.999f)
 	{
-		Left = -ViewRight;
+		// When it becomes hard to generate a referential, generate it procedurally.
+		// [ Duff et al. 2017, "Building an Orthonormal Basis, Revisited" ]
+		const float Sign = Up.Z >= 0.0f ? 1.0f : -1.0f;
+		const float a = -1.0f / (Sign + Up.Z);
+		const float b = Up.X * Up.Y * a;
+		Forward = FVector( 1 + Sign * a * FMath::Pow(Up.X, 2.0f), Sign * b, -Sign * Up.X );
+		Left = FVector(b,  Sign + a * FMath::Pow(Up.Y, 2.0f), -Up.Y );
+
+		SkyViewLutReferential.SetColumn(0, Forward);
+		SkyViewLutReferential.SetColumn(1, Left);
+		SkyViewLutReferential.SetColumn(2, Up);
+		SkyViewLutReferential = SkyViewLutReferential.GetTransposed();
 	}
-	Forward = FVector::CrossProduct(Up, Left);
-	Forward.Normalize();
-	SkyViewLutReferential.SetColumn(0, Forward);
-	SkyViewLutReferential.SetColumn(1, Left);
-	SkyViewLutReferential.SetColumn(2, Up);
-	SkyViewLutReferential = SkyViewLutReferential.GetTransposed();
+	else
+	{
+		// This is better as it should be more stable with respect to camera forward.
+		Forward = FVector::CrossProduct(Up, Left);
+		Forward.Normalize();
+		SkyViewLutReferential.SetColumn(0, Forward);
+		SkyViewLutReferential.SetColumn(1, Left);
+		SkyViewLutReferential.SetColumn(2, Up);
+		SkyViewLutReferential = SkyViewLutReferential.GetTransposed();
+	}
 }

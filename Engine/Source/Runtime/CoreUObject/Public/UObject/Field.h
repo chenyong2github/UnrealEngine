@@ -135,6 +135,17 @@ public:
 	COREUOBJECT_API friend FArchive& operator << (FArchive& Ar, FFieldClass*& InOutFieldClass);
 };
 
+#if !CHECK_PUREVIRTUALS
+	#define DECLARE_FIELD_NEW_IMPLEMENTATION(TClass) \
+		ThisClass* Mem = (ThisClass*)FMemory::Malloc(InSize); \
+		new (Mem) TClass(EC_InternalUseOnlyConstructor, TClass::StaticClass()); \
+		return Mem; 
+#else
+	#define DECLARE_FIELD_NEW_IMPLEMENTATION(TClass) \
+			ThisClass* Mem = (ThisClass*)FMemory::Malloc(InSize); \
+			return Mem; 
+#endif
+
 #define DECLARE_FIELD(TClass, TSuperClass, TStaticFlags) \
 private: \
 	TClass& operator=(TClass&&);   \
@@ -162,9 +173,7 @@ public: \
 	} \
 	inline void* operator new(const size_t InSize) \
 	{ \
-		ThisClass* Mem = (ThisClass*)FMemory::Malloc(InSize); \
-		new (Mem) TClass(EC_InternalUseOnlyConstructor, TClass::StaticClass()); \
-		return Mem; \
+		DECLARE_FIELD_NEW_IMPLEMENTATION(TClass) \
 	} \
 	inline void operator delete(void* InMem) noexcept \
 	{ \
@@ -179,11 +188,19 @@ public: \
 		InSlot << (FField*&)Res; \
 	}
 
+#if !CHECK_PUREVIRTUALS
+	#define IMPLEMENT_FIELD_CONSTRUCT_IMPLEMENTATION(TClass) \
+		FField* Instance = new TClass(InOwner, InName, InFlags); \
+		return Instance; 
+#else
+	#define IMPLEMENT_FIELD_CONSTRUCT_IMPLEMENTATION(TClass) \
+		return nullptr;
+#endif
+
 #define IMPLEMENT_FIELD(TClass) \
 FField* TClass::Construct(const FFieldVariant& InOwner, const FName& InName, EObjectFlags InFlags) \
 { \
-	FField* Instance = new TClass(InOwner, InName, InFlags); \
-	return Instance; \
+	IMPLEMENT_FIELD_CONSTRUCT_IMPLEMENTATION(TClass) \
 } \
 FFieldClass* TClass::StaticClass() \
 { \

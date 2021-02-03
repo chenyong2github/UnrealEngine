@@ -28,13 +28,13 @@ static FAutoConsoleVariableRef CVarGHairStrands_SwapBufferEndOfFrame(TEXT("r.Hai
 static int32 GHairStrands_ManualSkinCache = 0;
 static FAutoConsoleVariableRef CVarGHairStrands_ManualSkinCache(TEXT("r.HairStrands.ManualSkinCache"), GHairStrands_ManualSkinCache, TEXT("If skin cache is not enabled, and grooms use skinning method, this enable a simple skin cache mechanisme for groom. Default:disable"));
 
+static int32 GHairStrands_InterpolationFrustumCullingEnable = 1;
+static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable(TEXT("r.HairStrands.Interoplation.FrustumCulling"), GHairStrands_InterpolationFrustumCullingEnable, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
+
 bool IsHairStrandsSkinCacheEnable()
 {
 	return GHairStrands_ManualSkinCache > 0;
 }
-
-static int32 GHairStrands_InterpolationFrustumCullingEnable = 1;
-static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable(TEXT("r.HairStrands.Interoplation.FrustumCulling"), GHairStrands_InterpolationFrustumCullingEnable, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
 

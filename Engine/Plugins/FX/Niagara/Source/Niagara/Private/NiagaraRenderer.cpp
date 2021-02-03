@@ -354,7 +354,7 @@ FPrimitiveViewRelevance FNiagaraRenderer::GetViewRelevance(const FSceneView* Vie
 	bool bHasDynamicData = HasDynamicData();
 
 	//Always draw so our LastRenderTime is updated. We may not have dynamic data if we're disabled from visibility culling.
-	Result.bDrawRelevance =/* bHasDynamicData && */SceneProxy->IsShown(View) && View->Family->EngineShowFlags.Particles;
+	Result.bDrawRelevance =/* bHasDynamicData && */SceneProxy->IsShown(View) && View->Family->EngineShowFlags.Particles && View->Family->EngineShowFlags.Niagara;
 	Result.bShadowRelevance = bHasDynamicData && SceneProxy->IsShadowCast(View);
 	Result.bDynamicRelevance = bHasDynamicData;
 	if (bHasDynamicData)

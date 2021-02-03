@@ -398,6 +398,8 @@ void FControlRigBindingHelper::BindToSequencerInstance(UControlRig* ControlRig)
 				AnimInstance->RecalcRequiredBones();
 				AnimInstance->AddControlRigTrack(ControlRig->GetUniqueID(), ControlRig);
 				ControlRig->Initialize();
+
+				ControlRig->SetBoneInitialTransformsFromSkeletalMesh(SkeletalMeshComponent->SkeletalMesh);
 			}
 		}
 	}
@@ -749,11 +751,11 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 					}
 				}
 			}
+			// ensure that pre animated state is saved
+			Player.SavePreAnimatedState(*ControlRig, FMovieSceneControlRigParameterTemplate::GetAnimTypeID(), FControlRigParameterPreAnimatedTokenProducer(Operand.SequenceID));
+
 		}
 
-		// ensure that pre animated state is saved
-		Player.SavePreAnimatedState(*ControlRig, FMovieSceneControlRigParameterTemplate::GetAnimTypeID(), FControlRigParameterPreAnimatedTokenProducer(Operand.SequenceID));
-		
 	}
 
 	const UMovieSceneControlRigParameterSection* Section;

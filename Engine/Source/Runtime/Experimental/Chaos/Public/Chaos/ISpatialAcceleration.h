@@ -114,7 +114,7 @@ struct CHAOS_API TSpatialVisitorData
 	This class is responsible for gathering any information it wants (for example narrow phase query results).
 	This class determines whether the acceleration structure should continue to iterate through potential instances
 */
-template <typename TPayloadType, typename T>
+template <typename TPayloadType, typename T = FReal>
 class CHAOS_API ISpatialVisitor
 {
 public:

@@ -29,9 +29,6 @@ public:
 	/** returns if this DatasmithElement is of a specified type */
 	virtual bool IsA(EDatasmithElementType Type) const = 0;
 
-	/** returns if this DatasmithElement is of a specified subtype of its EDatasmithElementType*/
-	virtual bool IsSubType(uint64 SubType) const = 0;
-
 	/** Gets the element name */
 	virtual const TCHAR* GetName() const = 0;
 
@@ -50,6 +47,10 @@ public:
 	 * @return The MD5 hash of the Element properties
 	 */
 	virtual FMD5Hash CalculateElementHash(bool bForce) = 0;
+
+protected:
+	/** returns if this DatasmithElement is of a specified subtype of its EDatasmithElementType*/
+	virtual bool IsSubTypeInternal(uint64 SubType) const = 0;
 };
 
 class DATASMITHCORE_API IDatasmithKeyValueProperty : public IDatasmithElement
@@ -103,9 +104,6 @@ public:
 	/** Set rotation (in quaternion format) of this entity */
 	virtual void SetRotation(const FQuat& Value) = 0;
 
-	/** Sets to adjust the actor transform relative to it's parent */
-	virtual void SetUseParentTransform(bool bUseParentTransform) = 0;
-
 	/** Returns the relative transform for this element */
 	virtual FTransform GetRelativeTransform() const = 0;
 
@@ -139,21 +137,12 @@ public:
 
 	virtual void RemoveChild(const TSharedPtr< IDatasmithActorElement >& InChild) = 0;
 
+	/** Get the parent actor of the Actor element, returns invalid TSharedPtr if the Actor is directly under the scene root */
+	virtual const TSharedPtr< IDatasmithActorElement >& GetParentActor() const = 0;
+
 	/** Indicates if this actor is a standalone actor or a component, when used in a hierarchy */
 	virtual void SetIsAComponent(bool Value) = 0;
 	virtual bool IsAComponent() const = 0;
-
-	/** Set a mesh actor as a switch or not */
-	virtual void SetAsSelector(bool bInIsASelector) = 0;
-
-	/** Get if a mesh actor is a switch or not */
-	virtual bool IsASelector() const = 0;
-
-	/** Set the index of the visible child of a mesh actor which is a selector */
-	virtual void SetSelectionIndex(int32 InSelectionID) = 0;
-
-	/** Get the index of the visible child of a mesh actor which is a selector */
-	virtual int32 GetSelectionIndex() const = 0;
 
 	/** Get a mesh actor's visibility */
 	virtual void SetVisibility(bool bInVisibility) = 0;
@@ -279,6 +268,9 @@ public:
 
 	/** Remove material from the Actor Element */
 	virtual void RemoveMaterialOverride(const TSharedPtr<IDatasmithMaterialIDElement>& Material) = 0;
+
+	/** Remove all material overrides from the Actor Element */
+	virtual void ResetMaterialOverrides() = 0;
 
 	/** Get the path name of the StaticMesh associated with the actor */
 	virtual const TCHAR* GetStaticMeshPathName() const = 0;
@@ -1438,6 +1430,12 @@ public:
 
 	/** Add a property to this meta data */
 	virtual void AddProperty(const TSharedPtr< IDatasmithKeyValueProperty >& Property) = 0;
+
+	/** Remove the property from this meta data */
+	virtual void RemoveProperty( const TSharedPtr<IDatasmithKeyValueProperty>& Property ) = 0;
+
+	/** Remove all properties in this meta data */
+	virtual void ResetProperties() = 0;
 };
 
 class DATASMITHCORE_API IDatasmithDecalActorElement : public IDatasmithCustomActorElement

@@ -1059,7 +1059,25 @@ namespace AutomationTool
 									{
 										Directory.CreateDirectory(Path.GetDirectoryName(ExtractedFilename));
 									}
-									Entry.ExtractToFile(ExtractedFilename, true);
+
+									int UnzipAttempts = 3;
+									while (UnzipAttempts-- > 0)
+									{
+										try
+										{
+											Entry.ExtractToFile(ExtractedFilename, true);
+											break;
+										}
+										catch (IOException IOEx)
+										{
+											if (UnzipAttempts == 0)
+											{
+												throw;
+											}
+
+											Log.TraceWarning("Failed to unzip '{0}' from '{1}' to '{2}', retrying.. (Error: {3})", Entry.FullName, ZipFile.FullName, ExtractedFilename, IOEx.Message);
+										}
+									}
 								}
 							}
 						}

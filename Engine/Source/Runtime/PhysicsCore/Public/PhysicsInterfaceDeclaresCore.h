@@ -19,6 +19,7 @@
 #if WITH_CHAOS
 
 #include "ChaosSQTypes.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 
 namespace Chaos
 {
@@ -207,7 +208,7 @@ extern FPhysicsActorHandle DefaultPhysicsActorHandle();
 
 #elif WITH_CHAOS
 
-using FPhysicsActorHandle = Chaos::TGeometryParticle<float, 3>*;
+using FPhysicsActorHandle = FSingleParticlePhysicsProxy*;
 
 class FChaosSceneId;
 class FPhysInterface_Chaos;

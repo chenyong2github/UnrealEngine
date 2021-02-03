@@ -62,6 +62,17 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Returns all events that are a error
+		/// </summary>
+		public IEnumerable<string> WarningAndErrorEvents
+		{
+			get
+			{
+				return Events.Where(E => E.ToLower().Contains(": error:") || E.ToLower().Contains(": warning:"));
+			}
+		}
+
+		/// <summary>
 		/// Returns the name of the test. If DisplayName and TestName differ they are joined
 		/// </summary>
 		public string FullName

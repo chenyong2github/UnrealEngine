@@ -1,0 +1,90 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Widgets/SLevelSnapshotsEditorFilterList.h"
+
+#include "ConjunctionFilter.h"
+#include "SLevelSnapshotsEditorFilter.h"
+#include "LevelSnapshotsEditorFilters.h"
+
+#include "Widgets/Layout/SWrapBox.h"
+
+#define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
+
+namespace
+{
+	void OnClickRemoveFilter(TSharedRef<SLevelSnapshotsEditorFilter> RemovedFilterWidget, const TSharedPtr<SWrapBox> FilterContainer, const TWeakObjectPtr<UConjunctionFilter> ManagedAndCondition)
+	{
+		const TWeakObjectPtr<UNegatableFilter> RemovedFilter = RemovedFilterWidget->GetSnapshotFilter();
+		if (!ensure(FilterContainer.IsValid()) || !ensure(ManagedAndCondition.IsValid() || !ensure(RemovedFilter.IsValid())))
+		{
+			return;
+		}
+
+		FilterContainer->RemoveSlot(RemovedFilterWidget);
+		ManagedAndCondition->RemoveChild(RemovedFilterWidget->GetSnapshotFilter().Get());
+	}
+}
+
+SLevelSnapshotsEditorFilterList::~SLevelSnapshotsEditorFilterList()
+{
+	if (ensure(ManagedAndCondition.IsValid()))
+	{
+		ManagedAndCondition->OnChildAdded.Remove(AddDelegateHandle);
+	}
+}
+
+void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs, UConjunctionFilter* InManagedAndCondition, const TSharedRef<FLevelSnapshotsEditorFilters>& InEditorFilterModel)
+{
+	ManagedAndCondition = InManagedAndCondition;
+
+	AddDelegateHandle = InManagedAndCondition->OnChildAdded.AddRaw(this, &SLevelSnapshotsEditorFilterList::AddChild, InEditorFilterModel);
+
+	ChildSlot
+	[
+		SAssignNew(FilterBox, SWrapBox)
+			.UseAllottedSize(true)
+	];
+
+	const bool bHasNoFilters = InManagedAndCondition->GetChildren().Num() == 0;
+	
+	if (bHasNoFilters)
+	{
+		FilterBox->AddSlot()
+			.Padding(3, 3)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("FilterListDragTutorial", "Drag a favorite filter here"))
+			.Justification(ETextJustify::Center)
+		];
+	}
+	else
+	{
+		for (UNegatableFilter* Filter : InManagedAndCondition->GetChildren())
+		{
+			AddChild(Filter, InEditorFilterModel);
+		}
+	}
+}
+	
+void SLevelSnapshotsEditorFilterList::AddChild(UNegatableFilter* AddedFilter, TSharedRef<FLevelSnapshotsEditorFilters> InEditorFilterModel) const
+{
+	if (!ensure(ManagedAndCondition.IsValid()))
+	{
+		return;
+	}
+	
+	const bool bWasEmptyBefore = ManagedAndCondition->GetChildren().Num() == 1;
+	if (bWasEmptyBefore)
+	{
+		FilterBox->ClearChildren();
+	}
+	
+	FilterBox->AddSlot()
+		.Padding(3, 3)
+		[
+			SNew(SLevelSnapshotsEditorFilter, AddedFilter, InEditorFilterModel)
+				.OnClickRemoveFilter(SLevelSnapshotsEditorFilter::FOnClickRemoveFilter::CreateStatic(&OnClickRemoveFilter, FilterBox, ManagedAndCondition))
+		];
+}
+
+#undef LOCTEXT_NAMESPACE

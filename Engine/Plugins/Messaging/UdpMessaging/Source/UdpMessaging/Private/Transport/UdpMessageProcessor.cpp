@@ -48,6 +48,7 @@ FUdpMessageProcessor::FUdpMessageProcessor(FSocket& InSocket, const FGuid& InNod
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
 	});
 
+	CurrentTime = FDateTime::UtcNow();
 	Thread = FRunnableThread::Create(this, TEXT("FUdpMessageProcessor"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask());
 }
 
@@ -198,7 +199,9 @@ uint32 FUdpMessageProcessor::Run()
 {
 	while (!Stopping)
 	{
+		FDateTime LastTime = CurrentTime;
 		CurrentTime = FDateTime::UtcNow();
+		DeltaTime = CurrentTime - LastTime;
 
 		if (WorkEvent->Wait(CalculateWaitTime()))
 		{
@@ -698,35 +701,70 @@ void FUdpMessageProcessor::RemoveKnownNode(const FGuid& NodeId)
 
 void FUdpMessageProcessor::UpdateKnownNodes()
 {
-	// remove dead remote endpoints
-	FTimespan DeadHelloTimespan = DeadHelloIntervals * Beacon->GetBeaconInterval();
-	TArray<FGuid> NodesToRemove;
+	// Estimated max send bytes per seconds
+	const uint32 MaxSendRate = 125000000;
 
-	bool bSuccess = true;
-	for (auto& KnownNodePair : KnownNodes)
+	// Remove dead nodes
+	FTimespan DeadHelloTimespan = DeadHelloIntervals * Beacon->GetBeaconInterval();
+	for (auto It = KnownNodes.CreateIterator(); It; ++It)
 	{
-		FGuid& NodeId = KnownNodePair.Key;
-		FNodeInfo& NodeInfo = KnownNodePair.Value;
+		FGuid& NodeId = It->Key;
+		FNodeInfo& NodeInfo = It->Value;
 
 		if ((NodeId.IsValid()) && ((NodeInfo.LastSegmentReceivedTime + DeadHelloTimespan) <= CurrentTime))
 		{
-			NodesToRemove.Add(NodeId);
+			NodeLostDelegate.ExecuteIfBound(NodeId);
+			It.RemoveCurrent();
 		}
-		else
-		{
-			bSuccess &= UpdateSegmenters(NodeInfo);
-			bSuccess &= UpdateReassemblers(NodeInfo);
-		}
-	}
-
-	for (const auto& Node : NodesToRemove)
-	{
-		RemoveKnownNode(Node);
 	}
 
 	UpdateNodesPerVersion();
-
 	Beacon->SetEndpointCount(KnownNodes.Num() + 1);
+
+	if (KnownNodes.Num() == 0)
+	{
+		return;
+	}
+
+	bool bSuccess = true;
+	double DeltaSeconds = DeltaTime.GetTotalSeconds();
+	const int32 MaxSendRateDelta = MaxSendRate * DeltaSeconds;
+
+	// Calculate the number of byte allowed per node for this tick
+	int32 MaxNodeByteSend = (MaxSendRateDelta) / KnownNodes.Num();
+
+	int32 AllByteSent = 0;
+	bool bSendPending = true;
+	while (bSendPending 
+		&& AllByteSent < MaxSendRateDelta
+		&& bSuccess)
+	{
+		bSendPending = false;
+
+		for (auto& KnownNodePair : KnownNodes)
+		{
+			int32 NodeByteSent = UpdateSegmenters(KnownNodePair.Value, MaxNodeByteSend);
+			// if NodByteSent is negative, there is a socket error, continuing is useless
+			bSuccess = NodeByteSent >= 0;
+			if (!bSuccess)
+			{
+				break;
+			}
+			// if NodeByteSent is higher than the allotted number of bytes for the node, queue another round of sending once all node had a go
+			bSendPending |= NodeByteSent > MaxNodeByteSend;
+			AllByteSent += NodeByteSent;
+		}
+	}
+
+	for (auto& KnownNodePair : KnownNodes)
+	{
+		bSuccess = UpdateReassemblers(KnownNodePair.Value);
+		// if there is a socket error, continuing is useless
+		if (!bSuccess)
+		{
+			break;
+		}
+	}
 
 	// if we had socket error, fire up the error delegate
 	if (!bSuccess || Beacon->HasSocketError())
@@ -735,9 +773,9 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 	}
 }
 
-
-bool FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo)
+int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSendBytes)
 {
+
 	FUdpMessageSegment::FHeader Header
 	{
 		NodeInfo.ProtocolVersion,		// Header.ProtocolVersion - Send data segment using the node protocol version
@@ -746,6 +784,7 @@ bool FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo)
 		EUdpMessageSegments::Data		// Header.SegmentType
 	};
 
+	uint32 ByteSent = 0;
 	for (TMap<int32, TSharedPtr<FUdpMessageSegmenter> >::TIterator It(NodeInfo.Segmenters); It; ++It)
 	{
 		TSharedPtr<FUdpMessageSegmenter>& Segmenter = It.Value();
@@ -777,10 +816,18 @@ bool FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo)
 					DataChunk.Serialize(*Writer, Header.ProtocolVersion);
 				}
 
+				ByteSent += Writer->Num();
+
 				if (!SocketSender->Send(Writer, NodeInfo.Endpoint))
 				{
-					return false;
+					return -1;
  				}
+
+				// if we reached the max send rate, break
+				if (ByteSent >= MaxSendBytes)
+				{
+					break;
+				}
 			}
 
 			// update sent time for reliable messages
@@ -798,8 +845,14 @@ bool FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo)
 		{
 			It.RemoveCurrent();
 		}
+
+		// if we reach the max send rate, break
+		if (ByteSent >= MaxSendBytes)
+		{
+			break;
+		}
 	}
-	return true;
+	return ByteSent;
 }
 
 

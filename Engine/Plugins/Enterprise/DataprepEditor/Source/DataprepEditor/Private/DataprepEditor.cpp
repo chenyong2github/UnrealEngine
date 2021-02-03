@@ -8,6 +8,7 @@
 #include "DataprepAssetInstance.h"
 #include "DataprepContentConsumer.h"
 #include "DataprepContentProducer.h"
+#include "DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 #include "DataprepEditorActions.h"
 #include "DataprepEditorLogCategory.h"
@@ -19,6 +20,7 @@
 #include "PreviewSystem/DataprepPreviewSceneOutlinerColumn.h"
 #include "PreviewSystem/DataprepPreviewSystem.h"
 #include "SchemaActions/DataprepOperationMenuActionCollector.h"
+#include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/DataprepAssetView.h"
 #include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
 #include "Widgets/SAssetsPreviewWidget.h"
@@ -66,7 +68,9 @@
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "DataprepEditor"
 
@@ -80,6 +84,8 @@ const FName FDataprepEditor::DataprepAssetTabId(TEXT("DataprepEditor_Dataprep"))
 const FName FDataprepEditor::SceneViewportTabId(TEXT("DataprepEditor_SceneViewport"));
 const FName FDataprepEditor::DataprepStatisticsTabId(TEXT("DataprepEditor_Statistics"));
 const FName FDataprepEditor::DataprepGraphEditorTabId(TEXT("DataprepEditor_GraphEditor"));
+
+const FName FDataprepEditor::StatNameDrawCalls(TEXT("DrawCalls"));
 
 static bool bLogTiming = true;
 
@@ -267,8 +273,9 @@ FDataprepEditor::FDataprepEditor()
 	, bIgnoreCloseRequest(false)
 	, PreviewSystem( MakeShared<FDataprepPreviewSystem>() )
 {
-	FName UniqueWorldName = MakeUniqueObjectName(GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("PreviewWorld", "Preview").ToString()) ));
-	PreviewWorld = NewObject<UWorld>(GetTransientPackage(), UniqueWorldName);
+	UPackage* DataprepPackage = NewObject<UPackage>(nullptr, *GetRootPackagePath(), RF_Transient);
+	FName UniqueWorldName = MakeUniqueObjectName(DataprepPackage, UWorld::StaticClass(), FName( *(LOCTEXT("PreviewWorld", "Preview").ToString()) ));
+	PreviewWorld = NewObject<UWorld>(DataprepPackage, UniqueWorldName);
 	PreviewWorld->WorldType = EWorldType::EditorPreview;
 
 	FWorldContext& WorldContext = GEngine->CreateNewWorldContext(PreviewWorld->WorldType);
@@ -497,8 +504,7 @@ const FString& FDataprepEditor::GetRootTemporaryDir()
 
 const FString& FDataprepEditor::GetRootPackagePath()
 {
-	static FString RootPackagePath( TEXT("/Engine/DataprepEditor/Transient") );
-	return RootPackagePath;
+	return DataprepCorePrivateUtils::GetRootPackagePath();
 }
 
 void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UDataprepAssetInterface* InDataprepAssetInterface)
@@ -661,11 +667,6 @@ void FDataprepEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FDataprepEditor::OnSaveScene));
 
 	UICommandList->MapAction(
-		Commands.BuildWorld,
-		FExecuteAction::CreateSP( this, &FDataprepEditor::OnBuildWorld ),
-		FCanExecuteAction::CreateSP( this, &FDataprepEditor::CanBuildWorld ) );
-
-	UICommandList->MapAction(
 		Commands.ExecutePipeline,
 		FExecuteAction::CreateSP(this, &FDataprepEditor::OnExecutePipeline),
 		FCanExecuteAction::CreateSP(this, &FDataprepEditor::CanExecutePipeline));
@@ -744,6 +745,11 @@ void FDataprepEditor::OnBuildWorld()
 	}
 
 	TakeSnapshot();
+
+	// Init stats
+	PreExecuteStatsPtr = FDataprepStats::GenerateWorldStats(PreviewWorld);
+	PostExecuteStatsPtr.Reset();
+	RefreshStatsTab();
 
 	UpdatePreviewPanels();
 	SceneViewportView->FocusViewportOnScene();
@@ -914,6 +920,10 @@ void FDataprepEditor::OnExecutePipeline()
 	bIsFirstRun = false;
 	// Reset tracking of pipeline changes between execution
 	bPipelineChanged = false;
+
+	// Get stats now that the pipeline has executed
+	PostExecuteStatsPtr = FDataprepStats::GenerateWorldStats(PreviewWorld);
+	RefreshStatsTab();
 }
 
 void FDataprepEditor::OnCommitWorld()
@@ -977,6 +987,10 @@ void FDataprepEditor::OnCommitWorld()
 	ResetBuildWorld();
 
 	UpdateDataForPreviewSystem();
+
+	PreExecuteStatsPtr.Reset();
+	PostExecuteStatsPtr.Reset();
+	RefreshStatsTab();
 }
 
 void FDataprepEditor::ExtendMenu()
@@ -993,7 +1007,6 @@ void FDataprepEditor::ExtendToolBar()
 		{
 			ToolbarBuilder.BeginSection("Run");
 			{
-				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().BuildWorld);
 				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().ExecutePipeline);
 				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().CommitWorld);
 			}
@@ -1024,7 +1037,9 @@ void FDataprepEditor::CreateTabs()
 
 	CreateGraphEditor();
 
-	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetInterfacePtr.Get() );
+	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetInterfacePtr.Get() )
+		.DataprepImportProducersDelegate( FDataprepImportProducers::CreateSP(this, &FDataprepEditor::OnBuildWorld) )
+		.DataprepImportProducersEnabledDelegate( FDataprepImportProducersEnabled::CreateSP(this, &FDataprepEditor::CanBuildWorld) );
 
 	CreateScenePreviewTab();
 
@@ -1261,20 +1276,90 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabDataprep(const FSpawnTabArgs & Arg
 	];
 }
 
+void FDataprepEditor::RefreshStatsTab()
+{
+	if (!StatsTabPtr.IsValid())
+	{
+		return;
+	}
+
+	check(StatsWidgetPtr.IsValid());
+
+	TSharedPtr<SDataprepStats> StatsWidget = StatsWidgetPtr.Pin();
+
+	if (PreExecuteStatsPtr.IsValid())
+	{
+		if (PostExecuteStatsPtr.IsValid())
+		{
+			// Freeze live updates of draw calls stat, we want to compare this value to the new one
+			FDataprepStatPtr StatPtr = StatsWidget->GetStat(StatNameDrawCalls);
+			StatPtr->PreExecuteCount = SceneViewportView->GetDrawCallsAverage();
+			StatPtr->PostExecuteCount = TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateLambda([this]()
+			{
+				return SceneViewportView->GetDrawCallsAverage();
+			}));
+			StatsWidget->SetStats(PostExecuteStatsPtr, false);
+		}
+		else
+		{
+			FDataprepStatPtr StatPtr = StatsWidget->GetStat(StatNameDrawCalls);
+			StatPtr->PreExecuteCount = TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateLambda([this]()
+			{
+				return SceneViewportView->GetDrawCallsAverage();
+			}));
+			StatsWidget->SetStats(PreExecuteStatsPtr, true);
+		}
+	}
+	else
+	{
+		// Clear the stats
+		StatsWidget->ClearStats(true, true);
+
+		// Reset the draw calls stat too
+		FDataprepStatPtr StatPtr = StatsWidget->GetStat(StatNameDrawCalls);
+		StatPtr->PreExecuteCount = TAttribute<int32>();
+		StatPtr->PostExecuteCount = TAttribute<int32>();
+	}
+}
+
 TSharedRef<SDockTab> FDataprepEditor::SpawnTabStatistics(const FSpawnTabArgs & Args)
 {
 	check(Args.GetTabId() == DataprepStatisticsTabId);
 
-	FStatsViewerModule& StatsViewerModule = FModuleManager::Get().LoadModuleChecked<FStatsViewerModule>("StatsViewer");
-	
-	const uint32 EnablePagesMask = (1 << EStatsPage::PrimitiveStats) | (1 << EStatsPage::StaticMeshLightingInfo) | (1 << EStatsPage::TextureStats);
+	TSharedPtr<SDataprepStats> StatsWidget = SNew(SDataprepStats);
 
-	return SNew(SDockTab)
+	TSharedRef<SDockTab> StatsTab = SNew(SDockTab)
 		.Label(LOCTEXT("DataprepEditor_StatisticsTab_Title", "Statistics"))
 		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.StatsViewer"))
 		[
-			StatsViewerModule.CreateStatsViewer( *PreviewWorld, EnablePagesMask, TEXT("Dataprep") )
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			[
+				SAssignNew(StatsWidget, SDataprepStats)
+			]
 		];
+
+	const FName CategoryAssets("Assets");
+	const FName CategoryScene("Scene (World)");
+
+	StatsWidget->AddStat(StatNameDrawCalls, CategoryScene, FDataprepStat(LOCTEXT("DataprepEditor_Stats_DrawCalls", "Draw Calls")));
+	StatsWidget->AddStat(FDataprepStats::StatNameTriangles, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Triangles", "Triangles")));
+	StatsWidget->AddStat(FDataprepStats::StatNameVertices, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Vertices", "Vertices")));
+	StatsWidget->AddStat(FDataprepStats::StatNameTextures, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Textures", "Textures")));
+	StatsWidget->AddStat(FDataprepStats::StatNameTextureSize, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_TextureSize", "Max Texture Size")));
+	StatsWidget->AddStat(FDataprepStats::StatNameMeshes, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Meshes", "Meshes")));
+	StatsWidget->AddStat(FDataprepStats::StatNameSkeletalMeshes, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_SkelMeshes", "Skeletal Meshes")));
+	StatsWidget->AddStat(FDataprepStats::StatNameMaterials, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Materials", "Materials")));
+	StatsWidget->AddStat(FDataprepStats::StatNameLights, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Lights", "Lights")));
+	StatsWidget->AddStat(FDataprepStats::StatNameActors, CategoryScene, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Actors", "Actors")));
+	StatsWidget->AddStat(FDataprepStats::StatNameActorComponents, CategoryScene, FDataprepStat(LOCTEXT("DataprepEditor_Stats_ActorComps", "Actor Components")));
+	
+	StatsWidgetPtr = StatsWidget;
+	StatsTabPtr = StatsTab;
+
+	RefreshStatsTab();
+
+	return StatsTab;
 }
 
 TSharedRef<SDockTab> FDataprepEditor::SpawnTabSceneViewport( const FSpawnTabArgs& Args )

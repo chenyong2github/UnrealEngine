@@ -275,6 +275,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ControlRig", meta = (DisplayName = "Add Mapped Skeletal Mesh"))
 	void AddMappedCompleteSkeletalMesh(USkeletalMeshComponent* SkeletalMeshComponent);
 
+	/** Setup the initial transforms / ref pose of the bones based on a skeletal mesh */
+	UFUNCTION(BlueprintCallable, Category = "ControlRig", meta = (DisplayName = "Set Bone Initial Transforms From Skeletal Mesh"))
+	void SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh);
+
 	/** When checked the transforms are reset before a tick / update of the rig */
 	UPROPERTY(EditAnywhere, Category = "Animation")
 	bool bResetTransformBeforeTick;
@@ -583,10 +587,10 @@ private:
 
 		void Apply(USkeletalMeshComponent* InComponent)
 		{
-			InComponent->SetAnimClass(AnimClass);
-			InComponent->SetAnimInstanceClass(AnimInstanceClass);
-			InComponent->PrimaryComponentTick.bCanEverTick = bCanEverTick;
-		}
+				InComponent->SetAnimClass(AnimClass);
+				InComponent->SetAnimInstanceClass(AnimInstanceClass);
+				InComponent->PrimaryComponentTick.bCanEverTick = bCanEverTick;
+			}
 	};
 
 	UControlRig* SetupControlRigIfRequired();

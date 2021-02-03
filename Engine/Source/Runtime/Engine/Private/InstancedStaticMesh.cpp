@@ -2868,9 +2868,12 @@ int32 UInstancedStaticMeshComponent::GetInstanceCount() const
 
 void UInstancedStaticMeshComponent::SetCullDistances(int32 StartCullDistance, int32 EndCullDistance)
 {
-	InstanceStartCullDistance = StartCullDistance;
-	InstanceEndCullDistance = EndCullDistance;
-	MarkRenderStateDirty();
+	if (InstanceStartCullDistance != StartCullDistance || InstanceEndCullDistance != EndCullDistance)
+	{
+		InstanceStartCullDistance = StartCullDistance;
+		InstanceEndCullDistance = EndCullDistance;
+		MarkRenderStateDirty();
+	}
 }
 
 void UInstancedStaticMeshComponent::SetupNewInstanceData(FInstancedStaticMeshInstanceData& InOutNewInstanceData, int32 InInstanceIndex, const FTransform& InInstanceTransform)

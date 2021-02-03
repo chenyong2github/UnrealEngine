@@ -71,7 +71,7 @@ UObject* UUsdStageAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, ImportContext.SceneActor);
 		GEditor->BroadcastLevelActorListChanged();
 
-		ImportedObject = ImportContext.ImportedPackage ? Cast<UObject>(ImportContext.ImportedPackage) : Cast<UObject>(ImportContext.SceneActor);
+		ImportedObject = ImportContext.ImportedAsset ? ImportContext.ImportedAsset : Cast<UObject>(ImportContext.SceneActor);
 	}
 	else
 	{

@@ -2145,4 +2145,15 @@ const FString* IAndroidPlatformFile::GetOverrideLogDirectory()
 {
 	return FAndroidPlatformFile::GetOverrideLogDirectory();
 }
+
+FString IAndroidPlatformFile::ConvertToAbsolutePathForExternalAppForRead(const TCHAR* Filename)
+{
+	return AndroidRelativeToAbsolutePath(false, Filename);
+}
+
+FString IAndroidPlatformFile::ConvertToAbsolutePathForExternalAppForWrite(const TCHAR* Filename)
+{
+	return AndroidRelativeToAbsolutePath(false, Filename);
+}
+
 #endif

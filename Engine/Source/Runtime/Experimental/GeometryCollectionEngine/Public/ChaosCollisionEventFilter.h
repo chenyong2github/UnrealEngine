@@ -43,11 +43,11 @@ struct FChaosCollisionEventData
 
 	// The particle of the collision event
 	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
-	Chaos::TGeometryParticle<float, 3>* Particle;
+	Chaos::FGeometryParticle* Particle;
 
 	// The level set of the collision event
 	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
-	Chaos::TGeometryParticle<float, 3>* Levelset;
+	Chaos::FGeometryParticle* Levelset;
 
 	FChaosCollisionEventData()
 		: Location(FVector::ZeroVector)

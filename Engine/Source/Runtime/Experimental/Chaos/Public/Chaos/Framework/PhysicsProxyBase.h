@@ -12,10 +12,7 @@ enum class EPhysicsProxyType
 	GeometryCollectionType = 2,
 	FieldType = 3,
 	SkeletalMeshType = 4,
-	SingleGeometryParticleType = 5,
-	SingleKinematicParticleType = 6,
-	SingleRigidParticleType = 7,
-	JointConstraintType = 8,
+	JointConstraintType = 8,	//left gap when removed some types in case these numbers actually matter to someone, should remove
 	SuspensionConstraintType = 9,
 	SingleParticleProxy
 };
@@ -39,6 +36,8 @@ public:
 
 	template< class SOLVER_TYPE>
 	SOLVER_TYPE* GetSolver() const { return static_cast<SOLVER_TYPE*>(Solver); }
+
+	Chaos::FPhysicsSolverBase* GetSolverBase() const { return Solver; }
 
 	//Should this be in the public API? probably not
 	template< class SOLVER_TYPE = Chaos::FPhysicsSolver>

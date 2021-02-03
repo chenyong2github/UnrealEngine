@@ -352,6 +352,12 @@ void FLensDistortionCameraModel::DrawUVDisplacementToRenderTarget(
 
 	ERHIFeatureLevel::Type FeatureLevel = World->Scene->GetFeatureLevel();
 
+	if (FeatureLevel < ERHIFeatureLevel::SM5)
+	{
+		FMessageLog("Blueprint").Warning(LOCTEXT("LensDistortionCameraModel_DrawUVDisplacementToRenderTarget", "DrawUVDisplacementToRenderTarget: Requires RHIFeatureLevel::SM5 which is unavailable."));
+		return;
+	}
+
 	ENQUEUE_RENDER_COMMAND(CaptureCommand)(
 		[CompiledCameraModel, TextureRenderTargetResource, TextureRenderTargetName, FeatureLevel](FRHICommandListImmediate& RHICmdList)
 		{

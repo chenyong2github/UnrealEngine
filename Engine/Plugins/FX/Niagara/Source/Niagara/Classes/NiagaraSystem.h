@@ -280,6 +280,8 @@ public:
 	/** Gets the System script which is used to populate the System parameters and parameter bindings. */
 	UNiagaraScript* GetSystemSpawnScript();
 	UNiagaraScript* GetSystemUpdateScript();
+	const UNiagaraScript* GetSystemSpawnScript() const;
+	const UNiagaraScript* GetSystemUpdateScript() const;
 
 	TOptional<float> GetMaxDeltaTime() const { return MaxDeltaTime; }
 	const FNiagaraDataSetAccessor<ENiagaraExecutionState>& GetSystemExecutionStateAccessor() const { return SystemExecutionStateAccessor; }
@@ -300,6 +302,7 @@ public:
 	FORCEINLINE float GetWarmupTime()const { return WarmupTime; }
 	FORCEINLINE int32 GetWarmupTickCount()const { return WarmupTickCount; }
 	FORCEINLINE float GetWarmupTickDelta()const { return WarmupTickDelta; }
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)  const override;
 
 #if STATS
 	FNiagaraStatDatabase& GetStatData() { return StatDatabase; }

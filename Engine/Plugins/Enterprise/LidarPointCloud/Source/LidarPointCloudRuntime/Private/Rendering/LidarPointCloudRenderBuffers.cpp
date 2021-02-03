@@ -161,6 +161,7 @@ void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterM
 	BINDPARAM(ViewRightVector);
 	BINDPARAM(ViewUpVector);
 	BINDPARAM(bUseCameraFacing);
+	BINDPARAM(bUseScreenSizeScaling);
 	BINDPARAM(BoundsSize);
 	BINDPARAM(ElevationColorBottom);
 	BINDPARAM(ElevationColorTop);
@@ -197,6 +198,7 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(ViewRightVector);
 	SETPARAM(ViewUpVector);
 	SETPARAM(bUseCameraFacing);
+	SETPARAM(bUseScreenSizeScaling);
 	SETPARAM(BoundsSize);
 	SETPARAM(ElevationColorBottom);
 	SETPARAM(ElevationColorTop);

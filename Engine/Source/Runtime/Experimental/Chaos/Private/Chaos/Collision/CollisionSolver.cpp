@@ -289,7 +289,7 @@ namespace Chaos
 			const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Q0 : Q1;
 			const FVec3 ContactNormal = PlaneQ * ManifoldPoint.CoMContactNormal;
 
-			const bool bApplyStaticFriction = (ManifoldPoint.bInsideStaticFrictionCone && Chaos_Manifold_PushOut_StaticFriction);
+			const bool bApplyStaticFriction = (ManifoldPoint.bInsideStaticFrictionCone && ManifoldPoint.bPotentialRestingContact && Chaos_Manifold_PushOut_StaticFriction);
 			FVec3 LocalContactPoint0 = (bApplyStaticFriction) ? ManifoldPoint.PrevCoMContactPoints[0] : ManifoldPoint.CoMContactPoints[0];
 			FVec3 LocalContactPoint1 = (bApplyStaticFriction) ? ManifoldPoint.PrevCoMContactPoints[1] : ManifoldPoint.CoMContactPoints[1];
 
@@ -458,7 +458,7 @@ namespace Chaos
 
 			FReal ImpulseTangent = 0.0f;
 			FReal NetImpulseTangent = 0.0f;
-			const bool bApplyStaticFriction = ManifoldPoint.bInsideStaticFrictionCone && Chaos_Manifold_PushOut_StaticFriction && (Chaos_Manifold_PushOut_VelocityCorrection == 2);
+			const bool bApplyStaticFriction = ManifoldPoint.bInsideStaticFrictionCone && ManifoldPoint.bPotentialRestingContact && Chaos_Manifold_PushOut_StaticFriction && (Chaos_Manifold_PushOut_VelocityCorrection == 2);
 			if (bApplyStaticFriction)
 			{
 				FReal TargetVelocityTangent = 0.0f;

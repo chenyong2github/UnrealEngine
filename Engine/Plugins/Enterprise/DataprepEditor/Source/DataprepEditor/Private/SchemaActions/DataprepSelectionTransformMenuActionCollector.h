@@ -19,8 +19,6 @@ public:
 
 	int32 GroupingPriority = 0;
 
-	static const FText FilterCategory;
-
 private:
 	TSharedPtr<FDataprepSchemaAction> CreateMenuActionFromClass(UClass& Class);
 };

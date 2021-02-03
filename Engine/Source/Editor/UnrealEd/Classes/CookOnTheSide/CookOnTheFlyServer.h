@@ -773,10 +773,10 @@ private:
 	 * Attempts to update the metadata for a package in an asset registry generator
 	 *
 	 * @param Generator The asset registry generator to update
-	 * @param PackageName The name of the package to update info on
+	 * @param Package The package to update info on
 	 * @param SavePackageResult The metadata to associate with the given package name
 	 */
-	void UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const FName& PackageName, FSavePackageResultStruct& SavePackageResult);
+	void UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const UPackage& Package, FSavePackageResultStruct& SavePackageResult);
 
 	/** Perform any special processing for freshly loaded packages 
 	 */

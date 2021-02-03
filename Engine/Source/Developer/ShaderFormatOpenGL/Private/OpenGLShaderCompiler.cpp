@@ -2256,6 +2256,31 @@ static bool CompileToGlslWithShaderConductor(
 
 #endif // DXC_SUPPORTED
 
+
+static inline FString GetExtension(EHlslShaderFrequency Frequency, bool bAddDot = true)
+{
+	const TCHAR* Name = nullptr;
+	switch (Frequency)
+	{
+	default:
+		check(0);
+		// fallthrough...
+
+	case HSF_PixelShader:		Name = TEXT(".frag"); break;
+	case HSF_VertexShader:		Name = TEXT(".vert"); break;
+	case HSF_ComputeShader:		Name = TEXT(".comp"); break;
+	case HSF_GeometryShader:	Name = TEXT(".geom"); break;
+	case HSF_HullShader:		Name = TEXT(".tesc"); break;
+	case HSF_DomainShader:		Name = TEXT(".tese"); break;
+	}
+
+	if (!bAddDot)
+	{
+		++Name;
+	}
+	return FString(Name);
+}
+
 /**
  * Compile a shader for OpenGL on Windows.
  * @param Input - The input shader code and environment.
@@ -2418,6 +2443,16 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 		Output.Target = Input.Target;
 		BuildShaderOutput(Output, Input, GlslShaderSource, SourceLen, Version);
 #endif // VALIDATE_GLSL_WITH_DRIVER
+
+		if (bDumpDebugInfo)
+		{
+			FString DumpedGlslFile = *Input.DumpDebugInfoPath / (TEXT("Output") + GetExtension(Frequency));
+			if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DumpedGlslFile)))
+			{
+				FileWriter->Serialize(GlslShaderSource, FCStringAnsi::Strlen(GlslShaderSource));
+				FileWriter->Close();
+			}
+		}
 	}
 	else if (!bUseSC)
 	{

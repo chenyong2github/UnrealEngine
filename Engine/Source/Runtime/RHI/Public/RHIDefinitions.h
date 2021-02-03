@@ -50,9 +50,9 @@ enum EShaderPlatform
 {
 	SP_PCD3D_SM5					= 0,
 	SP_OPENGL_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 1,
-	SP_PS4							= 2,
+	SP_PS4_REMOVED					UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 2,
 	SP_OPENGL_PCES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 3,
-	SP_XBOXONE_D3D12				= 4,
+	SP_XBOXONE_D3D12_REMOVED		UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 4,
 	SP_PCD3D_SM4_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 5,
 	SP_OPENGL_SM5_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 6,
 	SP_PCD3D_ES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 7,
@@ -367,6 +367,9 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
 	uint32 NumberOfComputeThreads : 10;
+#if WITH_EDITOR
+	FText FriendlyName;
+#endif
 
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
 	uint32 bContainsValidPlatformInfo : 1;
@@ -660,6 +663,13 @@ public:
 	{
 		return Infos[Platform].NumberOfComputeThreads;
 	}
+
+#if WITH_EDITOR
+	static FORCEINLINE_DEBUGGABLE FText GetFriendlyName(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].FriendlyName;
+	}
+#endif
 
 private:
 	static FGenericDataDrivenShaderPlatformInfo Infos[SP_NumPlatforms];
@@ -1634,8 +1644,7 @@ inline bool IsMetalSM5Platform(const FStaticShaderPlatform Platform)
 
 inline bool IsConsolePlatform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_XBOXONE_D3D12
-		|| FDataDrivenShaderPlatformInfo::GetIsConsole(Platform);
+	return FDataDrivenShaderPlatformInfo::GetIsConsole(Platform);
 }
 
 inline bool IsSwitchPlatform(const FStaticShaderPlatform Platform)
@@ -1647,8 +1656,10 @@ inline bool IsSwitchPlatform(const FStaticShaderPlatform Platform)
 UE_DEPRECATED(4.27, "IsPS4Platform() is deprecated; please use DataDrivenShaderPlatformInfo instead.") 
 inline bool IsPS4Platform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PS4
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return Platform == SP_PS4_REMOVED
 		|| FDataDrivenShaderPlatformInfo::GetIsLanguageSony(Platform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 inline bool IsVulkanPlatform(const FStaticShaderPlatform Platform)
@@ -1680,6 +1691,7 @@ inline bool IsVulkanMobilePlatform(const FStaticShaderPlatform Platform)
 		|| (FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform) && FDataDrivenShaderPlatformInfo::GetIsMobile(Platform));
 }
 
+UE_DEPRECATED(4.27, "IsD3DPlatform(bIncludeXboxOne) is deprecated; please use IsD3DPlatform() and DataDrivenShaderPlatformInfo instead.") 
 inline bool IsD3DPlatform(const FStaticShaderPlatform Platform, bool bIncludeXboxOne)
 {
 	switch (Platform)
@@ -1687,14 +1699,34 @@ inline bool IsD3DPlatform(const FStaticShaderPlatform Platform, bool bIncludeXbo
 	case SP_PCD3D_SM5:
 	case SP_PCD3D_ES3_1:
 		return true;
-	case SP_XBOXONE_D3D12:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	case SP_XBOXONE_D3D12_REMOVED:
 		return bIncludeXboxOne;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	default:
 		return FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(Platform);
 	}
 
 	return false;
 }
+
+inline bool IsD3DPlatform(const FStaticShaderPlatform Platform)
+{
+	switch (Platform)
+	{
+	case SP_PCD3D_SM5:
+	case SP_PCD3D_ES3_1:
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	case SP_XBOXONE_D3D12_REMOVED:
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return true;
+	default:
+		return FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(Platform);
+	}
+
+	return false;
+}
+
 
 inline bool IsHlslccShaderPlatform(const FStaticShaderPlatform Platform)
 {
@@ -1717,7 +1749,6 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	switch (InShaderPlatform)
 	{
 	case SP_PCD3D_SM5:
-	case SP_XBOXONE_D3D12:
 	case SP_METAL_SM5:
 	case SP_METAL_MRT:
 	case SP_METAL_MRT_TVOS:
@@ -1850,7 +1881,7 @@ inline bool RHISupportsDualSourceBlending(const FStaticShaderPlatform Platform)
 {
 	// For now only enable support for SM5
 	// Metal RHI doesn't support dual source blending properly at the moment.
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || FDataDrivenShaderPlatformInfo::GetSupportsDualSourceBlending(Platform) || IsVulkanPlatform(Platform));
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsDualSourceBlending(Platform) || IsVulkanPlatform(Platform));
 }
 
 inline bool RHISupportsMultithreadedShaderCreation(const FStaticShaderPlatform Platform)

@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceSkeletalMeshUvMapping.h"
 
 #include "NDISkeletalMeshCommon.h"
+#include "NiagaraResourceArrayWriter.h"
 #include "NiagaraStats.h"
 
 FSkeletalMeshUvMappingHandle::FSkeletalMeshUvMappingHandle()
@@ -51,24 +52,65 @@ FSkeletalMeshUvMappingHandle::operator bool() const
 	return UvMappingData.IsValid();
 }
 
-void FSkeletalMeshUvMappingHandle::FindOverlappingTriangles(const FVector2D& InUv, TArray<int32>& TriangleIndices, float Tolerance) const
+bool FSkeletalMeshUvMapping::IsValidMeshObject(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex)
+{
+	USkeletalMesh* Mesh = MeshObject.Get();
+
+	if (!Mesh)
+	{
+		return false;
+	}
+
+	const FSkeletalMeshLODInfo* LodInfo = Mesh->GetLODInfo(InLodIndex);
+	if (!LodInfo)
+	{
+		// invalid Lod index
+		return false;
+	}
+
+	if (!LodInfo->bAllowCPUAccess)
+	{
+		// we need CPU access to buffers in order to generate our UV mapping quad tree
+		return false;
+	}
+
+	if (!GetLodRenderData(*Mesh, InLodIndex, InUvSetIndex))
+	{
+		// no render data available
+		return false;
+	}
+
+	return true;
+}
+
+void FSkeletalMeshUvMappingHandle::FindOverlappingTriangles(const FVector2D& InUv, float Tolerance, TArray<int32>& TriangleIndices) const
 {
 	TriangleIndices.Empty();
 	if (UvMappingData)
 	{
-		UvMappingData->FindOverlappingTriangles(InUv, TriangleIndices, Tolerance);
+		UvMappingData->FindOverlappingTriangles(InUv, Tolerance, TriangleIndices);
 	}
 }
 
-int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FVector2D& InUv, FVector& BarycentricCoord, float Tolerance) const
+int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector& BarycentricCoord) const
 {
 	if (UvMappingData)
 	{
-		return UvMappingData->FindFirstTriangle(InUv, BarycentricCoord, Tolerance);
+		return UvMappingData->FindFirstTriangle(InUv, Tolerance, BarycentricCoord);
 	}
 
 	return INDEX_NONE;
 }
+
+int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FBox2D& InUvBox, FVector& BarycentricCoord) const
+{
+	if (UvMappingData)
+	{
+		return UvMappingData->FindFirstTriangle(InUvBox, BarycentricCoord);
+	}
+	return INDEX_NONE;
+}
+
 
 const FSkeletalMeshUvMappingBufferProxy* FSkeletalMeshUvMappingHandle::GetQuadTreeProxy() const
 {
@@ -80,6 +122,27 @@ const FSkeletalMeshUvMappingBufferProxy* FSkeletalMeshUvMappingHandle::GetQuadTr
 	return nullptr;
 }
 
+int32 FSkeletalMeshUvMappingHandle::GetUvSetIndex() const
+{
+	if (UvMappingData)
+	{
+		return UvMappingData->UvSetIndex;
+	}
+
+	return 0;
+}
+
+int32 FSkeletalMeshUvMappingHandle::GetLodIndex() const
+{
+	if (UvMappingData)
+	{
+		return UvMappingData->LodIndex;
+	}
+
+	return 0;
+}
+
+
 FSkeletalMeshUvMapping::FSkeletalMeshUvMapping(TWeakObjectPtr<USkeletalMesh> InMeshObject, int32 InLodIndex, int32 InUvSetIndex)
 	: LodIndex(InLodIndex)
 	, UvSetIndex(InUvSetIndex)
@@ -87,6 +150,8 @@ FSkeletalMeshUvMapping::FSkeletalMeshUvMapping(TWeakObjectPtr<USkeletalMesh> InM
 	, TriangleIndexQuadTree(8 /* Internal node capacity */, 8 /* Maximum tree depth */)
 	, CpuQuadTreeUserCount(0)
 	, GpuQuadTreeUserCount(0)
+	, ReleasedByRT(false)
+	, QueuedForRelease(false)
 {
 }
 
@@ -94,6 +159,8 @@ void FSkeletalMeshUvMapping::BuildQuadTree()
 {
 	if (const FSkeletalMeshLODRenderData* LodRenderData = GetLodRenderData())
 	{
+		FString DumpPath = FPaths::ProjectSavedDir() / TEXT("Meshes") / FDateTime::Now().ToString();
+
 		FSkelMeshVertexAccessor<false> MeshVertexAccessor;
 		const FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodRenderData->MultiSizeIndexContainer.GetIndexBuffer();
 		const int32 TriangleCount = IndexBuffer->Num() / 3;
@@ -107,74 +174,20 @@ void FSkeletalMeshUvMapping::BuildQuadTree()
 				MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIt * 3 + 2), UvSetIndex),
 			};
 
+			// we want to skip degenerate triangles
+			if (FMath::Abs((UVs[1] - UVs[0]) ^ (UVs[2] - UVs[0])) < SMALL_NUMBER)
+			{
+				continue;
+			}
+
 			TriangleIndexQuadTree.Insert(TriangleIt, FBox2D(UVs, UE_ARRAY_COUNT(UVs)));
 		}
 	}
 }
 
-
-class FResourceArrayWriter : public FMemoryArchive
-{
-public:
-	FResourceArrayWriter(TResourceArray<uint8>& InBytes, bool bIsPersistent = false, bool bSetOffset = false, const FName InArchiveName = NAME_None)
-		: FMemoryArchive()
-		, Bytes(InBytes)
-		, ArchiveName(InArchiveName)
-	{
-		this->SetIsSaving(true);
-		this->SetIsPersistent(bIsPersistent);
-		if (bSetOffset)
-		{
-			Offset = InBytes.Num();
-		}
-	}
-
-	virtual void Serialize(void* Data, int64 Num) override
-	{
-		const int64 NumBytesToAdd = Offset + Num - Bytes.Num();
-		if (NumBytesToAdd > 0)
-		{
-			const int64 NewArrayCount = Bytes.Num() + NumBytesToAdd;
-			if (NewArrayCount >= MAX_int32)
-			{
-				UE_LOG(LogSerialization, Fatal, TEXT("FMemoryWriter does not support data larger than 2GB. Archive name: %s."), *ArchiveName.ToString());
-			}
-
-			Bytes.AddUninitialized((int32)NumBytesToAdd);
-		}
-
-		check((Offset + Num) <= Bytes.Num());
-
-		if (Num)
-		{
-			FMemory::Memcpy(&Bytes[(int32)Offset], Data, Num);
-			Offset += Num;
-		}
-	}
-	/**
-	 * Returns the name of the Archive.  Useful for getting the name of the package a struct or object
-	 * is in when a loading error occurs.
-	 *
-	 * This is overridden for the specific Archive Types
-	 **/
-	virtual FString GetArchiveName() const override { return TEXT("FMemoryWriter"); }
-
-	int64 TotalSize() override
-	{
-		return Bytes.Num();
-	}
-
-protected:
-
-	TResourceArray<uint8>& Bytes;
-
-	/** Archive name, used to debugging, by default set to NAME_None. */
-	const FName ArchiveName;
-};
-
 void FSkeletalMeshUvMapping::FreezeQuadTree(TResourceArray<uint8>& OutQuadTree) const
 {
-	FResourceArrayWriter Ar(OutQuadTree);
+	FNiagaraResourceArrayWriter Ar(OutQuadTree);
 	TriangleIndexQuadTree.Freeze(Ar);
 }
 
@@ -191,19 +204,35 @@ void FSkeletalMeshUvMapping::BuildGpuQuadTree()
 
 void FSkeletalMeshUvMapping::ReleaseGpuQuadTree()
 {
+	QueuedForRelease = true;
+	ReleasedByRT = false;
+	FThreadSafeBool* Released = &ReleasedByRT;
+
 	BeginReleaseResource(&FrozenQuadTreeProxy);
+
+	ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
+		[Released](FRHICommandListImmediate& RHICmdList)
+		{
+			*Released = true;
+		});
 }
 
 bool FSkeletalMeshUvMapping::IsUsed() const
 {
-	return (CpuQuadTreeUserCount > 0) || (GpuQuadTreeUserCount > 0);
+	return (CpuQuadTreeUserCount > 0)
+		|| (GpuQuadTreeUserCount > 0);
+}
+
+bool FSkeletalMeshUvMapping::CanBeDestroyed() const
+{
+	return !IsUsed() && (!QueuedForRelease || ReleasedByRT);
 }
 
 void FSkeletalMeshUvMapping::RegisterUser(FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately)
 {
 	if (Usage.RequiresCpuAccess || Usage.RequiresGpuAccess)
 	{
-		if (CpuQuadTreeUserCount.IncrementExchange() == 0)
+		if (CpuQuadTreeUserCount++ == 0)
 		{
 			BuildQuadTree();
 		}
@@ -211,7 +240,7 @@ void FSkeletalMeshUvMapping::RegisterUser(FSkeletalMeshUvMappingUsage Usage, boo
 
 	if (Usage.RequiresGpuAccess)
 	{
-		if (GpuQuadTreeUserCount.IncrementExchange() == 0)
+		if (GpuQuadTreeUserCount++ == 0)
 		{
 			BuildGpuQuadTree();
 		}
@@ -222,7 +251,7 @@ void FSkeletalMeshUvMapping::UnregisterUser(FSkeletalMeshUvMappingUsage Usage)
 {
 	if (Usage.RequiresCpuAccess || Usage.RequiresGpuAccess)
 	{
-		if (CpuQuadTreeUserCount.DecrementExchange() == 1)
+		if (--CpuQuadTreeUserCount == 0)
 		{
 			ReleaseQuadTree();
 		}
@@ -230,7 +259,7 @@ void FSkeletalMeshUvMapping::UnregisterUser(FSkeletalMeshUvMappingUsage Usage)
 
 	if (Usage.RequiresGpuAccess)
 	{
-		if (GpuQuadTreeUserCount.DecrementExchange() == 1)
+		if (--GpuQuadTreeUserCount == 0)
 		{
 			ReleaseGpuQuadTree();
 		}
@@ -257,7 +286,7 @@ static FVector BuildTriangleCoordinate(const FSkeletalMeshLODRenderData& LodRend
 	return FMath::GetBaryCentric2D(FVector(InUv, 0.0f), VertexUvs[0], VertexUvs[1], VertexUvs[2]);
 }
 
-void FSkeletalMeshUvMapping::FindOverlappingTriangles(const FVector2D& InUv, TArray<int32>& TriangleIndices, float Tolerance) const
+void FSkeletalMeshUvMapping::FindOverlappingTriangles(const FVector2D& InUv, float Tolerance, TArray<int32>& TriangleIndices) const
 {
 	TriangleIndices.Empty();
 
@@ -281,33 +310,101 @@ void FSkeletalMeshUvMapping::FindOverlappingTriangles(const FVector2D& InUv, TAr
 	}
 }
 
-int32 FSkeletalMeshUvMapping::FindFirstTriangle(const FVector2D& InUv, FVector& BarycentricCoord, float Tolerance) const
+int32 FSkeletalMeshUvMapping::FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector& BarycentricCoord) const
 {
 	if (const FSkeletalMeshLODRenderData* LodRenderData = GetLodRenderData())
 	{
-		TArray<int32, TInlineAllocator<32>> Elements;
+		int32 FoundTriangleIndex = INDEX_NONE;
 
-		FBox2D UvBox(InUv, InUv);
-		TriangleIndexQuadTree.GetElements(UvBox, Elements);
-
-		for (int32 TriangleIndex : Elements)
+		TriangleIndexQuadTree.VisitElements(FBox2D(InUv, InUv), [&](int32 TriangleIndex)
 		{
 			// generate the barycentric coordinates using the UVs of the triangle, the result may not be in the (0,1) range
-			BarycentricCoord = BuildTriangleCoordinate(*LodRenderData, InUv, TriangleIndex, UvSetIndex);
+			FVector ElementCoord = BuildTriangleCoordinate(*LodRenderData, InUv, TriangleIndex, UvSetIndex);
 
-			if ((BarycentricCoord.GetMin() > -Tolerance) && (BarycentricCoord.GetMax() < (1.0f + Tolerance)))
+			if ((ElementCoord.GetMin() > -Tolerance) && (ElementCoord.GetMax() < (1.0f + Tolerance)))
 			{
-				return TriangleIndex;
+				FoundTriangleIndex = TriangleIndex;
+				BarycentricCoord = ElementCoord;
+				return false;
 			}
-		}
+
+			return false;
+		});
+
+		return FoundTriangleIndex;
 	}
 
 	return INDEX_NONE;
 }
 
-const FSkeletalMeshLODRenderData* FSkeletalMeshUvMapping::GetLodRenderData() const
+static bool NormalizedAabbTriangleOverlap(const FVector2D& A, const FVector2D& B, const FVector2D& C)
 {
-	if (FSkeletalMeshRenderData* RenderData = MeshObject->GetResourceForRendering())
+	const FVector2D TriAabbMin = FVector2D(FMath::Min3(A.X, B.X, C.X), FMath::Min3(A.Y, B.Y, C.Y));
+	const FVector2D TriAabbMax = FVector2D(FMath::Max3(A.X, B.X, C.X), FMath::Max3(A.Y, B.Y, C.Y));
+
+	if (TriAabbMin.GetMax() > 1.0f || TriAabbMax.GetMin() < 0.0f)
+	{
+		return false;
+	}
+
+	const FVector2D TriangleEdges[] = { C - B, A - C, B - A };
+
+	for (int32 i = 0; i < UE_ARRAY_COUNT(TriangleEdges); ++i)
+	{
+		const FVector2D SeparatingAxis(-TriangleEdges[i].Y, TriangleEdges[i].X);
+		float AabbSegmentMin = FMath::Min(0.0f, FMath::Min3(SeparatingAxis.X, SeparatingAxis.Y, SeparatingAxis.X + SeparatingAxis.Y));
+		float AabbSegmentMax = FMath::Max(0.0f, FMath::Max3(SeparatingAxis.X, SeparatingAxis.Y, SeparatingAxis.X + SeparatingAxis.Y));
+		float TriangleSegmentMin = FMath::Min3(FVector2D::DotProduct(A, SeparatingAxis), FVector2D::DotProduct(B, SeparatingAxis), FVector2D::DotProduct(C, SeparatingAxis));
+		float TriangleSegmentMax = FMath::Max3(FVector2D::DotProduct(A, SeparatingAxis), FVector2D::DotProduct(B, SeparatingAxis), FVector2D::DotProduct(C, SeparatingAxis));
+
+		if (AabbSegmentMin > TriangleSegmentMax || AabbSegmentMax < TriangleSegmentMax)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+int32 FSkeletalMeshUvMapping::FindFirstTriangle(const FBox2D& InUvBox, FVector& BarycentricCoord) const
+{
+	if (const FSkeletalMeshLODRenderData* LodRenderData = GetLodRenderData())
+	{
+		const FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodRenderData->MultiSizeIndexContainer.GetIndexBuffer();
+		const FSkelMeshVertexAccessor<false> MeshVertexAccessor;
+
+		int32 FoundTriangleIndex = INDEX_NONE;
+		const FVector2D NormalizeScale = FVector2D(1.0f, 1.0f) / (InUvBox.Max - InUvBox.Min);
+		const FVector2D NormalizeBias = FVector2D(1.0f, 1.0f) - InUvBox.Max * NormalizeScale;
+		const FVector UvRef = FVector(InUvBox.GetCenter(), 0.0f);
+
+		TriangleIndexQuadTree.VisitElements(InUvBox, [&](int32 TriangleIndex)
+		{
+			const FVector2D A = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIndex * 3 + 0), UvSetIndex);
+			const FVector2D B = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIndex * 3 + 1), UvSetIndex);
+			const FVector2D C = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIndex * 3 + 2), UvSetIndex);
+
+			// evaluate if the triangle overlaps with the InUvBox
+			if (!NormalizedAabbTriangleOverlap(NormalizeScale * A + NormalizeBias, NormalizeScale * B + NormalizeBias, NormalizeScale * C + NormalizeBias))
+			{
+				return true;
+			}
+
+			BarycentricCoord = FMath::GetBaryCentric2D(UvRef, FVector(A, 0.0f), FVector(B, 0.0f), FVector(C, 0.0f));
+			FoundTriangleIndex = TriangleIndex;
+			return false;
+		});
+
+		return FoundTriangleIndex;
+
+	}
+
+	return INDEX_NONE;
+}
+
+const FSkeletalMeshLODRenderData* FSkeletalMeshUvMapping::GetLodRenderData(const USkeletalMesh& Mesh, int32 LodIndex, int32 UvSetIndex)
+{
+	if (const FSkeletalMeshRenderData* RenderData = Mesh.GetResourceForRendering())
 	{
 		if (RenderData->LODRenderData.IsValidIndex(LodIndex))
 		{
@@ -324,19 +421,18 @@ const FSkeletalMeshLODRenderData* FSkeletalMeshUvMapping::GetLodRenderData() con
 	return nullptr;
 }
 
+const FSkeletalMeshLODRenderData* FSkeletalMeshUvMapping::GetLodRenderData() const
+{
+	if (const USkeletalMesh* Mesh = MeshObject.Get())
+	{
+		return GetLodRenderData(*Mesh, LodIndex, UvSetIndex);
+	}
+	return nullptr;
+}
+
 const FSkeletalMeshUvMappingBufferProxy* FSkeletalMeshUvMapping::GetQuadTreeProxy() const
 {
 	return &FrozenQuadTreeProxy;
-}
-
-FSkeletalMeshUvMappingBufferProxy::FSkeletalMeshUvMappingBufferProxy()
-{
-
-}
-
-FSkeletalMeshUvMappingBufferProxy::~FSkeletalMeshUvMappingBufferProxy()
-{
-
 }
 
 void

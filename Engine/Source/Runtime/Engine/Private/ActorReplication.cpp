@@ -19,6 +19,7 @@
 #include "PhysicsPublic.h"
 #include "DrawDebugHelpers.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Interfaces/Interface_ActorSubobject.h"
 
 /*-----------------------------------------------------------------------------
 	AActor networking implementation.
@@ -483,8 +484,12 @@ void AActor::OnSubobjectCreatedFromReplication(UObject *NewSubobject)
 	check(NewSubobject);
 	if ( UActorComponent * Component = Cast<UActorComponent>(NewSubobject) )
 	{
-		Component->RegisterComponent();
-		Component->SetIsReplicated(true);
+		Component->OnCreatedFromReplication();
+	}
+	// Experimental
+	else if (IInterface_ActorSubobject* SubojectInterface = Cast<IInterface_ActorSubobject>(NewSubobject))
+	{
+		SubojectInterface->OnCreatedFromReplication();
 	}
 }
 
@@ -494,7 +499,12 @@ void AActor::OnSubobjectDestroyFromReplication(UObject *Subobject)
 	check(Subobject);
 	if ( UActorComponent * Component = Cast<UActorComponent>(Subobject) )
 	{
-		Component->DestroyComponent();
+		Component->OnDestroyedFromReplication();
+	}
+	// Experimental
+	else if (IInterface_ActorSubobject* SubojectInterface = Cast<IInterface_ActorSubobject>(Subobject))
+	{
+		SubojectInterface->OnDestroyedFromReplication();
 	}
 }
 

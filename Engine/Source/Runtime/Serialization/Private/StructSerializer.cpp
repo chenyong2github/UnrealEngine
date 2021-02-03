@@ -165,28 +165,32 @@ void FStructSerializer::Serialize(const void* Struct, UStruct& TypeInfo, IStruct
 			{
 				Backend.BeginArray(CurrentState);
 
-				CurrentState.HasBeenProcessed = true;
-				StateStack.Push(CurrentState);
-
-				FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CurrentState.ValueProperty);
-				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(CurrentState.ValueData));
-				FProperty* ValueProperty = ArrayProperty->Inner;
-
-				// push elements on stack (in reverse order)
-				for (int32 Index = ArrayHelper.Num() - 1; Index >= 0; --Index)
+				// if we can't write the array as a POD array (byte stream), go through per element serialization
+				if (!Backend.WritePODArray(CurrentState))
 				{
-					FStructSerializerState NewState;
-					{
-						NewState.HasBeenProcessed = false;
-						NewState.KeyData = nullptr;
-						NewState.KeyProperty = nullptr;
-						NewState.ValueData = ArrayHelper.GetRawPtr(Index);
-						NewState.ValueProperty = ValueProperty;
-						NewState.ValueType = nullptr;
-						NewState.FieldType = ValueProperty->GetClass();
-					}
+					CurrentState.HasBeenProcessed = true;
+					StateStack.Push(CurrentState);
 
-					StateStack.Push(NewState);
+					FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CurrentState.ValueProperty);
+					FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(CurrentState.ValueData));
+					FProperty* ValueProperty = ArrayProperty->Inner;
+
+					// push elements on stack (in reverse order)
+					for (int32 Index = ArrayHelper.Num() - 1; Index >= 0; --Index)
+					{
+						FStructSerializerState NewState;
+						{
+							NewState.HasBeenProcessed = false;
+							NewState.KeyData = nullptr;
+							NewState.KeyProperty = nullptr;
+							NewState.ValueData = ArrayHelper.GetRawPtr(Index);
+							NewState.ValueProperty = ValueProperty;
+							NewState.ValueType = nullptr;
+							NewState.FieldType = ValueProperty->GetClass();
+						}
+
+						StateStack.Push(NewState);
+					}
 				}
 			}
 			else

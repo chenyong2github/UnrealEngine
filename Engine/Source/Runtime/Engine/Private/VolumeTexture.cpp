@@ -383,7 +383,6 @@ bool UVolumeTexture::ShaderPlatformSupportsCompression(FStaticShaderPlatform Sha
 	switch (ShaderPlatform)
 	{
 	case SP_PCD3D_SM5:
-	case SP_XBOXONE_D3D12:
 	case SP_VULKAN_SM5:
 	case SP_VULKAN_SM5_LUMIN:
 		return true;

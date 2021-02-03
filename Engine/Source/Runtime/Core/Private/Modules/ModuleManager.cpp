@@ -1209,6 +1209,8 @@ void FModuleManager::AddExtraBinarySearchPaths()
 
 void FModuleManager::MakeUniqueModuleFilename( const FName InModuleName, FString& UniqueSuffix, FString& UniqueModuleFileName ) const
 {
+	// NOTE: Formatting of the module file name must match with the code in HotReload.cs, ReplaceSuffix.
+
 	TSharedRef<const FModuleInfo, ESPMode::ThreadSafe> Module = FindModuleChecked(InModuleName);
 
 	IFileManager& FileManager = IFileManager::Get();
@@ -1216,7 +1218,7 @@ void FModuleManager::MakeUniqueModuleFilename( const FName InModuleName, FString
 	do
 	{
 		// Use a random number as the unique file suffix, but mod it to keep it of reasonable length
-		UniqueSuffix = FString::FromInt( FMath::Rand() % 10000 );
+		UniqueSuffix = FString::Printf( TEXT("%04d"), FMath::Rand() % 10000 );
 
 		const FString ModuleName = InModuleName.ToString();
 		const int32 MatchPos = Module->OriginalFilename.Find(ModuleName, ESearchCase::IgnoreCase, ESearchDir::FromEnd);

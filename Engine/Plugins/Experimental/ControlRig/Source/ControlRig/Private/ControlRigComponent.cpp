@@ -566,6 +566,18 @@ void UControlRigComponent::AddMappedCompleteSkeletalMesh(USkeletalMeshComponent*
 	AddMappedSkeletalMesh(SkeletalMeshComponent, TArray<FControlRigComponentMappedBone>(), TArray<FControlRigComponentMappedCurve>());
 }
 
+void UControlRigComponent::SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh)
+{
+	if (InSkeletalMesh)
+	{
+		if (UControlRig* CR = SetupControlRigIfRequired())
+		{
+			CR->SetBoneInitialTransformsFromSkeletalMesh(InSkeletalMesh);
+			bResetInitialsBeforeSetup = false;
+		}
+	}
+}
+
 FTransform UControlRigComponent::GetBoneTransform(FName BoneName, EControlRigComponentSpace Space)
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())

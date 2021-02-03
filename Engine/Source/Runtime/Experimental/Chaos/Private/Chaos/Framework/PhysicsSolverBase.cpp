@@ -8,6 +8,7 @@
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/Framework/ChaosResultsManager.h"
+#include "Framework/Threading.h"
 
 namespace Chaos
 {	
@@ -88,6 +89,10 @@ namespace Chaos
 		LLM_SCOPE(ELLMTag::Chaos);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
+
+#if PHYSICS_THREAD_CONTEXT
+		FPhysicsThreadContextScope Scope(/*IsPhysicsThreadContext=*/true);
+#endif
 
 		Solver.SetExternalTimestampConsumed_Internal(PushData->ExternalTimestamp);
 		Solver.ProcessPushedData_Internal(*PushData);
@@ -177,7 +182,7 @@ namespace Chaos
 		delete &InSolver;
 	}
 
-	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete)
+	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle,bool bDelete)
 	{
 		//mark it as pending for async structure being built
 		TAccelerationStructureHandle<float,3> AccelerationHandle(Particle);
@@ -214,7 +219,7 @@ namespace Chaos
 	}
 #endif
 
-	void FPhysicsSolverBase::TrackGTParticle_External(TGeometryParticle<FReal, 3>& Particle)
+	void FPhysicsSolverBase::TrackGTParticle_External(FGeometryParticle& Particle)
 	{
 		const int32 Idx = Particle.UniqueIdx().Idx;
 		const int32 SlotsNeeded = Idx + 1 - UniqueIdxToGTParticles.Num();
@@ -226,7 +231,7 @@ namespace Chaos
 		UniqueIdxToGTParticles[Idx] = &Particle;
 	}
 
-	void FPhysicsSolverBase::ClearGTParticle_External(TGeometryParticle<FReal, 3>& Particle)
+	void FPhysicsSolverBase::ClearGTParticle_External(FGeometryParticle& Particle)
 	{
 		const int32 Idx = Particle.UniqueIdx().Idx;
 		if (ensure(Idx < UniqueIdxToGTParticles.Num()))

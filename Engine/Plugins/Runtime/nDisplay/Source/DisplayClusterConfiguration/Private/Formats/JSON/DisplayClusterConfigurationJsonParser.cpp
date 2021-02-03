@@ -118,7 +118,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 			Comp->TrackerId      = CfgComp.Value.TrackerId;
 			Comp->TrackerChannel = CfgComp.Value.TrackerChannel;
 			// Screen specific
-			Comp->Size = FDisplayClusterConfigurationJsonSizeFloat::ToVector(CfgComp.Value.Size) * 100;
+			Comp->Size = FDisplayClusterConfigurationJsonSizeFloat::ToVector(CfgComp.Value.Size);
 
 			Config->Scene->Screens.Emplace(CfgComp.Key, Comp);
 		}
@@ -136,7 +136,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 			Comp->TrackerId      = CfgComp.Value.TrackerId;
 			Comp->TrackerChannel = CfgComp.Value.TrackerChannel;
 			// Camera specific
-			Comp->InterpupillaryDistance = CfgComp.Value.InterpupillaryDistance * 100.f;
+			Comp->InterpupillaryDistance = CfgComp.Value.InterpupillaryDistance;
 			Comp->bSwapEyes      = CfgComp.Value.SwapEyes;
 			Comp->StereoOffset   = DisplayClusterConfigurationJsonHelpers::FromString<EDisplayClusterConfigurationEyeStereoOffset>(CfgComp.Value.StereoOffset);
 
@@ -435,12 +435,12 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 
 			// General
 			Screen.Parent   = CfgComp.Value->ParentId;
-			Screen.Location = FDisplayClusterConfigurationJsonVector::FromVector(CfgComp.Value->Location / 100.f);
+			Screen.Location = FDisplayClusterConfigurationJsonVector::FromVector(CfgComp.Value->Location);
 			Screen.Rotation = FDisplayClusterConfigurationJsonRotator::FromRotator(CfgComp.Value->Rotation);
 			Screen.TrackerId      = CfgComp.Value->TrackerId;
 			Screen.TrackerChannel = CfgComp.Value->TrackerChannel;
 			// Screen specific
-			Screen.Size = FDisplayClusterConfigurationJsonSizeFloat::FromVector(CfgComp.Value->Size / 100.f);
+			Screen.Size = FDisplayClusterConfigurationJsonSizeFloat::FromVector(CfgComp.Value->Size);
 
 			Json.Scene.Screens.Emplace(CfgComp.Key, Screen);
 		}
@@ -457,7 +457,7 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 			Camera.TrackerId      = CfgComp.Value->TrackerId;
 			Camera.TrackerChannel = CfgComp.Value->TrackerChannel;
 			// Camera specific
-			Camera.InterpupillaryDistance = CfgComp.Value->InterpupillaryDistance / 100.f;
+			Camera.InterpupillaryDistance = CfgComp.Value->InterpupillaryDistance;
 			Camera.SwapEyes = CfgComp.Value->bSwapEyes;
 			Camera.StereoOffset = DisplayClusterConfigurationJsonHelpers::ToString(CfgComp.Value->StereoOffset);
 

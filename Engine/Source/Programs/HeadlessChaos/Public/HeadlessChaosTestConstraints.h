@@ -41,7 +41,7 @@ namespace ChaosTest
 
 		auto AddParticleBox(const FVec3& Position, const FRotation3& Rotation, const FVec3& Size, FReal Mass)
 		{
-			TGeometryParticleHandle<FReal, 3>& Particle = Mass > SMALL_NUMBER ? *AppendDynamicParticleBox<FReal>(SOAs, Size) : *AppendStaticParticleBox<FReal>(SOAs, Size);
+			TGeometryParticleHandle<FReal, 3>& Particle = Mass > SMALL_NUMBER ? *AppendDynamicParticleBox(SOAs, Size) : *AppendStaticParticleBox(SOAs, Size);
 
 			ResetParticle(&Particle, Position, Rotation, FVec3(0), FVec3(0));
 

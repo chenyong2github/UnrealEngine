@@ -1425,9 +1425,12 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 		FD3D12TextureStats::D3D12TextureAllocated(*TextureOut);
 
 		// These are clear to be recycled now because GPU is done with it at this point. We wait on GPU in ExecuteCommandList() above.
+		// No defer delete required but can be reused immediately
+		TempResourceLocation.GetResource()->DoNotDeferDelete();
 		TempResourceLocation.GetResource()->Release();
 		if (bSplitAllocation)
 		{
+			TempResourceLocationLowMips.GetResource()->DoNotDeferDelete();
 			TempResourceLocationLowMips.GetResource()->Release();
 		}
 	}

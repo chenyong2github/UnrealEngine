@@ -52,7 +52,10 @@ void FCurveEditorDragOperation_Marquee::OnEndDrag(FVector2D InitialPosition, FVe
 
 	if (LockedToView)
 	{
-		LockedToView->GetPointsWithinWidgetRange(Marquee, &AllPoints);
+		if (!LockedToView->GetPointsWithinWidgetRange(Marquee, &AllPoints))
+		{
+			LockedToView->GetCurveWithinWidgetRange(Marquee, &AllPoints);
+		}
 	}
 	else
 	{
@@ -70,13 +73,16 @@ void FCurveEditorDragOperation_Marquee::OnEndDrag(FVector2D InitialPosition, FVe
 
 			if (ClippedLocalMarquee.IsValid() && !ClippedLocalMarquee.IsEmpty())
 			{
-				View->GetPointsWithinWidgetRange(ClippedLocalMarquee, &AllPoints);
+				if (!View->GetPointsWithinWidgetRange(ClippedLocalMarquee, &AllPoints))
+				{
+					View->GetCurveWithinWidgetRange(ClippedLocalMarquee, &AllPoints);
+				}
 			}
 		}
 	}
 
 	const bool bIsShiftDown = MouseEvent.IsShiftDown();
-	const bool bRemoveFromSelection = MouseEvent.IsAltDown();
+	const bool bRemoveFromSelection = MouseEvent.IsControlDown();
 
 	TOptional<ECurvePointType> MatchPointType;
 

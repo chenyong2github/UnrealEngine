@@ -1671,14 +1671,6 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass)
 
 	IF_RDG_CPU_SCOPES(CPUScopeStacks.BeginExecutePass(Pass));
 
-#if RDG_GPU_SCOPES
-	const bool bUsePassEventScope = Pass != EpiloguePass && Pass != ProloguePass;
-	if (bUsePassEventScope)
-	{
-		GPUScopeStacks.BeginExecutePass(Pass);
-	}
-#endif
-
 	IF_RDG_ENABLE_DEBUG(ConditionalDebugBreak(RDG_BREAKPOINT_PASS_EXECUTE, BuilderName.GetTCHAR(), Pass->GetName()));
 
 #if WITH_MGPU
@@ -1697,9 +1689,15 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass)
 
 	ExecutePassPrologue(RHICmdListPass, Pass);
 
-	Pass->Execute(RHICmdListPass);
+#if RDG_GPU_SCOPES
+	const bool bUsePassEventScope = Pass != EpiloguePass && Pass != ProloguePass;
+	if (bUsePassEventScope)
+	{
+		GPUScopeStacks.BeginExecutePass(Pass);
+	}
+#endif
 
-	ExecutePassEpilogue(RHICmdListPass, Pass);
+	Pass->Execute(RHICmdListPass);
 
 #if RDG_GPU_SCOPES
 	if (bUsePassEventScope)
@@ -1707,6 +1705,8 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass)
 		GPUScopeStacks.EndExecutePass(Pass);
 	}
 #endif
+
+	ExecutePassEpilogue(RHICmdListPass, Pass);
 
 	if (Pass->bAsyncComputeEnd)
 	{

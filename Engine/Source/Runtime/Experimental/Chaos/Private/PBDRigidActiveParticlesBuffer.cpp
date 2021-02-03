@@ -41,10 +41,10 @@ namespace Chaos
 					{
 						if(Proxy != nullptr)	//can this be null?
 						{
-							if(Proxy->GetType() == EPhysicsProxyType::SingleRigidParticleType)
+							if(Proxy->GetType() == EPhysicsProxyType::SingleParticleProxy)
 							{
 								ensure(Proxies->Num() == 1);	//single rigid should only have one proxy
-								ActiveGameThreadParticles.Add(static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >*>(Proxy));
+								ActiveGameThreadParticles.Add(static_cast<FSingleParticlePhysicsProxy*>(Proxy));
 							}
 							else
 							{

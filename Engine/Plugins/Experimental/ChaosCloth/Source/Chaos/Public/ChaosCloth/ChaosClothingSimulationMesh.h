@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Core.h"
 #include "Containers/ContainersFwd.h"
 #include "Chaos/Transform.h"
 
@@ -43,27 +44,27 @@ namespace Chaos
 		bool WrapDeformLOD(
 			int32 PrevLODIndex,
 			int32 LODIndex,
-			const TVector<float, 3>* Normals,
-			const TVector<float, 3>* Positions,
-			TVector<float, 3>* OutPositions) const;
+			const FVec3* Normals,
+			const FVec3* Positions,
+			FVec3* OutPositions) const;
 
 		bool WrapDeformLOD(
 			int32 PrevLODIndex,
 			int32 LODIndex,
-			const TVector<float, 3>* Normals,
-			const TVector<float, 3>* Positions,
-			const TVector<float, 3>* Velocities,
-			TVector<float, 3>* OutPositions0,
-			TVector<float, 3>* OutPositions1,
-			TVector<float, 3>* OutVelocities) const;
+			const FVec3* Normals,
+			const FVec3* Positions,
+			const FVec3* Velocities,
+			FVec3* OutPositions0,
+			FVec3* OutPositions1,
+			FVec3* OutVelocities) const;
 		// ---- End of the Cloth interface ----
 
 	private:
 		void SkinPhysicsMesh(
 			int32 LODIndex,
-			const TVector<float, 3>& LocalSpaceLocation,
-			TVector<float, 3>* OutPositions,
-			TVector<float, 3>* OutNormals) const;
+			const FVec3& LocalSpaceLocation,
+			FVec3* OutPositions,
+			FVec3* OutNormals) const;
 
 	private:
 		const UClothingAssetCommon* Asset;

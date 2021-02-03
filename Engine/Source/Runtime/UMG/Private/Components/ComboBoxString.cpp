@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/ComboBoxString.h"
+#include "Widgets/SNullWidget.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Font.h"
@@ -35,21 +36,10 @@ UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	}
 
 	WidgetStyle = *DefaultComboBoxStyle;
+	WidgetStyle.UnlinkColors();
+
 	ItemStyle = *DefaultComboBoxRowStyle;
-	ItemStyle.SelectorFocusedBrush.TintColor = ItemStyle.SelectorFocusedBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.ActiveHoveredBrush.TintColor = ItemStyle.ActiveHoveredBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.ActiveBrush.TintColor = ItemStyle.ActiveBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.InactiveHoveredBrush.TintColor = ItemStyle.InactiveHoveredBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.InactiveBrush.TintColor = ItemStyle.InactiveBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.EvenRowBackgroundHoveredBrush.TintColor = ItemStyle.EvenRowBackgroundHoveredBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.EvenRowBackgroundBrush.TintColor = ItemStyle.EvenRowBackgroundBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.OddRowBackgroundHoveredBrush.TintColor = ItemStyle.OddRowBackgroundHoveredBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.OddRowBackgroundBrush.TintColor = ItemStyle.OddRowBackgroundBrush.TintColor.GetSpecifiedColor();
-	ItemStyle.TextColor = ItemStyle.TextColor.GetSpecifiedColor();
-	ItemStyle.SelectedTextColor = ItemStyle.SelectedTextColor.GetSpecifiedColor();
-	ItemStyle.DropIndicator_Above.TintColor = ItemStyle.DropIndicator_Above.TintColor.GetSpecifiedColor();
-	ItemStyle.DropIndicator_Onto.TintColor = ItemStyle.DropIndicator_Onto.TintColor.GetSpecifiedColor();
-	ItemStyle.DropIndicator_Below.TintColor = ItemStyle.DropIndicator_Below.TintColor.GetSpecifiedColor();
+	ItemStyle.UnlinkColors();
 
 	ForegroundColor = FLinearColor::Black;
 	bIsFocusable = true;
@@ -62,7 +52,6 @@ UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	if ( !IsRunningDedicatedServer() )
 	{
 		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());
-#include "Widgets/SNullWidget.h"
 		Font = FSlateFontInfo(RobotoFontObj.Object, 16, FName("Bold"));
 	}
 }

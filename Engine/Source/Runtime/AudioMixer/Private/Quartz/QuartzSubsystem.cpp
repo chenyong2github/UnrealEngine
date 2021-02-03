@@ -66,12 +66,18 @@ UQuartzSubsystem::~UQuartzSubsystem()
 
 void UQuartzSubsystem::Tick(float DeltaTime)
 {
+	const int32 NumSubscribers = QuartzTickSubscribers.Num();
+
 	if (DisableQuartzCvar)
 	{
+		if (NumSubscribers != 0)
+		{
+			QuartzTickSubscribers.Reset();
+		}
+
 		return;
 	}
 
-	const int32 NumSubscribers = QuartzTickSubscribers.Num();
 
 	if (MaxQuartzSubscribersToUpdatePerTickCvar <= 0 || NumSubscribers <= MaxQuartzSubscribersToUpdatePerTickCvar)
 	{
@@ -80,7 +86,7 @@ void UQuartzSubsystem::Tick(float DeltaTime)
 		// we can afford to update ALL subscribers
 		for (UQuartzClockHandle* Entry : SubscribersCopy)
 		{
-			if (Entry->QuartzIsTickable())
+			if (Entry && Entry->QuartzIsTickable())
 			{
 				Entry->QuartzTick(DeltaTime);
 			}
@@ -120,7 +126,7 @@ bool UQuartzSubsystem::IsTickable() const
 
 	for (const UQuartzClockHandle* Entry : QuartzTickSubscribers)
 	{
-		if (Entry->QuartzIsTickable())
+		if (Entry && Entry->QuartzIsTickable())
 		{
 			return true;
 		}
@@ -137,7 +143,7 @@ TStatId UQuartzSubsystem::GetStatId() const
 
 void UQuartzSubsystem::SubscribeToQuartzTick(UQuartzClockHandle* InObjectToTick)
 {
-	if (DisableQuartzCvar)
+	if (DisableQuartzCvar || !InObjectToTick)
 	{
 		return;
 	}
@@ -148,7 +154,7 @@ void UQuartzSubsystem::SubscribeToQuartzTick(UQuartzClockHandle* InObjectToTick)
 
 void UQuartzSubsystem::UnsubscribeFromQuartzTick(UQuartzClockHandle* InObjectToTick)
 {
-	if (DisableQuartzCvar)
+	if (DisableQuartzCvar || !InObjectToTick)
 	{
 		return;
 	}
@@ -178,6 +184,11 @@ TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe> UQuartzSubs
 Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataDataForSchedulePlaySound(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InQuantizationBoundary)
 {
 	Audio::FQuartzQuantizedRequestData CommandInitInfo;
+
+	if (DisableQuartzCvar || !InClockHandle)
+	{
+		return {};
+	}
 
 	CommandInitInfo.ClockName = InClockHandle->GetClockName();
 	CommandInitInfo.ClockHandleName = InClockHandle->GetHandleName();

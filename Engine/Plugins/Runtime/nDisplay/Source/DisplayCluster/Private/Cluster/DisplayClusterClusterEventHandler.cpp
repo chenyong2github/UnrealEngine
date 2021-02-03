@@ -3,7 +3,15 @@
 #include "Cluster/DisplayClusterClusterEventHandler.h"
 
 #include "Misc/DisplayClusterAppExit.h"
+#include "Misc/DisplayClusterConsoleExec.h"
 #include "Misc/DisplayClusterStrings.h"
+
+
+namespace DisplayClusterStrings {
+	namespace cluster_events {
+		static constexpr auto EvtConsoleExecName = TEXT("console exec");
+	}
+}
 
 
 FDisplayClusterClusterEventHandler::FDisplayClusterClusterEventHandler()
@@ -20,10 +28,15 @@ void FDisplayClusterClusterEventHandler::HandleClusterEvent(const FDisplayCluste
 		if (InEvent.Category.Equals(DisplayClusterStrings::cluster_events::EventCategory, ESearchCase::IgnoreCase) &&
 			InEvent.Type.Equals(DisplayClusterStrings::cluster_events::EventType, ESearchCase::IgnoreCase))
 		{
-			// QUIT event
 			if (InEvent.Name.Equals(DisplayClusterStrings::cluster_events::EvtQuitName, ESearchCase::IgnoreCase))
 			{
+				// QUIT event
 				FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("QUIT requested on a system cluster event"));
+			}
+			else if (InEvent.Name.Equals(DisplayClusterStrings::cluster_events::EvtConsoleExecName, ESearchCase::IgnoreCase))
+			{
+				// Console command event
+				FDisplayClusterConsoleExec::Exec(InEvent);
 			}
 		}
 	}

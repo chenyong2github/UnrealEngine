@@ -295,8 +295,25 @@ void FOnlineSessionEOS::Init(const char* InBucketId)
 	SessionInviteAcceptedCallback = CallbackObj;
 	CallbackObj->CallbackLambda = [this](const EOS_Sessions_SessionInviteAcceptedCallbackInfo* Data)
 	{
-		UE_LOG_ONLINE_SESSION(Log, TEXT("Invite accepted"));
-// @todo joeg - finish when SDK 1.6 comes out
+		FUniqueNetIdEOSPtr NetId = EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(Data->LocalUserId);
+		if (!NetId.IsValid())
+		{
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("Cannot accept invite due to unknown user (%s)"), *MakeStringFromProductUserId(Data->LocalUserId));
+			return;
+		}
+		int32 LocalUserNum = EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(*NetId);
+
+		EOS_Sessions_CopySessionHandleByInviteIdOptions Options = { };
+		Options.ApiVersion = EOS_SESSIONS_COPYSESSIONHANDLEBYINVITEID_API_LATEST;
+		Options.InviteId = Data->InviteId;
+		EOS_HSessionDetails SessionDetails = nullptr;
+		EOS_EResult Result = EOS_Sessions_CopySessionHandleByInviteId(EOSSubsystem->SessionsHandle, &Options, &SessionDetails);
+		if (Result == EOS_EResult::EOS_Success)
+		{
+			LastInviteSearch = MakeShared<FOnlineSessionSearch>();
+			AddSearchResult(SessionDetails, LastInviteSearch.ToSharedRef());
+			TriggerOnSessionUserInviteAcceptedDelegates(true, LocalUserNum, NetId, LastInviteSearch->SearchResults[0]);
+		}
 	};
 	EOS_Sessions_AddNotifySessionInviteAcceptedOptions Options = { };
 	Options.ApiVersion = EOS_SESSIONS_ADDNOTIFYSESSIONINVITEACCEPTED_API_LATEST;
@@ -532,9 +549,7 @@ void FOnlineSessionEOS::SetAttributes(EOS_HSessionModification SessionModHandle,
 			continue;
 		}
 
-		FString SettingName(TEXT("FOSS=") + KeyName.ToString());
-		FAttributeOptions Attribute(TCHAR_TO_UTF8(*SettingName), Setting.Data);
-
+		FAttributeOptions Attribute(TCHAR_TO_UTF8(*KeyName.ToString()), Setting.Data);
 		AddAttribute(SessionModHandle, &Attribute);
 	}
 }
@@ -1172,10 +1187,8 @@ void FOnlineSessionEOS::CopySearchResult(EOS_HSessionDetails SessionHandle, EOS_
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_InviteOnly:
 		{
 			OutSession.SessionSettings.bAllowInvites = true;
-			OutSession.SessionSettings.bUsesPresence = 0;
-			OutSession.SessionSettings.bAllowJoinViaPresence = 0;
-			OutSession.SessionSettings.NumPrivateConnections = SessionInfo->Settings->NumPublicConnections;
-			OutSession.NumOpenPrivateConnections = SessionInfo->NumOpenPublicConnections;
+			OutSession.SessionSettings.bUsesPresence = false;
+			OutSession.SessionSettings.bAllowJoinViaPresence = false;
 			break;
 		}
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_JoinViaPresence:
@@ -1183,8 +1196,6 @@ void FOnlineSessionEOS::CopySearchResult(EOS_HSessionDetails SessionHandle, EOS_
 			OutSession.SessionSettings.bAllowInvites = true;
 			OutSession.SessionSettings.bUsesPresence = true;
 			OutSession.SessionSettings.bAllowJoinViaPresence = true;
-			OutSession.SessionSettings.NumPrivateConnections = SessionInfo->Settings->NumPublicConnections;
-			OutSession.NumOpenPrivateConnections = SessionInfo->NumOpenPublicConnections;
 			break;
 		}
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_PublicAdvertised:
@@ -1192,11 +1203,11 @@ void FOnlineSessionEOS::CopySearchResult(EOS_HSessionDetails SessionHandle, EOS_
 			OutSession.SessionSettings.bAllowInvites = true;
 			OutSession.SessionSettings.bUsesPresence = true;
 			OutSession.SessionSettings.bAllowJoinViaPresence = true;
-			OutSession.SessionSettings.NumPublicConnections = SessionInfo->Settings->NumPublicConnections;
-			OutSession.NumOpenPublicConnections = SessionInfo->NumOpenPublicConnections;
 			break;
 		}
 	}
+	OutSession.SessionSettings.NumPrivateConnections = SessionInfo->Settings->NumPublicConnections;
+	OutSession.NumOpenPrivateConnections = SessionInfo->NumOpenPublicConnections;
 
 	CopyAttributes(SessionHandle, OutSession);
 }
@@ -1253,38 +1264,33 @@ void FOnlineSessionEOS::CopyAttributes(EOS_HSessionDetails SessionHandle, FOnlin
 				OutSession.OwningUserId = MakeShareable(new FUniqueNetIdEOS(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8)));
 			}
 			// Handle FOnlineSessionSetting settings
-			else if (Key.StartsWith(TEXT("FOSS=")))
+			else
 			{
-				FString KeyName;
-				FParse::Value(*Key, TEXT("FOSS="), KeyName);
-				if (KeyName.Len() > 0)
+				FOnlineSessionSetting Setting;
+				switch (Attribute->Data->ValueType)
 				{
-					FOnlineSessionSetting Setting;
-					switch (Attribute->Data->ValueType)
+					case EOS_ESessionAttributeType::EOS_SAT_Boolean:
 					{
-						case EOS_ESessionAttributeType::EOS_SAT_Boolean:
-						{
-							Setting.Data.SetValue(Attribute->Data->Value.AsBool == EOS_TRUE);
-							break;
-						}
-						case EOS_ESessionAttributeType::EOS_SAT_Int64:
-						{
-							Setting.Data.SetValue(Attribute->Data->Value.AsInt64);
-							break;
-						}
-						case EOS_ESessionAttributeType::EOS_SAT_Double:
-						{
-							Setting.Data.SetValue(Attribute->Data->Value.AsDouble);
-							break;
-						}
-						case EOS_ESessionAttributeType::EOS_SAT_String:
-						{
-							Setting.Data.SetValue(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8));
-							break;
-						}
+						Setting.Data.SetValue(Attribute->Data->Value.AsBool == EOS_TRUE);
+						break;
 					}
-					OutSession.SessionSettings.Settings.Add(FName(KeyName), Setting);
+					case EOS_ESessionAttributeType::EOS_SAT_Int64:
+					{
+						Setting.Data.SetValue(Attribute->Data->Value.AsInt64);
+						break;
+					}
+					case EOS_ESessionAttributeType::EOS_SAT_Double:
+					{
+						Setting.Data.SetValue(Attribute->Data->Value.AsDouble);
+						break;
+					}
+					case EOS_ESessionAttributeType::EOS_SAT_String:
+					{
+						Setting.Data.SetValue(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8));
+						break;
+					}
 				}
+				OutSession.SessionSettings.Settings.Add(FName(Key), Setting);
 			}
 		}
 

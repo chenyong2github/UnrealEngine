@@ -734,7 +734,14 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 			if (!bAlreadyScanned)
 			{
 				AlreadyScannedDirectories.Add(Path);
-				Directories.AddUnique(Path);
+
+				// The asset registry currently crashes if you pass it either a ../ disk path or a /pluginname/ path that isn't mounted, so we need to verify the conversion would work but send the preconverted path
+				FString OnDiskPath;
+
+				if (FPackageName::TryConvertLongPackageNameToFilename(Path / TEXT(""), OnDiskPath))
+				{
+					Directories.AddUnique(Path);
+				}
 			}
 		}
 	}

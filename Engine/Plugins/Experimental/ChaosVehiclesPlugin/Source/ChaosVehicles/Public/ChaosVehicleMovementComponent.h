@@ -12,6 +12,7 @@
 #include "ChaosVehicleWheel.h"
 #include "AerofoilSystem.h"
 #include "ThrustSystem.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 
 #include "AsyncCallback.h"
 
@@ -391,7 +392,7 @@ struct FVehicleState
 	void CaptureState(const FBodyInstance* TargetInstance, float GravityZ, float DeltaTime);
 
 	/** Cache some useful data at the start of the frame from Physics thread Particle Handle */
-	void CaptureState(const Chaos::TPBDRigidParticleHandle<float, 3>* Handle, float GravityZ, float DeltaTime);
+	void CaptureState(const Chaos::FRigidBodyHandle_Internal* Handle, float GravityZ, float DeltaTime);
 
 	FTransform VehicleWorldTransform;
 	FVector VehicleWorldVelocity;
@@ -617,10 +618,10 @@ public:
 		PVehicle = MoveTemp(PVehicleIn);
 	}
 
-	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle);
+	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
 	/** Advance the vehicle simulation */
-	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle);
+	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
 	
 	virtual void FillOutputState(FChaosVehicleAsyncOutput& Output);
 
@@ -662,7 +663,7 @@ public:
 	UWorld* World;
 
 	// Physics Thread Representation of chassis rigid body
-	Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle;
+	Chaos::FRigidBodyHandle_Internal* RigidHandle;
 
 	FVehicleState VehicleState;
 

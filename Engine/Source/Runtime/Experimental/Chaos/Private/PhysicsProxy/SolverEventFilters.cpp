@@ -36,7 +36,7 @@ namespace Chaos
 
 		if (Settings.MinVolume > 0)
 		{
-			TVector<float, 3> Extents = InData.BoundingBox.Extents();
+			FVec3 Extents = InData.BoundingBox.Extents();
 			float Volume = Extents[0] * Extents[1] * Extents[2];
 
 			if (Volume < Settings.MinVolume)
@@ -58,7 +58,7 @@ namespace Chaos
 
 		if (Settings.MinVolume > 0)
 		{
-			TVector<float, 3> Extents = InData.BoundingBox.Extents();
+			FVec3 Extents = InData.BoundingBox.Extents();
 			float Volume = Extents[0] * Extents[1] * Extents[2];
 
 			if (Volume < Settings.MinVolume)

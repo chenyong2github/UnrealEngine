@@ -4,11 +4,12 @@ from switchboard import message_protocol
 from switchboard.switchboard_logging import LOGGER
 
 from PySide2 import QtCore, QtGui
-from PySide2.QtCore import Qt, QTimer, QObject, QAbstractTableModel, QModelIndex
+from PySide2.QtCore import Signal, Qt, QTimer, QObject, QAbstractTableModel, QModelIndex
 from PySide2.QtGui import QColor
 
 from collections import OrderedDict
-import time, json, traceback
+from itertools import count
+import json, time, traceback
 
 class nDisplayMonitor(QAbstractTableModel):
     ''' This will monitor the status of the nDisplay nodes, in particular regarding sync.
@@ -17,6 +18,9 @@ class nDisplayMonitor(QAbstractTableModel):
 
     ColorWarning = QColor(0x70, 0x40, 0x00)
     ColorNormal  = QColor(0x3d, 0x3d, 0x3d)
+    CoreOverloadThresh = 90 # percent utilization
+
+    console_exec_issued = Signal()
 
     def __init__(self, parent):
         QAbstractTableModel.__init__(self, parent)
@@ -28,20 +32,23 @@ class nDisplayMonitor(QAbstractTableModel):
         self.timer.timeout.connect(self.poll_sync_status)
 
         headerdata = [
-            ('Node'      , 'The cluster name of this device'), 
-            ('Host'      , 'The URL of the remote PC'), 
-            ('Connected' , 'If we are connected to the listner of this device'),
-            ('Driver'    , 'GPU driver version'),
-            ('FlipMode'  , 'Current presentation mode. Only available once the render node process is running. Expects "Hardware Composed: Independent Flip"'), 
-            ('Gpus'      , 'Informs if GPUs are synced.'), 
-            ('Displays'  , 'Detected displays and whether they are in sync or not'), 
-            ('Fps'       , 'Sync Frame Rate'), 
-            ('HouseSync' , 'Presence of an external sync signal connected to the remote Quadro Sync card'),
-            ('SyncSource', 'The source of the GPU sync signal'),
-            ('Mosaics'   , 'Display grids and their resolutions'),
-            ('Taskbar'   , 'Whether the taskbar is set to auto hide or always on top. It is recommended to be consistent across the cluster'),
-            ('InFocus'   , 'Whether nDisplay instance window is in Focus. It is recommended to be in focus.'),
-            ('ExeFlags'  , 'It is recommended to disable fullscreen opimizations on the unreal executable. Only available once the render node process is running. Expects "DISABLEDXMAXIMIZEDWINDOWEDMODE"'),
+            ('Node'           , 'The cluster name of this device'), 
+            ('Host'           , 'The URL of the remote PC'), 
+            ('Connected'      , 'If we are connected to the listener of this device'),
+            ('Driver'         , 'GPU driver version'),
+            ('PresentMode'    , 'Current presentation mode. Only available once the render node process is running. Expects "Hardware Composed: Independent Flip"'), 
+            ('Gpus'           , 'Informs if GPUs are synced.'), 
+            ('Displays'       , 'Detected displays and whether they are in sync or not'), 
+            ('Fps'            , 'Sync Frame Rate'), 
+            ('HouseSync'      , 'Presence of an external sync signal connected to the remote Quadro Sync card'),
+            ('SyncSource'     , 'The source of the GPU sync signal'),
+            ('Mosaics'        , 'Display grids and their resolutions'),
+            ('Taskbar'        , 'Whether the taskbar is set to auto hide or always on top. It is recommended to be consistent across the cluster'),
+            ('InFocus'        , 'Whether nDisplay instance window is in Focus. It is recommended to be in focus.'),
+            ('ExeFlags'       , 'It is recommended to disable fullscreen opimizations on the unreal executable. Only available once the render node process is running. Expects "DISABLEDXMAXIMIZEDWINDOWEDMODE"'),
+            ('OsVer'          , 'Operating system version'),
+            ('CpuUtilization' , f"CPU utilization average. The number of overloaded cores (> {self.CoreOverloadThresh}% load) will be displayed in parentheses."),
+            ('GpuUtilization' , 'GPU utilization. The GPU clock speed is displayed in parentheses.'),
         ]
 
         self.colnames = [hd[0] for hd in headerdata]
@@ -56,7 +63,7 @@ class nDisplayMonitor(QAbstractTableModel):
                 return self.ColorWarning
             return self.ColorNormal
 
-        if colname == 'FlipMode':
+        if colname == 'PresentMode':
             good_string = 'Hardware Composed: Independent Flip'
             return self.ColorNormal if good_string in value else self.ColorWarning
 
@@ -74,7 +81,53 @@ class nDisplayMonitor(QAbstractTableModel):
             is_normal = ('Slave' in value or 'Master' in value) and 'Unsynced' not in value
             return self.ColorNormal if is_normal else self.ColorWarning
 
+        if colname == 'CpuUtilization':
+            no_overload = '(' not in value # "(# cores > threshold%)"
+            return self.ColorNormal if no_overload else self.ColorWarning
+
         return self.ColorNormal
+
+    def friendly_osver(self, device):
+        ''' Returns a display-friendly string for the device OS version
+        '''
+
+        if device.os_version_label.startswith('Windows'):
+            try:
+                # Destructuring according to FWindowsPlatformMisc::GetOSVersion, ex: "10.0.19041.1.256.64bit"
+                [major, minor, build, product_type, suite_mask, arch] = device.os_version_number.split('.')
+
+                if major == '10' and minor == '0':
+                    # FWindowsPlatformMisc::GetOSVersions (with an s) returns a label that includes this
+                    # "release ID"/"SDK version", but the mechanism for retrieving it seems fragile.
+                    # Based on https://docs.microsoft.com/en-us/windows/release-information/
+                    build_to_sdk_version = {
+                        '19042': '20H2',
+                        '19041': '2004',
+                        '18363': '1909',
+                        '17763': '1809',
+                        '17134': '1803',
+                        '14393': '1607',
+                        '10240': '1507',
+                    }
+
+                    if build in build_to_sdk_version:
+                        return f"Windows 10, version {build_to_sdk_version[build]}"
+
+            except ValueError:
+                # Mismatched count of splits vs. destructure, fall through to default
+                pass
+
+        # Default / fallback
+        friendly = device.os_version_label
+
+        if device.os_version_label_sub != '':
+            friendly += " " + device.os_version_label_sub
+
+        if device.os_version_number != '':
+            friendly += " " + device.os_version_number
+
+        return friendly
+
 
     def reset_device_data(self, device, data):
         ''' Sets device data to unconnected state
@@ -287,25 +340,25 @@ class nDisplayMonitor(QAbstractTableModel):
 
         data['Mosaics'] = '\n'.join(mosaicTopoLines)
 
-        # Build FlipMode.
+        # Build PresentMode.
         #
         flip_history = syncStatus['flipModeHistory']
 
         if len(flip_history) > 0:
-            data['FlipMode'] = flip_history[-1]
+            data['PresentMode'] = flip_history[-1]
 
-        # Detect FlipMode glitches
+        # Detect PresentMode glitches
         if len(set(flip_history)) > 1:
-            data['FlipMode'] = 'GLITCH!'
+            data['PresentMode'] = 'GLITCH!'
             data['TimeLastFlipGlitch'] = time.time()
 
         # Write time since last glitch
-        if data['FlipMode'] != 'n/a':
+        if data['PresentMode'] != 'n/a':
             time_since_flip_glitch = time.time() - data['TimeLastFlipGlitch']
 
             # Let the user know for 1 minute that there was a glitch in the flip mode
             if time_since_flip_glitch < 1*60:
-                data['FlipMode'] = data['FlipMode'].split('\n')[0] + '\n' + str(int(time_since_flip_glitch))
+                data['PresentMode'] = data['PresentMode'].split('\n')[0] + '\n' + str(int(time_since_flip_glitch))
 
         # Window in focus or not
         data['InFocus'] = 'no'
@@ -323,6 +376,27 @@ class nDisplayMonitor(QAbstractTableModel):
 
         # Taskbar visibility
         data['Taskbar'] = syncStatus['taskbar']
+
+        # Operating system version
+        data['OsVer'] = self.friendly_osver(device)
+
+        # CPU utilization
+        num_cores = len(syncStatus['cpuUtilization'])
+        num_overloaded_cores = 0
+        cpu_load_avg = 0.0
+        for core_load in syncStatus['cpuUtilization']:
+            cpu_load_avg += float(core_load) * (1.0 / num_cores)
+            if core_load > self.CoreOverloadThresh:
+                num_overloaded_cores += 1
+
+        data['CpuUtilization'] = f"{cpu_load_avg:.0f}%"
+        if num_overloaded_cores > 0:
+            data['CpuUtilization'] += f" ({num_overloaded_cores} cores > {self.CoreOverloadThresh}%)"
+
+        # GPU utilization + clocks
+        gpu_stats = map(lambda x: f"#{x[0]}: {x[1]:.0f}% ({x[2] / 1000:.0f} MHz)", zip(count(), syncStatus['gpuUtilization'], syncStatus['gpuCoreClocksKhz']))
+        data['GpuUtilization'] = '\n'.join(gpu_stats)
+
 
     def on_get_sync_status(self, device, message):
         ''' Called when the listener has sent a message with the sync status
@@ -344,12 +418,25 @@ class nDisplayMonitor(QAbstractTableModel):
 
         try:
             self.populate_sync_data(devicedata=devicedata, message=message)
-        except KeyError:
+        except (KeyError, ValueError):
             LOGGER.error(f"Error parsing 'get sync status' message and populating model data\n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
             return
 
         row = deviceIdx + 1
         self.dataChanged.emit(self.createIndex(row, 1), self.createIndex(row, len(self.colnames)))
+
+
+    def do_console_exec(self, exec_str, executor=''):
+        ''' Issues a console exec to the cluster
+        '''
+        devices = [devicedata['device'] for devicedata in self.devicedatas.values()]
+        if len(devices):
+            try:
+                devices[0].__class__.console_exec_cluster(devices, exec_str, executor)
+                self.console_exec_issued.emit()
+            except:
+                LOGGER.warning("Could not issue console exec")
+
 
     #~ QAbstractTableModel interface begin
 

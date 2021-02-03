@@ -9,7 +9,7 @@
 
 namespace ChaosInterface
 {
-	FBodyInstance* GetUserData(const Chaos::TGeometryParticle<float,3>& Actor)
+	FBodyInstance* GetUserData(const Chaos::FGeometryParticle& Actor)
 	{
 		void* UserData = Actor.UserData();
 		return UserData ? FChaosUserData::Get<FBodyInstance>(Actor.UserData()) : nullptr;

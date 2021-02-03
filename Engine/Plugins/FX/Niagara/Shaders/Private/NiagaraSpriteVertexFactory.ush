@@ -713,6 +713,15 @@ float2 GetNiagaraUVScale(uint InstanceID)
 	return GetVec2(NiagaraSpriteVF.UVScaleDataOffset, InstanceID);	
 }
 
+float2 GetNiagaraPivotOffset(uint InstanceID)
+{
+	if(NiagaraSpriteVF.PivotOffsetDataOffset == -1)
+	{
+		return NiagaraSpriteVF.DefaultPivotOffset;
+	}
+	return GetVec2(NiagaraSpriteVF.PivotOffsetDataOffset, InstanceID);
+}
+
 float GetNiagaraParticleRandom(uint InstanceID)
 {
 	if(NiagaraSpriteVF.MaterialRandomDataOffset  == -1)
@@ -883,6 +892,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	const float2 UVScale = GetNiagaraUVScale(ParticleID);
 	UVForTexturing.xy = float2(0.5f, 0.5f) + (UVForTexturing.xy - float2(0.5f, 0.5f) ) *  UVScale.xy; 
 	const float2 Size = abs(Intermediates.SizeRotSubImage.xy);
+	
+	const float2 PivotOffset = GetNiagaraPivotOffset(ParticleID);
 
 	// Vertex position and prev vertex position.
 	{
@@ -890,7 +901,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		const float3 CameraOffset = SafeNormalize(ResolvedView.WorldCameraOrigin - Intermediates.Position) * GetNiagaraCameraOffset(ParticleID);
 
 		const float2x3 Tangents = float2x3(Intermediates.TangentRight, Intermediates.TangentUp);
-		const float3 VertexOffset = CameraOffset + mul(Size * (UVForPosition + NiagaraSpriteVF.PivotOffset), Tangents);
+		const float3 VertexOffset = CameraOffset + mul(Size * (UVForPosition - PivotOffset), Tangents);
 
 		Intermediates.VertexWorldPosition = Intermediates.Position + VertexOffset;
 		Intermediates.PreviousVertexWorldPosition = GetNiagaraParticlePrevPosition(ParticleID) + VertexOffset + ParticleVelocity * NiagaraSpriteVF.DeltaSeconds;
@@ -901,7 +912,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		Intermediates.TranslatedWorldPositionAndSize.w = .5f * min(Size.x, Size.y);
 #if GENERATE_SPHERICAL_PARTICLE_NORMALS
 		// Recenter the particle position for GENERATE_SPHERICAL_PARTICLE_NORMALS to use the right center.
-		Intermediates.TranslatedWorldPositionAndSize.xyz += mul(Size * (float2(.5, .5) + NiagaraSpriteVF.PivotOffset), Tangents);
+		Intermediates.TranslatedWorldPositionAndSize.xyz += mul(Size * (float2(.5, .5) - PivotOffset), Tangents);
 #endif // GENERATE_SPHERICAL_PARTICLE_NORMALS
 #endif // USE_PARTICLE_POSITION
 	}

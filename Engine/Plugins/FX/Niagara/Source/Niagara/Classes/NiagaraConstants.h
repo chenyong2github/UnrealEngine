@@ -106,6 +106,7 @@
 #define SYS_PARAM_PARTICLES_LIFETIME                     INiagaraModule::GetVar_Particles_Lifetime()
 #define SYS_PARAM_PARTICLES_MESH_ORIENTATION             INiagaraModule::GetVar_Particles_MeshOrientation()
 #define SYS_PARAM_PARTICLES_UV_SCALE                     INiagaraModule::GetVar_Particles_UVScale()
+#define SYS_PARAM_PARTICLES_PIVOT_OFFSET				 INiagaraModule::GetVar_Particles_PivotOffset()
 #define SYS_PARAM_PARTICLES_CAMERA_OFFSET                INiagaraModule::GetVar_Particles_CameraOffset()
 #define SYS_PARAM_PARTICLES_MATERIAL_RANDOM              INiagaraModule::GetVar_Particles_MaterialRandom()
 #define SYS_PARAM_PARTICLES_LIGHT_RADIUS                 INiagaraModule::GetVar_Particles_LightRadius()

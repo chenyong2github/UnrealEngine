@@ -319,16 +319,9 @@ int32 FShaderCompileDistributedThreadRunnable_Interface::CompilingLoop()
 				FScopeLock Lock(&Manager->CompileQueueSection);
 				for (const auto& Job : Task->ShaderJobs)
 				{
-					FShaderMapCompileResults& ShaderMapResults = *Job->PendingShaderMap;
-					ShaderMapResults.FinishedJobs.Add(Job);
-					ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && Job->bSucceeded;
-
-					const int32 NumPendingJobs = ShaderMapResults.NumPendingJobs.Decrement();
-					check(NumPendingJobs >= 0);
+					Manager->ProcessFinishedJob(Job);
 				}
 			}
-
-			Manager->AllJobs.SubtractNumOutstandingJobs(Task->ShaderJobs.Num());
 		}
 		else
 		{

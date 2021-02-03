@@ -748,7 +748,7 @@ void FWidgetBlueprintEditorUtils::WrapWidgets(TSharedRef<FWidgetBlueprintEditor>
 			if (NewWrapperWidget == nullptr || !NewWrapperWidget->CanAddMoreChildren())
 			{
 				NewWrapperWidget = CastChecked<UPanelWidget>(Template->Create(BP->WidgetTree));
-				NewWrapperWidget->SetDesignerFlags(BlueprintEditor->GetCurrentDesignerFlags());				
+				NewWrapperWidget->SetDesignerFlags(BlueprintEditor->GetCurrentDesignerFlags());
 
 				CurrentParent->SetFlags(RF_Transactional);
 				CurrentParent->Modify();
@@ -1094,53 +1094,59 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEdit
 
 	for ( FWidgetReference& Item : Widgets )
 	{
-			UPanelWidget* NewReplacementWidget = CastChecked<UPanelWidget>(Template->Create(BP->WidgetTree));
-			Item.GetTemplate()->SetFlags(RF_Transactional);
-			Item.GetTemplate()->Modify();
+		BP->WidgetTree->SetFlags(RF_Transactional);
+		BP->WidgetTree->Modify();
 
-			if ( UPanelWidget* CurrentParent = Item.GetTemplate()->GetParent() )
+		UPanelWidget* NewReplacementWidget = CastChecked<UPanelWidget>(Template->Create(BP->WidgetTree));
+
+		UWidget* ThisWidget = Item.GetTemplate();
+		ThisWidget->SetFlags(RF_Transactional);
+		ThisWidget->Modify();
+
+		if (UPanelWidget* CurrentParent = ThisWidget->GetParent())
+		{
+			CurrentParent->SetFlags(RF_Transactional);
+			CurrentParent->Modify();
+			CurrentParent->ReplaceChild(ThisWidget, NewReplacementWidget);
+		}
+		else if (ThisWidget == BP->WidgetTree->RootWidget)
+		{
+			BP->WidgetTree->RootWidget = NewReplacementWidget;
+		}
+		else
+		{
+			continue;
+		}
+
+		NewReplacementWidget->SetFlags(RF_Transactional);
+		NewReplacementWidget->Modify();
+
+		if (UPanelWidget* ExistingPanel = Cast<UPanelWidget>(ThisWidget))
+		{
+			while (ExistingPanel->GetChildrenCount() > 0)
 			{
-				CurrentParent->SetFlags(RF_Transactional);
-				CurrentParent->Modify();
-				CurrentParent->ReplaceChild(Item.GetTemplate(), NewReplacementWidget);
-			}
-			else if ( Item.GetTemplate() == BP->WidgetTree->RootWidget )
-			{
-				BP->WidgetTree->SetFlags(RF_Transactional);
-				BP->WidgetTree->Modify();
-				BP->WidgetTree->RootWidget = NewReplacementWidget;
-			}
-			else
-			{
-				continue;
-			}
+				UWidget* Widget = ExistingPanel->GetChildAt(0);
+				Widget->SetFlags(RF_Transactional);
+				Widget->Modify();
 
-			if (UPanelWidget* ExistingPanel = Cast<UPanelWidget>(Item.GetTemplate()))
-			{
-				ExistingPanel->SetFlags(RF_Transactional);
-				ExistingPanel->Modify();
-				while (ExistingPanel->GetChildrenCount() > 0)
-				{
-					UWidget* Widget = ExistingPanel->GetChildAt(0);
-					Widget->SetFlags(RF_Transactional);
-					Widget->Modify();
-
-					NewReplacementWidget->AddChild(Widget);
-				}
+				NewReplacementWidget->AddChild(Widget);
 			}
+		}
 
-			FString ReplaceName = Item.GetTemplate()->GetName();
-			bool bIsGeneratedName = Item.GetTemplate()->IsGeneratedName();
-			// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
-			Item.GetTemplate()->Rename(nullptr, nullptr);
+		FString ReplaceName = ThisWidget->GetName();
+		bool bIsGeneratedName = ThisWidget->IsGeneratedName();
 
-			// Rename the new Widget to maintain the current name if it's not a generic name
-			if (!bIsGeneratedName)
-			{
-				ReplaceName = FindNextValidName(BP->WidgetTree, ReplaceName);
-				NewReplacementWidget->Rename(*ReplaceName, BP->WidgetTree);
-			}
+		// Delete the widget that has been replaced
+		TSet<FWidgetReference> WidgetsToDelete;
+		WidgetsToDelete.Add(Item);
+		DeleteWidgets(BP, WidgetsToDelete);
 
+		// Rename the new Widget to maintain the current name if it's not a generic name
+		if (!bIsGeneratedName)
+		{
+			ReplaceName = FindNextValidName(BP->WidgetTree, ReplaceName);
+			NewReplacementWidget->Rename(*ReplaceName, BP->WidgetTree);
+		}
 	}
 
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);

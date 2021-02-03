@@ -24,6 +24,65 @@ static bool ShouldPreferD3D12()
 	return false;
 }
 
+static bool ShouldForceFeatureLevelES31()
+{
+	FConfigFile EngineSettings;
+	FString PlatformNameString = FPlatformProperties::IniPlatformName();
+	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformNameString);
+
+	FString MinMemorySizeBucketString;
+	if (EngineSettings.GetString(TEXT("PerformanceMode"), TEXT("MinMemorySizeBucket"), MinMemorySizeBucketString))
+	{
+		for (int EnumIndex = int(EPlatformMemorySizeBucket::Largest); EnumIndex <= int(EPlatformMemorySizeBucket::Tiniest); EnumIndex++)
+		{
+			if (MinMemorySizeBucketString == LexToString(EPlatformMemorySizeBucket(EnumIndex)))
+			{
+				int MinCoreCount = 0;
+				EngineSettings.GetInt(TEXT("PerformanceMode"), TEXT("MinCoreCount"), MinCoreCount);
+				return FPlatformMemory::GetMemorySizeBucket() >= EPlatformMemorySizeBucket(EnumIndex) || FPlatformMisc::NumberOfCoresIncludingHyperthreads() < MinCoreCount;
+			}
+		}
+	}
+	return false;
+}
+
+static bool ShouldPreferFeatureLevelES31()
+{
+	if (!GIsEditor)
+	{
+		bool bPreferFeatureLevelES31 = false;
+		bool bFoundPreference = GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferFeatureLevelES31"), bPreferFeatureLevelES31, GGameUserSettingsIni);
+
+		// Force low-spec users into performance mode but respect their choice once they have set a preference
+		bool bForceES31 = false;
+		if (!bFoundPreference)
+		{
+			bForceES31 = ShouldForceFeatureLevelES31();
+		}
+
+		if (bPreferFeatureLevelES31 || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")) || bForceES31)
+		{
+			if (!bFoundPreference)
+			{
+				GConfig->SetBool(TEXT("D3DRHIPreference"), TEXT("bPreferFeatureLevelES31"), true, GGameUserSettingsIni);
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool ShouldAllowD3D12FeatureLevelES31()
+{
+	if (!GIsEditor)
+	{
+		bool bAllowD3D12FeatureLevelES31 = true;
+		GConfig->GetBool(TEXT("SystemSettings"), TEXT("bAllowD3D12FeatureLevelES31"), bAllowD3D12FeatureLevelES31, GEngineIni);
+		return bAllowD3D12FeatureLevelES31;
+	}
+	return true;
+}
+
 static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFeatureLevel, const TCHAR*& LoadedRHIModuleName)
 {
 	bool bUseGPUCrashDebugging = false;
@@ -51,9 +110,11 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 	bool bForceSM5 = FParse::Param(FCommandLine::Get(), TEXT("sm5"));
 	bool bForceSM6 = FParse::Param(FCommandLine::Get(), TEXT("sm6"));
+	bool bPreferES31 = ShouldPreferFeatureLevelES31();
+	bool bAllowD3D12FeatureLevelES31 = ShouldAllowD3D12FeatureLevelES31();
 	bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
-	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || (bForceSM5 && !bForceVulkan);
-	bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
+	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || ((bForceSM5 || (bPreferES31 && !bAllowD3D12FeatureLevelES31)) && !bForceVulkan && !bForceOpenGL);
+	bool bForceD3D12 = (FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"))) && (!bPreferES31 || bAllowD3D12FeatureLevelES31);
 	DesiredFeatureLevel = ERHIFeatureLevel::Num;
 	
 	if(!(bForceVulkan||bForceOpenGL||bForceD3D11||bForceD3D12))
@@ -103,7 +164,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			FName ShaderFormatName(*TargetedShaderFormats[0]);
 			EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 			bForceVulkan = IsVulkanPlatform(TargetedPlatform);
-			bForceD3D11 = !bPreferD3D12 && IsD3DPlatform(TargetedPlatform, false);
+			bForceD3D11 = !bPreferD3D12 && IsD3DPlatform(TargetedPlatform);
 			bForceOpenGL = IsOpenGLPlatform(TargetedPlatform);
 			DesiredFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
 		}
@@ -272,7 +333,11 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 const TCHAR* GetSelectedDynamicRHIModuleName(bool bCleanup)
 {
 	check(FApp::CanEverRender());
-	if (GDynamicRHI)
+	if (ShouldPreferFeatureLevelES31())
+	{
+		return TEXT("ES31");
+	}
+	else if (GDynamicRHI)
 	{
 		check(!!GLoadedRHIModuleName);
 		return GLoadedRHIModuleName;

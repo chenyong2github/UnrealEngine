@@ -13,6 +13,44 @@ class UMaterialFunction;
 class UMaterialInstance;
 class UMaterialInstanceConstant;
 
+USTRUCT(BlueprintType)
+struct FMaterialStatistics
+{
+	GENERATED_BODY()
+
+	/** Number of instructions used by most expensive vertex shader in the material */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Statistics)
+	int32 NumVertexShaderInstructions = 0;
+
+	/** Number of instructions used by most expensive pixel shader in the material */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Statistics)
+	int32 NumPixelShaderInstructions = 0;
+
+	/** Number of samplers required by the material */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Statistics)
+	int32 NumSamplers = 0;
+
+	/** Number of textures sampled by the vertex shader */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Statistics)
+	int32 NumVertexTextureSamples = 0;
+
+	/** Number of textures sampled by the pixel shader */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Statistics)
+	int32 NumPixelTextureSamples = 0;
+
+	/** Number of virtual textures sampled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Statistics)
+	int32 NumVirtualTextureSamples = 0;
+
+	/** Number of interpolator scalars required for UVs */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Statistics)
+	int32 NumUVScalars = 0;
+
+	/** Number of interpolator scalars required for user-defined interpolators */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Statistics)
+	int32 NumInterpolatorScalars = 0;
+};
+
 /** Blueprint library for creating/editing Materials */
 UCLASS()
 class MATERIALEDITOR_API UMaterialEditingLibrary : public UBlueprintFunctionLibrary
@@ -303,4 +341,8 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static bool GetStaticSwitchParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
+
+	/** Returns statistics about the given material */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static FMaterialStatistics GetStatistics(UMaterialInterface* Material);
 };

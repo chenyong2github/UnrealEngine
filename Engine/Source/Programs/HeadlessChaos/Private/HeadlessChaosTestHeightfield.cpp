@@ -10,19 +10,18 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	template<typename T>
 	void Raycast()
 	{
 		const int32 Columns = 10;
 		const int32 Rows = 10;
-		const T CountToWorldScale = 1;
+		const FReal CountToWorldScale = 1;
 
 		{
 
-			TArray<T> Heights;
+			TArray<FReal> Heights;
 			Heights.AddZeroed(Rows * Columns);
 
-			T Count = 0;
+			FReal Count = 0;
 			for(int32 Row = 0; Row < Rows; ++Row)
 			{
 				for(int32 Col = 0; Col < Columns; ++Col)
@@ -31,43 +30,43 @@ namespace ChaosTest {
 				}
 			}
 
-			auto ComputeExpectedNormal = [&](const TVec3<T>& Scale)
+			auto ComputeExpectedNormal = [&](const FVec3& Scale)
 			{
 				//Compute expected normal
-				const TVec3<T> A(0,0,0);
-				const TVec3<T> B(Scale[0],0,CountToWorldScale * Scale[2]);
-				const TVec3<T> C(0,Scale[1],Columns*CountToWorldScale * Scale[2]);
-				const TVec3<T> ExpectedNormal = TVec3<T>::CrossProduct((B-A),(C-A)).GetUnsafeNormal();
+				const FVec3 A(0,0,0);
+				const FVec3 B(Scale[0],0,CountToWorldScale * Scale[2]);
+				const FVec3 C(0,Scale[1],Columns*CountToWorldScale * Scale[2]);
+				const FVec3 ExpectedNormal = FVec3::CrossProduct((B-A),(C-A)).GetUnsafeNormal();
 				return ExpectedNormal;
 			};
 
-			auto AlongZTest = [&](const TVec3<T>& Scale)
+			auto AlongZTest = [&](const FVec3& Scale)
 			{
-				TArray<T> HeightsCopy = Heights;
+				TArray<FReal> HeightsCopy = Heights;
 				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				//test straight down raycast
 				Count = 0;
-				T TOI;
-				TVec3<T> Position,Normal;
+				FReal TOI;
+				FVec3 Position,Normal;
 				int32 FaceIdx;
 
-				const TVec3<T> ExpectedNormal = ComputeExpectedNormal(Scale);
+				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
 
 				int32 ExpectedFaceIdx = 0;
 				for(int32 Row = 0; Row < Rows; ++Row)
 				{
 					for(int32 Col = 0; Col < Columns; ++Col)
 					{
-						const TVec3<T> Start(Col*Scale[0],Row * Scale[1],1000*Scale[2]);
-						EXPECT_TRUE(Heightfield.Raycast(Start,TVec3<T>(0,0,-1),2000*Scale[2],0,TOI,Position,Normal,FaceIdx));
+						const FVec3 Start(Col*Scale[0],Row * Scale[1],1000*Scale[2]);
+						EXPECT_TRUE(Heightfield.Raycast(Start,FVec3(0,0,-1),2000*Scale[2],0,TOI,Position,Normal,FaceIdx));
 						EXPECT_NEAR(TOI,(1000 - Heights[Row*Columns+Col])*Scale[2],1e-2);
-						EXPECT_VECTOR_NEAR(Position,TVec3<T>(Col*Scale[0],Row * Scale[1],Heights[Row*Columns+Col] * Scale[2]),1e-2);
+						EXPECT_VECTOR_NEAR(Position,FVec3(Col*Scale[0],Row * Scale[1],Heights[Row*Columns+Col] * Scale[2]),1e-2);
 						EXPECT_VECTOR_NEAR(Normal,ExpectedNormal,1e-2);
 
 						//offset in from border ever so slightly to get a clear face
-						const bool bResult = Heightfield.Raycast(Start + TVec3<T>(0.2 * Scale[0],0.1 * Scale[1],0),TVec3<T>(0,0,-1),2000*Scale[2],0,TOI,Position,Normal,FaceIdx);
+						const bool bResult = Heightfield.Raycast(Start + FVec3(0.2 * Scale[0],0.1 * Scale[1],0),FVec3(0,0,-1),2000*Scale[2],0,TOI,Position,Normal,FaceIdx);
 						if(Col + 1 == Columns || Row + 1 == Rows)
 						{
 							EXPECT_FALSE(bResult);	//went past edge so no hit
@@ -83,33 +82,33 @@ namespace ChaosTest {
 				}
 			};
 
-			AlongZTest(TVec3<T>(1));
-			AlongZTest(TVec3<T>(1,1,3));
-			AlongZTest(TVec3<T>(1,1,.3));
-			AlongZTest(TVec3<T>(3,1,.3));
-			AlongZTest(TVec3<T>(2,.1,.3));
+			AlongZTest(FVec3(1));
+			AlongZTest(FVec3(1,1,3));
+			AlongZTest(FVec3(1,1,.3));
+			AlongZTest(FVec3(3,1,.3));
+			AlongZTest(FVec3(2,.1,.3));
 
-			auto AlongXTest = [&](const TVec3<T>& Scale)
+			auto AlongXTest = [&](const FVec3& Scale)
 			{
-				TArray<T> HeightsCopy = Heights;
+				TArray<FReal> HeightsCopy = Heights;
 				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				//test along x axis
 				Count = 0;
-				T TOI;
-				TVec3<T> Position,Normal;
+				FReal TOI;
+				FVec3 Position,Normal;
 				int32 FaceIdx;
 
-				const TVec3<T> ExpectedNormal = ComputeExpectedNormal(Scale);
+				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
 
 				//move from left to right and raycast down the x-axis. The Row idx indicates which cell we expect to hit
 				for(int32 Row = 0; Row < Rows; ++Row)
 				{
 					for(int32 Col = 0; Col < Columns; ++Col)
 					{
-						const TVec3<T> Start(-Scale[0],Row * Scale[1],Heights[Row*Columns + Col] * Scale[2] + 0.01 * Scale[2]);
-						const bool bResult = Heightfield.Raycast(Start,TVec3<T>(1,0,0),2000*Scale[0],0,TOI,Position,Normal,FaceIdx);
+						const FVec3 Start(-Scale[0],Row * Scale[1],Heights[Row*Columns + Col] * Scale[2] + 0.01 * Scale[2]);
+						const bool bResult = Heightfield.Raycast(Start,FVec3(1,0,0),2000*Scale[0],0,TOI,Position,Normal,FaceIdx);
 						if(Col + 1 == Columns)
 						{
 							EXPECT_FALSE(bResult);
@@ -118,39 +117,39 @@ namespace ChaosTest {
 						{
 							EXPECT_TRUE(bResult);
 							EXPECT_NEAR(TOI,(Scale[0] * (1 + Col)),1e-1);
-							EXPECT_VECTOR_NEAR(Position,(Start + TVec3<T>{TOI,0,0}),1e-2);
+							EXPECT_VECTOR_NEAR(Position,(Start + FVec3{TOI,0,0}),1e-2);
 							EXPECT_VECTOR_NEAR(Normal,ExpectedNormal,1e-1);
 						}
 					}
 				}
 			};
 
-			AlongXTest(TVec3<T>(1));
-			AlongXTest(TVec3<T>(1,1,3));
-			AlongXTest(TVec3<T>(1,1,.3));
-			AlongXTest(TVec3<T>(3,1,.3));
-			AlongXTest(TVec3<T>(2,.1,.3));
+			AlongXTest(FVec3(1));
+			AlongXTest(FVec3(1,1,3));
+			AlongXTest(FVec3(1,1,.3));
+			AlongXTest(FVec3(3,1,.3));
+			AlongXTest(FVec3(2,.1,.3));
 
-			auto AlongYTest = [&](const TVec3<T>& Scale)
+			auto AlongYTest = [&](const FVec3& Scale)
 			{
-				TArray<T> HeightsCopy = Heights;
+				TArray<FReal> HeightsCopy = Heights;
 				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				//test along y axis
 				Count = 0;
-				T TOI;
-				TVec3<T> Position,Normal;
+				FReal TOI;
+				FVec3 Position,Normal;
 				int32 FaceIdx;
 
-				const TVec3<T> ExpectedNormal = ComputeExpectedNormal(Scale);
+				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
 
 				for(int32 Row = 0; Row < Rows; ++Row)
 				{
 					for(int32 Col = 0; Col < Columns; ++Col)
 					{
-						const TVec3<T> Start(Col * Scale[0],-Scale[1],Heights[Row*Columns + Col] * Scale[2] + 0.01 * Scale[2]);
-						const bool bResult = Heightfield.Raycast(Start,TVec3<T>(0,1,0),2000*Scale[0],0,TOI,Position,Normal,FaceIdx);
+						const FVec3 Start(Col * Scale[0],-Scale[1],Heights[Row*Columns + Col] * Scale[2] + 0.01 * Scale[2]);
+						const bool bResult = Heightfield.Raycast(Start,FVec3(0,1,0),2000*Scale[0],0,TOI,Position,Normal,FaceIdx);
 						if(Row + 1 == Rows)
 						{
 							EXPECT_FALSE(bResult);
@@ -159,24 +158,24 @@ namespace ChaosTest {
 						{
 							EXPECT_TRUE(bResult);
 							EXPECT_NEAR(TOI,(Scale[1] * (1 + Row)),1e-1);
-							EXPECT_VECTOR_NEAR(Position,(Start + TVec3<T>{0,TOI,0}),1e-2);
+							EXPECT_VECTOR_NEAR(Position,(Start + FVec3{0,TOI,0}),1e-2);
 							EXPECT_VECTOR_NEAR(Normal,ExpectedNormal,1e-1);
 						}
 					}
 				}
 			};
 
-			AlongYTest(TVec3<T>(1));
-			AlongYTest(TVec3<T>(1,1,3));
-			AlongYTest(TVec3<T>(1,1,.3));
-			AlongYTest(TVec3<T>(3,1,.3));
-			AlongYTest(TVec3<T>(2,.1,.3));
+			AlongYTest(FVec3(1));
+			AlongYTest(FVec3(1,1,3));
+			AlongYTest(FVec3(1,1,.3));
+			AlongYTest(FVec3(3,1,.3));
+			AlongYTest(FVec3(2,.1,.3));
 		}
 
 		{
 
 			//For diagonal test simply increase height on the y axis
-			TArray<T> Heights2;
+			TArray<FReal> Heights2;
 			Heights2.AddZeroed(Rows*Columns);
 			for(int32 Row = 0; Row < Rows; ++Row)
 			{
@@ -186,35 +185,35 @@ namespace ChaosTest {
 				}
 			}
 
-			auto ComputeExpectedNormal2 = [&](const TVec3<T>& Scale)
+			auto ComputeExpectedNormal2 = [&](const FVec3& Scale)
 			{
 				//Compute expected normal
-				const TVec3<T> A(0,0,0);
-				const TVec3<T> B(Scale[0],0,0);
-				const TVec3<T> C(0,Scale[1],CountToWorldScale * Scale[2]);
-				const TVec3<T> ExpectedNormal = TVec3<T>::CrossProduct((B-A),(C-A)).GetUnsafeNormal();
+				const FVec3 A(0,0,0);
+				const FVec3 B(Scale[0],0,0);
+				const FVec3 C(0,Scale[1],CountToWorldScale * Scale[2]);
+				const FVec3 ExpectedNormal = FVec3::CrossProduct((B-A),(C-A)).GetUnsafeNormal();
 				return ExpectedNormal;
 			};
 
-			auto AlongXYTest = [&](const TVec3<T>& Scale)
+			auto AlongXYTest = [&](const FVec3& Scale)
 			{
-				TArray<T> HeightsCopy = Heights2;
+				TArray<FReal> HeightsCopy = Heights2;
 				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
 				//test along x-y axis
-				T TOI;
-				TVec3<T> Position,Normal;
+				FReal TOI;
+				FVec3 Position,Normal;
 				int32 FaceIdx;
 
-				const TVec3<T> ExpectedNormal = ComputeExpectedNormal2(Scale);
+				const FVec3 ExpectedNormal = ComputeExpectedNormal2(Scale);
 
 				for(int32 Row = 0; Row < Rows; ++Row)
 				{
 					for(int32 Col = 0; Col < Columns; ++Col)
 					{
-						const TVec3<T> Start(Col * Scale[0],0,Heights2[Row*Columns + Col] * Scale[2] + 0.01 * Scale[2]);
-						const TVec3<T> Dir = TVec3<T>(1,1,0).GetUnsafeNormal();
+						const FVec3 Start(Col * Scale[0],0,Heights2[Row*Columns + Col] * Scale[2] + 0.01 * Scale[2]);
+						const FVec3 Dir = FVec3(1,1,0).GetUnsafeNormal();
 						const bool bResult = Heightfield.Raycast(Start,Dir,2000*Scale[0],0,TOI,Position,Normal,FaceIdx);
 
 						//As we increase the row, fewer columns will hit because the ray will exit the heightfield
@@ -228,30 +227,30 @@ namespace ChaosTest {
 				}
 			};
 
-			AlongXYTest(TVec3<T>(1));
+			AlongXYTest(FVec3(1));
 
 
-			auto ToCellsTest = [&](const TVec3<T>& Scale)
+			auto ToCellsTest = [&](const FVec3& Scale)
 			{
 				//Pick cells and shoot ray at them
 				//This should always succeed because 0,0 is the lowest and n,n is the heighest
-				TArray<T> HeightsCopy = Heights2;
+				TArray<FReal> HeightsCopy = Heights2;
 				FHeightField Heightfield(MoveTemp(HeightsCopy),TArray<uint8>(),Rows,Columns,Scale);
 				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
 
-				T TOI;
-				TVec3<T> Position,Normal;
+				FReal TOI;
+				FVec3 Position,Normal;
 				int32 FaceIdx;
 
-				const TVec3<T> ExpectedNormal = ComputeExpectedNormal2(Scale);
+				const FVec3 ExpectedNormal = ComputeExpectedNormal2(Scale);
 
-				const TVec3<T> Start(0,0,Heights2.Last() * Scale[2]);
+				const FVec3 Start(0,0,Heights2.Last() * Scale[2]);
 				for(int32 TargetIdx = 0; TargetIdx < Heights2.Num(); ++TargetIdx)
 				{
 					const int32 Col = TargetIdx % Columns;
 					const int32 Row = TargetIdx / Columns;
-					const TVec3<T> EndUnscaled(Col,Row,Heights2[TargetIdx]);
-					TVec3<T> End = EndUnscaled * Scale;
+					const FVec3 EndUnscaled(Col,Row,Heights2[TargetIdx]);
+					FVec3 End = EndUnscaled * Scale;
 					if(Col + 1 == Columns)
 					{
 						//pull back slightly to avoid precision issues at edge
@@ -264,7 +263,7 @@ namespace ChaosTest {
 						continue;
 					}
 
-					const TVec3<T> Dir = (End - Start).GetUnsafeNormal();
+					const FVec3 Dir = (End - Start).GetUnsafeNormal();
 
 					const bool bResult = Heightfield.Raycast(Start,Dir,2000,0,TOI,Position,Normal,FaceIdx);
 					EXPECT_TRUE(bResult);
@@ -273,11 +272,11 @@ namespace ChaosTest {
 				}
 			};
 
-			ToCellsTest(TVec3<T>(1));
-			ToCellsTest(TVec3<T>(1,1,10));
-			ToCellsTest(TVec3<T>(1,1,.1));
-			ToCellsTest(TVec3<T>(3,1,.1));
-			ToCellsTest(TVec3<T>(.3,1,.1));
+			ToCellsTest(FVec3(1));
+			ToCellsTest(FVec3(1,1,10));
+			ToCellsTest(FVec3(1,1,.1));
+			ToCellsTest(FVec3(3,1,.1));
+			ToCellsTest(FVec3(.3,1,.1));
 
 
 		}
@@ -310,7 +309,7 @@ namespace ChaosTest {
 		}
 
 
-		TVector<FReal, 3> Scale(1, 1, 1);
+		FVec3 Scale(1, 1, 1);
 		FHeightField Heightfield(MoveTemp(Heights),TArray<uint8>(),Rows,Columns,Scale);
 
 		// Test is intended to catch trivial regressions in EditGeomData,
@@ -386,7 +385,7 @@ namespace ChaosTest {
 
 	TEST(ChaosTests, Heightfield)
 	{
-		ChaosTest::Raycast<float>();
+		ChaosTest::Raycast();
 		EditHeights();
 		SUCCEED();
 	}

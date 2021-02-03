@@ -9,6 +9,7 @@
 #include "Curves/CurveFloat.h"
 #include "VehicleUtility.h"
 #include "Chaos/PBDSuspensionConstraints.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "ChaosWheeledVehicleMovementComponent.generated.h"
 
 #if VEHICLE_DEBUGGING_ENABLED
@@ -514,8 +515,8 @@ struct CHAOSVEHICLES_API FWheelState
 
 	/** Commonly used Wheel state - evaluated once used wherever required for that frame */
 	void CaptureState(int WheelIdx, const FVector& WheelOffset, const FBodyInstance* TargetInstance);
-	void CaptureState(int WheelIdx, const FVector& WheelOffset, const Chaos::TPBDRigidParticleHandle<float, 3>* Handle);
-	FVector GetVelocityAtPoint(const Chaos::TPBDRigidParticleHandle<float, 3>* Rigid, const FVector& InPoint);
+	void CaptureState(int WheelIdx, const FVector& WheelOffset, const Chaos::FRigidBodyHandle_Internal* Handle);
+	FVector GetVelocityAtPoint(const Chaos::FRigidBodyHandle_Internal* Rigid, const FVector& InPoint);
 
 	TArray<FVector> WheelWorldLocation;	/** Current Location Of Wheels In World Coordinates */
 	TArray<FVector> WorldWheelVelocity; /** Current velocity at wheel location In World Coordinates - combined linear and angular */
@@ -547,10 +548,10 @@ public:
 		WheelState.Init(PVehicle->Wheels.Num());
 	}
 
-	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle) override;
+	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle) override;
 
 	/** Advance the vehicle simulation */
-	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::TPBDRigidParticleHandle<float, 3>* Handle) override;
+	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle) override;
 
 	virtual void FillOutputState(FChaosVehicleAsyncOutput& Output) override;
 

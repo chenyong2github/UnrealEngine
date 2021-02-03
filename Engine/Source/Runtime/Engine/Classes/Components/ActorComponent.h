@@ -897,6 +897,12 @@ public:
 	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
 	//~ End IInterface_AssetUserData Interface
 
+	//~ Begin IInterface_ActorSubobject Interface
+	// We're using the same API as IInterface_ActorSubobject, but not using it directly as a size and performance optimization
+	void OnCreatedFromReplication();
+	void OnDestroyedFromReplication();
+	//~ End IInterface_ActorSubobject Interface
+
 	/** See if the owning Actor is currently running the UCS */
 	bool IsOwnerRunningUserConstructionScript() const;
 

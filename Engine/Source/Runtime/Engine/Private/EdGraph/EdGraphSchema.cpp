@@ -751,6 +751,141 @@ FText UEdGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) const
 	}
 	return ResultPinName;
 }
+
+float UEdGraphSchema::GetActionFilteredWeight(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, const TArray<UEdGraphPin*>& DraggedFromPins) const
+{
+	// The overall 'weight'
+	int32 TotalWeight = 0;
+
+	// Some simple weight figures to help find the most appropriate match	
+	const int32 WholeMatchWeightMultiplier = 2;
+	const int32 WholeMatchLocalizedWeightMultiplier = 3;
+	const int32 DescriptionWeight = 10;
+	const int32 CategoryWeight = 1;
+	const int32 NodeTitleWeight = 1;
+	const int32 KeywordWeight = 4;
+
+	// Helper array
+	struct FArrayWithWeight
+	{
+		FArrayWithWeight(const TArray< FString >* InArray, int32 InWeight)
+			: Array(InArray)
+			, Weight(InWeight)
+		{
+		}
+
+		const TArray< FString >* Array;
+		int32 Weight;
+	};
+
+	// Setup an array of arrays so we can do a weighted search			
+	TArray<FArrayWithWeight> WeightedArrayList;
+
+	int32 Action = 0;
+	if (InCurrentAction.Actions[Action].IsValid() == true)
+	{
+		// Combine the actions string, separate with \n so terms don't run into each other, and remove the spaces (incase the user is searching for a variable)
+		// In the case of groups containing multiple actions, they will have been created and added at the same place in the code, using the same description
+		// and keywords, so we only need to use the first one for filtering.
+		const FString& SearchText = InCurrentAction.GetSearchTextForFirstAction();
+
+		// First the localized keywords
+		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchKeywordsArrayForFirstAction(), KeywordWeight));
+
+		// The localized description
+		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedMenuDescriptionArrayForFirstAction(), DescriptionWeight));
+
+		// The node search localized title weight
+		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchTitleArrayForFirstAction(), NodeTitleWeight));
+
+		// The localized category
+		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchCategoryArrayForFirstAction(), CategoryWeight));
+
+		// First the keywords
+		int32 NonLocalizedFirstIndex = WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchKeywordsArrayForFirstAction(), KeywordWeight));
+
+		// The description
+		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetMenuDescriptionArrayForFirstAction(), DescriptionWeight));
+
+		// The node search title weight
+		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchTitleArrayForFirstAction(), NodeTitleWeight));
+
+		// The category
+		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchCategoryArrayForFirstAction(), CategoryWeight));
+
+		// Now iterate through all the filter terms and calculate a 'weight' using the values and multipliers
+		const FString* EachTerm = nullptr;
+		const FString* EachTermSanitized = nullptr;
+		for (int32 FilterIndex = 0; FilterIndex < InFilterTerms.Num(); ++FilterIndex)
+		{
+			EachTerm = &InFilterTerms[FilterIndex];
+			EachTermSanitized = &InSanitizedFilterTerms[FilterIndex];
+			if (SearchText.Contains(*EachTerm, ESearchCase::CaseSensitive))
+			{
+				TotalWeight += 2;
+			}
+			else if (SearchText.Contains(*EachTermSanitized, ESearchCase::CaseSensitive))
+			{
+				TotalWeight++;
+			}
+			// Now check the weighted lists	(We could further improve the hit weight by checking consecutive word matches)
+			for (int32 iFindCount = 0; iFindCount < WeightedArrayList.Num(); iFindCount++)
+			{
+				int32 WeightPerList = 0;
+				const TArray<FString>& KeywordArray = *WeightedArrayList[iFindCount].Array;
+				int32 EachWeight = WeightedArrayList[iFindCount].Weight;
+				int32 WholeMatchCount = 0;
+				int32 WholeMatchMultiplier = (iFindCount < NonLocalizedFirstIndex) ? WholeMatchLocalizedWeightMultiplier : WholeMatchWeightMultiplier;
+
+				for (int32 iEachWord = 0; iEachWord < KeywordArray.Num(); iEachWord++)
+				{
+					// If we get an exact match weight the find count to get exact matches higher priority
+					if (KeywordArray[iEachWord].StartsWith(*EachTerm, ESearchCase::CaseSensitive))
+					{
+						if (iEachWord == 0)
+						{
+							WeightPerList += EachWeight * WholeMatchMultiplier;
+						}
+						else
+						{
+							WeightPerList += EachWeight;
+						}
+						WholeMatchCount++;
+					}
+					else if (KeywordArray[iEachWord].Contains(*EachTerm, ESearchCase::CaseSensitive))
+					{
+						WeightPerList += EachWeight;
+					}
+					if (KeywordArray[iEachWord].StartsWith(*EachTermSanitized, ESearchCase::CaseSensitive))
+					{
+						if (iEachWord == 0)
+						{
+							WeightPerList += EachWeight * WholeMatchMultiplier;
+						}
+						else
+						{
+							WeightPerList += EachWeight;
+						}
+						WholeMatchCount++;
+					}
+					else if (KeywordArray[iEachWord].Contains(*EachTermSanitized, ESearchCase::CaseSensitive))
+					{
+						WeightPerList += EachWeight / 2;
+					}
+				}
+				// Increase the weight if theres a larger % of matches in the keyword list
+				if (WholeMatchCount != 0)
+				{
+					int32 PercentAdjust = (100 / KeywordArray.Num()) * WholeMatchCount;
+					WeightPerList *= PercentAdjust;
+				}
+				TotalWeight += WeightPerList;
+			}
+		}
+	}
+	return TotalWeight;
+
+}
 #endif // WITH_EDITORONLY_DATA
 
 void UEdGraphSchema::ConstructBasicPinTooltip(UEdGraphPin const& Pin, FText const& PinDescription, FString& TooltipOut) const

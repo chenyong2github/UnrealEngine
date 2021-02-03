@@ -3991,7 +3991,7 @@ void UEditorEngine::ParentActors( AActor* ParentActor, AActor* ChildActor, const
 		}
 
 		// Snap to socket if a valid socket name was provided, otherwise attach without changing the relative transform
-		ChildRoot->AttachToComponent(ParentRoot, FAttachmentTransformRules::KeepWorldTransform, SocketName);
+		ChildRoot->AttachToComponent(Component ? Component : ParentRoot, FAttachmentTransformRules::KeepWorldTransform, SocketName);
 
 		// Refresh editor in case child was translated after snapping to socket
 		RedrawLevelEditingViewports();

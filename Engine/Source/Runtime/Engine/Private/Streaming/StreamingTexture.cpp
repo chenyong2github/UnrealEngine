@@ -12,6 +12,15 @@ StreamingTexture.cpp: Definitions of classes used for texture.
 #include "Engine/SkeletalMesh.h"
 #include "LandscapeComponent.h"
 
+#if PLATFORM_DESKTOP
+int32 GUseMobileLODBiasOnDesktopES31 = 0;
+static FAutoConsoleVariableRef CVarUseMobileLODBiasOnDesktopES31(
+	TEXT("r.Streaming.UseMobileLODBiasOnDesktopES31"),
+	GUseMobileLODBiasOnDesktopES31,
+	TEXT("If set apply mobile Min LOD bias on desktop platforms when running in ES31 mode")
+);
+#endif
+
 FStreamingRenderAsset::FStreamingRenderAsset(
 	UStreamableRenderAsset* InRenderAsset,
 	const int32* NumStreamedMips,
@@ -186,6 +195,13 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 			}
 
 			LODBias += BudgetMipBias;
+
+#if PLATFORM_DESKTOP
+			if (GUseMobileLODBiasOnDesktopES31 != 0 && GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
+			{
+				LODBias += ResourceState.LODBiasModifier;
+			}
+#endif
 		}
 
 		// If the optional mips are not available, or if we shouldn't load them now, clamp the possible mips requested. 

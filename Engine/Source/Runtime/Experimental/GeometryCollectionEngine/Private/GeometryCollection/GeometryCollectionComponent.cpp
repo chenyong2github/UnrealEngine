@@ -971,8 +971,8 @@ void UGeometryCollectionComponent::UpdateRepData()
 
 		for(int32 Index = 0; Index < NumTransforms; ++Index)
 		{
-			TManagedArray<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>>& GTParticles = PhysicsProxy->GetExternalParticles();
-			Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle = GTParticles[Index].Get();
+			TManagedArray<TUniquePtr<Chaos::FGeometryParticle>>& GTParticles = PhysicsProxy->GetExternalParticles();
+			Chaos::FGeometryParticle* Particle = GTParticles[Index].Get();
 			if(!DynamicCollection->Active[Index] || DynamicCollection->DynamicState[Index] != static_cast<uint8>(Chaos::EObjectStateType::Dynamic))
 			{
 				continue;
@@ -2551,44 +2551,20 @@ void FScopedColorEdit::UpdateBoneColors()
 void UGeometryCollectionComponent::ApplyKinematicField(float Radius, FVector Position)
 {
 	FName TargetName = GetGeometryCollectionPhysicsTypeName(EGeometryCollectionPhysicsTypeEnum::Chaos_DynamicState);
-	DispatchCommand({ TargetName,new FRadialIntMask(Radius, Position, (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic,
-		(int32)EObjectStateTypeEnum::Chaos_Object_Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior) });
+	DispatchFieldCommand({ TargetName,new FRadialIntMask(Radius, Position, (int32)Chaos::EObjectStateType::Dynamic,
+		(int32)Chaos::EObjectStateType::Kinematic, ESetMaskConditionType::Field_Set_IFF_NOT_Interior) });
 }
 
 void UGeometryCollectionComponent::ApplyPhysicsField(bool Enabled, EGeometryCollectionPhysicsTypeEnum Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
 {
 	if (Enabled && Field)
 	{
-		TArray<const UFieldNodeBase*> Nodes;
-		FFieldSystemCommand Command = { GetGeometryCollectionPhysicsTypeName(Target), Field->NewEvaluationGraph(Nodes) };
-		if (ensureMsgf(Command.RootNode,
-			TEXT("Failed to generate physics field command for target attribute.")))
-		{
-			if (MetaData)
-			{
-				switch (MetaData->Type())
-				{
-					case FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution:
-					{
-						UFieldSystemMetaDataProcessingResolution* ResolutionMeta = static_cast<UFieldSystemMetaDataProcessingResolution*>(MetaData);
-						Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution).Reset(new FFieldSystemMetaDataProcessingResolution(ResolutionMeta->ResolutionType));
-						break;
-					}
-					case FFieldSystemMetaData::EMetaType::ECommandData_Filter:
-					{
-						UFieldSystemMetaDataFilter* FilterMeta = static_cast<UFieldSystemMetaDataFilter*>(MetaData);
-						Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Filter).Reset(new FFieldSystemMetaDataFilter(FilterMeta->FilterType));
-						break;
-					}
-				}
-			}
-			ensure(!Command.TargetAttribute.IsEqual("None"));
-			DispatchCommand(Command);
-		}
+		FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetGeometryCollectionPhysicsTypeName(Target), Field, MetaData);
+		DispatchFieldCommand(Command);
 	}
 }
 
-void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& InCommand)
+void UGeometryCollectionComponent::DispatchFieldCommand(const FFieldSystemCommand& InCommand)
 {
 	if (PhysicsProxy)
 	{
@@ -2607,20 +2583,16 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystemCommand>& CombinedCommmands)
 {
 	CombinedCommmands.Reset();
-	for (const AFieldSystemActor * FieldSystemActor : InitializationFields)
+	for (const AFieldSystemActor* FieldSystemActor : InitializationFields)
 	{
 		if (FieldSystemActor != nullptr)
 		{
-			if (FieldSystemActor->GetFieldSystemComponent() && FieldSystemActor->GetFieldSystemComponent()->GetFieldSystem())
+			if (FieldSystemActor->GetFieldSystemComponent())
 			{
-				for (const FFieldSystemCommand& Command : FieldSystemActor->GetFieldSystemComponent()->GetFieldSystem()->Commands)
+				for (int32 CommandIndex = 0, NumCommands = FieldSystemActor->GetFieldSystemComponent()->ConstructionCommands.GetNumCommands();
+					CommandIndex < NumCommands; ++CommandIndex)
 				{
-					FFieldSystemCommand NewCommand = { Command.TargetAttribute, Command.RootNode->NewCopy() };
-					for (auto & Elem : Command.MetaData)
-					{
-						NewCommand.MetaData.Add(Elem.Key, TUniquePtr<FFieldSystemMetaData>(Elem.Value->NewCopy()));
-					}
-					CombinedCommmands.Add(NewCommand);
+					CombinedCommmands.Add(FieldSystemActor->GetFieldSystemComponent()->ConstructionCommands.BuildFieldCommand(CommandIndex));
 				}
 			}
 		}

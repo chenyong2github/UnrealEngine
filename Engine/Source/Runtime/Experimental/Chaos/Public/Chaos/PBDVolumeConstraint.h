@@ -14,7 +14,7 @@ class TPBDVolumeConstraint : public TParticleRule<T, 3>, public TPBDVolumeConstr
 	typedef TPBDVolumeConstraintBase<T> Base;
 
   public:
-	TPBDVolumeConstraint(const TDynamicParticles<T, 3>& InParticles, TArray<TVector<int32, 3>>&& constraints, const T stiffness = (T)1)
+	TPBDVolumeConstraint(const TDynamicParticles<T, 3>& InParticles, TArray<TVec3<int32>>&& constraints, const T stiffness = (T)1)
 	    : Base(InParticles, MoveTemp(constraints), stiffness) {}
 	virtual ~TPBDVolumeConstraint() {}
 

@@ -47,7 +47,7 @@ namespace DataprepActionAsset
 	typedef TFunction<void(const UDataprepActionAsset* /* ActionAsset */, bool /* bWorldChanged */, bool /* bAssetChanged */, const TArray< TWeakObjectPtr<UObject> >& /* NewAssets */)> FActionsContextChangedFunc;
 }
 
-UCLASS(Experimental)
+UCLASS()
 class DATAPREPCORE_API UDataprepActionStep : public UObject
 {
 	GENERATED_BODY()
@@ -173,7 +173,7 @@ DECLARE_EVENT(UDataprepActionAsset, FOnStepsOrderChanged);
 DECLARE_EVENT_OneParam(UDataprepActionAsset, FOnStepAboutToBeRemoved, UDataprepParameterizableObject* /** The step object */ );
 DECLARE_EVENT_TwoParams(UDataprepParameterizableObject, FOnStepWasEdited, UDataprepParameterizableObject* /** The step object of the step (The object edited might be a subobject of it) */, struct FPropertyChangedChainEvent&)
 
-UCLASS(Experimental)
+UCLASS()
 class DATAPREPCORE_API UDataprepActionAsset : public UObject
 {
 	GENERATED_BODY()
@@ -336,6 +336,11 @@ public:
 	UPROPERTY()
 	bool bIsEnabled;
 
+	UPROPERTY()
+	bool bIsExpanded;
+
+	UPROPERTY()
+	int32 GroupId;
 
 	/** Getter and Setter on the UI text of the action */
 	const TCHAR* GetLabel() const { return *Label; }

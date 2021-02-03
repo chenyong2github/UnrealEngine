@@ -241,14 +241,14 @@ const TArray<FString>& FVisualLoggerFilters::GetSelectedObjects() const
 	return SelectedClasses;
 }
 
+// @todo both MatchCategoryFilters and MatchSearchString function names are not clear enough
 bool FVisualLoggerFilters::MatchCategoryFilters(FString String, ELogVerbosity::Type Verbosity)
 {
 	ULogVisualizerSettings* Settings = ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>();
-	bool bFoundFilter = false;
+
 	for (const FCategoryFilter& Filter : Categories)
 	{
-		bFoundFilter = Filter.CategoryName == String;
-		if (bFoundFilter)
+		if (Filter.CategoryName.Equals(String, ESearchCase::IgnoreCase))
 		{
 			if (Filter.Enabled)
 			{
@@ -262,7 +262,8 @@ bool FVisualLoggerFilters::MatchCategoryFilters(FString String, ELogVerbosity::T
 		}
 	}
 
-	return bFoundFilter;
+	// if filter for a given log category has not been found we let it be, we allow it.
+	return true;
 }
 
 void FVisualLoggerFilters::DeactivateAllButThis(const FString& InName)

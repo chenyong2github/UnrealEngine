@@ -52,12 +52,12 @@ void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 	{
 		const FChaosVehicleAsyncInput& VehicleInput = *InputVehiclesBatch[Idx];
 
-		if (VehicleInput.Actor.Proxy == nullptr || VehicleInput.Actor.Proxy->GetHandle() == nullptr)
+		if (VehicleInput.Actor.Proxy == nullptr || VehicleInput.Actor.Proxy->GetPhysicsThreadAPI() == nullptr)
 		{
 			return;
 		}
 
-		auto Handle = VehicleInput.Actor.Proxy->GetHandle();
+		auto Handle = VehicleInput.Actor.Proxy->GetPhysicsThreadAPI();
 		if (Handle->ObjectState() != Chaos::EObjectStateType::Dynamic)
 		{
 			return;

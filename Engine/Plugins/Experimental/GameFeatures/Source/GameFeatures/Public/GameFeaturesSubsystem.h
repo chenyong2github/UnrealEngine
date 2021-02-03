@@ -52,6 +52,12 @@ DECLARE_DELEGATE_OneParam(FGameFeaturePluginUnloadComplete, const UE::GameFeatur
 /** Notification that a game feature plugin uninstall has finished.*/
 DECLARE_DELEGATE_OneParam(FGameFeaturePluginUninstallComplete, const UE::GameFeatures::FResult& /*Result*/);
 
+/** Notification that a game feature plugin load has finished successfully and feeds back the GameFeatureData*/
+DECLARE_MULTICAST_DELEGATE_TwoParams(FGameFeaturePluginLoadCompleteDataReady, const FString& /*Name*/, const UGameFeatureData* /*Data*/);
+
+/** Notification that a game feature plugin load has deactivated successfully and feeds back the GameFeatureData that was being used*/
+DECLARE_MULTICAST_DELEGATE_TwoParams(FGameFeaturePluginDeativated, const FString& /*Name*/, const UGameFeatureData* /*Data*/);
+
 
 struct FGameFeaturePluginDetails
 {
@@ -141,6 +147,9 @@ public:
 
 	/** If the specified plugin is a built-in plugin, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
 	bool GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL);
+	
+	/** Get the plugin path from the plugin URL */
+	FString GetPluginFilenameFromPluginURL(const FString& PluginURL);
 
 	/** Returns the game-specific policy for managing game feature plugins */
 	template <typename T = UGameFeaturesProjectPolicies>
@@ -157,9 +166,15 @@ public:
 	/** Returns the list of plugin filenames that have progressed beyond installed. Used in cooking to determine which will be cooked. */
 	//@TODO: GameFeaturePluginEnginePush: Might not be general enough for engine level, TBD
 	void GetLoadedGameFeaturePluginFilenamesForCooking(TArray<FString>& OutLoadedPluginFilenames) const;
+	
+	/** Broadcasts when a plugin is activated and the GameFeatureData is avaialble */
+	static FGameFeaturePluginLoadCompleteDataReady& OnPluginLoadCompleteDataReady() { return PluginLoadedGameFeatureDataReadyDelegate; }
+
+	/** Broadcasts when a plugin is deactivated */
+	static FGameFeaturePluginDeativated& OnPluginDeactivatedDataReady() { return PluginDeactivatedDelegate; }
 
 private:
-	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData);
+	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);
 	friend struct FGameFeaturePluginState_Registering;
 
 	void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData);
@@ -223,4 +238,7 @@ private:
 	UGameFeaturesProjectPolicies* GameSpecificPolicies;
 
 	bool bInitializedPolicyManager = false;
+	
+	static FGameFeaturePluginLoadCompleteDataReady PluginLoadedGameFeatureDataReadyDelegate;
+	static FGameFeaturePluginDeativated PluginDeactivatedDelegate;
 };

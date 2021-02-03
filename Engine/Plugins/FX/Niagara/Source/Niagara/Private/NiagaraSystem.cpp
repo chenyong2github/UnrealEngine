@@ -871,6 +871,195 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 	return true;
 }
 
+void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+#if WITH_EDITOR
+	OutTags.Add(FAssetRegistryTag("HasGPUEmitter", HasAnyGPUEmitters() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+
+	const float BoundsSize = FixedBounds.GetSize().GetMax();
+	OutTags.Add(FAssetRegistryTag("FixedBoundsSize", bFixedBounds ? FString::Printf(TEXT("%.2f"), BoundsSize) : FString(TEXT("None")), FAssetRegistryTag::TT_Numerical));
+
+	OutTags.Add(FAssetRegistryTag("NumEmitters", LexToString(EmitterHandles.Num()), FAssetRegistryTag::TT_Numerical));
+
+	uint32 GPUSimsMissingFixedBounds = 0;
+
+	// Gather up generic NumActive values
+	uint32 NumActiveEmitters = 0;
+	uint32 NumActiveRenderers = 0;
+	TArray<const UNiagaraRendererProperties*> ActiveRenderers;
+	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		if (Handle.GetIsEnabled())
+		{
+
+			NumActiveEmitters++;
+			const UNiagaraEmitter* Emitter = Handle.GetInstance();
+			if (Emitter)
+			{
+				// Only register fixed bounds requirement for GPU if the system itself isn't fixed bounds.
+				if (bFixedBounds == false && Emitter->bFixedBounds == false && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+				{
+					GPUSimsMissingFixedBounds++;
+				}
+
+				for (const UNiagaraRendererProperties* Props : Emitter->GetRenderers())
+				{
+					if (Props)
+					{
+						NumActiveRenderers++;
+						ActiveRenderers.Add(Props);
+					}
+				}
+			}
+		}
+	}
+
+	OutTags.Add(FAssetRegistryTag("NumActiveEmitters", LexToString(NumActiveEmitters), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("NumActiveRenderers", LexToString(NumActiveRenderers), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("GPUSimsMissingFixedBounds", LexToString(GPUSimsMissingFixedBounds), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("EffectType", EffectType != nullptr ? EffectType->GetName() : FString(TEXT("None")), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("WarmupTime", LexToString(WarmupTime), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("HasOverrideScalabilityForSystem", bOverrideScalabilitySettings ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("HasDIsWithPostSimulateTick", bHasDIsWithPostSimulateTick ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("NeedsSortedSignificanceCull", bNeedsSortedSignificanceCull ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+
+	// Gather up NumActive emitters based off of quality level.
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	if (Settings)
+	{
+		int32 NumQualityLevels = Settings->QualityLevels.Num();
+		TArray<int32> QualityLevelsNumActive;
+		QualityLevelsNumActive.AddZeroed(NumQualityLevels);
+
+		for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+		{
+			if (Handle.GetIsEnabled())
+			{
+				const UNiagaraEmitter* Emitter = Handle.GetInstance();
+				if (Emitter)
+				{
+					for (int32 i = 0; i < NumQualityLevels; i++)
+					{
+						if (Emitter->Platforms.IsEffectQualityEnabled(i))
+						{
+							QualityLevelsNumActive[i]++;
+						}
+					}
+				}
+			}
+		}
+
+		for (int32 i = 0; i < NumQualityLevels; i++)
+		{
+			FString QualityLevelKey = TEXT("Quality") + Settings->QualityLevels[i].ToString() + TEXT("NumActiveEmitters");
+			OutTags.Add(FAssetRegistryTag(*QualityLevelKey, LexToString(QualityLevelsNumActive[i]), FAssetRegistryTag::TT_Numerical));
+		}
+	}
+
+
+	TMap<FName, uint32> NumericKeys;
+	TMap<FName, FString> StringKeys;
+
+	// Gather up custom asset tags for  RendererProperties
+	{
+		TArray<UClass*> RendererClasses;
+		GetDerivedClasses(UNiagaraRendererProperties::StaticClass(), RendererClasses);
+
+		for (UClass* RendererClass : RendererClasses)
+		{
+			const UNiagaraRendererProperties* PropDefault = RendererClass->GetDefaultObject< UNiagaraRendererProperties>();
+			if (PropDefault)
+			{
+				PropDefault->GetAssetTagsForContext(this, ActiveRenderers, NumericKeys, StringKeys);
+			}
+		}
+	}
+
+	// Gather up custom asset tags for DataInterfaces
+	{
+		TArray<const UNiagaraDataInterface*> DataInterfaces;
+		auto AddDIs = [&](UNiagaraScript* Script)
+		{
+			if (Script)
+			{
+				for (FNiagaraScriptDataInterfaceCompileInfo& Info : Script->GetVMExecutableData().DataInterfaceInfo)
+				{
+					UNiagaraDataInterface* DefaultDataInterface = Info.GetDefaultDataInterface();
+					DataInterfaces.AddUnique(DefaultDataInterface);
+				}
+			}
+		};
+
+		AddDIs(SystemSpawnScript);
+		AddDIs(SystemUpdateScript);
+		for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+		{
+			if (Handle.GetIsEnabled())
+			{
+				if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+				{
+					TArray<UNiagaraScript*> Scripts;
+					Emitter->GetScripts(Scripts);
+					for (UNiagaraScript* Script : Scripts)
+					{
+						AddDIs(Script);
+					}
+				}
+			}
+		}
+
+		TArray<UClass*> DIClasses;
+		GetDerivedClasses(UNiagaraDataInterface::StaticClass(), DIClasses);
+
+		for (UClass* DIClass : DIClasses)
+		{
+			const UNiagaraDataInterface* PropDefault = DIClass->GetDefaultObject< UNiagaraDataInterface>();
+			if (PropDefault)
+			{
+				PropDefault->GetAssetTagsForContext(this, DataInterfaces, NumericKeys, StringKeys);
+			}
+		}
+		OutTags.Add(FAssetRegistryTag("NumActiveDataInterfaces", LexToString(DataInterfaces.Num()), FAssetRegistryTag::TT_Numerical));
+	}
+
+
+	// Now propagate the custom numeric and string tags from the DataInterfaces and RendererProperties above
+	auto NumericIter = NumericKeys.CreateConstIterator();
+	while (NumericIter)
+	{
+
+		OutTags.Add(FAssetRegistryTag(NumericIter.Key(), LexToString(NumericIter.Value()), FAssetRegistryTag::TT_Numerical));
+		++NumericIter;
+	}
+
+	auto StringIter = StringKeys.CreateConstIterator();
+	while (StringIter)
+	{
+
+		OutTags.Add(FAssetRegistryTag(StringIter.Key(), LexToString(StringIter.Value()), FAssetRegistryTag::TT_Alphabetical));
+		++StringIter;
+	}
+
+
+
+	/*for (const UNiagaraDataInterface* DI : DataInterfaces)
+	{
+		FString ClassName;
+		DI->GetClass()->GetName(ClassName);
+		OutTags.Add(FAssetRegistryTag(*(TEXT("bHas")+ClassName), TEXT("True"), FAssetRegistryTag::TT_Alphabetical));
+	}*/
+
+
+	//OutTags.Add(FAssetRegistryTag("CPUCollision", UsesCPUCollision() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	//OutTags.Add(FAssetRegistryTag("Looping", bAnyEmitterLoopsForever ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	//OutTags.Add(FAssetRegistryTag("Immortal", IsImmortal() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	//OutTags.Add(FAssetRegistryTag("Becomes Zombie", WillBecomeZombie() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	//OutTags.Add(FAssetRegistryTag("CanBeOccluded", OcclusionBoundsMethod == EParticleSystemOcclusionBoundsMethod::EPSOBM_None ? TEXT("False") : TEXT("True"), FAssetRegistryTag::TT_Alphabetical));
+
+#endif
+	Super::GetAssetRegistryTags(OutTags);
+}
+
 #if WITH_EDITORONLY_DATA
 bool UNiagaraSystem::HasOutstandingCompilationRequests(bool bIncludingGPUShaders) const
 {
@@ -1484,6 +1673,16 @@ UNiagaraScript* UNiagaraSystem::GetSystemUpdateScript()
 	return SystemUpdateScript;
 }
 
+const UNiagaraScript* UNiagaraSystem::GetSystemSpawnScript() const
+{
+	return SystemSpawnScript;
+}
+
+const UNiagaraScript* UNiagaraSystem::GetSystemUpdateScript() const
+{
+	return SystemUpdateScript;
+}
+
 #if WITH_EDITORONLY_DATA
 
 bool UNiagaraSystem::GetIsolateEnabled() const
@@ -1971,6 +2170,7 @@ bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
 	COOK_STAT(Timer.TrackCyclesOnly());
 	return false;
 }
+
 
 #if WITH_EDITORONLY_DATA
 

@@ -97,6 +97,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] AngularVelocity"), STAT_ParamUpda
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] SleepingThreshold"), STAT_ParamUpdateField_SleepingThreshold, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] DisableThreshold"), STAT_ParamUpdateField_DisableThreshold, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] InternalClusterStrain"), STAT_ParamUpdateField_InternalClusterStrain, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] CollisionGroup"), STAT_ParamUpdateField_CollisionGroup, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] PositionStatic"), STAT_ParamUpdateField_PositionStatic, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] PositionTarget"), STAT_ParamUpdateField_PositionTarget, STATGROUP_Chaos, CHAOS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("[Field Update] PositionAnimated"), STAT_ParamUpdateField_PositionAnimated, STATGROUP_Chaos, CHAOS_API);

@@ -699,6 +699,7 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// NOTE: Formatting of this string must match the code in ModuleManager.cpp, MakeUniqueModuleFilename
 			string NewFileName = String.Format("{0}-{1:D4}{2}", FileName.Substring(0, NameEndIdx), Suffix, FileName.Substring(NameEndIdx));
 
 			return FileReference.Combine(File.Directory, NewFileName);

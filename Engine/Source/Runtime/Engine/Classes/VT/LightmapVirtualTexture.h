@@ -8,8 +8,8 @@
 
 enum class ELightMapVirtualTextureType
 {
-	HqLayer0,
-	HqLayer1,
+	LightmapLayer0,
+	LightmapLayer1,
 	ShadowMask,
 	SkyOcclusion,
 	AOMaterialMask,

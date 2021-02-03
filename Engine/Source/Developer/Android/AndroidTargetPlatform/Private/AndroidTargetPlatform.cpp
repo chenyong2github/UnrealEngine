@@ -384,11 +384,12 @@ void FAndroidTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutForm
 
 	if (SupportsVulkan())
 	{
-		OutFormats.AddUnique(NAME_SF_VULKAN_ES31_ANDROID);
-		if (SupportsVulkanSM5())
-		{
-			OutFormats.AddUnique(NAME_SF_VULKAN_SM5_ANDROID);
-		}
+		OutFormats.AddUnique(NAME_SF_VULKAN_ES31_ANDROID);	
+	}
+
+	if (SupportsVulkanSM5())
+	{
+		OutFormats.AddUnique(NAME_SF_VULKAN_SM5_ANDROID);
 	}
 
 	if (SupportsES31())

@@ -205,7 +205,7 @@ namespace ImmediatePhysics_Chaos
 		using FCollisionConstraints = Chaos::FPBDCollisionConstraints;
 		using FCollisionDetector = Chaos::FParticlePairCollisionDetector;
 		using FParticleHandle = Chaos::TGeometryParticleHandle<FReal, Dimensions>;
-		using FParticlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*, 2>;
+		using FParticlePair = Chaos::TVec2<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*>;
 		using FRigidParticleSOAs = Chaos::TPBDRigidsSOAs<FReal, 3>;
 
 		FImplementation()

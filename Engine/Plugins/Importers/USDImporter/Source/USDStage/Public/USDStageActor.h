@@ -7,6 +7,7 @@
 #include "Templates/Function.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAssetCache.h"
 #include "USDLevelSequenceHelper.h"
 #include "USDListener.h"
 #include "USDMemory.h"
@@ -38,21 +39,62 @@ class AUsdStageActor : public AActor
 	friend class FUsdLevelSequenceHelperImpl;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "USD", meta = (RelativeToGameDir))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (RelativeToGameDir))
 	FFilePath RootLayer;
 
-	UPROPERTY(EditAnywhere, Category = "USD")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
 	EUsdInitialLoadSet InitialLoadSet;
 
 	/* Only load prims with these specific purposes from the USD file */
-	UPROPERTY(EditAnywhere, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToLoad;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
+	FName RenderContext;
+
+public:
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
-	float GetTime() const { return Time; }
+	USDSTAGE_API void SetRootLayer(const FString& RootFilePath );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
-	void SetTime(float InTime);
+	USDSTAGE_API void SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet );
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API void SetPurposesToLoad( int32 NewPurposesToLoad );
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API void SetRenderContext( const FName& NewRenderContext );
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API float GetTime() const { return Time; }
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API void SetTime(float InTime);
+
+	/**
+	 * Gets the transient component that was generated for a prim with a given prim path.
+	 * Warning: The lifetime of the component is managed by the AUsdStageActor, and it may be force-destroyed at any time (e.g. when closing the stage)
+	 * @param PrimPath - Full path to the source prim, e.g. "/root_prim/my_prim"
+	 * @return The corresponding spawned component. It may correspond to a parent prim, if the prim at PrimPath was collapsed. Nullptr if path is invalid.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API USceneComponent* GetGeneratedComponent( const FString& PrimPath );
+
+	/**
+	 * Gets the transient assets that were generated for a prim with a given prim path. Likely one asset (e.g. UStaticMesh), but can be multiple (USkeletalMesh, USkeleton, etc.)
+	 * @param PrimPath - Full path to the source prim, e.g. "/root_prim/my_mesh"
+	 * @return The corresponding generated assets. May be empty if path is invalid or if that prim led to no generated assets.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API TArray<UObject*> GetGeneratedAssets( const FString& PrimPath );
+
+	/**
+	 * Gets the path to the prim that was parsed to generate the given `Object`.
+	 * @param Object - UObject to query with. Can be one of the transient components generated when a stage was opened, or something like a UStaticMesh.
+	 * @return The path to the source prim, e.g. "/root_prim/some_prim". May be empty in case we couldn't find the source prim.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API FString GetSourcePrimPath( UObject* Object );
 
 private:
 	UPROPERTY(Category = UsdStageActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))
@@ -73,9 +115,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
 	ULevelSequence* LevelSequence;
-
-	UPROPERTY(Transient)
-	TMap<FString, ULevelSequence*> LevelSequencesByIdentifier;
 
 public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
@@ -99,11 +138,13 @@ public:
 	void Refresh() const;
 	void ReloadAnimations();
 	float GetTime() { return Time; }
-	TMap< FString, UObject* > GetAssetsCache() { return AssetsCache; } // Intentional copies
-	TMap< FString, UObject* > GetPrimPathsToAssets() { return PrimPathsToAssets; }
+	UUsdAssetCache* GetAssetCache() { return AssetCache; }
+	TMap< FString, TMap< FString, int32 > > GetMaterialToPrimvarToUVIndex() { return MaterialToPrimvarToUVIndex; }
 
 public:
+#if WITH_EDITOR
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+#endif // WITH_EDITOR
 	virtual void PostDuplicate( bool bDuplicateForPIE ) override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
@@ -116,7 +157,6 @@ public:
 	void OnPostUsdImport( FString FilePath );
 
 private:
-	void Clear();
 	void OpenUsdStage();
 	void LoadUsdStage();
 
@@ -133,7 +173,7 @@ private:
 
 	void OnObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
 	void HandlePropertyChangedEvent( FPropertyChangedEvent& PropertyChangedEvent );
-	bool HasAutorithyOverStage() const;
+	bool HasAuthorityOverStage() const;
 
 private:
 	UPROPERTY(Transient)
@@ -142,18 +182,13 @@ private:
 	UPROPERTY(Transient)
 	TSet< FString > PrimsToAnimate;
 
-	UPROPERTY( Transient )
+	UPROPERTY(Transient)
 	TMap< UObject*, FString > ObjectsToWatch;
 
+	UPROPERTY(VisibleAnywhere, Category = "USD", AdvancedDisplay)
+	UUsdAssetCache* AssetCache;
+
 private:
-	/** Hash based assets cache */
-	UPROPERTY(Transient)
-	TMap< FString, UObject* > AssetsCache;
-
-	/** Map of USD Prim Paths to UE assets */
-	UPROPERTY(Transient)
-	TMap< FString, UObject* > PrimPathsToAssets;
-
 	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
 	UsdUtils::FBlendShapeMap BlendShapesByPath;
 

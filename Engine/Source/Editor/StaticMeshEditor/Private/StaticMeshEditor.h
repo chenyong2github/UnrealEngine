@@ -27,6 +27,7 @@ class FStaticMeshDetails;
 class FEditorViewportClient;
 class IDetailsView;
 class SConvexDecomposition;
+class SDockTab;
 class SStaticMeshEditorViewport;
 class UStaticMesh;
 class UStaticMeshComponent;
@@ -544,6 +545,9 @@ private:
 
 	/** The extenders to populate the secondary toolbar with */
 	TArray<TSharedPtr<FExtender>> SecondaryToolbarExtenders;
+
+	/** The tab that the preview scene settings widget goes in */
+	TWeakPtr<SDockTab> PreviewSceneDockTab;
 
 	/** Spawner entry for the secondary toolbar tab */
 	FTabSpawnerEntry* SecondaryToolbarEntry;

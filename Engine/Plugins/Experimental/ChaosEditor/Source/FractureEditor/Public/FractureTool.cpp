@@ -222,7 +222,6 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 				{
 					FractureContext.GetFracturedGeometryCollection()->NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 				}
-
 				FractureContext.GetFracturedGeometryCollection()->InitResources();
 			}
 

@@ -12,7 +12,6 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
-	template<typename T>
 	void CapsuleSweepAgainstTriMeshReal()
 	{
 		// Trimesh is from SM_Cattus_POI_Rib, this was a real world failure that is now fixed.
@@ -297,7 +296,7 @@ namespace ChaosTest
 			{ 26.2703266, -5.87738276, -8.47085190 }
 		});
 
-		TArray<TVector<int32, 3>> Indices(
+		TArray<TVec3<int32>> Indices(
 		{
 			{1, 0, 2},
 			{3, 0, 1},
@@ -856,23 +855,23 @@ namespace ChaosTest
 		TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
 		TImplicitObjectScaled<FTriangleMeshImplicitObject> ScaledTriangleMesh = TImplicitObjectScaled<FTriangleMeshImplicitObject>(MakeSerializable(TriangleMesh), FVec3(50,50,50));
 
-		const TVector<FReal, 3> X1 = { 0,0,-19.45 };
-		const TVector<FReal, 3> X2 = X1 + TVector<FReal, 3>(0, 0, 38.9);
+		const FVec3 X1 = { 0,0,-19.45 };
+		const FVec3 X2 = X1 + FVec3(0, 0, 38.9);
 		const FReal Radius = 25.895;
 		const TCapsule<FReal> Capsule = TCapsule<FReal>(X1, X2, Radius);
 
 		const FVec3 CapsuleToTrimeshTranslation = { 1818.55884, 27.8377075, -630.160645 };
-		const TRigidTransform<FReal, 3> CapsuleToTrimesh(CapsuleToTrimeshTranslation, FQuat::Identity);
+		const FRigidTransform3 CapsuleToTrimesh(CapsuleToTrimeshTranslation, FQuat::Identity);
 
 		const FVec3 TrimeshTranslation = { -1040.00000, 700.000000, 992.000000 };
-		const TRigidTransform<FReal, 3> TrimeshTransform(TrimeshTranslation, FQuat::Identity);
+		const FRigidTransform3 TrimeshTransform(TrimeshTranslation, FQuat::Identity);
 
 		const FVec3 Dir(0, 0, -1);
 		const FReal Length = 159.100098;
 
 		FReal OutTime = -1;
-		FVec3 Normal(0.0f);
-		FVec3 Position(0.0f);
+		FVec3 Normal(0.0);
+		FVec3 Position(0.0);
 		int32 FaceIndex = -1;
 		bool bResult = ScaledTriangleMesh.LowLevelSweepGeom(Capsule, CapsuleToTrimesh, Dir, Length, OutTime, Position, Normal, FaceIndex, 0.0f, true);
 		FVec3 WorldPosition = TrimeshTransform.TransformPositionNoScale(Position);
@@ -883,6 +882,4 @@ namespace ChaosTest
 		EXPECT_NEAR(WorldPosition.Y, 728.80212, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(WorldPosition.Z, 303.77856, KINDA_SMALL_NUMBER);
 	}
-
-	template void CapsuleSweepAgainstTriMeshReal<float>();
 }

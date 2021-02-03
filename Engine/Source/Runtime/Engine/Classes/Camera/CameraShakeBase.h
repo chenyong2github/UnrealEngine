@@ -197,6 +197,8 @@ struct ENGINE_API FCameraShakeDuration
 	static FCameraShakeDuration Infinite() { return FCameraShakeDuration { 0.f, ECameraShakeDurationType::Infinite }; }
 	/** Returns a custom shake duration */
 	static FCameraShakeDuration Custom() { return FCameraShakeDuration { 0.f, ECameraShakeDurationType::Custom }; }
+	/** Returns a custom shake duration with a hint for how long the shake might be */
+	static FCameraShakeDuration Custom(float DurationHint) { return FCameraShakeDuration{ DurationHint, ECameraShakeDurationType::Custom }; }
 
 	/** Creates a new shake duration */
 	FCameraShakeDuration() : Duration(0.f), Type(ECameraShakeDurationType::Fixed) {}
@@ -209,9 +211,11 @@ struct ENGINE_API FCameraShakeDuration
 	bool IsInfinite() const { return Type == ECameraShakeDurationType::Infinite; }
 	/** Returns whether this duration is custom */
 	bool IsCustom() const { return Type == ECameraShakeDurationType::Custom; }
+	/** Returns whether this duration is custom, but with a valid effective duration hint */
+	bool IsCustomWithHint() const { return IsCustom() && Duration > 0.f; }
 
 	/** When the duration is fixed, return the duration time */
-	float Get() const { check(Type == ECameraShakeDurationType::Fixed); return Duration; }
+	float Get() const { check(Type == ECameraShakeDurationType::Fixed || Type == ECameraShakeDurationType::Custom); return Duration; }
 
 private:
 	UPROPERTY()

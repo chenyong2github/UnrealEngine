@@ -311,6 +311,15 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 		TArray<FGuid> ActorTracks = WeakSequencer.Pin()->AddActors(ActorsToAdd, false);
 		for (FGuid ActorTrackGuid : ActorTracks)
 		{
+			//Delete binding from default animating rig
+			FGuid CompGuid = WeakSequencer.Pin()->FindObjectId(*(MeshActor->GetSkeletalMeshComponent()), WeakSequencer.Pin()->GetFocusedTemplateID());
+			if (CompGuid.IsValid())
+			{
+				if (!MovieScene->RemovePossessable(CompGuid))
+				{
+					MovieScene->RemoveSpawnable(CompGuid);
+				}
+			}
 			UMovieSceneControlRigParameterTrack* Track = MovieScene->AddTrack<UMovieSceneControlRigParameterTrack>(ActorTrackGuid);
 			if (Track)
 			{

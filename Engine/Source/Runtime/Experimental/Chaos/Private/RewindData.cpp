@@ -215,8 +215,8 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 	//syncs the data before it was made dirty
 	//for sim-writable props this is only possible if those props are immutable from the sim side (sleeping, not simulated, etc...)
 
-	const auto Proxy = static_cast<const FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-	const auto Handle = Proxy->GetHandle();
+	const auto Proxy = static_cast<const FSingleParticlePhysicsProxy*>(Dirty.Proxy);
+	const auto Handle = Proxy->GetHandle_LowLevel();
 
 	const bool bSyncSimWritable = !SimWritablePropsMayChange(*Handle);
 
@@ -263,7 +263,7 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 
 }
 
-void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const TGeometryParticle<FReal,3>& InParticle,const FGeometryParticleStateBase& RewindState)
+void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticle& InParticle,const FGeometryParticleStateBase& RewindState)
 {
 	ensure(IsInGameThread());
 	const auto Particle = &InParticle;
@@ -500,7 +500,7 @@ void FRewindData::RemoveParticle(const FUniqueIdx UniqueIdx)
 }
 
 /* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-FGeometryParticleState FRewindData::GetPastStateAtFrame(const TGeometryParticle<FReal,3>& Particle,int32 Frame) const
+FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticle& Particle,int32 Frame) const
 {
 	ensure(!IsResim());
 	if(const FDirtyParticleInfo* Info = FindParticle(Particle.UniqueIdx()))
@@ -520,7 +520,7 @@ EFutureQueryResult FRewindData::GetFutureStateAtFrame(FGeometryParticleState& Ou
 {
 	ensure(IsResim());
 	ensure(IsInGameThread());
-	const TGeometryParticle<FReal,3>& Particle = OutState.GetParticle();
+	const FGeometryParticle& Particle = OutState.GetParticle();
 
 	if(const FDirtyParticleInfo* Info = FindParticle(Particle.UniqueIdx()))
 	{
@@ -729,7 +729,7 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 
 	auto ProcessProxy = [this,&SrcManagerWrapper,SrcDataIdx,Dirty,&DestManagerWrapper](const auto Proxy)
 	{
-		const auto PTParticle = Proxy->GetHandle();
+		const auto PTParticle = Proxy->GetHandle_LowLevel();
 		FDirtyParticleInfo& Info = FindOrAddParticle(*PTParticle);
 		Info.LastDirtyFrame = CurFrame;
 		Info.GTDirtyOnFrame[CurFrame].SetWave(CurFrame,CurWave);
@@ -747,7 +747,7 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 			if(ResimType == EResimType::FullResim)
 			{
 				//TODO: should not be passing GTParticle in here, it's not used so ok but not safe if someone decides to use it by mistake
-				FGeometryParticleState FutureState(*Proxy->GetParticle());
+				FGeometryParticleState FutureState(*Proxy->GetParticle_LowLevel());
 				if(GetFutureStateAtFrame(FutureState,CurFrame) == EFutureQueryResult::Ok)
 				{
 					if(FutureState.IsDesynced(SrcManagerWrapper,*PTParticle,Dirty.ParticleData.GetFlags()))
@@ -782,28 +782,10 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 		}
 	};
 
-	switch(Dirty.Proxy->GetType())
+	if(ensure(Dirty.Proxy->GetType() == EPhysicsProxyType::SingleParticleProxy))
 	{
-	case EPhysicsProxyType::SingleRigidParticleType:
-	{
-		auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
+		auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
 		ProcessProxy(Proxy);
-		break;
-	}
-	case EPhysicsProxyType::SingleKinematicParticleType:
-	{
-		auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-		ProcessProxy(Proxy);
-		break;
-	}
-	case EPhysicsProxyType::SingleGeometryParticleType:
-	{
-		auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-		ProcessProxy(Proxy);
-		break;
-	}
-	default:
-	ensure("Unknown proxy type in physics solver.");
 	}
 }
 

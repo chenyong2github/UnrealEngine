@@ -120,7 +120,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 USTRUCT()
 struct PHYSXVEHICLES_API FReplicatedVehicleState
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
+
+	FReplicatedVehicleState();
 
 	// input replication: steering
 	UPROPERTY()

@@ -6,8 +6,9 @@
 #include "DisplayClusterConfiguratorToolkit.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
-#include "Views/OutputMapping/Slots/DisplayClusterConfiguratorOutputMappingWindowSlot.h"
+#include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorViewportNode.h"
 #include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorResizer.h"
 
 #include "SGraphPanel.h"
@@ -18,6 +19,8 @@
 #include "Widgets/Layout/SScaleBox.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorWindowNode"
+
+int32 const SDisplayClusterConfiguratorWindowNode::DefaultZOrder = 100;
 
 class SCornerImage
 	: public SCompoundWidget
@@ -41,6 +44,8 @@ public:
 	void Construct(const FArguments& InArgs)
 	{
 		SetOnMouseButtonDown(InArgs._OnMouseButtonDown);
+
+		SetCursor(EMouseCursor::CardinalCross);
 
 		ChildSlot
 		[
@@ -73,9 +78,7 @@ public:
 	{
 		SetOnMouseButtonDown(InArgs._OnMouseButtonDown);
 
-		UDisplayClusterConfigurationClusterNode* CfgClusterNode = InWindowNode->CfgClusterNodePtr.Get();
-		check(CfgClusterNode != nullptr);
-		CfgClusterNodePtr = CfgClusterNode;
+		WindowEdNode = InWindowNode->GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
 
 		TitleSize = 0.2f;
 		TitleParringX = 0.05f;
@@ -159,7 +162,7 @@ public:
 						.HAlign(HAlign_Right)
 						[
 							SNew(STextBlock)
-							.Text(FText::Format(LOCTEXT("IPAddress", "IP: {0}"), FText::FromString(CfgClusterNode->Host)))
+							.Text(this, &SNodeInfo::GetCfgHostText)
 							.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
 							.Justification(ETextJustify::Center)
 						]
@@ -170,38 +173,43 @@ public:
 
 	FText GetPositionAndSizeText() const
 	{
-		UDisplayClusterConfigurationClusterNode* CfgClusterNode = CfgClusterNodePtr.Get();
-		check(CfgClusterNode != nullptr);
+		check(WindowEdNode.IsValid());
 
-		return FText::Format(LOCTEXT("ResAndOffset", "[{0} x {1}] @ {2}, {3}"), CfgClusterNode->WindowRect.W, CfgClusterNode->WindowRect.H, CfgClusterNode->WindowRect.X, CfgClusterNode->WindowRect.Y);
+		FDisplayClusterConfigurationRectangle WindowRect = WindowEdNode->GetCfgWindowRect();
+		return FText::Format(LOCTEXT("ResAndOffset", "[{0} x {1}] @ {2}, {3}"), WindowRect.W, WindowRect.H, WindowRect.X, WindowRect.Y);
 	}
 
 	FMargin GetTitlePadding() const
 	{
-		UDisplayClusterConfigurationClusterNode* CfgClusterNode = CfgClusterNodePtr.Get();
-		check(CfgClusterNode != nullptr);
+		check(WindowEdNode.IsValid());
 
-		return FMargin(CfgClusterNode->WindowRect.W * TitleParringX, 0.f);
+		FDisplayClusterConfigurationRectangle WindowRect = WindowEdNode->GetCfgWindowRect();
+		return FMargin(WindowRect.W * TitleParringX, 0.f);
 	}
 
 	FOptionalSize GetTitleWidth() const
 	{
-		UDisplayClusterConfigurationClusterNode* CfgClusterNode = CfgClusterNodePtr.Get();
-		check(CfgClusterNode != nullptr);
+		check(WindowEdNode.IsValid());
 
-		return CfgClusterNode->WindowRect.W;
+		FDisplayClusterConfigurationRectangle WindowRect = WindowEdNode->GetCfgWindowRect();
+		return WindowRect.W;
 	}
 
 	FOptionalSize GetTitleHeight() const
 	{
-		UDisplayClusterConfigurationClusterNode* CfgClusterNode = CfgClusterNodePtr.Get();
-		check(CfgClusterNode != nullptr);
+		check(WindowEdNode.IsValid());
 
-		return CfgClusterNode->WindowRect.H * TitleSize;
+		FDisplayClusterConfigurationRectangle WindowRect = WindowEdNode->GetCfgWindowRect();
+		return WindowRect.H * TitleSize;
+	}
+
+	FText GetCfgHostText() const
+	{
+		return FText::Format(LOCTEXT("IPAddress", "IP: {0}"), FText::FromString(WindowEdNode->GetCfgHost()));
 	}
 
 private:
-	TWeakObjectPtr<UDisplayClusterConfigurationClusterNode> CfgClusterNodePtr;
+	TWeakObjectPtr<UDisplayClusterConfiguratorWindowNode> WindowEdNode;
 
 	TSharedPtr<SBox> TitleBox;
 
@@ -216,14 +224,11 @@ private:
 
 void SDisplayClusterConfiguratorWindowNode::Construct(const FArguments& InArgs,
 	UDisplayClusterConfiguratorWindowNode* InWindowNode,
-	const TSharedRef<FDisplayClusterConfiguratorOutputMappingWindowSlot>& InWindowSlot,
 	const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
 {
 	SDisplayClusterConfiguratorBaseNode::Construct(SDisplayClusterConfiguratorBaseNode::FArguments(), InWindowNode, InToolkit);
 
-	WindowSlotPtr = InWindowSlot;
-	WindowNodePtr = InWindowNode;
-	CfgClusterNodePtr = InWindowNode->GetCfgClusterNode();
+	WindowScaleFactor = FVector2D(1, 1);
 
 	UpdateGraphNode();
 }
@@ -232,85 +237,116 @@ void SDisplayClusterConfiguratorWindowNode::UpdateGraphNode()
 {
 	SDisplayClusterConfiguratorBaseNode::UpdateGraphNode();
 
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingWindowSlot> WindowSlot = WindowSlotPtr.Pin();
-	check(WindowSlot.IsValid());
+	CornerImageWidget = CreateCornerImageWidget();
+	InfoWidget = CreateInfoWidget();
 
-	FVector2D LocalSize = WindowSlot->GetLocalSize();
+	GetOrAddSlot(ENodeZone::Center)
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Fill)
+	[
+		SNew(SConstraintCanvas)
+		.Visibility(this, &SDisplayClusterConfiguratorWindowNode::GetNodeVisibility)
 
-	NodeSlot = &GetOrAddSlot(ENodeZone::Center)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
+		+ SConstraintCanvas::Slot()
+		.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorWindowNode::GetBackgroundPosition)))
+		.Alignment(FVector2D::ZeroVector)
 		[
-			SNew(SConstraintCanvas)
-
-			+ SConstraintCanvas::Slot()
-			.Offset(FMargin(0, 0, 0, 0))
-			.AutoSize(true)
-			.Alignment(FVector2D::ZeroVector)
+			SNew(SBox)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
 			[
-				SAssignNew(NodeSlotBox, SBox)
-				.WidthOverride(LocalSize.X)
-				.HeightOverride(LocalSize.Y)
+				SNew(SOverlay)	
+
+				+ SOverlay::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
 				[
-					SNew(SOverlay)	
+					CreateBackground(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Window.Inner.Background"))
+				]
 
-					+ SOverlay::Slot()
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Fill)
-					[
-						CreateBackground(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Window.Inner.Background"))
-					]
-
-					+ SOverlay::Slot()
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Fill)
-					[
-						SNew(SBorder)
-						.BorderImage(this, &SDisplayClusterConfiguratorWindowNode::GetBorderBrush)
-					]
+				+ SOverlay::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				[
+					SNew(SBorder)
+					.BorderImage(this, &SDisplayClusterConfiguratorWindowNode::GetBorderBrush)
 				]
 			]
+		]
 
-			+ SConstraintCanvas::Slot()
-			.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorWindowNode::GetAreaResizeHandlePosition)))
-			.AutoSize(true)
-			.Alignment(FVector2D::ZeroVector)
-			[
-				SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
-				.Visibility(this, &SDisplayClusterConfiguratorWindowNode::GetSelectionVisibility)
-			]
-		];
+		+ SConstraintCanvas::Slot()
+		.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorWindowNode::GetAreaResizeHandlePosition)))
+		.AutoSize(true)
+		.Alignment(FVector2D::ZeroVector)
+		[
+			SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
+			.Visibility(this, &SDisplayClusterConfiguratorWindowNode::GetSelectionVisibility)
+			.IsFixedAspectRatio(this, &SDisplayClusterConfiguratorWindowNode::IsAspectRatioFixed)
+		]
+	];
+}
 
+FVector2D SDisplayClusterConfiguratorWindowNode::ComputeDesiredSize(float) const
+{
+	return GetSize() * WindowScaleFactor;
+}
 
-	NodeSlot->GetWidget()->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorWindowNode::GetNodeVisibility)));
+FVector2D SDisplayClusterConfiguratorWindowNode::GetPosition() const
+{
+	return SDisplayClusterConfiguratorBaseNode::GetPosition() * WindowScaleFactor;
+}
 
-	NodeSlot->SlotSize(FVector2D(LocalSize.X, LocalSize.Y));
+void SDisplayClusterConfiguratorWindowNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
+{
+	const FVector2D CurrentPosition = GetPosition();
+	const FVector2D Offset = NewPosition - CurrentPosition;
+
+	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
+	FVector2D BestOffset = WindowEdNode->FindNonOverlappingOffsetFromParent(Offset);
+
+	SGraphNode::MoveTo(CurrentPosition + BestOffset, NodeFilter);
+
+	WindowEdNode->UpdateObject();
+	WindowEdNode->UpdateChildPositions(BestOffset);
+}
+
+TArray<FOverlayWidgetInfo> SDisplayClusterConfiguratorWindowNode::GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const
+{
+	TArray<FOverlayWidgetInfo> Widgets = SGraphNode::GetOverlayWidgets(bSelected, WidgetSize);
+
+	if (CanShowInfoWidget())
+	{
+		FOverlayWidgetInfo InfoWidgetInfo;
+		InfoWidgetInfo.OverlayOffset = FVector2D::ZeroVector;
+		InfoWidgetInfo.Widget = InfoWidget;
+
+		Widgets.Add(InfoWidgetInfo);
+	}
+
+	if (CanShowCornerImageWidget())
+	{
+		FOverlayWidgetInfo CornerWidgetInfo;
+		CornerWidgetInfo.OverlayOffset = FVector2D::ZeroVector;
+		CornerWidgetInfo.Widget = CornerImageWidget;
+
+		Widgets.Add(CornerWidgetInfo);
+	}
+
+	return Widgets;
 }
 
 UObject* SDisplayClusterConfiguratorWindowNode::GetEditingObject() const
 {
-	return WindowNodePtr->GetObject();
+	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
+	return WindowEdNode->GetObject();
 }
 
-void SDisplayClusterConfiguratorWindowNode::SetNodePositionOffset(const FVector2D InLocalOffset)
+void SDisplayClusterConfiguratorWindowNode::SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio)
 {
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingWindowSlot> WindowSlot = WindowSlotPtr.Pin();
-	check(WindowSlot.IsValid());
+	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
+	FVector2D BestSize = WindowEdNode->FindNonOverlappingSizeFromParent(InLocalSize, bFixedAspectRatio);
 
-	WindowSlot->SetLocalPosition(WindowSlot->GetLocalPosition() + InLocalOffset);
-}
-
-void SDisplayClusterConfiguratorWindowNode::SetNodeSize(const FVector2D InLocalSize)
-{
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingWindowSlot> WindowSlot = WindowSlotPtr.Pin();
-	check(WindowSlot.IsValid());
-
-	NodeSlotBox->SetWidthOverride(InLocalSize.X);
-	NodeSlotBox->SetHeightOverride(InLocalSize.Y);
-
-	NodeSlot->SlotSize(InLocalSize);
-
-	WindowSlot->SetLocalSize(InLocalSize);
+	GraphNode->ResizeNode(BestSize);
 }
 
 void SDisplayClusterConfiguratorWindowNode::OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem)
@@ -321,7 +357,7 @@ void SDisplayClusterConfiguratorWindowNode::OnSelectedItemSet(const TSharedRef<I
 	{
 		if (NodeObject == SelectedObject)
 		{
-			InNodeVisibile = true;
+			bIsObjectFocused = true;
 			return;
 		}
 		else
@@ -333,7 +369,7 @@ void SDisplayClusterConfiguratorWindowNode::OnSelectedItemSet(const TSharedRef<I
 				{
 					if (NodeObject == ParentItemObject)
 					{
-						InNodeVisibile = true;
+						bIsObjectFocused = true;
 						return;
 					}
 				}
@@ -347,20 +383,22 @@ void SDisplayClusterConfiguratorWindowNode::OnSelectedItemSet(const TSharedRef<I
 			{
 				if (ChildObj == NodeObject)
 				{
-					InNodeVisibile = true;
+					bIsObjectFocused = true;
 					return;
 				}
 			}
 		}
 	}
 
-	InNodeVisibile = false;
+	bIsObjectFocused = false;
 }
 
-TSharedRef<SWidget> SDisplayClusterConfiguratorWindowNode::GetCornerImageWidget()
+TSharedRef<SWidget> SDisplayClusterConfiguratorWindowNode::CreateCornerImageWidget()
 {
+	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
+
 	return SNew(SCornerImage)
-		.ColorAndOpacity(WindowNodePtr.Get()->CornerColor)
+		.ColorAndOpacity(WindowEdNode->CornerColor)
 		.OnMouseButtonDown_Lambda([this](const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 		{
 			ExecuteMouseButtonDown(MouseEvent);
@@ -370,27 +408,29 @@ TSharedRef<SWidget> SDisplayClusterConfiguratorWindowNode::GetCornerImageWidget(
 
 TSharedRef<SWidget> SDisplayClusterConfiguratorWindowNode::CreateInfoWidget()
 {
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingWindowSlot> WindowSlot = WindowSlotPtr.Pin();
-	check(WindowSlot.IsValid());
-
-	UDisplayClusterConfigurationClusterNode* CfgClusterNode = CfgClusterNodePtr.Get();
-	check(CfgClusterNode != nullptr);
-
-	UDisplayClusterConfiguratorWindowNode* WindowNode = WindowNodePtr.Get();
-	check(WindowNode != nullptr);
-
-	FVector2D WindowPos(CfgClusterNode->WindowRect.X, CfgClusterNode->WindowRect.Y);
-	FVector2D WindowSize(CfgClusterNode->WindowRect.W, CfgClusterNode->WindowRect.H);
-	
-	FVector2D LocalSize = WindowSlot->GetLocalSize();
+	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
 
 	return SNew(SNodeInfo, SharedThis(this))
-		.NodeName(WindowNode->GetNodeName())
+		.NodeName(WindowEdNode->GetNodeName())
 		.OnMouseButtonDown_Lambda([this](const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 		{
 			ExecuteMouseButtonDown(MouseEvent);
 			return FReply::Handled();
 		});
+}
+
+TSharedRef<SWidget> SDisplayClusterConfiguratorWindowNode::CreateBackground(const TAttribute<FSlateColor>& InColorAndOpacity)
+{
+	return SNew(SOverlay)
+		+SOverlay::Slot()
+		.VAlign(VAlign_Fill)
+		.HAlign(HAlign_Fill)
+		.Padding(0.f)
+		[
+			SNew(SImage)
+			.ColorAndOpacity(InColorAndOpacity)
+			.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body"))
+		];
 }
 
 const FSlateBrush* SDisplayClusterConfiguratorWindowNode::GetBorderBrush() const
@@ -405,12 +445,44 @@ const FSlateBrush* SDisplayClusterConfiguratorWindowNode::GetBorderBrush() const
 	return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Window.Border.Brush.Regular");
 }
 
+FMargin SDisplayClusterConfiguratorWindowNode::GetBackgroundPosition() const
+{
+	FVector2D NodeSize = GetSize();
+	return FMargin(0.f, 0.f, NodeSize.X, NodeSize.Y);
+}
+
 FMargin SDisplayClusterConfiguratorWindowNode::GetAreaResizeHandlePosition() const
 {
-	UDisplayClusterConfigurationClusterNode* CfgClusterNode = CfgClusterNodePtr.Get();
-	check(CfgClusterNode != nullptr);
+	FVector2D NodeSize = GetSize();
+	return FMargin(NodeSize.X, NodeSize.Y, 0.f, 0.f);
+}
 
-	return FMargin(CfgClusterNode->WindowRect.W, CfgClusterNode->WindowRect.H, 0.f, 0.f);
+bool SDisplayClusterConfiguratorWindowNode::IsAspectRatioFixed() const
+{
+	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
+	return WindowEdNode->IsFixedAspectRatio();
+}
+
+bool SDisplayClusterConfiguratorWindowNode::CanShowInfoWidget() const
+{
+	TSharedPtr<FDisplayClusterConfiguratorToolkit> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
+	FVector2D NodeSize = GetSize();
+
+	return IsNodeVisible() && OutputMapping->IsShowWindowInfo() && NodeSize > FVector2D::ZeroVector;
+}
+
+bool SDisplayClusterConfiguratorWindowNode::CanShowCornerImageWidget() const
+{
+	TSharedPtr<FDisplayClusterConfiguratorToolkit> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
+	FVector2D NodeSize = GetSize();
+
+	return IsNodeVisible() && OutputMapping->IsShowWindowCornerImage() && NodeSize > FVector2D::ZeroVector;
 }
 
 #undef LOCTEXT_NAMESPACE

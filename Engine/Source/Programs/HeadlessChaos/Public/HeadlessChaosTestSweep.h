@@ -8,6 +8,5 @@
 namespace ChaosTest
 {
 
-	template<typename T>
 	void CapsuleSweepAgainstTriMeshReal();
 }

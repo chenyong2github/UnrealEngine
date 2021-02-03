@@ -974,7 +974,7 @@ namespace DatasmithSceneUtilsImpl
 			{
 				if (ExpressionElement)
 				{
-					if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::Texture))
+					if (ExpressionElement->IsSubType(EDatasmithMaterialExpressionType::Texture))
 					{
 						const IDatasmithMaterialExpressionTexture* TextureExpression = static_cast<IDatasmithMaterialExpressionTexture*>(ExpressionElement);
 						if (FCString::Strlen(TextureExpression->GetTexturePathName()) > 0)
@@ -986,7 +986,7 @@ namespace DatasmithSceneUtilsImpl
 							}
 						}
 					}
-					else if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::Generic))
+					else if (ExpressionElement->IsSubType(EDatasmithMaterialExpressionType::Generic))
 					{
 						const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast<IDatasmithMaterialExpressionGeneric*>(ExpressionElement);
 
@@ -1001,7 +1001,7 @@ namespace DatasmithSceneUtilsImpl
 							}
 						}
 					}
-					else if (ExpressionElement->IsA(EDatasmithMaterialExpressionType::FunctionCall))
+					else if (ExpressionElement->IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 					{
 						const IDatasmithMaterialExpressionFunctionCall* FunctionExpression = static_cast<IDatasmithMaterialExpressionFunctionCall*>(ExpressionElement);
 						if (FCString::Strlen(FunctionExpression->GetFunctionPathName()) > 0)
@@ -1299,7 +1299,7 @@ namespace DatasmithSceneUtilsImpl
 				for (int32 AnimIndex = NumAnims - 1; AnimIndex >= 0; --AnimIndex)
 				{
 					TSharedPtr< IDatasmithBaseAnimationElement > Animation = LevelSequence->GetAnimation(AnimIndex);
-					if (Animation.IsValid() && Animation->IsA(EDatasmithElementType::Animation) && Animation->IsSubType((uint64)EDatasmithElementAnimationSubType::TransformAnimation))
+					if (Animation.IsValid() && Animation->IsA(EDatasmithElementType::Animation) && Animation->IsSubType(EDatasmithElementAnimationSubType::TransformAnimation))
 					{
 						const TSharedRef< IDatasmithTransformAnimationElement > TransformAnimation = StaticCastSharedRef< IDatasmithTransformAnimationElement >(Animation.ToSharedRef());
 
@@ -1341,12 +1341,12 @@ namespace DatasmithSceneUtilsImpl
 						continue;
 					}
 
-					if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::TransformAnimation))
+					if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::TransformAnimation))
 					{
 						const IDatasmithTransformAnimationElement* TransformAnimation = static_cast<IDatasmithTransformAnimationElement*>(AnimationElement.Get());
 						bValidSequence = ActorsInScene.Contains(TransformAnimation->GetName());
 					}
-					else if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::VisibilityAnimation))
+					else if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::VisibilityAnimation))
 					{
 						const IDatasmithVisibilityAnimationElement* VisibilityAnimation = static_cast<IDatasmithVisibilityAnimationElement*>(AnimationElement.Get());
 						bValidSequence = ActorsInScene.Contains(VisibilityAnimation->GetName());
@@ -1378,17 +1378,17 @@ namespace DatasmithSceneUtilsImpl
 						continue;
 					}
 
-					if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::TransformAnimation))
+					if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::TransformAnimation))
 					{
 						const IDatasmithTransformAnimationElement* TransformAnimation = static_cast<IDatasmithTransformAnimationElement*>(AnimationElement.Get());
 						bValidSequence = ActorsInScene.Contains(TransformAnimation->GetName());
 					}
-					else if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::VisibilityAnimation))
+					else if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::VisibilityAnimation))
 					{
 						const IDatasmithVisibilityAnimationElement* VisibilityAnimation = static_cast<IDatasmithVisibilityAnimationElement*>(AnimationElement.Get());
 						bValidSequence = ActorsInScene.Contains(VisibilityAnimation->GetName());
 					}
-					else if (AnimationElement->IsSubType((uint64)EDatasmithElementAnimationSubType::SubsequenceAnimation))
+					else if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::SubsequenceAnimation))
 					{
 						TSharedRef<IDatasmithSubsequenceAnimationElement> SubsequenceAnimation = StaticCastSharedRef<IDatasmithSubsequenceAnimationElement>(AnimationElement.ToSharedRef());
 						bValidSequence = ValidSequences.Contains(SubsequenceAnimation->GetSubsequence().Pin());

@@ -346,19 +346,19 @@ namespace UnrealBuildTool
 
 					foreach (FileReference ForceIncludeFile in ForceIncludePaths)
 					{
-						CommandBuilder.AppendFormat(" -include \"{0}\"", ForceIncludeFile.FullName);
+						CommandBuilder.AppendFormat("-include \"{0}\"{1}", ForceIncludeFile.FullName, Environment.NewLine);
 					}
 					foreach (string Definition in ModuleCompileEnvironment.Definitions)
 					{
-						CommandBuilder.AppendFormat(" -D\"{0}\"", Definition);
+						CommandBuilder.AppendFormat("-D\"{0}\"{1}", Definition, Environment.NewLine);
 					}
 					foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.UserIncludePaths)
 					{
-						CommandBuilder.AppendFormat(" -I\"{0}\"", IncludePath);
+						CommandBuilder.AppendFormat("-I\"{0}\"{1}", IncludePath, Environment.NewLine);
 					}
 					foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.SystemIncludePaths)
 					{
-						CommandBuilder.AppendFormat(" -I\"{0}\"", IncludePath);
+						CommandBuilder.AppendFormat("-I\"{0}\"{1}", IncludePath, Environment.NewLine);
 					}
 
 					ModuleDirectoryToCompileCommand.Add(Module.ModuleDirectory, CommandBuilder.ToString());
@@ -622,33 +622,43 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteArrayStart();
 
-				Dictionary<DirectoryReference, string> DirectoryToIntellisenseCompilerCommand = ModuleCommandLines;
+				DirectoryReference ResponseFileDir = DirectoryReference.Combine(CompileCommandsFile.Directory, CompileCommandsFile.GetFileNameWithoutExtension());
+				DirectoryReference.CreateDirectory(ResponseFileDir);
+
+				Dictionary<DirectoryReference, FileReference> DirectoryToResponseFile = new Dictionary<DirectoryReference, FileReference>();
+				foreach(KeyValuePair<DirectoryReference, string> Pair in ModuleCommandLines)
+				{
+					FileReference ResponseFile = FileReference.Combine(ResponseFileDir, String.Format("{0}.{1}.rsp", Pair.Key.GetDirectoryName(), DirectoryToResponseFile.Count));
+					FileReference.WriteAllText(ResponseFile, Pair.Value);
+					DirectoryToResponseFile.Add(Pair.Key, ResponseFile);
+				}
 
 				foreach (ProjectFile.SourceFile File in SourceFiles.OrderBy(x => x.Reference.FullName))
 				{
 					DirectoryReference Directory = File.Reference.Directory;
-					string CompilerCommand;
-					if (!DirectoryToIntellisenseCompilerCommand.TryGetValue(Directory, out CompilerCommand))
+
+					FileReference ResponseFile = null;
+					if (!DirectoryToResponseFile.TryGetValue(Directory, out ResponseFile))
 					{
 						for (DirectoryReference ParentDir = Directory; ParentDir != null && ParentDir != UnrealBuildTool.RootDirectory; ParentDir = ParentDir.ParentDirectory)
 						{
-							if (DirectoryToIntellisenseCompilerCommand.TryGetValue(ParentDir, out CompilerCommand))
+							if (DirectoryToResponseFile.TryGetValue(ParentDir, out ResponseFile))
 							{
 								break;
 							}
 						}
-						DirectoryToIntellisenseCompilerCommand[Directory] = CompilerCommand;
+						DirectoryToResponseFile[Directory] = ResponseFile;
 					}
 
-					if (CompilerCommand == null)
+					if (ResponseFile == null)
 					{
 						// no compiler command associated with the file, will happen for any file that is not a C++ file and is not an error
 						continue;
 					}
-					
+
 					Writer.WriteObjectStart();
 					Writer.WriteValue("file", MakePathString(File.Reference, bInAbsolute: true, bForceSkipQuotes: true));
-					Writer.WriteValue("command", CompilerCommand);
+					Writer.WriteValue("command", String.Format("cl.exe @\"{0}\"", ResponseFile.FullName));
 					Writer.WriteValue("directory", UnrealBuildTool.EngineSourceDirectory.ToString());
 					Writer.WriteObjectEnd();
 				}

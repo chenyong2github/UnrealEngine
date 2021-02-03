@@ -6,8 +6,8 @@
 #include "DisplayClusterConfiguratorToolkit.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorViewportNode.h"
-#include "Views/OutputMapping/Slots/DisplayClusterConfiguratorOutputMappingViewportSlot.h"
 #include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorResizer.h"
 
 #include "Widgets/Layout/SBox.h"
@@ -21,16 +21,13 @@
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewportNode"
 
+int32 const SDisplayClusterConfiguratorViewportNode::DefaultZOrder = 200;
+
 void SDisplayClusterConfiguratorViewportNode::Construct(const FArguments& InArgs,
 	UDisplayClusterConfiguratorViewportNode* InViewportNode,
-	const TSharedRef<FDisplayClusterConfiguratorOutputMappingViewportSlot>& InViewportSlot,
 	const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
 {
 	SDisplayClusterConfiguratorBaseNode::Construct(SDisplayClusterConfiguratorBaseNode::FArguments(), InViewportNode, InToolkit);
-
-	ViewportNodePtr = InViewportNode;
-	ViewportSlotPtr = InViewportSlot;
-	CfgViewportPtr = ViewportNodePtr.Get()->GetCfgViewport();
 
 	UpdateGraphNode();
 }
@@ -39,28 +36,26 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 {
 	SDisplayClusterConfiguratorBaseNode::UpdateGraphNode();
 
-	UDisplayClusterConfigurationViewport* CfgViewport = CfgViewportPtr.Get();
-	check(CfgViewport != nullptr);
+	BackgroundImage = SNew(SImage)
+		.ColorAndOpacity(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundColor)
+		.Image(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundBrush);
 
-	BackgroundImage = SNew(SImage);
-	SetBackgroundDefaultBrush();
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
 
-	FVector2D ViewportSize(CfgViewport->Region.W, CfgViewport->Region.H);
+	SetPreviewTexture(ViewportEdNode->GetPreviewTexture());
 
-	NodeSlot = &GetOrAddSlot( ENodeZone::Center )
+	GetOrAddSlot( ENodeZone::Center )
 	.HAlign(HAlign_Fill)
-	.VAlign(VAlign_Center)
+	.VAlign(VAlign_Fill)
 	[
 		SNew(SConstraintCanvas)
+		.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetNodeVisibility)
 
 		+ SConstraintCanvas::Slot()
-		.Offset(FMargin(0, 0, 0, 0))
-		.AutoSize(true)
+		.Offset(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundPosition)))
 		.Alignment(FVector2D::ZeroVector)
 		[
-			SAssignNew(NodeSlotBox, SBox)
-			.WidthOverride(ViewportSize.X)
-			.HeightOverride(ViewportSize.Y)
+			SNew(SBox)
 			[
 				SNew(SVerticalBox)
 				+SVerticalBox::Slot()
@@ -97,7 +92,7 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 								.Padding(5.f, 2.f)
 								[
 									SNew(STextBlock)
-									.Text(FText::FromString(ViewportNodePtr.Get()->GetNodeName()))
+									.Text(FText::FromString(ViewportEdNode->GetNodeName()))
 									.Justification(ETextJustify::Center)
 									.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Bold"))
 									.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular"))
@@ -134,70 +129,59 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 		[
 			SNew(SDisplayClusterConfiguratorResizer, ToolkitPtr.Pin().ToSharedRef(), SharedThis(this))
 			.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetSelectionVisibility)
+			.IsFixedAspectRatio(this, &SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed)
 		]
 	];
-
-	NodeSlot->GetWidget()->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetNodeVisibility)));
-	NodeSlot->SlotSize(ViewportSize);
 }
 
-void SDisplayClusterConfiguratorViewportNode::SetBackgroundDefaultBrush()
+void SDisplayClusterConfiguratorViewportNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
 {
-	BackgroundActiveBrush = *FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body");
+	FVector2D CurrentPosition = GetPosition();
 
-	TAttribute<FSlateColor> BackgroundColor = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetDefaultBackgroundColor));
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	FVector2D BestOffset = ViewportEdNode->FindNonOverlappingOffsetFromParent(NewPosition - CurrentPosition);
 
-	if (BackgroundImage.IsValid())
-	{
-		BackgroundImage->SetImage(&BackgroundActiveBrush);
-		BackgroundImage->SetColorAndOpacity(BackgroundColor);
-	}
+	SGraphNode::MoveTo(CurrentPosition + BestOffset, NodeFilter);
+
+	ViewportEdNode->UpdateObject();
 }
 
-void SDisplayClusterConfiguratorViewportNode::SetBackgroundBrushFromTexture(UTexture* InTexture)
-{	
-	if (BackgroundActiveBrush.GetResourceObject() != InTexture && InTexture != nullptr)
+FVector2D SDisplayClusterConfiguratorViewportNode::ComputeDesiredSize(float) const
+{
+	return GetSize();
+}
+
+void SDisplayClusterConfiguratorViewportNode::SetPreviewTexture(UTexture* InTexture)
+{
+	if (InTexture != nullptr)
 	{
-		// Reset the Brush
-		BackgroundActiveBrush = FSlateBrush();
-		BackgroundActiveBrush.SetResourceObject(InTexture);
-		BackgroundActiveBrush.ImageSize.X = InTexture->Resource->GetSizeX();
-		BackgroundActiveBrush.ImageSize.Y = InTexture->Resource->GetSizeY();
-
-		if (BackgroundImage.IsValid())
+		if (BackgroundActiveBrush.GetResourceObject() != InTexture)
 		{
-			TAttribute<FSlateColor> BackgroundColorImage = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetImageBackgroundColor));
-
-			BackgroundImage->SetImage(&BackgroundActiveBrush);
-			BackgroundImage->SetColorAndOpacity(BackgroundColorImage);
+			BackgroundActiveBrush = FSlateBrush();
+			BackgroundActiveBrush.SetResourceObject(InTexture);
+			BackgroundActiveBrush.ImageSize.X = InTexture->Resource->GetSizeX();
+			BackgroundActiveBrush.ImageSize.Y = InTexture->Resource->GetSizeY();
 		}
+	}
+	else
+	{
+		// Reset the brush to be empty.
+		BackgroundActiveBrush = FSlateBrush();
 	}
 }
 
 UObject* SDisplayClusterConfiguratorViewportNode::GetEditingObject() const
 {
-	return ViewportNodePtr->GetObject();
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	return ViewportEdNode->GetObject();
 }
 
-void SDisplayClusterConfiguratorViewportNode::SetNodePositionOffset(const FVector2D InLocalOffset)
+void SDisplayClusterConfiguratorViewportNode::SetNodeSize(const FVector2D InLocalSize, bool bFixedAspectRatio)
 {
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
-	check(ViewportSlot.IsValid());
-	
-	ViewportSlot->SetLocalPosition(ViewportSlot->GetLocalPosition() + InLocalOffset);
-}
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	const FVector2D BestSize = ViewportEdNode->FindNonOverlappingSizeFromParent(InLocalSize, bFixedAspectRatio);
 
-void SDisplayClusterConfiguratorViewportNode::SetNodeSize(const FVector2D InLocalSize)
-{
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
-	check(ViewportSlot.IsValid());
-
-	NodeSlotBox->SetWidthOverride(InLocalSize.X);
-	NodeSlotBox->SetHeightOverride(InLocalSize.Y);
-
-	NodeSlot->SlotSize(InLocalSize);
-
-	ViewportSlot->SetLocalSize(InLocalSize);
+	GraphNode->ResizeNode(BestSize);
 }
 
 void SDisplayClusterConfiguratorViewportNode::OnSelectedItemSet(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem)
@@ -209,7 +193,7 @@ void SDisplayClusterConfiguratorViewportNode::OnSelectedItemSet(const TSharedRef
 	{
 		if (NodeObject == SelectedObject)
 		{
-			InNodeVisibile = true;
+			bIsObjectFocused = true;
 			return;
 		}
 		else
@@ -222,24 +206,36 @@ void SDisplayClusterConfiguratorViewportNode::OnSelectedItemSet(const TSharedRef
 			{
 				if (ChildObj == NodeObject)
 				{
-					InNodeVisibile = true;
+					bIsObjectFocused = true;
 					return;
 				}
 			}
 		}
 	}
 
-	InNodeVisibile = false;
+	bIsObjectFocused = false;
 }
 
-FSlateColor SDisplayClusterConfiguratorViewportNode::GetDefaultBackgroundColor() const
+bool SDisplayClusterConfiguratorViewportNode::IsNodeVisible() const
 {
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
-	check(ViewportSlot.IsValid());
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	TSharedPtr<FDisplayClusterConfiguratorToolkit> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
 
 	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
-	
-	if (ViewportSlot->IsOutsideParentBoundary())
+	const bool bIsVisible = bIsSelected || OutputMapping->IsShowOutsideViewports() || !ViewportEdNode->IsOutsideParent();
+	return SDisplayClusterConfiguratorBaseNode::IsNodeVisible() && bIsVisible;
+}
+
+FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
+{
+	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
+	const bool bHasImageBackground = BackgroundActiveBrush.GetResourceObject() != nullptr;
+
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	if (ViewportEdNode->IsOutsideParentBoundary())
 	{
 		if (bIsSelected)
 		{
@@ -254,58 +250,50 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetDefaultBackgroundColor()
 	}
 	else
 	{
-		if (bIsSelected)
+		if (bHasImageBackground)
 		{
-			// Selected Case
-			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Selected");
+			// Regular case when there is a background image
+			return FLinearColor::White;
 		}
 		else
 		{
-			// Regular case
-			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Regular");
+			if (bIsSelected)
+			{
+				// Selected Case
+				return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Selected");
+			}
+			else
+			{
+				// Regular case
+				return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Regular");
+			}
 		}
 	}
+
 }
 
-FSlateColor SDisplayClusterConfiguratorViewportNode::GetImageBackgroundColor() const
+const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetBackgroundBrush() const
 {
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
-	check(ViewportSlot.IsValid());
-
-	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
-
-	if (ViewportSlot->IsOutsideParentBoundary())
+	if (BackgroundActiveBrush.GetResourceObject() != nullptr)
 	{
-		if (bIsSelected)
-		{
-			// Selected Case
-			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Selected");
-		}
-		else
-		{
-			// Regular case
-			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Regular");
-		}
+		return &BackgroundActiveBrush;
 	}
 	else
 	{
-		// Regular case
-		return FLinearColor::White;
+		return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body");
 	}
 }
 
 const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetBorderBrush() const
 {
-	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
-	check(ViewportSlot.IsValid());
-
 	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode))
 	{
 		return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Viewport.Border.Brush.Selected");
 	}
 	else
 	{
-		if (ViewportSlot->IsOutsideParentBoundary())
+		UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+		if (ViewportEdNode->IsOutsideParentBoundary())
 		{
 			return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Viewport.Border.OutsideBrush.Regular");
 		}
@@ -318,18 +306,28 @@ const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetBorderBrush() con
 
 FText SDisplayClusterConfiguratorViewportNode::GetPositionAndSizeText() const
 {
-	UDisplayClusterConfigurationViewport* CfgViewport = CfgViewportPtr.Get();
-	check(CfgViewport != nullptr);
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	const FDisplayClusterConfigurationRectangle CfgViewportRegion = ViewportEdNode->GetCfgViewportRegion();
 
-	return FText::Format(LOCTEXT("ResAndOffset", "[{0} x {1}] @ {2}, {3}"), CfgViewport->Region.W, CfgViewport->Region.H, CfgViewport->Region.X, CfgViewport->Region.Y);
+	return FText::Format(LOCTEXT("ResAndOffset", "[{0} x {1}] @ {2}, {3}"), CfgViewportRegion.W, CfgViewportRegion.H, CfgViewportRegion.X, CfgViewportRegion.Y);
+}
+
+FMargin SDisplayClusterConfiguratorViewportNode::GetBackgroundPosition() const
+{
+	const FVector2D NodeSize = GetSize();
+	return FMargin(0.f, 0.f, NodeSize.X, NodeSize.Y);
 }
 
 FMargin SDisplayClusterConfiguratorViewportNode::GetAreaResizeHandlePosition() const
 {
-	UDisplayClusterConfigurationViewport* CfgViewport = CfgViewportPtr.Get();
-	check(CfgViewport != nullptr);
+	const FVector2D NodeSize = GetSize();
+	return FMargin(NodeSize.X, NodeSize.Y, 0.f, 0.f);
+}
 
-	return FMargin(CfgViewport->Region.W, CfgViewport->Region.H, 0.f, 0.f);
+bool SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed() const
+{
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	return ViewportEdNode->IsFixedAspectRatio();
 }
 
 #undef LOCTEXT_NAMESPACE

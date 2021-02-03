@@ -54,8 +54,6 @@ protected:
 
 	FDatasmithFacadeKeyValueProperty( const TSharedRef<IDatasmithKeyValueProperty>& InKeyValueProperty );
 
-	virtual void BuildScene(FDatasmithFacadeScene& SceneRef) override {}
-
 	TSharedRef<IDatasmithKeyValueProperty> GetDatasmithKeyValueProperty() const
 	{
 		return StaticCastSharedRef<IDatasmithKeyValueProperty>( GetDatasmithElement() );

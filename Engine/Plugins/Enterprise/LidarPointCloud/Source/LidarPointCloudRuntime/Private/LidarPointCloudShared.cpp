@@ -5,27 +5,6 @@
 
 double FBenchmarkTimer::Time = 0;
 
-FArchive& operator<<(FArchive& Ar, FLidarPointCloudPoint_Legacy& P)
-{
-	Ar << P.Location << P.Color;
-
-	if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) > 8)
-	{
-		uint8 bVisible = P.bVisible;
-		Ar << bVisible;
-		P.bVisible = bVisible;
-	}
-
-	if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) > 12)
-	{
-		uint8 ClassificationID = P.ClassificationID;
-		Ar << ClassificationID;
-		P.ClassificationID = ClassificationID;
-	}
-
-	return Ar;
-}
-
 const FDoubleVector FDoubleVector::ZeroVector = FDoubleVector(FVector::ZeroVector);
 const FDoubleVector FDoubleVector::OneVector = FDoubleVector(FVector::OneVector);
 const FDoubleVector FDoubleVector::UpVector = FDoubleVector(FVector::UpVector);
@@ -73,8 +52,10 @@ void FLidarPointCloudDataBuffer::Resize(const int32& NewBufferSize, bool bForce 
 	}
 }
 
-FLidarPointCloudDataBufferManager::FLidarPointCloudDataBufferManager(const int32& BufferSize)
+FLidarPointCloudDataBufferManager::FLidarPointCloudDataBufferManager(const int32& BufferSize, const int32& MaxNumberOfBuffers)
 	: BufferSize(BufferSize)
+	, MaxNumberOfBuffers(MaxNumberOfBuffers)
+	, NumBuffersCreated(1)
 	, Head(FLidarPointCloudDataBuffer())
 	, Tail(&Head)
 {
@@ -104,6 +85,7 @@ FLidarPointCloudDataBuffer* FLidarPointCloudDataBufferManager::GetFreeBuffer()
 	FLidarPointCloudDataBuffer* OutBuffer = nullptr;
 
 	// Find available memory allocation
+	do
 	{
 		TList<FLidarPointCloudDataBuffer>* Iterator = &Head;
 		while (Iterator)
@@ -116,7 +98,7 @@ FLidarPointCloudDataBuffer* FLidarPointCloudDataBufferManager::GetFreeBuffer()
 
 			Iterator = Iterator->Next;
 		}
-	}
+	} while (!OutBuffer && MaxNumberOfBuffers > 0 && NumBuffersCreated >= MaxNumberOfBuffers);
 
 	// If none found, add a new one
 	if (!OutBuffer)
@@ -125,6 +107,7 @@ FLidarPointCloudDataBuffer* FLidarPointCloudDataBufferManager::GetFreeBuffer()
 		Tail = Tail->Next;
 		OutBuffer = &Tail->Element;
 		OutBuffer->Initialize(BufferSize);
+		++NumBuffersCreated;
 	}
 
 	OutBuffer->bInUse = true;
@@ -147,71 +130,5 @@ void FLidarPointCloudDataBufferManager::Resize(const int32& NewBufferSize)
 	{
 		Iterator->Element.Resize(NewBufferSize);
 		Iterator = Iterator->Next;
-	}
-}
-
-void FLidarPointCloudBulkData::CustomSerialize(FArchive& Ar, UObject* Owner)
-{
-	// Pre-streaming format
-	if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) < 16)
-	{
-		// Load legacy data
-		TArray<FLidarPointCloudPoint_Legacy> AllocatedPoints;
-		TArray<FLidarPointCloudPoint_Legacy> PaddingPoints;
-		Ar << AllocatedPoints << PaddingPoints;
-
-		// Copy the data to BulkData
-		Lock(LOCK_READ_WRITE);
-		FLidarPointCloudPoint* TempDataPtr = DataPtr = (FLidarPointCloudPoint*)Realloc(AllocatedPoints.Num() + PaddingPoints.Num());
-		for (FLidarPointCloudPoint_Legacy* Data = AllocatedPoints.GetData(), *DataEnd = Data + AllocatedPoints.Num(); Data != DataEnd; ++Data, ++TempDataPtr)
-		{
-			*TempDataPtr = *Data;
-		}
-		for (FLidarPointCloudPoint_Legacy* Data = PaddingPoints.GetData(), *DataEnd = Data + PaddingPoints.Num(); Data != DataEnd; ++Data, ++TempDataPtr)
-		{
-			*TempDataPtr = *Data;
-		}
-		TempDataPtr = nullptr;
-		bHasData = true;
-		Unlock();
-	}
-	// Pre-normals format
-	else if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) < 19)
-	{
-		void* TempData = nullptr;
-		int64 NumElements = 0;
-
-		// We need to use a Legacy element size
-		ElementSize = sizeof(FLidarPointCloudPoint_Legacy);
-
-		// Get the legacy data
-		Serialize(Ar, Owner);
-		GetCopy(&TempData);
-		NumElements = GetElementCount();
-
-		Lock(LOCK_READ_WRITE);
-
-		// Restore normal element size
-		ElementSize = sizeof(FLidarPointCloudPoint);
-
-		// Allocate the new buffer
-		FLidarPointCloudPoint* TempDataPtr = DataPtr = (FLidarPointCloudPoint*)Realloc(NumElements);
-
-		// Copy the legacy data
-		for (FLidarPointCloudPoint_Legacy* Data = (FLidarPointCloudPoint_Legacy*)TempData, *DataEnd = Data + NumElements; Data != DataEnd; ++Data, ++TempDataPtr)
-		{
-			*TempDataPtr = *Data;
-		}
-		TempDataPtr = nullptr;
-		bHasData = true;
-
-		Unlock();
-
-		// Release the legacy data
-		FMemory::Free(TempData);
-	}
-	else
-	{
-		Serialize(Ar, Owner);
 	}
 }

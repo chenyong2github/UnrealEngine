@@ -731,9 +731,12 @@ FAutomationScreenshotData UAutomationBlueprintFunctionLibrary::BuildScreenshotDa
 		TestName = FFunctionalTestBase::GetRunningTestName();
 	}
 
-	FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(MapOrContext, TestName, ScreenShotName, Width, Height);	
-
+#if WITH_AUTOMATION_TESTS
+	FAutomationScreenshotData Data = AutomationCommon::BuildScreenshotData(MapOrContext, TestName, ScreenShotName, Width, Height);
 	return Data;
+#else
+	return FAutomationScreenshotData();
+#endif
 }
 
 bool UAutomationBlueprintFunctionLibrary::TakeAutomationScreenshotInternal(UObject* WorldContextObject, const FString& ScreenShotName, const FString& Notes, FAutomationScreenshotOptions Options)

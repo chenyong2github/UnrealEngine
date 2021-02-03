@@ -18,7 +18,14 @@ class UTestBTTask_SetValue : public UBTTaskNode
 	int32 Value;
 
 	UPROPERTY()
+	FName OnAbortKeyName;
+
+	UPROPERTY()
+	int32 OnAbortValue;
+
+	UPROPERTY()
 	TEnumAsByte<EBTNodeResult::Type> TaskResult;
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 };

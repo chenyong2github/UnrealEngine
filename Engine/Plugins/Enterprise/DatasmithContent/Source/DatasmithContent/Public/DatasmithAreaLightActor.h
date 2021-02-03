@@ -32,6 +32,9 @@ class ADatasmithAreaLightActor : public AActor
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(Category = Mobility, EditAnywhere, BlueprintReadOnly)
+	TEnumAsByte<EComponentMobility::Type> Mobility;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Light")
 	EDatasmithAreaLightActorType LightType;
 

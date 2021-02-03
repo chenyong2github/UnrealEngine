@@ -205,7 +205,7 @@ TArrayView<const FFrameNumber> FSequencerKeyCollection::GetKeysInRange(const TRa
 	int32 LastVisibleIndex  = Range.GetUpperBound().IsClosed() ? Algo::UpperBound(GroupedTimes, Range.GetUpperBoundValue()) : GroupedTimes.Num();
 
 	int32 Num = LastVisibleIndex - FirstVisibleIndex;
-	if (GroupedTimes.IsValidIndex(FirstVisibleIndex) && LastVisibleIndex <= GroupedTimes.Num())
+	if (GroupedTimes.IsValidIndex(FirstVisibleIndex) && LastVisibleIndex <= GroupedTimes.Num() && Num > 0)
 	{
 		return MakeArrayView(&GroupedTimes[FirstVisibleIndex], Num);
 	}

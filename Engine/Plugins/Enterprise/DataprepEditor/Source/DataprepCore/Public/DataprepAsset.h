@@ -26,7 +26,7 @@ struct FDataprepProducerContext;
  * a Blueprint as the recipe pipeline. The Blueprint is composed of DataprepAction
  * nodes linearly connected.
  */
-UCLASS(Experimental, BlueprintType)
+UCLASS(BlueprintType)
 class DATAPREPCORE_API UDataprepAsset : public UDataprepAssetInterface
 {
 	GENERATED_BODY()
@@ -128,9 +128,18 @@ public:
 	 * This operation take O(n) time. Where n is the absolute value of SourceIndex - DestinationIndex
 	 * @param SourceIndex The Index of the action to move
 	 * @param DestinationIndex The index of where the action will be move to
-	 * @return True if the action was move
-	*/
+	 * @return True if the action was moved
+	 */
 	bool MoveAction(int32 SourceIndex, int32 DestinationIndex);
+
+	/**
+	 * Move group of actions to another spot in the order of actions
+	 * @param FirstIndex The Index of the first action to move
+	 * @param Count Number of actions to move
+	 * @param MovePositions How many positions/offset (can be negative too) to move the actions
+	 * @return True if the action group was moved
+	 */
+	bool MoveActions(int32 FirstIndex, int32 Count, int32 MovePositions);
 
 	/**
 	 * Swap the actions of a Dataprep asset
@@ -239,4 +248,5 @@ private:
 
 	/** Used on undo/redo to detect addition/removal compared to change in execution order of actions */
 	FString SignatureBeforeUndoRedo;
+	FString GroupingSignatureBeforeUndoRedo;
 };

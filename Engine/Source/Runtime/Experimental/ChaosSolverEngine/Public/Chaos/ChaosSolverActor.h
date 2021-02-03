@@ -15,6 +15,7 @@
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "ChaosSolverConfiguration.h"
 #include "SolverEventFilters.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 
 #include "ChaosSolverActor.generated.h"
 
@@ -169,5 +170,5 @@ private:
 	TObjectPtr<UChaosGameplayEventDispatcher> GameplayEventDispatcherComponent;
 
 	/** If floor is enabled - this will point to the solver particle for it */
-	TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>> FloorParticle;
+	FSingleParticlePhysicsProxy* Proxy;
 };

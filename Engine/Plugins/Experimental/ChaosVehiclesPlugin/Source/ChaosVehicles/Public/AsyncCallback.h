@@ -7,6 +7,7 @@
 #include "Chaos/SimCallbackInput.h"
 #include "Chaos/SimCallbackObject.h"
 #include "Chaos/GeometryParticlesfwd.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 
 class UChaosVehicleMovementComponent;
 
@@ -89,7 +90,7 @@ struct FChaosVehicleAsyncInput
 	UChaosVehicleMovementComponent* Vehicle;
 	
 	union {
-		FRigidParticlePhysicsProxy* Proxy;
+		FSingleParticlePhysicsProxy* Proxy;
 	} Actor;
 
 	/** 

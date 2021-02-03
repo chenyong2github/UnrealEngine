@@ -91,7 +91,7 @@ public:
 
 		EDatasmithPropertyCategory Category = BasePropCaptureElement->GetCategory();
 
-		if (BasePropCaptureElement->IsSubType((uint64)EDatasmithElementVariantSubType::PropertyCapture))
+		if (BasePropCaptureElement->IsSubType(EDatasmithElementVariantSubType::PropertyCapture))
 		{
 			TSharedPtr<IDatasmithPropertyCaptureElement> PropCaptureElement = StaticCastSharedRef<IDatasmithPropertyCaptureElement>(BasePropCaptureElement);
 			const TArray<uint8>& RecordedData = PropCaptureElement->GetRecordedData();
@@ -136,7 +136,7 @@ public:
 				PropVal->SetRecordedData(RecordedData.GetData(), RecordedData.Num());
 			}
 		}
-		else if (BasePropCaptureElement->IsSubType((uint64)EDatasmithElementVariantSubType::ObjectPropertyCapture))
+		else if (BasePropCaptureElement->IsSubType(EDatasmithElementVariantSubType::ObjectPropertyCapture))
 		{
 			TSharedPtr<IDatasmithObjectPropertyCaptureElement> PropCaptureElement = StaticCastSharedRef<IDatasmithObjectPropertyCaptureElement>(BasePropCaptureElement);
 			TSharedPtr<IDatasmithElement> TargetElement = PropCaptureElement->GetRecordedObject().Pin();

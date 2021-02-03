@@ -17,26 +17,33 @@ namespace UnrealBuildTool.Rules
 					"CinematicCamera",
 					"Core",
 					"CoreUObject",
-					"EditorFramework",
-					"EditorStyle",
 					"Engine",
-                    "GeometryCache",
-                    "GeometryCacheUSD",
-					"MaterialEditor",
+					"GeometryCache",
 					"MeshDescription",
-					"MeshUtilities",
-					"MessageLog",
-					"PropertyEditor",
 					"RenderCore",
+					"RHI", // For FMaterialUpdateContext and the right way of updating material instance constants
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
 					"USDClasses",
 					"USDUtilities",
-					"UnrealEd",
 				}
+			);
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"GeometryCacheUSD",
+						"MaterialEditor",
+						"MeshUtilities",
+						"PropertyEditor",
+						"UnrealEd",
+					}
 				);
+			}
 		}
 	}
 }

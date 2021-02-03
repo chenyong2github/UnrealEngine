@@ -11,10 +11,23 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FLazyObjectProperty)
 
-FString FLazyObjectProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
+FString FLazyObjectProperty::GetCPPType(FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/) const
 {
-	return FString::Printf( TEXT("TLazyObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName() );
+	return GetCPPTypeCustom(ExtendedTypeText, CPPExportFlags,
+		FString::Printf(TEXT("%s%s"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName()));
 }
+
+FString FLazyObjectProperty::GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName) const
+{
+	ensure(!InnerNativeTypeName.IsEmpty());
+	return FString::Printf(TEXT("TLazyObjectPtr<%s>"), *InnerNativeTypeName);
+}
+
+FString FLazyObjectProperty::GetCPPTypeForwardDeclaration() const
+{
+	return FString::Printf(TEXT("class %s%s;"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
+}
+
 FString FLazyObjectProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 {
 	ExtendedTypeText = FString::Printf(TEXT("TLazyObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());

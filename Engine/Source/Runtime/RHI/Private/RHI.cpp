@@ -1140,7 +1140,6 @@ RHI_API void GetShadingPathName(ERHIShadingPath::Type InShadingPath, FName& OutN
 }
 
 static FName NAME_PLATFORM_WINDOWS(TEXT("Windows"));
-static FName NAME_PLATFORM_PS4(TEXT("PS4"));
 static FName NAME_PLATFORM_XBOXONE(TEXT("XboxOne"));
 static FName NAME_PLATFORM_ANDROID(TEXT("Android"));
 static FName NAME_PLATFORM_IOS(TEXT("IOS"));
@@ -1163,10 +1162,6 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_VULKAN_PCES3_1:
 	case SP_VULKAN_SM5:
 		return NAME_PLATFORM_WINDOWS;
-	case SP_PS4:
-		return NAME_PLATFORM_PS4;
-	case SP_XBOXONE_D3D12:
-		return NAME_PLATFORM_XBOXONE;
 	case SP_VULKAN_ES3_1_ANDROID:
 	case SP_VULKAN_SM5_ANDROID:
 	case SP_OPENGL_ES3_1_ANDROID:
@@ -1313,7 +1308,7 @@ RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform)
 
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
-		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
+		return (Platform == SP_PCD3D_SM5) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
 	}
 	return false;
 }
@@ -1329,7 +1324,7 @@ RHI_API bool RHISupportsPixelShaderUAVs(const FStaticShaderPlatform Platform)
 
 RHI_API bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform) || Platform == SP_XBOXONE_D3D12
+	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform)
 		|| FDataDrivenShaderPlatformInfo::GetSupportsIndexBufferUAVs(Platform);
 }
 
@@ -1557,8 +1552,6 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 	case SP_PCD3D_ES3_1: return TEXT("PCD3D_ES3_1");
 	case SP_OPENGL_PCES3_1: return TEXT("OPENGL_PCES3_1");
 	case SP_OPENGL_ES3_1_ANDROID: return TEXT("OPENGL_ES3_1_ANDROID");
-	case SP_PS4: return TEXT("PS4");
-	case SP_XBOXONE_D3D12: return TEXT("XBOXONE_D3D12");
 	case SP_SWITCH: return TEXT("SWITCH");
 	case SP_SWITCH_FORWARD: return TEXT("SWITCH_FORWARD");
 	case SP_METAL: return TEXT("METAL");
@@ -1685,6 +1678,9 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsPerPixelDBufferMask = GetSectionBool(Section, "bSupportsPerPixelDBufferMask");
 	Info.bIsHlslcc = GetSectionBool(Section, "bIsHlslcc");
 	Info.NumberOfComputeThreads = GetSectionUint(Section, "NumberOfComputeThreads");
+#if WITH_EDITOR
+	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("FriendlyName")), Info.FriendlyName);
+#endif
 }
 
 void FGenericDataDrivenShaderPlatformInfo::Initialize()

@@ -1713,6 +1713,7 @@ public:
 	bool HasData() const;
 	void AddLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath, bool bIsPersistentLevel);
 	void RemoveLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume);
+	void RemoveAll();
 	const FPrecomputedVolumetricLightmap* GetLevelVolumetricLightmap() const;
 
 	TMap<FVector, FVolumetricLightmapInterpolation> CPUInterpolationCache;

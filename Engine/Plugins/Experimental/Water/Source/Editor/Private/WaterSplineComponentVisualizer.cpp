@@ -278,24 +278,24 @@ bool FWaterSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient*
 	check(WaterSelectionState);
 
 	if (VisProxy && VisProxy->Component.IsValid())
-			{
-				if (VisProxy->IsA(HWaterSplineKeyProxy::StaticGetType()))
-				{
-					HWaterSplineKeyProxy* KeyProxy = (HWaterSplineKeyProxy*)VisProxy;
+	{
+		if (VisProxy->IsA(HWaterSplineKeyProxy::StaticGetType()))
+		{
+			HWaterSplineKeyProxy* KeyProxy = (HWaterSplineKeyProxy*)VisProxy;
 
 			if (VisProxy->IsA(HWaterSplineWaterVelocityProxy::StaticGetType()))
-					{
+			{
 				const FScopedTransaction Transaction(LOCTEXT("SelectWaterSplineVelocity", "Select Water Spline Velocity"));
 
 				WaterSelectionState->Modify();
 				UpdateSelectionState(KeyProxy->KeyIndex);
 
 				int32 LastKeyIndexSelected = WaterSelectionState->GetLastKeyIndexSelected();
-					if (LastKeyIndexSelected == INDEX_NONE)
-					{
+				if (LastKeyIndexSelected == INDEX_NONE)
+				{
 					WaterSelectionState->SetSplinePropertyPath(FComponentPropertyPath());
-						return false;
-					}
+					return false;
+				}
 
 				if (const UWaterSplineComponent* WaterSplineComp = UpdateSelectedWaterSplineComponent(VisProxy))
 				{
@@ -311,8 +311,8 @@ bool FWaterSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient*
 					return false;
 				}
 			}
-					else if (VisProxy->IsA(HWaterSplineRiverWidthProxy::StaticGetType()))
-					{
+			else if (VisProxy->IsA(HWaterSplineRiverWidthProxy::StaticGetType()))
+			{
 				const FScopedTransaction Transaction(LOCTEXT("SelectWaterSplineRiverWidth", "Select Water Spline River Width"));
 
 				WaterSelectionState->Modify();
@@ -341,8 +341,8 @@ bool FWaterSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient*
 					return false;
 				}
 			}
-					else if (VisProxy->IsA(HWaterSplineDepthProxy::StaticGetType()))
-					{
+			else if (VisProxy->IsA(HWaterSplineDepthProxy::StaticGetType()))
+			{
 				const FScopedTransaction Transaction(LOCTEXT("SelectWaterSplineDepth", "Select Water Spline Depth"));
 
 				WaterSelectionState->Modify();
@@ -383,8 +383,7 @@ bool FWaterSplineComponentVisualizer::VisProxyHandleWaterClick(const UWaterSplin
 	check(SelectionState);
 
 	const FInterpCurveVector& SplinePosition = WaterSplineComp->GetSplinePointsPosition();
-	int32 LastKeyIndexSelected = SelectionState->GetLastKeyIndexSelected();
-	check(LastKeyIndexSelected < SplinePosition.Points.Num());
+	const int32 LastKeyIndexSelected = SelectionState->GetVerifiedLastKeyIndexSelected(WaterSplineComp->GetNumberOfSplinePoints());
 
 	const FTransform SplineLocalToWorld = WaterSplineComp->GetComponentTransform();
 	const FVector LocalHandleVector = LocalAxis * HandleLength;
@@ -446,12 +445,7 @@ bool FWaterSplineComponentVisualizer::GetWidgetLocation(const FEditorViewportCli
 
 			if (bWaterVelocityIsSelected || bDepthIsSelected || bRiverWidthIsSelected)
 			{
-				const TSet<int32>& SelectedKeys = SelectionState->GetSelectedKeys();
-				int32 LastKeyIndexSelected = SelectionState->GetLastKeyIndexSelected();
-				check(LastKeyIndexSelected != INDEX_NONE);
-				check(LastKeyIndexSelected >= 0);
-				check(LastKeyIndexSelected < WaterSplineComp->GetNumberOfSplinePoints());
-				check(SelectedKeys.Num() == 1);
+				int32 LastKeyIndexSelected = SelectionState->GetVerifiedLastKeyIndexSelected(WaterSplineComp->GetNumberOfSplinePoints());
 
 				const FInterpCurveVector& SplinePosition = WaterSplineComp->GetSplinePointsPosition();
 				FVector KeyPos = SplinePosition.Points[LastKeyIndexSelected].OutVal;
@@ -490,11 +484,7 @@ float FWaterSplineComponentVisualizer::ComputeDelta(UWaterSplineComponent* Water
 
 	FInterpCurveVector& SplinePosition = WaterSplineComp->GetSplinePointsPosition();
 	const int32 NumPoints = SplinePosition.Points.Num();
-	int32 LastKeyIndexSelected = SelectionState->GetLastKeyIndexSelected();
-	const TSet<int32>& SelectedKeys = SelectionState->GetSelectedKeys();
-	check(LastKeyIndexSelected != INDEX_NONE);
-	check(LastKeyIndexSelected < NumPoints);
-	check(SelectedKeys.Num() == 1);
+	int32 LastKeyIndexSelected = SelectionState->GetVerifiedLastKeyIndexSelected(NumPoints);
 
 	const FTransform SplinePointToComponent = WaterSplineComp->GetTransformAtSplineInputKey(LastKeyIndexSelected, ESplineCoordinateSpace::Local, true);
 	const FTransform SplinePointToWorld = WaterSplineComp->GetTransformAtSplineInputKey(LastKeyIndexSelected, ESplineCoordinateSpace::World, true);
@@ -532,12 +522,8 @@ bool FWaterSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* Vi
 			{
 				if (!DeltaTranslate.IsZero())
 				{
-					int32 LastKeyIndexSelected = SelectionState->GetLastKeyIndexSelected();
+					int32 LastKeyIndexSelected = SelectionState->GetVerifiedLastKeyIndexSelected(WaterSplineComp->GetNumberOfSplinePoints());
 					const TSet<int32>& SelectedKeys = SelectionState->GetSelectedKeys();
-					check(LastKeyIndexSelected != INDEX_NONE);
-					check(LastKeyIndexSelected >= 0);
-					check(LastKeyIndexSelected < WaterSplineComp->GetNumberOfSplinePoints());
-					check(SelectedKeys.Num() == 1);
 
 					float DeltaOffset = 0.0f;
 
@@ -548,7 +534,13 @@ bool FWaterSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* Vi
 						{
 							const FScopedTransaction Transaction(LOCTEXT("SetSplinePointWaterVelocity", "Set spline point water velocity"));
 							Metadata->Modify();
-							Metadata->WaterVelocityScalar.Points[LastKeyIndexSelected].OutVal += DeltaOffset;
+							for (int32 KeyIndex : SelectedKeys)
+							{
+								check(KeyIndex != INDEX_NONE);
+								check(KeyIndex >= 0);
+								check(KeyIndex < WaterSplineComp->GetNumberOfSplinePoints());
+								Metadata->WaterVelocityScalar.Points[KeyIndex].OutVal += DeltaOffset;
+							}
 						}
 					}
 					else if (bRiverWidthIsSelected)
@@ -559,7 +551,13 @@ bool FWaterSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* Vi
 						{
 							const FScopedTransaction Transaction(LOCTEXT("SetSplinePointRiverWidth", "Set spline point river width"));
 							Metadata->Modify();
-							Metadata->RiverWidth.Points[LastKeyIndexSelected].OutVal += DeltaOffset;
+							for (int32 KeyIndex : SelectedKeys)
+							{
+								check(KeyIndex != INDEX_NONE);
+								check(KeyIndex >= 0);
+								check(KeyIndex < WaterSplineComp->GetNumberOfSplinePoints());
+								Metadata->RiverWidth.Points[KeyIndex].OutVal += DeltaOffset;
+							}
 						}
 					}
 					else if (bDepthIsSelected)
@@ -569,7 +567,13 @@ bool FWaterSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* Vi
 						{
 							const FScopedTransaction Transaction(LOCTEXT("SetSplinePointWaterDepth", "Set spline point water depth"));
 							Metadata->Modify();
-							Metadata->Depth.Points[LastKeyIndexSelected].OutVal += DeltaOffset;
+							for (int32 KeyIndex : SelectedKeys)
+							{
+								check(KeyIndex != INDEX_NONE);
+								check(KeyIndex >= 0);
+								check(KeyIndex < WaterSplineComp->GetNumberOfSplinePoints());
+								Metadata->Depth.Points[KeyIndex].OutVal += DeltaOffset;
+							}
 						}
 					}
 
@@ -607,13 +611,13 @@ UWaterSplineMetadata* FWaterSplineComponentVisualizer::GetEditedWaterSplineMetaD
 }
 
 bool FWaterSplineComponentVisualizer::CanSetVisualizeWaterVelocity() const
-	{
+{
 	const UWaterSplineMetadata* Metadata = GetEditedWaterSplineMetaData();
 	return Metadata && Metadata->CanEditVelocity();
 }
 
 bool FWaterSplineComponentVisualizer::IsVisualizingWaterVelocity() const
-		{
+{
 	const UWaterSplineMetadata* Metadata = GetEditedWaterSplineMetaData();
 	return Metadata && Metadata->bShouldVisualizeWaterVelocity;
 }

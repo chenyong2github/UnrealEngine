@@ -328,6 +328,26 @@ bool FCborStructDeserializerBackend::ReadProperty(FProperty* Property, FProperty
 	return true;
 }
 
+bool FCborStructDeserializerBackend::ReadPODArray(FArrayProperty* ArrayProperty, void* Data)
+{
+	// if we just read a byte array, copy the full array if the inner property is of the appropriate type 
+	if (bDeserializingByteArray
+		&& (CastField<FByteProperty>(ArrayProperty->Inner) || CastField<FInt8Property>(ArrayProperty->Inner)))
+	{
+		FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->template ContainerPtrToValuePtr<void>(Data));
+		TArrayView<const uint8> DeserializedByteArray = LastContext.AsByteArray();
+		if (DeserializedByteArray.Num())
+		{
+			ArrayHelper.AddUninitializedValues(DeserializedByteArray.Num());
+			void* ArrayStart = ArrayHelper.GetRawPtr();
+			FMemory::Memcpy(ArrayStart, DeserializedByteArray.GetData(), DeserializedByteArray.Num());
+		}
+		bDeserializingByteArray = false;
+		return true;
+	}
+	return false;
+}
+
 void FCborStructDeserializerBackend::SkipArray()
 {
 	if (bDeserializingByteArray) // Deserializing a TArray<uint8>/TArray<int8> property as byte string?

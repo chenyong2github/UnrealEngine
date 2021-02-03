@@ -16,6 +16,8 @@
 #include "PBDCollisionConstraints.ispc.generated.h"
 #endif
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 namespace Chaos
 {
 	namespace Collisions
@@ -200,8 +202,8 @@ namespace Chaos
 
 			Contact.Location = TVector<float, 3>::ZeroVector;
 			Contact.Normal = TVector<float, 3>::ZeroVector;
-			AvgContact.Location = TVector<float, 3>::ZeroVector;
-			AvgContact.Normal = TVector<float, 3>::ZeroVector;
+			AvgContact.Location = FVec3::ZeroVector;
+			AvgContact.Normal = FVec3::ZeroVector;
 			AvgContact.Phi = CullingDistance;
 			float WeightSum = float(0); // Sum of weights used for averaging (negative)
 
@@ -508,8 +510,8 @@ namespace Chaos
 			{
 				if (WeightSum < -KINDA_SMALL_NUMBER)
 				{
-					TVector<float, 3> LocalPoint = AvgContact.Location / WeightSum;
-					TVector<float, 3> LocalNormal;
+					FVec3 LocalPoint = AvgContact.Location / WeightSum;
+					FVec3 LocalNormal;
 					const float NewPhi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 					if (NewPhi < Contact.Phi)
 					{
@@ -526,8 +528,8 @@ namespace Chaos
 			else if (AvgContact.Phi < CullingDistance)
 			{
 				check(DeepestParticle >= 0);
-				TVector<float, 3> LocalPoint = SampleToObjectTM.TransformPositionNoScale(SampleParticles.X(DeepestParticle));
-				TVector<float, 3> LocalNormal;
+				FVec3 LocalPoint = SampleToObjectTM.TransformPositionNoScale(SampleParticles.X(DeepestParticle));
+				FVec3 LocalNormal;
 				Contact.Phi = Object.PhiWithNormal(LocalPoint, LocalNormal);
 				Contact.Location = ObjectTransform.TransformPositionNoScale(LocalPoint);
 				Contact.Normal = ObjectTransform.TransformVectorNoScale(LocalNormal);
@@ -546,8 +548,8 @@ namespace Chaos
 
 			Contact.Location = TVector<float, 3>::ZeroVector;
 			Contact.Normal = TVector<float, 3>::ZeroVector;
-			AvgContact.Location = TVector<float, 3>::ZeroVector;
-			AvgContact.Normal = TVector<float, 3>::ZeroVector;
+			AvgContact.Location = FVec3::ZeroVector;
+			AvgContact.Normal = FVec3::ZeroVector;
 			AvgContact.Phi = CullingDistance;
 			float WeightSum = float(0); // Sum of weights used for averaging (negative)
 

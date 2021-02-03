@@ -86,14 +86,20 @@ public:
 	static void WriteMaterialExpressionScalar( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const IDatasmithMaterialExpressionScalar& ScalarExpression, FArchive& Archive, int32 Indent );
 	static void WriteMaterialExpressionGeneric( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const IDatasmithMaterialExpressionGeneric& GenericExpression, FArchive& Archive, int32 Indent );
 	static void WriteMaterialExpressionFunctionCall( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const IDatasmithMaterialExpressionFunctionCall& FunctionCall, FArchive& Archive, int32 Indent );
+	static void WriteMaterialExpressionCustom(const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const IDatasmithMaterialExpressionCustom& CustomExpression, FArchive& Archive, int32 Indent);
 
 	template< typename ElementType >
 	static void WriteKeyValueProperties(const ElementType& Element, FArchive& Archive, int32 Indent);
 
+	static void SerializeToArchive(FArchive& Archive, const TCHAR* Value)
+	{
+		FTCHARToUTF8 UTF8String( Value );
+		Archive.Serialize( (ANSICHAR*)UTF8String.Get(), UTF8String.Length() );
+	}
+
 	static void SerializeToArchive(FArchive& Archive, const FString& Value)
 	{
-		FTCHARToUTF8 UTF8String( *Value );
-		Archive.Serialize( (ANSICHAR*)UTF8String.Get(), UTF8String.Length() );
+		SerializeToArchive( Archive, *Value );
 	}
 
 	static FString SanitizeXMLText(FString InString);
@@ -463,7 +469,7 @@ void FDatasmithSceneXmlWriterImpl::WriteActorBindingElement( const TSharedRef< I
 	{
 		TSharedPtr<IDatasmithBasePropertyCaptureElement> BasePropertyElement = ActorBindingElement->GetPropertyCapture( PropertyIndex );
 
-		if ( BasePropertyElement->IsSubType( ( uint64 ) EDatasmithElementVariantSubType::PropertyCapture ) )
+		if ( BasePropertyElement->IsSubType( EDatasmithElementVariantSubType::PropertyCapture ) )
 		{
 			TSharedPtr<IDatasmithPropertyCaptureElement> PropertyElement = StaticCastSharedPtr< IDatasmithPropertyCaptureElement >( BasePropertyElement );
 			if ( PropertyElement.IsValid() )
@@ -471,7 +477,7 @@ void FDatasmithSceneXmlWriterImpl::WriteActorBindingElement( const TSharedRef< I
 				WritePropertyCaptureElement( PropertyElement.ToSharedRef(), Archive, Indent + 1 );
 			}
 		}
-		else if ( BasePropertyElement->IsSubType( ( uint64 ) EDatasmithElementVariantSubType::ObjectPropertyCapture ) )
+		else if ( BasePropertyElement->IsSubType( EDatasmithElementVariantSubType::ObjectPropertyCapture ) )
 		{
 			TSharedPtr<IDatasmithObjectPropertyCaptureElement> ObjectPropertyElement = StaticCastSharedPtr< IDatasmithObjectPropertyCaptureElement >( BasePropertyElement );
 			if ( ObjectPropertyElement.IsValid() )
@@ -610,20 +616,15 @@ void FDatasmithSceneXmlWriterImpl::WriteActorChildren(const TSharedPtr< IDatasmi
 	FString XmlString;
 	if (ActorElement->GetChildrenCount() > 0)
 	{
-		if (ActorElement->IsASelector())
+		if (!ActorElement->GetVisibility())
 		{
-			XmlString = TEXT("<children visible=\"true\"  selector=\"true\" ");
-		}
-		else if (!ActorElement->GetVisibility())
-		{
-			XmlString = TEXT("<children visible=\"false\"  selector=\"false\" ");
+			XmlString = TEXT("<children visible=\"false\">");
 		}
 		else
 		{
-			XmlString = TEXT("<children visible=\"true\"  selector=\"false\" ");
+			XmlString = TEXT("<children visible=\"true\">");
 		}
-
-		XmlString += FString::Printf(TEXT("selection=\"%d\">"), ActorElement->GetSelectionIndex()) + LINE_TERMINATOR;
+		XmlString += LINE_TERMINATOR;
 
 		WriteIndent(Archive, Indent + 1);
 		SerializeToArchive(Archive, XmlString);
@@ -1464,48 +1465,53 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressions( const TSharedR
 
 		if ( MaterialExpression )
 		{
-			if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Texture ) )
+			if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 			{
 				const IDatasmithMaterialExpressionTexture* ExpressionTexture = static_cast< const IDatasmithMaterialExpressionTexture* >( MaterialExpression );
 
 				WriteMaterialExpressionTexture( MaterialElement, *ExpressionTexture, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::TextureCoordinate ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 			{
 				const IDatasmithMaterialExpressionTextureCoordinate* ExpressionTextureCoordinate = static_cast< const IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression );
 
 				WriteMaterialExpressionTextureCoordinate( MaterialElement, *ExpressionTextureCoordinate, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::FlattenNormal ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FlattenNormal ) )
 			{
 				const IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< const IDatasmithMaterialExpressionFlattenNormal* >( MaterialExpression );
 
 				WriteMaterialExpressionFlattenNormal( MaterialElement, *FlattenNormal, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantBool ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
 			{
 				const IDatasmithMaterialExpressionBool* ConstantBool = static_cast< const IDatasmithMaterialExpressionBool* >( MaterialExpression );
 				WriteMaterialExpressionBool( MaterialElement, *ConstantBool, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantColor ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 			{
 				const IDatasmithMaterialExpressionColor* ConstantColor = static_cast< const IDatasmithMaterialExpressionColor* >( MaterialExpression );
 				WriteMaterialExpressionColor( MaterialElement, *ConstantColor, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantScalar ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 			{
 				const IDatasmithMaterialExpressionScalar* ConstantScalar = static_cast< const IDatasmithMaterialExpressionScalar* >( MaterialExpression );
 				WriteMaterialExpressionScalar( MaterialElement, *ConstantScalar, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Generic ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 			{
 				const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< const IDatasmithMaterialExpressionGeneric* >( MaterialExpression );
 				WriteMaterialExpressionGeneric( MaterialElement, *GenericExpression, Archive, Indent + 1 );
 			}
-			else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::FunctionCall ) )
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
 			{
 				const IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast< const IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression );
 				WriteMaterialExpressionFunctionCall( MaterialElement, *FunctionCall, Archive, Indent + 1 );
+			}
+			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Custom ) )
+			{
+				const IDatasmithMaterialExpressionCustom* Expression = static_cast< const IDatasmithMaterialExpressionCustom* >( MaterialExpression );
+				WriteMaterialExpressionCustom( MaterialElement, *Expression, Archive, Indent + 1 );
 			}
 		}
 	}
@@ -1522,7 +1528,7 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressionInput( const TSha
 	{
 		WriteIndent( Archive, Indent );
 
-		FString XmlString = TEXT("<Input Name=\"") + FString( ExpressionInput.GetInputName() ) + TEXT("\" ");
+		FString XmlString = TEXT("<Input Name=\"") + FString( ExpressionInput.GetName() ) + TEXT("\" ");
 		XmlString += TEXT("expression=\"") + FString::FromInt( MaterialElement->GetExpressionIndex( Expression ) ) + TEXT("\" OutputIndex=\"") +
 			FString::FromInt( ExpressionInput.GetOutputIndex() ) + TEXT("\"/>") + LINE_TERMINATOR;
 
@@ -1656,6 +1662,53 @@ void FDatasmithSceneXmlWriterImpl::WriteMaterialExpressionFunctionCall( const TS
 	XmlString = FString( TEXT("</FunctionCall>") ) + LINE_TERMINATOR;
 
 	SerializeToArchive( Archive, XmlString );
+}
+
+void FDatasmithSceneXmlWriterImpl::WriteMaterialExpressionCustom( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const IDatasmithMaterialExpressionCustom& CustomExpression, FArchive& Archive, int32 Indent )
+{
+	WriteIndent( Archive, Indent );
+
+	SerializeToArchive( Archive, TEXT("<Custom ") );
+	FString XmlString;
+	AppendMaterialExpressionAttributes( CustomExpression, XmlString );
+	XmlString += FString::Printf( TEXT(" OutputType=\"%d\""), (uint32)CustomExpression.GetOutputType());
+	XmlString += FString::Printf( TEXT(" Description=\"%s\""), *SanitizeXMLText(CustomExpression.GetDescription()));
+	SerializeToArchive( Archive, XmlString );
+	SerializeToArchive( Archive, TEXT(">") LINE_TERMINATOR );
+
+	WriteIndent( Archive, Indent + 1 );
+	SerializeToArchive( Archive, TEXT("<Code>") );
+	SerializeToArchive( Archive, SanitizeXMLText(CustomExpression.GetCode()) );
+	SerializeToArchive( Archive, TEXT("</Code>") LINE_TERMINATOR );
+
+	for ( int32 PathIndex = 0 ; PathIndex < CustomExpression.GetIncludeFilePathCount(); ++PathIndex )
+	{
+		WriteIndent( Archive, Indent + 1 );
+		FString Path = SanitizeXMLText(CustomExpression.GetIncludeFilePath(PathIndex));
+		SerializeToArchive( Archive, FString::Printf( TEXT("<Include path=\"%s\"/>") LINE_TERMINATOR, *Path));
+	}
+
+	for ( int32 Index = 0 ; Index < CustomExpression.GetAdditionalDefineCount(); ++Index )
+	{
+		WriteIndent( Archive, Indent + 1 );
+		FString Define = SanitizeXMLText(CustomExpression.GetAdditionalDefine(Index));
+		SerializeToArchive( Archive, FString::Printf( TEXT("<Define value=\"%s\"/>") LINE_TERMINATOR, *Define));
+	}
+
+	for ( int32 Index = 0 ; Index < CustomExpression.GetArgumentNameCount(); ++Index )
+	{
+		WriteIndent( Archive, Indent + 1 );
+		FString ArgName = SanitizeXMLText(CustomExpression.GetArgumentName(Index));
+		SerializeToArchive( Archive, FString::Printf( TEXT("<Arg index=\"%d\" name=\"%s\" />") LINE_TERMINATOR, Index, *ArgName));
+	}
+
+	for ( int32 InputIndex = 0 ; InputIndex < CustomExpression.GetInputCount(); ++InputIndex )
+	{
+		WriteUEPbrMaterialExpressionInput( MaterialElement, *CustomExpression.GetInput( InputIndex ), Archive, Indent + 1 );
+	}
+
+	WriteIndent( Archive, Indent );
+	SerializeToArchive( Archive,  TEXT("</Custom>") LINE_TERMINATOR );
 }
 
 void FDatasmithSceneXmlWriterImpl::WriteTextureElement(const TSharedPtr< IDatasmithTextureElement >& TextureElement, FArchive& Archive, int32 Indent)

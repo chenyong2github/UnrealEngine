@@ -27,6 +27,7 @@ namespace Chaos
 	// these cases. Verbose logging on LogChaos will point out when this path is taken for further scrutiny about
 	// the geometry
 	static constexpr float TriQuadPrismInflation() { return 0.1f; }
+	static constexpr float DefaultHorizonEpsilon() { return 0.1f; }
 
 	class FConvexBuilder
 	{
@@ -36,7 +37,7 @@ namespace Chaos
 		{
 		public:
 			Params()
-				: HorizonEpsilon(0.1f)
+				: HorizonEpsilon(DefaultHorizonEpsilon())
 			{}
 
 			FReal HorizonEpsilon;
@@ -44,11 +45,17 @@ namespace Chaos
 
 		static FReal SuggestEpsilon(const TArray<FVec3>& InVertices)
 		{
+			if (ComputeHorizonEpsilonFromMeshExtends == 0)
+			{
+				// legacy path, return the hardcoded default value
+				return DefaultHorizonEpsilon();
+			}
+
 			// Create a scaled epsilon for our input data set. FLT_EPSILON is the distance between 1.0 and the next value
 			// above 1.0 such that 1.0 + FLT_EPSILON != 1.0. Floats aren't equally disanced though so big or small numbers
 			// don't work well with it. Here we take the max absolute of each axis and scale that for a wider margin and
 			// use that to scale FLT_EPSILON to get a more relevant value.
-			TVector<FReal, 3> MaxAxes(TNumericLimits<FReal>::Lowest());
+			FVec3 MaxAxes(TNumericLimits<FReal>::Lowest());
 			const int32 NumVertices = InVertices.Num();
 
 			if (NumVertices <= 1)
@@ -310,7 +317,7 @@ namespace Chaos
 
 			if (NumVerticesToUse >= 4)
 			{
-				TArray<TVector<int32, 3>> Indices;
+				TArray<TVec3<int32>> Indices;
 				Params BuildParams;
 				BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(*VerticesToUse);
 				BuildConvexHull(*VerticesToUse, Indices, BuildParams);
@@ -328,7 +335,7 @@ namespace Chaos
 					return NewIdx++;
 				};
 
-				for(const TVector<int32, 3>& Idx : Indices)
+				for(const TVec3<int32>& Idx : Indices)
 				{
 					FVec3 Vs[3] = { (*VerticesToUse)[Idx[0]], (*VerticesToUse)[Idx[1]], (*VerticesToUse)[Idx[2]] };
 					const FVec3 Normal = FVec3::CrossProduct(Vs[1] - Vs[0], Vs[2] - Vs[0]).GetUnsafeNormal();
@@ -410,7 +417,7 @@ namespace Chaos
 			while(Cur)
 			{
 				//todo(ocohen): this assumes faces are triangles, not true once face merging is added
-				OutIndices.Add(TVector<int32, 3>(Cur->FirstEdge->Vertex, Cur->FirstEdge->Next->Vertex, Cur->FirstEdge->Next->Next->Vertex));
+				OutIndices.Add(TVec3<int32>(Cur->FirstEdge->Vertex, Cur->FirstEdge->Next->Vertex, Cur->FirstEdge->Next->Next->Vertex));
 				FConvexFace* Next = Cur->Next;
 				Cur = Next;
 			}
@@ -418,7 +425,7 @@ namespace Chaos
 
 		static TTriangleMesh<FReal> BuildConvexHullTriMesh(const TArray<FVec3>& InVertices)
 		{
-			TArray<TVector<int32, 3>> Indices;
+			TArray<TVec3<int32>> Indices;
 			BuildConvexHull(InVertices, Indices);
 			return TTriangleMesh<FReal>(MoveTemp(Indices));
 		}
@@ -608,10 +615,14 @@ namespace Chaos
 		static CHAOS_API int32 PerformGeometryCheck;
 		static CHAOS_API int32 PerformGeometryReduction;
 		static CHAOS_API int32 VerticesThreshold;
+		static CHAOS_API int32 ParticlesThreshold;
+		static CHAOS_API int32 ComputeHorizonEpsilonFromMeshExtends;
 #else
 		static int32 PerformGeometryCheck;
 		static int32 PerformGeometryReduction;
 		static int32 VerticesThreshold;
+		static int32 ParticlesThreshold;
+		static int32 ComputeHorizonEpsilonFromMeshExtends;
 #endif
 
 	private:

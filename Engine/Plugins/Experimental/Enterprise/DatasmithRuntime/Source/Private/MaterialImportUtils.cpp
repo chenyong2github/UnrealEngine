@@ -264,7 +264,7 @@ namespace DatasmithRuntime
 			for (int32 Index = 0; Index < PbrMaterialElement->GetExpressionsCount(); ++Index)
 			{
 				IDatasmithMaterialExpression* Expression = PbrMaterialElement->GetExpression(Index);
-				if (Expression && Expression->IsA(EDatasmithMaterialExpressionType::FunctionCall))
+				if (Expression && Expression->IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 				{
 					IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast<IDatasmithMaterialExpressionFunctionCall*>(Expression);
 					TSharedPtr< IDatasmithElement > ElementPtr = SceneImporter.GetElementFromName(MaterialPrefix + FunctionCall->GetFunctionPathName());
@@ -355,7 +355,7 @@ namespace DatasmithRuntime
 		{
 			if (const IDatasmithMaterialExpression* MaterialExpression = Input.GetExpression())
 			{
-				if (MaterialExpression->IsA(EDatasmithMaterialExpressionType::Texture))
+				if (MaterialExpression->IsSubType(EDatasmithMaterialExpressionType::Texture))
 				{
 					const IDatasmithMaterialExpressionTexture* TextureExpression = static_cast<const IDatasmithMaterialExpressionTexture*>(MaterialExpression);
 					TextureCallback(TexturePrefix + TextureExpression->GetTexturePathName(), -1);
@@ -591,22 +591,22 @@ namespace DatasmithRuntime
 	void FDatasmithExpressionEvaluator::EvaluateExpression(const IDatasmithMaterialExpression& InExpression, FDatasmithInputValue& OutValue)
 	{
 		// Call the evaluator depending of the expression type
-		if (InExpression.IsA(EDatasmithMaterialExpressionType::ConstantBool))
+		if (InExpression.IsSubType(EDatasmithMaterialExpressionType::ConstantBool))
 		{
 			const IDatasmithMaterialExpressionBool& boolExpression = static_cast<const IDatasmithMaterialExpressionBool&>(InExpression);
 			OutValue.Set(boolExpression.GetBool() ? 1.0f : 0.0f);
 		}
-		else if (InExpression.IsA(EDatasmithMaterialExpressionType::ConstantColor))
+		else if (InExpression.IsSubType(EDatasmithMaterialExpressionType::ConstantColor))
 		{
 			const IDatasmithMaterialExpressionColor& ColorExpression = static_cast<const IDatasmithMaterialExpressionColor&>(InExpression);
 			OutValue.Set(ColorExpression.GetColor());
 		}
-		else if (InExpression.IsA(EDatasmithMaterialExpressionType::ConstantScalar))
+		else if (InExpression.IsSubType(EDatasmithMaterialExpressionType::ConstantScalar))
 		{
 			const IDatasmithMaterialExpressionScalar& ScalarExpression = static_cast<const IDatasmithMaterialExpressionScalar&>(InExpression);
 			OutValue.Set(ScalarExpression.GetScalar());
 		}
-		else if (InExpression.IsA(EDatasmithMaterialExpressionType::FlattenNormal))
+		else if (InExpression.IsSubType(EDatasmithMaterialExpressionType::FlattenNormal))
 		{
 			const IDatasmithMaterialExpressionFlattenNormal& NormalExpression = static_cast<const IDatasmithMaterialExpressionFlattenNormal&>(InExpression);
 			FDatasmithInputValue Normal(NormalExpression.GetNormal());
@@ -618,23 +618,23 @@ namespace DatasmithRuntime
 				OutValue.Set(Flatness.Numeric);
 			}
 		}
-		else if (InExpression.IsA(EDatasmithMaterialExpressionType::FunctionCall))
+		else if (InExpression.IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 		{
 			const IDatasmithMaterialExpressionFunctionCall& FctCallExpression = static_cast<const IDatasmithMaterialExpressionFunctionCall&>(InExpression);
 			EvalExpressionFctCall(FctCallExpression, OutValue);
 		}
-		else if (InExpression.IsA(EDatasmithMaterialExpressionType::Generic))
+		else if (InExpression.IsSubType(EDatasmithMaterialExpressionType::Generic))
 		{
 			const IDatasmithMaterialExpressionGeneric& GenericExpression = static_cast<const IDatasmithMaterialExpressionGeneric&>(InExpression);
 			EvalExpressionGeneric(GenericExpression, OutValue);
 		}
-		else if (InExpression.IsA(EDatasmithMaterialExpressionType::Texture))
+		else if (InExpression.IsSubType(EDatasmithMaterialExpressionType::Texture))
 		{
 			const IDatasmithMaterialExpressionTexture& TextureExpression = static_cast<const IDatasmithMaterialExpressionTexture&>(InExpression);
 			OutValue.Set(TextureExpression.GetTexturePathName());
 			EvaluateInput(TextureExpression.GetInputCoordinate(), OutValue);
 		}
-		else if (InExpression.IsA(EDatasmithMaterialExpressionType::TextureCoordinate))
+		else if (InExpression.IsSubType(EDatasmithMaterialExpressionType::TextureCoordinate))
 		{
 			const IDatasmithMaterialExpressionTextureCoordinate& CoordinateExpression = static_cast<const IDatasmithMaterialExpressionTextureCoordinate&>(InExpression);
 			if (!OutValue.Texture)

@@ -34,7 +34,7 @@ namespace ChaosTest
 			Evolution.AddConstraintRule(&JointsRule);
 		}
 
-		FPBDJointConstraintHandle* AddJoint(const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& InConstrainedParticleIndices, const int32 JointIndex)
+		FPBDJointConstraintHandle* AddJoint(const TVec2<TGeometryParticleHandle<FReal, 3>*>& InConstrainedParticleIndices, const int32 JointIndex)
 		{
 			FPBDJointConstraintHandle* Joint = Joints.AddConstraint(InConstrainedParticleIndices, FRigidTransform3(JointPositions[JointIndex], FRotation3::FromIdentity()));
 
@@ -55,7 +55,7 @@ namespace ChaosTest
 
 			for (int32 JointIndex = 0; JointIndex < JointPositions.Num(); ++JointIndex)
 			{
-				const TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstraintedParticleIds(GetParticle(JointParticleIndices[JointIndex][0]), GetParticle(JointParticleIndices[JointIndex][1]));
+				const TVec2<TGeometryParticleHandle<FReal, 3>*> ConstraintedParticleIds(GetParticle(JointParticleIndices[JointIndex][0]), GetParticle(JointParticleIndices[JointIndex][1]));
 				AddJoint(ConstraintedParticleIds, JointIndex);
 			}
 		}
@@ -78,7 +78,7 @@ namespace ChaosTest
 				int32 ParticleIndex1 = JointIndex + 1;
 				FReal D = JointIndex * Separation;
 				JointPositions.Add(D * Dir);
-				JointParticleIndices.Add(TVector<int32, 2>(ParticleIndex0, ParticleIndex1));
+				JointParticleIndices.Add(TVec2<int32>(ParticleIndex0, ParticleIndex1));
 			}
 
 			JointSettings.SetNum(NumParticles - 1);
@@ -91,7 +91,7 @@ namespace ChaosTest
 
 		// Initial joints setup
 		TArray<FVec3> JointPositions;
-		TArray<TVector<int32, 2>> JointParticleIndices;
+		TArray<TVec2<int32>> JointParticleIndices;
 		TArray<FPBDJointSettings> JointSettings;
 
 		// Solver state

@@ -234,7 +234,7 @@ namespace DatasmithMaxExporterUtils
 		{
 			IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression(i);
 
-			if ( MaterialExpression && MaterialExpression->IsA( EDatasmithMaterialExpressionType::TextureCoordinate ) )
+			if ( MaterialExpression && MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 			{
 				IDatasmithMaterialExpressionTextureCoordinate& TextureCoordinate = static_cast< IDatasmithMaterialExpressionTextureCoordinate& >( *MaterialExpression );
 

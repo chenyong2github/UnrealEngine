@@ -281,8 +281,8 @@ namespace Generator
 				continue;
 
 			// only for single-valued parameters, we can meaningfully set any annotations
-			check(CurrentParameter[0].ConnectionType == EConnectionType::Expression);
-			UMaterialExpression* ParameterExpression = GetParameterExpression(CurrentParameter[0].ExpressionData.Expression);
+			check(CurrentParameter[0].GetConnectionType() == EConnectionType::Expression);
+			UMaterialExpression* ParameterExpression = GetParameterExpression(CurrentParameter[0].GetExpressionAndMaybeUse());
 
 			mi::base::Handle<const mi::neuraylib::IAnnotation_block> AnnotationBlock(
 			    AnnotationList->get_annotation_block(CurrentMDLMaterial->get_parameter_name(ParameterIndex)));
@@ -313,7 +313,7 @@ namespace Generator
 	{
 		const mi::Size Index = MDLExpression.get_index();
 		check(Index < Parameters.Num());
-		Parameters[Index].IsUsed = true;
+		Parameters[Index].SetIsUsed();
 		return Parameters[Index];
 	}
 
@@ -426,19 +426,18 @@ namespace Generator
 		FBaseExpressionFactory::Cleanup();
 	}
 
-	void FParameterExpressionFactory::Tidy()
+	void FParameterExpressionFactory::CleanupMaterialExpressions()
 	{
 		for (FMaterialExpressionConnectionList& Parameter : Parameters)
 		{
-			if (!Parameter.IsUsed)
+			if (!Parameter.IsUsed())
 			{
 				for (FMaterialExpressionConnection& Connection : Parameter.Connections)
 				{
-					if (Connection.ConnectionType == EConnectionType::Expression)
+					if (Connection.GetConnectionType() == EConnectionType::Expression)
 					{
-						//CurrentMaterial->Expressions.Remove(Connection.ExpressionData.Expression);
-						//Connection->ExpressionData->Expression->BeginDestroy();
-						//Connection->ExpressionData->Expression = nullptr;
+						CurrentMaterial->Expressions.Remove(Connection.GetExpressionUnused());
+						Connection.DestroyExpression();
 					}
 				}
 			}

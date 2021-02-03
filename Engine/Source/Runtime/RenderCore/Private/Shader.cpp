@@ -1292,7 +1292,7 @@ void DispatchIndirectComputeShader(
 
 bool IsDxcEnabledForPlatform(EShaderPlatform Platform)
 {
-	if (IsD3DPlatform(Platform, false))
+	if (IsD3DPlatform(Platform) && IsPCPlatform(Platform))
 	{
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
 		return (CVar && CVar->GetInt() != 0);
@@ -1453,7 +1453,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		KeyString += TEXT("_NoPDO");
 	}
 	
-	if (IsD3DPlatform(Platform, false))
+	if (IsD3DPlatform(Platform) && IsPCPlatform(Platform))
 	{
 		{
 			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.RemoveUnusedInterpolators"));

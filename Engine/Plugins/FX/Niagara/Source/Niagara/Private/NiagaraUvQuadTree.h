@@ -28,6 +28,12 @@ public:
 		ChildTrees[0].GetElements(*this, Box, ElementsOut);
 	}
 
+	template<typename TAction>
+	void VisitElements(const FBox2D& Box, TAction Func) const
+	{
+		ChildTrees[0].VisitElements(*this, Box, Func);
+	}
+
 	/** Removes all elements of the tree */
 	void Empty();
 
@@ -104,6 +110,34 @@ private:
 					ElementsOut.Add(Content.ElementIndex);
 				}
 			}
+		}
+
+		template<typename TAction>
+		bool VisitElements(const FNiagaraUvQuadTree& QuadTree, const FBox2D& Box, TAction Func) const
+		{
+			for (int32 ContentIndex : ContentIndices)
+			{
+				const FNode& Content = QuadTree.ChildNodes[ContentIndex];
+				if (Box.Intersect(Content.Coverage))
+				{
+					if (!Func(ContentIndex))
+					{
+						return false;
+					}
+				}
+			}
+
+			FChildArray Quads;
+			const int32 QuadCount = GetQuads(Box, Quads);
+			for (int32 QuadIt = 0; QuadIt < QuadCount; ++QuadIt)
+			{
+				if (!QuadTree.ChildTrees[Quads[QuadIt]].VisitElements(QuadTree, Box, Func))
+				{
+					return false;
+				}
+			}
+
+			return true;
 		}
 
 		int32 Freeze(const FNiagaraUvQuadTree& QuadTree, FArchive& Ar) const;

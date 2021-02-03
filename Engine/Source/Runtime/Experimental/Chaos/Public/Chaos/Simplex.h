@@ -80,7 +80,7 @@ namespace Chaos
 	}
 
 	template <typename T>
-	TVector<T, 3> TriangleSimplexFindOrigin(const TVector<T, 3>* Simplex, FSimplex& Idxs, T* OutBarycentric)
+	TVec3<T> TriangleSimplexFindOrigin(const TVec3<T>* Simplex, FSimplex& Idxs, T* OutBarycentric)
 	{
 		/* Project the origin onto the triangle plane:
 		   Let n = (b-a) cross (c-a)
@@ -92,13 +92,13 @@ namespace Chaos
 		const int32 Idx1 = Idxs[1];
 		const int32 Idx2 = Idxs[2];
 
-		const TVector<T, 3>& X0 = Simplex[Idx0];
-		const TVector<T, 3>& X1 = Simplex[Idx1];
-		const TVector<T, 3>& X2 = Simplex[Idx2];
+		const TVec3<T>& X0 = Simplex[Idx0];
+		const TVec3<T>& X1 = Simplex[Idx1];
+		const TVec3<T>& X2 = Simplex[Idx2];
 
-		const TVector<T, 3> X0ToX1 = X1 - X0;
-		const TVector<T, 3> X0ToX2 = X2 - X0;
-		const TVector<T, 3> TriNormal = TVector<T, 3>::CrossProduct(X0ToX1, X0ToX2);
+		const TVec3<T> X0ToX1 = X1 - X0;
+		const TVec3<T> X0ToX2 = X2 - X0;
+		const TVec3<T> TriNormal = TVec3<T>::CrossProduct(X0ToX1, X0ToX2);
 
 		/*
 		   We want |(a dot n) / ||n||^2| < 1 / eps to avoid inf. But note that |a dot n| <= ||a||||n|| and so
@@ -113,9 +113,9 @@ namespace Chaos
 			return LineSimplexFindOrigin(Simplex, Idxs.Idxs, Idxs.NumVerts, OutBarycentric);
 		}
 
-		const TVector<T, 3> TriNormalOverSize2 = TriNormal / TriNormal2;
-		const T SignedDistance = TVector<T, 3>::DotProduct(X0, TriNormalOverSize2);
-		const TVector<T, 3> ProjectedOrigin = TriNormal * SignedDistance;
+		const TVec3<T> TriNormalOverSize2 = TriNormal / TriNormal2;
+		const T SignedDistance = TVec3<T>::DotProduct(X0, TriNormalOverSize2);
+		const TVec3<T> ProjectedOrigin = TriNormal * SignedDistance;
 
 		/*
 			Let p be the origin projected onto the triangle plane. We can represent the point p in a 2d subspace spanned by the triangle
@@ -163,10 +163,10 @@ namespace Chaos
 						 det|p_v b_v c_v|               det|a_v p_v c_v|            det|a_v c_v p_v|
 							|1   1  1   |                  |1   1  1   |               |1   1  1   |
 		*/
-		const TVector<T, 3>& P0 = ProjectedOrigin;
-		const TVector<T, 3> P0ToX0 = X0 - P0;
-		const TVector<T, 3> P0ToX1 = X1 - P0;
-		const TVector<T, 3> P0ToX2 = X2 - P0;
+		const TVec3<T>& P0 = ProjectedOrigin;
+		const TVec3<T> P0ToX0 = X0 - P0;
+		const TVec3<T> P0ToX1 = X1 - P0;
+		const TVec3<T> P0ToX2 = X2 - P0;
 
 		const T Cofactors[3] = {
 			P0ToX1[BestAxisU] * P0ToX2[BestAxisV] - P0ToX2[BestAxisU] * P0ToX1[BestAxisV],
@@ -176,7 +176,7 @@ namespace Chaos
 
 		bool bSignMatch[3];
 		FSimplex SubSimplices[3] = { {Idx1,Idx2}, {Idx0,Idx2}, {Idx0,Idx1} };
-		TVector<T, 3> ClosestPointSub[3];
+		TVec3<T> ClosestPointSub[3];
 		T SubBarycentric[3][4];
 		int32 ClosestSubIdx = INDEX_NONE;
 		T MinSubDist2 = 0;	//not needed
@@ -206,7 +206,7 @@ namespace Chaos
 			T Lambda1 = Cofactors[1] * InvDetM;
 			//T Lambda2 = 1 - Lambda1 - Lambda0;
 			T Lambda2 = Cofactors[2] * InvDetM;
-			const TVector<T, 3> ClosestPoint = X0 * Lambda0 + X1 * Lambda1 + X2 * Lambda2;	//could be slightly outside if |lambda1| < 1e-7 or |lambda2| < 1e-7. Should we clamp?
+			const TVec3<T> ClosestPoint = X0 * Lambda0 + X1 * Lambda1 + X2 * Lambda2;	//could be slightly outside if |lambda1| < 1e-7 or |lambda2| < 1e-7. Should we clamp?
 			OutBarycentric[Idx0] = Lambda0;
 			OutBarycentric[Idx1] = Lambda1;
 			OutBarycentric[Idx2] = Lambda2;
@@ -226,17 +226,17 @@ namespace Chaos
 	}
 
 	template <typename T>
-	TVector<T, 3> TetrahedronSimplexFindOrigin(const TVector<T, 3>* Simplex, FSimplex& Idxs, T* OutBarycentric)
+	TVec3<T> TetrahedronSimplexFindOrigin(const TVec3<T>* Simplex, FSimplex& Idxs, T* OutBarycentric)
 	{
 		const int32 Idx0 = Idxs[0];
 		const int32 Idx1 = Idxs[1];
 		const int32 Idx2 = Idxs[2];
 		const int32 Idx3 = Idxs[3];
 
-		const TVector<T, 3>& X0 = Simplex[Idx0];
-		const TVector<T, 3>& X1 = Simplex[Idx1];
-		const TVector<T, 3>& X2 = Simplex[Idx2];
-		const TVector<T, 3>& X3 = Simplex[Idx3];
+		const TVec3<T>& X0 = Simplex[Idx0];
+		const TVec3<T>& X1 = Simplex[Idx1];
+		const TVec3<T>& X2 = Simplex[Idx2];
+		const TVec3<T>& X3 = Simplex[Idx3];
 
 		//Use signed volumes to determine if origin is inside or outside
 		/*
@@ -247,15 +247,15 @@ namespace Chaos
 		*/
 
 		T Cofactors[4];
-		Cofactors[0] = -TVector<T, 3>::DotProduct(X1, TVector<T, 3>::CrossProduct(X2, X3));
-		Cofactors[1] = TVector<T, 3>::DotProduct(X0, TVector<T, 3>::CrossProduct(X2, X3));
-		Cofactors[2] = -TVector<T, 3>::DotProduct(X0, TVector<T, 3>::CrossProduct(X1, X3));
-		Cofactors[3] = TVector<T, 3>::DotProduct(X0, TVector<T, 3>::CrossProduct(X1, X2));
+		Cofactors[0] = -TVec3<T>::DotProduct(X1, TVec3<T>::CrossProduct(X2, X3));
+		Cofactors[1] = TVec3<T>::DotProduct(X0, TVec3<T>::CrossProduct(X2, X3));
+		Cofactors[2] = -TVec3<T>::DotProduct(X0, TVec3<T>::CrossProduct(X1, X3));
+		Cofactors[3] = TVec3<T>::DotProduct(X0, TVec3<T>::CrossProduct(X1, X2));
 		T DetM = (Cofactors[0] + Cofactors[1]) + (Cofactors[2] + Cofactors[3]);
 
 		bool bSignMatch[4];
 		FSimplex SubIdxs[4] = { {1,2,3}, {0,2,3}, {0,1,3}, {0,1,2} };
-		TVector<T, 3> ClosestPointSub[4];
+		TVec3<T> ClosestPointSub[4];
 		T SubBarycentric[4][4];
 		int32 ClosestTriangleIdx = INDEX_NONE;
 		T MinTriangleDist2 = 0;
@@ -285,7 +285,7 @@ namespace Chaos
 			OutBarycentric[Idx2] = Cofactors[2] / DetM;
 			OutBarycentric[Idx3] = Cofactors[3] / DetM;
 
-			return TVector<T, 3>(0);
+			return TVec3<T>(0);
 		}
 
 		Idxs = SubIdxs[ClosestTriangleIdx];
@@ -312,9 +312,9 @@ namespace Chaos
 	}
 
 	template <typename T>
-	TVector<T, 3> SimplexFindClosestToOrigin(TVector<T, 3>* Simplex, FSimplex& Idxs, T* OutBarycentric, TVector<T, 3>* A = nullptr, TVector<T, 3>* B = nullptr)
+	TVec3<T> SimplexFindClosestToOrigin(TVec3<T>* Simplex, FSimplex& Idxs, T* OutBarycentric, TVec3<T>* A = nullptr, TVec3<T>* B = nullptr)
 	{
-		TVector<T, 3> ClosestPoint;
+		TVec3<T> ClosestPoint;
 		switch (Idxs.NumVerts)
 		{
 		case 1:
@@ -337,7 +337,7 @@ namespace Chaos
 		}
 		default:
 			ensure(false);
-			ClosestPoint = TVector<T, 3>(0);
+			ClosestPoint = TVec3<T>(0);
 		}
 
 		ReorderGJKArray(Simplex, Idxs);

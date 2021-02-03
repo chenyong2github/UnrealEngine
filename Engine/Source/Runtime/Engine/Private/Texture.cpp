@@ -1693,7 +1693,14 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	}
 	else if (FormatSettings.CompressionSettings == TC_Displacementmap)
 	{
-		TextureFormatName = NameG8;
+		if (SourceFormat == TSF_G16)
+		{
+			TextureFormatName = NameG16;
+		}
+		else
+		{
+			TextureFormatName = NameG8;
+		}
 	}
 	else if (FormatSettings.CompressionSettings == TC_VectorDisplacementmap)
 	{
@@ -1701,7 +1708,14 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	}
 	else if (FormatSettings.CompressionSettings == TC_Grayscale)
 	{
-		TextureFormatName = NameG8;
+		if (SourceFormat == TSF_G16)
+		{
+			TextureFormatName = NameG16;
+		}
+		else
+		{
+			TextureFormatName = NameG8;
+		}
 	}
 	else if ( FormatSettings.CompressionSettings == TC_Alpha)
 	{

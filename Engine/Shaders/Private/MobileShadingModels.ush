@@ -74,7 +74,7 @@ half3 GetEnvBRDF(half3 SpecularColor, half Roughness, half NoV)
 
 void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContext, inout FGBufferData GBuffer, float4 SvPosition, half3 CameraVector, half CustomData0, half CustomData1)
 {
-#if !FULLY_ROUGH
+#if !FULLY_ROUGH || MATERIAL_SHADINGMODEL_CLEAR_COAT
 	half NoV = max(dot(GBuffer.WorldNormal, CameraVector), 0);
 #endif
 

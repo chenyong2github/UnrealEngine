@@ -3,6 +3,8 @@
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/GameFrameworkComponent.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "EngineUtils.h"
 #include "ModularGameplayLogs.h"
 
 #if !UE_BUILD_SHIPPING
@@ -51,15 +53,15 @@ void UGameFrameworkComponentManager::DumpGameFrameworkComponentManagers()
 		if (UGameFrameworkComponentManager* Manager = *ManagerIt)
 		{
 			UE_LOG(LogModularGameplay, Display, TEXT("  Manager: %s"), *GetPathNameSafe(Manager));
-			UE_LOG(LogModularGameplay, Display, TEXT("    Receivers... (Num:%d)"), Manager->ReceiverClassToReceiverInstancesMap.Num());
-			for (auto MapIt = Manager->ReceiverClassToReceiverInstancesMap.CreateConstIterator(); MapIt; ++MapIt)
+
+#if WITH_EDITOR
+			UE_LOG(LogModularGameplay, Display, TEXT("    Receivers... (Num:%d)"), Manager->AllReceivers.Num());
+			for (auto SetIt = Manager->AllReceivers.CreateConstIterator(); SetIt; ++SetIt)
 			{
-				UE_LOG(LogModularGameplay, Display, TEXT("      ReceiverClass: %s (Num:%d)"), *GetPathNameSafe(MapIt.Key().ResolveObjectPtr()), MapIt.Value().Num());
-				for (const TWeakObjectPtr<AActor>& ReceiverInstance : MapIt.Value())
-				{
-					UE_LOG(LogModularGameplay, Display, TEXT("        ReceiverInstance: %s"), *GetPathNameSafe(ReceiverInstance.Get()));
-				}
+				UE_LOG(LogModularGameplay, Display, TEXT("      ReceiverInstance: %s"), *GetPathNameSafe(*SetIt));
 			}
+#endif // WITH_EDITOR
+
 			UE_LOG(LogModularGameplay, Display, TEXT("    Components... (Num:%d)"), Manager->ComponentClassToComponentInstanceMap.Num());
 			for (auto MapIt = Manager->ComponentClassToComponentInstanceMap.CreateConstIterator(); MapIt; ++MapIt)
 			{
@@ -104,11 +106,13 @@ void UGameFrameworkComponentManager::AddReceiver(AActor* Receiver, bool bAddOnly
 void UGameFrameworkComponentManager::AddReceiverInternal(AActor* Receiver)
 {
 	checkSlow(Receiver);
+	
+#if WITH_EDITOR
+	AllReceivers.Add(Receiver);
+#endif
+	
 	for (UClass* Class = Receiver->GetClass(); Class && Class != AActor::StaticClass(); Class = Class->GetSuperClass())
 	{
-		TArray<TWeakObjectPtr<AActor>>& ReceiverInstances = ReceiverClassToReceiverInstancesMap.FindOrAdd(Class);
-		ReceiverInstances.Add(Receiver);
-
 		FComponentRequestReceiverClassPath ReceiverClassPath(Class);
 		if (TSet<UClass*>* ComponentClasses = ReceiverClassToComponentClassMap.Find(ReceiverClassPath))
 		{
@@ -134,20 +138,12 @@ void UGameFrameworkComponentManager::RemoveReceiver(AActor* Receiver)
 void UGameFrameworkComponentManager::RemoveReceiverInternal(AActor* Receiver)
 {
 	checkSlow(Receiver);
-	for (UClass* Class = Receiver->GetClass(); Class && Class != AActor::StaticClass(); Class = Class->GetSuperClass())
-	{
-		TArray<TWeakObjectPtr<AActor>>* ReceiverInstances = ReceiverClassToReceiverInstancesMap.Find(Class);
-		if (ReceiverInstances != nullptr)
-		{
-			ReceiverInstances->Remove(Receiver);
-			if (ReceiverInstances->Num() == 0)
-			{
-				ReceiverClassToReceiverInstancesMap.Remove(Class);
-			}
-		}
-	}
-
-	TArray<UActorComponent*> ComponentsToDestroy;
+	
+#if WITH_EDITOR
+	ensureMsgf(AllReceivers.Remove(Receiver) > 0, TEXT("Called RemoveReceiver without first calling AddReceiver. Actor:%s"), *GetPathNameSafe(Receiver));
+#endif
+	
+	TInlineComponentArray<UActorComponent*> ComponentsToDestroy;
 	for (UActorComponent* Component : Receiver->GetComponents())
 	{
 		if (UActorComponent* GFC = Cast<UActorComponent>(Component))
@@ -194,34 +190,20 @@ TSharedPtr<FComponentRequestHandle> UGameFrameworkComponentManager::AddComponent
 
 		if (UClass* ReceiverClassPtr = ReceiverClass.Get())
 		{
-			TArray<UClass*> AllMatchingClasses;
-			GetDerivedClasses(ReceiverClassPtr, AllMatchingClasses, true);
-			AllMatchingClasses.Add(ReceiverClassPtr);
-			TSet<AActor*> AllProcessedInstances;
-			for (UClass* MatchingClass : AllMatchingClasses)
+			UGameInstance* LocalGameInstance = GetGameInstance();
+			if (ensure(LocalGameInstance))
 			{
-				check(MatchingClass);
-				if (!MatchingClass->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists))
+				UWorld* LocalWorld = LocalGameInstance->GetWorld();
+				if (ensure(LocalWorld))
 				{
-					TArray<TWeakObjectPtr<AActor>>* ReceiverInstances = ReceiverClassToReceiverInstancesMap.Find(MatchingClass);
-					if (ReceiverInstances)
+					for (TActorIterator<AActor> ActorIt(LocalWorld, ReceiverClassPtr); ActorIt; ++ActorIt)
 					{
-						for (int32 ReceiverIdx = ReceiverInstances->Num() - 1; ReceiverIdx >= 0; --ReceiverIdx)
+						if (ActorIt->HasActorBegunPlay())
 						{
-							AActor* ActorInstance = (*ReceiverInstances)[ReceiverIdx].Get();
-							if (ActorInstance)
-							{
-								bool bIsAlreadyInSet = false;
-								AllProcessedInstances.Add(ActorInstance, &bIsAlreadyInSet);
-								if (!bIsAlreadyInSet)
-								{
-									CreateComponentOnInstance(ActorInstance, ComponentClass);
-								}
-							}
-							else
-							{
-								ReceiverInstances->RemoveAtSwap(ReceiverIdx, 1, false);
-							}
+#if WITH_EDITOR
+							ensureMsgf(AllReceivers.Contains(*ActorIt), TEXT("You may not add a component request for an actor class that does not call AddReceiver/RemoveReceiver in code! Class:%s"), *GetPathNameSafe(ReceiverClassPtr));
+#endif
+							CreateComponentOnInstance(*ActorIt, ComponentClass);
 						}
 					}
 				}
@@ -229,7 +211,7 @@ TSharedPtr<FComponentRequestHandle> UGameFrameworkComponentManager::AddComponent
 		}
 		else
 		{
-			// Actor class is not in memory, there will be no derived classes or actor instances
+			// Actor class is not in memory, there will be no actor instances
 		}
 
 		return MakeShared<FComponentRequestHandle>(this, ReceiverClass, ComponentClass);

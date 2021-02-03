@@ -560,6 +560,18 @@ private:
 	/** Toggle whether we're filtering recursively */
 	void ToggleFilteringRecursively();
 
+	/** Toggle whether we are showing the all virtual folder */
+	void ToggleShowAllFolder();
+
+	/** @return true when we are showing the all virtual folder */
+	bool IsShowingAllFolder() const;
+
+	/** Toggle whether we are re-organizing folders into virtual locations */
+	void ToggleOrganizeFolders();
+
+	/** @return true when we are organizing folders into virtual locations */
+	bool IsOrganizingFolders() const;
+
 	/** Sets the view type and updates lists accordingly */
 	void SetCurrentViewType(EAssetViewType::Type NewType);
 

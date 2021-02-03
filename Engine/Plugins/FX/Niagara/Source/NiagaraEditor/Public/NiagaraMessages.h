@@ -217,7 +217,7 @@ private:
 	TArray<FLinkNameAndDelegate> Links;
 };
 
-UCLASS()
+UCLASS(abstract)
 class NIAGARAEDITOR_API UNiagaraMessageData : public UNiagaraMessageDataBase
 {
 	GENERATED_BODY()

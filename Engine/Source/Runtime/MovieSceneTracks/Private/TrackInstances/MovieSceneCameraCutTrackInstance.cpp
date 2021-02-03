@@ -50,10 +50,15 @@ namespace MovieScene
 		FMovieSceneObjectBindingID CameraBindingID;
 		FMovieSceneSequenceID OperandSequenceID;
 
+		FFrameNumber LocalStartTime;
+		FFrameNumber LocalEaseInEndTime;
+		FFrameTime LocalContextTime;
+		FFrameNumber LocalEaseOutStartTime;
+		FFrameNumber LocalEndTime;
+
 		FBlendedCameraCutEasingInfo EaseIn;
 		FBlendedCameraCutEasingInfo EaseOut;
 		bool bLockPreviousCamera = false;
-		bool bIsFinalBlendOut = false;
 
 		FMovieSceneObjectBindingID PreviousCameraBindingID;
 		FMovieSceneSequenceID PreviousOperandSequenceID;
@@ -212,22 +217,29 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 		else
 		{
 			const UMovieSceneCameraCutTrack* Track = Section->GetTypedOuter<UMovieSceneCameraCutTrack>();
-			const TArray<UMovieSceneSection*>& AllSections = Track->GetAllSections();
-			const bool bIsFinalSection = (AllSections.Num() > 0 && AllSections.Last() == Section);
-
 			const FMovieSceneTimeTransform SequenceToRootTransform = Context.GetSequenceToRootTransform();
 
 			FBlendedCameraCut Params(Input.InstanceHandle, CameraBindingID, SequenceInstance.GetSequenceID());
 			Params.bCanBlend = Track->bCanBlend;
 
+			// Get start/current/end time.
+			Params.LocalContextTime = Context.GetTime();
+			const TRange<FFrameNumber> SectionRange(Section->GetTrueRange());
+			Params.LocalStartTime = SectionRange.HasLowerBound() ? SectionRange.GetLowerBoundValue() : FFrameNumber(-MAX_int32);
+			Params.LocalEndTime = SectionRange.HasUpperBound() ? SectionRange.GetUpperBoundValue() : FFrameNumber(MAX_int32);
+
 			// Get ease-in/out info.
+			Params.LocalEaseInEndTime = Params.LocalStartTime;
+			Params.LocalEaseOutStartTime = Params.LocalEndTime;
 			if (Section->HasStartFrame() && Section->Easing.GetEaseInDuration() > 0)
 			{
+				Params.LocalEaseInEndTime = Params.LocalStartTime + Section->Easing.GetEaseInDuration();
 				const float RootEaseInTime = SequenceToRootTransform.TimeScale * Context.GetFrameRate().AsSeconds(FFrameNumber(Section->Easing.GetEaseInDuration()));
 				Params.EaseIn = FBlendedCameraCutEasingInfo(RootEaseInTime, Section->Easing.EaseIn);
 			}
 			if (Section->HasEndFrame() && Section->Easing.GetEaseOutDuration() > 0)
 			{
+				Params.LocalEaseOutStartTime = Params.LocalEndTime - Section->Easing.GetEaseOutDuration();
 				const float RootEaseOutTime = SequenceToRootTransform.TimeScale * Context.GetFrameRate().AsSeconds(FFrameNumber(Section->Easing.GetEaseOutDuration()));
 				Params.EaseOut = FBlendedCameraCutEasingInfo(RootEaseOutTime, Section->Easing.EaseOut);
 			}
@@ -238,25 +250,6 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 			// Get preview blending.
 			const float Weight = Section->EvaluateEasing(Context.GetTime());
 			Params.PreviewBlendFactor = Weight;
-
-			// If this camera cut is blending away from the sequence (it's the final camera cut section), then
-			// we reverse the blend: we make it blend into a null camera.
-			if (bIsFinalSection && Params.EaseOut.RootBlendTime > 0.f)
-			{
-				const TRange<FFrameNumber> SourceSectionRange = Section->GetTrueRange();
-				const FFrameNumber OutBlendTime = Section->Easing.GetEaseOutDuration();
-				if (Context.GetTime() >= SourceSectionRange.GetUpperBoundValue() - OutBlendTime)
-				{
-					Params.bIsFinalBlendOut = true;
-					Params.PreviewBlendFactor = 1.0f - Params.PreviewBlendFactor;
-					Params.EaseIn = Params.EaseOut;
-					Params.EaseOut = FBlendedCameraCutEasingInfo();
-					Params.PreviousCameraBindingID = Params.CameraBindingID;
-					Params.PreviousOperandSequenceID = Params.OperandSequenceID;
-					Params.CameraBindingID = FMovieSceneObjectBindingID();
-					Params.OperandSequenceID = FMovieSceneSequenceID();
-				}
-			}
 
 			CameraCutParams.Add(Params);
 		}
@@ -274,54 +267,80 @@ void UMovieSceneCameraCutTrackInstance::OnAnimate()
 	}
 
 	// For now we only support 2 active camera cuts at most (with blending between them).
+	// Remember that our param structs are sorted by hierarchical bias and global start time, i.e. the front
+	// of the array has "lower" camera cuts (ones in sub-most sequences) that started most recently, while the
+	// rear of the array has the "higher" camera cuts (ones in the top-most sequences) that started earlier.
 	FBlendedCameraCut FinalCameraCut;
 
 	if (CameraCutParams.Num() >= 2)
 	{
-		const FBlendedCameraCut& PrevCameraCut = CameraCutParams[1];
-		const FBlendedCameraCut& NextCameraCut = CameraCutParams[0];
-		
-		// Blending 2 camera cuts: keep track of what the previous shot is supposed to be,
-		// if both cuts are next to each other.
-		FinalCameraCut = NextCameraCut;
-		FinalCameraCut.PreviousCameraBindingID = PrevCameraCut.CameraBindingID;
-		FinalCameraCut.PreviousOperandSequenceID = PrevCameraCut.OperandSequenceID;
-
-		if (NextCameraCut.bIsFinalBlendOut)
+		// Blending 2 camera cuts: keep track of what the next and previous shots are supposed to be.
+		//
+		// We know that CameraCutParams[0] has more priority than CameraCutParams[1], whether it's 
+		// because it started more recently, or because it's in a lower sub-sequence (higher hierarchical bias).
+		// We want to blend away from this priority cut only if we are currently in its blend-out. We'll
+		// determine that thanks to the various times we saved on the info struct.
+		const FBlendedCameraCut& PriorityCameraCut = CameraCutParams[0];
+		if (PriorityCameraCut.LocalContextTime < PriorityCameraCut.LocalEaseInEndTime)
 		{
-			// bIsFinalBlendOut is only true if we are in the final blend out *right now*. But if we are
-			// here, it also means we have at least 2 active camera cuts, which means we're blending out
-			// from a sequence into a different sequence (most likely a parent sequence where a camera cut
-			// is extending past the child sequence in which the 1st camera cut section is).
-			check(PrevCameraCut.InstanceHandle != NextCameraCut.InstanceHandle);
+			// Blending in from the other cut.
+			const FBlendedCameraCut& PrevCameraCut = CameraCutParams[1];
+			const FBlendedCameraCut& NextCameraCut = CameraCutParams[0];
 
-			// NextCameraCut is the child cut.
-			// PrevCameraCut is the parent cut.
-			//
-			// We are blending *out* from the child cut (the last cut of its sequence) to the parent cut,
-			// so the variable names are misleading in this case.
-			const FBlendedCameraCut& PrevChildCameraCut = CameraCutParams[0];
-			const FBlendedCameraCut& NextParentCameraCut = CameraCutParams[1];
-			// Let's now correctly use the proper next/previous information. However, because the previous
-			// (child) cut has been "reversed" (it was expressed as blending into gameplay, with it as the
-			// "previous" camera), we need to take that cut's "previous" info.
-			FinalCameraCut = NextParentCameraCut;
-			FinalCameraCut.PreviousCameraBindingID = PrevChildCameraCut.PreviousCameraBindingID;
-			FinalCameraCut.PreviousOperandSequenceID = PrevChildCameraCut.PreviousOperandSequenceID;
-			// We need to use the child blend out information (blend type, time, and preview factor), because
-			// this is the blend we're using to go to the next/ (parent) cut.
-			// Because the child cut was the final blend out, the easing info and the preview blend factor
-			// have both already been "reversed" (ease-out has been transferred to ease-in, blend factor has
-			// been subtracted from 1.f). So we grab those for the blend info.
-			FinalCameraCut.EaseIn = PrevChildCameraCut.EaseIn;
-			FinalCameraCut.PreviewBlendFactor = PrevChildCameraCut.PreviewBlendFactor;
-			FinalCameraCut.bLockPreviousCamera = PrevChildCameraCut.bLockPreviousCamera;
+			FinalCameraCut = NextCameraCut;
+			FinalCameraCut.PreviousCameraBindingID = PrevCameraCut.CameraBindingID;
+			FinalCameraCut.PreviousOperandSequenceID = PrevCameraCut.OperandSequenceID;
+		}
+		else if (PriorityCameraCut.LocalContextTime > PriorityCameraCut.LocalEaseOutStartTime)
+		{
+			// Blending out to the other cut.
+			const FBlendedCameraCut& PrevCameraCut = CameraCutParams[0];
+			const FBlendedCameraCut& NextCameraCut = CameraCutParams[1];
+
+			FinalCameraCut = NextCameraCut;
+			FinalCameraCut.PreviousCameraBindingID = PrevCameraCut.CameraBindingID;
+			FinalCameraCut.PreviousOperandSequenceID = PrevCameraCut.OperandSequenceID;
+
+			// We use the priority cut's ease-out info, instead of the other cut's ease-in info. This is
+			// because it's more reliable:
+			// - If we're just blending from one cut to the next, the editor should have made the ease-in
+			//   and ease-out durations and types the same, based on the overlap between the 2 sections.
+			//   So we can use either one and be fine.
+			// - However we could be in the case that we're blending out from the last cut of a child sequence
+			//   and back up to a cut in a parent sequence. That parent cut may have been active for a long
+			//   time (overriden temporarily by the child sequence's cut), and would therefore have no
+			//   ease-in information. The child cut would however have ease-out information, which we use.
+			FinalCameraCut.EaseIn = PrevCameraCut.EaseOut;
+			FinalCameraCut.EaseOut = FBlendedCameraCutEasingInfo();
+			FinalCameraCut.PreviewBlendFactor = (1.0f - PrevCameraCut.PreviewBlendFactor);
+			FinalCameraCut.bLockPreviousCamera = PrevCameraCut.bLockPreviousCamera;
+
+			// We need to force this flag because we could be blending out from a track that does support
+			// blending to a track that does not (e.g. a parent sequence track).
+			FinalCameraCut.bCanBlend = true;
+		}
+		else
+		{
+			// Fully active.
+			FinalCameraCut = PriorityCameraCut;
 		}
 	}
 	else if (CameraCutParams.Num() == 1)
 	{
 		// Only one camera cut active.
 		FinalCameraCut = CameraCutParams[0];
+
+		// It may be blending out back to gameplay however.
+		if (FinalCameraCut.LocalContextTime > FinalCameraCut.LocalEaseOutStartTime)
+		{
+			FinalCameraCut.PreviewBlendFactor = 1.0f - FinalCameraCut.PreviewBlendFactor;
+			FinalCameraCut.EaseIn = FinalCameraCut.EaseOut;
+			FinalCameraCut.EaseOut = FBlendedCameraCutEasingInfo();
+			FinalCameraCut.PreviousCameraBindingID = FinalCameraCut.CameraBindingID;
+			FinalCameraCut.PreviousOperandSequenceID = FinalCameraCut.OperandSequenceID;
+			FinalCameraCut.CameraBindingID = FMovieSceneObjectBindingID();
+			FinalCameraCut.OperandSequenceID = FMovieSceneSequenceID();
+		}
 	}
 
 	if (CameraCutParams.Num() > 0)

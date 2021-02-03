@@ -13,6 +13,8 @@
 #include "Components/PointLightComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "Engine/TextureCube.h"
 
 #if USE_USD_SDK
 
@@ -21,6 +23,7 @@
 	#include "pxr/usd/usdLux/distantLight.h"
 	#include "pxr/usd/usdLux/domeLight.h"
 	#include "pxr/usd/usdLux/rectLight.h"
+	#include "pxr/usd/usdLux/shapingAPI.h"
 	#include "pxr/usd/usdLux/sphereLight.h"
 #include "USDIncludesEnd.h"
 
@@ -51,6 +54,8 @@ void FUsdLuxLightTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		return;
 	}
 
+	LightComponent->UnregisterComponent();
+
 	UsdToUnreal::ConvertLight( pxr::UsdLuxLight{ Prim }, *LightComponent, Context->Time );
 
 	if ( UDirectionalLightComponent* DirectionalLightComponent = Cast< UDirectionalLightComponent >( SceneComponent ) )
@@ -72,12 +77,22 @@ void FUsdLuxLightTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	}
 	else if ( UPointLightComponent* PointLightComponent = Cast< UPointLightComponent >( SceneComponent ) )
 	{
+		if ( USpotLightComponent* SpotLightComponent = Cast< USpotLightComponent >( SceneComponent ) )
+		{
+			UsdToUnreal::ConvertLuxShapingAPI( FUsdStageInfo( Context->Stage ), pxr::UsdLuxShapingAPI{ Prim }, *SpotLightComponent, Context->Time );
+		}
+
 		UsdToUnreal::ConvertSphereLight( FUsdStageInfo( Context->Stage ), pxr::UsdLuxSphereLight{ Prim }, *PointLightComponent, Context->Time );
 	}
 	else if ( USkyLightComponent* SkyLightComponent = Cast< USkyLightComponent >( SceneComponent ) )
 	{
-		UsdToUnreal::ConvertDomeLight( FUsdStageInfo( Context->Stage ), pxr::UsdLuxDomeLight{ Prim }, *SkyLightComponent, Context->AssetsCache, Context->Time );
+		UsdToUnreal::ConvertDomeLight( FUsdStageInfo( Context->Stage ), pxr::UsdLuxDomeLight{ Prim }, *SkyLightComponent, Context->AssetCache.Get(), Context->Time );
 		SkyLightComponent->Mobility = EComponentMobility::Movable; // We won't bake geometry in the sky light so it needs to be movable
+	}
+
+	if ( !LightComponent->IsRegistered() )
+	{
+		LightComponent->RegisterComponent();
 	}
 }
 

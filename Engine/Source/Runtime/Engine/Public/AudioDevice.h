@@ -1767,6 +1767,9 @@ public:
 
 	const TMap<FWaveInstance*, FSoundSource*>& GetWaveInstanceSourceMap() const;
 
+	FName GetAudioStateProperty(const FName& PropertyName) const;
+	void SetAudioStateProperty(const FName& PropertyName, const FName& PropertyValue);
+
 public:
 
 	/** The number of sources to reserve for stopping sounds. */
@@ -2016,6 +2019,9 @@ private:
 
 	/** List of passive SoundMixes active last frame */
 	TArray<USoundMix*> PrevPassiveSoundMixModifiers;
+
+	/** A generic mapping of FNames, used to store and retrieve tokens across the engine boundary. */
+	TMap<FName, FName> AudioStateProperties;
 
 	friend class FSoundConcurrencyManager;
 	FSoundConcurrencyManager ConcurrencyManager;

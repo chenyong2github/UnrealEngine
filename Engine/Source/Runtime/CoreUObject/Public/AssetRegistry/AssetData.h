@@ -482,7 +482,13 @@ template <>
 inline bool FAssetData::GetTagValue<FText>(FName Tag, FText& OutValue) const
 {
 	const FAssetDataTagMapSharedView::FFindTagResult FoundValue = TagsAndValues.FindTag(Tag);
-	return FoundValue.IsSet() && FoundValue.TryGetAsText(OutValue);
+	if (FoundValue.IsSet())
+	{
+		OutValue = FoundValue.AsText();
+		return true;
+	}
+
+	return false;
 }
 
 template <>

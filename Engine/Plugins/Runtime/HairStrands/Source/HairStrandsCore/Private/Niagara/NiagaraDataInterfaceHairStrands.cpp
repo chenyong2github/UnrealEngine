@@ -377,6 +377,21 @@ void FNDIHairStrandsBuffer::ReleaseRHI()
 
 //------------------------------------------------------------------------------------------------------------
 
+ETickingGroup ComputeTickingGroup(const TWeakObjectPtr<UGroomComponent> GroomComponent)
+{
+	ETickingGroup TickingGroup = NiagaraFirstTickGroup;
+	
+	if (GroomComponent.Get() != nullptr)
+	{
+		const ETickingGroup ComponentTickGroup = FMath::Max(GroomComponent->PrimaryComponentTick.TickGroup, GroomComponent->PrimaryComponentTick.EndTickGroup);
+		const ETickingGroup ClampedTickGroup = FMath::Clamp(ETickingGroup(ComponentTickGroup + 1), NiagaraFirstTickGroup, NiagaraLastTickGroup);
+
+		TickingGroup = FMath::Max(TickingGroup, ClampedTickGroup);
+	}
+	return TickingGroup;
+}
+
+
 void FNDIHairStrandsData::Release()
 {
 	if (HairStrandsBuffer)
@@ -401,6 +416,8 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 
 		GlobalInterpolation = (Interface->IsComponentValid() && Interface->SourceComponent->BindingAsset && Interface->SourceComponent->GroomAsset) ?
 			Interface->SourceComponent->GroomAsset->EnableGlobalInterpolation : false;
+
+		TickingGroup = Interface->IsComponentValid() ? ComputeTickingGroup(Interface->SourceComponent) : NiagaraFirstTickGroup;
 
 		if (StrandsDatas != nullptr && GroomAsset != nullptr && GroupIndex >= 0 && GroupIndex < GroomAsset->HairGroupsPhysics.Num() &&
 			GroomAsset->HairGroupsPhysics[GroupIndex].SolverSettings.EnableSimulation)
@@ -899,6 +916,17 @@ void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(
 			OutGroomAsset = DefaultSource;
 		}
 	}
+}
+
+ETickingGroup UNiagaraDataInterfaceHairStrands::CalculateTickGroup(const void* PerInstanceData) const
+{
+	const FNDIHairStrandsData* InstanceData = static_cast<const FNDIHairStrandsData*>(PerInstanceData);
+
+	if (InstanceData)
+	{
+		return InstanceData->TickingGroup;
+	}
+	return NiagaraFirstTickGroup;
 }
 
 bool UNiagaraDataInterfaceHairStrands::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)

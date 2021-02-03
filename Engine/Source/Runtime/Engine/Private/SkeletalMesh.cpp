@@ -855,6 +855,7 @@ void USkeletalMesh::InitResources()
 			// Limit the number of LODs based on MinLOD value.
 			CachedSRRState.MaxNumLODs = FMath::Clamp<int32>(NumLODs - MinFirstLOD, SkelMeshRenderData->NumInlinedLODs, NumLODs);
 			CachedSRRState.AssetLODBias = MinFirstLOD;
+			CachedSRRState.LODBiasModifier = SkelMeshRenderData->LODBiasModifier;
 			// The optional LOD might be culled now.
 			CachedSRRState.NumNonOptionalLODs = FMath::Min(CachedSRRState.NumNonOptionalLODs, CachedSRRState.MaxNumLODs);
 			// Set LOD count to fit the current state.
@@ -2097,7 +2098,7 @@ USkeletalMeshEditorData& USkeletalMesh::GetMeshEditorData() const
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (MeshEditorDataObject == nullptr)
 	{
-		//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
+			//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
 		//RF_Transactional make sure the asset can be transactional if we want to edit it
 		USkeletalMesh* NonConstSkeletalMesh = const_cast<USkeletalMesh*>(this);
 		MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(NonConstSkeletalMesh, NAME_None, RF_Transactional);

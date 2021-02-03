@@ -96,7 +96,10 @@ struct FNDIPhysicsAssetData
 	FVector BoxExtent;
 
 	/** Physics asset Cpu arrays */
-	FNDIPhysicsAssetArrays AssetArrays;
+	FNDIPhysicsAssetArrays AssetArrays;  
+
+	/** The instance ticking group */
+	ETickingGroup TickingGroup;
 };
 
 /** Data Interface for the strand base */
@@ -136,6 +139,8 @@ public:
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FNDIPhysicsAssetData); }
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool HasPreSimulateTick() const override { return true; }
+	virtual bool HasTickGroupPrereqs() const override { return true; }
+	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 
 	/** GPU simulation  functionality */
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;

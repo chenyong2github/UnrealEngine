@@ -139,6 +139,8 @@ struct FNDIHairStrandsData
 		StrandsSmoothing = 0.1;
 		StrandsThickness = 0.01;
 
+		TickingGroup = NiagaraFirstTickGroup;
+
 		for (int32 i = 0; i < 32 * NumScales; ++i)
 		{
 			ParamsScale[i] = 1.0;
@@ -191,6 +193,8 @@ struct FNDIHairStrandsData
 			StrandsThickness = OtherDatas->StrandsThickness;
 
 			ParamsScale = OtherDatas->ParamsScale;
+
+			TickingGroup = OtherDatas->TickingGroup;
 		}
 	}
 
@@ -286,6 +290,9 @@ struct FNDIHairStrandsData
 
 	/** Scales along the strand */
 	TStaticArray<float, 32 * NumScales> ParamsScale;
+
+	/** The instance ticking group */
+	ETickingGroup TickingGroup;
 };
 
 /** Data Interface for the strand base */
@@ -322,6 +329,8 @@ public:
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FNDIHairStrandsData); }
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool HasPreSimulateTick() const override { return true; }
+	virtual bool HasTickGroupPrereqs() const override { return true; }
+	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 
 	/** GPU simulation  functionality */
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;

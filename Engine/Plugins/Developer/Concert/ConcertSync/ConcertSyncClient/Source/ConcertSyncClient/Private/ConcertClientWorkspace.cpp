@@ -686,6 +686,8 @@ void FConcertClientWorkspace::HandleEndPIE(const bool InIsSimulating)
 
 void FConcertClientWorkspace::OnEndFrame()
 {
+	SCOPED_CONCERT_TRACE(FConcertClientWorkspace_OnEndFrame);
+
 	if (bFinalizeWorkspaceSyncRequested)
 	{
 		bFinalizeWorkspaceSyncRequested = false;
@@ -761,6 +763,8 @@ void FConcertClientWorkspace::HandleWorkspaceSyncEndpointEvent(const FConcertSes
 
 void FConcertClientWorkspace::HandleWorkspaceSyncActivityEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncActivityEvent& Event)
 {
+	SCOPED_CONCERT_TRACE(FConcertClientWorkspace_HandleWorkspaceSyncActivityEvent);
+
 	FStructOnScope ActivityPayload;
 	Event.Activity.GetPayload(ActivityPayload);
 
@@ -918,10 +922,10 @@ void FConcertClientWorkspace::SetPackageActivity(const FConcertSyncPackageActivi
 	}
 	else
 	{
-		FMemoryReader Ar(InPackageActivity.EventData.Package.PackageData); // Package data is embedded in the activity itself.
+		FMemoryReader Ar(InPackageActivity.EventData.Package.PackageData.Bytes); // Package data is embedded in the activity itself.
 		PackageActivityEventPart.PackageDataStream.DataAr = &Ar;
 		PackageActivityEventPart.PackageDataStream.DataSize = Ar.TotalSize();
-		PackageActivityEventPart.PackageDataStream.DataBlob = &InPackageActivity.EventData.Package.PackageData;
+		PackageActivityEventPart.PackageDataStream.DataBlob = &InPackageActivity.EventData.Package.PackageData.Bytes;
 		SetPackageActivityFn(PackageActivityBasePart, PackageActivityEventPart);
 	}
 }

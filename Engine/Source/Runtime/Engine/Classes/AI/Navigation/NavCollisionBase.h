@@ -16,7 +16,7 @@ struct FNavCollisionConvex
 	TNavStatArray<int32> IndexBuffer;
 };
 
-UCLASS(config=Engine)
+UCLASS(abstract, config=Engine)
 class ENGINE_API UNavCollisionBase : public UObject
 {
 	GENERATED_BODY()

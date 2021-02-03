@@ -2,6 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionTestFields.h"
 
+#include "Chaos/Real.h"
 #include "Chaos/Utilities.h"
 #include "Field/FieldSystem.h"
 #include "Field/FieldSystemNodes.h"
@@ -40,7 +41,7 @@ namespace GeometryCollectionTest
 		}
 		TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), SamplesArray.Num());
 
-		float MinDoimain = -1.0, MaxDomain = 1.0;
+		Chaos::FReal MinDoimain = -1.0, MaxDomain = 1.0;
 		FTransform Transform(FQuat::MakeFromEuler(FVector(45,45,45)), FVector(100, 0, 0), FVector(2, 1, 1));
 		FNoiseField * NoiseField = new FNoiseField(MinDoimain, MaxDomain,Transform);
 
@@ -51,20 +52,20 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<float> ResultsArray;
+		TArray<Chaos::FReal> ResultsArray;
 		ResultsArray.Init(false, Bounds*Bounds);
-		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		NoiseField->Evaluate(Context, ResultsView);
 
-		float min = FLT_MAX, max = -FLT_MAX;
+		Chaos::FReal min = FLT_MAX, max = -FLT_MAX;
 		double avg = 0.0;
 		Chaos::Utilities::GetMinAvgMax(ResultsView, min, avg, max);
 		EXPECT_GE(min, MinDoimain);
 		EXPECT_LE(max, MaxDomain);
 		EXPECT_LT(min, max);
 
-		float variance = Chaos::Utilities::GetVariance(ResultsView, avg);
-		float stdDev = Chaos::Utilities::GetStandardDeviation(variance);
+		Chaos::FReal variance = Chaos::Utilities::GetVariance(ResultsView, avg);
+		Chaos::FReal stdDev = Chaos::Utilities::GetStandardDeviation(variance);
 		EXPECT_GT(variance, 0.0); // If variance is 0, then all values are the same.
 		EXPECT_GT(stdDev, 0.0);
 		EXPECT_LT(stdDev, 0.5);
@@ -144,14 +145,14 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<float> ResultsArray;
+		TArray<Chaos::FReal> ResultsArray;
 		ResultsArray.Init(false, 10);
-		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		RadialFalloff->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			float ExpectedVal = RadialFalloff->Magnitude * float(1.0 - Index / RadialFalloff->Radius);
+			Chaos::FReal ExpectedVal = RadialFalloff->Magnitude * Chaos::FReal(1.0 - Index / RadialFalloff->Radius);
 
 			if (Index < RadialFalloff->Radius)
 			{
@@ -197,16 +198,16 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<float> ResultsArray;
+		TArray<Chaos::FReal> ResultsArray;
 		ResultsArray.Init(false, 10);
-		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		PlaneFalloff->Evaluate(Context, ResultsView);
 
 		FPlane Plane(PlaneFalloff->Position, PlaneFalloff->Normal);
 		for (int32 Index = 0; Index < 10; Index++)
 		{
-			float ExpectedVal = 0.f;
-			float Distance = Plane.PlaneDot(SamplesArray[Index]);  
+			Chaos::FReal ExpectedVal = 0;
+			Chaos::FReal Distance = Plane.PlaneDot(SamplesArray[Index]);
 			if (Distance < -SMALL_NUMBER && Distance > -PlaneFalloff->Distance)
 			{
 				ExpectedVal = PlaneFalloff->Magnitude * ( 1.0 + Distance / PlaneFalloff->Distance);
@@ -309,7 +310,7 @@ namespace GeometryCollectionTest
 		ContextIndex::ContiguousIndices(IndicesArray, 10);
 		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
-		float AverageSampleLength = 0.0;
+		Chaos::FReal AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
@@ -351,13 +352,13 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
-			float ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
+			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
@@ -381,7 +382,7 @@ namespace GeometryCollectionTest
 		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
-		float AverageSampleLength = 0.0;
+		Chaos::FReal AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
@@ -423,13 +424,13 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
-			float ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta/ RadialFalloffSize);
+			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta/ RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
@@ -453,7 +454,7 @@ namespace GeometryCollectionTest
 		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
-		float AverageSampleLength = 0.0;
+		Chaos::FReal AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
@@ -496,13 +497,13 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
-			float ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
+			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
@@ -526,7 +527,7 @@ namespace GeometryCollectionTest
 		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
-		float AverageSampleLength = 0.0;
+		Chaos::FReal AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
@@ -569,15 +570,15 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
-			float ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
+			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
-				ScalarResult = 0.f;
+				ScalarResult = 0.0;
 
 			FVector ExpectedVal = ScalarResult * (LeftResult - RightResult);
 
@@ -599,7 +600,7 @@ namespace GeometryCollectionTest
 		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
-		float AverageSampleLength = 0.0;
+		Chaos::FReal AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
@@ -641,13 +642,13 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
-			float ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
+			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
 				ScalarResult = 0.f;
 
@@ -671,7 +672,7 @@ namespace GeometryCollectionTest
 		ContextIndex::ContiguousIndices(IndicesArray, 10);
 		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
-		float AverageSampleLength = 0.0;
+		Chaos::FReal AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
 		for (int32 Index = 0; Index < 10; Index++)
@@ -714,15 +715,15 @@ namespace GeometryCollectionTest
 		TArrayView<FVector> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumVector->Evaluate(Context, ResultsView);
 
-		float RadialFalloffSize = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffSize = RadialFalloff->Radius;
 		for (int32 Index = 0; Index < 10; Index++)
 		{
 			FVector RightResult = UniformVector->Magnitude * UniformVector->Direction;
 			FVector LeftResult = RadialVector->Magnitude  * (SamplesArray[Index] - RadialVector->Position).GetSafeNormal();
-			float RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
-			float ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
+			Chaos::FReal RadialFalloffDelta = (SamplesArray[Index] - RadialFalloff->Position).Size();
+			Chaos::FReal ScalarResult = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffSize);
 			if (RadialFalloffDelta >= RadialFalloffSize)
-				ScalarResult = 0.f;
+				ScalarResult = 0.0;
 
 			FVector ExpectedVal = ScalarResult * (RightResult);
 
@@ -758,13 +759,13 @@ namespace GeometryCollectionTest
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
 		RadialFalloff->Radius = 10;
 		RadialFalloff->Magnitude = 3.0;
-		float RadialFalloffRadius = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffRadius = RadialFalloff->Radius;
 
 		FRadialFalloff * RadialFalloff2 = new FRadialFalloff();
 		RadialFalloff2->Position = FVector(5.0, 0.0, 0.0);
 		RadialFalloff2->Radius = 10;
 		RadialFalloff2->Magnitude = 3.0;
-		float RadialFalloff2Radius = RadialFalloff2->Radius;
+		Chaos::FReal RadialFalloff2Radius = RadialFalloff2->Radius;
 
 		FSumScalar * SumScalar = new FSumScalar(1.f, RadialFalloff, RadialFalloff2,EFieldOperationType::Field_Multiply);
 
@@ -775,32 +776,32 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<float> ResultsArray;
+		TArray<Chaos::FReal> ResultsArray;
 		ResultsArray.Init(0.f, SamplesArray.Num());
-		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < NumPoints; Index++)
 		{
-			float ScalarRight = 0.f;
+			Chaos::FReal ScalarRight = 0.0;
 			{// FRadialFalloff::Evaluate
-				float  RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				Chaos::FReal  RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
 				if (RadialFalloffDelta < RadialFalloffRadius)
 				{
 					ScalarRight = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffRadius );
 				}
 			}
 
-			float ScalarLeft = 0.f;
+			Chaos::FReal ScalarLeft = 0.0;
 			{ //  FRadialFalloff2::Evaluate
-				float  RadialFalloff2Delta = (RadialFalloff2->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloff2Delta = (RadialFalloff2->Position - SamplesArray[Index]).Size();
 				if (RadialFalloff2Delta < RadialFalloff2Radius)
 				{
 					ScalarLeft = RadialFalloff2->Magnitude * (1.0 - RadialFalloff2Delta / RadialFalloff2Radius);
 				}
 			}
 
-			float ExpectedVal = ScalarLeft * ScalarRight;
+			Chaos::FReal ExpectedVal = ScalarLeft * ScalarRight;
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
 			//	ResultsView[Index] - ExpectedVal,
@@ -831,7 +832,7 @@ namespace GeometryCollectionTest
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
 		RadialFalloff->Radius = 10;
 		RadialFalloff->Magnitude = 3.0;
-		float RadialFalloffRadius = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffRadius = RadialFalloff->Radius;
 
 		FSumScalar * SumScalar = new FSumScalar(1.f, RadialFalloff, nullptr, EFieldOperationType::Field_Multiply);
 
@@ -842,24 +843,24 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<float> ResultsArray;
+		TArray<Chaos::FReal> ResultsArray;
 		ResultsArray.Init(0.f, SamplesArray.Num());
-		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < NumPoints; Index++)
 		{
-			float ScalarRight = 0.f;
+			Chaos::FReal ScalarRight = 0.0;
 			{// FRadialFalloff::Evaluate
-				float  RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
 				if (RadialFalloffDelta < RadialFalloffRadius)
 				{
 					ScalarRight = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffRadius);
 				}
 			}
 
-			float ScalarLeft = 1.f;
-			float ExpectedVal = ScalarLeft * ScalarRight;
+			Chaos::FReal ScalarLeft = 1.0;
+			Chaos::FReal ExpectedVal = ScalarLeft * ScalarRight;
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
 			//	ResultsView[Index] - ExpectedVal,
@@ -890,7 +891,7 @@ namespace GeometryCollectionTest
 		RadialFalloff->Position = FVector(5.0, 0.0, 0.0);
 		RadialFalloff->Radius = 10;
 		RadialFalloff->Magnitude = 3.0;
-		float RadialFalloffRadius = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffRadius = RadialFalloff->Radius;
 
 		FSumScalar * SumScalar = new FSumScalar(1.f, nullptr, RadialFalloff, EFieldOperationType::Field_Multiply);
 
@@ -901,25 +902,25 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<float> ResultsArray;
+		TArray<Chaos::FReal> ResultsArray;
 		ResultsArray.Init(0.f, SamplesArray.Num());
-		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		SumScalar->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < NumPoints; Index++)
 		{
-			float ScalarRight = 1.f;
+			Chaos::FReal ScalarRight = 1.0;
 
-			float ScalarLeft = 0.f;
+			Chaos::FReal ScalarLeft = 0.0;
 			{ //  FRadialFalloff2::Evaluate
-				float  RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
 				if (RadialFalloffDelta < RadialFalloffRadius)
 				{
 					ScalarLeft = RadialFalloff->Magnitude * (1.0 - RadialFalloffDelta / RadialFalloffRadius );
 				}
 			}
 
-			float ExpectedVal = ScalarLeft * ScalarRight;
+			Chaos::FReal ExpectedVal = ScalarLeft * ScalarRight;
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
 			//	ResultsView[Index] - ExpectedVal,
@@ -950,15 +951,15 @@ namespace GeometryCollectionTest
 		RadialFalloff->Position = FVector(0.0, 0.0, 0.0);
 		RadialFalloff->Radius = 4.;
 		RadialFalloff->Magnitude = 3.0;
-		float RadialFalloffRadius = RadialFalloff->Radius;
+		Chaos::FReal RadialFalloffRadius = RadialFalloff->Radius;
 
 		FRadialFalloff * RadialFalloff2 = new FRadialFalloff();
 		RadialFalloff2->Position = FVector(5.0, 0.0, 0.0);
 		RadialFalloff2->Radius = 10;
 		RadialFalloff2->Magnitude = 3.0;
-		float RadialFalloff2Radius = RadialFalloff2->Radius;
+		Chaos::FReal RadialFalloff2Radius = RadialFalloff2->Radius;
 
-		FCullingField<float> * CullingField = new FCullingField<float>(RadialFalloff, RadialFalloff2, EFieldCullingOperationType::Field_Culling_Outside);
+		FCullingField<Chaos::FReal> * CullingField = new FCullingField<Chaos::FReal>(RadialFalloff, RadialFalloff2, EFieldCullingOperationType::Field_Culling_Outside);
 
 		FFieldContext Context{
 			IndexView,
@@ -967,32 +968,32 @@ namespace GeometryCollectionTest
 			0.0
 		};
 
-		TArray<float> ResultsArray;
+		TArray<Chaos::FReal> ResultsArray;
 		ResultsArray.Init(0.f, SamplesArray.Num());
-		TArrayView<float> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
+		TArrayView<Chaos::FReal> ResultsView(&(ResultsArray.operator[](0)), ResultsArray.Num());
 		CullingField->Evaluate(Context, ResultsView);
 
 		for (int32 Index = 0; Index < NumPoints; Index++)
 		{
-			float ScalarRight = 1.f;
+			Chaos::FReal ScalarRight = 1.0;
 			{ 
-				float  RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloffDelta = (RadialFalloff->Position - SamplesArray[Index]).Size();
 				if (RadialFalloffDelta >= RadialFalloffRadius)
 				{
 					ScalarRight = 0.0;
 				}
 			}
 
-			float ScalarLeft = 0.f;
+			Chaos::FReal ScalarLeft = 0.0;
 			{ //  FCullingField::Evaluate
-				float  RadialFalloff2Delta = (RadialFalloff2->Position - SamplesArray[Index]).Size();
+				Chaos::FReal RadialFalloff2Delta = (RadialFalloff2->Position - SamplesArray[Index]).Size();
 				if (RadialFalloff2Delta < RadialFalloff2Radius)
 				{
 					ScalarLeft = RadialFalloff2->Magnitude * (1.0 - RadialFalloff2Delta / RadialFalloff2Radius);
 				}
 			}
 
-			float ExpectedVal = ScalarLeft * ScalarRight;
+			Chaos::FReal ExpectedVal = ScalarLeft * ScalarRight;
 
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d:%3.5f] sample:(%3.5f,%3.5f,%3.5f) %3.5f -> %3.5f"), Index,
 			//	ResultsView[Index] - ExpectedVal,
@@ -1140,13 +1141,13 @@ namespace GeometryCollectionTest
 		// conversion fields
 		{
 			FUniformScalar* UniformScalar = new FUniformScalar(41.f);
-			FFieldSystemCommand CommandOut("FConversionField", new FConversionField<float,int32>(UniformScalar));
+			FFieldSystemCommand CommandOut("FConversionField", new FConversionField<Chaos::FReal,int32>(UniformScalar));
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
 		{
 			FUniformInteger* UniformInteger = new FUniformInteger(3);
-			FFieldSystemCommand CommandOut("FConversionField", new FConversionField<int32, float>(UniformInteger));
+			FFieldSystemCommand CommandOut("FConversionField", new FConversionField<int32, Chaos::FReal>(UniformInteger));
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
@@ -1162,7 +1163,7 @@ namespace GeometryCollectionTest
 		{
 			FUniformScalar* UniformScalar = new FUniformScalar(3.f);
 			FRadialFalloff* RadialScalar = new FRadialFalloff(1.f, 3.f, 5.f, 7.f, 11.f, FVector(13, 17, 19));
-			FFieldSystemCommand CommandOut("FCullingField", new FCullingField<float>(RadialScalar, UniformScalar));
+			FFieldSystemCommand CommandOut("FCullingField", new FCullingField<Chaos::FReal>(RadialScalar, UniformScalar));
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
@@ -1181,7 +1182,7 @@ namespace GeometryCollectionTest
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
 		{
-			FFieldSystemCommand CommandOut("FReturnResultsTerminal", new FReturnResultsTerminal<float>());
+			FFieldSystemCommand CommandOut("FReturnResultsTerminal", new FReturnResultsTerminal<Chaos::FReal>());
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			EXPECT_TRUE(TestFFieldSystemEquality(CommandIn, CommandOut));
 		}
@@ -1195,16 +1196,16 @@ namespace GeometryCollectionTest
 		// depth test with lots of nodes.
 		{
 			FUniformScalar* UniformScalar = new FUniformScalar(3);
-			FConversionField<float, int32>* ConversionFieldFI = new FConversionField<float, int32>(UniformScalar);
+			FConversionField<Chaos::FReal, int32>* ConversionFieldFI = new FConversionField<Chaos::FReal, int32>(UniformScalar);
 
 			FBoxFalloff* BoxFalloff = new FBoxFalloff(1.f, 7.f, 9.f, 13.f, FTransform::Identity);
 			FCullingField<int32>* CullingFieldI = new FCullingField<int32>(BoxFalloff, ConversionFieldFI);
 
 			FUniformInteger* UniformInteger = new FUniformInteger(3);
-			FConversionField<int32, float>*  ConversionFieldIF = new FConversionField<int32, float>(UniformInteger);
+			FConversionField<int32, Chaos::FReal>*  ConversionFieldIF = new FConversionField<int32, Chaos::FReal>(UniformInteger);
 
 			FPlaneFalloff* PlaneFalloff = new FPlaneFalloff(1.f, 3.f, 5.f, 7.f, 100.f, FVector(9, 11, 13), FVector(17, 19, 23));
-			FCullingField<float>* CullingFieldF = new FCullingField<float>(PlaneFalloff, ConversionFieldIF);
+			FCullingField<Chaos::FReal>* CullingFieldF = new FCullingField<Chaos::FReal>(PlaneFalloff, ConversionFieldIF);
 
 
 			FNoiseField* NoiseField2 = new FNoiseField(1.f, 3.f);
@@ -1218,8 +1219,8 @@ namespace GeometryCollectionTest
 			FSumVector* SumVector = new FSumVector(1.f, SumScalar, CullingFieldV, UniformVector, EFieldOperationType::Field_Divide);
 
 			FReturnResultsTerminal<int32>*  ReturnResultsTerminalI = new FReturnResultsTerminal<int32>();
-			FConversionField<int32, float>*  ConversionFieldIF2 = new FConversionField<int32, float>(ReturnResultsTerminalI);
-			FReturnResultsTerminal<float>* ReturnResultsTerminalF = new FReturnResultsTerminal<float>();
+			FConversionField<int32, Chaos::FReal>*  ConversionFieldIF2 = new FConversionField<int32, Chaos::FReal>(ReturnResultsTerminalI);
+			FReturnResultsTerminal<Chaos::FReal>* ReturnResultsTerminalF = new FReturnResultsTerminal<Chaos::FReal>();
 			FSumScalar* SumScalar2 = new FSumScalar(1.f, ReturnResultsTerminalF, ConversionFieldIF2, EFieldOperationType::Field_Substract);
 
 
@@ -1227,7 +1228,7 @@ namespace GeometryCollectionTest
 			FSumVector* SumVector2 = new FSumVector(1.f, SumScalar2, ReturnResultsTerminalV, SumVector, EFieldOperationType::Field_Divide);
 
 			FReturnResultsTerminal<FVector>* ReturnResultsTerminalV2 = new FReturnResultsTerminal<FVector>();
-			FConversionField<int32, float>*  ConversionFieldIF3 = new FConversionField<int32, float>(CullingFieldI);
+			FConversionField<int32, Chaos::FReal>*  ConversionFieldIF3 = new FConversionField<int32, Chaos::FReal>(CullingFieldI);
 			FSumVector* SumVector3 = new FSumVector(1.f, ConversionFieldIF3, SumVector2, ReturnResultsTerminalV2, EFieldOperationType::Field_Divide);
 
 			FFieldSystemCommand CommandOut("DeepTreeOfEverything", SumVector3);
@@ -1236,5 +1237,4 @@ namespace GeometryCollectionTest
 		}
 
 	}
-	//template void Fields_SerializeAPI<float>();
 }

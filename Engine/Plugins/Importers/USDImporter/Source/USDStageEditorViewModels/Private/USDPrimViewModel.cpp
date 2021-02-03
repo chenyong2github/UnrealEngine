@@ -125,10 +125,12 @@ void FUsdPrimViewModel::RefreshData( bool bRefreshChildren )
 		return;
 	}
 
-	RowData->Name = FText::FromName( UsdPrim.GetName() );
+	const bool bIsPseudoRoot = UsdPrim.GetStage().GetPseudoRoot() == UsdPrim;
+
+	RowData->Name = FText::FromName( bIsPseudoRoot ? TEXT("Stage") : UsdPrim.GetName() );
 	RowData->bHasCompositionArcs = UsdUtils::HasCompositionArcs( UsdPrim );
 
-	RowData->Type = FText::FromName( UsdPrim.GetTypeName() );
+	RowData->Type = bIsPseudoRoot ? FText::GetEmpty() : FText::FromName( UsdPrim.GetTypeName() );
 	RowData->bHasPayload = UsdPrim.HasPayload();
 	RowData->bIsLoaded = UsdPrim.IsLoaded();
 
@@ -164,6 +166,11 @@ void FUsdPrimViewModel::RefreshData( bool bRefreshChildren )
 bool FUsdPrimViewModel::CanExecutePrimAction() const
 {
 #if USE_USD_SDK
+	if ( UsdPrim.IsPseudoRoot() )
+	{
+		return false;
+	}
+
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::SdfPrimSpecHandle PrimSpec = pxr::UsdStageRefPtr( UsdStage )->GetEditTarget().GetLayer()->GetPrimAtPath( pxr::UsdPrim( UsdPrim ).GetPrimPath() );
@@ -249,45 +256,7 @@ void FUsdPrimViewModel::DefinePrim( const TCHAR* PrimName )
 
 void FUsdPrimViewModel::AddReference( const TCHAR* AbsoluteFilePath )
 {
-#if USE_USD_SDK
-	FScopedUsdAllocs UsdAllocs;
-
-	const std::string UsdAbsoluteFilePath = UnrealToUsd::ConvertString( AbsoluteFilePath ).Get();
-	pxr::UsdReferences References = pxr::UsdPrim( UsdPrim ).GetReferences();
-
-	pxr::SdfLayerRefPtr ReferenceLayer = pxr::SdfLayer::FindOrOpen( UsdAbsoluteFilePath );
-
-	// Group updates or else the SetTypeName and AddReference calls below will both trigger separate resyncs of the same prim path
-	pxr::SdfChangeBlock ChangeBlock;
-
-	if ( ReferenceLayer )
-	{
-		pxr::SdfPrimSpecHandle DefaultPrimSpec = ReferenceLayer->GetPrimAtPath( pxr::SdfPath( ReferenceLayer->GetDefaultPrim() ) );
-		if ( DefaultPrimSpec )
-		{
-			// Set the same prim type as its reference so that they are compatible
-			pxr::TfType DefaultPrimType = pxr::UsdSchemaRegistry::GetTypeFromName( DefaultPrimSpec->GetTypeName() );
-			if ( DefaultPrimType.IsUnknown() )
-			{
-				pxr::UsdPrim( UsdPrim ).ClearTypeName();
-			}
-			else if ( !pxr::UsdPrim( UsdPrim ).IsA( DefaultPrimType ) )
-			{
-				pxr::UsdPrim( UsdPrim ).SetTypeName( DefaultPrimSpec->GetTypeName() );
-			}
-		}
-	}
-
-	FString RelativePath = AbsoluteFilePath;
-
-	pxr::SdfLayerHandle EditLayer = pxr::UsdStageRefPtr( UsdStage )->GetEditTarget().GetLayer();
-
-	std::string RepositoryPath = EditLayer->GetRepositoryPath().empty() ? EditLayer->GetRealPath() : EditLayer->GetRepositoryPath();
-	FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
-	FPaths::MakePathRelativeTo( RelativePath, *LayerAbsolutePath );
-
-	References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
-#endif // #if USE_USD_SDK
+	UsdUtils::AddReference( UsdPrim, AbsoluteFilePath );
 }
 
 void FUsdPrimViewModel::ClearReferences()

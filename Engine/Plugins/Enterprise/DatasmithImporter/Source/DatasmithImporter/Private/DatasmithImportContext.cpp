@@ -155,7 +155,6 @@ void FDatasmithImportOptionHelper::CleanUpOptions(const TArray<UObject*>& Import
 FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel, TSharedPtr<IDatasmithTranslator> InSceneTranslator)
 	: SceneTranslator(InSceneTranslator)
 	, Options(NewObject<UDatasmithImportOptions>(GetTransientPackage(), TEXT("Datasmith Import Settings")))
-	, RootBlueprint(nullptr)
 	, SceneAsset(nullptr)
 	, bUserCancelled(false)
 	, bIsAReimport(false)
@@ -448,7 +447,6 @@ void FDatasmithImportContext::FInternalReferenceCollector::AddReferencedObjects(
 	Collector.AddReferencedObject(ImportContext->ActorsContext.ImportWorld);
 	Collector.AddReferencedObject(ImportContext->ActorsContext.FinalWorld);
 
-	Collector.AddReferencedObject(ImportContext->RootBlueprint);
 	Collector.AddReferencedObject(ImportContext->SceneAsset);
 
 	for ( TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >::TIterator It = ImportContext->ImportedStaticMeshes.CreateIterator(); It; ++It )

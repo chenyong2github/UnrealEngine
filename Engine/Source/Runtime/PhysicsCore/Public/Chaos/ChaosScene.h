@@ -108,6 +108,9 @@ public:
 
 	void AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles,const bool bImmediate=true);
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
+#if WITH_CHAOS
+	void RemoveActorFromAccelerationStructureImp(Chaos::TGeometryParticle<float, 3>* Particle);
+#endif
 	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
 
@@ -174,7 +177,7 @@ protected:
 
 private:
 
-	void SetGravity(const Chaos::TVector<float, 3>& Acceleration);
+	void SetGravity(const Chaos::FVec3& Acceleration);
 
 	template <typename TSolver>
 	void SyncBodies(TSolver* Solver);

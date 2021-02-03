@@ -24,6 +24,8 @@
 #include "Templates/ChooseClass.h"
 #include "Templates/Sorting.h"
 #include "Templates/AlignmentTemplates.h"
+#include "Templates/IsConstructible.h"
+
 #include <type_traits>
 
 
@@ -271,6 +273,21 @@ namespace UE4Array_Private
 				)
 		};
 	};
+
+	// Assume elements are compatible with themselves - avoids problems with generated copy
+	// constuctors of arrays of forwarded types, e.g.:
+	//
+	// struct FThing;
+	//
+	// struct FOuter
+	// {
+	//     TArray<FThing> Arr; // this will cause errors without this workaround
+	// };
+	//
+	// This should be changed to use std::disjunction and std::is_constructible, and the usage
+	// changed to use ::value instead of ::Value, when std::disjunction (C++17) is available everywhere.
+	template <typename DestType, typename SourceType>
+	using TArrayElementsAreCompatible = TOrValue<std::is_same<DestType, std::decay_t<DestType>>::value, TIsConstructible<DestType, SourceType>>;
 }
 
 
@@ -348,7 +365,11 @@ public:
 	 *
 	 * @param Other The source array to copy.
 	 */
-	template <typename OtherElementType, typename OtherAllocator>
+	template <
+		typename OtherElementType,
+		typename OtherAllocator,
+		std::enable_if_t<UE4Array_Private::TArrayElementsAreCompatible<ElementType, const OtherElementType&>::Value>* = nullptr
+	>
 	FORCEINLINE explicit TArray(const TArray<OtherElementType, OtherAllocator>& Other)
 	{
 		CopyToEmpty(Other.GetData(), Other.Num(), 0, 0);
@@ -553,7 +574,11 @@ public:
 	 *
 	 * @param Other Array to move from.
 	 */
-	template <typename OtherElementType, typename OtherAllocator>
+	template <
+		typename OtherElementType,
+		typename OtherAllocator,
+		std::enable_if_t<UE4Array_Private::TArrayElementsAreCompatible<ElementType, OtherElementType&&>::Value>* = nullptr
+	>
 	FORCEINLINE explicit TArray(TArray<OtherElementType, OtherAllocator>&& Other)
 	{
 		MoveOrCopy(*this, Other, 0);
@@ -566,7 +591,10 @@ public:
 	 * @param ExtraSlack Tells how much extra memory should be preallocated
 	 *                   at the end of the array in the number of elements.
 	 */
-	template <typename OtherElementType>
+	template <
+		typename OtherElementType,
+		std::enable_if_t<UE4Array_Private::TArrayElementsAreCompatible<ElementType, OtherElementType&&>::Value>* = nullptr
+	>
 	TArray(TArray<OtherElementType, AllocatorType>&& Other, SizeType ExtraSlack)
 	{
 		// We don't implement move semantics for general OtherAllocators, as there's no way

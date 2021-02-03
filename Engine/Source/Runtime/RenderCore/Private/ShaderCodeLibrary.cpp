@@ -127,7 +127,7 @@ namespace UE
 
 				friend uint32 GetTypeHash(const FMountedPakFileInfo& InData)
 				{
-					return HashCombine(HashCombine(GetTypeHash(InData.PakFilename), GetTypeHash(InData.MountPoint)), InData.ChunkId);
+					return HashCombine(HashCombine(GetTypeHash(InData.PakFilename), GetTypeHash(InData.MountPoint)), ::GetTypeHash(InData.ChunkId));
 				}
 
 				friend bool operator==(const FMountedPakFileInfo& A, const FMountedPakFileInfo& B)
@@ -137,6 +137,9 @@ namespace UE
 
 				/** Holds a set of all known paks that can be added very early. Each library on Open will traverse that list. */
 				static TSet<FMountedPakFileInfo> KnownPakFiles;
+
+				/** Guards access to the list of known pak files*/
+				static FCriticalSection KnownPakFilesAccessLock;
 			};
 
 			// At runtime, a descriptor of a named library
@@ -204,6 +207,7 @@ namespace UE
 }
 
 TSet<UE::ShaderLibrary::Private::FMountedPakFileInfo> UE::ShaderLibrary::Private::FMountedPakFileInfo::KnownPakFiles;
+FCriticalSection UE::ShaderLibrary::Private::FMountedPakFileInfo::KnownPakFilesAccessLock;
 
 class FShaderMapResource_SharedCode final : public FShaderMapResource
 {
@@ -1846,9 +1850,13 @@ public:
 			else // attempt to open a chunked library
 			{
 				int32 PrevNumComponents = Library->GetNumComponents();
-				for (TSet<FMountedPakFileInfo>::TConstIterator Iter(FMountedPakFileInfo::KnownPakFiles); Iter; ++Iter)
+
 				{
-					Library->OnPakFileMounted(*Iter);
+					FScopeLock KnownPakFilesLocker(&FMountedPakFileInfo::KnownPakFilesAccessLock);
+					for (TSet<FMountedPakFileInfo>::TConstIterator Iter(FMountedPakFileInfo::KnownPakFiles); Iter; ++Iter)
+					{
+						Library->OnPakFileMounted(*Iter);
+					}
 				}
 
 				bResult = (Library->GetNumComponents() > PrevNumComponents);
@@ -2401,6 +2409,7 @@ public:
 
 			if (CodeArchive && CodeArchive->GetFormat()->SupportsShaderArchives())
 			{
+				bOK &= CodeArchive->PackageNativeShaderLibrary(ShaderCodeDir);
 			}
 		}
 		return bOK;
@@ -2453,7 +2462,10 @@ static void FShaderLibraryPakFileMountedCallback(const IPakFile& PakFile)
 	UE_LOG(LogShaderLibrary, Display, TEXT("ShaderCodeLibraryPakFileMountedCallback: PakFile '%s' (chunk index %d, root '%s') mounted"), *PakFile.PakGetPakFilename(), PakFile.PakGetPakchunkIndex(), *PakFile.PakGetMountPoint());
 
 	FMountedPakFileInfo PakFileInfo(PakFile);
-	FMountedPakFileInfo::KnownPakFiles.Add(PakFileInfo);
+	{
+		FScopeLock PakFilesLocker(&FMountedPakFileInfo::KnownPakFilesAccessLock);
+		FMountedPakFileInfo::KnownPakFiles.Add(PakFileInfo);
+	}
 
 	// if shaderlibrary has not yet been initialized, add the chunk as pending
 	if (FShaderLibrariesCollection::Impl)
@@ -2543,6 +2555,7 @@ void FShaderCodeLibrary::Shutdown()
 		FShaderLibrariesCollection::Impl = nullptr;
 	}
 
+	FScopeLock PakFilesLocker(&UE::ShaderLibrary::Private::FMountedPakFileInfo::KnownPakFilesAccessLock);
 	UE::ShaderLibrary::Private::FMountedPakFileInfo::KnownPakFiles.Empty();
 }
 

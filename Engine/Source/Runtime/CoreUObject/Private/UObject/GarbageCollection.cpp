@@ -2887,6 +2887,16 @@ void FGCReferenceTokenStream::Fixup(void (*AddReferencedObjectsPtr)(UObject*, cl
 				Tokens[TokenIndex] = Token;
 			}
 			break;
+		case GCRT_Optional:
+			{
+				// Move to Skip Info
+				TokenIndex++;
+				const FGCSkipInfo SkipInfo = ReadSkipInfo(TokenIndex);
+				// Set the TokenIndex to the skip index - 1 because we're going to
+				// increment in the for loop anyway.
+				TokenIndex = SkipInfo.SkipIndex - 1;
+			}
+			break;
 		case GCRT_None:
 		case GCRT_Object:
 		case GCRT_ExternalPackage:

@@ -73,6 +73,17 @@ public:
 		const FDatasmithFacadeElement* Element
 	);
 
+	/** Remove the property from this meta data */
+	void RemoveProperty(
+		const FDatasmithFacadeKeyValueProperty* Property
+	);
+
+	/** Remove all properties in this meta data */
+	void ResetProperties()
+	{
+		GetDatasmithMetaDataElement()->ResetProperties();
+	}
+
 #ifdef SWIG_FACADE
 protected:
 #endif
@@ -80,11 +91,6 @@ protected:
 	FDatasmithFacadeMetaData(
 		const TSharedRef<IDatasmithMetaDataElement>& InMetaDataElement
 	);
-
-	// Build a Datasmith material element and add it to the Datasmith scene.
-	virtual void BuildScene(
-		FDatasmithFacadeScene& SceneRef
-	) override;
 
 	TSharedRef<IDatasmithMetaDataElement> GetDatasmithMetaDataElement() const;
 };

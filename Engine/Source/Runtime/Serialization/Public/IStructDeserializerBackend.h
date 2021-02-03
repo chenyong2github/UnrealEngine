@@ -88,6 +88,16 @@ public:
 	 */
 	virtual bool ReadProperty( FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex ) = 0;
 
+	/**
+	 * Reads the specified POD Array property from the stream.
+	 * @note implementations will support only a Int8 or Byte array at the moment
+	 * 
+	 * @param ArrayProperty The array property to read into.
+	 * @param Data The location of array to read the data into.
+	 * @return true on success, false if need to fall back to per element array serialization.
+	 */
+	virtual bool ReadPODArray(FArrayProperty* ArrayProperty, void* Data) { return false;  };
+
 	/** Skips the array that is currently being read from the stream. */
 	virtual void SkipArray() = 0;
 

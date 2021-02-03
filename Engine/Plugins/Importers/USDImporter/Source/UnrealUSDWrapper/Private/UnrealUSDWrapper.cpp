@@ -8,6 +8,7 @@
 
 #include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdStage.h"
+#include "UsdWrappers/SdfLayer.h"
 
 #include "Internationalization/Regex.h"
 #include "Misc/Paths.h"
@@ -36,6 +37,7 @@
 #include "pxr/usd/usd/debugCodes.h"
 #include "pxr/usd/usd/modelAPI.h"
 #include "pxr/usd/usd/references.h"
+#include "pxr/usd/usd/schemaBase.h"
 #include "pxr/usd/usd/relationship.h"
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usd/stageCacheContext.h"
@@ -112,138 +114,6 @@ namespace UnrealIdentifiers
 	const TfToken UsdPrimvarReader_float2 = TfToken( "UsdPrimvarReader_float2" );
 	const TfToken UsdUVTexture = TfToken( "UsdUVTexture" );
 }
-
-void Log(const char* Format, ...)
-{
-	const int32 TempStrSize = 4096;
-	ANSICHAR TempStr[TempStrSize];
-
-	GET_VARARGS_ANSI(TempStr, TempStrSize, TempStrSize - 1, Format, Format);
-
-	UE_LOG(LogUsd, Log, TEXT("%hs"), TempStr);
-}
-
-
-class USDHelpers
-{
-
-public:
-	static void LogPrimTree(const UsdPrim& Root)
-	{
-		LogPrimTreeHelper("", Root);
-	}
-
-private:
-	static void LogPrimTreeHelper(const string& Concat, const UsdPrim& Prim)
-	{
-		string TypeName = Prim.GetTypeName().GetString();
-		bool bIsModel = Prim.IsModel();
-		bool bIsAbstract = Prim.IsAbstract();
-		bool bIsGroup = Prim.IsGroup();
-		bool bIsInstance = Prim.IsInstance();
-		bool bIsActive = Prim.IsActive();
-		bool bInMaster = Prim.IsInMaster();
-		bool bIsMaster = Prim.IsMaster();
-		Log(string(Concat + "Prim: [%s] %s Model:%d Abstract:%d Group:%d Instance:%d(Master:%s) Active:%d InMaster:%d IsMaster:%d\n").c_str(),
-			TypeName.c_str(), Prim.GetName().GetText(), bIsModel, bIsAbstract, bIsGroup, bIsInstance, bIsInstance ? Prim.GetMaster().GetName().GetString().c_str() : "", bIsActive, bInMaster, bIsMaster);
-		{
-			UsdMetadataValueMap Metadata = Prim.GetAllMetadata();
-			if(Metadata.size())
-			{
-				Log(string(Concat+"\tMetaData:\n").c_str());
-				for(auto KeyValue : Metadata)
-				{
-					Log(string(Concat+"\t\t[%s] %s\n").c_str(), KeyValue.second.GetTypeName().c_str(), KeyValue.first.GetText());
-				}
-			}
-
-			vector<UsdRelationship> Relationships = Prim.GetRelationships();
-			if (Relationships.size())
-			{
-				Log(string(Concat + "\tRelationships:\n").c_str());
-				for (const UsdRelationship& Relationship : Relationships)
-				{
-					SdfPathVector Targets;
-					Relationship.GetTargets(&Targets);
-
-					for(SdfPath& Path : Targets)
-					{
-						Log(string(Concat + "\t\t%s\n").c_str(), Path.GetString().c_str());
-					}
-				}
-			}
-
-
-			vector<UsdAttribute> Attributes = Prim.GetAttributes();
-			if(Attributes.size())
-			{
-				Log(string(Concat+"\tAttributes:\n").c_str());
-				for(const UsdAttribute& Attribute : Attributes)
-				{
-					if (Attribute.IsAuthored())
-					{
-						Log(string(Concat + "\t\t[%s] %s %s\n").c_str(), Attribute.GetTypeName().GetAsToken().GetText(), Attribute.GetBaseName().GetText(), Attribute.GetDisplayName().c_str());
-					}
-				}
-			}
-
-			if (Prim.HasVariantSets())
-			{
-				Log(string(Concat + "\tVariant Sets:\n").c_str());
-				UsdVariantSets VariantSets = Prim.GetVariantSets();
-				vector<string> SetNames = VariantSets.GetNames();
-				for (const string& SetName : SetNames)
-				{
-					Log(string(Concat + "\t\t%s:\n").c_str(), SetName.c_str());
-
-					UsdVariantSet Set = Prim.GetVariantSet(SetName);
-
-					vector<string> VariantNames = Set.GetVariantNames();
-					for (const string& VariantName : VariantNames)
-					{
-						char ActiveChar = ' ';
-						if (Set.GetVariantSelection() == VariantName)
-						{
-							ActiveChar = '*';
-						}
-						Log(string(Concat + "\t\t\t%s%c\n").c_str(), VariantName.c_str(), ActiveChar);
-					}
-				}
-			}
-		}
-
-
-		for(const UsdPrim& Child : Prim.GetChildren())
-		{
-			LogPrimTreeHelper(Concat+"\t", Child);
-		}
-
-		//Log("\n");
-	}
-};
-
-class FAttribInternalData
-{
-public:
-	FAttribInternalData(UsdAttribute& InAttribute)
-		: Attribute(InAttribute)
-	{
-		VtValue CustomData = Attribute.GetCustomDataByKey(UnrealIdentifiers::PropertyPath);
-
-		AttributeName = Attribute.GetBaseName().GetString();
-		TypeName = Attribute.GetTypeName().GetAsToken().GetString();
-
-		if (CustomData.IsHolding<std::string>())
-		{
-			UnrealPropertyPath = CustomData.Get<std::string>();
-		}
-	}
-
-	std::string UnrealPropertyPath;
-	std::string AttributeName;
-	std::string TypeName;
-	UsdAttribute Attribute;
-};
 
 std::string FUsdAttribute::GetUnrealPropertyPath( const pxr::UsdAttribute& Attribute )
 {
@@ -986,6 +856,16 @@ FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPostUsdImport;
 
 DEFINE_LOG_CATEGORY( LogUsd );
 
+namespace UsdWrapperUtils
+{
+	void CheckIfForceDisabled()
+	{
+#if USD_FORCE_DISABLED
+		UE_LOG( LogUsd, Error, TEXT( "The USD SDK is disabled because the executable is not forcing the ansi C allocator (you need to set 'FORCE_ANSI_ALLOCATOR=1' as a global definition on your project *.Target.cs file). Read the comments at the end of UnrealUSDWrapper.Build.cs for more details." ) );
+#endif // USD_FORCE_DISABLED
+	}
+}
+
 #if USE_USD_SDK
 class FUsdDiagnosticDelegate : public pxr::TfDiagnosticMgr::Delegate
 {
@@ -1079,7 +959,7 @@ TArray<FString> UnrealUSDWrapper::GetAllSupportedFileFormats()
 	return Result;
 }
 
-UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
+UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* Identifier, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
 {
 #if USE_USD_SDK
 	FScopedUsdAllocs UsdAllocs;
@@ -1087,16 +967,28 @@ UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoa
 	pxr::SdfLayerHandleSet LoadedLayers = pxr::SdfLayer::GetLoadedLayers();
 	pxr::UsdStageRefPtr Stage;
 
+	TOptional<pxr::UsdStageCacheContext> StageCacheContext;
 	if ( bUseStageCache )
 	{
-		pxr::UsdStageCacheContext UsdStageCacheContext( pxr::UsdUtilsStageCache::Get() );
-
-		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
+		StageCacheContext.Emplace( pxr::UsdUtilsStageCache::Get() );
 	}
-	else
-	{
-		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
 
+	FString IdentifierStr = FString(Identifier);
+	if ( FPaths::FileExists( IdentifierStr ) )
+	{
+		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( Identifier ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
+	}
+	else if ( IdentifierStr.RemoveFromStart( USD_IDENTIFIER_TOKEN ) )
+	{
+		pxr::SdfLayerRefPtr RootLayer = pxr::SdfLayer::Find( TCHAR_TO_ANSI( *IdentifierStr ) );
+		if ( RootLayer )
+		{
+			Stage = pxr::UsdStage::Open( RootLayer, pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
+		}
+	}
+
+	if ( !bUseStageCache && Stage )
+	{
 		// Layers are cached in the layer registry independently of the stage cache. If the layer is already in the registry by the time
 		// we try to open a stage, even if we're not using a stage cache at all the layer will be reused and the file will *not* be re-read.
 		// Here we keep track of these loaded layers and manually reload the ones that were reused, because if we're passing false for
@@ -1113,6 +1005,7 @@ UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoa
 
 	return UE::FUsdStage( Stage );
 #else
+	UsdWrapperUtils::CheckIfForceDisabled();
 	return UE::FUsdStage();
 #endif // #if USE_USD_SDK
 }
@@ -1123,16 +1016,32 @@ UE::FUsdStage UnrealUSDWrapper::NewStage( const TCHAR* FilePath )
 	FScopedUsdAllocs UsdAllocs;
 
 	UE::FUsdStage UsdStage( pxr::UsdStage::CreateNew( TCHAR_TO_ANSI( FilePath ) ) );
-
-	if ( !UsdStage )
+	if ( UsdStage )
 	{
-		return UsdStage;
+		pxr::UsdGeomSetStageUpAxis( UsdStage, pxr::UsdGeomTokens->z );
 	}
-
-	pxr::UsdGeomSetStageUpAxis( UsdStage, pxr::UsdGeomTokens->z );
 
 	return UsdStage;
 #else
+	UsdWrapperUtils::CheckIfForceDisabled();
+	return UE::FUsdStage();
+#endif // #if USE_USD_SDK
+}
+
+UE::FUsdStage UnrealUSDWrapper::NewStage()
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	UE::FUsdStage UsdStage( pxr::UsdStage::CreateInMemory() );
+	if ( UsdStage )
+	{
+		pxr::UsdGeomSetStageUpAxis( UsdStage, pxr::UsdGeomTokens->z );
+	}
+
+	return UsdStage;
+#else
+	UsdWrapperUtils::CheckIfForceDisabled();
 	return UE::FUsdStage();
 #endif // #if USE_USD_SDK
 }
@@ -1198,14 +1107,25 @@ public:
 	virtual void StartupModule() override
 	{
 #if USE_USD_SDK
+
 		// Path to USD base plugins
-		FString BasePluginPath = FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir() + FString(TEXT("Importers/USDImporter")));
+#if WITH_EDITOR
+		FString BasePluginPath = FPaths::ConvertRelativePathToFull( FPaths::EnginePluginsDir() + FString( TEXT( "Importers/USDImporter/Resources" ) ) );
+#else
+		// The multiple nested folders make sure that the USD plugin plugInfo.json files can reference their library dlls in the engine folder or in the packaged game folder with the same relative path
+		FString BasePluginPath = FPaths::ConvertRelativePathToFull(
+			FPaths::Combine(
+				FPaths::ProjectDir(), TEXT( "Resources" ), TEXT( "RequiredNestedFolder" ), TEXT( "RequiredNestedFolder" ), TEXT( "RequiredNestedFolder" )
+			)
+		);
+#endif // WITH_EDITOR
+
 #if PLATFORM_WINDOWS
-		BasePluginPath /= TEXT("Resources/UsdResources/Windows/plugins");
+		BasePluginPath /= TEXT("UsdResources/Win64/plugins");
 #elif PLATFORM_LINUX
-		BasePluginPath /= ("Resources/UsdResources/Linux/plugins");
+		BasePluginPath /= ("UsdResources/Linux/plugins");
 #elif PLATFORM_MAC
-		BasePluginPath /= ("Resources/UsdResources/Mac/plugins");
+		BasePluginPath /= ("UsdResources/Mac/plugins");
 #endif
 
 		{
@@ -1225,6 +1145,9 @@ public:
 
 			PlugRegistry::GetInstance().RegisterPlugins(UsdPluginDirectories);
 		}
+
+#else
+		UsdWrapperUtils::CheckIfForceDisabled();
 #endif // USE_USD_SDK
 
 		FUsdMemoryManager::Initialize();

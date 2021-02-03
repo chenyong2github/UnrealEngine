@@ -73,6 +73,13 @@ void FLidarPointCloudImportResults::AddPoint(const float& X, const float& Y, con
 	IncrementProgressCounter(1);
 }
 
+void FLidarPointCloudImportResults::AddPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A, const float& NX, const float& NY, const float& NZ)
+{
+	Points.Emplace(X, Y, Z, R, G, B, A, NX, NY, NZ);
+	Bounds += Points.Last().Location;
+	IncrementProgressCounter(1);
+}
+
 void FLidarPointCloudImportResults::AddPointsBulk(TArray64<FLidarPointCloudPoint>& InPoints)
 {
 	Points.Append(InPoints);

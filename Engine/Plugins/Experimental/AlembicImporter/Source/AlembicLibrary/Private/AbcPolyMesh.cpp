@@ -170,9 +170,9 @@ void FAbcPolyMesh::SetFrameAndTime(const float InTime, const int32 FrameIndex, c
 		if (!bConstant)
 		{
 			const bool bRecomputeNormals = File->GetImportSettings()->NormalGenerationSettings.bRecomputeNormals;
-			const bool bVertexDataOnly = EnumHasAnyFlags(InFlags, EFrameReadFlags::PositionOnly);
-			WriteSample->Copy(FirstSample, bVertexDataOnly ? ESampleReadFlags::Positions : SampleReadFlags);
-			const bool bValidSample = AbcImporterUtilities::GenerateAbcMeshSampleDataForFrame(Schema, SampleSelector, WriteSample, bVertexDataOnly ? ESampleReadFlags::Positions : SampleReadFlags, InTime == MinTime);
+			const ESampleReadFlags SampleReadFlagsOverride = EnumHasAnyFlags(InFlags, EFrameReadFlags::PositionAndNormalOnly) ? ESampleReadFlags::Positions |  ESampleReadFlags::Normals : SampleReadFlags;
+			WriteSample->Copy(FirstSample, SampleReadFlagsOverride);
+			const bool bValidSample = AbcImporterUtilities::GenerateAbcMeshSampleDataForFrame(Schema, SampleSelector, WriteSample, SampleReadFlagsOverride, InTime == MinTime);
 			// Check whether or not the number of normal indices matches with the first frame
 			const bool bMatchingIndices = FirstSample != nullptr && FirstSample->Indices.Num() == WriteSample->Indices.Num();
 			// Make sure in case of recomputing normals we enforece using the first sample data (otherwise we'll be using loaded or incorrectly calculated normals)

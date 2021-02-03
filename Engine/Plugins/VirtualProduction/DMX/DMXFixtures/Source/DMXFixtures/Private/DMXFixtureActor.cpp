@@ -197,13 +197,13 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 {
 	SCOPE_CYCLE_COUNTER(STAT_FixtureActorPushNormalizedValuesPerAttribute);
 
-	for (const TPair<FDMXAttributeName, float>& AttributeValueKvp : ValuePerAttribute.Map)
-	{
-		InitalizeAttributeValueNoInterp(AttributeValueKvp.Key, AttributeValueKvp.Value);
-	}
-
 	if (HasBeenInitialized)
 	{
+		for (const TPair<FDMXAttributeName, float>& AttributeValueKvp : ValuePerAttribute.Map)
+		{
+			InitalizeAttributeValueNoInterp(AttributeValueKvp.Key, AttributeValueKvp.Value);
+		}
+
 		for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
 		{
 			// Components without matrix data

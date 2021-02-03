@@ -1239,6 +1239,41 @@ struct FAITest_BTSubtreeSimple : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTSubtreeSimple, "System.AI.Behavior Trees.Subtree: simple")
 
+struct FAITest_BTSubtreeRequestInDeactivatedBranch : public FAITest_SimpleBT
+{
+	FAITest_BTSubtreeRequestInDeactivatedBranch()
+	{
+		UBehaviorTree* ChildAsset1 = &FBTBuilder::CreateBehaviorTree(*BTAsset);
+		if (ChildAsset1)
+		{
+			AddAutoDestroyObject(*ChildAsset1);
+			UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*ChildAsset1);
+			{
+				FBTBuilder::AddTask(CompNode, 10, EBTNodeResult::Succeeded);
+				{
+					FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::LowerPriority, TEXT("Bool2"));
+				}
+				FBTBuilder::AddTaskFlagChange(CompNode, true, EBTNodeResult::InProgress, TEXT("Bool1"), TEXT("Bool2"), true);
+			}
+		}
+
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::AddTask(CompNode2, 0, EBTNodeResult::Succeeded);
+				{
+					FBTBuilder::WithDecoratorBlackboard(CompNode2, EBasicKeyOperation::Set, EBTFlowAbortMode::LowerPriority, TEXT("Bool1"));
+				}
+				FBTBuilder::AddTaskSubtree(CompNode2, ChildAsset1);
+			}
+		}
+
+		ExpectedResult.Add(0);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTSubtreeRequestInDeactivatedBranch, "System.AI.Behavior Trees.Subtree: deactivated branch")
+
 struct FAITest_BTSubtreeAbortOut : public FAITest_SimpleBT
 {
 	FAITest_BTSubtreeAbortOut()

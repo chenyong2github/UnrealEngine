@@ -4,7 +4,8 @@
 
 
 ADatasmithAreaLightActor::ADatasmithAreaLightActor()
-	: LightType( EDatasmithAreaLightActorType::Point )
+	: Mobility( EComponentMobility::Static )
+	, LightType( EDatasmithAreaLightActorType::Point )
 	, LightShape( EDatasmithAreaLightActorShape::Rectangle )
 	, Dimensions( 100.f, 100.f )
 	, Intensity( 10.f )

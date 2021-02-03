@@ -93,7 +93,7 @@ protected:
 		static bool CopyEventSignature(UK2Node_CustomEvent* CENode, UFunction* Function, const UEdGraphSchema_K2* Schema);
 		static bool HandleDelegateImplementation(
 			FMulticastDelegateProperty* CurrentProperty, const TArray<FBaseAsyncTaskHelper::FOutputPinAndLocalVariable>& VariableOutputs,
-			UEdGraphPin* ProxyObjectPin, UEdGraphPin*& InOutLastThenPin,
+			UEdGraphPin* ProxyObjectPin, UEdGraphPin*& InOutLastThenPin, UEdGraphPin*& OutLastActivatedThenPin,
 			UK2Node* CurrentNode, UEdGraph* SourceGraph, FKismetCompilerContext& CompilerContext);
 
 		static const FName GetAsyncTaskProxyName();
@@ -102,6 +102,12 @@ protected:
 	// Pin Redirector support
 	static TMap<FName, FAsyncTaskPinRedirectMapInfo> AsyncTaskPinRedirectMap;
 	static bool bAsyncTaskPinRedirectMapInitialized;
+
+protected:
+	/** Expand out the logic to handle the delegate output pins */
+	virtual bool HandleDelegates(
+		const TArray<FBaseAsyncTaskHelper::FOutputPinAndLocalVariable>& VariableOutputs, UEdGraphPin* ProxyObjectPin,
+		UEdGraphPin*& InOutLastThenPin, UEdGraph* SourceGraph, FKismetCompilerContext& CompilerContext);
 
 private:
 	/** Invalidates current pin tool tips, so that they will be refreshed before being displayed: */

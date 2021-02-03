@@ -187,4 +187,13 @@ struct FSyncStatus
 
 	UPROPERTY()
 	uint32 PidInFocus;
+
+	UPROPERTY()
+	TArray<int8> CpuUtilization;
+
+	UPROPERTY()
+	TArray<int8> GpuUtilization;
+
+	UPROPERTY()
+	TArray<int32> GpuCoreClocksKhz;
 };

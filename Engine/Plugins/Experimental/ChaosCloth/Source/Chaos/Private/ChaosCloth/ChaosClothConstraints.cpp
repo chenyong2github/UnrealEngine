@@ -36,8 +36,8 @@ FClothConstraints::~FClothConstraints()
 
 void FClothConstraints::Initialize(
 	TPBDEvolution<float, 3>* InEvolution,
-	const TArray<TVector<float, 3>>& InAnimationPositions,
-	const TArray<TVector<float, 3>>& InAnimationNormals,
+	const TArray<FVec3>& InAnimationPositions,
+	const TArray<FVec3>& InAnimationNormals,
 	int32 InParticleOffset,
 	int32 InNumParticles)
 {
@@ -241,7 +241,7 @@ void FClothConstraints::CreateRules()
 	check(ConstraintRuleIndex == NumConstraintRules);
 }
 
-void FClothConstraints::SetEdgeConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, float EdgeStiffness, bool bUseXPBDConstraints)
+void FClothConstraints::SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, float EdgeStiffness, bool bUseXPBDConstraints)
 {
 	check(Evolution);
 	check(EdgeStiffness > 0.f && EdgeStiffness <= 1.f);
@@ -258,7 +258,7 @@ void FClothConstraints::SetEdgeConstraints(const TArray<TVector<int32, 3>>& Surf
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetBendingConstraints(TArray<TVector<int32, 2>>&& Edges, float BendingStiffness, bool bUseXPBDConstraints)
+void FClothConstraints::SetBendingConstraints(TArray<TVec2<int32>>&& Edges, float BendingStiffness, bool bUseXPBDConstraints)
 {
 	check(Evolution);
 
@@ -274,7 +274,7 @@ void FClothConstraints::SetBendingConstraints(TArray<TVector<int32, 2>>&& Edges,
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetBendingConstraints(TArray<TVector<int32, 4>>&& BendingElements, float BendingStiffness)
+void FClothConstraints::SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, float BendingStiffness)
 {
 	check(Evolution);
 	check(BendingStiffness > 0.f && BendingStiffness <= 1.f);
@@ -283,7 +283,7 @@ void FClothConstraints::SetBendingConstraints(TArray<TVector<int32, 4>>&& Bendin
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetAreaConstraints(TArray<TVector<int32, 3>>&& SurfaceElements, float AreaStiffness, bool bUseXPBDConstraints)
+void FClothConstraints::SetAreaConstraints(TArray<TVec3<int32>>&& SurfaceElements, float AreaStiffness, bool bUseXPBDConstraints)
 {
 	check(Evolution);
 	check(AreaStiffness > 0.f && AreaStiffness <= 1.f);
@@ -300,7 +300,7 @@ void FClothConstraints::SetAreaConstraints(TArray<TVector<int32, 3>>&& SurfaceEl
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetVolumeConstraints(TArray<TVector<int32, 2>>&& DoubleBendingEdges, float VolumeStiffness)
+void FClothConstraints::SetVolumeConstraints(TArray<TVec2<int32>>&& DoubleBendingEdges, float VolumeStiffness)
 {
 	check(Evolution);
 	check(VolumeStiffness > 0.f && VolumeStiffness <= 1.f);
@@ -309,7 +309,7 @@ void FClothConstraints::SetVolumeConstraints(TArray<TVector<int32, 2>>&& DoubleB
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetVolumeConstraints(TArray<TVector<int32, 3>>&& SurfaceElements, float VolumeStiffness)
+void FClothConstraints::SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceElements, float VolumeStiffness)
 {
 	check(Evolution);
 	check(VolumeStiffness > 0.f && VolumeStiffness <= 1.f);
@@ -392,7 +392,7 @@ void FClothConstraints::SetShapeTargetConstraints(float ShapeTargetStiffness)
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetSelfCollisionConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, TSet<TVector<int32, 2>>&& DisabledCollisionElements, float SelfCollisionThickness)
+void FClothConstraints::SetSelfCollisionConstraints(const TArray<TVec3<int32>>& SurfaceElements, TSet<TVec2<int32>>&& DisabledCollisionElements, float SelfCollisionThickness)
 {
 	SelfCollisionConstraints = MakeShared<TPBDCollisionSpringConstraints<float, 3>>(
 		ParticleOffset,

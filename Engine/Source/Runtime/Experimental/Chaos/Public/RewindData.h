@@ -136,6 +136,12 @@ public:
 	}
 
 	template <typename TParticle>
+	bool CCDEnabled(const TParticle& Particle) const
+	{
+		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().CCDEnabled() : Particle.CastToRigidParticle()->CCDEnabled();
+	}
+
+	template <typename TParticle>
 	int32 CollisionGroup(const TParticle& Particle) const
 	{
 		return DynamicsMisc.IsSet() ? DynamicsMisc.Read().CollisionGroup() : Particle.CastToRigidParticle()->CollisionGroup();
@@ -234,7 +240,7 @@ public:
 	template <typename TParticle>
 	void SyncToParticle(TParticle& Particle) const;
 	void SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty);
-	void SyncIfDirty(const FDirtyPropData& Manager,const TGeometryParticle<FReal,3>& InParticle,const FGeometryParticleStateBase& RewindState);
+	void SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticle& InParticle,const FGeometryParticleStateBase& RewindState);
 	bool CoalesceState(const FGeometryParticleStateBase& LatestState);
 	bool IsDesynced(const FConstDirtyPropData& SrcManager,const TGeometryParticleHandle<FReal,3>& Handle,const FParticleDirtyFlags Flags) const;
 
@@ -253,12 +259,12 @@ class FGeometryParticleState
 {
 public:
 
-	FGeometryParticleState(const TGeometryParticle<FReal,3>& InParticle)
+	FGeometryParticleState(const FGeometryParticle& InParticle)
 	: Particle(InParticle)
 	{
 	}
 
-	FGeometryParticleState(const FGeometryParticleStateBase& InState, const TGeometryParticle<FReal,3>& InParticle)
+	FGeometryParticleState(const FGeometryParticleStateBase& InState, const FGeometryParticle& InParticle)
 	: Particle(InParticle)
 	, State(InState)
 	{
@@ -302,6 +308,11 @@ public:
 	bool GravityEnabled() const
 	{
 		return State.GravityEnabled(Particle);
+	}
+
+	bool CCDEnabled() const
+	{
+		return State.CCDEnabled(Particle);
 	}
 
 	int32 CollisionGroup() const
@@ -381,7 +392,7 @@ public:
 		return State.AngularImpulse(Particle);
 	}
 
-	const TGeometryParticle<FReal,3>& GetParticle() const
+	const FGeometryParticle& GetParticle() const
 	{
 		return Particle;
 	}
@@ -397,7 +408,7 @@ public:
 	}
 
 private:
-	const TGeometryParticle<FReal,3>& Particle;
+	const FGeometryParticle& Particle;
 	FGeometryParticleStateBase State;
 };
 
@@ -410,7 +421,7 @@ enum class EFutureQueryResult
 
 struct FDesyncedParticleInfo
 {
-	TGeometryParticle<FReal,3>* Particle;
+	FGeometryParticle* Particle;
 	ESyncState MostDesynced;	//Indicates the most desynced this particle got during resim (could be that it was soft desync and then went back to normal)
 };
 
@@ -446,7 +457,7 @@ public:
 	TArray<FDesyncedParticleInfo> CHAOS_API ComputeDesyncInfo() const;
 
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const TGeometryParticle<FReal,3>& Particle,int32 Frame) const;
+	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticle& Particle,int32 Frame) const;
 
 	/* Query the state of particles in the future. This operation can fail for particles that are desynced or that we have not been tracking */
 	EFutureQueryResult CHAOS_API GetFutureStateAtFrame(FGeometryParticleState& OutState,int32 Frame) const;
@@ -650,7 +661,7 @@ private:
 		TCircularBuffer<FFrameInfo> Frames;
 		TCircularBuffer<FDirtyFrameInfo> GTDirtyOnFrame;
 	private:
-		TGeometryParticle<FReal,3>* GTParticle;
+		FGeometryParticle* GTParticle;
 		TGeometryParticleHandle<FReal,3>* PTParticle;
 	public:
 		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
@@ -658,7 +669,7 @@ private:
 		bool bDesync;
 		ESyncState MostDesynced;	//Tracks the most desynced this has become (soft desync can go back to being clean, but we still want to know)
 
-		FDirtyParticleInfo(TGeometryParticle<FReal,3>& UnsafeGTParticle, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
+		FDirtyParticleInfo(FGeometryParticle& UnsafeGTParticle, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
 		: Frames(NumFrames)
 		, GTDirtyOnFrame(NumFrames)
 		, GTParticle(&UnsafeGTParticle)
@@ -671,7 +682,7 @@ private:
 
 		}
 
-		TGeometryParticle<FReal,3>* GetGTParticle() const
+		FGeometryParticle* GetGTParticle() const
 		{
 			ensure(IsInGameThread());
 			return GTParticle;

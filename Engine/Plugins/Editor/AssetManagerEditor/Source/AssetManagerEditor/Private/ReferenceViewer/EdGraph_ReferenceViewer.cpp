@@ -344,7 +344,7 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::ConstructNodes(const TArray<FA
 		auto AddPackage = [](const FAssetIdentifier& AssetId, TSet<FName>& PackageNames)
 		{ 
 			// Only look for asset data if this is a package
-			if (!AssetId.IsValue())
+			if (!AssetId.IsValue() && !AssetId.PackageName.IsNone())
 			{
 				PackageNames.Add(AssetId.PackageName);
 			}

@@ -27,6 +27,8 @@ private:
 	void ExecuteReimport(TArray<ULidarPointCloud*> PointClouds);
 	void ExecuteMerge(TArray<ULidarPointCloud*> PointClouds);
 	void ExecuteAlign(TArray<ULidarPointCloud*> PointClouds);
+	void ExecuteCollision(TArray<ULidarPointCloud*> PointClouds);
+	void ExecuteNormals(TArray<ULidarPointCloud*> PointClouds);
 };
 
 UCLASS()

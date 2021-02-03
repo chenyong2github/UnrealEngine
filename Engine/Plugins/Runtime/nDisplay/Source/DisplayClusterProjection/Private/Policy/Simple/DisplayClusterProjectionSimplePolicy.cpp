@@ -105,8 +105,8 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(const uint32 Vie
 	const float f = ViewData[ViewIdx].FCP;
 
 	// Half-size
-	const float hw = ScreenComp->GetScreenSize().X / 2.f / 100.f * ViewData[ViewIdx].WorldToMeters;
-	const float hh = ScreenComp->GetScreenSize().Y / 2.f / 100.f * ViewData[ViewIdx].WorldToMeters;
+	const float hw = ScreenComp->GetScreenSize().X / 2.f * ViewData[ViewIdx].WorldToMeters;
+	const float hh = ScreenComp->GetScreenSize().Y / 2.f * ViewData[ViewIdx].WorldToMeters;
 
 	// Screen data
 	const FVector  ScreenLoc = ScreenComp->GetComponentLocation();

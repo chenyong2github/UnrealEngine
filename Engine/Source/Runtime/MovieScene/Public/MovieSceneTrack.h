@@ -102,6 +102,16 @@ struct FMovieSceneSectionMovedParams
 
 	FMovieSceneSectionMovedParams(EPropertyChangeType::Type InMoveType) : MoveType(InMoveType) {}
 };
+
+/** Result of having moved sections in the editor */
+enum class EMovieSceneSectionMovedResult
+{
+	/** Nothing significant has changed */
+	None = 0,
+	/** Sections have been added or removed, which requires a UI refresh */
+	SectionsChanged = 1
+};
+ENUM_CLASS_FLAGS(EMovieSceneSectionMovedResult);
 #endif
 
 /**
@@ -429,7 +439,10 @@ public:
 	 *
 	 * @param Section The section that moved.
 	 */
-	virtual void OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) {}
+	virtual EMovieSceneSectionMovedResult OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params)
+	{
+		return EMovieSceneSectionMovedResult::None;
+	}
 
 	#endif
 };

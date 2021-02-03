@@ -17,7 +17,6 @@ namespace GeometryCollectionTest
 	MATCHER_P2(VectorNear, V, Tolerance, "") { return arg.Equals(V, Tolerance); }
 #define EXPECT_FVECTOR_NEAR(A,B,T) EXPECT_THAT(A, VectorNear(B, T)) << *FString("Expected: " + B.ToString() + "\nActual:   " + A.ToString());
 
-	template<class T>
 	void BasicGlobalMatrices()
 	{ 
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(0, 10, 0)), FVector(1.0));
@@ -62,9 +61,7 @@ namespace GeometryCollectionTest
 		EXPECT_FVECTOR_NEAR(Frame.GetRotation().Euler(), FVector(0, 0, -180), 0.0001);
 		EXPECT_FVECTOR_NEAR(Frame.GetTranslation(), FVector(-10, 10, 0), 0.0001);
 	}
-	template void BasicGlobalMatrices<float>();
 
-	template<class T>
 	void ReparentingMatrices()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(0, 10, 0)), FVector(1.0));
@@ -108,10 +105,7 @@ namespace GeometryCollectionTest
 		FVector Pos2 = GlobalTransform[2].GetTranslation();
 		EXPECT_FVECTOR_NEAR(Pos2, FVector(-10, 0, 0), 0.0001);
 	}
-	template void ReparentingMatrices<float>();
 
-
-	template<class T>
 	void TransformMatrixElement()
 	{
 		FTransformCollection Collection;
@@ -151,7 +145,6 @@ namespace GeometryCollectionTest
 		EXPECT_GT(FMath::Abs((GlobalMatrices1[2].GetTranslation() - GlobalMatrices0[2].GetTranslation()).Size()), 1.0);
 		EXPECT_LT(FMath::Abs((GlobalMatrices1[3].GetTranslation() - GlobalMatrices0[3].GetTranslation()).Size()), 1e-3);
 	}
-	template void TransformMatrixElement<float>();
 
 }
 

@@ -1179,7 +1179,7 @@ namespace ChaosTest
 	float PlaneZPos = 1.0f;
 	bool RayCastPlane(FVec3& RayStart, FVec3& Direction, float Length, float& OutTime, FVec3& OutPosition, FVec3& OutNormal)
 	{
-		TPlane<float, 3> Plane(TVector<float, 3>(1), TVector<float, 3>(0, 0, PlaneZPos));
+		TPlane<float, 3> Plane(FVec3(1), FVec3(0, 0, PlaneZPos));
 		int32 FaceIndex;
 
 		return Plane.Raycast(RayStart, Direction, Length, 0, OutTime, OutPosition, OutNormal, FaceIndex);

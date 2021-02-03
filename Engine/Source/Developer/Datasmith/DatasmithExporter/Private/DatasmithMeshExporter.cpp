@@ -254,7 +254,10 @@ void FDatasmithMeshExporterImpl::PreExport( const FDatasmithMeshExporterOptions&
 
 	for ( int32 LODIndex = 0; LODIndex < Mesh.GetLODsCount(); ++LODIndex )
 	{
-		CreateDefaultUVs( Mesh.GetLOD( LODIndex ) );
+		if ( FDatasmithMesh* LODMesh = Mesh.GetLOD( LODIndex ) )
+		{
+			CreateDefaultUVs( *LODMesh );
+		}
 	}
 }
 
@@ -348,15 +351,18 @@ void FDatasmithMeshExporterImpl::FillUDatasmithMeshFromFDatasmithMesh(TSharedPtr
 
 	for (int32 LODIndex = 0; LODIndex < Mesh.GetLODsCount(); ++LODIndex)
 	{
-		FDatasmithMeshUtils::ToRawMesh(Mesh.GetLOD(LODIndex), RawMesh, bValidateRawMesh);
+		if (const FDatasmithMesh* LODMesh = Mesh.GetLOD(LODIndex))
+		{
+			FDatasmithMeshUtils::ToRawMesh(*LODMesh, RawMesh, bValidateRawMesh);
 
-		FRawMeshBulkData LODRawMeshBulkData;
-		LODRawMeshBulkData.SaveRawMesh(RawMesh);
+			FRawMeshBulkData LODRawMeshBulkData;
+			LODRawMeshBulkData.SaveRawMesh(RawMesh);
 
-		FDatasmithMeshSourceModel LODModel;
-		LODModel.RawMeshBulkData = LODRawMeshBulkData;
+			FDatasmithMeshSourceModel LODModel;
+			LODModel.RawMeshBulkData = LODRawMeshBulkData;
 
-		UMesh->SourceModels.Add(LODModel);
+			UMesh->SourceModels.Add(LODModel);
+		}
 	}
 }
 
@@ -373,7 +379,8 @@ TSharedPtr<UDatasmithMesh> FDatasmithMeshExporterImpl::GetPooledUDatasmithMesh(b
 	}
 
 	{
-		FGCScopeGuard GCGuard; // Can't create new objects while the GC is running.
+		// Can't create new objects while the GC is running.
+		FGCScopeGuard GCGuard;
 		return TSharedPtr<UDatasmithMesh>(NewObject< UDatasmithMesh >((UObject*)GetTransientPackage(), *PooledMeshName, RF_Transient | RF_MarkAsRootSet), FPooledUDatasmithMeshDeleter(this));
 	}
 }

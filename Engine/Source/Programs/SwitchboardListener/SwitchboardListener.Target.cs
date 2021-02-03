@@ -16,9 +16,8 @@ public class SwitchboardListenerTarget : TargetRules
 		bCompileAgainstEngine = false;
 		bBuildWithEditorOnlyData = false;
 
-		// Enable Developer plugins such as SourceControl
-		bCompileWithPluginSupport = true;
-		bBuildDeveloperTools = true;
+		// Disable internationalization support, so the exe can be launched outside of the engine directory.
+		bCompileICU = false;
 
 		// The listener is meant to be a console application (no window), but on MacOS, to get a proper log console, a full application must be built.
 		bIsBuildingConsoleApplication = Target.Platform != UnrealTargetPlatform.Mac;

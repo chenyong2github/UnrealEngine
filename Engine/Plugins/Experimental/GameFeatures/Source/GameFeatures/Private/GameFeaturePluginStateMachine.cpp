@@ -720,9 +720,27 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 		const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
 		UGameplayTagsManager::Get().AddTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
 
-		//@TODO: Allow game feature location to be configured?
-		const FString BackupGameFeatureDataPath = TEXT("/") + PluginName + TEXT("/GameFeatureData.GameFeatureData");
 		const FString PreferredGameFeatureDataPath = FString::Printf(TEXT("/%s/%s.%s"), *PluginName, *PluginName, *PluginName);
+
+		FString BackupGameFeatureDataPath = TEXT("/") + PluginName + TEXT("/GameFeatureData.GameFeatureData");
+		// Allow game feature location to be overriden globally and from within the plugin
+		FString OverrideIniPathName = PluginName + TEXT("_Override");
+		FString OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), *OverrideIniPathName, GGameIni);
+		if (OverridePath.IsEmpty())
+		{
+			const FString SettingsOverride = PluginFolder / TEXT("Config") / TEXT("Settings.ini");
+			if (FPaths::FileExists(SettingsOverride))
+			{
+				GConfig->LoadFile(SettingsOverride);
+				OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), TEXT("Override"), SettingsOverride);
+				GConfig->UnloadFile(SettingsOverride);
+			}
+		}
+		if (!OverridePath.IsEmpty())
+		{
+			BackupGameFeatureDataPath = OverridePath;
+		}
+		
 		TSharedPtr<FStreamableHandle> GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(PreferredGameFeatureDataPath);
 		if (!GameFeatureDataHandle.IsValid())
 		{
@@ -738,9 +756,10 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 
 		if (StateProperties.GameFeatureData)
 		{
+			StateProperties.PluginName = PluginName;
 			StateStatus.TransitionToState = EGameFeaturePluginState::Registered;
 
-			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData);
+			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData, PluginName);
 		}
 		else
 		{
@@ -1133,8 +1152,14 @@ EGameFeaturePluginProtocol FGameFeaturePluginStateMachineProperties::GetPluginPr
 	}
 }
 
-FString FGameFeaturePluginStateMachineProperties::FileProtocolPrefix() const
+FString FGameFeaturePluginStateMachineProperties::FileProtocolPrefix()
 {
 	const static FString ProtocolPrefixString("file:");
+	return ProtocolPrefixString;
+}
+
+FString FGameFeaturePluginStateMachineProperties::WebProtocolPrefix()
+{
+	const static FString ProtocolPrefixString("web:");
 	return ProtocolPrefixString;
 }

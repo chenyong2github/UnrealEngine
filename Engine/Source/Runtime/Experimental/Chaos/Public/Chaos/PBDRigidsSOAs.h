@@ -1004,4 +1004,7 @@ private:
 	int32 BiggestParticleID;
 #endif
 };
+
+using FPBDRigidsSOAs = TPBDRigidsSOAs<FReal, 3>;
+
 }

@@ -57,7 +57,7 @@ namespace DataprepCorePrivateUtils
 	const FString& GetRootTemporaryDir();
 
 	/** Returns content folder where to create temporary assets when running Dataprep asset */
-	const FString& GetRootPackagePath();
+	DATAPREPCORE_API const FString& GetRootPackagePath();
 
 	/**
 	 * Logs messages in output log and message panel using "Dataprep Core" label
@@ -80,5 +80,5 @@ namespace DataprepCorePrivateUtils
 	 * Ensures the material is ready for rendering
 	 * @remark This is only to be shared with the Dataprep editor
 	 */
-	void DATAPREPCORE_API CompileMaterial(UMaterialInterface* MaterialInterface);
+	DATAPREPCORE_API void CompileMaterial(UMaterialInterface* MaterialInterface);
 }

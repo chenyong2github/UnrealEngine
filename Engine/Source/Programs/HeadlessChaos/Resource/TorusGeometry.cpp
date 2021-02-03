@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Resource/TorusGeometry.h"
-const TArray<float> TorusGeometry::RawVertexArray = {
+const TArray<Chaos::FReal> TorusGeometry::RawVertexArray = {
 													120.000000, -0.000193, -0.000002,
 													114.126831, 37.081871, -0.000002,
 													97.082130, 70.534103, -0.000002,

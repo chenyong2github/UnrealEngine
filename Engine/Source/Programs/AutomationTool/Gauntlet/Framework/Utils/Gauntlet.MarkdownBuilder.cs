@@ -187,8 +187,11 @@ namespace Gauntlet
 			EnsureEndsWithNewLine();
 			foreach (string Item in Items)
 			{
-				SB.AppendFormat("* {0}", Item);
-				SB.AppendLine();
+				if (Item != null)
+				{
+					SB.AppendFormat("* {0}", Item);
+					SB.AppendLine();
+				}
 			}
 			NewLine();
 

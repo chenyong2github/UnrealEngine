@@ -31,6 +31,7 @@ public:
 	// call this before export the actual bitmaps
 	void CheckBumpMaps( TSharedRef< IDatasmithScene > DatasmithScene );
 	void UpdateTextureElements( TSharedRef< IDatasmithScene > DatasmithScene );
+	void UpdateAssetOutputPath();
 
 	static EDatasmithTextureMode GetTextureModeFromPropertyName(const FString& PropertyName);
 	static FString GetFileNameWithHash(const FString& FullPath);
@@ -160,6 +161,19 @@ void FDatasmithSceneExporterImpl::CheckBumpMaps( TSharedRef< IDatasmithScene > D
 				}
 			}
 		}
+	}
+}
+
+void FDatasmithSceneExporterImpl::UpdateAssetOutputPath()
+{
+	if (Name.IsEmpty())
+	{
+		// Just set the AssetsOutputPath to OutputPath, if the scene exporter has not been named
+		AssetsOutputPath = OutputPath;
+	}
+	else if (!OutputPath.IsEmpty())
+	{
+		AssetsOutputPath = FPaths::Combine(OutputPath, Name + TEXT("_Assets"));
 	}
 }
 
@@ -320,15 +334,19 @@ void FDatasmithSceneExporter::SetLogger( const TSharedPtr< FDatasmithLogger >& I
 void FDatasmithSceneExporter::SetName(const TCHAR* InName)
 {
 	Impl->Name = InName;
+	Impl->UpdateAssetOutputPath();
+}
+
+const TCHAR* FDatasmithSceneExporter::GetName() const
+{
+	return *Impl->Name;
 }
 
 void FDatasmithSceneExporter::SetOutputPath( const TCHAR* InOutputPath )
 {
 	Impl->OutputPath = InOutputPath;
 	FPaths::NormalizeDirectoryName( Impl->OutputPath );
-
-	// Just set the AssetsOutputPath to InOutputPath, if the scene exporter has not been named
-	Impl->AssetsOutputPath = Impl->Name.IsEmpty() ? Impl->OutputPath : FPaths::Combine( Impl->OutputPath, Impl->Name + TEXT("_Assets") );
+	Impl->UpdateAssetOutputPath();
 }
 
 const TCHAR* FDatasmithSceneExporter::GetOutputPath() const

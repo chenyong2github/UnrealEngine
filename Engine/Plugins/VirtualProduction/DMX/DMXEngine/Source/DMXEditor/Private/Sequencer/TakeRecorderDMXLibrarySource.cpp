@@ -37,14 +37,28 @@ void UTakeRecorderDMXLibrarySource::AddAllPatches()
 		return;
 	}
 
-	// Remove all PatchRefs to copy the ones from the library. This way we don't have to
-	// use AddUnique on each one to avoid repeated Patches.
-	FixturePatchRefs.Empty(FixturePatchRefs.Max()); // .Max() to not change allocated memory
-
-	DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* Patch)
+	TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	
+	// Sort the patches by universe and starting channel
+	FixturePatches.Sort([](UDMXEntityFixturePatch& FirstPatch, UDMXEntityFixturePatch& SecondPatch) {
+		if (FirstPatch.UniverseID < SecondPatch.UniverseID)
 		{
-			FixturePatchRefs.Emplace(Patch);
-		});
+			return true;
+		}
+		else if (FirstPatch.UniverseID > SecondPatch.UniverseID)
+		{
+			return false;
+		}
+
+		return FirstPatch.GetStartingChannel() <= SecondPatch.GetStartingChannel();
+	});
+
+	// Update fixture patch refs
+	FixturePatchRefs.Reset();
+	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
+	{
+		FixturePatchRefs.Add(FDMXEntityFixturePatchRef(FixturePatch));
+	}
 }
 
 void UTakeRecorderDMXLibrarySource::OnEntitiesUpdated(UDMXLibrary* UpdatedLibrary)

@@ -72,6 +72,10 @@ bool GIsDoingQuery = false;
 #define VALIDATE_BOUND_UNIFORMBUFFER_HASH(ub, s, i)
 #endif
 
+#if !defined(D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS)
+	#define D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS 1
+#endif
+
 void FD3D12DynamicRHI::SetupRecursiveResources()
 {
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
@@ -87,11 +91,11 @@ void FD3D12DynamicRHI::SetupRecursiveResources()
 	}
 
 	// TODO: Waiting to integrate MSAA fix for ResolveShader.h
-	if (!(PLATFORM_WINDOWS || PLATFORM_HOLOLENS))
+	if (!D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS)
 		return;
 
 	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
-	if (GMaxRHIShaderPlatform == SP_PCD3D_SM6 || GMaxRHIShaderPlatform == SP_PCD3D_SM5 || GMaxRHIShaderPlatform == SP_XBOXONE_D3D12)
+	if (GMaxRHIShaderPlatform == SP_PCD3D_SM6 || GMaxRHIShaderPlatform == SP_PCD3D_SM5)
 	{
 		TShaderMapRef<FResolveDepthPS> ResolvePixelShader_Depth(ShaderMap);
 		ResolvePixelShader_Depth.GetPixelShader();

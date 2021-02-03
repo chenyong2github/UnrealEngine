@@ -400,9 +400,10 @@ protected:
 	 * Updates all segmenters of the specified node.
 	 *
 	 * @param NodeInfo Details for the node to update.
-	 * @return true if the update was successful
+	 * @param MaxSendBytes the approximate max number of bytes allowed to be sent to that node. can be exceeded by up to 1k since we don't send partial segments.
+	 * @return The actual number of bytes written or -1 if error
 	 */
-	bool UpdateSegmenters(FNodeInfo& NodeInfo);
+	int32 UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSendBytes);
 
 	/**
 	 * Updates all reassemblers of the specified node.
@@ -436,6 +437,9 @@ private:
 
 	/** Holds the current time. */
 	FDateTime CurrentTime;
+
+	/** Holds the delta time between two ticks. */
+	FTimespan DeltaTime;
 
 	/** Holds the protocol version that can be communicated in. */
 	TArray<uint8> SupportedProtocolVersions;

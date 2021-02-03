@@ -54,17 +54,9 @@ TSuspensionConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysics
 {
 	if (ProxyBase)
 	{
-		if (ProxyBase->GetType() == EPhysicsProxyType::SingleGeometryParticleType)
+		if (ProxyBase->GetType() == EPhysicsProxyType::SingleParticleProxy)
 		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
-		}
-		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
-		}
-		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleKinematicParticleType)
-		{
-			return ((FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
+			return ((FSingleParticlePhysicsProxy*)ProxyBase)->GetHandle_LowLevel();
 		}
 	}
 	return nullptr;

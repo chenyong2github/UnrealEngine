@@ -547,12 +547,14 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 		bool bUpdateRT = true;
 
 		// Update user parameter binding
+		bool bIsRenderTargetUserParam = false;
 		if (UObject* UserParamObject = InstanceData->RTUserParamBinding.GetValue())
 		{
 			if (UTextureRenderTarget2D* UserTargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
 			{
 				if ( InstanceData->TargetTexture != UserTargetTexture )
 				{
+					bIsRenderTargetUserParam = true;
 					InstanceData->TargetTexture = UserTargetTexture;
 
 					using RenderTargetType = decltype(decltype(ManagedRenderTargets)::ElementType::Value);
@@ -577,6 +579,18 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 				(InstanceData->TargetTexture->RenderTargetFormat != InstanceData->Format) ||
 				!InstanceData->TargetTexture->bCanCreateUAV || (InstanceData->TargetTexture->bAutoGenerateMips != bAutoGenerateMips) )
 			{
+				//////////////////////////////////////////////////////////////////////////
+				//-TOFIX: Workaround FORT-315375 GT / RT Race
+				extern int32 GNiagaraSamplerStateWorkaroundCreateNew;
+				if (!bIsRenderTargetUserParam && GNiagaraSamplerStateWorkaroundCreateNew)
+				{
+					InstanceData->TargetTexture->ReleaseResource();
+
+					InstanceData->TargetTexture = NewObject<UTextureRenderTarget2D>(this);
+					ManagedRenderTargets[SystemInstance->GetId()] = InstanceData->TargetTexture;
+				}
+				//////////////////////////////////////////////////////////////////////////
+
 				// resize RT to match what we need for the output
 				InstanceData->TargetTexture->bCanCreateUAV = true;
 				InstanceData->TargetTexture->bAutoGenerateMips = bAutoGenerateMips;

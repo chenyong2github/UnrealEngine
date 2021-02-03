@@ -549,10 +549,10 @@ TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_Collision( const FSpawnTabArgs&
 TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_PreviewSceneSettings( const FSpawnTabArgs& Args )
 {
 	check( Args.GetTabId() == PreviewSceneSettingsTabId );
-	return SNew(SDockTab)
+	return SAssignNew(PreviewSceneDockTab, SDockTab)
 		.Label( LOCTEXT("StaticMeshPreviewScene_TabTitle", "Preview Scene Settings") )
 		[
-			AdvancedPreviewSettingsWidget.ToSharedRef()
+			AdvancedPreviewSettingsWidget.IsValid() ? AdvancedPreviewSettingsWidget.ToSharedRef() : SNullWidget::NullWidget
 		];
 }
 
@@ -936,6 +936,11 @@ void FStaticMeshEditor::BuildSubTools()
 	TArray<FAdvancedPreviewSceneModule::FDetailDelegates> Delegates;
 	Delegates.Add({ OnPreviewSceneChangedDelegate });
 	AdvancedPreviewSettingsWidget = AdvancedPreviewSceneModule.CreateAdvancedPreviewSceneSettingsWidget(GetStaticMeshViewport()->GetPreviewScene(), nullptr, TArray<FAdvancedPreviewSceneModule::FDetailCustomizationInfo>(),  TArray<FAdvancedPreviewSceneModule::FPropertyTypeCustomizationInfo>(), Delegates);
+
+	if (PreviewSceneDockTab.IsValid())
+	{
+		PreviewSceneDockTab.Pin()->SetContent(AdvancedPreviewSettingsWidget.ToSharedRef());
+	}
 }
 
 FName FStaticMeshEditor::GetToolkitFName() const

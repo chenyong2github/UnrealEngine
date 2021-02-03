@@ -4,8 +4,10 @@
 
 #include "DMXEditorLog.h"
 #include "DMXProtocolSettings.h"
+#include "DMXStats.h"
 #include "DMXSubsystem.h"
 #include "DMXTypes.h"
+#include "DMXUtils.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -19,9 +21,222 @@
 #include "Engine/TimecodeProvider.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/App.h"
+#include "Misc/ScopedSlowTask.h" 
 #include "Modules/ModuleManager.h"
 #include "MovieSceneFolder.h"
 
+
+DECLARE_CYCLE_STAT(TEXT("Take recorder record sample"), STAT_DMXTakeRecorderRecordSample, STATGROUP_DMX);
+
+////////////////////////////////////////////////
+// Helpers to record a channel during RecordSampleImpl and only write it 
+// when recording is finished. Used to opt for performance 4.26.
+
+namespace
+{
+	struct FDMXSample
+	{
+		FFrameNumber Time;
+		FMovieSceneFloatValue Value;
+	};
+
+	class FDMXChannelRecorder
+	{
+	public:
+		FDMXChannelRecorder()
+			: ChannelPtr(nullptr)
+		{}
+
+		FDMXChannelRecorder(FDMXFixtureFunctionChannel* InChannelPtr)
+			: ChannelPtr(InChannelPtr)
+		{}
+
+		bool GetLastRecoredValue(float& OutValue) const
+		{
+			if (Samples.Num() > 0)
+			{
+				OutValue = LastRecordedValue;
+				return true;
+			}
+
+			return false;
+		}
+
+		void Record(const FFrameNumber& Time, float Value)
+		{
+			LastRecordedValue = Value;
+
+			FDMXSample Sample;
+
+			Sample.Time = Time;
+
+			FMovieSceneFloatValue MovieSceneFloatValue;
+			MovieSceneFloatValue.InterpMode = ERichCurveInterpMode::RCIM_Linear;
+			MovieSceneFloatValue.TangentMode = ERichCurveTangentMode::RCTM_None;
+			MovieSceneFloatValue.Value = Value;
+
+			Sample.Value = MovieSceneFloatValue;
+
+			Samples.Add(Sample);
+		}
+
+		void WriteRecordingToChannel()
+		{
+			check(ChannelPtr);
+
+			TArray<FFrameNumber> Times;
+			TArray<FMovieSceneFloatValue> Values;
+
+			for (const FDMXSample& Sample : Samples)
+			{
+				Times.Add(Sample.Time);
+				Values.Add(Sample.Value);
+			}
+
+			ChannelPtr->Channel.AddKeys(Times, Values);
+			ChannelPtr->Channel.AutoSetTangents();
+
+			Samples.Reset();
+		}
+
+	private:
+		float LastRecordedValue;
+
+		FDMXFixtureFunctionChannel* ChannelPtr;
+	
+		TArray<FDMXSample> Samples;
+	};
+
+	class FDMXRecorder
+		: public TSharedFromThis<FDMXRecorder>
+	{
+	public:
+		bool GetLastValue(FDMXFixtureFunctionChannel* InChannelPtr, float& OutValue) const
+		{
+			const FDMXChannelRecorder* ChannelRecorderPtr = ChannelToChannelRecorderMap.Find(InChannelPtr);
+			if (ChannelRecorderPtr)
+			{
+				return ChannelRecorderPtr->GetLastRecoredValue(OutValue);
+			}
+
+			return false;
+		}
+
+		void Record(FDMXFixtureFunctionChannel* ChannelPtr, const FFrameNumber& FrameNumber, float Value)
+		{
+			FDMXChannelRecorder& ChannelRecorder = ChannelToChannelRecorderMap.FindOrAdd(ChannelPtr, FDMXChannelRecorder(ChannelPtr));
+
+			ChannelRecorder.Record(FrameNumber, Value);
+		}
+
+		void WriteAllChannels()
+		{
+			FScopedSlowTask WriteRecordedDMXDataTask(ChannelToChannelRecorderMap.Num(), NSLOCTEXT("DMXTakeRecorder", "WriteRecordedDMXData", "Write Recorded DMX data"));
+			WriteRecordedDMXDataTask.MakeDialog(true, true);
+
+			for (TTuple< FDMXFixtureFunctionChannel*, FDMXChannelRecorder>& ChannelToChannelRecorderKvp : ChannelToChannelRecorderMap)
+			{
+				if (WriteRecordedDMXDataTask.ShouldCancel())
+				{
+					break;
+				}
+
+				WriteRecordedDMXDataTask.EnterProgressFrame();
+
+				ChannelToChannelRecorderKvp.Value.WriteRecordingToChannel();
+			}
+
+			ChannelToChannelRecorderMap.Reset();
+		}
+
+	private:
+		TMap<FDMXFixtureFunctionChannel*, FDMXChannelRecorder> ChannelToChannelRecorderMap;
+	};
+
+	struct FDMXCellAttributeValues
+	{
+		FDMXCell Cell;
+
+		TMap<FName, int32> AttributeNameToValueMap;
+	};
+
+	// 4.26 Optimized version to get all matrix cell values
+	void GetAllMatrixCellValuesFast(UDMXEntityFixturePatch* FixturePatch, const TSharedPtr<FDMXSignal>& Signal, TArray<FDMXCellAttributeValues>& OutCellAttributeValues)
+	{
+		if (!FixturePatch ||
+			!FixturePatch->ParentFixtureTypeTemplate ||
+			!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
+		{
+			return;
+		}
+
+		FDMXFixtureMatrix MatrixProperties;
+		if (!FixturePatch->GetMatrixProperties(MatrixProperties))
+		{
+			return;
+		}
+
+		int32 XCells = MatrixProperties.XCells;
+		int32 YCells = MatrixProperties.YCells;
+
+		TArray<FDMXCell> AllCells;
+		for (int32 YCell = 0; YCell < YCells; YCell++)
+		{
+			for (int32 XCell = 0; XCell < XCells; XCell++)
+			{
+				FDMXCell Cell;
+				Cell.CellID = XCell + YCell * XCells;
+				Cell.Coordinate = FIntPoint(XCell, YCell);
+
+				AllCells.Add(Cell);
+			}
+		}
+
+		TMap<const FDMXFixtureCellAttribute*, int32> AttributeToRelativeChannelOffsetMap;
+		int32 CellDataSize = 0;
+		int32 AttributeChannelOffset = 0;
+		for (const FDMXFixtureCellAttribute& CellAttribute : MatrixProperties.CellAttributes)
+		{
+			AttributeToRelativeChannelOffsetMap.Add(&CellAttribute, AttributeChannelOffset);
+			const int32 AttributeSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+
+			CellDataSize += AttributeSize;
+			AttributeChannelOffset += UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+		}
+
+		OutCellAttributeValues.Reserve(XCells * YCells);
+		for (int32 CellIndex = 0; CellIndex < AllCells.Num(); CellIndex++)
+		{
+			// Create a new cell attribute value struct
+			FDMXCellAttributeValues CellAttributeValues;
+			CellAttributeValues.Cell = AllCells[CellIndex];
+
+			int32 StartingChannel = FixturePatch->GetStartingChannel() + MatrixProperties.FirstCellChannel - 1 + CellIndex * CellDataSize;
+			for (const TTuple<const FDMXFixtureCellAttribute*, int32>& AttributeToRelativeChannelOffsetKvp : AttributeToRelativeChannelOffsetMap)
+			{
+				const int32 AttributeRelativeChannelOffset = AttributeToRelativeChannelOffsetKvp.Value;
+ 
+				EDMXFixtureSignalFormat SignalFormat = AttributeToRelativeChannelOffsetKvp.Key->DataType;
+				const bool bUseLSBMode = AttributeToRelativeChannelOffsetKvp.Key->bUseLSBMode;
+				const int32 AbsoluteStartingChannelIndex = StartingChannel + AttributeRelativeChannelOffset - 1;
+
+				const int32 AttributeValue = UDMXEntityFixtureType::BytesToInt(SignalFormat, bUseLSBMode, &Signal->ChannelData[AbsoluteStartingChannelIndex]);
+
+				const FName AttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute.Name;
+				CellAttributeValues.AttributeNameToValueMap.Add(AttributeName, AttributeValue);
+			}
+
+			OutCellAttributeValues.Add(CellAttributeValues);
+		}
+	}
+
+	/** DMX recorders currently active */
+	TMap<UMovieSceneDMXLibraryTrackRecorder*, TSharedPtr<FDMXRecorder>> DMXRecorders;
+}
+
+
+////////////////////////////////////////////////
+// UMovieSceneDMXLibraryTrackRecorder
 
 TWeakObjectPtr<UMovieSceneDMXLibraryTrack> UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, UDMXLibrary* Library, const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs, bool bInAlwaysUseTimecode, bool bInDiscardSamplesBeforeStart, UMovieSceneTrackRecorderSettings* InSettingsObject)
 {
@@ -148,6 +363,13 @@ void UMovieSceneDMXLibraryTrackRecorder::StopRecordingImpl()
 
 void UMovieSceneDMXLibraryTrackRecorder::FinalizeTrackImpl()
 {
+	TSharedPtr<FDMXRecorder>* MyRecorderPtr = DMXRecorders.Find(this);
+	if (MyRecorderPtr)
+	{
+		TSharedPtr<FDMXRecorder>& MyRecorder = *MyRecorderPtr;
+		MyRecorder->WriteAllChannels();
+	}
+
 	if (DMXLibrarySection.IsValid())
 	{
 		FKeyDataOptimizationParams Params;
@@ -165,12 +387,21 @@ void UMovieSceneDMXLibraryTrackRecorder::FinalizeTrackImpl()
 
 void UMovieSceneDMXLibraryTrackRecorder::RecordSampleImpl(const FQualifiedFrameTime& CurrentFrameTime)
 {
+	SCOPE_CYCLE_COUNTER(STAT_DMXTakeRecorderRecordSample);
+
 	if (Buffer.Num() == 0)
 	{
 		return;
 	}
 
-	TMap<FDMXAttributeName, int32> AttributeValueMap;
+	TSharedPtr<FDMXRecorder>* MyRecorderPtr = DMXRecorders.Find(this);
+	if (!MyRecorderPtr)
+	{
+		DMXRecorders.Add(this, MakeShared<FDMXRecorder>());
+	}
+
+	TSharedPtr<FDMXRecorder>& MyRecorder = DMXRecorders.FindChecked(this);
+
 	DMXLibrarySection->ForEachPatchFunctionChannels([&](UDMXEntityFixturePatch* Patch, TArray<FDMXFixtureFunctionChannel>& FunctionChannels)
 	{
 		const TSharedPtr<FDMXSignal>* SignalPtr = Buffer.Find(Patch);
@@ -200,70 +431,67 @@ void UMovieSceneDMXLibraryTrackRecorder::RecordSampleImpl(const FQualifiedFrameT
 
 			DMXLibrarySection->ExpandToFrame(SignalFrame);
 
-			AttributeValueMap.Reset();
+			TArray<FDMXCellAttributeValues> CellAttributeValues;
+			GetAllMatrixCellValuesFast(Patch, Signal, CellAttributeValues);
+
 			for (FDMXFixtureFunctionChannel& Channel : FunctionChannels)
 			{
 				if (Channel.IsCellFunction())
 				{
-					FDMXFixtureMatrix MatrixProperties;
-					if (!Patch->GetMatrixProperties(MatrixProperties))
+					const FDMXCellAttributeValues* CellAttributeValuesPtr = CellAttributeValues.FindByPredicate([&Channel](const FDMXCellAttributeValues& CellAttributeValues) {
+						return
+							CellAttributeValues.Cell.Coordinate.X == Channel.CellCoordinate.X &&
+							CellAttributeValues.Cell.Coordinate.Y == Channel.CellCoordinate.Y;
+						});
+					
+					if (CellAttributeValuesPtr)
 					{
-						continue;
-					}
-
-					for (const FDMXFixtureCellAttribute& CellAttribute : MatrixProperties.CellAttributes)
-					{
-						UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-						check(DMXSubsystem);
-
-						TMap<FDMXAttributeName, int32> AttributeNameValueMap;
-						Patch->GetMatrixCellValues(Channel.CellCoordinate, AttributeNameValueMap);
-
-						int32* ValuePtr = AttributeNameValueMap.Find(Channel.AttributeName);
+						const int32* ValuePtr = CellAttributeValuesPtr->AttributeNameToValueMap.Find(Channel.AttributeName);
+						
 						if (ValuePtr)
 						{
-							if (Channel.Channel.GetValues().Num() > 0)
+							float PreviousValue;
+							if (MyRecorder->GetLastValue(&Channel, PreviousValue))
 							{
-								if (Channel.Channel.GetValues().Last().Value == static_cast<float>(*ValuePtr))
+								if (PreviousValue == *ValuePtr)
 								{
 									// Don't record unchanged values
 									continue;
 								}
 								else
 								{
-									// Set the previous value one frame ahead to avoid blending between keys.
-									Channel.Channel.AddLinearKey(SignalFrame - 1, static_cast<float>(Channel.Channel.GetValues().Last().Value));
+									MyRecorder->Record(&Channel, SignalFrame - 1, PreviousValue);
 								}
 							}
 
-							Channel.Channel.AddLinearKey(SignalFrame, static_cast<float>(*ValuePtr));
+							MyRecorder->Record(&Channel, SignalFrame - 1, *ValuePtr);
 						}
 					}
 				}
 				else
 				{
-					AttributeValueMap.Reset();
+					TMap<FDMXAttributeName, int32> AttributeValueMap;
 					Patch->GetAttributesValues(AttributeValueMap);
 
 					const int32* ValuePtr = AttributeValueMap.Find(Channel.AttributeName);
 
 					if (ValuePtr)
 					{
-						if (Channel.Channel.GetValues().Num() > 0)
+						float PreviousValue;
+						if (MyRecorder->GetLastValue(&Channel, PreviousValue))
 						{
-							if (Channel.Channel.GetValues().Last().Value == static_cast<float>(*ValuePtr))
+							if (PreviousValue == *ValuePtr)
 							{
 								// Don't record unchanged values
 								continue;
 							}
 							else
 							{
-								// Set the previous value one frame ahead to avoid blending between keys.
-								Channel.Channel.AddLinearKey(SignalFrame - 1, static_cast<float>(Channel.Channel.GetValues().Last().Value));
+								MyRecorder->Record(&Channel, SignalFrame - 1, PreviousValue);
 							}
 						}
 
-						Channel.Channel.AddLinearKey(SignalFrame, static_cast<float>(*ValuePtr));
+						MyRecorder->Record(&Channel, SignalFrame - 1, *ValuePtr);
 					}
 				}
 			}

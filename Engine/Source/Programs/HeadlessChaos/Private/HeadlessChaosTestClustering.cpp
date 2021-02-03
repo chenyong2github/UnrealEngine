@@ -21,57 +21,54 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	template<class T>
 	void ImplicitCluster()
 	{
-		TPBDRigidsSOAs<T, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
-		TPBDRigidClusteredParticles<T, 3>& ClusteredParticles = Particles.GetClusteredParticles();
+		FPBDRigidClusteredParticles& ClusteredParticles = Particles.GetClusteredParticles();
 		
 		uint32 FirstId = ClusteredParticles.Size();
-		TPBDRigidParticleHandle<T, 3>* Box1 = AppendClusteredParticleBox<T>(Particles, TVector<T, 3>((T)100, (T)100, (T)100));
+		FPBDRigidParticleHandle* Box1 = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 		uint32 BoxId = FirstId++;
-		TPBDRigidParticleHandle<T, 3>* Box2 = AppendClusteredParticleBox<T>(Particles, TVector<T, 3>((T)100, (T)100, (T)100));
+		FPBDRigidParticleHandle* Box2 = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 		uint32 Box2Id = FirstId++;
 		
-		Box2->X() = TVector<T, 3>((T)100, (T)0, (T)0);
+		Box2->X() = FVec3((FReal)100, (FReal)0, (FReal)0);
 		Box2->P() = Box2->X();
 
 		Evolution.AdvanceOneTimeStep(0);	//hack to initialize islands
 		//Evolution.InitializeAccelerationStructures();	//make sure islands are created
-		FClusterCreationParameters<T> ClusterParams;
+		FClusterCreationParameters<FReal> ClusterParams;
 		
-		TArray<Chaos::TPBDRigidParticleHandle<T, 3>*> ClusterChildren;
+		TArray<Chaos::FPBDRigidParticleHandle*> ClusterChildren;
 		ClusterChildren.Add(Box1);
 		ClusterChildren.Add(Box2);
 
 		Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterChildren), ClusterParams);
 		EXPECT_EQ(ClusteredParticles.Size(), 3);
 
-		TVector<T, 3> ClusterX = ClusteredParticles.X(2);
-		TRotation<T,3> ClusterRot = ClusteredParticles.R(2);
+		FVec3 ClusterX = ClusteredParticles.X(2);
+		FRotation3 ClusterRot = ClusteredParticles.R(2);
 
-		EXPECT_TRUE(ClusterX.Equals(TVector<T, 3> {(T)50, 0, 0}));
-		EXPECT_TRUE(ClusterRot.Equals(TRotation<T, 3>::Identity));
+		EXPECT_TRUE(ClusterX.Equals(FVec3 {(FReal)50, 0, 0}));
+		EXPECT_TRUE(ClusterRot.Equals(FRotation3::Identity));
 		EXPECT_TRUE(ClusterX.Equals(ClusteredParticles.P(2)));
 		EXPECT_TRUE(ClusterRot.Equals(ClusteredParticles.Q(2)));
 
-		TRigidTransform<float, 3> ClusterTM(ClusterX, ClusterRot);
-		TVector<T, 3> LocalPos = ClusterTM.InverseTransformPositionNoScale(TVector<T, 3> {(T)200, (T)0, (T)0});
-		TVector<T, 3> Normal;
-		T Phi = ClusteredParticles.Geometry(2)->PhiWithNormal(LocalPos, Normal);
-		EXPECT_TRUE(FMath::IsNearlyEqual(Phi, (T)50));
-		EXPECT_TRUE(Normal.Equals(TVector<T, 3>{(T)1, (T)0, (T)0}));
+		FRigidTransform3 ClusterTM(ClusterX, ClusterRot);
+		FVec3 LocalPos = ClusterTM.InverseTransformPositionNoScale(FVec3 {(FReal)200, (FReal)0, (FReal)0});
+		FVec3 Normal;
+		FReal Phi = ClusteredParticles.Geometry(2)->PhiWithNormal(LocalPos, Normal);
+		EXPECT_TRUE(FMath::IsNearlyEqual(Phi, (FReal)50));
+		EXPECT_TRUE(Normal.Equals(FVec3{(FReal)1, (FReal)0, (FReal)0}));
 
 		//EXPECT_TRUE(Evolution.GetParticles().Geometry(2)->IsConvex());  we don't actually guarantee this
 	}
-	template void ImplicitCluster<float>();
 
-	template<class T>
 	void FractureCluster()
 	{
-		TPBDRigidsSOAs<T, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
@@ -79,26 +76,26 @@ namespace ChaosTest {
 		//create a long row of boxes - the depth 0 cluster is the entire row, the depth 1 clusters 4 boxes each, the depth 2 clusters are 1 box each
 
 		constexpr int32 NumBoxes = 32;
-		TArray<TPBDRigidParticleHandle<T, 3>*> Boxes;
+		TArray<FPBDRigidParticleHandle*> Boxes;
 		TArray<uint32> BoxIDs;
 		for (int i = 0; i < NumBoxes; ++i)
 		{
 			BoxIDs.Add(ClusteredParticles.Size());
-			TPBDRigidParticleHandle<T, 3>* Box = AppendClusteredParticleBox<T>(Particles, TVector<T, 3>((T)100, (T)100, (T)100));
-			Box->X() = TVector<T, 3>((T)i * (T)100, (T)0, (T)0);
+			FPBDRigidParticleHandle* Box = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			Box->X() = FVec3((FReal)i * (FReal)100, (FReal)0, (FReal)0);
 			Box->P() = Box->X();
 			Boxes.Add(Box);
 		}
 
 		Evolution.AdvanceOneTimeStep(0);	//hack to generate islands
 
-		TArray<Chaos::TPBDRigidParticleHandle<T, 3>* > ClusterHandles;
+		TArray<Chaos::FPBDRigidParticleHandle* > ClusterHandles;
 
 		for (int i = 0; i < NumBoxes / 4; ++i)
 		{
-			FClusterCreationParameters<T> ClusterParams;
+			FClusterCreationParameters<FReal> ClusterParams;
 
-			TArray<Chaos::TPBDRigidParticleHandle<float, 3>*> ClusterChildren;
+			TArray<Chaos::FPBDRigidParticleHandle*> ClusterChildren;
 			ClusterChildren.Add(Boxes[i * 4]);
 			ClusterChildren.Add(Boxes[i * 4+1]);
 			ClusterChildren.Add(Boxes[i * 4+2]);
@@ -106,9 +103,9 @@ namespace ChaosTest {
 			ClusterHandles.Add(Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterChildren), ClusterParams));
 		}
 
-		FClusterCreationParameters<T> ClusterParams;
-		Chaos::TPBDRigidParticleHandle<T, 3>* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
-		TVector<T, 3> InitialVelocity((T)50, (T)20, (T)100);
+		FClusterCreationParameters<FReal> ClusterParams;
+		Chaos::FPBDRigidParticleHandle* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
+		FVec3 InitialVelocity((FReal)50, (FReal)20, (FReal)100);
 
 		RootClusterHandle->V() = InitialVelocity;		
 		
@@ -124,7 +121,7 @@ namespace ChaosTest {
 		EXPECT_EQ(Particles.GetNonDisabledView().Num(), 1);
 		EXPECT_EQ(Particles.GetNonDisabledView().Begin()->Handle(), RootClusterHandle);
 
-		const T Dt = 0;	//don't want to integrate gravity, just want to test fracture
+		const FReal Dt = 0;	//don't want to integrate gravity, just want to test fracture
 		Evolution.AdvanceOneTimeStep(Dt);
 		EXPECT_TRUE(RootClusterHandle->Disabled());	//not a cluster anymore, so disabled
 		for (auto& Particle : Particles.GetNonDisabledView())
@@ -149,7 +146,7 @@ namespace ChaosTest {
 			}
 		}
 
-		for (Chaos::TPBDRigidParticleHandle<T, 3>* ClusterHandle : ClusterHandles)
+		for (Chaos::FPBDRigidParticleHandle* ClusterHandle : ClusterHandles)
 		{
 			EXPECT_TRUE(ClusterHandle->Disabled() == false);	//not a cluster anymore, so disabled
 			bool bFoundInNonDisabled = false;
@@ -164,7 +161,7 @@ namespace ChaosTest {
 
 		Evolution.AdvanceOneTimeStep(Dt);
 		//second fracture, all clusters are now disabled
-		for (Chaos::TPBDRigidParticleHandle<T, 3>* ClusterHandle : ClusterHandles)
+		for (Chaos::FPBDRigidParticleHandle* ClusterHandle : ClusterHandles)
 		{
 			EXPECT_TRUE(ClusterHandle->Disabled() == true);	//not a cluster anymore, so disabled
 			for (auto& Particle : Particles.GetNonDisabledView())
@@ -180,7 +177,7 @@ namespace ChaosTest {
 
 		EXPECT_EQ(Particles.GetNonDisabledView().Num(), NumBoxes);
 		
-		for (TPBDRigidParticleHandle<T, 3>* BoxHandle : Boxes)
+		for (FPBDRigidParticleHandle* BoxHandle : Boxes)
 		{
 			EXPECT_TRUE(BoxHandle->Disabled() == false);
 			bool bFoundInNonDisabled = false;
@@ -192,12 +189,10 @@ namespace ChaosTest {
 			EXPECT_TRUE(BoxHandle->V().Equals(InitialVelocity));
 		}
 	}
-	template void FractureCluster<float>();
 
-	template<class T>
 	void PartialFractureCluster()
 	{
-		TPBDRigidsSOAs<T, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolution Evolution(Particles, PhysicalMaterials);
 		auto& ClusteredParticles = Particles.GetClusteredParticles();
@@ -205,26 +200,26 @@ namespace ChaosTest {
 		//create a long row of boxes - the depth 0 cluster is the entire row, the depth 1 clusters 4 boxes each, the depth 2 clusters are 1 box each
 
 		constexpr int32 NumBoxes = 32;
-		TArray<TPBDRigidParticleHandle<T, 3>*> Boxes;
+		TArray<FPBDRigidParticleHandle*> Boxes;
 		TArray<uint32> BoxIDs;
 		for (int i = 0; i < NumBoxes; ++i)
 		{
 			BoxIDs.Add(ClusteredParticles.Size());
-			TPBDRigidParticleHandle<T, 3>* Box = AppendClusteredParticleBox<T>(Particles, TVector<T, 3>((T)100, (T)100, (T)100));
-			Box->X() = TVector<T, 3>((T)i * (T)100, (T)0, (T)0);
+			FPBDRigidParticleHandle* Box = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
+			Box->X() = FVec3((FReal)i * (FReal)100, (FReal)0, (FReal)0);
 			Box->P() = Box->X();
 			Boxes.Add(Box);
 		}
 
 		Evolution.AdvanceOneTimeStep(0);	//hack to generate islands
 
-		TArray<Chaos::TPBDRigidParticleHandle<T, 3>* > ClusterHandles;
+		TArray<Chaos::FPBDRigidParticleHandle* > ClusterHandles;
 
 		for (int i = 0; i < NumBoxes / 4; ++i)
 		{
-			FClusterCreationParameters<T> ClusterParams;
+			FClusterCreationParameters<FReal> ClusterParams;
 
-			TArray<Chaos::TPBDRigidParticleHandle<float, 3>*> ClusterChildren;
+			TArray<Chaos::FPBDRigidParticleHandle*> ClusterChildren;
 			ClusterChildren.Add(Boxes[i * 4]);
 			ClusterChildren.Add(Boxes[i * 4 + 1]);
 			ClusterChildren.Add(Boxes[i * 4 + 2]);
@@ -232,11 +227,11 @@ namespace ChaosTest {
 			ClusterHandles.Add(Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterChildren), ClusterParams));
 		}
 
-		TArray<Chaos::TPBDRigidParticleHandle<T, 3>* > ClusterHandlesDup = ClusterHandles;
+		TArray<Chaos::FPBDRigidParticleHandle* > ClusterHandlesDup = ClusterHandles;
 
-		FClusterCreationParameters<T> ClusterParams;
-		Chaos::TPBDRigidParticleHandle<T, 3>* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
-		TVector<T, 3> InitialVelocity((T)50, (T)20, (T)100);
+		FClusterCreationParameters<FReal> ClusterParams;
+		Chaos::FPBDRigidParticleHandle* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
+		FVec3 InitialVelocity((FReal)50, (FReal)20, (FReal)100);
 
 		RootClusterHandle->V() = InitialVelocity;
 
@@ -248,21 +243,21 @@ namespace ChaosTest {
 		PhysicalMaterial->DisabledLinearThreshold = 0;
 		PhysicalMaterial->DisabledAngularThreshold = 0;
 
-		Chaos::TArrayCollectionArray<float>& SolverStrainArray = Evolution.GetRigidClustering().GetStrainArray();
+		Chaos::TArrayCollectionArray<FReal>& SolverStrainArray = Evolution.GetRigidClustering().GetStrainArray();
 
 		for (int i = 0; i < NumBoxes + NumBoxes / 4 + 1; ++i)
 		{
-			SolverStrainArray[i] = (T)1;
+			SolverStrainArray[i] = (FReal)1;
 			Evolution.SetPhysicsMaterial(ClusteredParticles.Handle(i), MakeSerializable(PhysicalMaterial));
 		}
 
-		Evolution.AdvanceOneTimeStep((T)1 / (T)60);
+		Evolution.AdvanceOneTimeStep((FReal)1 / (FReal)60);
 		EXPECT_TRUE(RootClusterHandle->Disabled() == false);	//strain > 0 so no fracture yet
 
 		// todo: is this the correct replacement for strain?
-		static_cast<Chaos::TPBDRigidClusteredParticleHandle<T, 3>*>(ClusterHandlesDup[2])->SetStrain((T)0);	//fracture the third cluster, this should leave us with three pieces (0, 1), (2), (3,4,5,6,7)
+		static_cast<Chaos::FPBDRigidClusteredParticleHandle*>(ClusterHandlesDup[2])->SetStrain((FReal)0);	//fracture the third cluster, this should leave us with three pieces (0, 1), (2), (3,4,5,6,7)
 
-		Evolution.AdvanceOneTimeStep((T)1 / (T)60);
+		Evolution.AdvanceOneTimeStep((FReal)1 / (FReal)60);
 		//EXPECT_TRUE(Evolution.GetParticles().Disabled(RootClusterHandle) == false);	//one of the connected pieces should re-use this
 		EXPECT_TRUE(ClusterHandlesDup[2]->Disabled() == false);	//this cluster is on its own and should be enabled 
 		
@@ -277,12 +272,12 @@ namespace ChaosTest {
 			}
 		}
 
-		SolverStrainArray[NumBoxes + NumBoxes / 4 + 1] = (T)1;
+		SolverStrainArray[NumBoxes + NumBoxes / 4 + 1] = (FReal)1;
 		Evolution.SetPhysicsMaterial(ClusteredParticles.Handle(NumBoxes + NumBoxes / 4 + 1), MakeSerializable(PhysicalMaterial));
-		SolverStrainArray[NumBoxes + NumBoxes / 4 + 2] = (T)1;
+		SolverStrainArray[NumBoxes + NumBoxes / 4 + 2] = (FReal)1;
 		Evolution.SetPhysicsMaterial(ClusteredParticles.Handle(NumBoxes + NumBoxes / 4 + 2), MakeSerializable(PhysicalMaterial));
 
-		Evolution.AdvanceOneTimeStep((T)1 / (T)60);	//next frame nothing should fracture
+		Evolution.AdvanceOneTimeStep((FReal)1 / (FReal)60);	//next frame nothing should fracture
 		//EXPECT_TRUE(Evolution.GetParticles().Disabled(RootClusterHandle) == false);	//one of the connected pieces should re-use this
 		EXPECT_TRUE(ClusterHandlesDup[2]->Disabled() == false);	//this cluster is on its own and should be enabled 
 
@@ -297,6 +292,5 @@ namespace ChaosTest {
 			}
 		}
 	}
-	template void PartialFractureCluster<float>();
 }
 

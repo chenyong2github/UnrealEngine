@@ -2797,6 +2797,11 @@ bool FPipelineFileCache::OpenPipelineFileCache(FString const& Name, EShaderPlatf
 			
 			bOk = FileCache->OpenPipelineFileCache(Name, Platform, OutGameFileGuid);
 			
+			if (!bOk)
+			{
+				delete FileCache;
+				FileCache = nullptr;
+			}
 			// File Cache now exists - these caches should be empty for this file otherwise will have false positives from any previous file caching - if not something has been caching when it should not be
 			check(NewPSOs.Num() == 0);
 			check(NewPSOHashes.Num() == 0);

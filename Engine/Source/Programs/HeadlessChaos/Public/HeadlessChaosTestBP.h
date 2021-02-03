@@ -7,6 +7,5 @@
 
 namespace ChaosTest {
 
-	template<typename T>
 	void BPPerfTest();
 }

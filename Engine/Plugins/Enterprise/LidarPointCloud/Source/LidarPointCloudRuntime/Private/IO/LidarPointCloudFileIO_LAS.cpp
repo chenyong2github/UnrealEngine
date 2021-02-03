@@ -601,13 +601,13 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAS(const FString& Filename, FLidar
 		int64 PointsRead = 0;
 
 		// Clear any existing data
-		OutImportResults.Points.Empty(TotalPointsToRead);
+		OutImportResults.Points.Empty(bUseConcurrentImport ? 0 : TotalPointsToRead);
 		OutImportResults.ClassificationsImported.Empty();
 
 		// Multi-threading
 		FCriticalSection PointsLock;
 		TArray<TFuture<void>> ThreadResults;
-		FLidarPointCloudDataBufferManager BufferManager(MaxPointsToRead * Header.PointDataRecordLength);
+		FLidarPointCloudDataBufferManager BufferManager(MaxPointsToRead * Header.PointDataRecordLength, FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 1);
 
 		// Stream the data
 		while (PointsRead < TotalPointsToRead && !OutImportResults.IsCancelled())

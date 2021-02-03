@@ -2,6 +2,7 @@
 
 #include "GameFeaturesProjectPolicies.h"
 #include "GameFeaturesSubsystem.h"
+#include "Misc/CoreMisc.h"
 
 void UDefaultGameFeaturesProjectPolicies::InitGameFeatureManager()
 {
@@ -13,4 +14,11 @@ void UDefaultGameFeaturesProjectPolicies::InitGameFeatureManager()
 	};
 
 	UGameFeaturesSubsystem::Get().LoadBuiltInGameFeaturePlugins(AdditionalFilter);
+}
+
+void UDefaultGameFeaturesProjectPolicies::GetGameFeatureLoadingMode(bool& bLoadClientData, bool& bLoadServerData) const
+{
+	// By default, load both unless we are a dedicated server or client only cooked build
+	bLoadClientData = !IsRunningDedicatedServer();
+	bLoadServerData = !IsRunningClientOnly();
 }

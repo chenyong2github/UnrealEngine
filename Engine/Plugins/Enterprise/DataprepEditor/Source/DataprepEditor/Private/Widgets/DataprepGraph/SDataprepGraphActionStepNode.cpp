@@ -66,7 +66,7 @@ TSharedPtr<SWidget> SDataprepGraphActionStepNode::GetStepTitleWidget() const
 			.VAlign(VAlign_Fill)
 			.HAlign(HAlign_Fill)
 			[
-				SDataprepGraphActionNode::CreateBackground(BlockColorAndOpacity)
+				SDataprepGraphBaseActionNode::CreateBackground(BlockColorAndOpacity)
 			]
 
 			+ SOverlay::Slot()
@@ -74,7 +74,7 @@ TSharedPtr<SWidget> SDataprepGraphActionStepNode::GetStepTitleWidget() const
 			.VAlign(VAlign_Fill)
 			.HAlign(HAlign_Fill)
 			[
-				SDataprepGraphActionNode::CreateBackground(FDataprepEditorStyle::GetColor( "DataprepActionStep.BackgroundColor" ))
+				SDataprepGraphBaseActionNode::CreateBackground(FDataprepEditorStyle::GetColor( "DataprepActionStep.BackgroundColor" ))
 			]
 
 			+ SOverlay::Slot()
@@ -243,7 +243,8 @@ FMargin SDataprepGraphActionStepNode::GetBlockPadding()
 	static const FMargin Selected = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Selected.Padding" );
 	static const FMargin Regular = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Regular.Padding" );
 
-	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
+	TSharedPtr<SGraphPanel> OwnerPanel = GetOwnerPanel();
+	const bool bIsSelected = OwnerPanel.IsValid() ? OwnerPanel->SelectionManager.SelectedNodes.Contains(GraphNode) : false;
 
 	return bIsSelected ? Selected : Regular;
 }

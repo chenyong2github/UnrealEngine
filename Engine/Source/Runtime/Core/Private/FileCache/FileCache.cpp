@@ -282,6 +282,8 @@ FFileCache::FFileCache(int32 NumSlots)
 	, SizeInBytes(NumSlots * CacheSlotID::BlockSize)
 	, NumFreeSlots(NumSlots)
 {
+	LLM_SCOPE(ELLMTag::FileSystem);
+
 	Memory = (uint8*)FMemory::Malloc(SizeInBytes);
 
 	SlotInfo.AddUninitialized(NumSlots + 1);

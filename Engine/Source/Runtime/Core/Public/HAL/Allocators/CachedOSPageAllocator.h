@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
 
 struct FCachedOSPageAllocator
 {
@@ -19,9 +20,9 @@ protected:
 		}
 	};
 
-	void* AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, FFreePageBlock* First, FFreePageBlock* Last, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal);
-	void FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlocks, uint32 CachedByteLimit, FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal);
-	void FreeAllImpl(FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal);
+	void* AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, FFreePageBlock* First, FFreePageBlock* Last, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal, FCriticalSection* Mutex);
+	void FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlocks, uint32 CachedByteLimit, FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal, FCriticalSection* Mutex);
+	void FreeAllImpl(FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal, FCriticalSection* Mutex);
 };
 
 template <uint32 NumCacheBlocks, uint32 CachedByteLimit>
@@ -33,18 +34,18 @@ struct TCachedOSPageAllocator : private FCachedOSPageAllocator
 	{
 	}
 
-	FORCEINLINE void* Allocate(SIZE_T Size, uint32 AllocationHint = 0)
+	FORCEINLINE void* Allocate(SIZE_T Size, uint32 AllocationHint = 0, FCriticalSection* Mutex = nullptr)
 	{
-		return AllocateImpl(Size, CachedByteLimit, FreedPageBlocks, FreedPageBlocks + FreedPageBlocksNum, FreedPageBlocksNum, CachedTotal);
+		return AllocateImpl(Size, CachedByteLimit, FreedPageBlocks, FreedPageBlocks + FreedPageBlocksNum, FreedPageBlocksNum, CachedTotal, Mutex);
 	}
 
-	void Free(void* Ptr, SIZE_T Size)
+	void Free(void* Ptr, SIZE_T Size, FCriticalSection* Mutex = nullptr)
 	{
-		return FreeImpl(Ptr, Size, NumCacheBlocks, CachedByteLimit, FreedPageBlocks, FreedPageBlocksNum, CachedTotal);
+		return FreeImpl(Ptr, Size, NumCacheBlocks, CachedByteLimit, FreedPageBlocks, FreedPageBlocksNum, CachedTotal, Mutex);
 	}
-	void FreeAll()
+	void FreeAll(FCriticalSection* Mutex = nullptr)
 	{
-		return FreeAllImpl(FreedPageBlocks, FreedPageBlocksNum, CachedTotal);
+		return FreeAllImpl(FreedPageBlocks, FreedPageBlocksNum, CachedTotal, Mutex);
 	}
 
 	uint64 GetCachedFreeTotal()

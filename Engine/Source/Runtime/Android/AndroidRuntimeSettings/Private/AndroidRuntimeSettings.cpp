@@ -209,7 +209,7 @@ void UAndroidRuntimeSettings::PostInitProperties()
 void UAndroidRuntimeSettings::EnsureValidGPUArch()
 {
 	// Ensure that at least one GPU architecture is supported
-	if (!bSupportsVulkan && !bBuildForES31)
+	if (!bSupportsVulkan && !bBuildForES31 && !bSupportsVulkanSM5)
 	{
 		bBuildForES31 = true;
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31)), GetDefaultConfigFilename());

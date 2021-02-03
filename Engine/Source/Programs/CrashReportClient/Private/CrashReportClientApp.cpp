@@ -390,7 +390,7 @@ class FMessageBoxThread : public FRunnable
 	virtual uint32 Run() override
 	{
 		// We will not have any GUI for the crash reporter if we are sending implicitly, so pop a message box up at least
-		if (FApp::CanEverRender())
+		if (FApp::CanEverRender() && !FApp::IsUnattended())
 		{
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
 				*NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString(),

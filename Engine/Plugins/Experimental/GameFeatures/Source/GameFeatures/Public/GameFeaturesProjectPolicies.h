@@ -30,6 +30,10 @@ public:
 	// See the Asset Manager documentation for more information about asset bundles
 	virtual const TArray<FName> GetPreloadBundleStateForGameFeature() const { return TArray<FName>(); }
 
+	// Called to determine if this should be treated as a client, server, or both for data preloading
+	// Actions can use this to decide what to load at runtime
+	virtual void GetGameFeatureLoadingMode(bool& bLoadClientData, bool& bLoadServerData) const { bLoadClientData = true; bLoadServerData = true; }
+
 	// Called to determine if a plugin is allowed to be loaded or not
 	// (e.g., when doing a fast cook a game might want to disable some or all game feature plugins)
 	virtual bool IsPluginAllowed(const FString& PluginURL) const { return true; }
@@ -47,5 +51,6 @@ class GAMEFEATURES_API UDefaultGameFeaturesProjectPolicies : public UGameFeature
 public:
 	//~UGameFeaturesProjectPolicies interface
 	virtual void InitGameFeatureManager() override;
+	virtual void GetGameFeatureLoadingMode(bool& bLoadClientData, bool& bLoadServerData) const override;
 	//~End of UGameFeaturesProjectPolicies interface
 };

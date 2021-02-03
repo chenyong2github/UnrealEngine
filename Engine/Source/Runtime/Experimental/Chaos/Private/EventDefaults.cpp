@@ -394,13 +394,13 @@ namespace Chaos
 					{
 						for (IPhysicsProxyBase* Proxy : *Proxies)
 						{
-					TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
+							FGeometryParticle* Particle = SleepData.Particle->GTGeometryParticle();
 							if (Particle != nullptr && Proxy != nullptr)
-					{
-						int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
-						TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
-						SleepingDataArrayItem.Particle = Particle;
-						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
+							{
+								int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
+								TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
+								SleepingDataArrayItem.Particle = Particle;
+								SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 							}
 						}
 					}

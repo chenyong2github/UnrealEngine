@@ -13,21 +13,21 @@
 
 namespace ChaosTest
 {
-	template<typename TEvolution, typename T>
+	template<typename TEvolution>
 	void Gravity()
 	{
-		TPBDRigidsSOAs<T, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		
-		TArray<TPBDRigidParticleHandle<T,3>*> Dynamics = Evolution.CreateDynamicParticles(1);
+		TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(1);
 		Evolution.AdvanceOneTimeStep(0.1);
 		EXPECT_LT(Dynamics[0]->X()[2], 0);
 	}
 	
 	TYPED_TEST(AllEvolutions,Forces)
 	{
-		ChaosTest::Gravity<TypeParam,float>();
+		ChaosTest::Gravity<TypeParam>();
 		SUCCEED();
 	}
 }

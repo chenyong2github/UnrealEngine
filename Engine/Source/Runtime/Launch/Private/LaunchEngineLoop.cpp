@@ -2462,7 +2462,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 #if CHECK_PUREVIRTUALS
-	FMessageDialog::Open(EAppMsgType::Ok, *NSLOCTEXT("Engine", "Error_PureVirtualsEnabled", "The game cannot run with CHECK_PUREVIRTUALS enabled.  Please disable CHECK_PUREVIRTUALS and rebuild the executable.").ToString());
+	FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Engine", "Error_PureVirtualsEnabled", "The game cannot run with CHECK_PUREVIRTUALS enabled.  Please disable CHECK_PUREVIRTUALS and rebuild the executable."));
 	FPlatformMisc::RequestExit(false);
 #endif
 
@@ -4263,6 +4263,8 @@ int32 FEngineLoop::Init()
 
 	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::EndOfEngineInit);
 
+	// Emit logging. Don't edit! Automation looks for this to detect failures during initialization.
+	UE_LOG(LogInit, Display, TEXT("Engine is initialized. Leaving FEngineLoop::Init()"));
 	return 0;
 }
 
@@ -4293,39 +4295,6 @@ void FEngineLoop::Exit()
 #if ENABLE_VISUAL_LOG
 	FVisualLogger::Get().Shutdown();
 #endif
-
-
-	// Make sure we're not in the middle of loading something.
-	{
-		// From now on it's not allowed to request new async loads
-		SetAsyncLoadingAllowed(false);
-
-		bool bFlushOnExit = true;
-		if (GConfig)
-		{
-			FBoolConfigValueHelper FlushStreamingOnExitHelper(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.FlushStreamingOnExit"), GEngineIni);
-			bFlushOnExit = FlushStreamingOnExitHelper;			
-		}
-		if (bFlushOnExit)
-		{
-			FlushAsyncLoading();
-		}
-		else
-		{
-			CancelAsyncLoading();
-		}
-	}
-
-#if WITH_EDITOR
-	FAssetCompilingManager::Get().Shutdown();
-#endif
-
-	// Block till all outstanding resource streaming requests are fulfilled.
-	if (!IStreamingManager::HasShutdown())
-	{
-		UTexture2D::CancelPendingTextureStreaming();
-		IStreamingManager::Get().BlockTillAllRequestsFinished();
-	}
 
 #if WITH_ENGINE
 	// shut down messaging
@@ -4363,6 +4332,38 @@ void FEngineLoop::Exit()
 		GEngine->ReleaseAudioDeviceManager();
 	}
 
+
+	// Make sure we're not in the middle of loading something.
+	{
+		// From now on it's not allowed to request new async loads
+		SetAsyncLoadingAllowed(false);
+
+		bool bFlushOnExit = true;
+		if (GConfig)
+		{
+			FBoolConfigValueHelper FlushStreamingOnExitHelper(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.FlushStreamingOnExit"), GEngineIni);
+			bFlushOnExit = FlushStreamingOnExitHelper;
+		}
+		if (bFlushOnExit)
+		{
+			FlushAsyncLoading();
+		}
+		else
+		{
+			CancelAsyncLoading();
+		}
+	}
+
+#if WITH_EDITOR
+	FAssetCompilingManager::Get().Shutdown();
+#endif
+
+	// Block till all outstanding resource streaming requests are fulfilled.
+	if (!IStreamingManager::HasShutdown())
+	{
+		UTexture2D::CancelPendingTextureStreaming();
+		IStreamingManager::Get().BlockTillAllRequestsFinished();
+	}
 	FAudioDeviceManager::Shutdown();
 
 	// close all windows

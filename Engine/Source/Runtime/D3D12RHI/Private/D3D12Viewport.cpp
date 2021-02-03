@@ -885,6 +885,22 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 	return bNativelyPresented;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Temporary workaround to make it possible to use WaitForFrameEventCompletion and IssueFrameEvent
+// outside of the D3D12RHI module without changing any public headers.
+void D3D12RHI_API Temporary_WaitForFrameEventCompletion(FD3D12Viewport& D3D12Viewport)
+{
+	D3D12Viewport.WaitForFrameEventCompletion();
+}
+
+void D3D12RHI_API Temporary_IssueFrameEvent(FD3D12Viewport& D3D12Viewport)
+{
+	D3D12Viewport.IssueFrameEvent();
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 void FD3D12Viewport::WaitForFrameEventCompletion()
 {
 	// Wait for the last signaled fence value.

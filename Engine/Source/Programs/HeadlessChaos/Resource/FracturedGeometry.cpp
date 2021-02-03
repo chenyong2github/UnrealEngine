@@ -7,7 +7,7 @@
 namespace GeometryCollectionTest 
 {
 
-	const TArray<float> FracturedGeometry::RawVertexArray = {
+	const TArray<Chaos::FReal> FracturedGeometry::RawVertexArray = {
 													50, 0, -50,
 													50, 50, -50,
 													0, 50, -50,
@@ -1954,26 +1954,26 @@ GlobalFracturedGeometry::GlobalFracturedGeometry()
 	}
 
 	// Measure the extent of the second point set.
-	Chaos::TAABB<float, 3> BBox(
-		Chaos::TVector<float, 3>(
+	Chaos::FAABB3 BBox(
+		Chaos::FVec3(
 			RawVertexArray[NumOrigFractured + 0],
 			RawVertexArray[NumOrigFractured + 1],
 			RawVertexArray[NumOrigFractured + 2]),
-		Chaos::TVector<float, 3>(
+		Chaos::FVec3(
 			RawVertexArray[NumOrigFractured + 0],
 			RawVertexArray[NumOrigFractured + 1],
 			RawVertexArray[NumOrigFractured + 2]));
 	for(int32 i=NumOrigFractured+3; i < NumOrigFractured*2; i+=3)
 	{
 		BBox.GrowToInclude(
-			Chaos::TVector<float, 3>(
+			Chaos::FVec3(
 				RawVertexArray[i + 0],
 				RawVertexArray[i + 1],
 				RawVertexArray[i + 2]));
 	}
 
 	// Translate the third point set out of the way.
-	const Chaos::TVector<float, 3> Extents = BBox.Extents();
+	const Chaos::FVec3 Extents = BBox.Extents();
 	for(int32 i=NumOrigFractured*2 + 1; i < NumOrigFractured*3; i+=3)
 	{
 		RawVertexArray[i] += Extents[1] + 1.0e-5;

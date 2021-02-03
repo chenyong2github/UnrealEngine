@@ -4,7 +4,8 @@
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
 
-// Custom serialization version for changes made in Dev-Physics stream
+// Custom serialization version for changes made in Release-4.26-Chaos 
+// Previously used for Dev-Physics stream
 struct CORE_API FPhysicsObjectVersion
 {
 	enum Type
@@ -22,6 +23,12 @@ struct CORE_API FPhysicsObjectVersion
 
 		// TriangleMesh has map from source vertex index to internal vertex index for per-poly collisoin.
 		TriangleMeshHasVertexIndexMap,
+
+		// Chaos Convex StructureData supports different index sizes based on num verts/planes
+		VariableConvexStructureData,
+
+		// Add the ability to enable or disable Continuous Collision Detection
+		AddCCDEnableFlag,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

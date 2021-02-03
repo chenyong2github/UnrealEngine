@@ -120,24 +120,24 @@ bool FMDLMapHandler::Import(const FString& MapName, bool bIsTexture, Mdl::FBakeP
 	if (!FirstNormalExpression && MapNameLower.Find(TEXT("normal")) != INDEX_NONE)
 	{
 		// setup the first normal map expression
-		FirstNormalExpression = Outputs[0].ExpressionData.Expression;
+		FirstNormalExpression = Outputs[0].GetExpressionAndMaybeUse();
 	}
 
 	if (MapNameLower.Find(TEXT("roughness")) != INDEX_NONE)
 	{
 		// convert from GGX to UE4
 		UMaterialExpression* Roughness =
-		    Generator::NewMaterialExpressionSquareRoot(CurrentMaterial, {Outputs[0].ExpressionData.Expression, Outputs[0].ExpressionData.Index});
+		    Generator::NewMaterialExpressionSquareRoot(CurrentMaterial, {Outputs[0].GetExpressionAndUse(), Outputs[0].GetExpressionOutputIndex()});
 		MapBakeParam.SetExpression(Roughness, bIsTexture, 0);
 	}
 	else
 	{
-		MapBakeParam.SetExpression(Outputs[0].ExpressionData.Expression, bIsTexture, Outputs[0].ExpressionData.Index);
+		MapBakeParam.SetExpression(Outputs[0].GetExpressionAndUse(), bIsTexture, Outputs[0].GetExpressionOutputIndex());
 	}
 
-	if (Outputs[0].ExpressionData.Expression)
+	if (Outputs[0].HasExpression())
 	{
-		UE_LOG(LogMDLImporter, Log, TEXT("Created expression %s for: %s from: %s"), *Outputs[0].ExpressionData.Expression->GetName(), *MapName,
+		UE_LOG(LogMDLImporter, Log, TEXT("Created expression %s for: %s from: %s"), *Outputs[0].GetExpressionName(), *MapName,
 		       *MapBakeParam.InputBakePath);
 	}
 	else
@@ -150,7 +150,7 @@ bool FMDLMapHandler::Import(const FString& MapName, bool bIsTexture, Mdl::FBakeP
 
 void FMDLMapHandler::PostImport()
 {
-	MaterialExpressionFactory.Tidy();
+	MaterialExpressionFactory.CleanupMaterialExpressions();
 }
 
 void FMDLMapHandler::SetTextureFactory(Generator::FMaterialTextureFactory* Factory)

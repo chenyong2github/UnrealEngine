@@ -61,7 +61,7 @@ namespace Chaos
 		const int32 Timestamp = PullData.SolverTimestamp;
 		for (const FDirtyRigidParticleData& Data : PullData.DirtyRigids)
 		{
-			if (FRigidParticlePhysicsProxy* Proxy = Data.GetProxy(Timestamp))
+			if (FSingleParticlePhysicsProxy* Proxy = Data.GetProxy(Timestamp))
 			{
 				int32 DataIdx = Proxy->GetPullDataInterpIdx_External();
 				if(DataIdx == INDEX_NONE)

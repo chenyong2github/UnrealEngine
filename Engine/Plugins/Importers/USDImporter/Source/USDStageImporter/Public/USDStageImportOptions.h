@@ -65,6 +65,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToImport;
 
+	/** Specifies which set of shaders to use, defaults to universal. */
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options")
+	FName RenderContextToImport;
+
 	/** Time to evaluate the USD Stage for import */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (DisplayName = "Time"))
 	float ImportTime;

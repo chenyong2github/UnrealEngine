@@ -175,7 +175,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Binaries/Mac/libusd.dylib", 
+            "LibraryPath": "../../../../../../../../Binaries/Mac/libusd.dylib", 
             "Name": "usd", 
             "ResourcePath": "resources", 
             "Root": "..", 

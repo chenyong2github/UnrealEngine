@@ -747,7 +747,7 @@ int32	UnFbx::FFbxImporter::DoUnSmoothVerts(FSkeletalMeshImportData &ImportData, 
 	return DuplicatedVertCount; 
 }
 
-bool IsUnrealBone(FbxNode* Link)
+bool UnFbx::FFbxImporter::IsUnrealBone(FbxNode* Link)
 {
 	FbxNodeAttribute* Attr = Link->GetNodeAttribute();
 	if (Attr)

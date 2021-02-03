@@ -264,7 +264,7 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 						return false;
 					}
 
-					if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Texture ) )
+					if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 					{
 						IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( MaterialExpression );
 

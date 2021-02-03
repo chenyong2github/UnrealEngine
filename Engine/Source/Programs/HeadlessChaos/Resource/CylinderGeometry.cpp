@@ -3,7 +3,7 @@
 #include "../Resource/CylinderGeometry.h"
 namespace GeometryCollectionTest
 {
-	const TArray<float> CylinderGeometry::RawVertexArray = {
+	const TArray<Chaos::FReal> CylinderGeometry::RawVertexArray = {
 																100.000000, 0.000000, 100.000000,
 																95.105652, 30.901701, 100.000000,
 																80.901703, 58.778526, 100.000000,

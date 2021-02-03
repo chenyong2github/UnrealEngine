@@ -10,6 +10,9 @@
 namespace Chaos
 {
 
+	// Note that if this is re-enabled when previously off, the cooked trimeshes won't have the vertex map serialized, so the change will not take effect until re-cooked.
+	bool TriMeshPerPolySupport = 1;
+	FAutoConsoleVariableRef CVarPerPolySupport(TEXT("p.Chaos.TriMeshPerPolySupport"), TriMeshPerPolySupport, TEXT("Disabling removes memory cost of vertex map on triangle mesh. Note: Changing at runtime will not work."));
 
 
 template <typename QueryGeomType, typename T, int d>
@@ -36,7 +39,7 @@ void ScaleTransformHelper(const FVec3& TriMeshScale, const FRigidTransform3& Que
 
 template <typename IdxType>
 void TransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const TParticles<FReal, 3>& Particles,
-	const TArray<TVector<IdxType, 3>>& Elements, TVec3<FReal>& OutA, TVec3<FReal>& OutB, TVec3<FReal>& OutC)
+	const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
 {
 	OutA = Particles.X(Elements[TriIdx][0]) * TriMeshScale;
 	OutB = Particles.X(Elements[TriIdx][1]) * TriMeshScale;
@@ -56,8 +59,8 @@ TImplicitObjectScaled<QueryGeomType> ScaleGeomIntoWorldHelper(const TImplicitObj
 	return MakeScaledHelper(QueryGeom, TriMeshScale);
 }
 
-void TransformSweepOutputsHelper(FVec3 TriMeshScale, const TVec3<FReal>& HitNormal, const TVec3<FReal>& HitPosition, const FReal LengthScale,
-	const FReal Time, TVec3<FReal>& OutNormal, TVec3<FReal>& OutPosition, FReal& OutTime)
+void TransformSweepOutputsHelper(FVec3 TriMeshScale, const FVec3& HitNormal, const FVec3& HitPosition, const FReal LengthScale,
+	const FReal Time, FVec3& OutNormal, FVec3& OutPosition, FReal& OutTime)
 {
 	if (ensure(TriMeshScale != FVec3(0.0f)))
 	{
@@ -262,7 +265,7 @@ struct FTriangleMeshRaycastVisitor
 FReal FTriangleMeshImplicitObject::PhiWithNormal(const FVec3& x, FVec3& Normal) const
 {
 	TSphere<FReal, 3> TestSphere(x, 0.0f);
-	FRigidTransform3 TestXf(TVector<float, 3>(0.0), TRotation<float, 3>::FromIdentity());
+	FRigidTransform3 TestXf(FVec3(0.0), TRotation<float, 3>::FromIdentity());
 	FVec3 TestLocation = x;
 	FReal Depth = TNumericLimits<FReal>::Max();
 	GJKContactPointImp(TestSphere, TestXf, 0.0f, TestLocation, Normal, Depth);
@@ -355,7 +358,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 
 		for (int32 TriIdx : PotentialIntersections)
 		{
-			TVec3<FReal> A, B, C;
+			FVec3 A, B, C;
 			TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 			if (CalculateTriangleContact(A, B, C, LocalContactLocation, LocalContactNormal, LocalContactPhi))
@@ -520,7 +523,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 			bool bOverlap = false;
 			for (int32 TriIdx : PotentialIntersections)
 			{
-				TVec3<FReal> A, B, C;
+				FVec3 A, B, C;
 				TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 				FVec3 TriangleNormal(0.0);
@@ -547,7 +550,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 		{
 			for (int32 TriIdx : PotentialIntersections)
 			{
-				TVec3<FReal> A, B, C;
+				FVec3 A, B, C;
 				TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 				const FVec3 AB = B - A;
@@ -888,8 +891,9 @@ TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlowImp
 	{
 		ExternalFaceIndexMapCopy = MakeUnique<TArray<int32>>(*ExternalFaceIndexMap.Get());
 	}
+
 	TUniquePtr<TArray<int32>> ExternalVertexIndexMapCopy = nullptr;
-	if (ExternalVertexIndexMap)
+	if (ExternalVertexIndexMap && TriMeshPerPolySupport)
 	{
 		ExternalVertexIndexMapCopy = MakeUnique<TArray<int32>>(*ExternalVertexIndexMap.Get());
 	}
@@ -1024,6 +1028,13 @@ void Chaos::FTriangleMeshImplicitObject::RebuildBV()
 
 void FTriangleMeshImplicitObject::UpdateVertices(const TArray<FVector>& NewPositions)
 {
+	if(TriMeshPerPolySupport == false)
+	{
+		// We don't have vertex map, this will not be correct.
+		ensure(false);
+		return;
+	}
+
 	const bool bRemapIndices = ExternalVertexIndexMap != nullptr;
 
 	for (int32 i = 0; i < NewPositions.Num(); ++i)

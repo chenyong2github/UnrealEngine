@@ -363,10 +363,8 @@ bool FSubTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& TargetObject
 		return false;
 	}
 
-	//@todo If there's already a cinematic shot track, allow that track to handle this asset
-	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
-
-	if (FocusedMovieScene != nullptr && FocusedMovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>() != nullptr)
+	// Only allow sequences without a camera cut track to be dropped as a subsequence. Otherwise, it'll be dropped as a shot.
+	if (Sequence->GetMovieScene()->GetCameraCutTrack())
 	{
 		return false;
 	}

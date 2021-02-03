@@ -111,14 +111,6 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 		check(ChaosModule);
 
 		bHasPhysicsState = true;
-
-		if(FieldSystem)
-		{
-			for(FFieldSystemCommand& Cmd : FieldSystem->Commands)
-			{
-				DispatchFieldCommand(Cmd, true);
-			}
-		}
 	}
 }
 
@@ -169,8 +161,10 @@ void UFieldSystemComponent::DispatchFieldCommand(const FFieldSystemCommand& InCo
 							{
 								ConcreteSolver->GetPerSolverField().AddPersistentCommand(NewCommand);
 							}
-							
-							ConcreteSolver->GetPerSolverField().AddTransientCommand(NewCommand);
+							else
+							{
+								ConcreteSolver->GetPerSolverField().AddTransientCommand(NewCommand);
+							}
 						});
 				});
 			}
@@ -244,59 +238,22 @@ void UFieldSystemComponent::BuildFieldCommand(bool Enabled, EFieldPhysicsType Ta
 {
 	if (Enabled && Field && HasValidPhysicsState())
 	{
-		TArray<const UFieldNodeBase*> Nodes;
-		FFieldSystemCommand Command = { GetFieldPhysicsName(Target), Field->NewEvaluationGraph(Nodes) };
-		if (ensureMsgf(Command.RootNode,
-			TEXT("Failed to generate physics field command for target attribute.")))
-		{
-			if (MetaData)
-			{
-				switch (MetaData->Type())
-				{
-				case FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution:
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution).Reset(new FFieldSystemMetaDataProcessingResolution(static_cast<UFieldSystemMetaDataProcessingResolution*>(MetaData)->ResolutionType));
-					break;
-				case FFieldSystemMetaData::EMetaType::ECommandData_Iteration:
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Iteration).Reset(new FFieldSystemMetaDataIteration(static_cast<UFieldSystemMetaDataIteration*>(MetaData)->Iterations));
-					break;
-				case FFieldSystemMetaData::EMetaType::ECommandData_Filter:
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Filter).Reset(new FFieldSystemMetaDataFilter(static_cast<UFieldSystemMetaDataFilter*>(MetaData)->FilterType));
-					break;
-				}
-			}
-			ensure(!Command.TargetAttribute.IsEqual("None"));
-			DispatchFieldCommand(Command, IsTransient);
-		}
+		FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetFieldPhysicsName(Target), Field, MetaData);
+		DispatchFieldCommand(Command, IsTransient);
 	}
 }
 
 void UFieldSystemComponent::AddFieldCommand(bool Enabled, EFieldPhysicsType Target, UFieldSystemMetaData* MetaData, UFieldNodeBase* Field)
 {
-	if (Enabled && Field && FieldSystem)
+	if (Enabled && Field)
 	{
-		TArray<const UFieldNodeBase*> Nodes;
-		FFieldSystemCommand Command = { GetFieldPhysicsName(Target), Field->NewEvaluationGraph(Nodes) };
-		if (ensureMsgf(Command.RootNode,
-			TEXT("Failed to generate physics field command for target attribute.")))
+		if (FieldSystem)
 		{
-			if (MetaData)
-			{
-				switch (MetaData->Type())
-				{
-				case FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution:
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution).Reset(new FFieldSystemMetaDataProcessingResolution(static_cast<UFieldSystemMetaDataProcessingResolution*>(MetaData)->ResolutionType));
-					break;
-				case FFieldSystemMetaData::EMetaType::ECommandData_Iteration:
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Iteration).Reset(new FFieldSystemMetaDataIteration(static_cast<UFieldSystemMetaDataIteration*>(MetaData)->Iterations));
-					break;
-				case FFieldSystemMetaData::EMetaType::ECommandData_Filter:
-					Command.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Filter).Reset(new FFieldSystemMetaDataFilter(static_cast<UFieldSystemMetaDataFilter*>(MetaData)->FilterType));
-					break;
-				}
-			}
-			ensure(!Command.TargetAttribute.IsEqual("None"));
+			FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(GetFieldPhysicsName(Target), Field, MetaData);
 			SetupConstructionFields.Add(Command);
 		}
+
+		BufferCommands.AddFieldCommand(GetFieldPhysicsName(Target), Field, MetaData);
 	}
 }
 
@@ -375,6 +332,8 @@ void UFieldSystemComponent::ResetFieldSystem()
 	{
 		SetupConstructionFields.Reset();
 	}
+	ConstructionCommands.ResetFieldCommands();
+	BufferCommands.ResetFieldCommands();
 }
 
 

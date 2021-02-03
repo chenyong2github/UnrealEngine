@@ -59,7 +59,8 @@ namespace Audio
 			}
 			else
 			{
-				// cancel ourselves
+				// cancel ourselves (no source manager is bad news)
+				check(SourceManager);
 				OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
 			}
 		}
@@ -70,6 +71,12 @@ namespace Audio
 	{
 		// release hold on pending source
 		OnFinalCallbackCustom(0);
+	}
+
+	static const FName PlayCommandName("Play Command");
+	FName FQuantizedPlayCommand::GetCommandName() const
+	{
+		return PlayCommandName;
 	}
 
 	TSharedPtr<IQuartzQuantizedCommand> FQuantizedTickRateChange::GetDeepCopyOfDerivedObject() const
@@ -92,6 +99,12 @@ namespace Audio
 		OwningClockPtr->ChangeTickRate(TickRate, InNumFramesLeft);
 	}
 
+	static const FName TickRateChangeCommandName("Tick Rate Change Command");
+	FName FQuantizedTickRateChange::GetCommandName() const
+	{
+		return TickRateChangeCommandName;
+	}
+
 	TSharedPtr<IQuartzQuantizedCommand> FQuantizedTransportReset::GetDeepCopyOfDerivedObject() const
 	{
 		TSharedPtr<FQuantizedTransportReset> NewCopy = MakeShared<FQuantizedTransportReset>();
@@ -109,6 +122,12 @@ namespace Audio
 	void FQuantizedTransportReset::OnFinalCallbackCustom(int32 InNumFramesLeft)
 	{
 		OwningClockPtr->ResetTransport();
+	}
+
+	static const FName TransportResetCommandName("Transport Reset Command");
+	FName FQuantizedTransportReset::GetCommandName() const
+	{
+		return TransportResetCommandName;
 	}
 
 } // namespace Audio

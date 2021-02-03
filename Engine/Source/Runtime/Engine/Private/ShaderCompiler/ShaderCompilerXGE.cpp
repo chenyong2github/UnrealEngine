@@ -278,15 +278,8 @@ void FShaderCompileXGEThreadRunnable_XmlInterface::PostCompletedJobsForBatch(FSh
 	FScopeLock Lock(&Manager->CompileQueueSection);
 	for (const auto& Job : Batch->GetJobs())
 	{
-		FShaderMapCompileResults& ShaderMapResults = *Job->PendingShaderMap;
-		ShaderMapResults.FinishedJobs.Add(Job);
-		ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && Job->bSucceeded;
-
-		const int32 NumPendingJobs = ShaderMapResults.NumPendingJobs.Decrement();
-		check(NumPendingJobs >= 0);
+		Manager->ProcessFinishedJob(Job);
 	}
-
-	Manager->AllJobs.SubtractNumOutstandingJobs(Batch->NumJobs());
 }
 
 void FShaderCompileXGEThreadRunnable_XmlInterface::FShaderBatch::AddJob(FShaderCommonCompileJobPtr Job)

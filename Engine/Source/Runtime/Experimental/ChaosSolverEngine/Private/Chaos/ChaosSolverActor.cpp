@@ -11,6 +11,7 @@
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Chaos/Framework/DebugSubstep.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 //DEFINE_LOG_CATEGORY_STATIC(AFA_Log, NoLogging, All);
 
@@ -190,7 +191,7 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 	, ChaosDebugSubstepControl()
 	, PhysScene(nullptr)
 	, Solver(nullptr)
-	, FloorParticle(nullptr)
+	, Proxy(nullptr)
 {
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -302,10 +303,10 @@ void AChaosSolverActor::EndPlay(const EEndPlayReason::Type ReasonEnd)
 		return;
 	}
 
-	if(FloorParticle)
+	if(Proxy)
 	{
-		Solver->UnregisterObject(FloorParticle.Get());
-		FloorParticle = nullptr;
+		Solver->UnregisterObject(Proxy);
+		Proxy = nullptr;
 	}
 
 	Solver->EnqueueCommandImmediate([InSolver=Solver]()
@@ -397,15 +398,15 @@ void AChaosSolverActor::MakeFloor()
 {
 	if(bHasFloor)
 	{
-		FloorParticle = Chaos::TGeometryParticle<float, 3>::CreateParticle();
+		TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal,3>> FloorParticle = Chaos::TGeometryParticle<Chaos::FReal, 3>::CreateParticle();
 		FloorParticle->SetGeometry(TUniquePtr<Chaos::TPlane<float, 3>>(new Chaos::TPlane<float, 3>(FVector(0), FVector(0, 0, 1))));
-		FloorParticle->SetObjectState(Chaos::EObjectStateType::Static);
-		FloorParticle->SetX(Chaos::TVector<float, 3>(0.f, 0.f, FloorHeight));
+		FloorParticle->SetX(Chaos::FVec3(0.f, 0.f, FloorHeight));
 		FCollisionFilterData FilterData;
 		FilterData.Word1 = 0xFFFF;
 		FilterData.Word3 = 0xFFFF;
 		FloorParticle->SetShapeSimData(0, FilterData);
-		Solver->RegisterObject(FloorParticle.Get());
+		Proxy = FSingleParticlePhysicsProxy::Create(MoveTemp(FloorParticle));
+		Solver->RegisterObject(Proxy);
 	}
 }
 
@@ -444,19 +445,19 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 		}
 		else if(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, bHasFloor))
 		{
-			if(FloorParticle)
+			if(Proxy)
 			{
-				Solver->UnregisterObject(FloorParticle.Get());
-				FloorParticle = nullptr;
+				Solver->UnregisterObject(Proxy);
+				Proxy = nullptr;
 			}
 
 			MakeFloor();
 		}
 		else if(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, FloorHeight))
 		{
-			if(FloorParticle)
+			if(Proxy)
 			{
-				FloorParticle->SetX(FVector(0.0f, 0.0f, FloorHeight));
+				Proxy->GetGameThreadAPI().SetX(FVector(0.0f, 0.0f, FloorHeight));
 			}
 		}
 	}

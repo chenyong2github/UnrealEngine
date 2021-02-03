@@ -147,6 +147,16 @@ static void GetVehicleDifferential4WSetup(const FVehicleDifferential4WData& Setu
 
 #endif // WITH_PHYSX
 
+FVehicleEngineData::FVehicleEngineData()
+	: MaxRPM(0.0f)
+	, MOI(0.0f)
+	, DampingRateFullThrottle(0.0f)
+	, DampingRateZeroThrottleClutchEngaged(0.0f)
+	, DampingRateZeroThrottleClutchDisengaged(0.0f)
+{
+
+}
+
 float FVehicleEngineData::FindPeakTorque() const
 {
 	// Find max torque
@@ -425,6 +435,38 @@ void UWheeledVehicleMovementComponent4W::ComputeConstants()
 {
 	Super::ComputeConstants();
 	MaxEngineRPM = EngineSetup.MaxRPM;
+}
+
+FVehicleTransmissionData::FVehicleTransmissionData()
+	: bUseGearAutoBox(true)
+	, GearSwitchTime(0.0f)
+	, GearAutoBoxLatency(0.0f)
+	, FinalRatio(1.0f)
+	, ReverseGearRatio(0.0f)
+	, NeutralGearUpRatio(0.0f)
+	, ClutchStrength(0.0f)
+{
+
+}
+
+FVehicleGearData::FVehicleGearData()
+	: Ratio(1.0f)
+	, DownRatio(0.0f)
+	, UpRatio(1.0f)
+{
+
+}
+
+FVehicleDifferential4WData::FVehicleDifferential4WData()
+	: DifferentialType(EVehicleDifferential4W::LimitedSlip_4W)
+	, FrontRearSplit(0.5f)
+	, FrontLeftRightSplit(0.5f)
+	, RearLeftRightSplit(0.5f)
+	, CentreBias(1.0f)
+	, FrontBias(1.0f)
+	, RearBias(1.0f)
+{
+
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

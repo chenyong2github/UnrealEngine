@@ -4,13 +4,14 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace DatasmithRhino
+namespace DatasmithRhino.Utils
 {
-	public static class FDatasmithRhinoUtilities
+	public static class DatasmithRhinoUtilities
 	{
 		public static string GetMaterialHash(Material RhinoMaterial)
 		{
@@ -203,7 +204,27 @@ namespace DatasmithRhino
 			return TranslationTransform * RotationTransform;
 		}
 
-		public static string EvaluateAttributeUserText(RhinoSceneHierarchyNode InNode, string ValueFormula)
+		/// <summary>
+		/// Center the given meshes on the pivot determined from the union of their bounding boxes. Returns the pivot point.
+		/// </summary>
+		/// <param name="RhinoMeshes"></param>
+		/// <returns>The pivot point on which the Mesh was centered</returns>
+		public static Vector3d CenterMeshesOnPivot(List<Mesh> RhinoMeshes)
+		{
+			BoundingBox MeshesBoundingBox = RhinoMeshes[0].GetBoundingBox(true);
+
+			for (int MeshIndex = 1; MeshIndex < RhinoMeshes.Count; ++MeshIndex)
+			{
+				MeshesBoundingBox.Union(RhinoMeshes[MeshIndex].GetBoundingBox(true));
+			}
+
+			Vector3d PivotPoint = new Vector3d(MeshesBoundingBox.Center.X, MeshesBoundingBox.Center.Y, MeshesBoundingBox.Center.Z);
+			RhinoMeshes.ForEach((CurrentMesh) => CurrentMesh.Translate(-PivotPoint));
+
+			return PivotPoint;
+		}
+
+		public static string EvaluateAttributeUserText(DatasmithActorInfo InNode, string ValueFormula)
 		{
 			if (!ValueFormula.StartsWith("%<") || !ValueFormula.EndsWith(">%"))
 			{
@@ -211,13 +232,13 @@ namespace DatasmithRhino
 				return ValueFormula;
 			}
 
-			RhinoObject NodeObject = InNode.Info.RhinoModelComponent as RhinoObject;
+			RhinoObject NodeObject = InNode.RhinoModelComponent as RhinoObject;
 			RhinoObject ParentObject = null;
-			RhinoSceneHierarchyNode CurrentNode = InNode;
+			DatasmithActorInfo CurrentNode = InNode;
 			while (CurrentNode.LinkedNode != null)
 			{
 				CurrentNode = CurrentNode.LinkedNode;
-				ParentObject = CurrentNode.Info.RhinoModelComponent as RhinoObject;
+				ParentObject = CurrentNode.RhinoModelComponent as RhinoObject;
 			}
 
 			// In case this is an instance of a block sub-object, the ID held in the formula may not have been updated

@@ -56,6 +56,8 @@ struct CURVEEDITOR_API ICurveEditorTreeItem
 	{
 		/** Generic label content */
 		FName Label;
+		/** Right-aligned column for select buttons */
+		FName SelectHeader;
 		/** Right-aligned column for pin buttons */
 		FName PinHeader;
 

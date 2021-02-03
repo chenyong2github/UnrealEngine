@@ -48,14 +48,14 @@ namespace ChaosTest {
 			RandAxis() * FMath::FRandRange((FReal)0.01, MaxAngVel),
 		};
 
-		TPBDRigidParticles<FReal, 3> Particles;
+		FPBDRigidParticles Particles;
 		TPerParticlePBDEulerStep<FReal, 3> StepRule;
 
 		for (int32 ParticleIndex = 0; ParticleIndex < AngularVelocities.Num(); ++ParticleIndex)
 		{
 			AppendAnalyticBox(Particles, Dims);
 
-			Particles.R(ParticleIndex) = TRotation<float, 3>::FromAxisAngle(RandAxis(), FMath::RandRange(-PI, PI)).GetNormalized();
+			Particles.R(ParticleIndex) = FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange(-PI, PI)).GetNormalized();
 			Particles.Q(ParticleIndex) = Particles.R(ParticleIndex);
 			Particles.V(ParticleIndex) = FVec3::ZeroVector;
 			Particles.W(ParticleIndex) = AngularVelocities[ParticleIndex];
@@ -67,30 +67,30 @@ namespace ChaosTest {
 
 		for (int32 ParticleIndex = 0; ParticleIndex < (int32)Particles.Size(); ++ParticleIndex)
 		{
-			TRotation<FReal, 3> R0 = Particles.Q(ParticleIndex);
+			FRotation3 R0 = Particles.Q(ParticleIndex);
 
 			StepRule.Apply(Particles, Dt, ParticleIndex);
 
-			TRotation<FReal, 3> R1 = Particles.Q(ParticleIndex);
+			FRotation3 R1 = Particles.Q(ParticleIndex);
 			FVec3 AngularVelocity = Particles.W(ParticleIndex);
 
-			FVec3 CalculatedAngularVelocity1 = TRotation<FReal, 3>::CalculateAngularVelocity1(R0, R1, Dt);
+			FVec3 CalculatedAngularVelocity1 = FRotation3::CalculateAngularVelocity1(R0, R1, Dt);
 
 			// Veryify that we calculated the same angular velocity that was used to integrate the rotation
-			const float ExpectedAccuracy = AngularVelocity.Size() * (FReal)0.01;
+			const FReal ExpectedAccuracy = AngularVelocity.Size() * (FReal)0.01;
 			FVec3 Error = CalculatedAngularVelocity1 - AngularVelocity;
 			EXPECT_NEAR(Error[0], (FReal)0, ExpectedAccuracy);
 			EXPECT_NEAR(Error[1], (FReal)0, ExpectedAccuracy);
 			EXPECT_NEAR(Error[2], (FReal)0, ExpectedAccuracy);
 
 			// Verify that the two ang vel algorithm give roughly the same result
-			FVec3 CalculatedAngularVelocity2 = TRotation<FReal, 3>::CalculateAngularVelocity2(R0, R1, Dt);
+			FVec3 CalculatedAngularVelocity2 = FRotation3::CalculateAngularVelocity2(R0, R1, Dt);
 			EXPECT_NEAR(CalculatedAngularVelocity1.X, CalculatedAngularVelocity2.X, (FReal)0.1);
 			EXPECT_NEAR(CalculatedAngularVelocity1.Y, CalculatedAngularVelocity2.Y, (FReal)0.1);
 			EXPECT_NEAR(CalculatedAngularVelocity1.Z, CalculatedAngularVelocity2.Z, (FReal)0.1);
 
 			// Verify that the rotation's integration function agrees with the EulerStep rule
-			TRotation<FReal, 3> R12 = TRotation<FReal, 3>::IntegrateRotationWithAngularVelocity(R0, AngularVelocity, Dt);
+			FRotation3 R12 = FRotation3::IntegrateRotationWithAngularVelocity(R0, AngularVelocity, Dt);
 			EXPECT_NEAR(R12.X, R1.X, KINDA_SMALL_NUMBER);
 			EXPECT_NEAR(R12.Y, R1.Y, KINDA_SMALL_NUMBER);
 			EXPECT_NEAR(R12.Z, R1.Z, KINDA_SMALL_NUMBER);
@@ -121,32 +121,32 @@ namespace ChaosTest {
 		const FReal MaxAngVel = FMath::DegreesToRadians(15 /* per tick */) / Dt;
 		FVec3 Dims = { 100, 200, 300 };
 
-		TPBDRigidParticles<FReal, 3> Particles;
+		FPBDRigidParticles Particles;
 		TPerParticlePBDUpdateFromDeltaPosition<FReal, 3> UpdateRule;
 
-		TArray<TRotation<FReal, 3>> InitialRotations =
+		TArray<FRotation3> InitialRotations =
 		{
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
 		};
-		TArray<TRotation<FReal, 3>> FinalRotations =
+		TArray<FRotation3> FinalRotations =
 		{
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
-			TRotation<FReal, 3>::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
+			FRotation3::FromAxisAngle(RandAxis(), FMath::RandRange((FReal)0, (FReal)2 * PI)),
 		};
 
 		for (int32 ParticleIndex = 0; ParticleIndex < InitialRotations.Num(); ++ParticleIndex)
@@ -169,13 +169,13 @@ namespace ChaosTest {
 
 		for (int32 ParticleIndex = 0; ParticleIndex < (int32)Particles.Size(); ++ParticleIndex)
 		{
-			TRotation<FReal, 3> R0 = Particles.R(ParticleIndex);
-			TRotation<FReal, 3> R1 = Particles.Q(ParticleIndex);
+			FRotation3 R0 = Particles.R(ParticleIndex);
+			FRotation3 R1 = Particles.Q(ParticleIndex);
 
 			UpdateRule.Apply(Particles, Dt, ParticleIndex);
 
 			FVec3 ExpectedAngVel = Particles.W(ParticleIndex);
-			FVec3 CalculatedAngVel1 = TRotation<FReal, 3>::CalculateAngularVelocity1(R0, R1, Dt);
+			FVec3 CalculatedAngVel1 = FRotation3::CalculateAngularVelocity1(R0, R1, Dt);
 
 			EXPECT_NEAR(ExpectedAngVel.X, CalculatedAngVel1.X, KINDA_SMALL_NUMBER);
 			EXPECT_NEAR(ExpectedAngVel.Y, CalculatedAngVel1.Y, KINDA_SMALL_NUMBER);
@@ -197,13 +197,13 @@ namespace ChaosTest {
 
 	void QuaternionMatrixConcatenation()
 	{
-		TRotation<FReal, 3> QZ = TRotation<FReal, 3>::FromAxisAngle(FVec3(0, 0, 1), FMath::DegreesToRadians(30));
-		TRotation<FReal, 3> QX = TRotation<FReal, 3>::FromAxisAngle(FVec3(1, 0, 0), FMath::DegreesToRadians(30));
-		PMatrix<FReal, 3, 3> MZ = QZ.ToMatrix();
-		PMatrix<FReal, 3, 3> MX = QX.ToMatrix();
+		FRotation3 QZ = FRotation3::FromAxisAngle(FVec3(0, 0, 1), FMath::DegreesToRadians(30));
+		FRotation3 QX = FRotation3::FromAxisAngle(FVec3(1, 0, 0), FMath::DegreesToRadians(30));
+		FMatrix33 MZ = QZ.ToMatrix();
+		FMatrix33 MX = QX.ToMatrix();
 
-		TRotation<FReal, 3> QZX = (QZ * QX);
-		PMatrix<FReal, 3, 3> MZX = Utilities::Multiply(MZ, MX);
+		FRotation3 QZX = (QZ * QX);
+		FMatrix33 MZX = Utilities::Multiply(MZ, MX);
 
 		FVec3 V1 = FVec3(1, 1, 1);
 		FVec3 V1ZX_Q1 = QZ * (QX * V1);
@@ -253,7 +253,7 @@ namespace ChaosTest {
 	//		Y x X = -Z;		Z x Y = -X;		X x Z = -Y;
 	void TestCrossProductMatrix_Axes()
 	{
-		const float Tolerance = KINDA_SMALL_NUMBER;
+		const FReal Tolerance = KINDA_SMALL_NUMBER;
 
 		TArray<FVec3> Axes =
 		{
@@ -309,9 +309,9 @@ namespace ChaosTest {
 	{
 		FMath::RandInit(10695676);
 
-		const float MinValue = -100;
-		const float MaxValue = 100;
-		const float Tolerance = KINDA_SMALL_NUMBER;
+		const FReal MinValue = -100;
+		const FReal MaxValue = 100;
+		const FReal Tolerance = KINDA_SMALL_NUMBER;
 
 		for (int RandIndex = 0; RandIndex < 100; ++RandIndex)
 		{

@@ -17,6 +17,9 @@ struct FNiagaraGraphViewSettings;
 class FNiagaraOverviewGraphViewModel : public TSharedFromThis<FNiagaraOverviewGraphViewModel>, public FEditorUndoClient
 {
 public:
+	/** A multicast delegate which is called when nodes are pasted in the graph which supplies the pasted nodes. */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodesPasted, const TSet<UEdGraphNode*>&);
+
 	/** Create a new view model with the supplied system editor data and graph widget. */
 	FNiagaraOverviewGraphViewModel();
 
@@ -43,6 +46,9 @@ public:
 	NIAGARAEDITOR_API const FNiagaraGraphViewSettings& GetViewSettings() const;
 
 	NIAGARAEDITOR_API void SetViewSettings(const FNiagaraGraphViewSettings& InOverviewGraphViewSettings);
+
+	/** Gets a multicast delegate which is called when nodes are pasted in the graph. */
+	NIAGARAEDITOR_API FOnNodesPasted& OnNodesPasted();
 
 	//~ FEditorUndoClient interface.
 	virtual void PostUndo(bool bSuccess) override;
@@ -83,6 +89,9 @@ private:
 
 	/** Commands for editing the graph. */
 	TSharedRef<FUICommandList> Commands;
+
+	/** A multicast delegate which is called whenever nodes are pasted into the graph. */
+	FOnNodesPasted OnNodesPastedDelegate;
 
 	/** The set of nodes objects currently selected in the graph. */
 	TSharedRef<FNiagaraObjectSelection> NodeSelection;

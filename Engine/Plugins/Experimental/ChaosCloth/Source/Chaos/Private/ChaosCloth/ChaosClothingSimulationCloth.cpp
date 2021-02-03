@@ -50,7 +50,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 
 	// Build a sim friendly triangle mesh including the solver particle's Offset
 	const int32 NumElements = Indices.Num() / 3;
-	TArray<TVector<int32, 3>> Elements;
+	TArray<TVec3<int32>> Elements;
 	Elements.Reserve(NumElements);
 
 	for (int32 i = 0; i < NumElements; ++i)
@@ -95,13 +95,13 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 
 	// Setup solver constraints
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-	const TArray<TVector<int32, 3>>& SurfaceElements = TriangleMesh.GetSurfaceElements();
+	const TArray<TVec3<int32>>& SurfaceElements = TriangleMesh.GetSurfaceElements();
 
 	// Self collisions
 	if (Cloth->bUseSelfCollisions)
 	{
 		static const int32 DisabledCollisionElementsN = 5;  // TODO: Make this a parameter?
-		TSet<TVector<int32, 2>> DisabledCollisionElements;  // TODO: Is this needed? Turn this into a bit array?
+		TSet<TVec2<int32>> DisabledCollisionElements;  // TODO: Is this needed? Turn this into a bit array?
 	
 		const int32 Range = Offset + NumParticles;
 		for (int32 Index = Offset; Index < Range; ++Index)
@@ -110,8 +110,8 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 			for (int32 Element : Neighbors)
 			{
 				check(Index != Element);
-				DisabledCollisionElements.Emplace(TVector<int32, 2>(Index, Element));
-				DisabledCollisionElements.Emplace(TVector<int32, 2>(Element, Index));
+				DisabledCollisionElements.Emplace(TVec2<int32>(Index, Element));
+				DisabledCollisionElements.Emplace(TVec2<int32>(Element, Index));
 			}
 		}
 		ClothConstraints.SetSelfCollisionConstraints(SurfaceElements, MoveTemp(DisabledCollisionElements), Cloth->SelfCollisionThickness);
@@ -128,12 +128,12 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	{
 		if (Cloth->bUseBendingElements)
 		{
-			TArray<Chaos::TVector<int32, 4>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
+			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
 			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), Cloth->BendingStiffness);
 		}
 		else
 		{
-			TArray<Chaos::TVector<int32, 2>> Edges = TriangleMesh.GetUniqueAdjacentPoints();
+			TArray<Chaos::TVec2<int32>> Edges = TriangleMesh.GetUniqueAdjacentPoints();
 			ClothConstraints.SetBendingConstraints(MoveTemp(Edges), Cloth->BendingStiffness, Cloth->bUseXPBDConstraints);
 		}
 	}
@@ -141,7 +141,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	// Area constraints
 	if (Cloth->AreaStiffness)
 	{
-		TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
+		TArray<Chaos::TVec3<int32>> SurfaceConstraints = SurfaceElements;
 		ClothConstraints.SetAreaConstraints(MoveTemp(SurfaceConstraints), Cloth->AreaStiffness, Cloth->bUseXPBDConstraints);
 	}
 
@@ -150,8 +150,8 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	{
 		if (Cloth->bUseThinShellVolumeConstraints)
 		{
-			TArray<Chaos::TVector<int32, 2>> BendingConstraints = TriangleMesh.GetUniqueAdjacentPoints();
-			TArray<Chaos::TVector<int32, 2>> DoubleBendingConstraints;
+			TArray<Chaos::TVec2<int32>> BendingConstraints = TriangleMesh.GetUniqueAdjacentPoints();
+			TArray<Chaos::TVec2<int32>> DoubleBendingConstraints;
 			{
 				TMap<int32, TArray<int32>> BendingHash;
 				for (int32 i = 0; i < BendingConstraints.Num(); ++i)
@@ -159,7 +159,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 					BendingHash.FindOrAdd(BendingConstraints[i][0]).Add(BendingConstraints[i][1]);
 					BendingHash.FindOrAdd(BendingConstraints[i][1]).Add(BendingConstraints[i][0]);
 				}
-				TSet<Chaos::TVector<int32, 2>> Visited;
+				TSet<Chaos::TVec2<int32>> Visited;
 				for (auto Elem : BendingHash)
 				{
 					for (int32 i = 0; i < Elem.Value.Num(); ++i)
@@ -168,12 +168,12 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 						{
 							if (Elem.Value[i] == Elem.Value[j])
 								continue;
-							auto NewElem = Chaos::TVector<int32, 2>(Elem.Value[i], Elem.Value[j]);
+							auto NewElem = Chaos::TVec2<int32>(Elem.Value[i], Elem.Value[j]);
 							if (!Visited.Contains(NewElem))
 							{
 								DoubleBendingConstraints.Add(NewElem);
 								Visited.Add(NewElem);
-								Visited.Add(Chaos::TVector<int32, 2>(Elem.Value[j], Elem.Value[i]));
+								Visited.Add(Chaos::TVec2<int32>(Elem.Value[j], Elem.Value[i]));
 							}
 						}
 					}
@@ -184,7 +184,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 		}
 		else
 		{
-			TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
+			TArray<Chaos::TVec3<int32>> SurfaceConstraints = SurfaceElements;
 			ClothConstraints.SetVolumeConstraints(MoveTemp(SurfaceConstraints), Cloth->VolumeStiffness);
 		}
 	}
@@ -285,16 +285,16 @@ void FClothingSimulationCloth::FLODData::ResetStartPose(FClothingSimulationSolve
 	const int32 Offset = SolverData.FindChecked(Solver).Offset;
 	check(Offset != INDEX_NONE);
 
-	TVector<float, 3>* const Ps = Solver->GetParticlePs(Offset);
-	TVector<float, 3>* const Xs = Solver->GetParticleXs(Offset);
-	TVector<float, 3>* const Vs = Solver->GetParticleVs(Offset);
-	const TVector<float, 3>* const AnimationPositions = Solver->GetAnimationPositions(Offset);
-	TVector<float, 3>* const OldAnimationPositions = Solver->GetOldAnimationPositions(Offset);
+	FVec3* const Ps = Solver->GetParticlePs(Offset);
+	FVec3* const Xs = Solver->GetParticleXs(Offset);
+	FVec3* const Vs = Solver->GetParticleVs(Offset);
+	const FVec3* const AnimationPositions = Solver->GetAnimationPositions(Offset);
+	FVec3* const OldAnimationPositions = Solver->GetOldAnimationPositions(Offset);
 
 	for (int32 Index = 0; Index < NumParticles; ++Index)
 	{
 		Ps[Index] = Xs[Index] = OldAnimationPositions[Index] = AnimationPositions[Index];
-		Vs[Index] = TVector<float, 3>(0.f);
+		Vs[Index] = FVec3(0.f);
 	}
 }
 
@@ -308,11 +308,11 @@ void FClothingSimulationCloth::FLODData::UpdateNormals(FClothingSimulationSolver
 
 	check(Offset != INDEX_NONE);
 
-	TConstArrayView<TVector<float, 3>> Points(Solver->GetParticleXs(Offset) - Offset, Offset + NumParticles);  // TODO: TriangleMesh still uses global array
-	TArray<TVector<float, 3>> FaceNormals;
+	TConstArrayView<FVec3> Points(Solver->GetParticleXs(Offset) - Offset, Offset + NumParticles);  // TODO: TriangleMesh still uses global array
+	TArray<FVec3> FaceNormals;
 	TriangleMesh.GetFaceNormals(FaceNormals, Points, /*ReturnEmptyOnError =*/ false);
 
-	TArrayView<TVector<float, 3>> Normals(Solver->GetNormals(Offset), NumParticles);
+	TArrayView<FVec3> Normals(Solver->GetNormals(Offset), NumParticles);
 	TriangleMesh.GetPointNormals(Normals, FaceNormals, /*bUseGlobalArray =*/ false);
 }
 
@@ -338,8 +338,8 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	bool bInUseXPBDConstraints,
 	float InGravityScale,
 	bool bInIsGravityOverridden,
-	const TVector<float, 3>& InGravityOverride,
-	const TVector<float, 3>& InLinearVelocityScale,
+	const FVec3& InGravityOverride,
+	const FVec3& InLinearVelocityScale,
 	float InAngularVelocityScale,
 	float InDragCoefficient,
 	float InLiftCoefficient,
@@ -564,7 +564,7 @@ int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solve
 	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].SolverData.FindChecked(Solver).Offset : 0;
 }
 
-TVector<float, 3> FClothingSimulationCloth::GetGravity(const FClothingSimulationSolver* Solver) const
+FVec3 FClothingSimulationCloth::GetGravity(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	return Solver->IsClothGravityOverrideEnabled() && bIsGravityOverridden ? GravityOverride : Solver->GetGravity() * GravityScale;
@@ -577,8 +577,8 @@ TAABB<float, 3> FClothingSimulationCloth::CalculateBoundingBox(const FClothingSi
 	// Calculate local space bounding box
 	TAABB<float, 3> BoundingBox = TAABB<float, 3>::EmptyAABB();
 
-	const TConstArrayView<TVector<float, 3>> ParticlePositions = GetParticlePositions(Solver);
-	for (const TVector<float, 3>& ParticlePosition : ParticlePositions)
+	const TConstArrayView<FVec3> ParticlePositions = GetParticlePositions(Solver);
+	for (const FVec3& ParticlePosition : ParticlePositions)
 	{
 		BoundingBox.GrowToInclude(ParticlePosition);
 	}
@@ -612,6 +612,27 @@ int32 FClothingSimulationCloth::GetReferenceBoneIndex() const
 	return Mesh ? Mesh->GetReferenceBoneIndex() : INDEX_NONE;
 }
 
+void FClothingSimulationCloth::PreUpdate(FClothingSimulationSolver* Solver)
+{
+	check(Solver);
+
+	// Exit if the input mesh is missing
+	if (!Mesh)
+	{
+		return;
+	}
+
+	// Update Cloth Colliders
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ClothUpdateCollisions);
+
+		for (FClothingSimulationCollider* Collider : Colliders)
+		{
+			Collider->PreUpdate(Solver, this);
+		}
+	}
+}
+
 void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 {
 	check(Solver);
@@ -631,7 +652,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	// Update reference space transform from the mesh's reference bone transform  TODO: Add override in the style of LODIndexOverride
 	const TRigidTransform<float, 3> OldReferenceSpaceTransform = ReferenceSpaceTransform;
 	ReferenceSpaceTransform = Mesh->GetReferenceBoneTransform();
-	ReferenceSpaceTransform.SetScale3D(TVector<float, 3>(1.f));
+	ReferenceSpaceTransform.SetScale3D(FVec3(1.f));
 
 	// Update Cloth Colliders
 	{
@@ -715,13 +736,13 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		// TODO: Move all groupID updates out of the cloth update to allow to use of the same GroupId with different cloths
 
 		// Set the reference input velocity and deal with teleport & reset
-		TVector<float, 3> OutLinearVelocityScale;
+		FVec3 OutLinearVelocityScale;
 		float OutAngularVelocityScale;
 
 		if (bNeedsReset)
 		{
 			// Make sure not to do any pre-sim transform just after a reset
-			OutLinearVelocityScale = TVector<float, 3>(1.f);
+			OutLinearVelocityScale = FVec3(1.f);
 			OutAngularVelocityScale = 1.f;
 
 			// Reset to start pose
@@ -731,7 +752,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		else if (bNeedsTeleport)
 		{
 			// Remove all impulse velocity from the last frame
-			OutLinearVelocityScale = TVector<float, 3>(0.f);
+			OutLinearVelocityScale = FVec3(0.f);
 			OutAngularVelocityScale = 0.f;
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Cloth in group Id %d Needs teleport."), GroupId);
 		}
@@ -767,44 +788,44 @@ void FClothingSimulationCloth::PostUpdate(FClothingSimulationSolver* Solver)
 	}
 }
 
-TConstArrayView<TVector<float, 3>> FClothingSimulationCloth::GetAnimationPositions(const FClothingSimulationSolver* Solver) const
+TConstArrayView<FVec3> FClothingSimulationCloth::GetAnimationPositions(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<TVector<float, 3>>(Solver->GetAnimationPositions(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<FVec3>(Solver->GetAnimationPositions(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<TVector<float, 3>> FClothingSimulationCloth::GetAnimationNormals(const FClothingSimulationSolver* Solver) const
+TConstArrayView<FVec3> FClothingSimulationCloth::GetAnimationNormals(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<TVector<float, 3>>(Solver->GetAnimationNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<FVec3>(Solver->GetAnimationNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<TVector<float, 3>> FClothingSimulationCloth::GetParticlePositions(const FClothingSimulationSolver* Solver) const
+TConstArrayView<FVec3> FClothingSimulationCloth::GetParticlePositions(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<TVector<float, 3>>(Solver->GetParticleXs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<FVec3>(Solver->GetParticleXs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<TVector<float, 3>> FClothingSimulationCloth::GetParticleOldPositions(const FClothingSimulationSolver* Solver) const
+TConstArrayView<FVec3> FClothingSimulationCloth::GetParticleOldPositions(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<TVector<float, 3>>(Solver->GetParticlePs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<FVec3>(Solver->GetParticlePs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<TVector<float, 3>> FClothingSimulationCloth::GetParticleNormals(const FClothingSimulationSolver* Solver) const
+TConstArrayView<FVec3> FClothingSimulationCloth::GetParticleNormals(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<TVector<float, 3>>(Solver->GetNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<FVec3>(Solver->GetNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
 TConstArrayView<float> FClothingSimulationCloth::GetParticleInvMasses(const FClothingSimulationSolver* Solver) const

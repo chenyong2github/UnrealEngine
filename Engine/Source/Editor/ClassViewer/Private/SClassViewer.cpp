@@ -1069,6 +1069,9 @@ void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOu
 	VisitedNodes.Add(RootClass, ObjectClassRoot);
 
 	// Go through all of the classes children and see if they should be added to the list.
+
+	TArray<TPair<UClass*, TSharedPtr<FClassViewerNode>>> EntriesToProcess;
+
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
 		UClass* CurrentClass = *ClassIt;
@@ -1088,51 +1091,37 @@ void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOu
 		}
 		else
 		{
-			// Process this node and all it's parent classes.
-			while (CurrentClass->GetSuperClass() != nullptr)
+			// Build array starting with class and ending with oldest parent
+			EntriesToProcess.Reset();
+			TSharedPtr<FClassViewerNode> OldestValidParent;
+			for (; CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
 			{
-				TSharedPtr<FClassViewerNode>& ParentEntry = VisitedNodes.FindOrAdd(CurrentClass->GetSuperClass());
-				// If ParentEntry is not valid, it's the first time we visited that class.
-				// We add it to the ClassPathToNode map if it's not there
-				if (!ParentEntry.IsValid())
-				{
-					/// If the class is already present, make sure we use it.
-					FName ParentClassPath = FName(*CurrentClass->GetSuperClass()->GetPathName());
-					TSharedPtr<FClassViewerNode>* AlreadyExisting = InOutClassPathToNode.Find(ParentClassPath);
-					if (AlreadyExisting)
-					{
-						ParentEntry = *AlreadyExisting;
-					}
-					else
-					{
-						ParentEntry = MakeShared<FClassViewerNode>(CurrentClass->GetSuperClass());
-						InOutClassPathToNode.Add(ParentEntry->ClassPath, ParentEntry);
-					}
-
-				}
-
 				TSharedPtr<FClassViewerNode>& MyEntry = VisitedNodes.FindOrAdd(CurrentClass);
-				// If MyEntry is not valid, it's the first time we visited that class.
-				// We add it to the ClassPathToNode map if it's not there and add it as a child to MyEntry
 				if (!MyEntry.IsValid())
 				{
-					/// If the class is already present, make sure we use it.
-					FName ClassPath = FName(*CurrentClass->GetPathName());
-					TSharedPtr<FClassViewerNode>* AlreadyExisting = InOutClassPathToNode.Find(ClassPath);
-					if (AlreadyExisting)
-					{
-						MyEntry = *AlreadyExisting;
-						ParentEntry->AddUniqueChild(MyEntry);
-					}
-					else
-					{
-						MyEntry = MakeShared<FClassViewerNode>(CurrentClass);
-						InOutClassPathToNode.Add(MyEntry->ClassPath, MyEntry);
-						ParentEntry->AddChild(MyEntry);
-					}
+					MyEntry = MakeShared<FClassViewerNode>(CurrentClass);
+					InOutClassPathToNode.FindOrAdd(MyEntry->ClassPath) = MyEntry;
+					EntriesToProcess.Add(TPair<UClass*, TSharedPtr<FClassViewerNode>>(CurrentClass, MyEntry));
 				}
-
-				CurrentClass = CurrentClass->GetSuperClass();
+				else
+				{
+					OldestValidParent = MyEntry;
+					break;
+				}
+			}
+			// Iterate array in reverse starting with oldest parent and ending with class
+			for (int32 i=EntriesToProcess.Num() - 1; i >= 0; --i)
+			{
+				CurrentClass = EntriesToProcess[i].Key;
+				TSharedPtr<FClassViewerNode>& MyEntry = EntriesToProcess[i].Value;
+				if ((i + 1) < EntriesToProcess.Num())
+				{
+					EntriesToProcess[i + 1].Value->AddUniqueChild(MyEntry);
+				}
+				else if (OldestValidParent.IsValid())
+				{
+					OldestValidParent->AddUniqueChild(MyEntry);
+				}
 			}
 		}
 	}

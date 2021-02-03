@@ -2052,19 +2052,6 @@ struct ENGINE_API FHitResult
 {
 	GENERATED_BODY()
 
-	/** Indicates if this hit was a result of blocking collision. If false, there was no hit or it was an overlap/touch instead. */
-	UPROPERTY()
-	uint8 bBlockingHit:1;
-
-	/**
-	 * Whether the trace started in penetration, i.e. with an initial blocking overlap.
-	 * In the case of penetration, if PenetrationDepth > 0.f, then it will represent the distance along the Normal vector that will result in
-	 * minimal contact between the swept shape and the object that was hit. In this case, ImpactNormal will be the normal opposed to movement at that location
-	 * (ie, Normal may not equal ImpactNormal). ImpactPoint will be the same as Location, since there is no single impact point to report.
-	 */
-	UPROPERTY()
-	uint8 bStartPenetrating:1;
-
 	/** Face index we hit (for complex hits with triangle meshes). */
 	UPROPERTY()
 	int32 FaceIndex;
@@ -2141,6 +2128,19 @@ struct ENGINE_API FHitResult
 	/** Index to item that was hit, also hit primitive specific. */
 	UPROPERTY()
 	uint8 ElementIndex;
+
+	/** Indicates if this hit was a result of blocking collision. If false, there was no hit or it was an overlap/touch instead. */
+	UPROPERTY()
+	uint8 bBlockingHit : 1;
+
+	/**
+	 * Whether the trace started in penetration, i.e. with an initial blocking overlap.
+	 * In the case of penetration, if PenetrationDepth > 0.f, then it will represent the distance along the Normal vector that will result in
+	 * minimal contact between the swept shape and the object that was hit. In this case, ImpactNormal will be the normal opposed to movement at that location
+	 * (ie, Normal may not equal ImpactNormal). ImpactPoint will be the same as Location, since there is no single impact point to report.
+	 */
+	UPROPERTY()
+	uint8 bStartPenetrating : 1;
 
 	/**
 	 * Physical material that was hit.

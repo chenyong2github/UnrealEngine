@@ -9,6 +9,7 @@
 #include "GameFramework/Pawn.h"
 #include "FunctionalTest.h"
 #include "GenericTeamAgentInterface.h"
+
 #include "FunctionalAITest.generated.h"
 
 class AAIController;
@@ -16,25 +17,15 @@ class AFunctionalAITest;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FFunctionalTestAISpawned, AAIController*, Controller, APawn*, Pawn);
 
+/**
+*	FAITestSpawnInfoBase
+*
+*	Base struct defining where & when to spawn. Used within a FAITestSpawnSetBase class.
+*/
 USTRUCT(BlueprintType)
-struct FAITestSpawnInfo
+struct FUNCTIONALTESTING_API FAITestSpawnInfoBase
 {
 	GENERATED_USTRUCT_BODY()
-
-	/** Determines AI to be spawned */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
-	TSubclassOf<class APawn>  PawnClass;
-	
-	/** class to override default pawn's controller class. If None the default will be used*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
-	TSubclassOf<class AAIController>  ControllerClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
-	FGenericTeamId TeamID;
-
-	/** if set will be applied to spawned AI */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
-	TObjectPtr<class UBehaviorTree> BehaviorTree;
 
 	/** Where should AI be spawned */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
@@ -54,44 +45,104 @@ struct FAITestSpawnInfo
 	/** Gets filled owning spawn set upon game start */
 	FName SpawnSetName;
 
-	FAITestSpawnInfo()
-		: BehaviorTree(nullptr)
-		, SpawnLocation(nullptr)
+	FAITestSpawnInfoBase()
+		: SpawnLocation(nullptr)
 		, NumberToSpawn(1)
 		, SpawnDelay(0.0f)
 		, PreSpawnDelay(0.0f)
 	{}
 
-	FORCEINLINE bool IsValid() const { return PawnClass != NULL && SpawnLocation != NULL; }
+	virtual ~FAITestSpawnInfoBase() = default;
 
-	bool Spawn(AFunctionalAITest* AITest) const;
+	virtual bool IsValid() const { return SpawnLocation != NULL; }
+
+	virtual bool Spawn(AFunctionalAITestBase* AITest) const PURE_VIRTUAL(, return false;);
 };
 
-USTRUCT()
-struct FPendingDelayedSpawn : public FAITestSpawnInfo
+/**
+*	FAITestSpawnInfo
+*
+*	Generic AI Test Spawn Info used in FAITestSpawnSet within a generic AFunctionalAITest test.
+*/
+USTRUCT(BlueprintType)
+struct FUNCTIONALTESTING_API FAITestSpawnInfo : public FAITestSpawnInfoBase
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
+
+	/** Determines AI to be spawned */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
+	TSubclassOf<class APawn>  PawnClass;
+	
+	/** class to override default pawn's controller class. If None the default will be used*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
+	TSubclassOf<class AAIController>  ControllerClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
+	FGenericTeamId TeamID;
+
+	/** if set will be applied to spawned AI */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
+	TObjectPtr<class UBehaviorTree> BehaviorTree;
+
+	FAITestSpawnInfo()
+		: BehaviorTree(nullptr)
+	{}
+
+	FORCEINLINE virtual bool IsValid() const override { return PawnClass != NULL && FAITestSpawnInfoBase::IsValid(); }
+
+	virtual bool Spawn(AFunctionalAITestBase* AITest) const override;
+};
+
+
+/**
+*	FPendingDelayedSpawn
+*
+*	Struct defining a pending spawn request within a AFunctionalAITestBase.
+*/
+USTRUCT(BlueprintType)
+struct FPendingDelayedSpawn
+{
+	GENERATED_BODY()
 
 	uint32 NumberToSpawnLeft;
 	float TimeToNextSpawn;
 	bool bFinished;
 
-	FPendingDelayedSpawn()
-		: NumberToSpawnLeft(uint32(-1)), TimeToNextSpawn(FLT_MAX), bFinished(true)
-	{}
-	FPendingDelayedSpawn(const FAITestSpawnInfo& Source);
+	/** Index to spawn in the SpawnSets */
+	uint32 SpawnSetIndex;
 
-	void Tick(float TimeDelta, AFunctionalAITest* AITest);
+	/** Index to spawn in the SpawnInfoContainer's spawnset  */
+	uint32 SpawnInfoIndex;
+
+	FPendingDelayedSpawn()
+		: NumberToSpawnLeft(uint32(-1))
+		, TimeToNextSpawn(FLT_MAX)
+		, bFinished(true)
+		, SpawnSetIndex(uint32(-1))
+		, SpawnInfoIndex(uint32(-1))
+	{}
+
+	FPendingDelayedSpawn(const uint32 InSpawnSetIndex, const uint32 InSpawnInfoIndex, const int32 InNumberToSpawnLeft, const float InTimeToNextSpawn)
+		: NumberToSpawnLeft(InNumberToSpawnLeft)
+		, TimeToNextSpawn(InTimeToNextSpawn)
+		, bFinished(false)
+		, SpawnSetIndex(InSpawnSetIndex)
+		, SpawnInfoIndex(InSpawnInfoIndex)
+	{
+	}
+
+	void Tick(float TimeDelta, AFunctionalAITestBase* AITest);
 };
 
+/**
+*	FAITestSpawnSetBase
+*
+*	Base struct defining an AI Test Spawn Set that are used in AFunctionalAITestBase tests.
+*/
 USTRUCT(BlueprintType)
-struct FAITestSpawnSet
+struct FAITestSpawnSetBase
 {
-	GENERATED_USTRUCT_BODY()
-
-	/** what to spawn */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
-	TArray<FAITestSpawnInfo> SpawnInfoContainer;
+	GENERATED_BODY()
 
 	/** give the set a name to help identify it if need be */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AISpawn)
@@ -104,21 +155,110 @@ struct FAITestSpawnSet
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AISpawn)
 	TObjectPtr<AActor> FallbackSpawnLocation;
 
-	FAITestSpawnSet()
+	FAITestSpawnSetBase()
 		: bEnabled(true)
 		, FallbackSpawnLocation(nullptr)
 	{}
+
+	virtual ~FAITestSpawnSetBase() = default;
+
+	/** Return the FAITestSpawnInfoBase at this index of the SpawnInfoContainer array. Const-correct version. */
+	virtual const FAITestSpawnInfoBase* GetSpawnInfo(const int32 SpawnInfoIndex) const PURE_VIRTUAL(, return nullptr;);
+
+	/** Return the FAITestSpawnInfoBase at this index of the SpawnInfoContainer array. */
+	virtual FAITestSpawnInfoBase* GetSpawnInfo(const int32 SpawnInfoIndex) PURE_VIRTUAL(, return nullptr;);
+
+	/** Return whether the index is valid in the SpawnInfoContainer array. */
+	virtual bool IsValidSpawnInfoIndex(const int32 Index) const PURE_VIRTUAL(, return false;);
+
+	/** Pure virtual method to iterate through the spawn info container and execute Predicate on each in a const-correct way. */
+	virtual void ForEachSpawnInfo(TFunctionRef<void(const FAITestSpawnInfoBase&)> Predicate) const PURE_VIRTUAL(, );
+	
+	/** Pure virtual method to iterate through the spawn info container and execute Predicate on each. */
+	virtual void ForEachSpawnInfo(TFunctionRef<void(FAITestSpawnInfoBase&)> Predicate) PURE_VIRTUAL(,);
 };
 
-UCLASS(Blueprintable, MinimalAPI)
-class AFunctionalAITest : public AFunctionalTest
+/** 
+*	FAITestSpawnSet
+*
+*	Generic AI Test Spawn Set that is used in regular AFunctionalAITest tests.
+*/
+USTRUCT(BlueprintType)
+struct FAITestSpawnSet : public FAITestSpawnSetBase
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+	FAITestSpawnSet() {}
+
+	/** To iterate through the spawn info container and execute Predicate on each in a const-correct way. */
+	virtual void ForEachSpawnInfo(TFunctionRef<void(const FAITestSpawnInfoBase&)> Predicate) const override;
+
+	/** To iterate through the spawn info container and execute Predicate on each. */
+	virtual void ForEachSpawnInfo(TFunctionRef<void(FAITestSpawnInfoBase&)> Predicate) override;
+
+	/** Return the FAITestSpawnInfoBase at this index of the SpawnInfoContainer array. Const-correct version. */
+	virtual const FAITestSpawnInfoBase* GetSpawnInfo(const int32 SpawnInfoIndex) const override;
+
+	/** Return the FAITestSpawnInfoBase at this index of the SpawnInfoContainer array. */
+	virtual FAITestSpawnInfoBase* GetSpawnInfo(const int32 SpawnInfoIndex) override;
+
+	/** Return whether the index is valid in the SpawnInfoContainer array. */
+	virtual bool IsValidSpawnInfoIndex(const int32 Index) const override;
 	
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AITest)
-	TArray<FAITestSpawnSet> SpawnSets;
+	/** what to spawn */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AISpawn)
+	TArray<FAITestSpawnInfo> SpawnInfoContainer;
+};
 
+/** 
+*	AFunctionalAITestBase
+*
+*	Base abstract class defining a Functional AI Test.
+*	You can derive from this base class to create a test with a different type of SpawnSets.
+*/
+UCLASS(Abstract, BlueprintType)
+class FUNCTIONALTESTING_API AFunctionalAITestBase : public AFunctionalTest
+{
+	GENERATED_BODY()
+
+public:
+	AFunctionalAITestBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	/** Iterate through the list of spawn sets and execute Predicate on each in a const-correct way. */
+	virtual void ForEachSpawnSet(TFunctionRef<void(const FAITestSpawnSetBase&)> Predicate) const PURE_VIRTUAL(, );
+
+	/** Iterate through the list of spawn sets and execute Predicate on each. */
+	virtual void ForEachSpawnSet(TFunctionRef<void(FAITestSpawnSetBase&)> Predicate) PURE_VIRTUAL(, );
+
+	/** Iterate through the list of spawn sets and remove the spawn set if Predicate returns true. */
+	virtual void RemoveSpawnSetIfPredicate(TFunctionRef<bool(FAITestSpawnSetBase&)> Predicate) PURE_VIRTUAL(, );
+
+	/** Return the SpawnSet at this index of the SpawnSets array. Const-correct version. */
+	virtual const FAITestSpawnSetBase* GetSpawnSet(const int32 SpawnSetIndex) const PURE_VIRTUAL(, return nullptr;);
+
+	/** Return the SpawnSet at this index of the SpawnSets array. */
+	virtual FAITestSpawnSetBase* GetSpawnSet(const int32 SpawnSetIndex) PURE_VIRTUAL(,return nullptr;);
+	
+	/** Return the SpawnInfo at SpawnInfoIndexof the SpawnSet at SpawnSetIndex. Const-correct version. */
+	const FAITestSpawnInfoBase* GetSpawnInfo(const int32 SpawnSetIndex, const int32 SpawnInfoIndex) const;
+
+	/** Return the SpawnInfo at SpawnInfoIndexof the SpawnSet at SpawnSetIndex. */
+	FAITestSpawnInfoBase* GetSpawnInfo(const int32 SpawnSetIndex, const int32 SpawnInfoIndex);
+
+	/** Return whether the index is valid in the SpawnSets array. */
+	virtual bool IsValidSpawnSetIndex(const int32 Index) const PURE_VIRTUAL(, return false;);
+
+	/** 
+	* Spawn this AI at this SpawnInfoIndex of the SpawnSetIndex spawn set. 
+	*
+	* @param SpawnSetIndex	The index of the spawn set in the SpawnSets array
+	* @param SpawnInfoIndex	The index of the spawn info in the spawn set
+	*
+	* @return True if spawn was successful.
+	*/
+	bool Spawn(const int32 SpawnSetIndex, const int32 SpawnInfoIndex);
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AITest, meta = (UIMin = "0.0"))
 	float SpawnLocationRandomizationRange;
 
@@ -195,4 +335,38 @@ protected:
 	bool IsNavMeshReady() const;
 
 	FTimerHandle NavmeshDelayTimer;
+};
+
+/** 
+*	FuntionalAITest
+*
+*	Functional AI Test using a regular FAITestSpawnSet as a default SpawnSet class type.
+*/
+UCLASS(Blueprintable)
+class FUNCTIONALTESTING_API AFunctionalAITest : public AFunctionalAITestBase
+{
+	GENERATED_BODY()
+
+public:
+	/** Iterate through the list of spawn sets and execute Predicate on each in a const-correct way. */
+	virtual void ForEachSpawnSet(TFunctionRef<void(const FAITestSpawnSetBase&)> Predicate) const override;
+
+	/** Iterate through the list of spawn sets and execute Predicate on each. */
+	virtual void ForEachSpawnSet(TFunctionRef<void(FAITestSpawnSetBase&)> Predicate) override;
+
+	/** Iterate through the list of spawn sets and remove the spawn set if Predicate returns true. */
+	virtual void RemoveSpawnSetIfPredicate(TFunctionRef<bool(FAITestSpawnSetBase&)> Predicate) override;
+
+	/** Return the SpawnSet at this index of the SpawnSets array. Const-correct version. */
+	virtual const FAITestSpawnSetBase* GetSpawnSet(const int32 SpawnSetIndex) const override;
+
+	/** Return the SpawnSet at this index of the SpawnSets array. */
+	virtual FAITestSpawnSetBase* GetSpawnSet(const int32 SpawnSetIndex) override;
+
+	/** Return whether the index is valid in the SpawnSets array. */
+	virtual bool IsValidSpawnSetIndex(const int32 Index) const override;
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AITest)
+	TArray<FAITestSpawnSet> SpawnSets;
 };

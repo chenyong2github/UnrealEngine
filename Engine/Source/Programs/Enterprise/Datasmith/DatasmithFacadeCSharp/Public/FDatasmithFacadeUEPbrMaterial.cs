@@ -43,19 +43,9 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
     return ret;
   }
 
-  public void SetBaseColor(FDatasmithFacadeExpressionInput InBaseColor) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetBaseColor(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InBaseColor));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-  }
-
   public FDatasmithFacadeExpressionInput GetMetallic() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetMetallic(swigCPtr), true);
     return ret;
-  }
-
-  public void SetMetallic(FDatasmithFacadeExpressionInput InMetallic) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetMetallic(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InMetallic));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
   }
 
   public FDatasmithFacadeExpressionInput GetSpecular() {
@@ -63,19 +53,9 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
     return ret;
   }
 
-  public void SetSpecular(FDatasmithFacadeExpressionInput InSpecular) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetSpecular(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InSpecular));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-  }
-
   public FDatasmithFacadeExpressionInput GetRoughness() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetRoughness(swigCPtr), true);
     return ret;
-  }
-
-  public void SetRoughness(FDatasmithFacadeExpressionInput InRoughness) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetRoughness(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InRoughness));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
   }
 
   public FDatasmithFacadeExpressionInput GetEmissiveColor() {
@@ -83,19 +63,9 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
     return ret;
   }
 
-  public void SetEmissiveColor(FDatasmithFacadeExpressionInput InEmissiveColor) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetEmissiveColor(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InEmissiveColor));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-  }
-
   public FDatasmithFacadeExpressionInput GetOpacity() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetOpacity(swigCPtr), true);
     return ret;
-  }
-
-  public void SetOpacity(FDatasmithFacadeExpressionInput InOpacity) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetOpacity(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InOpacity));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
   }
 
   public FDatasmithFacadeExpressionInput GetNormal() {
@@ -103,19 +73,9 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
     return ret;
   }
 
-  public void SetNormal(FDatasmithFacadeExpressionInput InNormal) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetNormal(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InNormal));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-  }
-
   public FDatasmithFacadeExpressionInput GetWorldDisplacement() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetWorldDisplacement(swigCPtr), true);
     return ret;
-  }
-
-  public void SetWorldDisplacement(FDatasmithFacadeExpressionInput InWorldDisplacement) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetWorldDisplacement(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InWorldDisplacement));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
   }
 
   public FDatasmithFacadeExpressionInput GetRefraction() {
@@ -123,29 +83,14 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
     return ret;
   }
 
-  public void SetRefraction(FDatasmithFacadeExpressionInput InRefraction) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetRefraction(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InRefraction));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-  }
-
   public FDatasmithFacadeExpressionInput GetAmbientOcclusion() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetAmbientOcclusion(swigCPtr), true);
     return ret;
   }
 
-  public void SetAmbientOcclusion(FDatasmithFacadeExpressionInput InAmbientOcclusion) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetAmbientOcclusion(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InAmbientOcclusion));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
-  }
-
   public FDatasmithFacadeExpressionInput GetMaterialAttributes() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetMaterialAttributes(swigCPtr), true);
     return ret;
-  }
-
-  public void SetMaterialAttributes(FDatasmithFacadeExpressionInput InMaterialAttributes) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetMaterialAttributes(swigCPtr, FDatasmithFacadeExpressionInput.getCPtr(InMaterialAttributes));
-    if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
   }
 
   public int GetBlendMode() {

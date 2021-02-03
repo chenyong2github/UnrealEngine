@@ -105,7 +105,7 @@ private:
 	static int32 GetRandomSeedForPosition(const FVector2D& Position);
 };
 
-UCLASS(hidecategories = Object, editinlinenew, MinimalAPI, BlueprintType, Blueprintable)
+UCLASS(abstract, hidecategories = Object, editinlinenew, MinimalAPI, BlueprintType, Blueprintable)
 class UFoliageType : public UObject
 {
 	GENERATED_UCLASS_BODY()

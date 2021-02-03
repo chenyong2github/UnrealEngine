@@ -7542,6 +7542,8 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 
 		Set("GenericCurveEditor.Pin_Active", new IMAGE_BRUSH("Common/PushPin_Down", Icon16x16));
 		Set("GenericCurveEditor.Pin_Inactive", new IMAGE_BRUSH("Common/PushPin_Up", Icon16x16));
+
+		Set("GenericCurveEditor.Select", new IMAGE_BRUSH("GenericCurveEditor/Icons/SelectButton", Icon16x16));
 	}
 
 	// Generic Curve Editor Tools

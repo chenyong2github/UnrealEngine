@@ -380,15 +380,17 @@ bool FDatasmithExporterManager::RunGarbageCollection()
 		GarbageCollectionDoneFuture.Wait();
 		return true;
 	}
-#endif
-
-	if (IsInGameThread())
+	else if (IsInGameThread())
 	{
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		return true;
 	}
 
 	return false;
+#else
+	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+	return true;
+#endif
 }
 
 #if IS_PROGRAM

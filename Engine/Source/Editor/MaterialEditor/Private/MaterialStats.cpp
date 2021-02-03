@@ -450,8 +450,6 @@ void FMaterialStats::BuildShaderPlatformDB()
 	// Look to see what console platforms we have
 	static const EShaderPlatform ConsolePlatforms[] =
 	{
-		SP_PS4,
-		SP_XBOXONE_D3D12,
 		SP_SWITCH,
 		SP_SWITCH_FORWARD,
 	};

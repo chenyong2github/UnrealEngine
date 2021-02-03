@@ -265,5 +265,15 @@ namespace UnrealBuildTool
 		public virtual void GetUnrealVSConfigurationEntries( StringBuilder UnrealVSContent )
 		{
 		}
+
+		/// <summary>
+		/// Gets the text to insert into the Project files as additional build arugments for given platform/configuration
+		/// </summary>
+		/// <param name="InPlatform">The platform being added</param>
+		/// <param name="InConfiguration">The configuration being added</param>
+		public virtual string GetExtraBuildArguments(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration)
+		{
+			return "";
+		}
 	}
 }

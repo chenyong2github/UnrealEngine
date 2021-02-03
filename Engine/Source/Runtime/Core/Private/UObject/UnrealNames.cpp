@@ -3466,7 +3466,7 @@ struct FNameBatchLoader
 		Headers = TArrayView<const FSerializedNameHeader>(reinterpret_cast<const FSerializedNameHeader*>(SavedHashes.end()), Num);
 		Strings = TArrayView<const uint8>(reinterpret_cast<const uint8*>(Headers.end()), NumStringBytes);
 
-		return true;
+		return !Ar.IsError();
 	}
 
 	TArray<FNameEntryId> Load()

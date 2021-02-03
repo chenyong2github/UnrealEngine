@@ -72,11 +72,13 @@ void UMovieSceneParameterSection::ReconstructChannelProxy(bool bForce)
 
 #if WITH_EDITOR
 
+	int32 SortOrder = 0;
 	for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
 	{
 		FMovieSceneChannelMetaData MetaData(Scalar.ParameterName, FText::FromName(Scalar.ParameterName));
 		// Prevent single channels from collapsing to the track node
 		MetaData.bCanCollapseToTrack = false;
+		MetaData.SortOrder = SortOrder++;
 		Channels.Add(Scalar.ParameterCurve, MetaData, TMovieSceneExternalValue<float>());
 	}
 
@@ -84,25 +86,36 @@ void UMovieSceneParameterSection::ReconstructChannelProxy(bool bForce)
 	{
 		FMovieSceneChannelMetaData MetaData(Bool.ParameterName, FText::FromName(Bool.ParameterName));
 		// Prevent single channels from collapsing to the track node
-		MetaData.bCanCollapseToTrack = false;
+		MetaData.bCanCollapseToTrack = false;		
+		MetaData.SortOrder = SortOrder++;
 		Channels.Add(Bool.ParameterCurve, MetaData, TMovieSceneExternalValue<bool>());
 	}
 	for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
 	{
 		FString ParameterString = Vector2D.ParameterName.ToString();
 		FText Group = FText::FromString(ParameterString);
+		FMovieSceneChannelMetaData MetaData_X = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".X")), FCommonChannelData::ChannelX, Group);
+		MetaData_X.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Y = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Y")), FCommonChannelData::ChannelY, Group);
+		MetaData_Y.SortOrder = SortOrder++;
 
-		Channels.Add(Vector2D.XCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".X")), FCommonChannelData::ChannelX, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Vector2D.YCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Y")), FCommonChannelData::ChannelY, Group), TMovieSceneExternalValue<float>());
+		Channels.Add(Vector2D.XCurve, MetaData_X, TMovieSceneExternalValue<float>());
+		Channels.Add(Vector2D.YCurve, MetaData_Y, TMovieSceneExternalValue<float>());
 	}
 	for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
 	{
 		FString ParameterString = Vector.ParameterName.ToString();
 		FText Group = FText::FromString(ParameterString);
+		FMovieSceneChannelMetaData MetaData_X = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".X")), FCommonChannelData::ChannelX, Group);
+		MetaData_X.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Y = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Y")), FCommonChannelData::ChannelY, Group);
+		MetaData_Y.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Z = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Z")), FCommonChannelData::ChannelZ, Group);
+		MetaData_Z.SortOrder = SortOrder++;
 
-		Channels.Add(Vector.XCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".X")), FCommonChannelData::ChannelX, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Vector.YCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Y")), FCommonChannelData::ChannelY, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Vector.ZCurve, FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Z")), FCommonChannelData::ChannelZ, Group), TMovieSceneExternalValue<float>());
+		Channels.Add(Vector.XCurve, MetaData_X, TMovieSceneExternalValue<float>());
+		Channels.Add(Vector.YCurve, MetaData_Y, TMovieSceneExternalValue<float>());
+		Channels.Add(Vector.ZCurve, MetaData_Z, TMovieSceneExternalValue<float>());
 	}
 	for (FColorParameterNameAndCurves& Color : GetColorParameterNamesAndCurves())
 	{
@@ -110,19 +123,19 @@ void UMovieSceneParameterSection::ReconstructChannelProxy(bool bForce)
 		FText Group = FText::FromString(ParameterString);
 
 		FMovieSceneChannelMetaData MetaData_R(*(ParameterString + TEXT("R")), FCommonChannelData::ChannelR, Group);
-		MetaData_R.SortOrder = 0;
+		MetaData_R.SortOrder = SortOrder++;
 		MetaData_R.Color = FCommonChannelData::RedChannelColor;
 
 		FMovieSceneChannelMetaData MetaData_G(*(ParameterString + TEXT("G")), FCommonChannelData::ChannelG, Group);
-		MetaData_G.SortOrder = 1;
+		MetaData_G.SortOrder = SortOrder++;
 		MetaData_G.Color = FCommonChannelData::GreenChannelColor;
 
 		FMovieSceneChannelMetaData MetaData_B(*(ParameterString + TEXT("B")), FCommonChannelData::ChannelB, Group);
-		MetaData_B.SortOrder = 2;
+		MetaData_B.SortOrder = SortOrder++;
 		MetaData_B.Color = FCommonChannelData::BlueChannelColor;
 
 		FMovieSceneChannelMetaData MetaData_A(*(ParameterString + TEXT("A")), FCommonChannelData::ChannelA, Group);
-		MetaData_A.SortOrder = 3;
+		MetaData_A.SortOrder = SortOrder++;
 
 		Channels.Add(Color.RedCurve, MetaData_R, TMovieSceneExternalValue<float>());
 		Channels.Add(Color.GreenCurve, MetaData_G, TMovieSceneExternalValue<float>());
@@ -135,17 +148,38 @@ void UMovieSceneParameterSection::ReconstructChannelProxy(bool bForce)
 		FString ParameterString = Transform.ParameterName.ToString();
 		FText Group = FText::FromString(ParameterString);
 
-		Channels.Add(Transform.Translation[0], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Translation.X")), FCommonChannelData::ChannelX, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Transform.Translation[1], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Translation.Y")), FCommonChannelData::ChannelY, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Transform.Translation[2], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Translation.Z")), FCommonChannelData::ChannelZ, Group), TMovieSceneExternalValue<float>());
+		FMovieSceneChannelMetaData MetaData_Tx = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Translation.X")), FCommonChannelData::ChannelX, Group);
+		MetaData_Tx.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Ty = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Translation.Y")), FCommonChannelData::ChannelY, Group);
+		MetaData_Ty.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Tz = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Translation.Z")), FCommonChannelData::ChannelZ, Group);
+		MetaData_Tz.SortOrder = SortOrder++;
 
-		Channels.Add(Transform.Rotation[0], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Rotation.X")), FCommonChannelData::ChannelX, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Transform.Rotation[1], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Rotation.Y")), FCommonChannelData::ChannelY, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Transform.Rotation[2], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Rotation.Z")), FCommonChannelData::ChannelZ, Group), TMovieSceneExternalValue<float>());
+		Channels.Add(Transform.Translation[0], MetaData_Tx, TMovieSceneExternalValue<float>());
+		Channels.Add(Transform.Translation[1], MetaData_Ty, TMovieSceneExternalValue<float>());
+		Channels.Add(Transform.Translation[2], MetaData_Tz, TMovieSceneExternalValue<float>());
 
-		Channels.Add(Transform.Scale[0], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Scale.X")), FCommonChannelData::ChannelX, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Transform.Scale[1], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Scale.Y")), FCommonChannelData::ChannelY, Group), TMovieSceneExternalValue<float>());
-		Channels.Add(Transform.Scale[2], FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Scale.Z")), FCommonChannelData::ChannelZ, Group), TMovieSceneExternalValue<float>());
+		FMovieSceneChannelMetaData MetaData_Rx = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Rotation.X")), FCommonChannelData::ChannelX, Group);
+		MetaData_Rx.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Ry = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Rotation.Y")), FCommonChannelData::ChannelY, Group);
+		MetaData_Ry.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Rz = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Rotation.Z")), FCommonChannelData::ChannelZ, Group);
+		MetaData_Rz.SortOrder = SortOrder++;
+
+		Channels.Add(Transform.Rotation[0], MetaData_Rx, TMovieSceneExternalValue<float>());
+		Channels.Add(Transform.Rotation[1], MetaData_Ry, TMovieSceneExternalValue<float>());
+		Channels.Add(Transform.Rotation[2], MetaData_Rz, TMovieSceneExternalValue<float>());
+
+		FMovieSceneChannelMetaData MetaData_Sx = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Scale.X")), FCommonChannelData::ChannelX, Group);
+		MetaData_Sx.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Sy = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Scale.Y")), FCommonChannelData::ChannelY, Group);
+		MetaData_Sy.SortOrder = SortOrder++;
+		FMovieSceneChannelMetaData MetaData_Sz = FMovieSceneChannelMetaData(*(ParameterString + TEXT(".Scale.Z")), FCommonChannelData::ChannelZ, Group);
+		MetaData_Sz.SortOrder = SortOrder++;
+
+		Channels.Add(Transform.Scale[0], MetaData_Sx, TMovieSceneExternalValue<float>());
+		Channels.Add(Transform.Scale[1], MetaData_Sy, TMovieSceneExternalValue<float>());
+		Channels.Add(Transform.Scale[2], MetaData_Sz, TMovieSceneExternalValue<float>());
 
 	}
 #else

@@ -856,10 +856,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 				DeferredAction.ExecuteIfBound();
 			}
 		} while (DeferredActions.Num() > 0);
-	}
 
-	if (bHadDeferredActions)
-	{
 		for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 		{
 			check(RootPropertyNode.IsValid());

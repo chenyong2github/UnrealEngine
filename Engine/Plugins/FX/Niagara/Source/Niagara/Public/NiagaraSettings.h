@@ -39,6 +39,19 @@ namespace ENDISkelMesh_GpuUniformSamplingFormat
 	};
 }
 
+// This enum must match the order in NiagaraDataInterfaceSkeletalMesh.ush
+UENUM()
+namespace ENDISkelMesh_AdjacencyTriangleIndexFormat
+{
+	enum Type
+	{
+		/** 32 bits per entry. Allow for the full int32 range of triangles (2 billion). */
+		Full = 0,
+		/** 16 bits per entry. Allow for half (int16) range of triangles (64k). */
+		Half = 1,
+	};
+}
+
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 {
@@ -80,6 +93,9 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = SkeletalMeshDI, meta = (DisplayName = "Gpu Uniform Sampling Format", ToolTip = "Controls the format used for uniform sampling on the GPU.  Changing this setting requires restarting the editor.", ConfigRestartRequired = true))
 	TEnumAsByte<ENDISkelMesh_GpuUniformSamplingFormat::Type> NDISkelMesh_GpuUniformSamplingFormat;
+
+	UPROPERTY(config, EditAnywhere, Category = SkeletalMeshDI, meta = (DisplayName = "Adjacency Triangle Index Format", ToolTip = "Controls the format used for specifying triangle indexes in adjacency buffers.  Changing this setting requires restarting the editor.", ConfigRestartRequired = true))
+	TEnumAsByte<ENDISkelMesh_AdjacencyTriangleIndexFormat::Type> NDISkelMesh_AdjacencyTriangleIndexFormat;
 
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;

@@ -471,7 +471,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		public string GetNdkApiLevel()
+		public virtual string GetNdkApiLevel()
 		{
 			// ask the .ini system for what version to use
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);

@@ -22,6 +22,7 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "MaterialEditor/MaterialEditorInstanceConstant.h"
+#include "MaterialStatsCommon.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "EditorSupportDelegates.h"
 #include "Misc/RuntimeErrors.h"
@@ -1241,4 +1242,46 @@ bool UMaterialEditingLibrary::GetStaticSwitchParameterSource(UMaterialInterface*
 		}
 	}
 	return false;
+}
+
+FMaterialStatistics UMaterialEditingLibrary::GetStatistics(class UMaterialInterface* Material)
+{
+	FMaterialStatistics Result;
+
+	FMaterialResource* Resource = Material ? Material->GetMaterialResource(GMaxRHIFeatureLevel) : nullptr;
+	if (Resource)
+	{
+		Resource->FinishCompilation();
+
+		TArray<FMaterialStatsUtils::FShaderInstructionsInfo> InstructionInfos;
+		FMaterialStatsUtils::GetRepresentativeInstructionCounts(InstructionInfos, Resource);
+		for (const FMaterialStatsUtils::FShaderInstructionsInfo& Info : InstructionInfos)
+		{
+			const int32 ShaderType = (int32)Info.ShaderType;
+			if (ShaderType >= (int32)ERepresentativeShader::FirstFragmentShader && ShaderType <= (int32)ERepresentativeShader::LastFragmentShader)
+			{
+				Result.NumPixelShaderInstructions = FMath::Max(Result.NumPixelShaderInstructions, Info.InstructionCount);
+			}
+			else if (ShaderType >= (int32)ERepresentativeShader::FirstVertexShader && ShaderType <= (int32)ERepresentativeShader::LastVertexShader)
+			{
+				Result.NumVertexShaderInstructions = FMath::Max(Result.NumVertexShaderInstructions, Info.InstructionCount);
+			}
+		}
+
+		Result.NumSamplers = Resource->GetSamplerUsage();
+
+		uint32 NumVSTextureSamples = 0, NumPSTextureSamples = 0;
+		Resource->GetEstimatedNumTextureSamples(NumVSTextureSamples, NumPSTextureSamples);
+		Result.NumVertexTextureSamples = (int32)NumVSTextureSamples;
+		Result.NumPixelTextureSamples = (int32)NumPSTextureSamples;
+
+		Result.NumVirtualTextureSamples = Resource->GetEstimatedNumVirtualTextureLookups();
+
+		uint32 UVScalarsUsed, CustomInterpolatorScalarsUsed;
+		Resource->GetUserInterpolatorUsage(UVScalarsUsed, CustomInterpolatorScalarsUsed);
+		Result.NumUVScalars = (int32)UVScalarsUsed;
+		Result.NumInterpolatorScalars = (int32)CustomInterpolatorScalarsUsed;
+	}
+
+	return Result;
 }

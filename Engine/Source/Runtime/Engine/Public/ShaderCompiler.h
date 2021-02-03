@@ -126,6 +126,15 @@ public:
 	/** Output of the shader compile */
 	uint8 bSucceeded : 1;
 	uint8 bErrorsAreLikelyToBeCode : 1;
+	/** true if the results of the shader compile have been released from the FShaderCompilerManager.
+		After a job is bFinalized it will be bReleased when ReleaseJob() is invoked, which means that the shader compile thread
+		is no longer processing the job; which is useful for non standard job handling (Niagara as an example). */
+	uint8 bReleased : 1;
+
+	/** Whether we hashed the inputs */
+	uint8 bInputHashSet : 1;
+	/** Hash of all the job inputs */
+	FSHAHash InputHash;
 
 	uint32 AddRef() const
 	{
@@ -145,6 +154,12 @@ public:
 	{
 		return uint32(NumRefs.GetValue());
 	}
+
+	/** Returns hash of all inputs for this job (needed for caching). */
+	virtual FSHAHash GetInputHash() { return FSHAHash(); }
+
+	/** Serializes (and deserializes) the output for caching purposes. */
+	virtual void SerializeOutput(FArchive& Ar) {}
 
 	FShaderCompileJob* GetSingleShaderJob();
 	const FShaderCompileJob* GetSingleShaderJob() const;
@@ -171,12 +186,14 @@ protected:
 		CurrentWorker(EShaderCompilerWorkerType::None),
 		bFinalized(false),
 		bSucceeded(false),
-		bErrorsAreLikelyToBeCode(true)
+		bErrorsAreLikelyToBeCode(true),
+		bReleased(false),
+		bInputHashSet(false)
 	{
 		check(InPriroity != EShaderCompileJobPriority::None);
 	}
 
-	~FShaderCommonCompileJob() {}
+	virtual ~FShaderCommonCompileJob() {}
 
 private:
 	/** Value counter for job ids. */
@@ -228,6 +245,9 @@ public:
 	// List of pipelines that are sharing this job.
 	TMap<const FVertexFactoryType*, TArray<const FShaderPipelineType*>> SharingPipelines;
 
+	virtual ENGINE_API FSHAHash GetInputHash() override;
+	virtual ENGINE_API void SerializeOutput(FArchive& Ar) override;
+
 	FShaderCompileJob(uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity, const FShaderCompileJobKey& InKey) :
 		FShaderCommonCompileJob(Type, InHash, InId, InPriroity),
 		Key(InKey)
@@ -264,6 +284,9 @@ public:
 	TArray<TRefCountPtr<FShaderCompileJob>> StageJobs;
 	bool bFailedRemovingUnused;
 
+	virtual ENGINE_API FSHAHash GetInputHash() override;
+	virtual ENGINE_API void SerializeOutput(FArchive& Ar) override;
+
 	FShaderPipelineCompileJob(uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity, const FShaderPipelineCompileJobKey& InKey);
 };
 
@@ -296,6 +319,58 @@ inline void FShaderCommonCompileJob::Destroy() const
 	}
 }
 
+class FShaderJobCache
+{
+public:
+	using FJobInputHash = FSHAHash;
+	using FJobCachedOutput = TArray<uint8>;
+
+	/** Looks for the job in the cache, returns null if not found */
+	FJobCachedOutput* Find(const FJobInputHash& Hash);
+
+	/** Adds a job output to the cache */
+	void Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents);
+
+	/** Calculates memory used by the cache*/
+	uint64 GetAllocatedMemory();
+
+	/** Logs out the statistics */
+	void LogStats();
+
+	/** Calculates current memory budget, in bytes */
+	uint64 GetCurrentMemoryBudget() const;
+
+private:
+	using FJobOutputHash = FSHAHash;
+	struct FStoredOutput
+	{
+		/** How many times this output is referenced by the cached jobs */
+		int32 NumReferences;
+
+		/** How many times this output has been returned as a cached result, no matter the input hash */
+		int32 NumHits;
+		
+		/** Canned output */
+		TArray<uint8> JobOutput;
+	};
+
+	/* a lot of outputs can be duplicated, so they are deduplicated before storing */
+	TMap<FJobOutputHash, FStoredOutput*> Outputs;
+
+	/** Map of input hashes to output hashes */
+	TMap<FJobInputHash, FJobOutputHash> InputHashToOutput;
+
+	/** Statistics - total number of times we tried to Find() some input hash */
+	uint64 TotalSearchAttempts = 0;
+
+	/** Statistics - total number of times we succeded in Find()ing output for some input hash */
+	uint64 TotalCacheHits = 0;
+
+	/** Statistics - allocated memory. If the number is non-zero, we can trust it as accurate. Otherwise, recalculate. */
+	uint64 CurrentlyAllocatedMemory = 0;
+};
+
+
 class FShaderCompileJobCollection
 {
 public:
@@ -308,6 +383,18 @@ public:
 	int32 RemoveAllPendingJobsWithId(uint32 InId);
 
 	void SubmitJobs(const TArray<FShaderCommonCompileJobPtr>& InJobs);
+	
+	/** This is an entry point for all jobs that have finished the compilation (whether real or cached). Can be called from multiple threads.*/
+	void ProcessFinishedJob(FShaderCommonCompileJob* FinishedJob, bool bWasCached = false);
+
+	/** Adds the job to cache. */
+	void AddToCacheAndProcessPending(FShaderCommonCompileJob* FinishedJob);
+
+	/** Log caching statistics.
+	 *
+	 * @param bForceLogIgnoringTimeInverval - this function is called often, so not every invocation normally will actually log the stats. This parameter being true bypasses this pacing.
+	 */
+	void LogCachingStats(bool bForceLogIgnoringTimeInverval = false);
 
 	inline int32 GetNumPendingJobs(EShaderCompileJobPriority InPriority) const
 	{
@@ -323,17 +410,17 @@ public:
 
 	int32 GetPendingJobs(EShaderCompilerWorkerType InWorkerType, EShaderCompileJobPriority InPriority, int32 MinNumJobs, int32 MaxNumJobs, TArray<FShaderCommonCompileJobPtr>& OutJobs);
 
-	inline int32 SubtractNumOutstandingJobs(int32 Value)
+private:
+	void InternalAddJob(FShaderCommonCompileJob* Job);
+	void InternalRemoveJob(FShaderCommonCompileJob* InJob);
+	void InternalSetPriority(FShaderCommonCompileJob* Job, EShaderCompileJobPriority InPriority);
+	// cannot allow managing this from outside as the caching logic is not exposed
+	inline int32 InternalSubtractNumOutstandingJobs(int32 Value)
 	{
 		const int32 PrevNumOutstandingJobs = NumOutstandingJobs.Subtract(Value);
 		check(PrevNumOutstandingJobs >= Value);
 		return PrevNumOutstandingJobs - Value;
 	}
-
-private:
-	void InternalAddJob(FShaderCommonCompileJob* Job);
-	void InternalRemoveJob(FShaderCommonCompileJob* InJob);
-	void InternalSetPriority(FShaderCommonCompileJob* Job, EShaderCompileJobPriority InPriority);
 
 	template<typename JobType, typename KeyType>
 	int32 InternalFindJobIndex(uint32 InJobHash, uint32 InJobId, const KeyType& InKey) const
@@ -398,6 +485,9 @@ private:
 		return NewJob;
 	}
 
+	/** Handles the console command to log jobs cache stats */
+	void HandleLogJobsCacheStats();
+
 	/** Queue of tasks that haven't been assigned to a worker yet. */
 	FShaderCommonCompileJob* PendingJobs[NumShaderCompileJobPriorities];
 	int32 NumPendingJobs[NumShaderCompileJobPriorities];
@@ -408,7 +498,20 @@ private:
 	TArray<FShaderCommonCompileJobPtr> Jobs[NumShaderCompileJobTypes];
 	TArray<int32> FreeIndices[NumShaderCompileJobTypes];
 	FHashTable JobHash[NumShaderCompileJobTypes];
+	/** Guards access to the above job storage and also the cache structures below - JobsInFlight, WaitList and the Cache itself */
 	mutable FRWLock Lock;
+
+	/** Map of input hash to the jobs that we decided to execute. Note that mapping will miss cloned jobs (to avoid being a multimap). */
+	TMap<FSHAHash, FShaderCommonCompileJob*> JobsInFlight;
+
+	/** Map of input hash to the jobs that we delayed because a job with the same hash was executing. Each job is a head of a linked list of jobs with the same input hash (ihash) */
+	TMap<FSHAHash, FShaderCommonCompileJob*> DuplicateJobsWaitList;
+
+	/** Cache for the completed jobs.*/
+	FShaderJobCache CompletedJobsCache;
+
+	/** Debugging - console command to print stats. */
+	class IConsoleObject* LogJobsCacheStatsCmd;
 };
 
 class FGlobalShaderTypeCompiler
@@ -940,6 +1043,9 @@ public:
 	  */
 	ENGINE_API FShaderCompileJob* PrepareShaderCompileJob(uint32 Id, const FShaderCompileJobKey& Key, EShaderCompileJobPriority Priority);
 	ENGINE_API FShaderPipelineCompileJob* PreparePipelineCompileJob(uint32 Id, const FShaderPipelineCompileJobKey& Key, EShaderCompileJobPriority Priority);
+
+	/** This is an entry point for all jobs that have finished the compilation. Can be called from multiple threads.*/
+	ENGINE_API void ProcessFinishedJob(FShaderCommonCompileJob* FinishedJob);
 
 	/** 
 	 * Adds shader jobs to be asynchronously compiled. 

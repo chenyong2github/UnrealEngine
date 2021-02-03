@@ -14,6 +14,9 @@
 #include "Misc/DisplayClusterStrings.h"
 #include "Misc/DisplayClusterTypesConverter.h"
 
+#include "Engine/World.h"
+#include "GameFramework/WorldSettings.h"
+
 #if WITH_EDITOR
 #include "Interfaces/IDisplayClusterConfiguratorToolkit.h"
 #endif
@@ -42,6 +45,8 @@ void UDisplayClusterSceneComponent::TickComponent( float DeltaTime, ELevelTick T
 
 			if (bLocAvail && bRotAvail)
 			{
+				Location *= GetWorld()->GetWorldSettings()->WorldToMeters;
+
 				UE_LOG(LogDisplayClusterGame, Verbose, TEXT("%s update from tracker %s:%d - {loc %s} {quat %s}"),
 					*GetName(), *TrackerId, TrackerChannel, *Location.ToString(), *Rotation.ToString());
 

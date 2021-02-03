@@ -228,6 +228,8 @@ private:
 	TSharedPtr<FLANSession> LANSession;
 	/** EOS handle wrapper to hold onto it for scope of the search */
 	TSharedPtr<FSessionSearchEOS> CurrentSearchHandle;
+	/** The last accepted invite search. It searches by session id */
+	TSharedPtr<FOnlineSessionSearch> LastInviteSearch;
 
 	/** Notification state for SDK events */
 	EOS_NotificationId SessionInviteAcceptedId;

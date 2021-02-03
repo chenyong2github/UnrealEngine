@@ -2184,15 +2184,30 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	// Copy over the source bus send and data
 	if (!WaveInstance->ActiveSound->bIsPreviewSound)
 	{
-		// Active sounds can override their output to bus only behavior via audio components
-		if (ActiveSound.bEnableOutputToBusOnlyOverride)
+		//Parse the parameters of the wave instance
+		WaveInstance->bEnableBusSends = ParseParams.bEnableBusSends;
+		WaveInstance->bEnableBaseSubmix = ParseParams.bEnableBaseSubmix;
+		WaveInstance->bEnableSubmixSends = ParseParams.bEnableSubmixSends;
+
+		// Active sounds can override their enablement behavior via audio components
+		if (ActiveSound.bHasActiveBusSendRoutingOverride)
 		{
-			WaveInstance->bOutputToBusOnly = ActiveSound.bOutputToBusOnlyOverride;
+			WaveInstance->bEnableBusSends = ActiveSound.bEnableBusSendRoutingOverride;
 		}
-		else
+
+		if (ActiveSound.bHasActiveMainSubmixOutputOverride)
 		{
-			WaveInstance->bOutputToBusOnly = ParseParams.bOutputToBusOnly;
+			WaveInstance->bEnableBaseSubmix = ActiveSound.bEnableMainSubmixOutputOverride;
 		}
+
+		if (ActiveSound.bHasActiveSubmixSendRoutingOverride)
+		{
+			WaveInstance->bEnableSubmixSends = ActiveSound.bEnableSubmixSendRoutingOverride;
+		}
+	}
+	else //if this is a preview sound, ignore sends and only play the base submix
+	{
+		WaveInstance->bEnableBaseSubmix = true;
 	}
 
 	for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)

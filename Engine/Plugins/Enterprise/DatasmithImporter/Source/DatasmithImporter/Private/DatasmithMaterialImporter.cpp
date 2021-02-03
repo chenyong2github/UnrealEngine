@@ -50,17 +50,17 @@ namespace DatasmithMaterialImporterUtils
 
 	int32 ComputeMaterialExpressionHash( IDatasmithMaterialExpression* MaterialExpression )
 	{
-		uint32 Hash = GetTypeHash( MaterialExpression->GetType() );
+		uint32 Hash = GetTypeHash( MaterialExpression->GetExpressionType() );
 		Hash = HashCombine( Hash, GetTypeHash( FString( MaterialExpression->GetName() ) ) );
 
-		if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::TextureCoordinate ) )
+		if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 		{
 			IDatasmithMaterialExpressionTextureCoordinate* TextureCoordinate = static_cast< IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression );
 			Hash = HashCombine( Hash, GetTypeHash( TextureCoordinate->GetCoordinateIndex() ) );
 			Hash = HashCombine( Hash, GetTypeHash( TextureCoordinate->GetUTiling() ) );
 			Hash = HashCombine( Hash, GetTypeHash( TextureCoordinate->GetVTiling() ) );
 		}
-		else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantColor ) )
+		else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 		{
 			if ( FCString::Strlen( MaterialExpression->GetName() ) == 0 )
 			{
@@ -69,7 +69,7 @@ namespace DatasmithMaterialImporterUtils
 				Hash = HashCombine( Hash, GetTypeHash( ColorExpression->GetColor() ) );
 			}
 		}
-		else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::ConstantScalar ) )
+		else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 		{
 			if ( FCString::Strlen( MaterialExpression->GetName() ) == 0 )
 			{
@@ -78,7 +78,7 @@ namespace DatasmithMaterialImporterUtils
 				Hash = HashCombine( Hash, GetTypeHash( ScalarExpression->GetScalar() ) );
 			}
 		}
-		else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::Generic ) )
+		else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 		{
 			IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( MaterialExpression );
 
@@ -109,7 +109,7 @@ namespace DatasmithMaterialImporterUtils
 				}
 			}
 		}
-		else if ( MaterialExpression->IsA( EDatasmithMaterialExpressionType::FunctionCall ) )
+		else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
 		{
 			// Hash the path to the function as calling different functions should result in different hash values
 			IDatasmithMaterialExpressionFunctionCall* FunctionCallExpression = static_cast< IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression );

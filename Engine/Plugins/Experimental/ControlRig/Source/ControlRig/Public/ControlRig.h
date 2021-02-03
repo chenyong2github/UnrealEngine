@@ -31,6 +31,9 @@
 
 class IControlRigObjectBinding;
 class UScriptStruct;
+class USkeletalMesh;
+
+struct FReferenceSkeleton;
 struct FRigUnit;
 struct FRigControl;
 
@@ -218,13 +221,13 @@ public:
 	FTransform GetGlobalTransform(const FName& BoneName) const;
 
 	/** Evaluate another animation ControlRig */
-	void SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform = true);
+	void SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform = true) ;
 
 	/** Evaluate another animation ControlRig */
 	FTransform GetGlobalTransform(const int32 BoneIndex) const;
 
 	/** Evaluate another animation ControlRig */
-	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true);
+	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true) ;
 
 	/** Evaluate another animation ControlRig */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
@@ -400,6 +403,12 @@ public:
 	FControlRigExecuteEvent& OnPostSetup_AnyThread() { return PostSetupEvent; }
 	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
 	FRigEventDelegate& OnRigEvent_AnyThread() { return RigEventDelegate; }
+
+	// Setup the initial transforms / ref pose of the bones based on a skeletal mesh
+	void SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh);
+
+	// Setup the initial transforms / ref pose of the bones based on a reference skeleton
+	void SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkeleton& InReferenceSkeleton);
 
 	const FControlRigDrawInterface& GetDrawInterface() const { return DrawInterface; };
 	FControlRigDrawInterface& GetDrawInterface() { return DrawInterface; };

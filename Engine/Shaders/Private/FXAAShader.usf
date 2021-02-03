@@ -61,7 +61,7 @@ void FxaaVS(
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	#define FXAA_HLSL_5 1
-#elif FEATURE_LEVEL == FEATURE_LEVEL_SM4
+#else
 	#define FXAA_HLSL_4 1
 #endif
 	

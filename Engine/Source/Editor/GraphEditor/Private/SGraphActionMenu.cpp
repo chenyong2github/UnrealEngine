@@ -25,89 +25,6 @@
 #define LOCTEXT_NAMESPACE "GraphActionMenu"
 
 //////////////////////////////////////////////////////////////////////////
-/** CVars for tweaking how the blueprint context menu search picks the best match */
-namespace ContextMenuConsoleVariables
-{
-	/** Increasing this weight will make shorter words preferred */
-	static float ShorterWeight = 15.0f;
-	static FAutoConsoleVariableRef CVarShorterWeight(
-		TEXT("ContextMenu.ShorterWeight"), ShorterWeight,
-		TEXT("Increasing this weight will make shorter words preferred"),
-		ECVF_Default);
-
-	/** Increasing this will prefer whole percentage matches when comparing the keyword to what the user has typed in */
-	static float PercentageMatchWeightMultiplier = 1.0f;
-	static FAutoConsoleVariableRef CVarPercentageMatchWeightMultiplier(
-		TEXT("ContextMenu.PercentageMatchWeightMultiplier"), PercentageMatchWeightMultiplier,
-		TEXT("A multiplier for how much weight to give something based on the percentage match it is"),
-		ECVF_Default);
-
-	/** How much weight the description of actions have */
-	static float DescriptionWeight = 10.0f;
-	static FAutoConsoleVariableRef CVarDescriptionWeight(
-		TEXT("ContextMenu.DescriptionWeight"), DescriptionWeight,
-		TEXT("The amount of weight placed on search items description"),
-		ECVF_Default);
-
-	/** Weight used to prefer categories that are the same as the node that was dragged off of */
-	static float MatchingFromPinCategory = 500.0f;
-	static FAutoConsoleVariableRef CVarMatchingFromPinCategory(
-		TEXT("ContextMenu.MatchingFromPinCategory"), MatchingFromPinCategory,
-		TEXT("The amount of weight placed on actions with the same category as the node being dragged off of"),
-		ECVF_Default);
-
-	/** Weight that a match to a category search has */
-	static float CategoryWeight = 5.0f;
-	static FAutoConsoleVariableRef CVarCategoryWeight(
-		TEXT("ContextMenu.CategoryWeight"), CategoryWeight,
-		TEXT("The amount of weight placed on categories that match what the user has typed in"),
-		ECVF_Default);
-
-	/** How much weight the node's title has */
-	static float NodeTitleWeight = 5.0f;
-	static FAutoConsoleVariableRef CVarNodeTitleWeight(
-		TEXT("ContextMenu.NodeTitleWeight"), NodeTitleWeight,
-		TEXT("The amount of weight placed on the search items title"),
-		ECVF_Default);
-
-	/** Weight used to prefer keywords of actions  */
-	static float KeywordWeight = 30.0f;
-	static FAutoConsoleVariableRef CVarKeywordWeight(
-		TEXT("ContextMenu.KeywordWeight"), KeywordWeight,
-		TEXT("The amount of weight placed on search items keyword"),
-		ECVF_Default);
-
-	/** The multiplier given if the keyword starts with a letter the user typed in */
-	static float StartsWithBonusWeightMultiplier = 5.0f;
-	static FAutoConsoleVariableRef CVarStartsWithBonusWeightMultiplier(
-		TEXT("ContextMenu.StartsWithBonusWeightMultiplier"), StartsWithBonusWeightMultiplier,
-		TEXT("The multiplier given if the keyword starts with a letter the user typed in"),
-		ECVF_Default);
-
-	/** The multiplier given if the keyword starts with a letter the user typed in */
-	static float WordContainsLetterWeightMultiplier = 0.5f;
-	static FAutoConsoleVariableRef CVarWordContainsLetterWeightMultiplier(
-		TEXT("ContextMenu.WordContainsLetterWeightMultiplier"), WordContainsLetterWeightMultiplier,
-		TEXT("The multiplier given if the keyword only contains a letter the user typed in"),
-		ECVF_Default);
-
-	/** The bonus given if node is a favorite */
-	static float FavoriteBonus = 1000.0f;
-	static FAutoConsoleVariableRef CVarWordContainsLetterFavoriteBonus(
-		TEXT("ContextMenu.FavoriteBonus"), FavoriteBonus,
-		TEXT("The bonus given if node is a favorite"),
-		ECVF_Default);
-
-	/** Enabling the debug printing of context menu selections */
-	static bool bPrintDebugContextSelection = false;
-	static FAutoConsoleVariableRef CVarPrintDebugContextSelection(
-		TEXT("ContextMenu.bPrintDebugContextSelection"), bPrintDebugContextSelection,
-		TEXT("Flag for printing the debug info about the context menu selection"),
-		ECVF_Default);
-
-};	// namespace ContextMenuConsoleVariables
-
-//////////////////////////////////////////////////////////////////////////
 
 template<typename ItemType>
 class SCategoryHeaderTableRow : public STableRow<ItemType>
@@ -381,6 +298,7 @@ void SGraphActionMenu::Construct( const FArguments& InArgs, bool bIsReadOnly/* =
 	this->FilteredRootAction = FGraphActionNode::NewRootNode();
 	this->OnActionMatchesName = InArgs._OnActionMatchesName;	
 	this->DraggedFromPins = InArgs._DraggedFromPins;
+	this->GraphObj = InArgs._GraphObj;
 
 	// If a delegate for filtering text is passed in, assign it so that it will be used instead of the built-in filter box
 	if(InArgs._OnGetFilterText.IsBound())
@@ -788,8 +706,9 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 	float BestMatchCount = TNumericLimits<float>::Lowest();
 	int32 BestMatchIndex = INDEX_NONE;
 
-	FContextMenuWeightDebugInfo BestMatchDebugInfo = {};
-	FContextMenuWeightDebugInfo CurActionDebugInfo = {};
+	// Get the schema of the graph that we are in so that we can correctly get the action weight
+	const UEdGraphSchema* ActionSchema = GraphObj ? GraphObj->GetSchema() : GetDefault<UEdGraphSchema>();
+	check(ActionSchema);
 
 	for (int32 CurTypeIndex=0; CurTypeIndex < AllActions.GetNumActions(); ++CurTypeIndex)
 	{
@@ -798,7 +717,6 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 		// If we're filtering, search check to see if we need to show this action
 		bool bShowAction = true;
 		float EachWeight = TNumericLimits<float>::Lowest();
-		CurActionDebugInfo = {};
 		if (bRequiresFiltering)
 		{
 			// Combine the actions string, separate with \n so terms don't run into each other, and remove the spaces (incase the user is searching for a variable)
@@ -817,7 +735,7 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 			if (bShowAction)
 			{
 				// Get the 'weight' of this in relation to the filter
-				EachWeight = GetActionFilteredWeight(CurrentAction, FilterTerms, SanitizedFilterTerms, CurActionDebugInfo);
+				EachWeight = ActionSchema->GetActionFilteredWeight(CurrentAction, FilterTerms, SanitizedFilterTerms, DraggedFromPins);
 			}
 		}
 
@@ -828,7 +746,6 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 			{
 				BestMatchCount = EachWeight;
 				BestMatchIndex = CurTypeIndex;
-				BestMatchDebugInfo = CurActionDebugInfo;
 			}
 			FilteredRootAction->AddChild(CurrentAction);
 		}
@@ -844,12 +761,6 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 	// Get _all_ new nodes (flattened tree basically)
 	TArray< TSharedPtr<FGraphActionNode> > AllNodes;
 	FilteredRootAction->GetAllNodes(AllNodes);
-
-	// Print out the info about which action we picked and why
-	if (ContextMenuConsoleVariables::bPrintDebugContextSelection && FilterTerms.Num() > 0)
-	{
-		BestMatchDebugInfo.Print();
-	}
 
 	// If theres a BestMatchIndex find it in the actions nodes and select it (maybe this should check the current selected suggestion first ?)
 	if( BestMatchIndex != INDEX_NONE ) 
@@ -890,207 +801,6 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 		// Expand to match the old state
 		RestoreExpansionState< TSharedPtr<FGraphActionNode> >(TreeView, AllNodes, OldExpansionState, CompareGraphActionNode);
 	}
-}
-
-void FContextMenuWeightDebugInfo::Print()
-{
-	UE_LOG(LogTemp, Warning, TEXT("[Weight Debug info] \
-		TotalWeight: %-8.2f | PercentageMatchWeight: %-8.2f | PercMatch: %-8.2f | ShorterWeight: %-8.2f | CategoryBonusWeight: %-8.2f | KeywordArrayWeight: %-8.2f | DescriptionWeight: %-8.2f | NodeTitleWeight: %-8.2f | CategoryWeight: %-8.2f | Fav. Bonus:%-8.2f\n"), 
-		TotalWeight, PercentageMatchWeight, PercMatch, ShorterWeight, CategoryBonusWieight, KeywordArrayWeight, DescriptionWeight, NodeTitleWeight, CategoryWeight, FavoriteBonusWeight);
-}
-
-float SGraphActionMenu::GetActionFilteredWeight(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, FContextMenuWeightDebugInfo& OutDebugInfo)
-{	
-	// The overall 'weight' of this action 
-	float TotalWeight = 0.0f;
-	// Helper array for tracking actions and the weight that they have added
-	struct FArrayWithWeight
-	{
-		FArrayWithWeight(const TArray< FString >* InArray, float InWeightModifier, float* OutDebugWeight)
-			: Array(InArray)
-			, OutWeight(OutDebugWeight)
-			, WeightModifier(InWeightModifier)
-		{
-		}
-
-		const TArray< FString >* Array = nullptr;
-		float* OutWeight = nullptr;
-		float WeightModifier = 0.0f;
-	};
-
-	// Setup an array of arrays so we can do a weighted search			
-	TArray< FArrayWithWeight > WeightedArrayList;
-
-	const bool bIsFromDrag = (DraggedFromPins.Num() > 0);
-	
-	int32 Action = 0;
-	if( InCurrentAction.Actions[Action].IsValid() == true )
-	{
-		TSharedPtr<FEdGraphSchemaAction> CurrentAction = InCurrentAction.Actions[Action];
-		
-		// Combine the actions string, separate with \n so terms don't run into each other, and remove the spaces (incase the user is searching for a variable)
-		// In the case of groups containing multiple actions, they will have been created and added at the same place in the code, using the same description
-		// and keywords, so we only need to use the first one for filtering.
-		const FString& SearchText = InCurrentAction.GetSearchTextForFirstAction();
-
-		// First the localized keywords
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchKeywordsArrayForFirstAction(), ContextMenuConsoleVariables::KeywordWeight, &OutDebugInfo.KeywordArrayWeight));
-
-		// The localized description
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedMenuDescriptionArrayForFirstAction(), ContextMenuConsoleVariables::DescriptionWeight, &OutDebugInfo.DescriptionWeight));
-
-		// The node search localized title weight
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchTitleArrayForFirstAction(), ContextMenuConsoleVariables::NodeTitleWeight, &OutDebugInfo.NodeTitleWeight));
-
-		// The localized category
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetLocalizedSearchCategoryArrayForFirstAction(), ContextMenuConsoleVariables::CategoryWeight,&OutDebugInfo.CategoryWeight));
-
-		// First the keywords
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchKeywordsArrayForFirstAction(), ContextMenuConsoleVariables::KeywordWeight, &OutDebugInfo.KeywordArrayWeight));
-		
-		// The description
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetMenuDescriptionArrayForFirstAction(), ContextMenuConsoleVariables::DescriptionWeight,  &OutDebugInfo.DescriptionWeight));
-
-		// The node search title weight
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchTitleArrayForFirstAction(), ContextMenuConsoleVariables::NodeTitleWeight, &OutDebugInfo.NodeTitleWeight));
-
-		// The category
-		WeightedArrayList.Add(FArrayWithWeight(&InCurrentAction.GetSearchCategoryArrayForFirstAction(), ContextMenuConsoleVariables::CategoryWeight,  &OutDebugInfo.CategoryWeight));
-
-		// Give a weight bonus to actions whose category matches what was dragged off of
-		if(bIsFromDrag)
-		{
-			const TArray<FString>& InActionCategories = InCurrentAction.GetCategoryChain();
-			bool bAddMatchBonus = false;
-
-			for (const FString& InActionCategory : InActionCategories)
-			{
-				for (UEdGraphPin* const FromPin : DraggedFromPins)
-				{
-					check(FromPin != nullptr);
-
-					// If we can't find anything there, check the subcategory of the object
-					// This covers most of the more complex struct types (LinearColor, date time, etc)
-					if (UObject* const SubCatObj = FromPin->PinType.PinSubCategoryObject.Get())
-					{
-						const FString& SubCatObjName = SubCatObj->GetFullName();
-						// The pin SubObjectCategory names don't have any spaces, so split up the category
-						TArray<FString> DelimitedArray;
-						InActionCategory.ParseIntoArray(DelimitedArray, TEXT(" "), true);
-						for (const FString& DelimetedCat : DelimitedArray)
-						{
-							if (SubCatObjName.Contains(DelimetedCat))
-							{
-								bAddMatchBonus = true;
-								break;
-							}
-						}
-					}
-					// Check the category of the pin, this works for basic math types (int, float, byte, etc)
-					else if (InActionCategory.Contains(FromPin->PinType.PinCategory.ToString()))
-					{
-						bAddMatchBonus = true;
-					}
-
-					// If we found match in any cases above then add the weight bonus and stop looking
-					if (bAddMatchBonus)
-					{
-						TotalWeight += ContextMenuConsoleVariables::MatchingFromPinCategory;
-						OutDebugInfo.CategoryBonusWieight += ContextMenuConsoleVariables::MatchingFromPinCategory;
-
-						// Break out of the loop so that we don't give any extra bonuses
-						break;
-					}
-				}
-			}
-		}
-
-		// If the user has favorite this action, then give it a hefty bonus
-		const UEditorPerProjectUserSettings& EditorSettings = *GetDefault<UEditorPerProjectUserSettings>();
-		if (UBlueprintPaletteFavorites* BlueprintFavorites = EditorSettings.BlueprintFavorites)
-		{
-			if (BlueprintFavorites->IsFavorited(CurrentAction))
-			{
-				TotalWeight += ContextMenuConsoleVariables::FavoriteBonus;
-				OutDebugInfo.FavoriteBonusWeight += ContextMenuConsoleVariables::FavoriteBonus;
-			}
-		}
-		
-		// Now iterate through all the filter terms and calculate a 'weight' using the values and multipliers
-		const FString* EachTerm = nullptr;
-		const FString* EachTermSanitized = nullptr;
-
-		// For every filter item the user has typed in (the text in the search bar, seperated by spaces)
-		for (int32 FilterIndex = 0; FilterIndex < InFilterTerms.Num(); ++FilterIndex)
-		{
-			EachTerm = &InFilterTerms[FilterIndex];			
-			EachTermSanitized = &InSanitizedFilterTerms[FilterIndex];
-			int32 TermLen = EachTerm->Len();
-
-			// Now check the weighted lists	(We could further improve the hit weight by checking consecutive word matches)
-			for (int32 iFindCount = 0; iFindCount < WeightedArrayList.Num() ; ++iFindCount)
-			{
-				const TArray<FString>& KeywordArray = *WeightedArrayList[iFindCount].Array;
-				float WeightPerList = 0.0f;
-				float KeywordArrayWeight = WeightedArrayList[iFindCount].WeightModifier;
-
-				// Count of how many words in this keyword array contain a filter(letter) that the user has typed in
-				int32 WordMatchCount = 0;
-
-				// The number of characters in this keyword array
-				int32 KeywordArrayCharLength = 0;
-
-				// Loop through every word that the user could be looking for
-				for (int32 iEachWord = 0; iEachWord < KeywordArray.Num(); ++iEachWord)
-				{
-					// Keep track of how long all the words in the array are
-					KeywordArrayCharLength += KeywordArray[iEachWord].Len();
-
-					// If a word contains the letter that the user has typed in, than increment the whole match count					
-					if (KeywordArray[iEachWord].Contains(*EachTermSanitized, ESearchCase::CaseSensitive) || KeywordArray[iEachWord].Contains(*EachTerm, ESearchCase::CaseSensitive))
-					{
-						++WordMatchCount;
-						WeightPerList += KeywordArrayWeight * ContextMenuConsoleVariables::WordContainsLetterWeightMultiplier;
-						
-						// If the word starts with the letter, give it a little extra boost of weight
-						if (KeywordArray[iEachWord].StartsWith(*EachTermSanitized, ESearchCase::CaseSensitive) || KeywordArray[iEachWord].StartsWith(*EachTerm, ESearchCase::CaseSensitive))
-						{
-							WeightPerList += KeywordArrayWeight * ContextMenuConsoleVariables::StartsWithBonusWeightMultiplier;
-						}
-					}
-				}
-
-				// If the user has dragged off of a pin then do not prefer shorter things, because that will result
-				// in the matching of "Add" for a container instead of "+" for numeric types
-				if (KeywordArrayCharLength > 0)
-				{
-					// How many words that we are checking had partial matches compared to what the user typed in?
-					float PercMatch = (float)WordMatchCount / (float)KeywordArray.Num();
-
-					float PercentageBonus = (WeightPerList * PercMatch * ContextMenuConsoleVariables::PercentageMatchWeightMultiplier);
-					WeightPerList += PercentageBonus;
-
-					// The longer the match is, the more points it loses
-					float ShortWeight = KeywordArrayCharLength * ContextMenuConsoleVariables::ShorterWeight * (bIsFromDrag ? 0.25f : 1.0f);
-					WeightPerList -= ShortWeight;
-
-					OutDebugInfo.PercMatch += PercMatch;
-					OutDebugInfo.ShorterWeight -= ShortWeight;
-					OutDebugInfo.PercentageMatchWeight += PercentageBonus;					
-				}
-
-				TotalWeight += WeightPerList;
-				if (WeightedArrayList[iFindCount].OutWeight)
-				{
-					*WeightedArrayList[iFindCount].OutWeight = WeightPerList;
-				}
-			}
-		}
-	}
-
-	OutDebugInfo.TotalWeight = TotalWeight;
-	
-	return TotalWeight;
 }
 
 // Returns true if the tree should be autoexpanded

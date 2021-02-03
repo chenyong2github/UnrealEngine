@@ -188,7 +188,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Binaries/Mac/libusdRi.dylib", 
+            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdRi.dylib", 
             "Name": "usdRi", 
             "ResourcePath": "resources", 
             "Root": "..", 

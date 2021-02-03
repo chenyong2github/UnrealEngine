@@ -28,6 +28,7 @@ public:
 	virtual void OnHoverEnter(UViewportInteractor* Interactor, const FHitResult& InHitResult) override;
 	virtual void OnHoverLeave(UViewportInteractor* Interactor, const UActorComponent* NewComponent) override;
 	virtual void OnDragRelease(UViewportInteractor* Interactor) override;
+	virtual class UViewportDragOperationComponent* GetDragOperationComponent() override { return nullptr; }
 	virtual bool CanBeSelected() override { return true; };
 	// End IViewportInteractableInterface
 

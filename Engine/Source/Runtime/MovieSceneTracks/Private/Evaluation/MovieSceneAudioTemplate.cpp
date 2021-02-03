@@ -269,7 +269,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 	{
 		FCachedAudioTrackData& TrackData = PersistentData.GetOrAddTrackData<FCachedAudioTrackData>();
 
-		if ((Context.GetStatus() != EMovieScenePlayerStatus::Playing && Context.GetStatus() != EMovieScenePlayerStatus::Scrubbing) || Context.HasJumped() || Context.GetDirection() == EPlayDirection::Backwards)
+		if ((Context.GetStatus() != EMovieScenePlayerStatus::Playing && Context.GetStatus() != EMovieScenePlayerStatus::Scrubbing && Context.GetStatus() != EMovieScenePlayerStatus::Stepping) || Context.HasJumped() || Context.GetDirection() == EPlayDirection::Backwards)
 		{
 			// stopped, recording, etc
 			TrackData.StopAllSounds();
@@ -518,7 +518,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 				}
 			}
 
-			if (Context.GetStatus() == EMovieScenePlayerStatus::Scrubbing)
+			if (Context.GetStatus() == EMovieScenePlayerStatus::Scrubbing || Context.GetStatus() == EMovieScenePlayerStatus::Stepping)
 			{
 				// While scrubbing, play the sound for a short time and then cut it.
 				AudioComponent.StopDelayed(AudioTrackConstants::ScrubDuration);

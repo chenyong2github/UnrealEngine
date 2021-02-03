@@ -18,7 +18,7 @@ class UDataprepParameterizationInstance;
  * It has its own inputs and output. It has overrides of the externalized parameters
  * of the pipeline.
  */
-UCLASS(Experimental, BlueprintType)
+UCLASS(BlueprintType)
 class DATAPREPCORE_API UDataprepAssetInstance : public UDataprepAssetInterface
 {
 	GENERATED_BODY()

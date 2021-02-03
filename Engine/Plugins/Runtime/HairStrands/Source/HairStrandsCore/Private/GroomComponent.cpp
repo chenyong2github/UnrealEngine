@@ -2339,6 +2339,12 @@ void UGroomComponent::OnUnregister()
 	ReleaseHairSimulation();
 }
 
+void UGroomComponent::BeginDestroy()
+{
+	ReleaseResources();
+	Super::BeginDestroy();
+}
+
 void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	ReleaseResources();

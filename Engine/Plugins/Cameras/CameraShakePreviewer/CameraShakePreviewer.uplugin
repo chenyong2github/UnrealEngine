@@ -14,6 +14,13 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : true,
 	"Installed" : false,
+	"Plugins" :
+	[
+		{
+			"Name": "GameplayCameras",
+			"Enabled": true
+		}
+	],
 	"Modules" :
 	[
 		{

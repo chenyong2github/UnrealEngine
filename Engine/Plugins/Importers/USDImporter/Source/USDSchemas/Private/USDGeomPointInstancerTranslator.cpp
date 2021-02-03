@@ -2,6 +2,7 @@
 
 #include "USDGeomPointInstancerTranslator.h"
 
+#include "USDAssetCache.h"
 #include "USDConversionUtils.h"
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
@@ -64,13 +65,13 @@ namespace UsdGeomPointInstancerTranslatorImpl
 		return true;
 	}
 
-	bool SetStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent, const TMap< FString, UObject* >& PrimPathsToAssets )
+	bool SetStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent, const UUsdAssetCache& AssetCache )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
 
 		FString MeshPrimPath = UsdToUnreal::ConvertPath( UsdMesh.GetPrim().GetPrimPath() );
 
-		UStaticMesh* StaticMesh = Cast< UStaticMesh >( PrimPathsToAssets.FindRef( MeshPrimPath ) );
+		UStaticMesh* StaticMesh = Cast< UStaticMesh >( AssetCache.GetAssetForPrim( MeshPrimPath ) );
 
 		if ( StaticMesh != MeshComponent.GetStaticMesh() )
 		{
@@ -120,6 +121,8 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 	{
 		return;
 	}
+
+	PointInstancerRootComponent->Modify();
 
 	FScopedUsdAllocs UsdAllocs;
 
@@ -183,7 +186,7 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 
 						if ( UHierarchicalInstancedStaticMeshComponent* HismComponent = Cast< UHierarchicalInstancedStaticMeshComponent >( UsdGeomPrimComponent ) )
 						{
-							UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( PrototypeGeomMesh, *HismComponent, Context->PrimPathsToAssets );
+							UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( PrototypeGeomMesh, *HismComponent, *Context->AssetCache.Get() );
 							UsdGeomPointInstancerTranslatorImpl::ConvertGeomPointInstancer( Prim.GetStage(), PointInstancer, PrototypeIndex, *HismComponent, pxr::UsdTimeCode( Context->Time ) );
 						}
 					}

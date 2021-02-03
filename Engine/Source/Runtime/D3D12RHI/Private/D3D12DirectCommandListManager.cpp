@@ -205,7 +205,7 @@ void FD3D12Fence::GpuWait(uint32 DeviceGPUIndex, ED3D12CommandQueueType InQueueT
 	check(FenceCore);
 
 #if DEBUG_FENCES
-	UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU WAIT (CmdQueueType: %d) Fence: %016llX (%s), Gpu (%d <- %d) Value: %llu ***"), (uint32)InQueueType, FenceCore->GetFence(), *Name.ToString(), Device->GetGPUIndex(), FenceGPUIndex, FenceValue);
+	UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU WAIT (CmdQueueType: %d) Fence: %016llX (%s), Gpu (%d <- %d) Value: %llu ***"), (uint32)InQueueType, FenceCore->GetFence(), *Name.ToString(), DeviceGPUIndex, FenceGPUIndex, FenceValue);
 #endif
 	VERIFYD3D12RESULT(CommandQueue->Wait(FenceCore->GetFence(), FenceValue));}
 

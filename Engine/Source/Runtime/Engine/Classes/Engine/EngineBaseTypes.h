@@ -405,16 +405,9 @@ private:
 	 * @param CurrentThread - thread we are executing on, useful to pass along as new tasks are created
 	 * @param MyCompletionGraphEvent - completion event for this task. Useful for holding the completetion of this task until certain child tasks are complete.
 	 **/
-	virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		check(0); // you cannot make this pure virtual in script because it wants to create constructors.
-	}
+	virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) PURE_VIRTUAL(,);
 	/** Abstract function to describe this tick. Used to print messages about illegal cycles in the dependency graph **/
-	virtual FString DiagnosticMessage()
-	{
-		check(0); // you cannot make this pure virtual in script because it wants to create constructors.
-		return FString(TEXT("invalid"));
-	}
+	virtual FString DiagnosticMessage() PURE_VIRTUAL(, return TEXT("DiagnosticMessage() not implemented"););
 	/** Function to give a 'context' for this tick, used for grouped active tick reporting */
 	virtual FName DiagnosticContext(bool bDetailed)
 	{

@@ -25,6 +25,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
+#include "NiagaraOverviewNode.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "EdGraphSchema_NiagaraSystemOverview.h"
@@ -424,6 +425,10 @@ void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate
 			const FNiagaraEmitterHandle& EmitterHandle = GetSystem().DuplicateEmitterHandle(HandleToDuplicate, FNiagaraUtilities::GetUniqueName(HandleToDuplicate.GetName(), EmitterHandleNames));
 			FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(*SourceSystem, *EmitterHandle.GetInstance());
 			EmitterHandleNames.Add(EmitterHandle.GetName());
+			if (EmitterHandleToDuplicate.OverviewNode)
+			{
+				EmitterHandleToDuplicate.OverviewNode->Initialize(&GetSystem(), EmitterHandle.GetId());
+			}
 		}
 	}
 

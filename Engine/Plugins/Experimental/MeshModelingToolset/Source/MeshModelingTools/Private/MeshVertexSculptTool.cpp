@@ -639,8 +639,10 @@ bool UMeshVertexSculptTool::UpdateBrushPosition(const FRay& WorldRay)
 
 bool UMeshVertexSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
-	PendingStampType = SculptProperties->PrimaryBrushType;
+	// 4.26 HOTFIX: update LastWorldRay position so that we have it for updating WorkPlane position
+	UMeshSurfacePointTool::LastWorldRay = DevicePos.WorldRay;
 
+	PendingStampType = SculptProperties->PrimaryBrushType;
 	if(ensure(InStroke() == false))
 	{
 		UpdateBrushPosition(DevicePos.WorldRay);

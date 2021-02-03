@@ -345,6 +345,7 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 						.OnCollectAllActions(this, &SBlueprintActionMenu::CollectAllActions)
 						.OnCreateCustomRowExpander_Static(&CreateCustomBlueprintActionExpander)
 						.DraggedFromPins(DraggedFromPins)
+						.GraphObj(GraphObj)
 				]
 			]
 		]

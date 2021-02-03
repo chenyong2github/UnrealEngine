@@ -266,7 +266,9 @@ namespace Audio
 			SourceInfo.bUseOcclusionPlugin = false;
 			SourceInfo.bUseReverbPlugin = false;
 			SourceInfo.bHasStarted = false;
-			SourceInfo.bOutputToBusOnly = false;
+			SourceInfo.bEnableBusSends = false;
+			SourceInfo.bEnableBaseSubmix = false;
+			SourceInfo.bEnableSubmixSends = false;
 			SourceInfo.bIsVorbis = false;
 			SourceInfo.bIsBypassingLPF = false;
 			SourceInfo.bIsBypassingHPF = false;
@@ -452,7 +454,7 @@ namespace Audio
 		{
 			// Remove this bus from the registry of bus instances
 			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(SourceInfo.AudioBusId);
-			if (ensure(AudioBusPtr.IsValid()))
+			if (AudioBusPtr.IsValid())
 			{
 				// If this audio bus was automatically created via source bus playback, this this audio bus can be removed
 				if (AudioBusPtr->RemoveInstanceId(SourceId))
@@ -471,7 +473,7 @@ namespace Audio
 			{
 				// we should have a bus registration entry still since the send hasn't been cleaned up yet
 				TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(AudioBusId);
-				if (ensure(AudioBusPtr.IsValid()))
+				if (AudioBusPtr.IsValid())
 				{
 					if (AudioBusPtr->RemoveSend((EBusSendType)AudioBusSendType, SourceId))
 					{
@@ -583,7 +585,9 @@ namespace Audio
 		SourceInfo.bUseOcclusionPlugin = false;
 		SourceInfo.bUseReverbPlugin = false;
 		SourceInfo.bHasStarted = false;
-		SourceInfo.bOutputToBusOnly = false;
+		SourceInfo.bEnableBusSends = false;
+		SourceInfo.bEnableBaseSubmix = false;
+		SourceInfo.bEnableSubmixSends = false;
 		SourceInfo.bIsBypassingLPF = false;
 		SourceInfo.bIsBypassingHPF = false;
 		SourceInfo.bHasPreDistanceAttenuationSend = false;
@@ -813,6 +817,11 @@ namespace Audio
 			// Default all sounds to not consider effect chain tails when playing
 			SourceInfo.bEffectTailsDone = true;
 
+			// Which forms of routing to enable
+			SourceInfo.bEnableBusSends = InitParams.bEnableBusSends;
+			SourceInfo.bEnableBaseSubmix = InitParams.bEnableBaseSubmix;
+			SourceInfo.bEnableSubmixSends = InitParams.bEnableSubmixSends;
+
 			// Copy the source effect chain if the channel count is 1 or 2
 			if (InitParams.NumInputChannels <= 2)
 			{
@@ -820,10 +829,7 @@ namespace Audio
 				// to stop playing until the effect chain tails are finished
 				SourceInfo.bEffectTailsDone = !InitParams.bPlayEffectChainTails;
 				SourceInfo.SourceEffectChainId = InitParams.SourceEffectChainId;
-
-				// Whether or not to output to bus only
-				SourceInfo.bOutputToBusOnly = InitParams.bOutputToBusOnly;
-
+				
 				// Add the effect chain instances 
 				SourceInfo.SourceEffects = SourceEffectChain;
 				
@@ -1140,6 +1146,7 @@ namespace Audio
 
 		if (SourceInfo.bIsPausedForQuantization)
 		{
+			UE_LOG(LogAudioMixer, Display, TEXT("StopInternal() cancelling command [%s]"), *SourceInfo.QuantizedCommandHandle.CommandPtr->GetCommandName().ToString());
 			SourceInfo.QuantizedCommandHandle.Cancel();
 			SourceInfo.bIsPausedForQuantization = false;
 		}
@@ -1795,7 +1802,7 @@ namespace Audio
 			{
 				// Get the source's rendered and mixed audio bus data
 				const TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(SourceInfo.AudioBusId);
-				if (ensure(AudioBusPtr.IsValid()))
+				if (AudioBusPtr.IsValid())
 				{
 					int32 NumFramesPlayed = NumOutputFrames;
 					if (SourceInfo.SourceBusDurationFrames != INDEX_NONE)
@@ -2315,12 +2322,12 @@ namespace Audio
 
 			const bool bModActive = MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid();
 			bool bUpdateModFilters = bModActive && (SourceInfo.bModFiltersUpdated || SourceInfo.LowpassModulation.IsActive() || SourceInfo.HighpassModulation.IsActive());
-			if (!SourceInfo.bOutputToBusOnly || bUpdateModFilters)
+			if (SourceInfo.IsRenderingToSubmixes() || bUpdateModFilters)
 			{
 				// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
 				const int32 NumOutputSamplesThisSource = NumOutputFrames * SourceInfo.NumInputChannels;
 
-				if (SourceInfo.bOutputToBusOnly)
+				if (!SourceInfo.IsRenderingToSubmixes())
 				{
 					SourceInfo.LowpassModulation.ProcessControl(SourceInfo.LowpassModulationBase);
 					SourceInfo.LowPassFilter.StartFrequencyInterpolation(SourceInfo.LowpassModulation.GetValue(), NumOutputFrames);
@@ -2370,7 +2377,7 @@ namespace Audio
 				}
 			}
 
-			if (!SourceInfo.bOutputToBusOnly)
+			if (SourceInfo.IsRenderingToSubmixes())
 			{
 				// Apply distance attenuation
 				ApplyDistanceAttenuation(SourceInfo, NumSamples);
@@ -2412,7 +2419,7 @@ namespace Audio
 			// If we're in generate buses mode and not a bus, or vice versa, or if we're set to only output audio to buses.
 			// If set to output buses, no need to do any panning for the source. The buses will do the panning.
 			const bool bIsSourceBus = SourceInfo.AudioBusId != INDEX_NONE;
-			if ((bGenerateBuses && !bIsSourceBus) || (!bGenerateBuses && bIsSourceBus) || SourceInfo.bOutputToBusOnly)
+			if ((bGenerateBuses && !bIsSourceBus) || (!bGenerateBuses && bIsSourceBus) || !SourceInfo.IsRenderingToSubmixes())
 			{
 				continue;
 			}
@@ -2620,10 +2627,7 @@ namespace Audio
 	void FMixerSourceManager::PauseSoundForQuantizationCommand(const int32 SourceId)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
@@ -2634,11 +2638,7 @@ namespace Audio
 	void FMixerSourceManager::SetSubBufferDelayForSound(const int32 SourceId, const int32 FramesToDelay)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		checkSlow(MixerDevice->IsAudioRenderingThread());
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
@@ -2648,11 +2648,7 @@ namespace Audio
 	void FMixerSourceManager::UnPauseSoundForQuantizationCommand(const int32 SourceId)
 	{
 		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
-		checkSlow(MixerDevice->IsAudioRenderingThread());
-		if (!GameThreadInfo.bIsBusy[SourceId])
-		{
-			return;
-		}
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 		FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
@@ -2913,6 +2909,11 @@ namespace Audio
 				PendingSourceBuffers.RemoveAtSwap(i, 1, false);
 			}
 		}
+	}
+
+	bool FMixerSourceManager::FSourceInfo::IsRenderingToSubmixes() const
+	{
+		return bEnableBaseSubmix || bEnableSubmixSends;
 	}
 
 }

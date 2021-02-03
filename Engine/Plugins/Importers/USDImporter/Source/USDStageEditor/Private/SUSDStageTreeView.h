@@ -15,19 +15,24 @@ enum class EPayloadsTrigger;
 
 #if USE_USD_SDK
 
-DECLARE_DELEGATE_OneParam( FOnPrimSelected, FString );
+DECLARE_DELEGATE_OneParam( FOnPrimSelectionChanged, const TArray<FString>& /* NewSelection */);
 DECLARE_DELEGATE_OneParam( FOnAddPrim, FString );
 
 class SUsdStageTreeView : public SUsdTreeView< FUsdPrimViewModelRef >
 {
 public:
 	SLATE_BEGIN_ARGS( SUsdStageTreeView ) {}
-		SLATE_EVENT( FOnPrimSelected, OnPrimSelected )
+		SLATE_EVENT( FOnPrimSelectionChanged, OnPrimSelectionChanged )
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, AUsdStageActor* InUsdStageActor );
 	void Refresh( AUsdStageActor* InUsdStageActor );
 	void RefreshPrim( const FString& PrimPath, bool bResync );
+
+	FUsdPrimViewModelPtr GetItemFromPrimPath( const FString& PrimPath );
+
+	void SelectPrims( const TArray<FString>& PrimPaths );
+	TArray<FString> GetSelectedPrims();
 
 private:
 	virtual TSharedRef< ITableRow > OnGenerateRow( FUsdPrimViewModelRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable ) override;
@@ -52,8 +57,6 @@ private:
 	bool CanAddPrim() const;
 	bool CanExecutePrimAction() const;
 
-	TOptional< FString > BrowseFile();
-
 	/** Uses TreeItemExpansionStates to travel the tree and call SetItemExpansion */
 	void RestoreExpansionStates();
 	virtual void RequestListRefresh() override;
@@ -65,7 +68,7 @@ private:
 	// So that we can store these across refreshes
 	TMap< FString, bool > TreeItemExpansionStates;
 
-	FOnPrimSelected OnPrimSelected;
+	FOnPrimSelectionChanged OnPrimSelectionChanged;
 };
 
 #endif // #if USE_USD_SDK

@@ -12,26 +12,25 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	template <typename T>
 	void ParticleIteratorTest()
 	{
-		auto Empty = MakeUnique<TGeometryParticles<T, 3>>();
-		auto Five = MakeUnique<TGeometryParticles<T, 3>>();
+		auto Empty = MakeUnique<FGeometryParticles>();
+		auto Five = MakeUnique<FGeometryParticles>();
 		Five->AddParticles(5);
-		auto Two = MakeUnique<TGeometryParticles<T, 3>>();
+		auto Two = MakeUnique<FGeometryParticles>();
 		Two->AddParticles(2);
 		//empty soa in the start
 		{
-			TArray<TGeometryParticleHandle<T, 3>*> Handles;
-			TArray<TSOAView<TGeometryParticles<T, 3>>> TmpArray = { Empty.Get(), Five.Get(), Two.Get() };
-			TParticleView<TGeometryParticles<T, 3>> View = MakeParticleView(MoveTemp(TmpArray));
+			TArray<FGeometryParticleHandle*> Handles;
+			TArray<TSOAView<FGeometryParticles>> TmpArray = { Empty.Get(), Five.Get(), Two.Get() };
+			TParticleView<FGeometryParticles> View = MakeParticleView(MoveTemp(TmpArray));
 			for (auto& Particle : View)
 			{
 				Handles.Add(Particle.Handle());
 			}
 			EXPECT_EQ(Handles.Num(), 7);
 
-			THandleView<TGeometryParticles<T, 3>> HandleView = MakeHandleView(Handles);
+			THandleView<FGeometryParticles> HandleView = MakeHandleView(Handles);
 			int32 Count = 0;
 			for (auto& Handle : HandleView)
 			{
@@ -42,16 +41,16 @@ namespace ChaosTest {
 
 		//empty soa in the middle
 		{
-			TArray<TGeometryParticleHandle<T, 3>*> Handles;
-			TArray<TSOAView<TGeometryParticles<T, 3>>> TmpArray = { Five.Get(), Empty.Get(), Two.Get()};
-			TParticleView<TGeometryParticles<T, 3>> View = MakeParticleView(MoveTemp(TmpArray));
+			TArray<FGeometryParticleHandle*> Handles;
+			TArray<TSOAView<FGeometryParticles>> TmpArray = { Five.Get(), Empty.Get(), Two.Get()};
+			TParticleView<FGeometryParticles> View = MakeParticleView(MoveTemp(TmpArray));
 			for (auto& Particle : View)
 			{
 				Handles.Add(Particle.Handle());
 			}
 			EXPECT_EQ(Handles.Num(), 7);
 
-			THandleView<TGeometryParticles<T, 3>> HandleView = MakeHandleView(Handles);
+			THandleView<FGeometryParticles> HandleView = MakeHandleView(Handles);
 			int32 Count = 0;
 			for (auto& Handle : HandleView)
 			{
@@ -62,16 +61,16 @@ namespace ChaosTest {
 
 		//empty soa in the end
 		{
-			TArray<TGeometryParticleHandle<T, 3>*> Handles;
-			TArray<TSOAView<TGeometryParticles<T, 3>>> TmpArray = { Five.Get(), Two.Get(), Empty.Get() };
-			TParticleView<TGeometryParticles<T, 3>> View = MakeParticleView(MoveTemp(TmpArray));
+			TArray<FGeometryParticleHandle*> Handles;
+			TArray<TSOAView<FGeometryParticles>> TmpArray = { Five.Get(), Two.Get(), Empty.Get() };
+			TParticleView<FGeometryParticles> View = MakeParticleView(MoveTemp(TmpArray));
 			for (auto& Particle : View)
 			{
 				Handles.Add(Particle.Handle());
 			}
 			EXPECT_EQ(Handles.Num(), 7);
 
-			THandleView<TGeometryParticles<T, 3>> HandleView = MakeHandleView(Handles);
+			THandleView<FGeometryParticles> HandleView = MakeHandleView(Handles);
 			int32 Count = 0;
 			for (auto& Handle : HandleView)
 			{
@@ -82,8 +81,8 @@ namespace ChaosTest {
 
 		//parallel for
 		{
-			TArray<TSOAView<TGeometryParticles<T, 3>>> TmpArray = { Empty.Get(), Five.Get(), Two.Get() };
-			TParticleView<TGeometryParticles<T, 3>> View = MakeParticleView(MoveTemp(TmpArray));
+			TArray<TSOAView<FGeometryParticles>> TmpArray = { Empty.Get(), Five.Get(), Two.Get() };
+			TParticleView<FGeometryParticles> View = MakeParticleView(MoveTemp(TmpArray));
 			{
 				TArray<bool> AuxArray;
 				AuxArray.SetNumZeroed(View.Num());
@@ -105,12 +104,12 @@ namespace ChaosTest {
 				}
 			}
 
-			TArray<TGeometryParticleHandle<T, 3>*> Handles;
+			TArray<FGeometryParticleHandle*> Handles;
 			for (auto& Particle : View)
 			{
 				Handles.Add(Particle.Handle());
 			}
-			THandleView<TGeometryParticles<T, 3>> HandleView = MakeHandleView(Handles);
+			THandleView<FGeometryParticles> HandleView = MakeHandleView(Handles);
 			
 			{
 				TArray<bool> AuxArray;
@@ -139,22 +138,20 @@ namespace ChaosTest {
 	void ParticleHandleTestHelperObjectState(TPBDRigid* PBDRigid);
 
 	template <>
-	void ParticleHandleTestHelperObjectState<TPBDRigidParticle<float, 3>>(TPBDRigidParticle<float, 3>* PBDRigid)
+	void ParticleHandleTestHelperObjectState<FPBDRigidParticle>(FPBDRigidParticle* PBDRigid)
 	{
 		PBDRigid->SetObjectState(EObjectStateType::Dynamic);
 		EXPECT_EQ(PBDRigid->ObjectState(), EObjectStateType::Dynamic);
 	}
 
 	template <>
-	void ParticleHandleTestHelperObjectState<TPBDRigidParticleHandleImp<float, 3, true>>(TPBDRigidParticleHandleImp<float, 3, true>* PBDRigid)
+	void ParticleHandleTestHelperObjectState<FPBDRigidParticleHandle>(FPBDRigidParticleHandle* PBDRigid)
 	{
 		PBDRigid->SetObjectStateLowLevel(EObjectStateType::Dynamic);
 		EXPECT_EQ(PBDRigid->ObjectState(), EObjectStateType::Dynamic);
 	}
 
-	template void ParticleIteratorTest<float>();
-
-	template <typename T, typename TGeometry, typename TKinematicGeometry, typename TPBDRigid>
+	template <typename TGeometry, typename TKinematicGeometry, typename TPBDRigid>
 	void ParticleHandleTestHelper(TGeometry* Geometry, TKinematicGeometry* KinematicGeometry, TPBDRigid* PBDRigid)
 	{
 		EXPECT_EQ(Geometry->X()[0], 0);	//default constructor
@@ -173,9 +170,9 @@ namespace ChaosTest {
 		EXPECT_EQ(PBDRigid->V()[2], 0);
 		EXPECT_EQ(PBDRigid->M(), 1);
 
-		PBDRigid->SetX(TVector<T, 3>(1, 2, 3));
+		PBDRigid->SetX(FVec3(1, 2, 3));
 		EXPECT_EQ(PBDRigid->X()[0], 1);
-		KinematicGeometry->SetV(TVector<T, 3>(3, 3, 3));
+		KinematicGeometry->SetV(FVec3(3, 3, 3));
 		EXPECT_EQ(KinematicGeometry->V()[0], 3);
 
 		EXPECT_EQ(Geometry->ObjectState(), EObjectStateType::Static);
@@ -191,16 +188,15 @@ namespace ChaosTest {
 		ParticleHandleTestHelperObjectState(PBDRigid);
 	}
 
-	template <typename T>
 	void ParticleLifetimeAndThreading()
 	{
 		{
-			TPBDRigidsSOAs<T, 3> SOAs;
+			FPBDRigidsSOAs SOAs;
 
-			TArray<TUniquePtr<TPBDRigidParticle<T, 3>>> GTRawParticles;
+			TArray<TUniquePtr<FPBDRigidParticle>> GTRawParticles;
 			for (int i = 0; i < 3; ++i)
 			{
-				GTRawParticles.Emplace(TPBDRigidParticle<T, 3>::CreateParticle());
+				GTRawParticles.Emplace(FPBDRigidParticle::CreateParticle());
 			}
 			{
 				//for each GT particle, create a physics thread side
@@ -213,11 +209,11 @@ namespace ChaosTest {
 					Particle.GTGeometryParticle() = GTRawParticles[Idx++].Get();
 				}
 				
-				T Count = 0;
+				FReal Count = 0;
 				//fake step and write to physics side
 				for (auto& Particle : SOAs.GetAllParticlesView())
 				{
-					Particle.X() = TVector<T, 3>(Count);
+					Particle.X() = FVec3(Count);
 					Count += 1;
 				}
 			}
@@ -262,17 +258,16 @@ namespace ChaosTest {
 		}
 	}
 
-	template <typename T>
 	void ParticleDestroyOrdering()
 	{
 		{
-			TPBDRigidsSOAs<T, 3> SOAs;
+			FPBDRigidsSOAs SOAs;
 			SOAs.CreateDynamicParticles(10);
-			T Count = 0;
-			TGeometryParticleHandle<T, 3>* ThirdParticle = nullptr;
+			FReal Count = 0;
+			FGeometryParticleHandle* ThirdParticle = nullptr;
 			for (auto& Particle : SOAs.GetAllParticlesView())
 			{
-				Particle.X() = TVector<T, 3>(Count);
+				Particle.X() = FVec3(Count);
 				if (Count == 2)
 				{
 					ThirdParticle = Particle.Handle();
@@ -302,13 +297,13 @@ namespace ChaosTest {
 
 		//now test non swapping remove
 		{
-			TPBDRigidsSOAs<T, 3> SOAs;
+			FPBDRigidsSOAs SOAs;
 			SOAs.CreateClusteredParticles(10);
-			T Count = 0;
-			TGeometryParticleHandle<T, 3>* ThirdParticle = nullptr;
+			FReal Count = 0;
+			FGeometryParticleHandle* ThirdParticle = nullptr;
 			for (auto& Particle : SOAs.GetAllParticlesView())
 			{
-				Particle.X() = TVector<T, 3>(Count);
+				Particle.X() = FVec3(Count);
 				if (Count == 2)
 				{
 					ThirdParticle = Particle.Handle();
@@ -357,42 +352,41 @@ namespace ChaosTest {
 		EXPECT_EQ(WeakHandle.GetHandleUnsafe(),nullptr);
 	}
 
-	template<class T>
 	void ParticleHandleTest()
 	{
 		{
-			auto GeometryParticles = MakeUnique<TGeometryParticles<T, 3>>();
+			auto GeometryParticles = MakeUnique<FGeometryParticles>();
 			GeometryParticles->AddParticles(1);
 
-			auto KinematicGeometryParticles = MakeUnique<TKinematicGeometryParticles<T, 3>>();
+			auto KinematicGeometryParticles = MakeUnique<FKinematicGeometryParticles>();
 			KinematicGeometryParticles->AddParticles(1);
 
-			auto PBDRigidParticles = MakeUnique<TPBDRigidParticles<T, 3>>();
+			auto PBDRigidParticles = MakeUnique<FPBDRigidParticles>();
 			PBDRigidParticles->AddParticles(1);
 			
-			auto PartialPBDRigids = MakeUnique<TPBDRigidParticles<T, 3>>();
+			auto PartialPBDRigids = MakeUnique<FPBDRigidParticles>();
 			PartialPBDRigids->AddParticles(10);
 			
-			auto Geometry = TGeometryParticleHandle<T, 3>::CreateParticleHandle(MakeSerializable(GeometryParticles), 0, INDEX_NONE);
+			auto Geometry = FGeometryParticleHandle::CreateParticleHandle(MakeSerializable(GeometryParticles), 0, INDEX_NONE);
 
-			auto KinematicGeometry = TKinematicGeometryParticleHandle<T, 3>::CreateParticleHandle(MakeSerializable(KinematicGeometryParticles), 0, INDEX_NONE);
+			auto KinematicGeometry = FKinematicGeometryParticleHandle::CreateParticleHandle(MakeSerializable(KinematicGeometryParticles), 0, INDEX_NONE);
 
-			auto PBDRigid = TPBDRigidParticleHandle<T, 3>::CreateParticleHandle(MakeSerializable(PBDRigidParticles), 0, INDEX_NONE);
+			auto PBDRigid = FPBDRigidParticleHandle::CreateParticleHandle(MakeSerializable(PBDRigidParticles), 0, INDEX_NONE);
 
-			ParticleHandleTestHelper<T>(Geometry.Get(), static_cast<TKinematicGeometryParticleHandle<T,3>*>(KinematicGeometry.Get()), static_cast<TPBDRigidParticleHandle<T, 3>*>(PBDRigid.Get()));
+			ParticleHandleTestHelper(Geometry.Get(), static_cast<FKinematicGeometryParticleHandle*>(KinematicGeometry.Get()), static_cast<FPBDRigidParticleHandle*>(PBDRigid.Get()));
 
 			//Test particle iterator
 			{
-				TGeometryParticleHandle<T, 3>* GeomHandles[] = { Geometry.Get(), KinematicGeometry.Get(), PBDRigid.Get() };
-				TArray<TSOAView<TGeometryParticles<T, 3>>> SOAViews = { GeometryParticles.Get(), KinematicGeometryParticles.Get(), PBDRigidParticles.Get() };
+				FGeometryParticleHandle* GeomHandles[] = { Geometry.Get(), KinematicGeometry.Get(), PBDRigid.Get() };
+				TArray<TSOAView<FGeometryParticles>> SOAViews = { GeometryParticles.Get(), KinematicGeometryParticles.Get(), PBDRigidParticles.Get() };
 				int32 Count = 0;
 				for (auto Itr = MakeParticleIterator(SOAViews); Itr; ++Itr)
 				{
 					//set X back to 0 for all particles
-					Itr->X() = TVector<T, 3>(0);
+					Itr->X() = FVec3(0);
 					EXPECT_EQ(Itr->Handle(), GeomHandles[Count]);
 					//implicit const
-					TConstParticleIterator<TGeometryParticles<T, 3>>& ConstItr = Itr;
+					TConstParticleIterator<FGeometryParticles>& ConstItr = Itr;
 					EXPECT_EQ(ConstItr->Handle(), GeomHandles[Count]);
 					++Count;
 				}
@@ -407,7 +401,7 @@ namespace ChaosTest {
 				for (auto Itr = MakeConstParticleIterator(SOAViews); Itr; ++Itr)
 				{
 					//check InvM for dynamics
-					const TTransientPBDRigidParticleHandle<T, 3>* PBDRigid2 = Itr->CastToRigidParticle();
+					const FTransientPBDRigidParticleHandle* PBDRigid2 = Itr->CastToRigidParticle();
 					if (PBDRigid2 && PBDRigid2->ObjectState() == EObjectStateType::Dynamic)
 					{
 						++Count;
@@ -419,13 +413,13 @@ namespace ChaosTest {
 			}
 
 			{
-				TArray<TSOAView<TPBDRigidParticles<T, 3>>> SOAViews = { PBDRigidParticles.Get() };
-				TPBDRigidParticleHandle<T, 3>* PBDRigidHandles[] = { static_cast<TPBDRigidParticleHandle<T, 3>*>(PBDRigid.Get()) };
+				TArray<TSOAView<FPBDRigidParticles>> SOAViews = { PBDRigidParticles.Get() };
+				FPBDRigidParticleHandle* PBDRigidHandles[] = { static_cast<FPBDRigidParticleHandle*>(PBDRigid.Get()) };
 				int32 Count = 0;
 				for (auto Itr = MakeParticleIterator(MoveTemp(SOAViews)); Itr; ++Itr)
 				{
 					//set P to 1,1,1
-					Itr->P() = TVector<T, 3>(1);
+					Itr->P() = FVec3(1);
 					EXPECT_EQ(Itr->Handle(), PBDRigidHandles[Count++]);
 					EXPECT_EQ(Itr->Handle()->P()[0], Itr->P()[0]);	//handle type is deduced from iterator type
 				}
@@ -434,14 +428,14 @@ namespace ChaosTest {
 
 			//Use an SOA with an active list
 			{
-				TPBDRigidsSOAs<T, 3> SOAsWithHandles;	//todo: create a mock object so we can more easily create handles
+				FPBDRigidsSOAs SOAsWithHandles;	//todo: create a mock object so we can more easily create handles
 				auto PartialDynamics = SOAsWithHandles.CreateDynamicParticles(10);
 
-				TArray<TPBDRigidParticleHandle<T,3>*> ActiveParticles = { PartialDynamics[3], PartialDynamics[5] };
-				PartialDynamics[3]->X() = TVector<T,3>(3);
-				PartialDynamics[5]->X() = TVector<T,3>(5);
+				TArray<FPBDRigidParticleHandle*> ActiveParticles = { PartialDynamics[3], PartialDynamics[5] };
+				PartialDynamics[3]->X() = FVec3(3);
+				PartialDynamics[5]->X() = FVec3(5);
 				
-				TArray<TSOAView<TPBDRigidParticles<T, 3>>> SOAViews = { PBDRigidParticles.Get(), &ActiveParticles, PBDRigidParticles.Get() };
+				TArray<TSOAView<FPBDRigidParticles>> SOAViews = { PBDRigidParticles.Get(), &ActiveParticles, PBDRigidParticles.Get() };
 				int32 Count = 0;
 				for (auto Itr = MakeParticleIterator(MoveTemp(SOAViews)); Itr; ++Itr)
 				{
@@ -462,15 +456,15 @@ namespace ChaosTest {
 
 		{
 			// try game thread representation
-			auto Geometry = TGeometryParticle<T, 3>::CreateParticle();
-			auto KinematicGeometry = TKinematicGeometryParticle<T, 3>::CreateParticle();
-			auto PBDRigid = TPBDRigidParticle<T, 3>::CreateParticle();
-			ParticleHandleTestHelper<T>(Geometry.Get(), KinematicGeometry.Get(), PBDRigid.Get());
+			auto Geometry = FGeometryParticle::CreateParticle();
+			auto KinematicGeometry = FKinematicGeometryParticle::CreateParticle();
+			auto PBDRigid = FPBDRigidParticle::CreateParticle();
+			ParticleHandleTestHelper(Geometry.Get(), KinematicGeometry.Get(), PBDRigid.Get());
 		}
 
 		{
 			// try using SOA manager
-			TPBDRigidsSOAs<T, 3> SOAs;
+			FPBDRigidsSOAs SOAs;
 			SOAs.CreateStaticParticles(3);
 			auto KinematicParticles = SOAs.CreateKinematicParticles(3);
 			SOAs.CreateDynamicParticles(3);
@@ -478,10 +472,10 @@ namespace ChaosTest {
 			EXPECT_EQ(SOAs.GetNonDisabledView().Num(), 9);
 
 			//move to disabled
-			T Count = 0;
+			FReal Count = 0;
 			for (auto& Kinematic : KinematicParticles)
 			{
-				Kinematic->X() = TVector<T, 3>(Count);
+				Kinematic->X() = FVec3(Count);
 				SOAs.DisableParticle(Kinematic);
 				Count += 1;
 			}
@@ -515,7 +509,7 @@ namespace ChaosTest {
 			//disable some and then delete all
 			SOAs.DisableParticle(KinematicParticles[1]);
 
-			TArray<TGeometryParticleHandle<T, 3>*> ToDelete;
+			TArray<FGeometryParticleHandle*> ToDelete;
 			for (auto& Particle : SOAs.GetAllParticlesView())	//todo: add check that iterator invalidates during delete
 			{
 				ToDelete.Add(Particle.Handle());
@@ -528,10 +522,9 @@ namespace ChaosTest {
 			EXPECT_EQ(SOAs.GetNonDisabledView().Num(), 0);
 		}
 
-		ParticleLifetimeAndThreading<T>();
-		ParticleDestroyOrdering<T>();
+		ParticleLifetimeAndThreading();
+		ParticleDestroyOrdering();
 	}
-	template void ParticleHandleTest<float>();
 
 	void AccelerationStructureHandleComparison()
 	{
@@ -544,7 +537,7 @@ namespace ChaosTest {
 
 		TPBDRigidsSOAs<FReal,3> SOAs;
 
-		auto GTParticle = TGeometryParticle<FReal, 3>::CreateParticle();
+		auto GTParticle = FGeometryParticle::CreateParticle();
 		//fake unique assignment like we would for solver
 		GTParticle->SetUniqueIdx(SOAs.GetUniqueIndices().GenerateUniqueIdx());
 

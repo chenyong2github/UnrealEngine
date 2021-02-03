@@ -73,6 +73,9 @@ public:
 
 	virtual bool Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath) override;
 
+protected:
+	virtual void EnumerateRootPaths(const FContentBrowserDataFilter& InFilter, TFunctionRef<void(FName)> InCallback) override;
+
 private:
 	bool IsKnownClassPath(const FName InPackagePath) const;
 

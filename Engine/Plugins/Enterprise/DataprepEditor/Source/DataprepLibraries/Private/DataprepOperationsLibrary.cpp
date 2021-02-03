@@ -6,6 +6,7 @@
 #include "DataprepCoreUtils.h"
 #include "DataprepContentConsumer.h"
 #include "DatasmithAssetUserData.h"
+#include "DatasmithAreaLightActor.h"
 
 #include "ActorEditorUtils.h"
 #include "AssetDeleteModel.h"
@@ -227,11 +228,15 @@ void UDataprepOperationsLibrary::SetMobility( const TArray< UObject* >& Selected
 	{
 		if (AActor* Actor = Cast< AActor >(Object))
 		{
-			// Find the materials by iterating over every mesh component.
 			TInlineComponentArray<USceneComponent*> SceneComponents(Actor);
 			for (USceneComponent* SceneComponent : SceneComponents)
 			{
 				SceneComponent->SetMobility(MobilityType);
+			}
+
+			if (ADatasmithAreaLightActor* DatasmithAreaLightActor = Cast<ADatasmithAreaLightActor>(Actor))
+			{
+				DatasmithAreaLightActor->Mobility = MobilityType;
 			}
 		}
 	}
@@ -684,6 +689,27 @@ void UDataprepOperationsLibrary::AddToLayer(const TArray<UObject*>& SelectedObje
 			if (Actor && !Actor->IsPendingKill())
 			{
 				Actor->Layers.AddUnique(LayerName);
+			}
+		}
+	}
+}
+
+void UDataprepOperationsLibrary::SetCollisionComplexity(const TArray<UObject*>& InSelectedObjects, const ECollisionTraceFlag InCollisionTraceFlag, TArray<UObject*>& InModifiedObjects)
+{
+	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(InSelectedObjects);
+
+	DataprepOperationsLibraryUtil::FStaticMeshBuilder StaticMeshBuilder( SelectedMeshes );
+
+	for (UStaticMesh* StaticMesh : SelectedMeshes)
+	{
+		if (StaticMesh)
+		{
+			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
+
+			if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+			{
+				BodySetup->CollisionTraceFlag = InCollisionTraceFlag;
+				InModifiedObjects.Add( StaticMesh );
 			}
 		}
 	}

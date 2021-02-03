@@ -55,6 +55,11 @@ public:
 			return NULL;
 		}
 	}
+
+	const TSparseArray<HHitProxy*>& GetAllHitProxies() const
+	{
+		return HitProxies;
+	}
 };
 
 static struct FForceInitHitProxyBeforeMain
@@ -129,4 +134,9 @@ FTypedElementHandle HHitProxy::GetElementHandle() const
 HHitProxy* GetHitProxyById(FHitProxyId Id)
 {
 	return FHitProxyArray::Get().GetHitProxyById(Id.Index);
+}
+
+ENGINE_API const TSparseArray<HHitProxy*>& GetAllHitProxies()
+{
+	return FHitProxyArray::Get().GetAllHitProxies();
 }
