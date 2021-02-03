@@ -17,6 +17,8 @@
 	#define SRC_EXPORT __declspec(dllexport)
 	#elif PLATFORM_MAC
 	#define SRC_EXPORT __attribute__((visibility("default")))
+	#elif PLATFORM_LINUX
+	#define SRC_EXPORT __attribute__((visibility("default")))
 	#else
 	#define SRC_EXPORT
 	#endif
