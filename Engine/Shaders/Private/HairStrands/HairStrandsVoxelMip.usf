@@ -33,9 +33,13 @@ uint ComputeMipDensity(
 		(RawDensity5 & VOXEL_HAIR_MASK) +
 		(RawDensity6 & VOXEL_HAIR_MASK) +
 		(RawDensity7 & VOXEL_HAIR_MASK);
+	const bool bHasData = TotalHair > 0;
 	TotalHair /= 8;
 
-	return min(uint(VOXEL_HAIR_MASK), TotalHair) | OutTotalOpaque;
+	// Insure that if a voxel contains some hair data, its total hair remains > 0 after averaging. 
+	// This is important for pruning invalid/empty page later on, to not remove non-empty page (which 
+	// could arise due to numerical precision).
+	return min(uint(VOXEL_HAIR_MASK), bHasData ? max(TotalHair, 1) : 0) | OutTotalOpaque;
 }
 
 #if SHADER_MIP_VIRTUALVOXEL
