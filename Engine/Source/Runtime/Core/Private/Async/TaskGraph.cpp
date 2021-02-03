@@ -2251,7 +2251,11 @@ static TLockFreeClassAllocator_TLSCache<FGraphEvent, PLATFORM_CACHE_LINE_SIZE> T
 
 FGraphEventRef FGraphEvent::CreateGraphEvent()
 {
-	return new(TheGraphEventAllocator.Allocate()) FGraphEvent{};
+	FGraphEvent* Instance = new(TheGraphEventAllocator.Allocate()) FGraphEvent{};
+	// `CreateGraphEvent()` creates an "empty" event that doesn't have an associated task and so won't get its TraceId set automatically
+	// to track such events we need to set a unique TraceId
+	Instance->SetTraceId(TaskTrace::GenerateTaskId());
+	return Instance;
 }
 
 void FGraphEvent::Recycle(FGraphEvent* ToRecycle)

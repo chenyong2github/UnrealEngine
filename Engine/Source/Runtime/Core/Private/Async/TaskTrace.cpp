@@ -74,7 +74,9 @@ namespace TaskTrace
 	FId GenerateTaskId()
 	{
 		static std::atomic<FId> UId{ 0 };
-		return UId.fetch_add(1, std::memory_order_relaxed);
+		FId Id = UId.fetch_add(1, std::memory_order_relaxed);
+		checkf(Id != InvalidId, TEXT("TraceId overflow"));
+		return Id;
 	}
 
 	static bool bGTaskTraceInitialized = false;
