@@ -45,17 +45,7 @@ struct Base {
     virtual ~Base() = default;
 };
 
-struct Derived : public Base {
-
-    static Derived* create() {
-        return new Derived{};
-    }
-
-    static void destroy(Derived* ptr) {
-        delete ptr;
-    }
-
-};
+struct Derived : public Base {};
 
 }  // namespace
 
@@ -197,14 +187,4 @@ TEST(ScopedPtrTest, UseDefaultCreateDestroy) {
 
     auto spArray = pma::makeScoped<int[]>(10ul);
     ASSERT_EQ(spArray[0], 0);
-}
-
-TEST(ScopedPtrTest, StoreDerivedInBasePointer) {
-    using NewCreator = pma::New<pmatests::Derived, pmatests::Base>;
-    using NewDestroyer = pma::Delete<pmatests::Derived, pmatests::Base>;
-    pma::ScopedPtr<pmatests::Base, NewDestroyer> vbp = pma::makeScoped<pmatests::Derived, NewCreator, NewDestroyer>();
-
-    using FactoryCreator = pma::FactoryCreate<pmatests::Derived, pmatests::Base>;
-    using FactoryDestroyer = pma::FactoryDestroy<pmatests::Derived, pmatests::Base>;
-    pma::ScopedPtr<pmatests::Base, FactoryDestroyer> fbp = pma::makeScoped<pmatests::Derived, FactoryCreator, FactoryDestroyer>();
 }

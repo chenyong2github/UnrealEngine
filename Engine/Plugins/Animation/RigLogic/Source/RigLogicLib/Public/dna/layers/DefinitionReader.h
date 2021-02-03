@@ -66,12 +66,6 @@ class DNAAPI DefinitionReader : public DescriptorReader {
         */
         virtual StringView getJointName(std::uint16_t index) const = 0;
         /**
-            @brief Number of joint index lists.
-            @note
-                This value is useful only in the context of DefinitionWriter.
-        */
-        virtual std::uint16_t getJointIndexListCount() const = 0;
-        /**
             @brief List of joint indices for the specified LOD.
             @param lod
                 The level of detail which joints are being requested.
@@ -119,12 +113,6 @@ class DNAAPI DefinitionReader : public DescriptorReader {
         */
         virtual StringView getBlendShapeChannelName(std::uint16_t index) const = 0;
         /**
-            @brief Number of blend shape channel index lists.
-            @note
-                This value is useful only in the context of DefinitionWriter.
-        */
-        virtual std::uint16_t getBlendShapeChannelIndexListCount() const = 0;
-        /**
             @brief List of blend shape channel indices for the specified LOD.
             @param lod
                 The level of detail which blend shape channels are being requested.
@@ -150,12 +138,6 @@ class DNAAPI DefinitionReader : public DescriptorReader {
         */
         virtual StringView getAnimatedMapName(std::uint16_t index) const = 0;
         /**
-            @brief Number of animated map index lists.
-            @note
-                This value is useful only in the context of DefinitionWriter.
-        */
-        virtual std::uint16_t getAnimatedMapIndexListCount() const = 0;
-        /**
             @brief List of animated map indices for the specified LOD.
             @param lod
                 The level of detail which animated maps are being requested.
@@ -178,12 +160,6 @@ class DNAAPI DefinitionReader : public DescriptorReader {
         */
         virtual StringView getMeshName(std::uint16_t index) const = 0;
         /**
-            @brief Number of mesh index lists.
-            @note
-                This value is useful only in the context of DefinitionWriter.
-        */
-        virtual std::uint16_t getMeshIndexListCount() const = 0;
-        /**
             @brief List of mesh indices for the specified LOD.
             @param lod
                 The level of detail which meshes are being requested.
@@ -194,9 +170,7 @@ class DNAAPI DefinitionReader : public DescriptorReader {
             @see getMeshName
         */
         virtual ConstArrayView<std::uint16_t> getMeshIndicesForLOD(std::uint16_t lod) const = 0;
-        /**
-            @brief Number of mesh-blend shape channel mapping items.
-        */
+
         virtual std::uint16_t getMeshBlendShapeChannelMappingCount() const = 0;
         /**
             @param index
@@ -208,16 +182,13 @@ class DNAAPI DefinitionReader : public DescriptorReader {
         virtual MeshBlendShapeChannelMapping getMeshBlendShapeChannelMapping(std::uint16_t index) const = 0;
         /**
             @brief List of mesh-blend shape channel mapping indices for the specified LOD.
-            @note
-                The indices from this list can be used with the getMeshBlendShapeChannelMapping API
-                to retrieve individual mapping items.
             @param lod
                 The level of detail which meshes are being requested.
             @warning
                 The lod index must be less than the value returned by getLODCount.
             @return View over the mesh blend shape channel mapping indices.
             @see getLODCount
-            @see getMeshBlendShapeChannelMapping
+            @see getMeshName
         */
         virtual ConstArrayView<std::uint16_t> getMeshBlendShapeChannelMappingIndicesForLOD(std::uint16_t lod) const = 0;
         /**

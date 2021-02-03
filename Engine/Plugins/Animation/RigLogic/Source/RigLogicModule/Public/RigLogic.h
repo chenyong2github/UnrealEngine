@@ -8,7 +8,6 @@
 #include "UObject/NoExportTypes.h"
 #include "UObject/ObjectMacros.h"
 
-#include "FMemoryResource.h"
 #include "TransformArrayView.h"
 
 class FRigInstance;
@@ -58,8 +57,6 @@ private:
 	rl4::RigLogic* Unwrap() const;
 
 private:
-	TSharedPtr<FMemoryResource> MemoryResource;
-
 	struct FRigLogicDeleter
 	{
 		void operator()(rl4::RigLogic* Pointer);

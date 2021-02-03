@@ -4,15 +4,23 @@
 
 #include "trio/Defs.h"
 #include "trio/Stream.h"
-
-#include <cstdint>
+#include "trio/types/Aliases.h"
+#include "trio/types/Parameters.h"
 
 namespace trio {
 
 /**
     @brief Memory mapped file stream.
 */
-class TRIOAPI MemoryMappedFileStream : public BoundedIOStream, public Buffered, public Resizable {
+class TRIOAPI MemoryMappedFileStream : public BoundedIOStream {
+    public:
+        using AccessMode = trio::AccessMode;
+
+        static const sc::StatusCode OpenError;
+        static const sc::StatusCode ReadError;
+        static const sc::StatusCode WriteError;
+        static const sc::StatusCode AlreadyOpenError;
+
     public:
         /**
             @brief Factory method for creation of a MemoryMappedFileStream instance.
@@ -46,8 +54,15 @@ class TRIOAPI MemoryMappedFileStream : public BoundedIOStream, public Buffered, 
         MemoryMappedFileStream(MemoryMappedFileStream&&) = default;
         MemoryMappedFileStream& operator=(MemoryMappedFileStream&&) = default;
 
-        virtual const char* path() const = 0;
-        virtual AccessMode accessMode() const = 0;
+        /**
+            @brief Flush the changed contents of the mapped file to disk.
+        */
+        virtual void flush() = 0;
+        /**
+            @brief Resize file to the requested size.
+            @note Exposed to avoid lots of remapping if a file is created from scratch.
+        */
+        virtual void resize(std::size_t size) = 0;
 
 };
 

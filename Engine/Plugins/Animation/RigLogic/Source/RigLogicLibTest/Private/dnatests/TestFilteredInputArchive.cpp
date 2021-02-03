@@ -29,8 +29,7 @@ class FilteredDNAInputArchiveTest : public ::testing::TestWithParam<LODConstrain
             stream->write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
             stream->seek(0);
 
-            dna::FilteredInputArchive archive{stream.get(), dna::DataLayer::All, lodConstraint.maxLOD, lodConstraint.minLOD,
-                                              & amr};
+            dna::FilteredInputArchive archive{stream.get(), dna::DataLayer::All, lodConstraint.maxLOD, lodConstraint.minLOD, &amr};
             archive >> *dnaInstance;
         }
 
@@ -155,15 +154,14 @@ class GeometryFilteringTest : public ::testing::Test {
 
     protected:
         pma::AlignedMemoryResource amr;
-        pma::ScopedPtr<trio::MemoryStream, pma::FactoryDestroy<trio::MemoryStream> > stream;
+        pma::ScopedPtr<trio::MemoryStream, pma::FactoryDestroy<trio::MemoryStream>> stream;
         std::unique_ptr<dna::DNA> dnaInstance;
 };
 
 }  // namespace
 
 TEST_F(GeometryFilteringTest, IncludeBlendShapeTargets) {
-    dna::FilteredInputArchive archive{stream.get(), dna::DataLayer::Geometry, 0u, std::numeric_limits<std::uint16_t>::max(),
-                                      &amr};
+    dna::FilteredInputArchive archive{stream.get(), dna::DataLayer::Geometry, 0u, std::numeric_limits<std::uint16_t>::max(), &amr};
     archive >> *dnaInstance;
 
     ASSERT_FALSE(dnaInstance->geometry.meshes.size() == 0ul);

@@ -4,7 +4,6 @@
 
 #include "dna/BaseImpl.h"
 #include "dna/TypeDefs.h"
-#include "dna/utils/Extd.h"
 
 #ifdef _MSC_VER
     #pragma warning(push)
@@ -41,7 +40,6 @@ class WriterImpl : public TWriterBase, public virtual BaseImpl {
         void setArchetype(Archetype archetype) override;
         void setGender(Gender gender) override;
         void setAge(std::uint16_t age) override;
-        void clearMetaData() override;
         void setMetaData(const char* key, const char* value) override;
         void setTranslationUnit(TranslationUnit unit) override;
         void setRotationUnit(RotationUnit unit) override;
@@ -52,39 +50,23 @@ class WriterImpl : public TWriterBase, public virtual BaseImpl {
         void setDBName(const char* name) override;
 
         // DefinitionWriter methods
-        void clearGUIControlNames() override;
         void setGUIControlName(std::uint16_t index, const char* name) override;
-        void clearRawControlNames() override;
         void setRawControlName(std::uint16_t index, const char* name) override;
-        void clearJointNames() override;
         void setJointName(std::uint16_t index, const char* name) override;
-        void clearJointIndices() override;
         void setJointIndices(std::uint16_t index, const std::uint16_t* jointIndices, std::uint16_t count) override;
-        void clearLODJointMappings() override;
         void setLODJointMapping(std::uint16_t lod, std::uint16_t index) override;
-        void clearBlendShapeChannelNames() override;
         void setJointHierarchy(const std::uint16_t* jointIndices, std::uint16_t count) override;
         void setBlendShapeChannelName(std::uint16_t index, const char* name) override;
-        void clearBlendShapeChannelIndices() override;
         void setBlendShapeChannelIndices(std::uint16_t index, const std::uint16_t* blendShapeChannelIndices,
                                          std::uint16_t count) override;
-        void clearLODBlendShapeChannelMappings() override;
         void setLODBlendShapeChannelMapping(std::uint16_t lod, std::uint16_t index) override;
-        void clearAnimatedMapNames() override;
         void setAnimatedMapName(std::uint16_t index, const char* name) override;
-        void clearAnimatedMapIndices() override;
         void setAnimatedMapIndices(std::uint16_t index, const std::uint16_t* animatedMapIndices, std::uint16_t count) override;
-        void clearLODAnimatedMapMappings() override;
         void setLODAnimatedMapMapping(std::uint16_t lod, std::uint16_t index) override;
-        void clearMeshNames() override;
         void setMeshName(std::uint16_t index, const char* name) override;
-        void clearMeshIndices() override;
         void setMeshIndices(std::uint16_t index, const std::uint16_t* meshIndices, std::uint16_t count) override;
-        void clearLODMeshMappings() override;
         void setLODMeshMapping(std::uint16_t lod, std::uint16_t index) override;
-        void clearMeshBlendShapeChannelMappings() override;
-        void setMeshBlendShapeChannelMapping(std::uint32_t index, std::uint16_t meshIndex,
-                                             std::uint16_t blendShapeChannelIndex) override;
+        void addMeshBlendShapeChannelMapping(std::uint16_t meshIndex, std::uint16_t blendShapeChannelIndex) override;
         void setNeutralJointTranslations(const Vector3* translations, std::uint16_t count) override;
         void setNeutralJointRotations(const Vector3* rotations, std::uint16_t count) override;
 
@@ -101,8 +83,6 @@ class WriterImpl : public TWriterBase, public virtual BaseImpl {
         void setPSDValues(const float* weights, std::uint16_t count) override;
         void setJointRowCount(std::uint16_t rowCount) override;
         void setJointColumnCount(std::uint16_t columnCount) override;
-        void clearJointGroups() override;
-        void deleteJointGroup(std::uint16_t jointGroupIndex) override;
         void setJointGroupLODs(std::uint16_t jointGroupIndex, const std::uint16_t* lods, std::uint16_t count) override;
         void setJointGroupInputIndices(std::uint16_t jointGroupIndex, const std::uint16_t* inputIndices,
                                        std::uint16_t count) override;
@@ -123,27 +103,22 @@ class WriterImpl : public TWriterBase, public virtual BaseImpl {
         void setAnimatedMapCutValues(const float* cutValues, std::uint16_t count) override;
 
         // GeometryWriter methods
-        void clearMeshes() override;
-        void deleteMesh(std::uint16_t meshIndex) override;
         void setVertexPositions(std::uint16_t meshIndex, const Position* positions, std::uint32_t count) override;
         void setVertexTextureCoordinates(std::uint16_t meshIndex, const TextureCoordinate* textureCoordinates,
                                          std::uint32_t count) override;
         void setVertexNormals(std::uint16_t meshIndex, const Normal* normals, std::uint32_t count) override;
         void setVertexLayouts(std::uint16_t meshIndex, const VertexLayout* layouts, std::uint32_t count) override;
-        void clearFaceVertexLayoutIndices(std::uint16_t meshIndex) override;
         void setFaceVertexLayoutIndices(std::uint16_t meshIndex,
                                         std::uint32_t faceIndex,
                                         const std::uint32_t* layoutIndices,
                                         std::uint32_t count) override;
         void setMaximumInfluencePerVertex(std::uint16_t meshIndex, std::uint16_t maxInfluenceCount) override;
-        void clearSkinWeights(std::uint16_t meshIndex) override;
         void setSkinWeightsValues(std::uint16_t meshIndex, std::uint32_t vertexIndex, const float* weights,
                                   std::uint16_t count) override;
         void setSkinWeightsJointIndices(std::uint16_t meshIndex,
                                         std::uint32_t vertexIndex,
                                         const std::uint16_t* jointIndices,
                                         std::uint16_t count) override;
-        void clearBlendShapeTargets(std::uint16_t meshIndex) override;
         void setBlendShapeChannelIndex(std::uint16_t meshIndex,
                                        std::uint16_t blendShapeTargetIndex,
                                        std::uint16_t blendShapeChannelIndex) override;
@@ -196,11 +171,6 @@ inline void WriterImpl<TWriterBase>::setAge(std::uint16_t age) {
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearMetaData() {
-    dna.descriptor.metadata.clear();
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setMetaData(const char* key, const char* value) {
     using CharStringPair = std::tuple<String<char>, String<char> >;
     auto it = std::find_if(dna.descriptor.metadata.begin(), dna.descriptor.metadata.end(), [&key](const CharStringPair& kv) {
@@ -208,15 +178,9 @@ inline void WriterImpl<TWriterBase>::setMetaData(const char* key, const char* va
             return (std::strlen(key) == k.size() && std::strncmp(k.data(), key, k.size()) == 0);
         });
     if (it == dna.descriptor.metadata.end()) {
-        if (value != nullptr) {
-            dna.descriptor.metadata.emplace_back(String<char>{key, memRes}, String<char>{value, memRes});
-        }
+        dna.descriptor.metadata.emplace_back(String<char>{key, memRes}, String<char>{value, memRes});
     } else {
-        if (value == nullptr) {
-            dna.descriptor.metadata.erase(it);
-        } else {
-            std::get<1>(*it) = value;
-        }
+        std::get<1>(*it) = value;
     }
 }
 
@@ -258,19 +222,9 @@ inline void WriterImpl<TWriterBase>::setDBName(const char* name) {
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearGUIControlNames() {
-    dna.definition.guiControlNames.clear();
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setGUIControlName(std::uint16_t index, const char* name) {
     ensureHasSize(dna.definition.guiControlNames, index + 1ul, memRes);
     dna.definition.guiControlNames[index] = name;
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearRawControlNames() {
-    dna.definition.rawControlNames.clear();
 }
 
 template<class TWriterBase>
@@ -280,19 +234,9 @@ inline void WriterImpl<TWriterBase>::setRawControlName(std::uint16_t index, cons
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearJointNames() {
-    dna.definition.jointNames.clear();
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setJointName(std::uint16_t index, const char* name) {
     ensureHasSize(dna.definition.jointNames, index + 1ul, memRes);
     dna.definition.jointNames[index] = name;
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearJointIndices() {
-    dna.definition.lodJointMapping.resetIndices();
 }
 
 template<class TWriterBase>
@@ -300,11 +244,6 @@ inline void WriterImpl<TWriterBase>::setJointIndices(std::uint16_t index, const 
                                                      std::uint16_t count) {
     dna.definition.lodJointMapping.clearIndices(index);
     dna.definition.lodJointMapping.addIndices(index, jointIndices, count);
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearLODJointMappings() {
-    dna.definition.lodJointMapping.resetLODs();
 }
 
 template<class TWriterBase>
@@ -318,19 +257,9 @@ inline void WriterImpl<TWriterBase>::setJointHierarchy(const std::uint16_t* join
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearBlendShapeChannelNames() {
-    dna.definition.blendShapeChannelNames.clear();
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setBlendShapeChannelName(std::uint16_t index, const char* name) {
     ensureHasSize(dna.definition.blendShapeChannelNames, index + 1ul, memRes);
     dna.definition.blendShapeChannelNames[index] = name;
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearBlendShapeChannelIndices() {
-    dna.definition.lodBlendShapeMapping.resetIndices();
 }
 
 template<class TWriterBase>
@@ -342,29 +271,14 @@ inline void WriterImpl<TWriterBase>::setBlendShapeChannelIndices(std::uint16_t i
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearLODBlendShapeChannelMappings() {
-    dna.definition.lodBlendShapeMapping.resetLODs();
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setLODBlendShapeChannelMapping(std::uint16_t lod, std::uint16_t index) {
     dna.definition.lodBlendShapeMapping.associateLODWithIndices(lod, index);
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearAnimatedMapNames() {
-    dna.definition.animatedMapNames.clear();
 }
 
 template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setAnimatedMapName(std::uint16_t index, const char* name) {
     ensureHasSize(dna.definition.animatedMapNames, index + 1ul, memRes);
     dna.definition.animatedMapNames[index] = name;
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearAnimatedMapIndices() {
-    dna.definition.lodAnimatedMapMapping.resetIndices();
 }
 
 template<class TWriterBase>
@@ -376,18 +290,8 @@ inline void WriterImpl<TWriterBase>::setAnimatedMapIndices(std::uint16_t index,
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearLODAnimatedMapMappings() {
-    dna.definition.lodAnimatedMapMapping.resetLODs();
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setLODAnimatedMapMapping(std::uint16_t lod, std::uint16_t index) {
     dna.definition.lodAnimatedMapMapping.associateLODWithIndices(lod, index);
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearMeshNames() {
-    dna.definition.meshNames.clear();
 }
 
 template<class TWriterBase>
@@ -397,19 +301,9 @@ inline void WriterImpl<TWriterBase>::setMeshName(std::uint16_t index, const char
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearMeshIndices() {
-    dna.definition.lodMeshMapping.resetIndices();
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setMeshIndices(std::uint16_t index, const std::uint16_t* meshIndices, std::uint16_t count) {
     dna.definition.lodMeshMapping.clearIndices(index);
     dna.definition.lodMeshMapping.addIndices(index, meshIndices, count);
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearLODMeshMappings() {
-    dna.definition.lodMeshMapping.resetLODs();
 }
 
 template<class TWriterBase>
@@ -418,15 +312,9 @@ inline void WriterImpl<TWriterBase>::setLODMeshMapping(std::uint16_t lod, std::u
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearMeshBlendShapeChannelMappings() {
-    dna.definition.meshBlendShapeChannelMapping.clear();
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::setMeshBlendShapeChannelMapping(std::uint32_t index,
-                                                                     std::uint16_t meshIndex,
+inline void WriterImpl<TWriterBase>::addMeshBlendShapeChannelMapping(std::uint16_t meshIndex,
                                                                      std::uint16_t blendShapeChannelIndex) {
-    dna.definition.meshBlendShapeChannelMapping.set(index, meshIndex, blendShapeChannelIndex);
+    dna.definition.meshBlendShapeChannelMapping.add(meshIndex, blendShapeChannelIndex);
 }
 
 template<class TWriterBase>
@@ -497,19 +385,6 @@ inline void WriterImpl<TWriterBase>::setJointRowCount(std::uint16_t rowCount) {
 template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setJointColumnCount(std::uint16_t columnCount) {
     dna.behavior.joints.colCount = columnCount;
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearJointGroups() {
-    dna.behavior.joints.jointGroups.clear();
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::deleteJointGroup(std::uint16_t jointGroupIndex) {
-    if (jointGroupIndex < dna.behavior.joints.jointGroups.size()) {
-        auto it = extd::advanced(dna.behavior.joints.jointGroups.begin(), jointGroupIndex);
-        dna.behavior.joints.jointGroups.erase(it);
-    }
 }
 
 template<class TWriterBase>
@@ -607,19 +482,6 @@ inline void WriterImpl<TWriterBase>::setAnimatedMapCutValues(const float* cutVal
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearMeshes() {
-    dna.geometry.meshes.clear();
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::deleteMesh(std::uint16_t meshIndex) {
-    if (meshIndex < dna.geometry.meshes.size()) {
-        auto it = extd::advanced(dna.geometry.meshes.begin(), meshIndex);
-        dna.geometry.meshes.erase(it);
-    }
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setVertexPositions(std::uint16_t meshIndex, const Position* positions, std::uint32_t count) {
     ensureHasSize(dna.geometry.meshes, meshIndex + 1ul, memRes);
     dna.geometry.meshes[meshIndex].positions.assign(positions, positions + count);
@@ -662,13 +524,6 @@ inline void WriterImpl<TWriterBase>::setVertexLayouts(std::uint16_t meshIndex, c
 }
 
 template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearFaceVertexLayoutIndices(std::uint16_t meshIndex) {
-    if (meshIndex < dna.geometry.meshes.size()) {
-        dna.geometry.meshes[meshIndex].faces.clear();
-    }
-}
-
-template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setFaceVertexLayoutIndices(std::uint16_t meshIndex,
                                                                 std::uint32_t faceIndex,
                                                                 const std::uint32_t* layoutIndices,
@@ -683,13 +538,6 @@ template<class TWriterBase>
 inline void WriterImpl<TWriterBase>::setMaximumInfluencePerVertex(std::uint16_t meshIndex, std::uint16_t maxInfluenceCount) {
     ensureHasSize(dna.geometry.meshes, meshIndex + 1ul, memRes);
     dna.geometry.meshes[meshIndex].maximumInfluencePerVertex = maxInfluenceCount;
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearSkinWeights(std::uint16_t meshIndex) {
-    if (meshIndex < dna.geometry.meshes.size()) {
-        dna.geometry.meshes[meshIndex].skinWeights.clear();
-    }
 }
 
 template<class TWriterBase>
@@ -712,13 +560,6 @@ inline void WriterImpl<TWriterBase>::setSkinWeightsJointIndices(std::uint16_t me
     auto& skinWeights = dna.geometry.meshes[meshIndex].skinWeights;
     ensureHasSize(skinWeights, vertexIndex + 1ul, memRes);
     skinWeights[vertexIndex].jointIndices.assign(jointIndices, jointIndices + count);
-}
-
-template<class TWriterBase>
-inline void WriterImpl<TWriterBase>::clearBlendShapeTargets(std::uint16_t meshIndex) {
-    if (meshIndex < dna.geometry.meshes.size()) {
-        dna.geometry.meshes[meshIndex].blendShapeTargets.clear();
-    }
 }
 
 template<class TWriterBase>

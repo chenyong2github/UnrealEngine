@@ -14,7 +14,6 @@ void FRigLogic::FRigLogicDeleter::operator()(rl4::RigLogic* Pointer)
 }
 
 FRigLogic::FRigLogic(const IBehaviorReader* Reader, ERigLogicCalculationType CalculationType) :
-	MemoryResource{FMemoryResource::SharedInstance()},
 	RigLogic{rl4::RigLogic::create(Reader->Unwrap(), rl4::CalculationType::SSE, FMemoryResource::Instance())}
 {
 

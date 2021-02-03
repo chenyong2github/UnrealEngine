@@ -9,7 +9,7 @@
 namespace dna {
 
 /**
-    @brief The abstract Reader which its implementations are expected to inherit.
+    @brief The abstract Reader which it's implementations are expected to inherit.
     @note
         This class combines the various different reader interfaces into a single interface.
         The artificial separation into multiple interfaces mirrors the DNA file structure that
