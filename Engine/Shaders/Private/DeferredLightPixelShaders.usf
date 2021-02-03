@@ -178,8 +178,6 @@ void DeferredLightPixelMain(
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
 		if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_HAIR && ShouldUseHairComplexTransmittance(ScreenSpaceData.GBuffer))
 		{
-			// Prevent numerical issue causing NaN during hair lighting (i.e., during baseColor/luma(baseColor) computation)
-			ScreenSpaceData.GBuffer.BaseColor = max(0.0001f, ScreenSpaceData.GBuffer.BaseColor);
 			LightData.HairTransmittance = EvaluateDualScattering(ScreenSpaceData.GBuffer, DerivedParams.CameraVector, -DeferredLightUniforms.Direction);
 		}
 

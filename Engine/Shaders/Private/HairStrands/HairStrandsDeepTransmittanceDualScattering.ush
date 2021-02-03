@@ -170,8 +170,11 @@ FHairTransmittanceData GetHairTransmittance(
 }
 
 // Evaluate local scattering scattering
-FHairTransmittanceData EvaluateDualScattering(FGBufferData GBuffer, float3 V, float3 L)
+FHairTransmittanceData EvaluateDualScattering(inout FGBufferData GBuffer, float3 V, float3 L)
 {
+	// Prevent numerical issue causing NaN during hair lighting (i.e., during baseColor/luma(baseColor) computation)
+	GBuffer.BaseColor = max(0.0001f, GBuffer.BaseColor);
+
 	FHairTransmittanceData Out = InitHairStrandsTransmittanceData();
 	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 	{
