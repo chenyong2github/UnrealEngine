@@ -152,22 +152,22 @@ void FCbAttachment::Save(FCbWriter& Writer) const
 		FMemoryView SerializedView;
 		if (CompactBinary.TryGetSerializedRangeView(SerializedView))
 		{
-			Writer.Binary(SerializedView);
+			Writer.AddBinary(SerializedView);
 		}
 		else
 		{
-			Writer.Binary(AsBinary());
+			Writer.AddBinary(AsBinary());
 		}
-		Writer.CompactBinaryAttachment(Hash);
+		Writer.AddCompactBinaryAttachment(Hash);
 	}
 	else if (Buffer.GetSize())
 	{
-		Writer.Binary(Buffer);
-		Writer.BinaryAttachment(Hash);
+		Writer.AddBinary(Buffer);
+		Writer.AddBinaryAttachment(Hash);
 	}
 	else // Null
 	{
-		Writer.Binary(FMemoryView());
+		Writer.AddBinary(FMemoryView());
 	}
 }
 
@@ -368,14 +368,14 @@ void FCbPackage::Save(FCbWriter& Writer) const
 {
 	if (Object.CreateIterator())
 	{
-		Writer.Object(Object);
-		Writer.CompactBinaryAttachment(ObjectHash);
+		Writer.AddObject(Object);
+		Writer.AddCompactBinaryAttachment(ObjectHash);
 	}
 	for (const FCbAttachment& Attachment : Attachments)
 	{
 		Attachment.Save(Writer);
 	}
-	Writer.Null();
+	Writer.AddNull();
 }
 
 void FCbPackage::Save(FArchive& Ar) const

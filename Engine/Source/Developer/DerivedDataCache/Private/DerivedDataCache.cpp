@@ -1051,26 +1051,26 @@ void FCache::Put(
 	{
 		if (Value.IsCompactBinary())
 		{
-			Writer.Name("Value"_ASV).CompactBinaryAttachment(Value.GetHash());
+			Writer.SetName("Value"_ASV).AddCompactBinaryAttachment(Value.GetHash());
 		}
 		else if (Value.IsBinary())
 		{
-			Writer.Name("Value"_ASV).BinaryAttachment(Value.GetHash());
+			Writer.SetName("Value"_ASV).AddBinaryAttachment(Value.GetHash());
 		}
 
 		if (Record.GetType() == ECacheRecordType::Package)
 		{
-			Writer.Name("Attachments"_ASV);
+			Writer.SetName("Attachments"_ASV);
 			Writer.BeginArray();
 			for (const FCbAttachment& Attachment : Attachments)
 			{
 				if (Attachment.IsCompactBinary())
 				{
-					Writer.CompactBinaryAttachment(Attachment.GetHash());
+					Writer.AddCompactBinaryAttachment(Attachment.GetHash());
 				}
 				else
 				{
-					Writer.BinaryAttachment(Attachment.GetHash());
+					Writer.AddBinaryAttachment(Attachment.GetHash());
 				}
 			}
 			Writer.EndArray();
@@ -1079,7 +1079,7 @@ void FCache::Put(
 		const FCbObjectRef& Meta = Record.GetMeta();
 		if (Meta.CreateIterator())
 		{
-			Writer.Name("Meta"_ASV).Object(Meta);
+			Writer.SetName("Meta"_ASV).AddObject(Meta);
 		}
 	}
 	Writer.EndObject();

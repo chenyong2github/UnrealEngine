@@ -1101,11 +1101,11 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 	{
 		FCbWriter Writer;
 
-		Writer.Name("IgnoredTypeInRoot").Hash(MakeTestHash(100));
-		Writer.CompactBinaryAttachment(MakeTestHash(0));
-		Writer.BinaryAttachment(MakeTestHash(1));
-		Writer.Name("CbAttachmentInRoot").CompactBinaryAttachment(MakeTestHash(2));
-		Writer.Name("BinAttachmentInRoot").BinaryAttachment(MakeTestHash(3));
+		Writer.SetName("IgnoredTypeInRoot").AddHash(MakeTestHash(100));
+		Writer.AddCompactBinaryAttachment(MakeTestHash(0));
+		Writer.AddBinaryAttachment(MakeTestHash(1));
+		Writer.SetName("CbAttachmentInRoot").AddCompactBinaryAttachment(MakeTestHash(2));
+		Writer.SetName("BinAttachmentInRoot").AddBinaryAttachment(MakeTestHash(3));
 
 		// Uniform array of type to ignore.
 		Writer.BeginArray();
@@ -1117,20 +1117,20 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 		// Uniform array of binary attachments.
 		Writer.BeginArray();
 		{
-			Writer.BinaryAttachment(MakeTestHash(4));
-			Writer.BinaryAttachment(MakeTestHash(5));
+			Writer.AddBinaryAttachment(MakeTestHash(4));
+			Writer.AddBinaryAttachment(MakeTestHash(5));
 		}
 		Writer.EndArray();
 		// Uniform array of uniform arrays.
 		Writer.BeginArray();
 		{
 			Writer.BeginArray();
-			Writer.BinaryAttachment(MakeTestHash(6));
-			Writer.BinaryAttachment(MakeTestHash(7));
+			Writer.AddBinaryAttachment(MakeTestHash(6));
+			Writer.AddBinaryAttachment(MakeTestHash(7));
 			Writer.EndArray();
 			Writer.BeginArray();
-			Writer.BinaryAttachment(MakeTestHash(8));
-			Writer.BinaryAttachment(MakeTestHash(9));
+			Writer.AddBinaryAttachment(MakeTestHash(8));
+			Writer.AddBinaryAttachment(MakeTestHash(9));
 			Writer.EndArray();
 		}
 		Writer.EndArray();
@@ -1142,7 +1142,7 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 			Writer << false;
 			Writer.EndArray();
 			Writer.BeginArray();
-			Writer.CompactBinaryAttachment(MakeTestHash(10));
+			Writer.AddCompactBinaryAttachment(MakeTestHash(10));
 			Writer << false;
 			Writer.EndArray();
 		}
@@ -1151,12 +1151,12 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 		Writer.BeginArray();
 		{
 			Writer.BeginObject();
-			Writer.Name("CbAttachmentInUniObjInUniObj1").CompactBinaryAttachment(MakeTestHash(11));
-			Writer.Name("CbAttachmentInUniObjInUniObj2").CompactBinaryAttachment(MakeTestHash(12));
+			Writer.SetName("CbAttachmentInUniObjInUniObj1").AddCompactBinaryAttachment(MakeTestHash(11));
+			Writer.SetName("CbAttachmentInUniObjInUniObj2").AddCompactBinaryAttachment(MakeTestHash(12));
 			Writer.EndObject();
 			Writer.BeginObject();
-			Writer.Name("CbAttachmentInUniObjInUniObj3").CompactBinaryAttachment(MakeTestHash(13));
-			Writer.Name("CbAttachmentInUniObjInUniObj4").CompactBinaryAttachment(MakeTestHash(14));
+			Writer.SetName("CbAttachmentInUniObjInUniObj3").AddCompactBinaryAttachment(MakeTestHash(13));
+			Writer.SetName("CbAttachmentInUniObjInUniObj4").AddCompactBinaryAttachment(MakeTestHash(14));
 			Writer.EndObject();
 		}
 		Writer.EndArray();
@@ -1168,7 +1168,7 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 			Writer << "Bool" << false;
 			Writer.EndObject();
 			Writer.BeginObject();
-			Writer.Name("CbAttachmentInNonUniObjInUniObj").CompactBinaryAttachment(MakeTestHash(15));
+			Writer.SetName("CbAttachmentInNonUniObjInUniObj").AddCompactBinaryAttachment(MakeTestHash(15));
 			Writer << "Bool" << false;
 			Writer.EndObject();
 		}
@@ -1184,36 +1184,36 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 		// Uniform object of binary attachments.
 		Writer.BeginObject();
 		{
-			Writer.Name("BinAttachmentInUniObj1").BinaryAttachment(MakeTestHash(16));
-			Writer.Name("BinAttachmentInUniObj2").BinaryAttachment(MakeTestHash(17));
+			Writer.SetName("BinAttachmentInUniObj1").AddBinaryAttachment(MakeTestHash(16));
+			Writer.SetName("BinAttachmentInUniObj2").AddBinaryAttachment(MakeTestHash(17));
 		}
 		Writer.EndObject();
 		// Uniform object of uniform arrays.
 		Writer.BeginObject();
 		{
-			Writer.Name("Array1");
+			Writer.SetName("Array1");
 			Writer.BeginArray();
-			Writer.BinaryAttachment(MakeTestHash(18));
-			Writer.BinaryAttachment(MakeTestHash(19));
+			Writer.AddBinaryAttachment(MakeTestHash(18));
+			Writer.AddBinaryAttachment(MakeTestHash(19));
 			Writer.EndArray();
-			Writer.Name("Array2");
+			Writer.SetName("Array2");
 			Writer.BeginArray();
-			Writer.BinaryAttachment(MakeTestHash(20));
-			Writer.BinaryAttachment(MakeTestHash(21));
+			Writer.AddBinaryAttachment(MakeTestHash(20));
+			Writer.AddBinaryAttachment(MakeTestHash(21));
 			Writer.EndArray();
 		}
 		Writer.EndObject();
 		// Uniform object of non-uniform arrays.
 		Writer.BeginObject();
 		{
-			Writer.Name("Array1");
+			Writer.SetName("Array1");
 			Writer.BeginArray();
 			Writer << 0;
 			Writer << false;
 			Writer.EndArray();
-			Writer.Name("Array2");
+			Writer.SetName("Array2");
 			Writer.BeginArray();
-			Writer.CompactBinaryAttachment(MakeTestHash(22));
+			Writer.AddCompactBinaryAttachment(MakeTestHash(22));
 			Writer << false;
 			Writer.EndArray();
 		}
@@ -1221,29 +1221,29 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 		// Uniform object of uniform objects.
 		Writer.BeginObject();
 		{
-			Writer.Name("Object1");
+			Writer.SetName("Object1");
 			Writer.BeginObject();
-			Writer.Name("CbAttachmentInUniObjInUniObj1").CompactBinaryAttachment(MakeTestHash(23));
-			Writer.Name("CbAttachmentInUniObjInUniObj2").CompactBinaryAttachment(MakeTestHash(24));
+			Writer.SetName("CbAttachmentInUniObjInUniObj1").AddCompactBinaryAttachment(MakeTestHash(23));
+			Writer.SetName("CbAttachmentInUniObjInUniObj2").AddCompactBinaryAttachment(MakeTestHash(24));
 			Writer.EndObject();
-			Writer.Name("Object2");
+			Writer.SetName("Object2");
 			Writer.BeginObject();
-			Writer.Name("CbAttachmentInUniObjInUniObj3").CompactBinaryAttachment(MakeTestHash(25));
-			Writer.Name("CbAttachmentInUniObjInUniObj4").CompactBinaryAttachment(MakeTestHash(26));
+			Writer.SetName("CbAttachmentInUniObjInUniObj3").AddCompactBinaryAttachment(MakeTestHash(25));
+			Writer.SetName("CbAttachmentInUniObjInUniObj4").AddCompactBinaryAttachment(MakeTestHash(26));
 			Writer.EndObject();
 		}
 		Writer.EndObject();
 		// Uniform object of non-uniform objects.
 		Writer.BeginObject();
 		{
-			Writer.Name("Object1");
+			Writer.SetName("Object1");
 			Writer.BeginObject();
 			Writer << "Int" << 0;
 			Writer << "Bool" << false;
 			Writer.EndObject();
-			Writer.Name("Object2");
+			Writer.SetName("Object2");
 			Writer.BeginObject();
-			Writer.Name("CbAttachmentInNonUniObjInUniObj").CompactBinaryAttachment(MakeTestHash(27));
+			Writer.SetName("CbAttachmentInNonUniObjInUniObj").AddCompactBinaryAttachment(MakeTestHash(27));
 			Writer << "Bool" << false;
 			Writer.EndObject();
 		}

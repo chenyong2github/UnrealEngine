@@ -362,7 +362,7 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 	FCbFieldRef Level3;
 	{
 		TCbWriter<256> Writer;
-		Writer.Name("Level4").BinaryAttachment(Level4Hash);
+		Writer.SetName("Level4").AddBinaryAttachment(Level4Hash);
 		Level3 = Writer.Save();
 	}
 	const FIoHash Level3Hash = Level3.GetHash();
@@ -370,9 +370,9 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 	FCbArrayRef Level2;
 	{
 		TCbWriter<256> Writer;
-		Writer.Name("Level3");
+		Writer.SetName("Level3");
 		Writer.BeginArray();
-		Writer.CompactBinaryAttachment(Level3Hash);
+		Writer.AddCompactBinaryAttachment(Level3Hash);
 		Writer.EndArray();
 		Level2 = Writer.Save().AsArrayRef();
 	}
@@ -382,7 +382,7 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 	{
 		TCbWriter<256> Writer;
 		Writer.BeginObject();
-		Writer.Name("Level2").CompactBinaryAttachment(Level2Hash);
+		Writer.SetName("Level2").AddCompactBinaryAttachment(Level2Hash);
 		Writer.EndObject();
 		Level1 = Writer.Save().AsObjectRef();
 	}
@@ -452,15 +452,15 @@ bool FCbPackageTest::RunTest(const FString& Parameters)
 	// Out of Order
 	{
 		TCbWriter<384> Writer;
-		Writer.Binary(Level2.GetBuffer());
-		Writer.CompactBinaryAttachment(Level2Hash);
-		Writer.Binary(Level4);
-		Writer.BinaryAttachment(Level4Hash);
-		Writer.Object(Level1);
-		Writer.CompactBinaryAttachment(Level1Hash);
-		Writer.Binary(Level3.GetBuffer());
-		Writer.CompactBinaryAttachment(Level3Hash);
-		Writer.Null();
+		Writer.AddBinary(Level2.GetBuffer());
+		Writer.AddCompactBinaryAttachment(Level2Hash);
+		Writer.AddBinary(Level4);
+		Writer.AddBinaryAttachment(Level4Hash);
+		Writer.AddObject(Level1);
+		Writer.AddCompactBinaryAttachment(Level1Hash);
+		Writer.AddBinary(Level3.GetBuffer());
+		Writer.AddCompactBinaryAttachment(Level3Hash);
+		Writer.AddNull();
 
 		FCbFieldRefIterator Fields = Writer.Save();
 		FCbPackage FromFields;

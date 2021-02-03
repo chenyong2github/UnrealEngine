@@ -10,6 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FArchive;
+class FCbAttachment;
 struct FDateTime;
 struct FGuid;
 struct FIoHash;
@@ -101,91 +102,123 @@ public:
 	CORE_API uint64 GetSaveSize() const;
 
 	/**
-	 * Write a field name.
+	 * Sets the name of the next field to be written.
 	 *
-	 * It is not valid to call this function when writing an array field.
+	 * It is not valid to call this function when writing a field inside an array.
 	 * Names must be valid UTF-8 and must be unique within an object.
 	 */
-	CORE_API FCbWriter& Name(FAnsiStringView Name);
+	CORE_API FCbWriter& SetName(FAnsiStringView Name);
 
 	/** Copy the value (not the name) of an existing field. */
-	CORE_API void Field(const FCbField& Value);
+	inline void AddField(FAnsiStringView Name, const FCbField& Value) { SetName(Name); AddField(Value); }
+	CORE_API void AddField(const FCbField& Value);
 	/** Copy the value (not the name) of an existing field. Holds a reference if owned. */
-	CORE_API void Field(const FCbFieldRef& Value);
+	inline void AddField(FAnsiStringView Name, const FCbFieldRef& Value) { SetName(Name); AddField(Value); }
+	CORE_API void AddField(const FCbFieldRef& Value);
 
 	/** Begin a new object. Must have a matching call to EndObject. */
+	inline void BeginObject(FAnsiStringView Name) { SetName(Name); BeginObject(); }
 	CORE_API void BeginObject();
 	/** End an object after its fields have been written. */
 	CORE_API void EndObject();
 
 	/** Copy the value (not the name) of an existing object. */
-	CORE_API void Object(const FCbObject& Value);
+	inline void AddObject(FAnsiStringView Name, const FCbObject& Value) { SetName(Name); AddObject(Value); }
+	CORE_API void AddObject(const FCbObject& Value);
 	/** Copy the value (not the name) of an existing object. Holds a reference if owned. */
-	CORE_API void Object(const FCbObjectRef& Value);
+	inline void AddObject(FAnsiStringView Name, const FCbObjectRef& Value) { SetName(Name); AddObject(Value); }
+	CORE_API void AddObject(const FCbObjectRef& Value);
 
 	/** Begin a new array. Must have a matching call to EndArray. */
+	inline void BeginArray(FAnsiStringView Name) { SetName(Name); BeginArray(); }
 	CORE_API void BeginArray();
 	/** End an array after its fields have been written. */
 	CORE_API void EndArray();
 
 	/** Copy the value (not the name) of an existing array. */
-	CORE_API void Array(const FCbArray& Value);
+	inline void AddArray(FAnsiStringView Name, const FCbArray& Value) { SetName(Name); AddArray(Value); }
+	CORE_API void AddArray(const FCbArray& Value);
 	/** Copy the value (not the name) of an existing array. Holds a reference if owned. */
-	CORE_API void Array(const FCbArrayRef& Value);
+	inline void AddArray(FAnsiStringView Name, const FCbArrayRef& Value) { SetName(Name); AddArray(Value); }
+	CORE_API void AddArray(const FCbArrayRef& Value);
 
 	/** Write a null field. */
-	CORE_API void Null();
+	inline void AddNull(FAnsiStringView Name) { SetName(Name); AddNull(); }
+	CORE_API void AddNull();
 
 	/** Write a binary field by copying Size bytes from Value. */
-	CORE_API void Binary(const void* Value, uint64 Size);
+	inline void AddBinary(FAnsiStringView Name, const void* Value, uint64 Size) { SetName(Name); AddBinary(Value, Size); }
+	CORE_API void AddBinary(const void* Value, uint64 Size);
 	/** Write a binary field by copying the view. */
-	inline void Binary(FMemoryView Value) { Binary(Value.GetData(), Value.GetSize()); }
+	inline void AddBinary(FAnsiStringView Name, FMemoryView Value) { SetName(Name); AddBinary(Value); }
+	inline void AddBinary(FMemoryView Value) { AddBinary(Value.GetData(), Value.GetSize()); }
 	/** Write a binary field by copying the buffer. Holds a reference if owned. */
-	CORE_API void Binary(const FSharedBuffer& Buffer);
+	inline void AddBinary(FAnsiStringView Name, FSharedBuffer Value) { SetName(Name); AddBinary(MoveTemp(Value)); }
+	CORE_API void AddBinary(FSharedBuffer Value);
 
 	/** Write a string field by copying the UTF-8 value. */
-	CORE_API void String(FAnsiStringView Value);
+	inline void AddString(FAnsiStringView Name, FAnsiStringView Value) { SetName(Name); AddString(Value); }
+	CORE_API void AddString(FAnsiStringView Value);
 	/** Write a string field by converting the UTF-16 value to UTF-8. */
-	CORE_API void String(FWideStringView Value);
+	inline void AddString(FAnsiStringView Name, FWideStringView Value) { SetName(Name); AddString(Value); }
+	CORE_API void AddString(FWideStringView Value);
 
 	/** Write an integer field. */
-	CORE_API void Integer(int32 Value);
+	inline void AddInteger(FAnsiStringView Name, int32 Value) { SetName(Name); AddInteger(Value); }
+	CORE_API void AddInteger(int32 Value);
 	/** Write an integer field. */
-	CORE_API void Integer(int64 Value);
+	inline void AddInteger(FAnsiStringView Name, int64 Value) { SetName(Name); AddInteger(Value); }
+	CORE_API void AddInteger(int64 Value);
 	/** Write an integer field. */
-	CORE_API void Integer(uint32 Value);
+	inline void AddInteger(FAnsiStringView Name, uint32 Value) { SetName(Name); AddInteger(Value); }
+	CORE_API void AddInteger(uint32 Value);
 	/** Write an integer field. */
-	CORE_API void Integer(uint64 Value);
+	inline void AddInteger(FAnsiStringView Name, uint64 Value) { SetName(Name); AddInteger(Value); }
+	CORE_API void AddInteger(uint64 Value);
 
 	/** Write a float field from a 32-bit float value. */
-	CORE_API void Float(float Value);
+	inline void AddFloat(FAnsiStringView Name, float Value) { SetName(Name); AddFloat(Value); }
+	CORE_API void AddFloat(float Value);
 	/** Write a float field from a 64-bit float value. */
-	CORE_API void Float(double Value);
+	inline void AddFloat(FAnsiStringView Name, double Value) { SetName(Name); AddFloat(Value); }
+	CORE_API void AddFloat(double Value);
 
 	/** Write a bool field. */
-	CORE_API void Bool(bool bValue);
+	inline void AddBool(FAnsiStringView Name, bool bValue) { SetName(Name); AddBool(bValue); }
+	CORE_API void AddBool(bool bValue);
 
-	/** Write a field referencing compact binary data by its hash. */
-	CORE_API void CompactBinaryAttachment(const FIoHash& Value);
-	/** Write a field referencing binary data by its hash. */
-	CORE_API void BinaryAttachment(const FIoHash& Value);
+	/** Write a field referencing a compact binary attachment by its hash. */
+	inline void AddCompactBinaryAttachment(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddCompactBinaryAttachment(Value); }
+	CORE_API void AddCompactBinaryAttachment(const FIoHash& Value);
+	/** Write a field referencing a binary attachment by its hash. */
+	inline void AddBinaryAttachment(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddBinaryAttachment(Value); }
+	CORE_API void AddBinaryAttachment(const FIoHash& Value);
+	/** Write a field referencing the attachment by its hash. */
+	inline void AddAttachment(FAnsiStringView Name, const FCbAttachment& Attachment) { SetName(Name); AddAttachment(Attachment); }
+	CORE_API void AddAttachment(const FCbAttachment& Attachment);
 
 	/** Write a hash field. */
-	CORE_API void Hash(const FIoHash& Value);
+	inline void AddHash(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddHash(Value); }
+	CORE_API void AddHash(const FIoHash& Value);
 	/** Write a UUID field. */
-	CORE_API void Uuid(const FGuid& Value);
+	inline void AddUuid(FAnsiStringView Name, const FGuid& Value) { SetName(Name); AddUuid(Value); }
+	CORE_API void AddUuid(const FGuid& Value);
 
 	/** Write a date/time field with the specified count of 100ns ticks since the epoch. */
-	CORE_API void DateTimeTicks(int64 Ticks);
+	inline void AddDateTimeTicks(FAnsiStringView Name, int64 Ticks) { SetName(Name); AddDateTimeTicks(Ticks); }
+	CORE_API void AddDateTimeTicks(int64 Ticks);
 
 	/** Write a date/time field. */
-	CORE_API void DateTime(FDateTime Value);
+	inline void AddDateTime(FAnsiStringView Name, FDateTime Value) { SetName(Name); AddDateTime(Value); }
+	CORE_API void AddDateTime(FDateTime Value);
 
 	/** Write a time span field with the specified count of 100ns ticks. */
-	CORE_API void TimeSpanTicks(int64 Ticks);
+	inline void AddTimeSpanTicks(FAnsiStringView Name, int64 Ticks) { SetName(Name); AddTimeSpanTicks(Ticks); }
+	CORE_API void AddTimeSpanTicks(int64 Ticks);
 
 	/** Write a time span field. */
-	CORE_API void TimeSpan(FTimespan Value);
+	inline void AddTimeSpan(FAnsiStringView Name, FTimespan Value) { SetName(Name); AddTimeSpan(Value); }
+	CORE_API void AddTimeSpan(FTimespan Value);
 
 	/** Private flags that are public to work with ENUM_CLASS_FLAGS. */
 	enum class EStateFlags : uint8;
@@ -197,17 +230,17 @@ protected:
 private:
 	friend FCbWriter& operator<<(FCbWriter& Writer, FAnsiStringView NameOrValue);
 
-	/** Begin writing a field. Called twice for fields with names and once otherwise. */
+	/** Begin writing a field. May be called twice for named fields. */
 	void BeginField();
 
 	/** Finish writing a field by writing its type. */
 	void EndField(ECbFieldType Type);
 
-	/** Write the field name if valid in this state, otherwise write the string value. */
-	CORE_API void NameOrString(FAnsiStringView NameOrValue);
+	/** Set the field name if valid in this state, otherwise write add a string field. */
+	CORE_API void SetNameOrAddString(FAnsiStringView NameOrValue);
 
-	/** A view of the name of the current field (if any), otherwise the empty view. */
-	FAnsiStringView CurrentName() const;
+	/** Returns a view of the name of the active field, if any, otherwise the empty view. */
+	FAnsiStringView GetActiveName() const;
 
 	/** Remove field types after the first to make the sequence uniform. */
 	void MakeFieldsUniform(int64 FieldBeginOffset, int64 FieldEndOffset);
@@ -266,7 +299,7 @@ private:
 /** Write the field name if valid in this state, otherwise write the string value. */
 inline FCbWriter& operator<<(FCbWriter& Writer, FAnsiStringView NameOrValue)
 {
-	Writer.NameOrString(NameOrValue);
+	Writer.SetNameOrAddString(NameOrValue);
 	return Writer;
 }
 
@@ -278,109 +311,115 @@ inline FCbWriter& operator<<(FCbWriter& Writer, const ANSICHAR* NameOrValue)
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbField& Value)
 {
-	Writer.Field(Value);
+	Writer.AddField(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbFieldRef& Value)
 {
-	Writer.Field(Value);
+	Writer.AddField(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObject& Value)
 {
-	Writer.Object(Value);
+	Writer.AddObject(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObjectRef& Value)
 {
-	Writer.Object(Value);
+	Writer.AddObject(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArray& Value)
 {
-	Writer.Array(Value);
+	Writer.AddArray(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArrayRef& Value)
 {
-	Writer.Array(Value);
+	Writer.AddArray(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, nullptr_t)
 {
-	Writer.Null();
+	Writer.AddNull();
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, FWideStringView Value)
 {
-	Writer.String(Value);
+	Writer.AddString(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const WIDECHAR* Value)
 {
-	Writer.String(Value);
+	Writer.AddString(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, int32 Value)
 {
-	Writer.Integer(Value);
+	Writer.AddInteger(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, int64 Value)
 {
-	Writer.Integer(Value);
+	Writer.AddInteger(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, uint32 Value)
 {
-	Writer.Integer(Value);
+	Writer.AddInteger(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, uint64 Value)
 {
-	Writer.Integer(Value);
+	Writer.AddInteger(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, float Value)
 {
-	Writer.Float(Value);
+	Writer.AddFloat(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, double Value)
 {
-	Writer.Float(Value);
+	Writer.AddFloat(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, bool Value)
 {
-	Writer.Bool(Value);
+	Writer.AddBool(Value);
+	return Writer;
+}
+
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbAttachment& Attachment)
+{
+	Writer.AddAttachment(Attachment);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FIoHash& Value)
 {
-	Writer.Hash(Value);
+	Writer.AddHash(Value);
 	return Writer;
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FGuid& Value)
 {
-	Writer.Uuid(Value);
+	Writer.AddUuid(Value);
 	return Writer;
 }
 

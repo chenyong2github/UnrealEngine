@@ -9,6 +9,7 @@
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
 #include "Serialization/Archive.h"
+#include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/VarInt.h"
 
@@ -129,7 +130,7 @@ void FCbWriter::BeginField()
 	{
 		checkf((State.Flags & EStateFlags::Name) == EStateFlags::Name,
 			TEXT("A new field cannot be written until the previous field '%.*hs' is finished."),
-			CurrentName().Len(), CurrentName().GetData());
+			GetActiveName().Len(), GetActiveName().GetData());
 	}
 }
 
@@ -161,7 +162,7 @@ void FCbWriter::EndField(ECbFieldType Type)
 	Data[State.Offset] = uint8(Type);
 }
 
-FCbWriter& FCbWriter::Name(const FAnsiStringView Name)
+FCbWriter& FCbWriter::SetName(const FAnsiStringView Name)
 {
 	FState& State = States.Last();
 	checkf((State.Flags & EStateFlags::Array) != EStateFlags::Array,
@@ -171,7 +172,7 @@ FCbWriter& FCbWriter::Name(const FAnsiStringView Name)
 		: TEXT("It is invalid to write an empty name for a top-level field. Specify a name or avoid this call."));
 	checkf((State.Flags & (EStateFlags::Name | EStateFlags::Field)) == EStateFlags::None,
 		TEXT("A new field '%.*hs' cannot be written until the previous field '%.*hs' is finished."),
-		Name.Len(), Name.GetData(), CurrentName().Len(), CurrentName().GetData());
+		Name.Len(), Name.GetData(), GetActiveName().Len(), GetActiveName().GetData());
 
 	BeginField();
 	State.Flags |= EStateFlags::Name;
@@ -182,20 +183,20 @@ FCbWriter& FCbWriter::Name(const FAnsiStringView Name)
 	return *this;
 }
 
-void FCbWriter::NameOrString(const FAnsiStringView NameOrValue)
+void FCbWriter::SetNameOrAddString(const FAnsiStringView NameOrValue)
 {
 	// A name is only written if it would begin a new field inside of an object.
 	if ((States.Last().Flags & (EStateFlags::Name | EStateFlags::Field | EStateFlags::Object)) == EStateFlags::Object)
 	{
-		Name(NameOrValue);
+		SetName(NameOrValue);
 	}
 	else
 	{
-		String(NameOrValue);
+		AddString(NameOrValue);
 	}
 }
 
-FAnsiStringView FCbWriter::CurrentName() const
+FAnsiStringView FCbWriter::GetActiveName() const
 {
 	const FState& State = States.Last();
 	if ((State.Flags & EStateFlags::Name) == EStateFlags::Name)
@@ -231,16 +232,16 @@ void FCbWriter::MakeFieldsUniform(const int64 FieldBeginOffset, const int64 Fiel
 	}
 }
 
-void FCbWriter::Field(const FCbField& Value)
+void FCbWriter::AddField(const FCbField& Value)
 {
 	checkf(Value.HasValue(), TEXT("It is invalid to write a field with no value."));
 	BeginField();
 	EndField(AppendCompactBinary(Value, Data));
 }
 
-void FCbWriter::Field(const FCbFieldRef& Value)
+void FCbWriter::AddField(const FCbFieldRef& Value)
 {
-	Field(FCbField(Value));
+	AddField(FCbField(Value));
 }
 
 void FCbWriter::BeginObject()
@@ -285,15 +286,15 @@ void FCbWriter::EndObject()
 	EndField(bUniform ? ECbFieldType::UniformObject : ECbFieldType::Object);
 }
 
-void FCbWriter::Object(const FCbObject& Value)
+void FCbWriter::AddObject(const FCbObject& Value)
 {
 	BeginField();
 	EndField(AppendCompactBinary(Value.AsField(), Data));
 }
 
-void FCbWriter::Object(const FCbObjectRef& Value)
+void FCbWriter::AddObject(const FCbObjectRef& Value)
 {
-	Object(FCbObject(Value));
+	AddObject(FCbObject(Value));
 }
 
 void FCbWriter::BeginArray()
@@ -340,24 +341,24 @@ void FCbWriter::EndArray()
 	EndField(bUniform ? ECbFieldType::UniformArray : ECbFieldType::Array);
 }
 
-void FCbWriter::Array(const FCbArray& Value)
+void FCbWriter::AddArray(const FCbArray& Value)
 {
 	BeginField();
 	EndField(AppendCompactBinary(Value.AsField(), Data));
 }
 
-void FCbWriter::Array(const FCbArrayRef& Value)
+void FCbWriter::AddArray(const FCbArrayRef& Value)
 {
-	Array(FCbArray(Value));
+	AddArray(FCbArray(Value));
 }
 
-void FCbWriter::Null()
+void FCbWriter::AddNull()
 {
 	BeginField();
 	EndField(ECbFieldType::Null);
 }
 
-void FCbWriter::Binary(const void* const Value, const uint64 Size)
+void FCbWriter::AddBinary(const void* const Value, const uint64 Size)
 {
 	BeginField();
 	const uint32 SizeByteCount = MeasureVarUInt(Size);
@@ -367,12 +368,12 @@ void FCbWriter::Binary(const void* const Value, const uint64 Size)
 	EndField(ECbFieldType::Binary);
 }
 
-void FCbWriter::Binary(const FSharedBuffer& Buffer)
+void FCbWriter::AddBinary(FSharedBuffer Buffer)
 {
-	Binary(Buffer.GetData(), Buffer.GetSize());
+	AddBinary(Buffer.GetData(), Buffer.GetSize());
 }
 
-void FCbWriter::String(const FAnsiStringView Value)
+void FCbWriter::AddString(const FAnsiStringView Value)
 {
 	BeginField();
 	const uint64 Size = uint64(Value.Len());
@@ -388,7 +389,7 @@ void FCbWriter::String(const FAnsiStringView Value)
 	EndField(ECbFieldType::String);
 }
 
-void FCbWriter::String(const FWideStringView Value)
+void FCbWriter::AddString(const FWideStringView Value)
 {
 	BeginField();
 	const uint32 Size = uint32(FTCHARToUTF8_Convert::ConvertedLength(Value.GetData(), Value.Len()));
@@ -404,11 +405,11 @@ void FCbWriter::String(const FWideStringView Value)
 	EndField(ECbFieldType::String);
 }
 
-void FCbWriter::Integer(const int32 Value)
+void FCbWriter::AddInteger(const int32 Value)
 {
 	if (Value >= 0)
 	{
-		return Integer(uint32(Value));
+		return AddInteger(uint32(Value));
 	}
 	BeginField();
 	const uint32 Magnitude = ~uint32(Value);
@@ -418,11 +419,11 @@ void FCbWriter::Integer(const int32 Value)
 	EndField(ECbFieldType::IntegerNegative);
 }
 
-void FCbWriter::Integer(const int64 Value)
+void FCbWriter::AddInteger(const int64 Value)
 {
 	if (Value >= 0)
 	{
-		return Integer(uint64(Value));
+		return AddInteger(uint64(Value));
 	}
 	BeginField();
 	const uint64 Magnitude = ~uint64(Value);
@@ -432,7 +433,7 @@ void FCbWriter::Integer(const int64 Value)
 	EndField(ECbFieldType::IntegerNegative);
 }
 
-void FCbWriter::Integer(const uint32 Value)
+void FCbWriter::AddInteger(const uint32 Value)
 {
 	BeginField();
 	const uint32 ValueByteCount = MeasureVarUInt(Value);
@@ -441,7 +442,7 @@ void FCbWriter::Integer(const uint32 Value)
 	EndField(ECbFieldType::IntegerPositive);
 }
 
-void FCbWriter::Integer(const uint64 Value)
+void FCbWriter::AddInteger(const uint64 Value)
 {
 	BeginField();
 	const uint32 ValueByteCount = MeasureVarUInt(Value);
@@ -450,7 +451,7 @@ void FCbWriter::Integer(const uint64 Value)
 	EndField(ECbFieldType::IntegerPositive);
 }
 
-void FCbWriter::Float(const float Value)
+void FCbWriter::AddFloat(const float Value)
 {
 	BeginField();
 	const uint32 RawValue = NETWORK_ORDER32(reinterpret_cast<const uint32&>(Value));
@@ -458,12 +459,12 @@ void FCbWriter::Float(const float Value)
 	EndField(ECbFieldType::Float32);
 }
 
-void FCbWriter::Float(const double Value)
+void FCbWriter::AddFloat(const double Value)
 {
 	const float Value32 = float(Value);
 	if (Value == double(Value32))
 	{
-		return Float(Value32);
+		return AddFloat(Value32);
 	}
 	BeginField();
 	const uint64 RawValue = NETWORK_ORDER64(reinterpret_cast<const uint64&>(Value));
@@ -471,34 +472,42 @@ void FCbWriter::Float(const double Value)
 	EndField(ECbFieldType::Float64);
 }
 
-void FCbWriter::Bool(const bool bValue)
+void FCbWriter::AddBool(const bool bValue)
 {
 	BeginField();
 	EndField(bValue ? ECbFieldType::BoolTrue : ECbFieldType::BoolFalse);
 }
 
-void FCbWriter::CompactBinaryAttachment(const FIoHash& Value)
+void FCbWriter::AddCompactBinaryAttachment(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
 	EndField(ECbFieldType::CompactBinaryAttachment);
 }
 
-void FCbWriter::BinaryAttachment(const FIoHash& Value)
+void FCbWriter::AddBinaryAttachment(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
 	EndField(ECbFieldType::BinaryAttachment);
 }
 
-void FCbWriter::Hash(const FIoHash& Value)
+void FCbWriter::AddAttachment(const FCbAttachment& Attachment)
+{
+	BeginField();
+	const FIoHash& Value = Attachment.GetHash();
+	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
+	EndField(ECbFieldType::BinaryAttachment);
+}
+
+void FCbWriter::AddHash(const FIoHash& Value)
 {
 	BeginField();
 	Data.Append(Value.GetBytes(), sizeof(decltype(Value.GetBytes())));
 	EndField(ECbFieldType::Hash);
 }
 
-void FCbWriter::Uuid(const FGuid& Value)
+void FCbWriter::AddUuid(const FGuid& Value)
 {
 	const auto AppendSwappedBytes = [this](uint32 In)
 	{
@@ -513,7 +522,7 @@ void FCbWriter::Uuid(const FGuid& Value)
 	EndField(ECbFieldType::Uuid);
 }
 
-void FCbWriter::DateTimeTicks(const int64 Ticks)
+void FCbWriter::AddDateTimeTicks(const int64 Ticks)
 {
 	BeginField();
 	const uint64 RawValue = NETWORK_ORDER64(uint64(Ticks));
@@ -521,12 +530,12 @@ void FCbWriter::DateTimeTicks(const int64 Ticks)
 	EndField(ECbFieldType::DateTime);
 }
 
-void FCbWriter::DateTime(const FDateTime Value)
+void FCbWriter::AddDateTime(const FDateTime Value)
 {
-	DateTimeTicks(Value.GetTicks());
+	AddDateTimeTicks(Value.GetTicks());
 }
 
-void FCbWriter::TimeSpanTicks(const int64 Ticks)
+void FCbWriter::AddTimeSpanTicks(const int64 Ticks)
 {
 	BeginField();
 	const uint64 RawValue = NETWORK_ORDER64(uint64(Ticks));
@@ -534,22 +543,22 @@ void FCbWriter::TimeSpanTicks(const int64 Ticks)
 	EndField(ECbFieldType::TimeSpan);
 }
 
-void FCbWriter::TimeSpan(const FTimespan Value)
+void FCbWriter::AddTimeSpan(const FTimespan Value)
 {
-	TimeSpanTicks(Value.GetTicks());
+	AddTimeSpanTicks(Value.GetTicks());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCbWriter& operator<<(FCbWriter& Writer, const FDateTime Value)
 {
-	Writer.DateTime(Value);
+	Writer.AddDateTime(Value);
 	return Writer;
 }
 
 FCbWriter& operator<<(FCbWriter& Writer, const FTimespan Value)
 {
-	Writer.TimeSpan(Value);
+	Writer.AddTimeSpan(Value);
 	return Writer;
 }
 
