@@ -49,10 +49,17 @@ public:
 #endif
 		}
 
-		bool TestNumReads(const TCHAR* What, uint32 ExpectedDelta)
+		bool TestNumReads(const TCHAR* What, uint32 ExpectedDelta, bool bAllowAdditionalReads = false)
 		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-			return Test.TestEqual(What, OriginalNumReads + ExpectedDelta, Test.GetNumReads());
+			if (bAllowAdditionalReads)
+			{
+				return Test.TestTrue(What, Test.GetNumReads() >= OriginalNumReads + ExpectedDelta);
+			}
+			else
+			{
+				return Test.TestEqual(What, OriginalNumReads + ExpectedDelta, Test.GetNumReads());
+			}
 #else
 			return true;
 #endif

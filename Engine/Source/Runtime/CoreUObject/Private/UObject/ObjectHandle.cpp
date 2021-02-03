@@ -304,8 +304,11 @@ static inline UPackage* FindOrLoadPackage(FName PackageName, int32 LoadFlags)
 		// @TODO: OBJPTR: When using the "external package" feature, we will have objects that have a differing package path vs "outer hierarchy" path
 		//				  The package path should be used when loading.  The "outer hierarchy" path may need to be used when finding existing objects in memory.
 		//				  This will need further evaluation and testing before lazy load can be enabled.
-		// @TODO: OBJPTR: This seems like it will do a search on disk every time instead of leveraging known missing packages
 		// @TODO: OBJPTR: Instancing context may be important to consider when loading the package.
+		if (FLinkerLoad::IsKnownMissingPackage(PackageName))
+		{
+			return nullptr;
+		}
 		LoadFlags |= LOAD_NoWarn | LOAD_NoVerify; //This does nothing? | LOAD_DisableDependencyPreloading;
 		TargetPackage = LoadPackage(nullptr, *PackageName.ToString(), LoadFlags);
 	}
