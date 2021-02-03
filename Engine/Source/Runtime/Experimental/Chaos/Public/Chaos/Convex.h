@@ -93,7 +93,7 @@ namespace Chaos
 		FConvex(FConvex&& Other)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(Other.Planes))
-		    , SurfaceParticles(MoveTemp(Other.SurfaceParticles))
+		    , Vertices(MoveTemp(Other.Vertices))
 		    , LocalBoundingBox(MoveTemp(Other.LocalBoundingBox))
 			, StructureData(MoveTemp(Other.StructureData))
 			, Volume(MoveTemp(Other.Volume))
@@ -106,15 +106,15 @@ namespace Chaos
 		// @todo(chaos): Keep track of invalid state and ensure on volume or COM access?
 		// @todo(chaos): Add plane vertex indices in the constructor and call CreateStructureData
 		// @todo(chaos): Merge planes? Or assume the input is a good convex hull?
-		FConvex(TArray<TPlaneConcrete<FReal, 3>>&& InPlanes, TParticles<FReal, 3>&& InSurfaceParticles)
+		FConvex(TArray<TPlaneConcrete<FReal, 3>>&& InPlanes, TArray<FVec3>&& InVertices)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
-		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
+		    , Vertices(MoveTemp(InVertices))
 		    , LocalBoundingBox(TAABB<FReal, 3>::EmptyAABB())
 		{
-			for (uint32 ParticleIndex = 0; ParticleIndex < SurfaceParticles.Size(); ++ParticleIndex)
+			for (int32 ParticleIndex = 0; ParticleIndex < Vertices.Num(); ++ParticleIndex)
 			{
-				LocalBoundingBox.GrowToInclude(SurfaceParticles.X(ParticleIndex));
+				LocalBoundingBox.GrowToInclude(Vertices[ParticleIndex]);
 			}
 
 			// For now we approximate COM and volume with the bounding box
@@ -122,29 +122,30 @@ namespace Chaos
 			Volume = LocalBoundingBox.GetVolume();
 		}
 
-		FConvex(const TParticles<FReal, 3>& InParticles, const FReal InMargin)
+		FConvex(const TArray<FVec3>& InVertices, const FReal InMargin)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
-			const uint32 NumParticles = InParticles.Size();
-			if (NumParticles == 0)
+			const int32 NumVertices = InVertices.Num();
+			if (NumVertices == 0)
 			{
 				return;
 			}
 
 			TArray<TArray<int32>> FaceIndices;
-			FConvexBuilder::Build(InParticles, Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
+			FConvexBuilder::Build(InVertices, Planes, FaceIndices, Vertices, LocalBoundingBox);
 			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
 
 			// @chaos(todo): this only works with triangles. Fix that an we can run MergeFaces before calling this
-			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
+			TParticles<FReal, 3> VertexParticles(CopyTemp(Vertices));
+			CalculateVolumeAndCenterOfMass(VertexParticles, FaceIndices, Volume, CenterOfMass);
 
-			FConvexBuilder::MergeFaces(Planes, FaceIndices, SurfaceParticles);
+			FConvexBuilder::MergeFaces(Planes, FaceIndices, Vertices);
 			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
 
 			CreateStructureData(MoveTemp(FaceIndices));
 
 			SetMargin(InMargin);
-		}
+		}	
 
 	private:
 		void MovePlanesAndRebuild(FReal InDelta);
@@ -295,7 +296,7 @@ namespace Chaos
 
 		int32 NumVertices() const
 		{
-			return (int32)SurfaceParticles.Size();
+			return (int32)Vertices.Num();
 		}
 
 		// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
@@ -307,7 +308,7 @@ namespace Chaos
 		// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
 		const FVec3& GetVertex(int32 VertexIndex) const
 		{
-			return SurfaceParticles.X(VertexIndex);
+			return Vertices[VertexIndex];
 		}
 
 
@@ -339,13 +340,13 @@ namespace Chaos
 		{
 			FReal MaxDot = TNumericLimits<FReal>::Lowest();
 			int32 MaxVIdx = INDEX_NONE;
-			const int32 NumVertices = SurfaceParticles.Size();
+			const int32 NumVertices = Vertices.Num();
 
 			if (ensure(NumVertices > 0))
 			{
 				for (int32 Idx = 0; Idx < NumVertices; ++Idx)
 				{
-					const FReal Dot = FVec3::DotProduct(SurfaceParticles.X(Idx), Direction);
+					const FReal Dot = FVec3::DotProduct(Vertices[Idx], Direction);
 					if (Dot > MaxDot)
 					{
 						MaxDot = Dot;
@@ -437,7 +438,7 @@ namespace Chaos
 				{
 					return GetMarginAdjustedVertex(SupportVertexIndex, NetMargin);
 				}
-				return SurfaceParticles.X(SupportVertexIndex);
+				return Vertices[SupportVertexIndex];
 			}
 			return FVec3(0);
 		}
@@ -467,7 +468,7 @@ namespace Chaos
 				}
 				else
 				{
-					VertexPosition = Scale * SurfaceParticles.X(SupportVertexIndex);
+					VertexPosition = Scale * Vertices[SupportVertexIndex];
 				}
 			}
 			return VertexPosition;
@@ -481,9 +482,9 @@ namespace Chaos
 			{
 				if (Thickness != 0.0f)
 				{
-					return SurfaceParticles.X(MaxVIdx) + Direction.GetUnsafeNormal() * Thickness;
+					return Vertices[MaxVIdx] + Direction.GetUnsafeNormal() * Thickness;
 				}
-				return SurfaceParticles.X(MaxVIdx);
+				return Vertices[MaxVIdx];
 			}
 			return FVec3(0);
 		}
@@ -493,9 +494,9 @@ namespace Chaos
 			return FString::Printf(TEXT("Convex"));
 		}
 
-		const TParticles<FReal, 3>& GetSurfaceParticles() const
+		const TArray<FVec3>& GetVertices() const
 		{
-			return SurfaceParticles;
+			return Vertices;
 		}
 
 		const TArray<TPlaneConcrete<FReal, 3>>& GetFaces() const
@@ -523,7 +524,12 @@ namespace Chaos
 		{
 			uint32 Result = LocalBoundingBox.GetTypeHash();
 
-			Result = HashCombine(Result, SurfaceParticles.GetTypeHash());
+			for (const FVec3& Vertex: Vertices)
+			{
+				Result = HashCombine(Result, ::GetTypeHash(Vertex[0]));
+				Result = HashCombine(Result, ::GetTypeHash(Vertex[1]));
+				Result = HashCombine(Result, ::GetTypeHash(Vertex[2]));
+			}
 
 			for(const TPlaneConcrete<FReal, 3>& Plane : Planes)
 			{
@@ -536,6 +542,7 @@ namespace Chaos
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 			FImplicitObject::SerializeImp(Ar);
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ConvexUsesTPlaneConcrete)
@@ -554,7 +561,23 @@ namespace Chaos
 				Ar << Planes;
 			}
 
-			Ar << SurfaceParticles;
+			if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::ConvexUsesVerticesArray)
+			{
+				TParticles<FReal, 3> TmpSurfaceParticles;
+				Ar << TmpSurfaceParticles;
+
+				const int32 NumVertices = (int32)TmpSurfaceParticles.Size();
+				Vertices.SetNum(NumVertices);
+				for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+				{
+					Vertices[VertexIndex] = TmpSurfaceParticles.X(VertexIndex);
+				}
+			}
+			else
+			{
+				Ar << Vertices;
+			}
+			
 			TBox<FReal,3>::SerializeAsAABB(Ar, LocalBoundingBox);
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddConvexCenterOfMassAndVolume)
@@ -567,8 +590,12 @@ namespace Chaos
 				// Rebuild convex in order to extract face indices.
 				// TODO: Make it so it can take SurfaceParticles as both input and output without breaking...
 				TArray<TArray<int32>> FaceIndices;
-				TParticles<FReal, 3> TempSurfaceParticles;
-				FConvexBuilder::Build(SurfaceParticles, Planes, FaceIndices, TempSurfaceParticles, LocalBoundingBox);
+				TArray<FVec3> TempVertices;
+				FConvexBuilder::Build(Vertices, Planes, FaceIndices, TempVertices, LocalBoundingBox);
+
+				// Copy vertices and move into particles.
+				TArray<FVec3> VerticesCopy = Vertices;
+				const TParticles<FReal, 3> SurfaceParticles(MoveTemp(VerticesCopy));
 				CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 			}
 
@@ -586,7 +613,7 @@ namespace Chaos
 			{
 				// Generate the structure data from the planes and vertices
 				TArray<TArray<int32>> FaceIndices;
-				FConvexBuilder::BuildPlaneVertexIndices(Planes, SurfaceParticles, FaceIndices);
+				FConvexBuilder::BuildPlaneVertexIndices(Planes, Vertices, FaceIndices);
 				CreateStructureData(MoveTemp(FaceIndices));
 			}
 		}
@@ -604,18 +631,18 @@ namespace Chaos
 
 		virtual bool IsValidGeometry() const override
 		{
-			return (SurfaceParticles.Size() > 0 && Planes.Num() > 0);
+			return (Vertices.Num() > 0 && Planes.Num() > 0);
 		}
 
 		virtual bool IsPerformanceWarning() const override
 		{
-			return FConvexBuilder::IsPerformanceWarning(Planes.Num(), SurfaceParticles.Size());
+			return FConvexBuilder::IsPerformanceWarning(Planes.Num(), Vertices.Num());
 		}
 
 		virtual FString PerformanceWarningAndSimplifaction() override
 		{
 
-			FString PerformanceWarningString = FConvexBuilder::PerformanceWarningString(Planes.Num(), SurfaceParticles.Size());
+			FString PerformanceWarningString = FConvexBuilder::PerformanceWarningString(Planes.Num(), Vertices.Num());
 			if (FConvexBuilder::IsGeometryReductionEnabled())
 			{
 				PerformanceWarningString += ", [Simplifying]";
@@ -628,8 +655,8 @@ namespace Chaos
 		void SimplifyGeometry()
 		{
 			TArray<TArray<int32>> FaceIndices;
-			FConvexBuilder::Simplify(Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
-			FConvexBuilder::MergeFaces(Planes, FaceIndices, SurfaceParticles);
+			FConvexBuilder::Simplify(Planes, FaceIndices, Vertices, LocalBoundingBox);
+			FConvexBuilder::MergeFaces(Planes, FaceIndices, Vertices);
 			CreateStructureData(MoveTemp(FaceIndices));
 		}
 
@@ -640,7 +667,7 @@ namespace Chaos
 
 	private:
 		TArray<TPlaneConcrete<FReal, 3>> Planes;
-		TParticles<FReal, 3> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
+		TArray<FVec3> Vertices; //copy of the vertices that are just on the convex hull boundary
 		TAABB<FReal, 3> LocalBoundingBox;
 		FConvexStructureData StructureData;
 		float Volume;

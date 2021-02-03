@@ -1075,17 +1075,17 @@ static void DrawConvex(FPrimitiveDrawInterface* PDI, const FConvex& Convex, cons
 			// Find the two surface points that belong to both Plane1 and Plane2
 			uint32 ParticleIndex1 = INDEX_NONE;
 
-			const TParticles<float, 3>& SurfaceParticles = Convex.GetSurfaceParticles();
-			for (uint32 ParticleIndex = 0; ParticleIndex < SurfaceParticles.Size(); ++ParticleIndex)
+			const TArray<FVec3>& Vertices = Convex.GetVertices();
+			for (int32 ParticleIndex = 0; ParticleIndex < Vertices.Num(); ++ParticleIndex)
 			{
-				const TVector<float, 3>& X = SurfaceParticles.X(ParticleIndex);
+				const FVec3& X = Vertices[ParticleIndex];
 
 				if (FMath::Square(Plane1.SignedDistance(X)) < KINDA_SMALL_NUMBER && 
 					FMath::Square(Plane2.SignedDistance(X)) < KINDA_SMALL_NUMBER)
 				{
 					if (ParticleIndex1 != INDEX_NONE)
 					{
-						const TVector<float, 3>& X1 = SurfaceParticles.X(ParticleIndex1);
+						const FVec3& X1 = Vertices[ParticleIndex1];
 						const FVector Position1 = Position + Rotation.RotateVector(X1);
 						const FVector Position2 = Position + Rotation.RotateVector(X);
 						DrawLine(PDI, Position1, Position2, Color);

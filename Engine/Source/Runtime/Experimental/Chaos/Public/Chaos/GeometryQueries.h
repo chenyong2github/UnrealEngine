@@ -165,7 +165,7 @@ namespace Chaos
 				//todo: move this out of here
 				if (const auto Convex = TImplicitObjectScaled<FConvex>::AsScaled(InObject))
 				{
-					return Convex->GetUnscaledObject()->GetSurfaceParticles().Size() > 0;
+					return Convex->GetUnscaledObject()->NumVertices() > 0;
 				}				
 
 				return true;

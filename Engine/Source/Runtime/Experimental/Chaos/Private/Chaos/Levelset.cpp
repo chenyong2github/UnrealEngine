@@ -1495,17 +1495,7 @@ void GetGeomSurfaceSamples(const TCapsule<FReal>& InGeom, TArray<FVec3>& OutSamp
 
 void GetGeomSurfaceSamples(const FConvex& InGeom, TArray<FVec3>& OutSamples)
 {
-	const TParticles<FReal, 3>& Particles = InGeom.GetSurfaceParticles();
-
-	const int32 NumParticles = Particles.Size();
-
-	OutSamples.Reset();
-	OutSamples.AddUninitialized(NumParticles);
-
-	for(int32 Index = 0; Index < NumParticles; ++Index)
-	{
-		OutSamples[Index] = Particles.X(Index);
-	}
+	OutSamples = InGeom.GetVertices();
 }
 
 template<typename InnerT>

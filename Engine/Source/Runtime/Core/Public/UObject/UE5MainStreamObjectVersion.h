@@ -88,6 +88,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Make UMeshDescriptionBase serializable
 		SerializeMeshDescriptionBase,
 
+		// Chaos FConvex uses array of FVec3s for vertices instead of particles
+		ConvexUsesVerticesArray,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

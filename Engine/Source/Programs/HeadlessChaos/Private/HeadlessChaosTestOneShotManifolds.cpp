@@ -251,11 +251,10 @@ namespace ChaosTest
 			FVec3( HalfSize,  HalfSize,  HalfSize),
 			FVec3( HalfSize, -HalfSize,  HalfSize),
 		};
-		TParticles<FReal, 3> BoxParticles(MoveTemp(BoxVerts));
 
 		// First box rotated 45 degrees about Z and placed at the oirigin
 		// Second box rotated 45 degrees about Z and placed along X axis so that we have edge-edge contact with specified Phi
-		FConvex Convex(BoxParticles, Margin);
+		FConvex Convex(BoxVerts, Margin);
 		FRigidTransform3 Convex1Transform = FRigidTransform3(FVec3(0.0f, 0.0f, 0.0f), FRotation3::FromAxisAngle(FVec3(0.0f, 0.0f, 1.0f), FMath::DegreesToRadians(45)));
 		FRigidTransform3 Convex2Transform = FRigidTransform3(FVec3(Offset + ExpectedPhi, 0.0f, 0.0f), FRotation3::FromAxisAngle(FVec3(0.0f, 1.0f, 0.0f), FMath::DegreesToRadians(45)));
 

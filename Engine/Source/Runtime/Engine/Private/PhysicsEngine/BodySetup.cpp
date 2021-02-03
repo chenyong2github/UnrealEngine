@@ -1910,18 +1910,18 @@ TArray<int32> FKConvexElem::GetChaosConvexIndices() const
 	const int32 NumVerts = VertexData.Num();
 	if (NumVerts > 0)
 	{
-		Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
-		ConvexParticles.AddParticles(NumVerts);
+		TArray<Chaos::FVec3> ConvexVertices;
+		ConvexVertices.SetNum(NumVerts);
 
 		for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
 		{
-			ConvexParticles.X(VertIndex) = VertexData[VertIndex];
+			ConvexVertices[VertIndex] = VertexData[VertIndex];
 		}
 
 		TArray<Chaos::TVector<int32, 3>> Triangles;
 		Chaos::FConvexBuilder::Params BuildParams;
-		BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(ConvexParticles);
-		Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles, BuildParams);
+		BuildParams.HorizonEpsilon = Chaos::FConvexBuilder::SuggestEpsilon(ConvexVertices);
+		Chaos::FConvexBuilder::BuildConvexHull(ConvexVertices, Triangles, BuildParams);
 
 		ResultIndexData.Reserve(Triangles.Num() * 3);
 		for (Chaos::TVector<int32, 3> Tri : Triangles)

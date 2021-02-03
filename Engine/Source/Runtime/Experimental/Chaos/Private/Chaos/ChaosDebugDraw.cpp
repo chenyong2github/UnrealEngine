@@ -267,7 +267,10 @@ namespace Chaos
 					{
 						// TODO: This is horrendously slow. Figure out a way to cache
 						// the generated trimeshes on the debug draw queue instance.
-						const TParticles<FReal, 3>& Particles = Convex->GetSurfaceParticles();
+						
+						// Copy the vertices then move them into particles..
+						TArray<FVec3> Vertices = Convex->GetVertices();
+						const TParticles<FReal, 3>& Particles(MoveTemp(Vertices));
 						TTriangleMesh<FReal> Triangles = TTriangleMesh<FReal>::GetConvexHullFromParticles(Particles);
 						for (const TVector<int32, 3>& Elem : Triangles.GetElements())
 						{

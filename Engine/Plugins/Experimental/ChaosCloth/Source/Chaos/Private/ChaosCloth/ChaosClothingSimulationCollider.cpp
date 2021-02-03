@@ -228,15 +228,15 @@ void FClothingSimulationCollider::FLODData::Add(
 			if (Planes.Num() == NumPlanes)
 			{
 				// Retrieve particles
-				TParticles<float, 3> SurfaceParticles;
-				SurfaceParticles.Resize(NumSurfacePoints);
+				TArray<FVec3> Vertices;
+				Vertices.SetNum(NumSurfacePoints);
 				for (int32 ParticleIndex = 0; ParticleIndex < NumSurfacePoints; ++ParticleIndex)
 				{
-					SurfaceParticles.X(ParticleIndex) = Convex.SurfacePoints[ParticleIndex];
+					Vertices[ParticleIndex] = Convex.SurfacePoints[ParticleIndex];
 				}
 
 				// Setup the collision particle geometry
-				Solver->SetCollisionGeometry(ConvexOffset, Index, MakeUnique<FConvex>(MoveTemp(Planes), MoveTemp(SurfaceParticles)));
+				Solver->SetCollisionGeometry(ConvexOffset, Index, MakeUnique<FConvex>(MoveTemp(Planes), MoveTemp(Vertices)));
 			}
 			else
 			{
@@ -529,11 +529,11 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				}
 
 				// Copy surface points
-				const uint32 NumSurfacePoints = ChaosConvex.GetSurfaceParticles().Size();
+				const int32 NumSurfacePoints = ChaosConvex.NumVertices();
 				Convex.SurfacePoints.Reserve(NumSurfacePoints);
-				for (uint32 ParticleIndex = 0; ParticleIndex < NumSurfacePoints; ++ParticleIndex)
+				for (int32 ParticleIndex = 0; ParticleIndex < NumSurfacePoints; ++ParticleIndex)
 				{
-					Convex.SurfacePoints.Add(ChaosConvex.GetSurfaceParticles().X(ParticleIndex));
+					Convex.SurfacePoints.Add(ChaosConvex.GetVertex(ParticleIndex));
 				}
 #endif  // #if PHYSICS_INTERFACE_PHYSX #elif WITH_CHAOS
 

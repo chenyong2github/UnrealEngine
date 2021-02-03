@@ -381,18 +381,17 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplic
 				Bounds.GrowToInclude(HullVert);
 			}
 
-			// Create the surface particle for the convex
-			TParticles<FReal, 3> ConvexParticles;
-			ConvexParticles.AddParticles(NumHullVerts);
-
+			// Create the vertices for the convex
+			TArray<FVec3> ConvexVertices;
+			ConvexVertices.SetNum(NumHullVerts);
 			for (int32 VertIndex = 0; VertIndex < NumHullVerts; ++VertIndex)
 			{
-				const FVector& HullVert = HullVerts[VertIndex];
-				ConvexParticles.X(VertIndex) = FVector(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
+				const FVec3& HullVert = HullVerts[VertIndex];
+				ConvexVertices[VertIndex] = FVec3(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
 			}
 
 			// Margin is always zero on convex shapes - they are intended to be instanced
-			OutConvexes.Emplace(new Chaos::FConvex(ConvexParticles, 0.0f));
+			OutConvexes.Emplace(new Chaos::FConvex(ConvexVertices, 0.0f));
 		}
 	};
 

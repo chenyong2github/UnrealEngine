@@ -543,17 +543,17 @@ namespace ChaosTest {
 		Particle->R() = TRotation<T, 3>::MakeFromEuler(TVector<T, 3>(0.f, 0.f, 0.f)).GetNormalized();
 		Particle->W() = TVector<T, 3>(0.f, 0.f, 0.f);
 
-		Chaos::TParticles<T, 3> Cube;
-		Cube.AddParticles(9);
-		Cube.X(0) = TVector<float, 3>(-1000, -1000, -20);
-		Cube.X(1) = TVector<float, 3>(-1000, -1000, 0);
-		Cube.X(2) = TVector<float, 3>(-1000, 1000, -20);
-		Cube.X(3) = TVector<float, 3>(-1000, 1000, 0);
-		Cube.X(4) = TVector<float, 3>(1000, -1000, -20);
-		Cube.X(5) = TVector<float, 3>(1000, -1000, 0);
-		Cube.X(6) = TVector<float, 3>(1000, 1000, -20);
-		Cube.X(7) = TVector<float, 3>(1000, 1000, 0);
-		Cube.X(8) = TVector<float, 3>(0, 0, 0);
+		TArray<Chaos::FVec3> Cube;
+		Cube.SetNum(9);
+		Cube[0] = Chaos::FVec3(-1000, -1000, -20);
+		Cube[1] = Chaos::FVec3(-1000, -1000, 0);
+		Cube[2] = Chaos::FVec3(-1000, 1000, -20);
+		Cube[3] = Chaos::FVec3(-1000, 1000, 0);
+		Cube[4] = Chaos::FVec3(1000, -1000, -20);
+		Cube[5] = Chaos::FVec3(1000, -1000, 0);
+		Cube[6] = Chaos::FVec3(1000, 1000, -20);
+		Cube[7] = Chaos::FVec3(1000, 1000, 0);
+		Cube[8] = Chaos::FVec3(0, 0, 0);
 
 		Particle->SetDynamicGeometry(MakeUnique<FConvex>(Cube, 0.0f));
 
@@ -594,17 +594,17 @@ namespace ChaosTest {
 	template<class T>
 	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVector<T, 3>& Scale, FReal Margin)
 	{
-		Chaos::TParticles<T, 3> Cube;
-		Cube.AddParticles(9);
-		Cube.X(0) = TVector<float, 3>(-1, -1, -1)*Scale;
-		Cube.X(1) = TVector<float, 3>(-1, -1, 1)*Scale;
-		Cube.X(2) = TVector<float, 3>(-1, 1, -1)*Scale;
-		Cube.X(3) = TVector<float, 3>(-1, 1, 1)*Scale;
-		Cube.X(4) = TVector<float, 3>(1, -1, -1)*Scale;
-		Cube.X(5) = TVector<float, 3>(1, -1, 1)*Scale;
-		Cube.X(6) = TVector<float, 3>(1, 1, -1)*Scale;
-		Cube.X(7) = TVector<float, 3>(1, 1, 1)*Scale;
-		Cube.X(8) = TVector<float, 3>(0, 0, 0);
+		TArray<FVec3> Cube;
+		Cube.SetNum(9);
+		Cube[0] = Chaos::FVec3(-1, -1, -1)*Scale;
+		Cube[1] = Chaos::FVec3(-1, -1, 1)*Scale;
+		Cube[2] = Chaos::FVec3(-1, 1, -1)*Scale;
+		Cube[3] = Chaos::FVec3(-1, 1, 1)*Scale;
+		Cube[4] = Chaos::FVec3(1, -1, -1)*Scale;
+		Cube[5] = Chaos::FVec3(1, -1, 1)*Scale;
+		Cube[6] = Chaos::FVec3(1, 1, -1)*Scale;
+		Cube[7] = Chaos::FVec3(1, 1, 1)*Scale;
+		Cube[8] = Chaos::FVec3(0, 0, 0);
 
 		InParticles.X() = TVector<T, 3>(0.f, 0.f, 0.f);
 		InParticles.V() = TVector<T, 3>(0.f, 0.f, 0.f);
@@ -614,8 +614,8 @@ namespace ChaosTest {
 		InParticles.Q() = InParticles.R();
 
 		// TODO: Change this error prone API to set bounds more automatically. This is easy to forget
-		InParticles.SetLocalBounds(TAABB<T, 3>(Cube.X(0), Cube.X(7)));
-		InParticles.SetWorldSpaceInflatedBounds(TAABB<T, 3>(Cube.X(0), Cube.X(7)));
+		InParticles.SetLocalBounds(TAABB<T, 3>(Cube[0], Cube[7]));
+		InParticles.SetWorldSpaceInflatedBounds(TAABB<T, 3>(Cube[0], Cube[7]));
 		InParticles.SetHasBounds(true);
 
 		InParticles.M() = 1.f;
@@ -771,9 +771,8 @@ namespace ChaosTest {
 			FVec3(HalfSize.X,  HalfSize.Y,  HalfSize.Z),
 			FVec3(HalfSize.X, -HalfSize.Y,  HalfSize.Z),
 		};
-		TParticles<FReal, 3> BoxParticles(MoveTemp(BoxVerts));
-
-		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(BoxParticles, 0.0f);
+		
+		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(BoxVerts, 0.0f);
 
 		return TImplicitObjectScaled<FImplicitConvex3>(BoxConvex, BoxScale, Margin);
 	}
