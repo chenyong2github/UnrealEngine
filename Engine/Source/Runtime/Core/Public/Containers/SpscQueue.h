@@ -35,8 +35,8 @@ public:
 		do
 		{
 			FNode* Next = Node->Next.load(std::memory_order_relaxed);
-			delete Node;
 			bContinue = Node != LocalTail;
+			delete Node;
 			Node = Next;
 		} while (bContinue);
 
