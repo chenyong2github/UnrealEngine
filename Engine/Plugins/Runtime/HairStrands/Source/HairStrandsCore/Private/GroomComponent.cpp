@@ -2325,6 +2325,14 @@ void UGroomComponent::OnAttachmentChanged()
 	}
 }
 
+// Override the DetachFromComponent so that we do not mark the actor as modified/dirty when attaching to a specific bone
+void UGroomComponent::DetachFromComponent(const FDetachmentTransformRules& In)
+{
+	FDetachmentTransformRules DetachmentRules = In;
+	DetachmentRules.bCallModify = false;
+	Super::DetachFromComponent(DetachmentRules);
+}
+
 void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);	
