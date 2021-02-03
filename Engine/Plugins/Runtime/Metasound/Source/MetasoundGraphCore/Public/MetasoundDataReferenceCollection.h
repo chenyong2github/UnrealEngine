@@ -225,7 +225,7 @@ namespace Metasound
 			 *
 			 * @return A readable data reference.
 			 */
-			template<typename DataType, typename DefaultDataType, typename... ConstructorArgTypes>
+			template<typename DataType, typename DefaultDataType = DataType, typename... ConstructorArgTypes>
 			TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FInputVertexInterface& InputVertices, const FString& InName, ConstructorArgTypes&&... ConstructorArgs) const
 			{
 				using FDataRefType = TDataReadReference<DataType>;

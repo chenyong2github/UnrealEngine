@@ -276,30 +276,18 @@ namespace Metasound
 	{
 		const FADSRNode& ADSRNode = static_cast<const FADSRNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
+		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
 		// TODO: Could no-op this if the trigger is not connected.
 		FTriggerReadRef TriggerAttack = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Trigger Attack"), InParams.OperatorSettings);
 		FTriggerReadRef TriggerRelease = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Trigger Release"), InParams.OperatorSettings);
 
-		auto GetOrConstructFloat = [&](const FInputVertexInterface& InputVertices, const FString& InputName)
-		{
-			float DefaultValue = InputVertices[InputName].GetDefaultValue().Value.Get<float>();
-			return InputCollection.GetDataReadReferenceOrConstruct<float>(InputName, DefaultValue);
-		};
-
-		auto GetOrConstructTime = [&](const FInputVertexInterface& InputVertices, const FString& InputName, ETimeResolution Resolution = ETimeResolution::Seconds)
-		{
-			float DefaultValue = InputVertices[InputName].GetDefaultValue().Value.Get<float>();
-			return InputCollection.GetDataReadReferenceOrConstruct<FFloatTime>(InputName, DefaultValue, Resolution);
-		};
-
 		// TODO: If none of these are connected, could pre-generate ADSR envelope and return a different operator.
-		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 		FADSRReferences ADSRReferences =
 		{
 			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Attack")),
 			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Decay")),
-			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float, float>(InputInterface, TEXT("Sustain Level")),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, TEXT("Sustain Level")),
 			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Release")),
 		};
 

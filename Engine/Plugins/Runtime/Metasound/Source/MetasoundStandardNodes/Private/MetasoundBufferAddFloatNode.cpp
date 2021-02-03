@@ -20,7 +20,7 @@ namespace Metasound
 		public:
 			static const FNodeClassMetadata& GetNodeInfo();
 
-			static FVertexInterface DeclareVertexInterface();
+			static const FVertexInterface& GetVertexInterface();
 
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
@@ -77,7 +77,7 @@ namespace Metasound
 	{
 	}
 
-	FVertexInterface FBufferAddFloatOperator::DeclareVertexInterface()
+	const FVertexInterface& FBufferAddFloatOperator::GetVertexInterface()
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
@@ -96,9 +96,10 @@ namespace Metasound
 	{
 		const FBufferAddFloatNode& BufferAddFloatNode = static_cast<const FBufferAddFloatNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
+		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
 		FAudioBufferReadRef InputBuffer = InputCol.GetDataReadReferenceOrConstruct<FAudioBuffer>(TEXT("Buffer"), FAudioBuffer(InParams.OperatorSettings.GetNumFramesPerBlock()));
-		FFloatReadRef InputGain = InputCol.GetDataReadReferenceOrConstruct<float>(TEXT("Addend"), 0.0f);
+		FFloatReadRef InputGain = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, TEXT("Addend"));
 
 		return MakeUnique<FBufferAddFloatOperator>(InParams.OperatorSettings, InputBuffer, InputGain);
 	}
@@ -123,7 +124,7 @@ namespace Metasound
 			Info.CategoryHierarchy = { LOCTEXT("Metasound_MathCategory", "Math") };
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
-			Info.DefaultInterface = DeclareVertexInterface();
+			Info.DefaultInterface = GetVertexInterface();
 
 			return Info;
 		};
