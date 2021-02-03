@@ -131,7 +131,10 @@ struct FStructSerializerObjectTestStruct
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TObjectPtr<UClass> Class;
+	UClass* RawClass;
+
+	UPROPERTY()
+	TObjectPtr<UClass> WrappedClass;
 
 	UPROPERTY()
 	TSubclassOf<class UMetaData> SubClass;
@@ -140,7 +143,10 @@ struct FStructSerializerObjectTestStruct
 	TSoftClassPtr<class UMetaData> SoftClass;
 
 	UPROPERTY()
-	TObjectPtr<class UObject> Object;
+	class UObject* RawObject;
+
+	UPROPERTY()
+	TObjectPtr<class UObject> WrappedObject;
 
 	UPROPERTY()
 	TWeakObjectPtr<class UMetaData> WeakObject;
@@ -156,10 +162,12 @@ struct FStructSerializerObjectTestStruct
 
 	/** Default constructor. */
 	FStructSerializerObjectTestStruct()
-		: Class(nullptr)
+		: RawClass(nullptr)
+		, WrappedClass(nullptr)
 		, SubClass(nullptr)
 		, SoftClass(nullptr)
-		, Object(nullptr)
+		, RawObject(nullptr)
+		, WrappedObject(nullptr)
 		, WeakObject(nullptr)
 		, SoftObject(nullptr)
 		, ClassPath((UClass*)nullptr)

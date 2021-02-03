@@ -278,13 +278,13 @@ void FCEFJSStructSerializerBackend::WriteProperty(const FStructSerializerState& 
 	}
 
 	// classes & objects
-	else if (State.FieldType == FClassProperty::StaticClass())
+	else if (FClassProperty* ClassProperty = CastField<FClassProperty>(State.ValueProperty))
 	{
-		Add(State, CastFieldChecked<FClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex)->GetPathName());
+		Add(State, ClassProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex)->GetPathName());
 	}
-	else if (State.FieldType == FObjectProperty::StaticClass())
+	else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(State.ValueProperty))
 	{
-		Add(State, CastFieldChecked<FObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		Add(State, ObjectProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// unsupported property type

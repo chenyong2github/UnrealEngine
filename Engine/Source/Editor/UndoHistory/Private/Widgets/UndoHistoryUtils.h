@@ -39,7 +39,7 @@ public:
 				continue;
 			}
 
-			if (Property->GetClass() == FObjectProperty::StaticClass() || Property->GetClass() == FStructProperty::StaticClass() || Property->GetClass() == FEnumProperty::StaticClass())
+			if (CastField<const FObjectProperty>(*Property) || Property->GetClass() == FStructProperty::StaticClass() || Property->GetClass() == FEnumProperty::StaticClass())
 			{
 				Property->GetCPPMacroType(ClassName);
 			}

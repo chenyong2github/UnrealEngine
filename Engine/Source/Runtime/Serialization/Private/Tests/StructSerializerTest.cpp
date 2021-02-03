@@ -86,10 +86,12 @@ namespace StructSerializerTest
 
 	void ValidateObjects(FAutomationTestBase& Test, const FStructSerializerObjectTestStruct& Struct1, const FStructSerializerObjectTestStruct& Struct2)
 	{
-		Test.TestEqual<class UClass*>(TEXT("Objects.Class must be the same before and after de-/serialization"), Struct1.Class, Struct2.Class);
+		Test.TestEqual<class UClass*>(TEXT("Objects.RawClass must be the same before and after de-/serialization"), Struct1.RawClass, Struct2.RawClass);
+		Test.TestEqual<class UClass*>(TEXT("Objects.WrappedClass must be the same before and after de-/serialization"), Struct1.WrappedClass, Struct2.WrappedClass);
 		Test.TestEqual<TSubclassOf<class UMetaData>>(TEXT("Objects.SubClass must be the same before and after de-/serialization"), Struct1.SubClass, Struct2.SubClass);
 		Test.TestEqual<TSoftClassPtr<class UMetaData>>(TEXT("Objects.SoftClass must be the same before and after de-/serialization"), Struct1.SoftClass, Struct2.SoftClass);
-		Test.TestEqual<UObject*>(TEXT("Objects.Object must be the same before and after de-/serialization"), Struct1.Object, Struct2.Object);
+		Test.TestEqual<UObject*>(TEXT("Objects.RawObject must be the same before and after de-/serialization"), Struct1.RawObject, Struct2.RawObject);
+		Test.TestEqual<UObject*>(TEXT("Objects.WrappedObject must be the same before and after de-/serialization"), Struct1.WrappedObject, Struct2.WrappedObject);
 		Test.TestEqual<TWeakObjectPtr<class UMetaData>>(TEXT("Objects.WeakObject must be the same before and after de-/serialization"), Struct1.WeakObject, Struct2.WeakObject);
 		Test.TestEqual<TSoftObjectPtr<class UMetaData>>(TEXT("Objects.SoftObject must be the same before and after de-/serialization"), Struct1.SoftObject, Struct2.SoftObject);
 		Test.TestEqual<FSoftClassPath>(TEXT("Objects.ClassPath must be the same before and after de-/serialization"), Struct1.ClassPath, Struct2.ClassPath);
@@ -147,10 +149,12 @@ namespace StructSerializerTest
 		UClass* MetaDataClass = LoadClass<UMetaData>(nullptr, TEXT("/Script/CoreUObject.MetaData"));
 		UMetaData* MetaDataObject = NewObject<UMetaData>();
 		// setup object tests
-		OriginalStruct.Objects.Class = MetaDataClass;
+		OriginalStruct.Objects.RawClass = MetaDataClass;
+		OriginalStruct.Objects.WrappedClass = MetaDataClass;
 		OriginalStruct.Objects.SubClass = MetaDataClass;
 		OriginalStruct.Objects.SoftClass = MetaDataClass;
-		OriginalStruct.Objects.Object = MetaDataObject;
+		OriginalStruct.Objects.RawObject = MetaDataObject;
+		OriginalStruct.Objects.WrappedObject = MetaDataObject;
 		OriginalStruct.Objects.WeakObject = MetaDataObject;
 		OriginalStruct.Objects.SoftObject = MetaDataObject;
 		OriginalStruct.Objects.ClassPath = MetaDataClass;
@@ -508,10 +512,12 @@ namespace StructSerializerTest
 		UClass* MetaDataClass = LoadClass<UMetaData>(nullptr, TEXT("/Script/CoreUObject.MetaData"));
 		UMetaData* MetaDataObject = NewObject<UMetaData>();
 		// setup object tests
-		TestStruct.Objects.Class = MetaDataClass;
+		TestStruct.Objects.RawClass = MetaDataClass;
+		TestStruct.Objects.WrappedClass = MetaDataClass;
 		TestStruct.Objects.SubClass = MetaDataClass;
 		TestStruct.Objects.SoftClass = MetaDataClass;
-		TestStruct.Objects.Object = MetaDataObject;
+		TestStruct.Objects.RawObject = MetaDataObject;
+		TestStruct.Objects.WrappedObject = MetaDataObject;
 		TestStruct.Objects.WeakObject = MetaDataObject;
 		TestStruct.Objects.SoftObject = MetaDataObject;
 		TestStruct.Objects.ClassPath = MetaDataClass;

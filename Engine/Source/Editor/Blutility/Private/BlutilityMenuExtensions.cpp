@@ -198,10 +198,8 @@ void FBlutilityMenuExtensions::CreateActorBlutilityActionsMenu(FMenuBuilder& Men
 		LOCTEXT("ScriptedActorActionsTooltip", "Scripted actions available for the selected actors"),
 		[](const FProperty* Property) -> bool
 		{
-			const FFieldClass* ClassOfProperty = Property->GetClass();
-			if (ClassOfProperty == FObjectProperty::StaticClass())
+			if (const FObjectProperty* ObjectProperty = CastField<const FObjectProperty>(Property))
 			{
-				const FObjectProperty* ObjectProperty = CastField<const FObjectProperty>(Property);
 				return ObjectProperty->PropertyClass == AActor::StaticClass();
 			}
 

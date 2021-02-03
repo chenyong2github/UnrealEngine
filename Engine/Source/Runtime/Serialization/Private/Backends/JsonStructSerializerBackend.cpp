@@ -232,20 +232,10 @@ void FJsonStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	}
 
 	// classes & objects
-	else if (State.FieldType == FClassProperty::StaticClass())
-	{
-		UObject* const& Value = CastFieldChecked<FClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
-		WritePropertyValue(JsonWriter, State, Value ? Value->GetPathName() : FString());
-	}
 	else if (State.FieldType == FSoftClassProperty::StaticClass())
 	{
 		FSoftObjectPtr const& Value = CastFieldChecked<FSoftClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
 		WritePropertyValue(JsonWriter, State, Value.IsValid() ? Value->GetPathName() : FString());
-	}
-	else if (State.FieldType == FObjectProperty::StaticClass())
-	{
-		UObject* const& Value = CastFieldChecked<FObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
-		WritePropertyValue(JsonWriter, State, Value ? Value->GetPathName() : FString());
 	}
 	else if (State.FieldType == FWeakObjectProperty::StaticClass())
 	{
@@ -256,6 +246,14 @@ void FJsonStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	{
 		FSoftObjectPtr const& Value = CastFieldChecked<FSoftObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
 		WritePropertyValue(JsonWriter, State, Value.ToString());
+	}
+	else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(State.ValueProperty))
+	{
+		// @TODO: Could this be expanded to include everything derived from FObjectPropertyBase?
+		// Generic handling for a property type derived from FObjectProperty that is obtainable as a pointer and will be stored using its path.
+		// This must come after all the more specialized handlers for object property types.
+		UObject* const Value = ObjectProperty->GetObjectPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		WritePropertyValue(JsonWriter, State, Value ? Value->GetPathName() : FString());
 	}
 
 	// unsupported property type
