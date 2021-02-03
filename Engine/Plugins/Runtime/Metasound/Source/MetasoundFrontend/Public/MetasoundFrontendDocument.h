@@ -10,14 +10,17 @@
 
 #include "MetasoundFrontendDocument.generated.h"
 
-namespace Metasound
-{
-	extern const FGuid METASOUNDFRONTEND_API FrontendInvalidID;
-}
 
-// Forward declare
+// Forward Declarations
 struct FMetasoundFrontendClass;
 struct FMetasoundFrontendClassInterface;
+namespace Metasound
+{
+	struct FLiteral;
+
+	extern const FGuid METASOUNDFRONTEND_API FrontendInvalidID;
+} // namespace Metasound
+
 
 UENUM()
 enum class EMetasoundFrontendClassType : uint8
@@ -115,10 +118,15 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendLiteral
 	void Set(const FString& InValue);
 	void Set(UObject* InValue);
 	void Set(const TArray<UObject*>& InValue);
+
+	void SetFromLiteral(const Metasound::FLiteral& InLiteral);
+
+	FString ToString() const;
+
 	void Clear();
 };
 
-// A FMetasoundFrontendVertex provides an named connection point of a node.
+// An FMetasoundFrontendVertex provides a named connection point of a node.
 USTRUCT() 
 struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 {
@@ -126,7 +134,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 
 	virtual ~FMetasoundFrontendVertex() = default;
 
-	// Name of the vertex. Unique amongst other vertexes on the same interface.
+	// Name of the vertex. Unique amongst other vertices on the same interface.
 	UPROPERTY(VisibleAnywhere, Category = CustomView)
 	FString Name;
 
@@ -138,7 +146,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 	UPROPERTY()	
 	TArray<FGuid> PointIDs;
 
-	// Returns true if vertexes have equal name, type and number of IDs. 
+	// Returns true if vertices have equal name, type and number of IDs.
 	static bool IsFunctionalEquivalent(const FMetasoundFrontendVertex& InLHS, const FMetasoundFrontendVertex& InRHS);
 };
 

@@ -10,6 +10,8 @@
 #include "Misc/TVariant.h"
 #include <type_traits>
 
+#define METASOUND_DEBUG_LITERALS 1
+
 namespace Metasound
 {
 	enum class ELiteralType : uint8
@@ -142,9 +144,55 @@ namespace Metasound
 		FLiteral(FLiteral&& Other) = default;
 		FLiteral& operator=(FLiteral&& Other) = default;
 
-		typedef TVariant<FInvalidLiteralState, FEmptyLiteralState, bool, int, float, FString, Audio::IProxyDataPtr, TArray<Audio::IProxyDataPtr>> FVariantType;
+		using FVariantType = TVariant<FInvalidLiteralState, FEmptyLiteralState, bool, int, float, FString, Audio::IProxyDataPtr, TArray<Audio::IProxyDataPtr>>;
 
 		FVariantType Value;
+
+#if METASOUND_DEBUG_LITERALS
+		private:
+		FString DebugString;
+
+		void InitDebugString()
+		{
+			switch (Value.GetIndex())
+			{
+				case 0:
+					DebugString = TEXT("INVALID");
+				break;
+
+				case 1:
+					DebugString = TEXT("EMPTY");
+				break;
+
+				case 2:
+					DebugString = FString::Printf(TEXT("Bool: %s"), Value.Get<bool>() ? TEXT("true") : TEXT("false"));
+				break;
+
+				case 3:
+					DebugString = FString::Printf(TEXT("Int32: %d"), Value.Get<int32>());
+				break;
+
+				case 4:
+					DebugString = FString::Printf(TEXT("Float: %f"), Value.Get<float>());
+				break;
+
+				case 5:
+					DebugString = FString::Printf(TEXT("String: %s"), *Value.Get<FString>());
+				break;
+
+				case 6:
+					DebugString = FString::Printf(TEXT("Object: %f"), *Value.Get<Audio::IProxyDataPtr>()->GetProxyTypeName().ToString());
+				break;
+
+				case 7:
+				default:
+					checkNoEntry();
+			}
+		}
+
+		public:
+#endif // METAOUND_DEBUG_LITERALS
+
 
 		// builds an invalid FLiteral.
 		static FLiteral CreateInvalid()
@@ -191,6 +239,42 @@ namespace Metasound
 			}
 		}
 
+		FLiteral Clone() const
+		{
+			switch (GetType())
+			{
+			case ELiteralType::Invalid:
+				return CreateInvalid();
+
+			case ELiteralType::None:
+				return FLiteral(FEmptyLiteralState());
+
+			case ELiteralType::Boolean:
+				return FLiteral(Value.Get<bool>());
+
+			case ELiteralType::Float:
+				return FLiteral(Value.Get<float>());
+
+			case ELiteralType::Integer:
+				return FLiteral(Value.Get<int32>());
+
+			case ELiteralType::String:
+				return FLiteral(Value.Get<FString>());
+
+			case ELiteralType::UObjectProxy:
+			{
+				TUniquePtr<Audio::IProxyDataPtr> THing;
+				return FLiteral(Value.Get<Audio::IProxyDataPtr>()->Clone());
+			}
+
+			case ELiteralType::UObjectProxyArray:
+				return CreateInvalid();
+
+			default:
+				checkNoEntry();
+				return CreateInvalid();
+			}
+		}
 
 		/** Construct a literal param with a single argument. */
 		template<
@@ -200,6 +284,9 @@ namespace Metasound
 		FLiteral(ArgTypes&&... Args)
 		{
 			Value.Set<typename std::decay<ArgTypes...>::type>(Forward<ArgTypes>(Args)...);
+#if METASOUND_DEBUG_LITERALS
+			InitDebugString();
+#endif
 		}
 
 		/** Construct a literal param with no arguments. */
@@ -210,8 +297,10 @@ namespace Metasound
 		FLiteral(ArgTypes&&... Args)
 		{
 			Value.Set<FEmptyLiteralState>(FEmptyLiteralState());
+#if METASOUND_DEBUG_LITERALS
+			InitDebugString();
+#endif
 		}
-
 	};
 
 	// This struct is passed to FInputNodeConstructorCallback and FOutputNodeConstructorCallback.

@@ -10,11 +10,13 @@
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendGraph.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundJsonBackend.h"
 #include "MetasoundOperatorBuilder.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
 #include "Serialization/MemoryReader.h"
+
 
 namespace Metasound
 {
@@ -915,6 +917,17 @@ namespace Metasound
 			}
 			
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		const TArray<FMetasoundFrontendVertexLiteral>& FNodeInputController::GetDefaults() const
+		{
+			if (OwningGraphClassInputPtr.IsValid())
+			{
+				return OwningGraphClassInputPtr->Defaults;
+			}
+
+			static const TArray<FMetasoundFrontendVertexLiteral> InvalidDefaults;
+			return InvalidDefaults;
 		}
 
 		const FText& FNodeInputController::GetTooltip() const
@@ -2297,37 +2310,104 @@ namespace Metasound
 			return nullptr;
 		}
 
-
-		// These can be used to set the default value for a given input on this graph.
-		// @returns false if the input name couldn't be found, or if the literal type was incompatible with the Data Type of this input.
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, bool bInValue)
+		bool FGraphController::SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral)
 		{
-			return SetDefaultInputToLiteralInternal(InInputName, InPointID, bInValue);
+			switch (InLiteral.Type)
+			{
+				case EMetasoundFrontendLiteralType::Bool:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsBool);
+				}
+				break;
+
+				case EMetasoundFrontendLiteralType::Float:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsFloat);
+				}
+				break;
+
+				case EMetasoundFrontendLiteralType::Integer:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsInteger);
+				}
+				break;
+
+				case EMetasoundFrontendLiteralType::String:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsString);
+				}
+				break;
+
+				case EMetasoundFrontendLiteralType::UObject:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsUObject);
+				}
+				break;
+
+				// TODO: Remove as array support will not be specialized to object type
+				case EMetasoundFrontendLiteralType::UObjectArray:
+				{
+					return false;
+				}
+				break;
+
+				case EMetasoundFrontendLiteralType::Invalid:
+				case EMetasoundFrontendLiteralType::None:
+				default:
+				{
+					static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing ELiteralType case coverage");
+					return false;
+				}
+				break;
+			}
 		}
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, int32 InValue)
+		bool FGraphController::SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName)
 		{
-			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
-		}
+			Metasound::FLiteral LiteralParam = Frontend::GetDefaultParamForDataType(InDataTypeName);
+			switch (LiteralParam.GetType())
+			{
+				case ELiteralType::Boolean:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, LiteralParam.Value.Get<bool>());
+				}
+				break;
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, float InValue)
-		{
-			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
-		}
+				case ELiteralType::Float:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, LiteralParam.Value.Get<float>());
+				}
+				break;
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const FString& InValue)
-		{
-			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
-		}
+				case ELiteralType::Integer:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, LiteralParam.Value.Get<int32>());
+				}
+				break;
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, UObject* InValue)
-		{
-			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
-		}
+				case ELiteralType::String:
+				{
+					return SetDefaultInputToLiteralInternal(InInputName, InPointID, LiteralParam.Value.Get<FString>());
+				}
+				break;
 
-		bool FGraphController::SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const TArray<UObject*>& InValue)
-		{
-			return SetDefaultInputToLiteralInternal(InInputName, InPointID, InValue);
+				// TODO: Remove.
+				case ELiteralType::UObjectProxyArray:
+				{
+					return false;
+				}
+				break;
+
+				case ELiteralType::UObjectProxy:	// UObject literals do not currently support default data type references
+				case ELiteralType::Invalid:
+				case ELiteralType::None:
+				default:
+				{
+					static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing ELiteralType case coverage");
+					return false;
+				}
+				break;
+			}
 		}
 
 		// Set the display name for the input with the given name
@@ -3328,7 +3408,6 @@ namespace Metasound
 
 			return false;
 		}
-
 
 		FString FDocumentController::ExportToJSON() const
 		{

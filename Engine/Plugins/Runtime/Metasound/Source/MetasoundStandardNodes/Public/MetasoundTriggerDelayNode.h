@@ -19,12 +19,8 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FTriggerDelayNode : public FNodeFacade
 	{
 		public:
-			FTriggerDelayNode(const FString& InName, const FGuid& InInstanceID, float InDefaultDelayInSeconds);
 			FTriggerDelayNode(const FNodeInitData& InInitData);
 
-			float GetDefaultDelayInSeconds() const;
-
-		private:
-			float DefaultDelay = 1.0f;
+			virtual ~FTriggerDelayNode() = default;
 	};
 }

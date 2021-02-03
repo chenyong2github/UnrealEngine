@@ -8,6 +8,7 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendBaseClasses.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundGraph.h"
 
 /* Metasound Controllers and Handles provide a object oriented interface for  manipulating Metasound Documents. 
@@ -241,6 +242,9 @@ namespace Metasound
 
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetDisplayName() const = 0;
+
+			/** Returns the default value of the given input. */
+			virtual const TArray<FMetasoundFrontendVertexLiteral>& GetDefaults() const = 0;
 
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetTooltip() const = 0;
@@ -532,60 +536,17 @@ namespace Metasound
 			virtual TArray<FGuid> GetDefaultIDsForInputVertex(const FString& InInputName) const = 0;
 			virtual TArray<FGuid> GetDefaultIDsForOutputVertex(const FString& InOutputName) const = 0;
 
-			/** Set the default value for the graph input.
-			 *
-			 * @param InInputName - Name of the graph input.
-			 * @param InValue - Value to give to the graph input. 
-			 *
-			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
-			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, bool InValue) = 0;
+			virtual bool SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral) = 0;
 
 			/** Set the default value for the graph input.
 			 *
 			 * @param InInputName - Name of the graph input.
-			 * @param InValue - Value to give to the graph input. 
+			 * @param InPointID - Point to set to DataType default.
+			 * @param InDataTypeName - Name of datatype to set to default.
 			 *
 			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
 			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, int32 InValue) = 0;
-
-			/** Set the default value for the graph input.
-			 *
-			 * @param InInputName - Name of the graph input.
-			 * @param InValue - Value to give to the graph input. 
-			 *
-			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
-			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, float InValue) = 0;
-
-			/** Set the default value for the graph input.
-			 *
-			 * @param InInputName - Name of the graph input.
-			 * @param InValue - Value to give to the graph input. 
-			 *
-			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
-			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const FString& InValue) = 0;
-
-			/** Set the default value for the graph input.
-			 *
-			 * @param InInputName - Name of the graph input.
-			 * @param InValue - Value to give to the graph input. 
-			 *
-			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
-			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, UObject* InValue) = 0;
-
-			/** Set the default value for the graph input.
-			 *
-			 * @param InInputName - Name of the graph input.
-			 * @param InValue - Value to give to the graph input. 
-			 *
-			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
-			 */
-			virtual bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const TArray<UObject*>& InValue) = 0;
-
+			virtual bool SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName) = 0;
 
 			/** Set the display name for the input with the given name. */
 			virtual void SetInputDisplayName(FString InName, const FText& InDisplayName) = 0;

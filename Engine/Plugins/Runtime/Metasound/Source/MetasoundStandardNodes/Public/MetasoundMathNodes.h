@@ -142,8 +142,8 @@ namespace Metasound
 				const TMathOpNode& MathOpNode = static_cast<const TMathOpNode&>(InParams.Node);
 
 				// TODO: Support dynamic number of inputs
-				TDataClassReadRef Op1 = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TDataClass>(TEXT("Operand1"), TMathOpClass::GetDefault(InParams.OperatorSettings));
-				TDataClassReadRef Op2 = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TDataClass>(TEXT("Operand2"), TMathOpClass::GetDefault(InParams.OperatorSettings));
+				TDataClassReadRef Op1 = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TDataClass>(TEXT("Operand1"), TMathOpClass::GetDefault(&InParams.OperatorSettings));
+				TDataClassReadRef Op2 = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TDataClass>(TEXT("Operand2"), TMathOpClass::GetDefault(&InParams.OperatorSettings));
 
 				TArray<TDataClassReadRef> OperandRefs = { Op1, Op2 };
 
@@ -152,7 +152,7 @@ namespace Metasound
 
 			TMathOperator(const FOperatorSettings& InSettings, const TArray<TDataClassReadRef>& InOperands)
 			:	OperandRefs(InOperands)
-			,	ValueRef(TDataClassWriteRef::CreateNew(TMathOpClass::GetDefault(InSettings)))
+			,	ValueRef(TDataClassWriteRef::CreateNew(TMathOpClass::GetDefault(&InSettings)))
 			{
 			}
 
@@ -188,7 +188,7 @@ namespace Metasound
 		using TDataClassReadRef = TDataReadReference<TDataClass>;
 		using TDataClassWriteRef = TDataWriteReference<TDataClass>;
 
-		static TDataClass GetDefault(const FOperatorSettings& InSettings)
+		static TDataClass GetDefault(const FOperatorSettings* InSettings)
 		{
 			return 0;
 		}
@@ -215,7 +215,7 @@ namespace Metasound
 		using TDataClassReadRef = TDataReadReference<TDataClass>;
 		using TDataClassWriteRef = TDataWriteReference<TDataClass>;
 
-		static TDataClass GetDefault(const FOperatorSettings& InSettings)
+		static TDataClass GetDefault(const FOperatorSettings* InSettings)
 		{
 			return 0;
 		}
@@ -242,7 +242,7 @@ namespace Metasound
 		using TDataClassReadRef = TDataReadReference<TDataClass>;
 		using TDataClassWriteRef = TDataWriteReference<TDataClass>;
 
-		static TDataClass GetDefault(const FOperatorSettings& InSettings)
+		static TDataClass GetDefault(const FOperatorSettings* InSettings)
 		{
 			return 1;
 		}
@@ -269,7 +269,7 @@ namespace Metasound
 		using TDataClassReadRef = TDataReadReference<TDataClass>;
 		using TDataClassWriteRef = TDataWriteReference<TDataClass>;
 
-		static TDataClass GetDefault(const FOperatorSettings& InSettings)
+		static TDataClass GetDefault(const FOperatorSettings* InSettings)
 		{
 			return 1;
 		}
@@ -301,9 +301,9 @@ namespace Metasound
 	class TMathOpAdd<FAudioBuffer>
 	{
 	public:
-		static FAudioBuffer GetDefault(const FOperatorSettings& InSettings)
+		static FAudioBuffer GetDefault(const FOperatorSettings* InSettings)
 		{
-			return FAudioBuffer(InSettings.GetNumFramesPerBlock());
+			return FAudioBuffer(InSettings ? InSettings->GetNumFramesPerBlock() : 0);
 		}
 
 		static void Calculate(const TArray<FAudioBufferReadRef>& InOperands, FAudioBufferWriteRef& OutResult)
@@ -358,9 +358,9 @@ namespace Metasound
 	class TMathOpSubtract<FAudioBuffer>
 	{
 	public:
-		static FAudioBuffer GetDefault(const FOperatorSettings& InSettings)
+		static FAudioBuffer GetDefault(const FOperatorSettings* InSettings)
 		{
-			return FAudioBuffer(InSettings.GetNumFramesPerBlock());
+			return FAudioBuffer(InSettings ? InSettings->GetNumFramesPerBlock() : 0);
 		}
 
 		static void Calculate(TArray<FAudioBufferReadRef>& InOperands, FAudioBufferWriteRef& OutResult)
@@ -413,9 +413,9 @@ namespace Metasound
 	class TMathOpMultiply<FAudioBuffer>
 	{
 	public:
-		static FAudioBuffer GetDefault(const FOperatorSettings& InSettings)
+		static FAudioBuffer GetDefault(const FOperatorSettings* InSettings)
 		{
-			return FAudioBuffer(InSettings.GetNumFramesPerBlock());
+			return FAudioBuffer(InSettings ? InSettings->GetNumFramesPerBlock() : 0);
 		}
 
 		static void Calculate(const TArray<FAudioBufferReadRef>& InOperands, FAudioBufferWriteRef& OutResult)
@@ -468,7 +468,7 @@ namespace Metasound
 	class TMathOpMultiply<FFloatTime>
 	{
 	public:
-		static FFloatTime GetDefault(const FOperatorSettings& InSettings)
+		static FFloatTime GetDefault(const FOperatorSettings* InSettings)
 		{
 			return FFloatTime(1.0f);
 		}
@@ -492,7 +492,7 @@ namespace Metasound
 	class TMathOpDivide<FFloatTime>
 	{
 	public:
-		static FFloatTime GetDefault(const FOperatorSettings& InSettings)
+		static FFloatTime GetDefault(const FOperatorSettings* InSettings)
 		{
 			return FFloatTime(1.0f);
 		}
@@ -526,7 +526,7 @@ namespace Metasound
 		using TDataClassReadRef = TDataReadReference<TDataClass>;
 		using TDataClassWriteRef = TDataWriteReference<TDataClass>;
 
-		static TDataClass GetDefault(const FOperatorSettings& InSettings)
+		static TDataClass GetDefault(const FOperatorSettings* InSettings)
 		{
 			return 0;
 		}
@@ -550,7 +550,7 @@ namespace Metasound
 	class TMathOpRandRange<FFloatTime>
 	{
 	public:
-		static FFloatTime GetDefault(const FOperatorSettings& InSettings)
+		static FFloatTime GetDefault(const FOperatorSettings* InSettings)
 		{
 			return FFloatTime(0.0f);
 		}
@@ -575,7 +575,7 @@ namespace Metasound
 	class TMathOpRandRange<FFrequency>
 	{
 	public:
-		static FFrequency GetDefault(const FOperatorSettings& InSettings)
+		static FFrequency GetDefault(const FOperatorSettings* InSettings)
 		{
 			return FFrequency(0.0f);
 		}

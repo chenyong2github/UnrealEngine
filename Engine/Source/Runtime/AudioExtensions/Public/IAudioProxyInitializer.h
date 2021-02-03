@@ -18,7 +18,7 @@
 #define  IMPL_AUDIOPROXY_CLASS(FClassName) \
 	static FName GetAudioProxyTypeName() \
 	{ \
-		static FName MyClassName = TEXT( #FClassName ); \
+		static FName MyClassName = #FClassName; \
 		return MyClassName; \
 	} \
 	static constexpr bool bWasAudioProxyClassImplemented = true; \
@@ -26,10 +26,14 @@
 	friend class ::Audio::TProxyData<FClassName>;
 
 
-
 namespace Audio
 {
+	// Forward Declarations
+	class IProxyData;
+
 	constexpr bool bShouldCheckAudioProxyTypes = CHECK_AUDIOPROXY_TYPES;
+
+	using IProxyDataPtr = TUniquePtr<IProxyData>;
 
 	/*
 	 * Base class that allows us to typecheck proxy data before downcasting it in debug builds.
@@ -53,6 +57,11 @@ namespace Audio
 			{
 				return true;
 			}
+		}
+
+		FName GetProxyTypeName() const
+		{
+			return ProxyTypeName;
 		}
 
 		template<typename ProxyType>
@@ -90,6 +99,8 @@ namespace Audio
 		IProxyData(FName InProxyTypeName)
 			: ProxyTypeName(InProxyTypeName)
 		{}
+
+		virtual IProxyDataPtr Clone() const = 0;
 	};
 
 	/**
@@ -115,10 +126,6 @@ namespace Audio
 	{
 		FName NameOfFeatureRequestingProxy;
 	};
-
-	typedef TUniquePtr<IProxyData> IProxyDataPtr;
-
-	
 }
 
 /*

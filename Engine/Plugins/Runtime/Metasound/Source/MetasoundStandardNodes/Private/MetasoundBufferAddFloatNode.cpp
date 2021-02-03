@@ -82,7 +82,7 @@ namespace Metasound
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
 				TInputDataVertexModel<FAudioBuffer>(TEXT("Buffer"), LOCTEXT("InputBufferTooltip", "Input buffer.")),
-				TInputDataVertexModel<float>(TEXT("Addend"), LOCTEXT("InputAddendTooltip", "Input addend."))
+				TInputDataVertexModel<float>(TEXT("Addend"), LOCTEXT("InputAddendTooltip", "Input addend."), 0.0f)
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), LOCTEXT("OutpuBufferTooltip", "Add float value to buffer."))

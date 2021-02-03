@@ -19,10 +19,9 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FPeriodicTriggerNode : public FNodeFacade
 	{
 		public:
-			FPeriodicTriggerNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultPeriodInSeconds);
 			FPeriodicTriggerNode(const FNodeInitData& InInitData);
 
-			float GetDefaultPeriodInSeconds() const;
+			virtual ~FPeriodicTriggerNode() = default;
 
 		private:
 			float DefaultPeriod = 1.0f;

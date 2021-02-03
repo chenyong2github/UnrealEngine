@@ -22,6 +22,8 @@ namespace Metasound
 
 	class FTriggerDelayOperator : public TExecutableOperator<FTriggerDelayOperator>
 	{
+		static constexpr float DefaultDelay = 1.0f; // In Seconds
+
 		public:
 			static const FNodeClassMetadata& GetNodeInfo();
 			static FVertexInterface DeclareVertexInterface();
@@ -33,10 +35,10 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override;
 
 			void Execute();
-			void Reset();
 
 		private:
-			int32 SamplesUntilTrigger;
+			int32 SamplesUntilTrigger = -1;
+			int32 LastFrameReset = -1;
 
 			FTriggerReadRef TriggerIn;
 			FTriggerReadRef TriggerReset;
@@ -50,6 +52,7 @@ namespace Metasound
 
 	FTriggerDelayOperator::FTriggerDelayOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FFloatTimeReadRef& InDelay)
 	:	SamplesUntilTrigger(-1)
+	,	LastFrameReset(-1)
 	,	TriggerIn(InTriggerIn)
 	,	TriggerReset(InTriggerReset)
 	,	TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
@@ -81,7 +84,36 @@ namespace Metasound
 		// Advance internal counter to get rid of old triggers.
 		TriggerOut->AdvanceBlock();
 
-		if (SamplesUntilTrigger > 0)
+		LastFrameReset = -1;
+		TriggerReset->ExecuteBlock(
+			[&](int32 StartFrame, int32 EndFrame)
+			{
+			},
+			[this](int32 StartFrame, int32 EndFrame)
+			{
+				LastFrameReset = StartFrame;
+			}
+		);
+
+		TriggerIn->ExecuteBlock(
+			[&](int32 StartFrame, int32 EndFrame)
+			{
+			},
+			[this](int32 StartFrame, int32 EndFrame)
+			{
+				if (StartFrame > LastFrameReset)
+				{
+					SamplesUntilTrigger = Delay->GetNumSamples(SampleRate);
+					LastFrameReset = -1;
+				}
+				else
+				{
+					SamplesUntilTrigger = -1;
+				}
+			}
+		);
+
+		if (SamplesUntilTrigger >= 0)
 		{
 			int32 SamplesRemaining = SamplesUntilTrigger - FramesPerBlock;
 			if (SamplesRemaining > 0.0f)
@@ -91,37 +123,16 @@ namespace Metasound
 			else
 			{
 				TriggerOut->TriggerFrame(SamplesRemaining + (int32)FramesPerBlock);
-				Reset();
+				SamplesUntilTrigger = -1;
 			}
 		}
-
-		TriggerIn->ExecuteBlock(
-			[](int32 StartFrame, int32 EndFrame)
-			{
-			},
-			[this](int32 StartFrame, int32 EndFrame)
-			{
-				SamplesUntilTrigger = Delay->GetNumSamples(SampleRate);
-			}
-		);
-
-		TriggerReset->ExecuteBlock(
-			[](int32 StartFrame, int32 EndFrame)
-			{
-			},
-			[this](int32 StartFrame, int32 EndFrame)
-			{
-				Reset();
-			}
-		);
 	}
-
 
 	TUniquePtr<IOperator> FTriggerDelayOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
 		const FTriggerDelayNode& DelayNode = static_cast<const FTriggerDelayNode&>(InParams.Node);
 
-		FFloatTimeReadRef Delay = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FFloatTime>(TEXT("Delay"), DelayNode.GetDefaultDelayInSeconds());
+		FFloatTimeReadRef Delay = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FFloatTime>(TEXT("Delay"), DefaultDelay);
 		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("In"), InParams.OperatorSettings);
 		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Reset"), InParams.OperatorSettings);
 
@@ -132,7 +143,7 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FFloatTime>(TEXT("Delay"), LOCTEXT("TriggerDelayTooltip", "Time to delay and execute deferred trigger in seconds.")),
+				TInputDataVertexModel<FFloatTime>(TEXT("Delay"), LOCTEXT("TriggerDelayTooltip", "Time to delay and execute deferred trigger in seconds."), 1.0f),
 				TInputDataVertexModel<FTrigger>(TEXT("In"), LOCTEXT("TriggerDelayInTooltip", "Triggers delay.")),
 				TInputDataVertexModel<FTrigger>(TEXT("Reset"), LOCTEXT("TriggerDelayResetInTooltip", "Resets the trigger delay, clearing the execution task if pending."))
 			),
@@ -165,25 +176,9 @@ namespace Metasound
 		return Info;
 	}
 
-	void FTriggerDelayOperator::Reset()
-	{
-		SamplesUntilTrigger = -1;
-	}
-
-	FTriggerDelayNode::FTriggerDelayNode(const FString& InName, const FGuid& InInstanceID, float InDefaultDelayInSeconds)
-	:	FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FTriggerDelayOperator>())
-	,	DefaultDelay(InDefaultDelayInSeconds)
-	{
-	}
-
 	FTriggerDelayNode::FTriggerDelayNode(const FNodeInitData& InInitData)
-		: FTriggerDelayNode(InInitData.InstanceName, InInitData.InstanceID, 0.0f)
+	:	FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<FTriggerDelayOperator>())
 	{
-	}
-
-	float FTriggerDelayNode::GetDefaultDelayInSeconds() const
-	{
-		return DefaultDelay;
 	}
 }
 

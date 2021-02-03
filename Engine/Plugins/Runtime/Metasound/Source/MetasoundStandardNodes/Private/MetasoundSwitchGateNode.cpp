@@ -178,11 +178,11 @@ namespace Metasound
 			CachedInterface = FVertexInterface();
 			
 			CachedInterface.GetInputInterface().Add(TInputDataVertexModel<int32>(SWITCH_SELECTOR_NAME, LOCTEXT("SwitchSelectorDescription", "The index of the audio buffer to use (0 based).")));
-			CachedInterface.GetInputInterface().Add(TInputDataVertexModel<bool>(SWITCH_CROSSFADE_NAME, LOCTEXT("SwitchCrossfadeDescription", "Whether changing the buffer while running causes a short crossfade to prevent pops. This should almost always be true.")));
+			CachedInterface.GetInputInterface().Add(TInputDataVertexModel<bool>(SWITCH_CROSSFADE_NAME, LOCTEXT("SwitchCrossfadeDescription", "Whether changing the buffer while running causes a short crossfade to prevent pops. This should almost always be true."), true));
 			for (int32 i=0; i < PREVIEW_INPUT_COUNT; i++)
-			{				
+			{
 				CachedInterface.GetInputInterface().Add(TInputDataVertexModel<FAudioBuffer>(*FString::Printf(SWITCH_INPUT_NAME_FMT, i), LOCTEXT("SwitchInputDescription", "An input buffer to choose from.")));
-			}			
+			}
 
 			CachedInterface.GetOutputInterface().Add(TOutputDataVertexModel<FAudioBuffer>(SWITCH_OUTPUT_NAME, LOCTEXT("SwitchOutputDescription", "The output audio buffer.")));
 			
@@ -197,7 +197,7 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("Switch"), Metasound::StandardNodes::AudioVariant};
+			Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("Switch"), Metasound::StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("Metasound_SwitchNodeDisplayName", "Switch");

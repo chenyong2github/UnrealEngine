@@ -23,6 +23,8 @@ namespace Metasound
 
 	class FPeriodicTriggerOperator : public TExecutableOperator<FPeriodicTriggerOperator>
 	{
+		static constexpr float DefaultPeriod = 1.0f;
+
 		public:
 			static const FNodeClassMetadata& GetNodeInfo();
 			static FVertexInterface DeclareVertexInterface();
@@ -124,13 +126,7 @@ namespace Metasound
 	{
 		const FPeriodicTriggerNode& PeriodicTriggerNode = static_cast<const FPeriodicTriggerNode&>(InParams.Node);
 
-		FFloatTimeReadRef Period = FFloatTimeReadRef::CreateNew(PeriodicTriggerNode.GetDefaultPeriodInSeconds(), ETimeResolution::Seconds);
-
-		if (InParams.InputDataReferences.ContainsDataReadReference<FFloatTime>(TEXT("Period")))
-		{
-			Period = InParams.InputDataReferences.GetDataReadReference<FFloatTime>(TEXT("Period"));
-		}
-
+		FFloatTimeReadRef Period = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FFloatTime>(TEXT("Period"), DefaultPeriod, ETimeResolution::Seconds);
 		FTriggerReadRef TriggerEnable = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Activate"), InParams.OperatorSettings);
 		FTriggerReadRef TriggerDisable = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Deactivate"), InParams.OperatorSettings);
 
@@ -141,7 +137,7 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FFloatTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period to trigger in seconds.")),
+				TInputDataVertexModel<FFloatTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period to trigger in seconds."), DefaultPeriod),
 				TInputDataVertexModel<FTrigger>(TEXT("Activate"), LOCTEXT("TriggerEnableTooltip", "Enables executing periodic output triggers.")),
 				TInputDataVertexModel<FTrigger>(TEXT("Deactivate"), LOCTEXT("TriggerDisableTooltip", "Disables executing periodic output triggers."))
 			),
@@ -175,20 +171,9 @@ namespace Metasound
 		return Info;
 	}
 
-
-	FPeriodicTriggerNode::FPeriodicTriggerNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultPeriodInSeconds)
-	:	FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FPeriodicTriggerOperator>())
-	,	DefaultPeriod(InDefaultPeriodInSeconds)
-	{
-	}
-
 	FPeriodicTriggerNode::FPeriodicTriggerNode(const FNodeInitData& InInitData)
-		: FPeriodicTriggerNode(InInitData.InstanceName, InInitData.InstanceID, 1.0f)
-	{}
-
-	float FPeriodicTriggerNode::GetDefaultPeriodInSeconds() const
+	:	FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<FPeriodicTriggerOperator>())
 	{
-		return DefaultPeriod;
 	}
 }
 

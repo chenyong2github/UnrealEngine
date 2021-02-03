@@ -64,7 +64,7 @@ namespace Metasound
 
 		static constexpr const TCHAR* EnabledPinName = TEXT("Enabled");
 		static constexpr const TCHAR* FrequencyPinName = TEXT("Frequency");
-		static constexpr const TCHAR* AudioOutPinName = TEXT("Audio");		
+		static constexpr const TCHAR* AudioOutPinName = TEXT("Audio");
 	};
 
 	FOscOperator::FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency, const FBoolReadRef& InEnabled)
@@ -123,8 +123,8 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FFrequency>(FrequencyPinName, LOCTEXT("OscFrequencyDescription", "The frequency of oscillator.")),
-				TInputDataVertexModel<bool>(EnabledPinName, LOCTEXT("OscActivateDescription", "Enable the oscilator."))
+				TInputDataVertexModel<FFrequency>(FrequencyPinName, LOCTEXT("OscFrequencyDescription", "The frequency of oscillator."), 440.f),
+				TInputDataVertexModel<bool>(EnabledPinName, LOCTEXT("OscActivateDescription", "Enable the oscilator."), true)
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"))

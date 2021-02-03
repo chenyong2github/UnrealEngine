@@ -9,6 +9,8 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendInvalidController.h"
 #include "MetasoundLog.h"
+#include "UObject/Object.h"
+
 
 namespace Metasound
 {
@@ -178,6 +180,12 @@ namespace Metasound
 			const FName& GetDataType() const override;
 			const FString& GetName() const override;
 
+			const TArray<FMetasoundFrontendVertexLiteral>& GetDefaults() const override
+			{
+				static const TArray<FMetasoundFrontendVertexLiteral> InvalidDefaults;
+				return InvalidDefaults;
+			}
+
 			// Owning node info
 			FGuid GetOwningNodeID() const override;
 			FNodeHandle GetOwningNode() override;
@@ -231,6 +239,8 @@ namespace Metasound
 			FNodeInputController(const FInitParams& InParams);
 
 			bool IsValid() const override;
+
+			const TArray<FMetasoundFrontendVertexLiteral>& GetDefaults() const;
 
 			// Input metadata
 			const FText& GetDisplayName() const override;
@@ -618,6 +628,33 @@ namespace Metasound
 				return false;
 			}
 
+			template<>
+			bool SetDefaultInputToLiteralInternal<UObject*>(const FString& InInputName, FGuid InPointID, UObject* InValue)
+			{
+				if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
+				{
+					auto IsLiteralWithSamePointID = [&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
+					{
+						return InVertexLiteral.PointID == InPointID;
+					};
+
+					FMetasoundFrontendVertexLiteral* VertexLiteral = Desc->Defaults.FindByPredicate(IsLiteralWithSamePointID);
+					if (nullptr == VertexLiteral)
+					{
+						VertexLiteral = &Desc->Defaults.AddDefaulted_GetRef();
+						VertexLiteral->PointID = InPointID;
+					}
+
+					if (ensure(FMetasoundFrontendRegistryContainer::Get()->DoesDataTypeSupportLiteralType(Desc->TypeName, Metasound::ELiteralType::UObjectProxy)))
+					{
+						VertexLiteral->Value.Set(InValue);
+						return true;
+					}
+				}
+
+				return false;
+			}
+
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };
 
@@ -699,12 +736,8 @@ namespace Metasound
 
 			// These can be used to set the default value for a given input on this graph.
 			// @returns false if the input name couldn't be found, or if the literal type was incompatible with the Data Type of this input.
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, bool bInValue) override;
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, int32 InValue) override;
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, float InValue) override;
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const FString& InValue) override;
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, UObject* InValue) override;
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const TArray<UObject*>& InValue) override;
+			bool SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral) override;
+			bool SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName) override;
 
 			// Set the display name for the input with the given name
 			void SetInputDisplayName(FString InName, const FText& InDisplayName) override;

@@ -16,8 +16,6 @@
 
 namespace Metasound
 {
-	METASOUND_REGISTER_NODE(FADSRNode)
-
 	class FADSROperator : public TExecutableOperator<FADSROperator>
 	{
 		public:
@@ -30,7 +28,7 @@ namespace Metasound
 			};
 
 			static const FNodeClassMetadata& GetNodeInfo();
-			static FVertexInterface DeclareVertexInterface();
+			static const FVertexInterface& GetVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
 			FADSROperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerAttack, const FTriggerReadRef& InTriggerRelease, const FADSRReferences& InADSRData);
@@ -44,7 +42,6 @@ namespace Metasound
 			void GenerateEnvelope(int32 InStartFrame, int32 InEndFrame);
 			void Start();
 
-			// TODO: write envelope gen for metasound more suited to this processing structure. 
 			Audio::FEnvelope Envelope;
 
 			FTriggerReadRef TriggerAttack;
@@ -231,16 +228,16 @@ namespace Metasound
 		}
 	}
 
-	FVertexInterface FADSROperator::DeclareVertexInterface()
+	const FVertexInterface& FADSROperator::GetVertexInterface()
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FFloatTime>(TEXT("Attack"), LOCTEXT("AttackDurationTooltip", "Attack duration.")),
-				TInputDataVertexModel<FFloatTime>(TEXT("Decay"), LOCTEXT("DecayDurationTooltip", "Decay duration.")),
-				TInputDataVertexModel<FFloatTime>(TEXT("Release"), LOCTEXT("ReleaseDurationTooltip", "Release duration.")),
-				TInputDataVertexModel<float>(TEXT("Sustain Level"), LOCTEXT("SustainLevelTooltip", "Sustain level [0.0f, 1.0f].")),
-				TInputDataVertexModel<FTrigger>(TEXT("Trigger Attack"), LOCTEXT("TriggerTooltip", "Trigger the envelope's attack.")),
-				TInputDataVertexModel<FTrigger>(TEXT("Trigger Release"), LOCTEXT("TriggerTooltip", "Trigger the envelope's release."))
+				TInputDataVertexModel<FFloatTime>(TEXT("Attack"), LOCTEXT("AttackDurationTooltip", "Attack duration."), 0.01f),
+				TInputDataVertexModel<FFloatTime>(TEXT("Decay"), LOCTEXT("DecayDurationTooltip", "Decay duration."), 0.02f),
+				TInputDataVertexModel<FFloatTime>(TEXT("Release"), LOCTEXT("ReleaseDurationTooltip", "Release duration."), 1.0f),
+				TInputDataVertexModel<float>(TEXT("Sustain Level"), LOCTEXT("SustainLevelTooltip", "Sustain level [0.0f, 1.0f]."), 0.7f),
+				TInputDataVertexModel<FTrigger>(TEXT("Trigger Attack"), LOCTEXT("TriggerAttackTooltip", "Trigger the envelope's attack.")),
+				TInputDataVertexModel<FTrigger>(TEXT("Trigger Release"), LOCTEXT("TriggerReleaseTooltip", "Trigger the envelope's release."))
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("Envelope"), LOCTEXT("EnvelopeTooltip", "The output envelope")),
@@ -265,7 +262,7 @@ namespace Metasound
 			Info.Description = LOCTEXT("Metasound_ADSRNodeDescription", "Emits an ADSR (Attack, decay, sustain, & release) envelope when triggered.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
-			Info.DefaultInterface = DeclareVertexInterface();
+			Info.DefaultInterface = GetVertexInterface();
 
 			return Info;
 		};
@@ -284,55 +281,37 @@ namespace Metasound
 		FTriggerReadRef TriggerAttack = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Trigger Attack"), InParams.OperatorSettings);
 		FTriggerReadRef TriggerRelease = InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Trigger Release"), InParams.OperatorSettings);
 
-		// TODO: If none of these are connected, could pre-generate ADSR envelope and return a different operator. 
-		FADSRReferences ADSRReferences = 
+		auto GetOrConstructFloat = [&](const FInputVertexInterface& InputVertices, const FString& InputName)
 		{
-			InputCollection.GetDataReadReferenceOrConstruct<FFloatTime>(TEXT("Attack"), ADSRNode.GetDefaultAttackMs(), ETimeResolution::Milliseconds),
-			InputCollection.GetDataReadReferenceOrConstruct<FFloatTime>(TEXT("Decay"), ADSRNode.GetDefaultDecayMs(), ETimeResolution::Milliseconds),
-			InputCollection.GetDataReadReferenceOrConstruct<float>(TEXT("Sustain Level"), ADSRNode.GetDefaultSustainLevel()),
-			InputCollection.GetDataReadReferenceOrConstruct<FFloatTime>(TEXT("Release"), ADSRNode.GetDefaultReleaseMs(), ETimeResolution::Milliseconds),
+			float DefaultValue = InputVertices[InputName].GetDefaultValue().Value.Get<float>();
+			return InputCollection.GetDataReadReferenceOrConstruct<float>(InputName, DefaultValue);
 		};
-	
+
+		auto GetOrConstructTime = [&](const FInputVertexInterface& InputVertices, const FString& InputName, ETimeResolution Resolution = ETimeResolution::Seconds)
+		{
+			float DefaultValue = InputVertices[InputName].GetDefaultValue().Value.Get<float>();
+			return InputCollection.GetDataReadReferenceOrConstruct<FFloatTime>(InputName, DefaultValue, Resolution);
+		};
+
+		// TODO: If none of these are connected, could pre-generate ADSR envelope and return a different operator.
+		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
+		FADSRReferences ADSRReferences =
+		{
+			GetOrConstructTime(InputInterface, TEXT("Attack")),
+			GetOrConstructTime(InputInterface, TEXT("Decay")),
+			GetOrConstructFloat(InputInterface, TEXT("Sustain Level")),
+			GetOrConstructTime(InputInterface, TEXT("Release"))
+		};
+
 		return MakeUnique<FADSROperator>(InParams.OperatorSettings, TriggerAttack, TriggerRelease, ADSRReferences);
 	}
 
-	FADSRNode::FADSRNode(const FString& InName, const FGuid& InInstanceID, float InDefaultAttackMs, float InDefaultDecayMs, float InDefaultSustainLevel, float InDefaultReleaseMs)
-	:	FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FADSROperator>())
-	,	DefaultSustainLevel(InDefaultSustainLevel)
-	,	DefaultAttackMs(InDefaultAttackMs)
-	,	DefaultDecayMs(InDefaultDecayMs)
-	,	DefaultReleaseMs(InDefaultReleaseMs)
-	{
-	}
-
 	FADSRNode::FADSRNode(const FNodeInitData& InitData)
-		: FADSRNode(InitData.InstanceName, InitData.InstanceID, 10.0f, 20.0f, 0.7f, 20.0f)
+		: FNodeFacade(InitData.InstanceName, InitData.InstanceID, TFacadeOperatorClass<FADSROperator>())
 	{
 	}
 
-	FADSRNode::~FADSRNode()
-	{
-	}
-
-	float FADSRNode::GetDefaultSustainLevel() const
-	{
-		return DefaultSustainLevel;
-	}
-
-	float FADSRNode::GetDefaultAttackMs() const
-	{
-		return DefaultAttackMs;
-	}
-
-	float FADSRNode::GetDefaultDecayMs() const
-	{
-		return DefaultDecayMs;
-	}
-
-	float FADSRNode::GetDefaultReleaseMs() const
-	{
-		return DefaultReleaseMs;
-	}
+	METASOUND_REGISTER_NODE(FADSRNode)
 }
 
 #undef LOCTEXT_NAMESPACE

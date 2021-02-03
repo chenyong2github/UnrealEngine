@@ -87,11 +87,15 @@ namespace Metasound
 			bool IsValid() const override { return false; }
 			FGuid GetID() const override { return Metasound::FrontendInvalidID; }
 			bool IsConnected() const override { return false; }
-			const FName& GetDataType() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FName>(); }  
+			const FName& GetDataType() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FName>(); }
 			const FString& GetName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
 			const FText& GetDisplayName() const override { return FText::GetEmpty(); }
 			const FText& GetTooltip() const override { return FText::GetEmpty(); }
-
+			const TArray<FMetasoundFrontendVertexLiteral>& GetDefaults() const override
+			{
+				static const TArray<FMetasoundFrontendVertexLiteral> InvalidDefaults;
+				return InvalidDefaults;
+			}
 			FGuid GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
 			TSharedRef<INodeController> GetOwningNode() override;
 			TSharedRef<const INodeController> GetOwningNode() const override;
@@ -242,13 +246,8 @@ namespace Metasound
 
 			// These can be used to set the default value for a given input on this graph.
 			// @returns false if the input name couldn't be found, or if the literal type was incompatible with the Data Type of this input.
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, bool bInValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, int32 InValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, float InValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const FString& InValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, UObject* InValue) override { return false; }
-			bool SetDefaultInputToLiteral(const FString& InInputName, FGuid InPointID, const TArray<UObject*>& InValue) override { return false; }
-
+			bool SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral) override { return false; }
+			bool SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName) override { return false; }
 
 			// Set the display name for the input with the given name
 			void SetInputDisplayName(FString InName, const FText& InDisplayName) override {}

@@ -18,10 +18,5 @@ namespace Metasound
 		public:
 			FTriggerPipeNode(const FString& InName, const FGuid& InInstanceID, float InDefaultDelayInSeconds);
 			FTriggerPipeNode(const FNodeInitData& InInitData);
-
-			float GetDefaultDelayInSeconds() const;
-
-		private:
-			float DefaultDelay;
 	};
 }

@@ -6,6 +6,7 @@
 #include "Containers/SortedMap.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundEnvironment.h"
+#include "MetasoundLiteral.h"
 
 #include <type_traits>
 
@@ -40,7 +41,7 @@ namespace Metasound
 	 */
 	struct FDataVertexModel
 	{
-		/** FDataVertexModel Construtor
+		/** FDataVertexModel Constructor
 		 *
 		 * @InVertexName - Name of vertex.
 		 * @InDataTypeName - Name of data type.
@@ -84,13 +85,23 @@ namespace Metasound
 	 *
 	 * Vertex model for inputs.
 	 */
-	struct FInputDataVertexModel: FDataVertexModel
+	struct FInputDataVertexModel : public FDataVertexModel
 	{
-		// Inherit constructor
-		using FDataVertexModel::FDataVertexModel;
+		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription)
+			: FDataVertexModel(InVertexName, InDataTypeName, InDescription)
+		{
+		}
+
+		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription, const FLiteral& InDefaultValue)
+			: FDataVertexModel(InVertexName, InDataTypeName, InDescription)
+			, DefaultValue(InDefaultValue.Clone())
+		{
+		}
 
 		/** Create a clone of this FInputDataVertexModel */
 		virtual TUniquePtr<FInputDataVertexModel> Clone() const = 0;
+
+		FLiteral DefaultValue;
 
 		friend bool METASOUNDGRAPHCORE_API operator==(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS);
 		friend bool METASOUNDGRAPHCORE_API operator!=(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS);
@@ -108,7 +119,7 @@ namespace Metasound
 	 *
 	 * Vertex model for outputs.
 	 */
-	struct FOutputDataVertexModel : FDataVertexModel
+	struct FOutputDataVertexModel : public FDataVertexModel
 	{
 		using FDataVertexModel::FDataVertexModel;
 
@@ -130,15 +141,26 @@ namespace Metasound
 
 	/** TBaseVertexModel provides basic functionality of vertex models. */
 	template<typename DataType, typename VertexModelType>
-	struct TBaseVertexModel : VertexModelType
+	struct TBaseVertexModel : public VertexModelType
 	{
-		/** TBaseVertexModel Construtor
+		/** TBaseVertexModel Constructor
 		 *
 		 * @InVertexName - Name of vertex.
 		 * @InDescription - Human readable vertex description.
 		 */
 		TBaseVertexModel(const FString& InVertexName, const FText& InDescription)
 		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), InDescription)
+		{
+		}
+
+		/** TBaseVertexModel Constructor
+		 *
+		 * @InVertexName - Name of vertex.
+		 * @InDescription - Human readable vertex description.
+		 * @InDefaultValue - Default value of vertex.
+		 */
+		TBaseVertexModel(const FString& InVertexName, const FText& InDescription, const FLiteral& InDefaultValue)
+		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), InDescription, InDefaultValue)
 		{
 		}
 
@@ -173,9 +195,30 @@ namespace Metasound
 
 	/** TOuputDataVertexModel creates a simple, unchanging, input vertex. */
 	template<typename DataType>
-	struct TInputDataVertexModel : TBaseVertexModel<DataType, FInputDataVertexModel>
+	struct TInputDataVertexModel : public TBaseVertexModel<DataType, FInputDataVertexModel>
 	{
 		using TBaseVertexModel<DataType, FInputDataVertexModel>::TBaseVertexModel;
+
+		/** TInputDataVertexModel Constructor
+		 *
+		 * @InVertexName - Name of vertex.
+		 * @InDescription - Human readable vertex description.
+		 */
+		TInputDataVertexModel(const FString& InVertexName, const FText& InDescription)
+		:	TBaseVertexModel<DataType, FInputDataVertexModel>(InVertexName, InDescription)
+		{
+		}
+
+		/** TInputDataVertexModel Constructor
+		 *
+		 * @InVertexName - Name of vertex.
+		 * @InDescription - Human readable vertex description.
+		 * @InDefaultValue - Default Value of vertex
+		 */
+		TInputDataVertexModel(const FString& InVertexName, const FText& InDescription, const FLiteral& InDefaultValue)
+		:	TBaseVertexModel<DataType, FInputDataVertexModel>(InVertexName, InDescription, InDefaultValue)
+		{
+		}
 
 		/** Return the vertex type name (not to be confused with the data type name).
 		 *
@@ -192,7 +235,7 @@ namespace Metasound
 		/** Create a clone of this VertexModelType */
 		virtual TUniquePtr<FInputDataVertexModel> Clone() const override
 		{
-			return MakeUnique<TInputDataVertexModel<DataType>>(this->VertexName, this->Description);
+			return MakeUnique<TInputDataVertexModel<DataType>>(this->VertexName, this->Description, this->DefaultValue);
 		}
 	};
 
@@ -239,6 +282,9 @@ namespace Metasound
 
 			/** Description of the vertex. */
 			const FText& GetDescription() const;
+
+			/** Default value of the vertex. */
+			const FLiteral& GetDefaultValue() const;
 
 			/** Determine if vertex refers to same data type. 
 			 *
@@ -689,7 +735,7 @@ namespace Metasound
 			/** Return an output vertex. */
 			const FOutputDataVertex& GetOutputVertex(const FVertexKey& InKey) const;
 
-			/** Returns true if an outptu vertex with the given key exists. */
+			/** Returns true if an output vertex with the given key exists. */
 			bool ContainsOutputVertex(const FVertexKey& InKey) const;
 
 			/** Return the output interface. */
@@ -701,7 +747,7 @@ namespace Metasound
 			/** Return an output vertex. */
 			const FEnvironmentVertex& GetEnvironmentVertex(const FVertexKey& InKey) const;
 
-			/** Returns true if an outptu vertex with the given key exists. */
+			/** Returns true if an output vertex with the given key exists. */
 			bool ContainsEnvironmentVertex(const FVertexKey& InKey) const;
 
 			/** Test for equality between two interfaces. */

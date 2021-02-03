@@ -3031,7 +3031,6 @@ FSoundWaveProxy::FSoundWaveProxy(const FSoundWaveProxy& Other)
 	, CurrentChunkRevision(Other.CurrentChunkRevision)
 #endif // #if WITH_EDITOR
 {
-//	UE_LOG(LogAudio, Display, TEXT("MAXDEBUG: FSoundWaveProxy(const FSoundWaveProxy& Other)"));
 }
 
 void FSoundWaveProxy::ReleaseCompressedAudio()

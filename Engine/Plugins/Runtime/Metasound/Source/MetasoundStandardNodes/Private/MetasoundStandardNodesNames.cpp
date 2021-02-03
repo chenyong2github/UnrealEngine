@@ -7,7 +7,7 @@ namespace Metasound
 {
 	namespace StandardNodes
 	{
-		const FName Namespace = FName(TEXT("UE"));
-		const FName AudioVariant = FName(TEXT("Audio"));
+		const FName Namespace = "UE";
+		const FName AudioVariant = "Audio";
 	}
 }

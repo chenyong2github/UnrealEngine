@@ -95,19 +95,19 @@ namespace Metasound
 			FInputVertexInterface(
 				// 1
 				TInputDataVertexModel<FAudioBuffer>(GetInputAudioPinName(0), LOCTEXT("MixerInputDescription1", "Audio Input 1 of the Mixer")),		// Can't have dynamic pins yet, so just hard code 4.
-				TInputDataVertexModel<FGain>(GetInputGainPinName(0), LOCTEXT("MixerGainDescription1", "")),
+				TInputDataVertexModel<FGain>(GetInputGainPinName(0), LOCTEXT("MixerGainDescription1", ""), 1.0f),
 
 				// 2
-				TInputDataVertexModel<FAudioBuffer>(GetInputAudioPinName(1), LOCTEXT("MixerInputDescription2", "Audio Input 2 of the Mixer")),	
-				TInputDataVertexModel<FGain>(GetInputGainPinName(1), LOCTEXT("MixerGainDescription2", "")),
+				TInputDataVertexModel<FAudioBuffer>(GetInputAudioPinName(1), LOCTEXT("MixerInputDescription2", "Audio Input 2 of the Mixer")),
+				TInputDataVertexModel<FGain>(GetInputGainPinName(1), LOCTEXT("MixerGainDescription2", ""), 1.0f),
 
 				// 3
-				TInputDataVertexModel<FAudioBuffer>(GetInputAudioPinName(2), LOCTEXT("MixerInputDescription3", "Audio Input 3 of the Mixer")),	
-				TInputDataVertexModel<FGain>(GetInputGainPinName(2), LOCTEXT("MixerGainDescription3", "")),
+				TInputDataVertexModel<FAudioBuffer>(GetInputAudioPinName(2), LOCTEXT("MixerInputDescription3", "Audio Input 3 of the Mixer")),
+				TInputDataVertexModel<FGain>(GetInputGainPinName(2), LOCTEXT("MixerGainDescription3", ""), 1.0f),
 
 				// 4
 				TInputDataVertexModel<FAudioBuffer>(GetInputAudioPinName(3), LOCTEXT("MixerInputDescription3", "Audio Input 4 of the Mixer")),	
-				TInputDataVertexModel<FGain>(GetInputGainPinName(3), LOCTEXT("MixerGainDescription4", ""))
+				TInputDataVertexModel<FGain>(GetInputGainPinName(3), LOCTEXT("MixerGainDescription4", ""), 1.0f)
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(AudioOutPinName, LOCTEXT("AudioOutTooltip", "Audio Ouput from the mixer"))

@@ -249,7 +249,7 @@ UClass* FMetasoundFrontendRegistryContainer::GetLiteralUClassForDataType(FName I
 {
 	if (!DataTypeRegistry.Contains(InDataType))
 	{
-		ensureAlwaysMsgf(false, TEXT("couldn't find DataType %s in the registry."), *InDataType.ToString());
+		ensureAlwaysMsgf(false, TEXT("DataType %s not registered."), *InDataType.ToString());
 		return nullptr;
 	}
 	else
@@ -262,7 +262,7 @@ bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName I
 {
 	if (!DataTypeRegistry.Contains(InDataType))
 	{
-		ensureAlwaysMsgf(false, TEXT("couldn't find DataType %s in the registry."), *InDataType.ToString());
+		ensureAlwaysMsgf(false, TEXT("DataType %s not registered."), *InDataType.ToString());
 		return false;
 	}
 

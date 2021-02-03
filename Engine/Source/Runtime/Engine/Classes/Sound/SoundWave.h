@@ -291,6 +291,11 @@ public:
 	explicit FSoundWaveProxy(USoundWave* InWave);
 	FSoundWaveProxy(const FSoundWaveProxy& Other);
 
+	Audio::IProxyDataPtr Clone() const override
+	{
+		return MakeUnique<FSoundWaveProxy>(*this);
+	}
+
 	// UObject Interface cached data getters
 	const FName& GetFName() const { return NameCached; }
 	const FString& GetFullName() const { return FullNameCached; }
