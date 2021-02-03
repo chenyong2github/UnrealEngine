@@ -772,7 +772,7 @@ void AActor::EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotL
 	}
 }
 
-void AActor::EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors)
+void AActor::EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const
 {
 	TInlineComponentArray<UChildActorComponent*> ChildActorComponents;
 	GetComponents(ChildActorComponents);

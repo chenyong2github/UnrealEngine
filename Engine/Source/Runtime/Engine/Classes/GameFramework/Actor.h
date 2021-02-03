@@ -2051,7 +2051,7 @@ public:
 	virtual void EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotLocation);	
 
 	/** Get underlying actors */
-	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors);
+	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const;
 
 	/** Returns true if the actor is hidden upon editor startup/by default, false if it is not */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")

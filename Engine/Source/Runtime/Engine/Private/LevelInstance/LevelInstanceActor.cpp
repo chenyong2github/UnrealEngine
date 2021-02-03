@@ -488,7 +488,7 @@ void ALevelInstance::SetIsTemporarilyHiddenInEditor(bool bIsHidden)
 	}
 }
 
-void ALevelInstance::EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors)
+void ALevelInstance::EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const
 {
 	Super::EditorGetUnderlyingActors(OutUnderlyingActors);
 
