@@ -34,7 +34,7 @@ public:
 #endif// WITH_EDITORONLY_DATA
 
 private:
-	friend class FFoliageInstanceBaseCache;
+	friend struct FFoliageInstanceBaseCache;
 	
 	TMap<UFoliageType*, TUniqueObj<FFoliageInfo>> FoliageInfos;
 
