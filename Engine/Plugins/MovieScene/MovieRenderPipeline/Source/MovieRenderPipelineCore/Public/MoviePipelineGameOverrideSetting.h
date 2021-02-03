@@ -116,4 +116,5 @@ private:
 	int32 PreviousFoliageDitheredLOD;
 	int32 PreviousFoliageForceLOD;
 	int32 PreviousNeverMuteNonRealtimeAudio;
+	int32 PreviousSkyLightRealTimeReflectionCaptureTimeSlice;
 };

@@ -99,6 +99,9 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 	}
 
 	MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousNeverMuteNonRealtimeAudio, TEXT("au.NeverMuteNonRealtimeAudioDevices"), 1, bOverrideValues);
+
+	// To make sure that the skylight is always valid and consistent accross capture sessions, we enforce a full capture each frame, accepting a small GPU cost.
+	MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousSkyLightRealTimeReflectionCaptureTimeSlice, TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"), 0, bOverrideValues);
 }
 
 void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const
@@ -160,6 +163,8 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& 
 	{
 		CVarCommandLineArgs += FString::Printf(TEXT("a.URO.Enable=%d,"), 0);
 	}
+
+	CVarCommandLineArgs += FString::Printf(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice=%d,"), 0);
 
 	// Apply the cvar very early on (device profile) time instead of after the map has loaded if possible
 	InOutCommandLineArgs += FString::Printf(TEXT(" -dpcvars=%s -execcmds=%s"), *CVarCommandLineArgs, *CVarExecArgs);
