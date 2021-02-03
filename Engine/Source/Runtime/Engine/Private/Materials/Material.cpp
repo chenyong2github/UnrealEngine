@@ -3673,7 +3673,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			}
 			else
 			{
-				MoveConnectionTo(Roughness, SlabBSDF, 3);		// RoughnessX
+				MoveConnectionTo(Roughness, SlabBSDF, 4);	// RoughnessX
 			}
 
 			MoveConnectionTo(BaseColor, SlabBSDF, 0);		// BaseColor
