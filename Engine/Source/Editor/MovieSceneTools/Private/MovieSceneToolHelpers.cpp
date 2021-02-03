@@ -3420,6 +3420,8 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 	USkeletalMeshComponent* SkelMeshComp, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform,
 	FInitAnimationCB InitCallback, FStartAnimationCB StartCallback, FTickAnimationCB TickCallback, FEndAnimationCB EndCallback)
 {
+	const TArray<IMovieSceneToolsAnimationBakeHelper*>&  BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
+
 	//if we have no allocated bone space transforms something wrong so try to recalc them
 	if (SkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
 	{
@@ -3456,10 +3458,32 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 		CVarAlwaysSendInterpolatedLiveLink->Set(1, ECVF_SetByConsole);
 	}
 
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StartBaking(MovieScene);
+		}
+	}
 	InitCallback.ExecuteIfBound();
 
 	//Begin records a frame so need to set things up first
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->PreEvaluation(MovieScene,LocalStartFrame);
+		}
+	}
+	// This evaluaties the MoviePlayer
 	AnimTrackAdapter.UpdateAnimation(LocalStartFrame);
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->PostEvaluation(MovieScene, LocalStartFrame);
+		}
+	}
 	SkelMeshComp->TickAnimation(0.03f, false);
 	SkelMeshComp->RefreshBoneTransforms();
 	SkelMeshComp->RefreshSlaveComponents();
@@ -3502,8 +3526,23 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 	{
 		int32 LocalFrame = LocalStartFrame + FrameCount;
 
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PreEvaluation(MovieScene, LocalStartFrame);
+			}
+		}
 		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
+		// This also evaluaties the MoviePlayer
 		AnimTrackAdapter.UpdateAnimation(LocalFrame);
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PostEvaluation(MovieScene, LocalStartFrame);
+			}
+		}
 
 		//Live Link sourcer can show up at any time so we unfortunately need to check for it
 		if (LiveLinkClient)
@@ -3552,6 +3591,13 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 		TickCallback.ExecuteIfBound(DeltaTime);
 	}
 
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StopBaking(MovieScene);
+		}
+	}
 	EndCallback.ExecuteIfBound();
 
 	//now do any sequencer live link cleanup
