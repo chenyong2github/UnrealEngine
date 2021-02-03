@@ -1015,8 +1015,6 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		LightmapType = ELightmapType::Default;
 	}
 
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 	if (bCullDistanceInvalidated)
 	{
 		// Directly use LD cull distance if cull distance volumes are disabled.
@@ -1047,6 +1045,8 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		// Reattach to propagate cull distance change.
 		SetCachedMaxDrawDistance(NewCachedMaxDrawDistance);
 	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	// update component, ActorComponent's property update locks navigation system 
 	// so it needs to be called directly here
