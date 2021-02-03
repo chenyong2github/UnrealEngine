@@ -10,6 +10,9 @@ class UDisplayClusterConfigurationViewport;
 class UDisplayClusterConfiguratorWindowNode;
 struct FDisplayClusterConfigurationRectangle;
 
+class UTexture;
+
+
 UCLASS(MinimalAPI)
 class UDisplayClusterConfiguratorViewportNode final
 	: public UDisplayClusterConfiguratorBaseNode
