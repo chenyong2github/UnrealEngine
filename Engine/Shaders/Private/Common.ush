@@ -409,8 +409,8 @@ float4 PseudoVolumeTexture(Texture2D Tex, SamplerState TexSampler, float3 inPos,
 
 #else
 
-	#define TANGENTTOWORLD0					TEXCOORD10_centroid
-	#define TANGENTTOWORLD2					TEXCOORD11_centroid
+	#define TANGENTTOWORLD0					TEXCOORD10
+	#define TANGENTTOWORLD2					TEXCOORD11
 
 	// TangentToWorld0 is float4 only to match D3D11
 #if METAL_PROFILE || COMPILER_GLSL_ES3_1 || VULKAN_PROFILE
