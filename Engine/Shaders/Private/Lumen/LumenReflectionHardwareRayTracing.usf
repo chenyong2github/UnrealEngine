@@ -30,8 +30,8 @@ StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 {
-		uint2 ReflectionTracingCoord;
-		float TraceHitDistance = 0;
+	uint2 ReflectionTracingCoord;
+	float TraceHitDistance = 0;
 	FDeferredMaterialPayload DeferredMaterialPayload;
 
 	if (DIM_DEFERRED_MATERIAL_MODE)

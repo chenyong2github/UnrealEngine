@@ -37,7 +37,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, MeshCardsData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, DFObjectToMeshCardsIndexBuffer)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, PrimitiveToDFObjectIndexBuffer)
 	SHADER_PARAMETER_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, EmissiveAtlas)
@@ -113,8 +112,11 @@ public:
 class FLumenPrimitiveRemoveInfo
 {
 public:
-	FLumenPrimitiveRemoveInfo(const FPrimitiveSceneInfo* InPrimitive)
+	FLumenPrimitiveRemoveInfo(const FPrimitiveSceneInfo* InPrimitive, int32 InPrimitiveIndex)
 		: Primitive(InPrimitive)
+		, PrimitiveIndex(InPrimitiveIndex)
+		, LumenInstanceOffset(InPrimitive->LumenInstanceOffset)
+		, LumenNumInstances(InPrimitive->LumenNumInstances)
 		, MeshCardsInstanceIndices(InPrimitive->LumenMeshCardsInstanceIndices)
 	{}
 
@@ -125,6 +127,9 @@ public:
 	const FPrimitiveSceneInfo* Primitive;
 
 	// Need to copy by value as this is a deferred remove and Primitive may be already destroyed
+	int32 PrimitiveIndex;
+	uint32 LumenInstanceOffset;
+	int32 LumenNumInstances;
 	TArray<int32, TInlineAllocator<1>> MeshCardsInstanceIndices;
 };
 
@@ -185,7 +190,7 @@ public:
 
 	int32 Generation;
 
-	FScatterUploadBuffer UploadBuffer;
+	FScatterUploadBuffer CardUploadBuffer;
 	FScatterUploadBuffer UploadMeshCardsBuffer;
 	FScatterUploadBuffer ByteBufferUploadBuffer;
 	FScatterUploadBuffer UploadPrimitiveBuffer;
@@ -205,7 +210,18 @@ public:
 	TArray<int32, TInlineAllocator<8>> DistantCardIndices;
 	FRWBufferStructured MeshCardsBuffer;
 	FRWByteAddressBuffer DFObjectToMeshCardsIndexBuffer;
-	FRWByteAddressBuffer PrimitiveToDFObjectIndexBuffer;
+
+	// Mapping from Primitive to LumenInstance
+	TArray<int32> PrimitivesToUpdate;
+	TBitArray<>	PrimitivesMarkedToUpdate;
+	FRWByteAddressBuffer PrimitiveToLumenInstanceOffsetBuffer;
+	uint32 PrimitiveToLumenInstanceOffsetBufferSize = 0;
+
+	// Mapping from LumenInstance to DFObjectIndex
+	TArray<int32> LumenInstancesToUpdate;
+	TSparseSpanArray<int32> LumenInstanceToDFObjectIndex;
+	FRWByteAddressBuffer LumenInstanceToDFObjectIndexBuffer;
+	uint32 LumenInstanceToDFObjectIndexBufferSize = 0;
 
 	TArray<int32> VisibleCardsIndices;
 	TRefCountPtr<FRDGPooledBuffer> VisibleCardsIndexBuffer;
@@ -232,7 +248,6 @@ public:
 	int32 NumCardsLeftToCapture = 0;
 	int32 NumCardsLeftToReallocate = 0;
 	int32 NumTexelsLeftToCapture = 0;
-	uint32 PrimitiveToDFObjectIndexBufferSize = 0;
 
 	bool bTrackAllPrimitives;
 	TArray<FLumenPrimitiveAddInfo> PendingAddOperations;
@@ -242,9 +257,11 @@ public:
 	FLumenSceneData(EShaderPlatform ShaderPlatform, EWorldType::Type WorldType);
 	~FLumenSceneData();
 
+	void AddPrimitiveToUpdate(int32 PrimitiveIndex);
+
 	void AddPrimitive(FPrimitiveSceneInfo* InPrimitive);
 	void UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive);
-	void RemovePrimitive(FPrimitiveSceneInfo* InPrimitive);
+	void RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex);
 
 	void AddCardToVisibleCardList(int32 CardIndex);
 	void RemoveCardFromVisibleCardList(int32 CardIndex);
@@ -253,4 +270,6 @@ public:
 	{
 		return PendingAddOperations.Num() > 0 || PendingUpdateOperations.Num() > 0 || PendingRemoveOperations.Num() > 0;
 	}
+
+	void UpdatePrimitiveToDistanceFieldInstanceMapping(FScene& Scene, FRHICommandListImmediate& RHICmdList);
 };

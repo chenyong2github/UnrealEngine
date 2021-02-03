@@ -1456,6 +1456,8 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	SetupDefaultGlobalDistanceFieldUniformBufferParameters(ViewUniformShaderParameters);
 
+	Lumen::SetupViewUniformBufferParameters(Scene, ViewUniformShaderParameters);
+
 	SetupVolumetricFogUniformBufferParameters(ViewUniformShaderParameters);
 
 	SetupPrecomputedVolumetricLightmapUniformBufferParameters(Scene, Family->EngineShowFlags, ViewUniformShaderParameters);

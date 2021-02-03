@@ -1,0 +1,29 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#define INVALID_LUMEN_INSTANCE_OFFSET 0xFFFFFFFF
+#define LUMEN_SINGLE_INSTANCE_BIT 0x80000000
+
+int GetLumenDistanceFieldObjectIndex(int PrimitiveIndex, int PrimitiveInstanceIndex)
+{
+	int DFObjectIndex = -1;
+
+	if (PrimitiveIndex < View.PrimitiveToLumenInstanceOffsetBufferSize)
+	{
+		uint LumenInstanceOffset = View.PrimitiveToLumenInstanceOffsetBuffer.Load(PrimitiveIndex * 4);
+
+		//// Handle ray tracing auto instancing where PrimitiveInstanceIndex > 0 but real PrimitiveInstanceIndex is = 0
+		if (LumenInstanceOffset != INVALID_LUMEN_INSTANCE_OFFSET && (LumenInstanceOffset & LUMEN_SINGLE_INSTANCE_BIT))
+		{
+			LumenInstanceOffset &= ~LUMEN_SINGLE_INSTANCE_BIT;
+			PrimitiveInstanceIndex = 0;
+		}
+
+		const uint LumenInstanceIndex = LumenInstanceOffset + PrimitiveInstanceIndex;
+		if (LumenInstanceIndex < View.LumenInstanceToDFObjectIndexBufferSize)
+		{
+			DFObjectIndex = asint(View.LumenInstanceToDFObjectIndexBuffer.Load(LumenInstanceIndex * 4));
+		}
+	}
+
+	return DFObjectIndex;
+}

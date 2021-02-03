@@ -300,6 +300,10 @@ public:
 	 */
 	const FReflectionCaptureProxy* CachedReflectionCaptureProxy;
 
+	/** Mapping from instance index in this primitive to index in Lumen instance buffer. */
+	uint32 LumenInstanceOffset = UINT32_MAX;
+	int32 LumenNumInstances = 0;
+
 	/** Mapping from instance index in this primitive to index in the global distance field object buffers. */
 	TArray<int32, TInlineAllocator<1>> DistanceFieldInstanceIndices;
 

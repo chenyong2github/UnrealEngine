@@ -3852,6 +3852,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							GPUScene.AddPrimitiveToUpdate(SourceIndex);
 							GPUScene.AddPrimitiveToUpdate(DestIndex);
 
+							LumenSceneData->AddPrimitiveToUpdate(SourceIndex);
+							LumenSceneData->AddPrimitiveToUpdate(DestIndex);
+
 							SourceIndex = DestIndex;
 						}
 					}
@@ -3927,7 +3930,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				GPUScene.AddPrimitiveToUpdate(PrimitiveIndex);
 
 				DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
-				LumenSceneData->RemovePrimitive(PrimitiveSceneInfo);
+				LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveIndex);
 
 				DeletedSceneInfos.Add(PrimitiveSceneInfo);
 			}
@@ -3987,6 +3990,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveSceneInfo->PackedIndex = SourceIndex;
 
 				GPUScene.AddPrimitiveToUpdate(SourceIndex);
+				LumenSceneData->AddPrimitiveToUpdate(SourceIndex);
 			}
 
 			bool EntryFound = false;
@@ -4063,6 +4067,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
 							GPUScene.AddPrimitiveToUpdate(DestIndex);
+							LumenSceneData->AddPrimitiveToUpdate(DestIndex);
 						}
 					}
 				}

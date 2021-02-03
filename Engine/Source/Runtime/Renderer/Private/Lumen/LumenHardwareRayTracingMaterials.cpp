@@ -16,6 +16,10 @@ class FLumenHardwareRayTracingMaterialCHS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FLumenHardwareRayTracingMaterialCHS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenHardwareRayTracingMaterialCHS, FGlobalShader)
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	END_SHADER_PARAMETER_STRUCT()
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform);
@@ -26,8 +30,6 @@ class FLumenHardwareRayTracingMaterialCHS : public FGlobalShader
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		//OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER"), 1);
 	}
-
-	using FParameters = FEmptyShaderParameters;
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLumenHardwareRayTracingMaterialCHS, "/Engine/Private/Lumen/LumenHardwareRayTracingMaterials.usf", "LumenHardwareRayTracingMaterialCHS", SF_RayHitGroup);
@@ -81,6 +83,10 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTra
 		? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
 		: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
 
+	const uint32 NumUniformBuffers = 1;
+	FRHIUniformBuffer** UniformBufferArray = (FRHIUniformBuffer**) RHICmdList.Alloc(sizeof(FRHIUniformBuffer*) * NumUniformBuffers, alignof(FRHIUniformBuffer*));
+	UniformBufferArray[0] = ReferenceView.ViewUniformBuffer.GetReference();
+
 	uint32 BindingIndex = 0;
 	for (const FVisibleRayTracingMeshCommand VisibleMeshCommand : ReferenceView.VisibleRayTracingMeshCommands)
 	{
@@ -90,11 +96,13 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTra
 		Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
 		Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
 		Binding.UserData = MeshCommand.MaterialShaderIndex;
+		Binding.UniformBuffers = UniformBufferArray;
+		Binding.NumUniformBuffers = NumUniformBuffers;
 
 		Bindings[BindingIndex] = Binding;
 		BindingIndex++;
 	}
-
+	
 	const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
 	RHICmdList.SetRayTracingHitGroups(
 		View.RayTracingScene.RayTracingSceneRHI,

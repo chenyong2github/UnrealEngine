@@ -762,6 +762,12 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	GlobalDistanceFieldPageTableTexture = BlackVolume;
 	GlobalDistanceFieldMipTexture = BlackVolume;
 
+	// Lumen
+	PrimitiveToLumenInstanceOffsetBuffer = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
+	PrimitiveToLumenInstanceOffsetBufferSize = 0;
+	LumenInstanceToDFObjectIndexBuffer = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
+	LumenInstanceToDFObjectIndexBufferSize = 0;
+
 	SharedPointWrappedSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	SharedPointClampedSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	SharedBilinearWrappedSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();

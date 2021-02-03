@@ -31,6 +31,8 @@
 // Workaround for a bug on certain platforms that requires Ray.TMin = 0.0.
 #define NO_TMIN 1
 
+#define INVALID_DF_OBJECT_INDEX -1
+
 float RebaseRay(inout RayDesc Ray)
 {
 	float TOffset = 0.0;
@@ -62,23 +64,6 @@ uint GetAtlasId(int Mode)
 		AtlasId = INDIRECT_IRRADIANCE_ATLAS_ID;
 	}
 	return AtlasId;
-}
-
-#define INVALID_INSTANCE_ID	0x7fffffff
-#define INVALID_DF_OBJECT 0x7fffffff
-bool IsValidDFObject(in int InstanceID, out int DFObjectIndex)
-{
-	DFObjectIndex = INVALID_DF_OBJECT;
-	if (InstanceID != INVALID_INSTANCE_ID)
-	{
-		DFObjectIndex = LumenCardScene.PrimitiveToDFObjectIndexBuffer.Load(InstanceID * 4);
-	}
-	return DFObjectIndex != INVALID_DF_OBJECT;
-}
-
-bool IsValidDFObject(inout FPackedMaterialClosestHitPayload Payload, out int DFObjectIndex)
-{
-	return IsValidDFObject(Payload.GetInstanceID(), DFObjectIndex);
 }
 
 struct FRayTracedLightingContext
@@ -314,11 +299,10 @@ bool TraceAndCalculateRayTracedLighting(
 	bool bIsRTHit = Payload.IsHit();
 	if (bIsRTHit)
 	{
-		int DFObjectIndex = INVALID_DF_OBJECT;
-		bool bIsValidDFObject = IsValidDFObject(Payload, DFObjectIndex);
+		int DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
 
 #if HIDE_INVALID_SDF
-		while (bIsRTHit && !bIsValidDFObject)
+		while (bIsRTHit && DFObjectIndex != INVALID_DF_OBJECT_INDEX)
 		{
 			float Epsilon = 0.01;
 			Ray.TMin = Payload.HitT + Epsilon;
@@ -340,14 +324,14 @@ bool TraceAndCalculateRayTracedLighting(
 				TraceCoord,
 				bEnableSkyLightContribution);
 			bIsRTHit = Payload.IsHit();
-			bIsValidDFObject = IsValidDFObject(Payload, DFObjectIndex);
+			DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
 		}
 #else
 		HitDistance = Payload.HitT;
 		bHit = true;
 #endif
 
-		if (bIsValidDFObject)
+		if (DFObjectIndex != INVALID_DF_OBJECT_INDEX)
 		{
 			Radiance = CalculateRayTracedLighting(Ray, Context, Payload, HitDistance, DFObjectIndex, NormalMode, LightingMode);
 		}
@@ -371,8 +355,8 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	if (bHit)
 	{
 		TraceHitDistance = Payload.HitT;
-		int DFObjectIndex = INVALID_DF_OBJECT;
-		if (IsValidDFObject(Payload.InstanceID, DFObjectIndex))
+		int DFObjectIndex = Payload.DistanceFieldObjectIndex;
+		if (DFObjectIndex != INVALID_DF_OBJECT_INDEX)
 		{
 			Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, TraceHitDistance, DFObjectIndex, NormalMode);
 		}

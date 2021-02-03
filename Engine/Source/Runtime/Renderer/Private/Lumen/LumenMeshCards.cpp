@@ -11,8 +11,8 @@
 #include "LumenSceneUtils.h"
 
 #define LUMEN_LOG_HITCHES 0
-
-#define INVALID_MESH_CARD_ID 0x7fffffff
+constexpr uint32 INVALID_LUMEN_INSTANCE_OFFSET = UINT32_MAX;
+constexpr uint32 LUMEN_SINGLE_INSTANCE_BIT = 0x80000000;
 
 int32 GLumenSceneMaxInstanceAddsPerFrame = 5000;
 FAutoConsoleVariableRef CVarLumenSceneMaxInstanceAddsPerFrame(
@@ -106,6 +106,14 @@ FAutoConsoleVariableRef CVarLumenMeshCardsCullFaces(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenSceneUploadPrimitiveToDistanceFieldInstanceMappingEveryFrame = 0;
+FAutoConsoleVariableRef CVarLumenSceneUploadPrimitiveToDistanceFieldInstanceMappingEveryFrame(
+	TEXT("r.LumenScene.UploadPrimitiveToDistanceFieldInstanceMappingEveryFrame"),
+	GLumenSceneUploadPrimitiveToDistanceFieldInstanceMappingEveryFrame,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
 bool IsPrimitiveToDFObjectMappingRequired()
 {
 	return IsRayTracingEnabled();
@@ -149,7 +157,142 @@ void LumenUpdateDFObjectIndex(FScene* Scene, int32 DFObjectIndex)
 	Scene->LumenSceneData->DFObjectIndicesToUpdateInBuffer.Add(DFObjectIndex);
 }
 
-void UpdateLumenMeshCards(const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList, int32 NumScenePrimitives)
+void FLumenSceneData::UpdatePrimitiveToDistanceFieldInstanceMapping(FScene& Scene, FRHICommandListImmediate& RHICmdList)
+{
+	if (!IsPrimitiveToDFObjectMappingRequired())
+	{
+		ResizeResourceIfNeeded(RHICmdList, PrimitiveToLumenInstanceOffsetBuffer, 16, TEXT("PrimitiveToLumenInstanceOffset"));
+		ResizeResourceIfNeeded(RHICmdList, LumenInstanceToDFObjectIndexBuffer, 16, TEXT("LumenInstanceToDFObjectIndexBuffer"));
+		PrimitiveToLumenInstanceOffsetBufferSize = 0;
+		LumenInstanceToDFObjectIndexBufferSize = 0;
+		return;
+	}
+
+	if (GLumenSceneUploadPrimitiveToDistanceFieldInstanceMappingEveryFrame != 0)
+	{
+		PrimitivesToUpdate.Reset();
+		for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene.Primitives.Num(); ++PrimitiveIndex)
+		{
+			PrimitivesToUpdate.Add(PrimitiveIndex);
+
+			FPrimitiveSceneInfo* Primitive = Scene.Primitives[PrimitiveIndex];
+			if (Primitive)
+			{
+				for (int32 InstanceIndex = 0; InstanceIndex < Primitive->LumenNumInstances; ++InstanceIndex)
+				{
+					int32 DistanceFieldObjectIndex = -1;
+					if (InstanceIndex < Primitive->DistanceFieldInstanceIndices.Num())
+					{
+						DistanceFieldObjectIndex = Primitive->DistanceFieldInstanceIndices[InstanceIndex];
+					}
+
+					const int32 LumenInstanceIndex = Primitive->LumenInstanceOffset + InstanceIndex;
+					LumenInstanceToDFObjectIndex[LumenInstanceIndex] = DistanceFieldObjectIndex;
+					LumenInstancesToUpdate.Add(LumenInstanceIndex);
+				}
+			}
+		}
+	}
+
+	// Upload PrimitiveToLumenInstance
+	{
+		const int32 NumIndices = FMath::RoundUpToPowerOfTwo(Scene.Primitives.Num());
+		const uint32 IndexSizeInBytes = GPixelFormats[PF_R32_UINT].BlockBytes;
+		const uint32 IndicesSizeInBytes = FMath::DivideAndRoundUp<int32>(NumIndices * IndexSizeInBytes, 16) * 16; // Round to multiple of 16 bytes
+		const uint32 LastBufferSizeInBytes = PrimitiveToLumenInstanceOffsetBuffer.NumBytes;
+		const bool bBufferResized = ResizeResourceIfNeeded(RHICmdList, PrimitiveToLumenInstanceOffsetBuffer, IndicesSizeInBytes, TEXT("PrimitiveToLumenInstanceOffset"));
+
+		// Memset resized part of array to invalid offsets
+		const int32 MemsetSizeInBytes = PrimitiveToLumenInstanceOffsetBuffer.NumBytes - LastBufferSizeInBytes;
+		if (MemsetSizeInBytes > 0)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(PrimitiveToLumenInstanceOffsetBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+
+			const int32 MemsetOffsetInBytes = LastBufferSizeInBytes;
+			MemsetResource(RHICmdList, PrimitiveToLumenInstanceOffsetBuffer, INVALID_LUMEN_INSTANCE_OFFSET, MemsetSizeInBytes, MemsetOffsetInBytes);
+		}
+
+		const int32 NumIndexUploads = PrimitivesToUpdate.Num();
+		if (NumIndexUploads > 0)
+		{
+			ByteBufferUploadBuffer.Init(NumIndexUploads, IndexSizeInBytes, false, TEXT("LumenUploadBuffer"));
+
+			for (int32 PrimitiveIndex : PrimitivesToUpdate)
+			{
+				uint32 LumenInstanceOffset = INVALID_LUMEN_INSTANCE_OFFSET;
+				if (PrimitiveIndex < Scene.Primitives.Num())
+				{
+					const FPrimitiveSceneInfo* Primitive = Scene.Primitives[PrimitiveIndex];
+					LumenInstanceOffset = Primitive->LumenInstanceOffset;
+
+					// Handle ray tracing auto instancing where PrimitiveInstanceIndex > 0 but real PrimitiveInstanceIndex is = 0
+					if (Primitive->LumenNumInstances <= 1)
+					{
+						LumenInstanceOffset |= LUMEN_SINGLE_INSTANCE_BIT;
+					}
+				}
+				ByteBufferUploadBuffer.Add(PrimitiveIndex, &LumenInstanceOffset);
+			}
+
+			RHICmdList.Transition(FRHITransitionInfo(PrimitiveToLumenInstanceOffsetBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, PrimitiveToLumenInstanceOffsetBuffer, false);
+			RHICmdList.Transition(FRHITransitionInfo(PrimitiveToLumenInstanceOffsetBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		}
+
+		PrimitiveToLumenInstanceOffsetBufferSize = Scene.Primitives.Num();
+	}
+
+	// Push distance field scene updates to LumenInstanceToDFObject
+	{
+		const FDistanceFieldSceneData& DistanceFieldSceneData = Scene.DistanceFieldSceneData;
+		for (int32 DistanceFieldObjectIndex : DFObjectIndicesToUpdateInBuffer)
+		{
+			if (DistanceFieldObjectIndex < DistanceFieldSceneData.PrimitiveInstanceMapping.Num())
+			{
+				const FPrimitiveAndInstance& Mapping = DistanceFieldSceneData.PrimitiveInstanceMapping[DistanceFieldObjectIndex];
+				if (Mapping.Primitive->LumenNumInstances > 0)
+				{
+					const int32 PrimitiveIndex = Mapping.Primitive->GetIndex();
+					const uint32 LumenInstanceIndex = Mapping.Primitive->LumenInstanceOffset + Mapping.InstanceIndex;
+					LumenInstanceToDFObjectIndex[LumenInstanceIndex] = DistanceFieldObjectIndex;
+					LumenInstancesToUpdate.Add(LumenInstanceIndex);
+				}
+			}
+		}
+	}
+
+	// Upload LumenInstanceToDFObject
+	{
+		const int32 NumIndices = FMath::RoundUpToPowerOfTwo(LumenInstanceToDFObjectIndex.Num());
+		const uint32 IndexSizeInBytes = GPixelFormats[PF_R32_UINT].BlockBytes;
+		const uint32 IndicesSizeInBytes = FMath::DivideAndRoundUp<int32>(NumIndices * IndexSizeInBytes, 16) * 16; // Round to multiple of 16 bytes
+		ResizeResourceIfNeeded(RHICmdList, LumenInstanceToDFObjectIndexBuffer, IndicesSizeInBytes, TEXT("LumenInstanceToDFObjectIndexBuffer"));
+
+		const int32 NumIndexUploads = LumenInstancesToUpdate.Num();
+		if (NumIndexUploads > 0)
+		{
+			ByteBufferUploadBuffer.Init(NumIndexUploads, IndexSizeInBytes, false, TEXT("LumenUploadBuffer"));
+
+			for (int32 LumenInstanceIndex : LumenInstancesToUpdate)
+			{
+				int32 DistanceFieldInstanceIndex = -1;
+				if (LumenInstanceToDFObjectIndex.IsAllocated(LumenInstanceIndex))
+				{
+					DistanceFieldInstanceIndex = LumenInstanceToDFObjectIndex[LumenInstanceIndex];
+				}
+				ByteBufferUploadBuffer.Add(LumenInstanceIndex, &DistanceFieldInstanceIndex);
+			}
+
+			RHICmdList.Transition(FRHITransitionInfo(LumenInstanceToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, LumenInstanceToDFObjectIndexBuffer, false);
+			RHICmdList.Transition(FRHITransitionInfo(LumenInstanceToDFObjectIndexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		}
+
+		LumenInstanceToDFObjectIndexBufferSize = LumenInstanceToDFObjectIndex.Num();
+	}
+}
+
+void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenMeshCards);
@@ -255,80 +398,54 @@ void UpdateLumenMeshCards(const FDistanceFieldSceneData& DistanceFieldSceneData,
 			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.DFObjectToMeshCardsIndexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}
 	}
+
+	LumenSceneData.UpdatePrimitiveToDistanceFieldInstanceMapping(Scene, RHICmdList);
 	
-	// Upload primitive index to DFObject index mapping
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(UpdatePrimitiveToDFIndexBufferMapping);
-
-		extern int32 GLumenSceneUploadDFObjectToMeshCardsIndexBufferEveryFrame;
-		if (GLumenSceneUploadDFObjectToMeshCardsIndexBufferEveryFrame)
-		{
-			LumenSceneData.PrimitiveToDFObjectIndexBufferSize = 0;
-		}
-		
-		const bool bShouldUpdatePrimitiveToDFIndexBufferMapping = IsPrimitiveToDFObjectMappingRequired();
-		const int NumPrimitiveElements = bShouldUpdatePrimitiveToDFIndexBufferMapping ? NumScenePrimitives : 1;
-		const int32 NumPrimitiveIndices = FMath::RoundUpToPowerOfTwo(NumPrimitiveElements);
-		const uint32 IndexSizeInBytes = GPixelFormats[PF_R32_UINT].BlockBytes;
-		const uint32 IndicesSizeInBytesForPrimitives = FMath::DivideAndRoundUp<int32>(NumPrimitiveIndices * IndexSizeInBytes, 16) * 16; // Round to multiple of 16 bytes
-		const bool bResizedPrimitiveIndexElements = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, IndicesSizeInBytesForPrimitives, TEXT("PritimitiveToDFObjectIndices"));
-		
-		const int32 DFObjectIndexInvalid = INVALID_MESH_CARD_ID;
-		const bool bBufferResized = IndicesSizeInBytesForPrimitives > LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
-
-		if (bBufferResized)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-
-			const uint32 DeltaIndicesSizeInBytesForPrimitives = IndicesSizeInBytesForPrimitives - LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
-			const uint32 DstOffset = LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
-			MemsetResource(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, DFObjectIndexInvalid, DeltaIndicesSizeInBytesForPrimitives, DstOffset);
-		}
-
-		LumenSceneData.PrimitiveToDFObjectIndexBufferSize = IndicesSizeInBytesForPrimitives;
-
-		const int32 NumIndexUploads = bShouldUpdatePrimitiveToDFIndexBufferMapping? LumenSceneData.DFObjectIndicesToUpdateInBuffer.Num():0;
-
-		// Update the primitive to DFObject index mapping.
-		if(NumIndexUploads > 0)
-		{
-			LumenSceneData.UploadPrimitiveBuffer.Init(NumIndexUploads, IndexSizeInBytes, false, TEXT("UploadPrimitiveBuffer"));
-
-			for (int32 DFObjectIndex : LumenSceneData.DFObjectIndicesToUpdateInBuffer)
-			{
-				if (DFObjectIndex < DistanceFieldSceneData.PrimitiveInstanceMapping.Num())
-				{
-					const FPrimitiveAndInstance& Mapping = DistanceFieldSceneData.PrimitiveInstanceMapping[DFObjectIndex];
-
-					int32 MeshCardsIndex = -1;
-
-					if (Mapping.InstanceIndex < Mapping.Primitive->LumenMeshCardsInstanceIndices.Num())
-					{
-						MeshCardsIndex = Mapping.Primitive->LumenMeshCardsInstanceIndices[Mapping.InstanceIndex];
-					}
-					// When instances are merged, only one entry is added to LumenMeshCardsInstanceIndices
-					else if (Mapping.Primitive->LumenMeshCardsInstanceIndices.Num() == 1)
-					{
-						MeshCardsIndex = Mapping.Primitive->LumenMeshCardsInstanceIndices[0];
-					}
-					//@TODO: Instancing is not supported at this moment.
-					if (MeshCardsIndex != -1)
-					{
-						const int32 PrimitiveIndex = Mapping.Primitive->GetIndex();
-						LumenSceneData.UploadPrimitiveBuffer.Add(PrimitiveIndex, &DFObjectIndex);
-					}
-				}
-			}
-
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			LumenSceneData.UploadPrimitiveBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		}
-	}
-
 	// Reset arrays, but keep allocated memory for 1024 elements
 	LumenSceneData.DFObjectIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Empty(1024);
+	LumenSceneData.PrimitivesToUpdate.Empty(1024);
+	LumenSceneData.PrimitivesMarkedToUpdate.Reset();
+	LumenSceneData.LumenInstancesToUpdate.Empty(1024);
+}
+
+void AddPrimitiveToLumenScene(FLumenSceneData& LumenSceneData, FPrimitiveSceneInfo* Primitive)
+{
+	if (IsPrimitiveToDFObjectMappingRequired())
+	{
+		checkSlow(Primitive->LumenInstanceOffset == INVALID_LUMEN_INSTANCE_OFFSET);
+		checkSlow(Primitive->LumenNumInstances == 0);
+
+		TArray<FMatrix> ObjectLocalToWorldTransforms;
+		Primitive->Proxy->GetDistancefieldInstanceData(ObjectLocalToWorldTransforms);
+
+		Primitive->LumenNumInstances = FMath::Max(ObjectLocalToWorldTransforms.Num(), 1);
+		Primitive->LumenInstanceOffset = LumenSceneData.LumenInstanceToDFObjectIndex.AddSpan(Primitive->LumenNumInstances);
+
+		for (int32 InstanceIndex = 0; InstanceIndex < Primitive->LumenNumInstances; ++InstanceIndex)
+		{
+			int32 DistanceFieldObjectIndex = -1;
+			if (InstanceIndex < Primitive->DistanceFieldInstanceIndices.Num())
+			{
+				DistanceFieldObjectIndex = Primitive->DistanceFieldInstanceIndices[InstanceIndex];
+			}
+
+			const int32 LumenInstanceIndex = Primitive->LumenInstanceOffset + InstanceIndex;
+			LumenSceneData.LumenInstanceToDFObjectIndex[LumenInstanceIndex] = DistanceFieldObjectIndex;
+			LumenSceneData.LumenInstancesToUpdate.Add(LumenInstanceIndex);
+		}
+
+		LumenSceneData.AddPrimitiveToUpdate(Primitive->GetIndex());
+	}
+}
+
+void RemovePrimitiveFromLumenScene(FLumenSceneData& LumenSceneData, int32 PrimitiveIndex, uint32 LumenInstanceOffset, int32 NumInstances)
+{
+	if (NumInstances > 0)
+	{
+		LumenSceneData.LumenInstanceToDFObjectIndex.RemoveSpan(LumenInstanceOffset, NumInstances);
+		LumenSceneData.AddPrimitiveToUpdate(PrimitiveIndex);
+	}
 }
 
 bool IsMatrixOrthogonal(const FMatrix& Matrix)
@@ -737,6 +854,12 @@ void UpdateMeshCardRepresentations(FScene* Scene)
 		{
 			FLumenPrimitiveRemoveInfo& RemoveInfo = LumenSceneData.PendingRemoveOperations[RemoveIndex];
 
+			RemovePrimitiveFromLumenScene(
+				LumenSceneData,
+				RemoveInfo.PrimitiveIndex,
+				RemoveInfo.LumenInstanceOffset,
+				RemoveInfo.LumenNumInstances);
+
 			RemoveMeshCardsForPrimitive(
 				LumenSceneData, 
 				RemoveInfo.Primitive,
@@ -765,6 +888,8 @@ void UpdateMeshCardRepresentations(FScene* Scene)
 
 			if (AddInfo.IsComplete())
 			{
+				AddPrimitiveToLumenScene(LumenSceneData, AddInfo.Primitive);
+
 				if (AddInfo.bPendingUpdate)
 				{
 					UpdateMeshCardsForPrimitive(AddInfo.Primitive, LumenSceneData);

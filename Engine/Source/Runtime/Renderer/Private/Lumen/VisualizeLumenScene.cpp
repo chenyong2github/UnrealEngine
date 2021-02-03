@@ -66,7 +66,7 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneTraceRadianceCache(
 	ECVF_RenderThreadSafe
 );
 
-float GVisualizeLumenSceneConeAngle = 1.0f;
+float GVisualizeLumenSceneConeAngle = 0.0f;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneConeAngle(
 	TEXT("r.Lumen.Visualize.ConeAngle"),
 	GVisualizeLumenSceneConeAngle,

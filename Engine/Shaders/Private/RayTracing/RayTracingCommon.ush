@@ -129,7 +129,7 @@ struct FDeferredMaterialPayload : FMinimalPayload
 
 struct FLumenMinimalPayload : FMinimalPayload
 {
-	uint InstanceID;
+	int DistanceFieldObjectIndex;
     // TODO: WorldNormal support
 	// float3 WorldNormal;
 };
@@ -459,9 +459,9 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	float3 GetSpecularColor() { return ComputeF0(GetSpecular(), GetBaseColor(), GetMetallic()); }
 
 	// Member function for (IsLumenPayload() == 1)
-	void SetInstanceID(uint InstanceID)
+	void SetDistanceFieldObjectIndex(int DistanceFieldObjectIndex)
 	{
-		PackedCustomData = InstanceID;
+		PackedCustomData = asuint(DistanceFieldObjectIndex);
 	}
 
 	void SetGeometryNormal(float3 GeometryNormal)
@@ -471,7 +471,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 		RadianceAndNormal[2] |= f32tof16(GeometryNormal.z) << 16;
 	}
 
-	uint GetInstanceID()	 { return PackedCustomData; }
+	int GetDistanceFieldObjectIndex() { return asint(PackedCustomData); }
 	float3 GetGeometryNormal() { return GetWorldNormal(); }
 
 	// These method are meant to be used only when IsPathTracingVisibilityRay() is true

@@ -708,14 +708,32 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 		&& (Proxy->IsDrawnInGame() || Proxy->CastsHiddenShadow());
 }
 
+void FLumenSceneData::AddPrimitiveToUpdate(int32 PrimitiveIndex)
+{
+	if (bTrackAllPrimitives)
+	{
+		if (PrimitiveIndex + 1 > PrimitivesMarkedToUpdate.Num())
+		{
+			const int32 NewSize = Align(PrimitiveIndex + 1, 64);
+			PrimitivesMarkedToUpdate.Add(0, NewSize - PrimitivesMarkedToUpdate.Num());
+		}
+
+		// Make sure we aren't updating same primitive multiple times.
+		if (!PrimitivesMarkedToUpdate[PrimitiveIndex])
+		{
+			PrimitivesToUpdate.Add(PrimitiveIndex);
+			PrimitivesMarkedToUpdate[PrimitiveIndex] = true;
+		}
+	}
+}
+
 void FLumenSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
-	if ((bTrackAllPrimitives)
-		&& TrackPrimitiveForLumenScene(Proxy))
+	if (bTrackAllPrimitives && TrackPrimitiveForLumenScene(Proxy))
 	{
 		checkSlow(!PendingAddOperations.Contains(InPrimitive));
 		checkSlow(!PendingUpdateOperations.Contains(InPrimitive));
@@ -729,7 +747,7 @@ void FLumenSceneData::UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
-	if ((bTrackAllPrimitives) 
+	if (bTrackAllPrimitives
 		&& TrackPrimitiveForLumenScene(Proxy)
 		&& !PendingUpdateOperations.Contains(InPrimitive))
 	{
@@ -751,18 +769,18 @@ void FLumenSceneData::UpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 	}
 }
 
-void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
+void FLumenSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 PrimitiveIndex)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
 
-	if ((bTrackAllPrimitives)
+	if (bTrackAllPrimitives
 		&& TrackPrimitiveForLumenScene(Proxy))
 	{
 		PendingAddOperations.Remove(InPrimitive);
 		PendingUpdateOperations.Remove(InPrimitive);
-		PendingRemoveOperations.Add(FLumenPrimitiveRemoveInfo(InPrimitive));
+		PendingRemoveOperations.Add(FLumenPrimitiveRemoveInfo(InPrimitive, PrimitiveIndex));
 
 		InPrimitive->LumenMeshCardsInstanceIndices.Empty();
 	}
@@ -1788,7 +1806,6 @@ void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters
 	
 	OutParameters.MeshCardsData = LumenSceneData.MeshCardsBuffer.SRV;
 	OutParameters.DFObjectToMeshCardsIndexBuffer = LumenSceneData.DFObjectToMeshCardsIndexBuffer.SRV;
-	OutParameters.PrimitiveToDFObjectIndexBuffer = LumenSceneData.PrimitiveToDFObjectIndexBuffer.SRV;
 }
 
 DECLARE_GPU_STAT(UpdateCardSceneBuffer);
@@ -1827,7 +1844,7 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 	{
 		FCardSourceData NullCard;
 
-		LumenSceneData.UploadBuffer.Init(NumCardDataUploads, FLumenCardGPUData::DataStrideInBytes, true, TEXT("LumenSceneUploadBuffer"));
+		LumenSceneData.CardUploadBuffer.Init(NumCardDataUploads, FLumenCardGPUData::DataStrideInBytes, true, TEXT("LumenSceneUploadBuffer"));
 
 		FVector2D InvAtlasSize(1.0f / LumenSceneData.MaxAtlasSize.X, 1.0f / LumenSceneData.MaxAtlasSize.Y);
 
@@ -1837,17 +1854,17 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 			{
 				const FCardSourceData& Card = LumenSceneData.Cards.IsAllocated(Index) ? LumenSceneData.Cards[Index] : NullCard;
 
-				FVector4* Data = (FVector4*) LumenSceneData.UploadBuffer.Add_GetRef(Index);
+				FVector4* Data = (FVector4*) LumenSceneData.CardUploadBuffer.Add_GetRef(Index);
 				FLumenCardGPUData::FillData(Card, InvAtlasSize, Data);
 			}
 		}
 
 		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CardBuffer, false);
+		LumenSceneData.CardUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CardBuffer, false);
 		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
 
-	UpdateLumenMeshCards(Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList, Scene->Primitives.Num());
+	UpdateLumenMeshCards(*Scene, Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList);
 
 	{
 		FLumenCardScene LumenCardSceneParameters;
@@ -1856,9 +1873,9 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 	}
 
 	const uint32 MaxUploadBufferSize = 4096;
-	if (LumenSceneData.UploadBuffer.GetNumBytes() > MaxUploadBufferSize)
+	if (LumenSceneData.CardUploadBuffer.GetNumBytes() > MaxUploadBufferSize)
 	{
-		LumenSceneData.UploadBuffer.Release();
+		LumenSceneData.CardUploadBuffer.Release();
 	}
 }
 
@@ -1933,18 +1950,39 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardPassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+void Lumen::SetupViewUniformBufferParameters(FScene* Scene, FViewUniformShaderParameters& ViewUniformShaderParameters)
+{
+	if (Scene && Scene->LumenSceneData && Scene->LumenSceneData->PrimitiveToLumenInstanceOffsetBufferSize > 0)
+	{
+		FLumenSceneData* LumenSceneData = Scene->LumenSceneData;
+		ViewUniformShaderParameters.PrimitiveToLumenInstanceOffsetBuffer = LumenSceneData->PrimitiveToLumenInstanceOffsetBuffer.SRV;
+		ViewUniformShaderParameters.PrimitiveToLumenInstanceOffsetBufferSize = LumenSceneData->PrimitiveToLumenInstanceOffsetBufferSize;
+		ViewUniformShaderParameters.LumenInstanceToDFObjectIndexBuffer = LumenSceneData->LumenInstanceToDFObjectIndexBuffer.SRV;
+		ViewUniformShaderParameters.LumenInstanceToDFObjectIndexBufferSize = LumenSceneData->LumenInstanceToDFObjectIndexBufferSize;
+	}
+	else
+	{
+		ViewUniformShaderParameters.PrimitiveToLumenInstanceOffsetBuffer = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
+		ViewUniformShaderParameters.PrimitiveToLumenInstanceOffsetBufferSize = 0;
+		ViewUniformShaderParameters.LumenInstanceToDFObjectIndexBuffer = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
+		ViewUniformShaderParameters.LumenInstanceToDFObjectIndexBufferSize = 0;
+	}
+}
+
 void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE_BYTAG(Lumen);
+
+	FViewInfo& View = Views[0];
 
 	if (GAllowLumenScene
 		&& ViewFamily.EngineShowFlags.Lighting
 		&& DoesPlatformSupportLumenGI(ShaderPlatform)
 		// Don't update scene lighting for secondary views
-		&& !Views[0].bIsPlanarReflection 
-		&& !Views[0].bIsSceneCapture
-		&& !Views[0].bIsReflectionCapture
-		&& Views[0].ViewState)
+		&& !View.bIsPlanarReflection 
+		&& !View.bIsSceneCapture
+		&& !View.bIsReflectionCapture
+		&& View.ViewState)
 	{
 		const double StartTime = FPlatformTime::Seconds();
 
@@ -1956,6 +1994,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 		RDG_EVENT_SCOPE(GraphBuilder, "UpdateLumenScene: %u card captures %.3fM texels", CardsToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / 1e6f);
 
 		UpdateCardSceneBuffer(GraphBuilder.RHICmdList, ViewFamily, Scene);
+
+		// Recreate the view uniform buffer now that we have updated Lumen's primitive mapping buffers
+		Lumen::SetupViewUniformBufferParameters(Scene, *View.CachedViewUniformShaderParameters);
+		View.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 		
 		LumenCardRenderer.CardIdsToRender.Empty(CardsToRender.Num());
 
@@ -2006,10 +2048,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				FPixelShaderUtils::UploadRectMinMaxBuffer(GraphBuilder, RectMinMaxToRender, RectMinMaxBuffer);
 
 				FRDGBufferSRVRef RectMinMaxBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RectMinMaxBuffer, PF_R32G32B32A32_UINT));
-				ClearLumenCards(GraphBuilder, Views[0], AlbedoAtlasTexture, NormalAtlasTexture, EmissiveAtlasTexture, DepthAtlasTexture, LumenSceneData.MaxAtlasSize, RectMinMaxBufferSRV, NumRects);
+				ClearLumenCards(GraphBuilder, View, AlbedoAtlasTexture, NormalAtlasTexture, EmissiveAtlasTexture, DepthAtlasTexture, LumenSceneData.MaxAtlasSize, RectMinMaxBufferSRV, NumRects);
 			}
 
-			FViewInfo* SharedView = Views[0].CreateSnapshot();
+			FViewInfo* SharedView = View.CreateSnapshot();
 			{
 				SharedView->DynamicPrimitiveCollector = FGPUScenePrimitiveCollector(&GetGPUSceneDynamicContext());
 				SharedView->StereoPass = eSSP_FULL;
@@ -2346,7 +2388,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 		if (LumenCardRenderer.CardIdsToRender.Num() > 0)
 		{
-			PrefilterLumenSceneDepth(GraphBuilder, LumenCardRenderer.CardIdsToRender, Views[0]);
+			PrefilterLumenSceneDepth(GraphBuilder, LumenCardRenderer.CardIdsToRender, View);
 		}
 
 		const float TimeElapsed = FPlatformTime::Seconds() - StartTime;

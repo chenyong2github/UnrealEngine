@@ -3,6 +3,7 @@
 #include "../Common.ush"
 #include "../RayTracing/RayTracingCommon.ush"
 #include "../RayTracing/RayTracingHitGroupCommon.ush"
+#include "../Lumen/LumenHardwareRayTracingPayloadCommon.ush"
 
 #include "../SceneData.ush"
 
@@ -10,8 +11,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(LumenHardwareRayTracingMaterialCHS,
 	FLumenMinimalPayload, Payload,
 	FDefaultAttributes, Attributes)
 {
+	const int PrimitiveIndex = GetInstanceUserData();
+	const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
+
 	Payload.HitT = RayTCurrent();
-	Payload.InstanceID = GetInstanceUserData();
+	Payload.DistanceFieldObjectIndex = GetLumenDistanceFieldObjectIndex(PrimitiveIndex, PrimitiveInstanceIndex);
 
 	// TODO: WorldNormal support
 	// float3 LocalNormal = 0;
