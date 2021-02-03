@@ -880,19 +880,18 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 
 	if(bEnableChaosJointConstraints)
 	{
-		if(InActorRef1 && InActorRef2)
+		if(InActorRef1 && InActorRef2 && InActorRef1->GetSolverBase() && InActorRef2->GetSolverBase())
 		{
-			if(InActorRef1->GetSolverBase() && InActorRef2->GetSolverBase())
+			LLM_SCOPE(ELLMTag::Chaos);
+			Chaos::FPhysicsSolver* Solver = InActorRef1->GetSolver<Chaos::FPhysicsSolver>();
+			if (Solver != nullptr)
 			{
-				LLM_SCOPE(ELLMTag::Chaos);
-
 				auto* JointConstraint = new Chaos::FJointConstraint();
 				ConstraintRef.Constraint = JointConstraint;
 
 				JointConstraint->SetParticleProxies({ InActorRef1,InActorRef2 });
 				JointConstraint->SetJointTransforms({ InLocalFrame1,InLocalFrame2 });
 
-				Chaos::FPhysicsSolver* Solver = InActorRef1->GetSolver<Chaos::FPhysicsSolver>();
 				checkSlow(Solver == InActorRef2->GetSolver<Chaos::FPhysicsSolver>());
 				Solver->RegisterObject(JointConstraint);
 			}
@@ -909,40 +908,41 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 				ValidParticle = InActorRef2;
 			}
 
-			FChaosScene* Scene = FChaosEngineInterface::GetCurrentScene(ValidParticle);
-
-			// Create kinematic actor to attach to joint
-			FPhysicsActorHandle KinematicEndPoint;
-			FActorCreationParams Params;
-			Params.bSimulatePhysics = false;
-			Params.bQueryOnly = false;
-			Params.Scene = Scene;
-			Params.bStatic = false;
-			Params.InitialTM = FTransform::Identity;
-			FChaosEngineInterface::CreateActor(Params, KinematicEndPoint);
-
-			// Chaos requires our particles have geometry.
-			auto Sphere = MakeUnique<Chaos::FImplicitSphere3>(FVector(0, 0, 0), 0);
-			KinematicEndPoint->GetGameThreadAPI().SetGeometry(MoveTemp(Sphere));
-			KinematicEndPoint->GetGameThreadAPI().SetUserData(nullptr);
-
-			auto* JointConstraint = new Chaos::FJointConstraint();
-			JointConstraint->SetKinematicEndPoint(KinematicEndPoint, Scene->GetSolver());
-			ConstraintRef.Constraint = JointConstraint;
-
-			JointConstraint->SetParticleProxies({ KinematicEndPoint, ValidParticle });
-
-			Chaos::FJointConstraint::FTransformPair TransformPair = { InLocalFrame2, InLocalFrame1};
-			if (bSwapped)
-			{
-				Swap(TransformPair[0], TransformPair[1]);
-			}
-			JointConstraint->SetJointTransforms(TransformPair);
-
 			Chaos::FPhysicsSolver* Solver = ValidParticle->GetSolver<Chaos::FPhysicsSolver>();
-			checkSlow(Solver == KinematicEndPoint->GetSolver<Chaos::FPhysicsSolver>());
-			Solver->RegisterObject(JointConstraint);
+			if (Solver != nullptr)
+			{
+				FChaosScene* Scene = FChaosEngineInterface::GetCurrentScene(ValidParticle);
+				// Create kinematic actor to attach to joint
+				FPhysicsActorHandle KinematicEndPoint;
+				FActorCreationParams Params;
+				Params.bSimulatePhysics = false;
+				Params.bQueryOnly = false;
+				Params.Scene = Scene;
+				Params.bStatic = false;
+				Params.InitialTM = FTransform::Identity;
+				FChaosEngineInterface::CreateActor(Params, KinematicEndPoint);
 
+				// Chaos requires our particles have geometry.
+				auto Sphere = MakeUnique<Chaos::FImplicitSphere3>(FVector(0, 0, 0), 0);
+				KinematicEndPoint->GetGameThreadAPI().SetGeometry(MoveTemp(Sphere));
+				KinematicEndPoint->GetGameThreadAPI().SetUserData(nullptr);
+
+				auto* JointConstraint = new Chaos::FJointConstraint();
+				JointConstraint->SetKinematicEndPoint(KinematicEndPoint, Scene->GetSolver());
+				ConstraintRef.Constraint = JointConstraint;
+
+				JointConstraint->SetParticleProxies({ KinematicEndPoint, ValidParticle });
+
+				Chaos::FJointConstraint::FTransformPair TransformPair = { InLocalFrame2, InLocalFrame1 };
+				if (bSwapped)
+				{
+					Swap(TransformPair[0], TransformPair[1]);
+				}
+				JointConstraint->SetJointTransforms(TransformPair);
+
+				checkSlow(Solver == KinematicEndPoint->GetSolver<Chaos::FPhysicsSolver>());
+				Solver->RegisterObject(JointConstraint);
+			}
 		}
 	}
 	return ConstraintRef;
