@@ -120,6 +120,9 @@ class UPythonGeneratedEnum : public UEnum, public IPythonResourceOwner
 #if WITH_PYTHON
 
 public:
+	//~ UObject interface
+	virtual void BeginDestroy() override;
+
 	//~ IPythonResourceOwner interface
 	virtual void ReleasePythonResources() override;
 

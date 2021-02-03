@@ -1401,7 +1401,9 @@ public:
 			NewStruct->ClearFlags(RF_Public | RF_Standalone);
 			NewStruct = nullptr;
 
+			Py_BEGIN_ALLOW_THREADS
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+			Py_END_ALLOW_THREADS
 		}
 	}
 
@@ -1593,10 +1595,28 @@ void UPythonGeneratedStruct::InitializeStruct(void* Dest, int32 ArrayDim) const
 	}
 }
 
+void UPythonGeneratedStruct::BeginDestroy()
+{
+	ReleasePythonResources();
+	Super::BeginDestroy();
+}
+
 void UPythonGeneratedStruct::ReleasePythonResources()
 {
-	PyType.Reset();
-	PyPostInitFunction.Reset();
+	// This may be called after Python has already shut down
+	if (Py_IsInitialized())
+	{
+		FPyScopedGIL GIL;
+		PyType.Reset();
+		PyPostInitFunction.Reset();
+	}
+	else
+	{
+		// Release ownership if Python has been shut down to avoid attempting to delete the objects (which are already dead)
+		PyType.Release();
+		PyPostInitFunction.Release();
+	}
+
 	PropertyDefs.Reset();
 	PyMetaData = FPyWrapperStructMetaData();
 }

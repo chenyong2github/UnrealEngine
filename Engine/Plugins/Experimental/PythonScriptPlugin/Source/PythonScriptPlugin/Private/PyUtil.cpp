@@ -3,6 +3,7 @@
 #include "PyUtil.h"
 #include "PyCore.h"
 #include "PyConversion.h"
+#include "PyGIL.h"
 
 #include "PyWrapperObject.h"
 #include "PyWrapperStruct.h"
@@ -554,11 +555,13 @@ bool InvokeFunctionCall(UObject* InObj, const UFunction* InFunc, void* InBasePar
 	{
 		if (Verbosity == ELogVerbosity::Error)
 		{
+			FPyScopedGIL GIL;
 			SetPythonError(PyExc_RuntimeError, InErrorCtxt, ExceptionMessage);
 			bThrewException = true;
 		}
 		else if (Verbosity == ELogVerbosity::Warning)
 		{
+			FPyScopedGIL GIL;
 			if (SetPythonWarning(PyExc_RuntimeWarning, InErrorCtxt, ExceptionMessage) == -1)
 			{
 				// -1 from SetPythonWarning means the warning should be an exception
@@ -574,7 +577,9 @@ bool InvokeFunctionCall(UObject* InObj, const UFunction* InFunc, void* InBasePar
 	});
 
 	FEditorScriptExecutionGuard ScriptGuard;
+	Py_BEGIN_ALLOW_THREADS
 	InObj->ProcessEvent((UFunction*)InFunc, InBaseParamsAddr);
+	Py_END_ALLOW_THREADS
 
 	return !bThrewException;
 }

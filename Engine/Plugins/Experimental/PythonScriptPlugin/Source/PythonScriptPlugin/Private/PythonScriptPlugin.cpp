@@ -643,6 +643,13 @@ void FPythonScriptPlugin::InitializePython()
 		Py_SetPythonHome(PyHomePath.GetData());
 		Py_InitializeEx(0); // 0 so Python doesn't override any UE4 signal handling
 
+		// Ensure Python supports multiple threads via the GIL, as UE4 GC runs over multiple threads, 
+		// which may invoke FPyReferenceCollector::AddReferencedObjects on a background thread...
+		if (!PyEval_ThreadsInitialized())
+		{
+			PyEval_InitThreads();
+		}
+
 #if PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
 		// We call _setmode here to restore the previous state
 		if (StdInMode != -1)
@@ -769,6 +776,10 @@ void FPythonScriptPlugin::InitializePython()
 		}));
 	}
 
+	// Release the GIL taken by Py_Initialize now that initialization has finished, to allow other threads access to Python
+	// We have to take this again prior to calling Py_Finalize, and all other code will lock on-demand via FPyScopedGIL
+	PyMainThreadState = PyEval_SaveThread();
+
 #if WITH_EDITOR
 	// Initialize the Content Browser integration
 	if (GIsEditor && !IsRunningCommandlet() && GetDefault<UPythonScriptPluginUserSettings>()->bEnableContentBrowserIntegration)
@@ -881,6 +892,10 @@ void FPythonScriptPlugin::ShutdownPython()
 	{
 		return;
 	}
+
+	// We need to restore the original GIL prior to calling Py_Finalize
+	PyEval_RestoreThread(PyMainThreadState);
+	PyMainThreadState = nullptr;
 
 #if WITH_EDITOR
 	// Remove the Content Browser integration

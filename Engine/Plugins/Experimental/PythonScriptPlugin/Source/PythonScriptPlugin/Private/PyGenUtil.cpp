@@ -200,7 +200,7 @@ const FGeneratedWrappedOperatorSignature& FGeneratedWrappedOperatorSignature::Op
 }
 
 bool FGeneratedWrappedOperatorSignature::StringToSignature(const TCHAR* InStr, FGeneratedWrappedOperatorSignature& OutSignature)
-	{
+{
 	for (int32 OpTypeIndex = 0; OpTypeIndex < (int32)EGeneratedWrappedOperatorType::Num; ++OpTypeIndex)
 	{
 		const FGeneratedWrappedOperatorSignature& PotentialSignature = OpTypeToSignature((EGeneratedWrappedOperatorType)OpTypeIndex);
@@ -710,7 +710,7 @@ void FGeneratedWrappedClassType::Finalize_PostReady()
 	// Execute Python code within this block
 	{
 		FPyScopedGIL GIL;
-	FPyMethodWithClosureDef::AddMethods(Methods.PyMethods.GetData(), &PyType);
+		FPyMethodWithClosureDef::AddMethods(Methods.PyMethods.GetData(), &PyType);
 		FPyConstantDef::AddConstantsToType(Constants.PyConstants.GetData(), &PyType);
 	}
 }
@@ -744,10 +744,14 @@ void FGeneratedWrappedEnumType::Finalize_PostReady()
 
 void FGeneratedWrappedEnumType::Reset_CleansePyType()
 {
-	// Unregister the existing enum entries
-	for (const FGeneratedWrappedEnumEntry& EnumEntry : EnumEntries)
+	// Execute Python code within this block
 	{
-		PyDict_DelItemString(PyType.tp_dict, EnumEntry.EntryName.GetData());
+		// Unregister the existing enum entries
+		FPyScopedGIL GIL;
+		for (const FGeneratedWrappedEnumEntry& EnumEntry : EnumEntries)
+		{
+			PyDict_DelItemString(PyType.tp_dict, EnumEntry.EntryName.GetData());
+		}
 	}
 
 	FGeneratedWrappedType::Reset_CleansePyType();
@@ -2329,8 +2333,11 @@ void PythonizeStructValueImpl(const UScriptStruct* InStruct, const void* InStruc
 					void* SelfArgInstance = SelfParam.ParamProp->ContainerPtrToValuePtr<void>(FuncParams.GetStructMemory());
 					CastFieldChecked<const FStructProperty>(SelfParam.ParamProp)->Struct->CopyScriptStruct(SelfArgInstance, InStructValue);
 				}
-				PyUtil::InvokeFunctionCall(Obj, BreakFuncDef.Func, FuncParams.GetStructMemory(), TEXT("pythonize default struct value"));
-				PyErr_Clear(); // Clear any errors in case InvokeFunctionCall failed
+				{
+					FPyScopedGIL GIL;
+					PyUtil::InvokeFunctionCall(Obj, BreakFuncDef.Func, FuncParams.GetStructMemory(), TEXT("pythonize default struct value"));
+					PyErr_Clear(); // Clear any errors in case InvokeFunctionCall failed
+				}
 
 				// Extract the output argument values as defaults for the struct
 				for (int32 OuputParamIndex = 0; OuputParamIndex < BreakFuncDef.OutputParams.Num(); ++OuputParamIndex)
@@ -2571,16 +2578,16 @@ FString GetFieldPythonNameImpl(const FFieldVariant& InField, const FName InMetaD
 	if (GetFieldPythonNameFromMetaDataImpl(InField, InMetaDataKey, FieldName))
 	{
 		return FieldName;
-}
+	}
 
 	// Just use the field name if we have no meta-data
 	if (FieldName.IsEmpty())
-{
+	{
 		FieldName = InField.GetName();
 
 		// Strip the "E" prefix from enum names
 		if (InField.IsA<UEnum>() && FieldName.Len() >= 2 && FieldName[0] == TEXT('E') && FChar::IsUpper(FieldName[1]))
-	{
+		{
 			FieldName.RemoveAt(0, 1, /*bAllowShrinking*/false);
 		}
 
@@ -2618,7 +2625,7 @@ TArray<FString> GetDeprecatedFieldPythonNamesImpl(const FFieldVariant& InField, 
 	if (GetDeprecatedFieldPythonNamesFromMetaDataImpl(InField, InMetaDataKey, FieldNames))
 	{
 		return FieldNames;
-}
+	}
 
 	// Just use the redirects if we have no meta-data
 	ECoreRedirectFlags RedirectFlags = ECoreRedirectFlags::None;
@@ -2653,14 +2660,14 @@ TArray<FString> GetDeprecatedFieldPythonNamesImpl(const FFieldVariant& InField, 
 		// Redirects can be used to redirect outers
 		// We want to skip those redirects as we only care about changes within the current scope
 		if (!PreviousName.OuterName.IsNone() && PreviousName.OuterName != CurrentName.OuterName)
-{
+		{
 			continue;
 		}
 
 		// Redirects can often keep the same name when updating the path
 		// We want to skip those redirects as we only care about name changes
 		if (PreviousName.ObjectName == CurrentName.ObjectName)
-	{
+		{
 			continue;
 		}
 		
@@ -2701,7 +2708,7 @@ TArray<FString> GetDeprecatedStructPythonNames(const UScriptStruct* InStruct)
 FString GetEnumPythonName(const UEnum* InEnum)
 {
 	return GetFieldPythonNameImpl(InEnum, ScriptNameMetaDataKey);
-	}
+}
 
 TArray<FString> GetDeprecatedEnumPythonNames(const UEnum* InEnum)
 {

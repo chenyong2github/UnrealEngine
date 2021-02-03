@@ -190,6 +190,7 @@ class UPythonGeneratedClass : public UClass, public IPythonResourceOwner
 public:
 	//~ UObject interface
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	virtual void BeginDestroy() override;
 
 	//~ UClass interface
 	virtual void PostInitInstance(UObject* InObj) override;

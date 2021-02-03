@@ -2198,6 +2198,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 {
 	UE_LOG(LogPython, Display, TEXT("Generating Python API stub file..."));
 
+	FPyScopedGIL GIL;
 	FPyFileWriter PythonScript;
 
 	TUniquePtr<FPyOnlineDocsWriter> OnlineDocsWriter;
@@ -2352,7 +2353,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 		FString ProjectTopDir;
 		if (FPaths::IsProjectFilePathSet())
 		{
-			ProjectTopDir / FPaths::GetCleanFilename(FPaths::ProjectDir());
+			ProjectTopDir = FPaths::GetCleanFilename(FPaths::ProjectDir());
 		}
 
 		for (const auto& WrappedDataPair : WrappedData)
