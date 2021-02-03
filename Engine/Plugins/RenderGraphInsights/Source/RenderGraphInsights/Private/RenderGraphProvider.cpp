@@ -18,20 +18,6 @@ INSIGHTS_IMPLEMENT_RTTI(FPassIntervalPacket)
 
 FName FRenderGraphProvider::ProviderName("RenderGraphProvider");
 
-void SanitizeName(FString& Name)
-{
-	if (Name.IsEmpty())
-	{
-		Name = TEXT("<unnamed>");
-	}
-}
-
-FString GetSanitizeName(FString Name)
-{
-	SanitizeName(Name);
-	return MoveTemp(Name);
-}
-
 FString GetSizeName(uint32 Bytes)
 {
 	const uint32 KB = 1024;

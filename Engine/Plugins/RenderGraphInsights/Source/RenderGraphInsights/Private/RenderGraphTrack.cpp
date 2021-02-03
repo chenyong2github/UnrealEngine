@@ -1068,7 +1068,7 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 			const auto& TooltipEvent = InTooltipEvent.As<FVisiblePassEvent>();
 			const FPassPacket& Pass = TooltipEvent.GetPacket();
 
-			Tooltip.AddTitle(GetSanitizeName(Pass.Name));
+			Tooltip.AddTitle(GetSanitizedName(Pass.Name));
 			Tooltip.AddNameValueTextLine(TEXT("Handle:"), FString::Printf(TEXT("%d"), Pass.Handle.GetIndex()));
 
 			if (Pass.bCulled)

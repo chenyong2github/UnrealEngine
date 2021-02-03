@@ -17,6 +17,8 @@ namespace UE
 {
 namespace RenderGraphInsights
 {
+class FRenderGraphTimingViewSession;
+
 class FGraphPacket;
 class FPacketFilter;
 

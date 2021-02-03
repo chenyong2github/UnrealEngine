@@ -17,6 +17,20 @@ namespace UE
 namespace RenderGraphInsights
 {
 
+inline void SanitizeName(FString& Name)
+{
+	if (Name.IsEmpty())
+	{
+		Name = TEXT("<unnamed>");
+	}
+}
+
+inline FString GetSanitizedName(FString Name)
+{
+	SanitizeName(Name);
+	return MoveTemp(Name);
+}
+
 class FGraphPacket;
 
 const uint32 kInvalidVisibleIndex = ~0u;
