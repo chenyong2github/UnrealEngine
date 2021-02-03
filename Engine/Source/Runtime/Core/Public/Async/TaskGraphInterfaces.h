@@ -778,6 +778,11 @@ public:
 		return RefCount;
 	}
 
+	uint32 GetRefCount() const
+	{
+		return ReferenceCount.GetValue();
+	}
+
 private:
 
 	/** Threadsafe list of subsequents for the event **/
