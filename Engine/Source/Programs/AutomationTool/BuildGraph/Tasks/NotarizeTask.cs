@@ -48,8 +48,7 @@ namespace BuildGraph.Tasks
 		/// <summary>
 		/// When true the notarization ticket will be stapled
 		/// </summary>
-		[TaskParameter(Optional = true)]
-		public bool RequireStapling = true;
+		public bool RequireStapling;
 	}
 
 	[TaskElement("Notarize", typeof(NotarizeTaskParameters))]
