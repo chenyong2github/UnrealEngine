@@ -611,19 +611,11 @@ namespace Chaos
 		}
 
 		// CVars variables for controlling geometry complexity checking and simplification
-#if PLATFORM_MAC || PLATFORM_LINUX
 		static CHAOS_API int32 PerformGeometryCheck;
 		static CHAOS_API int32 PerformGeometryReduction;
 		static CHAOS_API int32 VerticesThreshold;
 		static CHAOS_API int32 ParticlesThreshold;
 		static CHAOS_API int32 ComputeHorizonEpsilonFromMeshExtends;
-#else
-		static int32 PerformGeometryCheck;
-		static int32 PerformGeometryReduction;
-		static int32 VerticesThreshold;
-		static int32 ParticlesThreshold;
-		static int32 ComputeHorizonEpsilonFromMeshExtends;
-#endif
 
 	private:
 
