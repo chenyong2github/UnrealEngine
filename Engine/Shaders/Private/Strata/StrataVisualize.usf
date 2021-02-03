@@ -84,8 +84,7 @@ void VisualizeMaterialPS(
 	OutColor = 0;
 	if (bStrataMaterial)
 	{
-		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
-		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel));
 
 		OutColor.w = 0.05f;
 		if (Header.BSDFCount == 1)
@@ -118,15 +117,13 @@ void VisualizeMaterialPS(
 	bool bPlotValid = false;
 	if (bStrataMaterial)
 	{
-		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
-		const uint PixelStrataDataByteOffsetStart = PixelStrataDataByteOffset;
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
 
-		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
-		const uint PixelStrataDataByteOffsetPostHeader = PixelStrataDataByteOffset;
+		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
 
 		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 		{
-			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, StrataAddressing);
 
 			// Referential
 			if (all(PixelPos == MaterialPos))
@@ -158,11 +155,11 @@ void VisualizeMaterialPS(
 		uint2 RectMin = uint2(MaterialPos + InspectSquare);
 		uint2 RectMax = RectMin;
 
-		uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
-		const uint PixelStrataDataByteOffsetStart = PixelStrataDataByteOffset;
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
+		const uint PixelStrataDataByteOffsetStart = StrataAddressing.ReadBytes;
 
-		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
-		const uint PixelStrataDataByteOffsetPostHeader = PixelStrataDataByteOffset;
+		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+		const uint PixelStrataDataByteOffsetPostHeader = StrataAddressing.ReadBytes;
 
 		float3 BSDFFontColor = float3(0.25, 1.0, 0.25);
 		float3 BSDFFontColorGrey = float3(0.25, 0.25, 0.25);
@@ -210,7 +207,7 @@ void VisualizeMaterialPS(
 		LOOP
 		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 		{
-			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, StrataAddressing);
 
 			TopLeft.x = TopLeftInit.x;
 
@@ -427,7 +424,7 @@ void VisualizeMaterialPS(
 			HORIZONTALSEPARATION;
 		}
 
-		const uint PixelStrataDataByteOffsetPostBSDF = PixelStrataDataByteOffset;
+		const uint PixelStrataDataByteOffsetPostBSDF = StrataAddressing.ReadBytes;
 
 #if PERMUTATION_BSDF_PASS==0
 		PRINTINFOCHAR(_B_); PRINTINFOCHAR(_O_); PRINTINFOCHAR(_T_); PRINTINFOCHAR(_T_); PRINTINFOCHAR(_O_); PRINTINFOCHAR(_M_);

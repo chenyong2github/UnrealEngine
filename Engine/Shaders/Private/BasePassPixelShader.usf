@@ -1548,12 +1548,12 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.WorldNormal = 0; // Normal will be overriden by the top layer normal
 
 	uint2 PixelPos = In.SvPosition.xy;
-	uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, ResolvedView.BufferSizeAndInvSize.x, OpaqueBasePass.Strata.MaxBytesPerPixel);
 
 	float3 EmissiveLuminance = 0.0f;
 	const float3 VertexNormal = MaterialParameters.TangentToWorld[2].xyz;
 	PackStrataOut(
-		OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, 
+		OpaqueBasePass.Strata.MaterialLobesBufferUAV, 
+		GetStrataPixelDataByteOffset(PixelPos, ResolvedView.BufferSizeAndInvSize.x, OpaqueBasePass.Strata.MaxBytesPerPixel),
 		StrataPixelHeader, Strata,
 		MaterialParameters.CameraVector, GBuffer, EmissiveLuminance);
 
