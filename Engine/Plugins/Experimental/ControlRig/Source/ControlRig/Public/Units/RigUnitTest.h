@@ -21,6 +21,7 @@ public:
 	{
 		Context.Hierarchy = &HierarchyContainer;
 		ExecuteContext.Hierarchy= &HierarchyContainer;
+		Context.NameCache = &NameCache;
 	}
 
 	FRigHierarchyContainer HierarchyContainer;
@@ -29,6 +30,7 @@ public:
 	FRigControlHierarchy& ControlHierarchy;
 	FRigCurveContainer& CurveContainer;
 	FControlRigExecuteContext ExecuteContext;
+	FRigNameCache NameCache;
 	FRigUnitContext Context;
 };
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Rigs/RigHierarchyContainer.h"
 #include "Rigs/RigCurveContainer.h"
+#include "Rigs/RigNameCache.h"
 #include "ControlRigLog.h"
 #include "AnimationDataSource.h"
 #include "Drawing/ControlRigDrawInterface.h"
@@ -42,6 +43,7 @@ struct FRigUnitContext
 #if WITH_EDITOR
 		, Log(nullptr)
 #endif
+		, NameCache(nullptr)
 	{
 	}
 
@@ -88,6 +90,9 @@ struct FRigUnitContext
 	/** A handle to the compiler log */
 	FControlRigLog* Log;
 #endif
+
+	/** A container to store all names */
+	FRigNameCache* NameCache;
 
 	FORCEINLINE const FRigBoneHierarchy* GetBones() const
 	{

@@ -442,6 +442,8 @@ private:
 	UPROPERTY()
 	TMap<FName, FCachedPropertyPath> OutputProperties_DEPRECATED;
 
+	FRigNameCache NameCache;
+
 private:
 	// Controls for the container
 	void HandleOnControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
