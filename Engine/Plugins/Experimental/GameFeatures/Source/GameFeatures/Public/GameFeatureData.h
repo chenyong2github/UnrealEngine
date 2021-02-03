@@ -19,8 +19,11 @@ public:
 	/** Method to get where the primary assets should scanned from in the plugin hierarchy */
 	const TArray<FPrimaryAssetTypeInfo>& GetPrimaryAssetTypesToScan() const { return PrimaryAssetTypesToScan; }
 
+	/** Method to process the base ini file for the plugin during loading */
+	void InitializeBasePluginIniFile(const FString& PluginInstalledFilename) const;
+
 	/** Method to process ini files for the plugin during activation */
-	void InitializePluginIniFile(const FString& PluginInstalledFilename) const;
+	void InitializeHierarchicalPluginIniFiles(const FString& PluginInstalledFilename) const;
 
 public:
 	//~UPrimaryDataAsset interface
