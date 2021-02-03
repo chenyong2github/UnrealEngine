@@ -381,6 +381,7 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 											OutPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
 
 											FBlendedCurve OutCurve;
+											OutCurve.InitFrom(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
 											FStackCustomAttributes TempAttributes;
 											FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
 
