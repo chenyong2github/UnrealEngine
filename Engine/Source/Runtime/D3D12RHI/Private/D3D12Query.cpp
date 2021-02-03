@@ -6,8 +6,6 @@
 
 #include "D3D12RHIPrivate.h"
 
-#define FORCE_D3D12_TIMESTAMP_QUERY_RESOLVES_TO_GRAPHICS_COMMANDLIST 1
-
 namespace D3D12RHI
 {
 	/**
@@ -373,12 +371,10 @@ void FD3D12QueryHeap::StartQueryBatch(FD3D12CommandContext& CmdContext, uint32 N
 void FD3D12QueryHeap::EndQueryBatchAndResolveQueryData(FD3D12CommandContext& CmdContextIn)
 {
 	FD3D12CommandContext* CmdContext = &CmdContextIn;
-#if defined(FORCE_D3D12_TIMESTAMP_QUERY_RESOLVES_TO_GRAPHICS_COMMANDLIST) && FORCE_D3D12_TIMESTAMP_QUERY_RESOLVES_TO_GRAPHICS_COMMANDLIST
-	if (QueryType == D3D12_QUERY_TYPE_TIMESTAMP && CmdContext->IsAsyncComputeContext())
+	if (CmdContext->IsAsyncComputeContext())
 	{
 		CmdContext = &GetParentDevice()->GetDefaultCommandContext();
 	}
-#endif // #if defined(FORCE_D3D12_TIMESTAMP_QUERY_RESOLVES_TO_GRAPHICS_COMMANDLIST) && FORCE_D3D12_TIMESTAMP_QUERY_RESOLVES_TO_GRAPHICS_COMMANDLIST
 	check(CmdContext);
 	check(CmdContext->IsDefaultContext());
 
