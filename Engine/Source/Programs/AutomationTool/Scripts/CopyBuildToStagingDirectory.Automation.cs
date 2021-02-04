@@ -837,6 +837,23 @@ public partial class Project : CommandUtils
 				SC.StageFile(StagedFileType.UFS, SC.RawProjectPath);
 
 				StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), null);
+
+				var ToRestoreRestrictedFolder = SC.RestrictedFolderNames;
+
+				// For every platform we depend on also stage their platform config files
+				foreach (var PlatformDepends in Params.ServerDependentPlatformMap)
+				{
+					// StageConfigFiles will fail to find these config files due to filtering out restricted folder names
+					// Just for this loop we remove the filter for these platorms and stage the config files
+					// After the loop we restore the restricted folder to prevent staging anything unwanted
+					SC.RestrictedFolderNames.ExceptWith(PlatformExports.GetIncludedFolderNames(PlatformDepends.Key.Type));
+
+					StageConfigFiles(SC, DirectoryReference.Combine(SC.EngineRoot, "Config"), PlatformDepends.Key.ToString());
+					StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), PlatformDepends.Key.ToString());
+					StagePlatformExtensionConfigFiles(SC, PlatformDepends.Key.ToString());
+				}
+
+				SC.RestrictedFolderNames = ToRestoreRestrictedFolder;
 				
 				// Stage platform extension config files
 				foreach (string PlatformExtensionToStage in PlatformExtensionsToStage)
