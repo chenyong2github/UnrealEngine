@@ -47,6 +47,9 @@ public:
 	*			Returns all keys even if clipped by the owning section's boundaries or outside of the current sequence play range.
 	*/
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const PURE_VIRTUAL(UMovieSceneScriptingChannel::GetKeys, return TArray<UMovieSceneScriptingKey*>(););
+
+	UPROPERTY(BlueprintReadOnly, Category="Editor Scripting | Sequencer Tools | Keys")
+	FName ChannelName;
 };
 
 template<typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType>
