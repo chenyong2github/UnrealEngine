@@ -1411,7 +1411,7 @@ namespace ChaosTest
 		}
 
 		{
-			TArray<TVec3<T>> ConvexParticles;
+			TArray<FVec3> ConvexParticles;
 			ConvexParticles.SetNum(16);
 
 			ConvexParticles[0] ={-127.216454,203.240234,124.726524};
@@ -1480,7 +1480,7 @@ namespace ChaosTest
 
 		{
 			//capsule vs triangle as we make the sweep longer the world space point of impact should stay the same
-			TArray<TVec3<T>> ConvexParticles;
+			TArray<FVec3> ConvexParticles;
 			ConvexParticles.SetNum(3);
 
 			ConvexParticles[0] ={7400.00000, 12600.0000, 206.248123};
@@ -1491,7 +1491,7 @@ namespace ChaosTest
 			TSerializablePtr<FConvex> AConv(UniqueConvex);
 			const TImplicitObjectScaled<FConvex> AConvScaled(AConv,FVec3(1.0,1.0,1.0));
 
-			TTriangle<T> A(ConvexParticles[0],ConvexParticles[1],ConvexParticles[2]);
+			TTriangle<FReal> A(ConvexParticles[0],ConvexParticles[1],ConvexParticles[2]);
 
 			const FVec3 Pt0(0.0,0.0,-29.6999969);
 			FVec3 Pt1 = Pt0;

@@ -579,8 +579,8 @@ namespace ChaosTest {
 		InParticles.Q() = InParticles.R();
 
 		// TODO: Change this error prone API to set bounds more automatically. This is easy to forget
-		InParticles.SetLocalBounds(TAABB<T, 3>(Cube[0], Cube[7]));
-		InParticles.SetWorldSpaceInflatedBounds(TAABB<T, 3>(Cube[0], Cube[7]));
+		InParticles.SetLocalBounds(TAABB<FReal, 3>(Cube[0], Cube[7]));
+		InParticles.SetWorldSpaceInflatedBounds(TAABB<FReal, 3>(Cube[0], Cube[7]));
 		InParticles.SetHasBounds(true);
 
 		InParticles.M() = 1.0;
