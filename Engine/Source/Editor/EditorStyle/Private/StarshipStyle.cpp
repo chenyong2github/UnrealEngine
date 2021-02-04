@@ -2507,6 +2507,11 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 		Set("EditorViewportToolBar.Maximize.Checked", new IMAGE_BRUSH_SVG("Starship/EditorViewport/quad", Icon16x16));
 		Set("EditorViewportToolBar.RestoreFromImmersive.Normal", new IMAGE_BRUSH("Icons/icon_RestoreFromImmersive_16px", Icon16x16));
 
+		FLinearColor ViewportOverlayColor = FStyleColors::Input.GetSpecifiedColor();
+		ViewportOverlayColor.A = 0.75f;
+
+		Set("EditorViewport.OverlayBrush", new FSlateRoundedBoxBrush(ViewportOverlayColor, 8.0, FStyleColors::Dropdown, 1.0));
+
 	}
 
 	// Legacy Viewport ToolbarBar

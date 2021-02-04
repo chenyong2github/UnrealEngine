@@ -57,6 +57,7 @@ public:
 	virtual void OnToolkitHostingFinished( const TSharedRef< class IToolkit >& Toolkit ) override;
 	virtual UWorld* GetWorld() const override;
 	virtual UTypedElementCommonActions* GetCommonActions() const override;
+	virtual FOnActiveViewportChanged& OnActiveViewportChanged() override { return OnActiveViewportChangedDelegate; }
 	void CreateDefaultStandaloneMenuBar(UToolMenu* MenuBar);
 
 	/** SWidget overrides */
@@ -122,6 +123,10 @@ private:
 
 	/** The menu extenders to populate the main toolkit host menu with */
 	TArray< TSharedPtr<FExtender> > MenuExtenders;
+
+	/** A delegate which is called any time the LevelEditor's active viewport changes. */
+	FOnActiveViewportChanged OnActiveViewportChangedDelegate;
+
 
 	SVerticalBox::FSlot* ToolbarSlot;
 };

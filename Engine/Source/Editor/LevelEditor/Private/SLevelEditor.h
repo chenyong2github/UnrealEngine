@@ -130,6 +130,13 @@ public:
 	virtual TSharedRef<SWidget> CreateToolBox() override;
 	virtual FEditorModeTools& GetEditorModeManager() const override;
 	virtual UTypedElementCommonActions* GetCommonActions() const override;
+	virtual FOnActiveViewportChanged& OnActiveViewportChanged() { return OnActiveViewportChangedDelegate; }
+	virtual void AddViewportOverlayWidget(TSharedRef<SWidget>, TSharedPtr<IAssetViewport> InViewport = nullptr) override;
+	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget>, TSharedPtr<IAssetViewport> InViewport = nullptr) override; 
+
+
+	/* Tick to check the ActiveViewport */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** SWidget overrides */
 	virtual bool SupportsKeyboardFocus() const override
@@ -256,6 +263,9 @@ private:
 	// A list of any standalone editor viewports that aren't in tabs
 	TArray< TWeakPtr<SLevelViewport> > StandaloneViewports;
 
+	// The last known active viewport
+	TWeakPtr<class SLevelViewport> CachedActiveViewport;
+
 	// Border that hosts the document content for the level editor.
 	TSharedPtr< SBorder > DocumentsAreaBorder;
 	
@@ -315,6 +325,9 @@ private:
 	/** Actor details SCS editor customization */
 	TSharedPtr<ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization;
 		
+	/** A delegate which is called any time the LevelEditor's active viewport changes. */
+	FOnActiveViewportChanged OnActiveViewportChangedDelegate;
+
 	/** If this flag is raised we will force refresh on next selection update. */
 	bool bNeedsRefresh : 1;
 };

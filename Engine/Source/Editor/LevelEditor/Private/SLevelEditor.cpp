@@ -445,6 +445,17 @@ bool SLevelEditor::HasActivePlayInEditorViewport() const
 	return false;
 }
 
+void SLevelEditor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	// Update the ActiveViewport
+	TSharedPtr<SLevelViewport> LastActiveViewport = CachedActiveViewport.Pin();
+	if (!LastActiveViewport || &LastActiveViewport->GetLevelViewportClient() != GCurrentLevelEditingViewportClient)
+	{
+		TSharedPtr<SLevelViewport> NewActiveViewport = GetActiveViewport();
+		CachedActiveViewport = NewActiveViewport;
+		OnActiveViewportChanged().Broadcast(LastActiveViewport, NewActiveViewport);
+	}
+}
 
 TSharedPtr<SLevelViewport> SLevelEditor::GetActiveViewport()
 {
@@ -2010,5 +2021,30 @@ UTypedElementCommonActions* SLevelEditor::GetCommonActions() const
 {
 	return CommonActions;
 }
+
+void SLevelEditor::AddViewportOverlayWidget(TSharedRef<SWidget> InWidget, TSharedPtr<IAssetViewport> InViewport)
+{
+	if (InViewport != nullptr)
+	{
+		InViewport->AddOverlayWidget(InWidget);
+	}
+	else if (TSharedPtr<SLevelViewport> ActiveViewport = GetActiveViewport())
+	{
+		ActiveViewport->AddOverlayWidget(InWidget);
+	}
+}
+
+void SLevelEditor::RemoveViewportOverlayWidget(TSharedRef<SWidget> InWidget, TSharedPtr<IAssetViewport> InViewport)
+{
+	if (InViewport != nullptr)
+	{
+		InViewport->RemoveOverlayWidget(InWidget);
+	}
+	else if (TSharedPtr<SLevelViewport> ActiveViewport = GetActiveViewport())
+	{
+		ActiveViewport->RemoveOverlayWidget(InWidget);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

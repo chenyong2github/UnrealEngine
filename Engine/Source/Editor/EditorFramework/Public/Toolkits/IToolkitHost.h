@@ -6,6 +6,7 @@
 
 class FEditorModeTools;
 class UTypedElementCommonActions;
+class IAssetViewport;
 
 /**
  * Base interface class for toolkit hosts
@@ -14,6 +15,9 @@ class IToolkitHost
 {
 
 public:
+
+	/* Notificaton when the active viewport changed */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActiveViewportChanged,  TSharedPtr<IAssetViewport>, TSharedPtr<IAssetViewport>)
 
 	/** Gets a widget that can be used to parent a modal window or pop-up to.  You shouldn't be using this widget for
 	    anything other than parenting, as the type of widget and behavior/lifespan is completely up to the host. */
@@ -39,4 +43,13 @@ public:
 
 	/** Returns the common actions implementation for this toolkit host */
 	virtual UTypedElementCommonActions* GetCommonActions() const = 0;
+
+	/** Allows Toolkits to push widgets to the viewport.  Passing a nullptr for the Viewport will add  or 
+	    remove the OverlayWidget to or from the ActiveViewport */
+	virtual void AddViewportOverlayWidget(TSharedRef<SWidget>, TSharedPtr<IAssetViewport> InViewport = nullptr)  {}
+	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget>, TSharedPtr<IAssetViewport> InViewport = nullptr) {}
+
+	/** Gets a multicast delegate which is executed whenever the toolkit host's active viewport changes. */
+	virtual FOnActiveViewportChanged& OnActiveViewportChanged() = 0;
+
 };
