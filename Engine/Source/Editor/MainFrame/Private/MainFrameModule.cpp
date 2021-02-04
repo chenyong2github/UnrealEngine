@@ -71,7 +71,29 @@ const FText StaticGetApplicationTitle( const bool bIncludeGameName )
 /* IMainFrameModule implementation
  *****************************************************************************/
 
-void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const bool bStartPIE )
+void FMainFrameModule::CreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE)
+{
+	CreateDefaultMainFrameAuxiliary(bStartImmersive, bStartPIE, /*bIsBeingRecreated*/false);
+}
+
+void FMainFrameModule::RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE)
+{
+	check(!bRecreatingDefaultMainFrame);
+	TGuardValue<bool> GuardRecreatingDefaultMainFrame(bRecreatingDefaultMainFrame, true);
+
+	// Clean previous default main frame
+	if (IsWindowInitialized())
+	{
+		// Clean FSlateApplication
+		FSlateApplication::Get().CloseAllWindowsImmediately();
+		// Clean FGlobalTabmanager
+		FGlobalTabmanager::Get()->CloseAllAreas();
+	}
+	// (Re-)create default main frame
+	CreateDefaultMainFrameAuxiliary(bStartImmersive, bStartPIE, /*bIsBeingRecreated*/true);
+}
+
+void FMainFrameModule::CreateDefaultMainFrameAuxiliary(const bool bStartImmersive, const bool bStartPIE, const bool bIsBeingRecreated)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMainFrameModule::CreateDefaultMainFrame);
 
@@ -236,10 +258,15 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 			if (RemovedOlderLayoutVersions.Num() > 0)
 			{
 				// FMessageDialog - Notify the user that the layout version was updated and the current layout uses a deprecated one
-				const FText TextTitle = LOCTEXT("MainFrameModuleVersionErrorTitle", "Unreal Editor Layout Version Mismatch");
-				const FText TextBody = FText::Format(LOCTEXT("MainFrameModuleVersionErrorBody", "The expected Unreal Editor layout version is \"{0}\", while only version \"{1}\" was found. I.e., the current layout was created with a previous version of Unreal that is deprecated and no longer compatible.\n\nUnreal will continue with the default layout for its current version, the deprecated one has been removed.\n\nYou can create and save your custom layouts with \"Window\"->\"Save Layout\"->\"Save Layout As...\"."),
+				const FText WarningText = FText::Format(LOCTEXT("MainFrameModuleVersionErrorBody", "The expected Unreal Editor layout version is \"{0}\", while only version \"{1}\" was found. I.e., the current layout was created with a previous version of Unreal that is deprecated and no longer compatible.\n\nUnreal will continue with the default layout for its current version, the deprecated one has been removed.\n\nYou can create and save your custom layouts with \"Window\"->\"Save Layout\"->\"Save Layout As...\"."),
 					FText::FromString(LayoutName.ToString()), FText::FromString(RemovedOlderLayoutVersions[0]));
-				FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
+				UE_LOG(LogMainFrame, Warning, TEXT("%s"), *WarningText.ToString());
+				// If user is trying to load a specific layout with "Load", also warn him with a message dialog
+				if (bIsBeingRecreated)
+				{
+					const FText TextTitle = LOCTEXT("MainFrameModuleVersionErrorTitle", "Unreal Editor Layout Version Mismatch");
+					FMessageDialog::Open(EAppMsgType::Ok, WarningText, &TextTitle);
+				}
 			}
 
 			MainFrameContent = FGlobalTabmanager::Get()->RestoreFrom(LoadedLayout, RootWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
@@ -301,23 +328,6 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 
 		MainFrameCreationFinishedEvent.Broadcast(RootWindow, ShouldShowProjectDialogAtStartup());
 	}
-}
-
-void FMainFrameModule::RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE)
-{
-	check(!bRecreatingDefaultMainFrame);
-	TGuardValue<bool> GuardRecreatingDefaultMainFrame(bRecreatingDefaultMainFrame, true);
-
-	// Clean previous default main frame
-	if (IsWindowInitialized())
-	{
-		// Clean FSlateApplication
-		FSlateApplication::Get().CloseAllWindowsImmediately();
-		// Clean FGlobalTabmanager
-		FGlobalTabmanager::Get()->CloseAllAreas();
-	}
-	// (Re-)create default main frame
-	CreateDefaultMainFrame(bStartImmersive, bStartPIE);
 }
 
 bool FMainFrameModule::IsRecreatingDefaultMainFrame() const

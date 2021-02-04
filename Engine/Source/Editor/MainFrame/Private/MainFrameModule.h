@@ -23,8 +23,16 @@ public:
 
 	// IMainFrameModule interface
 
-	virtual void CreateDefaultMainFrame( const bool bStartImmersive, const bool bStartPIE ) override;
+	virtual void CreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE) override;
 	virtual void RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE) override;
+private:
+	/**
+	 * Shared code between CreateDefaultMainFrame and RecreateDefaultMainFrame
+	 * @param bIsBeingRecreated False if it is being called by first time (CreateDefaultMainFrame), and true if it is being recreated (RecreateDefaultMainFrame). If recreated, it will also display 
+	 */
+	virtual void CreateDefaultMainFrameAuxiliary(const bool bStartImmersive, const bool bStartPIE, const bool bIsBeingRecreated);
+
+public:
 	virtual bool IsRecreatingDefaultMainFrame() const override;
 	virtual TSharedRef<SWidget> MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const override;
 	

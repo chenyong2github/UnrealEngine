@@ -67,6 +67,7 @@
 #include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
 #include "Elements/Component/ComponentElementLevelEditorCommonActionsCustomization.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include <atomic>
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 
@@ -1487,17 +1488,25 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni,
 		DefaultLayout, OutputCanBeNullptr, RemovedOlderLayoutVersions);
 
+	// On startup, it should not show the dialog to avoid crashes. However, when clicking the "Load" button, it should also show the message dialog
+	// Rather than adding a bool to this function (which would have to be sent from over 10 functions above...), we create a static atomic bool (which is a bit less elegant, but way simpler!), which
+	// will have the same exact effect than sending the bool (and it is also thread safe)
+	static std::atomic<bool> bIsBeingRecreated(false);
 	// If older fields of the layout name (i.e., lower versions than "LevelEditor_Layout_v1.2") were found
 	if (RemovedOlderLayoutVersions.Num() > 0)
 	{
 		// FMessageDialog - Notify the user that the layout version was updated and the current layout uses a deprecated one
-		//const FText TextTitle = LOCTEXT("LevelEditorVersionErrorTitle", "Unreal Level Editor Layout Version Mismatch");
-		const FText TextBody = FText::Format(LOCTEXT("LevelEditorVersionErrorBody", "The expected Unreal Level Editor layout version is \"{0}\", while only version \"{1}\" was found. I.e., the current layout was created with a previous version of Unreal that is deprecated and no longer compatible.\n\nUnreal will continue with the default layout for its current version, the deprecated one has been removed.\n\nYou can create and save your custom layouts with \"Window\"->\"Save Layout\"->\"Save Layout As...\"."),
+		const FText WarningText = FText::Format(LOCTEXT("LevelEditorVersionErrorBody", "The expected Unreal Level Editor layout version is \"{0}\", while only version \"{1}\" was found. I.e., the current layout was created with a previous version of Unreal that is deprecated and no longer compatible.\n\nUnreal will continue with the default layout for its current version, the deprecated one has been removed.\n\nYou can create and save your custom layouts with \"Window\"->\"Save Layout\"->\"Save Layout As...\"."),
 			FText::FromString(LayoutName.ToString()), FText::FromString(RemovedOlderLayoutVersions[0]));
-		//FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
-
-		UE_LOG(LogSlate, Log, TEXT("%s"), *TextBody.ToString());
+		UE_LOG(LogSlate, Warning, TEXT("%s"), *WarningText.ToString());
+		// If user is trying to load a specific layout with "Load", also warn him with a message dialog
+		if (bIsBeingRecreated)
+		{
+			const FText TextTitle = LOCTEXT("LevelEditorVersionErrorTitle", "Unreal Level Editor Layout Version Mismatch");
+			FMessageDialog::Open(EAppMsgType::Ok, WarningText, &TextTitle);
+		}
 	}
+	bIsBeingRecreated = true; // For future loads
 
 	FLayoutExtender LayoutExtender;
 
