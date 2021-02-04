@@ -66,6 +66,8 @@ public:
 		NewNodeInfo.CachingStrategy = CachingStrategy;
 		FHandle Handle = { NodeCounter++ };
 		AllNodes.Add(Handle, NewNodeInfo);
+
+		AllNodeLocks.Add(Handle, MakeSafeShared<FRWLock>());
 		return Handle;
 	}
 
@@ -166,11 +168,13 @@ protected:
 	};
 
 	TMap<FHandle, FNodeInfo> AllNodes;
+	TMap<FHandle, TSafeSharedPtr<FRWLock>> AllNodeLocks;
 
 	TSafeSharedPtr<FNode> FindNode(FHandle Handle) const;
 	EGeometryFlowResult GetInputTypeForNode(FHandle NodeHandle, FString InputName, int32& Type) const;
 	EGeometryFlowResult GetOutputTypeForNode(FHandle NodeHandle, FString OutputName, int32& Type) const;
 	ENodeCachingStrategy GetCachingStrategyForNode(FHandle NodeHandle) const;
+	TSafeSharedPtr<FRWLock> FindNodeLock(FHandle Handle) const;
 
 	TArray<FConnection> Connections;
 

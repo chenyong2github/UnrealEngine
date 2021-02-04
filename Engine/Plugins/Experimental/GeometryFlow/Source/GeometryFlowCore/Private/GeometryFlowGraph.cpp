@@ -2,9 +2,18 @@
 
 #include "GeometryFlowGraph.h"
 #include "Util/ProgressCancel.h"
+#include "Async/Async.h"
 
 using namespace UE::GeometryFlow;
 
+
+namespace
+{
+	// probably should be something defined for the whole tool framework. UETOOL-2989.
+	static EAsyncExecution GeometryFlowGraphAsyncExecTarget = EAsyncExecution::Thread;
+
+	// Can't seem to use threadpool in GeometryProcessingUnitTests. GThreadPool is null.
+}
 
 TSafeSharedPtr<FNode> FGraph::FindNode(FHandle NodeHandle) const
 {
@@ -14,6 +23,16 @@ TSafeSharedPtr<FNode> FGraph::FindNode(FHandle NodeHandle) const
 		return nullptr;
 	}
 	return Found->Node;
+}
+
+TSafeSharedPtr<FRWLock> FGraph::FindNodeLock(FHandle NodeHandle) const
+{
+	const TSafeSharedPtr<FRWLock>* Found = AllNodeLocks.Find(NodeHandle);
+	if (!ensure(Found != nullptr))
+	{
+		return nullptr;
+	}
+	return *Found;
 }
 
 EGeometryFlowResult FGraph::GetInputTypeForNode(FHandle NodeHandle, FString InputName, int32& Type) const
@@ -210,6 +229,9 @@ TSafeSharedPtr<IData> FGraph::ComputeOutputData(
 	// this is the map of (InputName, Data) we will build up by pulling from the Connections
 	FNamedDataMap DataIn;
 
+	TArray<TFuture<void>> AsyncFutures;
+	FRWLock DataInLock;
+
 	// Collect data from those Inputs.
 	// This will recursively call ComputeOutputData() on those (Node/Output) pairs
 	for (int32 k = 0; k < InputRequirements.Num(); ++k)
@@ -226,7 +248,9 @@ TSafeSharedPtr<IData> FGraph::ComputeOutputData(
 			TSafeSharedPtr<IData> DefaultData = Node->GetDefaultInputData(InputName);
 			// TODO: Bubble this error up rather than crash
 			checkf(DefaultData != nullptr, TEXT("Node \"%s\" input \"%s\" is not connected and has no default value"), *Node->GetIdentifier(), *InputName);
+			DataInLock.WriteLock();
 			DataIn.Add(InputName, DefaultData, DataFlags);
+			DataInLock.WriteUnlock();
 			continue;
 		}
 
@@ -244,13 +268,26 @@ TSafeSharedPtr<IData> FGraph::ComputeOutputData(
 			DataFlags.bIsMutableData = true;
 		}
 
-		// recursively fetch Data coming in to this Input via Connection
-		TSafeSharedPtr<IData> UpstreamData = 
-			ComputeOutputData(Connection.FromNode, Connection.FromOutput, EvaluationInfo, bStealDataForInput);
+		TFuture<void> Future = Async(GeometryFlowGraphAsyncExecTarget, 
+									[this, &DataIn, &DataInLock, &InputName, DataFlags, Connection, &EvaluationInfo, bStealDataForInput] ()
+		{
+			// recursively fetch Data coming in to this Input via Connection
+			TSafeSharedPtr<IData> UpstreamData = ComputeOutputData(Connection.FromNode, Connection.FromOutput, EvaluationInfo, bStealDataForInput);
 
-		// add to named data map
-		DataIn.Add(InputName, UpstreamData, DataFlags);
+			DataInLock.WriteLock();
+			DataIn.Add(InputName, UpstreamData, DataFlags);
+			DataInLock.WriteUnlock();
+		});
+
+		AsyncFutures.Emplace(MoveTemp(Future));
 	}
+
+	for (TFuture<void>& Future : AsyncFutures)
+	{
+		Future.Wait();
+	}
+
+	check(DataIn.GetNames().Num() == InputRequirements.Num());
 
 	if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
 	{
@@ -260,7 +297,11 @@ TSafeSharedPtr<IData> FGraph::ComputeOutputData(
 	// evalute node
 	FNamedDataMap DataOut;
 	DataOut.Add(OutputName);
+	
+	FindNodeLock(NodeHandle)->WriteLock();
 	Node->Evaluate(DataIn, DataOut, EvaluationInfo);
+	FindNodeLock(NodeHandle)->WriteUnlock();
+
 	EvaluationInfo->CountEvaluation(Node.Get());
 
 	if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
