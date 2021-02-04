@@ -388,7 +388,9 @@ void UMatineeCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalVie
 	RotSinOffset = InitialRotSinOffset;
 	FOVSinOffset = InitialFOVSinOffset;
 
-	OscillatorTimeRemaining = OscillationDuration;
+	const float EffectiveOscillationDuration = (OscillationDuration > 0.f) ? OscillationDuration : TNumericLimits<float>::Max();
+
+	OscillatorTimeRemaining = EffectiveOscillationDuration;
 
 	if (OscillationBlendInTime > 0.f)
 	{
