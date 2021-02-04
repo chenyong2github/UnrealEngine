@@ -577,7 +577,7 @@ bool IPlatformFile::IterateDirectoryRecursively(const TCHAR* Directory, FDirecto
 	TArray<FString> DirectoriesToVisitNext;
 	DirectoriesToVisitNext.Add(Directory);
 
-	const bool IsTaskGraphReady = FTaskGraphInterface::Get().IsRunning();
+	const bool IsTaskGraphReady = FTaskGraphInterface::IsRunning();
 	TAtomic<bool> bResult(true);
 	FRecurse Recurse(*this, Visitor, DirectoriesToVisitNext);
 	while (bResult && DirectoriesToVisitNext.Num() > 0)
