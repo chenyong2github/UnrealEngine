@@ -647,12 +647,28 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
-		static void BreakWheelStatus(const struct FWheelStatus& Status, bool& bInContact, FVector& ContactPoint, UPhysicalMaterial*& PhysMaterial
+	static void BreakWheelStatus(const struct FWheelStatus& Status, bool& bInContact, FVector& ContactPoint, UPhysicalMaterial*& PhysMaterial
 			, float& NormalizedSuspensionLength, float& SpringForce, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal);
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static FWheelStatus MakeWheelStatus(bool bInContact, FVector& ContactPoint, UPhysicalMaterial* PhysMaterial
 			, float NormalizedSuspensionLength, float SpringForce, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal);
+
+	UFUNCTION(BlueprintPure, Category = "Vehicles")
+	static void BreakWheeledSnapshot(const struct FWheeledSnaphotData& Snapshot, FTransform& Transform, FVector& LinearVelocity
+			, FVector& AngularVelocity, int& SelectedGear, float& EngineRPM, TArray<FWheelSnapshot>& WheelSnapshots);
+
+	UFUNCTION(BlueprintPure, Category = "Vehicles")
+	static FWheeledSnaphotData MakeWheeledSnapshot(FTransform Transform, FVector LinearVelocity, FVector AngularVelocity
+			, int SelectedGear, float EngineRPM, TArray<FWheelSnapshot>& WheelSnapshots);
+
+	UFUNCTION(BlueprintPure, Category = "Vehicles")
+	static void BreakWheelSnapshot(const struct FWheelSnapshot& Snapshot, float& SuspensionOffset
+			, float& WheelRotationAngle, float& SteeringAngle, float& WheelRadius, float& WheelAngularVelocity);
+
+	UFUNCTION(BlueprintPure, Category = "Vehicles")
+	static FWheelSnapshot MakeWheelSnapshot(float SuspensionOffset, float WheelRotationAngle
+			, float SteeringAngle, float WheelRadius, float WheelAngularVelocity);
 
 	/** Get a wheels current simulation state */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
@@ -710,6 +726,14 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	void SetWheelClass(int WheelIndex, TSubclassOf<UChaosVehicleWheel> InWheelClass);
+
+	/** Grab a snapshot of the vehicle instance dynamic state */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
+	virtual FWheeledSnaphotData GetSnapshot() const;
+
+	/** Set snapshot of vehicle instance dynamic state */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
+	virtual void SetSnapshot(const FWheeledSnaphotData& SnapshotIn);
 
 
 protected:

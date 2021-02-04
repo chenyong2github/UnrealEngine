@@ -23,6 +23,8 @@ struct FWheelsOutput
 		: InContact(false)
 		, SteeringAngle(0.f)
 		, AngularPosition(0.f)
+		, AngularVelocity(0.f)
+		, WheelRadius(0.f)
 		, LateralAdhesiveLimit(0.f)
 		, LongitudinalAdhesiveLimit(0.f)
 		, bIsSlipping(false)
@@ -40,6 +42,8 @@ struct FWheelsOutput
 	bool InContact;
 	float SteeringAngle;
 	float AngularPosition;
+	float AngularVelocity;
+	float WheelRadius;
 
 	float LateralAdhesiveLimit;
 	float LongitudinalAdhesiveLimit;

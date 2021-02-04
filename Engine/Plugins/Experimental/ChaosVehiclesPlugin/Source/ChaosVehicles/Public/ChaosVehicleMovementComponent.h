@@ -13,7 +13,7 @@
 #include "AerofoilSystem.h"
 #include "ThrustSystem.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
-
+#include "SnapshotData.h"
 #include "AsyncCallback.h"
 
 #include "ChaosVehicleMovementComponent.generated.h"
@@ -896,6 +896,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	bool IsParked() const;
 
+	/** Grab a snapshot of the vehicle instance dynamic state */
+	void GetBaseSnapshot(FBaseSnapshotData& SnapshotOut) const;
+
+	/** Set snapshot of vehicle instance dynamic state */
+	void SetBaseSnapshot(const FBaseSnapshotData& SnapshotIn);
+
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	void EnableSelfRighting(bool InState)
 	{
@@ -1155,7 +1161,7 @@ protected:
 	}
 
 	FBodyInstance* GetBodyInstance();
-
+	const FBodyInstance* GetBodyInstance() const;
 	FVehicleState VehicleState;							/* Useful vehicle state captured at start of frame */
 	TUniquePtr<FPhysicsVehicleOutput> PVehicleOutput;	/* physics simulation data output from the async physics thread */
 

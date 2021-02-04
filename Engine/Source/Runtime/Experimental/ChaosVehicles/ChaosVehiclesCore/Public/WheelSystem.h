@@ -151,6 +151,18 @@ public:
 		Re = NewRadius;
 	}
 
+	/** Set the angular position in radians */
+	void SetAngularPosition(float PositionIn)
+	{
+		AngularPosition = PositionIn;
+	}
+
+	/** Set the angular position in radians/sec */
+	void SetAngularVelocity(float AngularVelocityIn)
+	{
+		Omega = AngularVelocityIn;
+	}
+
 	/** set wheel rotational speed to match the specified linear forwards speed */
 	void SetMatchingSpeed(float LinearMetersPerSecondIn)
 	{

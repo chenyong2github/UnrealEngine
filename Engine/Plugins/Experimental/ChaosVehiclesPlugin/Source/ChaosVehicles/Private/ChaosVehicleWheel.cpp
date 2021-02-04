@@ -69,12 +69,19 @@ float UChaosVehicleWheel::GetRotationAngle() const
 	check(VehicleComponent && VehicleComponent->PhysicsVehicleOutput());
 	float RotationAngle = -1.0f * FMath::RadiansToDegrees(VehicleComponent->PhysicsVehicleOutput()->Wheels[WheelIndex].AngularPosition);
 	ensure(!FMath::IsNaN(RotationAngle));
-
-	//if (WheelIndex == 2)
-	//{
-	//	UE_LOG(LogChaos, Warning, TEXT("RotationAngle = %f"), RotationAngle);
-	//}
 	return RotationAngle;
+}
+
+float UChaosVehicleWheel::GetWheelRadius() const
+{
+	check(VehicleComponent && VehicleComponent->PhysicsVehicleOutput());
+	return VehicleComponent->PhysicsVehicleOutput()->Wheels[WheelIndex].WheelRadius;
+}
+
+float UChaosVehicleWheel::GetWheelAngularVelocity() const
+{
+	check(VehicleComponent && VehicleComponent->PhysicsVehicleOutput());
+	return VehicleComponent->PhysicsVehicleOutput()->Wheels[WheelIndex].AngularVelocity;
 }
 
 float UChaosVehicleWheel::GetSuspensionOffset() const

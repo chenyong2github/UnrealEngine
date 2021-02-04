@@ -1280,6 +1280,10 @@ FBodyInstance* UChaosVehicleMovementComponent::GetBodyInstance()
 	return UpdatedPrimitive ? UpdatedPrimitive->GetBodyInstance() : nullptr;
 }
 
+const FBodyInstance* UChaosVehicleMovementComponent::GetBodyInstance() const
+{
+	return UpdatedPrimitive ? UpdatedPrimitive->GetBodyInstance() : nullptr;
+}
 
 UMeshComponent* UChaosVehicleMovementComponent::GetMesh() const
 {
@@ -1546,9 +1550,6 @@ void UChaosVehicleMovementComponent::SetCurrentAsyncInputOutputInternal(FChaosVe
 	NextAsyncOutput = nullptr;
 	OutputInterpAlpha = 0.f;
 
-	//FChaosVehicleDefaultAsyncInput* CurDefaultAsyncInput = static_cast<FChaosVehicleDefaultAsyncInput*>(CurAsyncInput);
-	//CurDefaultAsyncInput->ControlInputs.SteeringInput = 1.0f;
-
 	// We need to find our vehicle in the output given
 	if (CurOutput)
 	{
@@ -1739,8 +1740,10 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 
 					PVehicleOutput->Wheels[WheelIdx].InContact = Current.InContact;
 					PVehicleOutput->Wheels[WheelIdx].SteeringAngle = FMath::Lerp(Current.SteeringAngle, Next.SteeringAngle, OutputInterpAlpha);
+					PVehicleOutput->Wheels[WheelIdx].WheelRadius = FMath::Lerp(Current.WheelRadius, Next.WheelRadius, OutputInterpAlpha);
 					float DeltaAngle = FMath::FindDeltaAngleRadians(Current.AngularPosition, Next.AngularPosition);
 					PVehicleOutput->Wheels[WheelIdx].AngularPosition = Current.AngularPosition + DeltaAngle * OutputInterpAlpha;
+					PVehicleOutput->Wheels[WheelIdx].AngularVelocity = FMath::Lerp(Current.AngularVelocity, Next.AngularVelocity, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].LateralAdhesiveLimit = FMath::Lerp(Current.LateralAdhesiveLimit, Next.LateralAdhesiveLimit, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].LongitudinalAdhesiveLimit = FMath::Lerp(Current.LongitudinalAdhesiveLimit, Next.LongitudinalAdhesiveLimit, OutputInterpAlpha);
 
@@ -1768,7 +1771,9 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 
 					PVehicleOutput->Wheels[WheelIdx].InContact = Current.InContact;
 					PVehicleOutput->Wheels[WheelIdx].SteeringAngle = Current.SteeringAngle;
+					PVehicleOutput->Wheels[WheelIdx].WheelRadius = Current.WheelRadius;
 					PVehicleOutput->Wheels[WheelIdx].AngularPosition = Current.AngularPosition;
+					PVehicleOutput->Wheels[WheelIdx].AngularVelocity = Current.AngularVelocity;
 					PVehicleOutput->Wheels[WheelIdx].LateralAdhesiveLimit = Current.LateralAdhesiveLimit;
 					PVehicleOutput->Wheels[WheelIdx].LongitudinalAdhesiveLimit = Current.LongitudinalAdhesiveLimit;
 
@@ -1786,6 +1791,26 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 			}
 
 		}
+	}
+}
+
+void UChaosVehicleMovementComponent::GetBaseSnapshot(FBaseSnapshotData& SnapshotOut) const
+{
+	if (const FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		SnapshotOut.Transform = TargetInstance->GetUnrealWorldTransform();
+		SnapshotOut.LinearVelocity = TargetInstance->GetUnrealWorldVelocity();
+		SnapshotOut.AngularVelocity = TargetInstance->GetUnrealWorldAngularVelocityInRadians();
+	}
+}
+
+void UChaosVehicleMovementComponent::SetBaseSnapshot(const FBaseSnapshotData& SnapshotIn)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		TargetInstance->SetLinearVelocity(SnapshotIn.LinearVelocity, false);
+		TargetInstance->SetAngularVelocityInRadians(SnapshotIn.AngularVelocity, false);
+		TargetInstance->SetBodyTransform(SnapshotIn.Transform, ETeleportType::TeleportPhysics);
 	}
 }
 

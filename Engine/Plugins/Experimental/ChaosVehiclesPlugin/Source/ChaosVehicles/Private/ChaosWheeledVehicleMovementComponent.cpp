@@ -849,6 +849,8 @@ void UChaosWheeledVehicleSimulation::FillOutputState(FChaosVehicleAsyncOutput& O
 		WheelsOut.InContact = VehicleWheels[WheelIdx].InContact();
 		WheelsOut.SteeringAngle = VehicleWheels[WheelIdx].GetSteeringAngle();
 		WheelsOut.AngularPosition = VehicleWheels[WheelIdx].GetAngularPosition();
+		WheelsOut.AngularVelocity = VehicleWheels[WheelIdx].GetAngularVelocity();
+		WheelsOut.WheelRadius = VehicleWheels[WheelIdx].GetEffectiveRadius();
 
 		WheelsOut.LateralAdhesiveLimit = VehicleWheels[WheelIdx].LateralAdhesiveLimit;
 		WheelsOut.LongitudinalAdhesiveLimit = VehicleWheels[WheelIdx].LongitudinalAdhesiveLimit;
@@ -1918,18 +1920,68 @@ FWheelStatus UChaosWheeledVehicleMovementComponent::MakeWheelStatus(bool bInCont
 	return Status;
 }
 
+void UChaosWheeledVehicleMovementComponent::BreakWheeledSnapshot(const struct FWheeledSnaphotData& Snapshot, FTransform& Transform, FVector& LinearVelocity
+	, FVector& AngularVelocity, int& SelectedGear, float& EngineRPM, TArray<FWheelSnapshot>& WheelSnapshots)
+{
+	Transform = Snapshot.Transform;
+	LinearVelocity = Snapshot.LinearVelocity;
+	AngularVelocity = Snapshot.AngularVelocity;
+	SelectedGear = Snapshot.SelectedGear;
+	EngineRPM = Snapshot.EngineRPM;
+	WheelSnapshots = Snapshot.WheelSnapshots;
+}
+
+FWheeledSnaphotData UChaosWheeledVehicleMovementComponent::MakeWheeledSnapshot(FTransform Transform, FVector LinearVelocity
+	, FVector AngularVelocity, int SelectedGear, float EngineRPM, TArray<FWheelSnapshot>& WheelSnapshots)
+{
+	FWheeledSnaphotData Snapshot;
+	Snapshot.Transform = Transform;
+	Snapshot.LinearVelocity = LinearVelocity;
+	Snapshot.AngularVelocity = AngularVelocity;
+	Snapshot.SelectedGear = SelectedGear;
+	Snapshot.EngineRPM = EngineRPM;
+	Snapshot.WheelSnapshots = WheelSnapshots;
+
+	return Snapshot;
+}
+
+
+void UChaosWheeledVehicleMovementComponent::BreakWheelSnapshot(const struct FWheelSnapshot& Snapshot, float& SuspensionOffset
+	, float& WheelRotationAngle, float& SteeringAngle, float& WheelRadius, float& WheelAngularVelocity)
+{
+	SuspensionOffset = Snapshot.SuspensionOffset;
+	WheelRotationAngle = Snapshot.WheelRotationAngle;
+	SteeringAngle = Snapshot.SteeringAngle;
+	WheelRadius = Snapshot.WheelRadius;
+	WheelAngularVelocity = Snapshot.WheelAngularVelocity;
+}
+
+FWheelSnapshot UChaosWheeledVehicleMovementComponent::MakeWheelSnapshot(float SuspensionOffset, float WheelRotationAngle
+	, float SteeringAngle, float WheelRadius, float WheelAngularVelocity)
+{
+	FWheelSnapshot Snapshot;
+	Snapshot.SuspensionOffset = SuspensionOffset;
+	Snapshot.WheelRotationAngle = WheelRotationAngle;
+	Snapshot.SteeringAngle = SteeringAngle;
+	Snapshot.WheelRadius = WheelRadius;
+	Snapshot.WheelAngularVelocity = WheelAngularVelocity;
+
+	return Snapshot;
+}
+
+
 void UChaosWheeledVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 {
 	UChaosVehicleMovementComponent::ParallelUpdate(DeltaSeconds);\
 
-	FillWheelOutputState(); // expose wheel/suspensionm data to blueprint
+	FillWheelOutputState(); // exposes wheel/suspension data to blueprint
 }
 
 void UChaosWheeledVehicleMovementComponent::SetWheelClass(int WheelIndex, TSubclassOf<UChaosVehicleWheel> InWheelClass)
 {
 	if (UpdatedPrimitive && InWheelClass)
 	{
-		FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
+		FBodyInstance* TargetInstance = GetBodyInstance();
 
 		if (TargetInstance && WheelIndex < Wheels.Num())
 		{
@@ -1947,6 +1999,65 @@ void UChaosWheeledVehicleMovementComponent::SetWheelClass(int WheelIndex, TSubcl
 				});
 		}
 	}
+}
+
+FWheeledSnaphotData UChaosWheeledVehicleMovementComponent::GetSnapshot() const
+{
+	FWheeledSnaphotData WheelSnapshotData;
+	UChaosVehicleMovementComponent::GetBaseSnapshot(WheelSnapshotData);
+
+	WheelSnapshotData.EngineRPM = PVehicleOutput->EngineRPM;
+	WheelSnapshotData.SelectedGear = PVehicleOutput->CurrentGear;
+	WheelSnapshotData.WheelSnapshots.SetNum(Wheels.Num());
+
+	int WheelIdx = 0;
+	for (const UChaosVehicleWheel* Wheel : Wheels)
+	{
+		WheelSnapshotData.WheelSnapshots[WheelIdx].SteeringAngle = Wheel->GetSteerAngle();
+		WheelSnapshotData.WheelSnapshots[WheelIdx].SuspensionOffset = Wheel->GetSuspensionOffset();
+		WheelSnapshotData.WheelSnapshots[WheelIdx].WheelRotationAngle = Wheel->GetRotationAngle();
+		WheelSnapshotData.WheelSnapshots[WheelIdx].WheelRadius = Wheel->GetWheelRadius();
+		WheelSnapshotData.WheelSnapshots[WheelIdx].WheelAngularVelocity = Wheel->GetWheelAngularVelocity();
+
+		WheelIdx++;
+	}
+
+	return WheelSnapshotData;
+}
+
+void UChaosWheeledVehicleMovementComponent::SetSnapshot(const FWheeledSnaphotData& SnapshotIn)
+{
+	UChaosVehicleMovementComponent::SetBaseSnapshot(SnapshotIn);
+
+	FBodyInstance* TargetInstance = GetBodyInstance();
+
+	FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			const FWheeledSnaphotData* WheelSnapshotData = static_cast<const FWheeledSnaphotData*>(&SnapshotIn);
+
+			ensure(WheelSnapshotData->WheelSnapshots.Num() == VehicleSimulationPT->PVehicle->Wheels.Num());
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle)
+			{
+				for (int WheelIdx = 0; WheelIdx < WheelSnapshotData->WheelSnapshots.Num(); WheelIdx++)
+				{
+					ensure(VehicleSimulationPT->PVehicle->Wheels.Num() == VehicleSimulationPT->PVehicle->Suspension.Num());
+
+					if (WheelIdx < VehicleSimulationPT->PVehicle->Wheels.Num())
+					{
+						const FWheelSnapshot& Data = WheelSnapshotData->WheelSnapshots[WheelIdx];
+						Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIdx];
+						Chaos::FSimpleSuspensionSim& VehicleSuspension = VehicleSimulationPT->PVehicle->Suspension[WheelIdx];
+
+						VehicleWheel.SetSteeringAngle(Data.SteeringAngle);
+						VehicleSuspension.SetSuspensionLength(Data.SuspensionOffset, Data.WheelRadius);
+						VehicleWheel.SetAngularPosition(FMath::DegreesToRadians(-Data.WheelRotationAngle));
+						VehicleWheel.SetWheelRadius(Data.WheelRadius);
+						VehicleWheel.SetAngularVelocity(Data.WheelAngularVelocity);
+					}
+				}
+			}
+		});
+
 }
 
 #endif
