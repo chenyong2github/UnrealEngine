@@ -501,9 +501,9 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 	{
 		if (UTextureRenderTarget2DArray* UserTargetTexture = Cast<UTextureRenderTarget2DArray>(UserParamObject))
 		{
+			bIsRenderTargetUserParam = true;
 			if (InstanceData->TargetTexture != UserTargetTexture)
 			{
-				bIsRenderTargetUserParam = true;
 				InstanceData->TargetTexture = UserTargetTexture;
 
 				extern int32 GNiagaraReleaseResourceOnRemove;

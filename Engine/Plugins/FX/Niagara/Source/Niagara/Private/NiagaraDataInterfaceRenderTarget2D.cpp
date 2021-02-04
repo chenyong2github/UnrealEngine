@@ -551,9 +551,9 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 		{
 			if (UTextureRenderTarget2D* UserTargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
 			{
+				bIsRenderTargetUserParam = true;
 				if ( InstanceData->TargetTexture != UserTargetTexture )
 				{
-					bIsRenderTargetUserParam = true;
 					InstanceData->TargetTexture = UserTargetTexture;
 
 					UTextureRenderTarget2D* ExistingRenderTarget = nullptr;
