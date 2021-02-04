@@ -173,7 +173,7 @@ namespace Chaos
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDistance) const override;
 		virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const override;
 
-		virtual const TAABB<FReal, 3> BoundingBox() const
+		virtual const FAABB3 BoundingBox() const
 		{
 			return MLocalBoundingBox;
 		}
@@ -207,7 +207,7 @@ namespace Chaos
 			}
 			else if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesAABBTree)
 			{
-				TBoundingVolume<int32, FReal, 3> Dummy;
+				TBoundingVolume<int32> Dummy;
 				Ar << Dummy;
 				RebuildBV();
 			}
@@ -297,7 +297,6 @@ namespace Chaos
 		TUniquePtr<TArray<int32>> ExternalVertexIndexMap;
 		bool bCullsBackFaceRaycast;
 
-		//using BVHType = TBoundingVolume<int32, T, 3>;
 		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal, /*bComputeBounds=*/false>, FReal, /*bMutable=*/false>;
 
 		template<typename InStorageType, typename InRealType>

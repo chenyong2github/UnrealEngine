@@ -31,6 +31,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
+#include "Chaos/Real.h"
 #include "Chaos/UniformGrid.h"
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/Framework/DebugSubstep.h"
@@ -89,7 +90,7 @@ void DumpHierarchyStats(const TArray<FString>& Args)
 static FAutoConsoleCommand Command_DumpHierarchyStats(TEXT("p.chaos.dumphierarcystats"), TEXT("Outputs current collision hierarchy stats to the output log"), FConsoleCommandWithArgsDelegate::CreateStatic(DumpHierarchyStats));
 
 #if !UE_BUILD_SHIPPING
-class FSpacialDebugDraw : public Chaos::ISpacialDebugDrawInterface<float>
+class FSpacialDebugDraw : public Chaos::ISpacialDebugDrawInterface<Chaos::FReal>
 {
 public:
 
@@ -99,13 +100,13 @@ public:
 
 	}
 
-	virtual void Box(const Chaos::TAABB<float, 3>& InBox, const Chaos::FVec3& InLinearColor, float InThickness) override
+	virtual void Box(const Chaos::FAABB3& InBox, const Chaos::FVec3& InLinearColor, Chaos::FReal InThickness) override
 	{
 		DrawDebugBox(World, InBox.Center(), InBox.Extents(), FQuat::Identity, FLinearColor(InLinearColor).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
 	}
 
 
-	virtual void Line(const Chaos::FVec3& InBegin, const Chaos::FVec3& InEnd, const Chaos::FVec3& InLinearColor, float InThickness) override
+	virtual void Line(const Chaos::FVec3& InBegin, const Chaos::FVec3& InEnd, const Chaos::FVec3& InLinearColor, Chaos::FReal InThickness) override
 	{
 		DrawDebugLine(World, InBegin, InEnd, FLinearColor(InLinearColor).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
 	}
@@ -213,7 +214,7 @@ private:
 			if(bDrawHier)
 			{
 #if TODO_REIMPLEMENT_SPATIAL_ACCELERATION_ACCESS
-				if (const ISpatialAcceleration<float, 3>* SpatialAcceleration = Solver->GetSpatialAcceleration())
+				if (const ISpatialAcceleration<Chaos::FReal, 3>* SpatialAcceleration = Solver->GetSpatialAcceleration())
 				{
 					SpatialAcceleration->DebugDraw(&DrawInterface);
 					Solver->ReleaseSpatialAcceleration();
@@ -221,10 +222,10 @@ private:
 #endif
 				
 #if 0
-				if (const Chaos::TBoundingVolume<TPBDRigidParticles<float, 3>, float, 3>* BV = SpatialAcceleration->Cast<TBoundingVolume<TPBDRigidParticles<float, 3>, float, 3>>())
+				if (const Chaos::TBoundingVolume<FPBDRigidParticles>* BV = SpatialAcceleration->Cast<TBoundingVolume<FPBDRigidParticles>>())
 				{
 
-					const TUniformGrid<float, 3>& Grid = BV->GetGrid();
+					const TUniformGrid<Chaos::FReal, 3>& Grid = BV->GetGrid();
 
 					if (bDrawBounds)
 					{
@@ -236,8 +237,8 @@ private:
 
 					if (bDrawObjectBounds)
 					{
-						const TArray<TAABB<float, 3>>& Boxes = BV->GetWorldSpaceBoxes();
-						for (const TAABB<float, 3>& Box : Boxes)
+						const TArray<FAABB3>& Boxes = BV->GetWorldSpaceBoxes();
+						for (const FAABB3& Box : Boxes)
 						{
 							DrawDebugBox(WorldPtr, Box.Center(), Box.Extents() / 2.0f, FQuat::Identity, FColor::Cyan, false, -1.0f, SDPG_Foreground, 1.0f);
 						}
@@ -258,7 +259,7 @@ private:
 									const TArray<int32>& CellList = BV->GetElements()(CellsX, CellsY, CellsZ);
 									const int32 NumEntries = CellList.Num();
 
-									const float TempFraction = FMath::Min<float>(NumEntries / (float)CVar_ChaosDrawHierarchyCellElementThresh.GetValueOnGameThread(), 1.0f);
+									const Chaos::FReal TempFraction = FMath::Min<Chaos::FReal>(NumEntries / (Chaos::FReal)CVar_ChaosDrawHierarchyCellElementThresh.GetValueOnGameThread(), 1.0f);
 
 									const FColor CellColor = FColor::MakeRedToGreenColorFromScalar(1.0f - TempFraction);
 
@@ -321,7 +322,7 @@ private:
 static TUniquePtr<FPhysScene_ChaosPauseHandler> PhysScene_ChaosPauseHandler;
 #endif
 
-static void CopyParticleData(Chaos::TPBDRigidParticles<float, 3>& ToParticles, const int32 ToIndex, Chaos::TPBDRigidParticles<float, 3>& FromParticles, const int32 FromIndex)
+static void CopyParticleData(Chaos::FPBDRigidParticles& ToParticles, const int32 ToIndex, Chaos::FPBDRigidParticles& FromParticles, const int32 FromIndex)
 {
 	ToParticles.X(ToIndex) = FromParticles.X(FromIndex);
 	ToParticles.R(ToIndex) = FromParticles.R(FromIndex);
@@ -666,7 +667,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 
 	TMap<IPhysicsProxyBase*, TArray<int32>> const& PhysicsProxyToCollisionIndicesMap = Event.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
 	Chaos::FCollisionDataArray const& CollisionData = Event.CollisionData.AllCollisionsArray;
-	const float MinDeltaVelocityThreshold = UPhysicsSettings::Get()->MinDeltaVelocityForHitEvents;
+	const Chaos::FReal MinDeltaVelocityThreshold = UPhysicsSettings::Get()->MinDeltaVelocityForHitEvents;
 	int32 NumCollisions = CollisionData.Num();
 	if (NumCollisions > 0)
 	{
@@ -690,7 +691,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 							bool bSwapOrder;
 							int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
-							Chaos::TCollisionData<float, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
+							Chaos::TCollisionData<Chaos::FReal, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
 							IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
 
 							bool bNewEntry = false;
@@ -962,7 +963,7 @@ void FPhysScene_Chaos::AddForce_AssumesLocked(FBodyInstance* BodyInstance, const
 
 		if (bAccelChange)
 		{
-			const float Mass = Body_External.M();
+			const Chaos::FReal Mass = Body_External.M();
 			const Chaos::FVec3 Acceleration = Force * Mass;
 			Body_External.AddForce(Acceleration);
 		}
@@ -1016,7 +1017,7 @@ void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyIns
 			const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&Body_External);
 
 			Chaos::FVec3 Direction = WorldCOM - Origin;
-			const float Distance = Direction.Size();
+			const Chaos::FReal Distance = Direction.Size();
 			if (Distance > Radius)
 			{
 				return;
@@ -1044,7 +1045,7 @@ void FPhysScene_Chaos::AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyIns
 			}
 			if (bAccelChange)
 			{
-				const float Mass = Body_External.M();
+				const Chaos::FReal Mass = Body_External.M();
 				const Chaos::FVec3 Acceleration = Force * Mass;
 				Body_External.AddForce(Acceleration);
 			}
@@ -1597,7 +1598,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 	Solver->PullPhysicsStateForEachDirtyProxy_External([&PendingTransforms](FSingleParticlePhysicsProxy* Proxy)
 	{
-		TPBDRigidParticle<float,3>* DirtyParticle = Proxy->GetRigidParticleUnsafe();
+		FPBDRigidParticle* DirtyParticle = Proxy->GetRigidParticleUnsafe();
 
 		if(FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
 		{
@@ -1609,7 +1610,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 					bool bPendingMove = false;
 					if(BodyInstance->InstanceBodyIndex == INDEX_NONE)
 					{
-						TRigidTransform<float,3> NewTransform(DirtyParticle->X(),DirtyParticle->R());
+						FRigidTransform3 NewTransform(DirtyParticle->X(),DirtyParticle->R());
 
 						if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
 						{

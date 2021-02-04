@@ -41,9 +41,9 @@ namespace Chaos
 		}
 	}
 
-	template class CHAOS_API Chaos::ISpatialAcceleration<int32, float, 3>;
-	template class CHAOS_API Chaos::ISpatialAcceleration<TAccelerationStructureHandle<float, 3>, float, 3>;
+	template class CHAOS_API Chaos::ISpatialAcceleration<int32, FReal, 3>;
+	template class CHAOS_API Chaos::ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
 
-	template class CHAOS_API Chaos::TBoundingVolume<int32, float, 3>;
-	template class CHAOS_API Chaos::TBoundingVolume<TAccelerationStructureHandle<float, 3>, float, 3>;
+	template class CHAOS_API Chaos::TBoundingVolume<int32, FReal, 3>;
+	template class CHAOS_API Chaos::TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
 }

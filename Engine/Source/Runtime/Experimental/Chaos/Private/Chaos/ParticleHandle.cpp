@@ -203,14 +203,14 @@ namespace Chaos
 		}
 	}
 
-	template class CHAOS_API TGeometryParticle<float, 3>;
+	template class CHAOS_API TGeometryParticle<FReal, 3>;
 
-	template class CHAOS_API TKinematicGeometryParticle<float, 3>;
+	template class CHAOS_API TKinematicGeometryParticle<FReal, 3>;
 
-	template class CHAOS_API TPBDRigidParticle<float, 3>;
+	template class CHAOS_API TPBDRigidParticle<FReal, 3>;
 
 	template <>
-	void Chaos::TGeometryParticle<float, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate )
+	void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate )
 	{
 		if (bInvalidate)
 		{
@@ -228,14 +228,14 @@ namespace Chaos
 
 	template <>
 	template <>
-	int32 TGeometryParticleHandleImp<float, 3, true>::GetPayload<int32>(int32 Idx)
+	int32 TGeometryParticleHandleImp<FReal, 3, true>::GetPayload<int32>(int32 Idx)
 	{
 		return Idx;
 	}
 
 	template <>
 	template <>
-	int32 TGeometryParticleHandleImp<float, 3, false>::GetPayload<int32>(int32 Idx)
+	int32 TGeometryParticleHandleImp<FReal, 3, false>::GetPayload<int32>(int32 Idx)
 	{
 		return Idx;
 	}

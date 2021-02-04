@@ -32,7 +32,7 @@ namespace Chaos
 		int32 MaxTreeDepth;
 		int32 AABBMaxChildrenInLeaf;
 		int32 AABBMaxTreeDepth;
-		float MaxPayloadSize;
+		FReal MaxPayloadSize;
 		int32 IterationsPerTimeSlice;
 
 		FAccelerationConfig()
@@ -61,11 +61,11 @@ namespace Chaos
 	{
 		FAccelerationConfig Config;
 
-		using BVType = TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
-		using AABBTreeType = TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>;
-		using AABBTreeOfGridsType = TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>;
+		using BVType = TBoundingVolume<FAccelerationStructureHandle>;
+		using AABBTreeType = TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle, FReal>, FReal>;
+		using AABBTreeOfGridsType = TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>, FReal>;
 
-		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>> CreateEmptyCollection() override
+		TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>> CreateEmptyCollection() override
 		{
 			TConstParticleView<FSpatialAccelerationCache> Empty;
 
@@ -77,7 +77,7 @@ namespace Chaos
 				Collection->AddSubstructure(CreateAccelerationPerBucket_Threaded(Empty, BucketIdx, true), BucketIdx);
 			}
 
-			return TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>(Collection);
+			return TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>(Collection);
 		}
 
 		virtual uint8 GetActiveBucketsMask() const
@@ -122,7 +122,7 @@ namespace Chaos
 			}
 		}
 
-		virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<FSpatialAccelerationCache>& Particles, uint16 BucketIdx, bool ForceFullBuild) override
+		virtual TUniquePtr<ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<FSpatialAccelerationCache>& Particles, uint16 BucketIdx, bool ForceFullBuild) override
 		{
 			// TODO: Unduplicate switch statement here with IsBucketTimeSliced and refactor so that bucket index mapping is better.
 			switch (BucketIdx)
@@ -155,7 +155,7 @@ namespace Chaos
 			}
 		}
 
-		virtual void Serialize(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& Ptr, FChaosArchive& Ar) override
+		virtual void Serialize(TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>& Ptr, FChaosArchive& Ar) override
 		{
 			if (Ar.IsLoading())
 			{
@@ -170,7 +170,7 @@ namespace Chaos
 	};
 
 	template <typename Traits>
-	TPBDRigidsEvolutionBase<Traits>::TPBDRigidsEvolutionBase(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations, int32 InNumPushOutIterations, bool InIsSingleThreaded)
+	TPBDRigidsEvolutionBase<Traits>::TPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations, int32 InNumPushOutIterations, bool InIsSingleThreaded)
 	    : Particles(InParticles)
 		, SolverPhysicsMaterials(InSolverPhysicsMaterials)
 		, InternalAcceleration(nullptr)
@@ -251,10 +251,10 @@ namespace Chaos
 		return ESubsequentsMode::TrackSubsequents;
 	}
 
-	TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>> CreateNewSpatialStructureFromSubStructure(TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>&& Substructure)
+	TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>> CreateNewSpatialStructureFromSubStructure(TUniquePtr<ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>>&& Substructure)
 	{
-		using BVType = TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
-		using AABBType = TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>;
+		using BVType = TBoundingVolume<FAccelerationStructureHandle>;
+		using AABBType = TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle, FReal>, FReal>;
 
 		if (Substructure->template As<BVType>())
 		{
@@ -270,7 +270,7 @@ namespace Chaos
 		}
 		else
 		{
-			using AccelType = TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>;
+			using AccelType = TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>, FReal>;
 			auto Collection = MakeUnique<TSpatialAccelerationCollection<AccelType>>();
 			Collection->AddSubstructure(MoveTemp(Substructure), 0);
 			return Collection;
@@ -401,7 +401,7 @@ namespace Chaos
 		}
 		else
 		{
-			TGeometryParticleHandle<FReal, 3>* UpdateParticle = SpatialData.AccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
+			FGeometryParticleHandle* UpdateParticle = SpatialData.AccelerationHandle.GetGeometryParticleHandle_PhysicsThread();
 
 			AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.SpatialIdx);
 
@@ -610,7 +610,7 @@ namespace Chaos
 
 	template <typename Traits>
 	void TPBDRigidsEvolutionBase<Traits>::UpdateExternalAccelerationStructure_External(
-		ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>*& StructToUpdate, FPendingSpatialDataQueue& PendingExternal)
+		ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>*& StructToUpdate, FPendingSpatialDataQueue& PendingExternal)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CreateExternalAccelerationStructure"), STAT_CreateExternalAccelerationStructure, STATGROUP_Physics);
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
@@ -707,7 +707,7 @@ namespace Chaos
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeMultiStructures)
 			{
 				//old path assumes single sub-structure
-				TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>> SubStructure;
+				TUniquePtr<ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>> SubStructure;
 				if (!Ar.IsLoading())
 				{
 					SubStructure = InternalAcceleration->RemoveSubstructure(FSpatialAccelerationIdx{ 0,0 });

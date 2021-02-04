@@ -129,9 +129,9 @@ namespace Chaos
 			return FMath::Sqrt(Variance);
 		}
 
-		inline static PMatrix<float, 3, 3> CrossProductMatrix(const FVec3& V)
+		inline static FMatrix33 CrossProductMatrix(const FVec3& V)
 		{
-			return PMatrix<float, 3, 3>(
+			return FMatrix33(
 			    0, -V.Z, V.Y,
 			    V.Z, 0, -V.X,
 			    -V.Y, V.X, 0);
@@ -141,13 +141,13 @@ namespace Chaos
 		 * Multiple two matrices: C = L.R
 		 * @note This is the mathematically expected operator. FMatrix operator* calculates C = R.Transpose(L), so this is not equivalent to that.
 		 */
-		inline PMatrix<float, 3, 3> Multiply(const PMatrix<float, 3, 3>& L, const PMatrix<float, 3, 3>& R)
+		inline FMatrix33 Multiply(const FMatrix33& L, const FMatrix33& R)
 		{
 			// @todo(ccaulfield): optimize: simd
 
 			// We want L.R (FMatrix operator* actually calculates R.(L)T; i.e., Right is on the left, and the Left is transposed on the right.)
 			// NOTE: PMatrix constructor takes values in column order
-			return PMatrix<float, 3, 3>(
+			return FMatrix33(
 				L.M[0][0] * R.M[0][0] + L.M[1][0] * R.M[0][1] + L.M[2][0] * R.M[0][2],	// x00
 				L.M[0][0] * R.M[1][0] + L.M[1][0] * R.M[1][1] + L.M[2][0] * R.M[1][2],	// x01
 				L.M[0][0] * R.M[2][0] + L.M[1][0] * R.M[2][1] + L.M[2][0] * R.M[2][2],	// x02
@@ -162,13 +162,13 @@ namespace Chaos
 				);
 		}
 
-		inline PMatrix<float, 4, 4> Multiply(const PMatrix<float, 4, 4>& L, const PMatrix<float, 4, 4>& R)
+		inline FMatrix44 Multiply(const FMatrix44& L, const FMatrix44& R)
 		{
 			// @todo(ccaulfield): optimize: simd
 
 			// We want L.R (FMatrix operator* actually calculates R.(L)T; i.e., Right is on the left, and the Left is transposed on the right.)
 			// NOTE: PMatrix constructor takes values in column order
-			return PMatrix<float, 4, 4>(
+			return FMatrix44(
 				L.M[0][0] * R.M[0][0] + L.M[1][0] * R.M[0][1] + L.M[2][0] * R.M[0][2] + L.M[3][0] * R.M[0][3],	// x00
 				L.M[0][0] * R.M[1][0] + L.M[1][0] * R.M[1][1] + L.M[2][0] * R.M[1][2] + L.M[3][0] * R.M[1][3],	// x01
 				L.M[0][0] * R.M[2][0] + L.M[1][0] * R.M[2][1] + L.M[2][0] * R.M[2][2] + L.M[3][0] * R.M[2][3],	// x02
@@ -191,14 +191,14 @@ namespace Chaos
 				);
 		}
 
-		inline PMatrix<float, 3, 3> MultiplyAB(const PMatrix<float, 3, 3>& LIn, const PMatrix<float, 3, 3>& RIn)
+		inline FMatrix33 MultiplyAB(const FMatrix33& LIn, const FMatrix33& RIn)
 		{
 			return Multiply(LIn, RIn);
 		}
 
-		inline PMatrix<float, 3, 3> MultiplyABt(const PMatrix<float, 3, 3>& L, const PMatrix<float, 3, 3>& R)
+		inline FMatrix33 MultiplyABt(const FMatrix33& L, const FMatrix33& R)
 		{
-			return PMatrix<float, 3, 3>(
+			return FMatrix33(
 				L.M[0][0] * R.M[0][0] + L.M[1][0] * R.M[1][0] + L.M[2][0] * R.M[2][0],	// x00
 				L.M[0][0] * R.M[0][1] + L.M[1][0] * R.M[1][1] + L.M[2][0] * R.M[2][1],	// x01
 				L.M[0][0] * R.M[0][2] + L.M[1][0] * R.M[1][2] + L.M[2][0] * R.M[2][2],	// x02
@@ -213,9 +213,9 @@ namespace Chaos
 				);
 		}
 
-		inline PMatrix<float, 3, 3> MultiplyAtB(const PMatrix<float, 3, 3>& L, const PMatrix<float, 3, 3>& R)
+		inline FMatrix33 MultiplyAtB(const FMatrix33& L, const FMatrix33& R)
 		{
-			return PMatrix<float, 3, 3>(
+			return FMatrix33(
 				L.M[0][0] * R.M[0][0] + L.M[0][1] * R.M[0][1] + L.M[0][2] * R.M[0][2],	// x00
 				L.M[0][0] * R.M[1][0] + L.M[0][1] * R.M[1][1] + L.M[0][2] * R.M[1][2],	// x01
 				L.M[0][0] * R.M[2][0] + L.M[0][1] * R.M[2][1] + L.M[0][2] * R.M[2][2],	// x02
@@ -235,10 +235,10 @@ namespace Chaos
 		 * Multiple a vector by a matrix: C = L.R
 		 * If L is a rotation matrix, then this will return R rotated by that rotation.
 		 */
-		inline FVec3 Multiply(const PMatrix<float, 3, 3>& LIn, const FVec3& R)
+		inline FVec3 Multiply(const FMatrix33& LIn, const FVec3& R)
 		{
 			// @todo(ccaulfield): optimize: remove transposes and use simd etc
-			PMatrix<float, 3, 3> L = LIn.GetTransposed();
+			FMatrix33 L = LIn.GetTransposed();
 
 			return FVec3(
 			    L.M[0][0] * R.X + L.M[0][1] * R.Y + L.M[0][2] * R.Z,
@@ -246,10 +246,10 @@ namespace Chaos
 			    L.M[2][0] * R.X + L.M[2][1] * R.Y + L.M[2][2] * R.Z);
 		}
 
-		inline FVec4 Multiply(const PMatrix<float, 4, 4>& LIn, const FVec4& R)
+		inline FVec4 Multiply(const FMatrix44& LIn, const FVec4& R)
 		{
 			// @todo(ccaulfield): optimize: remove transposes and use simd etc
-			PMatrix<float, 4, 4> L = LIn.GetTransposed();
+			FMatrix44 L = LIn.GetTransposed();
 
 			return FVec4(
 				L.M[0][0] * R.X + L.M[0][1] * R.Y + L.M[0][2] * R.Z + L.M[0][3] * R.W,
@@ -262,13 +262,9 @@ namespace Chaos
 		/**
 		 * Concatenate two transforms. This returns a transform that logically applies R then L.
 		 */
-		template<class T, int d>
-		TRigidTransform<T, d> Multiply(const TRigidTransform<T, d> L, const TRigidTransform<T, d>& R);
-
-		template<>
-		inline TRigidTransform<float, 3> Multiply(const TRigidTransform<float, 3> L, const TRigidTransform<float, 3>& R)
+		inline FRigidTransform3 Multiply(const FRigidTransform3 L, const FRigidTransform3& R)
 		{
-			return TRigidTransform<float, 3>(L.GetTranslation() + L.GetRotation().RotateVector(R.GetTranslation()), L.GetRotation() * R.GetRotation());
+			return FRigidTransform3(L.GetTranslation() + L.GetRotation().RotateVector(R.GetTranslation()), L.GetRotation() * R.GetRotation());
 		}
 
 		/**

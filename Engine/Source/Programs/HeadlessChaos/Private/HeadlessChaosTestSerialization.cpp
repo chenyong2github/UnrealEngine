@@ -294,7 +294,7 @@ namespace ChaosTest
 			OriginalParticles.R(0) = FRotation3::Identity;
 			OriginalParticles.R(1) = FRotation3::Identity;
 
-			TBoundingVolumeHierarchy<FGeometryParticles, TArray<int32>, FReal, 3> OriginalBVH(OriginalParticles);
+			TBoundingVolumeHierarchy<FGeometryParticles, TArray<int32>> OriginalBVH(OriginalParticles);
 
 			FMemoryWriter Ar(Data);
 			FChaosArchive Writer(Ar);
@@ -307,7 +307,7 @@ namespace ChaosTest
 		{
 			TArray <TUniquePtr<TSphere<FReal, 3>>> SerializedSpheres;
 			FGeometryParticles SerializedParticles;
-			TBoundingVolumeHierarchy<FGeometryParticles, TArray<int32>, FReal, 3> SerializedBVH(SerializedParticles);
+			TBoundingVolumeHierarchy<FGeometryParticles, TArray<int32>> SerializedBVH(SerializedParticles);
 			FMemoryReader Ar(Data);
 			FChaosArchive Reader(Ar);
 

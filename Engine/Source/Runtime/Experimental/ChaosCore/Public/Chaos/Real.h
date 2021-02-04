@@ -10,4 +10,6 @@ namespace Chaos
 	 * (e.g. FVec3) to adapt to global changes in precision.
 	 */
 	using FReal = float;
+
+	using FTime = float;
 }

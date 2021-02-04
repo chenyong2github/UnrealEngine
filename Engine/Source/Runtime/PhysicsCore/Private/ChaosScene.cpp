@@ -126,12 +126,12 @@ void FChaosScene::AddPieModifiedObject(UObject* InObj)
 #endif
 
 
-const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration() const
+const Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>* FChaosScene::GetSpacialAcceleration() const
 {
 	return SolverAccelerationStructure;
 }
 
-Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration()
+Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>* FChaosScene::GetSpacialAcceleration()
 {
 	return SolverAccelerationStructure;
 }
@@ -178,7 +178,7 @@ void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Acto
 	if(GetSpacialAcceleration() && Body_External.UniqueIdx().IsValid())
 	{
 		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
-		Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor->GetParticle_LowLevel());
+		Chaos::FAccelerationStructureHandle AccelerationHandle(Actor->GetParticle_LowLevel());
 		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle, Body_External.SpatialIdx());
 	}
 #endif
@@ -199,15 +199,15 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 		if(SpatialAcceleration)
 		{
 
-			TAABB<FReal,3> WorldBounds;
+			FAABB3 WorldBounds;
 			const bool bHasBounds = Body_External.Geometry()->HasBoundingBox();
 			if(bHasBounds)
 			{
-				WorldBounds = Body_External.Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal,3>(Body_External.X(), Body_External.R()));
+				WorldBounds = Body_External.Geometry()->BoundingBox().TransformedAABB(FRigidTransform3(Body_External.X(), Body_External.R()));
 			}
 
 
-			Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor->GetParticle_LowLevel());
+			Chaos::FAccelerationStructureHandle AccelerationHandle(Actor->GetParticle_LowLevel());
 			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds, Body_External.SpatialIdx());
 		}
 
@@ -237,14 +237,14 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 				if(Actor)
 				{
 					// @todo(chaos): dedupe code in UpdateActorInAccelerationStructure
-					TAABB<FReal,3> WorldBounds;
+					FAABB3 WorldBounds;
 					const bool bHasBounds = Body_External.Geometry()->HasBoundingBox();
 					if(bHasBounds)
 					{
-						WorldBounds = Body_External.Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal,3>(Body_External.X(), Body_External.R()));
+						WorldBounds = Body_External.Geometry()->BoundingBox().TransformedAABB(FRigidTransform3(Body_External.X(), Body_External.R()));
 					}
 
-					Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor->GetParticle_LowLevel());
+					Chaos::FAccelerationStructureHandle AccelerationHandle(Actor->GetParticle_LowLevel());
 					SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds, Body_External.SpatialIdx());
 				}
 			}
@@ -266,7 +266,7 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 {
 #if WITH_CHAOS
 	Chaos::FPhysicsSolver* Solver = GetSolver();
-	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* SpatialAcceleration = GetSpacialAcceleration();
+	Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle,Chaos::FReal,3>* SpatialAcceleration = GetSpacialAcceleration();
 	for(FPhysicsActorHandle& Handle : InHandles)
 	{
 		FChaosEngineInterface::AddActorToSolver(Handle,Solver);
@@ -277,15 +277,15 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 			const Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
 			// Get the bounding box for the particle if it has one
 			bool bHasBounds = Body_External.Geometry()->HasBoundingBox();
-			Chaos::TAABB<float,3> WorldBounds;
+			Chaos::FAABB3 WorldBounds;
 			if(bHasBounds)
 			{
-				const Chaos::TAABB<float,3> LocalBounds = Body_External.Geometry()->BoundingBox();
-				WorldBounds = LocalBounds.TransformedAABB(Chaos::TRigidTransform<float,3>(Body_External.X(), Body_External.R()));
+				const Chaos::FAABB3 LocalBounds = Body_External.Geometry()->BoundingBox();
+				WorldBounds = LocalBounds.TransformedAABB(Chaos::FRigidTransform3(Body_External.X(), Body_External.R()));
 			}
 
 			// Insert the particle
-			Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Handle->GetParticle_LowLevel());
+			Chaos::FAccelerationStructureHandle AccelerationHandle(Handle->GetParticle_LowLevel());
 			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds, Body_External.SpatialIdx());
 		}
 	}
@@ -418,10 +418,10 @@ int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::TAccelerati
 	for(const FSpatialAccelerationIdx SpatialIndex : SpatialIndices)
 	{
 		auto SubStructure = Collection.GetSubstructure(SpatialIndex);
-		if(const auto AABBTree = SubStructure->template As<TAABBTree<TAccelerationStructureHandle<FReal,3>,TAABBTreeLeafArray<TAccelerationStructureHandle<FReal,3>,FReal>,FReal>>())
+		if(const auto AABBTree = SubStructure->template As<TAABBTree<FAccelerationStructureHandle,TAABBTreeLeafArray<FAccelerationStructureHandle,FReal>,FReal>>())
 		{
 			DirtyElements += AABBTree->NumDirtyElements();
-		} else if(const auto AABBTreeBV = SubStructure->template As<TAABBTree<TAccelerationStructureHandle<FReal,3>,TBoundingVolume<TAccelerationStructureHandle<FReal,3>,FReal,3>,FReal>>())
+		} else if(const auto AABBTreeBV = SubStructure->template As<TAABBTree<FAccelerationStructureHandle,TBoundingVolume<FAccelerationStructureHandle>,FReal>>())
 		{
 			DirtyElements += AABBTreeBV->NumDirtyElements();
 		}
@@ -433,7 +433,7 @@ void FChaosScene::EndFrame()
 {
 #if WITH_CHAOS
 	using namespace Chaos;
-	using SpatialAccelerationCollection = ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>;
+	using SpatialAccelerationCollection = ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>;
 
 	SCOPE_CYCLE_COUNTER(STAT_Scene_EndFrame);
 

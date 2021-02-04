@@ -139,11 +139,11 @@ public:
 	bool HasBounds(const int32 Idx) const { return MHasBoundingBoxes[Idx]; }
 	bool& HasBounds(const int32 Idx) { return MHasBoundingBoxes[Idx]; }
 
-	const TAABB<FReal, 3>& Bounds(const int32 Idx) const { return MBounds[Idx]; }
-	TAABB<FReal, 3>& Bounds(const int32 Idx) { return MBounds[Idx]; }
+	const FAABB3& Bounds(const int32 Idx) const { return MBounds[Idx]; }
+	FAABB3& Bounds(const int32 Idx) { return MBounds[Idx]; }
 
-	const TAccelerationStructureHandle<FReal, 3>& Payload(const int32 Idx) const { return MPayloads[Idx]; }
-	TAccelerationStructureHandle<FReal, 3>& Payload(const int32 Idx) { return MPayloads[Idx]; }
+	const FAccelerationStructureHandle& Payload(const int32 Idx) const { return MPayloads[Idx]; }
+	FAccelerationStructureHandle& Payload(const int32 Idx) { return MPayloads[Idx]; }
 
 private:
 	void IncrementDirtyValidation()
@@ -154,8 +154,8 @@ private:
 	}
 
 	TArrayCollectionArray<bool> MHasBoundingBoxes;
-	TArrayCollectionArray<TAABB<FReal, 3>> MBounds;
-	TArrayCollectionArray<TAccelerationStructureHandle<FReal, 3>> MPayloads;
+	TArrayCollectionArray<FAABB3> MBounds;
+	TArrayCollectionArray<FAccelerationStructureHandle> MPayloads;
 
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK
 	int32 MDirtyValidationCount;
@@ -205,19 +205,19 @@ struct FSpatialAccelerationCacheHandle
 struct CHAOS_API ISpatialAccelerationCollectionFactory
 {
 	//Create an empty acceleration collection with the desired buckets. Chaos enqueues acceleration structure operations per bucket
-	virtual TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>> CreateEmptyCollection() = 0;
+	virtual TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>> CreateEmptyCollection() = 0;
 
 	// Determines if bucket implements time slicing.
 	virtual bool IsBucketTimeSliced(uint16 BucketIdx) const = 0;
 
 	//Chaos creates new acceleration structures per bucket. Factory can change underlying type at runtime as well as number of buckets to AB test
-	virtual TUniquePtr<ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<FSpatialAccelerationCache>& Particles, uint16 BucketIdx, bool ForceFullBuild) = 0;
+	virtual TUniquePtr<ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>> CreateAccelerationPerBucket_Threaded(const TConstParticleView<FSpatialAccelerationCache>& Particles, uint16 BucketIdx, bool ForceFullBuild) = 0;
 
 	//Mask indicating which bucket is active. Spatial indices in inactive buckets fallback to bucket 0. Bit 0 indicates bucket 0 is active, Bit 1 indicates bucket 1 is active, etc...
 	virtual uint8 GetActiveBucketsMask() const = 0;
 
 	//Serialize the collection in and out
-	virtual void Serialize(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& Ptr, FChaosArchive& Ar) = 0;
+	virtual void Serialize(TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>& Ptr, FChaosArchive& Ar) = 0;
 
 	virtual ~ISpatialAccelerationCollectionFactory() = default;
 };
@@ -229,15 +229,15 @@ public:
 	using FAccelerationStructure = ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>;
 
 	typedef TFunction<void(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal)> FForceRule;
-	typedef TFunction<void(const TArray<TGeometryParticleHandle<FReal, 3>*>&, const FReal)> FUpdateVelocityRule;
-	typedef TFunction<void(const TParticleView<TPBDRigidParticles<FReal, 3>>&, const FReal)> FUpdatePositionRule;
-	typedef TFunction<void(TPBDRigidParticles<FReal, 3>&, const FReal, const FReal, const int32)> FKinematicUpdateRule;
-	typedef TFunction<void(TParticleView<TPBDRigidParticles<FReal,3>>&)> FCaptureRewindRule;
+	typedef TFunction<void(const TArray<FGeometryParticleHandle*>&, const FReal)> FUpdateVelocityRule;
+	typedef TFunction<void(const TParticleView<FPBDRigidParticles>&, const FReal)> FUpdatePositionRule;
+	typedef TFunction<void(FPBDRigidParticles&, const FReal, const FReal, const int32)> FKinematicUpdateRule;
+	typedef TFunction<void(TParticleView<FPBDRigidParticles>&)> FCaptureRewindRule;
 
-	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
+	CHAOS_API TPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
 	CHAOS_API virtual ~TPBDRigidsEvolutionBase();
 
-	CHAOS_API TArray<TGeometryParticleHandle<FReal, 3>*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TGeometryParticleParameters<FReal, 3>& Params = TGeometryParticleParameters<FReal, 3>())
+	CHAOS_API TArray<FGeometryParticleHandle*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TGeometryParticleParameters<FReal, 3>& Params = TGeometryParticleParameters<FReal, 3>())
 	{
 		auto NewParticles = Particles.CreateStaticParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
@@ -247,7 +247,7 @@ public:
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<TKinematicGeometryParticleHandle<FReal, 3>*> CreateKinematicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TKinematicGeometryParticleParameters<FReal, 3>& Params = TKinematicGeometryParticleParameters<FReal, 3>())
+	CHAOS_API TArray<FKinematicGeometryParticleHandle*> CreateKinematicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TKinematicGeometryParticleParameters<FReal, 3>& Params = TKinematicGeometryParticleParameters<FReal, 3>())
 	{
 		auto NewParticles = Particles.CreateKinematicParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
@@ -257,7 +257,7 @@ public:
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<TPBDRigidParticleHandle<FReal, 3>*> CreateDynamicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TPBDRigidParticleParameters<FReal, 3>& Params = TPBDRigidParticleParameters<FReal, 3>())
+	CHAOS_API TArray<FPBDRigidParticleHandle*> CreateDynamicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const TPBDRigidParticleParameters<FReal, 3>& Params = TPBDRigidParticleParameters<FReal, 3>())
 	{
 		auto NewParticles = Particles.CreateDynamicParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
@@ -296,8 +296,8 @@ public:
 	CHAOS_API TGeometryParticleHandles<FReal, 3>& GetParticleHandles() { return Particles.GetParticleHandles(); }
 	CHAOS_API const TGeometryParticleHandles<FReal, 3>& GetParticleHandles() const { return Particles.GetParticleHandles(); }
 
-	CHAOS_API TPBDRigidsSOAs<FReal, 3>& GetParticles() { return Particles; }
-	CHAOS_API const TPBDRigidsSOAs<FReal, 3>& GetParticles() const { return Particles; }
+	CHAOS_API FPBDRigidsSOAs& GetParticles() { return Particles; }
+	CHAOS_API const FPBDRigidsSOAs& GetParticles() const { return Particles; }
 
 	CHAOS_API void AddConstraintRule(FPBDConstraintGraphRule* ConstraintRule)
 	{
@@ -316,26 +316,26 @@ public:
 		NumPushOutIterations = InNumIterations;
 	}
 
-	CHAOS_API void EnableParticle(TGeometryParticleHandle<FReal, 3>* Particle, const TGeometryParticleHandle<FReal, 3>* ParentParticle)
+	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle, const FGeometryParticleHandle* ParentParticle)
 	{
 		Particles.EnableParticle(Particle);
 		ConstraintGraph.EnableParticle(Particle, ParentParticle);
 		DirtyParticle(*Particle);
 	}
 
-	CHAOS_API void DisableParticle(TGeometryParticleHandle<FReal, 3>* Particle)
+	CHAOS_API void DisableParticle(FGeometryParticleHandle* Particle)
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
 		ConstraintGraph.DisableParticle(Particle);
-		DisableConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
+		DisableConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
 	}
 
 	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);
 
-	CHAOS_API void DisableParticles(TSet<TGeometryParticleHandle<FReal, 3>*> &ParticlesIn)
+	CHAOS_API void DisableParticles(TSet<FGeometryParticleHandle*> &ParticlesIn)
 	{
-		for (TGeometryParticleHandle<FReal, 3>* Particle : ParticlesIn)
+		for (FGeometryParticleHandle* Particle : ParticlesIn)
 		{
 			RemoveParticleFromAccelerationStructure(*Particle);
 			Particles.DisableParticle(Particle);
@@ -357,9 +357,9 @@ public:
 				// For clustered particles, they may appear disabled but they're being driven by an internal (solver-owned) cluster parent.
 				// If this is the case we let the spatial data update with those particles, otherwise skip.
 				// #BGTODO consider converting MDisabled into a bitfield for multiple disable types (Disabled, DisabledDriven, etc.)
-				if(TPBDRigidParticleHandle<float, 3>* ClusterParentBase = AsClustered->ClusterIds().Id)
+				if(FPBDRigidParticleHandle* ClusterParentBase = AsClustered->ClusterIds().Id)
 				{
-					if(Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ClusterParent = ClusterParentBase->CastToClustered())
+					if(Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>* ClusterParent = ClusterParentBase->CastToClustered())
 					{
 						if(!ClusterParent->InternalCluster())
 						{
@@ -379,7 +379,7 @@ public:
 		const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
 		FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
 		ensure(SpatialData.bDelete == false);
-		SpatialData.AccelerationHandle = TAccelerationStructureHandle<FReal, 3>(Particle);
+		SpatialData.AccelerationHandle = FAccelerationStructureHandle(Particle);
 		SpatialData.SpatialIdx = Particle.SpatialIdx();
 
 		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
@@ -387,11 +387,11 @@ public:
 		AsyncSpatialData = SpatialData;
 	}
 
-	CHAOS_API void DestroyParticle(TGeometryParticleHandle<FReal, 3>* Particle)
+	CHAOS_API void DestroyParticle(FGeometryParticleHandle* Particle)
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
 		UniqueIndicesPendingRelease.Add(Particle->UniqueIdx());
-		DisableConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
+		DisableConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
 		ConstraintGraph.RemoveParticle(Particle);
 		Particles.DestroyParticle(Particle);
 	}
@@ -408,13 +408,13 @@ public:
 		}
 	}
 
-	CHAOS_API void CreateParticle(TGeometryParticleHandle<FReal, 3>* ParticleAdded)
+	CHAOS_API void CreateParticle(FGeometryParticleHandle* ParticleAdded)
 	{
 		ConstraintGraph.AddParticle(ParticleAdded);
 		DirtyParticle(*ParticleAdded);
 	}
 
-	CHAOS_API void SetParticleObjectState(TPBDRigidParticleHandle<FReal, 3>* Particle, EObjectStateType ObjectState)
+	CHAOS_API void SetParticleObjectState(FPBDRigidParticleHandle* Particle, EObjectStateType ObjectState)
 	{
 		EObjectStateType InitialState = Particle->ObjectState();
 
@@ -431,9 +431,9 @@ public:
 		}
 	}
 
-	CHAOS_API void DisableParticles(const TSet<TGeometryParticleHandle<FReal, 3>*>& InParticles)
+	CHAOS_API void DisableParticles(const TSet<FGeometryParticleHandle*>& InParticles)
 	{
-		for (TGeometryParticleHandle<FReal, 3>* Particle : InParticles)
+		for (FGeometryParticleHandle* Particle : InParticles)
 		{
 			Particles.DisableParticle(Particle);
 			RemoveParticleFromAccelerationStructure(*Particle);
@@ -471,9 +471,9 @@ public:
 		}*/
 	}
 
-	CHAOS_API void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+	CHAOS_API void DisableConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
 	{
-		for (TGeometryParticleHandle<FReal, 3>* ParticleHandle : RemovedParticles)
+		for (FGeometryParticleHandle* ParticleHandle : RemovedParticles)
 		{
 			for (FConstraintHandle* BaseConstraintHandle : ParticleHandle->ParticleConstraints())
 			{
@@ -503,22 +503,22 @@ public:
 	const auto& GetActiveClusteredArray() const { return Particles.GetActiveClusteredArray(); }
 	const auto& GetNonDisabledClusteredArray() const { return Particles.GetNonDisabledClusteredArray(); }
 
-	CHAOS_API TSerializablePtr<FChaosPhysicsMaterial> GetPhysicsMaterial(const TGeometryParticleHandle<FReal, 3>* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
+	CHAOS_API TSerializablePtr<FChaosPhysicsMaterial> GetPhysicsMaterial(const FGeometryParticleHandle* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
 	
-	CHAOS_API const TUniquePtr<FChaosPhysicsMaterial> &GetPerParticlePhysicsMaterial(const TGeometryParticleHandle<FReal, 3>* Particle) const { return Particle->AuxilaryValue(PerParticlePhysicsMaterials); }
+	CHAOS_API const TUniquePtr<FChaosPhysicsMaterial> &GetPerParticlePhysicsMaterial(const FGeometryParticleHandle* Particle) const { return Particle->AuxilaryValue(PerParticlePhysicsMaterials); }
 
-	CHAOS_API void SetPerParticlePhysicsMaterial(TGeometryParticleHandle<FReal, 3>* Particle, TUniquePtr<FChaosPhysicsMaterial> &InMaterial)
+	CHAOS_API void SetPerParticlePhysicsMaterial(FGeometryParticleHandle* Particle, TUniquePtr<FChaosPhysicsMaterial> &InMaterial)
 	{
 		Particle->AuxilaryValue(PerParticlePhysicsMaterials) = MoveTemp(InMaterial);
 	}
 
-	CHAOS_API void SetPhysicsMaterial(TGeometryParticleHandle<FReal, 3>* Particle, TSerializablePtr<FChaosPhysicsMaterial> InMaterial)
+	CHAOS_API void SetPhysicsMaterial(FGeometryParticleHandle* Particle, TSerializablePtr<FChaosPhysicsMaterial> InMaterial)
 	{
 		check(!Particle->AuxilaryValue(PerParticlePhysicsMaterials)); //shouldn't be setting non unique material if a unique one already exists
 		Particle->AuxilaryValue(PhysicsMaterials) = InMaterial;
 	}
 
-	CHAOS_API const TArray<TGeometryParticleHandle<FReal, 3>*>& GetIslandParticles(const int32 Island) const { return ConstraintGraph.GetIslandParticles(Island); }
+	CHAOS_API const TArray<FGeometryParticleHandle*>& GetIslandParticles(const int32 Island) const { return ConstraintGraph.GetIslandParticles(Island); }
 	CHAOS_API int32 NumIslands() const { return ConstraintGraph.NumIslands(); }
 
 	void InitializeAccelerationStructures()
@@ -681,9 +681,9 @@ public:
 
 	/** Make a copy of the acceleration structure to allow for external modification.
 	    This is needed for supporting sync operations on SQ structure from game thread. You probably want to go through solver which maintains PendingExternal */
-	CHAOS_API void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>*& ExternalStructure, FPendingSpatialDataQueue& PendingExternal);
+	CHAOS_API void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>*& ExternalStructure, FPendingSpatialDataQueue& PendingExternal);
 
-	ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* GetSpatialAcceleration() { return InternalAcceleration; }
+	ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* GetSpatialAcceleration() { return InternalAcceleration; }
 
 	/** Perform a blocking flush of the spatial acceleration structure for situations where we aren't simulating but must have an up to date structure */
 	CHAOS_API void FlushSpatialAcceleration();
@@ -736,7 +736,7 @@ protected:
 
 		SpatialData.bDelete = true;
 		SpatialData.SpatialIdx = ParticleHandle.SpatialIdx();
-		SpatialData.AccelerationHandle = TAccelerationStructureHandle<FReal, 3>(ParticleHandle);
+		SpatialData.AccelerationHandle = FAccelerationStructureHandle(ParticleHandle);
 
 		//Internal acceleration has all moves pending, so cancel them all now
 		InternalAccelerationQueue.Remove(UniqueIdx);
@@ -821,7 +821,7 @@ protected:
 	TArrayCollectionArray<int32> ParticleDisableCount;
 	TArrayCollectionArray<bool> Collided;
 
-	TPBDRigidsSOAs<FReal, 3>& Particles;
+	FPBDRigidsSOAs& Particles;
 	THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials;
 	FAccelerationStructure* InternalAcceleration;
 	FAccelerationStructure* AsyncInternalAcceleration;
@@ -855,9 +855,9 @@ protected:
 	/** Pending operations for the acceleration structures being rebuilt asynchronously */
 	FPendingSpatialDataQueue AsyncAccelerationQueue;
 
-	/*void SerializePendingMap(FChaosArchive& Ar, TMap<TGeometryParticleHandle<FReal, 3>*, FPendingSpatialData>& Map)
+	/*void SerializePendingMap(FChaosArchive& Ar, TMap<FGeometryParticleHandle*, FPendingSpatialData>& Map)
 	{
-		TArray<TGeometryParticleHandle<FReal, 3>*> Keys;
+		TArray<FGeometryParticleHandle*> Keys;
 		if (!Ar.IsLoading())
 		{
 			Map.GenerateKeyArray(Keys);

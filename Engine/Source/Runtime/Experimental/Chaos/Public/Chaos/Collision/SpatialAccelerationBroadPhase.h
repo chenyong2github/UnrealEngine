@@ -33,25 +33,25 @@ namespace Chaos
 	 */
 	struct FSimOverlapVisitor
 	{
-		TArray<TAccelerationStructureHandle<FReal, 3>>& Intersections;
-		FSimOverlapVisitor(TArray<TAccelerationStructureHandle<FReal, 3>>& InIntersections)
+		TArray<FAccelerationStructureHandle>& Intersections;
+		FSimOverlapVisitor(TArray<FAccelerationStructureHandle>& InIntersections)
 			: Intersections(InIntersections)
 		{
 		}
 
-		bool VisitOverlap(const TSpatialVisitorData<TAccelerationStructureHandle<FReal, 3>>& Instance)
+		bool VisitOverlap(const TSpatialVisitorData<FAccelerationStructureHandle>& Instance)
 		{
 			Intersections.Add(Instance.Payload);
 			return true;
 		}
 
-		bool VisitSweep(TSpatialVisitorData<TAccelerationStructureHandle<FReal, 3>>, FQueryFastData& CurData)
+		bool VisitSweep(TSpatialVisitorData<FAccelerationStructureHandle>, FQueryFastData& CurData)
 		{
 			check(false);
 			return false;
 		}
 
-		bool VisitRaycast(TSpatialVisitorData<TAccelerationStructureHandle<FReal, 3>>, FQueryFastData& CurData)
+		bool VisitRaycast(TSpatialVisitorData<FAccelerationStructureHandle>, FQueryFastData& CurData)
 		{
 			check(false);
 			return false;
@@ -67,9 +67,9 @@ namespace Chaos
 	class FSpatialAccelerationBroadPhase : public FBroadPhase
 	{
 	public:
-		using FAccelerationStructure = ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
+		using FAccelerationStructure = ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>;
 
-		FSpatialAccelerationBroadPhase(const TPBDRigidsSOAs<FReal, 3>& InParticles, const FReal InBoundsExpansion, const FReal InVelocityInflation, const FReal InCullDistance)
+		FSpatialAccelerationBroadPhase(const FPBDRigidsSOAs& InParticles, const FReal InBoundsExpansion, const FReal InVelocityInflation, const FReal InCullDistance)
 			: FBroadPhase(InBoundsExpansion, InVelocityInflation)
 			, Particles(InParticles)
 			, SpatialAcceleration(nullptr)
@@ -104,19 +104,19 @@ namespace Chaos
 				return;
 			}
 
-			if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>>())
+			if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle, FReal>, FReal>>())
 			{
 				ProduceOverlaps(Dt, *AABBTree, NarrowPhase, Receiver, StatData, ResimCache);
 			}
-			else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
+			else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<FAccelerationStructureHandle>>())
 			{
 				ProduceOverlaps(Dt, *BV, NarrowPhase, Receiver, StatData, ResimCache);
 			}
-			else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>>())
+			else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>, FReal>>())
 			{
 				ProduceOverlaps(Dt, *AABBTreeBV, NarrowPhase, Receiver, StatData, ResimCache);
 			}
-			else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
+			else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>())
 			{
 				Collection->PBDComputeConstraintsLowLevel(Dt, *this, NarrowPhase, Receiver, StatData, ResimCache);
 			}
@@ -198,7 +198,7 @@ namespace Chaos
 			//Durning non-resim we must pass rigid particles
 			static_assert(bIsResimming || THandle::StaticType() == EParticleType::Rigid, "During non-resim we expect rigid particles");
 
-			TArray<TAccelerationStructureHandle<FReal, 3>> PotentialIntersections;
+			TArray<FAccelerationStructureHandle> PotentialIntersections;
 
 			if (bIsResimming || (Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping))
 			{
@@ -289,7 +289,7 @@ namespace Chaos
 					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
 						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
 							(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
-								Particle2.Geometry()->GetType() == TCapsule<float>::StaticType()));
+								Particle2.Geometry()->GetType() == TCapsule<FReal>::StaticType()));
 					if (Particle1.ObjectState() == EObjectStateType::Sleeping && !bIsParticle2Kinematic && bSecondParticleWillHaveAnswer)
 					{
 						//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
@@ -332,7 +332,7 @@ namespace Chaos
 			CHAOS_COLLISION_STAT(StatData.FinalizeData());
 		}
 
-		const TPBDRigidsSOAs<FReal, 3>& Particles;
+		const FPBDRigidsSOAs& Particles;
 		const FAccelerationStructure* SpatialAcceleration;
 		FReal CullDistance;
 
@@ -342,12 +342,12 @@ namespace Chaos
 
 
 
-	extern void MoveToTOIPairHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle1, const TGeometryParticleHandle<FReal, 3>* Particle2);
+	extern void MoveToTOIPairHack(FReal Dt, FPBDRigidParticleHandle* Particle1, const FGeometryParticleHandle* Particle2);
 
 	template<typename T_SPATIALACCELERATION>
 	void MoveToTOIHackImpl(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle1, const T_SPATIALACCELERATION* SpatialAcceleration)
 	{
-		TArray<TAccelerationStructureHandle<FReal, 3>> PotentialIntersections;
+		TArray<FAccelerationStructureHandle> PotentialIntersections;
 		const FAABB3 Box1 = ComputeWorldSpaceBoundingBox(Particle1);
 		FSimOverlapVisitor OverlapVisitor(PotentialIntersections);
 		SpatialAcceleration->Overlap(Box1, OverlapVisitor);

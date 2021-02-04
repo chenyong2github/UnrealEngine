@@ -6,8 +6,8 @@ namespace Chaos
 {
 struct FLargeImplicitObjectUnionData
 {
-	TGeometryParticles<FReal,3> GeomParticles;
-	TBoundingVolumeHierarchy<TGeometryParticles<FReal,3>, TArray<int32>, FReal, 3> Hierarchy;
+	FGeometryParticles GeomParticles;
+	TBoundingVolumeHierarchy<FGeometryParticles, TArray<int32>> Hierarchy;
 
 	FLargeImplicitObjectUnionData(const TArray<Pair<TSerializablePtr<FImplicitObject>,FRigidTransform3>>& SubObjects)
 	{
@@ -21,7 +21,7 @@ struct FLargeImplicitObjectUnionData
 			//check(!SubObjects[i].First->IsUnderlyingUnion());	//we don't support union of unions
 		}
 
-		Hierarchy = TBoundingVolumeHierarchy<TGeometryParticles<FReal,3>,TArray<int32>,FReal,3> (GeomParticles,1);
+		Hierarchy = TBoundingVolumeHierarchy<FGeometryParticles,TArray<int32>> (GeomParticles,1);
 	}
 
 	void Serialize(FChaosArchive& Ar)
@@ -117,7 +117,7 @@ FImplicitObjectUnion::FImplicitObjectUnion(FImplicitObjectUnion&& Other)
 
 FImplicitObjectUnion::~FImplicitObjectUnion() = default;
 
-void FImplicitObjectUnion::FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*,FRigidTransform3>>& Out, const TAABB<FReal,3>& LocalBounds) const
+void FImplicitObjectUnion::FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*,FRigidTransform3>>& Out, const FAABB3& LocalBounds) const
 {
 	if (LargeUnionData)
 	{
@@ -191,7 +191,7 @@ FImplicitObjectUnionClustered::FImplicitObjectUnionClustered()
 
 FImplicitObjectUnionClustered::FImplicitObjectUnionClustered(
 	TArray<TUniquePtr<FImplicitObject>>&& Objects, 
-	const TArray<TPBDRigidParticleHandle<FReal, 3>*>& OriginalParticleLookupHack)
+	const TArray<FPBDRigidParticleHandle*>& OriginalParticleLookupHack)
     : FImplicitObjectUnion(MoveTemp(Objects))
 	, MOriginalParticleLookupHack(OriginalParticleLookupHack)
 {
@@ -225,7 +225,7 @@ FImplicitObjectUnionClustered::FImplicitObjectUnionClustered(FImplicitObjectUnio
 	Type = ImplicitObjectType::UnionClustered;
 }
 
-void FImplicitObjectUnionClustered::FindAllIntersectingClusteredObjects(TArray<Pair<Pair<const FImplicitObject*,const TBVHParticles<FReal, 3>*>,FRigidTransform3>>& Out, const TAABB<FReal,3>& LocalBounds) const
+void FImplicitObjectUnionClustered::FindAllIntersectingClusteredObjects(TArray<Pair<Pair<const FImplicitObject*,const TBVHParticles<FReal, 3>*>,FRigidTransform3>>& Out, const FAABB3& LocalBounds) const
 {
 	if (LargeUnionData)
 	{
@@ -261,10 +261,10 @@ void FImplicitObjectUnionClustered::FindAllIntersectingClusteredObjects(TArray<P
 	}
 }
 
-TArray<TPBDRigidParticleHandle<FReal, 3>*>
-FImplicitObjectUnionClustered::FindAllIntersectingChildren(const TAABB<FReal, 3>& LocalBounds) const
+TArray<FPBDRigidParticleHandle*>
+FImplicitObjectUnionClustered::FindAllIntersectingChildren(const FAABB3& LocalBounds) const
 {
-	TArray<TPBDRigidParticleHandle<FReal, 3>*> IntersectingChildren;
+	TArray<FPBDRigidParticleHandle*> IntersectingChildren;
 	if (LargeUnionData) //todo: make this work when hierarchy is not built
 	{
 		TArray<int32> IntersectingIndices = LargeUnionData->Hierarchy.FindAllIntersections(LocalBounds);
@@ -285,9 +285,9 @@ FImplicitObjectUnionClustered::FindAllIntersectingChildren(const TAABB<FReal, 3>
 }
 
 
-const TPBDRigidParticleHandle<FReal, 3>* FImplicitObjectUnionClustered::FindParticleForImplicitObject(const FImplicitObject* Object) const
+const FPBDRigidParticleHandle* FImplicitObjectUnionClustered::FindParticleForImplicitObject(const FImplicitObject* Object) const
 {
-	typedef TPBDRigidParticleHandle<FReal, 3>* ValueType;
+	typedef FPBDRigidParticleHandle* ValueType;
 
 	const TImplicitObjectTransformed<FReal, 3>* AsTransformed = Object->template GetObject<TImplicitObjectTransformed<FReal, 3>>();
 	if(AsTransformed)

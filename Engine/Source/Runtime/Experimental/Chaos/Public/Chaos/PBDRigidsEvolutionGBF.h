@@ -32,8 +32,8 @@ namespace Chaos
 	using FPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
 
 	using FPBDRigidsEvolutionInternalHandleCallback = TFunction<void(
-		const TGeometryParticleHandle<float, 3> * OldParticle,
-		const TGeometryParticleHandle<float, 3> * NewParticle)>;
+		const FGeometryParticleHandle* OldParticle,
+		const FGeometryParticleHandle* NewParticle)>;
 
 	template <typename Traits>
 	class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<Traits>
@@ -104,7 +104,7 @@ namespace Chaos
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
 
-		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
+		CHAOS_API TPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
 		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 		FORCEINLINE void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
@@ -137,7 +137,7 @@ namespace Chaos
 			InternalParticleInitilization = Cb;
 		}
 
-		FORCEINLINE void DoInternalParticleInitilization(const TGeometryParticleHandle<float, 3>* OldParticle, const TGeometryParticleHandle<float, 3>* NewParticle) 
+		FORCEINLINE void DoInternalParticleInitilization(const FGeometryParticleHandle* OldParticle, const FGeometryParticleHandle* NewParticle) 
 		{ 
 			if(InternalParticleInitilization)
 			{

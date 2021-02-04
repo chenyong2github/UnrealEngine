@@ -64,7 +64,7 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		return Phi;
 	}
 
-	virtual const TAABB<FReal, 3> BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const FAABB3 BoundingBox() const override { return MLocalBoundingBox; }
 
 	virtual void AccumulateAllImplicitObjects(TArray<Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FRigidTransform3& ParentTM) const
 	{
@@ -87,7 +87,7 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		}
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TAABB<FReal,3>& LocalBounds) const;
+	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
 	virtual void CacheAllImplicitObjects();
 
 	virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
@@ -182,7 +182,7 @@ protected:
 	friend FImplicitObject;	//needed for serialization
 
 	TArray<TUniquePtr<FImplicitObject>> MObjects;
-	TAABB<FReal,3> MLocalBoundingBox;
+	FAABB3 MLocalBoundingBox;
 	TUniquePtr<FLargeImplicitObjectUnionData> LargeUnionData;	//only needed when there are many objects
 };
 
@@ -190,7 +190,7 @@ class CHAOS_API FImplicitObjectUnionClustered: public FImplicitObjectUnion
 {
 public:
 	FImplicitObjectUnionClustered();
-	FImplicitObjectUnionClustered(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<TPBDRigidParticleHandle<FReal, 3>*>& OriginalParticleLookupHack = TArray<TPBDRigidParticleHandle<FReal, 3>*>());
+	FImplicitObjectUnionClustered(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<FPBDRigidParticleHandle*>& OriginalParticleLookupHack = TArray<FPBDRigidParticleHandle*>());
 	FImplicitObjectUnionClustered(const FImplicitObjectUnionClustered& Other) = delete;
 	FImplicitObjectUnionClustered(FImplicitObjectUnionClustered&& Other);
 	virtual ~FImplicitObjectUnionClustered() = default;
@@ -200,8 +200,8 @@ public:
 		return ImplicitObjectType::UnionClustered;
 	}
 
-	void FindAllIntersectingClusteredObjects(TArray<Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>>& Out, const TAABB<FReal,3>& LocalBounds) const;
-	TArray<TPBDRigidParticleHandle<FReal, 3>*> FindAllIntersectingChildren(const TAABB<FReal, 3>& LocalBounds) const;
+	void FindAllIntersectingClusteredObjects(TArray<Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
+	TArray<FPBDRigidParticleHandle*> FindAllIntersectingChildren(const FAABB3& LocalBounds) const;
 
 #if CHAOS_PARTICLEHANDLE_TODO
 	TArray<int32> FindAllIntersectingChildren(const TSpatialRay<FReal,3>& LocalRay) const;
@@ -236,11 +236,11 @@ public:
 	}
 #endif
 
-	const TPBDRigidParticleHandle<FReal, 3>* FindParticleForImplicitObject(const FImplicitObject* Object) const;
+	const FPBDRigidParticleHandle* FindParticleForImplicitObject(const FImplicitObject* Object) const;
 
 private:
 	// Temp hack for finding original particles
-	TArray<TPBDRigidParticleHandle<FReal, 3>*> MOriginalParticleLookupHack;	
-	TMap<const FImplicitObject*,TPBDRigidParticleHandle<FReal, 3>*> MCollisionParticleLookupHack;	//temp hack for finding collision particles
+	TArray<FPBDRigidParticleHandle*> MOriginalParticleLookupHack;	
+	TMap<const FImplicitObject*,FPBDRigidParticleHandle*> MCollisionParticleLookupHack;	//temp hack for finding collision particles
 };
 }

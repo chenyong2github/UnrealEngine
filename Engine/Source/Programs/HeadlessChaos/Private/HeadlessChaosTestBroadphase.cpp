@@ -436,7 +436,7 @@ namespace ChaosTest
 	{
 		TUniquePtr<TBox<FReal, 3>> Box;
 		auto Boxes = BuildBoxes(Box);
-		TBoundingVolume<int32, FReal, 3> Spatial(MakeParticleView(Boxes.Get()));
+		TBoundingVolume<int32> Spatial(MakeParticleView(Boxes.Get()));
 		SpatialTestHelper(Spatial, Boxes.Get(), Box);
 	}
 
@@ -469,7 +469,7 @@ namespace ChaosTest
 		}
 
 		TArray<TSOAView<FGeometryParticles>> TmpArray = { &Boxes };
-		TBoundingVolume<FGeometryParticleHandle*, FReal, 3> BV(MakeParticleView(MoveTemp(TmpArray)));
+		TBoundingVolume<FGeometryParticleHandle*> BV(MakeParticleView(MoveTemp(TmpArray)));
 		TArray<FGeometryParticleHandle*> Handles = BV.FindAllIntersections(FAABB3(FVec3(0), FVec3(10)));
 		EXPECT_EQ(Handles.Num(), 1);
 		EXPECT_EQ(Handles[0], Boxes.Handle(0));
@@ -479,7 +479,7 @@ namespace ChaosTest
 
 		//create BV with an array of handles instead (useful for partial structures)
 		{
-			TBoundingVolume<FGeometryParticleHandle*, FReal, 3> BV2(MakeHandleView(Handles));
+			TBoundingVolume<FGeometryParticleHandle*> BV2(MakeHandleView(Handles));
 			TArray<FGeometryParticleHandle*> Handles2 = BV2.FindAllIntersections(FAABB3(FVec3(0), FVec3(10)));
 			EXPECT_EQ(Handles2.Num(), 1);
 			EXPECT_EQ(Handles2[0], Boxes.Handle(0));
@@ -491,7 +491,7 @@ namespace ChaosTest
 
 	void AABBTreeTest()
 	{
-		using TreeType = TAABBTree<int32, TBoundingVolume<int32, FReal, 3>, FReal>;
+		using TreeType = TAABBTree<int32, TBoundingVolume<int32>, FReal>;
 		{
 			TUniquePtr<TBox<FReal, 3>> Box;
 			auto Boxes = BuildBoxes(Box);
@@ -628,7 +628,7 @@ namespace ChaosTest
 		}
 
 		{
-			using BVType = TBoundingVolume<int32, FReal, 3>;
+			using BVType = TBoundingVolume<int32>;
 			TUniquePtr<TBox<FReal, 3>> Box;
 			auto Boxes0 = BuildBoxes(Box);
 			auto Spatial0 = MakeUnique<TreeType>(MakeParticleView(Boxes0.Get()));
@@ -653,7 +653,7 @@ namespace ChaosTest
 		}
 
 		{
-			using BVType = TBoundingVolume<int32, FReal, 3>;
+			using BVType = TBoundingVolume<int32>;
 			TUniquePtr<TBox<FReal, 3>> Box;
 			auto Boxes1 = BuildBoxes(Box);
 			FGeometryParticles EmptyBoxes;
