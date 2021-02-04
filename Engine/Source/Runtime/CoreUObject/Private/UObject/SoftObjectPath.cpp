@@ -470,39 +470,50 @@ UObject* FSoftObjectPath::TryLoad(FUObjectSerializeContext* InLoadContext) const
 			UObject* TopLevelObject = TopLevelPath.TryLoad(InLoadContext);
 
 			// This probably loaded the top-level object, so re-resolve ourselves
-			return ResolveObject();
-		}
-
-		FString PathString = ToString();
-#if WITH_EDITOR
-		if (GPlayInEditorID != INDEX_NONE)
-		{
-			// If we are in PIE and this hasn't already been fixed up, we need to fixup at resolution time. We cannot modify the path as it may be somewhere like a blueprint CDO
-			FSoftObjectPath FixupObjectPath = *this;
-			if (FixupObjectPath.FixupForPIE())
-			{
-				PathString = FixupObjectPath.ToString();
-			}
-		}
-#endif
-
-		LoadedObject = StaticLoadObject(UObject::StaticClass(), nullptr, *PathString, nullptr, LOAD_None, nullptr, true);
+			LoadedObject = ResolveObject();
 
 #if WITH_EDITOR
-		// Look at core redirects if we didn't find the object
-		if (!LoadedObject)
-		{
-			FSoftObjectPath FixupObjectPath = *this;
-			if (FixupObjectPath.FixupCoreRedirects())
+			// If the the top-level object exists but we can't find the object, defer the loading to the top-level container object in case
+			// it knows how to load that specific object.
+			if (!LoadedObject && TopLevelObject)
 			{
-				LoadedObject = LoadObject<UObject>(nullptr, *FixupObjectPath.ToString());
+				LoadedObject = TopLevelObject->LoadSubobject(*SubPathString);
 			}
+#endif
 		}
+		else
+		{
+			FString PathString = ToString();
+#if WITH_EDITOR
+			if (GPlayInEditorID != INDEX_NONE)
+			{
+				// If we are in PIE and this hasn't already been fixed up, we need to fixup at resolution time. We cannot modify the path as it may be somewhere like a blueprint CDO
+				FSoftObjectPath FixupObjectPath = *this;
+				if (FixupObjectPath.FixupForPIE())
+				{
+					PathString = FixupObjectPath.ToString();
+				}
+			}
 #endif
 
-		while (UObjectRedirector* Redirector = Cast<UObjectRedirector>(LoadedObject))
-		{
-			LoadedObject = Redirector->DestinationObject;
+			LoadedObject = StaticLoadObject(UObject::StaticClass(), nullptr, *PathString, nullptr, LOAD_None, nullptr, true);
+
+#if WITH_EDITOR
+			// Look at core redirects if we didn't find the object
+			if (!LoadedObject)
+			{
+				FSoftObjectPath FixupObjectPath = *this;
+				if (FixupObjectPath.FixupCoreRedirects())
+				{
+					LoadedObject = LoadObject<UObject>(nullptr, *FixupObjectPath.ToString());
+				}
+			}
+#endif
+
+			while (UObjectRedirector* Redirector = Cast<UObjectRedirector>(LoadedObject))
+			{
+				LoadedObject = Redirector->DestinationObject;
+			}
 		}
 	}
 

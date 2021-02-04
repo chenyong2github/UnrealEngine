@@ -258,6 +258,13 @@ public:
 	 * Called when the object was loaded from another class via active class redirects.
 	 */
 	virtual void LoadedFromAnotherClass(const FName& OldClassName) {}
+
+	/**
+	 * Called to defer loading a subobject to its top-level container object. Usefull with the package override
+	 * feature, where an object might not be saved in the same package as its outer, especially if the the top-level
+	 * object does lazy loading of these objects.
+	 */
+	virtual UObject* LoadSubobject(const TCHAR* SubObjectPath) { return nullptr; }
 #endif
 
 	/**
