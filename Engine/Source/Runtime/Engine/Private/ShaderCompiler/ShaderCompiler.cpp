@@ -2620,6 +2620,12 @@ FShaderCompilingManager::FShaderCompilingManager() :
 		{
 			UE_LOG(LogShaderCompilers, Warning, TEXT("bForceUseSCWMemoryPressureLimits was set but missing one or more prerequisite setting(s): CookerMemoryUsedInGB, MemoryToLeaveForTheOSInGB, MemoryUsedPerSCWProcessInGB.  Ignoring bForceUseSCWMemoryPressureLimits") );
 		}
+
+		if (GIsBuildMachine)
+		{
+			// force crashes on hung shader maps on build machines, to prevent builds running for days
+			GCrashOnHungShaderMaps = 1;
+		}
 	}
 #endif
 
