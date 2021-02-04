@@ -75,10 +75,10 @@ class FInternalThreadState
 {
 public:
 	FInternalThreadState(FEndpoint& Owner, FSharedState& SharedState) : Owner(Owner), SharedState(SharedState) {}
-	void Init(); // once, any thread
+	bool Init(); // once, any thread
 	void Run(); // once, blocking, inner thread only
 
-	FEvent* InnerThreadEvent;
+	FEvent* InnerThreadEvent = nullptr;
 	TFuture<void> InnerThreadResult; // allow to join() in the dtr
 
 private:
@@ -146,18 +146,19 @@ FEndpoint::FEndpoint(const FString& InName)
 	, InternalPtr(MakeUnique<FInternalThreadState>(*this, SharedState))
 	, Internal(*InternalPtr)
 {
-	Internal.Init();
+	if (Internal.Init())
+	{
+		UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s' Start internal thread"), *SharedState.NiceName);
 
-	UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s' Start internal thread"), *SharedState.NiceName);
-
-	Internal.InnerThreadEvent = FPlatformProcess::GetSynchEventFromPool();
-	Internal.InnerThreadResult = Async(EAsyncExecution::Thread,
-		[&, this]
-		{
-			FPlatformProcess::SetThreadName(TEXT("DirectLink"));
-			Internal.Run();
-		}
-	);
+		Internal.InnerThreadEvent = FPlatformProcess::GetSynchEventFromPool();
+		Internal.InnerThreadResult = Async(EAsyncExecution::Thread,
+			[&, this]
+			{
+				FPlatformProcess::SetThreadName(TEXT("DirectLink"));
+				Internal.Run();
+			}
+		);
+	}
 }
 
 
@@ -171,9 +172,12 @@ FEndpoint::~FEndpoint()
 {
 	UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s' closing..."), *SharedState.NiceName);
 	SharedState.bInnerThreadShouldRun = false;
-	Internal.InnerThreadEvent->Trigger();
-	Internal.InnerThreadResult.Get(); // join
-	FPlatformProcess::ReturnSynchEventToPool(Internal.InnerThreadEvent);
+	if (Internal.InnerThreadEvent)
+	{
+		Internal.InnerThreadEvent->Trigger();
+		Internal.InnerThreadResult.Get(); // join
+		FPlatformProcess::ReturnSynchEventToPool(Internal.InnerThreadEvent);
+	}
 
 	UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s' closed"), *SharedState.NiceName);
 }
@@ -434,7 +438,7 @@ FEndpoint::EOpenStreamResult FEndpoint::OpenStream(const FSourceHandle& SourceId
 	}
 	else
 	{
-		UE_LOG(LogDirectLink, Error, TEXT("Connection Request failed: no recipent found"));
+		UE_LOG(LogDirectLinkNet, Error, TEXT("Connection Request failed: no recipent found"));
 		return EOpenStreamResult::RemoteEndpointNotFound;
 	}
 	return EOpenStreamResult::Opened;
@@ -1000,7 +1004,7 @@ FRawInfo::FEndpointInfo::FEndpointInfo(const FDirectLinkMsg_EndpointState& Msg)
 }
 
 
-void FInternalThreadState::Init()
+bool FInternalThreadState::Init()
 {
 	MessageEndpoint = FMessageEndpoint::Builder(TEXT("DirectLinkEndpoint"))
 		.Handling<FDirectLinkMsg_DeltaMessage>(this, &FInternalThreadState::Handle_DeltaMessage)
@@ -1020,6 +1024,18 @@ void FInternalThreadState::Init()
 		SharedState.MessageEndpoint = MessageEndpoint;
 		SharedState.bInnerThreadShouldRun = true;
 		Now_s = FPlatformTime::Seconds();
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogDirectLinkNet, Error, TEXT("Endpoint '%s': Unable to start communication:"), *SharedState.NiceName);
+		auto ValidateModule = [&](const TCHAR* MName) {
+			UE_CLOG(FModuleManager::Get().LoadModule(MName) == nullptr, LogDirectLinkNet, Error, TEXT("\tModule '%s' not loaded."), MName);
+		};
+		ValidateModule(TEXT("Messaging"));
+		ValidateModule(TEXT("UdpMessaging"));
+		ValidateModule(TEXT("Networking"));
+		return false;
 	}
 }
 
