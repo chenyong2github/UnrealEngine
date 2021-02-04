@@ -127,7 +127,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICONUE              ICON                    "UE4.ico"
+IDI_ICONUE              ICON                    "UE.ico"
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
