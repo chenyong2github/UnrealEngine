@@ -373,7 +373,7 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 		Initializer.OfflineData = &RawData;
 	}
 
-	bool bAllSegmentsAreValid = true;
+	bool bAllSegmentsAreValid = Initializer.Segments.Num() > 0;
 	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 	{
 		if (!Segment.VertexBuffer)
@@ -383,7 +383,7 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 		}
 	}
 
-	if (Initializer.IndexBuffer && bAllSegmentsAreValid)
+	if (bAllSegmentsAreValid)
 	{
 		RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
 		if (Initializer.OfflineData == nullptr)
