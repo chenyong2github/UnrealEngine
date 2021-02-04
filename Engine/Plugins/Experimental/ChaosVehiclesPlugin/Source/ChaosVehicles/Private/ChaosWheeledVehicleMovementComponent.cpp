@@ -99,9 +99,16 @@ void FWheelState::CaptureState(int WheelIdx, const FVector& WheelOffset, const C
 
 FVector FWheelState::GetVelocityAtPoint(const Chaos::FRigidBodyHandle_Internal* Rigid, const FVector& InPoint)
 {
-	const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
-	const Chaos::FVec3 Diff = InPoint - COM;
-	return Rigid->V() - Chaos::FVec3::CrossProduct(Diff, Rigid->W());
+	if (Rigid)
+	{
+		const Chaos::FVec3 COM = Rigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Rigid) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Rigid).GetTranslation();
+		const Chaos::FVec3 Diff = InPoint - COM;
+		return Rigid->V() - Chaos::FVec3::CrossProduct(Diff, Rigid->W());
+	}
+	else
+	{
+		return FVector::ZeroVector;
+	}
 }
 
 /**

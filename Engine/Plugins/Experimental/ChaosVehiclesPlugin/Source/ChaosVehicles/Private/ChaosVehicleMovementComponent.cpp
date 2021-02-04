@@ -247,9 +247,16 @@ void UChaosVehicleSimulation::ApplyAerodynamics(float DeltaTime)
 
 FVector GetWorldVelocityAtPoint(const Chaos::FRigidBodyHandle_Internal* RigidHandle, const FVector& WorldLocation)
 {
-	const Chaos::FVec3 COM = RigidHandle ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(RigidHandle).GetTranslation();
-	const Chaos::FVec3 Diff = WorldLocation - COM;
-	return RigidHandle->V() - Chaos::FVec3::CrossProduct(Diff, RigidHandle->W());
+	if (RigidHandle)
+	{
+		const Chaos::FVec3 COM = RigidHandle ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle) : Chaos::FParticleUtilitiesGT::GetActorWorldTransform(RigidHandle).GetTranslation();
+		const Chaos::FVec3 Diff = WorldLocation - COM;
+		return RigidHandle->V() - Chaos::FVec3::CrossProduct(Diff, RigidHandle->W());
+	}
+	else
+	{
+		return FVector::ZeroVector;
+	}
 }
 
 void UChaosVehicleSimulation::ApplyAerofoilForces(float DeltaTime)
