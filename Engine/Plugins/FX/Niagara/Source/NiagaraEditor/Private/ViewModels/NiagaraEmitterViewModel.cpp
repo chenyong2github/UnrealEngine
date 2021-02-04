@@ -295,7 +295,7 @@ FText FNiagaraEmitterViewModel::GetStatsText() const
 		return LOCTEXT("SimulationNotReady", "Preparing simulation...");
 	}
 	
-	return LOCTEXT("InvalidSimulation", "Simulation is invalid.");
+	return LOCTEXT("NoActivePreview", "No running preview...");
 }
 
 TSharedRef<FNiagaraScriptViewModel> FNiagaraEmitterViewModel::GetSharedScriptViewModel()
