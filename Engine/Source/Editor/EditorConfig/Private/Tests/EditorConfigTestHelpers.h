@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 namespace FEditorConfigTestHelpers
 {
 	// check that two serialized JSON objects are equivalent

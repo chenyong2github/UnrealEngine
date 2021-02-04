@@ -3,6 +3,8 @@
 #include "EditorConfigSubsystem.h"
 
 #include "Async/Async.h"
+#include "Misc/App.h"
+#include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
 
 UEditorConfigSubsystem::UEditorConfigSubsystem()
