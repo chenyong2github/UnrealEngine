@@ -504,9 +504,6 @@ void RenderDirectLightIntoLumenCards(
 			bDynamicallyShadowed,
 			PassParameters->PS.VolumeShadowingShaderParameters);
 
-		// Remove dependency on static lighting, always trace shadows for built Stationary and Static lights
-		PassParameters->PS.VolumeShadowingShaderParameters.bStaticallyShadowed = false;
-
 		FDeferredLightUniformStruct DeferredLightUniforms = GetDeferredLightParameters(View, *LightSceneInfo);
 
 		if (LightSceneInfo->Proxy->IsInverseSquared())
