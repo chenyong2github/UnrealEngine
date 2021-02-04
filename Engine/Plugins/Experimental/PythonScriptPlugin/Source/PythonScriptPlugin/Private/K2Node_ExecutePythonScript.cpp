@@ -221,8 +221,8 @@ void UK2Node_ExecutePythonScript::EarlyValidation(FCompilerResultsLog& MessageLo
 			}
 			else
 			{
-				FText NameValidationError;
 #if WITH_PYTHON
+				FText NameValidationError;
 				if (!PyGenUtil::IsValidName(PythonizedPinName, &NameValidationError))
 				{
 					MessageLog.Error(*FText::Format(LOCTEXT("InvalidPinName_GenValidationError", "Pin '{0}' ({1}) on @@ failed name validation: {2}."), FText::AsCultureInvariant(PinName.ToString()), FText::AsCultureInvariant(PythonizedPinName), NameValidationError).ToString(), this);

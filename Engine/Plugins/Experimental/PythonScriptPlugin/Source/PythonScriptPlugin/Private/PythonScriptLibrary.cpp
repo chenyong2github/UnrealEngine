@@ -43,16 +43,17 @@ bool UPythonScriptLibrary::ExecutePythonScript(const FString& PythonScript, cons
 
 DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 {
-#if WITH_PYTHON
 	auto ExecuteCustomPythonScriptImpl = [&]() -> bool
 	{
 		const FString FunctionErrorName = Stack.Node->GetName();
 		const FString FunctionErrorCtxt = Stack.Node->GetOutermost()->GetName();
 
+#if WITH_PYTHON
 		// Local Python context used when executing this script
 		// Has the inputs written into it prior to execution, and the outputs read from it after execution
 		FPyObjectPtr PyTempGlobalDict = FPyObjectPtr::StealReference(PyDict_Copy(FPythonScriptPlugin::Get()->GetDefaultGlobalDict()));
 		FPyObjectPtr PyTempLocalDict = PyTempGlobalDict;
+#endif	// WITH_PYTHON
 
 		// Read the standard function arguments
 		P_GET_PROPERTY_REF(FStrProperty, PythonScript);
@@ -69,6 +70,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 				Stack.StepCompiledIn<FProperty>(nullptr);
 				check(Stack.MostRecentProperty && Stack.MostRecentPropertyAddress);
 
+#if WITH_PYTHON
 				FPyObjectPtr PyInput;
 				if (PyConversion::PythonizeProperty_Direct(Stack.MostRecentProperty, Stack.MostRecentPropertyAddress, PyInput.Get()))
 				{
@@ -79,6 +81,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 					PyUtil::SetPythonError(PyExc_TypeError, *FunctionErrorCtxt, *FString::Printf(TEXT("Failed to convert input property '%s' (%s) to attribute '%s' when calling function '%s' on '%s'"), *Stack.MostRecentProperty->GetName(), *Stack.MostRecentProperty->GetClass()->GetName(), *PythonInput, *FunctionErrorName, *P_THIS_OBJECT->GetName()));
 					bHasValidInputValues = false;
 				}
+#endif	// WITH_PYTHON
 			}
 		}
 
@@ -106,6 +109,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 
 		P_FINISH;
 
+#if	WITH_PYTHON
 		// If we already failed during the parameter processing phase, then just bail now
 		if (!bHasValidInputValues)
 		{
@@ -137,10 +141,12 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 
 			return true;
 		}
+#endif	// WITH_PYTHON
 
 		return false;
 	};
 
+#if WITH_PYTHON
 	// Execute Python code within this block
 	{
 		FPyScopedGIL GIL;
@@ -154,7 +160,9 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 			*(bool*)RESULT_PARAM = false;
 		}
 	}
-#else // WITH PYTHON
+#else	// WITH_PYTHON
+	// We still need to call this function to step the bytecode correctly...
+	ExecuteCustomPythonScriptImpl();
 	*(bool*)RESULT_PARAM = false;
-#endif // WITH_PYTHON
+#endif	// WITH_PYTHON
 }
