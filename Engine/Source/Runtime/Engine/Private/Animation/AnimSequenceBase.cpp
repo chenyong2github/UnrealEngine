@@ -88,6 +88,7 @@ void UAnimSequenceBase::PostLoad()
 
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			VerifyCurveNames<FFloatCurve>(*MySkeleton, USkeleton::AnimCurveMappingName, RawCurveData.FloatCurves);
+			VerifyCurveNames<FTransformCurve>(*MySkeleton, USkeleton::AnimTrackCurveMappingName, RawCurveData.TransformCurves);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
