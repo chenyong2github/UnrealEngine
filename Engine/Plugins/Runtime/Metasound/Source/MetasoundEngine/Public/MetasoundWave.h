@@ -106,6 +106,10 @@ namespace Audio
 		uint32 DecodeBlockSizeInFrames;
 		uint32 DecodeBlockSizeInSamples;
 		
+		// cached values
+		float LastPitchShiftCents{ 0.f };
+		int32 TotalNumFramesOutput{ 0 };
+		int32 TotalNumFramesDecoded{ 0 };
 
 		bool bDecoderIsDone{ true };
 
