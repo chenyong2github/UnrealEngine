@@ -3596,6 +3596,7 @@ TSharedRef<SWidget> SSCS_RowWidget_ActorRoot::GenerateWidgetForColumn(const FNam
 		[
 			SNew(SImage)
 			.Image(GetIconBrush())
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 
 	+ SHorizontalBox::Slot()
