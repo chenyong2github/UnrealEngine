@@ -854,7 +854,7 @@ static int ProcessPackedUniformArrays(uint32 HLSLCCFlags, exec_list* Instruction
 		const glsl_base_type array_base_type = (type->base_type == GLSL_TYPE_BOOL) ? GLSL_TYPE_UINT : type->base_type;
 		if (type->is_sampler() || type->is_image())
 		{
-			continue;
+			break;
 		}
 		
 		char ArrayType = GetArrayCharFromPrecisionType(array_base_type, true);
