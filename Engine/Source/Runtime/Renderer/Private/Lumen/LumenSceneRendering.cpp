@@ -296,6 +296,7 @@ int32 GetLumenSceneCardResToCapturePerFrame()
 }
 
 DECLARE_GPU_STAT(UpdateLumenScene);
+DECLARE_GPU_STAT(UpdateLumenSceneBuffers);
 
 int32 GLumenSceneGeneration = 0;
 
@@ -1983,6 +1984,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 		TArray<FCardRenderData, SceneRenderingAllocator>& CardsToRender = LumenCardRenderer.CardsToRender;
 
 		QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenScene);
+		SCOPED_GPU_STAT(GraphBuilder.RHICmdList, UpdateLumenSceneBuffers);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, UpdateLumenScene);
 		RDG_EVENT_SCOPE(GraphBuilder, "UpdateLumenScene: %u card captures %.3fM texels", CardsToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / 1e6f);
 
