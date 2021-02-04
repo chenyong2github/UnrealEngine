@@ -11,6 +11,7 @@
 #include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
 #include "MovieScene.h"
+#include "MovieSceneSequence.h"
 #include "SequencerBindingProxy.h"
 
 #include "MovieSceneScriptingObjectPath.generated.h"
