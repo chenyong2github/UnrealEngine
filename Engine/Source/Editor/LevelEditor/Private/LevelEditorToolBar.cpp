@@ -2026,7 +2026,7 @@ void FLevelEditorToolBar::OnCinematicsActorPicked( AActor* Actor )
 		FScopedSlowTask SlowTask(1.f, NSLOCTEXT("LevelToolBarCinematicsMenu", "LoadSequenceSlowTask", "Loading Level Sequence..."));
 		SlowTask.MakeDialog();
 		SlowTask.EnterProgressFrame();
-		UObject* Asset = LevelSequenceActor->LevelSequence.TryLoad();
+		UObject* Asset = LevelSequenceActor->LoadSequence();
 
 		if (Asset != nullptr)
 		{

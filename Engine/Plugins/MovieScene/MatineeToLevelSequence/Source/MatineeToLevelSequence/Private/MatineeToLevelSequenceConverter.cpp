@@ -78,7 +78,7 @@ void FMatineeToLevelSequenceConverter::ConvertMatineeToLevelSequence(TArray<TWea
 	// Edit the first asset
 	if (NewActors.Num())
 	{
-		UObject* NewAsset = NewActors[0]->LevelSequence.TryLoad();
+		UObject* NewAsset = NewActors[0]->LoadSequence();
 		if (NewAsset)
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);

@@ -2059,7 +2059,7 @@ UObject* UActorFactoryMovieScene::GetAssetFromActorInstance(AActor* Instance)
 {
 	if (ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Instance))
 	{
-		return LevelSequenceActor->LevelSequence.TryLoad();
+		return LevelSequenceActor->LoadSequence();
 	}
 
 	return nullptr;

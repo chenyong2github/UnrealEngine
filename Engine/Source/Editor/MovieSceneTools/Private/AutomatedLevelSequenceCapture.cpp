@@ -82,7 +82,7 @@ UMovieScene* GetMovieScene(TWeakObjectPtr<ALevelSequenceActor> LevelSequenceActo
 		return nullptr;
 	}
 
-	ULevelSequence* LevelSequence = Cast<ULevelSequence>(Actor->LevelSequence.TryLoad());
+	ULevelSequence* LevelSequence = Cast<ULevelSequence>(Actor->LoadSequence());
 	if (!LevelSequence)
 	{
 		return nullptr;
@@ -539,7 +539,7 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 	ALevelSequenceActor* Actor = LevelSequenceActor.Get();
 	if( Actor )
 	{
-		ULevelSequence* LevelSequence = Cast<ULevelSequence>( Actor->LevelSequence.TryLoad() );
+		ULevelSequence* LevelSequence = Actor->LoadSequence();
 		if( LevelSequence != nullptr )
 		{
 			UMovieScene* MovieScene = LevelSequence->GetMovieScene();

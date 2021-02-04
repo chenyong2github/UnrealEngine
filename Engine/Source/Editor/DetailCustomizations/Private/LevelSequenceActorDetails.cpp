@@ -150,7 +150,7 @@ FReply FLevelSequenceActorDetails::OnOpenLevelSequenceForActor()
 {
 	if( LevelSequenceActor.IsValid() )
 	{
-		UObject* LoadedObject = LevelSequenceActor.Get()->LevelSequence.TryLoad();
+		UObject* LoadedObject = LevelSequenceActor.Get()->LoadSequence();
 		if (LoadedObject != nullptr)
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LoadedObject);
