@@ -146,8 +146,6 @@ namespace UnrealBuildTool
 
 			for (;;)
 			{
-				byte[] OldHash;
-
 				if (OutputItemToAttributeHash.TryAdd(File, NewHash))
 				{
 					// If this is a new entry we're done
@@ -156,6 +154,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
+					byte[] OldHash;
 					if (OutputItemToAttributeHash.TryGetValue(File, out OldHash))
 					{
 						if (CompareHashes(NewHash, OldHash))
@@ -170,12 +169,6 @@ namespace UnrealBuildTool
 							{
 								bModified = true;
 								return true;
-							}
-							else
-							{
-								Log.TraceWarning("Failed to update attribute hash for file");
-								OldHash = OutputItemToAttributeHash[File];
-								Log.TraceWarning("Old/New Hashes:\n{0}\n{1}", BitConverter.ToString(OldHash), BitConverter.ToString(NewHash));
 							}
 						}
 					}
