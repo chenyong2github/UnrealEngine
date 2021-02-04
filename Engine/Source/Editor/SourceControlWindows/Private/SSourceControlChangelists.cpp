@@ -9,7 +9,6 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/SOverlay.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -35,38 +34,6 @@
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
 //////////////////////////////
-static TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState, bool bIsShelvedFile = false)
-{
-	const FSlateBrush* IconBrush = FEditorStyle::GetBrush("ContentBrowser.ColumnViewAssetIcon");
-
-	// Make icon overlays (eg, SCC and dirty status) a reasonable size in relation to the icon size (note: it is assumed this icon is square)
-	const float ICON_SCALING_FACTOR = 0.7f;
-	const float IconOverlaySize = IconBrush->ImageSize.X * ICON_SCALING_FACTOR;
-
-	return SNew(SOverlay)
-		// The actual icon
-		+ SOverlay::Slot()
-		[
-			SNew(SImage)
-			.Image(IconBrush)
-			.ColorAndOpacity_Lambda([bIsShelvedFile]() -> FSlateColor {
-					return FSlateColor(bIsShelvedFile ? FColor::Yellow : FColor::White);
-				})
-		]
-		// Source control state
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Top)
-		[
-			SNew(SBox)
-			.WidthOverride(IconOverlaySize)
-			.HeightOverride(IconOverlaySize)
-			[
-				SNew(SLayeredImage, InFileState->GetIcon())
-			]
-		];
-}
-
 struct FSCCFileDragDropOp : public FDragDropOperation
 {
 	DRAG_DROP_OPERATOR_TYPE(FSCCFileDragDropOp, FDragDropOperation);
@@ -75,172 +42,13 @@ struct FSCCFileDragDropOp : public FDragDropOperation
 
 	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
 	{
-		return GetSCCFileWidget(Files[0]);
+		return SSourceControlCommon::GetSCCFileWidget(Files[0]);
 	}
 
 	TArray<FSourceControlStateRef> Files;
 };
 
 //////////////////////////////
-
-struct FChangelistTreeItem : public IChangelistTreeItem
-{
-	FChangelistTreeItem(FSourceControlChangelistStateRef InChangelistState)
-		: ChangelistState(InChangelistState)
-	{
-		Type = IChangelistTreeItem::Changelist;
-	}
-
-	FText GetDisplayText() const
-	{
-		return ChangelistState->GetDisplayText();
-	}
-
-	FText GetDescriptionText() const
-	{
-		return ChangelistState->GetDescriptionText();
-	}
-
-	FSourceControlChangelistStateRef ChangelistState;
-};
-
-struct FShelvedChangelistTreeItem : public IChangelistTreeItem
-{
-	FShelvedChangelistTreeItem()
-	{
-		Type = IChangelistTreeItem::ShelvedChangelist;
-	}
-
-	FText GetDisplayText() const
-	{
-		return LOCTEXT("SourceControl_ShelvedFiles", "Shelved Items");
-	}
-};
-
-struct FFileTreeItem : public IChangelistTreeItem
-{
-	FFileTreeItem(FSourceControlStateRef InFileState)
-		: FileState(InFileState)
-	{
-		Type = IChangelistTreeItem::File;
-
-		// Initialize asset data first
-		FString Filename = FileState->GetFilename();
-		USourceControlHelpers::GetAssetData(Filename, Assets);
-
-		// Initialize display-related members
-		FString AssetName = LOCTEXT("SourceControl_DefaultAssetName", "None").ToString();
-		FString AssetType = LOCTEXT("SourceControl_DefaultAssetType", "Unknown").ToString();
-		FString AssetPath = Filename;
-		FColor AssetColor = FColor(		// Copied from ContentBrowserCLR.cpp
-			127 + FColor::Red.R / 2,	// Desaturate the colors a bit (GB colors were too.. much)
-			127 + FColor::Red.G / 2,
-			127 + FColor::Red.B / 2,
-			200); // Opacity
-
-		if(Assets.Num() > 0)
-		{
-			AssetPath = Assets[0].ObjectPath.ToString();
-
-			// Strip asset name from object path
-			int32 LastDot = -1;
-			if (AssetPath.FindLastChar('.', LastDot))
-			{
-				AssetPath.LeftInline(LastDot);
-			}
-
-			// Find name, asset type & color only if there is exactly one asset
-			if (Assets.Num() == 1)
-			{
-				static FName NAME_ActorLabel(TEXT("ActorLabel"));
-				if (Assets[0].FindTag(NAME_ActorLabel))
-				{
-					Assets[0].GetTagValue(NAME_ActorLabel, AssetName);
-				}
-				else
-				{
-					AssetName = Assets[0].AssetName.ToString();
-				}
-
-				AssetType = Assets[0].AssetClass.ToString();
-
-				const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-				const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Assets[0].GetClass()).Pin();
-				if (AssetTypeActions.IsValid())
-				{
-					AssetColor = AssetTypeActions->GetTypeColor();
-				}
-				else
-				{
-					AssetColor = FColor::White;
-				}
-			}
-			else
-			{
-				AssetType = LOCTEXT("SourceCOntrol_ManyAssetType", "Multiple Assets").ToString();
-				AssetColor = FColor::White;
-			}
-		}
-
-		DisplayName = FText::FromString(AssetName);
-		DisplayPath = FText::FromString(AssetPath);
-		DisplayType = FText::FromString(AssetType);
-		DisplayColor = AssetColor;
-	}
-
-	FText GetDisplayPath() const
-	{
-		return DisplayPath;
-	}
-
-	FText GetDisplayName() const
-	{
-		return DisplayName;
-	}
-
-	FText GetDisplayType() const
-	{
-		return DisplayType;
-	}
-
-	FSlateColor GetDisplayColor() const
-	{
-		return FSlateColor(DisplayColor);
-	}
-
-	const TArray<FAssetData>& GetAssetData() const
-	{
-		return Assets;
-	}
-
-public:
-	FSourceControlStateRef FileState;
-
-private:
-	TArray<FAssetData> Assets;
-
-	FText DisplayPath;
-	FText DisplayName;
-	FText DisplayType;
-	FColor DisplayColor;
-};
-
-struct FShelvedFileTreeItem : public IChangelistTreeItem
-{
-	FShelvedFileTreeItem(FSourceControlStateRef InFileState)
-		: FileState(InFileState)
-	{
-		Type = IChangelistTreeItem::ShelvedFile;
-	}
-
-	FText GetDisplayName() const
-	{
-		return FText::FromString(FileState->GetFilename());
-	}
-
-	FSourceControlStateRef FileState;
-};
-
 SSourceControlChangelistsWidget::SSourceControlChangelistsWidget()
 {
 }
@@ -1150,14 +958,16 @@ public:
 	{
 		if (ColumnName == TEXT("Change")) // eq. to name
 		{
+			const int32 LeftOffset = (TreeItem->IsShelved() ? 60 : 40);
+
 			return SNew(SHorizontalBox)
 
 			// Icon
 			+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(40, 0, 4, 0)
+				.Padding(LeftOffset, 0, 4, 0)
 				[
-					GetSCCFileWidget(TreeItem->FileState)
+					SSourceControlCommon::GetSCCFileWidget(TreeItem->FileState, TreeItem->IsShelved())
 				]
 
 			+ SHorizontalBox::Slot()
@@ -1171,7 +981,8 @@ public:
 		else if (ColumnName == TEXT("Description")) // eq. to path
 		{
 			return SNew(STextBlock)
-				.Text(this, &SFileTableRow::GetDisplayPath);
+				.Text(this, &SFileTableRow::GetDisplayPath)
+				.ToolTipText(this, &SFileTableRow::GetFilename);
 		}
 		else if (ColumnName == TEXT("Type"))
 		{
@@ -1187,22 +998,27 @@ public:
 
 	FText GetDisplayName() const
 	{
-		return TreeItem->GetDisplayName();
+		return TreeItem->GetAssetName();
+	}
+
+	FText GetFilename() const
+	{
+		return TreeItem->GetFileName();
 	}
 
 	FText GetDisplayPath() const
 	{
-		return TreeItem->GetDisplayPath();
+		return TreeItem->GetAssetPath();
 	}
 
 	FText GetDisplayType() const
 	{
-		return TreeItem->GetDisplayType();
+		return TreeItem->GetAssetType();
 	}
 
 	FSlateColor GetDisplayColor() const
 	{
-		return TreeItem->GetDisplayColor();
+		return TreeItem->GetAssetTypeColor();
 	}
 
 protected:
@@ -1294,75 +1110,6 @@ private:
 	FShelvedChangelistTreeItem* TreeItem;
 };
 
-class SShelvedFileTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
-{
-public:
-	SLATE_BEGIN_ARGS(SShelvedFileTableRow)
-		: _TreeItemToVisualize()
-	{}
-	SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
-		SLATE_END_ARGS()
-
-public:
-	/**
-	* Construct child widgets that comprise this widget.
-	*
-	* @param InArgs Declaration from which to construct this widget.
-	*/
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
-	{
-		TreeItem = static_cast<FShelvedFileTreeItem*>(InArgs._TreeItemToVisualize.Get());
-
-		auto Args = FSuperRowType::FArguments();
-		FSuperRowType::Construct(Args, InOwner);
-	}
-
-	// SMultiColumnTableRow overrides
-	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
-	{
-		const bool bIsShelvedFile = true;
-
-		if (ColumnName == TEXT("Change")) // eq. to name
-		{
-			return SNew(SHorizontalBox)
-
-				// Icon
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(60, 0, 4, 0)
-				[
-					GetSCCFileWidget(TreeItem->FileState, bIsShelvedFile)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("SourceControl_DefaultNameForShelvedFiles", "Unavailable"))
-				];
-		}
-		else if (ColumnName == TEXT("Description"))
-		{
-			return SNew(STextBlock)
-				.Text(this, &SShelvedFileTableRow::GetDisplayName);
-		}
-		else
-		{
-			return SNullWidget::NullWidget;
-		}
-	}
-
-	FText GetDisplayName() const
-	{
-		return TreeItem->GetDisplayName();
-	}
-
-private:
-	/** The info about the widget that we are visualizing. */
-	FShelvedFileTreeItem* TreeItem;
-};
-
 TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(FChangelistTreeItemPtr InTreeItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	switch (InTreeItem->GetTreeItemType())
@@ -1381,7 +1128,7 @@ TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(FChangelist
 			.TreeItemToVisualize(InTreeItem);
 
 	case IChangelistTreeItem::ShelvedFile:
-		return SNew(SShelvedFileTableRow, OwnerTable)
+		return SNew(SFileTableRow, OwnerTable)
 			.TreeItemToVisualize(InTreeItem);
 
 	default:

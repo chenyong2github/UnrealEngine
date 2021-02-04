@@ -8,65 +8,7 @@
 #include "Widgets/Views/STreeView.h"
 
 #include "ISourceControlProvider.h"
-
-struct IChangelistTreeItem;
-typedef TSharedPtr<IChangelistTreeItem> FChangelistTreeItemPtr;
-typedef TSharedRef<IChangelistTreeItem> FChangelistTreeItemRef;
-
-struct IChangelistTreeItem : TSharedFromThis<IChangelistTreeItem>
-{
-	enum TreeItemType
-	{
-		Invalid,
-		Changelist,
-		File,
-		ShelvedChangelist, // container for shelved files
-		ShelvedFile
-	};
-
-	/** Get this item's parent. Can be nullptr. */
-	FChangelistTreeItemPtr GetParent() const
-	{
-		return Parent;
-	}
-
-	/** Get this item's children, if any. Although we store as weak pointers, they are guaranteed to be valid. */
-	const TArray<FChangelistTreeItemPtr>& GetChildren() const
-	{
-		return Children;
-	}
-
-	/** Returns the TreeItem's type */
-	const TreeItemType GetTreeItemType() const
-	{
-		return Type;
-	}
-
-	/** Add a child to this item */
-	void AddChild(FChangelistTreeItemRef Child)
-	{
-		Child->Parent = AsShared();
-		Children.Add(MoveTemp(Child));
-	}
-
-	/** Remove a child from this item */
-	void RemoveChild(const FChangelistTreeItemRef& Child)
-	{
-		if (Children.Remove(Child))
-		{
-			Child->Parent = nullptr;
-		}
-	}
-
-protected:
-	/** This item's parent, if any. */
-	FChangelistTreeItemPtr Parent;
-
-	/** Array of children contained underneath this item */
-	TArray<FChangelistTreeItemPtr> Children;
-
-	TreeItemType Type;
-};
+#include "SSourceControlCommon.h"
 
 class SChangelistTree : public STreeView<FChangelistTreeItemPtr>
 {

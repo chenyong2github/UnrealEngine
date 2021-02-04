@@ -41,40 +41,12 @@ namespace SSourceControlSubmitWidgetDefs
 }
 
 
-FSubmitItem::FSubmitItem(const FSourceControlStateRef& InItem)
-	: Item(InItem)
-{
-	CheckBoxState = ECheckBoxState::Checked;
-
-	AssetName = FText::FromString(TEXT("None"));
-	PackageName = FText::FromString(Item->GetFilename());
-	FileName = PackageName;
-
-	FString LongPackageName;
-	if (FPackageName::TryConvertFilenameToLongPackageName(InItem->GetFilename(), LongPackageName))
-	{
-		PackageName = FText::FromString(LongPackageName);
-
-		TArray<FAssetData> Assets;
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		AssetRegistryModule.Get().GetAssetsByPackageName(*LongPackageName, Assets);
-
-		if (Assets.Num())
-		{
-			const FAssetData& AssetData = Assets[0];
-			PackageName = FText::FromString(AssetData.PackageName.ToString());
-			AssetName = FText::FromString(AssetData.AssetName.ToString());
-		}
-	}
-}
-
-
 void SSourceControlSubmitListRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	SourceControlSubmitWidgetPtr = InArgs._SourceControlSubmitWidget;
 	Item = InArgs._Item;
 
-	SMultiColumnTableRow<TSharedPtr<FSubmitItem>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+	SMultiColumnTableRow<TSharedPtr<FFileTreeItem>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 }
 
 
@@ -111,7 +83,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 
 	for (const auto& Item : InArgs._Items.Get())
 	{
-		ListViewItems.Add(MakeShareable(new FSubmitItem(Item)));
+		ListViewItems.Add(MakeShareable(new FFileTreeItem(Item)));
 	}
 
 	TSharedRef<SHeaderRow> HeaderRowWidget = SNew(SHeaderRow);
@@ -195,7 +167,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		[
-			SAssignNew(ListView, SListView<TSharedPtr<FSubmitItem>>)
+			SAssignNew(ListView, SListView<TSharedPtr<FFileTreeItem>>)
 			.ItemHeight(20)
 			.ListItemsSource(&ListViewItems)
 			.OnGenerateRow(this, &SSourceControlSubmitWidget::OnGenerateRowForList)
@@ -360,7 +332,7 @@ void SSourceControlSubmitWidget::OnDiffAgainstDepot()
 	}
 }
 
-void SSourceControlSubmitWidget::OnDiffAgainstDepotSelected(TSharedPtr<FSubmitItem> InSelectedItem)
+void SSourceControlSubmitWidget::OnDiffAgainstDepotSelected(TSharedPtr<FFileTreeItem> InSelectedItem)
 {
 	FString PackageName;
 	if (FPackageName::TryConvertFilenameToLongPackageName(InSelectedItem->GetFileName().ToString(), PackageName))
@@ -393,7 +365,7 @@ FReply SSourceControlSubmitWidget::OnKeyDown( const FGeometry& MyGeometry, const
    return FReply::Unhandled();
 }
 
-TSharedRef<SWidget> SSourceControlSubmitWidget::GenerateWidgetForItemAndColumn(TSharedPtr<FSubmitItem> Item, const FName ColumnID) const
+TSharedRef<SWidget> SSourceControlSubmitWidget::GenerateWidgetForItemAndColumn(TSharedPtr<FFileTreeItem> Item, const FName ColumnID) const
 {
 	check(Item.IsValid());
 
@@ -408,8 +380,8 @@ TSharedRef<SWidget> SSourceControlSubmitWidget::GenerateWidgetForItemAndColumn(T
 			.Padding(RowPadding)
 			[
 				SNew(SCheckBox)
-				.IsChecked(Item.Get(), &FSubmitItem::GetCheckBoxState)
-				.OnCheckStateChanged(Item.Get(), &FSubmitItem::SetCheckBoxState)
+				.IsChecked(Item.Get(), &FFileTreeItem::GetCheckBoxState)
+				.OnCheckStateChanged(Item.Get(), &FFileTreeItem::SetCheckBoxState)
 			];
 	}
 	else if (ColumnID == SSourceControlSubmitWidgetDefs::ColumnID_IconLabel)
@@ -565,7 +537,7 @@ bool SSourceControlSubmitWidget::CanCheckOut() const
 }
 
 
-TSharedRef<ITableRow> SSourceControlSubmitWidget::OnGenerateRowForList(TSharedPtr<FSubmitItem> SubmitItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SSourceControlSubmitWidget::OnGenerateRowForList(TSharedPtr<FFileTreeItem> SubmitItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	TSharedRef<ITableRow> Row =
 	SNew(SSourceControlSubmitListRow, OwnerTable)
@@ -612,12 +584,12 @@ void SSourceControlSubmitWidget::SortTree()
 	{
 		if (SortMode == EColumnSortMode::Ascending)
 		{
-			ListViewItems.Sort([](const TSharedPtr<FSubmitItem>& A, const TSharedPtr<FSubmitItem>& B) {
+			ListViewItems.Sort([](const TSharedPtr<FFileTreeItem>& A, const TSharedPtr<FFileTreeItem>& B) {
 				return A->GetAssetName().ToString() < B->GetAssetName().ToString(); });
 		}
 		else if (SortMode == EColumnSortMode::Descending)
 		{
-			ListViewItems.Sort([](const TSharedPtr<FSubmitItem>& A, const TSharedPtr<FSubmitItem>& B) {
+			ListViewItems.Sort([](const TSharedPtr<FFileTreeItem>& A, const TSharedPtr<FFileTreeItem>& B) {
 				return A->GetAssetName().ToString() >= B->GetAssetName().ToString(); });
 		}
 	}
@@ -625,12 +597,12 @@ void SSourceControlSubmitWidget::SortTree()
 	{
 		if (SortMode == EColumnSortMode::Ascending)
 		{
-			ListViewItems.Sort([](const TSharedPtr<FSubmitItem>& A, const TSharedPtr<FSubmitItem>& B) {
+			ListViewItems.Sort([](const TSharedPtr<FFileTreeItem>& A, const TSharedPtr<FFileTreeItem>& B) {
 				return A->GetPackageName().ToString() < B->GetPackageName().ToString(); });
 		}
 		else if (SortMode == EColumnSortMode::Descending)
 		{
-			ListViewItems.Sort([](const TSharedPtr<FSubmitItem>& A, const TSharedPtr<FSubmitItem>& B) {
+			ListViewItems.Sort([](const TSharedPtr<FFileTreeItem>& A, const TSharedPtr<FFileTreeItem>& B) {
 				return A->GetPackageName().ToString() >= B->GetPackageName().ToString(); });
 		}
 	}
@@ -638,12 +610,12 @@ void SSourceControlSubmitWidget::SortTree()
 	{
 		if (SortMode == EColumnSortMode::Ascending)
 		{
-			ListViewItems.Sort([](const TSharedPtr<FSubmitItem>& A, const TSharedPtr<FSubmitItem>& B) {
+			ListViewItems.Sort([](const TSharedPtr<FFileTreeItem>& A, const TSharedPtr<FFileTreeItem>& B) {
 				return A->GetIconName().ToString() < B->GetIconName().ToString(); });
 		}
 		else if (SortMode == EColumnSortMode::Descending)
 		{
-			ListViewItems.Sort([](const TSharedPtr<FSubmitItem>& A, const TSharedPtr<FSubmitItem>& B) {
+			ListViewItems.Sort([](const TSharedPtr<FFileTreeItem>& A, const TSharedPtr<FFileTreeItem>& B) {
 				return A->GetIconName().ToString() >= B->GetIconName().ToString(); });
 		}
 	}

@@ -12,6 +12,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "ISourceControlState.h"
+#include "SSourceControlCommon.h"
 
 class SMultiLineEditableTextBox;
 class SWindow;
@@ -37,62 +38,6 @@ public:
 	TArray<FString> FilesForAdd;
 	TArray<FString> FilesForSubmit;
 	FText Description;
-};
-
-class FSubmitItem : public TSharedFromThis<FSubmitItem>
-{
-public:
-	/** Constructor */
-	explicit FSubmitItem(const FSourceControlStateRef& InItem);
-
-	/** Returns the asset name of the item */
-	FText GetAssetName() const { return AssetName; }
-
-	/** Returns the package name of the item to display */
-	FText GetPackageName() const { return PackageName; }
-
-	/** Returns the file name of the item in source control */
-	FText GetFileName() const { return FileName; }
-
-	/** Returns the name of the icon to be used in the list item widget */
-	FName GetIconName() const { return Item->GetIcon().GetStyleName(); }
-
-	/** Returns the tooltip text for the icon */
-	FText GetIconTooltip() const { return Item->GetDisplayTooltip(); }
-
-	/** Returns the checkbox state of this item */
-	ECheckBoxState GetCheckBoxState() const { return CheckBoxState; }
-
-	/** Sets the checkbox state of this item */
-	void SetCheckBoxState(ECheckBoxState NewState) { CheckBoxState = NewState; }
-
-	/** true if the item is not in source control and needs to be added prior to checkin */
-	bool NeedsAdding() const { return !Item->IsSourceControlled(); }
-
-	/** true if the item is in source control and is able to be checked in */
-	bool CanCheckIn() const { return Item->CanCheckIn() || Item->IsDeleted(); }
-
-	/** true if the item is enabled in the list */
-	bool IsEnabled() const { return !Item->IsConflicted() && Item->IsCurrent(); }
-
-	/** true if the item is source controlled and not marked for add nor for delete */
-	bool CanDiff() const { return Item->IsSourceControlled() && !Item->IsAdded() && !Item->IsDeleted(); }
-
-private:
-	/** Shared pointer to the source control state object itself */
-	FSourceControlStateRef Item;
-
-	/** Checkbox state */
-	ECheckBoxState CheckBoxState;
-
-	/** Cached asset name to display in the listview */
-	FText AssetName;
-
-	/** Cached package name to display in the listview */
-	FText PackageName;
-
-	/** Cached file name on disk for source control */
-	FText FileName;
 };
 
 class SSourceControlSubmitWidget : public SCompoundWidget
@@ -132,7 +77,7 @@ public:
 	ESubmitResults::Type GetResult() { return DialogResult; }
 
 	/** Returns a widget representing the item and column supplied */
-	TSharedRef<SWidget> GenerateWidgetForItemAndColumn(TSharedPtr<FSubmitItem> Item, const FName ColumnID) const;
+	TSharedRef<SWidget> GenerateWidgetForItemAndColumn(TSharedPtr<FFileTreeItem> Item, const FName ColumnID) const;
 
 	/** Gets the requested files and the change list description*/
 	void FillChangeListDescription(FChangeListDescription& OutDesc);
@@ -178,7 +123,7 @@ private:
 	bool CanCheckOut() const;
 
 	/** Called by SListView to get a widget corresponding to the supplied item */
-	TSharedRef<ITableRow> OnGenerateRowForList(TSharedPtr<FSubmitItem> SubmitItemData, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> OnGenerateRowForList(TSharedPtr<FFileTreeItem> SubmitItemData, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/**
 	 * Returns the current column sort mode (ascending or descending) if the ColumnId parameter matches the current
@@ -213,16 +158,16 @@ private:
 
 	bool CanDiffAgainstDepot() const;
 	void OnDiffAgainstDepot();
-	void OnDiffAgainstDepotSelected(TSharedPtr<FSubmitItem> InSelectedItem);
+	void OnDiffAgainstDepotSelected(TSharedPtr<FFileTreeItem> InSelectedItem);
 	
 private:
 	ESubmitResults::Type DialogResult;
 
 	/** ListBox for selecting which object to consolidate */
-	TSharedPtr<SListView<TSharedPtr<FSubmitItem>>> ListView;
+	TSharedPtr<SListView<TSharedPtr<FFileTreeItem>>> ListView;
 
 	/** Collection of objects (Widgets) to display in the List View. */
-	TArray<TSharedPtr<FSubmitItem>> ListViewItems;
+	TArray<TSharedPtr<FFileTreeItem>> ListViewItems;
 
 	/** Pointer to the parent modal window */
 	TWeakPtr<SWindow> ParentFrame;
@@ -243,7 +188,7 @@ private:
 	static FText SavedChangeListDescription;	
 };
 
-class SSourceControlSubmitListRow : public SMultiColumnTableRow<TSharedPtr<FSubmitItem>>
+class SSourceControlSubmitListRow : public SMultiColumnTableRow<TSharedPtr<FFileTreeItem>>
 {
 public:
 
@@ -253,7 +198,7 @@ public:
 	SLATE_ARGUMENT(TSharedPtr<SSourceControlSubmitWidget>, SourceControlSubmitWidget)
 
 		/** The list item for this row */
-		SLATE_ARGUMENT(TSharedPtr<FSubmitItem>, Item)
+		SLATE_ARGUMENT(TSharedPtr<FFileTreeItem>, Item)
 
 	SLATE_END_ARGS()
 
@@ -269,5 +214,5 @@ private:
 	TWeakPtr<SSourceControlSubmitWidget> SourceControlSubmitWidgetPtr;
 
 	/** The item associated with this row of data */
-	TSharedPtr<FSubmitItem> Item;
+	TSharedPtr<FFileTreeItem> Item;
 };

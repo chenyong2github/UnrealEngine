@@ -74,6 +74,12 @@ EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& Vali
 
 	for (const FSourceControlStateRef& File : ChangelistState->GetFilesStates())
 	{
+		// We shouldn't consider dependencies of deleted files
+		if (File->IsDeleted())
+		{
+			continue;
+		}
+
 		FString PackageName;
 		if (FPackageName::TryConvertFilenameToLongPackageName(File->GetFilename(), PackageName))
 		{
