@@ -138,7 +138,7 @@ void UK2Node_PromotableOperator::GetNodeContextMenuActions(UToolMenu* Menu, UGra
 	}
 
 	// Add the pin conversion sub menu
-	if(Context->Pin)
+	if(CanConvertPinType(Context->Pin))
 	{
 		FToolMenuSection& Section = Menu->AddSection("K2NodePromoOpConversionGraphNode");
 		Section.AddSubMenu(
@@ -221,6 +221,12 @@ void UK2Node_PromotableOperator::CreateConversionSubMenu(UToolMenu* Menu, UEdGra
 			);
 		}
 	}
+}
+
+bool UK2Node_PromotableOperator::CanConvertPinType(const UEdGraphPin* Pin) const
+{
+	// You can convert any pin except for output pins on comparison functions
+	return Pin && !(Pin->Direction == EGPD_Output && FTypePromotion::IsComparisonFunc(GetTargetFunction()));
 }
 
 FText UK2Node_PromotableOperator::GetTooltipText() const

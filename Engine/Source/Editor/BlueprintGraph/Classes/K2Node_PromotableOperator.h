@@ -158,6 +158,15 @@ private:
 	*/
 	void CreateConversionSubMenu(UToolMenu* Menu, UEdGraphPin* ContextPin) const;
 
+	/**
+	* Returns true if the given pin can be converted via the context menu to another type
+	*
+	* @param Pin		The pin to consider
+	*
+	* @return bool		True if a conversion is possible
+	*/
+	bool CanConvertPinType(const UEdGraphPin* Pin) const;
+
 	/** The name that this operation uses ("Add", "Multiply", etc) */
 	FName OperationName;
 
