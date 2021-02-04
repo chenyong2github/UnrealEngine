@@ -1535,8 +1535,6 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				Initializer.Segments.Add(Segment);
 			}
 
-			UE_LOG(LogSkinCache, Log, TEXT("Build RT BVH with %d triangles"), TrianglesCount);
-
 			FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, Initializer.Segments);
 
 			// Flush pending resource barriers before BVH is built for the first time
