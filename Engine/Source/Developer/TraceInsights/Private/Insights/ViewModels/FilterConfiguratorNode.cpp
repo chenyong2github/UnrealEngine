@@ -23,6 +23,8 @@ FFilterConfiguratorNode::FFilterConfiguratorNode(const FName InName, bool bInIsG
 	{
 		SelectedFilterGroupOperator = GetFilterGroupOperators()[0];
 	}
+
+	AvailableFilterOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -40,6 +42,7 @@ FFilterConfiguratorNode& FFilterConfiguratorNode::operator=(const FFilterConfigu
 	GetChildrenMutable().Empty();
 
 	AvailableFilters = Other.AvailableFilters;
+	AvailableFilterOperators = Other.AvailableFilterOperators;
 	SelectedFilter = Other.SelectedFilter;
 	SelectedFilterOperator = Other.SelectedFilterOperator;
 	SelectedFilterGroupOperator = Other.SelectedFilterGroupOperator;
@@ -124,6 +127,13 @@ void FFilterConfiguratorNode::SetSelectedFilter(TSharedPtr<struct FFilter> InSel
 	if (SelectedFilter.IsValid() && SelectedFilter->GetSupportedOperators()->Num() > 0)
 	{
 		SetSelectedFilterOperator(SelectedFilter->GetSupportedOperators()->GetData()[0]);
+
+		AvailableFilterOperators->Empty();
+		Insights::FFilter::SupportedOperatorsArrayPtr AvailableOperators = InSelectedFilter->SupportedOperators;
+		for (auto& FilterOperator : *AvailableOperators)
+		{
+			AvailableFilterOperators->Add(FilterOperator);
+		}
 	}
 }
 
@@ -154,6 +164,11 @@ void FFilterConfiguratorNode::ProcessFilter()
 			FilterValue.Set<int64>(FCString::Atoi64(*TextBoxValue));
 			break;
 		}
+		case EFilterDataType::String:
+		{
+			FilterValue.Set<FString>(TextBoxValue);
+			break;
+		}
 		}
 	}
 }
@@ -172,7 +187,7 @@ bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const
 			auto& ChildrenArr = GetChildren();
 			for (int Index = 0; Index < ChildrenArr.Num() && Ret; ++Index)
 			{
-				Ret &= ((FFilterConfiguratorNode*)&*ChildrenArr[Index])->ApplyFilters(Context);
+				Ret &= ((FFilterConfiguratorNode*)ChildrenArr[Index].Get())->ApplyFilters(Context);
 			}
 			break;
 		}
@@ -186,7 +201,7 @@ bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const
 
 			for (int Index = 0; Index < ChildrenArr.Num() && !Ret; ++Index)
 			{
-				Ret |= ((FFilterConfiguratorNode*)&*ChildrenArr[Index])->ApplyFilters(Context);
+				Ret |= ((FFilterConfiguratorNode*)ChildrenArr[Index].Get())->ApplyFilters(Context);
 			}
 			break;
 		}
@@ -198,7 +213,7 @@ bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const
 		{
 		case EFilterDataType::Double:
 		{
-			FFilterOperator<double>* Operator = (FFilterOperator<double>*)&*SelectedFilterOperator;
+			FFilterOperator<double>* Operator = (FFilterOperator<double>*) SelectedFilterOperator.Get();
 			double Value = 0.0;
 			Context.GetFilterData<double>(SelectedFilter->Key, Value);
 
@@ -207,11 +222,20 @@ bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const
 		}
 		case EFilterDataType::Int64:
 		{
-			FFilterOperator<int64>* Operator = (FFilterOperator<int64>*) & *SelectedFilterOperator;
+			FFilterOperator<int64>* Operator = (FFilterOperator<int64>*) SelectedFilterOperator.Get();
 			int64 Value = 0;
 			Context.GetFilterData<int64>(SelectedFilter->Key, Value);
 
 			Ret = Operator->Func(Value, FilterValue.Get<int64>());
+			break;
+		}
+		case EFilterDataType::String:
+		{
+			FFilterOperator<FString>* Operator = (FFilterOperator<FString>*) SelectedFilterOperator.Get();
+			FString Value;
+			Context.GetFilterData<FString>(SelectedFilter->Key, Value);
+
+			Ret = Operator->Func(Value, FilterValue.Get<FString>());
 			break;
 		}
 		default:

@@ -288,7 +288,7 @@ FText SFilterConfiguratorRow::AvailableFilters_GetSelectionText() const
 
 const TArray<TSharedPtr<IFilterOperator>>* SFilterConfiguratorRow::GetAvailableFilterOperators()
 {
-	return &*FilterConfiguratorNodePtr->GetSelectedFilter()->SupportedOperators;
+	return FilterConfiguratorNodePtr->GetAvailableFilterOperators().Get();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

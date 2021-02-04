@@ -364,6 +364,8 @@ protected:
 	FReply OnAdvancedFiltersClicked();
 	void OnAdvancedFiltersChangesCommited();
 	bool ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr);
+	bool virtual ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr) { return true; };
+	virtual void AddCustomAdvancedFilters() {}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 

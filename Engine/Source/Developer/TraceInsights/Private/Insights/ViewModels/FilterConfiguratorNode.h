@@ -72,6 +72,8 @@ public:
 	void SetSelectedFilterGroupOperator(TSharedPtr<struct FFilterGroupOperator> InSelectedFilterGroupOperator) { SelectedFilterGroupOperator = InSelectedFilterGroupOperator; }
 	TSharedPtr<struct FFilterGroupOperator> GetSelectedFilterGroupOperator() const { return SelectedFilterGroupOperator; }
 
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetAvailableFilterOperators() const {	return AvailableFilterOperators;	}
+
 	void DeleteChildNode(FFilterConfiguratorNodePtr InNode);
 
 	const FString& GetTextBoxValue() { return TextBoxValue; }
@@ -93,6 +95,8 @@ private:
 	TSharedPtr<class IFilterOperator> SelectedFilterOperator;
 
 	TSharedPtr<struct FFilterGroupOperator> SelectedFilterGroupOperator;
+
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> AvailableFilterOperators;
 
 	FString TextBoxValue;
 

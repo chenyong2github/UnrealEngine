@@ -18,6 +18,7 @@
 #include "Insights/Table/ViewModels/TableCellValueFormatter.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
+#include "Insights/ViewModels/FilterConfigurator.h"
 
 #include <limits>
 
@@ -27,6 +28,8 @@ using namespace TraceServices;
 
 namespace Insights
 {
+
+const int SMemAllocTableTreeView::FullCallStackIndex = 0x0000FFFFF;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -769,6 +772,26 @@ void SMemAllocTableTreeView::UpdateQueryInfo()
 		QueryInfo = Rule->GetVerboseName();
 		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "Showing {0} for markers {1}"), QueryInfo, TimeMarkersText);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SMemAllocTableTreeView::ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr)
+{
+	FMemAllocNodePtr MemNodePtr = StaticCastSharedPtr<FMemAllocNode>(NodePtr);
+	Context.SetFilterData<FString>(FullCallStackIndex, MemNodePtr->GetFullCallstack().ToString());
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::AddCustomAdvancedFilters()
+{
+	TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
+
+	AvailableFilters->Add(MakeShared<FFilter>(FullCallStackIndex, LOCTEXT("FullCallstack", "Full Callstack"), LOCTEXT("FullCallstack", "Search in all the callstack frames"), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
+	Context.AddFilterData<FString>(FullCallStackIndex, FString());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

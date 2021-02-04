@@ -21,7 +21,8 @@ namespace Insights
 enum class EFilterDataType : uint32
 {
 	Int64,
-	Double
+	Double,
+	String,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,6 +34,7 @@ enum class EFilterOperator : uint8
 	Lte = 2, // Less than or equal to
 	Gt = 3, // Greater than
 	Gte = 4, // Greater than or equal to 
+	Contains = 5,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,6 +139,10 @@ public:
 		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Gt, TEXT(">"), std::greater<>())));
 		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Gte, TEXT(">="), std::greater_equal<>())));
 
+		StringOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
+		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Eq, TEXT("Equals"), [](const FString& lhs, const FString& rhs) { return lhs.Equals(rhs); })));
+		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Contains"), [](const FString& lhs, const FString& rhs) { return lhs.Contains(rhs); })));
+
 		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::And, LOCTEXT("AllOf", "All Of"), LOCTEXT("AllOfDesc", "All of the children must be true for the group to return true. Equivalent to an AND operation.")));
 		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::Or, LOCTEXT("AnyOf", "Any Of"), LOCTEXT("AnyOfDesc", "Any of the children must be true for the group to return true. Equivalent to an OR operation.")));
 	}
@@ -145,12 +151,14 @@ public:
 
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetDoubleOperators() { return DoubleOperators; }
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetIntegerOperators() { return IntegerOperators; }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetStringOperators() { return StringOperators; }
 
 private:
 	TArray<TSharedPtr<FFilterGroupOperator>> FilterGroupOperators;
 
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> DoubleOperators;
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> IntegerOperators;
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> StringOperators;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,6 +179,7 @@ public:
 
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetDoubleOperators() { return FilterStorage.GetDoubleOperators(); }
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetIntegerOperators() { return FilterStorage.GetIntegerOperators(); }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetStringOperators() { return FilterStorage.GetStringOperators(); }
 
 	TSharedPtr<SWidget> CreateFilterConfiguratorWidget(TSharedPtr<class FFilterConfigurator> FilterConfiguratorViewModel);
 
@@ -188,7 +197,7 @@ private:
 class FFilterContext
 {
 public:
-	typedef TVariant<double, int64> ContextData;
+	typedef TVariant<double, int64, FString> ContextData;
 
 	template<typename T>
 	void AddFilterData(int32 Key, const T& InData)

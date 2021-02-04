@@ -2507,8 +2507,21 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 					Context.AddFilterData<double>(Column->GetIndex(), 0.0);
 					break;
 				}
+				case ETableCellDataType::CString:
+				case ETableCellDataType::Text:
+				case ETableCellDataType::Custom:
+				{
+					if (!Column->IsHierarchy())
+					{
+						AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
+						Context.AddFilterData<FString>(Column->GetIndex(), FString());
+					}
+					break;
+				}
 			}
 		}
+
+		AddCustomAdvancedFilters();
 
 		CurrentAsyncOpFilterConfigurator = new FFilterConfigurator(*FilterConfigurator);
 		OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddSP(this, &STableTreeView::OnAdvancedFiltersChangesCommited);
@@ -2547,10 +2560,20 @@ bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 				Context.SetFilterData<double>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsDouble());
 				break;
 			}
+			case ETableCellDataType::CString:
+			case ETableCellDataType::Text:
+			case ETableCellDataType::Custom:
+			{
+				if (!Column->IsHierarchy())
+				{
+					Context.SetFilterData<FString>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsString());
+				}
+				break;
+			}
 		}
 	}
 
-	return CurrentAsyncOpFilterConfigurator->ApplyFilters(Context);
+	return ApplyCustomAdvancedFilters(NodePtr) && CurrentAsyncOpFilterConfigurator->ApplyFilters(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

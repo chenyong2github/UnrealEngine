@@ -111,8 +111,11 @@ private:
 
 	void ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset);
 	void UpdateQueryInfo();
+	bool virtual ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr) override;
+	virtual void AddCustomAdvancedFilters() override;
 
 private:
+	const static int FullCallStackIndex;
 	int32 TabIndex = -1;
 	TSharedPtr<FMemoryRuleSpec> Rule = nullptr;
 	double TimeMarkers[4];
