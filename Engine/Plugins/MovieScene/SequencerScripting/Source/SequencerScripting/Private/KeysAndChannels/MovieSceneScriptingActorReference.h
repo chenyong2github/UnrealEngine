@@ -112,7 +112,7 @@ public:
 	void SetDefault(FMovieSceneObjectBindingID InDefaultValue)
 	{
 		FMovieSceneActorReferenceKey ReferenceKey = FMovieSceneActorReferenceKey(InDefaultValue);
-		SetDefaultInChannel(ChannelHandle, ReferenceKey);
+		SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, ReferenceKey);
 	}
 
 	/**

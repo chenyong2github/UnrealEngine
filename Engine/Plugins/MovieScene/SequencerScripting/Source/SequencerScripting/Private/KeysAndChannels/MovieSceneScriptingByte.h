@@ -108,7 +108,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Default (Enum)"))
 	void SetDefault(uint8 InDefaultValue)
 	{
-		SetDefaultInChannel(ChannelHandle, InDefaultValue);
+		SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, InDefaultValue);
 	}
 
 	/**

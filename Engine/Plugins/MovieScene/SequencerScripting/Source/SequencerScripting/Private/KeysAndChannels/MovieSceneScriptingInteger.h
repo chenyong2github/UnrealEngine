@@ -107,7 +107,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Default (Integer)"))
 	void SetDefault(int32 InDefaultValue)
 	{
-		SetDefaultInChannel(ChannelHandle, InDefaultValue);
+		SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, InDefaultValue);
 	}
 
 	/**
