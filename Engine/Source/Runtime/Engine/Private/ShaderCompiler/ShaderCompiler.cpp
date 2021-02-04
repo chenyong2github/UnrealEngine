@@ -498,12 +498,6 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 		return;
 	}
 
-	if (!FinishedJob->bSucceeded)
-	{
-		// we only cache jobs that succeded
-		return;
-	}
-
 	// TODO: reduce the scopes
 	FWriteScopeLock JobLocker(Lock);
 
@@ -512,24 +506,16 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 	FMemoryWriter Writer(Output);
 	FinishedJob->SerializeOutput(Writer);
 
-	CompletedJobsCache.Add(InputHash, Output);
-
 	// see if there are outstanding jobs that also need to be resolved
+	int32 NumOutstandingJobsWithSameHash = 0;
 	if (FShaderCommonCompileJob** WaitList = DuplicateJobsWaitList.Find(InputHash))
 	{
-		int32 NumOutstandingJobsWithSameHash = 0;
 		FShaderCommonCompileJob* CurHead = *WaitList;
 		while (CurHead)
 		{
 			checkf(CurHead != FinishedJob, TEXT("Job that is being added to cache was also on a waiting list! Error in bookkeeping."));
 
-#if 0 // while we could reuse the same ouput, let's go through the cache to influence the statistics (might be important for LRU later)
 			FMemoryReader MemReader(Output);
-#else
-			TArray<uint8>* ExistingOutput = CompletedJobsCache.Find(InputHash);
-			checkf(ExistingOutput, TEXT("At this point we expect a newly cached job to be found"));
-			FMemoryReader MemReader(*ExistingOutput);
-#endif
 			CurHead->SerializeOutput(MemReader);
 
 			// finish the job instantly
@@ -546,6 +532,12 @@ void FShaderCompileJobCollection::AddToCacheAndProcessPending(FShaderCommonCompi
 		{
 			UE_LOG(LogShaderCompilers, UE_SHADERCACHE_LOG_LEVEL, TEXT("Processed %d outstanding jobs with the same ihash %s."), NumOutstandingJobsWithSameHash, *InputHash.ToString());
 		}
+	}
+
+	if (FinishedJob->bSucceeded)
+	{
+		// we only cache jobs that succeded
+		CompletedJobsCache.Add(InputHash, Output, NumOutstandingJobsWithSameHash);
 	}
 }
 
@@ -6134,7 +6126,7 @@ uint64 FShaderJobCache::GetCurrentMemoryBudget() const
 	return FMath::Min(AbsoluteLimit, RelativeLimit);
 }
 
-void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents)
+void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int32 InitialHitCount)
 {
 	if (!ShaderCompiler::IsJobCacheEnabled())
 	{
@@ -6209,7 +6201,7 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 		}
 
 		FStoredOutput* NewStoredOutput = new FStoredOutput();
-		NewStoredOutput->NumHits = 0;
+		NewStoredOutput->NumHits = InitialHitCount;
 		NewStoredOutput->NumReferences = 1;
 		NewStoredOutput->JobOutput = Contents;
 		Outputs.Add(OutputHash, NewStoredOutput);

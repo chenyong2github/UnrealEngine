@@ -317,7 +317,7 @@ public:
 	FJobCachedOutput* Find(const FJobInputHash& Hash);
 
 	/** Adds a job output to the cache */
-	void Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents);
+	void Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int InitialHitCount);
 
 	/** Calculates memory used by the cache*/
 	uint64 GetAllocatedMemory();
