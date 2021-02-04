@@ -626,7 +626,7 @@ namespace UnrealBuildTool
 				// We're already distributing the command by execution on Mac.
 				CompileAction.bCanExecuteRemotely = Extension != ".C";
 				CompileAction.bShouldOutputStatusDescription = true;
-				CompileAction.CommandVersion = GetClangVersion().ToString();
+				CompileAction.CommandVersion = GetFullClangVersion();
 			}
 			return Result;
 		}
@@ -740,7 +740,7 @@ namespace UnrealBuildTool
 			LinkAction.WorkingDirectory = GetMacDevSrcRoot();
 			LinkAction.CommandPath = BuildHostPlatform.Current.Shell;
 			LinkAction.CommandDescription = "Link";
-			LinkAction.CommandVersion = GetClangVersion().ToString();
+			LinkAction.CommandVersion = GetFullClangVersion();
 
 			string EngineAPIVersion = LoadEngineAPIVersion();
 			string EngineDisplayVersion = LoadEngineDisplayVersion(true);
