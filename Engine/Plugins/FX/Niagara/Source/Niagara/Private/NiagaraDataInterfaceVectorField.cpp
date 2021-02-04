@@ -501,7 +501,7 @@ void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMContext& Conte
 				ispc::SampleVectorField(XParam.GetDest(), YParam.GetDest(), ZParam.GetDest(),
 					XParam.IsConstant(), YParam.IsConstant(), ZParam.IsConstant(),
 					OutSampleX.GetDest(), OutSampleY.GetDest(), OutSampleZ.GetDest(),
-					(ispc::FHalfVector*) FieldSamples.GetData(), (ispc::FVector&)MinBounds, (ispc::FVector&)OneOverBoundSize,
+					(ispc::FHalfVector*) FieldSamples.GetData(), FieldSamples.Num() - sizeof(ispc::FHalfVector), (ispc::FVector&)MinBounds, (ispc::FVector&)OneOverBoundSize,
 					(ispc::FVector&)Size, (ispc::FVector&)TilingAxes, Context.NumInstances);
 			}
 			else
