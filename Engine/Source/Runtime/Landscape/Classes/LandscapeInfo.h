@@ -246,7 +246,7 @@ public:
 	 *  requires LandscapeActor to be loaded
 	 *  Does not work in World composition mode!
 	 */
-	LANDSCAPE_API void FixupProxiesTransform();
+	LANDSCAPE_API void FixupProxiesTransform(bool bDirty = false);
 	
 	// Update per-component layer whitelists to include the currently painted layers
 	LANDSCAPE_API void UpdateComponentLayerWhitelist();

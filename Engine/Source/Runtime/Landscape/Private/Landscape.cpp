@@ -2962,7 +2962,7 @@ void ULandscapeInfo::Reset()
 	//SelectedRegion.Empty();
 }
 
-void ULandscapeInfo::FixupProxiesTransform()
+void ULandscapeInfo::FixupProxiesTransform(bool bDirty)
 {
 	ALandscape* Landscape = LandscapeActor.Get();
 
@@ -2976,6 +2976,12 @@ void ULandscapeInfo::FixupProxiesTransform()
 	for (auto It = Proxies.CreateConstIterator(); It; ++It)
 	{
 		ALandscapeProxy* Proxy = *It;
+
+		if (bDirty)
+		{
+			Proxy->Modify();
+		}
+
 		FIntPoint LandscapeSectionOffset = Proxy->LandscapeSectionOffset - Landscape->LandscapeSectionOffset;
 		FIntPoint LandscapeSectionOffsetRem(
 			LandscapeSectionOffset.X % Proxy->ComponentSizeQuads, 

@@ -3929,7 +3929,7 @@ void ALandscape::PostEditMove(bool bFinished)
 		auto* LandscapeInfo = GetLandscapeInfo();
 		if (LandscapeInfo)
 		{
-			LandscapeInfo->FixupProxiesTransform();
+			LandscapeInfo->FixupProxiesTransform(true);
 		}
 	}
 
@@ -5141,7 +5141,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		if (Info != nullptr)
 		{
 			// update transformations for all linked proxies 
-			Info->FixupProxiesTransform();
+			Info->FixupProxiesTransform(true);
 			bNeedsRecalcBoundingBox = true;
 		}
 
