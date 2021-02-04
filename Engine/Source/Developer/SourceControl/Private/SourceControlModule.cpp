@@ -445,6 +445,21 @@ void FSourceControlModule::UnregisterProviderChanged(FDelegateHandle Handle)
 	OnSourceControlProviderChanged.Remove(Handle);
 }
 
+void FSourceControlModule::RegisterPreSubmitDataValidation(const FSourceControlPreSubmitDataValidationDelegate& PreSubmitDataValidationDelegate)
+{
+	OnSourceControlPreSubmitDataValidation = PreSubmitDataValidationDelegate;
+}
+
+void FSourceControlModule::UnregisterPreSubmitDataValidation()
+{
+	OnSourceControlPreSubmitDataValidation = FSourceControlPreSubmitDataValidationDelegate();
+}
+
+FSourceControlPreSubmitDataValidationDelegate FSourceControlModule::GetRegisteredPreSubmitDataValidation()
+{
+	return OnSourceControlPreSubmitDataValidation;
+}
+
 IMPLEMENT_MODULE( FSourceControlModule, SourceControl );
 
 #undef LOCTEXT_NAMESPACE

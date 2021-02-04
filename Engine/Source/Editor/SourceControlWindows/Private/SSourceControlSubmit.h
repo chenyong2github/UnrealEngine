@@ -101,10 +101,22 @@ public:
 	SLATE_BEGIN_ARGS(SSourceControlSubmitWidget)
 		: _ParentWindow()
 		, _Items()
+		, _Description()
+		, _ChangeValidationIcon()
+		, _ChangeValidationDescription()
+		, _AllowDescriptionChange(true)
+		, _AllowUncheckFiles(true)
+		, _AllowKeepCheckedOut(true)
 	{}
 
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
 		SLATE_ATTRIBUTE(TArray<FSourceControlStateRef>, Items)
+		SLATE_ATTRIBUTE(FText, Description)
+		SLATE_ATTRIBUTE(FName, ChangeValidationIcon)
+		SLATE_ATTRIBUTE(FString, ChangeValidationDescription)
+		SLATE_ATTRIBUTE(bool, AllowDescriptionChange)
+		SLATE_ATTRIBUTE(bool, AllowUncheckFiles)
+		SLATE_ATTRIBUTE(bool, AllowKeepCheckedOut)
 
 	SLATE_END_ARGS()
 

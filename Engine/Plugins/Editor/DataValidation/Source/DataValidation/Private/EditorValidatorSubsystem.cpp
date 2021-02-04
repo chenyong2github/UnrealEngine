@@ -16,6 +16,8 @@
 #include "Logging/MessageLog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "AssetData.h"
+#include "ISourceControlModule.h"
+#include "DataValidationChangelist.h"
 
 #define LOCTEXT_NAMESPACE "EditorValidationSubsystem"
 
@@ -69,6 +71,9 @@ void UEditorValidatorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			}
 		}
 	}
+
+	// Register to SCC pre-submit callback
+	ISourceControlModule::Get().RegisterPreSubmitDataValidation(FSourceControlPreSubmitDataValidationDelegate::CreateUObject(this, &UEditorValidatorSubsystem::ValidateChangelistPreSubmit));
 }
 
 // Rename to BP validators
@@ -120,6 +125,9 @@ void UEditorValidatorSubsystem::RegisterBlueprintValidators()
 void UEditorValidatorSubsystem::Deinitialize()
 {
 	CleanupValidators();
+
+	// Unregister to SCC pre-submit callback
+	ISourceControlModule::Get().UnregisterPreSubmitDataValidation();
 
 	Super::Deinitialize();
 }
@@ -404,6 +412,25 @@ void UEditorValidatorSubsystem::ValidateAllSavedPackages()
 	ValidateOnSave(MoveTemp(Assets));
 
 	SavedPackagesToValidate.Empty();
+}
+
+void UEditorValidatorSubsystem::ValidateChangelistPreSubmit(FSourceControlChangelistPtr InChangelist, EDataValidationResult& OutResult, TArray<FText>& OutValidationErrors, TArray<FText>& OutValidationWarnings) const
+{
+	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ValidatingDataTask", "Validating changelist..."));
+	SlowTask.Visibility = ESlowTaskVisibility::Invisible;
+	SlowTask.MakeDialogDelayed(.1f);
+
+	check(InChangelist);
+
+	// Create temporary changelist object to do most of the heavy lifting
+	UDataValidationChangelist* Changelist = NewObject<UDataValidationChangelist>();
+	Changelist->Initialize(InChangelist);
+	Changelist->AddToRoot();
+
+	SlowTask.EnterProgressFrame(1.0f, LOCTEXT("ValidatingChangelist", "Validating changelist to submit"));
+	OutResult = IsObjectValid(Changelist, OutValidationErrors, OutValidationWarnings);
+
+	Changelist->RemoveFromRoot();
 }
 
 #undef LOCTEXT_NAMESPACE

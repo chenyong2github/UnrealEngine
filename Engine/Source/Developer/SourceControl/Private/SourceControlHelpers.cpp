@@ -13,6 +13,7 @@
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
 #include "Logging/MessageLog.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlHelpers"
 
@@ -1422,6 +1423,66 @@ const FString& USourceControlHelpers::GetGlobalSettingsIni()
 	return SourceControlGlobalSettingsIni;
 }
 
+bool USourceControlHelpers::GetAssetData(const FString& InFileName, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies)
+{
+	FString PackageName;
+	if (FPackageName::TryConvertFilenameToLongPackageName(InFileName, PackageName))
+	{
+		return GetAssetData(InFileName, PackageName, OutAssets, OutDependencies);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool USourceControlHelpers::GetAssetDataFromPackage(const FString& PackageName, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies)
+{
+	return GetAssetData(PackageFilename(PackageName), PackageName, OutAssets, OutDependencies);
+}
+
+bool USourceControlHelpers::GetAssetData(const FString & InFileName, const FString& InPackageName, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies)
+{
+	const bool bGetDependencies = (OutDependencies != nullptr);
+	OutAssets.Reset();
+
+	// Try the registry first
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistryModule.Get().GetAssetsByPackageName(*InPackageName, OutAssets);
+
+	if (OutAssets.Num() > 0)
+	{
+		// Assets are already in the cache, we can query dependencies directly
+		if (bGetDependencies)
+		{
+			AssetRegistryModule.Get().GetDependencies(*InPackageName, *OutDependencies);
+		}
+
+		return true;
+	}
+
+	// Filter on improbable file extensions
+	EPackageExtension PackageExtension = FPackagePath::ParseExtension(InFileName);
+
+	if (PackageExtension == EPackageExtension::Unspecified ||
+		PackageExtension == EPackageExtension::Custom)
+	{
+		return false;
+	}
+
+	// If nothing was done, try to get the data explicitly	
+	IAssetRegistry::FLoadPackageRegistryData LoadedData(bGetDependencies);
+
+	AssetRegistryModule.Get().LoadPackageRegistryData(InFileName, LoadedData);
+	OutAssets = MoveTemp(LoadedData.Data);
+
+	if (bGetDependencies)
+	{
+		*OutDependencies = MoveTemp(LoadedData.DataDependencies);
+	}	
+
+	return OutAssets.Num() > 0;
+}
 
 FScopedSourceControl::FScopedSourceControl()
 {

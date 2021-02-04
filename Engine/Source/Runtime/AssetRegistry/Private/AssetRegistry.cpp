@@ -2133,30 +2133,62 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 	return StateSize + StaticSize + SearchSize;
 }
 
-void UAssetRegistryImpl::LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData*> &AssetDataList) const
+void UAssetRegistryImpl::LoadPackageRegistryData(FArchive& Ar, FLoadPackageRegistryData& InOutData) const
 {
 	FPackageReader Reader;
 	if (Reader.OpenPackageFile(&Ar))
 	{
-		ReadAssetFile(Reader, AssetDataList);
+		ReadAssetFile(Reader, InOutData);
 	}
 }
 
-void UAssetRegistryImpl::LoadPackageRegistryData(const FString& PackageFilename, TArray<FAssetData*>& AssetDataList) const
+void UAssetRegistryImpl::LoadPackageRegistryData(const FString& PackageFilename, FLoadPackageRegistryData& InOutData) const
 {
 	FPackageReader Reader;
 	if (Reader.OpenPackageFile(PackageFilename))
 	{
-		ReadAssetFile(Reader, AssetDataList);
+		ReadAssetFile(Reader, InOutData);
 	}
 }
 
-bool UAssetRegistryImpl::ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList) const
+bool UAssetRegistryImpl::ReadAssetFile(FPackageReader& PackageReader, FLoadPackageRegistryData& InOutData) const
 {
+	TArray<FAssetData*> AssetDataList;
 	TArray<FString> CookedPackageNamesWithoutAssetDataGathered;
-	// Dependency Data not currently read for this function
-	FPackageDependencyData* DependencyData = nullptr;
-	return FAssetDataGatherer::ReadAssetFile(PackageReader, AssetDataList, DependencyData, CookedPackageNamesWithoutAssetDataGathered);
+
+	const bool bGetDependencies = (InOutData.bGetDependencies);
+	FPackageDependencyData DependencyData;
+
+	bool bReadOk = FAssetDataGatherer::ReadAssetFile(PackageReader, AssetDataList, (InOutData.bGetDependencies ? &DependencyData : nullptr), CookedPackageNamesWithoutAssetDataGathered);
+
+	if (bReadOk)
+	{
+		// Copy & free asset data to the InOutData
+		InOutData.Data.Reset(AssetDataList.Num());
+		for (FAssetData* AssetData : AssetDataList)
+		{
+			InOutData.Data.Emplace(*AssetData);
+		}
+
+		AssetDataList.Reset();
+
+		if (InOutData.bGetDependencies)
+		{
+			InOutData.DataDependencies.Reset(DependencyData.ImportMap.Num());
+			for (int32 ImportIdx = 0; ImportIdx < DependencyData.ImportMap.Num(); ++ImportIdx)
+			{
+				InOutData.DataDependencies.Emplace(DependencyData.GetImportPackageName(ImportIdx));
+			}
+		}
+	}
+
+	// Cleanup the allocated asset data
+	for (FAssetData* AssetData : AssetDataList)
+	{
+		delete AssetData;
+	}
+
+	return bReadOk;
 }
 
 void UAssetRegistryImpl::InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting, const TMap<FName, FAssetData*>& OverrideData) const

@@ -150,7 +150,7 @@ void UDiffFilesCommandlet::LoadAndDiff()
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-		TArray<FAssetData*> AssetData;
+		IAssetRegistry::FLoadPackageRegistryData AssetData;
 		AssetRegistry.LoadPackageRegistryData(*Package->LinkerLoad->GetLoader_Unsafe(), AssetData);
 	}
 }

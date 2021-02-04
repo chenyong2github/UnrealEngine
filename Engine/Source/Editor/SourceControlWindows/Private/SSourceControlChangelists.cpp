@@ -21,11 +21,15 @@
 #include "Widgets/Images/SLayeredImage.h"
 #include "SSourceControlDescription.h"
 #include "SourceControlWindows.h"
+#include "SourceControlHelpers.h"
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "Misc/MessageDialog.h"
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "Algo/AnyOf.h"
+
+#include "SSourceControlSubmit.h"
+#include "Framework/Application/SlateApplication.h"
 
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
@@ -113,43 +117,6 @@ struct FShelvedChangelistTreeItem : public IChangelistTreeItem
 	}
 };
 
-bool GetAssetData(const FString& InPackageName, const FString& InFileName, TArray<FAssetData>& OutAssets)
-{
-	OutAssets.Reset();
-
-	// Try the registry first
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().GetAssetsByPackageName(*InPackageName, OutAssets);
-
-	if (OutAssets.Num() > 0)
-	{
-		return true;
-	}
-
-	// Filter on improbable file extensions
-	EPackageExtension PackageExtension = FPackagePath::ParseExtension(InFileName);
-
-	if (PackageExtension == EPackageExtension::Unspecified ||
-		PackageExtension == EPackageExtension::Custom)
-	{
-		return false;
-	}
-
-	// If nothing was done, try to get the data explicitly
-	TArray<FAssetData*> LoadedAssets;
-	AssetRegistryModule.Get().LoadPackageRegistryData(InFileName, LoadedAssets);
-
-	for (FAssetData* AssetData : LoadedAssets)
-	{
-		OutAssets.Add(MoveTemp(*AssetData));
-		delete AssetData;
-	}
-
-	LoadedAssets.Reset();
-
-	return OutAssets.Num() > 0;
-}
-
 struct FFileTreeItem : public IChangelistTreeItem
 {
 	FFileTreeItem(FSourceControlStateRef InFileState)
@@ -159,12 +126,7 @@ struct FFileTreeItem : public IChangelistTreeItem
 
 		// Initialize asset data first
 		FString Filename = FileState->GetFilename();
-		FString AssetPackageName;
-
-		if (FPackageName::TryConvertFilenameToLongPackageName(Filename, AssetPackageName))
-		{
-			::GetAssetData(AssetPackageName, Filename, Assets);
-		}
+		USourceControlHelpers::GetAssetData(Filename, Assets);
 
 		// Initialize display-related members
 		FString AssetName = LOCTEXT("SourceControl_DefaultAssetName", "None").ToString();
@@ -722,6 +684,62 @@ void SSourceControlChangelistsWidget::OnDeleteShelvedFiles()
 	SourceControlProvider.Execute(DeleteShelvedOperation, GetChangelistFromSelection(), GetSelectedShelvedFiles());
 }
 
+static void GetChangelistValidationResult(FSourceControlChangelistPtr InChangelist, FString& OutValidationText, FName& OutValidationIcon)
+{
+	FSourceControlPreSubmitDataValidationDelegate ValidationDelegate = ISourceControlModule::Get().GetRegisteredPreSubmitDataValidation();
+
+	EDataValidationResult ValidationResult = EDataValidationResult::NotValidated;
+	TArray<FText> ValidationErrors;
+	TArray<FText> ValidationWarnings;
+
+	if (ValidationDelegate.ExecuteIfBound(InChangelist, ValidationResult, ValidationErrors, ValidationWarnings))
+	{
+		if (ValidationResult == EDataValidationResult::Invalid || ValidationErrors.Num() > 0)
+		{
+			OutValidationIcon = "MessageLog.Error";
+			OutValidationText = LOCTEXT("SourceControl.Submit.ChangelistValidationError", "Changelist validation failed!").ToString();
+		}
+		else if (ValidationResult == EDataValidationResult::NotValidated || ValidationWarnings.Num() > 0)
+		{
+			OutValidationIcon = "MessageLog.Warning";
+			OutValidationText = LOCTEXT("SourceControl.Submit.ChangelistValidationWarning", "Changelist validation has warnings!").ToString();
+		}
+		else
+		{
+			OutValidationIcon = "MessageLog.Note";
+			OutValidationText = LOCTEXT("SourceControl.Submit.ChangelistValidationSuccess", "Changelist validation succesful!").ToString();
+		}
+
+		int32 NumLinesDisplayed = 0;
+
+		auto AppendInfo = [&OutValidationText, &NumLinesDisplayed](const TArray<FText>& Info, const FString& InfoType) {
+			const int32 MaxNumLinesDisplayed = 5;
+
+			if (Info.Num() > 0)
+			{
+				OutValidationText += LINE_TERMINATOR;
+				OutValidationText += FString::Printf(TEXT("Encountered %d %s:"), Info.Num(), *InfoType);
+
+				for (const FText& Line : Info)
+				{
+					if (NumLinesDisplayed >= MaxNumLinesDisplayed)
+					{
+						break;
+					}
+
+					OutValidationText += LINE_TERMINATOR;
+					OutValidationText += Line.ToString();
+
+					++NumLinesDisplayed;
+				}
+			}
+		};
+
+		AppendInfo(ValidationErrors, TEXT("errors"));
+		AppendInfo(ValidationWarnings, TEXT("warnings"));
+	}
+}
+
 void SSourceControlChangelistsWidget::OnSubmitChangelist()
 {
 	FSourceControlChangelistStatePtr ChangelistState = GetCurrentChangelistState();
@@ -731,40 +749,53 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		return;
 	}
 
-	const FText DialogText = LOCTEXT("SourceControl_ConfirmSubmit", "Are you sure you want to submit this changelist?");
-	const FText DialogTitle = LOCTEXT("SourceControl_ConfirmSubmit_Title", "Confirm changelist submit");
+	FString ChangelistValidationText;
+	FName ChangelistValidationIconName;
+	GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationText, ChangelistValidationIconName);
 
-	EAppReturnType::Type UserConfirmation = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Ok, DialogText, &DialogTitle);
+	// Build list of states for the dialog
+	FText ChangelistDescription = ChangelistState->GetDescriptionText();
+	const bool bAskForChangelistDescription = (ChangelistDescription.IsEmptyOrWhitespace());
 
-	if (UserConfirmation == EAppReturnType::Ok)
+	TSharedRef<SWindow> NewWindow = SNew(SWindow)
+		.Title(NSLOCTEXT("SourceControl.ConfirmSubmit", "Title", "Confirm changelist submit"))
+		.SizingRule(ESizingRule::UserSized)
+		.ClientSize(FVector2D(600, 400))
+		.SupportsMaximize(true)
+		.SupportsMinimize(false);
+
+	TSharedRef<SSourceControlSubmitWidget> SourceControlWidget =
+		SNew(SSourceControlSubmitWidget)
+		.ParentWindow(NewWindow)
+		.Items(ChangelistState->GetFilesStates())
+		.Description(ChangelistDescription)
+		.ChangeValidationDescription(ChangelistValidationText)
+		.ChangeValidationIcon(ChangelistValidationIconName)
+		.AllowDescriptionChange(bAskForChangelistDescription)
+		.AllowUncheckFiles(false)
+		.AllowKeepCheckedOut(false);
+
+	NewWindow->SetContent(
+		SourceControlWidget
+	);
+
+	FSlateApplication::Get().AddModalWindow(NewWindow, NULL);
+
+	if (SourceControlWidget->GetResult() == ESubmitResults::SUBMIT_ACCEPTED)
 	{
-		FText ChangelistDescription = ChangelistState->GetDescriptionText();
-		const bool bAskForChangelistDescription = (ChangelistDescription.IsEmptyOrWhitespace());
-
-		if (bAskForChangelistDescription)
-		{
-			bool bOk = GetChangelistDescription(
-				nullptr,
-				LOCTEXT("SourceControl.Changelist.Submit.Description.Title", "Enter a submit description..."),
-				LOCTEXT("SourceControl.Changelist.Submit.Description.Label", "Enter a description for the submit:"),
-				ChangelistDescription);
-
-			if (!bOk)
-			{
-				return; // Abort submit
-			}
-		}
-
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		auto SubmitChangelistOperation = ISourceControlOperation::Create<FCheckIn>();
 
+		// Replace description only if there was none
 		if (bAskForChangelistDescription)
 		{
-			SubmitChangelistOperation->SetDescription(ChangelistDescription);
+			FChangeListDescription Description;
+			SourceControlWidget->FillChangeListDescription(Description);
+
+			SubmitChangelistOperation->SetDescription(Description.Description);
 		}
 
 		SourceControlProvider.Execute(SubmitChangelistOperation, ChangelistState->GetChangelist());
-		Refresh();
 	}
 }
 

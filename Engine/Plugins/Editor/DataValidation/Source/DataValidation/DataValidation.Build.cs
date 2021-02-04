@@ -37,6 +37,7 @@ public class DataValidation : ModuleRules
 				"SandboxFile",
 				"Blutility",
 				"ToolMenus",
+				"SourceControl"
 			}
 		);
 	}

@@ -508,11 +508,23 @@ public:
 	/** Fills in FAssetRegistrySerializationOptions from ini, optionally using a target platform ini name */
 	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString()) const = 0;
 
+	struct FLoadPackageRegistryData
+	{
+		FLoadPackageRegistryData(bool bInGetDependencies = false)
+			: bGetDependencies(bInGetDependencies)
+		{
+		}
+
+		TArray<FAssetData> Data;
+		TArray<FName> DataDependencies;
+		bool bGetDependencies;
+	};
+
 	/** Load FPackageRegistry data from the supplied package */
-	virtual void LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData*>& Data) const = 0;
+	virtual void LoadPackageRegistryData(FArchive& Ar, FLoadPackageRegistryData& InOutData) const = 0;
 	
 	/** Load FAssetData from the specified package filename */
-	virtual void LoadPackageRegistryData(const FString& PackageFilename, TArray<FAssetData*>& Data) const = 0;
+	virtual void LoadPackageRegistryData(const FString& PackageFilename, FLoadPackageRegistryData& InOutData) const = 0;
 	
 protected:
 	// Functions specifically for calling from the asset manager

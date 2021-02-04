@@ -39,6 +39,9 @@ public:
 	virtual void SetUseGlobalSettings(bool bIsUseGlobalSettings) override;
 	virtual FDelegateHandle RegisterProviderChanged(const FSourceControlProviderChanged::FDelegate& SourceControlProviderChanged) override;
 	virtual void UnregisterProviderChanged(FDelegateHandle Handle) override;
+	virtual void RegisterPreSubmitDataValidation(const FSourceControlPreSubmitDataValidationDelegate& PreSubmitDataValidationDelegate) override;
+	virtual void UnregisterPreSubmitDataValidation() override;
+	virtual FSourceControlPreSubmitDataValidationDelegate GetRegisteredPreSubmitDataValidation() override;
 
 	/** Save the settings to the ini file */
 	void SaveSettings();
@@ -119,4 +122,7 @@ private:
 
 	/** For notifying when the source provider is changed */
 	FSourceControlProviderChanged OnSourceControlProviderChanged;
+
+	/** To call when doing pre-submit data validation */
+	FSourceControlPreSubmitDataValidationDelegate OnSourceControlPreSubmitDataValidation;
 };

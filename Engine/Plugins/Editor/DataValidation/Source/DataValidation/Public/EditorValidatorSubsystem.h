@@ -17,6 +17,8 @@
 #include "EditorValidatorSubsystem.generated.h"
 
 struct FAssetData;
+class ISourceControlChangelist;
+typedef TSharedPtr<class ISourceControlChangelist, ESPMode::ThreadSafe> FSourceControlChangelistPtr;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogContentValidation, Log, All);
 
@@ -109,6 +111,11 @@ protected:
 	void ValidateAllSavedPackages();
 
 	void RegisterBlueprintValidators();
+
+	/**
+	 * Validates changelist before SCC submit operation
+	 */
+	void ValidateChangelistPreSubmit(FSourceControlChangelistPtr Changelist, EDataValidationResult& OutResult, TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings) const;
 
 protected:
 	/**

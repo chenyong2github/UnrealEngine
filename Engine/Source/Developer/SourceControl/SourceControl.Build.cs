@@ -21,6 +21,7 @@ public class SourceControl : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AssetRegistry",
 				"Slate",
 				"EditorStyle"
 			}

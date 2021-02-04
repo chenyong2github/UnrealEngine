@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/UObjectGlobals.h"
 
 class ISourceControlProvider;
+class ISourceControlChangelist;
+typedef TSharedPtr<class ISourceControlChangelist, ESPMode::ThreadSafe> FSourceControlChangelistPtr;
 
 SOURCECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogSourceControl, Log, All);
 
@@ -15,6 +18,9 @@ DECLARE_DELEGATE_OneParam( FSourceControlLoginClosed, bool );
 
 /** Delegate called when the active source control provider is changed */
 DECLARE_MULTICAST_DELEGATE_TwoParams( FSourceControlProviderChanged, ISourceControlProvider& /*OldProvider*/, ISourceControlProvider& /*NewProvider*/ );
+
+/** Delegate called on pre-submit for data validation */
+DECLARE_DELEGATE_FourParams(FSourceControlPreSubmitDataValidationDelegate, FSourceControlChangelistPtr /*Changelist*/, EDataValidationResult& /*Result*/, TArray<FText>& /*ValidationErrors*/, TArray<FText>& /*ValidationWarnings*/);
 
 /**
  * The modality of the login window.
@@ -130,6 +136,21 @@ public:
 	 * Unregister a delegate to be called when the source control provider changes
 	 */
 	virtual void UnregisterProviderChanged(FDelegateHandle Handle) = 0;
+
+	/**
+	 * Register a delegate to be called to validate asset changes before submitting changes
+	 */
+	virtual void RegisterPreSubmitDataValidation(const FSourceControlPreSubmitDataValidationDelegate& PreSubmitDataValidationDelegate) = 0;
+
+	/**
+	 * Unregister a delegate called before submitting changes
+	 */
+	virtual void UnregisterPreSubmitDataValidation() = 0;
+
+	/**
+	 * Gets currently registered delegates for pre-submit data validation
+	 */
+	virtual FSourceControlPreSubmitDataValidationDelegate GetRegisteredPreSubmitDataValidation() = 0;
 
 	/**
 	 * Gets a reference to the source control module instance.

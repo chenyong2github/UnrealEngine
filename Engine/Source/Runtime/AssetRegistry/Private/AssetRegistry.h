@@ -100,8 +100,8 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void AppendState(const FAssetRegistryState& InState) override;
 	virtual uint32 GetAllocatedSize(bool bLogDetailed = false) const override;
-	virtual void LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData*>& Data) const override;
-	virtual void LoadPackageRegistryData(const FString& PackageFilename, TArray<FAssetData*>& Data) const override;
+	virtual void LoadPackageRegistryData(FArchive& Ar, FLoadPackageRegistryData& InOutData) const override;
+	virtual void LoadPackageRegistryData(const FString& PackageFilename, FLoadPackageRegistryData& InOutData) const override;
 	virtual void InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting = false, const TMap<FName, FAssetData*>& OverrideData = TMap<FName, FAssetData*>()) const override;
 	virtual const FAssetRegistryState* GetAssetRegistryState() const override;
 	virtual const TSet<FName>& GetCachedEmptyPackages() const override;
@@ -318,7 +318,7 @@ private:
 	 * @param PackageReader	Previsouly initialized package reader that maps to the data to be read
 	 * @param AssetDataList	List of the read asset data
 	 */
-	bool ReadAssetFile(FPackageReader& PackageReader, TArray<FAssetData*>& AssetDataList) const;
+	bool ReadAssetFile(FPackageReader& PackageReader, FLoadPackageRegistryData& InOutData) const;
 private:
 	
 	/** Internal state of the cached asset registry */
