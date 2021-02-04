@@ -150,8 +150,8 @@ float3 CompositeReflectionCapturesAndSkylight(
 #endif
 
 	// Apply indirect lighting scale while we have only accumulated reflection captures
-	ImageBasedReflections.rgb *= View.IndirectLightingColorScale;
-	CompositedAverageBrightness.x *= Luminance( View.IndirectLightingColorScale );
+	ImageBasedReflections.rgb *= View.PrecomputedIndirectLightingColorScale;
+	CompositedAverageBrightness.x *= Luminance( View.PrecomputedIndirectLightingColorScale );
 
 #if ENABLE_SKY_LIGHT
 

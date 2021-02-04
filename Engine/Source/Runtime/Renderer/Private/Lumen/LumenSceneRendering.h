@@ -20,8 +20,6 @@ inline bool DoesPlatformSupportLumenGI(EShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(Platform);
 }
 
-extern int32 GAllowLumenScene;
-
 class FCardRenderData
 {
 public:

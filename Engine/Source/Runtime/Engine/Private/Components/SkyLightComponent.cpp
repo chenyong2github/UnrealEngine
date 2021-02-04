@@ -61,7 +61,9 @@ static bool SkipStaticSkyLightCapture(USkyLightComponent& SkyLight)
 	// This is also fine in editor because a static sky light will not contribute to any lighting when drag and drop in a level and captured. 
 	// In this case only a "lighting build" will result in usable lighting on any objects.
 	// One exception however is when ray tracing is enabled as light mobility is not relevant to ray tracing effects, many still requiring information from the sky light even if it is static.
-	return SkyLight.HasStaticLighting() && !IsRayTracingEnabled();
+	// Lumen also operates on static skylights and may be enabled when either Ray Tracing or Mesh Distance Fields are supported for the project
+	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	return SkyLight.HasStaticLighting() && !IsRayTracingEnabled() && CMeshSDFVar->GetValueOnAnyThread() == 0;
 }
 
 FAutoConsoleCommandWithWorld CaptureConsoleCommand(

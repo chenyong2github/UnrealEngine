@@ -324,7 +324,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			}
 
 			FTranslucencyLightingCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FTranslucencyLightingCS::FDynamicSkyLight>(ShouldRenderDynamicSkyLight(Scene, ViewFamily));
+			PermutationVector.Set<FTranslucencyLightingCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, ViewFamily));
 			PermutationVector.Set<FTranslucencyLightingCS::FTemporalReprojection>(bUseTemporalReprojection);
 			auto ComputeShader = View.ShaderMap->GetShader<FTranslucencyLightingCS>(PermutationVector);
 

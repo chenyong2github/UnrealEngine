@@ -1717,7 +1717,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 		RaytracingOptions.Add(SDecoratedEnumCombo<int32>::FComboOption(
 			1,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "GameProjectDialog.RaytracingEnabled"),
-			LOCTEXT("ProjectDialog_RaytracingEnabled", "Raytracing Enabled")));
+			LOCTEXT("ProjectDialog_RaytracingEnabled", "Raytracing Supported")));
 
 		TSharedRef<SDecoratedEnumCombo<int32>> Enum = SNew(SDecoratedEnumCombo<int32>, MoveTemp(RaytracingOptions))
 			.SelectedEnum(this, &SNewProjectWizard::OnGetRaytracingEnabled)
@@ -1725,7 +1725,7 @@ TSharedRef<SWidget> SNewProjectWizard::MakeProjectSettingsOptionsBox()
 			.Orientation(Orient_Vertical);
 
 		TSharedRef<SRichTextBlock> Description = SNew(SRichTextBlock)
-			.Text(LOCTEXT("ProjectDialog_RaytracingDescription", "Choose if real-time raytracing should be enabled in the new project."))
+			.Text(LOCTEXT("ProjectDialog_RaytracingDescription", "Choose if real-time raytracing should be supported in the new project."))
 			.AutoWrapText(true)
 			.DecoratorStyleSet(&FEditorStyle::Get());
 

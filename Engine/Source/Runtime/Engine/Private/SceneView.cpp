@@ -1446,12 +1446,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(ScreenSpaceReflectionIntensity);
 		LERP_PP(ScreenSpaceReflectionMaxRoughness);
 
-		// Ray Tracing
-		if (Src.bOverride_ReflectionsType)
-		{
-			Dest.ReflectionsType = Src.ReflectionsType;
-		}
-
 		if (Src.bOverride_RayTracingReflectionsMaxRoughness)
 		{
 			Dest.RayTracingReflectionsMaxRoughness = Src.RayTracingReflectionsMaxRoughness;
@@ -1510,6 +1504,26 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		if (Src.bOverride_RayTracingGI)
 		{
 			Dest.RayTracingGIType = Src.RayTracingGIType;
+		}
+
+		if (Src.bOverride_DynamicGlobalIlluminationMethod)
+		{
+			Dest.DynamicGlobalIlluminationMethod = Src.DynamicGlobalIlluminationMethod;
+		}
+
+		if (Src.bOverride_LumenFinalGatherQuality)
+		{
+			Dest.LumenFinalGatherQuality = Src.LumenFinalGatherQuality;
+		}
+
+		if (Src.bOverride_ReflectionMethod)
+		{
+			Dest.ReflectionMethod = Src.ReflectionMethod;
+		}
+
+		if (Src.bOverride_LumenReflectionQuality)
+		{
+			Dest.LumenReflectionQuality = Src.LumenReflectionQuality;
 		}
 
 		if (Src.bOverride_RayTracingGIMaxBounces)
@@ -1744,6 +1758,16 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 			{
 				FinalPostProcessSettings.AmbientOcclusionStaticFraction = 0.0f;
 			}
+		}
+
+		{
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DynamicGlobalIlluminationMethod"));
+			FinalPostProcessSettings.DynamicGlobalIlluminationMethod = (EDynamicGlobalIlluminationMethod::Type)CVar->GetValueOnGameThread();
+		}
+
+		{
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ReflectionMethod"));
+			FinalPostProcessSettings.ReflectionMethod = (EReflectionMethod::Type)CVar->GetValueOnGameThread();
 		}
 	}
 

@@ -150,6 +150,45 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			}
 		}
 
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, DynamicGlobalIllumination) 
+			&& DynamicGlobalIllumination == EDynamicGlobalIlluminationMethod::Lumen)
+		{
+			if (Reflections != EReflectionMethod::Lumen)
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("Lumen Reflections automatically enabled", "Lumen Reflections are designed to work with Lumen Global Illumination, and have been automatically enabled."));
+
+				Reflections = EReflectionMethod::Lumen;
+
+				IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ReflectionMethod"));
+				CVar->Set((int32)Reflections, ECVF_SetByProjectSetting);
+
+				for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
+				{
+					FProperty* Property = *PropIt;
+					if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, Reflections))
+					{
+						UpdateSinglePropertyInConfigFile(Property, GetDefaultConfigFilename());
+					}
+				}
+			}
+
+			if (!bGenerateMeshDistanceFields)
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("'Generate Mesh Distance Fields' automatically enabled", "Lumen Global Illumination requires 'Generate Mesh Distance Fields'.  This has been enabled automatically, and requires an editor restart."));
+
+				bGenerateMeshDistanceFields = true;
+
+				for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
+				{
+					FProperty* Property = *PropIt;
+					if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bGenerateMeshDistanceFields))
+					{
+						UpdateSinglePropertyInConfigFile(Property, GetDefaultConfigFilename());
+					}
+				}
+			}
+		}
+
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, VirtualTextureTileSize))
 		{
 			VirtualTextureTileSize = FMath::RoundUpToPowerOfTwo(VirtualTextureTileSize);

@@ -22,14 +22,6 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "HAL/LowLevelMemStats.h"
 
-int32 GAllowLumenScene = 0;
-FAutoConsoleVariableRef CVarLumenGILumenScene(
-	TEXT("r.LumenScene"),
-	GAllowLumenScene,
-	TEXT("Whether to allow setup of the proxy scene used for Lumen GI."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
 int32 GLumenSceneCardCapturesPerFrame = 300;
 FAutoConsoleVariableRef CVarLumenSceneCardCapturesPerFrame(
 	TEXT("r.LumenScene.CardCapturesPerFrame"),
@@ -204,64 +196,68 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenSummaryLLM, STATGROUP_LLM);
 LLM_DEFINE_TAG(Lumen, NAME_None, NAME_None, GET_STATFNAME(STAT_LumenLLM), GET_STATFNAME(STAT_LumenSummaryLLM));
 #endif // ENABLE_LOW_LEVEL_MEM_TRACKER
 
+extern int32 GAllowLumenDiffuseIndirect;
+extern int32 GAllowLumenReflections;
+
 namespace Lumen
 {
-	bool AnyLumenHardwareRayTracingPassEnabled()
+	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 	{
-		bool bLumenHardwareRayTracing = GAllowLumenScene != 0;
-
 #if RHI_RAYTRACING
-		static auto CVarLumenDirectLightingHardwareRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.DirectLighting.HardwareRayTracing"));
-		static auto CVarLumenScreenProbeGatherHardwareRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing"));
 
-		bLumenHardwareRayTracing |= (CVarLumenDirectLightingHardwareRayTracing ? (CVarLumenDirectLightingHardwareRayTracing->GetInt() != 0) : false)
-			|| (CVarLumenScreenProbeGatherHardwareRayTracing ? (CVarLumenScreenProbeGatherHardwareRayTracing->GetInt() != 0) : false);
+		static auto CVarLumenScreenProbeGatherHardwareRayTracingLocal = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing"));
+		static auto CVarLumenDirectLightingHardwareRayTracingLocal = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.DirectLighting.HardwareRayTracing"));
+
+		if (GAllowLumenDiffuseIndirect != 0 
+			&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
+			&& (CVarLumenScreenProbeGatherHardwareRayTracingLocal->GetInt() != 0 || CVarLumenDirectLightingHardwareRayTracingLocal->GetInt() != 0))
+		{
+			return true;
+		}
+
+		static auto CVarLumenReflectionsHardwareRayTracingLocal = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.Reflections.HardwareRayTracing"));
+
+		if (GAllowLumenReflections != 0 
+			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
+			&& CVarLumenReflectionsHardwareRayTracingLocal->GetInt() != 0)
+		{
+			return true;
+		}
 #endif
-		return bLumenHardwareRayTracing;
+		return false;
 	}
 }
 
-bool Lumen::ShouldPrepareGlobalDistanceField(EShaderPlatform ShaderPlatform)
+bool Lumen::ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)
 {
-	return GAllowLumenScene && DoesPlatformSupportLumenGI(ShaderPlatform);
+	return Scene->SkyLight
+		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
+		&& ViewFamily.EngineShowFlags.SkyLighting
+		&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5
+		&& !IsAnyForwardShadingEnabled(Scene->GetShaderPlatform())
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
 }
 
-bool Lumen::ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily)
+bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily)
 {
 	return Scene 
 		&& Scene->LumenSceneData
 		&& ViewFamily.Views.Num() == 1
-		&& GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform())
-		&& (Scene->LumenSceneData->VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, ViewFamily))
-		&& Scene->LumenSceneData->AlbedoAtlas;
+		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform());
 }
 
-bool Lumen::ShouldRenderLumenForViewWithoutMeshSDFs(const FScene* Scene, const FViewInfo& View)
+bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing)
 {
+	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+
 	return View.Family
 		&& ShouldRenderLumenForViewFamily(Scene, *View.Family)
 		// Don't update scene lighting for secondary views
 		&& !View.bIsPlanarReflection
 		&& !View.bIsSceneCapture
 		&& !View.bIsReflectionCapture
-		&& View.ViewState;
-}
-
-bool Lumen::ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View)
-{
-	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-
-	return ShouldRenderLumenForViewWithoutMeshSDFs(Scene, View) && CMeshSDFVar->GetValueOnRenderThread() != 0;
-}
-
-bool Lumen::ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& View)
-{
-	return ShouldRenderLumenForView(Scene, View)
-		&& Scene
-		&& Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0
-		&& Scene->LumenSceneData
-		&& Scene->LumenSceneData->VisibleCardsIndices.Num() > 0;
+		&& View.ViewState
+		&& (!bRequireSoftwareTracing || CMeshSDFVar->GetValueOnRenderThread() != 0);
 }
 
 int32 Lumen::GetGlobalDFResolution()
@@ -904,11 +900,12 @@ void UpdateDirtyCards(FScene* Scene, bool bReallocateAtlas, bool bLatchedRecaptu
 	}
 }
 
-void ClearAtlas(FRDGBuilder& GraphBuilder, const TRefCountPtr<IPooledRenderTarget>& Atlas)
+void ClearAtlas(FRDGBuilder& GraphBuilder, TRefCountPtr<IPooledRenderTarget>& Atlas)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	FRDGTextureRef AtlasTexture = GraphBuilder.RegisterExternalTexture(Atlas);
 	AddClearRenderTargetPass(GraphBuilder, AtlasTexture);
+	ConvertToExternalTexture(GraphBuilder, AtlasTexture, Atlas);
 }
 
 void ClearAtlasesToDebugValues(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData)
@@ -1405,16 +1402,11 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FViewInfo& MainView = Views[0];
+	const bool bAnyLumenActive = ShouldRenderLumenDiffuseGI(Scene, MainView, true)
+		|| ShouldRenderLumenReflections(MainView, true);
 
-	if (GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& ViewFamily.EngineShowFlags.Lighting
-		// Don't update scene lighting for secondary views
-		&& !MainView.bIsPlanarReflection 
-		&& !MainView.bIsSceneCapture
-		&& !MainView.bIsReflectionCapture
-		&& MainView.ViewState)
+	if (bAnyLumenActive
+		&& !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_BeginUpdateLumenSceneTasks, FColor::Emerald);
 		QUICK_SCOPE_CYCLE_COUNTER(BeginUpdateLumenSceneTasks);
@@ -1642,9 +1634,10 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		}
 
 		AllocateOptionalCardAtlases(GraphBuilder, LumenSceneData, bReallocateAtlas);
+		UpdateLumenCardAtlasAllocation(GraphBuilder, MainView, bReallocateAtlas, bRecaptureLumenSceneOnce);
+
 		if (CardsToRender.Num() > 0)
 		{
-			UpdateLumenCardAtlasAllocation(GraphBuilder, MainView, bReallocateAtlas, bRecaptureLumenSceneOnce);
 
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(MeshPassSetup);
@@ -1974,10 +1967,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 	LLM_SCOPE_BYTAG(Lumen);
 
 	FViewInfo& View = Views[0];
+	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-	if (GAllowLumenScene
-		&& ViewFamily.EngineShowFlags.Lighting
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
+	if (bAnyLumenActive
 		// Don't update scene lighting for secondary views
 		&& !View.bIsPlanarReflection 
 		&& !View.bIsSceneCapture
@@ -2286,6 +2279,11 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					DepthAtlasTexture
 				);
 			}
+
+			ConvertToExternalTexture(GraphBuilder, DepthAtlasTexture, LumenSceneData.DepthBufferAtlas);
+			ConvertToExternalTexture(GraphBuilder, AlbedoAtlasTexture, LumenSceneData.AlbedoAtlas);
+			ConvertToExternalTexture(GraphBuilder, NormalAtlasTexture, LumenSceneData.NormalAtlas);
+			ConvertToExternalTexture(GraphBuilder, EmissiveAtlasTexture, LumenSceneData.EmissiveAtlas);
 		}
 
 		{

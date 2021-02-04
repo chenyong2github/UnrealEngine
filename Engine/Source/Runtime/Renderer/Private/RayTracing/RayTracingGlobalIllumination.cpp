@@ -396,6 +396,11 @@ bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 		return false;
 	}
 
+	if (View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod != EDynamicGlobalIlluminationMethod::RayTraced)
+	{
+		return false;
+	}
+
 	if (!View.ViewState)
 	{
 		return false;

@@ -511,7 +511,8 @@ void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& Graph
 					OcclusionMaxDistance = Scene->SkyLight->OcclusionMaxDistance;
 				}
 
-				UpdateGlobalDistanceFieldVolume(GraphBuilder, Views[ViewIndex], Scene, OcclusionMaxDistance, Views[ViewIndex].GlobalDistanceFieldInfo);
+				const bool bLumenEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen;
+				UpdateGlobalDistanceFieldVolume(GraphBuilder, Views[ViewIndex], Scene, OcclusionMaxDistance, bLumenEnabled, Views[ViewIndex].GlobalDistanceFieldInfo);
 			}
 		}
 		if (!bSplitDispatch)
@@ -1748,11 +1749,20 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			bComputeLightGrid = ViewFamily.EngineShowFlags.Lighting;
 		}
 
-		extern int32 GAllowLumenScene;
+		bool bAnyLumenEnabled = false;
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			FViewInfo& View = Views[ViewIndex];
+			bAnyLumenEnabled = bAnyLumenEnabled 
+				|| GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen
+				|| GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen;
+		}
+
 		bComputeLightGrid |= (
 			ShouldRenderVolumetricFog() ||
 			ViewFamily.ViewMode != VMI_Lit ||
-			GAllowLumenScene ||
+			bAnyLumenEnabled ||
 			VirtualShadowMapArray.IsEnabled());
 	}
 
@@ -2389,7 +2399,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
-	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, Views, SceneTextures.Stencil);
+	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil);
 
 	// Pre-lighting composition lighting stage
 	// e.g. deferred decals, SSAO
@@ -2833,7 +2843,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		const FViewInfo& View = Views[ViewIndex];
 
-		if ((ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View) || GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+		if (((View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::ScreenSpace && ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
+				|| GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 			&& !View.bStatePrevViewInfoIsReadOnly)
 		{
 			// Keep scene color and depth for next frame screen space ray tracing.
@@ -2865,7 +2876,7 @@ bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 		|| ShouldRenderRayTracingTranslucency(View)
 		|| ShouldRenderRayTracingSkyLight(Scene ? Scene->SkyLight : nullptr)
 		|| ShouldRenderRayTracingShadows()
-        || Lumen::AnyLumenHardwareRayTracingPassEnabled()
+        || Lumen::AnyLumenHardwareRayTracingPassEnabled(Scene, View)
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug
 		)

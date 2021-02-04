@@ -317,8 +317,10 @@ LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputsForVis
 void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures)
 {
 	const FViewInfo& View = Views[0];
+	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-	if (Lumen::ShouldRenderLumenCardsForView(Scene, View))
+	if (bAnyLumenActive)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenScene");
 
@@ -418,8 +420,10 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, PassParameters->RadianceCacheParameters);
 				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 
+				bool bTraceCards = GVisualizeLumenSceneTraceCards != 0 && MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0;
+
 				FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceCards>(GVisualizeLumenSceneTraceCards != 0);
+				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceCards>(bTraceCards);
 				PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
 				PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
@@ -455,9 +459,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 		}
 	}
 
-	if (GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& Views.Num() == 1
+	if (bAnyLumenActive
 		&& GLumenVisualizeStats != 0
 		&& View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)
 	{
@@ -560,7 +562,10 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		GLumenSceneDumpStats = 0;
 	}
 
-	if (Lumen::ShouldRenderLumenCardsForView(Scene, Views[0]) && GVisualizeLumenCardPlacement != 0)
+	const bool bAnyLumenEnabled = ShouldRenderLumenDiffuseGI(Scene, Views[0], true)
+		|| ShouldRenderLumenReflections(Views[0], true);
+
+	if (bAnyLumenEnabled && GVisualizeLumenCardPlacement != 0)
 	{
 		FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveCollector);
 

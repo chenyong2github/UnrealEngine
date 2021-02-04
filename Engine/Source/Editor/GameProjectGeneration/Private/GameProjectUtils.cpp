@@ -200,6 +200,31 @@ namespace
 		}
 	}
 
+	/** Get the configuration values for enabling Lumen by default. */
+	void AddLumenConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues)
+	{
+		// Required for Lumen's Software Ray Tracing support
+		ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+			TEXT("/Script/Engine.RendererSettings"),
+			TEXT("r.GenerateMeshDistanceFields"),
+			TEXT("True"),
+			true /* ShouldReplaceExistingValue */);
+
+		// Enable Lumen Global Illumination by default
+		ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+			TEXT("/Script/Engine.RendererSettings"),
+			TEXT("r.DynamicGlobalIlluminationMethod"),
+			TEXT("1"),
+			true /* ShouldReplaceExistingValue */);
+
+		// Enable Lumen Reflections by default
+		ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+			TEXT("/Script/Engine.RendererSettings"),
+			TEXT("r.ReflectionMethod"),
+			TEXT("1"),
+			true /* ShouldReplaceExistingValue */);
+	}
+
 	/** Get the configuration values for raytracing if enabled. */
 	void AddRaytracingConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues)
 	{
@@ -2126,6 +2151,7 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 
 		TArray<FTemplateConfigValue> ConfigValuesToSet;
 		AddHardwareConfigValues(InProjectInfo, ConfigValuesToSet);
+		AddLumenConfigValues(InProjectInfo, ConfigValuesToSet);
 		AddRaytracingConfigValues(InProjectInfo, ConfigValuesToSet);
 
 		if (!SaveConfigValues(InProjectInfo, ConfigValuesToSet, OutFailReason))

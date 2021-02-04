@@ -240,22 +240,22 @@ const int32 GGlobalDistanceFieldInfluenceRangeInVoxels = 4;
 
 namespace GlobalDistanceField
 {
-	int32 GetClipmapResolution();
+	int32 GetClipmapResolution(bool bLumenEnabled);
 	int32 GetMipFactor();
-	int32 GetClipmapMipResolution();
-	float GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene);
-	FIntVector GetPageAtlasSizeInPages();
-	FIntVector GetPageAtlasSize();
-	uint32 GetPageTableClipmapResolution();
-	FIntVector GetPageTableTextureResolution();
-	int32 GetMaxPageNum();
+	int32 GetClipmapMipResolution(bool bLumenEnabled);
+	float GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene, bool bLumenEnabled);
+	FIntVector GetPageAtlasSizeInPages(bool bLumenEnabled);
+	FIntVector GetPageAtlasSize(bool bLumenEnabled);
+	uint32 GetPageTableClipmapResolution(bool bLumenEnabled);
+	FIntVector GetPageTableTextureResolution(bool bLumenEnabled);
+	int32 GetMaxPageNum(bool bLumenEnabled);
 };
 
-int32 GlobalDistanceField::GetClipmapResolution()
+int32 GlobalDistanceField::GetClipmapResolution(bool bLumenEnabled)
 {
 	int32 DFResolution = GAOGlobalDFResolution;
 
-	if (Lumen::ShouldPrepareGlobalDistanceField(GMaxRHIShaderPlatform))
+	if (bLumenEnabled)
 	{
 		DFResolution = Lumen::GetGlobalDFResolution();
 	}
@@ -268,15 +268,14 @@ int32 GlobalDistanceField::GetMipFactor()
 	return FMath::Clamp(GAOGlobalDistanceFieldMipFactor, 1, 8);
 }
 
-int32 GlobalDistanceField::GetClipmapMipResolution()
+int32 GlobalDistanceField::GetClipmapMipResolution(bool bLumenEnabled)
 {
-	const int32 ClipmapResolutution = GetClipmapResolution();
-	return FMath::DivideAndRoundUp(GlobalDistanceField::GetClipmapResolution(), GetMipFactor());
+	return FMath::DivideAndRoundUp(GlobalDistanceField::GetClipmapResolution(bLumenEnabled), GetMipFactor());
 }
 
-float GlobalDistanceField::GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene)
+float GlobalDistanceField::GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene, bool bLumenEnabled)
 {
-	if (Lumen::ShouldPrepareGlobalDistanceField(GMaxRHIShaderPlatform))
+	if (bLumenEnabled)
 	{
 		const float InnerClipmapDistance = Lumen::GetGlobalDFClipmapExtent();
 		return InnerClipmapDistance * FMath::Pow(2.f, ClipmapIndex);
@@ -288,15 +287,15 @@ float GlobalDistanceField::GetClipmapExtent(int32 ClipmapIndex, const FScene* Sc
 	}
 }
 
-uint32 GlobalDistanceField::GetPageTableClipmapResolution()
+uint32 GlobalDistanceField::GetPageTableClipmapResolution(bool bLumenEnabled)
 {
-	return FMath::DivideAndRoundUp(GlobalDistanceField::GetClipmapResolution(), GGlobalDistanceFieldPageResolution);
+	return FMath::DivideAndRoundUp(GlobalDistanceField::GetClipmapResolution(bLumenEnabled), GGlobalDistanceFieldPageResolution);
 }
 
-FIntVector GlobalDistanceField::GetPageTableTextureResolution()
+FIntVector GlobalDistanceField::GetPageTableTextureResolution(bool bLumenEnabled)
 {
 	const int32 NumClipmaps = GetNumGlobalDistanceFieldClipmaps();
-	const uint32 PageTableClipmapResolution = GetPageTableClipmapResolution();
+	const uint32 PageTableClipmapResolution = GetPageTableClipmapResolution(bLumenEnabled);
 
 	const FIntVector PageTableTextureResolution = FIntVector(
 		PageTableClipmapResolution, 
@@ -306,9 +305,9 @@ FIntVector GlobalDistanceField::GetPageTableTextureResolution()
 	return PageTableTextureResolution;
 }
 
-FIntVector GlobalDistanceField::GetPageAtlasSizeInPages()
+FIntVector GlobalDistanceField::GetPageAtlasSizeInPages(bool bLumenEnabled)
 {
-	const FIntVector PageTableTextureResolution = GetPageTableTextureResolution();
+	const FIntVector PageTableTextureResolution = GetPageTableTextureResolution(bLumenEnabled);
 
 	const int32 RequiredNumberOfPages = FMath::CeilToInt(
 		PageTableTextureResolution.X * PageTableTextureResolution.Y * PageTableTextureResolution.Z 
@@ -325,15 +324,15 @@ FIntVector GlobalDistanceField::GetPageAtlasSizeInPages()
 	return PageAtlasTextureSizeInPages;
 }
 
-FIntVector GlobalDistanceField::GetPageAtlasSize()
+FIntVector GlobalDistanceField::GetPageAtlasSize(bool bLumenEnabled)
 {
-	const FIntVector PageAtlasTextureSizeInPages = GlobalDistanceField::GetPageAtlasSizeInPages();
+	const FIntVector PageAtlasTextureSizeInPages = GlobalDistanceField::GetPageAtlasSizeInPages(bLumenEnabled);
 	return PageAtlasTextureSizeInPages * GGlobalDistanceFieldPageResolutionInAtlas;
 }
 
-int32 GlobalDistanceField::GetMaxPageNum()
+int32 GlobalDistanceField::GetMaxPageNum(bool bLumenEnabled)
 {
-	const FIntVector PageAtlasTextureSizeInPages = GlobalDistanceField::GetPageAtlasSizeInPages();
+	const FIntVector PageAtlasTextureSizeInPages = GlobalDistanceField::GetPageAtlasSizeInPages(bLumenEnabled);
 	int32 MaxPageNum = PageAtlasTextureSizeInPages.X * PageAtlasTextureSizeInPages.Y * PageAtlasTextureSizeInPages.Z;
 	ensureMsgf(MaxPageNum < UINT16_MAX, TEXT("Page index is stored in a uint16, and 0xFFFF is reserved as invalid."));
 	return MaxPageNum;
@@ -351,12 +350,12 @@ void RequestGlobalDistanceFieldReadback(FGlobalDistanceFieldReadback* Readback)
 	}
 }
 
-void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance)
+void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, bool bLumenEnabled)
 {
 	ParameterData.PageTableTexture = nullptr;
 	ParameterData.PageAtlasTexture = nullptr;
 	ParameterData.MipTexture = nullptr;
-	ParameterData.MaxPageNum = GlobalDistanceField::GetMaxPageNum();
+	ParameterData.MaxPageNum = GlobalDistanceField::GetMaxPageNum(bLumenEnabled);
 
 	if (Clipmaps.Num() > 0)
 	{
@@ -408,13 +407,13 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance)
 
 		ParameterData.MipFactor = GlobalDistanceField::GetMipFactor();
 		ParameterData.MipTransition = (GGlobalDistanceFieldInfluenceRangeInVoxels + ParameterData.MipFactor / GGlobalDistanceFieldInfluenceRangeInVoxels) / (2.0f * GGlobalDistanceFieldInfluenceRangeInVoxels);
-		ParameterData.ClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution().X;
-		ParameterData.InvPageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetPageAtlasSize());
-		ParameterData.GlobalDFResolution = GlobalDistanceField::GetClipmapResolution();
+		ParameterData.ClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled).X;
+		ParameterData.InvPageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetPageAtlasSize(bLumenEnabled));
+		ParameterData.GlobalDFResolution = GlobalDistanceField::GetClipmapResolution(bLumenEnabled);
 
 		extern float GAOConeHalfAngle;
 		const float MaxClipmapExtentX = Clipmaps[Clipmaps.Num() - 1].Bounds.GetExtent().X;
-		const float MaxClipmapVoxelSize =  (2.0f * MaxClipmapExtentX) / GlobalDistanceField::GetClipmapResolution();
+		const float MaxClipmapVoxelSize =  (2.0f * MaxClipmapExtentX) / GlobalDistanceField::GetClipmapResolution(bLumenEnabled);
 		float MaxClipmapInfluenceRadius = GGlobalDistanceFieldInfluenceRangeInVoxels * MaxClipmapVoxelSize;
 		const float GlobalMaxSphereQueryRadius = FMath::Min(MaxOcclusionDistance / (1.0f + FMath::Tan(GAOConeHalfAngle)), MaxClipmapInfluenceRadius);
 		ParameterData.MaxDFAOConeDistance = GlobalMaxSphereQueryRadius;
@@ -552,7 +551,7 @@ static bool ShouldUpdateClipmapThisFrame(int32 ClipmapIndex, int32 NumClipmaps, 
 	return GlobalDistanceFieldUpdateIndex % Frequency == Phase;
 }
 
-void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View)
+void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View, bool bLumenEnabled)
 {
 	if (View.ViewState)
 	{
@@ -569,7 +568,7 @@ void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View)
 			if (Scene && NumClipmaps > 0)
 			{
 				// Clamp the view origin offset to stay inside the current clipmap extents
-				const float LargestVoxelClipmapExtent = GlobalDistanceField::GetClipmapExtent(NumClipmaps - 1, Scene);
+				const float LargestVoxelClipmapExtent = GlobalDistanceField::GetClipmapExtent(NumClipmaps - 1, Scene, bLumenEnabled);
 				const float MaxCameraDriftFraction = .75f;
 				CameraVelocityOffset.X = FMath::Clamp<float>(CameraVelocityOffset.X, -LargestVoxelClipmapExtent * MaxCameraDriftFraction, LargestVoxelClipmapExtent * MaxCameraDriftFraction);
 				CameraVelocityOffset.Y = FMath::Clamp<float>(CameraVelocityOffset.Y, -LargestVoxelClipmapExtent * MaxCameraDriftFraction, LargestVoxelClipmapExtent * MaxCameraDriftFraction);
@@ -583,7 +582,7 @@ void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View)
 	}
 }
 
-FVector GetGlobalDistanceFieldViewOrigin(const FViewInfo& View, int32 ClipmapIndex)
+FVector GetGlobalDistanceFieldViewOrigin(const FViewInfo& View, int32 ClipmapIndex, bool bLumenEnabled)
 {
 	FVector CameraOrigin = View.ViewMatrices.GetViewOrigin();
 
@@ -596,7 +595,7 @@ FVector GetGlobalDistanceFieldViewOrigin(const FViewInfo& View, int32 ClipmapInd
 		if (Scene)
 		{
 			// Clamp the view origin to stay inside the current clipmap extents
-			const float ClipmapExtent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene);
+			const float ClipmapExtent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene, bLumenEnabled);
 			const float MaxCameraDriftFraction = .75f;
 			CameraVelocityOffset.X = FMath::Clamp<float>(CameraVelocityOffset.X, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
 			CameraVelocityOffset.Y = FMath::Clamp<float>(CameraVelocityOffset.Y, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
@@ -615,7 +614,8 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 	const FScene* Scene, 
 	FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo, 
 	int32 NumClipmaps, 
-	float MaxOcclusionDistance)
+	float MaxOcclusionDistance,
+	bool bLumenEnabled)
 {
 	GlobalDistanceFieldInfo.Clipmaps.AddZeroed(NumClipmaps);
 	GlobalDistanceFieldInfo.MostlyStaticClipmaps.AddZeroed(NumClipmaps);
@@ -653,8 +653,8 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		{
 			FSceneViewState& ViewState = *View.ViewState;
 
-			const int32 MaxPageNum = GlobalDistanceField::GetMaxPageNum();
-			const FIntVector PageAtlasTextureSize = GlobalDistanceField::GetPageAtlasSize();
+			const int32 MaxPageNum = GlobalDistanceField::GetMaxPageNum(bLumenEnabled);
+			const FIntVector PageAtlasTextureSize = GlobalDistanceField::GetPageAtlasSize(bLumenEnabled);
 
 			if (!ViewState.GlobalDistanceFieldPageFreeListAllocatorBuffer)
 			{
@@ -701,7 +701,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		}
 
 		{
-			const FIntVector PageTableTextureResolution = GlobalDistanceField::GetPageTableTextureResolution();
+			const FIntVector PageTableTextureResolution = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled);
 			TRefCountPtr<IPooledRenderTarget>& PageTableTexture = View.ViewState->GlobalDistanceFieldPageTableCombinedTexture;
 
 			if (!PageTableTexture
@@ -735,7 +735,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		}
 
 		{
-			const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution();
+			const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution(bLumenEnabled);
 			const FIntVector MipTextureResolution = FIntVector(ClipmapMipResolution, ClipmapMipResolution, ClipmapMipResolution * GetNumGlobalDistanceFieldClipmaps());
 			TRefCountPtr<IPooledRenderTarget>& MipTexture = View.ViewState->GlobalDistanceFieldMipTexture;
 
@@ -771,7 +771,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 		for (uint32 CacheType = 0; CacheType < GDF_Num; CacheType++)
 		{
-			const FIntVector PageTableTextureResolution = GlobalDistanceField::GetPageTableTextureResolution();
+			const FIntVector PageTableTextureResolution = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled);
 			TRefCountPtr<IPooledRenderTarget>& PageTableTexture = View.ViewState->GlobalDistanceFieldPageTableLayerTextures[CacheType];
 
 			if (CacheType == GDF_Full || GAOGlobalDistanceFieldCacheMostlyStaticSeparately)
@@ -811,8 +811,8 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		{
 			FGlobalDistanceFieldClipmapState& ClipmapViewState = View.ViewState->GlobalDistanceFieldClipmapState[ClipmapIndex];
 
-			const int32 ClipmapResolution = GlobalDistanceField::GetClipmapResolution();
-			const float ClipmapExtent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene);
+			const int32 ClipmapResolution = GlobalDistanceField::GetClipmapResolution(bLumenEnabled);
+			const float ClipmapExtent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene, bLumenEnabled);
 			const float ClipmapVoxelSize = (2.0f * ClipmapExtent) / ClipmapResolution;
 			const float ClipmapPageSize = GGlobalDistanceFieldPageResolution * ClipmapVoxelSize;
 			const float ClipmapInfluenceRadius = GGlobalDistanceFieldInfluenceRangeInVoxels * ClipmapVoxelSize;
@@ -842,7 +842,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 			if (bUpdateRequested || bForceFullUpdate)
 			{
-				const FVector GlobalDistanceFieldViewOrigin = GetGlobalDistanceFieldViewOrigin(View, ClipmapIndex);
+				const FVector GlobalDistanceFieldViewOrigin = GetGlobalDistanceFieldViewOrigin(View, ClipmapIndex, bLumenEnabled);
 
 				// Snap to the global distance field page's size
 				FIntVector PageGridCenter;
@@ -1004,11 +1004,11 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 				Clipmap.ScrollOffset = FVector(0);
 
-				const int32 ClipmapResolution = GlobalDistanceField::GetClipmapResolution();
-				const float Extent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene);
+				const int32 ClipmapResolution = GlobalDistanceField::GetClipmapResolution(bLumenEnabled);
+				const float Extent = GlobalDistanceField::GetClipmapExtent(ClipmapIndex, Scene, bLumenEnabled);
 				const float ClipmapVoxelSize = (2.0f * Extent) / ClipmapResolution;
 				const float ClipmapPageSize = GGlobalDistanceFieldPageResolution * ClipmapVoxelSize;
-				const FVector GlobalDistanceFieldViewOrigin = GetGlobalDistanceFieldViewOrigin(View, ClipmapIndex);
+				const FVector GlobalDistanceFieldViewOrigin = GetGlobalDistanceFieldViewOrigin(View, ClipmapIndex, bLumenEnabled);
 
 				FIntVector PageGridCenter;
 				PageGridCenter.X = FMath::RoundToInt(GlobalDistanceFieldViewOrigin.X / ClipmapPageSize);
@@ -1026,7 +1026,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		}
 	}
 
-	GlobalDistanceFieldInfo.UpdateParameterData(MaxOcclusionDistance);
+	GlobalDistanceFieldInfo.UpdateParameterData(MaxOcclusionDistance, bLumenEnabled);
 }
 
 void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters) const
@@ -1542,6 +1542,7 @@ void UpdateGlobalDistanceFieldVolume(
 	FViewInfo& View,
 	FScene* Scene,
 	float MaxOcclusionDistance,
+	bool bLumenEnabled,
 	FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, GlobalDistanceFieldUpdate);
@@ -1549,12 +1550,12 @@ void UpdateGlobalDistanceFieldVolume(
 
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
-	UpdateGlobalDistanceFieldViewOrigin(View);
+	UpdateGlobalDistanceFieldViewOrigin(View, bLumenEnabled);
 
 	if (Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0)
 	{
 		const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(), 0, GMaxGlobalDistanceFieldClipmaps);
-		ComputeUpdateRegionsAndUpdateViewState(GraphBuilder.RHICmdList, View, Scene, GlobalDistanceFieldInfo, NumClipmaps, MaxOcclusionDistance);
+		ComputeUpdateRegionsAndUpdateViewState(GraphBuilder.RHICmdList, View, Scene, GlobalDistanceFieldInfo, NumClipmaps, MaxOcclusionDistance, bLumenEnabled);
 
 		// Recreate the view uniform buffer now that we have updated GlobalDistanceFieldInfo
 		View.SetupGlobalDistanceFieldUniformBufferParameters(*View.CachedViewUniformShaderParameters);
@@ -1610,7 +1611,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 			FRDGTextureRef TempMipTexture = nullptr;
 			{
-				const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution();
+				const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution(bLumenEnabled);
 				FRDGTextureDesc TempMipDesc(FRDGTextureDesc::Create3D(
 					FIntVector(ClipmapMipResolution),
 					PF_R8,
@@ -1648,7 +1649,7 @@ void UpdateGlobalDistanceFieldVolume(
 					}
 				}
 
-				const int32 MaxPageNum = GlobalDistanceField::GetMaxPageNum();
+				const int32 MaxPageNum = GlobalDistanceField::GetMaxPageNum(bLumenEnabled);
 
 				if (PageFreeListAllocatorBuffer)
 				{
@@ -1692,7 +1693,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 					FGlobalDistanceFieldClipmap& Clipmap = Clipmaps[ClipmapIndex];
 
-					const int32 ClipmapResolution = GlobalDistanceField::GetClipmapResolution();
+					const int32 ClipmapResolution = GlobalDistanceField::GetClipmapResolution(bLumenEnabled);
 					const FVector ClipmapWorldCenter = Clipmap.Bounds.GetCenter();
 					const FVector ClipmapWorldExtent = Clipmap.Bounds.GetExtent();
 					const FVector ClipmapSize = Clipmap.Bounds.GetSize();
@@ -1848,7 +1849,7 @@ void UpdateGlobalDistanceFieldVolume(
 								GroupSize);
 						}
 
-						const uint32 GGlobalDistanceFieldMaxPageNum = GlobalDistanceField::GetMaxPageNum();
+						const uint32 GGlobalDistanceFieldMaxPageNum = GlobalDistanceField::GetMaxPageNum(bLumenEnabled);
 
 						const uint32 PageGridDim = FMath::DivideAndRoundUp(ClipmapResolution, GGlobalDistanceFieldPageResolution);
 						const uint32 PageGridSize = PageGridDim * PageGridDim * PageGridDim;
@@ -2052,7 +2053,7 @@ void UpdateGlobalDistanceFieldVolume(
 						// Allocate and build page lists
 						{
 							FRDGBufferRef PageFreeListReturnAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("PageFreeListReturnAllocator"));
-							FRDGBufferRef PageFreeListReturnBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), GlobalDistanceField::GetMaxPageNum()), TEXT("PageFreeListReturn"));
+							FRDGBufferRef PageFreeListReturnBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), GlobalDistanceField::GetMaxPageNum(bLumenEnabled)), TEXT("PageFreeListReturn"));
 
 							AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(PageFreeListReturnAllocatorBuffer, PF_R32_UINT), 0);
 
@@ -2269,7 +2270,7 @@ void UpdateGlobalDistanceFieldVolume(
 						{
 							RDG_EVENT_SCOPE(GraphBuilder, "Coarse Clipmap");
 
-							const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution();
+							const int32 ClipmapMipResolution = GlobalDistanceField::GetClipmapMipResolution(bLumenEnabled);
 
 							// Propagate distance field
 							const int32 NumPropagationSteps = 5;
@@ -2291,8 +2292,8 @@ void UpdateGlobalDistanceFieldVolume(
 								PassParameters->RWMipTexture = GraphBuilder.CreateUAV(NextTexture);
 								PassParameters->PageTableCombinedTexture = PageTableCombinedTexture;
 								PassParameters->PageAtlasTexture = PageAtlasTexture;
-								PassParameters->GlobalDistanceFieldInvPageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetPageAtlasSize());
-								PassParameters->GlobalDistanceFieldClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution().X;
+								PassParameters->GlobalDistanceFieldInvPageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetPageAtlasSize(bLumenEnabled));
+								PassParameters->GlobalDistanceFieldClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled).X;
 								PassParameters->PrevMipTexture = PrevTexture;
 								PassParameters->ClipmapMipResolution = ClipmapMipResolution;
 								PassParameters->ClipmapIndex = ClipmapIndex;

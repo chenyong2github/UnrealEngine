@@ -1413,7 +1413,7 @@ void RenderRadianceCache(
 
 			FRadianceCacheTraceFromProbesCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDistantScene>(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
-			PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDynamicSkyLight>(ShouldRenderDynamicSkyLight(Scene, *View.Family));
+			PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 			auto ComputeShader = View.ShaderMap->GetShader<FRadianceCacheTraceFromProbesCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(

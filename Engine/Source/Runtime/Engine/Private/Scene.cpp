@@ -4,6 +4,7 @@
 #include "HAL/IConsoleManager.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 
 void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const
 {
@@ -514,8 +515,11 @@ FPostProcessSettings::FPostProcessSettings()
 	RayTracingAOSamplesPerPixel = 1;
 	RayTracingAOIntensity = 1.0;
 	RayTracingAORadius = 200.0f;
+	DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
 	IndirectLightingColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	IndirectLightingIntensity = 1.0f;
+	LumenFinalGatherQuality = 1;
+
 	ColorGradingIntensity = 1.0f;
 	RayTracingGIType = ERayTracingGlobalIlluminationType::Disabled;
 	RayTracingGIMaxBounces = 1;
@@ -552,7 +556,9 @@ FPostProcessSettings::FPostProcessSettings()
 	MotionBlurTargetFPS = 30;
 	MotionBlurPerObjectSize = 0.5f;
 	ScreenPercentage = 100.0f;
-	ReflectionsType = EReflectionsType::RayTracing;
+	ReflectionsType_DEPRECATED = EReflectionsType::RayTracing;
+	ReflectionMethod = EReflectionMethod::Lumen;
+	LumenReflectionQuality = 1;
 	ScreenSpaceReflectionIntensity = 100.0f;
 	ScreenSpaceReflectionQuality = 50.0f;
 	ScreenSpaceReflectionMaxRoughness = 0.6f;
@@ -734,7 +740,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_ScreenSpaceReflectionQuality(Settings.bOverride_ScreenSpaceReflectionQuality)
 	, bOverride_ScreenSpaceReflectionMaxRoughness(Settings.bOverride_ScreenSpaceReflectionMaxRoughness)
 	, bOverride_ScreenSpaceReflectionRoughnessScale(Settings.bOverride_ScreenSpaceReflectionRoughnessScale)
-	, bOverride_ReflectionsType(Settings.bOverride_ReflectionsType)
 	, bOverride_RayTracingReflectionsMaxRoughness(Settings.bOverride_RayTracingReflectionsMaxRoughness)
 	, bOverride_RayTracingReflectionsMaxBounces(Settings.bOverride_RayTracingReflectionsMaxBounces)
 	, bOverride_RayTracingReflectionsSamplesPerPixel(Settings.bOverride_RayTracingReflectionsSamplesPerPixel)
@@ -829,6 +834,23 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, BloomDirtMask(Settings.BloomDirtMask)
 	, BloomDirtMaskIntensity(Settings.BloomDirtMaskIntensity)
 	, BloomDirtMaskTint(Settings.BloomDirtMaskTint)
+	, DynamicGlobalIlluminationMethod(Settings.DynamicGlobalIlluminationMethod)
+	, IndirectLightingColor(Settings.IndirectLightingColor)
+	, IndirectLightingIntensity(Settings.IndirectLightingIntensity)
+	, LumenFinalGatherQuality(Settings.LumenFinalGatherQuality)
+	, RayTracingGIType(Settings.RayTracingGIType)
+	, RayTracingGIMaxBounces(Settings.RayTracingGIMaxBounces)
+	, RayTracingGISamplesPerPixel(Settings.RayTracingGISamplesPerPixel)
+	, ReflectionMethod(Settings.ReflectionMethod)
+	, LumenReflectionQuality(Settings.LumenReflectionQuality)
+	, ScreenSpaceReflectionIntensity(Settings.ScreenSpaceReflectionIntensity)
+	, ScreenSpaceReflectionQuality(Settings.ScreenSpaceReflectionQuality)
+	, ScreenSpaceReflectionMaxRoughness(Settings.ScreenSpaceReflectionMaxRoughness)
+	, RayTracingReflectionsMaxRoughness(Settings.RayTracingReflectionsMaxRoughness)
+	, RayTracingReflectionsMaxBounces(Settings.RayTracingReflectionsMaxBounces)
+	, RayTracingReflectionsSamplesPerPixel(Settings.RayTracingReflectionsSamplesPerPixel)
+	, RayTracingReflectionsShadows(Settings.RayTracingReflectionsShadows)
+	, RayTracingReflectionsTranslucency(Settings.RayTracingReflectionsTranslucency)
 	, AmbientCubemapTint(Settings.AmbientCubemapTint)
 	, AmbientCubemapIntensity(Settings.AmbientCubemapIntensity)
 	, AmbientCubemap(Settings.AmbientCubemap)
@@ -876,11 +898,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, RayTracingAOSamplesPerPixel(Settings.RayTracingAOSamplesPerPixel)
 	, RayTracingAOIntensity(Settings.RayTracingAOIntensity)
 	, RayTracingAORadius(Settings.RayTracingAORadius)
-	, IndirectLightingColor(Settings.IndirectLightingColor)
-	, IndirectLightingIntensity(Settings.IndirectLightingIntensity)
-	, RayTracingGIType(Settings.RayTracingGIType)
-	, RayTracingGIMaxBounces(Settings.RayTracingGIMaxBounces)
-	, RayTracingGISamplesPerPixel(Settings.RayTracingGISamplesPerPixel)
 	, ColorGradingIntensity(Settings.ColorGradingIntensity)
 	, ColorGradingLUT(Settings.ColorGradingLUT)
 	, DepthOfFieldSensorWidth(Settings.DepthOfFieldSensorWidth)
@@ -900,18 +917,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, MotionBlurMax(Settings.MotionBlurMax)
 	, MotionBlurTargetFPS(Settings.MotionBlurTargetFPS)
 	, MotionBlurPerObjectSize(Settings.MotionBlurPerObjectSize)
-
-	, ReflectionsType(Settings.ReflectionsType)
-	, ScreenSpaceReflectionIntensity(Settings.ScreenSpaceReflectionIntensity)
-	, ScreenSpaceReflectionQuality(Settings.ScreenSpaceReflectionQuality)
-	, ScreenSpaceReflectionMaxRoughness(Settings.ScreenSpaceReflectionMaxRoughness)
-
-	, RayTracingReflectionsMaxRoughness(Settings.RayTracingReflectionsMaxRoughness)
-	, RayTracingReflectionsMaxBounces(Settings.RayTracingReflectionsMaxBounces)
-	, RayTracingReflectionsSamplesPerPixel(Settings.RayTracingReflectionsSamplesPerPixel)
-	, RayTracingReflectionsShadows(Settings.RayTracingReflectionsShadows)
-	, RayTracingReflectionsTranslucency(Settings.RayTracingReflectionsTranslucency)
-
 	, TranslucencyType(Settings.TranslucencyType)
 	, RayTracingTranslucencyMaxRoughness(Settings.RayTracingTranslucencyMaxRoughness)
 	, RayTracingTranslucencyRefractionRays(Settings.RayTracingTranslucencyRefractionRays)
@@ -937,6 +942,7 @@ bool FPostProcessSettings::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	// Don't actually serialize, just write the custom version for PostSerialize
 	return false;
@@ -1164,6 +1170,29 @@ void FPostProcessSettings::PostSerialize(const FArchive& Ar)
 				{
 					// Assume previous exposure was 0.0, so ignore AutoExposureBiasBackup and only add the extra bias.
 					AutoExposureBias = ExtraAutoExposureBias;
+				}
+			}
+		}
+
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ReflectionMethodEnum)
+		{
+			if (bOverride_RayTracingGI && RayTracingGIType != ERayTracingGlobalIlluminationType::Disabled)
+			{
+				bOverride_DynamicGlobalIlluminationMethod = true;
+				DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::RayTraced;
+			}
+
+			if (bOverride_ReflectionsType_DEPRECATED)
+			{
+				bOverride_ReflectionMethod = true;
+
+				if (ReflectionsType_DEPRECATED == EReflectionsType::ScreenSpace)
+				{
+					ReflectionMethod = EReflectionMethod::ScreenSpace;
+				}
+				else if (ReflectionsType_DEPRECATED == EReflectionsType::RayTracing)
+				{
+					ReflectionMethod = EReflectionMethod::RayTraced;
 				}
 			}
 		}

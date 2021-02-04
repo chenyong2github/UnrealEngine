@@ -219,7 +219,7 @@ struct FEngineShowFlags
 		SetDistanceFieldAO(false);
 		SetVolumetricFog(false);
 		SetVolumetricLightmap(false);
-		SetLumenDiffuseIndirect(false);
+		SetLumenGlobalIllumination(false);
 		SetLumenReflections(false);
 	}
 

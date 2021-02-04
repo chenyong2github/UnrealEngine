@@ -395,7 +395,7 @@ void SetupVisualizeTraces(
 		PassParameters->RWVisualizeTracesData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(VisualizeTracesData, PF_A32B32G32R32F));
 
 		FScreenProbeSetupVisualizeTracesCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FScreenProbeSetupVisualizeTracesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling());
+		PermutationVector.Set< FScreenProbeSetupVisualizeTracesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeSetupVisualizeTracesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -427,7 +427,7 @@ void FDeferredShadingSceneRenderer::RenderScreenProbeGatherVisualizeTraces(
 		auto VertexShader = View.ShaderMap->GetShader<FVisualizeTracesVS>();
 		auto PixelShader = View.ShaderMap->GetShader<FVisualizeTracesPS>();
 
-		const int32 NumPrimitives = LumenScreenProbeGather::GetTracingOctahedronResolution() * LumenScreenProbeGather::GetTracingOctahedronResolution();
+		const int32 NumPrimitives = LumenScreenProbeGather::GetTracingOctahedronResolution(View) * LumenScreenProbeGather::GetTracingOctahedronResolution(View);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("VisualizeTraces"),
@@ -541,7 +541,7 @@ void TraceScreenProbes(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("ClearTraces"),
+			RDG_EVENT_NAME("ClearTraces %ux%u", ScreenProbeParameters.ScreenProbeTracingOctahedronResolution, ScreenProbeParameters.ScreenProbeTracingOctahedronResolution),
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -590,7 +590,7 @@ void TraceScreenProbes(
 		FScreenProbeTraceScreenTexturesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FRadianceCache >(LumenScreenProbeGather::UseRadianceCache(View));
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FHierarchicalScreenTracing >(GLumenScreenProbeGatherHierarchicalScreenTraces != 0);
-		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling());
+		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceScreenTexturesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -653,7 +653,7 @@ void TraceScreenProbes(
 				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 				FScreenProbeTraceCardsCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set< FScreenProbeTraceCardsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling());
+				PermutationVector.Set< FScreenProbeTraceCardsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceCardsCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(
@@ -687,10 +687,10 @@ void TraceScreenProbes(
 		const bool bRadianceCache = LumenScreenProbeGather::UseRadianceCache(View);
 
 		FScreenProbeTraceVoxelsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FDynamicSkyLight >(ShouldRenderDynamicSkyLight(Scene, *View.Family));
+		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FDynamicSkyLight >(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FRadianceCache >(bRadianceCache);
-		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling());
+		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceVoxelsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

@@ -155,7 +155,7 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetRenderTargetOutputFormat(0, FVelocityRendering::GetFormat(Parameters.Platform));
+		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A16B16G16R16);
 	}
 
 	FVelocityPS() = default;
@@ -209,7 +209,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 
 		bool bSSGI = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI;
-		bool bLumen = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
+		bool bLumen = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 		
 		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise || bSSGI || bLumen;
 	}
@@ -327,8 +327,10 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 
 EPixelFormat FVelocityRendering::GetFormat(EShaderPlatform ShaderPlatform)
 {
-	static IConsoleVariable* CVarLumen = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LumenScene"));
-	const bool bNeedVelocityDepth = CVarLumen->GetInt() > 0 || FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(ShaderPlatform);
+	// Lumen needs velocity depth
+	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	const bool bNeedVelocityDepth = (CMeshSDFVar->GetValueOnRenderThread() != 0 && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(ShaderPlatform)) 
+		|| FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(ShaderPlatform);
 	return bNeedVelocityDepth ? PF_A16B16G16R16 : PF_G16R16;
 }
 

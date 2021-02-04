@@ -12,6 +12,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Before any version changes were made
 		BeforeCustomVersionWasAdded = 0,
 
+		// Added Lumen reflections to new reflection enum, changed defaults
+		ReflectionMethodEnum,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

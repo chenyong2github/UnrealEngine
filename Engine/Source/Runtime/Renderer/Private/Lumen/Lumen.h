@@ -4,6 +4,9 @@
 
 #include "HAL/LowLevelMemTracker.h"
 
+extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing);
+extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bRequireSoftwareTracing);
+
 namespace Lumen
 {
 	enum class ETracingPermutation
@@ -14,19 +17,16 @@ namespace Lumen
 		MAX
 	};
 
-	bool ShouldPrepareGlobalDistanceField(EShaderPlatform ShaderPlatform);
 	float GetDistanceSceneNaniteLODScaleFactor();
 	float GetMaxTraceDistance();
 	bool UseIrradianceAtlas();
 	bool UseIndirectIrradianceAtlas();
-	bool AnyLumenHardwareRayTracingPassEnabled();
+	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();
-	bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily);
-	bool ShouldRenderLumenForViewWithoutMeshSDFs(const FScene* Scene, const FViewInfo& View);
-	bool ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View);
-	bool ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& View);
+	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing);
 	bool ShouldVisualizeHardwareRayTracing();
+	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 
 	// Hardware ray-traced reflections
 	bool UseHardwareRayTracedReflections();

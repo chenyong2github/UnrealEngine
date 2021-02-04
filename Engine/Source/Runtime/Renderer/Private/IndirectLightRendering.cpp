@@ -23,6 +23,26 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "Strata/Strata.h"
 
+// Must match EDynamicGlobalIlluminationMethod
+// Note: Default for new projects set by GameProjectUtils
+static TAutoConsoleVariable<int32> CVarDynamicGlobalIlluminationMethod(
+	TEXT("r.DynamicGlobalIlluminationMethod"), 0,
+	TEXT("0 - None.  Global Illumination can be baked into Lightmaps but no technique will be used for Dynamic Global Illumination.\n")
+	TEXT("1 - Lumen.  Use Lumen Global Illumination for all lights, emissive materials casting light and SkyLight Occlusion.  Requires 'Generate Mesh Distance Fields' enabled for Software Ray Tracing and 'Support Hardware Ray Tracing' enabled for Hardware Ray Tracing.\n")
+	TEXT("2 - SSGI.  Standalone Screen Space Global Illumination.  Low cost, but limited by screen space information.\n")
+	TEXT("3 - RTGI.  Ray Traced Global Illumination technique.  Deprecated, use Lumen Global Illumination instead."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+// Must match EReflectionMethod
+// Note: Default for new projects set by GameProjectUtils
+static TAutoConsoleVariable<int32> CVarReflectionMethod(
+	TEXT("r.ReflectionMethod"), 2,
+	TEXT("0 - None.  Reflections can come from placed Reflection Captures, Planar Reflections and Skylight but no global reflection method will be used.\n")
+	TEXT("1 - Lumen.  Use Lumen Reflections, which supports Screen / Software / Hardware Ray Tracing together and integrates with Lumen Global Illumination for rough reflections and Global Illumination seen in reflections.\n")
+	TEXT("2 - SSR.  Standalone Screen Space Reflections.  Low cost, but limited by screen space information.\n")
+	TEXT("3 - RT Reflections.  Ray Traced Reflections technique.  Deprecated, use Lumen Reflections instead."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 static TAutoConsoleVariable<int32> CVarDiffuseIndirectHalfRes(
 	TEXT("r.DiffuseIndirect.HalfRes"), 1,
 	TEXT("TODO(Guillaume)"),
@@ -309,18 +329,15 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 		EDiffuseIndirectMethod DiffuseIndirectMethod = EDiffuseIndirectMethod::Disabled;
 		EAmbientOcclusionMethod AmbientOcclusionMethod = EAmbientOcclusionMethod::Disabled;
 		EReflectionsMethod ReflectionsMethod = EReflectionsMethod::Disabled;
-
 		IScreenSpaceDenoiser::EMode DiffuseIndirectDenoiser = IScreenSpaceDenoiser::EMode::Disabled;
 		bool bUseLumenProbeHierarchy = false;
 
-		const bool bEnableSSGI = ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View);
-
-		if (ShouldRenderLumenDiffuseGI(View))
+		if (ShouldRenderLumenDiffuseGI(Scene, View, true))
 		{
 			DiffuseIndirectMethod = EDiffuseIndirectMethod::Lumen;
 			bUseLumenProbeHierarchy = CVarLumenProbeHierarchy.GetValueOnRenderThread() != 0;
 		}
-		else if (bEnableSSGI)
+		else if (ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View))
 		{
 			DiffuseIndirectMethod = EDiffuseIndirectMethod::SSGI;
 		}
@@ -330,7 +347,7 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
 		}
 		
-		if (bEnableSSGI && DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled)
+		if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled && ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View))
 		{
 			if (CVarLumenProbeHierarchy.GetValueOnRenderThread() && CVarStandaloneSSGIAllowLumenProbeHierarchy.GetValueOnRenderThread())
 			{
@@ -342,7 +359,7 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 				DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
 			}
 		}
-		else
+		else if (DiffuseIndirectMethod != EDiffuseIndirectMethod::Lumen)
 		{
 			extern bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View);
 
@@ -356,22 +373,21 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 			}
 		}
 
-		if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+		if (ShouldRenderLumenReflections(View, true))
 		{
-			// NOP
+			ReflectionsMethod = EReflectionsMethod::Lumen;
+		}
+		else if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+		{
+			ReflectionsMethod = EReflectionsMethod::Disabled;
 		}
 		else if (ShouldRenderRayTracingReflections(View))
 		{
 			ReflectionsMethod = EReflectionsMethod::RTR;
 		}
-		else
+		else if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View))
 		{
-			const bool bScreenSpaceReflections = ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View);
-
-			if (bScreenSpaceReflections)
-			{
-				ReflectionsMethod = EReflectionsMethod::SSR;
-			}
+			ReflectionsMethod = EReflectionsMethod::SSR;
 		}
 
 		ViewPipelineState.Set(&FPerViewPipelineState::DiffuseIndirectMethod, DiffuseIndirectMethod);
@@ -777,12 +793,15 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				bLumenUseDenoiserComposite,
 				MeshSDFGridParameters);
 
-			DenoiserOutputs.Textures[2] = RenderLumenReflections(
-				GraphBuilder,
-				View,
-				SceneTextures, 
-				MeshSDFGridParameters,
-				LumenReflectionCompositeParameters);
+			if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
+			{
+				DenoiserOutputs.Textures[2] = RenderLumenReflections(
+					GraphBuilder,
+					View,
+					SceneTextures, 
+					MeshSDFGridParameters,
+					LumenReflectionCompositeParameters);
+			}
 
 			if (!DenoiserOutputs.Textures[2])
 			{
@@ -836,10 +855,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 					RayTracingConfig);
 
 				AmbientOcclusionMask = DenoiserOutputs.Textures[1];
-			}
-			else
-			{
-				unimplemented();
 			}
 		}
 
@@ -1306,10 +1321,15 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	// If we're currently capturing a reflection capture, output SpecularColor * IndirectIrradiance for metals so they are not black in reflections,
 	// Since we don't have multiple bounce specular reflections
 	bool bReflectionCapture = false;
+	bool bGIMethodSupportsDFAO = false;
 	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
 		bReflectionCapture = bReflectionCapture || View.bIsReflectionCapture;
+
+		bGIMethodSupportsDFAO = bGIMethodSupportsDFAO 
+			|| GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled 
+			|| GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI;
 	}
 
 	if (bReflectionCapture)
@@ -1323,7 +1343,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
 		&& !Scene->SkyLight->bHasStaticLighting;
 
-	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily);
+	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily) && bGIMethodSupportsDFAO;
 	bool bApplySkyShadowing = false;
 	if (bDynamicSkyLight)
 	{
@@ -1383,18 +1403,16 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 		const FRayTracingReflectionOptions RayTracingReflectionOptions = GetRayTracingReflectionOptions(View, *Scene);
 
-		const bool bScreenSpaceReflections = !RayTracingReflectionOptions.bEnabled && ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View);
+		const bool bScreenSpaceReflections = !RayTracingReflectionOptions.bEnabled && ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR;
 		const bool bComposePlanarReflections = !RayTracingReflectionOptions.bEnabled && HasDeferredPlanarReflections(View);
 
-		const bool bOtherReflectionFlags = ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::RTR;
-
 		FRDGTextureRef ReflectionsColor = nullptr;
-		if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+		if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
 		{
 			// Specular was already comped with FDiffuseIndirectCompositePS
 			continue;
 		}
-		else if (RayTracingReflectionOptions.bEnabled || bScreenSpaceReflections || bOtherReflectionFlags)
+		else if (RayTracingReflectionOptions.bEnabled || bScreenSpaceReflections)
 		{
 			int32 DenoiserMode = GetReflectionsDenoiserMode();
 

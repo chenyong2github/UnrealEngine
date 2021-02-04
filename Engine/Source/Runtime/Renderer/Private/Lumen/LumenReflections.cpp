@@ -18,6 +18,14 @@
 
 extern FLumenGatherCvarState GLumenGatherCvars;
 
+int32 GAllowLumenReflections = 1;
+FAutoConsoleVariableRef CVarLumenAllowReflections(
+	TEXT("r.Lumen.Reflections.Allow"),
+	GAllowLumenReflections,
+	TEXT("Whether to allow Lumen Reflections.  Lumen Reflections is enabled in the project settings, this cvar can only disable it."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
 int32 GLumenReflectionDownsampleFactor = 1;
 FAutoConsoleVariableRef GVarLumenReflectionDownsampleFactor(
 	TEXT("r.Lumen.Reflections.DownsampleFactor"),
@@ -347,12 +355,17 @@ class FReflectionPassthroughCopyCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FReflectionPassthroughCopyCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionPassthroughCopyCS", SF_Compute);
 
 
-bool ShouldRenderLumenReflections(const FViewInfo& View)
+bool ShouldRenderLumenReflections(const FViewInfo& View, bool bRequireSoftwareTracing)
 {
 	const FScene* Scene = (const FScene*)View.Family->Scene;
 	if (Scene)
 	{
-		return Lumen::ShouldRenderLumenForView(Scene, View) && View.Family->EngineShowFlags.LumenReflections;
+		return Lumen::IsLumenFeatureAllowedForView(Scene, View, bRequireSoftwareTracing) 
+			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
+			//@todo - support standalone Lumen Reflections
+			&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
+			&& View.Family->EngineShowFlags.LumenReflections 
+			&& GAllowLumenReflections;
 	}
 	
 	return false;
@@ -532,10 +545,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
 
-	if (!ShouldRenderLumenReflections(View))
-	{
-		return nullptr;
-	}
+	check(ShouldRenderLumenReflections(View, true));
 
 	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenReflections");
@@ -543,7 +553,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 
 	FLumenReflectionTracingParameters ReflectionTracingParameters;
 
-	ReflectionTracingParameters.ReflectionDownsampleFactor = FMath::Clamp(GLumenReflectionDownsampleFactor, 1, 4);
+	const int32 UserDownsampleFactor = View.FinalPostProcessSettings.LumenReflectionQuality <= .25f ? 2 : 1;
+	ReflectionTracingParameters.ReflectionDownsampleFactor = FMath::Clamp(GLumenReflectionDownsampleFactor * UserDownsampleFactor, 1, 4);
 	ReflectionTracingParameters.ReflectionTracingViewSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
 	ReflectionTracingParameters.ReflectionTracingBufferSize = FIntPoint::DivideAndRoundUp(SceneTextures.Config.Extent, (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
 	ReflectionTracingParameters.MaxRayIntensity = GLumenReflectionMaxRayIntensity;
@@ -606,12 +617,14 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	FRDGTextureDesc SpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef ResolvedSpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("ResolvedSpecularIndirect"));
 
+	const int32 NumReconstructionSamples = FMath::Clamp(FMath::RoundToInt(View.FinalPostProcessSettings.LumenReflectionQuality * GLumenReflectionScreenSpaceReconstructionNumSamples), GLumenReflectionScreenSpaceReconstructionNumSamples, 64);
+
 	{
 		FReflectionResolveCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionResolveCS::FParameters>();
 		PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolvedSpecularIndirect));
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 		PassParameters->InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
-		PassParameters->NumSpatialReconstructionSamples = GLumenReflectionScreenSpaceReconstructionNumSamples;
+		PassParameters->NumSpatialReconstructionSamples = NumReconstructionSamples;
 		PassParameters->SpatialReconstructionKernelRadius = GLumenReflectionScreenSpaceReconstructionKernelRadius;
 		PassParameters->SpatialReconstructionRoughnessScale = GLumenReflectionScreenSpaceReconstructionRoughnessScale;
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;

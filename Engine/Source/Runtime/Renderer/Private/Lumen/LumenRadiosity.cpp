@@ -725,7 +725,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			false,
 			true /* Cosine distribution */);
 
-		const bool bRenderSkylight = ShouldRenderDynamicSkyLight(Scene, ViewFamily);
+		const bool bRenderSkylight = Lumen::ShouldHandleSkyLight(Scene, ViewFamily);
 
 		if (GLumenRadiosityComputeTraceBlocksScatter)
 		{

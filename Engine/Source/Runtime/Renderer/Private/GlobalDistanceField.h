@@ -33,6 +33,7 @@ extern void UpdateGlobalDistanceFieldVolume(
 	FViewInfo& View, 
 	FScene* Scene, 
 	float MaxOcclusionDistance, 
+	bool bLumenEnabled,
 	FGlobalDistanceFieldInfo& Info);
 
 class FGlobalDistanceFieldReadback

@@ -1567,7 +1567,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 		// Performs the screen space tracing first, given it can give the highest frequency detail.
 		{
-			bool bScreenSpaceProbeOcclusion = ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View) && CVarSSGIProbeOcclusion.GetValueOnRenderThread();
+			bool bScreenSpaceProbeOcclusion = View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid() && CVarSSGIProbeOcclusion.GetValueOnRenderThread();
 
 			if (bProbeOcclusion && bScreenSpaceProbeOcclusion)
 			{
@@ -1754,7 +1754,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		IndirectLightingAtlasParameters.ProbeAtlasSampleMask = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("ProbeHierarchy.ProbeAtlasSampleMask"));
 	}
 
-	if (ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View) && CVarScreenSpaceProbeTracing.GetValueOnRenderThread())
+	if (View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid() && CVarScreenSpaceProbeTracing.GetValueOnRenderThread())
 	{
 		ScreenSpaceRayTracing::TraceProbe(
 			GraphBuilder, View,

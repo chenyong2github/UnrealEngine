@@ -2765,15 +2765,17 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FCopyStencilToLightingChannelsPS, "/Engine/Private/DownsampleDepthPixelShader.usf", "CopyStencilToLightingChannelsPS", SF_Pixel);
 
-FRDGTextureRef CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureSRVRef SceneStencilTexture)
+FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, FRDGTextureSRVRef SceneStencilTexture)
 {
-	static IConsoleVariable* CVarLumen = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LumenScene"));
-	// Lumen uses a bit in stencil
-	bool bNeedToCopyStencilToTexture = CVarLumen->GetInt() > 0;
+	bool bNeedToCopyStencilToTexture = false;
 
 	for (int32 ViewIndex = 0, ViewCount = Views.Num(); ViewIndex < ViewCount; ++ViewIndex)
 	{
-		bNeedToCopyStencilToTexture = bNeedToCopyStencilToTexture || Views[ViewIndex].bUsesLightingChannels;
+		bNeedToCopyStencilToTexture = bNeedToCopyStencilToTexture 
+			|| Views[ViewIndex].bUsesLightingChannels
+			// Lumen uses a bit in stencil
+			|| GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen
+			|| GetViewPipelineState(Views[ViewIndex]).ReflectionsMethod == EReflectionsMethod::Lumen;
 	}
 
 	FRDGTextureRef LightingChannelsTexture = nullptr;

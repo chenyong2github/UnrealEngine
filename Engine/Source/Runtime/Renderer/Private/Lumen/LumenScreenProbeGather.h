@@ -17,8 +17,9 @@ extern int32 GLumenScreenProbeGatherNumMips;
 
 namespace LumenScreenProbeGather 
 {
-	extern int32 GetTracingOctahedronResolution();
-	extern bool UseImportanceSampling();
+	extern int32 GetTracingOctahedronResolution(const FViewInfo& View);
+	extern int32 IsProbeTracingResolutionSupportedForImportanceSampling(int32 TracingResolution);
+	extern bool UseImportanceSampling(const FViewInfo& View);
 	extern bool UseProbeSpatialFilter();
 	extern bool UseRadianceCache(const FViewInfo& View);
 }

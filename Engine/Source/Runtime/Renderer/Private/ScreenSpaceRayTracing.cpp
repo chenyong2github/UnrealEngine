@@ -43,11 +43,6 @@ static TAutoConsoleVariable<int32> CVarSSRStencil(
 	TEXT(" 0 is off (default), 1 is on"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarSSGIEnable(
-	TEXT("r.SSGI.Enable"), 0,
-	TEXT("Whether to enable SSGI (defaults to 0).\n"),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarSSGILeakFreeReprojection(
 	TEXT("r.SSGI.LeakFreeReprojection"), 1,
 	TEXT("Whether use a more expensive but leak free reprojection of previous frame's scene color.\n"),
@@ -94,7 +89,7 @@ static bool IsScreenSpaceDiffuseIndirectSupported(EShaderPlatform ShaderPlatform
 
 static bool SupportScreenSpaceDiffuseIndirect(const FViewInfo& View)
 {
-	if (CVarSSGIEnable.GetValueOnRenderThread() == 0)
+	if (View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod != EDynamicGlobalIlluminationMethod::ScreenSpace)
 	{
 		return false;
 	}
@@ -120,12 +115,12 @@ namespace ScreenSpaceRayTracing
 bool ShouldKeepBleedFreeSceneColor(const FViewInfo& View)
 {
 	// TODO(Guillaume): SSR as well.
-	return SupportScreenSpaceDiffuseIndirect(View) && CVarSSGILeakFreeReprojection.GetValueOnRenderThread() != 0;
+	return CVarSSGILeakFreeReprojection.GetValueOnRenderThread() != 0;
 }
 
 bool ShouldRenderScreenSpaceReflections(const FViewInfo& View)
 {
-	if(!View.Family->EngineShowFlags.ScreenSpaceReflections)
+	if(!View.Family->EngineShowFlags.ScreenSpaceReflections || View.FinalPostProcessSettings.ReflectionMethod != EReflectionMethod::ScreenSpace)
 	{
 		return false;
 	}

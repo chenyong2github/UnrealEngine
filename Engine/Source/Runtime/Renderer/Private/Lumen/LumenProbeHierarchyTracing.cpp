@@ -341,7 +341,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			const bool bLastLevel = (HierarchyLevelId + 1) == HierarchyParameters.HierarchyDepth;
 
 			FLumenVoxelTraceProbeCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenVoxelTraceProbeCS::FDynamicSkyLight>(ShouldRenderDynamicSkyLight(Scene, ViewFamily) && bLastLevel);
+			PermutationVector.Set<FLumenVoxelTraceProbeCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, ViewFamily) && bLastLevel);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceCards>(bTraceCards);
 			PermutationVector.Set<FLumenVoxelTraceProbeCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 			PermutationVector.Set<LumenProbeHierarchy::FProbeTracingPermutationDim>(

@@ -347,7 +347,7 @@ void FilterScreenProbes(
 
 		FScreenProbeCompositeTracesWithScatterCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeCompositeTracesWithScatterCS::FThreadGroupSize >(CompositeScatterThreadGroupSize);
-		PermutationVector.Set< FScreenProbeCompositeTracesWithScatterCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling());
+		PermutationVector.Set< FScreenProbeCompositeTracesWithScatterCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeCompositeTracesWithScatterCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

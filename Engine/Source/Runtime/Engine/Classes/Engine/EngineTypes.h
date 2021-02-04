@@ -346,6 +346,46 @@ namespace ETranslucentSortPolicy
 	};
 }
 
+// Note: Must match r.DynamicGlobalIlluminationMethod, this is used in URendererSettings
+UENUM()
+namespace EDynamicGlobalIlluminationMethod
+{
+	enum Type
+	{
+		/** No dynamic Global Illumination method will be used. Global Illumination can still be baked into lightmaps. */
+		None, 
+
+		/** Use Lumen Global Illumination for all lights, emissive materials casting light and SkyLight Occlusion.  Requires 'Generate Mesh Distance Fields' enabled for Software Ray Tracing and 'Support Hardware Ray Tracing' enabled for Hardware Ray Tracing. */
+		Lumen,
+
+		/** Standalone Screen Space Global Illumination.  Low cost, but limited by screen space information. */
+		ScreenSpace UMETA(DisplayName="Screen Space (Beta)"),
+
+		/** Ray Traced Global Illumination technique.  Deprecated, use Lumen Global Illumination instead. */
+		RayTraced UMETA(DisplayName="Ray Traced (Deprecated)"),
+	};
+}
+
+// Note: Must match r.ReflectionMethod, this is used in URendererSettings
+UENUM()
+namespace EReflectionMethod
+{
+	enum Type
+	{
+		/** No global reflection method will be used. Reflections can still come from Reflection Captures, Planar Reflections or a Skylight placed in the level. */
+		None, 
+
+		/** Use Lumen Reflections, which supports Screen / Software / Hardware Ray Tracing together and integrates with Lumen Global Illumination for rough reflections and Global Illumination seen in reflections. */
+		Lumen,
+
+		/** Standalone Screen Space Reflections.  Low cost, but limited by screen space information. */
+		ScreenSpace UMETA(DisplayName="Screen Space"),
+
+		/** Ray Traced Reflections technique.  Deprecated, use Lumen Reflections instead. */
+		RayTraced UMETA(DisplayName="Ray Traced (Deprecated)"),
+	};
+}
+
 /** Specifies which component of the scene rendering should be output to the final render target. */
 UENUM()
 enum ESceneCaptureSource 

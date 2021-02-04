@@ -203,12 +203,15 @@ FAutoConsoleVariableRef CVarRadianceCache(
 
 namespace LumenScreenProbeGather 
 {
-	int32 GetTracingOctahedronResolution()
+	int32 GetTracingOctahedronResolution(const FViewInfo& View)
 	{
-		return GLumenScreenProbeGatherReferenceMode ? 32 : GLumenScreenProbeTracingOctahedronResolution;
+		const float SqrtQuality = FMath::Sqrt(FMath::Max(View.FinalPostProcessSettings.LumenFinalGatherQuality, 0.0f));
+		const int32 TracingOctahedronResolution = FMath::Clamp(FMath::RoundToInt(SqrtQuality * GLumenScreenProbeTracingOctahedronResolution), 4, 16);
+		ensureMsgf(IsProbeTracingResolutionSupportedForImportanceSampling(TracingOctahedronResolution), TEXT("Tracing resolution %u requested that is not supported by importance sampling"), TracingOctahedronResolution);
+		return GLumenScreenProbeGatherReferenceMode ? 32 : TracingOctahedronResolution;
 	}
 
-	int32 GetGatherOctahedronResolution()
+	int32 GetGatherOctahedronResolution(int32 TracingOctahedronResolution)
 	{
 		if (GLumenScreenProbeGatherReferenceMode)
 		{
@@ -218,18 +221,23 @@ namespace LumenScreenProbeGather
 		if (GLumenScreenProbeGatherOctahedronResolutionScale >= 1.0f)
 		{
 			const int32 Multiplier = FMath::RoundToInt(GLumenScreenProbeGatherOctahedronResolutionScale);
-			return GLumenScreenProbeTracingOctahedronResolution * Multiplier;
+			return TracingOctahedronResolution * Multiplier;
 		}
 		else
 		{
 			const int32 Divisor = FMath::RoundToInt(1.0f / FMath::Max(GLumenScreenProbeGatherOctahedronResolutionScale, .1f));
-			return GLumenScreenProbeTracingOctahedronResolution / Divisor;
+			return TracingOctahedronResolution / Divisor;
 		}
 	}
 	
-	int32 GetScreenDownsampleFactor()
+	int32 GetScreenDownsampleFactor(const FViewInfo& View)
 	{
-		return GLumenScreenProbeGatherReferenceMode ? 16 : GLumenScreenProbeDownsampleFactor;
+		if (GLumenScreenProbeGatherReferenceMode)
+		{
+			return 16;
+		}
+
+		return GLumenScreenProbeDownsampleFactor / (View.FinalPostProcessSettings.LumenFinalGatherQuality >= 6.0f ? 2 : 1);
 	}
 
 	bool UseScreenSpaceBentNormal()
@@ -961,7 +969,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenScreenProbeGather");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenScreenProbeGather);
 
-	check(ShouldRenderLumenDiffuseGI(View));
+	check(ShouldRenderLumenDiffuseGI(Scene, View, true));
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	if (!LightingChannelsTexture)
@@ -972,7 +980,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	if (!GLumenScreenProbeGather)
 	{
 		FSSDSignalTextures ScreenSpaceDenoiserInputs;
-		ScreenSpaceDenoiserInputs.Textures[0] = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		ScreenSpaceDenoiserInputs.Textures[0] = SystemTextures.Black;
 		FRDGTextureDesc RoughSpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 		ScreenSpaceDenoiserInputs.Textures[1] = GraphBuilder.CreateTexture(RoughSpecularIndirectDesc, TEXT("RoughSpecularIndirect"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenSpaceDenoiserInputs.Textures[1])), FLinearColor::Black);
@@ -984,11 +992,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
 
 	FScreenProbeParameters ScreenProbeParameters;
-	ScreenProbeParameters.ScreenProbeTracingOctahedronResolution = LumenScreenProbeGather::GetTracingOctahedronResolution();
+	ScreenProbeParameters.ScreenProbeTracingOctahedronResolution = LumenScreenProbeGather::GetTracingOctahedronResolution(View);
 	ensureMsgf(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution < (1 << 6) - 1, TEXT("Tracing resolution %u was larger than supported by PackRayInfo()"), ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
-	ScreenProbeParameters.ScreenProbeGatherOctahedronResolution = LumenScreenProbeGather::GetGatherOctahedronResolution();
-	ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder = LumenScreenProbeGather::GetGatherOctahedronResolution() + 2 * (1 << (GLumenScreenProbeGatherNumMips - 1));
-	ScreenProbeParameters.ScreenProbeDownsampleFactor = LumenScreenProbeGather::GetScreenDownsampleFactor();
+	ScreenProbeParameters.ScreenProbeGatherOctahedronResolution = LumenScreenProbeGather::GetGatherOctahedronResolution(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
+	ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder = ScreenProbeParameters.ScreenProbeGatherOctahedronResolution + 2 * (1 << (GLumenScreenProbeGatherNumMips - 1));
+	ScreenProbeParameters.ScreenProbeDownsampleFactor = LumenScreenProbeGather::GetScreenDownsampleFactor(View);
 
 	ScreenProbeParameters.ScreenProbeViewSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), (int32)ScreenProbeParameters.ScreenProbeDownsampleFactor);
 	ScreenProbeParameters.ScreenProbeAtlasViewSize = ScreenProbeParameters.ScreenProbeViewSize;
@@ -1034,7 +1042,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("DownsampleDepthUniform"),
+			RDG_EVENT_NAME("DownsampleDepthUniform Factor=%u", ScreenProbeParameters.ScreenProbeDownsampleFactor),
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(ScreenProbeParameters.ScreenProbeViewSize, FScreenProbeDownsampleDepthUniformCS::GetGroupSize()));
@@ -1156,7 +1164,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			RadianceCacheParameters);
 	}
 
-	if (LumenScreenProbeGather::UseImportanceSampling())
+	if (LumenScreenProbeGather::UseImportanceSampling(View))
 	{
 		GenerateImportanceSamplingRays(
 			GraphBuilder,

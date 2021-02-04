@@ -85,7 +85,7 @@ static TAutoConsoleVariable<int32> CVarDistFieldRes(
 
 static TAutoConsoleVariable<float> CVarDistFieldResScale(
 	TEXT("r.DistanceFields.DefaultVoxelDensity"),
-	.1f,	
+	.2f,	
 	TEXT("Determines how the default scale of a mesh converts into distance field voxel dimensions.\n")
 	TEXT("Changing this will cause all distance fields to be rebuilt.  Large values can consume memory very quickly!"),
 	ECVF_ReadOnly);
@@ -126,13 +126,6 @@ static TAutoConsoleVariable<float> CVarDistFieldRuntimeDownsampling(
 	TEXT("r.DistanceFields.RuntimeDownsamplingFactor"),
 	0,
 	TEXT("When enabled (higher than 0 and lower than 1), mesh distance field will be downsampled by factor value on GPU and uploaded to the atlas."),
-	ECVF_Default);
-
-static TAutoConsoleVariable<int32> CVarLandscapeGI(
-	TEXT("r.GenerateLandscapeGIData"),
-	0,
-	TEXT("Whether to generate a low-resolution base color texture for landscapes for rendering real-time global illumination.\n")
-	TEXT("This feature requires GenerateMeshDistanceFields is also enabled, and will increase mesh build times and memory usage.\n"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarDistFieldForceMaxAtlasSize(

@@ -314,7 +314,7 @@ SHOWFLAG_ALWAYS_ACCESSIBLE(ScreenSpaceAO, SFG_LightingFeatures, NSLOCTEXT("Unrea
 /** Distance field AO, for now SHOWFLAG_ALWAYS_ACCESSIBLE because it's exposed in SceneCapture */
 SHOWFLAG_ALWAYS_ACCESSIBLE(DistanceFieldAO, SFG_LightingFeatures, NSLOCTEXT("UnrealEd", "DistanceFieldAOSF", "Distance Field Ambient Occlusion"))
 /** Lumen GI */
-SHOWFLAG_ALWAYS_ACCESSIBLE(LumenDiffuseIndirect, SFG_LightingFeatures, NSLOCTEXT("UnrealEd", "LumenDiffuseIndirectSF", "Lumen Global Illumination"))
+SHOWFLAG_ALWAYS_ACCESSIBLE(LumenGlobalIllumination, SFG_LightingFeatures, NSLOCTEXT("UnrealEd", "LumenGlobalIlluminationSF", "Lumen Global Illumination"))
 /** SHOWFLAG_ALWAYS_ACCESSIBLE because it's exposed in SceneCapture */
 SHOWFLAG_ALWAYS_ACCESSIBLE(VolumetricFog, SFG_LightingFeatures, NSLOCTEXT("UnrealEd", "VolumetricFogSF", "Volumetric Fog"))
 /** Visualize screen space reflections, for developer (by default off): */

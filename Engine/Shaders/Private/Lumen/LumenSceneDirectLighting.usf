@@ -213,7 +213,6 @@ void LumenCardDirectLightingPS(
 			if (dot(WorldNormal, L) > 0)
 			{
 				float ShadowFactor = 1.0f;
-				bool bShadowFactorComplete = true;
 
 				#if SHADOWED_LIGHT 
 				{
@@ -225,17 +224,19 @@ void LumenCardDirectLightingPS(
 					}
 					#else
 					{
+						bool bShadowFactorComplete = false;
+
 						#if VIRTUAL_SHADOW_MAP
 						{
 							// Bias only ray start to maximize chances of hitting an allocated page
 							FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, WorldNormal, VirtualShadowMapSurfaceBias);
 
-							bShadowFactorComplete = VirtualShadowMapSample.bValid;
+							bShadowFactorComplete = VirtualShadowMapSample.bValid && VirtualShadowMapSample.bOccluded;
 							ShadowFactor = VirtualShadowMapSample.bValid && VirtualShadowMapSample.bOccluded ? 0.0f : 1.0f;
 						}
 						#endif
 
-						if (ShadowFactor > 0.0f)
+						if (!bShadowFactorComplete)
 						{
 							float3 WorldPositionForShadowing = GetWorldPositionForShadowing(WorldPosition, L, WorldNormal, 1.0f);
 
@@ -245,26 +246,33 @@ void LumenCardDirectLightingPS(
 									float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
 
 									bool bShadowingFromValidUVArea = false;
+									float NewShadowFactor = 1.0f;
 									#if VIRTUAL_SHADOW_MAP
-										ShadowFactor *= ComputeDirectionalLightDynamicShadowingNonNanite(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
+										NewShadowFactor = ComputeDirectionalLightDynamicShadowingNonNanite(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
 									#else
-										ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
+										NewShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
 									#endif
 
 									float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
 									// CSM's are culled so only query points inside the view are valid
 									float2 ValidTexelSize = float2(length(ddx(WorldPosition)), length(ddy(WorldPosition))) * 2;
-									bShadowFactorComplete = bShadowFactorComplete && bShadowingFromValidUVArea && all(PostProjectionPosition.xy - ValidTexelSize < PostProjectionPosition.w&& PostProjectionPosition.xy + ValidTexelSize > -PostProjectionPosition.w);
-								#else
-									bShadowFactorComplete = true;
-									ShadowFactor *= ComputeDirectionalLightStaticShadowing(WorldPositionForShadowing);
+									if (bShadowingFromValidUVArea && all(PostProjectionPosition.xy - ValidTexelSize < PostProjectionPosition.w&& PostProjectionPosition.xy + ValidTexelSize > -PostProjectionPosition.w))
+									{ 
+										ShadowFactor *= NewShadowFactor;
+										bShadowFactorComplete = true;
+									}
 								#endif
 							}
 							#else
 							{
 								bool bShadowingFromValidUVArea = false;
-								ShadowFactor *= ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
-								bShadowFactorComplete = bShadowFactorComplete && bShadowingFromValidUVArea;
+								float NewShadowFactor = ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
+
+								if (bShadowingFromValidUVArea) 
+								{
+									ShadowFactor *= NewShadowFactor;
+									bShadowFactorComplete = true;
+								}
 							}
 							#endif
 						}

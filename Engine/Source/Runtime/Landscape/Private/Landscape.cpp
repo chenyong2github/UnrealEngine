@@ -3890,10 +3890,8 @@ void ALandscapeProxy::UpdateGIBakedTextureStatus(bool* bOutGenerateLandscapeGIDa
 	int32 ComponentsNeedToBeCleared = 0;
 	int32 ComponentsNeedToBeBaked = 0;
 
-	// Check if we want to generate landscape GI data
-	static const auto DistanceFieldCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-	static const auto LandscapeGICVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateLandscapeGIData"));
-	if (DistanceFieldCVar->GetValueOnGameThread() == 0 || LandscapeGICVar->GetValueOnGameThread() == 0)
+	//@todo - remove Landscape GI Data
+	if (true)
 	{
 		if (bOutGenerateLandscapeGIData)
 		{

@@ -504,6 +504,9 @@ void RenderDirectLightIntoLumenCards(
 			bDynamicallyShadowed,
 			PassParameters->PS.VolumeShadowingShaderParameters);
 
+		// Remove dependency on static lighting, always trace shadows for built Stationary and Static lights
+		PassParameters->PS.VolumeShadowingShaderParameters.bStaticallyShadowed = false;
+
 		FDeferredLightUniformStruct DeferredLightUniforms = GetDeferredLightParameters(View, *LightSceneInfo);
 
 		if (LightSceneInfo->Proxy->IsInverseSquared())
@@ -620,7 +623,6 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 	if (GLumenDirectLighting)
 	{
-		check(Lumen::ShouldPrepareGlobalDistanceField(ShaderPlatform));
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
 		QUICK_SCOPE_CYCLE_COUNTER(RenderDirectLightingForLumenScene);
 

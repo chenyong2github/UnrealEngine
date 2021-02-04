@@ -128,16 +128,18 @@ LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputs()
 
 void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures)
 {
-	if (GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& Views.Num() == 1
-		&& Views[0].ViewState
+	const FViewInfo& View = Views[0];
+	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
+
+	if (Views.Num() == 1
+		&& View.ViewState
+		&& bAnyLumenActive
 		&& LumenScreenProbeGather::UseRadianceCache(Views[0])
 		&& GLumenRadianceCacheVisualize != 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenRadianceCache");
 
-		const FViewInfo& View = Views[0];
 		const FRadianceCacheState& RadianceCacheState = GLumenVisualizeRadiosityIrradianceCache ? Views[0].ViewState->RadiosityRadianceCacheState : Views[0].ViewState->RadianceCacheState;
 
 		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;

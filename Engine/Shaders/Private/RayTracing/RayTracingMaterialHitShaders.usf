@@ -186,8 +186,8 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	#endif
 
 	// Apply indirect lighting scale while we have only accumulated lightmaps
-	OutDiffuseLighting *= View.IndirectLightingColorScale;
-	OutSubsurfaceLighting *= View.IndirectLightingColorScale;
+	OutDiffuseLighting *= View.PrecomputedIndirectLightingColorScale;
+	OutSubsurfaceLighting *= View.PrecomputedIndirectLightingColorScale;
 
 	float3 SkyDiffuseLighting;
 	float3 SkySubsurfaceLighting;

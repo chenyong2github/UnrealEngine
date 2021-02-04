@@ -303,7 +303,6 @@ class FLumenCardTracingInputs
 public:
 
 	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View);
-	void ExtractToScene(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View);
 
 	FRDGTextureRef FinalLightingAtlas;
 	FRDGTextureRef IrradianceAtlas;
@@ -463,7 +462,6 @@ extern void CullForCardTracing(
 
 extern void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutParameters);
 extern void SetupLumenDiffuseTracingParametersForProbe(FLumenIndirectTracingParameters& OutParameters, float DiffuseConeAngle);
-extern bool ShouldRenderLumenReflections(const FViewInfo& View);
 extern void ClearAtlasRDG(FRDGBuilder& GraphBuilder, FRDGTextureRef AtlasTexture);
 extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
 extern int32 GetNumLumenVoxelClipmaps();

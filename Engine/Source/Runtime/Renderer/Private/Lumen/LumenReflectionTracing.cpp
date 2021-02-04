@@ -498,7 +498,7 @@ void TraceReflections(
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
 		FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FReflectionTraceVoxelsCS::FDynamicSkyLight >(ShouldRenderDynamicSkyLight(Scene, *View.Family));
+		PermutationVector.Set< FReflectionTraceVoxelsCS::FDynamicSkyLight >(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceVoxelsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

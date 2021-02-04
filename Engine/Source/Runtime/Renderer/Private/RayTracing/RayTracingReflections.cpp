@@ -389,7 +389,7 @@ static float GetRayTracingReflectionsMaxRoughness(const FViewInfo& View)
 
 bool ShouldRenderRayTracingReflections(const FViewInfo& View)
 {
-	const bool bThisViewHasRaytracingReflections = View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing;
+	const bool bThisViewHasRaytracingReflections = View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::RayTraced;
 	
 	const bool bReflectionsCvarEnabled = GRayTracingReflections < 0 
 		? bThisViewHasRaytracingReflections 

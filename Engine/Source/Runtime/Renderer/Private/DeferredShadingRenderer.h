@@ -471,8 +471,6 @@ private:
 		const FMinimalSceneTextures& SceneTextures,
 		const FDistanceFieldAOParameters& Parameters);
 
-	bool ShouldRenderLumenDiffuseGI(const FViewInfo& View) const;
-
 	FSSDSignalTextures RenderLumenScreenProbeGather(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
@@ -743,6 +741,10 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		const FSimpleLightArray& SimpleLights);
+
+	FRDGTextureRef CopyStencilToLightingChannelTexture(
+		FRDGBuilder& GraphBuilder, 
+		FRDGTextureSRVRef SceneStencilTexture);
 
 	bool ShouldRenderVolumetricFog() const;
 

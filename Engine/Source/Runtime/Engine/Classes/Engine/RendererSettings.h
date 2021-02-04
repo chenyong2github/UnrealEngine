@@ -207,6 +207,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 	uint32 bMobileVirtualTextures : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
+		ConsoleVariable = "r.Mobile.ReflectionCaptureCompression", DisplayName = "Mobile Reflection Capture Compression",
+		ToolTip = "Whether to use the Reflection Capture Compression or not for mobile. It will use ETC2 format to do the compression."))
+	uint32 bReflectionCaptureCompression : 1;
+
 	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
 		ConsoleVariable = "r.DiscardUnusedQuality", DisplayName = "Game Discards Unused Material Quality Levels",
 		ToolTip = "When running in game mode, whether to keep shaders for all quality levels in memory or only those needed for the current quality level.\nUnchecked: Keep all quality levels in memory allowing a runtime quality level change. (default)\nChecked: Discard unused quality levels when loading content for the game, saving some memory."))
@@ -311,6 +316,16 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable = "r.ClearCoatNormal",
 		ToolTip = "Use a separate normal map for the bottom layer of a clear coat material. This is a higher quality feature that is expensive."))
 	uint32 bClearCoatEnableSecondNormal : 1;
+	
+	UPROPERTY(config, EditAnywhere, Category = GlobalIllumination, meta=(
+		ConsoleVariable="r.DynamicGlobalIlluminationMethod",DisplayName="Dynamic Global Illumination Method",
+		ToolTip="Dynamic Global Illumination Method"))
+	TEnumAsByte<EDynamicGlobalIlluminationMethod::Type> DynamicGlobalIllumination;
+
+	UPROPERTY(config, EditAnywhere, Category=Reflections, meta=(
+		ConsoleVariable="r.ReflectionMethod",DisplayName="Reflection Method",
+		ToolTip="Reflection Method"))
+	TEnumAsByte<EReflectionMethod::Type> Reflections;
 
 	UPROPERTY(config, EditAnywhere, Category = Reflections, meta = (
 		ConsoleVariable = "r.ReflectionCaptureResolution", DisplayName = "Reflection Capture Resolution",
@@ -318,14 +333,55 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	int32 ReflectionCaptureResolution;
 
 	UPROPERTY(config, EditAnywhere, Category = Reflections, meta = (
-		ConsoleVariable = "r.Mobile.ReflectionCaptureCompression", DisplayName = "Mobile Reflection Capture Compression",
-		ToolTip = "Whether to use the Reflection Capture Compression or not for mobile. It will use ETC2 format to do the compression."))
-	uint32 bReflectionCaptureCompression : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = Reflections, meta = (
 		ConsoleVariable = "r.ReflectionEnvironmentLightmapMixBasedOnRoughness", DisplayName = "Reduce lightmap mixing on smooth surfaces",
 		ToolTip = "Whether to reduce lightmap mixing with reflection captures for very smooth surfaces.  This is useful to make sure reflection captures match SSR / planar reflections in brightness."))
 	uint32 ReflectionEnvironmentLightmapMixBasedOnRoughness : 1;
+
+	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
+		ConsoleVariable="r.AllowStaticLighting",
+		ToolTip="Whether to allow any static lighting to be generated and used, like lightmaps and shadowmaps. Games that only use dynamic lighting should set this to 0 to save some static lighting overhead. Disabling allows Material AO and Material BentNormal to work with Lumen Global Illumination.  Changing this setting requires restarting the editor.",
+		ConfigRestartRequired=true))
+	uint32 bAllowStaticLighting:1;
+
+	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
+		ConsoleVariable="r.NormalMapsForStaticLighting",
+		ToolTip="Whether to allow any static lighting to use normal maps for lighting computations."))
+	uint32 bUseNormalMapsForStaticLighting:1;
+
+	/**
+	"Ray Tracing settings."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
+		ConsoleVariable = "r.RayTracing", DisplayName = "Support Hardware Ray Tracing",
+		ToolTip = "Support Hardware Ray Tracing features.  Requires 'Support Compute Skincache' before project is allowed to set this.",
+		ConfigRestartRequired = true))
+		uint32 bEnableRayTracing : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
+		ConsoleVariable = "r.RayTracing.UseTextureLod", DisplayName = "Texture LOD",
+		ToolTip = "Enable automatic texture mip level selection in ray tracing material shaders. Unchecked: highest resolution mip level is used for all texture (default). Checked: texture LOD is approximated based on total ray length, output resolution and texel density at hit point (ray cone method).",
+		ConfigRestartRequired = true))
+		uint32 bEnableRayTracingTextureLOD : 1;
+
+	UPROPERTY(config, EditAnywhere, Category=SoftwareRayTracing, meta=(
+		ConsoleVariable="r.GenerateMeshDistanceFields",
+		ToolTip="Whether to build distance fields of static meshes, needed for Software Ray Tracing in Lumen, and distance field AO, which is used to implement Movable SkyLight shadows, and ray traced distance field shadows on directional lights.  Enabling will increase the build times, memory usage and disk size of static meshes.  Changing this setting requires restarting the editor.",
+		ConfigRestartRequired=true))
+	uint32 bGenerateMeshDistanceFields:1;
+
+	UPROPERTY(config, EditAnywhere, Category=SoftwareRayTracing, meta=(
+		EditCondition = "bGenerateMeshDistanceFields",
+		ConsoleVariable="r.DistanceFieldBuild.EightBit",
+		ToolTip="Whether to store mesh distance fields in an 8 bit fixed point format instead of 16 bit floating point.  8 bit uses half the memory, but introduces artifacts for large meshes or thin meshes.  Changing this setting requires restarting the editor.",
+		ConfigRestartRequired=true))
+	uint32 bEightBitMeshDistanceFields:1;
+
+	UPROPERTY(config, EditAnywhere, Category=SoftwareRayTracing, meta=(
+		EditCondition = "bGenerateMeshDistanceFields",
+		ConsoleVariable="r.DistanceFieldBuild.Compress",
+		ToolTip="Whether to store mesh distance fields compressed in memory, which reduces how much memory they take, but also causes serious hitches when making new levels visible.  Only enable if your project does not stream levels in-game.  Changing this setting requires restarting the editor.",
+		ConfigRestartRequired=true))
+	uint32 bCompressMeshDistanceFields:1;
 
 	UPROPERTY(config, EditAnywhere, Category=ForwardRenderer, meta=(
 		ConsoleVariable="r.ForwardShading",
@@ -340,44 +396,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired=true))
 	uint32 bVertexFoggingForOpaque:1;
 
-	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
-		ConsoleVariable="r.AllowStaticLighting",
-		ToolTip="Whether to allow any static lighting to be generated and used, like lightmaps and shadowmaps. Games that only use dynamic lighting should set this to 0 to save some static lighting overhead. Changing this setting requires restarting the editor.",
-		ConfigRestartRequired=true))
-	uint32 bAllowStaticLighting:1;
-
-	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
-		ConsoleVariable="r.NormalMapsForStaticLighting",
-		ToolTip="Whether to allow any static lighting to use normal maps for lighting computations."))
-	uint32 bUseNormalMapsForStaticLighting:1;
-
-	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
-		ConsoleVariable="r.GenerateMeshDistanceFields",
-		ToolTip="Whether to build distance fields of static meshes, needed for distance field AO, which is used to implement Movable SkyLight shadows, and ray traced distance field shadows on directional lights.  Enabling will increase mesh build times and memory usage.  Changing this setting requires restarting the editor.",
-		ConfigRestartRequired=true))
-	uint32 bGenerateMeshDistanceFields:1;
-
-	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
-		EditCondition = "bGenerateMeshDistanceFields",
-		ConsoleVariable="r.DistanceFieldBuild.EightBit",
-		ToolTip="Whether to store mesh distance fields in an 8 bit fixed point format instead of 16 bit floating point.  8 bit uses half the memory, but introduces artifacts for large meshes or thin meshes.  Changing this setting requires restarting the editor.",
-		ConfigRestartRequired=true))
-	uint32 bEightBitMeshDistanceFields:1;
-
-	UPROPERTY(config, EditAnywhere, Category = Lighting, meta = (
-		EditCondition = "bGenerateMeshDistanceFields",
-		ConsoleVariable = "r.GenerateLandscapeGIData", DisplayName = "Generate Landscape Real-time GI Data",
-		ToolTip = "Whether to generate a low-resolution base color texture for landscapes for rendering real-time global illumination.  This feature requires GenerateMeshDistanceFields is also enabled, and will increase mesh build times and memory usage."))
-	uint32 bGenerateLandscapeGIData : 1;
-
-	UPROPERTY(config, EditAnywhere, Category=Lighting, meta=(
-		EditCondition = "bGenerateMeshDistanceFields",
-		ConsoleVariable="r.DistanceFieldBuild.Compress",
-		ToolTip="Whether to store mesh distance fields compressed in memory, which reduces how much memory they take, but also causes serious hitches when making new levels visible.  Only enable if your project does not stream levels in-game.  Changing this setting requires restarting the editor.",
-		ConfigRestartRequired=true))
-	uint32 bCompressMeshDistanceFields:1;
-
-	UPROPERTY(config, EditAnywhere, Category=Tessellation, meta=(
+	UPROPERTY(config, EditAnywhere, Category=Materials, meta=(
 		ConsoleVariable="r.TessellationAdaptivePixelsPerTriangle",DisplayName="Adaptive pixels per triangle",
 		ToolTip="When adaptive tessellation is enabled it will try to tessellate a mesh so that each triangle contains the specified number of pixels. The tessellation multiplier specified in the material can increase or decrease the amount of tessellation."))
 	float TessellationAdaptivePixelsPerTriangle;
@@ -478,11 +497,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Whether to do primary screen percentage with temporal AA or not."))
 	uint32 bTemporalUpsampling : 1;
 
-	UPROPERTY(config, EditAnywhere, Category = Lighting, meta = (
-		ConsoleVariable = "r.SSGI.Enable", DisplayName = "Screen Space Global Illumination (Beta)",
-		ToolTip = "Whether enable screen space global illumination."))
-	uint32 bSSGI : 1;
-
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.AntiAliasing", DisplayName = "Anti-Aliasing Method",
 		ToolTip = "Which anti-aliasing mode is used by default"))
@@ -574,7 +588,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 	int32 GPUSimulationTextureSizeY;
 
-	UPROPERTY(config, EditAnywhere, Category = Lighting, meta = (
+	UPROPERTY(config, EditAnywhere, Category = Reflections, meta = (
 		ConsoleVariable = "r.AllowGlobalClipPlane", DisplayName = "Support global clip plane for Planar Reflections",
 		ToolTip = "Whether to support the global clip plane needed for planar reflections.  Enabling this increases BasePass triangle cost by ~15% regardless of whether planar reflections are active. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
@@ -643,21 +657,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable="r.WireframeCullThreshold",DisplayName="Wireframe Cull Threshold",
 		ToolTip="Screen radius at which wireframe objects are culled. Larger values can improve performance when viewing a scene in wireframe."))
 	float WireframeCullThreshold;
-
-	/**
-	"Ray Tracing settings."
-	*/
-	UPROPERTY(config, EditAnywhere, Category = RayTracing, meta = (
-		ConsoleVariable = "r.RayTracing", DisplayName = "Ray Tracing",
-		ToolTip = "Enable Ray Tracing capabilities.  Requires 'Support Compute Skincache' before project is allowed to set this.",
-		ConfigRestartRequired = true))
-		uint32 bEnableRayTracing : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = RayTracing, meta = (
-		ConsoleVariable = "r.RayTracing.UseTextureLod", DisplayName = "Texture LOD",
-		ToolTip = "Enable automatic texture mip level selection in ray tracing material shaders. Unchecked: highest resolution mip level is used for all texture (default). Checked: texture LOD is approximated based on total ray length, output resolution and texel density at hit point (ray cone method).",
-		ConfigRestartRequired = true))
-		uint32 bEnableRayTracingTextureLOD : 1;
 
 	/**
 	"Stationary skylight requires permutations of the basepass shaders.  Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."

@@ -216,7 +216,12 @@ IMPLEMENT_GLOBAL_SHADER(FScreenProbeGenerateRaysCS, "/Engine/Private/Lumen/Lumen
 
 namespace LumenScreenProbeGather
 {
-	bool UseImportanceSampling()
+	int32 IsProbeTracingResolutionSupportedForImportanceSampling(int32 TracingResolution)
+	{
+		return FScreenProbeGenerateRaysCS::GetThreadGroupSize(TracingResolution) != MAX_uint32;
+	}
+
+	bool UseImportanceSampling(const FViewInfo& View)
 	{
 		if (GLumenScreenProbeGatherReferenceMode)
 		{
@@ -224,8 +229,8 @@ namespace LumenScreenProbeGather
 		}
 
 		// Shader permutations only created for these resolutions
-		const int32 TracingResolution = GetTracingOctahedronResolution();
-		return GLumenScreenProbeImportanceSampling != 0 && FScreenProbeGenerateRaysCS::GetThreadGroupSize(TracingResolution) != MAX_uint32;
+		const int32 TracingResolution = GetTracingOctahedronResolution(View);
+		return GLumenScreenProbeImportanceSampling != 0 && IsProbeTracingResolutionSupportedForImportanceSampling(TracingResolution);
 	}
 }
 
@@ -382,7 +387,7 @@ void GenerateImportanceSamplingRays(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("GenerateRays"),
+			RDG_EVENT_NAME("GenerateRays %ux%u", GenerateRaysGroupSize, GenerateRaysGroupSize),
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,

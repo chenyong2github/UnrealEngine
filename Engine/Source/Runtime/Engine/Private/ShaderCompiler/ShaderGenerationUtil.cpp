@@ -255,6 +255,13 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcD
 // if we change the logic, increment this number to force a DDC key change
 static const int32 GBufferGeneratorVersion = 3;
 
+bool NeedsVelocityDepth(EShaderPlatform TargetPlatform)
+{
+	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	return (CMeshSDFVar->GetValueOnAnyThread() != 0 && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(TargetPlatform)) 
+		|| FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(TargetPlatform);
+}
+
 static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatform)
 {
 	FShaderGlobalDefines Ret = {};
@@ -390,9 +397,7 @@ static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatf
 	Ret.bSupportsDualBlending = RHISupportsDualSourceBlending(TargetPlatform);
 
 	{
-		static IConsoleVariable* CVarLumen = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LumenScene"));
-		Ret.bNeedVelocityDepth = CVarLumen->GetInt() > 0 || FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(TargetPlatform);
-		//Ret.bNeedVelocityDepth ? PF_A16B16G16R16 : PF_G16R16;
+		Ret.bNeedVelocityDepth = NeedsVelocityDepth(TargetPlatform);
 	}
 
 	{
@@ -2062,8 +2067,7 @@ ENGINE_API FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(ESh
 	Ret.bHasVelocity = IsUsingBasePassVelocity(Platform) ? 1 : 0;
 	Ret.bHasTangent = false;//BasePassCanOutputTangent(ShaderPlatform) ? 1 : 0;
 
-	static IConsoleVariable* CVarLumen = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LumenScene"));
-	Ret.bUsesVelocityDepth = CVarLumen->GetInt() > 0 || FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
+	Ret.bUsesVelocityDepth = NeedsVelocityDepth(Platform);
 
 	static const auto CVarFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
 	Ret.LegacyFormatIndex = CVarFormat->GetValueOnAnyThread();
@@ -2084,8 +2088,7 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatfo
 	Ret.bHasTangent = false;//BasePassCanOutputTangent(TargetPlatform) ? 1 : 0;
 
 	{
-		static IConsoleVariable* CVarLumen = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LumenScene"));
-		Ret.bUsesVelocityDepth = CVarLumen->GetInt() > 0 || FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
+		Ret.bUsesVelocityDepth = NeedsVelocityDepth(Platform);
 	}
 
 	{

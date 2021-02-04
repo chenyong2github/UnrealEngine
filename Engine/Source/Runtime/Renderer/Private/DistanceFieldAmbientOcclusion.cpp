@@ -651,7 +651,7 @@ bool SupportsDistanceFieldAO(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatfor
 		&& IsUsingDistanceFields(ShaderPlatform);
 }
 
-bool ShouldRenderDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)
+bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)
 {
 	return Scene->SkyLight
 		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
@@ -660,24 +660,28 @@ bool ShouldRenderDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& Vi
 		&& ViewFamily.EngineShowFlags.SkyLighting
 		&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5
 		&& !IsAnyForwardShadingEnabled(Scene->GetShaderPlatform())
-		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
-}
-
-bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)
-{
-	return ShouldRenderDynamicSkyLight(Scene, ViewFamily)
-		&& !ShouldRenderRayTracingSkyLight(Scene->SkyLight) // Disable diffuse sky contribution if evaluated by RT Sky.
-		&& !Lumen::ShouldRenderLumenForViewFamily(Scene, ViewFamily);
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ShouldRenderRayTracingSkyLight(Scene->SkyLight); // Disable diffuse sky contribution if evaluated by RT Sky;
 }
 
 bool FDeferredShadingSceneRenderer::ShouldPrepareForDistanceFieldAO() const
 {
+	bool bAnyViewHasSupportingGIMethod = false;
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		if (GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled || GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+		{
+			bAnyViewHasSupportingGIMethod = true;
+		}
+	}
+
 	return SupportsDistanceFieldAO(Scene->GetFeatureLevel(), Scene->GetShaderPlatform())
-		&& ((ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily) && Scene->SkyLight->bCastShadows && ViewFamily.EngineShowFlags.DistanceFieldAO)
+		&& ((ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily) && bAnyViewHasSupportingGIMethod && Scene->SkyLight->bCastShadows && ViewFamily.EngineShowFlags.DistanceFieldAO)
 			|| ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields
 			|| ViewFamily.EngineShowFlags.VisualizeGlobalDistanceField
 			|| ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO
-			|| (GDistanceFieldAOApplyToStaticIndirect && ViewFamily.EngineShowFlags.DistanceFieldAO));
+			|| (GDistanceFieldAOApplyToStaticIndirect && bAnyViewHasSupportingGIMethod && ViewFamily.EngineShowFlags.DistanceFieldAO));
 }
 
 bool FDeferredShadingSceneRenderer::ShouldPrepareDistanceFieldScene() const
@@ -713,7 +717,9 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareGlobalDistanceField() const
 			|| ((Views.Num() > 0) && Views[0].bUsesGlobalDistanceField)
 			|| ((FXSystem != nullptr) && FXSystem->UsesGlobalDistanceField()));
 
-	bShouldPrepareForAO = bShouldPrepareForAO || Lumen::ShouldPrepareGlobalDistanceField(ShaderPlatform);
+	bShouldPrepareForAO = bShouldPrepareForAO 
+		|| GetViewPipelineState(Views[0]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen 
+		|| GetViewPipelineState(Views[0]).ReflectionsMethod == EReflectionsMethod::Lumen;
 
 	return bShouldPrepareForAO && UseGlobalDistanceField();
 }
