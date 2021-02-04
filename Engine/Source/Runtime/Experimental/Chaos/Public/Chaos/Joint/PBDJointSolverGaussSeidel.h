@@ -367,7 +367,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const float Alpha,
+			const FReal Alpha,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
 
@@ -375,7 +375,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const float Alpha,
+			const FReal Alpha,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
 
@@ -383,7 +383,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const float Alpha,
+			const FReal Alpha,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
 
@@ -391,7 +391,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const float Alpha,
+			const FReal Alpha,
 			const bool bPositionLocked,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
@@ -401,7 +401,7 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const float Alpha,
+			const FReal Alpha,
 			const bool bPositionLocked,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
@@ -411,7 +411,7 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const float Alpha,
+			const FReal Alpha,
 			const bool bPositionLocked,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
@@ -420,7 +420,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const float Alpha,
+			const FReal Alpha,
 			const bool bPositionLocked,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
@@ -430,7 +430,7 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const float Alpha,
+			const FReal Alpha,
 			const bool bPositionLocked,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
@@ -439,7 +439,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const float Alpha,
+			const FReal Alpha,
 			const bool bPositionLocked,
 			FVec3& NetDP1,
 			FVec3& NetDR1);
@@ -448,7 +448,7 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const float Alpha,
+			const FReal Alpha,
 			const FVec3& DP1,
 			const FVec3& DR1);
 

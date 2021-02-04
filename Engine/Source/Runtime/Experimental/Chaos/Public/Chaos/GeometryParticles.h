@@ -786,17 +786,17 @@ public:
 	}
 
 	template <>
-	void TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>::SetHandle(int32 Index, TGeometryParticleHandle<float, 3>* Handle);
+	void TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>::SetHandle(int32 Index, TGeometryParticleHandle<FReal, 3>* Handle);
 
 	template<>
-	TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>* TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>* Particles);
+	TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* Particles);
 
 #if PLATFORM_MAC || PLATFORM_LINUX
-	extern template class CHAOS_API TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::RigidBodySim>;
-	extern template class CHAOS_API TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>;
+	extern template class CHAOS_API TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::RigidBodySim>;
+	extern template class CHAOS_API TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>;
 #else
-	extern template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::RigidBodySim>;
-	extern template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>;
+	extern template class TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::RigidBodySim>;
+	extern template class TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>;
 #endif
 
 }

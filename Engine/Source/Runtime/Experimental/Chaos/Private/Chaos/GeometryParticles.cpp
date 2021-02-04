@@ -121,7 +121,7 @@ namespace Chaos
 	}
 
 	template <>
-	void TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>::SetHandle(int32 Index, TGeometryParticleHandle<float, 3>* Handle)
+	void TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>::SetHandle(int32 Index, TGeometryParticleHandle<FReal, 3>* Handle)
 	{
 		check(false);  // TODO: Implement EGeometryParticlesSimType::Other (cloth) particle serialization
 	}
@@ -143,7 +143,7 @@ namespace Chaos
 	}
 	
 	template<>
-	TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>* TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>* Particles)
+	TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* Particles)
 	{
 		check(false);  // TODO: Implement EGeometryParticlesSimType::Other (cloth) particle serialization
 		return nullptr;
@@ -235,6 +235,6 @@ namespace Chaos
 
 
 	
-	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::RigidBodySim>;
-	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>;
+	template class TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::RigidBodySim>;
+	template class TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>;
 }
