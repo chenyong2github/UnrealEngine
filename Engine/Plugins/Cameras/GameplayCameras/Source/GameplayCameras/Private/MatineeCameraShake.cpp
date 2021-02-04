@@ -423,7 +423,9 @@ void UMatineeCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FC
 	RotSinOffset = InitialRotSinOffset;
 	FOVSinOffset = InitialFOVSinOffset;
 
-	OscillatorTimeRemaining = OscillationDuration;
+	const float EffectiveOscillationDuration = (OscillationDuration > 0.f) ? OscillationDuration : TNumericLimits<float>::Max();
+
+	OscillatorTimeRemaining = EffectiveOscillationDuration;
 
 	if (OscillationBlendInTime > 0.f)
 	{
