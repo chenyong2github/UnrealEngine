@@ -50,12 +50,12 @@ public:
 
 	FORCEINLINE bool operator ==(const FRigNameOp& Other) const
 	{
-		return Type == Other.Type && A == Other.A && B == Other.B && B == Other.B && C == Other.C;
+		return Type == Other.Type && A == Other.A && B == Other.B && C == Other.C;
 	}
 
 	FORCEINLINE bool operator !=(const FRigNameOp& Other) const
 	{
-		return Type != Other.Type || A != Other.A || B != Other.B || B != Other.B || C != Other.C;
+		return Type != Other.Type || A != Other.A || B != Other.B || C != Other.C;
 	}
 
 	FORCEINLINE bool operator <(const FRigNameOp& Other) const
