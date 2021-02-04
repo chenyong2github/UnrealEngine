@@ -8,6 +8,8 @@
 
 #if WINDOWS_USE_FEATURE_DYNAMIC_RHI
 
+#include "Windows/WindowsPlatformApplicationMisc.h"
+
 static const TCHAR* GLoadedRHIModuleName;
 
 static bool ShouldPreferD3D12()
@@ -20,29 +22,61 @@ static bool ShouldPreferD3D12()
 			return bPreferD3D12;
 		}
 	}
-
+	
 	return false;
 }
 
 static bool ShouldForceFeatureLevelES31()
 {
+	static TOptional<bool> ForceES31;
+	if (ForceES31.IsSet())
+	{
+		return ForceES31.GetValue();
+	}
+
 	FConfigFile EngineSettings;
 	FString PlatformNameString = FPlatformProperties::IniPlatformName();
 	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformNameString);
 
+	// Force Performance mode for machines with too few cores including hyperthreads
+	int MinCoreCount = 0;
+	if (EngineSettings.GetInt(TEXT("PerformanceMode"), TEXT("MinCoreCount"), MinCoreCount) && FPlatformMisc::NumberOfCoresIncludingHyperthreads() < MinCoreCount)
+	{
+		ForceES31 = true;
+		return true;
+	}
+
 	FString MinMemorySizeBucketString;
-	if (EngineSettings.GetString(TEXT("PerformanceMode"), TEXT("MinMemorySizeBucket"), MinMemorySizeBucketString))
+	FString MinIntegratedMemorySizeBucketString;
+	if (EngineSettings.GetString(TEXT("PerformanceMode"), TEXT("MinMemorySizeBucket"), MinMemorySizeBucketString) && EngineSettings.GetString(TEXT("PerformanceMode"), TEXT("MinIntegratedMemorySizeBucket"), MinIntegratedMemorySizeBucketString))
 	{
 		for (int EnumIndex = int(EPlatformMemorySizeBucket::Largest); EnumIndex <= int(EPlatformMemorySizeBucket::Tiniest); EnumIndex++)
 		{
-			if (MinMemorySizeBucketString == LexToString(EPlatformMemorySizeBucket(EnumIndex)))
+			const TCHAR* BucketString = LexToString(EPlatformMemorySizeBucket(EnumIndex));
+			// Force Performance mode for machines with too little memory
+			if (MinMemorySizeBucketString == BucketString)
 			{
-				int MinCoreCount = 0;
-				EngineSettings.GetInt(TEXT("PerformanceMode"), TEXT("MinCoreCount"), MinCoreCount);
-				return FPlatformMemory::GetMemorySizeBucket() >= EPlatformMemorySizeBucket(EnumIndex) || FPlatformMisc::NumberOfCoresIncludingHyperthreads() < MinCoreCount;
+				if (FPlatformMemory::GetMemorySizeBucket() >= EPlatformMemorySizeBucket(EnumIndex))
+				{
+					ForceES31 = true;
+					return true;
+				}
+			}
+
+			// Force Performance mode for machines with too little memory when shared with the GPU
+			if (MinIntegratedMemorySizeBucketString == BucketString)
+			{
+				if (FPlatformMemory::GetMemorySizeBucket() >= EPlatformMemorySizeBucket(EnumIndex) && FWindowsPlatformApplicationMisc::ProbablyHasIntegratedGPU())
+				{
+					ForceES31 = true;
+
+					return true;
+				}
 			}
 		}
 	}
+
+	ForceES31 = false;
 	return false;
 }
 
