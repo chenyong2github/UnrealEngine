@@ -177,6 +177,11 @@ void UMovieSceneNiagaraEmitterTrack::AddSection(UMovieSceneSection& Section)
 	bSectionsWereModified = true;
 }
 
+UMovieSceneSection* UMovieSceneNiagaraEmitterTrack::CreateNewSection()
+{
+	return nullptr;
+}
+
 bool UMovieSceneNiagaraEmitterTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
 	return SectionClass == UMovieSceneNiagaraEmitterSection::StaticClass();

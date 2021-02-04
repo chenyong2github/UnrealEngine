@@ -12,7 +12,7 @@ class FNiagaraEmitterHandleViewModel;
 class UNiagaraNodeFunctionCall;
 class ISequencerSection;
 
-UCLASS(MinimalAPI)
+UCLASS(abstract, MinimalAPI)
 class UMovieSceneNiagaraEmitterSectionBase : public UMovieSceneSection
 {
 	GENERATED_BODY()
@@ -76,6 +76,7 @@ public:
 	virtual void RemoveAllAnimationData() override { }
 	virtual bool HasSection(const UMovieSceneSection& Section) const override;
 	virtual void AddSection(UMovieSceneSection& Section) override;
+	virtual UMovieSceneSection* CreateNewSection() override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual void RemoveSection(UMovieSceneSection& Section) override;
 	virtual void RemoveSectionAt(int32 SectionIndex) override;
