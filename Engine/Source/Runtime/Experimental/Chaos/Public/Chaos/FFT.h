@@ -8,17 +8,15 @@
 
 namespace Chaos
 {
-template<class T, int d>
-class TFFT
+class FFFT3
 {
-};
+public:
+	using FUniformGrid = TUniformGrid<FReal, 3>;
+	using FArrayNDOfComplex = TArrayND<Complex<FReal>, 3>;
 
-template<class T>
-class TFFT<T, 3>
-{
-  public:
-	static void Transform(const TUniformGrid<T, 3>& Grid, const TArrayND<TVec3<T>, 3>& Velocity, TArrayND<Complex<T>, 3>& u, TArrayND<Complex<T>, 3>& v, TArrayND<Complex<T>, 3>& w);
-	static void InverseTransform(const TUniformGrid<T, 3>& Grid, TArrayND<TVec3<T>, 3>& Velocity, const TArrayND<Complex<T>, 3>& u, const TArrayND<Complex<T>, 3>& v, const TArrayND<Complex<T>, 3>& w, const bool Normalize);
-	static void MakeDivergenceFree(const TUniformGrid<T, 3>& Grid, TArrayND<Complex<T>, 3>& u, TArrayND<Complex<T>, 3>& v, TArrayND<Complex<T>, 3>& w);
+public:
+	static void Transform(const FUniformGrid& Grid, const TArrayND<FVec3, 3>& Velocity, FArrayNDOfComplex& u, FArrayNDOfComplex& v, FArrayNDOfComplex& w);
+	static void InverseTransform(const FUniformGrid& Grid, TArrayND<FVec3, 3>& Velocity, const FArrayNDOfComplex& u, const FArrayNDOfComplex& v, const FArrayNDOfComplex& w, const bool Normalize);
+	static void MakeDivergenceFree(const FUniformGrid& Grid, FArrayNDOfComplex& u, FArrayNDOfComplex& v, FArrayNDOfComplex& w);
 };
 }
