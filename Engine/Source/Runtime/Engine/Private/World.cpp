@@ -7977,6 +7977,22 @@ bool UWorld::IsNameStableForNetworking() const
 	return bIsNameStableForNetworking || Super::IsNameStableForNetworking();
 }
 
+UObject* UWorld::LoadSubobject(const TCHAR* SubObjectPath)
+{
+	UObject* LoadedObject = nullptr;
+
+	FString SubObjectName;
+	FString SubObjectContext;	
+	if (FString(SubObjectPath).Split(TEXT("."), &SubObjectContext, &SubObjectName))
+	{
+		if (UObject* SubObject = StaticFindObject(nullptr, this, *SubObjectContext))
+		{
+			LoadedObject = SubObject->LoadSubobject(*SubObjectName);
+		}
+	}
+
+	return LoadedObject;
+}
 #endif
 
 FPrimaryAssetId UWorld::GetPrimaryAssetId() const

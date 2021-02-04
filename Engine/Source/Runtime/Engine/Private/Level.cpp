@@ -2609,6 +2609,21 @@ bool ULevel::CanEditChange(const FProperty* PropertyThatWillChange) const
 	return Super::CanEditChange(PropertyThatWillChange);
 }
 
+UObject* ULevel::LoadSubobject(const TCHAR* SubObjectPath)
+{
+	UObject* LoadedObject = StaticFindObject(nullptr, this, SubObjectPath);
+
+	if (!LoadedObject)
+	{
+		if (UWorldPartition* WorldPartition = GetWorldPartition())
+		{
+			LoadedObject = WorldPartition->LoadSubobject(SubObjectPath);
+		}
+	}
+
+	return LoadedObject;
+}
+
 void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> InCustomFixupFunction)
 {
 	struct FSoftPathPIEFixupSerializer : public FArchiveUObject

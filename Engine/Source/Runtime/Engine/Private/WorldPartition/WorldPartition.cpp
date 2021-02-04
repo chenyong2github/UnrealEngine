@@ -769,12 +769,32 @@ void UWorldPartition::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_EDITOR
+	LoadedSubobjects.Empty();
+
 	for (TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
 	{
 		ActorDescPtr.Release();
 	}
 #endif
 }
+
+#if WITH_EDITOR
+UObject* UWorldPartition::LoadSubobject(const TCHAR* SubObjectPath)
+{
+	for (const auto& Pair : Actors)
+	{
+		const FWorldPartitionActorDesc* ActorDesc = Pair.Value->Get();
+
+		if (FString(ActorDesc->ActorPath.ToString()).EndsWith(SubObjectPath))
+		{
+			int32 ReferenceIndex = LoadedSubobjects.Add(Pair.Value);
+			return LoadedSubobjects[ReferenceIndex]->GetActor();
+		}
+	}
+
+	return nullptr;
+}
+#endif
 
 UWorldPartitionStreamingPolicy* UWorldPartition::GetStreamingPolicy() const
 {

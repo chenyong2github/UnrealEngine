@@ -781,6 +781,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
 	virtual bool CanEditChange(const FProperty* PropertyThatWillChange) const override;
+	virtual UObject* LoadSubobject(const TCHAR* SubObjectPath) override;
 #endif // WITH_EDITOR
 	virtual void PostLoad() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;

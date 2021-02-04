@@ -8,6 +8,7 @@
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/ActorDescContainer.h"
 
 #if WITH_EDITOR
@@ -114,6 +115,10 @@ private:
 
 #if WITH_EDITOR
 public:
+	//~ Begin UObject Interface
+	virtual UObject* LoadSubobject(const TCHAR* SubObjectPath) override;
+	//~ End UObject Interface
+
 	FName GetWorldPartitionEditorName();
 	bool IsSimulating() const;
 
@@ -188,6 +193,8 @@ public:
 	// Default HLOD layer
 	UPROPERTY(EditAnywhere, Category=HLOD)
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
+
+	TArray<FWorldPartitionReference> LoadedSubobjects;
 #endif
 
 private:
