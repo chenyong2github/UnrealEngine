@@ -13,6 +13,7 @@
 #include "Engine/BlendableInterface.h"
 #include "RHIDefinitions.h"
 #include "SceneUtils.h"
+#include "Engine/EngineTypes.h"
 #include "Scene.generated.h"
 
 
