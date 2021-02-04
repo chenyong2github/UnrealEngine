@@ -475,8 +475,41 @@ void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV,
 	}
 }
 
+void FVulkanCommandListContext::ClearUAVFillBuffer(FVulkanUnorderedAccessView* UAV, uint32_t ClearValue)
+{
+	FVulkanCommandBufferManager* CmdBufferMgr = GVulkanRHI->GetDevice()->GetImmediateContext().GetCommandBufferManager();
+	FVulkanCmdBuffer* CmdBuffer = CmdBufferMgr->GetActiveCmdBuffer();
+
+	if (UAV->SourceStructuredBuffer)
+	{
+		TRefCountPtr<FVulkanStructuredBuffer> Buffer = UAV->SourceStructuredBuffer;
+		VulkanRHI::vkCmdFillBuffer(CmdBuffer->GetHandle(), Buffer->Current.Handle, Buffer->Current.Offset, Buffer->Current.Size, ClearValue);
+	}
+	else if (UAV->SourceVertexBuffer)
+	{
+		TRefCountPtr<FVulkanVertexBuffer> Buffer = UAV->SourceVertexBuffer;
+		VulkanRHI::vkCmdFillBuffer(CmdBuffer->GetHandle(), Buffer->Current.Handle, Buffer->Current.Offset, Buffer->Current.Size, ClearValue);
+	}
+}
+
 void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVulkanCommandListContext>& RHICmdList, FVulkanUnorderedAccessView* UnorderedAccessView, const void* ClearValue, bool bFloat)
 {
+	struct FVulkanDynamicRHICmdFillBuffer final : public FRHICommand<FVulkanDynamicRHICmdFillBuffer>
+	{
+		FVulkanUnorderedAccessView* UAV;
+		uint32_t ClearValue;
+
+		FORCEINLINE_DEBUGGABLE FVulkanDynamicRHICmdFillBuffer(FVulkanUnorderedAccessView* InUAV, uint32_t InClearValue)
+			: UAV(InUAV), ClearValue(InClearValue)
+		{
+		}
+
+		void Execute(FRHICommandListBase& CmdList)
+		{
+			ClearUAVFillBuffer(UAV, ClearValue);
+		}
+	};
+
 	EClearReplacementValueType ValueType;
 	if (!bFloat)
 	{
@@ -511,10 +544,38 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 		ValueType = EClearReplacementValueType::Float;
 	}
 
-	if (UnorderedAccessView->SourceVertexBuffer)
+	if (UnorderedAccessView->SourceStructuredBuffer || UnorderedAccessView->SourceVertexBuffer)
 	{
-		uint32 NumElements = UnorderedAccessView->SourceVertexBuffer->GetSize() / GPixelFormats[UnorderedAccessView->BufferViewFormat].BlockBytes;
-		ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
+		bool bIsByteAddressBuffer = false; 
+
+		if (UnorderedAccessView->SourceVertexBuffer)
+		{
+			TRefCountPtr<FVulkanVertexBuffer> Buffer = UnorderedAccessView->SourceVertexBuffer;
+			bIsByteAddressBuffer = Buffer->GetUsage() & BUF_ByteAddressBuffer;
+		}
+
+		// Byte address buffers only use the first component, so use vkCmdBufferFill
+		if (UnorderedAccessView->BufferViewFormat == PF_Unknown || bIsByteAddressBuffer)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(UnorderedAccessView, ERHIAccess::UAVCompute, ERHIAccess::CopyDest));
+
+			if (RHICmdList.Bypass())
+			{
+				ClearUAVFillBuffer(UnorderedAccessView, *(const uint32_t*)ClearValue);
+			}
+			else
+			{
+				new (RHICmdList.AllocCommand<FVulkanDynamicRHICmdFillBuffer>()) FVulkanDynamicRHICmdFillBuffer(UnorderedAccessView, *(const uint32_t*)ClearValue);
+			}
+
+			RHICmdList.Transition(FRHITransitionInfo(UnorderedAccessView, ERHIAccess::CopyDest, ERHIAccess::UAVCompute));
+		}
+		else
+		{
+			TRefCountPtr<FVulkanVertexBuffer> Buffer = UnorderedAccessView->SourceVertexBuffer;
+			uint32 NumElements = Buffer->Current.Size / GPixelFormats[UnorderedAccessView->BufferViewFormat].BlockBytes;
+			ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
+		}
 	}
 	else if (UnorderedAccessView->SourceTexture)
 	{
