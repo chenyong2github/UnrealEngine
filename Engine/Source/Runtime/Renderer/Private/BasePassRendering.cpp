@@ -573,6 +573,10 @@ void SetupSharedBasePassParameters(
 	{
 		SharedParameters.SSProfilesTexture = PooledRT->GetShaderResourceRHI();
 	}
+
+	// Skip base pass skylight if Lumen GI is enabled, as Lumen handles the skylight.
+	// Ideally we would choose a different shader permutation to skip skylight, but Lumen GI is only known per-view
+	SharedParameters.UseBasePassSkylight = View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen ? 0 : 1;
 }
 
 TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(

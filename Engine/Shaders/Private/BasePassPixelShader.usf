@@ -19,8 +19,10 @@
 		#define PreIntegratedGFSampler	TranslucentBasePass.PreIntegratedGFSampler
 		#define SceneColorCopySampler	TranslucentBasePass.SceneColorCopySampler
 	#endif
+	#define UseBasePassSkylight TranslucentBasePass.Shared.UseBasePassSkylight
 #else
 	#define EyeAdaptationStruct OpaqueBasePass
+	#define UseBasePassSkylight OpaqueBasePass.Shared.UseBasePassSkylight
 #endif
 
 // Material setting to allow forward shading (including mobile) to use preintegrated GF lut for simple IBL.
@@ -333,7 +335,7 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 	}
 	else
 #endif
-
+	if (UseBasePassSkylight > 0)
 	{
 #if ENABLE_SKY_LIGHT
 	
