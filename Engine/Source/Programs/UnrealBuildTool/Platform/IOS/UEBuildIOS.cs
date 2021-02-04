@@ -799,6 +799,16 @@ namespace UnrealBuildTool
 			return base.GetBinaryExtension(InBinaryType);
 		}
 
+		/// <summary>
+		/// Allows the platform to override whether the architecture name should be appended to the name of binaries.
+		/// </summary>
+		/// <returns>True if the architecture name should be appended to the binary</returns>
+		public override bool RequiresArchitectureSuffix()
+		{
+			// Any -architecture argument passed to UBT only affects the contents of the binaries, not their naming
+			return false;
+		}
+		
 		public IOSProjectSettings ReadProjectSettings(FileReference ProjectFile, string Bundle = "")
 		{
 			IOSProjectSettings ProjectSettings = null;
