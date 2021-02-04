@@ -3419,6 +3419,14 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// force cleanup if older UE4 project
+			if (File.Exists(Path.Combine(IntermediateAndroidPath, "arm64", "jni", "arm64-v8a", "libUE4.so")) ||
+				File.Exists(Path.Combine(IntermediateAndroidPath, "x64", "jni", "x86_64", "libUE4.so")))
+			{
+				Log.TraceInformation("Old version of library .so found, forcing clean");
+				bCreateFromScratch = true;
+			}
+
 			// check if the enabled plugins has changed
 			string PluginListFilename = Path.Combine(IntermediateAndroidPath, "ActiveUPL.txt");
 			string PluginListContents = ActiveUPLFiles.ToString();
@@ -3513,6 +3521,7 @@ namespace UnrealBuildTool
 
 				// Make a set of files that are okay to clean up
 				HashSet<string> cleanFiles = new HashSet<string>();
+				cleanFiles.Add("DownloadShim.java");
 				cleanFiles.Add("OBBData.java");
 				foreach (TemplateFile template in templates)
 				{
@@ -3521,8 +3530,11 @@ namespace UnrealBuildTool
 
 				foreach (string filename in files)
 				{
-					if (filename == UnrealDownloadShimFileName)  // we always need the shim, and it'll get rewritten if needed anyway
+					// keep the shim if it is in the right place
+					if (filename == UnrealDownloadShimFileName)
+					{
 						continue;
+					}
 
 					string filePath = Path.GetDirectoryName(filename);  // grab the file's path
 					if (filePath != TemplateDestinationBase)             // and check to make sure it isn't the same as the Template directory we calculated earlier

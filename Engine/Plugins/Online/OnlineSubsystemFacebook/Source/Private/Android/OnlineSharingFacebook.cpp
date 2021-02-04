@@ -195,7 +195,7 @@ bool AndroidThunkCpp_Facebook_RequestReadPermissions(const TArray<FSharingPermis
 	return bSuccess;
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_FacebookLogin_nativeRequestReadPermissionsComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken)
+JNI_METHOD void Java_com_epicgames_unreal_FacebookLogin_nativeRequestReadPermissionsComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken)
 {
 	EFacebookLoginResponse LoginResponse = (EFacebookLoginResponse)responseCode;
 	
@@ -249,7 +249,7 @@ bool AndroidThunkCpp_Facebook_RequestPublishPermissions(const TArray<FSharingPer
 	return bSuccess;
 }
 
-JNI_METHOD void Java_com_epicgames_ue4_FacebookLogin_nativeRequestPublishPermissionsComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken)
+JNI_METHOD void Java_com_epicgames_unreal_FacebookLogin_nativeRequestPublishPermissionsComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken)
 {
 	EFacebookLoginResponse LoginResponse = (EFacebookLoginResponse)responseCode;
 
