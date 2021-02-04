@@ -620,6 +620,17 @@ float ComputeNeightborSampleBilateralWeight(float CenterCocRadius, float SampleC
 
 #endif
 
+float3 QuantizeForFloatRenderTarget(float3 Color, float E, float3 QuantizationError)
+{
+	float3 Error = Color * QuantizationError;
+
+	Error.x = asfloat(asuint(Error.x) & ~0x007FFFFF);
+	Error.y = asfloat(asuint(Error.y) & ~0x007FFFFF);
+	Error.z = asfloat(asuint(Error.z) & ~0x007FFFFF);
+	
+	return Color + Error * E;
+}
+
 
 //------------------------------------------------------- HISTORY's PAYLOAD
 
@@ -2266,7 +2277,7 @@ void MainCS(
 			uint2 Random = Rand3DPCG16(int3(PixelPos, View.StateFrameIndexMod8)).xy;
 			float2 E = Hammersley16(0, 1, Random);
 
-			FinalOutput0.rgb += FinalOutput0.rgb * (E.x * OutputQuantizationError);
+			FinalOutput0.rgb = QuantizeForFloatRenderTarget(FinalOutput0.rgb, E.x, OutputQuantizationError);
 		}
 		#endif
 

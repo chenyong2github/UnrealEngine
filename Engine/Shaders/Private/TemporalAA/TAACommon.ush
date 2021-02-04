@@ -442,3 +442,33 @@ taa_half UncompressParallaxFactor(uint CompressedParallaxFactor)
 {
 	return taa_half(CompressedParallaxFactor & SUB_PIXEL_MASK) * taa_half(MAX_PARALLAX_FACTOR / float(SUB_PIXEL_MASK)) + taa_half(1.0);
 }
+
+taa_half3 QuantizeForFloatRenderTarget(taa_half3 Color, taa_half E, float3 QuantizationError)
+{
+	taa_half3 Error = Color * taa_half3(QuantizationError);
+
+	#if 0
+		// NOP
+	#elif CONFIG_COMPILE_FP16 && 0
+	{
+		Error.x = asfloat16_t(asuint16_t(Error.x) & uint16_t(~0x03FF));
+		Error.y = asfloat16_t(asuint16_t(Error.y) & uint16_t(~0x03FF));
+		Error.z = asfloat16_t(asuint16_t(Error.z) & uint16_t(~0x03FF));
+	}
+	#elif CONFIG_COMPILE_FP16
+	{
+		// shader compilers haven't exposed asuint16_t() and asfloat16_t() :'(
+		Error.x = taa_half(asfloat(asuint(float(Error.x)) & ~0x007FFFFF));
+		Error.y = taa_half(asfloat(asuint(float(Error.y)) & ~0x007FFFFF));
+		Error.z = taa_half(asfloat(asuint(float(Error.z)) & ~0x007FFFFF));
+	}
+	#else
+	{
+		Error.x = asfloat(asuint(Error.x) & ~0x007FFFFF);
+		Error.y = asfloat(asuint(Error.y) & ~0x007FFFFF);
+		Error.z = asfloat(asuint(Error.z) & ~0x007FFFFF);
+	}
+	#endif
+	
+	return Color + Error * E;
+}

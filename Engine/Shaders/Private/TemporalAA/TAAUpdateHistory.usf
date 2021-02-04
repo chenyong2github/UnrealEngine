@@ -685,8 +685,8 @@ void MainCS(
 				uint2 Random = Rand3DPCG16(int3(LocalHistoryPixelPos, View.StateFrameIndexMod8)).xy;
 				float2 E = Hammersley16(0, 1, Random);
 
-				FinalHistoryMoment1 += FinalHistoryMoment1 * taa_half3(E.x * HistoryQuantizationError);
-				FinalFallbackColor += FinalFallbackColor * taa_half3(E.x * HistoryQuantizationError);
+				FinalHistoryMoment1 = QuantizeForFloatRenderTarget(FinalHistoryMoment1, E.x, HistoryQuantizationError);
+				FinalFallbackColor = QuantizeForFloatRenderTarget(FinalFallbackColor, E.x, HistoryQuantizationError);
 			}
 			#endif
 
