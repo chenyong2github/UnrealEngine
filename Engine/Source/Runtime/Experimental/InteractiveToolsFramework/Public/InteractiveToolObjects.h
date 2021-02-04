@@ -22,6 +22,16 @@ private:
 
 public:
 
+	/** Controls whether this InternalToolFrameworkActor can be selected in the Editor. */
+	UPROPERTY()
+	bool bIsSelectableInEditor = false;
+
+#if WITH_EDITOR
+	virtual bool IsSelectable() const override
+	{
+		return bIsSelectableInEditor;
+	}
+#endif
 };
 
 
