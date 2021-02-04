@@ -248,8 +248,12 @@ public:
 	void SetDrawSize(FVector2D Size);
 
 	/** Requests that the widget be redrawn.  */
-	UFUNCTION(BlueprintCallable, Category=UserInterface)
+	UFUNCTION(BlueprintCallable, Category=UserInterface, meta = (DeprecatedFunction, DeprecationMessage = "Use RequestRenderUpdate instead"))
 	virtual void RequestRedraw();
+
+	/** Requests that the widget have it's render target updated, if TickMode is disabled, this will force a tick to happen to update the render target. */
+	UFUNCTION(BlueprintCallable, Category = UserInterface)
+	virtual void RequestRenderUpdate();
 
 	/** Gets the blend mode for the widget. */
 	EWidgetBlendMode GetBlendMode() const { return BlendMode; }
