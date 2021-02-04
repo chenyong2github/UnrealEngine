@@ -43,6 +43,7 @@ bool UPythonScriptLibrary::ExecutePythonScript(const FString& PythonScript, cons
 
 DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 {
+#if WITH_PYTHON
 	auto ExecuteCustomPythonScriptImpl = [&]() -> bool
 	{
 		const FString FunctionErrorName = Stack.Node->GetName();
@@ -153,4 +154,7 @@ DEFINE_FUNCTION(UPythonScriptLibrary::execExecutePythonScript)
 			*(bool*)RESULT_PARAM = false;
 		}
 	}
+#else // WITH PYTHON
+	*(bool*)RESULT_PARAM = false;
+#endif // WITH_PYTHON
 }
