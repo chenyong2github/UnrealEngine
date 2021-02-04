@@ -1060,9 +1060,9 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 		if (bSetExtent)
 		{
-			// Depth can be greater or equal to color
-			ensure(Texture->Surface.Width >= Extent.Extent3D.width);
-			ensure(Texture->Surface.Height >= Extent.Extent3D.height);
+			// Depth can be greater or equal to color. Clamp to the smaller size.
+			Extent.Extent3D.width = FMath::Min<uint32>(Extent.Extent3D.width, Texture->Surface.Width);
+			Extent.Extent3D.height = FMath::Min<uint32>(Extent.Extent3D.height, Texture->Surface.Height);
 		}
 		else
 		{
@@ -1326,9 +1326,9 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 		if (bSetExtent)
 		{
-			// Depth can be greater or equal to color
-			ensure(Texture->Surface.Width >= Extent.Extent3D.width);
-			ensure(Texture->Surface.Height >= Extent.Extent3D.height);
+			// Depth can be greater or equal to color. Clamp to the smaller size.
+			Extent.Extent3D.width = FMath::Min<uint32>(Extent.Extent3D.width, Texture->Surface.Width);
+			Extent.Extent3D.height = FMath::Min<uint32>(Extent.Extent3D.height, Texture->Surface.Height);
 		}
 		else
 		{
