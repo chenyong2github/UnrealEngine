@@ -1952,6 +1952,11 @@ static void ReplaceActorHelper(AActor* OldActor, UClass* OldClass, UObject*& New
 		NewActor = World->SpawnActor(SpawnClass, &Location, &Rotation, SpawnInfo);
 	}
 
+	if (SpawnInfo.OverridePackage)
+	{
+		OldActor->SetExternalPackage(SpawnInfo.OverridePackage);
+	}
+
 	if (OldActor->CurrentTransactionAnnotation.IsValid())
 	{
 		NewActor->CurrentTransactionAnnotation = OldActor->CurrentTransactionAnnotation;
