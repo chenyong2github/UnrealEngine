@@ -23,8 +23,12 @@ typedef TUniformBufferRef<FVirtualHeightfieldMeshVertexFactoryParameters> FVirtu
 struct FVirtualHeightfieldMeshUserData : public FOneFrameResource
 {
 	FRHIShaderResourceView* InstanceBufferSRV;
+	FRHITexture* PageTableTexture;
 	FRHITexture* HeightPhysicalTexture;
+	FUintVector4 PackedUniform;
+	FUintVector4 PackedPageTableUniform[2];
 	FVector4 PageTableSize;
+	FVector2D PhysicalTextureSize;
 	float MaxLod;
 	FMatrix VirtualHeightfieldToLocal;
 	FMatrix VirtualHeightfieldToWorld;

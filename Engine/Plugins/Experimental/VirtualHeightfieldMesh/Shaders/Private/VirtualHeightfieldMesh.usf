@@ -498,22 +498,11 @@ void CullInstancesCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 		QuadRenderInstance OutInstance;
 		OutInstance.PosLevelPacked = Pos.x | (Pos.y << 12) | (Level << 24);
 
-		// Unpack physical address into full LocalToPhysicalUV here ready for use by vertex shader. 
-		// Could move unpacking to vertex shader if we want to balance memory bandwidth.
+		// Unpack physical address for first sample into full LocalToPhysicalUV here ready for use by vertex shader. 
 		OutInstance.UVTransform.xyz = GetVirtualToPhysicalUVTransform(Pos, Level, Item.PhysicalAddress, PhysicalPageTransform, NumPhysicalAddressBits);
-
-		[unroll]
-		for (int NeighborIndex = 0; NeighborIndex < 4; ++ NeighborIndex)
-		{
-			const uint PackedNeighborItem = QuadNeighborBuffer[QuadIndex * 4 + NeighborIndex];
-			const QuadNeighborItem NeighborItem = UnpackQuadNeighborItem(PackedNeighborItem);
-
-			OutInstance.NeigborUVTransform[NeighborIndex] = float4(GetVirtualToPhysicalUVTransform(Pos, Level, NeighborItem.PhysicalAddress, PhysicalPageTransform, NumPhysicalAddressBits), 0);
-		}
 
 		uint Write;
 		InterlockedAdd(RWIndirectArgsBuffer[1], 1, Write);
-
 		RWInstanceBuffer[Write] = OutInstance;
 	}
 }

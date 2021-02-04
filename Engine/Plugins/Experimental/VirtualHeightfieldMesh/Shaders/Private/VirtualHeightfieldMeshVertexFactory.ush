@@ -1,13 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Private/VertexFactoryCommon.ush"
+#include "/Engine/Private/VirtualTextureCommon.ush"
 #include "VirtualHeightfieldMesh.ush"	
 
 StructuredBuffer<QuadRenderInstance> InstanceBuffer;
 
-Texture2D<float> HeightTexture;
+Texture2D<uint4> PageTableTexture;
+Texture2D<float4> HeightTexture;
 SamplerState HeightSampler;
+
+uint4 VTPackedUniform;
+uint4 VTPackedPageTableUniform0;
+uint4 VTPackedPageTableUniform1;
+
 float4 PageTableSize;
+float2 PhysicalTextureSize;
 float MaxLod;
 float4x4 VirtualHeightfieldToLocal;
 float4x4 VirtualHeightfieldToWorld;
@@ -83,18 +91,15 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		(LocalUV.x < LocalUV.y ? 0.5 - LocalUV.x : 0.5 - LocalUV.y);
 	NeighborWeight *= 2;
 
-	float3 NeigborUVTransform = Item.NeigborUVTransform[NeighborIndex].xyz;
-	float2 NeighborPhysicalUV = NeigborUVTransform.xy + LocalUV * NeigborUVTransform.z;
-
 	// Calculate vertex UV details before morphing
 	float2 XY = ((float2)Pos + LocalUV) * (float)(1 << Level);
 	float2 NormalizedPos = (XY * PageTableSize.zw);
-	float2 LocalPhysicalUV = LocalUVTransform.xy + LocalUV * LocalUVTransform.z;
+	float SampleLevel = Level;
 
 	// Sample height once to approximate distance and morph the LocalUV.
 	{
+		float2 LocalPhysicalUV = LocalUVTransform.xy + LocalUV * LocalUVTransform.z;
 		float Height = HeightTexture.SampleLevel(HeightSampler, LocalPhysicalUV, 0);
-
 		float3 WorldPos = mul(float4(NormalizedPos, Height, 1), VirtualHeightfieldToWorld).xyz;
 		float DistanceSq = dot(LodViewOrigin - WorldPos, LodViewOrigin - WorldPos);
 		float Distance = sqrt(DistanceSq) * LodDistances.w;
@@ -113,19 +118,25 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		// Final fractional morph has smoothstep to push transition region out to end of the LOD level.
 		float LodMorphFrac = smoothstep(0.7f, 0.98f, frac(LodForDistanceClamped));
 
+		// Use LOD level as sample level but bias to keep sample level in a good range.
+		SampleLevel = max(0, LodForDistanceClamped - 0.5f);
+
 		// Apply morph to vertex postion.
 		LocalUV = MorphVertex(LocalUV, GRID_SIZE - 1, (uint)LodMorphFloor, LodMorphFrac);
-
+		// Adjust other position variables to match the new morphed position.
 		XY = ((float2)Pos + LocalUV) * (float)(1 << Level);
 		NormalizedPos = (XY * PageTableSize.zw);
-		LocalPhysicalUV = LocalUVTransform.xy + LocalUV * LocalUVTransform.z;
-		NeighborPhysicalUV = NeigborUVTransform.xy + LocalUV * NeigborUVTransform.z;
 	}
 	
-	// Height
-	float LocalHeight = HeightTexture.SampleLevel(HeightSampler, LocalPhysicalUV, 0);
-	float NeighborHeight = HeightTexture.SampleLevel(HeightSampler, NeighborPhysicalUV, 0);
-	float Height = lerp(LocalHeight, NeighborHeight, NeighborWeight);
+	// Sample height from virtual texture.
+	VTUniform Uniform = VTUniform_Unpack(VTPackedUniform);
+	Uniform.vPageBorderSize -= .5f * PhysicalTextureSize.y; // Half texel offset hack
+	VTPageTableUniform PageTableUniform = VTPageTableUniform_Unpack(VTPackedPageTableUniform0, VTPackedPageTableUniform1);
+	VTPageTableResult VTResult0 = TextureLoadVirtualPageTableLevel(PageTableTexture, PageTableUniform, NormalizedPos, VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP, floor(SampleLevel));
+	float4 Height0 = TextureVirtualSampleLevel(HeightTexture, HeightSampler, VTResult0, 0, Uniform);
+	VTPageTableResult VTResult1 = TextureLoadVirtualPageTableLevel(PageTableTexture, PageTableUniform, NormalizedPos, VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP, ceil(SampleLevel));
+	float4 Height1 = TextureVirtualSampleLevel(HeightTexture, HeightSampler, VTResult1, 0, Uniform);
+	float Height = lerp(Height0.x, Height1.x, frac(SampleLevel));
 
 	// Position in space of virtual texture volume
 	Intermediates.VTPos = float3(NormalizedPos, Height);

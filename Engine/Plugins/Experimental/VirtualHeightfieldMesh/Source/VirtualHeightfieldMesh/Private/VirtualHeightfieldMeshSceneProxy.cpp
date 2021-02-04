@@ -523,11 +523,18 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				BatchElement.UserData = (void*)UserData;
 
 				UserData->InstanceBufferSRV = Buffers.InstanceBufferSRV;
+				UserData->PageTableTexture = AllocatedVirtualTexture->GetPageTableTexture(0);
 				UserData->HeightPhysicalTexture = AllocatedVirtualTexture->GetPhysicalTexture(0);
+
+				AllocatedVirtualTexture->GetPackedUniform(&UserData->PackedUniform, 0);
+				AllocatedVirtualTexture->GetPackedPageTableUniform(UserData->PackedPageTableUniform);
 
 				const float PageTableSizeX = AllocatedVirtualTexture->GetWidthInTiles();
 				const float PageTableSizeY = AllocatedVirtualTexture->GetHeightInTiles();
 				UserData->PageTableSize = FVector4(PageTableSizeX, PageTableSizeY, 1.f / PageTableSizeX, 1.f / PageTableSizeY);
+
+				const float PhysicalTextureSize = AllocatedVirtualTexture->GetPhysicalTextureSize(0);
+				UserData->PhysicalTextureSize = FVector2D(PhysicalTextureSize, 1.f / PhysicalTextureSize);
 
 				UserData->MaxLod = AllocatedVirtualTexture->GetMaxLevel() + NumTailLods;
 				UserData->VirtualHeightfieldToLocal = UVToLocal;
@@ -675,9 +682,8 @@ namespace VirtualHeightfieldMesh
 	/** Final render instance description used by the DrawInstancedIndirect(). Keep in sync with VirtualHeightfieldMesh.ush. */
 	struct QuadRenderInstance
 	{
-		uint32 AddressLevelPacked;
 		float UVTransform[3];
-		float NeigborUVTransform[4][4];
+		uint32 AddressLevelPacked;
 	};
 
 	/** Compute shader to initialize all buffers, including adding the lowest mip page(s) to the QuadBuffer. */

@@ -121,10 +121,8 @@ QuadNeighborItem UnpackQuadNeighborItem(uint PackedItem)
 /** Final render instance description used by the DrawInstancedIndirect(). */
 struct QuadRenderInstance
 {
-	// Total of 64 bytes is nice for cache alignment. Take care when modifying.
-	uint PosLevelPacked;
 	float3 UVTransform;
-	float4 NeigborUVTransform[4];
+	uint PosLevelPacked;
 };
 
 uint2 UnpackPos(QuadRenderInstance Item)

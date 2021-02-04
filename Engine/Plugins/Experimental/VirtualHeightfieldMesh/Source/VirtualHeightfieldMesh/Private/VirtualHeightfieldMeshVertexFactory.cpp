@@ -100,9 +100,14 @@ public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		InstanceBufferParameter.Bind(ParameterMap, TEXT("InstanceBuffer"));
+		PageTableTextureParameter.Bind(ParameterMap, TEXT("PageTableTexture"));
 		HeightTextureParameter.Bind(ParameterMap, TEXT("HeightTexture"));
 		HeightSamplerParameter.Bind(ParameterMap, TEXT("HeightSampler"));
+		PackedUniformParameter.Bind(ParameterMap, TEXT("VTPackedUniform"));
+		PackedPageTableUniform0Parameter.Bind(ParameterMap, TEXT("VTPackedPageTableUniform0"));
+		PackedPageTableUniform1Parameter.Bind(ParameterMap, TEXT("VTPackedPageTableUniform1"));
 		PageTableSizeParameter.Bind(ParameterMap, TEXT("PageTableSize"));
+		PhysicalTextureSizeParameter.Bind(ParameterMap, TEXT("PhysicalTextureSize"));
 		MaxLodParameter.Bind(ParameterMap, TEXT("MaxLod"));
 		VirtualHeightfieldToLocalParameter.Bind(ParameterMap, TEXT("VirtualHeightfieldToLocal"));
 		VirtualHeightfieldToWorldParameter.Bind(ParameterMap, TEXT("VirtualHeightfieldToWorld"));
@@ -132,13 +137,33 @@ public:
 			{
 				ShaderBindings.Add(InstanceBufferParameter, UserData->InstanceBufferSRV);
 			}
+			if (PageTableTextureParameter.IsBound() && PageTableTextureParameter.IsBound())
+			{
+				ShaderBindings.AddTexture(PageTableTextureParameter, PageTableTextureParameter, TStaticSamplerState<SF_Point>::GetRHI(), UserData->PageTableTexture);
+			}
 			if (HeightTextureParameter.IsBound() && HeightSamplerParameter.IsBound())
 			{
 				ShaderBindings.AddTexture(HeightTextureParameter, HeightSamplerParameter, TStaticSamplerState<SF_Bilinear>::GetRHI(), UserData->HeightPhysicalTexture);
 			}
+			if (PackedUniformParameter.IsBound())
+			{
+				ShaderBindings.Add(PackedUniformParameter, UserData->PackedUniform);
+			}
+			if (PackedPageTableUniform0Parameter.IsBound())
+			{
+				ShaderBindings.Add(PackedPageTableUniform0Parameter, UserData->PackedPageTableUniform[0]);
+			}
+			if (PackedPageTableUniform1Parameter.IsBound())
+			{
+				ShaderBindings.Add(PackedPageTableUniform1Parameter, UserData->PackedPageTableUniform[1]);
+			}
 			if (PageTableSizeParameter.IsBound())
 			{
 				ShaderBindings.Add(PageTableSizeParameter, UserData->PageTableSize);
+			}
+			if (PhysicalTextureSizeParameter.IsBound())
+			{
+				ShaderBindings.Add(PhysicalTextureSizeParameter, UserData->PhysicalTextureSize);
 			}
 			if (MaxLodParameter.IsBound())
 			{
@@ -165,9 +190,14 @@ public:
 
 protected:
 	LAYOUT_FIELD(FShaderResourceParameter, InstanceBufferParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, PageTableTextureParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, HeightTextureParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, HeightSamplerParameter);
+	LAYOUT_FIELD(FShaderParameter, PackedUniformParameter);
+	LAYOUT_FIELD(FShaderParameter, PackedPageTableUniform0Parameter);
+	LAYOUT_FIELD(FShaderParameter, PackedPageTableUniform1Parameter);
 	LAYOUT_FIELD(FShaderParameter, PageTableSizeParameter);
+	LAYOUT_FIELD(FShaderParameter, PhysicalTextureSizeParameter);
 	LAYOUT_FIELD(FShaderParameter, MaxLodParameter);
 	LAYOUT_FIELD(FShaderParameter, VirtualHeightfieldToLocalParameter);
 	LAYOUT_FIELD(FShaderParameter, VirtualHeightfieldToWorldParameter);
