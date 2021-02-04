@@ -123,10 +123,10 @@ namespace UnrealBuildTool
 		/// Runs the provided tool and argument. Returns the output, using a rexex capture if one is provided
 		/// </summary>
 		/// <param name="Command">Full path to the tool to run</param>
-		/// <param name="Command">Argument that will be passed to the tool</param>
+		/// <param name="ToolArg">Argument that will be passed to the tool</param>
 		/// <param name="Expression">null, or a Regular expression to capture in the output</param>
 		/// <returns></returns>
-		public static string RunToolAndCaptureOutput(FileReference Command, string Command, string Expression = null)
+		public static string RunToolAndCaptureOutput(FileReference Command, string ToolArg, string Expression = null)
 		{
 			string ProcessOutput = Utils.RunLocalProcessAndReturnStdOut(Command.FullName, ToolArg);
 
