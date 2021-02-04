@@ -4639,7 +4639,8 @@ void DrawLumenMeshCapturePass(
 				UniformParams.DbgBuffer32 = PassParameters->DbgBuffer32->GetRHI();
 
 				const_cast<FScene&>(Scene).UniformBuffers.NaniteUniformBuffer.UpdateUniformBufferImmediate(UniformParams);
-				StateCache.InvalidateUniformBuffer(Scene.UniformBuffers.NaniteUniformBuffer);
+				// Need to force ViewUB rebind every loop iteration inside a single RDG pass
+				StateCache.SetPipelineState(-1);
 
 				FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 
