@@ -71,7 +71,6 @@ Landscape.cpp: Terrain rendering
 #include "Algo/BinarySearch.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
-#include "WorldPartition/WorldPartitionActorDescIterator.h"
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
 #include "WorldPartition/Landscape/LandscapeSplineActorDesc.h"
 #if WITH_EDITOR
@@ -3134,7 +3133,7 @@ void ULandscapeInfo::Initialize(UWorld* InWorld, const FGuid& InLandscapeGuid)
 	// If WorldPartition world get the Proxy handles
 	if (UWorldPartition* WorldPartition = InWorld->GetWorldPartition())
 	{
-		for (TWorldPartitionActorDescIterator<AActor, FWorldPartitionActorDesc> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+		for (UActorDescContainer::TIterator ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 		{
 			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 			if (ActorDesc->GetActorClass()->IsChildOf(ALandscapeStreamingProxy::StaticClass()))

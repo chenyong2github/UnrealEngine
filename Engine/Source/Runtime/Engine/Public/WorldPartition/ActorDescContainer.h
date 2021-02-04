@@ -12,6 +12,9 @@ UCLASS()
 class ENGINE_API UActorDescContainer : public UObject
 {
 	GENERATED_UCLASS_BODY()
+
+	friend struct FWorldPartitionHandleUtils;
+
 public:
 	void Initialize(FName InPackageName, bool bRegisterDelegates);
 	virtual void Uninitialize();
@@ -21,6 +24,9 @@ public:
 	virtual void OnAssetAdded(const FAssetData& InAssetData);
 	virtual void OnAssetRemoved(const FAssetData& InAssetData);
 	virtual void OnAssetUpdated(const FAssetData& InAssetData);
+
+	FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
+	const FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid) const;
 #endif
 
 protected:
@@ -43,8 +49,91 @@ protected:
 	TChunkedArray<TUniquePtr<FWorldPartitionActorDesc>> ActorDescList;
 
 	FName ContainerPackageName;
-public:
+
+private:
 	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> Actors;
-	
+
+public:
+	template<bool bConst>
+	class TBaseIterator
+	{
+	private:
+		typedef TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> MapType;
+		typedef typename TChooseClass<bConst, MapType::TConstIterator, MapType::TIterator>::Result IteratorType;
+		typedef typename TChooseClass<bConst, const UActorDescContainer*, UActorDescContainer*>::Result ContainerType;
+		typedef typename TChooseClass<bConst, const FWorldPartitionActorDesc*, FWorldPartitionActorDesc*>::Result ValueType;
+
+	public:
+		explicit TBaseIterator(ContainerType InActorDescContainer)
+			: ActorsIterator(InActorDescContainer->Actors)
+		{
+			if (ShouldSkip())
+			{
+				operator++();
+			}
+		}
+
+		/**
+		 * Iterates to next suitable actor desc.
+		 */
+		void operator++()
+		{
+			do
+			{
+				++ActorsIterator;
+			} while (ShouldSkip());
+		}
+
+		/**
+		 * Returns the current suitable actor desc pointed at by the Iterator
+		 *
+		 * @return	Current suitable actor desc
+		 */
+		FORCEINLINE ValueType operator*() const
+		{
+			return ActorsIterator->Value->Get();
+		}
+
+		/**
+		 * Returns the current suitable actor desc pointed at by the Iterator
+		 *
+		 * @return	Current suitable actor desc
+		 */
+		FORCEINLINE ValueType operator->() const
+		{
+			return ActorsIterator->Value->Get();
+		}
+		/**
+		 * Returns whether the iterator has reached the end and no longer points
+		 * to a suitable actor desc.
+		 *
+		 * @return true if iterator points to a suitable actor desc, false if it has reached the end
+		 */
+		FORCEINLINE explicit operator bool() const
+		{
+			return (bool)ActorsIterator;
+		}
+
+	private:
+		/**
+		 * Determines whether the iterator currently points to a valid actor desc or not.
+		 * @return	true
+		 */
+		FORCEINLINE bool ShouldSkip() const
+		{
+			if (!ActorsIterator)
+			{
+				return false;
+			}
+
+			return false;
+		}
+
+	private:
+		IteratorType ActorsIterator;
+	};
+
+	typedef TBaseIterator<false> TIterator;
+	typedef TBaseIterator<true> TConstIterator;
 #endif
 };

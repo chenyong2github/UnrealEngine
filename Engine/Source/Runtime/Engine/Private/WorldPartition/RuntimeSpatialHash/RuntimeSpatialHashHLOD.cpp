@@ -5,7 +5,6 @@
 #if WITH_EDITOR
 
 #include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashGridHelper.h"
-#include "WorldPartition/WorldPartitionActorDescIterator.h"
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -477,17 +476,22 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	// Create HLODs generation context
 	FHLODGenerationContext Context;
 	TArray<FWorldPartitionHandle> InvalidHLODActors;
-	for (TWorldPartitionActorDescIterator<AWorldPartitionHLOD, FHLODActorDesc> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
-	{
-		FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
 
-		if (HLODIterator->GetCellHash())
+	for (UActorDescContainer::TIterator HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+	{
+		if (HLODIterator->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
 		{
-			Context.HLODActorDescs.Add(HLODIterator->GetCellHash(), HLODActorHandle);
-		}
-		else
-		{
-			InvalidHLODActors.Add(HLODActorHandle);
+			FHLODActorDesc* HLODActorDesc = (FHLODActorDesc*)*HLODIterator;
+			FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODActorDesc->GetGuid());
+
+			if (HLODActorDesc->GetCellHash())
+			{
+				Context.HLODActorDescs.Add(HLODActorDesc->GetCellHash(), HLODActorHandle);
+			}
+			else
+			{
+				InvalidHLODActors.Add(HLODActorHandle);
+			}
 		}
 	}
 

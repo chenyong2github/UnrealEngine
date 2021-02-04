@@ -147,9 +147,9 @@ TArray<FActorCluster> CreateActorClustersImpl(UWorldPartition* WorldPartition, T
 		LevelScriptExternalActorReferences.Append(ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint));
 	}
 
-	for (const auto& Pair : WorldPartition->Actors)
+	for (UActorDescContainer::TIterator ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 	{
-		const FWorldPartitionActorDesc* ActorDesc = Pair.Value->Get();
+		FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 		EActorGridPlacement GridPlacement = ActorDesc->GetGridPlacement();
 
 		// Check if the actor is loaded (potentially referenced by the level script)

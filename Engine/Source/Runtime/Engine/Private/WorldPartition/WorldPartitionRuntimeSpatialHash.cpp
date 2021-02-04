@@ -6,7 +6,6 @@
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/WorldPartitionActorDescIterator.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 
@@ -489,11 +488,15 @@ void UWorldPartitionRuntimeSpatialHash::CacheHLODParents()
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	for (TWorldPartitionActorDescIterator<AWorldPartitionHLOD, FHLODActorDesc> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+	for (UActorDescContainer::TIterator HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 	{
-		for (const auto& SubActor : HLODIterator->GetSubActors())
+		if (HLODIterator->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
 		{
-			CachedHLODParents.Emplace(SubActor, HLODIterator->GetGuid());
+			FHLODActorDesc* HLODActorDesc = (FHLODActorDesc*)*HLODIterator;
+			for (const auto& SubActor : HLODActorDesc->GetSubActors())
+			{
+				CachedHLODParents.Emplace(SubActor, HLODActorDesc->GetGuid());
+			}
 		}
 	}
 }

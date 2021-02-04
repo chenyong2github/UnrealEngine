@@ -122,9 +122,6 @@ public:
 	FName GetWorldPartitionEditorName();
 	bool IsSimulating() const;
 
-	FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
-	const FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid) const;
-
 	void LoadEditorCells(const FBox& Box);
 	void UnloadEditorCells(const FBox& Box);
 	bool AreEditorCellsLoaded(const FBox& Box);

@@ -196,6 +196,18 @@ void UActorDescContainer::OnAssetUpdated(const FAssetData& InAssetData)
 	}
 }
 
+const FWorldPartitionActorDesc* UActorDescContainer::GetActorDesc(const FGuid& Guid) const
+{
+	const TUniquePtr<FWorldPartitionActorDesc>* const * ActorDesc = Actors.Find(Guid);
+	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
+}
+
+FWorldPartitionActorDesc* UActorDescContainer::GetActorDesc(const FGuid& Guid)
+{
+	TUniquePtr<FWorldPartitionActorDesc>** ActorDesc = Actors.Find(Guid);
+	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
+}
+
 void UActorDescContainer::RegisterDelegates()
 {
 	if (GEditor && !IsTemplate())
@@ -220,5 +232,4 @@ void UActorDescContainer::UnregisterDelegates()
 		}
 	}
 }
-
 #endif

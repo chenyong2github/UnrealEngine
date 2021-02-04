@@ -213,24 +213,24 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		UActorDescContainer::Initialize(PackageName, bRegisterDelegates);
 		check(bContainerInitialized);
 
-		for (TPair<FGuid, TUniquePtr<FWorldPartitionActorDesc>*>& Pair : Actors)
+		for (UActorDescContainer::TIterator ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
-			TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = Pair.Value;
+			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 
 			if (bIsInstanced)
 			{
-				const FString LongActorPackageName = (*NewActorDesc)->ActorPackage.ToString();
+				const FString LongActorPackageName = ActorDesc->ActorPackage.ToString();
 				const FString ActorPackageName = FPaths::GetBaseFilename(LongActorPackageName);
 				const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorPackageName);
 
 				InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-				(*NewActorDesc)->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
+				ActorDesc->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
 			}
 
 			if (bEditorOnly)
 			{
-				HashActorDesc(NewActorDesc->Get());
+				HashActorDesc(ActorDesc);
 			}
 		}
 
@@ -402,9 +402,9 @@ void UWorldPartition::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<
 
 void UWorldPartition::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
 {
-	for (const TPair<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> Pair : Actors)
+	for (UActorDescContainer::TConstIterator ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
-		FWorldPartitionActorDesc* ActorDesc = Pair.Value->Get();
+		const FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 		if (ActorDesc->GetActorClass()->IsChildOf(ActorClass))
 		{
 			if (!Predicate(ActorDesc))
@@ -428,18 +428,6 @@ const TArray<FWorldPartitionStreamingSource>& UWorldPartition::GetStreamingSourc
 }
 
 #if WITH_EDITOR
-const FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid) const
-{
-	const TUniquePtr<FWorldPartitionActorDesc>* const * ActorDesc = Actors.Find(Guid);
-	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
-}
-
-FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid)
-{
-	TUniquePtr<FWorldPartitionActorDesc>** ActorDesc = Actors.Find(Guid);
-	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
-}
-
 bool UWorldPartition::IsSimulating() const
 {
 	return GEditor->bIsSimulatingInEditor || !!GEditor->PlayWorld;
@@ -781,13 +769,13 @@ void UWorldPartition::BeginDestroy()
 #if WITH_EDITOR
 UObject* UWorldPartition::LoadSubobject(const TCHAR* SubObjectPath)
 {
-	for (const auto& Pair : Actors)
+	for (UActorDescContainer::TIterator ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
-		const FWorldPartitionActorDesc* ActorDesc = Pair.Value->Get();
+		FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 
 		if (FString(ActorDesc->ActorPath.ToString()).EndsWith(SubObjectPath))
 		{
-			int32 ReferenceIndex = LoadedSubobjects.Add(Pair.Value);
+			int32 ReferenceIndex = LoadedSubobjects.Emplace(this, ActorDesc->GetGuid());
 			return LoadedSubobjects[ReferenceIndex]->GetActor();
 		}
 	}
@@ -950,9 +938,9 @@ void UWorldPartition::OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& O
 FBox UWorldPartition::GetWorldBounds() const
 {
 	FBox WorldBounds(ForceInit);
-	for (const auto& Pair : Actors)
+	for (UActorDescContainer::TConstIterator ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
-		const FWorldPartitionActorDesc* ActorDesc = Pair.Value->Get();
+		const FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 
 		switch (ActorDesc->GetGridPlacement())
 		{
