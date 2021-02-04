@@ -2178,10 +2178,10 @@ public:
 	FORCEINLINE void SetPropertyClass(UClass* NewPropertyClass) { PropertyClass = NewPropertyClass; }
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
+	virtual void CheckValidObject(void* Value) const;
+
 protected:
 	virtual bool AllowCrossLevel() const;
-
-	virtual void CheckValidObject(void* Value) const;
 	// End of FObjectPropertyBase interface
 };
 
@@ -2308,8 +2308,11 @@ class COREUOBJECT_API FObjectPtrProperty : public FObjectProperty
 	virtual bool SameType(const FProperty* Other) const override;
 	virtual bool Identical(const void* A, const void* B, uint32 PortFlags) const override;
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
-	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	// End of FProperty interface
+
+	// Helper methods for sharing code with FClassPtrProperty even though one doesn't inherit from the other
+	static void StaticSerializeItem(const FObjectPropertyBase* ObjectProperty, FStructuredArchive::FSlot Slot, void* Value, void const* Defaults);
+	static bool StaticIdentical(const void* A, const void* B, uint32 PortFlags);
 
 	// FObjectProperty interface
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
@@ -2553,6 +2556,42 @@ public:
 #else
 	FORCEINLINE void SetMetaClass(UClass* NewMetaClass) { MetaClass = NewMetaClass; }
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+};
+
+//
+// Describes a reference variable to another object which may be nil.
+//
+class COREUOBJECT_API FClassPtrProperty : public FClassProperty
+{
+	DECLARE_FIELD(FClassPtrProperty, FClassProperty, CASTCLASS_FClassPtrProperty)
+
+	using Super::Super;
+
+#if WITH_EDITORONLY_DATA
+	explicit FClassPtrProperty(UField* InField)
+		: FClassProperty(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// UHT interface
+	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
+	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
+	// End of UHT interface
+
+	// FProperty interface
+	virtual bool SameType(const FProperty* Other) const override;
+	virtual bool Identical(const void* A, const void* B, uint32 PortFlags) const override;
+	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	// End of FProperty interface
+
+	// FObjectProperty interface
+	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
+	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
+private:
+	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
+public:
+	// End of FObjectProperty interface
 };
 
 /*-----------------------------------------------------------------------------

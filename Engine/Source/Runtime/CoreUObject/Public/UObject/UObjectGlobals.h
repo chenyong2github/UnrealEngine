@@ -2854,6 +2854,7 @@ namespace UE4CodeGen_Private
 	typedef FObjectPropertyParams  FWeakObjectPropertyParams;
 	typedef FObjectPropertyParams  FLazyObjectPropertyParams;
 	typedef FObjectPropertyParams  FObjectPtrPropertyParams;
+	typedef FClassPropertyParams   FClassPtrPropertyParams;
 	typedef FObjectPropertyParams  FSoftObjectPropertyParams;
 
 	struct FFunctionParams

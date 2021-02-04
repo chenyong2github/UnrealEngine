@@ -4424,13 +4424,26 @@ namespace UE4CodeGen_Private
 
 			case EPropertyGenFlags::Class:
 			{
-				const FClassPropertyParams* Prop = (const FClassPropertyParams*)PropBase;
-				NewProp = new FClassProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->MetaClassFunc ? Prop->MetaClassFunc() : nullptr, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
+				if (EnumHasAllFlags(PropBase->Flags, EPropertyGenFlags::ObjectPtr))
+				{
+					const FClassPtrPropertyParams* Prop = (const FClassPtrPropertyParams*)PropBase;
+					NewProp = new FClassPtrProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->MetaClassFunc ? Prop->MetaClassFunc() : nullptr, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
 
 #if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
+					MetaDataArray = Prop->MetaDataArray;
+					NumMetaData   = Prop->NumMetaData;
 #endif
+				}
+				else
+				{
+					const FClassPropertyParams* Prop = (const FClassPropertyParams*)PropBase;
+					NewProp = new FClassProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->MetaClassFunc ? Prop->MetaClassFunc() : nullptr, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
+
+#if WITH_METADATA
+					MetaDataArray = Prop->MetaDataArray;
+					NumMetaData   = Prop->NumMetaData;
+#endif
+				}
 			}
 			break;
 

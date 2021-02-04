@@ -874,16 +874,25 @@ namespace
 			{
 				check(VarProperty.PropertyClass);
 
-				// @TODO: OBJPTR: Further work is needed to handle UClass derivatives in a manner similar to CPT_ObjectReference or CPT_SoftObjectReference
-				if (DoesAnythingInHierarchyHaveDefaultToInstanced(VarProperty.PropertyClass))
+				if (VarProperty.PropertyClass->IsChildOf(UClass::StaticClass()))
 				{
-					VarProperty.PropertyFlags |= CPF_InstancedReference;
-					AddEditInlineMetaData(VarProperty.MetaData);
+					FClassPtrProperty* Result = new FClassPtrProperty(Scope, Name, ObjectFlags);
+					Result->MetaClass     = VarProperty.MetaClass;
+					Result->PropertyClass = VarProperty.PropertyClass;
+					return Result;
 				}
+				else
+				{
+					if (DoesAnythingInHierarchyHaveDefaultToInstanced(VarProperty.PropertyClass))
+					{
+						VarProperty.PropertyFlags |= CPF_InstancedReference;
+						AddEditInlineMetaData(VarProperty.MetaData);
+					}
 
-				FObjectPtrProperty* Result = new FObjectPtrProperty(Scope, Name, ObjectFlags);
-				Result->PropertyClass = VarProperty.PropertyClass;
-				return Result;
+					FObjectPtrProperty* Result = new FObjectPtrProperty(Scope, Name, ObjectFlags);
+					Result->PropertyClass = VarProperty.PropertyClass;
+					return Result;
+				}
 			}
 
 			case CPT_SoftObjectReference:
@@ -1241,6 +1250,7 @@ namespace
 			|| Property->IsA<FSoftObjectProperty>()
 			|| Property->IsA<FObjectProperty>()
 			|| Property->IsA<FObjectPtrProperty>()
+			|| Property->IsA<FClassPtrProperty>()
 			|| Property->IsA<FFloatProperty>()
 			|| Property->IsA<FDoubleProperty>()
 			|| Property->IsA<FIntProperty>()

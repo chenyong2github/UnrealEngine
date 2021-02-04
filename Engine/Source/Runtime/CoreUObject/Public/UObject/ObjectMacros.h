@@ -348,6 +348,7 @@ enum EClassCastFlags : uint64
 	CASTCLASS_FMulticastSparseDelegateProperty	= 0x0008000000000000,
 	CASTCLASS_FFieldPathProperty			= 0x0010000000000000,
 	CASTCLASS_FObjectPtrProperty			= 0x0020000000000000,
+	CASTCLASS_FClassPtrProperty				= 0x0040000000000000,
 };
 
 #define CASTCLASS_AllFlags ((EClassCastFlags)0xFFFFFFFFFFFFFFFF)

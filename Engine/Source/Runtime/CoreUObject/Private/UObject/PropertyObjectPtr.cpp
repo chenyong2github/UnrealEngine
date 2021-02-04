@@ -24,6 +24,11 @@ FString FObjectPtrProperty::GetCPPMacroType(FString& ExtendedTypeText) const
 
 void FObjectPtrProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
+	StaticSerializeItem(this, Slot, Value, Defaults);
+}
+
+void FObjectPtrProperty::StaticSerializeItem(const FObjectPropertyBase* ObjectProperty, FStructuredArchive::FSlot Slot, void* Value, void const* Defaults)
+{
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	FObjectPtr* ObjectPtr = (FObjectPtr*)GetPropertyValuePtr(Value);
 
@@ -33,7 +38,7 @@ void FObjectPtrProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Val
 
 		if(!UnderlyingArchive.IsSaving() && IsObjectHandleResolved(ObjectPtr->GetHandle()))
 		{
-			CheckValidObject(ObjectPtr);
+			ObjectProperty->CheckValidObject(ObjectPtr);
 		}
 	}
 	else
@@ -48,11 +53,11 @@ void FObjectPtrProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Val
 	#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 			if (ULinkerPlaceholderExportObject* PlaceholderVal = Cast<ULinkerPlaceholderExportObject>(ResolvedObject))
 			{
-				PlaceholderVal->AddReferencingPropertyValue(this, Value);
+				PlaceholderVal->AddReferencingPropertyValue(ObjectProperty, Value);
 			}
 			else if (ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(ResolvedObject))
 			{
-				PlaceholderClass->AddReferencingPropertyValue(this, Value);
+				PlaceholderClass->AddReferencingPropertyValue(ObjectProperty, Value);
 			}
 			// NOTE: we don't remove this from CurrentValue if it is a 
 			//       ULinkerPlaceholderExportObject; this is because this property 
@@ -67,7 +72,7 @@ void FObjectPtrProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Val
 			//        to accommodate this (as it depends on finding itself as the set value)
 	#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-			CheckValidObject(Value);
+			ObjectProperty->CheckValidObject(Value);
 		}
 	}
 }
@@ -81,6 +86,11 @@ bool FObjectPtrProperty::SameType(const FProperty* Other) const
 }
 
 bool FObjectPtrProperty::Identical(const void* A, const void* B, uint32 PortFlags) const
+{
+	return StaticIdentical(A, B, PortFlags);
+}
+
+bool FObjectPtrProperty::StaticIdentical(const void* A, const void* B, uint32 PortFlags)
 {
 	FObjectPtr ObjectA = A ? *((FObjectPtr*)A) : FObjectPtr();
 	FObjectPtr ObjectB = B ? *((FObjectPtr*)B) : FObjectPtr();
