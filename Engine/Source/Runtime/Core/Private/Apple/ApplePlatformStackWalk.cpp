@@ -367,7 +367,7 @@ void FApplePlatformStackWalk::ThreadStackWalkAndDump(ANSICHAR* HumanReadableStri
 #endif
 }
 
-uint32 FApplePlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+uint32 FApplePlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context)
 {
 // Consider this for iOS
 #ifdef PLATFORM_MAC

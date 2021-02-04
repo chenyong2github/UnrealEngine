@@ -169,7 +169,7 @@ uint32 FGenericPlatformStackWalk::CaptureStackBackTrace( uint64* BackTrace, uint
 	return 0;
 }
 
-uint32 FGenericPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+uint32 FGenericPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context)
 {
 	return 0;
 }

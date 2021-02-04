@@ -107,6 +107,7 @@ struct FWindowsThreadContextWrapper
 		check(Magic == MAGIC_VAL);
 	}
 };
+
 /**
  * Helper function performing the actual stack walk. This code relies on the symbols being loaded for best results
  * walking the stack albeit at a significant performance penalty.
@@ -118,7 +119,6 @@ struct FWindowsThreadContextWrapper
  * @param	Context				Thread context information
  * @return	EXCEPTION_EXECUTE_HANDLER
  */
-
 static int32 CaptureStackTraceHelper(uint64 *BackTrace, uint32 MaxDepth, FWindowsThreadContextWrapper* ContextWapper, uint32* Depth)
 {
 	STACKFRAME64		StackFrame64;
@@ -138,7 +138,7 @@ static int32 CaptureStackTraceHelper(uint64 *BackTrace, uint32 MaxDepth, FWindow
 #endif
 	{
 		// Get context, process and thread information.
-		ProcessHandle	= GProcessHandle;
+		ProcessHandle = GProcessHandle;
 
 		// Zero out stack frame.
 		FMemory::Memzero( StackFrame64 );
@@ -302,7 +302,7 @@ void FWindowsPlatformStackWalk::ThreadStackWalkAndDump(ANSICHAR* HumanReadableSt
 	}
 }
 
-uint32 FWindowsPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+uint32 FWindowsPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context)
 {
 	InitStackWalking();
 
@@ -326,14 +326,23 @@ uint32 FWindowsPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 	// Suspend the thread before grabbing its context
 	SuspendThread(ThreadHandle);
 
-	FWindowsThreadContextWrapper ContextWrapper;
-	ContextWrapper.Context.ContextFlags = CONTEXT_CONTROL;
-	ContextWrapper.ThreadHandle = ThreadHandle;
-
 	uint32 Depth = 0;
-	if (GetThreadContext(ThreadHandle, &ContextWrapper.Context))
+	if (Context)
 	{
-		CaptureStackTraceHelper(BackTrace, MaxDepth, &ContextWrapper, &Depth);
+		FWindowsThreadContextWrapper* ContextWrapper = reinterpret_cast<FWindowsThreadContextWrapper*>(Context);
+		ContextWrapper->ThreadHandle = ThreadHandle; // Use the thread handle open above to be sure it has the correct permissions.
+		CaptureStackTraceHelper(BackTrace, MaxDepth, ContextWrapper, &Depth);
+	}
+	else
+	{
+		FWindowsThreadContextWrapper ContextWrapper;
+		ContextWrapper.Context.ContextFlags = CONTEXT_CONTROL;
+		ContextWrapper.ThreadHandle = ThreadHandle;
+		
+		if (::GetThreadContext(ThreadHandle, &ContextWrapper.Context))
+		{
+			CaptureStackTraceHelper(BackTrace, MaxDepth, &ContextWrapper, &Depth);
+		}
 	}
 
 	ResumeThread(ThreadHandle);
@@ -349,7 +358,7 @@ uint32 FWindowsPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
  *
  * @param	BackTrace			[out] Pointer to array to take backtrace
  * @param	MaxDepth			Entries in BackTrace array
- * @param	Context				Optional thread context information
+ * @param	Context				Optional thread context information (FWindowsThreadContextWrapper instance)
  */
 uint32 FWindowsPlatformStackWalk::CaptureStackBackTrace( uint64* BackTrace, uint32 MaxDepth, void* Context )
 {
@@ -1036,22 +1045,45 @@ FString GetSymbolSearchPath()
 /**
  * Initializes the symbol engine if needed.
  */
-bool FWindowsPlatformStackWalk::InitStackWalkingInternal(void* Process)
+bool FWindowsPlatformStackWalk::InitStackWalkingInternal(void* Process, bool bForceReinitOnProcessMismatch)
 {
-	if (GProcessHandle != INVALID_HANDLE_VALUE && !GNeedToRefreshSymbols)
-	{
-		return true;
-	}
-	GProcessHandle = Process;
-
 	// DbgHelp functions are not thread safe, but this function can potentially be called from different
 	// threads in our engine, so we take a critical section
 	static FCriticalSection CriticalSection;
-	FScopeLock Lock( &CriticalSection );
+	FScopeLock Lock(&CriticalSection);
 
-	// Only initialize once.
-	if( !GStackWalkingInitialized )
+	if (GStackWalkingInitialized)
 	{
+		if (Process == GProcessHandle && !GNeedToRefreshSymbols)
+		{
+			return true;
+		}
+		else if (Process != GProcessHandle) // Case: CrashReportClient walked its own process to log one of its ensure, then need to remote walk the Editor process to report an ensure/crash.
+		{
+			if (bForceReinitOnProcessMismatch)
+			{
+				SymCleanup(GProcessHandle);
+				GStackWalkingInitialized = false;
+				GNeedToRefreshSymbols = false;
+				GProcessHandle = Process;
+			}
+			else
+			{
+				return false; // Stack walking is already initialized for another process.
+			}
+		}
+		// Fallthrough.
+	}
+	else // Not initialized yet.
+	{
+		GProcessHandle = Process;
+	}
+
+	// Only do this code once, it never changes.
+	static bool bHasRunOnce = false;
+	if (!bHasRunOnce)
+	{
+		bHasRunOnce = true;
 		void* DllHandle = FPlatformProcess::GetDllHandle( TEXT("PSAPI.DLL") );
 		if( DllHandle == NULL )
 		{
@@ -1069,13 +1101,16 @@ bool FWindowsPlatformStackWalk::InitStackWalkingInternal(void* Process)
 		FGetModuleBaseName		= (TFGetModuleBaseName)		FPlatformProcess::GetDllExport( DllHandle,TEXT("GetModuleBaseNameA"));
 #endif
 		FGetModuleInformation	= (TFGetModuleInformation)	FPlatformProcess::GetDllExport( DllHandle,TEXT("GetModuleInformation"));
+	}
 
-		// Abort if we can't look up the functions.
-		if( !FEnumProcesses || !FEnumProcessModules || !FGetModuleFileNameEx || !FGetModuleBaseName || !FGetModuleInformation )
-		{
-			return false;
-		}
+	// Abort if the required function pointers were not be loaded successfully.
+	if( !FEnumProcesses || !FEnumProcessModules || !FGetModuleFileNameEx || !FGetModuleBaseName || !FGetModuleInformation )
+	{
+		return false;
+	}
 
+	if (!GStackWalkingInitialized)
+	{
 		// Set up the symbol engine.
 		uint32 SymOpts = SymGetOptions();
 
@@ -1096,15 +1131,14 @@ bool FWindowsPlatformStackWalk::InitStackWalkingInternal(void* Process)
 
 		SymSetOptions( SymOpts );
 
-		FString SymbolSearchPath = GetSymbolSearchPath();
-	
 		// Initialize the symbol engine.
 #if WINVER > 0x502
+		FString SymbolSearchPath = GetSymbolSearchPath();
 		SymInitializeW( GProcessHandle, SymbolSearchPath.IsEmpty() ? nullptr : *SymbolSearchPath, true );
 #else
 		SymInitialize( GProcessHandle, nullptr, true );
 #endif
-	
+
 		GNeedToRefreshSymbols = false;
 		GStackWalkingInitialized = true;
 
@@ -1120,7 +1154,7 @@ bool FWindowsPlatformStackWalk::InitStackWalkingInternal(void* Process)
 	else if (GNeedToRefreshSymbols)
 	{
 		// Refresh and reload symbols
-		SymRefreshModuleList( GProcessHandle );
+		SymRefreshModuleList(GProcessHandle);
 
 		GNeedToRefreshSymbols = false;
 
@@ -1140,14 +1174,18 @@ bool FWindowsPlatformStackWalk::InitStackWalkingInternal(void* Process)
 
 bool FWindowsPlatformStackWalk::InitStackWalking()
 {
-	return FWindowsPlatformStackWalk::InitStackWalkingInternal(GetCurrentProcess());
+	// When stack walking is already initialized, the code often implicitly assumes that the same process is going to
+	// be walked, but that's not always true since CrashReportClient can walk its own process to log an ensure and walk
+	// the Editor process to report an ensure/crash. If stack walking is already initialized, keep walking the same process.
+	return FWindowsPlatformStackWalk::InitStackWalkingInternal(GetCurrentProcess(), /*bForceReinitOnProcessMismatch*/false);
 }
 
 bool FWindowsPlatformStackWalk::InitStackWalkingForProcess(const FProcHandle& Process)
 {
-	return FWindowsPlatformStackWalk::InitStackWalkingInternal(Process.Get());
+	// When the caller specifies a process, that process become the 'official' one and this will reinitialize the stack walking
+	// if the current process and the new process don't match. Using an invalid process handle means 'force to reinitialize to the current process'.
+	return FWindowsPlatformStackWalk::InitStackWalkingInternal(Process.IsValid() ? Process.Get() : GetCurrentProcess(), /*bForceReinitOnProcessMismatch*/true);
 }
-
 
 void FWindowsPlatformStackWalk::RegisterOnModulesChanged()
 {

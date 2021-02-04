@@ -451,17 +451,47 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	CrashContext.SetCrashedThreadId(SharedCrashContext.CrashingThreadId);
 	CrashContext.SetNumMinidumpFramesToIgnore(SharedCrashContext.NumStackFramesToIgnore);
 
-	// Initialize the stack walking for the monitored process
+	// Initialize the stack walking for the monitored process (effectively overriding this process stack walking functionality)
 	FPlatformStackWalk::InitStackWalkingForProcess(ProcessHandle);
 
 	for (uint32 ThreadIdx = 0; ThreadIdx < SharedCrashContext.NumThreads; ThreadIdx++)
 	{
 		const uint32 ThreadId = SharedCrashContext.ThreadIds[ThreadIdx];
+		TSharedPtr<void> PlatformContext;
+
+#if PLATFORM_WINDOWS
+		// This code let us acquire the complete portable callstack of the remote process after it crashed on a null pointer function invokation. To successfully walk the
+		// stack where a null pointer function is called, we need to provide the thread context reported in the crash (the pointer passed to minidump function), otherwise,
+		// the portable callstack is incomplete.
+		if (ThreadId == SharedCrashContext.CrashingThreadId)
+		{
+			SIZE_T ReadCount = 0;
+
+			// On Windows, 'PlatformCrashContext' is a pointer to the EXCEPTION_POINTERS struct. Try to read it from the monitored process memory.
+			EXCEPTION_POINTERS ExceptPtrs{nullptr, nullptr};
+			if (::ReadProcessMemory(ProcessHandle.Get(), SharedCrashContext.PlatformCrashContext, &ExceptPtrs, sizeof(EXCEPTION_POINTERS), &ReadCount) && ReadCount == sizeof(EXCEPTION_POINTERS))
+			{
+				// Try to read memory of the CONTEXT member from the monitored process.
+				CONTEXT WindowsContext;
+				FMemory::Memzero(WindowsContext);
+				if (::ReadProcessMemory(ProcessHandle.Get(), ExceptPtrs.ContextRecord, &WindowsContext, sizeof(CONTEXT), &ReadCount) && ReadCount == sizeof(CONTEXT))
+				{
+					// NOTE: CaptureThreadStackBackTrace() will open and supply the thread handle specified as null here.
+					PlatformContext = TSharedPtr<void>(FWindowsPlatformStackWalk::MakeThreadContextWrapper(&WindowsContext, nullptr), [](void* Ptr)
+					{
+						FWindowsPlatformStackWalk::ReleaseThreadContextWrapper(Ptr);
+					});
+				}
+			}
+		}
+#endif
+
 		uint64 StackFrames[CR_MAX_STACK_FRAMES] = {0};
 		const uint32 StackFrameCount = FPlatformStackWalk::CaptureThreadStackBackTrace(
 			ThreadId, 
 			StackFrames,
-			CR_MAX_STACK_FRAMES
+			CR_MAX_STACK_FRAMES,
+			PlatformContext.Get()
 		);
 
 		CrashContext.AddPortableThreadCallStack(
@@ -532,6 +562,10 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 
 	// Link the crash to the Editor summary event to help diagnose the abnormal termination quickly.
 	FDiagnosticLogger::Get().LogEvent(*FPrimaryCrashProperties::Get()->CrashGUID);
+
+	// Reset stack walking to allow CRC to implicitly walk its own process and close the monitored process handle.
+	FPlatformStackWalk::InitStackWalkingForProcess(FProcHandle());
+	FPlatformProcess::CloseProc(ProcessHandle);
 
 #if CRASH_REPORT_UNATTENDED_ONLY
 	return ErrorReport;

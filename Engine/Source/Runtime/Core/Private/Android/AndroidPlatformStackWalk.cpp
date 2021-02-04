@@ -331,7 +331,7 @@ void FAndroidPlatformStackWalk::HandleBackTraceSignal(siginfo* Info, void* Conte
 // Sends a signal to ThreadId, wait AndroidPlatformThreadStackWalk.RequestMaxWait seconds for result or time out and return 0.
 // if callstack capture begins, but takes > AndroidPlatformThreadStackWalk.MaxWait the process will be killed.
 // Is not thread safe, returns 0 if a CaptureThreadStackBackTrace is occurring on another thread.
-uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context)
 {
 	static TAtomic<bool> bHasReentered(false);
 	bool bExpected = false;
@@ -408,7 +408,7 @@ uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 	return GatherCallstackFromThread(ThreadId);
 }
 #else
-uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context)
 {
 	return 0;
 }

@@ -51,11 +51,13 @@ void SaveCrcCrashException(EXCEPTION_POINTERS* ExceptionInfo)
 		{
 			// Try to get the exception callstack to log to figure out why CRC crashed. This is not robust because this runs
 			// in the crashing processs and it allocates memory/use callstack, but we may still be able to get some useful data.
-			FPlatformStackWalk::InitStackWalking();
-			FPlatformStackWalk::StackWalkAndDump(CrashStackTrace, UE_ARRAY_COUNT(CrashStackTrace), 0);
-			if (CrashStackTrace[0] != 0)
+			if (FPlatformStackWalk::InitStackWalkingForProcess(FProcHandle()))
 			{
-				FDiagnosticLogger::Get().LogEvent(ANSI_TO_TCHAR(CrashStackTrace));
+				FPlatformStackWalk::StackWalkAndDump(CrashStackTrace, UE_ARRAY_COUNT(CrashStackTrace), 0);
+				if (CrashStackTrace[0] != 0)
+				{
+					FDiagnosticLogger::Get().LogEvent(ANSI_TO_TCHAR(CrashStackTrace));
+				}
 			}
 		}
 	}
