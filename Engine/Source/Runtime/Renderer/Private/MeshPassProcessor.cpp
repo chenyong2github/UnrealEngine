@@ -1481,8 +1481,7 @@ FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, F
 {
 	check(View.bIsViewInfo);
 	const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
-	InstanceCullingContext.ViewIds.Add(ViewInfo->GPUSceneViewId);
-	InstanceCullingContext.InstanceCullingManager = InstanceCullingManager;
+	InstanceCullingContext = FInstanceCullingContext(InstanceCullingManager, TArrayView<const int32>(&ViewInfo->GPUSceneViewId, 1));
 }
 
 void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)

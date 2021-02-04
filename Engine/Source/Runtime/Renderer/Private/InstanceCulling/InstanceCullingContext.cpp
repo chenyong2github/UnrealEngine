@@ -14,6 +14,14 @@
 
 #define ENABLE_DETERMINISTIC_INSTANCE_CULLING 1
 
+
+FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds) :
+	InstanceCullingManager(InInstanceCullingManager),
+	ViewIds(InViewIds),
+	bIsEnabled(InInstanceCullingManager == nullptr || InInstanceCullingManager->IsEnabled())
+{
+}
+
 void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives)
 {
 #if defined(GPUCULL_TODO)
@@ -61,12 +69,6 @@ void FInstanceCullingContext::AddInstanceRunToCullingCommand(int32 ScenePrimitiv
 		InstanceRuns.Add(FInstanceRun{ Runs[Index * 2], Runs[Index * 2 + 1], ScenePrimitiveId });
 	}
 #endif
-}
-
-int32 FInstanceCullingContext::AllocateArgsSlotRange(uint32 NumSlots)
-{
-	//CullingCommands.SetNumZeroed(NumSlots);
-	return 0;
 }
 
 #if defined(GPUCULL_TODO)

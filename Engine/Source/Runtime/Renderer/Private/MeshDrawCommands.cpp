@@ -539,7 +539,6 @@ void SetupGPUInstancedDraws(
 	const int32 NumDrawCommandsIn = VisibleMeshDrawCommandsInOut.Num();
 	int32 NumDrawCommandsOut = 0;
 	// Allocate conservatively for all commands, may not use all.
-	int32 BaseArgsSlotIndex = InstanceCullingContext.AllocateArgsSlotRange(NumDrawCommandsIn);
 	for (int32 DrawCommandIndex = 0; DrawCommandIndex < NumDrawCommandsIn; ++DrawCommandIndex)
 	{
 		const FVisibleMeshDrawCommand& RESTRICT VisibleMeshDrawCommand = PassVisibleMeshDrawCommands[DrawCommandIndex];
@@ -971,7 +970,7 @@ public:
 			{
 #if defined(GPUCULL_TODO)
 				// GPUCULL_TODO: Make a switch to control old / new behaviour, determine minimum reqs.
-				SetupGPUInstancedDraws(*Context.InstanceCullingContext, Context.MeshDrawCommands, Context.MaxInstances, Context.VisibleMeshDrawCommandsNum, Context.NewPassVisibleMeshDrawCommandsNum);
+				SetupGPUInstancedDraws(Context.InstanceCullingContext, Context.MeshDrawCommands, Context.MaxInstances, Context.VisibleMeshDrawCommandsNum, Context.NewPassVisibleMeshDrawCommandsNum);
 #else //!defined(GPUCULL_TODO)
 				BuildMeshDrawCommandPrimitiveIdBuffer(
 					Context.bDynamicInstancing,
@@ -1113,41 +1112,10 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 
 
 
-/*
- * Used by various dynamic passes to sort/merge mesh draw commands immediately on a rendering thread.
- */
-void SortAndMergeDynamicPassMeshDrawCommands(
-	ERHIFeatureLevel::Type FeatureLevel,
-	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
-	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
-	FInstanceCullingContext& InstanceCullingContext)
-{
-#if defined(GPUCULL_TODO)
-	const bool bUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
-
-	const int32 NumDrawCommands = VisibleMeshDrawCommands.Num();
-	if (NumDrawCommands > 0)
-	{
-		FMeshCommandOneFrameArray NewPassVisibleMeshDrawCommands;
-		int32 MaxInstances = 1;
-		int32 VisibleMeshDrawCommandsNum = 0;
-		int32 NewPassVisibleMeshDrawCommandsNum = 0;
-
-		VisibleMeshDrawCommands.Sort(FCompareFMeshDrawCommands());
-
-		if (bUseGPUScene)
-		{
-			SetupGPUInstancedDraws(InstanceCullingContext, VisibleMeshDrawCommands, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
-		}
-	}
-#endif // GPUCULL_TODO
-}
-
 void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	FScene* Scene,
 	const FViewInfo& View,
-	FInstanceCullingContext* InstanceCullingContext,
-	FInstanceCullingManager* InstanceCullingManager,
+	FInstanceCullingContext&& InstanceCullingContext,
 	EMeshPass::Type PassType,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 	FMeshPassProcessor* MeshPassProcessor,
@@ -1198,8 +1166,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	TaskContext.InstanceFactor = (bIsMainViewPass && View.IsInstancedStereoPass()) ? 2 : 1;
 #endif // defined(GPUCULL_TODO)
 
-	TaskContext.InstanceCullingContext = InstanceCullingContext; 
-	TaskContext.InstanceCullingManager = InstanceCullingManager;
+	TaskContext.InstanceCullingContext = MoveTemp(InstanceCullingContext); 
 
 	// Setup translucency sort key update pass based on view.
 	TaskContext.TranslucencyPass = ETranslucencyPass::TPT_MAX;
@@ -1467,13 +1434,13 @@ public:
 void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
 {
 #if defined(GPUCULL_TODO)
-	if (TaskContext.InstanceCullingContext)
+	if (TaskContext.InstanceCullingContext.IsEnabled())
 	{
 		WaitForMeshPassSetupTask();
-		if (MaxNumDraws > 0 && TaskContext.InstanceCullingContext->HasCullingCommands())
+		if (MaxNumDraws > 0 && TaskContext.InstanceCullingContext.HasCullingCommands())
 		{
 			// 2. Run finalize culling commands pass
-			TaskContext.InstanceCullingContext->BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.InstanceCullingResult);
+			TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.InstanceCullingResult);
 			TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
 			return;
 		}
@@ -1489,7 +1456,7 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuil
 void FParallelMeshDrawCommandPass::BuildInstanceList(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingRdgParams& OutParams)
 {
 #if defined(GPUCULL_TODO)
-	if (TaskContext.InstanceCullingContext)
+	if (TaskContext.InstanceCullingContext.IsEnabled())
 	{
 		WaitForMeshPassSetupTask();
 		if (MaxNumDraws <= 0)
@@ -1497,7 +1464,7 @@ void FParallelMeshDrawCommandPass::BuildInstanceList(FRDGBuilder& GraphBuilder, 
 			return;
 		}
 		// Run pass to build ID lists (temporary)
-		TaskContext.InstanceCullingContext->BuildRenderingCommands(GraphBuilder, GPUScene, OutParams);
+		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, OutParams);
 	}
 #endif
 }

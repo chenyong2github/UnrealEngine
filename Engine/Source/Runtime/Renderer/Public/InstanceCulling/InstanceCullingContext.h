@@ -63,6 +63,8 @@ public:
 
 	FInstanceCullingContext() {}
 
+	FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds);
+
 	struct FPrimCullingCommand
 	{
 		uint32 BaseVertexIndex;
@@ -71,6 +73,8 @@ public:
 		uint32 FirstPrimitiveIdOffset;
 		uint32 FirstInstanceRunOffset;
 	};
+
+	bool IsEnabled() const { return bIsEnabled; }
 
 	/**
 	 * Begin a new command. Allocates a slot and is referenced by subsequent AddPrimitiveToCullingCommand and AddInstanceRunToCullingCommand.
@@ -89,12 +93,6 @@ public:
 	 */
 	void AddInstanceRunToCullingCommand(int32 ScenePrimitiveId, const uint32* Runs, uint32 NumRuns);
 
-	/**
-	 * Allocate a range from the indirect args buffer (and instance index offset buffer).
-	 * This function is thread safe. The alloction is only valid for a single frame.
-	 */
-	int32 AllocateArgsSlotRange(uint32 NumSlots);
-
 
 	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, FInstanceCullingResult& Results) const;
 
@@ -104,20 +102,6 @@ public:
 	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingRdgParams& Params) const;
 
 	inline bool HasCullingCommands() const { return CullingCommands.Num() > 0; 	}
-
-#if 0
-	/**
-	 * Creates buffers of fixed size that will be filled in on the CPU during a dynamic pass, need to have a conservative size.
-	 * @param NumDrawCommands should include any instancing e.g., for ISR, it is fine to be an overestimate.
-	 */
-	static void CreateLegacyPassParameters(FRDGBuilder& GraphBuilder, FInstanceCullingDrawParams& InstanceCullingDrawParamsOut, int32 NumDrawCommands);
-
-
-	/**
-	 *
-	 */
-	void BuildLegacyRenderingCommands(const FScene& Scene, FRHICommandListImmediate& RHICmdList, const FGPUScenePrimitiveCollector& DynamicPrimitiveCollector, FRHIBuffer*& InstanceIdOffsetBufferOut, FRHIBuffer*& DrawIndirectArgsBufferOut);
-#endif // 0
 
 	// GPUCULL_TODO: These should not be dynamically heap-allocated, all except instance runs are easy to pre-size on memstack.
 	//           Must be presized as populated from task threads.
@@ -131,8 +115,9 @@ public:
 		int32 PrimitiveId;
 	};
 
+	FInstanceCullingManager* InstanceCullingManager = nullptr;
 	TArray<FInstanceRun/*, SceneRenderingAllocator*/> InstanceRuns;
 	TArray<int32/*, SceneRenderingAllocator*/> ViewIds;
-	FInstanceCullingManager* InstanceCullingManager = nullptr;
+	bool bIsEnabled = false;
 };
 

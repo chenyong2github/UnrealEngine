@@ -1973,21 +1973,6 @@ private:
 
 #if defined(GPUCULL_TODO)
 
-#if 0
-/**
- * Same as the parallel one, but intended for use with simpler tasks where the overhead and complexity of parallel is not justified.
- */
-class SimpleMeshDrawCommandPass
-{
-public:
-
-private:
-	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-	FInstanceCullingContext InstanceCullingContext;
-};
-
-#endif
-
 /**
  * Same as the parallel one, but intended for use with simpler tasks where the overhead and complexity of parallel is not justified.
  */

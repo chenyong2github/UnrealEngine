@@ -22,11 +22,6 @@ static TAutoConsoleVariable<int32> CVarCullInstances(
 
 FInstanceCullingManager::~FInstanceCullingManager()
 {
-	for (FInstanceCullingContext* InstanceCullingContext : CullingContexts)
-	{
-		// Memstack allocated, so no destructor is called.
-		InstanceCullingContext->~FInstanceCullingContext();
-	}
 }
 
 int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
@@ -164,21 +159,4 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 		}
 	}
 #endif // defined(GPUCULL_TODO)
-}
-
-
-FInstanceCullingContext* FInstanceCullingManager::CreateContext(const int32* ViewIds, int32 NumViews)
-{
-	if (bIsEnabled)
-	{
-		FInstanceCullingContext* InstanceCullingContext = new(FMemStack::Get()) FInstanceCullingContext;
-		CullingContexts.Add(InstanceCullingContext);
-		InstanceCullingContext->ViewIds.Insert(ViewIds, NumViews, 0);
-		InstanceCullingContext->InstanceCullingManager = this;
-		return InstanceCullingContext;
-	}
-	else
-	{
-		return nullptr;
-	}
 }

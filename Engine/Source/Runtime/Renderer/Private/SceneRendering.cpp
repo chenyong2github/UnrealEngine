@@ -3262,13 +3262,10 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 				View.GPUSceneViewId + 1,
 			};
 
-			FInstanceCullingContext* InstanceCullingContext = InstanceCullingManager.CreateContext(ViewIds, NumViews);
-
 			Pass.DispatchPassSetup(
 				Scene,
 				View,
-				InstanceCullingContext,
-				&InstanceCullingManager,
+				FInstanceCullingContext(&InstanceCullingManager, TArrayView<int32>(ViewIds, NumViews)),
 				PassType,
 				BasePassDepthStencilAccess,
 				MeshPassProcessor,

@@ -56,7 +56,6 @@ public:
 	FMeshDrawCommandPassSetupTaskContext()
 		: View(nullptr)
 		, Scene(nullptr)
-		, InstanceCullingManager(nullptr)
 		, ShadingPath(EShadingPath::Num)
 		, PassType(EMeshPass::Num)
 		, bUseGPUScene(false)
@@ -77,13 +76,11 @@ public:
 		, VisibleMeshDrawCommandsNum(0)
 		, NewPassVisibleMeshDrawCommandsNum(0)
 		, MaxInstances(1)
-		, InstanceCullingContext(nullptr)
 	{
 	}
 
 	const FViewInfo* View;
 	const FScene* Scene;
-	FInstanceCullingManager* InstanceCullingManager;
 	EShadingPath ShadingPath;
 	EShaderPlatform ShaderPlatform;
 	EMeshPass::Type PassType;
@@ -130,7 +127,7 @@ public:
 	int32 NewPassVisibleMeshDrawCommandsNum;
 	int32 MaxInstances;
 
-	FInstanceCullingContext* InstanceCullingContext;
+	FInstanceCullingContext InstanceCullingContext;
 	FInstanceCullingResult InstanceCullingResult;
 };
 
@@ -156,8 +153,7 @@ public:
 	void DispatchPassSetup(
 		FScene* Scene,
 		const FViewInfo& View, 
-		FInstanceCullingContext* InstanceCullingContext,
-		FInstanceCullingManager* InstanceCullingManager,
+		FInstanceCullingContext &&InstanceCullingContext,
 		EMeshPass::Type PassType, 
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 		FMeshPassProcessor* MeshPassProcessor,
@@ -204,7 +200,7 @@ public:
 
 	static bool IsOnDemandShaderCreationEnabled();
 
-	FInstanceCullingContext* GetInstanceCullingContext() { return TaskContext.InstanceCullingContext; }
+	FInstanceCullingContext* GetInstanceCullingContext() { return &TaskContext.InstanceCullingContext; }
 
 private:
 	FPrimitiveIdVertexBufferPoolEntry PrimitiveIdVertexBufferPoolEntry;
@@ -229,12 +225,6 @@ extern void SortAndMergeDynamicPassMeshDrawCommands(
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
 	FRHIBuffer*& OutPrimitiveIdVertexBuffer,
 	uint32 InstanceFactor);
-
-extern void SortAndMergeDynamicPassMeshDrawCommands(
-	ERHIFeatureLevel::Type FeatureLevel,
-	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
-	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
-	FInstanceCullingContext* InstanceCullingContext);
 
 void SubmitGPUInstancedMeshDrawCommandsRange(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,

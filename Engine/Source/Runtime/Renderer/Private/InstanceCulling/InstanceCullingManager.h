@@ -73,6 +73,8 @@ class FInstanceCullingManager
 public:
 	~FInstanceCullingManager();
 
+	bool IsEnabled() const { return bIsEnabled; }
+
 	// Max average number of instances that primitives are expanded to. GPUCULL_TODO: Not very robust
 	static constexpr uint32 MaxAverageInstanceFactor = 128;
 
@@ -96,12 +98,6 @@ public:
 	{
 	}
 
-	/**
-	 * Create a context for the instance culling, used to collect draw commands for a render pass. The context lifetime is managed by the Manager, and in general is a single-frame construct
-	 * Once the render pass setup is done, the Culling Context should be queued up for final processing (where the culled instances are used to fill in the draw commands).
-	 */
-	FInstanceCullingContext* CreateContext(const int32* ViewIds, int32 NumViews);
-
 	// Populated by CullInstances, used when performing final culling & rendering 
 	FInstanceCullingIntermediate CullingIntermediate;
 
@@ -111,7 +107,6 @@ private:
 
 	FInstanceCullingManagerResources& Resources;
 	TArray<Nanite::FPackedView> CullingViews;
-	TArray<FInstanceCullingContext*> CullingContexts;
 	bool bIsEnabled;
 };
 

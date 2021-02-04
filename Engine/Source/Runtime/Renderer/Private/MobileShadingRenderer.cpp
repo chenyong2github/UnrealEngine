@@ -287,8 +287,7 @@ void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthSte
 		Pass.DispatchPassSetup(
 			Scene,
 			View,
-			nullptr, // GPUCULL_TODO: Fix mobile!
-			nullptr, // GPUCULL_TODO: Fix mobile!
+			FInstanceCullingContext(), // GPUCULL_TODO: Fix mobile!
 			EMeshPass::BasePass,
 			BasePassDepthStencilAccess,
 			MeshPassProcessor,

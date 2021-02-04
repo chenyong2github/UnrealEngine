@@ -2080,9 +2080,6 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	}
 	// GPUCULL_TODO: Pass along any custom culling planes or whatever here (e.g., cacade bounds):
 	// GPUCULL_TODO: Add debug tags to context and views (so compute passes can be understood)
-
-	FInstanceCullingContext* InstanceCullingContext = InstanceCullingManager.CreateContext(ViewIds.GetData(), ViewIds.Num());
-
 	extern int32 GShadowUseGS;
 #if defined(GPUCULL_TODO)
 	// GPUCULL_TODO: Needed to support legacy, non-GPU-Scene culled, primitives, this is merely used to allocate enough space for CPU-side replication.
@@ -2096,8 +2093,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	ShadowDepthPass.DispatchPassSetup(
 		Renderer.Scene,
 		*ShadowDepthView,
-		InstanceCullingContext,
-		&InstanceCullingManager,
+		FInstanceCullingContext(&InstanceCullingManager, ViewIds),
 		EMeshPass::Num,
 		FExclusiveDepthStencil::DepthNop_StencilNop,
 		MeshPassProcessor,
