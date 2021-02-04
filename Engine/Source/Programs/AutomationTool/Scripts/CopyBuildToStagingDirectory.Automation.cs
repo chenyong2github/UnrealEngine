@@ -2579,6 +2579,7 @@ public partial class Project : CommandUtils
 							Params.HasDLCName));
 					}
 
+					string PakEncryptionKeyGuid = Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid;
 					Commands.Add(GetUnrealPakArguments(
 						Params.RawProjectPath,
 						UnrealPakResponseFile,
@@ -2586,10 +2587,10 @@ public partial class Project : CommandUtils
 						PrimaryOrderFiles,
 						SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions,
 						PakParams.bCompressed,
-						CryptoSettings,
-						CryptoKeysCacheFilename,
+						Params.SkipEncryption ? null : CryptoSettings,
+						Params.SkipEncryption ? null : CryptoKeysCacheFilename,
 						PatchSourceContentPath,
-						PakParams.EncryptionKeyGuid,
+						Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid,
 						SecondaryOrderFiles));
 
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
@@ -3334,10 +3335,10 @@ public partial class Project : CommandUtils
 		{
 			if (Chunk.ResponseFile.Count > 0)
 			{
+				string EncryptionKeyToUse = Params.SkipEncryption ? "" : Chunk.EncryptionKeyGuid;
 				PakInputs.Add(new CreatePakParams(Chunk.ChunkName, 
 					Chunk.ResponseFile.ToDictionary(entry => entry.Key, entry => entry.Value),
-					Params.Compressed || Chunk.bCompressed, Chunk.EncryptionKeyGuid));
-				//CreatePak(Params, SC, Chunk.ResponseFile, ChunkName, PakCryptoSettings, CryptoKeysCacheFilename, bCompression);
+					Params.Compressed || Chunk.bCompressed, EncryptionKeyToUse));
 			}
 		}
 

@@ -6953,6 +6953,13 @@ bool FPakPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) 
 		GetPakFolders(CmdLine, PakFolders);
 		Result = CheckIfPakFilesExist(Inner, PakFolders);
 	}
+#else
+	if (FParse::Param(CmdLine, TEXT("UsePaks")))
+	{
+		TArray<FString> PakFolders;
+		GetPakFolders(CmdLine, PakFolders);
+		Result = CheckIfPakFilesExist(Inner, PakFolders);
+	}
 #endif
 	return Result;
 }
