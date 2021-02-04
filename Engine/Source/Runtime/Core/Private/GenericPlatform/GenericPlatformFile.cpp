@@ -577,6 +577,7 @@ bool IPlatformFile::IterateDirectoryRecursively(const TCHAR* Directory, FDirecto
 	TArray<FString> DirectoriesToVisitNext;
 	DirectoriesToVisitNext.Add(Directory);
 
+	const bool IsTaskGraphReady = FTaskGraphInterface::Get().IsRunning();
 	TAtomic<bool> bResult(true);
 	FRecurse Recurse(*this, Visitor, DirectoriesToVisitNext);
 	while (bResult && DirectoriesToVisitNext.Num() > 0)
@@ -591,7 +592,7 @@ bool IPlatformFile::IterateDirectoryRecursively(const TCHAR* Directory, FDirecto
 					bResult = false;
 				}
 			},
-			Visitor.IsThreadSafe() ? EParallelForFlags::Unbalanced : EParallelForFlags::ForceSingleThread
+			(IsTaskGraphReady && Visitor.IsThreadSafe()) ? EParallelForFlags::Unbalanced : EParallelForFlags::ForceSingleThread
 		);
 	}
 
