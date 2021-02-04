@@ -433,10 +433,10 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 
 	if (OldSerializedObject.SerializedProperties.Num() > 0 || NewSerializedObject.SerializedProperties.Num() > 0)
 	{
-		int32 StartOfOldPropertyBlock = INT_MAX;
-		int32 StartOfNewPropertyBlock = INT_MAX;
-		int32 EndOfOldPropertyBlock = -1;
-		int32 EndOfNewPropertyBlock = -1;
+		int64 StartOfOldPropertyBlock = INT64_MAX;
+		int64 StartOfNewPropertyBlock = INT64_MAX;
+		int64 EndOfOldPropertyBlock = -1;
+		int64 EndOfNewPropertyBlock = -1;
 
 		for (const TPair<FName, FSerializedProperty>& NewNamePropertyPair : NewSerializedObject.SerializedProperties)
 		{
@@ -497,8 +497,8 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 			// Compare the data before the property block to see if something else in the object has changed
 			if (!OutDeltaChange.bHasNonPropertyChanges)
 			{
-				const int32 OldHeaderSize = FMath::Min(StartOfOldPropertyBlock, OldSerializedObject.Data.Num());
-				const int32 CurrentHeaderSize = FMath::Min(StartOfNewPropertyBlock, NewSerializedObject.Data.Num());
+				const int64 OldHeaderSize = FMath::Min(StartOfOldPropertyBlock, OldSerializedObject.Data.Num());
+				const int64 CurrentHeaderSize = FMath::Min(StartOfNewPropertyBlock, NewSerializedObject.Data.Num());
 
 				bool bIsHeaderIdentical = OldHeaderSize == CurrentHeaderSize;
 				if (bIsHeaderIdentical && CurrentHeaderSize > 0)
@@ -515,8 +515,8 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 			// Compare the data after the property block to see if something else in the object has changed
 			if (!OutDeltaChange.bHasNonPropertyChanges)
 			{
-				const int32 OldFooterSize = OldSerializedObject.Data.Num() - FMath::Max(EndOfOldPropertyBlock, 0);
-				const int32 CurrentFooterSize = NewSerializedObject.Data.Num() - FMath::Max(EndOfNewPropertyBlock, 0);
+				const int64 OldFooterSize = OldSerializedObject.Data.Num() - FMath::Max<int64>(EndOfOldPropertyBlock, 0);
+				const int64 CurrentFooterSize = NewSerializedObject.Data.Num() - FMath::Max<int64>(EndOfNewPropertyBlock, 0);
 
 				bool bIsFooterIdentical = OldFooterSize == CurrentFooterSize;
 				if (bIsFooterIdentical && CurrentFooterSize > 0)

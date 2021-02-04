@@ -109,7 +109,7 @@ protected:
 				return InPropertyChain.GetPropertyFromRoot(0)->GetFName();
 			}
 
-			void AppendSerializedData(const int32 InOffset, const int32 InSize)
+			void AppendSerializedData(const int64 InOffset, const int64 InSize)
 			{
 				if (DataOffset == INDEX_NONE)
 				{
@@ -124,9 +124,9 @@ protected:
 			}
 
 			/** Offset to the start of this property within the serialized object */
-			int32 DataOffset;
+			int64 DataOffset;
 			/** Size (in bytes) of this property within the serialized object */
-			int32 DataSize;
+			int64 DataSize;
 		};
 
 		struct FSerializedObject
@@ -199,7 +199,7 @@ protected:
 			/** The pending kill state of the object when it was serialized */
 			bool bIsPendingKill;
 			/** The data stream used to serialize/deserialize record */
-			TArray<uint8> Data;
+			TArray64<uint8> Data;
 			/** External objects referenced in the transaction */
 			TArray<FPersistentObjectRef> ReferencedObjects;
 			/** FNames referenced in the object record */
@@ -440,7 +440,7 @@ protected:
 			{
 				if( Num )
 				{
-					int32 DataIndex = ( Offset == SerializedObject.Data.Num() )
+					int64 DataIndex = ( Offset == SerializedObject.Data.Num() )
 						?  SerializedObject.Data.AddUninitialized(Num)
 						:  Offset;
 					
