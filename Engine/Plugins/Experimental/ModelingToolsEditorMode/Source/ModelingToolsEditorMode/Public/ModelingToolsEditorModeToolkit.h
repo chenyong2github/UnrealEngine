@@ -78,6 +78,7 @@ private:
 	TSharedPtr<SButton> CancelButton;
 	TSharedPtr<SButton> CompletedButton;
 
+	TSharedPtr<SWidget> MakeAcceptCancelPanel();
 	TSharedPtr<SWidget> MakeAssetConfigPanel();
 
 	bool bShowRealtimeWarning = false;
