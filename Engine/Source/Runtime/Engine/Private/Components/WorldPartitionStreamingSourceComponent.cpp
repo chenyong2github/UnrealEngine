@@ -2,6 +2,7 @@
 
 #include "Components/WorldPartitionStreamingSourceComponent.h"
 #include "WorldPartition/WorldPartition.h"
+#include "Engine/World.h"
 
 UWorldPartitionStreamingSourceComponent::UWorldPartitionStreamingSourceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
