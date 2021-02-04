@@ -663,48 +663,63 @@ private:
 	TArray<TSharedPtr<IDetailCustomization>> ExternalDetailCustomizations;
 };
 
-/** Blueprint Interface List Details */
-class FBlueprintInterfaceLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FBlueprintInterfaceLayout>
+/** Blueprint managed list details */
+class FBlueprintManagedListDetails : public IDetailCustomNodeBuilder
 {
 public:
-	FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowsInheritedInterfaces)
-		: GlobalOptionsDetailsPtr(InGlobalOptionsDetails)
-		, bShowsInheritedInterfaces(bInShowsInheritedInterfaces) {}
-
-	struct FInterfaceName
+	/** Constructor method */
+	FBlueprintManagedListDetails(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetailsPtr);
+	
+protected:
+	/** List item node type */
+	struct FManagedListItem
 	{
-		FName Name;
-		FText DisplayText;
+		FString ItemName;
+		FText DisplayName;
+		TWeakObjectPtr<> AssetPtr;
+		uint8 bIsRemovable : 1;
 
-		FInterfaceName() {}
-		FInterfaceName(FName InName, const FText& InDisplayText) 
-			: Name(InName), DisplayText(InDisplayText) {}
-
-		bool operator==(const FInterfaceName& Other) const
+		FManagedListItem()
+			:bIsRemovable(false)
 		{
-			return Name == Other.Name;
 		}
 	};
 
-private:
-	/** IDetailCustomNodeBuilder Interface*/
-	virtual void SetOnRebuildChildren( FSimpleDelegate InOnRegenerateChildren ) override {RegenerateChildrenDelegate = InOnRegenerateChildren;}
-	virtual void GenerateHeaderRowContent( FDetailWidgetRow& NodeRow ) override;
-	virtual void GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder ) override;
-	virtual void Tick( float DeltaTime ) override {}
-	virtual bool RequiresTick() const override { return false; }
+	/** Customizable display options */
+	struct FDisplayOptions
+	{
+		FText TitleText;
+		FText NoItemsLabelText;
+		FText ItemRowFilterText;
+		FText AddItemRowFilterText;
+		FText BrowseButtonToolTipText;
+		FText RemoveButtonToolTipText;
+	};
+
+	/** Mutable display options */
+	FDisplayOptions DisplayOptions;
+
+	/** Access to external resources */
+	UBlueprint* GetBlueprintObjectChecked() const;
+	TSharedPtr<FBlueprintEditor> GetPinnedBlueprintEditorPtr() const;
+
+	/** IDetailCustomNodeBuilder interface */
+	virtual void GenerateHeaderRowContent(FDetailWidgetRow& HeaderRow) override;
+	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override;
 	virtual FName GetName() const override { return NAME_None; }
 	virtual bool InitiallyCollapsed() const override { return false; }
-	
-private:
-	/** Callbacks for details UI */
-	void OnBrowseToInterface(TWeakObjectPtr<UObject> Asset);
-	void OnRemoveInterface(FInterfaceName InterfaceName);
+	virtual void Tick(float DeltaTime) override {}
+	virtual bool RequiresTick() const override { return false; }
+	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRebuildChildren) override { RegenerateChildrenDelegate = InOnRebuildChildren; }
+	/** END IDetailCustomNodeBuilder interface */
 
-	TSharedRef<SWidget> OnGetAddInterfaceMenuContent();
+	/** Overridable interface methods */
+	virtual TSharedPtr<SWidget> MakeAddItemRowWidget() { return nullptr; }
+	virtual void GetManagedListItems(TArray<FManagedListItem>& OutListItems) const {}
+	virtual void OnRemoveItem(const FManagedListItem& Item) {}
 
-	/** Callback function when an interface class is picked */
-	void OnClassPicked(UClass* PickedClass);
+	/** Helper function to regenerate the details customization */
+	void RegenerateChildContent();
 
 	/** Helper function to set the Blueprint back into the KismetInspector's details view */
 	void OnRefreshInDetailsView();
@@ -713,17 +728,57 @@ private:
 	/** The parent graph action details customization */
 	TWeakPtr<class FBlueprintGlobalOptionsDetails> GlobalOptionsDetailsPtr;
 
+	/** A delegate to regenerate this list of children */
+	FSimpleDelegate RegenerateChildrenDelegate;
+};
+
+/** Blueprint Imports List Details */
+class FBlueprintImportsLayout : public FBlueprintManagedListDetails, public TSharedFromThis<FBlueprintImportsLayout>
+{
+public:
+	FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails);
+
+protected:
+	/** FBlueprintManagedListDetails interface*/
+	virtual TSharedPtr<SWidget> MakeAddItemRowWidget() override;
+	virtual void GetManagedListItems(TArray<FManagedListItem>& OutListItems) const override;
+	virtual void OnRemoveItem(const FManagedListItem& Item) override;
+	/** END FBlueprintManagedListDetails interface */
+
+	bool IsAddImportEntryButtonEnabled() const;
+	FReply OnAddImportEntryButtonClicked();
+	void HandleImportEntryTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType);
+
+private:
+	TSharedPtr<SEditableTextBox> ImportEntryTextBox;
+};
+
+/** Blueprint Interface List Details */
+class FBlueprintInterfaceLayout : public FBlueprintManagedListDetails, public TSharedFromThis<FBlueprintInterfaceLayout>
+{
+public:
+	FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowsInheritedInterfaces);
+
+protected:
+	/** FBlueprintManagedListDetails interface */
+	virtual TSharedPtr<SWidget> MakeAddItemRowWidget() override;
+	virtual void GetManagedListItems(TArray<FManagedListItem>& OutListItems) const override;
+	virtual void OnRemoveItem(const FManagedListItem& Item) override;
+	/** END FBlueprintManagedListDetails interface */
+	
+private:
+	/** Callbacks for details UI */
+	TSharedRef<SWidget> OnGetAddInterfaceMenuContent();
+
+	/** Callback function when an interface class is picked */
+	void OnClassPicked(UClass* PickedClass);
+
+private:
 	/** Whether we show inherited interfaces versus implemented interfaces */
 	bool bShowsInheritedInterfaces;
 
-	/** List of unimplemented interfaces, for source for a list view */
-	TArray<TSharedPtr<FInterfaceName>> UnimplementedInterfaces;
-
 	/** The add interface combo button */
 	TSharedPtr<SComboButton> AddInterfaceComboButton;
-
-	/** A delegate to regenerate this list of children */
-	FSimpleDelegate RegenerateChildrenDelegate;
 };
 
 /** Details customization for Blueprint settings */

@@ -7586,6 +7586,32 @@ FName FBlueprintEditorUtils::FindUniqueCustomEventName(const UBlueprint* Bluepri
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Scoping
+
+bool FBlueprintEditorUtils::AddNamespaceToImportList(UBlueprint* Blueprint, const FString& Namespace)
+{
+	check(!Namespace.IsEmpty());
+
+	if (Blueprint->ImportedNamespaces.Contains(Namespace))
+	{
+		ShowNotification(
+			FText::Format(
+				LOCTEXT("NamespaceAlreadyImportedFmt", "Blueprint '{0}' already imports the namespace '{1}'"),
+				FText::FromString(Blueprint->GetName()),
+				FText::FromString(Namespace)
+			),
+			EMessageSeverity::Warning
+		);
+		return false;
+	}
+
+	Blueprint->ImportedNamespaces.Add(Namespace);
+	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Timeline
 
 FName FBlueprintEditorUtils::FindUniqueTimelineName(const UBlueprint* Blueprint)

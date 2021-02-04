@@ -101,6 +101,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Stats/StatsHierarchical.h"
 #include "BlueprintEditorLibrary.h"
+#include "BlueprintNamespaceHelper.h"
 
 #include "BlueprintEditorTabs.h"
 
@@ -1722,66 +1723,8 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 	FKismetEditorUtilities::OnBlueprintUnloaded.AddSP(this, &FBlueprintEditor::OnBlueprintUnloaded);
 }
 
-struct FBlueprintNamespaceHelper
-{
-	TSet<FString> FullyQualifiedListOfNamespaces;
-
-	FBlueprintNamespaceHelper()
-	{
-		AddNamespaces(GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude);
-		AddNamespaces(GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude);
-	}
-
-	
-	void AddNamespaces(const TArray<FString>& List)
-	{
-		for (const FString& Entry : List)
-		{
-			FullyQualifiedListOfNamespaces.Add(Entry);
-		}
-	}
-
-	void AddNamespace(const FString& Namespace)
-	{
-		if (!Namespace.IsEmpty())
-		{
-			FullyQualifiedListOfNamespaces.Add(Namespace);
-		}
-	}
-
-	bool IsIncludedInNamespaceList(const FString& TestNamespace) const
-	{
-		// Empty namespace == global namespace
-		if (TestNamespace.IsEmpty())
-		{
-			return true;
-		}
-
-		// Check recursively to see if X.Y.Z is present, and if not X.Y (which contains X.Y.Z), and so on until we run out of path segments
-		if (FullyQualifiedListOfNamespaces.Contains(TestNamespace))
-		{
-			return true;
-		}
-		else
-		{
-			int32 RightmostDotIndex;
-			if (TestNamespace.FindLastChar(TEXT('.'), /*out*/ RightmostDotIndex))
-			{
-				if (RightmostDotIndex > 0)
-				{
-					return IsIncludedInNamespaceList(TestNamespace.Left(RightmostDotIndex));
-				}
-			}
-		}
-
-		return false;
-	}
-};
-
 void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 {
-	FBlueprintNamespaceHelper NamespaceHelper;
-
 	if (EnableAutomaticLibraryAssetLoading == 0)
 	{
 		return;
@@ -1792,7 +1735,7 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 		const FString UserDeveloperPath = FPackageName::FilenameToLongPackageName( FPaths::GameUserDeveloperDir());
 		const FString DeveloperPath = FPackageName::FilenameToLongPackageName( FPaths::GameDevelopersDir() );
 
-		NamespaceHelper.AddNamespace(BP->BlueprintNamespace);
+		FBlueprintNamespaceHelper NamespaceHelper(BP);
 
 		// Interface blueprints don't show a node context menu anywhere so we can skip library loading
 		if (BP->BlueprintType != BPTYPE_Interface)
@@ -1896,6 +1839,12 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 			GWarn->EndSlowTask();
 		}
 	}
+}
+
+void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
+{
+	// @todo - Make this more targeted - i.e. get/load only those assets tagged w/ the given namespace
+	LoadLibrariesFromAssetRegistry();
 }
 
 void FBlueprintEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

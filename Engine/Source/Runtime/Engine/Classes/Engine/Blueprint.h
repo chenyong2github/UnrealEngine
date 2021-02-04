@@ -607,6 +607,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	TArray<FName> CategorySorting;
 
+	/** Namespaces imported by this blueprint */
+	UPROPERTY(AssetRegistrySearchable)
+	TSet<FString> ImportedNamespaces;
+
 	/** Array of info about the interfaces we implement in this blueprint */
 	UPROPERTY(AssetRegistrySearchable)
 	TArray<struct FBPInterfaceDescription> ImplementedInterfaces;

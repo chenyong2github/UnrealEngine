@@ -58,6 +58,7 @@
 #include "NodeFactory.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "BlueprintNamespaceHelper.h"
 
 #include "Modules/ModuleManager.h"
 #include "ISequencerModule.h"
@@ -5148,26 +5149,284 @@ FReply FBlueprintGraphActionDetails::OnAddNewOutputClicked()
 }
 
 
-
-void FBlueprintInterfaceLayout::GenerateHeaderRowContent( FDetailWidgetRow& NodeRow )
+FBlueprintManagedListDetails::FBlueprintManagedListDetails(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetailsPtr)
+: GlobalOptionsDetailsPtr(InGlobalOptionsDetailsPtr)
 {
-	NodeRow
+}
+
+UBlueprint* FBlueprintManagedListDetails::GetBlueprintObjectChecked() const
+{
+	UBlueprint* BlueprintObject = nullptr;
+
+	TSharedPtr<FBlueprintGlobalOptionsDetails> PinnedGlobalOptionsDetailsPtr = GlobalOptionsDetailsPtr.Pin();
+	if (PinnedGlobalOptionsDetailsPtr.IsValid())
+	{
+		BlueprintObject = PinnedGlobalOptionsDetailsPtr->GetBlueprintObj();
+	}
+
+	check(BlueprintObject);
+	return BlueprintObject;
+}
+
+TSharedPtr<FBlueprintEditor> FBlueprintManagedListDetails::GetPinnedBlueprintEditorPtr() const
+{
+	TSharedPtr<FBlueprintGlobalOptionsDetails> PinnedGlobalOptionsDetailsPtr = GlobalOptionsDetailsPtr.Pin();
+	if (PinnedGlobalOptionsDetailsPtr.IsValid())
+	{
+		return PinnedGlobalOptionsDetailsPtr->GetBlueprintEditorPtr().Pin();
+	}
+
+	return TSharedPtr<FBlueprintEditor>();
+}
+
+void FBlueprintManagedListDetails::GenerateHeaderRowContent(FDetailWidgetRow& HeaderRow)
+{
+	HeaderRow
 	[
 		SNew(STextBlock)
-			.Text( bShowsInheritedInterfaces ?
-			LOCTEXT("BlueprintInheritedInterfaceTitle", "Inherited Interfaces") :
-			LOCTEXT("BlueprintImplementedInterfaceTitle", "Implemented Interfaces") )
-			.Font( IDetailLayoutBuilder::GetDetailFont() )
+		.Text(DisplayOptions.TitleText)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
 	];
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void FBlueprintInterfaceLayout::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder )
+void FBlueprintManagedListDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
 {
-	UBlueprint* Blueprint = GlobalOptionsDetailsPtr.Pin()->GetBlueprintObj();
-	check(Blueprint);
+	TArray<FManagedListItem> Items;
+	GetManagedListItems(Items);
 
-	TArray<FInterfaceName> Interfaces;
+	if (Items.Num() > 0)
+	{
+		for (const FManagedListItem& Item : Items)
+		{
+			TSharedPtr<SHorizontalBox> Box;
+			ChildrenBuilder.AddCustomRow(DisplayOptions.ItemRowFilterText)
+			[
+				SAssignNew(Box, SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(STextBlock)
+					.Text(Item.DisplayName)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+			];
+
+			if (Item.AssetPtr.IsValid())
+			{
+				TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateLambda([this, AssetPtr = Item.AssetPtr]() -> void
+				{
+					if (AssetPtr.IsValid())
+					{
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetPtr.Get());
+					}
+				}));
+
+				BrowseButton->SetToolTipText(DisplayOptions.BrowseButtonToolTipText);
+
+				Box->AddSlot()
+				.AutoWidth()
+				.Padding(2.0f, 0.0f)
+				[
+					BrowseButton
+				];
+			}
+
+			if (Item.bIsRemovable)
+			{
+				TSharedRef<SWidget> RemoveButton = PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateLambda([this, Item]() -> void
+				{
+					OnRemoveItem(Item);
+				}));
+
+				RemoveButton->SetToolTipText(DisplayOptions.RemoveButtonToolTipText);
+
+				Box->AddSlot()
+				.AutoWidth()
+				[
+					RemoveButton
+				];
+			}
+		}
+	}
+	else
+	{
+		ChildrenBuilder.AddCustomRow(DisplayOptions.ItemRowFilterText)
+			[
+			SNew(STextBlock)
+			.Text(DisplayOptions.NoItemsLabelText)
+			.Font(IDetailLayoutBuilder::GetDetailFontItalic())
+		];
+	}
+
+	TSharedPtr<SWidget> AddItemRowWidget = MakeAddItemRowWidget();
+	if (AddItemRowWidget.IsValid())
+	{
+		ChildrenBuilder.AddCustomRow(DisplayOptions.AddItemRowFilterText)
+		[
+			SNew(SBox)
+			.HAlign(HAlign_Right)
+			[
+				AddItemRowWidget.ToSharedRef()
+			]
+		];
+	}
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+void FBlueprintManagedListDetails::RegenerateChildContent()
+{
+	RegenerateChildrenDelegate.ExecuteIfBound();
+}
+
+void FBlueprintManagedListDetails::OnRefreshInDetailsView()
+{
+	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
+	if (BlueprintEditorPtr.IsValid())
+	{
+		TSharedPtr<SKismetInspector> Inspector = BlueprintEditorPtr->GetInspector();
+		if (Inspector.IsValid())
+		{
+			// Show details for the Blueprint instance we're editing
+			Inspector->ShowDetailsForSingleObject(GetBlueprintObjectChecked());
+		}
+	}
+}
+
+
+FBlueprintImportsLayout::FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails)
+	:FBlueprintManagedListDetails(InGlobalOptionsDetails)
+{
+	DisplayOptions.TitleText = LOCTEXT("BlueprintImportedNamespaceTitle", "Imported Namespaces");
+	DisplayOptions.NoItemsLabelText = LOCTEXT("NoBlueprintImports", "No Imports");
+	DisplayOptions.ItemRowFilterText = LOCTEXT("BlueprintImportsValue", "Imports Value");
+	DisplayOptions.AddItemRowFilterText = LOCTEXT("BlueprintAddImport", "Add Import");
+}
+
+TSharedPtr<SWidget> FBlueprintImportsLayout::MakeAddItemRowWidget()
+{
+	return SNew(SHorizontalBox)
+	+ SHorizontalBox::Slot()
+	.FillWidth(1.0f)
+	[
+		SAssignNew(ImportEntryTextBox, SEditableTextBox)
+		.MinDesiredWidth(200.0f)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.OnTextCommitted(this, &FBlueprintImportsLayout::HandleImportEntryTextCommitted)
+	]
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	.Padding(4.0f, 0.0f)
+	[
+		SNew(SButton)
+		.Text(LOCTEXT("BlueprintAddImportButtonText", "Add"))
+		.IsEnabled(this, &FBlueprintImportsLayout::IsAddImportEntryButtonEnabled)
+		.OnClicked(this, &FBlueprintImportsLayout::OnAddImportEntryButtonClicked)
+	];
+}
+
+void FBlueprintImportsLayout::GetManagedListItems(TArray<FManagedListItem>& OutListItems) const
+{
+	UBlueprint* Blueprint = GetBlueprintObjectChecked();
+
+	for (const FString& ImportedNamespace : Blueprint->ImportedNamespaces)
+	{
+		FManagedListItem ItemDesc;
+		ItemDesc.ItemName = ImportedNamespace;
+		ItemDesc.DisplayName = FText::FromString(ImportedNamespace);
+		ItemDesc.bIsRemovable = true;
+
+		OutListItems.Add(MoveTemp(ItemDesc));
+	}
+}
+
+void FBlueprintImportsLayout::OnRemoveItem(const FManagedListItem& Item)
+{
+	UBlueprint* Blueprint = GetBlueprintObjectChecked();
+
+	Blueprint->ImportedNamespaces.Remove(Item.ItemName);
+
+	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+
+	RegenerateChildContent();
+
+	OnRefreshInDetailsView();
+}
+
+bool FBlueprintImportsLayout::IsAddImportEntryButtonEnabled() const
+{
+	return !ImportEntryTextBox->GetText().IsEmptyOrWhitespace();
+}
+
+FReply FBlueprintImportsLayout::OnAddImportEntryButtonClicked()
+{
+	HandleImportEntryTextCommitted(ImportEntryTextBox->GetText(), ETextCommit::OnEnter);
+	return FReply::Handled();
+}
+
+void FBlueprintImportsLayout::HandleImportEntryTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType)
+{
+	bool bWasAdded = false;
+	const FString& Namespace = NewLabel.ToString();
+
+	// Add to the blueprint's list of imports.
+	if (!Namespace.IsEmpty())
+	{
+		UBlueprint* Blueprint = GetBlueprintObjectChecked();
+
+		if (FBlueprintEditorUtils::AddNamespaceToImportList(Blueprint, Namespace))
+		{
+			bWasAdded = true;
+		}
+
+		RegenerateChildContent();
+	}
+
+	OnRefreshInDetailsView();
+
+	// If added above, import the namespace into the current editor context.
+	if (bWasAdded)
+	{
+		TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
+		if (BlueprintEditorPtr.IsValid())
+		{
+			BlueprintEditorPtr->ImportNamespace(Namespace);
+		}
+	}
+}
+
+
+FBlueprintInterfaceLayout::FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowsInheritedInterfaces)
+	:FBlueprintManagedListDetails(InGlobalOptionsDetails)
+	,bShowsInheritedInterfaces(bInShowsInheritedInterfaces)
+{
+	DisplayOptions.TitleText = bShowsInheritedInterfaces ?
+		LOCTEXT("BlueprintInheritedInterfaceTitle", "Inherited Interfaces") :
+		LOCTEXT("BlueprintImplementedInterfaceTitle", "Implemented Interfaces");
+	DisplayOptions.NoItemsLabelText = LOCTEXT("NoBlueprintInterface", "No Interfaces");
+	DisplayOptions.ItemRowFilterText = LOCTEXT("BlueprintInterfaceValue", "Interface Value");
+	DisplayOptions.AddItemRowFilterText = LOCTEXT("BlueprintAddInterface", "Add Interface");
+	DisplayOptions.BrowseButtonToolTipText = LOCTEXT("BlueprintInterfaceBrowseTooltip", "Opens this interface");
+}
+
+TSharedPtr<SWidget> FBlueprintInterfaceLayout::MakeAddItemRowWidget()
+{
+	if (!bShowsInheritedInterfaces)
+	{
+		return SAssignNew(AddInterfaceComboButton, SComboButton)
+		.ButtonContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("BlueprintAddInterfaceButton", "Add"))
+		]
+		.OnGetMenuContent(this, &FBlueprintInterfaceLayout::OnGetAddInterfaceMenuContent);
+	}
+
+	return nullptr;
+}
+
+void FBlueprintInterfaceLayout::GetManagedListItems(TArray<FManagedListItem>& OutListItems) const
+{
+	const UBlueprint* Blueprint = GetBlueprintObjectChecked();
 
 	if (!bShowsInheritedInterfaces)
 	{
@@ -5176,7 +5435,18 @@ void FBlueprintInterfaceLayout::GenerateChildContent( IDetailChildrenBuilder& Ch
 		{
 			if (const TSubclassOf<UInterface> Interface = ImplementedInterface.Interface)
 			{
-				Interfaces.AddUnique(FInterfaceName(Interface->GetFName(), Interface->GetDisplayNameText()));
+				FManagedListItem ItemDesc;
+				ItemDesc.ItemName = Interface->GetFName().ToString();
+				ItemDesc.DisplayName = Interface->GetDisplayNameText();
+				ItemDesc.bIsRemovable = true;
+
+				// Allow browsing to Blueprint interface class assets.
+				if (UBlueprintGeneratedClass* Class = Cast<UBlueprintGeneratedClass>(*Interface))
+				{
+					ItemDesc.AssetPtr = Class->ClassGeneratedBy;
+				}
+
+				OutListItems.Add(MoveTemp(ItemDesc));
 			}
 		}
 	}
@@ -5189,103 +5459,24 @@ void FBlueprintInterfaceLayout::GenerateChildContent( IDetailChildrenBuilder& Ch
 			for (TArray<FImplementedInterface>::TIterator It(BlueprintParent->Interfaces); It; ++It)
 			{
 				FImplementedInterface& CurrentInterface = *It;
-				if( CurrentInterface.Class )
+				if (CurrentInterface.Class)
 				{
-					Interfaces.Add(FInterfaceName(CurrentInterface.Class->GetFName(), CurrentInterface.Class->GetDisplayNameText()));
+					FManagedListItem ItemDesc;
+					ItemDesc.ItemName = CurrentInterface.Class->GetFName().ToString();
+					ItemDesc.DisplayName = CurrentInterface.Class->GetDisplayNameText();
+					ItemDesc.bIsRemovable = false;
+
+					OutListItems.Add(MoveTemp(ItemDesc));
 				}
 			}
+
 			BlueprintParent = BlueprintParent->GetSuperClass();
 		}
 	}
-
-	for (int32 i = 0; i < Interfaces.Num(); ++i)
-	{
-		TSharedPtr<SHorizontalBox> Box;
-		ChildrenBuilder.AddCustomRow( LOCTEXT( "BlueprintInterfaceValue", "Interface Value" ) )
-		[
-			SAssignNew(Box, SHorizontalBox)
-			+SHorizontalBox::Slot()
-			[
-				SNew(STextBlock)
-					.Text(Interfaces[i].DisplayText)
-					.Font( IDetailLayoutBuilder::GetDetailFont() )
-			]
-		];
-
-		// See if we need to add a button for opening this interface
-		if (!bShowsInheritedInterfaces)
-		{
-			UBlueprintGeneratedClass* Class = Cast<UBlueprintGeneratedClass>(*Blueprint->ImplementedInterfaces[i].Interface);
-			if (Class)
-			{
-				TWeakObjectPtr<UObject> Asset = Class->ClassGeneratedBy;
-		
-				const TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateSP(this, &FBlueprintInterfaceLayout::OnBrowseToInterface, Asset));
-				BrowseButton->SetToolTipText( LOCTEXT("BlueprintInterfaceBrowseTooltip", "Opens this interface") );
-
-				Box->AddSlot()
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				[
-					BrowseButton
-				];
-			}
-		}
-
-		if (!bShowsInheritedInterfaces)
-		{
-			Box->AddSlot()
-			.AutoWidth()
-			[
-				PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &FBlueprintInterfaceLayout::OnRemoveInterface, Interfaces[i]))
-			];
-		}
-	}
-
-	// Add message if no interfaces are being used
-	if (Interfaces.Num() == 0)
-	{
-		ChildrenBuilder.AddCustomRow(LOCTEXT("BlueprintInterfaceValue", "Interface Value"))
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("NoBlueprintInterface", "No Interfaces"))
-			.Font(IDetailLayoutBuilder::GetDetailFontItalic())
-		];
-	}
-
-	if (!bShowsInheritedInterfaces)
-	{
-		ChildrenBuilder.AddCustomRow( LOCTEXT( "BlueprintAddInterface", "Add Interface" ) )
-		[
-			SNew(SBox)
-			.HAlign(HAlign_Right)
-			[
-				SAssignNew(AddInterfaceComboButton, SComboButton)
-				.ButtonContent()
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("BlueprintAddInterfaceButton", "Add"))
-				]
-				.OnGetMenuContent(this, &FBlueprintInterfaceLayout::OnGetAddInterfaceMenuContent)
-			]
-		];
-	}
-}
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void FBlueprintInterfaceLayout::OnBrowseToInterface(TWeakObjectPtr<UObject> Asset)
-{
-	if (Asset.IsValid())
-	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset.Get());
-	}
 }
 
-void FBlueprintInterfaceLayout::OnRemoveInterface(FInterfaceName InterfaceName)
+void FBlueprintInterfaceLayout::OnRemoveItem(const FManagedListItem& Item)
 {
-	UBlueprint* Blueprint = GlobalOptionsDetailsPtr.Pin()->GetBlueprintObj();
-	check(Blueprint);
-
 	const EAppReturnType::Type DialogReturn = FMessageDialog::Open(EAppMsgType::YesNoCancel, NSLOCTEXT("UnrealEd", "TransferInterfaceFunctionsToBlueprint", "Would you like to transfer the interface functions to be part of your blueprint?"));
 
 	if (DialogReturn == EAppReturnType::Cancel)
@@ -5293,20 +5484,25 @@ void FBlueprintInterfaceLayout::OnRemoveInterface(FInterfaceName InterfaceName)
 		// We canceled!
 		return;
 	}
-	const FName InterfaceFName = InterfaceName.Name;
+	const FName InterfaceFName = FName(*Item.ItemName);
 
-	// Close all graphs that are about to be removed
-	TArray<UEdGraph*> Graphs;
-	FBlueprintEditorUtils::GetInterfaceGraphs(Blueprint, InterfaceFName, Graphs);
-	for( TArray<UEdGraph*>::TIterator GraphIt(Graphs); GraphIt; ++GraphIt )
+	UBlueprint* Blueprint = GetBlueprintObjectChecked();
+	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
+	if (BlueprintEditorPtr.IsValid())
 	{
-		GlobalOptionsDetailsPtr.Pin()->GetBlueprintEditorPtr().Pin()->CloseDocumentTab(*GraphIt);
+		// Close all graphs that are about to be removed
+		TArray<UEdGraph*> Graphs;
+		FBlueprintEditorUtils::GetInterfaceGraphs(Blueprint, InterfaceFName, Graphs);
+		for (TArray<UEdGraph*>::TIterator GraphIt(Graphs); GraphIt; ++GraphIt)
+		{
+			BlueprintEditorPtr->CloseDocumentTab(*GraphIt);
+		}
 	}
 
 	// Do the work of actually removing the interface
 	FBlueprintEditorUtils::RemoveInterface(Blueprint, InterfaceFName, DialogReturn == EAppReturnType::Yes);
 
-	RegenerateChildrenDelegate.ExecuteIfBound();
+	RegenerateChildContent();
 
 	OnRefreshInDetailsView();
 }
@@ -5320,12 +5516,11 @@ void FBlueprintInterfaceLayout::OnClassPicked(UClass* PickedClass)
 
 	if (PickedClass)
 	{
-		UBlueprint* Blueprint = GlobalOptionsDetailsPtr.Pin()->GetBlueprintObj();
-		check(Blueprint);
+		UBlueprint* Blueprint = GetBlueprintObjectChecked();
 
 		FBlueprintEditorUtils::ImplementNewInterface(Blueprint, PickedClass->GetFName());
 
-		RegenerateChildrenDelegate.ExecuteIfBound();
+		RegenerateChildContent();
 	}
 
 	OnRefreshInDetailsView();
@@ -5333,7 +5528,7 @@ void FBlueprintInterfaceLayout::OnClassPicked(UClass* PickedClass)
 
 TSharedRef<SWidget> FBlueprintInterfaceLayout::OnGetAddInterfaceMenuContent()
 {
-	UBlueprint* Blueprint = GlobalOptionsDetailsPtr.Pin()->GetBlueprintObj();
+	UBlueprint* Blueprint = GetBlueprintObjectChecked();
 
 	TArray<UBlueprint*> Blueprints;
 	Blueprints.Add(Blueprint);
@@ -5350,16 +5545,6 @@ TSharedRef<SWidget> FBlueprintInterfaceLayout::OnGetAddInterfaceMenuContent()
 				ClassPicker
 			]
 		];
-}
-
-void FBlueprintInterfaceLayout::OnRefreshInDetailsView()
-{
-	TSharedPtr<SKismetInspector> Inspector = GlobalOptionsDetailsPtr.Pin()->GetBlueprintEditorPtr().Pin()->GetInspector();
-	UBlueprint* Blueprint = GlobalOptionsDetailsPtr.Pin()->GetBlueprintObj();
-	check(Blueprint);
-
-	// Show details for the Blueprint instance we're editing
-	Inspector->ShowDetailsForSingleObject(Blueprint);
 }
 
 UBlueprint* FBlueprintGlobalOptionsDetails::GetBlueprintObj() const
@@ -5503,6 +5688,16 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 		const bool bIsLevelScriptBP = FBlueprintEditorUtils::IsLevelScriptBlueprint(Blueprint);
 		const bool bIsFunctionLibrary = Blueprint->BlueprintType == BPTYPE_FunctionLibrary;
 		const bool bSupportsInterfaces = !bIsInterfaceBP && !bIsMacroLibrary && !bIsFunctionLibrary;
+		const bool bSupportsNamespaces = FBlueprintNamespaceHelper::IsNamespaceImportEditorUXEnabled();
+
+		if(bSupportsNamespaces)
+		{
+			// Imported namespace details
+			IDetailCategoryBuilder& ImportsCategory = DetailLayout.EditCategory("Imports", LOCTEXT("BlueprintImportDetailsCategory", "Imports"));
+
+			TSharedRef<FBlueprintImportsLayout> ImportsLayout = MakeShareable(new FBlueprintImportsLayout(SharedThis(this)));
+			ImportsCategory.AddCustomBuilder(ImportsLayout);
+		}
 
 		if (bSupportsInterfaces)
 		{

@@ -187,6 +187,13 @@ public:
 		 * in RejectedNodeTypes). 
 		 */
 		BPFILTER_PermitRejectionSubClasses	= (1<<3),
+
+		/**
+		 * Actions that reference member variables or functions that belong
+		 * to a struct that exists outside the scope of the current set of
+		 * imported namespaces will be filtered out.
+		 */
+		BPFILTER_RejectOutOfScopeMembers	= (1<<4),
 	};
 	FBlueprintActionFilter(uint32 const Flags = 0x00);
 	

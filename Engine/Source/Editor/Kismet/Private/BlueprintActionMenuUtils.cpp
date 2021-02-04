@@ -30,6 +30,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "ComponentAssetBroker.h"
+#include "BlueprintNamespaceHelper.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintActionMenuUtils"
 
@@ -453,6 +454,11 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 	if ( bIsContextSensitive && ((ClassTargetMask & EContextTargetFlags::TARGET_BlueprintLibraries) == 0) )
 	{
 		FilterFlags |= FBlueprintActionFilter::BPFILTER_RejectGlobalFields;
+	}
+
+	if (bIsContextSensitive && FBlueprintNamespaceHelper::IsNamespaceImportScopingEnabled())
+	{
+		FilterFlags |= FBlueprintActionFilter::BPFILTER_RejectOutOfScopeMembers;
 	}
 
 	FBlueprintActionFilter MainMenuFilter(FilterFlags);

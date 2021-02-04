@@ -1496,6 +1496,12 @@ public:
 	static FName FindUniqueCustomEventName(const UBlueprint* Blueprint);
 
 	//////////////////////////////////////////////////////////////////////////
+	// Scoping
+
+	/** Add a new namespace to the blueprint's import list. Will return false if already imported. */
+	static bool AddNamespaceToImportList(UBlueprint* Blueprint, const FString& Namespace);
+
+	//////////////////////////////////////////////////////////////////////////
 	// Timeline
 
 	/** Finds a name for a timeline that is not already in use */
