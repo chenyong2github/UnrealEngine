@@ -58,6 +58,7 @@ public:
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 
+	void OnActiveViewportChanged(TSharedPtr<IAssetViewport>, TSharedPtr<IAssetViewport> );
 
 
 private:
@@ -70,6 +71,7 @@ private:
 	TSharedPtr<SWidget> ToolkitWidget;
 	void UpdateActiveToolProperties();
 
+	TSharedPtr<SWidget> ViewportOverlayWidget;
 
 	TSharedPtr<STextBlock> ModeWarningArea;
 	TSharedPtr<STextBlock> ModeHeaderArea;
