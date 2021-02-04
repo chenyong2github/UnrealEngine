@@ -1177,9 +1177,9 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 					{
 						if (ensure(NetworkGuid.IsValid()))
 						{
-						UnmappedGuids.Add(NetworkGuid);
+							UnmappedGuids.Add(NetworkGuid);
+						}
 					}
-				}
 				}
 
 				++NumRemapTests;
