@@ -22,8 +22,15 @@ UInAppPurchaseCallbackProxy2::UInAppPurchaseCallbackProxy2(const FObjectInitiali
 void UInAppPurchaseCallbackProxy2::Trigger(APlayerController* PlayerController, const FInAppPurchaseProductRequest2& ProductRequest)
 {
 	bFailedToEvenSubmit = true;
-	WorldPtr = (PlayerController != nullptr) ? PlayerController->GetWorld() : nullptr;
-	if (APlayerState* PlayerState = (PlayerController != nullptr) ? ToRawPtr(PlayerController->PlayerState) : nullptr)
+	WorldPtr = nullptr;
+	APlayerState* PlayerState = nullptr;
+	if (PlayerController != nullptr)
+	{
+		WorldPtr = PlayerController->GetWorld();
+		PlayerState = ToRawPtr(PlayerController->PlayerState);
+	}
+
+	if (PlayerState != nullptr)
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
@@ -64,8 +71,15 @@ void UInAppPurchaseCallbackProxy2::Trigger(APlayerController* PlayerController, 
 
 void UInAppPurchaseCallbackProxy2::TriggerGetUnprocessedPurchases(APlayerController* PlayerController)
 {
-	WorldPtr = (PlayerController != nullptr) ? PlayerController->GetWorld() : nullptr;
-	if (APlayerState* PlayerState = (PlayerController != nullptr) ? ToRawPtr(PlayerController->PlayerState) : nullptr)
+	WorldPtr = nullptr;
+	APlayerState* PlayerState = nullptr;
+	if (PlayerController != nullptr)
+	{
+		WorldPtr = PlayerController->GetWorld();
+		PlayerState = ToRawPtr(PlayerController->PlayerState);
+	}
+
+	if (PlayerState != nullptr)
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
@@ -94,8 +108,15 @@ void UInAppPurchaseCallbackProxy2::TriggerGetUnprocessedPurchases(APlayerControl
 void UInAppPurchaseCallbackProxy2::TriggerGetOwnedPurchases(APlayerController* PlayerController)
 {
 	bFailedToEvenSubmit = true;
-	WorldPtr = (PlayerController != nullptr) ? PlayerController->GetWorld() : nullptr;
-	if (APlayerState* PlayerState = (PlayerController != nullptr) ? ToRawPtr(PlayerController->PlayerState) : nullptr)
+	WorldPtr = nullptr;
+	APlayerState* PlayerState = nullptr;
+	if (PlayerController != nullptr)
+	{
+		WorldPtr = PlayerController->GetWorld();
+		PlayerState = ToRawPtr(PlayerController->PlayerState);
+	}
+
+	if (PlayerState != nullptr)
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{

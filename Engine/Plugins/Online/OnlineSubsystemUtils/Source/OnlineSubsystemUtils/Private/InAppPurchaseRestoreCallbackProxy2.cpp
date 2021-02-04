@@ -22,8 +22,15 @@ void UInAppPurchaseRestoreCallbackProxy2::Trigger(const TArray<FInAppPurchasePro
 	bWasSuccessful = false;
 	bool bFailedToEvenSubmit = true;
 
-	WorldPtr = (PlayerController != nullptr) ? PlayerController->GetWorld() : nullptr;
-	if (APlayerState* PlayerState = (PlayerController != nullptr) ? ToRawPtr(PlayerController->PlayerState) : nullptr)
+	WorldPtr = nullptr;
+	APlayerState* PlayerState = nullptr;
+	if (PlayerController != nullptr)
+	{
+		WorldPtr = PlayerController->GetWorld();
+		PlayerState = ToRawPtr(PlayerController->PlayerState);
+	}
+
+	if (PlayerState != nullptr)
 	{
 		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
 		{
