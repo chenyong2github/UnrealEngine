@@ -609,7 +609,7 @@ void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInp
 	FControlInputs ModifiedInputs = ControlInputs;
 
 	float EngineBraking = 0.f;
-	if (PVehicle->bMechanicalSimEnabled)
+	if (PVehicle->HasTransmission() && PVehicle->HasEngine())
 	{
 		auto& PEngine = PVehicle->GetEngine();
 		auto& PTransmission = PVehicle->GetTransmission();
