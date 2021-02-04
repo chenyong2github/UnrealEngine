@@ -281,7 +281,7 @@ public:
 	 * Get the set of blacklist paths that are child paths of this MountDir.
 	 * Returned paths are relative paths from the MountDir's root.
 	 */
-	const TSet<FString>& GetBlacklist() const;
+	const TArray<TPair<FString,bool>>& GetBlacklist() const;
 	/** Return the FAssetDataDiscovery that owns this FMountDir. */
 	FAssetDataDiscovery& GetDiscovery() const;
 
@@ -367,7 +367,7 @@ protected:
 	/** Array of data keyed by relative path from the MountDir for information about child paths that should not be stored in ScanDirs. */
 	TArray<FPathData> PathDatas;
 	/** Set of relative path from the MountDir paths that should not be scanned, because they were requested blacklisted by clients or because a childmount owns them. */
-	TSet<FString> BlacklistedRelPaths;
+	TArray<TPair<FString,bool>> BlacklistedRelPaths;
 	/** Absolute path to the root of the MountDir in the local file system. */
 	FString LocalAbsPath;
 	/** LongPackageName that was assigned to the MountDir in FPackageName. */

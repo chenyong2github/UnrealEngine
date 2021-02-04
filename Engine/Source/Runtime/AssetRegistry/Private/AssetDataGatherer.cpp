@@ -265,16 +265,22 @@ bool FScanDir::IsBlacklisted() const
 		return false;
 	}
 
-	const TSet<FString>& Blacklist = MountDir->GetBlacklist();
+	const TArray<TPair<FString,bool>>& Blacklist = MountDir->GetBlacklist();
 	if (Blacklist.Num())
 	{
 		TStringBuilder<128> MountRelPath;
 		AppendMountRelPath(MountRelPath);
 		FStringView MountRelPathSV(MountRelPath);
-		if (Blacklist.ContainsByHash(GetTypeHash(MountRelPathSV), MountRelPathSV))
+		bool bIsBlacklisted = false;
+		for (const TPair<FString,bool>& BlacklistedPair : Blacklist)
 		{
-			return true;
+			const FString& BlacklistedPath = BlacklistedPair.Get<0>();
+			if (FPathViews::IsParentPathOf(BlacklistedPath, MountRelPathSV))
+			{
+				bIsBlacklisted = BlacklistedPair.Get<1>();
+			}
 		}
+		return bIsBlacklisted;
 	}
 	return false;
 }
@@ -496,7 +502,9 @@ bool FScanDir::TrySetDirectoryProperties(FStringView InRelPath, const FSetPathPr
 		FScanDir* SubDir = nullptr;
 		if (bHasScanned &&
 			(!Properties->HasScanned.IsSet() || *Properties->HasScanned == true) &&
-			(!Properties->IsWhitelisted.IsSet()))
+			(!Properties->IsWhitelisted.IsSet()) &&
+			(!Properties->IgnoreBlacklist.IsSet())
+			)
 		{
 			// If this parent directory has already been scanned and we are not changing the target directory's has-been-scanned value,
 			// and the next child subdirectory does not exist, then the child directory has already been scanned and we do not need to set the properties on it.
@@ -643,10 +651,6 @@ void FScanDir::SetScanResults(FStringView LocalAbsPath, TArrayView<FDiscoveredPa
 		{
 			++Index;
 		}
-	}
-	for (FScanDir* ScanDir : SubDirsToRemove)
-	{
-		RemoveSubDir(ScanDir->GetRelPath());
 	}
 
 	// Add the files that were found in the scan, skipping any files that have already been scanned
@@ -798,7 +802,7 @@ void FScanDir::SetComplete(bool bInIsComplete)
 		}
 		// Upon completion, subdirs that do not need to be maintained are deleted, which is done by removing them from the parent
 		// ScanDirs need to be maintained if they are the root, or are whitelisted, or have child ScanDirs that need to be maintained.
-		if (Parent != nullptr && !bIsDirectWhitelisted && SubDirs.IsEmpty())
+		if (Parent != nullptr && !bIsDirectWhitelisted && !IsBlacklisted() && SubDirs.IsEmpty())
 		{
 			Parent->RemoveSubDir(GetRelPath());
 			// *this is Shutdown (e.g. Parent is now null) and it may also have been deallocated
@@ -948,7 +952,7 @@ FStringView FMountDir::GetLongPackageName() const
 	return LongPackageName;
 }
 
-const TSet<FString>& FMountDir::GetBlacklist() const
+const TArray<TPair<FString,bool>>& FMountDir::GetBlacklist() const
 {
 	return BlacklistedRelPaths;
 }
@@ -979,9 +983,9 @@ uint32 FMountDir::GetAllocatedSize() const
 	}
 	Result += LongPackageName.GetAllocatedSize();
 	Result += BlacklistedRelPaths.GetAllocatedSize();
-	for (const FString& Value : BlacklistedRelPaths)
+	for (const TPair<FString,bool>& Value : BlacklistedRelPaths)
 	{
-		Result += Value.GetAllocatedSize();
+		Result += Value.Get<0>().GetAllocatedSize();
 	}
 	return Result;
 }
@@ -1018,14 +1022,15 @@ bool FMountDir::IsBlacklisted(FStringView InLocalAbsPath) const
 {
 	FStringView QueryRelPath;
 	verify(FPathViews::TryMakeChildPathRelativeTo(InLocalAbsPath, GetLocalAbsPath(), QueryRelPath));
-	for (const FString& Blacklist : BlacklistedRelPaths)
+	bool bIsBlacklisted = false;
+	for (const TPair<FString,bool>& Blacklist : BlacklistedRelPaths)
 	{
-		if (FPathViews::IsParentPathOf(Blacklist, QueryRelPath))
+		if (FPathViews::IsParentPathOf(Blacklist.Get<0>(), QueryRelPath))
 		{
-			return true;
+			bIsBlacklisted = Blacklist.Get<1>();
 		}
 	}
-	return false;
+	return bIsBlacklisted;
 }
 
 bool FMountDir::IsMonitored(FStringView InLocalAbsPath) const
@@ -1079,13 +1084,6 @@ bool FMountDir::TrySetDirectoryProperties(FStringView InLocalAbsPath, const FSet
 		
 		MarkDirty(RelPath);
 
-		ModifiedProperties = InProperties;
-		ModifiedProperties->IgnoreBlacklist.Reset();
-		if (!ModifiedProperties->IsSet())
-		{
-			return true;
-		}
-		Properties = &ModifiedProperties.GetValue();
 		bResult = true;
 	}
 
@@ -1101,27 +1099,31 @@ void FMountDir::UpdateBlacklist()
 		FStringView MountRelPath;
 		if (FPathViews::TryMakeChildPathRelativeTo(BlacklistName, LongPackageName, MountRelPath))
 		{
-			FPathData* PathData = FindPathData(MountRelPath);
-			if (!PathData || !PathData->bIgnoreBlacklist)
-			{
-				// Note that an empty RelPath means we blacklist the entire mountpoint
-				BlacklistedRelPaths.Emplace(MountRelPath);
-			}
+			// Note that an empty RelPath means we blacklist the entire mountpoint
+			BlacklistedRelPaths.Emplace(MountRelPath, true);
 		}
 	}
+
 	for (const FString& MountRelPath : Discovery.BlacklistMountRelativePaths)
 	{
 		FPathData* PathData = FindPathData(MountRelPath);
 		if (!PathData || !PathData->bIgnoreBlacklist)
 		{
-			BlacklistedRelPaths.Emplace(MountRelPath);
+			BlacklistedRelPaths.Emplace(MountRelPath, true);
+		}
+	}
+	for (const FPathData& PathData : PathDatas)
+	{
+		if (PathData.bIgnoreBlacklist && !PathData.bIsChildPath)
+		{
+			BlacklistedRelPaths.Emplace(PathData.RelPath, false);
 		}
 	}
 	for (const FPathData& PathData : PathDatas)
 	{
 		if (PathData.bIsChildPath)
 		{
-			BlacklistedRelPaths.Emplace(PathData.RelPath);
+			BlacklistedRelPaths.Emplace(PathData.RelPath, true);
 		}
 	}
 }
@@ -3124,7 +3126,8 @@ void FAssetDataGatherer::SerializeCacheLoad(FAssetRegistryReader& Ar)
 		{
 			// Load the name first to add the entry to the tmap below
 			Ar << PackageNameBlock[AssetIndex];
-			AssetDataBlock[AssetIndex].SerializeForCache(Ar);
+			// Visual Studio Static Analyzer issues C6385 if we call AssetDataBlock[AssetIndex].SerializeForCache
+			(AssetDataBlock + AssetIndex)->SerializeForCache(Ar);
 			if (Ar.IsError())
 			{
 				// There was an error reading the cache. Bail out.
