@@ -195,13 +195,22 @@ struct TMovieSceneScriptingChannel
 		return ScriptingRange;
 	}
 
-	void SetDefaultInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, ScriptingKeyValueType& InDefaultValue)
+	void SetDefaultInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, TWeakObjectPtr<UMovieSceneSection> Section, ScriptingKeyValueType& InDefaultValue)
 	{
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
 		{
 			using namespace UE::MovieScene;
 			SetChannelDefault(Channel, InDefaultValue);
+
+#if WITH_EDITOR
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			if (MetaData && Section.IsValid() && Sequence.IsValid() && Sequence->GetMovieScene())
+			{
+				Section.Get()->MarkAsChanged();
+				Sequence->GetMovieScene()->OnChannelChanged().Broadcast(MetaData, Section.Get());
+			}
+#endif
 			return;
 		}
 		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set default value."), ELogVerbosity::Error);
