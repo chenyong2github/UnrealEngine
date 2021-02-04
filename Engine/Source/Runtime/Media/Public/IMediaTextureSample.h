@@ -127,6 +127,17 @@ public:
 	virtual FIntPoint GetDim() const = 0;
 
 	/**
+	 * Get the number of mips encoded in the sample
+	 *
+	 * @return Number of mips in the sample (including base level)
+	 * @note Default implementation provided as most samples will not feature mips
+	 */
+	virtual uint8 GetNumMips() const
+	{
+		return 1;
+	}
+
+	/**
 	 * Get the amount of time for which the sample is valid.
 	 *
 	 * A duration of zero indicates that the sample is valid until the

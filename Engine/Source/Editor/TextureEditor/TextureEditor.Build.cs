@@ -44,8 +44,10 @@ public class TextureEditor : ModuleRules
                 "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
-                "PropertyEditor"
-            }
+                "PropertyEditor",
+				"MediaUtils",
+				"MediaAssets"
+			}
 		);
 	}
 }

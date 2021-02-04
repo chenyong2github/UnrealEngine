@@ -44,6 +44,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Menus/TextureEditorViewOptionsMenu.h"
+#include "MediaTexture.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 
@@ -445,6 +446,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	UTexture2DDynamic* Texture2DDynamic = Cast<UTexture2DDynamic>(Texture);
 	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 	UTextureRenderTargetVolume* VolumeTextureRT = Cast<UTextureRenderTargetVolume>(Texture);
+	UMediaTexture* MediaTexture = Cast<UMediaTexture>(Texture);
 
 	const bool bIsVolume = VolumeTexture || VolumeTextureRT;
 	const bool bIsArray2D = Texture2DArray || Texture2DArrayRT;
@@ -612,6 +614,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	else if (VolumeTextureRT)
 	{
 		NumMips = VolumeTextureRT->GetNumMips();
+	}
+	else if (MediaTexture)
+	{
+		NumMips = MediaTexture->GetTextureNumMips();
 	}
 
 	NumMipsText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips", "Number of Mips: {0}"), FText::AsNumber(NumMips)));
