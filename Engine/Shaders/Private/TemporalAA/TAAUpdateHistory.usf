@@ -31,6 +31,7 @@ Texture2D<uint2> InputSceneStencilTexture;
 Texture2D<taa_half> HistoryRejectionTexture;
 
 Texture2D<float2> DilatedVelocityTexture;
+Texture2D<uint> ParallaxFactorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
 
 float3 HistoryQuantizationError;
@@ -40,10 +41,12 @@ uint bCameraCut;
 Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
 Texture2D<taa_half2> PrevHistory_Textures_2;
+Texture2D<uint>      PrevHistory_Textures_3;
 
 RWTexture2D<taa_half3> HistoryOutput_Textures_0;
 RWTexture2D<taa_half3> HistoryOutput_Textures_1;
 RWTexture2D<taa_half2> HistoryOutput_Textures_2;
+RWTexture2D<uint>      HistoryOutput_Textures_3;
 
 RWTexture2D<taa_half3> SceneColorOutput;
 
@@ -241,6 +244,8 @@ void MainCS(
 	taa_half3 PrevFallbackColor;
 	taa_half PrevFallbackWeight;
 	
+	uint PrevSubpixelDetails;
+
 	ISOLATE
 	{
 		// Reproject history
@@ -276,6 +281,17 @@ void MainCS(
 				RawHistory2 = PrevHistory_Textures_2.SampleLevel(GlobalBilinearClampedSampler, PrevHistoryBufferUV, 0);
 			}
 			#endif
+			
+			FSubpixelNeighborhood SubpixelNeighborhood = GatherPrevSubpixelNeighborhood(PrevHistory_Textures_3, PrevHistoryBufferUV);
+			{
+				PrevSubpixelDetails = 0;
+				UNROLL_N(SUB_PIXEL_COUNT)
+				for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
+				{
+					uint SubpixelPayload = GetSubpixelPayload(SubpixelNeighborhood, SubpixelId);
+					PrevSubpixelDetails |= SubpixelPayload << (BITS_PER_SUB_PIXEL * SubpixelId);
+				}
+			}
 
 			RawHistory0 = -min(-RawHistory0, taa_half(0.0));
 			RawHistory1 = -min(-RawHistory1, taa_half(0.0));
@@ -549,6 +565,35 @@ void MainCS(
 		}
 	}
 
+	// Update subpixel detail
+	uint FinalSubpixelDetails;
+	{
+		taa_half2 dKO = taa_half2(PPCo - PPCk);
+
+		bool bUpdate = all(abs(dKO) < 0.5 * (InputInfo_Extent.x * HistoryInfo_ExtentInverse.x));
+
+		FinalSubpixelDetails = PrevSubpixelDetails;
+		
+		FLATTEN
+		if (bOffScreen)
+		{
+			FinalSubpixelDetails = 0;
+		}
+
+		FLATTEN
+		if (bUpdate)
+		{
+			bool2 bBool = dKO < 0.0;
+
+			uint SubpixelId = dot(uint2(bBool), uint2(1, SUB_PIXEL_GRID_SIZE));
+			uint SubpixelShift = SubpixelId * BITS_PER_SUB_PIXEL;
+
+			uint SubpixelPayload = ParallaxFactorTexture[InputPixelPos] & SUB_PIXEL_MASK;
+
+			FinalSubpixelDetails = (FinalSubpixelDetails & (~(SUB_PIXEL_MASK << SubpixelShift))) | (SubpixelPayload << SubpixelShift);
+		}
+	}
+
 	// Compute final output
 	taa_half3 FinalOutputColor;
 	taa_half FinalOutputValidity;
@@ -665,6 +710,7 @@ void MainCS(
 			HistoryOutput_Textures_0[LocalHistoryPixelPos] = FinalFallbackColor;
 			HistoryOutput_Textures_1[LocalHistoryPixelPos] = FinalHistoryMoment1;
 			HistoryOutput_Textures_2[LocalHistoryPixelPos] = taa_half2(FinalFallbackWeight, FinalHistoryValidity);
+			HistoryOutput_Textures_3[LocalHistoryPixelPos] = FinalSubpixelDetails;
 
 			#if DEBUG_OUTPUT
 			{

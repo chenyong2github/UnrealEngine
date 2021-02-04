@@ -19,6 +19,22 @@ RWTexture2D<float2> DilatedVelocityOutput;
 RWTexture2D<float> ClosestDepthOutput;
 RWTexture2D<uint> PrevUseCountOutput;
 RWTexture2D<uint> PrevClosestDepthOutput;
+RWTexture2D<uint> ParallaxFactorOutput;
+
+
+//------------------------------------------------------- ENTRY POINT
+
+uint PackDepthAndOffset(const int2 Offset, float DeviceZ)
+{
+	return ((asuint(DeviceZ) << 2) & ~0xF) | (uint(1 + Offset.x) << 0) | (uint(1 + Offset.y) << 2);
+}
+
+void UnpackDepthAndOffset(uint Packed, out int2 Offset, out float DeviceZ)
+{
+	DeviceZ = asfloat((Packed & ~0xF) >> 2);
+	Offset.x = int((Packed >> 0) & 0x3) - 1;
+	Offset.y = int((Packed >> 2) & 0x3) - 1;
+}
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -44,11 +60,48 @@ void MainCS(
 
 	float ClosestDeviceZ = DeviceZ;
 	float2 VelocityPixelOffset = float2(0.0, 0.0);
+	float ParallaxFactorForHistory = 1.0;
+	float ParallaxFactorForHistoryRejection = 1.0;
 	#if AA_CROSS
 	{
-		FindClosestDepthOffset(SceneDepthTexture, InputPixelPos, DeviceZ, AA_CROSS, /* out */ VelocityPixelOffset, /* out */ ClosestDeviceZ);
+		const int2 kOffsets[4] = {
+			int2( 1,  0),
+			int2( 1,  1),
+			int2( 0,  1),
+			int2(-1,  1),
+		};
+
+		uint PackedDepthOffset = PackDepthAndOffset(/* Offset = */ int2(0, 0), DeviceZ);
+		
+		float FurthestPairDeviceZ = DeviceZ;
+		float FurthestDeviceZ = DeviceZ;
+
+		#if 1
+			UNROLL_N(4)
+			for (uint i = 0; i < 4; i++)
+		#else
+			UNROLL_N(2)
+			for (uint i = 1; i < 4; i+= 2)
+		#endif
+		{
+			const int2 Offset = kOffsets[i];
+
+			float SampleDeviceZ0 = SceneDepthTexture[int2(InputPixelPos) + Offset].r;
+			float SampleDeviceZ1 = SceneDepthTexture[int2(InputPixelPos) - Offset].r;
+			
+			PackedDepthOffset = max(PackedDepthOffset, PackDepthAndOffset(+Offset, SampleDeviceZ0));
+			PackedDepthOffset = max(PackedDepthOffset, PackDepthAndOffset(-Offset, SampleDeviceZ1));
+
+			FurthestPairDeviceZ = min(FurthestPairDeviceZ, max(SampleDeviceZ0, SampleDeviceZ1));
+			FurthestDeviceZ = min(FurthestDeviceZ, min(SampleDeviceZ0, SampleDeviceZ1));
+		}
+
+		ParallaxFactorForHistory = clamp(DeviceZ / FurthestPairDeviceZ, 0.0, MAX_PARALLAX_FACTOR);
+		ParallaxFactorForHistoryRejection = clamp(DeviceZ / FurthestDeviceZ, 0.0, MAX_PARALLAX_FACTOR);
+
+		UnpackDepthAndOffset(PackedDepthOffset, /* out */ VelocityPixelOffset, /* out */ ClosestDeviceZ);
 	}
-	#endif	// AA_CROSS
+	#endif
 	
 	// Camera motion for pixel.
 	float2 FinalScreenVelocity = 0.0;
@@ -106,6 +159,7 @@ void MainCS(
 	{
 		DilatedVelocityOutput[InputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
 		ClosestDepthOutput[InputPixelPos] = ClosestDeviceZ;
+		ParallaxFactorOutput[InputPixelPos] = CompressParallaxFactor(ParallaxFactorForHistory) | (CompressParallaxFactor(ParallaxFactorForHistoryRejection) << 4);
 
 		#if DEBUG_OUTPUT
 		{

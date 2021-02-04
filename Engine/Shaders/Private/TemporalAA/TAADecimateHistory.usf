@@ -12,6 +12,7 @@
 
 //------------------------------------------------------- PARAMETERS
 
+float4x4 RotationalClipToPrevClip;
 float3 OutputQuantizationError;
 float HistoryPreExposureCorrection;
 uint bCameraCut;
@@ -20,10 +21,12 @@ Texture2D<float2> DilatedVelocityTexture;
 Texture2D<float> ClosestDepthTexture;
 Texture2D<uint> PrevUseCountTexture;
 Texture2D<uint> PrevClosestDepthTexture;
+Texture2D<uint> ParallaxFactorTexture;
 
 Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
 Texture2D<taa_half2> PrevHistory_Textures_2;
+Texture2D<uint> PrevHistory_Textures_3;
 
 RWTexture2D<taa_half3> PredictionSceneColorOutput;
 RWTexture2D<taa_half> ParallaxRejectionMaskOutput;
@@ -60,11 +63,13 @@ void MainCS(
 	
 	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
 	float DeviceZ = ClosestDepthTexture[InputPixelPos];
+	taa_half ParallaxFactor = UncompressParallaxFactor((ParallaxFactorTexture[InputPixelPos] >> 4) & 0xF);
+
 
 	float WorldDepth = ConvertFromDeviceZ(DeviceZ);
 	
 	// Compute the parralax rejection mask
-	float ParallaxRejectionMask = 0.0;
+	taa_half ParallaxRejectionMask = 0.0;
 	{
 		float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
 		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
@@ -83,7 +88,7 @@ void MainCS(
 			float HistoryClosestDeviceZ = f16tof32(PrevClosestDepthTexture[PixelPos]);
 			float HistoryClosestWorldDepth = ConvertFromDeviceZ(HistoryClosestDeviceZ);
 
-			float DepthRejection;
+			taa_half DepthRejection;
 			{
 				const float WorldDepthToPixelWorldRadius = GetTanHalfFieldOfView().x * InputInfo_ExtentInverse.x;
 				const float PixelDepthError = 3.0;
@@ -92,14 +97,14 @@ void MainCS(
 				float WorldDepthEpsilon = (WorldDepthToPixelWorldRadius * RadiusToDiamater * PixelDepthError) * HistoryClosestWorldDepth; 
 				float DeltaDepth = abs(HistoryClosestWorldDepth - WorldDepth);
 
-				DepthRejection = saturate(2.0 - DeltaDepth / WorldDepthEpsilon);
+				DepthRejection = saturate(taa_half(2.0) - taa_half(DeltaDepth / WorldDepthEpsilon));
 			}
 
-			float HistoryGhostingRejection = saturate(1.0 - 3.0 * abs(HistoryUseCount * rcp(256) - 1.0));
+			taa_half HistoryGhostingRejection = saturate(taa_half(1.0) - taa_half(3.0) * abs(taa_half(HistoryUseCount) * rcp(taa_half(256)) - taa_half(1.0)));
 
 			FLATTEN
 			if (bValidPixelPos)
-				ParallaxRejectionMask += BilinearWeight * max(DepthRejection, HistoryGhostingRejection);
+				ParallaxRejectionMask += taa_half(BilinearWeight) * max(DepthRejection, HistoryGhostingRejection);
 		}
 	}
 
@@ -121,8 +126,10 @@ void MainCS(
 	// Vector in pixel between pixel K -> O.
 	taa_half2 dKO = taa_half2(HistoryPPCo - HistoryPPCk);
 	
+	// Sample the history
 	taa_half3 DecimatedColor;
 	taa_half HistoryValidity;
+	taa_half HistoryMaxRejectionFactor;
 	{
 		float2 KernelHistoryBufferUV = clamp(
 			HistoryPPCk * PrevHistoryInfo_ExtentInverse,
@@ -130,8 +137,39 @@ void MainCS(
 			PrevHistoryInfo_UVViewportBilinearMax);
 
 		DecimatedColor = PrevHistory_Textures_0.SampleLevel(GlobalBilinearClampedSampler, KernelHistoryBufferUV, 0);
-	}
 
+		FSubpixelNeighborhood SubpixelNeigborhood = GatherPrevSubpixelNeighborhood(PrevHistory_Textures_3, KernelHistoryBufferUV);
+		{
+			uint EncodedHistoryMaxRejectionFactor = 0;
+			UNROLL_N(SUB_PIXEL_COUNT)
+			for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
+			{
+				uint SubpixelPayload = GetSubpixelPayload(SubpixelNeigborhood, SubpixelId);
+				EncodedHistoryMaxRejectionFactor = max(EncodedHistoryMaxRejectionFactor, SubpixelPayload);
+			}
+
+			HistoryMaxRejectionFactor = UncompressParallaxFactor(EncodedHistoryMaxRejectionFactor);
+		}
+	}
+	
+	// Reject subpixel details that might be in history but not input just based on their parrallax
+	{
+		taa_half HistorySubdetailRejectionFactor = max(HistoryMaxRejectionFactor / ParallaxFactor, taa_half(1.0));
+
+		float4 ThisClip = float4(ScreenPos, DeviceZ, 1);
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+		float2 PrevScreen = PrevClip.xy / PrevClip.w;
+			
+		float4 RotationalPrevClip = mul(ThisClip, RotationalClipToPrevClip);
+		float2 RotationalPrevScreen = RotationalPrevClip.xy / RotationalPrevClip.w;
+			
+		taa_half PixelParallaxVelocity = taa_half(0.5) * length(taa_half2(RotationalPrevScreen - PrevScreen) * InputInfo_Extent);
+		taa_half HistorySubdetailAdditionalParralax = (HistorySubdetailRejectionFactor - taa_half(1.0)) * PixelParallaxVelocity;
+
+		taa_half HistoryParallaxRejectionMask = saturate(taa_half(1.0) - HistorySubdetailAdditionalParralax);
+
+		ParallaxRejectionMask = min(ParallaxRejectionMask, HistoryParallaxRejectionMask);
+	}
 
 	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 	{
