@@ -47,6 +47,7 @@ uint				CPU_bUseCPUData;
 float3				CPU_MaxAABB;
 float				RasterizationScale;
 float				AABBScale;
+float				MaxHafFovInRad;
 
 int2				SlotResolution;
 uint				SlotIndexCount;
@@ -112,11 +113,13 @@ void ComputeWorldToLightClip(
 	}
 	else // if (LightType == LightType_Spot || LightType == LightType_Point || LightType == LightType_Rect)
 	{
-		MinZ = max(0.1f, length(LightPosition - Center)) + MinZ;
-		MaxZ = max(0.2f, length(LightPosition - Center)) + MaxZ;
+		const float LightDistanceToCenter = length(LightPosition - Center);
+		MaxZ = max(0.2f, LightDistanceToCenter) + MaxZ;
+		MinZ = max(0.1f, LightDistanceToCenter) + MinZ;
+		MinZ = max(1.0f, MinZ);
 
 		const float SphereDistance	= length(LightPosition - Center);
-		const float HalfFov			= asin(Radius / SphereDistance);
+		const float HalfFov			= min(MaxHafFovInRad, asin(Radius / SphereDistance));
 
 		const float4x4 WorldToLight = LookAtMatrix(LightPosition, Center, float3(0, 0, 1));
 		const float4x4 ProjMatrix	= ReversedZPerspectiveMatrix(HalfFov, 1, 1, MinZ, MaxZ);
