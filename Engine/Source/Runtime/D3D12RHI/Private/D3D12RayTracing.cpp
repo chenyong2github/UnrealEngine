@@ -2421,6 +2421,24 @@ static void CreateAccelerationStructureBuffers(
 		0, ScratchBufferDesc.Width, BUF_UnorderedAccess, ED3D12ResourceStateMode::SingleState, CreateInfo);
 
 	SetName(ScratchBuffer->GetResource(), TEXT("Acceleration structure scratch"));
+
+	// Elevates the raytracing acceleration structure heap priority, which may help performance / stability in low memory conditions
+	{
+		ID3D12Pageable* HeapResources[] =
+		{
+			AccelerationStructureBuffer->GetResource()->GetPageable(),
+			ScratchBuffer->GetResource()->GetPageable()
+		};
+
+		D3D12_RESIDENCY_PRIORITY HeapPriorities[] =
+		{
+			D3D12_RESIDENCY_PRIORITY_HIGH,
+			D3D12_RESIDENCY_PRIORITY_HIGH
+		};
+
+		FD3D12Device* NodeDevice = Adapter->GetDevice(GPUIndex);
+		NodeDevice->GetDevice5()->SetResidencyPriority(2, HeapResources, HeapPriorities);
+	}
 }
 
 void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode)

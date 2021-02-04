@@ -185,6 +185,7 @@ public:
 		ResourceBaseAddress = nullptr;
 	}
 
+	ID3D12Pageable* GetPageable();
 	D3D12_RESOURCE_DESC const& GetDesc() const { return Desc; }
 	D3D12_HEAP_TYPE GetHeapType() const { return HeapType; }
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }

@@ -299,6 +299,18 @@ FD3D12Resource::~FD3D12Resource()
 #endif
 }
 
+ID3D12Pageable* FD3D12Resource::GetPageable()
+{
+	if (IsPlacedResource())
+	{
+		return (ID3D12Pageable*)(GetHeap()->GetHeap());
+	}
+	else
+	{
+		return (ID3D12Pageable*)GetResource();
+	}
+}
+
 void FD3D12Resource::StartTrackingForResidency()
 {
 #if ENABLE_RESIDENCY_MANAGEMENT
