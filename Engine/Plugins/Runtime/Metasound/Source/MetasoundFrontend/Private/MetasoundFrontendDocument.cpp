@@ -83,13 +83,18 @@ void FMetasoundFrontendLiteral::SetFromLiteral(const Metasound::FLiteral& InLite
 		}
 		break;
 
-		case ELiteralType::UObjectProxy:
-		case ELiteralType::UObjectProxyArray:
 		case ELiteralType::None:
+		case ELiteralType::UObjectProxy:
+		case ELiteralType::NoneArray:
+		case ELiteralType::BooleanArray:
+		case ELiteralType::IntegerArray:
+		case ELiteralType::FloatArray:
+		case ELiteralType::StringArray:
+		case ELiteralType::UObjectProxyArray:
 		case ELiteralType::Invalid:
 		default:
 		{
-			static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing literal type switch coverage");
+			static_assert(static_cast<int32>(ELiteralType::Invalid) == 12, "Possible missing literal type switch coverage");
 		}
 	}
 }

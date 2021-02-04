@@ -53,7 +53,7 @@ namespace Metasound
 
 		if (InVariant != NAME_None)
 		{
-			return FName(FString::Printf(TEXT("%s.%s"), *ScopedName.ToString(), *InVariant.ToString()));
+			return FName(*FString::Printf(TEXT("%s.%s"), *ScopedName.ToString(), *InVariant.ToString()));
 		}
 		else
 		{
@@ -63,7 +63,7 @@ namespace Metasound
 
 	FName FNodeClassName::FormatScopedName(const FName& InNamespace, const FName& InName)
 	{
-		return FName(FString::Printf(TEXT("%s.%s"), *InNamespace.ToString(), *InName.ToString()));
+		return FName(*FString::Printf(TEXT("%s.%s"), *InNamespace.ToString(), *InName.ToString()));
 	}
 
 	bool operator==(const FOutputDataSource& InLeft, const FOutputDataSource& InRight)

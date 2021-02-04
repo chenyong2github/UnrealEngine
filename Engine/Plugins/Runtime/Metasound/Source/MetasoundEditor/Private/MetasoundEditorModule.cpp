@@ -202,9 +202,16 @@ namespace Metasound
 							}
 							break;
 
-							default:
+							
 							case ELiteralType::None:
 							case ELiteralType::Invalid:
+							// TODO: handle array types.
+							case ELiteralType::NoneArray:
+							case ELiteralType::BooleanArray:
+							case ELiteralType::IntegerArray:
+							case ELiteralType::StringArray:
+							case ELiteralType::FloatArray:
+							default:
 							{
 								// Audio types are ubiquitous, so add as subcategory
 								// to be able to stylize connections (i.e. wire color)
@@ -217,7 +224,7 @@ namespace Metasound
 								{
 									PinCategory = FGraphBuilder::PinCategoryAudioFormat;
 								}
-								static_assert(static_cast<int32>(ELiteralType::Invalid) == 7, "Possible missing binding of pin category to primitive type");
+								static_assert(static_cast<int32>(ELiteralType::Invalid) == 12, "Possible missing binding of pin category to primitive type");
 							}
 							break;
 						}
