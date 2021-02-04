@@ -233,6 +233,7 @@ void FNiagaraConvertNodeViewModel::ConnectSockets(TSharedRef<FNiagaraConvertPinS
 
 	// Add this new connection
 	Connections.Add(FNiagaraConvertConnection(InputPinId, InputPath, OutputPinId, OutputPath));
+	ConvertNode.MarkNodeRequiresSynchronization(__FUNCTION__, true);
 	InvalidateConnectionViewModels();
 }
 
@@ -250,7 +251,8 @@ void FNiagaraConvertNodeViewModel::DisconnectSocket(TSharedRef<FNiagaraConvertPi
 				(Connection.DestinationPinId == OwnerPin->GetPinId() && Connection.DestinationPath == Path);
 		};
 
-		ConvertNode.GetConnections().RemoveAll(RemovePredicate);
+		ConvertNode.GetConnections().RemoveAll(RemovePredicate); 
+		ConvertNode.MarkNodeRequiresSynchronization(__FUNCTION__, true);
 		InvalidateConnectionViewModels();
 	}
 }
@@ -276,6 +278,7 @@ void FNiagaraConvertNodeViewModel::DisconnectSockets(TSharedRef<FNiagaraConvertP
 		};
 
 		ConvertNode.GetConnections().RemoveAll(RemovePredicate);
+		ConvertNode.MarkNodeRequiresSynchronization(__FUNCTION__, true);
 		InvalidateConnectionViewModels();
 	}
 }
