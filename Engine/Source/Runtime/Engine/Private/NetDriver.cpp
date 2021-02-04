@@ -641,6 +641,8 @@ void UNetDriver::CancelAdaptiveReplication(FNetworkObjectInfo& InNetworkActor)
 static TAutoConsoleVariable<int32> CVarOptimizedRemapping( TEXT( "net.OptimizedRemapping" ), 1, TEXT( "Uses optimized path to remap unmapped network guids" ) );
 static TAutoConsoleVariable<int32> CVarMaxClientGuidRemaps( TEXT( "net.MaxClientGuidRemaps" ), 100, TEXT( "Max client resolves of unmapped network guids per tick" ) );
 TAutoConsoleVariable<int32> CVarFilterGuidRemapping( TEXT( "net.FilterGuidRemapping" ), 1, TEXT( "Remove destroyed and parent guids from unmapped list" ) );
+bool CVar_NetDriver_ReportGameTickFlushTime = false;
+static FAutoConsoleVariableRef CVarNetDriverReportTickFlushTime(TEXT("net.ReportGameTickFlushTime"), CVar_NetDriver_ReportGameTickFlushTime, TEXT("Record and report to the perf tracking system the processing time of the GameNetDriver's TickFlush."), ECVF_Default);
 
 /** Accounts for the network time we spent in the game driver. */
 double GTickFlushGameDriverTimeSeconds = 0.0;
@@ -650,9 +652,9 @@ bool ShouldEnableScopeSecondsTimers()
 #if STATS
 	return true;
 #elif CSV_PROFILER
-	return FCsvProfiler::Get()->IsCapturing();
+	return CVar_NetDriver_ReportGameTickFlushTime || FCsvProfiler::Get()->IsCapturing();
 #else
-	return false;
+	return CVar_NetDriver_ReportGameTickFlushTime;
 #endif
 }
 
