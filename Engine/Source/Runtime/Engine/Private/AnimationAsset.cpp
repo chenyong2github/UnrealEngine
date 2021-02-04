@@ -707,7 +707,7 @@ void FBlendSampleData::NormalizeDataWeight(TArray<FBlendSampleData>& SampleDataL
 	}
 
 	// Re-normalize Pose weight
-	if (ensure(TotalSum > ZERO_ANIMWEIGHT_THRESH))
+	if (TotalSum > ZERO_ANIMWEIGHT_THRESH)
 	{
 		if (FMath::Abs<float>(TotalSum - 1.f) > ZERO_ANIMWEIGHT_THRESH)
 		{
@@ -717,11 +717,18 @@ void FBlendSampleData::NormalizeDataWeight(TArray<FBlendSampleData>& SampleDataL
 			}
 		}
 	}
+	else
+	{
+		for (int32 PoseIndex = 0; PoseIndex < SampleDataList.Num(); PoseIndex++)
+		{
+			SampleDataList[PoseIndex].TotalWeight = 1.0f / SampleDataList.Num();
+		}
+	}
 
 	// Re-normalize per bone weights.
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; BoneIndex++)
 	{
-		if (ensure(PerBoneTotalSums[BoneIndex] > ZERO_ANIMWEIGHT_THRESH))
+		if (PerBoneTotalSums[BoneIndex] > ZERO_ANIMWEIGHT_THRESH)
 		{
 			if (FMath::Abs<float>(PerBoneTotalSums[BoneIndex] - 1.f) > ZERO_ANIMWEIGHT_THRESH)
 			{
@@ -729,6 +736,13 @@ void FBlendSampleData::NormalizeDataWeight(TArray<FBlendSampleData>& SampleDataL
 				{
 					SampleDataList[PoseIndex].PerBoneBlendData[BoneIndex] /= PerBoneTotalSums[BoneIndex];
 				}
+			}
+		}
+		else
+		{
+			for (int32 PoseIndex = 0; PoseIndex < SampleDataList.Num(); PoseIndex++)
+			{
+				SampleDataList[PoseIndex].PerBoneBlendData[BoneIndex] = 1.0f / SampleDataList.Num();
 			}
 		}
 	}

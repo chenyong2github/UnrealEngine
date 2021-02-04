@@ -204,13 +204,17 @@ struct FPerBoneInterpolation
 	FBoneReference BoneReference;
 
 	/**
-	* This is the speed at which we interpolate towards the target weights for this specific bone, measured in 'how many times per second' we can get to the target.
-	* A value of 0 means it would instantly set itself to the target value, while a value of one means it will take one second to get there.
-	* A value of 2 would mean it goes there in twice the speed of a second, so in half a second, a value of 3 would mean in a third of a second, and so on.
-	* Smaller values mean slower interpolation speeds.
-	* This value overrides the global interpolation speed, so the global interpolation speed has no impact anymore on the interpolation speed of this bone.
+	* If greater than zero, this is the speed at which the sample weights are allowed to change for this specific bone.
+	*
+	* A speed of 1 means a sample weight can change from zero to one (or one to zero) in one second.
+	* A speed of 2 means that this would take half a second.
+	*
+	* Smaller values mean slower adjustments of the sample weights, and thus more smoothing. However, a
+	* value of zero disables this smoothing entirely.
+	* 
+	* If set, the value overrides the overall Sample Weight Speed which will no longer affect this bone.
 	*/
-	UPROPERTY(EditAnywhere, Category=FPerBoneInterpolation, meta=(DisplayName="Interpolation Speed"))
+	UPROPERTY(EditAnywhere, Category=FPerBoneInterpolation, meta=(DisplayName="Sample Weight Speed"))
 	float InterpolationSpeedPerSec;
 
 	FPerBoneInterpolation()
@@ -479,17 +483,31 @@ public:
 	FInterpolationParameter	InterpolationParam[3];
 
 	/**
-	* This is the speed at which we interpolate towards the target weights, measured in 'how many times per second' we can get to the target.
-	* A value of 0 means it would instantly set itself to the target value, while a value of one means it will take one second to get there.
-	* A value of 2 would mean it goes there in twice the speed of a second, so in half a second, a value of 3 would mean in a third of a second, and so on.
-	* Smaller values mean slower interpolation speeds.
-	* Imagine we have a blend space for locomotion, moving left, forward and right. Now if you interpolate the inputs of the blend space itself, from one extreme to the other, you will
-	* go from left, to forward, to right. As an alternative, by setting this global interpolation speed to a value higher than zero, it will go directly from left to right, without going through moving forward first.
+	* If greater than zero, this is the speed at which the sample weights are allowed to change.
+	* 
+	* A speed of 1 means a sample weight can change from zero to one (or one to zero) in one second.
+	* A speed of 2 means that this would take half a second.
+	* 
+	* This allows the Blend Space to switch to new parameters without going through intermediate states, 
+	* effectively blending between where it was and where the new target is. For example, imagine we have 
+	* a blend space for locomotion, moving left, forward and right. Now if you interpolate the inputs of 
+	* the blend space itself, from one extreme to the other, you will go from left, to forward, to right. 
+	* As an alternative, by setting this Sample Weight Speed to a value higher than zero, it will go 
+	* directly from left to right, without going through moving forward first.
+	* 
+	* Smaller values mean slower adjustments of the sample weights, and thus more smoothing. However, a 
+	* value of zero disables this smoothing entirely.
 	*/
-	UPROPERTY(EditAnywhere, Category = SampleInterpolation, meta = (DisplayName = "Global Interpolation Speed"))
+	UPROPERTY(EditAnywhere, Category = SampleInterpolation, meta = (DisplayName = "Sample Weight Speed"))
 	float TargetWeightInterpolationSpeedPerSec;
 
-	/** The current mode used by the blendspace to decide which animation notifies to fire. Valid options are:
+	/**
+	 * If set then this eases in/out the sample weight adjustments, using the speed to determine how much smoothing to apply.
+	 */
+	UPROPERTY(EditAnywhere, Category = SampleInterpolation, meta = (DisplayName = "Sample Weight Speed Smoothing "))
+	bool bTargetWeightInterpolationEaseInOut;
+
+	/** The current mode used by the BlendSpace to decide which animation notifies to fire. Valid options are:
 	- AllAnimations - All notify events will fire
 	- HighestWeightedAnimation - Notify events will only fire from the highest weighted animation
 	- None - No notify events will fire from any animations

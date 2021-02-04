@@ -19,7 +19,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("BlendSpace GetAnimPose"), STAT_BlendSpace_GetAnimPose, STATGROUP_Anim);
 
-/** Scratch buffers for multithreaded usage */
+/** Scratch buffers for multi-threaded usage */
 struct FBlendSpaceScratchData : public TThreadSingleton<FBlendSpaceScratchData>
 {
 	TArray<FBlendSampleData> OldSampleDataList;
@@ -144,7 +144,7 @@ bool UBlendSpaceBase::UpdateBlendSamples_Internal(const FVector& InBlendSpacePos
 	if (GetSamplesFromBlendInput(InBlendSpacePosition, NewSampleDataList))
 	{
 		// if target weight interpolation is set
-		if (TargetWeightInterpolationSpeedPerSec > 0.f)
+		if (TargetWeightInterpolationSpeedPerSec > 0.f || PerBoneBlend.Num() > 0)
 		{
 			// target weight interpolation
 			if (InterpolateWeightOfSampleData(InDeltaTime, InOutOldSampleDataList, NewSampleDataList, InOutSampleDataCache))
@@ -748,7 +748,7 @@ bool UBlendSpaceBase::GetSamplesFromBlendInput(const FVector &BlendInput, TArray
 	OutSampleDataList.Reset();
 	OutSampleDataList.Reserve(RawGridSamples.Num() * FEditorElement::MAX_VERTICES);
 
-	// consolidate all samples
+	// Consolidate all samples
 	for (int32 SampleNum=0; SampleNum<RawGridSamples.Num(); ++SampleNum)
 	{
 		FGridBlendSample& GridSample = RawGridSamples[SampleNum];
@@ -770,7 +770,8 @@ bool UBlendSpaceBase::GetSamplesFromBlendInput(const FVector &BlendInput, TArray
 		}
 	}
 
-	// go through merge down to first sample 
+	// At this point we'll only have one of each sample, but different samples can point to the same
+	// animation. We can combine those, making sure to interpolate the parameters like play rate too.
 	for (int32 Index1 = 0; Index1 < OutSampleDataList.Num(); ++Index1)
 	{
 		FBlendSampleData& FirstSample = OutSampleDataList[Index1];
@@ -778,7 +779,7 @@ bool UBlendSpaceBase::GetSamplesFromBlendInput(const FVector &BlendInput, TArray
 		{
 			FBlendSampleData& SecondSample = OutSampleDataList[Index2];
 			// if they have same sample, remove the Index2, and get out
-			if (FirstSample.SampleDataIndex == SecondSample.SampleDataIndex || 
+			if (FirstSample.SampleDataIndex == SecondSample.SampleDataIndex || // Shouldn't happen
 				(FirstSample.Animation != nullptr && FirstSample.Animation == SecondSample.Animation))
 			{
 				//Calc New Sample Playrate
@@ -1272,11 +1273,71 @@ const FEditorElement* UBlendSpaceBase::GetGridSampleInternal(int32 Index) const
 	return GridSamples.IsValidIndex(Index) ? &GridSamples[Index] : NULL;
 }
 
+// When using CriticallyDampedSmoothing, how to go from the interpolation speed to the smooth
+// time? What would the critically damped velocity be as it goes from a starting value of 0 to a
+// target of 1 (see eq in CriticallyDampedSmoothing), starting with v = 0?
+//
+// v = W^2 t exp(-W t)
+//
+// Differentiate and set equal to zero to find maximum v is at t = 1 / W
+//
+// vMax = W / e = 2 / (SmoothingTime * e)
+//
+// Set this equal to TargetWeightInterpolationSpeedPerSec, we get
+//
+// SmoothingTime = 2 / (e * TargetWeightInterpolationSpeedPerSec)
+//
+// However - this looks significantly slower than when using a constant speed, because we're
+// easing in/out, so aim for twice this speed (i.e. smooth over half the time)
+static float SmoothingTimeFromSpeed(float Speed)
+{
+	return 1.0f / (EULERS_NUMBER * Speed);	
+}
+
+static void SmoothWeight(FBlendSampleData& Output, const FBlendSampleData& Input, float TargetWeight, float DeltaTime, float Speed, bool bUseEaseInOut)
+{
+	if (Speed <= 0.0f)
+	{
+		Output.TotalWeight = TargetWeight;
+		return;
+	}
+
+	if (bUseEaseInOut)
+	{
+		Output.TotalWeight = Input.TotalWeight;
+		Output.WeightRate = Input.WeightRate;
+		FMath::CriticallyDampedSmoothing(Output.TotalWeight, Output.WeightRate, TargetWeight, DeltaTime, SmoothingTimeFromSpeed(Speed));
+	}
+	else
+	{
+		Output.TotalWeight = FMath::FInterpConstantTo(Input.TotalWeight, TargetWeight, DeltaTime, Speed);
+	}
+}
+
+static void SmoothWeight(float& Output, float& OutputRate, float Input, float InputRate, float Target, float DeltaTime, float Speed, bool bUseEaseInOut)
+{
+	if (Speed <= 0.0f)
+	{
+		Output = Target;
+		return;
+	}
+
+	if (bUseEaseInOut)
+	{
+		Output = Input;
+		OutputRate = InputRate;
+		FMath::CriticallyDampedSmoothing(Output, OutputRate, Target, DeltaTime, SmoothingTimeFromSpeed(Speed));
+	}
+	else
+	{
+		Output = FMath::FInterpConstantTo(Input, Target, DeltaTime, Speed);
+	}
+}
+
 bool UBlendSpaceBase::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FBlendSampleData> & OldSampleDataList, const TArray<FBlendSampleData> & NewSampleDataList, TArray<FBlendSampleData> & FinalSampleDataList) const
 {
-	check (TargetWeightInterpolationSpeedPerSec > 0.f);
-
 	float TotalFinalWeight = 0.f;
+	float TotalFinalPerBoneWeight = 0.0f;
 
 	// now interpolate from old to new target, this is brute-force
 	for (auto OldIt=OldSampleDataList.CreateConstIterator(); OldIt; ++OldIt)
@@ -1288,9 +1349,9 @@ bool UBlendSpaceBase::InterpolateWeightOfSampleData(float DeltaTime, const TArra
 		if (OldSample.PerBoneBlendData.Num()!=PerBoneBlend.Num())
 		{
 			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, PerBoneBlend.Num());
+			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, PerBoneBlend.Num());
 		}
 
-		// i'd like to change this later
 		for (auto NewIt=NewSampleDataList.CreateConstIterator(); NewIt; ++NewIt)
 		{
 			const FBlendSampleData& NewSample = *NewIt;
@@ -1298,26 +1359,29 @@ bool UBlendSpaceBase::InterpolateWeightOfSampleData(float DeltaTime, const TArra
 			if (NewSample.SampleDataIndex == OldSample.SampleDataIndex)
 			{
 				FBlendSampleData InterpData = NewSample;
-				InterpData.TotalWeight = FMath::FInterpConstantTo(OldSample.TotalWeight, NewSample.TotalWeight, DeltaTime, TargetWeightInterpolationSpeedPerSec);
+				SmoothWeight(InterpData, OldSample, NewSample.TotalWeight, DeltaTime, TargetWeightInterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 				InterpData.PerBoneBlendData = OldSample.PerBoneBlendData;
+				InterpData.PerBoneWeightRate = OldSample.PerBoneWeightRate;
 
 				// now interpolate the per bone weights
+				float TotalPerBoneWeight = 0.0f;
 				for (int32 Iter = 0; Iter<InterpData.PerBoneBlendData.Num(); ++Iter)
 				{
-					if (PerBoneBlend[Iter].InterpolationSpeedPerSec > 0.f)
-					{
-						InterpData.PerBoneBlendData[Iter] = FMath::FInterpConstantTo(OldSample.PerBoneBlendData[Iter], NewSample.TotalWeight, DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec);
-					}
-					else
-					{
-						InterpData.PerBoneBlendData[Iter] = NewSample.TotalWeight;
-					}
+					SmoothWeight(
+						InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter], 
+						OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], NewSample.TotalWeight, 
+						DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+					TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 				}
 
-				FinalSampleDataList.Add(InterpData);
-				TotalFinalWeight += InterpData.GetWeight();
-				bTargetSampleExists = true;
-				break;
+				if (InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH || TotalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH)
+				{
+					FinalSampleDataList.Add(InterpData);
+					TotalFinalWeight += InterpData.GetWeight();
+					TotalFinalPerBoneWeight += TotalPerBoneWeight;
+					bTargetSampleExists = true;
+					break;
+				}
 			}
 		}
 
@@ -1325,25 +1389,24 @@ bool UBlendSpaceBase::InterpolateWeightOfSampleData(float DeltaTime, const TArra
 		if (bTargetSampleExists == false)
 		{
 			FBlendSampleData InterpData = OldSample;
-			InterpData.TotalWeight = FMath::FInterpConstantTo(OldSample.TotalWeight, 0.f, DeltaTime, TargetWeightInterpolationSpeedPerSec);
+			SmoothWeight(InterpData, OldSample, 0.0f, DeltaTime, TargetWeightInterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 			// now interpolate the per bone weights
+			float TotalPerBoneWeight = 0.0f;
 			for (int32 Iter = 0; Iter<InterpData.PerBoneBlendData.Num(); ++Iter)
 			{
-				if (PerBoneBlend[Iter].InterpolationSpeedPerSec > 0.f)
-				{
-					InterpData.PerBoneBlendData[Iter] = FMath::FInterpConstantTo(OldSample.PerBoneBlendData[Iter], 0.f, DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec);
-				}
-				else
-				{
-					InterpData.PerBoneBlendData[Iter] = 0.f;
-				}
+				SmoothWeight(
+					InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter],
+					OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], 0.0f,
+					DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+				TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 			}
 
 			// add it if it's not zero
-			if ( InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH )
+			if ( InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH || TotalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH )
 			{
 				FinalSampleDataList.Add(InterpData);
 				TotalFinalWeight += InterpData.GetWeight();
+				TotalFinalPerBoneWeight += TotalPerBoneWeight;
 			}
 		}
 	}
@@ -1358,6 +1421,7 @@ bool UBlendSpaceBase::InterpolateWeightOfSampleData(float DeltaTime, const TArra
 		if (OldSample.PerBoneBlendData.Num()!=PerBoneBlend.Num())
 		{
 			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, PerBoneBlend.Num());
+			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, PerBoneBlend.Num());
 		}
 
 		for (auto NewIt=FinalSampleDataList.CreateConstIterator(); NewIt; ++NewIt)
@@ -1374,25 +1438,33 @@ bool UBlendSpaceBase::InterpolateWeightOfSampleData(float DeltaTime, const TArra
 		if (bOldSampleExists == false)
 		{
 			FBlendSampleData InterpData = OldSample;
-			InterpData.TotalWeight = FMath::FInterpConstantTo(0.f, OldSample.TotalWeight, DeltaTime, TargetWeightInterpolationSpeedPerSec);
+			float TargetWeight = InterpData.TotalWeight;
+			OldSample.TotalWeight = 0.0f;
+			OldSample.WeightRate = 0.0f;
+			SmoothWeight(InterpData, OldSample, TargetWeight, DeltaTime, TargetWeightInterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 			// now interpolate the per bone weights
+			float TotalPerBoneWeight = 0.0f;
 			for (int32 Iter = 0; Iter<InterpData.PerBoneBlendData.Num(); ++Iter)
 			{
-				if (PerBoneBlend[Iter].InterpolationSpeedPerSec > 0.f)
-				{
-					InterpData.PerBoneBlendData[Iter] = FMath::FInterpConstantTo(0.f, OldSample.PerBoneBlendData[Iter], DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec);
-				}
-				else
-				{
-					InterpData.PerBoneBlendData[Iter] = OldSample.PerBoneBlendData[Iter];
-				}
+				float Target = OldSample.PerBoneBlendData[Iter];
+				OldSample.PerBoneBlendData[Iter] = 0.0f;
+				OldSample.PerBoneWeightRate[Iter] = 0.0f;
+				SmoothWeight(
+					InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter],
+					OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], Target,
+					DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+				TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 			}
-			FinalSampleDataList.Add(InterpData);
-			TotalFinalWeight += InterpData.GetWeight();
+			if (InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH || TotalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH)
+			{
+				FinalSampleDataList.Add(InterpData);
+				TotalFinalWeight += InterpData.GetWeight();
+				TotalFinalPerBoneWeight += TotalPerBoneWeight;
+			}
 		}
 	}
 
-	return (TotalFinalWeight > ZERO_ANIMWEIGHT_THRESH);
+	return TotalFinalWeight > ZERO_ANIMWEIGHT_THRESH || TotalFinalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH;
 }
 
 FVector UBlendSpaceBase::FilterInput(FBlendFilter * Filter, const FVector& BlendInput, float DeltaTime) const

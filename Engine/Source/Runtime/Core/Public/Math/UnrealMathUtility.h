@@ -1136,6 +1136,64 @@ public:
 	static CORE_API FQuat QInterpTo(const FQuat& Current, const FQuat& Target, float DeltaTime, float InterpSpeed);
 
 	/**
+	 * Smooths a value using a critically damped spring. Works for any type that supports basic arithmetic operations.
+	 * 
+	 * Note that InSmoothingTime is the time lag when tracking constant motion (so if you tracked a predicted position 
+	 * TargetVel * InSmoothingTime ahead, you'd match the target position)
+	 * 
+	 * When starting from zero velocity, the maximum velocity is reached after time InSmoothingTime * 0.5
+	 *
+	 * @param  InOutValue      The value to be smoothed
+	 * @param  InOutValueRate  The rate of change of the value
+	 * @para   InTargetValue   The target to smooth towards
+	 * @param  InDeltaTime     Time interval
+	 * @param  InSmoothingTime Timescale over which to smooth. Larger values result in more smoothed behaviour. Can be zero.
+	 */
+	template< class T >
+	static void CriticallyDampedSmoothing(
+		T& InOutValue,
+		T& InOutValueRate,
+		const T& InTargetValue,
+		float InDeltaTime,
+		float InSmoothingTime)
+	{
+		if (InSmoothingTime > 0.0f)
+		{
+			// The closed form solution for critically damped motion towards zero is:
+			//
+			// x = ( x0 + t (v0 + w x0) ) exp(-w t)
+			//
+			// where w is the natural frequency, x0, v0 are x and dx/dt at time 0 (e.g. Brian Stone - Chatter and Machine Tools pdf)
+			//
+			// Differentiate to get velocity (remember d(v0)/dt = 0):
+			//
+			// v = ( v0 - w t (v0 + w x0) ) exp(-w t)
+			//
+			// We're damping towards a target, so convert - i.e. x = value - target
+			// 
+			// SmoothingTime is 
+			float W = 2.0f / InSmoothingTime;
+			float A = W * InDeltaTime;
+			// Taylor expansion for Exp(-W * InDeltaTime)
+			float Exp = 1.0f / (1.0f + A + 0.48f * A * A + 0.235f * A * A * A);
+			T X0 = InOutValue - InTargetValue;
+			T B = (InOutValueRate + X0 * W) * InDeltaTime;
+			InOutValue = InTargetValue + (X0 + B) * Exp;
+			InOutValueRate = (InOutValueRate - B * W) * Exp;
+		}
+		else if (InDeltaTime > 0.0f)
+		{
+			InOutValueRate = (InTargetValue - InOutValue) / InDeltaTime;
+			InOutValue = InTargetValue;
+		}
+		else
+		{
+			InOutValue = InTargetValue;
+			InOutValueRate = T(0);
+		}
+	}
+
+	/**
 	 * Simple function to create a pulsating scalar value
 	 *
 	 * @param  InCurrentTime  Current absolute time

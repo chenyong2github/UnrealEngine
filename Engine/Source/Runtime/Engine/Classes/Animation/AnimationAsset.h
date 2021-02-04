@@ -82,6 +82,10 @@ struct FBlendSampleData
 	UPROPERTY()
 	float TotalWeight;
 
+	// Rate of change of the Weight - used in smoothed BlendSpace blends
+	UPROPERTY()
+	float WeightRate;
+
 	UPROPERTY()
 	float Time;
 
@@ -95,24 +99,29 @@ struct FBlendSampleData
 
 	FMarkerTickRecord MarkerTickRecord;
 
-	// transient perbone interpolation data
+	// transient per-bone interpolation data
 	TArray<float> PerBoneBlendData;
 
+	// transient per-bone weight rate - only allocated when used
+	TArray<float> PerBoneWeightRate;
+
 	FBlendSampleData()
-		:	SampleDataIndex(0)
-		,	Animation(nullptr)
-		,	TotalWeight(0.f)
-		,	Time(0.f)
-		,	PreviousTime(0.f)
-		,	SamplePlayRate(0.0f)
+		: SampleDataIndex(0)
+		, Animation(nullptr)
+		, TotalWeight(0.f)
+		, WeightRate(0.f)
+		, Time(0.f)
+		, PreviousTime(0.f)
+		, SamplePlayRate(0.0f)
 	{}
 	FBlendSampleData(int32 Index)
-		:	SampleDataIndex(Index)
-		,	Animation(nullptr)
-		,	TotalWeight(0.f)
-		,	Time(0.f)
-		,	PreviousTime(0.f)
-		,	SamplePlayRate(0.0f)
+		: SampleDataIndex(Index)
+		, Animation(nullptr)
+		, TotalWeight(0.f)
+		, WeightRate(0.f)
+		, Time(0.f)
+		, PreviousTime(0.f)
+		, SamplePlayRate(0.0f)
 	{}
 	bool operator==( const FBlendSampleData& Other ) const 
 	{
