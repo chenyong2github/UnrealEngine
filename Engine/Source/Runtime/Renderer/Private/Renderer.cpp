@@ -451,6 +451,7 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 }
 
 extern void NaniteStatsFilterExec(const TCHAR* Cmd, FOutputDevice& Ar);
+extern void ResetRenderTargetsExtent(FOutputDevice& Ar);
 
 static bool RendererExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
@@ -477,6 +478,11 @@ static bool RendererExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		Ar.Logf( TEXT( "Running on the %s RHI" ), GDynamicRHI 
 			? (GDynamicRHI->GetName() ? GDynamicRHI->GetName() : TEXT("<NULL Name>"))
 			: TEXT("<NULL DynamicRHI>"));
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("r.ResetRenderTargetsExtent")))
+	{
+		ResetRenderTargetsExtent(Ar);
 		return true;
 	}
 #endif

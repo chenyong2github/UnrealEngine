@@ -510,6 +510,12 @@ public:
 		return DesiredExtent;
 	}
 
+	void ResetRenderTargetsExtent()
+	{
+		LastStereoExtent = FIntPoint(0, 0);
+		LastExtent = FIntPoint(0, 0);
+	}
+
 private:
 	enum class ERenderTargetHistory
 	{
@@ -557,6 +563,13 @@ private:
 	/** to detect when LargestDesiredSizeThisFrame is outdated */
 	uint32 ThisFrameNumber = 0;
 };
+
+
+void ResetRenderTargetsExtent(FOutputDevice& Ar)
+{
+	FSceneTextureExtentState::Get().ResetRenderTargetsExtent();
+	Ar.Logf(TEXT("Internal render target extents reseted"));
+}
 
 ENUM_CLASS_FLAGS(FSceneTextureExtentState::ERenderTargetHistory);
 
