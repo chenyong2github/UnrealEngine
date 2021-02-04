@@ -227,21 +227,24 @@ void USimplifyMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	FTransform Transform = ComponentTarget->GetWorldTransform(); //Actor->GetTransform();
 
-	FColor LineColor(255, 0, 0);
-	const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
-	if (TargetMesh->HasAttributes())
+	if (SimplifyProperties->bShowConstraintEdges)
 	{
-		float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
-
-		const FDynamicMeshUVOverlay* UVOverlay = TargetMesh->Attributes()->PrimaryUV();
-		for (int eid : TargetMesh->EdgeIndicesItr())
+		FColor LineColor(255, 0, 0);
+		const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
+		if (TargetMesh->HasAttributes())
 		{
-			if (UVOverlay->IsSeamEdge(eid))
+			float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
+
+			const FDynamicMeshUVOverlay* UVOverlay = TargetMesh->Attributes()->PrimaryUV();
+			for (int eid : TargetMesh->EdgeIndicesItr())
 			{
-				FVector3d A, B;
-				TargetMesh->GetEdgeV(eid, A, B);
-				PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
-					LineColor, 0, 2.0*PDIScale, 1.0f, true);
+				if (UVOverlay->IsSeamEdge(eid))
+				{
+					FVector3d A, B;
+					TargetMesh->GetEdgeV(eid, A, B);
+					PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
+						LineColor, 0, 2.0 * PDIScale, 1.0f, true);
+				}
 			}
 		}
 	}

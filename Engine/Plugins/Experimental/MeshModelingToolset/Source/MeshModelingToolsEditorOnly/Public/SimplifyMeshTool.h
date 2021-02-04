@@ -77,6 +77,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowGroupColors = false;
 
+	/** Display constrained edges */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowConstraintEdges = false;
+
 	/** Enable projection back to input mesh */
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bReproject;

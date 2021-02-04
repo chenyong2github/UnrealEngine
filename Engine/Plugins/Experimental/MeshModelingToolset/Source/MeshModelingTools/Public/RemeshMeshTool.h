@@ -66,6 +66,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowGroupColors = false;
 
+	/** Display constrained edges */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowConstraintEdges = false;
+
+
 	/** Remeshing type */
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	ERemeshType RemeshType;
