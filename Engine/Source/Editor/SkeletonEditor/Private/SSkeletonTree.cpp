@@ -631,6 +631,7 @@ void SSkeletonTree::CreateTreeColumns()
 		.OnGetChildren(this, &SSkeletonTree::GetFilteredChildren)
 		.OnContextMenuOpening(this, &SSkeletonTree::CreateContextMenu)
 		.OnSelectionChanged(this, &SSkeletonTree::OnSelectionChanged)
+		.OnIsSelectableOrNavigable(this, &SSkeletonTree::OnIsSelectableOrNavigable)
 		.OnItemScrolledIntoView(this, &SSkeletonTree::OnItemScrolledIntoView)
 		.OnMouseButtonDoubleClick(this, &SSkeletonTree::OnTreeDoubleClick)
 		.OnSetExpansionRecursive(this, &SSkeletonTree::SetTreeItemExpansionRecursive)
@@ -1396,6 +1397,11 @@ void SSkeletonTree::OnRenameSelected()
 		SkeletonTreeView->RequestScrollIntoView(SelectedItems[0]);
 		DeferredRenameRequest = SelectedItems[0];
 	}
+}
+
+bool SSkeletonTree::OnIsSelectableOrNavigable(TSharedPtr<class ISkeletonTreeItem> InItem) const
+{
+	return InItem && InItem->GetFilterResult() == ESkeletonTreeFilterResult::Shown;
 }
 
 void SSkeletonTree::OnSelectionChanged(TSharedPtr<ISkeletonTreeItem> Selection, ESelectInfo::Type SelectInfo)
