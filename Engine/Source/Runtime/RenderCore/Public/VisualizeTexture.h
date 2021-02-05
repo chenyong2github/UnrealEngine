@@ -124,7 +124,7 @@ private:
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::SM5;
 
 	// Maps a texture name to its checkpoint version.
-	TMap<const TCHAR*, uint32> VersionCountMap;
+	TMap<FString, uint32> VersionCountMap;
 #endif
 
 	friend class FRDGBuilder;
