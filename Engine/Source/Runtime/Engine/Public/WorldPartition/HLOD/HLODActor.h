@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/Set.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "HLODActor.generated.h"
 
 class UHLODLayer;
@@ -104,6 +105,8 @@ private:
 	UPROPERTY()
 	uint32 LODLevel;
 };
+
+DEFINE_ACTORDESC_TYPE(AWorldPartitionHLOD, FHLODActorDesc);
 
 UCLASS()
 class UWorldPartitionRuntimeHLODCellData : public UWorldPartitionRuntimeCellData

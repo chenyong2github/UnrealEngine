@@ -43,3 +43,5 @@ public:
 	virtual void CreateSplineComponent(const FVector& Scale3D) override { check(false); }
 #endif
 };
+
+DEFINE_ACTORDESC_TYPE(ALandscapeSplineActor, FLandscapeSplineActorDesc);

@@ -34,3 +34,5 @@ public:
 	uint32 GridSize;
 #endif
 };
+
+DEFINE_ACTORDESC_TYPE(APartitionActor, FPartitionActorDesc);

@@ -3133,7 +3133,7 @@ void ULandscapeInfo::Initialize(UWorld* InWorld, const FGuid& InLandscapeGuid)
 	// If WorldPartition world get the Proxy handles
 	if (UWorldPartition* WorldPartition = InWorld->GetWorldPartition())
 	{
-		for (UActorDescContainer::TIterator ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+		for (UActorDescContainer::TIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 		{
 			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 			if (ActorDesc->GetActorClass()->IsChildOf(ALandscapeStreamingProxy::StaticClass()))

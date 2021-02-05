@@ -104,3 +104,5 @@ private:
 
 	FLevelInstanceID LevelInstanceID;
 };
+
+DEFINE_ACTORDESC_TYPE(ALevelInstance, FLevelInstanceActorDesc);

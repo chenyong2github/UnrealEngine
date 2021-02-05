@@ -1213,4 +1213,6 @@ private:
 	UWorld* World;
 	int32 OudatedPhysicalMaterialComponentsCount;
 };
+
+DEFINE_ACTORDESC_TYPE(ALandscapeProxy, FLandscapeActorDesc);
 #endif

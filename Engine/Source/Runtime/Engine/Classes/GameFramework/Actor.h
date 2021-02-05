@@ -20,6 +20,7 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
+#include "WorldPartition/WorldPartitionActorDescType.h"
 #endif
 
 #include "Actor.generated.h"
@@ -3861,6 +3862,8 @@ FORCEINLINE_DEBUGGABLE bool AActor::IsNetMode(ENetMode Mode) const
 	}
 #endif
 }
+
+DEFINE_ACTORDESC_TYPE(AActor, FWorldPartitionActorDesc);
 
 //////////////////////////////////////////////////////////////////////////
 // Macro to hide common Transform functions in native code for classes where they don't make sense.

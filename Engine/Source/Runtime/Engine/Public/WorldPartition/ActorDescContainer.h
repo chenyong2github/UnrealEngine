@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "GameFramework/Actor.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionActorDescType.h"
 #include "ActorDescContainer.generated.h"
 
 UCLASS()
@@ -54,17 +55,20 @@ private:
 	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> Actors;
 
 public:
-	template<bool bConst>
+	template<bool bConst, class ActorType>
 	class TBaseIterator
 	{
-	private:
+		static_assert(TIsDerivedFrom<ActorType, AActor>::IsDerived, "Type is not derived from AActor.");
+
+	protected:
 		typedef TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*> MapType;
+		typedef typename FWorldPartitionActorDescType<ActorType>::Type ValueType;
 		typedef typename TChooseClass<bConst, MapType::TConstIterator, MapType::TIterator>::Result IteratorType;
-		typedef typename TChooseClass<bConst, const UActorDescContainer*, UActorDescContainer*>::Result ContainerType;
-		typedef typename TChooseClass<bConst, const FWorldPartitionActorDesc*, FWorldPartitionActorDesc*>::Result ValueType;
+		typedef typename TChooseClass<bConst, const UActorDescContainer*, UActorDescContainer*>::Result ContainerType;		
+		typedef typename TChooseClass<bConst, const ValueType*, ValueType*>::Result ReturnType;
 
 	public:
-		explicit TBaseIterator(ContainerType InActorDescContainer)
+		TBaseIterator(ContainerType InActorDescContainer)
 			: ActorsIterator(InActorDescContainer->Actors)
 		{
 			if (ShouldSkip())
@@ -89,9 +93,9 @@ public:
 		 *
 		 * @return	Current suitable actor desc
 		 */
-		FORCEINLINE ValueType operator*() const
+		FORCEINLINE ReturnType operator*() const
 		{
-			return ActorsIterator->Value->Get();
+			return StaticCast<ReturnType>(ActorsIterator->Value->Get());
 		}
 
 		/**
@@ -99,9 +103,9 @@ public:
 		 *
 		 * @return	Current suitable actor desc
 		 */
-		FORCEINLINE ValueType operator->() const
+		FORCEINLINE ReturnType operator->() const
 		{
-			return ActorsIterator->Value->Get();
+			return StaticCast<ReturnType>(ActorsIterator->Value->Get());
 		}
 		/**
 		 * Returns whether the iterator has reached the end and no longer points
@@ -114,10 +118,10 @@ public:
 			return (bool)ActorsIterator;
 		}
 
-	private:
+	protected:
 		/**
 		 * Determines whether the iterator currently points to a valid actor desc or not.
-		 * @return	true
+		 * @return true if we should skip the actor desc
 		 */
 		FORCEINLINE bool ShouldSkip() const
 		{
@@ -126,14 +130,32 @@ public:
 				return false;
 			}
 
-			return false;
+			return !ActorsIterator->Value->Get()->GetActorClass()->IsChildOf(ActorType::StaticClass());
 		}
 
-	private:
 		IteratorType ActorsIterator;
 	};
 
-	typedef TBaseIterator<false> TIterator;
-	typedef TBaseIterator<true> TConstIterator;
+	template <class ActorType = AActor>
+	class TIterator : public TBaseIterator<false, ActorType>
+	{
+		typedef TBaseIterator<false, ActorType> BaseType;
+
+	public:
+		TIterator(BaseType::ContainerType InActorDescContainer)
+			: BaseType(InActorDescContainer)
+		{}
+	};
+
+	template <class ActorType = AActor>
+	class TConstIterator : public TBaseIterator<true, ActorType>
+	{
+		typedef TBaseIterator<true, ActorType> BaseType;
+
+	public:
+		TConstIterator(BaseType::ContainerType InActorDescContainer)
+			: BaseType(InActorDescContainer)
+		{}
+	};
 #endif
 };

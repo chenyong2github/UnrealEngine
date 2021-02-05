@@ -147,7 +147,7 @@ TArray<FActorCluster> CreateActorClustersImpl(UWorldPartition* WorldPartition, T
 		LevelScriptExternalActorReferences.Append(ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint));
 	}
 
-	for (UActorDescContainer::TIterator ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+	for (UActorDescContainer::TIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 	{
 		FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 		EActorGridPlacement GridPlacement = ActorDesc->GetGridPlacement();

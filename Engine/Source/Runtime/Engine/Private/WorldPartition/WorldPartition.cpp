@@ -213,7 +213,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		UActorDescContainer::Initialize(PackageName, bRegisterDelegates);
 		check(bContainerInitialized);
 
-		for (UActorDescContainer::TIterator ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
 			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 
@@ -402,7 +402,7 @@ void UWorldPartition::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<
 
 void UWorldPartition::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
 {
-	for (UActorDescContainer::TConstIterator ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
 		const FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 		if (ActorDesc->GetActorClass()->IsChildOf(ActorClass))
@@ -769,7 +769,7 @@ void UWorldPartition::BeginDestroy()
 #if WITH_EDITOR
 UObject* UWorldPartition::LoadSubobject(const TCHAR* SubObjectPath)
 {
-	for (UActorDescContainer::TIterator ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
 		FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 
@@ -938,7 +938,7 @@ void UWorldPartition::OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& O
 FBox UWorldPartition::GetWorldBounds() const
 {
 	FBox WorldBounds(ForceInit);
-	for (UActorDescContainer::TConstIterator ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
 		const FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
 

@@ -488,15 +488,11 @@ void UWorldPartitionRuntimeSpatialHash::CacheHLODParents()
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	for (UActorDescContainer::TIterator HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+	for (UActorDescContainer::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 	{
-		if (HLODIterator->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
+		for (const auto& SubActor : HLODIterator->GetSubActors())
 		{
-			FHLODActorDesc* HLODActorDesc = (FHLODActorDesc*)*HLODIterator;
-			for (const auto& SubActor : HLODActorDesc->GetSubActors())
-			{
-				CachedHLODParents.Emplace(SubActor, HLODActorDesc->GetGuid());
-			}
+			CachedHLODParents.Emplace(SubActor, HLODIterator->GetGuid());
 		}
 	}
 }

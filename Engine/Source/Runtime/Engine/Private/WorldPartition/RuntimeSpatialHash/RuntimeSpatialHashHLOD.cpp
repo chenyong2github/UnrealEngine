@@ -477,21 +477,17 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	FHLODGenerationContext Context;
 	TArray<FWorldPartitionHandle> InvalidHLODActors;
 
-	for (UActorDescContainer::TIterator HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+	for (UActorDescContainer::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 	{
-		if (HLODIterator->GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
-		{
-			FHLODActorDesc* HLODActorDesc = (FHLODActorDesc*)*HLODIterator;
-			FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODActorDesc->GetGuid());
+		FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
 
-			if (HLODActorDesc->GetCellHash())
-			{
-				Context.HLODActorDescs.Add(HLODActorDesc->GetCellHash(), HLODActorHandle);
-			}
-			else
-			{
-				InvalidHLODActors.Add(HLODActorHandle);
-			}
+		if (HLODIterator->GetCellHash())
+		{
+			Context.HLODActorDescs.Add(HLODIterator->GetCellHash(), HLODActorHandle);
+		}
+		else
+		{
+			InvalidHLODActors.Add(HLODActorHandle);
 		}
 	}
 
