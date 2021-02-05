@@ -33,18 +33,27 @@ inline FVec3 ComputeBoundsThickness(FVec3 Vel, FReal Dt, FReal BoundsThickness, 
 
 inline FVec3 ComputeBoundsThickness(const TPBDRigidParticles<FReal, 3>& InParticles, FReal Dt, int32 BodyIndex, FReal BoundsThickness, FReal BoundsVelocityInflation)
 {
-	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, BoundsThickness, BoundsVelocityInflation);
-}
-
-inline FVec3 ComputeBoundsThickness(const TKinematicGeometryParticles<FReal, 3>& InParticles, FReal Dt, int32 BodyIndex, FReal BoundsThickness, FReal BoundsVelocityInflation)
-{
-	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, BoundsThickness, BoundsVelocityInflation);
+	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, BoundsThickness, !InParticles.CCDEnabled(BodyIndex) ? FReal(0) : BoundsVelocityInflation);
 }
 
 template <typename THandle>
 FVec3 ComputeBoundsThickness(const THandle& PBDRigid, FReal Dt, FReal BoundsThickness, FReal BoundsVelocityInflation)
 {
-	return ComputeBoundsThickness(PBDRigid.V(), Dt, BoundsThickness, BoundsVelocityInflation);
+	FReal NewBoundsVelocityInflation = BoundsVelocityInflation;
+	auto* RigidBody = PBDRigid.CastToRigidParticle();
+	if (RigidBody && !RigidBody->CCDEnabled())
+	{
+		NewBoundsVelocityInflation = 0.0f;
+	}
+
+	FVec3 Vel{ 0 };
+	auto* KinematicBody = PBDRigid.CastToKinematicParticle();
+	if (KinematicBody)
+	{
+		Vel = KinematicBody->V();
+	}
+
+	return ComputeBoundsThickness(Vel, Dt, BoundsThickness, NewBoundsVelocityInflation);
 }
 
 template<class OBJECT_ARRAY>
