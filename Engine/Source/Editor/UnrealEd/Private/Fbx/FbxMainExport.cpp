@@ -1981,8 +1981,13 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 		}
 	}
 
+	AActor* BoundActor = Cast<AActor>(BoundObject);
+	USceneComponent* BoundComponent = Cast<USceneComponent>(BoundObject);
+
+	const bool bIsCameraActor = BoundActor ? BoundActor->IsA(ACameraActor::StaticClass()) : BoundComponent ? BoundComponent->IsA(UCameraComponent::StaticClass()) : false;
+
 	// If there's more than one transform track for this actor (ie. on the actor and on the root component) or if there's more than one section, evaluate through interrogation
-	if (TransformTracks.Num() > 1 || (TransformTracks.Num() != 0 && TransformTracks[0].Get()->GetAllSections().Num() > 1))
+	if (bIsCameraActor || TransformTracks.Num() > 1 || (TransformTracks.Num() != 0 && TransformTracks[0].Get()->GetAllSections().Num() > 1))
 	{
 		if (!bSkip3DTransformTrack)
 		{
@@ -3188,6 +3193,19 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 	FMovieSceneTimeTransform LocatToRootTransform = RootToLocalTransform.InverseLinearOnly();
 
 	USceneComponent* InterrogatedComponent = BoundComponent ? BoundComponent : BoundActor->GetRootComponent();
+
+	if (bIsCameraActor)
+	{
+		if (InterrogatedComponent && InterrogatedComponent->IsA<UCameraComponent>())
+		{
+			// all set
+		}
+		else if (BoundActor && BoundActor->IsA(ACameraActor::StaticClass()))
+		{
+			ACameraActor* CameraActor = Cast<ACameraActor>(BoundActor);
+			InterrogatedComponent = CameraActor->GetCameraComponent();
+		}
+	}
 
 	FSystemInterrogator Interrogator;
 	Interrogator.ImportTransformHierarchy(InterrogatedComponent, MovieScenePlayer, InSequenceID);
