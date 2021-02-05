@@ -74,7 +74,7 @@ int32 SGridPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	if(ArrangedChildren.Num())
 	{
 		int32 LastGridLayer = 0;
-		for (int32 ChildIndex = 0; ChildIndex < Slots.Num(); ++ChildIndex)
+		for (int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num() && ChildIndex < Slots.Num(); ++ChildIndex)
 		{
 			FArrangedWidget& CurWidget = ArrangedChildren[ChildIndex];
 			if (CurWidget.Widget->GetVisibility().IsVisible())
