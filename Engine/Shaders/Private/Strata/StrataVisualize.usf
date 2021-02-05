@@ -33,6 +33,7 @@ float3 DrawPlot(
 	const float3 V, 
 	const FStrataPixelHeader Header,
 	const FStrataBSDF BSDF, 
+	const FStrataAddressing StrataAddressing,
 	uint2 PixelCoord, 
 	uint2 RectOffset, 
 	uint2 RectSize)
@@ -48,7 +49,7 @@ float3 DrawPlot(
 		const float CosTheta = sqrt(1 - Pow2(SinTheta));
 		const float3 L = float3(ProjCoord, CosTheta);
 
-		const float3x3 Basis = StrataGetBSDFSharedBasis(Header, BSDF);
+		const float3x3 Basis = StrataGetBSDFSharedBasis(Header, BSDF, StrataAddressing);
 		float3 LocalV = mul(Basis, V);
 		if (LocalV.z < 0)
 		{
@@ -56,7 +57,7 @@ float3 DrawPlot(
 			LocalV = normalize(LocalV);
 		}
 
-		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(Header, BSDF, LocalV, L, true);
+		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(Header, BSDF, StrataAddressing, LocalV, L, true);
 		FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext);
 		Out = (BSDFEvaluate.DiffusePathValue + BSDFEvaluate.SpecularPathValue + BSDFEvaluate.TransmissionPathValue) * BSDFContext.SatNoL; // * BSDF.Weight
 	}
@@ -67,6 +68,7 @@ void VisualizeMaterialPS(
 	float4 SVPos : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
+#if 1	// Here to disabled on some platforms having problems with that shader. STRATA_TODO investigate why this shader is spilling like crazy again
 	const uint2 PixelPos = uint2(SVPos.xy);
 	const uint2 MaterialPos = View.CursorPosition;
 	const int  InspectSquare = 10;
@@ -84,7 +86,7 @@ void VisualizeMaterialPS(
 	OutColor = 0;
 	if (bStrataMaterial)
 	{
-		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel));
+		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, GetStrataPixelDataByteOffset(MaterialPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel));
 
 		OutColor.w = 0.05f;
 		if (Header.BSDFCount == 1)
@@ -117,7 +119,7 @@ void VisualizeMaterialPS(
 	bool bPlotValid = false;
 	if (bStrataMaterial)
 	{
-		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 
 		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
 
@@ -128,7 +130,7 @@ void VisualizeMaterialPS(
 			// Referential
 			if (all(PixelPos == MaterialPos))
 			{
-				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(Header, BSDF, V, float3(0,0,1));
+				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(Header, BSDF, StrataAddressing, V, float3(0,0,1));
 				DrawReferential(WorldPosition, BSDFContext.X, BSDFContext.Y, BSDFContext.N, float3(1,1,0));
 			}
 
@@ -137,7 +139,7 @@ void VisualizeMaterialPS(
 				const uint2 Resolution = 180;
 				const uint OffsetX = 50 + BSDFIndex * 200;
 				const uint OffsetY = 50;
-				OutColor.xyz += DrawPlot(V, Header, BSDF, PixelPos, uint2(OffsetX, OffsetY), Resolution);
+				OutColor.xyz += DrawPlot(V, Header, BSDF, StrataAddressing, PixelPos, uint2(OffsetX, OffsetY), Resolution);
 			}
 		}
 
@@ -155,7 +157,7 @@ void VisualizeMaterialPS(
 		uint2 RectMin = uint2(MaterialPos + InspectSquare);
 		uint2 RectMax = RectMin;
 
-		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(MaterialPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(MaterialPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		const uint PixelStrataDataByteOffsetStart = StrataAddressing.ReadBytes;
 
 		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
@@ -454,6 +456,7 @@ void VisualizeMaterialPS(
 		}
 #endif
 	}
+#endif
 }
 
 

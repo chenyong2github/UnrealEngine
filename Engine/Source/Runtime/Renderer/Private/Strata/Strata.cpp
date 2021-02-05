@@ -9,6 +9,7 @@
 #include "RendererInterface.h"
 #include "UniformBuffer.h"
 #include "SceneTextureParameters.h"
+#include "StrataDefinitions.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -62,8 +63,9 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	{
 		FIntPoint BufferSizeXY = GetSceneTextureExtent();
 		
-		ResolutionX = BufferSizeXY.X;
-		ResolutionY = BufferSizeXY.Y;
+		// We need to allocate enough for the tiled memory addressing to always work
+		ResolutionX = FMath::DivideAndRoundUp(BufferSizeXY.X, STRATA_DATA_TILE_SIZE) * STRATA_DATA_TILE_SIZE;
+		ResolutionY = FMath::DivideAndRoundUp(BufferSizeXY.Y, STRATA_DATA_TILE_SIZE) * STRATA_DATA_TILE_SIZE;
 
 		// Previous GBuffer when complete was 28bytes
 		// check out Strata.ush to see how this is computed

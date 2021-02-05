@@ -17,6 +17,7 @@
 void ComputePostProcessBSDFData(
 	const FStrataPixelHeader Header,
 	const FStrataBSDF BSDF,
+	const FStrataAddressing StrataAddressing,
 	float3 V,
 	inout FStrataClassification Classification,
 	inout FStrataSubsurfaceData SSS,
@@ -30,7 +31,7 @@ void ComputePostProcessBSDFData(
 	const float  BSDFCoverageAvg = dot(BSDF.Weight,1.0f/3.0f);
 
 	// STRATA_TODO apply the same normal transform as for the material
-	float3x3 TangentBasis = StrataGetBSDFSharedBasis(Header, BSDF);
+	float3x3 TangentBasis = StrataGetBSDFSharedBasis(Header, BSDF, StrataAddressing);
 	float3 N = TangentBasis[2];
 	//N = normalize(N);
 
@@ -156,13 +157,13 @@ void MainPS(
 		float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
 		const float3 V = normalize(View.WorldCameraOrigin - WorldPos.xyz);
 
-		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
 		ClassificationData.bIsSimple = Header.BSDFCount == 1;
 		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 		{
 			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, StrataAddressing);
-			ComputePostProcessBSDFData(Header, BSDF, V, ClassificationData, SSSData, TopLayerData);
+			ComputePostProcessBSDFData(Header, BSDF, StrataAddressing, V, ClassificationData, SSSData, TopLayerData);
 		}
 
 		FinalizeTopLayerData(TopLayerData);

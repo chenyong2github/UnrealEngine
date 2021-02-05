@@ -29,4 +29,5 @@
 #define STRATA_BSDF_TYPE_SINGLELAYERWATER	5
 // When more than 8 BSDF must exists, please update STATE_BITS_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
 
-
+#define STRATA_DATA_TILE_SIZE				8
+#define STRATA_DATA_TILE_SIZE_DIV_AS_SHIFT	3

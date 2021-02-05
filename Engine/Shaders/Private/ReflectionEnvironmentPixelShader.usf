@@ -379,7 +379,7 @@ void ReflectionEnvironmentSkyLighting(
 			AmbientOcclusion,
 			TopLayerSpecularContributionFactor,
 			Strata.MaterialLobesBuffer,
-			GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel),
+			GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel),
 			SSRReductionFactor);
 
 		float3 SkyLighting = SSR.rgb * TopLayerData.EnvBRDF * SSRReductionFactor + StrataEnvLighting.rgb;

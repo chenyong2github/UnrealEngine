@@ -17,6 +17,8 @@ float3 StrataForwardLighting(
 	inout float3 OutThroughput
 	)
 {
+	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
+
 	const float OpaqueBSDFThroughput = 0.0f;
 	const float FullThroughput = 1.0f;
 
@@ -40,7 +42,7 @@ float3 StrataForwardLighting(
 			const float3 BSDFCoverage = BSDF.Weight;
 
 			// Create the BSDF context
-			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(Header, BSDF, V, L);
+			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(Header, BSDF, NullStrataAddressing, V, L);
 
 			// Compute some common factors
 			const float3 DirLightBaseFactor = OutThroughput * BSDFCoverage * LColor * LShadow;
