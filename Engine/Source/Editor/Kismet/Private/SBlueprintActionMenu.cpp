@@ -48,7 +48,7 @@ struct FBlueprintAction_PromoteVariable : public FEdGraphSchemaAction
 			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph);
 			if( ( MyBlueprintEditor.IsValid() == true ) && ( Blueprint != NULL ) )
 			{
-				MyBlueprintEditor.Pin()->DoPromoteToVariable( Blueprint, FromPin, bToMemberVariable );
+				MyBlueprintEditor.Pin()->DoPromoteToVariable( Blueprint, FromPin, bToMemberVariable, &Location );
 			}
 		}
 		return NULL;		

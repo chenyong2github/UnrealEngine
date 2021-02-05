@@ -4007,7 +4007,7 @@ void FBlueprintEditor::DumpMessagesToCompilerLog(const TArray<TSharedRef<FTokeni
 	}
 }
 
-void FBlueprintEditor::DoPromoteToVariable( UBlueprint* InBlueprint, UEdGraphPin* InTargetPin, bool bInToMemberVariable )
+void FBlueprintEditor::DoPromoteToVariable( UBlueprint* InBlueprint, UEdGraphPin* InTargetPin, bool bInToMemberVariable, const FVector2D* InOptionalLocation /* = nullptr */)
 {
 	FName PinName = InTargetPin->PinName;
 	UEdGraphNode* PinNode = InTargetPin->GetOwningNode();
@@ -4153,8 +4153,16 @@ void FBlueprintEditor::DoPromoteToVariable( UBlueprint* InBlueprint, UEdGraphPin
 
 		// Set position of new node to be close to node we clicked on
 		FVector2D NewNodePos;
-		NewNodePos.X = (InTargetPin->Direction == EGPD_Input) ? PinNode->NodePosX - 200 : PinNode->NodePosX + 400;
-		NewNodePos.Y = PinNode->NodePosY;
+
+		if (InOptionalLocation)
+		{
+			NewNodePos = *InOptionalLocation;
+		}
+		else
+		{
+			NewNodePos.X = (InTargetPin->Direction == EGPD_Input) ? PinNode->NodePosX - 200 : PinNode->NodePosX + 400;
+			NewNodePos.Y = PinNode->NodePosY;
+		}
 
 		NodeInfo.PerformAction(GraphObj, InTargetPin, NewNodePos, false);
 

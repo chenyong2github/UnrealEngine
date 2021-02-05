@@ -554,8 +554,9 @@ public:
 	 * @param	InBlueprint				The blueprint in which to create the variable.
 	 * @param	InTargetPin				The pin on which to base the variable.
 	 * @param	bInToMemberVariable		TRUE if attempting to create a member variable, FALSE if the variable should be local
+	 * @param   InOptionalLocation		Where the new node should be placed. If null, a fixed offset from the parent node will be used.
 	 */
-	void DoPromoteToVariable(UBlueprint* InBlueprint, UEdGraphPin* InTargetPin, bool bInToMemberVariable);
+	void DoPromoteToVariable(UBlueprint* InBlueprint, UEdGraphPin* InTargetPin, bool bInToMemberVariable, const FVector2D* InOptionalLocation = nullptr);
 
 	/** Called when node is spawned by keymap */
 	void OnNodeSpawnedByKeymap();
