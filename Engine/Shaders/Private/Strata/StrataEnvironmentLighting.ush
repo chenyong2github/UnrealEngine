@@ -19,7 +19,8 @@ float4 StrataEnvironmentLighting(
 	float TopLayerSpecularContributionFactor,
 	ByteAddressBuffer StrataDataBuffer,
 	FStrataAddressing StrataAddressing,
-	inout float SSRReductionFactor)
+	inout float SSRReductionFactor,
+	inout float3 TopLayerEnvBRDF)
 {
 	FLightAccumulator Out = (FLightAccumulator)0;
 
@@ -97,6 +98,12 @@ float4 StrataEnvironmentLighting(
 			// SSR is traced for the sharpest lob. The smoothest one does not rely on SSR so we need to lower energy coming from SSR according to the lobe blend weight.
 			// And we also try to make the transition smooth using Haziness
 			SSRReductionFactor -= bIsTopLayer ? dot(BSDFThroughput, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f)) * StrataEnvLight.SSRReduction : 0.0f;
+		}
+
+		if (bIsTopLayer)
+		{
+			// The specular path weight applied on SSR. It must account for throughput even for top surface because it also contains coverage.
+			TopLayerEnvBRDF += BSDFThroughput * StrataEnvLight.SpecularWeight;
 		}
 
 		const bool bNeedsSeparateSubsurfaceLightAccumulation = StrataEnvLight.bSubsurface;
