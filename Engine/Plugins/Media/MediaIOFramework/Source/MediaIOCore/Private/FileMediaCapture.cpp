@@ -28,14 +28,14 @@ void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& 
 	EPixelFormat PixelFormat = GetDesiredPixelFormat();
 	if (PixelFormat == PF_B8G8R8A8)
 	{
-		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(Width, Height));
-		PixelData->Pixels = TArray<FColor>(reinterpret_cast<FColor*>(InBuffer), Width * Height);
+		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(Width, Height),
+			TArray<FColor, FDefaultAllocator64>(reinterpret_cast<FColor*>(InBuffer), Width * Height));
 		ImageTask->PixelData = MoveTemp(PixelData);
 	}
 	else if (PixelFormat == PF_FloatRGBA)
 	{
-		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(Width, Height));
-		PixelData->Pixels = TArray<FFloat16Color>(reinterpret_cast<FFloat16Color*>(InBuffer), Width * Height);
+		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(Width, Height), 
+			TArray<FFloat16Color, FDefaultAllocator64>(reinterpret_cast<FFloat16Color*>(InBuffer), Width * Height));
 		ImageTask->PixelData = MoveTemp(PixelData);
 	}
 	else
