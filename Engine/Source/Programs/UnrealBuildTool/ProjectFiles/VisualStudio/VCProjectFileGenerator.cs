@@ -723,6 +723,14 @@ namespace UnrealBuildTool
 						VCSolutionFileContent.AppendLine("	EndGlobalSection");
 					}
 
+					// Embed VisualAssist section, which is parsed by VisualAssist to determine that this is a unreal solution
+					{
+						string VisualAssistGuid = "44630d46-96b5-488c-8df926e21db8c1a3";
+						VCSolutionFileContent.AppendLine("\t# Visual Assist Section");
+						VCSolutionFileContent.AppendLine("\tGlobalSection({0}) = preSolution", VisualAssistGuid);
+						VCSolutionFileContent.AppendLine("\t\tueSolution=true");
+						VCSolutionFileContent.AppendLine("\tEndGlobalSection");
+					}
 
 					// Assign each project's "project configuration" to our "solution platform + configuration" pairs.  This
 					// also sets up which projects are actually built when building the solution.
