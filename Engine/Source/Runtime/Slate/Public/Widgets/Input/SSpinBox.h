@@ -186,6 +186,8 @@ public:
 
 		MinFractionalDigits = (InArgs._MinFractionalDigits.Get().IsSet()) ? InArgs._MinFractionalDigits : DefaultMinFractionalDigits;
 		MaxFractionalDigits = (InArgs._MaxFractionalDigits.Get().IsSet()) ? InArgs._MaxFractionalDigits : DefaultMaxFractionalDigits;
+		SetMaxFractionalDigits(MaxFractionalDigits);
+		SetMinFractionalDigits(MinFractionalDigits);
 
 		AlwaysUsesDeltaSnap = InArgs._AlwaysUsesDeltaSnap;
 
