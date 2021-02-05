@@ -19,6 +19,9 @@
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SSpinBox.h"
+
 #include "TraceServices/Model/Frames.h"
 
 #define LOCTEXT_NAMESPACE "RenderGraphTrack"
@@ -180,6 +183,11 @@ static bool Intersects(const FPassIntervalPacket& A, const FPassIntervalPacket& 
 {
 	return !(B.LastPass < A.FirstPass || A.LastPass < B.FirstPass);
 }
+
+static void AddEvent(ITimingEventsTrackDrawStateBuilder& Builder, const FVisibleItem& Item)
+{
+	Builder.AddEvent(Item.StartTime, Item.EndTime, Item.Depth, Item.Color, [&Item](float) { return Item.Name; });
+};
 
 bool FPacketFilter::FilterPacketExact(const FPacket& PacketToFilter) const
 {
@@ -345,6 +353,34 @@ static uint32 GetPassColor(const FPassPacket& Packet)
 	}
 
 	return Color;
+}
+
+static uint32 GetColorBySize(uint64 Size, uint64 MaxSize)
+{
+	const FLinearColor Low(0.01, 0.01, 0.01, 0.25f);
+	const FLinearColor High(1.0, 0.1, 0.1, 1.0f);
+	const float Percentage = FMath::Sqrt(float(Size) / float(MaxSize));
+	return FLinearColor::LerpUsingHSV(Low, High, Percentage).ToFColor(false).ToPackedARGB();
+}
+
+uint32 FRenderGraphTrack::GetTextureColor(const FTexturePacket& Texture, uint64 MaxSizeInBytes) const
+{
+	if (ResourceColor == EResourceColor::Type)
+	{
+		return kTextureColor;
+	}
+
+	return GetColorBySize(Texture.SizeInBytes, MaxSizeInBytes);
+}
+
+uint32 FRenderGraphTrack::GetBufferColor(const FBufferPacket& Texture, uint64 MaxSizeInBytes) const
+{
+	if (ResourceColor == EResourceColor::Type)
+	{
+		return kBufferColor;
+	}
+
+	return GetColorBySize(Texture.SizeInBytes, MaxSizeInBytes);
 }
 
 void FRenderGraphTrack::Update(const ITimingTrackUpdateContext& Context)
@@ -601,11 +637,6 @@ void FRenderGraphTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 	SelectedTooltipState.Draw(Context.GetDrawContext());
 }
 
-void FRenderGraphTrack::AddEvent(ITimingEventsTrackDrawStateBuilder& Builder, const FVisibleItem& Item)
-{
-	Builder.AddEvent(Item.StartTime, Item.EndTime, Item.Depth, Item.Color, [&Item](float) { return Item.Name; });
-};
-
 void FRenderGraphTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
 {
 	// Reset draw state; it's built each frame.
@@ -629,13 +660,28 @@ void FRenderGraphTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Build
 
 	if (const FRenderGraphProvider* RenderGraphProvider = SharedData.GetAnalysisSession().ReadProvider<FRenderGraphProvider>(FRenderGraphProvider::ProviderName))
 	{
+		struct FResourceEntry
+		{
+			double StartTime{};
+			double EndTime{};
+			uint64 SizeInBytes{};
+			uint32 Index{};
+			uint32 Order{};
+			ERDGParentResourceType Type = ERDGParentResourceType::Texture;
+			bool bHasPreviousOwner{};
+		};
+
+		TArray<FResourceEntry> Resources;
+		TArray<uint16> TextureIndexToDepth;
+		TArray<uint16> BufferIndexToDepth;
+
 		const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		const FRenderGraphProvider::TGraphTimeline& GraphTimeline = RenderGraphProvider->GetGraphTimeline();
 		GraphTimeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
-			[this, &Builder, &Viewport](double GraphStartTime, double GraphEndTime, uint32, const TSharedPtr<FGraphPacket>& Graph)
+			[this, &Builder, &Viewport, &Resources, &TextureIndexToDepth, &BufferIndexToDepth](double GraphStartTime, double GraphEndTime, uint32, const TSharedPtr<FGraphPacket>& Graph)
 		{
 			// We always render the graph event, so add it separately even if the visible graph is culled.
 			Builder.AddEvent(GraphStartTime, GraphEndTime, 0, *Graph->Name, 0, kBuilderColor);
@@ -681,10 +727,10 @@ void FRenderGraphTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Build
 			{
 				FPassPacket& Pass = Graph->Passes[PassIndex];
 				const double StartTime = Pass.StartTime + SinglePixelTimeMargin;
-				const double EndTime   = Pass.EndTime;
+				const double EndTime = Pass.EndTime;
 				const bool bAsyncCompute = EnumHasAnyFlags(Pass.Flags, ERDGPassFlags::AsyncCompute);
-				const uint32 Depth     = DepthOffset + (bAsyncCompute ? 2 : 0);
-				const uint32 Color     = GetPassColor(Pass);
+				const uint32 Depth = DepthOffset + (bAsyncCompute ? 2 : 0);
+				const uint32 Color = GetPassColor(Pass);
 
 				const FVisiblePass VisiblePass(Viewport, Pass, StartTime, EndTime, Depth, Color);
 				AddEvent(Builder, VisiblePass);
@@ -696,59 +742,175 @@ void FRenderGraphTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Build
 			// Empty space between passes / resources.
 			DepthOffset += bAnyAsyncCompute ? 3 : 1;
 
+			Resources.Reset();
+			Resources.Reserve(Graph->Textures.Num() + Graph->Buffers.Num());
+			TextureIndexToDepth.SetNum(Graph->Textures.Num());
+			BufferIndexToDepth.SetNum(Graph->Buffers.Num());
+
+			TBitArray<TInlineAllocator<8>> CulledTextures(true, Graph->Textures.Num());
+
+			const auto CheckFilterName = [this](const FString& InName)
+			{
+				return FilterText.IsEmpty() || InName.Contains(FilterText);
+			};
+
+			const auto CheckFilterSize = [this](uint64 InSizeInBytes)
+			{
+				return FilterSize <= 0.0f || InSizeInBytes >= uint64(FilterSize * 1024.0f * 1024.0f);
+			};
+
 			if (ShowTextures())
 			{
-				uint32 TextureDepthOffsetMax = 0;
-
 				for (uint32 TextureIndex = 0, TextureCount = Graph->Textures.Num(); TextureIndex < TextureCount; ++TextureIndex)
 				{
 					FTexturePacket& Texture = Graph->Textures[TextureIndex];
-					if (Texture.bCulled)
+
+					const bool bCulled = Texture.bCulled || !CheckFilterName(Texture.Name) || !CheckFilterSize(Texture.SizeInBytes);
+					CulledTextures[TextureIndex] = bCulled;
+
+					if (bCulled)
 					{
 						continue;
 					}
 
-					const double StartTime = Texture.StartTime + SinglePixelTimeMargin;
-					const double EndTime   = Texture.EndTime;
-					const uint32 Depth     = DepthOffset + Texture.Depth;
+					FResourceEntry& Entry = Resources.AddDefaulted_GetRef();
+					Entry.StartTime = Texture.StartTime;
+					Entry.EndTime = Texture.EndTime;
+					Entry.SizeInBytes = Texture.SizeInBytes;
+					Entry.Index = TextureIndex;
+					Entry.Order = Texture.Order;
+					Entry.Type = ERDGParentResourceType::Texture;
+					Entry.bHasPreviousOwner = Texture.PrevousOwnerHandle.IsValid();
+				}
+			}
 
-					const FVisibleTexture VisibleTexture(Viewport, Texture, StartTime, EndTime, Depth, kTextureColor);
-					AddEvent(Builder, VisibleTexture);
-					VisibleGraph.AddTexture(VisibleTexture);
+			TBitArray<TInlineAllocator<8>> CulledBuffers(true, Graph->Buffers.Num());
 
-					TextureDepthOffsetMax = FMath::Max(Depth, TextureDepthOffsetMax);
+			if (ShowBuffers())
+			{
+				for (uint32 BufferIndex = 0, BufferCount = Graph->Buffers.Num(); BufferIndex < BufferCount; ++BufferIndex)
+				{
+					FBufferPacket& Buffer = Graph->Buffers[BufferIndex];
+
+					const bool bCulled = Buffer.bCulled || !CheckFilterName(Buffer.Name) || !CheckFilterSize(Buffer.SizeInBytes);
+					CulledBuffers[BufferIndex] = bCulled;
+
+					if (bCulled)
+					{
+						continue;
+					}
+
+					FResourceEntry& Entry = Resources.AddDefaulted_GetRef();
+					Entry.StartTime = Buffer.StartTime;
+					Entry.EndTime = Buffer.EndTime;
+					Entry.SizeInBytes = Buffer.SizeInBytes;
+					Entry.Index = BufferIndex;
+					Entry.Order = Buffer.Order;
+					Entry.Type = ERDGParentResourceType::Buffer;
+					Entry.bHasPreviousOwner = Buffer.PrevousOwnerHandle.IsValid();
+				}
+			}
+
+			switch (ResourceSort)
+			{
+			case EResourceSort::LargestSize:
+				Resources.StableSort([](const FResourceEntry& LHS, const FResourceEntry& RHS)
+				{
+					return LHS.SizeInBytes > RHS.SizeInBytes;
+				});
+				break;
+			case EResourceSort::SmallestSize:
+				Resources.StableSort([](const FResourceEntry& LHS, const FResourceEntry& RHS)
+				{
+					return LHS.SizeInBytes < RHS.SizeInBytes;
+				});
+				break;
+			case EResourceSort::StartOfLifetime:
+				Resources.StableSort([](const FResourceEntry& LHS, const FResourceEntry& RHS)
+				{
+					return LHS.StartTime < RHS.StartTime;
+				});
+				break;
+			case EResourceSort::EndOfLifetime:
+				Resources.StableSort([](const FResourceEntry& LHS, const FResourceEntry& RHS)
+				{
+					return LHS.EndTime > RHS.EndTime;
+				});
+				break;
+			default:
+				Resources.StableSort([](const FResourceEntry& LHS, const FResourceEntry& RHS)
+				{
+					return LHS.Order < RHS.Order;
+				});
+				break;
+			}
+
+			uint64 MaxSizeInBytes = 0;
+
+			for (FResourceEntry& Entry : Resources)
+			{
+				if (!Entry.bHasPreviousOwner)
+				{
+					auto& Array = Entry.Type == ERDGParentResourceType::Texture ? TextureIndexToDepth : BufferIndexToDepth;
+					Array[Entry.Index] = DepthOffset++;
 				}
 
-				DepthOffset = FMath::Max(DepthOffset, TextureDepthOffsetMax + 1);
+				MaxSizeInBytes = FMath::Max(MaxSizeInBytes, Entry.SizeInBytes);
+			}
+
+			if (ShowTextures())
+			{
+				for (uint32 TextureIndex = 0, TextureCount = Graph->Textures.Num(); TextureIndex < TextureCount; ++TextureIndex)
+				{
+					if (CulledTextures[TextureIndex])
+					{
+						continue;
+					}
+
+					FTexturePacket& Texture = Graph->Textures[TextureIndex];
+
+					if (Texture.PrevousOwnerHandle.IsValid())
+					{
+						TextureIndexToDepth[TextureIndex] = TextureIndexToDepth[Texture.PrevousOwnerHandle.GetIndex()];
+					}
+
+					const uint32 Depth = TextureIndexToDepth[TextureIndex];
+					const double StartTime = Texture.StartTime + SinglePixelTimeMargin;
+					const double EndTime = Texture.EndTime;
+					const uint32 Color = GetTextureColor(Texture, MaxSizeInBytes);
+
+					const FVisibleTexture VisibleTexture(Viewport, Texture, StartTime, EndTime, Depth, Color);
+					AddEvent(Builder, VisibleTexture);
+					VisibleGraph.AddTexture(VisibleTexture);
+				}
 			}
 
 			if (ShowBuffers())
 			{
-				uint32 BufferDepthOffsetMax = 0;
-
 				for (uint32 BufferIndex = 0, BufferCount = Graph->Buffers.Num(); BufferIndex < BufferCount; ++BufferIndex)
 				{
-					FBufferPacket& Buffer = Graph->Buffers[BufferIndex];
-					if (Buffer.bCulled)
+					if (CulledBuffers[BufferIndex])
 					{
 						continue;
 					}
 
-					const double StartTime = Buffer.StartTime + SinglePixelTimeMargin;
-					const double EndTime   = Buffer.EndTime;
-					const uint32 Depth     = DepthOffset + Buffer.Depth;
+					FBufferPacket& Buffer = Graph->Buffers[BufferIndex];
 
-					const FVisibleBuffer VisibleBuffer(Viewport, Buffer, StartTime, EndTime, Depth, kBufferColor);
+					if (Buffer.PrevousOwnerHandle.IsValid())
+					{
+						BufferIndexToDepth[BufferIndex] = BufferIndexToDepth[Buffer.PrevousOwnerHandle.GetIndex()];
+					}
+
+					const uint32 Depth = BufferIndexToDepth[BufferIndex];
+					const double StartTime = Buffer.StartTime + SinglePixelTimeMargin;
+					const double EndTime = Buffer.EndTime;
+					const uint32 Color = GetBufferColor(Buffer, MaxSizeInBytes);
+
+					const FVisibleBuffer VisibleBuffer(Viewport, Buffer, StartTime, EndTime, Depth, Color);
 					AddEvent(Builder, VisibleBuffer);
 					VisibleGraph.AddBuffer(VisibleBuffer);
-
-					BufferDepthOffsetMax = FMath::Max(Depth, BufferDepthOffsetMax);
 				}
-
-				DepthOffset = FMath::Max(DepthOffset, BufferDepthOffsetMax + 1);
 			}
-
-			check(VisibleGraph.Passes.Num() == VisibleGraph.GetPacket().PassCount);
 
 			return TraceServices::EEventEnumerate::Continue;
 		});
@@ -800,8 +962,10 @@ void FRenderGraphTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilde
 			for (FRDGTextureHandle TextureHandle : Pass.Textures)
 			{
 				const FTexturePacket& Texture = *Graph.GetTexture(TextureHandle);
-				const FVisibleTexture& VisibleTexture = VisibleGraph->GetVisibleTexture(Texture);
-				VisibleItems.Add(&VisibleTexture);
+				if (const FVisibleTexture* VisibleTexture = VisibleGraph->GetVisibleTexture(Texture))
+				{
+					VisibleItems.Add(VisibleTexture);
+				}
 			}
 		}
 
@@ -810,8 +974,10 @@ void FRenderGraphTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilde
 			for (FRDGBufferHandle BufferHandle : Pass.Buffers)
 			{
 				const FBufferPacket& Buffer = *Graph.GetBuffer(BufferHandle);
-				const FVisibleBuffer& VisibleBuffer = VisibleGraph->GetVisibleBuffer(Buffer);
-				VisibleItems.Add(&VisibleBuffer);
+				if (const FVisibleBuffer* VisibleBuffer = VisibleGraph->GetVisibleBuffer(Buffer))
+				{
+					VisibleItems.Add(VisibleBuffer);
+				}
 			}
 		}
 
@@ -979,7 +1145,7 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	Super::BuildContextMenu(MenuBuilder);
 
-	MenuBuilder.BeginSection("Layout", LOCTEXT("TrackLayoutMenuHeader", "Track Layout"));
+	MenuBuilder.BeginSection("Show", LOCTEXT("ShowMenuHeader", "Track Show Flags"));
 	{
 		MenuBuilder.AddMenuEntry
 		(
@@ -1034,6 +1200,182 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
+	}
+	MenuBuilder.EndSection();
+	
+	MenuBuilder.BeginSection("Sort", LOCTEXT("SortMenuHeader", "Track Sort By"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("SortCreation", "Creation"),
+			LOCTEXT("SortCreation_Tooltip", "Resources created earlier in the graph builder are ordered first."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceSort = EResourceSort::Creation;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return ResourceSort == EResourceSort::Creation; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("SortLargestSize", "Largest Size"),
+			LOCTEXT("SortLargestSize_Tooltip", "Resources with larger allocations are ordered first."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceSort = EResourceSort::LargestSize;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return ResourceSort == EResourceSort::LargestSize; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("SortSmallestSize", "Smallest Size"),
+			LOCTEXT("SortSmallestSize_Tooltip", "Resources with smaller allocations are ordered first."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceSort = EResourceSort::SmallestSize;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return ResourceSort == EResourceSort::SmallestSize; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("SortStartOfLifetime", "Start Of Lifetime"),
+			LOCTEXT("SortStartOfLifetime_Tooltip", "Resources with earlier starting lifetimes are ordered first."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceSort = EResourceSort::StartOfLifetime;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return ResourceSort == EResourceSort::StartOfLifetime; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+		
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("SortEndOfLifetime", "End Of Lifetime"),
+			LOCTEXT("SortEndOfLifetime_Tooltip", "Resources with later ending lifetimes are ordered first."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceSort = EResourceSort::EndOfLifetime;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return ResourceSort == EResourceSort::EndOfLifetime; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Color", LOCTEXT("ColorMenuHeader", "Track Resource Coloration"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ColorType", "By Type"),
+			LOCTEXT("ColorType_Tooltip", "Each type of resource has a unique color."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceColor = EResourceColor::Type;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return ResourceColor == EResourceColor::Type; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ColorSize", "By Size"),
+			LOCTEXT("ColorSize_Tooltip", "Larger resources are more brightly colored."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceColor = EResourceColor::Size;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return ResourceColor == EResourceColor::Size; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("FilterText", LOCTEXT("FilterTextHeader", "Track Resource Filter"));
+	{
+		MenuBuilder.AddWidget(
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(5.f)
+			[
+				// Search box allows for filtering
+				SNew(SSearchBox)
+				.InitialText(FText::FromString(FilterText))
+				.HintText(LOCTEXT("SearchHint", "Filter By Name"))
+				.OnTextChanged_Lambda([this](const FText& InText) { FilterText = InText.ToString(); SetDirtyFlag(); })
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(5.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("SizeThreshold", "Filter By Size (MB)"))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SSpinBox<float>)
+					.MinValue(0)
+					.MaxValue(1024)
+					.Value(FilterSize)
+					.MaxFractionalDigits(3)
+					.MinDesiredWidth(60)
+					.OnValueCommitted_Lambda([this](float InValue, ETextCommit::Type) { FilterSize = InValue; SetDirtyFlag(); })
+				]
+			],
+			FText::GetEmpty(), true);
 	}
 	MenuBuilder.EndSection();
 }

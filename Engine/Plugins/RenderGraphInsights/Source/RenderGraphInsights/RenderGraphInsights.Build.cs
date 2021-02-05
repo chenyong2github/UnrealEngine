@@ -18,7 +18,8 @@ namespace UnrealBuildTool.Rules
 				"TraceLog",
 				"TraceAnalysis",
 				"TraceServices",
-				"TraceInsights"
+				"TraceInsights",
+				"InputCore"
 			});
 		}
 	}

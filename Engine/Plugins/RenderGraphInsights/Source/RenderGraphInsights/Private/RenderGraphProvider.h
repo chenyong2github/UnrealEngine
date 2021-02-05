@@ -74,7 +74,8 @@ class FResourcePacket : public FPassIntervalPacket
 	INSIGHTS_DECLARE_RTTI(FResourcePacket, FPassIntervalPacket)
 public:
 	uint32 Index{};
-	uint32 Depth{};
+	uint32 Order{};
+	uint64 SizeInBytes{};
 
 	TArray<FRDGPassHandle> Passes;
 
@@ -89,12 +90,10 @@ class FTexturePacket : public FResourcePacket
 {
 	INSIGHTS_DECLARE_RTTI(FTexturePacket, FResourcePacket)
 public:
-	const FTexturePacket* PreviousOwner{};
-
 	FRDGTextureHandle Handle;
 	FRDGTextureHandle NextOwnerHandle;
+	FRDGTextureHandle PrevousOwnerHandle;
 	FRDGTextureDesc Desc;
-	uint64 SizeInBytes{};
 
 	FTexturePacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);
 };
@@ -103,10 +102,9 @@ class FBufferPacket : public FResourcePacket
 {
 	INSIGHTS_DECLARE_RTTI(FBufferPacket, FResourcePacket)
 public:
-	const FBufferPacket* PreviousOwner{};
-
 	FRDGBufferHandle Handle;
 	FRDGBufferHandle NextOwnerHandle;
+	FRDGBufferHandle PrevousOwnerHandle;
 	FRDGBufferDesc Desc;
 
 	FBufferPacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);
@@ -148,8 +146,6 @@ public:
 
 	uint32 ScopeDepth{};
 	uint32 PassCount{};
-	uint32 TextureDepthOffset{};
-	uint32 BufferDepthOffset{};
 
 	FGraphPacket(TraceServices::ILinearAllocator& Allocator, const UE::Trace::IAnalyzer::FOnEventContext& Context);
 

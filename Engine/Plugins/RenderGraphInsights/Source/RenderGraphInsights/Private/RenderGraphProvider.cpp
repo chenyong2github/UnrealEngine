@@ -59,6 +59,8 @@ FScopePacket::FScopePacket(const UE::Trace::IAnalyzer::FOnEventContext& Context)
 
 FResourcePacket::FResourcePacket(const UE::Trace::IAnalyzer::FOnEventContext& Context)
 	: FPassIntervalPacket(Context)
+	, Order(Context.EventData.GetValue<uint16>("Order"))
+	, SizeInBytes(Context.EventData.GetValue<uint64>("SizeInBytes"))
 	, Passes(Context.EventData.GetArrayView<FRDGPassHandle>("Passes"))
 	, bExternal(Context.EventData.GetValue<bool>("IsExternal"))
 	, bExtracted(Context.EventData.GetValue<bool>("IsExtracted"))
@@ -75,7 +77,6 @@ FTexturePacket::FTexturePacket(const UE::Trace::IAnalyzer::FOnEventContext& Cont
 	: FResourcePacket(Context)
 	, Handle(Context.EventData.GetValue<FRDGTextureHandle>("Handle"))
 	, NextOwnerHandle(Context.EventData.GetValue<FRDGTextureHandle>("NextOwnerHandle"))
-	, SizeInBytes(Context.EventData.GetValue<uint64>("SizeInBytes"))
 {
 	Desc.Flags = ETextureCreateFlags(Context.EventData.GetValue<uint64>("CreateFlags"));
 	Desc.Dimension = ETextureDimension(Context.EventData.GetValue<uint16>("Dimension"));
@@ -99,7 +100,7 @@ FBufferPacket::FBufferPacket(const UE::Trace::IAnalyzer::FOnEventContext& Contex
 	Desc.BytesPerElement = Context.EventData.GetValue<uint32>("BytesPerElement");
 	Desc.NumElements = Context.EventData.GetValue<uint32>("NumElements");
 
-	const uint64 SizeInBytes = Desc.BytesPerElement * Desc.NumElements;
+	SizeInBytes = Desc.BytesPerElement * Desc.NumElements;
 	Name += GetSizeName(SizeInBytes);
 }
 
@@ -212,12 +213,7 @@ void FRenderGraphProvider::AddTexture(const FTexturePacket InTexture)
 	if (const FTexturePacket* const* PreviousOwnerPtr = CurrentGraph->TextureHandleToPreviousOwner.Find(Texture.Handle))
 	{
 		const FTexturePacket* PreviousOwner = *PreviousOwnerPtr;
-		Texture.PreviousOwner = PreviousOwner;
-		Texture.Depth = PreviousOwner->Depth;
-	}
-	else if (!Texture.bCulled)
-	{
-		Texture.Depth = CurrentGraph->TextureDepthOffset++;
+		Texture.PrevousOwnerHandle = PreviousOwner->Handle;
 	}
 
 	if (Texture.NextOwnerHandle.IsValid())
@@ -235,12 +231,7 @@ void FRenderGraphProvider::AddBuffer(const FBufferPacket InBuffer)
 	if (const FBufferPacket* const* PreviousOwnerPtr = CurrentGraph->BufferHandleToPreviousOwner.Find(Buffer.Handle))
 	{
 		const FBufferPacket* PreviousOwner = *PreviousOwnerPtr;
-		Buffer.PreviousOwner = PreviousOwner;
-		Buffer.Depth = PreviousOwner->Depth;
-	}
-	else if (!Buffer.bCulled)
-	{
-		Buffer.Depth = CurrentGraph->BufferDepthOffset++;
+		Buffer.PrevousOwnerHandle = PreviousOwner->Handle;
 	}
 
 	if (Buffer.NextOwnerHandle.IsValid())

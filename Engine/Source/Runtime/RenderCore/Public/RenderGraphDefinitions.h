@@ -502,6 +502,9 @@ using FRDGBufferHandle = TRDGHandle<FRDGBuffer, uint16>;
 using FRDGBufferRegistry = TRDGHandleRegistry<FRDGBufferHandle>;
 using FRDGBufferBitArray = TRDGHandleBitArray<FRDGBufferHandle>;
 
+class FRDGPooledTexture;
+class FRDGPooledBuffer;
+
 template <typename TUniformStruct> class TRDGUniformBuffer;
 template <typename TUniformStruct> using TRDGUniformBufferRef = TRDGUniformBuffer<TUniformStruct>*;
 

@@ -384,8 +384,8 @@ private:
 #endif
 
 #if RDG_ENABLE_TRACE
-	TArray<FRDGTextureHandle, FRDGArrayAllocator> Textures;
-	TArray<FRDGBufferHandle, FRDGArrayAllocator> Buffers;
+	TArray<FRDGTextureHandle, FRDGArrayAllocator> TraceTextures;
+	TArray<FRDGBufferHandle, FRDGArrayAllocator> TraceBuffers;
 #endif
 
 	friend FRDGBuilder;

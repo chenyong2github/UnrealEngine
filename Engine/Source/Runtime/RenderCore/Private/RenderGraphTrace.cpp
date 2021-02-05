@@ -44,6 +44,7 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, BufferMessage)
 	UE_TRACE_EVENT_FIELD(uint32, NumElements)
 	UE_TRACE_EVENT_FIELD(uint16, Handle)
 	UE_TRACE_EVENT_FIELD(uint16, NextOwnerHandle)
+	UE_TRACE_EVENT_FIELD(uint16, Order)
 	UE_TRACE_EVENT_FIELD(uint16[], Passes)
 	UE_TRACE_EVENT_FIELD(bool, IsExternal)
 	UE_TRACE_EVENT_FIELD(bool, IsExtracted)
@@ -56,6 +57,7 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, TextureMessage)
 	UE_TRACE_EVENT_FIELD(uint64, EndCycles)
 	UE_TRACE_EVENT_FIELD(uint16, Handle)
 	UE_TRACE_EVENT_FIELD(uint16, NextOwnerHandle)
+	UE_TRACE_EVENT_FIELD(uint16, Order)
 	UE_TRACE_EVENT_FIELD(uint16[], Passes)
 	UE_TRACE_EVENT_FIELD(uint64, SizeInBytes)
 	UE_TRACE_EVENT_FIELD(uint64, CreateFlags)
@@ -131,8 +133,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< PassMessage.Handle(Handle.GetIndex())
 			<< PassMessage.GraphicsForkPass(Pass->GetGraphicsForkPass().GetIndexUnchecked())
 			<< PassMessage.GraphicsJoinPass(Pass->GetGraphicsJoinPass().GetIndexUnchecked())
-			<< PassMessage.Textures((const uint16*)Pass->Textures.GetData(), (uint16)Pass->Textures.Num())
-			<< PassMessage.Buffers((const uint16*)Pass->Buffers.GetData(), (uint16)Pass->Buffers.Num())
+			<< PassMessage.Textures((const uint16*)Pass->TraceTextures.GetData(), (uint16)Pass->TraceTextures.Num())
+			<< PassMessage.Buffers((const uint16*)Pass->TraceBuffers.GetData(), (uint16)Pass->TraceBuffers.Num())
 			<< PassMessage.Flags(uint16(Pass->GetFlags()))
 			<< PassMessage.Pipeline(uint16(Pass->GetPipeline()))
 			<< PassMessage.IsCulled(GraphBuilder.PassesToCull[Handle])
@@ -219,7 +221,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< TextureMessage.Name(Texture->Name, uint16(FCString::Strlen(Texture->Name)))
 			<< TextureMessage.Handle(Handle.GetIndex())
 			<< TextureMessage.NextOwnerHandle(Texture->NextOwner.GetIndexUnchecked())
-			<< TextureMessage.Passes((const uint16*)Texture->Passes.GetData(), (uint16)Texture->Passes.Num())
+			<< TextureMessage.Order(Texture->TraceOrder)
+			<< TextureMessage.Passes((const uint16*)Texture->TracePasses.GetData(), (uint16)Texture->TracePasses.Num())
 			<< TextureMessage.SizeInBytes(SizeInBytes)
 			<< TextureMessage.CreateFlags(uint32(Texture->Desc.Flags))
 			<< TextureMessage.Dimension(uint32(Texture->Desc.Dimension))
@@ -243,7 +246,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< BufferMessage.Name(Buffer->Name, uint16(FCString::Strlen(Buffer->Name)))
 			<< BufferMessage.Handle(Buffer->Handle.GetIndex())
 			<< BufferMessage.NextOwnerHandle(Buffer->NextOwner.GetIndexUnchecked())
-			<< BufferMessage.Passes((const uint16*)Buffer->Passes.GetData(), (uint16)Buffer->Passes.Num())
+			<< BufferMessage.Order(Buffer->TraceOrder)
+			<< BufferMessage.Passes((const uint16*)Buffer->TracePasses.GetData(), (uint16)Buffer->TracePasses.Num())
 			<< BufferMessage.UsageFlags(uint32(Buffer->Desc.Usage))
 			<< BufferMessage.BytesPerElement(Buffer->Desc.BytesPerElement)
 			<< BufferMessage.NumElements(Buffer->Desc.NumElements)
@@ -253,6 +257,23 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 	}
 
 	UE_TRACE_LOG(RDGTrace, GraphEndMessage, RDGChannel);
+}
+
+void FRDGTrace::AddResource(FRDGParentResource* Resource)
+{
+	Resource->TraceOrder = ResourceOrder++;
+}
+
+void FRDGTrace::AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass)
+{
+	Pass->TraceTextures.Add(Texture->Handle);
+	Texture->TracePasses.Add(Pass->Handle);
+}
+
+void FRDGTrace::AddBufferPassDependency(FRDGBuffer* Buffer, FRDGPass* Pass)
+{
+	Pass->TraceBuffers.Add(Buffer->Handle);
+	Buffer->TracePasses.Add(Pass->Handle);
 }
 
 #endif

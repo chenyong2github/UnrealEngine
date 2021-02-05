@@ -274,7 +274,8 @@ private:
 	FRDGPassHandle LastPass;
 
 #if RDG_ENABLE_TRACE
-	TArray<FRDGPassHandle, FRDGArrayAllocator> Passes;
+	uint16 TraceOrder = 0;
+	TArray<FRDGPassHandle, FRDGArrayAllocator> TracePasses;
 #endif
 
 #if RDG_ENABLE_DEBUG

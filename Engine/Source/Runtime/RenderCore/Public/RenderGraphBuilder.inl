@@ -28,6 +28,7 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Desc, Name, Flags));
 	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, Desc, Flags, ERenderTargetTexture::ShaderResource);
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Texture));
+	IF_RDG_ENABLE_TRACE(Trace.AddResource(Texture));
 	return Texture;
 }
 
@@ -39,6 +40,7 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Desc, Name, Flags));
 	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, Desc, Flags);
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Buffer));
+	IF_RDG_ENABLE_TRACE(Trace.AddResource(Buffer));
 	return Buffer;
 }
 

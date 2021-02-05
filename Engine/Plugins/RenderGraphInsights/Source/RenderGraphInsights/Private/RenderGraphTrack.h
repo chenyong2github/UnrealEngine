@@ -160,14 +160,24 @@ public:
 		return Passes[Pass.VisibleIndex];
 	}
 
-	const FVisibleTexture& GetVisibleTexture(const FTexturePacket& Texture) const
+	const FVisibleTexture* GetVisibleTexture(const FTexturePacket& Texture) const
 	{
-		return Textures[Texture.VisibleIndex];
+		if (Texture.VisibleIndex == kInvalidVisibleIndex)
+		{
+			return nullptr;
+		}
+
+		return &Textures[Texture.VisibleIndex];
 	}
 
-	const FVisibleBuffer& GetVisibleBuffer(const FBufferPacket& Buffer) const
+	const FVisibleBuffer* GetVisibleBuffer(const FBufferPacket& Buffer) const
 	{
-		return Buffers[Buffer.VisibleIndex];
+		if (Buffer.VisibleIndex == kInvalidVisibleIndex)
+		{
+			return nullptr;
+		}
+
+		return &Buffers[Buffer.VisibleIndex];
 	}
 
 	TArray<FVisibleScope> Scopes;
@@ -241,6 +251,9 @@ private:
 	const FPacketFilter* PacketFilter{};
 	const FPassPacket* SelectedPass{};
 
+	uint32 GetTextureColor(const FTexturePacket& Texture, uint64 MaxSizeInBytes) const;
+	uint32 GetBufferColor(const FBufferPacket& Buffer, uint64 MaxSizeInBytes) const;
+
 	bool ShowTextures() const
 	{
 		return EnumHasAnyFlags(ResourceShow, EResourceShow::Textures);
@@ -259,9 +272,26 @@ private:
 	};
 	FRIEND_ENUM_CLASS_FLAGS(FRenderGraphTrack::EResourceShow);
 
-	static void AddEvent(ITimingEventsTrackDrawStateBuilder& Builder, const FVisibleItem& Item);
+	enum class EResourceSort
+	{
+		Creation,
+		LargestSize,
+		SmallestSize,
+		StartOfLifetime,
+		EndOfLifetime
+	};
+
+	enum class EResourceColor
+	{
+		Type,
+		Size
+	};
 
 	EResourceShow ResourceShow = EResourceShow::All;
+	EResourceSort ResourceSort = EResourceSort::Creation;
+	EResourceColor ResourceColor = EResourceColor::Type;
+	FString FilterText;
+	float FilterSize{};
 
 	FTooltipDrawState SelectedTooltipState;
 };

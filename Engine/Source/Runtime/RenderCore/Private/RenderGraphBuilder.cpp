@@ -526,6 +526,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	ExternalTextures.Add(Texture->GetRHIUnchecked(), Texture);
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalTexture(Texture));
+	IF_RDG_ENABLE_TRACE(Trace.AddResource(Texture));
 	return Texture;
 }
 
@@ -580,6 +581,7 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 	ExternalBuffers.Add(ExternalPooledBuffer, Buffer);
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalBuffer(Buffer));
+	IF_RDG_ENABLE_TRACE(Trace.AddResource(Buffer));
 	return Buffer;
 }
 
@@ -1790,10 +1792,7 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 		AddTransition(PassHandle, Texture, TexturePair.Value.MergeState, LastUntrackedPassHandle);
 		Texture->bCulled = false;
 
-	#if RDG_ENABLE_TRACE
-		Pass->Textures.Add(Texture->Handle);
-		Texture->Passes.Add(PassHandle);
-	#endif
+		IF_RDG_ENABLE_TRACE(Trace.AddTexturePassDependency(Texture, Pass));
 	}
 
 	for (const auto& BufferPair : Pass->BufferStates)
@@ -1802,10 +1801,7 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 		AddTransition(PassHandle, Buffer, *BufferPair.Value.MergeState, LastUntrackedPassHandle);
 		Buffer->bCulled = false;
 
-	#if RDG_ENABLE_TRACE
-		Pass->Buffers.Add(Buffer->Handle);
-		Buffer->Passes.Add(PassHandle);
-	#endif
+		IF_RDG_ENABLE_TRACE(Trace.AddBufferPassDependency(Buffer, Pass));
 	}
 }
 

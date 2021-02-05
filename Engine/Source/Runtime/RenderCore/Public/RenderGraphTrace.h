@@ -14,8 +14,13 @@ public:
 	void OutputGraphBegin();
 	void OutputGraphEnd(const FRDGBuilder& GraphBuilder);
 
+	void AddResource(FRDGParentResource* Resource);
+	void AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass);
+	void AddBufferPassDependency(FRDGBuffer* Buffer, FRDGPass* Pass);
+
 private:
 	uint64 GraphStartCycles{};
+	uint32 ResourceOrder{};
 };
 
 #endif
