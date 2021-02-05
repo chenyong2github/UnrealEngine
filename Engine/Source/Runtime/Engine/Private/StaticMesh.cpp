@@ -2928,9 +2928,7 @@ void UStaticMesh::WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties Asyn
 				ToString(AsyncProperties)
 			);
 
-			uint64 StartTime = FPlatformTime::Cycles64();
 			FStaticMeshCompilingManager::Get().FinishCompilation({ const_cast<UStaticMesh*>(this) });
-			AsyncCompilationHelpers::SaveStallStack(FPlatformTime::Cycles64() - StartTime);
 		}
 		else
 		{
