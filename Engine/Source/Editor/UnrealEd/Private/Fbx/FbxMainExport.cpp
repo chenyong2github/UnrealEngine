@@ -3192,7 +3192,15 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 
 	FMovieSceneTimeTransform LocatToRootTransform = RootToLocalTransform.InverseLinearOnly();
 
-	USceneComponent* InterrogatedComponent = BoundComponent ? BoundComponent : BoundActor->GetRootComponent();
+	USceneComponent* InterrogatedComponent = nullptr;
+	if (BoundComponent)
+	{
+		InterrogatedComponent = BoundComponent;
+	}
+	else if (BoundActor)
+	{
+		InterrogatedComponent = BoundActor->GetRootComponent();
+	}
 
 	if (bIsCameraActor)
 	{
