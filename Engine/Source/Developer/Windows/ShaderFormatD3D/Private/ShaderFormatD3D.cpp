@@ -109,7 +109,7 @@ public:
 	{
 		if (!Singleton)
 		{
-			Singleton = new FShaderFormatD3D(FDxcModuleWrapper::ModuleVersionHash);
+			Singleton = new FShaderFormatD3D(FDxcModuleWrapper::GetModuleVersionHash());
 		}
 		return Singleton;
 	}

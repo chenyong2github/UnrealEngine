@@ -146,12 +146,9 @@ public:
 	virtual void GetShaderCompilerDependencies(TArray<FString>& OutDependencies) const override
 	{		
 		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/ThirdParty/Windows/DirectX/x64/d3dcompiler_47.dll"));
-		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/ThirdParty/Windows/DirectX/x64/dxil.dll"));
 		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/ThirdParty/ShaderConductor/Win64/ShaderConductor.dll"));
 		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/ThirdParty/ShaderConductor/Win64/dxcompiler.dll"));
-		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/Win64/d3dcompiler_47.dll"));
-		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/Win64/dxcompiler.dll"));
-		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/Win64/dxil.dll"));
+		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/ThirdParty/ShaderConductor/Win64/dxil.dll"));
 	}
 
 	virtual bool SupportsFeature( ETargetPlatformFeatures Feature ) const override

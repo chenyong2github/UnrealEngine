@@ -151,7 +151,7 @@ public:
 	{
 		if (!Singleton)
 		{
-			Singleton = new FShaderFormatVulkan(FShaderConductorModuleWrapper::ModuleVersionHash);
+			Singleton = new FShaderFormatVulkan(FShaderConductorModuleWrapper::GetModuleVersionHash());
 		}
 
 		return Singleton;

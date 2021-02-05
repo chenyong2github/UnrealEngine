@@ -7,7 +7,7 @@
 
 struct FDllHandle : public FRefCountedObject
 {
-protected:
+private:
 	void* Handle = nullptr;
 
 public:
@@ -17,19 +17,27 @@ public:
 
 class SHADERCOMPILERCOMMON_API FDxcModuleWrapper
 {
-protected:
-	TRefCountPtr<FDllHandle> Dxc;
+private:
 	uint32 ModuleVersionHash = 0;
+protected:
+	FORCEINLINE uint32 GetModuleVersionHash() const
+	{
+		return ModuleVersionHash;
+	}
 public:
 	FDxcModuleWrapper();
 	virtual ~FDxcModuleWrapper();
 };
 
-class SHADERCOMPILERCOMMON_API FShaderConductorModuleWrapper : public FDxcModuleWrapper
+class SHADERCOMPILERCOMMON_API FShaderConductorModuleWrapper : private FDxcModuleWrapper
 {
-protected:
-	TRefCountPtr<FDllHandle> ShaderConductor;
+private:
 	uint32 ModuleVersionHash = 0;
+protected:
+	FORCEINLINE uint32 GetModuleVersionHash() const
+	{
+		return ModuleVersionHash;
+	}
 public:
 	FShaderConductorModuleWrapper();
 	virtual ~FShaderConductorModuleWrapper();

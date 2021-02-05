@@ -10,6 +10,7 @@
 #include "Windows/WindowsHWrapper.h"
 #endif // PLATFORM_WINDOWS
 
+static TRefCountPtr<FDllHandle> GDxilHandle;
 static TRefCountPtr<FDllHandle> GDxcHandle;
 static TRefCountPtr<FDllHandle> GShaderConductorHandle;
 
@@ -17,7 +18,7 @@ static uint64 GetLoadedModuleVersion(const TCHAR* ModuleName)
 {
 #if PLATFORM_WINDOWS
 	HMODULE ModuleDll = ::GetModuleHandleW(ModuleName);
-	if (ModuleDll == INVALID_HANDLE_VALUE)
+	if (ModuleDll == nullptr)
 	{
 		return 0;
 	}
@@ -74,10 +75,12 @@ FDxcModuleWrapper::FDxcModuleWrapper()
 {
 	if (GDxcHandle.GetRefCount() == 0)
 	{
+		GDxilHandle = new FDllHandle(TEXT("dxil.dll"));
 		GDxcHandle = new FDllHandle(TEXT("dxcompiler.dll"));
 	}
 	else
 	{
+		GDxilHandle->AddRef();
 		GDxcHandle->AddRef();
 	}
 
@@ -94,6 +97,7 @@ FDxcModuleWrapper::FDxcModuleWrapper()
 FDxcModuleWrapper::~FDxcModuleWrapper()
 {
 	GDxcHandle.SafeRelease();
+	GDxilHandle.SafeRelease();
 }
 
 
@@ -110,7 +114,7 @@ FShaderConductorModuleWrapper::FShaderConductorModuleWrapper()
 
 	static uint64 DllVersion = GetLoadedModuleVersion(TEXT("ShaderConductor.dll"));
 
-	ModuleVersionHash = HashCombine(GetTypeHash(DllVersion), FDxcModuleWrapper::ModuleVersionHash);
+	ModuleVersionHash = HashCombine(GetTypeHash(DllVersion), FDxcModuleWrapper::GetModuleVersionHash());
 }
 
 FShaderConductorModuleWrapper::~FShaderConductorModuleWrapper()
