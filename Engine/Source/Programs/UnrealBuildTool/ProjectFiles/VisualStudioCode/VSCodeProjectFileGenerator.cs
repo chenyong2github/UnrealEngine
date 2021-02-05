@@ -567,6 +567,9 @@ namespace UnrealBuildTool
 			{
 				OutFile.BeginArray("configurations");
 				{
+					HashSet<FileReference> AllSourceFiles = new HashSet<FileReference>();
+					Dictionary<DirectoryReference, string> AllModuleCommandLines = new Dictionary<DirectoryReference, string>();
+
 					foreach (ProjectData.Project Project in Projects.AllProjects)
 					{
 						foreach (ProjectData.Target ProjectTarget in Project.Targets)
@@ -577,37 +580,36 @@ namespace UnrealBuildTool
 							if (BuildTarget == null)
 								continue;
 
-							OutFile.BeginObject();
-
 							string Name = string.Format("{0} {1} {2} {3} ({4})", ProjectTarget.Name, ProjectTarget.Type, BuildTarget.Platform, BuildTarget.Configuration, Project.Name);
-							OutFile.AddField("name", Name);
+							WriteConfiguration(Name, Project.Name, Project.SourceProject.SourceFiles.Select(x => x.Reference), BuildTarget.ModuleCommandLines, OutFile, OutputDirectory);
 
-							if (HostPlatform == UnrealTargetPlatform.Win64)
-							{
-								OutFile.AddField("intelliSenseMode", "msvc-x64");
-							}
-							else
-							{
-								OutFile.AddField("intelliSenseMode", "clang-x64");
-							}
+							AllSourceFiles.UnionWith(Project.SourceProject.SourceFiles.Select(x => x.Reference));
 
-							if (HostPlatform == UnrealTargetPlatform.Mac)
+							foreach (KeyValuePair<DirectoryReference, string> Pair in BuildTarget.ModuleCommandLines)
 							{
-								OutFile.BeginArray("macFrameworkPath");
+								if(!AllModuleCommandLines.ContainsKey(Pair.Key))
 								{
-									OutFile.AddUnnamedField("/System/Library/Frameworks");
-									OutFile.AddUnnamedField("/Library/Frameworks");
+									AllModuleCommandLines[Pair.Key] = Pair.Value;
 								}
-								OutFile.EndArray();
 							}
-
-							FileReference CompileCommands = FileReference.Combine(OutputDirectory, string.Format("compileCommands_{0}.json", Project.Name));
-							WriteCompileCommands(CompileCommands, Project.SourceProject.SourceFiles,BuildTarget.ModuleCommandLines);
-							OutFile.AddField("compileCommands", MakePathString(CompileCommands, bInAbsolute: true, bForceSkipQuotes: true));
-
-							OutFile.EndObject();
 						}
 					}
+
+					string DefaultConfigName;
+					if (HostPlatform == UnrealTargetPlatform.Linux)
+					{
+						DefaultConfigName = "Linux";
+					}
+					else if (HostPlatform == UnrealTargetPlatform.Mac)
+					{
+						DefaultConfigName = "Mac";
+					}
+					else
+					{
+						DefaultConfigName = "Win32";
+					}
+
+					WriteConfiguration(DefaultConfigName, "Default", AllSourceFiles, AllModuleCommandLines, OutFile, OutputDirectory);
 				}
 				OutFile.EndArray();
 			}
@@ -616,7 +618,39 @@ namespace UnrealBuildTool
 			OutFile.Write(FileReference.Combine(OutputDirectory, "c_cpp_properties.json"));
 		}
 
-		private void WriteCompileCommands(FileReference CompileCommandsFile, List<ProjectFile.SourceFile> SourceFiles, Dictionary<DirectoryReference, string> ModuleCommandLines)
+		private void WriteConfiguration(string Name, string ProjectName, IEnumerable<FileReference> SourceFiles, Dictionary<DirectoryReference, string> ModuleCommandLines, JsonFile OutFile, DirectoryReference OutputDirectory)
+		{
+			OutFile.BeginObject();
+
+			OutFile.AddField("name", Name);
+
+			if (HostPlatform == UnrealTargetPlatform.Win64)
+			{
+				OutFile.AddField("intelliSenseMode", "msvc-x64");
+			}
+			else
+			{
+				OutFile.AddField("intelliSenseMode", "clang-x64");
+			}
+
+			if (HostPlatform == UnrealTargetPlatform.Mac)
+			{
+				OutFile.BeginArray("macFrameworkPath");
+				{
+					OutFile.AddUnnamedField("/System/Library/Frameworks");
+					OutFile.AddUnnamedField("/Library/Frameworks");
+				}
+				OutFile.EndArray();
+			}
+
+			FileReference CompileCommands = FileReference.Combine(OutputDirectory, string.Format("compileCommands_{0}.json", ProjectName));
+			WriteCompileCommands(CompileCommands, SourceFiles, ModuleCommandLines);
+			OutFile.AddField("compileCommands", MakePathString(CompileCommands, bInAbsolute: true, bForceSkipQuotes: true));
+
+			OutFile.EndObject();
+		}
+
+		private void WriteCompileCommands(FileReference CompileCommandsFile, IEnumerable<FileReference> SourceFiles, Dictionary<DirectoryReference, string> ModuleCommandLines)
 		{
 			// this creates a compileCommands.json
 			// see VsCode Docs - https://code.visualstudio.com/docs/cpp/c-cpp-properties-schema-reference (compileCommands attribute)
@@ -637,9 +671,9 @@ namespace UnrealBuildTool
 					DirectoryToResponseFile.Add(Pair.Key, ResponseFile);
 				}
 
-				foreach (ProjectFile.SourceFile File in SourceFiles.OrderBy(x => x.Reference.FullName))
+				foreach (FileReference File in SourceFiles.OrderBy(x => x.FullName))
 				{
-					DirectoryReference Directory = File.Reference.Directory;
+					DirectoryReference Directory = File.Directory;
 
 					FileReference ResponseFile = null;
 					if (!DirectoryToResponseFile.TryGetValue(Directory, out ResponseFile))
@@ -661,7 +695,7 @@ namespace UnrealBuildTool
 					}
 
 					Writer.WriteObjectStart();
-					Writer.WriteValue("file", MakePathString(File.Reference, bInAbsolute: true, bForceSkipQuotes: true));
+					Writer.WriteValue("file", MakePathString(File, bInAbsolute: true, bForceSkipQuotes: true));
 					Writer.WriteValue("command", String.Format("cl.exe @\"{0}\"", ResponseFile.FullName));
 					Writer.WriteValue("directory", UnrealBuildTool.EngineSourceDirectory.ToString());
 					Writer.WriteObjectEnd();
