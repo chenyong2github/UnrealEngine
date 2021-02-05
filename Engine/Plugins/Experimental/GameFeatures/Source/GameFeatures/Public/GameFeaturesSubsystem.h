@@ -138,8 +138,8 @@ public:
 	void DeactivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginDeactivateComplete& CompleteDelegate);
 
 	/** Unloads the specified game feature plugin. */
-	void UnloadGameFeaturePlugin(const FString& PluginURL);
-	void UnloadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUnloadComplete& CompleteDelegate);
+	void UnloadGameFeaturePlugin(const FString& PluginURL, bool bKeepRegistered = false);
+	void UnloadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUnloadComplete& CompleteDelegate, bool bKeepRegistered = false);
 
 	/** Uninstall the specified game feature plugin. Will remove the game feature plugin from the device if it was downloaded */
 	void UninstallGameFeaturePlugin(const FString& PluginURL);
