@@ -43,6 +43,45 @@ DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread CopyToResolve"), STAT_MediaCa
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread MapStaging"), STAT_MediaCapture_RenderThread_MapStaging, STATGROUP_Media);
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread Callback"), STAT_MediaCapture_RenderThread_Callback, STATGROUP_Media);
 
+/** These pixel formats do not require additional conversion except for swizzling and normalized sampling. */
+static TSet<EPixelFormat> SupportedRgbaSwizzleFormats =
+{
+	PF_A32B32G32R32F,
+	PF_B8G8R8A8,
+	PF_G8,
+	PF_G16,
+	PF_FloatRGB,
+	PF_FloatRGBA,
+	PF_R32_FLOAT,
+	PF_G16R16,
+	PF_G16R16F,
+	PF_G32R32F,
+	PF_A2B10G10R10,
+	PF_A16B16G16R16,
+	PF_R16F,
+	PF_FloatR11G11B10,
+	PF_A8,
+	PF_R32_UINT,
+	PF_R32_SINT,
+	PF_R16_UINT,
+	PF_R16_SINT,
+	PF_R16G16B16A16_UINT,
+	PF_R16G16B16A16_SINT,
+	PF_R5G6B5_UNORM,
+	PF_R8G8B8A8,
+	PF_A8R8G8B8,
+	PF_R8G8,
+	PF_R32G32B32A32_UINT,
+	PF_R16G16_UINT,
+	PF_R8_UINT,
+	PF_R8G8B8A8_UINT,
+	PF_R8G8B8A8_SNORM,
+	PF_R16G16B16A16_UNORM,
+	PF_R16G16B16A16_SNORM,
+	PF_R32G32_UINT,
+	PF_R8,
+};
+
 namespace MediaCaptureDetails
 {
 	bool FindSceneViewportAndLevel(TSharedPtr<FSceneViewport>& OutSceneViewport);
@@ -83,6 +122,8 @@ FMediaCaptureOptions::FMediaCaptureOptions()
 	, CustomCapturePoint(FIntPoint::ZeroValue)
 	, bResizeSourceBuffer(false)
 	, bSkipFrameWhenRunningExpensiveTasks(true)
+	, bConvertToDesiredPixelFormat(true)
+	, bForceAlphaToOneOnConversion(false)
 {
 
 }
@@ -674,7 +715,6 @@ void UMediaCapture::OnEndFrame_GameThread()
 	}
 }
 
-
 void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 	UMediaCapture* InMediaCapture,
 	FCaptureFrame* CapturingFrame,
@@ -685,6 +725,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 	FMediaCaptureStateChangedSignature InOnStateChanged)
 {
 	FTexture2DRHIRef SourceTexture;
+
 	{
 		if (InCapturingSceneViewport)
 		{
@@ -719,15 +760,20 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 	}
 	else if (CapturingFrame)
 	{
-		if (InMediaCapture->DesiredPixelFormat != SourceTexture->GetFormat())
+		// If it is a simple rgba swizzle we can handle the conversion. Supported formats
+		// contained in SupportedRgbaSwizzleFormats. Warning would've been displayed on start of capture.
+		if (InMediaCapture->DesiredPixelFormat != SourceTexture->GetFormat() && 
+			(!SupportedRgbaSwizzleFormats.Contains(SourceTexture->GetFormat()) || !InMediaCapture->DesiredCaptureOptions.bConvertToDesiredPixelFormat))
 		{
 			InMediaCapture->SetState(EMediaCaptureState::Error);
-			UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source pixel format doesn't match with the user requested pixel format. Requested: %s Source: %s")
+			UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source pixel format doesn't match with the user requested pixel format. %sRequested: %s Source: %s")
 				, *InMediaCapture->MediaOutputName
+				, (SupportedRgbaSwizzleFormats.Contains(SourceTexture->GetFormat()) && !InMediaCapture->DesiredCaptureOptions.bConvertToDesiredPixelFormat) ? TEXT("Please enable \"Convert To Desired Pixel Format\" option in Media Capture settings. ") : TEXT("")
 				, GetPixelFormatString(InMediaCapture->DesiredPixelFormat)
 				, GetPixelFormatString(SourceTexture->GetFormat()));
 		}
-		else if (InMediaCapture->DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::None)
+
+		if (InMediaCapture->DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::None)
 		{
 			if (InDesiredSize.X != SourceTexture->GetSizeX() || InDesiredSize.Y != SourceTexture->GetSizeY())
 			{
@@ -823,6 +869,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 			}
 			else
 			{
+				bool bRequiresAlphaChannelConversion = InMediaCapture->DesiredPixelFormat != SourceTexture->GetFormat();
 				// convert the source with a draw call
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				FRHITexture* RenderTarget = DestRenderTarget.TargetableTexture.GetReference();
@@ -865,20 +912,21 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				}
 				break;
 				case EMediaCaptureConversionOperation::INVERT_ALPHA:
-				{
-					TShaderMapRef<FInvertAlphaPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-					ConvertShader->SetParameters(RHICmdList, SourceTexture);
-				}
-				break;
+					// fall through
 				case EMediaCaptureConversionOperation::SET_ALPHA_ONE:
-				{
-					TShaderMapRef<FSetAlphaOnePS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-					ConvertShader->SetParameters(RHICmdList, SourceTexture);
-				}
+					bRequiresAlphaChannelConversion = true;
+				default:
+					if (bRequiresAlphaChannelConversion)
+					{
+						FModifyAlphaSwizzleRgbaPS::FPermutationDomain PermutationVector;
+						// In cases where texture is converted from a format that doesn't have A channel, we want to force set it to 1.
+						EMediaCaptureConversionOperation MediaConversionOperation = InMediaCapture->DesiredCaptureOptions.bForceAlphaToOneOnConversion ? EMediaCaptureConversionOperation::SET_ALPHA_ONE : InMediaCapture->ConversionOperation;
+						PermutationVector.Set<FModifyAlphaSwizzleRgbaPS::FConversionOp>(static_cast<int32>(MediaConversionOperation));
+						TShaderMapRef<FModifyAlphaSwizzleRgbaPS> ConvertShader(ShaderMap, PermutationVector);
+						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+						ConvertShader->SetParameters(RHICmdList, SourceTexture);
+					}
 				break;
 				}
 
@@ -923,7 +971,6 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_MapStaging);
 				RHICmdList.MapStagingSurface(ReadyFrame->ReadbackTexture, ColorDataBuffer, Width, Height);
 			}
-
 			{
 				SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_Callback);
 				InMediaCapture->OnFrameCaptured_RenderingThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, ColorDataBuffer, Width, Height);
@@ -1050,11 +1097,21 @@ namespace MediaCaptureDetails
 		EPixelFormat SceneTargetFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
 		if (DesiredPixelFormat != SceneTargetFormat)
 		{
-			UE_LOG(LogMediaIOCore, Error, TEXT("Can not %s the capture. The Render Target pixel format doesn't match with the requested pixel format. SceneViewport: %s MediaOutput: %s")
-				, bCurrentlyCapturing ? TEXT("continue") : TEXT("start")
-				, GetPixelFormatString(SceneTargetFormat)
-				, GetPixelFormatString(DesiredPixelFormat));
-			return false;
+			if (!SupportedRgbaSwizzleFormats.Contains(SceneTargetFormat) || !CaptureOptions.bConvertToDesiredPixelFormat)
+			{
+				UE_LOG(LogMediaIOCore, Error, TEXT("Can not %s the capture. The Render Target pixel format doesn't match with the requested pixel format. %sRenderTarget: %s MediaOutput: %s")
+					, bCurrentlyCapturing ? TEXT("continue") : TEXT("start")
+					, (SupportedRgbaSwizzleFormats.Contains(SceneTargetFormat) && !CaptureOptions.bConvertToDesiredPixelFormat) ? TEXT("Please enable \"Convert To Desired Pixel Format\" option in Media Capture settings") : TEXT("")
+					, GetPixelFormatString(SceneTargetFormat)
+					, GetPixelFormatString(DesiredPixelFormat));
+				return false;
+			}
+			else
+			{
+				UE_LOG(LogMediaIOCore, Warning, TEXT("The Render Target pixel format doesn't match with the requested pixel format. Render target will be automatically converted. This could have a slight performance impact. RenderTarget: %s MediaOutput: %s")
+					, GetPixelFormatString(SceneTargetFormat)
+					, GetPixelFormatString(DesiredPixelFormat));
+			}
 		}
 
 		return true;
@@ -1076,11 +1133,21 @@ namespace MediaCaptureDetails
 
 		if (DesiredPixelFormat != InRenderTarget2D->GetFormat())
 		{
-			UE_LOG(LogMediaIOCore, Error, TEXT("Can not %s the capture. The Render Target pixel format doesn't match with the requested pixel format. RenderTarget: %s MediaOutput: %s")
-				, bCurrentlyCapturing ? TEXT("continue") : TEXT("start")
-				, GetPixelFormatString(InRenderTarget2D->GetFormat())
-				, GetPixelFormatString(DesiredPixelFormat));
-			return false;
+			if (!SupportedRgbaSwizzleFormats.Contains(InRenderTarget2D->GetFormat()) || !CaptureOptions.bConvertToDesiredPixelFormat)
+			{
+				UE_LOG(LogMediaIOCore, Error, TEXT("Can not %s the capture. The Render Target pixel format doesn't match with the requested pixel format. %sRenderTarget: %s MediaOutput: %s")
+					, bCurrentlyCapturing ? TEXT("continue") : TEXT("start")
+					, (SupportedRgbaSwizzleFormats.Contains(InRenderTarget2D->GetFormat()) && !CaptureOptions.bConvertToDesiredPixelFormat) ? TEXT("Please enable \"Convert To Desired Pixel Format\" option in Media Capture settings. ") : TEXT("")
+					, GetPixelFormatString(InRenderTarget2D->GetFormat())
+					, GetPixelFormatString(DesiredPixelFormat));
+				return false;
+			}
+			else
+			{
+				UE_LOG(LogMediaIOCore, Warning, TEXT("The Render Target pixel format doesn't match with the requested pixel format. Render target will be automatically converted. This could have a slight performance impact. RenderTarget: %s MediaOutput: %s")
+					, GetPixelFormatString(InRenderTarget2D->GetFormat())
+					, GetPixelFormatString(DesiredPixelFormat));
+			}
 		}
 
 		return true;

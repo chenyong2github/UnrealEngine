@@ -367,7 +367,7 @@ void RGB10toYUVv210ConvertPS(
 
 
 // shader to convert RGB to Y component of YUV
-void RGB8toY8ConvertPS(	float4 InPosition : SV_POSITION,
+void RGB8toY8ConvertPS(float4 InPosition : SV_POSITION,
 	float2 InUV : TEXCOORD0,
 	out float OutColor : SV_Target0)
 {
@@ -386,28 +386,6 @@ void RGB8toY8ConvertPS(	float4 InPosition : SV_POSITION,
 }
 
 
-// shader to invert alpha
-void InvertAlphaPS(
-	float4 InPosition : SV_POSITION,
-	float2 InUV : TEXCOORD0,
-	out float4 OutColor : SV_Target0)
-{
-	float4 Color = InvertAlphaUB.Texture.Sample(InvertAlphaUB.SamplerP, InUV);
-	OutColor.xyzw = float4(Color.rgb, 1 - Color.a);
-}
-
-
-// shader to set alpha to 1.0
-void SetAlphaOnePS(
-	float4 InPosition : SV_POSITION,
-	float2 InUV : TEXCOORD0,
-	out float4 OutColor : SV_Target0)
-{
-	float4 Color = SetAlphaOneUB.Texture.Sample(SetAlphaOneUB.SamplerP, InUV);
-	OutColor.xyzw = float4(Color.rgb, 1.0f);
-}
-
-
 // shader to read from TextureExternal source
 void ReadTextureExternalPS(
 	float4 InPosition : SV_POSITION,
@@ -418,3 +396,25 @@ void ReadTextureExternalPS(
 	float4 InColor = ReadTextureExternalUB.Texture.Sample(ReadTextureExternalUB.SamplerP, UV);
     OutColor = float4(sRGBToLinear(InColor.xyz), InColor.w);
 }
+
+
+// Following defines must reflect values in EMediaCaptureConversionOperation in MediaOutput
+#define INVERT_ALPHA 3
+#define SET_ALPHA_ONE 4
+
+// Shader to swizzle rgba textures, set alpha to 1 or invert alpha
+void SwizzleRgbPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	float4 Color = SwizzleRgbUB.Texture.Sample(SwizzleRgbUB.SamplerP, InUV);
+#if CONVERSION_OP == INVERT_ALPHA
+	OutColor.rgba = float4(Color.rgb, 1 - Color.a);
+#elif CONVERSION_OP == SET_ALPHA_ONE
+	OutColor.rgba = float4(Color.rgb, 1.0f);
+#else
+	OutColor.rgba = Color.rgba;
+#endif
+}
+

@@ -10,6 +10,10 @@
 #include "PipelineStateCache.h"
 
 
+/** MAX number of conversion operations. Reflects MAX in EMediaCaptureConversionOperation */
+#define NUM_MEDIA_SHADERS_CONVERSION_OP 5
+
+
 namespace MediaShaders
 {
 	/** Color transform from YUV to sRGB (using values from MSDN). */
@@ -586,59 +590,6 @@ public:
 	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4& ColorTransform, bool LinearToSrgb);
 };
 
-/**
- * Pixel shader to inverse alpha component 
- *
- * This shader expects a single texture in RGBA 8 or 10 bits format.
- */
-class FInvertAlphaPS
-	: public FGlobalShader
-{
-	DECLARE_EXPORTED_SHADER_TYPE(FInvertAlphaPS, Global, RENDERCORE_API);
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
-	FInvertAlphaPS() { }
-
-	FInvertAlphaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{ }
-
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
-};
-
-
-/**
- * Pixel shader to set alpha component to 1.0f
- *
- * This shader expects a single texture in RGBA 8 or 10 bits format.
- */
-class FSetAlphaOnePS
-	: public FGlobalShader
-{
-	DECLARE_EXPORTED_SHADER_TYPE(FSetAlphaOnePS, Global, RENDERCORE_API);
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
-	FSetAlphaOnePS() { }
-
-	FSetAlphaOnePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{ }
-
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
-};
-
 
 /**
  * Pixel shader to read from TextureExternal source
@@ -663,3 +614,39 @@ public:
 
 	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FTextureRHIRef TextureExt, FSamplerStateRHIRef SamplerState, const FLinearColor & ScaleRotation, const FLinearColor & Offset);
 };
+
+
+/**
+ * Pixel shader to swizzle R G B A components, set alpha to 1 or inverts alpha
+ *
+ * General conversion shader that is only used to swizzle shaders that do not require any color conversion. RGB to BGR, RGB10A2 to RGBA8 etc
+ */
+class FModifyAlphaSwizzleRgbaPS
+	: public FGlobalShader
+{
+public:
+	DECLARE_EXPORTED_SHADER_TYPE(FModifyAlphaSwizzleRgbaPS, Global, RENDERCORE_API);
+
+	class FConversionOp : SHADER_PERMUTATION_INT("CONVERSION_OP", NUM_MEDIA_SHADERS_CONVERSION_OP);
+	using FPermutationDomain = TShaderPermutationDomain<FConversionOp>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	FModifyAlphaSwizzleRgbaPS() = default;
+
+	FModifyAlphaSwizzleRgbaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{ }
+
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
+};
+

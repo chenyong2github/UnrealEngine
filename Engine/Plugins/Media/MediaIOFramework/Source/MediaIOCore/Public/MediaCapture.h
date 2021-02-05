@@ -103,6 +103,19 @@ public:
 	 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="MediaCapture")
 	bool bSkipFrameWhenRunningExpensiveTasks;
+
+	/**
+	 * Allows to enable/disable pixel format conversion for the cases where render target is not of the desired pixel format. 
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="MediaCapture")
+	bool bConvertToDesiredPixelFormat;
+
+	/**
+	 * In some cases when we want to stream irregular render targets containing limited number
+	 * of channels (for example RG16f), we would like to force Alpha to 1.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="MediaCapture")
+	bool bForceAlphaToOneOnConversion;
 };
 
 
