@@ -369,7 +369,8 @@ private:
 	void RenderRadiosityForLumenScene(FRDGBuilder& GraphBuilder, const class FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap, FRDGTextureRef RadiosityAtlas);
 
 	void PrefilterLumenSceneDepth(
-		FRDGBuilder& GraphBuilder, 
+		FRDGBuilder& GraphBuilder,
+		FRDGTextureRef DepthBufferAtlas,
 		const TArray<uint32, SceneRenderingAllocator>& CardIdsToRender,
 		const FViewInfo& View);
 

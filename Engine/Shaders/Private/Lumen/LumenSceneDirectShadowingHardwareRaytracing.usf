@@ -81,7 +81,7 @@ void LumenCardRayGenSetupPS(
 	uint BufferPosition = AtlasCoordToBufferPos(CardInterpolants.AtlasCoord);
 
 	FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
-	float Depth = Texture2DSampleLevel(LumenCardScene.DepthBufferAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+	float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
 
 	float3 LocalPosition;
 	LocalPosition.xy = (CardInterpolants.AtlasCoord - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
@@ -359,7 +359,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardDirectLightingRGS)
 	{
 		FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
 
-		float Depth = Texture2DSampleLevel(LumenCardScene.DepthBufferAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
 
 		float3 LocalPosition;
 		LocalPosition.xy = (CardInterpolants.AtlasCoord - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;

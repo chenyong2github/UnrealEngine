@@ -40,7 +40,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, EmissiveAtlas)
-	SHADER_PARAMETER_TEXTURE(Texture2D, DepthBufferAtlas)
+	SHADER_PARAMETER_TEXTURE(Texture2D, DepthAtlas)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 class FMeshCardRepresentationLink
@@ -230,8 +230,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;
 	TRefCountPtr<IPooledRenderTarget> NormalAtlas;
 	TRefCountPtr<IPooledRenderTarget> EmissiveAtlas;
-	// Inverted Z
-	TRefCountPtr<IPooledRenderTarget> DepthBufferAtlas;
 
 	// --- Generated ---
 	TRefCountPtr<IPooledRenderTarget> DepthAtlas;

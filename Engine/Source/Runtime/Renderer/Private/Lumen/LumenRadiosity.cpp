@@ -357,7 +357,7 @@ class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_TEXTURE(Texture2D, DepthBufferAtlas)
+		SHADER_PARAMETER_TEXTURE(Texture2D, DepthAtlas)
 		SHADER_PARAMETER_TEXTURE(Texture2D, CurrentOpacityAtlas)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
@@ -388,7 +388,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
-	SHADER_PARAMETER_TEXTURE(Texture2D, DepthBufferAtlas)
+	SHADER_PARAMETER_TEXTURE(Texture2D, DepthAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, CurrentOpacityAtlas)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 	SHADER_PARAMETER_ARRAY(FVector4, RadiosityConeDirections, [MaxRadiosityConeDirections])
@@ -416,7 +416,7 @@ void SetupTraceFromTexelParameters(
 
 	// Trace from this frame's cards
 	TraceFromTexelParameters.NormalAtlas = LumenSceneData.NormalAtlas->GetRenderTargetItem().ShaderResourceTexture;
-	TraceFromTexelParameters.DepthBufferAtlas = LumenSceneData.DepthBufferAtlas->GetRenderTargetItem().ShaderResourceTexture;
+	TraceFromTexelParameters.DepthAtlas = LumenSceneData.DepthAtlas->GetRenderTargetItem().ShaderResourceTexture;
 	TraceFromTexelParameters.CurrentOpacityAtlas = LumenSceneData.OpacityAtlas->GetRenderTargetItem().ShaderResourceTexture;
 
 	TraceFromTexelParameters.CardBuffer = LumenSceneData.CardBuffer.SRV;
@@ -598,7 +598,7 @@ void RenderRadiosityComputeScatter(
 
 		FRadiosityMarkUsedProbesData MarkUsedProbesData;
 		MarkUsedProbesData.Parameters.View = View.ViewUniformBuffer;
-		MarkUsedProbesData.Parameters.DepthBufferAtlas = LumenSceneData.DepthBufferAtlas->GetRenderTargetItem().ShaderResourceTexture;
+		MarkUsedProbesData.Parameters.DepthAtlas = LumenSceneData.DepthAtlas->GetRenderTargetItem().ShaderResourceTexture;
 		MarkUsedProbesData.Parameters.CurrentOpacityAtlas = LumenSceneData.OpacityAtlas->GetRenderTargetItem().ShaderResourceTexture;
 		MarkUsedProbesData.Parameters.CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
 		MarkUsedProbesData.Parameters.CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));

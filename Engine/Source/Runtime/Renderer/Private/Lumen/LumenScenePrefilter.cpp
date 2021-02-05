@@ -212,6 +212,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef DepthBufferAtlas,
 	const TArray<uint32, SceneRenderingAllocator>& CardIdsToRender,
 	const FViewInfo& View)
 {
@@ -247,7 +248,6 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 
 	FRDGTextureRef OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	FRDGTextureRef DilatedDepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
-	FRDGTextureRef DepthBufferAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthBufferAtlas);
 	FRDGTextureRef UndilatedDepthAtlas = GraphBuilder.CreateTexture(DilatedDepthAtlas->Desc, TEXT("UndilatedDepthAtlas"));
 
 	FScene* LocalScene = Scene;

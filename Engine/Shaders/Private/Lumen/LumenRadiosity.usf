@@ -143,7 +143,7 @@ void TraceBlocksIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	RWIndirectArgs[2] = 1;
 }
 
-Texture2D DepthBufferAtlas;
+Texture2D DepthAtlas;
 Texture2D CurrentOpacityAtlas;
 Buffer<uint4> CardTraceBlockData;
 
@@ -185,7 +185,7 @@ void MarkRadianceProbesUsedByRadiosityCS(
 
 			if (Opacity > 0)
 			{
-				float Depth = Texture2DSampleLevel(DepthBufferAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+				float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
 				float3 LocalPosition;
 				LocalPosition.xy = (AtlasUV - CardData.LocalPositionToAtlasUVBias) / CardData.LocalPositionToAtlasUVScale;
@@ -218,7 +218,7 @@ float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex,
 
 	if (Opacity > 0)
 	{
-		float Depth = Texture2DSampleLevel(DepthBufferAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+		float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
 		float3 LocalPosition;
 		LocalPosition.xy = (AtlasUV - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
@@ -318,7 +318,7 @@ void LumenCardRadiosityTraceBlocksCS(
 
 			if (Opacity > 0)
 			{
-				float Depth = Texture2DSampleLevel(DepthBufferAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+				float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
 				float3 LocalPosition;
 				LocalPosition.xy = (AtlasUV - CardData.LocalPositionToAtlasUVBias) / CardData.LocalPositionToAtlasUVScale;
