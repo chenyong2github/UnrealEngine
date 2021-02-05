@@ -65,5 +65,3 @@ private:
 	 */
 	static uint64 CallsPerSecondBenchmark(clockid_t BenchClockId, const char * BenchClockIdName);
 };
-
-typedef FUnixTime FPlatformTime;

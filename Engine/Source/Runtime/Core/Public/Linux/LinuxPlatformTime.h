@@ -3,3 +3,5 @@
 #pragma once
 
 #include "Unix/UnixPlatformTime.h"
+
+typedef FUnixTime FPlatformTime;
