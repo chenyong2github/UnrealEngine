@@ -341,6 +341,7 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 		else if (ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View))
 		{
 			DiffuseIndirectMethod = EDiffuseIndirectMethod::SSGI;
+			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
 		}
 		else if (ShouldRenderRayTracingGlobalIllumination(View))
 		{
