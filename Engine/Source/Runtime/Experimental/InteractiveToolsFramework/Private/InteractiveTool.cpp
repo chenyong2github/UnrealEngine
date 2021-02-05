@@ -232,6 +232,24 @@ bool UInteractiveTool::CanAccept() const
 }
 
 
+void UInteractiveTool::UpdateAcceptWarnings(EAcceptWarning Warning)
+{
+	switch (Warning)
+	{
+	case EAcceptWarning::NoWarning:
+		// clear warning
+		GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
+		break;
+	case EAcceptWarning::EmptyForbidden:
+		GetToolManager()->DisplayMessage(LOCTEXT("CannotCreateEmptyMesh", "WARNING: Tool doesn't allow creation of an empty mesh."),
+			EToolMessageLevel::UserWarning);
+		break;
+	default:
+		check(false);
+	}
+}
+
+
 void UInteractiveTool::Tick(float DeltaTime)
 {
 	for (auto& Object : ToolPropertyObjects)

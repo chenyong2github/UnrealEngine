@@ -95,6 +95,17 @@ public:
 
 
 	/**
+	 * @return true if current PreviewMesh result is valid (no update actively being computed) and that mesh has at least one triangle
+	 */
+	bool HaveValidNonEmptyResult() const { return bResultValid && PreviewMesh->GetMesh() && PreviewMesh->GetMesh()->TriangleCount() > 0; }
+
+	/**
+	 * @return true if current PreviewMesh result is valid (no update actively being computed) but that mesh has no triangles
+	 */
+	bool HaveEmptyResult() const { return bResultValid && PreviewMesh->GetMesh() && PreviewMesh->GetMesh()->TriangleCount() == 0; }
+
+
+	/**
 	 * Read back a copy of current preview mesh.
 	 * @param bOnlyIfValid if true, then only create mesh copy if HaveValidResult() == true
 	 * @return true if MeshOut was initialized

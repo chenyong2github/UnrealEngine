@@ -99,6 +99,7 @@ void UVoxelCSGMeshesTool::Setup()
 	Preview->Setup(this->TargetWorld, this);
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute) {
 		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
+		UpdateAcceptWarnings(Compute->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
 	});
 
 	CreateLowQualityPreview();
@@ -158,7 +159,7 @@ void UVoxelCSGMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 bool UVoxelCSGMeshesTool::CanAccept() const
 {
-	return Super::CanAccept() && Preview->HaveValidResult();
+	return Super::CanAccept() && Preview->HaveValidNonEmptyResult();
 }
 
 void UVoxelCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)

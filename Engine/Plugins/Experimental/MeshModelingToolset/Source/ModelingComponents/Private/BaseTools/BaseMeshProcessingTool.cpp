@@ -292,7 +292,7 @@ bool UBaseMeshProcessingTool::HasAccept() const
 
 bool UBaseMeshProcessingTool::CanAccept() const
 {
-	return Super::CanAccept() && bResultValid;
+	return Super::CanAccept() && bResultValid && Preview->HaveValidNonEmptyResult();
 }
 
 

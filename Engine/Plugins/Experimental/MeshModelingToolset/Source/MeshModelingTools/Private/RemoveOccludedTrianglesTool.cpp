@@ -18,6 +18,8 @@
 
 #include "AssetGenerationUtil.h"
 
+#include "Misc/MessageDialog.h"
+
 
 #if WITH_EDITOR
 #include "Misc/ScopedSlowTask.h"
@@ -490,11 +492,45 @@ void URemoveOccludedTrianglesTool::GenerateAsset(const TArray<FDynamicMeshOpResu
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveOccludedTrianglesToolTransactionName", "Remove Occluded Triangles"));
 
 	check(Results.Num() == Previews.Num());
+
+	// check if we entirely remove away any meshes
+	bool bWantDestroy = false;
+	for (int32 PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
+	{
+		bWantDestroy = bWantDestroy || (Results[PreviewIdx].Mesh.Get()->TriangleCount() == 0);
+	}
+	// if so ask user what to do
+	if (bWantDestroy)
+	{
+		FText Title = LOCTEXT("RemoveOccludedDestroyTitle", "Delete mesh components?");
+		EAppReturnType::Type Ret = FMessageDialog::Open(EAppMsgType::YesNo,
+			LOCTEXT("RemoveOccludedDestroyQuestion", "Jacketing has removed all triangles from some meshes.  Actually destroy these mesh components?"), &Title);
+		if (Ret == EAppReturnType::No)
+		{
+			bWantDestroy = false;
+		}
+	}
 	
 	for (int32 PreviewIdx = 0; PreviewIdx < Previews.Num(); PreviewIdx++)
 	{
 		check(Results[PreviewIdx].Mesh.Get() != nullptr);
 		int ComponentIdx = PreviewToTargetIdx[PreviewIdx];
+
+		if (Results[PreviewIdx].Mesh.Get()->TriangleCount() == 0)
+		{
+			if (bWantDestroy)
+			{
+				for (int TargetIdx = 0; TargetIdx < ComponentTargets.Num(); TargetIdx++)
+				{
+					if (TargetToPreviewIdx[TargetIdx] == PreviewIdx)
+					{
+						ComponentTargets[TargetIdx]->GetOwnerComponent()->DestroyComponent();
+					}
+				}
+			}
+			continue;
+		}
+
 		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &PreviewIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;

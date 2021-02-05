@@ -114,10 +114,11 @@ void UPolygonOnMeshTool::Setup()
 		}
 	);
 	Preview->OnMeshUpdated.AddLambda(
-		[this](const UMeshOpPreviewWithBackgroundCompute*)
+		[this](const UMeshOpPreviewWithBackgroundCompute* UpdatedPreview)
 		{
 			GetToolManager()->PostInvalidation();
 			UpdateVisualization();
+			UpdateAcceptWarnings(UpdatedPreview->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
 		}
 	);
 
@@ -397,7 +398,7 @@ void UPolygonOnMeshTool::CompleteDrawPolygon()
 
 bool UPolygonOnMeshTool::CanAccept() const
 {
-	return Super::CanAccept() && Preview != nullptr && Preview->HaveValidResult();
+	return Super::CanAccept() && Preview != nullptr && Preview->HaveValidNonEmptyResult();
 }
 
 

@@ -100,7 +100,7 @@ void UDrawAndRevolveTool::OnBackspacePress()
 
 bool UDrawAndRevolveTool::CanAccept() const
 {
-	return Preview != nullptr && Preview->HaveValidResult();
+	return Preview != nullptr && Preview->HaveValidNonEmptyResult();
 }
 
 void UDrawAndRevolveTool::Setup()
@@ -251,6 +251,13 @@ void UDrawAndRevolveTool::StartPreview()
 	Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
+
+	Preview->OnMeshUpdated.AddLambda(
+		[this](const UMeshOpPreviewWithBackgroundCompute* UpdatedPreview)
+		{
+			UpdateAcceptWarnings(UpdatedPreview->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
+		}
+	);
 
 	Preview->SetVisibility(true);
 	Preview->InvalidateResult();

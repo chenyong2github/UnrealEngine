@@ -103,6 +103,7 @@ void UMergeMeshesTool::Setup()
 	Preview->Setup(this->TargetWorld, this);
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute) {
 		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
+		UpdateAcceptWarnings(Compute->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
 	});
 
 	CreateLowQualityPreview(); // update the preview with a low-quality result
@@ -159,7 +160,7 @@ void UMergeMeshesTool::OnTick(float DeltaTime)
 
 bool UMergeMeshesTool::CanAccept() const
 {
-	return Super::CanAccept() && Preview->HaveValidResult();
+	return Super::CanAccept() && Preview->HaveValidNonEmptyResult();
 }
 
 void UMergeMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)

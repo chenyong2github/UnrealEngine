@@ -88,6 +88,12 @@ void UBaseCreateFromSelectedTool::Setup()
 	Preview->Setup(this->TargetWorld, this);
 
 	SetPreviewCallbacks();
+	Preview->OnMeshUpdated.AddLambda(
+		[this](const UMeshOpPreviewWithBackgroundCompute* UpdatedPreview)
+		{
+			UpdateAcceptWarnings(UpdatedPreview->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
+		}
+	);
 
 	SetTransformGizmos();
 
@@ -345,7 +351,7 @@ void UBaseCreateFromSelectedTool::Shutdown(EToolShutdownType ShutdownType)
 
 bool UBaseCreateFromSelectedTool::CanAccept() const
 {
-	return Super::CanAccept() && Preview->HaveValidResult();
+	return Super::CanAccept() && Preview->HaveValidNonEmptyResult();
 }
 
 

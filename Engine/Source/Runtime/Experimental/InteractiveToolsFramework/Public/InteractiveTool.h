@@ -410,6 +410,22 @@ protected:
 	virtual bool SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled);
 
 
+	enum EAcceptWarning
+	{
+		NoWarning,
+		EmptyForbidden
+	};
+
+	/**
+	 * Helper function to update a standard warning when we need to explain why "Accept" is disabled
+	 * Note that calling this base implementation will clear any unrelated warnings.
+	 * Note that this function is not automatically called by the base class.
+	 *
+	 * @param Warning Reason that tool cannot be accepted (or EAcceptWarning::NoWarning if no warning need be displayed)
+	 */
+	virtual void UpdateAcceptWarnings(EAcceptWarning Warning);
+
+
 	//
 	// Action support/system
 	//
