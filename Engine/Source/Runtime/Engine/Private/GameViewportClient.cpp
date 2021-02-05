@@ -179,13 +179,12 @@ void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneV
 			}
 
 			FVector ViewOrigin = SceneView->ViewMatrices.GetViewOrigin();
-			FVector ForwardVec = SceneView->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
-			FVector UpVec = SceneView->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(1);
 			FVector Diff = ViewOrigin - CsvData.PrevViewOrigin;
 			double CurrentTime = FPlatformTime::Seconds();
 			double DeltaT = CurrentTime - CsvData.PrevTime;
 			FVector Velocity = Diff / float(DeltaT);
 			float CameraSpeed = Velocity.Size();
+			float CameraSpeed2D = Velocity.Size2D();
 			CsvData.PrevViewOrigin = ViewOrigin;
 			CsvData.LastFrame = GFrameNumber;
 			CsvData.PrevTime = CurrentTime;
@@ -193,13 +192,19 @@ void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneV
 			FCsvProfiler::RecordCustomStat("PosX", CsvData.CategoryIndex, ViewOrigin.X, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("PosY", CsvData.CategoryIndex, ViewOrigin.Y, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("PosZ", CsvData.CategoryIndex, ViewOrigin.Z, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("Speed", CsvData.CategoryIndex, CameraSpeed, ECsvCustomStatOp::Set);
+			FCsvProfiler::RecordCustomStat("Speed2D", CsvData.CategoryIndex, CameraSpeed2D, ECsvCustomStatOp::Set);
+
+#if !UE_BUILD_SHIPPING
+			FVector ForwardVec = SceneView->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
+			FVector UpVec = SceneView->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(1);
 			FCsvProfiler::RecordCustomStat("ForwardX", CsvData.CategoryIndex, ForwardVec.X, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("ForwardY", CsvData.CategoryIndex, ForwardVec.Y, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("ForwardZ", CsvData.CategoryIndex, ForwardVec.Z, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("UpX", CsvData.CategoryIndex, UpVec.X, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("UpY", CsvData.CategoryIndex, UpVec.Y, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("UpZ", CsvData.CategoryIndex, UpVec.Z, ECsvCustomStatOp::Set);
-			FCsvProfiler::RecordCustomStat("Speed", CsvData.CategoryIndex, CameraSpeed, ECsvCustomStatOp::Set);
+#endif // !UE_BUILD_SHIPPING
 		}
 	}
 #endif
