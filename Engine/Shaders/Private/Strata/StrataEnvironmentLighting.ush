@@ -88,6 +88,8 @@ float4 StrataEnvironmentLighting(
 			SpecularSkyLighting += BSDFThroughput * SpecularLuminance * StrataEnvLight.SpecularWeight * View.SkyLightColor.rgb * AmbientOcclusion * 
 				(bIsTopLayer ? TopLayerSpecularContributionFactor : 1.0f);
 		}
+
+#if STRATA_FASTPATH==0
 		if (BSDF_GETHASHAZINESS(BSDF))
 		{
 			float SkyAverageBrightness = 1.0f;
@@ -99,6 +101,7 @@ float4 StrataEnvironmentLighting(
 			// And we also try to make the transition smooth using Haziness
 			SSRReductionFactor -= bIsTopLayer ? dot(BSDFThroughput, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f)) * StrataEnvLight.SSRReduction : 0.0f;
 		}
+#endif 
 
 		if (bIsTopLayer)
 		{

@@ -1434,6 +1434,17 @@ FStrataPixelHeader UnpackFastPathStrataHeaderIn(ByteAddressBuffer StrataBuffer, 
 	return Out;
 }
 
+bool IsStrataFastPathCompatible(in FStrataBSDF BSDF)
+{
+	return
+		!BSDF_GETANISOTROPY(BSDF) &&
+		!BSDF_GETHASSCATTERING(BSDF) &&
+		!BSDF_GETHASSSSPROFILE(BSDF) &&
+		!BSDF_GETHASHAZINESS(BSDF) &&
+		!BSDF_GETHASTHINFILM(BSDF) &&
+		!BSDF_GETHASEDGECOLOR(BSDF);
+}
+
 void UnpackFastPathSlabBSDF(inout FStrataBSDF OutBSDF, uint2 PackedData01)
 {
 	float4 Data0 = UnpackColorGamma2ToLinearAlphaLinear(PackedData01.x);
@@ -1471,6 +1482,7 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FSt
 	BSDF_SETHASSSSPROFILE(OutBSDF, 0);
 	BSDF_SETHASHAZINESS(OutBSDF, 0);
 	BSDF_SETHASTHINFILM(OutBSDF, 0);
+	BSDF_SETHASEDGECOLOR(OutBSDF, 0);
 
 	return OutBSDF;
 }

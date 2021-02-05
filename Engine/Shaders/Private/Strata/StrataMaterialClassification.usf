@@ -63,12 +63,7 @@ void ComputePostProcessBSDFData(
 			TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, F90, SafeRoughness, saturate(ContextNoLight.NoV));
 		}
 
-		Classification.bIsSimple =
-			Classification.bIsSimple &&
-			!BSDF_GETANISOTROPY(BSDF) &&
-			!BSDF_GETHASSCATTERING(BSDF) &&
-			!BSDF_GETHASSSSPROFILE(BSDF) &&
-			!BSDF_GETHASHAZINESS(BSDF);
+		Classification.bIsSimple = Classification.bIsSimple && IsStrataFastPathCompatible(BSDF);
 
 		// Select the first/toppest layer with subsurface scattering
 		if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && !SSS.bHasSubsurface)

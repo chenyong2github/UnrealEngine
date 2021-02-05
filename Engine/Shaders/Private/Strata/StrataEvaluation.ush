@@ -12,6 +12,12 @@
 
 
 
+#ifndef STRATA_FASTPATH 
+#define STRATA_FASTPATH 0
+#endif
+
+
+
 // STRATA_TODO put in a common file
 // Point lobe in off-specular peak direction
 float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
@@ -199,6 +205,9 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			float HazeD = 0;
 			float HazeVis = 0;
 			float HazePDF = 0;
+
+#if STRATA_FASTPATH==0
+			BRANCH
 			if (bHasAnisotropy)
 			{
 				// Generalized microfacet specular
@@ -218,6 +227,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 				}
 			}
 			else
+#endif
 			{
 				// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
 				const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughnessX);
@@ -227,6 +237,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 				Vis = Vis_SmithJointApprox(a2, BSDFContext.Context.NoV, BSDFContext.SatNoL);
 				PDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2);
 
+#if STRATA_FASTPATH==0
 				if (bHaziness)
 				{
 					const float a2Haze = BSDFContext.a2OverrideHazy > 0 ? BSDFContext.a2OverrideHazy : Pow4(ComputeHazyLobeRoughness(SafeRoughnessX, SLAB_HAZINESS(BSDFContext.BSDF)));
@@ -234,9 +245,11 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 					HazeVis = Vis_SmithJointApprox(a2Haze, BSDFContext.Context.NoV, BSDFContext.SatNoL);
 					HazePDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2Haze);
 				}
+#endif
 			}
 
 			float3 F = 0;
+#if STRATA_FASTPATH==0
 			const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
 			BRANCH
 			if (!bHasThinFilm)
@@ -244,6 +257,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 				F = F_Schlick(F0, F90, BSDFContext.Context.VoH);
 			}
 			else
+#endif
 			{
 				float ThinFilmIOR		= SLAB_THINFILM_IOR(BSDFContext.BSDF);
 				float ThinFilmThickness = SLAB_THINFILM_THICKNESS(BSDFContext.BSDF);
@@ -265,6 +279,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			break;
 		}
 
+#if STRATA_FASTPATH==0
 		case STRATA_BSDF_TYPE_SHEEN:
 		{
 			const float3 F0  = SHEEN_BASECOLOR(BSDFContext.BSDF);
@@ -309,6 +324,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 		//case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 		//Nothing to do in this case because these BSDF are evaluated in other specialised passes.
 		//break;
+#endif
 	}
 
 	return Sample;
@@ -461,6 +477,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				const float3 F90 = ComputeF90(F0, SLAB_EDGECOLOR(BSDFContext.BSDF), Metallic);
 
 				float3 FresnelWeight = 1;
+#if STRATA_FASTPATH==0
 				const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
 				if (bHasThinFilm)
 				{
@@ -469,9 +486,11 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					FresnelWeight = F_ThinFilm(BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
 					F0 = 1.f;
 				}
+#endif
 
 				float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 
+#if STRATA_FASTPATH==0
 				const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
 				if (bHasAnisotropy)
 				{
@@ -487,6 +506,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
 					BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
 				}
+#endif
 
 				float3 EvalEnvBRDF = FresnelWeight * EnvBRDFApprox(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
 
@@ -494,6 +514,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;
 				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughnessX;
 
+#if STRATA_FASTPATH==0
 				const bool bHasHaziness = BSDF_GETHASHAZINESS(BSDFContext.BSDF);
 				if (bHasHaziness)
 				{
@@ -510,10 +531,12 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					StrataEnvLightResult.SpecularHazeWeight = lerp(0.0f, SPECULAR_HAZINESS_WEIGHT, HazinessFadeIn) * EnvBRDFApprox(F0, F90, SafeRoughnessHaze, BSDFContext.SatNoV);
 					StrataEnvLightResult.SpecularHazeSafeRoughness = SafeRoughnessHaze;
 				}
+#endif
 			}
 			break;
 		}
 
+#if STRATA_FASTPATH==0
 		case STRATA_BSDF_TYPE_SHEEN:
 		{
 			StrataEnvLightResult.DiffuseColor = SHEEN_BASECOLOR(BSDFContext.BSDF);;
@@ -553,6 +576,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 		//case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 		//Nothing to do in this case because these BSDF are evaluated in other specialised passes.
 		//break;
+#endif
 	}
 
 	return StrataEnvLightResult;
