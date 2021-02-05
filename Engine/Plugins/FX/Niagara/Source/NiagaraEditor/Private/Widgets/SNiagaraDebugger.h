@@ -12,6 +12,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraDebuggerCommon.h"
 #include "Niagara/Private/NiagaraDebugHud.h"
+#include "IMessageContext.h"
 
 class ISessionManager;
 class FMessageEndpoint;
