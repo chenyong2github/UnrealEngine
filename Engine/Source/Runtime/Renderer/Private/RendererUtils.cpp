@@ -2,6 +2,7 @@
 
 #include "RendererUtils.h"
 #include "RenderTargetPool.h"
+#include "RHIDefinitions.h"
 #include "VisualizeTexture.h"
 
 class FRTWriteMaskDecodeCS : public FGlobalShader
@@ -162,4 +163,28 @@ void FRenderTargetWriteMask::Decode(
 			FMath::DivideAndRoundUp((uint32)RTWriteMaskDims.Y, FRTWriteMaskDecodeCS::ThreadGroupSizeY),
 			1);
 	});
+}
+
+FDepthBounds::FDepthBoundsValues FDepthBounds::CalculateNearFarDepthExcludingSky()
+{
+	FDepthBounds::FDepthBoundsValues Values;
+
+	if (bool(ERHIZBuffer::IsInverted))
+	{
+		//const float SmallestFloatAbove0 = 1.1754943508e-38;		// 32bit float depth
+		const float SmallestFloatAbove0 = 1.0f / 16777215.0f;		// 24bit norm depth
+
+		Values.MinDepth = SmallestFloatAbove0;
+		Values.MaxDepth = float(ERHIZBuffer::NearPlane);
+	}
+	else
+	{
+		//const float SmallestFloatBelow1 = 0.9999999404;			// 32bit float depth
+		const float SmallestFloatBelow1 = 16777214.0f / 16777215.0f;// 24bit norm depth
+
+		Values.MinDepth = float(ERHIZBuffer::NearPlane);
+		Values.MaxDepth = SmallestFloatBelow1;
+	}
+
+	return Values;
 }

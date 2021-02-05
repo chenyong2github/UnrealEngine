@@ -16,6 +16,7 @@
 #include "SceneRenderTargetParameters.h"
 #include "VolumeLighting.h"
 #include "VolumetricCloudRendering.h"
+#include "RendererUtils.h"
 
 
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -1724,20 +1725,11 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 
 			if (!bRenderSkyPixel && GSupportsDepthBoundsTest)
 			{
-				// When we do not render the sky in the sky pass and depth bound test is supported, we take advantage of it in order to skip the processing of sky pixels.
+				// We do not want to process sky pixels so we take advantage of depth bound test when available to skip launching pointless GPU wavefront/work.
 				GraphicsPSOInit.bDepthBounds = true;
-				if (bool(ERHIZBuffer::IsInverted))
-				{
-					//const float SmallestFloatAbove0 = 1.1754943508e-38;		// 32bit float depth
-					const float SmallestFloatAbove0 = 1.0f / 16777215.0f;		// 24bit norm depth
-					RHICmdListLambda.SetDepthBounds(SmallestFloatAbove0, 1.0f);	// Tested on dx12 PC
-				}
-				else
-				{
-					//const float SmallestFloatBelow1 = 0.9999999404;			// 32bit float depth
-					const float SmallestFloatBelow1 = 16777214.0f / 16777215.0f;// 24bit norm depth
-					RHICmdListLambda.SetDepthBounds(0.0f, SmallestFloatBelow1);	// Untested
-				}
+
+				FDepthBounds::FDepthBoundsValues Values = FDepthBounds::CalculateNearFarDepthExcludingSky();
+				RHICmdListLambda.SetDepthBounds(Values.MinDepth, Values.MaxDepth);
 			}
 
 			SetGraphicsPipelineState(RHICmdListLambda, GraphicsPSOInit);

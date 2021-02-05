@@ -23,4 +23,17 @@ public:
 		FRDGTextureRef& OutRTWriteMask,
 		ETextureCreateFlags RTWriteMaskFastVRamConfig,
 		const TCHAR* RTWriteMaskDebugName);
-};	
+};
+
+class RENDERER_API FDepthBounds
+{
+public:
+
+	struct FDepthBoundsValues
+	{
+		float MinDepth;
+		float MaxDepth;
+	};
+
+	static FDepthBoundsValues CalculateNearFarDepthExcludingSky();
+};

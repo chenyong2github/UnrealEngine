@@ -22,6 +22,7 @@
 #include "Math/Halton.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "Strata/Strata.h"
+#include "RendererUtils.h"
 
 // Must match EDynamicGlobalIlluminationMethod
 // Note: Default for new projects set by GameProjectUtils
@@ -1291,6 +1292,15 @@ static void AddSkyReflectionPass(
 			{
 				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 			}
+		}
+
+		if (GSupportsDepthBoundsTest)
+		{
+			// We do not want to process sky pixels so we take advantage of depth bound test when available to skip launching pointless GPU wavefront/work.
+			GraphicsPSOInit.bDepthBounds = true;
+
+			FDepthBounds::FDepthBoundsValues Values = FDepthBounds::CalculateNearFarDepthExcludingSky();
+			InRHICmdList.SetDepthBounds(Values.MinDepth, Values.MaxDepth);
 		}
 
 		SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
