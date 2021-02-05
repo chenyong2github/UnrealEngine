@@ -199,7 +199,7 @@ void FPBDEvolution::PreIterationUpdate(
 		VelocityField.UpdateForces(MParticles, Dt);  // Update force per surface element
 	}
 
-	TPerParticleDampVelocity<FReal, 3> DampVelocityRule(MGroupDampings[ParticleGroupId]);
+	FPerParticleDampVelocity DampVelocityRule(MGroupDampings[ParticleGroupId]);
 	if (bDampVelocityRule)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityDampUpdateState);
@@ -357,7 +357,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 	MCollisionContacts.Reset();
 	MCollisionNormals.Reset();
 
-	TPerParticlePBDCollisionConstraint<FReal, 3, EGeometryParticlesSimType::Other> CollisionRule(
+	TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other> CollisionRule(
 		MCollisionParticlesActiveView,
 		MCollided,
 		MParticleGroupIds,
@@ -365,7 +365,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 		MGroupCollisionThicknesses,
 		MGroupCoefficientOfFrictions);
 
-	TPerParticlePBDCCDCollisionConstraint<FReal, 3, EGeometryParticlesSimType::Other> CCDCollisionRule(
+	TPerParticlePBDCCDCollisionConstraint<EGeometryParticlesSimType::Other> CCDCollisionRule(
 		MCollisionParticlesActiveView,
 		MCollisionTransforms,
 		MCollided,
