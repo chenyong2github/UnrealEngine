@@ -2,6 +2,7 @@
 
 #include "DXCWrapper.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/FileManager.h"
 #include "Templates/RefCounting.h"
 #include "Misc/Paths.h"
 #include "Hash/CityHash.h"
