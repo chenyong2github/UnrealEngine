@@ -371,6 +371,14 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category=SoftwareRayTracing, meta=(
 		EditCondition = "bGenerateMeshDistanceFields",
+		ConsoleVariable="r.DistanceFields.DefaultVoxelDensity",
+		ClampMin = ".05", ClampMax = ".4",
+		ToolTip="Determines how the default scale of a mesh converts into distance field voxel dimensions. Changing this will cause all distance fields to be rebuilt.  Large values can consume memory very quickly!  Changing this setting requires restarting the editor.",
+		ConfigRestartRequired=true))
+	float DistanceFieldVoxelDensity;
+
+	UPROPERTY(config, EditAnywhere, Category=SoftwareRayTracing, meta=(
+		EditCondition = "bGenerateMeshDistanceFields",
 		ConsoleVariable="r.DistanceFieldBuild.EightBit",
 		ToolTip="Whether to store mesh distance fields in an 8 bit fixed point format instead of 16 bit floating point.  8 bit uses half the memory, but introduces artifacts for large meshes or thin meshes.  Changing this setting requires restarting the editor.",
 		ConfigRestartRequired=true))
