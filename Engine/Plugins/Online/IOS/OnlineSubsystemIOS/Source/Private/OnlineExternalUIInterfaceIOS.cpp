@@ -81,7 +81,13 @@ bool FOnlineExternalUIIOS::CloseWebURL()
 
 bool FOnlineExternalUIIOS::ShowProfileUI(const FUniqueNetId& Requestor, const FUniqueNetId& Requestee, const FOnProfileUIClosedDelegate& Delegate)
 {
-	return false;
+	if (Delegate.IsBound())
+	{
+		UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("Game Center does not support delegate for notification of profile ui closure."));
+	}
+
+	extern CORE_API bool IOSShowDashboardUI();
+	return IOSShowDashboardUI();
 }
 
 bool FOnlineExternalUIIOS::ShowAccountUpgradeUI(const FUniqueNetId& UniqueId)
