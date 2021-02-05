@@ -2455,7 +2455,7 @@ void FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(bool bDoTaskTh
 		int32 Workers = 0;
 		if(GUseNewTaskBackend)
 		{
-			Workers = TaskGraphImplementationSingleton->GetNumWorkerThreads();
+			Workers = bDoBackgroundThreads ? TaskGraphImplementationSingleton->GetNumWorkerThreads() : GNumForegroundWorkers;
 			StallForTaskThread.Add(Workers);
 		}
 		else
