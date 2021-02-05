@@ -28,6 +28,8 @@
 #include "MaterialSceneTextureId.h"
 #include "VirtualTexturing.h"
 
+#include <atomic>
+
 struct FExpressionInput;
 struct FExtraShaderCompilerSettings;
 class FMaterial;
@@ -2104,6 +2106,11 @@ private:
 	uint32 RenderingThreadCompilingShaderMapId;
 
 	TRefCountPtr<FSharedShaderCompilerEnvironment> RenderingThreadPendingCompilerEnvironment;
+
+	/** 
+	 * Used to prevent submitting the material more than once during CacheMeshDrawCommands unless priority has been increased. 
+	 */
+	mutable std::atomic<int8> RenderingThreadShaderMapSubmittedPriority { -1 };
 
 	/** 
 	 * Game thread tracked shader map, which is ref counted and manages shader map lifetime. 
