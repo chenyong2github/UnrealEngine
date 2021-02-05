@@ -2,6 +2,8 @@
 
 // Port of geometry3cpp ProgressCancel
 
+#include "Templates/Function.h"
+
 #pragma once
 
 
