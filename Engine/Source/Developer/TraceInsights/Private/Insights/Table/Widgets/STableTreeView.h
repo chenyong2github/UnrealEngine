@@ -213,10 +213,16 @@ protected:
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
 
-	bool ApplyFilteringForNode(FTableTreeNodePtr NodePtr);
+	bool ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr);
+
+	bool ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr);
+
+	void MakeSubtreeVisible(FTableTreeNodePtr NodePtr);
 
 	bool SearchBox_IsEnabled() const;
 	void SearchBox_OnTextChanged(const FText& InFilterText);
+
+	FText SearchBox_GetTooltipText() const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Grouping
@@ -362,6 +368,9 @@ protected:
 	void CancelCurrentAsyncOp();
 
 	FReply OnAdvancedFiltersClicked();
+	bool AdvancedFilters_ShouldBeEnabled() const;
+	FText AdvancedFilters_GetTooltipText() const;
+	bool FilterConfigurator_HasFilters() const;
 	void OnAdvancedFiltersChangesCommited();
 	bool ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr);
 	bool virtual ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr) { return true; };

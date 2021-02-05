@@ -170,7 +170,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 					.HintText(LOCTEXT("SearchBox_Hint", "Search"))
 					.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
 					.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("SearchBox_ToolTip", "Type here to search the tree hierarchy by item or group name"))
+					.ToolTipText(this, &STableTreeView::SearchBox_GetTooltipText)
 				]
 
 				+ SHorizontalBox::Slot()
@@ -180,8 +180,9 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("AdvancedFiltersBtn_Text", "Advanced Filters"))
-					.ToolTipText(LOCTEXT("AdvancedFiltersBtn_ToolTip", "Opens the filter configurator window."))
+					.ToolTipText(this, &STableTreeView::AdvancedFilters_GetTooltipText)
 					.OnClicked(this, &STableTreeView::OnAdvancedFiltersClicked)
+					.IsEnabled(this, &STableTreeView::AdvancedFilters_ShouldBeEnabled)
 				]
 			]
 
@@ -786,7 +787,14 @@ void STableTreeView::ApplyFiltering()
 	Stopwatch.Start();
 
 	// Apply filter to all groups and its children.
-	ApplyFilteringForNode(Root);
+	if (FilterConfigurator_HasFilters())
+	{
+		ApplyAdvancedFiltersForNode(Root);
+	}
+	else
+	{
+		ApplyHierarchicalFilterForNode(Root);
+	}
 
 	FilteredGroupNodes.Reset();
 	const TArray<FBaseTreeNodePtr>& RootChildren = Root->GetFilteredChildren();
@@ -851,12 +859,19 @@ void STableTreeView::ApplyFiltering()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STableTreeView::ApplyFilteringForNode(FTableTreeNodePtr NodePtr)
+bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr)
 {
 	bool bIsNodeVisible = Filters->PassesAllFilters(NodePtr);
 
 	if (NodePtr->IsGroup())
 	{
+		// If a group node passes the filter, all child nodes will be shown
+		if (bIsNodeVisible)
+		{
+			MakeSubtreeVisible(NodePtr);
+			return true;
+		}
+
 		NodePtr->ClearFilteredChildren();
 
 		const TArray<FBaseTreeNodePtr>& GroupChildren = NodePtr->GetChildren();
@@ -870,7 +885,7 @@ bool STableTreeView::ApplyFilteringForNode(FTableTreeNodePtr NodePtr)
 			}
 			// Add a child.
 			const FTableTreeNodePtr& ChildNodePtr = StaticCastSharedPtr<FTableTreeNode>(GroupChildren[Cx]);
-			if (ApplyFilteringForNode(ChildNodePtr))
+			if (ApplyHierarchicalFilterForNode(ChildNodePtr))
 			{
 				NodePtr->AddFilteredChild(ChildNodePtr);
 				NumVisibleChildren++;
@@ -893,10 +908,85 @@ bool STableTreeView::ApplyFilteringForNode(FTableTreeNodePtr NodePtr)
 	}
 	else
 	{
-		bIsNodeVisible &= ApplyAdvancedFilters(NodePtr);
 		NodePtr->SetIsFiltered(!bIsNodeVisible);
 		return bIsNodeVisible;
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr)
+{
+	if (NodePtr->IsGroup())
+	{
+		NodePtr->ClearFilteredChildren();
+
+		const TArray<FBaseTreeNodePtr>& GroupChildren = NodePtr->GetChildren();
+		const int32 NumChildren = GroupChildren.Num();
+		int32 NumVisibleChildren = 0;
+		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
+		{
+			if (bCancelCurrentAsyncOp)
+			{
+				break;
+			}
+			// Add a child.
+			const FTableTreeNodePtr& ChildNodePtr = StaticCastSharedPtr<FTableTreeNode>(GroupChildren[Cx]);
+			if (ApplyAdvancedFiltersForNode(ChildNodePtr))
+			{
+				NodePtr->AddFilteredChild(ChildNodePtr);
+				NumVisibleChildren++;
+			}
+		}
+
+		const bool bIsGroupNodeVisible = NumVisibleChildren > 0;
+
+		if (bIsGroupNodeVisible)
+		{
+			// Add a group.
+			NodePtr->SetExpansion(true);
+		}
+		else
+		{
+			NodePtr->SetExpansion(false);
+		}
+
+		return bIsGroupNodeVisible;
+	}
+	else
+	{
+		bool bIsNodeVisible = ApplyAdvancedFilters(NodePtr);
+		NodePtr->SetIsFiltered(!bIsNodeVisible);
+		return bIsNodeVisible;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::MakeSubtreeVisible(FTableTreeNodePtr NodePtr)
+{
+	if (NodePtr->IsGroup())
+	{
+		NodePtr->ClearFilteredChildren();
+
+		const TArray<FBaseTreeNodePtr>& GroupChildren = NodePtr->GetChildren();
+		const int32 NumChildren = GroupChildren.Num();
+		int32 NumVisibleChildren = 0;
+		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
+		{
+			if (bCancelCurrentAsyncOp)
+			{
+				break;
+			}
+
+			const FTableTreeNodePtr& ChildNodePtr = StaticCastSharedPtr<FTableTreeNode>(GroupChildren[Cx]);
+			MakeSubtreeVisible(ChildNodePtr);
+			NodePtr->AddFilteredChild(ChildNodePtr);
+			NodePtr->SetExpansion(true);
+		}
+	}
+
+	NodePtr->SetIsFiltered(false);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1054,7 +1144,19 @@ void STableTreeView::SearchBox_OnTextChanged(const FText& InFilterText)
 
 bool STableTreeView::SearchBox_IsEnabled() const
 {
-	return TableTreeNodes.Num() > 0;
+	return TableTreeNodes.Num() > 0 && !FilterConfigurator_HasFilters();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STableTreeView::SearchBox_GetTooltipText() const
+{
+	if (SearchBox_IsEnabled())
+	{
+		return LOCTEXT("SearchBox_ToolTip", "Type here to search the tree hierarchy by item or group name");
+	}
+
+	return LOCTEXT("SearchBox_Disabled_ToolTip", "Searching the tree hierarchy is disabled when advanced filters are set or when there are no entries in the table");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2595,6 +2697,32 @@ void STableTreeView::OnAdvancedFiltersChangesCommited()
 	{
 		CancelCurrentAsyncOp();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::AdvancedFilters_ShouldBeEnabled() const
+{
+	return TextFilter->GetRawFilterText().IsEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STableTreeView::AdvancedFilters_GetTooltipText() const
+{
+	if (AdvancedFilters_ShouldBeEnabled())
+	{
+		return LOCTEXT("AdvancedFiltersBtn_ToolTip", "Opens the filter configurator window.");
+	}
+	
+	return LOCTEXT("AdvancedFiltersBtn_Disabled_ToolTip", "Advanced filters cannot be added when filters are already applied using the search box.");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::FilterConfigurator_HasFilters() const
+{
+	return FilterConfigurator.IsValid() && FilterConfigurator->GetRootNode()->GetChildren().Num() > 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
