@@ -334,8 +334,8 @@ namespace EpicGames.Core
 			if (Input != null)
 			{
 				StdIn.Write(Input, 0, Input.Length);
-				StdIn.Flush();
 			}
+			StdIn.Close();
 		}
 
 		/// <summary>
