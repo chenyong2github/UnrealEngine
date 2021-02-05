@@ -426,6 +426,12 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<ISequencer>& Sequence
 		for (int32 TrajectoryIndex = 0; TrajectoryIndex < TrajectoryKeys.Num(); ++TrajectoryIndex)
 		{
 			const FTrajectoryKey& ThisKey = TrajectoryKeys[TrajectoryIndex];
+
+			if (TransformIndex >= TrackTransforms.Transforms.Num())
+			{
+				continue;
+			}
+
 			FTransform ThisTransform = TrackTransforms.Transforms[TransformIndex];
 
 			if (TrajectoryIndex < TrajectoryKeys.Num()-1)
