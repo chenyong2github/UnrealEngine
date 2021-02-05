@@ -80,7 +80,6 @@ private:
 	TSharedPtr<SButton> CancelButton;
 	TSharedPtr<SButton> CompletedButton;
 
-	TSharedPtr<SWidget> MakeAcceptCancelPanel();
 	TSharedPtr<SWidget> MakeAssetConfigPanel();
 
 	bool bShowRealtimeWarning = false;
@@ -96,4 +95,7 @@ private:
 	void OnAssetSettingsModified();
 	FDelegateHandle AssetSettingsModifiedHandle;
 	void OnShowAssetSettings();
+
+
+	// custom accept/cancel/complete handlers
 };

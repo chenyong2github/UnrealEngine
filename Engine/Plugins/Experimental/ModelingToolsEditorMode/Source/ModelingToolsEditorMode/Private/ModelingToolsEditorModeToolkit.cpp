@@ -103,11 +103,6 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
 				[
-					MakeAcceptCancelPanel()->AsShared()
-				]
-
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
-				[
 					MakeAssetConfigPanel()->AsShared()
 				]
 		];
@@ -152,9 +147,9 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 				.TextStyle( FAppStyle::Get(), "DialogButtonText" )
 				.Text(LOCTEXT("OverlayAccept", "Accept"))
 				.HAlign(HAlign_Center)
-				// .OnClicked(this, &FModelingToolsEditorModeToolkit::On... 
-				// .IsEnabled( this, &FModelingToolsEditorModeToolkit::On... 
-				// .Visibility( this, &FModelingToolsEditorModeToolkit::On... 
+				.OnClicked_Lambda([this]() { GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Accept); return FReply::Handled(); })
+				.IsEnabled_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanAcceptActiveTool(); })
+				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 
 			+SHorizontalBox::Slot()
@@ -166,51 +161,29 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 				.TextStyle( FAppStyle::Get(), "DialogButtonText" )
 				.Text(LOCTEXT("OverlayCancel", "Cancel"))
 				.HAlign(HAlign_Center)
-				// .OnClicked(this, &FModelingToolsEditorModeToolkit::On... 
-				// .IsEnabled( this, &FModelingToolsEditorModeToolkit::On... 
-				// .Visibility( this, &FModelingToolsEditorModeToolkit::On... 
+				.OnClicked_Lambda([this]() { GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Cancel); return FReply::Handled(); })
+				.IsEnabled_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCancelActiveTool(); })
+				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept() ? EVisibility::Visible : EVisibility::Collapsed; })
+			]
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "Button")
+				.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+				.Text(LOCTEXT("OverlayComplete", "Complete"))
+				.HAlign(HAlign_Center)
+				.OnClicked_Lambda([this]() { GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); return FReply::Handled(); })
+				.IsEnabled_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool(); })
+				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 		]	
 	];
 
 }
 
-
-
-
-TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAcceptCancelPanel()
-{
-
-	TSharedPtr<FUICommandList> CommandList = GetToolkitCommands();
-	FName ToolbarCustomizationName = GetEditorMode() ? GetEditorMode()->GetModeInfo().ToolbarCustomizationName : GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
-	FUniformToolBarBuilder RowBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
-	RowBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
-
-	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
-	RowBuilder.AddToolBarButton(Commands.AcceptActiveTool);
-	RowBuilder.AddToolBarButton(Commands.CancelActiveTool);
-	RowBuilder.AddToolBarButton(Commands.CompleteActiveTool);
-
-	TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox)
-	+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(0, 4, 0, 10)
-		[
-			RowBuilder.MakeWidget()
-		];
-
-	TSharedPtr<SExpandableArea> AcceptCancelPanel = SNew(SExpandableArea)
-		.HeaderPadding(FMargin(2.0f))
-		.Padding(FMargin(2.f))
-		.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
-		.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
-		.BodyBorderBackgroundColor(FLinearColor::Transparent)
-		.AreaTitleFont(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
-		.BodyContent()
-		[
-			Content->AsShared()
-		];
-
-	return AcceptCancelPanel;
-}
 
 
 TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
