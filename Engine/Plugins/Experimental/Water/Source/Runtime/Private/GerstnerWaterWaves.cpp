@@ -188,7 +188,7 @@ void UGerstnerWaterWaves::RecomputeWaves(bool bAllowBPScript)
 		}
 	}
 
-	if (UGerstnerWaterWaveSubsystem* GerstnerWaterWaveSubsystem = GEngine->GetEngineSubsystem<UGerstnerWaterWaveSubsystem>())
+	if (UGerstnerWaterWaveSubsystem* GerstnerWaterWaveSubsystem = GEngine ? GEngine->GetEngineSubsystem<UGerstnerWaterWaveSubsystem>() : nullptr)
 	{
 		GerstnerWaterWaveSubsystem->RebuildGPUData();
 	}
