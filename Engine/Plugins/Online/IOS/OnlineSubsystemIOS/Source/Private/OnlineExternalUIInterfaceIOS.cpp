@@ -17,14 +17,14 @@ bool FOnlineExternalUIIOS::ShowLoginUI(const int ControllerIndex, bool bShowOnli
 	
 	check(IdentityInterface != nullptr);
 	
-	if (IdentityInterface->GetLocalGameCenterUser() == nullptr)
+	if ([GKLocalPlayer localPlayer] == nil)
 	{
 		UE_LOG_ONLINE_EXTERNALUI(Log, TEXT("Game Center localPlayer is null."));
 		Delegate.ExecuteIfBound(nullptr, ControllerIndex, FOnlineError(EOnlineErrorResult::Unknown));
 		return true;
 	}
-	
-	if (IdentityInterface->GetLocalGameCenterUser().isAuthenticated)
+
+	if ([GKLocalPlayer localPlayer].isAuthenticated)
 	{
 		Delegate.ExecuteIfBound(IdentityInterface->GetLocalPlayerUniqueId(), ControllerIndex, FOnlineError::Success());
 		return true;

@@ -68,7 +68,7 @@ public:
 	 */
 	GKLocalPlayer* GetLocalGameCenterUser() const
 	{
-		return [GKLocalPlayer localPlayer];
+		return UniqueNetId.IsValid() ? [GKLocalPlayer localPlayer] : nil;
 	}
 };
 
