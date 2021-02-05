@@ -1234,7 +1234,6 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicle(TUniquePtr<Chaos::FSimp
 	WheelTrackDimensions = CalculateWheelLayoutDimensions();
 
 	if (bMechanicalSimEnabled)
-	if (bMechanicalSimEnabled)
 	{
 		Chaos::FSimpleEngineSim EngineSim(&EngineSetup.GetPhysicsEngineConfig());
 		PVehicle->Engine.Add(EngineSim);
