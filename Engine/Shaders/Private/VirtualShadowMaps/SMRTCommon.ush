@@ -1,0 +1,22 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+SMRTTemplateCommon.ush: 
+=============================================================================*/
+
+#pragma once
+
+struct FSMRTSample
+{
+	bool bValid;	
+	float SampleDepth;
+	float ReferenceDepth;
+	float CompareToleranceScale;
+};
+
+struct FSMRTResult
+{
+	bool bValidHit;
+	float OccluderDistance;
+	int SampleMissCount;
+};

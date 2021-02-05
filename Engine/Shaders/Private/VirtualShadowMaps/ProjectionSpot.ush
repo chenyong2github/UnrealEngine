@@ -11,156 +11,213 @@ ProjectionSpot.ush:
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "PageAccessCommon.ush"
 #include "ProjectionCommon.ush"
+#include "SMRTCommon.ush"
 
 #ifndef SMRT_ADAPTIVE_RAY_COUNT
 #define SMRT_ADAPTIVE_RAY_COUNT 0
 #endif
 
-/** Return float multiplier to scale RayStepScreen such that it clip it right at the edge of the screen. */
-float GetStepScreenFactorToClipAtScreenEdge(float2 RayStartScreen, float2 RayStepScreen)
+
+struct FSMRTSingleRayState
 {
-	// Computes the scale down factor for RayStepScreen required to fit on the X and Y axis in order to clip it in the viewport
-	const float RayStepScreenInvFactor = 0.5 * length(RayStepScreen);
-	const float2 S = 1 - max(abs(RayStepScreen + RayStartScreen * RayStepScreenInvFactor) - RayStepScreenInvFactor, 0.0f) / abs(RayStepScreen);
+	int VirtualShadowMapId;
+	float3 RayStartUVz;	
+	float3 RayStepUVz;
+};
 
-	// Rescales RayStepScreen accordingly
-	const float RayStepFactor = min(S.x, S.y) / RayStepScreenInvFactor;
+FSMRTSingleRayState SMRTSingleRayInitialize(
+	int VirtualShadowMapId,
+	float3 RayStart,
+	float3 RayEnd)
+{
+	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
-	return RayStepFactor;
+	float4 RayStartUVz = mul(float4(RayStart + ProjectionData.ShadowPreViewTranslation, 1), ProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
+	float4 RayEndUVz   = mul(float4(RayEnd   + ProjectionData.ShadowPreViewTranslation, 1), ProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
+
+	// NOTE: We assume by construction that ray ends are not behind the light near plane as the warping
+	// due to SMRT ray tests gets severe long before the rays would otherwise clip at that plane.
+	// If clipping is ever necessary, it must be done to the ray endpoints in world space so that lights that
+	// need to walk multiple faces/clipmap levels in lock step can do it consistently.
+
+	RayStartUVz.xyz = RayStartUVz.xyz / RayStartUVz.w;
+	RayEndUVz.xyz = RayEndUVz.xyz / RayEndUVz.w;
+	float3 RayStepUVz = RayEndUVz.xyz - RayStartUVz.xyz;
+
+	FSMRTSingleRayState Result;
+	Result.VirtualShadowMapId = VirtualShadowMapId;
+	Result.RayStartUVz = RayStartUVz.xyz;
+	Result.RayStepUVz = RayStepUVz.xyz;
+	return Result;
 }
 
-bool ShadowRayCastSpotlight(
+FSMRTSample SMRTFindSample(inout FSMRTSingleRayState RayState, float SampleTime)
+{
+	FSMRTSample Sample;
+	Sample.bValid = false;
+	float3 UVz = RayState.RayStartUVz.xyz + RayState.RayStepUVz.xyz * SampleTime;
+
+	if (all(UVz.xy == saturate(UVz.xy)))
+	{
+		FVirtualSmSample SmSample = SampleVirtualSm(RayState.VirtualShadowMapId, UVz.xy);
+		if (SmSample.bValid)
+		{
+			Sample.bValid = true;
+			Sample.SampleDepth = SmSample.Depth;
+			Sample.ReferenceDepth = UVz.z;
+			Sample.CompareToleranceScale = RayState.RayStepUVz.z;
+		}
+	}
+
+	return Sample;
+}
+
+float SMRTComputeOccluderDistance(FSMRTSingleRayState RayState, float SampleDepth)
+{
+	// Avoid keeping around the registers
+	float4x4 ViewToClip = GetVirtualShadowMapProjectionData(RayState.VirtualShadowMapId).ShadowViewToClipMatrix;
+
+	// View space Z delta is a good enough stand-in for euclidean distance for now given our bent ray tests and so on
+	float OccluderViewZ = ViewToClip._43 / (SampleDepth            - ViewToClip._33);
+	float ReceiverViewZ = ViewToClip._43 / (RayState.RayStartUVz.z - ViewToClip._33);		
+	float Result = ReceiverViewZ - OccluderViewZ;	
+	return max(VIRTUAL_SHADOW_MAP_MIN_OCCLUDER_DISTANCE, Result);
+}
+
+// Instantiate SMRTRayCast for FSMRTSingleRayState
+#define SMRT_TEMPLATE_RAY_STRUCT FSMRTSingleRayState
+#include "SMRTTemplate.ush"
+#undef SMRT_TEMPLATE_RAY_STRUCT
+
+
+struct FSMRTTwoCubeFaceRayState
+{
+	FSMRTSingleRayState Face0;
+	FSMRTSingleRayState Face1;
+	bool bSampleInFace0;
+};
+
+FSMRTTwoCubeFaceRayState SMRTTwoCubeFaceRayInitialize(
+	int VirtualShadowMapId0,
+	int VirtualShadowMapId1,
+	float3 RayStart,
+	float3 RayEnd)
+{
+	FSMRTTwoCubeFaceRayState Result;
+	Result.Face0 = SMRTSingleRayInitialize(VirtualShadowMapId0, RayStart, RayEnd);
+	Result.Face1 = SMRTSingleRayInitialize(VirtualShadowMapId1, RayStart, RayEnd);
+	Result.bSampleInFace0 = false;
+	return Result;
+}
+
+FSMRTSample SMRTFindSample(inout FSMRTTwoCubeFaceRayState RayState, float SampleTime)
+{
+	FSMRTSample Sample = SMRTFindSample(RayState.Face0, SampleTime);
+	RayState.bSampleInFace0 = Sample.bValid;
+	if (!RayState.bSampleInFace0)
+	{
+		Sample = SMRTFindSample(RayState.Face1, SampleTime);
+	}
+	return Sample;
+}
+
+float SMRTComputeOccluderDistance(FSMRTTwoCubeFaceRayState RayState, float SampleDepth)
+{
+	if (RayState.bSampleInFace0)
+	{
+		return SMRTComputeOccluderDistance(RayState.Face0, SampleDepth);
+	}
+	else
+	{
+		return SMRTComputeOccluderDistance(RayState.Face1, SampleDepth);
+	}
+}
+
+// Instantiate SMRTRayCast for FSMRTTwoCubeFaceRayState
+#define SMRT_TEMPLATE_RAY_STRUCT FSMRTTwoCubeFaceRayState
+#include "SMRTTemplate.ush"
+#undef SMRT_TEMPLATE_RAY_STRUCT
+
+
+FSMRTResult ShadowRayCastSpotLight(
 	int VirtualShadowMapId,
 	float3 RayStart,
 	float3 RayEnd,
 	int NumSteps,
-	float StepOffset,
-	int DebugOutputType,
-	inout float3 DebugOutput,
-	inout float OccluderDistance)
+	float StepOffset)
+{
+	FSMRTSingleRayState RayState = SMRTSingleRayInitialize(VirtualShadowMapId, RayStart, RayEnd);
+	return SMRTRayCast(RayState, NumSteps, StepOffset);
+}
+
+FSMRTResult ShadowRayCastPointLight(
+	int VirtualShadowMapId,
+	float3 RayStart,
+	float3 RayEnd,
+	int NumSteps,
+	float StepOffset)
 {
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
-	// Spot light
-	float4 RayStartUVz = mul(float4(RayStart + BaseProjectionData.ShadowPreViewTranslation, 1), BaseProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
-	float4 RayEndUVz   = mul(float4(RayEnd   + BaseProjectionData.ShadowPreViewTranslation, 1), BaseProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
-
-	if (RayEndUVz.w <= 0)
+	uint RayStartFace = GetCubeFace(-(RayStart + BaseProjectionData.ShadowPreViewTranslation));
+	uint RayEndFace   = GetCubeFace(-(RayEnd   + BaseProjectionData.ShadowPreViewTranslation));
+		
+	FSMRTResult Result;	
+	if (RayStartFace != RayEndFace)
 	{
-		RayEndUVz = lerp(RayStartUVz, RayEndUVz, -RayStartUVz.w / (RayEndUVz.w - RayStartUVz.w));
+		FSMRTTwoCubeFaceRayState RayState = SMRTTwoCubeFaceRayInitialize(
+			VirtualShadowMapId + RayStartFace,
+			VirtualShadowMapId + RayEndFace,
+			RayStart, RayEnd);
+		Result = SMRTRayCast(RayState, NumSteps, StepOffset);
+	}
+	else
+	{
+		// Fast path: ray stays on a single cube map face (effectively a spot light)
+		FSMRTSingleRayState RayState = SMRTSingleRayInitialize(VirtualShadowMapId + RayEndFace, RayStart, RayEnd);
+		Result = SMRTRayCast(RayState, NumSteps, StepOffset);
 	}
 
-	RayStartUVz.xyz = RayStartUVz.xyz / RayStartUVz.w;
-	RayEndUVz.xyz = RayEndUVz.xyz / RayEndUVz.w;
+	return Result;
+}
 
-	float3 RayStepUVz = RayEndUVz.xyz - RayStartUVz.xyz;
+float3 GetRandomPointLightRayVector(FLightShaderParameters LightParameters, float3 WorldPosition, float2 E)
+{
+	float3 LightDirection = LightParameters.Position - WorldPosition;
+	float RayLength2 = dot(LightDirection, LightDirection);
+	float Radius2 = LightParameters.SourceRadius * LightParameters.SourceRadius;
 
-	/*
-#if 0
-	float ClipToEdgeScale = GetStepScreenFactorToClipAtScreenEdge( RayStartScreen.xy, RayStepScreen.xy );
-	RayStepScreen *= saturate( ClipToEdgeScale );
-#else
-	if( any( abs( RayEndScreen.xy ) > 1 ) )
-	{
-		const float Epsilon = 1e-4;
-		float2 Replacement = RayStepScreen.xy > 0 ? Epsilon : -Epsilon;
-		RayStepScreen.xy = abs( RayStepScreen.xy ) < Epsilon ? Replacement : RayStepScreen.xy;
+	// Clamping this instead of handling sampling point inside light radius properly is good enough for now
+	float SinThetaMax2 = saturate(Radius2 / RayLength2);
 
-		float2 InvDir = rcp( RayStepScreen.xy );
-		float2 Center = -RayStartScreen.xy * InvDir;
-		float2 MinIntersection = Center - abs( InvDir );
-		float2 MaxIntersection = Center + abs( InvDir );
+	float4 DirAndPdf = UniformSampleConeConcentricRobust(E, SinThetaMax2);
+	float CosTheta = DirAndPdf.z;
+	float SinTheta2 = 1.0 - CosTheta * CosTheta;
 
-		float Time0 = max( MinIntersection.x, MinIntersection.y );
-		float Time1 = min( MaxIntersection.x, MaxIntersection.y );
-		RayStepScreen *= Time1;
-	}
-#endif
-*/
+	// Project ray direction to world-space, such that z-axis aligns with LightDirection
+	float RayLength = sqrt(RayLength2);
+	LightDirection *= rcp(RayLength + 1e-4);
+	float3 RayDirection = TangentToWorld(DirAndPdf.xyz, LightDirection);
 
-	// Normalize 2D length
-	const float MaxPenumbra = 0.01;
-	RayStepUVz.xyz *= saturate(MaxPenumbra / length(RayStepUVz.xy));
+	// Clip length to closest intersection with the sphere
+	//RayLength = RayLength * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
 
-	const float CompareScale = RayStepUVz.z * 2.0 / Pow2(NumSteps);
-	const float CompareBias = -CompareScale * (NumSteps - StepOffset + 1.0f);
-
-	float DepthHistory = -1;
-	int SampleMissCount = 0;
-
-	bool bValidHit = false;
-	for (int i = 0; i <= NumSteps; i++)
-	{
-		//SampleTime = Pow2( 1.0 - (float)i / NumSteps ) * RayScale;
-		float SampleTime = Pow2(saturate((-1.0f / NumSteps) * i + 1.0f - (StepOffset - 0.5f) / NumSteps));
-		float3 SampleUVz = RayStartUVz.xyz + RayStepUVz.xyz * SampleTime;
-		FVirtualSmSample SmSample = SampleVirtualSm(VirtualShadowMapId, SampleUVz.xy);
-
-		if (SmSample.bValid)
-		{
-			const float SampleDepth = SmSample.Depth;
-			const float ReferenceDepth = SampleUVz.z;
-			if (DepthHistory < 0)
-			{
-				// First valid sample we've seen. Do a regular depth compare.
-				DepthHistory = SampleDepth;
-				if( SampleDepth > ReferenceDepth )
-				{
-					float ReceiverDistance = length( RayStart + BaseProjectionData.ShadowPreViewTranslation );
-					OccluderDistance = ComputeOccluderDistancePerspective(
-						BaseProjectionData.ShadowViewToClipMatrix,
-						SmSample.Depth,
-						SampleUVz.z,
-						ReceiverDistance);
-
-					bValidHit = true;
-					break;
-				}
-			}
-			else
-			{
-				const float CompareTolerance = abs(CompareScale * i + CompareBias);
-
-				bool bBehind = (SampleDepth - ReferenceDepth) > (2.0f * CompareTolerance);
-				float DepthSample = bBehind ? DepthHistory : SampleDepth;
-				DepthHistory = DepthSample;
-
-				float DepthDiff = ReferenceDepth - DepthSample;
-				bool bHit = abs(DepthDiff + CompareTolerance) < CompareTolerance;
-				if (bHit)
-				{
-					OccluderDistance = length(RayEnd - RayStart) * SampleTime;
-
-					bValidHit = true;
-					break;
-				}
-			}
-		}
-		else
-		{
-			++SampleMissCount;
-		}
-	}
-
-	float OutputDebugSignal = bValidHit ? 0.0f : 1.0f;
-	if (DebugOutputType == 1)	// Invalid page
-	{
-		DebugOutput = lerp(OutputDebugSignal.xxx, lerp(float3(0, 1, 0), float3(1, 0, 1), saturate(SampleMissCount / 4.0f)), 0.75f);
-	}
-
-	return bValidHit;
+	return RayLength * RayDirection;
 }
 
 
-float TraceSpotLight(
+
+float TraceLocalLight(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
+	uint LightType,
 	float4 SvPosition,
 	const float SceneDepth,
 	float3 TranslatedWorldPosition,
 	float RayStartOffset,
 	int RayCount,
 	int SamplesPerRay,
+	float CotMaxRayAngleFromLight,
 	int DebugOutputType,
 	inout float3 DebugOutput,
 	inout float InOutHitDistance)
@@ -171,6 +228,9 @@ float TraceSpotLight(
 	float3 ToLight = Light.Position - WorldPosition;
 	float DistSqr = dot(ToLight, ToLight);
 	float Falloff = rcp(DistSqr + 1);
+
+	float DistToLight = sqrt(DistSqr);
+	float3 L = ToLight / DistToLight;	
 
 	float SinAlphaSqr = saturate(Pow2(Light.SourceRadius) * Falloff);
 	float SinAlpha = sqrt(SinAlphaSqr);
@@ -189,47 +249,92 @@ float TraceSpotLight(
 		for( ; i < uint(RayCount); i++ )
 		{
 			RandomSequence RandSequence;
-			RandomSequence_Initialize( RandSequence, uint2( SvPosition.xy ), i, View.StateFrameIndexMod8, RayCount );
+			RandomSequence_Initialize( RandSequence, uint2( SvPosition.xy ), i, View.StateFrameIndex, RayCount );
 
 #if 1
-			float2 E = RandomSequence_GenerateSample2D(RandSequence);
+			float2 E = RandomSequence_GenerateSample2D( RandSequence );
 #else
-			// NOTE: 1-X to avoid 0/0 issues with UniformSampleDiskConcentric
 			float2 E = float2( SobolIndex( SobolFrame, i << 3 ) ) / 0x10000;
 #endif
 
-			// NOTE: Avoid 0/0 issues with UniformSampleDiskConcentric
-			float2 LightUV = UniformSampleDiskConcentricApprox( E ) * Light.SourceRadius;
+			float3 RayEnd = float3(0, 0, 0);
+			if (LightType == LIGHT_TYPE_SPOT)
+			{
+				float2 LightUV = UniformSampleDiskConcentric( E ) * Light.SourceRadius;
 
-			float3 RayEnd =
-				Light.Position +
-				LightUV.x * Light.Tangent +
-				LightUV.y * cross( Light.Direction, Light.Tangent );
+				RayEnd =
+					Light.Position +
+					LightUV.x * Light.Tangent +
+					LightUV.y * cross( Light.Direction, Light.Tangent );
+			}
+			else
+			{
+				// Point light
+				RayEnd = WorldPosition + GetRandomPointLightRayVector( Light, WorldPosition, E );
+			}
 
 			float3 Dir = normalize( RayEnd - WorldPosition );
 			float3 RayStart = WorldPosition + Dir * RayStartOffset;
 
-			RayEnd = lerp( RayStart, RayEnd, 0.75 );
+			// The further afield our rays go the poorer our approximation is as the "bend" due to our testing
+			// against a shadow map instead of along the ray increases. Thus we avoid going all the way to the light
+			// where the projeciton becomes extreme.
+			RayEnd = lerp( RayStart, RayEnd, 0.75f );
 
-			bool bHit = ShadowRayCastSpotlight(
-				VirtualShadowMapId,
-				RayStart,
-				RayEnd,
-				SamplesPerRay,
-				StepOffset,
-				DebugOutputType,
-				DebugOutput,
-				InOutHitDistance);
+			{
+				// Clip ray to max angle to limit penumbra sizes
+				float CosLambda = dot( L, Dir );
+				float SinLambda = sqrt( 1.0f - CosLambda * CosLambda );
+				float MaxRayLength = DistToLight / ( CosLambda + CotMaxRayAngleFromLight * SinLambda );
+				float ClampedLength = saturate( MaxRayLength / length( RayEnd - RayStart ) );
 
-			RayMissFactor += bHit ? 0 : 1;
+				RayEnd = lerp( RayStart, RayEnd, ClampedLength );
+			}
+
+			FSMRTResult Result;
+			if ( LightType == LIGHT_TYPE_SPOT )
+			{
+				Result = ShadowRayCastSpotLight(
+					VirtualShadowMapId,
+					RayStart,
+					RayEnd,
+					SamplesPerRay,
+					StepOffset);
+			}
+			else
+			{
+				Result = ShadowRayCastPointLight(
+					VirtualShadowMapId,
+					RayStart,
+					RayEnd,
+					SamplesPerRay,
+					StepOffset);
+			}
+
+			float OutputDebugSignal = Result.bValidHit ? 0.0f : 1.0f;
+			if (DebugOutputType == 1)	// Invalid page
+			{
+				DebugOutput = lerp(	
+					OutputDebugSignal.xxx,
+					lerp( float3( 0, 1, 0 ), float3( 1, 0, 1 ), Result.SampleMissCount / 4.0f ),
+					0.75f );
+			}
+
+			if ( Result.bValidHit )
+			{
+				// TODO: Min over all the rays with > 1 spp?
+				InOutHitDistance = Result.OccluderDistance;
+			}
+
+			RayMissFactor += Result.bValidHit ? 0 : 1;
 			
-#if SMRT_ADAPTIVE_RAY_COUNT
-#if COMPILER_SUPPORTS_WAVE_VOTE
+#if SMRT_ADAPTIVE_RAY_COUNT && COMPILER_SUPPORTS_WAVE_VOTE
 			if( i == 0 )
 			{
+				bool bHit = Result.bValidHit;
 				if( bHit )
 				{
-					float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, InOutHitDistance );
+					float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, Result.OccluderDistance );
 					float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
 					bHit = PixelBluringRadius > 2;
 				}
@@ -250,7 +355,6 @@ float TraceSpotLight(
 					break;
 				}
 			}
-#endif
 #endif
 		}
 		SampleCount = min(i + 1, uint(RayCount));		// break vs regular for loop exit

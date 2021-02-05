@@ -1,0 +1,83 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+SMRTTemplate.ush: 
+
+Required parameters before including this file:
+1) Include "SMRTCommon.ush"
+2) Define a "ray state" structure (FRayState here, but must be unique)
+3) Implement FSMRTSample SMRTFindSample(inout FRayState RayState, float SampleTime)
+4) Implement SMRTComputeOccluderDistance(FRayState RayState, float SampleDepth)
+5) Include this file:
+#define SMRT_TEMPLATE_RAY_STRUCT FRayState
+#include "SMRTTemplate.ush"
+#undef SMRT_TEMPLATE_RAY_STRUCT
+=============================================================================*/
+
+// NOTE: No pragma(once) or inclusion guards because this file is meant to be
+// included multiple times as our hacky way to generate template-like instantiations
+// before HLSL supports templates natively.
+
+FSMRTResult SMRTRayCast(
+	SMRT_TEMPLATE_RAY_STRUCT RayState,
+	int NumSteps,
+	float StepOffset)
+{
+	float DepthHistory = -1;
+	int SampleMissCount = 0;
+	float OccluderDistance = 100000;
+
+	const float CompareScale = 2.0 / Pow2(NumSteps);
+	const float CompareBias = -CompareScale * (NumSteps - StepOffset + 1.0f);
+
+	bool bValidHit = false;
+	for (int i = 0; i <= NumSteps; i++)
+	{
+		float SampleTime = Pow2(saturate((-1.0f / NumSteps) * i + 1.0f - (StepOffset - 0.5f) / NumSteps));
+
+		FSMRTSample Sample = SMRTFindSample(RayState, SampleTime);
+		if (Sample.bValid)
+		{
+			const float SampleDepth = Sample.SampleDepth;
+			const float ReferenceDepth = Sample.ReferenceDepth;
+			if (DepthHistory < 0)
+			{
+				// First valid sample we've seen. Do a regular depth compare.
+				DepthHistory = SampleDepth;
+				if (SampleDepth > ReferenceDepth)
+				{
+					OccluderDistance = SMRTComputeOccluderDistance(RayState, SampleDepth);
+					bValidHit = true;
+					break;
+				}
+			}
+			else
+			{
+				const float CompareTolerance = abs(Sample.CompareToleranceScale * (CompareScale * i + CompareBias));
+
+				bool bBehind = (SampleDepth - ReferenceDepth) > (2.0f * CompareTolerance);
+				float DepthSample = bBehind ? DepthHistory : SampleDepth;
+				DepthHistory = DepthSample;
+
+				float DepthDiff = ReferenceDepth - DepthSample;
+				bool bHit = abs(DepthDiff + CompareTolerance) < CompareTolerance;
+				if (bHit)
+				{
+					OccluderDistance = SMRTComputeOccluderDistance(RayState, SampleDepth);
+					bValidHit = true;
+					break;
+				}
+			}
+		}
+		else
+		{
+			++SampleMissCount;
+		}
+	}
+
+	FSMRTResult Result;
+	Result.bValidHit = bValidHit;
+	Result.OccluderDistance = OccluderDistance;
+	Result.SampleMissCount = SampleMissCount;
+	return Result;
+}

@@ -53,24 +53,33 @@ TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarSMRTRayCountLocal(
+	TEXT( "r.Shadow.v.SMRT.RayCountLocal" ),
+	0,
+	TEXT( "Ray count for shadow map tracing of local lights. 0 = disabled." ),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayLocal(
+	TEXT( "r.Shadow.v.SMRT.SamplesPerRayLocal" ),
+	16,
+	TEXT( "Shadow map samples per ray for local lights" ),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarSMRTMaxRayAngleFromLight(
+	TEXT( "r.Shadow.v.SMRT.MaxRayAngleFromLight" ),
+	0.03f,
+	TEXT( "Max angle (in radians) a ray is allowed to span from the light's perspective for local lights." )
+	TEXT( "Smaller angles limit the screen space size of shadow penumbra. " )
+	TEXT( "Larger angles lead to more noise. " ),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarSMRTRayCountDirectional(
 	TEXT( "r.Shadow.v.SMRT.RayCountDirectional" ),
 	0,
 	TEXT( "Ray count for shadow map tracing of directional lights. 0 = disabled." ),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<int32> CVarSMRTRayCountSpot(
-	TEXT( "r.Shadow.v.SMRT.RayCountSpot" ),
-	0,
-	TEXT( "Ray count for shadow map tracing of spot lights. 0 = disabled." ),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRaySpot(
-	TEXT( "r.Shadow.v.SMRT.SamplesPerRaySpot" ),
-	16,
-	TEXT( "Shadow map samples per ray for spot lights" ),
 	ECVF_RenderThreadSafe
 );
 
@@ -109,6 +118,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
 	SHADER_PARAMETER(int32, SMRTRayCount)
 	SHADER_PARAMETER(int32, SMRTSamplesPerRay)
 	SHADER_PARAMETER(float, SMRTRayLengthScale)
+	SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -221,6 +231,7 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 		PassParameters->SMRTRayCount = CVarSMRTRayCountDirectional.GetValueOnRenderThread();
 		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayDirectional.GetValueOnRenderThread();
 		PassParameters->SMRTRayLengthScale = CVarSMRTRayLengthScaleDirectional.GetValueOnRenderThread();
+		PassParameters->SMRTCotMaxRayAngleFromLight = 0.0f;	// unused in this path
 
 		FVirtualShadowMapProjectionDirectionalPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FVirtualShadowMapProjectionDirectionalPS::FOutputTypeDim>(OutputType);
@@ -241,9 +252,10 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 	}
 	else
 	{
-		PassParameters->SMRTRayCount = CVarSMRTRayCountSpot.GetValueOnRenderThread();
-		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRaySpot.GetValueOnRenderThread();
-		PassParameters->SMRTRayLengthScale = 0.0f;		// Currently unused in this path
+		PassParameters->SMRTRayCount = CVarSMRTRayCountLocal.GetValueOnRenderThread();
+		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayLocal.GetValueOnRenderThread();
+		PassParameters->SMRTRayLengthScale = 0.0f;		// unused in this path
+		PassParameters->SMRTCotMaxRayAngleFromLight = 1.0f / FMath::Tan(CVarSMRTMaxRayAngleFromLight.GetValueOnRenderThread());
 
 		FVirtualShadowMapProjectionSpotPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FVirtualShadowMapProjectionSpotPS::FOutputTypeDim>(OutputType);
@@ -467,6 +479,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(int32, SMRTRayCount)
 		SHADER_PARAMETER(int32, SMRTSamplesPerRay)
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
+		SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -511,9 +524,10 @@ void RenderVirtualShadowMapProjection(
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
 	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
 
-	PassParameters->SMRTRayCount = CVarSMRTRayCountSpot.GetValueOnRenderThread();
-	PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRaySpot.GetValueOnRenderThread();
+	PassParameters->SMRTRayCount = CVarSMRTRayCountLocal.GetValueOnRenderThread();
+	PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayLocal.GetValueOnRenderThread();
 	PassParameters->SMRTRayLengthScale = 0.0f;		// Currently unused in this path
+	PassParameters->SMRTCotMaxRayAngleFromLight = 1.0f / FMath::Tan(CVarSMRTMaxRayAngleFromLight.GetValueOnRenderThread());
 
 	PassParameters->RWShadowMaskBits = GraphBuilder.CreateUAV( ShadowMaskBits );
 	

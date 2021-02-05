@@ -35,7 +35,8 @@ float NormalOffsetWorld;	// Normal offset in world space
 
 int SMRTRayCount;	// 0 = off
 int SMRTSamplesPerRay;
-float SMRTRayLengthScale;
+float SMRTRayLengthScale;			// Directional lights
+float SMRTCotMaxRayAngleFromLight;	// Spot/point lights
 
 #define CONTACT_SHADOW_SAMPLES 8
 
@@ -199,25 +200,27 @@ void VirtualShadowMapProjectionSpotPS(
 	float HitDistance = WORLD_RADIUS_MISS;
 	float RayMissFactor = 0.0f;
 
+	uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
+
 	if (bInLightRadius && bInLightCone)
 	{
 		const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
 
 		float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
 
-		uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
-
-		if (SMRTRayCount > 0 && LightType == LIGHT_TYPE_SPOT)
+		if (SMRTRayCount > 0)
 		{
-			RayMissFactor = TraceSpotLight(
+			RayMissFactor = TraceLocalLight(
 				VirtualShadowMapId,
 				Light,
+				LightType,
 				SvPosition,
 				SceneDepth,
 				TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld,
 				ContactShadowLengthWorld,
 				SMRTRayCount,
 				SMRTSamplesPerRay,
+				SMRTCotMaxRayAngleFromLight,
 				DebugOutputType,
 				DebugOutput,
 				HitDistance);
@@ -246,7 +249,7 @@ void VirtualShadowMapProjectionSpotPS(
 		}
 	}
 
-	OutputTarget = EncodeOutput(TranslatedWorldPosition, Light, LIGHT_TYPE_SPOT, RayMissFactor, HitDistance, SampleCount, DebugOutput);
+	OutputTarget = EncodeOutput(TranslatedWorldPosition, Light, LightType, RayMissFactor, HitDistance, SampleCount, DebugOutput);
 }
 
 
@@ -441,17 +444,19 @@ void VirtualShadowMapProjection(
 
 				uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
 
-				if (SMRTRayCount > 0 && LightType == LIGHT_TYPE_SPOT)
+				if (SMRTRayCount > 0)
 				{
-					RayMissFactor = TraceSpotLight(
+					RayMissFactor = TraceLocalLight(
 						VirtualShadowMapId,
 						Light,
+						LightType,
 						SvPosition,
 						SceneDepth,
 						TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld,
 						ContactShadowLengthWorld,
 						SMRTRayCount,
 						SMRTSamplesPerRay,
+						SMRTCotMaxRayAngleFromLight,
 						DebugOutputType,
 						DebugOutput,
 						HitDistance);
