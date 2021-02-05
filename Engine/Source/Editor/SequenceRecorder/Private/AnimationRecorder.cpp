@@ -254,7 +254,8 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 		{
 			// add tracks for the bone existing
 			const FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
-			Controller->AddBoneTrack(BoneTreeName);
+			Controller->AddBoneTrack(BoneTreeName);			
+			RawTracks.AddDefaulted();
 		}
 	}
 
@@ -387,6 +388,16 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 			ElapsedTime = FPlatformTime::Seconds() - StartTime;
 			UE_LOG(LogAnimation, Log, TEXT("Animation Recorder set keys in %0.02f seconds"), ElapsedTime);
+		}
+
+		// Populate bone tracks
+		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = AnimationObject->GetDataModel()->GetBoneAnimationTracks();
+		for (int32 TrackIndex = 0; TrackIndex < BoneAnimationTracks.Num(); ++TrackIndex)
+		{
+			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
+			FRawAnimSequenceTrack& RawTrack = RawTracks[TrackIndex];
+
+			Controller->SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 		}
 
 		Controller->NotifyPopulated();
@@ -707,6 +718,8 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 		for (int32 TrackIndex = 0; TrackIndex < BoneAnimationTracks.Num(); ++TrackIndex)
 		{
 			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
+			FRawAnimSequenceTrack& RawTrack = RawTracks[TrackIndex];
+
 			// verify if this bone exists in skeleton
 			const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
 			if (BoneTreeIndex != INDEX_NONE)
@@ -727,28 +740,29 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 					}
 				}
 
-				// Expensive copy, might be worth accumulating track data internally and only setting the keys once when recording is stopped
-				FRawAnimSequenceTrack RawTrack = AnimationTrack.InternalTrackData;
-
 				if (bRecordTransforms)
 				{
 					RawTrack.PosKeys.Add(LocalTransform.GetTranslation());
 					RawTrack.RotKeys.Add(LocalTransform.GetRotation());
-					RawTrack.ScaleKeys.Add(LocalTransform.GetScale3D());
-  
-					Controller->SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);			
-  
+					RawTrack.ScaleKeys.Add(LocalTransform.GetScale3D());  
 					if (AnimationSerializer)
 					{
 						SerializedAnimation.AddTransform(TrackIndex, LocalTransform);
 					}
-				}
 
-				// verification
-				if (FrameToAdd != RawTrack.PosKeys.Num()-1)
+					// verification
+					if (FrameToAdd != RawTrack.PosKeys.Num() - 1)
+					{
+						UE_LOG(LogAnimation, Warning, TEXT("Mismatch in animation frames. Trying to record frame: %d, but only: %d frame(s) exist. Changing skeleton while recording is not supported."), FrameToAdd, RawTrack.PosKeys.Num());
+						return false;
+					}
+				}
+				else if (FrameToAdd == 0)
 				{
-					UE_LOG(LogAnimation, Warning, TEXT("Mismatch in animation frames. Trying to record frame: %d, but only: %d frame(s) exist. Changing skeleton while recording is not supported."), FrameToAdd, RawTrack.PosKeys.Num());
-					return false;
+					// Populate with identity keys
+					RawTrack.PosKeys.Add(FVector::ZeroVector);
+					RawTrack.RotKeys.Add(FQuat::Identity);
+					RawTrack.ScaleKeys.Add(FVector::OneVector);
 				}
 			}
 		}

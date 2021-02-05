@@ -130,6 +130,7 @@ private:
 
 	TArray<FBlendedCurve> RecordedCurves;
 	TArray<uint16> const * UIDToArrayIndexLUT;
+	TArray<FRawAnimSequenceTrack> RawTracks;
 };
 
 //////////////////////////////////////////////////////////////////////////
