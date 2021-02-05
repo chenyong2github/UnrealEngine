@@ -2494,7 +2494,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		{
 			if (UTypedElementCommonActions* CommonActions = LevelEditor->GetCommonActions())
 			{
-				UTypedElementSelectionSet* SelectionSet = GetSelectedActors()->GetElementSelectionSet();
+				UTypedElementSelectionSet* SelectionSet = LevelEditor->GetMutableElementSelectionSet();
 
 				TStrongObjectPtr<UTypedElementList> ElementsToDelete(UTypedElementRegistry::GetInstance()->CreateElementList());
 				CommonActions->GetSelectedElementsToDelete(SelectionSet, ElementsToDelete.Get());

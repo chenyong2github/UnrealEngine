@@ -1625,40 +1625,30 @@ bool FLevelEditorActionCallbacks::Delete_CanExecute()
 		return false;
 	}
 
-	bool bCanDelete = false;
-	if (GEditor->GetSelectedComponentCount() > 0)
+	static const FName NAME_LevelEditor = "LevelEditor";
+	if (TSharedPtr<ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditor).GetLevelEditorInstance().Pin())
 	{
-		TArray<UActorComponent*> SelectedComponents;
-		for (FSelectionIterator It(GEditor->GetSelectedComponentIterator()); It; ++It)
-		{
-			SelectedComponents.Add(CastChecked<UActorComponent>(*It));
-		}
+		bool bCanDelete = false;
 
-		bCanDelete = FComponentEditorUtils::CanDeleteComponents(SelectedComponents);
-	}
-	else
-	{
-		UWorld* World = GetWorld();
-		if (World)
+		const UTypedElementSelectionSet* SelectionSet = LevelEditor->GetElementSelectionSet();
+		SelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([&bCanDelete](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
 		{
-			bCanDelete = GUnrealEd->CanDeleteSelectedActors(World, true, false);
-		}
-	}
+			bCanDelete |= InWorldElement.CanDeleteElement();
+			return !bCanDelete;
+		});
 
-	if (!bCanDelete)
-	{
-		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
-		if (LevelEditor.IsValid())
+		if (!bCanDelete)
 		{
-			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
-			if (SceneOutlinerPtr.IsValid())
+			if (TSharedPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditor->GetSceneOutliner())
 			{
 				bCanDelete = SceneOutlinerPtr->Delete_CanExecute();
 			}
 		}
+
+		return bCanDelete;
 	}
 
-	return bCanDelete;
+	return false;
 }
 
 void FLevelEditorActionCallbacks::Rename_Execute()
