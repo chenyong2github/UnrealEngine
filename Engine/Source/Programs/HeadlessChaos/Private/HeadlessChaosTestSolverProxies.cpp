@@ -80,6 +80,7 @@ namespace ChaosTest {
 		Particle.SetGeometry(Sphere);
 		Particle.SetX(FVec3(0, 0, 220));
 		Particle.SetV(FVec3(0, 0, -10));
+		Particle.SetCCDEnabled(true);
 		Solver->RegisterObject(Proxy);
 		Solver->AddDirtyProxy(Proxy);
 
