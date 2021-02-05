@@ -118,9 +118,30 @@ public:
 
 	static const FName NumberOfRecentAssetsName;
 
+	void AddDynamicTagAssetClass(const FName& InName) 
+	{
+		AssetClassesRequiringDynamicTags.AddUnique(InName);
+	}
+
+
+	void RemoveDynamicTagAssetClass(const FName& InName)
+	{
+		AssetClassesRequiringDynamicTags.Remove(InName);
+	}
+		
+	bool IsDynamicTagAssetClass(const FName& InName)
+	{
+		return AssetClassesRequiringDynamicTags.Contains(InName);
+	}
+	
+	
+
 private:
 	/** Resize the recently opened asset list */
 	void ResizeRecentAssetList(FName InName);
+	
+	/** List of asset classes whose tags are dynamic and therefore we should union all asset's tags rather than grabbing the first available. */
+	TArray<FName> AssetClassesRequiringDynamicTags;
 
 private:
 	IContentBrowserSingleton* ContentBrowserSingleton;

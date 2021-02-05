@@ -76,6 +76,7 @@
 #include "NiagaraClipboard.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraComponentBroker.h"
+#include "ContentBrowserModule.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -776,6 +777,11 @@ void FNiagaraEditorModule::StartupModule()
 	FHlslNiagaraTranslator::Init();
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	ContentBrowserModule.AddDynamicTagAssetClass(TEXT("NiagaraSystem"));
+	ContentBrowserModule.AddDynamicTagAssetClass(TEXT("NiagaraEmitter"));
+
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	NiagaraAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("FX")), LOCTEXT("NiagaraAssetsCategory", "FX"));
