@@ -4,28 +4,40 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.DocObjects.Tables;
 using System;
+using System.Collections.Generic;
 
 namespace DatasmithRhino.DirectLink
 {
 	public class DatasmithRhinoChangeListener
 	{
+		private enum RhinoOngoingEventTypes
+		{
+			None,
+			ReplacingActor,
+			MovingActor,
+		}
+
 		public bool bIsListening { get => ExportContext != null; }
 		private DatasmithRhinoExportContext ExportContext = null;
 
 		/// <summary>
-		/// Rhino rarely modify its object, instead it "replaces" them with a new object with the same ID.
-		/// When that happens 3 events are fired in succession: ReplaceRhinoObject, DeleteRhinoObject and AddRhinoObject (if undo is disabled UndeleteRhinoObject is called instead of AddRhinoObject).
-		/// We use the bIsReplacingObject to determine that these 3 events should be treated as a single "Modify" event.
+		/// The ModifyObjectAttributes event may fire recursively while parsing the info of a RhinoObject.
+		/// We use this HashSet to avoid doing recursive parsing.
 		/// </summary>
-		private bool bIsReplacingObject = false;
+		private HashSet<Guid> RecursiveEventLocks = new HashSet<Guid>();
 
 		/// <summary>
-		/// Rhino replaces moved objects instead of modifying them.
-		/// That means that for every BeforeTransformObjects called, the Replace, Delete and Add events will be called for each object in the BeforeTransformObject.
-		/// We use this Counter (and the associated bIsMovingObjects flag) to ignore the aforementioned events, allowing us to reduce the amount of data synced.
+		/// Rhino rarely modify its object, instead it "replaces" them with a new object with the same ID.
+		/// When that happens 3-4 events are fired in succession: (optional) BeforeTransformObjects, ReplaceRhinoObject, DeleteRhinoObject and AddRhinoObject (if undo is disabled UndeleteRhinoObject is called instead of AddRhinoObject).
+		/// We use the event stack to determine if these events should be treated as a single "ongoing" event.
 		/// </summary>
-		private int MovingObjectCounter = 0;
-		private bool bIsMovingObjects { get => MovingObjectCounter > 0; }
+		private Stack<RhinoOngoingEventTypes> EventStack = new Stack<RhinoOngoingEventTypes>();
+		
+		/// <summary>
+		/// Returns the current ongoing event in the event stack.
+		/// If there is no ongoing event, the returned type is "None".
+		/// </summary>
+		private RhinoOngoingEventTypes OngoingEvent { get => EventStack.Count > 0 ? EventStack.Peek() : RhinoOngoingEventTypes.None; }
 
 		public void StartListening(DatasmithRhinoExportContext Context)
 		{
@@ -36,7 +48,6 @@ namespace DatasmithRhino.DirectLink
 					RhinoDoc.BeforeTransformObjects += OnBeforeTransformObjects;
 					RhinoDoc.ModifyObjectAttributes += OnModifyObjectAttributes;
 					RhinoDoc.UndeleteRhinoObject += OnUndeleteRhinoObject;
-					RhinoDoc.PurgeRhinoObject += OnPurgeRhinoObject;
 					RhinoDoc.AddRhinoObject += OnAddRhinoObject;
 					RhinoDoc.DeleteRhinoObject += OnDeleteRhinoObject;
 					RhinoDoc.ReplaceRhinoObject += OnReplaceRhinoObject;
@@ -62,11 +73,11 @@ namespace DatasmithRhino.DirectLink
 		public void StopListening()
 		{
 			ExportContext = null;
+			EventStack.Clear();
 
 			RhinoDoc.BeforeTransformObjects -= OnBeforeTransformObjects;
 			RhinoDoc.ModifyObjectAttributes -= OnModifyObjectAttributes;
 			RhinoDoc.UndeleteRhinoObject -= OnUndeleteRhinoObject;
-			RhinoDoc.PurgeRhinoObject -= OnPurgeRhinoObject;
 			RhinoDoc.AddRhinoObject -= OnAddRhinoObject;
 			RhinoDoc.DeleteRhinoObject -= OnDeleteRhinoObject;
 			RhinoDoc.ReplaceRhinoObject -= OnReplaceRhinoObject;
@@ -79,11 +90,11 @@ namespace DatasmithRhino.DirectLink
 			//Copied object will call their own creation event.
 			if (!RhinoEventArgs.ObjectsWillBeCopied)
 			{
-				System.Diagnostics.Debug.Assert(MovingObjectCounter == 0, "Did not complete previous Object transform before starting a new one");
-				MovingObjectCounter = RhinoEventArgs.ObjectCount;
+				System.Diagnostics.Debug.Assert(OngoingEvent == RhinoOngoingEventTypes.None, "Did not complete previous Object transform before starting a new one");
 
 				for (int ObjectIndex = 0; ObjectIndex < RhinoEventArgs.ObjectCount; ++ObjectIndex)
 				{
+					EventStack.Push(RhinoOngoingEventTypes.MovingActor);
 					TryCatchExecute(() => ExportContext.MoveActor(RhinoEventArgs.Objects[ObjectIndex], RhinoEventArgs.Transform));
 				}
 			}
@@ -92,17 +103,18 @@ namespace DatasmithRhino.DirectLink
 		private void OnModifyObjectAttributes(object Sender, RhinoModifyObjectAttributesEventArgs RhinoEventArgs)
 		{
 			bool bReparent = RhinoEventArgs.OldAttributes.LayerIndex != RhinoEventArgs.NewAttributes.LayerIndex;
-			TryCatchExecute(() => ExportContext.ModifyActor(RhinoEventArgs.RhinoObject, bReparent));
+			Guid ObjectId = RhinoEventArgs.RhinoObject.Id;
+
+			if (RecursiveEventLocks.Add(ObjectId))
+			{
+				TryCatchExecute(() => ExportContext.ModifyActor(RhinoEventArgs.RhinoObject, bReparent));
+				RecursiveEventLocks.Remove(ObjectId);
+			}
 		}
 
 		private void OnUndeleteRhinoObject(object Sender, RhinoObjectEventArgs RhinoEventArgs)
 		{
 			AddActor(RhinoEventArgs.TheObject);
-		}
-
-		private void OnPurgeRhinoObject(object Sender, RhinoObjectEventArgs RhinoEventArgs)
-		{
-			TryCatchExecute(() => ExportContext.DeleteActor(RhinoEventArgs.TheObject));
 		}
 
 		private void OnAddRhinoObject(object Sender, RhinoObjectEventArgs RhinoEventArgs)
@@ -112,9 +124,9 @@ namespace DatasmithRhino.DirectLink
 
 		private void OnDeleteRhinoObject(object Sender, RhinoObjectEventArgs RhinoEventArgs)
 		{
-			// Replacing an object (modifying it) involves deleting it first, then creating or "undeleting" a new object with the same ID.
+			// Replacing or moving an object (modifying it) involves deleting it first, then creating or "undeleting" a new object with the same ID.
 			// Since with Datasmith we actually can (and want) to update the existing Elements, ignore the Deletion here.
-			if (!bIsReplacingObject && !bIsMovingObjects)
+			if (OngoingEvent == RhinoOngoingEventTypes.None)
 			{
 				TryCatchExecute(() => ExportContext.DeleteActor(RhinoEventArgs.TheObject));
 			}
@@ -122,13 +134,11 @@ namespace DatasmithRhino.DirectLink
 
 		private void OnReplaceRhinoObject(object Sender, RhinoReplaceObjectEventArgs RhinoEventArgs)
 		{
-			if (bIsMovingObjects)
+			if (OngoingEvent != RhinoOngoingEventTypes.MovingActor)
 			{
-				return;
+				// Event will be completed at the end of the upcoming Delete-Add events.
+				EventStack.Push(RhinoOngoingEventTypes.ReplacingActor);
 			}
-
-			System.Diagnostics.Debug.Assert(!bIsReplacingObject, "Did not complete object replacement before starting a new one");
-			bIsReplacingObject = true;
 		}
 
 		private void OnLayerTableEvent(object Sender, LayerTableEventArgs RhinoEventArgs)
@@ -170,16 +180,14 @@ namespace DatasmithRhino.DirectLink
 
 		public void AddActor(RhinoObject InObject)
 		{
-			if (bIsMovingObjects)
+			if (OngoingEvent == RhinoOngoingEventTypes.MovingActor)
 			{
-				MovingObjectCounter--;
-				return;
+				EventStack.Pop();
 			}
-
-			if (bIsReplacingObject)
+			else if (OngoingEvent == RhinoOngoingEventTypes.ReplacingActor)
 			{
 				TryCatchExecute(() => ExportContext.ModifyActor(InObject, /*bReparent=*/false));
-				bIsReplacingObject = false;
+				EventStack.Pop();
 			}
 			else if (!InObject.IsInstanceDefinitionGeometry)
 			{
