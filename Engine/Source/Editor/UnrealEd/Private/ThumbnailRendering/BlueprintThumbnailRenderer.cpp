@@ -5,6 +5,7 @@
 #include "SceneView.h"
 #include "Misc/App.h"
 
+#include "Engine/InheritableComponentHandler.h"
 #include "Engine/SCS_Node.h"
 
 UBlueprintThumbnailRenderer::UBlueprintThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
@@ -30,19 +31,30 @@ bool UBlueprintThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 			}
 		}
 
-		// Try to find any visible primitive components in the simple construction script
-		// Do this for all parent blueprint generated classes as well
 		UBlueprint* BlueprintToHarvestComponents = Blueprint;
 		TSet<UBlueprint*> AllVisitedBlueprints;
 		while (BlueprintToHarvestComponents)
 		{
 			AllVisitedBlueprints.Add(BlueprintToHarvestComponents);
 
+			// Try to find any visible primitive components in the simple construction script
 			if (BlueprintToHarvestComponents->SimpleConstructionScript)
 			{
 				for (USCS_Node* Node : BlueprintToHarvestComponents->SimpleConstructionScript->GetAllNodes())
 				{
 					if (FBlueprintThumbnailScene::IsValidComponentForVisualization(Node->ComponentTemplate))
+					{
+						return true;
+					}
+				}
+			}
+
+			// Check if any inheritable components from parents have valid data
+			if (BlueprintToHarvestComponents->InheritableComponentHandler)
+			{
+				for (TArray<FComponentOverrideRecord>::TIterator InheritedComponentsIter = BlueprintToHarvestComponents->InheritableComponentHandler->CreateRecordIterator(); InheritedComponentsIter; ++InheritedComponentsIter)
+				{
+					if (FBlueprintThumbnailScene::IsValidComponentForVisualization(InheritedComponentsIter->ComponentTemplate))
 					{
 						return true;
 					}
