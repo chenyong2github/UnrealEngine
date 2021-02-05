@@ -26,7 +26,8 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 enum
 {
-	MAX_GPU_BONE_MATRICES_UNIFORMBUFFER = 75,
+	// 256 works for real uniform buffers, emulated UB can support up to 75 
+	MAX_GPU_BONE_MATRICES_UNIFORMBUFFER = 256,
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FBoneMatricesUniformShaderParameters,)

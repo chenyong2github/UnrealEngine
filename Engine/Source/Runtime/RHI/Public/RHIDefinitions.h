@@ -1903,7 +1903,7 @@ inline int32 GetFeatureLevelMaxNumberOfBones(const FStaticFeatureLevel FeatureLe
 	switch (FeatureLevel)
 	{
 	case ERHIFeatureLevel::ES3_1:
-		return 75;	
+		return 256;	
 	case ERHIFeatureLevel::SM5:
 	case ERHIFeatureLevel::SM6:
 		return 65536; // supports uint16

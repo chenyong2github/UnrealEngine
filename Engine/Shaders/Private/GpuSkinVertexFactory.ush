@@ -17,7 +17,7 @@
 #endif
 
 #ifndef GPUSKIN_LIMIT_2BONE_INFLUENCES
-#define GPUSKIN_LIMIT_2BONE_INFLUENCES	0 // default is 4 bones
+#define GPUSKIN_LIMIT_2BONE_INFLUENCES	0 // default is 4 bones 
 #endif
 
 #ifndef GPUSKIN_UNLIMITED_BONE_INFLUENCE
