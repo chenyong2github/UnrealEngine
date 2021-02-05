@@ -11,7 +11,7 @@ class UClothingAssetCommon;
 
 namespace Chaos
 {
-	template<typename T, int d> class TPBDEvolution;
+	class FPBDEvolution;
 	template<typename T> class TTriangleMesh;
 	template<typename T, int d> class TVelocityField;
 
@@ -72,8 +72,8 @@ namespace Chaos
 
 		// Set the amount of velocity allowed to filter from the given change in reference space transform, including local simulation space.
 		void SetReferenceVelocityScale(uint32 GroupId,
-			const TRigidTransform<float, 3>& OldReferenceSpaceTransform,
-			const TRigidTransform<float, 3>& ReferenceSpaceTransform,
+			const FRigidTransform3& OldReferenceSpaceTransform,
+			const FRigidTransform3& ReferenceSpaceTransform,
 			const FVec3& LinearVelocityScale,
 			float AngularVelocityScale);
 
@@ -118,12 +118,12 @@ namespace Chaos
 
 		const int32* GetCollisionBoneIndices(int32 Offset) const { return CollisionBoneIndices.GetData() + Offset; }
 		int32* GetCollisionBoneIndices(int32 Offset) { return CollisionBoneIndices.GetData() + Offset; }
-		const TRigidTransform<float, 3>* GetCollisionBaseTransforms(int32 Offset) const { return CollisionBaseTransforms.GetData() + Offset; }
-		TRigidTransform<float, 3>* GetCollisionBaseTransforms(int32 Offset) { return CollisionBaseTransforms.GetData() + Offset; }
-		const TRigidTransform<float, 3>* GetOldCollisionTransforms(int32 Offset) const { return OldCollisionTransforms.GetData() + Offset; }
-		TRigidTransform<float, 3>* GetOldCollisionTransforms(int32 Offset) { return OldCollisionTransforms.GetData() + Offset; }
-		const TRigidTransform<float, 3>* GetCollisionTransforms(int32 Offset) const { return CollisionTransforms.GetData() + Offset; }
-		TRigidTransform<float, 3>* GetCollisionTransforms(int32 Offset) { return CollisionTransforms.GetData() + Offset; }
+		const FRigidTransform3* GetCollisionBaseTransforms(int32 Offset) const { return CollisionBaseTransforms.GetData() + Offset; }
+		FRigidTransform3* GetCollisionBaseTransforms(int32 Offset) { return CollisionBaseTransforms.GetData() + Offset; }
+		const FRigidTransform3* GetOldCollisionTransforms(int32 Offset) const { return OldCollisionTransforms.GetData() + Offset; }
+		FRigidTransform3* GetOldCollisionTransforms(int32 Offset) { return OldCollisionTransforms.GetData() + Offset; }
+		const FRigidTransform3* GetCollisionTransforms(int32 Offset) const { return CollisionTransforms.GetData() + Offset; }
+		FRigidTransform3* GetCollisionTransforms(int32 Offset) { return CollisionTransforms.GetData() + Offset; }
 		const FVec3* GetCollisionParticleXs(int32 Offset) const;
 		FVec3* GetCollisionParticleXs(int32 Offset);
 		const TRotation<float, 3>* GetCollisionParticleRs(int32 Offset) const;
@@ -144,13 +144,13 @@ namespace Chaos
 		void ParticleMassClampAndEnslave(int32 Offset, int32 Size, float MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
 	private:
-		TUniquePtr<TPBDEvolution<float, 3>> Evolution;
+		TUniquePtr<FPBDEvolution> Evolution;
 
 		// Object arrays
 		TArray<FClothingSimulationCloth*> Cloths;
 
 		// Simulation group attributes
-		TArrayCollectionArray<TRigidTransform<float, 3>> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
+		TArrayCollectionArray<FRigidTransform3> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
 
 		// Particle attributes
 		TArrayCollectionArray<FVec3> Normals;
@@ -160,9 +160,9 @@ namespace Chaos
 
 		// Collision particle attributes
 		TArrayCollectionArray<int32> CollisionBoneIndices;
-		TArrayCollectionArray<TRigidTransform<float, 3>> CollisionBaseTransforms;
-		TArrayCollectionArray<TRigidTransform<float, 3>> OldCollisionTransforms;
-		TArrayCollectionArray<TRigidTransform<float, 3>> CollisionTransforms;
+		TArrayCollectionArray<FRigidTransform3> CollisionBaseTransforms;
+		TArrayCollectionArray<FRigidTransform3> OldCollisionTransforms;
+		TArrayCollectionArray<FRigidTransform3> CollisionTransforms;
 
 		// Cloth constraints
 		TMap<int32, TUniquePtr<FClothConstraints>> ClothsConstraints;

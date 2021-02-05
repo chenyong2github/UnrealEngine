@@ -19,7 +19,7 @@ namespace Chaos
 {
 	template<class T, int d> class TPBDLongRangeConstraintsBase;
 	template<typename T> class TTriangleMesh;
-	template<typename T, int d> class TPBDEvolution;
+	class FPBDEvolution;
 	class FClothingSimulationSolver;
 	class FClothingSimulationMesh;
 	class FClothingSimulationCloth;

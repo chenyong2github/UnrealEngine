@@ -19,7 +19,7 @@ namespace ChaosTest {
 	using namespace Chaos;
 	DEFINE_LOG_CATEGORY_STATIC(LogChaosTestCloth, Verbose, All);
 
-	using FPBDEvolution = TPBDEvolution<FReal, 3>;
+	using FPBDEvolution = FPBDEvolution;
 
 	TUniquePtr<FPBDEvolution> InitPBDEvolution(
 		const int32 NumIterations=1,

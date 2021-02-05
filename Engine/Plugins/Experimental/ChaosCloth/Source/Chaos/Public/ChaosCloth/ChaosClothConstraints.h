@@ -8,7 +8,7 @@
 
 namespace Chaos
 {
-	template<typename T, int d> class TPBDEvolution;
+	class FPBDEvolution;
 
 	class FPBDSpringConstraints;
 	template<typename T, int d> class TXPBDSpringConstraints;
@@ -33,7 +33,7 @@ namespace Chaos
 
 		// ---- Solver interface ----
 		void Initialize(
-			TPBDEvolution<float, 3>* InEvolution,
+			FPBDEvolution* InEvolution,
 			const TArray<FVec3>& InAnimationPositions,
 			const TArray<FVec3>& InOldAnimationPositions,
 			const TArray<FVec3>& InAnimationNormals,
@@ -99,7 +99,7 @@ namespace Chaos
 		TSharedPtr<TPBDShapeConstraints<float, 3>> ShapeConstraints;
 		TSharedPtr<TPBDCollisionSpringConstraints<float, 3>> SelfCollisionConstraints;
 		
-		TPBDEvolution<float, 3>* Evolution;
+		FPBDEvolution* Evolution;
 		const TArray<FVec3>* AnimationPositions;
 		const TArray<FVec3>* OldAnimationPositions;
 		const TArray<FVec3>* AnimationNormals;
