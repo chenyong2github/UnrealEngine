@@ -9,6 +9,10 @@
 #include "ProjectionCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
 
+#ifndef NEAR_CLIP
+#define NEAR_CLIP 1
+#endif
+
 // Stored in an unordered fashion, needs to be reorganized later
 struct FVisibleInstanceCmd
 {
@@ -154,7 +158,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 	uint ViewIdIndex = InstanceIdsBuffer[InstanceIdOffset + InstanceIdIndex] >> 28U;
 	uint DrawCommandId = DrawCommandIdsBuffer[InstanceIdOffset + InstanceIdIndex];
 
-	const bool bNearClip = false;//(NEAR_CLIP != 0);
+	const bool bNearClip = (NEAR_CLIP != 0);
 	// Load relevant instance data
 	FInstanceSceneData InstanceData = GetInstanceData(InstanceId, InstanceDataSOAStride);
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
@@ -194,7 +198,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 				// OLA-TODO: Caching is not respected
 				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, true))
 				{
-					uint4 RectPages = uint4(Rect.Pixels) >> VSM_LOG2_PAGE_SIZE;
+					uint4 RectPages = uint4( MipView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
 
 					// Clip to actually allocated pages
 					// TODO: move this to be done as part of or before the overlap test?
@@ -282,7 +286,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 		while (VisibleMipsMask)
 		{
 			uint MipLevel = firstbitlow(VisibleMipsMask);	// Jump to next set bit.
-			VisibleMipsMask &= VisibleMipsMask - 1u;				// Remove bottom bit.
+			VisibleMipsMask &= VisibleMipsMask - 1u;		// Remove bottom bit.
 
 			//uint DummyMipPageOverlapCount = 0U;
 			//ProcessMipLevel(PrimaryViewId, MipLevel, Cull, InstanceId, DrawCommandId, PML_EMIT, DummyMipPageOverlapCount, VisibleInstanceOutputOffset);
@@ -295,7 +299,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 			// OLA-TODO: Caching is not respected
 			if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, true))
 			{
-				uint4 RectPages = uint4(Rect.Pixels) >> VSM_LOG2_PAGE_SIZE;
+				uint4 RectPages = uint4( MipView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
 
 				// Clip to actually allocated pages
 				// TODO: move this to be done as part of or before the overlap test?

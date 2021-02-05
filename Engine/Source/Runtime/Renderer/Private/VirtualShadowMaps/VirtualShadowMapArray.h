@@ -53,12 +53,7 @@ public:
 
 	// With 128x128 pages, a 8k x 4k texture holds 2048 physical pages
 	static constexpr uint32 PhysicalPagePoolTexureSizeX = 8192U;
-#if ENABLE_NON_NANITE_VSM
-	// GPUCULL_TODO: Think we must have square RT for address translation to work, the way it is implemented now (badly)
-	static constexpr uint32 PhysicalPagePoolTexureSizeY = 8192U;
-#else //!ENABLE_NON_NANITE_VSM
 	static constexpr uint32 PhysicalPagePoolTexureSizeY = 4096U;
-#endif // ENABLE_NON_NANITE_VSM
 
 	static constexpr uint32 PageSizeMask = PageSize - 1U;
 	static constexpr uint32 Log2PageSize = ILog2Const(PageSize);
@@ -205,6 +200,8 @@ public:
 		return PhysicalPagePoolRDG != nullptr && PageTableRDG != nullptr;
 	}
 
+	void CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const;
+
 #if ENABLE_NON_NANITE_VSM
 	/**
 	 * Draw old-school hardware based shadow map tiles into virtual SM.
@@ -227,9 +224,9 @@ public:
 
 #if ENABLE_NON_NANITE_VSM
 	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr || PhysicalPagePoolHw != nullptr;  }
-#else //!ENABLE_NON_NANITE_VSM
+#else
 	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr;  }
-#endif // ENABLE_NON_NANITE_VSM
+#endif
 
 	void GetPageTableParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapPageTableParameters& OutParameters);
 

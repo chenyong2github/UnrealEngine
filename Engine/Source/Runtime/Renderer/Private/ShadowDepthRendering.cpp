@@ -651,18 +651,13 @@ bool GetShadowDepthPassShaders(
 	bool bDirectionalLight,
 	bool bOnePassPointLightShadow,
 	bool bPositionOnlyVS,
+	bool bUsePerspectiveCorrectShadowDepths,
 	TShaderRef<FShadowDepthVS>& VertexShader,
 	TShaderRef<FBaseHS>& HullShader,
 	TShaderRef<FBaseDS>& DomainShader,
 	TShaderRef<FShadowDepthBasePS>& PixelShader,
 	TShaderRef<FOnePassPointShadowDepthGS>& GeometryShader)
 {
-	// Use perspective correct shadow depths for shadow types which typically render low poly meshes into the shadow depth buffer.
-	// Depth will be interpolated to the pixel shader and written out, which disables HiZ and double speed Z.
-	// Directional light shadows use an ortho projection and can use the non-perspective correct path without artifacts.
-	// One pass point lights don't output a linear depth, so they are already perspective correct.
-	const bool bUsePerspectiveCorrectShadowDepths = !bDirectionalLight && !bOnePassPointLightShadow;
-
 	const FVertexFactoryType* VFType = VertexFactory->GetType();
 
 	const bool bInitializeTessellationShaders =
@@ -1786,12 +1781,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	const bool bUseHZB = (CVarNaniteShadowsUseHZB.GetValueOnRenderThread() != 0);
 
 #if ENABLE_NON_NANITE_VSM
-
-	if (SortedShadowsForShadowDepthPass.VirtualShadowClipmapsHw.Num() != 0)
-	{
-		VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowClipmapsHw, *Scene);
-	}
-#endif // ENABLE_NON_NANITE_VSM
+	VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
+#endif
 
 	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
 	{
@@ -1940,6 +1931,9 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 				if (VirtualShadowViews.Num() > 0)
 				{
+					int32 NumPrimaryViews = VirtualShadowViews.Num();
+					VirtualShadowMapArray.CreateMipViews( VirtualShadowViews );
+
 					// Update page state for all virtual shadow maps included in this call, it is a bit crap but...
 					VirtualShadowMapArray.MarkPhysicalPagesRendered(GraphBuilder, VirtualShadowMapFlags);
 
@@ -1968,11 +1962,13 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					Nanite::CullRasterize(
 						GraphBuilder,
 						*Scene,
-						VirtualShadowMapArray,
 						VirtualShadowViews,
+						NumPrimaryViews,
 						CullingContext,
 						RasterContext,
 						RasterState,
+						nullptr,
+						&VirtualShadowMapArray,
 						bExtractStats
 					);
 				}
@@ -2248,13 +2244,29 @@ bool FShadowDepthPassMeshProcessor::Process(
 		&& MaterialResource.WritesEveryPixel(true)
 		&& !MaterialResource.MaterialModifiesMeshPosition_RenderThread();
 
+	// Use perspective correct shadow depths for shadow types which typically render low poly meshes into the shadow depth buffer.
+	// Depth will be interpolated to the pixel shader and written out, which disables HiZ and double speed Z.
+	// Directional light shadows use an ortho projection and can use the non-perspective correct path without artifacts.
+	// One pass point lights don't output a linear depth, so they are already perspective correct.
+	bool bUsePerspectiveCorrectShadowDepths = !ShadowDepthType.bDirectionalLight && !ShadowDepthType.bOnePassPointLightShadow;
+	bool bOnePassPointLightShadow = ShadowDepthType.bOnePassPointLightShadow;
+
+#if ENABLE_NON_NANITE_VSM
+	if( MeshPassTargetType == EMeshPass::VSMShadowDepth )
+	{
+		bUsePerspectiveCorrectShadowDepths = false;
+		bOnePassPointLightShadow = false;
+	}
+#endif
+
 	if (!GetShadowDepthPassShaders(
 		MaterialResource,
 		VertexFactory,
 		FeatureLevel,
 		ShadowDepthType.bDirectionalLight,
-		ShadowDepthType.bOnePassPointLightShadow,
+		bOnePassPointLightShadow,
 		bUsePositionOnlyVS,
+		bUsePerspectiveCorrectShadowDepths,
 		ShadowDepthPassShaders.VertexShader,
 		ShadowDepthPassShaders.HullShader,
 		ShadowDepthPassShaders.DomainShader,
@@ -2358,7 +2370,6 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 		const bool bSupportsGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel)
 			&& VertexFactory->GetPrimitiveIdStreamIndex(bUsePositionOnlyVS ? EVertexInputStreamType::PositionAndNormalOnly : EVertexInputStreamType::Default) != INDEX_NONE;
 
-
 		// EMeshPass::CSMShadowDepth: If no VSM: include everything, else only !bSupportsGpuSceneInstancing
 		// EMeshPass::VSMShadowDepth: If VSM: only bSupportsGpuSceneInstancing, else nothing needs to go in.
 		// TODO: I'm sure I can reduce this logic
@@ -2367,12 +2378,10 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 			(UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel)  && bSupportsGpuSceneInstancing);
 		
 		if (bDraw)
+#endif
 		{
-#endif // ENABLE_NON_NANITE_VSM
 			bResult = Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
-#if ENABLE_NON_NANITE_VSM
 		}
-#endif // ENABLE_NON_NANITE_VSM
 	}
 
 	return bResult;

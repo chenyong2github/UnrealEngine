@@ -1173,6 +1173,80 @@ void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewIn
 	}
 }
 
+extern int32 GNaniteClusterPerPage;
+void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const
+{
+	// strategy: 
+	// 1. Use the cull pass to generate copies of every node for every view needed.
+	// [2. Fabricate a HZB array?]
+	ensure(Views.Num() <= ShadowMaps.Num());
+	
+	const int32 NumPrimaryViews = Views.Num();
+
+	// 1. create derivative views for each of the Mip levels, 
+	Views.AddDefaulted( NumPrimaryViews * ( FVirtualShadowMap::MaxMipLevels - 1) );
+
+	int32 MaxMips = 0;
+	for (int32 ViewIndex = 0; ViewIndex < NumPrimaryViews; ++ViewIndex)
+	{
+		const Nanite::FPackedView& PrimaryView = Views[ViewIndex];
+		
+		ensure( PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.X >= 0 && PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.X < ShadowMaps.Num() );
+		ensure( PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Y == 0 );
+		ensure( PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z > 0 && PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z <= FVirtualShadowMap::MaxMipLevels );
+		
+		const int32 NumMips = PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z;
+		MaxMips = FMath::Max(MaxMips, NumMips);
+		for (int32 MipLevel = 0; MipLevel < NumMips; ++MipLevel)
+		{
+			Nanite::FPackedView& MipView = Views[ MipLevel * NumPrimaryViews + ViewIndex ];	// Primary (Non-Mip views) first followed by derived mip views.
+
+			if( MipLevel > 0 )
+			{
+				MipView = PrimaryView;
+
+				// Slightly messy, but extract any scale factor that was applied to the LOD scale for re-application below
+				MipView.UpdateLODScales();
+				float LODScaleFactor = PrimaryView.LODScales.X / MipView.LODScales.X;
+
+				MipView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Y = MipLevel;
+				MipView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z = NumMips;	//FVirtualShadowMap::MaxMipLevels;
+
+				// Size of view, for the virtual SMs these are assumed to not be offset.
+				FIntPoint ViewSize = FIntPoint::DivideAndRoundUp( FIntPoint( PrimaryView.ViewSizeAndInvSize.X + 0.5f, PrimaryView.ViewSizeAndInvSize.Y + 0.5f ), 1U <<  MipLevel );
+				FIntPoint ViewMin = FIntPoint(MipView.ViewRect.X, MipView.ViewRect.Y) / (1U <<  MipLevel);
+
+				MipView.ViewSizeAndInvSize = FVector4(ViewSize.X, ViewSize.Y, 1.0f / float(ViewSize.X), 1.0f / float(ViewSize.Y));
+				MipView.ViewRect = FIntVector4(ViewMin.X, ViewMin.Y, ViewMin.X + ViewSize.X, ViewMin.Y + ViewSize.Y);
+
+				MipView.UpdateLODScales();
+				MipView.LODScales.X *= LODScaleFactor;
+			}
+
+			MipView.HZBTestViewRect = MipView.ViewRect;	// Assumed to always be the same for VSM
+
+			float RcpExtXY = 1.0f / FVirtualShadowMap::VirtualMaxResolutionXY;
+			if( GNaniteClusterPerPage )
+				RcpExtXY = 1.0f / ( FVirtualShadowMap::PageSize * FVirtualShadowMap::RasterWindowPages );
+
+			// Transform clip from virtual address space to viewport.
+			MipView.ClipSpaceScaleOffset = FVector4(
+				MipView.ViewSizeAndInvSize.X * RcpExtXY,
+				MipView.ViewSizeAndInvSize.Y * RcpExtXY,
+				(MipView.ViewSizeAndInvSize.X + 2.0f * MipView.ViewRect.X) * RcpExtXY - 1.0f,
+				-(MipView.ViewSizeAndInvSize.Y + 2.0f * MipView.ViewRect.Y) * RcpExtXY + 1.0f);
+
+			uint32 StreamingPriorityCategory = 0;
+			uint32 ViewFlags = VIEW_FLAG_HZBTEST;
+			MipView.StreamingPriorityCategory_AndFlags = (ViewFlags << NUM_STREAMING_PRIORITY_CATEGORY_BITS) | StreamingPriorityCategory;
+		}
+	}
+
+	// Remove unused mip views
+	check(MaxMips > 0);
+	Views.SetNum(MaxMips * NumPrimaryViews, false);
+}
+
 
 #if ENABLE_NON_NANITE_VSM
 
@@ -1226,6 +1300,10 @@ class FCullPerPageDrawCommandsCs : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCullPerPageDrawCommandsCs);
 	SHADER_USE_PARAMETER_STRUCT(FCullPerPageDrawCommandsCs, FGlobalShader)
+
+	class FNearClipDim : SHADER_PERMUTATION_BOOL( "NEAR_CLIP" );
+	using FPermutationDomain = TShaderPermutationDomain< FNearClipDim >;
+
 public:
 	static constexpr int32 NumThreadsPerGroup = 64;
 
@@ -1387,6 +1465,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 		const FViewInfo& View = *ViewUsedToCreateShadow;
 		TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
+
+		if( Clipmap )
 		{
 			Nanite::FPackedViewParams BaseParams;
 			BaseParams.ViewRect = FIntRect(0, 0, FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY);
@@ -1406,6 +1486,33 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				VirtualShadowViews.Add(Nanite::CreatePackedView(Params));
 			}
 		}
+		else if (ProjectedShadowInfo->HasVirtualShadowMap())
+		{
+
+			Nanite::FPackedViewParams BaseParams;
+			BaseParams.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
+			BaseParams.HZBTestViewRect = BaseParams.ViewRect;
+			BaseParams.RasterContextSize = GetPhysicalPoolSize();
+			//BaseParams.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
+			BaseParams.PrevTargetLayerIndex = INDEX_NONE;
+			BaseParams.TargetMipLevel = 0;
+			BaseParams.TargetMipCount = FVirtualShadowMap::MaxMipLevels;
+
+			int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
+			for( int32 i = 0; i < NumMaps; i++ )
+			{
+				Nanite::FPackedViewParams Params = BaseParams;
+				Params.TargetLayerIndex = ProjectedShadowInfo->VirtualShadowMaps[i]->ID;
+				Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(i, true);
+
+				VirtualShadowViews.Add(Nanite::CreatePackedView(Params));
+				//VirtualShadowMapFlags[ProjectedShadowInfo->VirtualShadowMaps[i]->ID] = 1;
+			}
+		}
+
+		int32 NumPrimaryViews = VirtualShadowViews.Num();
+		CreateMipViews( VirtualShadowViews );
+
 		// Created by BuildInstanceList
 		// 1. Run post-cull unpack command (?) - maybe skip straight to the second pass, or output to intermediate instance index buffer?
 		//MeshCommandPass.BuildRenderingCommands(GraphBuilder, GPUScene, InstanceListBuffer, InstanceCountBuffer);
@@ -1459,11 +1566,11 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 				PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
 				PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
-				PassParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdsBuffer, PF_R32_UINT);;
+				PassParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdsBuffer, PF_R32_UINT);
 				PassParameters->DrawCommandIdsBuffer = GraphBuilder.CreateSRV(Params.DrawCommandIdsBuffer, PF_R32_UINT);
 				PassParameters->NumInstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdWriteOffsetBuffer);
 				PassParameters->FirstPrimaryView = 0;
-				PassParameters->NumPrimaryViews = VirtualShadowViews.Num();
+				PassParameters->NumPrimaryViews = NumPrimaryViews;
 				PassParameters->InViews = GraphBuilder.CreateSRV(VirtualShadowViewsRdg);
 				PassParameters->VisibleInstancesOut = GraphBuilder.CreateUAV(VisibleInstancesRdg);
 				PassParameters->DrawCommandInstanceCountBufferOut = GraphBuilder.CreateUAV(DrawCommandInstanceCountRdg);
@@ -1471,7 +1578,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				PassParameters->IndirectArgs = IndirectArgs;
 				PassParameters->bInstancePerPage = !bAllocatePageRectAtlas;
 
-				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FCullPerPageDrawCommandsCs>();
+				FCullPerPageDrawCommandsCs::FPermutationDomain PermutationVector;
+				PermutationVector.Set< FCullPerPageDrawCommandsCs::FNearClipDim >( !Clipmap.IsValid() );
+
+				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FCullPerPageDrawCommandsCs>( PermutationVector );
 
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -1543,8 +1653,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 			SetupSceneTextureUniformParameters(GraphBuilder, GMaxRHIFeatureLevel, ESceneTextureSetupMode::None, ShadowDepthPassParameters->SceneTextures);
 
-			// TODO: Only valid for clipmap
-			ShadowDepthPassParameters->bClampToNearPlane = true;
+			ShadowDepthPassParameters->bClampToNearPlane = ProjectedShadowInfo->ShouldClampToNearPlane();
 
 			// TODO: These are not used for this case anyway
 			ShadowDepthPassParameters->ProjectionMatrix = FMatrix::Identity;
@@ -1598,8 +1707,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 					);
 					MeshCommandPass.DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 				});
-
-
 		}
 
 

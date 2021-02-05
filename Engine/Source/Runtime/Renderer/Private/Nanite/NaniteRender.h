@@ -547,11 +547,14 @@ void CullRasterize(
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
-	FVirtualShadowMapArray &VirtualShadowMapArray,
-	const TArray<FPackedView, SceneRenderingAllocator> &Views,
+	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	uint32 NumPrimaryViews,	// Number of non-mip views
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState = FRasterState(),
+	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr,
+	// VirtualShadowMapArray is the supplier of virtual to physical translation, probably could abstract this a bit better,
+	FVirtualShadowMapArray* VirtualShadowMapArray = nullptr,
 	bool bExtractStats = false
 );
 

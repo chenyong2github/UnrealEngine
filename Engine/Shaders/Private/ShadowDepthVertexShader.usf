@@ -120,76 +120,39 @@ FPageInfo UnPackPageInfo(uint PackedData)
 	return PageInfo;
 }
 
-// GPUCULL_TODO: This function is awful, and only works for directional lights
-void ScaleBiasClipToPhysicalSmPage(FNaniteView NaniteView, inout float4 PosCsHInOut, inout float4 ClipPlanesInOut, FPageInfo PageInfo)
+void ScaleBiasClipToPhysicalSmPage(FNaniteView NaniteView, inout float4 PositionClip, inout float4 ClipPlanesInOut, FPageInfo PageInfo)
 {
-	uint2 VirtPage = PageInfo.VirtualPage;
-	uint2 PhysPage = ShadowDecodePageTable(PassStruct.VirtualSmPageTable[CalcPageOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, VirtPage)]).PageIndex;
-	float2 VirtPageF = float2(VirtPage);
-	float2 PhysPageF = float2(PhysPage);
-	// TODO: do we ever need to support viewports that are not the full mip level here? If so this needs to be taken into account.
-	uint VirtualResXY = VSM_VIRTUAL_MAX_RESOLUTION_XY >> NaniteView.TargetMipLevel;
-	float2 RecPhysicalPoolSize = VirtualShadowMap.RecPhysicalPoolSize.xy;
-	float2 Scale = RecPhysicalPoolSize * float(VirtualResXY);
+	uint2 vPage = PageInfo.VirtualPage;
+	uint2 pPage = ShadowDecodePageTable( PassStruct.VirtualSmPageTable[ CalcPageOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, vPage ) ] ).PageIndex;
 
-	// Scale from physical page address space coord to clip space coord
-	float2 PPScale = RecPhysicalPoolSize * 2.0f * float(VSM_PAGE_SIZE);
+	float2 vClip = PositionClip.xy;
+	float2 vUV = vClip * float2(0.5, -0.5) + 0.5 * PositionClip.w;
+	float2 vPixels = vUV * ( VSM_VIRTUAL_MAX_RESOLUTION_XY >> NaniteView.TargetMipLevel );
+	float2 pPixels = vPixels + ( (float2)pPage - (float2)vPage ) * VSM_PAGE_SIZE * PositionClip.w;
+	float2 pUV = pPixels * VirtualShadowMap.RecPhysicalPoolSize.xy;
+	float2 pClip = pUV * float2(2, -2) + float2(-1, 1) * PositionClip.w;
 
-    //1. subtract virtual page origin
-    //2. Apply scale to physical space
-    //3. Offset to physical address space
+	PositionClip.xy = pClip;
 
-	float W = PosCsHInOut.w;
-	// X is different from Y as the page offsets are in pixel address spaces, that are inverted in X wrt clip space
-	//PosCsHInOut.x = PosCsHInOut.x * Scale.x + (PPScale.x * (VirtPageF.x - PhysPageF.x) - Scale.x + 1.0f) * W;
-	//PosCsHInOut.y = PosCsHInOut.y * Scale.y + (PPScale.y * (PhysPageF.y - VirtPageF.y) + Scale.y - 1.0f) * W;
-	// Swapped:
-	//PosCsHInOut.x = PosCsHInOut.x * Scale.x + (PPScale.x * (PhysPageF.x - VirtPageF.x) + Scale.x - 1.0f) * W;
-	//PosCsHInOut.y = PosCsHInOut.y * Scale.y + (PPScale.y * (VirtPageF.y - PhysPageF.y) - Scale.y + 1.0f) * W;
-
-	float LevelResPages = float(VSM_LEVEL0_DIM_PAGES_XY >> NaniteView.TargetMipLevel);
-	
-	float2 VirtPageClipSpaceOrigin = ((VirtPageF + 0.5f) / LevelResPages) * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);
-	// calculate page-local position (-1,1) range
-	float2 PtPg = (PosCsHInOut.xy - VirtPageClipSpaceOrigin) * LevelResPages;
-
-	float2 PhysPageScale = RecPhysicalPoolSize * VSM_PAGE_SIZE;
-	float2 PhysPageClipSpaceOrigin = ((PhysPageF + 0.5f) * PhysPageScale) * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);
-	// Scale and Translate to physical page location
-	float2 PhysPt = PtPg * PhysPageScale + PhysPageClipSpaceOrigin;
-
-	uint4 PageRect = PassStruct.PageRectBounds[NaniteView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + NaniteView.TargetMipLevel];
-
-
-	if (PassStruct.bInstancePerPage)
+	if( PassStruct.bInstancePerPage )
 	{
-		// Functional single-page clip bounds
-		// TODO: Figure out clip boundaries based on super-page rather than page. The routing can stay the same since it doesn't matter
-		//       but the clipping must be adjusted since there will only be one instance for all the pages in the super-page
-		ClipPlanesInOut.x = PtPg.x + 1.0f;
-		ClipPlanesInOut.y = 1.0f - PtPg.x;
-		ClipPlanesInOut.z = PtPg.y + 1.0f;
-		ClipPlanesInOut.w = 1.0f - PtPg.y;
+		float2 MinClip =  vPixels - ( vPage + 0 ) * VSM_PAGE_SIZE * PositionClip.w;
+		float2 MaxClip = -vPixels + ( vPage + 1 ) * VSM_PAGE_SIZE * PositionClip.w;
+
+		ClipPlanesInOut.xy = MinClip;
+		ClipPlanesInOut.zw = MaxClip;
 	}
 	else
 	{
 		// Clip to allocated page rect
-		float2 VirtPageRectMinClipSpace = (float2(PageRect.xy) / LevelResPages) * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);
-		float2 VirtPageRectMaxClipSpace = (float2(PageRect.zw + 1U) / LevelResPages) * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);
-		ClipPlanesInOut.x = PosCsHInOut.x - VirtPageRectMinClipSpace.x;
-		ClipPlanesInOut.y = VirtPageRectMaxClipSpace.x - PosCsHInOut.x;
-		ClipPlanesInOut.z = PosCsHInOut.y - VirtPageRectMaxClipSpace.y;
-		ClipPlanesInOut.w = VirtPageRectMinClipSpace.y - PosCsHInOut.y;
-	}
-	PosCsHInOut.xy = PhysPt;
+		uint4 PageRect = PassStruct.PageRectBounds[ NaniteView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + NaniteView.TargetMipLevel ];
 
-#if 0
-    // positive X, negaive X, positive Y, negative Y
-	ClipPlanesInOut.x = ((PhysPageF.x + 1.0f) * PPScale.x - 1.0f) * W - PosCsHInOut.x;
-	ClipPlanesInOut.y = -(PhysPageF.x * PPScale.x - 1.0f) * W + PosCsHInOut.x;
-	ClipPlanesInOut.z = (1.0f - PhysPageF.y * PPScale.y) * W - PosCsHInOut.y;
-	ClipPlanesInOut.w = -(1.0f - (PhysPageF.y + 1.0f) * PPScale.y) * W + PosCsHInOut.y;
-#endif//0
+		float2 MinClip =  vPixels - ( PageRect.xy + 0 ) * VSM_PAGE_SIZE * PositionClip.w;
+		float2 MaxClip = -vPixels + ( PageRect.zw + 1 ) * VSM_PAGE_SIZE * PositionClip.w;
+
+		ClipPlanesInOut.xy = MinClip;
+		ClipPlanesInOut.zw = MaxClip;
+	}
 }
 
 void TransformToVirtualSmPage(inout float4 PosCsHInOut, inout float4 ClipPlanesInOut, FPageInfo PageInfo, float3 TranslatedWorldPos)
@@ -520,6 +483,8 @@ void Main(
 		OutParameters.Dummy = 0;
 	#endif
 
+#endif
+
 #if VIRTUAL_SM_ENABLED
 	OutVirtualSmPageClip = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	if (PassStruct.bRenderToVirtualShadowMap != 0)
@@ -531,8 +496,6 @@ void Main(
 		TransformToVirtualSmPage(OutPosition, OutVirtualSmPageClip, PageInfo, WorldPos.xyz);
 	}
 #endif // VIRTUAL_SM_ENABLED
-
-#endif
 
 	OutputVertexID( OutParameters );
 }

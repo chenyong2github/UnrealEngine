@@ -2961,7 +2961,7 @@ void FPackedView::UpdateLODScales()
 }
 
 
-void CullRasterizeInner(
+void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -3246,88 +3246,7 @@ void CullRasterize(
 	bool bExtractStats
 )
 {
-	CullRasterizeInner( GraphBuilder, Scene, Views, Views.Num(), CullingContext, RasterContext, RasterState, OptionalInstanceDraws, nullptr, bExtractStats );
-}
-
-void CullRasterize(
-	FRDGBuilder& GraphBuilder,
-	const FScene& Scene,
-	FVirtualShadowMapArray &VirtualShadowMapArray,
-	const TArray<FPackedView, SceneRenderingAllocator> &Views,
-	FCullingContext& CullingContext,
-	const FRasterContext& RasterContext,
-	const FRasterState& RasterState,
-	bool bExtractStats
-	)
-{
-	LLM_SCOPE_BYTAG(Nanite);
-
-	// strategy: 
-	// 1. Use the cull pass to generate copies of every node for every view needed.
-	// [2. Fabricate a HZB array?]
-
-	// 1. create derivative views for each of the Mip levels, 
-	TArray<FPackedView, SceneRenderingAllocator> MipViews;
-	MipViews.AddDefaulted(Views.Num() * FVirtualShadowMap::MaxMipLevels);
-	ensure(Views.Num() <= VirtualShadowMapArray.ShadowMaps.Num());
-
-	const int32 NumPrimaryViews = Views.Num();
-	int32 MaxMips = 0;
-	for (int32 ViewIndex = 0; ViewIndex < NumPrimaryViews; ++ViewIndex)
-	{
-		const FPackedView &View = Views[ViewIndex];
-		ensure(View.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.X >= 0 && View.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.X < VirtualShadowMapArray.ShadowMaps.Num());
-		ensure(View.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Y == 0);
-		ensure(View.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z > 0 && View.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z <= FVirtualShadowMap::MaxMipLevels);
-		const int32 NumMips = View.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z;
-		MaxMips = FMath::Max(MaxMips, NumMips);
-		for (int32 MipLevel = 0; MipLevel < NumMips; ++MipLevel)
-		{
-			FPackedView MipView = View;
-
-			// Slightly messy, but extract any scale factor that was applied to the LOD scale for re-application below
-			MipView.UpdateLODScales();
-			float LODScaleFactor = View.LODScales.X / MipView.LODScales.X;
-
-			MipView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Y = MipLevel;
-			MipView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z = FVirtualShadowMap::MaxMipLevels;
-			// Size of view, for the virtual SMs these are assumed to not be offset.
-			FIntPoint ViewSize = FIntPoint::DivideAndRoundUp(FIntPoint(View.ViewSizeAndInvSize.X + 0.5f, View.ViewSizeAndInvSize.Y + 0.5f), 1U <<  MipLevel);
-			FIntPoint ViewMin = FIntPoint(MipView.ViewRect.X, MipView.ViewRect.Y) / (1U <<  MipLevel);
-
-			MipView.ViewSizeAndInvSize = FVector4(ViewSize.X, ViewSize.Y, 1.0f / float(ViewSize.X), 1.0f / float(ViewSize.Y));
-			MipView.ViewRect = FIntVector4(ViewMin.X, ViewMin.Y, ViewMin.X + ViewSize.X, ViewMin.Y + ViewSize.Y);
-			MipView.HZBTestViewRect = MipView.ViewRect;	// Assumed to always be the same for VSM
-
-			float RcpExtXY = 1.0f / FVirtualShadowMap::VirtualMaxResolutionXY;
-			if( GNaniteClusterPerPage )
-				RcpExtXY = 1.0f / ( FVirtualShadowMap::PageSize * FVirtualShadowMap::RasterWindowPages );
-
-			// Transform clip from virtual address space to viewport.
-			MipView.ClipSpaceScaleOffset = FVector4(
-				MipView.ViewSizeAndInvSize.X * RcpExtXY,
-				MipView.ViewSizeAndInvSize.Y * RcpExtXY,
-				(MipView.ViewSizeAndInvSize.X + 2.0f * MipView.ViewRect.X) * RcpExtXY - 1.0f,
-				-(MipView.ViewSizeAndInvSize.Y + 2.0f * MipView.ViewRect.Y) * RcpExtXY + 1.0f);
-
-			uint32 StreamingPriorityCategory = 0;
-			uint32 ViewFlags = VIEW_FLAG_HZBTEST;
-			MipView.StreamingPriorityCategory_AndFlags = (ViewFlags << NUM_STREAMING_PRIORITY_CATEGORY_BITS) | StreamingPriorityCategory;
-
-			MipView.UpdateLODScales();
-			MipView.LODScales.X *= LODScaleFactor;
-
-			MipViews[MipLevel * NumPrimaryViews + ViewIndex] = MipView; // Primary (Non-Mip views) first followed by derived mip views.
-		}
-	}
-
-	// Remove unused mip views
-	check(MaxMips > 0);
-	MipViews.SetNum(MaxMips * NumPrimaryViews, false);
-
-	// 2. Invoke culling & raster pass with a special shader permutation
-	CullRasterizeInner(GraphBuilder, Scene, MipViews, NumPrimaryViews, CullingContext, RasterContext, RasterState, nullptr, &VirtualShadowMapArray, bExtractStats);
-	//
+	CullRasterize( GraphBuilder, Scene, Views, Views.Num(), CullingContext, RasterContext, RasterState, OptionalInstanceDraws, nullptr, bExtractStats );
 }
 
 void ExtractStats(

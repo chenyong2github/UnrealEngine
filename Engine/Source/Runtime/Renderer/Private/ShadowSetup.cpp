@@ -3511,6 +3511,12 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						}
 					}
 
+					ProjectedShadowInfo->MeshPassTargetType = EMeshPass::VSMShadowDepth;
+
+					bool bContainsNaniteSubjects = false;
+					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false), ProjectedShadowInfo, bContainsNaniteSubjects);
+					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false), ProjectedShadowInfo, bContainsNaniteSubjects);
+
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 				}
 				
@@ -3865,7 +3871,7 @@ void FSceneRenderer::GatherShadowDynamicMeshElements(FGlobalDynamicIndexBuffer& 
 #if ENABLE_NON_NANITE_VSM
 
 	// GPUCULL_TODO: Replace with new shadow culling processor thingo
-	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowClipmapsHw)
+	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowMapShadows)
 	{
 		FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[ProjectedShadowInfo->GetLightSceneInfo().Id];
 		ProjectedShadowInfo->GatherDynamicMeshElements(*this, VisibleLightInfo, ReusedViewsArray, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager);
@@ -4591,14 +4597,10 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 				if (bNeedsShadowmapSetup)
 				{
 #if ENABLE_NON_NANITE_VSM
-					if (ProjectedShadowInfo->VirtualShadowMapClipmap.IsValid())
-					{
-						ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
-						SortedShadowsForShadowDepthPass.VirtualShadowClipmapsHw.Add(ProjectedShadowInfo);
-					}
-					else 
-#endif // ENABLE_NON_NANITE_VSM
+					if (ProjectedShadowInfo->HasVirtualShadowMap() || ProjectedShadowInfo->VirtualShadowMapClipmap.IsValid())
+#else
 					if (ProjectedShadowInfo->HasVirtualShadowMap())
+#endif
 					{
 						ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
 						SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Add(ProjectedShadowInfo);
