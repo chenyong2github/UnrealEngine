@@ -198,6 +198,11 @@ const FString UNiagaraDataInterfaceHairStrands::ParamsScaleBufferName(TEXT("Para
 
 //------------------------------------------------------------------------------------------------------------
 
+static int32 GHairSimulationMaxDelay = 4;
+static FAutoConsoleVariableRef CVarHairSimulationMaxDelay(TEXT("r.HairStrands.SimulationMaxDelay"), GHairSimulationMaxDelay, TEXT("Maximum tick Delay before starting the simulation"));
+
+//------------------------------------------------------------------------------------------------------------
+
 struct FNDIHairStrandsParametersName
 {
 	FNDIHairStrandsParametersName(const FString& Suffix)
@@ -606,7 +611,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			FRHIShaderResourceView* RootBarycentricCoordinatesSRV = (InterpolationModeValue == 1 && RestMeshProjection != nullptr) ?
 				RestMeshProjection->RootTriangleBarycentricBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
-			int32 bNeedSimReset = (ProxyData->TickCount <= MaxDelay ? 1 : 0);
+			int32 bNeedSimReset = (ProxyData->TickCount <= GHairSimulationMaxDelay ? 1 : 0);
 
 			if ((InterpolationModeValue == 1) && ProxyData->GlobalInterpolation)
 			{
@@ -964,7 +969,7 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 	UGroomAsset* GroomAsset = nullptr;
 	int32 GroupIndex = 0;
 
-	InstanceData->TickCount = FMath::Min(MaxDelay+1,InstanceData->TickCount+1);
+	InstanceData->TickCount = FMath::Min(GHairSimulationMaxDelay +1,InstanceData->TickCount+1);
 
 	ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex);
 	InstanceData->HairStrandsBuffer->Update(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource);
