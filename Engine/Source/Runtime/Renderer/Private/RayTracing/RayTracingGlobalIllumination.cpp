@@ -321,8 +321,7 @@ RENDERER_API void SetupLightParameters(
 			DestLight.dPdv = LightShaderParameters.Tangent;
 			DestLight.Color = LightShaderParameters.Color;
 			DestLight.Dimensions = FVector(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
-			DestLight.RectLightBarnCosAngle = LightShaderParameters.RectLightBarnCosAngle;
-			DestLight.RectLightBarnLength = LightShaderParameters.RectLightBarnLength;
+			DestLight.Shaping = FVector2D(LightShaderParameters.RectLightBarnCosAngle, LightShaderParameters.RectLightBarnLength);
 			DestLight.Flags |= PATHTRACING_LIGHT_RECT;
 			break;
 		}
@@ -335,7 +334,7 @@ RENDERER_API void SetupLightParameters(
 			// #dxr_todo: UE-72556 define these differences from Lit..
 			DestLight.Color = LightShaderParameters.Color;
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
-			DestLight.Dimensions = FVector(0.0, 0.0, SourceRadius);
+			DestLight.Dimensions = FVector(SourceRadius, 0.0, 0.0);
 			DestLight.Flags |= PATHTRACING_LIGHT_POINT;
 			break;
 		}
@@ -348,7 +347,8 @@ RENDERER_API void SetupLightParameters(
 			// #dxr_todo: UE-72556 define these differences from Lit..
 			DestLight.Color = LightShaderParameters.Color;
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
-			DestLight.Dimensions = FVector(LightShaderParameters.SpotAngles, SourceRadius);
+			DestLight.Dimensions = FVector(SourceRadius, 0.0, 0.0);
+			DestLight.Shaping = LightShaderParameters.SpotAngles;
 			DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
 			break;
 		}

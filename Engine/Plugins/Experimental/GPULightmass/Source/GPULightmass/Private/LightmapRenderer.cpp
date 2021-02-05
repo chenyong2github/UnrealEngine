@@ -191,7 +191,10 @@ void SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState&
 
 			DestLight.Normal = -Light.Direction;
 			DestLight.Color = FVector(Light.Color);
-			DestLight.Dimensions = FVector(0.0f, 0.0f, FMath::Sin(0.5f * FMath::DegreesToRadians(Light.LightSourceAngle)));
+			DestLight.Dimensions = FVector(
+				FMath::Sin(0.5f * FMath::DegreesToRadians(Light.LightSourceAngle)),
+				FMath::Sin(0.5f * FMath::DegreesToRadians(Light.LightSourceSoftAngle)),
+				0.0f);
 			DestLight.Attenuation = 1.0;
 			DestLight.IESTextureSlice = -1;
 
@@ -210,7 +213,11 @@ void SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState&
 
 			DestLight.Position = Light.Position;
 			DestLight.Color = FVector(Light.Color);
-			DestLight.Dimensions = FVector(0.0, 0.0, Light.SourceRadius);
+			DestLight.Normal = Light.Direction;
+			DestLight.dPdu = FVector::CrossProduct(Light.Tangent, Light.Direction);
+			DestLight.dPdv = Light.Tangent;
+
+			DestLight.Dimensions = FVector(Light.SourceRadius, Light.SourceSoftRadius, Light.SourceLength);
 			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
 			DestLight.FalloffExponent = Light.FalloffExponent;
 			DestLight.IESTextureSlice = -1;
@@ -231,8 +238,11 @@ void SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState&
 
 			DestLight.Position = Light.Position;
 			DestLight.Normal = Light.Direction;
+			DestLight.dPdu = FVector::CrossProduct(Light.Tangent, Light.Direction);
+			DestLight.dPdv = Light.Tangent;
 			DestLight.Color = FVector(Light.Color);
-			DestLight.Dimensions = FVector(Light.SpotAngles, Light.SourceRadius);
+			DestLight.Dimensions = FVector(Light.SourceRadius, Light.SourceSoftRadius, Light.SourceLength);
+			DestLight.Shaping = Light.SpotAngles;
 			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
 			DestLight.FalloffExponent = Light.FalloffExponent;
 			DestLight.IESTextureSlice = -1;
@@ -262,8 +272,7 @@ void SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState&
 
 			DestLight.Dimensions = FVector(Light.SourceWidth, Light.SourceHeight, 0.0f);
 			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
-			DestLight.RectLightBarnCosAngle = FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle));
-			DestLight.RectLightBarnLength = Light.BarnDoorLength;
+			DestLight.Shaping = FVector2D(FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle)), Light.BarnDoorLength);
 
 			DestLight.IESTextureSlice = -1;
 

@@ -93,14 +93,9 @@ float2 GetRectSize(int LightId)
 	return SceneLights[LightId].Dimensions.xy;
 }
 
-float GetDepth(int LightId)
-{
-	return SceneLights[LightId].Dimensions.z;
-}
-
 float2 GetCosConeAngles(int LightId)
 {
-	return SceneLights[LightId].Dimensions.xy;
+	return SceneLights[LightId].Shaping;
 }
 
 float3 GetColor(int LightId)
@@ -109,6 +104,16 @@ float3 GetColor(int LightId)
 }
 
 float GetRadius(int LightId)
+{
+	return SceneLights[LightId].Dimensions.x;
+}
+
+float GetSoftRadius(int LightId)
+{
+	return SceneLights[LightId].Dimensions.y;
+}
+
+float GetSourceLength(int LightId)
 {
 	return SceneLights[LightId].Dimensions.z;
 }
@@ -120,12 +125,12 @@ float GetAttenuation(int LightId)
 
 float GetRectLightBarnCosAngle(int LightId)
 {
-	return SceneLights[LightId].RectLightBarnCosAngle;
+	return SceneLights[LightId].Shaping.x;
 }
 
 float GetRectLightBarnLength(int LightId)
 {
-	return SceneLights[LightId].RectLightBarnLength;
+	return SceneLights[LightId].Shaping.y;
 }
 
 #ifndef USE_ATTENUATION_TERM
