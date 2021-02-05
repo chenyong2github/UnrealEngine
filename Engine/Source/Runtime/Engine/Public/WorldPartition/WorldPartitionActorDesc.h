@@ -29,8 +29,6 @@ namespace WorldPartitionTests
 }
 #endif
 
-enum class EActorGridPlacement : uint8;
-
 /**
  * Represents a potentially unloaded actor (editor-only)
  */
