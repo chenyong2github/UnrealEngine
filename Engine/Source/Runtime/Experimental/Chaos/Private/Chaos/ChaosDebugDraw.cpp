@@ -338,7 +338,7 @@ namespace Chaos
 			TConstGenericParticleHandle<FReal, 3> Particle = InParticle;
 
 			// This matches the calculation in SpatialAccelerationBroadPhase.h
-			const FReal Box1Thickness = ComputeBoundsThickness(Particle->V(), Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
+			const FReal Box1Thickness = ComputeBoundsThickness(*InParticle, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
 			const FAABB3 Box = ComputeWorldSpaceBoundingBox<FReal>(*InParticle).ThickenSymmetrically(FVec3(Box1Thickness));
 
 			const FVec3 P = SpaceTransform.TransformPosition(Box.GetCenter());
