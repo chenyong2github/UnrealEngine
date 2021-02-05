@@ -79,7 +79,14 @@ UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, FName Strea
 		}
 	#endif
 
-		return TempPath.TryLoad();
+		UObject* Object = TempPath.ResolveObject();
+
+		if (!Object)
+		{
+			Object = TempPath.TryLoad();
+		}
+
+		return Object;
 	}
 
 	return nullptr;
