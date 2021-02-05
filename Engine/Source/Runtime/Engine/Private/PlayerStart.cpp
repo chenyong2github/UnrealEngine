@@ -61,6 +61,8 @@ APlayerStart::APlayerStart(const FObjectInitializer& ObjectInitializer)
 			ArrowComponent->bIsScreenSizeScaled = true;
 		}
 	}
+
+	GridPlacement = EActorGridPlacement::AlwaysLoaded;
 #endif // WITH_EDITORONLY_DATA
 }
 
