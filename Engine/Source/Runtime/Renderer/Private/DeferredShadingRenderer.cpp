@@ -617,6 +617,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		bool bAllSegmentsOpaque = true;
 		bool bAnySegmentsCastShadow = false;
 		bool bAnySegmentsDecal = false;
+		bool bTwoSided = false;
 
 		uint64 InstancingKey() const
 		{
@@ -625,6 +626,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			Key ^= bAllSegmentsOpaque ? 0x1ull << 40 : 0x0;
 			Key ^= bAnySegmentsCastShadow ? 0x1ull << 41 : 0x0;
 			Key ^= bAnySegmentsDecal ? 0x1ull << 42 : 0x0;
+			Key ^= bTwoSided ? 0x1ull << 43 : 0x0;
 			return Key ^ reinterpret_cast<uint64>(RayTracingGeometryRHI);
 		}
 	};
@@ -846,6 +848,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 								RelevantPrimitive.bAllSegmentsOpaque &= RayTracingMeshCommand.bOpaque;
 								RelevantPrimitive.bAnySegmentsCastShadow |= RayTracingMeshCommand.bCastRayTracedShadows;
 								RelevantPrimitive.bAnySegmentsDecal |= RayTracingMeshCommand.bDecal;
+								RelevantPrimitive.bTwoSided |= RayTracingMeshCommand.bTwoSided;
 							}
 							else
 							{
@@ -929,7 +932,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						RayTracingInstance.Transforms.SetNumUninitialized(Instance.InstanceTransforms.Num());
 						FMemory::Memcpy(RayTracingInstance.Transforms.GetData(), Instance.InstanceTransforms.GetData(), Instance.InstanceTransforms.Num() * sizeof(RayTracingInstance.Transforms[0]));
 						static_assert(TIsSame<decltype(RayTracingInstance.Transforms[0]), decltype(Instance.InstanceTransforms[0])>::Value, "Unexpected transform type");
-					}			
+					}
+					for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
+					{
+						FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
+						RayTracingInstance.bDoubleSided |= MeshBatch.bDisableBackfaceCulling;
+					}
 
 					uint32 InstanceIndex = ReferenceView.RayTracingGeometryInstances.Add(RayTracingInstance);
 
@@ -1103,6 +1111,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 				RayTracingInstance.UserData[0] = (uint32)PrimitiveIndex;
 				RayTracingInstance.Mask = RelevantPrimitive.InstanceMask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
 				RayTracingInstance.bForceOpaque = RelevantPrimitive.bAllSegmentsOpaque;
+				RayTracingInstance.bDoubleSided = RelevantPrimitive.bTwoSided;
 			}
 		}
 	}

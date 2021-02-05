@@ -78,6 +78,13 @@ TAutoConsoleVariable<int32> CVarPathTracingApproximateCaustics(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingEnableCameraBackfaceCulling(
+	TEXT("r.PathTracing.EnableCameraBackfaceCulling"),
+	1,
+	TEXT("When non-zero, the path tracer will skip over backfacing triangles when tracing primary rays from the camera. (default = 1 (enabled))"),
+	ECVF_RenderThreadSafe
+);
+
 
 TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
 	TEXT("r.PathTracing.FrameIndependentTemporalSeed"),
@@ -128,6 +135,7 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
 	PathTracingData.UseErrorDiffusion = CVarPathTracingUseErrorDiffusion.GetValueOnRenderThread();
 	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
+	PathTracingData.EnableCameraBackfaceCulling = CVarPathTracingEnableCameraBackfaceCulling.GetValueOnRenderThread();
 	float FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
 	if (FilterWidth < 0)
 	{
@@ -193,6 +201,14 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	{
 		NeedInvalidation = true;
 		PreviousFilterWidth = PathTracingData.FilterWidth;
+	}
+
+	// Changing backface culling status requires starting over
+	static uint32 PreviousBackfaceCulling = PathTracingData.EnableCameraBackfaceCulling;
+	if (PreviousBackfaceCulling != PathTracingData.EnableCameraBackfaceCulling)
+	{
+		NeedInvalidation = true;
+		PreviousBackfaceCulling = PathTracingData.EnableCameraBackfaceCulling;
 	}
 
 	// the rest of PathTracingData and AdaptiveSamplingData is filled in by SetParameters below
