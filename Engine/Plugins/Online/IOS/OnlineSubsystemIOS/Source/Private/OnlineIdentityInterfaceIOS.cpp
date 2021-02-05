@@ -56,9 +56,11 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 	// Since the iOS login code may show a UI, ShowLoginUI is a better fit here. Also, note that the ConnectToService blueprint
 	// node that calls Login is deprecated (there's a new ShowExternalLoginUI node meant to replace it).
 
+	GKLocalPlayer* GKLocalUser = [GKLocalPlayer localPlayer];
+
 	// Was the login handled by Game Center
-	if( GetLocalGameCenterUser() && 
-		GetLocalGameCenterUser().isAuthenticated )
+	if( GKLocalUser && 
+		GKLocalUser.isAuthenticated )
 	{
 		// Now logged in
 		bStartedLogin = true;
@@ -66,9 +68,9 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 #if SUPPORTS_PERSISTENT_SCOPEIDS
 		if ([GKPlayer respondsToSelector:@selector(scopedIDsArePersistent)] == YES)
 		{
-			if ([GetLocalGameCenterUser() scopedIDsArePersistent])
+			if ([GKLocalUser scopedIDsArePersistent])
 			{
-				const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GetLocalGameCenterUser())));
+				const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GKLocalUser)));
 
 				UniqueNetId = MakeShareable( new FUniqueNetIdIOS( PlayerId ) );
 				TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UniqueNetId, TEXT(""));
@@ -88,7 +90,7 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 		else
 #endif
 		{
-			const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GetLocalGameCenterUser())));
+			const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GKLocalUser)));
 
 			UniqueNetId = MakeShareable( new FUniqueNetIdIOS( PlayerId ) );
 			TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UniqueNetId, TEXT(""));
@@ -102,28 +104,38 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 		bStartedLogin = true;
 		dispatch_async(dispatch_get_main_queue(), ^
 		{
-			[GetLocalGameCenterUser() setAuthenticateHandler:(^(UIViewController* viewcontroller, NSError *error)
+			[[GKLocalPlayer localPlayer] setAuthenticateHandler:(^(UIViewController* viewcontroller, NSError *error)
 			{
-				bool bWasSuccessful = false;
-
 				// The login process has completed.
 				if (viewcontroller == nil)
 				{
+					bool bWasSuccessful = false;
 					FString ErrorMessage;
+					TOptional<FString> PlayerId;
 
-					if (GetLocalGameCenterUser().isAuthenticated == YES)
+					if (error)
 					{
+						// We did not complete authentication without error, we are not logged in - Game Center is not available
+						NSString *errstr = [error localizedDescription];
+						UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Game Center login has failed. %s]"), *FString(errstr));
+
+						ErrorMessage = TEXT("An error occured authenticating the user by Game Center");
+						UE_LOG_ONLINE_IDENTITY(Log, TEXT("%s"), *ErrorMessage);
+					}
+					else if ([GKLocalPlayer localPlayer].isAuthenticated == YES)
+					{
+						GKLocalPlayer* GKLocalUserAuth = [GKLocalPlayer localPlayer];
+
 						/* Perform additional tasks for the authenticated player here */
 #if SUPPORTS_PERSISTENT_SCOPEIDS
 						if ([GKPlayer respondsToSelector:@selector(scopedIDsArePersistent)] == YES)
 						{
-							if ([GetLocalGameCenterUser() scopedIDsArePersistent])
+							if ([GKLocalUserAuth scopedIDsArePersistent])
 							{
-								const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GetLocalGameCenterUser())));
-								UniqueNetId = MakeShareable(new FUniqueNetIdIOS(PlayerId));
+								PlayerId = FString(FOnlineSubsystemIOS::GetPlayerId(GKLocalUserAuth));
 
 								bWasSuccessful = true;
-								UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
+								UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId.GetValue());
 							}
 							else
 							{
@@ -135,11 +147,10 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 						else
 #endif
 						{
-							const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GetLocalGameCenterUser())));
-							UniqueNetId = MakeShareable(new FUniqueNetIdIOS(PlayerId));
+							PlayerId = FString(FOnlineSubsystemIOS::GetPlayerId(GKLocalUserAuth));
 
 							bWasSuccessful = true;
-							UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
+							UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId.GetValue());
 						}
 					}
 					else
@@ -148,15 +159,18 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 						UE_LOG_ONLINE_IDENTITY(Log, TEXT("%s"), *ErrorMessage);
 					}
 
-					if (error)
-					{
-						NSString *errstr = [error localizedDescription];
-						UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Game Center login has failed. %s]"), *FString(errstr));
-					}
-
 					// Report back to the game thread whether this succeeded.
 					[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
 					{
+						if (PlayerId.IsSet())
+						{
+							UniqueNetId = MakeShareable(new FUniqueNetIdIOS(PlayerId.GetValue()));
+						}
+						else
+						{
+							UniqueNetId.Reset();
+						}
+
 						TSharedPtr<FUniqueNetIdIOS> UniqueIdForUser = UniqueNetId.IsValid() ? UniqueNetId : MakeShareable(new FUniqueNetIdIOS());
 						TriggerOnLoginCompleteDelegates(LocalUserNum, bWasSuccessful, *UniqueIdForUser, *ErrorMessage);
 
@@ -178,6 +192,7 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 
 bool FOnlineIdentityIOS::Logout(int32 LocalUserNum)
 {
+	UniqueNetId.Reset();
 	TriggerOnLogoutCompleteDelegates(LocalUserNum, false);
 	return true;
 }
