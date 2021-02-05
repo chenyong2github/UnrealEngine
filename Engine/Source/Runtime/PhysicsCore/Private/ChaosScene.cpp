@@ -418,10 +418,10 @@ int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::TAccelerati
 	for(const FSpatialAccelerationIdx SpatialIndex : SpatialIndices)
 	{
 		auto SubStructure = Collection.GetSubstructure(SpatialIndex);
-		if(const auto AABBTree = SubStructure->template As<TAABBTree<FAccelerationStructureHandle,TAABBTreeLeafArray<FAccelerationStructureHandle,FReal>,FReal>>())
+		if(const auto AABBTree = SubStructure->template As<TAABBTree<FAccelerationStructureHandle,TAABBTreeLeafArray<FAccelerationStructureHandle>>>())
 		{
 			DirtyElements += AABBTree->NumDirtyElements();
-		} else if(const auto AABBTreeBV = SubStructure->template As<TAABBTree<FAccelerationStructureHandle,TBoundingVolume<FAccelerationStructureHandle>,FReal>>())
+		} else if(const auto AABBTreeBV = SubStructure->template As<TAABBTree<FAccelerationStructureHandle,TBoundingVolume<FAccelerationStructureHandle>>>())
 		{
 			DirtyElements += AABBTreeBV->NumDirtyElements();
 		}

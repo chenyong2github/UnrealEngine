@@ -297,7 +297,7 @@ namespace Chaos
 		TUniquePtr<TArray<int32>> ExternalVertexIndexMap;
 		bool bCullsBackFaceRaycast;
 
-		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal, /*bComputeBounds=*/false>, FReal, /*bMutable=*/false>;
+		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, /*bComputeBounds=*/false>, /*bMutable=*/false>;
 
 		template<typename InStorageType, typename InRealType>
 		friend struct FBvEntry;

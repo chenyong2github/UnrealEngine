@@ -99,7 +99,7 @@ namespace ClothingMeshUtils
 		TArrayView<const uint32> Indices;
 
 		bool bHasValidBVH;
-		Chaos::TAABBTree<int32, Chaos::TAABBTreeLeafArray<int32, float, false>, float, false> BVH;
+		Chaos::TAABBTree<int32, Chaos::TAABBTreeLeafArray<int32, false>, false> BVH;
 	};
 
 	// Static method for calculating a skinned mesh result from source data

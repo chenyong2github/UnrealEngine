@@ -62,8 +62,8 @@ namespace Chaos
 		FAccelerationConfig Config;
 
 		using BVType = TBoundingVolume<FAccelerationStructureHandle>;
-		using AABBTreeType = TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle, FReal>, FReal>;
-		using AABBTreeOfGridsType = TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>, FReal>;
+		using AABBTreeType = TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>;
+		using AABBTreeOfGridsType = TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>;
 
 		TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>> CreateEmptyCollection() override
 		{
@@ -254,7 +254,7 @@ namespace Chaos
 	TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>> CreateNewSpatialStructureFromSubStructure(TUniquePtr<ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>>&& Substructure)
 	{
 		using BVType = TBoundingVolume<FAccelerationStructureHandle>;
-		using AABBType = TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle, FReal>, FReal>;
+		using AABBType = TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>;
 
 		if (Substructure->template As<BVType>())
 		{
@@ -270,7 +270,7 @@ namespace Chaos
 		}
 		else
 		{
-			using AccelType = TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>, FReal>;
+			using AccelType = TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>;
 			auto Collection = MakeUnique<TSpatialAccelerationCollection<AccelType>>();
 			Collection->AddSubstructure(MoveTemp(Substructure), 0);
 			return Collection;

@@ -205,7 +205,7 @@ void MoveToTOIPairHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle1, c
 
 void MoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SpatialAcceleration)
 {
-	if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle, FReal>, FReal>>())
+	if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>>())
 	{
 		MoveToTOIHackImpl(Dt, Particle, AABBTree);
 	}
@@ -213,7 +213,7 @@ void MoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particl
 	{
 		MoveToTOIHackImpl(Dt, Particle, BV);
 	}
-	else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>, FReal>>())
+	else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>>())
 	{
 		MoveToTOIHackImpl(Dt, Particle, AABBTreeBV);
 	}

@@ -491,7 +491,7 @@ namespace ChaosTest
 
 	void AABBTreeTest()
 	{
-		using TreeType = TAABBTree<int32, TBoundingVolume<int32>, FReal>;
+		using TreeType = TAABBTree<int32, TBoundingVolume<int32>>;
 		{
 			TUniquePtr<TBox<FReal, 3>> Box;
 			auto Boxes = BuildBoxes(Box);
@@ -558,7 +558,7 @@ namespace ChaosTest
 
 	void AABBTreeTimesliceTest()
 	{
-		using TreeType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal>, FReal>;
+		using TreeType = TAABBTree<int32, TAABBTreeLeafArray<int32>>;
 
 		TUniquePtr<TBox<FReal, 3>> Box;
 		auto Boxes = BuildBoxes(Box);
@@ -610,7 +610,7 @@ namespace ChaosTest
 
 	void BroadphaseCollectionTest()
 	{
-		using TreeType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal>, FReal>;
+		using TreeType = TAABBTree<int32, TAABBTreeLeafArray<int32>>;
 		{
 			TUniquePtr<TBox<FReal, 3>> Box;
 			auto Boxes = BuildBoxes(Box);
@@ -673,7 +673,7 @@ namespace ChaosTest
 
 	void SpatialAccelerationDirtyAndGlobalQueryStrestTest()
 	{
-		using AABBTreeType = TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>;
+		using AABBTreeType = TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>>>;
 
 		// Construct 100000 Particles
 		const int32 NumRows = 100;
