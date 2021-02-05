@@ -58,7 +58,8 @@ void UNiagaraDataInterface::GetAssetTagsForContext(const UObject* InAsset, const
 		// for readability's sake, we leave them out of non-CDO assets.
 		if (NumInstances > 0 || (InAsset && InAsset->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject)))
 		{
-			FString Key = TEXT("NumActive") + Class->GetName();
+			FString Key = Class->GetName();
+			Key.ReplaceInline(TEXT("NiagaraDataInterface"), TEXT(""));
 			NumericKeys.Add(*Key) = NumInstances;
 		}
 	}

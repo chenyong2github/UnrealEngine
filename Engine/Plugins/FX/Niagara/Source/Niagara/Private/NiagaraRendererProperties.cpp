@@ -285,7 +285,9 @@ void UNiagaraRendererProperties::GetAssetTagsForContext(const UObject* InAsset, 
 		// for readability's sake, we leave them out of non-CDO assets.
 		if (NumInstances > 0 || (InAsset && InAsset->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject)))
 		{
-			FString Key = TEXT("NumActive") + Class->GetName();
+			FString Key = Class->GetName();
+			Key.ReplaceInline(TEXT("Niagara"), TEXT(""));
+			Key.ReplaceInline(TEXT("Properties"), TEXT(""));
 			NumericKeys.Add(*Key) = NumInstances;
 		}
 	}
