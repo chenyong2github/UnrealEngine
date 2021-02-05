@@ -162,6 +162,13 @@ inline FRDGTextureSubresourceRange FRDGTextureSRV::GetSubresourceRange() const
 	Range.MipIndex = Desc.MipLevel;
 	Range.PlaneSlice = GetResourceTransitionPlaneForMetadataAccess(Desc.MetaData);
 
+	if (Desc.MetaData == ERDGTextureMetaDataAccess::None && Desc.Texture && Desc.Texture->Desc.Format == PF_DepthStencil)
+	{
+		// PF_X24_G8 is used to indicate that this is a view on the stencil plane. Otherwise, it is a view on the depth plane
+		Range.PlaneSlice = Desc.Format == PF_X24_G8 ? FRHITransitionInfo::kStencilPlaneSlice : FRHITransitionInfo::kDepthPlaneSlice;
+		Range.NumPlaneSlices = 1;
+	}
+
 	if (Desc.NumMipLevels != 0)
 	{
 		Range.NumMips = Desc.NumMipLevels;

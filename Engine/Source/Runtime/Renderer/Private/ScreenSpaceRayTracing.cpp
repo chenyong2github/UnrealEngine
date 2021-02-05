@@ -797,8 +797,7 @@ void RenderScreenSpaceReflections(
 		PassParameters->TileListData = TiledScreenSpaceReflection->TileListStructureBufferSRV;
 		PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection->DispatchIndirectParametersBuffer;
 
-		ValidateShaderParameters(VertexShader, *PassParameters);
-		ValidateShaderParameters(PixelShader, *PassParameters);
+		ClearUnusedGraphResources(VertexShader, PixelShader, PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR RayMarch(Quality=%d RayPerPixel=%d%s) %dx%d",
