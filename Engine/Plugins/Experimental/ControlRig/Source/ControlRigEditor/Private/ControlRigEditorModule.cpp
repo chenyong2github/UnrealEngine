@@ -1631,7 +1631,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									}
 								}
 							}
-							else if (Pin->GetCPPTypeObject() == FRigElementKeyCollection::StaticStruct() && Pin->GetDirection() == ERigVMPinDirection::Output && StructMemory != nullptr)
+							else if (Pin->GetCPPTypeObject() == FRigElementKeyCollection::StaticStruct() && Pin->GetDirection() == ERigVMPinDirection::Output)
 							{
 								if (StructMemory == nullptr)
 								{
