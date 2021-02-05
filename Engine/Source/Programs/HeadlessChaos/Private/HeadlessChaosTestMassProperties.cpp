@@ -29,7 +29,7 @@ namespace ChaosTest {
 		Inertia.M[3][1] = 0.f;
 		Inertia.M[3][2] = 0.f;
 		Inertia.M[3][3] = 5.f;
-		auto Rotation = Chaos::TransformToLocalSpace<FReal, 3>(Inertia);
+		auto Rotation = Chaos::TransformToLocalSpace(Inertia);
 	}
 
 	Chaos::FMatrix33 RandInertia(FReal MinVal, FReal MaxVal)
@@ -132,7 +132,7 @@ namespace ChaosTest {
 					FQuat InputRotation = FQuat(InputRotationAxis, InputRotationAngle);
 					Chaos::FMatrix33 InputInertia = Utilities::ComputeWorldSpaceInertia(InputRotation, InputInertiaLocal);
 					Chaos::FMatrix33 OutputInertiaLocal = InputInertia;
-					Chaos::FRotation3 OutputRotation = Chaos::TransformToLocalSpace<FReal, 3>(OutputInertiaLocal);
+					Chaos::FRotation3 OutputRotation = Chaos::TransformToLocalSpace(OutputInertiaLocal);
 
 					// We should have recovered the local inertia matrix, but the axes may be switched
 					FVector OutputInertiaAxes[3], InputInertiaAxes[3];
@@ -197,7 +197,7 @@ namespace ChaosTest {
 		Faces[10] = TVec3<int32>(7, 3, 1);
 		Faces[11] = TVec3<int32>(1, 5, 7);
 		Chaos::FTriangleMesh Surface(MoveTemp(Faces));
-		Chaos::TMassProperties<FReal, 3> MassProperties = Chaos::CalculateMassProperties(Particles, Surface.GetElements(), 1.f);
+		Chaos::FMassProperties MassProperties = Chaos::CalculateMassProperties(Particles, Surface.GetElements(), (FReal)1.0);
 		EXPECT_TRUE(MassProperties.CenterOfMass.Size() < SMALL_NUMBER);
 		EXPECT_TRUE(MassProperties.RotationOfMass.Euler().Size() < SMALL_NUMBER);
 		EXPECT_TRUE(MassProperties.InertiaTensor.M[0][0] - ((FReal)2 / 3) < SMALL_NUMBER);

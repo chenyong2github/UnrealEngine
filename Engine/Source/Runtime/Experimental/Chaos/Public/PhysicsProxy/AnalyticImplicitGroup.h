@@ -112,7 +112,7 @@ public:
 	const TArray<FTransform>& GetInitialStructureTransforms() const { return Transforms; }
 	void ResetTransforms() { Transforms.Init(FTransform::Identity, Transforms.Num()); }
 
-	Chaos::TMassProperties<float, 3> BuildMassProperties(
+	Chaos::FMassProperties BuildMassProperties(
 		const float Density,
 		float& TotalMass)
 	{
@@ -122,8 +122,8 @@ public:
 			!TaperedCylinders.Contains(nullptr) && !ConvexHulls.Contains(nullptr) && !LevelSets.Contains(nullptr));
 
 		const int32 Num = NumStructures();
-		TArray<Chaos::TMassProperties<float, 3>> MPArray;
-		TArray<Chaos::TAABB<float, 3>> BBoxes;
+		TArray<Chaos::FMassProperties> MPArray;
+		TArray<Chaos::FAABB3> BBoxes;
 		MPArray.SetNum(Num);
 		BBoxes.SetNum(Num);
 
@@ -132,7 +132,7 @@ public:
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = Sphere->BoundingBox().TransformedAABB(Xf);
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			MP.Volume = Sphere->GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Sphere->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(Sphere->GetRotationOfMass());
@@ -141,7 +141,7 @@ public:
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = Box->BoundingBox().TransformedAABB(Xf);
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties&MP = MPArray[TransformIndex++];
 			MP.Volume = Box->GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Box->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(Box->GetRotationOfMass());
@@ -150,7 +150,7 @@ public:
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = Capsule->BoundingBox().TransformedAABB(Xf);
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			MP.Volume = Capsule->GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Capsule->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(Capsule->GetRotationOfMass());
@@ -159,7 +159,7 @@ public:
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = TaperedCylinder->BoundingBox().TransformedAABB(Xf);
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			MP.Volume = TaperedCylinder->GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(TaperedCylinder->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(TaperedCylinder->GetRotationOfMass());
@@ -168,7 +168,7 @@ public:
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = Convex->BoundingBox().TransformedAABB(Xf);
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			MP.Volume = Convex->BoundingBox().GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Convex->BoundingBox().Center());
 			MP.RotationOfMass = Xf.TransformRotation(Convex->BoundingBox().GetRotationOfMass());
@@ -177,7 +177,7 @@ public:
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = LevelSet->BoundingBox().TransformedAABB(Xf);
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			MP.Volume = LevelSet->BoundingBox().GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(LevelSet->BoundingBox().Center());
 			MP.RotationOfMass = Xf.TransformRotation(LevelSet->BoundingBox().GetRotationOfMass());
@@ -214,42 +214,42 @@ public:
 		TransformIndex = 0;
 		for (Chaos::TSphere<float, 3>* Sphere : Spheres)
 		{
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			float Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = Sphere->GetInertiaTensor(Mass);
 		}
 		for (Chaos::TBox<float, 3>* Box : Boxes)
 		{
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			float Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = Box->GetInertiaTensor(Mass);
 		}
 		for (Chaos::TCapsule<float>* Capsule : Capsules)
 		{
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			float Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = Capsule->GetInertiaTensor(Mass);
 		}
 		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders)
 		{
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			float Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = TaperedCylinder->GetInertiaTensor(Mass);
 		}
 		for (Chaos::FConvex* Convex : ConvexHulls)
 		{
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			float Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = Convex->BoundingBox().GetInertiaTensor(Mass);
 		}
 		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets)
 		{
-			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
+			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			float Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = LevelSet->BoundingBox().GetInertiaTensor(Mass);

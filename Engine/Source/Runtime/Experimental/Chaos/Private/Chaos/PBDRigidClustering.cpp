@@ -392,7 +392,7 @@ namespace Chaos
 		}
 		Parent->W() /= Parent->M();
 		Parent->PreW() = Parent->W();
-		Parent->R() = Chaos::TransformToLocalSpace<T, d>(InertiaTensor);
+		Parent->R() = Chaos::TransformToLocalSpace(InertiaTensor);
 		if (ForceMassOrientation)
 		{
 			Parent->R() = ForceMassOrientation->GetRotation();

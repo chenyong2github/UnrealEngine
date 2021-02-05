@@ -243,7 +243,7 @@ bool TLevelSet<T, d>::ComputeMassProperties(T& OutVolume, TVector<T, d>& OutCOM,
 		}
 	}
 
-	OutRotationOfMass = Chaos::TransformToLocalSpace<T, d>(Inertia);
+	OutRotationOfMass = Chaos::TransformToLocalSpace(Inertia);
 
 	OutVolume = Volume;
 	OutCOM = COM;

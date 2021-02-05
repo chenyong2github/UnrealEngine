@@ -31,8 +31,7 @@ namespace Chaos
 	template <typename T, int d>
 	class TGeometryParticle;
 
-	template<class T, int d>
-	struct TMassProperties;
+	struct FMassProperties;
 
 	class FPerShapeData;
 

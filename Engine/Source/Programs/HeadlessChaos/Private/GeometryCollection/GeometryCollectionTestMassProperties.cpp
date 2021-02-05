@@ -55,9 +55,9 @@ namespace GeometryCollectionTest
 		Faces[11] = TVec3<int32>(5,7,6);
 		Chaos::TTriangleMesh<FReal> Surface(MoveTemp(Faces));
 
-		TMassProperties<FReal, 3> MassProperties;
+		FMassProperties MassProperties;
 		MassProperties.Mass = 1.f;
-		//Chaos::TMassProperties<FReal, 3> MassProperties = Chaos::CalculateMassProperties(Vertices, Surface.GetElements(), 1.f);
+		//Chaos::FMassProperties MassProperties = Chaos::CalculateMassProperties(Vertices, Surface.GetElements(), 1.f);
 		{
 			const auto& SurfaceElements = Surface.GetElements();
 			CalculateVolumeAndCenterOfMass(Vertices, SurfaceElements, MassProperties.Volume, MassProperties.CenterOfMass);
@@ -126,9 +126,9 @@ namespace GeometryCollectionTest
 		//for (int i = 0; i < Indices.Num(); i++) { Faces[i] = TVec3<int32>(Indices[i][0], Indices[i][1], Indices[i][2]); }
 		//Chaos::TTriangleMesh<FReal> TriMesh(MoveTemp(Faces));
 
-		TArray<TMassProperties<FReal, 3>> MassPropertiesArray;
+		TArray<FMassProperties> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
-		TMassProperties<FReal, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+		FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 		MassProperties.CenterOfMass = FVector(0);
 		MassProperties.Mass = 1.0;
 
@@ -202,9 +202,9 @@ namespace GeometryCollectionTest
 				Indices,
 				false));
 
-		TArray<TMassProperties<FReal, 3>> MassPropertiesArray;
+		TArray<FMassProperties> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
-		TMassProperties<FReal, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+		FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
 		TParticles<FReal, 3> MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
@@ -283,9 +283,9 @@ namespace GeometryCollectionTest
 				Indices,
 				false));
 
-		TArray<TMassProperties<FReal, 3>> MassPropertiesArray;
+		TArray<FMassProperties> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
-		TMassProperties<FReal, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+		FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 		MassProperties.Mass = 1.0;
 		MassProperties.CenterOfMass = FVector(0);
 
@@ -366,9 +366,9 @@ namespace GeometryCollectionTest
 				false));
 
 
-		TArray<TMassProperties<FReal, 3>> MassPropertiesArray;
+		TArray<FMassProperties> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
-		TMassProperties<FReal, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+		FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
 		TArray<FVector> SomeVec;
 		TParticles<FReal, 3> MassSpaceParticles;

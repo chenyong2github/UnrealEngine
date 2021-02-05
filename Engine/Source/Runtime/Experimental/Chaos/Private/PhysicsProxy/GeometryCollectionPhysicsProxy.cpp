@@ -1871,7 +1871,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 		MassSpaceParticles.X(Idx) = Vertex[Idx];	//mass space computation done later down
 	}
 
-	TArray<TMassProperties<float, 3>> MassPropertiesArray;
+	TArray<FMassProperties> MassPropertiesArray;
 	MassPropertiesArray.AddUninitialized(NumGeometries);
 
 	TArray<bool> InertiaComputationNeeded;
@@ -1897,7 +1897,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					Visible,
 					Indices));
 
-			TMassProperties<float, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+			FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
 			{
 				MassProperties.CenterOfMass = FVector::ZeroVector;
@@ -2032,7 +2032,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 		if (CollectionSimulatableParticles[TransformGroupIndex])
 		{
 			TUniquePtr<TTriangleMesh<float>>& TriMesh = TriangleMeshesArray[TransformGroupIndex];
-			TMassProperties<float, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+			FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
 			const float Mass_i = FMath::Max(DesiredDensity * Volume_i, SharedParams.MinimumMassClamp);
 			const float Density_i = Mass_i / Volume_i;
