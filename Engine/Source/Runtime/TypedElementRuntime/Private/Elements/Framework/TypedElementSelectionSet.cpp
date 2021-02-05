@@ -45,14 +45,17 @@ void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 	{
 		FTypedHandleTypeId ElementTypeId = 0;
 
-		ElementList->ForEachElement<UTypedElementSelectionInterface>([&Ar, &ElementTypeId](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
+		if (ElementList)
 		{
-			ElementTypeId = InSelectionElement.GetId().GetTypeId();
-			Ar << ElementTypeId;
+			ElementList->ForEachElement<UTypedElementSelectionInterface>([&Ar, &ElementTypeId](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
+			{
+				ElementTypeId = InSelectionElement.GetId().GetTypeId();
+				Ar << ElementTypeId;
 
-			InSelectionElement.WriteTransactedElement(Ar);
-			return true;
-		});
+				InSelectionElement.WriteTransactedElement(Ar);
+				return true;
+			});
+		}
 
 		// End of the list
 		ElementTypeId = 0;
@@ -85,6 +88,7 @@ void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 			}
 		}
 
+		if (ElementList)
 		{
 			FTypedElementListLegacySyncScopedBatch LegacySyncBatch(ElementList, /*bNotify*/false);
 			TGuardValue<bool> GuardIsRestoringFromTransaction(bIsRestoringFromTransaction, true);
