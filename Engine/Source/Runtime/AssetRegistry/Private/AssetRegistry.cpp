@@ -1721,7 +1721,11 @@ bool UAssetRegistryImpl::AddPath(const FString& PathToAdd)
 	// If no GlobalGatherer, then we are in the game or non-cook commandlet and we do not implement blacklisting
 	if (GlobalGatherer.IsValid())
 	{
-		bBlacklisted = GlobalGatherer->IsBlacklisted(PathToAdd);
+		FString LocalPathToAdd;
+		if (FPackageName::TryConvertLongPackageNameToFilename(PathToAdd, LocalPathToAdd))
+		{
+			bBlacklisted = GlobalGatherer->IsBlacklisted(LocalPathToAdd);
+		}
 	}
 	if (bBlacklisted)
 	{

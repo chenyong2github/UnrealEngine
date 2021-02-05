@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "AssetRegistry/AssetData.h"
 #include "Misc/Paths.h"
