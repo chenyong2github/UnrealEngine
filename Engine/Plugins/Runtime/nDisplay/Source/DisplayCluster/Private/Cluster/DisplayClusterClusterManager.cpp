@@ -335,7 +335,7 @@ void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterCl
 			// Store event object
 			if (EventPtr->bShouldDiscardOnRepeat)
 			{
-				ClusterEventsJsonPoolMain.Emplace(EventPtr->bIsSystemEvent).Emplace(EventId, EventPtr);
+				ClusterEventsJsonPoolMain.FindOrAdd(EventPtr->bIsSystemEvent).Emplace(EventId, EventPtr);
 			}
 			else
 			{
@@ -368,7 +368,7 @@ void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayCluster
 
 			if (EventPtr->bShouldDiscardOnRepeat)
 			{
-				ClusterEventsBinaryPoolMain.Emplace(EventPtr->bIsSystemEvent).Emplace(EventPtr->EventId, EventPtr);
+				ClusterEventsBinaryPoolMain.FindOrAdd(EventPtr->bIsSystemEvent).Emplace(EventPtr->EventId, EventPtr);
 			}
 			else
 			{
