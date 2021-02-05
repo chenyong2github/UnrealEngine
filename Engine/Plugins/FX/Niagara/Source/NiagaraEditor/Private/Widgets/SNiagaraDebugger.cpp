@@ -25,35 +25,20 @@
 #include "EditorWidgetsModule.h"
 #include "PropertyEditorModule.h"
 #include "PlatformInfo.h"
+#include "MessageEndpoint.h"
+#include "MessageEndpointBuilder.h"
+#include "ISessionServicesModule.h"
+#include "Widgets/Browser/SSessionBrowser.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraDebugger"
+
+DEFINE_LOG_CATEGORY(LogNiagaraDebugger);
 
 namespace NiagaraDebuggerLocal
 {
 	static const FName NiagaraDebuggerTabName(TEXT("NiagaraDebugger"));
 
 	DECLARE_DELEGATE_TwoParams(FOnExecConsoleCommand, const TCHAR*, bool);
-
-	static FSlateIcon GetNoDeviceIcon()
-	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "DeviceDetails.TabIcon");
-	}
-
-	static FText GetNoDevicePlatformText()
-	{
-		return LOCTEXT("LocalDevice", "This Device");
-	}
-
-	static FText GetNoDeviceText()
-	{
-		return LOCTEXT("LocalDevice", "<This Device : This Application>");
-	}
-
-	static bool IsSupportedPlatform(ITargetPlatform* Platform)
-	{
-		check(Platform);
-		return Platform->SupportsFeature(ETargetPlatformFeatures::DeviceOutputLog);
-	}
 
 	template<typename T>
 	static TAttribute<T> CreateTAttribute(TFunction<T()> InFunction)
@@ -234,18 +219,58 @@ namespace NiagaraPerformanceTab
 	}
 }
 
-#if WITH_EDITOR
-void UNiagaraDebugHUDSettings::PostEditChangeProperty()
+namespace NiagaraOutlinerTab
 {
-	OnChangedDelegate.Broadcast();
-	SaveConfig();
+	static const FName TabName = FName(TEXT("OutlinerTab"));
+
+	static void RegisterTabSpawner(const TSharedPtr<FTabManager>& TabManager)
+	{
+		TabManager->RegisterTabSpawner(
+			TabName,
+			FOnSpawnTab::CreateLambda(
+				[=](const FSpawnTabArgs&)
+				{
+					return SNew(SDockTab)
+						.TabRole(ETabRole::PanelTab)
+						.Label(LOCTEXT("OutlinerTitle", "FX Outliner"))
+						[
+							//TODO: Pull scene data as a struct from the client and view here in a details view (with customization).
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+						];
+				}
+			)
+		)
+			.SetDisplayName(LOCTEXT("OutlinerTabTitle", "FX Outliner"))
+					.SetTooltipText(LOCTEXT("OutlinerTooltipText", "Open the FX Outliner tab."));
+	}
 }
 
-void UNiagaraDebugHUDSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+namespace NiagaraSessionBrowserTab
 {
-	PostEditChangeProperty();
+	static const FName TabName = FName(TEXT("Session Browser"));
+
+	static void RegisterTabSpawner(const TSharedPtr<FTabManager>& TabManager, TSharedPtr<ISessionManager>& SessionManager)
+	{
+		TabManager->RegisterTabSpawner(
+			TabName,
+			FOnSpawnTab::CreateLambda(
+				[=](const FSpawnTabArgs&)
+				{
+					return SNew(SDockTab)
+						.TabRole(ETabRole::PanelTab)
+						.Label(LOCTEXT("SessionBrowser", "Session Browser"))
+						[
+							SNew(SSessionBrowser, SessionManager.ToSharedRef())
+						];
+				}
+			)
+		)
+			.SetDisplayName(LOCTEXT("SessionBrowserTabTitle", "Session Browser"))
+					.SetTooltipText(LOCTEXT("SessionBrowserTooltipText", "Open the Session Browser tab."));
+	}
 }
-#endif
 
 SNiagaraDebugger::SNiagaraDebugger()
 {
@@ -253,35 +278,69 @@ SNiagaraDebugger::SNiagaraDebugger()
 
 SNiagaraDebugger::~SNiagaraDebugger()
 {
-	DestroyDeviceList();
 }
 
 void SNiagaraDebugger::Construct(const FArguments& InArgs)
 {
 	using namespace NiagaraDebuggerLocal;
 
-	InitDeviceList();
+	//Init message handling.
+
+	MessageEndpoint = FMessageEndpoint::Builder("SNiagaraDebugger")
+		.Handling<FNiagaraDebuggerAcceptConnection>(this, &SNiagaraDebugger::HandleConnectionAcceptedMessage)
+		.Handling<FNiagaraDebuggerConnectionClosed>(this, &SNiagaraDebugger::HandleConnectionClosedMessage);
+
+	ISessionServicesModule& SessionServicesModule = FModuleManager::LoadModuleChecked<ISessionServicesModule>("SessionServices");
+	SessionManager = SessionServicesModule.GetSessionManager();
+
+	SessionManager->OnSelectedSessionChanged().AddSP(this, &SNiagaraDebugger::SessionManager_OnSessionSelectionChanged);
+	SessionManager->OnInstanceSelectionChanged().AddSP(this, &SNiagaraDebugger::SessionManager_OnInstanceSelectionChanged);
+
+	//////////////////////////////////////////////////////////////////////////
 
 	TabManager = InArgs._TabManager;
 
 	NiagaraDebugHudTab::RegisterTabSpawner(TabManager);
 	NiagaraPerformanceTab::RegisterTabSpawner(TabManager, FOnExecConsoleCommand::CreateSP(this, &SNiagaraDebugger::ExecConsoleCommand));
+	NiagaraOutlinerTab::RegisterTabSpawner(TabManager);
+	NiagaraSessionBrowserTab::RegisterTabSpawner(TabManager, SessionManager);
 
-	GetMutableDefault<UNiagaraDebugHUDSettings>()->OnChangedDelegate.AddSP(this, &SNiagaraDebugger::ExecHUDConsoleCommand);
+	GetMutableDefault<UNiagaraDebugHUDSettings>()->OnChangedDelegate.AddSP(this, &SNiagaraDebugger::UpdateDebugHUDSettings);
 
-	TSharedPtr<FTabManager::FLayout> DebuggerLayout = FTabManager::NewLayout("NiagaraDebugger_Layout_v1")
+	TSharedPtr<FTabManager::FLayout> DebuggerLayout = FTabManager::NewLayout("NiagaraDebugger_Layout_v1.1")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
-			->SetOrientation(Orient_Vertical)
+			->SetOrientation(Orient_Horizontal)
+			->Split
+			(
+				FTabManager::NewSplitter()
+				->SetOrientation(Orient_Vertical)
+				->SetSizeCoefficient(0.3f)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(.8f)
+					->SetHideTabWell(true)
+					->AddTab(NiagaraDebugHudTab::TabName, ETabState::OpenedTab)
+					->AddTab(NiagaraPerformanceTab::TabName, ETabState::OpenedTab)
+					->SetForegroundTab(NiagaraDebugHudTab::TabName)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetHideTabWell(true)
+					->SetSizeCoefficient(0.2f)
+					->AddTab(NiagaraSessionBrowserTab::TabName, ETabState::OpenedTab)
+					->SetForegroundTab(NiagaraSessionBrowserTab::TabName)
+				)
+			)
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(.4f)
-				->SetHideTabWell(true)
-				->AddTab(NiagaraDebugHudTab::TabName, ETabState::OpenedTab)
-				->AddTab(NiagaraPerformanceTab::TabName, ETabState::OpenedTab)
-				->SetForegroundTab(NiagaraDebugHudTab::TabName)
+				->SetSizeCoefficient(.7f)
+				->AddTab(NiagaraOutlinerTab::TabName, ETabState::OpenedTab)
+				->SetForegroundTab(NiagaraOutlinerTab::TabName)
 			)
 		);
 
@@ -289,26 +348,52 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 
 	TSharedRef<SWidget> TabContents = TabManager->RestoreFrom(DebuggerLayout.ToSharedRef(), TSharedPtr<SWindow>()).ToSharedRef();
 
+	// create & initialize main menu
+	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
+
+	MenuBarBuilder.AddPullDownMenu(
+		LOCTEXT("WindowMenuLabel", "Window"),
+		FText::GetEmpty(),
+		FNewMenuDelegate::CreateSP(this, &SNiagaraDebugger::FillWindowMenu),
+		"Window"
+	);
+
+	// Tell tab-manager about the multi-box for platforms with a global menu bar
+	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox());
+
 	ChildSlot
 	[
-		SNew(SScrollBox)
-		.Orientation(Orient_Vertical)
-		+ SScrollBox::Slot()
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				MakeToolbar()
-			]
-			// Tab Contents
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				TabContents
-			]
+			MenuBarBuilder.MakeWidget()
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			MakeToolbar()
+		]
+		+ SVerticalBox::Slot()
+		.Padding(2.0)
+		[
+			TabContents
 		]
 	];
+}
+
+void SNiagaraDebugger::FillWindowMenu(FMenuBuilder& MenuBuilder)
+{
+	if (!TabManager.IsValid())
+	{
+		return;
+	}
+
+#if !WITH_EDITOR
+	FGlobalTabmanager::Get()->PopulateTabSpawnerMenu(MenuBuilder, WorkspaceMenu::GetMenuStructure().GetStructureRoot());
+#endif //!WITH_EDITOR
+
+	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
 }
 
 void SNiagaraDebugger::RegisterTabSpawner()
@@ -373,108 +458,33 @@ TSharedRef<SDockTab> SNiagaraDebugger::SpawnNiagaraDebugger(const FSpawnTabArgs&
 	return NomadTab;
 }
 
-void SNiagaraDebugger::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
-	if ( bWasDeviceConnected == false )
-	{
-		if ( SelectedTargetDevice != nullptr )
-		{
-			if ( ITargetDevicePtr DevicePtr = SelectedTargetDevice->DeviceWeakPtr.Pin() )
-			{
-				if ( DevicePtr->IsConnected() )
-				{
-					bWasDeviceConnected = true;
-					ExecHUDConsoleCommand();
-				}
-			}
-		}
-	}
-}
-
-void SNiagaraDebugger::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	//if (DebugHUDSettings != nullptr)
-	//{
-	//	Collector.AddReferencedObject(DebugHUDSettings);
-	//}
-}
-
 void SNiagaraDebugger::ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld)
 {
-	if (SelectedTargetDevice)
+	auto SendExecCommand = [&](SNiagaraDebugger::FClientInfo& Client)
 	{
-		ITargetDevicePtr DevicePtr = SelectedTargetDevice->DeviceWeakPtr.Pin();
-		if (DevicePtr && DevicePtr->IsConnected())
-		{
-			DevicePtr->ExecuteConsoleCommand(Cmd);
-		}
-	}
-	else
-	{
-		if (bRequiresWorld)
-		{
-			for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
-			{
-				UWorld* World = *WorldIt;
-				if ( (World != nullptr) &&
-					 (World->PersistentLevel != nullptr) &&
-					 (World->PersistentLevel->OwningWorld == World) &&
-					 ((World->GetNetMode() == ENetMode::NM_Client) || (World->GetNetMode() == ENetMode::NM_Standalone)) )
-				{
-					GEngine->Exec(*WorldIt, Cmd);
-				}
-			}
-		}
-		else
-		{
-			GEngine->Exec(nullptr, Cmd);
-		}
-	}
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending console command %s. | Session: %s | Instance: %s |"), Cmd, *Client.SessionId.ToString(), *Client.InstanceId.ToString());
+		MessageEndpoint->Send(new FNiagaraDebuggerExecuteConsoleCommand(Cmd, bRequiresWorld), Client.Address);
+	};
+
+	ForAllConnectedClients(SendExecCommand);
 }
 
-void SNiagaraDebugger::ExecHUDConsoleCommand()
+void SNiagaraDebugger::UpdateDebugHUDSettings()
 {
-	const auto BuildVariableString =
-		[](const TArray<FNiagaraDebugHUDVariable>& Variables) -> FString
+	//Send the current state as a message to all connected clients.
+	if (const UNiagaraDebugHUDSettings* Settings = GetDefault<UNiagaraDebugHUDSettings>())
+	{
+		auto SendSettingsUpdate = [&](SNiagaraDebugger::FClientInfo& Client)
 		{
-			FString Output;
-			for (const FNiagaraDebugHUDVariable& Variable : Variables)
-			{
-				if (Variable.bEnabled && Variable.Name.Len() > 0)
-				{
-					if (Output.Len() > 0)
-					{
-						Output.Append(TEXT(","));
-					}
-					Output.Append(Variable.Name);
-				}
-			}
-			return Output;
+			//Create the message and copy the current state of the settings into it.
+			FNiagaraDebugHUDSettingsData* Message = new FNiagaraDebugHUDSettingsData();
+			FNiagaraDebugHUDSettingsData::StaticStruct()->CopyScriptStruct(Message, &Settings->Data);
+
+			UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending updated debug HUD settings. | Session: %s | Instance: %s |"), *Client.SessionId.ToString(), *Client.InstanceId.ToString());
+			MessageEndpoint->Send(Message, Client.Address);
 		};
 
-	// Some platforms have limits on the size of the remote command, so split into a series of several commands to send
-	if ( const UNiagaraDebugHUDSettings* Settings = GetDefault<UNiagaraDebugHUDSettings>() )
-	{
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud HudVerbosity=%d"), Settings->HudVerbosity), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud GpuReadback=%d"), Settings->bEnableGpuReadback ? 1 : 0), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud DisplayLocation=%d,%d"), Settings->HUDLocation.X, Settings->HUDLocation.Y), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemVerbosity=%d"), (int32)Settings->SystemVerbosity), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemShowBounds=%d "), Settings->bSystemShowBounds ? 1 : 0), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemShowActiveOnlyInWorld=%d"), Settings->bSystemShowActiveOnlyInWorld ? 1 : 0), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemFilter=%s"), Settings->bSystemFilterEnabled ? *Settings->SystemFilter : TEXT("")), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud EmitterFilter=%s"), Settings->bEmitterFilterEnabled ? *Settings->EmitterFilter : TEXT("")), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ActorFilter=%s"), Settings->bActorFilterEnabled ? *Settings->ActorFilter : TEXT("")), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ComponentFilter=%s"), Settings->bComponentFilterEnabled ? *Settings->ComponentFilter : TEXT("")), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud SystemVariables=%s"), Settings->bShowSystemVariables ? *BuildVariableString(Settings->SystemVariables) : TEXT("")), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ParticleVariables=%s"), Settings->bShowParticleVariables ? *BuildVariableString(Settings->ParticlesVariables) : TEXT("")), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud MaxParticlesToDisplay=%d"), Settings->MaxParticlesToDisplay), false);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.Hud ShowParticlesInWorld=%d"), Settings->bShowParticlesInWorld ? 1 : 0), false);
-
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.PlaybackMode %d"), Settings->PlaybackMode), true);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.PlaybackRate %.3f"), Settings->bPlaybackRateEnabled ? Settings->PlaybackRate : 1.0f), true);
-		ExecConsoleCommand(*FString::Printf(TEXT("fx.Niagara.Debug.GlobalLoopTime %.3f"), (Settings->PlaybackMode == ENiagaraDebugPlaybackMode::Loop) && Settings->bLoopTimeEnabled ? Settings->LoopTime : 0.0f), true);
+		ForAllConnectedClients(SendSettingsUpdate);
 	}
 }
 
@@ -486,20 +496,10 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 	UNiagaraDebugHUDSettings* Settings = GetMutableDefault<UNiagaraDebugHUDSettings>();
 	ToolbarBuilder.BeginSection("Main");
 
-	// Device selection
-	{
-		ToolbarBuilder.AddComboButton(
-			FUIAction(),
-			FOnGetContent::CreateSP(this, &SNiagaraDebugger::MakeDeviceComboButtonMenu),
-			CreateTAttribute<FText>([Owner = this]() { return Owner->SelectedTargetDevice.IsValid() ? Owner->SelectedTargetDevice->PlatformName : GetNoDevicePlatformText(); }),
-			LOCTEXT("Device_Tooltip", "The device we are currently connected to."),
-			CreateTAttribute<FSlateIcon>([Owner=this]() { return Owner->SelectedTargetDevice.IsValid() ? FSlateIcon(FEditorStyle::GetStyleSetName(), Owner->SelectedTargetDevice->DeviceIconStyle) : GetNoDeviceIcon(); })
-		);
-	}
 	// Refresh button
 	{
 		ToolbarBuilder.AddToolBarButton(
-			FUIAction(FExecuteAction::CreateLambda([Owner=this]() { Owner->ExecHUDConsoleCommand(); })),
+			FUIAction(FExecuteAction::CreateLambda([Owner=this]() { Owner->UpdateDebugHUDSettings(); })),
 			NAME_None,
 			LOCTEXT("Refresh", "Refresh"),
 			LOCTEXT("RefreshTooltip", "Refesh the settings on the target device.  Used if we get out of sync."),
@@ -515,9 +515,9 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->PlaybackMode = ENiagaraDebugPlaybackMode::Play; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Play; Settings->PostEditChangeProperty(); }),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([=]() { return Settings->PlaybackMode == ENiagaraDebugPlaybackMode::Play; })
+					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Play; })
 				),
 				NAME_None,
 				LOCTEXT("Play", "Play"),
@@ -530,9 +530,9 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->PlaybackMode = ENiagaraDebugPlaybackMode::Paused; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Paused; Settings->PostEditChangeProperty(); }),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([=]() { return Settings->PlaybackMode == ENiagaraDebugPlaybackMode::Paused; })
+					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Paused; })
 				),
 				NAME_None,
 				LOCTEXT("Pause", "Pause"),
@@ -545,12 +545,12 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->PlaybackMode = ENiagaraDebugPlaybackMode::Loop; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Loop; Settings->PostEditChangeProperty(); }),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([=]() { return Settings->PlaybackMode == ENiagaraDebugPlaybackMode::Loop; })
+					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Loop; })
 				),
 				NAME_None,
-				CreateTAttribute<FText>([=]() { return Settings->bLoopTimeEnabled ? FText::Format(LOCTEXT("PlaybackLoopFormat", "Loop Every\n{0} Seconds"), FText::AsNumber(Settings->LoopTime)) : LOCTEXT("Loop", "Loop"); }),
+				CreateTAttribute<FText>([=]() { return Settings->Data.bLoopTimeEnabled ? FText::Format(LOCTEXT("PlaybackLoopFormat", "Loop Every\n{0} Seconds"), FText::AsNumber(Settings->Data.LoopTime)) : LOCTEXT("Loop", "Loop"); }),
 				LOCTEXT("LoopTooltip", "Loop all simulations, i.e. one shot effects will loop"),
 				FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.LoopIcon"),
 				EUserInterfaceActionType::ToggleButton
@@ -560,9 +560,9 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->PlaybackMode = ENiagaraDebugPlaybackMode::Step; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.PlaybackMode = ENiagaraDebugPlaybackMode::Step; Settings->PostEditChangeProperty(); }),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([=]() { return Settings->PlaybackMode == ENiagaraDebugPlaybackMode::Step; })
+					FIsActionChecked::CreateLambda([=]() { return Settings->Data.PlaybackMode == ENiagaraDebugPlaybackMode::Step; })
 				),
 				NAME_None,
 				LOCTEXT("Step", "Step"),
@@ -575,12 +575,12 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 		{
 			ToolbarBuilder.AddToolBarButton(
 				FUIAction(
-					FExecuteAction::CreateLambda([=]() {Settings->bPlaybackRateEnabled = !Settings->bPlaybackRateEnabled; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([=]() {Settings->Data.bPlaybackRateEnabled = !Settings->Data.bPlaybackRateEnabled; Settings->PostEditChangeProperty(); }),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([=]() { return Settings->bPlaybackRateEnabled; })
+					FIsActionChecked::CreateLambda([=]() { return Settings->Data.bPlaybackRateEnabled; })
 				),
 				NAME_None,
-				CreateTAttribute<FText>([=]() { return  FText::Format(LOCTEXT("PlaybackSpeedFormat", "Speed\n{0} x"), FText::AsNumber(Settings->PlaybackRate)); }),
+				CreateTAttribute<FText>([=]() { return  FText::Format(LOCTEXT("PlaybackSpeedFormat", "Speed\n{0} x"), FText::AsNumber(Settings->Data.PlaybackRate)); }),
 				LOCTEXT("SlowTooltip", "When enabled adjusts the playback speed for simulations."),
 				FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.SpeedIcon"),
 				EUserInterfaceActionType::ToggleButton
@@ -626,9 +626,9 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 				Speed.Get<2>(),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([Settings, Rate=Speed.Get<0>()]() { Settings->PlaybackRate = Rate; Settings->PostEditChangeProperty(); }),
+					FExecuteAction::CreateLambda([Settings, Rate=Speed.Get<0>()]() { Settings->Data.PlaybackRate = Rate; Settings->PostEditChangeProperty(); }),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([Settings, Rate=Speed.Get<0>()]() { return FMath::IsNearlyEqual(Settings->PlaybackRate, Rate); })
+					FIsActionChecked::CreateLambda([Settings, Rate=Speed.Get<0>()]() { return FMath::IsNearlyEqual(Settings->Data.PlaybackRate, Rate); })
 				),
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
@@ -647,13 +647,13 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 			+ SHorizontalBox::Slot()
 			[
 				SNew(SNumericEntryBox<float>)
-				.Value(CreateTAttribute<TOptional<float>>([=]() { return TOptional<float>(Settings->PlaybackRate); }))
+				.Value(CreateTAttribute<TOptional<float>>([=]() { return TOptional<float>(Settings->Data.PlaybackRate); }))
 				.AllowSpin(true)
 				.MinValue(0.0f)
 				.MaxValue(TOptional<float>())
 				.MinSliderValue(0.0f)
 				.MaxSliderValue(1.0f)
-				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->PlaybackRate = InNewValue; Settings->PostEditChangeProperty(); }))
+				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.PlaybackRate = InNewValue; Settings->PostEditChangeProperty(); }))
 			],
 			FText()
 		);
@@ -669,9 +669,9 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 			LOCTEXT("LoopTimeEnabledTooltip", "When enabled and in loop mode systems will loop on this time rather than when they finish"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([Settings]() { Settings->bLoopTimeEnabled = !Settings->bLoopTimeEnabled; Settings->PostEditChangeProperty(); }),
+				FExecuteAction::CreateLambda([Settings]() { Settings->Data.bLoopTimeEnabled = !Settings->Data.bLoopTimeEnabled; Settings->PostEditChangeProperty(); }),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([Settings]() { return Settings->bLoopTimeEnabled; })
+				FIsActionChecked::CreateLambda([Settings]() { return Settings->Data.bLoopTimeEnabled; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::Check
@@ -689,13 +689,13 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 			+ SHorizontalBox::Slot()
 			[
 				SNew(SNumericEntryBox<float>)
-				.Value(CreateTAttribute<TOptional<float>>([=]() { return TOptional<float>(Settings->LoopTime); }))
+				.Value(CreateTAttribute<TOptional<float>>([=]() { return TOptional<float>(Settings->Data.LoopTime); }))
 				.AllowSpin(true)
 				.MinValue(0.0f)
 				.MaxValue(TOptional<float>())
 				.MinSliderValue(0.0f)
 				.MaxSliderValue(5.0f)
-				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->LoopTime = InNewValue; Settings->PostEditChangeProperty(); }))
+				.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateLambda([=](float InNewValue) { Settings->Data.LoopTime = InNewValue; Settings->PostEditChangeProperty(); }))
 			],
 			FText()
 		);
@@ -705,155 +705,171 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedRef<SWidget> SNiagaraDebugger::MakeDeviceComboButtonMenu()
+//////////////////////////////////////////////////////////////////////////
+// New Session and Messaging code.
+
+void SNiagaraDebugger::SessionManager_OnSessionSelectionChanged(const TSharedPtr<ISessionInfo>& Session)
 {
-	using namespace NiagaraDebuggerLocal;
-
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
-
-	// Entry for local application
-	MenuBuilder.AddMenuEntry(
-		NiagaraDebuggerLocal::GetNoDeviceText(),
-		FText(),
-		NiagaraDebuggerLocal::GetNoDeviceIcon(),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &SNiagaraDebugger::SelectDevice, FTargetDeviceEntryPtr()),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([Owner = this]() { return Owner->SelectedTargetDevice == FTargetDeviceEntryPtr(); })
-		),
-		NAME_None,
-		EUserInterfaceActionType::RadioButton
-	);
-
-	// Create entry per device
-	for (const auto& DeviceEntry : TargetDeviceList)
+	//Drop all existing and pending connections when the session selection changes.
+	TArray<FClientInfo> ToClose;
+	if (Session.IsValid())
 	{
-		MenuBuilder.AddMenuEntry(
-			CreateTAttribute<FText>([Owner=this, DeviceEntry]() { return Owner->GetTargetDeviceText(DeviceEntry); }),
-			FText(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), DeviceEntry->DeviceIconStyle),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SNiagaraDebugger::SelectDevice, DeviceEntry),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([Owner = this, DeviceEntry]() { return Owner->SelectedTargetDevice == DeviceEntry; })
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-	}
-	return MenuBuilder.MakeWidget();
-}
-
-void SNiagaraDebugger::InitDeviceList()
-{
-	if (ITargetPlatformManagerModule* TPM = FModuleManager::GetModulePtr<ITargetPlatformManagerModule>("TargetPlatform"))
-	{
-		for (ITargetPlatform* TargetPlatform : TPM->GetTargetPlatforms())
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Session selection changed. Dropping connections not from this session. | Session: %s (%s)"), *Session->GetSessionId().ToString(), *Session->GetSessionName());
+		for (FClientInfo& Client : ConnectedClients)
 		{
-			if (NiagaraDebuggerLocal::IsSupportedPlatform(TargetPlatform))
+			if (Client.SessionId != Session->GetSessionId())
 			{
-				TargetPlatform->OnDeviceDiscovered().AddRaw(this, &SNiagaraDebugger::AddTargetDevice);
-				TargetPlatform->OnDeviceLost().AddRaw(this, &SNiagaraDebugger::RemoveTargetDevice);
-
-				TArray<ITargetDevicePtr> TargetDevices;
-				TargetPlatform->GetAllDevices(TargetDevices);
-				
-				for (const ITargetDevicePtr& TargetDevice : TargetDevices)
-				{
-					if (TargetDevice.IsValid())
-					{
-						AddTargetDevice(TargetDevice.ToSharedRef());
-					}
-				}
+				ToClose.Add(Client);
 			}
 		}
-	}
-}
-
-void SNiagaraDebugger::DestroyDeviceList()
-{
-	if ( ITargetPlatformManagerModule* TPM = FModuleManager::GetModulePtr<ITargetPlatformManagerModule>("TargetPlatform") )
-	{
-		for (ITargetPlatform* TargetPlatform : TPM->GetTargetPlatforms())
+		for (FClientInfo& Client : PendingClients)
 		{
-			TargetPlatform->OnDeviceDiscovered().RemoveAll(this);
-			TargetPlatform->OnDeviceLost().RemoveAll(this);
-		}
-	}
-}
-
-void SNiagaraDebugger::AddTargetDevice(ITargetDeviceRef TargetDevice)
-{
-	// Check it doesn't already exist
-	for ( const auto& DevicePtr : TargetDeviceList )
-	{
-		if ( DevicePtr->DeviceId.GetDeviceName() == TargetDevice->GetId().GetDeviceName() )
-		{
-			return;
-		}
-	}
-
-	// Add device
-	auto PlatformInfo = TargetDevice->GetTargetPlatform().GetPlatformInfo();
-	FTargetDeviceEntryPtr NewDevice = MakeShareable(new FTargetDeviceEntry);
-	NewDevice->DeviceId = TargetDevice->GetId();
-	NewDevice->DeviceWeakPtr = TargetDevice;
-	NewDevice->PlatformName = PlatformInfo.DisplayName;
-	NewDevice->DeviceIconStyle = PlatformInfo.GetIconStyleName(PlatformInfo::EPlatformIconSize::Normal);
-
-	TargetDeviceList.Add(NewDevice);
-}
-
-void SNiagaraDebugger::RemoveTargetDevice(ITargetDeviceRef TargetDevice)
-{
-	if (SelectedTargetDevice && (SelectedTargetDevice->DeviceId.GetDeviceName() == TargetDevice->GetId().GetDeviceName()))
-	{
-		SelectDevice(nullptr);
-	}
-
-	TargetDeviceList.RemoveAllSwap(
-		[&](const FTargetDeviceEntryPtr& DevicePtr)
-		{
-			return DevicePtr->DeviceId.GetDeviceName() == TargetDevice->GetId().GetDeviceName();
-		}
-	);
-}
-
-void SNiagaraDebugger::SelectDevice(FTargetDeviceEntryPtr DeviceEntry)
-{
-	SelectedTargetDevice = DeviceEntry;
-	bWasDeviceConnected = true;
-	if ( SelectedTargetDevice != nullptr )
-	{
-		if ( ITargetDevicePtr DevicePtr = SelectedTargetDevice->DeviceWeakPtr.Pin() )
-		{
-			bWasDeviceConnected = DevicePtr->IsConnected();
-		}
-	}
-
-	ExecHUDConsoleCommand();
-}
-
-FText SNiagaraDebugger::GetTargetDeviceText(FTargetDeviceEntryPtr DeviceEntry) const
-{
-	if (DeviceEntry.IsValid())
-	{
-		ITargetDevicePtr PinnedPtr = DeviceEntry->DeviceWeakPtr.Pin();
-		if (PinnedPtr.IsValid() && PinnedPtr->IsConnected())
-		{
-			FString DeviceName = PinnedPtr->GetName();
-			return FText::FromString(DeviceName);
-		}
-		else
-		{
-			FString DeviceName = DeviceEntry->DeviceId.GetDeviceName();
-			return FText::Format(LOCTEXT("TargetDeviceOffline", "{0} (Offline)"), FText::FromString(DeviceName));
+			if (Client.SessionId != Session->GetSessionId())
+			{
+				ToClose.Add(Client);
+			}
 		}
 	}
 	else
 	{
-		return NiagaraDebuggerLocal::GetNoDeviceText();
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Session selection changed. Dropping all connections."));
+		ToClose.Append(ConnectedClients);
+		ToClose.Append(PendingClients);
+	}
+
+	for (FClientInfo& Client : ToClose)
+	{
+		CloseConnection(Client.SessionId, Client.InstanceId);
 	}
 }
 
+void SNiagaraDebugger::SessionManager_OnInstanceSelectionChanged(const TSharedPtr<ISessionInstanceInfo>& Instance, bool Selected)
+{
+	if (MessageEndpoint.IsValid())
+	{
+		if (Selected)
+		{
+			const FGuid& SessionId = Instance->GetOwnerSession()->GetSessionId();
+			const FGuid& InstanceId = Instance->GetInstanceId();
+
+			int32 FoundActive = FindActiveConnection(SessionId, InstanceId);
+			if (FoundActive != INDEX_NONE)
+			{
+				UE_LOG(LogNiagaraDebugger, Log, TEXT("Session Instance selection callback for existing active connection. Ignored. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *Instance->GetInstanceName());
+				return;
+			}
+
+			int32 FoundPending = FindPendingConnection(SessionId, InstanceId);
+			if (FoundPending != INDEX_NONE)
+			{
+				UE_LOG(LogNiagaraDebugger, Log, TEXT("Session Instance selection callback for existing pending connection. Ignored. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *Instance->GetInstanceName());
+				return;
+			}
+
+			FNiagaraDebuggerRequestConnection* ConnectionRequestMessage = new FNiagaraDebuggerRequestConnection(SessionId, InstanceId);
+			UE_LOG(LogNiagaraDebugger, Log, TEXT("Establishing connection. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *Instance->GetInstanceName());
+			MessageEndpoint->Publish(ConnectionRequestMessage);
+
+			FClientInfo& NewPendingConnection = PendingClients.AddDefaulted_GetRef();
+			NewPendingConnection.SessionId = SessionId;
+			NewPendingConnection.InstanceId = InstanceId;
+			NewPendingConnection.StartTime = FPlatformTime::Seconds();
+		}
+		else
+		{
+			CloseConnection(Instance->GetOwnerSession()->GetSessionId(), Instance->GetInstanceId());
+		}
+	}
+}
+
+int32 SNiagaraDebugger::FindPendingConnection(FGuid SessionId, FGuid InstanceId)const
+{
+	return PendingClients.IndexOfByPredicate([&](const FClientInfo& Pending) { return Pending.SessionId == SessionId && Pending.SessionId == SessionId; });
+}
+
+int32 SNiagaraDebugger::FindActiveConnection(FGuid SessionId, FGuid InstanceId)const
+{
+	return ConnectedClients.IndexOfByPredicate([&](const FClientInfo& Active) { return Active.SessionId == SessionId && Active.SessionId == SessionId; });
+}
+
+void SNiagaraDebugger::CloseConnection(FGuid SessionId, FGuid InstanceId)
+{
+	int32 FoundPending = FindPendingConnection(SessionId, InstanceId);
+	int32 FoundActive = FindActiveConnection(SessionId, InstanceId);
+
+	checkf(FoundActive == INDEX_NONE || FoundPending == INDEX_NONE, TEXT("Same client info is on both the pending and active connections lists."));
+
+	if (FoundPending != INDEX_NONE)
+	{
+		FClientInfo Pending = PendingClients[FoundPending];
+		PendingClients.RemoveAtSwap(FoundPending);
+		MessageEndpoint->Publish(new FNiagaraDebuggerConnectionClosed(Pending.SessionId, Pending.InstanceId));
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Closing pending connection. | Session: %s | Instance: %s |"), *SessionId.ToString(), *InstanceId.ToString());
+
+		OnConnectionClosedDelegate.Broadcast(Pending);
+	}
+	if (FoundActive != INDEX_NONE)
+	{
+		FClientInfo Active = ConnectedClients[FoundActive];
+		ConnectedClients.RemoveAtSwap(FoundActive);
+		MessageEndpoint->Send(new FNiagaraDebuggerConnectionClosed(Active.SessionId, Active.InstanceId), Active.Address);
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Closing active connection. | Session: %s | Instance: %s |"), *SessionId.ToString(), *InstanceId.ToString());
+
+		OnConnectionClosedDelegate.Broadcast(Active);
+	}
+}
+
+void SNiagaraDebugger::HandleConnectionAcceptedMessage(const FNiagaraDebuggerAcceptConnection& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+{
+	int32 FoundActive = FindActiveConnection(Message.SessionId, Message.InstanceId);
+	if (FoundActive != INDEX_NONE)
+	{
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved connection accepted message from an already connected client. Ignored. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
+		return;
+	}
+
+	int32 FoundPending = FindPendingConnection(Message.SessionId, Message.InstanceId);
+	if (FoundPending != INDEX_NONE)
+	{
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Connection accepted. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
+		PendingClients.RemoveAtSwap(FoundPending);
+
+		FClientInfo& NewConnection = ConnectedClients.AddDefaulted_GetRef();
+		NewConnection.Address = Context->GetSender();
+		NewConnection.SessionId = Message.SessionId;
+		NewConnection.InstanceId = Message.InstanceId;
+		NewConnection.StartTime = FPlatformTime::Seconds();
+
+		UpdateDebugHUDSettings();
+
+		OnConnectionMadeDelegate.Broadcast(NewConnection);
+	}
+	else
+	{
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved connection accepted message from a client that is not in our pending list. Ignored. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
+	}
+}
+
+void SNiagaraDebugger::HandleConnectionClosedMessage(const FNiagaraDebuggerConnectionClosed& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+{
+	int32 FoundPending = FindPendingConnection(Message.SessionId, Message.InstanceId);
+	int32 FoundActive = FindActiveConnection(Message.SessionId, Message.InstanceId);
+
+	checkf(FoundActive == INDEX_NONE || FoundPending == INDEX_NONE, TEXT("Same client info is on both the pending and active connections lists."));
+
+	if (FoundPending != INDEX_NONE)
+	{
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Pending connection closed by the client. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
+		OnConnectionClosedDelegate.Broadcast(PendingClients[FoundPending]);
+		PendingClients.RemoveAtSwap(FoundPending);
+	}
+	if (FoundActive != INDEX_NONE)
+	{
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Active connection closed by the client. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
+		OnConnectionClosedDelegate.Broadcast(ConnectedClients[FoundActive]);
+		ConnectedClients.RemoveAtSwap(FoundActive);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 #undef LOCTEXT_NAMESPACE

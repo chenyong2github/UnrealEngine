@@ -23,6 +23,7 @@
 #include "UObject/CoreRedirects.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "Misc/CoreDelegates.h"
+#include "NiagaraDebuggerClient.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -161,6 +162,10 @@ void INiagaraModule::StartupModule()
 	FNiagaraViewDataMgr::Init();
 
 	FNiagaraWorldManager::OnStartup();
+
+#if WITH_NIAGARA_DEBUGGER
+	DebuggerClient = MakePimpl<FNiagaraDebuggerClient>();
+#endif
 
 #if WITH_EDITOR	
 	// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
@@ -327,6 +332,10 @@ void INiagaraModule::OnPreExit()
 		BaselineHandler.Reset();
 	}
 #endif
+
+#if WITH_NIAGARA_DEBUGGER
+	DebuggerClient.Reset();
+#endif
 }
 
 void INiagaraModule::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds)
@@ -370,6 +379,10 @@ void INiagaraModule::ShutdownModule()
 	ShutdownRenderingResources();
 
 	FNiagaraTypeRegistry::TearDown();
+
+#if WITH_NIAGARA_DEBUGGER
+	DebuggerClient.Reset();
+#endif
 
 #if NIAGARA_PERF_BASELINES
 	UNiagaraEffectType::OnGeneratePerfBaselines().Unbind();

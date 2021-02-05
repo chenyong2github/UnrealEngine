@@ -21,7 +21,7 @@ class SSessionBrowserCommandBar;
 /**
  * Implements a Slate widget for browsing active game sessions.
  */
-class SSessionBrowser
+class SESSIONFRONTEND_API SSessionBrowser
 	: public SCompoundWidget
 {
 public:

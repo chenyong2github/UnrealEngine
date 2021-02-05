@@ -9,6 +9,8 @@
 #include "NiagaraTypes.h"
 #include "Templates/SharedPointer.h"
 #include "NiagaraPerfBaseline.h"
+#include "NiagaraDebuggerCommon.h"
+#include "Templates/PimplPtr.h"
 
 class FNiagaraWorldManager;
 class UNiagaraEmitter;
@@ -20,6 +22,7 @@ class INiagaraMergeManager;
 class INiagaraEditorOnlyDataUtilities;
 struct FNiagaraParameterStore;
 class FCommonViewportClient;
+class FNiagaraDebuggerClient;
 
 extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 
@@ -308,6 +311,10 @@ private:
 
 #if NIAGARA_PERF_BASELINES
 	TUniquePtr<FNiagaraPerfBaselineHandler> BaselineHandler;
+#endif
+
+#if WITH_NIAGARA_DEBUGGER
+	TPimplPtr<FNiagaraDebuggerClient> DebuggerClient;
 #endif
 };
 

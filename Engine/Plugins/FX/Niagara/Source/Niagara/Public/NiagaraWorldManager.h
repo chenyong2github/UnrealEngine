@@ -19,6 +19,7 @@
 #include "NiagaraComponentPool.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraScalabilityManager.h"
+#include "NiagaraDebuggerCommon.h"
 
 #include "NiagaraWorldManager.generated.h"
 
@@ -27,14 +28,6 @@ class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class UNiagaraComponentPool;
 struct FNiagaraScalabilityState;
-
-enum class ENiagaraDebugPlaybackMode : uint8
-{
-	Play = 0,
-	Loop,
-	Paused,
-	Step,
-};
 
 class FNiagaraViewDataMgr : public FRenderResource
 {
