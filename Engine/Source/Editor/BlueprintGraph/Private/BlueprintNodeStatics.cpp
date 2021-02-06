@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "BlueprintNodeStatics.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraph/EdGraphPin.h"
