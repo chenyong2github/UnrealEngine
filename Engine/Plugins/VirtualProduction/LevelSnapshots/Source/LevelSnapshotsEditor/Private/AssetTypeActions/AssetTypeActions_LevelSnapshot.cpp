@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "AssetTypeActions/AssetTypeActions_LevelSnapshot.h"
 
 #include "LevelSnapshot.h"
