@@ -57,9 +57,6 @@ struct PLANARCUT_API FPlanarCells
 	TArray<TArray<int32>> PlaneBoundaries;
 	TArray<FVector> PlaneBoundaryVertices;
 
-	// most cellular complexes we're interested in lend themselves to reasonably-fast ways to go directly from a point in space to a cell classification, so we don't try to compute it directly from this generic representation
-	TFunction<int32(FVector)> CellFromPosition;
-
 	FInternalSurfaceMaterials InternalSurfaceMaterials;
 
 	/**
@@ -117,14 +114,6 @@ struct PLANARCUT_API FPlanarCells
 		return true;
 	}
 
-	void EmptyGeometricData()
-	{
-		PlaneCells.Empty();
-		PlaneBoundaries.Empty();
-		PlaneBoundaryVertices.Empty();
-		Planes.Empty();
-	}
-
 	inline void AddPlane(const FPlane &P, int32 CellIdxBehind, int32 CellIdxInFront)
 	{
 		Planes.Add(P);
@@ -145,11 +134,6 @@ struct PLANARCUT_API FPlanarCells
 	}
 };
 
-// helper function that interpolates the standard vertex attributes in a reasonable way
-void PLANARCUT_API DefaultVertexInterpolation(const FGeometryCollection& V0Collection, int32 V0, const FGeometryCollection& V1Collection, int32 V1, float T, int32 VOut, FGeometryCollection& Dest);
-
-// TODO: this functionality shouldn't live in this api probably; get it from geometry processing modules or something else?
-void PLANARCUT_API ComputeTriangleNormals(const TArrayView<const FVector> Vertices, const TArrayView<const FIntVector> Triangles, TArray<FVector>& TriangleNormals);
 
 /**
  * Cut a Geometry inside a GeometryCollection with PlanarCells, and add each cut cell back to the GeometryCollection as a new child of the input Geometry.  For geometries that would not be cut, nothing is added.
@@ -162,7 +146,6 @@ void PLANARCUT_API ComputeTriangleNormals(const TArrayView<const FVector> Vertic
  * @param TransformCollection		Optional transform of the whole geometry collection; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param CheckDistanceAcrossOutsideCellForProximity	If > 0, when a plane is neighboring the "outside" cell, instead of setting proximity to the outside cell, the algo will sample a point this far outside the cell in the normal direction of the plane to see if there is actually a non-outside cell there.  (Useful for bricks w/out mortar)
- * @param VertexInterpolate	Function that interpolates vertex properties (UVs, normals, etc); a default that handles all the normal vertex properties is provided, should only need to replace this if you have custom attributes
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
 int32 PLANARCUT_API CutWithPlanarCells(
@@ -174,8 +157,7 @@ int32 PLANARCUT_API CutWithPlanarCells(
 	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,
-	bool bSetDefaultInternalMaterialsFromCollection = true,
-	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
+	bool bSetDefaultInternalMaterialsFromCollection = true
 );
 
 /**
@@ -189,7 +171,6 @@ int32 PLANARCUT_API CutWithPlanarCells(
  * @param TransformCollection		Optional transform of the whole geometry collection; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param CheckDistanceAcrossOutsideCellForProximity	If > 0, when a plane is neighboring the "outside" cell, instead of setting proximity to the outside cell, the algo will sample a point this far outside the cell in the normal direction of the plane to see if there is actually a non-outside cell there.  (Useful for bricks w/out mortar)
- * @param VertexInterpolate	Function that interpolates vertex properties (UVs, normals, etc); a default that handles all the normal vertex properties is provided, should only need to replace this if you have custom attributes
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
 int32 PLANARCUT_API CutMultipleWithPlanarCells(
@@ -201,8 +182,7 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
 	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,  // TODO: < this param does nothing in the new mode; is only needed in special cases that aren't possible in the UI currently
-	bool bSetDefaultInternalMaterialsFromCollection = true,
-	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
+	bool bSetDefaultInternalMaterialsFromCollection = true
 );
 
 /**
@@ -215,7 +195,6 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
  * @param Grout				Separation to leave between cutting cells
  * @param CollisionSampleSpacing	Target spacing between collision sample vertices
  * @param TransformCollection		Optional transform of the whole geometry collection; if unset, defaults to Identity
- * @param VertexInterpolate	Function that interpolates vertex properties (UVs, normals, etc); a default that handles all the normal vertex properties is provided, should only need to replace this if you have custom attributes
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
 int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
@@ -226,8 +205,7 @@ int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
 	double Grout,
 	double CollisionSampleSpacing,
 	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
-	bool bSetDefaultInternalMaterialsFromCollection = true,
-	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
+	bool bSetDefaultInternalMaterialsFromCollection = true
 );
 
 
