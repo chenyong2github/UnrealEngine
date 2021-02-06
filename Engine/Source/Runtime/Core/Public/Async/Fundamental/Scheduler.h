@@ -248,7 +248,7 @@ namespace LowLevelTasks
 		}
 		else if(WorkerEvent->SleepState.compare_exchange_strong(RunningState, ESleepState::Drowsing, std::memory_order_relaxed))
 		{
-			verifySlow(OutOfWork.Stop() == !Drowsing);
+			OutOfWork.Stop();
 			Drowsing = true;
 			SleepEventQueue[bBackgroundWorker].enqueue(WorkerEvent); // State one: (Running -> Drowsing)
 		}
