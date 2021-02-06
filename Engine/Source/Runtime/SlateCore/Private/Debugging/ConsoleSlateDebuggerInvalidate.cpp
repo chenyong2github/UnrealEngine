@@ -56,11 +56,11 @@ FConsoleSlateDebuggerInvalidate::FConsoleSlateDebuggerInvalidate()
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::ToggleLegend))
 	, ToogleWidgetsNameListCommand(
 		TEXT("SlateDebugger.Invalidate.ToggleWidgetNameList"),
-		TEXT("Option to display the name of the invalidated widget."),
+		TEXT("Option to display the names of invalidated widgets."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::ToggleWidgetNameList))
 	, ToogleLogInvalidatedWidgetCommand(
 		TEXT("SlateDebugger.Invalidate.ToggleLogInvalidatedWidget"),
-		TEXT("Option to log to the console the invalidated widget."),
+		TEXT("Option to log the invalidated widget to the console."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidate::ToggleLogInvalidatedWidget))
 	, SetInvalidateWidgetReasonFilterCommand(
 		TEXT("SlateDebugger.Invalidate.SetInvalidateWidgetReasonFilter"),

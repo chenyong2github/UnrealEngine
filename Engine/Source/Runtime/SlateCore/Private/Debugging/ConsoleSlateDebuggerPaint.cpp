@@ -33,7 +33,7 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 	, CacheDuration(2.0f)
 	, ShowPaintWidgetCommand(
 		TEXT("SlateDebugger.Paint.Start")
-		, TEXT("Start the painted widget debug tool. It shows when widgets are painted.")
+		, TEXT("Start the painted widget debug tool. Use to show widget that have been painted this frame.")
 		, FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::StartDebugging))
 	, HidePaintWidgetCommand(
 		TEXT("SlateDebugger.Paint.Stop")
@@ -46,7 +46,7 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 		, FConsoleVariableDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::HandleEnabled))
 	, LogPaintedWidgetOnceCommand(
 		TEXT("SlateDebugger.Paint.LogOnce")
-		, TEXT("Log the widgets that has been painted during the last update once")
+		, TEXT("Log the names of all widgets that were painted during the last update.")
 		, FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::HandleLogOnce))
 	, DisplayWidgetsNameListCommand(
 		TEXT("SlateDebugger.Paint.ToggleWidgetNameList"),
@@ -55,11 +55,11 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 	, MaxNumberOfWidgetInListtRefCVar(
 		TEXT("SlateDebugger.Paint.MaxNumberOfWidgetDisplayedInList")
 		, MaxNumberOfWidgetInList
-		, TEXT("The max number of widget that will be displayed when DisplayWidgetNameList is active."))
+		, TEXT("The max number of widgets that will be displayed when DisplayWidgetNameList is active."))
 	, LogWarningIfWidgetIsPaintedMoreThanOnceRefCVar(
 		TEXT("SlateDebugger.Paint.LogWarningIfWidgetIsPaintedMoreThanOnce")
 		, bLogWarningIfWidgetIsPaintedMoreThanOnce
-		, TEXT("Option to log a warning if a widget is painted more than once in the same frame."))
+		, TEXT("Option to log a warning if a widget is painted more than once in a single frame."))
 {
 	GConfig->GetBool(TEXT("SlateDebugger.Paint"), TEXT("bDisplayWidgetsNameList"), bDisplayWidgetsNameList, *GEditorPerProjectIni);
 	GConfig->GetBool(TEXT("SlateDebugger.Paint"), TEXT("bUseWidgetPathAsName"), bUseWidgetPathAsName, *GEditorPerProjectIni);

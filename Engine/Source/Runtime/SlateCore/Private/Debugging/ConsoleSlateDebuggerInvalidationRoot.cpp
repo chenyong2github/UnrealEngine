@@ -33,7 +33,7 @@ FConsoleSlateDebuggerInvalidationRoot::FConsoleSlateDebuggerInvalidationRoot()
 	, CacheDuration(2.0f)
 	, StartCommand(
 		TEXT("SlateDebugger.InvalidationRoot.Start"),
-		TEXT("Start the Invalidation Root widget debug tool. It shows when Invalidation Root are using the slow or the fast path."),
+		TEXT("Start the Invalidation Root widget debug tool. It shows when Invalidation Roots are using the slow or the fast path."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidationRoot::StartDebugging))
 	, StopCommand(
 		TEXT("SlateDebugger.InvalidationRoot.Stop"),
@@ -42,7 +42,7 @@ FConsoleSlateDebuggerInvalidationRoot::FConsoleSlateDebuggerInvalidationRoot()
 	, EnabledRefCVar(
 		TEXT("SlateDebugger.InvalidationRoot.Enable")
 		, bEnabledCVarValue
-		, TEXT("Start/Stop the Invalidation Root widget debug tool. It shows when Invalidation Root are using the slow or the fast path.")
+		, TEXT("Start/Stop the Invalidation Root widget debug tool. It shows when Invalidation Roots are using the slow or the fast path.")
 		, FConsoleVariableDelegate::CreateRaw(this, &FConsoleSlateDebuggerInvalidationRoot::HandleEnabled))
 	, ToggleLegendCommand(
 		TEXT("SlateDebugger.InvalidationRoot.ToggleLegend"),
