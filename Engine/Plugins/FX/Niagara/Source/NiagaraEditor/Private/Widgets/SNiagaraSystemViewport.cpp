@@ -24,6 +24,7 @@
 #include "NiagaraEffectType.h"
 #include "EngineUtils.h"
 #include "NiagaraPerfBaseline.h"
+#include "NiagaraSettings.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraSystemViewport"
 
@@ -66,6 +67,9 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	, AdvancedPreviewScene(&InPreviewScene)
 	, OnScreenShotCaptured(InOnScreenShotCaptured)
 {
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+	
 	NiagaraViewportPtr = InNiagaraEditorViewport;
 
 	// Setup defaults for the common draw helper.
@@ -85,7 +89,7 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	EngineShowFlags.SetSnap(0);
 	
 	OverrideNearClipPlane(1.0f);
-	bUsingOrbitCamera = true;
+	bUsingOrbitCamera = Settings->bSystemViewportInOrbitMode;
 	bCaptureScreenShot = false;
 
 	//This seems to be needed to get the correct world time in the preview.
