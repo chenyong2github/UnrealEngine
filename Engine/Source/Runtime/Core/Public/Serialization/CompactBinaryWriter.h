@@ -209,7 +209,7 @@ public:
 	CORE_API void AddDateTimeTicks(int64 Ticks);
 
 	/** Write a date/time field. */
-	inline void AddDateTime(FAnsiStringView Name, FDateTime Value) { SetName(Name); AddDateTime(Value); }
+	CORE_API void AddDateTime(FAnsiStringView Name, FDateTime Value);
 	CORE_API void AddDateTime(FDateTime Value);
 
 	/** Write a time span field with the specified count of 100ns ticks. */
@@ -217,7 +217,7 @@ public:
 	CORE_API void AddTimeSpanTicks(int64 Ticks);
 
 	/** Write a time span field. */
-	inline void AddTimeSpan(FAnsiStringView Name, FTimespan Value) { SetName(Name); AddTimeSpan(Value); }
+	CORE_API void AddTimeSpan(FAnsiStringView Name, FTimespan Value);
 	CORE_API void AddTimeSpan(FTimespan Value);
 
 	/** Private flags that are public to work with ENUM_CLASS_FLAGS. */

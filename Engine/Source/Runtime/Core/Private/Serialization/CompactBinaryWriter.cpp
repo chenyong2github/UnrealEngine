@@ -530,6 +530,12 @@ void FCbWriter::AddDateTimeTicks(const int64 Ticks)
 	EndField(ECbFieldType::DateTime);
 }
 
+void FCbWriter::AddDateTime(FAnsiStringView Name, FDateTime Value)
+{
+	SetName(Name);
+	AddDateTime(Value);
+}
+
 void FCbWriter::AddDateTime(const FDateTime Value)
 {
 	AddDateTimeTicks(Value.GetTicks());
@@ -541,6 +547,12 @@ void FCbWriter::AddTimeSpanTicks(const int64 Ticks)
 	const uint64 RawValue = NETWORK_ORDER64(uint64(Ticks));
 	Data.Append(reinterpret_cast<const uint8*>(&RawValue), sizeof(uint64));
 	EndField(ECbFieldType::TimeSpan);
+}
+
+void FCbWriter::AddTimeSpan(FAnsiStringView Name, FTimespan Value)
+{
+	SetName(Name);
+	AddTimeSpan(Value);
 }
 
 void FCbWriter::AddTimeSpan(const FTimespan Value)
