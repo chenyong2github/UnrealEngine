@@ -14,7 +14,6 @@
 #include "UObject/FieldPath.h"
 #include "UObject/UObjectArray.h"
 #include "UObject/FastReferenceCollectorOptions.h"
-#include "Async/ParallelFor.h"
 
 struct FStackEntry;
 
