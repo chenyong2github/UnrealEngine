@@ -891,7 +891,13 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 	if (FAILED(Result))
 	{
-		FilteredErrors.Add(TEXT("D3DCompileToDxil failed"));
+		TCHAR ErrorMsg[1024];
+		FPlatformMisc::GetSystemErrorMessage(ErrorMsg, UE_ARRAY_COUNT(ErrorMsg), (int)Result);
+		const bool bKnownError = ErrorMsg[0] != TEXT('\0');
+
+		FString ErrorString = FString::Printf(TEXT("D3DCompileToDxil failed. Error code: %s (0x%08X)."), bKnownError ? ErrorMsg : TEXT("Unknown error"), (int)Result);
+
+		FilteredErrors.Add(ErrorString);
 	}
 
 	return SUCCEEDED(Result);
