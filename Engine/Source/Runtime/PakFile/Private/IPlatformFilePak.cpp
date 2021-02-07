@@ -1506,10 +1506,17 @@ public:
 
 	uint16* RegisterPakFile(FPakFile* InActualPakFile, FName File, int64 PakFileSize)
 	{
+		// CachedFilesScopeLock is locked
 		uint16* PakIndexPtr = CachedPaks.Find(InActualPakFile);
 
 		if (!PakIndexPtr)
 		{
+			if (!InActualPakFile->GetIsMounted())
+			{
+				// The PakFile was unmounted already; reject the read. If we added it now we would have a dangling PakFile pointer in CachedPaks
+				// and would never be notified to remove it.
+				return nullptr;
+			}
 			FString PakFilename = File.ToString();
 			check(CachedPakData.Num() < MAX_uint16);
 			IAsyncReadFileHandle* Handle = LowerLevel->OpenAsyncRead(*PakFilename);
@@ -2959,7 +2966,7 @@ public:
 		return !HasRequestsAtStatus(EInRequestStatus::Waiting) && !HasRequestsAtStatus(EInRequestStatus::InFlight);
 	}
 
-	void Unmount(FName PakFile)
+	void Unmount(FName PakFile, FPakFile* UnmountedPak)
 	{
 		FScopeLock Lock(&CachedFilesScopeLock);
 
@@ -3064,6 +3071,15 @@ public:
 				if (!bHasOutstandingRequests)
 				{
 					UE_LOG(LogPakFile, Log, TEXT("Pak file %s removed from pak precacher."), *PakFile.ToString());
+					if (Pak.ActualPakFile != UnmountedPak)
+					{
+						if (UnmountedPak)
+						{
+							UE_LOG(LogPakFile, Warning, TEXT("FPakPrecacher::Unmount found multiple PakFiles with the name %s. Unmounting all of them."), *PakFile.ToString());
+						}
+						Pak.ActualPakFile->SetIsMounted(false);
+					}
+
 					It.RemoveCurrent();
 					check(Pak.Handle);
 					delete Pak.Handle;
@@ -3095,6 +3111,12 @@ public:
 			}
 		}
 
+		// Even if we did not find the PakFile, mark it unmounted (and do this inside the CachedFilesScopeLock)
+		// This will allow us to reject a RegisterPakFile request that could be coming from another thread from a not-yet-canceled FPakReadRequest
+		if (UnmountedPak)
+		{
+			UnmountedPak->SetIsMounted(false);
+		}
 	}
 
 
@@ -4972,6 +4994,7 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, CacheType(FPakFile::ECacheType::Shared)
 	, CacheIndex(-1)
 	, UnderlyingCacheTrimDisabled(false)
+	, bIsMounted(false)
 {
 	FArchive* Reader = GetSharedReader(NULL);
 	if (Reader)
@@ -5001,6 +5024,7 @@ FPakFile::FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSig
 	, CacheType(FPakFile::ECacheType::Shared)
 	, CacheIndex(-1)
 	, UnderlyingCacheTrimDisabled(false)
+	, bIsMounted(false)
 {
 	FArchive* Reader = GetSharedReader(LowerLevel);
 	if (Reader)
@@ -5027,6 +5051,7 @@ FPakFile::FPakFile(FArchive* Archive)
 	, CacheType(FPakFile::ECacheType::Shared)
 	, CacheIndex(-1)
 	, UnderlyingCacheTrimDisabled(false)
+	, bIsMounted(false)
 {
 	Initialize(Archive);
 }
@@ -7229,6 +7254,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 					FPakListEntry Entry;
 					Entry.ReadOrder = PakOrder;
 					Entry.PakFile = Pak;
+					Pak->SetIsMounted(true);
 					PakFiles.Add(Entry);
 					PakFiles.StableSort();
 				}
@@ -7311,12 +7337,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 
 bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 {
-#if USE_PAK_PRECACHE
-	if (GPakCache_Enable)
-	{
-		FPakPrecacher::Get().Unmount(InPakFilename);
-	}
-#endif
+	TRefCountPtr<FPakFile> UnmountedPak;
 	{
 		FScopeLock ScopedLock(&PakListCritical);
 
@@ -7326,13 +7347,29 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 			{
 				FPakListEntry& PakListEntry = PakFiles[PakIndex];
 				RemoveCachedPakSignaturesFile(*PakListEntry.PakFile->GetFilename());
-				PakListEntry.PakFile.SafeRelease();
+				UnmountedPak = MoveTemp(PakListEntry.PakFile);
 				PakFiles.RemoveAt(PakIndex);
-				return true;
+				break;
 			}
 		}
 	}
-	return false;
+#if USE_PAK_PRECACHE
+	if (GPakCache_Enable)
+	{
+		// If the Precacher is running, we need to clear the IsMounted flag inside of its lock,
+		// to avoid races with RegisterPakFile which reads the flag inside of the lock
+		FPakPrecacher::Get().Unmount(InPakFilename, UnmountedPak.GetReference());
+		check(!UnmountedPak || !UnmountedPak->GetIsMounted())
+	}
+	else
+#endif
+	{
+		if (UnmountedPak)
+		{
+			UnmountedPak->SetIsMounted(false);
+		}
+	}
+	return UnmountedPak.IsValid();
 }
 
 bool FPakPlatformFile::ReloadPakReaders()
