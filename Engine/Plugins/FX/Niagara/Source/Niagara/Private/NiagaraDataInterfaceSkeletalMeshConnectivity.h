@@ -41,7 +41,7 @@ struct FSkeletalMeshConnectivity
 	bool CanBeDestroyed() const;
 	void RegisterUser(FSkeletalMeshConnectivityUsage Usage, bool bNeedsDataImmediately);
 	void UnregisterUser(FSkeletalMeshConnectivityUsage Usage);
-	bool Matches(const TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex) const;
+	bool CanBeUsed(const TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex) const;
 	const FSkeletalMeshConnectivityProxy* GetProxy() const;
 
 	static bool IsValidMeshObject(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex);
@@ -49,6 +49,7 @@ struct FSkeletalMeshConnectivity
 	int32 GetAdjacentTriangleIndex(int32 VertexIndex, int32 AdjacencyIndex) const;
 	void GetTriangleVertices(int32 TriangleIndex, int32& OutVertex0, int32& OutVertex1, int32& OutVertex2) const;
 	const FSkeletalMeshLODRenderData* GetLodRenderData() const;
+	FString GetMeshName() const;
 
 	const int32 LodIndex;
 
