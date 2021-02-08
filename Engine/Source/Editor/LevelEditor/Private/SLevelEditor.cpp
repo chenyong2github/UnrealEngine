@@ -1488,6 +1488,12 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 			}
 		}
 	}
+
+	// Abort viewport tracking when switching editor mode
+	if (GCurrentLevelEditingViewportClient)
+	{
+		GCurrentLevelEditingViewportClient->AbortTracking();
+	}
 		
 	// *Important* - activate the mode first since FEditorModeTools::DeactivateMode will
 	// activate the default mode when the stack becomes empty, resulting in multiple active visible modes.
