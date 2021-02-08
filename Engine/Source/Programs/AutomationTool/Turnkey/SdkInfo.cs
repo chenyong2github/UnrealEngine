@@ -38,7 +38,7 @@ namespace Turnkey
 			Support_AutoSdk = 8192,
 		}
 
-		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform, bool bAllowUpdatingPrerequisites)
+		static public LocalAvailability GetLocalAvailability(AutomationTool.Platform AutomationPlatform, bool bAllowUpdatingPrerequisites, TurnkeyContextImpl TurnkeyContext)
 		{
 			LocalAvailability Result = LocalAvailability.None;
 
@@ -49,10 +49,7 @@ namespace Turnkey
 				return Result;
 			}
 
-			// no need to retrieve anything if we aren't allowing updates
-			CopyProviderRetriever Retriever = new CopyProviderRetriever();
-
-			if (AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, Retriever, !bAllowUpdatingPrerequisites))
+			if (AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, TurnkeyContext, !bAllowUpdatingPrerequisites))
 			{
 				Result |= LocalAvailability.Platform_ValidHostPrerequisites;
 			}
@@ -143,105 +140,92 @@ namespace Turnkey
 		}
 
 
-		public static bool SetupAutoSdk(FileSource Source, UnrealTargetPlatform Platform, bool bUnattended)
+		public static bool SetupAutoSdk(FileSource Source, ITurnkeyContext TurnkeyContext, UnrealTargetPlatform Platform, bool bUnattended)
 		{
-			bool bAttemptAutoSdkSetup = false;
 			bool bSetupEnvVarAfterInstall = false;
-			if (Environment.GetEnvironmentVariable("UE_SDKS_ROOT") != null)
+			if (Environment.GetEnvironmentVariable("UE_SDKS_ROOT") == null)
 			{
-				bAttemptAutoSdkSetup = true;
+				if (bUnattended)
+				{
+					TurnkeyContext.ReportError($"Unable to install an AutoSDK without UE_SDKS_ROOT setup (can use Turnkey interactively to set it up)");
+					return false;
+				}
+
+				string Response = TurnkeyUtils.ReadInput("The AutoSdk system is not setup on this machine. Would you like to set it up now? [Y/n]", "Y");
+				if (string.Compare(Response, "Y", true) == 0)
+				{
+					bSetupEnvVarAfterInstall = true;
+				}
 			}
-			else
+
+			AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
+
+			TurnkeyUtils.Log("{0}: AutoSdk is setup on this computer, will look for available AutoSdk to download", Platform);
+
+			// make sure this is unset so that we can know if it worked or not after install
+			TurnkeyUtils.ClearVariable("CopyOutputPath");
+
+			// now download it (AutoSdks don't "install") on download
+			// @todo turnkey: handle errors, handle p4 going to wrong location, handle one Sdk for multiple platforms
+			string CopyOperation = Source.GetCopySourceOperation();
+			if (CopyOperation == null)
 			{
+				TurnkeyContext.ReportError($"Unable to find AutoSDK FileSource fopr {Platform}. Your Studio's TurnkeyManifest.xml file(s) may need to be fixed.");
+				return false;
+			}
+
+			// download the AutoSDK
+			string DownloadedRoot = CopyProvider.ExecuteCopy(CopyOperation);
+			if (string.IsNullOrEmpty(DownloadedRoot))
+			{
+				TurnkeyContext.ReportError($"Unable to download the AutoSDK for {Platform}. Your Studio's TurnkeyManifest.xml file(s) may need to be fixed.");
+				return false;
+			}
+
+			if (bSetupEnvVarAfterInstall)
+			{
+				// walk up to one above Host* directory
+				DirectoryInfo AutoSdkSearch;
+				if (Directory.Exists(DownloadedRoot))
+				{
+					AutoSdkSearch = new DirectoryInfo(DownloadedRoot);
+				}
+				else
+				{
+					AutoSdkSearch = new FileInfo(DownloadedRoot).Directory;
+				}
+				while (AutoSdkSearch.Name != "Host" + HostPlatform.Current.HostEditorPlatform.ToString())
+				{
+					AutoSdkSearch = AutoSdkSearch.Parent;
+				}
+
+				// now go one up to the parent of Host
+				AutoSdkSearch = AutoSdkSearch.Parent;
+
+				string AutoSdkDir = AutoSdkSearch.FullName;
 				if (!bUnattended)
 				{
-					string Response = TurnkeyUtils.ReadInput("The AutoSdk system is not setup on this machine. Would you like to set it up now? [Y/n]", "Y");
-					if (string.Compare(Response, "Y", true) == 0)
+					string Response = TurnkeyUtils.ReadInput("Enter directory for root of AutoSdks. Use detected value, or enter another:", AutoSdkSearch.FullName);
+					if (string.IsNullOrEmpty(Response))
 					{
-						bAttemptAutoSdkSetup = true;
-						bSetupEnvVarAfterInstall = true;
-					}
-				}
-			}
-
-			if (bAttemptAutoSdkSetup)
-			{
-				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
-
-				TurnkeyUtils.Log("{0}: AutoSdk is setup on this computer, will look for available AutoSdk to download", Platform);
-
-				// make sure this is unset so that we can know if it worked or not after install
-				TurnkeyUtils.ClearVariable("CopyOutputPath");
-
-				// now download it (AutoSdks don't "install") on download
-				// @todo turnkey: handle errors, handle p4 going to wrong location, handle one Sdk for multiple platforms
-				string CopyOperation = Source.GetCopySourceOperation();
-				if (CopyOperation == null)
-				{
-					return false;
-				}
-
-				// download the AutoSDK
-				string DownloadedRoot = CopyProvider.ExecuteCopy(CopyOperation);
-				if (DownloadedRoot == null)
-				{
-					return false;
-				}
-
-				if (bSetupEnvVarAfterInstall)
-				{
-					// failed to install, nothing we can do
-					if (string.IsNullOrEmpty(DownloadedRoot))
-					{
-						TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 						return false;
 					}
-
-					// walk up to one above Host* directory
-					DirectoryInfo AutoSdkSearch;
-					if (Directory.Exists(DownloadedRoot))
-					{
-						AutoSdkSearch = new DirectoryInfo(DownloadedRoot);
-					}
-					else
-					{
-						AutoSdkSearch = new FileInfo(DownloadedRoot).Directory;
-					}
-					while (AutoSdkSearch.Name != "Host" + HostPlatform.Current.HostEditorPlatform.ToString())
-					{
-						AutoSdkSearch = AutoSdkSearch.Parent;
-					}
-
-					// now go one up to the parent of Host
-					AutoSdkSearch = AutoSdkSearch.Parent;
-
-					string AutoSdkDir = AutoSdkSearch.FullName;
-					if (!bUnattended)
-					{
-						string Response = TurnkeyUtils.ReadInput("Enter directory for root of AutoSdks. Use detected value, or enter another:", AutoSdkSearch.FullName);
-						if (string.IsNullOrEmpty(Response))
-						{
-							return false;
-						}
-					}
-
-					// set the env var, globally
-					TurnkeyUtils.StartTrackingExternalEnvVarChanges();
-					Environment.SetEnvironmentVariable("UE_SDKS_ROOT", AutoSdkDir);
-					Environment.SetEnvironmentVariable("UE_SDKS_ROOT", AutoSdkDir, EnvironmentVariableTarget.User);
-					TurnkeyUtils.EndTrackingExternalEnvVarChanges();
-
 				}
 
-				// and now activate it in case we need it this run
-				TurnkeyUtils.Log("Re-activating AutoSDK '{0}'...", Source.Name);
+				// set the env var, globally
+				TurnkeyUtils.StartTrackingExternalEnvVarChanges();
+				Environment.SetEnvironmentVariable("UE_SDKS_ROOT", AutoSdkDir);
+				Environment.SetEnvironmentVariable("UE_SDKS_ROOT", AutoSdkDir, EnvironmentVariableTarget.User);
+				TurnkeyUtils.EndTrackingExternalEnvVarChanges();
 
-				UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).ReactivateAutoSDK();
-
-				return true;
 			}
 
-			return false;
+			// and now activate it in case we need it this run
+			TurnkeyUtils.Log("Re-activating AutoSDK '{0}'...", Source.Name);
+
+			UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).ReactivateAutoSDK();
+
+			return true;
 		}
 	}
 }

@@ -765,7 +765,47 @@ static FSlateIcon MakePlatformSdkIconAttribute(FName IniPlatformName, TSharedPtr
 //		));
 }
 
+static FText FormatSdkInfo(const FTurnkeySdkInfo& SdkInfo, bool bIncludeAutoSdk)
+{
+	FFormatOrderedArguments Args;
+	Args.Add(FText::FromString(SdkInfo.InstalledVersion));
+	Args.Add(FText::FromString(SdkInfo.AutoSDKVersion));
+	Args.Add(FText::FromString(SdkInfo.MinAllowedVersion));
+	Args.Add(FText::FromString(SdkInfo.MaxAllowedVersion));
+	Args.Add(SdkInfo.SdkErrorInformation);
 
+	TArray<FText> Lines;
+	Lines.Add(FText::Format(LOCTEXT("SdkInfo_Installed", "Installed SDK: {0}"), Args));
+	if (bIncludeAutoSdk)
+	{
+		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AutoSDK", "AutoSDK: {1}"), Args));
+	}
+	
+	if (SdkInfo.MinAllowedVersion == SdkInfo.MaxAllowedVersion)
+	{
+		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_Single", "Allowed Version: {2}"), Args));
+	}
+	else if (SdkInfo.MinAllowedVersion == TEXT(""))
+	{
+		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_MaxOnly", "Allowed Versions: Up to {3}"), Args));
+	}
+	else if (SdkInfo.MaxAllowedVersion == TEXT(""))
+	{
+		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_MinOnly", "Allowed Versions: {2} and up"), Args));
+	}
+	else
+	{
+		Lines.Add(FText::Format(LOCTEXT("SdkInfo_AllowedSDK_Range", "Allowed Versions: {2} through {3}"), Args));
+	}
+
+	if (!SdkInfo.SdkErrorInformation.IsEmpty())
+	{
+		Lines.Add(FText::Format(LOCTEXT("SdkInfo_Error", "Error Info:\n{4}"), Args));
+	}
+
+	// now make a single \n delimted text
+	return FText::Join(FText::FromString(TEXT("\n")), Lines);
+}
 
 
 
@@ -917,27 +957,33 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 				FNewMenuDelegate::CreateLambda([UBTPlatformString, IniPlatformName, DeviceName, DeviceId](FMenuBuilder& SubMenuBuilder)
 				{
 					FTurnkeySdkInfo SdkInfo = ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId);
-					FFormatOrderedArguments Args = { FText::FromString(SdkInfo.InstalledVersion), FText::FromString(SdkInfo.MinAllowedVersion),FText::FromString(SdkInfo.MaxAllowedVersion) };
+
 					SubMenuBuilder.AddWidget(
 						SNew(STextBlock)
 						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-						.Text(FText::Format(LOCTEXT("SdkInfo", "Manual Installed SDK: {0}\nAllowedVersions: {1}-{2}"), Args)),
+						.Text(FormatSdkInfo(SdkInfo, false)),
 						FText::GetEmpty()
 					);
 
-					SubMenuBuilder.AddMenuEntry(
-						LOCTEXT("Turnkey_RepairDevice", "Repair Device as Needed"),
-						LOCTEXT("TurnkeyTooltip_RepairDevice", "Perform any fixup that may be needed on this device. If up to date already, nothing will be done."),
-						FSlateIcon(),
-						FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, false, false, DeviceId)
-					);
+					if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::FlashValid)
+					{
+						SubMenuBuilder.AddMenuEntry(
+							LOCTEXT("Turnkey_ForceRepairDevice", "Repair Device"),
+							LOCTEXT("TurnkeyTooltip_ForceRepairDevice", "Force repairing anything on the device needed (update firmware, etc). Will perform all steps possible, even if not needed."),
+							FSlateIcon(),
+							FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, false, DeviceId)
+						);
+					}
+					else
+					{
+						SubMenuBuilder.AddMenuEntry(
+							LOCTEXT("Turnkey_RepairDevice", "Update Device"),
+							LOCTEXT("TurnkeyTooltip_RepairDevice", "Perform any fixup that may be needed on this device. If up to date already, nothing will be done."),
+							FSlateIcon(),
+							FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, false, false, DeviceId)
+						);
+					}
 
-					SubMenuBuilder.AddMenuEntry(
-						LOCTEXT("Turnkey_ForceRepairDevice", "Force Repair Device"),
-						LOCTEXT("TurnkeyTooltip_ForceRepairDevice", "Force repairing anything on the device needed (update firmware, etc). Will perform all steps possible, even if not needed."),
-						FSlateIcon(),
-						FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, false, DeviceId)
-					);
 				}),
 				false, MakePlatformSdkIconAttribute(IniPlatformName, Proxy)
 			);
@@ -950,11 +996,26 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 	MenuBuilder.BeginSection("SdkManagement", LOCTEXT("TurnkeySection_Sdks", "Sdk Managment"));
 
 	const FTurnkeySdkInfo& SdkInfo = ITurnkeySupportModule::Get().GetSdkInfo(IniPlatformName, true);
-	FFormatOrderedArguments Args = { FText::FromString(SdkInfo.InstalledVersion), FText::FromString(SdkInfo.AutoSDKVersion),FText::FromString(SdkInfo.MinAllowedVersion),FText::FromString(SdkInfo.MaxAllowedVersion) };
+	FFormatOrderedArguments Args;
+	Args.Add(FText::FromString(SdkInfo.InstalledVersion));
+	Args.Add(FText::FromString(SdkInfo.AutoSDKVersion));
+	Args.Add(FText::FromString(SdkInfo.MinAllowedVersion));
+	Args.Add(FText::FromString(SdkInfo.MaxAllowedVersion));
+	if (SdkInfo.SdkErrorInformation.IsEmpty())
+	{
+		Args.Add(FText::GetEmpty());
+		Args.Add(FText::GetEmpty());
+	}
+	else
+	{
+		Args.Add(LOCTEXT("ErrorPrefix", "\nErrors:\n"));
+		Args.Add(FText::GetEmpty());
+	}
+
 	MenuBuilder.AddWidget(
 		SNew(STextBlock)
 		.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-		.Text(FText::Format(LOCTEXT("SdkInfo", "Manual Installed SDK: {0}\nAutoSDK: {1}\nAllowedVersions: {2}-{3}"), Args)),
+		.Text(FormatSdkInfo(SdkInfo, true)),
 		FText::GetEmpty()
 	);
 
@@ -964,7 +1025,7 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 		if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::OutOfDate)
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("Turnkey_InstallSdkMinimal", "Update Sdk"),
+				LOCTEXT("Turnkey_UpdateSdkMinimal", "Update Sdk"),
 				LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to update an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
 				FSlateIcon(),
 				FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, false, false, NoDevice)
@@ -973,8 +1034,8 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 			if (SdkInfo.bCanInstallFullSdk && SdkInfo.bCanInstallAutoSdk)
 			{
 				MenuBuilder.AddMenuEntry(
-					LOCTEXT("Turnkey_InstallSdkFull", "Update Sdk (Prefer Full)"),
-					LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to update an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
+					LOCTEXT("Turnkey_UpdateSdkFull", "Update Sdk (Full Platform Installer)"),
+					LOCTEXT("TurnkeyTooltip_UpdateSdkFull", "Attempt to update an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
 					FSlateIcon(),
 					FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, false, NoDevice)
 				);
@@ -983,31 +1044,34 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 		else if (SdkInfo.Status == ETurnkeyPlatformSdkStatus::Valid)
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("Turnkey_InstallSdkMinimal", "Force Reinstall Sdk (Prefer Minimal)"),
-				LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to force re-install an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
+				LOCTEXT("Turnkey_ForceSdkMinimal", "Force Reinstall Sdk"),
+				LOCTEXT("TurnkeyTooltip_ForceSdkMinimal", "Attempt to force re-install an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
 				FSlateIcon(),
 				FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, false, true, NoDevice)
 			);
 
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("Turnkey_InstallSdkFull", "Force Reinstall (Prefer Full)"),
-				LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to force re-install an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
-				FSlateIcon(),
-				FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, true, NoDevice)
-			);
+			if (SdkInfo.bCanInstallFullSdk && SdkInfo.bCanInstallAutoSdk)
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("Turnkey_ForceSdkFull", "Force Reinstall (Full Platform Installer)"),
+					LOCTEXT("TurnkeyTooltip_ForceSdkForce", "Attempt to force re-install an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
+					FSlateIcon(),
+					FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, true, NoDevice)
+				);
+			}
 		}
 		else
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("Turnkey_InstallSdkMinimal", "Install Sdk (Prefer Minimal)"),
+				LOCTEXT("Turnkey_InstallSdkMinimal", "Install Sdk"),
 				LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to install an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
 				FSlateIcon(),
 				FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, false, false, NoDevice)
 			);
 
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("Turnkey_InstallSdkFull", "Install Sdk (Prefer Full)"),
-				LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to install an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
+				LOCTEXT("Turnkey_InstallSdkFull", "Install Sdk (Full Platform Installer)"),
+				LOCTEXT("TurnkeyTooltip_InstallSdkFull", "Attempt to install an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
 				FSlateIcon(),
 				FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformString, true, false, NoDevice)
 			);
@@ -1495,6 +1559,9 @@ bool GetSdkInfoFromTurnkey(FString Line, FName& PlatformName, FString& DeviceId,
 	FParse::Value(*Info, TEXT("AutoSDK="), SdkInfo.AutoSDKVersion);
 	FParse::Value(*Info, TEXT("MinAllowed="), SdkInfo.MinAllowedVersion);
 	FParse::Value(*Info, TEXT("MaxAllowed="), SdkInfo.MaxAllowedVersion);
+	FString ErrorString;
+	FParse::Value(*Info, TEXT("Error="), ErrorString);
+	SdkInfo.SdkErrorInformation = FText::FromString(ErrorString.Replace(TEXT("|"), TEXT("\n")));
 
 	SdkInfo.Status = ETurnkeyPlatformSdkStatus::Unknown;
 	if (StatusString == TEXT("Valid"))
@@ -1717,9 +1784,6 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 						UE_LOG(LogTurnkeySupport, Log, TEXT("Turnkey Device: %s"), *Line);
 
 						PerDeviceSdkInfo[DDPIDeviceId] = SdkInfo;
-
-						UE_LOG(LogTurnkeySupport, Log, TEXT("[TEST] Turnkey Device: %s - %d, Installed: %s, Allowed: %s-%s"), *DDPIDeviceId, (int)SdkInfo.Status, *SdkInfo.InstalledVersion,
-							*SdkInfo.MinAllowedVersion, *SdkInfo.MaxAllowedVersion);
 					}
 				}
 			}

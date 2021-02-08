@@ -18,7 +18,7 @@ namespace Turnkey.Commands
 			return new Dictionary<string, string[]>()
 			{
 				{ "Auto Install All Needed Sdks", new string[] { "-platform=All", "-NeededOnly", "-BestAvailable" } },
-				{ "Auto Update All Sdks", new string[] { "-platform=All", "-UpdateOnly", "-BestAvailable" } },
+				{ "Auto Update Installed Sdks", new string[] { "-platform=All", "-UpdateOnly", "-BestAvailable" } },
 			};
 		}
 
@@ -28,9 +28,9 @@ namespace Turnkey.Commands
 			string DeviceName = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
 			string SdkTypeString = TurnkeyUtils.ParseParamValue("SdkType", null, CommandOptions);
 
+			bool bUnattended = TurnkeyUtils.ParseParam("Unattended", CommandOptions);
 			bool bBestAvailable = TurnkeyUtils.ParseParam("BestAvailable", CommandOptions);
 			bool bUpdateOnly = TurnkeyUtils.ParseParam("UpdateOnly", CommandOptions);
-			bool bAllowAutoSdk = TurnkeyUtils.ParseParam("AllowAutoSdk", CommandOptions);
 
 			// best available installation requires valid and needed Sdks
 			bool bValidOnly = bBestAvailable || !TurnkeyUtils.ParseParam("AllowInvalid", CommandOptions);
@@ -48,16 +48,63 @@ namespace Turnkey.Commands
 				}
 				DesiredType = OutType;
 			}
+			// if a device is specified, assume Flash type
+			else if (!string.IsNullOrEmpty(DeviceName))
+			{
+				DesiredType = FileSource.SourceType.Flash;
+			}
+			// otherwise ask
+			else if (!bUnattended)
+			{
+				List<string> Options = new List<string>() { "Full or Auto Sdk", "Full Sdk", "AutoSdk", "Device Software / Flash" };
+				int Choice = TurnkeyUtils.ReadInputInt("Choose a type of Sdk to install:", Options, true, 1);
+
+				if (Choice == 0)
+				{
+					return;
+				}
+				// Choice 1 means two types, so we use null DesiredType to mean Full|AutoSdk
+				if (Choice == 2)
+				{
+					DesiredType = FileSource.SourceType.Full;
+				}
+				else if (Choice == 3)
+				{
+					DesiredType = FileSource.SourceType.AutoSdk;
+				}
+				else if (Choice == 4)
+				{
+					DesiredType = FileSource.SourceType.Flash;
+				}
+			}
 
 			// we need all sdks we can find
 			List<UnrealTargetPlatform> PlatformsWithSdks = TurnkeyManifest.GetPlatformsWithSdks();
 
-			// get the platforms to install either from user or from commandline
-			List<UnrealTargetPlatform> PlatformsLeftToInstall = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, PlatformsWithSdks);
-			if (PlatformsLeftToInstall == null)
+			List<DeviceInfo> ChosenDevices = null;
+			List<UnrealTargetPlatform> PlatformsLeftToInstall;
+
+			if (DesiredType == FileSource.SourceType.Flash)
 			{
-				return;
+				TurnkeyUtils.GetPlatformsAndDevicesFromCommandLineOrUser(CommandOptions, false, out PlatformsLeftToInstall, out ChosenDevices, PlatformsWithSdks);
+				
+				if (PlatformsLeftToInstall.Count == 0 || ChosenDevices.Count == 0)
+				{
+					return;
+				}
 			}
+			else
+			{
+				PlatformsLeftToInstall = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, PlatformsWithSdks);
+
+				if (PlatformsLeftToInstall == null || PlatformsLeftToInstall.Count == 0)
+				{
+					return;
+				}
+			}
+
+
+			TurnkeyContextImpl TurnkeyContext = new TurnkeyContextImpl();
 
 			List<FileSource> SdksAlreadyInstalled = new List<FileSource>();
 
@@ -69,18 +116,28 @@ namespace Turnkey.Commands
 				// remove the platform (we may remove more later if an Sdk supports multiple platforms)
 				PlatformsLeftToInstall.RemoveAt(0);
 
-
 				// cache the automation platform object
 				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
 				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
 
 				// filter the Sdks if a platform was given, and type if it was given
-				List<FileSource> Sdks = TurnkeyManifest.FilterDiscoveredFileSources(Platform, DesiredType);
+				List<FileSource> Sdks;
+				if (DesiredType == null)
+				{
+					// get Full and Auto together
+					Sdks = TurnkeyManifest.FilterDiscoveredFileSources(Platform, FileSource.SourceType.Full);
+					Sdks.AddRange(TurnkeyManifest.FilterDiscoveredFileSources(Platform, FileSource.SourceType.AutoSdk));
+				}
+				else
+				{
+					Sdks = TurnkeyManifest.FilterDiscoveredFileSources(Platform, DesiredType);
+				}
 
-				// strip out flash Sdks where there are no devices
-				int SdkCount = Sdks.Count;
-				Sdks = Sdks.FindAll(x => x.Type != FileSource.SourceType.Flash || (AutomationPlatform.GetDevices() != null && AutomationPlatform.GetDevices().Length > 0));
-				bool bStrippedDevices = Sdks.Count != SdkCount;
+				DeviceInfo InstallDevice = null;
+				if (DesiredType == FileSource.SourceType.Flash)
+				{
+					InstallDevice = ChosenDevices.First();
+				}
 
 				// skip Misc FileSources, as we dont know how they are sued
 				Sdks = Sdks.FindAll(x => x.IsSdkType());
@@ -91,17 +148,22 @@ namespace Turnkey.Commands
 					Sdks = Sdks.FindAll(x => !string.IsNullOrEmpty(SDK.GetInstalledVersion()));
 				}
 
-// 				// strip out Sdks not in the allowed range of the platform
-// 				if (bValidOnly)
-// 				{
-// 					Sdks = Sdks.FindAll(x => x.IsValid(Platform, DeviceName));
-// 				}
-// 
-// 				// strip out Sdks for platforms that are not needed to be updated
-// 				if (bNeededOnly)
-// 				{
-// 					Sdks = Sdks.FindAll(x => x.IsNeeded(Platform, DeviceName));
-// 				}
+				// strip out Sdks not in the allowed range of the platform
+				bool bHadInvalidOptions = false;
+				if (bValidOnly)
+				{
+					int BeforeCount = Sdks.Count;
+					Sdks = Sdks.FindAll(x => x.IsVersionValid(Platform, InstallDevice));
+					
+					// track if we removed some invalid ones
+					bHadInvalidOptions = Sdks.Count != BeforeCount;
+				}
+
+				//// strip out Sdks for platforms that are not needed to be updated
+				//if (bNeededOnly)
+				//{
+				//	Sdks = Sdks.FindAll(x => x.IsNeeded(Platform, DeviceName));
+				//}
 
 				Sdks.Sort((a,b) => 
 				{
@@ -157,13 +219,15 @@ namespace Turnkey.Commands
 				// if we are not doing best available Sdks, then let used choose one
 				else
 				{
-					if (Sdks.Count == 0)
+					bool bAddShowMoreOption = bHadInvalidOptions && bValidOnly;
+
+					if (Sdks.Count == 0 && !bAddShowMoreOption)
 					{
 						TurnkeyUtils.Log("No Sdks found for platform {0}. Skipping", Platform);
-						if (bStrippedDevices)
-						{
-							TurnkeyUtils.Log("NOTE: Some Flash Sdks were removed because no devices were found");
-						}
+						//if (bStrippedDevices)
+						//{
+						//	TurnkeyUtils.Log("NOTE: Some Flash Sdks were removed because no devices were found");
+						//}
 						continue;
 					}
 
@@ -180,15 +244,28 @@ namespace Turnkey.Commands
 						Options.Add(string.Format("[{0}] {1} [Current: {2}]", string.Join(",", Sdk.GetPlatforms()), Sdk.Name, Current));
 					}
 
-					string Prompt = "Select an Sdk to install";
-					if (bStrippedDevices)
+					if (bAddShowMoreOption)
 					{
-						Prompt += "\nNOTE: Some Flash Sdks were removed because no devices were found";
+						Options.Add("Show Invalid Sdks");
 					}
+
+					string Prompt = $"Select an Sdk to install:";
+					//if (bStrippedDevices)
+					//{
+					//	Prompt += "\nNOTE: Some Flash Sdks were removed because no devices were found";
+					//}
 					int Choice = TurnkeyUtils.ReadInputInt(Prompt, Options, true);
 
 					if (Choice == 0)
 					{
+						continue;
+					}
+
+					// if they chose the show more option, then add thius platform back in, and loop with bAllowInvaid to be true
+					if (bAddShowMoreOption && Choice == Options.Count)
+					{
+						PlatformsLeftToInstall.Insert(0, Platform);
+						bValidOnly = false;
 						continue;
 					}
 
@@ -206,57 +283,20 @@ namespace Turnkey.Commands
 					}
 					SdksAlreadyInstalled.Add(Sdk);
 
-					DeviceInfo InstallDevice = null;
-					// set variables
-					if (Sdk.Type == FileSource.SourceType.Flash)
-					{
-						string InstallDeviceName = DeviceName;
-						if (InstallDeviceName == null)
-						{
-							List<string> Options = new List<string>();
-							DeviceInfo[] PossibleDevices = Array.FindAll(AutomationPlatform.GetDevices(), x => TurnkeyUtils.IsValueValid(x.Type, Sdk.AllowedFlashDeviceTypes, AutomationPlatform));
-							foreach (DeviceInfo Device in PossibleDevices)
-							{
-								Options.Add(string.Format("[{0} {1}] {2}", Platform, Device.Type, Device.Name));
-							}
-
-							// get the choice
-							int Choice = TurnkeyUtils.ReadInputInt("Select the number of a device to flash:", Options, true);
-
-							if (Choice == 0)
-							{
-								return;
-							}
-
-							// get the name of the device chosen
-							InstallDeviceName = PossibleDevices[Choice - 1].Name;
-						}
-
-						// get device info of the chosen or supplied device
-						InstallDevice = Array.Find(AutomationPlatform.GetDevices(), x => string.Compare(x.Name, InstallDeviceName, true) == 0);
-
-						if (InstallDevice == null)
-						{
-							TurnkeyUtils.Log("Unable to find {0} device {1}", Platform, InstallDeviceName);
-							return;
-						}
-					}
-
 					// make sure prerequisites are in good shape
-					CopyProviderRetriever Retriever = new CopyProviderRetriever();
-					if (AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, Retriever, false) == false)
+					if (AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, TurnkeyContext, false) == false)
 					{
-						// Retriever.ReportError("Failed to update host prerequisites");
-						return;
+						TurnkeyContext.ReportError("Failed to update host prerequisites");
+						continue;
 					}
 					if (InstallDevice != null && 
-						AutomationPlatform.UpdateDevicePrerequisites(InstallDevice, TurnkeyUtils.CommandUtilHelper, Retriever, false) == false)
+						AutomationPlatform.UpdateDevicePrerequisites(InstallDevice, TurnkeyUtils.CommandUtilHelper, TurnkeyContext, false) == false)
 					{
-						// Retriever.ReportError("Failed to update device prerequisites");
-						return;
+						TurnkeyContext.ReportError("Failed to update device prerequisites");
+						continue;
 					}
 
-					Sdk.DownloadOrInstall(Platform, InstallDevice);
+					Sdk.DownloadOrInstall(Platform, TurnkeyContext, InstallDevice, false);
 				}
 			}
 		}

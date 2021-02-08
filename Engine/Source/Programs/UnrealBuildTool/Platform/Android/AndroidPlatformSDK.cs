@@ -17,7 +17,7 @@ namespace UnrealBuildTool
 		{
 			return "r21b";
 		}
-		public override string GetAutoSDKDirectoryForMasterVersion()
+		public override string GetAutoSDKDirectoryForMainVersion()
 		{
 			return "-23";
 		}

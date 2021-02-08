@@ -37,7 +37,7 @@ public class AndroidPlatform : Platform
 		return new string[] { AndroidSDK.GetMainVersion() };
 	}
 
-	public override bool GetSDKInstallCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
+	public override bool GetSDKInstallCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext)
 	{
 		// run the Setup.bat in the engine, not coming from a normal FileSource
 
@@ -63,10 +63,13 @@ public class AndroidPlatform : Platform
 
 		Params = $"{PlatformsVersion} {BuildToolsVersion} {CMakeVersion} {NDKVersion} -noninteractive";
 
-		bRequiresPrivilegeElevation = false;
+		// because this may bring up a license acceptance message that needs the user to respond, so we make a new window
+		bCreateWindow = true;
 
 		return true;
 	}
+
+
 
 	private static string GetAndroidStudioExe()
 	{
@@ -82,7 +85,7 @@ public class AndroidPlatform : Platform
 		return RegValue == null ? DefaultSdkDir : RegValue;
 	}
 
-	public override bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
+	public override bool UpdateHostPrerequisites(BuildCommand Command, ITurnkeyContext TurnkeyContext, bool bVerifyOnly)
 	{
 		// @todo turnkey: Handle Mac/Linux
 		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Win64)
@@ -100,13 +103,11 @@ public class AndroidPlatform : Platform
 		{
 			if (!File.Exists(AndroidStudioExe))
 			{
-//				Retriever.ReportError("Android Studio is not installed correctly.");
-				//Retriever.PauseForUser("Android Studio is not installed correctly.");
+				TurnkeyContext.ReportError("Android Studio is not installed correctly.");
 			}
 			if (!Directory.Exists(SdkDir))
 			{
-//				Retriever.ReportError("Android SDK directory is not set correctly.");
-				//Retriever.PauseForUser("Android SDK directory is not set correctly.");
+				TurnkeyContext.ReportError("Android SDK directory is not set correctly.");
 			}
 			return bIsInstalled;
 		}
@@ -114,7 +115,7 @@ public class AndroidPlatform : Platform
 		if (!File.Exists(AndroidStudioExe))
 		{
 			// get AS installer
-			string OutputPath = Retriever.RetrieveFileSource("AndroidStudio");
+			string OutputPath = TurnkeyContext.RetrieveFileSource("AndroidStudio");
 
 			// Unset some envvars in case autosdk ran - they will mess up the first run of Android Studio
 			string[] Vars = new string[]
@@ -131,31 +132,30 @@ public class AndroidPlatform : Platform
 
 			if (OutputPath == null)
 			{
-				Retriever.PauseForUser("Unable to find Android Studio installer. Please download and install Android Studio 3.5.3 from https://developer.android.com/studio before continuing.\n\nMake sure to use the Run Android Studio and complete the first-time setup!\n\nChoose all default options unless you know what you are doing.");
+				TurnkeyContext.PauseForUser("Unable to find Android Studio installer. Please download and install Android Studio 3.5.3 from https://developer.android.com/studio/archive before continuing.\n\nMake sure to use the Run Android Studio and complete the first-time setup!\n\nChoose all default options unless you know what you are doing.");
 			}
 			else
 			{
-				Retriever.PauseForUser("Running the Android Studio installer, and then Android Studio for first-time setup!\n\nChoose all default options unless you know what you are doing.");
-				int ExitCode;
-				Utils.RunLocalProcessAndReturnStdOut(OutputPath, "/S", out ExitCode, true);
+				TurnkeyContext.PauseForUser("Running the Android Studio installer, and then Android Studio for first-time setup!\n\nChoose all default options unless you know what you are doing.");
+				int ExitCode = TurnkeyContext.RunExternalCommand(OutputPath, "/S", false, true, true);
 				//				Utils.RunLocalProcessAndReturnStdOut(OutputPath, "", out ExitCode, true);
 
 				// AS installer returns 1223 even on success ("user canceled" even tho there's no UI to cancel it...) when running with /S
 				if (ExitCode != 0 && ExitCode != 1223)
 				{
-//					Retriever.ReportError($"Android Studio installer failed. ExitCode = {ExitCode}");
-					Retriever.PauseForUser($"Android Studio installer failed. ExitCode = {ExitCode}");
+					TurnkeyContext.ReportError($"Android Studio installer failed. ExitCode = {ExitCode}");
 					return false;
 				}
 
-				Utils.RunLocalProcessAndReturnStdOut(GetAndroidStudioExe(), "", out _, false);
+				// re-query for AS location
+				TurnkeyContext.RunExternalCommand(GetAndroidStudioExe(), "", false, true, false);
 			}
 		}
 		else
 		{
-			Retriever.PauseForUser("The Sdk directory was not found. Running the Android Studio to perform first-time setup.\n\nChoose all default options unless you know what you are doing.");
+			TurnkeyContext.PauseForUser("The Sdk directory was not found. Running the Android Studio to perform first-time setup.\n\nChoose all default options unless you know what you are doing.");
 
-			Utils.RunLocalProcessAndReturnStdOut(AndroidStudioExe, "", out _, false);
+			TurnkeyContext.RunExternalCommand(AndroidStudioExe, "", false, true, false);
 		}
 
 		// check to see if the installation worked. If so, continue on!
@@ -166,13 +166,11 @@ public class AndroidPlatform : Platform
 
 		if (!File.Exists(AndroidStudioExe))
 		{
-//			Retriever.ReportError("Android Studio is not installed correctly, after attempted installation.");
-			Retriever.PauseForUser("Android Studio is not installed correctly, after attempted installation.");
+			TurnkeyContext.ReportError("Android Studio is not installed correctly, after attempted installation.");
 		}
 		if (!Directory.Exists(SdkDir))
 		{
-//			Retriever.ReportError("Android SDK directory is not set correctly, after attempted installation.");
-			Retriever.PauseForUser("Android SDK directory is not set correctly, after attempted installation.");
+			TurnkeyContext.ReportError("Android SDK directory is not set correctly, after attempted installation.");
 		}
 
 		return bIsInstalled;

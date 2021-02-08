@@ -67,6 +67,8 @@ namespace EAnalyticsErrorCodes
 		SymbolizedSONotFound = 153,
 		LicenseNotAccepted = 154,
 		AndroidOBBError = 155,
+		SDKInstallFailed = 200,
+		DeviceUpdateFailed = 201,
 	};
 };
 

@@ -64,7 +64,7 @@ namespace Turnkey
 			CommandLine = TurnkeyUtils.ExpandVariables(CommandLine, bUseOnlyTurnkeyVariables: true);
 		}
 
-		public static bool RunExternalCommand(string CommandPath, string CommandLine, bool bRequiresPrivilegeElevation)
+		public static int RunExternalCommand(string CommandPath, string CommandLine, ITurnkeyContext TurnkeyContext, bool bUnattended, bool bRequiresPrivilegeElevation, bool bCreateWindow)
 		{
 			string FixedCommandPath = TurnkeyUtils.ExpandVariables(CommandPath);
 			string FixedCommandLine = TurnkeyUtils.ExpandVariables(CommandLine);
@@ -85,10 +85,10 @@ namespace Turnkey
 
 			// run installer as administrator, as some need it
 			Process InstallProcess = new Process();
-			InstallProcess.StartInfo.UseShellExecute = false;
+			InstallProcess.StartInfo.UseShellExecute = bCreateWindow;
 			InstallProcess.StartInfo.FileName = FixedCommandPath;
 			InstallProcess.StartInfo.Arguments = FixedCommandLine;
-			InstallProcess.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+			InstallProcess.StartInfo.WindowStyle = bCreateWindow ? ProcessWindowStyle.Normal : ProcessWindowStyle.Hidden;
 
 			InstallProcess.OutputDataReceived += (Sender, Args) => { if (Args != null && Args.Data != null) TurnkeyUtils.Log(Args.Data.TrimEnd()); };
 			InstallProcess.ErrorDataReceived += (Sender, Args) => { if (Args != null && Args.Data != null) TurnkeyUtils.Log("Error: {0}", Args.Data.TrimEnd()); };
@@ -103,7 +103,7 @@ namespace Turnkey
 			{
 				try
 				{
-					if (bRequiresPrivilegeElevation)
+					if (bRequiresPrivilegeElevation && InstallProcess.StartInfo.Verb != "runas")
 					{
 						TurnkeyUtils.Log("The installer {0} requires elevated permissions, trying with Admin privileges (output may be hidden)", FixedCommandPath);
 
@@ -122,28 +122,29 @@ namespace Turnkey
 					// this will not allow capturing stdout, so run with window as Normal
 					if (InstallProcess.StartInfo.UseShellExecute == false && Ex is Win32Exception && ((Win32Exception)Ex).NativeErrorCode == 740)
 					{
-						InstallProcess.StartInfo.UseShellExecute = true;
-						InstallProcess.StartInfo.Verb = "runas";
-						InstallProcess.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-
-						TurnkeyUtils.Log("The installer {0} needed to run with elevated permissions, trying with Admin privileges (output may be hidden)", FixedCommandPath);
-
-						// try again
+						bRequiresPrivilegeElevation = true;
 						continue;
 					}
 
-					TurnkeyUtils.Log("Error: {0} caused an exception: {1}", FixedCommandPath, Ex.Message);
+					TurnkeyContext.ReportError($"Error: {FixedCommandPath} caused an exception: {Ex.Message}");
 					ExitCode = -1;
 				}
 
 				if (ExitCode != 0)
 				{
 					TurnkeyUtils.Log("");
-					TurnkeyUtils.Log("Command {0} {1} failed [Exit code {2}, working dir = {3}]", FixedCommandPath, FixedCommandLine, ExitCode, CommandWorkingDir);
+					TurnkeyContext.ReportError($"Command {FixedCommandPath} {FixedCommandLine} failed [Exit code {ExitCode}, working dir = {CommandWorkingDir}]");
 					TurnkeyUtils.Log("");
 
-					string Response = TurnkeyUtils.ReadInput("Do you want to attempt again? [y/N]", "N");
-					if (string.Compare(Response, "Y", true) != 0)
+					if (!bUnattended)
+					{
+						string Response = TurnkeyUtils.ReadInput("Do you want to attempt again? [y/N]", "N");
+						if (string.Compare(Response, "Y", true) != 0)
+						{
+							bDone = true;
+						}
+					}
+					else
 					{
 						bDone = true;
 					}
@@ -158,7 +159,7 @@ namespace Turnkey
 
 			Environment.CurrentDirectory = PreviousCWD;
 
-			return ExitCode == 0;
+			return ExitCode;
 		}
 	}
 }

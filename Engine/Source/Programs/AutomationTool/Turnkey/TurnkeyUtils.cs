@@ -478,6 +478,11 @@ namespace Turnkey
 				{
 					ChosenPlatforms = GetAllValidPlatforms(PossiblePlatforms);
 				}
+				// if there's only one platform possible, use it
+				else if (PossiblePlatforms.Count == 1)
+				{
+					ChosenPlatforms = PossiblePlatforms;
+				}
 				else
 				{
 					ChosenPlatforms = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, PossiblePlatforms);
@@ -561,6 +566,33 @@ namespace Turnkey
 
 			// if we ended up with some platforms, but no devices, just return null
 			return (ChosenDevices != null && ChosenDevices.Count > 0) ? ChosenDevices : null;
+		}
+
+		public static void GetPlatformsAndDevicesFromCommandLineOrUser(string[] CommandOptions, bool bSkipAskUserForDevice, out List<UnrealTargetPlatform> Platforms, out List<DeviceInfo> Devices, List<UnrealTargetPlatform> AllowedPlatforms=null)
+		{
+			Platforms = new List<UnrealTargetPlatform>();
+			Devices = new List<DeviceInfo>();
+
+			string DeviceString = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
+			if (string.IsNullOrEmpty(DeviceString))
+			{
+				Platforms.AddRange(TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, AllowedPlatforms));
+				// restrict devices to this platform
+				AllowedPlatforms = Platforms;
+			}
+
+			// if there's no -device param, and we don't want to ask user for a device, skip this
+			if (!string.IsNullOrEmpty(DeviceString) || !bSkipAskUserForDevice)
+			{
+				List<DeviceInfo> ChosenDevices = TurnkeyUtils.GetDevicesFromCommandLineOrUser(CommandOptions, AllowedPlatforms);
+				
+				if (ChosenDevices != null)
+				{
+					Devices = ChosenDevices;
+					// pull the platforms out of the devices we have chosen
+					Platforms = Devices.Select(x => x.Platform).ToHashSet().ToList();
+				}
+			}
 		}
 
 		public static string GetGenericOption(string[] CommandOptions, List<string> Options, string CommandLineOption)

@@ -331,7 +331,7 @@ namespace Turnkey
 			return null;
 		}
 
-		public bool DownloadOrInstall(UnrealTargetPlatform Platform, DeviceInfo Device = null, bool bUnattended = false)
+		public bool DownloadOrInstall(UnrealTargetPlatform Platform, ITurnkeyContext TurnkeyContext, DeviceInfo Device, bool bUnattended)
 		{
 			// standard variables
 			TurnkeyUtils.SetVariable("Platform", Platform.ToString());
@@ -340,27 +340,25 @@ namespace Turnkey
 			if (Type == SourceType.AutoSdk)
 			{
 				// AutoSdk has some extra setup needed
-				return SdkUtils.SetupAutoSdk(this, Platform, bUnattended);
+				return SdkUtils.SetupAutoSdk(this, TurnkeyContext, Platform, bUnattended);
 			}
-
-			CopyProviderRetriever Retriever = new CopyProviderRetriever();
 
 			// if we have sources, make sure we can download something. if we have a null Sources, that indicates
 			// it was code generated, and we don't need to download anything
 			if (Sources.Length != 0)
 			{
 				// this will set the $(CopyOutputPath) variable which the Sdks will generally need to use
-				string DownloadedSDK = Retriever.RetrieveFileSource(this);
+				string DownloadedSDK = TurnkeyContext.RetrieveFileSource(this);
 
 				if (string.IsNullOrEmpty(DownloadedSDK))
 				{
-//					Retriever.ReportError($"Unable to download anInstaller for {Platform}. Your Studio's TurnkeyManifest.xml file(s) may need to be fixed.");
+//					TurnkeyContext.ReportError($"Unable to download anInstaller for {Platform}. Your Studio's TurnkeyManifest.xml file(s) may need to be fixed.");
 					return false;
 				}
 			}
 
 			// let the platform decide how to install
-			return AutomationTool.Platform.GetPlatform(Platform).InstallSDK(TurnkeyUtils.CommandUtilHelper, Retriever, Device);
+			return AutomationTool.Platform.GetPlatform(Platform).InstallSDK(TurnkeyUtils.CommandUtilHelper, TurnkeyContext, Device, bUnattended);
 		}
 
 

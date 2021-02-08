@@ -219,10 +219,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// For a platform that doesn't use properly named AutoSDK directories, the directory name may not be convertible to an integer,
 		/// and IsVersionValid checks could fail when checking AutoSDK version for an exact match. GetMainVersion() would return the 
-		/// proper, integer-convertible version number of the SDK inside of the directory returned by GetAutoSDKDirectoryForMasterVersion()
+		/// proper, integer-convertible version number of the SDK inside of the directory returned by GetAutoSDKDirectoryForMainVersion()
 		/// </summary>
 		/// <returns></returns>
-		public virtual string GetAutoSDKDirectoryForMasterVersion()
+		public virtual string GetAutoSDKDirectoryForMainVersion()
 		{
 			return GetMainVersion();
 		}
@@ -294,7 +294,8 @@ namespace EpicGames.Core
 				// AutoSDK must match the desired version exactly, since that is the only one we will use
 				if (bForAutoSDK)
 				{
-					return false;
+					// if integer version checking failed, then we can detect valid autosdk if the version matches the autosdk directory by name
+					return string.Compare(Version, GetAutoSDKDirectoryForMainVersion(), true) == 0;
 				}
 			}
 
@@ -676,7 +677,7 @@ namespace EpicGames.Core
 		{
 			if (PlatformSupportsAutoSDKs() && HasAutoSDKSystemEnabled())
 			{
-				String InstalledSDKVersionString = GetAutoSDKDirectoryForMasterVersion();
+				String InstalledSDKVersionString = GetAutoSDKDirectoryForMainVersion();
 				String PlatformSDKRoot = GetPathToPlatformAutoSDKs();
                 if (!Directory.Exists(PlatformSDKRoot))
                 {
@@ -1061,7 +1062,7 @@ namespace EpicGames.Core
 					bool bEnvVarFileExists = File.Exists(EnvVarFile);
 
 					string CurrentSDKString;
-					if (bEnvVarFileExists && GetCurrentlyInstalledSDKString(AutoSDKRoot, out CurrentSDKString) && CurrentSDKString == GetAutoSDKDirectoryForMasterVersion() && bScriptVersionMatches)
+					if (bEnvVarFileExists && GetCurrentlyInstalledSDKString(AutoSDKRoot, out CurrentSDKString) && CurrentSDKString == GetAutoSDKDirectoryForMainVersion() && bScriptVersionMatches)
 					{
 						return SDKStatus.Valid;
 					}
@@ -1169,22 +1170,22 @@ namespace EpicGames.Core
 					// delete Manifest file to avoid multiple uninstalls
 					InvalidateCurrentlyInstalledAutoSDK();
 
-					if (!RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMasterVersion(), SDKHookType.Install, false))
+					if (!RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), SDKHookType.Install, false))
 					{
-						Log.TraceLog("Failed to install required SDK {0}.  Attemping to uninstall", GetAutoSDKDirectoryForMasterVersion());
-						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMasterVersion(), SDKHookType.Uninstall, false);
+						Log.TraceLog("Failed to install required SDK {0}.  Attemping to uninstall", GetAutoSDKDirectoryForMainVersion());
+						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), SDKHookType.Uninstall, false);
 						return;
 					}
 
 					string EnvVarFile = Path.Combine(AutoSDKRoot, SDKEnvironmentVarsFile);
 					if (!File.Exists(EnvVarFile))
 					{
-						Log.TraceLog("Installation of required SDK {0}.  Did not generate Environment file {1}", GetAutoSDKDirectoryForMasterVersion(), EnvVarFile);
-						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMasterVersion(), SDKHookType.Uninstall, false);
+						Log.TraceLog("Installation of required SDK {0}.  Did not generate Environment file {1}", GetAutoSDKDirectoryForMainVersion(), EnvVarFile);
+						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), SDKHookType.Uninstall, false);
 						return;
 					}
 
-					SetCurrentlyInstalledAutoSDKString(GetAutoSDKDirectoryForMasterVersion());
+					SetCurrentlyInstalledAutoSDKString(GetAutoSDKDirectoryForMainVersion());
 					SetLastRunAutoSDKScriptVersion(GetRequiredScriptVersionString());
 				}
 
@@ -1225,7 +1226,7 @@ namespace EpicGames.Core
 			// load environment variables from current SDK
 			if (!SetupEnvironmentFromAutoSDK(PlatformSDKRoot))
 			{
-				Log.TraceLog("Failed to load environment from required SDK {0}", GetAutoSDKDirectoryForMasterVersion());
+				Log.TraceLog("Failed to load environment from required SDK {0}", GetAutoSDKDirectoryForMainVersion());
 				InvalidateCurrentlyInstalledAutoSDK();
 				return SDKStatus.Invalid;
 			}

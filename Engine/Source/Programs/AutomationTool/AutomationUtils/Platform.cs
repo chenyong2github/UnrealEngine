@@ -11,12 +11,14 @@ using EpicGames.Core;
 
 namespace AutomationTool
 {
-	public interface FileRetriever
+	public interface ITurnkeyContext
 	{
 		string RetrieveFileSource(string Name, string InType = "Misc", string InPlatform = null, string SubType = null);
 		string RetrieveFileSource(object HintObject);
 		string GetVariable(string VariableName);
-		bool RunExternalCommand(string Command, string Params, string Preamble = "", string SuccessPostamble = "", string FailurePostamble = "", bool bRequiresPrivilegeElevation = false);
+		int RunExternalCommand(string Command, string Params, bool bRequiresPrivilegeElevation, bool bUnattended, bool bCreateWindow);
+		void Log(string Message);
+		void ReportError(string Message);
 		void PauseForUser(string Message); 
 	}
 
@@ -194,18 +196,21 @@ namespace AutomationTool
 			return null;
 		}
 
-		public virtual bool InstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, DeviceInfo Device)
+		public virtual bool InstallSDK(BuildCommand BuildCommand, ITurnkeyContext TurnkeyContext, DeviceInfo Device, bool bUnattended)
 		{
-			string Command, Params, Preamble="", SuccessPostamble="", FailurePostamble="";
+			string Command, Params;
 
-			bool bRequiresPrivilegeElevation;
-			if (Device != null && GetDeviceUpdateSoftwareCommand(out Command, out Params, out bRequiresPrivilegeElevation, ref Preamble, ref SuccessPostamble, ref FailurePostamble, Retriever, Device))
+			bool bRequiresPrivilegeElevation = false;
+			bool bCreateWindow = false;
+			if (Device != null && GetDeviceUpdateSoftwareCommand(out Command, out Params, ref bRequiresPrivilegeElevation, ref bCreateWindow, TurnkeyContext, Device))
 			{
-				return Retriever.RunExternalCommand(Command, Params, Preamble, SuccessPostamble, FailurePostamble, bRequiresPrivilegeElevation);
+				int ExitCode = TurnkeyContext.RunExternalCommand(Command, Params, bRequiresPrivilegeElevation, bUnattended, bCreateWindow);
+				return OnSDKInstallComplete(ExitCode, TurnkeyContext, Device);
 			}
-			else if (Device == null && GetSDKInstallCommand(out Command, out Params, out bRequiresPrivilegeElevation, ref Preamble, ref SuccessPostamble, ref FailurePostamble, Retriever))
+			else if (Device == null && GetSDKInstallCommand(out Command, out Params, ref bRequiresPrivilegeElevation, ref bCreateWindow, TurnkeyContext))
 			{
-				return Retriever.RunExternalCommand(Command, Params, Preamble, SuccessPostamble, FailurePostamble, bRequiresPrivilegeElevation);
+				int ExitCode = TurnkeyContext.RunExternalCommand(Command, Params, bRequiresPrivilegeElevation, bUnattended, bCreateWindow);
+				return OnSDKInstallComplete(ExitCode, TurnkeyContext, null);
 			}
 
 			return false;
@@ -221,20 +226,29 @@ namespace AutomationTool
 			return new string[] { };
 		}
 
-		public virtual bool GetSDKInstallCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
+		public virtual bool GetSDKInstallCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext)
 		{
 			Command = null;
 			Params = null;
-			bRequiresPrivilegeElevation = false;
 			return false;
 		}
 
-		public virtual bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever, DeviceInfo Device = null)
+		public virtual bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext, DeviceInfo Device = null)
 		{
 			Command = null;
 			Params = null;
-			bRequiresPrivilegeElevation = false;
 			return false;
+		}
+
+		/// <summary>
+		/// Let's the platform handle the result of 
+		/// </summary>
+		/// <param name="ExitCode"></param>
+		/// <param name="Device"></param>
+		/// <returns>True if the installation was a success (defaults to ExitCode == 0)</returns>
+		public virtual bool OnSDKInstallComplete(int ExitCode, ITurnkeyContext TurnkeyContext, DeviceInfo Device)
+		{
+			return ExitCode == 0;
 		}
 
 		public virtual string GetSDKCreationHelp()
@@ -242,12 +256,12 @@ namespace AutomationTool
 			return null;
 		}
 
-		public virtual bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
+		public virtual bool UpdateHostPrerequisites(BuildCommand Command, ITurnkeyContext TurnkeyContext, bool bVerifyOnly)
 		{
 			return true;
 		}
 
-		public virtual bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
+		public virtual bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, ITurnkeyContext TurnkeyContext, bool bVerifyOnly)
 		{
 			return true;
 		}

@@ -61,6 +61,8 @@ namespace AutomationTool
 		Error_SymbolizedSONotFound = 153,
 		Error_LicenseNotAccepted = 154,
 		Error_AndroidOBBError = 155,
+		Error_SDKInstallFailed = 200,
+		Error_DeviceUpdateFailed = 201,
 	};
 
 	/// <summary>

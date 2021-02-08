@@ -20,46 +20,29 @@ namespace Turnkey.Commands
 			bool bForceSdkInstall = TurnkeyUtils.ParseParam("ForceSdkInstall", CommandOptions);
 			bool bForceDeviceInstall = TurnkeyUtils.ParseParam("ForceDeviceInstall", CommandOptions);
 			bool bUpdateIfNeeded = bForceSdkInstall || bForceDeviceInstall || TurnkeyUtils.ParseParam("UpdateIfNeeded", CommandOptions);
-
-			// track each platform to check, and if -device was specified, get the devices
 			string DeviceString = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
-			List<UnrealTargetPlatform> PlatformsToCheck = new List<UnrealTargetPlatform>();
-			List<DeviceInfo> DevicesToCheck = new List<DeviceInfo>();
-			if (string.IsNullOrEmpty(DeviceString))
+
+			List<UnrealTargetPlatform> PlatformsToCheck;
+			List<DeviceInfo> DevicesToCheck;
+			TurnkeyUtils.GetPlatformsAndDevicesFromCommandLineOrUser(CommandOptions, true, out PlatformsToCheck, out DevicesToCheck);
+
+			// if we got no devices, requested some, and platforms were not specified, then we don't want to continue.
+			// if -device and -platform were specified, and no devices found, we will still continue with the platforms
+			if (DevicesToCheck.Count == 0 && TurnkeyUtils.ParseParamValue("Device", null, CommandOptions) != null && TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions) == null)
 			{
-				PlatformsToCheck = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, null);
-			}
-			else
-			{
-				DevicesToCheck = TurnkeyUtils.GetDevicesFromCommandLineOrUser(CommandOptions, null);
-				// if we failed to get any devices, fallback to getting just platforms anyway
-				if (DevicesToCheck == null)
-				{
-					if (TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions) == null)
-					{
-						TurnkeyUtils.Log("Devices were requested, but none of them were found. Since -platforms was not specified, exiting command...");
-						return;
-					}
-					TurnkeyUtils.Log("Devices were requested, but none of them were found. Will continue with just platform verification");
-					PlatformsToCheck = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, null);
-				}
-				else
-				{
-					PlatformsToCheck = DevicesToCheck.Select(x => x.Platform).ToHashSet().ToList();
-				}
+				TurnkeyUtils.Log("Devices were requested, but none of them were found. Since -platforms was not specified, exiting command...");
 			}
 
-			if (PlatformsToCheck == null || PlatformsToCheck.Count == 0)
+			if (PlatformsToCheck.Count == 0)
 			{
 				TurnkeyUtils.Log("Platform(s) and/or device(s) needed for VerifySdk command. Check parameters or selections.");
 				return;
 			}
 
-
 			TurnkeyUtils.Log("Installed Sdk validity:");
 			TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
 
-			CopyProviderRetriever Retriever = new CopyProviderRetriever();
+			TurnkeyContextImpl TurnkeyContext = new TurnkeyContextImpl();
 
 			TurnkeyUtils.StartTrackingExternalEnvVarChanges();
 
@@ -71,8 +54,11 @@ namespace Turnkey.Commands
 				// get the platform object
 				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
 
+				// reset the errors for each device
+				TurnkeyContext.ErrorMessages.Clear();
+
 				// checking availability may generate errors, if prerequisites are failing
-				SdkUtils.LocalAvailability LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, bUpdateIfNeeded);
+				SdkUtils.LocalAvailability LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, bUpdateIfNeeded, TurnkeyContext);
 
 				string ManualSDKVersion = "", AutoSDKVersion = "";
 				string MinAllowedVersion = "", MaxAllowedVersion = "";
@@ -103,8 +89,14 @@ namespace Turnkey.Commands
 					ReportedState &= (SdkUtils.LocalAvailability.AutoSdk_ValidVersionExists | SdkUtils.LocalAvailability.InstalledSdk_ValidVersionExists | SdkUtils.LocalAvailability.Support_FullSdk | SdkUtils.LocalAvailability.Support_AutoSdk);
 				}
 
-				TurnkeyUtils.Report("{0}: (Status={1}, Installed={2}, AutoSDK={3}, MinAllowed={4}, MaxAllowed={5}, Flags=\"{6}\")", Platform, StatusString, ManualSDKVersion, AutoSDKVersion,
-					MinAllowedVersion, MaxAllowedVersion, ReportedState.ToString());
+				string ErrorString = "";
+				if (TurnkeyContext.ErrorMessages.Count() > 0)
+				{
+					ErrorString = string.Format(", Error=\"{0}\"", string.Join("|", TurnkeyContext.ErrorMessages));
+				}
+
+				TurnkeyUtils.Report("{0}: (Status={1}, Installed={2}, AutoSDK={3}, MinAllowed={4}, MaxAllowed={5}, Flags=\"{6}\"{7})", Platform, StatusString, ManualSDKVersion, AutoSDKVersion,
+					MinAllowedVersion, MaxAllowedVersion, ReportedState.ToString(), ErrorString);
 
 				if (PlatformSDK == null)
 				{
@@ -152,13 +144,12 @@ namespace Turnkey.Commands
 
 					TurnkeyUtils.Log("Will install {0}", BestSdk.Name);
 
-					if (BestSdk.DownloadOrInstall(Platform) == false)
+					if (BestSdk.DownloadOrInstall(Platform, TurnkeyContext, null, bUnattended) == false)
 					{
-						TurnkeyUtils.Log("Install failed!");
+						TurnkeyUtils.Log("Failed to install {0}", BestSdk.Name);
+						TurnkeyUtils.ExitCode = ExitCode.Error_SDKInstallFailed;
 						continue;
 					}
-// 					AutomationPlatform.InstallSDK(TurnkeyUtils.CommandUtilHelper, Retriever, BestSdk);
-
 
 					// update LocalState
 //					LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, false);
@@ -171,8 +162,10 @@ namespace Turnkey.Commands
 				{
 					foreach (DeviceInfo Device in DevicesToCheck.Where(x => x.Platform == Platform))
 					{
-						List<string> DeviceErrorMessages = new List<string>();
-						bool bArePrerequisitesValid = AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, Retriever, !bUpdateIfNeeded);
+						// reset the errors for each device
+						TurnkeyContext.ErrorMessages.Clear();
+
+						bool bArePrerequisitesValid = AutomationPlatform.UpdateDevicePrerequisites(Device, TurnkeyUtils.CommandUtilHelper, TurnkeyContext, !bUpdateIfNeeded);
 						bool bIsSoftwareValid = PlatformSDK.IsSoftwareVersionValid(Device.SoftwareVersion);
 
 						SdkUtils.LocalAvailability DeviceState = SdkUtils.LocalAvailability.None;
@@ -197,9 +190,14 @@ namespace Turnkey.Commands
 							DeviceState |= SdkUtils.LocalAvailability.Device_CannotConnect;
 						}
 
-						// @todo turnkey: if Name has a comma in it, we are in trouble, and maybe a )
-						TurnkeyUtils.Report("{0}@{1}: (Name={2}, Status={3}, Installed={4}, MinAllowed={5}, MaxAllowed={6}, Flags=\"{7}\")", Platform, Device.Id, Device.Name, StatusString, Device.SoftwareVersion,
-							MinSoftwareAllowedVersion, MaxSoftwareAllowedVersion, DeviceState.ToString());
+						string DeviceErrorString = "";
+						if (TurnkeyContext.ErrorMessages.Count() > 0)
+						{
+							ErrorString = string.Format(", Error=\"{0}\"", string.Join("|", TurnkeyContext.ErrorMessages));
+						}
+
+						TurnkeyUtils.Report("{0}@{1}: (Name={2}, Status={3}, Installed={4}, MinAllowed={5}, MaxAllowed={6}, Flags=\"{7}\"{8})", Platform, Device.Id, Device.Name, StatusString, Device.SoftwareVersion,
+							MinSoftwareAllowedVersion, MaxSoftwareAllowedVersion, DeviceState.ToString(), DeviceErrorString);
 
 						if (bForceDeviceInstall || !bIsSoftwareValid)
 						{
@@ -216,7 +214,11 @@ namespace Turnkey.Commands
 									}
 									else
 									{
-										MatchingInstallableSdk.DownloadOrInstall(Platform, Device, bUnattended);
+										if (MatchingInstallableSdk.DownloadOrInstall(Platform, TurnkeyContext, Device, bUnattended) == false)
+										{
+											TurnkeyUtils.Log("Failed to update Device '{0}' with '{0}'", Device.Name, MatchingInstallableSdk.Name);
+											TurnkeyUtils.ExitCode = ExitCode.Error_DeviceUpdateFailed;
+										}
 									}
 								}
 								else

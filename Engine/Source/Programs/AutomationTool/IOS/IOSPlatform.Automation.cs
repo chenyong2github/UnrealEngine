@@ -166,11 +166,9 @@ public class IOSPlatform : Platform
 		SDKName = (TargetPlatform == UnrealTargetPlatform.TVOS) ? "appletvos" : "iphoneos";
 	}
 
-	public override bool GetSDKInstallCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
+	public override bool GetSDKInstallCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext)
 	{
-		Preamble = "Moving your original Xcode application from /Applications to the Trash, and unzipping the new version into /Applications";
-		SuccessPostamble = "If you had Xcode in your Dock, you will need to remove it and add the new one (even though it was in the same location). macOS follows the move to the Trash for the Dock icon";
-		bRequiresPrivilegeElevation = false;
+		TurnkeyContext.Log("Moving your original Xcode application from /Applications to the Trash, and unzipping the new version into /Applications");
 
 		// put current Xcode in the trash, and unzip a new one. Xcode in the dock will have to be fixed up tho!
 		Command = "osascript";
@@ -186,9 +184,9 @@ public class IOSPlatform : Platform
 		return true;
 	}
 
-	public override bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, out bool bRequiresPrivilegeElevation, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever, DeviceInfo Device)
+	public override bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext, DeviceInfo Device)
 	{
-		Preamble = "Installing an offline downloaded .ipsw onto your device using the Apple Configurator application.";
+		TurnkeyContext.Log("Installing an offline downloaded .ipsw onto your device using the Apple Configurator application.");
 
 		// cfgtool needs ECID, not UDID, so find it
 		string Configurator = Path.Combine(GetConfiguratorLocation().Replace(" ", "\\ "), "Contents/MacOS/cfgutil");
@@ -200,7 +198,7 @@ public class IOSPlatform : Platform
 		Match Result = Regex.Match(CfgUtilOutput, @"Type: (\S*).*ECID: (\S*)");
 		if (!Result.Success)
 		{
-			Console.WriteLine("Unable to find the given deviceid: {0} in cfgutil output", Device);
+			TurnkeyContext.ReportError($"Unable to find the given deviceid: {Device} in cfgutil output");
 			Command = Params = null;
 			return false;
 		}
@@ -209,6 +207,19 @@ public class IOSPlatform : Platform
 		Params = string.Format("-c '{0} --ecid {1} update --ipsw $(CopyOutputPath)'", Configurator, Result.Groups[2]);
 
 		return true;
+	}
+
+	public override bool OnSDKInstallComplete(int ExitCode, ITurnkeyContext TurnkeyContext, DeviceInfo Device)
+	{
+		if (Device == null)
+		{
+			if (ExitCode == 0)
+			{
+				TurnkeyContext.PauseForUser("If you had Xcode in your Dock, you will need to remove it and add the new one (even though it was in the same location). macOS follows the move to the Trash for the Dock icon");
+			}
+		}
+
+		return ExitCode == 0;
 	}
 
 
@@ -227,8 +238,12 @@ public class IOSPlatform : Platform
 		public string RubyScript = Path.Combine(CommandUtils.EngineDirectory.FullName, "Build/Turnkey/VerifyIOS.ru");
 		public string InstallCertScript = Path.Combine(CommandUtils.EngineDirectory.FullName, "Build/Turnkey/InstallCert.ru");
 
-		public VerifyIOSSettings(BuildCommand Command, FileRetriever Retriever)
+		private ITurnkeyContext TurnkeyContext;
+
+		public VerifyIOSSettings(BuildCommand Command, ITurnkeyContext TurnkeyContext)
 		{
+			this.TurnkeyContext = TurnkeyContext;
+
 			FileReference ProjectPath = Command.ParseProjectParam();
 			string ProjectName = ProjectPath == null ? "" : ProjectPath.GetFileNameWithoutAnyExtensions();
 
@@ -242,9 +257,9 @@ public class IOSPlatform : Platform
 			Team = Command.ParseParamValue("teamid");
 			Provision = Command.ParseParamValue("provision");
 
-			if (string.IsNullOrEmpty(Team)) Team = Retriever.GetVariable("User_AppleDevCenterTeamID");
-			if (string.IsNullOrEmpty(Account)) Account = Retriever.GetVariable("User_AppleDevCenterUsername");
-			if (string.IsNullOrEmpty(Provision)) Provision = Retriever.GetVariable("User_IOSProvisioningProfile");
+			if (string.IsNullOrEmpty(Team)) Team = TurnkeyContext.GetVariable("User_AppleDevCenterTeamID");
+			if (string.IsNullOrEmpty(Account)) Account = TurnkeyContext.GetVariable("User_AppleDevCenterUsername");
+			if (string.IsNullOrEmpty(Provision)) Provision = TurnkeyContext.GetVariable("User_IOSProvisioningProfile");
 
 			// fall back to ini for anything else
 			if (string.IsNullOrEmpty(CodeSigningIdentity)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCodeSigningIdentity", out CodeSigningIdentity);
@@ -263,7 +278,7 @@ public class IOSPlatform : Platform
 			}
 		}
 
-		public int RunCommandMaybeInteractive(string Command, string Params, bool bInteractive)
+		public bool RunCommandMaybeInteractive(string Command, string Params, bool bInteractive)
 		{
 			Console.WriteLine("Running Command '{0} {1}'", Command, Params);
 
@@ -309,10 +324,37 @@ public class IOSPlatform : Platform
 				}
 				
 			}
-			return ExitCode;
+
+			if (ExitCode != 0)
+			{
+				// only ExitCode 3 (needs cert) can be handled. Any other error can't be fixed (Interactive means it can't be fixed)
+				if (!bInteractive || ExitCode != 3)
+				{
+					if (ExitCode == 3)
+					{
+						TurnkeyContext.ReportError("Signing certificate is required.");
+					}
+					else
+					{
+						// @todo turnkey: turn exitcodes into useful messages
+						TurnkeyContext.ReportError($"Ruby command exited with code {ExitCode}");
+					}
+
+					return false;
+				}
+
+				// only here with ExitCode 3
+				if (!InstallCert())
+				{
+					TurnkeyContext.ReportError($"Certificate installation failed.");
+					return false;
+				}
+			}
+
+			return ExitCode == 0;
 		}
 
-		public int RunRubyCommand(bool bVerifyOnly, string DeviceName)
+		public bool RunRubyCommand(bool bVerifyOnly, string DeviceName)
 		{
 			string Params;
 
@@ -353,44 +395,46 @@ public class IOSPlatform : Platform
 
 			return RunCommandMaybeInteractive(RubyScript, Params, !bVerifyOnly);
 		}
+
+		private bool InstallCert()
+		{
+			//		string ProjectName = TurnkeyContext.GetVariable("Project");
+
+			string CertLoc = null;
+
+			if (!string.IsNullOrEmpty(BundleId))
+			{
+				CertLoc = TurnkeyContext.RetrieveFileSource("DevCert: " + BundleId);
+			}
+			if (CertLoc == null)
+			{
+				CertLoc = TurnkeyContext.RetrieveFileSource("DevCert");
+			}
+
+			if (CertLoc != null)
+			{
+				// get the cert password from Studio settings
+				string CertPassword = TurnkeyContext.GetVariable("Studio_AppleSigningCertPassword");
+
+				TurnkeyContext.Log($"Will install cert from: '{CertLoc}'");
+
+				// osascript -e 'Tell application "System Events" to display dialog "Enter the network password:" with hidden answer default answer ""' -e 'text returned of result' 2>/dev/null
+				string CommandLine = string.Format("'{0}' '{1}'", CertLoc, CertPassword);
+
+				// run ruby script to install cert
+				return RunCommandMaybeInteractive(InstallCertScript, CommandLine, true);
+			}
+			else
+			{
+				TurnkeyContext.ReportError("Unable to find a tagged source for DevCert");
+
+				return false;
+			}
+
+		}
 	}
 
-	private bool InstallCert(FileRetriever Retriever, VerifyIOSSettings Settings)
-	{
-//		string ProjectName = Retriever.GetVariable("Project");
 
-		string CertLoc = null;
-
-		if (!string.IsNullOrEmpty(Settings.BundleId))
-		{
-			CertLoc = Retriever.RetrieveFileSource("DevCert: " + Settings.BundleId);
-		}
-		if (CertLoc == null)
-		{
-			CertLoc = Retriever.RetrieveFileSource("DevCert");
-		}
-
-		if (CertLoc != null)
-		{
-			// get the cert password from Studio settings
-			string CertPassword = Retriever.GetVariable("Studio_AppleSigningCertPassword");
-
-			Console.WriteLine("Will install cert from: '{0}'", CertLoc);
-
-			// osascript -e 'Tell application "System Events" to display dialog "Enter the network password:" with hidden answer default answer ""' -e 'text returned of result' 2>/dev/null
-			string CommandLine = string.Format("'{0}' '{1}'", CertLoc, CertPassword);
-
-			// run ruby script to install cert
-			return Settings.RunCommandMaybeInteractive(Settings.InstallCertScript, CommandLine, true) == 0;
-		}
-		else
-		{
-			Console.WriteLine("Unable to find a tagged source for DevCert");
-
-			return false;
-		}
-
-	}
 
 	string GetConfiguratorLocation()
 	{
@@ -398,13 +442,13 @@ public class IOSPlatform : Platform
 		return UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", FindCommand);
 	}
 
-	public override bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
+	public override bool UpdateHostPrerequisites(BuildCommand Command, ITurnkeyContext TurnkeyContext, bool bVerifyOnly)
 	{
 		int ExitCode;
 
 		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
 		{
-			return base.UpdateHostPrerequisites(Command, Retriever, bVerifyOnly);
+			return base.UpdateHostPrerequisites(Command, TurnkeyContext, bVerifyOnly);
 		}
 
 		// make sure the Configurator is installed
@@ -414,10 +458,11 @@ public class IOSPlatform : Platform
 		{
 			if (bVerifyOnly)
 			{
+				TurnkeyContext.ReportError("Apple Configurator 2 is required.");
 				return false;
 			}
 
-			Console.WriteLine("Apple Configurator 2 is required for some automation to work. You should install it from the App Store. Launching...");
+			TurnkeyContext.PauseForUser("Apple Configurator 2 is required for some automation to work. You should install it from the App Store. Launching...");
 
 			// we need to install Configurator 2, and we will block until it's done
 			UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("open", "macappstore://apps.apple.com/us/app/apple-configurator-2/id1037126344?mt=12");
@@ -434,10 +479,11 @@ public class IOSPlatform : Platform
 			Console.WriteLine("Fastlane is not installed");
 			if (bVerifyOnly)
 			{
+				TurnkeyContext.ReportError("Fastlane is not installed.");
 				return false;
 			}
 
-			Console.WriteLine("Installing Fastlane from internet source. You may ignore the error about the bin directory not in your path.");
+			TurnkeyContext.PauseForUser("Installing Fastlane from internet source. You may ignore the error about the bin directory not in your path.");
 
 			// install missing fastlane without needing sudo
 			UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("/usr/bin/gem", "install fastlane --user-install --no-document", out ExitCode, true);
@@ -448,54 +494,26 @@ public class IOSPlatform : Platform
 			}
 		}
 
-		VerifyIOSSettings Settings = new VerifyIOSSettings(Command, Retriever);
+		VerifyIOSSettings Settings = new VerifyIOSSettings(Command, TurnkeyContext);
 
 		// look if we have a cert that matches it
-		ExitCode = Settings.RunRubyCommand(bVerifyOnly, null);
-
-		Console.WriteLine("Host VerifyIOS exited with code {0}", ExitCode);
-
-		if (ExitCode != 0)
-		{
-			if (bVerifyOnly)
-			{
-				return false;
-			}
-
-			// ExitCode 3 means we need to install a cert
-			if (ExitCode != 3 || !InstallCert(Retriever, Settings))
-			{
-				return false;
-			}
-		}
-
-		return true;
+		return Settings.RunRubyCommand(bVerifyOnly, null);
 	}
 
-	public override bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
+	public override bool UpdateDevicePrerequisites(DeviceInfo Device, BuildCommand Command, ITurnkeyContext TurnkeyContext, bool bVerifyOnly)
 	{
 		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
 		{
-			return base.UpdateDevicePrerequisites(Device, Command, Retriever, bVerifyOnly);
+			return base.UpdateDevicePrerequisites(Device, Command, TurnkeyContext, bVerifyOnly);
 		}
 
-		VerifyIOSSettings Settings = new VerifyIOSSettings(Command, Retriever);
+		VerifyIOSSettings Settings = new VerifyIOSSettings(Command, TurnkeyContext);
 
 		// @todo turnkey - better to use the device's udid if it's set properly in DeviceInfo
 		string DeviceName = Device == null ? null : Device.Name;
 
 		// now look for a provision that can be used with a (maybe newly) instally cert
-		int ExitCode = Settings.RunRubyCommand(bVerifyOnly, DeviceName);
-
-		Console.WriteLine("Device VerifyIOS exited with code {0}", ExitCode);
-
-		// ExitCode 3 means we need to install a cert
-		if (ExitCode == 3 && !InstallCert(Retriever, Settings))
-		{
-			return false;
-		}
-
-		return ExitCode == 0;
+		return Settings.RunRubyCommand(bVerifyOnly, DeviceName);
 	}
 
 

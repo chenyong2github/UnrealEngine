@@ -212,8 +212,10 @@ namespace Turnkey
 		}
 	}
 
-	class CopyProviderRetriever : AutomationTool.FileRetriever
+	class TurnkeyContextImpl : ITurnkeyContext
 	{
+		public List<string> ErrorMessages = new List<string>();
+
 		public string RetrieveFileSource(object HintObject)
 		{
 			FileSource Sdk = (FileSource)HintObject;
@@ -230,43 +232,21 @@ namespace Turnkey
 			return null;
 		}
 
-		public bool RunExternalCommand(string Command, string Params, string Preamble, string SuccessPostAmble, string FailurePostamble, bool bRequiresPrivilegeElevation)
+		public int RunExternalCommand(string Command, string Params, bool bRequiresPrivilegeElevation, bool bUnattended, bool bCreateWindow)
 		{
 			TurnkeyUtils.Log("----------------------------------------------");
 			TurnkeyUtils.Log("Running '{0} {1}'", TurnkeyUtils.ExpandVariables(Command), TurnkeyUtils.ExpandVariables(Params));
 
-			if (!string.IsNullOrEmpty(Preamble))
-			{
-				TurnkeyUtils.Log("");
-				TurnkeyUtils.Log(Preamble);
-			}
 			TurnkeyUtils.Log("----------------------------------------------", Command);
 
-			bool bSuccess = CopyAndRun.RunExternalCommand(Command, Params, bRequiresPrivilegeElevation);
+			int ExitCode = CopyAndRun.RunExternalCommand(Command, Params, this, bUnattended, bRequiresPrivilegeElevation, bCreateWindow);
 
 			TurnkeyUtils.Log("----------------------------------------------");
-			TurnkeyUtils.Log("Finished with {0}", bSuccess ? "Success" : "Failure");
-
-			if (bSuccess)
-			{
-				if (!string.IsNullOrEmpty(SuccessPostAmble))
-				{
-					TurnkeyUtils.Log("");
-					TurnkeyUtils.Log(SuccessPostAmble);
-				}
-			}
-			else
-			{
-				if (!string.IsNullOrEmpty(FailurePostamble))
-				{
-					TurnkeyUtils.Log("");
-					TurnkeyUtils.Log(FailurePostamble);
-				}
-			}
+			TurnkeyUtils.Log($"Finished with {ExitCode}");
 
 			TurnkeyUtils.Log("----------------------------------------------", Command);
 
-			return bSuccess;
+			return ExitCode;
 		}
 
 		public string RetrieveFileSource(string Name, string InType, string InPlatform, string SubType)
@@ -313,6 +293,17 @@ namespace Turnkey
 		public string GetVariable(string VariableName)
 		{
 			return TurnkeyUtils.GetVariableValue(VariableName);
+		}
+
+		public void Log(string Message)
+		{
+			TurnkeyUtils.Log(Message);
+		}
+
+		public void ReportError(string Message)
+		{
+			Log("ERROR: " + Message);
+			ErrorMessages.Add(Message);
 		}
 
 		public void PauseForUser(string Message)
