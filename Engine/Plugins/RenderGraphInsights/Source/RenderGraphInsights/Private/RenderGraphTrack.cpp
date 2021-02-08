@@ -1404,6 +1404,9 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 			const auto& TooltipEvent = InTooltipEvent.As<FVisibleScopeEvent>();
 			const FScopePacket& Scope = TooltipEvent.GetPacket();
 			Tooltip.AddTitle(Scope.Name);
+
+			const uint32 PassCount = Scope.LastPass.GetIndex() - Scope.FirstPass.GetIndex() + 1;
+			Tooltip.AddNameValueTextLine(TEXT("Passes:"), FString::Printf(TEXT("%d"), PassCount));
 		}
 		else if (InTooltipEvent.Is<FVisiblePassEvent>())
 		{
