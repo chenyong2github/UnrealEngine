@@ -14,7 +14,6 @@ public class BlueprintEditorLibrary : ModuleRules
 			new string[] 
 			{
 				Path.Combine(ModuleDirectory, "Private"),
-				//"Editor/BlueprintEditorLibrary/Private",
 			}
 		);
 			
