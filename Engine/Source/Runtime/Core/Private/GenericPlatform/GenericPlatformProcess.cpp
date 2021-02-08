@@ -648,6 +648,10 @@ void FGenericPlatformProcess::ModifyThreadAssignmentForUObjectReferenceCollector
 	// On devices with overridden affinity only HiPri threads can run on big cores
 	NormalThreadName = ENamedThreads::AnyHiPriThreadHiPriTask; 
 	NumBackgroundThreads = 0; // run on single group
+#elif WITH_EDITOR
+	// Avoid the ReferenceCollector being slowed down by long running background tasks, async compilation, etc...
+	NormalThreadName = ENamedThreads::AnyHiPriThreadHiPriTask;
+	BackgroundThreadName = ENamedThreads::AnyHiPriThreadHiPriTask;
 #endif
 }
 
