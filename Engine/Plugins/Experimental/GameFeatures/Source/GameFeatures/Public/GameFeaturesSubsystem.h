@@ -58,25 +58,32 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FGameFeaturePluginLoadCompleteDataReady, co
 /** Notification that a game feature plugin load has deactivated successfully and feeds back the GameFeatureData that was being used*/
 DECLARE_MULTICAST_DELEGATE_TwoParams(FGameFeaturePluginDeativated, const FString& /*Name*/, const UGameFeatureData* /*Data*/);
 
+enum class EBuiltInAutoState : uint8
+{
+	Invalid,
+	Installed,
+	Registered,
+	Loaded,
+	Active
+};
 
 struct FGameFeaturePluginDetails
 {
 	TArray<FString> PluginDependencies;
 	TMap<FString, FString> AdditionalMetadata;
 	bool bHotfixable;
-	bool bBuiltInAutoRegister;
-	bool bBuiltInAutoLoad;
-	bool bBuiltInAutoActivate;
+	EBuiltInAutoState BuiltInAutoState;
 
 	FGameFeaturePluginDetails()
 		: bHotfixable(false)
-		, bBuiltInAutoRegister(false)
-		, bBuiltInAutoLoad(false)
-		, bBuiltInAutoActivate(false)
+		, BuiltInAutoState(EBuiltInAutoState::Installed)
 	{}
 };
 
-
+struct FBuiltInGameFeaturePluginBehaviorOptions
+{
+	EBuiltInAutoState AutoStateOverride = EBuiltInAutoState::Invalid;
+};
 
 
 
@@ -158,7 +165,7 @@ public:
 		return *CastChecked<T>(GameSpecificPolicies, ECastCheckedType::NullChecked);
 	}
 
-	typedef TFunction<bool(const FString& PluginFilename, const FGameFeaturePluginDetails& Details)> FBuiltInPluginAdditionalFilters;
+	typedef TFunction<bool(const FString& PluginFilename, const FGameFeaturePluginDetails& Details, FBuiltInGameFeaturePluginBehaviorOptions& OutOptions)> FBuiltInPluginAdditionalFilters;
 
 	/** Loads built-in game feature plugins that pass the specified filters */
 	void LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditionalFilters AdditionalFilter);
