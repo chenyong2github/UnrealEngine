@@ -24,7 +24,6 @@ IStreamedCompressedInfo::IStreamedCompressedInfo()
 	, LastPCMByteSize(0)
 	, LastPCMOffset(0)
 	, bStoringEndOfFile(false)
-	, bWriteFromDecodePCMError(false)
 	, CurrentChunkIndex(0)
 	, bPrintChunkFailMessage(true)
 	, SrcBufferPadding(0)
@@ -186,11 +185,6 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 	// Write out any PCM data that was decoded during the last request
 	uint32 RawPCMOffset = WriteFromDecodedPCM(Destination, BufferSize);
 
-	if (bWriteFromDecodePCMError)
-	{
-		return true;
-	}
-
 	// If next chunk wasn't loaded when last one finished reading, try to get it again now
 	if (SrcBufferData == NULL)
 	{
@@ -338,16 +332,6 @@ uint32 IStreamedCompressedInfo::WriteFromDecodedPCM(uint8* Destination, uint32 B
 	uint32 BytesToCopy = FMath::Min(BufferSize, LastPCMByteSize - LastPCMOffset);
 	if (BytesToCopy > 0)
 	{
-		if (static_cast<int32>(LastPCMOffset + BytesToCopy) >= LastDecodedPCM.Num())
-		{
-			bWriteFromDecodePCMError = true;
-			UE_LOG(LogAudio, Warning, TEXT("WriteFromDecodedPCM() encountered bad state: (LastDecodePCM TArray size: (%i)- LastPCMOffset: (%i) - BytesToCopy: (%i) - BufferSize: (%i))")
-				, LastDecodedPCM.Num(), LastPCMOffset, BytesToCopy, BufferSize);
-			LastPCMOffset = 0;
-			LastPCMByteSize = 0;
-			return 0;
-		}
-
 		check(BytesToCopy <= LastDecodedPCM.Num() - LastPCMOffset);
 		FMemory::Memcpy(Destination, LastDecodedPCM.GetData() + LastPCMOffset, BytesToCopy);
 		LastPCMOffset += BytesToCopy;

@@ -155,12 +155,6 @@ public:
 					DecodeResult.bLooped = DecodeTaskData.DecompressionState->ReadCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
 				}
 
-				if (DecodeTaskData.DecompressionState->HasError())
-				{
-					bIsDone = true;
-					return;
-				}
-
 				// Convert the decoded PCM data into a float buffer while still in the async task
 				int32 SampleIndex = 0;
 				int16* DecodedBufferPtr = (int16*)DecodeBuffer.GetData();

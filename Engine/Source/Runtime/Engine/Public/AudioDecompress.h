@@ -205,7 +205,6 @@ public:
 	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize) override;
 	virtual int32 GetCurrentChunkIndex() const override { return CurrentChunkIndex; }
 	virtual int32 GetCurrentChunkOffset() const override { return SrcBufferOffset; }
-	virtual bool HasError() const override { return bWriteFromDecodePCMError; }
 	//~ End ICompressedInfo Interface
 
 	/** Parse the header information from the input source buffer data. This is dependent on compression format. */
@@ -306,8 +305,6 @@ protected:
 	uint32 LastPCMOffset;
 	/** If we're currently reading the final buffer. */
 	bool bStoringEndOfFile;
-	/** If we have hit a read error and need to bail early */
-	bool bWriteFromDecodePCMError;
 	/** The current chunk index in the streamed chunks. */
 	int32 CurrentChunkIndex;
 	/** Whether or not to print the chunk fail message. */
