@@ -511,6 +511,18 @@ public:
 	*/
 	static bool GetAssetDataFromPackage(const FString& InPackageName, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies = nullptr);
 
+	/**
+	 * Helper function to get the asset data from a file's history
+	 * Note: will not query history to prevent recursion
+	 */
+	static bool GetAssetDataFromFileHistory(const FString& InFileName, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies = nullptr, int64 MaxFetchSize = -1);
+
+	/**
+	 * Helper function to get the asset data from a file's history
+	 * Note: will not query history to prevent recursion
+	 */
+	static bool GetAssetDataFromFileHistory(FSourceControlStatePtr InSourceControlState, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies = nullptr, int64 MaxFetchSize = -1);
+
 };  // USourceControlHelpers
 
 

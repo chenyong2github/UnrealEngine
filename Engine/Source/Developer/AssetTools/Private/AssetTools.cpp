@@ -1469,6 +1469,13 @@ void UAssetToolsImpl::DiffAgainstDepot( UObject* InObject, const FString& InPack
 					{
 						// Grab the old asset from that old package
 						UObject* OldObject = FindObject<UObject>(TempPackage, *InPackageName);
+
+						// Recovery for package names that don't match
+						if (OldObject == nullptr)
+						{
+							OldObject = TempPackage->FindAssetInPackage();
+						}
+
 						if(OldObject != nullptr)
 						{
 							/* Set the revision information*/

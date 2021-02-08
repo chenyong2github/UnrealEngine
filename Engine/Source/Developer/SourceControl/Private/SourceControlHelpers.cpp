@@ -1445,6 +1445,10 @@ bool USourceControlHelpers::GetAssetData(const FString & InFileName, const FStri
 {
 	const bool bGetDependencies = (OutDependencies != nullptr);
 	OutAssets.Reset();
+	if (bGetDependencies)
+	{
+		OutDependencies->Reset();
+	}
 
 	// Try the registry first
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -1482,6 +1486,65 @@ bool USourceControlHelpers::GetAssetData(const FString & InFileName, const FStri
 	}	
 
 	return OutAssets.Num() > 0;
+}
+
+bool USourceControlHelpers::GetAssetDataFromFileHistory(const FString& InFileName, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies, int64 MaxFetchSize)
+{
+	OutAssets.Reset();
+
+	if (OutDependencies)
+	{
+		OutDependencies->Reset();
+	}
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	// Get the SCC state
+	FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(InFileName, EStateCacheUsage::Use);
+	if (SourceControlState.IsValid())
+	{
+		return GetAssetDataFromFileHistory(SourceControlState, OutAssets, OutDependencies, MaxFetchSize);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool USourceControlHelpers::GetAssetDataFromFileHistory(FSourceControlStatePtr InSourceControlState, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies /* = nullptr */, int64 MaxFetchSize /* = -1 */)
+{
+	check(InSourceControlState.IsValid());
+	OutAssets.Reset();
+
+	if (OutDependencies)
+	{
+		OutDependencies->Reset();
+	}
+
+	// This code is similar to what's done in UAssetToolsImpl::DiffAgainstDepot but we'll force it quiet to prevent recursion issues
+	if (InSourceControlState->GetHistorySize() == 0)
+	{
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
+		UpdateStatusOperation->SetUpdateHistory(true);
+		UpdateStatusOperation->SetQuiet(true);
+		SourceControlProvider.Execute(UpdateStatusOperation, InSourceControlState->GetFilename());
+	}
+
+	if (InSourceControlState->GetHistorySize() > 0)
+	{
+		TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = InSourceControlState->GetHistoryItem(0);
+		check(Revision.IsValid());
+
+		const bool bShouldGetFile = (MaxFetchSize < 0 || MaxFetchSize >(int64)Revision->GetFileSize());
+
+		FString TempFileName;
+		if (bShouldGetFile && Revision->Get(TempFileName))
+		{
+			return GetAssetData(TempFileName, OutAssets, OutDependencies);
+		}
+	}
+
+	return false;
 }
 
 FScopedSourceControl::FScopedSourceControl()

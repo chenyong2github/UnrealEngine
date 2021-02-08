@@ -1701,3 +1701,67 @@ bool FSourceControlWindows::DiffAgainstWorkspace(const FString& InFileName)
 
 	return !!SelectedAsset;
 }
+
+bool FSourceControlWindows::DiffAgainstShelvedFile(const FSourceControlStateRef& InFileState)
+{
+	if (InFileState->GetHistorySize() == 0)
+	{
+		return false;
+	}
+
+	TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = InFileState->GetHistoryItem(0);
+	check(Revision.IsValid());
+
+	UObject* SelectedAsset = nullptr;
+
+	FString AssetPackageName;
+	if (FPackageName::TryConvertFilenameToLongPackageName(InFileState->GetFilename(), AssetPackageName))
+	{
+		UPackage* AssetPackage = LoadPackage(nullptr, *AssetPackageName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
+
+		// grab the asset from the package - we assume asset name matches file name
+		FString AssetName = FPaths::GetBaseFilename(InFileState->GetFilename());
+		SelectedAsset = FindObject<UObject>(AssetPackage, *AssetName);
+
+		if (!SelectedAsset && AssetPackage)
+		{
+			SelectedAsset = AssetPackage->FindAssetInPackage();
+		}
+	}
+
+	if (SelectedAsset)
+	{
+		FString TempFileName;
+		if (Revision->Get(TempFileName))
+		{
+			// Try and load that package
+			UPackage* TempPackage = LoadPackage(nullptr, *TempFileName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
+			if (TempPackage != nullptr)
+			{
+				// Grab the shelved asset from that package
+				UObject* ShelvedObject = FindObject<UObject>(TempPackage, *SelectedAsset->GetName());
+
+				if (ShelvedObject == nullptr)
+				{
+					ShelvedObject = TempPackage->FindAssetInPackage();
+				}
+
+				if (ShelvedObject != nullptr)
+				{
+					/* Set the revision information*/
+					FRevisionInfo ShelvedRevision;
+					ShelvedRevision.Changelist = Revision->GetCheckInIdentifier();
+					ShelvedRevision.Revision = TEXT("Shelved");
+
+					FRevisionInfo NewRevision;
+					NewRevision.Revision = TEXT("");
+
+					FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+					AssetToolsModule.Get().DiffAssets(ShelvedObject, SelectedAsset, ShelvedRevision, NewRevision);
+				}
+			}
+		}
+	}
+
+	return !!SelectedAsset;
+}

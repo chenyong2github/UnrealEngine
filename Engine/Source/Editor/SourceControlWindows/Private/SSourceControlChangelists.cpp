@@ -139,7 +139,7 @@ void SSourceControlChangelistsWidget::RequestRefresh()
 		UpdatePendingChangelistsOperation->SetUpdateShelvedFilesStates(true);
 
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-		SourceControlProvider.Execute(UpdatePendingChangelistsOperation, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SSourceControlChangelistsWidget::OnChangelistsStatusUpdated));
+		SourceControlProvider.Execute(UpdatePendingChangelistsOperation, EConcurrency::Asynchronous);
 	}
 	else
 	{
@@ -663,7 +663,11 @@ bool SSourceControlChangelistsWidget::CanDiffAgainstDepot()
 
 void SSourceControlChangelistsWidget::OnDiffAgainstWorkspace()
 {
-
+	if (GetSelectedShelvedFiles().Num() > 0)
+	{
+		FSourceControlStateRef FileState = StaticCastSharedPtr<FShelvedFileTreeItem>(TreeView->GetSelectedItems()[0])->FileState;
+		FSourceControlWindows::DiffAgainstShelvedFile(FileState);
+	}
 }
 
 bool SSourceControlChangelistsWidget::CanDiffAgainstWorkspace()

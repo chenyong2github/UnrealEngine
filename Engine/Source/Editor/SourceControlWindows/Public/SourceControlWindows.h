@@ -103,6 +103,15 @@ public:
 	 */
 	static bool DiffAgainstWorkspace(const FString& InFileName);
 
+	/**
+	 * Displays file diff against shelved file
+	 * 
+	 * @param InFileState SCC file state of the file to diff
+	 * 
+	 * @return true if the diff could be performed
+	 */
+	static bool DiffAgainstShelvedFile(const FSourceControlStateRef& InFileState);
+
 protected:
 	/** Callback for ChoosePackagesToCheckIn(), continues to bring up UI once source control operations are complete */
 	static void ChoosePackagesToCheckInCallback(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FSourceControlWindowsOnCheckInComplete OnCompleteDelegate);

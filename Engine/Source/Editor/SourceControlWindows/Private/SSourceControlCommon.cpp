@@ -55,23 +55,42 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bIsShelved
 	// Initialize asset data first
 	FString Filename = FileState->GetFilename();
 
-	USourceControlHelpers::GetAssetData(Filename, Assets);
+	if (!FileState->IsDeleted())
+	{
+		USourceControlHelpers::GetAssetData(Filename, Assets);
+	}
+
+	// For deleted items, the file is not on disk anymore so the only way we can get the asset data is by getting the file from the depot.
+	// For shelved files, if the file still exists locally, it will have been found before, otherwise, the history of the shelved file state will point to the remote version
+	if (FileState->IsDeleted() || (bIsShelvedFile && Assets.Num() == 0))
+	{
+		// At the moment, getting the asset data from non-external assets yields issues with the package path
+		// so we will fall down to our recovery (below) instead
+		if (Filename.Contains("__ExternalActors__"))
+		{
+			const int64 MaxFetchSize = (1 << 20); // 1MB
+			// In the case of shelved "marked for delete", we'll piggy back on the non-shelved file
+			if (bIsShelvedFile && FileState->IsDeleted())
+			{
+				USourceControlHelpers::GetAssetDataFromFileHistory(Filename, Assets, nullptr, MaxFetchSize);
+			}
+			else
+			{
+				USourceControlHelpers::GetAssetDataFromFileHistory(FileState, Assets, nullptr, MaxFetchSize);
+			}
+		}
+	}
 
 	// Initialize display-related members
-	FString TempAssetName = LOCTEXT("SourceControl_DefaultAssetName", "None").ToString();
+	FString TempAssetName = LOCTEXT("SourceControl_DefaultAssetName", "Unavailable").ToString();
 	FString TempAssetPath = Filename;
 	FString TempAssetType = LOCTEXT("SourceControl_DefaultAssetType", "Unknown").ToString();
+	FString TempPackageName = Filename;
 	FColor TempAssetColor = FColor(		// Copied from ContentBrowserCLR.cpp
 		127 + FColor::Red.R / 2,	// Desaturate the colors a bit (GB colors were too.. much)
 		127 + FColor::Red.G / 2,
 		127 + FColor::Red.B / 2,
 		200); // Opacity
-
-	FString TempPackageName = Filename;
-	if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, TempPackageName))
-	{
-		TempPackageName = Filename;
-	}
 
 	if (Assets.Num() > 0)
 	{

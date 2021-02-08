@@ -13,6 +13,7 @@ public:
 		, Date(0)
 		, ChangelistNumber(0)
 		, FileSize(0)
+		, bIsShelve(false)
 	{
 	}
 
@@ -65,4 +66,7 @@ public:
 
 	/** The size of the change */
 	int32 FileSize;
+
+	/** Whether this reprensents a revision bound to a shelved file in a changelist */
+	bool bIsShelve;
 };

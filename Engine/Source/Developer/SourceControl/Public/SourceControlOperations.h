@@ -218,6 +218,7 @@ public:
 		, bGetOpenedOnly(false)
 		, bUpdateModifiedState(false)
 		, bCheckingAllFiles(false)
+		, bForceQuiet(false)
 	{
 	}
 
@@ -252,6 +253,11 @@ public:
 		bCheckingAllFiles = bInCheckingAllFiles;
 	}
 
+	void SetQuiet(bool bInQuiet)
+	{
+		bForceQuiet = bInQuiet;
+	}
+
 	bool ShouldUpdateHistory() const
 	{
 		return bUpdateHistory;
@@ -272,6 +278,11 @@ public:
 		return bCheckingAllFiles;
 	}
 
+	bool ShouldBeQuiet() const
+	{
+		return bForceQuiet;
+	}
+
 protected:
 	/** Whether to update history */
 	bool bUpdateHistory;
@@ -284,6 +295,9 @@ protected:
 
 	/** Hint that we are intending on checking all files in the project - some providers can optimize for this */
 	bool bCheckingAllFiles;
+
+	/** Controls whether the operation will trigger an update or not */
+	bool bForceQuiet;
 };
 
 /**

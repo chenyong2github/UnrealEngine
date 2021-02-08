@@ -8,6 +8,7 @@
 #include "PerforceSourceControlChangelistState.h"
 
 class FPerforceSourceControlRevision;
+typedef TMap<FString, TArray< TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> > > FPerforceFileHistoryMap;
 
 class FPerforceConnectWorker : public IPerforceSourceControlWorker
 {
@@ -129,11 +130,13 @@ public:
 	TMap<FString, EPerforceState::Type> OutStateMap;
 
 	/** Map of filenames to history */
-	typedef TMap<FString, TArray< TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> > > FHistoryMap;
-	FHistoryMap OutHistory;
+	FPerforceFileHistoryMap OutHistory;
 
 	/** Map of filenames to modified flag */
 	TArray<FString> OutModifiedFiles;
+
+	/** Override on status update return */
+	bool bForceQuiet = false;
 };
 
 class FPerforceGetWorkspacesWorker : public IPerforceSourceControlWorker
@@ -160,6 +163,7 @@ public:
 	TArray<FPerforceSourceControlChangelistState> OutChangelistsStates;
 	TArray<TArray<FPerforceSourceControlState>> OutCLFilesStates;
 	TArray<TMap<FString, EPerforceState::Type>> OutCLShelvedFilesStates;
+	TArray<TMap<FString, FString>> OutCLShelvedFilesMap;
 };
 
 class FPerforceCopyWorker : public IPerforceSourceControlWorker
@@ -286,6 +290,9 @@ public:
 protected:	
 	/** Map of filenames to perforce state */
 	TMap<FString, EPerforceState::Type> OutResults;
+
+	/** Map depot filenames to local file */
+	TMap<FString, FString> OutFileMap;
 
 	/** Changelist to be updated */
 	FPerforceSourceControlChangelist ChangelistToUpdate;
