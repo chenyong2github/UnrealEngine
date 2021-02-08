@@ -9,6 +9,9 @@
 DECLARE_CYCLE_STAT(TEXT("RTDynGeomDispatch"), STAT_CLM_RTDynGeomDispatch, STATGROUP_ParallelCommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("RTDynGeomBuild"), STAT_CLM_RTDynGeomBuild, STATGROUP_ParallelCommandListMarkers);
 
+// Workaround for outstanding memory corruption on some platforms when parallel command list translation is used.
+#define USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS 0
+
 static bool IsSupportedDynamicVertexFactoryType(const FVertexFactoryType* VertexFactoryType)
 {
 	return VertexFactoryType == FindVertexFactoryType(FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find))
@@ -394,7 +397,7 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 			auto AllocateCommandList = [&ParentCmdList, &CommandLists, &CmdListNumDraws, &CmdListPrerequisites]
 			(uint32 ExpectedNumDraws, TStatId StatId)->FRHIComputeCommandList&
 			{
-				if (ParentCmdList.Bypass())
+				if (ParentCmdList.Bypass() || USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS==0)
 				{
 					return ParentCmdList;
 				}
@@ -471,8 +474,8 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 					false // bSpewMerge
 				);
 			}
-			}
 		}
+	}
 		
 #undef SCOPED_DRAW_OR_COMPUTE_EVENT
 }
@@ -482,5 +485,7 @@ void FRayTracingDynamicGeometryCollection::EndUpdate(FRHICommandListImmediate& R
 	// Move ownership to RHI thread for another frame
 	RHICmdList.EnqueueLambda([ArrayOwnedByRHIThread = MoveTemp(Segments)](FRHICommandListImmediate&){});
 }
+
+#undef USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS
 
 #endif // RHI_RAYTRACING
