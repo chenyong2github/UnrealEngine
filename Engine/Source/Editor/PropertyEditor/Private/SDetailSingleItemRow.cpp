@@ -296,39 +296,11 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			// create outer splitter
 			TSharedRef<SSplitter> OuterSplitter =
 				SNew(SSplitter)
-				.Style(FEditorStyle::Get(), "DetailsView.Splitter.Outer")
+				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
 				.PhysicalSplitterHandleSize(1.0f)
 				.HitDetectionSplitterHandleSize(5.0f);
 
 			Widget = OuterSplitter;
-
-			// create Left column:
-			// | Left  | Name | Value | Right |
-			TSharedRef<SHorizontalBox> LeftColumnBox =
-				SNew(SHorizontalBox)
-				.Clipping(EWidgetClipping::OnDemand);
-
-			// edit condition widget
-			LeftColumnBox->AddSlot()
-				.Padding(6.0f, 0.0f, 6.0f, 0.0f)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(SConstrainedBox)
-					.MinWidth(20)
-					[
-						SNew(SEditConditionWidget)
-						.EditConditionValue(WidgetRow.EditConditionValue)
-						.OnEditConditionValueChanged(WidgetRow.OnEditConditionValueChanged)
-					]
-				];
-
-			OuterSplitter->AddSlot()
-				.SizeRule(SSplitter::ESizeRule::SizeToContent)
-				[
-					LeftColumnBox
-				];
 
 			TSharedPtr<SSplitter> InnerSplitter;
 
@@ -366,15 +338,6 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					SNew(SDetailRowIndent, SharedThis(this))
 				];
 
-			NameColumnBox->AddSlot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(5,0,0,0)
-				.AutoWidth()
-				[
-					SNew(SDetailExpanderArrow, SharedThis(this))
-				];
-			
 			TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
 			if (PropertyNode.IsValid())
 			{
@@ -391,7 +354,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					NameColumnBox->AddSlot()
 						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
-						.Padding(0)
+						.Padding(-2, 0, -10, 0)
 						.AutoWidth()
 						[
 							ArrayHandle
@@ -411,20 +374,32 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				}
 			}
 
-			const bool bIsReorderable = PropertyNode.IsValid() && PropertyNode->IsReorderable();
-			auto GetLeftRowPadding = [this, bIsReorderable]()
-			{
-				FMargin Padding = DetailWidgetConstants::LeftRowPadding;
-				Padding.Left -= bIsReorderable ? 16 : 0;
-				return Padding;
-			};
+			NameColumnBox->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(8,0,0,0)
+				.AutoWidth()
+				[
+					SNew(SDetailExpanderArrow, SharedThis(this))
+				];
+
+			NameColumnBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.Padding(3,0,0,0)
+				.AutoWidth()
+				[
+					SNew(SEditConditionWidget)
+					.EditConditionValue(WidgetRow.EditConditionValue)
+					.OnEditConditionValueChanged(WidgetRow.OnEditConditionValueChanged)
+				];
 
 			if (bHasMultipleColumns)
 			{
 				NameColumnBox->AddSlot()
 					.HAlign(WidgetRow.NameWidget.HorizontalAlignment)
 					.VAlign(WidgetRow.NameWidget.VerticalAlignment)
-					.Padding(TAttribute<FMargin>::Create(GetLeftRowPadding))
+					.Padding(5,0,0,0)
 					[
 						NameWidget.ToSharedRef()
 					];
@@ -471,7 +446,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				NameColumnBox->AddSlot()
 					.HAlign(WidgetRow.WholeRowWidget.HorizontalAlignment)
 					.VAlign(WidgetRow.WholeRowWidget.VerticalAlignment)
-					.Padding(TAttribute<FMargin>::Create(GetLeftRowPadding))
+					.Padding(5,0,0,0)
 					[
 						WidgetRow.WholeRowWidget.Widget
 					];

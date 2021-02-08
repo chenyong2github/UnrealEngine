@@ -20,7 +20,7 @@ public:
 	
 	FDetailColumnSizeData()
 	{
-		ValueColumnWidthValue = 0.65f;
+		ValueColumnWidthValue = 0.5f;
 		RightColumnWidthValue = 0.05f;
 		HoveredSplitterIndexValue = INDEX_NONE;
 

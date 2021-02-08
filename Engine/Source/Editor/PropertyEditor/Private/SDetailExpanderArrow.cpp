@@ -35,7 +35,7 @@ void SDetailExpanderArrow::Construct(const FArguments& InArgs, TSharedRef<SDetai
 
 EVisibility SDetailExpanderArrow::GetExpanderVisibility() const
 {
-	return Row->DoesItemHaveChildren() ? EVisibility::Visible : EVisibility::Hidden;
+	return Row->DoesItemHaveChildren() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 const FSlateBrush* SDetailExpanderArrow::GetExpanderImage() const

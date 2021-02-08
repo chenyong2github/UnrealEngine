@@ -1047,7 +1047,10 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 		Style->Set("InlineEditableTextBlockSmallStyle", InlineEditableTextBlockSmallStyle);
 	}
 
-
+	const FTextBlockStyle HintText = FTextBlockStyle(NormalText)
+		.SetFont(FONT(8, "Italic"))
+		.SetColorAndOpacity(FSlateColor::UseSubduedForeground());
+	Style->Set("HintText", HintText);
 }
 
 void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)

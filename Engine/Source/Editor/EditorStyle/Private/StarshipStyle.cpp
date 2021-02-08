@@ -3267,11 +3267,6 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "DetailsView.NoFavoritesSystem", new IMAGE_BRUSH("PropertyView/NoFavoritesSystem", Icon12x12));
 
 		Set( "DetailsView.Splitter", FSplitterStyle()
-			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Transparent))                   
-			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Recessed))
-		);
-
-		Set( "DetailsView.Splitter.Outer", FSplitterStyle()
 			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Recessed))                   
 			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Recessed))
 		);

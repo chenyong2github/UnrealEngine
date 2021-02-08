@@ -56,8 +56,6 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 		];
 	}
 	
-	const float EditConditionWidgetWidth = 33; // this is the width of the edit condition widget displayed on the left in SDetailSingleItemRow
-
 	TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
 	auto GetScrollbarWellBrush = [this, OwnerTableViewWeak]()
 	{
@@ -80,19 +78,6 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 		.Padding(FMargin(0, 0, 0, 1))
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Left)
-			.AutoWidth()
-			[
-				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
-				.BorderBackgroundColor( this, &SDetailCategoryTableRow::GetOuterBackgroundColor )
-				.Padding(0)
-				[
-					SNew(SSpacer)
-					.Size(bIsInnerCategory ? FVector2D(EditConditionWidgetWidth, 0) : FVector2D(0,0))
-				]
-			]
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Fill)
 			[
