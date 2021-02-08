@@ -215,22 +215,22 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
-			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
-
 			if (bIsInstanced)
 			{
-				const FString LongActorPackageName = ActorDesc->ActorPackage.ToString();
+				const FString LongActorPackageName = ActorDescIterator->ActorPackage.ToString();
 				const FString ActorPackageName = FPaths::GetBaseFilename(LongActorPackageName);
 				const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorPackageName);
 
 				InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-				ActorDesc->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
+				ActorDescIterator->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
 			}
+
+			ActorDescIterator->OnRegister();
 
 			if (bEditorOnly)
 			{
-				HashActorDesc(ActorDesc);
+				HashActorDesc(*ActorDescIterator);
 			}
 		}
 

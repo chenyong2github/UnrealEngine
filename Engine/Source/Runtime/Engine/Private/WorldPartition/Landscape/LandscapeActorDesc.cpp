@@ -46,7 +46,7 @@ void FLandscapeActorDesc::OnRegister()
 {
 	FPartitionActorDesc::OnRegister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), GridGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), GridGuid))
 	{
 		FWorldPartitionHandle Handle(Container, GetGuid());
 		check(Handle.IsValid());
@@ -58,7 +58,7 @@ void FLandscapeActorDesc::OnUnregister()
 {
 	FPartitionActorDesc::OnUnregister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), GridGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), GridGuid))
 	{
 		FWorldPartitionHandle Handle(Container, GetGuid());
 		check(Handle.IsValid());

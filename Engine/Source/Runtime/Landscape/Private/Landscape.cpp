@@ -3129,30 +3129,6 @@ ULandscapeInfo* ULandscapeInfo::FindOrCreate(UWorld* InWorld, const FGuid& Lands
 void ULandscapeInfo::Initialize(UWorld* InWorld, const FGuid& InLandscapeGuid)
 {
 	LandscapeGuid = InLandscapeGuid;
-#if WITH_EDITOR
-	// If WorldPartition world get the Proxy handles
-	if (UWorldPartition* WorldPartition = InWorld->GetWorldPartition())
-	{
-		for (UActorDescContainer::TIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
-		{
-			FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
-			if (ActorDesc->GetActorClass()->IsChildOf(ALandscapeStreamingProxy::StaticClass()))
-			{
-				if (((FLandscapeActorDesc*)ActorDesc)->GridGuid == InLandscapeGuid)
-				{
-					ProxyHandles.Add(FWorldPartitionHandle(WorldPartition, ActorDesc->GetGuid()));
-				}
-			}
-			else if (ActorDescIterator->GetActorClass()->IsChildOf(ALandscapeSplineActor::StaticClass()))
-			{
-				if (((FLandscapeSplineActorDesc*)ActorDesc)->LandscapeGuid == InLandscapeGuid)
-				{
-					SplineHandles.Emplace(FWorldPartitionHandle(WorldPartition, ActorDesc->GetGuid()));
-				}
-			}
-		}
-	}
-#endif
 }
 
 void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const

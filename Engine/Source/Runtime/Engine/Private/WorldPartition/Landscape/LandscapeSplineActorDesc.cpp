@@ -35,7 +35,7 @@ void FLandscapeSplineActorDesc::OnRegister()
 {
 	FWorldPartitionActorDesc::OnRegister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), LandscapeGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), LandscapeGuid))
 	{
 		FWorldPartitionHandle Handle(Container, GetGuid());
 		check(Handle.IsValid());
@@ -47,7 +47,7 @@ void FLandscapeSplineActorDesc::OnUnregister()
 {
 	FWorldPartitionActorDesc::OnUnregister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), LandscapeGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), LandscapeGuid))
 	{
 		FWorldPartitionHandle Handle(Container, GetGuid());
 		check(Handle.IsValid());
