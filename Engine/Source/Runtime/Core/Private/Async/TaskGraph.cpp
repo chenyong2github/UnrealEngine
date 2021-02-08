@@ -1937,7 +1937,7 @@ private:
 
 	bool IsCurrentThreadKnown() final override
 	{
-		return FPlatformTLS::GetTlsValue(PerThreadIDTLSSlot) != nullptr || LowLevelTasks::FScheduler::Get().GetActiveTask() != nullptr;
+		return FPlatformTLS::GetTlsValue(PerThreadIDTLSSlot) != nullptr || LowLevelTasks::FScheduler::GetActiveTask() != nullptr;
 	}
 
 	ENamedThreads::Type GetCurrentThreadIfKnown(bool bLocalQueue) final override
@@ -2040,7 +2040,7 @@ private:
 			TGraphTask<FReturnGraphTask>::CreateTask(&Tasks, CurrentThread).ConstructAndDispatchWhenReady(CurrentThread);
 			ProcessThreadUntilRequestReturn(CurrentThread);
 		}
-		else if (LowLevelTasks::FScheduler::Get().GetActiveTask() != nullptr)
+		else if (LowLevelTasks::FScheduler::Get().IsWorkerThread())
 		{
 			LowLevelTasks::BusyWaitUntil([Index(0), &Tasks]() mutable
 			{
@@ -2151,7 +2151,7 @@ private:
 		}
 		else 
 		{
-			const LowLevelTasks::FTask* Task = LowLevelTasks::FScheduler::Get().GetActiveTask();
+			const LowLevelTasks::FTask* Task = LowLevelTasks::FScheduler::GetActiveTask();
 			if (Task != nullptr)
 			{
 				ENamedThreads::Type ThreadConversion[int(LowLevelTasks::ETaskPriority::Count)] = { ENamedThreads::HighThreadPriority, ENamedThreads::NormalThreadPriority, ENamedThreads::BackgroundThreadPriority, ENamedThreads::BackgroundThreadPriority };

@@ -29,6 +29,7 @@ namespace LowLevelTasks
 
 		static thread_local FLocalQueueType* LocalQueue;
 		static thread_local FTask* ActiveTask;
+		static thread_local FScheduler* ActiveScheduler;
 
 		enum class EWorkerType
 		{
@@ -56,7 +57,7 @@ namespace LowLevelTasks
 		FORCEINLINE_DEBUGGABLE static FScheduler& Get();
 
 		//start number of workers where 0 is the system default
-		CORE_API void StartWorkers(uint32 NumWorkers = 0, uint32 NumBackgroundWorkers = 0, EThreadPriority WorkerPriority = EThreadPriority::TPri_Normal,  EThreadPriority BackgroundPriority = EThreadPriority::TPri_BelowNormal, bool bIsForkable = false);
+		CORE_API void StartWorkers(uint32 NumForegroundWorkers = 0, uint32 NumBackgroundWorkers = 0, EThreadPriority WorkerPriority = EThreadPriority::TPri_Normal,  EThreadPriority BackgroundPriority = EThreadPriority::TPri_BelowNormal, bool bIsForkable = false);
 		CORE_API void StopWorkers();
 
 		//try to launch the task, the return value will specify if the task was in the ready state and has been launced
@@ -84,7 +85,7 @@ namespace LowLevelTasks
 		inline uint32 GetNumWorkers() const;
 
 		//get the active task if any
-		CORE_API const FTask* GetActiveTask() const;
+		CORE_API static const FTask* GetActiveTask();
 
 		CORE_API bool IsWorkerThread() const;
 

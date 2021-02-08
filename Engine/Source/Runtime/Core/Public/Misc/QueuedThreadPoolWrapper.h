@@ -200,7 +200,7 @@ protected:
 	{
 		bIsExiting = true;
 
-		if (LowLevelTasks::FScheduler::Get().GetActiveTask())
+		if (LowLevelTasks::FScheduler::Get().IsWorkerThread())
 		{
 			LowLevelTasks::BusyWaitUntil([this]() { return TaskCount == 0; });
 		}
@@ -237,8 +237,8 @@ public:
     * InMaxConcurrency           Maximum number of concurrent tasks allowed, -1 will limit concurrency to number of threads available in the underlying thread pool.
 	* InPriorityMapper           Thread-safe function used to map any priority from this Queue to the priority that should be used when scheduling the task on the underlying thread pool.
 	**/
-	FQueuedLowLevelThreadPool(uint32 InMaxConcurrency = ~0, TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> InPriorityMapper = [](EQueuedWorkPriority InPriority) { return InPriority; }) 
-		: PriorityMapper(InPriorityMapper)
+	FQueuedLowLevelThreadPool(uint32 InMaxConcurrency = ~0, TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> InPriorityMapper = [](EQueuedWorkPriority InPriority) { return InPriority; }, LowLevelTasks::FScheduler* InScheduler = &LowLevelTasks::FScheduler::Get()) 
+		: PriorityMapper(InPriorityMapper), Scheduler(InScheduler)
 	{
 		MaxConcurrency = InMaxConcurrency;
 	}
@@ -287,7 +287,7 @@ public:
 				break;
 			}
 			TaskCount++;
-			verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
+			verifySlow(Scheduler->TryLaunch(QueuedWork->Task, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
 		}
 
 		if (InNumQueuedWork == -1)
@@ -307,7 +307,7 @@ private:
 			FQueuedWorkInternalData* QueuedWork = Dequeue();
 			if (QueuedWork)
 			{
-				verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, bWakeUpWorker ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference, bWakeUpWorker));
+				verifySlow(Scheduler->TryLaunch(QueuedWork->Task, bWakeUpWorker ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference, bWakeUpWorker));
 				LocalTaskCount = TaskCount.fetch_add(1, std::memory_order_acquire) + 1;
 				bWakeUpWorker = true;
 			}
@@ -360,7 +360,7 @@ private:
 
 	int32 GetNumThreads() const override
 	{
-		return LowLevelTasks::FScheduler::Get().GetNumWorkers();
+		return Scheduler->GetNumWorkers();
 	}
 
 protected:
@@ -384,12 +384,12 @@ protected:
 
 			verify(QueuedWork->Retract());
 			TaskCount++;
-			verifySlow(LowLevelTasks::TryLaunch(QueuedWork->Task, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
+			verifySlow(Scheduler->TryLaunch(QueuedWork->Task, LowLevelTasks::EQueuePreference::GlobalQueuePreference));
 		}
 
-		if (LowLevelTasks::FScheduler::Get().GetActiveTask())
+		if (Scheduler->IsWorkerThread())
 		{
-			LowLevelTasks::BusyWaitUntil([this]() { return TaskCount == 0; });
+			Scheduler->BusyWaitUntil([this]() { return TaskCount == 0; });
 		}
 		else
 		{
@@ -421,6 +421,7 @@ private:
 		PendingWork[int32(Priority)].enqueue(Item);
 	}
 
+	LowLevelTasks::FScheduler* Scheduler = nullptr;
 	TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> PriorityMapper;
 	std::atomic_uint MaxConcurrency{~0u};
 	std::atomic_uint TaskCount{0};

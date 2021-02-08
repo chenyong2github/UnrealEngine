@@ -3,7 +3,7 @@
 #include "Async/Fundamental/Scheduler.h"
 #include "Async/Fundamental/Task.h"
 #include "Logging/LogMacros.h"
-#include "Misc/ScopeLock.h" 
+#include "Misc/ScopeLock.h"
 #include "CoreGlobals.h"
 
 namespace LowLevelTasks
@@ -12,6 +12,7 @@ namespace LowLevelTasks
 
 	thread_local FScheduler::FLocalQueueType* FScheduler::LocalQueue = nullptr;
 	thread_local FTask* FScheduler::ActiveTask = nullptr;
+	thread_local FScheduler* FScheduler::ActiveScheduler = nullptr;
 	thread_local FScheduler::EWorkerType FScheduler::WorkerType = FScheduler::EWorkerType::None;
 
 	FScheduler FScheduler::Singleton;
@@ -53,26 +54,26 @@ namespace LowLevelTasks
 		);
 	}
 
-	void FScheduler::StartWorkers(uint32 NumWorkers, uint32 NumBackgroundWorkers, EThreadPriority WorkerPriority,  EThreadPriority BackgroundPriority, bool bIsForkable)
+	void FScheduler::StartWorkers(uint32 NumForegroundWorkers, uint32 NumBackgroundWorkers, EThreadPriority WorkerPriority,  EThreadPriority BackgroundPriority, bool bIsForkable)
 	{
-		if (NumWorkers == 0)
+		if (NumForegroundWorkers == 0 && NumBackgroundWorkers == 0)
 		{
-			NumWorkers = 2;
-			NumBackgroundWorkers = FMath::Max(1, FPlatformMisc::NumberOfWorkerThreadsToSpawn() - 2);
+			NumForegroundWorkers = FMath::Max<int32>(1, FMath::Min<int32>(2, FPlatformMisc::NumberOfWorkerThreadsToSpawn() - 1));
+			NumBackgroundWorkers = FMath::Max<int32>(1, FPlatformMisc::NumberOfWorkerThreadsToSpawn() - NumForegroundWorkers);
 		}
 
 		uint32 OldActiveWorkers = ActiveWorkers.load(std::memory_order_relaxed);
-		if(OldActiveWorkers == 0 && FPlatformProcess::SupportsMultithreading() && ActiveWorkers.compare_exchange_strong(OldActiveWorkers, NumWorkers + NumBackgroundWorkers, std::memory_order_relaxed))
+		if(OldActiveWorkers == 0 && FPlatformProcess::SupportsMultithreading() && ActiveWorkers.compare_exchange_strong(OldActiveWorkers, NumForegroundWorkers + NumBackgroundWorkers, std::memory_order_relaxed))
 		{
 			FScopeLock Lock(&WorkerThreadsCS);
 			check(!WorkerThreads.Num());
 			check(!WorkerLocalQueues.Num());
 			check(NextWorkerId == 0);
 
-			WorkerThreads.Reserve(NumWorkers + NumBackgroundWorkers);
-			WorkerLocalQueues.Reserve(NumWorkers + NumBackgroundWorkers);
+			WorkerThreads.Reserve(NumForegroundWorkers + NumBackgroundWorkers);
+			WorkerLocalQueues.Reserve(NumForegroundWorkers + NumBackgroundWorkers);
 			UE::Trace::ThreadGroupBegin(TEXT("Foreground Workers"));
-			for (uint32 WorkerId = 0; WorkerId < NumWorkers; ++WorkerId)
+			for (uint32 WorkerId = 0; WorkerId < NumForegroundWorkers; ++WorkerId)
 			{
 				WorkerLocalQueues.Emplace(QueueRegistry, false);
 				WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), WorkerPriority, false, bIsForkable));
@@ -151,14 +152,14 @@ namespace LowLevelTasks
 		}
 	}
 
-	const FTask* FScheduler::GetActiveTask() const
+	const FTask* FScheduler::GetActiveTask() 
 	{
 		return ActiveTask;
 	}
 
 	bool FScheduler::IsWorkerThread() const
 	{
-		return WorkerType != EWorkerType::None;
+		return WorkerType != EWorkerType::None && ActiveScheduler == this;
 	}
 
 	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)(bool)>
@@ -183,6 +184,7 @@ namespace LowLevelTasks
 	void FScheduler::WorkerMain(FSleepEvent* WorkerEvent, FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork)
 	{
 		FTaskTagScope WorkerScope(ETaskTag::EWorkerThread);
+		ActiveScheduler = this;
 
 		FMemory::SetupTLSCachesOnCurrentThread();
 		WorkerType = bPermitBackgroundWork ? EWorkerType::Background : EWorkerType::Foreground;
@@ -241,6 +243,7 @@ namespace LowLevelTasks
 		FLocalQueueType::DeleteLocalQueue(WorkerLocalQueue, bPermitBackgroundWork, ExternalWorkerLocalQueue != nullptr);
 		LocalQueue = nullptr;
 
+		ActiveScheduler = nullptr;
 		WorkerType = EWorkerType::None;
 		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
 	}

@@ -356,7 +356,7 @@ class FAsyncTask
 			FScopeCycleCounter Scope( Task.GetStatId() );
 			DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FAsyncTask::SyncCompletion" ), STAT_FAsyncTask_SyncCompletion, STATGROUP_ThreadPoolAsyncTasks );
 
-			if (LowLevelTasks::FScheduler::Get().GetActiveTask())
+			if (LowLevelTasks::FScheduler::Get().IsWorkerThread())
 			{
 				LowLevelTasks::BusyWaitUntil([this]() { return IsWorkDone(); });
 			}
