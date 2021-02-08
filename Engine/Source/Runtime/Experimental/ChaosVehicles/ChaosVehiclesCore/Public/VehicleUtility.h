@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Chaos/Core.h"
 
 // Disable Optimizations in non debug build configurations
 #define VEHICLE_DEBUGGING_ENABLED 0
@@ -67,6 +68,32 @@ namespace Chaos
 		}
 	private:
 		TArray<float> Graph;
+	};
+
+	class CHAOSVEHICLESCORE_API FGraph
+	{
+	public:
+		FGraph()
+		{
+			Empty();
+		}
+
+		void Empty()
+		{
+			Graph.Empty();
+			BoundsX.X = TNumericLimits<FReal>::Max();
+			BoundsX.Y = -TNumericLimits<FReal>::Max();
+			BoundsY.X = TNumericLimits<FReal>::Max();
+			BoundsY.Y = -TNumericLimits<FReal>::Max();
+		}
+
+		void Add(const FVec2& Value);
+
+		float EvaluateY(float InX) const;
+	private:
+		TArray<FVec2> Graph;
+		FVector2D BoundsX;
+		FVector2D BoundsY;
 	};
 
 	class CHAOSVEHICLESCORE_API FVehicleUtility
@@ -309,4 +336,3 @@ namespace Chaos
 	};
 
 } // namespace Chaos
-

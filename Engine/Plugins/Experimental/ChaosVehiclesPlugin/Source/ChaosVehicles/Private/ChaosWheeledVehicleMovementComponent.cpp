@@ -569,16 +569,13 @@ void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& Contr
 
 		if (PWheel.Setup().SteeringEnabled)
 		{
-			// #TODO: PUT BACK
-			//FRichCurve* SteeringCurveData = SteeringSetup.SteeringCurve.GetRichCurve();
 			float SpeedScale = 1.0f;
 
-			// #TODO: PUT BACK
-			//// allow full counter steering when steering into a power slide
-			////if (SteeringInput * VehicleState.VehicleLocalVelocity.Y > 0.0f)
-			//{
-			//	SpeedScale = SteeringCurveData->Eval(CmSToMPH(VehicleState.ForwardSpeed));
-			//}
+			// allow full counter steering when steering into a power slide
+			//if (ControlInputs.SteeringInput * VehicleState.VehicleLocalVelocity.Y > 0.0f)
+			{
+				SpeedScale = PVehicle->GetSteering().GetSteeringFromVelocity(CmSToMPH(VehicleState.ForwardSpeed));
+			}
 
 			float UseSteeringValue = ControlInputs.SteeringInput * SpeedScale;
 

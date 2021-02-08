@@ -37,7 +37,7 @@ namespace Chaos
 
 		float MaxSteeringAngle;
 
-		FNormalisedGraph SpeedVsSteeringCurve;
+		FGraph SpeedVsSteeringCurve;
 	};
 
 	class CHAOSVEHICLESCORE_API FAckermannSim : public TVehicleSystem<FSimpleSteeringConfig>
@@ -82,6 +82,11 @@ namespace Chaos
 		{
 		}
 
+		float GetSteeringFromVelocity(float VelocityMPH)
+		{
+			return Setup().SpeedVsSteeringCurve.EvaluateY(VelocityMPH);
+		}
+
 		float GetSteeringAngle(float InNormSteering, float MaxSteeringAngle, float WheelSide)
 		{
 			float OutSteeringAngle = 0.f;
@@ -118,7 +123,6 @@ namespace Chaos
 
 			return OutSteeringAngle;
 		}
-
 		FAckermannSim Ackermann;
 	};
 

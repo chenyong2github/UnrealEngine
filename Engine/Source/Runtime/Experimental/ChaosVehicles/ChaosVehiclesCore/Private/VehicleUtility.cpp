@@ -166,6 +166,48 @@ namespace Chaos
 		return Radius;
 	}
 
+	void FGraph::Add(const FVec2& Value)
+	{
+		Graph.Add(Value);
+
+		if (Value.X < BoundsX.X)
+		{
+			BoundsX.X = Value.X;
+		}
+		if (Value.X > BoundsX.Y)
+		{
+			BoundsX.Y = Value.X;
+		}
+		if (Value.X < BoundsY.X)
+		{
+			BoundsY.X = Value.X;
+		}
+		if (Value.X > BoundsY.Y)
+		{
+			BoundsY.Y = Value.X;
+		}
+	}
+
+	float FGraph::EvaluateY(float InX) const
+	{
+		float RangeX = BoundsX.Y - BoundsX.X;
+		float Step = (RangeX) / (Graph.Num() - 1);
+		int StartIndex = (InX - BoundsX.X) / Step;
+
+		if (StartIndex <= 0)
+		{
+			return Graph[0].Y;
+		}
+		else if (StartIndex >= Graph.Num() - 1)
+		{
+			return Graph[Graph.Num() - 1].Y;
+		}
+
+		float NormalisedRamp = (InX - Graph[StartIndex].X) / Step;
+
+		return  Graph[StartIndex].Y * (1.f - NormalisedRamp) + Graph[StartIndex + 1].Y * NormalisedRamp;
+	}
+
 } // namespace Chaos
 
 #if VEHICLE_DEBUGGING_ENABLED
