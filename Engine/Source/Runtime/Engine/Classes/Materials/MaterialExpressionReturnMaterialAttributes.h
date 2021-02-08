@@ -15,9 +15,6 @@ class UMaterialExpressionReturnMaterialAttributes : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	FExpressionInput Exec;
-
-	UPROPERTY()
 	FMaterialAttributesInput MaterialAttributes;
 
 	//~ Begin UMaterialExpression Interface
@@ -27,7 +24,7 @@ class UMaterialExpressionReturnMaterialAttributes : public UMaterialExpression
 	virtual const TArray<FExpressionInput*> GetInputs() override;
 	virtual FExpressionInput* GetInput(int32 InputIndex) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
-	virtual FExpressionInput* GetExecInput() override { return &Exec; }
+	virtual bool HasExecInput() override { return true; }
 #endif
 	//~ End UMaterialExpression Interface
 };

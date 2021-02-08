@@ -1472,6 +1472,8 @@ public:
 	/** A map from material expression to the index into CodeChunks of the code for the material expression. */
 	TMap<FMaterialExpressionKey,int32> ExpressionCodeMap;
 
+	TMap<UMaterialExpression*, int32> ExecExpressionCodeMap;
+
 private:
 	/** Cache of MaterialFunctionOutput CodeChunks.  Allows for further reuse than just the ExpressionCodeMap */
 	TMap<FMaterialExpressionKey, FMaterialFunctionCompileState*> SharedFunctionStates;

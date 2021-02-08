@@ -14,11 +14,13 @@ class UMaterialExpressionExecBegin : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
+	UPROPERTY()
+	FExpressionExecOutput Exec;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex);
 	virtual bool CanUserDeleteExpression() const override { return false; }
 #endif
 	//~ End UMaterialExpression Interface

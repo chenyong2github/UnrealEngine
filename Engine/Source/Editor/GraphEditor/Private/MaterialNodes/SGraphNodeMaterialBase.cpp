@@ -278,8 +278,11 @@ void SGraphNodeMaterialBase::CreatePinWidgets()
 		
 			if ((bIsABreakAttrNode && CurPin->Direction == EGPD_Output) || (bIsAMakeAttrNode && CurPin->Direction == EGPD_Input))
 			{
-				int32 ResultNodeIndex = bIsAMakeAttrNode ? MaterialNode->GetInputIndex(CurPin) : MaterialNode->GetOutputIndex(CurPin);
-				bPinDesiresToBeHidden |= !MaterialGraph->MaterialInputs[ResultNodeIndex].IsVisiblePin(MaterialGraph->Material, true);
+				const FMaterialGraphPinInfo& PinInfo = MaterialNode->GetPinInfo(CurPin);
+				if (!(PinInfo.Type & MCT_Execution))
+				{
+					bPinDesiresToBeHidden |= !MaterialGraph->MaterialInputs[PinInfo.Index].IsVisiblePin(MaterialGraph->Material, true);
+				}
 			}
 		}
 

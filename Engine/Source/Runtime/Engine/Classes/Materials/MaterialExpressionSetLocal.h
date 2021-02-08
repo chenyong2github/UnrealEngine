@@ -15,7 +15,7 @@ class UMaterialExpressionSetLocal : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	FExpressionInput Exec;
+	FExpressionExecOutput Exec;
 
 	UPROPERTY()
 	FExpressionInput Value;
@@ -28,8 +28,7 @@ class UMaterialExpressionSetLocal : public UMaterialExpression
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
-	virtual uint32 GetOutputType(int32 InputIndex) override;
-	virtual FExpressionInput* GetExecInput() override { return &Exec; }
+	virtual bool HasExecInput() override { return true; }
 #endif
 	//~ End UMaterialExpression Interface
 };

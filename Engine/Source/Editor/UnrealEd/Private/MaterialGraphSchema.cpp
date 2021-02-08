@@ -560,12 +560,11 @@ const FPinConnectionResponse UMaterialGraphSchema::CanCreateConnection(const UEd
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, ResponseMessage);
 	}
 
-	// Break existing connections on inputs only - multiple output connections are acceptable
+	// For non-exec pins, break existing connections on inputs only - multiple output connections are acceptable
 	if (InputPin->LinkedTo.Num() > 0)
 	{
 		const uint32 InputType = GetMaterialValueType(InputPin);
-		// TODO - Allow multiple exec inputs, will generate a compile error where not supported
-		//if (!(InputType & MCT_Execution))
+		if (!(InputType & MCT_Execution))
 		{
 			ECanCreateConnectionResponse ReplyBreakOutputs;
 			if (InputPin == A)
@@ -581,6 +580,29 @@ const FPinConnectionResponse UMaterialGraphSchema::CanCreateConnection(const UEd
 				ResponseMessage = LOCTEXT("ConnectionReplace", "Replace existing connections");
 			}
 			return FPinConnectionResponse(ReplyBreakOutputs, ResponseMessage);
+		}
+	}
+
+	// For exec pins, reverse is true - multiple input connections are acceptable
+	if (OutputPin->LinkedTo.Num() > 0)
+	{
+		const uint32 OutputType = GetMaterialValueType(InputPin);
+		if (OutputType & MCT_Execution)
+		{
+			ECanCreateConnectionResponse ReplyBreakInputs;
+			if (OutputPin == A)
+			{
+				ReplyBreakInputs = CONNECT_RESPONSE_BREAK_OTHERS_A;
+			}
+			else
+			{
+				ReplyBreakInputs = CONNECT_RESPONSE_BREAK_OTHERS_B;
+			}
+			if (ResponseMessage.IsEmpty())
+			{
+				ResponseMessage = LOCTEXT("ConnectionReplace", "Replace existing connections");
+			}
+			return FPinConnectionResponse(ReplyBreakInputs, ResponseMessage);
 		}
 	}
 

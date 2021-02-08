@@ -1016,6 +1016,21 @@ FName UMaterialExpression::GetInputName(int32 InputIndex) const
 	return NAME_None;
 }
 
+void UMaterialExpression::GetExecOutputs(TArray<FExpressionExecOutputEntry>& OutExpressionOutpus)
+{
+	for (TFieldIterator<FStructProperty> It(GetClass(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); It; ++It)
+	{
+		const FStructProperty* StructProp = *It;
+		if (StructProp->Struct == FExpressionExecOutput::StaticStruct())
+		{
+			check(StructProp->ArrayDim == 1);
+			FExpressionExecOutputEntry& Entry = OutExpressionOutpus.AddDefaulted_GetRef();
+			Entry.Output = StructProp->ContainerPtrToValuePtr<FExpressionExecOutput>(this);
+			Entry.Name = StructProp->GetFName();
+		}
+	}
+}
+
 FText UMaterialExpression::GetCreationDescription() const
 {
 	return FText::GetEmpty();
@@ -1128,19 +1143,8 @@ uint32 UMaterialExpression::GetOutputType(int32 OutputIndex)
 	}
 }
 
-FExpressionInput* UMaterialExpression::GetExecInput()
+bool UMaterialExpression::HasExecInput()
 {
-	return nullptr;
-}
-
-bool UMaterialExpression::IsExecInputConnection(UMaterialExpression* InExpression, int32 InOutputIndex)
-{
-	FExpressionInput* Input = GetExecInput();
-	if (Input)
-	{
-		FExpressionInput TracedInput = Input->GetTracedInput();
-		return TracedInput.Expression == InExpression && TracedInput.OutputIndex == InOutputIndex;
-	}
 	return false;
 }
 
@@ -1148,8 +1152,6 @@ int32 UMaterialExpression::GetWidth() const
 {
 	return ME_STD_THUMBNAIL_SZ+(ME_STD_BORDER*2);
 }
-
-
 
 int32 UMaterialExpression::GetHeight() const
 {
@@ -1421,9 +1423,7 @@ bool UMaterialExpression::HasConnectedOutputs() const
 		UMaterialGraphNode* MatGraphNode = Cast<UMaterialGraphNode>(GraphNode);
 		if (MatGraphNode)
 		{
-			TArray<UEdGraphPin*> OutputPins;
-			MatGraphNode->GetOutputPins(OutputPins);
-			for (UEdGraphPin* Pin : OutputPins)
+			for (UEdGraphPin* Pin : MatGraphNode->OutputPins)
 			{
 				if (Pin->LinkedTo.Num() > 0)
 				{
@@ -20708,7 +20708,6 @@ UMaterialExpressionExecBegin::UMaterialExpressionExecBegin(const FObjectInitiali
 {
 #if WITH_EDITORONLY_DATA
 	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("exec")));
 	bHidePreviewWindow = true;
 #endif
 }
@@ -20719,37 +20718,13 @@ void UMaterialExpressionExecBegin::GetCaption(TArray<FString>& OutCaptions) cons
 	OutCaptions.Add(TEXT("Material Execution Begin"));
 }
 
-uint32 UMaterialExpressionExecBegin::GetOutputType(int32 OutputIndex)
-{
-	check(OutputIndex == 0);
-	return MCT_Execution;
-}
-
-static UMaterialExpression* GetExecConnection(UMaterialExpression* InExpression, int32 InOutputIndex)
-{
-	const uint32 OutputType = InExpression->GetOutputType(InOutputIndex);
-	check(OutputType == MCT_Execution);
-
-	const auto& Expressions = InExpression->Material->Expressions;
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		if (Expression->IsExecInputConnection(InExpression, InOutputIndex))
-		{
-			return Expression;
-		}
-	}
-
-	return nullptr;
-}
-
 int32 UMaterialExpressionExecBegin::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	check(OutputIndex == CompileExecutionOutputIndex);
-	UMaterialExpression* NextExpression = GetExecConnection(this, 0);
-	if (NextExpression)
+	if (Exec.Expression)
 	{
 		const int32 RootScope = Compiler->BeginScope();
-		NextExpression->Compile(Compiler, CompileExecutionOutputIndex);
+		Exec.Compile(Compiler);
 		Compiler->EndScope();
 		return RootScope;
 	}
@@ -20789,7 +20764,6 @@ int32 UMaterialExpressionReturnMaterialAttributes::Compile(class FMaterialCompil
 const TArray<FExpressionInput*> UMaterialExpressionReturnMaterialAttributes::GetInputs()
 {
 	TArray<FExpressionInput*> Result;
-	Result.Add(&Exec);
 	Result.Add(&MaterialAttributes);
 	return Result;
 }
@@ -20798,8 +20772,7 @@ FExpressionInput* UMaterialExpressionReturnMaterialAttributes::GetInput(int32 In
 {
 	switch (InputIndex)
 	{
-	case 0: return &Exec;
-	case 1: return &MaterialAttributes;
+	case 0: return &MaterialAttributes;
 	default: checkNoEntry(); return nullptr;
 	}
 }
@@ -20808,8 +20781,7 @@ uint32 UMaterialExpressionReturnMaterialAttributes::GetInputType(int32 InputInde
 {
 	switch (InputIndex)
 	{
-	case 0: return MCT_Execution;
-	case 1: return MCT_MaterialAttributes;
+	case 0: return MCT_MaterialAttributes;
 	default: checkNoEntry(); return 0u;
 	}
 }
@@ -20827,8 +20799,6 @@ UMaterialExpressionIfThenElse::UMaterialExpressionIfThenElse(const FObjectInitia
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Execution);
 	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("Then")));
-	Outputs.Add(FExpressionOutput(TEXT("Else")));
 	bShowOutputNameOnPin = true;
 	bHidePreviewWindow = true;
 #endif
@@ -20838,8 +20808,7 @@ UMaterialExpressionIfThenElse::UMaterialExpressionIfThenElse(const FObjectInitia
 int32 UMaterialExpressionIfThenElse::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	check(OutputIndex == CompileExecutionOutputIndex);
-	UMaterialExpression* ThenExpression = GetExecConnection(this, 0);
-	if (!ThenExpression)
+	if (!Then.Expression)
 	{
 		return Compiler->Error(TEXT("Then pin must be connected"));
 	}
@@ -20851,15 +20820,14 @@ int32 UMaterialExpressionIfThenElse::Compile(class FMaterialCompiler* Compiler, 
 	}
 
 	const int32 IfScopeIndex = Compiler->BeginScope_If(ConditionResult);
-	ThenExpression->Compile(Compiler, CompileExecutionOutputIndex);
+	Then.Compile(Compiler);
 	Compiler->EndScope();
 
-	UMaterialExpression* ElseExpression = GetExecConnection(this, 1);
 	int32 ElseScope = INDEX_NONE;
-	if (ElseExpression)
+	if (Else.Expression)
 	{
 		ElseScope = Compiler->BeginScope_Else();
-		ElseExpression->Compile(Compiler, CompileExecutionOutputIndex);
+		Else.Compile(Compiler);
 		Compiler->EndScope();
 	}
 
@@ -20875,15 +20843,9 @@ uint32 UMaterialExpressionIfThenElse::GetInputType(int32 InputIndex)
 {
 	switch (InputIndex)
 	{
-	case 0: return MCT_Execution;
-	case 1: return MCT_Float1;
+	case 0: return MCT_Float1;
 	default: checkNoEntry(); return 0u;
 	}
-}
-
-uint32 UMaterialExpressionIfThenElse::GetOutputType(int32 InputIndex)
-{
-	return MCT_Execution;
 }
 #endif
 
@@ -20899,9 +20861,7 @@ UMaterialExpressionForLoop::UMaterialExpressionForLoop(const FObjectInitializer&
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Execution);
 	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("Loop Body")));
 	Outputs.Add(FExpressionOutput(TEXT("Index")));
-	Outputs.Add(FExpressionOutput(TEXT("Completed")));
 	bShowOutputNameOnPin = true;
 	bHidePreviewWindow = true;
 #endif
@@ -20912,13 +20872,10 @@ int32 UMaterialExpressionForLoop::Compile(class FMaterialCompiler* Compiler, int
 {
 	if (OutputIndex == CompileExecutionOutputIndex)
 	{
-		UMaterialExpression* LoopExpression = GetExecConnection(this, 0);
-		if (!LoopExpression)
+		if (!LoopBody.Expression)
 		{
 			return Compiler->Error(TEXT("Loop pin must be connected"));
 		}
-
-		UMaterialExpression* CompletedExpression = GetExecConnection(this, 2);
 
 		const int32 StartResult = StartIndex.GetTracedInput().Compile(Compiler);
 		if (StartResult == INDEX_NONE)
@@ -20933,19 +20890,16 @@ int32 UMaterialExpressionForLoop::Compile(class FMaterialCompiler* Compiler, int
 		}
 
 		const int32 LoopScopeIndex = Compiler->BeginScope_For(this, StartResult, EndResult, Compiler->Constant(1.0f));
-		LoopExpression->Compile(Compiler, CompileExecutionOutputIndex);
+		LoopBody.Compile(Compiler);
 		Compiler->EndScope();
 
-		if (CompletedExpression)
-		{
-			CompletedExpression->Compile(Compiler, CompileExecutionOutputIndex);
-		}
+		Completed.Compile(Compiler);
 
 		return INDEX_NONE;
 	}
 
 	// Loop index output
-	check(OutputIndex == 1);
+	check(OutputIndex == 0);
 	return Compiler->ForLoopIndex(this);
 }
 
@@ -20958,10 +20912,9 @@ uint32 UMaterialExpressionForLoop::GetInputType(int32 InputIndex)
 {
 	switch (InputIndex)
 	{
-	case 0: return MCT_Execution;
+	case 0: return MCT_Float1;
 	case 1: return MCT_Float1;
 	case 2: return MCT_Float1;
-	case 3: return MCT_Float1;
 	default: checkNoEntry(); return 0u;
 	}
 }
@@ -20970,9 +20923,7 @@ uint32 UMaterialExpressionForLoop::GetOutputType(int32 OutputIndex)
 {
 	switch (OutputIndex)
 	{
-	case 0: return MCT_Execution;
-	case 1: return MCT_Float1;
-	case 2: return MCT_Execution;
+	case 0: return MCT_Float1;
 	default: checkNoEntry(); return 0u;
 	}
 }
@@ -21023,7 +20974,6 @@ UMaterialExpressionSetLocal::UMaterialExpressionSetLocal(const FObjectInitialize
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Execution);
 	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("Exec")));
 	bHidePreviewWindow = true;
 #endif
 }
@@ -21033,8 +20983,7 @@ uint32 UMaterialExpressionSetLocal::GetInputType(int32 InputIndex)
 {
 	switch (InputIndex)
 	{
-	case 0: return MCT_Execution;
-	case 1: return MCT_Float1;
+	case 0: return MCT_Float1;
 	default: checkNoEntry(); return 0u;
 	}
 }
@@ -21051,11 +21000,7 @@ int32 UMaterialExpressionSetLocal::Compile(class FMaterialCompiler* Compiler, in
 
 	Compiler->SetLocal(LocalName, ValueIndex);
 
-	UMaterialExpression* NextExpression = GetExecConnection(this, 0);
-	if (NextExpression)
-	{
-		NextExpression->Compile(Compiler, CompileExecutionOutputIndex);
-	}
+	Exec.Compile(Compiler);
 
 	return INDEX_NONE;
 }
@@ -21063,11 +21008,6 @@ int32 UMaterialExpressionSetLocal::Compile(class FMaterialCompiler* Compiler, in
 void UMaterialExpressionSetLocal::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(FString::Printf(TEXT("Set %s"), *LocalName.ToString()));
-}
-
-uint32 UMaterialExpressionSetLocal::GetOutputType(int32 InputIndex)
-{
-	return MCT_Execution;
 }
 #endif
 

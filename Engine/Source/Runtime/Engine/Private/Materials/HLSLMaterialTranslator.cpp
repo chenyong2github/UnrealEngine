@@ -3951,25 +3951,73 @@ int32 FHLSLMaterialTranslator::CallExpression(FMaterialExpressionKey ExpressionK
 	return Result;
 }
 
+int32 FHLSLMaterialTranslator::CallExpressionExec(UMaterialExpression* Expression)
+{
+	check(ShaderFrequency < SF_NumFrequencies);
+	auto& CurrentFunctionStack = FunctionStacks[ShaderFrequency];
+	FMaterialFunctionCompileState* CurrentFunctionState = CurrentFunctionStack.Last();
+
+	int32 Result = INDEX_NONE;
+	/*int32* ExistingCodeIndex = CurrentFunctionState->ExecExpressionCodeMap.Find(Expression);
+	if (ExistingCodeIndex)
+	{
+		Result = *ExistingCodeIndex;
+		FShaderCodeChunk& Chunk = (*CurrentScopeChunks)[Result];
+		const int32 CurrentScopeIndex = ScopeStack.Last();
+		const FShaderCodeChunk& CurrentScope = (*CurrentScopeChunks)[CurrentScopeIndex];
+		const FShaderCodeChunk& PrevScope = (*CurrentScopeChunks)[Chunk.UsedScopeIndex];
+		if (CurrentScope.UsedScopeIndex == PrevScope.UsedScopeIndex)
+		{
+			AddCodeChunkToScope(Result, CurrentScope.UsedScopeIndex);
+		}
+		else
+		{
+			return Errorf(TEXT("Invalid scopes"));
+		}
+	}
+	else*/
+	{
+		ReferencedCodeChunks.Reset();
+		Result = Expression->Compile(this, UMaterialExpression::CompileExecutionOutputIndex);
+		CurrentFunctionState->ExecExpressionCodeMap.Add(Expression, Result);
+
+		if (Result != INDEX_NONE)
+		{
+			FShaderCodeChunk& ResultChunk = (*CurrentScopeChunks)[Result];
+			ResultChunk.ReferencedCodeChunks = MoveTemp(ReferencedCodeChunks);
+		}
+		ReferencedCodeChunks.Reset();
+	}
+	return Result;
+}
+
 void FHLSLMaterialTranslator::AddCodeChunkToCurrentScope(int32 ChunkIndex)
 {
 	if (ChunkIndex != INDEX_NONE && ScopeStack.Num() > 0)
 	{
 		const int32 CurrentScopeIndex = ScopeStack.Last();
-		const FShaderCodeChunk& CurrentScope = (*CurrentScopeChunks)[CurrentScopeIndex];
+		AddCodeChunkToScope(ChunkIndex, CurrentScopeIndex);
+	}
+}
+
+void FHLSLMaterialTranslator::AddCodeChunkToScope(int32 ChunkIndex, int32 ScopeIndex)
+{
+	if (ChunkIndex != INDEX_NONE)
+	{
+		FShaderCodeChunk& CurrentScope = (*CurrentScopeChunks)[ScopeIndex];
 
 		FShaderCodeChunk& Chunk = (*CurrentScopeChunks)[ChunkIndex];
 		if (Chunk.DeclaredScopeIndex == INDEX_NONE)
 		{
 			check(Chunk.UsedScopeIndex == INDEX_NONE);
-			Chunk.DeclaredScopeIndex = CurrentScopeIndex;
-			Chunk.UsedScopeIndex = CurrentScopeIndex;
+			Chunk.DeclaredScopeIndex = ScopeIndex;
+			Chunk.UsedScopeIndex = ScopeIndex;
 			Chunk.ScopeLevel = CurrentScope.ScopeLevel + 1;
 		}
-		else if(Chunk.UsedScopeIndex != CurrentScopeIndex)
+		else if (Chunk.UsedScopeIndex != ScopeIndex)
 		{
 			// Find the most derived scope that's shared by the current scope, and the scope this code was previously referenced from
-			int32 ScopeIndex0 = CurrentScopeIndex;
+			int32 ScopeIndex0 = ScopeIndex;
 			int32 ScopeIndex1 = Chunk.UsedScopeIndex;
 			while (ScopeIndex0 != ScopeIndex1)
 			{

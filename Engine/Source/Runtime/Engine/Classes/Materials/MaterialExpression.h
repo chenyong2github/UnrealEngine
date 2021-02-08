@@ -99,6 +99,25 @@ struct FExpressionOutput
 };
 #endif
 
+USTRUCT()
+struct FExpressionExecOutput
+{
+	GENERATED_BODY()
+
+#if WITH_EDITOR
+	ENGINE_API int32 Compile(class FMaterialCompiler* Compiler);
+#endif // WITH_EDITOR
+
+	UPROPERTY()
+	class UMaterialExpression* Expression = nullptr;
+};
+
+struct FExpressionExecOutputEntry
+{
+	FName Name;
+	FExpressionExecOutput* Output = nullptr;
+};
+
 UCLASS(abstract, BlueprintType, hidecategories=Object)
 class ENGINE_API UMaterialExpression : public UObject
 {
@@ -269,10 +288,9 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual uint32 GetInputType(int32 InputIndex);
 	virtual uint32 GetOutputType(int32 OutputIndex);
 
-	/** Gets this expression's execution input, if any */
-	virtual FExpressionInput* GetExecInput();
+	virtual void GetExecOutputs(TArray<FExpressionExecOutputEntry>& Outputs);
 
-	bool IsExecInputConnection(UMaterialExpression* InExpression, int32 InOutputIndex);
+	virtual bool HasExecInput();
 
 	virtual FText GetCreationDescription() const;
 	virtual FText GetCreationName() const;

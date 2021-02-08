@@ -287,7 +287,7 @@ FLinearColor UMaterialGraphNode::GetNodeTitleColor() const
 	{
 		return Settings->FunctionTerminatorNodeTitleColor;
 	}
-	else if (MaterialExpression->GetExecInput())
+	else if (MaterialExpression->HasExecInput())
 	{
 		return Settings->ExecutionPinTypeColor;
 	}
@@ -622,8 +622,17 @@ FName UMaterialGraphNode::GetShortenPinName(const FName PinName)
 
 void UMaterialGraphNode::CreateInputPins()
 {
-	const TArray<FExpressionInput*> ExpressionInputs = MaterialExpression->GetInputs();
+	if (MaterialExpression->HasExecInput())
+	{
+		UEdGraphPin* NewPin = CreatePin(EGPD_Input, UMaterialGraphSchema::PC_Exec, NAME_None, NAME_None);
+		// Makes sure pin has a name for lookup purposes but user will never see it
+		NewPin->PinName = CreateUniquePinName(TEXT("Input"));
+		NewPin->PinFriendlyName = SpaceText;
 
+		RegisterPin(NewPin, 0, MCT_Execution);
+	}
+
+	const TArray<FExpressionInput*> ExpressionInputs = MaterialExpression->GetInputs();
 	for (int32 Index = 0; Index < ExpressionInputs.Num() ; ++Index)
 	{
 		FExpressionInput* Input = ExpressionInputs[Index];
@@ -655,13 +664,14 @@ void UMaterialGraphNode::CreateInputPins()
 			NewPin->PinName = CreateUniquePinName(TEXT("Input"));
 			NewPin->PinFriendlyName = SpaceText;
 		}
+
+		RegisterPin(NewPin, Index, InputType);
 	}
 }
 
 void UMaterialGraphNode::CreateOutputPins()
 {
 	TArray<FExpressionOutput>& Outputs = MaterialExpression->GetOutputs();
-
 	for(int32 Index = 0; Index < Outputs.Num(); ++Index)
 	{
 		const FExpressionOutput& ExpressionOutput = Outputs[Index];
@@ -715,33 +725,32 @@ void UMaterialGraphNode::CreateOutputPins()
 			NewPin->PinName = CreateUniquePinName(TEXT("Output"));
 			NewPin->PinFriendlyName = SpaceText;
 		}
+
+		RegisterPin(NewPin, Index, OutputType);
 	}
-}
 
-uint32 UMaterialGraphNode::GetOutputType(const UEdGraphPin* OutputPin) const
-{
-	return MaterialExpression->GetOutputType(GetOutputIndex(OutputPin));
-}
-
-int32 UMaterialGraphNode::GetInputIndex(const UEdGraphPin* InputPin) const
-{
-	TArray<UEdGraphPin*> InputPins;
-	GetInputPins(InputPins);
-
-	for (int32 Index = 0; Index < InputPins.Num(); ++Index)
+	TArray<FExpressionExecOutputEntry> ExecOutputs;
+	MaterialExpression->GetExecOutputs(ExecOutputs);
+	for (int32 Index = 0; Index < ExecOutputs.Num(); ++Index)
 	{
-		if (InputPin == InputPins[Index])
+		const FExpressionExecOutputEntry& Entry = ExecOutputs[Index];
+
+		FName OutputName;
+		if (MaterialExpression->bShowOutputNameOnPin)
 		{
-			return Index;
+			OutputName = Entry.Name;
 		}
+
+		UEdGraphPin* NewPin = CreatePin(EGPD_Output, UMaterialGraphSchema::PC_Exec, NAME_None, OutputName);
+		if (NewPin->PinName.IsNone())
+		{
+			// Makes sure pin has a name for lookup purposes but user will never see it
+			NewPin->PinName = CreateUniquePinName(TEXT("Output"));
+			NewPin->PinFriendlyName = SpaceText;
+		}
+
+		RegisterPin(NewPin, Index, MCT_Execution);
 	}
-
-	return -1;
-}
-
-uint32 UMaterialGraphNode::GetInputType(const UEdGraphPin* InputPin) const
-{
-	return MaterialExpression->GetInputType(GetInputIndex(InputPin));
 }
 
 void UMaterialGraphNode::ResetMaterialExpressionOwner()

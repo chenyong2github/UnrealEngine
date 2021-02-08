@@ -17,86 +17,21 @@ UMaterialGraphNode_Base::UMaterialGraphNode_Base(const FObjectInitializer& Objec
 {
 }
 
-UEdGraphPin* UMaterialGraphNode_Base::GetInputPin(int32 InputIndex) const
+const FMaterialGraphPinInfo& UMaterialGraphNode_Base::GetPinInfo(const class UEdGraphPin* Pin) const
 {
-	for (int32 PinIndex = 0, FoundInputs = 0; PinIndex < Pins.Num(); PinIndex++)
-	{
-		if (Pins[PinIndex]->Direction == EGPD_Input)
-		{
-			if (InputIndex == FoundInputs)
-			{
-				return Pins[PinIndex];
-			}
-			else
-			{
-				FoundInputs++;
-			}
-		}
-	}
-
-	return NULL;
+	const FMaterialGraphPinInfo* PinInfo = PinInfoMap.Find(Pin);
+	checkf(PinInfo, TEXT("Missing info for pin %s, missing call to RegisterPin()?"), *Pin->GetName());
+	return *PinInfo;
 }
 
-void UMaterialGraphNode_Base::GetInputPins(TArray<class UEdGraphPin*>& OutInputPins) const
+uint32 UMaterialGraphNode_Base::GetOutputType(const UEdGraphPin* OutputPin) const
 {
-	OutInputPins.Empty();
-
-	for (int32 PinIndex = 0; PinIndex < Pins.Num(); PinIndex++)
-	{
-		if (Pins[PinIndex]->Direction == EGPD_Input)
-		{
-			OutInputPins.Add(Pins[PinIndex]);
-		}
-	}
+	return GetPinInfo(OutputPin).Type;
 }
 
-UEdGraphPin* UMaterialGraphNode_Base::GetOutputPin(int32 OutputIndex) const
+uint32 UMaterialGraphNode_Base::GetInputType(const UEdGraphPin* InputPin) const
 {
-	for (int32 PinIndex = 0, FoundOutputs = 0; PinIndex < Pins.Num(); PinIndex++)
-	{
-		if (Pins[PinIndex]->Direction == EGPD_Output)
-		{
-			if (OutputIndex == FoundOutputs)
-			{
-				return Pins[PinIndex];
-			}
-			else
-			{
-				FoundOutputs++;
-			}
-		}
-	}
-
-	return NULL;
-}
-
-void UMaterialGraphNode_Base::GetOutputPins(TArray<class UEdGraphPin*>& OutOutputPins) const
-{
-	OutOutputPins.Empty();
-
-	for (int32 PinIndex = 0; PinIndex < Pins.Num(); PinIndex++)
-	{
-		if (Pins[PinIndex]->Direction == EGPD_Output)
-		{
-			OutOutputPins.Add(Pins[PinIndex]);
-		}
-	}
-}
-
-int32 UMaterialGraphNode_Base::GetOutputIndex(const UEdGraphPin* OutputPin) const
-{
-	TArray<UEdGraphPin*> OutputPins;
-	GetOutputPins(OutputPins);
-
-	for (int32 Index = 0; Index < OutputPins.Num(); ++Index)
-	{
-		if (OutputPin == OutputPins[Index])
-		{
-			return Index;
-		}
-	}
-
-	return -1;
+	return GetPinInfo(InputPin).Type;
 }
 
 void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
@@ -104,37 +39,25 @@ void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
 	check(OldNode);
 	check(OldNode != this);
 
-	// Get Pins from node passed in
-	TArray<UEdGraphPin*> OldInputPins;
-	TArray<UEdGraphPin*> OldOutputPins;
-	OldNode->GetInputPins(OldInputPins);
-	OldNode->GetOutputPins(OldOutputPins);
-
-	// Get our Input and Output pins
-	TArray<UEdGraphPin*> NewInputPins;
-	TArray<UEdGraphPin*> NewOutputPins;
-	GetInputPins(NewInputPins);
-	GetOutputPins(NewOutputPins);
-
 	// Copy Inputs from old node
-	for (int32 PinIndex = 0; PinIndex < OldInputPins.Num(); PinIndex++)
+	for (int32 PinIndex = 0; PinIndex < OldNode->InputPins.Num(); PinIndex++)
 	{
-		if (PinIndex < NewInputPins.Num())
+		if (PinIndex < InputPins.Num())
 		{
-			ModifyAndCopyPersistentPinData(*NewInputPins[PinIndex], *OldInputPins[PinIndex]);
+			ModifyAndCopyPersistentPinData(*InputPins[PinIndex], *OldNode->InputPins[PinIndex]);
 		}
 	}
 
 	// Copy Outputs from old node
-	for (int32 PinIndex = 0; PinIndex < OldOutputPins.Num(); PinIndex++)
+	for (int32 PinIndex = 0; PinIndex < OldNode->OutputPins.Num(); PinIndex++)
 	{
 		// Try to find an equivalent output in this node
 		int32 FoundPinIndex = -1;
 		{
 			// First check names
-			for (int32 NewPinIndex = 0; NewPinIndex < NewOutputPins.Num(); NewPinIndex++)
+			for (int32 NewPinIndex = 0; NewPinIndex < OutputPins.Num(); NewPinIndex++)
 			{
-				if (OldOutputPins[PinIndex]->PinName == NewOutputPins[NewPinIndex]->PinName)
+				if (OldNode->OutputPins[PinIndex]->PinName == OutputPins[NewPinIndex]->PinName)
 				{
 					FoundPinIndex = NewPinIndex;
 					break;
@@ -144,9 +67,9 @@ void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
 		if (FoundPinIndex == -1)
 		{
 			// Now check types
-			for (int32 NewPinIndex = 0; NewPinIndex < NewOutputPins.Num(); NewPinIndex++)
+			for (int32 NewPinIndex = 0; NewPinIndex < OutputPins.Num(); NewPinIndex++)
 			{
-				if (OldOutputPins[PinIndex]->PinType == NewOutputPins[NewPinIndex]->PinType)
+				if (OldNode->OutputPins[PinIndex]->PinType == OutputPins[NewPinIndex]->PinType)
 				{
 					FoundPinIndex = NewPinIndex;
 					break;
@@ -157,9 +80,9 @@ void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
 		// If we can't find an equivalent output in this node, just use the first
 		// The user will have to fix up any issues from the mismatch
 		FoundPinIndex = FMath::Max(FoundPinIndex, 0);
-		if (FoundPinIndex < NewOutputPins.Num())
+		if (FoundPinIndex < OutputPins.Num())
 		{
-			ModifyAndCopyPersistentPinData(*NewOutputPins[FoundPinIndex], *OldOutputPins[PinIndex]);
+			ModifyAndCopyPersistentPinData(*OutputPins[FoundPinIndex], *OldNode->OutputPins[PinIndex]);
 		}
 	}
 
@@ -208,9 +131,38 @@ void UMaterialGraphNode_Base::InsertNewNode(UEdGraphPin* FromPin, UEdGraphPin* N
 void UMaterialGraphNode_Base::AllocateDefaultPins()
 {
 	check(Pins.Num() == 0);
+	check(InputPins.Num() == 0);
+	check(OutputPins.Num() == 0);
+	check(PinInfoMap.Num() == 0);
 
 	CreateInputPins();
 	CreateOutputPins();
+}
+
+void UMaterialGraphNode_Base::RegisterPin(UEdGraphPin* Pin, int32 Index, uint32 Type)
+{
+	FMaterialGraphPinInfo& PinInfo = PinInfoMap.FindOrAdd(Pin);
+	PinInfo.Type = Type;
+	PinInfo.Index = Index;
+
+	if (Type & MCT_Execution)
+	{
+		if (Pin->Direction == EGPD_Input)
+		{
+			checkf(ExecInputPin == nullptr, TEXT("Only 1 exec input pin allowed"));
+			check(Index == 0);
+			ExecInputPin = Pin;
+		}
+	}
+	else
+	{
+		switch (Pin->Direction)
+		{
+		case EGPD_Input: verify(InputPins.Add(Pin) == Index); break;
+		case EGPD_Output: verify(OutputPins.Add(Pin) == Index); break;
+		default: checkNoEntry(); break;
+		}
+	}
 }
 
 void UMaterialGraphNode_Base::ReconstructNode()
@@ -233,38 +185,31 @@ void UMaterialGraphNode_Base::ReconstructNode()
 		}
 	}
 
-	// Store the old Input and Output pins
-	TArray<UEdGraphPin*> OldInputPins;
-	TArray<UEdGraphPin*> OldOutputPins;
-	GetInputPins(OldInputPins);
-	GetOutputPins(OldOutputPins);
-
 	// Move the existing pins to a saved array
-	TArray<UEdGraphPin*> OldPins(Pins);
+	TArray<UEdGraphPin*> OldInputPins = MoveTemp(InputPins);
+	TArray<UEdGraphPin*> OldOutputPins = MoveTemp(OutputPins);
+	TArray<UEdGraphPin*> OldPins = MoveTemp(Pins);
 	Pins.Reset();
+	PinInfoMap.Reset();
+	InputPins.Reset();
+	OutputPins.Reset();
 
 	// Recreate the new pins
 	AllocateDefaultPins();
 
-	// Get new Input and Output pins
-	TArray<UEdGraphPin*> NewInputPins;
-	TArray<UEdGraphPin*> NewOutputPins;
-	GetInputPins(NewInputPins);
-	GetOutputPins(NewOutputPins);
-
 	for (int32 PinIndex = 0; PinIndex < OldInputPins.Num(); PinIndex++)
 	{
-		if (PinIndex < NewInputPins.Num())
+		if (PinIndex < InputPins.Num())
 		{
-			NewInputPins[PinIndex]->MovePersistentDataFromOldPin(*OldInputPins[PinIndex]);
+			InputPins[PinIndex]->MovePersistentDataFromOldPin(*OldInputPins[PinIndex]);
 		}
 	}
 
 	for (int32 PinIndex = 0; PinIndex < OldOutputPins.Num(); PinIndex++)
 	{
-		if (PinIndex < NewOutputPins.Num())
+		if (PinIndex < OutputPins.Num())
 		{
-			NewOutputPins[PinIndex]->MovePersistentDataFromOldPin(*OldOutputPins[PinIndex]);
+			OutputPins[PinIndex]->MovePersistentDataFromOldPin(*OldOutputPins[PinIndex]);
 		}
 	}
 
@@ -351,7 +296,3 @@ FString UMaterialGraphNode_Base::GetDocumentationLink() const
 	return TEXT("Shared/GraphNodes/Material");
 }
 
-uint32 UMaterialGraphNode_Base::GetInputType(const UEdGraphPin* InputPin) const
-{
-	return MCT_Unknown;
-}

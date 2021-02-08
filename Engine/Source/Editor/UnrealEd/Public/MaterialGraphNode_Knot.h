@@ -26,11 +26,11 @@ public:
 	
 	UEdGraphPin* GetInputPin() const
 	{
-		return Pins[0];
+		return InputPins[0];
 	}
 
 	UEdGraphPin* GetOutputPin() const
 	{
-		return Pins[1];
+		return OutputPins[0];
 	}
 };

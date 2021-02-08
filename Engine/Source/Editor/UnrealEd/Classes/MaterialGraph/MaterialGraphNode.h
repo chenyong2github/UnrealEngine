@@ -48,7 +48,7 @@ public:
 	UNREALED_API void RecreateAndLinkNode();
 
 	/** Get the Material value type of an output pin */
-	virtual uint32 GetOutputType(const UEdGraphPin* OutputPin) const override;
+	//virtual uint32 GetOutputType(const UEdGraphPin* OutputPin) const override;
 
 	//~ Begin UObject Interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -76,8 +76,6 @@ public:
 	//~ Begin UMaterialGraphNode_Base Interface
 	virtual void CreateInputPins() override;
 	virtual void CreateOutputPins() override;
-	virtual UNREALED_API int32 GetInputIndex(const UEdGraphPin* InputPin) const override;
-	virtual uint32 GetInputType(const UEdGraphPin* InputPin) const override;
 	//~ End UMaterialGraphNode_Base Interface
 
 	/** Will return the shorten pin name to use based on long pin name */

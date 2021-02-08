@@ -30,7 +30,5 @@ class UMaterialGraphNode_Root : public UMaterialGraphNode_Base
 	//~ Begin UMaterialGraphNode_Base Interface
 	virtual void CreateInputPins() override;
 	virtual bool IsRootNode() const override {return true;}
-	virtual int32 GetInputIndex(const UEdGraphPin* InputPin) const override;
-	virtual uint32 GetInputType(const UEdGraphPin* InputPin) const override;
 	//~ End UMaterialGraphNode_Base Interface
 };

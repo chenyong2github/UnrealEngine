@@ -578,6 +578,7 @@ protected:
 	FString CreateSymbolName(const TCHAR* SymbolNameHint);
 
 	void AddCodeChunkToCurrentScope(int32 ChunkIndex);
+	void AddCodeChunkToScope(int32 ChunkIndex, int32 ScopeIndex);
 
 	/** Adds an already formatted inline or referenced code chunk */
 	int32 AddCodeChunkInner(uint64 Hash, const TCHAR* FormattedCode, EMaterialValueType Type, bool bInlined);
@@ -662,6 +663,8 @@ protected:
 	virtual void AppendExpressionError(UMaterialExpression* Expression, const TCHAR* Text) override;
 
 	virtual int32 CallExpression(FMaterialExpressionKey ExpressionKey, FMaterialCompiler* Compiler) override;
+
+	virtual int32 CallExpressionExec(UMaterialExpression* Expression) override;
 
 	virtual EMaterialValueType GetType(int32 Code) override;
 	virtual EMaterialQualityLevel::Type GetQualityLevel() override;

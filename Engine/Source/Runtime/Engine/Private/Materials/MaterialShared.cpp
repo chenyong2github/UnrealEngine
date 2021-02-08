@@ -276,6 +276,17 @@ FExpressionInput FExpressionInput::GetTracedInput() const
 	return *this;
 }
 
+#if WITH_EDITOR
+int32 FExpressionExecOutput::Compile(class FMaterialCompiler* Compiler)
+{
+	if (Expression)
+	{
+		return Compiler->CallExpressionExec(Expression);
+	}
+	return INDEX_NONE;
+}
+#endif // WITH_EDITOR
+
 /** Native serialize for FMaterialExpression struct */
 static bool SerializeExpressionInput(FArchive& Ar, FExpressionInput& Input)
 {

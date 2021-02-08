@@ -15,7 +15,10 @@ class UMaterialExpressionForLoop : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	FExpressionInput Exec;
+	FExpressionExecOutput LoopBody;
+
+	UPROPERTY()
+	FExpressionExecOutput Completed;
 
 	UPROPERTY()
 	FExpressionInput StartIndex;
@@ -32,7 +35,7 @@ class UMaterialExpressionForLoop : public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual uint32 GetOutputType(int32 InputIndex) override;
-	virtual FExpressionInput* GetExecInput() override { return &Exec; }
+	virtual bool HasExecInput() override { return true; }
 #endif
 	//~ End UMaterialExpression Interface
 };
