@@ -877,7 +877,7 @@ public class IOSPlatform : Platform
 		Params.AutomaticSigning = bAutomaticSigning;
 
 		// Scheme name and configuration for code signing with Xcode project
-		string SchemeName = Params.IsCodeBasedProject ? Params.RawProjectPath.GetFileNameWithoutExtension() : "UE4";
+		string SchemeName = Params.IsCodeBasedProject ? Params.RawProjectPath.GetFileNameWithoutExtension() : "UE5";
 		string SchemeConfiguration = TargetConfiguration.ToString();
 		if (Params.Client)
 		{
