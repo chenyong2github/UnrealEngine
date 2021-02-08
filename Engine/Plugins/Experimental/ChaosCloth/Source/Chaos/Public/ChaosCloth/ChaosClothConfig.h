@@ -19,7 +19,7 @@ struct FChaosClothWeightedValue
 	 * The value for Low can be set to be bigger than for High in order to reverse the effect of the Weight Map.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Weighted Value", Meta = (DisplayName = "Low Weight", ChaosClothShortName = "Lo"))
-	float Low;
+	float Low = 0.f;
 
 	/**
 	 * Parameter value corresponding to the upper bound of the Weight Map.
@@ -29,7 +29,7 @@ struct FChaosClothWeightedValue
 	 * The value for Low can be set to be bigger than for High in order to reverse the effect of the Weight Map.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Weighted Value", Meta = (DisplayName = "High Weight", ChaosClothShortName = "Hi"))
-	float High;
+	float High = 1.f;
 };
 
 /** Long range attachment options. */
