@@ -428,7 +428,7 @@ TSharedPtr<Insights::SMemAllocTableTreeView> SMemoryProfilerWindow::ShowMemAlloc
 {
 	if (SharedState->GetCurrentQueryTarget()->GetName() == Insights::FQueryTargetWindowSpec::NewWindow)
 	{
-		LastMemAllocTableTreeViewIndex = ++LastMemAllocTableTreeViewIndex;
+		++LastMemAllocTableTreeViewIndex;
 		FName TabId = FMemoryProfilerTabs::MemAllocTableTreeViewID;
 		TabId.SetNumber(LastMemAllocTableTreeViewIndex);
 
