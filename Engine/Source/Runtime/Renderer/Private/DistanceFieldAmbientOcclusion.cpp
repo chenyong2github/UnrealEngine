@@ -689,7 +689,7 @@ bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFa
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
 }
 
-bool FSceneRenderer::ShouldPrepareForDistanceFieldAO() const
+bool FDeferredShadingSceneRenderer::ShouldPrepareForDistanceFieldAO() const
 {
 	return SupportsDistanceFieldAO(Scene->GetFeatureLevel(), Scene->GetShaderPlatform())
 		&& ((ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily) && Scene->SkyLight->bCastShadows && ViewFamily.EngineShowFlags.DistanceFieldAO)
@@ -699,7 +699,7 @@ bool FSceneRenderer::ShouldPrepareForDistanceFieldAO() const
 			|| (GDistanceFieldAOApplyToStaticIndirect && ViewFamily.EngineShowFlags.DistanceFieldAO));
 }
 
-bool FSceneRenderer::ShouldPrepareDistanceFieldScene() const
+bool FDeferredShadingSceneRenderer::ShouldPrepareDistanceFieldScene() const
 {
 	if (!ensure(Scene != nullptr))
 	{
@@ -720,7 +720,7 @@ bool FSceneRenderer::ShouldPrepareDistanceFieldScene() const
 	return bShouldPrepareGlobalDistanceField || bShouldPrepareForAO || ShouldPrepareForDistanceFieldShadows() || bShouldPrepareForDFInsetIndirectShadow;
 }
 
-bool FSceneRenderer::ShouldPrepareGlobalDistanceField() const
+bool FDeferredShadingSceneRenderer::ShouldPrepareGlobalDistanceField() const
 {
 	if (!ensure(Scene != nullptr))
 	{

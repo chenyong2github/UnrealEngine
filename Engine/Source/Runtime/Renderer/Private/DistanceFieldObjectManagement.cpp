@@ -18,7 +18,6 @@
 #include "ScenePrivate.h"
 #include "DistanceFieldLightingShared.h"
 #include "DistanceFieldAmbientOcclusion.h"
-#include "GlobalDistanceField.h"
 
 float GAOMaxObjectBoundingRadius = 50000;
 FAutoConsoleVariableRef CVarAOMaxObjectBoundingRadius(
@@ -35,8 +34,6 @@ FAutoConsoleVariableRef CVarAOLogObjectBufferReallocation(
 	TEXT(""),
 	ECVF_RenderThreadSafe
 	);
-
-DECLARE_CYCLE_STAT(TEXT("SceneRenderer DistanceFieldAO Init"), STAT_FSceneRenderer_DistanceFieldAO_Init, STATGROUP_SceneRendering);
 
 // Must match equivalent shader defines
 template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = 17;
@@ -185,7 +182,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -280,7 +277,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -369,7 +366,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1044,7 +1041,7 @@ bool ProcessHeightFieldPrimitiveUpdate(
 
 bool bVerifySceneIntegrity = false;
 
-void FSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmediate& RHICmdList)
 {
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
@@ -1248,7 +1245,7 @@ void FSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmed
 	}
 }
 
-void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmediate& RHICmdList)
 {
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
@@ -1387,7 +1384,7 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmedia
 	}
 }
 
-void FSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd)
+void FDeferredShadingSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd)
 {
 	FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
 
@@ -1438,65 +1435,6 @@ void FSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd)
 	}
 
 	SceneData.PendingHeightFieldUpdateOps.Empty();
-}
-
-void FSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch)
-{
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
-	SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_DistanceFieldAO_Init);
-
-	const bool bShouldPrepareHeightFieldScene = ShouldPrepareHeightFieldScene();
-	const bool bShouldPrepareDistanceFieldScene = ShouldPrepareDistanceFieldScene();
-
-	if (bShouldPrepareHeightFieldScene)
-	{
-		extern int32 GHFShadowQuality;
-		if (GHFShadowQuality > 2)
-		{
-			GHFVisibilityTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
-		}
-		GHeightFieldTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
-		UpdateGlobalHeightFieldObjectBuffers(RHICmdList);
-	}
-	else if (bShouldPrepareDistanceFieldScene)
-	{
-		AddOrRemoveSceneHeightFieldPrimitives();
-	}
-
-	if (bShouldPrepareDistanceFieldScene)
-	{
-		GDistanceFieldVolumeTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
-		UpdateGlobalDistanceFieldObjectBuffers(RHICmdList);
-		if (bSplitDispatch)
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-		}
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			FViewInfo& View = Views[ViewIndex];
-
-			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-
-			View.HeightfieldLightingViewInfo.SetupVisibleHeightfields(View, RHICmdList);
-
-			if (ShouldPrepareGlobalDistanceField())
-			{
-				float OcclusionMaxDistance = Scene->DefaultMaxDistanceFieldOcclusionDistance;
-
-				// Use the skylight's max distance if there is one
-				if (Scene->SkyLight && Scene->SkyLight->bCastShadows && !Scene->SkyLight->bWantsStaticShadowing)
-				{
-					OcclusionMaxDistance = Scene->SkyLight->OcclusionMaxDistance;
-				}
-
-				UpdateGlobalDistanceFieldVolume(RHICmdList, Views[ViewIndex], Scene, OcclusionMaxDistance, Views[ViewIndex].GlobalDistanceFieldInfo);
-			}
-		}
-		if (!bSplitDispatch)
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-		}
-	}
 }
 
 FString GetObjectBufferMemoryString()

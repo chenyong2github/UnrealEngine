@@ -429,13 +429,13 @@ public:
 
 	FRDGTextureRef BeginRenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
-		const FSceneTextureShaderParameters& SceneTextures,
+		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 		const FViewInfo& View) const;
 
 	/** Renders ray traced distance field shadows. */
 	void RenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
-		const FSceneTextureShaderParameters& SceneTextures,
+		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 		FRDGTextureRef ScreenShadowMaskTexture,
 		FRDGTextureRef SceneDepthTexture,
 		const FViewInfo& View,

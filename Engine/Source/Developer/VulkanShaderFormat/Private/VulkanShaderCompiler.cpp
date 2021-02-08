@@ -1792,7 +1792,7 @@ static bool CompileWithHlslcc(const FString& PreprocessedShader, FVulkanBindingT
 		FHlslCrossCompilerContext CrossCompilerContext(CompilerInfo.CCFlags, CompilerInfo.Frequency, HlslCompilerTarget);
 
 		const bool bShareSamplers = true;
-		const bool bRequiresOESExtensions = true;
+		const bool bRequiresOESExtensions = (CompilerInfo.Input.Target.Platform == SP_VULKAN_ES3_1_LUMIN);
 
 		FVulkanLanguageSpec VulkanLanguageSpec(bShareSamplers, bRequiresOESExtensions);
 		int32 Result = 0;

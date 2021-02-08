@@ -1039,9 +1039,6 @@ inline bool DoesPlatformSupportDistanceFields(const FStaticShaderPlatform Platfo
 		|| IsVulkanSM5Platform(Platform)
 		|| Platform == SP_SWITCH
 		|| Platform == SP_SWITCH_FORWARD
-		|| Platform == SP_VULKAN_PCES3_1
-		|| Platform == SP_VULKAN_ES3_1_ANDROID
-		|| Platform == SP_PCD3D_ES3_1
 		|| FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(Platform);
 }
 

@@ -253,10 +253,9 @@ void MobileDirectLightPS(
 	half Shadow = GBuffer.PrecomputedShadowFactors.r;
 
 #if APPLY_CSM  
-	// TODO: we don't need to fully compute ScreenPosition here
-	float  ShadowPositionZ = 0;
+	// TODO: we don't need to fully compute ScreenPosition here 
 	float4 ScreenPosition = SvPositionToScreenPosition(float4(SvPosition.xyz,SceneDepth));
-	float ShadowMap = MobileDirectionalLightCSM(ScreenPosition.xy, SceneDepth, ShadowPositionZ);
+	float ShadowMap = MobileDirectionalLightCSM(ScreenPosition.xy, SceneDepth);
 
 	// Check movable light param to determine if we should be using precomputed shadows
 	Shadow = LightFunctionParameters2.z > 0.0f ? ShadowMap : min(ShadowMap, Shadow);

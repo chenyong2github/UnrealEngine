@@ -167,8 +167,6 @@ static TAutoConsoleVariable<float> CVarShadowMaxSlopeScaleDepthBias(
 	TEXT("Higher values give better self-shadowing, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
-FForwardScreenSpaceShadowMaskTextureMobileOutputs GScreenSpaceShadowMaskTextureMobileOutputs;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair
 static TAutoConsoleVariable<int32> CVarHairStrandsCullPerObjectShadowCaster(
@@ -1824,8 +1822,6 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DistanceFieldShadows");
 
-		FSceneTextureShaderParameters SceneTextures;
-		SceneTextures.SceneTextures = SceneTexturesUniformBuffer;
 		// Distance field shadows need to be renderer last as they blend over far shadow cascades.
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -1846,7 +1842,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 					const FProjectedShadowInfo* ProjectedShadowInfo = DistanceFieldShadows[ShadowIndex];
 					ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(
 						GraphBuilder,
-						SceneTextures,
+						SceneTexturesUniformBuffer,
 						ScreenShadowMaskTexture,
 						SceneDepthTexture,
 						View,
@@ -1985,92 +1981,6 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 			}
 		}
 	}
-}
-
-void FMobileSceneRenderer::InitSDFShadowingOutputs(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ)
-{
-	const FIntPoint& BufferSize = SceneDepthZ->GetDesc().Extent;
-
-	if (!GScreenSpaceShadowMaskTextureMobileOutputs.IsValid() || GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile->GetDesc().Extent != BufferSize)
-	{
-		GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile.SafeRelease();
-		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false, 1, false), GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile, TEXT("ForwardScreenSpaceShadowMaskTextureTexture"));
-	}
-}
-
-void FMobileSceneRenderer::RenderSDFShadowing(FRHICommandListImmediate& RHICmdList)
-{
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ, TEXT("SceneDepthTexture"));
-	FRDGTextureRef ScreenShadowMaskTexture = GraphBuilder.RegisterExternalTexture(GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile, TEXT("ScreenSpaceShadowMaskTextureMobile"));
-	AddClearRenderTargetPass(GraphBuilder, ScreenShadowMaskTexture);
-
-	FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, Views[0].GetFeatureLevel(), ESceneTextureSetupMode::All);
-	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
-	{
-		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
-		const FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
-
-		const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
-		const FLightSceneProxy* LightSceneProxy = LightSceneInfo->Proxy;
-
-		// Allocate arrays using the graph allocator so we can safely reference them in passes.
-		using FProjectedShadowInfoArray = TArray<const FProjectedShadowInfo*, SceneRenderingAllocator>;
-		auto& DistanceFieldShadows = *GraphBuilder.AllocObject<FProjectedShadowInfoArray>();
-
-		for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
-		{
-			const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
-			if (ProjectedShadowInfo->bRayTracedDistanceField)
-			{
-				DistanceFieldShadows.Add(ProjectedShadowInfo);
-			}
-		}
-
-		if (DistanceFieldShadows.Num() > 0)
-		{
-			RDG_EVENT_SCOPE(GraphBuilder, "DistanceFieldShadows");
-
-			// Distance field shadows need to be renderer last as they blend over far shadow cascades.
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-			{
-				const FViewInfo& View = Views[ViewIndex];
-				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-				FIntRect ScissorRect;
-				if (!LightSceneProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
-				{
-					ScissorRect = View.ViewRect;
-				}
-
-				if (ScissorRect.Area() > 0)
-				{
-					for (int32 ShadowIndex = 0; ShadowIndex < DistanceFieldShadows.Num(); ShadowIndex++)
-					{
-						const FProjectedShadowInfo* ProjectedShadowInfo = DistanceFieldShadows[ShadowIndex];
-						ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(
-							GraphBuilder,
-							SceneTextures,
-							ScreenShadowMaskTexture,
-							SceneDepthTexture,
-							View,
-							ScissorRect,
-							false);
-					}
-				}
-			}
-		}
-	}
-
-	GraphBuilder.Execute();
-}
-
-void FMobileSceneRenderer::ReleaseSDFShadowingOutputs()
-{
-	GScreenSpaceShadowMaskTextureMobileOutputs.Release();
 }
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentSelfShadowUniformParameters, "TranslucentSelfShadow");

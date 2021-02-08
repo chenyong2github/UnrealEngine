@@ -29,7 +29,6 @@
 FIOSTargetPlatform::FIOSTargetPlatform(bool bInIsTVOS, bool bInIsClientOnly)
 	: bIsTVOS(bInIsTVOS)
 	, bIsClientOnly(bInIsClientOnly)
-	, bDistanceField(false)
 {
     if (bIsTVOS)
     {
@@ -39,7 +38,6 @@ FIOSTargetPlatform::FIOSTargetPlatform(bool bInIsTVOS, bool bInIsClientOnly)
 	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *IniPlatformName());
 	TextureLODSettings = nullptr; // TextureLODSettings are registered by the device profile.
 	StaticMeshLODSettings.Initialize(EngineSettings);
-	EngineSettings.GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.DistanceFields"), bDistanceField);
 #endif // #if WITH_ENGINE
 
 	// Initialize Ticker for device discovery
@@ -551,9 +549,6 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 
 		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
 			return SupportsLandscapeMeshLODStreaming() && SupportsMetal();
-
-		case ETargetPlatformFeatures::DistanceFieldAO:
-			return UsesDistanceFields();
 
 		default:
 			break;

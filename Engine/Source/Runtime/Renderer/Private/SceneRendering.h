@@ -1743,21 +1743,6 @@ public:
 	/** Cache the FXSystem value from the Scene. Must be ran on the renderthread to ensure it is valid throughout rendering. */
 	void InitFXSystem();
 
-	/** Whether distance field global data structures should be prepared for features that use it. */
-	bool ShouldPrepareForDistanceFieldShadows() const;
-	bool ShouldPrepareForDistanceFieldAO() const;
-	bool ShouldPrepareForDFInsetIndirectShadow() const;
-
-	bool ShouldPrepareDistanceFieldScene() const;
-	bool ShouldPrepareGlobalDistanceField() const;
-	bool ShouldPrepareHeightFieldScene() const;
-
-	void UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
-	void UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
-	void AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd = false);
-	void PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch);
-
-
 protected:
 
 	/** Size of the family. */
@@ -1993,23 +1978,6 @@ private:
 #endif
 };
 
-struct FForwardScreenSpaceShadowMaskTextureMobileOutputs
-{
-	TRefCountPtr<IPooledRenderTarget> ScreenSpaceShadowMaskTextureMobile;
-
-	bool IsValid()
-	{
-		return ScreenSpaceShadowMaskTextureMobile.IsValid();
-	}
-
-	void Release()
-	{
-		ScreenSpaceShadowMaskTextureMobile.SafeRelease();
-	}
-};
-
-extern FForwardScreenSpaceShadowMaskTextureMobileOutputs GScreenSpaceShadowMaskTextureMobileOutputs;
-
 /**
  * Renderer that implements simple forward shading and associated features.
  */
@@ -2091,10 +2059,6 @@ protected:
 	void RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture);
 	void ReleaseAmbientOcclusionOutputs();
 
-	void InitSDFShadowingOutputs(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ);
-	void RenderSDFShadowing(FRHICommandListImmediate& RHICmdList);
-	void ReleaseSDFShadowingOutputs();
-
 	void InitPixelProjectedReflectionOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& BufferSize);
 	void RenderPixelProjectedReflection(FRHICommandListImmediate& RHICmdList, const FSceneRenderTargets& SceneContext, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy);
 	void RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy);
@@ -2115,8 +2079,6 @@ private:
 	bool bShouldRenderCustomDepth;
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
 	bool bRequriesAmbientOcclusionPass;
-	bool bRequiresDistanceField;
-	bool bRequiresDistanceFieldShadowingPass;
 	static FGlobalDynamicIndexBuffer DynamicIndexBuffer;
 	static FGlobalDynamicVertexBuffer DynamicVertexBuffer;
 	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBuffer;

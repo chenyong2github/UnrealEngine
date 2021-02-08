@@ -246,11 +246,6 @@ public:
 
 	virtual void InitializeDeviceDetection();
 	
-	virtual bool UsesDistanceFields() const override
-	{
-		return bDistanceField;
-	}
-
 protected:
 
 	/**
@@ -308,10 +303,7 @@ protected:
 
 	// Pointer to the device detection handler that grabs device ids in another thread
 	IAndroidDeviceDetection* DeviceDetection;
-	
-	// true if DistanceField is enabled
-	bool bDistanceField;
-	
+
 #if WITH_ENGINE
 	// Holds a cache of the target LOD settings.
 	const UTextureLODSettings* TextureLODSettings;
