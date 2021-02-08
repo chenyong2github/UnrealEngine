@@ -399,7 +399,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	{
 		InitSkyAtmosphereForViews(RHICmdList);
 	}
-
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
 	{
 		InitPixelProjectedReflectionOutputs(RHICmdList, PlanarReflectionSceneProxy->RenderTarget->GetSizeXY());
