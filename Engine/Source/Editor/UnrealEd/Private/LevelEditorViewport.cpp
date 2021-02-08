@@ -2051,6 +2051,8 @@ void FLevelEditorViewportClient::ResetCamera()
 		((FEdModeInterpEdit*)Mode)->CamMoveNotify(this);
 	}
 
+	SetIsCameraCut();
+
 	// Broadcast 'camera moved' delegate
 	FEditorDelegates::OnEditorCameraMoved.Broadcast(GetViewLocation(), GetViewRotation(), ViewportType, ViewIndex);
 }
