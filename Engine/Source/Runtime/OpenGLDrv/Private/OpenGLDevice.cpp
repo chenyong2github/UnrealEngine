@@ -1081,7 +1081,7 @@ static bool VerifyCompiledShader(GLuint Shader, const ANSICHAR* GlslCode, bool I
 			for (int i = 0; i < 30 && (*Temp != '\0'); ++i)
 			{
 				FString Converted = ANSI_TO_TCHAR(Temp);
-				Converted.LeftChop(256);
+				Converted = Converted.LeftChop(256);
 
 				UE_LOG(LogRHI, Display, TEXT("%s"), *Converted);
 				Temp += Converted.Len();
