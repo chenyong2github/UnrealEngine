@@ -79,6 +79,7 @@ void UAlignObjectsTool::Setup()
 
 	Precompute();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Align"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "This Tool aligns the Pivots or Bounding Boxes of the input Objects."),
 		EToolMessageLevel::UserNotification);

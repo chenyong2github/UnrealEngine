@@ -368,6 +368,14 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 #endif
 }
 
+
+UAddBoxPrimitiveTool::UAddBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralBoxToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("Box");
+	SetToolDisplayName(LOCTEXT("BoxToolName", "Create Boxes"));
+}
+
 void UAddBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FGridBoxMeshGenerator BoxGen;
@@ -384,6 +392,15 @@ void UAddBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	OutMesh->Copy(&BoxGen);
 }
 
+
+
+UAddRectanglePrimitiveTool::UAddRectanglePrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralRectangleToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("Rectangle");
+	SetToolDisplayName(LOCTEXT("RectToolName", "Create Rectangles"));
+}
+
 void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FRectangleMeshGenerator RectGen;
@@ -398,6 +415,14 @@ void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	}
 	RectGen.Generate();
 	OutMesh->Copy(&RectGen);
+}
+
+
+UAddRoundedRectanglePrimitiveTool::UAddRoundedRectanglePrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralRoundedRectangleToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("RoundedRectangle");
+	SetToolDisplayName(LOCTEXT("RoudRectToolName", "Create RoundRects"));
 }
 
 void UAddRoundedRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
@@ -418,6 +443,15 @@ void UAddRoundedRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) con
 	OutMesh->Copy(&RectGen);
 }
 
+
+
+UAddDiscPrimitiveTool::UAddDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralDiscToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("Disc");
+	SetToolDisplayName(LOCTEXT("DiscToolName", "Create Discs"));
+}
+
 void UAddDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FDiscMeshGenerator Gen;
@@ -431,6 +465,15 @@ void UAddDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	}
 	Gen.Generate();
 	OutMesh->Copy(&Gen);
+}
+
+
+
+UAddPuncturedDiscPrimitiveTool::UAddPuncturedDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralPuncturedDiscToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("PuncturedDisc");
+	SetToolDisplayName(LOCTEXT("CircleToolName", "Create Circles"));
 }
 
 void UAddPuncturedDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
@@ -447,6 +490,14 @@ void UAddPuncturedDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	}
 	Gen.Generate();
 	OutMesh->Copy(&Gen);
+}
+
+
+UAddTorusPrimitiveTool::UAddTorusPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralTorusToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("Torus");
+	SetToolDisplayName(LOCTEXT("TorusToolName", "Create Torii"));
 }
 
 void UAddTorusPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
@@ -470,6 +521,15 @@ void UAddTorusPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	OutMesh->Copy(&Gen);
 }
 
+
+
+UAddCylinderPrimitiveTool::UAddCylinderPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralCylinderToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("Cylinder");
+	SetToolDisplayName(LOCTEXT("CylinderToolName", "Create Cylinders"));
+}
+
 void UAddCylinderPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FCylinderGenerator CylGen;
@@ -485,6 +545,15 @@ void UAddCylinderPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	}
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
+}
+
+
+
+UAddConePrimitiveTool::UAddConePrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralConeToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("Cone");
+	SetToolDisplayName(LOCTEXT("ConeToolName", "Create Cones"));
 }
 
 void UAddConePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
@@ -504,6 +573,14 @@ void UAddConePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	}
 	CylGen.Generate();
 	OutMesh->Copy(&CylGen);
+}
+
+
+UAddArrowPrimitiveTool::UAddArrowPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralArrowToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("Arrow");
+	SetToolDisplayName(LOCTEXT("ArrowToolName", "Create Arrows"));
 }
 
 void UAddArrowPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
@@ -526,6 +603,15 @@ void UAddArrowPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	OutMesh->Copy(&ArrowGen);
 }
 
+
+
+UAddSpherePrimitiveTool::UAddSpherePrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralSphereToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("ASphere");
+	SetToolDisplayName(LOCTEXT("SphereToolName", "Create Spheres"));
+}
+
 void UAddSpherePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FSphereGenerator SphereGen;
@@ -539,6 +625,15 @@ void UAddSpherePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	}
 	SphereGen.Generate();
 	OutMesh->Copy(&SphereGen);
+}
+
+
+
+UAddSphericalBoxPrimitiveTool::UAddSphericalBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralSphericalBoxToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("BSphere");
+	SetToolDisplayName(LOCTEXT("BoxSphereToolName", "Create BoxSpheres"));
 }
 
 void UAddSphericalBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const

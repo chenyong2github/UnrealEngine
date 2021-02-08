@@ -202,8 +202,9 @@ void UBakeMeshAttributeMapsTool::Setup()
 	bResultValid = false;
 	bDetailMeshValid = false;
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Bake Textures"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "Bake Maps. Select Bake Mesh (LowPoly) first, then Detail Mesh second. Texture Assets will be created on Accept. "),
+		LOCTEXT("OnStartTool", "Bake Maps. Select Bake Mesh (LowPoly) first, then (optionally) Detail Mesh second. Texture Assets will be created on Accept. "),
 		EToolMessageLevel::UserNotification);
 }
 

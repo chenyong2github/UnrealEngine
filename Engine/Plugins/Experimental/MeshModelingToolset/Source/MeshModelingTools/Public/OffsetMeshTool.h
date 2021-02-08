@@ -109,7 +109,7 @@ class MESHMODELINGTOOLS_API UOffsetMeshTool : public UBaseMeshProcessingTool
 	GENERATED_BODY()
 
 public:
-	UOffsetMeshTool() = default;
+	UOffsetMeshTool();
 
 	virtual void InitializeProperties() override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;

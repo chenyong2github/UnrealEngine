@@ -122,8 +122,9 @@ void URevolveBoundaryTool::Setup()
 
 	ComponentTarget->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Revolve Boundary"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartRevolveBoundaryTool", "This tool revolves the mesh boundary around the axis to create a new mesh. Ctrl+click will reposition the revolution axis, potentially aligning it with an edge."),
+		LOCTEXT("OnStartRevolveBoundaryTool", "Revolve an open mesh boundary loop around an axis to create a new mesh. Ctrl+click will reposition the revolution axis, potentially aligning it with an edge."),
 		EToolMessageLevel::UserNotification);
 	if (Topology->Edges.Num() == 1)
 	{

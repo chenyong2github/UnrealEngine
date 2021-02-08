@@ -108,6 +108,7 @@ void UMeshInspectorTool::Setup()
 
 	UpdateVisualization();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Mesh Inspector"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Visualize various geometric properties and attributes of the Mesh"),
 		EToolMessageLevel::UserNotification);

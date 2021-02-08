@@ -107,6 +107,7 @@ void UDrawAndRevolveTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Revolve PolyPath"));
 	GetToolManager()->DisplayMessage(InitializationModeMessage, EToolMessageLevel::UserNotification);
 
 	Settings = NewObject<URevolveToolProperties>(this, TEXT("Revolve Tool Settings"));

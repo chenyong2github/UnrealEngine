@@ -226,6 +226,7 @@ void UHoleFillTool::Setup()
 		ComponentTarget->SetOwnerVisibility(false);
 	}
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Fill Holes"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("HoleFillToolDescription", "Fill Holes in the selected Mesh by adding triangles. Click on individual holes to fill them, or use the Select All button to fill all holes."),
 		EToolMessageLevel::UserNotification);

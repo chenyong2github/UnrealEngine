@@ -114,6 +114,7 @@ void UEditUVIslandsTool::Setup()
 	});
 	OnMaterialSettingsChanged();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "UV Transform"));
 	GetToolManager()->DisplayMessage(LOCTEXT("UEditUVIslandsToolStartupMessage", "Click on a UV Island to select it, and then use the Gizmo to translate/rotate/scale the UVs"), EToolMessageLevel::UserNotification);
 }
 

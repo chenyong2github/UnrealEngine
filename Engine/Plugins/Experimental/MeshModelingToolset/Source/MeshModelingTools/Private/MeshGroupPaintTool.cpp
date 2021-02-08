@@ -81,6 +81,8 @@ void UMeshGroupPaintTool::Setup()
 {
 	UMeshSculptToolBase::Setup();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Paint PolyGroups"));
+
 	// create dynamic mesh component to use for live preview
 	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor());
 	InitializeSculptMeshComponent(DynamicMeshComponent);

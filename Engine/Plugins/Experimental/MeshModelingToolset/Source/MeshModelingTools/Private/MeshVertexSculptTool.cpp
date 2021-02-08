@@ -55,6 +55,8 @@ void UMeshVertexSculptTool::Setup()
 {
 	UMeshSculptToolBase::Setup();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Sculpt"));
+
 	// create dynamic mesh component to use for live preview
 	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor());
 	InitializeSculptMeshComponent(DynamicMeshComponent);

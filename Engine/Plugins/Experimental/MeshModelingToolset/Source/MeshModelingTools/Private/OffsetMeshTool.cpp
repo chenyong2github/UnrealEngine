@@ -16,6 +16,10 @@
  * Tool
  */
 
+UOffsetMeshTool::UOffsetMeshTool()
+{
+	SetToolDisplayName(LOCTEXT("ToolName", "Offset"));
+}
 
 void UOffsetMeshTool::InitializeProperties()
 {
@@ -50,7 +54,7 @@ void UOffsetMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 
 FText UOffsetMeshTool::GetToolMessageString() const
 {
-	return LOCTEXT("StartOffsetToolMessage", "Offsets the mesh vertex positions using various Offseting methods.");
+	return LOCTEXT("StartOffsetToolMessage", "Offset the mesh vertex positions using various Offseting methods.");
 }
 
 FText UOffsetMeshTool::GetAcceptTransactionName() const

@@ -103,6 +103,7 @@ void UEdgeLoopInsertionTool::Setup()
 		return;
 	}
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Insert PolyLoop"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("EdgeLoopInsertionToolDescription", "Click an edge to insert an edge loop passing across that edge. Edge loops follow a sequence of quad-like polygroups."),
 		EToolMessageLevel::UserNotification);

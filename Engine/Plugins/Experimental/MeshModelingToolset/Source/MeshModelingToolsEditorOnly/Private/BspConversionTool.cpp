@@ -103,6 +103,7 @@ void UBspConversionTool::Setup()
 	ToolActions->Initialize(this);
 	AddToolPropertySource(ToolActions);
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Convert BSP"));
 	// Give a description to put in the side panel
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Convert geometry brushes (also known as BSP brushes) into a single static mesh. \"Convert then Combine\" first converts the individual brushes and performs boolean operations on the resulting meshes (this requires individual brushes to have manifold geometry. \"Combine then Convert\" is the old functionality, combining brushes, then converting them."),

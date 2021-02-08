@@ -37,7 +37,7 @@ void UVoxelMorphologyMeshesTool::SetupProperties()
 	MorphologyProperties->RestoreProperties(this);
 	AddToolPropertySource(MorphologyProperties);
 
-	SetToolDisplayName(LOCTEXT("VoxelMorphologyMeshesToolName", "Mesh Morphology Tool"));
+	SetToolDisplayName(LOCTEXT("VoxelMorphologyMeshesToolName", "Voxel Morphology"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Apply Morphological operations to the input meshes to create a new Mesh, using voxelization techniques. UVs, sharp edges, and small/thin features will be lost. Increase Voxel Count to enhance accuracy."),
 		EToolMessageLevel::UserNotification);

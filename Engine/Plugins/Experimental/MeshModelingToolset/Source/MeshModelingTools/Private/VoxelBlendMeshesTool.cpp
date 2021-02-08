@@ -39,7 +39,7 @@ void UVoxelBlendMeshesTool::SetupProperties()
 	BlendProperties->RestoreProperties(this);
 	AddToolPropertySource(BlendProperties);
 
-	SetToolDisplayName(LOCTEXT("VoxelBlendMeshesToolName", "Blend Meshes Tool"));
+	SetToolDisplayName(LOCTEXT("VoxelBlendMeshesToolName", "Voxel Blend"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("VoxelBlendMeshesToolDescription", "Compute a volumetric Blend of the input meshes, controlled by the Blend Power/Falloff. UVs, sharp edges, and small/thin features will be lost. Increase Voxel Count to enhance accuracy."),
 		EToolMessageLevel::UserNotification);

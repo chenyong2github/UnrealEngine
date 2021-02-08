@@ -86,6 +86,7 @@ void UTransformMeshesTool::Setup()
 
 	UpdateTransformMode(TransformProps->TransformMode);
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Transform"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTransformMeshesTool", "Translate/Rotate/Scale the selected objects. [A] cycles through Transform modes. Reposition the Gizmo using Set Pivot Mode [S]. Toggle Snap Drag Mode [D] to move the object by click-draging. [W] and [E] cycle through SnapDrag Source and Rotation types."),
 		EToolMessageLevel::UserNotification);

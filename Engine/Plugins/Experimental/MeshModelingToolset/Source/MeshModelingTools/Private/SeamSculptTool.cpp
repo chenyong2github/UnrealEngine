@@ -49,7 +49,7 @@ void USeamSculptTool::SetWorld(UWorld* World)
 
 USeamSculptTool::USeamSculptTool()
 {
-	SetToolDisplayName(LOCTEXT("SeamSculptToolName", "UV Seam Tool"));
+	SetToolDisplayName(LOCTEXT("SeamSculptToolName", "Add UV Seams"));
 }
 
 void USeamSculptTool::Setup()

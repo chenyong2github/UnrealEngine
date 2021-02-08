@@ -91,7 +91,7 @@ public:
 
 	/** If the shape settings haven't changed, create instances of the last created asset rather than creating a whole new asset.  If false, all created actors will have separate underlying mesh assets. */
 	UPROPERTY(EditAnywhere, Category = AssetSettings)
-	bool bInstanceIfPossible = true;
+	bool bInstanceIfPossible = false;
 
 	/** How should Polygroups be assigned to triangles of Primitive */
 	UPROPERTY(EditAnywhere, Category = ShapeSettings, meta = (ProceduralShapeSetting))
@@ -445,16 +445,13 @@ protected:
 	void UpdatePreviewMesh();
 };
 
+
 UCLASS()
 class UAddBoxPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralBoxToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Box");
-	}
+	UAddBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -464,11 +461,7 @@ class UAddCylinderPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddCylinderPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralCylinderToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Cylinder");
-	}
+	UAddCylinderPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -478,11 +471,7 @@ class UAddConePrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddConePrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralConeToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Cone");
-	}
+	UAddConePrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -492,11 +481,7 @@ class UAddRectanglePrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddRectanglePrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralRectangleToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Rectangle");
-	}
+	UAddRectanglePrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -506,11 +491,7 @@ class UAddRoundedRectanglePrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddRoundedRectanglePrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralRoundedRectangleToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("RoundedRectangle");
-	}
+	UAddRoundedRectanglePrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -520,11 +501,7 @@ class UAddDiscPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralDiscToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Disc");
-	}
+	UAddDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -534,11 +511,7 @@ class UAddPuncturedDiscPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddPuncturedDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralPuncturedDiscToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("PuncturedDisc");
-	}
+	UAddPuncturedDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -548,11 +521,7 @@ class UAddTorusPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddTorusPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralTorusToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Torus");
-	}
+	UAddTorusPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -562,11 +531,7 @@ class UAddArrowPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddArrowPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralArrowToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Arrow");
-	}
+	UAddArrowPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -576,11 +541,7 @@ class UAddSpherePrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddSpherePrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralSphereToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Sphere Type 2");
-	}
+	UAddSpherePrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -590,11 +551,8 @@ class UAddSphericalBoxPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddSphericalBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralSphericalBoxToolProperties>(TEXT("ShapeSettings")))
-	{
-		AssetName = TEXT("Spherical Type 1");
-	}
+	UAddSphericalBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
+

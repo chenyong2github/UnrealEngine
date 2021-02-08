@@ -319,6 +319,7 @@ void UMeshSpaceDeformerTool::Setup()
 	DragAlignmentMechanic->AddToGizmo(TransformGizmo, nullptr, &ComponentsToInclude);
 	DragAlignmentMechanic->AddToGizmo(IntervalGizmo, nullptr, &ComponentsToInclude);
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Space Warp"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("MeshSpaceDeformerToolDescription", "Deform the vertices of the selected Mesh using various spatial deformations. Use the in-viewport Gizmo to control the extents/strength of the deformation."),
 		EToolMessageLevel::UserNotification);

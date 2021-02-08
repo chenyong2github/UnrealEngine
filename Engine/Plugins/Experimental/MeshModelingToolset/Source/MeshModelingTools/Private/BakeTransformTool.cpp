@@ -109,6 +109,7 @@ void UBakeTransformTool::Setup()
 	
 	GetToolManager()->DisplayMessage(AllTheWarnings, EToolMessageLevel::UserWarning);
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Bake Transform"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "This Tool applies the current Rotation and/or Scaling of the object's Transform to the underlying mesh Asset."),
 		EToolMessageLevel::UserNotification);

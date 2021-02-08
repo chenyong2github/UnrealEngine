@@ -185,6 +185,7 @@ void UMirrorTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Mirror"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartMirrorTool", "Mirror one or more meshes across a plane. Grid snapping behavior is swapped while the shift key is down. The plane can be set by using the preset buttons, moving the gizmo, or ctrl+clicking on a spot on the original mesh."),
 		EToolMessageLevel::UserNotification);

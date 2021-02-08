@@ -137,6 +137,7 @@ void UMeshSelectionTool::Setup()
 	RecalculateBrushRadius();
 	UpdateVisualization(true);
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Select Triangles"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartMeshSelectionTool", "This Tool allows you to modify the mesh based on a triangle selection. [Q] cyles through Selection Mode. [A] cycles through Face Color modes. [ and ] change brush size, < and > grow/shrink selection."),
 		EToolMessageLevel::UserNotification);

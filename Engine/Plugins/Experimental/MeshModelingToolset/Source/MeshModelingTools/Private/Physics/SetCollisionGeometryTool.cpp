@@ -122,6 +122,7 @@ void USetCollisionGeometryTool::Setup()
 	CollisionProps = NewObject<UPhysicsObjectToolPropertySet>(this);
 	AddToolPropertySource(CollisionProps);
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Mesh To Collision"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Initialize Simple Collision geometry for a Mesh from one or more input Meshes (including itself)."),
 		EToolMessageLevel::UserNotification);

@@ -48,7 +48,7 @@ void UProjectToTargetTool::Setup()
 	// Now setup parent RemeshMeshTool class
 	URemeshMeshTool::Setup();
 
-	SetToolDisplayName(LOCTEXT("ProjectToTargetToolName", "Remesh To Target Tool"));
+	SetToolDisplayName(LOCTEXT("ProjectToTargetToolName", "Project To Target"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("ProjectToTargetToolDescription", "Incrementally deform the first selected mesh towards the second, while applying Remeshing. This can be used to improve the accuracy of shrink-wrapping strategies."),
 		EToolMessageLevel::UserNotification);

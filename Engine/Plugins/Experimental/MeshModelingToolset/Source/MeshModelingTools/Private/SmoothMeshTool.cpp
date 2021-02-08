@@ -18,6 +18,11 @@
  * Tool
  */
 
+USmoothMeshTool::USmoothMeshTool()
+{
+	SetToolDisplayName(LOCTEXT("ToolName", "Smooth"));
+
+}
 
 void USmoothMeshTool::InitializeProperties()
 {
@@ -51,7 +56,7 @@ void USmoothMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 
 FText USmoothMeshTool::GetToolMessageString() const
 {
-	return LOCTEXT("StartSmoothToolMessage", "Smooths the mesh vertex positions using various smoothing methods.");
+	return LOCTEXT("StartSmoothToolMessage", "Smooth the mesh vertex positions using various smoothing methods.");
 }
 
 FText USmoothMeshTool::GetAcceptTransactionName() const

@@ -116,8 +116,9 @@ void UMergeMeshesTool::Setup()
 	Preview->InvalidateResult();    // start compute
 
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Voxel Merge"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "This Tool combines the input meshes into closed solids using voxelization techniques. UVs, sharp edges, and small/thin features will be lost. Increase Voxel Count to enhance accuracy."),
+		LOCTEXT("OnStartTool", "Combine the input meshes into closed solids using voxelization techniques. UVs, sharp edges, and small/thin features will be lost. Increase Voxel Count to enhance accuracy."),
 		EToolMessageLevel::UserNotification);
 }
 

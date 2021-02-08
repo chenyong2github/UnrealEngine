@@ -163,6 +163,7 @@ void USimplifyMeshTool::Setup()
 	UpdateVisualization();
 	Preview->InvalidateResult();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Simplify"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Reduce the number of triangles in the selected Mesh using various strategies."),
 		EToolMessageLevel::UserNotification);

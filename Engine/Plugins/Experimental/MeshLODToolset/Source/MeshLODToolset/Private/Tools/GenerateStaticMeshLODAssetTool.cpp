@@ -196,8 +196,18 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 
 	UInteractiveTool::Setup();
 
+	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
+	AddToolPropertySource(BasicProperties);
+	BasicProperties->RestoreProperties(this);
+
+	BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
+
+	BasicProperties->GeneratedSuffix = TEXT("_AutoLOD");
+
+
+	SetToolDisplayName(LOCTEXT("ToolName", "Generate LOD"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartStaticMeshLODAssetTool", "This tool creates a new LOD asset"),
+		LOCTEXT("OnStartStaticMeshLODAssetTool", "Create a new LOD asset"),
 		EToolMessageLevel::UserNotification);
 
 	GenerateProcess = NewObject<UGenerateStaticMeshLODProcess>(this);

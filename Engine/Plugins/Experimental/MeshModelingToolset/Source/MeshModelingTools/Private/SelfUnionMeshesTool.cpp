@@ -26,6 +26,7 @@ void USelfUnionMeshesTool::SetupProperties()
 	Properties->RestoreProperties(this);
 	AddToolPropertySource(Properties);
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Merge"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Compute a Self-Union of the input meshes, to resolve self-intersections. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
 		EToolMessageLevel::UserNotification);

@@ -94,6 +94,8 @@ void UDynamicMeshSculptTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "DynaSculpt"));
+
 	// create dynamic mesh component to use for live preview
 	DynamicMeshComponent = NewObject<UOctreeDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMeshSculptToolMesh");
 	DynamicMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());

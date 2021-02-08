@@ -47,6 +47,8 @@ void UEditMeshMaterialsTool::Setup()
 {
 	UMeshSelectionTool::Setup();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Edit Materials"));
+
 	PreviewMesh->ClearOverrideRenderMaterial();
 
 	FComponentMaterialSet AssetMaterials;

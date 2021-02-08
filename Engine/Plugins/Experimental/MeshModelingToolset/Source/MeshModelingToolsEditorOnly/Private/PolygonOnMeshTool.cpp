@@ -63,7 +63,7 @@ void UPolygonOnMeshToolActionPropertySet::PostAction(EPolygonOnMeshToolActions A
 
 UPolygonOnMeshTool::UPolygonOnMeshTool()
 {
-	SetToolDisplayName(LOCTEXT("PolygonOnMeshToolName", "Polygon Cut Tool"));
+	SetToolDisplayName(LOCTEXT("PolygonOnMeshToolName", "PolyCut"));
 }
 
 void UPolygonOnMeshTool::SetWorld(UWorld* World)

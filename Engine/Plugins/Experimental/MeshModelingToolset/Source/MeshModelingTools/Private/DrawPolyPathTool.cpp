@@ -217,6 +217,7 @@ void UDrawPolyPathTool::Setup()
 	// begin path draw
 	InitializeNewSurfacePath();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Extrude PolyPath"));
 	ShowStartupMessage();
 }
 

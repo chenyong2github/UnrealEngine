@@ -45,7 +45,7 @@ UInteractiveTool* UConvertToPolygonsToolBuilder::BuildTool(const FToolBuilderSta
  */
 UConvertToPolygonsTool::UConvertToPolygonsTool()
 {
-	SetToolDisplayName(LOCTEXT("ConvertToPolygonsToolName", "Find PolyGroups Tool"));
+	SetToolDisplayName(LOCTEXT("ConvertToPolygonsToolName", "Generate PolyGroups"));
 }
 
 void UConvertToPolygonsTool::Setup()

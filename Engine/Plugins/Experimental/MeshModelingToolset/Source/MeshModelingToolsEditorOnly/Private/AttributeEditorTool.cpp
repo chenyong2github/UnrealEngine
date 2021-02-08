@@ -141,6 +141,7 @@ void UAttributeEditorTool::Setup()
 		InitializeAttributeLists();
 	}
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Edit Attributes"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartAttribEditor", "Inspect and Modify Attributes of a StaticMesh Asset"),
 		EToolMessageLevel::UserNotification);

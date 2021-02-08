@@ -145,7 +145,7 @@ void UEditMeshPolygonsToolActionPropertySet::PostAction(EEditMeshPolygonsToolAct
 
 UEditMeshPolygonsTool::UEditMeshPolygonsTool()
 {
-	SetToolDisplayName(LOCTEXT("EditMeshPolygonsToolName", "Edit PolyGroups Tool"));
+	SetToolDisplayName(LOCTEXT("EditMeshPolygonsToolName", "PolyGroup Edit"));
 }
 
 void UEditMeshPolygonsTool::EnableTriangleMode()
@@ -338,7 +338,7 @@ void UEditMeshPolygonsTool::Setup()
 
 	if (bTriangleMode)
 	{
-		SetToolDisplayName(LOCTEXT("EditMeshTrianglesToolName", "Edit Triangles Tool"));
+		SetToolDisplayName(LOCTEXT("EditMeshTrianglesToolName", "Triangle Edit"));
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("OnStartEditMeshPolygonsTool_TriangleMode", "Select Triangles to edit mesh. Q to toggle Gizmo Orientation Lock."),
 			EToolMessageLevel::UserNotification);

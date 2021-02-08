@@ -215,6 +215,7 @@ void UPlaneCutTool::Setup()
 		Preview->InvalidateResult();
 	}
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Plane Cut"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartPlaneCutTool", "Press 'A' or use the Cut button to cut the mesh without leaving the tool.  When grid snapping is enabled, you can toggle snapping with the shift key."),
 		EToolMessageLevel::UserNotification);

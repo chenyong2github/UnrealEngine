@@ -84,6 +84,7 @@ void UGroupEdgeInsertionTool::Setup()
 		return;
 	}
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Insert PolyEdge"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("GroupEdgeInsertionToolDescription", "Click two points on the boundary of a face to insert a new edge between the points and split the face."),
 		EToolMessageLevel::UserNotification);

@@ -130,7 +130,7 @@ class MESHMODELINGTOOLS_API USmoothMeshTool : public UBaseMeshProcessingTool
 	GENERATED_BODY()
 
 public:
-	USmoothMeshTool() = default;
+	USmoothMeshTool();
 
 	virtual void InitializeProperties() override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;

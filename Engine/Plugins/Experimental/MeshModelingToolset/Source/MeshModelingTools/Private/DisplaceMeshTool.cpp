@@ -875,6 +875,7 @@ void UDisplaceMeshTool::Setup()
 
 	StartComputation();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Displace"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartDisplaceMesh", "Subdivide and Displace the input mesh using different noise functions and maps"),
 		EToolMessageLevel::UserNotification);

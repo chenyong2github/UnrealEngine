@@ -73,6 +73,7 @@ UDrawPolygonTool::UDrawPolygonTool()
 	DrawPlaneOrigin = FVector3d::Zero();
 	DrawPlaneOrientation = FQuaterniond::Identity();
 	bInInteractiveExtrude = false;
+	SetToolDisplayName(LOCTEXT("ToolName", "Extrude Polygon"));
 }
 
 void UDrawPolygonTool::SetWorld(UWorld* World)

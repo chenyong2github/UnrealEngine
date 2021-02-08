@@ -160,6 +160,7 @@ void USubdividePolyTool::CapSubdivisionLevel(ESubdivisionScheme Scheme, int Desi
 void USubdividePolyTool::Setup()
 {
 	UInteractiveTool::Setup();
+	SetToolDisplayName(LOCTEXT("ToolName", "Subdivide"));
 
 	if (!ComponentTarget)
 	{

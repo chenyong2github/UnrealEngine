@@ -103,6 +103,7 @@ void UExtractCollisionGeometryTool::Setup()
 	}
 
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Collision To Mesh"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Convert Collision geometry to Static Mesh"),
 		EToolMessageLevel::UserNotification);

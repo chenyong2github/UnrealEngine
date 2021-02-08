@@ -83,7 +83,7 @@ URemoveOccludedTrianglesAdvancedProperties::URemoveOccludedTrianglesAdvancedProp
 
 URemoveOccludedTrianglesTool::URemoveOccludedTrianglesTool()
 {
-	SetToolDisplayName(LOCTEXT("ProjectToTargetToolName", "Jacketing Tool"));
+	SetToolDisplayName(LOCTEXT("ProjectToTargetToolName", "Jacket"));
 }
 
 void URemoveOccludedTrianglesTool::SetWorld(UWorld* World)

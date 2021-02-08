@@ -187,6 +187,7 @@ void UMeshAttributePaintTool::Setup()
 
 	RecalculateBrushRadius();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Paint WeightMaps"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartAttribPaint", "Paint per-vertex attribute maps. Ctrl to Erase/Subtract, Shift to Smooth"),
 		EToolMessageLevel::UserNotification);

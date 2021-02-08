@@ -838,7 +838,7 @@ inline void FGroupTopologyLaplacianDeformer::Shutdown()
 
 UDeformMeshPolygonsTool::UDeformMeshPolygonsTool()
 {
-	SetToolDisplayName(LOCTEXT("DeformPolygroupsToolName", "Deform Polygroups"));
+	SetToolDisplayName(LOCTEXT("DeformPolygroupsToolName", "PolyGroup Deform"));
 }
 
 void UDeformMeshPolygonsTool::Setup()

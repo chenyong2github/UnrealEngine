@@ -28,7 +28,7 @@ void UCSGMeshesTool::SetupProperties()
 		TrimProperties->RestoreProperties(this);
 		AddToolPropertySource(TrimProperties);
 
-		SetToolDisplayName(LOCTEXT("TrimMeshesToolName", "Trim Meshes Tool"));
+		SetToolDisplayName(LOCTEXT("TrimMeshesToolName", "Trim"));
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("OnStartTrimTool", "Trim one mesh with another. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
 			EToolMessageLevel::UserNotification);
@@ -39,7 +39,7 @@ void UCSGMeshesTool::SetupProperties()
 		CSGProperties->RestoreProperties(this);
 		AddToolPropertySource(CSGProperties);
 
-		SetToolDisplayName(LOCTEXT("CSGMeshesToolName", "Mesh Boolean Tool"));
+		SetToolDisplayName(LOCTEXT("CSGMeshesToolName", "Boolean"));
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("OnStartTool", "Compute CSG Booleans on the input meshes. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
 			EToolMessageLevel::UserNotification);

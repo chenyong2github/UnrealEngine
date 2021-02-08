@@ -90,7 +90,7 @@ void UPhysicsInspectorTool::Setup()
 		}
 	}
 
-
+	SetToolDisplayName(LOCTEXT("ToolName", "Physics Inspector"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Inspect Physics data for the seleced Static Meshes"),
 		EToolMessageLevel::UserNotification);
