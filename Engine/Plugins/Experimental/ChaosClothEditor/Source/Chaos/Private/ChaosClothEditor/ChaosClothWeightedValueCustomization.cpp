@@ -5,6 +5,7 @@
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "ChaosClothEditorPrivate.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "FChaosClothWeightedValueCustomization"
 
