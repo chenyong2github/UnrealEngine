@@ -177,25 +177,6 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNV12ConvertUB, "NV12ConvertUB");
 IMPLEMENT_SHADER_TYPE(, FNV12ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("NV12ConvertPS"), SF_Pixel);
 
-
-void FNV12ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
-{
-	FNV12ConvertUB UB;
-	{
-		UB.ColorTransform = MediaShaders::CombineColorTransformAndOffset(ColorTransform, YUVOffset);
-		UB.OutputWidth = OutputDimensions.X;
-		UB.SamplerB = TStaticSamplerState<SF_Bilinear>::GetRHI();
-		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
-		UB.SrgbToLinear = SrgbToLinear;
-		UB.SRV_Y = RHICreateShaderResourceView(NV12Texture, 0, 1, PF_G8);
-		UB.SRV_UV = RHICreateShaderResourceView(NV12Texture, 0, 1, PF_R8G8);
-		UB.UVScale = FVector2D((float)OutputDimensions.X / (float)NV12Texture->GetSizeX(), (float)OutputDimensions.Y / (float)NV12Texture->GetSizeY());
-	}
-
-	TUniformBufferRef<FNV12ConvertUB> Data = TUniformBufferRef<FNV12ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
-	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FNV12ConvertUB>(), Data);
-}
-
 void FNV12ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint & TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear)
 {
 	FNV12ConvertUB UB;

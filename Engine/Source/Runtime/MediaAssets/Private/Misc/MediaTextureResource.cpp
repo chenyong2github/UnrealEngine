@@ -742,6 +742,9 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 
 			bool bIsSampleOutputSrgb = Sample->IsOutputSrgb();
 
+			// Temporary SRV variables to hold references for the draw
+			FShaderResourceViewRHIRef TempSRV0, TempSRV1;
+
 			// Use the sample format to choose the conversion path
 			switch (Sample->GetFormat())
 			{
@@ -771,7 +774,10 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 						TShaderMapRef<FNV12ConvertPS> ConvertShader(ShaderMap);
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 						SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-						ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
+						FIntPoint TexDim = InputTexture->GetSizeXY();
+						TempSRV0 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G8);
+						TempSRV1 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_R8G8);
+						ConvertShader->SetParameters(CommandList, TexDim, TempSRV0, TempSRV1, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 					}
 					else
 					{
