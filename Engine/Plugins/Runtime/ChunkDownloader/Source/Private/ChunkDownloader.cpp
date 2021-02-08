@@ -1764,8 +1764,8 @@ void FChunkDownloader::DownloadChunks(const TArray<int32>& ChunkIds, const FCall
 			DownloadChunkInternal(*Chunk, MultiCallback->AddPending(), Priority);
 		}
 		check(MultiCallback->GetNumPending() > 0);
-	}  //-V773
-	else
+	} //-V773
+	else //-V773
 	{
 		// no need to manage callbacks
 		for (const TSharedRef<FChunk>& Chunk : ChunksToDownload)
@@ -1850,7 +1850,7 @@ void FChunkDownloader::MountChunks(const TArray<int32>& ChunkIds, const FCallbac
 		}
 		check(MultiCallback->GetNumPending() > 0);
 	} //-V773
-	else
+	else //-V773
 	{
 		// no need to manage callbacks
 		for (const TSharedRef<FChunk>& Chunk : ChunksToMount)
