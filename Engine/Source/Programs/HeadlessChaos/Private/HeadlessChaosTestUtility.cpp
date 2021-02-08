@@ -702,6 +702,28 @@ namespace ChaosTest {
 		}
 	}
 
+	FImplicitConvex3 CreateConvexBox(const FVec3& BoxSize, const FReal Margin)
+	{
+		const FVec3 HalfSize = 0.5f * BoxSize;
+
+		TArray<FVec3> BoxVerts =
+		{
+			FVec3(-HalfSize.X, -HalfSize.Y, -HalfSize.Z),
+			FVec3(-HalfSize.X,  HalfSize.Y, -HalfSize.Z),
+			FVec3(HalfSize.X,  HalfSize.Y, -HalfSize.Z),
+			FVec3(HalfSize.X, -HalfSize.Y, -HalfSize.Z),
+			FVec3(-HalfSize.X, -HalfSize.Y,  HalfSize.Z),
+			FVec3(-HalfSize.X,  HalfSize.Y,  HalfSize.Z),
+			FVec3(HalfSize.X,  HalfSize.Y,  HalfSize.Z),
+			FVec3(HalfSize.X, -HalfSize.Y,  HalfSize.Z),
+		};
+
+		TParticles<FReal, 3> BoxParticles(MoveTemp(BoxVerts));
+
+		return FImplicitConvex3(BoxParticles, Margin);
+	}
+
+
 	TImplicitObjectScaled<FImplicitConvex3> CreateScaledConvexBox(const FVec3& BoxSize, const FVec3 BoxScale, const FReal Margin)
 	{
 		const FVec3 HalfSize = 0.5f * BoxSize;

@@ -652,11 +652,84 @@ namespace ChaosTest {
 		}
 	}
 
+	TEST(ImplicitTests, TestImplicitConvex_PhiWithNormal_Penetrating)
+	{
+		const FVec3 Size = FVec3(500, 500, 100);
+		FImplicitConvex3 Convex = CreateConvexBox(Size, 10);
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 Point = FVec3(0.5f * Size.X, 0.0f, 0.5f * Size.Z) - FVec3(10, 0, 1);
+			FVec3 Normal;
+			FReal Phi = Convex.PhiWithNormal(Point, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, -1.0f, 1.e-4f);
+		}
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 Point = FVec3(0.5f * Size.X, 0.0f, 0.5f * Size.Z) - FVec3(3, 0, 1);
+			FVec3 Normal;
+			FReal Phi = Convex.PhiWithNormal(Point, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, -1.0f, 1.e-4f);
+		}
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 Point = FVec3(0.5f * Size.X, 0.0f, 0.5f * Size.Z) - FVec3(1, 0, 0.1);
+			FVec3 Normal;
+			FReal Phi = Convex.PhiWithNormal(Point, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, -0.1f, 1.e-4f);
+		}
+	}
+
+	TEST(ImplicitTests, TestImplicitConvex_PhiWithNormal_Separated)
+	{
+		const FVec3 Size = FVec3(500, 500, 100);
+		FImplicitConvex3 Convex = CreateConvexBox(Size, 10);
+		{
+			const FVec3 Offset = FVec3(10, 0, 1);
+			const FVec3 Point = FVec3(0.5f * Size.X, 0.5f * Size.Y, 0.5f * Size.Z) + Offset;
+			FVec3 Normal;
+			FReal Phi = Convex.PhiWithNormal(Point, Normal);
+			const FVec3 ExpectedNormal = Offset.GetUnsafeNormal();
+			const FReal ExpectedPhi = Offset.Size();
+			EXPECT_NEAR(Normal.X, ExpectedNormal.X, 1.e-4f);
+			EXPECT_NEAR(Normal.Y, ExpectedNormal.Y, 1.e-4f);
+			EXPECT_NEAR(Normal.Z, ExpectedNormal.Z, 1.e-4f);
+			EXPECT_NEAR(Phi, ExpectedPhi, 1.e-4f);
+		}
+		{
+			const FVec3 Offset = FVec3(3, 2, 1);
+			const FVec3 Point = FVec3(0.5f * Size.X, 0.5f * Size.Y, 0.5f * Size.Z) + Offset;
+			FVec3 Normal;
+			FReal Phi = Convex.PhiWithNormal(Point, Normal);
+			const FVec3 ExpectedNormal = Offset.GetUnsafeNormal();
+			const FReal ExpectedPhi = Offset.Size();
+			EXPECT_NEAR(Normal.X, ExpectedNormal.X, 1.e-4f);
+			EXPECT_NEAR(Normal.Y, ExpectedNormal.Y, 1.e-4f);
+			EXPECT_NEAR(Normal.Z, ExpectedNormal.Z, 1.e-4f);
+			EXPECT_NEAR(Phi, ExpectedPhi, 1.e-4f);
+		}
+		{
+			const FVec3 Offset = FVec3(0, 1, 1);
+			const FVec3 Point = FVec3(0.5f * Size.X, 0.5f * Size.Y, 0.5f * Size.Z) + Offset;
+			FVec3 Normal;
+			FReal Phi = Convex.PhiWithNormal(Point, Normal);
+			const FVec3 ExpectedNormal = Offset.GetUnsafeNormal();
+			const FReal ExpectedPhi = Offset.Size();
+			EXPECT_NEAR(Normal.X, ExpectedNormal.X, 1.e-4f);
+			EXPECT_NEAR(Normal.Y, ExpectedNormal.Y, 1.e-4f);
+			EXPECT_NEAR(Normal.Z, ExpectedNormal.Z, 1.e-4f);
+			EXPECT_NEAR(Phi, ExpectedPhi, 1.e-4f);
+		}
+	}
+
+
 	// Check that PhiWithNormal works properly on Scaled Convex.
 	// There was a bug where scaled convexed would bias face selection based on the 
 	// scale, so a unit box scaled by 5 in the X would report the +X face as the 
 	// contact face for the position (0.4, 0.0, 4.8) even though the +Z face is closer.
-	TEST(ImplicitTests, TestImplicitScaledConvex)
+	TEST(ImplicitTests, TestImplicitScaledConvex_PhiWithNormal_Penetrating)
 	{
 		const FVec3 Size = FVec3(500, 500, 100);
 		const FVec3 Scale = FVec3(5, 5, 1);
@@ -665,27 +738,84 @@ namespace ChaosTest {
 
 		{
 			// Near point just inside the top face, near the forward edge
-			const FVec3 NearTopRight = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(10, 0, 1);
+			const FVec3 Point = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(10, 0, 1);
 			FVec3 Normal;
-			FReal Phi = ScaledConvex.PhiWithNormal(NearTopRight, Normal);
+			FReal Phi = ScaledConvex.PhiWithNormal(Point, Normal);
 			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
 			EXPECT_NEAR(Phi, -1.0f, 1.e-4f);
 		}
 		{
 			// Near point just inside the top face, near the forward edge
-			const FVec3 NearTopRight = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(3, 0, 1);
+			const FVec3 Point = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(3, 0, 1);
 			FVec3 Normal;
-			FReal Phi = ScaledConvex.PhiWithNormal(NearTopRight, Normal);
+			FReal Phi = ScaledConvex.PhiWithNormal(Point, Normal);
 			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
 			EXPECT_NEAR(Phi, -1.0f, 1.e-4f);
 		}
 		{
 			// Near point just inside the top face, near the forward edge
-			const FVec3 NearTopRight = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(1, 0, 0.1);
+			const FVec3 Point = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) - FVec3(1, 0, 0.1);
 			FVec3 Normal;
-			FReal Phi = ScaledConvex.PhiWithNormal(NearTopRight, Normal);
+			FReal Phi = ScaledConvex.PhiWithNormal(Point, Normal);
 			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
 			EXPECT_NEAR(Phi, -0.1f, 1.e-4f);
+		}
+	}
+
+	TEST(ImplicitTests, TestImplicitScaledConvex_PhiWithNormal_Separated)
+	{
+		const FVec3 Size = FVec3(500, 500, 100);
+		const FVec3 Scale = FVec3(5, 5, 1);
+		const FVec3 ScaledSize = Scale * Size;
+		TImplicitObjectScaled<FImplicitConvex3> ScaledConvex = CreateScaledConvexBox(Size, Scale, 10);
+
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 Point = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) + FVec3(-10, 0, 1);
+			FVec3 Normal;
+			FReal Phi = ScaledConvex.PhiWithNormal(Point, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, 1.0f, 1.e-4f);
+		}
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 Point = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) + FVec3(-3, 0, 1);
+			FVec3 Normal;
+			FReal Phi = ScaledConvex.PhiWithNormal(Point, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, 1.0f, 1.e-4f);
+		}
+		{
+			// Near point just inside the top face, near the forward edge
+			const FVec3 Point = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) + FVec3(-1, 0, 0.1);
+			FVec3 Normal;
+			FReal Phi = ScaledConvex.PhiWithNormal(Point, Normal);
+			EXPECT_NEAR(Normal.Z, 1.0f, 1.e-4f);
+			EXPECT_NEAR(Phi, 0.1f, 1.e-4f);
+		}
+		{
+			// Point outside the face edge 
+			const FVec3 Point = FVec3(0.5f * ScaledSize.X, 0.0f, 0.5f * ScaledSize.Z) + FVec3(1, 0, 1);
+			FVec3 Normal;
+			FReal Phi = ScaledConvex.PhiWithNormal(Point, Normal);
+			const FVec3 ExpectedNormal = FVec3(1, 0, 1).GetUnsafeNormal();
+			const FReal ExpectedPhi = FVec3(1, 0, 1).Size();
+			EXPECT_NEAR(Normal.X, ExpectedNormal.X, 1.e-4f);
+			EXPECT_NEAR(Normal.Y, ExpectedNormal.Y, 1.e-4f);
+			EXPECT_NEAR(Normal.Z, ExpectedNormal.Z, 1.e-4f);
+			EXPECT_NEAR(Phi, ExpectedPhi, 1.e-4f);
+		}
+		{
+			// Point outside the face corner 
+			const FVec3 Point = FVec3(0.5f * ScaledSize.X, 0.5f * ScaledSize.Y, 0.5f * ScaledSize.Z) + FVec3(3, 2, 1);
+			FVec3 Normal;
+			FReal Phi = ScaledConvex.PhiWithNormal(Point, Normal);
+			const FVec3 ExpectedNormal = FVec3(3, 2, 1).GetUnsafeNormal();
+			const FReal ExpectedPhi = FVec3(3, 2, 1).Size();
+			EXPECT_NEAR(Normal.X, ExpectedNormal.X, 1.e-4f);
+			EXPECT_NEAR(Normal.Y, ExpectedNormal.Y, 1.e-4f);
+			EXPECT_NEAR(Normal.Z, ExpectedNormal.Z, 1.e-4f);
+			EXPECT_NEAR(Phi, ExpectedPhi, 1.e-4f);
 		}
 	}
 

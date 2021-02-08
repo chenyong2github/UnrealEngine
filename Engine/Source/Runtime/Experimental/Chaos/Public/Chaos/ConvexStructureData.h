@@ -48,6 +48,11 @@ namespace Chaos
 			return PlaneVertices.Num() > 0;
 		}
 
+		FORCEINLINE int32 NumVertices() const
+		{
+			return VertexPlanesOffsetCount.Num();
+		}
+
 		// The number of planes that use the specified vertex
 		FORCEINLINE int32 NumVertexPlanes(int32 VertexIndex) const
 		{
@@ -61,6 +66,11 @@ namespace Chaos
 
 			const int32 VertexPlaneFlatArrayIndex = VertexPlanesOffsetCount[VertexIndex].Key + VertexPlaneIndex;
 			return (int32)VertexPlanes[VertexPlaneFlatArrayIndex];
+		}
+
+		FORCEINLINE int32 NumPlanes() const
+		{
+			return PlaneVerticesOffsetCount.Num();
 		}
 
 		// The number of vertices that make up the corners of the specified face
@@ -172,20 +182,25 @@ namespace Chaos
 		TArray<FIndex> VertexPlanes;
 	};
 
-
+	using FConvexStructureDataS32 = TConvexStructureDataImp<int32, int32>;
+	using FConvexStructureDataU8 = TConvexStructureDataImp<uint8, uint16>;
 
 	// Metadata for a convex shape used by the manifold generation system and anything
 	// else that can benefit from knowing which vertices are associated with the faces.
 	class CHAOS_API FConvexStructureData
 	{
 	private:
-		FORCEINLINE const TConvexStructureDataImp<int32, int32>& Data32() const { return static_cast<TConvexStructureDataImp<int32, int32>&>(*Data); }
-		FORCEINLINE TConvexStructureDataImp<int32, int32>& Data32() { return static_cast<TConvexStructureDataImp<int32, int32>&>(*Data); }
-
-		FORCEINLINE const TConvexStructureDataImp<uint8, uint16>& Data8() const { return static_cast<TConvexStructureDataImp<uint8, uint16>&>(*Data); }
-		FORCEINLINE TConvexStructureDataImp<uint8, uint16>& Data8() { return static_cast<TConvexStructureDataImp<uint8, uint16>&>(*Data); }
+		FORCEINLINE FConvexStructureDataS32& Data32() { return static_cast<FConvexStructureDataS32&>(*Data); }
+		FORCEINLINE FConvexStructureDataU8& Data8() { return static_cast<FConvexStructureDataU8&>(*Data); }
 
 	public:
+		enum class EIndexType : int8
+		{
+			None,
+			S32,
+			U8,
+		};
+
 		FConvexStructureData()
 			: Data(nullptr)
 			, IndexType(EIndexType::None)
@@ -200,6 +215,25 @@ namespace Chaos
 		FORCEINLINE bool IsValid() const
 		{
 			return (Data != nullptr);
+		}
+
+		FORCEINLINE EIndexType GetIndexType() const
+		{
+			return IndexType;
+		}
+
+		// Only exposed for unit tests
+		FORCEINLINE const FConvexStructureDataS32& Data32() const
+		{
+			checkSlow(IndexType == EIndexType::S32);
+			return static_cast<FConvexStructureDataS32&>(*Data);
+		}
+
+		// Only exposed for unit tests
+		FORCEINLINE const FConvexStructureDataU8& Data8() const
+		{
+			checkSlow(IndexType == EIndexType::U8);
+			return static_cast<FConvexStructureDataU8&>(*Data);
 		}
 
 		// The number of planes that use the specified vertex
@@ -222,7 +256,7 @@ namespace Chaos
 		// Get the plane index (in the outer convex container) of one of the planes that uses the specified vertex
 		FORCEINLINE int32 GetVertexPlane(int32 VertexIndex, int32 VertexPlaneIndex) const
 		{
-			check(IsValid());
+			checkSlow(IsValid());
 			if (IndexType == EIndexType::S32)
 			{
 				return Data32().GetVertexPlane(VertexIndex, VertexPlaneIndex);
@@ -253,7 +287,7 @@ namespace Chaos
 		// Get the vertex index (in the outer convex container) of one of the vertices making up the corners of the specified face
 		FORCEINLINE int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
 		{
-			check(IsValid());
+			checkSlow(IsValid());
 			if (IndexType == EIndexType::S32)
 			{
 				return Data32().GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
@@ -323,13 +357,6 @@ namespace Chaos
 		}
 
 	private:
-		enum class EIndexType : int8
-		{
-			None,
-			S32,
-			U8,
-		};
-
 		// Determine the minimum index size we need for the specified convex size
 		EIndexType GetRequiredIndexType(int32 NumPlanes, int32 NumVerts)
 		{
