@@ -115,9 +115,17 @@ void CacheAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides, const TC
 	if (OutOverrides.bUseStreamCaching)
 	{
 		// Cache size:
-		int32 RetrievedCacheSize = 32 * 1024;
+		const int32 DefaultCacheSize = 32 * 1024;
+		int32 RetrievedCacheSize = DefaultCacheSize;
 		int32 RetrievedChunkSizeOverride = INDEX_NONE;
+
 		PlatformFile.GetInt(*CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize);
+		if (!RetrievedCacheSize)
+		{
+			PlatformFile.SetInt64(*CategoryName, TEXT("CacheSizeKB"), DefaultCacheSize);
+			RetrievedCacheSize = DefaultCacheSize;
+		}
+
 		OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
 
 		PlatformFile.GetInt(*CategoryName, TEXT("MaxChunkSizeOverrideKB"), RetrievedChunkSizeOverride);

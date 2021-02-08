@@ -703,6 +703,7 @@ FAudioChunkCache::FAudioChunkCache(uint32 InMaxChunkSize, uint32 NumChunks, uint
 	, MemoryLimitBytes(InMemoryLimitInBytes)
 	, bLogCacheMisses(false)
 {
+	check(NumChunks > 0);
 	CachePool.Reset(NumChunks);
 	for (uint32 Index = 0; Index < NumChunks; Index++)
 	{
