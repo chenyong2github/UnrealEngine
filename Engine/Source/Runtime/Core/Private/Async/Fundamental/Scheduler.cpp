@@ -296,11 +296,14 @@ namespace LowLevelTasks
 			{
 				bPermitBackgroundWork = true;
 			}
-			else if(!bIsBackgroundWorker)
+			else
 			{
-				WakeUpWorker(true);
-			}
-			WaitCount = 0;
+				if (!bIsBackgroundWorker)
+				{
+					WakeUpWorker(true);
+				}
+				WaitCount = 0;
+			}			
 		}
 	}
 }
