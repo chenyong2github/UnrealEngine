@@ -1178,6 +1178,20 @@ int32 FGenericPlatformMisc::NumberOfCoresIncludingHyperthreads()
 	return FPlatformMisc::NumberOfCores();
 }
 
+FProcessorGroupDesc InternalGetProcessorGroupDesc()
+{
+	FProcessorGroupDesc Desc;
+	Desc.NumProcessorGroups = 1;
+	memset(Desc.ThreadAffinities, 0xFF, sizeof(Desc.ThreadAffinities));
+	return Desc;
+}
+
+const FProcessorGroupDesc& FGenericPlatformMisc::GetProcessorGroupDesc()
+{
+	static FProcessorGroupDesc Desc = InternalGetProcessorGroupDesc();
+	return Desc;
+}
+
 int32 FGenericPlatformMisc::NumberOfWorkerThreadsToSpawn()
 {
 	static int32 MaxGameThreads = 4;

@@ -18,13 +18,14 @@ public:
 		TUniqueFunction<void()>&& InThreadFunction,
 		uint32 StackSize,
 		EThreadPriority ThreadPriority,
-		uint64 ThreadAffinityMask,
+		FThreadAffinity ThreadAffinity,
 		bool bIsForkable
 	) 
 		: ThreadFunction(MoveTemp(InThreadFunction))
-		, RunnableThread(bIsForkable ? FForkProcessHelper::CreateForkableThread(this, ThreadName, StackSize, ThreadPriority, ThreadAffinityMask)
-			: FRunnableThread::Create(this, ThreadName, StackSize, ThreadPriority, ThreadAffinityMask))
+		, RunnableThread(bIsForkable ? FForkProcessHelper::CreateForkableThread(this, ThreadName, StackSize, ThreadPriority, ThreadAffinity.ThreadAffinityMask)
+			: FRunnableThread::Create(this, ThreadName, StackSize, ThreadPriority, ThreadAffinity.ThreadAffinityMask))
 	{
+		RunnableThread->SetThreadAffinity(ThreadAffinity);
 		check(IsJoinable());
 	}
 
@@ -96,10 +97,10 @@ FThread::FThread(
 	TUniqueFunction<void()>&& ThreadFunction,
 	uint32 StackSize,
 	EThreadPriority ThreadPriority,
-	uint64 ThreadAffinityMask,
+	FThreadAffinity ThreadAffinity,
 	bool bIsForkable
 )
-	: Impl(MakeShared<FThreadImpl, ESPMode::ThreadSafe>(ThreadName, MoveTemp(ThreadFunction), StackSize, ThreadPriority, ThreadAffinityMask, bIsForkable))
+	: Impl(MakeShared<FThreadImpl, ESPMode::ThreadSafe>(ThreadName, MoveTemp(ThreadFunction), StackSize, ThreadPriority, ThreadAffinity, bIsForkable))
 {
 	Impl->Initialize(Impl);
 }

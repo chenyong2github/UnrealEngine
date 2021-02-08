@@ -110,6 +110,8 @@ public:
 		WaitForSingleObject(Thread, INFINITE);
 	}
 
+	virtual bool SetThreadAffinity(const FThreadAffinity& Affinity) override;
+
 protected:
  	static int TranslateThreadPriority(EThreadPriority Priority);
 

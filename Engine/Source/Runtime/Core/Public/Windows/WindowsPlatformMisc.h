@@ -76,6 +76,7 @@ struct CORE_API FWindowsPlatformMisc
 	static bool Is64bitOperatingSystem();
 	static bool IsValidAbsolutePathFormat(const FString& Path);
 	static int32 NumberOfCores();
+	static const FProcessorGroupDesc& GetProcessorGroupDesc();
 	static int32 NumberOfCoresIncludingHyperthreads();
 	static int32 NumberOfWorkerThreadsToSpawn();
 

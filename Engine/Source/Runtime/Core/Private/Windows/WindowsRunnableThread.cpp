@@ -108,6 +108,25 @@ uint32 FRunnableThreadWin::GuardedRun()
 	return ExitCode;
 }
 
+bool FRunnableThreadWin::SetThreadAffinity(const FThreadAffinity& Affinity)
+{
+	const FProcessorGroupDesc& ProcessorGroups = FPlatformMisc::GetProcessorGroupDesc();
+	int32 CpuGroupCount = ProcessorGroups.NumProcessorGroups;
+	check(Affinity.ProcessorGroup < CpuGroupCount);
+
+	GROUP_AFFINITY GroupAffinity = {};
+	GROUP_AFFINITY PreviousGroupAffinity = {};
+	GroupAffinity.Mask = Affinity.ThreadAffinityMask & ProcessorGroups.ThreadAffinities[Affinity.ProcessorGroup];
+	GroupAffinity.Group = Affinity.ProcessorGroup;
+	if (SetThreadGroupAffinity(Thread, &GroupAffinity, &PreviousGroupAffinity) == 0)
+	{
+		DWORD LastError = GetLastError();
+		UE_LOG( LogThreadingWindows, Warning, TEXT( "Runnable thread %s call to SetThreadAffinity failed with: 0x%x" ), *ThreadName, LastError);
+		return  false;
+	}
+	ThreadAffinityMask = Affinity.ThreadAffinityMask;
+	return PreviousGroupAffinity.Mask != GroupAffinity.Mask || PreviousGroupAffinity.Group != GroupAffinity.Group;
+};
 
 uint32 FRunnableThreadWin::Run()
 {

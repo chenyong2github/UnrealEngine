@@ -1638,7 +1638,7 @@ bool FWindowsPlatformMisc::IsValidAbsolutePathFormat(const FString& Path)
 	return bIsValid;
 }
 
-static void QueryCpuInformation(uint32& OutGroupCount, uint32& OutNumaNodeCount, uint32& OutCoreCount, uint32& OutLogicalProcessorCount, bool bForceSingleNumaNode = false)
+static void QueryCpuInformation(FProcessorGroupDesc& OutGroupDesc, uint32& OutNumaNodeCount, uint32& OutCoreCount, uint32& OutLogicalProcessorCount, bool bForceSingleNumaNode = false)
 {
 	GROUP_AFFINITY FilterGroupAffinity = {};
 
@@ -1652,7 +1652,7 @@ static void QueryCpuInformation(uint32& OutGroupCount, uint32& OutNumaNodeCount,
 		GetNumaNodeProcessorMaskEx(NodeNumber, &FilterGroupAffinity);
 	}
 
-	OutGroupCount = OutNumaNodeCount = OutCoreCount = OutLogicalProcessorCount = 0;
+	OutNumaNodeCount = OutCoreCount = OutLogicalProcessorCount = 0;
 	uint8* BufferPtr = nullptr;
 	DWORD BufferBytes = 0;
 
@@ -1711,7 +1711,11 @@ static void QueryCpuInformation(uint32& OutGroupCount, uint32& OutNumaNodeCount,
 
 					if (ProcessorInfo->Relationship == RelationGroup)
 					{
-						OutGroupCount = ProcessorInfo->Group.ActiveGroupCount;
+						OutGroupDesc.NumProcessorGroups = FMath::Min<uint16>(FProcessorGroupDesc::MaxNumProcessorGroups, ProcessorInfo->Group.ActiveGroupCount);
+						for(int32 GroupIndex = 0; GroupIndex < OutGroupDesc.NumProcessorGroups; GroupIndex++)
+						{
+							OutGroupDesc.ThreadAffinities[GroupIndex] = ProcessorInfo->Group.GroupInfo[GroupIndex].ActiveProcessorMask;
+						}
 					}
 
 					InfoPtr += ProcessorInfo->Size;
@@ -1728,11 +1732,11 @@ int32 FWindowsPlatformMisc::NumberOfCores()
 	static int32 CoreCount = 0;
 	if (CoreCount == 0)
 	{
-		uint32 NumGroups = 0;
+		FProcessorGroupDesc GroupDesc;
 		uint32 NumaNodeCount = 0;
 		uint32 NumCores = 0;
 		uint32 LogicalProcessorCount = 0;
-		QueryCpuInformation(NumGroups, NumaNodeCount, NumCores, LogicalProcessorCount);
+		QueryCpuInformation(GroupDesc, NumaNodeCount, NumCores, LogicalProcessorCount);
 
 		if (FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), TEXT("usehyperthreading")))
 		{
@@ -1755,16 +1759,32 @@ int32 FWindowsPlatformMisc::NumberOfCores()
 	return CoreCount;
 }
 
+FProcessorGroupDesc NumberOfProcessorGroupsInternal()
+{
+	FProcessorGroupDesc GroupDesc;
+	uint32 NumaNodeCount = 0;
+	uint32 NumCores = 0;
+	uint32 LogicalProcessorCount = 0;
+	QueryCpuInformation(GroupDesc, NumaNodeCount, NumCores, LogicalProcessorCount);
+	return GroupDesc;
+}
+
+const FProcessorGroupDesc& FWindowsPlatformMisc::GetProcessorGroupDesc()
+{
+	static FProcessorGroupDesc GroupDesc(NumberOfProcessorGroupsInternal());
+	return GroupDesc;
+}
+
 int32 FWindowsPlatformMisc::NumberOfCoresIncludingHyperthreads()
 {
 	static int32 CoreCount = 0;
 	if (CoreCount == 0)
 	{
-		uint32 NumGroups = 0;
+		FProcessorGroupDesc GroupDesc;
 		uint32 NumaNodeCount = 0;
 		uint32 NumCores = 0;
 		uint32 LogicalProcessorCount = 0;
-		QueryCpuInformation(NumGroups, NumaNodeCount, NumCores, LogicalProcessorCount);
+		QueryCpuInformation(GroupDesc, NumaNodeCount, NumCores, LogicalProcessorCount);
 
 		CoreCount = LogicalProcessorCount;
 
@@ -1801,7 +1821,7 @@ int32 FWindowsPlatformMisc::NumberOfWorkerThreadsToSpawn()
 	static int32 MaxServerWorkerThreads = 4;
 
 	extern CORE_API int32 GUseNewTaskBackend;
-	int32 MaxWorkerThreads = GUseNewTaskBackend ? 62 : 26; //Windows Thread Group limit is 64
+	int32 MaxWorkerThreads = GUseNewTaskBackend ? INT32_MAX : 26;
 
 	int32 NumberOfCores = FWindowsPlatformMisc::NumberOfCores();
 	int32 NumberOfCoresIncludingHyperthreads = FWindowsPlatformMisc::NumberOfCoresIncludingHyperthreads();

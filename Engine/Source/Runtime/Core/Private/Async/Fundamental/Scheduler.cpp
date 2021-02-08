@@ -43,6 +43,29 @@ namespace LowLevelTasks
 		const uint32 WaitTimes[8] = { 23, 31, 41, 37, 47, 29, 19, 43 };
 		uint32 WaitTime = WaitTimes[WorkerId % 8];
 		uint64 ThreadAffinityMask = FPlatformAffinity::GetTaskGraphThreadMask();
+
+		const FProcessorGroupDesc& ProcessorGroups = FPlatformMisc::GetProcessorGroupDesc();
+		int32 CpuGroupCount = ProcessorGroups.NumProcessorGroups;
+		uint16 CpuGroup = 0;
+
+		//offset the firt set of workers to leave space for Game, RHI and Renderthread.
+		uint64 GroupWorkerId = WorkerId + 2;
+		for (uint16 GroupIndex = 0; GroupIndex < CpuGroupCount; GroupIndex++)
+		{
+			CpuGroup = GroupIndex;
+
+			uint32 CpusInGroup = FMath::CountBits(ProcessorGroups.ThreadAffinities[GroupIndex]);
+			if(GroupWorkerId < CpusInGroup)
+			{
+				if (CpuGroup != 0) //pin larger groups workers to a core and leave first group as is for legacy reasons
+				{
+					ThreadAffinityMask = 1ull << GroupWorkerId;
+				}		
+				break;
+			}
+			GroupWorkerId -= CpusInGroup;
+		}
+		
 		return MakeUnique<FThread>
 		(
 			bPermitBackgroundWork ? *FString::Printf(TEXT("Background Worker #%d"), WorkerId) : *FString::Printf(TEXT("Foreground Worker #%d"), WorkerId),
@@ -50,7 +73,7 @@ namespace LowLevelTasks
 			{ 
 				FSleepEvent Event;
 				WorkerMain(&Event, ExternalWorkerLocalQueue, WaitTime, bPermitBackgroundWork);
-			}, 0, Priority, ThreadAffinityMask
+			}, 0, Priority, FThreadAffinity{ ThreadAffinityMask & ProcessorGroups.ThreadAffinities[CpuGroup], CpuGroup }, bIsForkable
 		);
 	}
 

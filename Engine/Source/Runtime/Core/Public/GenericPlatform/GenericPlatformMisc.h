@@ -333,6 +333,13 @@ enum class ENetworkConnectionType : uint8
  */
 CORE_API const TCHAR* LexToString( ENetworkConnectionType Target );
 
+struct FProcessorGroupDesc 
+{
+	static constexpr uint16 MaxNumProcessorGroups = 16;
+	uint64 ThreadAffinities[MaxNumProcessorGroups] = {}; 
+	uint16 NumProcessorGroups = 0;
+};
+
 /**
  * Generic implementation for most platforms
  */
@@ -859,6 +866,11 @@ public:
 	{
 		return 1;
 	}
+
+	/**
+	* @return a description of all the groups in the current system and their affinities
+	*/
+	static const FProcessorGroupDesc& GetProcessorGroupDesc();
 
 	/**
 	 * return the number of logical CPU cores

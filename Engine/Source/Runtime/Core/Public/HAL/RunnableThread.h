@@ -57,6 +57,15 @@ public:
 	virtual void SetThreadPriority( EThreadPriority NewPriority ) = 0;
 
 	/**
+	* Changes the thread affinity of the currently running thread
+	*
+	* @param ThreadAffinityMask The thread affinity to change to (can be 0 to keep previously set affinity mask)
+	* @param ProcessorGroup The thread group to change to
+	* @return returns true if the affinity changed, false if affinity did not change
+	*/
+	virtual bool SetThreadAffinity( const FThreadAffinity& Affinity ) { return false; };
+
+	/**
 	 * Tells the thread to either pause execution or resume depending on the
 	 * passed in value.
 	 *
