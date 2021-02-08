@@ -128,14 +128,12 @@ bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
 {
 	bool bShouldDestroyActor = false;
 
-	UWorld* World = InLODActor->GetWorld();
-
 	if (!InLODActor->GetLevel()->GetWorldSettings()->bEnableHierarchicalLODSystem || InLODActor->GetLevel()->GetWorldSettings()->GetHierarchicalLODSetup().Num() == 0)
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s found in map with no HLOD setup or disabled HLOD system. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
 		bShouldDestroyActor = true;
 	}
-	else if (!InLODActor->GetProxy() || InLODActor->GetProxy()->GetMap() != TSoftObjectPtr<UWorld>(World))
+	else if (!InLODActor->GetProxy() || InLODActor->GetProxy()->GetMap() != TSoftObjectPtr<UWorld>(InLODActor->GetLevel()->GetTypedOuter<UWorld>()))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s with invalid HLODProxy. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
 		bShouldDestroyActor = true;
@@ -148,7 +146,7 @@ bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
 
 	if (bShouldDestroyActor)
 	{
-		World->EditorDestroyActor(InLODActor, true);
+		InLODActor->GetWorld()->EditorDestroyActor(InLODActor, true);
 	}
 
 	return bShouldDestroyActor;
