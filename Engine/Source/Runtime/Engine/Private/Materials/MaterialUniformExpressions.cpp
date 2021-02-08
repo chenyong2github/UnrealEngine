@@ -79,7 +79,7 @@ static bool HasMaterialLayers(const FMaterial& InMaterial)
 	{
 		return false;
 	}
-	const UMaterial* Material = MI->GetMaterial();
+	const UMaterial* Material = MI->GetMaterial_Concurrent();
 	if (!Material)
 	{
 		return false;
