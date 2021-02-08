@@ -7,6 +7,7 @@
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
 #define SUPPORT_CONTACT_SHADOWS 0
+#define USE_IES_PROFILE 1
 #include "../DeferredLightingCommon.ush"
 #include "../VolumeLightingCommon.ush"
 #define FILTER_DIRECTIONAL_LIGHT_SHADOWING 1
@@ -64,6 +65,7 @@ float SDFSurfaceBiasScale;
 float VirtualShadowMapSurfaceBias;
 uint ForceOffscreenShadowing;
 int VirtualShadowMapId;
+uint UseIESProfile;
 
 #if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
 Texture2D<float> ShadowMaskAtlas;
@@ -296,6 +298,11 @@ void LumenCardDirectLightingPS(
 				#if LIGHT_FUNCTION
 					ShadowFactor *= GetLightFunction(WorldPosition);
 				#endif
+
+				if (UseIESProfile > 0)
+				{
+					ShadowFactor *= ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+				}
 
 				float NoL = saturate(dot(WorldNormal, L));
 				Irradiance = LightColor * (CombinedAttenuation * NoL * ShadowFactor);

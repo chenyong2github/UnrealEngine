@@ -159,6 +159,9 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		SHADER_PARAMETER(int32, VirtualShadowMapId)
 		SHADER_PARAMETER(uint32, ForceOffscreenShadowing)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>,ShadowMaskAtlas)
+		SHADER_PARAMETER(uint32, UseIESProfile)
+		SHADER_PARAMETER_TEXTURE(Texture2D,IESTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,IESTextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDynamicallyShadowed	: SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
@@ -551,6 +554,23 @@ void RenderDirectLightIntoLumenCards(
 		if (bLumenUseHardwareRayTracedShadow)
 		{
 			PassParameters->PS.ShadowMaskAtlas = LumenDirectLightingHardwareRayTracingData.ShadowMaskAtlas;
+		}
+
+		{
+			FTexture* IESTextureResource = LightSceneInfo->Proxy->GetIESTextureResource();
+
+			if (View.Family->EngineShowFlags.TexturedLightProfiles && IESTextureResource)
+			{
+				PassParameters->PS.UseIESProfile = 1;
+				PassParameters->PS.IESTexture = IESTextureResource->TextureRHI;
+			}
+			else
+			{
+				PassParameters->PS.UseIESProfile = 0;
+				PassParameters->PS.IESTexture = GWhiteTexture->TextureRHI;
+			}
+
+			PassParameters->PS.IESTextureSampler = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 		}
 	}
 
