@@ -104,7 +104,7 @@ namespace LowLevelTasks
 		};
 		using FEventQueueType = FAAArrayQueue<FSleepEvent>;
 
-	private:
+	public:
 		FScheduler() = default;
 		~FScheduler();
 
