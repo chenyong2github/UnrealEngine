@@ -408,6 +408,14 @@ void FControlRigBindingHelper::BindToSequencerInstance(UControlRig* ControlRig)
 void FControlRigBindingHelper::UnBindFromSequencerInstance(UControlRig* ControlRig)
 {
 	check(ControlRig);
+
+	if (!ControlRig->IsValidLowLevel() ||
+	    ControlRig->HasAnyFlags(RF_BeginDestroyed) ||
+		ControlRig->IsPendingKill())
+	{
+		return;
+	}
+	
 	if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 	{
 		// todo: how do we reset the state?
@@ -415,9 +423,23 @@ void FControlRigBindingHelper::UnBindFromSequencerInstance(UControlRig* ControlR
 	}
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 	{
+		if (!SkeletalMeshComponent->IsValidLowLevel() ||
+			SkeletalMeshComponent->HasAnyFlags(RF_BeginDestroyed) ||
+			SkeletalMeshComponent->IsPendingKill())
+		{
+			return;
+		}
+
 		UControlRigLayerInstance* AnimInstance = Cast<UControlRigLayerInstance>(SkeletalMeshComponent->GetAnimInstance());
 		if (AnimInstance)
 		{
+			if (!AnimInstance->IsValidLowLevel() ||
+                AnimInstance->HasAnyFlags(RF_BeginDestroyed) ||
+                AnimInstance->IsPendingKill())
+			{
+				return;
+			}
+
 			AnimInstance->ResetNodes();
 			AnimInstance->RecalcRequiredBones();
 			AnimInstance->RemoveControlRigTrack(ControlRig->GetUniqueID());
