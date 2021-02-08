@@ -111,7 +111,7 @@ public:
 	* @param NewNameStr		The new name of the graph
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
-	static void RenameGraph(UEdGraph* Graph, const FString& NewNameStr);
+	static void RenameGraph(UEdGraph* Graph, const FString& NewNameStr = FString(TEXT("NewGraph")));
 
 	/**
 	* Gets the UBlueprint version of the given object if possible.

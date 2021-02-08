@@ -395,10 +395,31 @@ void UBlueprintEditorLibrary::RenameGraph(UEdGraph* Graph, const FString& NewNam
 {
 	if (!Graph)
 	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Invalid graph given, failed to rename!"));
 		return;
 	}
-		
-	FBlueprintEditorUtils::RenameGraph(Graph, NewNameStr);
+	
+	// Validate that the given name is appropriate for a new function graph
+	UBlueprint* BP = FBlueprintEditorUtils::FindBlueprintForGraph(Graph);
+	if (!BP)
+	{
+		UE_LOG(LogBlueprintEditorLib, Warning, TEXT("Failed to find blueprint for graph!"));
+		return;
+	}
+
+	FString ValidatedNewName;
+
+	if (FKismetNameValidator(BP).IsValid(NewNameStr) == EValidatorResult::Ok)
+	{
+		ValidatedNewName = NewNameStr;
+	}
+	else
+	{
+		static const FString RenamedGraphString = TEXT("NewGraph");
+		ValidatedNewName = FBlueprintEditorUtils::FindUniqueKismetName(BP, !NewNameStr.IsEmpty() ? NewNameStr : RenamedGraphString).ToString();
+	}
+
+	FBlueprintEditorUtils::RenameGraph(Graph, ValidatedNewName);
 }
 
 UBlueprint* UBlueprintEditorLibrary::GetBlueprintAsset(UObject* Object)
