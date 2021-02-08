@@ -13,6 +13,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Windows/WindowsPlatformOutputDevices.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "Templates/RefCounting.h"
 
 // Resource includes.
 #include "Runtime/Launch/Resources/Windows/Resource.h"
@@ -335,7 +336,7 @@ int32 FWindowsPlatformApplicationMisc::GetMonitorDPI(const FMonitorInfo& Monitor
 
 // Looks for an adapter with >= 512 MB of dedicated video memory and assumes we use it.
 bool FWindowsPlatformApplicationMisc::ProbablyHasIntegratedGPU()
-{
+{ 
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
 	if (CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&DXGIFactory1) != S_OK || !DXGIFactory1)
 	{
