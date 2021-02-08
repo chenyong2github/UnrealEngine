@@ -2638,12 +2638,14 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 
 bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 {
-	if (CurrentAsyncOpFilterConfigurator == nullptr)
+	FFilterConfigurator* FilterConfiguratorToUse = bRunInAsyncMode ? CurrentAsyncOpFilterConfigurator : FilterConfigurator.Get();
+
+	if (FilterConfiguratorToUse == nullptr)
 	{
 		return true;
 	}
 
-	if (CurrentAsyncOpFilterConfigurator->GetRootNode()->GetChildren().Num() == 0)
+	if (FilterConfiguratorToUse->GetRootNode()->GetChildren().Num() == 0)
 	{
 		return true;
 	}
@@ -2675,27 +2677,28 @@ bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 		}
 	}
 
-	return ApplyCustomAdvancedFilters(NodePtr) && CurrentAsyncOpFilterConfigurator->ApplyFilters(Context);
+	return ApplyCustomAdvancedFilters(NodePtr) && FilterConfiguratorToUse->ApplyFilters(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STableTreeView::OnAdvancedFiltersChangesCommited()
 {
-	// If settings have not changed, do nothing.
-	if (*FilterConfigurator == *CurrentAsyncOpFilterConfigurator)
+	if (bRunInAsyncMode)
 	{
-		return;
-	}
-
-	if (!bIsUpdateRunning)
-	{
-		OnPreAsyncUpdate();
-		InProgressAsyncOperationEvent = StartApplyFiltersTask();
+		if (!bIsUpdateRunning)
+		{
+			OnPreAsyncUpdate();
+			InProgressAsyncOperationEvent = StartApplyFiltersTask();
+		}
+		else
+		{
+			CancelCurrentAsyncOp();
+		}
 	}
 	else
 	{
-		CancelCurrentAsyncOp();
+		ApplyFiltering();
 	}
 }
 

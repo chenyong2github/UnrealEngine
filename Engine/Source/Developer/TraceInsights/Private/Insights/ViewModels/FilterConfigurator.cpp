@@ -34,14 +34,19 @@ FFilterConfigurator::FFilterConfigurator(const FFilterConfigurator& Other)
 
 FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& Other)
 {
+	if (*this == Other)
+	{
+		return *this;
+	}
+
 	RootNode = MakeShared<FFilterConfiguratorNode>(*Other.RootNode);
 	RootNode->SetGroupPtrForChildren();
 	AvailableFilters = Other.AvailableFilters;
 	OnDestroyedEvent = Other.OnDestroyedEvent;
 
-	OnChangesCommitedEvent.Broadcast();
-
 	RootNode->ProcessFilter();
+
+	OnChangesCommitedEvent.Broadcast();
 
 	return *this;
 }
@@ -51,7 +56,11 @@ FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& O
 bool FFilterConfigurator::operator==(const FFilterConfigurator& Other)
 {
 	bool bIsEqual = AvailableFilters.Get() == Other.AvailableFilters.Get();
-	bIsEqual &= *RootNode == *Other.RootNode;
+	bIsEqual &= RootNode.IsValid() == Other.RootNode.IsValid();
+	if (RootNode.IsValid() && Other.RootNode.IsValid())
+	{
+		bIsEqual &= *RootNode == *Other.RootNode;
+	}
 
 	return bIsEqual;
 }
