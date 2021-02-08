@@ -61,9 +61,9 @@ static FAutoConsoleVariableRef CVarAllowSimpleLights(
 
 static TAutoConsoleVariable<int32> CVarRayTracingOcclusion(
 	TEXT("r.RayTracing.Shadows"),
-	1,
-	TEXT("0: use traditional rasterized shadow map\n")
-	TEXT("1: use ray tracing shadows (default)"),
+	0,
+	TEXT("0: use traditional rasterized shadow map (default)\n")
+	TEXT("1: use ray tracing shadows"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static int32 GShadowRayTracingSamplesPerPixel = 1;

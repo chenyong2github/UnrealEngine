@@ -358,6 +358,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bEnableRayTracing : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
+		ConsoleVariable = "r.RayTracing.Shadows", DisplayName = "Ray Tracing Shadows",
+		ToolTip = "Enables hardware ray-traced shadows."))
+		uint32 bEnableRayTracingShadows : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
 		ConsoleVariable = "r.RayTracing.UseTextureLod", DisplayName = "Texture LOD",
 		ToolTip = "Enable automatic texture mip level selection in ray tracing material shaders. Unchecked: highest resolution mip level is used for all texture (default). Checked: texture LOD is approximated based on total ray length, output resolution and texel density at hit point (ray cone method).",
 		ConfigRestartRequired = true))
