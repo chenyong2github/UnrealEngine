@@ -42,6 +42,9 @@ namespace Metasound
 			// Custom pin-related styles for non-literal types (ex. wire color, pin heads, etc.)
 			static const FName PinSubCategoryTime; // Time type
 
+			static const FText ConvertMenuName;
+			static const FText FunctionMenuName;
+
 			// Adds a node to the editor graph that corresponds to the provided node handle.
 			static UEdGraphNode* AddNode(UObject& InMetasound, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode = true);
 
@@ -52,7 +55,8 @@ namespace Metasound
 			static Frontend::FNodeHandle AddNodeHandle(UObject& InMetasound, const Frontend::FNodeClassInfo& InClassInfo, const FMetasoundFrontendNodeStyle& InNodeStyle);
 
 			// Attempts to connect graph nodes together.  Returns true if succeeded, breaks pin link and returns false if failed.
-			static bool ConnectNodes(UEdGraphPin& InInputPin, UEdGraphPin& InOutputPin);
+			// If bConnectEdPins is set, will attempt to connect the Editor Graph representation of the pins.
+			static bool ConnectNodes(UEdGraphPin& InInputPin, UEdGraphPin& InOutputPin, bool bConnectEdPins);
 
 			static FString GenerateUniqueInputName(const UObject& InMetasound, const FName InBaseName);
 
@@ -62,6 +66,16 @@ namespace Metasound
 
 			static TArray<FString> GetDataTypeNameCategories(const FName& InDataTypeName);
 
+			// Get the input handle from an input pin.  Ensures pin is an input pin.
+			// TODO: use IDs to connect rather than names. Likely need an UMetasoundEditorGraphPin
+			static Frontend::FInputHandle GetInputHandleFromPin(const UEdGraphPin* InPin);
+			static Frontend::FConstInputHandle GetConstInputHandleFromPin(const UEdGraphPin* InPin);
+
+			// Get the output handle from an output pin.  Ensures pin is an output pin.
+			// TODO: use IDs to connect rather than names. Likely need an UMetasoundEditorGraphPin
+			static Frontend::FOutputHandle GetOutputHandleFromPin(const UEdGraphPin* InPin);
+			static Frontend::FConstOutputHandle GetConstOutputHandleFromPin(const UEdGraphPin* InPin);
+
 			static UEdGraphNode* AddInput(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText& InToolTip, bool bInSelectNewNode = true);
 
 			// Adds or updates a hidden input that is set to the default literal value.  If the literal input is added, value defaults to
@@ -70,7 +84,7 @@ namespace Metasound
 			static void AddOrUpdateLiteralInput(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, UEdGraphPin& InInputPin);
 
 			// Adds an input node handle with the given class info
-			static Frontend::FNodeHandle AddInputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText* InToolTip = nullptr, const FMetasoundFrontendLiteral* InDefaultValue = nullptr);
+			static Frontend::FNodeHandle AddInputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue = nullptr);
 
 			static UEdGraphNode* AddOutput(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText& InToolTip, bool bInSelectNewNode = true);
 

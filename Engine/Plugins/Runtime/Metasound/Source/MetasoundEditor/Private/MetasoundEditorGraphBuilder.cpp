@@ -39,6 +39,9 @@ namespace Metasound
 
 		const FName FGraphBuilder::PinSubCategoryTime = "time";
 
+		const FText FGraphBuilder::ConvertMenuName = LOCTEXT("MetasoundConversionsMenu", "Conversions");
+		const FText FGraphBuilder::FunctionMenuName = LOCTEXT("MetasoundFunctionsMenu", "Functions");
+
 		namespace GraphBuilderPrivate
 		{
 			void DeleteNode(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle)
@@ -160,9 +163,65 @@ namespace Metasound
 			return NewOutputName;
 		}
 
+		Frontend::FInputHandle FGraphBuilder::GetInputHandleFromPin(const UEdGraphPin* InPin)
+		{
+			using namespace Frontend;
+
+			if (InPin && ensure(InPin->Direction == EGPD_Input))
+			{
+				if (UMetasoundEditorGraphNode* EdNode = CastChecked<UMetasoundEditorGraphNode>(InPin->GetOwningNode()))
+				{
+					FNodeHandle NodeHandle = EdNode->GetNodeHandle();
+					if (NodeHandle->IsValid())
+					{
+						TArray<FInputHandle> Inputs = NodeHandle->GetInputsWithVertexName(InPin->GetName());
+						if (ensure(Inputs.Num() == 1))
+						{
+							return Inputs[0];
+						}
+					}
+				}
+			}
+
+			return IInputController::GetInvalidHandle();
+		}
+
+		Frontend::FConstInputHandle FGraphBuilder::GetConstInputHandleFromPin(const UEdGraphPin* InPin)
+		{
+			return GetInputHandleFromPin(InPin);
+		}
+
+		Frontend::FOutputHandle FGraphBuilder::GetOutputHandleFromPin(const UEdGraphPin* InPin)
+		{
+			using namespace Frontend;
+
+			if (InPin && ensure(InPin->Direction == EGPD_Output))
+			{
+				if (UMetasoundEditorGraphNode* EdNode = CastChecked<UMetasoundEditorGraphNode>(InPin->GetOwningNode()))
+				{
+					FNodeHandle NodeHandle = EdNode->GetNodeHandle();
+					if (NodeHandle->IsValid())
+					{
+						TArray<FOutputHandle> Outputs = NodeHandle->GetOutputsWithVertexName(InPin->GetName());
+						if (ensure(Outputs.Num() == 1))
+						{
+							return Outputs[0];
+						}
+					}
+				}
+			}
+
+			return IOutputController::GetInvalidHandle();
+		}
+
+		Frontend::FConstOutputHandle FGraphBuilder::GetConstOutputHandleFromPin(const UEdGraphPin* InPin)
+		{
+			return GetOutputHandleFromPin(InPin);
+		}
+
 		UEdGraphNode* FGraphBuilder::AddInput(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText& InToolTip, bool bInSelectNewNode)
 		{
-			Frontend::FNodeHandle NodeHandle = AddInputNodeHandle(InMetasound, InName, InTypeName, InNodeStyle, &InToolTip);
+			Frontend::FNodeHandle NodeHandle = AddInputNodeHandle(InMetasound, InName, InTypeName, InNodeStyle, InToolTip);
 			return AddNode(InMetasound, NodeHandle, bInSelectNewNode);
 		}
 
@@ -172,9 +231,9 @@ namespace Metasound
 
 			const FScopedTransaction Transaction(LOCTEXT("SetMetasoundGraphNode", "Add/Update Metasound Literal Input"));
 
-			const FString& InInputName = InInputPin.GetName();
+			const FString InInputName = InInputPin.GetName();
 			TArray<FInputHandle> InputHandles = InNodeHandle->GetInputsWithVertexName(InInputName);
-			if (!ensureAlways(InputHandles.Num() == 1))
+			if (!ensure(InputHandles.Num() == 1))
 			{
 				return;
 			}
@@ -257,7 +316,7 @@ namespace Metasound
 				case ELiteralType::Invalid:
 				default:
 				{
-					ensureAlwaysMsgf(false, TEXT("Failed to set input node default: Literal type not supported"));
+					ensureMsgf(false, TEXT("Failed to set input node default: Literal type not supported"));
 					return;
 				}
 				break;
@@ -270,7 +329,7 @@ namespace Metasound
 				Style.Display.Visibility = EMetasoundFrontendNodeStyleDisplayVisibility::Hidden;
 
 				const FString NewInputName = GenerateUniqueInputName(InMetasound, "LiteralInput");
-				Frontend::FNodeHandle NewInputNode = AddInputNodeHandle(InMetasound, NewInputName, TypeName, Style, nullptr /* ToolTip */, &PinDataTypeDefaultLiteral);
+				Frontend::FNodeHandle NewInputNode = AddInputNodeHandle(InMetasound, NewInputName, TypeName, Style, FText::GetEmpty(), &PinDataTypeDefaultLiteral);
 				NewInputNode->SetNodeStyle(Style);
 
 				Frontend::FGraphHandle GraphHandle = InNodeHandle->GetOwningGraph();
@@ -278,7 +337,7 @@ namespace Metasound
 
 				const TArray<FGuid> PointIDs = GraphHandle->GetDefaultIDsForInputVertex(NewInputNode->GetNodeName());
 				// TODO: Support multiple literal point ids for arrays
-				if (ensureAlways(PointIDs.Num() == 1))
+				if (ensure(PointIDs.Num() == 1))
 				{
 					InNodeHandle->GetClassDescription();
 					const TArray<FMetasoundFrontendVertexLiteral>& Defaults = InputHandle->GetDefaults();
@@ -291,12 +350,12 @@ namespace Metasound
 				}
 
 				TArray<Metasound::Frontend::FOutputHandle> OutputHandles = NewInputNode->GetOutputs();
-				if (ensureAlways(OutputHandles.Num() == 1))
+				if (ensure(OutputHandles.Num() == 1))
 				{
 					OutputHandle = OutputHandles[0];
 				}
 
-				ensureAlways(InputHandle->Connect(*OutputHandle));
+				ensure(InputHandle->Connect(*OutputHandle));
 
 				InMetasound.PostEditChange();
 				InMetasound.MarkPackageDirty();
@@ -311,7 +370,7 @@ namespace Metasound
 					const TArray<FGuid> PointIDs = GraphHandle->GetDefaultIDsForInputVertex(InputNode->GetNodeName());
 
 					// TODO: Support multiple literal point ids for arrays
-					if (ensureAlways(PointIDs.Num() == 1))
+					if (ensure(PointIDs.Num() == 1))
 					{
 						GraphHandle->SetDefaultInputToFrontendLiteral(InputNode->GetNodeName(), PointIDs[0], TypeName, PinDataTypeDefaultLiteral);
 					}
@@ -322,7 +381,7 @@ namespace Metasound
 			}
 		}
 
-		Frontend::FNodeHandle FGraphBuilder::AddInputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText* InToolTip, const FMetasoundFrontendLiteral* InDefaultValue)
+		Frontend::FNodeHandle FGraphBuilder::AddInputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FMetasoundFrontendNodeStyle& InNodeStyle, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue)
 		{
 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
@@ -334,12 +393,9 @@ namespace Metasound
 			Description.Name = InName;
 			Description.TypeName = InTypeName;
 
-			if (InToolTip)
-			{
-				Description.Metadata.Description = *InToolTip;
-			}
+			Description.Metadata.Description = InToolTip;
 
-			FGuid PointID = GraphHandle->GetNewPointID();
+			const FGuid PointID = GraphHandle->GetNewPointID();
 
 			Description.PointIDs.Add(PointID);
 			FMetasoundFrontendVertexLiteral DefaultVertex;
@@ -347,7 +403,9 @@ namespace Metasound
 			Description.Defaults.Add(DefaultVertex);
 
 			Frontend::FNodeHandle NodeHandle = GraphHandle->AddInputVertex(Description);
-			if (ensureAlways(NodeHandle->IsValid()))
+			NodeHandle->SetNodeStyle(InNodeStyle);
+
+			if (ensure(NodeHandle->IsValid()))
 			{
 				GraphHandle->SetInputDisplayName(InName, FText::FromString(InName));
 
@@ -394,26 +452,32 @@ namespace Metasound
 			return NodeHandle;
 		}
 
-		bool FGraphBuilder::ConnectNodes(UEdGraphPin& InInputPin, UEdGraphPin& InOutputPin)
+		bool FGraphBuilder::ConnectNodes(UEdGraphPin& InInputPin, UEdGraphPin& InOutputPin, bool bConnectEdPins)
 		{
 			using namespace Metasound::Frontend;
 
-			UMetasoundEditorGraphNode* InputGraphNode = CastChecked<UMetasoundEditorGraphNode>(InInputPin.GetOwningNode());
-			FNodeHandle InputNodeHandle = InputGraphNode->GetNodeHandle();
-			TArray<FInputHandle> InputHandles = InputNodeHandle->GetInputsWithVertexName(InInputPin.GetName());
+			// When true, will recursively call back into this function
+			// from the schema if the editor pins are successfully connected
+			if (bConnectEdPins)
+			{
+				const UEdGraphSchema* Schema = InInputPin.GetSchema();
+				if (ensure(Schema))
+				{
+					return Schema->TryCreateConnection(&InInputPin, &InOutputPin);
+				}
+				else
+				{
+					return false;
+				}
+			}
 
-			UMetasoundEditorGraphNode* OutputGraphNode = CastChecked<UMetasoundEditorGraphNode>(InOutputPin.GetOwningNode());
-			FNodeHandle OutputNodeHandle = OutputGraphNode->GetNodeHandle();
-			TArray<FOutputHandle> OutputHandles = OutputNodeHandle->GetOutputsWithVertexName(InOutputPin.GetName());
-
-			if (!ensure(InputHandles.Num() == 1 && OutputHandles.Num() == 1))
+			FInputHandle InputHandle = GetInputHandleFromPin(&InInputPin);
+			FOutputHandle OutputHandle = GetOutputHandleFromPin(&InOutputPin);
+			if (!InputHandle->IsValid() || !OutputHandle->IsValid())
 			{
 				InInputPin.BreakLinkTo(&InOutputPin);
 				return false;
 			}
-
-			FInputHandle InputHandle = InputHandles[0];
-			FOutputHandle OutputHandle = OutputHandles[0];
 
 			FOutputHandle ExistingOutput = InputHandle->GetCurrentlyConnectedOutput();
 			if (ExistingOutput->IsValid())
@@ -422,7 +486,10 @@ namespace Metasound
 				const FMetasoundFrontendNodeStyle& NodeStyle = NodeHandle->GetNodeStyle();
 				if (NodeHandle->IsValid() && NodeStyle.Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
 				{
-					GraphBuilderPrivate::DeleteNode(InputGraphNode->GetMetasoundChecked(), NodeHandle);
+					if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(InInputPin.GetOwningNode()->GetGraph()))
+					{
+						GraphBuilderPrivate::DeleteNode(Graph->GetMetasoundChecked(), NodeHandle);
+					}
 				}
 			}
 
@@ -725,7 +792,7 @@ namespace Metasound
 			FEdGraphPinType PinType("MetasoundNode", NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
 			UEdGraphPin* NewPin = InEditorNode.CreatePin(EGPD_Input, PinType, FName(*InInputHandle->GetName()));
 
-			if (ensureAlways(NewPin))
+			if (ensure(NewPin))
 			{
 				NewPin->PinToolTip = InInputHandle->GetTooltip().ToString();
 				NewPin->PinType = EditorModule.FindDataType(InInputHandle->GetDataType()).PinType;
@@ -745,7 +812,7 @@ namespace Metasound
 			FEdGraphPinType PinType("MetasoundNode", NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
 			UEdGraphPin* NewPin = InEditorNode.CreatePin(EGPD_Output, PinType, FName(*InOutputHandle->GetName()));
 
-			if (ensureAlways(NewPin))
+			if (ensure(NewPin))
 			{
 				NewPin->PinToolTip = InOutputHandle->GetTooltip().ToString();
 				NewPin->PinType = EditorModule.FindDataType(InOutputHandle->GetDataType()).PinType;

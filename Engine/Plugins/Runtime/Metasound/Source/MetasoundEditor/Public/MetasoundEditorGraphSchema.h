@@ -7,7 +7,9 @@
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphUtilities.h"
+#include "MetasoundEditorModule.h"
 #include "MetasoundFrontend.h"
+#include "Templates/Function.h"
 #include "UObject/ObjectMacros.h"
 
 #include "MetasoundEditorGraphSchema.generated.h"
@@ -24,6 +26,16 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		using FInputFilterFunction = TFunction<bool(const FMetasoundFrontendClassInput&)>;
+		using FOutputFilterFunction = TFunction<bool(const FMetasoundFrontendClassOutput&)>;
+		using FDataTypeFilterFunction = TFunction<bool(const FEditorDataType&)>;
+
+		struct FActionClassFilters
+		{
+			FInputFilterFunction InputFilterFunction;
+			FOutputFilterFunction OutputFilterFunction;
+		};
+
 		struct FGraphConnectionDrawingPolicyFactory : public FGraphPanelPinConnectionFactory
 		{
 		public:
@@ -139,10 +151,6 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewNode : public FEdGraph
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
-
-private:
-	/** Connects new node to output of selected nodes */
-	void ConnectToSelectedNodes(UMetasoundEditorGraphNode* NewGraphNode, UEdGraph* ParentGraph) const;
 };
 
 /** Action to add nodes to the graph based on selected objects*/
@@ -232,8 +240,12 @@ class UMetasoundEditorGraphSchema : public UEdGraphSchema
 	//~ End EdGraphSchema Interface
 
 private:
-	/** Adds actions for creating every type of GraphNode */
-	void GetAllMetasoundActions(FGraphActionMenuBuilder& ActionMenuBuilder, bool bShowSelectedActions) const;
+	/** Adds actions for creating actions associated with graph DataTypes */
+	void GetConversionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters = Metasound::Editor::FActionClassFilters(), bool bShowSelectedActions = true) const;
+	void GetFunctionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters = Metasound::Editor::FActionClassFilters(), bool bShowSelectedActions = true) const;
+
+	void GetDataTypeInputNodeActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FDataTypeFilterFunction InFilter = Metasound::Editor::FDataTypeFilterFunction(), bool bShowSelectedActions = true) const;
+	void GetDataTypeOutputNodeActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FDataTypeFilterFunction InFilter = Metasound::Editor::FDataTypeFilterFunction(), bool bShowSelectedActions = true) const;
 
 	/** Adds action for creating a comment */
 	void GetCommentAction(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph = nullptr) const;

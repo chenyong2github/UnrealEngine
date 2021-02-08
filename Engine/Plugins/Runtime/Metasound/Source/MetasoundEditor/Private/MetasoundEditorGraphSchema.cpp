@@ -35,6 +35,56 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		bool TryConnectNewNodeToPin(UEdGraphNode& NewGraphNode, UEdGraphPin* FromPin)
+		{
+			using namespace Metasound::Frontend;
+
+			if (!FromPin)
+			{
+				return false;
+			}
+
+			if (FromPin->Direction == EGPD_Input)
+			{
+				FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(FromPin);
+				for (UEdGraphPin* Pin : NewGraphNode.Pins)
+				{
+					if (Pin->Direction == EGPD_Output)
+					{
+						FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
+						if (OutputHandle->IsValid() && OutputHandle->GetDataType() == InputHandle->GetDataType())
+						{
+							if (ensure(FGraphBuilder::ConnectNodes(*FromPin, *Pin, true /* bConnectEdPins */)))
+							{
+								return true;
+							}
+						}
+					}
+				}
+			}
+
+			if (FromPin->Direction == EGPD_Output)
+			{
+				FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(FromPin);
+				for (UEdGraphPin* Pin : NewGraphNode.Pins)
+				{
+					if (Pin->Direction == EGPD_Input)
+					{
+						FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
+						if (InputHandle->IsValid() && InputHandle->GetDataType() == OutputHandle->GetDataType())
+						{
+							if (ensure(FGraphBuilder::ConnectNodes(*Pin, *FromPin, true /* bConnectEdPins */)))
+							{
+								return true;
+							}
+						}
+					}
+				}
+			}
+
+			return false;
+		}
+
 		TSharedPtr<FEditor> GetEditorForGraph(const UObject& Metasound)
 		{
 			TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(CastChecked<const UObject>(&Metasound));
@@ -102,6 +152,40 @@ namespace Metasound
 			}
 
 			return Settings->DefaultPinTypeColor;
+		}
+
+		template <typename TAction>
+		void GetDataTypeActions(FGraphActionMenuBuilder& ActionMenuBuilder, FDataTypeFilterFunction InFilter, const FText& InCategory, const FText& InTooltipFormat, bool bShowSelectedActions)
+		{
+			using namespace Metasound::Editor;
+			using namespace Metasound::Frontend;
+
+			static const FText MenuJoinFormat = LOCTEXT("MetasoundActionsFormatSubCategory", "{0}|{1}");
+
+			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+			EditorModule.IterateDataTypes([&](const FEditorDataType& DataType)
+			{
+				if (InFilter && !InFilter(DataType))
+				{
+					return;
+				}
+
+				const FName DataTypeName = DataType.RegistryInfo.DataTypeName;
+				const FText DataTypeDisplayName = FText::FromString(FGraphBuilder::GetDataTypeDisplayName(DataTypeName));
+				const FText DataTypeTextName = FText::FromName(DataTypeName);
+				const TArray<FString> Categories = FGraphBuilder::GetDataTypeNameCategories(DataTypeName);
+				const FText CategoriesText = FText::FromString(FString::Join(Categories, TEXT("|")));
+				TSharedPtr<TAction> NewNodeAction = MakeShared<TAction>
+				(
+					FText::Format(MenuJoinFormat, InCategory, CategoriesText),
+					DataTypeDisplayName,
+					DataTypeName,
+					FText::Format(InTooltipFormat, DataTypeTextName),
+					0
+				);
+
+				ActionMenuBuilder.AddAction(NewNodeAction);
+			});
 		}
 
 		FConnectionDrawingPolicy* FGraphConnectionDrawingPolicyFactory::CreateConnectionPolicy(
@@ -188,10 +272,13 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 
 	FMetasoundFrontendNodeStyle Style;
 	Style.Display.Location = Location;
+	if (UEdGraphNode* NewGraphNode = FGraphBuilder::AddNode(ParentMetasound, NodeClassInfo, Style))
+	{
+		TryConnectNewNodeToPin(*NewGraphNode, FromPin);
+		return NewGraphNode;
+	}
 
-	UEdGraphNode* NewGraphNode = FGraphBuilder::AddNode(ParentMetasound, NodeClassInfo, Style);
-
-	return NewGraphNode;
+	return nullptr;
 }
 
 FMetasoundGraphSchemaAction_NewInput::FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FName InTypeName, FText InToolTip, const int32 InGrouping)
@@ -216,8 +303,13 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 	FMetasoundFrontendNodeStyle Style;
 	Style.Display.Location = Location;
 
-	UEdGraphNode* NewGraphNode = FGraphBuilder::AddInput(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty());
-	return NewGraphNode;
+	if (UEdGraphNode* NewGraphNode = FGraphBuilder::AddInput(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty()))
+	{
+		TryConnectNewNodeToPin(*NewGraphNode, FromPin);
+		return NewGraphNode;
+	}
+
+	return nullptr;
 }
 
 FMetasoundGraphSchemaAction_NewOutput::FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FName InTypeName, FText InToolTip, const int32 InGrouping)
@@ -242,13 +334,13 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 	FMetasoundFrontendNodeStyle Style;
 	Style.Display.Location = Location;
 
-	UEdGraphNode* NewGraphNode = FGraphBuilder::AddOutput(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty());
-	return NewGraphNode;
-}
+	if (UEdGraphNode* NewGraphNode = FGraphBuilder::AddOutput(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty()))
+	{
+		TryConnectNewNodeToPin(*NewGraphNode, FromPin);
+		return NewGraphNode;
+	}
 
-void FMetasoundGraphSchemaAction_NewNode::ConnectToSelectedNodes(UMetasoundEditorGraphNode* NewGraphNode, UEdGraph* ParentGraph) const
-{
-	// TODO: Implement
+	return nullptr;
 }
 
 UEdGraphNode* FMetasoundGraphSchemaAction_NewFromSelected::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
@@ -303,26 +395,68 @@ bool UMetasoundEditorGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputP
 
 void UMetasoundEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
 {
-	GetAllMetasoundActions(ActionMenuBuilder, false /* bShowSelectedActions */);
 	GetCommentAction(ActionMenuBuilder);
+	GetFunctionActions(ActionMenuBuilder);
+	GetDataTypeInputNodeActions(ActionMenuBuilder);
+	GetDataTypeOutputNodeActions(ActionMenuBuilder);
 }
 
 void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
+	using namespace Metasound;
 	using namespace Metasound::Editor;
 
-	GetAllMetasoundActions(ContextMenuBuilder, true /* bShowSelectedActions */);
-	GetCommentAction(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
-
-	if (!ContextMenuBuilder.FromPin)
+	FActionClassFilters ClassFilters;
+	if (ContextMenuBuilder.FromPin)
 	{
-		TSharedPtr<FEditor> MetasoundEditor = GetEditorForGraph(*ContextMenuBuilder.CurrentGraph);
+		if (ContextMenuBuilder.FromPin->Direction == EGPD_Input)
+		{
+			Frontend::FConstInputHandle InputHandle = Editor::FGraphBuilder::GetConstInputHandleFromPin(ContextMenuBuilder.FromPin);
+			ClassFilters.OutputFilterFunction = [InputHandle](const FMetasoundFrontendClassOutput& InOutput)
+			{
+				return InOutput.TypeName == InputHandle->GetDataType();
+			};
+
+			// Show only input nodes as output nodes can only connected if FromPin is input
+			GetDataTypeInputNodeActions(ContextMenuBuilder, [InputHandle](const Editor::FEditorDataType& InDataType)
+			{
+				return InDataType.RegistryInfo.DataTypeName == InputHandle->GetDataType();
+			});
+		}
+
+		if (ContextMenuBuilder.FromPin->Direction == EGPD_Output)
+		{
+			Frontend::FConstOutputHandle OutputHandle = Editor::FGraphBuilder::GetConstOutputHandleFromPin(ContextMenuBuilder.FromPin);
+			ClassFilters.InputFilterFunction = [OutputHandle](const FMetasoundFrontendClassInput& InInput)
+			{
+				return InInput.TypeName == OutputHandle->GetDataType();
+			};
+
+			FDataTypeFilterFunction DataTypeFilter = [OutputHandle](const Editor::FEditorDataType& InDataType)
+			{
+				return InDataType.RegistryInfo.DataTypeName == OutputHandle->GetDataType();
+			};
+
+			// Show only output nodes as input nodes can only connected if FromPin is output
+			GetDataTypeOutputNodeActions(ContextMenuBuilder, DataTypeFilter);
+		}
+	}
+	else
+	{
+		TSharedPtr<Editor::FEditor> MetasoundEditor = Editor::GetEditorForGraph(*ContextMenuBuilder.CurrentGraph);
 		if (MetasoundEditor.IsValid() && MetasoundEditor->CanPasteNodes())
 		{
 			TSharedPtr<FMetasoundGraphSchemaAction_Paste> NewAction = MakeShared<FMetasoundGraphSchemaAction_Paste>(FText::GetEmpty(), LOCTEXT("PasteHereAction", "Paste here"), FText::GetEmpty(), 0);
 			ContextMenuBuilder.AddAction(NewAction);
 		}
+
+		GetCommentAction(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
+		GetDataTypeInputNodeActions(ContextMenuBuilder);
+		GetDataTypeOutputNodeActions(ContextMenuBuilder);
 	}
+
+	GetFunctionActions(ContextMenuBuilder, ClassFilters);
+	GetConversionActions(ContextMenuBuilder, ClassFilters);
 }
 
 void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
@@ -363,6 +497,8 @@ void UMetasoundEditorGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) co
 
 const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(const UEdGraphPin* PinA, const UEdGraphPin* PinB) const
 {
+	using namespace Metasound;
+
 	// Make sure the pins are not on the same node
 	if (PinA->GetOwningNode() == PinB->GetOwningNode())
 	{
@@ -388,25 +524,14 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypeIncorrect", "Connection pin types do not match"));
 	}
 
-	// TODO: use IDs to connect rather than names. Likely needs a UMetasoundEditorGraphPin
-	//int32 InputPointID = InputPin->GetMetasoundPointID();
-	//int32 InputPointID = OutputPin->GetMetasoundPointID();
+	Frontend::FInputHandle InputHandle = Editor::FGraphBuilder::GetInputHandleFromPin(InputPin);
+	Frontend::FOutputHandle OutputHandle = Editor::FGraphBuilder::GetOutputHandleFromPin(OutputPin);
 
-	UMetasoundEditorGraphNode* InputGraphNode = CastChecked<UMetasoundEditorGraphNode>(InputPin->GetOwningNode());
-	Metasound::Frontend::FNodeHandle InputNodeHandle = InputGraphNode->GetNodeHandle();
-	TArray<Metasound::Frontend::FInputHandle> InputHandles = InputNodeHandle->GetInputsWithVertexName(InputPin->GetName());
-
-	UMetasoundEditorGraphNode* OutputGraphNode = CastChecked<UMetasoundEditorGraphNode>(OutputPin->GetOwningNode());
-	Metasound::Frontend::FNodeHandle OutputNodeHandle = OutputGraphNode->GetNodeHandle();
-	TArray<Metasound::Frontend::FOutputHandle> OutputHandles = OutputNodeHandle->GetOutputsWithVertexName(OutputPin->GetName());
-
-	if (ensure((InputHandles.Num() == 1) && (OutputHandles.Num() == 1)))
+	if (InputHandle->IsValid() && OutputHandle->IsValid())
 	{
-		Metasound::Frontend::FInputHandle InputHandle = InputHandles[0];
-		Metasound::Frontend::FOutputHandle OutputHandle = OutputHandles[0];
 		// TODO: Implement YesWithConverterNode to provide conversion options
-		Metasound::Frontend::FConnectability Connectability = InputHandle->CanConnectTo(*OutputHandle);
-		if (Connectability.Connectable != Metasound::Frontend::FConnectability::EConnectable::Yes)
+		Frontend::FConnectability Connectability = InputHandle->CanConnectTo(*OutputHandle);
+		if (Connectability.Connectable != Frontend::FConnectability::EConnectable::Yes)
 		{
 			const FName InputType = InputHandle->GetDataType();
 			const FName OutputType = OutputHandle->GetDataType();
@@ -442,7 +567,7 @@ bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGrap
 {
 	using namespace Metasound::Frontend;
 
-	if (!ensureAlways(PinA && PinB))
+	if (!ensure(PinA && PinB))
 	{
 		return false;
 	}
@@ -454,7 +579,7 @@ bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGrap
 		return false;
 	}
 
-	if (!ensureAlways(InputPin && OutputPin))
+	if (!ensure(InputPin && OutputPin))
 	{
 		return false;
 	}
@@ -464,7 +589,7 @@ bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGrap
 	bool bModified = UEdGraphSchema::TryCreateConnection(PinA, PinB);
 	if (bModified)
 	{
-		bModified = Metasound::Editor::FGraphBuilder::ConnectNodes(*InputPin, *OutputPin);
+		bModified = Metasound::Editor::FGraphBuilder::ConnectNodes(*InputPin, *OutputPin, false);
 	}
 
 	return bModified;
@@ -605,81 +730,101 @@ void UMetasoundEditorGraphSchema::DroppedAssetsOnNode(const TArray<FAssetData>& 
 	// TODO: Implement for metasound references
 }
 
-void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder& ActionMenuBuilder, bool bShowSelectedActions) const
+void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters, bool bShowSelectedActions) const
 {
-	using namespace Metasound::Editor;
-	using namespace Metasound::Frontend;
-
-	const FText InputMenuName = LOCTEXT("MetasoundActionsInputsMenu", "Inputs");
-	const FText OutputMenuName = LOCTEXT("MetasoundActionsOutputsMenu", "Outputs");
+	using namespace Metasound;
 
 	const FText MenuJoinFormat = LOCTEXT("MetasoundActionsFormatSubCategory", "{0}|{1}");
-
-	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
-	EditorModule.IterateDataTypes([MenuJoinFormat, InputMenuName, OutputMenuName, InMenuBuilder = &ActionMenuBuilder](const FEditorDataType& DataType)
+	const TArray<Frontend::FNodeClassInfo> ClassInfos = Frontend::GetAllAvailableNodeClasses();
+	for (const Frontend::FNodeClassInfo& ClassInfo : ClassInfos)
 	{
-		const FName DataTypeName = DataType.RegistryInfo.DataTypeName;
-		const FText DataTypeDisplayName = FText::FromString(FGraphBuilder::GetDataTypeDisplayName(DataTypeName));
-		const FText DataTypeTextName = FText::FromName(DataTypeName);
+		const FMetasoundFrontendClass ClassDescription = Frontend::GenerateClassDescription(ClassInfo);
+		if (InFilters.InputFilterFunction && !ClassDescription.Interface.Inputs.ContainsByPredicate(InFilters.InputFilterFunction))
+		{
+			continue;
+		}
 
-		const TArray<FString> Categories = FGraphBuilder::GetDataTypeNameCategories(DataTypeName);
-		const FText CategoriesText = FText::FromString(FString::Join(Categories, TEXT("|")));
+		if (InFilters.OutputFilterFunction && !ClassDescription.Interface.Outputs.ContainsByPredicate(InFilters.OutputFilterFunction))
+		{
+			continue;
+		}
 
-
-		TSharedPtr<FMetasoundGraphSchemaAction_NewInput> AddInputNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewInput>
-		(
-			FText::Format(MenuJoinFormat, InputMenuName, CategoriesText),
-			DataTypeDisplayName,
-			DataTypeName,
-			FText::Format(LOCTEXT("MetasoundTooltipAddInputFormat", "Adds an input of type {0} to the Metasound"), DataTypeTextName),
-			0
-		);
-		InMenuBuilder->AddAction(AddInputNodeAction);
-
-		TSharedPtr<FMetasoundGraphSchemaAction_NewOutput> AddOutputNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewOutput>
-		(
-			FText::Format(MenuJoinFormat, OutputMenuName, CategoriesText),
-			DataTypeDisplayName,
-			DataTypeName,
-			FText::Format(LOCTEXT("MetasoundTooltipAddOutputFormat", "Adds an output of type {0} to the Metasound"), DataTypeTextName),
-			0
-		);
-		InMenuBuilder->AddAction(AddOutputNodeAction);
-	});
-
-	const FText NodeMenuName = LOCTEXT("MetasoundAddFunctionsMenu", "Functions");
-	const FText ConvertMenuName = LOCTEXT("MetasoundConverionsMenu", "Conversions");
-
-	const TArray<FNodeClassInfo> ClassInfos = GetAllAvailableNodeClasses();
-	for (const FNodeClassInfo& ClassInfo : ClassInfos)
-	{
-		const FMetasoundFrontendClass ClassDescription = GenerateClassDescription(ClassInfo);
 		const FMetasoundFrontendClassMetadata Metadata = ClassDescription.Metadata;
 		const FText Tooltip = Metadata.Author.IsEmpty()
 			? Metadata.Description
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
 
-		const FText* MenuName = &NodeMenuName;
-		FText CategoriesText = FText::GetEmpty();
-		if (!Metadata.CategoryHierarchy.IsEmpty() && !Metadata.CategoryHierarchy[0].CompareTo(ConvertMenuName))
+		if (!Metadata.CategoryHierarchy.IsEmpty() && !Metadata.CategoryHierarchy[0].CompareTo(Editor::FGraphBuilder::ConvertMenuName))
 		{
-			MenuName = &ConvertMenuName;
+			TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
+			(
+				Editor::FGraphBuilder::ConvertMenuName,
+				Metadata.DisplayName,
+				Tooltip,
+				0
+			);
+
+			NewNodeAction->NodeClassInfo = ClassInfo;
+			ActionMenuBuilder.AddAction(NewNodeAction);
+
 		}
-		else
+	}
+}
+
+void UMetasoundEditorGraphSchema::GetDataTypeInputNodeActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FDataTypeFilterFunction InFilter, bool bShowSelectedActions) const
+{
+	const FText InputMenuName = LOCTEXT("MetasoundActionsInputsMenu", "Inputs");
+	const FText InputTooltipFormat = LOCTEXT("MetasoundTooltipAddInputFormat", "Adds an input of type {0} to the Metasound");
+	Metasound::Editor::GetDataTypeActions<FMetasoundGraphSchemaAction_NewInput>(ActionMenuBuilder, InFilter, InputMenuName, InputTooltipFormat, bShowSelectedActions);
+}
+
+void UMetasoundEditorGraphSchema::GetDataTypeOutputNodeActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FDataTypeFilterFunction InFilter, bool bShowSelectedActions) const
+{
+	const FText OutputMenuName = LOCTEXT("MetasoundActionsOutputsMenu", "Outputs");
+	const FText OutputTooltipFormat = LOCTEXT("MetasoundTooltipAddOutputFormat", "Adds an output of type {0} to the Metasound");
+	Metasound::Editor::GetDataTypeActions<FMetasoundGraphSchemaAction_NewOutput>(ActionMenuBuilder, InFilter, OutputMenuName, OutputTooltipFormat, bShowSelectedActions);
+}
+
+void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters, bool bShowSelectedActions) const
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const FText MenuJoinFormat = LOCTEXT("MetasoundActionsFormatSubCategory", "{0}|{1}");
+
+	const TArray<FNodeClassInfo> ClassInfos = GetAllAvailableNodeClasses();
+	for (const FNodeClassInfo& ClassInfo : ClassInfos)
+	{
+		const FMetasoundFrontendClass ClassDescription = GenerateClassDescription(ClassInfo);
+		if (InFilters.InputFilterFunction && !ClassDescription.Interface.Inputs.ContainsByPredicate(InFilters.InputFilterFunction))
 		{
-			CategoriesText = FText::Join(LOCTEXT("MetasoundActionsCategoryDelim", "|"), Metadata.CategoryHierarchy);
+			continue;
 		}
 
-		TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
-		(
-			FText::Format(MenuJoinFormat, *MenuName, CategoriesText),
-			Metadata.DisplayName,
-			Tooltip,
-			0
-		);
+		if (InFilters.OutputFilterFunction && !ClassDescription.Interface.Outputs.ContainsByPredicate(InFilters.OutputFilterFunction))
+		{
+			continue;
+		}
 
-		NewNodeAction->NodeClassInfo = ClassInfo;
-		ActionMenuBuilder.AddAction(NewNodeAction);
+		const FMetasoundFrontendClassMetadata Metadata = ClassDescription.Metadata;
+		const FText Tooltip = Metadata.Author.IsEmpty()
+			? Metadata.Description
+			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
+
+		if (Metadata.CategoryHierarchy.IsEmpty() || Metadata.CategoryHierarchy[0].CompareTo(FGraphBuilder::ConvertMenuName))
+		{
+			const FText CategoriesText = FText::Join(LOCTEXT("MetasoundActionsCategoryDelim", "|"), Metadata.CategoryHierarchy);
+			TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
+			(
+				FText::Format(MenuJoinFormat, FGraphBuilder::FunctionMenuName, CategoriesText),
+				Metadata.DisplayName,
+				Tooltip,
+				0
+			);
+
+			NewNodeAction->NodeClassInfo = ClassInfo;
+			ActionMenuBuilder.AddAction(NewNodeAction);
+		}
 	}
 }
 
