@@ -578,6 +578,7 @@ public:
 	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIVertexBuffer* VertexBuffer, uint32 Stride, uint8 Format) override final
 	{
 		RHI->RHIUpdateShaderResourceView(SRV, VertexBuffer, Stride, Format);
+		SRV->ViewIdentity = VertexBuffer->GetWholeResourceIdentity();
 	}
 
 	/**
@@ -749,6 +750,16 @@ public:
 	virtual void RHITransferTextures(const TArrayView<const FTransferTextureParams> Params) override final
 	{
 		RHI->RHITransferTextures(Params);
+	}
+
+	void RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer) override final
+	{
+		RHI->RHITransferIndexBufferUnderlyingResource(DestIndexBuffer, SrcIndexBuffer);
+	}
+
+	void RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer) override final
+	{
+		RHI->RHITransferVertexBufferUnderlyingResource(DestVertexBuffer, SrcVertexBuffer);
 	}
 
 	/**
@@ -1467,20 +1478,31 @@ public:
 	{
 		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Initializer);
 
+		SRV->ViewIdentity = RHIValidation::FResourceIdentity{};
+
 		switch (Initializer.GetType())
 		{
 		default: checkNoEntry(); // fallthrough
 
 		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
-			SRV->ViewIdentity = Initializer.AsIndexBufferSRV().IndexBuffer->GetWholeResourceIdentity();
+			if (Initializer.AsIndexBufferSRV().IndexBuffer)
+			{
+				SRV->ViewIdentity = Initializer.AsIndexBufferSRV().IndexBuffer->GetWholeResourceIdentity();
+			}
 			break;
 
 		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
-			SRV->ViewIdentity = Initializer.AsStructuredBufferSRV().StructuredBuffer->GetWholeResourceIdentity();
+			if (Initializer.AsStructuredBufferSRV().StructuredBuffer)
+			{
+				SRV->ViewIdentity = Initializer.AsStructuredBufferSRV().StructuredBuffer->GetWholeResourceIdentity();
+			}
 			break;
 
 		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
-			SRV->ViewIdentity = Initializer.AsVertexBufferSRV().VertexBuffer->GetWholeResourceIdentity();
+			if (Initializer.AsVertexBufferSRV().VertexBuffer)
+			{
+				SRV->ViewIdentity = Initializer.AsVertexBufferSRV().VertexBuffer->GetWholeResourceIdentity();
+			}
 		}
 
 		return SRV;
