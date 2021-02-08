@@ -26,10 +26,10 @@ struct FCategoryFilter
 	FString CategoryName;
 
 	UPROPERTY(config)
-	int32 LogVerbosity;
+	int32 LogVerbosity = ELogVerbosity::Type::NoLogging;
 
 	UPROPERTY(config)
-	uint32 Enabled : 1;
+	uint32 Enabled : 1 = 0;
 
 	uint32 bIsInUse : 1;
 };
