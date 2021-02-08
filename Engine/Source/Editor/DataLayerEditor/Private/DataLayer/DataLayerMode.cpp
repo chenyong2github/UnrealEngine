@@ -302,15 +302,27 @@ TArray<AActor*> FDataLayerMode::GetActorsFromOperation(const FDragDropOperation&
 		}
 	};
 
-	TSharedPtr<FActorDragDropOp> ActorDragOp = const_cast<FDragDropOperation&>(Operation).CastTo<FActorDragDropOp>();
-	if (ActorDragOp.IsValid())
+	if (Operation.IsOfType<FActorDragDropOp>())
 	{
-		GetActorsFromActorOperation(*ActorDragOp);
+		const FActorDragDropOp& ActorDragOp = StaticCast<const FActorDragDropOp&>(Operation);
+		GetActorsFromActorOperation(ActorDragOp);
 	}
-	TSharedPtr<FFolderDragDropOp> FolderDragOp = const_cast<FDragDropOperation&>(Operation).CastTo<FFolderDragDropOp>();
-	if (FolderDragOp.IsValid())
+	if (Operation.IsOfType<FFolderDragDropOp>())
 	{
-		GetActorsFromFolderOperation(*FolderDragOp);
+		const FFolderDragDropOp& FolderDragOp = StaticCast<const FFolderDragDropOp&>(Operation);
+		GetActorsFromFolderOperation(FolderDragOp);
+	}
+	if (Operation.IsOfType<FCompositeDragDropOp>())
+	{
+		const FCompositeDragDropOp& CompositeDragOp = StaticCast<const FCompositeDragDropOp&>(Operation);
+		if (TSharedPtr<const FActorDragDropOp> ActorSubOp = CompositeDragOp.GetSubOp<FActorDragDropOp>())
+		{
+			GetActorsFromActorOperation(*ActorSubOp);
+		}
+		if (TSharedPtr<const FFolderDragDropOp> FolderSubOp = CompositeDragOp.GetSubOp<FFolderDragDropOp>())
+		{
+			GetActorsFromFolderOperation(*FolderSubOp);
+		}
 	}
 	return Actors.Array();
 }

@@ -37,17 +37,6 @@ public:
 		return IsOfTypeImpl(TType::GetTypeId());
 	}
 
-	/** Cast this drag and drop operation to the specified template type */
-	template <class OperationType> TSharedPtr<OperationType> CastTo()
-	{
-		TSharedPtr<FDragDropOperation> Converted(this->ConvertTo(OperationType::GetTypeId()));
-		if (Converted != nullptr)
-		{
-			return StaticCastSharedPtr<OperationType>(Converted);
-		}
-		return TSharedPtr<OperationType>();
-	}
-
 	/**
 	* Checks if this drag and drop operation is affected by a given PointerEvent.
 	*

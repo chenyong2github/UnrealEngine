@@ -18,6 +18,7 @@
 #include "EditorFolderUtils.h"
 #include "ActorEditorUtils.h"
 #include "DragAndDrop/ActorDragDropOp.h"
+#include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
 #include "Logging/MessageLog.h"
 #include "SSocketChooser.h"
@@ -739,11 +740,17 @@ TSharedPtr<FDragDropOperation> FActorBrowsingMode::CreateDragDropOperation(const
 {
 	FSceneOutlinerDragDropPayload DraggedObjects(InTreeItems);
 
+	// If the drag contains only actors, we shortcut and create a simple FActorDragDropGraphEdOp rather than an FSceneOutlinerDragDrop composite op.
+	if (DraggedObjects.Has<FActorTreeItem>() && !DraggedObjects.Has<FFolderTreeItem>())
+	{
+		return FActorDragDropGraphEdOp::New(DraggedObjects.GetData<TWeakObjectPtr<AActor>>(SceneOutliner::FWeakActorSelector()));
+	}
+
 	TSharedPtr<FSceneOutlinerDragDropOp> OutlinerOp = MakeShareable(new FSceneOutlinerDragDropOp());
 
 	if (DraggedObjects.Has<FActorTreeItem>())
 	{
-		TSharedPtr<FActorDragDropOp> ActorOperation = MakeShareable(new FActorDragDropOp);
+		TSharedPtr<FActorDragDropOp> ActorOperation = MakeShareable(new FActorDragDropGraphEdOp);
 		ActorOperation->Init(DraggedObjects.GetData<TWeakObjectPtr<AActor>>(SceneOutliner::FWeakActorSelector()));
 		OutlinerOp->AddSubOp(ActorOperation);
 	}

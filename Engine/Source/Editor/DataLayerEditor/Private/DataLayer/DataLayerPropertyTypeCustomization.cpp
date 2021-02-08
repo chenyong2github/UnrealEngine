@@ -140,7 +140,7 @@ FReply FDataLayerPropertyTypeCustomization::OnDrop(TSharedPtr<FDragDropOperation
 {
 	if (InDragDrop.IsValid() && InDragDrop->IsOfType<FDataLayerDragDropOp>())
 	{
-		TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = InDragDrop->CastTo<FDataLayerDragDropOp>();
+		TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = StaticCastSharedPtr<const FDataLayerDragDropOp>(InDragDrop);
 		if (DataLayerDragDropOp.IsValid())
 		{
 			const TArray<FName>& DataLayerLabels = DataLayerDragDropOp->DataLayerLabels;
@@ -160,7 +160,7 @@ bool FDataLayerPropertyTypeCustomization::OnVerifyDrag(TSharedPtr<FDragDropOpera
 {
 	if (InDragDrop.IsValid() && InDragDrop->IsOfType<FDataLayerDragDropOp>())
 	{
-		TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = InDragDrop->CastTo<FDataLayerDragDropOp>();
+		TSharedPtr<const FDataLayerDragDropOp> DataLayerDragDropOp = StaticCastSharedPtr<const FDataLayerDragDropOp>(InDragDrop);
 		return DataLayerDragDropOp.IsValid() && DataLayerDragDropOp->DataLayerLabels.Num() == 1;
 	}
 	return false;

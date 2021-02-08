@@ -8,6 +8,7 @@
 #include "EditorStyleSet.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
+#include "DragAndDrop/CompositeDragDropOp.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "EditorActorFolders.h"
 #include "Engine/World.h"
@@ -118,14 +119,26 @@ void SLayersViewRow::OnDragLeave(const FDragDropEvent& DragDropEvent)
 
 FReply SLayersViewRow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TArray<TWeakObjectPtr<AActor>> Actors;
-	TSharedPtr<FActorDragDropOp> ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+	TArray<TWeakObjectPtr<AActor>> Actors; 
+	TSharedPtr<FActorDragDropOp> ActorDragOp = nullptr;
+	TSharedPtr<FFolderDragDropOp> FolderDragOp = nullptr;
+
+	if (const TSharedPtr<FCompositeDragDropOp> CompositeDragOp = DragDropEvent.GetOperationAs<FCompositeDragDropOp>())
+	{
+		ActorDragOp = CompositeDragOp->GetSubOp<FActorDragDropOp>();
+		FolderDragOp = CompositeDragOp->GetSubOp<FFolderDragDropOp>();
+	}
+	else
+	{
+		ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+		FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
+	}
+
 	if (ActorDragOp.IsValid() && ActorDragOp->Actors.Num() > 0)
 	{
 		Actors = ActorDragOp->Actors;
 	}
 
-	TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
 	if (FolderDragOp.IsValid())
 	{
 		if (UWorld* World = FolderDragOp->World.Get())
@@ -180,20 +193,33 @@ FReply SLayersViewRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent&
 	bool bHandled = false;
 	TArray<TWeakObjectPtr<AActor>> ActorsToDrop;
 
-	TSharedPtr< FActorDragDropOp > ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
-	if (ActorDragOp.IsValid())
+	if (const TSharedPtr<FActorDragDropOp> ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>())
 	{
 		ActorsToDrop = ActorDragOp->Actors;
 		bHandled = true;
 	}
-
-	TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
-	if (FolderDragOp.IsValid())
+	else if (const TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>())
 	{
 		if (UWorld* World = FolderDragOp->World.Get())
 		{
 			FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, ActorsToDrop);
 			bHandled = true;
+		}
+	}
+	else if (const TSharedPtr<FCompositeDragDropOp> CompositeDragOp = DragDropEvent.GetOperationAs<FCompositeDragDropOp>())
+	{
+		if (const TSharedPtr<FActorDragDropOp> ActorSubOp = CompositeDragOp->GetSubOp<FActorDragDropOp>())
+		{
+			ActorsToDrop = ActorSubOp->Actors;
+			bHandled = true;
+		}
+		if (const TSharedPtr<FFolderDragDropOp> FolderSubOp = CompositeDragOp->GetSubOp<FFolderDragDropOp>())
+		{
+			if (UWorld* World = FolderDragOp->World.Get())
+			{
+				FActorFolders::GetWeakActorsFromFolders(*World, FolderSubOp->Folders, ActorsToDrop);
+				bHandled = true;
+			}
 		}
 	}
 
@@ -215,12 +241,29 @@ FSlateColor SLayersViewRow::GetColorAndOpacity() const
 	bool bCanAcceptDrop = false;
 	TSharedPtr<FDragDropOperation> DragDropOp = FSlateApplication::Get().GetDragDroppingContent();
 
-	if (DragDropOp.IsValid() && (DragDropOp->IsOfType<FActorDragDropOp>() || DragDropOp->IsOfType<FFolderDragDropOp>()))
+	if (DragDropOp.IsValid() && (DragDropOp->IsOfType<FActorDragDropOp>() || DragDropOp->IsOfType<FFolderDragDropOp>() || DragDropOp->IsOfType<FCompositeDragDropOp>()))
 	{
 		TArray<TWeakObjectPtr<AActor>> DraggedActors;
 
-		TSharedPtr<FActorDragDropOp> ActorDragOp = DragDropOp->CastTo<FActorDragDropOp>();
-		TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropOp->CastTo<FFolderDragDropOp>();
+		TSharedPtr<FActorDragDropOp> ActorDragOp;
+		TSharedPtr<FFolderDragDropOp> FolderDragOp;
+
+		if (DragDropOp->IsOfType<FActorDragDropOp>())
+		{
+			ActorDragOp = StaticCastSharedPtr<FActorDragDropOp>(DragDropOp);
+		}
+		else if (DragDropOp->IsOfType<FFolderDragDropOp>())
+		{
+			FolderDragOp = StaticCastSharedPtr<FFolderDragDropOp>(DragDropOp);
+		}
+		else if (DragDropOp->IsOfType<FCompositeDragDropOp>())
+		{
+			if (const TSharedPtr<FCompositeDragDropOp> CompositeDrop = StaticCastSharedPtr<FCompositeDragDropOp>(DragDropOp))
+			{
+				ActorDragOp = CompositeDrop->GetSubOp<FActorDragDropOp>();
+				FolderDragOp = CompositeDrop->GetSubOp<FFolderDragDropOp>();
+			}
+		}
 
 		if (ActorDragOp.IsValid())
 		{

@@ -9,11 +9,7 @@
 class FCompositeDragDropOp : public FDecoratedDragDropOp
 {
 public:
-	static const FString& GetTypeId() { static FString Type = TEXT("FCompositeDragDropOp"); return Type; }
-	virtual bool IsOfTypeImpl(const FString& Type) const override 
-	{
-		return GetTypeId() == Type || FDecoratedDragDropOp::IsOfTypeImpl(Type) || GetSubOpPtr(Type) != nullptr; 
-	}
+	DRAG_DROP_OPERATOR_TYPE(FCompositeDragDropOp, FDecoratedDragDropOp)
 
 	FCompositeDragDropOp() : FDecoratedDragDropOp() {}
 
@@ -21,6 +17,19 @@ public:
 	{
 		check(!SubOp->IsOfType<FCompositeDragDropOp>());
 		SubOps.Add(SubOp);
+	}
+
+	template <typename T>
+	TSharedPtr<T> HasSubOp()
+	{
+		for (auto& SubOp : SubOps)
+		{
+			if (SubOp->IsOfType<T>())
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	template <typename T>
@@ -49,21 +58,6 @@ public:
 		return nullptr;
 	}
 
-	virtual TSharedPtr<FDragDropOperation> ConvertTo(const FString& TypeId) override
-	{
-		// Attempt to convert this before getting subops
-		if (FDecoratedDragDropOp::IsOfTypeImpl(TypeId))
-		{
-			return AsShared();
-		}
-		else
-		{
-			// Will be nullptr if failed to convert
-			TSharedPtr<FDragDropOperation> SubOpAs = GetSubOpPtr(TypeId);
-			return SubOpAs;
-		}
-	}
-
 	virtual void ResetToDefaultToolTip() override
 	{
 		FDecoratedDragDropOp::ResetToDefaultToolTip();
@@ -72,7 +66,7 @@ public:
 		{
 			if (SubOp->IsOfType<FDecoratedDragDropOp>())
 			{
-				auto DecoratedSubOp = SubOp->CastTo<FDecoratedDragDropOp>();
+				auto DecoratedSubOp = StaticCastSharedPtr<FDecoratedDragDropOp>(SubOp);
 				if (DecoratedSubOp.IsValid())
 				{
 					DecoratedSubOp->ResetToDefaultToolTip();

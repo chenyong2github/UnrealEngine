@@ -53,6 +53,7 @@
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "DragAndDrop/ClassDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
+#include "DragAndDrop/CompositeDragDropOp.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "SSequencerTreeView.h"
 #include "MovieSceneTrackEditor.h"
@@ -3010,31 +3011,46 @@ FReply SSequencer::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 	{
 		if ( Operation->IsOfType<FAssetDragDropOp>() )
 		{
-			const auto& DragDropOp = Operation->CastTo<FAssetDragDropOp>();
+			const auto& DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
 
 			OnAssetsDropped( *DragDropOp );
 			bWasDropHandled = true;
 		}
-		if( Operation->IsOfType<FClassDragDropOp>() )
+		else if( Operation->IsOfType<FClassDragDropOp>() )
 		{
-			const auto& DragDropOp = Operation->CastTo<FClassDragDropOp>();
+			const auto& DragDropOp = StaticCastSharedPtr<FClassDragDropOp>(Operation);
 
 			OnClassesDropped( *DragDropOp );
 			bWasDropHandled = true;
 		}
-		if( Operation->IsOfType<FActorDragDropOp>() )
+		else if( Operation->IsOfType<FActorDragDropOp>() )
 		{
-			const auto& DragDropOp = Operation->CastTo<FActorDragDropOp>();
+			const auto& DragDropOp = StaticCastSharedPtr<FActorDragDropOp>(Operation);
 
 			OnActorsDropped( *DragDropOp );
 			bWasDropHandled = true;
 		}
-		if (Operation->IsOfType<FFolderDragDropOp>())
+		else if (Operation->IsOfType<FFolderDragDropOp>())
 		{
-			const auto& DragDropOp = Operation->CastTo<FFolderDragDropOp>();
+			const auto& DragDropOp = StaticCastSharedPtr<FFolderDragDropOp>(Operation);
 
 			OnFolderDropped(*DragDropOp);
 			bWasDropHandled = true;
+		}
+		else if (Operation->IsOfType<FCompositeDragDropOp>())
+		{
+			const TSharedPtr<FCompositeDragDropOp> CompositeOp = StaticCastSharedPtr<FCompositeDragDropOp>(Operation);
+			if (const TSharedPtr<FActorDragDropOp> ActorDragDropOp = CompositeOp->GetSubOp<FActorDragDropOp>())
+			{
+				OnActorsDropped(*ActorDragDropOp);
+				bWasDropHandled = true;
+			}
+			if (const TSharedPtr<FFolderDragDropOp> FolderDragDropOp = CompositeOp->GetSubOp<FFolderDragDropOp>())
+			{
+				OnFolderDropped(*FolderDragDropOp);
+				bWasDropHandled = true;
+			}
+			
 		}
 	}
 

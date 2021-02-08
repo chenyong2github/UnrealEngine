@@ -17,6 +17,7 @@
 #include "Features/IModularFeatures.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
+#include "DragAndDrop/CompositeDragDropOp.h"
 #include "EngineUtils.h"
 #include "Algo/Sort.h"
 #include "ScopedTransaction.h"
@@ -183,18 +184,25 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 			TSharedPtr<FActorDragDropOp>  ActorDrag = nullptr;
 			TSharedPtr<FFolderDragDropOp> FolderDrag = nullptr;
 
-			FDragDropOperation* OperationPtr = InOperation.Get();
-			if (!OperationPtr)
+			if (!InOperation.IsValid())
 			{
 				return false;
 			}
 			if (InOperation->IsOfType<FActorDragDropOp>())
 			{
-				ActorDrag = OperationPtr->CastTo<FActorDragDropOp>();
+				ActorDrag = StaticCastSharedPtr<FActorDragDropOp>(InOperation);
 			}
-			if (InOperation->IsOfType<FFolderDragDropOp>())
+			else if (InOperation->IsOfType<FFolderDragDropOp>())
 			{
-				FolderDrag = OperationPtr->CastTo<FFolderDragDropOp>();
+				FolderDrag = StaticCastSharedPtr<FFolderDragDropOp>(InOperation);
+			}
+			else if (InOperation->IsOfType<FCompositeDragDropOp>())
+			{
+				if (const TSharedPtr<FCompositeDragDropOp> CompositeDrag = StaticCastSharedPtr<FCompositeDragDropOp>(InOperation))
+				{
+					ActorDrag = CompositeDrag->GetSubOp<FActorDragDropOp>();
+					FolderDrag = CompositeDrag->GetSubOp<FFolderDragDropOp>();
+				}
 			}
 
 			if (ActorDrag)
@@ -236,18 +244,25 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 		TSharedPtr<FActorDragDropOp>  ActorDrag = nullptr;
 		TSharedPtr<FFolderDragDropOp> FolderDrag = nullptr;
 
-		FDragDropOperation* OperationPtr = InOperation.Get();
-		if (!OperationPtr)
+		if (!InOperation.IsValid())
 		{
 			return TArray<AActor*>();
 		}
-		if (OperationPtr->IsOfType<FActorDragDropOp>())
+		if (InOperation->IsOfType<FActorDragDropOp>())
 		{
-			ActorDrag = OperationPtr->CastTo<FActorDragDropOp>();
+			ActorDrag = StaticCastSharedPtr<FActorDragDropOp>(InOperation);
 		}
-		if (OperationPtr->IsOfType<FFolderDragDropOp>())
+		else if (InOperation->IsOfType<FFolderDragDropOp>())
 		{
-			FolderDrag = OperationPtr->CastTo<FFolderDragDropOp>();
+			FolderDrag = StaticCastSharedPtr<FFolderDragDropOp>(InOperation);
+		}
+		else if (InOperation->IsOfType<FCompositeDragDropOp>())
+		{
+			if (const TSharedPtr<FCompositeDragDropOp> CompositeOp = StaticCastSharedPtr<FCompositeDragDropOp>(InOperation))
+			{
+				ActorDrag = CompositeOp->GetSubOp<FActorDragDropOp>();
+				FolderDrag = CompositeOp->GetSubOp<FFolderDragDropOp>();
+			}
 		}
 
 		TArray<AActor*> DraggedActors;

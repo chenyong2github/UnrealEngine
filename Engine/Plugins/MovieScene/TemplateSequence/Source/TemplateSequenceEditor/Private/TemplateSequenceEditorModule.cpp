@@ -325,9 +325,9 @@ bool FTemplateSequenceCustomization::OnSequencerReceivedDragOver(const FGeometry
 
 	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
 	if (Operation.IsValid() && (
-		(Operation->IsOfType<FAssetDragDropOp>() && Operation->CastTo<FAssetDragDropOp>()->GetAssetPaths().Num() <= 1) ||
-		(Operation->IsOfType<FClassDragDropOp>() && Operation->CastTo<FClassDragDropOp>()->ClassesToDrop.Num() <= 1) ||
-		(Operation->IsOfType<FActorDragDropOp>() && Operation->CastTo<FActorDragDropOp>()->Actors.Num() <= 1)))
+		(Operation->IsOfType<FAssetDragDropOp>() && StaticCastSharedPtr<FAssetDragDropOp>(Operation)->GetAssetPaths().Num() <= 1) ||
+		(Operation->IsOfType<FClassDragDropOp>() && StaticCastSharedPtr<FClassDragDropOp>(Operation)->ClassesToDrop.Num() <= 1) ||
+		(Operation->IsOfType<FActorDragDropOp>() && StaticCastSharedPtr<FActorDragDropOp>(Operation)->Actors.Num() <= 1)))
 	{
 		bIsDragSupported = true;
 	}

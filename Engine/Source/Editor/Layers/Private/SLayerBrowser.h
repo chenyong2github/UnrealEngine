@@ -18,6 +18,7 @@
 #include "Editor/Layers/Private/SceneOutlinerLayerContentsColumn.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
+#include "DragAndDrop/CompositeDragDropOp.h"
 #include "Editor/Layers/Private/SLayersView.h"
 #include "Editor/Layers/Private/SLayersCommandsMenu.h"
 #include "EditorActorFolders.h"
@@ -109,8 +110,20 @@ protected:
 		}
 
 		TArray<TWeakObjectPtr<AActor>> Actors;
-		TSharedPtr<FActorDragDropOp> ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
-		TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
+		TSharedPtr<FActorDragDropOp> ActorDragOp = nullptr;
+		TSharedPtr<FFolderDragDropOp> FolderDragOp = nullptr;
+
+		if (const TSharedPtr<FCompositeDragDropOp> CompositeDragOp = DragDropEvent.GetOperationAs<FCompositeDragDropOp>())
+		{
+			ActorDragOp = CompositeDragOp->GetSubOp<FActorDragDropOp>();
+			FolderDragOp = CompositeDragOp->GetSubOp<FFolderDragDropOp>();
+		}
+		else
+		{
+			ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+			FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
+		}
+		
 		if (ActorDragOp.IsValid() || FolderDragOp.IsValid())
 		{
 			const FGeometry LayerContentsHeaderGeometry = SWidget::FindChildGeometry( MyGeometry, LayerContentsHeader.ToSharedRef() );
@@ -194,7 +207,21 @@ protected:
 
 		bool bHandled = false;
 		TArray<TWeakObjectPtr<AActor>> ActorsToDrop;
-		TSharedPtr<FActorDragDropOp> ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+
+		TSharedPtr<FActorDragDropOp> ActorDragOp = nullptr;
+		TSharedPtr<FFolderDragDropOp> FolderDragOp = nullptr;
+
+		if (const TSharedPtr<FCompositeDragDropOp> CompositeDragOp = DragDropEvent.GetOperationAs<FCompositeDragDropOp>())
+		{
+			ActorDragOp = CompositeDragOp->GetSubOp<FActorDragDropOp>();
+			FolderDragOp = CompositeDragOp->GetSubOp<FFolderDragDropOp>();
+		}
+		else
+		{
+			ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+			FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
+		}
+
 		if (ActorDragOp.IsValid())
 		{
 			const FGeometry LayerContentsHeaderGeometry = SWidget::FindChildGeometry(MyGeometry, LayerContentsHeader.ToSharedRef());
@@ -213,7 +240,6 @@ protected:
 			}
 		}
 
-		TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
 		if (FolderDragOp.IsValid())
 		{
 			if (UWorld* World = FolderDragOp->World.Get())

@@ -210,14 +210,26 @@ protected:
 		bool bHandled = false;
 		TArray<TWeakObjectPtr<AActor>> ActorsToDrop;
 
-		TSharedPtr<FActorDragDropOp> ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+		TSharedPtr<FActorDragDropOp> ActorDragOp = nullptr;
+		TSharedPtr<FFolderDragDropOp> FolderDragOp = nullptr;
+
+		if (const TSharedPtr<FCompositeDragDropOp> CompositeDragOp = DragDropEvent.GetOperationAs<FCompositeDragDropOp>())
+		{
+			ActorDragOp = CompositeDragOp->GetSubOp<FActorDragDropOp>();
+			FolderDragOp = CompositeDragOp->GetSubOp<FFolderDragDropOp>();
+		}
+		else
+		{
+			ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+			FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
+		}
+
 		if (ActorDragOp.IsValid())
 		{
 			ActorsToDrop = ActorDragOp->Actors;
 			bHandled = true;
 		}
 
-		TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
 		if (FolderDragOp.IsValid())
 		{
 			if (UWorld* World = FolderDragOp->World.Get())
