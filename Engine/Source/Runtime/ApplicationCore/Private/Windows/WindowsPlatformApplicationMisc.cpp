@@ -138,16 +138,6 @@ void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 	// If editor thread doesn't have the focus, don't suck up too much CPU time.
 	if( GIsEditor )
 	{
-		if( HadFocus && !HasFocus )
-		{
-			// Drop our priority to speed up whatever is in the foreground.
-			SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL );
-		}
-		else if( HasFocus && !HadFocus )
-		{
-			// Boost our priority back to above normal as initially set in WindowsRunnableThread::CreateInternal.
-			SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL );
-		}
 		if( !HasFocus )
 		{
 			// Sleep for a bit to not eat up all CPU time.
