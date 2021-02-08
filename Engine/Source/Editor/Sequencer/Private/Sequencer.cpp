@@ -13156,6 +13156,12 @@ void FSequencer::BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBo
 
 void FSequencer::BuildAddSelectedToFolderMenu(FMenuBuilder& MenuBuilder)
 {
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("MoveNodesToNewFolder", "New Folder"),
+		LOCTEXT("MoveNodesToNewFolderTooltip", "Create a new folder and adds the selected nodes"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
+		FUIAction(FExecuteAction::CreateSP(this, &FSequencer::MoveSelectedNodesToNewFolder)));
+		
 	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
 	UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;
 	if (MovieScene)
@@ -13177,6 +13183,11 @@ void FSequencer::BuildAddSelectedToFolderMenu(FMenuBuilder& MenuBuilder)
 				ChildFolders.RemoveAt(Index);
 				--Index;
 			}
+		}
+
+		if (ChildFolders.Num() > 0)
+		{
+			MenuBuilder.AddMenuSeparator();
 		}
 
 		for (UMovieSceneFolder* Folder : ChildFolders)
@@ -13222,7 +13233,7 @@ void FSequencer::BuildAddSelectedToFolderMenuEntry(FMenuBuilder& InMenuBuilder, 
 	{
 		InMenuBuilder.AddSubMenu(
 			FText::FromName(InFolder->GetFolderName()),
-			LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected nodes to an existing folder."),
+			LOCTEXT("MoveNodesToFolderTooltip", "Move the selected nodes to an existing folder"),
 			FNewMenuDelegate::CreateSP(this, &FSequencer::BuildAddSelectedToFolderSubMenu, InExcludedFolders, InFolder, ChildFolders));
 	}
 	else
