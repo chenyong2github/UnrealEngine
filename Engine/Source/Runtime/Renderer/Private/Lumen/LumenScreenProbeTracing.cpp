@@ -614,55 +614,58 @@ void TraceScreenProbes(
 			IndirectTracingParameters,
 			/* out */ MeshSDFGridParameters);
 
-		if (Lumen::UseHardwareRayTracedScreenProbeGather())
+		if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
 		{
-			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
-				GraphBuilder,
-				View,
-				ScreenProbeParameters,
-				WORLD_MAX,
-				IndirectTracingParameters.MaxTraceDistance);
-
-			RenderHardwareRayTracingScreenProbe(GraphBuilder,
-				Scene,
-				SceneTextures,
-				ScreenProbeParameters,
-				View,
-				TracingInputs,
-				MeshSDFGridParameters,
-				IndirectTracingParameters,
-				RadianceCacheParameters,
-				CompactedTraceParameters);
-		}
-		else if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
-		{
-			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
-				GraphBuilder,
-				View,
-				ScreenProbeParameters,
-				IndirectTracingParameters.CardTraceEndDistanceFromCamera,
-				IndirectTracingParameters.MaxCardTraceDistance);
-
+			if (Lumen::UseHardwareRayTracedScreenProbeGather())
 			{
-				FScreenProbeTraceCardsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceCardsCS::FParameters>();
-				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
-				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-				PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
-				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
-
-				FScreenProbeTraceCardsCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set< FScreenProbeTraceCardsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
-				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceCardsCS>(PermutationVector);
-
-				FComputeShaderUtils::AddPass(
+				FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
 					GraphBuilder,
-					RDG_EVENT_NAME("TraceCards"),
-					ComputeShader,
-					PassParameters,
-					CompactedTraceParameters.IndirectArgs,
-					0);
+					View,
+					ScreenProbeParameters,
+					WORLD_MAX,
+					IndirectTracingParameters.MaxTraceDistance);
+
+				RenderHardwareRayTracingScreenProbe(GraphBuilder,
+					Scene,
+					SceneTextures,
+					ScreenProbeParameters,
+					View,
+					TracingInputs,
+					MeshSDFGridParameters,
+					IndirectTracingParameters,
+					RadianceCacheParameters,
+					CompactedTraceParameters);
+			}
+			else
+			{
+				FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
+					GraphBuilder,
+					View,
+					ScreenProbeParameters,
+					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
+					IndirectTracingParameters.MaxCardTraceDistance);
+
+				{
+					FScreenProbeTraceCardsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceCardsCS::FParameters>();
+					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
+					PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+					PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+					PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
+					PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+
+					FScreenProbeTraceCardsCS::FPermutationDomain PermutationVector;
+					PermutationVector.Set< FScreenProbeTraceCardsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
+					auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceCardsCS>(PermutationVector);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("TraceCards"),
+						ComputeShader,
+						PassParameters,
+						CompactedTraceParameters.IndirectArgs,
+						0);
+				}
 			}
 		}
 	}
