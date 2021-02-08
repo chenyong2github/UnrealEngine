@@ -4779,7 +4779,7 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 
 void FEngineLoop::Tick()
 {
-	SCOPE_STALL_COUNTER(FEngineLoop::Tick, 2.0)
+	SCOPE_STALL_COUNTER(FEngineLoop::Tick, 2.0);
 
 	// make sure to catch any FMemStack uses outside of UWorld::Tick
 	FMemMark MemStackMark(FMemStack::Get());
@@ -5942,6 +5942,10 @@ void FEngineLoop::AppPreExit( )
 	FRemoteConfig::Flush();
 #endif
 
+#if STALL_DETECTOR
+	UE::FStallDetector::Shutdown();
+#endif
+
 	FCoreDelegates::OnExit.Broadcast();
 
 	// Clean up the thread pool
@@ -6000,10 +6004,6 @@ void FEngineLoop::AppPreExit( )
 
 void FEngineLoop::AppExit( )
 {
-#if STALL_DETECTOR
-	UE::FStallDetector::Shutdown();
-#endif
-
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();
