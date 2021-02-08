@@ -955,7 +955,7 @@ void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneD
 	FPooledRenderTargetDesc EmissiveDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Green, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
 	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, EmissiveDesc, LumenSceneData.EmissiveAtlas, TEXT("Lumen.SceneEmissive"), ERenderTargetTransience::NonTransient);
 
-	FPooledRenderTargetDesc DepthDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_G16, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
+	FPooledRenderTargetDesc DepthDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_G16R16, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
 	DepthDesc.AutoWritable = false;
 	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, DepthDesc, LumenSceneData.DepthAtlas, TEXT("Lumen.SceneDepth"), ERenderTargetTransience::NonTransient);
 

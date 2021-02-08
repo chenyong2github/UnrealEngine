@@ -388,7 +388,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
-	SHADER_PARAMETER_TEXTURE(Texture2D, DepthAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, CurrentOpacityAtlas)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 	SHADER_PARAMETER_ARRAY(FVector4, RadiosityConeDirections, [MaxRadiosityConeDirections])
@@ -416,7 +415,6 @@ void SetupTraceFromTexelParameters(
 
 	// Trace from this frame's cards
 	TraceFromTexelParameters.NormalAtlas = LumenSceneData.NormalAtlas->GetRenderTargetItem().ShaderResourceTexture;
-	TraceFromTexelParameters.DepthAtlas = LumenSceneData.DepthAtlas->GetRenderTargetItem().ShaderResourceTexture;
 	TraceFromTexelParameters.CurrentOpacityAtlas = LumenSceneData.OpacityAtlas->GetRenderTargetItem().ShaderResourceTexture;
 
 	TraceFromTexelParameters.CardBuffer = LumenSceneData.CardBuffer.SRV;

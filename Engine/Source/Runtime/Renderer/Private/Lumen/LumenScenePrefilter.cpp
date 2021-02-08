@@ -122,39 +122,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardPrefilterDepth, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-class FLumenCardDilateForegroundDepthsPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FLumenCardDilateForegroundDepthsPS);
-	SHADER_USE_PARAMETER_STRUCT(FLumenCardDilateForegroundDepthsPS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ChildDepthAtlas)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, OriginalDepthAtlas)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
-	{
-		FGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
-		OutEnvironment.SetRenderTargetOutputFormat( 0, EPixelFormat::PF_R32_UINT );
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FLumenCardDilateForegroundDepthsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardDilateForegroundDepthsPS", SF_Pixel);
-
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardDilateForegroundDepths, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardDilateForegroundDepthsPS::FParameters, PS)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-
 class FLumenCardPostprocessOpacityPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FLumenCardPostprocessOpacityPS);
@@ -247,15 +214,14 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 	FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 
 	FRDGTextureRef OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
-	FRDGTextureRef DilatedDepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
-	FRDGTextureRef UndilatedDepthAtlas = GraphBuilder.CreateTexture(DilatedDepthAtlas->Desc, TEXT("UndilatedDepthAtlas"));
+	FRDGTextureRef DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
 
 	FScene* LocalScene = Scene;
 	const FIntPoint ViewportSize = LumenSceneData.MaxAtlasSize;
 
 	{
 		FLumenCardCopyDepth* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyDepth>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(UndilatedDepthAtlas, ERenderTargetLoadAction::ENoAction, 0);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(DepthAtlas, ERenderTargetLoadAction::ENoAction, 0);
 		PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = 0;
@@ -288,14 +254,14 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 			DestSize.Y = FMath::Max(DestSize.Y, 1);
 
 			FLumenCardPrefilterDepth* PassParameters = GraphBuilder.AllocParameters<FLumenCardPrefilterDepth>();
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(UndilatedDepthAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(DepthAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
 			PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
 			PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 			PassParameters->VS.ScatterInstanceIndex = 0;
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 			PassParameters->PS.View = View.ViewUniformBuffer;
 			PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
-			PassParameters->PS.ParentDepthAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(UndilatedDepthAtlas, MipIndex - 1));
+			PassParameters->PS.ParentDepthAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(DepthAtlas, MipIndex - 1));
 			PassParameters->PS.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 
 			GraphBuilder.AddPass(
@@ -315,7 +281,7 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 
 	{
 		FLumenCardCopy* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopy>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(DilatedDepthAtlas, ERenderTargetLoadAction::ENoAction, NumMips - 1);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(DepthAtlas, ERenderTargetLoadAction::ENoAction, NumMips - 1);
 		PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = 0;
@@ -324,7 +290,7 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 		PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
 		PassParameters->PS.SourceMip = NumMips - 1;
 		PassParameters->PS.ChannelSwizzle = FMatrix::Identity;
-		PassParameters->PS.SourceAtlas = UndilatedDepthAtlas;
+		PassParameters->PS.SourceAtlas = DepthAtlas;
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("CopyLastMip"),
@@ -334,34 +300,6 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 		{
 			auto PixelShader = GlobalShaderMap->GetShader< FLumenCardCopyPS >();
 			DrawQuadsToAtlas(ViewportSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
-		});
-	}
-
-	for (int32 MipIndex = NumMips - 2; MipIndex >= 0; MipIndex--)
-	{
-		FIntPoint DestSize(
-			FMath::Max(LumenSceneData.MaxAtlasSize.X >> MipIndex, 1),
-			FMath::Max(LumenSceneData.MaxAtlasSize.Y >> MipIndex, 1));
-
-		FLumenCardDilateForegroundDepths* PassParameters = GraphBuilder.AllocParameters<FLumenCardDilateForegroundDepths>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(DilatedDepthAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
-		PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
-		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
-		PassParameters->VS.ScatterInstanceIndex = 0;
-		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
-		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
-		PassParameters->PS.ChildDepthAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(DilatedDepthAtlas, MipIndex + 1));
-		PassParameters->PS.OriginalDepthAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(UndilatedDepthAtlas, MipIndex));
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("DilateMip"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[LocalScene, PassParameters, DestSize, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
-		{
-			auto PixelShader = GlobalShaderMap->GetShader< FLumenCardDilateForegroundDepthsPS >();
-			DrawQuadsToAtlas(DestSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
 		});
 	}
 
@@ -408,7 +346,7 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 			PassParameters->PS.View = View.ViewUniformBuffer;
 			PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
-			PassParameters->PS.DepthAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(DilatedDepthAtlas, MipIndex));
+			PassParameters->PS.DepthAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(DepthAtlas, MipIndex));
 			PassParameters->PS.TanHeightfieldSlopeThreshold = FMath::Tan(FMath::Clamp<float>(GLumenSceneHeightfieldSlopeThreshold * PI / 180.0f, 0, PI / 2 - .1f));
 			PassParameters->PS.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 
@@ -464,7 +402,7 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 	}
 
 	ConvertToExternalTexture(GraphBuilder, OpacityAtlas, LumenSceneData.OpacityAtlas);
-	ConvertToExternalTexture(GraphBuilder, DilatedDepthAtlas, LumenSceneData.DepthAtlas);
+	ConvertToExternalTexture(GraphBuilder, DepthAtlas, LumenSceneData.DepthAtlas);
 }
 
 class FLumenCardPrefilterLightingPS : public FGlobalShader

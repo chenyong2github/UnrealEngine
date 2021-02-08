@@ -21,7 +21,7 @@ Texture2D IndirectIrradianceAtlas;
 #define INDIRECT_IRRADIANCE_ATLAS_ID 2
 
 Texture2D OpacityAtlas;
-Texture2D DilatedDepthAtlas;
+Texture2D DepthAtlas;
 
 #ifndef VISIBILITY_ONLY_TRACE
 	#define VISIBILITY_ONLY_TRACE 0
@@ -388,10 +388,10 @@ void ConeTraceSingleLumenCard(
 				float2 DepthAtlasUV3 = CalculateAtlasUV(SamplePosition3.xy, DepthValidRegionScale, LumenCardData);
 				float2 DepthAtlasUV4 = CalculateAtlasUV(SamplePosition4.xy, DepthValidRegionScale, LumenCardData);
 
-				float Depth1 = Texture2DSampleLevel(DilatedDepthAtlas, TRACING_ATLAS_SAMPLER, DepthAtlasUV1, DepthMip).x;
-				float Depth2 = Texture2DSampleLevel(DilatedDepthAtlas, TRACING_ATLAS_SAMPLER, DepthAtlasUV2, DepthMip).x;
-				float Depth3 = Texture2DSampleLevel(DilatedDepthAtlas, TRACING_ATLAS_SAMPLER, DepthAtlasUV3, DepthMip).x;
-				float Depth4 = Texture2DSampleLevel(DilatedDepthAtlas, TRACING_ATLAS_SAMPLER, DepthAtlasUV4, DepthMip).x;
+				float Depth1 = Texture2DSampleLevel(DepthAtlas, TRACING_ATLAS_SAMPLER, DepthAtlasUV1, DepthMip).x;
+				float Depth2 = Texture2DSampleLevel(DepthAtlas, TRACING_ATLAS_SAMPLER, DepthAtlasUV2, DepthMip).x;
+				float Depth3 = Texture2DSampleLevel(DepthAtlas, TRACING_ATLAS_SAMPLER, DepthAtlasUV3, DepthMip).x;
+				float Depth4 = Texture2DSampleLevel(DepthAtlas, TRACING_ATLAS_SAMPLER, DepthAtlasUV4, DepthMip).x;
 
 				float HeightfieldZ1 = LumenCardData.LocalExtent.z - Depth1 * 2 * LumenCardData.LocalExtent.z;
 				float HeightfieldZ2 = LumenCardData.LocalExtent.z - Depth2 * 2 * LumenCardData.LocalExtent.z;
@@ -754,24 +754,30 @@ void SampleLumenCard(
 
 			LocalSamplePosition.xy = clamp(LocalSamplePosition.xy, -LumenCardData.LocalExtent.xy, LumenCardData.LocalExtent.xy);
 
-			float HeightfieldZ;
-
+			// Shadow map visibility
+			float VisibilityWeight = 1.0f;
 			{
-				// Visibility weight is not filterable, prevent low mip
-				float DepthSampleRadiusScale = .25f;
-
 				float Mip;
 				float2 ValidRegionScale;
-				CalculateMip(SampleRadius * DepthSampleRadiusScale, LumenCardData, LumenCardData.LocalExtent, LumenCardData.MaxMip, Mip, ValidRegionScale);
+				CalculateMip(SampleRadius, LumenCardData, LumenCardData.LocalExtent, LumenCardData.MaxMip, Mip, ValidRegionScale);
 
 				float2 AtlasUV = CalculateAtlasUV(LocalSamplePosition.xy, ValidRegionScale, LumenCardData);
-				float Depth = Texture2DSampleLevel(DilatedDepthAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).x;
-				HeightfieldZ = LumenCardData.LocalExtent.z - Depth * 2 * LumenCardData.LocalExtent.z;
-			}
+				float2 DepthMoments = Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, Mip).xy;
 
-			float FullVisibilityRadius = DepthVisibilityRadius * (bAccurateHit ? 1 : 5);
-			float VisibilityFadeDistance = 2;
-			float VisibilityWeight = 1 - saturate((HeightfieldZ - LocalSamplePosition.z - FullVisibilityRadius) / VisibilityFadeDistance);
+				// Bias a bit as SDF traces aren't super accurate
+				const float RayBias = bAccurateHit ? -0.1f : -0.2f;
+				const float NormalizedDistanceToHit = (-LocalSamplePosition.z / LumenCardData.LocalExtent.z) * 0.5f + 0.5f + RayBias;
+
+				VisibilityWeight = 1.0f;
+				if (NormalizedDistanceToHit > DepthMoments.x)
+				{
+					float Variance = abs(Square(DepthMoments.x) - DepthMoments.y);
+					VisibilityWeight = saturate(Variance / (Variance + Square(NormalizedDistanceToHit - DepthMoments.x)));
+
+					const float VisibilityCutoff = 0.15f;
+					VisibilityWeight = (VisibilityWeight - VisibilityCutoff) / (1.0f - VisibilityCutoff);
+				}
+			}
 
 			float3 LocalCardZAxis = float3(0, 0, 1);
 			float3 WorldCardZAxis = mul(LumenCardData.WorldToLocalRotation, LocalCardZAxis);

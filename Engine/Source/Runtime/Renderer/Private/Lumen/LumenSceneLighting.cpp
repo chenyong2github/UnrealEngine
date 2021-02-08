@@ -70,7 +70,7 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 
 	FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
 	OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
-	DilatedDepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
+	DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
 
 	auto RegisterOptionalAtlas = [&GraphBuilder](bool (*UseAtlas)(), TRefCountPtr<IPooledRenderTarget> Atlas) {
 		return UseAtlas() ? GraphBuilder.RegisterExternalTexture(Atlas) : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
@@ -146,7 +146,7 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.IrradianceAtlas = TracingInputs.IrradianceAtlas;
 	TracingParameters.IndirectIrradianceAtlas = TracingInputs.IndirectIrradianceAtlas;
 	TracingParameters.OpacityAtlas = TracingInputs.OpacityAtlas;
-	TracingParameters.DilatedDepthAtlas = TracingInputs.DilatedDepthAtlas;
+	TracingParameters.DepthAtlas = TracingInputs.DepthAtlas;
 
 	TracingParameters.VoxelLighting = TracingInputs.VoxelLighting;
 	

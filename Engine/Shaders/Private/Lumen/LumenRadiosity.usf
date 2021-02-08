@@ -143,7 +143,6 @@ void TraceBlocksIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	RWIndirectArgs[2] = 1;
 }
 
-Texture2D DepthAtlas;
 Texture2D CurrentOpacityAtlas;
 Buffer<uint4> CardTraceBlockData;
 

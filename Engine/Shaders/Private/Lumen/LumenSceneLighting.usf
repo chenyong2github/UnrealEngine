@@ -296,8 +296,11 @@ void LumenCardCopyDepthPS(
 	out float4 OutColor : SV_Target0)
 {
 	float SourceDepth = Texture2DSampleLevel(SourceDepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+
 	// Undo inverted Z
-	OutColor = 1.0f - SourceDepth;
+	float Depth = 1.0f - SourceDepth;
+
+	OutColor = float4(Depth, Depth * Depth, 0.0f, 0.0f);
 }
 
 Texture2D ParentDepthAtlas;
@@ -315,75 +318,14 @@ float2 CalculateParentUV(float2 AtlasCoord, float2 CardUVToAtlasScale, float2 Lo
 
 void LumenCardPrefilterDepthPS(
 	FCardVSToPS CardInterpolants,
-	out float4 OutDepth : SV_Target0)
+	out float4 OutDepthMoments : SV_Target0)
 {
 	FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
 
 	float2 CardUVToAtlasScale = GetCardUVToAtlasScale(LumenCardData.LocalPositionToAtlasUVScale, LumenCardData.LocalExtent);
 
-	float Depths[4];
-
-	Depths[0] = Texture2DSampleLevel(ParentDepthAtlas, GlobalPointClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(.25f, .25f)), 0).x;
-	Depths[1] = Texture2DSampleLevel(ParentDepthAtlas, GlobalPointClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(-.25f, .25f)), 0).x;
-	Depths[2] = Texture2DSampleLevel(ParentDepthAtlas, GlobalPointClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(.25f, -.25f)), 0).x;
-	Depths[3] = Texture2DSampleLevel(ParentDepthAtlas, GlobalPointClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(-.25f, -.25f)), 0).x;
-	
-	float DepthSum = 0;
-	float DepthTotalWeight = 0;
-
-	for (uint i = 0; i < 4; i++)
-	{
-		// Remove background depths
-		float DepthWeight = Depths[i] < .999f ? 1.0f : 0.0f;
-		DepthSum += Depths[i] * DepthWeight;
-		DepthTotalWeight += DepthWeight;
-	}
-
-	if (DepthTotalWeight == 0)
-	{
-		OutDepth = 1;
-	}
-	else
-	{
-		OutDepth = DepthSum / DepthTotalWeight;
-	}
-}
-
-Texture2D ChildDepthAtlas;
-Texture2D OriginalDepthAtlas;
-uint MipIndex;
-
-void LumenCardDilateForegroundDepthsPS(
-	FCardVSToPS CardInterpolants,
-	out float4 OutDepth : SV_Target0)
-{
-	float Depth = Texture2DSampleLevel(OriginalDepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
-
-	if (Depth > .99f)
-	{
-		//FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
-
-		//if (MipIndex + 1 < LumenCardData.MaxMip) 
-
-		bool bDistantCard = false;
-
-		for (uint i = 0; i < LumenCardScene.NumDistantCards; i++)
-		{
-			if (LumenCardScene.DistantCardIndices[i] == CardInterpolants.CardId)
-			{
-				bDistantCard = true;
-				break;
-			}
-		}
-
-		if (!bDistantCard)
-		{
-			// Fill in any background depths with a value from the lower resolution mip, which has already been filled in
-			Depth = Texture2DSampleLevel(ChildDepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
-		}
-	}
-
-	OutDepth = Depth;
+	float2 DepthMoments = Texture2DSampleLevel(ParentDepthAtlas, GlobalBilinearClampedSampler, CalculateParentUV(CardInterpolants.AtlasCoord, CardUVToAtlasScale, LumenCardData.LocalPositionToAtlasUVBias, float2(0.0f, 0.0f)), 0).xy;
+	OutDepthMoments.xy = float4(DepthMoments, 0.0f, 0.0f);
 }
 
 Texture2D DepthAtlas;

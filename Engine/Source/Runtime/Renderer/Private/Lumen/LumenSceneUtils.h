@@ -292,7 +292,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IrradianceAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectIrradianceAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedDepthAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelLighting)
 	SHADER_PARAMETER_STRUCT_REF(FLumenVoxelTracingParameters, LumenVoxelTracingParameters)
 	SHADER_PARAMETER(uint32, NumGlobalSDFClipmaps)
@@ -308,7 +308,7 @@ public:
 	FRDGTextureRef IrradianceAtlas;
 	FRDGTextureRef IndirectIrradianceAtlas;
 	FRDGTextureRef OpacityAtlas;
-	FRDGTextureRef DilatedDepthAtlas;
+	FRDGTextureRef DepthAtlas;
 	FRDGTextureRef VoxelLighting;
 	FIntVector VoxelGridResolution;
 	int32 NumClipmapLevels;
