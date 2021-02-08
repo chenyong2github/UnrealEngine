@@ -687,9 +687,7 @@ void FD3D12DynamicRHIModule::ShutdownModule()
 #endif
 }
 
-#if D3D12_RHI_RAYTRACING
-
-bool IsRayTracingEmulated(uint32 DeviceId)
+static bool IsRayTracingEmulated(uint32 DeviceId)
 {
 	uint32 EmulatedRayTracingIds[] =
 	{
@@ -723,8 +721,6 @@ bool IsRayTracingEmulated(uint32 DeviceId)
 
 	return false;
 }
-
-#endif // D3D12_RHI_RAYTRACING
 
 void FD3D12DynamicRHI::Init()
 {
