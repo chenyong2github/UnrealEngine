@@ -22,11 +22,11 @@ FAutoConsoleVariableRef CVarLumenSceneMaxInstanceAddsPerFrame(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenMeshCardsMinSize = 100.0f;
+float GLumenMeshCardsMinSize = 30.0f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMinSize(
 	TEXT("r.LumenScene.MeshCardsMinSize"),
 	GLumenMeshCardsMinSize,
-	TEXT("Min mesh size to be included in the Lumen cube map tree."),
+	TEXT("Minimum mesh card size to be captured by Lumen Scene."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
 	{
 		FGlobalComponentRecreateRenderStateContext Context;
