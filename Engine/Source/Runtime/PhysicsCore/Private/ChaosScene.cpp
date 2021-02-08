@@ -233,9 +233,9 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 			for(int32 ActorIndex = 0; ActorIndex < NumActors; ++ActorIndex)
 			{
 				const FPhysicsActorHandle& Actor = Actors[ActorIndex];
-				const Chaos::FRigidBodyHandle_External& Body_External = Actor->GetGameThreadAPI();
 				if(Actor)
 				{
+					const Chaos::FRigidBodyHandle_External& Body_External = Actor->GetGameThreadAPI();
 					// @todo(chaos): dedupe code in UpdateActorInAccelerationStructure
 					FAABB3 WorldBounds;
 					const bool bHasBounds = Body_External.Geometry()->HasBoundingBox();
