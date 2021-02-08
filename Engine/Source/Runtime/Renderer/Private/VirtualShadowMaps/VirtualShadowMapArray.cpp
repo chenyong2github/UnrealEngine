@@ -736,38 +736,20 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						check(ShadowViewRect.Max.Y == FVirtualShadowMap::VirtualMaxResolutionXY);
 					}
 
-					if (ProjectedShadowInfo->bOnePassPointLightShadow)
+					int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
+					for( int32 i = 0; i < NumMaps; i++ )
 					{
-						for (int32 CubeFace = 0; CubeFace < 6; CubeFace++)
-						{
-							FMatrix ViewToClip = ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix;
-							FMatrix TranslatedWorldToView = ProjectedShadowInfo->OnePassShadowViewMatrices[ CubeFace ] * FScaleMatrix(FVector(1, -1, 1));	// TODO add cull direction to FPackedView instead of this scale nonsense.
-	
-							FVirtualShadowMapProjectionShaderData& Data = ShadowMapProjectionData[ ProjectedShadowInfo->VirtualShadowMaps[ CubeFace ]->ID ];
-							Data.TranslatedWorldToShadowViewMatrix = TranslatedWorldToView;
-							Data.ShadowViewToClipMatrix = ViewToClip;
-							Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(TranslatedWorldToView, ViewToClip);
-							Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(TranslatedWorldToView, ViewToClip);
-							Data.ShadowPreViewTranslation = FVector(ProjectedShadowInfo->PreShadowTranslation);
-							Data.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMaps[ CubeFace ]->ID;
-							Data.LightType = ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
-				}
-			}
-					else
-					{
-						FMatrix ViewToClip = ProjectedShadowInfo->ViewToClipInner;
-	
-						FVirtualShadowMapProjectionShaderData& Data = ShadowMapProjectionData[ ProjectedShadowInfo->VirtualShadowMaps[0]->ID ];
-						Data.TranslatedWorldToShadowViewMatrix = ProjectedShadowInfo->TranslatedWorldToView;
-						Data.ShadowViewToClipMatrix = ViewToClip;
-						Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(ProjectedShadowInfo->TranslatedWorldToView, ViewToClip);
-						Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(ProjectedShadowInfo->TranslatedWorldToView, ViewToClip);
-						Data.ShadowPreViewTranslation = FVector(ProjectedShadowInfo->PreShadowTranslation);
-						Data.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMaps[0]->ID;
-						Data.LightType = ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
+						FViewMatrices ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices( i, true );
 
-						ensure(!ProjectedShadowInfo->bDirectionalLight);
-		}
+						FVirtualShadowMapProjectionShaderData& Data = ShadowMapProjectionData[ ProjectedShadowInfo->VirtualShadowMaps[i]->ID ];
+						Data.TranslatedWorldToShadowViewMatrix		= ViewMatrices.GetTranslatedViewMatrix();
+						Data.ShadowViewToClipMatrix					= ViewMatrices.GetProjectionMatrix();
+						Data.TranslatedWorldToShadowUVMatrix		= CalcTranslatedWorldToShadowUVMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() );
+						Data.TranslatedWorldToShadowUVNormalMatrix	= CalcTranslatedWorldToShadowUVNormalMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() );
+						Data.ShadowPreViewTranslation				= FVector(ProjectedShadowInfo->PreShadowTranslation);
+						Data.VirtualShadowMapId						= ProjectedShadowInfo->VirtualShadowMaps[i]->ID;
+						Data.LightType								= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
+					}
 				}
 			}
 		}

@@ -159,8 +159,8 @@ FSMRTResult ShadowRayCastPointLight(
 {
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
-	uint RayStartFace = GetCubeFace(-(RayStart + BaseProjectionData.ShadowPreViewTranslation));
-	uint RayEndFace   = GetCubeFace(-(RayEnd   + BaseProjectionData.ShadowPreViewTranslation));
+	uint RayStartFace = GetCubeFace( RayStart + BaseProjectionData.ShadowPreViewTranslation );
+	uint RayEndFace   = GetCubeFace( RayEnd   + BaseProjectionData.ShadowPreViewTranslation );
 		
 	FSMRTResult Result;	
 	if (RayStartFace != RayEndFace)
@@ -356,6 +356,8 @@ float TraceLocalLight(
 				}
 			}
 #endif
+			uint Seed = asuint( StepOffset );
+			StepOffset = ( EvolveSobolSeed( Seed ) >> 8 ) * 5.96046447754e-08; // * 2^-24;
 		}
 		SampleCount = min(i + 1, uint(RayCount));		// break vs regular for loop exit
 		RayMissFactor /= float(SampleCount);

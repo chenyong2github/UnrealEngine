@@ -262,7 +262,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 
 		if( BaseProjectionData.LightType != LIGHT_TYPE_SPOT )
 		{
-			VirtualShadowMapId += GetCubeFace( -TranslatedWorldPosition );
+			VirtualShadowMapId += GetCubeFace( TranslatedWorldPosition );
 			BaseProjectionData = GetVirtualShadowMapProjectionData( VirtualShadowMapId );
 		}
 

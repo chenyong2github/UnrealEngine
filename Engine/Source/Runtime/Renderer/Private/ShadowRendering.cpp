@@ -2276,8 +2276,7 @@ FViewMatrices FProjectedShadowInfo::GetShadowDepthRenderingViewMatrices(int32 Cu
 	{
 		if (bUseForVSMCubeFaceWorkaround)
 		{
-			// TODO add cull direction to FPackedView instead of this scale nonsense.
-			MatricesInitializer.ViewRotationMatrix = OnePassShadowViewMatrices[CubeFaceIndex] * FScaleMatrix(FVector(1, -1, 1));
+			MatricesInitializer.ViewRotationMatrix = OnePassShadowViewMatrices[CubeFaceIndex] * FScaleMatrix(FVector(1, 1, -1));
 		}
 		else
 		{

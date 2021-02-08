@@ -248,7 +248,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 				bool bSpotLight = LightData.SpotAnglesAndSourceRadiusPacked.x > -2.0f;
 				if( !bSpotLight )
 				{
-					VirtualShadowMapId += GetCubeFace( ToLight );
+					VirtualShadowMapId += GetCubeFace( -ToLight );
 				}
 
 				uint MipLevel = GetMipLevel(VirtualShadowMapId, Pixel);
