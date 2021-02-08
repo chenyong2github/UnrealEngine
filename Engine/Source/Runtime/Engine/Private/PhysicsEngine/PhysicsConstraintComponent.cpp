@@ -409,9 +409,10 @@ void UPhysicsConstraintComponent::PostEditChangeChainProperty(FPropertyChangedCh
 
 void UPhysicsConstraintComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 	UpdateConstraintFrames();
 	UpdateSpriteTexture();
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void UPhysicsConstraintComponent::PostEditComponentMove(bool bFinished)

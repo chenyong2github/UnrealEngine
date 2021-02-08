@@ -148,10 +148,10 @@ FVector UChaosVehicleWheel::GetPhysicsLocation()
 
 void UChaosVehicleWheel::PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent )
 {
-	Super::PostEditChangeProperty( PropertyChangedEvent );
-
 	// Trigger a runtime rebuild of the Physics vehicle
 	FChaosVehicleManager::VehicleSetupTag++;
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 #endif //WITH_EDITOR

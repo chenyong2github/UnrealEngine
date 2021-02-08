@@ -898,10 +898,11 @@ void UChaosWheeledVehicleMovementComponent::Serialize(FArchive & Ar)
 #if WITH_EDITOR
 void UChaosWheeledVehicleMovementComponent::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
 	RecalculateAxles();
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
 

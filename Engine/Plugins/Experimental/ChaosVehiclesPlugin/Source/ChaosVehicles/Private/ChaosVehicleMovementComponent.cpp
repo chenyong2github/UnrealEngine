@@ -659,10 +659,10 @@ void UChaosVehicleMovementComponent::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 void UChaosVehicleMovementComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 	// Trigger a runtime rebuild of the Chaos vehicle
 	FChaosVehicleManager::VehicleSetupTag++;
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif // WITH_EDITOR
 

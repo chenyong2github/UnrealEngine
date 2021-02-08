@@ -77,7 +77,6 @@ UWheeledVehicleMovementComponent4W::UWheeledVehicleMovementComponent4W(const FOb
 #if WITH_EDITOR
 void UWheeledVehicleMovementComponent4W::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
 	if (PropertyName == TEXT("DownRatio"))
@@ -106,6 +105,8 @@ void UWheeledVehicleMovementComponent4W::PostEditChangeProperty(struct FProperty
 			SteeringCurve.GetRichCurve()->UpdateOrAddKey(SteerKeys[KeyIdx].Time, NewValue);
 		}
 	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
 

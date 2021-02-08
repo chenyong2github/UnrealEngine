@@ -1899,10 +1899,10 @@ void UWheeledVehicleMovementComponent::DrawDebugLines()
 
 void UWheeledVehicleMovementComponent::PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent )
 {
-	Super::PostEditChangeProperty( PropertyChangedEvent );
-
 	// Trigger a runtime rebuild of the PhysX vehicle
 	FPhysXVehicleManager::VehicleSetupTag++;
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 #endif // WITH_EDITOR && WITH_PHYSX

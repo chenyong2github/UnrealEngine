@@ -166,12 +166,12 @@ FVector UVehicleWheel::GetPhysicsLocation()
 
 void UVehicleWheel::PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent )
 {
-	Super::PostEditChangeProperty( PropertyChangedEvent );
-
 #if WITH_PHYSX_VEHICLES
 	// Trigger a runtime rebuild of the PhysX vehicle
 	FPhysXVehicleManager::VehicleSetupTag++;
 #endif // WITH_PHYSX
+
+	Super::PostEditChangeProperty( PropertyChangedEvent );
 }
 
 #endif //WITH_EDITOR
