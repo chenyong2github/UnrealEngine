@@ -105,5 +105,8 @@ BuildShaderConductor()
 _EOF_
 ) > /tmp/__cmake_toolchain.cmake
 
-#BuildShaderConductor x86_64-unknown-linux-gnu Debug
-BuildShaderConductor x86_64-unknown-linux-gnu RelWithDebInfo
+if [ "$#" -eq 1 ] && [ "$1" == "-debug" ]; then
+	BuildShaderConductor x86_64-unknown-linux-gnu Debug
+else
+	BuildShaderConductor x86_64-unknown-linux-gnu RelWithDebInfo
+fi
