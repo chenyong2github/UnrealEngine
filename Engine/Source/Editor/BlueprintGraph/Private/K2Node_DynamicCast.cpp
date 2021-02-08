@@ -327,9 +327,9 @@ bool UK2Node_DynamicCast::IsConnectionDisallowed(const UEdGraphPin* MyPin, const
 			bIsDisallowed = true;
 			OutReason = LOCTEXT("InvalidTargetType", "This cast has an invalid target type (was the class deleted without a redirect?).").ToString();
 		}
-		else if ((OtherPinType.PinCategory == UEdGraphSchema_K2::PC_Interface) || TargetType->HasAnyClassFlags(CLASS_Interface))
+		else if (OtherPinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
 		{
-			// allow all interface casts
+			// allow all interface casts, but don't allow casting non-objects to interfaces
 		}
 		else if (OtherPinType.PinCategory == UEdGraphSchema_K2::PC_Object)
 		{
