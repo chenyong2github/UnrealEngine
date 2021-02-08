@@ -2,10 +2,9 @@
 
 // Port of geometry3cpp ProgressCancel
 
-#include "Templates/Function.h"
-
 #pragma once
 
+#include "Templates/Function.h"
 
 /**
  * FProgressCancel is an obejct that is intended to be passed to long-running
