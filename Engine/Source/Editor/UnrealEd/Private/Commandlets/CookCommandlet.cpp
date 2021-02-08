@@ -37,7 +37,6 @@
 #include "INetworkFileSystemModule.h"
 #include "GameDelegates.h"
 #include "CookerSettings.h"
-#include "ShaderCompiler.h"
 #include "HAL/MemoryMisc.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "AssetRegistryModule.h"
