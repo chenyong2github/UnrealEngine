@@ -165,6 +165,12 @@ private:
 	FDelegateHandle OnMovieSceneChannelChangedHandle;
 	FDelegateHandle OnActorAddedToSequencerHandle;
 	FDelegateHandle OnTreeViewChangedHandle;
+
+	void BindControlRig(UControlRig* ControlRig);
+	void UnbindControlRig(UControlRig* ControlRig);
+	void UnbindAllControlRigs();
+	TArray<TWeakObjectPtr<UControlRig>> BoundControlRigs;
+
 private:
 
 	/** Guard to stop infinite loops when handling control selections*/
