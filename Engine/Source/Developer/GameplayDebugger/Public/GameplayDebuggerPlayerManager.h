@@ -69,6 +69,9 @@ public:
 
 	static AGameplayDebuggerPlayerManager& GetCurrent(UWorld* World);
 
+	/** extracts view location and direction from a player controller that can be used for picking */
+	static void GetViewPoint(const APlayerController& OwnerPC, FVector& OutViewLocation, FVector& OutViewDirection);
+
 protected:
 
 	UPROPERTY()

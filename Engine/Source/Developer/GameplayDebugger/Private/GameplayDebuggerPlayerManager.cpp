@@ -8,6 +8,8 @@
 #include "Engine/DebugCameraController.h"
 #include "Engine/InputDelegateBinding.h"
 #include "GameplayDebuggerConfig.h"
+#include "UnrealEngine.h"
+#include "Engine/LocalPlayer.h"
 
 
 AGameplayDebuggerPlayerManager::AGameplayDebuggerPlayerManager(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -250,6 +252,34 @@ const FGameplayDebuggerPlayerData* AGameplayDebuggerPlayerManager::GetPlayerData
 	}
 
 	return nullptr;
+}
+
+void AGameplayDebuggerPlayerManager::GetViewPoint(const APlayerController& OwnerPC, FVector& OutViewLocation, FVector& OutViewDirection)
+{
+	UWorld* World = OwnerPC.GetWorld();
+	FVector CameraLocation;
+	FRotator CameraRotation;
+	if (OwnerPC.Player)
+	{
+		// normal game
+		OwnerPC.GetPlayerViewPoint(CameraLocation, CameraRotation);
+	}
+	else
+	{
+		// spectator mode
+		for (FLocalPlayerIterator It(GEngine, World); It; ++It)
+		{
+			ADebugCameraController* SpectatorPC = Cast<ADebugCameraController>(It->PlayerController);
+			if (SpectatorPC)
+			{
+				SpectatorPC->GetPlayerViewPoint(CameraLocation, CameraRotation);
+				break;
+			}
+		}
+	}
+
+	OutViewLocation = CameraLocation;
+	OutViewDirection = CameraRotation.Vector();
 }
 
 // FTickableGameObject begin
