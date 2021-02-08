@@ -81,9 +81,14 @@ TAutoConsoleVariable<int32> CVarTAAR11G11B10History(
 	TEXT("Select the bitdepth of the history."),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTAAFilterHistoryRejection(
-	TEXT("r.TemporalAA.FilterHistoryRejection"), 1,
-	TEXT("Whether the history rejection statistical filtering pass should be enabled or not."),
+TAutoConsoleVariable<int32> CVarTAAHalfResShadingRejection(
+	TEXT("r.TemporalAA.ShadingRejection.HalfRes"), 0,
+	TEXT("Whether the shading rejection should be done at half res. Saves performance but may introduce back some flickering (default = 0)."),
+	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarTAAFilterShadingRejection(
+	TEXT("r.TemporalAA.ShadingRejection.SpatialFilter"), 1,
+	TEXT("Whether the shading rejection should have spatial statistical filtering pass to reduce flickering (default = 1)."),
 	ECVF_RenderThreadSafe);
 
 inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
@@ -348,6 +353,10 @@ class FTAADecimateHistoryCS : public FTAAGen5Shader
 	DECLARE_GLOBAL_SHADER(FTAADecimateHistoryCS);
 	SHADER_USE_PARAMETER_STRUCT(FTAADecimateHistoryCS, FTAAGen5Shader);
 
+	class FOutputHalfRes : SHADER_PERMUTATION_BOOL("DIM_OUTPUT_HALF_RES");
+
+	using FPermutationDomain = TShaderPermutationDomain<FOutputHalfRes>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 		SHADER_PARAMETER(FMatrix, RotationalClipToPrevClip)
@@ -356,6 +365,7 @@ class FTAADecimateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
 		SHADER_PARAMETER(int32, bCameraCut)
 
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClosestDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevUseCountTexture)
@@ -365,6 +375,9 @@ class FTAADecimateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
 		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
 
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HalfResSceneColorOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HalfResPredictionSceneColorOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HalfResParallaxRejectionMaskOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PredictionSceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ParallaxRejectionMaskOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
@@ -1007,11 +1020,19 @@ static void AddGen5MainTemporalAAPasses(
 	// Whether to use camera cut shader permutation or not.
 	bool bCameraCut = !InputHistory.IsValid() || View.bCameraCut;
 
+	bool bHalfResLowFrequency = CVarTAAHalfResShadingRejection.GetValueOnRenderThread() != 0;
+
 	FIntPoint InputExtent = PassInputs.SceneColorTexture->Desc.Extent;
 	FIntRect InputRect = View.ViewRect;
 
 	FIntPoint LowFrequencyExtent = InputExtent;
 	FIntRect LowFrequencyRect = FIntRect(FIntPoint(0, 0), InputRect.Size());
+
+	if (bHalfResLowFrequency)
+	{
+		LowFrequencyExtent = InputExtent / 2;
+		LowFrequencyRect = FIntRect(FIntPoint(0, 0), FIntPoint::DivideAndRoundUp(InputRect.Size(), 2));
+	}
 
 	FIntPoint RejectionExtent = LowFrequencyExtent / 2;
 	FIntRect RejectionRect = FIntRect(FIntPoint(0, 0), FIntPoint::DivideAndRoundUp(LowFrequencyRect.Size(), 2));
@@ -1195,19 +1216,19 @@ static void AddGen5MainTemporalAAPasses(
 	}
 
 	// Decimate input to flicker at same frequency as input.
-	FRDGTextureRef PredictionSceneColorTexture;
-	FRDGTextureRef ParallaxRejectionMaskTexture;
+	FRDGTextureRef HalfResInputSceneColorTexture = nullptr;
+	FRDGTextureRef HalfResPredictionSceneColorTexture = nullptr;
+	FRDGTextureRef HalfResParallaxRejectionMaskTexture = nullptr;
+	FRDGTextureRef PredictionSceneColorTexture = nullptr;
+	FRDGTextureRef ParallaxRejectionMaskTexture = nullptr;
 	{
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				LowFrequencyExtent,
-				PF_FloatR11G11B10,
+				InputExtent,
+				PF_R8,
 				FClearValueBinding::None,
 				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
-			PredictionSceneColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Decimated.SceneColor"));
-
-			Desc.Format = PF_R8;
 			ParallaxRejectionMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.ParallaxRejectionMask"));
 		}
 
@@ -1222,7 +1243,7 @@ static void AddGen5MainTemporalAAPasses(
 
 			PassParameters->RotationalClipToPrevClip = RotationalInvViewProj * RotationalPrevViewProj;
 		}
-		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(PredictionSceneColorTexture->Desc.Format);
+		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(PF_FloatR11G11B10);
 		PassParameters->HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 		{
 			float TanHalfFieldOfView = View.ViewMatrices.GetInvProjectionMatrix().M[0][0];
@@ -1232,6 +1253,7 @@ static void AddGen5MainTemporalAAPasses(
 		}
 		PassParameters->bCameraCut = bCameraCut;
 
+		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
 		PassParameters->ClosestDepthTexture = ClosestDepthTexture;
 		PassParameters->PrevUseCountTexture = PrevUseCountTexture;
@@ -1241,14 +1263,49 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->PrevHistoryInfo = PrevHistoryInfo;
 		PassParameters->PrevHistory = PrevHistory;
 
-		PassParameters->PredictionSceneColorOutput = GraphBuilder.CreateUAV(PredictionSceneColorTexture);
+		if (bHalfResLowFrequency)
+		{
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				LowFrequencyExtent,
+				PF_FloatR11G11B10,
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+
+			HalfResInputSceneColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.HalfResInput"));
+			HalfResPredictionSceneColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Prediction.SceneColor"));
+
+			Desc.Format = PF_R8;
+			HalfResParallaxRejectionMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.HalfResParallaxRejectionMask"));
+
+			PassParameters->HalfResSceneColorOutput = GraphBuilder.CreateUAV(HalfResInputSceneColorTexture);
+			PassParameters->HalfResPredictionSceneColorOutput = GraphBuilder.CreateUAV(HalfResPredictionSceneColorTexture);
+			PassParameters->HalfResParallaxRejectionMaskOutput = GraphBuilder.CreateUAV(HalfResParallaxRejectionMaskTexture);
+		}
+		else
+		{
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				InputExtent,
+				PF_FloatR11G11B10,
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+
+			PredictionSceneColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Prediction.SceneColor"));
+
+			PassParameters->PredictionSceneColorOutput = GraphBuilder.CreateUAV(PredictionSceneColorTexture);
+		}
+
 		PassParameters->ParallaxRejectionMaskOutput = GraphBuilder.CreateUAV(ParallaxRejectionMaskTexture);
 		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TAA.DecimateHistory"));
 
-		TShaderMapRef<FTAADecimateHistoryCS> ComputeShader(View.ShaderMap);
+		FTAADecimateHistoryCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FTAADecimateHistoryCS::FOutputHalfRes>(bHalfResLowFrequency);
+
+		TShaderMapRef<FTAADecimateHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TAA DecimateHistory %dx%d", InputRect.Width(), InputRect.Height()),
+			RDG_EVENT_NAME("TAA DecimateHistory(%s) %dx%d",
+				bHalfResLowFrequency ? TEXT("HalfResShadingOutput") : TEXT(""),
+				InputRect.Width(), InputRect.Height()),
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
@@ -1276,9 +1333,18 @@ static void AddGen5MainTemporalAAPasses(
 			PassParameters->CommonParameters = CommonParameters;
 			PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(FilteredInputTexture->Desc.Format);
 
-			PassParameters->InputTexture = PassInputs.SceneColorTexture;
-			PassParameters->PredictionSceneColorTexture = PredictionSceneColorTexture;
-			PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
+			if (bHalfResLowFrequency)
+			{
+				PassParameters->InputTexture = HalfResInputSceneColorTexture;
+				PassParameters->PredictionSceneColorTexture = HalfResPredictionSceneColorTexture;
+				PassParameters->ParallaxRejectionMaskTexture = HalfResParallaxRejectionMaskTexture;
+			}
+			else
+			{
+				PassParameters->InputTexture = PassInputs.SceneColorTexture;
+				PassParameters->PredictionSceneColorTexture = PredictionSceneColorTexture;
+				PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
+			}
 
 			PassParameters->FilteredInputOutput = GraphBuilder.CreateUAV(FilteredInputTexture);
 			PassParameters->FilteredPredictionSceneColorOutput = GraphBuilder.CreateUAV(FilteredPredictionSceneColorTexture);
@@ -1325,7 +1391,7 @@ static void AddGen5MainTemporalAAPasses(
 	}
 
 	// Post filter the rejection.
-	if (CVarTAAFilterHistoryRejection.GetValueOnRenderThread() != 0)
+	if (CVarTAAFilterShadingRejection.GetValueOnRenderThread() != 0)
 	{
 		FRDGTextureRef FilteredHistoryRejectionTexture = GraphBuilder.CreateTexture(HistoryRejectionTexture->Desc, TEXT("TAA.FilteredHistoryRejection"));
 
@@ -1445,8 +1511,8 @@ static void AddGen5MainTemporalAAPasses(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TAA UpdateHistory%s %dx%d", 
-				History.Textures[0]->Desc.Format == PF_FloatR11G11B10 ? TEXT(" R11G11B10") : TEXT(""),
+			RDG_EVENT_NAME("TAA UpdateHistory(%s) %dx%d", 
+				History.Textures[0]->Desc.Format == PF_FloatR11G11B10 ? TEXT("R11G11B10") : TEXT(""),
 				HistorySize.X, HistorySize.Y),
 			ComputeShader,
 			PassParameters,

@@ -9,6 +9,8 @@
 
 #define CONFIG_KERNEL 0
 
+#define CONFIG_OUTPUT_HALF_RES (DIM_OUTPUT_HALF_RES)
+
 
 //------------------------------------------------------- PARAMETERS
 
@@ -17,6 +19,7 @@ float3 OutputQuantizationError;
 float HistoryPreExposureCorrection;
 uint bCameraCut;
 
+Texture2D<taa_half3> InputSceneColorTexture;
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<float> ClosestDepthTexture;
 Texture2D<uint> PrevUseCountTexture;
@@ -28,8 +31,18 @@ Texture2D<taa_half3> PrevHistory_Textures_1;
 Texture2D<taa_half2> PrevHistory_Textures_2;
 Texture2D<uint> PrevHistory_Textures_3;
 
+RWTexture2D<taa_half3> HalfResSceneColorOutput;
+RWTexture2D<taa_half3> HalfResPredictionSceneColorOutput;
+RWTexture2D<taa_half> HalfResParallaxRejectionMaskOutput;
+
 RWTexture2D<taa_half3> PredictionSceneColorOutput;
 RWTexture2D<taa_half> ParallaxRejectionMaskOutput;
+
+
+//------------------------------------------------------- LDS
+
+groupshared taa_half3 SharedInputColor[TILE_SIZE * TILE_SIZE];
+groupshared taa_half4 SharedHistoryColorAndMask[TILE_SIZE * TILE_SIZE];
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -64,6 +77,7 @@ void MainCS(
 	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
 	float DeviceZ = ClosestDepthTexture[InputPixelPos];
 	taa_half ParallaxFactor = UncompressParallaxFactor((ParallaxFactorTexture[InputPixelPos] >> 4) & 0xF);
+	taa_half3 InputSceneColor = InputSceneColorTexture[InputPixelPos];
 
 
 	float WorldDepth = ConvertFromDeviceZ(DeviceZ);
@@ -171,15 +185,6 @@ void MainCS(
 		ParallaxRejectionMask = min(ParallaxRejectionMask, HistoryParallaxRejectionMask);
 	}
 
-	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
-	{
-		uint2 Random = Rand3DPCG16(int3(InputPixelPos - InputInfo_ViewportMin, View.StateFrameIndexMod8)).xy;
-		float2 E = Hammersley16(0, 1, Random);
-
-		DecimatedColor = QuantizeForFloatRenderTarget(DecimatedColor, E.x, OutputQuantizationError);
-	}
-	#endif
-
 	// Immediately reject based on the rejection mask
 	FLATTEN
 	if ((PrevOutputScreenPos.x < -1.0) ||
@@ -191,9 +196,77 @@ void MainCS(
 		HistoryValidity = taa_half(0.0);
 	}
 
+	
+	#if CONFIG_OUTPUT_HALF_RES
+	{
+		SharedInputColor[GroupThreadIndex] = InputSceneColor;
+		SharedHistoryColorAndMask[GroupThreadIndex] = taa_half4(DecimatedColor, ParallaxRejectionMask);
+
+		GroupMemoryBarrierWithGroupSync();
+
+		bool bCheckerboard = (((InputPixelPos.x ^ InputPixelPos.y) >> 1) & 0x1) != 0;
+
+		half3 HalfResInputSceneColor = InputSceneColor;
+		half3 HalfResDecimatedColor = DecimatedColor;
+		half HalfResParallaxRejectionMask = ParallaxRejectionMask;
+
+		UNROLL
+		for (uint i = 1; i < 4; i++)
+		{
+			uint ButterflySwap = i;
+			
+			if (bCheckerboard)
+			{
+				HalfResInputSceneColor = min(HalfResInputSceneColor, SharedInputColor[GroupThreadIndex ^ ButterflySwap]);
+			}
+			else
+			{
+				HalfResInputSceneColor = max(HalfResInputSceneColor, SharedInputColor[GroupThreadIndex ^ ButterflySwap]);
+			}
+			HalfResDecimatedColor += SharedHistoryColorAndMask[GroupThreadIndex ^ ButterflySwap].rgb;
+
+			HalfResParallaxRejectionMask += SharedHistoryColorAndMask[GroupThreadIndex ^ ButterflySwap].a;
+		}
+
+		HalfResDecimatedColor *= 0.25;
+		HalfResParallaxRejectionMask *= 0.25;
+
+		#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
+		{
+			uint2 Random = Rand3DPCG16(int3((InputPixelPos - InputInfo_ViewportMin) / 2, View.StateFrameIndexMod8)).xy;
+			float2 E = Hammersley16(0, 1, Random);
+
+			HalfResInputSceneColor = QuantizeForFloatRenderTarget(HalfResInputSceneColor, E.x, OutputQuantizationError);
+			HalfResDecimatedColor = QuantizeForFloatRenderTarget(HalfResDecimatedColor, E.x, OutputQuantizationError);
+		}
+		#endif
+
+		if (all(InputPixelPos < InputInfo_ViewportMax) && all(((InputPixelPos - InputInfo_ViewportMin) % 2) == 0))
+		{
+			HalfResSceneColorOutput[InputPixelPos / 2] = HalfResInputSceneColor;
+			HalfResPredictionSceneColorOutput[InputPixelPos / 2] = HalfResDecimatedColor;
+			HalfResParallaxRejectionMaskOutput[InputPixelPos / 2] = HalfResParallaxRejectionMask;
+		}
+	}
+	#endif
+
+	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
+	{
+		uint2 Random = Rand3DPCG16(int3(InputPixelPos - InputInfo_ViewportMin, View.StateFrameIndexMod8)).xy;
+		float2 E = Hammersley16(0, 1, Random);
+
+		DecimatedColor = QuantizeForFloatRenderTarget(DecimatedColor, E.x, OutputQuantizationError);
+	}
+	#endif
+
 	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
-		PredictionSceneColorOutput[InputPixelPos] = DecimatedColor;
+		#if !CONFIG_OUTPUT_HALF_RES
+		{
+			PredictionSceneColorOutput[InputPixelPos] = DecimatedColor;
+		}
+		#endif
+		
 		ParallaxRejectionMaskOutput[InputPixelPos] = ParallaxRejectionMask;
 		
 		#if DEBUG_OUTPUT

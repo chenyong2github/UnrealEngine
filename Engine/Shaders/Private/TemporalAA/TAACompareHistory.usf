@@ -45,10 +45,10 @@ void MainCS(
 		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
-	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;
+	uint2 InputPixelPos = LowFrequencyInfo_ViewportMin + DispatchThreadId;
 
-	float2 InputBufferUV = (InputPixelPos + 0.5) * InputInfo_ExtentInverse;
-	InputBufferUV = clamp(InputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
+	float2 InputBufferUV = (InputPixelPos + 0.5) * LowFrequencyInfo_ExtentInverse;
+	InputBufferUV = clamp(InputBufferUV, LowFrequencyInfo_UVViewportBilinearMin, LowFrequencyInfo_UVViewportBilinearMax);
 
 	taa_half3 InputMinColor;
 	taa_half3 InputMaxColor;
@@ -71,8 +71,8 @@ void MainCS(
 			continue;
 		}
 
-		float2 SampleInputBufferUV = InputBufferUV + float2(kOffsets3x3[i]) * InputInfo_ExtentInverse;
-		SampleInputBufferUV = clamp(SampleInputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
+		float2 SampleInputBufferUV = InputBufferUV + float2(kOffsets3x3[i]) * LowFrequencyInfo_ExtentInverse;
+		SampleInputBufferUV = clamp(SampleInputBufferUV, LowFrequencyInfo_UVViewportBilinearMin, LowFrequencyInfo_UVViewportBilinearMax);
 
 		taa_half3 Color = TransformColorForClampingBox(FilteredInputTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0));
 
@@ -115,24 +115,24 @@ void MainCS(
 		}
 
 		
-		if (all(InputPixelPos < InputInfo_ViewportMax) && all(((InputPixelPos - InputInfo_ViewportMin) % 2) == 0))
+		if (all(InputPixelPos < LowFrequencyInfo_ViewportMax) && all(((InputPixelPos - LowFrequencyInfo_ViewportMin) % 2) == 0))
 		{
-			HistoryRejectionOutput[(InputPixelPos - InputInfo_ViewportMin) / 2] = Rejection;
+			HistoryRejectionOutput[(InputPixelPos - LowFrequencyInfo_ViewportMin) / 2] = Rejection;
 		}
 	}
 	#endif
 
-	if (all(InputPixelPos < InputInfo_ViewportMax))
+	if (all(InputPixelPos < LowFrequencyInfo_ViewportMax))
 	{
 		#if !CONFIG_OUTPUT_HALF_RES
 		{
-			HistoryRejectionOutput[(InputPixelPos - InputInfo_ViewportMin)] = Rejection;
+			HistoryRejectionOutput[(InputPixelPos - LowFrequencyInfo_ViewportMin)] = Rejection;
 		}
 		#endif
 
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[InputPixelPos - InputInfo_ViewportMin] = Debug;
+			DebugOutput[InputPixelPos - LowFrequencyInfo_ViewportMin] = Debug;
 		}
 		#endif
 	}

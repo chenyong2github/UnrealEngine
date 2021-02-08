@@ -129,9 +129,9 @@ void MainCS(
 		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
-	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;
+	uint2 InputPixelPos = LowFrequencyInfo_ViewportMin + DispatchThreadId;
 
-	float2 InputBufferUV = (InputPixelPos + 0.5) * InputInfo_ExtentInverse;
+	float2 InputBufferUV = (InputPixelPos + 0.5) * LowFrequencyInfo_ExtentInverse;
 
 	// Fetch center of the kernel
 	taa_half3 CenterInput;
@@ -186,7 +186,7 @@ void MainCS(
 	{
 		StartSampleId = 1;
 		SampleCount = 16;
-		KernelCenterUV = float2(InputPixelPos | 1) * InputInfo_ExtentInverse;
+		KernelCenterUV = float2(InputPixelPos | 1) * LowFrequencyInfo_ExtentInverse;
 		SampleTrackId = ((InputPixelPos.x & 1) | ((InputPixelPos.y & 1) << 1));
 	}
 	#else
@@ -246,8 +246,8 @@ void MainCS(
 			#error Unknown kernel
 		#endif
 
-		float2 SampleInputBufferUV = InputBufferUV + float2(CONFIG_KERNEL_SPREAD_FACTOR * Offset) * InputInfo_ExtentInverse;
-		SampleInputBufferUV = clamp(SampleInputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
+		float2 SampleInputBufferUV = InputBufferUV + float2(CONFIG_KERNEL_SPREAD_FACTOR * Offset) * LowFrequencyInfo_ExtentInverse;
+		SampleInputBufferUV = clamp(SampleInputBufferUV, LowFrequencyInfo_UVViewportBilinearMin, LowFrequencyInfo_UVViewportBilinearMax);
 
 		taa_half3 InputSample = InputTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
 		taa_half3 HistorySample = PredictionSceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
@@ -275,7 +275,7 @@ void MainCS(
 	}
 	
 	#if 1
-		uint2 OutputPixelPos = uint2(InputBufferUV * InputInfo_Extent);
+		uint2 OutputPixelPos = uint2(InputBufferUV * LowFrequencyInfo_Extent);
 	#else
 		uint2 OutputPixelPos = InputPixelPos;
 	#endif
@@ -291,14 +291,14 @@ void MainCS(
 	#endif
 
 
-	if (all(OutputPixelPos < InputInfo_ViewportMax))
+	if (all(OutputPixelPos < LowFrequencyInfo_ViewportMax))
 	{
 		FilteredInputOutput[OutputPixelPos] = FilteredInput; // * (HdrWeight4(FilteredInput) * 10);
 		FilteredPredictionSceneColorOutput[OutputPixelPos] = FilteredHistory; // * (HdrWeight4(FilteredHistory) * 10);
 		
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[OutputPixelPos - InputInfo_ViewportMin] = Debug;
+			DebugOutput[OutputPixelPos - LowFrequencyInfo_ViewportMin] = Debug;
 		}
 		#endif
 	}
