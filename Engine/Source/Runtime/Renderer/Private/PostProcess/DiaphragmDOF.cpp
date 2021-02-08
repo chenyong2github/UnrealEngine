@@ -681,9 +681,7 @@ static FORCEINLINE bool SupportsRGBColorBuffer(EShaderPlatform ShaderPlatform)
 	}
 
 	// There is high number of UAV to write in reduce pass.
-	return 
-		ShaderPlatform == SP_VULKAN_SM5 ||
-		FDataDrivenShaderPlatformInfo::GetSupportsRGBColorBuffer(ShaderPlatform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsRGBColorBuffer(ShaderPlatform);
 }
 
 
