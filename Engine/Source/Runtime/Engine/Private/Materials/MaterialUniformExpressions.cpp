@@ -1826,7 +1826,7 @@ void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInt
 {
 	if (!ParameterInfo.Name.IsNone())
 	{
-		const bool bOverrideValuesOnly = !Material.HasMaterialLayers();
+		const bool bOverrideValuesOnly = !HasMaterialLayers(Material);
 		if (!MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue, bOverrideValuesOnly))
 		{
 			OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);
