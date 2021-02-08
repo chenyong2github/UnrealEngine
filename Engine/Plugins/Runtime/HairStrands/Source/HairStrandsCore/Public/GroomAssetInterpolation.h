@@ -48,6 +48,13 @@ enum class EGroomBindingType : uint8
 	Skinning	UMETA(DisplayName = "Skinning", ToolTip = "When attached to a skeltal mesh, the hair follow the skin surface"),
 };
 
+UENUM(BlueprintType)
+enum class EGroomOverrideType : uint8
+{
+	Auto	UMETA(DisplayName = "Auto", ToolTip = "Use the asset value"),
+	Enable	UMETA(DisplayName = "Enable", ToolTip = "Override the asset value, and force enabled"),
+	Disable UMETA(DisplayName = "Disable", ToolTip = "Override the asset value, and force disabled")
+};
 
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairLODSettings
@@ -84,6 +91,12 @@ struct HAIRSTRANDSCORE_API FHairLODSettings
 
 	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "If enable this LOD version will use the provided attachment points"))
 	EGroomBindingType BindingType = EGroomBindingType::Skinning;
+	
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "Groom simulation"))
+	EGroomOverrideType Simulation = EGroomOverrideType::Auto;
+
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (DisplayName = "RBF Interpolation", ToolTip = "Global interpolation"))
+	EGroomOverrideType GlobalInterpolation = EGroomOverrideType::Auto;
 
 	bool operator==(const FHairLODSettings& A) const;
 };

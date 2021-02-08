@@ -403,6 +403,9 @@ public:
 	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
+	bool IsSimulationEnable(int32 GroupIndex, int32 LODIndex);
+	bool IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex);
+
 #if WITH_EDITORONLY_DATA
 	void SetDebugMode(EHairStrandsDebugMode InMode) { DebugMode = InMode; OnGroomAssetChanged.Broadcast(); }
 	EHairStrandsDebugMode GetDebugMode() const { return DebugMode; }

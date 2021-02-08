@@ -102,8 +102,6 @@ void UnregisterHairStrands(uint32 ComponentId)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool HasHairInstanceSimulationEnable(FHairGroupInstance* Instance, int32 MeshLODIndex);
-
 static bool IsInstanceVisible(
 	const FSceneView* View,
 	FHairGroupInstance* Instance)
@@ -187,10 +185,11 @@ static void RunInternalHairStrandsInterpolation(
 		Instance->Debug.MeshLODIndex = MeshLODIndex;
 		if (0 <= MeshLODIndex)
 		{
+			const EHairGeometryType InstanceGeometryType = Instance->GeometryType;
+			const EHairBindingType InstanceBindingType = Instance->BindingType;
+
 			if (EHairStrandsInterpolationType::RenderStrands == Type)
 			{
-				const EHairGeometryType InstanceGeometryType = Instance->GeometryType;
-				const EHairBindingType InstanceBindingType = Instance->BindingType;
 				if (InstanceGeometryType == EHairGeometryType::Strands)
 				{
 					if (Instance->Strands.HasValidRootData() && Instance->Strands.DeformedRootResource->IsValid(MeshLODIndex) && InstanceBindingType == EHairBindingType::Skinning)
@@ -227,7 +226,7 @@ static void RunInternalHairStrandsInterpolation(
 					if (Instance->Cards.IsValid(HairLODIndex))
 					{
 						FHairGroupInstance::FCards::FLOD& CardsInstance = Instance->Cards.LODs[HairLODIndex];
-						if (CardsInstance.Guides.IsValid() && Instance->Guides.HasValidRootData() && CardsInstance.Guides.DeformedRootResource->IsValid(MeshLODIndex) && NeedsUpdateCardsMeshTriangles() && InstanceBindingType == EHairBindingType::Skinning)
+						if (CardsInstance.Guides.IsValid() && CardsInstance.Guides.HasValidRootData() && CardsInstance.Guides.DeformedRootResource->IsValid(MeshLODIndex) && NeedsUpdateCardsMeshTriangles() && InstanceBindingType == EHairBindingType::Skinning)
 						{
 							AddHairStrandUpdateMeshTrianglesPass(
 								GraphBuilder,
@@ -263,7 +262,9 @@ static void RunInternalHairStrandsInterpolation(
 			}
 			else if (EHairStrandsInterpolationType::SimulationStrands == Type)
 			{
-				if (Instance->Guides.IsValid() && Instance->Guides.HasValidRootData() && Instance->Guides.DeformedRootResource->IsValid(MeshLODIndex) )
+				if (Instance->Guides.IsValid() && Instance->Guides.HasValidRootData() && Instance->Guides.DeformedRootResource->IsValid(MeshLODIndex) && 
+					InstanceBindingType == EHairBindingType::Skinning &&
+					(Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation))
 				{
 					AddHairStrandUpdateMeshTrianglesPass(
 						GraphBuilder,
@@ -324,7 +325,7 @@ static void RunInternalHairStrandsInterpolation(
 				continue;
 
 			// Frustum culling guide deformation if the instance does not have any simulation
-			if (Instance->GeometryType == EHairGeometryType::Strands && !HasHairInstanceSimulationEnable(Instance, Instance->Debug.MeshLODIndex) && !IsInstanceVisible(View, Instance))
+			if (Instance->GeometryType == EHairGeometryType::Strands && !Instance->Guides.bIsSimulationEnable  && !IsInstanceVisible(View, Instance))
 			{
 				continue;
 			}
@@ -653,6 +654,9 @@ static void RunHairLODSelection(EWorldType::Type WorldType, const TArray<const F
 		Instance->HairGroupPublicData->VFInput.bHasLODSwitch = (FMath::FloorToInt(PrevLODIndex) != FMath::FloorToInt(LODIndex));
 		Instance->GeometryType = GeometryType;
 		Instance->BindingType = Instance->HairGroupPublicData->GetBindingType(IntLODIndex);
+		Instance->Guides.bIsSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
+		Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
+
 	}
 }
 

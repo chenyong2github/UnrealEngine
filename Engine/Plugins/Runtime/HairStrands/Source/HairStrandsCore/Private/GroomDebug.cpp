@@ -832,7 +832,7 @@ void RunHairStrandsDebug(
 				if (!bIsActive)
 					continue;
 
-				Line = FString::Printf(TEXT(" * Group:%d/%d | LOD:%1.1f/%d | GeometryType:%s | BindingType:%s | Sim:%d | RBF:%d | VertexCount:%d | Name: %s"),
+				Line = FString::Printf(TEXT(" * Group:%d/%d | LOD:%1.2f/%d | GeometryType:%s | BindingType:%s | Sim:%d | RBF:%d | VertexCount:%d | Name: %s"),
 					Instance->Debug.GroupIndex,
 					Instance->Debug.GroupCount,
 
@@ -841,8 +841,8 @@ void RunHairStrandsDebug(
 
 					ToString(Instance->GeometryType),
 					ToString(Instance->BindingType),
-					0, // TODO: Instance->bHasSimulation,
-					0, // TODO: Instance->bHasRBF,
+					Instance->Guides.bIsSimulationEnable,
+					Instance->Guides.bHasGlobalInterpolation,
 					Instance->HairGroupPublicData->VertexCount,
 					*Instance->Debug.GroomAssetName);
 				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);

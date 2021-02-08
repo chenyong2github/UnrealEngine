@@ -68,7 +68,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		FHairStrandsInterpolationDatas* InterpolationData = nullptr;
 		FHairStrandsInterpolationResource* InterpolationResource = nullptr;
 
-		uint32 HairInterpolationType = 0;
+		EHairInterpolationType HairInterpolationType = EHairInterpolationType::NoneSkinning;
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////

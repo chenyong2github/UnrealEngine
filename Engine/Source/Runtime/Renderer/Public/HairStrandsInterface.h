@@ -135,6 +135,14 @@ enum EHairBindingType
 	Skinning
 };
 
+enum EHairInterpolationType
+{
+	NoneSkinning,				// Use no skinning data (i.e. with no binding)
+	RigidSkinning,				// Use skinning data & apply a rigid triangle deformation
+	OffsetSkinning,				// Use skinning data & apply a offset deformation
+	SmoothSkinning,				// Use skinning data & apply a smooth (rotation) offset
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Public group data 
 class RENDERER_API FHairGroupPublicData : public FRenderResource
@@ -177,11 +185,23 @@ public:
 	void SetLODVisibilities(const TArray<bool>& InLODVisibility) { LODVisibilities = InLODVisibility; }
 	const TArray<bool>& GetLODVisibilities() const { return LODVisibilities; }
 
-	EHairBindingType GetBindingType(int32 InLODIndex) 
+	EHairBindingType GetBindingType(int32 InLODIndex) const
 	{ 
 		if (InLODIndex < 0 && InLODIndex >= BindingTypes.Num()) return EHairBindingType::NoneBinding;
 		return BindingTypes[InLODIndex];
 	}	
+
+	bool IsSimulationEnable(int32 InLODIndex) const
+	{
+		if (InLODIndex < 0 && InLODIndex >= LODSimulations.Num()) return false;
+		return LODSimulations[InLODIndex];
+	}
+
+	bool IsGlobalInterpolationEnable(int32 InLODIndex) const 
+	{
+		if (InLODIndex < 0 && InLODIndex >= LODGlobalInterpolations.Num()) return false;
+		return LODGlobalInterpolations[InLODIndex];
+	}
 
 	void SetLODScreenSizes(const TArray<float>& ScreenSizes) { LODScreenSizes = ScreenSizes; }
 	const TArray<float>& GetLODScreenSizes() const { return LODScreenSizes;  }
@@ -263,7 +283,9 @@ public:
 	   CPU LOD selection is enabled otherwise the GPU selection is used. CPU LOD selection use the CPU 
 	   bounding box, which might not be as accurate as the GPU ones*/
 	TArray<bool> LODVisibilities;
-	TArray<float> LODScreenSizes;
+	TArray<float>LODScreenSizes;
+	TArray<bool> LODSimulations;
+	TArray<bool> LODGlobalInterpolations;
 	TArray<EHairGeometryType> LODGeometryTypes;
 
 	TArray<EHairBindingType> BindingTypes;

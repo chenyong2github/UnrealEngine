@@ -97,12 +97,13 @@ struct FNDIHairStrandsData
 	void Release();
 
 	/** Update the buffers */
-	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsDatas* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex);
+	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsDatas* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex, const int32 LODIndex);
 
 	inline void ResetDatas()
 	{
 		WorldTransform.SetIdentity();
 		GlobalInterpolation = false;
+		HairGroupInstance = nullptr;
 
 		TickCount = 0;
 		ForceReset = true;
@@ -156,6 +157,8 @@ struct FNDIHairStrandsData
 			WorldTransform = OtherDatas->WorldTransform;
 
 			GlobalInterpolation = OtherDatas->GlobalInterpolation;
+			BindingType = OtherDatas->BindingType;
+			HairGroupInstance = OtherDatas->HairGroupInstance;
 
 			TickCount = OtherDatas->TickCount;
 			ForceReset = OtherDatas->ForceReset;
@@ -218,6 +221,12 @@ struct FNDIHairStrandsData
 
 	/** Strands Gpu buffer */
 	FNDIHairStrandsBuffer* HairStrandsBuffer;
+
+	/** Hair group instance */
+	FHairGroupInstance* HairGroupInstance;
+
+	/** Binding type between the groom asset and the attached skeletal mesh */
+	EHairBindingType BindingType;
 	
 	/** Number of substeps to be used */
 	int32 SubSteps;
@@ -353,7 +362,8 @@ public:
 		FHairStrandsRestRootResource*& OutStrandsRestRootResource, 
 		FHairStrandsDeformedRootResource*& OutStrandsDeformedRootResource,
 		UGroomAsset*& OutGroomAsset,
-		int32& OutGroupIndex);
+		int32& OutGroupIndex,
+		int32& OutLODIndex);
 
 	/** Get the number of strands */
 	void GetNumStrands(FVectorVMContext& Context);

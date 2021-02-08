@@ -56,6 +56,10 @@ bool IsHairStrandsDDCLogEnable()
 	return GHairStrandsDDCLogEnable > 0;
 }
 
+static int32 GHairMaxSimulatedLOD = -1;
+static FAutoConsoleVariableRef CVarHairMaxSimulatedLOD(TEXT("r.HairStrands.MaxSimulatedLOD"), GHairMaxSimulatedLOD, TEXT("Maximum hair LOD to be simulated"));
+static bool IsHairLODSimulationEnabled(const int32 LODIndex) { return (LODIndex >= 0 && (GHairMaxSimulatedLOD < 0 || (GHairMaxSimulatedLOD >= 0 && LODIndex <= GHairMaxSimulatedLOD))); }
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 enum class EHairAtlasTextureType
@@ -2335,6 +2339,59 @@ void UGroomAsset::InitMeshesResources()
 			}
 		}
 	}
+}
+
+bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex)
+{
+	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num() || !IsHairStrandsSimulationEnable())
+	{
+		return false;
+	}
+
+	if (LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	{
+		return false;
+	}
+
+	check(HairGroupsPhysics.Num() == HairGroupsLOD.Num());
+
+	// If the LOD index is not forced, then its value could be -1. In this case we return the 'global' asset value
+	if (LODIndex < 0)
+	{
+		return HairGroupsPhysics[GroupIndex].SolverSettings.EnableSimulation;
+	}
+
+	if (!IsHairLODSimulationEnabled(LODIndex))
+	{
+		return false;
+	}
+
+	return
+		HairGroupsLOD[GroupIndex].LODs[LODIndex].Simulation == EGroomOverrideType::Enable ||
+		(HairGroupsLOD[GroupIndex].LODs[LODIndex].Simulation == EGroomOverrideType::Auto && HairGroupsPhysics[GroupIndex].SolverSettings.EnableSimulation);
+}
+
+bool UGroomAsset::IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex)
+{
+	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num())
+	{
+		return false;
+	}
+
+	if (LODIndex < 0 || LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	{
+		return false;
+	}
+
+	// If the LOD index is not forced, then its value could be -1. In this case we return the 'global' asset value
+	if (LODIndex < 0)
+	{
+		return EnableGlobalInterpolation;
+	}
+
+	return
+		HairGroupsLOD[GroupIndex].LODs[LODIndex].GlobalInterpolation == EGroomOverrideType::Enable ||
+		(HairGroupsLOD[GroupIndex].LODs[LODIndex].GlobalInterpolation == EGroomOverrideType::Auto && EnableGlobalInterpolation);
 }
 
 bool FProcessedHairDescription::IsValid() const

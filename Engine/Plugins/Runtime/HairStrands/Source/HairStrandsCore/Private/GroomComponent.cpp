@@ -32,16 +32,36 @@ static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
 float GetHairClipLength() { return GHairClipLength > 0 ? GHairClipLength : 100000;  }
 
-static int32 GHairMaxSimulatedLOD = -1;
-static FAutoConsoleVariableRef CVarHairMaxSimulatedLOD(TEXT("r.HairStrands.MaxSimulatedLOD"), GHairMaxSimulatedLOD, TEXT("Maximum hair LOD to be simulated"));
-bool IsHairLODSimulationEnabled(const int32 LODIndex) { return (LODIndex >= 0 && (GHairMaxSimulatedLOD < 0 || (GHairMaxSimulatedLOD >= 0 && LODIndex <= GHairMaxSimulatedLOD))); }
-
 static int32 GHairEnableAdaptiveSubsteps = 0;  
 static FAutoConsoleVariableRef CVarHairEnableAdaptiveSubsteps(TEXT("r.HairStrands.EnableAdaptiveSubsteps"), GHairEnableAdaptiveSubsteps, TEXT("Enable adaptive solver substeps"));
 bool IsHairAdaptiveSubstepsEnabled() { return (GHairEnableAdaptiveSubsteps == 1); }
 
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static EHairBindingType ToHairBindingType(EGroomBindingType In)
+{
+	switch (In)
+	{
+	case EGroomBindingType::Rigid		: return EHairBindingType::Rigid;
+	case EGroomBindingType::Skinning	: return EHairBindingType::Skinning;
+	case EGroomBindingType::NoneBinding	: return EHairBindingType::NoneBinding;
+	}
+	return EHairBindingType::NoneBinding;
+}
+
+static EHairInterpolationType ToHairInterpolationType(EGroomInterpolationType In)
+{
+	switch (In)
+	{
+	case EGroomInterpolationType::None				: return EHairInterpolationType::NoneSkinning; 
+	case EGroomInterpolationType::RigidTransform	: return EHairInterpolationType::RigidSkinning;
+	case EGroomInterpolationType::OffsetTransform	: return EHairInterpolationType::OffsetSkinning;
+	case EGroomInterpolationType::SmoothTransform	: return EHairInterpolationType::SmoothSkinning;
+	}
+	return EHairInterpolationType::NoneSkinning;
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static FHairGroupDesc GetGroomGroupsDesc(const UGroomAsset* Asset, UGroomComponent* Component, uint32 GroupIndex)
@@ -1023,7 +1043,7 @@ void UGroomComponent::ReleaseHairSimulation()
 	NiagaraComponents.Empty();
 }
 
-void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSimulation)
+static void InternalUpdateHairSimulation(UGroomComponent* GroomComponent)
 {
 	if (!GroomComponent)
 	{
@@ -1038,11 +1058,12 @@ void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSim
 
 	bool NeedSpringsSolver = false;
 	bool NeedRodsSolver = false;
-	if (GroomAsset)
+	if (GroomAsset) 
 	{
 		for (int32 i = 0; i < NumGroups; ++i)
 		{
-			ValidComponents[i] = GroomAsset->HairGroupsPhysics[i].SolverSettings.EnableSimulation && IsHairStrandsSimulationEnable() && bEnableSimulation;
+			const int32 LODIndex = GroomComponent->GroomGroupsDesc[i].LODForcedIndex;
+			ValidComponents[i] = GroomAsset->IsSimulationEnable(i, LODIndex);
 			if (ValidComponents[i] && (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings))
 			{
 				NeedSpringsSolver = true;
@@ -1123,9 +1144,9 @@ void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSim
 	GroomComponent->UpdateSimulatedGroups();
 }
 
-void UGroomComponent::UpdateHairSimulation()  
+void UGroomComponent::UpdateHairSimulation()
 {
-	EnableHairSimulation(this,true);
+	InternalUpdateHairSimulation(this);
 }
 
 void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
@@ -1256,25 +1277,17 @@ void UGroomComponent::SetForcedLOD(int32 LODIndex)
 		LODIndex = -1;
 	}
 
-	const bool bValidLODA = IsHairLODSimulationEnabled(GetForcedLOD());
-	const bool bValidLODB = IsHairLODSimulationEnabled(LODIndex);
-
+	bool bHasLODChanged = false;
 	for (FHairGroupDesc& HairDesc : GroomGroupsDesc)
 	{
+		bHasLODChanged = bHasLODChanged || HairDesc.LODForcedIndex != LODIndex;
 		HairDesc.LODForcedIndex = LODIndex;
 	}
 	UpdateHairGroupsDesc();
 	
-	if (bValidLODA != bValidLODB)
+	if (bHasLODChanged)
 	{
-		if (bValidLODB)
-		{
-			EnableHairSimulation(this, true);
-		}
-		else 
-		{
-			EnableHairSimulation(this, false);
-		}
+		InternalUpdateHairSimulation(this);
 	}
 
 	// Do not invalidate completly the proxy, but just update LOD index on the rendering thread
@@ -1674,30 +1687,27 @@ void UGroomComponent::UpdateSimulatedGroups()
 		
 		const bool bIsStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
 
+		// For now use the force LOD to drive enabling/disabling simulation & RBF
+		const int32 LODIndex = GetForcedLOD();
+
 		TArray<FHairGroupInstance*> LocalInstances = HairGroupInstances;
 		UGroomAsset* LocalGroomAsset = GroomAsset;
 		UGroomBindingAsset* LocalBindingAsset = BindingAsset;
 		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_UEnableSimulatedGroups)(
-			[LocalInstances, LocalGroomAsset, LocalBindingAsset, Id, WorldType, bIsStrandsEnabled](FRHICommandListImmediate& RHICmdList)
-		{
+			[LocalInstances, LocalGroomAsset, LocalBindingAsset, Id, WorldType, bIsStrandsEnabled, LODIndex](FRHICommandListImmediate& RHICmdList)
+			{
 			int32 GroupIt = 0;
 			for (FHairGroupInstance* Instance : LocalInstances)
 			{
-				const bool bIsSimulationEnable = (LocalGroomAsset && GroupIt < LocalGroomAsset->HairGroupsPhysics.Num()) ? 
-					(LocalGroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation && IsHairStrandsSimulationEnable()): false;
-				const bool bHasGlobalInterpolation = LocalBindingAsset && LocalGroomAsset && LocalGroomAsset->EnableGlobalInterpolation;
-				Instance->Strands.HairInterpolationType = 0;
-				if (bIsStrandsEnabled)
+				Instance->Strands.HairInterpolationType = EHairInterpolationType::NoneSkinning;
+				if (bIsStrandsEnabled && LocalGroomAsset)
 				{
-					Instance->Strands.HairInterpolationType =
-						(LocalGroomAsset && LocalGroomAsset->HairInterpolationType == EGroomInterpolationType::RigidTransform) ? 0 :
-						(LocalGroomAsset && LocalGroomAsset->HairInterpolationType == EGroomInterpolationType::OffsetTransform) ? 1 :
-						(LocalGroomAsset && LocalGroomAsset->HairInterpolationType == EGroomInterpolationType::SmoothTransform) ? 2 : 0;
+					Instance->Strands.HairInterpolationType = ToHairInterpolationType(LocalGroomAsset->HairInterpolationType);
 				}
 				if (Instance->Guides.IsValid())
 				{
-					Instance->Guides.bIsSimulationEnable = bIsSimulationEnable;
-					Instance->Guides.bHasGlobalInterpolation = bHasGlobalInterpolation;
+					Instance->Guides.bIsSimulationEnable	 = LocalGroomAsset && LocalGroomAsset->IsSimulationEnable(GroupIt, LODIndex);
+					Instance->Guides.bHasGlobalInterpolation = LocalGroomAsset && LocalGroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIndex);
 				}
 				++GroupIt;
 			}
@@ -1799,18 +1809,6 @@ static USkeletalMeshComponent* ValidateBindingAsset(
 
 void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount);
 
-
-static EHairBindingType ToHairBindingType(EGroomBindingType In)
-{
-	switch (In)
-	{
-	case EGroomBindingType::Rigid:		return EHairBindingType::Rigid;
-	case EGroomBindingType::Skinning:	return EHairBindingType::Skinning;
-	case EGroomBindingType::NoneBinding:return EHairBindingType::NoneBinding;
-	}
-	return EHairBindingType::NoneBinding;
-}
-
 void UGroomComponent::InitResources(bool bIsBindingReloading)
 {
 	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
@@ -1828,14 +1826,22 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 	InitializedResources = GroomAsset;
 
-	// 1. Check if we need any kind of binding data 
+	// 1. Check if we need any kind of binding data, simulation data, or RBF data
 	bool bHasNeedBindingData = false;
+	bool bHasNeedGlobalDeformation = false;
+	bool bHasNeedSimulation = false;
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
 		const FHairGroupsLOD& GroupLOD = GroomAsset->HairGroupsLOD[GroupIt];
 		for (const FHairLODSettings& LODSettings : GroupLOD.LODs)
 		{
 			bHasNeedBindingData  = bHasNeedBindingData || LODSettings.BindingType == EGroomBindingType::Skinning;
+		}
+
+		for (uint32 LODIt = 0, LODCount = GroomAsset->GetLODCount(); LODIt < LODCount; ++LODIt)
+		{
+			bHasNeedSimulation = bHasNeedSimulation || GroomAsset->IsSimulationEnable(GroupIt, LODIt);
+			bHasNeedGlobalDeformation = bHasNeedGlobalDeformation || GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt);
 		}
 	}
 
@@ -1859,9 +1865,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		bUseAttachParentBound = true;
 	}
 
-	FTransform HairLocalToWorld = GetComponentTransform();
-	FTransform SkinLocalToWorld = SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform::Identity;
-	
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
 		FHairGroupInstance* HairGroupInstance = new FHairGroupInstance();
@@ -1882,10 +1885,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
 		const uint32 SkeletalLODCount = SkeletalMeshComponent ? SkeletalMeshComponent->GetNumLODs() : 0;
 
-		const uint32 HairInterpolationType =
-			GroomAsset->HairInterpolationType == EGroomInterpolationType::RigidTransform ? 0 :
-			GroomAsset->HairInterpolationType == EGroomInterpolationType::OffsetTransform ? 1 :
-			GroomAsset->HairInterpolationType == EGroomInterpolationType::SmoothTransform ? 2 : 0;
+		const EHairInterpolationType HairInterpolationType = ToHairInterpolationType(GroomAsset->HairInterpolationType);
 
 		const bool bDynamicResources = IsHairStrandsSimulationEnable() || IsHairStrandsBindingEnable();
 
@@ -1896,8 +1896,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			TArray<bool> LODVisibility;
 			TArray<EHairGeometryType> LODGeometryTypes;
 			const FHairGroupsLOD& GroupLOD = GroomAsset->HairGroupsLOD[GroupIt];
-			for (const FHairLODSettings& LODSettings : GroupLOD.LODs)
+			for (uint32 LODIt = 0, LODCount = GroupLOD.LODs.Num(); LODIt < LODCount; ++LODIt)
 			{
+				const FHairLODSettings& LODSettings = GroupLOD.LODs[LODIt];
 				EHairBindingType BindingType = ToHairBindingType(LODSettings.BindingType);
 				if (BindingType == EHairBindingType::Skinning && !LocalBindingAsset)
 				{
@@ -1908,10 +1909,15 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					BindingType = EHairBindingType::NoneBinding;
 				}
 
+				const bool LODSimulation = GroomAsset->IsSimulationEnable(GroupIt, LODIt);
+				const bool LODGlobalInterpolation = GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt);
+
 				CPULODScreenSize.Add(LODSettings.ScreenSize);
 				LODVisibility.Add(LODSettings.bVisible);
 				LODGeometryTypes.Add(ConvertToHairGeometryType(LODSettings.GeometryType));
 				HairGroupInstance->HairGroupPublicData->BindingTypes.Add(BindingType);
+				HairGroupInstance->HairGroupPublicData->LODSimulations.Add(LODSimulation);
+				HairGroupInstance->HairGroupPublicData->LODGlobalInterpolations.Add(LODGlobalInterpolation);
 			}
 			HairGroupInstance->HairGroupPublicData->SetLODScreenSizes(CPULODScreenSize);
 			HairGroupInstance->HairGroupPublicData->SetLODVisibilities(LODVisibility);
@@ -1923,7 +1929,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// * Physics simulation
 		// * RBF deformation.
 		// Therefore, even if simulation is disabled, we need to run partially the update if the binding system is enabled (skin deformation + RBF correction)
-		if (GroupData.Guides.IsValid() && (bDynamicResources || bIsStrandsEnabled))
+		if (GroupData.Guides.IsValid() && (bDynamicResources || bIsStrandsEnabled) && (bHasNeedSimulation || bHasNeedGlobalDeformation))
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.Data;
 
@@ -1947,14 +1953,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			HairGroupInstance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Guides.RestResource->PositionOffset;
 			HairGroupInstance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = HairGroupInstance->Guides.RestResource->PositionOffset;
 
-			HairGroupInstance->Guides.bIsSimulationEnable = 
-				(IsHairStrandsSimulationEnable() && GroomAsset && GroupIt < GroomAsset->HairGroupsPhysics.Num()) ?
-				(GroomAsset->HairGroupsPhysics[GroupIt].SolverSettings.EnableSimulation) :
-				false;
-
-			HairGroupInstance->Guides.bHasGlobalInterpolation = LocalBindingAsset && GroomAsset && GroomAsset->EnableGlobalInterpolation;
+			// Initialize the simulation and the global deformation to its default behavior by setting it with LODIndex = -1
+			const int32 LODIndex = -1;
+			HairGroupInstance->Guides.bIsSimulationEnable = GroomAsset && GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
+			HairGroupInstance->Guides.bHasGlobalInterpolation = LocalBindingAsset && GroomAsset && GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
 		}
-
 
 		// LODBias is in the Modifier which is needed for LOD selection regardless if the strands are there or not
 		HairGroupInstance->Strands.Modifier = GetGroomGroupsDesc(GroomAsset, this, GroupIt);
