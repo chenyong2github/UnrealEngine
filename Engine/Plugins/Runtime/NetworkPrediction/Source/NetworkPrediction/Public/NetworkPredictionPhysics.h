@@ -254,9 +254,9 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		if (BodyInstance)
 		{
 			FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
-			Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
 			if (Handle)
 			{
+				Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
 				npEnsure(Body_External.CanTreatAsKinematic());
 				ToStringInternal(Body_External.X(), Body_External.R(), Body_External.V(), Body_External.W(), Builder);
 			}
