@@ -99,7 +99,8 @@ struct MOTIONWARPING_API FMotionWarpingSyncPoint
 {
 	GENERATED_BODY()
 
-	FMotionWarpingSyncPoint() {}
+	FMotionWarpingSyncPoint()
+		: Location(FVector::ZeroVector), Rotation(FQuat::Identity) {}
 	FMotionWarpingSyncPoint(const FVector& InLocation, const FQuat& InRotation)
 		: Location(InLocation), Rotation(InRotation) {}
 	FMotionWarpingSyncPoint(const FVector& InLocation, const FRotator& InRotation)
@@ -168,7 +169,7 @@ public:
 
 	/** Whether rotation should be warp to match the rotation of the sync point or to face the sync point */
 	UPROPERTY()
-	EMotionWarpRotationType RotationType;
+	EMotionWarpRotationType RotationType = EMotionWarpRotationType::Default;
 
 	/** 
 	 * Allow to modify how fast the rotation is warped. 
@@ -260,7 +261,7 @@ public:
 
 	/** Vector used to scale each component of the translation */
 	UPROPERTY()
-	FVector Scale;
+	FVector Scale = FVector(1.f);
 
 	FRootMotionModifier_Scale() { bInLocalSpace = true; }
 	virtual ~FRootMotionModifier_Scale() {}

@@ -21,10 +21,10 @@ struct FMotionDeltaTrack
 	TArray<FRotator> DeltaRotationTrack;
 
 	UPROPERTY()
-	FVector TotalTranslation;
+	FVector TotalTranslation = FVector::ZeroVector;
 
 	UPROPERTY()
-	FRotator TotalRotation;
+	FRotator TotalRotation = FRotator::ZeroRotator;
 };
 
 USTRUCT()
@@ -49,7 +49,7 @@ struct MOTIONWARPING_API FRootMotionModifier_AdjustmentBlendWarp : public FRootM
 public:
 
 	UPROPERTY()
-	bool bWarpIKBones;
+	bool bWarpIKBones = false;
 
 	UPROPERTY()
 	TArray<FName> IKBones;
@@ -78,7 +78,7 @@ protected:
 	FAnimSequenceTrackContainer Result;
 
 	UPROPERTY()
-	float ActualStartTime;
+	float ActualStartTime = 0.f;
 
 	void PrecomputeWarpedTracks(UMotionWarpingComponent& OwnerComp);
 
