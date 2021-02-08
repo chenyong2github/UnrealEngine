@@ -46,7 +46,7 @@ void ScreenSpaceBentNormalCS(
 			float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
 			float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
 
-			uint NumPixelSamples = 4;
+			uint NumPixelSamples = NUM_PIXEL_RAYS;
 
 			float3 UnoccludedSum = 0;
 			float3 BentNormal = 0;

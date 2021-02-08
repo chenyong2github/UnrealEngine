@@ -28,6 +28,9 @@ class FScreenSpaceBentNormalCS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FNumPixelRays : SHADER_PERMUTATION_SPARSE_INT("NUM_PIXEL_RAYS", 4, 8, 16);
+	using FPermutationDomain = TShaderPermutationDomain<FNumPixelRays>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
@@ -60,6 +63,17 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(GetSceneTextureExtent(), PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenBentNormal = GraphBuilder.CreateTexture(ScreenBentNormalDesc, TEXT("ScreenBentNormal"));
 
+	int32 NumPixelRays = 4;
+
+	if (View.FinalPostProcessSettings.LumenFinalGatherQuality >= 6.0f)
+	{
+		NumPixelRays = 16;
+	}
+	else if (View.FinalPostProcessSettings.LumenFinalGatherQuality >= 2.0f)
+	{
+		NumPixelRays = 8;
+	}
+
 	{
 		FScreenSpaceBentNormalCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceBentNormalCS::FParameters>();
 		PassParameters->RWScreenBentNormal = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenBentNormal));
@@ -82,7 +96,9 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 		PassParameters->FurthestHZBTexture = View.HZB;
 		PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
-		auto ComputeShader = View.ShaderMap->GetShader<FScreenSpaceBentNormalCS>(0);
+		FScreenSpaceBentNormalCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set< FScreenSpaceBentNormalCS::FNumPixelRays >(NumPixelRays);
+		auto ComputeShader = View.ShaderMap->GetShader<FScreenSpaceBentNormalCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
