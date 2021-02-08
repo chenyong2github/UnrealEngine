@@ -75,6 +75,44 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FGenerateStaticMeshLODProcessSettings GeneratorSettings;
 
+	// ------------
+	// Code copied from UPolygroupLayersProperties
+
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (GetOptions = GetGroupLayersFunc))
+	FName CollisionGroupLayerName = TEXT("Default");
+
+	// this function is called provide set of available group layers
+	UFUNCTION()
+	TArray<FString> GetGroupLayersFunc()
+	{
+		return GroupLayersList;
+	}
+
+	// internal list used to implement above
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> GroupLayersList;
+
+	void InitializeGroupLayers(const FDynamicMesh3* Mesh)
+	{
+		GroupLayersList.Reset();
+		GroupLayersList.Add(TEXT("Default"));		// always have standard group
+		if (Mesh->Attributes())
+		{
+			for (int32 k = 0; k < Mesh->Attributes()->NumPolygroupLayers(); k++)
+			{
+				FName Name = Mesh->Attributes()->GetPolygroupLayer(k)->GetName();
+				GroupLayersList.Add(Name.ToString());
+			}
+		}
+
+		if (GroupLayersList.Contains(CollisionGroupLayerName.ToString()) == false)		// discard restored value if it doesn't apply
+		{
+			CollisionGroupLayerName = FName(GroupLayersList[0]);
+		}
+	}
+
+	// ------------
+
 	UPROPERTY(VisibleAnywhere, Category = Previews)
 	TArray<UTexture2D*> PreviewTextures;
 

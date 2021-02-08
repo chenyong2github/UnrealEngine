@@ -40,6 +40,8 @@
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
 #include "Generators/GridBoxMeshGenerator.h"
+#include "Polygroups/PolygroupSet.h"
+#include "Polygroups/PolygroupUtil.h"
 
 
 #if WITH_EDITOR
@@ -127,6 +129,7 @@ namespace GenerateStaticMeshLODAssetLocals
 			TUniquePtr<FGenerateStaticMeshLODAssetOperatorOp> Op = MakeUnique<FGenerateStaticMeshLODAssetOperatorOp>();		
 			Op->GenerateProcess = AutoLODTool->GenerateProcess;
 			Op->GeneratorSettings = AutoLODTool->BasicProperties->GeneratorSettings;
+			Op->GeneratorSettings.CollisionGroupLayerName = AutoLODTool->BasicProperties->CollisionGroupLayerName;
 			Op->SetResultTransform(ResultTransform);
 			return Op;
 		}
@@ -193,15 +196,6 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 
 	UInteractiveTool::Setup();
 
-	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
-	AddToolPropertySource(BasicProperties);
-	BasicProperties->RestoreProperties(this);
-
-	BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
-
-	BasicProperties->GeneratedSuffix = TEXT("_AutoLOD");
-
-
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartStaticMeshLODAssetTool", "This tool creates a new LOD asset"),
 		EToolMessageLevel::UserNotification);
@@ -216,6 +210,11 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 		GenerateProcess->Initialize(StaticMesh);		// Must happen on main thread
 	}
 
+	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
+	AddToolPropertySource(BasicProperties);
+	BasicProperties->RestoreProperties(this);
+	BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
+	BasicProperties->GeneratedSuffix = TEXT("_AutoLOD");
 	BasicProperties->GeneratorSettings = GenerateProcess->GetCurrentSettings();
 	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.FilterGroupLayer, [this](FName) { OnSettingsModified(); });
 	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.SolidifyVoxelResolution, [this](int) { OnSettingsModified(); });
@@ -233,6 +232,10 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.bSimplifyPolygons, [this](bool) { OnSettingsModified(); });
 	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.HullTolerance, [this](float) { OnSettingsModified(); });
 	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.SweepAxis, [this](EGenerateStaticMeshLODProjectedHullAxisMode) { OnSettingsModified(); });
+	
+	// Collision layer name property
+	BasicProperties->WatchProperty(BasicProperties->CollisionGroupLayerName, [this](FName) { OnSettingsModified(); });
+	BasicProperties->InitializeGroupLayers(&(GenerateProcess->GetSourceMesh()));
 
 	FBoxSphereBounds Bounds = StaticMeshComponent->Bounds;
 	FTransform PreviewTransform = SourceComponent->GetWorldTransform();

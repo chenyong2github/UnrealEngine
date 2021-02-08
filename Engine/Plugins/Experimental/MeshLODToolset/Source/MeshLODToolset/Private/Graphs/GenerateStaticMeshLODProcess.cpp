@@ -289,6 +289,11 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 		Generator->UpdateBakeCacheSettings(NewBakeSettings);
 	}
 
+	if (NewCombinedSettings.CollisionGroupLayerName != CurrentSettings.CollisionGroupLayerName)
+	{
+		Generator->UpdateCollisionGroupLayerName(NewCombinedSettings.CollisionGroupLayerName);
+	}
+
 	if (NewCombinedSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount ||
 		NewCombinedSettings.bPrefilterVertices != CurrentSettings.bPrefilterVertices ||
 		NewCombinedSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution ||

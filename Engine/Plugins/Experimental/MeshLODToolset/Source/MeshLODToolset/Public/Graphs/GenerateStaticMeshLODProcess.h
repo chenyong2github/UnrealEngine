@@ -107,12 +107,18 @@ struct FGenerateStaticMeshLODProcessSettings
 	UPROPERTY(EditAnywhere, Category = Baking, meta = (DisplayName = "Bake Thickness"))
 	float BakeThickness = 5.0f;
 
+	// Transient property, not set directly by the user. The user controls a CollisionGroupLayerName dropdown property
+	// on the Tool and that value is copied here.
+	UPROPERTY(meta = (TransientToolProperty))
+	FName CollisionGroupLayerName = TEXT("Default");
 
 
-	// Convex Hull Settings
+	// Simple collision generator settings
 
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (DisplayName = "Collision Type"))
 	EGenerateStaticMeshLODSimpleCollisionGeometryType CollisionType = EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls;
+
+	// Convex Hull Settings
 
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", DisplayName = "Convex Tri Count",
 														  EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls"))

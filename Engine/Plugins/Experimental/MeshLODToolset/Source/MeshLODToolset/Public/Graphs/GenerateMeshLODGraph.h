@@ -55,6 +55,7 @@ public:
 	void UpdateGenerateSimpleCollisionSettings(const UE::GeometryFlow::FGenerateSimpleCollisionSettings& SimpleCollisionSettings);
 	const UE::GeometryFlow::FGenerateSimpleCollisionSettings& GetCurrentGenerateSimpleCollisionSettings() const { return CurrentGenerateSimpleCollisionSettings; }
 
+	void UpdateCollisionGroupLayerName(const FName& CollisionGroupLayerName);
 
 
 
@@ -118,6 +119,8 @@ protected:
 	UE::GeometryFlow::FGraph::FHandle BakeNormalMapNode;
 	UE::GeometryFlow::FGraph::FHandle BakeNormalMapSettingsNode;
 
+	UE::GeometryFlow::FGraph::FHandle GroupLayerNameNode;
+
 	struct FBakeTextureGraphInfo
 	{
 		int32 Index;
@@ -137,4 +140,6 @@ protected:
 	UE::GeometryFlow::FGraph::FHandle MeshOutputNode;
 	UE::GeometryFlow::FGraph::FHandle TangentsOutputNode;
 
+	FName CollisionGroupLayerName = TEXT("Default");
+	
 };
