@@ -1,0 +1,151 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================================
+PathTracingCapsuleLight.ush: Light sampling functions for capsule case of point lights
+===============================================================================================*/
+
+#pragma once
+
+#include "PathTracingLightCommon.ush"
+
+
+// Adapted from:
+//    https://www.iquilezles.org/www/articles/intersectors/intersectors.htm
+// This code assume the ray direction is normalized and only returns the front hit
+float CapsuleIntersect(float3 Ro, float3 Rd, float3 Center, float3 Axis, float Radius)
+{
+	float3  ba = 0.5 * Axis;
+	float3  oa = Ro - Center;
+	float baba = dot(ba, ba);
+	float bard = dot(ba, Rd);
+	float baoa = dot(ba, oa);
+	float rdoa = dot(Rd, oa);
+	float oaoa = dot(oa, oa);
+	float a = baba - bard * bard;
+	float b = baba * rdoa - baoa * bard;
+	float c = baba * oaoa - baoa * baoa - Radius * Radius * baba;
+	float h = b * b - a * c;
+	if (h >= 0.0)
+	{
+		float t = (-b - sqrt(h)) / a;
+		float y = baoa + t * bard;
+		// body
+		if (abs(y) < baba)
+		{
+			return t;
+		}
+
+		// caps
+		float3 oc = oa - sign(y) * ba;
+		b = dot(Rd, oc);
+		c = dot(oc, oc) - Radius * Radius;
+		h = b * b - c;
+		if (h > 0.0)
+		{
+			return -b - sqrt(h);
+		}
+	}
+	return -1.0;
+}
+
+float3 CapsuleNormal(float3 Pos, float3 Center, float3 Axis)
+{
+	float3 pa = Pos - Center;
+	float h = clamp(dot(pa, Axis) / dot(Axis, Axis), -0.5, 0.5);
+	return normalize(pa - h * Axis);
+}
+
+float4 CapsuleLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
+{
+	float3 LightPosition = GetPosition(LightId);
+	float LightRadius = GetRadius(LightId);
+	float SourceLength = GetSourceLength(LightId);
+	float3 Axis = GetdPdv(LightId) * SourceLength;
+	float t = CapsuleIntersect(Ray.Origin, Ray.Direction, LightPosition, Axis, LightRadius);
+	if (t > Ray.TMin && t < HitT)
+	{
+		float CapsArea = Pow2(LightRadius);
+		float BodyArea = 0.5 * LightRadius * SourceLength;
+		HitT = t;
+		float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
+		float3 LightRadiance = LightPower / (PI * (CapsArea + BodyArea));
+		float3 LightDirection = GetPosition(LightId) - Ray.Origin;
+		float LightDistanceSquared = dot(LightDirection, LightDirection);
+		LightRadiance *= ComputeAttenuationFalloff(LightDistanceSquared, LightId);
+
+		float3 Normal = CapsuleNormal(Ray.Origin + t * Ray.Direction, LightPosition, Axis);
+
+		float CosTheta = saturate(-dot(Normal, Ray.Direction));
+
+		float Pdf = CosTheta > 0 ? t * t / (4 * PI * CosTheta * (CapsArea + BodyArea)) : 0.0;
+
+		return float4(LightRadiance, Pdf);
+	}
+	return 0.0;
+}
+
+void CapsuleLight_SampleLight(
+	int LightId,
+	float4 RandSample,
+	float3 WorldPos,
+	float3 WorldNormal,
+	out float3 OutDirection,
+	out float  OutDistance,
+	out float3 OutRadianceOverPdf,
+	out float OutPdf)
+{
+	// Capsule case
+	// #dxr_todo: only sample the visible portion of the capsule and account for the 1/d^2 falloff down the axis
+
+	// area sampling doesn't work if the shape has 0 area, so just clamp radius a bit
+	float Radius = max(GetRadius(LightId), 0.01);
+	float SourceLength = GetSourceLength(LightId);
+
+	// the caps are two halves of a full sphere
+	// the body is a cylinder
+	// the common factor of 4*PI is accounted for at the end
+	float CapsArea = Radius * Radius;
+	float BodyArea = 0.5 * Radius * SourceLength;
+
+	float Prob = CapsArea / (CapsArea + BodyArea);
+	float3 Axis = GetdPdv(LightId);
+	float3x3 CylinderBasis = GetTangentBasis(Axis);
+
+	float3 Point, Norm;
+	if (RandSample.y < Prob)
+	{
+		RandSample.y /= Prob;
+		// sample the caps
+		float4 Result = UniformSampleSphere(float2(RandSample.yz));
+
+		Point = Result.xyz * Radius;
+		Point.z += 0.5 * SourceLength * sign(Result.z);
+
+		Norm = Result.xyz;
+	}
+	else
+	{
+		RandSample.y -= Prob;
+		RandSample.y /= 1 - Prob;
+		// sample the cylinder body
+
+		float Phi = 2 * PI * RandSample.y;
+
+		Norm = float3(cos(Phi), sin(Phi), 0.0);
+		Point = float3(Radius * Norm.xy, (RandSample.z - 0.5) * SourceLength);
+	}
+	float3 LightDirection = GetPosition(LightId) - WorldPos;
+	float3 LocalLightDirection = mul(CylinderBasis, LightDirection); // World To Local
+
+	float CosTheta = saturate(dot(Norm, -normalize(LocalLightDirection + Point)));
+
+	Point = mul(Point, CylinderBasis) + LightDirection; // Local to World
+
+	float DistanceSquared = dot(Point, Point);
+	OutDistance = sqrt(DistanceSquared);
+	OutDirection = Point * rcp(OutDistance);
+
+	float3 LightPower = GetColor(LightId);
+	OutRadianceOverPdf = LightPower * CosTheta * 4 / DistanceSquared;
+	OutPdf = CosTheta > 0 ? DistanceSquared / (4 * PI * CosTheta * (CapsArea + BodyArea)) : 0.0;
+}
