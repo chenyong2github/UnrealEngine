@@ -705,7 +705,7 @@ namespace Gauntlet
 					{
 						if (!IgnoreDefaultResolutionAndWindowMode)
 						{
-							if (Globals.Params.ToString().Contains("-resx") == false)
+							if (Globals.Params.ParseValues("resx").Count() == 0)
 							{
 								AppConfig.CommandLine += String.Format(" -ResX={0} -ResY={1}", ResX, ResY);
 							}

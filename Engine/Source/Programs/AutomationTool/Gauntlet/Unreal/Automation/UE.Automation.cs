@@ -85,6 +85,12 @@ namespace UE
 		public string DDC = "";
 
 		/// <summary>
+		/// Enforce Vertical resolution
+		/// </summary>
+		[AutoParam]
+		public int ForceVerticalRes = 0;
+
+		/// <summary>
 		/// Used for having the editor and any client communicate
 		/// </summary>
 		public string SessionID = Guid.NewGuid().ToString();
@@ -204,6 +210,20 @@ namespace UE
 				{
 					AppConfig.CommandLine += string.Format(" -ddc={0}", DDC);
 				}
+			}
+
+			if(ConfigRole.RoleType.IsClient())
+			{
+				if (ForceVerticalRes > 0 || Globals.Params.ParseValues("resy").Count() > 0)
+				{
+					ForceVerticalRes = ForceVerticalRes > 0 ? ForceVerticalRes : ResY;
+					if (AppConfig.Platform == UnrealTargetPlatform.XboxOneGDK || AppConfig.Platform == UnrealTargetPlatform.XboxOne)
+					{
+						// Make sure output on XboxOneGDK is explicitly set
+						AppConfig.CommandLine += string.Format("-XBForceBackBufferVerticalRes={0}", ForceVerticalRes);
+					}
+				}
+
 			}
 
 		}
