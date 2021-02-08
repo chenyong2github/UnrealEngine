@@ -15,6 +15,10 @@
 
 namespace NiagaraDebugLocal
 {
+	const FLinearColor ErrorTextColor = FLinearColor(1.0f, 0.4, 0.3, 1.0f);
+	const FLinearColor WorldTextColor = FLinearColor::White;
+	const FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+
 	enum class EEngineVariables : uint8
 	{
 		LODDistance,
@@ -133,11 +137,11 @@ namespace NiagaraDebugLocal
 						}
 						else if (Arg.RemoveFromStart(TEXT("MaxParticlesToDisplay=")))
 						{
-							Settings.MaxParticlesToDisplay = FMath::Max(FCString::Atoi(*Arg), 1);
+							Settings.MaxParticlesToDisplay = FMath::Max(FCString::Atoi(*Arg), 0);
 						}
-						else if (Arg.RemoveFromStart(TEXT("ShowParticlesInWorld=")))
+						else if (Arg.RemoveFromStart(TEXT("ShowParticlesVariablesWithSystem=")))
 						{
-							Settings.bShowParticlesInWorld = FCString::Atoi(*Arg) != 0;
+							Settings.bShowParticlesVariablesWithSystem = FCString::Atoi(*Arg) != 0;
 						}
 					}
 				}
@@ -147,9 +151,9 @@ namespace NiagaraDebugLocal
 
 
 	template<typename TVariableList, typename TPredicate>
-	void FindVariablesByWildcard(const TVariableList& Variables, const TArray<FNiagaraDebugHUDVariable>& Wildcards, TPredicate Predicate)
+	void FindVariablesByWildcard(const TVariableList& Variables, const TArray<FNiagaraDebugHUDVariable>& DebugVariables, TPredicate Predicate)
 	{
-		if (Wildcards.Num() == 0)
+		if (DebugVariables.Num() == 0)
 		{
 			return;
 		}
@@ -157,9 +161,9 @@ namespace NiagaraDebugLocal
 		for (const auto& Variable : Variables)
 		{
 			const FString VariableName = Variable.GetName().ToString();
-			for ( const FNiagaraDebugHUDVariable& Wildcard : Wildcards )
+			for (const FNiagaraDebugHUDVariable& DebugVariable : DebugVariables)
 			{
-				if (Wildcard.bEnabled && (Wildcard.Name.Len() > 0) && VariableName.MatchesWildcard(Wildcard.Name))
+				if (DebugVariable.bEnabled && (DebugVariable.Name.Len() > 0) && VariableName.MatchesWildcard(DebugVariable.Name))
 				{
 					Predicate(Variable);
 					break;
@@ -179,7 +183,7 @@ namespace NiagaraDebugLocal
 			CachedVariables->CompiledDelegate = NiagaraSystem->OnSystemCompiled().AddLambda([](UNiagaraSystem* NiagaraSystem) { GCachedSystemVariables.Remove(NiagaraSystem); });
 #endif
 
-			if (Settings.SystemVariables.Num() > 0)
+			if (Settings.bShowSystemVariables && Settings.SystemVariables.Num() > 0)
 			{
 				const FNiagaraDataSetCompiledData& SystemCompiledData = NiagaraSystem->GetSystemCompiledData().DataSetCompiledData;
 				FindVariablesByWildcard(
@@ -196,9 +200,9 @@ namespace NiagaraDebugLocal
 
 				for (int32 iVariable=0; iVariable < (int32)EEngineVariables::Num; ++iVariable)
 				{
-					for ( const FNiagaraDebugHUDVariable& Wildcard : Settings.SystemVariables )
+					for ( const FNiagaraDebugHUDVariable& DebugVariable : Settings.SystemVariables )
 					{
-						if ( Wildcard.bEnabled && GEngineVariableStrings[iVariable].MatchesWildcard(Wildcard.Name) )
+						if (DebugVariable.bEnabled && GEngineVariableStrings[iVariable].MatchesWildcard(DebugVariable.Name) )
 						{
 							CachedVariables->bShowEngineVariable[iVariable] = true;
 							break;
@@ -207,7 +211,7 @@ namespace NiagaraDebugLocal
 				}
 			}
 
-			if (Settings.ParticlesVariables.Num() > 0)
+			if (Settings.bShowParticleVariables && Settings.ParticlesVariables.Num() > 0)
 			{
 				const TArray<TSharedRef<const FNiagaraEmitterCompiledData>>& AllEmittersCompiledData = NiagaraSystem->GetEmitterCompiledData();
 
@@ -221,7 +225,7 @@ namespace NiagaraDebugLocal
 						continue;
 					}
 
-					if ( !Settings.EmitterFilter.IsEmpty() && !EmitterHandle.GetUniqueInstanceName().MatchesWildcard(Settings.EmitterFilter) )
+					if ( Settings.bEmitterFilterEnabled && !EmitterHandle.GetUniqueInstanceName().MatchesWildcard(Settings.EmitterFilter) )
 					{
 						continue;
 					}
@@ -244,6 +248,16 @@ namespace NiagaraDebugLocal
 		}
 		return *CachedVariables;
 	}
+
+	UFont* GetFont(ENiagaraDebugHudFont Font)
+	{
+		switch (Font)
+		{
+			default:
+			case ENiagaraDebugHudFont::Small:	return GEngine->GetTinyFont();
+			case ENiagaraDebugHudFont::Normal:	return GEngine->GetSmallFont();
+		}
+	};
 
 	FVector2D GetStringSize(UFont* Font, const TCHAR* Text)
 	{
@@ -448,7 +462,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 		if (SystemDebugInfo.SystemName.IsEmpty())
 		{
 			SystemDebugInfo.SystemName = GetNameSafe(NiagaraComponent->GetAsset());
-			SystemDebugInfo.bShowInWorld = !Settings.SystemFilter.IsEmpty() && SystemDebugInfo.SystemName.MatchesWildcard(Settings.SystemFilter);
+			SystemDebugInfo.bShowInWorld = Settings.bSystemFilterEnabled && SystemDebugInfo.SystemName.MatchesWildcard(Settings.SystemFilter);
 		}
 
 		if (SystemDebugInfo.bShowInWorld && (bIsActive || !Settings.bSystemShowActiveOnlyInWorld))
@@ -456,14 +470,14 @@ void FNiagaraDebugHud::GatherSystemInfo()
 			bool bIsMatch = true;
 
 			// Filter by actor
-			if ( !Settings.ActorFilter.IsEmpty() )
+			if ( Settings.bActorFilterEnabled )
 			{
 				AActor* Actor = NiagaraComponent->GetOwner();
 				bIsMatch &= (Actor != nullptr) && Actor->GetName().MatchesWildcard(Settings.ActorFilter);
 			}
 
 			// Filter by component
-			if ( bIsMatch && !Settings.ComponentFilter.IsEmpty() )
+			if ( bIsMatch && Settings.bComponentFilterEnabled )
 			{
 				bIsMatch &= NiagaraComponent->GetName().MatchesWildcard(Settings.ComponentFilter);
 			}
@@ -574,6 +588,18 @@ FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* Sy
 	return &EmitterInstance->GetData();
 }
 
+FNiagaraDebugHud::FValidationErrorInfo& FNiagaraDebugHud::GetValidationErrorInfo(UNiagaraComponent* NiagaraComponent)
+{
+	FValidationErrorInfo* InfoOut = ValidationErrors.Find(NiagaraComponent);
+	if (!InfoOut)
+	{
+		InfoOut = &ValidationErrors.Add(NiagaraComponent);
+		InfoOut->DisplayName = GetNameSafe(NiagaraComponent->GetOwner()) / *NiagaraComponent->GetName() / *GetNameSafe(NiagaraComponent->GetAsset());
+	}
+	InfoOut->LastWarningTime = FPlatformTime::Seconds();
+	return *InfoOut;
+}
+
 void FNiagaraDebugHud::DebugDrawCallback(UCanvas* Canvas, APlayerController* PC)
 {
 	using namespace NiagaraDebugLocal;
@@ -604,16 +630,14 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 {
 	using namespace NiagaraDebugLocal;
 
-	if (Settings.HudVerbosity == ENiagaraDebugHudSystemVerbosity::None)
+	if (Settings.HudVerbosity > ENiagaraDebugHudSystemVerbosity::None)
 	{
-		return;
+		// Draw in world components
+		DrawComponents(WorldManager, Canvas);
 	}
 
-	// Draw in world components
-	DrawComponents(WorldManager, Canvas, GEngine->GetTinyFont());
-
 	// Draw overview
-	DrawOverview(WorldManager, Canvas->Canvas, GEngine->GetSmallFont());
+	DrawOverview(WorldManager, Canvas->Canvas);
 
 	// Scrub any gpu cached emitters we haven't used in a while
 	{
@@ -632,17 +656,16 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 	}
 }
 
-void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FCanvas* DrawCanvas, UFont* Font)
+void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FCanvas* DrawCanvas)
 {
 	using namespace NiagaraDebugLocal;
 
+	UFont* Font = GetFont(Settings.HUDFont);
 	const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
 
 	const FLinearColor HeadingColor = FLinearColor::Green;
 	const FLinearColor DetailColor = FLinearColor::White;
 	const FLinearColor DetailHighlightColor = FLinearColor::Yellow;
-
-	const FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
 
 	FVector2D TextLocation = Settings.HUDLocation;
 
@@ -691,24 +714,24 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			}
 
 			// Display any filters we may have
-			if (bShowSystemInformation && (!Settings.SystemFilter.IsEmpty() || !Settings.EmitterFilter.IsEmpty() || !Settings.ActorFilter.IsEmpty() || !Settings.ComponentFilter.IsEmpty()) )
+			if (Settings.bSystemFilterEnabled || Settings.bEmitterFilterEnabled || Settings.bActorFilterEnabled || Settings.bComponentFilterEnabled)
 			{
-				if (!Settings.SystemFilter.IsEmpty())
+				if (Settings.bSystemFilterEnabled)
 				{
 					OverviewString.Appendf(TEXT("SystemFilter: %s"), *Settings.SystemFilter);
 					OverviewString.Append(Separator);
 				}
-				if (!Settings.EmitterFilter.IsEmpty())
+				if (Settings.bEmitterFilterEnabled)
 				{
 					OverviewString.Appendf(TEXT("EmitterFilter: %s"), *Settings.EmitterFilter);
 					OverviewString.Append(Separator);
 				}
-				if (!Settings.ActorFilter.IsEmpty())
+				if (Settings.bActorFilterEnabled)
 				{
 					OverviewString.Appendf(TEXT("ActorFilter: %s"), *Settings.ActorFilter);
 					OverviewString.Append(Separator);
 				}
-				if (!Settings.ComponentFilter.IsEmpty())
+				if (Settings.bComponentFilterEnabled)
 				{
 					OverviewString.Appendf(TEXT("ComponentFilter: %s"), *Settings.ComponentFilter);
 					OverviewString.Append(Separator);
@@ -765,13 +788,8 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 		}
 	}
 
-	// Nothing else to show
-	if (!bShowSystemInformation)
-	{
-		return;
-	}
-
 	// Display active systems information
+	if (bShowSystemInformation)
 	{
 		TextLocation.Y += fAdvanceHeight;
 
@@ -800,16 +818,186 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			TextLocation.Y += fAdvanceHeight;
 		}
 	}
+
+	DrawValidation(WorldManager, DrawCanvas, TextLocation);
 }
 
-void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanvas* Canvas, UFont* Font)
+void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D TextLocation)
 {
 	using namespace NiagaraDebugLocal;
 
-	const FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+	if (!Settings.bValidateSystemSimulationDataBuffers && !Settings.bValidateParticleDataBuffers)
+	{
+		return;
+	}
+
+	for (TWeakObjectPtr<UNiagaraComponent> WeakComponent : InWorldComponents)
+	{
+		UNiagaraComponent* NiagaraComponent = WeakComponent.Get();
+		if (NiagaraComponent == nullptr)
+		{
+			continue;
+		}
+
+		UNiagaraSystem* NiagaraSystem = NiagaraComponent->GetAsset();
+		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
+		auto SystemSimulation = SystemInstance->GetSystemSimulation();
+		const bool bSystemSimulationValid = SystemSimulation.IsValid() && SystemSimulation->IsValid();
+		if ((NiagaraSystem == nullptr) || (SystemInstance == nullptr) || !bSystemSimulationValid)
+		{
+			continue;
+		}
+
+		// Ensure systems are complete
+		SystemSimulation->WaitForInstancesTickComplete();
+
+		// Look for validation errors
+		if (Settings.bValidateSystemSimulationDataBuffers)
+		{
+			FNiagaraDataSetDebugAccessor::ValidateDataBuffer(
+				SystemSimulation->MainDataSet.GetCompiledData(),
+				SystemSimulation->MainDataSet.GetCurrentData(),
+				SystemInstance->GetSystemInstanceIndex(),
+				[&](const FNiagaraVariable& Variable, int32 ComponentIndex)
+				{
+					auto& ValidationError = GetValidationErrorInfo(NiagaraComponent);
+					ValidationError.SystemVariablesWithErrors.AddUnique(Variable.GetName());
+				}
+			);
+		}
+
+		if (Settings.bValidateParticleDataBuffers)
+		{
+			auto& EmitterHandles = SystemInstance->GetEmitters();
+			for ( int32 iEmitter=0; iEmitter < EmitterHandles.Num(); ++iEmitter)
+			{
+				FNiagaraEmitterInstance* EmitterInstance = &EmitterHandles[iEmitter].Get();
+				if ( !EmitterInstance )
+				{
+					continue;
+				}
+
+				FNiagaraDataSet* ParticleDataSet = GetParticleDataSet(SystemInstance, EmitterInstance, iEmitter);
+				if (ParticleDataSet == nullptr)
+				{
+					continue;
+				}
+
+				FNiagaraDataBuffer* DataBuffer = ParticleDataSet->GetCurrentData();
+				if (!DataBuffer || !DataBuffer->GetNumInstances())
+				{
+					continue;
+				}
+
+				FNiagaraDataSetDebugAccessor::ValidateDataBuffer(
+					ParticleDataSet->GetCompiledData(),
+					DataBuffer,
+					[&](const FNiagaraVariable& Variable, int32 InstanceIndex, int32 ComponentIndex)
+					{
+						auto& ValidationError = GetValidationErrorInfo(NiagaraComponent);
+						ValidationError.ParticleVariablesWithErrors.FindOrAdd(EmitterInstance->GetCachedEmitter()->GetFName()).AddUnique(Variable.GetName());
+					}
+				);
+			}
+		}
+	}
+
+	if ( ValidationErrors.Num() > 0 )
+	{
+		const double TrimSeconds = FPlatformTime::Seconds() - 5.0;
+
+		TStringBuilder<1024> ErrorString;
+		for (auto ValidationIt=ValidationErrors.CreateIterator(); ValidationIt; ++ValidationIt)
+		{
+			const FValidationErrorInfo& ErrorInfo = ValidationIt.Value();
+			if (ErrorInfo.LastWarningTime < TrimSeconds)
+			{
+				ValidationIt.RemoveCurrent();
+				continue;
+			}
+
+			ErrorString.Append(ErrorInfo.DisplayName);
+			ErrorString.Append(TEXT("\n"));
+
+			// System Variables
+			{
+				const int32 NumVariables = FMath::Min(ErrorInfo.SystemVariablesWithErrors.Num(), 3);
+				if (NumVariables > 0)
+				{
+					for (int32 iVariable=0; iVariable < NumVariables; ++iVariable)
+					{
+						if (iVariable == 0)
+						{
+							ErrorString.Append(TEXT("- SystemVars - "));
+						}
+						else
+						{
+							ErrorString.Append(TEXT(", "));
+						}
+						ErrorString.Append(ErrorInfo.SystemVariablesWithErrors[iVariable].ToString());
+					}
+					if (NumVariables != ErrorInfo.SystemVariablesWithErrors.Num())
+					{
+						ErrorString.Append(TEXT(", ..."));
+					}
+					ErrorString.Append(TEXT("\n"));
+				}
+			}
+
+			// Particle Variables
+			for (auto EmitterIt=ErrorInfo.ParticleVariablesWithErrors.CreateConstIterator(); EmitterIt; ++EmitterIt)
+			{
+				const TArray<FName>& EmitterVariables = EmitterIt.Value();
+				const int32 NumVariables = FMath::Min(EmitterVariables.Num(), 3);
+				if (NumVariables > 0)
+				{
+					for (int32 iVariable = 0; iVariable < NumVariables; ++iVariable)
+					{
+						if (iVariable == 0)
+						{
+							ErrorString.Appendf(TEXT("- Particles(%s) - "), *EmitterIt.Key().ToString());
+						}
+						else
+						{
+							ErrorString.Append(TEXT(", "));
+						}
+						ErrorString.Append(EmitterVariables[iVariable].ToString());
+					}
+					if (NumVariables != EmitterVariables.Num())
+					{
+						ErrorString.Append(TEXT(", ..."));
+					}
+					ErrorString.Append(TEXT("\n"));
+				}
+			}
+		}
+
+		if (ErrorString.Len() > 0)
+		{
+			UFont* Font = GetFont(Settings.HUDFont);
+			const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
+
+			const FVector2D ErrorStringSize = GetStringSize(Font, ErrorString.ToString());
+
+			TextLocation.Y += fAdvanceHeight;
+			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, ErrorStringSize.X + 2.0f, ErrorStringSize.Y + fAdvanceHeight + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Found Errors:"), Font, ErrorTextColor);
+			TextLocation.Y += fAdvanceHeight;
+
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, ErrorString.ToString(), Font, ErrorTextColor);
+		}
+	}
+}
+
+void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanvas* Canvas)
+{
+	using namespace NiagaraDebugLocal;
 
 	FCanvas* DrawCanvas = Canvas->Canvas;
 	UWorld* World = WorldManager->GetWorld();
+	UFont* SystemFont = GetFont(Settings.SystemFont);
+	UFont* ParticleFont = GetFont(Settings.ParticleFont);
 
 	// Draw in world components
 	UEnum* ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();
@@ -851,8 +1039,11 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 			SystemSimulation->WaitForInstancesTickComplete();
 		}
 
+		const FLinearColor TextColor = ValidationErrors.Contains(NiagaraComponent) ? ErrorTextColor : WorldTextColor;
+
+
 		// Show particle data in world
-		if (Settings.bShowParticlesInWorld && bSystemSimulationValid)
+		if (!Settings.bShowParticlesVariablesWithSystem && bSystemSimulationValid)
 		{
 			const FCachedVariables& CachedVariables = GetCachedVariables(NiagaraSystem);
 			for (int32 iEmitter = 0; iEmitter < CachedVariables.ParticleVariables.Num(); ++iEmitter)
@@ -882,8 +1073,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					continue;
 				}
 
-				//StringBuilder.Appendf(TEXT("Emitter (%s)\n"), *EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName());
-				const uint32 NumParticles = FMath::Min((uint32)Settings.MaxParticlesToDisplay, DataBuffer->GetNumInstances());
+				const uint32 NumParticles = Settings.MaxParticlesToDisplay > 0 ? FMath::Min((uint32)Settings.MaxParticlesToDisplay, DataBuffer->GetNumInstances()) : DataBuffer->GetNumInstances();
 				for (uint32 iInstance = 0; iInstance < NumParticles; ++iInstance)
 				{
 					const FVector ParticleWorldPosition = PositionReader.Get(iInstance);
@@ -901,9 +1091,9 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 						}
 
 						const TCHAR* FinalString = StringBuilder.ToString();
-						const FVector2D StringSize = GetStringSize(Font, FinalString);
+						const FVector2D StringSize = GetStringSize(ParticleFont, FinalString);
 						DrawCanvas->DrawTile(ParticleScreenLocation.X - 1.0f, ParticleScreenLocation.Y - 1.0f, StringSize.X + 2.0f, StringSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
-						DrawCanvas->DrawShadowedString(ParticleScreenLocation.X, ParticleScreenLocation.Y, FinalString, Font, FLinearColor::White);
+						DrawCanvas->DrawShadowedString(ParticleScreenLocation.X, ParticleScreenLocation.Y, FinalString, ParticleFont, TextColor);
 					}
 				}
 			}
@@ -1046,7 +1236,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 						}
 
 						// Append particle data if we don't show them in world
-						if (Settings.bShowParticlesInWorld == false)
+						if (Settings.bShowParticlesVariablesWithSystem)
 						{
 							for (int32 iEmitter = 0; iEmitter < CachedVariables.ParticleVariables.Num(); ++iEmitter)
 							{
@@ -1129,9 +1319,9 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 				}
 
 				const TCHAR* FinalString = StringBuilder.ToString();
-				const FVector2D StringSize = GetStringSize(Font, FinalString);
+				const FVector2D StringSize = GetStringSize(SystemFont, FinalString);
 				DrawCanvas->DrawTile(ScreenLocation.X - 1.0f, ScreenLocation.Y - 1.0f, StringSize.X + 2.0f, StringSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
-				DrawCanvas->DrawShadowedString(ScreenLocation.X, ScreenLocation.Y, FinalString, Font, FLinearColor::White);
+				DrawCanvas->DrawShadowedString(ScreenLocation.X, ScreenLocation.Y, FinalString, SystemFont, TextColor);
 			}
 		}
 	}

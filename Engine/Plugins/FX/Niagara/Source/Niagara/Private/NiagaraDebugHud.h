@@ -7,6 +7,7 @@ Class used help debugging Niagara simulations
 
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
+#include "NiagaraTypes.h"
 #include "RHICommandList.h"
 #include "NiagaraDebuggerCommon.h"
 
@@ -31,6 +32,14 @@ class FNiagaraDebugHud
 		TArray<FGpuDataSetPtr>	PendingEmitterData;
 	};
 
+	struct FValidationErrorInfo
+	{
+		double						LastWarningTime = 0.0;
+		FString						DisplayName;
+		TArray<FName>				SystemVariablesWithErrors;
+		TMap<FName, TArray<FName>>	ParticleVariablesWithErrors;
+	};
+
 public:
 	FNiagaraDebugHud(class UWorld* World);
 	~FNiagaraDebugHud();
@@ -41,12 +50,14 @@ public:
 
 private:
 	class FNiagaraDataSet* GetParticleDataSet(class FNiagaraSystemInstance* SystemInstance, class FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter);
+	FValidationErrorInfo& GetValidationErrorInfo(class UNiagaraComponent* NiagaraComponent);
 
 	static void DebugDrawCallback(class UCanvas* Canvas, class APlayerController* PC);
 
 	void Draw(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class APlayerController* PC);
-	void DrawOverview(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, class UFont* Font);
-	void DrawComponents(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class UFont* Font);
+	void DrawOverview(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas);
+	void DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D TextLocation);
+	void DrawComponents(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas);
 
 private:
 	TWeakObjectPtr<class UWorld>	WeakWorld;
@@ -58,6 +69,8 @@ private:
 	TMap<FName, FSystemDebugInfo>	PerSystemDebugInfo;
 
 	TArray<TWeakObjectPtr<class UNiagaraComponent>>	InWorldComponents;
+
+	TMap<TWeakObjectPtr<class UNiagaraComponent>, FValidationErrorInfo> ValidationErrors;
 
 	TMap<FNiagaraSystemInstanceID, FGpuEmitterCache> GpuEmitterData;
 };

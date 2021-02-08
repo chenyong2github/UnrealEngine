@@ -2,6 +2,18 @@
 
 #include "NiagaraDebuggerCommon.h"
 
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraDebugHUDSettingsData::FNiagaraDebugHUDSettingsData()
+{
+	ActorFilter = TEXT("*");
+	ComponentFilter = TEXT("*");
+	SystemFilter = TEXT("*");
+	EmitterFilter = TEXT("*");
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 #if WITH_EDITOR
 
 void UNiagaraDebugHUDSettings::PostEditChangeProperty()

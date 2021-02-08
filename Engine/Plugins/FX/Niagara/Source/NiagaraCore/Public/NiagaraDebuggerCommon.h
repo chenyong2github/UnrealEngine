@@ -122,6 +122,13 @@ enum class ENiagaraDebugHudSystemVerbosity
 	Verbose = 3,
 };
 
+UENUM()
+enum class ENiagaraDebugHudFont
+{
+	Small = 0,
+	Normal,
+};
+
 USTRUCT()
 struct NIAGARACORE_API FNiagaraDebugHUDVariable
 {
@@ -144,6 +151,8 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 {
 	GENERATED_BODY()
 
+	FNiagaraDebugHUDSettingsData();
+
 	/**
 	Changes the verbosity of the HUD display.
 	The default will only disable information if you enable a feature that impacts playback.
@@ -163,28 +172,25 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug General")
 	FIntPoint HUDLocation = FIntPoint(30.0f, 150.0f);
 
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	bool bSystemFilterEnabled = true;
+	/** Selects which font to use for the HUD display. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug General")
+	ENiagaraDebugHudFont HUDFont = ENiagaraDebugHudFont::Normal;
 
 	/**
-	Wildcard filter for the systems to show more detailed information about.
-	For example,. "NS_*" would match all systems starting with NS_.
+	When enabled all Niagara systems that pass the filter will have the simulation data buffers validation.
+	i.e. we will look for NaN or other invalidate data  inside it
+	Note: This will have an impact on performance.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bSystemFilterEnabled"))
-	FString SystemFilter;
-
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	bool bEmitterFilterEnabled = true;
+	UPROPERTY(EditAnywhere, Category = "Debug General")
+	bool bValidateSystemSimulationDataBuffers = false;
 
 	/**
-	Wildcard filter used to match emitters when generating particle variable view.
-	For example,. "Fluid*" would match all emtiters starting with Fluid and only particle variables for those would be visible.
+	When enabled all Niagara systems that pass the filter will have the particle data buffers validation.
+	i.e. we will look for NaN or other invalidate data  inside it
+	Note: This will have an impact on performance.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bEmitterFilterEnabled"))
-	FString EmitterFilter;
-
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	bool bActorFilterEnabled = true;
+	UPROPERTY(EditAnywhere, Category = "Debug General")
+	bool bValidateParticleDataBuffers = false;
 
 	/**
 	Wildcard filter which is compared against the Components Actor name to narrow down the detailed information.
@@ -194,7 +200,7 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	FString ActorFilter;
 
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	bool bComponentFilterEnabled = true;
+	bool bComponentFilterEnabled = false;
 
 	/**
 	Wildcard filter for the components to show more detailed information about.
@@ -202,6 +208,29 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	*/
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bComponentFilterEnabled"))
 	FString ComponentFilter;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bSystemFilterEnabled = false;
+
+	/**
+	Wildcard filter for the systems to show more detailed information about.
+	For example,. "NS_*" would match all systems starting with NS_.
+	*/
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bSystemFilterEnabled"))
+	FString SystemFilter;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bEmitterFilterEnabled = false;
+
+	/**
+	Wildcard filter used to match emitters when generating particle variable view.
+	For example,. "Fluid*" would match all emtiters starting with Fluid and only particle variables for those would be visible.
+	*/
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bEmitterFilterEnabled"))
+	FString EmitterFilter;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool bActorFilterEnabled = false;
 
 	/** Modifies the in world system display information level. */
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
@@ -226,17 +255,9 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
 	TArray<FNiagaraDebugHUDVariable> SystemVariables;
 
-	/**
-	Maximum number of particles to show information about.
-	Set to 0 to show all variables, but be warned that displaying information about 1000's of particles
-	will result in poor editor performance & potentially OOM on some platforms.
-	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
-	int32 MaxParticlesToDisplay = 32;
-
-	/** When enabled will show particle data in world, otherwise it's attached to the system display. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
-	bool bShowParticlesInWorld = true;
+	/** Selects which font to use for system information display. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
+	ENiagaraDebugHudFont SystemFont = ENiagaraDebugHudFont::Small;
 
 	/** When enabled will show particle variables from the list. */
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
@@ -248,6 +269,25 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	*/
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
 	TArray<FNiagaraDebugHUDVariable> ParticlesVariables;
+
+	/** Selects which font to use for particle information display. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
+	ENiagaraDebugHudFont ParticleFont = ENiagaraDebugHudFont::Small;
+
+	/**
+	When enabled particle variables will display with the system information
+	rather than in world at the particle location.
+	*/
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
+	bool bShowParticlesVariablesWithSystem = false;
+
+	/**
+	Maximum number of particles to show information about.
+	Set to 0 to show all variables, but be warned that displaying information about 1000's of particles
+	will result in poor editor performance & potentially OOM on some platforms.
+	*/
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
+	int32 MaxParticlesToDisplay = 32;
 
 	UPROPERTY()
 	ENiagaraDebugPlaybackMode PlaybackMode = ENiagaraDebugPlaybackMode::Play;
