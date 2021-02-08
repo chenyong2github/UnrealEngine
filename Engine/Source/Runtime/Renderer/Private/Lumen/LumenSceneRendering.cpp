@@ -223,6 +223,13 @@ namespace Lumen
 		{
 			return true;
 		}
+
+		if (View.Family
+			&& View.Family->EngineShowFlags.VisualizeLumenScene
+			&& Lumen::ShouldVisualizeHardwareRayTracing())
+		{
+			return true;
+		}
 #endif
 		return false;
 	}
