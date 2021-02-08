@@ -424,6 +424,37 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 // Key that forms the basis of the HLOD proxy key. Bump this key (i.e. generate a new GUID) when you want to force a rebuild of ALL HLOD proxies
 #define HLOD_PROXY_BASE_KEY		TEXT("174C29B19AB34A21894058E058F253B3")
 
+namespace 
+{
+	class FHLODProxyCRCArchive : public FArchive
+	{
+	public:
+		FHLODProxyCRCArchive()
+			: Hash(0)
+		{
+			SetIsLoading(false);
+			SetIsSaving(true);
+			SetUseUnversionedPropertySerialization(true);
+		}
+
+		uint32 GetHash() const
+		{
+			return Hash;
+		}
+
+	private:
+		virtual FArchive& operator<<(class UObject*& Value) override { check(0); return *this; }
+		virtual FArchive& operator<<(class FName& Value) override { check(0); return *this; }
+
+		virtual void Serialize(void* Data, int64 Num) override
+		{
+			Hash = FCrc::MemCrc32(Data, Num, Hash);
+		}
+
+		uint32 Hash;
+	};
+}
+
 FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoLevelTransform)
 {
 	FString Key = HLOD_PROXY_BASE_KEY;
@@ -445,8 +476,10 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 			TArray<FHierarchicalSimplification>& BuildLODLevelSettings = LODActor->GetLevel()->GetWorldSettings()->GetHierarchicalLODSetup();
 			if(BuildLODLevelSettings.IsValidIndex(LODActor->LODLevel - 1))
 			{
-				FHierarchicalSimplification& BuildLODLevelSetting = BuildLODLevelSettings[LODActor->LODLevel - 1];
-				CRC = FCrc::MemCrc32(&BuildLODLevelSetting, sizeof(FHierarchicalSimplification), CRC);
+				FHierarchicalSimplification BuildLODLevelSetting = BuildLODLevelSettings[LODActor->LODLevel - 1];
+				FHLODProxyCRCArchive Ar;
+				FHierarchicalSimplification::StaticStruct()->SerializeItem(Ar, &BuildLODLevelSetting, nullptr);
+				CRC = HashCombine(CRC, Ar.GetHash());
 			}
 		}
 
@@ -462,7 +495,10 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 		{
 			if (LODActor->bOverrideMaterialMergeSettings)
 			{
-				CRC = FCrc::MemCrc32(&LODActor->MaterialSettings, sizeof(FMaterialProxySettings), CRC);
+				FMaterialProxySettings MaterialProxySettings = LODActor->MaterialSettings;
+				FHLODProxyCRCArchive Ar;
+				FMaterialProxySettings::StaticStruct()->SerializeItem(Ar, &MaterialProxySettings, nullptr);
+				CRC = HashCombine(CRC, Ar.GetHash());
 			}
 		}
 
@@ -502,18 +538,21 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 			}
 		}
 
-		// We get the CRC of each component and combine them
+		// We get the CRC of each component
+		TArray<uint32> ComponentsCRCs;
 		for(UPrimitiveComponent* Component : Components)
 		{
 			if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 			{
+				uint32 ComponentCRC = 0;
+
 				// CRC component
-				CRC = GetCRC(StaticMeshComponent, CRC, TransformComponents);
+				ComponentCRC = GetCRC(StaticMeshComponent, ComponentCRC, TransformComponents);
 
 				if(UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
 				{
 					// CRC static mesh
-					CRC = GetCRC(StaticMesh, CRC);
+					ComponentCRC = GetCRC(StaticMesh, ComponentCRC);
 
 					// CRC materials
 					const int32 NumMaterials = StaticMeshComponent->GetNumMaterials();
@@ -522,19 +561,31 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 						UMaterialInterface* MaterialInterface = StaticMeshComponent->GetMaterial(MaterialIndex);
 						if (MaterialInterface)
 						{
-							CRC = GetCRC(MaterialInterface, CRC);
+							ComponentCRC = GetCRC(MaterialInterface, ComponentCRC);
 
 							TArray<UTexture*> Textures;
 							MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
 							for (UTexture* Texture : Textures)
 							{
-								CRC = GetCRC(Texture, CRC);
+								ComponentCRC = GetCRC(Texture, ComponentCRC);
 							}
 						}
 					}
 				}
+
+				ComponentsCRCs.Add(ComponentCRC);
 			}
 		}
+
+		// Sort the components CRCs to ensure the order of components won't have an impact on the final CRC
+		ComponentsCRCs.Sort();
+
+		// Append all components CRCs
+		for (uint32 ComponentCRC : ComponentsCRCs)
+		{
+			CRC = HashCombine(CRC, ComponentCRC);
+		}
+
 		Key += TEXT("_");
 		Key += BytesToHex((uint8*)&CRC, sizeof(uint32));
 	}
