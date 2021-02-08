@@ -159,5 +159,3 @@ namespace Chaos
 	}
 
 }    // namespace Chaos
-
-Chaos::TAutoRegisterCacheAdapter<Chaos::FStaticMeshCacheAdapter> StaticMeshAdapter;

@@ -7,6 +7,11 @@
 #include "Modules/ModuleManager.h"
 #include "Logging/LogMacros.h"
 
+namespace Chaos {
+	class FGeometryCollectionCacheAdapter;
+	class FStaticMeshCacheAdapter;
+}
+
 DECLARE_LOG_CATEGORY_EXTERN(LogChaosCache, Verbose, All);
 
 class IChaosCachingPlugin : public IModuleInterface
@@ -37,4 +42,7 @@ public:
 	}
 
 private:
+	TUniquePtr<Chaos::FGeometryCollectionCacheAdapter> GeometryCollectionAdapter;
+	TUniquePtr<Chaos::FStaticMeshCacheAdapter> StaticMeshAdapter;
+
 };

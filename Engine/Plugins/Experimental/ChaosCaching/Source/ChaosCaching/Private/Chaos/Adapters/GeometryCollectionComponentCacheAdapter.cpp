@@ -385,5 +385,3 @@ namespace Chaos
 	}
 
 }    // namespace Chaos
-
-Chaos::TAutoRegisterCacheAdapter<Chaos::FGeometryCollectionCacheAdapter> GeometryCollectionAdapter;
