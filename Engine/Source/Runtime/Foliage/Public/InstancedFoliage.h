@@ -13,6 +13,7 @@ InstancedFoliage.h: Instanced foliage type definitions.
 class AInstancedFoliageActor;
 class UActorComponent;
 class UFoliageType;
+class UInstancedStaticMeshComponent;
 class UHierarchicalInstancedStaticMeshComponent;
 class UFoliageType_InstancedStaticMesh;
 class UPrimitiveComponent;
@@ -165,7 +166,8 @@ enum class EFoliageImplType : uint8
 {
 	Unknown = 0,
 	StaticMesh = 1,
-	Actor = 2
+	Actor = 2,
+	ISMActor = 3
 };
 
 struct FFoliageInfo;
@@ -194,6 +196,7 @@ struct FFoliageImpl
 	virtual bool IsInitialized() const = 0;
 	virtual void Initialize(const UFoliageType* FoliageType) = 0;
 	virtual void Uninitialize() = 0;
+	virtual void Reapply(const UFoliageType* FoliageType) = 0;
 	virtual int32 GetInstanceCount() const = 0;
 	virtual void PreAddInstances(const UFoliageType* FoliageType, int32 Count) = 0;
 	virtual void AddInstance(const FFoliageInstance& NewInstance) = 0;
@@ -211,18 +214,19 @@ struct FFoliageImpl
 	virtual void SelectAllInstances(bool bSelect) = 0;
 	virtual void SelectInstance(bool bSelect, int32 Index) = 0;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) = 0;
+	virtual int32 GetInstanceIndexFrom(UInstancedStaticMeshComponent* HISMComponent, int32 ComponentIndex) const { return INDEX_NONE; }
 	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const = 0;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) = 0;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) = 0;
 
 	virtual void BeginUpdate() {}
 	virtual void EndUpdate() {}
-	virtual void Refresh(const TArray<FFoliageInstance>& Instances, bool Async, bool Force) {}
+	virtual void Refresh(bool Async, bool Force) {}
 	virtual void OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews) = 0;
 	virtual void PreEditUndo(UFoliageType* FoliageType) {}
-	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices) { Info = InInfo; }
+	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType) { Info = InInfo; }
 	virtual void NotifyFoliageTypeWillChange(UFoliageType* FoliageType) {}
-	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged) = 0;
+	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) = 0;
 	virtual void EnterEditMode() {}
 	virtual void ExitEditMode() {}
 	virtual bool ShouldAttachToBaseComponent() const { return true; }
@@ -291,6 +295,7 @@ struct FFoliageInfo
 	
 #if WITH_EDITOR
 	
+	FOLIAGE_API EFoliageImplType GetImplementationType(const UFoliageType* FoliageType) const;
 	FOLIAGE_API void CreateImplementation(const UFoliageType* FoliageType);
 	FOLIAGE_API void NotifyFoliageTypeWillChange(UFoliageType* FoliageType);
 	FOLIAGE_API void NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged);

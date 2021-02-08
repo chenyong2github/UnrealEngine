@@ -23,14 +23,17 @@ class FOLIAGE_API UFoliageInstancedStaticMeshComponent : public UHierarchicalIns
 public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Game|Damage")
-		FInstancePointDamageSignature OnInstanceTakePointDamage;
+	FInstancePointDamageSignature OnInstanceTakePointDamage;
 
 	UPROPERTY(BlueprintAssignable, Category = "Game|Damage")
-		FInstanceRadialDamageSignature OnInstanceTakeRadialDamage;
+	FInstanceRadialDamageSignature OnInstanceTakeRadialDamage;
+
+	UPROPERTY()
+	bool bEnableDiscardOnLoad;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
-		uint64 FoliageHiddenEditorViews;
+	uint64 FoliageHiddenEditorViews;
 #endif// WITH_EDITOR
 
 	virtual void ReceiveComponentDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;

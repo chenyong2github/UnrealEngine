@@ -5,6 +5,8 @@
 #include "FoliageType.h"
 #include "FoliageType_Actor.generated.h"
 
+class UFoliageInstancedStaticMeshComponent;
+
 UCLASS(hidecategories = Object, editinlinenew, MinimalAPI)
 class UFoliageType_Actor : public UFoliageType
 {
@@ -15,6 +17,12 @@ class UFoliageType_Actor : public UFoliageType
 			
 	UPROPERTY(EditAnywhere, Category = Actor)
 	bool bShouldAttachToBaseComponent;
+
+	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ToolTip = "If enabled, will place an instanced static mesh representation of this actor without placing an actual actor"))
+	bool bStaticMeshOnly;
+		
+	UPROPERTY(EditAnywhere, Category = Mesh, meta = (EditCondition = "bStaticMeshOnly"))
+	TSubclassOf<UFoliageInstancedStaticMeshComponent> StaticMeshOnlyComponentClass;
 
 	virtual UObject* GetSource() const override { return ActorClass; }
 

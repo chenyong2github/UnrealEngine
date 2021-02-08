@@ -277,6 +277,7 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 
 	virtual void PostLoad() override;
 	virtual void OnRegister() override;
+	virtual bool SupportsRemoveSwap() const { return false; }
 
 public:
 	/** Render data will be initialized on PostLoad or on demand. Released on the rendering thread. */

@@ -46,6 +46,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "PreviewScene.h"
 #include "FoliageActor.h"
+#include "FoliageISMActor.h"
 #include "LevelUtils.h"
 #include "FoliageHelper.h"
 #include "Algo/Transform.h"
@@ -105,6 +106,7 @@ struct FFoliageStaticMesh : public FFoliageImpl
 	virtual bool IsInitialized() const override { return Component != nullptr; }
 	virtual void Initialize(const UFoliageType* FoliageType) override;
 	virtual void Uninitialize() override;
+	virtual void Reapply(const UFoliageType* FoliageType) override;
 	virtual int32 GetInstanceCount() const override;
 	virtual void PreAddInstances(const UFoliageType* FoliageType, int32 Count) override;
 	virtual void AddInstance(const FFoliageInstance& NewInstance) override;
@@ -117,18 +119,19 @@ struct FFoliageStaticMesh : public FFoliageImpl
 	virtual void SelectAllInstances(bool bSelect) override;
 	virtual void SelectInstance(bool bSelect, int32 Index) override;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;
+	virtual int32 GetInstanceIndexFrom(UInstancedStaticMeshComponent* HISMComponent, int32 ComponentIndex) const override;
 	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const override;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;
 
 	virtual void BeginUpdate() override;
 	virtual void EndUpdate() override;
-	virtual void Refresh(const TArray<FFoliageInstance>& Instances, bool Async, bool Force) override;
+	virtual void Refresh(bool Async, bool Force) override;
 	virtual void OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews) override;
 	virtual void PreEditUndo(UFoliageType* FoliageType) override;
-	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices) override;
+	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType) override;
 	virtual void NotifyFoliageTypeWillChange(UFoliageType* FoliageType) override;
-	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged) override;
+	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) override;
 	virtual void EnterEditMode() override;
 	virtual void ExitEditMode() override;
 
@@ -142,8 +145,7 @@ struct FFoliageStaticMesh : public FFoliageImpl
 
 	void UpdateComponentSettings(const UFoliageType_InstancedStaticMesh* InSettings);
 	// Recreate the component if the FoliageType's ComponentClass doesn't match the Component's class
-	void CheckComponentClass(const UFoliageType_InstancedStaticMesh* InSettings, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices);
-	void ReapplyInstancesToComponent(const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices);
+	void CheckComponentClass(const UFoliageType_InstancedStaticMesh* InSettings);
 	void CreateNewComponent(const UFoliageType* InSettings);
 };
 
@@ -765,6 +767,7 @@ UFoliageType_Actor::UFoliageType_Actor(const FObjectInitializer& ObjectInitializ
 	Density = 10;
 	Radius = 500;
 	bShouldAttachToBaseComponent = true;
+	StaticMeshOnlyComponentClass = UFoliageInstancedStaticMeshComponent::StaticClass();
 }
 
 #if WITH_EDITOR
@@ -1109,6 +1112,16 @@ void FFoliageStaticMesh::SelectInstances(bool bSelect, const TSet<int32>& Select
 	Component->MarkRenderStateDirty();
 }
 
+int32 FFoliageStaticMesh::GetInstanceIndexFrom(UInstancedStaticMeshComponent* HISMComponent, int32 ComponentIndex) const
+{
+	if (IsOwnedComponent(HISMComponent))
+	{
+		return ComponentIndex;
+	}
+
+	return INDEX_NONE;
+}
+
 FBox FFoliageStaticMesh::GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const
 {
 	FBox BoundingBox(EForceInit::ForceInit);
@@ -1173,7 +1186,7 @@ void FFoliageStaticMesh::EndUpdate()
 	}
 }
 
-void FFoliageStaticMesh::Refresh(const TArray<FFoliageInstance>& Instances, bool Async, bool Force)
+void FFoliageStaticMesh::Refresh(bool Async, bool Force)
 {
 	if (Component != nullptr)
 	{
@@ -1203,9 +1216,9 @@ void FFoliageStaticMesh::PreEditUndo(UFoliageType* FoliageType)
 	}
 }
 
-void FFoliageStaticMesh::PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices)
+void FFoliageStaticMesh::PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType)
 {
-	FFoliageImpl::PostEditUndo(InInfo, FoliageType, Instances, SelectedIndices);
+	FFoliageImpl::PostEditUndo(InInfo, FoliageType);
 	if (UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType))
 	{
 		if (Component != nullptr && FoliageType_InstancedStaticMesh->GetStaticMesh() != nullptr)
@@ -1213,8 +1226,8 @@ void FFoliageStaticMesh::PostEditUndo(FFoliageInfo* InInfo, UFoliageType* Foliag
 			FoliageType_InstancedStaticMesh->GetStaticMesh()->GetOnExtendedBoundsChanged().AddRaw(this, &FFoliageStaticMesh::HandleComponentMeshBoundsChanged);
 		}
 
-		CheckComponentClass(FoliageType_InstancedStaticMesh, Instances, SelectedIndices);
-		ReapplyInstancesToComponent(Instances, SelectedIndices);
+		CheckComponentClass(FoliageType_InstancedStaticMesh);
+		Reapply(FoliageType);
 	}
 }
 
@@ -1232,11 +1245,11 @@ void FFoliageStaticMesh::NotifyFoliageTypeWillChange(UFoliageType* FoliageType)
 	}
 }
 
-void FFoliageStaticMesh::NotifyFoliageTypeChanged(UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged)
+void FFoliageStaticMesh::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
 {
 	UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType);
 	check(FoliageType_InstancedStaticMesh);
-	CheckComponentClass(FoliageType_InstancedStaticMesh, Instances, SelectedIndices);
+	CheckComponentClass(FoliageType_InstancedStaticMesh);
 	UpdateComponentSettings(FoliageType_InstancedStaticMesh);
 	
 	if (bSourceChanged && Component != nullptr && Component->GetStaticMesh() != nullptr)
@@ -1342,7 +1355,7 @@ void FFoliageStaticMesh::HandleComponentMeshBoundsChanged(const FBoxSphereBounds
 	}
 }
 
-void FFoliageStaticMesh::CheckComponentClass(const UFoliageType_InstancedStaticMesh* InSettings, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices)
+void FFoliageStaticMesh::CheckComponentClass(const UFoliageType_InstancedStaticMesh* InSettings)
 {
 	if (Component)
 	{
@@ -1364,7 +1377,7 @@ void FFoliageStaticMesh::CheckComponentClass(const UFoliageType_InstancedStaticM
 			Initialize(InSettings);
 
 			// apply the instances to it
-			ReapplyInstancesToComponent(Instances, SelectedIndices);
+			Reapply(InSettings);
 		}
 	}
 }
@@ -1587,7 +1600,7 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 	}
 }
 
-void FFoliageStaticMesh::ReapplyInstancesToComponent(const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices)
+void FFoliageStaticMesh::Reapply(const UFoliageType* FoliageType)
 {
 	if (Component)
 	{
@@ -1601,7 +1614,7 @@ void FFoliageStaticMesh::ReapplyInstancesToComponent(const TArray<FFoliageInstan
 
 		Component->bAutoRebuildTreeOnInstanceChanges = false;
 
-		for (auto& Instance : Instances)
+		for (auto& Instance : Info->Instances)
 		{
 			Component->AddInstanceWorldSpace(Instance.GetInstanceWorldTransform());
 		}
@@ -1611,9 +1624,9 @@ void FFoliageStaticMesh::ReapplyInstancesToComponent(const TArray<FFoliageInstan
 
 		Component->ClearInstanceSelection();
 
-		if (SelectedIndices.Num())
+		if (Info->SelectedIndices.Num())
 		{
-			for (int32 i : SelectedIndices)
+			for (int32 i : Info->SelectedIndices)
 			{
 				Component->SelectInstance(true, i, 1);
 			}
@@ -1682,6 +1695,10 @@ void FFoliageInfo::CreateImplementation(EFoliageImplType InType)
 	{
 		Implementation.Reset(new FFoliageActor(this));
 	}
+	else if (Type == EFoliageImplType::ISMActor)
+	{
+		Implementation.Reset(new FFoliageISMActor(this));
+	}
 }
 
 int32 FFoliageInfo::GetOverlappingSphereCount(const FSphere& Sphere) const
@@ -1721,20 +1738,33 @@ void FFoliageInfo::GetOverlappingMeshCount(const FSphere& Sphere, TMap<UStaticMe
 }
 
 #if WITH_EDITOR
-void FFoliageInfo::CreateImplementation(const UFoliageType* FoliageType)
+EFoliageImplType FFoliageInfo::GetImplementationType(const UFoliageType* FoliageType) const
 {
-	check(!Implementation.IsValid());
-	// Change Impl based on FoliageType param
-	EFoliageImplType ImplType = EFoliageImplType::Unknown;
 	if (FoliageType->IsA<UFoliageType_InstancedStaticMesh>())
 	{
-		ImplType = EFoliageImplType::StaticMesh;
+		return EFoliageImplType::StaticMesh;
 	}
 	else if (FoliageType->IsA<UFoliageType_Actor>())
 	{
-		ImplType = EFoliageImplType::Actor;
+		const UFoliageType_Actor* ActorFoliageType = Cast<UFoliageType_Actor>(FoliageType);
+		if (ActorFoliageType->bStaticMeshOnly)
+		{
+			return EFoliageImplType::ISMActor;
+		}
+		else
+		{
+			return EFoliageImplType::Actor;
+		}
 	}
-	CreateImplementation(ImplType);
+
+	return EFoliageImplType::Unknown;
+}
+
+void FFoliageInfo::CreateImplementation(const UFoliageType* FoliageType)
+{
+	check(!Implementation.IsValid());
+	
+	CreateImplementation(GetImplementationType(FoliageType));
 }
 
 void FFoliageInfo::Initialize(const UFoliageType* FoliageType)
@@ -1747,6 +1777,7 @@ void FFoliageInfo::Initialize(const UFoliageType* FoliageType)
 void FFoliageInfo::Uninitialize()
 {
 	check(IsInitialized());
+	FoliageTypeUpdateGuid.Invalidate();
 	Implementation->Uninitialize();
 }
 
@@ -1762,7 +1793,15 @@ void FFoliageInfo::NotifyFoliageTypeWillChange(UFoliageType* FoliageType)
 
 void FFoliageInfo::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
 {
-	Implementation->NotifyFoliageTypeChanged(FoliageType, Instances, SelectedIndices, bSourceChanged);
+	FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
+	// Handle Implementation being uninitialized by FoliageType change
+	bool bWasInitialized = Implementation->IsInitialized();
+	
+	Implementation->NotifyFoliageTypeChanged(FoliageType, bSourceChanged);
+	if (bWasInitialized && !Implementation->IsInitialized())
+	{
+		ReallocateClusters(FoliageType);
+	}
 }
 
 void FFoliageInfo::CheckValid()
@@ -2194,6 +2233,7 @@ void FFoliageInfo::ReallocateClusters(UFoliageType* InSettings)
 	// Copy the UpdateGuid from the foliage type
 	FoliageTypeUpdateGuid = InSettings->UpdateGuid;
 
+	Implementation->BeginUpdate();
 	// Re-add
 	for (FFoliageInstance& Instance : OldInstances)
 	{
@@ -2202,7 +2242,7 @@ void FFoliageInfo::ReallocateClusters(UFoliageType* InSettings)
 			AddInstance(InSettings, Instance);
 		}
 	}
-
+	Implementation->EndUpdate();
 	
 	Refresh(true, true);
 }
@@ -2347,7 +2387,7 @@ void FFoliageInfo::SelectInstances(bool bSelect, TArray<int32>& InInstances)
 void FFoliageInfo::Refresh(bool Async, bool Force)
 {
 	check(Implementation.IsValid())
-	Implementation->Refresh(this->Instances, Async, Force);
+	Implementation->Refresh(Async, Force);
 }
 
 void FFoliageInfo::OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews)
@@ -2364,7 +2404,7 @@ void FFoliageInfo::PostEditUndo(AInstancedFoliageActor* InIFA, UFoliageType* Fol
 {
 	// Set the IFA after PostEditUndo as it is not a serialized member (will be nulled on serialization)
 	IFA = InIFA;
-	Implementation->PostEditUndo(this, FoliageType, Instances, SelectedIndices);
+	Implementation->PostEditUndo(this, FoliageType);
 		
 	// Regenerate instance hash
 	// We regenerate it here instead of saving to transaction buffer to speed up modify operations
@@ -2398,9 +2438,9 @@ void FFoliageInfo::RemoveBaseComponentOnInstances()
 
 void FFoliageInfo::IncludeActor(const UFoliageType* FoliageType, AActor* InActor)
 {
-	if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Implementation.Get()))
+	if (Type == EFoliageImplType::Actor)
 	{
-		if (FoliageActor->FindIndex(InActor) == INDEX_NONE)
+		if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Implementation.Get()))
 		{
 			FFoliageInstance NewInstance;
 			NewInstance.BaseComponent = nullptr;
@@ -2414,31 +2454,38 @@ void FFoliageInfo::IncludeActor(const UFoliageType* FoliageType, AActor* InActor
 
 			int32 Index = Instances.Add(NewInstance);
 			InstanceHash->InsertInstance(NewInstance.Location, Index);
-			FoliageActor->PreAddInstances(FoliageType, 1);
-			FoliageActor->ActorInstances.Add(InActor);
-			InActor->Modify();
-			FFoliageHelper::SetIsOwnedByFoliage(InActor);
+
+			if (FoliageActor->FindIndex(InActor) == INDEX_NONE)
+			{
+				FoliageActor->PreAddInstances(FoliageType, 1);
+				FoliageActor->ActorInstances.Add(InActor);
+				InActor->Modify();
+				FFoliageHelper::SetIsOwnedByFoliage(InActor);
+			}
 		}
 	}
 }
 
 void FFoliageInfo::ExcludeActors()
 {
-	if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Implementation.Get()))
+	if (Type == EFoliageImplType::Actor)
 	{
-		SelectedIndices.Empty();
-		Instances.Empty();
-		InstanceHash->Empty();
-		ComponentHash.Empty();
-		for (AActor* Actor : FoliageActor->ActorInstances)
+		if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Implementation.Get()))
 		{
-			if (Actor != nullptr)
+			SelectedIndices.Empty();
+			Instances.Empty();
+			InstanceHash->Empty();
+			ComponentHash.Empty();
+			for (AActor* Actor : FoliageActor->ActorInstances)
 			{
-				Actor->Modify();
-				FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
+				if (Actor != nullptr)
+				{
+					Actor->Modify();
+					FFoliageHelper::SetIsOwnedByFoliage(Actor, false);
+				}
 			}
+			FoliageActor->ActorInstances.Empty();
 		}
-		FoliageActor->ActorInstances.Empty();
 	}
 }
 
@@ -2552,6 +2599,7 @@ TUniqueObj<FFoliageInfo>& AInstancedFoliageActor::AddFoliageInfo(UFoliageType* F
 	TUniqueObj<FFoliageInfo>& NewFoliageInfo = FoliageInfos.Add(FoliageType);
 #if WITH_EDITORONLY_DATA
 	NewFoliageInfo->IFA = this;
+	NewFoliageInfo->FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
 #endif
 	return NewFoliageInfo;
 }
@@ -2561,6 +2609,7 @@ TUniqueObj<FFoliageInfo>& AInstancedFoliageActor::AddFoliageInfo(UFoliageType* F
 	TUniqueObj<FFoliageInfo>& NewFoliageInfo = FoliageInfos.Add(FoliageType, MoveTemp(FoliageInfo));
 #if WITH_EDITORONLY_DATA
 	NewFoliageInfo->IFA = this;
+	NewFoliageInfo->FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
 #endif
 	return NewFoliageInfo;
 }
@@ -2715,7 +2764,7 @@ void AInstancedFoliageActor::MoveInstancesForMovedOwnedActors(AActor* InActor)
 			continue;
 		}
 
-		if (Pair.Key->IsA<UFoliageType_Actor>())
+		if (Pair.Key->IsA<UFoliageType_Actor>() && Pair.Value->Type == EFoliageImplType::Actor)
 		{
 			if (FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Pair.Value->Implementation.Get()))
 			{
@@ -2866,6 +2915,7 @@ void AInstancedFoliageActor::DeleteInstancesForComponent(UWorld* InWorld, UActor
 void AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const UProceduralFoliageComponent* ProceduralFoliageComponent, bool InRebuildTree)
 {
 	const FGuid& ProceduralGuid = ProceduralFoliageComponent->GetProceduralGuid();
+	BeginUpdate();
 	for (auto& Pair : FoliageInfos)
 	{
 		FFoliageInfo& Info = *Pair.Value;
@@ -2883,7 +2933,7 @@ void AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const 
 			Info.RemoveInstances(InstancesToRemove, InRebuildTree);
 		}
 	}
-
+	EndUpdate();
 	// Clean up dead cross-level references
 	FFoliageInstanceBaseCache::CompactInstanceBaseCache(this);
 }
@@ -3340,7 +3390,7 @@ void AInstancedFoliageActor::ClearSelection()
 	}
 }
 
-void AInstancedFoliageActor::SelectInstance(UInstancedStaticMeshComponent* InComponent, int32 InInstanceIndex, bool bToggle)
+void AInstancedFoliageActor::SelectInstance(UInstancedStaticMeshComponent* InComponent, int32 InComponentInstanceIndex, bool bToggle)
 {
 	Modify(false);
 
@@ -3354,44 +3404,37 @@ void AInstancedFoliageActor::SelectInstance(UInstancedStaticMeshComponent* InCom
 	{
 		UFoliageType* Type = nullptr;
 		FFoliageInfo* Info = nullptr;
+		int32 InstanceIndex = INDEX_NONE;
 
 		for (auto& Pair : FoliageInfos)
 		{
-			if (Pair.Value->Type == EFoliageImplType::StaticMesh)
+			InstanceIndex = Pair.Value->Implementation->GetInstanceIndexFrom(InComponent, InComponentInstanceIndex);
+			if (InstanceIndex != INDEX_NONE)
 			{
-				FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Pair.Value->Implementation.Get());
-				if (FoliageStaticMesh->Component == InComponent)
-				{
-					Type = Pair.Key;
-					Info = &Pair.Value.Get();
-					break;
-				}
+				Type = Pair.Key;
+				Info = &Pair.Value.Get();
+				break;
 			}
 		}
 
 		if (Info)
 		{
-			bool bIsSelected = Info->SelectedIndices.Contains(InInstanceIndex);
+			bool bIsSelected = Info->SelectedIndices.Contains(InstanceIndex);
 
 			// Deselect if it's already selected.
-			if (InInstanceIndex < InComponent->SelectedInstances.Num())
-			{
-				InComponent->SelectInstance(false, InInstanceIndex, 1);
-				InComponent->MarkRenderStateDirty();
-			}
+			Info->Implementation->SelectInstance(false, InstanceIndex);
 
 			if (bIsSelected)
 			{
-				Info->SelectedIndices.Remove(InInstanceIndex);
+				Info->SelectedIndices.Remove(InstanceIndex);
 			}
 
 			if (!bToggle || !bIsSelected)
 			{
 				// Add the selection
-				InComponent->SelectInstance(true, InInstanceIndex, 1);
-				InComponent->MarkRenderStateDirty();
+				Info->Implementation->SelectInstance(true, InstanceIndex);
 
-				Info->SelectedIndices.Add(InInstanceIndex);
+				Info->SelectedIndices.Add(InstanceIndex);
 			}
 		}
 	}
@@ -3572,12 +3615,15 @@ void AInstancedFoliageActor::PostEditUndo()
 
 	InstanceBaseCache.UpdateInstanceBaseCachedTransforms();
 
+	BeginUpdate();
+
 	for (auto& Pair : FoliageInfos)
 	{
 		FFoliageInfo& Info = *Pair.Value;
 
 		Info.PostEditUndo(this, Pair.Key);
 	}
+	EndUpdate();
 }
 
 void AInstancedFoliageActor::PostDuplicate(bool bDuplicateForPIE)
@@ -4055,7 +4101,7 @@ void AInstancedFoliageActor::PostLoad()
 				{
 					FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Info.Implementation.Get());
 					UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType);
-					FoliageStaticMesh->CheckComponentClass(FoliageType_InstancedStaticMesh, Info.Instances, Info.SelectedIndices);
+					FoliageStaticMesh->CheckComponentClass(FoliageType_InstancedStaticMesh);
 				}
 			}
 
@@ -4231,6 +4277,7 @@ void AInstancedFoliageActor::PostLoad()
 
 	if (!GIsEditor && CVarFoliageDiscardDataOnLoad.GetValueOnGameThread())
 	{
+		bool bHasISMFoliage = false;
 		for (auto& Pair : FoliageInfos)
 		{
 			if (!Pair.Key || Pair.Key->bEnableDiscardOnLoad)
@@ -4250,9 +4297,27 @@ void AInstancedFoliageActor::PostLoad()
 					FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Pair.Value->Implementation.Get());
 					FoliageActor->DestroyActors(true);
 				}
+				else if (Pair.Value->Type == EFoliageImplType::ISMActor)
+				{
+					bHasISMFoliage = true;
+				}
 			}
 				
 			Pair.Value = FFoliageInfo();
+		}
+
+		if (bHasISMFoliage)
+		{
+			TArray<UFoliageInstancedStaticMeshComponent*> FoliageComponents;
+			GetComponents<UFoliageInstancedStaticMeshComponent>(FoliageComponents);
+			for (UFoliageInstancedStaticMeshComponent* FoliageComponent : FoliageComponents)
+			{
+				if (FoliageComponent && FoliageComponent->bEnableDiscardOnLoad)
+				{
+					FoliageComponent->ConditionalPostLoad();
+					FoliageComponent->DestroyComponent();
+				}
+			}
 		}
 	}
 }
@@ -4529,19 +4594,30 @@ void AInstancedFoliageActor::DetectFoliageTypeChangeAndUpdate()
 				{
 					FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Info.Implementation.Get());
 					UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType);
-					FoliageStaticMesh->CheckComponentClass(FoliageType_InstancedStaticMesh, Info.Instances, Info.SelectedIndices);
+					FoliageStaticMesh->CheckComponentClass(FoliageType_InstancedStaticMesh);
 					FoliageStaticMesh->UpdateComponentSettings(FoliageType_InstancedStaticMesh);
 				}
-				// Respawn foliage actors
-				else if (Info.Type == EFoliageImplType::Actor)
+				// Respawn foliage 
+				else
 				{
 					// We can't spawn in postload because BeingPlay might call UnrealScript which is not supported.
 					UWorld* World = GetWorld();
 					if (World && !World->IsGameWorld())
 					{
-						FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get());
-						const bool bPostLoad = true;
-						FoliageActor->Reapply(FoliageType, Info.Instances, bPostLoad);
+						Info.Implementation->NotifyFoliageTypeWillChange(FoliageType);
+
+						EFoliageImplType CurrentType = Info.GetImplementationType(FoliageType);
+						if (Info.Type != Info.GetImplementationType(FoliageType))
+						{
+							Info.Implementation->Uninitialize();
+							Info.Implementation.Reset();
+							Info.CreateImplementation(CurrentType);
+							Info.Implementation->Reapply(FoliageType);
+						}
+						else
+						{
+							Info.Implementation->NotifyFoliageTypeChanged(FoliageType, false);
+						}
 					}
 				}
 			}
@@ -4938,6 +5014,7 @@ float AInstancedFoliageActor::InternalTakeRadialDamage(float Damage, struct FRad
 
 UFoliageInstancedStaticMeshComponent::UFoliageInstancedStaticMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bEnableDiscardOnLoad(false)
 {
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = false;

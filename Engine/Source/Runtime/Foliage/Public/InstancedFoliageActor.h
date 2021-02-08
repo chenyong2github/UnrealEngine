@@ -11,7 +11,7 @@
 #include "FoliageInstanceBase.h"
 #include "InstancedFoliage.h"
 #include "InstancedFoliageCustomVersion.h"
-#include "ActorPartition/PartitionActor.h"
+#include "ISMPartition/ISMPartitionActor.h"
 
 #include "InstancedFoliageActor.generated.h"
 
@@ -21,7 +21,7 @@ class UProceduralFoliageComponent;
 typedef TFunction<bool(const UPrimitiveComponent*)> FFoliageTraceFilterFunc;
 
 UCLASS(notplaceable, hidecategories = (Object, Rendering, Mobility), MinimalAPI, NotBlueprintable)
-class AInstancedFoliageActor : public APartitionActor
+class AInstancedFoliageActor : public AISMPartitionActor
 {
 	GENERATED_UCLASS_BODY()
 
