@@ -89,6 +89,7 @@ FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
 	, CollisionObjectReductionPercentage(0.0f)
 	, CollisionParticlesFraction(1.0f)
 	, MaximumCollisionParticles(60)
+	, DamageThreshold(250.0)
 {
 }
 
