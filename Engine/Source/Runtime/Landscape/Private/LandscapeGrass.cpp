@@ -1095,14 +1095,9 @@ int32 UMaterialExpressionLandscapeGrassOutput::Compile(class FMaterialCompiler* 
 {
 	if (GrassTypes.IsValidIndex(OutputIndex))
 	{
-		if (GrassTypes[OutputIndex].Input.Expression)
-		{
-			return Compiler->CustomOutput(this, OutputIndex, GrassTypes[OutputIndex].Input.Compile(Compiler));
-		}
-		else
-		{
-			return CompilerError(Compiler, TEXT("Input missing"));
-		}
+		// Default input to 0 if not connected.
+		int32 CodeInput = GrassTypes[OutputIndex].Input.IsConnected() ? GrassTypes[OutputIndex].Input.Compile(Compiler) : Compiler->Constant(0.f);
+		return Compiler->CustomOutput(this, OutputIndex, CodeInput);
 	}
 
 	return INDEX_NONE;
