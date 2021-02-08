@@ -2040,7 +2040,7 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPreLoadMapDelegate, const FString& /* MapName */);
 	static FPreLoadMapDelegate PreLoadMap;
 
-	/** Sent at the _successful_ end of LoadMap */
+	/** Sent at the end of LoadMap */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPostLoadMapDelegate, UWorld* /* LoadedWorld */);
 	static FPostLoadMapDelegate PostLoadMapWithWorld;
 
