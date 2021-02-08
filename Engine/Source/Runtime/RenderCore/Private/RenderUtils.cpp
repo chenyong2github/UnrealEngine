@@ -1041,6 +1041,19 @@ RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform)
 	return true;
 }
 
+RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform)
+{
+	return IsMobilePlatform(Platform) && !IsOpenGLPlatform(Platform) && !IsMetalMobilePlatform(Platform) && IsUsingDistanceFields(Platform);
+}
+
+RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPlatform Platform)
+{
+	static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFieldShadowing"));
+	bool bDistanceFieldShadowingEnabled = CVar && (CVar->GetInt() != 0);
+
+	return GRHISupportsPixelShaderUAVs && bDistanceFieldShadowingEnabled && IsMobileDistanceFieldEnabled(Platform);
+}
+
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
 	TEXT("r.ForwardShading"),

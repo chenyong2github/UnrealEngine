@@ -603,20 +603,6 @@ private:
 	
 	bool ShouldRenderDistanceFieldAO() const;
 
-	/** Whether distance field global data structures should be prepared for features that use it. */
-	bool ShouldPrepareForDistanceFieldShadows() const;
-	bool ShouldPrepareForDistanceFieldAO() const;
-	bool ShouldPrepareForDFInsetIndirectShadow() const;
-
-	bool ShouldPrepareDistanceFieldScene() const;
-	bool ShouldPrepareGlobalDistanceField() const;
-	bool ShouldPrepareHeightFieldScene() const;
-
-	void UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
-	void UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
-	void AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd = false);
-	void PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch);
-
 	void CopySceneCaptureComponentToTarget(
 		FRDGBuilder& GraphBuilder,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,

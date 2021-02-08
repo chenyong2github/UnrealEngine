@@ -1440,7 +1440,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 	}
 }
 
-bool FDeferredShadingSceneRenderer::ShouldPrepareForDFInsetIndirectShadow() const
+bool FSceneRenderer::ShouldPrepareForDFInsetIndirectShadow() const
 {
 	bool bSceneHasInsetDFPrimitives = false;
 

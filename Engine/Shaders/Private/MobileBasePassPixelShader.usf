@@ -707,11 +707,12 @@ void Main(
 	Color *= MaterialAO;
 	IndirectIrradiance *= MaterialAO;
 
+	float  ShadowPositionZ = 0;
 #if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// Cascaded Shadow Map
 	if(MobileBasePass.UseCSM)
 	{
-		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w);
+		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w, ShadowPositionZ);
 	#if MOVABLE_DIRECTIONAL_LIGHT
 		Shadow = ShadowMap;
 	#else
@@ -719,6 +720,13 @@ void Main(
 	#endif
 	}
 #endif /* DIRECTIONAL_LIGHT_CSM */
+
+#if (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && ENABLE_DISTANCE_FIELD
+	if (ShadowPositionZ == 0)
+	{
+		Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition));
+	}
+#endif
 
 	half NoL = max(0, dot(MaterialParameters.WorldNormal, MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz));
 	half3 H = normalize(MaterialParameters.CameraVector + MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz);

@@ -883,6 +883,8 @@ bool GRHISupportsArrayIndexFromAnyShader = false;
 /** Whether we are profiling GPU hitches. */
 bool GTriggerGPUHitchProfile = false;
 
+bool GRHISupportsPixelShaderUAVs = true;
+
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;
 
 RHI_API int32 volatile GCurrentTextureMemorySize = 0;
@@ -1228,15 +1230,6 @@ RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform)
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
 		return (Platform == SP_PCD3D_SM5) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
-	}
-	return false;
-}
-
-RHI_API bool RHISupportsPixelShaderUAVs(const FStaticShaderPlatform Platform)
-{
-	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
-	{
-		return true;
 	}
 	return false;
 }

@@ -1446,7 +1446,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	SharedBuffersKey = (SubsectionSizeLog2 & 0xf) | ((NumSubsections & 0xf) << 4) |
 		(FeatureLevel <= ERHIFeatureLevel::ES3_1 ? 0 : 1 << 30) | (XYOffsetmapTexture == nullptr ? 0 : 1 << 31);
 
-	bSupportsHeightfieldRepresentation = true;
+	bSupportsHeightfieldRepresentation = FeatureLevel <= ERHIFeatureLevel::ES3_1 ? false : true;
 
 #if WITH_EDITOR
 	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = InComponent->GetWeightmapLayerAllocations();

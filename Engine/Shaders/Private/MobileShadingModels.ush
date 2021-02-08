@@ -231,9 +231,10 @@ return ShadowMap;
 // Add fading CSM plane:
 #define FADE_CSM 1
 
-half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth)
+half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth, out float ShadowPositionZ)
 {
 	half ShadowMap = 1;
+	ShadowPositionZ = 0;
 	FPCFSamplerSettings Settings;
 	Settings.ShadowDepthTexture = MobileDirectionalLight.DirectionalLightShadowTexture;
 	Settings.ShadowDepthTextureSampler = MobileDirectionalLight.DirectionalLightShadowSampler;
@@ -255,6 +256,7 @@ half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth)
 		#else
 			ShadowPosition = mul(float4(ScreenPosition.x, ScreenPosition.y, SceneDepth, 1), MobileDirectionalLight.DirectionalLightScreenToShadow[i]);
 		#endif
+			ShadowPositionZ = ShadowPosition.z;
 			break; // position found.
 		}
 	}

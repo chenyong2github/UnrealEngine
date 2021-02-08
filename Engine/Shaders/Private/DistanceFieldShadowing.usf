@@ -704,7 +704,7 @@ void DistanceFieldShadowingCS(
 			float SubsurfaceDensity = 0;
 			bool bUseSubsurfaceTransmission = false;
 
-#if !FORWARD_SHADING && DF_SHADOW_QUALITY > 2
+#if !FORWARD_SHADING && DF_SHADOW_QUALITY > 2 && !SHADING_PATH_MOBILE
 			FGBufferData GBufferData = GetGBufferData(ScreenUV);
 
 			BRANCH
