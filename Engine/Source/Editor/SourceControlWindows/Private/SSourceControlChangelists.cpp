@@ -473,9 +473,34 @@ bool SSourceControlChangelistsWidget::CanRevert()
 
 void SSourceControlChangelistsWidget::OnShelve()
 {
+	FSourceControlChangelistStatePtr CurrentChangelist = GetChangelistStateFromSelection();
+
+	if (!CurrentChangelist)
+	{
+		return;
+	}
+
+	FText ChangelistDescription = CurrentChangelist->GetDescriptionText();
+
+	if (ChangelistDescription.IsEmptyOrWhitespace())
+	{
+		bool bOk = GetChangelistDescription(
+			nullptr,
+			LOCTEXT("SourceControl.Changelist.NewShelve", "Shelving files..."),
+			LOCTEXT("SourceControl.Changelist.NewShelve.Label", "Enter a description for the changelist holding the shelve:"),
+			ChangelistDescription);
+
+		if (!bOk)
+		{
+			// User cancelled entering a changelist description; abort shelve
+			return;
+		}
+	}
+
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	auto ShelveOperation = ISourceControlOperation::Create<FShelve>();
-	SourceControlProvider.Execute(ShelveOperation, GetChangelistFromSelection(), GetSelectedFiles());
+	ShelveOperation->SetDescription(ChangelistDescription);
+	SourceControlProvider.Execute(ShelveOperation, CurrentChangelist->GetChangelist(), GetSelectedFiles());
 }
 
 void SSourceControlChangelistsWidget::OnUnshelve()
@@ -900,6 +925,8 @@ public:
 	FText GetChangelistDescriptionText() const
 	{
 		FString DescriptionString = TreeItem->GetDescriptionText().ToString();
+		// Here we'll both remove \r\n (when edited from the dialog) and \n (when we get it from the SCC)
+		DescriptionString.ReplaceInline(TEXT("\r"), TEXT(""));
 		DescriptionString.ReplaceInline(TEXT("\n"), TEXT(" "));
 		DescriptionString.TrimEndInline();
 		return FText::FromString(DescriptionString);

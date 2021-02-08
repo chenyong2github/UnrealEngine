@@ -162,13 +162,18 @@ public:
 
 		for (const auto& Field : Record)
 		{
-			// Skip some fields that aren<t required (as evidenced by the CreateChangelist before
+			// Skip some fields that aren't required (as evidenced by the CreateChangelist before
 			if (Field.Key == TEXT("Date") ||
 				Field.Key == TEXT("Type") ||
 				Field.Key == TEXT("specFormatted") ||
 				Field.Key == TEXT("func"))
 			{
 				continue;
+			}
+			else if (Field.Key == TEXT("extraTag0"))
+			{
+				// Changelists with shelved files will have additional tags which will be rejected in the edit
+				break;
 			}
 
 			if (Field.Key == TEXT("Description"))
@@ -196,7 +201,7 @@ public:
 
 				OutputDesc += TEXT("\t");
 				OutputDesc += Field.Value;
-				OutputDesc += TEXT("\n");
+				OutputDesc += TEXT("\n\n");
 			}
 			else
 			{
@@ -818,7 +823,7 @@ int32 FPerforceConnection::EditPendingChangelist(const FText& NewDescription, in
 
 		P4Client.SetBreak(NULL);
 
-		return User.ChangelistNumber;
+		return (OutErrorMessages.Num() == 0 ? User.ChangelistNumber : 0);
 	}
 #else
 	return 0;

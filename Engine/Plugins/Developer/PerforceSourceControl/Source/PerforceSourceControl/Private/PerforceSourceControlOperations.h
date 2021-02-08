@@ -164,6 +164,10 @@ public:
 	TArray<TArray<FPerforceSourceControlState>> OutCLFilesStates;
 	TArray<TMap<FString, EPerforceState::Type>> OutCLShelvedFilesStates;
 	TArray<TMap<FString, FString>> OutCLShelvedFilesMap;
+
+private:
+	/** Controls whether or not we will remove changelists from the cache after a full update */
+	bool bCleanupCache = false;
 };
 
 class FPerforceCopyWorker : public IPerforceSourceControlWorker
@@ -287,15 +291,22 @@ public:
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 
-protected:	
+protected:
 	/** Map of filenames to perforce state */
 	TMap<FString, EPerforceState::Type> OutResults;
 
 	/** Map depot filenames to local file */
 	TMap<FString, FString> OutFileMap;
 
-	/** Changelist to be updated */
-	FPerforceSourceControlChangelist ChangelistToUpdate;
+	/** Reopened files */
+	TArray<FString> MovedFiles;
+
+	/** Changelist description if needed */
+	FString ChangelistDescription;
+
+	/** Changelist(s) to be updated */
+	FPerforceSourceControlChangelist InChangelistToUpdate;
+	FPerforceSourceControlChangelist OutChangelistToUpdate;
 };
 
 class FPerforceDeleteShelveWorker : public IPerforceSourceControlWorker

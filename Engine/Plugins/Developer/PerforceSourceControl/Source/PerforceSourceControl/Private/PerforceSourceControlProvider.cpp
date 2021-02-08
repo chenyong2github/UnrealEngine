@@ -319,6 +319,20 @@ TArray<FSourceControlStateRef> FPerforceSourceControlProvider::GetCachedStateByP
 	return Result;
 }
 
+TArray<FSourceControlChangelistStateRef> FPerforceSourceControlProvider::GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlChangelistStateRef&)> Predicate) const
+{
+	TArray<FSourceControlChangelistStateRef> Result;
+	for (const auto& CacheItem : ChangelistsStateCache)
+	{
+		FSourceControlChangelistStateRef State = CacheItem.Value;
+		if (Predicate(State))
+		{
+			Result.Add(State);
+		}
+	}
+	return Result;
+}
+
 FDelegateHandle FPerforceSourceControlProvider::RegisterSourceControlStateChanged_Handle( const FSourceControlStateChanged::FDelegate& SourceControlStateChanged )
 {
 	return OnSourceControlStateChanged.Add( SourceControlStateChanged );

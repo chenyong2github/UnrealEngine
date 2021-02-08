@@ -565,6 +565,20 @@ public:
 	{
 		return LOCTEXT("SourceControl_ShelveOperation", "Shelving files in changelist...");
 	}
+
+	void SetDescription(const FText& InDescription)
+	{
+		Description = InDescription;
+	}
+
+	const FText& GetDescription() const
+	{
+		return Description;
+	}
+
+private:
+	/** Description of the changelist, will be used only to create a new changelist when needed */
+	FText Description;
 };
 
 /**

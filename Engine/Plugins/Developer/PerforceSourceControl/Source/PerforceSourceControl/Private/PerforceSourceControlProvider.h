@@ -110,6 +110,9 @@ public:
 	/** Remove a changelist from the state cache */
 	bool RemoveChangelistFromCache(const FPerforceSourceControlChangelist& Changelist);
 
+	/** Returns a list of changelists from the cache based on a given predicate */
+	TArray<FSourceControlChangelistStateRef> GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlChangelistStateRef&)> Predicate) const;
+
 private:
 
 	/** Helper function used to create a worker for a particular operation */
