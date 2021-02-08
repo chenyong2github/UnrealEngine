@@ -291,13 +291,8 @@ void ULevelSequence::PostLoad()
 		if (!Spawnable.GetObjectTemplate())
 		{
 			InvalidSpawnables.Add(Spawnable.GetGuid());
-			UE_LOG(LogLevelSequence, Warning, TEXT("Discarding spawnable with ID '%s' since its generated class could not produce to a template actor"), *Spawnable.GetGuid().ToString());
+			UE_LOG(LogLevelSequence, Warning, TEXT("Spawnable '%s' with ID '%s' does not have a valid object template"), *Spawnable.GetName(), *Spawnable.GetGuid().ToString());
 		}
-	}
-
-	for (FGuid& ID : InvalidSpawnables)
-	{
-		MovieScene->RemoveSpawnable(ID);
 	}
 
 	if (GetLinkerCustomVersion(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::PurgeSpawnableBlueprints)

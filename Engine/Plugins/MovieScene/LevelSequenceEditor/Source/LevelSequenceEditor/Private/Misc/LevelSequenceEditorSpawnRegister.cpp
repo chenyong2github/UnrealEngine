@@ -356,7 +356,9 @@ bool FLevelSequenceEditorSpawnRegister::CanConvertSpawnableToPossessable(FMovieS
 {
 	for (TSharedPtr<IMovieSceneObjectSpawner> MovieSceneObjectSpawner : MovieSceneObjectSpawners)
 	{
-		if (Spawnable.GetObjectTemplate()->IsA(MovieSceneObjectSpawner->GetSupportedTemplateType()))
+		UObject* ObjectTemplate = Spawnable.GetObjectTemplate();
+
+		if (ObjectTemplate && ObjectTemplate->IsA(MovieSceneObjectSpawner->GetSupportedTemplateType()))
 		{
 			return MovieSceneObjectSpawner->CanConvertSpawnableToPossessable(Spawnable);
 		}

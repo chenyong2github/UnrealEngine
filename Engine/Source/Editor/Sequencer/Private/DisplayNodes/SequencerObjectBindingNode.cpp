@@ -46,6 +46,7 @@
 #include "Engine/World.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
+#include "ClassViewerModule.h"
 
 #define LOCTEXT_NAMESPACE "FObjectBindingNode"
 
@@ -241,6 +242,11 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				LOCTEXT("SubLevelTooltip", "Specifies which level the spawnable should be spawned into"),
 				FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddSpawnLevelMenu)
 			);
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("ChangeClassLabel", "Change Class"),
+				LOCTEXT("ChangeClassTooltip", "Change the class (object template) that this spawns from"),
+				FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddChangeClassMenu));
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ContinuouslyRespawn", "Continuously Respawn"),
@@ -472,6 +478,53 @@ void FSequencerObjectBindingNode::AddSpawnLevelMenu(FMenuBuilder& MenuBuilder)
 		}
 	}
 }
+
+void FSequencerObjectBindingNode::AddChangeClassMenu(FMenuBuilder& MenuBuilder)
+{
+	UMovieScene* MovieScene = GetSequencer().GetFocusedMovieSceneSequence()->GetMovieScene();
+	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBinding);
+	if (!Spawnable)
+	{
+		return;
+	}
+
+	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+
+	FClassViewerInitializationOptions Options;
+	Options.Mode = EClassViewerMode::ClassPicker;
+	Options.bIsActorsOnly = true;
+	Options.bIsPlaceableOnly = true;
+
+	MenuBuilder.AddWidget(
+		SNew(SBox)
+		.MinDesiredWidth(300.0f)
+		.MaxDesiredHeight(400.0f)
+		[
+			ClassViewerModule.CreateClassViewer(Options, FOnClassPicked::CreateRaw(this, &FSequencerObjectBindingNode::HandleTemplateActorClassPicked))
+		],
+		FText(), true, false
+	);
+}
+
+void FSequencerObjectBindingNode::HandleTemplateActorClassPicked(UClass* ChosenClass)
+{
+	FSlateApplication::Get().DismissAllMenus();
+
+	UMovieScene* MovieScene = GetSequencer().GetFocusedMovieSceneSequence()->GetMovieScene();
+	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBinding);
+	if (!Spawnable)
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("ChangeClass", "Change Class"));
+
+	MovieScene->Modify();
+	Spawnable->SetObjectTemplate(ChosenClass->ClassDefaultObject);
+	GetSequencer().GetSpawnRegister().DestroySpawnedObject(Spawnable->GetGuid(), GetSequencer().GetFocusedTemplateID(), GetSequencer());
+	GetSequencer().ForceEvaluate();
+}
+
 
 void FSequencerObjectBindingNode::AddAssignActorMenu(FMenuBuilder& MenuBuilder)
 {
@@ -853,7 +906,14 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 
 const FSlateBrush* FSequencerObjectBindingNode::GetIconBrush() const
 {
-	return FSlateIconFinder::FindIconBrushForClass(GetClassForObjectBinding());
+	const UClass* ClassForObjectBinding = GetClassForObjectBinding();
+
+	if (!ClassForObjectBinding)
+	{
+		return FEditorStyle::GetBrush("Sequencer.InvalidSpawnableIcon");
+	}
+
+	return FSlateIconFinder::FindIconBrushForClass(ClassForObjectBinding);
 }
 
 const FSlateBrush* FSequencerObjectBindingNode::GetIconOverlayBrush() const
