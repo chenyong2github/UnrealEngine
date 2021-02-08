@@ -362,6 +362,7 @@ void UBlueprintEditorLibrary::RemoveUnusedNodes(UBlueprint* Blueprint)
 			// be valid with no pin connections made to them
 			if (Node->CanUserDeleteNode() && 
 				!Node->IsA<UAnimGraphNode_Base>() && 
+				!Node->IsA<UEdGraphNode_Comment>() &&
 				!InternalBlueprintEditorLibrary::NodeHasAnyConnections(Node))
 			{
 				Node->BreakAllNodeLinks();
