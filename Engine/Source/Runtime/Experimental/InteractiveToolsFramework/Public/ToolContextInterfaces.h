@@ -22,6 +22,8 @@ class UToolTargetManager;
 struct FMeshDescription;
 class UTexture2D;
 class UInteractiveToolStorableSelection;
+struct FTypedElementHandle;
+class UTypedElementSelectionSet;
 
 #if WITH_EDITOR
 class HHitProxy;
@@ -53,6 +55,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 	 * selected groups within a mesh, etc.
 	 */
 	const UInteractiveToolStorableSelection* StoredToolSelection = nullptr;
+
+	TWeakObjectPtr<UTypedElementSelectionSet> TypedElementSelectionSet;
 };
 
 

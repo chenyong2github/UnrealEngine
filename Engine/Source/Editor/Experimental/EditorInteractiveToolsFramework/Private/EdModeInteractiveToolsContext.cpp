@@ -186,6 +186,7 @@ public:
 		StateOut.World = EditorModeManager->GetWorld();
 		EditorModeManager->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);
 		EditorModeManager->GetSelectedComponents()->GetSelectedObjects(StateOut.SelectedComponents);
+		StateOut.TypedElementSelectionSet = EditorModeManager->GetEditorSelectionSet();
 
 		UInteractiveToolsSelectionStoreSubsystem* ToolSelectionStore = GEngine->GetEngineSubsystem<UInteractiveToolsSelectionStoreSubsystem>();
 		ensureMsgf(ToolSelectionStore, TEXT("UInteractiveToolsSelectionStoreSubsystem was null, so tool selections will not be loaded. "
@@ -418,13 +419,12 @@ public:
 class FEdModeToolsContextTransactionImpl : public IToolsContextTransactionsAPI
 {
 public:
-	UEdModeInteractiveToolsContext* ToolsContext;
-	FEditorModeTools* EditorModeManager;
-
 	FEdModeToolsContextTransactionImpl(UEdModeInteractiveToolsContext* Context, FEditorModeTools* InEditorModeManager)
+		: ToolsContext(Context)
+		, EditorModeManager(InEditorModeManager)
 	{
-		ToolsContext = Context;
-		EditorModeManager = InEditorModeManager;
+		check(EditorModeManager);
+		check(ToolsContext);
 	}
 
 
@@ -510,6 +510,9 @@ public:
 		return false;
 	}
 
+protected:
+	UEdModeInteractiveToolsContext* ToolsContext;
+	FEditorModeTools* EditorModeManager;
 };
 
 

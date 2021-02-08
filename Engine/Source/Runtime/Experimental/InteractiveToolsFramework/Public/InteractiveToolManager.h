@@ -252,6 +252,9 @@ public:
 	/** @return current IToolsContextQueriesAPI */
 	virtual IToolsContextQueriesAPI* GetContextQueriesAPI() { return QueriesAPI; }
 
+	/** @return current IToolsContextTransactionsAPI */
+	virtual IToolsContextTransactionsAPI* GetContextTransactionsAPI() final { return TransactionsAPI; }
+
 	UInteractiveGizmoManager* GetPairedGizmoManager();
 
 

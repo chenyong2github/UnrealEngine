@@ -18,6 +18,7 @@ void FToolsContextQueriesImpl::GetCurrentSelectionState(FToolBuilderState& State
 	StateOut.World = nullptr;
 	StateOut.SelectedActors.Empty();
 	StateOut.SelectedComponents.Empty();
+	StateOut.TypedElementSelectionSet.Reset();
 }
 
 void FToolsContextQueriesImpl::GetCurrentViewState(FViewCameraState& StateOut) const

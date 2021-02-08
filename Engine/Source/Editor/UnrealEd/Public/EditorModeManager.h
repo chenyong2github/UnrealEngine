@@ -11,6 +11,8 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "EdMode.h"
 
+#include "Elements/Framework/TypedElementSelectionSet.h"
+
 class FCanvas;
 class FEditorViewportClient;
 class FEdMode;
@@ -454,6 +456,16 @@ public:
 	UTypedElementSelectionSet* GetEditorSelectionSet() const;
 
 	/**
+	 * Stores the current selection under the given key, and clears the current selection state if requested.
+	 */
+	void StoreSelection(FName SelectionStoreKey, bool bClearSelection = true);
+
+	/**
+	 * Restores the selection to the state that was stored using the given key.
+	 */
+	void RestoreSelection(FName SelectionStoreKey);
+
+	/**
 	 * Returns the world that is being edited by this mode manager
 	 */ 
 	virtual UWorld* GetWorld() const;
@@ -594,4 +606,6 @@ private:
 
 	FEditorViewportClient* HoveredViewportClient = nullptr;
 	FEditorViewportClient* FocusedViewportClient = nullptr;
+
+	TMap<FName, FTypedElementSelectionSetState> StoredSelectionSets;
 };

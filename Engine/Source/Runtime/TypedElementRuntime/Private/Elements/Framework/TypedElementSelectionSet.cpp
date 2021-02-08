@@ -3,6 +3,9 @@
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 
+#include "Serialization/ObjectReader.h"
+#include "Serialization/ObjectWriter.h"
+
 UTypedElementSelectionSet::UTypedElementSelectionSet()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -231,6 +234,31 @@ FTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FTypedE
 {
 	FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle);
 	return SelectionSetElement ? SelectionSetElement.GetSelectionElement(InSelectionMethod) : FTypedElementHandle();
+}
+
+FTypedElementSelectionSetState UTypedElementSelectionSet::GetCurrentSelectionState() const
+{
+	FTypedElementSelectionSetState CurrentState;
+
+	FObjectWriter TempArchive(const_cast<UTypedElementSelectionSet*>(this), CurrentState.StoredSelectionSetData);
+	if (TempArchive.IsError())
+	{
+		CurrentState.StoredSelectionSetData.Reset();
+	}
+	else
+	{
+		CurrentState.CreatedFromSelectionSet = this;
+	}
+
+	return MoveTemp(CurrentState);
+}
+
+void UTypedElementSelectionSet::RestoreSelectionState(const FTypedElementSelectionSetState& InSelectionState)
+{
+	if ((InSelectionState.CreatedFromSelectionSet == this) && (InSelectionState.StoredSelectionSetData.Num() > 0))
+	{
+		FObjectReader TempArchive(this, InSelectionState.StoredSelectionSetData);
+	}
 }
 
 FTypedElementSelectionSetElement UTypedElementSelectionSet::ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const

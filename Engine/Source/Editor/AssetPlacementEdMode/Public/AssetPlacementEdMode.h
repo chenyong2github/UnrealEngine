@@ -9,6 +9,8 @@
 
 #include "AssetPlacementEdMode.generated.h"
 
+class UTypedElementSelectionSet;
+
 UCLASS()
 class UAssetPlacementEdMode : public UBaseLegacyWidgetEdMode
 {
@@ -28,6 +30,7 @@ public:
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const override;
 	virtual void BindCommands() override;
 	virtual bool IsSelectionAllowed(AActor* InActor, bool bInSelection) const override;
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	// End of UEdMode interface
 	//////////////////
 
@@ -52,6 +55,8 @@ protected:
 	void ClearSelection();
 	bool HasAnyAssetsInPalette() const;
 	bool HasActiveSelection() const;
+	bool IsInSelectionTool() const;
 
+	bool bIsInSelectionTool;
 	TWeakObjectPtr<UAssetPlacementSettings> SettingsObjectAsPlacementSettings;
 };

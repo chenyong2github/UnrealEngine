@@ -7,6 +7,7 @@
 #include "AssetPlacementEdModeCommands.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
+#include "InstancedFoliageActor.h"
 #include "Selection.h"
 #include "EngineUtils.h"
 
@@ -42,6 +43,7 @@ UAssetPlacementEdMode::UAssetPlacementEdMode()
 		MoveTemp(IsEnabledAttr));
 
 	SettingsClass = UAssetPlacementSettings::StaticClass();
+	bIsInSelectionTool = false;
 }
 
 UAssetPlacementEdMode::~UAssetPlacementEdMode()
@@ -52,15 +54,16 @@ void UAssetPlacementEdMode::Enter()
 {
 	Super::Enter();
 
-	SettingsObjectAsPlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
-
 	const FAssetPlacementEdModeCommands& PlacementModeCommands = FAssetPlacementEdModeCommands::Get();
 	RegisterTool(PlacementModeCommands.Select, UPlacementModeSelectTool::ToolName, NewObject<UPlacementModeSelectToolBuilder>(this));
-	RegisterTool(PlacementModeCommands.LassoSelect, UPlacementModeLassoSelectTool::ToolName, NewObject<UPlacementModeLassoSelectToolBuilder>(this));
 
 	UPlacementModePlacementToolBuilder* PlaceToolBuilder = NewObject<UPlacementModePlacementToolBuilder>(this);
 	PlaceToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
 	RegisterTool(PlacementModeCommands.Place, UPlacementModePlacementTool::ToolName, PlaceToolBuilder);
+
+	UPlacementModeLassoSelectToolBuilder* LassoToolBuilder = NewObject<UPlacementModeLassoSelectToolBuilder>(this);
+	LassoToolBuilder->PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
+	RegisterTool(PlacementModeCommands.LassoSelect, UPlacementModeLassoSelectTool::ToolName, LassoToolBuilder);
 
 	UPlacementModePlaceSingleToolBuilder* SinglePlaceToolBuilder = NewObject<UPlacementModePlaceSingleToolBuilder>(this);
 	SinglePlaceToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
@@ -72,16 +75,26 @@ void UAssetPlacementEdMode::Enter()
 	EraseToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
 	RegisterTool(PlacementModeCommands.Erase, UPlacementModeEraseTool::ToolName, EraseToolBuilder);
 
-	ToolsContext->ToolManager->SelectActiveToolType(EToolSide::Mouse, UPlacementModeSelectTool::ToolName);
-	ToolsContext->ToolManager->ActivateTool(EToolSide::Mouse);
+	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
+	ToolsContext->StartTool(UPlacementModeSelectTool::ToolName);
+	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::FullUndoRedo);
 
-	// TODO - Stash existing selection and update to filter on valid things in the palette
-	Owner->GetSelectedActors()->GetElementSelectionSet()->ClearSelection(FTypedElementSelectionOptions());
-	Owner->GetSelectedComponents()->GetElementSelectionSet()->ClearSelection(FTypedElementSelectionOptions());
+	Owner->StoreSelection(AssetPlacementEdModeID);
 }
 
 void UAssetPlacementEdMode::Exit()
 {
+	// Todo: remove with HISM element handles
+	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
+	{
+		AInstancedFoliageActor* IFA = *It;
+		// null component will clear all selection
+		constexpr bool bAppendSelection = false;
+		IFA->SelectInstance(nullptr, 0, bAppendSelection);
+	}
+
+	Owner->RestoreSelection(AssetPlacementEdModeID);
+
 	SettingsObjectAsPlacementSettings.Reset();
 
 	Super::Exit();
@@ -89,6 +102,7 @@ void UAssetPlacementEdMode::Exit()
 
 void UAssetPlacementEdMode::CreateToolkit()
 {
+	SettingsObjectAsPlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
 	Toolkit = MakeShareable(new FAssetPlacementEdModeToolkit(SettingsObjectAsPlacementSettings));
 }
 
@@ -113,29 +127,67 @@ void UAssetPlacementEdMode::BindCommands()
 
 bool UAssetPlacementEdMode::IsSelectionAllowed(AActor* InActor, bool bInSelection) const
 {
-	// Need to be in selection tool for selection to be allowed
-	if (GetToolManager()->GetActiveToolName(EToolSide::Mouse) != UPlacementModeSelectTool::ToolName)
+	// Always allow deselection, for stashing selection set.
+	if (!bInSelection)
+	{
+		return true;
+	}
+
+	// Otherwise, need to be in selection tool for selection to be allowed
+	if (!bIsInSelectionTool)
 	{
 		return false;
 	}
 
+	// And we need to have a valid palette item.
 	FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor);
 	return DoesPaletteSupportElement(ActorHandle, SettingsObjectAsPlacementSettings->PaletteItems);
 }
 
-bool UAssetPlacementEdMode::UsesPropertyWidgets() const
+void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	if (GetToolManager()->GetActiveToolName(EToolSide::Mouse) != UPlacementModeSelectTool::ToolName)
+	Super::OnToolStarted(Manager, Tool);
+
+	bool bWasInSelectionTool = bIsInSelectionTool;
+	FString ActiveToolName = GetToolManager()->GetActiveToolName(EToolSide::Mouse);
+	if (ActiveToolName == UPlacementModeSelectTool::ToolName || ActiveToolName == UPlacementModeLassoSelectTool::ToolName)
 	{
-		return false;
+		bIsInSelectionTool = true;
+	}
+	else
+	{
+		bIsInSelectionTool = false;
 	}
 
-	return true;
+	// Stash or pop selection
+	if (bWasInSelectionTool != bIsInSelectionTool)
+	{
+		if (bIsInSelectionTool)
+		{
+			Owner->RestoreSelection(UPlacementModeSelectTool::ToolName);
+		}
+		else
+		{
+			Owner->StoreSelection(UPlacementModeSelectTool::ToolName);
+		}
+
+		// Todo: remove with HISM element handles
+		for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
+		{
+			AInstancedFoliageActor* IFA = *It;
+			IFA->ApplySelection(bIsInSelectionTool);
+		}
+	}
+}
+
+bool UAssetPlacementEdMode::UsesPropertyWidgets() const
+{
+	return IsInSelectionTool();
 }
 
 bool UAssetPlacementEdMode::ShouldDrawWidget() const
 {
-	if (GetToolManager()->GetActiveToolName(EToolSide::Mouse) != UPlacementModeSelectTool::ToolName)
+	if (!IsInSelectionTool())
 	{
 		return false;
 	}
@@ -254,6 +306,11 @@ bool UAssetPlacementEdMode::HasAnyAssetsInPalette() const
 bool UAssetPlacementEdMode::HasActiveSelection() const
 {
 	return HasAnyAssetsInPalette() && Owner->GetEditorSelectionSet()->HasSelectedElements();
+}
+
+bool UAssetPlacementEdMode::IsInSelectionTool() const
+{
+	return bIsInSelectionTool;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -18,6 +18,7 @@ void FLevelEditorToolsContextQueriesImpl::GetCurrentSelectionState(FToolBuilderS
 	StateOut.World = nullptr;
 	StateOut.SelectedActors.Empty();
 	StateOut.SelectedComponents.Empty();
+	StateOut.TypedElementSelectionSet.Reset();
 }
 
 void FLevelEditorToolsContextQueriesImpl::GetCurrentViewState(FViewCameraState& StateOut) const

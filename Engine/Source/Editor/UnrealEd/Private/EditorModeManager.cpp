@@ -36,7 +36,6 @@
 #include "InteractiveGizmoManager.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "Tools/LegacyEdModeInterfaces.h"
-#include "Elements/Framework/TypedElementSelectionSet.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
@@ -165,6 +164,30 @@ USelection* FEditorModeTools::GetSelectedComponents() const
 UTypedElementSelectionSet* FEditorModeTools::GetEditorSelectionSet() const
 {
 	return GetSelectedActors()->GetElementSelectionSet();
+}
+
+void FEditorModeTools::StoreSelection(FName SelectionStoreKey, bool bClearSelection)
+{
+	if (UTypedElementSelectionSet* SelectionSet = GetEditorSelectionSet())
+	{
+		StoredSelectionSets.Emplace(SelectionStoreKey, SelectionSet->GetCurrentSelectionState());
+
+		if (bClearSelection)
+		{
+			SelectionSet->ClearSelection(FTypedElementSelectionOptions().SetAllowHidden(true));
+		}
+	}
+}
+
+void FEditorModeTools::RestoreSelection(FName SelectionStoreKey)
+{
+	if (UTypedElementSelectionSet* SelectionSet = GetEditorSelectionSet())
+	{
+		if (FTypedElementSelectionSetState* StoredState = StoredSelectionSets.Find(SelectionStoreKey))
+		{
+			SelectionSet->RestoreSelectionState(*StoredState);
+		}
+	}
 }
 
 UWorld* FEditorModeTools::GetWorld() const

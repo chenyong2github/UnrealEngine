@@ -19,7 +19,7 @@ struct FWeakObjectPtr;
 class FObjectReader : public FMemoryArchive
 {
 public:
-	FObjectReader(UObject* Obj, TArray<uint8>& InBytes, bool bIgnoreClassRef = false, bool bIgnoreArchetypeRef = false)
+	FObjectReader(UObject* Obj, const TArray<uint8>& InBytes, bool bIgnoreClassRef = false, bool bIgnoreArchetypeRef = false)
 		: Bytes(InBytes)
 	{
 		this->SetIsLoading(true);

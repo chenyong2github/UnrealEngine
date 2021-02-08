@@ -8,13 +8,12 @@
 #include "PlacementLassoSelectTool.generated.h"
 
 UCLASS(Transient, MinimalAPI)
-class UPlacementModeLassoSelectToolBuilder : public UInteractiveToolBuilder
+class UPlacementModeLassoSelectToolBuilder : public UPlacementToolBuilderBase
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UPlacementBrushToolBase* FactoryToolInstance(UObject* Outer) const override;
 };
 
 UCLASS(MinimalAPI)
@@ -23,5 +22,9 @@ class UPlacementModeLassoSelectTool : public UPlacementBrushToolBase
 	GENERATED_BODY()
 
 public:
+	virtual void OnBeginDrag(const FRay& Ray) override;
+	virtual void OnEndDrag(const FRay& Ray) override;
+	virtual void OnTick(float DeltaTime) override;
+
 	constexpr static TCHAR ToolName[] = TEXT("LassoSelectTool");
 };

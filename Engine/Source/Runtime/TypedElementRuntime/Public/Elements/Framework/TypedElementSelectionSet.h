@@ -75,6 +75,21 @@ private:
 	FTypedElementSelectionCustomization* SelectionCustomization = nullptr;
 };
 
+USTRUCT(BlueprintType)
+struct FTypedElementSelectionSetState
+{
+	GENERATED_BODY()
+
+	friend class UTypedElementSelectionSet;
+
+private:
+	UPROPERTY()
+	TArray<uint8> StoredSelectionSetData;
+
+	UPROPERTY()
+	TWeakObjectPtr<const UTypedElementSelectionSet> CreatedFromSelectionSet;
+};
+
 /**
  * A wrapper around an element list that ensures mutation goes via the selection 
  * interfaces, as well as providing some utilities for batching operations.
@@ -421,6 +436,22 @@ public:
 	{
 		return ElementList;
 	}
+
+	/**
+	 * Serializes the current selection set. 
+	 * The calling code is responsible for storing any state information. The selection set can be returned to a prior state using RestoreSelectionState.
+	 *
+	 * @returns the current state of the selection set.
+	 */
+	UFUNCTION(BlueprintPure, Category = "TypedElementFramework|Selection")
+	FTypedElementSelectionSetState GetCurrentSelectionState() const;
+
+	/**
+	 * Restores the selection set from the given state.
+	 * The calling code is responsible for managing any undo state.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Selection")
+	void RestoreSelectionState(const FTypedElementSelectionSetState& InSelectionState);
 
 private:
 	/**
