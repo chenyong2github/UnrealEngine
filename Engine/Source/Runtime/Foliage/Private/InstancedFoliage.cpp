@@ -801,7 +801,10 @@ void UFoliageType_Actor::UpdateBounds()
 
 		for (USceneComponent* PreviewComponent : PreviewComponents)
 		{
-			MeshBounds = MeshBounds + PreviewComponent->Bounds;
+			if (!(PreviewComponent->bIsEditorOnly || PreviewComponent->bHiddenInGame))
+			{
+				MeshBounds = MeshBounds + PreviewComponent->Bounds;
+			}
 		}
 	}
 
