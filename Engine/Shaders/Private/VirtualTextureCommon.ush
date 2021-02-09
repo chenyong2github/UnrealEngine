@@ -237,7 +237,7 @@ void ApplyAdaptivePageTableUniform(
 			InOutPageTableUniform.XOffsetInPages = PackedAdaptiveDesc & 0xfff;
 			InOutPageTableUniform.YOffsetInPages = (PackedAdaptiveDesc >> 12) & 0xfff;
 			InOutPageTableUniform.MaxLevel = (PackedAdaptiveDesc >> 24) & 0xf;
-			InOutPageTableUniform.SizeInPages = 1 << InOutPageTableUniform.MaxLevel;
+			InOutPageTableUniform.SizeInPages = ((int) 1) << InOutPageTableUniform.MaxLevel;
 
 			vLevel += InOutPageTableUniform.MaxLevel;
 			InOutResult.dUVdx *= InOutPageTableUniform.SizeInPages;
