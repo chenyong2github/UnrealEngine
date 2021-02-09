@@ -50,14 +50,13 @@ private:
 };
 #endif
 
-template<class T, int d>
-TPBDCollisionSpringConstraintsBase<T, d>::TPBDCollisionSpringConstraintsBase(
+FPBDCollisionSpringConstraintsBase::FPBDCollisionSpringConstraintsBase(
 	const int32 InOffset,
 	const int32 InNumParticles,
-	const TArray<TVector<int32, 3>>& InElements,
-	TSet<TVector<int32, 2>>&& InDisabledCollisionElements,
-	const T InThickness,
-	const T InStiffness)
+	const TArray<TVec3<int32>>& InElements,
+	TSet<TVec2<int32>>&& InDisabledCollisionElements,
+	const FReal InThickness,
+	const FReal InStiffness)
 	: Elements(InElements)
 	, DisabledCollisionElements(InDisabledCollisionElements)
 	, Offset(InOffset)
@@ -67,8 +66,7 @@ TPBDCollisionSpringConstraintsBase<T, d>::TPBDCollisionSpringConstraintsBase(
 {
 }
 
-template<class T, int d>
-void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& Particles)
+void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 {
 #if PLATFORM_DESKTOP && PLATFORM_64BITS
 	if (!Elements.Num())
@@ -86,9 +84,9 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 	for (int32 i = 0; i < Elements.Num(); ++i)
 	{
 		const TVector<int32, 3>& Elem = Elements[i];
-		const TVector<T, d>& P0 = Particles.X(Elem[0]);
-		const TVector<T, d>& P1 = Particles.X(Elem[1]);
-		const TVector<T, d>& P2 = Particles.X(Elem[2]);
+		const FVec3& P0 = Particles.X(Elem[0]);
+		const FVec3& P1 = Particles.X(Elem[1]);
+		const FVec3& P2 = Particles.X(Elem[2]);
 
 		BuildTriangleArray.Add(FkDOPBuildCollisionTriangle<uint32>(i, P0, P1, P2));
 	}
@@ -97,7 +95,7 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 	FMeshBuildDataProvider DopDataProvider(DopTree);
 	FCriticalSection CriticalSection;
 
-	const T Height = Thickness + Thickness;
+	const FReal Height = Thickness + Thickness;
 
 	PhysicsParallelFor(NumParticles,
 		[this, &Particles, &CriticalSection, Height, &DopDataProvider, &DopTree](int32 i)
@@ -105,9 +103,9 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 			const int32 Index = i + Offset;
 
 			FkHitResult Result;
-			const TVector<T, d>& Start = Particles.X(Index);
-			const TVector<T, d> Direction = Particles.V(Index).GetSafeNormal();
-			const TVector<T, d> End = Particles.P(Index) + Direction * Height;
+			const FVec3& Start = Particles.X(Index);
+			const FVec3 Direction = Particles.V(Index).GetSafeNormal();
+			const FVec3 End = Particles.P(Index) + Direction * Height;
 			const FVector4 Start4(Start.X, Start.Y, Start.Z, 0);
 			const FVector4 End4(End.X, End.Y, End.Z, 0);
 			TkDOPLineCollisionCheck<const FMeshBuildDataProvider, uint32> Ray(Start4, End4, true, DopDataProvider, &Result);
@@ -121,16 +119,16 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 					return;
 				}
 
-				const TVector<T, d>& P = Particles.X(Index);
-				const TVector<T, d>& P0 = Particles.X(Elem[0]);
-				const TVector<T, d>& P1 = Particles.X(Elem[1]);
-				const TVector<T, d>& P2 = Particles.X(Elem[2]);
-				const TVector<T, d> P10 = P1 - P0;
-				const TVector<T, d> P20 = P2 - P0;
-				const TVector<T, d> PP0 = P - P0;
-				const T Size10 = P10.SizeSquared();
-				const T Size20 = P20.SizeSquared();
-				TVector<T, 3> Bary;
+				const FVec3& P = Particles.X(Index);
+				const FVec3& P0 = Particles.X(Elem[0]);
+				const FVec3& P1 = Particles.X(Elem[1]);
+				const FVec3& P2 = Particles.X(Elem[2]);
+				const FVec3 P10 = P1 - P0;
+				const FVec3 P20 = P2 - P0;
+				const FVec3 PP0 = P - P0;
+				const FReal Size10 = P10.SizeSquared();
+				const FReal Size20 = P20.SizeSquared();
+				FVec3 Bary;
 				if (Size10 < SMALL_NUMBER)
 				{
 					if (Size20 < SMALL_NUMBER)
@@ -140,7 +138,7 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 					}
 					else
 					{
-						const T Size = PP0.SizeSquared();
+						const FReal Size = PP0.SizeSquared();
 						if (Size < SMALL_NUMBER)
 						{
 							Bary.Y = Bary.Z = 0.f;
@@ -148,7 +146,7 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 						}
 						else
 						{
-							const T ProjP2 = TVector<T, d>::DotProduct(PP0, P20);
+							const FReal ProjP2 = FVec3::DotProduct(PP0, P20);
 							Bary.Y = 0.f;
 							Bary.Z = ProjP2 * FMath::InvSqrt(Size20 * Size);
 							Bary.X = 1.0f - Bary.Z;
@@ -157,7 +155,7 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 				}
 				else if (Size20 < SMALL_NUMBER)
 				{
-					const T Size = PP0.SizeSquared();
+					const FReal Size = PP0.SizeSquared();
 					if (Size < SMALL_NUMBER)
 					{
 						Bary.Y = Bary.Z = 0.f;
@@ -165,7 +163,7 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 					}
 					else
 					{
-						const T ProjP1 = TVector<T, d>::DotProduct(PP0, P10);
+						const FReal ProjP1 = FVec3::DotProduct(PP0, P10);
 						Bary.Y = ProjP1 * FMath::InvSqrt(Size10 * PP0.SizeSquared());
 						Bary.Z = 0.f;
 						Bary.X = 1.0f - Bary.Y;
@@ -173,17 +171,17 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 				}
 				else
 				{
-					const T ProjSides = TVector<T, d>::DotProduct(P10, P20);
-					const T ProjP1 = TVector<T, d>::DotProduct(PP0, P10);
-					const T ProjP2 = TVector<T, d>::DotProduct(PP0, P20);
-					const T Denom = Size10 * Size20 - ProjSides * ProjSides;
+					const FReal ProjSides = FVec3::DotProduct(P10, P20);
+					const FReal ProjP1 = FVec3::DotProduct(PP0, P10);
+					const FReal ProjP2 = FVec3::DotProduct(PP0, P20);
+					const FReal Denom = Size10 * Size20 - ProjSides * ProjSides;
 					Bary.Y = (Size20 * ProjP1 - ProjSides * ProjP2) / Denom;
 					Bary.Z = (Size10 * ProjP2 - ProjSides * ProjP1) / Denom;
 					Bary.X = 1.0f - Bary.Z - Bary.Y;
 				}
 
-				TVector<T, d> Normal = TVector<T, d>::CrossProduct(P10, P20).GetSafeNormal();
-				Normal = (TVector<T, d>::DotProduct(Normal, PP0) > 0) ? Normal : -Normal;
+				FVec3 Normal = FVec3::CrossProduct(P10, P20).GetSafeNormal();
+				Normal = (FVec3::DotProduct(Normal, PP0) > 0) ? Normal : -Normal;
 
 				CriticalSection.Lock();
 				Constraints.Add({Index, Elem[0], Elem[1], Elem[2]});
@@ -195,41 +193,39 @@ void TPBDCollisionSpringConstraintsBase<T, d>::Init(const TPBDParticles<T, d>& P
 #endif  // #if PLATFORM_DESKTOP && PLATFORM_64BITS
 }
 
-template<class T, int d>
-TVector<T, d> TPBDCollisionSpringConstraintsBase<T, d>::GetDelta(const TPBDParticles<T, d>& Particles, const int32 i) const
+FVec3 FPBDCollisionSpringConstraintsBase::GetDelta(const FPBDParticles& Particles, const int32 i) const
 {
-	const TVector<int32, 4>& Constraint = Constraints[i];
+	const TVec4<int32>& Constraint = Constraints[i];
 	const int32 i1 = Constraint[0];
 	const int32 i2 = Constraint[1];
 	const int32 i3 = Constraint[2];
 	const int32 i4 = Constraint[3];
 
-	const T CombinedMass = Particles.InvM(i1) +
+	const FReal CombinedMass = Particles.InvM(i1) +
 		Particles.InvM(i2) * Barys[i][0] +
 		Particles.InvM(i3) * Barys[i][1] +
 		Particles.InvM(i4) * Barys[i][2];
-	if (CombinedMass <= (T)1e-7)
+	if (CombinedMass <= (FReal)1e-7)
 	{
-		return TVector<T, d>(0);
+		return FVec3(0);
 	}
 
-	const TVector<T, d>& P1 = Particles.P(i1);
-	const TVector<T, d>& P2 = Particles.P(i2);
-	const TVector<T, d>& P3 = Particles.P(i3);
-	const TVector<T, d>& P4 = Particles.P(i4);
+	const FVec3& P1 = Particles.P(i1);
+	const FVec3& P2 = Particles.P(i2);
+	const FVec3& P3 = Particles.P(i3);
+	const FVec3& P4 = Particles.P(i4);
 
-	const T Height = Thickness + Thickness;
-	const TVector<T, d> P = Barys[i][0] * P2 + Barys[i][1] * P3 + Barys[i][2] * P4 + Height * Normals[i];
+	const FReal Height = Thickness + Thickness;
+	const FVec3 P = Barys[i][0] * P2 + Barys[i][1] * P3 + Barys[i][2] * P4 + Height * Normals[i];
 
-	const TVector<T, d> Difference = P1 - P;
-	if (TVector<T, d>::DotProduct(Difference, Normals[i]) > 0)
+	const FVec3 Difference = P1 - P;
+	if (FVec3::DotProduct(Difference, Normals[i]) > 0)
 	{
-		return TVector<T, d>(0);
+		return FVec3(0);
 	}
 	const float Distance = Difference.Size();
-	const TVector<T, d> Delta = Distance * Normals[i];
+	const FVec3 Delta = Distance * Normals[i];
 	return Stiffness * Delta / CombinedMass;
 }
 
-template class CHAOS_API Chaos::TPBDCollisionSpringConstraintsBase<float, 3>;
 #endif

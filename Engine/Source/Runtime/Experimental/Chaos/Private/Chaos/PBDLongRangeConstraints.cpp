@@ -12,8 +12,7 @@ FAutoConsoleVariableRef CVarChaosLongRangeISPCEnabled(TEXT("p.Chaos.LongRange.IS
 
 using namespace Chaos;
 
-template<class T, int d>
-void TPBDLongRangeConstraints<T, d>::Apply(TPBDParticles<T, d>& InParticles, const T Dt, const TArray<int32>& ConstraintIndices) const
+void FPBDLongRangeConstraints::Apply(FPBDParticles& InParticles, const FReal Dt, const TArray<int32>& ConstraintIndices) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
 	switch (GetMode())
@@ -37,33 +36,7 @@ void TPBDLongRangeConstraints<T, d>::Apply(TPBDParticles<T, d>& InParticles, con
 	}
 }
 
-template<class T, int d>
-void TPBDLongRangeConstraints<T, d>::Apply(TPBDParticles<T, d>& InParticles, const T Dt) const
-{
-	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
-	switch (GetMode())
-	{
-	case EMode::FastTetherFastLength:
-	case EMode::AccurateTetherFastLength:
-		for (int32 i = 0; i < MEuclideanConstraints.Num(); ++i)
-		{
-			Apply(MEuclideanConstraints[i], InParticles, Dt, MDists[i]);
-		}
-		break;
-	case EMode::AccurateTetherAccurateLength:
-		for (int32 i = 0; i < MGeodesicConstraints.Num(); ++i)
-		{
-			Apply(MGeodesicConstraints[i], InParticles, Dt, MDists[i]);
-		}
-		break;
-	default:
-		unimplemented();
-		break;
-	}
-}
-
-template<>
-void TPBDLongRangeConstraints<float, 3>::Apply(TPBDParticles<float, 3>& InParticles, const float Dt) const
+void FPBDLongRangeConstraints::Apply(FPBDParticles& InParticles, const FReal Dt) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
 
@@ -71,7 +44,7 @@ void TPBDLongRangeConstraints<float, 3>::Apply(TPBDParticles<float, 3>& InPartic
 	{
 	case EMode::FastTetherFastLength:
 	case EMode::AccurateTetherFastLength:
-		if (bChaos_LongRange_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_LongRange_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::ApplyLongRangeConstraints(
@@ -104,4 +77,3 @@ void TPBDLongRangeConstraints<float, 3>::Apply(TPBDParticles<float, 3>& InPartic
 	}
 }
 
-template class Chaos::TPBDLongRangeConstraints<float, 3>;

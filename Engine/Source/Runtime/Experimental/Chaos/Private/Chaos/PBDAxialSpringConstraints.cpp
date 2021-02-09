@@ -30,7 +30,7 @@ void FPBDAxialSpringConstraints::InitColor(const TDynamicParticles<FReal, 3>& In
 	}
 }
 
-void FPBDAxialSpringConstraints::ApplyImp(TPBDParticles<FReal, 3>& InParticles, const FReal Dt, const int32 i) const
+void FPBDAxialSpringConstraints::ApplyImp(FPBDParticles& InParticles, const FReal Dt, const int32 i) const
 {
 		const auto& constraint = MConstraints[i];
 		int32 i1 = constraint[0];
@@ -52,14 +52,14 @@ void FPBDAxialSpringConstraints::ApplyImp(TPBDParticles<FReal, 3>& InParticles, 
 		}
 }
 
-void FPBDAxialSpringConstraints::Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const
+void FPBDAxialSpringConstraints::Apply(FPBDParticles& InParticles, const FReal Dt) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_AxialSpring);
 	if ((MConstraintsPerColor.Num() > 0) && (MConstraints.Num() > Chaos_AxialSpring_ParallelConstraintCount))
 	{
 		for (const auto& Constraints : MConstraintsPerColor)
 		{
-			if (bChaos_AxialSpring_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_AxialSpring_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::ApplyAxialSpringConstraints(

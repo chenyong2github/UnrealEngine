@@ -8,29 +8,28 @@
 
 namespace Chaos
 {
-template<class T, int d>
-class TPBDCollisionSpringConstraints : public TPBDCollisionSpringConstraintsBase<T, d>
+class FPBDCollisionSpringConstraints : public FPBDCollisionSpringConstraintsBase
 {
-	typedef TPBDCollisionSpringConstraintsBase<T, d> Base;
+	typedef FPBDCollisionSpringConstraintsBase Base;
 	using Base::Barys;
 	using Base::Constraints;
 
 public:
-	TPBDCollisionSpringConstraints(
+	FPBDCollisionSpringConstraints(
 		const int32 InOffset,
 		const int32 InNumParticles,
-		const TArray<TVector<int32, 3>>& InElements,
-		TSet<TVector<int32, 2>>&& InDisabledCollisionElements,
-		const T InThickness = (T)1.0,
-		const T InStiffness = (T)1.0)
+		const TArray<TVec3<int32>>& InElements,
+		TSet<TVec2<int32>>&& InDisabledCollisionElements,
+		const FReal InThickness = (FReal)1.,
+		const FReal InStiffness = (FReal)1.)
 	    : Base(InOffset, InNumParticles, InElements, MoveTemp(InDisabledCollisionElements), InThickness, InStiffness)
 	{}
 
-	virtual ~TPBDCollisionSpringConstraints() {}
+	virtual ~FPBDCollisionSpringConstraints() {}
 
 	using Base::Init;
 
-	void Apply(TPBDParticles<T, d>& Particles, const T Dt, const int32 ConstraintIndex) const
+	void Apply(FPBDParticles& Particles, const FReal Dt, const int32 ConstraintIndex) const
 	{
 		const int32 i = ConstraintIndex;
 		const TVector<int32, 4>& Constraint = Constraints[i];
@@ -38,8 +37,8 @@ public:
 		const int32 i2 = Constraint[1];
 		const int32 i3 = Constraint[2];
 		const int32 i4 = Constraint[3];
-		const TVector<T, d> Delta = Base::GetDelta(Particles, i);
-		static const T Multiplier = 1;  // TODO(mlentine): Figure out what the best multiplier here is
+		const FVec3 Delta = Base::GetDelta(Particles, i);
+		static const FReal Multiplier = (FReal)1.;  // TODO(mlentine): Figure out what the best multiplier here is
 		if (Particles.InvM(i1) > 0)
 		{
 			Particles.P(i1) += Multiplier * Particles.InvM(i1) * Delta;
@@ -58,7 +57,7 @@ public:
 		}
 	}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const
+	void Apply(FPBDParticles& InParticles, const FReal Dt) const
 	{
 		for (int32 i = 0; i < Constraints.Num(); ++i)
 		{
@@ -66,7 +65,7 @@ public:
 		}
 	}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
+	void Apply(FPBDParticles& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices) const
 	{
 		for (int32 i : InConstraintIndices)
 		{

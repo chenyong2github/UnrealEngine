@@ -10,27 +10,26 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Long Range Constraint"), STAT_PBD_LongRange, 
 
 namespace Chaos
 {
-template<class T, int d>
-class CHAOS_API TPBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, public FPBDConstraintContainer
+class CHAOS_API FPBDLongRangeConstraints : public FPBDLongRangeConstraintsBase, public FPBDConstraintContainer
 {
 public:
-	typedef TPBDLongRangeConstraintsBase<T, d> Base;
+	typedef FPBDLongRangeConstraintsBase Base;
 	typedef typename Base::EMode EMode;
 
 	using Base::GetMode;
 
-	TPBDLongRangeConstraints(
-		const TDynamicParticles<T, d>& InParticles,
+	FPBDLongRangeConstraints(
+		const TDynamicParticles<FReal, 3>& InParticles,
 		const TMap<int32, TSet<uint32>>& PointToNeighbors,
 		const int32 NumberOfAttachments = 1,
-		const T Stiffness = (T)1,
-		const T LimitScale = (T)1,
+		const FReal Stiffness = (FReal)1.,
+		const FReal LimitScale = (FReal)1.,
 		const EMode Mode = EMode::AccurateTetherFastLength)
-		: TPBDLongRangeConstraintsBase<T, d>(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness, LimitScale, Mode) {}
-	virtual ~TPBDLongRangeConstraints() {}
+		: FPBDLongRangeConstraintsBase(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness, LimitScale, Mode) {}
+	virtual ~FPBDLongRangeConstraints() {}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const;
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const;
+	void Apply(FPBDParticles& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices) const;
+	void Apply(FPBDParticles& InParticles, const FReal Dt) const;
 
 private:
 	using Base::MEuclideanConstraints;
@@ -39,10 +38,10 @@ private:
 	using Base::GetDelta;
 
 	template<class TConstraintType>
-	void Apply(const TConstraintType& Constraint, TPBDParticles<T, d>& InParticles, const T Dt, const T RefDist) const
+	void Apply(const TConstraintType& Constraint, FPBDParticles& InParticles, const FReal Dt, const FReal RefDist) const
 	{
 		const int32 i2 = Constraint[Constraint.Num() - 1];
-		checkSlow(InParticles.InvM(i2) > (T)0.);
+		checkSlow(InParticles.InvM(i2) > (FReal)0.);
 		InParticles.P(i2) += GetDelta(Constraint, InParticles, RefDist);
 	}
 

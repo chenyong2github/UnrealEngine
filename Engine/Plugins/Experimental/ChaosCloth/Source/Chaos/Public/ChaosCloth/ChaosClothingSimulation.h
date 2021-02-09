@@ -17,7 +17,7 @@ class UMaterial;
 
 namespace Chaos
 {
-	template<class T, int d> class TPBDLongRangeConstraintsBase;
+	class FPBDLongRangeConstraintsBase;
 	template<typename T> class TTriangleMesh;
 	class FPBDEvolution;
 	class FClothingSimulationSolver;
@@ -61,7 +61,7 @@ namespace Chaos
 
 	public:
 		// Set the animation drive stiffness for all actors
-		void SetAnimDriveSpringStiffness(float InAnimDriveSpringStiffness);
+		void SetAnimDriveSpringStiffness(FReal InAnimDriveSpringStiffness);
 		void SetGravityOverride(const FVector& InGravityOverride);
 		void DisableGravityOverride();
 
@@ -78,7 +78,7 @@ namespace Chaos
 		virtual int32 GetNumDynamicParticles() const override { return NumDynamicParticles; }
 		virtual int32 GetNumIterations() const override { return NumIterations; }
 		virtual int32 GetNumSubsteps() const override { return NumSubsteps; }
-		virtual float GetSimulationTime() const override { return SimulationTime; }
+		virtual FReal GetSimulationTime() const override { return SimulationTime; }
 		virtual bool IsTeleported() const override { return bIsTeleported; }
 		// End of IClothingSimulation interface
 
@@ -143,14 +143,14 @@ namespace Chaos
 		TAtomic<int32> NumDynamicParticles;
 		TAtomic<int32> NumIterations;
 		TAtomic<int32> NumSubsteps;
-		TAtomic<float> SimulationTime;
+		TAtomic<FReal> SimulationTime;
 		TAtomic<bool> bIsTeleported;
 
 		// Overrides
 		bool bUseLocalSpaceSimulation;
 		bool bUseGravityOverride;
 		FVector GravityOverride;
-		float MaxDistancesMultipliers;
+		FReal MaxDistancesMultipliers;
 
 #if WITH_EDITOR
 		// Visualization material

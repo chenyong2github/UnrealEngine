@@ -232,7 +232,7 @@ namespace ChaosClothingSimulationConsole
 namespace ChaosClothingSimulationDefault
 {
 	static const FVector Gravity(0.f, 0.f, -980.665f);
-	static const float MaxDistancesMultipliers = 1.f;
+	static const FReal MaxDistancesMultipliers = (FReal)1.;
 }
 
 FClothingSimulation::FClothingSimulation()
@@ -480,9 +480,9 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		Solver->Update(Context->DeltaSeconds);
 
 		// Update simulation time in ms (and provide an instant average instead of the value in real-time)
-		const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
-		const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
-		static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
+		const FReal PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
+		const FReal CurrSimulationTime = (FReal)((FPlatformTime::Seconds() - StartTime) * 1000.);
+		static const FReal SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
 		SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
 
 #if FRAMEPRO_ENABLED
@@ -571,7 +571,7 @@ void FClothingSimulation::GetSimulationData(
 		// Retrieve the last reference space transform used for this cloth
 		// Note: This won't necessary match the current bone reference transform when the simulation is paused,
 		//       and still allows for the correct positioning of the sim data while the component is animated.
-		const TRigidTransform<float, 3>& ReferenceSpaceTransform = Cloth->GetReferenceSpaceTransform();
+		const FRigidTransform3& ReferenceSpaceTransform = Cloth->GetReferenceSpaceTransform();
 
 		// Copy positions and normals
 		Data.Positions = Cloth->GetParticlePositions(Solver.Get());
@@ -729,7 +729,7 @@ void FClothingSimulation::RefreshPhysicsAsset()
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("RefreshPhysicsAsset, all collisions have been re-added for all clothing assets"));
 }
 
-void FClothingSimulation::SetAnimDriveSpringStiffness(float InAnimDriveSpringStiffness)
+void FClothingSimulation::SetAnimDriveSpringStiffness(FReal InAnimDriveSpringStiffness)
 {
 	// This is a legacy function used to set the AnimDrive stiffness from the Blueprint
 	for (TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
@@ -783,7 +783,7 @@ void FClothingSimulation::DebugDrawPhysMeshShaded(FPrimitiveDrawInterface* PDI) 
 
 		const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
-		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
 
 		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex, VertexIndex += 3)
@@ -841,7 +841,7 @@ void FClothingSimulation::DebugDrawParticleIndices(FCanvas* Canvas, const FScene
 		}
 
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
-		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
 
 		for (int32 Index = 0; Index < Positions.Num(); ++Index)
@@ -871,7 +871,7 @@ void FClothingSimulation::DebugDrawElementIndices(FCanvas* Canvas, const FSceneV
 
 		const TArray<TVec3<int32>>& Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
-		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
 
 		for (int32 Index = 0; Index < Elements.Num(); ++Index)
@@ -910,20 +910,20 @@ void FClothingSimulation::DebugDrawMaxDistanceValues(FCanvas* Canvas, const FSce
 			continue;
 		}
 
-		const TConstArrayView<float>& MaxDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::MaxDistance];
+		const TConstArrayView<FReal>& MaxDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::MaxDistance];
 		if (!MaxDistances.Num())
 		{
 			continue;
 		}
 
 		const TConstArrayView<FVec3> Positions = Cloth->GetAnimationPositions(Solver.Get());
-		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(MaxDistances.Num() == Positions.Num());
 		check(MaxDistances.Num() == InvMasses.Num());
 
 		for (int32 Index = 0; Index < MaxDistances.Num(); ++Index)
 		{
-			const float MaxDistance = MaxDistances[Index];
+			const FReal MaxDistance = MaxDistances[Index];
 			const FVector Position = LocalSpaceLocation + Positions[Index];
 
 			const FText Text = FText::AsNumber(MaxDistance, &NumberFormattingOptions);
@@ -965,11 +965,11 @@ static void DrawLine(FPrimitiveDrawInterface* PDI, const FVector& Pos0, const FV
 #endif
 }
 
-static void DrawArc(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector& X, const FVector& Y, float MinAngle, float MaxAngle, float Radius, const FLinearColor& Color)
+static void DrawArc(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector& X, const FVector& Y, FReal MinAngle, FReal MaxAngle, FReal Radius, const FLinearColor& Color)
 {
 	static const int32 Sections = 10;
-	const float AngleStep = FMath::DegreesToRadians((MaxAngle - MinAngle) / (float)Sections);
-	float CurrentAngle = FMath::DegreesToRadians(MinAngle);
+	const FReal AngleStep = FMath::DegreesToRadians((MaxAngle - MinAngle) / (FReal)Sections);
+	FReal CurrentAngle = FMath::DegreesToRadians(MinAngle);
 	FVector LastVertex = Base + Radius * (FMath::Cos(CurrentAngle) * X + FMath::Sin(CurrentAngle) * Y);
 
 	for(int32 i = 0; i < Sections; i++)
@@ -981,9 +981,9 @@ static void DrawArc(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVe
 	}
 }
 
-static void DrawSphere(FPrimitiveDrawInterface* PDI, const TSphere<float, 3>& Sphere, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawSphere(FPrimitiveDrawInterface* PDI, const TSphere<FReal, 3>& Sphere, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
-	const float Radius = Sphere.GetRadius();
+	const FReal Radius = Sphere.GetRadius();
 	const FVec3 Center = Position + Rotation.RotateVector(Sphere.GetCenter());
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
@@ -1014,10 +1014,10 @@ static void DrawBox(FPrimitiveDrawInterface* PDI, const FAABB3& Box, const FQuat
 #endif
 }
 
-static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<float>& Capsule, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<FReal>& Capsule, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
-	const float Radius = Capsule.GetRadius();
-	const float HalfHeight = Capsule.GetHeight() * 0.5f + Radius;
+	const FReal Radius = Capsule.GetRadius();
+	const FReal HalfHeight = Capsule.GetHeight() * 0.5f + Radius;
 	const FVec3 Center = Position + Rotation.RotateVector(Capsule.GetCenter());
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
@@ -1038,11 +1038,11 @@ static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<float>& Cap
 #endif
 }
 
-static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const TTaperedCylinder<float>& TaperedCylinder, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const TTaperedCylinder<FReal>& TaperedCylinder, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
-	const float HalfHeight = TaperedCylinder.GetHeight() * 0.5f;
-	const float Radius1 = TaperedCylinder.GetRadius1();
-	const float Radius2 = TaperedCylinder.GetRadius2();
+	const FReal HalfHeight = TaperedCylinder.GetHeight() * 0.5f;
+	const FReal Radius1 = TaperedCylinder.GetRadius1();
+	const FReal Radius2 = TaperedCylinder.GetRadius2();
 	const FVector Position1 = Position + Rotation.RotateVector(TaperedCylinder.GetX1());
 	const FVector Position2 = Position + Rotation.RotateVector(TaperedCylinder.GetX2());
 	const FQuat Q = (Position2 - Position1).ToOrientationQuat();
@@ -1050,13 +1050,13 @@ static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const TTaperedCyli
 	const FVector J = Q.GetUpVector();
 
 	static const int32 NumSides = 12;
-	static const float	AngleDelta = 2.0f * PI / NumSides;
+	static const FReal	AngleDelta = (FReal)2. * (FReal)PI / NumSides;
 	FVector	LastVertex1 = Position1 + I * Radius1;
 	FVector	LastVertex2 = Position2 + I * Radius2;
 
 	for (int32 SideIndex = 1; SideIndex <= NumSides; ++SideIndex)
 	{
-		const float Angle = AngleDelta * float(SideIndex);
+		const FReal Angle = AngleDelta * FReal(SideIndex);
 		const FVector ArcPos = I * FMath::Cos(Angle) + J * FMath::Sin(Angle);
 		const FVector Vertex1 = Position1 + ArcPos * Radius1;
 		const FVector Vertex2 = Position2 + ArcPos * Radius2;
@@ -1072,14 +1072,14 @@ static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const TTaperedCyli
 
 static void DrawConvex(FPrimitiveDrawInterface* PDI, const FConvex& Convex, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
-	const TArray<TPlaneConcrete<float, 3>>& Planes = Convex.GetFaces();
+	const TArray<TPlaneConcrete<FReal, 3>>& Planes = Convex.GetFaces();
 	for (int32 PlaneIndex1 = 0; PlaneIndex1 < Planes.Num(); ++PlaneIndex1)
 	{
-		const TPlaneConcrete<float, 3>& Plane1 = Planes[PlaneIndex1];
+		const TPlaneConcrete<FReal, 3>& Plane1 = Planes[PlaneIndex1];
 
 		for (int32 PlaneIndex2 = PlaneIndex1 + 1; PlaneIndex2 < Planes.Num(); ++PlaneIndex2)
 		{
-			const TPlaneConcrete<float, 3>& Plane2 = Planes[PlaneIndex2];
+			const TPlaneConcrete<FReal, 3>& Plane2 = Planes[PlaneIndex2];
 
 			// Find the two surface points that belong to both Plane1 and Plane2
 			uint32 ParticleIndex1 = INDEX_NONE;
@@ -1128,7 +1128,7 @@ void FClothingSimulation::DebugDrawBounds() const
 
 	// Draw bounds
 	DrawBox(nullptr, FAABB3(-Bounds.BoxExtent, Bounds.BoxExtent), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Purple));
-	DrawSphere(nullptr, TSphere<float, 3>(FVector::ZeroVector, Bounds.SphereRadius), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Orange));
+	DrawSphere(nullptr, TSphere<FReal, 3>(FVector::ZeroVector, Bounds.SphereRadius), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Orange));
 
 	// Draw individual cloth bounds
 	static const FLinearColor Color = FLinearColor(FColor::Purple).Desaturate(0.5);
@@ -1156,7 +1156,7 @@ void FClothingSimulation::DebugDrawGravity() const
 			continue;
 		}
 
-		const TAABB<float, 3> Bounds = Cloth->CalculateBoundingBox(Solver.Get());
+		const FAABB3 Bounds = Cloth->CalculateBoundingBox(Solver.Get());
 
 		const FVector Pos0 = Bounds.Center();
 		const FVector Pos1 = Pos0 + Cloth->GetGravity(Solver.Get());
@@ -1182,7 +1182,7 @@ void FClothingSimulation::DebugDrawPhysMeshWired(FPrimitiveDrawInterface* PDI) c
 
 		const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
-		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
 
 		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
@@ -1221,7 +1221,7 @@ void FClothingSimulation::DebugDrawAnimMeshWired(FPrimitiveDrawInterface* PDI) c
 
 		const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
 		const TConstArrayView<FVec3> Positions = Cloth->GetAnimationPositions(Solver.Get());
-		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		check(InvMasses.Num() == Positions.Num());
 
 		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
@@ -1315,7 +1315,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 
 			const TConstArrayView<TUniquePtr<FImplicitObject>> CollisionGeometries = Collider->GetCollisionGeometries(Solver.Get(), Cloth, CollisionDataType);
 			const TConstArrayView<FVec3> Translations = Collider->GetCollisionTranslations(Solver.Get(), Cloth, CollisionDataType);
-			const TConstArrayView<TRotation<float, 3>> Rotations = Collider->GetCollisionRotations(Solver.Get(), Cloth, CollisionDataType);
+			const TConstArrayView<FRotation3> Rotations = Collider->GetCollisionRotations(Solver.Get(), Cloth, CollisionDataType);
 			const TConstArrayView<bool> CollisionStatus = Collider->GetCollisionStatus(Solver.Get(), Cloth, CollisionDataType);
 			check(CollisionGeometries.Num() == Translations.Num());
 			check(CollisionGeometries.Num() == Rotations.Num());
@@ -1326,20 +1326,20 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 				{
 					const FLinearColor Color = CollisionStatus[Index] ? CollidedColor : TypeColor;
 					const FVec3 Position = LocalSpaceLocation + Translations[Index];
-					const TRotation<float, 3> & Rotation = Rotations[Index];
+					const FRotation3 & Rotation = Rotations[Index];
 
 					switch (Object->GetType())
 					{
 					case ImplicitObjectType::Sphere:
-						DrawSphere(PDI, Object->GetObjectChecked<TSphere<float, 3>>(), Rotation, Position, Color);
+						DrawSphere(PDI, Object->GetObjectChecked<TSphere<FReal, 3>>(), Rotation, Position, Color);
 						break;
 
 					case ImplicitObjectType::Box:
-						DrawBox(PDI, Object->GetObjectChecked<TBox<float, 3>>().BoundingBox(), Rotation, Position, Color);
+						DrawBox(PDI, Object->GetObjectChecked<TBox<FReal, 3>>().BoundingBox(), Rotation, Position, Color);
 						break;
 
 					case ImplicitObjectType::Capsule:
-						DrawCapsule(PDI, Object->GetObjectChecked<TCapsule<float>>(), Rotation, Position, Color);
+						DrawCapsule(PDI, Object->GetObjectChecked<TCapsule<FReal>>(), Rotation, Position, Color);
 						break;
 
 					case ImplicitObjectType::Union:  // Union only used as collision tapered capsules
@@ -1350,11 +1350,11 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 								switch (SubObject->GetType())
 								{
 								case ImplicitObjectType::Sphere:
-									DrawSphere(PDI, SubObject->GetObjectChecked<TSphere<float, 3>>(), Rotation, Position, Color);
+									DrawSphere(PDI, SubObject->GetObjectChecked<TSphere<FReal, 3>>(), Rotation, Position, Color);
 									break;
 
 								case ImplicitObjectType::TaperedCylinder:
-									DrawTaperedCylinder(PDI, SubObject->GetObjectChecked<TTaperedCylinder<float>>(), Rotation, Position, Color);
+									DrawTaperedCylinder(PDI, SubObject->GetObjectChecked<TTaperedCylinder<FReal>>(), Rotation, Position, Color);
 									break;
 
 								default:
@@ -1413,14 +1413,14 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 
 void FClothingSimulation::DebugDrawBackstops(FPrimitiveDrawInterface* PDI) const
 {
-	auto DrawBackstop = [PDI](const FVector& Position, const FVector& Normal, float Radius, const FVector& Axis, const FLinearColor& Color)
+	auto DrawBackstop = [PDI](const FVector& Position, const FVector& Normal, FReal Radius, const FVector& Axis, const FLinearColor& Color)
 	{
-		static const float MaxCosAngle = 0.99f;
+		static const FReal MaxCosAngle = (FReal)0.99;
 		if (FMath::Abs(FVector::DotProduct(Normal, Axis)) < MaxCosAngle)
 		{
-			static const float ArcLength = 5.0f; // Arch length in cm
-			const float ArcAngle = 360.0f * ArcLength / FMath::Max((Radius * 2.0f * PI), ArcLength);
-			DrawArc(PDI, Position, Normal, FVector::CrossProduct(Axis, Normal).GetSafeNormal(), -ArcAngle / 2.0f, ArcAngle / 2.0f, Radius, Color);
+			static const FReal ArcLength = (FReal)5.; // Arch length in cm
+			const FReal ArcAngle = (FReal)360. * ArcLength / FMath::Max((Radius * (FReal)2. * (FReal)PI), ArcLength);
+			DrawArc(PDI, Position, Normal, FVector::CrossProduct(Axis, Normal).GetSafeNormal(), -ArcAngle / (FReal)2., ArcAngle / (FReal)2., Radius, Color);
 		}
 	};
 
@@ -1437,11 +1437,11 @@ void FClothingSimulation::DebugDrawBackstops(FPrimitiveDrawInterface* PDI) const
 		}
 
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-		if (const TPBDSphericalBackstopConstraint<float, 3>* const BackstopConstraint = ClothConstraints.GetBackstopConstraints().Get())
+		if (const FPBDSphericalBackstopConstraint* const BackstopConstraint = ClothConstraints.GetBackstopConstraints().Get())
 		{
 			const bool bUseLegacyBackstop = BackstopConstraint->UseLegacyBackstop();
-			const TConstArrayView<float>& BackstopDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopDistance];
-			const TConstArrayView<float>& BackstopRadiuses = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopRadius];
+			const TConstArrayView<FReal>& BackstopDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopDistance];
+			const TConstArrayView<FReal>& BackstopRadiuses = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopRadius];
 			const TConstArrayView<FVec3> AnimationPositions = Cloth->GetAnimationPositions(Solver.Get());
 			const TConstArrayView<FVec3> AnimationNormals = Cloth->GetAnimationNormals(Solver.Get());
 			const TConstArrayView<FVec3> ParticlePositions = Cloth->GetParticlePositions(Solver.Get());
@@ -1452,8 +1452,8 @@ void FClothingSimulation::DebugDrawBackstops(FPrimitiveDrawInterface* PDI) const
 				const FLinearColor ColorLight = FLinearColor::MakeFromHSV8(ColorSeed, 160, 128);
 				const FLinearColor ColorDark = FLinearColor::MakeFromHSV8(ColorSeed, 160, 64);
 
-				const float BackstopRadius = BackstopRadiuses[Index] * BackstopConstraint->GetSphereRadiiMultiplier();
-				const float BackstopDistance = BackstopDistances[Index];
+				const FReal BackstopRadius = BackstopRadiuses[Index] * BackstopConstraint->GetSphereRadiiMultiplier();
+				const FReal BackstopDistance = BackstopDistances[Index];
 
 				const FVector AnimationPosition = LocalSpaceLocation + AnimationPositions[Index];
 				const FVector& AnimationNormal = AnimationNormals[Index];
@@ -1492,11 +1492,11 @@ void FClothingSimulation::DebugDrawBackstopDistances(FPrimitiveDrawInterface* PD
 		}
 
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-		if (const TPBDSphericalBackstopConstraint<float, 3>* const BackstopConstraint = ClothConstraints.GetBackstopConstraints().Get())
+		if (const FPBDSphericalBackstopConstraint* const BackstopConstraint = ClothConstraints.GetBackstopConstraints().Get())
 		{
 			const bool bUseLegacyBackstop = BackstopConstraint->UseLegacyBackstop();
-			const TConstArrayView<float>& BackstopDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopDistance];
-			const TConstArrayView<float>& BackstopRadiuses = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopRadius];
+			const TConstArrayView<FReal>& BackstopDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopDistance];
+			const TConstArrayView<FReal>& BackstopRadiuses = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::BackstopRadius];
 			const TConstArrayView<FVec3> AnimationPositions = Cloth->GetAnimationPositions(Solver.Get());
 			const TConstArrayView<FVec3> AnimationNormals = Cloth->GetAnimationNormals(Solver.Get());
 
@@ -1506,8 +1506,8 @@ void FClothingSimulation::DebugDrawBackstopDistances(FPrimitiveDrawInterface* PD
 				const FLinearColor ColorLight = FLinearColor::MakeFromHSV8(ColorSeed, 160, 128);
 				const FLinearColor ColorDark = FLinearColor::MakeFromHSV8(ColorSeed, 160, 64);
 
-				const float BackstopRadius = BackstopRadiuses[Index] * BackstopConstraint->GetSphereRadiiMultiplier();
-				const float BackstopDistance = BackstopDistances[Index];
+				const FReal BackstopRadius = BackstopRadiuses[Index] * BackstopConstraint->GetSphereRadiiMultiplier();
+				const FReal BackstopDistance = BackstopDistances[Index];
 
 				const FVector AnimationPosition = LocalSpaceLocation + AnimationPositions[Index];
 				const FVector& AnimationNormal = AnimationNormals[Index];
@@ -1536,13 +1536,13 @@ void FClothingSimulation::DebugDrawMaxDistances(FPrimitiveDrawInterface* PDI) co
 			continue;
 		}
 
-		const TConstArrayView<float>& MaxDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::MaxDistance];
+		const TConstArrayView<FReal>& MaxDistances = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::MaxDistance];
 		if (!MaxDistances.Num())
 		{
 			continue;
 		}
 
-		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 		const TConstArrayView<FVec3> Positions = Cloth->GetAnimationPositions(Solver.Get());
 		const TConstArrayView<FVec3> Normals = Cloth->GetAnimationNormals(Solver.Get());
 		check(Normals.Num() == Positions.Num());
@@ -1551,7 +1551,7 @@ void FClothingSimulation::DebugDrawMaxDistances(FPrimitiveDrawInterface* PDI) co
 
 		for (int32 Index = 0; Index < MaxDistances.Num(); ++Index)
 		{
-			const float MaxDistance = MaxDistances[Index];
+			const FReal MaxDistance = MaxDistances[Index];
 			const FVector Position = LocalSpaceLocation + Positions[Index];
 			if (InvMasses[Index] == 0.f)
 			{
@@ -1582,9 +1582,9 @@ void FClothingSimulation::DebugDrawAnimDrive(FPrimitiveDrawInterface* PDI) const
 		}
 
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-		if (const TPBDAnimDriveConstraint<float, 3>* const AnimDriveConstraint = ClothConstraints.GetAnimDriveConstraints().Get())
+		if (const FPBDAnimDriveConstraint* const AnimDriveConstraint = ClothConstraints.GetAnimDriveConstraints().Get())
 		{
-			const TConstArrayView<float>& AnimDriveStiffnessMultipliers = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
+			const TConstArrayView<FReal>& AnimDriveStiffnessMultipliers = Cloth->GetWeightMaps(Solver.Get())[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
 			const TConstArrayView<FVec3> AnimationPositions = Cloth->GetAnimationPositions(Solver.Get());
 			const TConstArrayView<FVec3> ParticlePositions = Cloth->GetParticlePositions(Solver.Get());
 
@@ -1596,7 +1596,7 @@ void FClothingSimulation::DebugDrawAnimDrive(FPrimitiveDrawInterface* PDI) const
 
 			for (int32 Index = 0; Index < ParticlePositions.Num(); ++Index)
 			{
-				const float Stiffness = AnimDriveStiffnessMultipliers.IsValidIndex(Index) ?
+				const FReal Stiffness = AnimDriveStiffnessMultipliers.IsValidIndex(Index) ?
 					StiffnessOffset + AnimDriveStiffnessMultipliers[Index] * StiffnessRange :
 					StiffnessOffset;
 
@@ -1667,8 +1667,8 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 		}
 
 		// Recompute islands
-		const TTriangleMesh<float>& TriangleMesh = Cloth->GetTriangleMesh(Solver.Get());
-		const TConstArrayView<float> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
+		const TTriangleMesh<FReal>& TriangleMesh = Cloth->GetTriangleMesh(Solver.Get());
+		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 
 		const TMap<int32, TSet<uint32>>& PointToNeighborsMap = TriangleMesh.GetPointToNeighborsMap();
 
@@ -1683,19 +1683,19 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 			}
 		}
 
-		const TArray<TArray<uint32>> IslandElements = TPBDLongRangeConstraints<float, 3>::ComputeIslands(PointToNeighborsMap, KinematicIndices);
+		const TArray<TArray<uint32>> IslandElements = FPBDLongRangeConstraints::ComputeIslands(PointToNeighborsMap, KinematicIndices);
 
 		// Draw constraints
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 		
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 
-		if (const TPBDLongRangeConstraints<float, 3>* const LongRangeConstraints = ClothConstraints.GetLongRangeConstraints().Get())
+		if (const FPBDLongRangeConstraints* const LongRangeConstraints = ClothConstraints.GetLongRangeConstraints().Get())
 		{
 			switch (LongRangeConstraints->GetMode())
 			{
-			case TPBDLongRangeConstraints<float, 3>::EMode::FastTetherFastLength:
-			case TPBDLongRangeConstraints<float, 3>::EMode::AccurateTetherFastLength:
+			case FPBDLongRangeConstraints::EMode::FastTetherFastLength:
+			case FPBDLongRangeConstraints::EMode::AccurateTetherFastLength:
 				{
 					const TArray<TVec2<uint32>>& Constraints = LongRangeConstraints->GetEuclideanConstraints();
 					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
@@ -1722,7 +1722,7 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 					}
 				}
 				break;
-			case TPBDLongRangeConstraints<float, 3>::EMode::AccurateTetherAccurateLength:
+			case FPBDLongRangeConstraints::EMode::AccurateTetherAccurateLength:
 				{
 					const TArray<TArray<uint32>>& Constraints = LongRangeConstraints->GetGeodesicConstraints();
 					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
@@ -1828,7 +1828,7 @@ void FClothingSimulation::DebugDrawWindForces(FPrimitiveDrawInterface* PDI) cons
 			continue;
 		}
 
-		const TVelocityField<float, 3>& VelocityField = Solver->GetWindVelocityField(Cloth->GetGroupId());
+		const TVelocityField<FReal, 3>& VelocityField = Solver->GetWindVelocityField(Cloth->GetGroupId());
 
 		const TConstArrayView<TVec3<int32>>& Elements = VelocityField.GetElements();
 		const TConstArrayView<FVec3> Forces = VelocityField.GetForces();
@@ -1862,7 +1862,7 @@ void FClothingSimulation::DebugDrawLocalSpace(FPrimitiveDrawInterface* PDI) cons
 		{
 			continue;
 		}
-		const TRigidTransform<float, 3>& ReferenceSpaceTransform = Cloth->GetReferenceSpaceTransform();
+		const FRigidTransform3& ReferenceSpaceTransform = Cloth->GetReferenceSpaceTransform();
 		DrawCoordinateSystem(PDI, ReferenceSpaceTransform.GetRotation(), ReferenceSpaceTransform.GetLocation());
 	}
 }
@@ -1882,15 +1882,15 @@ void FClothingSimulation::DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI) c
 		// Draw constraints
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 
-		if (const TPBDCollisionSpringConstraints<float, 3>* const SelfCollisionConstraints = ClothConstraints.GetSelfCollisionConstraints().Get())
+		if (const FPBDCollisionSpringConstraints* const SelfCollisionConstraints = ClothConstraints.GetSelfCollisionConstraints().Get())
 		{
 			const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 			const TConstArrayView<FVec3> ParticleNormals = Cloth->GetParticleNormals(Solver.Get());
 			const TArray<TVec4<int32>>& Constraints = SelfCollisionConstraints->GetConstraints();
 			const TArray<FVec3>& Barys = SelfCollisionConstraints->GetBarys();
 			const TArray<FVec3>& Normals = SelfCollisionConstraints->GetNormals();
-			const float Thickness = SelfCollisionConstraints->GetThickness();
-			const float Height = Thickness + Thickness;
+			const FReal Thickness = SelfCollisionConstraints->GetThickness();
+			const FReal Height = Thickness + Thickness;
 
 			for (int32 Index = 0; Index < Constraints.Num(); ++Index)
 			{

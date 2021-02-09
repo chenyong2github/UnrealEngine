@@ -8,19 +8,18 @@
 
 namespace Chaos
 {
-template<class T>
-class TPBDVolumeConstraint : public TParticleRule<T, 3>, public TPBDVolumeConstraintBase<T>
+class FPBDVolumeConstraint : public TParticleRule<FReal, 3>, public FPBDVolumeConstraintBase
 {
-	typedef TPBDVolumeConstraintBase<T> Base;
+	typedef FPBDVolumeConstraintBase Base;
 
   public:
-	TPBDVolumeConstraint(const TDynamicParticles<T, 3>& InParticles, TArray<TVec3<int32>>&& constraints, const T stiffness = (T)1)
+	  FPBDVolumeConstraint(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec3<int32>>&& constraints, const FReal stiffness = (FReal)1.)
 	    : Base(InParticles, MoveTemp(constraints), stiffness) {}
-	virtual ~TPBDVolumeConstraint() {}
+	virtual ~FPBDVolumeConstraint() {}
 
-	void Apply(TPBDParticles<T, 3>& InParticles, const T dt) const override //-V762
+	void Apply(FPBDParticles& InParticles, const FReal dt) const override //-V762
 	{
-		auto W = Base::GetWeights(InParticles, (T)1);
+		auto W = Base::GetWeights(InParticles, (FReal)1.);
 		auto Grads = Base::GetGradients(InParticles);
 		auto S = Base::GetScalingFactor(InParticles, Grads, W);
 		for (uint32 i = 0; i < InParticles.Size(); ++i)

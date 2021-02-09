@@ -57,14 +57,14 @@ void FPBDSpringConstraints::Apply(T_PARTICLES& InParticles, const FReal Dt, cons
 	}
 }
 
-void FPBDSpringConstraints::Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const
+void FPBDSpringConstraints::Apply(FPBDParticles& InParticles, const FReal Dt) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 	if ((MConstraintsPerColor.Num() > 0) && (MConstraints.Num() > Chaos_Spring_ParallelConstraintCount))
 	{
 		for (const auto& Constraints : MConstraintsPerColor)
 		{
-			if (bChaos_Spring_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_Spring_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::ApplySpringConstraints(
