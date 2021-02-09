@@ -19,6 +19,7 @@
 #include "GenerateMips.h"
 #include "ClearQuad.h"
 #include "Strata/Strata.h"
+#include "TemporalAA.h"
 
 namespace
 {
@@ -792,12 +793,31 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 	{
 		const uint32 QualityCVar = GetSSSQuality();
 
-		// Quality is forced to high when the CVar is set to 'auto' and TAA is NOT enabled.
-		// TAA improves quality through temporal filtering, making it less necessary to use
-		// high quality mode.
-		const bool bUseHighQuality = (QualityCVar == -1 && View.AntiAliasingMethod != AAM_TemporalAA);
+		EMainTAAPassConfig MainTAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
 
-		if (QualityCVar == 1 || bUseHighQuality || View.Family->GetTemporalUpscalerInterface() != nullptr)
+		// Low quality is really bad with modern temporal upscalers.
+		bool bAllowLowQuality = MainTAAConfig == EMainTAAPassConfig::Disabled || MainTAAConfig == EMainTAAPassConfig::Gen4;
+		if (!bAllowLowQuality)
+		{
+			return EQuality::High;
+		}
+
+		// Quality is forced to high when the CVar is set to 'auto' and TAA is NOT enabled.
+		// Gen4 TAA improves quality through temporal filtering and clamping box, making it less necessary to use
+		// high quality mode.
+		if (QualityCVar == -1)
+		{
+			if (MainTAAConfig == EMainTAAPassConfig::Gen4)
+			{
+				return EQuality::Low;
+			}
+			else
+			{
+				return EQuality::High;
+			}
+		}
+
+		if (QualityCVar == 1)
 		{
 			return EQuality::High;
 		}

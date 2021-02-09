@@ -518,7 +518,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		FIntRect SecondaryViewRect = PrimaryViewRect;
 
 		// Temporal Anti-aliasing. Also may perform a temporal upsample from primary to secondary view rect.
-		if (AntiAliasingMethod == AAM_TemporalAA)
+		EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
+		if (TAAConfig != EMainTAAPassConfig::Disabled)
 		{
 			// Whether we allow the temporal AA pass to downsample scene color. It may choose not to based on internal context,
 			// in which case the output half resolution texture will remain null.
@@ -529,17 +530,15 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				// TemporalAA is only able to match the low quality mode (box filter).
 				GetDownsampleQuality() == EDownsampleQuality::Low;
 
-			int32 UpscaleMode = ITemporalUpscaler::GetTemporalUpscalerMode();
-
-			const ITemporalUpscaler* DefaultTemporalUpscaler = ITemporalUpscaler::GetDefaultTemporalUpscaler();
-			const ITemporalUpscaler* UpscalerToUse = ( UpscaleMode == 0 || !View.Family->GetTemporalUpscalerInterface())? DefaultTemporalUpscaler : View.Family->GetTemporalUpscalerInterface();
-
+			const ITemporalUpscaler* UpscalerToUse = (TAAConfig == EMainTAAPassConfig::ThirdParty) ? View.Family->GetTemporalUpscalerInterface() : ITemporalUpscaler::GetDefaultTemporalUpscaler();
+			check(UpscalerToUse);
 			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
 
-			// Standard event scope for temporal upscaler to have all profiling information not matter what, and with explicit detection of third party.
+			// Standard event scope for temporal upscaler to have all profiling information not matter what,
+			// and with explicit detection of third party.
 			RDG_EVENT_SCOPE_CONDITIONAL(
 				GraphBuilder,
-				UpscalerToUse != DefaultTemporalUpscaler,
+				TAAConfig == EMainTAAPassConfig::ThirdParty,
 				"ThirdParty TAA %s %dx%d -> %dx%d",
 				UpscalerToUse->GetDebugName(),
 				View.ViewRect.Width(), View.ViewRect.Height(),

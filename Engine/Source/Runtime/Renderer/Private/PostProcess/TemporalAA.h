@@ -6,6 +6,24 @@
 
 struct FTemporalAAHistory;
 
+
+/** Configuration of the main temporal AA pass. */
+enum class EMainTAAPassConfig : uint8
+{
+	// TAA is disabled.
+	Disabled,
+
+	// Uses old UE4's Temporal AA maintained for Gen4 consoles
+	Gen4,
+
+	// Uses Gen5 Temporal AA
+	Gen5,
+
+	// Uses third party View.Family->GetTemporalUpscalerInterface()
+	ThirdParty,
+};
+
+
 /** List of TAA configurations. */
 enum class ETAAPassConfig
 {
@@ -181,7 +199,8 @@ public:
 	virtual float GetMaxUpsampleResolutionFraction() const = 0;
 
 	static const ITemporalUpscaler* GetDefaultTemporalUpscaler();
-	static int GetTemporalUpscalerMode();
+
+	static EMainTAAPassConfig GetMainTAAPassConfig(const FViewInfo& View);
 }; 
 
 extern RENDERER_API const ITemporalUpscaler* GTemporalUpscaler;

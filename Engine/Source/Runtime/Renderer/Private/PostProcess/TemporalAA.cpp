@@ -1699,7 +1699,30 @@ const ITemporalUpscaler* ITemporalUpscaler::GetDefaultTemporalUpscaler()
 	return &DefaultTemporalUpscaler;
 }
 
-int ITemporalUpscaler::GetTemporalUpscalerMode()
+//static
+EMainTAAPassConfig ITemporalUpscaler::GetMainTAAPassConfig(const FViewInfo& View)
 {
-	return CVarUseTemporalAAUpscaler.GetValueOnRenderThread();
+	if (!IsPostProcessingEnabled(View))
+	{
+		return EMainTAAPassConfig::Disabled;
+	}
+	else if (View.AntiAliasingMethod != AAM_TemporalAA)
+	{
+		return EMainTAAPassConfig::Disabled;
+	}
+
+	int32 CustomUpscalerMode = CVarUseTemporalAAUpscaler.GetValueOnRenderThread();
+
+	if (View.Family->GetTemporalUpscalerInterface() && CustomUpscalerMode != 0)
+	{
+		return EMainTAAPassConfig::ThirdParty;
+	}
+	else if (CVarTAAAlgorithm.GetValueOnRenderThread() && DoesPlatformSupportGen5TAA(View.GetShaderPlatform()))
+	{
+		return EMainTAAPassConfig::Gen5;
+	}
+	else
+	{
+		return EMainTAAPassConfig::Gen4;
+	}
 }
