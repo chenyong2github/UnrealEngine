@@ -22,6 +22,8 @@ struct FCategoryFilter
 {
 	GENERATED_USTRUCT_BODY()
 
+	FCategoryFilter() : Enabled(0) {}
+
 	UPROPERTY(config)
 	FString CategoryName;
 
@@ -29,7 +31,7 @@ struct FCategoryFilter
 	int32 LogVerbosity = ELogVerbosity::Type::NoLogging;
 
 	UPROPERTY(config)
-	uint32 Enabled : 1 = 0;
+	uint32 Enabled : 1;
 
 	uint32 bIsInUse : 1;
 };
