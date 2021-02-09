@@ -75,8 +75,6 @@ template <typename FuncType> class TFunctionRef;
 /**
  * Field types and flags for FCbField.
  *
- * This is a private type and is only declared here to enable inline use below.
- *
  * DO NOT CHANGE THE VALUE OF ANY MEMBERS OF THIS ENUM!
  * BACKWARD COMPATIBILITY REQUIRES THAT THESE VALUES BE FIXED!
  * SERIALIZATION USES HARD-CODED CONSTANTS BASED ON THESE VALUES!
@@ -84,97 +82,116 @@ template <typename FuncType> class TFunctionRef;
 enum class ECbFieldType : uint8
 {
 	/** A field type that does not occur in a valid object. */
-	None            = 0x00,
+	None                             = 0x00,
 
 	/** Null. Payload is empty. */
-	Null            = 0x01,
+	Null                             = 0x01,
 
 	/**
 	 * Object is an array of fields with unique non-empty names.
 	 *
 	 * Payload is a VarUInt byte count for the encoded fields followed by the fields.
 	 */
-	Object          = 0x02,
+	Object                           = 0x02,
 	/**
 	 * UniformObject is an array of fields with the same field types and unique non-empty names.
 	 *
 	 * Payload is a VarUInt byte count for the encoded fields followed by the fields.
 	 */
-	UniformObject   = 0x03,
+	UniformObject                    = 0x03,
 
 	/**
 	 * Array is an array of fields with no name that may be of different types.
 	 *
 	 * Payload is a VarUInt byte count, followed by a VarUInt item count, followed by the fields.
 	 */
-	Array           = 0x04,
+	Array                            = 0x04,
 	/**
 	 * UniformArray is an array of fields with no name and with the same field type.
 	 *
 	 * Payload is a VarUInt byte count, followed by a VarUInt item count, followed by field type,
 	 * followed by the fields without their field type.
 	 */
-	UniformArray    = 0x05,
+	UniformArray                     = 0x05,
 
 	/** Binary. Payload is a VarUInt byte count followed by the data. */
-	Binary          = 0x06,
+	Binary                           = 0x06,
 
 	/** String in UTF-8. Payload is a VarUInt byte count then an unterminated UTF-8 string. */
-	String          = 0x07,
+	String                           = 0x07,
 
 	/**
 	 * Non-negative integer with the range of a 64-bit unsigned integer.
 	 *
 	 * Payload is the value encoded as a VarUInt.
 	 */
-	IntegerPositive = 0x08,
+	IntegerPositive                  = 0x08,
 	/**
 	 * Negative integer with the range of a 64-bit signed integer.
 	 *
 	 * Payload is the ones' complement of the value encoded as a VarUInt.
 	 */
-	IntegerNegative = 0x09,
+	IntegerNegative                  = 0x09,
 
 	/** Single precision float. Payload is one big endian IEEE 754 binary32 float. */
-	Float32         = 0x0a,
+	Float32                          = 0x0a,
 	/** Double precision float. Payload is one big endian IEEE 754 binary64 float. */
-	Float64         = 0x0b,
+	Float64                          = 0x0b,
 
 	/** Boolean false value. Payload is empty. */
-	BoolFalse       = 0x0c,
+	BoolFalse                        = 0x0c,
 	/** Boolean true value. Payload is empty. */
-	BoolTrue        = 0x0d,
+	BoolTrue                         = 0x0d,
 
 	/**
 	 * CompactBinaryAttachment is a reference to a compact binary attachment stored externally.
 	 *
 	 * Payload is a 160-bit hash digest of the referenced compact binary data.
 	 */
-	CompactBinaryAttachment = 0x0e,
+	CompactBinaryAttachment          = 0x0e,
 	/**
 	 * BinaryAttachment is a reference to a binary attachment stored externally.
 	 *
 	 * Payload is a 160-bit hash digest of the referenced binary data.
 	 */
-	BinaryAttachment = 0x0f,
+	BinaryAttachment                 = 0x0f,
 
 	/** Hash. Payload is a 160-bit hash digest. */
-	Hash            = 0x10,
+	Hash                             = 0x10,
 	/** UUID/GUID. Payload is a 128-bit UUID as defined by RFC 4122. */
-	Uuid            = 0x11,
+	Uuid                             = 0x11,
 
 	/**
 	 * Date and time between 0001-01-01 00:00:00.0000000 and 9999-12-31 23:59:59.9999999.
 	 *
 	 * Payload is a big endian int64 count of 100ns ticks since 0001-01-01 00:00:00.0000000.
 	 */
-	DateTime        = 0x12,
+	DateTime                         = 0x12,
 	/**
 	 * Difference between two date/time values.
 	 *
 	 * Payload is a big endian int64 count of 100ns ticks in the span, and may be negative.
 	 */
-	TimeSpan        = 0x13,
+	TimeSpan                         = 0x13,
+
+	/**
+	 * CustomById identifies the sub-type of its payload by an integer identifier.
+	 *
+	 * Payload is a VarUInt byte count of the sub-type identifier and the sub-type payload, followed
+	 * by a VarUInt of the sub-type identifier then the payload of the sub-type.
+	 */
+	CustomById                       = 0x1e,
+	/**
+	 * CustomByType identifies the sub-type of its payload by a string identifier.
+	 *
+	 * Payload is a VarUInt byte count of the sub-type identifier and the sub-type payload, followed
+	 * by a VarUInt byte count of the unterminated sub-type identifier, then the sub-type identifier
+	 * without termination, then the payload of the sub-type.
+	 */
+	CustomByName                     = 0x1f,
+
+	/** Reserved for future use as a flag. Do not add types in this range. */
+	Reserved                         = 0x20,
 
 	/**
 	 * A transient flag which indicates that the object or array containing this field has stored
@@ -182,10 +199,10 @@ enum class ECbFieldType : uint8
 	 *
 	 * Note: Since the flag must never be serialized, this bit may be repurposed in the future.
 	 */
-	HasFieldType    = 0x40,
+	HasFieldType                     = 0x40,
 
 	/** A persisted flag which indicates that the field has a name stored before the payload. */
-	HasFieldName    = 0x80,
+	HasFieldName                     = 0x80,
 };
 
 ENUM_CLASS_FLAGS(ECbFieldType);
@@ -195,25 +212,25 @@ ENUM_CLASS_FLAGS(ECbFieldType);
 /** Functions that operate on ECbFieldType. */
 class FCbFieldType
 {
-	static constexpr ECbFieldType SerializedTypeMask    = ECbFieldType(0b1011'1111);
-	static constexpr ECbFieldType TypeMask              = ECbFieldType(0b0011'1111);
+	static constexpr ECbFieldType SerializedTypeMask    = ECbFieldType(0b1001'1111);
+	static constexpr ECbFieldType TypeMask              = ECbFieldType(0b0001'1111);
 
-	static constexpr ECbFieldType ObjectMask            = ECbFieldType(0b0011'1110);
+	static constexpr ECbFieldType ObjectMask            = ECbFieldType(0b0001'1110);
 	static constexpr ECbFieldType ObjectBase            = ECbFieldType(0b0000'0010);
 
-	static constexpr ECbFieldType ArrayMask             = ECbFieldType(0b0011'1110);
+	static constexpr ECbFieldType ArrayMask             = ECbFieldType(0b0001'1110);
 	static constexpr ECbFieldType ArrayBase             = ECbFieldType(0b0000'0100);
 
-	static constexpr ECbFieldType IntegerMask           = ECbFieldType(0b0011'1110);
+	static constexpr ECbFieldType IntegerMask           = ECbFieldType(0b0001'1110);
 	static constexpr ECbFieldType IntegerBase           = ECbFieldType(0b0000'1000);
 
-	static constexpr ECbFieldType FloatMask             = ECbFieldType(0b0011'1100);
+	static constexpr ECbFieldType FloatMask             = ECbFieldType(0b0001'1100);
 	static constexpr ECbFieldType FloatBase             = ECbFieldType(0b0000'1000);
 
-	static constexpr ECbFieldType BoolMask              = ECbFieldType(0b0011'1110);
+	static constexpr ECbFieldType BoolMask              = ECbFieldType(0b0001'1110);
 	static constexpr ECbFieldType BoolBase              = ECbFieldType(0b0000'1100);
 
-	static constexpr ECbFieldType AttachmentMask        = ECbFieldType(0b0011'1110);
+	static constexpr ECbFieldType AttachmentMask        = ECbFieldType(0b0001'1110);
 	static constexpr ECbFieldType AttachmentBase        = ECbFieldType(0b0000'1110);
 
 	static void StaticAssertTypeConstants();
@@ -243,13 +260,16 @@ public:
 
 	static constexpr inline bool IsCompactBinaryAttachment(ECbFieldType Type) { return GetType(Type) == ECbFieldType::CompactBinaryAttachment; }
 	static constexpr inline bool IsBinaryAttachment(ECbFieldType Type)        { return GetType(Type) == ECbFieldType::BinaryAttachment; }
-	static constexpr inline bool IsAttachment(ECbFieldType Type) { return (Type & AttachmentMask) == AttachmentBase; }
+	static constexpr inline bool IsAttachment(ECbFieldType Type)              { return (Type & AttachmentMask) == AttachmentBase; }
 
 	static constexpr inline bool IsHash(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Hash; }
 	static constexpr inline bool IsUuid(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Uuid; }
 
 	static constexpr inline bool IsDateTime(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::DateTime; }
 	static constexpr inline bool IsTimeSpan(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::TimeSpan; }
+
+	static constexpr inline bool IsCustomById(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::CustomById; }
+	static constexpr inline bool IsCustomByName(ECbFieldType Type) { return GetType(Type) == ECbFieldType::CustomByName; }
 
 	/** Whether the type is or may contain fields of any attachment type. */
 	static constexpr inline bool MayContainAttachments(ECbFieldType Type)
@@ -419,6 +439,26 @@ enum class ECbFieldError : uint8
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/** A custom compact binary field type with an integer identifier. */
+struct FCbCustomById
+{
+	/** An identifier for the sub-type of the field. */
+	uint64 Id = 0;
+	/** A view of the value. Lifetime is tied to the field that the value is associated with. */
+	FMemoryView Data;
+};
+
+/** A custom compact binary field type with a string identifier. */
+struct FCbCustomByName
+{
+	/** An identifier for the sub-type of the field. Lifetime is tied to the field that the name is associated with. */
+	FAnsiStringView Name;
+	/** A view of the value. Lifetime is tied to the field that the value is associated with. */
+	FMemoryView Data;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
  * An atom of data in the compact binary format.
  *
@@ -527,6 +567,16 @@ public:
 	/** Access the field as a timespan. Returns the provided default on error. */
 	CORE_API FTimespan AsTimeSpan(FTimespan Default);
 
+	/** Access the field as a custom sub-type with an integer identifier. Returns the provided default on error. */
+	CORE_API FCbCustomById AsCustomById(FCbCustomById Default = FCbCustomById());
+	/** Access the field as a custom sub-type with a string identifier. Returns the provided default on error. */
+	CORE_API FCbCustomByName AsCustomByName(FCbCustomByName Default = FCbCustomByName());
+
+	/** Access the field as a custom sub-type with an integer identifier. Returns the provided default on error. */
+	CORE_API FMemoryView AsCustom(uint64 Id, FMemoryView Default = FMemoryView());
+	/** Access the field as a custom sub-type with a string identifier. Returns the provided default on error. */
+	CORE_API FMemoryView AsCustom(FAnsiStringView Name, FMemoryView Default = FMemoryView());
+
 	/** True if the field has a name. */
 	constexpr inline bool HasName() const           { return FCbFieldType::HasFieldName(Type); }
 
@@ -553,6 +603,9 @@ public:
 
 	constexpr inline bool IsDateTime() const        { return FCbFieldType::IsDateTime(Type); }
 	constexpr inline bool IsTimeSpan() const        { return FCbFieldType::IsTimeSpan(Type); }
+
+	constexpr inline bool IsCustomById() const      { return FCbFieldType::IsCustomById(Type); }
+	constexpr inline bool IsCustomByName() const    { return FCbFieldType::IsCustomByName(Type); }
 
 	/** Whether the field has a value. */
 	constexpr inline explicit operator bool() const { return HasValue(); }
@@ -758,7 +811,7 @@ public:
 	inline FCbField AsField() const { return static_cast<const FCbField&>(*this); }
 
 	/** Construct an array from an array field. No type check is performed! */
-	static inline FCbArray FromField(const FCbField& Field) { return FCbArray(Field); }
+	static inline FCbArray FromFieldNoCheck(const FCbField& Field) { return FCbArray(Field); }
 
 	/** Returns the size of the array in bytes if serialized by itself with no name. */
 	CORE_API uint64 GetSize() const;
@@ -806,7 +859,7 @@ private:
 	friend inline FCbFieldIterator begin(const FCbArray& Array) { return Array.CreateIterator(); }
 	friend inline FCbFieldIterator end(const FCbArray&) { return FCbFieldIterator(); }
 
-	/** Construct an array from an array field. No type check is performed! Use via FromField. */
+	/** Construct an array from an array field. No type check is performed! Use via FromFieldNoCheck. */
 	inline explicit FCbArray(const FCbField& Field) : FCbField(Field) {}
 };
 
@@ -856,7 +909,7 @@ public:
 	inline FCbField AsField() const { return static_cast<const FCbField&>(*this); }
 
 	/** Construct an object from an object field. No type check is performed! */
-	static inline FCbObject FromField(const FCbField& Field) { return FCbObject(Field); }
+	static inline FCbObject FromFieldNoCheck(const FCbField& Field) { return FCbObject(Field); }
 
 	/** Returns the size of the object in bytes if serialized by itself with no name. */
 	CORE_API uint64 GetSize() const;
@@ -904,7 +957,7 @@ private:
 	friend inline FCbFieldIterator begin(const FCbObject& Object) { return Object.CreateIterator(); }
 	friend inline FCbFieldIterator end(const FCbObject&) { return FCbFieldIterator(); }
 
-	/** Construct an object from an object field. No type check is performed! Use via FromField. */
+	/** Construct an object from an object field. No type check is performed! Use via FromFieldNoCheck. */
 	inline explicit FCbObject(const FCbField& Field) : FCbField(Field) {}
 };
 

@@ -48,6 +48,8 @@ bool TryMeasureCompactBinary(FMemoryView View, ECbFieldType& OutType, uint64& Ou
 	case ECbFieldType::String:
 	case ECbFieldType::IntegerPositive:
 	case ECbFieldType::IntegerNegative:
+	case ECbFieldType::CustomById:
+	case ECbFieldType::CustomByName:
 		bDynamicSize = true;
 		break;
 	case ECbFieldType::Float32:
@@ -116,6 +118,8 @@ bool TryMeasureCompactBinary(FMemoryView View, ECbFieldType& OutType, uint64& Ou
 	case ECbFieldType::UniformArray:
 	case ECbFieldType::Binary:
 	case ECbFieldType::String:
+	case ECbFieldType::CustomById:
+	case ECbFieldType::CustomByName:
 		if (View.GetSize() == 0)
 		{
 			OutSize = Size + 1;

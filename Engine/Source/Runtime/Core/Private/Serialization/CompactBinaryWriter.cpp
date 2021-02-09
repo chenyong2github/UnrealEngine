@@ -560,6 +560,41 @@ void FCbWriter::AddTimeSpan(const FTimespan Value)
 	AddTimeSpanTicks(Value.GetTicks());
 }
 
+void FCbWriter::AddCustom(const uint64 TypeId, const FMemoryView Value)
+{
+	BeginField();
+	const uint32 TypeByteCount = MeasureVarUInt(TypeId);
+	const uint64 Size = TypeByteCount + Value.GetSize();
+	const uint32 SizeByteCount = MeasureVarUInt(Size);
+	const int64 PayloadOffset = Data.AddUninitialized(SizeByteCount + TypeByteCount);
+	WriteVarUInt(Size, Data.GetData() + PayloadOffset);
+	WriteVarUInt(TypeId, Data.GetData() + PayloadOffset + SizeByteCount);
+	Data.Append(static_cast<const uint8*>(Value.GetData()), Value.GetSize());
+	EndField(ECbFieldType::CustomById);
+}
+
+void FCbWriter::AddCustom(const FAnsiStringView TypeName, const FMemoryView Value)
+{
+	checkf(!TypeName.IsEmpty(), TEXT("Field '%.*hs' requires a non-empty type name for its custom type."),
+		GetActiveName().Len(), GetActiveName().GetData());
+
+	BeginField();
+
+	const uint64 TypeNameLen = TypeName.Len();
+	const uint32 TypeNameLenByteCount = MeasureVarUInt(TypeNameLen);
+
+	const uint64 Size = TypeNameLenByteCount + TypeNameLen + Value.GetSize();
+	const uint32 SizeByteCount = MeasureVarUInt(Size);
+
+	const int64 PayloadOffset = Data.AddUninitialized(SizeByteCount + TypeNameLenByteCount);
+	WriteVarUInt(Size, Data.GetData() + PayloadOffset);
+	WriteVarUInt(TypeNameLen, Data.GetData() + PayloadOffset + SizeByteCount);
+	Data.Append(reinterpret_cast<const uint8*>(TypeName.GetData()), TypeNameLen);
+	Data.Append(static_cast<const uint8*>(Value.GetData()), Value.GetSize());
+
+	EndField(ECbFieldType::CustomByName);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCbWriter& operator<<(FCbWriter& Writer, const FDateTime Value)

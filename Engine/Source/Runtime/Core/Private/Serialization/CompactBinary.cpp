@@ -91,7 +91,7 @@ FCbObject FCbField::AsObject()
 	if (FCbFieldType::IsObject(Type))
 	{
 		Error = ECbFieldError::None;
-		return FCbObject::FromField(*this);
+		return FCbObject::FromFieldNoCheck(*this);
 	}
 	else
 	{
@@ -105,7 +105,7 @@ FCbArray FCbField::AsArray()
 	if (FCbFieldType::IsArray(Type))
 	{
 		Error = ECbFieldError::None;
-		return FCbArray::FromField(*this);
+		return FCbArray::FromFieldNoCheck(*this);
 	}
 	else
 	{
@@ -383,6 +383,85 @@ FTimespan FCbField::AsTimeSpan(FTimespan Default)
 	return FTimespan(AsTimeSpanTicks(Default.GetTicks()));
 }
 
+FCbCustomById FCbField::AsCustomById(FCbCustomById Default)
+{
+	if (FCbFieldType::IsCustomById(Type))
+	{
+		const uint8* PayloadBytes = static_cast<const uint8*>(Payload);
+		uint32 PayloadSizeByteCount;
+		const uint64 PayloadSize = ReadVarUInt(PayloadBytes, PayloadSizeByteCount);
+		PayloadBytes += PayloadSizeByteCount;
+
+		FCbCustomById Value;
+		uint32 TypeIdByteCount;
+		Value.Id = ReadVarUInt(PayloadBytes, TypeIdByteCount);
+		Value.Data = MakeMemoryView(PayloadBytes + TypeIdByteCount, PayloadSize - TypeIdByteCount);
+		Error = ECbFieldError::None;
+		return Value;
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+FCbCustomByName FCbField::AsCustomByName(FCbCustomByName Default)
+{
+	if (FCbFieldType::IsCustomByName(Type))
+	{
+		const uint8* PayloadBytes = static_cast<const uint8*>(Payload);
+		uint32 PayloadSizeByteCount;
+		const uint64 PayloadSize = ReadVarUInt(PayloadBytes, PayloadSizeByteCount);
+		PayloadBytes += PayloadSizeByteCount;
+
+		uint32 TypeNameLenByteCount;
+		const uint64 TypeNameLen = ReadVarUInt(PayloadBytes, TypeNameLenByteCount);
+		PayloadBytes += TypeNameLenByteCount;
+
+		FCbCustomByName Value;
+		Value.Name = FAnsiStringView(
+			reinterpret_cast<const ANSICHAR*>(PayloadBytes),
+			static_cast<FAnsiStringView::SizeType>(TypeNameLen));
+		Value.Data = MakeMemoryView(PayloadBytes + TypeNameLen, PayloadSize - TypeNameLen - TypeNameLenByteCount);
+		Error = ECbFieldError::None;
+		return Value;
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+FMemoryView FCbField::AsCustom(uint64 Id, FMemoryView Default)
+{
+	FCbCustomById Custom = AsCustomById(FCbCustomById{Id, Default});
+	if (Custom.Id == Id)
+	{
+		return Custom.Data;
+	}
+	else
+	{
+		Error = ECbFieldError::RangeError;
+		return Default;
+	}
+}
+
+FMemoryView FCbField::AsCustom(FAnsiStringView Name, FMemoryView Default)
+{
+	const FCbCustomByName Custom = AsCustomByName(FCbCustomByName{Name, Default});
+	if (Custom.Name.Equals(Name, ESearchCase::CaseSensitive))
+	{
+		return Custom.Data;
+	}
+	else
+	{
+		Error = ECbFieldError::RangeError;
+		return Default;
+	}
+}
+
 uint64 FCbField::GetSize() const
 {
 	return sizeof(ECbFieldType) + GetViewNoType().GetSize();
@@ -401,6 +480,8 @@ uint64 FCbField::GetPayloadSize() const
 	case ECbFieldType::UniformArray:
 	case ECbFieldType::Binary:
 	case ECbFieldType::String:
+	case ECbFieldType::CustomById:
+	case ECbFieldType::CustomByName:
 	{
 		uint32 PayloadSizeByteCount;
 		const uint64 PayloadSize = ReadVarUInt(Payload, PayloadSizeByteCount);
@@ -476,10 +557,10 @@ void FCbField::IterateAttachments(FCbFieldVisitor Visitor) const
 	{
 	case ECbFieldType::Object:
 	case ECbFieldType::UniformObject:
-		return FCbObject::FromField(*this).IterateAttachments(Visitor);
+		return FCbObject::FromFieldNoCheck(*this).IterateAttachments(Visitor);
 	case ECbFieldType::Array:
 	case ECbFieldType::UniformArray:
-		return FCbArray::FromField(*this).IterateAttachments(Visitor);
+		return FCbArray::FromFieldNoCheck(*this).IterateAttachments(Visitor);
 	case ECbFieldType::CompactBinaryAttachment:
 	case ECbFieldType::BinaryAttachment:
 		return Visitor(*this);

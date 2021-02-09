@@ -220,6 +220,14 @@ public:
 	CORE_API void AddTimeSpan(FAnsiStringView Name, FTimespan Value);
 	CORE_API void AddTimeSpan(FTimespan Value);
 
+	/** Write a custom field with an integer sub-type identifier. */
+	inline void AddCustom(FAnsiStringView FieldName, uint64 TypeId, FMemoryView Value) { SetName(FieldName); AddCustom(TypeId, Value); }
+	CORE_API void AddCustom(uint64 TypeId, FMemoryView Value);
+
+	/** Write a custom field with a string sub-type identifier. */
+	inline void AddCustom(FAnsiStringView FieldName, FAnsiStringView TypeName, FMemoryView Value) { SetName(FieldName); AddCustom(TypeName, Value); }
+	CORE_API void AddCustom(FAnsiStringView TypeName, FMemoryView Value);
+
 	/** Private flags that are public to work with ENUM_CLASS_FLAGS. */
 	enum class EStateFlags : uint8;
 

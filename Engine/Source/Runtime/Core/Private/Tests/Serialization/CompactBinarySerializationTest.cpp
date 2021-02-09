@@ -124,6 +124,18 @@ bool FCbMeasureTest::RunTest(const FString& Parameters)
 	TestMeasure(TEXT("DateTime"), {uint8(EType::DateTime)}, true, 9, EType::DateTime);
 	TestMeasure(TEXT("TimeSpan"), {uint8(EType::TimeSpan)}, true, 9, EType::TimeSpan);
 
+	TestMeasure(TEXT("CustomById, Size1B"), {uint8(EType::CustomById), 0x7f}, true, 129, EType::CustomById);
+	TestMeasure(TEXT("CustomById, Size2B"), {uint8(EType::CustomById), 0x80, 0x80}, true, 131, EType::CustomById);
+	TestMeasure(TEXT("CustomById, Size1BShort"), {uint8(EType::CustomById)}, false, 2, EType::CustomById);
+	TestMeasure(TEXT("CustomById, Size2BShort"), {uint8(EType::CustomById), 0x80}, false, 3, EType::CustomById);
+	TestMeasure(TEXT("CustomById, Size9BShort"), {uint8(EType::CustomById), 0xff}, false, 10, EType::CustomById);
+
+	TestMeasure(TEXT("CustomByName, Size1B"), {uint8(EType::CustomByName), 0x7f}, true, 129, EType::CustomByName);
+	TestMeasure(TEXT("CustomByName, Size2B"), {uint8(EType::CustomByName), 0x80, 0x80}, true, 131, EType::CustomByName);
+	TestMeasure(TEXT("CustomByName, Size1BShort"), {uint8(EType::CustomByName)}, false, 2, EType::CustomByName);
+	TestMeasure(TEXT("CustomByName, Size2BShort"), {uint8(EType::CustomByName), 0x80}, false, 3, EType::CustomByName);
+	TestMeasure(TEXT("CustomByName, Size9BShort"), {uint8(EType::CustomByName), 0xff}, false, 10, EType::CustomByName);
+
 	return true;
 }
 
