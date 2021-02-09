@@ -43,7 +43,7 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual bool IsInteractive() const override { return true; }
 	virtual bool CanRename() const override { return true; }
-	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const override { return (Item.IsValid() && (Item.IsA<FDataLayerTreeItem>())); }
+	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const override;
 	virtual bool ShowStatusBar() const override { return true; }
 	virtual FText GetStatusText() const override;
 	virtual FSlateColor GetStatusTextColor() const override { return FSlateColor::UseForeground(); }

@@ -154,12 +154,19 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 	}
 
 	const UDataLayer* DataLayer = DataLayerPtr.Get();
-	if (DataLayer && DataLayer->IsDynamicallyLoaded() && DataLayer->GetWorld()->IsPlayInEditor())
+	if (DataLayer)
 	{
-		const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-		if (DataLayerSubsystem->IsDataLayerActive(DataLayer))
+		if (DataLayer->IsLocked())
 		{
-			return FColorList::LimeGreen;
+			return FColorList::DimGrey;
+		}
+		else if (DataLayer->IsDynamicallyLoaded() && DataLayer->GetWorld()->IsPlayInEditor())
+		{
+			const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+			if (DataLayerSubsystem->IsDataLayerActive(DataLayer))
+			{
+				return FColorList::LimeGreen;
+			}
 		}
 	}
 	return (!DataLayer || !DataLayer->GetWorld()) ? FLinearColor(0.2f, 0.2f, 0.25f) : FSlateColor::UseForeground();

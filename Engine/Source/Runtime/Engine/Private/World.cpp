@@ -106,6 +106,7 @@
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
 	#include "Editor/FixupLazyObjectPtrForPIEArchive.h"
 	#include "AssetCompilingManager.h"
+	#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #endif
 
 
@@ -1097,6 +1098,7 @@ void UWorld::PostLoad()
 #if WITH_EDITOR
 	RepairWorldSettings();
 	RepairStreamingLevels();
+	RepairWorldDataLayers();
 #endif
 #if INCLUDE_CHAOS
 	//RepairChaosActors();
@@ -1514,6 +1516,14 @@ void UWorld::RepairWorldSettings()
 	check(GetWorldSettings());
 }
 
+void UWorld::RepairWorldDataLayers()
+{
+	if (const UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		AWorldDataLayers::Get(this, /*bCreateIfNotFound*/true);
+	}
+}
+
 void UWorld::InitWorld(const InitializationValues IVS)
 {
 	if (!ensure(!bIsWorldInitialized))
@@ -1598,6 +1608,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 #if WITH_EDITOR
 	RepairWorldSettings();
 	RepairStreamingLevels();
+	RepairWorldDataLayers();
 #endif
 #if INCLUDE_CHAOS
 	//RepairChaosActors();

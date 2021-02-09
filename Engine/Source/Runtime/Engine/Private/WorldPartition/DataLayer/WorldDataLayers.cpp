@@ -117,16 +117,15 @@ TArray<const UDataLayer*> AWorldDataLayers::GetDataLayerObjects(const TArray<FAc
 	return OutDataLayers;
 }
 
-UDataLayer* AWorldDataLayers::CreateDataLayer()
+UDataLayer* AWorldDataLayers::CreateDataLayer(FName InName, EObjectFlags InObjectFlags)
 {
 	Modify();
 
 	// Make sure new DataLayer name (not label) is unique and never re-used so that actors still referencing on deleted DataLayer's don't get valid again.
 	const FName DataLayerUniqueName = *FString::Format(TEXT("DataLayer_{0}"), { FGuid::NewGuid().ToString()});
-	UDataLayer* NewDataLayer = NewObject<UDataLayer>(this, DataLayerUniqueName, RF_Transactional);
+	UDataLayer* NewDataLayer = NewObject<UDataLayer>(this, DataLayerUniqueName, RF_Transactional | InObjectFlags);
 	check(NewDataLayer != NULL);
-	const FName DefaultLabel = TEXT("DataLayer");
-	FName DataLayerLabel = GenerateUniqueDataLayerLabel(DefaultLabel);
+	FName DataLayerLabel = GenerateUniqueDataLayerLabel(InName);
 	NewDataLayer->SetDataLayerLabel(DataLayerLabel);
 	NewDataLayer->SetVisible(true);
 	WorldDataLayers.Add(NewDataLayer);

@@ -63,6 +63,16 @@ int32 FDataLayerMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) co
 	return -1;
 }
 
+bool FDataLayerMode::CanRenameItem(const ISceneOutlinerTreeItem& Item) const 
+{
+	if (Item.IsValid() && (Item.IsA<FDataLayerTreeItem>()))
+	{
+		FDataLayerTreeItem* DataLayerTreeItem = (FDataLayerTreeItem*)&Item;
+		return !DataLayerTreeItem->GetDataLayer()->IsLocked();
+	}
+	return false;
+}
+
 FText FDataLayerMode::GetStatusText() const
 {
 	if (SelectedDataLayersSet.Num() == 1)
@@ -141,7 +151,7 @@ void FDataLayerMode::DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>&
 		{
 			UDataLayer* DataLayer = DataLayerActorItem->GetDataLayer();
 			AActor* Actor = DataLayerActorItem->GetActor();
-			if (DataLayer && Actor)
+			if (DataLayer && !DataLayer->IsLocked() && Actor)
 			{
 				ActorsToRemoveFromDataLayer.FindOrAdd(DataLayer).Add(Actor);
 			}
@@ -150,7 +160,10 @@ void FDataLayerMode::DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>&
 		{
 			if (UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
 			{
-				DataLayersToDelete.Add(DataLayer);
+				if (!DataLayer->IsLocked())
+				{
+					DataLayersToDelete.Add(DataLayer);
+				}
 			}
 		}
 	}
@@ -236,10 +249,29 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 			{
 				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText());
 			}
-			if (SceneOutliner->GetTree().IsItemSelected(const_cast<ISceneOutlinerTreeItem&>(DropTarget).AsShared()) && (GetSelectedDataLayers(SceneOutliner).Num() > 1))
+			
+			if (DataLayerTarget->IsLocked())
 			{
-				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, LOCTEXT("AssignToDataLayers", "Assign to Selected Data Layers"));
+				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantReassignSystemDataLayer", "Can't reassign actors from system Data Layer"));
 			}
+			
+			if (GetSelectedDataLayers(SceneOutliner).Num() > 1)
+			{
+				TArray<UDataLayer*> SelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
+				for (UDataLayer* SelectedDataLayer : SelectedDataLayers)
+				{
+					if (SelectedDataLayer->IsLocked())
+					{
+						return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantReassignSystemDataLayer", "Can't reassign actors from system Data Layer"));
+					}
+				}
+
+				if (SceneOutliner->GetTree().IsItemSelected(const_cast<ISceneOutlinerTreeItem&>(DropTarget).AsShared()))
+				{
+					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, LOCTEXT("AssignToDataLayers", "Assign to Selected Data Layers"));
+				}
+			}
+
 			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, FText::Format(LOCTEXT("AssignToDataLayer", "Assign to Data Layer \"{0}\""), FText::FromName(DataLayerTarget->GetDataLayerLabel())));
 		}
 		else
@@ -533,7 +565,16 @@ void FDataLayerMode::RegisterContextMenu()
 								const FScopedTransaction Transaction(LOCTEXT("DeleteSelectedDataLayers", "Delete Selected DataLayers"));
 								DataLayerEditorSubsystem->DeleteDataLayers(SelectedDataLayers);
 							}}),
-						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
+						FCanExecuteAction::CreateLambda([=] { 
+							for (UDataLayer* SelectedDataLayer : SelectedDataLayers)
+							{
+								if (SelectedDataLayer->IsLocked())
+								{
+									return false;
+								}
+							}
+							return !SelectedDataLayers.IsEmpty();
+						})
 					));
 
 				Section.AddMenuEntry("RenameSelectedDataLayer", LOCTEXT("RenameSelectedDataLayer", "Rename Selected DataLayer"), FText(), FSlateIcon(),
@@ -548,7 +589,7 @@ void FDataLayerMode::RegisterContextMenu()
 									SceneOutliner->ScrollItemIntoView(ItemToRename);
 								}
 							}}),
-						FCanExecuteAction::CreateLambda([=] { return SelectedDataLayers.Num() == 1; })
+						FCanExecuteAction::CreateLambda([=] { return (SelectedDataLayers.Num() == 1) && !SelectedDataLayers[0]->IsLocked(); })
 					));
 
 				Section.AddSeparator("SectionsSeparator");

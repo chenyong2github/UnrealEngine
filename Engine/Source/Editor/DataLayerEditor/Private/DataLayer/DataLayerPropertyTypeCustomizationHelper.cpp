@@ -35,12 +35,15 @@ TSharedRef<SWidget> FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMe
 		for (const TWeakObjectPtr<UDataLayer>& WeakDataLayer : AllDataLayers)
 		{
 			const UDataLayer* DataLayerPtr = WeakDataLayer.Get();
-			MenuBuilder.AddMenuEntry(
-				UDataLayer::GetDataLayerText(DataLayerPtr),
-				FText(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "DataLayer.Icon16x"),
-				FUIAction(FExecuteAction::CreateLambda([DataLayerPtr, OnDataLayerSelectedFunction]() { OnDataLayerSelectedFunction(DataLayerPtr); }))
-			);
+			if (!DataLayerPtr || !DataLayerPtr->IsLocked())
+			{
+				MenuBuilder.AddMenuEntry(
+					UDataLayer::GetDataLayerText(DataLayerPtr),
+					FText(),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "DataLayer.Icon16x"),
+					FUIAction(FExecuteAction::CreateLambda([DataLayerPtr, OnDataLayerSelectedFunction]() { OnDataLayerSelectedFunction(DataLayerPtr); }))
+				);
+				}
 		}
 	}
 	MenuBuilder.EndSection();

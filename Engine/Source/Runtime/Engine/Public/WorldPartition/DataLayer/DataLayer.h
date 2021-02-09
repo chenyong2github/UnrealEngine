@@ -21,6 +21,7 @@ public:
 	void SetVisible(bool bInIsVisible);
 	void SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded);
 	void SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor);
+	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
 
 	bool IsDynamicallyLoadedInEditor() const { return !IsDynamicallyLoaded() || bIsDynamicallyLoadedInEditor; }
 	bool ShouldGenerateHLODs() const { return IsDynamicallyLoaded() && bGeneratesHLODs; }
@@ -33,6 +34,7 @@ public:
 	bool IsVisible() const { return bIsVisible; }
 	bool IsDynamicallyLoaded() const { return bIsDynamicallyLoaded; }
 	bool IsInitiallyActive() const { return IsDynamicallyLoaded() && bIsInitiallyActive; }
+	bool IsLocked() const { return bIsLocked; }
 
 private:
 	/** The display name of the DataLayer */
@@ -55,6 +57,10 @@ private:
 	/** Whether the DataLayer affects actor editor loading */
 	UPROPERTY(Transient)
 	uint32 bIsDynamicallyLoadedInEditor : 1;
+
+	/** Whether this data layer is locked, which means the user can't change actors assignation, remove or rename it */
+	UPROPERTY()
+	uint32 bIsLocked : 1;
 
 	/** Whether HLODs should be generated for actors in this layer */
 	UPROPERTY(Category = DataLayer, EditAnywhere, meta=(EditConditionHides, EditCondition="bIsDynamicallyLoaded"))

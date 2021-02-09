@@ -164,7 +164,11 @@ void SDataLayerBrowser::OnSelectionChanged(TSet<TWeakObjectPtr<const UDataLayer>
 	{
 		if (WeakDataLayer.IsValid())
 		{
-			SelectedDataLayers.Add(const_cast<UDataLayer*>(WeakDataLayer.Get()));
+			UDataLayer* DataLayer = const_cast<UDataLayer*>(WeakDataLayer.Get());
+			if (!DataLayer->IsLocked())
+			{
+				SelectedDataLayers.Add(DataLayer);
+			}
 		}
 	}
 	DetailsWidget->SetObjects(SelectedDataLayers, /*bForceRefresh*/ true);

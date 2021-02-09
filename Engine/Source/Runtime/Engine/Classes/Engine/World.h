@@ -1448,6 +1448,9 @@ private:
 
 	/** Utility function to cleanup streaming levels that point to invalid level packages */
 	void RepairStreamingLevels();
+
+	/** Utility function that is used to ensure that a World has the correct WorldDataLayers */
+	void RepairWorldDataLayers();
 	
 #if INCLUDE_CHAOS
 	/** Utility function that is used to ensure that a World has the correct ChaosActor */
