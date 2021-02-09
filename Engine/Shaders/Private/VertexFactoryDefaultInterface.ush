@@ -86,3 +86,13 @@ uint VertexFactoryGetInstanceIdLoadIndex(FPositionAndNormalOnlyVertexFactoryInpu
 #endif // POSITION_ONLY
 
 #endif // VF_IMPLEMENTED_GET_VIEW_INDEX
+
+
+#if VF_USE_PRIMITIVE_SCENE_DATA && defined(GPUCULL_TODO)
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
+
+#endif // VF_USE_PRIMITIVE_SCENE_DATA && defined(GPUCULL_TODO)
