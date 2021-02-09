@@ -74,15 +74,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Operation Type"))
 	ENonlinearOperationType SelectedOperationType = ENonlinearOperationType::Bend;
 
-	/** The upper bound to the region of space which the operation will affect. Measured upward along the gizmo Z axis from the gizmo center. */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Up Extent", UIMin = "0.0", ClampMin = "0.0"))
-	float UpperBoundsInterval = 10.0;
+	/** The upper bound to the region of space which the operation will affect. Measured along the gizmo Z axis from the gizmo center. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Upper Bound", UIMin = "0.0", ClampMin = "0.0"))
+	float UpperBoundsInterval = 100.0;
 
-	//~ Note that the value here is the negative of what we use elsewhere, because otherwise the user has to reverse
-	//~ their scrubbing direction compared to UpperBoundsInterval for increasing/decreasing the interval.
-	/** The lower bound to the region of space which the operation will affect. Measured downward along the gizmo Z axis from the gizmo center. */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Down Extent", UIMin = "0", ClampMin = "0"))
-	float AbsLowerBoundsInterval = 10.0;
+	/** The lower bound to the region of space which the operation will affect. Measured along the gizmo Z axis from the gizmo center. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Lower Bound", UIMax = "0", ClampMax = "0"))
+	float LowerBoundsInterval = -100.0;
 
 	//~ The two degrees properties (bend vs twist) are separate because they have different clamp values. 
 	//~ Bending a "negative" amount probably won't do what the user wants, whereas twisting in the opposite
@@ -129,7 +127,7 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
 		EditCondition = "SelectedOperationType == ENonlinearOperationType::Bend || SelectedOperationType == ENonlinearOperationType::Twist", EditConditionHides))
-	bool bLockBottom = true;
+	bool bLockBottom = false;
 
 	/**
 	 * When true, changes the flare/pinch function to have C1 continuity at the upper and lower bounds.

@@ -244,7 +244,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 	// Sync the properties panel to the interval handles.
 	Settings->UpperBoundsInterval = UpIntervalSource->Value;
-	Settings->AbsLowerBoundsInterval = FMath::Abs(DownIntervalSource->Value);
+	Settings->LowerBoundsInterval = DownIntervalSource->Value;
 
 	// Wire up callbacks to update result mesh and the properties panel when these parameters are changed (by gizmo manipulation in viewport).  Note this is just a one-way
 	// coupling (Sources to Properties). The OnPropertyModified() method provides the Properties to Souces coupling 
@@ -256,7 +256,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 	DownIntervalSource->OnParameterChanged.AddLambda([this](IGizmoFloatParameterSource* ParamSource, FGizmoFloatParameterChange Change)->void
 	{
-		Settings->AbsLowerBoundsInterval = FMath::Abs(Change.CurrentValue);
+		Settings->LowerBoundsInterval = Change.CurrentValue;
 		UpdatePreview();
 	});
 
@@ -375,7 +375,7 @@ void  UMeshSpaceDeformerTool::TransformProxyChanged(UTransformProxy* Proxy, FTra
 void  UMeshSpaceDeformerTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	UpIntervalSource->Value = Settings->UpperBoundsInterval;
-	DownIntervalSource->Value = -Settings->AbsLowerBoundsInterval;
+	DownIntervalSource->Value = Settings->LowerBoundsInterval;
 	ForwardIntervalSource->Value = GetModifierGizmoValue();
 
 	UpdatePreview();
@@ -392,8 +392,8 @@ void UMeshSpaceDeformerTool::UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceD
 	MeshSpaceDeformerOp.GizmoFrame = GizmoFrame;
 
 	// set the bound range
-	MeshSpaceDeformerOp.UpperBoundsInterval =  Settings->UpperBoundsInterval;
-	MeshSpaceDeformerOp.LowerBoundsInterval = -Settings->AbsLowerBoundsInterval;
+	MeshSpaceDeformerOp.UpperBoundsInterval = Settings->UpperBoundsInterval;
+	MeshSpaceDeformerOp.LowerBoundsInterval = Settings->LowerBoundsInterval;
 }
 
 void UMeshSpaceDeformerTool::RequestAction(EMeshSpaceDeformerToolAction ActionType)
@@ -453,18 +453,18 @@ void UMeshSpaceDeformerTool::UpdatePreview()
 
 		VisualizationPoints.SetNumUninitialized(NUM_RENDER_POINTS);
 
-		double BentLength = Settings->UpperBoundsInterval + Settings->AbsLowerBoundsInterval;
+		double BentLength = Settings->UpperBoundsInterval - Settings->LowerBoundsInterval;
 		double ArcAngle = Settings->BendDegrees * PI / 180;
 		double ArcRadius = BentLength / ArcAngle;
 
-		double RotationCenterZ = Settings->bLockBottom ? -Settings->AbsLowerBoundsInterval : 0;
+		double RotationCenterZ = Settings->bLockBottom ? Settings->LowerBoundsInterval : 0;
 		FVector2d RotationCenterYZ(ArcRadius, RotationCenterZ);
 
 		double PointSpacing = BentLength / (NUM_RENDER_POINTS - 1);
 
 		for (int32 i = 0; i < NUM_RENDER_POINTS; ++i)
 		{
-			double OriginalZ = -Settings->AbsLowerBoundsInterval + PointSpacing * i;
+			double OriginalZ = Settings->LowerBoundsInterval + PointSpacing * i;
 			FVector2d YZToRotate(0, RotationCenterZ);
 
 			// The negative here is because we are rotating clockwise in the direction of the positive Y axis
