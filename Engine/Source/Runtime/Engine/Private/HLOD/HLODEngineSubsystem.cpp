@@ -77,8 +77,8 @@ void UHLODEngineSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* In
 	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
 	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 
-	// First, destroy LODActors that were previously constructed from HLODDesc... If needed, they will be recreated below.
-	if (!bDisableHLODCleanupOnLoad)
+	// First, destroy invalid HLOD actors. If needed, they will be recreated below.
+	if (!bDisableHLODCleanupOnLoad && !GIsCookerLoadingPackage)
 	{
 		CleanupHLODs(InLevel);
 	}
