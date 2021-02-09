@@ -658,9 +658,20 @@ protected:
 		SPVFuncImplConvertYCbCrBT601,
 		SPVFuncImplConvertYCbCrBT2020,
 		SPVFuncImplDynamicImageSampler,
+
 		// UE Change Begin: Clamp access to SSBOs to the size of the buffer
 		SPVFuncImplStorageBufferCoords, // Storage buffer robustness
 		// UE Change End: Clamp access to SSBOs to the size of the buffer
+
+		// UE Change Begin: Identity function as workaround to bug in Metal compiler
+		// Identity function as workaround for bug in Metal compiler
+		// This bug happens with binary + ternary expressions as argument in a 'texture.write' call:
+		//      myTex.write(int4(a || b ? 1 : 0), uint2(0))
+		//                       ^~~~~~
+		// Wrapping it into a templated identity function solves the issue:
+		//      myTex.write(spvIdentity(int4(a || b ? 1 : 0)), uint2(0))
+		SPVFuncImplIdentity,
+		// UE Change End: Identity function as workaround to bug in Metal compiler
 	};
 
 	// If the underlying resource has been used for comparison then duplicate loads of that resource must be too

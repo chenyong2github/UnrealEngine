@@ -4415,6 +4415,20 @@ void CompilerMSL::emit_custom_functions()
 		}
 		// UE Change End: Clamp access to SSBOs to the size of the buffer
 
+		// UE Change Begin: Identity function as workaround to bug in Metal compiler
+		case SPVFuncImplIdentity:
+		{
+			statement("// Identity function as workaround for bug in Metal compiler");
+			statement("template<typename T>");
+			statement("T spvIdentity(T x)");
+			begin_scope();
+			statement("return x;");
+			end_scope();
+			statement("");
+			break;
+		}
+		// UE Change End: Identity function as workaround to bug in Metal compiler
+
 		// "fadd" intrinsic support
 		case SPVFuncImplFAdd:
 			statement("template<typename T>");
@@ -7233,9 +7247,20 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		args.base.is_fetch = true;
 		args.coord = coord_id;
 		args.lod = lod;
+
+		// UE Change Begin: Identity function as workaround to bug in Metal compiler
+#if 1
+		// Wrap first argument into identity function to workaround bug in Metal compiler
+		add_spv_func_and_recompile(SPVFuncImplIdentity);
+		statement(join(to_expression(img_id), ".write(spvIdentity(",
+					   remap_swizzle(store_type, texel_type.vecsize, to_expression(texel_id)), "), ",
+					   CompilerMSL::to_function_args(args, &forward), ");"));
+#else
 		statement(join(to_expression(img_id), ".write(",
 		               remap_swizzle(store_type, texel_type.vecsize, to_expression(texel_id)), ", ",
 		               CompilerMSL::to_function_args(args, &forward), ");"));
+#endif
+		// UE Change End: Identity function as workaround to bug in Metal compiler
 
 		if (p_var && variable_storage_is_aliased(*p_var))
 			flush_all_aliased_variables();
