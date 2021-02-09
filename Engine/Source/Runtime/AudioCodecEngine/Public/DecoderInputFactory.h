@@ -6,6 +6,7 @@
 
 // Forward declares.
 class USoundWave;
+class FSoundWaveProxy;
 
 namespace Audio
 {
