@@ -1045,7 +1045,7 @@ void UGroomComponent::ReleaseHairSimulation()
 
 static void InternalUpdateHairSimulation(UGroomComponent* GroomComponent)
 {
-	if (!GroomComponent)
+	if (!GroomComponent || GroomComponent->GroomGroupsDesc.Num() == 0)
 	{
 		return;
 	}
