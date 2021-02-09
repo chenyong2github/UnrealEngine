@@ -44,6 +44,7 @@ void SEditorHeaderButton::Construct(const FArguments& InArgs)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.ContentPadding(0)
+			.OnClicked(InArgs._OnClicked)
 			[
 				ButtonContent
 			]
