@@ -340,7 +340,7 @@ void FOnlineSubsystemImpl::FinalizeReceipts(const FUniqueNetId& UserId)
 					if (LineItem.IsRedeemable())
 					{
 						UE_LOG_ONLINE(Display, TEXT("Finalizing %s!"), *Receipt.TransactionId);
-						PurchaseInt->FinalizePurchase(UserId, LineItem.UniqueId);
+						PurchaseInt->FinalizePurchase(UserId, LineItem.UniqueId, LineItem.ValidationInfo);
 					}
 					else
 					{
