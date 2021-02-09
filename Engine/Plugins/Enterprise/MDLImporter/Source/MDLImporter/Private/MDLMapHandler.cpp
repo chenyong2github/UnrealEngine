@@ -166,9 +166,22 @@ void FMDLMapHandler::Cleanup()
 	FirstNormalExpression = CurrentNormalExpression = nullptr;
 }
 
+void FMDLMapHandler::SetFunctionAssetPath(const TCHAR* AssetPath)
+{
+	if (FunctionLoader)
+	{
+		FunctionLoader->SetAssetPath(AssetPath);
+	}
+}
+
+void FMDLMapHandler::SetObjectFlags(EObjectFlags ObjectFlags)
+{
+	FunctionLoader->SetObjectFlags(ObjectFlags);
+}
+
 TArray<MDLImporterLogging::FLogMessage> FMDLMapHandler::GetLogMessages()
 {
 	return MaterialExpressionFactory.GetLogMessages();
 }
 
-#endif
+#endif // #ifdef USE_MDLSDK

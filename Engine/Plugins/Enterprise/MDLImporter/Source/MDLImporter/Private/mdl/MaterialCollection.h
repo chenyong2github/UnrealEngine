@@ -17,6 +17,7 @@ namespace Mdl
 		FMaterial& Create();
 		void       Reserve(int32 Count);
 		void       Remove(const FMaterial& Material);
+		void       RemoveAt(int32 Index);
 
 		FMaterial&       operator[](int32 Index);
 		const FMaterial& operator[](int32 Index) const;
@@ -68,6 +69,11 @@ namespace Mdl
 	inline void FMaterialCollection::Remove(const FMaterial& Material)
 	{
 		Data.Remove(Material);
+	}
+
+	inline void FMaterialCollection::RemoveAt(int32 Index)
+	{
+		Data.RemoveAt(Index);
 	}
 
 	inline FMaterial& FMaterialCollection::operator[](int32 Index)

@@ -20,7 +20,7 @@ public:
 	 */
 	virtual FMDLImporter& GetMDLImporter() = 0;
 
-	virtual IMdlFileImporter* CreateFileImporter() = 0;
+	virtual TUniquePtr<IMdlFileImporter> CreateFileImporter() = 0;
 
 	virtual bool IsLoaded() = 0;
 

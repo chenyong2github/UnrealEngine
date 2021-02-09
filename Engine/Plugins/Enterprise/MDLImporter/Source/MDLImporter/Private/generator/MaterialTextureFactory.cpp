@@ -80,6 +80,7 @@ namespace Generator
 	void FMaterialTextureFactory::UpdateTextureFactorySettings(UTextureFactory* TextureFactory, const Common::FTextureProperty& Property)
 	{
 		// Set the settings on the factory so that the texture gets built with the correct settings when the factory builds it
+		TextureFactory->bUseHashAsGuid = true; // Use texture source data hash as DDC guid
 		TextureFactory->MipGenSettings = Property.MipGenSettings;
 		TextureFactory->NoAlpha = Property.bCompressionNoAlpha;
 		TextureFactory->CompressionSettings = Property.CompressionSettings;

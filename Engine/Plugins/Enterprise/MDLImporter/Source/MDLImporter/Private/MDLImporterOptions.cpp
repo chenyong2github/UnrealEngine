@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MDLImporterOptions.h"
+#include "Misc/Paths.h"
 
 UMDLImporterOptions::UMDLImporterOptions(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -39,7 +40,7 @@ FString UMDLImporterOptions::GetMdlUserPath()
 	if (Path.IsEmpty())
 	{
 #if PLATFORM_WINDOWS
-		Path = FPlatformProcess::UserDir() + FString(TEXT("/mdl/"));
+		Path = FPaths::Combine(FPlatformProcess::UserDir(), TEXT("mdl/"));
 #elif PLATFORM_MAC || PLATFORM_LINUX
 		Path = TEXT("~/Documents/mdl/");
 #else

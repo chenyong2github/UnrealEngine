@@ -420,22 +420,15 @@ namespace Generator
 			FExpressionOutput const& Output = Expression->Outputs[OutputIndex];
 			return Output.MaskR + Output.MaskG + Output.MaskB + Output.MaskA;
 		}
-		else if (Expression->IsA<UMaterialExpressionCameraVectorWS>())
-		{
-			return 3;
-		}
-		else if (Expression->IsA<UMaterialExpressionVertexNormalWS>())
-		{
-			return 3;
-		}
-		else if (Expression->IsA<UMaterialExpressionPixelNormalWS>())
+		else if (Expression->IsA<UMaterialExpressionCameraVectorWS>()
+			|| Expression->IsA<UMaterialExpressionReflectionVectorWS>())
 		{
 			return 3;
 		}
 		else if (Expression->IsA<UMaterialExpressionClamp>())
 		{
 			UMaterialExpressionClamp* Clamp = Cast<UMaterialExpressionClamp>(Expression);
-			return ComponentCount(Clamp->Input.Expression, Clamp->Input.OutputIndex);
+			return ComponentCount({ Clamp->Input.Expression, Clamp->Input.OutputIndex });
 		}
 		else if (Expression->IsA<UMaterialExpressionComponentMask>())
 		{
@@ -453,6 +446,10 @@ namespace Generator
 		else if (Expression->IsA<UMaterialExpressionConstant3Vector>())
 		{
 			return 3;
+		}
+		else if (Expression->IsA<UMaterialExpressionConstant4Vector>())
+		{
+			return 4;
 		}
 		else if (Expression->IsA<UMaterialExpressionCosine>())
 		{
@@ -542,6 +539,7 @@ namespace Generator
 				return 4;
 			case FunctionInput_Texture2D:
 			case FunctionInput_TextureCube:
+			case FunctionInput_VolumeTexture:
 			case FunctionInput_StaticBool:
 			case FunctionInput_MaterialAttributes:
 			default:
@@ -587,6 +585,10 @@ namespace Generator
 			const uint32 ACount = Max->A.Expression ? ComponentCount(Max->A.Expression, Max->A.OutputIndex) : 1;
 			check(ACount == (Max->B.Expression ? ComponentCount(Max->B.Expression, Max->B.OutputIndex) : 1));
 			return ACount;
+
+			//const uint32 BCount = Max->B.Expression ? ComponentCount(Max->B.Expression, Max->B.OutputIndex) : 1;
+			//check((ACount == 1) || (BCount == 1) || (ACount == BCount));
+			//return FMath::Max(ACount, BCount);
 		}
 		else if (Expression->IsA<UMaterialExpressionMin>())
 		{
@@ -645,6 +647,10 @@ namespace Generator
 		{
 			return 1;
 		}
+		else if (Expression->IsA<UMaterialExpressionStaticBoolParameter>())
+		{
+			return 1;
+		}
 		else if (Expression->IsA<UMaterialExpressionStaticSwitch>())
 		{
 			UMaterialExpressionStaticSwitch* StaticSwitch = Cast<UMaterialExpressionStaticSwitch>(Expression);
@@ -692,24 +698,33 @@ namespace Generator
 		{
 			return (OutputIndex == 0) ? 3 : 1;  // output 0 is color, the others are floats
 		}
-		else if (Expression->IsA<UMaterialExpressionWorldPosition>())
+		else if (Expression->IsA<UMaterialExpressionArcsine>())
+		{
+			// arcsine always returns a float... check that it also just gets one!
+			check(ComponentCount(Cast<UMaterialExpressionArcsine>(Expression)->Input.Expression, OutputIndex) == 1);
+			return 1;
+		}
+		else if (Expression->IsA<UMaterialExpressionVertexNormalWS>()
+			|| Expression->IsA<UMaterialExpressionPixelNormalWS>()
+			|| Expression->IsA<UMaterialExpressionCameraPositionWS>()
+			|| Expression->IsA<UMaterialExpressionWorldPosition>())
 		{
 			return 3;
 		}
-		else if (Expression->IsA<UMaterialExpressionFunctionOutput>())
+		else if (Expression->IsA<UMaterialExpressionTime>()
+			|| Expression->IsA<UMaterialExpressionPixelDepth>())
 		{
-			UMaterialExpressionFunctionOutput* Output = Cast<UMaterialExpressionFunctionOutput>(Expression);
-			return ComponentCount(Output->A.Expression);
+			return 1;
 		}
 		else if (Expression->IsA<UMaterialExpressionSaturate>())
 		{
 			UMaterialExpressionSaturate* Saturate = Cast<UMaterialExpressionSaturate>(Expression);
 			return ComponentCount(Saturate->Input.Expression);
 		}
-		else if (Expression->IsA<UMaterialExpressionDesaturation>())
+		else if (Expression->IsA<UMaterialExpressionCeil>())
 		{
-			UMaterialExpressionDesaturation* Desaturate = Cast<UMaterialExpressionDesaturation>(Expression);
-			return ComponentCount(Desaturate->Input.Expression);
+			UMaterialExpressionCeil* Ceil = Cast<UMaterialExpressionCeil>(Expression);
+			return ComponentCount({ Ceil->Input.Expression, Ceil->Input.OutputIndex });
 		}
 		ensure(false);
 		return 0;

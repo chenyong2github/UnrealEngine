@@ -5772,6 +5772,43 @@ namespace Generator
 			NewMaterialExpressionFunctionOutput(Function, TEXT("refl"), Refl);
 		}
 
+		void UE4TangentSpaceNormal(UMaterialFunction* Function, int32 ArraySize)
+		{
+			check(0 == ArraySize);
+			UMaterialFunction* StateNormal = LoadFunction(TEXT("mdl_state_normal"));
+			UMaterialFunction* StateTextureTangentU = LoadFunction(TEXT("mdl_state_texture_tangent_u"));
+			UMaterialFunction* StateTextureTangentV = LoadFunction(TEXT("mdl_state_texture_tangent_v"));
+
+			Function->Description = TEXT("Interprets the color values as a vector in tangent space.");
+
+			UMaterialExpressionFunctionInput* Normal = NewMaterialExpressionFunctionInput(Function, TEXT("normal"), EFunctionInputType::FunctionInput_Vector3, NewMaterialExpressionFunctionCall(Function, StateNormal, {}));
+			UMaterialExpressionFunctionInput* TangentU = NewMaterialExpressionFunctionInput(Function, TEXT("tangent_u"), EFunctionInputType::FunctionInput_Vector3, NewMaterialExpressionFunctionCall(Function, StateTextureTangentU, { 0 }));
+			UMaterialExpressionFunctionInput* TangentV = NewMaterialExpressionFunctionInput(Function, TEXT("tangent_v"), EFunctionInputType::FunctionInput_Vector3, NewMaterialExpressionFunctionCall(Function, StateTextureTangentV, { 0 }));
+
+			UMaterialExpressionMaterialFunctionCall* DefaultNormal = NewMaterialExpressionFunctionCall(Function, StateNormal, {});
+
+			UMaterialExpressionNormalize* UnclippedNormal =
+				NewMaterialExpressionNormalize(Function,
+					NewMaterialExpressionAdd(Function,
+						{
+							NewMaterialExpressionMultiply(Function, TangentU, NewMaterialExpressionComponentMask(Function, Normal, 1)),
+							NewMaterialExpressionMultiply(Function, TangentV, NewMaterialExpressionComponentMask(Function, Normal, 2)),
+							NewMaterialExpressionMultiply(Function,
+							DefaultNormal,
+							NewMaterialExpressionComponentMask(Function, Normal, 4)
+							)
+						}));
+
+			NewMaterialExpressionFunctionOutput(Function, TEXT("normal"), UnclippedNormal);
+		}
+
+		void UE4OpacityWeight(UMaterialFunction* Function, int32 ArraySize)
+		{
+			// always return 1
+			UMaterialExpressionFunctionInput* Opacity = NewMaterialExpressionFunctionInput(Function, TEXT("opacity"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
+			NewMaterialExpressionFunctionOutput(Function, TEXT("weight"), 1.0f);
+		}
+
 	private:
 		static TPair<UMaterialExpression*, UMaterialExpression*> MixAttributesRecursive(UMaterialFunction* Function,
 		                                                                                UMaterialFunction* MatLayerBlend_Standard,
