@@ -730,19 +730,19 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	/**
 	"Enable Strata materials (Beta)."
 	*/
-//STRATA_DISABLED	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
-//		ConsoleVariable = "r.Strata", DisplayName = "Strata materials (Experimental)",
-//		ToolTip = "Enable Strata materials (Experimental).",
-//		ConfigRestartRequired = true))
+	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
+		ConsoleVariable = "r.Strata", DisplayName = "Strata materials (Experimental)",
+		ToolTip = "Enable Strata materials (Experimental).",
+		ConfigRestartRequired = true))
 		uint32 bEnableStrata : 1;
 
 	/**
 	"Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."
 	*/
-//STRATA_DISABLED	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
-//			ConsoleVariable = "r.Strata.BytesPerPixel", DisplayName = "Strata bytes per pixel",
-//			ToolTip = "Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented.",
-//			ConfigRestartRequired = true))
+	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
+		ConsoleVariable = "r.Strata.BytesPerPixel", DisplayName = "Strata bytes per pixel",
+		ToolTip = "Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented.",
+		ConfigRestartRequired = true))
 		uint32 StrataBytePerPixel;
 
 	/**

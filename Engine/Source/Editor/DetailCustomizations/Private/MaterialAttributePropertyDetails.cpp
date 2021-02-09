@@ -25,10 +25,6 @@ void FMaterialAttributePropertyDetails::CustomizeDetails(IDetailLayoutBuilder& D
 	AttributeDisplayNameList.Empty(AttributeNameToIDList.Num());
 	for (const TPair<FString, FGuid>& NameGUIDPair : AttributeNameToIDList)
 	{
-		if (NameGUIDPair.Key == TEXT("FrontMaterial"))
-		{
-			continue;// STRATA_DISABLED
-		}
 		AttributeDisplayNameList.Add(MakeShareable(new FString(NameGUIDPair.Key)));
 	}
 
