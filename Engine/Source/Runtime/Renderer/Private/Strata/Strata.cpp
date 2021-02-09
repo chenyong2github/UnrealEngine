@@ -39,12 +39,12 @@ namespace Strata
 
 bool IsStrataEnabled()
 {
-	return CVarStrata.GetValueOnAnyThread() > 0;
+	return false;// STRATA_DISABLED CVarStrata.GetValueOnAnyThread() > 0;
 }
 
 bool IsClassificationEnabled()
 {
-	return CVarStrataClassification.GetValueOnAnyThread() > 0;
+	return false;// STRATA_DISABLED CVarStrataClassification.GetValueOnAnyThread() > 0;
 }
 
 uint32 GetStrataTileSize()
