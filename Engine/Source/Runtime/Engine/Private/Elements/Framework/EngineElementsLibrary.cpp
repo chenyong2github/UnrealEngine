@@ -15,6 +15,9 @@
 #include "Elements/Component/ComponentElementData.h"
 #include "Components/ActorComponent.h"
 
+// The editor requires ref-counting for object replacement to function correctly
+static_assert(!WITH_EDITOR || UE_TYPED_ELEMENT_HAS_REFCOUNTING, "The editor requires that ref-counting is enabled for typed elements!");
+
 namespace EngineElementsLibraryUtil
 {
 template <typename ObjectClass, typename ElementDataType>
@@ -66,6 +69,50 @@ FTypedElementHandle AcquireEditorTypedElementHandle(const ObjectClass* Object, T
 
 	return FTypedElementHandle();
 }
+
+template <typename ObjectClass, typename ElementDataType>
+void ReplaceEditorTypedElementHandles(const TMap<UObject*, UObject*>& ReplacementObjects, TTypedElementOwnerStore<ElementDataType, const ObjectClass*>& ElementOwnerStore, TFunctionRef<void(const ObjectClass*, TTypedElementOwner<ElementDataType>&)> UpdateElement, TFunctionRef<void(const ObjectClass*, TTypedElementOwner<ElementDataType>&)> DestroyElement)
+{
+	for (const TTuple<UObject*, UObject*>& ReplacementObjectPair : ReplacementObjects)
+	{
+		const ObjectClass* OldObject = Cast<ObjectClass>(ReplacementObjectPair.Key);
+		if (!OldObject || !ReplacementObjectPair.Value)
+		{
+			// We can't do anything for objects of the incorrect type, or redirection to null...
+			continue;
+		}
+
+		const ObjectClass* NewObject = Cast<ObjectClass>(ReplacementObjectPair.Value);
+		if (!NewObject)
+		{
+			UE_LOG(LogCore, Error, TEXT("Typed element replacement failed! Objects must be compatible types - Expected: %s, Old: %s (%s), New: %s (%s)"), *ObjectClass::StaticClass()->GetName(), *OldObject->GetClass()->GetName(), *OldObject->GetPathName(), *ReplacementObjectPair.Key->GetClass()->GetName(), *ReplacementObjectPair.Key->GetPathName());
+			continue;
+		}
+
+		// We only need to attempt replacement if we actually have an element for the old object...
+		if (TTypedElementOwner<ElementDataType> OldEditorElement = ElementOwnerStore.UnregisterElementOwner(OldObject))
+		{
+			if (OldEditorElement.Private_GetInternalData()->GetRefCount() > 1)
+			{
+				// The old element has external references, so we're going to destroy the new element (if any) and re-point the old element to the new object...
+				// Note: This requires that the new element has no external references - if both old and new elements have external references then we'll need to support redirection at the element level!
+				if (TTypedElementOwner<ElementDataType> NewEditorElement = ElementOwnerStore.UnregisterElementOwner(NewObject))
+				{
+					checkf(NewEditorElement.Private_GetInternalData()->GetRefCount() <= 1, TEXT("The old and new element both have external references! Replacing these will require support for redirection at the element level!"));
+					DestroyElement(NewObject, NewEditorElement);
+				}
+
+				UpdateElement(NewObject, OldEditorElement);
+				ElementOwnerStore.RegisterElementOwner(NewObject, MoveTemp(OldEditorElement));
+			}
+			else
+			{
+				// The old element has no external references, so we can just destroy it...
+				DestroyElement(OldObject, OldEditorElement);
+			}
+		}
+	}
+}
 #endif
 } // namespace EngineElementsLibraryUtil
 
@@ -80,12 +127,35 @@ UEngineElementsLibrary::UEngineElementsLibrary()
 #if WITH_EDITOR
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
+		// The editor may replace objects and perform fix-up from old->new, so we need to keep any object-based elements in-sync too
+		FCoreUObjectDelegates::OnObjectsReplaced.AddStatic(&UEngineElementsLibrary::OnObjectsReplaced);
+
 		// UObject exists inside CoreUObject, so it cannot call through directly to clean-up any element handles that have been created
 		// Instead we rely on this GC hook to clean-up any element handles for unreachable objects prior to them being destroyed
 		FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddStatic(&UEngineElementsLibrary::DestroyUnreachableEditorObjectElements);
 	}
 #endif
 }
+
+#if WITH_EDITOR
+void UEngineElementsLibrary::OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacementObjects)
+{
+	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<UObject, FObjectElementData>(InReplacementObjects, GObjectElementOwnerStore, [](const UObject* InObject, TTypedElementOwner<FObjectElementData>& InOutObjectElement)
+	{
+		InOutObjectElement.GetDataChecked().Object = const_cast<UObject*>(InObject);
+	}, &UEngineElementsLibrary::DestroyObjectElement);
+
+	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<AActor, FActorElementData>(InReplacementObjects, GActorElementOwnerStore, [](const AActor* InActor, TTypedElementOwner<FActorElementData>& InOutActorElement)
+	{
+		InOutActorElement.GetDataChecked().Actor = const_cast<AActor*>(InActor);
+	}, &UEngineElementsLibrary::DestroyActorElement);
+
+	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<UActorComponent, FComponentElementData>(InReplacementObjects, GComponentElementOwnerStore, [](const UActorComponent* InComponent, TTypedElementOwner<FComponentElementData>& InOutComponentElement)
+	{
+		InOutComponentElement.GetDataChecked().Component = const_cast<UActorComponent*>(InComponent);
+	}, &UEngineElementsLibrary::DestroyComponentElement);
+}
+#endif
 
 TTypedElementOwner<FObjectElementData> UEngineElementsLibrary::CreateObjectElement(const UObject* InObject)
 {

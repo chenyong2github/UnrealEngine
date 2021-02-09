@@ -5998,7 +5998,7 @@ void UEditorEngine::NotifyToolsOfObjectReplacement(const TMap<UObject*, UObject*
 	}
 
 	// Allow any other observers to act upon the object replacement
-	BroadcastObjectsReplaced(OldToNewInstanceMap);
+	FCoreUObjectDelegates::OnObjectsReplaced.Broadcast(OldToNewInstanceMap);
 
 	// Check to see if any selected components were reinstanced, as a final step.
 	USelection* ComponentSelection = GetSelectedComponents();

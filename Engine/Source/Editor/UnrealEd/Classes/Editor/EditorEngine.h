@@ -596,13 +596,13 @@ public:
 	/**	Broadcasts that a blueprint just finished being reinstanced. THIS SHOULD NOT BE PUBLIC */
 	void BroadcastBlueprintReinstanced() { BlueprintReinstanced.Broadcast(); }
 
-	/** Called when uobjects have been replaced to allow others a chance to fix their references. */
-	typedef TMap<UObject*, UObject*> ReplacementObjectMap;
-	DECLARE_EVENT_OneParam( UEditorEngine, FObjectsReplacedEvent, const ReplacementObjectMap& );
-	FObjectsReplacedEvent& OnObjectsReplaced() { return ObjectsReplacedEvent; }
+	/** Called when UObjects have been replaced to allow others a chance to fix their references. */
+	// TODO: Deprecate in favor of using FCoreUObjectDelegates::OnObjectsReplaced directly?
+	using FObjectsReplacedEvent = FCoreUObjectDelegates::FOnObjectsReplaced;
+	FObjectsReplacedEvent& OnObjectsReplaced() { return FCoreUObjectDelegates::OnObjectsReplaced; }
 
 	/**	Broadcasts that objects have been replaced*/
-	void BroadcastBlueprintCompiled(const TMap<UObject*, UObject*>& ReplacementMap) { ObjectsReplacedEvent.Broadcast(ReplacementMap); }
+	void BroadcastBlueprintCompiled(const TMap<UObject*, UObject*>& ReplacementMap) { FCoreUObjectDelegates::OnObjectsReplaced.Broadcast(ReplacementMap); }
 
 	/** Called when a package with data-driven classes becomes loaded or unloaded */
 	DECLARE_EVENT( UEditorEngine, FClassPackageLoadedOrUnloadedEvent );
@@ -2696,9 +2696,6 @@ private:
 	/** Helper function to show undo/redo notifications */
 	void ShowUndoRedoNotification(const FText& NotificationText, bool bSuccess);
 
-	/**	Broadcasts that the supplied objects have been replaced (map of old object to new object */
-	void BroadcastObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap) { ObjectsReplacedEvent.Broadcast(ReplacementMap); }
-
 	/** Internal helper functions */
 	virtual void PostUndo (bool bSuccess);
 
@@ -2776,9 +2773,6 @@ private:
 
 	/** Delegate broadcast when blueprint is reinstanced */
 	FBlueprintReinstanced BlueprintReinstanced;
-
-	/** Delegate broadcast when objects have been replaced (e.g on blueprint compile) */
-	FObjectsReplacedEvent ObjectsReplacedEvent;
 
 	/** Delegate broadcast when a package has been loaded or unloaded */
 	FClassPackageLoadedOrUnloadedEvent ClassPackageLoadedOrUnloadedEvent;

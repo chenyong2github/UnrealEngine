@@ -56,5 +56,6 @@ public:
 private:
 #if WITH_EDITOR
 	static void DestroyUnreachableEditorObjectElements();
+	static void OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacementObjects);
 #endif
 };

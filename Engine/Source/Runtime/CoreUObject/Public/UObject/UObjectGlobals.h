@@ -2315,6 +2315,11 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnObjectTransacted, UObject*, const class FTransactionObjectEvent&);
 	static FOnObjectTransacted OnObjectTransacted;
 
+	/** Called when UObjects have been replaced to allow others a chance to fix their references */
+	using FReplacementObjectMap = TMap<UObject*, UObject*>; // Alias for use in the macro
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectsReplaced, const FReplacementObjectMap&);
+	static FOnObjectsReplaced OnObjectsReplaced;
+
 	/** Callback for when an asset is saved. This is called from UObject::PreSave before it is actually written to disk, for every object saved */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectSaved, UObject*);
 	static FOnObjectSaved OnObjectSaved;
