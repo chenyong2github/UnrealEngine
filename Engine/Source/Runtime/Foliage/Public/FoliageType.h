@@ -99,10 +99,6 @@ struct FFoliageDensityFalloff
 
 	FOLIAGE_API bool IsInstanceFiltered(const FVector2D& Position, const FVector2D& Origin, float MaxDistance) const;
 	FOLIAGE_API float GetDensityFalloffValue(const FVector2D& Position, const FVector2D& Origin, float MaxDistance) const;
-
-private:
-
-	static int32 GetRandomSeedForPosition(const FVector2D& Position);
 };
 
 UCLASS(abstract, hidecategories = Object, editinlinenew, MinimalAPI, BlueprintType, Blueprintable)
@@ -215,6 +211,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Placement, meta=(ReapplyCondition="ReapplyAlignToNormal"))
 	uint32 AlignToNormal:1;
 
+	/**	Whether the normal should be averaged on a number of samples around the hit location */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Placement, meta=(ToolTip="Will average normal based on Foliage Type base radius (this as a cost as it will do extra line traces)"))
+	uint32 AverageNormal:1;
+
+	/** Average Normal should use all hit components or only the original hit component */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Placement, meta = (EditCondition = "AverageNormal", ToolTip = "Whether to discard normals originating from other hit components or not when averaging normals"))
+	uint32 AverageNormalSingleComponent:1;
+
 	/** The maximum angle in degrees that foliage instances will be adjusted away from the vertical */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Placement, meta=(UIMin = 0, ClampMin = 0, UIMax = 359, ClampMax = 359, HideBehind="AlignToNormal"))
 	float AlignMaxAngle;
@@ -261,6 +265,10 @@ public:
 	/* The foliage instance's collision bounding box will be scaled by the specified amount before performing the overlap check */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=Placement, meta=(HideBehind="CollisionWithWorld"))
 	FVector CollisionScale;
+		
+	/** Line trace count to use around hit location when averaging normal */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Placement, meta=(EditCondition="AverageNormal"))
+	int32 AverageNormalSampleCount;
 
 	UPROPERTY()
 	FBoxSphereBounds MeshBounds;
