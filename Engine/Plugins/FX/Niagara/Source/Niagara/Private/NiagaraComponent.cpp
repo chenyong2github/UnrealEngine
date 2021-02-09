@@ -830,7 +830,11 @@ void UNiagaraComponent::ResetSystem()
 
 void UNiagaraComponent::ReinitializeSystem()
 {
+	const bool bCachedAutoDestroy = bAutoDestroy;
+	bAutoDestroy = false;
 	DestroyInstance();
+	bAutoDestroy = bCachedAutoDestroy;
+
 	Activate(true);
 }
 
