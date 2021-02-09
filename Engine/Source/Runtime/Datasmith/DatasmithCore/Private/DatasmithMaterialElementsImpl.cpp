@@ -216,6 +216,49 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	Store.RegisterParameter( ShadingModel, "ShadingModel" );
 }
 
+FMD5Hash FDatasmithUEPbrMaterialElementImpl::CalculateElementHash(bool bForce)
+{
+	if (ElementHash.IsValid() && !bForce)
+	{
+		return ElementHash;
+	}
+
+	FMD5 MD5;
+	MD5.Update(reinterpret_cast<const uint8*>(&BlendMode), sizeof(BlendMode));
+	MD5.Update(reinterpret_cast<const uint8*>(&bTwoSided), sizeof(bTwoSided));
+	MD5.Update(reinterpret_cast<const uint8*>(&bUseMaterialAttributes), sizeof(bUseMaterialAttributes));
+	MD5.Update(reinterpret_cast<const uint8*>(&bMaterialFunctionOnly), sizeof(bMaterialFunctionOnly));
+	MD5.Update(reinterpret_cast<const uint8*>(&OpacityMaskClipValue), sizeof(OpacityMaskClipValue));
+	MD5.Update(reinterpret_cast<const uint8*>(&ShadingModel), sizeof(ShadingModel));
+
+	const FString& NativeParentLabel = ParentLabel.Get(Store);
+	if (!NativeParentLabel.IsEmpty())
+	{
+		MD5.Update(reinterpret_cast<const uint8*>(*NativeParentLabel), NativeParentLabel.Len() * sizeof(TCHAR));
+	}
+
+	TFunction<void(FDatasmithExpressionInputImpl&)> UpdateMD5 = [&](FDatasmithExpressionInputImpl& Input) -> void
+	{
+		const FMD5Hash& InputHashValue = Input.CalculateElementHash(bForce);
+		MD5.Update(InputHashValue.GetBytes(), InputHashValue.GetSize());
+	};
+
+	UpdateMD5(*BaseColor.Edit());
+	UpdateMD5(*Metallic.Edit());
+	UpdateMD5(*Specular.Edit());
+	UpdateMD5(*Roughness.Edit());
+	UpdateMD5(*EmissiveColor.Edit());
+	UpdateMD5(*Opacity.Edit());
+	UpdateMD5(*Normal.Edit());
+	UpdateMD5(*WorldDisplacement.Edit());
+	UpdateMD5(*Refraction.Edit());
+	UpdateMD5(*AmbientOcclusion.Edit());
+	UpdateMD5(*MaterialAttributes.Edit());
+
+	ElementHash.Set(MD5);
+	return ElementHash;
+}
+
 IDatasmithMaterialExpression* FDatasmithUEPbrMaterialElementImpl::GetExpression( int32 Index )
 {
 	return Expressions.IsValidIndex( Index ) ? Expressions[Index].Get() : nullptr;
