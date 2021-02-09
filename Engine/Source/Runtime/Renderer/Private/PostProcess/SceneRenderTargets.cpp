@@ -1601,6 +1601,12 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 
 void FSceneRenderTargets::AllocateShadingRateTexture(FRHICommandList& RHICmdList)
 {
+	// Only do any work if the RHI/Device supports VRS in some form.
+	if (!GRHISupportsVariableRateShading)		// TODO: Check if the stereo rendering device supports the shading rate image data type.
+	{
+		return;
+	}
+
 	const bool bStereo = GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
 	IStereoRenderTargetManager* const StereoRenderTargetManager = bStereo ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
 

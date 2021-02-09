@@ -168,6 +168,7 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	: OwningRHI(nullptr)
 	, bDepthBoundsTestSupported(false)
 	, bHeapNotZeroedSupported(false)
+	, VRSTileSize(0)
 	, bDebugDevice(false)
 	, GPUCrashDebuggingMode(ED3D12GPUCrashDebugginMode::Disabled)
 	, bDeviceRemoved(false)
@@ -431,6 +432,23 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		GRHISupportsWaveOperations = Features.WaveOps;
 		GRHIMinimumWaveSize = Features.WaveLaneCountMin;
 		GRHIMaximumWaveSize = Features.WaveLaneCountMax;
+	}
+
+	// Detect availability of Variable Rate Shading Tier 2 support, and gather metrics.
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS6 VrsOptions;
+		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, (void*)&VrsOptions, sizeof(VrsOptions))))
+		{
+			if (VrsOptions.VariableShadingRateTier == D3D12_VARIABLE_SHADING_RATE_TIER_2)
+			{
+				VRSTileSize = (uint32)VrsOptions.ShadingRateImageTileSize;
+				GRHISupportsVariableRateShading = true;
+			}
+			else
+			{
+				GRHISupportsVariableRateShading = false;
+			}
+		}
 	}
 
 #if ENABLE_RESIDENCY_MANAGEMENT

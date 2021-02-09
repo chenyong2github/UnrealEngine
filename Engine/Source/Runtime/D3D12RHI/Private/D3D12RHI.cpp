@@ -469,6 +469,24 @@ void FD3D12DynamicRHI::GetBestSupportedMSAASetting(DXGI_FORMAT PlatformFormat, u
 	return;
 }
 
+EVariableRateShadingImageDataType FD3D12DynamicRHI::RHIGetVariableRateShadingImageDataType()
+{
+	// D3D12 only supports the "palette" type image.
+	return GRHISupportsVariableRateShading ? VRSImage_Palette : VRSImage_NotSupported;
+}
+
+EPixelFormat FD3D12DynamicRHI::RHIGetVariableRateShadingImageFormat()
+{
+	// D3D12 shading rate images are single channel.
+	return GRHISupportsVariableRateShading ? PF_R8 : PF_Unknown;
+}
+
+void FD3D12DynamicRHI::RHIGetVariableRateShadingImageTileSize(uint32& OutWidth, uint32& OutHeight)
+{
+	// In D3D12, the tiles are always square.
+	OutWidth = OutHeight = GetAdapter().GetVRSTileSize();
+}
+
 uint32 FD3D12DynamicRHI::GetDebugFlags()
 {
 	return GetAdapter().GetDebugFlags();

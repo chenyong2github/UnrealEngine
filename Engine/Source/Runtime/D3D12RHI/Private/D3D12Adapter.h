@@ -180,6 +180,8 @@ public:
 		return Devices[GPUIndex];
 	}
 
+	FORCEINLINE uint32 GetVRSTileSize() const { return VRSTileSize; }
+
 	void CreateDXGIFactory(bool bWithDebug);
 	FORCEINLINE IDXGIFactory* GetDXGIFactory() const { return DxgiFactory; }
 	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
@@ -353,6 +355,8 @@ protected:
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
 	bool bDepthBoundsTestSupported;
 	bool bHeapNotZeroedSupported;
+
+	uint32 VRSTileSize;
 
 	/** Running with debug device */
 	bool bDebugDevice;

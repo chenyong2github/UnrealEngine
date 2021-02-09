@@ -431,6 +431,12 @@ extern RHI_API TRHIGlobal<int32> GMaxVolumeTextureDimensions;
 /** Whether RW texture buffers are supported */
 extern RHI_API bool GRHISupportsRWTextureBuffers;
 
+/** Whether Variable Rate Shading or equivalent is supported. */
+extern RHI_API bool GRHISupportsVRS;
+
+/** Whether Variable Rate Shading deferred shading rate texture update is supported. */
+extern RHI_API bool GRHISupportsLateVRSUpdate;
+
 FORCEINLINE uint64 GetMaxBufferDimension()
 {
 	return GMaxBufferDimensions;

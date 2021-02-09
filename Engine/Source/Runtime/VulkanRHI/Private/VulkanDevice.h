@@ -45,6 +45,8 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasMemoryBudget : 1;
 			uint32 HasDriverProperties : 1;
 			uint32 HasEXTFragmentDensityMap : 1;
+			uint32 HasEXTFragmentDensityMap2 : 1;
+			uint32 HasNVShadingRateImage : 1;
 			uint32 HasEXTFullscreenExclusive : 1;
 			uint32 HasKHRImageFormatList : 1;
 			uint32 HasEXTASTCDecodeMode : 1;
@@ -212,6 +214,27 @@ public:
 		return GpuProps;
 	}
 
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+	inline const VkPhysicalDeviceFragmentDensityMapFeaturesEXT& GetFragmentDensityMapFeatures() const
+	{
+		return FragmentDensityMapFeatures;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
+	inline const VkPhysicalDeviceFragmentDensityMap2FeaturesEXT& GetFragmentDensityMap2Features() const
+	{
+		return FragmentDensityMap2Features;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	inline const VkPhysicalDeviceShadingRateImageFeaturesNV& GetShadingRateImageFeaturesNV() const
+	{
+		return ShadingRateImageFeaturesNV;
+	}
+#endif
+
 	inline const VkPhysicalDeviceLimits& GetLimits() const
 	{
 		return GpuProps.limits;
@@ -256,6 +279,21 @@ public:
 	bool IsBufferFormatSupported(VkFormat Format) const;
 
 	const VkComponentMapping& GetFormatComponentMapping(EPixelFormat UEFormat) const;
+
+	inline uint32 GetVRSTileWidth() const
+	{
+		return VRSTileWidth;
+	}
+
+	inline uint32 GetVRSTileHeight() const
+	{
+		return VRSTileHeight;
+	}
+
+	inline EVariableRateShadingImageDataType GetVRSImageDataType()
+	{
+		return VRSImageDataType;
+	}
 
 	inline VkDevice GetInstanceHandle() const
 	{
@@ -453,6 +491,18 @@ private:
 
 	VkPhysicalDevice Gpu;
 	VkPhysicalDeviceProperties GpuProps;
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+	VkPhysicalDeviceFragmentDensityMapFeaturesEXT FragmentDensityMapFeatures;
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
+	VkPhysicalDeviceFragmentDensityMap2FeaturesEXT FragmentDensityMap2Features;
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	VkPhysicalDeviceShadingRateImageFeaturesNV ShadingRateImageFeaturesNV;
+#endif
+
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
 #endif
@@ -478,6 +528,10 @@ private:
 	bool bPresentOnComputeQueue = false;
 
 	EGpuVendorId VendorId = EGpuVendorId::NotQueried;
+
+	uint32 VRSTileWidth;
+	uint32 VRSTileHeight;
+	EVariableRateShadingImageDataType VRSImageDataType;
 
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 	struct
