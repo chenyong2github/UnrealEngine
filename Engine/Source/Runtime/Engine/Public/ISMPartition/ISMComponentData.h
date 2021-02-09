@@ -5,6 +5,8 @@
 #include "Engine/EngineTypes.h"
 #include "ISMComponentData.generated.h"
 
+class UInstancedStaticMeshComponent;
+
 /** Represents one component instance with a mapping back to the Client instance. The should be a 1 to 1 relationship between those and the actual Component instances. (equal count) */
 USTRUCT()
 struct FISMComponentInstance

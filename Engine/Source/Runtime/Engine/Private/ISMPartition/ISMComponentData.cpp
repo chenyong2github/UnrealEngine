@@ -3,6 +3,7 @@
 #include "ISMPartition/ISMComponentData.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 
 FISMComponentData::FISMComponentData()
 #if WITH_EDITORONLY_DATA

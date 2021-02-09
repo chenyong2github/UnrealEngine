@@ -104,7 +104,7 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 	BodyInstance.GetCollisionEnabled() == Other.BodyInstance.GetCollisionEnabled() && 
 	BodyInstance.GetCollisionResponse() == Other.BodyInstance.GetCollisionResponse() &&
 	BodyInstance.DoesUseCollisionProfile() == Other.BodyInstance.DoesUseCollisionProfile() &&
-	(!BodyInstance.DoesUseCollisionProfile() || (BodyInstance.GetCollisionProfileName() == BodyInstance.GetCollisionProfileName()));
+	(!BodyInstance.DoesUseCollisionProfile() || (BodyInstance.GetCollisionProfileName() == Other.BodyInstance.GetCollisionProfileName()));
 }
 
 uint32 FISMComponentDescriptor::ComputeHash() const
