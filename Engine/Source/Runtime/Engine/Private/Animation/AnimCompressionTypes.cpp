@@ -160,13 +160,14 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	};
 
 	// Verify bone track names and data, removing any bone that does not exist on the skeleton
+    // And for additive animations remove any track deemed not to add any additive animation (identity rotation and zero-vector translation and scale)
 	// Note on (TrackIndex > 0) below : deliberately stop before track 0, compression code doesn't like getting a completely empty animation
 	for (int32 TrackIndex = RawAnimationData.Num() - 1; TrackIndex > 0; --TrackIndex)
 	{
 		const FRawAnimSequenceTrack& Track = RawAnimationData[TrackIndex];
 		// Try find correct bone index
 		const int32 BoneIndex = RefSkeleton.FindBoneIndex(TempTrackNames[TrackIndex]);
-		if (IsRawTrackValidForRemoval(Track) || (BoneIndex == INDEX_NONE && !bBakeAdditive))
+		if ((bBakeAdditive && IsRawTrackValidForRemoval(Track)) || BoneIndex == INDEX_NONE)
 		{
 			RawAnimationData.RemoveAtSwap(TrackIndex, 1, false);
 			TempTrackNames.RemoveAtSwap(TrackIndex, 1, false);
