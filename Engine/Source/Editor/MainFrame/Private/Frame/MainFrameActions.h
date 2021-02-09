@@ -9,7 +9,7 @@
 #include "Framework/Commands/Commands.h"
 
 class FUICommandList;
-
+struct FRecentProjectFile;
 
 /**
  * Unreal editor main frame actions
@@ -234,7 +234,7 @@ public:
 public:
 
 	// List of projects that the user can switch to.
-	static TArray<FString> ProjectNames;
+	static TArray<FRecentProjectFile> RecentProjects;
 
 protected:
 

@@ -34,8 +34,8 @@ struct FProjectInformation
 	TOptional<bool> bEnableXR;
 	TOptional<bool> bEnableRaytracing;
 
-	TOptional<EHardwareClass::Type> TargetedHardware;
-	TOptional<EGraphicsPreset::Type> DefaultGraphicsPerformance;
+	TOptional<EHardwareClass> TargetedHardware;
+	TOptional<EGraphicsPreset> DefaultGraphicsPerformance;
 
 	/** The name of the feature pack to use as starter content. Must be located under FeaturePacks\. */
 	FString StarterContent;

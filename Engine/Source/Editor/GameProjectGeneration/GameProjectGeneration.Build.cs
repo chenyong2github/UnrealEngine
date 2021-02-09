@@ -40,6 +40,7 @@ public class GameProjectGeneration : ModuleRules
 				"Slate",
 				"SlateCore",
 				"EditorStyle",
+				"EditorWidgets",
 				"SourceControl",
  				"TargetPlatform",
 				"EditorFramework",

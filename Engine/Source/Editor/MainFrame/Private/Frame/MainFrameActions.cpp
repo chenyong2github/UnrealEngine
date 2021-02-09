@@ -298,14 +298,12 @@ void FMainFrameActionCallbacks::SaveAll()
 	FEditorFileUtils::SaveDirtyPackages( bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined );
 }
 
-TArray<FString> FMainFrameActionCallbacks::ProjectNames;
+TArray<FRecentProjectFile> FMainFrameActionCallbacks::RecentProjects;
 
 void FMainFrameActionCallbacks::CacheProjectNames()
 {
-	ProjectNames.Empty();
-
 	// The switch project menu is filled with recently opened project files
-	ProjectNames = GetDefault<UEditorSettings>()->RecentlyOpenedProjectFiles;
+	RecentProjects = GetDefault<UEditorSettings>()->RecentlyOpenedProjectFiles;
 }
 
 void FMainFrameActionCallbacks::NewProject( bool bAllowProjectOpening, bool bAllowProjectCreate )
@@ -435,17 +433,17 @@ void FMainFrameActionCallbacks::ZipUpProject()
 //	FModuleManager::LoadModuleChecked<ILocalizationDashboardModule>("LocalizationDashboard").Show();
 //}
 
-void FMainFrameActionCallbacks::SwitchProjectByIndex( int32 ProjectIndex )
+void FMainFrameActionCallbacks::SwitchProjectByIndex(int32 ProjectIndex)
 {
-	FUnrealEdMisc::Get().SwitchProject( ProjectNames[ ProjectIndex ] );
+	FUnrealEdMisc::Get().SwitchProject(RecentProjects[ProjectIndex].ProjectName);
 }
 
 void FMainFrameActionCallbacks::SwitchProject(const FString& GameOrProjectFileName)
 {
-	FUnrealEdMisc::Get().SwitchProject( GameOrProjectFileName );
+	FUnrealEdMisc::Get().SwitchProject(GameOrProjectFileName);
 }
 
-void FMainFrameActionCallbacks::OpenBackupDirectory( FString BackupFile )
+void FMainFrameActionCallbacks::OpenBackupDirectory(FString BackupFile)
 {
 	FPlatformProcess::LaunchFileInDefaultExternalApplication(*FPaths::GetPath(FPaths::ConvertRelativePathToFull(BackupFile)));
 }
@@ -486,12 +484,12 @@ bool FMainFrameActionCallbacks::FullScreen_IsChecked()
 
 bool FMainFrameActionCallbacks::CanSwitchToProject( int32 InProjectIndex )
 {
-	if (FApp::HasProjectName() && ProjectNames[InProjectIndex].StartsWith(FApp::GetProjectName()))
+	if (FApp::HasProjectName() && RecentProjects[InProjectIndex].ProjectName.StartsWith(FApp::GetProjectName()))
 	{
 		return false;
 	}
 
-	if ( FPaths::IsProjectFilePathSet() && ProjectNames[ InProjectIndex ] == FPaths::GetProjectFilePath() )
+	if (FPaths::IsProjectFilePathSet() && RecentProjects[InProjectIndex].ProjectName == FPaths::GetProjectFilePath())
 	{
 		return false;
 	}

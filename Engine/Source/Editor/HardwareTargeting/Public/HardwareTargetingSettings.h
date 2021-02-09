@@ -9,37 +9,31 @@
 
 /** Enum specifying a class of hardware */
 UENUM()
-namespace EHardwareClass
+enum class EHardwareClass : uint8
 {
-	enum Type
-	{
-		/** Unspecified, meaning no choice has been made yet */
-		Unspecified,
+	/** Unspecified, meaning no choice has been made yet */
+	Unspecified UMETA(Hidden),
 
-		/** Desktop or console */
-		Desktop,
-		
-		/** Mobile or tablet */
-		Mobile
-	};
-}
+	/** Desktop or console */
+	Desktop,
+
+	/** Mobile or tablet */
+	Mobile
+};
 
 /** Enum specifying a graphics preset preference */
 UENUM()
-namespace EGraphicsPreset
+enum class EGraphicsPreset : uint8
 {
-	enum Type
-	{
-		/** Unspecified, meaning no choice has been made yet */
-		Unspecified,
+	/** Unspecified, meaning no choice has been made yet */
+	Unspecified UMETA(Hidden),
 
-		/** Maximum quality - High-end features default to enabled */
-		Maximum,
-		
-		/** Scalable quality - Some features are disabled by default but can be enabled based on the actual hardware */
-		Scalable
-	};
-}
+	/** Maximum quality - High-end features default to enabled */
+	Maximum,
+
+	/** Scalable quality - Some features are disabled by default but can be enabled based on the actual hardware */
+	Scalable
+};
 
 /** Hardware targeting settings, stored in default config, per-project */
 UCLASS(config=Engine, defaultconfig)
@@ -49,19 +43,19 @@ class HARDWARETARGETING_API UHardwareTargetingSettings : public UObject
 
 	/** Enum specifying which class of hardware this game is targeting */
 	UPROPERTY(config, EditAnywhere, category=None)
-	TEnumAsByte<EHardwareClass::Type> TargetedHardwareClass;
+	EHardwareClass TargetedHardwareClass;
 	
 	/** Enum that is set to TargetedHardwareClass when the settings have been successfully applied */
 	UPROPERTY(config)
-	TEnumAsByte<EHardwareClass::Type> AppliedTargetedHardwareClass;
+	EHardwareClass AppliedTargetedHardwareClass;
 
 	/** Enum specifying a graphics preset to use for this game */
 	UPROPERTY(config, EditAnywhere, category=None)
-	TEnumAsByte<EGraphicsPreset::Type> DefaultGraphicsPerformance;
+	EGraphicsPreset DefaultGraphicsPerformance;
 
 	/** Enum that is set to DefaultGraphicsPerformance when the settings have been successfully applied */
 	UPROPERTY(config)
-	TEnumAsByte<EGraphicsPreset::Type> AppliedDefaultGraphicsPerformance;
+	EGraphicsPreset AppliedDefaultGraphicsPerformance;
 
 	/** Check if these settings have any pending changes that require action */
 	bool HasPendingChanges() const;

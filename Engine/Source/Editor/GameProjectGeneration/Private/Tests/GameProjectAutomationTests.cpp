@@ -15,7 +15,7 @@
 #include "ProjectDescriptor.h"
 #include "Editor/AddContentDialog/Private/IContentSource.h"
 #include "GameProjectUtils.h"
-#include "Editor/GameProjectGeneration/Private/SNewProjectWizard.h"
+#include "Editor/GameProjectGeneration/Private/SProjectDialog.h"
 
 #include "DesktopPlatformModule.h"
 #include "Tests/AutomationTestSettings.h"
@@ -78,7 +78,7 @@ namespace GameProjectAutomationUtils
 	 * @param	OutMatchedProjects	Total projects matching criteria
 	 * @param	OutCreatedProjects	Total projects succesfully created
 	 */
-	static void CreateProjectSet(TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& InTemplates, EHardwareClass::Type InTargetedHardware, EGraphicsPreset::Type InGraphicPreset, FName InCategory, bool bInCopyStarterContent, int32 &OutCreatedProjects, int32 &OutMatchedProjects)
+	static void CreateProjectSet(TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& InTemplates, EHardwareClass InTargetedHardware, EGraphicsPreset InGraphicPreset, FName InCategory, bool bInCopyStarterContent, int32 &OutCreatedProjects, int32 &OutMatchedProjects)
 	{		
 		// If this is empty, it will use the same name for each project, otherwise it will create a project based on target platform and source template
 		FString TestRootFolder;// = "ProjectTests";
@@ -329,10 +329,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreateBPTemplateProjectAutomationTests, "Syste
  */
 bool FCreateBPTemplateProjectAutomationTests::RunTest(const FString& Parameters)
 {
-	TSharedPtr<SNewProjectWizard> NewProjectWizard;
-	NewProjectWizard = SNew(SNewProjectWizard);
-	
-	TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& Templates = NewProjectWizard->FindTemplateProjects();
+	TMap<FName, TArray<TSharedPtr<FTemplateItem>> > Templates = SProjectDialog::FindTemplateProjects();
 	int32 OutMatchedProjectsDesk = 0;
 	int32 OutCreatedProjectsDesk = 0;
 	GameProjectAutomationUtils::CreateProjectSet(Templates, EHardwareClass::Desktop, EGraphicsPreset::Maximum, "Game", false, OutMatchedProjectsDesk, OutCreatedProjectsDesk);
@@ -357,10 +354,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreateCPPTemplateProjectAutomationTests, "Syst
  */
 bool FCreateCPPTemplateProjectAutomationTests::RunTest(const FString& Parameters)
 {
-	TSharedPtr<SNewProjectWizard> NewProjectWizard;
-	NewProjectWizard = SNew(SNewProjectWizard);
-	//return ;
-	TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& Templates = NewProjectWizard->FindTemplateProjects();//GameProjectAutomationUtils::CreateTemplateList();
+	TMap<FName, TArray<TSharedPtr<FTemplateItem>> > Templates = SProjectDialog::FindTemplateProjects();
+
 	int32 OutMatchedProjectsDesk = 0;
 	int32 OutCreatedProjectsDesk = 0;
 	GameProjectAutomationUtils::CreateProjectSet(Templates, EHardwareClass::Desktop, EGraphicsPreset::Maximum, "Game", false, OutMatchedProjectsDesk, OutCreatedProjectsDesk);

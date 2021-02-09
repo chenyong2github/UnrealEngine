@@ -19,6 +19,7 @@ class SGetSuggestedIDEWidget : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SGetSuggestedIDEWidget)
 	{}
+		SLATE_ATTRIBUTE(EVisibility, VisibilityOverride)
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
@@ -26,13 +27,13 @@ public:
 	
 private:
 	/** Creates the appropriate widget to display for the platform */
-	TSharedRef<SWidget> CreateGetSuggestedIDEWidget() const;
+	TSharedRef<SWidget> CreateGetSuggestedIDEWidget();
 
 	/** Gets the visibility of the global error label IDE Link */
 	EVisibility GetVisibility() const;
 
 	/** Handler for when the error label IDE hyperlink was clicked */
-	void OnDownloadIDEClicked(FString URL);
+	FReply OnDownloadIDEClicked(FString URL);
 
 	/** Handler for when the install IDE button was clicked */
 	FReply OnInstallIDEClicked();

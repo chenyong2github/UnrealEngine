@@ -10,6 +10,40 @@
 #include "Engine/EngineTypes.h"
 #include "EditorSettings.generated.h"
 
+
+USTRUCT()
+struct FRecentProjectFile
+{
+	GENERATED_BODY()
+
+	/** Path to the project */
+	UPROPERTY(config)
+	FString ProjectName;
+
+	/** Timestamp of the last time the editor opened this project */
+	UPROPERTY(config)
+	FDateTime LastOpenTime;
+
+	FRecentProjectFile()
+	{}
+
+	FRecentProjectFile(const FString& InProjectName, FDateTime InLastOpenTime)
+		: ProjectName(InProjectName)
+		, LastOpenTime(InLastOpenTime)
+	{}
+
+	bool operator==(const FRecentProjectFile& Other) const
+	{
+		return ProjectName == Other.ProjectName;
+	}
+
+	bool operator==(const FString& OtherProjectName) const
+	{
+		return ProjectName == OtherProjectName;
+	}
+};
+
+
 UCLASS(config=EditorSettings)
 class UNREALED_API UEditorSettings : public UObject
 {
@@ -41,7 +75,7 @@ class UNREALED_API UEditorSettings : public UObject
 
 	/** Game project files that were recently opened in the editor */
 	UPROPERTY(config)
-	TArray<FString> RecentlyOpenedProjectFiles;
+	TArray<FRecentProjectFile> RecentlyOpenedProjectFiles;
 
 	/** The paths of projects created with the new project wizard. This is used to populate the "Path" field of the new project dialog. */
 	UPROPERTY(config)

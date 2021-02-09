@@ -295,7 +295,10 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Icons.Download", new IMAGE_BRUSH("Icons/icon_Downloads_16x", Icon16x16));
 
 		Style->Set("Icons.Error", new IMAGE_BRUSH_SVG("Starship/Common/alert-circle", Icon16x16));
+		Style->Set("Icons.ErrorWithColor", new IMAGE_BRUSH_SVG("Starship/Common/alert-circle", Icon16x16, FStyleColors::Error));
+
 		Style->Set("Icons.Warning", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16));
+		Style->Set("Icons.WarningWithColor", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16, FStyleColors::Warning));
 
 		Style->Set("Icons.box-perspective", new IMAGE_BRUSH_SVG("Starship/Common/box-perspective", Icon16x16));
 		Style->Set("Icons.cylinder", new IMAGE_BRUSH_SVG("Starship/Common/cylinder", Icon16x16));
@@ -351,6 +354,9 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Icons.Hidden", new IMAGE_BRUSH_SVG("Starship/Common/hidden", Icon16x16));
 
 		Style->Set("Icons.DragHandle", new IMAGE_BRUSH_SVG("Starship/Common/drag-handle", Icon16x16));
+
+		Style->Set("Icons.Refresh", new IMAGE_BRUSH_SVG("Starship/Common/refresh", Icon16x16));
+
 
 	}
 
@@ -1114,6 +1120,7 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 		Style->Set("SimpleButton", SimpleButton);
 		Style->Set("SecondaryButton", SecondaryButton);
 
+
 		Style->Set("DialogButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().NormalBold).SetTransformPolicy(ETextTransformPolicy::ToUpper));
 
 
@@ -1121,6 +1128,21 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 		AddFont.LetterSpacing = 200;
 
 		Style->Set("SmallButtonText", FTextBlockStyle(NormalText).SetFont(AddFont).SetTransformPolicy(ETextTransformPolicy::ToUpper));
+
+		// A button that only responds to clicks and displays nothing
+		const FButtonStyle InvisibleButton = FButtonStyle()
+			.SetNormal(FSlateNoResource())
+			.SetHovered(FSlateNoResource())
+			.SetPressed(FSlateNoResource())
+			.SetDisabled(FSlateNoResource())
+			.SetNormalForeground(FLinearColor::White)
+			.SetHoveredForeground(FLinearColor::White)
+			.SetPressedForeground(FLinearColor::White)
+			.SetDisabledForeground(FLinearColor::White)
+			.SetNormalPadding(FMargin(0))
+			.SetPressedPadding(FMargin(0));
+
+		Style->Set("InvisibleButton", InvisibleButton);
 	}
 }
 

@@ -7,6 +7,7 @@
 #include "ToolMenus.h"
 #include "Frame/MainFrameActions.h"
 #include "HAL/FileManager.h"
+#include "Settings/EditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "FRecentProjectsMenu"
 
@@ -24,10 +25,10 @@ public:
 	 */
 	static void MakeMenu( UToolMenu* Menu )
 	{
-		for ( int32 ProjectIndex = 0; ProjectIndex < FMainFrameActionCallbacks::ProjectNames.Num() && ProjectIndex < FMainFrameCommands::Get().SwitchProjectCommands.Num(); ++ProjectIndex )
+		for ( int32 ProjectIndex = 0; ProjectIndex < FMainFrameActionCallbacks::RecentProjects.Num() && ProjectIndex < FMainFrameCommands::Get().SwitchProjectCommands.Num(); ++ProjectIndex )
 		{
 			// If it is a project file, display the filename without extension. Otherwise just display the project name.
-			const FString& ProjectName = FMainFrameActionCallbacks::ProjectNames[ ProjectIndex ];
+			const FString& ProjectName = FMainFrameActionCallbacks::RecentProjects[ ProjectIndex ].ProjectName;
 
 			if (( IFileManager::Get().FileSize(*ProjectName) <= 0 ) ||
 				( FPaths::GetProjectFilePath() == ProjectName ))

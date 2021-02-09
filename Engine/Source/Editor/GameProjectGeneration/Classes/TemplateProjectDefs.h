@@ -129,6 +129,10 @@ public:
 	UPROPERTY(config)
 	bool bIsBlank;
 
+	/** Is there a rendered thumbnail that should be treated as the project template icon. If this is true the thumbnail takes up the full tile size rather than a 64x64 icon */
+	UPROPERTY(config)
+	bool bThumbnailAsIcon;
+
 	/* Optional list of settings to hide. If none are specified, then all settings are shown. */
 	UPROPERTY(config)
 	TArray<ETemplateSetting> HiddenSettings;
@@ -193,13 +197,9 @@ struct FTemplateCategoryDef
 	UPROPERTY()
 	TArray<FLocalizedTemplateString> LocalizedDescriptions;
 
-	/** Reference to an icon to display for this category. Should be around 128x128. */
+	/** Reference to an icon to display for this category. Should be around 300x100. */
 	UPROPERTY()
 	FString Icon;
-
-	/** Is this a major top-level category? Major categories are displayed as full rows, eg. the Game category.*/
-	UPROPERTY()
-	bool IsMajorCategory;
 };
 
 UCLASS(config=TemplateCategories)

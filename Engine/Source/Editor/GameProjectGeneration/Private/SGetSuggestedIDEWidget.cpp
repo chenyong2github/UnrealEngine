@@ -18,7 +18,7 @@ TSharedPtr<SNotificationItem> SGetSuggestedIDEWidget::IDEDownloadNotification;
 
 void SGetSuggestedIDEWidget::Construct(const FArguments& InArgs)
 {
-	Visibility = TAttribute<EVisibility>(this, &SGetSuggestedIDEWidget::GetVisibility);
+	Visibility = InArgs._VisibilityOverride.IsSet() ? InArgs._VisibilityOverride : TAttribute<EVisibility>(this, &SGetSuggestedIDEWidget::GetVisibility);
 
 	ChildSlot
 	[
@@ -26,21 +26,30 @@ void SGetSuggestedIDEWidget::Construct(const FArguments& InArgs)
 	];
 }
 
-TSharedRef<SWidget> SGetSuggestedIDEWidget::CreateGetSuggestedIDEWidget() const
+TSharedRef<SWidget> SGetSuggestedIDEWidget::CreateGetSuggestedIDEWidget()
 {
 	if (FSourceCodeNavigation::GetCanDirectlyInstallSourceCodeIDE())
 	{
 		// If the installer for this platform's IDE can be downloaded and launched directly, show a button
-		return SNew(SButton)
+		return			
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(FText::Format(LOCTEXT("IDEInstallButtonText", "Install {0}"), FSourceCodeNavigation::GetSuggestedSourceCodeIDE()))
-			.OnClicked(const_cast<SGetSuggestedIDEWidget*>(this), &SGetSuggestedIDEWidget::OnInstallIDEClicked);
+			.OnClicked(this, &SGetSuggestedIDEWidget::OnInstallIDEClicked);
 	}
 	else
 	{
-		// If the user must open a web page, show a link
-		return SNew(SHyperlink)
+		return	
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(FText::Format(LOCTEXT("IDEDownloadLinkText", "Download {0}"), FSourceCodeNavigation::GetSuggestedSourceCodeIDE()))
-			.OnNavigate(const_cast<SGetSuggestedIDEWidget*>(this), &SGetSuggestedIDEWidget::OnDownloadIDEClicked, FSourceCodeNavigation::GetSuggestedSourceCodeIDEDownloadURL());
+			.OnClicked(this, &SGetSuggestedIDEWidget::OnDownloadIDEClicked, FSourceCodeNavigation::GetSuggestedSourceCodeIDEDownloadURL());
 	}
 }
 
@@ -49,9 +58,11 @@ EVisibility SGetSuggestedIDEWidget::GetVisibility() const
 	return FSourceCodeNavigation::IsCompilerAvailable() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
-void SGetSuggestedIDEWidget::OnDownloadIDEClicked(FString URL)
+FReply SGetSuggestedIDEWidget::OnDownloadIDEClicked(FString URL)
 {
 	FPlatformProcess::LaunchURL(*URL, NULL, NULL);
+
+	return FReply::Handled();
 }
 
 FReply SGetSuggestedIDEWidget::OnInstallIDEClicked()

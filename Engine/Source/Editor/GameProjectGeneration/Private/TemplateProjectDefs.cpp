@@ -60,6 +60,7 @@ UTemplateProjectDefs::UTemplateProjectDefs(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	bAllowProjectCreation = true;
+	bThumbnailAsIcon = false;
 	EditDetailLevelPreference = EFeaturePackDetailLevel::Standard;
 }
 

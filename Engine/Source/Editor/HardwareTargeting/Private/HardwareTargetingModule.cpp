@@ -11,13 +11,13 @@
 #include "EditorStyleSet.h"
 #include "ISettingsModule.h"
 #include "Widgets/SWidget.h"
-#include "SDecoratedEnumCombo.h"
 
 #include "Engine/RendererSettings.h"
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
 #include "Settings/EditorProjectSettings.h"
 #include "SlateSettings.h"
+#include "SEnumCombo.h"
 
 #define LOCTEXT_NAMESPACE "HardwareTargeting"
 
@@ -148,8 +148,8 @@ public:
 	// IHardwareTargetingModule interface
 	virtual void ApplyHardwareTargetingSettings() override;
 	virtual TArray<FModifiedDefaultConfig> GetPendingSettingsChanges() override;
-	virtual TSharedRef<SWidget> MakeHardwareClassTargetCombo(FOnHardwareClassChanged OnChanged, TAttribute<EHardwareClass::Type> SelectedEnum, EOrientation Orientation) override;
-	virtual TSharedRef<SWidget> MakeGraphicsPresetTargetCombo(FOnGraphicsPresetChanged OnChanged, TAttribute<EGraphicsPreset::Type> SelectedEnum, EOrientation Orientation) override;
+	virtual TSharedRef<SWidget> MakeHardwareClassTargetCombo(FOnHardwareClassChanged OnChanged, TAttribute<EHardwareClass> SelectedEnum) override;
+	virtual TSharedRef<SWidget> MakeGraphicsPresetTargetCombo(FOnGraphicsPresetChanged OnChanged, TAttribute<EGraphicsPreset> SelectedEnum) override;
 	// End of IHardwareTargetingModule interface
 
 private:
@@ -277,38 +277,31 @@ void FHardwareTargetingModule::ApplyHardwareTargetingSettings()
 	}
 }
 
-TSharedRef<SWidget> FHardwareTargetingModule::MakeHardwareClassTargetCombo(FOnHardwareClassChanged OnChanged, TAttribute<EHardwareClass::Type> SelectedEnum, EOrientation Orientation)
+TSharedRef<SWidget> FHardwareTargetingModule::MakeHardwareClassTargetCombo(FOnHardwareClassChanged OnChanged, TAttribute<EHardwareClass> SelectedEnum)
 {
-	TArray<SDecoratedEnumCombo<EHardwareClass::Type>::FComboOption> HardwareClassInfo;
-	HardwareClassInfo.Add(SDecoratedEnumCombo<EHardwareClass::Type>::FComboOption(
-		EHardwareClass::Unspecified, FSlateIcon(FEditorStyle::GetStyleSetName(), "HardwareTargeting.HardwareUnspecified"), LOCTEXT("UnspecifiedCaption", "Unspecified"), false));
-	HardwareClassInfo.Add(SDecoratedEnumCombo<EHardwareClass::Type>::FComboOption(
-		EHardwareClass::Desktop, FSlateIcon(FEditorStyle::GetStyleSetName(), "HardwareTargeting.DesktopPlatform"), LOCTEXT("DesktopCaption", "Desktop / Console")));
-	HardwareClassInfo.Add(SDecoratedEnumCombo<EHardwareClass::Type>::FComboOption(
-		EHardwareClass::Mobile, FSlateIcon(FEditorStyle::GetStyleSetName(), "HardwareTargeting.MobilePlatform"), LOCTEXT("MobileCaption", "Mobile / Tablet")));
+	const UEnum* HardwareClassEnum = StaticEnum<EHardwareClass>();
 
-	return SNew(SDecoratedEnumCombo<EHardwareClass::Type>, MoveTemp(HardwareClassInfo))
-		.SelectedEnum(SelectedEnum)
-		.OnEnumChanged(OnChanged)
-		.Orientation(Orientation)
-		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("HardwareClassTooltip", "Choose the overall class of hardware to target (desktop/console or mobile/tablet)."), NULL, TEXT("Shared/Editor/Settings/TargetHardware"), TEXT("HardwareClass")));
+	return
+		SNew(SEnumComboBox, HardwareClassEnum)
+		.ContentPadding(FMargin(4.0f, 0.0f))
+		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("HardwareClassTooltip", "Choose the overall class of hardware to target (desktop/console or mobile/tablet)."), NULL, TEXT("Shared/Editor/Settings/TargetHardware"), TEXT("HardwareClass")))
+		.OnEnumSelectionChanged_Lambda([OnChanged](int32 NewSelection, ESelectInfo::Type) { OnChanged.ExecuteIfBound(static_cast<EHardwareClass>(NewSelection)); })
+		.CurrentValue_Lambda([SelectedEnum]() { return static_cast<int32>(SelectedEnum.Get()); });
+
+
+		
 }
 
-TSharedRef<SWidget> FHardwareTargetingModule::MakeGraphicsPresetTargetCombo(FOnGraphicsPresetChanged OnChanged, TAttribute<EGraphicsPreset::Type> SelectedEnum, EOrientation Orientation)
+TSharedRef<SWidget> FHardwareTargetingModule::MakeGraphicsPresetTargetCombo(FOnGraphicsPresetChanged OnChanged, TAttribute<EGraphicsPreset> SelectedEnum)
 {
-	TArray<SDecoratedEnumCombo<EGraphicsPreset::Type>::FComboOption> GraphicsPresetInfo;
-	GraphicsPresetInfo.Add(SDecoratedEnumCombo<EGraphicsPreset::Type>::FComboOption(
-		EGraphicsPreset::Unspecified, FSlateIcon(FEditorStyle::GetStyleSetName(), "HardwareTargeting.GraphicsUnspecified"), LOCTEXT("UnspecifiedCaption", "Unspecified"), false));
-	GraphicsPresetInfo.Add(SDecoratedEnumCombo<EGraphicsPreset::Type>::FComboOption(
-		EGraphicsPreset::Maximum, FSlateIcon(FEditorStyle::GetStyleSetName(), "HardwareTargeting.MaximumQuality"), LOCTEXT("MaximumCaption", "Maximum Quality")));
-	GraphicsPresetInfo.Add(SDecoratedEnumCombo<EGraphicsPreset::Type>::FComboOption(
-		EGraphicsPreset::Scalable, FSlateIcon(FEditorStyle::GetStyleSetName(), "HardwareTargeting.ScalableQuality"), LOCTEXT("ScalableCaption", "Scalable 3D or 2D")));
-
-	return SNew(SDecoratedEnumCombo<EGraphicsPreset::Type>, MoveTemp(GraphicsPresetInfo))
-		.SelectedEnum(SelectedEnum)
-		.OnEnumChanged(OnChanged)
-		.Orientation(Orientation)
-		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("GraphicsPresetTooltip", "Choose the graphical level to target (high-end only or scalable from low-end on up)."), NULL, TEXT("Shared/Editor/Settings/TargetHardware"), TEXT("GraphicalLevel")));
+	const UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset>();
+	
+	return
+		SNew(SEnumComboBox, GraphicsPresetEnum)
+		.ContentPadding(FMargin(4.0f, 0.0f))
+		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("GraphicsPresetTooltip", "Choose the graphical level to target (high-end only or scalable from low-end on up)."), NULL, TEXT("Shared/Editor/Settings/TargetHardware"), TEXT("GraphicalLevel")))
+		.OnEnumSelectionChanged_Lambda([OnChanged](int32 NewSelection, ESelectInfo::Type) { OnChanged.ExecuteIfBound(static_cast<EGraphicsPreset>(NewSelection)); })
+		.CurrentValue_Lambda([SelectedEnum]() { return static_cast<int32>(SelectedEnum.Get()); });
 }
 
 IHardwareTargetingModule& IHardwareTargetingModule::Get()

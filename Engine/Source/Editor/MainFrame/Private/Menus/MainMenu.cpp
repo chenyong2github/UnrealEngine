@@ -499,7 +499,7 @@ void FMainMenu::RegisterRecentFileAndExitMenuItems()
 
 	{
 		FToolMenuSection& Section = MainTabFileMenu->AddSection("FileRecentFiles");
-		if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus && FMainFrameActionCallbacks::ProjectNames.Num() > 0)
+		if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus && FMainFrameActionCallbacks::RecentProjects.Num() > 0)
 		{
 			Section.AddSubMenu(
 				"RecentProjects",

@@ -11,8 +11,8 @@
 
 class SWidget;
 
-DECLARE_DELEGATE_OneParam(FOnHardwareClassChanged, EHardwareClass::Type)
-DECLARE_DELEGATE_OneParam(FOnGraphicsPresetChanged, EGraphicsPreset::Type)
+DECLARE_DELEGATE_OneParam(FOnHardwareClassChanged, EHardwareClass)
+DECLARE_DELEGATE_OneParam(FOnGraphicsPresetChanged, EGraphicsPreset)
 
 /** Struct specifying pending changes to a settings object */
 struct FModifiedDefaultConfig
@@ -41,9 +41,9 @@ public:
 	virtual TArray<FModifiedDefaultConfig> GetPendingSettingsChanges() = 0;
 
 	/** Make a new combo box for choosing a hardware class target */
-	virtual TSharedRef<SWidget> MakeHardwareClassTargetCombo(FOnHardwareClassChanged OnChanged, TAttribute<EHardwareClass::Type> SelectedEnum, EOrientation Orientation) = 0;
+	virtual TSharedRef<SWidget> MakeHardwareClassTargetCombo(FOnHardwareClassChanged OnChanged, TAttribute<EHardwareClass> SelectedEnum) = 0;
 
 	/** Make a new combo box for choosing a graphics preference */
-	virtual TSharedRef<SWidget> MakeGraphicsPresetTargetCombo(FOnGraphicsPresetChanged OnChanged, TAttribute<EGraphicsPreset::Type> SelectedEnum, EOrientation Orientation) = 0;
+	virtual TSharedRef<SWidget> MakeGraphicsPresetTargetCombo(FOnGraphicsPresetChanged OnChanged, TAttribute<EGraphicsPreset> SelectedEnum) = 0;
 };
 

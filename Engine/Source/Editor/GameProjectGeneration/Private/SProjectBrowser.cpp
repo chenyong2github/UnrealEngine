@@ -50,9 +50,16 @@
 #include "ILauncherPlatform.h"
 #include "LauncherPlatformModule.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "Internationalization/BreakIterator.h"
 
 #define LOCTEXT_NAMESPACE "ProjectBrowser"
 
+namespace ProjectBrowserDefs
+{
+	constexpr float ProjectTileHeight = 153;
+	constexpr float ProjectTileWidth = 102;
+	constexpr float ThumbnailSize = 64.0f, ThumbnailPadding = 5.f;
+}
 
 /**
  * Structure for project items.
@@ -63,25 +70,25 @@ struct FProjectItem
 	FText Description;
 	FText Category;
 	FString EngineIdentifier;
-	bool bUpToDate;
 	FString ProjectFile;
-	TSharedPtr<FSlateBrush> ProjectThumbnail;
-	bool bIsNewProjectItem;
 	TArray<FName> TargetPlatforms;
+	TSharedPtr<FSlateBrush> ProjectThumbnail;
+	FDateTime LastAccessTime;
+	bool bUpToDate;
 	bool bSupportsAllPlatforms;
-	bool bIsSample;
 
-	FProjectItem(const FText& InName, const FText& InDescription, const FString& InEngineIdentifier, bool InUpToDate, const TSharedPtr<FSlateBrush>& InProjectThumbnail, const FString& InProjectFile, bool InIsNewProjectItem, TArray<FName> InTargetPlatforms, bool InSupportsAllPlatforms)
+	FProjectItem(const FText& InName, const FText& InDescription, const FString& InEngineIdentifier, bool InUpToDate, const TSharedPtr<FSlateBrush>& InProjectThumbnail, const FString& InProjectFile, TArray<FName> InTargetPlatforms, bool InSupportsAllPlatforms)
 		: Name(InName)
 		, Description(InDescription)
+		, Category()
 		, EngineIdentifier(InEngineIdentifier)
-		, bUpToDate(InUpToDate)
 		, ProjectFile(InProjectFile)
-		, ProjectThumbnail(InProjectThumbnail)
-		, bIsNewProjectItem(InIsNewProjectItem)
 		, TargetPlatforms(InTargetPlatforms)
+		, ProjectThumbnail(InProjectThumbnail)
+		, bUpToDate(InUpToDate)
+		//, bIsNewProjectItem(InIsNewProjectItem)
 		, bSupportsAllPlatforms(InSupportsAllPlatforms)
-	{ }
+	{}
 
 	/** Check if this project is up to date */
 	bool IsUpToDate() const
@@ -108,17 +115,118 @@ struct FProjectItem
 };
 
 
-/**
- * Structure for project categories.
- */
-struct FProjectCategory
+class SProjectTile : public STableRow<TSharedPtr<FProjectItem>>
 {
-	FText CategoryName;
-	TSharedPtr< STileView< TSharedPtr<FProjectItem> > > ProjectTileView;
-	TArray< TSharedPtr<FProjectItem> > ProjectItemsSource;
-	TArray< TSharedPtr<FProjectItem> > FilteredProjectItemsSource;
-};
+	SLATE_BEGIN_ARGS(SProjectTile)
+	{}
+	SLATE_END_ARGS()
 
+public:
+	void Construct(const FArguments& InArgs, TSharedPtr<FProjectItem> ProjectItem, const TSharedRef<STableViewBase>& OwnerTable)
+	{
+		STableRow::Construct(
+			STableRow::FArguments()
+			.Style(FAppStyle::Get(), "ProjectBrowser.TableRow")
+			.Padding(2.0f)
+			.Content()
+		[
+			SNew(SBorder)
+			.Padding(FMargin(0.0f, 0.0f, 5.0f, 5.0f))
+			.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.DropShadow"))
+			[
+				SNew(SOverlay)
+				+ SOverlay::Slot()
+				[
+					SNew(SVerticalBox)
+					// Thumbnail
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SBox)
+						.WidthOverride(102)
+						.HeightOverride(102)
+						[
+							SNew(SBorder)
+							.Padding(0)
+							.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.ThumbnailAreaBackground"))
+							.HAlign(HAlign_Center)
+							.VAlign(VAlign_Center)
+							[
+								SNew(SImage)
+								.Image(ProjectItem->ProjectThumbnail ? ProjectItem->ProjectThumbnail.Get() : FAppStyle::Get().GetBrush("GameProjectDialog.DefaultGameThumbnail.Small"))
+							]
+						]
+					]
+					// Name
+					+ SVerticalBox::Slot()
+					[
+						SNew(SBorder)
+						.Padding(FMargin(ProjectBrowserDefs::ThumbnailPadding, 0))
+						.Padding(FMargin(3.0f, 3.0f))
+						.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.NameAreaBackground"))
+						[
+							SNew(SVerticalBox)
+							+SVerticalBox::Slot()
+							[
+								SNew(STextBlock)
+								.Font(FAppStyle::Get().GetFontStyle("ProjectBrowser.ProjectTile.Font"))
+								.WrapTextAt(ProjectBrowserDefs::ProjectTileWidth - 4.0f)
+								.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
+								.Text(ProjectItem->Name)
+								.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Foreground"))
+							]
+							+SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(0.0f, 4.0f, 0.0f, 4.0f)
+							.VAlign(VAlign_Bottom)
+							[
+								SNew(STextBlock)
+								.Text(FText::FromString(ProjectItem->GetEngineLabel()))
+								.Font(FAppStyle::Get().GetFontStyle("ProjectBrowser.ProjectTile.Font"))
+								.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.White25"))
+								.Visibility(ProjectItem->IsUpToDate() ? EVisibility::Collapsed : EVisibility::Visible)
+							]
+						]
+					]
+				]
+				+ SOverlay::Slot()
+				[
+					SNew(SImage)
+					.Visibility(EVisibility::HitTestInvisible)
+					.Image_Lambda
+					(
+						[this]()
+						{
+							const bool bIsSelected = IsSelected();
+							const bool bIsRowHovered = IsHovered();
+
+							if (bIsSelected && bIsRowHovered)
+							{
+								static const FName SelectedHover("ProjectBrowser.ProjectTile.SelectedHoverBorder");
+								return FAppStyle::Get().GetBrush(SelectedHover);
+							}
+							else if (bIsSelected)
+							{
+								static const FName Selected("ProjectBrowser.ProjectTile.SelectedBorder");
+								return FAppStyle::Get().GetBrush(Selected);
+							}
+							else if (bIsRowHovered)
+							{
+								static const FName Hovered("ProjectBrowser.ProjectTile.HoverBorder");
+								return FAppStyle::Get().GetBrush(Hovered);
+							}
+
+							return FStyleDefaults::GetNoBrush();
+						}
+					)
+				]
+			]
+		],
+		OwnerTable);
+	}
+};
 
 void ProjectItemToString(const TSharedPtr<FProjectItem> InItem, TArray<FString>& OutFilterStrings)
 {
@@ -131,25 +239,32 @@ void ProjectItemToString(const TSharedPtr<FProjectItem> InItem, TArray<FString>&
 
 SProjectBrowser::SProjectBrowser()
 	: ProjectItemFilter( ProjectItemTextFilter::FItemToStringArray::CreateStatic( ProjectItemToString ))
-	, NumFilteredProjects(0)
-	, ThumbnailBorderPadding(8)
-	, ThumbnailSize(128)
 	, bPreventSelectionChangeEvent(false)
 {
 
 }
 
-
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SProjectBrowser::Construct( const FArguments& InArgs )
 {
-	// Prepare the categories box
-	CategoriesBox = SNew(SVerticalBox);
+	// Prepare the projects box
+	ProjectsBox = SNew(SVerticalBox);
+
+	SAssignNew(ProjectTileView, STileView<TSharedPtr<FProjectItem>>)
+		.ListItemsSource(&FilteredProjectItemsSource)
+		.SelectionMode(ESelectionMode::Single)
+		.ClearSelectionOnClick(false)
+		.ItemAlignment(EListItemAlignment::LeftAligned)
+		.OnGenerateTile(this, &SProjectBrowser::MakeProjectViewWidget)
+		.OnContextMenuOpening(this, &SProjectBrowser::OnGetContextMenuContent)
+		.OnMouseButtonDoubleClick(this, &SProjectBrowser::HandleProjectItemDoubleClick)
+		.OnSelectionChanged(this, &SProjectBrowser::HandleProjectViewSelectionChanged)
+		.ItemHeight(ProjectBrowserDefs::ProjectTileHeight+9)
+		.ItemWidth(ProjectBrowserDefs::ProjectTileWidth+9);
 
 	// Find all projects
 	FindProjects();
 
-	CategoriesBox->AddSlot()
+	ProjectsBox->AddSlot()
 	.HAlign(HAlign_Center)
 	.Padding(FMargin(0.f, 25.f))
 	[
@@ -158,7 +273,7 @@ void SProjectBrowser::Construct( const FArguments& InArgs )
 		.Text(LOCTEXT("NoProjects", "You don't have any projects yet :("))
 	];
 
-	CategoriesBox->AddSlot()
+	ProjectsBox->AddSlot()
 	.HAlign(HAlign_Center)
 	.Padding(FMargin(0.f, 25.f))
 	[
@@ -167,250 +282,57 @@ void SProjectBrowser::Construct( const FArguments& InArgs )
 		.Text(LOCTEXT("NoProjectsAfterFilter", "There are no projects that match the specified filter"))
 	];
 
+	ProjectsBox->AddSlot()
+	[
+		ProjectTileView.ToSharedRef()
+	];
+
 	ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
-		.Padding(FMargin(8.f, 4.f))
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SVerticalBox)
-
-			// Categories
-			+ SVerticalBox::Slot()
-			.Padding(8.f)
-			.FillHeight(1.0f)
+			SNew(SHorizontalBox)	
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0, 0, 5.f, 5))
+			.VAlign(VAlign_Center)
 			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Top)
-				[
-					SNew(SHorizontalBox)
-					
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(0, 0, 5.f, 0))
-					.VAlign(VAlign_Center)
-					[
-						SNew(SOverlay)
-
-						+SOverlay::Slot()
-						[
-							SAssignNew(SearchBoxPtr, SSearchBox)
-							.HintText(LOCTEXT("FilterHint", "Filter Projects..."))
-							.OnTextChanged(this, &SProjectBrowser::OnFilterTextChanged)
-						]
-
-						+SOverlay::Slot()
-						[
-							SNew(SBorder)
-							.Visibility(this, &SProjectBrowser::GetFilterActiveOverlayVisibility)
-							.BorderImage(FEditorStyle::Get().GetBrush("SearchBox.ActiveBorder"))
-						]
-					]
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(0, 0, 5.f, 0))
-					[
-						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-						.OnClicked(this, &SProjectBrowser::FindProjects)
-						.ForegroundColor(FSlateColor::UseForeground())
-						.ToolTipText(LOCTEXT("RefreshProjectList", "Refresh the project list"))
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-							.Padding(2.0f)
-							.VAlign(VAlign_Center)
-							.AutoWidth()
-							[
-								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Icons.Refresh")) 
-							]
-
-							+ SHorizontalBox::Slot()
-							.VAlign(VAlign_Center)
-							.Padding(2.0f)
-							[
-								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "ProjectBrowser.Toolbar.Text")
-								.Text(LOCTEXT("RefreshProjectsText", "Refresh"))
-							]
-						]
-					]
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.Visibility( FLauncherPlatformModule::Get()->CanOpenLauncher(true) ? EVisibility::Visible : EVisibility::Collapsed )
-						.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-						.OnClicked(this, &SProjectBrowser::HandleMarketplaceTabButtonClicked)
-						.ForegroundColor(FSlateColor::UseForeground())
-						.ToolTipText(LOCTEXT("MarketplaceToolTip", "Check out the Marketplace to find new projects!"))
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-							.Padding(2.0f)
-							.VAlign(VAlign_Center)
-							.AutoWidth()
-							[
-								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("LevelEditor.OpenMarketplace.Small")) 
-							]
-
-							+ SHorizontalBox::Slot()
-							.VAlign(VAlign_Center)
-							.Padding(2.0f)
-							[
-								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "ProjectBrowser.Toolbar.Text")
-								.Text(LOCTEXT("Marketplace", "Marketplace"))
-							]
-						]
-					]
-				]
-
-				+ SVerticalBox::Slot()
-				.Padding(FMargin(0, 5.f))
-				[
-					SNew(SScrollBox)
-
-					+ SScrollBox::Slot()
-					[
-						CategoriesBox.ToSharedRef()
-					]
-				]
+				SAssignNew(SearchBoxPtr, SSearchBox)
+				.HintText(LOCTEXT("FilterHint", "Filter Projects..."))
+				.OnTextChanged(this, &SProjectBrowser::OnFilterTextChanged)
 			]
-
-			+ SVerticalBox::Slot()
-			.Padding( 0, 20, 0, 0 )	// Lots of vertical padding before the dialog buttons at the bottom
-			.AutoHeight()
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0, 0, 5.f, 0))
 			[
-				SNew( SHorizontalBox )
-
-				// Auto-load project
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.OnClicked(this, &SProjectBrowser::FindProjects)
+				.ToolTipText(LOCTEXT("RefreshProjectList", "Refresh the project list"))
+				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[
-					SNew(SCheckBox)			
-					.IsChecked(GetDefault<UEditorSettings>()->bLoadTheMostRecentlyLoadedProjectAtStartup ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-					.OnCheckStateChanged(this, &SProjectBrowser::OnAutoloadLastProjectChanged)
-					.Content()
-					[
-						SNew(STextBlock).Text(LOCTEXT("AutoloadOnStartupCheckbox", "Always load last project on startup"))
-					]
-				]
-
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNullWidget::NullWidget
-				]
-				// Browse Button
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(8.f, 0)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("BrowseProjectButton", "Browse..."))
-					.OnClicked(this, &SProjectBrowser::OnBrowseToProjectClicked)
-					.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
-				]
-
-				// Open Button
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("OpenProjectButton", "Open"))
-					.OnClicked(this, &SProjectBrowser::HandleOpenProjectButtonClicked)
-					.IsEnabled(this, &SProjectBrowser::HandleOpenProjectButtonIsEnabled)
-					.ContentPadding(FCoreStyle::Get().GetMargin("StandardDialog.ContentPadding"))
-					.Visibility(InArgs._HideOpenButton ? EVisibility::Collapsed : EVisibility::Visible)
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Icons.Refresh"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
 		]
+		+ SVerticalBox::Slot()
+		.Padding(FMargin(0, 5.f))
+		[
+			ProjectsBox.ToSharedRef()
+		]
 	];
-
-	// Select the first item in the first category
-	if (ProjectCategories.Num() > 0)
-	{
-		const TSharedRef<FProjectCategory> Category = ProjectCategories[0];
-		if ( ensure(Category->ProjectItemsSource.Num() > 0) && ensure(Category->ProjectTileView.IsValid()))
-		{
-			Category->ProjectTileView->SetSelection(Category->ProjectItemsSource[0], ESelectInfo::Direct);
-		}
-	}
-
-	bHasProjectFiles = false;
-	for (auto CategoryIt = ProjectCategories.CreateConstIterator(); CategoryIt; ++CategoryIt)
-	{
-		const TSharedRef<FProjectCategory>& Category = *CategoryIt;
-
-		if (Category->ProjectItemsSource.Num() > 0)
-		{
-			bHasProjectFiles = true;
-			break;
-		}
-	}
 
 	ProjectSelectionChangedDelegate = InArgs._OnSelectionChanged;
-}
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void SProjectBrowser::ConstructCategory( const TSharedRef<SVerticalBox>& InCategoriesBox, const TSharedRef<FProjectCategory>& Category )
-{
-	// Title
-	InCategoriesBox->AddSlot()
-	.AutoHeight()
-	[
-		SNew(STextBlock)
-		.Visibility(this, &SProjectBrowser::GetProjectCategoryVisibility, Category)
-		.TextStyle(FEditorStyle::Get(), "GameProjectDialog.ProjectNamePathLabels")
-		.Text(Category->CategoryName)
-	];
-
-	// Separator
-	InCategoriesBox->AddSlot()
-	.AutoHeight()
-	.Padding(0, 2.0f, 0, 8.0f)
-	[
-		SNew(SSeparator)
-		.Visibility(this, &SProjectBrowser::GetProjectCategoryVisibility, Category)
-	];
-
-	// Project tile view
-	InCategoriesBox->AddSlot()
-	.AutoHeight()
-	[
-		SAssignNew(Category->ProjectTileView, STileView<TSharedPtr<FProjectItem> >)
-		.Visibility(this, &SProjectBrowser::GetProjectCategoryVisibility, Category)
-		.ListItemsSource(&Category->FilteredProjectItemsSource)
-		.SelectionMode(ESelectionMode::Single)
-		.ClearSelectionOnClick(true)
-		.AllowOverscroll(EAllowOverscroll::No)
-		.OnGenerateTile(this, &SProjectBrowser::MakeProjectViewWidget)
-		.OnContextMenuOpening(this, &SProjectBrowser::OnGetContextMenuContent)
-		.OnMouseButtonDoubleClick(this, &SProjectBrowser::HandleProjectItemDoubleClick)
-		.OnSelectionChanged(this, &SProjectBrowser::HandleProjectViewSelectionChanged, Category->CategoryName)
-		.ItemHeight(ThumbnailSize + ThumbnailBorderPadding + 32)
-		.ItemWidth(ThumbnailSize + ThumbnailBorderPadding)
-	];
 }
 
 bool SProjectBrowser::HasProjects() const
 {
-	return bHasProjectFiles;
+	return ProjectItemsSource.Num() > 0;
 }
 
 FString SProjectBrowser::GetSelectedProjectFile() const
@@ -429,100 +351,8 @@ FString SProjectBrowser::GetSelectedProjectFile() const
 
 TSharedRef<ITableRow> SProjectBrowser::MakeProjectViewWidget(TSharedPtr<FProjectItem> ProjectItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	if ( !ensure(ProjectItem.IsValid()) )
-	{
-		return SNew( STableRow<TSharedPtr<FProjectItem>>, OwnerTable );
-	}
-
-	TSharedPtr<SWidget> Thumbnail;
-	if ( ProjectItem->bIsNewProjectItem )
-	{
-		Thumbnail = SNew(SBox)
-			.Padding(ThumbnailBorderPadding)
-			[
-				SNew(SBorder)
-				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("MarqueeSelection"))
-				[
-					SNew(SBox)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.TextStyle( FEditorStyle::Get(), "GameProjectDialog.NewProjectTitle" )
-						.Text( LOCTEXT("NewProjectThumbnailText", "NEW") )
-					]
-				]
-			];
-	}
-	else
-	{
-		const FLinearColor Tint = ProjectItem->IsUpToDate() ? FLinearColor::White : FLinearColor::White.CopyWithNewOpacity(0.5);
-
-		// Drop shadow border
-		Thumbnail =	SNew(SBorder)
-			.Padding(ThumbnailBorderPadding)
-			.BorderImage( FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow") )
-			.ColorAndOpacity(Tint)
-			.BorderBackgroundColor(Tint)
-			[
-				SNew(SImage).Image(this, &SProjectBrowser::GetProjectItemImage, TWeakPtr<FProjectItem>(ProjectItem))
-			];
-	}
-
-	TSharedRef<ITableRow> TableRow = SNew( STableRow<TSharedPtr<FProjectItem>>, OwnerTable )
-	.Style(FEditorStyle::Get(), "GameProjectDialog.TemplateListView.TableRow")
-	[
-		SNew(SBox)
-		.HeightOverride(ThumbnailSize+ThumbnailBorderPadding+5)
-		[
-			SNew(SVerticalBox)
-
-			// Thumbnail
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SBox)
-				.WidthOverride(ThumbnailSize + ThumbnailBorderPadding * 2)
-				.HeightOverride(ThumbnailSize + ThumbnailBorderPadding * 2)
-				[
-					SNew(SOverlay)
-
-					+ SOverlay::Slot()
-					[
-						Thumbnail.ToSharedRef()
-					]
-
-					// Show the out of date engine version for this project file
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Bottom)
-					.Padding(10)
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(ProjectItem->GetEngineLabel()))
-						.TextStyle(FEditorStyle::Get(), "ProjectBrowser.VersionOverlayText")
-						.ColorAndOpacity(FLinearColor::White.CopyWithNewOpacity(0.5f))
-						.Visibility(ProjectItem->IsUpToDate() ? EVisibility::Collapsed : EVisibility::Visible)
-					]
-				]
-			]
-
-			// Name
-			+SVerticalBox::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Top)
-			[
-				SNew(STextBlock)
-				.HighlightText(this, &SProjectBrowser::GetItemHighlightText)
-				.Text(ProjectItem->Name)
-			]
-		]
-	];
-
-	TableRow->AsWidget()->SetToolTip(MakeProjectToolTip(ProjectItem));
-
-	return TableRow;
+	return SNew(SProjectTile, ProjectItem, OwnerTable)
+			.ToolTip(MakeProjectToolTip(ProjectItem));
 }
 
 
@@ -730,17 +560,13 @@ const FSlateBrush* SProjectBrowser::GetProjectItemImage(TWeakPtr<FProjectItem> P
 
 TSharedPtr<FProjectItem> SProjectBrowser::GetSelectedProjectItem() const
 {
-	for ( auto CategoryIt = ProjectCategories.CreateConstIterator(); CategoryIt; ++CategoryIt )
+	TArray< TSharedPtr<FProjectItem> > SelectedItems = ProjectTileView->GetSelectedItems();
+	if (SelectedItems.Num() > 0)
 	{
-		const TSharedRef<FProjectCategory>& Category = *CategoryIt;
-		TArray< TSharedPtr<FProjectItem> > SelectedItems = Category->ProjectTileView->GetSelectedItems();
-		if ( SelectedItems.Num() > 0 )
-		{
-			return SelectedItems[0];
-		}
+		return SelectedItems[0];	
 	}
 	
-	return NULL;
+	return nullptr;
 }
 
 
@@ -773,7 +599,11 @@ static TSharedPtr<FSlateDynamicImageBrush> GetThumbnailForProject(const FString&
 	if (!PNGFileToUse.IsEmpty())
 	{
 		const FName BrushName = FName(*PNGFileToUse);
-		DynamicBrush = MakeShareable(new FSlateDynamicImageBrush(BrushName, FVector2D(128, 128)));
+		DynamicBrush = MakeShared<FSlateDynamicImageBrush>(BrushName, FVector2D(128, 128));
+		DynamicBrush->OutlineSettings.CornerRadii = FVector4(4, 4, 0, 0);
+		DynamicBrush->OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+		DynamicBrush->DrawAs = ESlateBrushDrawType::RoundedBox;
+
 	}
 
 	return DynamicBrush;
@@ -809,10 +639,9 @@ static TSharedPtr<FProjectItem> CreateProjectItem(const FString& ProjectFilename
 			}
 			TargetPlatforms.Sort(FNameLexicalLess());
 
-			const bool bIsNewProjectItem = false;
 			TSharedPtr<FProjectItem> ProjectItem = MakeShareable(new FProjectItem(FText::FromString(ProjectStatus.Name),
 				FText::FromString(ProjectStatus.Description),
-				ProjectEngineIdentifier, bIsUpToDate, DynamicBrush, ProjectFilename, bIsNewProjectItem, 
+				ProjectEngineIdentifier, bIsUpToDate, DynamicBrush, ProjectFilename, 
 				TargetPlatforms, ProjectStatus.SupportsAllPlatforms()));
 
 			const FText SamplesCategoryName = LOCTEXT("SamplesCategoryName", "Samples");
@@ -821,6 +650,8 @@ static TSharedPtr<FProjectItem> CreateProjectItem(const FString& ProjectFilename
 				// Signed samples can't override their category name
 				ProjectItem->Category = SamplesCategoryName;
 			}
+
+			ProjectItem->LastAccessTime = IFileManager::Get().GetAccessTimeStamp(*ProjectFilename);
 
 			return ProjectItem;
 		}
@@ -831,15 +662,7 @@ static TSharedPtr<FProjectItem> CreateProjectItem(const FString& ProjectFilename
 
 FReply SProjectBrowser::FindProjects()
 {
-	enum class EProjectCategoryType : uint8
-	{
-		Sample,
-		UserDefined,
-	};
-
-	ProjectCategories.Empty();
-	CategoriesBox->ClearChildren();
-
+#if 0
 	// Create a map of parent project folders to their category
 	TMap<FString, EProjectCategoryType> ProjectFilesToCategoryType;
 
@@ -970,58 +793,116 @@ FReply SProjectBrowser::FindProjects()
 		Category->ProjectItemsSource.Sort( FCompareProjectItems() );
 	}
 
-	PopulateFilteredProjectCategories();
+	PopulateFilteredProjects();
 
 	for (auto CategoryIt = ProjectCategories.CreateConstIterator(); CategoryIt; ++CategoryIt)
 	{
 		const TSharedRef<FProjectCategory>& Category = *CategoryIt;
 		ConstructCategory(CategoriesBox.ToSharedRef(), Category);
 	}
+#else
+
+	const FString LastSelectedProjectFile = CurrentSelectedProjectPath;
+
+	ProjectItemsSource.Empty();
+	FilteredProjectItemsSource.Empty();
+	ProjectTileView->RequestListRefresh();
+
+	TArray<FRecentProjectFile> RecentProjects = GetDefault<UEditorSettings>()->RecentlyOpenedProjectFiles;
+
+	//TSet<FString> ExistingRecentProjects = RecentProjects;
+
+	TSet<FString> AllFoundProjectFiles;
+
+	//AllFoundProjectFiles.Append(RecentProjects);
+
+	// Find all the engine installations
+	TMap<FString, FString> EngineInstallations;
+	FDesktopPlatformModule::Get()->EnumerateEngineInstallations(EngineInstallations);
+
+	// Add projects from every branch that we know about
+	FString CurrentEngineIdentifier = FDesktopPlatformModule::Get()->GetCurrentEngineIdentifier();
+	for (TMap<FString, FString>::TConstIterator Iter(EngineInstallations); Iter; ++Iter)
+	{
+		TArray<FString> ProjectFiles;
+		if (FDesktopPlatformModule::Get()->EnumerateProjectsKnownByEngine(Iter.Key(), false, ProjectFiles))
+		{
+			AllFoundProjectFiles.Append(MoveTemp(ProjectFiles));
+		}
+	}
+
+	// Add all the samples from the launcher
+	TArray<FString> LauncherSampleProjects;
+	FDesktopPlatformModule::Get()->EnumerateLauncherSampleProjects(LauncherSampleProjects);
+	AllFoundProjectFiles.Append(MoveTemp(LauncherSampleProjects));
+
+	// Add all the native project files we can find
+	FUProjectDictionary& DefaultProjectDictionary = FUProjectDictionary::GetDefault();
+	DefaultProjectDictionary.Refresh();
+	const TArray<FString>& NativeProjectFiles = DefaultProjectDictionary.GetProjectPaths();
+	for(const FString& ProjectFile : NativeProjectFiles)
+	{
+		if (!ProjectFile.Contains(TEXT("/Templates/")))
+		{
+			AllFoundProjectFiles.Add(ProjectFile);
+		}
+	}
+
+	TSharedPtr<FProjectItem> NewProjectToSelect;
+
+	// Normalize all the filenames and make sure there are no duplicates
+	for (FString& ProjectFile : AllFoundProjectFiles)
+	{
+		FString ProjectFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFile);
+		TSharedPtr<FProjectItem> NewProjectItem = CreateProjectItem(ProjectFilename);
+		if (NewProjectItem)
+		{
+			if (NewProjectItem->ProjectFile == LastSelectedProjectFile)
+			{
+				NewProjectToSelect = NewProjectItem;
+			}
+
+			// Get a valid last access time. The editor will set this for recent projects and is more accurate than the NTFS access time
+			if (FRecentProjectFile* RecentProject = RecentProjects.FindByKey(NewProjectItem->ProjectFile))
+			{
+				NewProjectItem->LastAccessTime = RecentProject->LastOpenTime;
+			}
+
+			ProjectItemsSource.Add(NewProjectItem);
+		}
+	}
+
+	ProjectItemsSource.Sort([](auto& A, auto& B) { return A->LastAccessTime > B->LastAccessTime; });
+
+	PopulateFilteredProjects();
+
+	if (NewProjectToSelect && FilteredProjectItemsSource.Contains(NewProjectToSelect))
+	{
+		ProjectTileView->SetSelection(NewProjectToSelect, ESelectInfo::Direct);
+	}
+	else if (FilteredProjectItemsSource.Num() > 0)
+	{
+		ProjectTileView->SetSelection(FilteredProjectItemsSource[0], ESelectInfo::Direct);
+	}
+
+#endif
 
 	return FReply::Handled();
 }
 
-
-void SProjectBrowser::AddProjectToCategory(const TSharedRef<FProjectItem>& ProjectItem, const FText& ProjectCategory)
+void SProjectBrowser::PopulateFilteredProjects()
 {
-	for ( auto CategoryIt = ProjectCategories.CreateConstIterator(); CategoryIt; ++CategoryIt )
+	FilteredProjectItemsSource.Empty();
+
+	for (TSharedPtr<FProjectItem>& ProjectItem : ProjectItemsSource)
 	{
-		const TSharedRef<FProjectCategory>& Category = *CategoryIt;
-		if ( Category->CategoryName.EqualToCaseIgnored(ProjectCategory) )
+		if (ProjectItemFilter.PassesFilter(ProjectItem))
 		{
-			Category->ProjectItemsSource.Add(ProjectItem);
-			return;
+			FilteredProjectItemsSource.Add(ProjectItem);
 		}
 	}
 
-	TSharedRef<FProjectCategory> NewCategory = MakeShareable( new FProjectCategory );
-	NewCategory->CategoryName = ProjectCategory;
-	NewCategory->ProjectItemsSource.Add(ProjectItem);
-	ProjectCategories.Add(NewCategory);
-}
-
-
-void SProjectBrowser::PopulateFilteredProjectCategories()
-{
-	NumFilteredProjects = 0;
-	for (auto& Category : ProjectCategories)
-	{
-		Category->FilteredProjectItemsSource.Empty();
-
-		for (auto& ProjectItem : Category->ProjectItemsSource)
-		{
-			if (ProjectItemFilter.PassesFilter(ProjectItem))
-			{
-				Category->FilteredProjectItemsSource.Add(ProjectItem);
-				++NumFilteredProjects;
-			}
-		}
-
-		if (Category->ProjectTileView.IsValid())
-		{
-			Category->ProjectTileView->RequestListRefresh();
-		}
-	}
+	ProjectTileView->RequestListRefresh();
 }
 
 FReply SProjectBrowser::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
@@ -1260,18 +1141,18 @@ bool SProjectBrowser::OpenProject( const FString& InProjectFile )
 
 void SProjectBrowser::OpenSelectedProject( )
 {
-	if ( CurrentSelectedProjectPath.IsEmpty() )
+	if (CurrentSelectedProjectPath.IsEmpty())
 	{
 		return;
 	}
 
-	OpenProject( CurrentSelectedProjectPath.ToString() );
+	OpenProject(CurrentSelectedProjectPath);
 }
 
 /* SProjectBrowser event handlers
  *****************************************************************************/
 
-FReply SProjectBrowser::HandleOpenProjectButtonClicked( )
+FReply SProjectBrowser::OnOpenProject( )
 {
 	OpenSelectedProject();
 
@@ -1290,7 +1171,7 @@ void SProjectBrowser::HandleProjectItemDoubleClick( TSharedPtr<FProjectItem> Tem
 	OpenSelectedProject();
 }
 
-FReply SProjectBrowser::OnBrowseToProjectClicked()
+FReply SProjectBrowser::OnBrowseToProject()
 {
 	const FString ProjectFileDescription = LOCTEXT( "FileTypeDescription", "Unreal Project File" ).ToString();
 	const FString ProjectFileExtension = FString::Printf(TEXT("*.%s"), *FProjectDescriptor::GetExtension());
@@ -1298,12 +1179,12 @@ FReply SProjectBrowser::OnBrowseToProjectClicked()
 
 	// Find the first valid project file to select by default
 	FString DefaultFolder = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::PROJECT);
-	for ( auto ProjectIt = GetDefault<UEditorSettings>()->RecentlyOpenedProjectFiles.CreateConstIterator(); ProjectIt; ++ProjectIt )
+	for (const FRecentProjectFile& RecentFile : GetDefault<UEditorSettings>()->RecentlyOpenedProjectFiles)
 	{
-		if ( IFileManager::Get().FileSize(**ProjectIt) > 0 )
+		if ( IFileManager::Get().FileSize(*RecentFile.ProjectName) > 0 )
 		{
 			// This is the first uproject file in the recents list that actually exists
-			DefaultFolder = FPaths::GetPath(*ProjectIt);
+			DefaultFolder = FPaths::GetPath(*RecentFile.ProjectName);
 			break;
 		}
 	}
@@ -1334,17 +1215,17 @@ FReply SProjectBrowser::OnBrowseToProjectClicked()
 		);
 	}
 
-	if ( bOpened && OpenFilenames.Num() > 0 )
+	if (bOpened && OpenFilenames.Num() > 0)
 	{
-		HandleProjectViewSelectionChanged( NULL, ESelectInfo::Direct, FText() );
+		HandleProjectViewSelectionChanged(nullptr, ESelectInfo::Direct);
 
 		FString Path = OpenFilenames[0];
 		if ( FPaths::IsRelative( Path ) )
 		{
-			Path = FPaths::ConvertRelativePathToFull( Path );
+			Path = FPaths::ConvertRelativePathToFull(Path);
 		}
 
-		CurrentSelectedProjectPath = FText::FromString( Path );
+		CurrentSelectedProjectPath = Path;
 
 		OpenSelectedProject();
 	}
@@ -1352,51 +1233,24 @@ FReply SProjectBrowser::OnBrowseToProjectClicked()
 	return FReply::Handled();
 }
 
-void SProjectBrowser::ClearSelection()
+void SProjectBrowser::HandleProjectViewSelectionChanged(TSharedPtr<FProjectItem> ProjectItem, ESelectInfo::Type SelectInfo)
 {
-	TGuardValue<bool> SelectionEventGuard(bPreventSelectionChangeEvent, true);
-
-	for (const TSharedRef<FProjectCategory>& Category : ProjectCategories)
-	{
-		if (Category->ProjectTileView.IsValid())
-		{
-			Category->ProjectTileView->ClearSelection();
-		}
-	}
-}
-
-
-void SProjectBrowser::HandleProjectViewSelectionChanged(TSharedPtr<FProjectItem> ProjectItem, ESelectInfo::Type SelectInfo, FText CategoryName)
-{
-	if ( !bPreventSelectionChangeEvent )
-	{
-		TGuardValue<bool> SelectionEventGuard(bPreventSelectionChangeEvent, true);
-
-		for (const TSharedRef<FProjectCategory>& Category : ProjectCategories)
-		{
-			if (Category->ProjectTileView.IsValid() && !Category->CategoryName.EqualToCaseIgnored(CategoryName))
-			{
-				Category->ProjectTileView->ClearSelection();
-			}
-		}
-	}
-
 	FString ProjectFile;
 	if (ProjectItem.IsValid())
 	{
 		ProjectFile = ProjectItem->ProjectFile;
-		CurrentSelectedProjectPath = FText::FromString(ProjectFile);
+		CurrentSelectedProjectPath = ProjectFile;
 	}
 	else
 	{
-		CurrentSelectedProjectPath = FText::GetEmpty();
+		CurrentSelectedProjectPath = FString();
 	}
 
 	ProjectSelectionChangedDelegate.ExecuteIfBound(ProjectFile);
 }
 
 
-FReply SProjectBrowser::HandleMarketplaceTabButtonClicked()
+FReply SProjectBrowser::OnOpenMarketplace()
 {
 	ILauncherPlatform* LauncherPlatform = FLauncherPlatformModule::Get();
 
@@ -1442,7 +1296,7 @@ void SProjectBrowser::OnFilterTextChanged(const FText& InText)
 {
 	ProjectItemFilter.SetRawFilterText(InText);
 	SearchBoxPtr->SetError(ProjectItemFilter.GetFilterErrorText());
-	PopulateFilteredProjectCategories();
+	PopulateFilteredProjects();
 }
 
 void SProjectBrowser::OnAutoloadLastProjectChanged(ECheckBoxState NewState)
@@ -1460,103 +1314,22 @@ void SProjectBrowser::OnAutoloadLastProjectChanged(ECheckBoxState NewState)
 
 EVisibility SProjectBrowser::GetProjectCategoryVisibility(const TSharedRef<FProjectCategory> InCategory) const
 {
-	if (NumFilteredProjects == 0)
-	{
-		return EVisibility::Collapsed;
-	}
-	return InCategory->FilteredProjectItemsSource.Num() ? EVisibility::Visible : EVisibility::Collapsed;
+	return FilteredProjectItemsSource.Num() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SProjectBrowser::GetNoProjectsErrorVisibility() const
 {
-	return bHasProjectFiles ? EVisibility::Collapsed : EVisibility::Visible;
+	return ProjectItemsSource.Num() > 0 ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 EVisibility SProjectBrowser::GetNoProjectsAfterFilterErrorVisibility() const
 {
-	return (bHasProjectFiles && NumFilteredProjects == 0) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility SProjectBrowser::GetFilterActiveOverlayVisibility() const
-{
-	return ProjectItemFilter.GetRawFilterText().IsEmpty() ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
+	return (ProjectItemsSource.Num() && FilteredProjectItemsSource.Num() == 0) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FText SProjectBrowser:: GetItemHighlightText() const
 {
 	return ProjectItemFilter.GetRawFilterText();
-}
-
-
-SRecentProjectBrowser::SRecentProjectBrowser()
-{
-	
-}
-
-void SRecentProjectBrowser::Construct(const FArguments& InArgs)
-{
-	CategoriesBox = SNew(SVerticalBox);
-
-	const FString EngineIdentifier = FDesktopPlatformModule::Get()->GetCurrentEngineIdentifier();
-
-	TSharedRef<FProjectCategory> NewCategory = MakeShareable(new FProjectCategory);
-	NewCategory->CategoryName = LOCTEXT("ProjectDialog_Recent", "Recent Projects");
-	ProjectCategories.Add(NewCategory);
-
-	TArray<FString> RecentProjects = GetDefault<UEditorSettings>()->RecentlyOpenedProjectFiles;
-	for (int32 Idx = 0; Idx < InArgs._NumProjects && Idx < RecentProjects.Num(); ++Idx)
-	{
-		const FString ProjectFilename = RecentProjects[Idx];
-		
-		TSharedPtr<FProjectItem> ProjectItem = CreateProjectItem(ProjectFilename);
-
-		if (ProjectItem)
-		{
-			AddProjectToCategory(ProjectItem.ToSharedRef(), LOCTEXT("ProjectDialog_Recent", "Recent Projects"));
-		}
-	}
-
-	check(ProjectCategories.Num() == 1);
-
-	PopulateFilteredProjectCategories();
-
-	ConstructCategory(CategoriesBox.ToSharedRef(), ProjectCategories[0]);
-
-	ChildSlot
-	[
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-		.Padding(FMargin(8.f, 4.f))
-		[
-			SNew(SScrollBox)
-			+ SScrollBox::Slot()
-			[
-				CategoriesBox.ToSharedRef()
-			]
-		]
-	];
-
-	if (ProjectCategories.Num() > 0)
-	{
-		const TSharedRef<FProjectCategory> Category = ProjectCategories[0];
-
-		if (ensure(Category->ProjectTileView.IsValid()) && Category->ProjectItemsSource.Num() > 0)
-		{
-			Category->ProjectTileView->SetSelection(Category->ProjectItemsSource[0], ESelectInfo::Direct);
-		}
-	}
-
-	bHasProjectFiles = false;
-	for (const TSharedRef<FProjectCategory>& Category : ProjectCategories)
-	{
-		if (Category->ProjectItemsSource.Num() > 0)
-		{
-			bHasProjectFiles = true;
-			break;
-		}
-	}
-
-	ProjectSelectionChangedDelegate = InArgs._OnSelectionChanged;
 }
 
 #undef LOCTEXT_NAMESPACE

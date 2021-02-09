@@ -7,13 +7,14 @@
 #include "EditorStyleSet.h"
 #include "GameProjectGenerationLog.h"
 #include "GameProjectUtils.h"
-#include "SGameProjectDialog.h"
 #include "SNewClassDialog.h"
 #include "TemplateCategory.h"
 #include "HAL/FileManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "TemplateProjectDefs.h"
 #include "Internationalization/Culture.h"
+#include "SProjectDialog.h"
+
 
 IMPLEMENT_MODULE( FGameProjectGenerationModule, GameProjectGeneration );
 DEFINE_LOG_CATEGORY(LogGameProjectGeneration);
@@ -34,18 +35,18 @@ TSharedRef<class SWidget> FGameProjectGenerationModule::CreateGameProjectDialog(
 {
 	ensure(bAllowProjectOpening || bAllowProjectCreate);
 
-	SGameProjectDialog::EMode Mode = SGameProjectDialog::EMode::Both;
-	
+	EProjectDialogModeMode Mode = EProjectDialogModeMode::Hybrid;
+
 	if (bAllowProjectOpening && !bAllowProjectCreate)
 	{
-		Mode = SGameProjectDialog::EMode::Open;
+		Mode = EProjectDialogModeMode::OpenProject;
 	}
 	else if (bAllowProjectCreate && !bAllowProjectOpening)
 	{
-		Mode = SGameProjectDialog::EMode::New;
+		Mode = EProjectDialogModeMode::NewProject;
 	}
 
-	return SNew(SGameProjectDialog, Mode);
+	return SNew(SProjectDialog, Mode);
 }
 
 
@@ -192,9 +193,13 @@ void FGameProjectGenerationModule::LoadTemplateCategories()
 				TemplateCategory->Description = FLocalizedTemplateString::GetLocalizedText(Category.LocalizedDescriptions);
 				
 				const FName BrushName(*Category.Icon);
-				TemplateCategory->Icon = new FSlateDynamicImageBrush(BrushName, FVector2D(128, 128));
+				
+				FSlateDynamicImageBrush* Brush = new FSlateDynamicImageBrush(BrushName, FVector2D(300, 100));
+				Brush->OutlineSettings.CornerRadii = FVector4(4, 4, 4, 4);
+				Brush->OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+				Brush->DrawAs = ESlateBrushDrawType::RoundedBox;
 
-				TemplateCategory->IsMajor = Category.IsMajorCategory;
+				TemplateCategory->Icon = Brush;
 			}
 		}
 	}

@@ -14,9 +14,14 @@ class ITableRow;
 class STableViewBase;
 class SToolTip;
 class SVerticalBox;
+
+template<typename T>
+class STileView;
+
 struct FProjectCategory;
 struct FProjectItem;
 struct FSlateBrush;
+
 enum class ECheckBoxState : uint8;
 
 DECLARE_DELEGATE_OneParam(FProjectSelectionChanged, FString);
@@ -31,14 +36,9 @@ public:
 
 	DECLARE_DELEGATE(FNewProjectScreenRequested)
 
-	SLATE_BEGIN_ARGS(SProjectBrowser) :
-		_HideOpenButton(false)
+	SLATE_BEGIN_ARGS(SProjectBrowser)
 	{}
-
 		SLATE_ARGUMENT(FProjectSelectionChanged, OnSelectionChanged);
-
-		SLATE_ARGUMENT(bool, HideOpenButton)
-
 	SLATE_END_ARGS()
 
 public:
@@ -55,16 +55,26 @@ public:
 
 	bool HasProjects() const;
 
-	void ClearSelection();
+	bool HasSelectedProjectFile() const { return !GetSelectedProjectFile().IsEmpty(); }
 
 	FString GetSelectedProjectFile() const;
+
+	FText GetSelectedProjectName() const;
 
 	/** Begins the opening process for the selected project */
 	void OpenSelectedProject();
 
-protected:
+	FReply OnBrowseToProject();
 
-	void ConstructCategory( const TSharedRef<SVerticalBox>& CategoriesBox, const TSharedRef<FProjectCategory>& Category );
+	/** Callback for clicking the 'Marketplace' button. */
+	FReply OnOpenMarketplace();
+
+	/** Handler for when the Open button is clicked */
+	FReply OnOpenProject();
+
+	/** Whether to autoload the last project. */
+	void OnAutoloadLastProjectChanged(ECheckBoxState NewState);
+protected:
 
 	/** Creates a row in the template list */
 	TSharedRef<ITableRow> MakeProjectViewWidget( TSharedPtr<FProjectItem> ProjectItem, const TSharedRef<STableViewBase>& OwnerTable );
@@ -90,20 +100,14 @@ protected:
 	/** Gets the currently selected template item */
 	TSharedPtr<FProjectItem> GetSelectedProjectItem( ) const;
 
-	/** Gets the label to show the currently selected template */
-	FText GetSelectedProjectName( ) const;
-
 	/** Populates ProjectItemsSource with projects found on disk */
 	FReply FindProjects( );
-
-	/** Adds the specified project to the specified category. Creates a new category if necessary. */
-	void AddProjectToCategory( const TSharedRef<FProjectItem>& ProjectItem, const FText& ProjectCategory );
 
 	/** Opens the specified project file */
 	bool OpenProject( const FString& ProjectFile );
 
 	/** Populate the list of filtered project categories */
-	void PopulateFilteredProjectCategories();
+	void PopulateFilteredProjects();
 
 	/**
 	 * Called after a key is pressed when this widget has focus (this event bubbles if not handled)
@@ -115,23 +119,9 @@ protected:
 	 */
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 
-protected:
-
-	/** Holds the collection of project categories. */
-	TArray<TSharedRef<FProjectCategory> > ProjectCategories;
-
-	bool bHasProjectFiles;
-
-	TSharedPtr<SVerticalBox> CategoriesBox;
-
-	FProjectSelectionChanged ProjectSelectionChangedDelegate;
-
 private:
 
-	FReply OnBrowseToProjectClicked();
 
-	/** Handler for when the Open button is clicked */
-	FReply HandleOpenProjectButtonClicked( );
 
 	/** Returns true if the user is allowed to open a project with the supplied name and path */
 	bool HandleOpenProjectButtonIsEnabled( ) const;
@@ -140,16 +130,12 @@ private:
 	void HandleProjectItemDoubleClick( TSharedPtr<FProjectItem> ProjectItem );
 
 	/** Handler for when the selection changes in the project view */
-	void HandleProjectViewSelectionChanged( TSharedPtr<FProjectItem> ProjectItem, ESelectInfo::Type SelectInfo, FText CategoryName );
+	void HandleProjectViewSelectionChanged( TSharedPtr<FProjectItem> ProjectItem, ESelectInfo::Type SelectInfo);
 
-	/** Callback for clicking the 'Marketplace' button. */
-	FReply HandleMarketplaceTabButtonClicked( );
 
 	/** Called when the text in the filter box is changed */
 	void OnFilterTextChanged(const FText& InText);
 
-	/** Whether to autoload the last project. */
-	void OnAutoloadLastProjectChanged(ECheckBoxState NewState);
 
 	/** Get the visibility of the specified category */
 	EVisibility GetProjectCategoryVisibility(const TSharedRef<FProjectCategory> InCategory) const;
@@ -159,13 +145,16 @@ private:
 	/** Get the visibility of the "no projects" error */
 	EVisibility GetNoProjectsAfterFilterErrorVisibility() const;
 	
-	/** Get the visibility of the active search overlay */
-	EVisibility GetFilterActiveOverlayVisibility() const;
-
 	/** Get the filter text to highlight on items in the list */
 	FText GetItemHighlightText() const;
 
 private:
+	TSharedPtr<STileView<TSharedPtr<FProjectItem>>> ProjectTileView;
+	TArray<TSharedPtr<FProjectItem>> ProjectItemsSource;
+	TArray<TSharedPtr<FProjectItem>> FilteredProjectItemsSource;
+	TSharedPtr<SVerticalBox> ProjectsBox;
+
+	FProjectSelectionChanged ProjectSelectionChangedDelegate;
 
 	/** Search box used to set the filter text */
 	TSharedPtr<class SSearchBox> SearchBoxPtr;
@@ -173,14 +162,10 @@ private:
 	/** Filter that is used to test for the visibility of projects */
 	typedef TTextFilter<const TSharedPtr<FProjectItem>> ProjectItemTextFilter;
 	ProjectItemTextFilter ProjectItemFilter;
-	int32 NumFilteredProjects;
 
-	int32 ThumbnailBorderPadding;
-	int32 ThumbnailSize;
 	bool bPreventSelectionChangeEvent;
 
-	TSharedPtr<FProjectItem> CurrentlySelectedItem;
-	FText CurrentSelectedProjectPath;
+	FString CurrentSelectedProjectPath;
 
 	bool IsOnlineContentFinished;
 
@@ -188,20 +173,3 @@ private:
 	FNewProjectScreenRequested NewProjectScreenRequestedDelegate;
 };
 
-/** Class to only display a finite number of most-recent projects. */
-class SRecentProjectBrowser : public SProjectBrowser
-{
-	SLATE_BEGIN_ARGS(SRecentProjectBrowser) 
-	{
-		_NumProjects = 10;
-	}
-
-	SLATE_ARGUMENT(int32, NumProjects);
-	SLATE_EVENT(FProjectSelectionChanged, OnSelectionChanged);
-
-	SLATE_END_ARGS()
-
-	SRecentProjectBrowser();
-
-	void Construct(const FArguments& InArgs);
-};

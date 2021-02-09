@@ -913,19 +913,19 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 
 		if (InProjectInfo.TargetedHardware.IsSet())
 		{
-			UEnum* HardwareClassEnum = StaticEnum<EHardwareClass::Type>();
+			UEnum* HardwareClassEnum = StaticEnum<EHardwareClass>();
 			if (HardwareClassEnum != nullptr)
 			{
-				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("HardwareClass"), HardwareClassEnum->GetNameStringByValue(InProjectInfo.TargetedHardware.GetValue())));
+				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("HardwareClass"), HardwareClassEnum->GetNameStringByValue(static_cast<int32>(InProjectInfo.TargetedHardware.GetValue()))));
 			}
 		}
 
 		if (InProjectInfo.DefaultGraphicsPerformance.IsSet())
 		{
-			UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset::Type>();
+			UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset>();
 			if (GraphicsPresetEnum != nullptr)
 			{
-				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GraphicsPreset"), GraphicsPresetEnum->GetNameStringByValue(InProjectInfo.DefaultGraphicsPerformance.GetValue())));
+				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GraphicsPreset"), GraphicsPresetEnum->GetNameStringByValue(static_cast<int32>(InProjectInfo.DefaultGraphicsPerformance.GetValue()))));
 			}
 		}
 
@@ -2049,7 +2049,7 @@ void GameProjectUtils::AddHardwareConfigValues(const FProjectInformation& InProj
 {
 	if (InProjectInfo.TargetedHardware.IsSet())
 	{
-		UEnum* HardwareClassEnum = StaticEnum<EHardwareClass::Type>();
+		UEnum* HardwareClassEnum = StaticEnum<EHardwareClass>();
 		if (HardwareClassEnum != nullptr)
 		{
 			FString TargetHardwareString;
@@ -2068,7 +2068,7 @@ void GameProjectUtils::AddHardwareConfigValues(const FProjectInformation& InProj
 
 	if (InProjectInfo.DefaultGraphicsPerformance.IsSet())
 	{
-		UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset::Type>();
+		UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset>();
 		if (GraphicsPresetEnum != nullptr)
 		{
 			FString GraphicsPresetString;

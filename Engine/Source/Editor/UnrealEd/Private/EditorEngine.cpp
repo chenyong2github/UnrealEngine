@@ -6645,18 +6645,22 @@ void UEditorEngine::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 
 void UEditorEngine::UpdateRecentlyLoadedProjectFiles()
 {
-	if ( FPaths::IsProjectFilePathSet() )
+	if (FPaths::IsProjectFilePathSet())
 	{
+		FDateTime CurrentTime = FDateTime::UtcNow();
+
 		const FString AbsoluteProjectPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FPaths::GetProjectFilePath());
 		// Update the recently loaded project files. Move this project file to the front of the list
-		TArray<FString>& RecentlyOpenedProjectFiles = GetMutableDefault<UEditorSettings>()->RecentlyOpenedProjectFiles;
-		RecentlyOpenedProjectFiles.Remove( AbsoluteProjectPath );
-		RecentlyOpenedProjectFiles.Insert( AbsoluteProjectPath, 0 );
+		TArray<FRecentProjectFile>& RecentlyOpenedProjectFiles = GetMutableDefault<UEditorSettings>()->RecentlyOpenedProjectFiles;
+
+		FRecentProjectFile MostRecentProject(AbsoluteProjectPath, CurrentTime);
+		RecentlyOpenedProjectFiles.Remove(MostRecentProject);
+		RecentlyOpenedProjectFiles.Insert(MostRecentProject, 0);
 
 		// Trim any project files that do not have the current game project file extension
 		for ( int32 FileIdx = RecentlyOpenedProjectFiles.Num() - 1; FileIdx >= 0; --FileIdx )
 		{
-			const FString FileExtension = FPaths::GetExtension(RecentlyOpenedProjectFiles[FileIdx]);
+			const FString FileExtension = FPaths::GetExtension(RecentlyOpenedProjectFiles[FileIdx].ProjectName);
 			if ( FileExtension != FProjectDescriptor::GetExtension() )
 			{
 				RecentlyOpenedProjectFiles.RemoveAt(FileIdx, 1);
@@ -6664,7 +6668,7 @@ void UEditorEngine::UpdateRecentlyLoadedProjectFiles()
 		}
 
 		// Trim the list in case we have more than the max
-		const int32 MaxRecentProjectFiles = 1024;
+		const int32 MaxRecentProjectFiles = 10;
 		if ( RecentlyOpenedProjectFiles.Num() > MaxRecentProjectFiles )
 		{
 			RecentlyOpenedProjectFiles.RemoveAt(MaxRecentProjectFiles, RecentlyOpenedProjectFiles.Num() - MaxRecentProjectFiles);

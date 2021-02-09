@@ -275,19 +275,18 @@ void FHardwareTargetingSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& D
 		DetailBuilder.HideProperty(PropertyName);
 
 		TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(PropertyName);
-		auto SetPropertyValue = [](EHardwareClass::Type NewValue, TSharedRef<IPropertyHandle> InProperty){
+		auto SetPropertyValue = [](EHardwareClass NewValue, TSharedRef<IPropertyHandle> InProperty){
 			InProperty->SetValue(uint8(NewValue));
 		};
 		auto GetPropertyValue = [](TSharedRef<IPropertyHandle> InProperty){
 			uint8 Value = 0;
 			InProperty->GetValue(Value);
-			return EHardwareClass::Type(Value);
+			return EHardwareClass(Value);
 		};
 		
 		HardwareClassCombo = HardwareTargeting.MakeHardwareClassTargetCombo(
 			FOnHardwareClassChanged::CreateStatic(SetPropertyValue, Property),
-			TAttribute<EHardwareClass::Type>::Create(TAttribute<EHardwareClass::Type>::FGetter::CreateStatic(GetPropertyValue, Property)),
-			Orient_Horizontal
+			TAttribute<EHardwareClass>::Create(TAttribute<EHardwareClass>::FGetter::CreateStatic(GetPropertyValue, Property))
 		);
 	}
 
@@ -297,42 +296,41 @@ void FHardwareTargetingSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& D
 		DetailBuilder.HideProperty(PropertyName);
 
 		TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(PropertyName);
-		auto SetPropertyValue = [](EGraphicsPreset::Type NewValue, TSharedRef<IPropertyHandle> InProperty){
+		auto SetPropertyValue = [](EGraphicsPreset NewValue, TSharedRef<IPropertyHandle> InProperty){
 			InProperty->SetValue(uint8(NewValue));
 		};
 		auto GetPropertyValue = [](TSharedRef<IPropertyHandle> InProperty){
 			uint8 Value = 0;
 			InProperty->GetValue(Value);
-			return EGraphicsPreset::Type(Value);
+			return EGraphicsPreset(Value);
 		};
 		GraphicsPresetCombo = HardwareTargeting.MakeGraphicsPresetTargetCombo(
 			FOnGraphicsPresetChanged::CreateStatic(SetPropertyValue, Property),
-			TAttribute<EGraphicsPreset::Type>::Create(TAttribute<EGraphicsPreset::Type>::FGetter::CreateStatic(GetPropertyValue, Property)),
-			Orient_Horizontal
+			TAttribute<EGraphicsPreset>::Create(TAttribute<EGraphicsPreset>::FGetter::CreateStatic(GetPropertyValue, Property))
 		);
 	}
 
-	HardwareTargetingCategory.AddCustomRow(LOCTEXT("HardwareTargetingOption", "Targeted Hardware:"))
+	HardwareTargetingCategory.AddCustomRow(LOCTEXT("HardwareTargetingOption", "Targeted Hardware"))
 	.NameContent()
 	[
 		SNew(STextBlock)
-		.Text(LOCTEXT("OptimizeProjectFor", "Optimize project settings for:"))
+		.Text(LOCTEXT("OptimizeProjectFor", "Optimize project settings for"))
 		.Font(DetailBuilder.GetDetailFont())
 	]
 	.ValueContent()
 	.MaxDesiredWidth(0)
 	[
 		SNew(SHorizontalBox)
-
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(10.f, 0.f))
+		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
 			HardwareClassCombo.ToSharedRef()
 		]
-
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(0.f, 0.f, 10.f, 0.f))
+		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
 			GraphicsPresetCombo.ToSharedRef()

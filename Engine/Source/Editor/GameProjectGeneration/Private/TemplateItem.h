@@ -31,4 +31,5 @@ struct FTemplateItem
 
 	bool		bIsEnterprise = false;
 	bool		bIsBlankTemplate = false;
+	bool		bThumbnailAsIcon = false;
 };

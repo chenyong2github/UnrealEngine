@@ -422,16 +422,15 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Common icons
 	{
-		Set( "Icons.Refresh", new IMAGE_BRUSH( "Icons/icon_Refresh_16x", Icon16x16 ) );
 		Set( "Icons.Contact", new IMAGE_BRUSH( "Icons/icon_mail_16x", Icon16x16 ) );
 
 		Set( "Icons.DirtyBadge", new IMAGE_BRUSH_SVG("Starship/Common/DirtyBadge", Icon12x12));
 	}
 
 	Set( "WarningStripe", new IMAGE_BRUSH( "Common/WarningStripe", FVector2D(20,6), FLinearColor::White, ESlateBrushTileType::Horizontal ) );
-
-	Set("RoundedWarning", new FSlateRoundedBoxBrush(FStyleColors::Warning, 4.0f));
-	Set("RoundedError", new FSlateRoundedBoxBrush(FStyleColors::Error, 4.0f));
+	
+	Set("RoundedWarning", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Warning, 1.0f));
+	Set("RoundedError", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Error, 1.0f));
 
 	Set( "Button.Disabled", new BOX_BRUSH( "Common/Button_Disabled", 8.0f/32.0f ) );
 	
@@ -1686,24 +1685,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "GameProjectDialog.FolderIconOpen", new IMAGE_BRUSH( "Icons/FolderOpen", FVector2D(18, 16) ) );
 		Set( "GameProjectDialog.ProjectFileIcon", new IMAGE_BRUSH( "Icons/doc_16x", FVector2D(18, 16) ) );
 
-		Set( "GameProjectDialog.IncludeStarterContent", new IMAGE_BRUSH( "/GameProjectDialog/IncludeStarterContent", FVector2D(64, 64) ) );
-		Set( "GameProjectDialog.NoStarterContent", new IMAGE_BRUSH( "/GameProjectDialog/NoStarterContent", FVector2D(64, 64) ) );
-		
-		Set("GameProjectDialog.XRDisabled", new IMAGE_BRUSH("Icons/AssetIcons/SkeletalMesh_64x", Icon64x64));
-		Set("GameProjectDialog.XREnabled", new IMAGE_BRUSH("Icons/AssetIcons/SkeletalMesh_64x", Icon64x64));
-
-		Set("GameProjectDialog.RaytracingDisabled", new IMAGE_BRUSH("Icons/AssetIcons/Procedural_Foliage_Spawner_64x", Icon64x64));
-		Set("GameProjectDialog.RaytracingEnabled", new IMAGE_BRUSH("Icons/AssetIcons/Procedural_Foliage_Spawner_64x", Icon64x64));
-
-		Set( "FilePath.FolderButton",
-			FButtonStyle(HoverHintOnly)
-			.SetNormal(  BOX_BRUSH( "Common/ButtonHoverHint", FMargin(4/16.0f), FLinearColor(0.5f,0.5f,0.5f) ) )
-			.SetHovered( BOX_BRUSH( "Common/ButtonHoverHint", FMargin(4/16.0f), FLinearColor(0.6f,0.6f,0.6f) ) )
-			.SetPressed( BOX_BRUSH( "Common/ButtonHoverHint", FMargin(4/16.0f), FLinearColor(0.65f,0.65f,0.65f) ) )
-			.SetNormalPadding( FMargin(0,0,0,1) )
-			.SetPressedPadding( FMargin(0,1,0,0) )
-			);
-		Set( "FilePath.GroupIndicator", new BOX_BRUSH( "GameProjectDialog/filepath_group_indicator", FMargin(4.0f/16.f) ) );
 	}
 
 	// NewClassDialog
@@ -6557,31 +6538,43 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 #if WITH_EDITOR
 	// Project Browser
 	{
-		Set("ProjectBrowser.Tab.Text", FTextBlockStyle(NormalText)
-			.SetFont(DEFAULT_FONT("Regular", 24))
-			.SetShadowOffset(FVector2D(0, 1)));
-
-		Set("ProjectBrowser.Toolbar.Text", FTextBlockStyle(NormalText)
-			.SetFont(DEFAULT_FONT("Bold", 12))
-			.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.5f))
-			.SetShadowOffset(FVector2D(0, 1)));
-
 		Set("ProjectBrowser.VersionOverlayText", FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT("Bold", 14))
 			.SetShadowOffset(FVector2D(0, 1)));
 
 
-		Set("ProjectBrowser.Background", new BOX_BRUSH("Common/FlatColorSquare", FVector2D(1.0f, 1.0f), FMargin(0), FLinearColor(FColor(0xff404040))));
-		Set("ProjectBrowser.Tab.ActiveBackground", new BOX_BRUSH("Common/FlatColorSquare", FVector2D(1.0f, 1.0f), FMargin(0), FLinearColor(FColor(0xff404040))));
-		Set("ProjectBrowser.Tab.Background", new BOX_BRUSH("Common/FlatColorSquare", FVector2D(1.0f, 1.0f), FMargin(0), FLinearColor(FColor(0xff272727))));
-		Set("ProjectBrowser.Tab.ActiveHighlight", new BOX_BRUSH("Common/FlatColorSquare", FVector2D(1.0f, 1.0f), FMargin(0), SelectionColor));
-		Set("ProjectBrowser.Tab.Highlight", new BOX_BRUSH("Common/FlatColorSquare", FVector2D(1.0f, 1.0f), FMargin(0), SelectionColor_Inactive));
-		Set("ProjectBrowser.Tab.PressedHighlight", new BOX_BRUSH("Common/FlatColorSquare", FVector2D(1.0f, 1.0f), FMargin(0), SelectionColor_Pressed));
+		const FTableRowStyle ProjectBrowserTableRowStyle = FTableRowStyle()
+			.SetEvenRowBackgroundBrush(FSlateNoResource())
+			.SetEvenRowBackgroundHoveredBrush(FSlateNoResource())
+			.SetOddRowBackgroundBrush(FSlateNoResource())
+			.SetOddRowBackgroundHoveredBrush(FSlateNoResource())
+			.SetSelectorFocusedBrush(FSlateNoResource())
+			.SetActiveBrush(FSlateNoResource())
+			.SetActiveHoveredBrush(FSlateNoResource())
+			.SetInactiveBrush(FSlateNoResource())
+			.SetInactiveHoveredBrush(FSlateNoResource())
+			.SetActiveHighlightedBrush(FSlateNoResource())
+			.SetInactiveHighlightedBrush(FSlateNoResource())
+			.SetTextColor(FStyleColors::Foreground)
+			.SetSelectedTextColor(FStyleColors::ForegroundInverted);
+
+		Set("ProjectBrowser.TableRow", ProjectBrowserTableRowStyle);
+
+		Set("ProjectBrowser.MajorCategoryViewBorder", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 4.0f));
+
 
 		Set("ProjectBrowser.TileViewTooltip.ToolTipBorder", new FSlateColorBrush(FLinearColor::Black));
 		Set("ProjectBrowser.TileViewTooltip.NonContentBorder", new BOX_BRUSH("/Docking/TabContentArea", FMargin(4 / 16.0f)));
 		Set("ProjectBrowser.TileViewTooltip.ContentBorder", new BOX_BRUSH("Common/GroupBorder", FMargin(4.0f / 16.0f)));
 		Set("ProjectBrowser.TileViewTooltip.NameFont", DEFAULT_FONT("Regular", 12));
+
+		Set("ProjectBrowser.ProjectTile.Font", DEFAULT_FONT("Regular", 9));
+		Set("ProjectBrowser.ProjectTile.ThumbnailAreaBackground", new FSlateRoundedBoxBrush(COLOR("#474747FF"), FVector4(4.0f,4.0f,0.0f,0.0f)));
+		Set("ProjectBrowser.ProjectTile.NameAreaBackground", new FSlateRoundedBoxBrush(EStyleColor::Header, FVector4(0.0f, 0.0f, 4.0f, 4.0f)));
+		Set("ProjectBrowser.ProjectTile.DropShadow", new BOX_BRUSH("Starship/ContentBrowser/drop-shadow", FMargin(4.0f / 64.0f)));
+		Set("ProjectBrowser.ProjectTile.SelectedBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Primary, 1.0f));
+		Set("ProjectBrowser.ProjectTile.SelectedHoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::PrimaryHover, 1.0f));
+		Set("ProjectBrowser.ProjectTile.HoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Hover, 1.0f));
 	}
 
 	// Toolkit Display
