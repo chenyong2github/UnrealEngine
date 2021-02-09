@@ -254,6 +254,7 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 		.MenuPlacement(MenuPlacement_MenuRight)
 		.HasDownArrow(false)
 		.ButtonStyle(FEditorStyle::Get(), "BlueprintEditor.ContextMenu.TargetsButton")
+		.ContentPadding(FMargin(5))
 		.MenuContent()
 		[
 			SAssignNew(ContextTargetSubMenu, SBlueprintContextTargetMenu, MenuContext)
