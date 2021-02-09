@@ -1323,9 +1323,6 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 			const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 
-			// Disconnect any connected pin since we will replace it with the bound property/function
-			ShowPinPropertyHandle->SetValue(false);
-
 			for(UObject* OuterObject : OuterObjects)
 			{
 				if(UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(OuterObject))
@@ -1373,9 +1370,10 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 					}
 					AnimGraphNode->PropertyBindings.Add(InPropertyName, Binding);
 				}
-
-				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 			}
+
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+			
 			// Pins are exposed if we have a binding or not - and after running this we do.
 			ShowPinPropertyHandle->SetValue(true);
 		});
