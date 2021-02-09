@@ -193,12 +193,14 @@ static bool HasLicense()
 FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient )
 	: bIsClient(bInIsClient)
 	, DeviceDetection(nullptr)
+	, bDistanceField(false)
 
 {
 	#if WITH_ENGINE
 		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *IniPlatformName());
 			TextureLODSettings = nullptr; // These are registered by the device profile system.
 		StaticMeshLODSettings.Initialize(EngineSettings);
+		EngineSettings.GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.DistanceFields"), bDistanceField);
 	#endif
 
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FAndroidTargetPlatform::HandleTicker);
@@ -372,6 +374,9 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
 			return SupportsLandscapeMeshLODStreaming();
 
+		case ETargetPlatformFeatures::DistanceFieldAO:
+			return UsesDistanceFields();
+			
 		default:
 			break;
 	}

@@ -164,6 +164,11 @@ public:
 
 	//~ Begin ITargetPlatform Interface
 
+	virtual bool UsesDistanceFields() const override
+	{
+		return bDistanceField;
+	}
+
 protected:
 
 	/**
@@ -201,6 +206,9 @@ private:
 
 	// Holds the message endpoint used for communicating with the LaunchDaemon.
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
+
+	// true if DistanceField is enabled
+	bool bDistanceField;
 
 #if WITH_ENGINE
 	// Holds the Engine INI settings, for quick use.
