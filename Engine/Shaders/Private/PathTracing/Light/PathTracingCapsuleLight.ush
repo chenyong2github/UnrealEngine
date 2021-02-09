@@ -111,7 +111,8 @@ void CapsuleLight_SampleLight(
 	float3 Axis = GetdPdv(LightId);
 	float3x3 CylinderBasis = GetTangentBasis(Axis);
 
-	float3 Point, Norm;
+	float3 Point;
+	float3 Norm;
 	if (RandSample.y < Prob)
 	{
 		RandSample.y /= Prob;
