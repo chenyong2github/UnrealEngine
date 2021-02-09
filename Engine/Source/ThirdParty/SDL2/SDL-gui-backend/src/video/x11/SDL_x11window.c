@@ -862,8 +862,9 @@ X11_SetWindowPosition(_THIS, SDL_Window * window)
     X11_XGetWindowAttributes(display, data->xwindow, &attrs);
     X11_XTranslateCoordinates(display, parent, DefaultRootWindow(display),
                               attrs.x, attrs.y, &orig_x, &orig_y, &childReturn);
+    X11_XFree(children);
 
-    /*Attempt to move the window*/
+    /* Attempt to move the window */
     X11_XMoveWindow(display, data->xwindow, window->x - data->border_left, window->y - data->border_top);
 
     /* Wait a brief time to see if the window manager decided to let this move happen.
@@ -872,9 +873,11 @@ X11_SetWindowPosition(_THIS, SDL_Window * window)
     while (SDL_TRUE) {
         int x, y;
         X11_XSync(display, False);
+        X11_XQueryTree(display, data->xwindow, &root, &parent, &children, &childCount);
         X11_XGetWindowAttributes(display, data->xwindow, &attrs);
         X11_XTranslateCoordinates(display, parent, DefaultRootWindow(display),
                                   attrs.x, attrs.y, &x, &y, &childReturn);
+        X11_XFree(children);
 
         if ((x != orig_x) || (y != orig_y)) {
             window->x = x;
