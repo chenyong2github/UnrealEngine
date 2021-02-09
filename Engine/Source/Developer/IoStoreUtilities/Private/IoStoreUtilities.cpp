@@ -4110,7 +4110,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
 {
-	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
+	UE_LOG(LogIoStore, Display, TEXT("Building patch..."));
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
 	FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
 	check(IoStatus.IsOk());
@@ -4194,6 +4194,14 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 				if (FindFileName)
 				{
 					WriteOptions.FileName = *FindFileName;
+					if (FindSourceHash)
+					{
+						UE_LOG(LogIoStore, Display, TEXT("Modified: %s"), **FindFileName);
+					}
+					else
+					{
+						UE_LOG(LogIoStore, Display, TEXT("Added: %s"), **FindFileName);
+					}
 				}
 				WriteOptions.bIsMemoryMapped = ChunkInfo.bIsMemoryMapped;
 				WriteOptions.bForceUncompressed = ChunkInfo.bForceUncompressed; 
