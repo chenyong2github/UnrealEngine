@@ -30,6 +30,7 @@ public:
 
 #if WITH_EDITOR
 	virtual FText GetDisplayName() const override;
+	virtual ETrackSupport IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const override;
 #endif
 
 	UBlueprint* GetParentBlueprint() const;
