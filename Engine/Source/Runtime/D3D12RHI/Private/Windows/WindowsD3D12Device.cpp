@@ -210,7 +210,9 @@ static D3D_SHADER_MODEL FindHighestShaderModel(ID3D12Device* Device)
 	// in descending order and return the first result that succeeds.
 	const D3D_SHADER_MODEL ShaderModelsToCheck[] =
 	{
+#if !PLATFORM_HOLOLENS
 		D3D_SHADER_MODEL_6_6,
+#endif
 		D3D_SHADER_MODEL_6_5,
 		D3D_SHADER_MODEL_6_4,
 		D3D_SHADER_MODEL_6_3,
