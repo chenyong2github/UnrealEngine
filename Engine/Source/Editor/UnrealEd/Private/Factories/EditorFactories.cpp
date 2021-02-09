@@ -976,10 +976,12 @@ UObject* ULevelFactory::FactoryCreateText
 								AGroupActor** tmpNewGroup = nullptr;
 								// We need to add all the objects we selected into groups with new objects that were in their group before.
 								FString GroupName;
+								FString GroupFolder;
 								if(FParse::Value(Str, TEXT("GroupActor="), GroupName))
 								{
 									tmpNewGroup = NewGroups.Find(GroupName);
 									bGrouped = true;
+									FParse::Value(Str, TEXT("GroupFolder="), GroupFolder);
 								}
 
 								// Does the group exist?
@@ -994,6 +996,7 @@ UObject* ULevelFactory::FactoryCreateText
 								{
 									// Create a new group and add the actor.
 									AGroupActor* SpawnedGroupActor = NewActor->GetWorld()->SpawnActor<AGroupActor>();
+									SpawnedGroupActor->SetFolderPath(*GroupFolder);
 									SpawnedGroupActor->Add(*NewActor);
 
 									// Place the group in the map so we can find it later.
