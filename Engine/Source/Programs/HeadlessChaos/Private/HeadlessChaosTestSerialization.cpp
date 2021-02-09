@@ -16,6 +16,7 @@
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/ChaosPerfTest.h"
+#include "Chaos/HeightField.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include "Chaos/BoundingVolumeHierarchy.h"
@@ -433,6 +434,68 @@ namespace ChaosTest
 	{
 		//Load evolutions and step them over and over (with rewind) to measure perf of different components in the system
 		//EvolutionPerfHelper(FPaths::EngineDir() / TEXT("Restricted/NotForLicensees/Source/Programs/HeadlessPhysicsSQ/Captures/ChaosEvolution_76.bin"));
+	}
+
+	void HeightFieldSerialization()
+	{
+		const int32 Cols = 10;
+		const int32 Rows = 20;
+		TArray<uint16> Heights;
+		Heights.SetNum(Cols * Rows);
+		for (int32 Row = 0; Row < Rows; ++Row)
+		{
+			for (int32 Col= 0; Col< Cols; ++Col)
+			{
+				int32 Index = (Row * Cols) + Col;
+				Heights[Index] = Index; // set the Index as the height 
+			}
+		}
+
+		TArray<uint8> MaterialIndices;
+		MaterialIndices.SetNum(1);
+		MaterialIndices[0] = 0;
+
+		TUniquePtr<FHeightField> OriginalHeightField(new FHeightField(Heights, MaterialIndices, Rows, Cols, { (FReal)20000., (FReal)30000., (FReal)10000. }));
+
+		TArray<uint8> Data;
+		{
+			FMemoryWriter Ar(Data);
+			FChaosArchive Writer(Ar);
+
+			Writer << OriginalHeightField;
+		}
+
+		{
+			FMemoryReader Ar(Data);
+			FChaosArchive Reader(Ar);
+			TSerializablePtr<FHeightField> SerializedHeightField;
+
+			Reader << SerializedHeightField;
+
+			const FHeightField::FDataType& OriginalGeomData = OriginalHeightField->GeomData;
+			const FHeightField::FDataType& SerializedGeomData = SerializedHeightField->GeomData;
+
+			EXPECT_EQ(SerializedGeomData.MinValue, OriginalGeomData.MinValue);
+			EXPECT_EQ(SerializedGeomData.MaxValue, OriginalGeomData.MaxValue);
+			EXPECT_EQ(SerializedGeomData.Scale, OriginalGeomData.Scale);
+			EXPECT_EQ(SerializedGeomData.NumRows, OriginalGeomData.NumRows);
+			EXPECT_EQ(SerializedGeomData.NumCols, OriginalGeomData.NumCols);
+			EXPECT_EQ(SerializedGeomData.Range, OriginalGeomData.Range);
+			EXPECT_EQ(SerializedGeomData.HeightPerUnit, OriginalGeomData.HeightPerUnit);
+			EXPECT_EQ(SerializedGeomData.Heights.Num(), OriginalGeomData.Heights.Num());
+			EXPECT_EQ(SerializedGeomData.MaterialIndices.Num(), OriginalGeomData.MaterialIndices.Num());
+
+			for (int32 i = 0; i < SerializedGeomData.Heights.Num(); ++i)
+			{
+				EXPECT_EQ(SerializedGeomData.Heights[i], OriginalGeomData.Heights[i]);
+			}
+			
+
+			for (int32 i = 0; i < SerializedGeomData.MaterialIndices.Num(); ++i)
+			{
+				EXPECT_EQ(SerializedGeomData.MaterialIndices[i], OriginalGeomData.MaterialIndices[i]);
+			}
+		}
 	}
 
 }

@@ -139,6 +139,7 @@ TEST(SerializationTests, Serialization) {
 	ChaosTest::BVHSerialization();
 	ChaosTest::RigidParticlesSerialization();
 	ChaosTest::BVHParticlesSerialization();
+	ChaosTest::HeightFieldSerialization();
 	SUCCEED();
 }
 

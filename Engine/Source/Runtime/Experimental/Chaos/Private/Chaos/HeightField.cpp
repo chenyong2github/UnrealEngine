@@ -316,8 +316,6 @@ namespace Chaos
 	{
 		using FDataType = typename FHeightField::FDataType;
 
-		using RealType = typename FDataType::RealType;
-
 		const bool bHaveMaterials = MaterialIndexView.Num() > 0;
 		const bool bOnlyDefaultMaterial = MaterialIndexView.Num() == 1;
 		ensure(BufferView.Num() == NumRows * NumCols);
@@ -336,7 +334,7 @@ namespace Chaos
 
 		for(int32 HeightIndex = 1; HeightIndex < NumHeights; ++HeightIndex)
 		{
-			const RealType CurrHeight = ToRealFunc(BufferView[HeightIndex]);
+			const FReal CurrHeight = ToRealFunc(BufferView[HeightIndex]);
 
 			if(CurrHeight > OutData.MaxValue)
 			{
@@ -357,7 +355,7 @@ namespace Chaos
 
 			int32 X = HeightIndex % (NumCols);
 			int32 Y = HeightIndex / (NumCols);
-			FVec3 Position(RealType(X), RealType(Y), OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit);
+			FVec3 Position(FReal(X), FReal(Y), OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit);
 			if(HeightIndex == 0)
 			{
 				OutBounds = FAABB3(Position * InScale, Position * InScale);
@@ -389,10 +387,9 @@ namespace Chaos
 	void EditGeomData(TArrayView<BufferType> BufferView, int32 InBeginRow, int32 InBeginCol, int32 NumRows, int32 NumCols, TUniqueFunction<FReal(const BufferType)> ToRealFunc, typename FHeightField::FDataType& OutData, FAABB3& OutBounds)
 	{
 		using FDataType = typename FHeightField::FDataType;
-		using RealType = typename FDataType::RealType;
 
-		RealType MinValue = TNumericLimits<FReal>::Max();
-		RealType MaxValue = TNumericLimits<FReal>::Min();
+		FReal MinValue = TNumericLimits<FReal>::Max();
+		FReal MaxValue = TNumericLimits<FReal>::Min();
 
 		for(BufferType& Value : BufferView)
 		{
@@ -408,10 +405,10 @@ namespace Chaos
 		const bool bNeedsResample = MinValue < OutData.MinValue || MaxValue > OutData.MaxValue;
 		if(bNeedsResample)
 		{
-			const RealType NewMin = FMath::Min(MinValue, OutData.MinValue);
-			const RealType NewMax = FMath::Max(MaxValue, OutData.MaxValue);
-			const RealType NewRange = NewMax - NewMin;
-			const RealType NewHeightPerUnit = NewRange / FDataType::StorageRange;
+			const FReal NewMin = FMath::Min(MinValue, OutData.MinValue);
+			const FReal NewMax = FMath::Max(MaxValue, OutData.MaxValue);
+			const FReal NewRange = NewMax - NewMin;
+			const FReal NewHeightPerUnit = NewRange / FDataType::StorageRange;
 
 			for(int32 RowIdx = 0; RowIdx < OutData.NumRows; ++RowIdx)
 			{
@@ -430,13 +427,13 @@ namespace Chaos
 					else
 					{
 						// Resample existing
-						const RealType ExpandedHeight = OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit;
+						const FReal ExpandedHeight = OutData.MinValue + OutData.Heights[HeightIndex] * OutData.HeightPerUnit;
 						OutData.Heights[HeightIndex] = static_cast<typename FDataType::StorageType>((ExpandedHeight - NewMin) / NewHeightPerUnit);
 					}
 
 					int32 X = HeightIndex % (OutData.NumCols);
 					int32 Y = HeightIndex / (OutData.NumCols);
-					FVec3 Position(RealType(X), RealType(Y), NewMin + OutData.Heights[HeightIndex] * NewHeightPerUnit);
+					FVec3 Position(FReal(X), FReal(Y), NewMin + OutData.Heights[HeightIndex] * NewHeightPerUnit);
 					if(HeightIndex == 0)
 					{
 						OutBounds = FAABB3(Position, Position);
@@ -474,7 +471,12 @@ namespace Chaos
 	FHeightField::FHeightField(TArray<FReal>&& Height, TArray<uint8>&& InMaterialIndices, int32 NumRows, int32 NumCols, const FVec3& InScale)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField)
 	{
-		BuildGeomData<float>(MakeArrayView(Height), MakeArrayView(InMaterialIndices), NumRows, NumCols, FVec3(1), [](const FReal InVal) {return InVal; }, GeomData, LocalBounds);
+		TUniqueFunction<FReal(FReal)> ConversionFunc = [](const FReal InVal) -> FReal
+		{
+			return InVal;
+		};
+
+		BuildGeomData<FReal>(MakeArrayView(Height), MakeArrayView(InMaterialIndices), NumRows, NumCols, FVec3(1), MoveTemp(ConversionFunc), GeomData, LocalBounds);
 		CalcBounds();
 		SetScale(InScale);
 	}
@@ -482,9 +484,9 @@ namespace Chaos
 	Chaos::FHeightField::FHeightField(TArrayView<const uint16> InHeights, TArrayView<uint8> InMaterialIndices, int32 InNumRows, int32 InNumCols, const FVec3& InScale)
 		: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField)
 	{
-		TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const FReal InVal) -> float
+		TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const uint16 InVal) -> FReal
 		{
-			return (float)((int32)InVal - 32768);
+			return (FReal)((int32)InVal - 32768);
 		};
 
 		BuildGeomData<const uint16>(InHeights, InMaterialIndices, InNumRows, InNumCols, FVec3(1), MoveTemp(ConversionFunc), GeomData, LocalBounds);
@@ -500,9 +502,9 @@ namespace Chaos
 
 		if(ensure(InHeights.Num() == NumExpectedValues && InBeginRow >= 0 && InBeginCol >= 0 && EndRow < GeomData.NumRows && EndCol < GeomData.NumCols))
 		{
-			TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const FReal InVal) -> float
+			TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const uint16 InVal) -> FReal
 			{
-				return (float)((int32)InVal - 32768);
+				return (FReal)((int32)InVal - 32768);
 			};
 
 			EditGeomData<const uint16>(InHeights, InBeginRow, InBeginCol, InNumRows, InNumCols, MoveTemp(ConversionFunc), GeomData, LocalBounds);
@@ -520,7 +522,7 @@ namespace Chaos
 
 		if(ensure(InHeights.Num() == NumExpectedValues && InBeginRow >= 0 && InBeginCol >= 0 && EndRow < GeomData.NumRows && EndCol < GeomData.NumCols))
 		{
-			TUniqueFunction<FReal(FReal)> ConversionFunc = [](const FReal InVal) -> float
+			TUniqueFunction<FReal(FReal)> ConversionFunc = [](const FReal InVal) -> FReal
 			{
 				return InVal;
 			};
@@ -610,8 +612,8 @@ namespace Chaos
 			FVec3 Pts[4];
 			InGeomData.GetPointsScaled(SingleIndex, Pts);
 
-			float FractionX = FMath::Frac(InGridLocationLocal[0]);
-			float FractionY = FMath::Frac(InGridLocationLocal[1]);
+			FReal FractionX = FMath::Frac(InGridLocationLocal[0]);
+			FReal FractionY = FMath::Frac(InGridLocationLocal[1]);
 
 			if(FractionX > FractionY)
 			{
@@ -652,13 +654,13 @@ namespace Chaos
 		return Result;
 	}
 
-	Chaos::FVec3 Chaos::FHeightField::GetNormalAt(const TVector<FReal, 2>& InGridLocationLocal) const
+	Chaos::FVec3 Chaos::FHeightField::GetNormalAt(const TVec2<FReal>& InGridLocationLocal) const
 	{
 		return GetHeightNormalAt<false, true>(InGridLocationLocal, GeomData, FlatGrid).Normal;
 
 	}
 
-	FReal Chaos::FHeightField::GetHeightAt(const TVector<FReal, 2>& InGridLocationLocal) const
+	FReal Chaos::FHeightField::GetHeightAt(const TVec2<FReal>& InGridLocationLocal) const
 	{
 		return GetHeightNormalAt<true, false>(InGridLocationLocal, GeomData, FlatGrid).Height;
 	}
@@ -770,7 +772,7 @@ namespace Chaos
 
 		FReal TOI;
 		const FBounds2D FlatBounds = GetFlatBounds();
-		TAABB<FReal, 3> Bounds(
+		FAABB3 Bounds(
 			FVec3(FlatBounds.Min[0],FlatBounds.Min[1],GeomData.GetMinHeight() * GeomData.Scale[2]),
 			FVec3(FlatBounds.Max[0],FlatBounds.Max[1],GeomData.GetMaxHeight() * GeomData.Scale[2])
 			);
@@ -796,7 +798,7 @@ namespace Chaos
 				{
 					// Check cell bounds
 					//todo: can do it without raycast
-					if(TAABB<FReal, 3>(Min,Max).RaycastFast(StartPoint,Dir,InvDir,bParallel,CurrentLength,InvCurrentLength,TOI,HitPoint))
+					if(FAABB3(Min,Max).RaycastFast(StartPoint,Dir,InvDir,bParallel,CurrentLength,InvCurrentLength,TOI,HitPoint))
 					{
 						// Visit the selected cell
 						bool bContinue = Visitor.VisitRaycast(CellIdx[1] * (GeomData.NumCols - 1) + CellIdx[0],CurrentLength);
@@ -956,7 +958,7 @@ namespace Chaos
 
 			// Data for fast box cast
 			FVec3 Min, Max, HitPoint;
-			float ToI;
+			FReal ToI;
 			bool bParallel[3];
 			FVec3 InvDir;
 
@@ -1004,7 +1006,7 @@ namespace Chaos
 						FBounds2D CellBounds;
 						if(GetCellBounds3DScaled(NeighCoord, Min, Max, HalfExtents3D) && !Seen.Contains(NeighCoord))
 						{
-							if(TAABB<FReal, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+							if(FAABB3(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
 							{
 								Seen.Add(NeighCoord);
 								Queue.Add({NeighCoord, ToI});
@@ -1046,7 +1048,7 @@ namespace Chaos
 					// Check the current cell, if we hit its 3D bound we can move on to narrow phase
 					const TVec2<int32> Coord = CellCoord.Index;
 					if(GetCellBounds3DScaled(Coord, Min, Max, HalfExtents3D) &&
-						TAABB<FReal, 3>(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
+						FAABB3(Min,Max).RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, ToI, HitPoint))
 					{
 						bool bContinue = Visitor.VisitSweep(CellCoord.Index[1] * (GeomData.NumCols - 1) + CellCoord.Index[0], CurrentLength);
 
@@ -1196,7 +1198,7 @@ namespace Chaos
 			return false;
 		};
 
-		TAABB<FReal, 3> QueryBounds(Point, Point);
+		FAABB3 QueryBounds(Point, Point);
 		QueryBounds.Thicken(Thickness);
 
 		FBounds2D FlatQueryBounds;
@@ -1251,10 +1253,10 @@ namespace Chaos
 				// The regular penetration calculation vs a triangle may result in inward facing normals.
 				// To protect against this, we sweep against the triangle from a distance to ensure an outward
 				// facing normal and MTD.
-				const TAABB<FReal, 3> Bounds = QueryGeom.BoundingBox();
-				const float ApproximateSizeOfObject = Bounds.Extents()[Bounds.LargestAxis()];
-				const float ApproximateDistToObject = FVec3::DistSquared(QueryTM.GetLocation(), A);
-				const float SweepLength = ApproximateSizeOfObject + ApproximateDistToObject;
+				const FAABB3 Bounds = QueryGeom.BoundingBox();
+				const FReal ApproximateSizeOfObject = Bounds.Extents()[Bounds.LargestAxis()];
+				const FReal ApproximateDistToObject = FVec3::DistSquared(QueryTM.GetLocation(), A);
+				const FReal SweepLength = ApproximateSizeOfObject + ApproximateDistToObject;
 				const FVec3 TriNormal = Offset.GetUnsafeNormal();
 				const FRigidTransform3 QueryStartTM(QueryTM.GetLocation() + TriNormal * SweepLength, QueryTM.GetRotation());
 				if (GJKRaycast2(TriangleConvex, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestB, Normal, 0.f, true))
@@ -1281,7 +1283,7 @@ namespace Chaos
 		};
 
 		bool bResult = false;
-		TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
+		FAABB3 QueryBounds = QueryGeom.BoundingBox();
 		QueryBounds.Thicken(Thickness);
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 
@@ -1423,7 +1425,7 @@ namespace Chaos
 		};
 
 		bool bResult = false;
-		TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
+		FAABB3 QueryBounds = QueryGeom.BoundingBox();
 		QueryBounds.Thicken(Thickness);
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 
@@ -1509,7 +1511,7 @@ namespace Chaos
 	{
 		bool bHit = false;
 		THeightfieldSweepVisitor<QueryGeomType> SQVisitor(&GeomData, QueryGeom, StartTM, Dir, Thickness, bComputeMTD);
-		const TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
+		const FAABB3 QueryBounds = QueryGeom.BoundingBox();
 		const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 
 		const FVec3 Inflation3D = QueryBounds.Extents() * 0.5 + FVec3(Thickness);
@@ -1571,7 +1573,7 @@ namespace Chaos
 	{
 		const FReal SearchDist2 = SearchDist * SearchDist;
 
-		TAABB<FReal, 3> QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
+		FAABB3 QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
 		const FBounds2D FlatBounds(QueryBounds);
 		TArray<TVec2<int32>> PotentialIntersections;
 		GetGridIntersections(FlatBounds, PotentialIntersections);
@@ -1636,9 +1638,9 @@ namespace Chaos
 
 		const FReal SearchDist2 = SearchDist * SearchDist;
 
-		TAABB<FReal, 3> QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
+		FAABB3 QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
 		const FBounds2D FlatBounds(QueryBounds);
-		TArray<TVector<int32, 2>> PotentialIntersections;
+		TArray<TVec2<int32>> PotentialIntersections;
 		GetGridIntersections(FlatBounds, PotentialIntersections);
 
 		auto CheckTriangle = [&](int32 FaceIndex, const FVec3& A, const FVec3& B, const FVec3& C)
@@ -1671,7 +1673,7 @@ namespace Chaos
 			}
 		};
 
-		for(const TVector<int32, 2> & CellCoord : PotentialIntersections)
+		for(const TVec2<int32> & CellCoord : PotentialIntersections)
 		{
 			const int32 CellIndex = CellCoord[1] * (GeomData.NumCols - 1) + CellCoord[0];
 			const int32 SubX = CellIndex % (GeomData.NumCols - 1);
