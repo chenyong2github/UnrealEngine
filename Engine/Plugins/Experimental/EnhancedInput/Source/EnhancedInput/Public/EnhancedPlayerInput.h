@@ -67,11 +67,6 @@ private:
 
 	FInputActionInstance& FindOrAddActionEventData(const UInputAction* Action) const;
 
-	void ResetActionInstanceData()
-	{
-		ActionInstanceData.Reset();
-	}
-
 	template<typename T>
 	void GatherActionEventDataForActionMap(const T& ActionMap, TMap<const UInputAction*, FInputActionInstance>& FoundActionEventData) const;
 
