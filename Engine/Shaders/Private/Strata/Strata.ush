@@ -45,82 +45,109 @@ struct FStrataBSDF
 	float4 VGPRs[4];
 };
 
-// Num bits for each component store in BSDF state
-#define STATE_BITS_BSDF					3
-#define STATE_BITS_SHAREDNORMALID		2
-#define STATE_BITS_ANISOTROPY			1
-#define STATE_BITS_TOPLAYER				1
-#define STATE_BITS_HASSCATTERING		1
-#define STATE_BITS_HASSSSPROFILE		1
-#define STATE_BITS_GREYWEIGHT			1
-#define STATE_BITS_HAZINESS				1
-#define STATE_BITS_EDGECOLOR			1
-#define STATE_BITS_THINFILM				1
-#define STATE_BITS___UNUSED___			10
-#define STATE_BITS_WEIGHT10F			10
+
+
+#define TO_BITMASK(BitCount)							((1<<BitCount)-1)
+#define READ_BITS(X, BitCount, BitOffset)				uint((X>>BitOffset) & TO_BITMASK(BitCount))
+#define WRITE_BITS(X, BitCount, BitOffset, NewValue)	X = (X & (~(TO_BITMASK(BitCount)<<BitOffset))) | ((NewValue & TO_BITMASK(BitCount)) << BitOffset)
+
+// Bit count for each component stored in a Strata header
+// For HEADER_BIT_BSDF_COUNT and  HEADER_BIT_SHAREDNORMAL_X, please refer to values in StrataDefinitions.h
+#define HEADER_BIT_COUNT_BSDF_COUNT				4
+#define HEADER_BIT_COUNT_SHAREDNORMAL_COUNT		3
+#define HEADER_BIT_COUNT_SHAREDNORMAL_TYPE		4
+#define HEADER_BIT_COUNT_AO						8
+#define HEADER_BIT_COUNT___UNUSED___			13
+
+#define HEADER_BIT_OFFSET_BSDF_COUNT			0
+#define HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT	(HEADER_BIT_OFFSET_BSDF_COUNT				+ HEADER_BIT_COUNT_BSDF_COUNT)
+#define HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE		(HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT		+ HEADER_BIT_COUNT_SHAREDNORMAL_COUNT)
+#define HEADER_BIT_OFFSET_AO					(HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE		+ HEADER_BIT_COUNT_SHAREDNORMAL_TYPE)
+
+#define HEADER_GETBSDFCOUNT(X)					READ_BITS( X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT)
+#define HEADER_SETBSDFCOUNT(X, NewValue)		WRITE_BITS(X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT, NewValue)
+
+#define HEADER_GETSHAREDNORMALCOUNT(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDNORMAL_COUNT, HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT)
+#define HEADER_SETSHAREDNORMALCOUNT(X, NewValue)WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDNORMAL_COUNT, HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT, NewValue)
+
+#define HEADER_GETSHAREDNORMALTYPE(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDNORMAL_TYPE, HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE)
+#define HEADER_SETSHAREDNORMALTYPE(X, NewValue)	WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDNORMAL_TYPE, HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE, NewValue)
+
+#define HEADER_GETAO(X)							READ_BITS( X, HEADER_BIT_COUNT_AO, HEADER_BIT_OFFSET_AO)
+#define HEADER_SETAO(X, NewValue)				WRITE_BITS(X, HEADER_BIT_COUNT_AO, HEADER_BIT_OFFSET_AO, NewValue)
+
+// Bit count for each component stored in a Strata BSDF state
+#define STATE_BIT_COUNT_BSDF					3
+#define STATE_BIT_COUNT_SHAREDNORMALID			2
+#define STATE_BIT_COUNT_ANISOTROPY				1
+#define STATE_BIT_COUNT_TOPLAYER				1
+#define STATE_BIT_COUNT_HASSCATTERING			1
+#define STATE_BIT_COUNT_HASSSSPROFILE			1
+#define STATE_BIT_COUNT_GREYWEIGHT				1
+#define STATE_BIT_COUNT_HAZINESS				1
+#define STATE_BIT_COUNT_EDGECOLOR				1
+#define STATE_BIT_COUNT_THINFILM				1
+#define STATE_BIT_COUNT___UNUSED___				10
+#define STATE_BIT_COUNT_WEIGHT10F				10
 
 // Bit offset of each component store in BSDF state 
 #define STATE_BIT_OFFSET_BSDF			0
-#define STATE_BIT_OFFSET_SHAREDNORMALID	(STATE_BIT_OFFSET_BSDF				+ STATE_BITS_BSDF)
-#define STATE_BIT_OFFSET_ANISOTROPY		(STATE_BIT_OFFSET_SHAREDNORMALID	+ STATE_BITS_SHAREDNORMALID)
-#define STATE_BIT_OFFSET_TOPLAYER		(STATE_BIT_OFFSET_ANISOTROPY		+ STATE_BITS_ANISOTROPY)
-#define STATE_BIT_OFFSET_HASSCATTERING	(STATE_BIT_OFFSET_TOPLAYER			+ STATE_BITS_TOPLAYER)
-#define STATE_BIT_OFFSET_HASSSSPROFILE	(STATE_BIT_OFFSET_HASSCATTERING		+ STATE_BITS_HASSCATTERING)
-#define STATE_BIT_OFFSET_GREYWEIGHT		(STATE_BIT_OFFSET_HASSSSPROFILE		+ STATE_BITS_HASSSSPROFILE)
-#define STATE_BIT_OFFSET_HAZINESS		(STATE_BIT_OFFSET_GREYWEIGHT		+ STATE_BITS_GREYWEIGHT)
-#define STATE_BIT_OFFSET_EDGECOLOR		(STATE_BIT_OFFSET_HAZINESS			+ STATE_BITS_HAZINESS)
-#define STATE_BIT_OFFSET_THINFILM		(STATE_BIT_OFFSET_EDGECOLOR			+ STATE_BITS_EDGECOLOR)
+#define STATE_BIT_OFFSET_SHAREDNORMALID	(STATE_BIT_OFFSET_BSDF				+ STATE_BIT_COUNT_BSDF)
+#define STATE_BIT_OFFSET_ANISOTROPY		(STATE_BIT_OFFSET_SHAREDNORMALID	+ STATE_BIT_COUNT_SHAREDNORMALID)
+#define STATE_BIT_OFFSET_TOPLAYER		(STATE_BIT_OFFSET_ANISOTROPY		+ STATE_BIT_COUNT_ANISOTROPY)
+#define STATE_BIT_OFFSET_HASSCATTERING	(STATE_BIT_OFFSET_TOPLAYER			+ STATE_BIT_COUNT_TOPLAYER)
+#define STATE_BIT_OFFSET_HASSSSPROFILE	(STATE_BIT_OFFSET_HASSCATTERING		+ STATE_BIT_COUNT_HASSCATTERING)
+#define STATE_BIT_OFFSET_GREYWEIGHT		(STATE_BIT_OFFSET_HASSSSPROFILE		+ STATE_BIT_COUNT_HASSSSPROFILE)
+#define STATE_BIT_OFFSET_HAZINESS		(STATE_BIT_OFFSET_GREYWEIGHT		+ STATE_BIT_COUNT_GREYWEIGHT)
+#define STATE_BIT_OFFSET_EDGECOLOR		(STATE_BIT_OFFSET_HAZINESS			+ STATE_BIT_COUNT_HAZINESS)
+#define STATE_BIT_OFFSET_THINFILM		(STATE_BIT_OFFSET_EDGECOLOR			+ STATE_BIT_COUNT_EDGECOLOR)
 #define STATE_BIT_OFFSET_WEIGHT10F		22
 
-#define TO_BITMASK(BitCount)							((1<<BitCount)-1)
-#define BSDF_GETSTATE(X, BitCount, BitOffset)			uint((X.State>>BitOffset) & TO_BITMASK(BitCount))
-#define BSDF_SETSTATE(X, BitCount, BitOffset, Value)	X.State = (X.State & (~(TO_BITMASK(BitCount)<<BitOffset))) | ((Value & TO_BITMASK(BitCount)) << BitOffset)
-
 // Accessors for the BSDF type
-#define BSDF_GETTYPE(X)					BSDF_GETSTATE(X, STATE_BITS_BSDF, STATE_BIT_OFFSET_BSDF)
-#define BSDF_SETTYPE(X, NewType)		BSDF_SETSTATE(X, STATE_BITS_BSDF, STATE_BIT_OFFSET_BSDF, NewType)
+#define BSDF_GETTYPE(X)					READ_BITS(X.State,  STATE_BIT_COUNT_BSDF, STATE_BIT_OFFSET_BSDF)
+#define BSDF_SETTYPE(X, NewType)		WRITE_BITS(X.State, STATE_BIT_COUNT_BSDF, STATE_BIT_OFFSET_BSDF, NewType)
 
 // Accessors for Shared Normal
 // This assumes Normals[STRATA_MAX_SHARED_NORMAL_REGISTERS]
-#define BSDF_GETNORMALID(X)				BSDF_GETSTATE(X, STATE_BITS_SHAREDNORMALID, STATE_BIT_OFFSET_SHAREDNORMALID)
-#define BSDF_SETNORMALID(X, NrmlIdx)	BSDF_SETSTATE(X, STATE_BITS_SHAREDNORMALID, STATE_BIT_OFFSET_SHAREDNORMALID, NrmlIdx)
+#define BSDF_GETNORMALID(X)				READ_BITS(X.State,  STATE_BIT_COUNT_SHAREDNORMALID, STATE_BIT_OFFSET_SHAREDNORMALID)
+#define BSDF_SETNORMALID(X, NrmlIdx)	WRITE_BITS(X.State, STATE_BIT_COUNT_SHAREDNORMALID, STATE_BIT_OFFSET_SHAREDNORMALID, NrmlIdx)
 
 // Accessors for HasAnisotropy
 // Indicates if the BSDF has anisotropic feature
-#define BSDF_GETANISOTROPY(X)			BSDF_GETSTATE(X, STATE_BITS_ANISOTROPY, STATE_BIT_OFFSET_ANISOTROPY)
-#define BSDF_SETANISOTROPY(X, Aniso)	BSDF_SETSTATE(X, STATE_BITS_ANISOTROPY, STATE_BIT_OFFSET_ANISOTROPY, Aniso)
+#define BSDF_GETANISOTROPY(X)			READ_BITS(X.State,  STATE_BIT_COUNT_ANISOTROPY, STATE_BIT_OFFSET_ANISOTROPY)
+#define BSDF_SETANISOTROPY(X, Aniso)	WRITE_BITS(X.State, STATE_BIT_COUNT_ANISOTROPY, STATE_BIT_OFFSET_ANISOTROPY, Aniso)
 
 // Indicates if the BSDF is part of the top layer
-#define BSDF_GETISTOPLAYER(X)			BSDF_GETSTATE(X, STATE_BITS_TOPLAYER, STATE_BIT_OFFSET_TOPLAYER)
-#define BSDF_SETISTOPLAYER(X, IsTop)	BSDF_SETSTATE(X, STATE_BITS_TOPLAYER, STATE_BIT_OFFSET_TOPLAYER, IsTop)
+#define BSDF_GETISTOPLAYER(X)			READ_BITS(X.State,  STATE_BIT_COUNT_TOPLAYER, STATE_BIT_OFFSET_TOPLAYER)
+#define BSDF_SETISTOPLAYER(X, IsTop)	WRITE_BITS(X.State, STATE_BIT_COUNT_TOPLAYER, STATE_BIT_OFFSET_TOPLAYER, IsTop)
 
 // Indicates if the BSDF has scattering component
-#define BSDF_GETHASSCATTERING(X)		BSDF_GETSTATE(X, STATE_BITS_HASSCATTERING, STATE_BIT_OFFSET_HASSCATTERING)
-#define BSDF_SETHASSCATTERING(X, Scatt)	BSDF_SETSTATE(X, STATE_BITS_HASSCATTERING, STATE_BIT_OFFSET_HASSCATTERING, Scatt)
+#define BSDF_GETHASSCATTERING(X)		READ_BITS(X.State,  STATE_BIT_COUNT_HASSCATTERING, STATE_BIT_OFFSET_HASSCATTERING)
+#define BSDF_SETHASSCATTERING(X, Scatt)	WRITE_BITS(X.State, STATE_BIT_COUNT_HASSCATTERING, STATE_BIT_OFFSET_HASSCATTERING, Scatt)
 
 // Indicates if the BSDF has a SSS profile
-#define BSDF_GETHASSSSPROFILE(X)		BSDF_GETSTATE(X, STATE_BITS_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE)
-#define BSDF_SETHASSSSPROFILE(X, Profi)	BSDF_SETSTATE(X, STATE_BITS_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE, Profi)
+#define BSDF_GETHASSSSPROFILE(X)		READ_BITS(X.State,  STATE_BIT_COUNT_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE)
+#define BSDF_SETHASSSSPROFILE(X, Profi)	WRITE_BITS(X.State, STATE_BIT_COUNT_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE, Profi)
 
 // Indicates if the BSDF weight is grey scale so that it can be stored in a single float (e.g. top layer BSDFs)
-#define BSDF_GETGREYWEIGHT(X)			BSDF_GETSTATE(X, STATE_BITS_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT)
-#define BSDF_SETGREYWEIGHT(X, Grey)		BSDF_SETSTATE(X, STATE_BITS_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT, Grey)
+#define BSDF_GETGREYWEIGHT(X)			READ_BITS(X.State,  STATE_BIT_COUNT_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT)
+#define BSDF_SETGREYWEIGHT(X, Grey)		WRITE_BITS(X.State, STATE_BIT_COUNT_GREYWEIGHT, STATE_BIT_OFFSET_GREYWEIGHT, Grey)
 
 // Indicates if the BSDF has haziness data
-#define BSDF_GETHASHAZINESS(X)			BSDF_GETSTATE(X, STATE_BITS_HAZINESS, STATE_BIT_OFFSET_HAZINESS)
-#define BSDF_SETHASHAZINESS(X, Haze)	BSDF_SETSTATE(X, STATE_BITS_HAZINESS, STATE_BIT_OFFSET_HAZINESS, Haze)
+#define BSDF_GETHASHAZINESS(X)			READ_BITS(X.State,  STATE_BIT_COUNT_HAZINESS, STATE_BIT_OFFSET_HAZINESS)
+#define BSDF_SETHASHAZINESS(X, Haze)	WRITE_BITS(X.State, STATE_BIT_COUNT_HAZINESS, STATE_BIT_OFFSET_HAZINESS, Haze)
 
 // Indicates if the BSDF has edge color data
-#define BSDF_GETHASEDGECOLOR(X)			BSDF_GETSTATE(X, STATE_BITS_EDGECOLOR, STATE_BIT_OFFSET_EDGECOLOR)
-#define BSDF_SETHASEDGECOLOR(X, Col)	BSDF_SETSTATE(X, STATE_BITS_EDGECOLOR, STATE_BIT_OFFSET_EDGECOLOR, Col)
+#define BSDF_GETHASEDGECOLOR(X)			READ_BITS(X.State,  STATE_BIT_COUNT_EDGECOLOR, STATE_BIT_OFFSET_EDGECOLOR)
+#define BSDF_SETHASEDGECOLOR(X, Col)	WRITE_BITS(X.State, STATE_BIT_COUNT_EDGECOLOR, STATE_BIT_OFFSET_EDGECOLOR, Col)
 
 // Indicates if the BSDF has thin film
-#define BSDF_GETHASTHINFILM(X)			BSDF_GETSTATE(X, STATE_BITS_THINFILM, STATE_BIT_OFFSET_THINFILM)
-#define BSDF_SETHASTHINFILM(X, Thin)	BSDF_SETSTATE(X, STATE_BITS_THINFILM, STATE_BIT_OFFSET_THINFILM, Thin)
+#define BSDF_GETHASTHINFILM(X)			READ_BITS(X.State,  STATE_BIT_COUNT_THINFILM, STATE_BIT_OFFSET_THINFILM)
+#define BSDF_SETHASTHINFILM(X, Thin)	WRITE_BITS(X.State, STATE_BIT_COUNT_THINFILM, STATE_BIT_OFFSET_THINFILM, Thin)
 
 // Accessors for the 10bits float weight used if is it detected being a grey scale
-#define BSDF_GETWEIGHT10F(X)			BSDF_GETSTATE(X, STATE_BITS_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F)
-#define BSDF_SETWEIGHT10F(X, Weight)	BSDF_SETSTATE(X, STATE_BITS_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F, Weight)
+#define BSDF_GETWEIGHT10F(X)			READ_BITS(X.State,  STATE_BIT_COUNT_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F)
+#define BSDF_SETWEIGHT10F(X, Weight)	WRITE_BITS(X.State, STATE_BIT_COUNT_WEIGHT10F, STATE_BIT_OFFSET_WEIGHT10F, Weight)
 
 #if STRATA_INLINE_SHADING
 #define BSDF_SETEMISSIVE(X, V)			X.Emissive = V
@@ -185,7 +212,7 @@ float3 StrataUnpackNormal(uint PackedNormal);
 struct FStrataClassification
 {
 	uint ShadingModels;
-	uint GBufferAO;
+	float MaterialAO;
 	bool bIsStrataMaterial;
 	bool bHasSubsurface;
 	bool bHasSubsurfaceProfile;
@@ -195,9 +222,10 @@ struct FStrataClassification
 
 uint StrataPackClassificationData(FStrataClassification In)
 {
+	const uint MaterialAO8Bits = In.MaterialAO * 255.0f;
 	return 
 		(In.ShadingModels & 0xFF) | 
-		((In.GBufferAO & 0xFF)				 << 8  ) |
+		((MaterialAO8Bits & 0xFF)			 << 8  ) |
 		((In.bIsStrataMaterial		? 1 : 0) << 16 ) |
 		((In.bHasSubsurface			? 1 : 0) << 17 ) | 
 		((In.bHasSubsurfaceProfile	? 1 : 0) << 18) |
@@ -207,14 +235,17 @@ uint StrataPackClassificationData(FStrataClassification In)
 
 FStrataClassification StrataUnpackClassificationData(uint In)
 {
+	uint MaterialAO8Bits = 0;
 	FStrataClassification Out;
 	Out.ShadingModels			= (In >> 0 ) & 0xFF;
-	Out.GBufferAO				= (In >> 8 ) & 0xFF;
+	MaterialAO8Bits				= (In >> 8 ) & 0xFF;
 	Out.bIsStrataMaterial		= (In >> 16) & 0x1;
 	Out.bHasSubsurface			= (In >> 17) & 0x1;
 	Out.bHasSubsurfaceProfile	= (In >> 18) & 0x1;
 	Out.bHasTransmission		= (In >> 19) & 0x1;
 	Out.bIsSimple				= (In >> 20) & 0x1;
+
+	Out.MaterialAO = float(MaterialAO8Bits) * (1.0f / 255.0f);
 	return Out;
 }
 
@@ -605,6 +636,8 @@ struct FStrataPixelHeader
 	uint SharedNormalByteOffset;
 	uint SharedNormalTypes;
 #endif
+
+	float MaterialAO;
 };
 
 FStrataPixelHeader InitialiseStrataPixelHeader()
@@ -617,6 +650,7 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.SharedNormalByteOffset = 0;
 	Out.SharedNormalTypes = 0;
 #endif
+	Out.MaterialAO = 1.0f;
 	return Out;
 }
 
@@ -1371,11 +1405,15 @@ void PackStrataOut(
 // Pack only strata header
 uint PackStrataHeaderIn(uint InBSDFCount, FStrataPixelHeader InHeader)
 {
-	uint Out = InBSDFCount;
+	uint Out = 0;
+	HEADER_SETBSDFCOUNT(Out, InBSDFCount);
+
 #if STRATA_INLINE_SHADING
-	Out    |= (InHeader.SharedNormals.NormalCount << 8);
-	Out    |= (InHeader.SharedNormals.NormalTypes << 16);
+	HEADER_SETSHAREDNORMALCOUNT(Out, InHeader.SharedNormals.NormalCount);
+	HEADER_SETSHAREDNORMALTYPE(Out, InHeader.SharedNormals.NormalTypes);
 #endif
+
+	HEADER_SETAO(Out, uint(InHeader.MaterialAO * 255.0f));
 	return Out;
 }
 
@@ -1385,11 +1423,11 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 {
 	FStrataPixelHeader Out = InitialiseStrataPixelHeader();
 
-	uint Packed = 0;
-	STRATA_LOAD_UINT1(Packed);
-	Out.BSDFCount    = 0xFF &  Packed;
-	uint NormalCount = 0xFF & (Packed >> 8);
-	uint NormalTypes = 0xFF & (Packed >> 16);
+	uint PackedHeader = 0;
+	STRATA_LOAD_UINT1(PackedHeader);
+	Out.BSDFCount    = HEADER_GETBSDFCOUNT(PackedHeader);
+	uint NormalCount = HEADER_GETSHAREDNORMALCOUNT(PackedHeader);
+	uint NormalTypes = HEADER_GETSHAREDNORMALTYPE(PackedHeader);
 
 #if STRATA_INLINE_SHADING==0
 	// Only keep the offset to the shared normal memory. We are going to load them on demand.
@@ -1404,33 +1442,8 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 	StrataAddressing.ReadBytes += NormalCount * STRATA_PACKED_NORMAL_STRIDE_BYTES;
 #endif
 
-	return Out;
-}
+	Out.MaterialAO = float(HEADER_GETAO(PackedHeader)) * (1.0f / 255.0f);
 
-// Unpack only strata header 
-// This version assume only a single slab (isotropic BSDF, with no edge color, no subsurface scattering, no haziness, and no thin film)
-FStrataPixelHeader UnpackFastPathStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing)
-{
-	FStrataPixelHeader Out = InitialiseStrataPixelHeader();
-
-	// This function should only be used when inline shading is 0
-#if STRATA_INLINE_SHADING==0
-
-	// When there  is only a single Slab BSDF loaded
-	uint NormalCount = 1;
-
-	// Skip over the header packed data
-	StrataAddressing.CurrentAddr += StrataAddressing.ByteOffsetToNextUint;
-
-	Out.BSDFCount = 1;
-	Out.SharedNormalByteOffset = StrataAddressing.CurrentAddr;
-	Out.StrataBuffer = StrataBuffer;
-	Out.SharedNormalTypes = STRATA_BASIS_TYPE_NORMAL;
-
-	// Skip over the shared normal memory to be able to load the BSDF content
-	StrataAddressing.CurrentAddr += NormalCount * StrataAddressing.ByteOffsetToNextUint;
-
-#endif
 	return Out;
 }
 

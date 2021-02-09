@@ -11,7 +11,6 @@
 float4 StrataEnvironmentLighting(
 	float2 BufferUV,
 	float SceneDepth,
-	float GBufferAO,
 	float3 WorldPosition,
 	float3 CameraToPixel,
 	float3 V,
@@ -19,6 +18,7 @@ float4 StrataEnvironmentLighting(
 	float TopLayerSpecularContributionFactor,
 	ByteAddressBuffer StrataDataBuffer,
 	FStrataAddressing StrataAddressing,
+	FStrataPixelHeader StrataPixelHeader,
 	inout float SSRReductionFactor,
 	inout float3 TopLayerEnvBRDF)
 {
@@ -34,11 +34,7 @@ float4 StrataEnvironmentLighting(
 	// Sample DFAO only once
 	FUpsampleDFAOOutput UpsampleDFAOOutput = UpsampleDFAO(BufferUV, SceneDepth);
 
-#if STRATA_FASTPATH
-	uint BSDFIndex = 0;
-	FStrataPixelHeader StrataPixelHeader = UnpackFastPathStrataHeaderIn(StrataDataBuffer, StrataAddressing);
-#else
-	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, StrataAddressing);
+#if STRATA_FASTPATH == 0
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 #endif
 	{
@@ -69,7 +65,7 @@ float4 StrataEnvironmentLighting(
 			#endif
 
 			// Compute the common sky visibility factors
-			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, GBufferAO, AmbientOcclusion, StrataEnvLight.DiffuseNormal);
+			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, StrataPixelHeader.MaterialAO, AmbientOcclusion, StrataEnvLight.DiffuseNormal);
 
 			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
 			float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb;			// STRATA_TODO compute SH coefficients for ON or Chan

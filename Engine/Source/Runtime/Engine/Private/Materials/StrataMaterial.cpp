@@ -32,12 +32,17 @@ FString GetStrataBSDFName(uint8 BSDFType)
 	return "";
 }
 
-static void UpdateTotalBSDFCount(FStrataMaterialCompilationInfo& StrataInfo)
+static void UpdateTotalBSDFCount(FMaterialCompiler* Compiler, FStrataMaterialCompilationInfo& StrataInfo)
 {
 	StrataInfo.TotalBSDFCount = 0;
 	for (uint32 LayerIt = 0; LayerIt < StrataInfo.LayerCount; ++LayerIt)
 	{
 		StrataInfo.TotalBSDFCount += StrataInfo.Layers[LayerIt].BSDFCount;
+	}
+
+	if ((StrataInfo.TotalBSDFCount) > STRATA_MAX_BSDF_COUNT)
+	{
+		Compiler->Error(TEXT("This material contains too many BSDFs"));
 	}
 }
 
@@ -62,7 +67,7 @@ void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, 
 	StrataInfo.Layers[0].BSDFs[0].bHasScattering = bHasScattering;
 	StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = bHasEdgeColor;
 	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = bHasThinFilm;
-	UpdateTotalBSDFCount(StrataInfo);
+	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataInfo);
 }
 
@@ -100,7 +105,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compi
 	}
 	StrataInfo.LayerCount = FMath::Max(A.LayerCount, B.LayerCount);
 
-	UpdateTotalBSDFCount(StrataInfo);
+	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	return StrataInfo;
 }
 
@@ -136,7 +141,7 @@ FStrataMaterialCompilationInfo StrataCompilationInfoVerticalLayering(FMaterialCo
 	}
 	StrataInfo.LayerCount += Base.LayerCount;
 
-	UpdateTotalBSDFCount(StrataInfo);
+	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	return StrataInfo;
 }
 

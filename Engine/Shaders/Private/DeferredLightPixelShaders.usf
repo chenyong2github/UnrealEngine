@@ -182,12 +182,14 @@ void DeferredLightPixelMain(
 		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
 
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
+#if STRATA_ENABLED == 0 || (STRATA_ENABLED && STRATA_FASTPATH == 0)
 		if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_HAIR && ShouldUseHairComplexTransmittance(ScreenSpaceData.GBuffer))
 		{
 			// Prevent numerical issue causing NaN during hair lighting (i.e., during baseColor/luma(baseColor) computation)
 			ScreenSpaceData.GBuffer.BaseColor = max(0.0001f, ScreenSpaceData.GBuffer.BaseColor);
 			LightData.HairTransmittance = EvaluateDualScattering(ScreenSpaceData.GBuffer, DerivedParams.CameraVector, -DeferredLightUniforms.Direction);
 		}
+#endif
 
 		float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8 );
 
@@ -197,7 +199,10 @@ void DeferredLightPixelMain(
 		float4 Radiance = 0;
 
 #if STRATA_ENABLED
-		if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_STRATA)
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+		BRANCH
+		if (StrataPixelHeader.BSDFCount > 0) // This test is also enough to exclude sky pixels
 		{
 			float3 V =-DerivedParams.CameraVector;
 			float3 L = LightData.Direction;	// Already normalized
@@ -219,7 +224,6 @@ void DeferredLightPixelMain(
 
 				Radiance = StrataDeferredLighting(
 					LightData,
-					ScreenSpaceData.GBuffer,
 					V,
 					L,
 					ToLight,
@@ -227,7 +231,8 @@ void DeferredLightPixelMain(
 					ShadowTerms,
 					RectTexture,
 					Strata.MaterialLobesBuffer,
-					GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel));
+					StrataAddressing,
+					StrataPixelHeader);
 			}
 		}
 #else

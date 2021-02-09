@@ -343,9 +343,10 @@ void ReflectionEnvironmentSkyLighting(
 #if ENABLE_SKY_LIGHT
 	// STRATA_TODO handle the ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING case 
 
-	FStrataClassification StrataClassification = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelPos, 0)));
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
 	BRANCH
-	if (StrataClassification.bIsStrataMaterial) // This test is also enough to exclude sky pixels
+	if (StrataPixelHeader.BSDFCount > 0) // This test is also enough to exclude sky pixels
 	{
 		float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 		float SceneDepth = ConvertFromDeviceZ(DeviceZ);
@@ -370,14 +371,14 @@ void ReflectionEnvironmentSkyLighting(
 		float4 StrataEnvLighting = StrataEnvironmentLighting(
 			BufferUV,
 			SceneDepth,
-			StrataClassification.GBufferAO,
 			WorldPosition,
 			CameraToPixel,
 			V,
 			AmbientOcclusion,
 			TopLayerSpecularContributionFactor,
 			Strata.MaterialLobesBuffer,
-			GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel),
+			StrataAddressing,
+			StrataPixelHeader,
 			SSRReductionFactor,
 			TopLayerEnvBRDF);
 

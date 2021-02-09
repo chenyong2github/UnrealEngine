@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Private/Common.ush"
-#include "/Engine/Private/DeferredShadingCommon.ush"
 
 #define STRATA_INLINE_SHADING 0
 #include "/Engine/Private/Strata/Strata.ush"
@@ -133,17 +132,16 @@ void MainPS(
 	out uint2 OutColor1 : SV_Target1)
 {
 	const uint2 PixelPos = uint2(SVPos.xy);
-
-	// Sample scene textures.
-	float2 BufferUV		 = SvPositionToBufferUV(SVPos);
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 	
 	FStrataClassification ClassificationData	= (FStrataClassification)0;
 	FStrataSubsurfaceData SSSData				= (FStrataSubsurfaceData)0;
 	FStrataTopLayerData TopLayerData			= (FStrataTopLayerData)0;
 
-	ClassificationData.bIsStrataMaterial = GBuffer.ShadingModelID == SHADINGMODELID_STRATA;
-	ClassificationData.GBufferAO = GBuffer.GBufferAO;
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+
+	ClassificationData.bIsStrataMaterial = Header.BSDFCount > 0;
+	ClassificationData.MaterialAO = 1.0;
 	ClassificationData.bIsSimple = true; // non strata material or sky pixels are considered as simple.
 	if (ClassificationData.bIsStrataMaterial)
 	{
@@ -152,8 +150,7 @@ void MainPS(
 		float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
 		const float3 V = normalize(View.WorldCameraOrigin - WorldPos.xyz);
 
-		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+		ClassificationData.MaterialAO = Header.MaterialAO;
 		ClassificationData.bIsSimple = Header.BSDFCount == 1;
 		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 		{
@@ -279,3 +276,32 @@ void StencilMainPS(
 }
 
 #endif //SHADER_STENCIL_CATEGORIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_CLEAR_MATERIAL_BUFFER
+
+RWByteAddressBuffer MaterialLobesBufferUAV;
+uint MaxBytesPerPixel;
+int2 TiledViewBufferResolution;
+
+[numthreads(8, 8, 1)]
+void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (any(int2(DispatchThreadId.xy) > TiledViewBufferResolution))
+	{
+		return;
+	}
+
+	// Custom clear of the Strata material buffer.
+	// The first layer of tiled uints contains the header that we need to clear so we only write a single uint per pixel instead of clearing the entire buffer which would be too slow.
+
+	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
+	uint BSDFCount = 0;
+	uint PackedStrataHeader = PackStrataHeaderIn(BSDFCount, StrataHeader);
+
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(DispatchThreadId.xy, TiledViewBufferResolution, MaxBytesPerPixel);
+	MaterialLobesBufferUAV.Store(StrataAddressing.CurrentAddr, PackedStrataHeader);
+}
+
+#endif // SHADER_CLEAR_MATERIAL_BUFFER

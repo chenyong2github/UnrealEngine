@@ -147,7 +147,6 @@ void StrataPreprocessAreaLightIntegration(
 // Unpack BSDF on-the-fly
 float4 StrataDeferredLighting(
 	FDeferredLightData LightData,
-	FGBufferData GBuffer,
 	float3 V,
 	float3 L,
 	float3 ToLight,
@@ -155,7 +154,8 @@ float4 StrataDeferredLighting(
 	FShadowTerms ShadowTerms,
 	FRectTexture RectTexture,
 	ByteAddressBuffer StrataDataBuffer,
-	FStrataAddressing StrataAddressing)
+	FStrataAddressing StrataAddressing,
+	FStrataPixelHeader StrataPixelHeader)
 {	
 	float3 PreintegratedIndicentIrradiance = 0;
 	if (LightData.bRectLight)
@@ -171,11 +171,7 @@ float4 StrataDeferredLighting(
 
 	FLightAccumulator Out = (FLightAccumulator)0;
 
-#if STRATA_FASTPATH
-	uint BSDFIndex = 0;
-	FStrataPixelHeader StrataPixelHeader = UnpackFastPathStrataHeaderIn(StrataDataBuffer, StrataAddressing);
-#else
-	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataDataBuffer, StrataAddressing);
+#if STRATA_FASTPATH == 0
 	LOOP
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 #endif

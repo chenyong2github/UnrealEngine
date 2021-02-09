@@ -918,7 +918,6 @@ void FPixelShaderInOut_MainPS(
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
 	half  Specular = GetMaterialSpecular(PixelMaterialInputs);
 
-	float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	float Roughness = GetMaterialRoughness(PixelMaterialInputs);
 	float Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
 	uint ShadingModel = GetMaterialShadingModel(PixelMaterialInputs);
@@ -928,12 +927,13 @@ void FPixelShaderInOut_MainPS(
 	half  Metallic = 0;
 	half  Specular = 0;
 
-	float MaterialAO = 1;
 	float Roughness = 0;
 	float Anisotropy = 0;
 	uint ShadingModel = 0;
 	half Opacity = 0;
 #endif
+
+	float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
 // Opacity for this model is the coverage of the top layer over the transmission surface. Since the
 // underlying material isn't allowed to be metallic, we are scaling the metallic value by the coverage.
@@ -1548,6 +1548,9 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.Metallic = 0;
 	GBuffer.ShadingModelID = SHADINGMODELID_STRATA;
 	GBuffer.WorldNormal = 0; // Normal will be overriden by the top layer normal
+
+	// STRATA_TODO GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION and ALLOW_STATIC_LIGHTING cases
+	StrataPixelHeader.MaterialAO = GBuffer.GBufferAO;
 
 	uint2 PixelPos = In.SvPosition.xy;
 

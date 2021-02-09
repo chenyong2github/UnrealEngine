@@ -14,6 +14,7 @@
 
 #define STRATA_MAX_BSDF_COUNT_PER_LAYER		4
 #define STRATA_MAX_LAYER_COUNT				4
+#define STRATA_MAX_BSDF_COUNT				15
 
 // It this is changed, STATE_BITS_SHAREDNORMAL also needs to be updated
 #define STRATA_MAX_SHARED_NORMAL_REGISTERS	4
