@@ -784,12 +784,12 @@ void SNiagaraDebugger::SessionManager_OnInstanceSelectionChanged(const TSharedPt
 
 int32 SNiagaraDebugger::FindPendingConnection(FGuid SessionId, FGuid InstanceId)const
 {
-	return PendingClients.IndexOfByPredicate([&](const FClientInfo& Pending) { return Pending.SessionId == SessionId && Pending.SessionId == SessionId; });
+	return PendingClients.IndexOfByPredicate([&](const FClientInfo& Pending) { return Pending.SessionId == SessionId && Pending.InstanceId == InstanceId; });
 }
 
 int32 SNiagaraDebugger::FindActiveConnection(FGuid SessionId, FGuid InstanceId)const
 {
-	return ConnectedClients.IndexOfByPredicate([&](const FClientInfo& Active) { return Active.SessionId == SessionId && Active.SessionId == SessionId; });
+	return ConnectedClients.IndexOfByPredicate([&](const FClientInfo& Active) { return Active.SessionId == SessionId && Active.InstanceId == InstanceId; });
 }
 
 void SNiagaraDebugger::CloseConnection(FGuid SessionId, FGuid InstanceId)
