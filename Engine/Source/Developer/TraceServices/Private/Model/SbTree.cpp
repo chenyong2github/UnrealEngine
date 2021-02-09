@@ -158,6 +158,34 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	}
 	break;
 
+	case IAllocationsProvider::EQueryRule::AfB: // free events
+	{
+		const double TimeA = Params.TimeA;
+		const double TimeB = Params.TimeB;
+		for (const FAllocationItem& Alloc : Allocs)
+		{
+			if (Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB)
+			{
+				OutAllocs.Add(&Alloc);
+			}
+		}
+	}
+	break;
+
+	case IAllocationsProvider::EQueryRule::AaB: // alloc events
+	{
+		const double TimeA = Params.TimeA;
+		const double TimeB = Params.TimeB;
+		for (const FAllocationItem& Alloc : Allocs)
+		{
+			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB)
+			{
+				OutAllocs.Add(&Alloc);
+			}
+		}
+	}
+	break;
+
 	case IAllocationsProvider::EQueryRule::AafB: // short living allocs
 	{
 		const double TimeA = Params.TimeA;
@@ -478,6 +506,24 @@ void FSbTree::Query(TArray<const FSbTreeCell*>& OutCells, const IAllocationsProv
 		{
 			int32 Column1;
 			GetColumnsAtTime(Params.TimeB, &Column1, nullptr);
+			IterateCells(OutCells, Column1, CurrentColumn);
+		}
+		break;
+
+		case IAllocationsProvider::EQueryRule::AfB: // free events
+		{
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeA, &Column1, nullptr);
+			int32 Column2;
+			GetColumnsAtTime(Params.TimeB, nullptr, &Column2);
+			IterateCells(OutCells, Column1, Column2);
+		}
+		break;
+
+		case IAllocationsProvider::EQueryRule::AaB: // alloc events
+		{
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeA, &Column1, nullptr);
 			IterateCells(OutCells, Column1, CurrentColumn);
 		}
 		break;

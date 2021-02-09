@@ -732,45 +732,30 @@ void SMemAllocTableTreeView::UpdateQueryInfo()
 {
 	if (Rule.IsValid())
 	{
-		FString RuleDesc = Rule->GetDescription().ToString();
 		FText TimeMarkersText;
-		int NumMarkers = Rule->GetNumTimeMarkers();
 
+		const int NumMarkers = Rule->GetNumTimeMarkers();
 		switch (NumMarkers)
 		{
 		case 1:
-		{
 			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0}"), FText::AsNumber(TimeMarkers[0]));
-			QueryInfoTooltip = FText::Format(Rule->GetDescription(), FText::AsNumber(TimeMarkers[0]));
 			break;
-		}
 		case 2:
-		{
-			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0} B={1}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]));
-			QueryInfoTooltip = FText::Format(Rule->GetDescription(), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]));
+			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0}  B={1}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]));
 			break;
-		}
 		case 3:
-		{
-			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0} B={1} C={2}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]));
-			QueryInfoTooltip = FText::Format(Rule->GetDescription(), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]));
+			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0}  B={1}  C={2}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]));
 			break;
-		}
 		case 4:
-		{
-			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0} B={1} C={2} D={3}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]), FText::AsNumber(TimeMarkers[3]));
-			QueryInfoTooltip = FText::Format(Rule->GetDescription(), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]), FText::AsNumber(TimeMarkers[3]));
+			TimeMarkersText = FText::Format(LOCTEXT("TimeMarkersFmt", "A={0}  B={1}  C={2}  D={3}"), FText::AsNumber(TimeMarkers[0]), FText::AsNumber(TimeMarkers[1]), FText::AsNumber(TimeMarkers[2]), FText::AsNumber(TimeMarkers[3]));
 			break;
-		}
 		default:
-		{
 			// Unhandled value
 			check(false);
 		}
-		}
 
-		QueryInfo = Rule->GetVerboseName();
-		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "Showing {0} for markers {1}"), QueryInfo, TimeMarkersText);
+		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "{0} ({1})"), Rule->GetVerboseName(), TimeMarkersText);
+		QueryInfoTooltip = Rule->GetDescription();
 	}
 }
 

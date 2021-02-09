@@ -130,7 +130,7 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0.0f, 4.0f, 0.0f, 2.0f)
+		.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 		[
 			SNew(STextBlock)
 			.Text(this, &SMemInvestigationView::QueryRule_GetTooltipText)
@@ -140,6 +140,7 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 		[
 			SNew(SHorizontalBox)
 
@@ -149,7 +150,7 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("QueryTargetWindow", "Target Window"))
+				.Text(LOCTEXT("QueryTargetWindow", "Target Window:"))
 			]
 
 			+ SHorizontalBox::Slot()
@@ -170,6 +171,7 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 		.HAlign(HAlign_Right)
 		[
 			SNew(SButton)
@@ -365,36 +367,10 @@ FText SMemInvestigationView::QueryRule_GetTooltipText() const
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
-		if (SharedState.GetCurrentMemoryRule())
+		TSharedPtr<Insights::FMemoryRuleSpec> Rule = SharedState.GetCurrentMemoryRule();
+		if (Rule.IsValid())
 		{
-			switch (SharedState.GetCurrentMemoryRule()->GetNumTimeMarkers())
-			{
-			case 1:
-			{
-				return FText::Format(SharedState.GetCurrentMemoryRule()->GetDescription(), FText::FromString(TEXT("A")));
-				break;
-			}
-			case 2:
-			{
-				return FText::Format(SharedState.GetCurrentMemoryRule()->GetDescription(), FText::FromString(TEXT("A")), FText::FromString(TEXT("B")));
-				break;
-			}
-			case 3:
-			{
-				return FText::Format(SharedState.GetCurrentMemoryRule()->GetDescription(), FText::FromString(TEXT("A")), FText::FromString(TEXT("B")), FText::FromString(TEXT("C")));
-				break;
-			}
-			case 4:
-			{
-				return FText::Format(SharedState.GetCurrentMemoryRule()->GetDescription(), FText::FromString(TEXT("A")), FText::FromString(TEXT("B")), FText::FromString(TEXT("C")), FText::FromString(TEXT("D")));
-				break;
-			}
-			default:
-			{
-				// Unhandled value
-				check(false);
-			}
-			}
+			return Rule->GetDescription();
 		}
 	}
 	return FText::GetEmpty();

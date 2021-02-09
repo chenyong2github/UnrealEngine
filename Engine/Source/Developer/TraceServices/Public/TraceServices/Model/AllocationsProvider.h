@@ -61,6 +61,8 @@ public:
 		Aaf,     // after
 		aAfB,    // decline
 		AaBf,    // growth
+		AfB,     // free events
+		AaB,     // alloc events
 		AafB,    // short living allocs
 		aABf,    // long living allocs
 		AaBCf,   // memory leaks

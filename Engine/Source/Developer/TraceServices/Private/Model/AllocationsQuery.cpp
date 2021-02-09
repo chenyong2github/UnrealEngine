@@ -271,6 +271,36 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 	}
 	break;
 
+	case IAllocationsProvider::EQueryRule::AfB: // free events
+	{
+		const double TimeA = Params.TimeA;
+		const double TimeB = Params.TimeB;
+		for (const auto& KV : LiveAllocs)
+		{
+			const FAllocationItem& Alloc = KV.Value;
+			if (Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB)
+			{
+				OutAllocs.Add(&Alloc);
+			}
+		}
+	}
+	break;
+
+	case IAllocationsProvider::EQueryRule::AaB: // alloc events
+	{
+		const double TimeA = Params.TimeA;
+		const double TimeB = Params.TimeB;
+		for (const auto& KV : LiveAllocs)
+		{
+			const FAllocationItem& Alloc = KV.Value;
+			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB)
+			{
+				OutAllocs.Add(&Alloc);
+			}
+		}
+	}
+	break;
+
 	case IAllocationsProvider::EQueryRule::AafB: // short living allocs
 	{
 		const double TimeA = Params.TimeA;
