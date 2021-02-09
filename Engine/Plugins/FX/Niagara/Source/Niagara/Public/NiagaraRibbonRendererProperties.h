@@ -64,6 +64,8 @@ struct FNiagaraRibbonShapeCustomVertex
 {
 	GENERATED_BODY();
 
+	FNiagaraRibbonShapeCustomVertex();
+
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	FVector2D Position;
 

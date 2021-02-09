@@ -18,6 +18,14 @@
 
 TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> UNiagaraRibbonRendererProperties::RibbonRendererPropertiesToDeferredInit;
 
+
+FNiagaraRibbonShapeCustomVertex::FNiagaraRibbonShapeCustomVertex()
+	: Position(0, 0)
+	, Normal(0, 0)
+	, TextureV(0)
+{
+}
+
 FNiagaraRibbonUVSettings::FNiagaraRibbonUVSettings()
 	: LeadingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
 	, TrailingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)

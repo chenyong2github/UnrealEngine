@@ -47,15 +47,12 @@ protected:
 		uint32 InterpBitShift;
 		uint32 InterpBitMask;
 
-		uint32 SliceVertexBitShift;
 		uint32 SliceVertexBitMask;
-
-		uint32 IsEndBitMask;
 	};
 
-	static int32 CalculateInterpIndex(const FRibbonRenderingIndexOffsets& Offsets, int32 SegmentIndex, int32 SubSegmentIndex, int32 SliceVertexId, bool bIsEnd);
+	static int32 CalculateInterpIndex(const FRibbonRenderingIndexOffsets& Offsets, int32 SegmentIndex, int32 SubSegmentIndex, int32 SliceVertexId);
 	static int32 CalculateBitsForRange(int32 Range);
-	static FRibbonRenderingIndexOffsets CalculateIndexBufferPacking(int32 NumSegments, int32 NumInterpolations, int32 NumSliceVertices, bool bWantsEndFlag);
+	static FRibbonRenderingIndexOffsets CalculateIndexBufferPacking(int32 NumSegments, int32 NumInterpolations, int32 NumSliceVertices);
 
 	template <typename TValue>
 	TValue* AppendToIndexBuffer(

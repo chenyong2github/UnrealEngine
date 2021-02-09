@@ -36,7 +36,7 @@ uint UnpackInterpSlice(uint InterpIdx)
 
 uint UnpackParticleVertexId(uint InterpIdx)
 {
-	return (InterpIdx >> NiagaraRibbonVF.SliceVertexIdShift) & NiagaraRibbonVF.SliceVertexIdMask;
+	return InterpIdx & NiagaraRibbonVF.SliceVertexIdMask;
 }
 
 float2 UnpackParticleVertexPosition(uint InterpIdx)
@@ -56,11 +56,6 @@ float2 UnpackParticleVertexNormal(uint InterpIdx)
 float UnpackParticleVertexTextureV(uint InterpIdx)
 {
 	return NiagaraRibbonVFLooseParameters.SliceVertexData[UnpackParticleVertexId(InterpIdx) * SLICEVERTEXDATA_STRIDE + SLICEVERTEXDATA_TEXTUREV_OFFSET];
-}
-
-bool UnpackParticleIsEnd(uint InterpIdx)
-{
-	return (InterpIdx & NiagaraRibbonVF.IsEndMask);
 }
 
 
