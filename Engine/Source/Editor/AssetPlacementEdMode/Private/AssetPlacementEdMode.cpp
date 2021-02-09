@@ -15,7 +15,6 @@
 #include "Tools/PlacementLassoSelectTool.h"
 #include "Tools/PlacementPlaceTool.h"
 #include "Tools/PlacementPlaceSingleTool.h"
-#include "Tools/PlacementFillTool.h"
 #include "Tools/PlacementEraseTool.h"
 
 #include "Factories/AssetFactoryInterface.h"
@@ -68,8 +67,6 @@ void UAssetPlacementEdMode::Enter()
 	UPlacementModePlaceSingleToolBuilder* SinglePlaceToolBuilder = NewObject<UPlacementModePlaceSingleToolBuilder>(this);
 	SinglePlaceToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
 	RegisterTool(PlacementModeCommands.PlaceSingle, UPlacementModePlaceSingleTool::ToolName, SinglePlaceToolBuilder);
-
-	RegisterTool(PlacementModeCommands.Fill, UPlacementModeFillTool::ToolName, NewObject<UPlacementModeFillToolBuilder>(this));
 
 	UPlacementModeEraseToolBuilder* EraseToolBuilder = NewObject<UPlacementModeEraseToolBuilder>(this);
 	EraseToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;

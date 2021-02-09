@@ -19,7 +19,6 @@ public:
 	TSharedPtr<FUICommandInfo> LassoSelect;
 	TSharedPtr<FUICommandInfo> Place;
 	TSharedPtr<FUICommandInfo> PlaceSingle;
-	TSharedPtr<FUICommandInfo> Fill;
 	TSharedPtr<FUICommandInfo> Erase;
 	TSharedPtr<FUICommandInfo> Delete;
 

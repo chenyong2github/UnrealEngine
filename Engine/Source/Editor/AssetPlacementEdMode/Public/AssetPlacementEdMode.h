@@ -9,8 +9,6 @@
 
 #include "AssetPlacementEdMode.generated.h"
 
-class UTypedElementSelectionSet;
-
 UCLASS()
 class UAssetPlacementEdMode : public UBaseLegacyWidgetEdMode
 {
