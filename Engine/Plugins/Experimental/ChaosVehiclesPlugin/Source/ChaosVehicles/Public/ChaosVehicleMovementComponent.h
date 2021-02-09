@@ -94,6 +94,7 @@ struct FVehicleDebugParams
 	float SleepCounterThreshold = 15;
 	bool DisableVehicleSleep = false;
 	bool EnableMultithreading = false; // possibly not all entirely thread safe at present
+	float SetMaxMPH = 0.0f;
 };
 
 struct FBodyInstance;
