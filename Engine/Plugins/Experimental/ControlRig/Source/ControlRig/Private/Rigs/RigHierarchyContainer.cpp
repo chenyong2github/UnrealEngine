@@ -1495,7 +1495,7 @@ void FRigHierarchyContainer::SanitizeName(FString& InOutName)
 
 		const bool bGoodChar =
 			((C >= 'A') && (C <= 'Z')) || ((C >= 'a') && (C <= 'z')) ||		// A-Z (upper and lowercase) anytime
-			(C == '_') ||													// _ anytime
+			(C == '_') || (C == '-') ||										// _ or - anytime
 			((i > 0) && (C >= '0') && (C <= '9'));							// 0-9 after the first character
 
 		if (!bGoodChar)
