@@ -59,7 +59,7 @@ struct FSetPathProperties
 	/** Used to early-exit from tree traversal when all properties have finished being handled */
 	bool IsSet() const
 	{
-		return IsWhitelisted.IsSet() | HasScanned.IsSet() | MatchesBlacklist.IsSet() |
+		return IsWhitelisted.IsSet() | HasScanned.IsSet() | MatchesBlacklist.IsSet() | //-V792
 			IgnoreBlacklist.IsSet() | Priority.IsSet(); //-V792
 	}
 };
