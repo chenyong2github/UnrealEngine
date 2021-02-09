@@ -418,6 +418,14 @@ struct FVehicleState
 	int SleepCounter;
 };
 
+/** Input Options */
+UENUM()
+enum class EInputFunctionType : uint8
+{
+	LinearFunction,
+	SquaredFunction
+};
+
 USTRUCT()
 struct CHAOSVEHICLES_API FVehicleInputRateConfig
 {
@@ -430,6 +438,9 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 	// Rate at which the input value falls
 	UPROPERTY(EditAnywhere, Category=VehicleInputRate)
 	float FallRate;
+
+	UPROPERTY(EditAnywhere, Category=VehicleInputRate)
+	EInputFunctionType InputCurveFunction;
 
 	FVehicleInputRateConfig() : RiseRate(5.0f), FallRate(5.0f) { }
 
@@ -446,6 +457,28 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 		const float MaxDeltaValue = DeltaTime * ( bRising ? RiseRate : FallRate );
 		const float ClampedDeltaValue = FMath::Clamp( DeltaValue, -MaxDeltaValue, MaxDeltaValue );
 		return CurrentValue + ClampedDeltaValue;
+	}
+
+	float CalcControlFunction(float InputValue)
+	{
+		switch (InputCurveFunction)
+		{
+
+		case EInputFunctionType::SquaredFunction:
+		{
+			return (InputValue < 0.f) ? -InputValue * InputValue : InputValue * InputValue;
+		}
+		break;
+
+		case EInputFunctionType::LinearFunction:
+		default:
+		{
+			return InputValue;
+		}
+		break;
+		
+		}
+
 	}
 };
 

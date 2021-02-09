@@ -628,18 +628,24 @@ UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInit
 	WrongDirectionThreshold = 100.f;
 	ThrottleInputRate.RiseRate = 6.0f;
 	ThrottleInputRate.FallRate = 10.0f;
+	ThrottleInputRate.InputCurveFunction = EInputFunctionType::LinearFunction;
 	BrakeInputRate.RiseRate = 6.0f;
 	BrakeInputRate.FallRate = 10.0f;
+	BrakeInputRate.InputCurveFunction = EInputFunctionType::LinearFunction;
 	SteeringInputRate.RiseRate = 2.5f;
 	SteeringInputRate.FallRate = 5.0f;
+	SteeringInputRate.InputCurveFunction = EInputFunctionType::SquaredFunction;
 	HandbrakeInputRate.RiseRate = 12.0f;
 	HandbrakeInputRate.FallRate = 12.0f;
 	PitchInputRate.RiseRate = 6.0f;
 	PitchInputRate.FallRate = 10.0f;
+	PitchInputRate.InputCurveFunction = EInputFunctionType::LinearFunction;
 	RollInputRate.RiseRate = 6.0f;
 	RollInputRate.FallRate = 10.0f;
+	RollInputRate.InputCurveFunction = EInputFunctionType::LinearFunction;
 	YawInputRate.RiseRate = 6.0f;
 	YawInputRate.FallRate = 10.0f;
+	YawInputRate.InputCurveFunction = EInputFunctionType::LinearFunction;
 	TransmissionType = Chaos::ETransmissionType::Automatic;
 
 	SetIsReplicatedByDefault(true);
@@ -1666,13 +1672,13 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 				CurAsyncInput->Actor.Proxy = Handle;	// vehicles are never static
 
 				FChaosVehicleDefaultAsyncInput* AsyncInput = static_cast<FChaosVehicleDefaultAsyncInput*>(CurAsyncInput);
-				AsyncInput->ControlInputs.ThrottleInput = ThrottleInput;
-				AsyncInput->ControlInputs.BrakeInput = BrakeInput;
-				AsyncInput->ControlInputs.SteeringInput = SteeringInput;
+				AsyncInput->ControlInputs.ThrottleInput = ThrottleInputRate.CalcControlFunction(ThrottleInput);
+				AsyncInput->ControlInputs.BrakeInput = BrakeInputRate.CalcControlFunction(BrakeInput);
+				AsyncInput->ControlInputs.SteeringInput = SteeringInputRate.CalcControlFunction(SteeringInput);
 				AsyncInput->ControlInputs.HandbrakeInput = HandbrakeInput;
-				AsyncInput->ControlInputs.RollInput = RollInput;
-				AsyncInput->ControlInputs.PitchInput = PitchInput;
-				AsyncInput->ControlInputs.YawInput = YawInput;
+				AsyncInput->ControlInputs.RollInput = RollInputRate.CalcControlFunction(RollInput);
+				AsyncInput->ControlInputs.PitchInput = PitchInputRate.CalcControlFunction(PitchInput);
+				AsyncInput->ControlInputs.YawInput = YawInputRate.CalcControlFunction(YawInput);
 				AsyncInput->ControlInputs.GearUpInput = bRawGearUpInput;
 				AsyncInput->ControlInputs.GearDownInput = bRawGearDownInput;
 				AsyncInput->ControlInputs.TransmissionType = TransmissionType;

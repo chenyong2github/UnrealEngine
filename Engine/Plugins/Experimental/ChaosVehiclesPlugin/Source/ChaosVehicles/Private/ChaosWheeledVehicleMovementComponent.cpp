@@ -577,9 +577,8 @@ void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& Contr
 				SpeedScale = PVehicle->GetSteering().GetSteeringFromVelocity(CmSToMPH(VehicleState.ForwardSpeed));
 			}
 
-			float UseSteeringValue = ControlInputs.SteeringInput * SpeedScale;
+			float SteeringAngle = ControlInputs.SteeringInput * SpeedScale;
 
-			float SteeringAngle = 0.f;
 			if (FMath::Abs(GWheeledVehicleDebugParams.SteeringOverride) > 0.01f)
 			{
 				SteeringAngle = PWheel.Setup().MaxSteeringAngle * GWheeledVehicleDebugParams.SteeringOverride;
@@ -587,7 +586,7 @@ void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& Contr
 			else
 			{
 				float WheelSide = PVehicle->GetSuspension(WheelIdx).GetLocalRestingPosition().Y;
-				SteeringAngle = PSteering.GetSteeringAngle(UseSteeringValue, PWheel.Setup().MaxSteeringAngle, WheelSide);
+				SteeringAngle = PSteering.GetSteeringAngle(SteeringAngle, PWheel.Setup().MaxSteeringAngle, WheelSide);
 			}
 
 			PWheel.SetSteeringAngle(SteeringAngle);
