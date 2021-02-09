@@ -148,7 +148,6 @@ namespace AssetPreviewWidget
 
 			SMultiColumnTableRow<IAssetTreeItemPtr>::Construct(
 				STableRow::FArguments()
-				.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
 				.Cursor(EMouseCursor::Default),
 				OwnerTableView);
 		}
