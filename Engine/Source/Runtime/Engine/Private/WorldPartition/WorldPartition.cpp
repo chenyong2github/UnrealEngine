@@ -658,7 +658,16 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 			}
 			else
 			{
-				Cell->LoadedActors.Remove(ActorHandle);
+				// Don't call LoadedActors.Remove(ActorHandle) right away, as this will create a temporary reference and might try to load.
+				for (const FWorldPartitionReference& ActorReference: Cell->LoadedActors)
+				{
+					if (ActorReference == ActorHandle)
+					{
+						Cell->LoadedActors.Remove(ActorHandle);
+						break;
+					}
+				}
+
 				bPotentiallyUnloadedActors = true;
 			}
 		}
