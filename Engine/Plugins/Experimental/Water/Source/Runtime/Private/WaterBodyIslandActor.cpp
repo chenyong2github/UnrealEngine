@@ -9,6 +9,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "WaterBodyActor.h"
 #include "WaterRuntimeSettings.h"
+#include "WaterVersion.h"
 #include "EngineUtils.h"
 
 // ----------------------------------------------------------------------------------
@@ -188,6 +189,70 @@ void AWaterBodyIsland::UpdateActorIcon()
 		FVector ZOffset(0.0f, 0.0f, GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset);
 		ActorIcon->SetWorldLocation(SplineComp->Bounds.Origin + ZOffset);
 	}
+}
+
+void AWaterBodyIsland::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
+}
+
+void AWaterBodyIsland::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveTerrainCarvingSettingsToWater)
+	{
+		// Try to retrieve wave data from BP properties when it was defined in BP : 
+		if (UClass* WaterBodyClass = GetClass())
+		{
+			if (WaterBodyClass->ClassGeneratedBy != nullptr)
+			{
+				for (FProperty* BPProperty = WaterBodyClass->PropertyLink; BPProperty != nullptr; BPProperty = BPProperty->PropertyLinkNext)
+				{
+					const FString CurveSettingsName(TEXT("Curve Settings"));
+					if (BPProperty->GetName() == CurveSettingsName)
+					{
+						if (FStructProperty* OldCurveSettingsStructProperty = CastField<FStructProperty>(BPProperty))
+						{
+							FWaterCurveSettings* OldCurveSettings = static_cast<FWaterCurveSettings*>(OldCurveSettingsStructProperty->ContainerPtrToValuePtr<void>(this));
+							WaterCurveSettings = *OldCurveSettings;
+						}
+					}
+
+					const FString LayerWeightmapSettingsName(TEXT("Layer Weightmap Settings"));
+					if (BPProperty->GetName() == LayerWeightmapSettingsName)
+					{
+						if (FMapProperty* OldLayerWeightmapSettingsMapProperty = CastField<FMapProperty>(BPProperty))
+						{
+							FScriptMapHelper MapHelper(OldLayerWeightmapSettingsMapProperty, OldLayerWeightmapSettingsMapProperty->ContainerPtrToValuePtr<void>(this));
+							for (int32 I = 0; I < MapHelper.Num(); ++I)
+							{
+								uint8* PairPtr = MapHelper.GetPairPtr(I);
+								const FName* Key = MapHelper.GetKeyProperty()->ContainerPtrToValuePtr<FName>(PairPtr);
+								const FWaterBodyWeightmapSettings* Value = MapHelper.GetValueProperty()->ContainerPtrToValuePtr<FWaterBodyWeightmapSettings>(PairPtr);
+								WaterWeightmapSettings.FindOrAdd(*Key) = *Value;
+							}
+						}
+					}
+
+					const FString TerrainEffectsName(TEXT("Terrain Effects"));
+					if (BPProperty->GetName() == TerrainEffectsName)
+					{
+						if (FStructProperty* OldTerrainEffectsStructProperty = CastField<FStructProperty>(BPProperty))
+						{
+							FLandmassBrushEffectsList* OldTerrainEffectsSettings = static_cast<FLandmassBrushEffectsList*>(OldTerrainEffectsStructProperty->ContainerPtrToValuePtr<void>(this));
+							check(sizeof(*OldTerrainEffectsSettings) == sizeof(FWaterBrushEffects));
+							WaterHeightmapSettings.Effects = *reinterpret_cast<FWaterBrushEffects*>(OldTerrainEffectsSettings);
+						}						
+					}
+				}
+			}
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void AWaterBodyIsland::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
