@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if RHI_RAYTRACING
-
-#include "LumenHardwareRayTracingCommon.h"
-
 static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracing(
 	TEXT("r.Lumen.HardwareRayTracing"),
 	0,
@@ -13,6 +9,11 @@ static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracing(
 	TEXT("scenes with more than 10k instances."),
 	ECVF_RenderThreadSafe
 );
+
+
+#if RHI_RAYTRACING
+
+#include "LumenHardwareRayTracingCommon.h"
 
 namespace Lumen
 {
