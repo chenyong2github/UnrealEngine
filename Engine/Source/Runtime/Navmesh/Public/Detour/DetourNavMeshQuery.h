@@ -494,7 +494,7 @@ public:
 							dtPolyRef* outProjectedRef, float* outProjectedPt,
 							const float* referencePt = 0, float tolerance = 0) const;
 
-	/// Finds the nearest polygon containing the specified center point.
+	/// Finds the nearest polygon in height containing the specified center point.
 	///  @param[in]		center		The center of the search box. [(x, y, z)]
 	///  @param[in]		extents		The search distance along each axis. [(x, y, z)]
 	///  @param[in]		filter		The polygon filter to apply to the query.
