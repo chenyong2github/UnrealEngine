@@ -360,25 +360,24 @@ void UpdateClusterMassProperties(
 	TSet<TPBDRigidParticleHandle<T, d>*>& Children,
 	const TRigidTransform<T, d>* ForceMassOrientation = nullptr);
 
-template<typename T, int d>
-TArray<TVector<T, d>> CleanCollisionParticles(
-	const TArray<TVector<T, d>>& Vertices, 
-	TAABB<T, d> BBox, 
+inline TArray<FVec3> CleanCollisionParticles(
+	const TArray<FVec3>& Vertices,
+	FAABB3 BBox, 
 	const float SnapDistance=0.01)
 {
 	const int32 NumPoints = Vertices.Num();
 	if (NumPoints <= 1)
-		return TArray<TVector<T, d>>(Vertices);
+		return TArray<FVec3>(Vertices);
 
-	T MaxBBoxDim = BBox.Extents().Max();
+	FReal MaxBBoxDim = BBox.Extents().Max();
 	if (MaxBBoxDim < SnapDistance)
-		return TArray<TVector<T, d>>(&Vertices[0], 1);
+		return TArray<FVec3>(&Vertices[0], 1);
 
 	BBox.Thicken(FMath::Max(SnapDistance/10, KINDA_SMALL_NUMBER*10)); // 0.001
 	MaxBBoxDim = BBox.Extents().Max();
 
-	const TVector<T, d> PointsCenter = BBox.Center();
-	TArray<TVector<T, d>> Points(Vertices);
+	const FVec3 PointsCenter = BBox.Center();
+	TArray<FVec3> Points(Vertices);
 
 	// Find coincident vertices.  We hash to a grid of fine enough resolution such
 	// that if 2 particles hash to the same cell, then we're going to consider them
@@ -391,7 +390,7 @@ TArray<TVector<T, d>> CleanCollisionParticles(
 
 	int32 NumCoincident = 0;
 	const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / FMath::Max(SnapDistance,KINDA_SMALL_NUMBER)));
-	const T CellSize = MaxBBoxDim / Resolution;
+	const FReal CellSize = MaxBBoxDim / Resolution;
 	for (int32 i = 0; i < 2; i++)
 	{
 		Redundant.Reset();
@@ -399,11 +398,11 @@ TArray<TVector<T, d>> CleanCollisionParticles(
 		// Shift the grid by 1/2 a grid cell the second iteration so that
 		// we don't miss slightly adjacent coincident points across cell
 		// boundaries.
-		const TVector<T, 3> GridCenter = TVector<T, 3>(0) - TVector<T, 3>(i * CellSize / 2);
+		const FVec3 GridCenter = FVec3(0) - FVec3(i * CellSize / 2);
 		for (int32 j = 0; j < Points.Num(); j++)
 		{
-			const TVector<T, 3> Pos = Points[j] - PointsCenter; // Centered at the origin
-			const TVector<int64, 3> Coord(
+			const FVec3 Pos = Points[j] - PointsCenter; // Centered at the origin
+			const TVec3<int64> Coord(
 				static_cast<int64>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
 				static_cast<int64>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
 				static_cast<int64>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
@@ -427,31 +426,28 @@ TArray<TVector<T, d>> CleanCollisionParticles(
 	return Points;
 }
 
-template<typename T, int d>
-TArray<TVector<T, d>> CleanCollisionParticles(
-	const TArray<TVector<T, d>>& Vertices, 
+inline TArray<FVec3> CleanCollisionParticles(
+	const TArray<FVec3>& Vertices, 
 	const float SnapDistance=0.01)
 {
 	if (!Vertices.Num())
 	{
-		return TArray<TVector<T, d>>();
+		return TArray<FVec3>();
 	}
-	TAABB<T, d> BBox(TAABB<T, d>::EmptyAABB());
-	for (const TVector<T, d>& Pt : Vertices)
+	FAABB3 BBox(FAABB3::EmptyAABB());
+	for (const FVec3& Pt : Vertices)
 	{
 		BBox.GrowToInclude(Pt);
 	}
 	return CleanCollisionParticles(Vertices, BBox, SnapDistance);
 }
 
-template <typename T, int d>
-TArray<TVector<T,d>> 
-CleanCollisionParticles(
-	TTriangleMesh<T> &TriMesh, 
-	const TArrayView<const TVector<T,d>>& Vertices, 
+inline TArray<FVec3> CleanCollisionParticles(
+	FTriangleMesh &TriMesh, 
+	const TArrayView<const FVec3>& Vertices, 
 	const float Fraction)
 {
-	TArray<TVector<T, d>> CollisionVertices;
+	TArray<FVec3> CollisionVertices;
 	if (Fraction <= 0.0)
 		return CollisionVertices;
 
@@ -491,11 +487,9 @@ CleanCollisionParticles(
 	return CollisionVertices;
 }
 
-template <typename T, int d>
-void
-CleanCollisionParticles(
-	TTriangleMesh<T> &TriMesh, 
-	const TArrayView<const TVector<T, d>>& Vertices, 
+inline void CleanCollisionParticles(
+	FTriangleMesh &TriMesh, 
+	const TArrayView<const FVec3>& Vertices, 
 	const float Fraction, 
 	TSet<int32>& ResultingIndices)
 {

@@ -423,11 +423,11 @@ namespace Chaos
 			}
 		}
 
-		static TTriangleMesh<FReal> BuildConvexHullTriMesh(const TArray<FVec3>& InVertices)
+		static FTriangleMesh BuildConvexHullTriMesh(const TArray<FVec3>& InVertices)
 		{
 			TArray<TVec3<int32>> Indices;
 			BuildConvexHull(InVertices, Indices);
-			return TTriangleMesh<FReal>(MoveTemp(Indices));
+			return FTriangleMesh(MoveTemp(Indices));
 		}
 
 		static CHAOS_API bool IsPerformanceWarning(int32 NumPlanes, int32 NumVertices)

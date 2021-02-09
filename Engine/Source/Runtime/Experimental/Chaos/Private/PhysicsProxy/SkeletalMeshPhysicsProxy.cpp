@@ -153,7 +153,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 				for (const Chaos::FVec3& Point : *SamplePoints)
 					SamplePointsBBox.GrowToInclude(Point);
 			}
-			//Chaos::TTriangleMesh<T> TriMesh = Chaos::TTriangleMesh<T>::GetConvexHullFromParticles(
+			//Chaos::FTriangleMesh TriMesh = Chaos::FTriangleMesh::GetConvexHullFromParticles(
 			//	TArrayView<const Chaos::TVector<T, 3>>(SamplePoints));
 
 			TUniquePtr<Chaos::FImplicitObject> ImplicitObject(Group->BuildSimImplicitObject());

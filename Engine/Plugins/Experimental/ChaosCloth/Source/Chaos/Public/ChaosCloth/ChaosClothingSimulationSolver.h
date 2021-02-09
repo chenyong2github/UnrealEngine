@@ -11,8 +11,8 @@ class UClothingAssetCommon;
 
 namespace Chaos
 {
+	class FTriangleMesh;
 	class FPBDEvolution;
-	template<typename T> class TTriangleMesh;
 	template<typename T, int d> class TVelocityField;
 
 	class FClothingSimulationCloth;
@@ -66,9 +66,9 @@ namespace Chaos
 		int32 AddParticles(int32 NumParticles, uint32 GroupId);
 		void EnableParticles(int32 Offset, bool bEnable);
 
-		void SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
-		void SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
-		void SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		void SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		void SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		void SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
 		// Set the amount of velocity allowed to filter from the given change in reference space transform, including local simulation space.
 		void SetReferenceVelocityScale(uint32 GroupId,
@@ -87,7 +87,7 @@ namespace Chaos
 		void SetGravity(uint32 GroupId, const FVec3& Gravity);
 
 		// Set the geometry affected by wind, or disable if TriangleMesh is null.
-		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const TTriangleMesh<float>* TriangleMesh = nullptr);
+		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const FTriangleMesh* TriangleMesh = nullptr);
 		const TVelocityField<float, 3>&  GetWindVelocityField(uint32 GroupId);
 
 		// Set legacy noise wind.
@@ -139,8 +139,8 @@ namespace Chaos
 		void ResetParticles();
 		void ResetCollisionParticles(int32 InCollisionParticlesOffset = 0);
 		void ApplyPreSimulationTransforms();
-		float SetParticleMassPerArea(int32 Offset, int32 Size, const TTriangleMesh<float>& Mesh);
-		void ParticleMassUpdateDensity(const TTriangleMesh<float>& Mesh, float Density);
+		float SetParticleMassPerArea(int32 Offset, int32 Size, const FTriangleMesh& Mesh);
+		void ParticleMassUpdateDensity(const FTriangleMesh& Mesh, float Density);
 		void ParticleMassClampAndEnslave(int32 Offset, int32 Size, float MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
 	private:

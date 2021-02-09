@@ -89,7 +89,7 @@ void FGeometryCollectionResults::Reset()
 //==============================================================================
 
 
-Chaos::TTriangleMesh<float>* CreateTriangleMesh(
+Chaos::FTriangleMesh* CreateTriangleMesh(
 	const int32 FaceStart,
 	const int32 FaceCount, 
 	const TManagedArray<bool>& Visible, 
@@ -119,7 +119,7 @@ Chaos::TTriangleMesh<float>* CreateTriangleMesh(
 			}
 		}
 	}
-	return new Chaos::TTriangleMesh<float>(MoveTemp(Faces)); // Culls geometrically degenerate faces
+	return new Chaos::FTriangleMesh(MoveTemp(Faces)); // Culls geometrically degenerate faces
 }
 
 TArray<int32> ComputeTransformToGeometryMap(const FGeometryCollection& Collection)
@@ -1861,7 +1861,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	const int32 NumTransforms = CollectionSpaceTransforms.Num();
 	const int32 NumGeometries = RestCollection.NumElements(FGeometryCollection::GeometryGroup);
 
-	TArray<TUniquePtr<TTriangleMesh<float>>> TriangleMeshesArray;	//use to union trimeshes in cluster case
+	TArray<TUniquePtr<FTriangleMesh>> TriangleMeshesArray;	//use to union trimeshes in cluster case
 	TriangleMeshesArray.AddDefaulted(NumTransforms);
 
 	TParticles<float, 3> MassSpaceParticles;
@@ -1890,7 +1890,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
 		if (SimulationType[TransformGroupIndex] > FGeometryCollection::ESimulationTypes::FST_None)
 		{
-			TUniquePtr<TTriangleMesh<float>> TriMesh(
+			TUniquePtr<FTriangleMesh> TriMesh(
 				CreateTriangleMesh(
 					FaceStart[GeometryIndex],
 					FaceCount[GeometryIndex],
@@ -2031,7 +2031,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 		if (CollectionSimulatableParticles[TransformGroupIndex])
 		{
-			TUniquePtr<TTriangleMesh<float>>& TriMesh = TriangleMeshesArray[TransformGroupIndex];
+			TUniquePtr<FTriangleMesh>& TriMesh = TriangleMeshesArray[TransformGroupIndex];
 			FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
 			const float Mass_i = FMath::Max(DesiredDensity * Volume_i, SharedParams.MinimumMassClamp);
@@ -2276,7 +2276,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					for (TPBDRigidParticleHandle<float, 3>* Child : ChildrenIndices)
 					{
 						const int32 ChildTransformIdx = HandleToTransformIdx[Child];
-						if (Chaos::TTriangleMesh<float>* ChildMesh = TriangleMeshesArray[ChildTransformIdx].Get())
+						if (Chaos::FTriangleMesh* ChildMesh = TriangleMeshesArray[ChildTransformIdx].Get())
 						{
 							BiggestNumElements = FMath::Max(BiggestNumElements, ChildMesh->GetNumElements());
 							NumChildIndices += ChildMesh->GetNumElements();
@@ -2292,7 +2292,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					for (TPBDRigidParticleHandle<float, 3>* Child : ChildrenIndices)
 					{
 						const int32 ChildTransformIdx = HandleToTransformIdx[Child];
-						if (Chaos::TTriangleMesh<float>* ChildMesh = TriangleMeshesArray[ChildTransformIdx].Get())
+						if (Chaos::FTriangleMesh* ChildMesh = TriangleMeshesArray[ChildTransformIdx].Get())
 						{
 							const TArray<TVector<int32, 3>>& ChildIndices = ChildMesh->GetSurfaceElements();
 							UnionMeshIndices.Append(ChildIndices);
@@ -2314,7 +2314,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					}
 				} // tmp scope
 
-				TUniquePtr<TTriangleMesh<float>> UnionMesh(new TTriangleMesh<float>(MoveTemp(UnionMeshIndices)));
+				TUniquePtr<FTriangleMesh> UnionMesh(new FTriangleMesh(MoveTemp(UnionMeshIndices)));
 				const FMatrix& InertiaMatrix = CollectionSpaceParticles->I(ClusterTransformIdx);
 				const FVector InertiaDiagonal(InertiaMatrix.M[0][0], InertiaMatrix.M[1][1], InertiaMatrix.M[2][2]);
 				CollectionInertiaTensor[ClusterTransformIdx] = InertiaDiagonal;

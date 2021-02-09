@@ -6,6 +6,9 @@
 
 namespace Chaos
 {
+	template<class T>
+	using TTriangleMesh = FTriangleMesh;
+
 	// Velocity field basic implementation
 	// TODO: Add lift
 	template<class T, int d>

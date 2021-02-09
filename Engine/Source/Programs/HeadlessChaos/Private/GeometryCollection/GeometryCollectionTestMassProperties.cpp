@@ -53,7 +53,7 @@ namespace GeometryCollectionTest
 		Faces[9] = TVec3<int32>(4,5,1);
 		Faces[10] = TVec3<int32>(5,4,7);
 		Faces[11] = TVec3<int32>(5,7,6);
-		Chaos::TTriangleMesh<FReal> Surface(MoveTemp(Faces));
+		Chaos::FTriangleMesh Surface(MoveTemp(Faces));
 
 		FMassProperties MassProperties;
 		MassProperties.Mass = 1.f;
@@ -113,7 +113,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-		TUniquePtr<TTriangleMesh<FReal>> TriMesh(
+		TUniquePtr<FTriangleMesh> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
@@ -124,7 +124,7 @@ namespace GeometryCollectionTest
 		//TArray<Chaos::TVec3<int32>> Faces;
 		//Faces.SetNum(Indices.Num());
 		//for (int i = 0; i < Indices.Num(); i++) { Faces[i] = TVec3<int32>(Indices[i][0], Indices[i][1], Indices[i][2]); }
-		//Chaos::TTriangleMesh<FReal> TriMesh(MoveTemp(Faces));
+		//Chaos::FTriangleMesh TriMesh(MoveTemp(Faces));
 
 		TArray<FMassProperties> MassPropertiesArray;
 		MassPropertiesArray.AddUninitialized(NumGeometries);
@@ -194,7 +194,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-		TUniquePtr<TTriangleMesh<FReal>> TriMesh(
+		TUniquePtr<FTriangleMesh> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
@@ -275,7 +275,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-		TUniquePtr<TTriangleMesh<FReal>> TriMesh(
+		TUniquePtr<FTriangleMesh> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],
@@ -357,7 +357,7 @@ namespace GeometryCollectionTest
 		const TManagedArray<int32>& BoneMap = Collection->RestCollection->BoneMap;
 		int GeometryIndex = 0;
 
-		TUniquePtr<TTriangleMesh<FReal>> TriMesh(
+		TUniquePtr<FTriangleMesh> TriMesh(
 			CreateTriangleMesh(
 				FaceStart[GeometryIndex],
 				FaceCount[GeometryIndex],

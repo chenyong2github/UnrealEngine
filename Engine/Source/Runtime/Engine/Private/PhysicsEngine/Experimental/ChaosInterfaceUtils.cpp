@@ -131,7 +131,7 @@ namespace ChaosInterface
 		Counts[1] = Counts[1] < 1 ? 1 : Counts[1];
 		Counts[2] = Counts[2] < 1 ? 1 : Counts[2];
 		Chaos::TUniformGrid<float, 3> Grid(BoundingBox.Min(), BoundingBox.Max(), Counts, 1);
-		Chaos::TTriangleMesh<float> CollisionMesh(MoveTemp(CollisionMeshElements));
+		Chaos::FTriangleMesh CollisionMesh(MoveTemp(CollisionMeshElements));
 		return TUniquePtr<Chaos::FImplicitObject>(new Chaos::TLevelSet<float, 3>(Grid, CollisionMeshParticles, CollisionMesh));
 #endif
 

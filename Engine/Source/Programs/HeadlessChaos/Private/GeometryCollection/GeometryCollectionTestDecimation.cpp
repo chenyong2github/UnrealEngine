@@ -45,7 +45,7 @@ namespace GeometryCollectionTest
 		return particles;
 	}
 
-	Chaos::TTriangleMesh<FReal>
+	Chaos::FTriangleMesh
 	BuildTriMeshFromGeomCollection(FGeometryCollection *TestCollection)
 	{
 		TManagedArray<FIntVector>& Indices = TestCollection->Indices;
@@ -55,7 +55,7 @@ namespace GeometryCollectionTest
 		for (int i = 0; i < numTris; i++)
 			tris[i] = Chaos::TVec3<int32>(Indices[i][0], Indices[i][1], Indices[i][2]);
 
-		Chaos::TTriangleMesh<FReal> triMesh(MoveTemp(tris));
+		Chaos::FTriangleMesh triMesh(MoveTemp(tris));
 		return triMesh;
 	}
 
@@ -136,7 +136,7 @@ namespace GeometryCollectionTest
 	RunGeomDecimationTest(FGeometryCollection* TestCollection, const char *BaseName, const char *OutputDir, const uint32 ExpectedHash, const bool RestrictToLocalIndexRange = false)
 	{
 		Chaos::TParticles<FReal, 3> Particles = BuildParticlesFeomGeomCollection(TestCollection);
-		Chaos::TTriangleMesh<FReal> TriMesh = BuildTriMeshFromGeomCollection(TestCollection);
+		Chaos::FTriangleMesh TriMesh = BuildTriMeshFromGeomCollection(TestCollection);
 
 		TArray<int32> CoincidentVertices;
 		const TArray<int32> Importance = TriMesh.GetVertexImportanceOrdering(Particles.X(), &CoincidentVertices, RestrictToLocalIndexRange);

@@ -10,8 +10,7 @@
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 namespace Chaos
 {
-	template<class T>
-	class TTriangleMesh;
+	class FTriangleMesh;
 
 	template<class T, int d>
 	class TParticles;

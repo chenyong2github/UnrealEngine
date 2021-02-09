@@ -1667,7 +1667,7 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 		}
 
 		// Recompute islands
-		const TTriangleMesh<FReal>& TriangleMesh = Cloth->GetTriangleMesh(Solver.Get());
+		const FTriangleMesh& TriangleMesh = Cloth->GetTriangleMesh(Solver.Get());
 		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 
 		const TMap<int32, TSet<uint32>>& PointToNeighborsMap = TriangleMesh.GetPointToNeighborsMap();

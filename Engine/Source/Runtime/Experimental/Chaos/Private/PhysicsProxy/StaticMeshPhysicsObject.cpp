@@ -140,7 +140,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			//TODO: this should all be done on the asset instead of in the callback. Duplicates all mesh vertices every time
 			Chaos::TParticles<float, 3> MeshParticles(MoveTemp(Parameters.MeshVertexPositions));
 
-			TUniquePtr<Chaos::TTriangleMesh<float>> TriangleMesh(new Chaos::TTriangleMesh<float>(MoveTemp(Parameters.TriIndices)));
+			TUniquePtr<Chaos::FTriangleMesh> TriangleMesh(new Chaos::FTriangleMesh(MoveTemp(Parameters.TriIndices)));
 			Chaos::FErrorReporter ErrorReporter(Parameters.Name + " | RigidBodyId: " + FString::FromInt(RigidBodyId));;
 			Particles.SetDynamicGeometry(
 				RigidBodyId,

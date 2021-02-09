@@ -37,7 +37,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	check(!SolverData.Find(Solver));
 	FSolverData& SolverDatum = SolverData.Add(Solver);
 	int32& Offset = SolverDatum.Offset;
-	TTriangleMesh<float>& TriangleMesh = SolverDatum.TriangleMesh;
+	FTriangleMesh& TriangleMesh = SolverDatum.TriangleMesh;
 
 	// Add particles
 	Offset = Solver->AddParticles(NumParticles, Cloth->GroupId);  // TODO: Have a per solver map of offset
@@ -305,7 +305,7 @@ void FClothingSimulationCloth::FLODData::UpdateNormals(FClothingSimulationSolver
 
 	const FSolverData& SolverDatum = SolverData.FindChecked(Solver);
 	const int32 Offset = SolverDatum.Offset;
-	const TTriangleMesh<float>& TriangleMesh = SolverDatum.TriangleMesh;
+	const FTriangleMesh& TriangleMesh = SolverDatum.TriangleMesh;
 
 	check(Offset != INDEX_NONE);
 
@@ -596,10 +596,10 @@ int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solve
 	return LODData.IsValidIndex(LODIndex) ? GetOffset(Solver, LODIndex) : INDEX_NONE;
 }
 
-const TTriangleMesh<float>& FClothingSimulationCloth::GetTriangleMesh(const FClothingSimulationSolver* Solver) const
+const FTriangleMesh& FClothingSimulationCloth::GetTriangleMesh(const FClothingSimulationSolver* Solver) const
 {
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
-	static const TTriangleMesh<float> EmptyTriangleMesh;
+	static const FTriangleMesh EmptyTriangleMesh;
 	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SolverData.FindChecked(Solver).TriangleMesh : EmptyTriangleMesh;
 }
 

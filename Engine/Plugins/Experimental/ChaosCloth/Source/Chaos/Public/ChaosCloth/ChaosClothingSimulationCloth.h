@@ -112,7 +112,7 @@ namespace Chaos
 		// Return the current LOD Offset in the solver's particle array, or INDEX_NONE if no LOD is currently selected
 		int32 GetOffset(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Mesh
-		const TTriangleMesh<float>& GetTriangleMesh(const FClothingSimulationSolver* Solver) const;
+		const FTriangleMesh& GetTriangleMesh(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Weightmaps
 		const TArray<TConstArrayView<float>>& GetWeightMaps(const FClothingSimulationSolver* Solver) const;
 		// Return the reference bone index for this cloth
@@ -146,7 +146,7 @@ namespace Chaos
 			struct FSolverData
 			{
 				int32 Offset;
-				TTriangleMesh<float> TriangleMesh;  // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
+				FTriangleMesh TriangleMesh;  // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
 			};
 			TMap<FClothingSimulationSolver*, FSolverData> SolverData;
 

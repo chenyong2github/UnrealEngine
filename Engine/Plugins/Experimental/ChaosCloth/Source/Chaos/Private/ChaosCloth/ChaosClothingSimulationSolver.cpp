@@ -446,7 +446,7 @@ const TArray<FVec3>& FClothingSimulationSolver::GetCollisionNormals() const
 	return Evolution->GetCollisionNormals();
 }
 
-void FClothingSimulationSolver::SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
+void FClothingSimulationSolver::SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
 {
 	// Retrieve the particle block size
 	const int32 Size = Evolution->GetParticleRangeSize(Offset);
@@ -463,7 +463,7 @@ void FClothingSimulationSolver::SetParticleMassUniform(int32 Offset, float Unifo
 	ParticleMassClampAndEnslave(Offset, Size, MinPerParticleMass, KinematicPredicate);
 }
 
-void FClothingSimulationSolver::SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
+void FClothingSimulationSolver::SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
 {
 	// Retrieve the particle block size
 	const int32 Size = Evolution->GetParticleRangeSize(Offset);
@@ -481,7 +481,7 @@ void FClothingSimulationSolver::SetParticleMassFromTotalMass(int32 Offset, float
 	ParticleMassClampAndEnslave(Offset, Size, MinPerParticleMass, KinematicPredicate);
 }
 
-void FClothingSimulationSolver::SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
+void FClothingSimulationSolver::SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
 {
 	// Retrieve the particle block size
 	const int32 Size = Evolution->GetParticleRangeSize(Offset);
@@ -533,7 +533,7 @@ void FClothingSimulationSolver::SetReferenceVelocityScale(
 	PreSimulationTransforms[GroupId] = OldRootBoneLocalTransform.Inverse() * FTransform(DeltaRotation, DeltaPosition) * OldRootBoneLocalTransform;
 }
 
-float FClothingSimulationSolver::SetParticleMassPerArea(int32 Offset, int32 Size, const TTriangleMesh<float>& Mesh)
+float FClothingSimulationSolver::SetParticleMassPerArea(int32 Offset, int32 Size, const FTriangleMesh& Mesh)
 {
 	// Zero out masses
 	FPBDParticles& Particles = Evolution->Particles();
@@ -561,7 +561,7 @@ float FClothingSimulationSolver::SetParticleMassPerArea(int32 Offset, int32 Size
 	return TotalArea;
 }
 
-void FClothingSimulationSolver::ParticleMassUpdateDensity(const TTriangleMesh<float>& Mesh, float Density)
+void FClothingSimulationSolver::ParticleMassUpdateDensity(const FTriangleMesh& Mesh, float Density)
 {
 	const TSet<int32> Vertices = Mesh.GetVertices();
 	FPBDParticles& Particles = Evolution->Particles();
@@ -608,7 +608,7 @@ void FClothingSimulationSolver::SetWindVelocity(const FVec3& InWindVelocity, flo
 	LegacyWindAdaption = InLegacyWindAdaption;
 }
 
-void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const TTriangleMesh<float>* TriangleMesh)
+void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const FTriangleMesh* TriangleMesh)
 {
 	TVelocityField<float, 3>& VelocityField = Evolution->GetVelocityField(GroupId);
 	VelocityField.SetGeometry(TriangleMesh);
