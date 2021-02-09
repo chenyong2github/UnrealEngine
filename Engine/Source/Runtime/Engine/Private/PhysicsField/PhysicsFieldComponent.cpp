@@ -113,6 +113,7 @@ void InitInternalBuffer(const uint32 ElementCount, FRWBuffer& OutputBuffer)
 
 		if (OutputBuffer.UAV)
 		{
+			FRHICommandListExecutor::GetImmediateCommandList().TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutputBuffer.UAV);
 			if (PixelFormat == EPixelFormat::PF_R32_FLOAT)
 			{
 				FRHICommandListExecutor::GetImmediateCommandList().ClearUAVFloat(OutputBuffer.UAV, FVector4(ForceInitToZero));
@@ -121,6 +122,7 @@ void InitInternalBuffer(const uint32 ElementCount, FRWBuffer& OutputBuffer)
 			{
 				FRHICommandListExecutor::GetImmediateCommandList().ClearUAVUint(OutputBuffer.UAV, FUintVector4(ForceInitToZero));
 			}
+			FRHICommandListExecutor::GetImmediateCommandList().TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutputBuffer.UAV);
 		}
 	}
 }
