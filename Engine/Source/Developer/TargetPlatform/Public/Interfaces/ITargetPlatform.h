@@ -440,6 +440,11 @@ public:
 	*/
 	virtual int32 GetHeightFogModeForOpaque() const = 0;
 
+	/**
+	 * Gets whether the platform uses Mobile AO
+	 */
+	virtual bool UsesMobileAmbientOcclusion() const = 0;
+
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.

@@ -1054,6 +1054,14 @@ RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPla
 	return GRHISupportsPixelShaderUAVs && bDistanceFieldShadowingEnabled && IsMobileDistanceFieldEnabled(Platform);
 }
 
+RENDERCORE_API uint64 GMobileAmbientOcclusionPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GMobileAmbientOcclusionPlatformMask) * 8, "GMobileAmbientOcclusionPlatformMask must be large enough to support all shader platforms");
+
+RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platform)
+{
+	return (IsMobilePlatform(Platform) && !!(GMobileAmbientOcclusionPlatformMask & (1ull << Platform)));
+}
+
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
 	TEXT("r.ForwardShading"),
@@ -1146,6 +1154,12 @@ RENDERCORE_API void RenderUtilsInit()
 		GRayTracingPlaformMask = ~0ull;
 	}
 
+	static IConsoleVariable* MobileAmbientOcclusionCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.AmbientOcclusion"));
+	if (MobileAmbientOcclusionCVar && MobileAmbientOcclusionCVar->GetInt())
+	{
+		GMobileAmbientOcclusionPlatformMask = ~0ull;
+	}
+
 #if WITH_EDITOR
 	ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager();
 	if (TargetPlatformManager)
@@ -1229,6 +1243,15 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GVelocityEncodeDepthPlatformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->UsesMobileAmbientOcclusion())
+				{
+					GMobileAmbientOcclusionPlatformMask |= Mask;
+				}
+				else
+				{
+					GMobileAmbientOcclusionPlatformMask &= ~Mask;
 				}
 			}
 		}

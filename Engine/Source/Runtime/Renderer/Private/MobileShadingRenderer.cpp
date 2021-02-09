@@ -196,7 +196,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bModulatedShadowsInUse = false;
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
-	bRequriesAmbientOcclusionPass = false;
+	bRequiresAmbientOcclusionPass = false;
 	bRequiresDistanceFieldShadowingPass = false;
 
 	// Don't do occlusion queries when doing scene captures
@@ -351,10 +351,9 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// Only support forward shading, we don't want to break tiled deferred shading.
 		&& !bDeferredShading;
 
-
-	bRequriesAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
+	bRequiresAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
-		&& Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f
+		&& (Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f || (Scene && Scene->SkyLight && Scene->SkyLight->ProcessedTexture && Views[0].Family->EngineShowFlags.SkyLighting))
 		&& ViewFamily.EngineShowFlags.Lighting
 		&& !Views[0].bIsReflectionCapture
 		&& !Views[0].bIsPlanarReflection
@@ -386,7 +385,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	bKeepDepthContent = 
 		bRequiresMultiPass || 
 		bForceDepthResolve ||
-		bRequriesAmbientOcclusionPass ||
+		bRequiresAmbientOcclusionPass ||
 		bRequiresDistanceFieldShadowingPass ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
@@ -422,7 +421,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		ReleasePixelProjectedReflectionOutputs();
 	}
 
-	if (bRequriesAmbientOcclusionPass)
+	if (bRequiresAmbientOcclusionPass)
 	{
 		InitAmbientOcclusionOutputs(RHICmdList, SceneContext.SceneDepthZ);
 	}
@@ -748,7 +747,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderSDFShadowing(RHICmdList);
 	}
 
-	if (bRequriesAmbientOcclusionPass)
+	if (bRequiresAmbientOcclusionPass)
 	{
 		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
 	}

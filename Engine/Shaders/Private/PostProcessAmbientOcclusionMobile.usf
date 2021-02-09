@@ -5,8 +5,119 @@
 =============================================================================*/
 
 #include "Common.ush"
+#include "ScreenPass.ush"
 #include "PostProcessCommon.ush"
 
+// -----------------------------------------------------------------------------------------------------------------------------
+// SHADER_QUALITY 0-4
+#if SHADER_QUALITY == 0
+	// very low
+	#define USE_SAMPLESET 1
+	#define SAMPLE_STEPS 1
+	#define QUAD_MESSAGE_PASSING_BLUR 0
+#elif SHADER_QUALITY == 1
+	// low
+	#define USE_SAMPLESET 1
+	#define SAMPLE_STEPS 1
+	#define QUAD_MESSAGE_PASSING_BLUR 2
+#elif SHADER_QUALITY == 2
+	// medium
+	#define USE_SAMPLESET 2
+	#define SAMPLE_STEPS 1
+	#define QUAD_MESSAGE_PASSING_BLUR 2
+#elif SHADER_QUALITY == 3
+	// high
+	#define USE_SAMPLESET 1
+	#define SAMPLE_STEPS 3
+	#define QUAD_MESSAGE_PASSING_BLUR 0
+#else // SHADER_QUALITY == 4
+	// very high
+	#define USE_SAMPLESET 3
+	#define SAMPLE_STEPS 3
+	#define QUAD_MESSAGE_PASSING_BLUR 0
+#endif
+
+#if QUAD_MESSAGE_PASSING_BLUR == 0
+	#define QUAD_MESSAGE_PASSING_NORMAL 0
+	#define QUAD_MESSAGE_PASSING_DEPTH 0
+#elif QUAD_MESSAGE_PASSING_BLUR == 1
+	#define QUAD_MESSAGE_PASSING_NORMAL 0
+	#define QUAD_MESSAGE_PASSING_DEPTH 0
+#elif QUAD_MESSAGE_PASSING_BLUR == 2
+	#define QUAD_MESSAGE_PASSING_NORMAL 1
+	#define QUAD_MESSAGE_PASSING_DEPTH 0
+#elif QUAD_MESSAGE_PASSING_BLUR == 3
+	#define QUAD_MESSAGE_PASSING_NORMAL 1
+	#define QUAD_MESSAGE_PASSING_DEPTH 1
+#endif
+
+// 0:4 samples, 1:9 samples (only really noticable with dither usage ??)
+//#define AO_UPSAMPLE_QUALITY 
+
+// full resolution is expensive, do lower quality
+#define AO_SAMPLE_QUALITY 3
+#define AO_UPSAMPLE_QUALITY 0
+
+// 0: 1 point (for testing)
+// 1: 3 points
+// 2: more evenly spread (5 points - slightly faster, stronger effect, better with multiple levels?)
+// 3: near the surface very large, softly fading out (6 points)
+#if USE_SAMPLESET == 0
+	#define SAMPLESET_ARRAY_SIZE 1
+	static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE]=
+	{
+		// one sample, for testing
+		float2(0.500, 0.500), 
+	};
+#elif USE_SAMPLESET == 1
+	#define SAMPLESET_ARRAY_SIZE 3
+	static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE]=
+	{
+		// 3 points distributed on the unit disc, spiral order and distance
+		float2(0, -1.0f) * 0.43f, 
+		float2(0.58f, 0.814f) * 0.7f, 
+		float2(-0.58f, 0.814f) 
+	};
+#elif USE_SAMPLESET == 2
+	#define SAMPLESET_ARRAY_SIZE 5
+	static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE]=
+	{
+		// 5 points distributed on a ring
+		float2(0.156434, 0.987688),
+		float2(0.987688, 0.156434)*0.9,
+		float2(0.453990, -0.891007)*0.8,
+		float2(-0.707107, -0.707107)*0.7,
+		float2(-0.891006, 0.453991)*0.65,
+	};
+#else // USE_SAMPLESET == 3
+	#define SAMPLESET_ARRAY_SIZE 6
+	static const float2 OcclusionSamplesOffsets[SAMPLESET_ARRAY_SIZE]=
+	{
+		// 6 points distributed on the unit disc, spiral order and distance
+		float2(0.000, 0.200), 
+		float2(0.325, 0.101), 
+		float2(0.272, -0.396), 
+		float2(-0.385, -0.488), 
+		float2(-0.711, 0.274), 
+		float2(0.060, 0.900) 
+	};
+#endif // USE_SAMPLESET
+
+
+// 0: classic with weighted sample, 1: don't normalize and adjust the formula to be simpler and faster - can look better and is cheaper (Alchemy like?)
+#define OPTIMIZATION_O1 1
+
+// 0:off / 1:show samples on the right side of the screen
+#define DEBUG_LOOKUPS 0
+
+// 0:off / 1:take into account scene normals in the computations
+#define USE_NORMALS 1
+
+// -----------------------------------------------------------------------------------------------------------------------------
+// To be included after defines
+#include "PostProcessAmbientOcclusionCommon.ush"
+
+// -----------------------------------------------------------------------------------------------------------------------------
 // GTAO
 #if HORIZONSEARCH_INTEGRAL_SPATIALFILTER_COMPUTE_SHADER || HORIZONSEARCH_INTEGRAL_COMPUTE_SHADER || SPATIALFILTER_COMPUTE_SHADER || HORIZONSEARCH_INTEGRAL_PIXEL_SHADER || SPATIALFILTER_PIXEL_SHADER
 
@@ -193,14 +304,6 @@ float3 GetViewSpacePosFromAOInput(half2 UV)
 	float SceneDepth = GetSceneDepthFromAOInput(UV);
 
 	return ScreenToViewPos(UV, SceneDepth);
-}
-
-float TakeSmallerAbsDelta(float left, float mid, float right)
-{
-	float a = mid - left;
-	float b = right - mid;
-
-	return (abs(a) < abs(b)) ? a : b;
 }
 
 half3 GetNormal(half2 UV, int2 ThreadPos, float3 ViewSpacePosMid)
@@ -865,3 +968,261 @@ void GTAOSpatialFilterPS(
 	OutColor = GTAOSpatialFilter(TextureUV, 0, TexturePos);
 }
 #endif
+
+// --------------------------------------------------------------------------------------------------------------------
+// SSAO
+
+#if SSAO
+
+void MainPSandCS(in float4 UVAndScreenPos, float4 SvPosition, out float4 OutColor)
+{
+	OutColor = 0;
+
+	// the following constants as set up on C++ side
+	float AmbientOcclusionPower = ScreenSpaceAOParams[0].x;
+	float Ratio = ScreenSpaceAOParams[1].w;
+	float AORadiusInShader = ScreenSpaceAOParams[1].z;
+	float InvAmbientOcclusionDistance = ScreenSpaceAOParams[0].z;
+	float AmbientOcclusionIntensity = ScreenSpaceAOParams[0].w;
+	float2 ViewportUVToRandomUV = ScreenSpaceAOParams[1].xy;
+	float AmbientOcclusionBias = ScreenSpaceAOParams[0].y;
+	float ScaleFactor = ScreenSpaceAOParams[2].x;
+	float ScaleRadiusInWorldSpace = ScreenSpaceAOParams[2].z;
+
+	float2 UV = UVAndScreenPos.xy;
+	float2 ScreenPos = UVAndScreenPos.zw;
+
+	float InvTanHalfFov = ScreenSpaceAOParams[3].w;
+	float3 FovFix = float3(InvTanHalfFov, Ratio * InvTanHalfFov, 1);
+	float3 InvFovFix = 1.0f / FovFix;
+
+	float SceneDepth = GetDepthFromAOInput(UV);
+	float3 WorldNormal = GetWorldSpaceNormalFromAOInput(UV, SvPosition);
+
+	// can be NaN if WorldNormal=0,0,0 which happens when !USE_NORMALS
+	float3 ViewSpaceNormal = normalize(mul(WorldNormal, (float3x3)View.TranslatedWorldToView));
+
+	float3 ViewSpacePosition = ReconstructCSPos(SceneDepth, ScreenPos);
+
+	float ActualAORadius = AORadiusInShader * lerp(SceneDepth, 1, ScaleRadiusInWorldSpace);
+
+	// Add bias after fixup (causes minor banding - not needed with larger radius)
+	if (USE_NORMALS)
+	{
+		ViewSpacePosition += AmbientOcclusionBias * SceneDepth * ScaleFactor * (ViewSpaceNormal * FovFix);
+	}
+
+	float2 WeightAccumulator = 0.0001f;
+	
+#if AO_SAMPLE_QUALITY != 0
+	// no SSAO in this pass, only upsampling
+
+#if AO_SAMPLE_QUALITY == 1
+	// no 4x4 randomization
+	float2 RandomVec = float2(0, 1) * ActualAORadius;
+	{
+#elif AO_SAMPLE_QUALITY == 2
+	// extract one of 16 base vectors (rotation and scale) from a texture that repeats 4x4
+	float2 RandomVec = (Texture2DSample(RandomNormalTexture, RandomNormalTextureSampler, UV * ViewportUVToRandomUV).rg * 2 - 1) * ActualAORadius;
+	{
+#else // AO_SAMPLE_QUALITY == 3
+	// extract one of 16 base vectors (rotation and scale) from a texture that repeats 4x4, changing over time if TemporalAA is enabled
+
+	// jitter each frame a bit to get higher quality over multiple frames (only if TemporalAA is enabled), can cause ghosting effects
+	const float2 TemporalOffset = ScreenSpaceAOParams[3].xy;
+
+	// if the feature is enabled and right side of screen
+	const bool bDebugLookups = DEBUG_LOOKUPS && ViewSpacePosition.x > 0;
+
+	float2 RandomVec = (Texture2DSample(RandomNormalTexture, RandomNormalTextureSampler, TemporalOffset + UV * ViewportUVToRandomUV).rg * 2 - 1) * ActualAORadius;
+	{
+#endif // AO_SAMPLE_QUALITY == 
+
+		if(bDebugLookups && ViewSpacePosition.y > 0)
+		{
+			// top sample are not per pixel rotated
+			RandomVec = float2(0, 1) * ActualAORadius;
+		}
+
+		float2 FovFixXY = FovFix.xy * (1.0f / ViewSpacePosition.z);
+		float4 RandomBase = float4(RandomVec, -RandomVec.y, RandomVec.x) * float4(FovFixXY, FovFixXY);
+
+		float2 ScreenSpacePos = ViewSpacePosition.xy / ViewSpacePosition.z;
+
+		// to debug the input depth
+//		OutColor = GetDepthForSSAO(ScreenSpacePos, 0); return;
+		// to debug the reconstructed normal
+//		OutColor = ReconstructedViewSpaceNormal.z; return;
+
+		// .x means for very anisotropic viewports we scale by x
+		float InvHaloSize = 1.0f / (ActualAORadius * FovFixXY.x * 2);
+
+		float3 ScaledViewSpaceNormal = ViewSpaceNormal;
+
+#if OPTIMIZATION_O1
+		ScaledViewSpaceNormal *= 0.08f * lerp(SceneDepth, 1000, ScaleRadiusInWorldSpace);
+#endif
+
+		UNROLL for(int i = 0; i < SAMPLESET_ARRAY_SIZE; ++i)
+		{
+			// -1..1
+			float2 UnrotatedRandom = OcclusionSamplesOffsets[i].xy;
+
+			float2 LocalRandom = (UnrotatedRandom.x * RandomBase.xy + UnrotatedRandom.y * RandomBase.zw);
+
+			if (bDebugLookups)
+			{
+				UNROLL for(uint step = 0; step < SAMPLE_STEPS; ++step)
+				{
+					float Scale = (step + 1) / (float)SAMPLE_STEPS;
+					float MipLevel = ComputeMipLevel(i, step);
+					float2 ScaledLocalRandom = Scale * LocalRandom;
+					
+					WeightAccumulator += float2(ComputeSampleDebugMask(ScreenSpacePos + ScaledLocalRandom, MipLevel), 1.0f);
+					WeightAccumulator += float2(ComputeSampleDebugMask(ScreenSpacePos - ScaledLocalRandom, MipLevel), 1.0f);
+				}
+			}
+			else if (USE_NORMALS)
+			{
+				float3 LocalAccumulator = 0;
+
+				UNROLL for(uint step = 0; step < SAMPLE_STEPS; ++step)
+				{
+					// constant at run time
+					float Scale = (step + 1) / (float)SAMPLE_STEPS;
+					// constant at run time (higher is better for texture cache / performance, lower is better quality
+					float MipLevel = ComputeMipLevel(i, step);
+
+					float3 StepSample = WedgeWithNormal(ScreenSpacePos, Scale * LocalRandom, InvFovFix, ViewSpacePosition, ScaledViewSpaceNormal, InvHaloSize, MipLevel);
+
+					// combine horizon samples
+					LocalAccumulator = lerp(LocalAccumulator, float3(max(LocalAccumulator.xy, StepSample.xy), 1), StepSample.z);
+				}
+
+				// Square(): the area scales quadratic with the angle - it gets a bit darker
+				WeightAccumulator += float2(Square(1 - LocalAccumulator.x) * LocalAccumulator.z, LocalAccumulator.z);
+				WeightAccumulator += float2(Square(1 - LocalAccumulator.y) * LocalAccumulator.z, LocalAccumulator.z);
+				// cheaper? Could move 1 - out
+				// WeightAccumulator += float2(1 - LocalAccumulator.x, LocalAccumulator.y);
+			}
+			else // Case with no normals
+			{
+				float2 LocalAccumulator = 0;
+
+				UNROLL for(uint step = 0; step < SAMPLE_STEPS; ++step)
+				{
+					// constant at run time
+					float Scale = (step + 1) / (float)SAMPLE_STEPS;
+					// constant at run time (higher is better for texture cache / performance, lower is better quality
+					float MipLevel = ComputeMipLevel(i, step);
+
+					float2 StepSample = WedgeNoNormal(ScreenSpacePos, Scale * LocalRandom, InvFovFix, ViewSpacePosition, InvHaloSize, MipLevel);
+
+					// combine horizon samples
+					LocalAccumulator = lerp(LocalAccumulator, float2(max(LocalAccumulator.x, StepSample.x), 1), StepSample.y);
+				}
+
+				// Square(): the area scales quadratic with the angle - it gets a bit darker
+				WeightAccumulator += float2(Square(1 - LocalAccumulator.x) * LocalAccumulator.y, LocalAccumulator.y);
+
+			}
+		}
+	}
+
+#endif // #if AO_SAMPLE_QUALITY == 0
+
+
+	OutColor.r = WeightAccumulator.x / WeightAccumulator.y;
+	OutColor.gb = float2(0, 0);
+
+	if(!bDebugLookups)
+	{
+#if COMPUTE_SHADER || FORWARD_SHADING
+		// In compute, Input1 and Input2 are not necessarily valid.
+		float4 Filtered = 1;
+#else
+		float4 Filtered = ComputeUpsampleContribution(SceneDepth, UV, WorldNormal);
+#endif
+		// recombined result from multiple resolutions
+		OutColor.r = lerp(OutColor.r, Filtered.r, ComputeLerpFactor());
+	}
+	return;//
+
+	if(!bDebugLookups)
+	{
+		// full res
+
+		// soft fade out AO in the distance
+		{
+			float Mul = ScreenSpaceAOParams[4].x;
+			float Add = ScreenSpaceAOParams[4].y;
+			OutColor.r = lerp(OutColor.r, 1, saturate(SceneDepth * Mul + Add));
+		}
+
+		// user adjust AO
+		// abs() to prevent shader warning
+		OutColor.r = 1 - (1 - pow(abs(OutColor.r), AmbientOcclusionPower)) * AmbientOcclusionIntensity;
+
+		// we output in a single alpha channel
+		OutColor = OutColor.r;
+	}
+	else
+	{
+		OutColor.r = pow(1 - OutColor.r, 16);	// constnt is tweaked with radius and sample count
+	}
+
+	// we don't support ddx_fine() for SM4 and ES3.1
+#if QUAD_MESSAGE_PASSING_BLUR > 0 && (SWITCH_PROFILE || SWITCH_PROFILE_FORWARD || FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
+	{	// .x: AO output, .y:SceneDepth .zw:view space normal
+		float4 CenterPixel = float4(OutColor.r, SceneDepth, normalize(ViewSpaceNormal).xy); 
+
+		float4 dX = ddx_fine(CenterPixel);
+		float4 dY = ddy_fine(CenterPixel);
+
+		int2 Mod = (uint2)(SvPosition.xy) % 2;
+
+		float4 PixA = CenterPixel;
+		float4 PixB = CenterPixel - dX * (Mod.x * 2 - 1);
+		float4 PixC = CenterPixel - dY * (Mod.y * 2 - 1);
+
+		float WeightA = 1.0f;
+		float WeightB = 1.0f;
+		float WeightC = 1.0f;
+
+#if QUAD_MESSAGE_PASSING_NORMAL
+		const float NormalTweak = 4.0f;
+		float3 NormalA = ReconstructNormal(PixA.zw);
+		float3 NormalB = ReconstructNormal(PixB.zw);
+		float3 NormalC = ReconstructNormal(PixC.zw);
+		WeightB *= saturate(pow(saturate(dot(NormalA, NormalB)), NormalTweak));
+		WeightC *= saturate(pow(saturate(dot(NormalA, NormalC)), NormalTweak));
+#endif
+
+#if QUAD_MESSAGE_PASSING_DEPTH
+		const float DepthTweak = 1;
+		float InvDepth = 1.0f / PixA.y;
+		WeightB *= 1 - saturate(abs(1 - PixB.y * InvDepth) * DepthTweak);
+		WeightC *= 1 - saturate(abs(1 - PixC.y * InvDepth) * DepthTweak);
+#endif
+
+		// + 1.0f to avoid div by 0
+		float InvWeightABC = 1.0f / (WeightA + WeightB + WeightC);
+
+		WeightA *= InvWeightABC;
+		WeightB *= InvWeightABC;
+		WeightC *= InvWeightABC;
+
+		OutColor = WeightA * PixA.x + WeightB * PixB.x + WeightC * PixC.x;
+		// visualize where we don't want to fade
+//		OutColor = (WeightA - 0.333f) / 0.666f;
+	}
+#endif
+}
+
+void MainPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+	MainPSandCS(UVAndScreenPos, SvPosition, OutColor);	
+}
+
+#endif // SSAO
+
