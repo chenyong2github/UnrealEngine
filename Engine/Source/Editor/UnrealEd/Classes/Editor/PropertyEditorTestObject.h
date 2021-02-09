@@ -157,10 +157,10 @@ struct FPropertyEditorTestInlineEditCondition
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Default, meta=(InlineEditConditionToggle))
-	bool InlineEditCondition;
+	bool InlineEditCondition = false;
 
 	UPROPERTY(EditAnywhere, Category=Default, meta=(EditCondition=InlineEditCondition))
-	int32 HasInlineEditCondition;
+	int32 HasInlineEditCondition = 0;
 };
 
 UCLASS(EditInlineNew)
