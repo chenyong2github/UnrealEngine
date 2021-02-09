@@ -1518,10 +1518,12 @@ void UWorld::RepairWorldSettings()
 
 void UWorld::RepairWorldDataLayers()
 {
+#if WITH_EDITOR
 	if (const UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		AWorldDataLayers::Get(this, /*bCreateIfNotFound*/true);
 	}
+#endif
 }
 
 void UWorld::InitWorld(const InitializationValues IVS)

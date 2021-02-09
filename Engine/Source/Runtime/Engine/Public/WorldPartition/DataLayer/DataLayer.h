@@ -28,13 +28,14 @@ public:
 	class UHLODLayer* GetDefaultHLODLayer() const { return ShouldGenerateHLODs() ? DefaultHLODLayer : nullptr; }
 
 	static FText GetDataLayerText(const UDataLayer* InDataLayer);
+
+	bool IsLocked() const { return bIsLocked; }
 #endif
 	
 	FName GetDataLayerLabel() const  { return DataLayerLabel; }
 	bool IsVisible() const { return bIsVisible; }
 	bool IsDynamicallyLoaded() const { return bIsDynamicallyLoaded; }
-	bool IsInitiallyActive() const { return IsDynamicallyLoaded() && bIsInitiallyActive; }
-	bool IsLocked() const { return bIsLocked; }
+	bool IsInitiallyActive() const { return IsDynamicallyLoaded() && bIsInitiallyActive; }	
 
 private:
 	/** The display name of the DataLayer */
