@@ -245,6 +245,7 @@ void FOnlineUserEOSPlus::OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful
 {
 	if (!bWasSuccessful)
 	{
+		TriggerOnLoginCompleteDelegates(LocalUserNum, bWasSuccessful, UserId, Error);
 		return;
 	}
 
