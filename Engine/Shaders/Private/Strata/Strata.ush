@@ -47,7 +47,7 @@ struct FStrataBSDF
 
 
 
-#define TO_BITMASK(BitCount)							((1<<BitCount)-1)
+#define TO_BITMASK(BitCount)							((1u<<BitCount)-1)
 #define READ_BITS(X, BitCount, BitOffset)				uint((X>>BitOffset) & TO_BITMASK(BitCount))
 #define WRITE_BITS(X, BitCount, BitOffset, NewValue)	X = (X & (~(TO_BITMASK(BitCount)<<BitOffset))) | ((NewValue & TO_BITMASK(BitCount)) << BitOffset)
 
@@ -303,12 +303,12 @@ FStrataTopLayerData StrataUnpackTopLayerData(uint2 In)
 
 uint StrataShadingModelBit(uint ShadingModel)
 {
-	return 1 << ShadingModel;
+	return 1u << ShadingModel;
 }
 
 bool StrataHasShadingModel(uint ShadingModels, uint ShadingModel)
 {
-	return (ShadingModels & (1 << ShadingModel)) > 0;
+	return (ShadingModels & (1u << ShadingModel)) > 0;
 }
 
 bool StrataHasAnisotropy(in float RoughnessX, float RoughnessY)
@@ -598,8 +598,8 @@ uint  StrataLoadUint1(ByteAddressBuffer StrataBuffer, inout FStrataAddressing St
 float3 StrataUnpackNormal(uint PackedNormal);
 void StrataUnpackNormalAndTangent(inout float3 Normal, inout float3 Tangent, in uint InPacked);
 
-#define STRATA_BASIS_TYPE_NORMAL 0
-#define STRATA_BASIS_TYPE_TANGENT 1
+#define STRATA_BASIS_TYPE_NORMAL 0u
+#define STRATA_BASIS_TYPE_TANGENT 1u
 struct FSharedNormals
 {
 	uint NormalCount;

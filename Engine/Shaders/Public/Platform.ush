@@ -807,7 +807,7 @@ uint MaskedBitCount( uint2 Bits, uint Index )
 {
 	bool bLow = Index < 32;
 
-	uint Mask = 1 << ( Index - ( bLow ? 0 : 32 ) );
+	uint Mask = 1u << ( Index - ( bLow ? 0 : 32 ) );
 	Mask -= 1;
 
 	uint Offset;
