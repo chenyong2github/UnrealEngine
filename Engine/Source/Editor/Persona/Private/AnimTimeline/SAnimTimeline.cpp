@@ -527,7 +527,7 @@ void SAnimTimeline::OnAppendAnimSequence( bool bFromStart, int32 NumOfFrames )
 
 			// Crop the raw anim data.
 			const int32 StartFrame = (bFromStart)? 0 : AnimSequence->GetDataModel()->GetNumberOfFrames() - 1;
-			UE::Anim::AnimationData::DuplicateKeys(AnimSequence, StartFrame, 1, StartFrame);
+			UE::Anim::AnimationData::DuplicateKeys(AnimSequence, StartFrame, NumOfFrames, StartFrame);
 		}
 	}
 }
