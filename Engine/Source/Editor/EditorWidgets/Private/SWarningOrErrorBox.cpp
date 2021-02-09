@@ -7,20 +7,23 @@
 
 void SWarningOrErrorBox::Construct(const FArguments& InArgs)
 {
+	MessageStyle = InArgs._MessageStyle;
+
 	SBorder::Construct(SBorder::FArguments()
-		.Padding(16.0f)
+		.Padding(InArgs._Padding)
 		.ForegroundColor(FAppStyle::Get().GetSlateColor("Colors.White"))
-		.BorderImage(InArgs._MessageStyle == EMessageStyle::Warning ? FAppStyle::Get().GetBrush("RoundedWarning") : FAppStyle::Get().GetBrush("RoundedError"))
+		.BorderImage_Lambda([this]() { return MessageStyle.Get() == EMessageStyle::Warning ? FAppStyle::Get().GetBrush("RoundedWarning") : FAppStyle::Get().GetBrush("RoundedError"); })
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(FMargin(0.0f, 0.0f, 16.0f, 0.0f))
 			[
 				SNew(SImage)
-				.DesiredSizeOverride(FVector2D(24,24))
-				.Image(InArgs._MessageStyle == EMessageStyle::Warning ? FAppStyle::Get().GetBrush("Icons.Warning") : FAppStyle::Get().GetBrush("Icons.Error"))
+				.DesiredSizeOverride(InArgs._IconSize)
+				.Image_Lambda([this]() { return MessageStyle.Get() == EMessageStyle::Warning ? FAppStyle::Get().GetBrush("Icons.WarningWithColor") : FAppStyle::Get().GetBrush("Icons.ErrorWithColor"); })
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			+SHorizontalBox::Slot()

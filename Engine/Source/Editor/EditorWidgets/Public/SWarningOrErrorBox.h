@@ -16,10 +16,17 @@ class EDITORWIDGETS_API SWarningOrErrorBox : public SBorder
 public:
 	SLATE_BEGIN_ARGS(SWarningOrErrorBox)
 		: _MessageStyle(EMessageStyle::Warning)
+		, _Padding(16.0f)
+		, _IconSize(24,24)
 	{}
 		SLATE_ATTRIBUTE(FText, Message)
-		SLATE_ARGUMENT(EMessageStyle, MessageStyle)
+		SLATE_ATTRIBUTE(EMessageStyle, MessageStyle)
+		SLATE_ARGUMENT(FMargin, Padding)
+		SLATE_ARGUMENT(FVector2D, IconSize)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+
+private:
+	TAttribute<EMessageStyle> MessageStyle;
 };
