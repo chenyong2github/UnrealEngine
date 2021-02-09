@@ -633,6 +633,8 @@ inline void ConvertToExternalTexture(FRDGBuilder& GraphBuilder, FRDGTextureRef T
 	OutPooledRenderTarget = GraphBuilder.GetPooledTexture(Texture);
 }
 
+RENDERCORE_API void AddAsyncComputeSRVTransitionHackPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture);
+
 // Performs the same steps as ConvertToExternalX but forces the resource into the final state. Assuming the resource isn't used again
 // after this pass, the graph will leave it in that state and it's technically safe to read from the raw RHI resource.
 RENDERCORE_API void ConvertToUntrackedExternalTexture(

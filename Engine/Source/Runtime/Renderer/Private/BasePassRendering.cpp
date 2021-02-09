@@ -979,13 +979,9 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterAnisotropyPass));
 	}
 
+	if (SceneContext.GBufferA)
 	{
-		extern void AddAsyncComputeSRVTransitionHackPass(FRDGBuilder&, FRDGTextureRef);
-
-		if (SceneContext.GBufferA)
-		{
-			AddAsyncComputeSRVTransitionHackPass(GraphBuilder, GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA));
-		}
+		AddAsyncComputeSRVTransitionHackPass(GraphBuilder, GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA));
 	}
 }
 
