@@ -35,7 +35,7 @@ ALevelInstanceEditorInstanceActor* ALevelInstanceEditorInstanceActor::Create(ALe
 	SpawnParams.ObjectFlags = RF_Transient;
 	SpawnParams.bNoFail = true;
 	ALevelInstanceEditorInstanceActor* InstanceActor = LevelInstanceActor->GetWorld()->SpawnActor<ALevelInstanceEditorInstanceActor>(LevelInstanceActor->GetActorLocation(), LevelInstanceActor->GetActorRotation(), SpawnParams);
-
+	InstanceActor->SetActorScale3D(LevelInstanceActor->GetActorScale3D());
 	InstanceActor->SetLevelInstanceID(LevelInstanceActor->GetLevelInstanceID());
 	
 	for (AActor* LevelActor : LoadedLevel->Actors)

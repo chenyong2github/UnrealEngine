@@ -59,7 +59,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ALevelI
 	// Build a unique and deterministic LevelInstance level instance name by using LevelInstanceID. 
 	// Distinguish game from editor since we don't want to duplicate for PIE already loaded editor instances (not yet supported).
 	FString Suffix = FString::Printf(TEXT("%s_LevelInstance_%08X_%d"), *ShortPackageName, LevelInstanceActor->GetLevelInstanceID(), LevelInstanceActor->GetWorld()->IsGameWorld() ? 1 : 0);
-	ULevelStreamingLevelInstance* LevelStreaming = Cast<ULevelStreamingLevelInstance>(ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(LevelInstanceActor->GetWorld(), LevelInstanceActor->GetWorldAsset(), LevelInstanceActor->GetActorLocation(), LevelInstanceActor->GetActorRotation(), bOutSuccess, Suffix, ULevelStreamingLevelInstance::StaticClass()));
+	ULevelStreamingLevelInstance* LevelStreaming = Cast<ULevelStreamingLevelInstance>(ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(LevelInstanceActor->GetWorld(), LevelInstanceActor->GetWorldAsset(), LevelInstanceActor->GetActorTransform(), bOutSuccess, Suffix, ULevelStreamingLevelInstance::StaticClass()));
 	if (bOutSuccess)
 	{
 		LevelStreaming->LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();

@@ -390,6 +390,7 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 				{
 					RootComponent->SetRelativeLocation_Direct(TransformParams.LevelTransform.TransformPosition(RootComponent->GetRelativeLocation()));
 					RootComponent->SetRelativeRotation_Direct(TransformParams.LevelTransform.TransformRotation(RootComponent->GetRelativeRotation().Quaternion()).Rotator());
+					RootComponent->SetRelativeScale3D_Direct(TransformParams.LevelTransform.GetScale3D() * RootComponent->GetRelativeScale3D());
 				}
 			}
 			else
@@ -399,6 +400,7 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 				if (RootComponent && RootComponent->GetAttachParent() == nullptr)
 				{
 					RootComponent->SetRelativeLocationAndRotation(TransformParams.LevelTransform.TransformPosition(RootComponent->GetRelativeLocation()), TransformParams.LevelTransform.TransformRotation(RootComponent->GetRelativeRotation().Quaternion()));
+					RootComponent->SetRelativeScale3D(TransformParams.LevelTransform.GetScale3D() * RootComponent->GetRelativeScale3D());
 				}
 			}
 #if WITH_EDITOR
@@ -428,6 +430,7 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 				{
 					ModelComponent->SetRelativeLocation_Direct(TransformParams.LevelTransform.TransformPosition(ModelComponent->GetRelativeLocation()));
 					ModelComponent->SetRelativeRotation_Direct(TransformParams.LevelTransform.TransformRotation(ModelComponent->GetRelativeRotation().Quaternion()).Rotator());
+					ModelComponent->SetRelativeScale3D_Direct(TransformParams.LevelTransform.GetScale3D() * ModelComponent->GetRelativeScale3D());
 				}
 			}
 
@@ -443,6 +446,7 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 					{
 						RootComponent->SetRelativeLocation_Direct(TransformParams.LevelTransform.TransformPosition(RootComponent->GetRelativeLocation()));
 						RootComponent->SetRelativeRotation_Direct(TransformParams.LevelTransform.TransformRotation(RootComponent->GetRelativeRotation().Quaternion()).Rotator());
+						RootComponent->SetRelativeScale3D_Direct(TransformParams.LevelTransform.GetScale3D() * RootComponent->GetRelativeScale3D());
 					}
 				}
 			}
@@ -455,6 +459,7 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 				if (ModelComponent)
 				{
 					ModelComponent->SetRelativeLocationAndRotation(TransformParams.LevelTransform.TransformPosition(ModelComponent->GetRelativeLocation()), TransformParams.LevelTransform.TransformRotation(ModelComponent->GetRelativeRotation().Quaternion()));
+					ModelComponent->SetRelativeScale3D(TransformParams.LevelTransform.GetScale3D() * ModelComponent->GetRelativeScale3D());
 				}
 			}
 
@@ -469,6 +474,7 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 					if (RootComponent && RootComponent->GetAttachParent() == nullptr)
 					{
 						RootComponent->SetRelativeLocationAndRotation(TransformParams.LevelTransform.TransformPosition(RootComponent->GetRelativeLocation()), TransformParams.LevelTransform.TransformRotation(RootComponent->GetRelativeRotation().Quaternion()));
+						RootComponent->SetRelativeScale3D(TransformParams.LevelTransform.GetScale3D() * RootComponent->GetRelativeScale3D());
 					}
 				}
 			}
