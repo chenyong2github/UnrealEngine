@@ -46,18 +46,7 @@ DECLARE_DELEGATE(FOnSearchOptionChanged);
 /** Fires whenever asset view options menu is being opened, gives chance for external code to set additional context */
 DECLARE_DELEGATE_OneParam(FOnExtendAssetViewOptionsMenuContext, FToolMenuContext&);
 
-enum class EThumbnailSize : uint8
-{
-	Tiny = 0,
-	Small,
-	Medium,
-	Large,
-	Huge,
-
-	// Not a size
-	MAX
-};
-
+enum class EThumbnailSize : uint8;
 
 /**
  * A widget to display a list of filtered assets

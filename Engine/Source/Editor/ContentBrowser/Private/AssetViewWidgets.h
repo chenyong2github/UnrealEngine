@@ -42,6 +42,20 @@ DECLARE_DELEGATE_OneParam( FOnItemDestroyed, const TSharedPtr<FAssetViewItem>& /
 class SAssetListItem;
 class SAssetTileItem;
 
+enum class EThumbnailSize : uint8
+{
+	Tiny = 0,
+	Small,
+	Medium,
+	Large,
+	Huge,
+
+	// Not a size
+	MAX
+};
+
+
+
 namespace FAssetViewModeUtils 
 {
 	FReply OnViewModeKeyDown( const TSet< TSharedPtr<FAssetViewItem> >& SelectedItems, const FKeyEvent& InKeyEvent );
@@ -456,6 +470,7 @@ public:
 		, _ThumbnailLabel( EThumbnailLabel::ClassName )
 		, _ThumbnailHintColorAndOpacity( FLinearColor( 0.0f, 0.0f, 0.0f, 0.0f ) )
 		, _AllowThumbnailHintLabel(true)
+		, _CurrentThumbnailSize(EThumbnailSize::Medium)
 		, _ItemWidth(16)
 		, _ShouldAllowToolTip(true)
 		, _ThumbnailEditMode(false)
@@ -478,6 +493,9 @@ public:
 
 		/** Whether the thumbnail should ever show it's hint label */
 		SLATE_ARGUMENT( bool, AllowThumbnailHintLabel )
+
+		/** Current size of the thumbnail that was generated */
+		SLATE_ARGUMENT(EThumbnailSize, CurrentThumbnailSize)
 
 		/** The width of the item */
 		SLATE_ATTRIBUTE( float, ItemWidth )
@@ -565,8 +583,14 @@ protected:
 	/** Returns the font to use for the thumbnail label */
 	FSlateFontInfo GetThumbnailFont() const;
 
+	/** Gets the max size of the name area for an asset */
+	FOptionalSize GetMaxAssetNameHeight() const;
+
 	const FSlateBrush* GetFolderBackgroundImage() const;
 	const FSlateBrush* GetFolderBackgroundShadowImage() const;
+
+	static void InitializeAssetNameHeights();
+
 private:
 	/** The handle to the thumbnail that this item is rendering */
 	TSharedPtr<FAssetThumbnail> AssetThumbnail;
@@ -574,8 +598,14 @@ private:
 	/** The width of the item. Used to enforce a square thumbnail. */
 	TAttribute<float> ItemWidth;
 
+	/** Max name height for each thumbnail size */
+	static float AssetNameHeights[(int32)EThumbnailSize::MAX];
+
 	/** The padding allotted for the thumbnail */
 	float ThumbnailPadding;
+
+	/** Current thumbnail size when this widget was generated */
+	EThumbnailSize CurrentThumbnailSize;
 };
 
 /** An item in the asset column view */

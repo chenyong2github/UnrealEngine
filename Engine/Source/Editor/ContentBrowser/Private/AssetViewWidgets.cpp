@@ -38,6 +38,7 @@
 #include "ContentBrowserUtils.h"
 #include "ContentBrowserDataSource.h"
 #include "Widgets/Images/SLayeredImage.h"
+#include "Fonts/FontMeasure.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -435,10 +436,10 @@ void SAssetViewItem::Tick( const FGeometry& AllottedGeometry, const double InCur
 		const float WrapWidth = GetNameTextWrapWidth();
 		InlineRenameWidget->SetWrapTextAt(WrapWidth);
 
-		if (ClassTextWidget.IsValid())
+		/*if (ClassTextWidget.IsValid())
 		{
 			ClassTextWidget->SetWrapTextAt(WrapWidth);
-		}
+		}*/
 	}
 
 	UpdateDirtyState();
@@ -1641,6 +1642,10 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 	ItemWidth = InArgs._ItemWidth;
 	ThumbnailPadding = IsFolder() ? InArgs._ThumbnailPadding + 5.0f : InArgs._ThumbnailPadding;
 
+	CurrentThumbnailSize = InArgs._CurrentThumbnailSize;
+
+	InitializeAssetNameHeights();
+
 	TSharedPtr<SWidget> Thumbnail;
 	if ( AssetItem.IsValid() && AssetThumbnail.IsValid() )
 	{
@@ -1719,24 +1724,29 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 						[
 							SNew(SVerticalBox)
 							+ SVerticalBox::Slot()
-							.Padding(2.0f)
+							.Padding(2.0f,0.0f,0.0f,0.0f)
 							.VAlign(VAlign_Top)
 							[
-								SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
-								.Font(this, &SAssetTileItem::GetThumbnailFont)
-								.Text(GetNameText())
-								.OnBeginTextEdit(this, &SAssetTileItem::HandleBeginNameChange)
-								.OnTextCommitted(this, &SAssetTileItem::HandleNameCommitted)
-								.OnVerifyTextChanged(this, &SAssetTileItem::HandleVerifyNameChanged)
-								.HighlightText(InArgs._HighlightText)
-								.IsSelected(InArgs._IsSelectedExclusively)
-								.IsReadOnly(this, &SAssetTileItem::IsNameReadOnly)
-								.Justification(IsFolder() ? ETextJustify::Center : ETextJustify::Left)
-								.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
+								SNew(SBox)
+								.MaxDesiredHeight(AssetNameHeights[(int32)CurrentThumbnailSize])
+								[
+									SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
+									.Font(this, &SAssetTileItem::GetThumbnailFont)
+									.Text(GetNameText())
+									.OnBeginTextEdit(this, &SAssetTileItem::HandleBeginNameChange)
+									.OnTextCommitted(this, &SAssetTileItem::HandleNameCommitted)
+									.OnVerifyTextChanged(this, &SAssetTileItem::HandleVerifyNameChanged)
+									.HighlightText(InArgs._HighlightText)
+									.IsSelected(InArgs._IsSelectedExclusively)
+									.IsReadOnly(this, &SAssetTileItem::IsNameReadOnly)
+									.Justification(IsFolder() ? ETextJustify::Center : ETextJustify::Left)
+									.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
+								]
 							]
 							+ SVerticalBox::Slot()
 							.VAlign(VAlign_Bottom)
-							.Padding(2.0f)
+							.AutoHeight()
+							.Padding(4.0f,0.0f, 0.0f, 2.0f)
 							[
 								SAssignNew(ClassTextWidget, STextBlock)
 								.Visibility(this, &SAssetTileItem::GetAssetClassLabelVisibility)
@@ -1744,7 +1754,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 								.TransformPolicy(ETextTransformPolicy::ToUpper)
 								.Text(this, &SAssetTileItem::GetAssetClassText)
 								.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-								.LineBreakPolicy(FBreakIterator::CreateWordBreakIterator())
+								//.LineBreakPolicy(FBreakIterator::CreateWordBreakIterator())
 							]
 							
 						]
@@ -1885,8 +1895,6 @@ FSlateFontInfo SAssetTileItem::GetThumbnailFont() const
 	return FEditorStyle::GetFontStyle(RegularFont);
 }
 
-
-
 const FSlateBrush* SAssetTileItem::GetFolderBackgroundImage() const
 {
 	const bool bIsSelected = IsSelected.IsBound() ? IsSelected.Execute() : false;
@@ -1914,6 +1922,41 @@ const FSlateBrush* SAssetTileItem::GetFolderBackgroundShadowImage() const
 
 	return FStyleDefaults::GetNoBrush();
 }
+
+void SAssetTileItem::InitializeAssetNameHeights()
+{
+	// The height of the asset name field for each thumbnail size
+	static bool bInitializedHeights = false;
+
+	if (!bInitializedHeights)
+	{
+		AssetNameHeights[(int32)EThumbnailSize::Tiny] = 0;
+
+		{
+			const static FName SmallFontName("ContentBrowser.AssetTileViewNameFontSmall");
+			FSlateFontInfo Font = FEditorStyle::GetFontStyle(SmallFontName);
+			TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+			float MaxHeight = FontMeasureService->GetMaxCharacterHeight(Font);
+			AssetNameHeights[(int32)EThumbnailSize::Small] = MaxHeight * 2;
+		}
+
+
+		{
+			const static FName SmallFontName("ContentBrowser.AssetTileViewNameFont");
+			FSlateFontInfo Font = FEditorStyle::GetFontStyle(SmallFontName);
+			TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+			float MaxHeight = FontMeasureService->GetMaxCharacterHeight(Font);
+			AssetNameHeights[(int32)EThumbnailSize::Medium] = MaxHeight * 3;
+			AssetNameHeights[(int32)EThumbnailSize::Large] = MaxHeight * 4;
+			AssetNameHeights[(int32)EThumbnailSize::Huge] = MaxHeight * 5;
+		}
+
+		bInitializedHeights = true;
+	}
+
+}
+
+float SAssetTileItem::AssetNameHeights[(int32)EThumbnailSize::MAX];
 
 ///////////////////////////////
 // SAssetColumnItem
