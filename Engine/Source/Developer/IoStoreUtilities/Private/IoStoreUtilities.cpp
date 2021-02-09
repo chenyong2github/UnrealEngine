@@ -1633,6 +1633,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			TArray<FPackageStoreContainerHeaderEntry> ContainerHeaderEntries;
 			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 			{
+				check(TargetFile.Package);
 				if (!TargetFile.bIsBulkData)
 				{
 					FIoWriteOptions WriteOptions;
