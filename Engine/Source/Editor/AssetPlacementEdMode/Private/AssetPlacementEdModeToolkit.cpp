@@ -38,6 +38,12 @@ TSharedPtr<SWidget> FAssetPlacementEdModeToolkit::GetInlineContent() const
 {
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			FModeToolkit::GetInlineContent().ToSharedRef()
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
 			SNew(SExpandableArea)
 			.AreaTitle(LOCTEXT("AssetPaletteHeader", "Asset Palette"))
@@ -46,10 +52,6 @@ TSharedPtr<SWidget> FAssetPlacementEdModeToolkit::GetInlineContent() const
 				SNew(SAssetPlacementPalette)
 				.PlacementSettings(PlacementSettings)
 			]
-		]
-		+ SVerticalBox::Slot()
-		[
-			FModeToolkit::GetInlineContent().ToSharedRef()
 		];
 }
 

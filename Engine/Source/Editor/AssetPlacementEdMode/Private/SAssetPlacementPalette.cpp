@@ -184,9 +184,9 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SVerticalBox)
-
 		+ SVerticalBox::Slot()
 		.HAlign(HAlign_Fill)
+		.AutoHeight()
 		[
 			// Top bar
 			SNew(SBorder)
@@ -226,43 +226,8 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 						]
 					]
 				]
-
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(.75f)
-					[
-						// +Add Placement Type button
-						SAssignNew(AddPlacementTypeCombo, SComboButton)
-						.HAlign(HAlign_Center)
-						.ForegroundColor(FLinearColor::White)
-						.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
-						.OnGetMenuContent(this, &SAssetPlacementPalette::GetAddPlacementTypePicker)
-						.ButtonContent()
-							[
-								SNew(SHorizontalBox)
-								+ SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								.AutoWidth()
-								[
-									SNew(STextBlock)
-									.TextStyle(FAssetPlacementEdModeStyle::Get(), "AssetPlacementEdMode.AddAssetType.Text")
-									.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-								]
-								+ SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								[
-									SNew(STextBlock)
-									.Text(LOCTEXT("AddPlacementTypeButtonLabel", "Add Asset Type"))
-									.TextStyle(FAssetPlacementEdModeStyle::Get(), "AssetPlacementEdMode.AddAssetType.Text")
-								]
-							]
-						]
-					]
-				]
 			]
+		]
 
 		+ SVerticalBox::Slot()
 		[
@@ -456,6 +421,7 @@ TSharedRef<SWidgetSwitcher> SAssetPlacementPalette::CreatePaletteViews()
 		.TreeItemsSource(&FilteredItems)
 		.SelectionMode(ESelectionMode::Multi)
 		.OnGenerateRow(this, &SAssetPlacementPalette::TreeViewGenerateRow)
+		.OnGetChildren(this, &SAssetPlacementPalette::TreeViewGetChildren)
 		.OnContextMenuOpening(this, &SAssetPlacementPalette::ConstructPlacementTypeContextMenu)
 		.OnSelectionChanged(this, &SAssetPlacementPalette::OnSelectionChanged)
 		.OnMouseButtonDoubleClick(this, &SAssetPlacementPalette::OnItemDoubleClicked)
@@ -961,6 +927,11 @@ EVisibility SAssetPlacementPalette::GetThumbnailScaleSliderVisibility() const
 TSharedRef<ITableRow> SAssetPlacementPalette::TreeViewGenerateRow(FPlacementPaletteItemModelPtr Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SAssetPlacementPaletteItemRow, OwnerTable, Item);
+}
+
+void SAssetPlacementPalette::TreeViewGetChildren(FPlacementPaletteItemModelPtr Item, TArray<FPlacementPaletteItemModelPtr>& OutChildren)
+{
+	// Items do not have any children
 }
 
 ECheckBoxState SAssetPlacementPalette::GetState_AllMeshes() const

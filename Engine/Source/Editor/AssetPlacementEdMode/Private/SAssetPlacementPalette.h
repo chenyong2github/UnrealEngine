@@ -199,6 +199,7 @@ private:	// TREE VIEW
 
 	/** Generates a row widget for Placement mesh item */
 	TSharedRef<ITableRow> TreeViewGenerateRow(FPlacementPaletteItemModelPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void TreeViewGetChildren(FPlacementPaletteItemModelPtr Item, TArray<FPlacementPaletteItemModelPtr>& OutChildren);
 
 	/** Text for Placement meshes list header */
 	FText GetTypeColumnHeaderText() const;
