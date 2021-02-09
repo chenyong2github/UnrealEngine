@@ -68,10 +68,10 @@ class FTypedElementInternalData
 {
 public:
 	FTypedElementInternalData() = default;
-	
+
 	FTypedElementInternalData(const FTypedElementInternalData&) = delete;
 	FTypedElementInternalData& operator=(const FTypedElementInternalData&) = delete;
-	
+
 	FTypedElementInternalData(FTypedElementInternalData&& InOther) = delete;
 	FTypedElementInternalData& operator=(FTypedElementInternalData&&) = delete;
 
@@ -96,6 +96,7 @@ public:
 		{
 			FScopeLock ReferencesLock(&ReferencesCS);
 			References.Reset();
+			DestructionRequestCallstack.Reset();
 		}
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
@@ -151,6 +152,7 @@ public:
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 		{
 			FScopeLock ReferencesLock(&ReferencesCS);
+			UE_LOG(LogCore, Error, TEXT("==============================================="));
 			UE_LOG(LogCore, Error, TEXT("External Element References:"));
 			for (const FTypedElementReference& Reference : References)
 			{
@@ -158,10 +160,46 @@ public:
 				Reference.LogReference();
 			}
 			UE_LOG(LogCore, Error, TEXT("==============================================="));
+			if (DestructionRequestCallstack)
+			{
+				UE_LOG(LogCore, Error, TEXT("Destruction requested by:"));
+				DestructionRequestCallstack->LogReference();
+				UE_LOG(LogCore, Error, TEXT("==============================================="));
+			}
 		}
 #else	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 		UE_LOG(LogCore, Error, TEXT("UE_TYPED_ELEMENT_HAS_REFTRACKING is disabled. Enable it and recompile to see reference tracking."));
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
+	}
+
+	void StoreDestructionRequestCallstack() const
+	{
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		FScopeLock ReferencesLock(&ReferencesCS);
+#if DO_CHECK
+		if (DestructionRequestCallstack)
+		{
+			UE_LOG(LogCore, Error, TEXT("==============================================="));
+			UE_LOG(LogCore, Error, TEXT("Destruction requested by:"));
+			DestructionRequestCallstack->LogReference();
+			UE_LOG(LogCore, Error, TEXT("==============================================="));
+			UE_LOG(LogCore, Fatal, TEXT("Element has already had its destruction callstack set! (see above)"));
+		}
+#endif	// DO_CHECK
+		DestructionRequestCallstack = MakeUnique<FTypedElementReference>();
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
+	}
+
+	void CheckNoExternalReferencesOnDestruction() const
+	{
+#if DO_CHECK
+		const FTypedElementRefCount LocalRefCount = GetRefCount();
+		if (LocalRefCount > 1)
+		{
+			LogReferences();
+			UE_LOG(LogCore, Fatal, TEXT("Element is still externally referenced when being destroyed! Ref-count: %d; see above for reference information (if available)."), LocalRefCount);
+		}
+#endif	// DO_CHECK
 	}
 
 	virtual const void* GetUntypedData() const
@@ -177,6 +215,7 @@ private:
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 	mutable FCriticalSection ReferencesCS;
 	mutable TSparseArray<FTypedElementReference> References;
+	mutable TUniquePtr<FTypedElementReference> DestructionRequestCallstack;
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 };
 
@@ -253,6 +292,7 @@ public:
 		
 		TTypedElementInternalData<ElementDataType>& InternalData = InternalDataArray[InElementId];
 		checkf(InExpectedDataPtr == &InternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
+		InternalData.CheckNoExternalReferencesOnDestruction();
 		InternalData.Reset();
 		InternalDataFreeIndices.Add(InElementId);
 	}
@@ -326,6 +366,7 @@ public:
 
 		TTypedElementInternalData<void>& InternalData = InternalDataArray[InElementId];
 		checkf(InExpectedDataPtr == &InternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
+		InternalData.CheckNoExternalReferencesOnDestruction();
 		InternalData.Reset();
 		InternalDataFreeIndices.Add(InternalDataArrayIndex);
 	}

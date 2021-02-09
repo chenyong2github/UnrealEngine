@@ -127,6 +127,7 @@ public:
 
 	/**
 	 * Destroy an element.
+	 * @note Destruction is deferred until the next call to ProcessDeferredElementsToDestroy.
 	 */
 	FORCEINLINE void DestroyElement(FTypedElementOwner& InOutElementOwner)
 	{
@@ -135,12 +136,20 @@ public:
 
 	/**
 	 * Destroy an element.
+	 * @note Destruction is deferred until the next call to ProcessDeferredElementsToDestroy.
 	 */
 	template <typename ElementDataType>
 	FORCEINLINE void DestroyElement(TTypedElementOwner<ElementDataType>& InOutElementOwner)
 	{
 		return DestroyElementImpl<ElementDataType>(InOutElementOwner);
 	}
+
+	/**
+	 * Process any elements that were previously marked for deferred destruction.
+	 * @note This is automatically called at the end of each frame, but may also be called manually.
+	 * @note This is automatically called post-GC, unless auto-GC destruction has been disabled (@see FDisableElementDestructionOnGC).
+	 */
+	void ProcessDeferredElementsToDestroy();
 
 	/**
 	 * Release an element ID that was previously acquired from an existing handle.
@@ -251,14 +260,41 @@ public:
 		GetElementImpl(InElementHandle, InBaseInterfaceType, OutElement);
 	}
 
+	/** Struct to disable auto-GC reference collection within a scope */
+	struct FDisableElementDestructionOnGC
+	{
+	public:
+		explicit FDisableElementDestructionOnGC(UTypedElementRegistry* InRegistry)
+			: Registry(InRegistry)
+		{
+			checkf(Registry, TEXT("FDisableElementDestructionOnGC must be used with a valid registry!"));
+			Registry->IncrementDisableElementDestructionOnGCCount();
+		}
+
+		~FDisableElementDestructionOnGC()
+		{
+			Registry->DecrementDisableElementDestructionOnGCCount();
+		}
+
+		FDisableElementDestructionOnGC(const FDisableElementDestructionOnGC&) = delete;
+		FDisableElementDestructionOnGC& operator=(const FDisableElementDestructionOnGC&) = delete;
+
+		FDisableElementDestructionOnGC(FDisableElementDestructionOnGC&&) = delete;
+		FDisableElementDestructionOnGC& operator=(FDisableElementDestructionOnGC&&) = delete;
+
+	private:
+		UTypedElementRegistry* Registry = nullptr;
+	};
+
 private:
 	struct FRegisteredElementType
 	{
 		virtual ~FRegisteredElementType() = default;
 
 		virtual FTypedElementInternalData& AddDataForElement(FTypedHandleElementId& InOutElementId) = 0;
-		virtual void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr) = 0;
+		virtual void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr, const bool bDefer) = 0;
 		virtual const FTypedElementInternalData& GetDataForElement(const FTypedHandleElementId InElementId) const = 0;
+		virtual void ProcessDeferredElementsToRemove() = 0;
 		virtual void SetDataTypeId(const FTypedHandleTypeId InTypeId) = 0;
 		virtual FTypedHandleTypeId GetDataTypeId() const = 0;
 		virtual FName GetDataTypeName() const = 0;
@@ -278,14 +314,34 @@ private:
 			return HandleDataStore.AddDataForElement(TypeId, InOutElementId);
 		}
 
-		virtual void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr) override
+		virtual void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr, const bool bDefer) override
 		{
-			HandleDataStore.RemoveDataForElement(InElementId, InExpectedDataPtr);
+			if (bDefer)
+			{
+				InExpectedDataPtr->StoreDestructionRequestCallstack();
+
+				FScopeLock DeferredElementsToRemoveLock(&DeferredElementsToRemoveCS);
+				DeferredElementsToRemove.Add(MakeTuple(InElementId, InExpectedDataPtr));
+			}
+			else
+			{
+				HandleDataStore.RemoveDataForElement(InElementId, InExpectedDataPtr);
+			}
 		}
 
 		virtual const FTypedElementInternalData& GetDataForElement(const FTypedHandleElementId InElementId) const override
 		{
 			return HandleDataStore.GetDataForElement(InElementId);
+		}
+
+		virtual void ProcessDeferredElementsToRemove() override
+		{
+			FScopeLock DeferredElementsToRemoveLock(&DeferredElementsToRemoveCS);
+			for (const FDeferredElementToRemove& DeferredElementToRemove : DeferredElementsToRemove)
+			{
+				HandleDataStore.RemoveDataForElement(DeferredElementToRemove.Get<0>(), DeferredElementToRemove.Get<1>());
+			}
+			DeferredElementsToRemove.Reset();
 		}
 
 		virtual void SetDataTypeId(const FTypedHandleTypeId InTypeId) override
@@ -304,6 +360,10 @@ private:
 		}
 
 		TTypedElementInternalDataStore<ElementDataType> HandleDataStore;
+
+		using FDeferredElementToRemove = TTuple<FTypedHandleElementId, const FTypedElementInternalData*>;
+		FCriticalSection DeferredElementsToRemoveCS;
+		TArray<FDeferredElementToRemove> DeferredElementsToRemove;
 	};
 
 	void RegisterElementTypeImpl(const FName InElementTypeName, TUniquePtr<FRegisteredElementType>&& InRegisteredElementType);
@@ -333,21 +393,7 @@ private:
 		FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InOutElementOwner.GetId().GetTypeId());
 		checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InOutElementOwner.GetId().GetTypeId());
 
-#if DO_CHECK
-		{
-			const FTypedElementInternalData& ElementData = RegisteredElementType->GetDataForElement(InOutElementOwner.GetId().GetElementId());
-			const FTypedElementRefCount RefCount = ElementData.GetRefCount();
-
-			const bool bIsExternallyReferenced = RefCount > 1;
-			if (bIsExternallyReferenced)
-			{
-				ElementData.LogReferences();
-				UE_LOG(LogCore, Fatal, TEXT("Element is still externally referenced when being destroyed! Ref-count: %d; see above for reference information (if available)."), RefCount);
-			}
-		}
-#endif	// DO_CHECK
-
-		RegisteredElementType->RemoveDataForElement(InOutElementOwner.GetId().GetElementId(), InOutElementOwner.Private_GetInternalData());
+		RegisteredElementType->RemoveDataForElement(InOutElementOwner.GetId().GetElementId(), InOutElementOwner.Private_GetInternalData(), /*bDefer*/true);
 		InOutElementOwner.Private_DestroyNoRef();
 	}
 
@@ -415,11 +461,29 @@ private:
 	}
 
 	void NotifyElementListPendingChanges();
-	
+
+	void OnBeginFrame();
+	void OnEndFrame();
+	void OnPostGarbageCollect();
+
+	FORCEINLINE void IncrementDisableElementDestructionOnGCCount()
+	{
+		checkf(DisableElementDestructionOnGCCount != MAX_uint8, TEXT("DisableElementDestructionOnGCCount overflow!"));
+		++DisableElementDestructionOnGCCount;
+	}
+
+	FORCEINLINE void DecrementDisableElementDestructionOnGCCount()
+	{
+		checkf(DisableElementDestructionOnGCCount != 0, TEXT("DisableElementDestructionOnGCCount underflow!"));
+		--DisableElementDestructionOnGCCount;
+	}
+
 	mutable FRWLock RegisteredElementTypesRW;
 	TUniquePtr<FRegisteredElementType> RegisteredElementTypes[TypedHandleMaxTypeId - 1];
 	TSortedMap<FName, FTypedHandleTypeId, FDefaultAllocator, FNameFastLess> RegisteredElementTypesNameToId;
 
 	mutable FRWLock ActiveElementListsRW;
 	TSet<UTypedElementList*> ActiveElementLists;
+
+	uint8 DisableElementDestructionOnGCCount = 0;
 };

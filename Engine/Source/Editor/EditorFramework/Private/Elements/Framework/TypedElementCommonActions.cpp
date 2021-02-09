@@ -46,6 +46,8 @@ bool UTypedElementCommonActions::DeleteElements(TArrayView<const FTypedElementHa
 	bool bSuccess = false;
 
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+	UTypedElementRegistry::FDisableElementDestructionOnGC GCGuard(Registry);
+
 	for (const auto& ElementsByTypePair : ElementsToDuplicateByType)
 	{
 		FTypedElementCommonActionsCustomization* CommonActionsCustomization = GetInterfaceCustomizationByTypeId(ElementsByTypePair.Key);
@@ -67,6 +69,8 @@ bool UTypedElementCommonActions::DeleteElements(const UTypedElementList* Element
 	bool bSuccess = false;
 
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+	UTypedElementRegistry::FDisableElementDestructionOnGC GCGuard(Registry);
+
 	for (const auto& ElementsByTypePair : ElementsToDuplicateByType)
 	{
 		FTypedElementCommonActionsCustomization* CommonActionsCustomization = GetInterfaceCustomizationByTypeId(ElementsByTypePair.Key);

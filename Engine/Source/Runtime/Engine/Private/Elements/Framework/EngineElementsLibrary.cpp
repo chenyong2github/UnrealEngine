@@ -28,6 +28,7 @@ TTypedElementOwner<ElementDataType> CreateTypedElement(const ObjectClass* Object
 	TTypedElementOwner<ElementDataType> TypedElement;
 	if (ensureMsgf(Registry, TEXT("Typed element was requested for '%s' before the registry was available! This usually means that NewObject was used instead of CreateDefaultSubobject during CDO construction."), *Object->GetPathName()))
 	{
+		checkf(!Object->HasAnyFlags(RF_BeginDestroyed), TEXT("Typed element was requested for an object that is being destroyed!"));
 		TypedElement = Registry->CreateElement<ElementDataType>(ElementTypeName);
 	}
 

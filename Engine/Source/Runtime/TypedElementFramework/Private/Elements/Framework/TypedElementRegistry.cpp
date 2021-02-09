@@ -15,7 +15,9 @@ TStrongObjectPtr<UTypedElementRegistry>& GetTypedElementRegistryInstance()
 
 UTypedElementRegistry::UTypedElementRegistry()
 {
-	FCoreDelegates::OnEndFrame.AddUObject(this, &UTypedElementRegistry::NotifyElementListPendingChanges);
+	FCoreDelegates::OnBeginFrame.AddUObject(this, &UTypedElementRegistry::OnBeginFrame);
+	FCoreDelegates::OnEndFrame.AddUObject(this, &UTypedElementRegistry::OnEndFrame);
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UTypedElementRegistry::OnPostGarbageCollect);
 }
 
 void UTypedElementRegistry::Private_InitializeInstance()
@@ -45,6 +47,8 @@ void UTypedElementRegistry::FinishDestroy()
 		Instance.Reset();
 	}
 
+	ProcessDeferredElementsToDestroy();
+
 	Super::FinishDestroy();
 }
 
@@ -53,6 +57,9 @@ void UTypedElementRegistry::AddReferencedObjects(UObject* InThis, FReferenceColl
 	Super::AddReferencedObjects(InThis, Collector);
 
 	UTypedElementRegistry* This = CastChecked<UTypedElementRegistry>(InThis);
+
+	FReadScopeLock RegisteredElementTypesLock(This->RegisteredElementTypesRW);
+	
 	for (TUniquePtr<FRegisteredElementType>& RegisteredElementType : This->RegisteredElementTypes)
 	{
 		if (RegisteredElementType)
@@ -110,6 +117,19 @@ UTypedElementInterface* UTypedElementRegistry::GetElementInterfaceImpl(const FTy
 	checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementTypeId);
 
 	return RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName());
+}
+
+void UTypedElementRegistry::ProcessDeferredElementsToDestroy()
+{
+	FReadScopeLock RegisteredElementTypesLock(RegisteredElementTypesRW);
+
+	for (TUniquePtr<FRegisteredElementType>& RegisteredElementType : RegisteredElementTypes)
+	{
+		if (RegisteredElementType)
+		{
+			RegisteredElementType->ProcessDeferredElementsToRemove();
+		}
+	}
 }
 
 void UTypedElementRegistry::ReleaseElementId(FTypedElementId& InOutElementId)
@@ -173,5 +193,28 @@ void UTypedElementRegistry::NotifyElementListPendingChanges()
 	for (UTypedElementList* ActiveElementList : ActiveElementLists)
 	{
 		ActiveElementList->NotifyPendingChanges();
+	}
+}
+
+void UTypedElementRegistry::OnBeginFrame()
+{
+	// Prevent auto-GC reference collection during this frame
+	IncrementDisableElementDestructionOnGCCount();
+}
+
+void UTypedElementRegistry::OnEndFrame()
+{
+	NotifyElementListPendingChanges();
+	ProcessDeferredElementsToDestroy();
+
+	// Allow auto-GC reference collection until the start of the next frame
+	DecrementDisableElementDestructionOnGCCount();
+}
+
+void UTypedElementRegistry::OnPostGarbageCollect()
+{
+	if (DisableElementDestructionOnGCCount == 0)
+	{
+		ProcessDeferredElementsToDestroy();
 	}
 }
