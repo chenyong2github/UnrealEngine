@@ -27,8 +27,7 @@ TArray<FDelegateHandle> PythonPostTickCallbackHandles;
 FPyDelegateHandle* RegisterSlateTickCallback(FSlateApplication::FSlateTickEvent& InSlateTickEvent, TArray<FDelegateHandle>& InOutPythonCallbackHandles, PyObject* InPyCallable)
 {
 	// We copy the PyCallable into the lambda to keep the Python object alive as long as the delegate is bound
-	FPyObjectPtr PyCallable = FPyObjectPtr::NewReference(InPyCallable);
-	FDelegateHandle TickEventDelegateHandle = InSlateTickEvent.AddLambda([PyCallable](const float InDeltaTime) mutable
+	FDelegateHandle TickEventDelegateHandle = InSlateTickEvent.AddLambda([PyCallable = FPyAutoGILPtr(FPyObjectPtr::NewReference(InPyCallable))](const float InDeltaTime) mutable
 	{
 		// Do not tick into Python when it may not be safe to call back into C++
 		if (GIsSavingPackage || IsGarbageCollecting() || FUObjectThreadContext::Get().IsRoutingPostLoad)
@@ -41,7 +40,7 @@ FPyDelegateHandle* RegisterSlateTickCallback(FSlateApplication::FSlateTickEvent&
 		FPyObjectPtr PyArgs = FPyObjectPtr::StealReference(PyTuple_New(1));
 		PyTuple_SetItem(PyArgs, 0, PyConversion::Pythonize(InDeltaTime)); // SetItem steals the reference
 
-		FPyObjectPtr Result = FPyObjectPtr::StealReference(PyObject_CallObject(PyCallable.GetPtr(), PyArgs));
+		FPyObjectPtr Result = FPyObjectPtr::StealReference(PyObject_CallObject(PyCallable.Get().GetPtr(), PyArgs));
 		if (!Result)
 		{
 			PyUtil::LogPythonError();

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyCore.h"
+#include "PyGIL.h"
 #include "PyGenUtil.h"
 #include "PyReferenceCollector.h"
 #include "PyWrapperTypeRegistry.h"
@@ -1729,10 +1730,9 @@ PyObject* RegisterPythonShutdownCallback(PyObject* InSelf, PyObject* InArgs)
 	}
 	check(PyObj);
 
-	FPyObjectPtr PyCallable = FPyObjectPtr::NewReference(PyObj);
-	FDelegateHandle PythonShutdownDelegateHandle = FPythonScriptPlugin::Get()->OnPythonShutdown().AddLambda([PyCallable]() mutable
+	FDelegateHandle PythonShutdownDelegateHandle = FPythonScriptPlugin::Get()->OnPythonShutdown().AddLambda([PyCallable = FPyAutoGILPtr(FPyObjectPtr::NewReference(PyObj))]() mutable
 	{
-		FPyObjectPtr Result = FPyObjectPtr::StealReference(PyObject_CallObject(PyCallable.GetPtr(), nullptr));
+		FPyObjectPtr Result = FPyObjectPtr::StealReference(PyObject_CallObject(PyCallable.Get().GetPtr(), nullptr));
 		if (!Result)
 		{
 			PyUtil::LogPythonError();
