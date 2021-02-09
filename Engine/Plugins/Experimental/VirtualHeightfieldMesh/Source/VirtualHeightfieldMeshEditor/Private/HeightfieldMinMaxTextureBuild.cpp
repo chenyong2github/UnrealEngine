@@ -159,7 +159,7 @@ namespace VirtualHeightfieldMesh
 		FScopedSlowTask Task(TaskWorkRender + TaskWorkDownsample + TaskWorkBuildBulkData, FText::AsCultureInvariant(InComponent->GetMinMaxTexture()->GetName()));
 		Task.MakeDialog(true);
 
-		// Final pixels will contain image data for each virtual texture layer in order
+		// Final pixels will contain image data for MinMax texture
 		TArray64<uint8> FinalPixels;
 		FinalPixels.SetNumUninitialized(RenderTileResources.GetNumFinalTexels() * 4);
 
