@@ -15,6 +15,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 {
 	SharedParameters->SceneTextures = SceneTextures;
 	//SharedParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	checkf(View.RayTracingScene.RayTracingSceneRHI, TEXT("TLAS does not exist. Verify that the current pass is represented in Lumen::AnyLumenHardwareRayTracingPassEnabled()."));
 	SharedParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 
 	// Lighting data
