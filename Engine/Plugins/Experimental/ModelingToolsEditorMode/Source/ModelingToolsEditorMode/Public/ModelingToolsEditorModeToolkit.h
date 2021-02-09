@@ -8,9 +8,9 @@
 #include "ModelingToolsEditorMode.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/STextComboBox.h"
-
-
 #include "Widgets/SBoxPanel.h"
+#include "StatusBarSubsystem.h"
+
 
 class IDetailsView;
 class SButton;
@@ -67,6 +67,7 @@ private:
 
 	FText ActiveToolName;
 	FText ActiveToolMessage;
+	FStatusBarMessageHandle ActiveToolMessageHandle;
 
 	TSharedPtr<SWidget> ToolkitWidget;
 	void UpdateActiveToolProperties();

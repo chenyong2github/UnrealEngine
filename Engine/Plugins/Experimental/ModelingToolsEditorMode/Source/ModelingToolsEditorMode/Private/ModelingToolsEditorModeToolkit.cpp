@@ -304,12 +304,21 @@ void FModelingToolsEditorModeToolkit::UpdateActiveToolProperties()
 
 void FModelingToolsEditorModeToolkit::PostNotification(const FText& Message)
 {
+	ClearNotification();
+
 	ActiveToolMessage = Message;
+
+	const FName LevelEditorStatusBarName = "LevelEditor.StatusBar";
+	ActiveToolMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(LevelEditorStatusBarName, ActiveToolMessage);
 }
 
 void FModelingToolsEditorModeToolkit::ClearNotification()
 {
 	ActiveToolMessage = FText::GetEmpty();
+
+	const FName LevelEditorStatusBarName = "LevelEditor.StatusBar";
+	GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(LevelEditorStatusBarName, ActiveToolMessageHandle);
+	ActiveToolMessageHandle.Reset();
 }
 
 

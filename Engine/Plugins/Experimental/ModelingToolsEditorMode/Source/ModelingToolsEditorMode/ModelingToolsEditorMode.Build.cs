@@ -46,6 +46,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"UnrealEd",
                 "ContentBrowser",
                 "LevelEditor",
+				"StatusBar",
 				"EditorStyle",
                 "Projects",
 				"MeshDescription",
