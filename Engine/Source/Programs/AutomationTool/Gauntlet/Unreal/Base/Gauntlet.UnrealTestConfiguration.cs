@@ -575,6 +575,12 @@ namespace Gauntlet
 		[AutoParam(false)]
 		public bool DisableHeartbeatTimeout { get; set; }
 
+		/// <summary>
+		/// Enforce Vertical resolution
+		/// </summary>
+		[AutoParam]
+		public int ForceVerticalRes = 0;
+
 		// Member variables 
 
 		/// <summary>
