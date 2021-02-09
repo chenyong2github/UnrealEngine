@@ -15,6 +15,7 @@
 #include "Chaos/BVHParticles.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/Convex.h"
 
 inline FArchive& operator<<(FArchive& Ar, TArray<FVector>*& ValueIn)
 {

@@ -10,6 +10,7 @@
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
 
 #include <iostream>
 #include <fstream>
@@ -76,6 +77,7 @@ void FGeometryCollection::Construct()
 
 	// Material Group
 	AddExternalAttribute<FGeometryCollectionSection>("Sections", FGeometryCollection::MaterialGroup, Sections, FacesDependency);
+
 }
 
 
@@ -91,6 +93,8 @@ void FGeometryCollection::SetDefaults(FName Group, uint32 StartSize, uint32 NumE
 			StatusFlags[Idx] = 0;
 			InitialDynamicState[Idx] = static_cast<int32>(Chaos::EObjectStateType::Uninitialized);
 		}
+
+		FGeometryCollectionConvexUtility::SetDefaults(this, Group, StartSize, NumElements);
 	}
 }
 
@@ -205,7 +209,6 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 			VertexCount[GeometryIndex + tdx] = ElementVertexCount[tdx];
 			TransformIndex[GeometryIndex + tdx] = BoneMaps[VertexStart[GeometryIndex + tdx]];
 			TransformToGeometryIndex[TransformIndex[GeometryIndex + tdx]] = GeometryIndex + tdx;
-
 		}
 	}
 	else // Element input failed to create a geometry group
@@ -467,6 +470,9 @@ void FGeometryCollection::RemoveElements(const FName & Group, const TArray<int32
 			}
 
 			RemoveGeometryElements(GeometryIndices);
+
+			// Find convex hulls connected to transform
+			FGeometryCollectionConvexUtility::RemoveConvexHulls(this, SortedDeletionList);
 
 			Super::RemoveElements(Group, SortedDeletionList);
 		}

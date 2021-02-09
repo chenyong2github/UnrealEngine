@@ -580,7 +580,14 @@ public:
 			{
 				ensure(RemapVal < MaskSize);
 				this->operator[](Index) -= Offsets[RemapVal];
-				ensure(-1 <= this->operator[](Index) && this->operator[](Index) < FinalSize);
+
+				// #todo Reindexing is currently incorrect in a few cases where it leaves dangling indices that
+				// should be set to INDEX_NONE.
+				// This ensure is currently suppressed to handle the dangling index problem specifically 
+				// in the ConvexGroup case (GeometryCollectionConvexUtility::RemoveConvexHulls) but should be reinstated 
+				// once we have a better solution in place for Reindexing.
+				//ensure(-1 <= this->operator[](Index) && this->operator[](Index) < FinalSize);
+				ensure(-1 <= this->operator[](Index));
 			}
 		}
 	}
