@@ -397,7 +397,8 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 			auto AllocateCommandList = [&ParentCmdList, &CommandLists, &CmdListNumDraws, &CmdListPrerequisites]
 			(uint32 ExpectedNumDraws, TStatId StatId)->FRHIComputeCommandList&
 			{
-				if (ParentCmdList.Bypass() || USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS==0)
+			#if USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS
+				if (ParentCmdList.Bypass())
 				{
 					return ParentCmdList;
 				}
@@ -409,6 +410,9 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 					CmdListPrerequisites.AddDefaulted();
 					return Result;
 				}
+			#else // USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS
+				return ParentCmdList;
+			#endif // USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS
 			};
 
 			{
