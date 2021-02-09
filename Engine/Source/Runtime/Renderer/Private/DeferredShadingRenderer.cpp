@@ -1377,6 +1377,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
 
 		// Allocate the maximum scene render target space for the current view family.
+		SceneContext.SetKeepDepthContent(true);
 		SceneContext.Allocate(RHICmdList, this);
 	}
 
