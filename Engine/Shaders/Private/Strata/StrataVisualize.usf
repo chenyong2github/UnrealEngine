@@ -68,7 +68,6 @@ void VisualizeMaterialPS(
 	float4 SVPos : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-#if 0	// Here to disabled on some platforms having problems with that shader. STRATA_TODO investigate why this shader is spilling like crazy again
 	const uint2 PixelPos = uint2(SVPos.xy);
 	const uint2 MaterialPos = View.CursorPosition;
 	float2 BufferUV = SvPositionToBufferUV(float4(MaterialPos, SVPos.zw));
@@ -462,7 +461,6 @@ void VisualizeMaterialPS(
 		}
 #endif
 	}
-#endif
 }
 
 
