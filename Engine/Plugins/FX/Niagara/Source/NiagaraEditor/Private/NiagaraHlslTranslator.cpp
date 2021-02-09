@@ -1199,7 +1199,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 	if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleEventScript && bGPUSim)
 	{
-		Error(LOCTEXT("CannotUseEventsWithGPU", "GPU Events scripts are currently unsupported. Consider using DirectReads instead!"), nullptr, nullptr);
+		Error(LOCTEXT("CannotUseEventsWithGPU", "GPU Events scripts are currently unsupported. Consider using the Particle Attribute Reader instead!"), nullptr, nullptr);
 		return TranslateResults;
 	}
 
