@@ -2181,15 +2181,24 @@ void FinalizePackageStoreContainerHeader(FContainerTargetSpec& ContainerTarget)
 	};
 
 	PackageIds.Reserve(ContainerTarget.PackageCount);
+	TArray<FContainerTargetFile*> SortedTargetFiles;
+	SortedTargetFiles.Reserve(ContainerTarget.PackageCount);
 	for (FContainerTargetFile& TargetFile : ContainerTarget.TargetFiles)
 	{
-		if (TargetFile.bIsBulkData)
+		if (!TargetFile.bIsBulkData)
 		{
-			continue;
+			SortedTargetFiles.Add(&TargetFile);
 		}
+	}
+	Algo::Sort(SortedTargetFiles, [](const FContainerTargetFile* A, const FContainerTargetFile* B)
+	{
+		return A->Package->GlobalPackageId < B->Package->GlobalPackageId;
+	});
 
-		FPackage* Package = TargetFile.Package;
-
+	for (FContainerTargetFile* TargetFile : SortedTargetFiles)
+	{
+		FPackage* Package = TargetFile->Package;
+		
 		// PackageIds
 		{
 			//check(!PackageIds.Contains(Package->GlobalPackageId));
@@ -2210,7 +2219,7 @@ void FinalizePackageStoreContainerHeader(FContainerTargetSpec& ContainerTarget)
 
 		// StoreEntries
 		{
-			uint64 ExportBundlesSize = TargetFile.HeaderSerialSize + Package->ExportsSerialSize;
+			uint64 ExportBundlesSize = TargetFile->HeaderSerialSize + Package->ExportsSerialSize;
 			int32 ExportBundleCount = Package->ExportBundles.Num();
 			uint32 LoadOrder = Package->ExportBundles.Num() > 0 ? Package->ExportBundles[0].LoadOrder : 0;
 			uint32 Pad = 0;
