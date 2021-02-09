@@ -198,7 +198,7 @@ private:
 	TArray<VkPipelineStageFlags> WaitFlags;
 	TArray<VulkanRHI::FSemaphore*> WaitSemaphores;
 	TArray<VulkanRHI::FSemaphore*> SubmittedWaitSemaphores;
-	TArray<PendingQuery> PendingQueries;
+	TArray<PendingQuery> PendingTimestampQueries;
 
 	void MarkSemaphoresAsSubmitted()
 	{
