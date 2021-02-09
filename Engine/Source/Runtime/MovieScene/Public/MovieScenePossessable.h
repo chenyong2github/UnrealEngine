@@ -89,6 +89,17 @@ public:
 	}
 
 	/**
+	 * Set the class of the possessed object.
+	 *
+	 * @return Object class.
+	 * @see GetGuid, GetName
+	 */
+	void SetPossessedObjectClass(UClass* InClass)
+	{
+		PossessedObjectClass = InClass;
+	}
+
+	/**
 	 * Get the guid of this possessable's parent, if applicable
 	 *
 	 * @return The guid.

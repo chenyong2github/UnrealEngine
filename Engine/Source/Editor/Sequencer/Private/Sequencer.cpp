@@ -7855,6 +7855,8 @@ void FSequencer::AddActorsToBinding(FGuid InObjectBinding, const TArray<AActor*>
 			{
 				Possessable->SetName(InActors[0]->GetActorLabel());
 			}
+
+			Possessable->SetPossessedObjectClass(ActorClass);
 		}
 	}
 
