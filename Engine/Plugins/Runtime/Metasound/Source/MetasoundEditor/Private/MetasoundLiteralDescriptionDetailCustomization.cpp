@@ -20,6 +20,7 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/Text/STextBlock.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Slate/Public/Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
@@ -131,6 +132,57 @@ void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<
 		TSharedPtr<IPropertyHandle> PropertyHandle;
 		FText DisplayName;
 		UClass* OwningDataTypeUClass;
+		FName OwningDataTypeName;
+
+		TSharedRef<SWidget> CreateEnumWidget(const TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface>& EnumInterface) const
+		{
+			auto RemoveNameSpace = [](const FString& InString) -> FString
+			{ 
+				FString Namespace, EnumName;
+				InString.Split(TEXT("::"), &Namespace, &EnumName);
+				return EnumName;
+			};
+			auto GetAll = [EnumInterface, RemoveNameSpace](TArray<TSharedPtr<FString>>& OutStrings, TArray<TSharedPtr<SToolTip>>& OutTooltips, TArray<bool>&)
+			{
+				for (const Metasound::Frontend::IEnumDataTypeInterface::FGenericInt32Entry& i : EnumInterface->GetAllEntries())
+				{
+					OutTooltips.Emplace(SNew(SToolTip).Text(i.Tooltip));
+
+					// Trim the namespace off for display.
+					OutStrings.Emplace(MakeShared<FString>(RemoveNameSpace(i.Name.GetPlainNameString())));
+				}
+			};
+			auto GetValue = [EnumInterface, Prop = PropertyHandle, RemoveNameSpace]() -> FString
+			{
+				int32 IntValue;
+				if (Prop->GetValue(IntValue))
+				{
+					if (TOptional<FName> Result = EnumInterface->ToName(IntValue))
+					{
+						return RemoveNameSpace(Result->GetPlainNameString());
+					}
+					UE_LOG(LogTemp, Warning, TEXT("Failed to Get Valid Value for Property '%s' with Value of '%d'"),
+						*GetNameSafe(Prop->GetProperty()), IntValue);
+				}
+				return {};
+			};
+			auto SelectedValue = [EnumInterface, Prop = PropertyHandle](const FString& InSelected)
+			{
+				FString FullyQualifiedName = FString::Printf(TEXT("%s::%s"), *EnumInterface->GetNamespace().GetPlainNameString(), *InSelected);
+				TOptional<int32> Result = EnumInterface->ToValue(*FullyQualifiedName);
+				if (ensure(Result))
+				{
+					Prop->SetValue(*Result);
+				}
+			};
+
+			return PropertyCustomizationHelpers::MakePropertyComboBox(
+				nullptr,
+				FOnGetPropertyComboBoxStrings::CreateLambda(GetAll),
+				FOnGetPropertyComboBoxValue::CreateLambda(GetValue),
+				FOnPropertyComboBoxValueSelected::CreateLambda(SelectedValue)
+			);
+		}
 
 		TSharedRef<SWidget> CreatePropertyValueWidget(bool bDisplayDefaultPropertyButtons = true) const
 		{
@@ -182,6 +234,18 @@ void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<
 					.DisplayThumbnail(true)
 					.NewAssetFactories(FactoriesToUse);
 			}
+			else if (LiteralType == EMetasoundFrontendLiteralType::Integer)
+			{
+				// Check if this is an Enum.
+				if (TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> EnumInterface = 
+					FMetasoundFrontendRegistryContainer::Get()->GetEnumInterfaceForDataType(OwningDataTypeName))
+				{ 
+					return CreateEnumWidget(EnumInterface);
+				}
+
+				// Fall back to regular widget if its not.
+				return PropertyHandle->CreatePropertyValueWidget();
+			}
 			else if (LiteralType == EMetasoundFrontendLiteralType::UObjectArray)
 			{
 				// TODO: Implement.
@@ -203,7 +267,8 @@ void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<
 			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsBool)),
 			LOCTEXT("Metasound_LiteralDisplayNameBool", "Bool"),
-			nullptr
+			nullptr,
+			OwningDataTypeName
 		},
 
 		FTypeEditorInfo
@@ -212,7 +277,8 @@ void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<
 			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsInteger)),
 			LOCTEXT("Metasound_LiteralDisplayNameInteger", "Int32"),
-			nullptr
+			nullptr,
+			OwningDataTypeName
 		},
 
 		FTypeEditorInfo
@@ -221,7 +287,8 @@ void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<
 			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsFloat)),
 			LOCTEXT("Metasound_LiteralDisplayNameFloat", "Float"),
-			nullptr
+			nullptr,
+			OwningDataTypeName
 		},
 
 		FTypeEditorInfo
@@ -230,7 +297,8 @@ void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<
 			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsString)),
 			LOCTEXT("Metasound_LiteralDisplayNameString", "String"),
-			nullptr
+			nullptr,
+			OwningDataTypeName
 		},
 
 		FTypeEditorInfo
@@ -239,7 +307,8 @@ void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<
 			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsUObject)),
 			LOCTEXT("Metasound_LiteralDisplayNameUObject", "UObject"),
-			OwningDataTypeClass
+			OwningDataTypeClass,
+			OwningDataTypeName
 		},
 
 		FTypeEditorInfo
@@ -248,8 +317,9 @@ void FMetasoundFrontendLiteralDetailCustomization::CustomizeChildren(TSharedRef<
 			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendLiteral, AsUObjectArray)),
 			LOCTEXT("Metasound_LiteralDisplayNameUObjectArray", "UObjectArray"),
-			OwningDataTypeClass
-		},
+			OwningDataTypeClass,
+			OwningDataTypeName
+		}
 	};
 
 	for (const FTypeEditorInfo& Info : TypePropertyInfo)

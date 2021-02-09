@@ -9,6 +9,7 @@
 #include "MetasoundLiteral.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundEnum.h"
 
 namespace Metasound
 {
@@ -40,6 +41,9 @@ namespace Metasound
 		bool bIsFloatParsable = false;
 		bool bIsStringParsable = false;
 
+		// Is an TEnum wrapped enum
+		bool bIsEnum = false;
+		
 		// these are used for using UObjects, or arrays of UObjects.
 		bool bIsProxyParsable = false;
 		bool bIsProxyArrayParsable = false;
@@ -130,6 +134,20 @@ namespace Metasound
 			TArray<FConverterNodeInfo> PotentialConverterNodes;
 		};
 
+		struct METASOUNDFRONTEND_API IEnumDataTypeInterface
+		{
+			using FGenericInt32Entry = TEnumEntry<int32>;
+
+			virtual FName GetNamespace() const = 0;
+			virtual TArray<FGenericInt32Entry> GetAllEntries() const = 0;
+
+			virtual TArray<FName> GetAllNames() const = 0;
+
+			virtual TOptional<FName> ToName(int32 InEnumValue) const = 0;
+			virtual TOptional<int32> ToValue(FName InName) const = 0;
+
+			virtual ~IEnumDataTypeInterface() = default;
+		};
 	}
 
 	struct FDataTypeConstructorCallbacks
@@ -164,6 +182,7 @@ class METASOUNDFRONTEND_API FMetasoundFrontendRegistryContainer
 	using FDataTypeRegistryInfo = Metasound::FDataTypeRegistryInfo;
 	using FDataTypeConstructorCallbacks = ::Metasound::FDataTypeConstructorCallbacks;
 	using FNodeClassMetadata = Metasound::FNodeClassMetadata;
+	using IEnumDataTypeInterface = Metasound::Frontend::IEnumDataTypeInterface;
 
 public:
 	static FMetasoundFrontendRegistryContainer* Get();
@@ -208,6 +227,8 @@ public:
 
 	bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, const FDataTypeConstructorCallbacks& InCallbacks);
 
+	bool RegisterEnumDataInterface(FName InDataType, TSharedPtr<IEnumDataTypeInterface>&& InInterface);
+
 	/** Register external node with the frontend.
 	 *
 	 * @param InCreateNode - Function for creating node from FNodeInitData.
@@ -238,6 +259,8 @@ public:
 	// @returns false if InDataType wasn't found in the registry. 
 	bool GetInfoForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
 
+	TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> GetEnumInterfaceForDataType(FName InDataType) const;
+
 private:
 	FMetasoundFrontendRegistryContainer();
 
@@ -264,6 +287,8 @@ private:
 		Metasound::FDataTypeConstructorCallbacks Callbacks;
 
 		Metasound::FDataTypeRegistryInfo Info;
+
+		TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> EnumInterface;
 	};
 
 	TMap<FName, FDataTypeRegistryElement> DataTypeRegistry;

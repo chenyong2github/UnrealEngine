@@ -18,6 +18,7 @@
 #include "MetasoundReceiveNode.h"
 #include "MetasoundRouter.h"
 #include "MetasoundSendNode.h"
+#include "MetasoundEnum.h"
 
 #include <type_traits>
 
@@ -43,7 +44,7 @@ namespace Metasound
 	{
 		return nullptr;
 	}
-
+	
 	// Helper utility to test if we can transmit a datatype between a send and a receive node.
 	template <typename TDataType>
 	struct TIsTransmittable
@@ -123,7 +124,56 @@ namespace Metasound
 		AttemptToRegisterConverter<TDataType, float>();
 		AttemptToRegisterConverter<TDataType, FString>();
 	}
+	
+	// SFINAE for enum types.
+	template<typename TDataType, typename std::enable_if<TEnumTraits<TDataType>::bIsEnum, bool>::type = true>
+	bool RegisterEnumDataTypeWithFrontend()
+	{
+		using InnerType = typename TEnumTraits<TDataType>::InnerType;
+		using FStringHelper = TEnumStringHelper<InnerType>;
 
+		struct FEnumHandler : Metasound::Frontend::IEnumDataTypeInterface
+		{
+			TArray<FName> GetAllNames() const override
+			{
+				return FStringHelper::GetAllNames();
+			}
+			FName GetNamespace() const override
+			{
+				return FStringHelper::GetNamespace();
+			}
+			TOptional<FName> ToName(int32 InEnumValue) const override
+			{
+				return FStringHelper::ToName(static_cast<InnerType>(InEnumValue));
+			}
+			TOptional<int32> ToValue(FName InName) const override
+			{
+				if (TOptional<InnerType> Result = FStringHelper::FromName(InName))
+				{
+					return static_cast<int32>(*Result);
+				}
+				return {};
+			}
+			TArray<FGenericInt32Entry> GetAllEntries() const override
+			{
+				// Convert to int32 representation 
+				TArray<FGenericInt32Entry> IntEntries;
+				for (const TEnumEntry<InnerType>& i : FStringHelper::GetAllEntries())
+				{					
+					IntEntries.Emplace(FGenericInt32Entry{ static_cast<int32>(i.Value), i.Name, i.Tooltip });
+				}
+				return IntEntries;
+			}
+		};
+
+		return FMetasoundFrontendRegistryContainer::Get()->RegisterEnumDataInterface(
+			GetMetasoundDataTypeName<TDataType>(), MakeShared<FEnumHandler>());
+	}
+	
+	// SFINAE stub for non-enum types. 
+	template<typename TDataType, typename std::enable_if<!TEnumTraits<TDataType>::bIsEnum, bool>::type = true>
+	bool RegisterEnumDataTypeWithFrontend() { return false; }
+	
 	template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = UObject>
 	bool RegisterDataTypeWithFrontend()
 	{
@@ -221,7 +271,8 @@ namespace Metasound
 		RegistryInfo.bIsStringParsable = TIsParsable<TDataType, FString>::Value;
 		RegistryInfo.bIsProxyParsable = TIsParsable<TDataType, const Audio::IProxyDataPtr&>::Value;
 		RegistryInfo.bIsProxyArrayParsable = TIsParsable<TDataType, const TArray<Audio::IProxyDataPtr>& >::Value;
-		RegistryInfo.bIsDefaultParsable = TIsParsable<TDataType>::Value;
+		RegistryInfo.bIsDefaultParsable = TIsParsable<TDataType>::Value;		
+		RegistryInfo.bIsEnum = TEnumTraits<TDataType>::bIsEnum;
 
 		RegistryInfo.bIsTransmittable = TIsTransmittable<TDataType>::Value;
 		
@@ -229,12 +280,22 @@ namespace Metasound
 
 		bool bSucceeded = FMetasoundFrontendRegistryContainer::Get()->RegisterDataType(RegistryInfo, MoveTemp(Callbacks));
 		ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), *GetMetasoundDataTypeString<TDataType>());
-		
+
+		// If its an enum, register its data interface AFTER we've registered the data type.
+		if (TEnumTraits<TDataType>::bIsEnum)
+		{
+			if (!ensure(RegisterEnumDataTypeWithFrontend<TDataType>()))
+			{
+				return false;
+			}
+		}
+
 		RegisterConverterNodes<TDataType>();
 		AttemptToRegisterSendAndReceiveNodes<TDataType>();
 		
 		return bSucceeded;
 	}
+
 
 	template<typename DataType>
 	struct TMetasoundDataTypeRegistration

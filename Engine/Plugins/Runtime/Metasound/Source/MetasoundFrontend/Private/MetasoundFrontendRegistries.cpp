@@ -209,6 +209,11 @@ Metasound::ELiteralType FMetasoundFrontendRegistryContainer::GetDesiredLiteralTy
 
 	const FDataTypeRegistryElement& DataTypeInfo = DataTypeRegistry[InDataType];
 	
+	if (DataTypeInfo.Info.bIsEnum)
+	{
+		return Metasound::ELiteralType::Integer;
+	}
+
 	// If there's a designated preferred literal type for this datatype, use that.
 	if (DataTypeInfo.Info.PreferredLiteralType != Metasound::ELiteralType::None)
 	{
@@ -331,6 +336,16 @@ bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FD
 		UE_LOG(LogMetasound, Display, TEXT("Registered Metasound Datatype %s."), *InDataInfo.DataTypeName.ToString());
 		return true;
 	}
+}
+
+bool FMetasoundFrontendRegistryContainer::RegisterEnumDataInterface(FName InDataType, TSharedPtr<IEnumDataTypeInterface>&& InInterface)
+{
+	if (FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataType))
+	{
+		Element->EnumInterface = MoveTemp(InInterface);
+		return true;
+	}
+	return false;
 }
 
 bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(Metasound::FCreateMetasoundNodeFunction&& InCreateNode, Metasound::FCreateMetasoundFrontendClassFunction&& InCreateDescription)
@@ -483,5 +498,16 @@ bool FMetasoundFrontendRegistryContainer::GetInfoForDataType(FName InDataType, M
 		OutInfo = DataTypeRegistry[InDataType].Info;
 		return true;
 	}
+}
+
+
+TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface>
+FMetasoundFrontendRegistryContainer::GetEnumInterfaceForDataType(FName InDataType) const
+{
+	if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataType))
+	{
+		return Element->EnumInterface;
+	}
+	return nullptr;
 }
 
