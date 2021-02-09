@@ -1672,6 +1672,9 @@ void FPhysScene_Chaos::RemoveSpringConstraint(const FPhysicsConstraintHandle& Co
 
 void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
 {
+	//needs to run on physics thread from a special location
+	//todo: flag solver
+#if 0
 	QUICK_SCOPE_CYCLE_COUNTER(ResimNFrames);
 	using namespace Chaos;
 	auto Solver = GetSolver();
@@ -1714,6 +1717,7 @@ void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
 			}
 		}
 	}
+#endif
 }
 
 

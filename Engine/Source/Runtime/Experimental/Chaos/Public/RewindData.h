@@ -240,7 +240,7 @@ public:
 	template <typename TParticle>
 	void SyncToParticle(TParticle& Particle) const;
 	void SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty);
-	void SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticle& InParticle,const FGeometryParticleStateBase& RewindState);
+	void SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticleHandle& InParticle,const FGeometryParticleStateBase& RewindState);
 	bool CoalesceState(const FGeometryParticleStateBase& LatestState);
 	bool IsDesynced(const FConstDirtyPropData& SrcManager,const TGeometryParticleHandle<FReal,3>& Handle,const FParticleDirtyFlags Flags) const;
 
@@ -259,12 +259,12 @@ class FGeometryParticleState
 {
 public:
 
-	FGeometryParticleState(const FGeometryParticle& InParticle)
+	FGeometryParticleState(const FGeometryParticleHandle& InParticle)
 	: Particle(InParticle)
 	{
 	}
 
-	FGeometryParticleState(const FGeometryParticleStateBase& InState, const FGeometryParticle& InParticle)
+	FGeometryParticleState(const FGeometryParticleStateBase& InState, const FGeometryParticleHandle& InParticle)
 	: Particle(InParticle)
 	, State(InState)
 	{
@@ -392,7 +392,7 @@ public:
 		return State.AngularImpulse(Particle);
 	}
 
-	const FGeometryParticle& GetParticle() const
+	const FGeometryParticleHandle& GetHandle() const
 	{
 		return Particle;
 	}
@@ -408,7 +408,7 @@ public:
 	}
 
 private:
-	const FGeometryParticle& Particle;
+	const FGeometryParticleHandle& Particle;
 	FGeometryParticleStateBase State;
 };
 
@@ -421,7 +421,7 @@ enum class EFutureQueryResult
 
 struct FDesyncedParticleInfo
 {
-	FGeometryParticle* Particle;
+	FGeometryParticleHandle* Particle;
 	ESyncState MostDesynced;	//Indicates the most desynced this particle got during resim (could be that it was soft desync and then went back to normal)
 };
 
@@ -457,7 +457,7 @@ public:
 	TArray<FDesyncedParticleInfo> CHAOS_API ComputeDesyncInfo() const;
 
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticle& Particle,int32 Frame) const;
+	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame) const;
 
 	/* Query the state of particles in the future. This operation can fail for particles that are desynced or that we have not been tracking */
 	EFutureQueryResult CHAOS_API GetFutureStateAtFrame(FGeometryParticleState& OutState,int32 Frame) const;
@@ -661,7 +661,6 @@ private:
 		TCircularBuffer<FFrameInfo> Frames;
 		TCircularBuffer<FDirtyFrameInfo> GTDirtyOnFrame;
 	private:
-		FGeometryParticle* GTParticle;
 		TGeometryParticleHandle<FReal,3>* PTParticle;
 	public:
 		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
@@ -672,7 +671,6 @@ private:
 		FDirtyParticleInfo(FGeometryParticle& UnsafeGTParticle, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
 		: Frames(NumFrames)
 		, GTDirtyOnFrame(NumFrames)
-		, GTParticle(&UnsafeGTParticle)
 		, PTParticle(&InPTParticle)
 		, CachedUniqueIdx(UniqueIdx)
 		, LastDirtyFrame(CurFrame)
@@ -680,12 +678,6 @@ private:
 		, MostDesynced(ESyncState::HardDesync)
 		{
 
-		}
-
-		FGeometryParticle* GetGTParticle() const
-		{
-			ensure(IsInGameThread());
-			return GTParticle;
 		}
 
 		TGeometryParticleHandle<FReal,3>* GetPTParticle() const

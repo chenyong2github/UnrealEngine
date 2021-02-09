@@ -555,7 +555,7 @@ void UNetworkPredictionWorldManager::InitPhysicsCapture()
 	npCheckSlow(!Physics.bRecordingEnabled);
 
 	Physics.bRecordingEnabled = true;
-	Physics.Solver->EnableRewindCapture(PhysicsBufferSize, true);
+	Physics.Solver->EnableRewindCapture(PhysicsBufferSize, false);	//TODO: turn optimizations back on
 	FixedTickState.PhysicsRewindData = Physics.Solver->GetRewindData();
 }
 

@@ -263,20 +263,20 @@ void FGeometryParticleStateBase::SyncPrevFrame(FDirtyPropData& Manager,const FDi
 
 }
 
-void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticle& InParticle,const FGeometryParticleStateBase& RewindState)
+void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticleHandle& InHandle,const FGeometryParticleStateBase& RewindState)
 {
-	ensure(IsInGameThread());
-	const auto Particle = &InParticle;
+	ensure(IsInPhysicsThreadContext());
+	const auto Handle = &InHandle;
 
 	if(RewindState.ParticlePositionRotation.IsSet())
 	{
-		ParticlePositionRotation.SyncRemoteDataForced(Manager,[Particle](FParticlePositionRotation& Data)
+		ParticlePositionRotation.SyncRemoteDataForced(Manager,[Handle](FParticlePositionRotation& Data)
 		{
-			Data.CopyFrom(*Particle);
+			Data.CopyFrom(*Handle);
 		});
 	}
 
-	if(const auto Kinematic = Particle->CastToKinematicParticle())
+	if(const auto Kinematic = Handle->CastToKinematicParticle())
 	{
 		if(RewindState.Velocities.IsSet())
 		{
@@ -295,7 +295,7 @@ void FGeometryParticleStateBase::SyncIfDirty(const FDirtyPropData& Manager,const
 		}
 	}
 
-	if(auto Rigid = Particle->CastToRigidParticle())
+	if(auto Rigid = Handle->CastToRigidParticle())
 	{
 		if(RewindState.DynamicsMisc.IsSet())
 		{
@@ -410,8 +410,7 @@ bool FGeometryParticleStateBase::IsDesynced(const FConstDirtyPropData& SrcManage
 
 bool FRewindData::RewindToFrame(int32 Frame)
 {
-	ensure(IsInGameThread());
-
+	ensure(IsInPhysicsThreadContext());
 	//Can't go too far back
 	const int32 EarliestFrame = CurFrame - FramesSaved;
 	if(Frame < EarliestFrame)
@@ -439,7 +438,7 @@ bool FRewindData::RewindToFrame(int32 Frame)
 		DirtyParticleInfo.bDesync = false;	//after rewind particle is pristine
 		DirtyParticleInfo.MostDesynced = ESyncState::InSync;
 
-		const auto ObjectState = DirtyParticleInfo.GetGTParticle()->ObjectState();
+		const auto ObjectState = DirtyParticleInfo.GetPTParticle()->ObjectState();
 		//don't sync kinematics
 		const bool bAllowSync = ObjectState == EObjectStateType::Sleeping || ObjectState == EObjectStateType::Dynamic;
 		if(bNeedsSave)
@@ -452,19 +451,19 @@ bool FRewindData::RewindToFrame(int32 Frame)
 			if(const FGeometryParticleStateBase* RewindState = GetStateAtFrameImp(DirtyParticleInfo,Frame))
 			{
 
-				LatestState.SyncIfDirty(FDirtyPropData(DestManager,DataIdx++),*DirtyParticleInfo.GetGTParticle(),*RewindState);
+				LatestState.SyncIfDirty(FDirtyPropData(DestManager,DataIdx++),*DirtyParticleInfo.GetPTParticle(),*RewindState);
 				CoalesceBack(DirtyParticleInfo.Frames,CurFrame);
 
 				if(bAllowSync)
 				{
-					RewindState->SyncToParticle(*DirtyParticleInfo.GetGTParticle());
+					RewindState->SyncToParticle(*DirtyParticleInfo.GetPTParticle());
 				}
 			}
 		} else if(bAllowSync)
 		{
 			if(const FGeometryParticleStateBase* RewindState = GetStateAtFrameImp(DirtyParticleInfo,Frame))
 			{
-				RewindState->SyncToParticle(*DirtyParticleInfo.GetGTParticle());
+				RewindState->SyncToParticle(*DirtyParticleInfo.GetPTParticle());
 			}
 		}
 
@@ -500,19 +499,19 @@ void FRewindData::RemoveParticle(const FUniqueIdx UniqueIdx)
 }
 
 /* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticle& Particle,int32 Frame) const
+FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame) const
 {
 	ensure(!IsResim());
-	if(const FDirtyParticleInfo* Info = FindParticle(Particle.UniqueIdx()))
+	if(const FDirtyParticleInfo* Info = FindParticle(Handle.UniqueIdx()))
 	{
 		if(const FGeometryParticleStateBase* State = GetStateAtFrameImp(*Info,Frame))
 		{
-			return FGeometryParticleState(*State,Particle);
+			return FGeometryParticleState(*State,Handle);
 		}
 	}
 
 	//If no data, or past capture, just use head
-	return FGeometryParticleState(Particle);
+	return FGeometryParticleState(Handle);
 }
 
 /* Query the state of particles in the future. This operation can fail for particles that are desynced or that we have not been tracking */
@@ -520,9 +519,9 @@ EFutureQueryResult FRewindData::GetFutureStateAtFrame(FGeometryParticleState& Ou
 {
 	ensure(IsResim());
 	ensure(IsInGameThread());
-	const FGeometryParticle& Particle = OutState.GetParticle();
+	const FGeometryParticleHandle& Handle = OutState.GetHandle();
 
-	if(const FDirtyParticleInfo* Info = FindParticle(Particle.UniqueIdx()))
+	if(const FDirtyParticleInfo* Info = FindParticle(Handle.UniqueIdx()))
 	{
 		if(Info->bDesync)
 		{
@@ -747,7 +746,7 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 			if(ResimType == EResimType::FullResim)
 			{
 				//TODO: should not be passing GTParticle in here, it's not used so ok but not safe if someone decides to use it by mistake
-				FGeometryParticleState FutureState(*Proxy->GetParticle_LowLevel());
+				FGeometryParticleState FutureState(*Proxy->GetHandle_LowLevel());
 				if(GetFutureStateAtFrame(FutureState,CurFrame) == EFutureQueryResult::Ok)
 				{
 					if(FutureState.IsDesynced(SrcManagerWrapper,*PTParticle,Dirty.ParticleData.GetFlags()))
@@ -945,7 +944,7 @@ TArray<FDesyncedParticleInfo> FRewindData::ComputeDesyncInfo() const
 	{
 		if(Info.MostDesynced != ESyncState::InSync)
 		{
-			Results.Add(FDesyncedParticleInfo{Info.GetGTParticle(),Info.MostDesynced});
+			Results.Add(FDesyncedParticleInfo{Info.GetPTParticle(),Info.MostDesynced});
 		}
 	}
 

@@ -127,7 +127,7 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 			return false;
 		};
 
-		const Chaos::FGeometryParticleState LocalState = RewindData->GetPastStateAtFrame(*Handle->GetParticle_LowLevel(), PhysicsFrame);
+		const Chaos::FGeometryParticleState LocalState = RewindData->GetPastStateAtFrame(*Handle->GetHandle_LowLevel(), PhysicsFrame);
 
 		if (CompareVector(LocalState.X(), RecvState->Location, NetworkPredictionPhysicsCvars::ToleranceX(), "X:"))
 		{
@@ -244,7 +244,7 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	{
 		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
 		
-		const Chaos::FGeometryParticleState LocalState = RewindData->GetPastStateAtFrame(*Handle->GetParticle_LowLevel(), PhysicsFrame);
+		const Chaos::FGeometryParticleState LocalState = RewindData->GetPastStateAtFrame(*Handle->GetHandle_LowLevel(), PhysicsFrame);
 		ToStringInternal(LocalState.X(), LocalState.R(), LocalState.V(), LocalState.W(), Builder);
 	}
 
