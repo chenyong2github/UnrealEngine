@@ -383,16 +383,16 @@ public:
 	}
 
 	UPROPERTY()
-	FVector StartPos;
+	FVector StartPos = FVector::ZeroVector;
 
 	UPROPERTY()
-	FVector EndPos;
+	FVector EndPos = FVector::ZeroVector;
 
 	UPROPERTY()
-	FVector StartTangent;
+	FVector StartTangent = FVector::ZeroVector;
 
 	UPROPERTY()
-	FVector EndTangent;
+	FVector EndTangent = FVector::ZeroVector;
 };
 
 const float& USplineMeshComponent::GetAxisValue(const FVector& InVector, ESplineMeshAxis::Type InAxis)
