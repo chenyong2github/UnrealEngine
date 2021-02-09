@@ -978,6 +978,15 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		RenderAnisotropyPass(GraphBuilder, SceneDepthTexture, bEnableParallelBasePasses);
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterAnisotropyPass));
 	}
+
+	{
+		extern void AddAsyncComputeSRVTransitionHackPass(FRDGBuilder&, FRDGTextureRef);
+
+		if (SceneContext.GBufferA)
+		{
+			AddAsyncComputeSRVTransitionHackPass(GraphBuilder, GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA));
+		}
+	}
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FOpaqueBasePassParameters, )
