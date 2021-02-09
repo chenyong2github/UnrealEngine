@@ -243,11 +243,12 @@ void FOnlineUserEOSPlus::OnControllerPairingChanged(int32 LocalUserNum, FControl
 
 void FOnlineUserEOSPlus::OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error)
 {
-	if (bWasSuccessful)
+	if (!bWasSuccessful)
 	{
-		AddPlayer(LocalUserNum);
+		return;
 	}
 
+	AddPlayer(LocalUserNum);
 	TSharedPtr<FUniqueNetIdEOSPlus> NetIdPlus = LocalUserNumToNetIdPlus[LocalUserNum];
 	check(NetIdPlus.IsValid());
 
