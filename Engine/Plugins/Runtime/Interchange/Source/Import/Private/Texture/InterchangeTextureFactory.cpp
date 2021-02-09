@@ -272,11 +272,11 @@ void UInterchangeTextureFactory::PostImportGameThreadCallback(const FPostImportG
 		UTexture* ImportedTexture = CastChecked<UTexture>(Arguments.ImportedObject);
 		
 		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(ImportedTexture
-																						 , &ImportedTexture->AssetImportData
+																						 , ImportedTexture->AssetImportData
 																						 , Arguments.SourceData
 																						 , Arguments.NodeUniqueID
 																						 , Arguments.NodeContainer);
-		UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
+		ImportedTexture->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 	}
 #endif
 }

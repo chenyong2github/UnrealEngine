@@ -25,19 +25,13 @@ namespace UE
 			struct FUpdateImportAssetDataParameters
 			{
 				UObject* AssetImportDataOuter = nullptr;
-				UAssetImportData** AssetImportData = nullptr;
+				UAssetImportData* AssetImportData = nullptr;
 				const UInterchangeSourceData* SourceData = nullptr;
 				FString NodeUniqueID;
 				UInterchangeBaseNodeContainer* NodeContainer;
 
 				FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
-																	, UAssetImportData** InAssetImportData
-																	, const UInterchangeSourceData* InSourceData
-																	, FString InNodeUniqueID
-																	, UInterchangeBaseNodeContainer* InNodeContainer);
-
-				FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
-																	, TObjectPtr<UAssetImportData>* InAssetImportData
+																	, UAssetImportData* InAssetImportData
 																	, const UInterchangeSourceData* InSourceData
 																	, FString InNodeUniqueID
 																	, UInterchangeBaseNodeContainer* InNodeContainer);
@@ -46,8 +40,9 @@ namespace UE
 			/**
 			 * Update the AssetImportData source file of the specified asset in the parameters. Also update the node container and the node unique id.
 			 * If the AssetImportData is null it will create one. If the AssetImportData is not an UInterchangeAssetImportData it will create a new one.
+			 * @return The source data that should be stored on the asset or nullptr if a parameter is invalid
 			 */
-			static void UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters);
+			static UAssetImportData* UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters);
 
 			/**
 			 * Apply the current strategy to the PipelineAssetNode

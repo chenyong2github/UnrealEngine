@@ -13,7 +13,7 @@ namespace UE
 	namespace Interchange
 	{
 		FFactoryCommon::FUpdateImportAssetDataParameters::FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
-																							, UAssetImportData** InAssetImportData
+																							, UAssetImportData* InAssetImportData
 																							, const UInterchangeSourceData* InSourceData
 																							, FString InNodeUniqueID
 																							, UInterchangeBaseNodeContainer* InNodeContainer)
@@ -30,42 +30,32 @@ namespace UE
 			ensure(NodeContainer);
 		}
 
-		FFactoryCommon::FUpdateImportAssetDataParameters::FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
-																							, TObjectPtr<UAssetImportData>* InAssetImportData
-																							, const UInterchangeSourceData* InSourceData
-																							, FString InNodeUniqueID
-																							, UInterchangeBaseNodeContainer* InNodeContainer)
-			: FUpdateImportAssetDataParameters(InAssetImportDataOuter, &((UAssetImportData*&)InAssetImportData), InSourceData, InNodeUniqueID, InNodeContainer)
-		{
-		}
-
-		void FFactoryCommon::UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters)
+		UAssetImportData* FFactoryCommon::UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters)
 		{
 #if WITH_EDITORONLY_DATA
 			if (!ensure(IsInGameThread()))
 			{
-				return;
+				return nullptr;
 			}
-			if (!ensure(Parameters.SourceData && Parameters.AssetImportDataOuter && Parameters.AssetImportData))
+			if (!ensure(Parameters.SourceData && Parameters.AssetImportDataOuter))
 			{
-				return;
+				return nullptr;
 			}
 			//Set the asset import data file source to allow reimport. TODO: manage MD5 Hash properly
 			TOptional<FMD5Hash> FileContentHash = Parameters.SourceData->GetFileContentHash();
 
 			UInterchangeAssetImportData* AssetImportData = nullptr;
 				
-			if (*(Parameters.AssetImportData) != nullptr)
+			if (Parameters.AssetImportData)
 			{
-				UAssetImportData* ParametersAssetImportData = *(Parameters.AssetImportData);
-				AssetImportData = Cast<UInterchangeAssetImportData>(ParametersAssetImportData);
+				AssetImportData = Cast<UInterchangeAssetImportData>(Parameters.AssetImportData);
 				if (!AssetImportData)
 				{
 					AssetImportData = NewObject<UInterchangeAssetImportData>(Parameters.AssetImportDataOuter, NAME_None);
 					TArray<FString> Filenames;
-					ParametersAssetImportData->ExtractFilenames(Filenames);
+					Parameters.AssetImportData->ExtractFilenames(Filenames);
 					TArray<FString> Labels;
-					ParametersAssetImportData->ExtractDisplayLabels(Labels);
+					Parameters.AssetImportData->ExtractDisplayLabels(Labels);
 					if (Filenames.Num() > 1)
 					{
 						for (int32 FileIndex = 0; FileIndex < Filenames.Num(); ++FileIndex)
@@ -94,9 +84,11 @@ namespace UE
 			AssetImportData->NodeUniqueID = Parameters.NodeUniqueID;
 			FObjectDuplicationParameters DupParam(Parameters.NodeContainer, AssetImportData);
 			AssetImportData->NodeContainer = CastChecked<UInterchangeBaseNodeContainer>(StaticDuplicateObjectEx(DupParam));
-			//Assign the asset import data to the imported asset.
-			*(Parameters.AssetImportData) = AssetImportData;
+
+			// Return the asset import data so it can be set on the imported asset.
+			return AssetImportData;
 #endif //#if WITH_EDITORONLY_DATA
+			return nullptr;
 		}
 
 		void FFactoryCommon::ApplyReimportStrategyToAsset(const EReimportStrategyFlags ReimportStrategyFlags
