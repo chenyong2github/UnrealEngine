@@ -352,8 +352,8 @@ void RandomSequence_Initialize(inout RandomSequence RandSequence, uint2 PixelCoo
 		uint xi = (X >> i) & 1;
 		uint yi = (Y >> i) & 1;
 		uint Row = 8 * HilbertState + 4 * xi + 2 * yi;
-		TileID = TileID * 4 + ((0x361E9CB4 >> Row) & 3);
-		HilbertState = (0x8FE65831 >> Row) & 3;
+		TileID = TileID * 4 + ((0x361E9CB4u >> Row) & 3);
+		HilbertState = (0x8FE65831u >> Row) & 3;
 	}
 #endif
 
