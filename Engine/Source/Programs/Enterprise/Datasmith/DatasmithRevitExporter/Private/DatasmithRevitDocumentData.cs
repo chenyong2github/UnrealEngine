@@ -916,13 +916,16 @@ namespace DatasmithRevitExporter
 			}
 
 			// Cache document section boxes
-			FilteredElementCollector Collector = new FilteredElementCollector(CurrentDocument, CurrentDocument.ActiveView.Id);
-			IList<Element> SectionBoxes = Collector.OfCategory(BuiltInCategory.OST_SectionBox).ToElements();
-
-			foreach (var SectionBox in SectionBoxes)
+			if (CurrentDocument.ActiveView != null)
 			{
-				BoundingBoxXYZ BBox = SectionBox.get_BoundingBox(CurrentDocument.ActiveView);
-				SectionBoxOutlines.Add(GetOutline(BBox.Transform, BBox));
+				FilteredElementCollector Collector = new FilteredElementCollector(CurrentDocument, CurrentDocument.ActiveView.Id);
+				IList<Element> SectionBoxes = Collector.OfCategory(BuiltInCategory.OST_SectionBox).ToElements();
+
+				foreach (var SectionBox in SectionBoxes)
+				{
+					BoundingBoxXYZ BBox = SectionBox.get_BoundingBox(CurrentDocument.ActiveView);
+					SectionBoxOutlines.Add(GetOutline(BBox.Transform, BBox));
+				}
 			}
 		}
 
