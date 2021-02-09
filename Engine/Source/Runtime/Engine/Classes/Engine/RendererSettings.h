@@ -358,6 +358,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bEnableRayTracing : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
+		ConsoleVariable = "r.Lumen.HardwareRayTracing", DisplayName = "Use Hardware Ray Tracing for Lumen",
+		ToolTip = "Uses Hardware Ray Tracing for Lumen features, when available. Lumen will fall back to Software Ray Tracing otherwise. Note: Hardware ray tracing has significant scene update costs for scenes with more than 10k instances."))
+		uint32 bUseHardwareRayTracingForLumen : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
 		ConsoleVariable = "r.RayTracing.Shadows", DisplayName = "Ray Tracing Shadows",
 		ToolTip = "Enables hardware ray-traced shadows."))
 		uint32 bEnableRayTracingShadows : 1;

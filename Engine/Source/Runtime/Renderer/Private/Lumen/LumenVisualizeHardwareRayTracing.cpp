@@ -24,8 +24,8 @@
 
 static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracing(
 	TEXT("r.Lumen.Visualize.HardwareRayTracing"),
-	0,
-	TEXT("Enables visualization of hardware ray tracing (Default = 0)"),
+	1,
+	TEXT("Enables visualization of hardware ray tracing (Default = 1)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -79,7 +79,9 @@ namespace Lumen
 	{
 		bool bVisualize = false;
 #if RHI_RAYTRACING
-		bVisualize = (CVarLumenVisualizeHardwareRayTracing.GetValueOnRenderThread() != 0) && IsRayTracingEnabled();
+		bVisualize = IsRayTracingEnabled()
+			&& Lumen::UseHardwareRayTracing()
+			&& (CVarLumenVisualizeHardwareRayTracing.GetValueOnRenderThread() != 0);
 #endif
 		return bVisualize;
 	}

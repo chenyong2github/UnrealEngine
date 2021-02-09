@@ -204,22 +204,16 @@ namespace Lumen
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 	{
 #if RHI_RAYTRACING
-
-		static auto CVarLumenScreenProbeGatherHardwareRayTracingLocal = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing"));
-		static auto CVarLumenDirectLightingHardwareRayTracingLocal = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.DirectLighting.HardwareRayTracing"));
-
 		if (GAllowLumenDiffuseIndirect != 0 
 			&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
-			&& (CVarLumenScreenProbeGatherHardwareRayTracingLocal->GetInt() != 0 || CVarLumenDirectLightingHardwareRayTracingLocal->GetInt() != 0))
+			&& (UseHardwareRayTracedScreenProbeGather() || UseHardwareRayTracedShadows(View)))
 		{
 			return true;
 		}
 
-		static auto CVarLumenReflectionsHardwareRayTracingLocal = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.Reflections.HardwareRayTracing"));
-
 		if (GAllowLumenReflections != 0 
 			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
-			&& CVarLumenReflectionsHardwareRayTracingLocal->GetInt() != 0)
+			&& UseHardwareRayTracedReflections())
 		{
 			return true;
 		}

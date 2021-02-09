@@ -21,8 +21,8 @@
 
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracing(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing"),
-	0,
-	TEXT("Enables hardware ray tracing for Lumen reflections (Default = 0)"),
+	1,
+	TEXT("Enables hardware ray tracing for Lumen reflections (Default = 1)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -73,7 +73,9 @@ namespace Lumen
 	bool UseHardwareRayTracedReflections()
 	{
 #if RHI_RAYTRACING
-		return (CVarLumenReflectionsHardwareRayTracing.GetValueOnRenderThread() != 0) && IsRayTracingEnabled();
+		return IsRayTracingEnabled() 
+			&& Lumen::UseHardwareRayTracing() 
+			&& (CVarLumenReflectionsHardwareRayTracing.GetValueOnRenderThread() != 0);
 #else
 		return false;
 #endif

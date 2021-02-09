@@ -29,6 +29,7 @@ namespace Lumen
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 
 	// Hardware ray-traced reflections
+	bool UseHardwareRayTracing();
 	bool UseHardwareRayTracedReflections();
 	bool UseHardwareRayTracedScreenProbeGather();
 	bool UseHardwareRayTracedShadows(const FViewInfo& View);

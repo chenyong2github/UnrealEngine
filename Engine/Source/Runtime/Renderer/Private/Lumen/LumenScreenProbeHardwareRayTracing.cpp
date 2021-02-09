@@ -25,9 +25,9 @@
 
 static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracing(
 	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing"),
-	0,
-	TEXT("0. Software raytracing of diffuse indirect from Lumen cubemap tree. (Default)")
-	TEXT("1. Enable hardware ray tracing of diffuse indirect.\n"),
+	1,
+	TEXT("0. Software raytracing of diffuse indirect from Lumen cubemap tree.")
+	TEXT("1. Enable hardware ray tracing of diffuse indirect. (Default)\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -78,7 +78,9 @@ namespace Lumen
 	bool UseHardwareRayTracedScreenProbeGather()
 	{
 #if RHI_RAYTRACING
-		return (CVarLumenScreenProbeGatherHardwareRayTracing.GetValueOnRenderThread() != 0) && IsRayTracingEnabled();
+		return IsRayTracingEnabled()
+			&& Lumen::UseHardwareRayTracing()
+			&& (CVarLumenScreenProbeGatherHardwareRayTracing.GetValueOnRenderThread() != 0);
 #else
 		return false;
 #endif

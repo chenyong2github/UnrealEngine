@@ -19,11 +19,10 @@
 #include "BuiltInRayTracingShaders.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 
-int32 GLumenDirectLightingHardwareRaytracing = 0;
-FAutoConsoleVariableRef CVarLumenDirectLightingRTXEnabled(
+static TAutoConsoleVariable<int32> CVarLumenDirectLightingHardwareRaytracing(
 	TEXT("r.Lumen.DirectLighting.HardwareRayTracing"),
-	GLumenDirectLightingHardwareRaytracing,
-	TEXT("Enable RTX for direct lighting."),
+	0,
+	TEXT("Enable RTX for direct lighting (Default = 0)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -83,11 +82,7 @@ namespace Lumen
 		bool bUseHardwareRayTracedShadows = false;
 
 #if RHI_RAYTRACING
-		static IConsoleVariable* CVarDirectLightingHardwareRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.DirectLighting.HardwareRayTracing"));
 		static IConsoleVariable* CVarRayTracingShadows = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows"));
-
-		const bool bLumenDirectLightingPassCanUseHardwareRayTracing = CVarDirectLightingHardwareRayTracing ? (CVarDirectLightingHardwareRayTracing->GetInt() != 0): false;
-		
 		const bool bRayTracingShadows = CVarRayTracingShadows ? (CVarRayTracingShadows->GetInt() != 0) : false;
 		
 		if (bRayTracingShadows)
@@ -99,7 +94,9 @@ namespace Lumen
 		{   // When hardware raytracing shadows is turned off, our direct lighting pass can still use hardware raytraced shadow 
 			// if Lumen direct lighting pass has turned on hardware raytracing. In this configuration, we could use CSM for other
 			// rendering passes.
-			bUseHardwareRayTracedShadows = IsRayTracingEnabled() && bLumenDirectLightingPassCanUseHardwareRayTracing;
+			bUseHardwareRayTracedShadows = IsRayTracingEnabled()
+				&& Lumen::UseHardwareRayTracing()
+				&& CVarLumenDirectLightingHardwareRaytracing.GetValueOnRenderThread() != 0;
 		}
 
 		// Turn raytracing off if no rendering feature is enabled.

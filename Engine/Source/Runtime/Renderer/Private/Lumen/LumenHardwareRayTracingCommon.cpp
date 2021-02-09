@@ -4,6 +4,28 @@
 
 #include "LumenHardwareRayTracingCommon.h"
 
+static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracing(
+	TEXT("r.Lumen.HardwareRayTracing"),
+	0,
+	TEXT("Uses Hardware Ray Tracing for Lumen features, when available.\n")
+	TEXT("Lumen will fall back to Software Ray Tracing otherwise.\n")
+	TEXT("Note: Hardware ray tracing has significant scene update costs for\n")
+	TEXT("scenes with more than 10k instances."),
+	ECVF_RenderThreadSafe
+);
+
+namespace Lumen
+{
+	bool UseHardwareRayTracing()
+	{
+#if RHI_RAYTRACING
+		return (IsRayTracingEnabled() && CVarLumenUseHardwareRayTracing.GetValueOnRenderThread() != 0);
+#else
+		return false;
+#endif
+	}
+}
+
 void SetLumenHardwareRayTracingSharedParameters(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
