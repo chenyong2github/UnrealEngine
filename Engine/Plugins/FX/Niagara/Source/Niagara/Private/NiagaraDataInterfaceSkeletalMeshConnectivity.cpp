@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceSkeletalMeshConnectivity.h"
 
 #include "Algo/StableSort.h"
+#include "Algo/Unique.h"
 #include "NDISkeletalMeshCommon.h"
 #include "NiagaraResourceArrayWriter.h"
 #include "NiagaraSettings.h"
@@ -125,9 +126,9 @@ void FSkeletalMeshConnectivity::UnregisterUser(FSkeletalMeshConnectivityUsage Us
 	}
 }
 
-bool FSkeletalMeshConnectivity::Matches(const TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex) const
+bool FSkeletalMeshConnectivity::CanBeUsed(const TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex) const
 {
-	return LodIndex == InLodIndex && MeshObject == InMeshObject;
+	return !QueuedForRelease && LodIndex == InLodIndex && MeshObject == InMeshObject;
 }
 
 bool FSkeletalMeshConnectivity::IsValidMeshObject(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex)
@@ -196,13 +197,37 @@ const FSkeletalMeshLODRenderData* FSkeletalMeshConnectivity::GetLodRenderData() 
 	return nullptr;
 }
 
+FString FSkeletalMeshConnectivity::GetMeshName() const
+{
+	if (const USkeletalMesh* Mesh = MeshObject.Get())
+	{
+		return Mesh->GetPathName();
+	}
+	return TEXT("<none>");
+}
+
 const FSkeletalMeshConnectivityProxy* FSkeletalMeshConnectivity::GetProxy() const
 {
 	return &Proxy;
 }
 
+struct FAdjacencyVertexOverlapKey
+{
+	FVector Position;
+};
+
+uint32 GetTypeHash(const FAdjacencyVertexOverlapKey& Key)
+{
+	return GetTypeHash(Key.Position);
+}
+
+bool operator==(const FAdjacencyVertexOverlapKey& Lhs, const FAdjacencyVertexOverlapKey& Rhs)
+{
+	return Lhs.Position == Rhs.Position;
+}
+
 template<typename TriangleIndexType, bool SortBySize>
-static bool BuildAdjacencyBuffer(const FSkeletalMeshLODRenderData& LodRenderData, int32 MaxAdjacencyCount, TResourceArray<uint8>& Buffer)
+static bool BuildAdjacencyBuffer(const FSkeletalMeshLODRenderData& LodRenderData, int32 MaxAdjacencyCount, TResourceArray<uint8>& Buffer, int32& MaxFoundAdjacentTriangleCount)
 {
 	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodRenderData.MultiSizeIndexContainer.GetIndexBuffer();
 	const FPositionVertexBuffer* VertexBuffer = SortBySize ? &LodRenderData.StaticVertexBuffers.PositionVertexBuffer : nullptr;
@@ -216,18 +241,46 @@ static bool BuildAdjacencyBuffer(const FSkeletalMeshLODRenderData& LodRenderData
 		return false;
 	}
 
-	TMultiMap<int32, TriangleIndexType> RawAdjacency;
-
 	int32 MinVertexValue = std::numeric_limits<int32>::max();
 	int32 MaxVertexValue = std::numeric_limits<int32>::min();
 
+	int32 UniqueVertexCount = 0;
+	TMultiMap<int32 /*UniqueVertexIndex*/, TriangleIndexType> RawAdjacency;
+	TMap<FAdjacencyVertexOverlapKey, int32 /*UniqueVertexIndex*/> UniqueIndexMap;
+	TMap<int32 /*VertexIndex*/, int32 /*UniqueVertexIndex*/> VertexToUniqueIndexMap;
+
 	for (uint32 IndexIt = 0; IndexIt < IndexCount; ++IndexIt)
 	{
+		const TriangleIndexType TriangleId = IndexIt / 3;
 		const int32 VertexId = IndexBuffer->Get(IndexIt);
 		MinVertexValue = FMath::Min(MinVertexValue, VertexId);
 		MaxVertexValue = FMath::Max(MaxVertexValue, VertexId);
 
-		RawAdjacency.AddUnique(VertexId, IndexIt / 3);
+		FAdjacencyVertexOverlapKey OverlapKey;
+		OverlapKey.Position = VertexBuffer->VertexPosition(VertexId);
+
+		int32 UniqueIndex = UniqueVertexCount;
+		if (int32* ExistingGroup = UniqueIndexMap.Find(OverlapKey))
+		{
+			UniqueIndex = *ExistingGroup;
+		}
+		else
+		{
+			UniqueIndexMap.Add(OverlapKey, UniqueVertexCount);
+			++UniqueVertexCount;
+		}
+
+		int32* ExistingUniqueIndex = VertexToUniqueIndexMap.Find(VertexId);
+		if (!ExistingUniqueIndex)
+		{
+			VertexToUniqueIndexMap.Add(VertexId, UniqueIndex);
+		}
+		else
+		{
+			check(*ExistingUniqueIndex == UniqueIndex);
+		}
+
+		RawAdjacency.Add(UniqueIndex, TriangleId);
 	}
 
 	const int32 SizePerVertex = MaxAdjacencyCount * sizeof(TriangleIndexType);
@@ -235,7 +288,7 @@ static bool BuildAdjacencyBuffer(const FSkeletalMeshLODRenderData& LodRenderData
 	const int32 PaddedBufferSize = 4 * FMath::DivideAndRoundUp(BufferSize, 4);
 	Buffer.Init(0xFF, PaddedBufferSize);
 
-	int32 MaxAdjCount = 0;
+	MaxFoundAdjacentTriangleCount = 0;
 
 	{
 		FNiagaraResourceArrayWriter Ar(Buffer);
@@ -258,12 +311,15 @@ static bool BuildAdjacencyBuffer(const FSkeletalMeshLODRenderData& LodRenderData
 			Ar.Seek(VertexIt * SizePerVertex);
 
 			TriangleValues.Reset();
-			RawAdjacency.MultiFind(VertexIt, TriangleValues, true);
 
-			if (TriangleValues.Num() > MaxAdjCount)
 			{
-				MaxAdjCount = TriangleValues.Num();
+				RawAdjacency.MultiFind(VertexToUniqueIndexMap[VertexIt], TriangleValues);
+			
+				TriangleValues.Sort();
+				TriangleValues.SetNum(Algo::Unique(TriangleValues));
 			}
+
+			MaxFoundAdjacentTriangleCount = FMath::Max(MaxFoundAdjacentTriangleCount, TriangleValues.Num());
 
 			if (SortBySize)
 			{
@@ -310,14 +366,28 @@ FSkeletalMeshConnectivityProxy::Initialize(const FSkeletalMeshConnectivity& Conn
 {
 	if (const FSkeletalMeshLODRenderData* LodRenderData = Connectivity.GetLodRenderData())
 	{
+		int32 MaxFoundAdjacentTriangleCount = 0;
+		bool AdjacencySuccess = false;
+
 		const auto IndexFormat = GetDefault<UNiagaraSettings>()->NDISkelMesh_AdjacencyTriangleIndexFormat;
 		if (IndexFormat == ENDISkelMesh_AdjacencyTriangleIndexFormat::Full)
 		{
-			BuildAdjacencyBuffer<uint32, true>(*LodRenderData, MaxAdjacentTriangleCount, AdjacencyResource);
+			AdjacencySuccess = BuildAdjacencyBuffer<uint32, true>(*LodRenderData, MaxAdjacentTriangleCount, AdjacencyResource, MaxFoundAdjacentTriangleCount);
 		}
 		else if (IndexFormat == ENDISkelMesh_AdjacencyTriangleIndexFormat::Half)
 		{
-			BuildAdjacencyBuffer<uint16, true>(*LodRenderData, MaxAdjacentTriangleCount, AdjacencyResource);
+			AdjacencySuccess = BuildAdjacencyBuffer<uint16, true>(*LodRenderData, MaxAdjacentTriangleCount, AdjacencyResource, MaxFoundAdjacentTriangleCount);
+		}
+
+		if (!AdjacencySuccess)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Failed to build adjacency for %s.  Check project settings for NDISkelMesh_AdjacencyTriangleIndexFormat.  Currently using %s."),
+				*Connectivity.GetMeshName(), *StaticEnum<ENDISkelMesh_AdjacencyTriangleIndexFormat::Type>()->GetValueAsString(IndexFormat));
+		}
+		if (MaxFoundAdjacentTriangleCount > MaxAdjacentTriangleCount)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Max adjacency limit of %d exceeded (up to %d found) when processing %s.  Some connections will be ignored."),
+				MaxAdjacentTriangleCount, MaxFoundAdjacentTriangleCount, *Connectivity.GetMeshName());
 		}
 	}
 }
@@ -331,7 +401,7 @@ FSkeletalMeshConnectivityProxy::InitRHI()
 	const int32 BufferSize = AdjacencyResource.Num();
 
 	AdjacencyBuffer = RHICreateVertexBuffer(BufferSize, BUF_ShaderResource | BUF_Static, CreateInfo);
-	AdjacencySrv = RHICreateShaderResourceView(AdjacencyBuffer, sizeof(int32), PF_R32_SINT);
+	AdjacencySrv = RHICreateShaderResourceView(AdjacencyBuffer, sizeof(uint32), PF_R32_UINT);
 
 #if STATS
 	check(GpuMemoryUsage == 0);
