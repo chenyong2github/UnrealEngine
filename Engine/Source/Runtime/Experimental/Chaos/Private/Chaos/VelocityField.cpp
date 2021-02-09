@@ -13,39 +13,11 @@ FAutoConsoleVariableRef CVarChaosVelocityFieldISPCEnabled(TEXT("p.Chaos.Velocity
 
 using namespace Chaos;
 
-template<class T, int d>
-void TVelocityField<T, d>::UpdateForces(const TPBDParticles<T, d>& InParticles, const T /*Dt*/)
+void FVelocityField::UpdateForces(const FPBDParticles& InParticles, const FReal /*Dt*/)
 {
 	if (!GetVelocity)
 	{
-		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
-		{
-			UpdateField(InParticles, ElementIndex, Velocity);
-		}
-	}
-	else
-	{
-		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
-		{
-			const TVector<int32, 3>& Element = Elements[ElementIndex];
-
-			// Get the triangle's position
-			const TVector<T, d>& SurfacePosition = (T)(1. / 3.) * (
-				InParticles.X(Element[0]) +
-				InParticles.X(Element[1]) +
-				InParticles.X(Element[2]));
-
-			UpdateField(InParticles, ElementIndex, GetVelocity(SurfacePosition));
-		}
-	}
-}
-
-template<>
-void TVelocityField<float, 3>::UpdateForces(const TPBDParticles<float, 3>& InParticles, const float /*Dt*/)
-{
-	if (!GetVelocity)
-	{
-		if (bChaos_VelocityField_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_VelocityField_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::UpdateField(
@@ -75,7 +47,7 @@ void TVelocityField<float, 3>::UpdateForces(const TPBDParticles<float, 3>& InPar
 			const TVector<int32, 3>& Element = Elements[ElementIndex];
 
 			// Get the triangle's position
-			const TVector<float, 3>& SurfacePosition = (1.f / 3.f) * (
+			const FVec3& SurfacePosition = (FReal)(1. / 3.) * (
 				InParticles.X(Element[0]) +
 				InParticles.X(Element[1]) +
 				InParticles.X(Element[2]));
@@ -84,5 +56,3 @@ void TVelocityField<float, 3>::UpdateForces(const TPBDParticles<float, 3>& InPar
 		}
 	}
 }
-
-template class Chaos::TVelocityField<float, 3>;

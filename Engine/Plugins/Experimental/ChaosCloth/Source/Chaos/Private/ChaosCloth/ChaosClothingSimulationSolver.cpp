@@ -610,12 +610,12 @@ void FClothingSimulationSolver::SetWindVelocity(const FVec3& InWindVelocity, flo
 
 void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const FTriangleMesh* TriangleMesh)
 {
-	TVelocityField<float, 3>& VelocityField = Evolution->GetVelocityField(GroupId);
+	FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
 	VelocityField.SetGeometry(TriangleMesh);
 	VelocityField.SetCoefficients(DragCoefficient, LiftCoefficient);
 }
 
-const TVelocityField<float, 3>& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
+const FVelocityField& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
 {
 	return Evolution->GetVelocityField(GroupId);
 }

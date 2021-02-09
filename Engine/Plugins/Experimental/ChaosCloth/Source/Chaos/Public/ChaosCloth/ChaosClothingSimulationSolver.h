@@ -13,7 +13,7 @@ namespace Chaos
 {
 	class FTriangleMesh;
 	class FPBDEvolution;
-	template<typename T, int d> class TVelocityField;
+	class FVelocityField;
 
 	class FClothingSimulationCloth;
 	class FClothingSimulationCollider;
@@ -88,7 +88,7 @@ namespace Chaos
 
 		// Set the geometry affected by wind, or disable if TriangleMesh is null.
 		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const FTriangleMesh* TriangleMesh = nullptr);
-		const TVelocityField<float, 3>&  GetWindVelocityField(uint32 GroupId);
+		const FVelocityField&  GetWindVelocityField(uint32 GroupId);
 
 		// Set legacy noise wind.
 		void SetLegacyWind(uint32 GroupId, bool bUseLegacyWind);

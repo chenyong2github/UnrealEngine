@@ -1828,7 +1828,7 @@ void FClothingSimulation::DebugDrawWindForces(FPrimitiveDrawInterface* PDI) cons
 			continue;
 		}
 
-		const TVelocityField<FReal, 3>& VelocityField = Solver->GetWindVelocityField(Cloth->GetGroupId());
+		const FVelocityField& VelocityField = Solver->GetWindVelocityField(Cloth->GetGroupId());
 
 		const TConstArrayView<TVec3<int32>>& Elements = VelocityField.GetElements();
 		const TConstArrayView<FVec3> Forces = VelocityField.GetForces();
