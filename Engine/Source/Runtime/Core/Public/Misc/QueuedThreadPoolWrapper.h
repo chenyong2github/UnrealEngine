@@ -421,8 +421,8 @@ private:
 		PendingWork[int32(Priority)].enqueue(Item);
 	}
 
-	LowLevelTasks::FScheduler* Scheduler = nullptr;
 	TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> PriorityMapper;
+	LowLevelTasks::FScheduler* Scheduler = nullptr;
 	std::atomic_uint MaxConcurrency{~0u};
 	std::atomic_uint TaskCount{0};
 	std::atomic_bool bIsExiting{false};
