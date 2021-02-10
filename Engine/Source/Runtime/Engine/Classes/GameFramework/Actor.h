@@ -1851,9 +1851,6 @@ public:
 	/** Does this actor supports external packaging? */
 	virtual bool SupportsExternalPackaging() const;
 
-	/** Force the level to keep a hard reference on that external actor. */
-	virtual bool ForceExternalActorLevelReference() const { return false; }
-
 	/** Internal struct used to store information about an actor's components during reconstruction */
 	struct FActorRootComponentReconstructionData
 	{

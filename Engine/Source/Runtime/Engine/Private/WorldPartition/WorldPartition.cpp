@@ -12,8 +12,6 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "Algo/Accumulate.h"
-#include "Algo/Transform.h"
-#include "Algo/RemoveIf.h"
 #include "Engine/World.h"
 #include "Engine/LevelStreaming.h"
 #include "GameFramework/WorldSettings.h"
@@ -236,6 +234,11 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		if (bEditorOnly)
 		{
+			// Make sure to preload any AInfo actors first (mainly for ShouldActorBeLoaded as it needs to have access to the WorldDataLayers actor)
+			TArray<FWorldPartitionHandle> AlwaysLoadedActors = EditorHash->GetAlwaysLoadedCell()->Actors.Array();			
+			AlwaysLoadedActors.Sort([](const FWorldPartitionHandle& A, const FWorldPartitionHandle& B) { return A->GetActorClass()->IsChildOf<AInfo>(); });
+			TArray<FWorldPartitionReference> LoadedActors(AlwaysLoadedActors);
+
 			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
 			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
 
@@ -634,15 +637,14 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 
 	if (!bShouldBeLoaded)
 	{
+		bPotentiallyUnloadedActors = !Cell->LoadedActors.IsEmpty();
 		Cell->LoadedActors.Empty();
-		bPotentiallyUnloadedActors = true;
 	}
 	else
 	{
 		TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
 
-		TArray<FWorldPartitionActorDesc*> ActorsToUnload;
-		for (FWorldPartitionHandle& ActorHandle: Cell->Actors.Array())
+		for (FWorldPartitionHandle& ActorHandle: Cell->Actors)
 		{
 			AActor* Actor = ActorHandle->GetActor();
 
@@ -653,8 +655,7 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 			// Filter actor against DataLayers
 			if (ShouldActorBeLoaded(*ActorHandle))
 			{
-				bool bIsAlreadyInLoadedActors = false;
-				Cell->LoadedActors.Add(ActorHandle, &bIsAlreadyInLoadedActors);
+				Cell->LoadedActors.Add(ActorHandle);
 			}
 			else
 			{
@@ -664,11 +665,10 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 					if (ActorReference == ActorHandle)
 					{
 						Cell->LoadedActors.Remove(ActorHandle);
+						bPotentiallyUnloadedActors = true;
 						break;
 					}
 				}
-
-				bPotentiallyUnloadedActors = true;
 			}
 		}
 	}
