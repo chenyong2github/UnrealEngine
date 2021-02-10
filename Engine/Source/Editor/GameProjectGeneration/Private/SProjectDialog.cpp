@@ -769,8 +769,6 @@ TSharedRef<SWidget> SProjectDialog::MakeHybridView(EProjectDialogModeMode Mode)
 	Templates = FindTemplateProjects();
 	SetDefaultProjectLocation();
 
-	Mode = EProjectDialogModeMode::Hybrid;
-
 	TemplateListView = SNew(STileView<TSharedPtr<FTemplateItem>>)
 		.ListItemsSource(&FilteredTemplateList)
 		.SelectionMode(ESelectionMode::Single)
