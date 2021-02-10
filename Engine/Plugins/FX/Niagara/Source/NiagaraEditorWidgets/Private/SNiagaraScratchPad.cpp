@@ -572,10 +572,42 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 			]
 			+ SVerticalBox::Slot()
 			[
-				SNew(SNiagaraScriptGraph, ScriptViewModel->GetGraphViewModel())
+				SAssignNew(Graph,SNiagaraScriptGraph, ScriptViewModel->GetGraphViewModel())
 				.ZoomToFitOnLoad(true)
 			]
 		];
+
+		if (ScriptViewModel)
+		{
+			NodeIDHandle = ScriptViewModel->OnNodeIDFocusRequested().AddLambda(
+				[this](FNiagaraScriptIDAndGraphFocusInfo* FocusInfo)
+				{
+					if (Graph.IsValid() && FocusInfo != nullptr)
+					{
+						Graph->FocusGraphElement(FocusInfo->GetScriptGraphFocusInfo().Get());
+					}
+				}
+			);
+
+			PinIDHandle = ScriptViewModel->OnPinIDFocusRequested().AddLambda(
+				[this](FNiagaraScriptIDAndGraphFocusInfo* FocusInfo)
+				{
+					if (Graph.IsValid() && FocusInfo != nullptr)
+					{
+						Graph->FocusGraphElement(FocusInfo->GetScriptGraphFocusInfo().Get());
+					}
+				}
+			);
+		}
+	}
+
+	~SNiagaraScratchPadScriptEditor()
+	{
+		if (ScriptViewModel)
+		{
+			ScriptViewModel->OnNodeIDFocusRequested().Remove(NodeIDHandle);
+			ScriptViewModel->OnPinIDFocusRequested().Remove(PinIDHandle);
+		}
 	}
 
 private:
@@ -603,6 +635,10 @@ private:
 
 private:
 	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel;
+	TSharedPtr<SNiagaraScriptGraph> Graph;
+
+	FDelegateHandle NodeIDHandle;
+	FDelegateHandle PinIDHandle;
 };
 
 class SNiagaraScratchPadScriptEditorList : public SCompoundWidget

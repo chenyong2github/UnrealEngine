@@ -14,6 +14,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnRenamed);
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnChangesApplied);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPinIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 
 public:
 	FNiagaraScratchPadScriptViewModel();
@@ -64,6 +66,12 @@ public:
 
 	FSimpleDelegate& OnRequestDiscardChanges();
 
+	FOnNodeIDFocusRequested& OnNodeIDFocusRequested();
+	FOnPinIDFocusRequested& OnPinIDFocusRequested();
+
+	void RaisePinFocusRequested(FNiagaraScriptIDAndGraphFocusInfo*  InFocusInfo);
+	void RaiseNodeFocusRequested(FNiagaraScriptIDAndGraphFocusInfo* InFocusInfo);
+
 private:
 	FText GetDisplayNameInternal() const;
 
@@ -93,4 +101,7 @@ private:
 	FOnPinnedChanged OnPinnedChangedDelegate;
 	FOnChangesApplied OnChangesAppliedDelegate;
 	FSimpleDelegate OnRequestDiscardChangesDelegate;
+
+	FOnNodeIDFocusRequested OnNodeIDFocusRequestedDelegate;
+	FOnPinIDFocusRequested OnPinIDFocusRequestedDelegate;
 };

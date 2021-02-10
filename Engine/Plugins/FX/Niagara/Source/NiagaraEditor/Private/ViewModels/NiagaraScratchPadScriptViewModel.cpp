@@ -240,4 +240,22 @@ void FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged(FPropertyChanged
 	bHasPendingChanges = true;
 }
 
+FNiagaraScratchPadScriptViewModel::FOnNodeIDFocusRequested& FNiagaraScratchPadScriptViewModel::OnNodeIDFocusRequested()
+{
+	return OnNodeIDFocusRequestedDelegate;
+}
+FNiagaraScratchPadScriptViewModel::FOnPinIDFocusRequested& FNiagaraScratchPadScriptViewModel::OnPinIDFocusRequested()
+{
+	return OnPinIDFocusRequestedDelegate;
+}
+
+void FNiagaraScratchPadScriptViewModel::RaisePinFocusRequested(FNiagaraScriptIDAndGraphFocusInfo* InFocusInfo)
+{
+	OnNodeIDFocusRequestedDelegate.Broadcast(InFocusInfo);
+}
+void FNiagaraScratchPadScriptViewModel::RaiseNodeFocusRequested(FNiagaraScriptIDAndGraphFocusInfo* InFocusInfo)
+{
+	OnPinIDFocusRequestedDelegate.Broadcast(InFocusInfo);
+}
+
 #undef LOCTEXT_NAMESPACE
