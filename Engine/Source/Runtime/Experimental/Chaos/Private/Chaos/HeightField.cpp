@@ -233,7 +233,7 @@ namespace Chaos
 
 				//Convert into local space of A to get better precision
 
-				TTriangle<FReal> Triangle(FVec3(0), B-A, C-A);
+				FTriangle Triangle(FVec3(0), B-A, C-A);
 
 				FReal Time;
 				FVec3 LocalHitPosition;
@@ -1242,7 +1242,7 @@ namespace Chaos
 
 			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 
-			TTriangle<FReal> TriangleConvex(A, B, C);
+			FTriangle TriangleConvex(A, B, C);
 
 			FReal Penetration;
 			FVec3 ClosestA, ClosestB, Normal;
@@ -1397,7 +1397,7 @@ namespace Chaos
 			//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
 			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 
-			TTriangle<FReal> TriangleConvex(A, B, C);
+			FTriangle TriangleConvex(A, B, C);
 			if (InnerMTD)
 			{
 				FVec3 TriangleNormal(0);

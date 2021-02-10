@@ -1491,7 +1491,7 @@ namespace ChaosTest
 			TSerializablePtr<FConvex> AConv(UniqueConvex);
 			const TImplicitObjectScaled<FConvex> AConvScaled(AConv,FVec3(1.0,1.0,1.0));
 
-			TTriangle<FReal> A(ConvexParticles[0],ConvexParticles[1],ConvexParticles[2]);
+			FTriangle A(ConvexParticles[0],ConvexParticles[1],ConvexParticles[2]);
 
 			const FVec3 Pt0(0.0,0.0,-29.6999969);
 			FVec3 Pt1 = Pt0;

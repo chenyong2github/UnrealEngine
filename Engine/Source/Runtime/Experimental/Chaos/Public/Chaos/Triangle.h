@@ -7,51 +7,49 @@
 
 namespace Chaos
 {
-	template<typename T>
-	class TTriangle
+	class FTriangle
 	{
 	public:
-
-		TTriangle(const TVec3<T>& InA, const TVec3<T>& InB, const TVec3<T>& InC)
+		FTriangle(const FVec3& InA, const FVec3& InB, const FVec3& InC)
 			: A(InA)
 			, B(InB)
 			, C(InC)
 		{}
 
-		TVec3<T>& operator[](uint32 InIndex)
+		FVec3& operator[](uint32 InIndex)
 		{
 			check(InIndex < 3);
 			return (&A)[InIndex];
 		}
 
-		const TVec3<T>& operator[](uint32 InIndex) const
+		const FVec3& operator[](uint32 InIndex) const
 		{
 			check(InIndex < 3);
 			return (&A)[InIndex];
 		}
 
-		FORCEINLINE TVec3<T> GetNormal() const
+		FORCEINLINE FVec3 GetNormal() const
 		{
-			return TVec3<T>::CrossProduct(B - A, C - A).GetSafeNormal();
+			return FVec3::CrossProduct(B - A, C - A).GetSafeNormal();
 		}
 
-		FORCEINLINE TPlane<T, 3> GetPlane() const
+		FORCEINLINE TPlane<FReal, 3> GetPlane() const
 		{
-			return TPlane<T, 3>(A, GetNormal());
+			return TPlane<FReal, 3>(A, GetNormal());
 		}
 
-		FORCEINLINE T PhiWithNormal(const TVec3<T>& InSamplePoint, TVec3<T>& OutNormal) const
+		FORCEINLINE FReal PhiWithNormal(const FVec3& InSamplePoint, FVec3& OutNormal) const
 		{
 			OutNormal = GetNormal();
-			TVec3<T> ClosestPoint = FindClosestPointOnTriangle(GetPlane(), A, B, C, InSamplePoint);
-			return TVec3<T>::DotProduct((InSamplePoint - ClosestPoint), OutNormal);
+			FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), A, B, C, InSamplePoint);
+			return FVec3::DotProduct((InSamplePoint - ClosestPoint), OutNormal);
 		}
 
-		FORCEINLINE TVec3<T> Support(const TVec3<T>& Direction, const T Thickness) const
+		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
 		{
-			const float DotA = TVec3<T>::DotProduct(A, Direction);
-			const float DotB = TVec3<T>::DotProduct(B, Direction);
-			const float DotC = TVec3<T>::DotProduct(C, Direction);
+			const float DotA = FVec3::DotProduct(A, Direction);
+			const float DotB = FVec3::DotProduct(B, Direction);
+			const float DotC = FVec3::DotProduct(C, Direction);
 
 			if(DotA >= DotB && DotA >= DotC)
 			{
@@ -77,11 +75,11 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE_DEBUGGABLE TVec3<T> SupportCore(const TVec3<T>& Direction, float InMargin) const
+		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, float InMargin) const
 		{
-			const float DotA = TVec3<T>::DotProduct(A, Direction);
-			const float DotB = TVec3<T>::DotProduct(B, Direction);
-			const float DotC = TVec3<T>::DotProduct(C, Direction);
+			const float DotA = FVec3::DotProduct(A, Direction);
+			const float DotB = FVec3::DotProduct(B, Direction);
+			const float DotC = FVec3::DotProduct(C, Direction);
 
 			if (DotA >= DotB && DotA >= DotC)
 			{
@@ -95,28 +93,28 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE TVector<T, 3> SupportCoreScaled(const TVector<T, 3>& Direction, float InMargin, const TVector<T, 3>& Scale) const
+		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, float InMargin, const FVec3& Scale) const
 		{
 			// No margin support in triangles (they are zero thickness so cannot have an internal margin)
 			return SupportCore(Direction * Scale, 0.0f) * Scale;
 		}
 
-		FORCEINLINE T GetMargin() const { return 0; }
+		FORCEINLINE FReal GetMargin() const { return 0; }
 
-		FORCEINLINE bool Raycast(const TVec3<T>& StartPoint, const TVec3<T>& Dir, const T Length, const T Thickness, T& OutTime, TVec3<T>& OutPosition, TVec3<T>& OutNormal, int32& OutFaceIndex) const
+		FORCEINLINE bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
 		{
 			// No face as this is only one triangle
 			OutFaceIndex = INDEX_NONE;
 
 			// Pass through GJK #BGTODO Maybe specialise if it's possible to be faster
-			const TRigidTransform<T, 3> StartTM(StartPoint, TRotation<T, 3>::FromIdentity());
-			const TSphere<T, 3> Sphere(TVec3<T>(0), Thickness);
+			const FRigidTransform3 StartTM(StartPoint, FRotation3::FromIdentity());
+			const TSphere<FReal, 3> Sphere(FVec3(0), Thickness);
 			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal);
 		}
 
-		FORCEINLINE bool Overlap(const TVec3<T>& Point, const T Thickness) const 
+		FORCEINLINE bool Overlap(const FVec3& Point, const FReal Thickness) const
 		{
-			const TVec3<T> ClosestPoint = FindClosestPointOnTriangle(GetPlane(), A, B, C, Point);
+			const FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), A, B, C, Point);
 			const float AdjustedThickness = FMath::Max(Thickness, KINDA_SMALL_NUMBER);
 			return (Point - ClosestPoint).SizeSquared() <= (AdjustedThickness * AdjustedThickness);
 		}
@@ -128,22 +126,23 @@ namespace Chaos
 
 	private:
 
-		friend FChaosArchive& operator<<(FChaosArchive& Ar, TTriangle<T>& Value);
+		friend FChaosArchive& operator<<(FChaosArchive& Ar, FTriangle& Value);
 
-		TVec3<T> A;
-		TVec3<T> B;
-		TVec3<T> C;
+		FVec3 A;
+		FVec3 B;
+		FVec3 C;
 	};
 
-	template<typename T>
-	FChaosArchive& operator<<(FChaosArchive& Ar, TTriangle<T>& Value)
+	inline FChaosArchive& operator<<(FChaosArchive& Ar, FTriangle& Value)
 	{
 		Ar << Value.A << Value.B << Value.C;
 		return Ar;
 	}
 
+	template<typename T> using TTriangle UE_DEPRECATED(4.27, "Deprecated. Use FTriangle instead") = FTriangle;
+	
 	template<typename T>
-	class TImplicitTriangle final : public FImplicitObject
+	class UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use other triangle based ImplicitObjects") TImplicitTriangle final : public FImplicitObject
 	{
 	public:
 
@@ -195,7 +194,7 @@ namespace Chaos
 
 		virtual const class TAABB<T, 3> BoundingBox() const override
 		{
-			TAABB<T,3> Bounds(Tri[0],Tri[0]);
+			TAABB<T, 3> Bounds(Tri[0], Tri[0]);
 			Bounds.GrowToInclude(Tri[1]);
 			Bounds.GrowToInclude(Tri[2]);
 

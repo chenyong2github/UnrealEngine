@@ -329,7 +329,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 	{
 		const FVec3 AB = B - A;
 		const FVec3 AC = C - A;
-		TTriangle<FReal> TriangleConvex(A, B, C);
+		FTriangle TriangleConvex(A, B, C);
 
 		FReal LambdaPenetration;
 		FVec3 ClosestA, ClosestB, LambdaNormal;
@@ -531,7 +531,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 				FVec3 ClosestA(0.0);
 				FVec3 ClosestB(0.0);
 				int32 ClosestVertexIndexA, ClosestVertexIndexB;
-				if (GJKPenetration(TTriangle<FReal>(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
+				if (GJKPenetration(FTriangle(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
 				{
 					bOverlap = true;
 
@@ -560,7 +560,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 				//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
 				const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 
-				if (GJKIntersection(TTriangle<FReal>(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Thickness, Offset))
+				if (GJKIntersection(FTriangle(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Thickness, Offset))
 				{
 					return true;
 				}
@@ -664,7 +664,7 @@ struct FTriangleMeshSweepVisitor
 
 		FVec3 A, B, C;
 		TransformVertsHelper(TriMeshScale,TriIdx,TriMesh.MParticles,Elements,A,B,C);
-		TTriangle<FReal> Tri(A, B, C);
+		FTriangle Tri(A, B, C);
 
 		const auto& WorldScaleQueryGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
 
