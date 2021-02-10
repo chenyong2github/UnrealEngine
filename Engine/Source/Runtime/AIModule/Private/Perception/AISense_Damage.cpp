@@ -13,11 +13,11 @@
 //----------------------------------------------------------------------//
 FAIDamageEvent::FAIDamageEvent()
 	: Amount(1.f), Location(FAISystem::InvalidLocation), HitLocation(FAISystem::InvalidLocation)
-	, DamagedActor(nullptr), Instigator(nullptr)
+	, DamagedActor(nullptr), Instigator(nullptr), Tag(NAME_None)
 {}
 
-FAIDamageEvent::FAIDamageEvent(AActor* InDamagedActor, AActor* InInstigator, float DamageAmount, const FVector& EventLocation, const FVector& InHitLocation)
-	: Amount(DamageAmount), Location(EventLocation), HitLocation(InHitLocation), DamagedActor(InDamagedActor), Instigator(InInstigator)
+FAIDamageEvent::FAIDamageEvent(AActor* InDamagedActor, AActor* InInstigator, float DamageAmount, const FVector& EventLocation, const FVector& InHitLocation/* = FAISystem::InvalidLocation*/, FName InTag/* = NAME_None*/)
+	: Amount(DamageAmount), Location(EventLocation), HitLocation(InHitLocation), DamagedActor(InDamagedActor), Instigator(InInstigator), Tag(InTag)
 {
 	Compile();
 }
@@ -93,7 +93,7 @@ float UAISense_Damage::Update()
 
 				if (Listener.HasSense(GetSenseID()))
 				{
-					Listener.RegisterStimulus(Event.Instigator, FAIStimulus(*this, Event.Amount, Event.Location, Event.HitLocation));
+					Listener.RegisterStimulus(Event.Instigator, FAIStimulus(*this, Event.Amount, Event.Location, Event.HitLocation, FAIStimulus::SensingSucceeded, Event.Tag));
 				}
 			}
 		}
@@ -125,12 +125,12 @@ void UAISense_Damage::RegisterWrappedEvent(UAISenseEvent& PerceptionEvent)
 	}
 }
 
-void UAISense_Damage::ReportDamageEvent(UObject* WorldContextObject, AActor* DamagedActor, AActor* Instigator, float DamageAmount, FVector EventLocation, FVector HitLocation)
+void UAISense_Damage::ReportDamageEvent(UObject* WorldContextObject, AActor* DamagedActor, AActor* Instigator, float DamageAmount, FVector EventLocation, FVector HitLocation, FName Tag/* = NAME_None*/)
 {
 	UAIPerceptionSystem* PerceptionSystem = UAIPerceptionSystem::GetCurrent(WorldContextObject);
 	if (PerceptionSystem)
 	{
-		FAIDamageEvent Event(DamagedActor, Instigator, DamageAmount, EventLocation, HitLocation);
+		FAIDamageEvent Event(DamagedActor, Instigator, DamageAmount, EventLocation, HitLocation, Tag);
 		PerceptionSystem->OnEvent(Event);
 	}
 }
