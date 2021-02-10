@@ -434,6 +434,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		GRHIMaximumWaveSize = Features.WaveLaneCountMax;
 	}
 
+#if PLATFORM_WINDOWS
 	// Detect availability of Variable Rate Shading Tier 2 support, and gather metrics.
 	{
 		D3D12_FEATURE_DATA_D3D12_OPTIONS6 VrsOptions;
@@ -450,6 +451,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			}
 		}
 	}
+#endif // #if PLATFORM_WINDOWS
 
 #if ENABLE_RESIDENCY_MANAGEMENT
 	if (!CVarResidencyManagement.GetValueOnAnyThread())
