@@ -91,6 +91,9 @@ FNiagaraDataSet::FNiagaraDataSet()
 	, GPUNumAllocatedIDs(0)
 	, CurrentData(nullptr)
 	, DestinationData(nullptr)
+#if NIAGARA_MEMORY_TRACKING
+	, BufferSizeBytes(0)
+#endif
 	, MaxInstanceCount(UINT_MAX)
 	, bInitialized(false)
 {
@@ -160,6 +163,10 @@ void FNiagaraDataSet::ResetBuffers()
 
 void FNiagaraDataSet::ResetBuffersInternal()
 {
+#if NIAGARA_MEMORY_TRACKING
+	BufferSizeBytes -= FreeIDsTable.GetAllocatedSize() + SpawnedIDsTable.GetAllocatedSize();
+#endif
+
 	if (bInitialized == true)
 	{
 		CheckCorrectThread();
@@ -176,6 +183,10 @@ void FNiagaraDataSet::ResetBuffersInternal()
 	//Ensure we have a valid current buffer
 	BeginSimulate();
 	EndSimulate();
+
+#if NIAGARA_MEMORY_TRACKING
+	BufferSizeBytes += FreeIDsTable.GetAllocatedSize() + SpawnedIDsTable.GetAllocatedSize();
+#endif
 }
 
 FNiagaraDataBuffer& FNiagaraDataSet::BeginSimulate(bool bResetDestinationData)
@@ -230,6 +241,10 @@ void FNiagaraDataSet::EndSimulate(bool SetCurrentData)
 
 void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 {
+#if NIAGARA_MEMORY_TRACKING
+	BufferSizeBytes -= FreeIDsTable.GetAllocatedSize() + SpawnedIDsTable.GetAllocatedSize();
+#endif
+
 	checkSlow(IsInitialized());
 	CheckCorrectThread();
 	checkSlow(DestinationData);
@@ -327,20 +342,22 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 // 			UE_LOG(LogNiagara, Warning, TEXT("%d"), FreeIDsTable[i]);
 // 		}
 	}
+
+#if NIAGARA_MEMORY_TRACKING
+	BufferSizeBytes += FreeIDsTable.GetAllocatedSize() + SpawnedIDsTable.GetAllocatedSize();
+#endif
 }
 
-uint32 FNiagaraDataSet::GetSizeBytes()const
+int64 FNiagaraDataSet::GetSizeBytes() const
 {
-	uint32 Size = 0;
-	for (FNiagaraDataBuffer* Buffer : Data)
-	{
-		check(Buffer);
-		Size += Buffer->GetSizeBytes();
-	}
-	return Size;
+#if NIAGARA_MEMORY_TRACKING
+	return BufferSizeBytes;
+#else
+	return 0ll;
+#endif
 }
 
-void FNiagaraDataSet::CheckForNaNs()const
+void FNiagaraDataSet::CheckForNaNs() const
 {
 	for (const FNiagaraDataBuffer* Buffer : Data)
 	{
@@ -390,6 +407,10 @@ void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList&
 		return;
 	}
 
+#if NIAGARA_MEMORY_TRACKING
+	BufferSizeBytes -= GPUFreeIDs.NumBytes;
+#endif
+
 	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUComputeInitFreeIDs, TEXT("Init Free IDs - %s"), DebugSimName ? DebugSimName : TEXT(""));
 
 	TCHAR DebugBufferName[128];
@@ -418,6 +439,10 @@ void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList&
 
 	GPUFreeIDs = MoveTemp(NewFreeIDsBuffer);
 	GPUNumAllocatedIDs = NumIDsToAlloc;
+
+#if NIAGARA_MEMORY_TRACKING
+	BufferSizeBytes += GPUFreeIDs.NumBytes;
+#endif
 }
 
 const FNiagaraVariableLayoutInfo* FNiagaraDataSet::GetVariableLayout(const FNiagaraVariable& Var)const
@@ -627,6 +652,9 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 			NumInstancesAllocated = InNumInstances;
 
 			DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize() + HalfData.GetAllocatedSize());
+#if NIAGARA_MEMORY_TRACKING
+			Owner->BufferSizeBytes -= FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize() + HalfData.GetAllocatedSize();
+#endif
 			if (bMaintainExisting)
 			{
 				TArray<uint8> NewFloatData;
@@ -683,6 +711,9 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 				HalfData.SetNum(NewHalfNum, bShrinkHalfData);
 			}
 			INC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize() + HalfData.GetAllocatedSize());
+#if NIAGARA_MEMORY_TRACKING
+			Owner->BufferSizeBytes += FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize() + HalfData.GetAllocatedSize();
+#endif
 		}
 		// Calculate strides based upon max of instance counts
 		// This allows us to skip building the register table when shrinking
@@ -740,6 +771,9 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 	HalfStride = PaddedNumInstances * sizeof(FFloat16);
 
 	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUParticleMemory, GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes);
+#if NIAGARA_MEMORY_TRACKING
+	Owner->BufferSizeBytes -= GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes;
+#endif
 
 	if (PaddedNumInstances == 0)
 	{
@@ -826,6 +860,9 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 		RHICmdList.Transition(MakeArrayView(Transitions.GetData(), Transitions.Num()));
 	}
 	INC_MEMORY_STAT_BY(STAT_NiagaraGPUParticleMemory, GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes);
+#if NIAGARA_MEMORY_TRACKING
+	Owner->BufferSizeBytes += GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes;
+#endif
 }
 
 void FNiagaraDataBuffer::SwapInstances(uint32 OldIndex, uint32 NewIndex) 

@@ -415,6 +415,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 	GlobalTotalScalability = 0;
 	GlobalTotalEmitters = 0;
 	GlobalTotalParticles = 0;
+	GlobalTotalBytes = 0;
 	PerSystemDebugInfo.Reset();
 	InWorldComponents.Reset();
 
@@ -492,6 +493,22 @@ void FNiagaraDebugHud::GatherSystemInfo()
 		{
 			++GlobalTotalScalability;
 			++SystemDebugInfo.TotalScalability;
+		}
+
+		// Track rough memory usage
+		{
+			for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
+			{
+				UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter();
+				if (NiagaraEmitter == nullptr)
+				{
+					continue;
+				}
+
+				const int64 BytesUsed = EmitterInstance->GetTotalBytesUsed();
+				SystemDebugInfo.TotalBytes += BytesUsed;
+				GlobalTotalBytes += BytesUsed;
+			}
 		}
 
 		if (bIsActive)
@@ -741,8 +758,8 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 
 		if (bShowSystemInformation || OverviewString.Len() > 0)
 		{
-			static const float ColumnOffset[] = { 0, 150, 300, 450 };
-			static const float GuessWidth = 600.0f;
+			static const float ColumnOffset[] = { 0, 150, 300, 450, 600 };
+			static const float GuessWidth = 750.0f;
 
 			const bool bShowGlobalInformation = Settings.HudVerbosity > ENiagaraDebugHudSystemVerbosity::Minimal;
 			const int32 NumLines = 1 + (bShowGlobalInformation ? 1 : 0);
@@ -764,11 +781,12 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			// Display global system information
 			if (bShowGlobalInformation)
 			{
-				static const TCHAR* HeadingText[] = { TEXT("TotalSystems:"), TEXT("TotalScalability:"), TEXT("TotalEmitters:") , TEXT("TotalParticles:") };
+				static const TCHAR* HeadingText[] = { TEXT("TotalSystems:"), TEXT("TotalScalability:"), TEXT("TotalEmitters:") , TEXT("TotalParticles:"), TEXT("TotalMemory:") };
 				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[0], TextLocation.Y, HeadingText[0], Font, HeadingColor);
 				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[1], TextLocation.Y, HeadingText[1], Font, HeadingColor);
 				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[2], TextLocation.Y, HeadingText[2], Font, HeadingColor);
 				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, HeadingText[3], Font, HeadingColor);
+				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[4], TextLocation.Y, HeadingText[4], Font, HeadingColor);
 
 				static const float DetailOffset[] =
 				{
@@ -776,12 +794,14 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 					ColumnOffset[1] + Font->GetStringSize(HeadingText[1]) + 5.0f,
 					ColumnOffset[2] + Font->GetStringSize(HeadingText[2]) + 5.0f,
 					ColumnOffset[3] + Font->GetStringSize(HeadingText[3]) + 5.0f,
+					ColumnOffset[4] + Font->GetStringSize(HeadingText[4]) + 5.0f,
 				};
 
 				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[0], TextLocation.Y, *FString::FromInt(GlobalTotalSystems), Font, DetailColor);
 				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[1], TextLocation.Y, *FString::FromInt(GlobalTotalScalability), Font, DetailColor);
 				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[2], TextLocation.Y, *FString::FromInt(GlobalTotalEmitters), Font, DetailColor);
 				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[3], TextLocation.Y, *FString::FromInt(GlobalTotalParticles), Font, DetailColor);
+				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[4], TextLocation.Y, *FString::Printf(TEXT("%6.2fmb"), float(double(GlobalTotalBytes) / (1024.0*1024.0))), Font, DetailColor);
 
 				TextLocation.Y += fAdvanceHeight;
 			}
@@ -793,8 +813,8 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	{
 		TextLocation.Y += fAdvanceHeight;
 
-		static float ColumnOffset[] = { 0, 300, 400, 500, 600 };
-		static float GuessWidth = 700.0f;
+		static float ColumnOffset[] = { 0, 300, 400, 500, 600, 700 };
+		static float GuessWidth = 800.0f;
 
 		const uint32 NumLines = 1 + PerSystemDebugInfo.Num();
 		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
@@ -804,6 +824,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[2], TextLocation.Y, TEXT("# Scalability"), Font, HeadingColor);
 		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, TEXT("# Emitters"), Font, HeadingColor);
 		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[4], TextLocation.Y, TEXT("# Particles"), Font, HeadingColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[5], TextLocation.Y, TEXT("# MBytes"), Font, HeadingColor);
 		TextLocation.Y += fAdvanceHeight;
 		for (auto it = PerSystemDebugInfo.CreateConstIterator(); it; ++it)
 		{
@@ -815,6 +836,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[2], TextLocation.Y, *FString::FromInt(SystemInfo.TotalScalability), Font, RowColor);
 			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, *FString::FromInt(SystemInfo.TotalEmitters), Font, RowColor);
 			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[4], TextLocation.Y, *FString::FromInt(SystemInfo.TotalParticles), Font, RowColor);
+			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[5], TextLocation.Y, *FString::Printf(TEXT("%6.2f"), double(SystemInfo.TotalBytes) / (1024.0*1024.0)), Font, RowColor);
 			TextLocation.Y += fAdvanceHeight;
 		}
 	}
@@ -1135,6 +1157,16 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					{
 						StringBuilder.Appendf(TEXT("Scalability - %s\n"), *GetNameSafe(NiagaraSystem->GetEffectType()));
 					}
+
+					int64 TotalBytes = 0;
+					for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
+					{
+						if ( UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter() )
+						{
+							TotalBytes += EmitterInstance->GetTotalBytesUsed();
+						}
+					}
+					StringBuilder.Appendf(TEXT("Memory - %6.2fMB\n"), float(double(TotalBytes) / (1024.0*1024.0)));
 				}
 
 				if (bIsActive)

@@ -115,7 +115,7 @@ public:
 	FNiagaraSystemInstance* GetParentSystemInstance()const { return ParentSystemInstance; }
 
 	float NIAGARA_API GetTotalCPUTimeMS();
-	int	NIAGARA_API GetTotalBytesUsed();
+	int64 NIAGARA_API GetTotalBytesUsed();
 
 	ENiagaraExecutionState NIAGARA_API GetExecutionState() { return ExecutionState; }
 	void NIAGARA_API SetExecutionState(ENiagaraExecutionState InState);

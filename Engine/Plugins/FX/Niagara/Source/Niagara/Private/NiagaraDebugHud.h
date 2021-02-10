@@ -23,6 +23,7 @@ class FNiagaraDebugHud
 		int32		TotalScalability = 0;
 		int32		TotalEmitters = 0;
 		int32		TotalParticles = 0;
+		int64		TotalBytes = 0;
 	};
 
 	struct FGpuEmitterCache
@@ -66,6 +67,7 @@ private:
 	int32							GlobalTotalScalability = 0;
 	int32							GlobalTotalEmitters = 0;
 	int32							GlobalTotalParticles = 0;
+	int64							GlobalTotalBytes = 0;
 	TMap<FName, FSystemDebugInfo>	PerSystemDebugInfo;
 
 	TArray<TWeakObjectPtr<class UNiagaraComponent>>	InWorldComponents;

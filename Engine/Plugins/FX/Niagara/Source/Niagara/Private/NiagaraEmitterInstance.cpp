@@ -888,7 +888,7 @@ float FNiagaraEmitterInstance::GetTotalCPUTimeMS()
 	return FPlatformTime::ToMilliseconds(TotalCycles);
 }
 
-int FNiagaraEmitterInstance::GetTotalBytesUsed()
+int64 FNiagaraEmitterInstance::GetTotalBytesUsed()
 {
 	check(ParticleDataSet);
 	int32 BytesUsed = ParticleDataSet->GetSizeBytes();
