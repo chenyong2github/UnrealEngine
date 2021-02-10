@@ -533,6 +533,14 @@ half3 EnvBRDF( half3 SpecularColor, half Roughness, half NoV )
 	return GF;
 }
 
+half3 EnvBRDF(half3 F0, half3 F90, half Roughness, half NoV)
+{
+	// Importance sampled preintegrated G * F
+	float2 AB = Texture2DSampleLevel(PreIntegratedGF, PreIntegratedGFSampler, float2(NoV, Roughness), 0).rg;
+	float3 GF = F0 * AB.x + F90 * AB.y;
+	return GF;
+}
+
 half2 EnvBRDFApproxLazarov(half Roughness, half NoV)
 {
 	// [ Lazarov 2013, "Getting More Physical in Call of Duty: Black Ops II" ]
