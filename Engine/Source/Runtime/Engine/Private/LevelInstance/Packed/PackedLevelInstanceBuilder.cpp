@@ -401,6 +401,8 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 	}
 
 	BP->Modify();
+	// Avoid running construction script while dragging an instance of that BP for performance reasons
+	BP->bRunConstructionScriptOnDrag = false;
 	APackedLevelInstance* CDO = CastChecked<APackedLevelInstance>(BP->GeneratedClass->GetDefaultObject());
 	CDO->SetWorldAsset(InActor->GetWorldAsset());
 	
