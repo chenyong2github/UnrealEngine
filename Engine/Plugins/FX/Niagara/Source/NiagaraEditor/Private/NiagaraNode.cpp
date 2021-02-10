@@ -80,7 +80,6 @@ bool UNiagaraNode::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) cons
 }
 
 
-
 bool UNiagaraNode::PinAppendCompileHash(const UEdGraphPin* InPin, FNiagaraCompileHashVisitor* InVisitor) const
 {
 #if WITH_EDITORONLY_DATA
@@ -154,6 +153,29 @@ bool UNiagaraNode::NiagaraNodeAppendCompileHash(FNiagaraCompileHashVisitor* InVi
 	return false;
 #endif
 }
+
+bool UNiagaraNode::SetPinDefaultToTypeDefaultIfUnset(UEdGraphPin* InPin)
+{
+	UE_LOG(LogNiagaraEditor, Warning, TEXT("SetPinDefaultToTypeDefaultIfUnset"));
+
+	if (InPin->DefaultValue.Len() != 0)
+		return true;
+
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	FNiagaraTypeDefinition NiagaraType = Schema->PinToTypeDefinition(InPin);
+	bool bNeedsValue = NiagaraType.IsDataInterface() == false;
+	FNiagaraVariable Var = Schema->PinToNiagaraVariable(InPin, bNeedsValue);
+
+	FString PinDefaultValue;
+	if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Var, PinDefaultValue))
+	{
+		InPin->DefaultValue = PinDefaultValue;
+		return true;
+	}
+
+	return bNeedsValue;
+}
+
 
 bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 {
