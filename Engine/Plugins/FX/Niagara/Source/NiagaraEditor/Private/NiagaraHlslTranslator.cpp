@@ -7687,7 +7687,12 @@ void FHlslNiagaraTranslator::Convert(class UNiagaraNodeConvert* Convert, TArrayV
 			{
 				Error(FText::Format(LOCTEXT("ConvertTypeError_InvalidOutput", "Cannot handle output pin type {0}! Pin: {1}"), Type.GetNameText(), OutputPin->GetDisplayName()), nullptr, nullptr);
 			}
+			
+			// The convert node should already have issued errors if the connections aren't complete.
+			// So we won't do anything else here.
+			
 			int32 OutChunk = AddBodyChunk(GetUniqueSymbolName(OutputPin->PinName), TEXT(""), Type);
+
 			Outputs.Add(OutChunk);
 		}
 	}
@@ -8292,7 +8297,13 @@ bool FHlslNiagaraTranslator::AddStructToDefinitionSet(const FNiagaraTypeDefiniti
 		}
 
 		// Add the new type def
-		StructsToDefine.AddUnique(TypeDef);
+		if (!StructsToDefine.Contains(TypeDef))
+		{
+			StructsToDefine.Add(TypeDef);
+
+			// Add the struct name to the unique symbol names to make it so that we don't declare a variable the same name as the struct type.
+			GetUniqueSymbolName(*TypeDef.GetName());
+		}
 	}
 
 	return true;
