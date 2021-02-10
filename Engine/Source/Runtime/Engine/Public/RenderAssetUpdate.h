@@ -117,7 +117,11 @@ protected:
 	void MarkAsCancelled()
 	{
 		// StreamableAsset = nullptr; // TODO once Cancel supports it!
-		bIsCancelled = true;
+
+		if (TaskState != TS_Done) // do not cancel if we have already completed, see FORT-345212.
+		{
+			bIsCancelled = true;
+		}
 	}
 
 	void ScheduleGTTask();
