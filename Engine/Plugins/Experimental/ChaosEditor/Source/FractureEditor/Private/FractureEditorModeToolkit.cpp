@@ -444,6 +444,12 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 			UHistogramSettings* HistogramSettings = GetMutableDefault<UHistogramSettings>();
 			HistogramView->InspectAttribute(HistogramSettings->InspectedAttribute);
 		}
+		else if ( (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UHistogramSettings, bShowRigids)) ||
+			(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UHistogramSettings, bShowClusters)) ||
+			(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UHistogramSettings, bShowEmbedded)) )
+		{
+			HistogramView->RegenerateNodes(GetLevelViewValue());
+		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ItemText))
 		{
 			UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();

@@ -118,6 +118,14 @@ FGeometryCollectionHistogramItemPtr FGeometryCollectionHistogramItemComponent::G
 
 FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::RegenerateNodes(int32 LevelView)
 {
+	// Filter nodes by simulation type
+	UHistogramSettings* HistogramSettings = GetMutableDefault<UHistogramSettings>();
+	TArray<bool> FilterNodeFlags;
+	FilterNodeFlags.SetNum(FGeometryCollection::ESimulationTypes::FST_Max);
+	FilterNodeFlags[FGeometryCollection::ESimulationTypes::FST_None] = HistogramSettings->bShowEmbedded;
+	FilterNodeFlags[FGeometryCollection::ESimulationTypes::FST_Rigid] = HistogramSettings->bShowRigids;
+	FilterNodeFlags[FGeometryCollection::ESimulationTypes::FST_Clustered] = HistogramSettings->bShowClusters;
+	
 	// Collect the inspected attribute 
 	FGeometryCollectionHistogramItemList NodesList;
 	
@@ -139,7 +147,7 @@ FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::
 			// Add a sub item to the histogram for each of the geometry nodes in this GeometryCollection
 			for (int32 Index = 0; Index < NumElements; Index++)
 			{
-				if (Collection->SimulationType[Index] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+				if (FilterNodeFlags[Collection->SimulationType[Index]])
 				{
 					if (LevelView > -1)
 					{
@@ -255,12 +263,16 @@ void SGeometryCollectionHistogram::RefreshView(bool bSorted)
 
 void SGeometryCollectionHistogram::RegenerateNodes(int32 LevelView)
 {
+	LeafNodes.Empty();
 	for (TSharedPtr<FGeometryCollectionHistogramItemComponent> Root : RootNodes)
 	{
-		Root->RegenerateNodes(LevelView);
+		LeafNodes.Append(Root->RegenerateNodes(LevelView));
 	}
+	SetListIndices();
 
 	UHistogramSettings* HistogramSettings = GetMutableDefault<UHistogramSettings>();
+	InspectAttribute(HistogramSettings->InspectedAttribute);
+	NormalizeInspectedValues();
 	RefreshView(HistogramSettings->bSorted);
 }
 

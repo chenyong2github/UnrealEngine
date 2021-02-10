@@ -43,11 +43,23 @@ public:
 
 	/** What attribute are we inspecting? */
 	UPROPERTY(EditAnywhere, Category = HistogramSettings, meta = (DisplayName = "Inspected Attribute"))
-		EInspectedAttributeEnum InspectedAttribute;
+	EInspectedAttributeEnum InspectedAttribute;
 
 	/** Sort the values? */
 	UPROPERTY(EditAnywhere, Category = HistogramSettings, meta = (DisplayName = "Sort Values"))
-		bool bSorted;
+	bool bSorted;
+
+	/** Show clusters? */
+	UPROPERTY(EditAnywhere, Category = HistogramSettings, meta = (DisplayName = "Show Clusters"))
+	bool bShowClusters=true;
+
+	/** Show rigids? */
+	UPROPERTY(EditAnywhere, Category = HistogramSettings, meta = (DisplayName = "Show Rigids"))
+	bool bShowRigids=true;
+
+	/** Show embedded geometry? */
+	UPROPERTY(EditAnywhere, Category = HistogramSettings, meta = (DisplayName = "Show Embedded Geometry"))
+	bool bShowEmbedded=true;
 
 };
 
