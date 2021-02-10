@@ -67,14 +67,13 @@ int64 GDDCMisses = 0;
 class FThreadLocalScratchSpace
 {
 public:
-#define MAX_SCRATCHSPACE_THREADS 64
-#define ALLOC_BUFFER_SIZE (256 * 1024 * 1024)
 	static FThreadLocalScratchSpace& Get()
 	{
 		static FThreadLocalScratchSpace Result;
 		return Result;
 	}
 	struct FScratchSpace
+		: public FTlsAutoCleanup
 	{
 	public:
 		FScratchSpace()
@@ -82,6 +81,12 @@ public:
 			Size = 0;
 			Buffer = nullptr;
 		}
+
+		virtual ~FScratchSpace()
+		{
+			CleanUp();
+		}
+
 		int64 Size;
 		uint8* Buffer;
 		TArray<uint8> Array;
@@ -108,32 +113,29 @@ public:
 		ScratchSpace = (FScratchSpace*)FPlatformTLS::GetTlsValue(TLSSlot);
 		if (ScratchSpace == nullptr)
 		{
-			int32 MyScratchSpace = FPlatformAtomics::InterlockedIncrement(&ThreadCounter);
-			check(MyScratchSpace < (MAX_SCRATCHSPACE_THREADS - 1));
-			ScratchSpace = &ScratchSpaces[MyScratchSpace];
+			ScratchSpace = new FScratchSpace();
+			ScratchSpace->Register();
 			FPlatformTLS::SetTlsValue(TLSSlot, (void*)ScratchSpace);
 		}
 	}
 
 	void CleanUp()
 	{
-		for (int32 I = 0; I < MAX_SCRATCHSPACE_THREADS; ++I)
+		FScratchSpace* ScratchSpace = (FScratchSpace*)FPlatformTLS::GetTlsValue(TLSSlot);
+		if (ScratchSpace)
 		{
-			ScratchSpaces[I].CleanUp();
+			delete ScratchSpace;
+			FPlatformTLS::SetTlsValue(TLSSlot, nullptr);
 		}
-		ThreadCounter = 0;
 	}
 private:
 
 	FThreadLocalScratchSpace()
 	{
 		TLSSlot = FPlatformTLS::AllocTlsSlot();
-		ThreadCounter = 0;
 	}
 
 	uint32 TLSSlot;
-	volatile int32 ThreadCounter;
-	FScratchSpace ScratchSpaces[MAX_SCRATCHSPACE_THREADS];
 };
 
 
