@@ -308,10 +308,19 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Add native tags"));
 			// Add native tags before other tags
-		for (FName TagToAdd : NativeTagsToAdd)
-		{
-			AddTagTableRow(FGameplayTagTableRow(TagToAdd), FGameplayTagSource::GetNativeName());
+			for (FName TagToAdd : NativeTagsToAdd)
+			{
+				AddTagTableRow(FGameplayTagTableRow(TagToAdd), FGameplayTagSource::GetNativeName());
+			}
 		}
+
+		{
+			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Add sourced native tags"));
+			// Add native tags from a named source.
+			for (const auto& KVP : NativeSourcesToAdd)
+			{
+				AddTagsFromNativeSource(KVP.Key, KVP.Value);
+			}
 		}
 
 		// If we didn't load any tables it might be async loading, so load again with a flush
@@ -320,7 +329,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 			LoadGameplayTagTables(false);
 		}
 		
-			{
+		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Construct from data asset"));
 			for (UDataTable* DataTable : GameplayTagTables)
 				{
@@ -1848,6 +1857,76 @@ FGameplayTag UGameplayTagsManager::AddNativeGameplayTag(FName TagName, const FSt
 
 	return FGameplayTag();
 }
+
+FGameplayTag FNativeGameplayTagSource::Add(FName TagName, const FString& TagDevComment)
+{
+	if (TagName.IsNone())
+	{
+		return FGameplayTag();
+	}
+
+	FGameplayTag NewTag = FGameplayTag(TagName);
+	NativeTags.Add(FGameplayTagTableRow(TagName, TagDevComment));
+
+	return NewTag;
+}
+
+void UGameplayTagsManager::AddNativeGameplayTagSource(const FString& InNativeSourceName, TSharedRef<const FNativeGameplayTagSource> NativeSource)
+{
+	const FName NativeSourceName = FName(*(FGameplayTagSource::GetNativeName().ToString() + TEXT("+") + InNativeSourceName));
+
+	// Create native source specific to a plugin+module
+	FindOrAddTagSource(NativeSourceName, EGameplayTagSourceType::Native);
+
+	// Replace the old one, in case we reload or something, allow new ones to come in.
+	NativeSourcesToAdd.Add(NativeSourceName, NativeSource);
+
+	if (!bIsConstructingGameplayTagTree)
+	{
+#if WITH_EDITOR
+		EditorRefreshGameplayTagTree();
+#else
+		AddTagsFromNativeSource(NativeSourceName, NativeSource);
+#endif
+	}
+}
+
+void UGameplayTagsManager::RemoveNativeGameplayTagSource(const FString& InNativeSourceName)
+{
+	const FName NativeSourceName = FName(*(FGameplayTagSource::GetNativeName().ToString() + TEXT("+") + InNativeSourceName));
+
+	if (NativeSourcesToAdd.Remove(NativeSourceName) > 0)
+	{
+		if (!bIsConstructingGameplayTagTree)
+		{
+#if WITH_EDITOR
+			EditorRefreshGameplayTagTree();
+#else
+			ConstructNetIndex();
+
+			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+#endif
+		}
+	}
+}
+
+void UGameplayTagsManager::AddTagsFromNativeSource(FName NativeSourceName, TSharedPtr<const FNativeGameplayTagSource> NativeSource)
+{
+	if (!NativeSource.IsValid())
+	{
+		return;
+	}
+
+	for (const FGameplayTagTableRow& Row : NativeSource->NativeTags)
+	{
+		AddTagTableRow(Row, NativeSourceName);
+	}
+
+	ConstructNetIndex();
+
+	IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+}
+
 void UGameplayTagsManager::CallOrRegister_OnDoneAddingNativeTagsDelegate(FSimpleMulticastDelegate::FDelegate Delegate)
 {
 	if (bDoneAddingNativeTags)

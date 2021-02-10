@@ -257,6 +257,19 @@ private:
 	friend class SGameplayTagWidget;
 };
 
+struct GAMEPLAYTAGS_API FNativeGameplayTagSource : public FNoncopyable
+{
+	FNativeGameplayTagSource() { }
+
+protected:
+	FGameplayTag Add(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
+
+private:
+	TArray<FGameplayTagTableRow> NativeTags;
+
+	friend class UGameplayTagsManager;
+};
+
 /** Holds data about the tag dictionary, is in a singleton UObject */
 UCLASS(config=Engine)
 class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
@@ -325,7 +338,24 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	 * @return Will return the corresponding FGameplayTag
 	 */
 	FGameplayTag AddNativeGameplayTag(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
+	
+	/**
+	 * 
+	 */
+	void AddNativeGameplayTagSource(const FString& NativeSourceName, TSharedRef<const FNativeGameplayTagSource> NativeSource);
 
+	/**
+	 *
+	 */
+	void RemoveNativeGameplayTagSource(const FString& NativeSourceName);
+
+private:
+	/**
+	 * 
+	 */
+	void AddTagsFromNativeSource(FName NativeSourceName, TSharedPtr<const FNativeGameplayTagSource> NativeSource);
+
+public:
 	/** Call to flush the list of native tags, once called it is unsafe to add more */
 	void DoneAddingNativeTags();
 
@@ -726,6 +756,8 @@ private:
 
 	/** List of native tags to add when reconstructing tree */
 	TSet<FName> NativeTagsToAdd;
+
+	TMap<FName, TSharedPtr<const FNativeGameplayTagSource>> NativeSourcesToAdd;
 
 	TSet<FName> RestrictedGameplayTagSourceNames;
 
