@@ -265,6 +265,9 @@ public class Core : ModuleRules
 		// temporary thing.
 		PrivateDefinitions.Add("PLATFORM_SUPPORTS_BINARYCONFIG=" + (SupportsBinaryConfig(Target) ? "1" : "0"));
 
+		// temporary thing to enable backing out in case of disaster, remove after initial testing period.
+		PublicDefinitions.Add("GPUCULL_TODO=1");
+
 		PublicDefinitions.Add("WITH_MALLOC_STOMP=" + (bWithMallocStomp ? "1" : "0"));
 
 		PrivateDefinitions.Add("PLATFORM_COMPILER_OPTIMIZATION_LTCG=" + (Target.bAllowLTCG ? "1" : "0"));
