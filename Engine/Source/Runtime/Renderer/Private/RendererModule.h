@@ -18,6 +18,7 @@ class FSceneInterface;
 class FSceneView;
 class FSceneViewFamily;
 class FSceneViewStateInterface;
+class FViewInfo;
 struct FMeshBatch;
 struct FSynthBenchmarkResults;
 struct FSceneTextures;
