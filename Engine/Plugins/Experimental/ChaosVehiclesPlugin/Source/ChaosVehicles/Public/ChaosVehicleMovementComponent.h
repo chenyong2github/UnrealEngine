@@ -424,7 +424,8 @@ UENUM()
 enum class EInputFunctionType : uint8
 {
 	LinearFunction,
-	SquaredFunction
+	SquaredFunction,
+	CustomCurve
 };
 
 USTRUCT()
@@ -432,16 +433,30 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	// Rate at which the input value rises
+	/** 
+	 * Rate at which the input value rises
+	 */
 	UPROPERTY(EditAnywhere, Category=VehicleInputRate)
 	float RiseRate;
 
-	// Rate at which the input value falls
+	/**
+	 * Rate at which the input value falls
+	 */
 	UPROPERTY(EditAnywhere, Category=VehicleInputRate)
 	float FallRate;
 
+	/**
+	 * Controller input curve, various predefined options, linear, squared, or user can specify a custom curve function
+	 */
 	UPROPERTY(EditAnywhere, Category=VehicleInputRate)
 	EInputFunctionType InputCurveFunction;
+
+	/**
+	 * Controller input curve - should be a normalized float curve, i.e. time from 0 to 1 and values between 0 and 1
+	 * This curve is only sued if the InputCurveFunction above is set to CustomCurve
+	 */
+	UPROPERTY(EditAnywhere, Category = VehicleInputRate)
+	FRuntimeFloatCurve UserCurve;
 
 	FVehicleInputRateConfig() : RiseRate(5.0f), FallRate(5.0f) { }
 
@@ -462,9 +477,24 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 
 	float CalcControlFunction(float InputValue)
 	{
+		// user defined curve
+
+		// else use option from drop down list
 		switch (InputCurveFunction)
 		{
-
+		case EInputFunctionType::CustomCurve:
+		{
+			if (UserCurve.GetRichCurveConst() && !UserCurve.GetRichCurveConst()->IsEmpty())
+			{
+				float Output = UserCurve.GetRichCurveConst()->Eval(InputValue);
+				return FMath::Clamp(Output, 0.0f, 1.0f); // Ensure output is normalized
+			}
+			else
+			{
+				return InputValue;
+			}
+		}
+		break;
 		case EInputFunctionType::SquaredFunction:
 		{
 			return (InputValue < 0.f) ? -InputValue * InputValue : InputValue * InputValue;

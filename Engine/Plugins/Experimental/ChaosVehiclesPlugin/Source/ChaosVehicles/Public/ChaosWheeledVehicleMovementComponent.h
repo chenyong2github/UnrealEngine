@@ -417,9 +417,6 @@ struct FVehicleSteeringConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category = SteeringSetup)
-	EInputFunctionType SteeringInputType;
-
 	/** Single angle : both wheels steer by the same amount
 	 *  AngleRatio   : outer wheels on corner steer less than the inner ones by set ratio 
 	 *  Ackermann	 : Ackermann steering principle is applied */
