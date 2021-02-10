@@ -52,10 +52,14 @@ ENUM_CLASS_FLAGS(EAsyncWriteOptions)
 
 struct FScopedSavingFlag
 {
-	FScopedSavingFlag(bool InSavingConcurrent);
+	FScopedSavingFlag(bool InSavingConcurrent, UPackage* InSavedPackage);
 	~FScopedSavingFlag();
 
 	bool bSavingConcurrent;
+
+private:
+	// The package being saved
+	UPackage* SavedPackage = nullptr;
 };
 
 struct FSavePackageDiffSettings

@@ -49,7 +49,12 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("FindObjectFast"),STAT_FindObjectFast,STA
 
 // Private system wide variables.
 
-/** Set while in SavePackage() to detect certain operations that are illegal while saving */
+/** 
+ * Set while in SavePackage() to advertise that a package is being saved
+ * Deprecated, use `IsSavingPackage` instead
+ * @see IsSavingPackage()
+ */
+//UE_DEPRECATED(5.0, "Use the IsSavingPackage() function instead.")
 extern COREUOBJECT_API bool					GIsSavingPackage;
 /** This allows loading unversioned cooked content in the editor */
 extern COREUOBJECT_API int32				GAllowUnversionedContentInEditor;
@@ -160,6 +165,20 @@ struct FObjectDuplicationParameters
 	COREUOBJECT_API FObjectDuplicationParameters( UObject* InSourceObject, UObject* InDestOuter );
 };
 
+// @note: should we start putting the code in the UE namespace?
+namespace UE
+{
+	/**
+	 * Return if the passed in package is currently saving,
+	 * or if any packages are saving if no parameter is passed.
+	 * @param InOuter The object which we want to check if its package is saving
+	 * @returns true if the package is saving, or if any packages are saving if no parameter is passed in.
+	 */
+	COREUOBJECT_API bool IsSavingPackage(UObject* InOuter = nullptr);
+
+} // namespace UE
+
+
 /** Parses a bit mask of property flags into an array of string literals that match the flags */
 COREUOBJECT_API TArray<const TCHAR*> ParsePropertyFlags(EPropertyFlags Flags);
 
@@ -212,14 +231,14 @@ COREUOBJECT_API int32 UpdateSuffixForNextNewObject(UObject* Parent, const UClass
  * @param	Class			The to be found object's class
  * @param	InOuter			Outer object to look inside, if null this will only look for top level packages
  * @param	InName			Object name to look for relative to InOuter
- * @param	ExactClass		Whether to require an exact match with the passed in class
- * @param	AnyPackage		Whether to look in any package
+ * @param	bExactClass		Whether to require an exact match with the passed in class
+ * @param	bAnyPackage		Whether to look in any package
  * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
- * @param ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
+ * @param	ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
  *
  * @return	Returns a pointer to the found object or null if none could be found
  */
-COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, FName InName, bool ExactClass = false, bool AnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, FName InName, bool bExactClass = false, bool bAnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
 
 /**
  * Fast and safe version of StaticFindObject that relies on the passed in FName being the object name without any group/package qualifiers.
@@ -229,14 +248,14 @@ COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, F
  * @param	Class			The to be found object's class
  * @param	InOuter			Outer object to look inside, if null this will only look for top level packages
  * @param	InName			Object name to look for relative to InOuter
- * @param	ExactClass		Whether to require an exact match with the passed in class
- * @param	AnyPackage		Whether to look in any package
+ * @param	bExactClass		Whether to require an exact match with the passed in class
+ * @param	bAnyPackage		Whether to look in any package
  * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
- * @param ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
+ * @param	ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
  *
  * @return	Returns a pointer to the found object or null if none could be found
  */
-COREUOBJECT_API UObject* StaticFindObjectFastSafe(UClass* Class, UObject* InOuter, FName InName, bool ExactClass = false, bool AnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+COREUOBJECT_API UObject* StaticFindObjectFastSafe(UClass* Class, UObject* InOuter, FName InName, bool bExactClass = false, bool bAnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
 
 
 /**

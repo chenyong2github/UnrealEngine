@@ -168,6 +168,22 @@ void FArchiveObjectCrc32NonEditorProperties::Serialize(void* Data, int64 Length)
 
 static FThreadSafeCounter OutstandingAsyncWrites;
 
+
+// Initialization for GIsSavingPackage
+bool GIsSavingPackage = false;
+
+namespace UE
+{
+	bool IsSavingPackage(UObject* InOuter)
+	{
+		if (InOuter == nullptr)
+		{
+			return GIsSavingPackage;
+		}
+		return InOuter->GetPackage()->HasAnyPackageFlags(PKG_IsSaving);
+	}
+}
+
 namespace SavePackageUtilities
 {
 const FName NAME_World("World");
@@ -1559,8 +1575,9 @@ void VerifyEDLCookInfo(bool bFullReferencesExpected)
 	FEDLCookChecker::Verify(bFullReferencesExpected);
 }
 
-FScopedSavingFlag::FScopedSavingFlag(bool InSavingConcurrent)
+FScopedSavingFlag::FScopedSavingFlag(bool InSavingConcurrent, UPackage* InSavedPackage)
 	: bSavingConcurrent(InSavingConcurrent)
+	, SavedPackage(InSavedPackage)
 {
 	check(!IsGarbageCollecting());
 
@@ -1579,6 +1596,12 @@ FScopedSavingFlag::FScopedSavingFlag(bool InSavingConcurrent)
 	{
 		GIsSavingPackage = true;
 	}
+
+	// Mark the package as being saved 
+	if (SavedPackage)
+	{
+		SavedPackage->SetPackageFlags(PKG_IsSaving);
+	}
 }
 
 FScopedSavingFlag::~FScopedSavingFlag()
@@ -1595,6 +1618,12 @@ FScopedSavingFlag::~FScopedSavingFlag()
 	{
 		FGCCSyncObject::Get().UnlockAsync();
 	}
+
+	if (SavedPackage)
+	{
+		SavedPackage->ClearPackageFlags(PKG_IsSaving);
+	}
+
 }
 
 FSavePackageDiffSettings::FSavePackageDiffSettings(bool bDiffing)
@@ -1646,7 +1675,7 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 
 #if WITH_EDITORONLY_DATA
 	// Do we have any thumbnails to save?
-	if( !(Linker->Summary.PackageFlags & PKG_FilterEditorOnly) && InOuter->HasThumbnailMap() )
+	if( !(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly) && InOuter->HasThumbnailMap() )
 	{
 		const FThumbnailMap& PackageThumbnailMap = InOuter->GetThumbnailMap();
 
@@ -2124,7 +2153,7 @@ namespace AssetRegistry
 
 		// Collect the tag map
 		TArray<UObject*> AssetObjects;
-		if (!(Linker->Summary.PackageFlags & PKG_FilterEditorOnly))
+		if (!(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly))
 		{
 			// Find any exports which are not in the tag map
 			for (int32 i = 0; i < Linker->ExportMap.Num(); i++)

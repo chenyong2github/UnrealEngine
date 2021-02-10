@@ -2316,9 +2316,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			}
 
 			{
-				// set GIsSavingPackage here as it is now illegal to create any new object references; they potentially wouldn't be saved correctly								
-				FScopedSavingFlag IsSavingFlag(bSavingConcurrent);
-			
+				// set GIsSavingPackage here and mark the package as being saved
+				// as it is now illegal to create new object inside the package, they wouldn't be saved correctly
+				// it is now also illegal to find any new object references; they potentially wouldn't be saved correctly								
+				FScopedSavingFlag IsSavingFlag(bSavingConcurrent, InOuter);
 				{
 					SCOPED_SAVETIMER(UPackage_Save_TagExports);
 					COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::TagPackageExportsTimeSec));
@@ -2483,7 +2484,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 #endif
 
-				if (!(Linker->Summary.PackageFlags & PKG_FilterEditorOnly))
+				if (!(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly))
 				{
 					// The Editor version is used as part of the check to see if a package is too old to use the gather cache, so we always have to add it if we have gathered loc for this asset
 					// We need to set the editor custom version before we copy the version container to the summary, otherwise we may end up with corrupt assets
@@ -2500,17 +2501,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				bool bUseUnversionedProperties = bSaveUnversioned && CanUseUnversionedPropertySerialization(TargetPlatform);
 				Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
-				Linker->Saver->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
-				if (bUseUnversionedProperties)
-				{
-					Linker->Summary.PackageFlags |= PKG_UnversionedProperties;
-					Linker->LinkerRoot->SetPackageFlags(PKG_UnversionedProperties);
-				}
-				else
-				{
-					Linker->Summary.PackageFlags &= ~PKG_UnversionedProperties;
-					Linker->LinkerRoot->ClearPackageFlags(PKG_UnversionedProperties);
-				}
 
 				// Make sure the package has the same version as the linker
 				InOuter->LinkerPackageVersion = Linker->UE4Ver();
@@ -3120,7 +3110,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("GatherableTextData")));
 				Linker->Summary.GatherableTextDataOffset = 0;
 				Linker->Summary.GatherableTextDataCount = 0;
-				if (!(Linker->Summary.PackageFlags & PKG_FilterEditorOnly))
+				if (!(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly))
 				{
 					SCOPED_SAVETIMER(UPackage_Save_WriteGatherableTextData);
 
@@ -3605,7 +3595,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				SlowTask.EnterProgressFrame();
 
 				// Only save string asset and searchable name map if saving for editor
-				if (!(Linker->Summary.PackageFlags & PKG_FilterEditorOnly))
+				if (!(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly))
 				{
 					SCOPED_SAVETIMER(UPackage_Save_SaveSoftPackagesAndSearchableNames);
 
@@ -3784,7 +3774,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							{
 								UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is pending kill. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
 							}
-							bool bNotFiltered = (ExcludedObjectMarks == OBJECTMARK_NOMARKS || !ToTest->HasAnyMarks(ExcludedObjectMarks)) && (!(Linker->Summary.PackageFlags & PKG_FilterEditorOnly) || !IsEditorOnlyObject(ToTest, false, true));
+							bool bNotFiltered = (ExcludedObjectMarks == OBJECTMARK_NOMARKS || !ToTest->HasAnyMarks(ExcludedObjectMarks)) && (!(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly) || !IsEditorOnlyObject(ToTest, false, true));
 							if (bMandatory && !bNotFiltered)
 							{
 								UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' was filtered, but is mandatory. This indicates a problem with editor only stripping. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
@@ -4328,7 +4318,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				Linker->LinkerRoot->ThisRequiresLocalizationGather(Linker->RequiresLocalizationGather());
 				
 				// Update package flags from package, in case serialization has modified package flags.
-				Linker->Summary.PackageFlags = Linker->LinkerRoot->GetPackageFlags() & ~PKG_NewlyCreated;
+				Linker->Summary.SetPackageFlags(Linker->LinkerRoot->GetPackageFlags());
 				
 				{
 					// Verify that the final serialization pass hasn't added any new custom versions. Otherwise this will result in crashes when loading the package.

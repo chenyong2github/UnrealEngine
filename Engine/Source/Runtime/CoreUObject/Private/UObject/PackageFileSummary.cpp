@@ -397,3 +397,9 @@ void FPackageFileSummary::SetCustomVersionContainer(const FCustomVersionContaine
 	CustomVersionContainer = InContainer;
 	CustomVersionContainer.SortByKey();
 }
+
+void FPackageFileSummary::SetPackageFlags(uint32 InPackageFlags)
+{
+	// Package summary flags cannot contain the 'NewlyCreated' nor the 'IsSaving' flag
+	PackageFlags = InPackageFlags & ~(PKG_NewlyCreated | PKG_IsSaving);
+}

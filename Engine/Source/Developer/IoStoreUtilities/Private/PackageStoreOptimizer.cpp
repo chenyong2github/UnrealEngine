@@ -117,7 +117,7 @@ void FPackageStoreOptimizer::LoadCookedHeader(FPackageStorePackage* Package, con
 		Ar << Package->Summary;
 	}
 
-	Package->PackageFlags = Package->Summary.PackageFlags;
+	Package->PackageFlags = Package->Summary.GetPackageFlags();
 	Package->CookedHeaderSize = Package->Summary.TotalHeaderSize;
 
 	Ar.SetFilterEditorOnly((Package->PackageFlags & EPackageFlags::PKG_FilterEditorOnly) != 0);

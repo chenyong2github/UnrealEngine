@@ -2401,7 +2401,7 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 		delete CheckMapPackageFile;
 
 		// Check flag.
-		if( ( Summary.PackageFlags & PKG_ContainsMap ) == 0 )
+		if( ( Summary.GetPackageFlags() & PKG_ContainsMap ) == 0 )
 		{
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("File"), FText::FromString( FString( PackageFilename ) ));

@@ -1266,7 +1266,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	}
 
 	// Set desired property tag format
-	bool bUseUnversionedProperties = (Summary.PackageFlags & PKG_UnversionedProperties) != 0;
+	bool bUseUnversionedProperties = (Summary.GetPackageFlags() & PKG_UnversionedProperties) != 0;
 	SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 	Loader->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 
@@ -1297,14 +1297,14 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	}
 
 	// don't load packages that contain editor only data in builds that don't support that and vise versa
-	if (!FPlatformProperties::HasEditorOnlyData() && !(Summary.PackageFlags & PKG_FilterEditorOnly))
+	if (!FPlatformProperties::HasEditorOnlyData() && !(Summary.GetPackageFlags() & PKG_FilterEditorOnly))
 	{
 		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s). Package contains EditorOnly data which is not supported by the current build."), *GetDebugName());
 		return LINKER_Failed;
 	}
 
 	// don't load packages that contain editor only data in builds that don't support that and vise versa
-	if (FPlatformProperties::HasEditorOnlyData() && !!(Summary.PackageFlags & PKG_FilterEditorOnly))
+	if (FPlatformProperties::HasEditorOnlyData() && !!(Summary.GetPackageFlags() & PKG_FilterEditorOnly))
 	{
 		// This warning can be disabled in ini or project settings
 		if (!GAllowCookedDataInEditorBuilds)
@@ -1327,7 +1327,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 #if PLATFORM_WINDOWS && DO_GUARD_SLOW
 	if (!FPlatformProperties::RequiresCookedData() &&
 		// We can't check the post tag if the file is an EDL cooked package
-		!((Summary.PackageFlags & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
+		!((Summary.GetPackageFlags() & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
 		&& !IsTextFormat())
 	{
 		// check if this package version stored the 4-byte magic post tag
@@ -1443,7 +1443,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 	SetEngineVer(Summary.SavedByEngineVersion);
 	SetCustomVersions(SummaryVersions);
 
-	if (Summary.PackageFlags & PKG_FilterEditorOnly)
+	if (Summary.GetPackageFlags() & PKG_FilterEditorOnly)
 	{
 		SetFilterEditorOnly(true);
 	}
@@ -1470,7 +1470,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 	if (UPackage* LinkerRootPackage = LinkerRoot)
 	{
 		// Preserve PIE package flag
-		uint32 NewPackageFlags = Summary.PackageFlags;
+		uint32 NewPackageFlags = Summary.GetPackageFlags();
 		if (LinkerRootPackage->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
 			NewPackageFlags |= PKG_PlayInEditor;
@@ -1509,7 +1509,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 		}
 
 #if WITH_EDITORONLY_DATA
-		LinkerRootPackage->bIsCookedForEditor = !!(Summary.PackageFlags & PKG_FilterEditorOnly);
+		LinkerRootPackage->bIsCookedForEditor = !!(Summary.GetPackageFlags() & PKG_FilterEditorOnly);
 #endif
 	}
 

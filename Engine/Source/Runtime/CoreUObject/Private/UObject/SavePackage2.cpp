@@ -1673,7 +1673,7 @@ ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredAr
 		Linker->LinkerRoot->ThisRequiresLocalizationGather(Linker->RequiresLocalizationGather());
 
 		// Update package flags from package, in case serialization has modified package flags.
-		Linker->Summary.PackageFlags = Linker->LinkerRoot->GetPackageFlags() & ~PKG_NewlyCreated;
+		Linker->Summary.SetPackageFlags(Linker->LinkerRoot->GetPackageFlags());
 
 		// @todo: custom versions: when can this be checked?
 		{
@@ -1963,7 +1963,7 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 
 	// @todo: Need to adjust GIsSavingPackage to properly prevent generating reference once, package harvesting is done
 	// GIsSavingPackage is too harsh however, since it should be scope only to the current package
-	FScopedSavingFlag IsSavingFlag(SaveContext.IsConcurrent());
+	FScopedSavingFlag IsSavingFlag(SaveContext.IsConcurrent(), SaveContext.GetPackage());
 
 	// Validate Exports
 	SlowTask.EnterProgressFrame();

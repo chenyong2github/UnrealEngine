@@ -947,7 +947,7 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 	Out.Logf(ELogVerbosity::Display, TEXT("\t     File Version: %i"), Linker->UE4Ver() );
 	Out.Logf(ELogVerbosity::Display, TEXT("\t   Engine Version: %s"), *Linker->Summary.SavedByEngineVersion.ToString());
 	Out.Logf(ELogVerbosity::Display, TEXT("\t   Compat Version: %s"), *Linker->Summary.CompatibleWithEngineVersion.ToString());
-	Out.Logf(ELogVerbosity::Display, TEXT("\t     PackageFlags: %X"), Linker->Summary.PackageFlags );
+	Out.Logf(ELogVerbosity::Display, TEXT("\t     PackageFlags: %X"), Linker->Summary.GetPackageFlags() );
 	Out.Logf(ELogVerbosity::Display, TEXT("\t        NameCount: %d"), Linker->Summary.NameCount );
 	Out.Logf(ELogVerbosity::Display, TEXT("\t       NameOffset: %d"), Linker->Summary.NameOffset );
 	Out.Logf(ELogVerbosity::Display, TEXT("\t      ImportCount: %d"), Linker->Summary.ImportCount );

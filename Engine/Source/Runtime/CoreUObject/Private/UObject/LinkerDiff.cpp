@@ -95,7 +95,7 @@ void FLinkerDiff::GenerateSummaryDiff(FLinker* LHSLinker, FLinker* RHSLinker)
 	//CustomVersionContainer
 
 	//COMPARE_MEMBER(LHSSummary, RHSSummary, TotalHeaderSize);
-	COMPARE_MEMBER(LHSSummary, RHSSummary, PackageFlags);
+	COMPARE_MEMBER(LHSSummary, RHSSummary, GetPackageFlags());
 	//FolderName
 	COMPARE_MEMBER(LHSSummary, RHSSummary, NameCount);
 	//COMPARE_MEMBER(LHSSummary, RHSSummary, NameOffset);

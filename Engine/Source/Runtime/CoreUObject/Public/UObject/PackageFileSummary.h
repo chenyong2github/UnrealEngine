@@ -58,17 +58,17 @@ private:
 	/* Custom version numbers. Keyed off a unique tag for each custom component. */
 	FCustomVersionContainer CustomVersionContainer;
 
+	/**
+	 * The flags for the package
+	 */
+	uint32	PackageFlags;
+
 public:
 	/**
 	* Total size of all information that needs to be read in to create a FLinkerLoad. This includes
 	* the package file summary, name table and import & export maps.
 	*/
 	int32		TotalHeaderSize;
-
-	/**
-	* The flags for the package
-	*/
-	uint32	PackageFlags;
 
 	/**
 	* The Generic Browser folder name that this package lives in
@@ -240,6 +240,15 @@ public:
 		FileVersionLicenseeUE4 = LicenseeUE4;
 		bUnversioned = bInSaveUnversioned;
 	}
+
+	/** Get the summary package flags. */
+	uint32 GetPackageFlags() const
+	{
+		return PackageFlags;
+	}
+
+	/** Set the summary package flags while stripping out temporary flags (i.e. NewlyCreated, IsSaving) */
+	void SetPackageFlags(uint32 InPackageFlags);
 
 	/** I/O functions */
 	friend COREUOBJECT_API FArchive& operator<<(FArchive& Ar, FPackageFileSummary& Sum);

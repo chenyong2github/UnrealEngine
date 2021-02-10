@@ -660,7 +660,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		if (bSkipGatherCache && PackageFileSummary.GetFileVersionUE4() >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES)
 		{
 			// Fallback on the old package flag check.
-			if (PackageFileSummary.PackageFlags & PKG_RequiresLocalizationGather)
+			if (PackageFileSummary.GetPackageFlags() & PKG_RequiresLocalizationGather)
 			{
 				PackagePendingGather.PackageLocCacheState = EPackageLocCacheState::Uncached_NoCache;
 			}
@@ -677,7 +677,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		else if (PackageFileSummary.GetFileVersionUE4() < VER_UE4_SERIALIZE_TEXT_IN_PACKAGES || (!EditorVersion || EditorVersion->Version < FEditorObjectVersion::GatheredTextEditorOnlyPackageLocId))
 		{
 			// Fallback on the old package flag check.
-			if (PackageFileSummary.PackageFlags & PKG_RequiresLocalizationGather)
+			if (PackageFileSummary.GetPackageFlags() & PKG_RequiresLocalizationGather)
 			{
 				PackagePendingGather.PackageLocCacheState = EPackageLocCacheState::Uncached_TooOld;
 			}
@@ -696,7 +696,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		}
 
 		// If this package doesn't have any cached data, then we have to load it for gather
-		if (PackageFileSummary.GetFileVersionUE4() >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES && PackageFileSummary.GatherableTextDataOffset == 0 && (PackageFileSummary.PackageFlags & PKG_RequiresLocalizationGather))
+		if (PackageFileSummary.GetFileVersionUE4() >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES && PackageFileSummary.GatherableTextDataOffset == 0 && (PackageFileSummary.GetPackageFlags() & PKG_RequiresLocalizationGather))
 		{
 			PackagePendingGather.PackageLocCacheState = EPackageLocCacheState::Uncached_NoCache;
 		}

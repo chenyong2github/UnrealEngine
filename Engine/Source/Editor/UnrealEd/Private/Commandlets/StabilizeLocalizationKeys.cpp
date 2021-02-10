@@ -254,7 +254,7 @@ int32 UStabilizeLocalizationKeysCommandlet::Main(const FString& Params)
 			FPackageFileSummary PackageFileSummary;
 			(*FileReader) << PackageFileSummary;
 
-			const bool bRequiresKeyStabilization = !!(PackageFileSummary.PackageFlags & PKG_RequiresLocalizationGather);
+			const bool bRequiresKeyStabilization = !!(PackageFileSummary.GetPackageFlags() & PKG_RequiresLocalizationGather);
 			if (bRequiresKeyStabilization)
 			{
 				UnstablePackages.Add(PackageFilename);

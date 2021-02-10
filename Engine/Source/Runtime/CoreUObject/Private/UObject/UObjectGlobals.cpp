@@ -70,8 +70,6 @@ DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 #include "ProfilingDebugging/MallocProfiler.h"
 #endif
 
-bool GIsSavingPackage = false;
-
 int32 GAllowUnversionedContentInEditor = 0;
 
 static FAutoConsoleVariableRef CVarAllowUnversionedContentInEditor(
@@ -289,37 +287,37 @@ int32 UpdateSuffixForNextNewObject(UObject* Parent, const UClass* Class, TFuncti
 //
 // Find an object, path must unqualified
 //
-UObject* StaticFindObjectFast(UClass* ObjectClass, UObject* ObjectPackage, FName ObjectName, bool ExactClass, bool AnyPackage, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
+UObject* StaticFindObjectFast(UClass* ObjectClass, UObject* ObjectPackage, FName ObjectName, bool bExactClass, bool bAnyPackage, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
 {
-	if (GIsSavingPackage || IsGarbageCollectingOnGameThread())
+	if (UE::IsSavingPackage(nullptr) || IsGarbageCollectingOnGameThread())
 	{
 		UE_LOG(LogUObjectGlobals, Fatal,TEXT("Illegal call to StaticFindObjectFast() while serializing object data or garbage collecting!"));
 	}
 
 	// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
 	ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;	
-	UObject* FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, ExactClass, AnyPackage, ExclusiveFlags, ExclusiveInternalFlags);
+	UObject* FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, bExactClass, bAnyPackage, ExclusiveFlags, ExclusiveInternalFlags);
 
 	if (!FoundObject)
 	{
-		FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, ExactClass);
+		FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, bExactClass);
 	}
 
 	return FoundObject;
 }
 
-UObject* StaticFindObjectFastSafe(UClass* ObjectClass, UObject* ObjectPackage, FName ObjectName, bool ExactClass, bool AnyPackage, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
+UObject* StaticFindObjectFastSafe(UClass* ObjectClass, UObject* ObjectPackage, FName ObjectName, bool bExactClass, bool bAnyPackage, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
 {
 	UObject* FoundObject = nullptr;
 	
-	if (!GIsSavingPackage && !IsGarbageCollectingOnGameThread())
+	if (!UE::IsSavingPackage(nullptr) && !IsGarbageCollectingOnGameThread())
 	{
 		// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
 		ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;
-		FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, ExactClass, AnyPackage, ExclusiveFlags, ExclusiveInternalFlags);
+		FoundObject = StaticFindObjectFastInternal(ObjectClass, ObjectPackage, ObjectName, bExactClass, bAnyPackage, ExclusiveFlags, ExclusiveInternalFlags);
 		if (!FoundObject)
 		{
-			FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, ExactClass);
+			FoundObject = StaticFindObjectWithChangedLegacyPath(ObjectClass, ObjectPackage, ObjectName, bExactClass);
 		}
 	}
 
@@ -329,26 +327,15 @@ UObject* StaticFindObjectFastSafe(UClass* ObjectClass, UObject* ObjectPackage, F
 //
 // Find an optional object.
 //
-UObject* StaticFindObject( UClass* ObjectClass, UObject* InObjectPackage, const TCHAR* OrigInName, bool ExactClass )
+UObject* StaticFindObject( UClass* ObjectClass, UObject* InObjectPackage, const TCHAR* OrigInName, bool bExactClass )
 {
 	INC_DWORD_STAT(STAT_FindObject);
-
-	if (GIsSavingPackage)
-	{
-		UE_LOG(LogUObjectGlobals, Fatal,TEXT("Illegal call to StaticFindObject() while serializing object data!"));
-	}
-
-	if (IsGarbageCollectingOnGameThread())
-	{
-		UE_LOG(LogUObjectGlobals, Fatal,TEXT("Illegal call to StaticFindObject() while collecting garbage!"));
-	}
 
 	// Resolve the object and package name.
 	const bool bAnyPackage = InObjectPackage==ANY_PACKAGE;
 	UObject* ObjectPackage = bAnyPackage ? nullptr : InObjectPackage;
 
 	UObject* MatchingObject = nullptr;
-
 #if WITH_EDITOR
 	// If the editor is running, and T3D is being imported, ensure any packages referenced are fully loaded.
 	if ((GIsEditor == true) && (GIsImportingT3D == true))// && (ObjectPackage != ANY_PACKAGE) && (ObjectPackage != NULL))
@@ -394,7 +381,7 @@ UObject* StaticFindObject( UClass* ObjectClass, UObject* InObjectPackage, const 
 		ObjectName = FName(*InName, FNAME_Add);
 	}
 
-	return StaticFindObjectFast(ObjectClass, ObjectPackage, ObjectName, ExactClass, bAnyPackage);
+	return StaticFindObjectFast(ObjectClass, ObjectPackage, ObjectName, bExactClass, bAnyPackage);
 }
 
 //
@@ -413,18 +400,18 @@ UObject* StaticFindObjectChecked( UClass* ObjectClass, UObject* ObjectParent, co
 }
 
 //
-// Find an object; won't assert on GIsSavingPackage or IsGarbageCollecting()
+// Find an object; won't assert on UE::IsSavingPackage() or IsGarbageCollecting()
 //
-UObject* StaticFindObjectSafe( UClass* ObjectClass, UObject* ObjectParent, const TCHAR* InName, bool ExactClass )
+UObject* StaticFindObjectSafe( UClass* ObjectClass, UObject* ObjectParent, const TCHAR* InName, bool bExactClass )
 {
-	if (!GIsSavingPackage && !IsGarbageCollectingOnGameThread())
+	if (!UE::IsSavingPackage(nullptr) && !IsGarbageCollectingOnGameThread())
 	{
-		FGCScopeGuard GCAndSavepackageGuard;
-		return StaticFindObject( ObjectClass, ObjectParent, InName, ExactClass );
+		FGCScopeGuard GCGuard;
+		return StaticFindObject( ObjectClass, ObjectParent, InName, bExactClass );
 	}
 	else
 	{
-		return NULL;
+		return nullptr;
 	}
 }
 
@@ -2421,15 +2408,15 @@ UObject* StaticAllocateObject
 		}
 	}
 
-	FLinkerLoad*	Linker						= NULL;
-	int32				LinkerIndex					= INDEX_NONE;
+	FLinkerLoad*	Linker						= nullptr;
+	int32			LinkerIndex					= INDEX_NONE;
 	bool			bWasConstructedOnOldObject	= false;
 	// True when the object to be allocated already exists and is a subobject.
 	bool bSubObject = false;
 	int32 TotalSize = InClass->GetPropertiesSize();
 	checkSlow(TotalSize);
 
-	if( Obj == NULL )
+	if( Obj == nullptr )
 	{	
 		int32 Alignment	= FMath::Max( 4, InClass->GetMinAlignment() );
 		Obj = (UObject *)GUObjectAllocator.AllocateUObject(TotalSize,Alignment,GIsInitialLoad);
@@ -2536,7 +2523,7 @@ UObject* StaticAllocateObject
 
 	if (!bSubObject)
 	{
-			FMemory::Memzero((void *)Obj, TotalSize);
+		FMemory::Memzero((void *)Obj, TotalSize);
 		new ((void *)Obj) UObjectBase(const_cast<UClass*>(InClass), InFlags|RF_NeedInitialization, InternalSetFlags, InOuter, InName);
 	}
 	else
@@ -3357,7 +3344,9 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 	UObject* Result = NULL;
 
 #if WITH_EDITORONLY_DATA
-	UE_CLOG(GIsSavingPackage && InOuter != GetTransientPackage(), LogUObjectGlobals, Fatal, TEXT("Illegal call to StaticConstructObject() while serializing object data! (Object will not be saved!)"));
+	// Check if we can construct the object: you can construct the object if its a package (InOuter is null) or the package the object is created in is not currently saving
+	bool bCanConstruct = InOuter == nullptr || !UE::IsSavingPackage(Params.ExternalPackage ? Params.ExternalPackage : InOuter->GetPackage()); 
+	UE_CLOG(!bCanConstruct, LogUObjectGlobals, Fatal, TEXT("Illegal call to StaticConstructObject() while serializing object data! (Object will not be saved!)"));
 #endif
 
 	checkf(!InTemplate || InTemplate->IsA(InClass) || (InFlags & RF_ClassDefaultObject), TEXT("StaticConstructObject %s is not an instance of class %s and it is not a CDO."), *GetFullNameSafe(InTemplate), *GetFullNameSafe(InClass)); // template must be an instance of the class we are creating, except CDOs
@@ -3379,7 +3368,7 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 
 	bool bRecycledSubobject = false;	
 	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, Params.InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject, Params.ExternalPackage);
-	check(Result != NULL);
+	check(Result != nullptr);
 	// Don't call the constructor on recycled subobjects, they haven't been destroyed.
 	if (!bRecycledSubobject)
 	{		

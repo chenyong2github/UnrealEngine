@@ -4370,6 +4370,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 
 		
 	bDidSomething = LoadedPackagesToProcess.Num() > 0;
+
 	for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num() && !IsAsyncLoadingSuspendedInternal(); ++PackageIndex)
 	{
 		FAsyncPackage* Package = LoadedPackagesToProcess[PackageIndex];
@@ -7270,7 +7271,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 					FMaxPackageSummarySize::Value, *PackagePath.GetDebugName(), Ar.Tell());
 				
 				// Support for cooked EDL packages in the editor
-				bCookedForEDLInEditor = !FPlatformProperties::RequiresCookedData() && (Sum.PackageFlags & PKG_FilterEditorOnly) && Sum.PreloadDependencyCount > 0 && Sum.PreloadDependencyOffset > 0;
+				bCookedForEDLInEditor = !FPlatformProperties::RequiresCookedData() && (Sum.GetPackageFlags() & PKG_FilterEditorOnly) && Sum.PreloadDependencyCount > 0 && Sum.PreloadDependencyOffset > 0;
 
 				HeaderSize = Sum.TotalHeaderSize;
 				LogItem(TEXT("Starting Header"), 0, HeaderSize);
