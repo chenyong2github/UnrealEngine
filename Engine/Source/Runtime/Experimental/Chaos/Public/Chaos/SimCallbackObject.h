@@ -77,11 +77,12 @@ protected:
 
 	ISimCallbackObject()
 	: bPendingDelete(false)
+	, bPendingDelete_External(false)
 	, bContactModification(false)
 	, CurrentExternalInput_External(nullptr)
 	, Solver(nullptr)
-	, CurrentInput_Internal(nullptr)
 	, CurrentOutput_Internal(nullptr)
+	, CurrentInput_Internal(nullptr)
 	{
 	}
 
@@ -93,11 +94,6 @@ protected:
 
 	void SetCurrentInput_Internal(FSimCallbackInput* NewInput)
 	{
-		if(CurrentInput_Internal)
-		{
-			CurrentInput_Internal->Release_Internal(*this);
-		}
-
 		CurrentInput_Internal = NewInput;
 	}
 
@@ -145,8 +141,10 @@ private:
 
 	friend class FPhysicsSolverBase;
 	friend class FChaosMarshallingManager;
+	friend struct FPushPhysicsData;
 
 	bool bPendingDelete;	//used internally for more efficient deletion. Callbacks do not need to check this
+	bool bPendingDelete_External;	//used for efficient deletion. Callbacks do not need to check this
 	bool bContactModification;
 
 	FSimCallbackInput* CurrentExternalInput_External;	//the input currently being filled out by external thread
@@ -157,9 +155,12 @@ private:
 	void SetContactModification(bool InContactModification) { bContactModification = InContactModification; }
 
 protected:
-	FSimCallbackInput* CurrentInput_Internal;	        //the input associated with the step we are executing.
 	FSimCallbackOutput* CurrentOutput_Internal;	//the output currently being written to in this sim step
+
+	const FSimCallbackInput* GetCurrentInput_Internal() const { return CurrentInput_Internal; }
 private:
+	FSimCallbackInput* CurrentInput_Internal;	        //the input associated with the step we are executing.
+
 	FReal SimTime_Internal;
 	FReal DeltaTime_Internal;
 };
@@ -234,7 +235,7 @@ public:
 	*/
 	const TInputType* GetConsumerInput_Internal() const
 	{
-		return static_cast<const TInputType*>(CurrentInput_Internal);
+		return static_cast<const TInputType*>(GetCurrentInput_Internal());
 	}
 
 	/**

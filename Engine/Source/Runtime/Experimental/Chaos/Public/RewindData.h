@@ -743,4 +743,31 @@ private:
 	bool bNeedsSave;	//Indicates that some data is pointing at head and requires saving before a rewind
 	bool bResimOptimization;
 };
+
+/** Used by user code to determine when rewind should occur and gives it the opportunity to record any additional data */
+class IRewindCallback
+{
+public:
+	virtual ~IRewindCallback() = default;
+	/** Called before any sim callbacks are triggered but after physics data has marshalled over
+	*   This means brand new physics particles are already created for example, and any pending game thread modifications have happened
+	*   See ISimCallbackObject for recording inputs to callbacks associated with this PhysicsStep */
+	virtual void RecordInputs(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs){}
+
+	/** Called after sim step to give the option to rewind. Any pending inputs for the next frame will remain in the queue
+	*   Return the PhysicsStep to start resimulating from. Resim will run up until latest step passed into RecordInputs (i.e. latest physics sim simulated so far)
+	*   Return INDEX_NONE to indicate no rewind
+	*/
+	virtual int32 TriggerRewindIfNeeded(int32 LatestStepCompleted) { return INDEX_NONE; }
+
+	/** Called before each rewind step. This is to give user code the opportunity to trigger other code before each rewind step
+	*   Usually to simulate external systems that ran in lock step with the physics sim
+	*/
+	virtual void PreResimStep(int32 PhysicsStep, bool bFirstStep){}
+
+	/** Called after each rewind step. This is to give user code the opportunity to trigger other code after each rewind step
+	*   Usually to simulate external systems that ran in lock step with the physics sim
+	*/
+	virtual void PostResimStep(int32 PhysicsStep){}
+};
 }

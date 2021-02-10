@@ -399,43 +399,67 @@ namespace ChaosTest {
 		});
 	}
 
+	struct FRewindCallbackTestHelper : public IRewindCallback
+	{
+		FRewindCallbackTestHelper(const int32 InNumPhysicsSteps, const int32 InRewindToStep = 0)
+			: NumPhysicsSteps(InNumPhysicsSteps)
+			, RewindToStep(InRewindToStep)
+		{
+		}
+
+		virtual int32 TriggerRewindIfNeeded(int32 LatestStepCompleted) override
+		{
+			if (LatestStepCompleted + 1 == NumPhysicsSteps && bRewound == false)
+			{
+				return RewindToStep;
+			}
+
+			return INDEX_NONE;
+		}
+
+		virtual void PreResimStep(int32 Step, bool bFirst) override
+		{
+			bRewound = true;
+			PreFunc(Step);
+		}
+
+		virtual void PostResimStep(int32 Step) override
+		{
+			PostFunc(Step);
+		}
+
+		int32 NumPhysicsSteps;
+		int32 RewindToStep;
+		bool bRewound = false;
+		TFunction<void (int32)> PreFunc;
+		TFunction<void(int32)> PostFunc;
+	};
+
+	template <typename TSolver>
+	FRewindCallbackTestHelper* RegisterCallbackHelper(TSolver* Solver, const int32 NumPhysicsSteps, const int32 RewindTo = 0)
+	{
+		auto Callback = MakeUnique<FRewindCallbackTestHelper>(NumPhysicsSteps, RewindTo);
+		FRewindCallbackTestHelper* Result = Callback.Get();
+		Solver->SetRewindCallback(MoveTemp(Callback));
+		return Result;
+	}
+
 	TYPED_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleport)
 	{
 		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 			const int32 LastGameStep = 20;
-			{
-				auto& Particle = Proxy->GetGameThreadAPI();
-				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
-				Particle.SetGravityEnabled(true);
-				Particle.SetX(FVec3(0, 0, 100));
-
-				for (int Step = 0; Step <= LastGameStep; ++Step)
-				{
-					//teleport from GT
-					if (Step == 5)
-					{
-						Particle.SetX(FVec3(0, 0, 10));
-						Particle.SetV(FVec3(0, 0, 0));
-					}
-
-					TickSolverHelper(Solver);
-				}
-			}
-			
-			FPhysicsThreadContextScope Scope(true);
-			auto& Particle = *Proxy->GetPhysicsThreadAPI();
-			
-			FRewindData* RewindData = Solver->GetRewindData();
-			RewindData->RewindToFrame(0);
-			Solver->DisableAsyncMode();	//during resim we sim directly at fixed dt
-
-			const int32 LastSimStep = LastGameStep / SimDt;
 			FReal ExpectedVZ = 0;
 			FReal ExpectedXZ = 100;
+			int32 FirstStepResim = INT_MAX;
+			int32 NumResimSteps = 0;
 
-			for (int Step = 0; Step < LastSimStep - 1; ++Step)
+			FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver, FMath::TruncToInt(LastGameStep / SimDt) );
+			Helper->PreFunc = [Proxy, SimDt, &ExpectedVZ, &ExpectedXZ, &FirstStepResim, &NumResimSteps](const int32 Step)
 			{
+				FirstStepResim = FMath::Min(Step, FirstStepResim);
+				NumResimSteps++;
+				auto& Particle = *Proxy->GetPhysicsThreadAPI();
 				const float SimStart = SimDt * Step;
 				const float SimEnd = SimDt * (Step + 1);
 				if (SimStart <= 5 && SimEnd > 5)
@@ -448,15 +472,39 @@ namespace ChaosTest {
 
 				EXPECT_NEAR(Particle.X()[2], ExpectedXZ, 1e-4);
 				EXPECT_NEAR(Particle.V()[2], ExpectedVZ, 1e-4);
+			};
 
-				TickSolverHelper(Solver, SimDt);
-
+			Helper->PostFunc = [Proxy, SimDt, &ExpectedVZ, &ExpectedXZ](const int32 Step)
+			{
+				auto& Particle = *Proxy->GetPhysicsThreadAPI();
 				ExpectedVZ -= SimDt;
 				ExpectedXZ += ExpectedVZ * SimDt;
 
 				EXPECT_NEAR(Particle.X()[2], ExpectedXZ, 1e-4);
 				EXPECT_NEAR(Particle.V()[2], ExpectedVZ, 1e-4);
+			};
+
+			{
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+				Particle.SetGravityEnabled(true);
+				Particle.SetX(FVec3(0, 0, 100));
+
+				for (int Step = 0; Step < LastGameStep; ++Step)
+				{
+					//teleport from GT
+					if (Step == 5)
+					{
+						Particle.SetX(FVec3(0, 0, 10));
+						Particle.SetV(FVec3(0, 0, 0));
+					}
+
+					TickSolverHelper(Solver);
+				}
 			}
+
+			EXPECT_EQ(FirstStepResim, 0);
+			EXPECT_EQ(NumResimSteps, LastGameStep / SimDt);
 
 			//no desync so should be empty
 #if REWIND_DESYNC

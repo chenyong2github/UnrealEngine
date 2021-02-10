@@ -16,6 +16,7 @@ FChaosMarshallingManager::FChaosMarshallingManager()
 , ProducerData(nullptr)
 , CurPullData(nullptr)
 , Delay(SimDelay)
+, HistoryLength(0)
 {
 	PrepareExternalQueue_External();
 	PreparePullData();
@@ -59,10 +60,16 @@ void FChaosMarshallingManager::Step_External(FReal ExternalDT, const int32 NumSt
 	FPushPhysicsData* FirstStepData = nullptr;
 	for(int32 Step = 0; Step < NumSteps; ++Step)
 	{
-		for (FSimCallbackInputAndObject& Pair : ProducerData->SimCallbackInputs)
+		for (int32 Idx = ProducerData->SimCallbackInputs.Num() -1; Idx >= 0; --Idx)
 		{
+			FSimCallbackInputAndObject& Pair = ProducerData->SimCallbackInputs[Idx];
 			Pair.CallbackObject->CurrentExternalInput_External = nullptr;	//mark data as marshalled, any new data must be in a new data packet
 			Pair.Input->SetNumSteps_External(NumSteps);
+
+			if(Pair.CallbackObject->bPendingDelete_External)
+			{
+				ProducerData->SimCallbackInputs.RemoveAtSwap(Idx);
+			}
 		}
 
 		//stored in reverse order for easy removal later. Might want to use a circular buffer if perf is bad here
@@ -122,12 +129,71 @@ void FChaosMarshallingManager::FreePullData_External(FPullPhysicsData* PullData)
 
 void FPushPhysicsData::Reset()
 {
-	DirtyProxiesDataBuffer.Reset();
+	for(FSimCallbackInputAndObject& CallbackInputAndObject : SimCallbackInputs)
+	{
+		CallbackInputAndObject.Input->Release_Internal(*CallbackInputAndObject.CallbackObject);
+	}
 
+	for(ISimCallbackObject* CallbackToRemove : SimCallbackObjectsToRemove)
+	{
+		ensure(CallbackToRemove->bPendingDelete);	//should already be marked pending delete
+		delete CallbackToRemove;
+	}
+
+	SimCallbackInputs.Reset();
+	DirtyProxiesDataBuffer.Reset();
 	SimCallbackObjectsToAdd.Reset();
 	SimCallbackObjectsToRemove.Reset();
-	SimCallbackInputs.Reset();
 	SimCommands.Reset();
+}
+
+void FChaosMarshallingManager::FreeDataToHistory_Internal(FPushPhysicsData* PushData)
+{
+	if(HistoryLength == 0)
+	{
+		FreeData_Internal(PushData);
+	}
+	else
+	{
+		HistoryQueue_Internal.Insert(PushData, 0);
+		SetHistoryLength_Internal(HistoryLength);
+	}
+}
+
+void FChaosMarshallingManager::SetHistoryLength_Internal(int32 InHistoryLength)
+{
+	HistoryLength = InHistoryLength;
+	//make sure late entries are pruned
+	if(HistoryQueue_Internal.Num() > HistoryLength)
+	{
+		for(int32 Idx = HistoryLength; Idx < HistoryQueue_Internal.Num(); ++Idx)
+		{
+			FreeData_Internal(HistoryQueue_Internal[Idx]);
+		}
+		HistoryQueue_Internal.SetNum(InHistoryLength, /*bAllowShrinking=*/false);
+	}
+}
+
+TArray<FPushPhysicsData*> FChaosMarshallingManager::StealHistory_Internal(int32 NumFrames)
+{
+	ensure(NumFrames <= HistoryQueue_Internal.Num());
+	const int32 UseNumFrames = FMath::Min(NumFrames, HistoryQueue_Internal.Num());
+
+	TArray<FPushPhysicsData*> History;
+	History.Reserve(UseNumFrames);
+
+	for(int32 Idx = 0; Idx < UseNumFrames; ++Idx)
+	{
+		History.Add(HistoryQueue_Internal[Idx]);
+	}
+
+	for(int32 Idx = UseNumFrames; Idx < HistoryQueue_Internal.Num(); ++Idx)
+	{
+		FreeData_Internal(HistoryQueue_Internal[Idx]);
+	}
+
+	HistoryQueue_Internal.Reset();
+	return History;
 }
 
 void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
