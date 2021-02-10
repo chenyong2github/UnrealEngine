@@ -4997,7 +4997,7 @@ void UEditorEngine::ReplaceSelectedActors(UActorFactory* Factory, const FAssetDa
 	for (FSelectionIterator It = GetSelectedActorIterator(); It; ++It)
 	{
 		AActor* Actor = Cast<AActor>(*It);
-		if ( Actor && !FActorEditorUtils::IsABuilderBrush(Actor) )
+		if ( Actor && Actor->IsUserManaged() && !FActorEditorUtils::IsABuilderBrush(Actor) )
 		{
 			ActorsToReplace.Add(Actor);
 		}

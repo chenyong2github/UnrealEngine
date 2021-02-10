@@ -24,7 +24,7 @@ public:
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
 	virtual FGuid GetGridGuid() const { return FGuid(); }
-	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
+	virtual bool IsUserManaged() const override;
 #endif
 	//~ End AActor Interface	
 

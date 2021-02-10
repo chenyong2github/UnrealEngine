@@ -27,9 +27,9 @@ TUniquePtr<FWorldPartitionActorDesc> APartitionActor::CreateClassActorDesc() con
 	return TUniquePtr<FWorldPartitionActorDesc>(new FPartitionActorDesc());
 }
 
-bool APartitionActor::CanDeleteSelectedActor(FText& OutReason) const
+bool APartitionActor::IsUserManaged() const
 {
-	if (!Super::CanDeleteSelectedActor(OutReason))
+	if (!Super::IsUserManaged())
 	{
 		return false;
 	}
@@ -37,7 +37,6 @@ bool APartitionActor::CanDeleteSelectedActor(FText& OutReason) const
 	check(GetLevel());
 	if (GetLevel()->bIsPartitioned)
 	{
-		OutReason = LOCTEXT("CantDeleteSelectedPartitionActor", "Can't delete Partition Actor (automatically managed).");
 		return false;
 	}
 

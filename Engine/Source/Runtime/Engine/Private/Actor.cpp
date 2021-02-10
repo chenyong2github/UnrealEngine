@@ -3111,6 +3111,19 @@ static void DispatchOnComponentsCreated(AActor* NewActor)
 }
 
 #if WITH_EDITOR
+
+bool AActor::CanDeleteSelectedActor(FText& OutReason) const
+{
+	if (!IsUserManaged())
+	{
+		OutReason = LOCTEXT("UserManaged", "Actor is not user managed");
+		return false;
+	}
+
+	return true;
+}
+
+
 void AActor::PostEditImport()
 {
 	Super::PostEditImport();

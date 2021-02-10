@@ -44,6 +44,8 @@
 #include "Engine/TriggerBase.h"
 #include "LevelEditorMenuContext.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "Engine/Selection.h"
+#include "ActorEditorUtils.h"
 
 class SMenuThumbnail : public SCompoundWidget
 {
@@ -211,7 +213,22 @@ class SAssetMenuEntry : public SCompoundWidget
 
 static bool CanReplaceActors()
 {
-	return ( GEditor->GetSelectedActorCount() > 0 && !AssetSelectionUtils::IsBuilderBrushSelected() );
+	bool bCanReplace = false;
+
+	for (FSelectionIterator SelectionIter = GEditor->GetSelectedActorIterator(); SelectionIter; ++SelectionIter)
+	{
+		if (AActor* Actor = Cast<AActor>(*SelectionIter))
+		{ 
+			bCanReplace = true;
+			if(!Actor->IsUserManaged() || FActorEditorUtils::IsABuilderBrush(Actor))
+			{
+				bCanReplace = false;
+				break;
+			}
+		}
+	}
+
+	return bCanReplace;
 }
 
 /**

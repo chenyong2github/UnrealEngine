@@ -1842,8 +1842,11 @@ public:
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual bool IsSelectedInEditor() const override;
 
+	/** Used to know if actor supports some editor operations. (Delete, Replace) */
+	virtual bool IsUserManaged() const { return true; }
+
 	/** When selected can this actor be deleted? */
-	virtual bool CanDeleteSelectedActor(FText& OutReason) const { return true; }
+	virtual bool CanDeleteSelectedActor(FText& OutReason) const;
 
 	/** Does this actor supports external packaging? */
 	virtual bool SupportsExternalPackaging() const;
