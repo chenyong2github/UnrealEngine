@@ -514,6 +514,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 	else if (PaletteIndex == TEXT("Embed"))
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.AddEmbeddedGeometry);
+		ToolbarBuilder.AddToolBarButton(Commands.AutoEmbedGeometry);
 		ToolbarBuilder.AddToolBarButton(Commands.DeleteEmbeddedGeometry);
 	}
 	else if (PaletteIndex == TEXT("Properties"))
