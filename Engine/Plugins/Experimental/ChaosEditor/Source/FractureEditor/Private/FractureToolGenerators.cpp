@@ -11,6 +11,7 @@
 #include "Layers/LayersSubsystem.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
@@ -46,8 +47,7 @@ void UFractureToolGenerateAsset::RegisterUICommand(FFractureEditorCommands* Bind
 
 bool UFractureToolGenerateAsset::CanExecute() const
 {
-	// We can execute this command if only static meshes are selected.
-	return (IsStaticMeshSelected() && (!IsGeometryCollectionSelected()));
+	return (IsStaticMeshSelected() || IsGeometryCollectionSelected());
 }
 
 void UFractureToolGenerateAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
@@ -116,7 +116,8 @@ void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAsse
 		AActor* FirstActor = Actors[0];
 
 		AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(FirstActor);
-		GeometryCollectionActor = ConvertStaticMeshToGeometryCollection(InAssetPath, Actors);
+		
+		GeometryCollectionActor = ConvertActorsToGeometryCollection(InAssetPath, Actors);
 
 		GeometryCollectionComponent = GeometryCollectionActor->GetGeometryCollectionComponent();
 
@@ -140,6 +141,11 @@ void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAsse
 			SharedToolkit->SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
 
 			SharedToolkit->OnSetLevelViewValue(-1);
+
+			SharedToolkit->RegenerateOutliner();
+			SharedToolkit->RegenerateHistogram();
+
+			SharedToolkit->UpdateExplodedVectors(GeometryCollectionComponent);
 		}
 		
 		GeometryCollectionComponent->MarkRenderDynamicDataDirty();
@@ -152,7 +158,7 @@ void UFractureToolGenerateAsset::OnGenerateAssetPathChosen(const FString& InAsse
 	}
 }
 
-AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertStaticMeshToGeometryCollection(const FString& InAssetPath, TArray<AActor*>& Actors)
+AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCollection(const FString& InAssetPath, TArray<AActor*>& Actors)
 {
 	ensure(Actors.Num() > 0);
 	AActor* FirstActor = Actors[0];
@@ -172,35 +178,75 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertStaticMeshToGeometr
 
 		check(FracturedGeometryCollection);
 
-		TArray<UStaticMeshComponent*> StaticMeshComponents;
-		Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents, true);
-		for (int32 ii = 0, ni = StaticMeshComponents.Num(); ii < ni; ++ii)
+		if (const AStaticMeshActor* StaticMeshActor = Cast<AStaticMeshActor>(Actor))
 		{
-			// We're partial to static mesh components, here
-			UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[ii];
-			if (StaticMeshComponent != nullptr)
+			TArray<UStaticMeshComponent*> StaticMeshComponents;
+			Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents, true);
+			for (int32 ii = 0, ni = StaticMeshComponents.Num(); ii < ni; ++ii)
 			{
-				UStaticMesh* ComponentStaticMesh = StaticMeshComponent->GetStaticMesh();
-				if (ComponentStaticMesh != nullptr)
+				// We're partial to static mesh components, here
+				UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[ii];
+				if (StaticMeshComponent != nullptr)
 				{
-					// If any of the static meshes have Nanite enabled, also enable on the new geometry collection asset for convenience.
-					FracturedGeometryCollection->EnableNanite |= ComponentStaticMesh->NaniteSettings.bEnabled;
+					UStaticMesh* ComponentStaticMesh = StaticMeshComponent->GetStaticMesh();
+					if (ComponentStaticMesh != nullptr)
+					{
+						// If any of the static meshes have Nanite enabled, also enable on the new geometry collection asset for convenience.
+						FracturedGeometryCollection->EnableNanite |= ComponentStaticMesh->NaniteSettings.bEnabled;
+					}
+
+					FTransform ComponentTransform(StaticMeshComponent->GetComponentTransform());
+					ComponentTransform.SetTranslation((ComponentTransform.GetTranslation() - ActorTransform.GetTranslation()) + ActorOffset);
+
+					// Record the contributing source on the asset.
+					FSoftObjectPath SourceSoftObjectPath(ComponentStaticMesh);
+					decltype(FGeometryCollectionSource::SourceMaterial) SourceMaterials(StaticMeshComponent->GetMaterials());
+					FracturedGeometryCollection->GeometrySource.Add({ SourceSoftObjectPath, ComponentTransform, SourceMaterials });
+
+					FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, SourceMaterials, ComponentTransform, FracturedGeometryCollection, true);
 				}
-
-				FTransform ComponentTransform(StaticMeshComponent->GetComponentTransform());
-				ComponentTransform.SetTranslation((ComponentTransform.GetTranslation() - ActorTransform.GetTranslation()) + ActorOffset);
-
-				// Record the contributing source on the asset.
-				FSoftObjectPath SourceSoftObjectPath(ComponentStaticMesh);
-				decltype(FGeometryCollectionSource::SourceMaterial) SourceMaterials(StaticMeshComponent->GetMaterials());
-				FracturedGeometryCollection->GeometrySource.Add({ SourceSoftObjectPath, ComponentTransform, SourceMaterials });
-
-				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, SourceMaterials, ComponentTransform, FracturedGeometryCollection, true);
 			}
 		}
+		else if (const AGeometryCollectionActor* GeometryActor = Cast<AGeometryCollectionActor>(Actor))
+		{
+			TArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+			Actor->GetComponents<UGeometryCollectionComponent>(GeometryCollectionComponents, true);
+			for (int32 ii = 0, ni = GeometryCollectionComponents.Num(); ii < ni; ++ii)
+			{
+				UGeometryCollectionComponent* GeometryCollectionComponent = GeometryCollectionComponents[ii];
+				if (GeometryCollectionComponent != nullptr)
+				{
+					const UGeometryCollection* RestCollection = GeometryCollectionComponent->GetRestCollection();
+					if (RestCollection != nullptr)
+					{
+						// If any of the static meshes have Nanite enabled, also enable on the new geometry collection asset for convenience.
+						FracturedGeometryCollection->EnableNanite |= RestCollection->EnableNanite;
+					}
 
-		FracturedGeometryCollection->InitializeMaterials();
+					FTransform ComponentTransform(GeometryCollectionComponent->GetComponentTransform());
+					ComponentTransform.SetTranslation((ComponentTransform.GetTranslation() - ActorTransform.GetTranslation()) + ActorOffset);
+
+					// Record the contributing source on the asset.
+					FSoftObjectPath SourceSoftObjectPath(RestCollection);
+
+					// We're not interested in recording the final material of the collection since it's inevitably the Selection material.
+					int32 NumMaterials = GeometryCollectionComponent->GetNumMaterials() - 1;
+					TArray<TObjectPtr<UMaterialInterface>> SourceMaterials;
+					SourceMaterials.SetNum(NumMaterials);
+					for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
+					{
+						SourceMaterials[MaterialIndex] = GeometryCollectionComponent->GetMaterial(MaterialIndex);
+					}
+					FracturedGeometryCollection->GeometrySource.Add({ SourceSoftObjectPath, ComponentTransform, SourceMaterials });
+
+					FGeometryCollectionConversion::AppendGeometryCollection(RestCollection, GeometryCollectionComponent, ComponentTransform, FracturedGeometryCollection, true);
+
+				}
+			}
+		}	
 	}
+
+	FracturedGeometryCollection->InitializeMaterials();
 
 	AddSingleRootNodeIfRequired(FracturedGeometryCollection);
 
@@ -355,6 +401,10 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 					{
 						// #todo (bmiller) Once we've settled on the right approach with static meshes, we'll need to apply the same strategy to skeletal mesh reconstruction.
 						// FGeometryCollectionConversion::AppendSkeletalMesh(SourceSkeletalMesh, Source.SourceMaterial, Source.LocalTransform, GeometryCollectionObject, true);
+					}
+					else if (const UGeometryCollection* SourceGeometryCollection = Cast<UGeometryCollection>(SourceMesh))
+					{
+						FGeometryCollectionConversion::AppendGeometryCollection(SourceGeometryCollection, Source.SourceMaterial, Source.LocalTransform, GeometryCollectionObject, true);
 					}
 				}
 

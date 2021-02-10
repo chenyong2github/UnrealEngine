@@ -7,6 +7,7 @@ class UStaticMesh;
 class USkeletalMesh;
 class UGeometryCollection;
 class UMaterialInterface;
+class UGeometryCollectionComponent;
 
 typedef TTuple<const UStaticMesh *, const UStaticMeshComponent *, FTransform> GeometryCollectionStaticMeshConversionTuple;
 typedef TTuple<const USkeletalMesh *, const USkeletalMeshComponent *, FTransform> GeometryCollectionSkeletalMeshConversionTuple;
@@ -42,6 +43,24 @@ public:
 	*  @param GeometryCollection    : Collection to append the mesh into.
 	*/
 	static void AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent *SkeletalMeshComponent, const FTransform & SkeletalMeshTransform, UGeometryCollection * GeometryCollection, bool ReindexMaterials = true);
+
+	/**
+	*  Appends a GeometryCollection to a GeometryCollectionComponent.
+	*  @param SourceGeometryCollection : Const GeometryCollection to read vertex/normals/index data from
+	*  @param Materials : Materials fetched from the GeometryCollectionComponent used to configure this geometry
+	*  @param GeometryCollectionTransform : GeometryCollection transform.
+	*  @param TargetGeometryCollection  : Collection to append the GeometryCollection into.
+	*/
+	static void AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const TArray<UMaterialInterface*>& Materials, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials = true);
+
+	/**
+	*  Appends a GeometryCollection to a GeometryCollectionComponent.
+	*  @param GeometryCollectionComponent : Const GeometryCollection to read vertex/normals/index data from
+	*  @param GeometryCollectionTransform : GeometryCollection transform.
+	*  @param TargetGeometryCollection  : Collection to append the GeometryCollection into.
+	*/
+	static void AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials = true);
+
 
 	/**
 	*  Command invoked from "GeometryCollection.CreatGeometryCollection", uses the selected Actors to create a GeometryCollection Asset

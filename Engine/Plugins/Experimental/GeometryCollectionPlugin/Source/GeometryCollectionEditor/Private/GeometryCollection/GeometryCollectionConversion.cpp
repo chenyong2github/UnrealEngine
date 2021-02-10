@@ -199,6 +199,8 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 				CurrMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 			}
 
+			// We add the material twice, once for interior and again for exterior.
+			GeometryCollectionObject->Materials.Add(CurrMaterial);
 			GeometryCollectionObject->Materials.Add(CurrMaterial);
 		}
 
@@ -236,6 +238,251 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 }
 
 
+void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const TArray<UMaterialInterface*>& Materials, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials)
+{
+	if (SourceGeometryCollection == nullptr)
+	{
+		return;
+	}
+	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> SourceGeometryCollectionPtr = SourceGeometryCollection->GetGeometryCollection();
+
+	check(TargetGeometryCollectionObject);
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = TargetGeometryCollectionObject->GetGeometryCollection();
+	FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
+	check(GeometryCollection);
+
+	// Assemble offsets and add elements
+	const int32 VertexCount = SourceGeometryCollectionPtr->Vertex.Num();
+	const int32 FaceCount = SourceGeometryCollectionPtr->Indices.Num();
+	const int32 TransformCount = SourceGeometryCollectionPtr->Transform.Num();
+	const int32 GeometryCount = SourceGeometryCollectionPtr->TransformIndex.Num();
+	const int32 SectionCount = SourceGeometryCollectionPtr->Sections.Num();
+
+	const int32 AssetMaterialStart = TargetGeometryCollectionObject->Materials.Num();
+
+	FVector Scale = GeometryCollectionTransform.GetScale3D();
+	FTransform AppliedTransform = GeometryCollectionTransform;
+	AppliedTransform.RemoveScaling();
+
+	const int32 VertexStart = GeometryCollection->AddElements(VertexCount, FGeometryCollection::VerticesGroup);
+	const int32 FaceStart = GeometryCollection->AddElements(FaceCount, FGeometryCollection::FacesGroup);
+	const int32 TransformStart = GeometryCollection->AddElements(TransformCount, FGeometryCollection::TransformGroup);
+	const int32 GeometryStart = GeometryCollection->AddElements(GeometryCount, FGeometryCollection::GeometryGroup);
+	const int32 SectionStart = GeometryCollection->AddElements(SectionCount, FGeometryCollection::MaterialGroup);
+
+	// source vertex information
+	const TManagedArray<FVector>& SourceVertex = SourceGeometryCollectionPtr->Vertex;
+	const TManagedArray<FVector>& SourceTangentU = SourceGeometryCollectionPtr->TangentU;
+	const TManagedArray<FVector>& SourceTangentV = SourceGeometryCollectionPtr->TangentV;
+	const TManagedArray<FVector>& SourceNormal = SourceGeometryCollectionPtr->Normal;
+	const TManagedArray<FVector2D>& SourceUV = SourceGeometryCollectionPtr->UV;
+	const TManagedArray<FLinearColor>& SourceColor = SourceGeometryCollectionPtr->Color;
+	const TManagedArray<int32>& SourceBoneMap = SourceGeometryCollectionPtr->BoneMap;
+
+	// target vertex information
+	TManagedArray<FVector>& TargetVertex = GeometryCollection->Vertex;
+	TManagedArray<FVector>& TargetTangentU = GeometryCollection->TangentU;
+	TManagedArray<FVector>& TargetTangentV = GeometryCollection->TangentV;
+	TManagedArray<FVector>& TargetNormal = GeometryCollection->Normal;
+	TManagedArray<FVector2D>& TargetUV = GeometryCollection->UV;
+	TManagedArray<FLinearColor>& TargetColor = GeometryCollection->Color;
+	TManagedArray<int32>& TargetBoneMap = GeometryCollection->BoneMap;
+
+	// append vertices
+	for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
+	{
+		const int32 VertexOffset = VertexStart + VertexIndex;
+		TargetVertex[VertexOffset] = SourceVertex[VertexIndex] * Scale;
+		
+		TargetTangentU[VertexOffset] = SourceTangentU[VertexIndex];
+		TargetTangentV[VertexOffset] = SourceTangentV[VertexIndex];
+		TargetNormal[VertexOffset] = SourceNormal[VertexIndex];
+		TargetUV[VertexOffset] = SourceUV[VertexIndex];
+		TargetColor[VertexOffset] = SourceColor[VertexIndex];
+
+		TargetBoneMap[VertexOffset] = SourceBoneMap[VertexIndex] + TransformStart;
+	}
+
+	// source face information
+	const TManagedArray<FIntVector>& SourceIndices = SourceGeometryCollectionPtr->Indices;
+	const TManagedArray<bool>& SourceVisible = SourceGeometryCollectionPtr->Visible;
+	const TManagedArray<int32>& SourceMaterialID = SourceGeometryCollectionPtr->MaterialID;
+	const TManagedArray<int32>& SourceMaterialIndex = SourceGeometryCollectionPtr->MaterialIndex;
+	
+	// target face information
+	TManagedArray<FIntVector>& TargetIndices = GeometryCollection->Indices;
+	TManagedArray<bool>& TargetVisible = GeometryCollection->Visible;
+	TManagedArray<int32>& TargetMaterialID = GeometryCollection->MaterialID;
+	TManagedArray<int32>& TargetMaterialIndex = GeometryCollection->MaterialIndex;
+
+	// append faces
+	for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
+	{
+		const FIntVector& SourceFace = SourceIndices[FaceIndex];
+		const int32 FaceOffset = FaceStart + FaceIndex;
+		TargetIndices[FaceOffset] = FIntVector(
+			SourceFace[0] + VertexStart,
+			SourceFace[1] + VertexStart,
+			SourceFace[2] + VertexStart);
+		TargetVisible[FaceOffset] = SourceVisible[FaceIndex];
+		
+		TargetMaterialID[FaceOffset] = AssetMaterialStart + SourceMaterialID[FaceIndex];
+		TargetMaterialIndex[FaceOffset] = FaceOffset;
+	}
+
+	// source transform information
+	const TManagedArray<FTransform>& SourceTransform = SourceGeometryCollectionPtr->Transform;
+	const TManagedArray<FString>& SourceBoneName = SourceGeometryCollectionPtr->BoneName;
+	const TManagedArray<FLinearColor>& SourceBoneColor = SourceGeometryCollectionPtr->BoneColor;
+	const TManagedArray<int32>& SourceParent = SourceGeometryCollectionPtr->Parent;
+	const TManagedArray<TSet<int32>>& SourceChildren = SourceGeometryCollectionPtr->Children;
+	const TManagedArray<int32>& SourceTransformToGeometryIndex = SourceGeometryCollectionPtr->TransformToGeometryIndex;
+	const TManagedArray<int32>& SourceSimulationType = SourceGeometryCollectionPtr->SimulationType;
+	const TManagedArray<int32>& SourceStatusFlags = SourceGeometryCollectionPtr->StatusFlags;
+	const TManagedArray<int32>& SourceInitialDynamicState = SourceGeometryCollectionPtr->InitialDynamicState;
+	
+	// target transform information
+	TManagedArray<FTransform>& TargetTransform = GeometryCollection->Transform;
+	TManagedArray<FString>& TargetBoneName = GeometryCollection->BoneName;
+	TManagedArray<FLinearColor>& TargetBoneColor = GeometryCollection->BoneColor;
+	TManagedArray<int32>& TargetParent = GeometryCollection->Parent;
+	TManagedArray<TSet<int32>>& TargetChildren = GeometryCollection->Children;
+	TManagedArray<int32>& TargetTransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
+	TManagedArray<int32>& TargetSimulationType = GeometryCollection->SimulationType;
+	TManagedArray<int32>& TargetStatusFlags = GeometryCollection->StatusFlags;
+	TManagedArray<int32>& TargetInitialDynamicState = GeometryCollection->InitialDynamicState;
+
+	// append transform hierarchy
+	for (int32 TransformIndex = 0; TransformIndex < TransformCount; ++TransformIndex)
+	{
+		const int32 TransformOffset = TransformStart + TransformIndex;
+
+		// Only apply the transform to the parent node. Child nodes only need scaling applied to translation offsets.
+		if (SourceParent[TransformIndex] == INDEX_NONE)
+		{
+			TargetTransform[TransformOffset] = SourceTransform[TransformIndex] * AppliedTransform;
+		}
+		else
+		{
+			FTransform ScaledTranslation = SourceTransform[TransformIndex];
+			ScaledTranslation.ScaleTranslation(Scale);
+			TargetTransform[TransformOffset] = ScaledTranslation;
+		}
+	
+		// #todo Get this Bone name to be unique
+		TargetBoneName[TransformOffset] = SourceBoneName[TransformIndex];
+
+		const FColor RandBoneColor(FMath::Rand() % 100 + 5, FMath::Rand() % 100 + 5, FMath::Rand() % 100 + 5, 255);
+		TargetBoneColor[TransformOffset] = FLinearColor(RandBoneColor);
+
+		TargetParent[TransformOffset] = (SourceParent[TransformIndex]==INDEX_NONE) ? INDEX_NONE: SourceParent[TransformIndex] + TransformStart;
+
+		const TSet<int32>& SourceChildrenSet = SourceChildren[TransformIndex];
+		for (int32 ChildIndex : SourceChildrenSet)
+		{
+			TargetChildren[TransformOffset].Add(ChildIndex + TransformStart);
+		}
+
+		TargetTransformToGeometryIndex[TransformOffset] = SourceTransformToGeometryIndex[TransformIndex] + GeometryStart;
+		TargetSimulationType[TransformOffset] = SourceSimulationType[TransformIndex];
+		TargetStatusFlags[TransformOffset] = SourceStatusFlags[TransformIndex];
+		TargetInitialDynamicState[TransformOffset] = SourceInitialDynamicState[TransformIndex];
+	}
+
+	// source geometry information
+	const TManagedArray<int32>& SourceTransformIndex = SourceGeometryCollectionPtr->TransformIndex;
+	const TManagedArray<int32>& SourceVertexStart = SourceGeometryCollectionPtr->VertexStart;
+	const TManagedArray<int32>& SourceVertexCount = SourceGeometryCollectionPtr->VertexCount;
+	const TManagedArray<int32>& SourceFaceStart = SourceGeometryCollectionPtr->FaceStart;
+	const TManagedArray<int32>& SourceFaceCount = SourceGeometryCollectionPtr->FaceCount;
+	
+	// target geometry information
+	TManagedArray<int32>& TargetTransformIndex = GeometryCollection->TransformIndex;
+	TManagedArray<FBox>& TargetBoundingBox = GeometryCollection->BoundingBox;
+	TManagedArray<float>& TargetInnerRadius = GeometryCollection->InnerRadius;
+	TManagedArray<float>& TargetOuterRadius = GeometryCollection->OuterRadius;
+	TManagedArray<int32>& TargetVertexStart = GeometryCollection->VertexStart;
+	TManagedArray<int32>& TargetVertexCount = GeometryCollection->VertexCount;
+	TManagedArray<int32>& TargetFaceStart = GeometryCollection->FaceStart;
+	TManagedArray<int32>& TargetFaceCount = GeometryCollection->FaceCount;
+
+	// append geometry
+	for (int32 GeometryIndex = 0; GeometryIndex < GeometryCount; ++GeometryIndex)
+	{
+		const int32 GeometryOffset = GeometryStart + GeometryIndex;
+
+		TargetTransformIndex[GeometryOffset] = SourceTransformIndex[GeometryIndex] + TransformStart;
+		
+		TargetVertexStart[GeometryOffset] = SourceVertexStart[GeometryIndex] + VertexStart;
+		TargetVertexCount[GeometryOffset] = SourceVertexCount[GeometryIndex];
+		TargetFaceStart[GeometryOffset] = SourceFaceStart[GeometryIndex] + FaceStart;
+		TargetFaceCount[GeometryOffset] = SourceFaceCount[GeometryIndex];
+
+		// Find centroid of geometry for inner/outer radius calculations
+		FVector Center(0);
+		for (int32 VertexIndex = TargetVertexStart[GeometryOffset]; VertexIndex < TargetVertexStart[GeometryOffset] + TargetVertexCount[GeometryOffset]; ++VertexIndex)
+		{
+			Center += TargetVertex[VertexIndex];
+		}
+		if (TargetVertexCount[GeometryOffset]) Center /= TargetVertexCount[GeometryOffset];
+		
+		TargetBoundingBox[GeometryOffset] = FBox(ForceInitToZero);
+		TargetInnerRadius[GeometryOffset] = FLT_MAX;
+		TargetOuterRadius[GeometryOffset] = -FLT_MAX;
+		for (int32 VertexIndex = TargetVertexStart[GeometryOffset]; VertexIndex < TargetVertexStart[GeometryOffset] + TargetVertexCount[GeometryOffset]; ++VertexIndex)
+		{
+			TargetBoundingBox[GeometryOffset] += TargetVertex[VertexIndex];
+
+			float Delta = (Center - TargetVertex[VertexIndex]).Size();
+			TargetInnerRadius[GeometryOffset] = FMath::Min(TargetInnerRadius[GeometryOffset], Delta);
+			TargetOuterRadius[GeometryOffset] = FMath::Max(TargetOuterRadius[GeometryOffset], Delta);
+		}
+	}
+
+	// for each material, add a reference in our GeometryCollectionObject
+	const int32 NumMeshMaterials = Materials.Num();
+	TargetGeometryCollectionObject->Materials.Reserve(AssetMaterialStart + NumMeshMaterials);
+
+	for (int32 Index = 0; Index < NumMeshMaterials; ++Index)
+	{
+		UMaterialInterface* CurrMaterial = Materials[Index];
+
+		// Possible we have a null entry - replace with default
+		if (CurrMaterial == nullptr)
+		{
+			CurrMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		TargetGeometryCollectionObject->Materials.Add(CurrMaterial);
+	}
+
+	// source material information
+	const TManagedArray<FGeometryCollectionSection>& SourceSections = SourceGeometryCollectionPtr->Sections;
+
+	// target material information
+	TManagedArray<FGeometryCollectionSection>& TargetSections = GeometryCollection->Sections;
+
+	// append sections
+	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+	{
+		int32 SectionOffset = SectionStart + SectionIndex;
+
+		TargetSections[SectionOffset].MaterialID = AssetMaterialStart + SourceSections[SectionIndex].MaterialID;
+
+		TargetSections[SectionOffset].FirstIndex = SourceSections[SectionIndex].FirstIndex + FaceStart * 3;
+		TargetSections[SectionOffset].MinVertexIndex = VertexStart + SourceSections[SectionIndex].MinVertexIndex;
+
+		TargetSections[SectionOffset].NumTriangles = SourceSections[SectionIndex].NumTriangles;
+		TargetSections[SectionOffset].MaxVertexIndex = VertexStart + SourceSections[SectionIndex].MaxVertexIndex;
+	}
+
+	if (ReindexMaterials) {
+		GeometryCollection->ReindexMaterials();
+	}
+
+}
+
+
 void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool ReindexMaterials)
 {
 	if (StaticMesh == nullptr)
@@ -252,7 +499,37 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		Materials.Add(CurrMaterial);
 	}
 
+	// Geometry collections usually carry the selection material, which we'll delete before appending
+	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, UGeometryCollection::GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
+	GeometryCollectionObject->Materials.Remove(BoneSelectedMaterial);
+	Materials.Remove(BoneSelectedMaterial);
+
 	AppendStaticMesh(StaticMesh, Materials, StaticMeshTransform, GeometryCollectionObject, ReindexMaterials);
+}
+
+
+void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials)
+{
+	if (SourceGeometryCollection == nullptr)
+	{
+		return;
+	}
+
+	TArray<UMaterialInterface*> Materials;
+	Materials.Reserve(SourceGeometryCollection->Materials.Num());
+
+	for (int32 Index = 0; Index < SourceGeometryCollection->Materials.Num(); ++Index)
+	{
+		UMaterialInterface* CurrMaterial = GeometryCollectionComponent ? GeometryCollectionComponent->GetMaterial(Index) : SourceGeometryCollection->Materials[Index].Get();
+		Materials.Add(CurrMaterial);
+	}
+
+	// Geometry collections usually carry the selection material, which we'll delete before appending
+	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, UGeometryCollection::GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
+	TargetGeometryCollectionObject->Materials.Remove(BoneSelectedMaterial);
+	Materials.Remove(BoneSelectedMaterial);
+
+	AppendGeometryCollection(SourceGeometryCollection, Materials, GeometryCollectionTransform, TargetGeometryCollectionObject, ReindexMaterials);
 }
 
 

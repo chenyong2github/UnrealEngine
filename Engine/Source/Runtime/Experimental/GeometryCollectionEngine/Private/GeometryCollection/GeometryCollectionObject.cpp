@@ -238,27 +238,43 @@ void UGeometryCollection::InitializeMaterials()
 {
 	Modify();
 
-	// Consolidate materials
+	// Last Material is the selection one
+	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
 
-	// add all materials to a set
-	TSet<UMaterialInterface*> MaterialSet;
-	for (UMaterialInterface* Curr : Materials)
+	// Skip selection materials
+	Materials.Remove(BoneSelectedMaterial);
+	
+	// We're assuming that all materials are arranged in pairs, so first we collect these.
+	using FMaterialPair = TPair<UMaterialInterface*, UMaterialInterface*>;
+	TSet<FMaterialPair> MaterialSet;
+	for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
 	{
-		MaterialSet.Add(Curr);
-	}
+		UMaterialInterface* ExteriorMaterial = Materials[MaterialIndex];
+		
+		// If we have an odd number of materials, the last material duplicates itself.
+		UMaterialInterface* InteriorMaterial = Materials[MaterialIndex];
+		if (++MaterialIndex < Materials.Num())
+		{
+			InteriorMaterial = Materials[MaterialIndex];
+		}
 
+		MaterialSet.Add(FMaterialPair(ExteriorMaterial, InteriorMaterial));
+	}
+	
 	// create the final material array only containing unique materials
-	// and one slot for each internal material
-	TMap< UMaterialInterface *, int32> MaterialPtrToArrayIndex;
+	// alternating exterior and interior materials
+	TMap<UMaterialInterface*, int32> ExteriorMaterialPtrToArrayIndex;
+	TMap<UMaterialInterface*, int32> InteriorMaterialPtrToArrayIndex;
 	TArray<UMaterialInterface*> FinalMaterials;
-	for (UMaterialInterface *Curr : MaterialSet)
+	for (const FMaterialPair& Curr : MaterialSet)
 	{
 		// Add base material
-		TTuple< UMaterialInterface *, int32> CurrTuple(Curr, FinalMaterials.Add(Curr));
-		MaterialPtrToArrayIndex.Add(CurrTuple);
+		TTuple< UMaterialInterface*, int32> BaseTuple(Curr.Key, FinalMaterials.Add(Curr.Key));
+		ExteriorMaterialPtrToArrayIndex.Add(BaseTuple);
 
 		// Add interior material
-		FinalMaterials.Add(Curr);
+		TTuple< UMaterialInterface*, int32> InteriorTuple(Curr.Value, FinalMaterials.Add(Curr.Value));
+		InteriorMaterialPtrToArrayIndex.Add(InteriorTuple);
 	}
 
 	TManagedArray<int32>& MaterialID = GeometryCollection->MaterialID;
@@ -269,7 +285,14 @@ void UGeometryCollection::InitializeMaterials()
 		if (MaterialID[Material] < Materials.Num())
 		{
 			UMaterialInterface* OldMaterialPtr = Materials[MaterialID[Material]];
-			MaterialID[Material] = *MaterialPtrToArrayIndex.Find(OldMaterialPtr);
+			if (MaterialID[Material] % 2 == 0)
+			{
+				MaterialID[Material] = *ExteriorMaterialPtrToArrayIndex.Find(OldMaterialPtr);
+			}
+			else
+			{
+				MaterialID[Material] = *InteriorMaterialPtrToArrayIndex.Find(OldMaterialPtr);
+			}
 		}
 	}
 
@@ -277,12 +300,13 @@ void UGeometryCollection::InitializeMaterials()
 	Materials = FinalMaterials;
 
 	// Last Material is the selection one
-	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
 	BoneSelectedMaterialIndex = Materials.Add(BoneSelectedMaterial);
-	
+
 	GeometryCollection->ReindexMaterials();
 	InvalidateCollection();
 }
+
+
 
 /** Returns true if there is anything to render */
 bool UGeometryCollection::HasVisibleGeometry() const
@@ -501,7 +525,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 #endif
 }
 
-const TCHAR* UGeometryCollection::GetSelectedMaterialPath() const
+const TCHAR* UGeometryCollection::GetSelectedMaterialPath()
 {
 	return TEXT("/Engine/EditorMaterials/GeometryCollection/SelectedGeometryMaterial.SelectedGeometryMaterial");
 }

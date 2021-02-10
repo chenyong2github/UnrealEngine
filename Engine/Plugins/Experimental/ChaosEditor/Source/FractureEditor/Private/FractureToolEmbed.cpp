@@ -90,16 +90,15 @@ void UFractureToolAddEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToolk
 				}
 
 				FTransform ComponentTransform = SMActorTransform.GetRelativeTransform(TargetActorTransform);
-				decltype(FGeometryCollectionSource::SourceMaterial) SourceMaterials(SelectedStaticMeshComponent->GetMaterials());
-
+				
 				// Add static mesh geometry to context's geometry collection.
-				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, SourceMaterials, ComponentTransform, FracturedGeometryCollection, true);
+				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, SelectedStaticMeshComponent, ComponentTransform, FracturedGeometryCollection, true);
 
 				int32 NewTransformIndex = Parent.Num() - 1;
 				check(NewTransformIndex > -1)
 
-					// Reparent the new transform to the selected bone
-					Parent[NewTransformIndex] = SelectedBone;
+				// Reparent the new transform to the selected bone
+				Parent[NewTransformIndex] = SelectedBone;
 				Children[SelectedBone].Add(NewTransformIndex);
 
 				// Set properties appropriate to embedded geometry
