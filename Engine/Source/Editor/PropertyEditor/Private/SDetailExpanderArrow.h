@@ -23,6 +23,6 @@ private:
 	FReply OnExpanderClicked();
 	
 private:
-	TSharedPtr<SDetailTableRowBase> Row;
+	TWeakPtr<SDetailTableRowBase> Row;
 	TSharedPtr<SButton> ExpanderArrow;
 };

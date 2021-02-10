@@ -35,24 +35,36 @@ void SDetailExpanderArrow::Construct(const FArguments& InArgs, TSharedRef<SDetai
 
 EVisibility SDetailExpanderArrow::GetExpanderVisibility() const
 {
-	return Row->DoesItemHaveChildren() ? EVisibility::Visible : EVisibility::Collapsed;
+	TSharedPtr<SDetailTableRowBase> RowPtr = Row.Pin();
+	if (!RowPtr.IsValid())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return RowPtr->DoesItemHaveChildren() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 const FSlateBrush* SDetailExpanderArrow::GetExpanderImage() const
 {
-	const bool bIsItemExpanded = Row->IsItemExpanded();
+	TSharedPtr<SDetailTableRowBase> RowPtr = Row.Pin();
+	if (!RowPtr.IsValid())
+	{
+		return FAppStyle::Get().GetBrush("NoBrush");
+	}
+
+	const bool bIsItemExpanded = RowPtr->IsItemExpanded();
 
 	FName ResourceName;
 	if (bIsItemExpanded)
 	{
 		if (ExpanderArrow->IsHovered())
 		{
-			static FName ExpandedHoveredName = "TreeArrow_Expanded_Hovered";
+			static const FName ExpandedHoveredName = "TreeArrow_Expanded_Hovered";
 			ResourceName = ExpandedHoveredName;
 		}
 		else
 		{
-			static FName ExpandedName = "TreeArrow_Expanded";
+			static const FName ExpandedName = "TreeArrow_Expanded";
 			ResourceName = ExpandedName;
 		}
 	}
@@ -60,12 +72,12 @@ const FSlateBrush* SDetailExpanderArrow::GetExpanderImage() const
 	{
 		if (ExpanderArrow->IsHovered())
 		{
-			static FName CollapsedHoveredName = "TreeArrow_Collapsed_Hovered";
+			static const FName CollapsedHoveredName = "TreeArrow_Collapsed_Hovered";
 			ResourceName = CollapsedHoveredName;
 		}
 		else
 		{
-			static FName CollapsedName = "TreeArrow_Collapsed";
+			static const FName CollapsedName = "TreeArrow_Collapsed";
 			ResourceName = CollapsedName;
 		}
 	}
@@ -75,15 +87,21 @@ const FSlateBrush* SDetailExpanderArrow::GetExpanderImage() const
 
 FReply SDetailExpanderArrow::OnExpanderClicked()
 {
+	TSharedPtr<SDetailTableRowBase> RowPtr = Row.Pin();
+	if (!RowPtr.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
 	// Recurse the expansion if "shift" is being pressed
 	const FModifierKeysState ModKeyState = FSlateApplication::Get().GetModifierKeys();
 	if (ModKeyState.IsShiftDown())
 	{
-		Row->Private_OnExpanderArrowShiftClicked();
+		RowPtr->Private_OnExpanderArrowShiftClicked();
 	}
 	else
 	{
-		Row->ToggleExpansion();
+		RowPtr->ToggleExpansion();
 	}
 
 	return FReply::Handled();

@@ -19,10 +19,16 @@ void SDetailRowIndent::Construct(const FArguments& InArgs, TSharedRef<SDetailTab
 
 int32 SDetailRowIndent::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
+	TSharedPtr<SDetailTableRowBase> RowPtr = Row.Pin();
+	if (!RowPtr.IsValid())
+	{
+		return LayerId;
+	}
+
 	const FSlateBrush* BackgroundBrush = FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle");
 	const FSlateBrush* DropShadowBrush = FAppStyle::Get().GetBrush("DetailsView.ArrayDropShadow");
 
-	int32 IndentLevel = Row->GetIndentLevelForBackgroundColor();
+	int32 IndentLevel = RowPtr->GetIndentLevelForBackgroundColor();
 	for (int32 i = 0; i < IndentLevel; ++i)
 	{
 		FSlateColor BackgroundColor = GetRowBackgroundColor(i);
@@ -49,16 +55,23 @@ int32 SDetailRowIndent::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 
 FOptionalSize SDetailRowIndent::GetIndentWidth() const
 {
-	int32 IndentLevel = Row->GetIndentLevelForBackgroundColor();
+	int32 IndentLevel = 0;
+
+	TSharedPtr<SDetailTableRowBase> RowPtr = Row.Pin();
+	if (RowPtr.IsValid())
+	{
+		IndentLevel = RowPtr->GetIndentLevelForBackgroundColor();
+	}
 	return IndentLevel * 16.0f;
 }
 
-FSlateColor SDetailRowIndent::GetRowBackgroundColor(int32 i) const
+FSlateColor SDetailRowIndent::GetRowBackgroundColor(int32 IndentLevel) const
 {
-	if (Row->IsHovered())
+	TSharedPtr<SDetailTableRowBase> RowPtr = Row.Pin();
+	if (RowPtr.IsValid() && RowPtr->IsHovered())
 	{
 		return FAppStyle::Get().GetSlateColor("Colors.Header");
 	}
 
-	return PropertyEditorConstants::GetRowBackgroundColor(i);
+	return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel);
 }

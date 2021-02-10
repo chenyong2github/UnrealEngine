@@ -21,8 +21,8 @@ public:
 private:
 	int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const;
 	FOptionalSize GetIndentWidth() const;
-	FSlateColor GetRowBackgroundColor(int32 i) const;
+	FSlateColor GetRowBackgroundColor(int32 IndentLevel) const;
 
 private:
-	TSharedPtr<SDetailTableRowBase> Row;
+	TWeakPtr<SDetailTableRowBase> Row;
 };
