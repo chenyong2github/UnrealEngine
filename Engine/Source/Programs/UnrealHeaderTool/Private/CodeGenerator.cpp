@@ -6492,9 +6492,13 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 
 FString FNativeClassHeaderGenerator::GenerateTempHeaderName( const FString& CurrentFilename, bool bReverseOperation )
 {
-	return bReverseOperation
-		? CurrentFilename.Replace(TEXT(".tmp"), TEXT(""), ESearchCase::CaseSensitive)
-		: CurrentFilename + TEXT(".tmp");
+	if (bReverseOperation)
+	{
+		FString Reversed = CurrentFilename;
+		Reversed.RemoveFromEnd(TEXT(".tmp"), ESearchCase::CaseSensitive);
+		return Reversed;
+	}
+	return CurrentFilename + TEXT(".tmp");
 }
 
 void FNativeClassHeaderGenerator::ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths, FGraphEventArray& InTempSaveTasks)
