@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "ISMPartition/ISMComponentDescriptor.h"
 
 #if WITH_EDITOR
