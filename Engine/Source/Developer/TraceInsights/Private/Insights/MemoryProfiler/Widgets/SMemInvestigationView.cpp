@@ -25,7 +25,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SMemInvestigationView::SMemInvestigationView()
-	: ProfilerWindow()
+	: ProfilerWindowWeakPtr()
 {
 }
 
@@ -46,7 +46,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SMemInvestigationView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProfilerWindow> InProfilerWindow)
 {
 	check(InProfilerWindow.IsValid());
-	ProfilerWindow = InProfilerWindow;
+	ProfilerWindowWeakPtr = InProfilerWindow;
 
 	ChildSlot
 	[
@@ -181,6 +181,8 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 		]
 	;
 
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -225,6 +227,8 @@ TSharedRef<SWidget> SMemInvestigationView::QueryRule_OnGenerateWidget(TSharedPtr
 
 TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 TimeMarkerIndex)
 {
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 	if (!ProfilerWindow.IsValid())
 	{
 		return SNew(SBox);
@@ -321,6 +325,8 @@ void SMemInvestigationView::Tick(const FGeometry& AllottedGeometry, const double
 
 const TArray<TSharedPtr<Insights::FMemoryRuleSpec>>* SMemInvestigationView::GetAvailableQueryRules()
 {
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -335,6 +341,8 @@ void SMemInvestigationView::QueryRule_OnSelectionChanged(TSharedPtr<Insights::FM
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
+		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 		if (ProfilerWindow.IsValid() && InRule)
 		{
 			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -348,6 +356,8 @@ void SMemInvestigationView::QueryRule_OnSelectionChanged(TSharedPtr<Insights::FM
 
 FText SMemInvestigationView::QueryRule_GetSelectedText() const
 {
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -364,6 +374,8 @@ FText SMemInvestigationView::QueryRule_GetSelectedText() const
 
 FText SMemInvestigationView::QueryRule_GetTooltipText() const
 {
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -380,6 +392,8 @@ FText SMemInvestigationView::QueryRule_GetTooltipText() const
 
 const TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>>* SMemInvestigationView::GetAvailableQueryTargets()
 {
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -394,6 +408,8 @@ void SMemInvestigationView::QueryTarget_OnSelectionChanged(TSharedPtr<Insights::
 {
 	if (SelectInfo != ESelectInfo::Type::Direct)
 	{
+		TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 		if (ProfilerWindow.IsValid() && InTarget)
 		{
 			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -438,6 +454,8 @@ TSharedRef<SWidget> SMemInvestigationView::QueryTarget_OnGenerateWidget(TSharedP
 
 FText SMemInvestigationView::QueryTarget_GetSelectedText() const
 {
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
@@ -454,6 +472,8 @@ FText SMemInvestigationView::QueryTarget_GetSelectedText() const
 
 FReply SMemInvestigationView::RunQuery()
 {
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
 	if (!ProfilerWindow.IsValid())
 	{
 		UE_LOG(MemoryProfiler, Error, TEXT("[MemQuery] Invalid Profiler Window!"));

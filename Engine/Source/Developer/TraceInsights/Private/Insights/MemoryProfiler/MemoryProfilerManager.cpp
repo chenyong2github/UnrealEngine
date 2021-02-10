@@ -195,6 +195,14 @@ bool FMemoryProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
 
 void FMemoryProfilerManager::OnTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
+	{
+		TSharedPtr<SMemoryProfilerWindow> ProfilerWindowSharedPtr = ProfilerWindow.Pin();
+		if (ProfilerWindowSharedPtr.IsValid())
+		{
+			ProfilerWindowSharedPtr->CloseMemAllocTableTreeTabs();
+		}
+	}
+
 	RemoveProfilerWindow();
 
 	// Disable TabClosed delegate.

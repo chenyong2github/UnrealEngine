@@ -78,7 +78,7 @@ private:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow;
+	TWeakPtr<SMemoryProfilerWindow> ProfilerWindowWeakPtr;
 
 	/** A weak pointer to the profiler session used to populate this widget. */
 	TSharedPtr<const TraceServices::IAnalysisSession>/*Weak*/ Session;

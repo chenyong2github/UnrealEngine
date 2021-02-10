@@ -316,7 +316,7 @@ private:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow;
+	TWeakPtr<SMemoryProfilerWindow> ProfilerWindowWeakPtr;
 
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;

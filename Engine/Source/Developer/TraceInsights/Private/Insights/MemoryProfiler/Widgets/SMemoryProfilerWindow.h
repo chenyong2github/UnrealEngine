@@ -90,6 +90,8 @@ public:
 	FMemorySharedState& GetSharedState() { return *SharedState; }
 	const FMemorySharedState& GetSharedState() const { return *SharedState; }
 
+	void CloseMemAllocTableTreeTabs();
+
 private:
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
 	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);

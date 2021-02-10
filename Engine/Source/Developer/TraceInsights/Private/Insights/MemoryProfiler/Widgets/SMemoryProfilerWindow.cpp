@@ -412,14 +412,38 @@ void SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab
 		this->GetSharedState().RemoveQueryTarget(TargetToDelete);
 	}
 
-	TSharedPtr<Insights::FQueryTargetWindowSpec> NewSelection = this->GetSharedState().GetQueryTargets()[0];
-	this->GetSharedState().SetCurrentQueryTarget(NewSelection);
-	MemInvestigationView->QueryTarget_OnSelectionChanged(NewSelection, ESelectInfo::Type::Direct);
+	if (Targets.Num() > 0)
+	{
+		TSharedPtr<Insights::FQueryTargetWindowSpec> NewSelection = Targets[0];
+		this->GetSharedState().SetCurrentQueryTarget(NewSelection);
+		if (MemInvestigationView.IsValid())
+		{
+			MemInvestigationView->QueryTarget_OnSelectionChanged(NewSelection, ESelectInfo::Type::Direct);
+		}
+	}
 
 	TabManager->UnregisterTabSpawner(ClosingTabId);
 
 	MemAllocTableTreeView->OnClose();
 	MemAllocTableTreeViews.Remove(MemAllocTableTreeView);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::CloseMemAllocTableTreeTabs()
+{
+	const TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>>& Targets = this->GetSharedState().GetQueryTargets();
+	while(Targets.Num() > 0)
+	{
+		if (Targets[0]->GetName() != Insights::FQueryTargetWindowSpec::NewWindow)
+		{
+			HideTab(Targets[0]->GetName());
+		}
+		else
+		{
+			this->GetSharedState().RemoveQueryTarget(Targets[0]);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
