@@ -13,6 +13,8 @@
 #include "TextureCompressorModule.h"
 #include "PixelFormat.h"
 #include "EngineLogs.h"
+#include "Async/ParallelFor.h"
+
 THIRD_PARTY_INCLUDES_START
 	#include "nvtt/nvtt.h"
 THIRD_PARTY_INCLUDES_END
@@ -231,7 +233,7 @@ public:
 /**
  * Asynchronous NVTT worker.
  */
-class FAsyncNVTTWorker : public FNonAbandonableTask 
+class FAsyncNVTTWorker
 {
 public:
 	/**
@@ -249,11 +251,6 @@ public:
 		bCompressionResults = Compressor->Compress();
 	}
 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncNVTTWorker, STATGROUP_ThreadPoolAsyncTasks);
-	}
-
 	/** Retrieve compression results. */
 	bool GetCompressionResults() const { return bCompressionResults; }
 
@@ -263,7 +260,6 @@ private:
 	/** true if compression was successful. */
 	bool bCompressionResults;
 };
-typedef FAsyncTask<FAsyncNVTTWorker> FAsyncNVTTTask;
 
 namespace CompressionSettings
 {
@@ -374,22 +370,22 @@ static bool CompressImageUsingNVTT(
 	// Asynchronously compress each batch.
 	bool bSuccess = true;
 	{
-		TIndirectArray<FAsyncNVTTTask> AsyncTasks;
+		TArray<FAsyncNVTTWorker> AsyncTasks;
+		AsyncTasks.Reserve(NumBatches);
+
 		for (int32 BatchIndex = 0; BatchIndex < NumBatches; ++BatchIndex)
 		{
-			FAsyncNVTTTask* AsyncTask = new FAsyncNVTTTask(&Compressors[BatchIndex]);
-			AsyncTasks.Add(AsyncTask);
-#if WITH_EDITOR
-			AsyncTask->StartBackgroundTask(GLargeThreadPool);
-#else
-			AsyncTask->StartBackgroundTask();
-#endif
+			AsyncTasks.Emplace(&Compressors[BatchIndex]);
 		}
+
+		ParallelForTemplate(AsyncTasks.Num(), [&AsyncTasks](int32 TaskIndex)
+		{
+			AsyncTasks[TaskIndex].DoWork();
+		}, EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced);
+
 		for (int32 BatchIndex = 0; BatchIndex < NumBatches; ++BatchIndex)
 		{
-			FAsyncNVTTTask& AsyncTask = AsyncTasks[BatchIndex];
-			AsyncTask.EnsureCompletion();
-			bSuccess = bSuccess && AsyncTask.GetTask().GetCompressionResults();
+			bSuccess = bSuccess && AsyncTasks[BatchIndex].GetCompressionResults();
 		}
 	}
 

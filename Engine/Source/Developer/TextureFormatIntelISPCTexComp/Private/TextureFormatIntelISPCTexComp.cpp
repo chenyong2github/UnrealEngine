@@ -13,6 +13,7 @@
 #include "Interfaces/ITextureFormatModule.h"
 #include "TextureCompressorModule.h"
 #include "PixelFormat.h"
+#include "Async/ParallelFor.h"
 
 #include "ispc_texcomp.h"
 
@@ -237,7 +238,7 @@ struct FMultithreadedCompression
 	{
 		if (bUseTasks)
 		{
-			class FIntelCompressWorker : public FNonAbandonableTask
+			class FIntelCompressWorker
 			{
 			public:
 				FIntelCompressWorker(EncoderSettingsType* pEncSettings, FImage* pInImage, FCompressedImage2D* pOutImage, int yStart, int yEnd, int SliceIndex, CompressFunction InFunctionCallback)
@@ -256,11 +257,6 @@ struct FMultithreadedCompression
 					mCallback(mpEncSettings, mpInImage, mpOutImage, mYStart, mYEnd, mSliceIndex);
 				}
 
-				FORCEINLINE TStatId GetStatId() const
-				{
-					RETURN_QUICK_DECLARE_CYCLE_STAT(FIntelCompressWorker, STATGROUP_ThreadPoolAsyncTasks);
-				}
-
 				EncoderSettingsType*	mpEncSettings;
 				FImage*					mpInImage;
 				FCompressedImage2D*		mpOutImage;
@@ -269,10 +265,9 @@ struct FMultithreadedCompression
 				int						mSliceIndex;
 				CompressFunction		mCallback;
 			};
-			typedef FAsyncTask<FIntelCompressWorker> FIntelCompressTask;
 
 			// One less task because we'll do the final + non multiple of 4 inside this task
-			TIndirectArray<FIntelCompressTask> CompressionTasks;
+			TArray<FIntelCompressWorker> CompressionTasks;
 			const int NumStasksPerSlice = MultithreadSettings.iNumTasks + 1;
 			CompressionTasks.Reserve(NumStasksPerSlice * Image.NumSlices - 1);
 			for (int SliceIndex = 0; SliceIndex < Image.NumSlices; ++SliceIndex)
@@ -282,19 +277,19 @@ struct FMultithreadedCompression
 					// Create a new task unless it's the last task in the last slice (that one will run on current thread, after these threads have been started)
 					if (SliceIndex < (Image.NumSlices - 1) || iTask < (NumStasksPerSlice - 1))
 					{
-						auto* AsyncTask = new FIntelCompressTask(&EncoderSettings, &Image, &OutCompressedImage, iTask * MultithreadSettings.iScansPerTask, (iTask + 1) * MultithreadSettings.iScansPerTask, SliceIndex, FunctionCallback);
-						CompressionTasks.Add(AsyncTask);
-						AsyncTask->StartBackgroundTask();
+						CompressionTasks.Emplace(&EncoderSettings, &Image, &OutCompressedImage, iTask * MultithreadSettings.iScansPerTask, (iTask + 1) * MultithreadSettings.iScansPerTask, SliceIndex, FunctionCallback);
 					}
 				}
 			}
-			FunctionCallback(&EncoderSettings, &Image, &OutCompressedImage, MultithreadSettings.iScansPerTask * MultithreadSettings.iNumTasks, Image.SizeY, Image.NumSlices - 1);
 
-			// Wait for all tasks to complete
-			for (int32 TaskIndex = 0; TaskIndex < CompressionTasks.Num(); ++TaskIndex)
+			ParallelForWithPreWork(CompressionTasks.Num(), [&CompressionTasks](int32 TaskIndex)
 			{
-				CompressionTasks[TaskIndex].EnsureCompletion();
-			}
+				CompressionTasks[TaskIndex].DoWork();
+			},
+			[&EncoderSettings, &Image, &OutCompressedImage, &MultithreadSettings, &FunctionCallback]()
+			{
+				FunctionCallback(&EncoderSettings, &Image, &OutCompressedImage, MultithreadSettings.iScansPerTask * MultithreadSettings.iNumTasks, Image.SizeY, Image.NumSlices - 1);
+			}, EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced);
 		}
 		else
 		{

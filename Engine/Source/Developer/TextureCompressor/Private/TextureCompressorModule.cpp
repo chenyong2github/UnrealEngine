@@ -1979,7 +1979,7 @@ void ApplyCompositeTexture(FImage& RoughnessSourceMips, const FImage& NormalSour
 /**
  * Asynchronous compression, used for compressing mips simultaneously.
  */
-class FAsyncCompressionWorker : public FNonAbandonableTask 
+class FAsyncCompressionWorker
 {
 public:
 	/**
@@ -2013,11 +2013,6 @@ public:
 			);
 	}
 
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncCompressionWorker, STATGROUP_ThreadPoolAsyncTasks);
-	}
-
 	/**
 	 * Transfer the result of the compression to the OutCompressedImage
 	 * Can only be called once
@@ -2047,7 +2042,6 @@ private:
 	/** true if compression was successful. */
 	bool bCompressionResults;
 };
-typedef FAsyncTask<FAsyncCompressionWorker> FAsyncCompressionTask;
 
 // compress mip-maps in InMipChain and add mips to Texture, might alter the source content
 static bool CompressMipChain(
@@ -2067,7 +2061,6 @@ static bool CompressMipChain(
 	OutNumMipsInTail = CompressorCaps.NumMipsInTail;
 	OutExtData = CompressorCaps.ExtData;
 
-	TIndirectArray<FAsyncCompressionTask> AsyncCompressionTasks;
 	int32 MipCount = MipChain.Num();
 	check(MipCount >= (int32)CompressorCaps.NumMipsInTail);
 	// This number was too small (128) for current hardware and caused too many
@@ -2085,50 +2078,68 @@ static bool CompressMipChain(
 	}
 
 	OutMips.Empty(MipCount);
+	TArray<FAsyncCompressionWorker> AsyncCompressionTasks;
+	AsyncCompressionTasks.Reserve(MipCount);
+
+	struct PreWork
+	{
+		int32 MipIndex;
+		const FImage& SrcMip;
+		FCompressedImage2D& DestMip;
+	};
+	TArray<PreWork> PreWorkTasks;
+	PreWorkTasks.Reserve(MipCount);
+
 	for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 	{
 		const FImage& SrcMip = MipChain[MipIndex];
 		FCompressedImage2D& DestMip = *new(OutMips) FCompressedImage2D;
+
 		if (MipIndex > FirstMipTailIndex)
 		{
 			continue;
 		}
 		else if (bAllowParallelBuild && FMath::Min(SrcMip.SizeX, SrcMip.SizeY) >= MinAsyncCompressionSize)
 		{
-			FAsyncCompressionTask* AsyncTask = new FAsyncCompressionTask(
+			AsyncCompressionTasks.Emplace(
 				TextureFormat,
 				&SrcMip,
 				MipIndex == FirstMipTailIndex ? CompressorCaps.NumMipsInTail : 1, // number of mips pointed to by SrcMip
 				Settings,
 				bImageHasAlphaChannel,
 				CompressorCaps.ExtData
-				);
-			AsyncCompressionTasks.Add(AsyncTask);
-#if WITH_EDITOR
-			AsyncTask->StartBackgroundTask(GLargeThreadPool);
-#else
-			AsyncTask->StartBackgroundTask();
-#endif
+			);
 		}
 		else
 		{
-			bCompressionSucceeded = bCompressionSucceeded && TextureFormat->CompressImageEx(
-				&SrcMip,
-				MipIndex == FirstMipTailIndex ? CompressorCaps.NumMipsInTail : 1, // number of mips pointed to by SrcMip
-				Settings,
-				bImageHasAlphaChannel,
-				CompressorCaps.ExtData,
-				DestMip
-				);
+			PreWorkTasks.Emplace(PreWork { MipIndex, SrcMip, DestMip });
 		}
 	}
 
+	ParallelForWithPreWork(AsyncCompressionTasks.Num(), [&AsyncCompressionTasks](int32 TaskIndex)
+	{
+		AsyncCompressionTasks[TaskIndex].DoWork();
+	},
+	[&PreWorkTasks, &TextureFormat, &OutMips, &bCompressionSucceeded, &CompressorCaps, &Settings, FirstMipTailIndex, bImageHasAlphaChannel]()
+	{
+		for (PreWork& Work : PreWorkTasks)
+		{
+			bCompressionSucceeded = bCompressionSucceeded && TextureFormat->CompressImageEx(
+				&Work.SrcMip,
+				Work.MipIndex == FirstMipTailIndex ? CompressorCaps.NumMipsInTail : 1, // number of mips pointed to by SrcMip
+				Settings,
+				bImageHasAlphaChannel,
+				CompressorCaps.ExtData,
+				Work.DestMip
+			);
+		}
+	}, EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced);
+
 	for (int32 TaskIndex = 0; TaskIndex < AsyncCompressionTasks.Num(); ++TaskIndex)
 	{
-		FAsyncCompressionTask& AsynTask = AsyncCompressionTasks[TaskIndex];
-		AsynTask.EnsureCompletion();
+		FAsyncCompressionWorker& AsynTask = AsyncCompressionTasks[TaskIndex];
 		FCompressedImage2D& DestMip = OutMips[TaskIndex];
-		bCompressionSucceeded = bCompressionSucceeded && AsynTask.GetTask().ConsumeCompressionResults(DestMip);
+		bCompressionSucceeded = bCompressionSucceeded && AsynTask.ConsumeCompressionResults(DestMip);
 	}
 
 	for (int32 MipIndex = FirstMipTailIndex + 1; MipIndex < MipCount; ++MipIndex)
