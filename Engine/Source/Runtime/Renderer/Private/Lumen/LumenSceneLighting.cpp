@@ -64,7 +64,11 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	LumenCardScene = LumenSceneData.UniformBuffer;
+	{
+		FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
+		SetupLumenCardSceneParameters(GraphBuilder, Scene, *LumenCardSceneParameters);
+		LumenCardSceneUniformBuffer = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
+	}
 
 	check(LumenSceneData.FinalLightingAtlas);
 
@@ -140,7 +144,7 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	LLM_SCOPE_BYTAG(Lumen);
 
 	TracingParameters.View = View.ViewUniformBuffer;
-	TracingParameters.LumenCardScene = TracingInputs.LumenCardScene;
+	TracingParameters.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
 	TracingParameters.IrradianceAtlas = TracingInputs.IrradianceAtlas;
@@ -218,6 +222,7 @@ void FLumenCardScatterContext::CullCardsToShape(
 	const FViewInfo& View,
 	const FLumenSceneData& LumenSceneData, 
 	const FLumenCardRenderer& LumenCardRenderer,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	ECullCardsShapeType ShapeType,
 	const FCullCardsShapeParameters& ShapeParameters,
 	float UpdateFrequencyScale,
@@ -233,7 +238,7 @@ void FLumenCardScatterContext::CullCardsToShape(
 	PassParameters->RWQuadAllocator = QuadAllocatorUAV;
 	PassParameters->RWQuadData = QuadDataUAV;
 	PassParameters->View = View.ViewUniformBuffer;
-	PassParameters->LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->ShapeParameters = ShapeParameters;
 	PassParameters->MaxQuadsPerScatterInstance = MaxQuadsPerScatterInstance;
 	PassParameters->ScatterInstanceIndex = ScatterInstanceIndex;
@@ -304,7 +309,7 @@ class FLumenCardLightingInitializePS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityAtlas)
 	END_SHADER_PARAMETER_STRUCT()
@@ -332,7 +337,7 @@ class FLumenCardCopyAtlasPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -359,7 +364,7 @@ class FLumenCardBlendAlbedoPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
 		SHADER_PARAMETER(float, DiffuseReflectivityOverride)
@@ -385,6 +390,7 @@ void CombineLumenSceneLighting(
 	FScene* Scene, 
 	FViewInfo& View,
 	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	FRDGTextureRef FinalLightingAtlas, 
 	FRDGTextureRef OpacityAtlas, 
 	FRDGTextureRef RadiosityAtlas, 
@@ -408,12 +414,12 @@ void CombineLumenSceneLighting(
 		}
 
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
-		PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = 0;
 		PassParameters->VS.CardUVSamplingOffset = CardUVSamplingOffset;
 		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->PS.RadiosityAtlas = RadiosityAtlas;
 		PassParameters->PS.OpacityAtlas = OpacityAtlas;
 
@@ -435,6 +441,7 @@ void CopyLumenCardAtlas(
 	FScene* Scene,
 	FViewInfo& View,
 	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	FRDGTextureRef SrcAtlas,
 	FRDGTextureRef DstAtlas,
 	FGlobalShaderMap* GlobalShaderMap,
@@ -446,12 +453,12 @@ void CopyLumenCardAtlas(
 
 	FLumenCardCopyAtlas* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyAtlas>();
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(DstAtlas, ERenderTargetLoadAction::ENoAction);
-	PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 	PassParameters->VS.ScatterInstanceIndex = 0;
 	PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 	PassParameters->PS.View = View.ViewUniformBuffer;
-	PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->PS.SrcAtlas = SrcAtlas;
 
 	GraphBuilder.AddPass(
@@ -476,6 +483,7 @@ void ApplyLumenCardAlbedo(
 	FScene* Scene,
 	FViewInfo& View,
 	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	FRDGTextureRef FinalLightingAtlas,
 	FRDGTextureRef AlbedoAtlas,
 	FRDGTextureRef EmissiveAtlas, 
@@ -488,12 +496,12 @@ void ApplyLumenCardAlbedo(
 
 	FLumenCardBlendAlbedo* PassParameters = GraphBuilder.AllocParameters<FLumenCardBlendAlbedo>();
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
-	PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 	PassParameters->VS.ScatterInstanceIndex = 0;
 	PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 	PassParameters->PS.View = View.ViewUniformBuffer;
-	PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->PS.AlbedoAtlas = AlbedoAtlas;
 	PassParameters->PS.EmissiveAtlas = EmissiveAtlas;
 	PassParameters->PS.DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneDiffuseReflectivityOverride, 0.0f, 1.0f);
@@ -584,6 +592,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				View,
 				LumenSceneData,
 				LumenCardRenderer,
+				TracingInputs.LumenCardSceneUniformBuffer,
 				ECullCardsShapeType::None,
 				FCullCardsShapeParameters(),
 				GLumenSceneCardDirectLightingUpdateFrequencyScale,
@@ -612,6 +621,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				Scene,
 				View,
 				GraphBuilder,
+				TracingInputs.LumenCardSceneUniformBuffer,
 				TracingInputs.FinalLightingAtlas,
 				TracingInputs.OpacityAtlas,
 				RadiosityAtlas,
@@ -624,6 +634,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 					Scene,
 					View,
 					GraphBuilder,
+					TracingInputs.LumenCardSceneUniformBuffer,
 					TracingInputs.FinalLightingAtlas,
 					TracingInputs.IndirectIrradianceAtlas,
 					GlobalShaderMap,
@@ -632,6 +643,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 			RenderDirectLightingForLumenScene(
 				GraphBuilder,
+				TracingInputs.LumenCardSceneUniformBuffer,
 				TracingInputs.FinalLightingAtlas,
 				TracingInputs.OpacityAtlas,
 				GlobalShaderMap,
@@ -643,6 +655,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 					Scene,
 					View,
 					GraphBuilder,
+					TracingInputs.LumenCardSceneUniformBuffer,
 					TracingInputs.FinalLightingAtlas,
 					TracingInputs.IrradianceAtlas,
 					GlobalShaderMap,
@@ -655,6 +668,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				Scene,
 				View,
 				GraphBuilder,
+				TracingInputs.LumenCardSceneUniformBuffer,
 				TracingInputs.FinalLightingAtlas,
 				AlbedoAtlas,
 				EmissiveAtlas,

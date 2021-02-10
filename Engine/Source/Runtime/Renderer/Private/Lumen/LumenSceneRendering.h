@@ -74,7 +74,7 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FMeshPassDrawListContext* InDrawListContext);
 
-extern void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters);
+extern void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenCardScene& OutParameters);
 extern void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionCompositeParameters, )

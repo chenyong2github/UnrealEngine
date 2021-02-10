@@ -361,15 +361,21 @@ private:
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
+		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 		FRDGTextureRef FinalLightingAtlas,
 		FRDGTextureRef OpacityAtlas,
 		FGlobalShaderMap* GlobalShaderMap,
 		const FLumenCardScatterContext& VisibleCardScatterContext);
 	
-	void RenderRadiosityForLumenScene(FRDGBuilder& GraphBuilder, const class FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap, FRDGTextureRef RadiosityAtlas);
+	void RenderRadiosityForLumenScene(
+		FRDGBuilder& GraphBuilder,
+		const class FLumenCardTracingInputs& TracingInputs,
+		FGlobalShaderMap* GlobalShaderMap,
+		FRDGTextureRef RadiosityAtlas);
 
 	void PrefilterLumenSceneDepth(
 		FRDGBuilder& GraphBuilder,
+		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 		FRDGTextureRef DepthBufferAtlas,
 		const TArray<uint32, SceneRenderingAllocator>& CardIdsToRender,
 		const FViewInfo& View);

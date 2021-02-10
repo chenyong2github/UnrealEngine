@@ -1747,7 +1747,7 @@ public:
 TGlobalResource<FNullCardBuffers> GNullCardBuffers;
 
 
-void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters)
+void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenCardScene& OutParameters)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
@@ -1782,17 +1782,18 @@ void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters
 
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{
-		OutParameters.AlbedoAtlas = LumenSceneData.AlbedoAtlas->GetRenderTargetItem().ShaderResourceTexture;
-		OutParameters.NormalAtlas = LumenSceneData.NormalAtlas->GetRenderTargetItem().ShaderResourceTexture;
-		OutParameters.EmissiveAtlas = LumenSceneData.EmissiveAtlas->GetRenderTargetItem().ShaderResourceTexture;
-		OutParameters.DepthAtlas = LumenSceneData.DepthAtlas->GetRenderTargetItem().ShaderResourceTexture;
+		OutParameters.AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.SceneAlbedo"));
+		OutParameters.NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas, TEXT("Lumen.SceneNormal"));
+		OutParameters.EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("Lumen.SceneEmissive"));
+		OutParameters.DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas, TEXT("Lumen.SceneDepth"));
 	}
 	else
 	{
-		OutParameters.AlbedoAtlas = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
-		OutParameters.NormalAtlas = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
-		OutParameters.EmissiveAtlas = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
-		OutParameters.DepthAtlas = GSystemTextures.DepthDummy->GetRenderTargetItem().ShaderResourceTexture;
+		FRDGTextureRef BlackDummyTextureRef = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("Lumen.BlackDummy"));
+		OutParameters.AlbedoAtlas = BlackDummyTextureRef;
+		OutParameters.NormalAtlas = BlackDummyTextureRef;
+		OutParameters.EmissiveAtlas = BlackDummyTextureRef;
+		OutParameters.DepthAtlas = BlackDummyTextureRef;
 	}
 	
 	OutParameters.MeshCardsData = LumenSceneData.MeshCardsBuffer.SRV;
@@ -1811,12 +1812,13 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
+	bool bResourceResized = false;
 	{
 		const int32 NumCardEntries = LumenSceneData.Cards.Num();
 		const uint32 CardSceneNumFloat4s = NumCardEntries * FLumenCardGPUData::DataStrideInFloat4s;
 		const uint32 CardSceneNumBytes = FMath::DivideAndRoundUp(CardSceneNumFloat4s, 16384u) * 16384 * sizeof(FVector4);
 		// Reserve enough space
-		ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4), TEXT("Cards0"));
+		bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4), TEXT("Cards0"));
 	}
 
 	if (GLumenSceneUploadCardBufferEveryFrame)
@@ -1854,14 +1856,12 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 		LumenSceneData.CardUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CardBuffer, false);
 		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
+	else if (bResourceResized)
+	{
+		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::UAVCompute | ERHIAccess::UAVGraphics, ERHIAccess::SRVMask));
+	}
 
 	UpdateLumenMeshCards(*Scene, Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList);
-
-	{
-		FLumenCardScene LumenCardSceneParameters;
-		SetupLumenCardSceneParameters(Scene, LumenCardSceneParameters);
-		LumenSceneData.UniformBuffer = CreateUniformBufferImmediate(LumenCardSceneParameters, UniformBuffer_MultiFrame);
-	}
 
 	const uint32 MaxUploadBufferSize = 4096;
 	if (LumenSceneData.CardUploadBuffer.GetNumBytes() > MaxUploadBufferSize)
@@ -2387,7 +2387,14 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 		if (LumenCardRenderer.CardIdsToRender.Num() > 0)
 		{
-			PrefilterLumenSceneDepth(GraphBuilder, DepthStencilAtlasTexture, LumenCardRenderer.CardIdsToRender, View);
+			TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer;
+			{
+				FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
+				SetupLumenCardSceneParameters(GraphBuilder, Scene, *LumenCardSceneParameters);
+				LumenCardSceneUniformBuffer = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
+			}
+
+			PrefilterLumenSceneDepth(GraphBuilder, LumenCardSceneUniformBuffer, DepthStencilAtlasTexture, LumenCardRenderer.CardIdsToRender, View);
 		}
 
 		const float TimeElapsed = FPlatformTime::Seconds() - StartTime;

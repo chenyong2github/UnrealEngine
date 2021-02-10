@@ -37,10 +37,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, MeshCardsData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, DFObjectToMeshCardsIndexBuffer)
-	SHADER_PARAMETER_TEXTURE(Texture2D, AlbedoAtlas)
-	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
-	SHADER_PARAMETER_TEXTURE(Texture2D, EmissiveAtlas)
-	SHADER_PARAMETER_TEXTURE(Texture2D, DepthAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 class FMeshCardRepresentationLink
@@ -197,7 +197,6 @@ public:
 
 	TArray<int32> CardIndicesToUpdateInBuffer;
 	FRWBufferStructured CardBuffer;
-	TUniformBufferRef<FLumenCardScene> UniformBuffer;
 
 	TArray<FBox> PrimitiveModifiedBounds;
 

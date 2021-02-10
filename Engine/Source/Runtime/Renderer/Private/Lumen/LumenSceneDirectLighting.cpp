@@ -136,7 +136,7 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
@@ -404,6 +404,7 @@ void RenderDirectLightIntoLumenCards(
 	const FViewInfo& View,
 	const FEngineShowFlags& EngineShowFlags,
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	FRDGTextureRef FinalLightingAtlas,
 	FRDGTextureRef OpacityAtlas,
 	const FLightSceneInfo* LightSceneInfo,
@@ -481,8 +482,8 @@ void RenderDirectLightIntoLumenCards(
 	if (bLumenUseHardwareRayTracedShadow)
 	{
 		RenderHardwareRayTracedShadowIntoLumenCards(
-			GraphBuilder, Scene, View, OpacityAtlas, LightSceneInfo, 
-			LightName,CardScatterContext, ScatterInstanceIndex, 
+			GraphBuilder, Scene, View, LumenCardSceneUniformBuffer, OpacityAtlas, 
+			LightSceneInfo, LightName, CardScatterContext, ScatterInstanceIndex,
 			LumenDirectLightingHardwareRayTracingData, bDynamicallyShadowed, LumenLightType);
 	}
 	else if (bTraceMeshSDFs)
@@ -494,7 +495,7 @@ void RenderDirectLightIntoLumenCards(
 	{
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ELoad);
 		PassParameters->VS.InfluenceSphere = FVector4(LightBounds.Center, LightBounds.W);
-		PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = ScatterInstanceIndex;
 		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
@@ -515,7 +516,7 @@ void RenderDirectLightIntoLumenCards(
 		}
 
 		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->PS.OpacityAtlas = OpacityAtlas;
 		DeferredLightUniforms.LightParameters.Color *= LightSceneInfo->Proxy->GetIndirectLightingScale();
 		PassParameters->PS.DeferredLightUniforms = CreateUniformBufferImmediate(DeferredLightUniforms, UniformBuffer_SingleDraw);
@@ -631,6 +632,7 @@ void RenderDirectLightIntoLumenCards(
 
 void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	FRDGTextureRef FinalLightingAtlas,
 	FRDGTextureRef OpacityAtlas,
 	FGlobalShaderMap* GlobalShaderMap,
@@ -679,6 +681,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						MainView,
 						ViewFamily.EngineShowFlags,
 						VisibleLightInfos,
+						LumenCardSceneUniformBuffer,
 						FinalLightingAtlas,
 						OpacityAtlas,
 						LightSceneInfo,
@@ -755,6 +758,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						MainView,
 						LumenSceneData,
 						LumenCardRenderer,
+						LumenCardSceneUniformBuffer,
 						ShapeType,
 						ShapeParameters,
 						GLumenSceneCardDirectLightingUpdateFrequencyScale,
@@ -783,6 +787,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						MainView,
 						ViewFamily.EngineShowFlags,
 						VisibleLightInfos,
+						LumenCardSceneUniformBuffer,
 						FinalLightingAtlas,
 						OpacityAtlas,
 						LightSceneInfo,

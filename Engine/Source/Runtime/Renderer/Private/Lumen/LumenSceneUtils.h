@@ -71,6 +71,7 @@ public:
 		const FViewInfo& View,
 		const FLumenSceneData& LumenSceneData,
 		const FLumenCardRenderer& LumenCardRenderer,
+		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 		ECullCardsShapeType ShapeType,
 		const FCullCardsShapeParameters& ShapeParameters,
 		float UpdateFrequencyScale,
@@ -92,7 +93,7 @@ class FCullCardsToShapeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQuadAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQuadData)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER(uint32, MaxQuadsPerScatterInstance)
 		SHADER_PARAMETER(uint32, ScatterInstanceIndex)
 		SHADER_PARAMETER(uint32, NumVisibleCardsIndices)
@@ -156,7 +157,7 @@ class FRasterizeToCardsVS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FRasterizeToCardsVS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardScatterParameters, CardScatterParameters)
 		SHADER_PARAMETER(FVector4, InfluenceSphere)
 		SHADER_PARAMETER(FVector2D, CardUVSamplingOffset)
@@ -287,7 +288,7 @@ extern void GetLumenVoxelParametersForClipmapLevel(const FLumenCardTracingInputs
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
-	SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FinalLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IrradianceAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectIrradianceAtlas)
@@ -318,7 +319,7 @@ public:
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldExtent;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldSamplingExtent;
 	TStaticArray<FVector4, MaxVoxelClipmapLevels> ClipmapVoxelSizeAndRadius;
-	TUniformBufferRef<FLumenCardScene> LumenCardScene;
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer;
 };
 
 // Must match LIGHT_TYPE_* in LumenSceneDirectLighting.usf
@@ -356,9 +357,11 @@ private:
 	bool bIsInterpolantsTextureCreated;
 };
 
-void RenderHardwareRayTracedShadowIntoLumenCards(FRDGBuilder& GraphBuilder,
+void RenderHardwareRayTracedShadowIntoLumenCards(
+	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	FRDGTextureRef OpacityAtlas,
 	const FLightSceneInfo* LightSceneInfo,
 	const FString& LightName,

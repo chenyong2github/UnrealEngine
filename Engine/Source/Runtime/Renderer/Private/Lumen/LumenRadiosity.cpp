@@ -707,6 +707,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			MainView,
 			LumenSceneData,
 			LumenCardRenderer,
+			TracingInputs.LumenCardSceneUniformBuffer,
 			ECullCardsShapeType::None,
 			FCullCardsShapeParameters(),
 			GLumenSceneCardRadiosityUpdateFrequencyScale,
@@ -744,7 +745,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(RadiosityAtlas, ERenderTargetLoadAction::ENoAction);
 
-			PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 			PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 			PassParameters->VS.ScatterInstanceIndex = 0;
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;

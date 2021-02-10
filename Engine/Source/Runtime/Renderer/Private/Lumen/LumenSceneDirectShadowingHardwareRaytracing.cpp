@@ -248,7 +248,7 @@ class FLumenCardRayGenSetupPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FLumenCardRayGenSetupPS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(FVector4, AtlasSizeAndInvSize)
@@ -305,7 +305,7 @@ class FLumenCardDirectLightingRGS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER(float, SurfaceBias)
@@ -374,9 +374,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingLumenDirectLighting(const F
 
 #endif
 
-void RenderHardwareRayTracedShadowIntoLumenCards(FRDGBuilder& GraphBuilder,
+void RenderHardwareRayTracedShadowIntoLumenCards(
+	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	FRDGTextureRef OpacityAtlas,
 	const FLightSceneInfo* LightSceneInfo,
 	const FString& LightName,
@@ -417,7 +419,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(FRDGBuilder& GraphBuilder,
 		ERenderTargetLoadAction Action = LumenDirectLightingHardwareRayTracingData.IsInterpolantsTextureCreated() ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::ENoAction;
 		SetupPassParameters->RenderTargets[0] = FRenderTargetBinding(LumenDirectLightingHardwareRayTracingData.CardInterpolantsTexture, Action);
 		SetupPassParameters->VS.InfluenceSphere = FVector4(LightBounds.Center, LightBounds.W);
-		SetupPassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+		SetupPassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		SetupPassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		SetupPassParameters->VS.ScatterInstanceIndex = ScatterInstanceIndex;
 		SetupPassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
@@ -427,7 +429,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(FRDGBuilder& GraphBuilder,
 		SetupPassParameters->PS.OpacityAtlas = OpacityAtlas;
 		SetupPassParameters->PS.RWLightMask = GraphBuilder.CreateUAV(LumenDirectLightingHardwareRayTracingData.LightMaskTexture);
 		SetupPassParameters->PS.ViewUniformBuffer = View.ViewUniformBuffer;
-		SetupPassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+		SetupPassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		SetupPassParameters->PS.LightUniqueId = LumenDirectLightingHardwareRayTracingData.GetLightId();
 
 		FRasterizeToCardsVS::FPermutationDomain VSPermutationVector;
@@ -484,7 +486,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(FRDGBuilder& GraphBuilder,
 		LightSceneProxy->GetLightShaderParameters(PassParameters->Light);
 		PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 
-		PassParameters->LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
 
 		PassParameters->RWShadowMaskAtlas = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(LumenDirectLightingHardwareRayTracingData.ShadowMaskAtlas));
 		PassParameters->CardInterpolantsUAV = GraphBuilder.CreateUAV(LumenDirectLightingHardwareRayTracingData.CardInterpolantsBuffer, PF_R32_UINT);

@@ -31,7 +31,7 @@ class FLumenCardCopyPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER(float, SourceMip)
 		SHADER_PARAMETER(FMatrix, ChannelSwizzle)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceAtlas)
@@ -65,7 +65,7 @@ class FLumenCardCopyDepthPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceDepthAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -97,7 +97,7 @@ class FLumenCardPrefilterDepthPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentDepthAtlas)
 		SHADER_PARAMETER(FVector2D, InvSize)
 	END_SHADER_PARAMETER_STRUCT()
@@ -129,7 +129,7 @@ class FLumenCardPostprocessOpacityPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthAtlas)
 		SHADER_PARAMETER(FVector2D, InvSize)
 		SHADER_PARAMETER(float, TanHeightfieldSlopeThreshold)
@@ -157,7 +157,7 @@ class FLumenCardPrefilterOpacityPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentOpacityAtlas)
 		SHADER_PARAMETER(FVector2D, InvSize)
 	END_SHADER_PARAMETER_STRUCT()
@@ -179,6 +179,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	FRDGTextureRef DepthBufferAtlas,
 	const TArray<uint32, SceneRenderingAllocator>& CardIdsToRender,
 	const FViewInfo& View)
@@ -202,6 +203,7 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 		View,
 		LumenSceneData,
 		LumenCardRenderer,
+		LumenCardSceneUniformBuffer,
 		ECullCardsShapeType::None,
 		FCullCardsShapeParameters(),
 		1.0f,
@@ -222,12 +224,12 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 	{
 		FLumenCardCopyDepth* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyDepth>();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(DepthAtlas, ERenderTargetLoadAction::ENoAction, 0);
-		PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = 0;
 		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->PS.SourceDepthAtlas = DepthBufferAtlas;
 
 		GraphBuilder.AddPass(
@@ -255,12 +257,12 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 
 			FLumenCardPrefilterDepth* PassParameters = GraphBuilder.AllocParameters<FLumenCardPrefilterDepth>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(DepthAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
-			PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 			PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 			PassParameters->VS.ScatterInstanceIndex = 0;
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 			PassParameters->PS.View = View.ViewUniformBuffer;
-			PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 			PassParameters->PS.ParentDepthAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(DepthAtlas, MipIndex - 1));
 			PassParameters->PS.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 
@@ -281,37 +283,13 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 
 	{
 		FLumenCardCopy* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopy>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(DepthAtlas, ERenderTargetLoadAction::ENoAction, NumMips - 1);
-		PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
-		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
-		PassParameters->VS.ScatterInstanceIndex = 0;
-		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
-		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
-		PassParameters->PS.SourceMip = NumMips - 1;
-		PassParameters->PS.ChannelSwizzle = FMatrix::Identity;
-		PassParameters->PS.SourceAtlas = DepthAtlas;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("CopyLastMip"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[LocalScene, PassParameters, ViewportSize, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
-		{
-			auto PixelShader = GlobalShaderMap->GetShader< FLumenCardCopyPS >();
-			DrawQuadsToAtlas(ViewportSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
-		});
-	}
-
-	{
-		FLumenCardCopy* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopy>();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OpacityAtlas, ERenderTargetLoadAction::ENoAction, 0);
-		PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = 0;
 		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->PS.SourceMip = 0;
 		// Move Opacity in Alpha of AlbedoAtlas into R channel of OpacityAtlas
 		PassParameters->PS.ChannelSwizzle = FMatrix(FPlane(0,0,0,0),FPlane(0,0,0,0),FPlane(0,0,0,0),FPlane(1,0,0,0));
@@ -340,12 +318,12 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 
 			FLumenCardPostprocessOpacity* PassParameters = GraphBuilder.AllocParameters<FLumenCardPostprocessOpacity>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(OpacityAtlas, ERenderTargetLoadAction::ELoad, MipIndex);
-			PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 			PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 			PassParameters->VS.ScatterInstanceIndex = 0;
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 			PassParameters->PS.View = View.ViewUniformBuffer;
-			PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 			PassParameters->PS.DepthAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(DepthAtlas, MipIndex));
 			PassParameters->PS.TanHeightfieldSlopeThreshold = FMath::Tan(FMath::Clamp<float>(GLumenSceneHeightfieldSlopeThreshold * PI / 180.0f, 0, PI / 2 - .1f));
 			PassParameters->PS.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
@@ -377,12 +355,12 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneDepth(
 
 			FLumenCardPrefilterOpacity* PassParameters = GraphBuilder.AllocParameters<FLumenCardPrefilterOpacity>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(OpacityAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
-			PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 			PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 			PassParameters->VS.ScatterInstanceIndex = 0;
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 			PassParameters->PS.View = View.ViewUniformBuffer;
-			PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 			PassParameters->PS.ParentOpacityAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(OpacityAtlas, MipIndex - 1));
 			PassParameters->PS.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 
@@ -416,7 +394,7 @@ class FLumenCardPrefilterLightingPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentFinalLightingAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentIrradianceAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentIndirectIrradianceAtlas)
@@ -477,12 +455,12 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneLighting(
 			{
 				PassParameters->RenderTargets[1] = FRenderTargetBinding(TracingInputs.IndirectIrradianceAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
 			}
-			PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 			PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 			PassParameters->VS.ScatterInstanceIndex = 0;
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 			PassParameters->PS.View = View.ViewUniformBuffer;
-			PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+			PassParameters->PS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 			PassParameters->PS.ParentFinalLightingAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(TracingInputs.FinalLightingAtlas, MipIndex - 1));
 			if (bUseIrradianceAtlas)
 			{
