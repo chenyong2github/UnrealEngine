@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Core/PBIKBody.h"
 #include "Core/PBIKSolver.h"
 
@@ -101,7 +99,7 @@ FRigidBody* FRigidBody::GetParentBody()
 
 void FRigidBody::ApplyPushToRotateBody(const FVector& Push, const FVector& Offset)
 {
-	// quat differentiation
+	// equation 8 in "Detailed Rigid Body Simulation with XPBD"
 	FVector Omega = InvMass * (1.0f - J.RotationStiffness) * FVector::CrossProduct(Offset, Push);
 	FQuat OQ(Omega.X, Omega.Y, Omega.Z, 0.0f);
 	OQ = OQ * Rotation;
@@ -118,7 +116,7 @@ void FRigidBody::ApplyPushToRotateBody(const FVector& Push, const FVector& Offse
 
 void FRigidBody::ApplyPushToPosition(const FVector& Push)
 {
-	if (bPinnedToEffector)
+	if (AttachedEffector)
 	{
 		return; // pins are locked
 	}

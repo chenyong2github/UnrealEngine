@@ -3,6 +3,8 @@
 #include "RigUnit_PBIK.h"
 #include "Units/RigUnitContext.h"
 
+//#pragma optimize("", off)
+
 FRigUnit_PBIK_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -21,7 +23,7 @@ FRigUnit_PBIK_Execute()
 		int NumEffectors = 0;
 		for (const FPBIKEffector& Effector : Effectors)
 		{
-			if (Bones.GetIndex(Effector.Bone) != NAME_None)
+			if (Bones.GetIndex(Effector.Bone) != INDEX_NONE)
 			{
 				++NumEffectors; // bone is set and exists!
 			}
@@ -50,12 +52,11 @@ FRigUnit_PBIK_Execute()
 		}
 		
 		// create effectors
+		EffectorSolverIndices.Reset();
 		for (const FPBIKEffector& Effector : Effectors)
 		{
-			if (!Solver.AddEffector(Effector.Bone))
-			{
-				return;
-			}
+			int32 IndexInSolver = Solver.AddEffector(Effector.Bone);
+			EffectorSolverIndices.Add(IndexInSolver);
 		}
 		
 		// initialize
@@ -79,7 +80,7 @@ FRigUnit_PBIK_Execute()
 	for (const FPBIKBoneSetting& BoneSetting : BoneSettings)
 	{
 		int32 BoneIndex = Bones.GetIndex(BoneSetting.Bone);
-		if (BoneIndex == INDEX_NONE)
+		if (BoneIndex == -1)
 		{
 			continue; // no bones to apply it to
 		}
@@ -93,18 +94,27 @@ FRigUnit_PBIK_Execute()
 	// update effectors
 	for (int E = 0; E < Effectors.Num(); ++E)
 	{
-		FVector Position = Effectors[E].Transform.GetLocation();
-		FQuat Rotation = Effectors[E].Transform.GetRotation();
-		Solver.SetEffectorGoal(E, Position, Rotation, Effectors[E].Alpha);
+		if (EffectorSolverIndices[E] == -1)
+		{
+			continue;
+		}
+
+		const FPBIKEffector& Effector = Effectors[E];
+		FVector Position = Effector.Transform.GetLocation();
+		FQuat Rotation = Effector.Transform.GetRotation();
+		Solver.SetEffectorGoal(EffectorSolverIndices[E], Position, Rotation, Effector.OffsetAlpha, Effector.StrengthAlpha);
 	}
 
 	// solve
 	Solver.Solve(Settings);
 
 	// copy transforms back
-	for (int B = 0; B < Bones.Num(); ++B)
+	bool bPropagateTransform = false;
+	for (int BoneIndex = 0; BoneIndex < Bones.Num(); ++BoneIndex)
 	{
-		Solver.GetBoneGlobalTransform(B, Bones[B].GlobalTransform);
+		FTransform NewTransform;
+		Solver.GetBoneGlobalTransform(BoneIndex, NewTransform);
+		Bones.SetGlobalTransform(BoneIndex, NewTransform, bPropagateTransform);
 	}
 
 	// do all debug drawing

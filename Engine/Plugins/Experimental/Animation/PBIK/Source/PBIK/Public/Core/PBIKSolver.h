@@ -12,7 +12,10 @@ DECLARE_CYCLE_STAT(TEXT("PBIK Solve"), STAT_PBIK_Solve, STATGROUP_Anim);
 
 namespace PBIK
 {
-	static float GLOBAL_UNITS = 100.0f; // (1.0f = meters), (100.0f = centimeters)
+
+static float GLOBAL_UNITS = 100.0f; // (1.0f = meters), (100.0f = centimeters)
+
+struct FRigidBody;
 
 struct FEffector
 {
@@ -29,13 +32,14 @@ struct FEffector
 	TWeakPtr<FPinConstraint> Pin;
 	
 	float DistToSubRootOrig;
-	FBone* ParentSubRoot;
+	FRigidBody* ParentSubRoot = nullptr;
 
-	float Alpha;
+	float TransformAlpha;
+	float StrengthAlpha;
 
 	FEffector(FBone* InBone);
 
-	void SetGoal( const FVector InPositionGoal, const FQuat& InRotationGoal, float InAlpha);
+	void SetGoal(const FVector InPositionGoal, const FQuat& InRotationGoal, float InTransformAlpha, float InStrengthAlpha);
 
 	void UpdateFromInputs();
 
@@ -49,16 +53,16 @@ struct FPBIKSolverSettings
 {
 	GENERATED_BODY()
 
-	UPROPERTY(meta = (ClampMin = "0", UIMin = "0.0", UIMax = "200.0"))
+	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "200.0"))
 	int32 Iterations = 20;
 
-	UPROPERTY(meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "10.0"))
 	float MassMultiplier = 1.0f;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = SolverSettings)
 	bool bAllowStretch = false;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = SolverSettings)
 	bool bPinRoot = false;
 };
 
@@ -93,7 +97,12 @@ public:
 
 	PBIK::FBoneSettings* GetBoneSettings(const int32 Index);
 
-	void SetEffectorGoal(const int32 Index, const FVector& InPosition, const FQuat& InRotation, const float Alpha);
+	void SetEffectorGoal(
+		const int32 Index, 
+		const FVector& InPosition, 
+		const FQuat& InRotation, 
+		const float OffsetAlpha, 
+		const float StrengthAlpha);
 
 	void GetBoneGlobalTransform(const int32 Index, FTransform& OutTransform);
 
@@ -108,7 +117,7 @@ public:
 		const FQuat& InOrigRotation,
 		bool bIsSolverRoot);
 
-	bool AddEffector(FName BoneName);
+	int32 AddEffector(FName BoneName);
 	
 private:
 

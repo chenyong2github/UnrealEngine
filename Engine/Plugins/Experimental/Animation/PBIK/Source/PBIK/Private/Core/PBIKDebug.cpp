@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Core/PBIKDebug.h"
 #include "Core/PBIKSolver.h"
 #include "Core/PBIKBody.h"

@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Core/PBIKConstraint.h"
 #include "Core/PBIKSolver.h"
 #include "Math/UnrealMathUtility.h"
 
 namespace PBIK
 {
+
+	static float ALMOST_ONE = 1.0f - KINDA_SMALL_NUMBER;
 	
 FJointConstraint::FJointConstraint(FRigidBody* InA, FRigidBody* InB)
 {
@@ -29,32 +29,41 @@ void FJointConstraint::Solve(bool bMoveSubRoots)
 	FVector OffsetA;
 	FVector OffsetB;
 	FVector Correction = GetPositionCorrection(OffsetA, OffsetB);
+	//Correction = Correction * OneOverInvMassSum;
 
 	// apply rotation from correction 
 	// at pin point to both bodies
-	A->ApplyPushToRotateBody(Correction, OffsetA);
-	B->ApplyPushToRotateBody(-Correction, OffsetB);
+	A->ApplyPushToRotateBody(Correction, OffsetA);//* AInvMass, OffsetA);
+	B->ApplyPushToRotateBody(-Correction, OffsetB); //* BInvMass, OffsetB);
 
 	// enforce joint limits
 	UpdateJointLimits();
+
+	// calc inv mass of body A
+	float AInvMass = 1.0f;
+	AInvMass -= A->AttachedEffector ? A->AttachedEffector->StrengthAlpha : 0.0f;
+	AInvMass -= !bMoveSubRoots && A->Bone->bIsSubRoot ? 1.0f : 0.0f;
+	AInvMass = AInvMass <= 0.0f ? 0.0f : AInvMass;
+
+	// calc inv mass of body B
+	float BInvMass = 1.0f;
+	BInvMass -= B->AttachedEffector ? B->AttachedEffector->StrengthAlpha : 0.0f;
+	BInvMass -= !bMoveSubRoots && B->Bone->bIsSubRoot ? 1.0f : 0.0f;
+	BInvMass = BInvMass <= 0.0f ? 0.0f : BInvMass;
+
+	float InvMassSum = AInvMass + BInvMass;
+	if (FMath::IsNearlyZero(InvMassSum))
+	{
+		return; // no correction can be applied on full locked configuration
+	}
+	float OneOverInvMassSum = 1.0f / InvMassSum;
 
 	// apply positional correction to align pin point on both Bodies
 	// NOTE: applying position correction AFTER rotation takes into
 	// consideration change in relative pin locations mid-step after
 	// bodies have been rotated by ApplyPushToRotateBody
 	Correction = GetPositionCorrection(OffsetA, OffsetB);
-
-	// scale correction by inv mass
-	bool bALocked = A->bPinnedToEffector || (!bMoveSubRoots && A->Bone->bIsSubRoot);
-	bool bBLocked = B->bPinnedToEffector || (!bMoveSubRoots && B->Bone->bIsSubRoot);
-	float AInvMass = bALocked ? 0.0f : 1.0f;
-	float BInvMass = bBLocked ? 0.0f : 1.0f;
-	float InvMassSum = AInvMass + BInvMass;
-	if (InvMassSum < KINDA_SMALL_NUMBER)
-	{
-		return;
-	}
-	Correction = Correction * (1.0f / InvMassSum);
+	Correction = Correction * OneOverInvMassSum;
 
 	A->ApplyPushToPosition(Correction * AInvMass);
 	B->ApplyPushToPosition(-Correction * BInvMass);

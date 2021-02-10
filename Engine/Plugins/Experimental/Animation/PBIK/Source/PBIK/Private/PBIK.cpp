@@ -4,7 +4,7 @@
 
 #define LOCTEXT_NAMESPACE "FPBIKModule"
 
-DEFINE_LOG_CATEGORY(LogIKSolver);
+DEFINE_LOG_CATEGORY(LogPBIKSolver);
 
 void FPBIKModule::StartupModule()
 {

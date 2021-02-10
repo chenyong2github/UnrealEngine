@@ -32,7 +32,7 @@ class IKRIG_API UIKRigSolver : public UObject
 	
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Definition")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bEnabled = true;
 
 	/** override Init() to setup internal data based on ref pose */

@@ -6,7 +6,6 @@
 #include "Math/Vector.h"
 #include "Math/Quat.h"
 
-
 struct FPBIKSolverSettings;
 
 namespace PBIK
@@ -14,6 +13,7 @@ namespace PBIK
 
 struct FJointConstraint;
 struct FRigidBody;
+struct FEffector;
 
 struct FBone
 {
@@ -83,7 +83,7 @@ struct FRigidBody
 	TArray<FVector> ChildLocalPositions;
 
 	float InvMass = 0.0f;
-	bool bPinnedToEffector = false;
+	FEffector* AttachedEffector = nullptr;
 	float Length;
 	
 private:
