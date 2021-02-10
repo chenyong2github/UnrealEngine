@@ -523,6 +523,10 @@ public:
 	UPROPERTY()
 	uint8 bUseEditorCompositing:1;
 
+	/** Set to true while the editor is moving the component, which notifies the Renderer to track velocities even if the component is Static. */
+	UPROPERTY(Transient, DuplicateTransient)
+	uint8 bIsBeingMovedByEditor:1;
+
 	/** If true, this component will be rendered in the CustomDepth pass (usually used for outlines) */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(DisplayName = "Render CustomDepth Pass"))
 	uint8 bRenderCustomDepth:1;
@@ -2051,6 +2055,9 @@ public:
 #if WITH_EDITOR
 	/** Returns mask that represents in which views this primitive is hidden */
 	virtual uint64 GetHiddenEditorViews() const;
+
+	/** Sets whether this component is being moved by the editor so the renderer can render velocities for it, even when Static. */
+	void SetIsBeingMovedByEditor(bool bNewIsBeingMoved);
 #endif// WITH_EDITOR
 
 	/**

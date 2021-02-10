@@ -863,6 +863,9 @@ public:
 	/** True if this viewport is to change its view (aspect ratio, post processing, FOV etc) to match that of the currently locked camera, if applicable */
 	bool					bLockedCameraView;
 
+	/** true if the viewport needs to restore the flag when tracking ends */
+	bool					bNeedToRestoreComponentBeingMovedFlag;
+
 	/** Whether this viewport recently received focus. Used to determine whether component selection is permissible. */
 	bool bReceivedFocusRecently;
 

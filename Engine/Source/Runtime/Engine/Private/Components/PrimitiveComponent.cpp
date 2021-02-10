@@ -358,6 +358,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bNeverDistanceCull = false;
 
 	bUseEditorCompositing = false;
+	bIsBeingMovedByEditor = false;
 
 	SetGenerateOverlapEvents(true);
 	bMultiBodyOverlap = false;
@@ -1579,6 +1580,12 @@ uint64 UPrimitiveComponent::GetHiddenEditorViews() const
 {
 	const AActor* OwnerActor = GetOwner();
 	return OwnerActor ? OwnerActor->HiddenEditorViews : 0;
+}
+
+void UPrimitiveComponent::SetIsBeingMovedByEditor(bool bIsBeingMoved)
+{
+	bIsBeingMovedByEditor = bIsBeingMoved;
+	MarkRenderStateDirty();
 }
 #endif// WITH_EDITOR
 

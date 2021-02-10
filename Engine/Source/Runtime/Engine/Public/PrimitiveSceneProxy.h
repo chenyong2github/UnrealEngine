@@ -552,6 +552,7 @@ public:
 	}
 	inline bool HasPerInstanceHitProxies () const { return bHasPerInstanceHitProxies; }
 	inline bool UseEditorCompositing(const FSceneView* View) const { return GIsEditor && bUseEditorCompositing && !View->bIsGameView; }
+	inline bool IsBeingMovedByEditor() const { return bIsBeingMovedByEditor; }
 	inline const FVector& GetActorPosition() const { return ActorPosition; }
 	inline const bool ReceivesDecals() const { return bReceivesDecals; }
 	inline bool WillEverBeLit() const { return bWillEverBeLit; }
@@ -568,7 +569,7 @@ public:
 
 	/** Returns whether draws velocity in base pass. */
 	inline bool DrawsVelocity() const {
-		return IsMovable();
+		return IsMovable() || IsBeingMovedByEditor();
 	}
 
 #if WITH_EDITOR
@@ -997,6 +998,9 @@ private:
 
 	/** Whether this primitive should be composited onto the scene after post processing (editor only) */
 	uint8 bUseEditorCompositing : 1;
+
+	/** Whether the component is currently being moved by the editor, even if Mobility is Static. */
+	uint8 bIsBeingMovedByEditor : 1;
 
 	/** Whether this primitive receive CSM shadows (Mobile) */
 	uint8 bReceiveMobileCSMShadows : 1;

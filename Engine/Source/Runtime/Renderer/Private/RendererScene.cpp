@@ -3729,7 +3729,7 @@ struct FPrimitiveArraySortKey
 
 static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy)
 {
-	return Proxy->IsMovable() || (!!CVarWPOPrimitivesOutputVelocity.GetValueOnRenderThread() && Proxy->IsUsingWPOMaterial());
+	return Proxy->DrawsVelocity() || (!!CVarWPOPrimitivesOutputVelocity.GetValueOnRenderThread() && Proxy->IsUsingWPOMaterial());
 }
 
 void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsyncCreateLPIs)

@@ -398,7 +398,7 @@ bool FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(EShaderPlatform Shad
 		return false;
 	}
 
-	if (!PrimitiveSceneProxy->IsMovable())
+	if (!PrimitiveSceneProxy->DrawsVelocity())
 	{
 		return false;
 	}

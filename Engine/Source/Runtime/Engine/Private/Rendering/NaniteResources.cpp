@@ -550,7 +550,7 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance( const FSceneView* View ) 
 	if (bOptimizedRelevance) // No dynamic relevance if optimized.
 	{
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
-		Result.bVelocityRelevance = IsMovable();
+		Result.bVelocityRelevance = DrawsVelocity();
 	}
 	else
 	{
@@ -605,7 +605,7 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance( const FSceneView* View ) 
 		}
 
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
-		Result.bVelocityRelevance = Result.bOpaque && Result.bRenderInMainPass && IsMovable();
+		Result.bVelocityRelevance = Result.bOpaque && Result.bRenderInMainPass && DrawsVelocity();
 	}
 
 	return Result;
