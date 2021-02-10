@@ -21,6 +21,7 @@ class NIAGARA_API FNiagaraSystemInstance
 {
 	friend class FNiagaraSystemSimulation;
 	friend class FNiagaraGPUSystemTick;
+	friend class FNiagaraDebugHud;
 
 public:
 	DECLARE_DELEGATE(FOnPostTick);

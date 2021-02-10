@@ -1169,6 +1169,10 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					if (bIsActive && NiagaraComponent->IsRegisteredWithScalabilityManager())
 					{
 						StringBuilder.Appendf(TEXT("Scalability - %s\n"), *GetNameSafe(NiagaraSystem->GetEffectType()));
+						if (SystemInstance->SignificanceIndex != INDEX_NONE )
+						{
+							StringBuilder.Appendf(TEXT("SignificanceIndex - %d\n"), SystemInstance->SignificanceIndex);
+						}
 					}
 
 					int64 TotalBytes = 0;
