@@ -665,7 +665,7 @@ namespace UE4Function_Private
 		TFunctionRefBase& operator=(const TFunctionRefBase&) = delete;
 
 		// Move all of the assert code out of line
-		FORCENOINLINE void CheckCallable() const
+		void CheckCallable() const
 		{
 			checkf(Callable, TEXT("Attempting to call an unbound TFunction!"));
 		}
