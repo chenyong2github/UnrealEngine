@@ -227,7 +227,7 @@ namespace ParallelForImpl
 		}
 
 		// Either the request comes from a totally unknown thread, or we've specifically been asked to be background
-		return ENamedThreads::AnyBackgroundThreadNormalTask;
+		return ENamedThreads::AnyBackgroundHiPriTask;
 	}
 
 	template<typename FunctionType>
