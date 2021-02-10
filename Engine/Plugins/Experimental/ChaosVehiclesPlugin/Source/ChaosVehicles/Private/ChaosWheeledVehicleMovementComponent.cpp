@@ -229,7 +229,7 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 
 }
 
-void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspensionTrace>& SuspensionTrace, const FCollisionQueryParams& TraceParams)
+void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams)
 {
 	//#todo: SpringCollisionChannel should be a parameter setup
 	ECollisionChannel SpringCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
@@ -282,7 +282,7 @@ void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspe
 			{
 				const FVector& TraceStart = SuspensionTrace[WheelIdx].Start;
 				const FVector& TraceEnd = SuspensionTrace[WheelIdx].End;
-				//TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep);
+				TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep);
 
 				FVector TraceVector(TraceStart - TraceEnd); // reversed
 				FVector TraceNormal = TraceVector.GetSafeNormal();
@@ -342,7 +342,7 @@ void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspe
 
 			FVector TraceStart = SuspensionTrace[WheelIdx].Start;
 			FVector TraceEnd = SuspensionTrace[WheelIdx].End;
-			//TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep);
+			TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep);
 
 			FVector TraceVector(TraceStart - TraceEnd); // reversed
 			FVector TraceNormal = TraceVector.GetSafeNormal();

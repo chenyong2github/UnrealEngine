@@ -150,7 +150,7 @@ struct FChaosVehicleDefaultAsyncInput : public FChaosVehicleAsyncInput
 {
 	float GravityZ;
 	FControlInputs ControlInputs;
-	FCollisionQueryParams TraceParams;
+	mutable FCollisionQueryParams TraceParams;
 
 	FChaosVehicleDefaultAsyncInput();
 
