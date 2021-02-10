@@ -54,7 +54,7 @@ struct FMeshSubstitutionDataTable
 
 	/** DEPRECATED - Type of matching to perform with SearchString string */
 	UPROPERTY()
-	EEditorScriptingStringMatchType StringMatch_DEPRECATED;
+	EEditorScriptingStringMatchType StringMatch_DEPRECATED = EEditorScriptingStringMatchType::Contains;
 
 	/** DEPRECATED - Mesh to use for the substitution */
 	UPROPERTY()
