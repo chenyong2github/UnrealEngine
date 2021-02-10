@@ -22,6 +22,7 @@ void SCurveEditorViewContainer::Construct(const FArguments& InArgs, TSharedRef<F
 	CurveEditor = InCurveEditor;
 
 	TimeSliderController = InArgs._ExternalTimeSliderController;
+	MinimumPanelHeight = InArgs._MinimumPanelHeight;
 
 	CurveEditor->OnActiveToolChangedDelegate.AddSP(this, &SCurveEditorViewContainer::OnCurveEditorToolChanged);
 
@@ -63,9 +64,8 @@ FVector2D SCurveEditorViewContainer::ComputeDesiredSize(float) const
 		}
 	}
 
-	static float MinStretchPanelSize = 300.f;
 	const float PanelHeight = CurveEditor->GetPanel()->GetScrollPanelGeometry().GetLocalSize().Y - 1.f;
-	MyDesiredSize.Y += FMath::Max(MinStretchPanelSize, (PanelHeight - MyDesiredSize.Y) / NumStretchPanels) * NumStretchPanels;
+	MyDesiredSize.Y += FMath::Max(MinimumPanelHeight, (PanelHeight - MyDesiredSize.Y) / NumStretchPanels) * NumStretchPanels;
 
 	MyDesiredSize.Y = FMath::Max(MyDesiredSize.Y, PanelHeight);
 	return MyDesiredSize;

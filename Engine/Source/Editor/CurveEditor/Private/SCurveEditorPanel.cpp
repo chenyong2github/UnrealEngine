@@ -198,6 +198,7 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 
 						SAssignNew(CurveViewsContainer, SCurveEditorViewContainer, InCurveEditor)
 						.ExternalTimeSliderController(InArgs._ExternalTimeSliderController)
+						.MinimumPanelHeight(InArgs._MinimumViewPanelHeight)
 					]
 				]
 
