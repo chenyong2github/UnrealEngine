@@ -38,6 +38,20 @@ void AColorCorrectRegion::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 }
 
+void AColorCorrectRegion::BeginDestroy()
+{
+	if (this->GetWorld())
+	{
+		UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem = static_cast<UColorCorrectRegionsSubsystem*>(this->GetWorld()->GetSubsystemBase(UColorCorrectRegionsSubsystem::StaticClass()));
+		if (ColorCorrectRegionsSubsystem)
+		{
+			ColorCorrectRegionsSubsystem->OnActorDeleted(this);
+		}
+	}
+	
+	Super::BeginDestroy();
+}
+
 #if WITH_EDITOR
 void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
