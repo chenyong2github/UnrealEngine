@@ -81,10 +81,31 @@ namespace Lumen
 #endif
 	}
 
-	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode()
+	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode(const FViewInfo& View)
 	{
 #if RHI_RAYTRACING
-		return EHardwareRayTracingLightingMode(CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread());
+		// Piecewise mapping for relative bias (LumenReflectionQuality, BiasValue):
+		// (0.25, -2)
+		// (0.5 , -1)
+		// (1.0 ,  0)
+		// (2.0 ,  1)
+		// (4.0 ,  2)
+		auto LinearMapping = [](float x) {
+			return x / 2.0f;
+		};
+		auto SublinearMapping = [](float x) {
+			return ((-8.0f / 3.0f) * x * x) + (6.0f * x) - (10.0f / 3.0f);
+		};
+
+		// LumenReflectionQuality acts as a biasing value to the LightingMode
+		const float LumenReflectionQuality = View.FinalPostProcessSettings.LumenReflectionQuality;
+		const int32 ReflectionQualityLightingModeBias = (LumenReflectionQuality > 1.0f) ?
+			FMath::Clamp<int32>(FMath::TruncToInt(LinearMapping(LumenReflectionQuality)), 0, 2) :
+			FMath::Clamp<int32>(FMath::TruncToInt(SublinearMapping(LumenReflectionQuality)), -2, 0);
+
+		const int32 LightingModeCVar = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
+		Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(FMath::Clamp<int32>(LightingModeCVar + ReflectionQualityLightingModeBias, 0, 2));
+		return LightingMode;
 #else
 		return EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 #endif
@@ -176,12 +197,12 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(co
 {
 	bool bUseDeferredMaterial = CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread() != 0;
 	int NormalMode = CVarLumenReflectionsHardwareRayTracingNormalMode.GetValueOnRenderThread();
-	int LightingMode = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
+	int LightingMode = static_cast<int>(Lumen::GetReflectionsHardwareRayTracingLightingMode(View));
 
 	FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(bUseDeferredMaterial);
 	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
-	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LightingMode);
+	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(LightingMode));
 	TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 
 	OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
@@ -196,7 +217,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsDef
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread());
+	Lumen::EHardwareRayTracingLightingMode LightingMode = Lumen::GetReflectionsHardwareRayTracingLightingMode(View);
 	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 
 	if (Lumen::UseHardwareRayTracedReflections() && bUseMinimalPayload)
@@ -235,7 +256,7 @@ void RenderLumenHardwareRayTracingReflections(
 	FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FDeferredMaterialPayload), DeferredMaterialBufferNumElements);
 	FRDGBufferRef DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("LumenVisualizeHardwareRayTracingDeferredMaterialBuffer"));
 
-	Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread());
+	Lumen::EHardwareRayTracingLightingMode LightingMode = Lumen::GetReflectionsHardwareRayTracingLightingMode(View);
 	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 	bool bUseDeferredMaterial = (CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread() != 0) && !bUseMinimalPayload;
 	if (bUseDeferredMaterial)

@@ -19,8 +19,8 @@ namespace Lumen
 
 	float GetDistanceSceneNaniteLODScaleFactor();
 	float GetMaxTraceDistance();
-	bool UseIrradianceAtlas();
-	bool UseIndirectIrradianceAtlas();
+	bool UseIrradianceAtlas(const FViewInfo& View);
+	bool UseIndirectIrradianceAtlas(const FViewInfo& View);
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();
@@ -41,7 +41,7 @@ namespace Lumen
 		EvaluateMaterialAndDirectLighting,
 		MAX
 	};
-	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode();
+	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode(const FViewInfo& View);
 	EHardwareRayTracingLightingMode GetScreenProbeGatherHardwareRayTracingLightingMode();
 	EHardwareRayTracingLightingMode GetVisualizeHardwareRayTracingLightingMode();
 

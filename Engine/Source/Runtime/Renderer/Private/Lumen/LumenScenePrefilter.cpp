@@ -463,8 +463,8 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneLighting(
 
 			FLumenCardPrefilterLighting* PassParameters = GraphBuilder.AllocParameters<FLumenCardPrefilterLighting>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.FinalLightingAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
-			bool bUseIrradianceAtlas = Lumen::UseIrradianceAtlas();
-			bool bUseIndirectIrradianceAtlas = Lumen::UseIndirectIrradianceAtlas();
+			bool bUseIrradianceAtlas = Lumen::UseIrradianceAtlas(View);
+			bool bUseIndirectIrradianceAtlas = Lumen::UseIndirectIrradianceAtlas(View);
 			if (bUseIrradianceAtlas)
 			{
 				PassParameters->RenderTargets[1] = FRenderTargetBinding(TracingInputs.IrradianceAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);

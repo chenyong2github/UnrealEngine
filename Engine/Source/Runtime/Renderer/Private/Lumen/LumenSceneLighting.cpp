@@ -41,17 +41,17 @@ FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
 
 namespace Lumen
 {
-	bool UseIrradianceAtlas()
+	bool UseIrradianceAtlas(const FViewInfo& View)
 	{
-		bool bUsedInReflections = UseHardwareRayTracedReflections() && (GetReflectionsHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterial);
+		bool bUsedInReflections = UseHardwareRayTracedReflections() && (GetReflectionsHardwareRayTracingLightingMode(View) == EHardwareRayTracingLightingMode::EvaluateMaterial);
 		bool bUsedInScreenProbeGather = UseHardwareRayTracedScreenProbeGather() && (GetScreenProbeGatherHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterial);
 		bool bUsedInVisualization = ShouldVisualizeHardwareRayTracing() && (GetVisualizeHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterial);
 		return bUsedInReflections || bUsedInScreenProbeGather || bUsedInVisualization;
 	}
 
-	bool UseIndirectIrradianceAtlas()
+	bool UseIndirectIrradianceAtlas(const FViewInfo& View)
 	{
-		bool bUsedInReflections = UseHardwareRayTracedReflections() && (GetReflectionsHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
+		bool bUsedInReflections = UseHardwareRayTracedReflections() && (GetReflectionsHardwareRayTracingLightingMode(View) == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
 		bool bUsedInScreenProbeGather = UseHardwareRayTracedScreenProbeGather() && (GetScreenProbeGatherHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
 		bool bUsedInVisualization = ShouldVisualizeHardwareRayTracing() && (GetVisualizeHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
 		return bUsedInReflections || bUsedInScreenProbeGather || bUsedInVisualization;
@@ -72,8 +72,8 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
 
-	auto RegisterOptionalAtlas = [&GraphBuilder](bool (*UseAtlas)(), TRefCountPtr<IPooledRenderTarget> Atlas) {
-		return UseAtlas() ? GraphBuilder.RegisterExternalTexture(Atlas) : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+	auto RegisterOptionalAtlas = [&GraphBuilder, &View](bool (*UseAtlas)(const FViewInfo&), TRefCountPtr<IPooledRenderTarget> Atlas) {
+		return UseAtlas(View) ? GraphBuilder.RegisterExternalTexture(Atlas) : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	};
 	IrradianceAtlas = RegisterOptionalAtlas(Lumen::UseIrradianceAtlas, LumenSceneData.IrradianceAtlas);
 	IndirectIrradianceAtlas = RegisterOptionalAtlas(Lumen::UseIndirectIrradianceAtlas, LumenSceneData.IndirectIrradianceAtlas);
@@ -598,11 +598,11 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			if (GLumenSceneRecaptureLumenSceneEveryFrame)
 			{
 				ClearAtlasRDG(GraphBuilder, TracingInputs.FinalLightingAtlas);
-				if (Lumen::UseIrradianceAtlas())
+				if (Lumen::UseIrradianceAtlas(View))
 				{
 					ClearAtlasRDG(GraphBuilder, TracingInputs.IrradianceAtlas);
 				}
-				if (Lumen::UseIndirectIrradianceAtlas())
+				if (Lumen::UseIndirectIrradianceAtlas(View))
 				{
 					ClearAtlasRDG(GraphBuilder, TracingInputs.IndirectIrradianceAtlas);
 				}
@@ -618,7 +618,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				GlobalShaderMap, 
 				DirectLightingCardScatterContext);
 
-			if (Lumen::UseIndirectIrradianceAtlas())
+			if (Lumen::UseIndirectIrradianceAtlas(View))
 			{
 				CopyLumenCardAtlas(
 					Scene,
@@ -637,7 +637,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				GlobalShaderMap,
 				DirectLightingCardScatterContext);
 
-			if (Lumen::UseIrradianceAtlas())
+			if (Lumen::UseIrradianceAtlas(View))
 			{
 				CopyLumenCardAtlas(
 					Scene,
@@ -666,11 +666,11 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			PrefilterLumenSceneLighting(GraphBuilder, View, TracingInputs, GlobalShaderMap, DirectLightingCardScatterContext);
 
 			ConvertToExternalTexture(GraphBuilder, TracingInputs.FinalLightingAtlas, LumenSceneData.FinalLightingAtlas);
-			if (Lumen::UseIrradianceAtlas())
+			if (Lumen::UseIrradianceAtlas(View))
 			{
 				ConvertToExternalTexture(GraphBuilder, TracingInputs.IrradianceAtlas, LumenSceneData.IrradianceAtlas);
 			}
-			if (Lumen::UseIndirectIrradianceAtlas())
+			if (Lumen::UseIndirectIrradianceAtlas(View))
 			{
 				ConvertToExternalTexture(GraphBuilder, TracingInputs.IndirectIrradianceAtlas, LumenSceneData.IndirectIrradianceAtlas);
 			}

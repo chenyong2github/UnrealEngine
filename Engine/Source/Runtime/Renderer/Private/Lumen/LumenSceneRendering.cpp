@@ -910,18 +910,18 @@ void ClearAtlas(FRDGBuilder& GraphBuilder, TRefCountPtr<IPooledRenderTarget>& At
 	ConvertToExternalTexture(GraphBuilder, AtlasTexture, Atlas);
 }
 
-void ClearAtlasesToDebugValues(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData)
+void ClearAtlasesToDebugValues(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	// Clear to debug values to make out of bounds reads obvious
 	ClearAtlas(GraphBuilder, LumenSceneData.DepthAtlas);
 	ClearAtlas(GraphBuilder, LumenSceneData.FinalLightingAtlas);
-	if (Lumen::UseIrradianceAtlas())
+	if (Lumen::UseIrradianceAtlas(View))
 	{
 		ClearAtlas(GraphBuilder, LumenSceneData.IrradianceAtlas);
 	}
-	if (Lumen::UseIndirectIrradianceAtlas())
+	if (Lumen::UseIndirectIrradianceAtlas(View))
 	{
 		ClearAtlas(GraphBuilder, LumenSceneData.IndirectIrradianceAtlas);
 	}
@@ -935,7 +935,7 @@ FIntPoint GetDesiredAtlasSize()
 	return FIntPoint(Pow2, Pow2);
 }
 
-void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData)
+void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -967,18 +967,18 @@ void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneD
 	OpacityDesc.AutoWritable = false;
 	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, OpacityDesc, LumenSceneData.OpacityAtlas, TEXT("Lumen.SceneOpacity"), ERenderTargetTransience::NonTransient);
 
-	ClearAtlasesToDebugValues(GraphBuilder, LumenSceneData);
+	ClearAtlasesToDebugValues(GraphBuilder, LumenSceneData, View);
 }
 
 // @todo Fold into AllocateCardAtlases after changing reallocation boolean to respect optional card atlas state settings
-void AllocateOptionalCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, bool bReallocateAtlas)
+void AllocateOptionalCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View, bool bReallocateAtlas)
 {
 	FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
 	const int32 NumMips = FMath::CeilLogTwo(FMath::Max(LumenSceneData.MaxAtlasSize.X, LumenSceneData.MaxAtlasSize.Y)) + 1;
 	FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_FloatR11G11B10, CrazyGreen, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
 	LightingDesc.AutoWritable = false;
 
-	const bool bUseIrradianceAtlas = Lumen::UseIrradianceAtlas();
+	const bool bUseIrradianceAtlas = Lumen::UseIrradianceAtlas(View);
 	if (bUseIrradianceAtlas && (bReallocateAtlas || !LumenSceneData.IrradianceAtlas))
 	{
 		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.IrradianceAtlas, TEXT("Lumen.SceneIrradiance"), ERenderTargetTransience::NonTransient);
@@ -988,7 +988,7 @@ void AllocateOptionalCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& Lum
 		LumenSceneData.IrradianceAtlas = nullptr;
 	}
 
-	const bool bUseIndirectIrradianceAtlas = Lumen::UseIndirectIrradianceAtlas();
+	const bool bUseIndirectIrradianceAtlas = Lumen::UseIndirectIrradianceAtlas(View);
 	if (bUseIndirectIrradianceAtlas && (bReallocateAtlas || !LumenSceneData.IndirectIrradianceAtlas))
 	{
 		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.IndirectIrradianceAtlas, TEXT("Lumen.SceneIndirectIrradiance"), ERenderTargetTransience::NonTransient);
@@ -1190,7 +1190,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenCardAtlasAllocation(FRDGBuilder& 
 
 	if (bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
 	{
-		AllocateCardAtlases(GraphBuilder, LumenSceneData);
+		AllocateCardAtlases(GraphBuilder, LumenSceneData, MainView);
 	}
 
 	if (GLumenSceneRecaptureLumenSceneEveryFrame || bRecaptureLumenSceneOnce)
@@ -1631,7 +1631,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 			}
 		}
 
-		AllocateOptionalCardAtlases(GraphBuilder, LumenSceneData, bReallocateAtlas);
+		AllocateOptionalCardAtlases(GraphBuilder, LumenSceneData, MainView, bReallocateAtlas);
 		UpdateLumenCardAtlasAllocation(GraphBuilder, MainView, bReallocateAtlas, bRecaptureLumenSceneOnce);
 
 		if (CardsToRender.Num() > 0)
