@@ -2907,7 +2907,7 @@ void UNetConnection::SetAllowExistingChannelIndex(bool bAllow)
 			}
 
 			// this channel should still exist, but the location we want to swap it back to should be empty
-			if (ensure(Channels[It.Value] && !Channels[It.Key]))
+			if (ensureMsgf(Channels[It.Value] && !Channels[It.Key], TEXT("Source should exist: [%s] Destination should be null: [%s]"), Channels[It.Value] ? *Channels[It.Value]->Describe() : TEXT("null"), Channels[It.Key] ? *Channels[It.Key]->Describe() : TEXT("null")))
 			{
 				Channels[It.Value]->ChIndex = It.Key;
 
