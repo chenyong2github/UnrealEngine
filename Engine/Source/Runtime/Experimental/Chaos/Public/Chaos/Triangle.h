@@ -140,7 +140,7 @@ namespace Chaos
 		return Ar;
 	}
 
-	template<typename T> using TTriangle UE_DEPRECATED(4.27, "Deprecated. Use FTriangle instead") = FTriangle;
+	template<typename T> using TTriangle = FTriangle;
 	
 	template<typename T>
 	class UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use other triangle based ImplicitObjects") TImplicitTriangle final : public FImplicitObject
