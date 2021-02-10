@@ -33,7 +33,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosTrailingEvents, const TArray
 
 
 /** Object allowing for retrieving Chaos Destruction data. */
-UCLASS(ClassGroup = (Chaos, Common), hidecategories = (Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories = Trigger, meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (Chaos), hidecategories = (Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories = Trigger, meta = (BlueprintSpawnableComponent))
 class GEOMETRYCOLLECTIONENGINE_API UChaosDestructionListener : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()

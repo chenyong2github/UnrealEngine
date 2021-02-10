@@ -16,7 +16,7 @@ class FLightSceneProxy;
 /**
  * A light component which emits light from a rectangle.
  */
-UCLASS(Blueprintable, ClassGroup=(Lights,Common), hidecategories=(Object, LightShafts), editinlinenew, meta=(BlueprintSpawnableComponent))
+UCLASS(Blueprintable, ClassGroup=(Lights), hidecategories=(Object, LightShafts), editinlinenew, meta=(BlueprintSpawnableComponent))
 class ENGINE_API URectLightComponent : public ULocalLightComponent
 {
 	GENERATED_UCLASS_BODY()

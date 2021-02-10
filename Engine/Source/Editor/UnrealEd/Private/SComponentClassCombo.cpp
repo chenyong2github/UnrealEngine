@@ -19,6 +19,7 @@
 #include "SListViewSelectorDropdownMenu.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "SEditorHeaderButton.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #define LOCTEXT_NAMESPACE "ComponentClassCombo"
 
@@ -319,13 +320,9 @@ TSharedRef<ITableRow> SComponentClassCombo::GenerateAddComponentRow( FComponentC
 				.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
 				.ShowSelection(false)
 			[
-				SNew(SBox)
-				.Padding(1.f)
-				[
-					SNew(SBorder)
-					.Padding(FEditorStyle::GetMargin(TEXT("Menu.Separator.Padding")))
-					.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
-				]
+				SNew(SSeparator)
+				.SeparatorImage(FEditorStyle::Get().GetBrush("Menu.Separator"))
+				.Thickness(1.0f)
 			];
 	}
 	else

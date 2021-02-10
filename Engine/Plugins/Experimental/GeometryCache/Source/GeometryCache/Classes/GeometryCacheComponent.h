@@ -33,7 +33,7 @@ struct FTrackRenderData
 };
 
 /** GeometryCacheComponent, encapsulates a GeometryCache asset instance and implements functionality for rendering/and playback of GeometryCaches */
-UCLASS(ClassGroup = (Rendering, Common), hidecategories = (Object, LOD), meta = (BlueprintSpawnableComponent), Experimental, ClassGroup = Experimental)
+UCLASS(ClassGroup = (Rendering), hidecategories = (Object, LOD), meta = (BlueprintSpawnableComponent), Experimental, ClassGroup = Experimental)
 class GEOMETRYCACHE_API UGeometryCacheComponent : public UMeshComponent
 {
 	GENERATED_UCLASS_BODY()
