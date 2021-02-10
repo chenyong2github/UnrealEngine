@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
 					AddEngineThirdPartyPrivateStaticDependencies(Target, new string[] { "LibScePad" });
 					string[] Includes = new string[2];
 					Includes[0] = "ApplicationCore_Sony";
-					Includes[1] = "ApplicationCore_" + (string)LibScePadType.GetMethod("GetPlatformName").Invoke(null, null);
+					Includes[1] = "ApplicationCore_" + (string)LibScePadType.GetMethod("GetPlatformName").Invoke(null, new object[] { EngineDirectory, Target.WindowsPlatform.Compiler });
 					PrivateIncludePathModuleNames.AddRange(Includes);
 				}
 			}
