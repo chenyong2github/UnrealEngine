@@ -113,6 +113,7 @@ FScopedCurveEditorTreeEventGuard::~FScopedCurveEditorTreeEventGuard()
 	{
 		if (Tree->Events.OnItemsChanged.SerialNumber != CachedItemSerialNumber)
 		{
+			Tree->SortTreeItems();
 			Tree->Compact();
 			Tree->Events.OnItemsChanged.Broadcast();
 		}
@@ -390,6 +391,49 @@ const FCurveEditorFilterStates& FCurveEditorTree::GetFilterStates() const
 ECurveEditorTreeFilterState FCurveEditorTree::GetFilterState(FCurveEditorTreeItemID InTreeItemID) const
 {
 	return FilterStates.Get(InTreeItemID);
+}
+
+void FCurveEditorTree::SetSortPredicate(FTreeItemSortPredicate InSortPredicate)
+{
+	SortPredicate = InSortPredicate;
+}
+
+void FCurveEditorTree::SortTreeItems()
+{
+	if (RootItems.ChildIDs.Num() > 0 && SortPredicate.IsBound())
+	{
+		SortTreeItems(RootItems);
+	}
+}
+
+void FCurveEditorTree::SortTreeItems(FSortedCurveEditorTreeItems& TreeItemIDsToSort)
+{
+	// First collect the items for the IDs.
+	TArray<FCurveEditorTreeItem*> TreeItemsToSort;
+	for (const FCurveEditorTreeItemID& TreeItemID : TreeItemIDsToSort.ChildIDs)
+	{
+		TreeItemsToSort.Add(&Items[TreeItemID]);
+	}
+
+	// If there is more than one item, sort the items and then repopulate the ChildIDs from the sorted list of items.
+	if (TreeItemIDsToSort.bRequiresSort && TreeItemsToSort.Num() > 1)
+	{
+		TreeItemsToSort.Sort([=](const FCurveEditorTreeItem& ItemA, const FCurveEditorTreeItem& ItemB) { return SortPredicate.Execute(ItemA.GetItem().Get(), ItemB.GetItem().Get()); });
+		for (int32 i = 0; i < TreeItemsToSort.Num(); ++i)
+		{
+			TreeItemIDsToSort.ChildIDs[i] = TreeItemsToSort[i]->GetID();
+		}
+	}
+	TreeItemIDsToSort.bRequiresSort = false;
+
+	// Sort the children of the child items.
+	for (FCurveEditorTreeItem* TreeItemToSort : TreeItemsToSort)
+	{
+		if (TreeItemToSort != nullptr && TreeItemToSort->Children.ChildIDs.Num() != 0)
+		{
+			SortTreeItems(TreeItemToSort->Children);
+		}
+	}
 }
 
 void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeItems, FCurveEditor* InCurveEditor)

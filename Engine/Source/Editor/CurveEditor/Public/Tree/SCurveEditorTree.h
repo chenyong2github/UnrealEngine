@@ -16,7 +16,11 @@ class CURVEEDITOR_API SCurveEditorTree : public STreeView<FCurveEditorTreeItemID
 {
 public:
 
-	SLATE_BEGIN_ARGS(SCurveEditorTree){}
+	SLATE_BEGIN_ARGS(SCurveEditorTree)
+		: _SelectColumnWidth(24.f)
+		{}
+		SLATE_ARGUMENT(float, SelectColumnWidth)
+		SLATE_EVENT(FOnMouseButtonDoubleClick, OnMouseButtonDoubleClick)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> InCurveEditor);

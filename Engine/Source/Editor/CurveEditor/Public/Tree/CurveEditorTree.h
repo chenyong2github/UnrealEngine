@@ -332,6 +332,8 @@ private:
 class CURVEEDITOR_API FCurveEditorTree
 {
 public:
+	/** Defines a predicate for sorting curve editor tree item implementations. */
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FTreeItemSortPredicate, const ICurveEditorTreeItem* /* ItemA */, const ICurveEditorTreeItem* /* ItemB */);
 
 	/** Structure containing all the events for this tree */
 	FCurveEditorTreeEvents Events;
@@ -421,6 +423,16 @@ public:
 	const FCurveEditorTreeFilter* FindFilterByType(ECurveEditorTreeFilterType Type) const;
 
 	/**
+	 * Sets a predicate which will be used to sort tree items after they're been marked as needing sort.
+	 */
+	 void SetSortPredicate(FTreeItemSortPredicate InSortPredicate);
+
+	 /**
+	  * Sorts all tree items which have been marked for sorting if the sort predicate has been set.
+	  */
+	void SortTreeItems();
+
+	/**
 	 * Inform this tree that the specified tree item IDs have been directly selected on the UI.
 	 * @note: This populates both implicit and explicit selection state for the supplied items and any children/parents
 	 */
@@ -475,6 +487,11 @@ private:
 	 */
 	bool PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState);
 
+	/** 
+	 * Recursively sorts the tree item ids using the sort predicate.
+	 */
+	void SortTreeItems(FSortedCurveEditorTreeItems& TreeItemIDsToSort);
+
 	/** Incrementing ID for the next tree item to be created */
 	FCurveEditorTreeItemID NextTreeItemID;
 
@@ -493,4 +510,7 @@ private:
 
 	/** Filter state map. Items with no implicit or explicit filter state are not present */
 	FCurveEditorFilterStates FilterStates;
+
+	/** A predicate which will be used to sort tree items after they're been marked as needing sort. */
+	FTreeItemSortPredicate SortPredicate;
 };
