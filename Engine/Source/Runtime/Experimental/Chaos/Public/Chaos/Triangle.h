@@ -224,7 +224,7 @@ namespace Chaos
 
 		virtual FString ToString() const override
 		{
-			return FString::Printf(TEXT("Triangle: A: %s, B: %s, C: %s"), LexToString(Tri[0]), LexToString(Tri[1]), LexToString(Tri[2]));
+			return FString::Printf(TEXT("Triangle: A: [%f, %f, %f], B: [%f, %f, %f], C: [%f, %f, %f]"), Tri[0].X, Tri[0].Y, Tri[0].Z, Tri[1].X, Tri[1].Y, Tri[1].Z, Tri[2].X, Tri[2].Y, Tri[2].Z);
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
