@@ -18,7 +18,7 @@ public:
 	TArray<int32> EnumToPoseIndex;
 
 	// The currently selected pose (as an enum value)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Runtime, meta=(AlwaysAsPin))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Runtime, meta=(PinShownByDefault))
 	mutable uint8 ActiveEnumValue;
 
 public:	

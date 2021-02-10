@@ -14,7 +14,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BlendListByBool : public FAnimNode_BlendLi
 	GENERATED_USTRUCT_BODY()
 public:
 	// Which input should be connected to the output?
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Runtime, meta=(AlwaysAsPin))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Runtime, meta=(PinShownByDefault))
 	bool bActiveValue;
 
 public:	
