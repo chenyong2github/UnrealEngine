@@ -568,7 +568,9 @@ bool UFactory::ImportUntypedBulkDataFromText(const TCHAR*& Buffer, FUntypedBulkD
 								ParseStr +=2;
 							}
 							Value = FParse::HexDigit(ParseStr[0]) * 16 + FParse::HexDigit(ParseStr[1]);
+#ifndef PVS_STUDIO // Build machine refuses to disable this warning
 							*BulkDataPointer = (uint8)Value; //-V522
+#endif
 							BulkDataPointer++;
 							ParseStr += 2;
 							ParseStr++;

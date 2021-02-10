@@ -1755,6 +1755,7 @@ void FChunkDownloader::DownloadChunks(const TArray<int32>& ChunkIds, const FCall
 	}
 
 	// if there's no callback for some reason, avoid a bunch of boilerplate
+#ifndef PVS_STUDIO // Build machine refuses to disable this warning
 	if (Callback)
 	{
 		// loop over chunks and issue individual callback
@@ -1773,6 +1774,7 @@ void FChunkDownloader::DownloadChunks(const TArray<int32>& ChunkIds, const FCall
 			DownloadChunkInternal(*Chunk, FCallback(), Priority);
 		}
 	}
+#endif
 
 	// resave manifest if needed
 	SaveLocalManifest(false);
@@ -1840,6 +1842,7 @@ void FChunkDownloader::MountChunks(const TArray<int32>& ChunkIds, const FCallbac
 	}
 
 	// if there's no callback for some reason, avoid a bunch of boilerplate
+#ifndef PVS_STUDIO // Build machine refuses to disable this warning
 	if (Callback)
 	{
 		// loop over chunks and issue individual callback
@@ -1858,6 +1861,7 @@ void FChunkDownloader::MountChunks(const TArray<int32>& ChunkIds, const FCallbac
 			MountChunkInternal(*Chunk, FCallback());
 		}
 	}
+#endif
 
 	// resave manifest if needed
 	SaveLocalManifest(false);
