@@ -16,7 +16,7 @@
  * Info is the base class of an Actor that isn't meant to have a physical representation in the world, used primarily
  * for "manager" type classes that hold settings data about the world, but might need to be an Actor for replication purposes.
  */
-UCLASS(abstract, hidecategories=(Input, Movement, Collision, Rendering, LOD, "Utilities|Transformation"), showcategories=("Input|MouseInput", "Input|TouchInput"), MinimalAPI, NotBlueprintable)
+UCLASS(abstract, hidecategories=(Input, Movement, Collision, Rendering, LOD, WorldPartition, DataLayers, "Utilities|Transformation"), showcategories=("Input|MouseInput", "Input|TouchInput"), MinimalAPI, NotBlueprintable)
 class AInfo : public AActor
 {
 	GENERATED_UCLASS_BODY()
@@ -34,6 +34,7 @@ public:
 
 #if WITH_EDITOR
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+	virtual bool SupportsDataLayer() const override { return false; }
 #endif
 
 public:

@@ -781,7 +781,7 @@ protected:
 	FGuid ActorGuid;
 
 	/** DataLayers the actor belongs to.*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Actor)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = DataLayers)
 	TArray<FActorDataLayer> DataLayers;
 
 public:
@@ -1055,6 +1055,7 @@ public:
 	bool AddDataLayer(const UDataLayer* DataLayer);
 	bool RemoveDataLayer(const UDataLayer* DataLayer);
 	bool ContainsDataLayer(const UDataLayer* DataLayer) const;
+	virtual bool SupportsDataLayer() const { return true; }
 	bool HasDataLayers() const;
 	bool HasValidDataLayers() const;
 	bool HasAllDataLayers(const TArray<const UDataLayer*>& DataLayers) const;

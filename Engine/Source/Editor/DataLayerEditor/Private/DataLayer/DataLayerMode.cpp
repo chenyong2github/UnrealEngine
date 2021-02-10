@@ -242,6 +242,14 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 	TArray<AActor*> PayloadActors = GetActorsFromOperation(Payload.SourceOperation, true);
 	if (!PayloadActors.IsEmpty())
 	{
+		for (AActor* Actor : PayloadActors)
+		{
+			if (!Actor->SupportsDataLayer())
+			{
+				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("ActorCantBeAssignedToDataLayer", "Can't assign actors to Data Layer"));
+			}
+		}
+
 		if (const FDataLayerTreeItem* DataLayerItem = DropTarget.CastTo<FDataLayerTreeItem>())
 		{
 			const UDataLayer* DataLayerTarget = DataLayerItem->GetDataLayer();
@@ -252,7 +260,7 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 			
 			if (DataLayerTarget->IsLocked())
 			{
-				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantReassignSystemDataLayer", "Can't reassign actors from system Data Layer"));
+				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantReassignLockedDataLayer", "Can't reassign actors from locked Data Layer"));
 			}
 			
 			if (GetSelectedDataLayers(SceneOutliner).Num() > 1)
@@ -262,7 +270,7 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 				{
 					if (SelectedDataLayer->IsLocked())
 					{
-						return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantReassignSystemDataLayer", "Can't reassign actors from system Data Layer"));
+						return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantReassignLockedDataLayer", "Can't reassign actors from locked Data Layer"));
 					}
 				}
 

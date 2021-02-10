@@ -71,11 +71,16 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 				return false;
 			}
 		}
+	}
 
-		if (bIsGridPlacement && (GetDefaultGridPlacement() != EActorGridPlacement::None))
-		{
-			return false;
-		}
+	if (bIsGridPlacement && (GetDefaultGridPlacement() != EActorGridPlacement::None))
+	{
+		return false;
+	}
+
+	if (bIsDataLayers && !SupportsDataLayer())
+	{
+		return false;
 	}
 
 	return Super::CanEditChange(PropertyThatWillChange);
@@ -1163,7 +1168,7 @@ EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)
 bool AActor::AddDataLayer(const UDataLayer* DataLayer)
 {
 	bool bActorWasModified = false;
-	if (DataLayer && !ContainsDataLayer(DataLayer))
+	if (SupportsDataLayer() && DataLayer && !ContainsDataLayer(DataLayer))
 	{
 		if (!bActorWasModified)
 		{
@@ -1260,6 +1265,11 @@ bool AActor::HasAnyOfDataLayers(const TArray<FName>& DataLayerNames) const
 
 void AActor::FixupDataLayers()
 {
+	if (!SupportsDataLayer())
+	{
+		DataLayers.Empty();
+	}
+
 	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
 	{
 		TSet<FName> ExistingDataLayers;

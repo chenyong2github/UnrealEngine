@@ -477,11 +477,11 @@ public:
 	 * Enables tools for creating a partitioned world. 
 	 * Level has to be saved and all sub-levels removed before enabling this option.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = WorldPartition)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=WorldPartitionSetup)
 	uint8 bEnableWorldPartition:1;
 
 	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
-	UPROPERTY(EditAnywhere, Category = WorldPartition, AdvancedDisplay, meta = (editcondition = "bEnableWorldPartition"))
+	UPROPERTY(EditAnywhere, Category=WorldPartitionSetup, AdvancedDisplay, meta=(editcondition = "bEnableWorldPartition"))
 	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
 
 	/** Additional transform applied when applying LevelStreaming Transform to LevelInstance */
@@ -545,7 +545,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UNavigationSystemConfig> NavigationSystemConfigOverride;
 
-	UPROPERTY(EditAnywhere, Category = WorldPartition, NoClear, meta = (NoResetToDefault), Instanced)
+	UPROPERTY(EditAnywhere, Category=WorldPartitionSetup, NoClear, meta=(NoResetToDefault), Instanced)
 	TObjectPtr<UWorldPartition> WorldPartition;
 
 public:
