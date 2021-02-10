@@ -119,6 +119,13 @@ void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 		{
 			Partition->DrawRuntimeHash3D();
 		}
+
+#if WITH_EDITOR
+		if (!GetWorld()->IsGameWorld())
+		{
+			Partition->DrawRuntimeHashPreview();
+		}
+#endif
 	}
 }
 

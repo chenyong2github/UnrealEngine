@@ -11,6 +11,7 @@
 #include "WorldPartition/DataLayer/DataLayersID.h"
 #include "WorldPartitionRuntimeHash.h"
 #include "WorldPartitionRuntimeSpatialHashCell.h"
+#include "WorldPartitionRuntimeSpatialHashGridPreviewer.h"
 #include "WorldPartitionRuntimeSpatialHash.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionRuntimeSpatialHash, Log, All);
@@ -198,6 +199,7 @@ public:
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper) override;
 	virtual bool GenerateNavigationData() override;
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const override;
+	virtual void DrawPreview() const override;
 
 	FName GetCellName(FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID) const;
 	static FName GetCellName(UWorldPartition* WorldPartition, FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID);
@@ -217,8 +219,14 @@ private:
 	static class FAutoConsoleCommand OverrideLoadingRangeCommand;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Config, Category=RuntimeSettings)
+	UPROPERTY(EditAnywhere, Config, Category = RuntimeSettings)
 	TArray<FSpatialHashRuntimeGrid> Grids;
+
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Transient, NonTransactional)
+	bool bPreviewGrids;
+
+	UPROPERTY(Transient)
+	mutable FWorldPartitionRuntimeSpatialHashGridPreviewer GridPreviewer;
 
 	TMap<FString, UWorldPartitionRuntimeCell*> PackagesToGenerateForCook;
 	TMap<FGuid, FGuid> CachedHLODParents;

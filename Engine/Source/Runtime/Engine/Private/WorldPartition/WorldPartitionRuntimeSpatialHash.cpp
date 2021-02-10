@@ -337,9 +337,17 @@ ASpatialHashRuntimeGridInfo::ASpatialHashRuntimeGridInfo(const FObjectInitialize
 
 UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITOR
+	, bPreviewGrids(false)
+#endif
 {}
 
 #if WITH_EDITOR
+void UWorldPartitionRuntimeSpatialHash::DrawPreview() const
+{
+	GridPreviewer.Draw(GetWorld(), Grids, bPreviewGrids);
+}
+
 FName UWorldPartitionRuntimeSpatialHash::GetActorRuntimeGrid(const AActor* Actor) const
 {
 	if (ULevel* Level = Actor ? Actor->GetLevel() : nullptr)

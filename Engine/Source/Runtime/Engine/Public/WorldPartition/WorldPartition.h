@@ -143,6 +143,8 @@ public:
 	void GenerateHLOD(ISourceControlHelper* SourceControlHelper);
 	void GenerateNavigationData();
 
+	// Debugging Methods
+	void DrawRuntimeHashPreview();
 	void DumpActorDescs(const FString& Path);
 #endif
 
