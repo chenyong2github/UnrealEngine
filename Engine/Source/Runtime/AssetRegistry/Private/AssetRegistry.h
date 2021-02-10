@@ -439,7 +439,7 @@ private:
 
 #if WITH_EDITOR
 	/** List of loaded objects that need to be processed */
-	TArray<TWeakObjectPtr<UObject>> LoadedAssetsToProcess;
+	TRingBuffer<TWeakObjectPtr<UObject>> LoadedAssetsToProcess;
 
 	/** Objects that couldn't be processed because the asset data didn't exist, reprocess these after more directories are scanned */
 	TArray<TWeakObjectPtr<UObject>> LoadedAssetsThatDidNotHaveCachedData;
