@@ -283,6 +283,14 @@
 	#endif
 #endif
 
+#ifndef VULKAN_SUPPORTS_MULTIVIEW
+	#ifdef VK_KHR_multiview
+		#define VULKAN_SUPPORTS_MULTIVIEW						1
+	#else
+		#define VULKAN_SUPPORTS_MULTIVIEW						0
+	#endif
+#endif
+
 #ifndef VULKAN_SUPPORTS_ASTC_DECODE_MODE
 	#ifdef VK_EXT_astc_decode_mode
 		#define VULKAN_SUPPORTS_ASTC_DECODE_MODE				(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement

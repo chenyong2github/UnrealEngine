@@ -843,6 +843,10 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasNVShadingRateImage = HasExtension(DeviceExtensions, VK_NV_SHADING_RATE_IMAGE_EXTENSION_NAME);
 #endif
 
+#if VULKAN_SUPPORTS_MULTIVIEW
+	HasKHRMultiview = HasExtension(DeviceExtensions, VK_KHR_MULTIVIEW_EXTENSION_NAME);
+#endif
+
 #if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
 	HasEXTFullscreenExclusive = HasExtension(DeviceExtensions, VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
 #endif

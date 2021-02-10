@@ -379,6 +379,17 @@ void FVulkanDevice::CreateDevice()
 	}
 #endif
 
+#if VULKAN_SUPPORTS_MULTIVIEW
+	VkPhysicalDeviceMultiviewFeatures DeviceMultiviewFeatures;
+	if (OptionalDeviceExtensions.HasKHRMultiview)
+	{
+		ZeroVulkanStruct(DeviceMultiviewFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES);
+		DeviceMultiviewFeatures.multiview = VK_TRUE;
+		DeviceMultiviewFeatures.pNext = (void*)DeviceInfo.pNext;
+		DeviceInfo.pNext = &DeviceMultiviewFeatures;
+	}
+#endif
+
 	// Create the device
 	VkResult Result = VulkanRHI::vkCreateDevice(Gpu, &DeviceInfo, VULKAN_CPU_ALLOCATOR, &Device);
 	if (Result == VK_ERROR_INITIALIZATION_FAILED)
@@ -1030,6 +1041,15 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 			*NextPropsAddr = &FragmentDensityMap2Features;
 			NextPropsAddr = &FragmentDensityMap2Features.pNext;
 			ZeroVulkanStruct(FragmentDensityMap2Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_2_FEATURES_EXT);
+		}
+#endif
+
+#if VULKAN_SUPPORTS_MULTIVIEW
+		if (GetOptionalExtensions().HasKHRMultiview)
+		{
+			*NextPropsAddr = &MultiviewFeatures;
+			NextPropsAddr = &MultiviewFeatures.pNext;
+			ZeroVulkanStruct(MultiviewFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES);
 		}
 #endif
 

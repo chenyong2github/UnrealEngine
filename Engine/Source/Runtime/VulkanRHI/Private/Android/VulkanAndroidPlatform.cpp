@@ -384,6 +384,10 @@ void FVulkanAndroidPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME);
 #endif
 
+#if VULKAN_SUPPORTS_MULTIVIEW
+	OutExtensions.Add(VK_KHR_MULTIVIEW_EXTENSION_NAME);
+#endif
+
 #if !UE_BUILD_SHIPPING
 	OutExtensions.Add(VULKAN_MALI_LAYER_NAME);
 #endif

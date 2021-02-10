@@ -54,6 +54,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasAtomicInt64 : 1;
 			uint32 HasBufferAtomicInt64 : 1;
 			uint32 HasScalarBlockLayoutFeatures : 1;
+			uint32 HasKHRMultiview : 1;
 		};
 		uint32 Packed;
 	};
@@ -232,6 +233,13 @@ public:
 	inline const VkPhysicalDeviceShadingRateImageFeaturesNV& GetShadingRateImageFeaturesNV() const
 	{
 		return ShadingRateImageFeaturesNV;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_MULTIVIEW
+	inline const VkPhysicalDeviceMultiviewFeatures& GetMultiviewFeatures() const
+	{
+		return MultiviewFeatures;
 	}
 #endif
 
@@ -501,6 +509,10 @@ private:
 
 #if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
 	VkPhysicalDeviceShadingRateImageFeaturesNV ShadingRateImageFeaturesNV;
+#endif
+
+#if VULKAN_SUPPORTS_MULTIVIEW
+	VkPhysicalDeviceMultiviewFeatures MultiviewFeatures;
 #endif
 
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
