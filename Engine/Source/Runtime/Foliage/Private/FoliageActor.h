@@ -39,10 +39,10 @@ struct FFoliageActor : public FFoliageImpl
 	virtual void MoveInstance(int32 InstanceIndex, UObject*& OutInstanceImplementation) override;
 	virtual void SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport) override;
 	virtual FTransform GetInstanceWorldTransform(int32 InstanceIndex) const override;
-	virtual bool IsOwnedComponent(const UPrimitiveComponent* Component) const override;
+	virtual bool IsOwnedComponent(const UPrimitiveComponent* PrimitiveComponent) const override;
 	int32 FindIndex(const AActor* InActor) const;
-	virtual int32 FindIndex(const UPrimitiveComponent* HitComponent) const override;
-
+	virtual int32 GetInstanceIndexFrom(const UPrimitiveComponent* PrimitiveComponent, int32 ComponentIndex) const override;
+	
 	virtual void SelectAllInstances(bool bSelect) override;
 	virtual void SelectInstance(bool bSelect, int32 Index) override;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;

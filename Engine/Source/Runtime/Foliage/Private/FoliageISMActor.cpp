@@ -96,7 +96,8 @@ void FFoliageISMActor::Initialize(const UFoliageType* FoliageType)
 	for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 	{
 		FISMComponentDescriptor Descriptor;
-		Descriptor.InitFrom(StaticMeshComponent);
+		// Avoid initializing the body instance as we are going to do it in the InitDescriptorFromFoliageType and that Copy of BodyInstance on a registered components will fail.
+		Descriptor.InitFrom(StaticMeshComponent, /*bInitBodyInstance*/ false);
 		InitDescriptorFromFoliageType(Descriptor, FoliageTypeActor);
 		Descriptor.ComputeHash();
 
@@ -333,9 +334,16 @@ void FFoliageISMActor::SelectInstances(bool bSelect, const TSet<int32>& Selected
 	GetIFA()->SelectISMInstances(ClientHandle, bSelect, SelectedIndices);
 }
 
-int32 FFoliageISMActor::GetInstanceIndexFrom(UInstancedStaticMeshComponent* HISMComponent, int32 ComponentIndex) const
+int32 FFoliageISMActor::GetInstanceIndexFrom(const UPrimitiveComponent* PrimitiveComponent, int32 ComponentIndex) const
 {
-	return GetIFA()->GetISMInstanceIndex(ClientHandle, HISMComponent, ComponentIndex);
+	if (ComponentIndex != INDEX_NONE)
+	{
+		if (const UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(PrimitiveComponent))
+		{
+			return GetIFA()->GetISMInstanceIndex(ClientHandle, ISMComponent, ComponentIndex);
+		}
+	}
+	return INDEX_NONE;
 }
 
 FBox FFoliageISMActor::GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const

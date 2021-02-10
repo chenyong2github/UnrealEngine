@@ -114,12 +114,12 @@ struct FFoliageStaticMesh : public FFoliageImpl
 	virtual void SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport) override;
 	virtual FTransform GetInstanceWorldTransform(int32 InstanceIndex) const override;
 	virtual void PostUpdateInstances() override;
-	virtual bool IsOwnedComponent(const UPrimitiveComponent* HitComponent) const override;
+	virtual bool IsOwnedComponent(const UPrimitiveComponent* PrimitiveComponent) const override;
 
 	virtual void SelectAllInstances(bool bSelect) override;
 	virtual void SelectInstance(bool bSelect, int32 Index) override;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;
-	virtual int32 GetInstanceIndexFrom(UInstancedStaticMeshComponent* HISMComponent, int32 ComponentIndex) const override;
+	virtual int32 GetInstanceIndexFrom(const UPrimitiveComponent* PrimitiveComponent, int32 ComponentIndex) const override;
 	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const override;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;
@@ -1091,9 +1091,9 @@ void FFoliageStaticMesh::PostUpdateInstances()
 	Component->MarkRenderStateDirty();
 }
 
-bool FFoliageStaticMesh::IsOwnedComponent(const UPrimitiveComponent* HitComponent) const
+bool FFoliageStaticMesh::IsOwnedComponent(const UPrimitiveComponent* PrimitiveComponent) const
 {
-	return Component == HitComponent;
+	return Component == PrimitiveComponent;
 }
 
 void FFoliageStaticMesh::SelectAllInstances(bool bSelect)
@@ -1120,9 +1120,9 @@ void FFoliageStaticMesh::SelectInstances(bool bSelect, const TSet<int32>& Select
 	Component->MarkRenderStateDirty();
 }
 
-int32 FFoliageStaticMesh::GetInstanceIndexFrom(UInstancedStaticMeshComponent* HISMComponent, int32 ComponentIndex) const
+int32 FFoliageStaticMesh::GetInstanceIndexFrom(const UPrimitiveComponent* PrimitiveComponent, int32 ComponentIndex) const
 {
-	if (IsOwnedComponent(HISMComponent))
+	if (IsOwnedComponent(PrimitiveComponent))
 	{
 		return ComponentIndex;
 	}
@@ -4855,20 +4855,11 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 			for (auto& Pair : IFA->FoliageInfos)
 			{
 				const FFoliageInfo& Info = *Pair.Value;
-
-				if (Hit.Item != INDEX_NONE && Info.Implementation->IsOwnedComponent(HitComponent))
+				int32 InstanceIndex = Info.Implementation->GetInstanceIndexFrom(HitComponent, Hit.Item);
+				if (InstanceIndex != INDEX_NONE)
 				{
-					OutHit.Component = CastChecked<UPrimitiveComponent>(IFA->InstanceBaseCache.GetInstanceBasePtr(Info.Instances[Hit.Item].BaseId).Get(), ECastCheckedType::NullAllowed);
+					OutHit.Component = CastChecked<UPrimitiveComponent>(IFA->InstanceBaseCache.GetInstanceBasePtr(Info.Instances[InstanceIndex].BaseId).Get(), ECastCheckedType::NullAllowed);
 					break;
-				}
-				else
-				{
-					int32 InstanceIndex = Info.Implementation->FindIndex(HitComponent);
-					if (InstanceIndex != INDEX_NONE)
-					{
-						OutHit.Component = CastChecked<UPrimitiveComponent>(IFA->InstanceBaseCache.GetInstanceBasePtr(Info.Instances[InstanceIndex].BaseId).Get(), ECastCheckedType::NullAllowed);
-						break;
-					}
 				}
 			}
 
@@ -4896,7 +4887,7 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 			continue;
 		}
 
-		if (bAverageNormal && DesiredInstance.FoliageType->AverageNormal)
+		if (bAverageNormal && DesiredInstance.FoliageType && DesiredInstance.FoliageType->AverageNormal)
 		{
 			int32 PointSeed = FFoliagePlacementUtil::GetRandomSeedForPosition(FVector2D(Hit.Location));
 			FRandomStream LocalRandomStream(PointSeed);
@@ -4972,7 +4963,7 @@ bool AInstancedFoliageActor::CheckCollisionWithWorld(const UWorld* InWorld, cons
 			//::DrawDebugDirectionalArrow(InWorld, SamplePos, SamplePos - NormalVector*WorldRadius, 10.0f, FColor::Red, true, 30.0f);
 
 			FHitResult Hit;
-			if (AInstancedFoliageActor::FoliageTrace(InWorld, Hit, FDesiredFoliageInstance(SamplePos, SamplePos - NormalVector*WorldRadius)))
+			if (AInstancedFoliageActor::FoliageTrace(InWorld, Hit, FDesiredFoliageInstance(SamplePos, SamplePos - NormalVector*WorldRadius, Settings)))
 			{
 				FVector LocalHit = OriginalTransform.InverseTransformPosition(Hit.Location);
 				

@@ -9,6 +9,7 @@
 
 struct FFoliageInfo;
 class UInstancedStaticMeshComponent;
+class UPrimitiveComponent;
 class UBlueprint;
 class UFoliageType_Actor;
 
@@ -50,7 +51,7 @@ struct FFoliageISMActor : public FFoliageImpl
 	virtual void SelectAllInstances(bool bSelect) override;
 	virtual void SelectInstance(bool bSelect, int32 Index) override;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;
-	virtual int32 GetInstanceIndexFrom(UInstancedStaticMeshComponent* HISMComponent, int32 ComponentIndex) const;
+	virtual int32 GetInstanceIndexFrom(const UPrimitiveComponent* Component, int32 ComponentIndex) const;
 	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const override;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;

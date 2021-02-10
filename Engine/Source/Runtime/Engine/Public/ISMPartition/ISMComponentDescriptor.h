@@ -21,7 +21,7 @@ struct ENGINE_API FISMComponentDescriptor
 
 #if WITH_EDITOR
 	static FISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
-	void InitFrom(UStaticMeshComponent* Component);
+	void InitFrom(UStaticMeshComponent* Component, bool bInitBodyInstance = true);
 
 	uint32 ComputeHash() const;
 	UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;

@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ISMPartition/ISMComponentDescriptor.h"
 
 #if WITH_EDITOR
@@ -21,7 +22,7 @@ FISMComponentDescriptor FISMComponentDescriptor::CreateFrom(const TSubclassOf<US
 	return ComponentDescriptor;
 }
 
-void FISMComponentDescriptor::InitFrom(UStaticMeshComponent* Template)
+void FISMComponentDescriptor::InitFrom(UStaticMeshComponent* Template, bool bInitBodyInstance)
 {
 	bEnableDiscardOnLoad = false;
 	ComponentClass = Template->GetClass();
@@ -34,7 +35,6 @@ void FISMComponentDescriptor::InitFrom(UStaticMeshComponent* Template)
 	LightingChannels = Template->LightingChannels;
 	bHasCustomNavigableGeometry = Template->bHasCustomNavigableGeometry;
 	CustomDepthStencilWriteMask = Template->CustomDepthStencilWriteMask;
-	BodyInstance.CopyBodyInstancePropertiesFrom(&Template->BodyInstance);
 	VirtualTextureCullMips = Template->VirtualTextureCullMips;
 	TranslucencySortPriority = Template->TranslucencySortPriority;
 	OverriddenLightMapRes = Template->OverriddenLightMapRes;
@@ -62,6 +62,11 @@ void FISMComponentDescriptor::InitFrom(UStaticMeshComponent* Template)
 		{
 			bEnableDensityScaling = HISMTemplate->bEnableDensityScaling;
 		}
+	}
+
+	if (bInitBodyInstance)
+	{
+		BodyInstance.CopyBodyInstancePropertiesFrom(&Template->BodyInstance);
 	}
 }
 

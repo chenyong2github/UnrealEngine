@@ -643,7 +643,7 @@ private:
 	void UpdateWidgetLocationToInstanceSelection();
 
 	/** Snap instance to the ground   */
-	bool SnapInstanceToGround(AInstancedFoliageActor* InIFA, float AlignMaxAngle, FFoliageInfo& Mesh, int32 InstanceIdx);
+	bool SnapInstanceToGround(AInstancedFoliageActor* InIFA, const UFoliageType* Settings, FFoliageInfo& Mesh, int32 InstanceIdx);
 	void SnapSelectedInstancesToGround(UWorld* InWorld);
 
 	/** Callback for when an actor is spawned (to check if it's a new IFA) */

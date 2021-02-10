@@ -195,9 +195,9 @@ FTransform FFoliageActor::GetInstanceWorldTransform(int32 InstanceIndex) const
 	return FTransform::Identity;
 }
 
-bool FFoliageActor::IsOwnedComponent(const UPrimitiveComponent* Component) const
+bool FFoliageActor::IsOwnedComponent(const UPrimitiveComponent* PrimitiveComponent) const
 {
-	const AActor* Owner = Component->GetOwner();
+	const AActor* Owner = PrimitiveComponent->GetOwner();
 
 	return ActorInstances.Contains(Owner);
 }
@@ -207,9 +207,9 @@ int32 FFoliageActor::FindIndex(const AActor* InActor) const
 	return ActorInstances.IndexOfByKey(InActor);
 }
 
-int32 FFoliageActor::FindIndex(const UPrimitiveComponent* Component) const
+int32 FFoliageActor::GetInstanceIndexFrom(const UPrimitiveComponent* PrimitiveComponent, int32 ComponentIndex) const
 {
-	return FindIndex(Component->GetOwner());
+	return FindIndex(PrimitiveComponent->GetOwner());
 }
 
 void FFoliageActor::Refresh(bool Async, bool Force)

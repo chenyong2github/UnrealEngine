@@ -208,13 +208,12 @@ struct FFoliageImpl
 	virtual void PostUpdateInstances() {}
 	virtual void PreMoveInstances(const TArray<int32>& InInstancesMoved) {}
 	virtual void PostMoveInstances(const TArray<int32>& InInstancesMoved, bool bFinished) {}
-	virtual bool IsOwnedComponent(const UPrimitiveComponent* Component) const = 0;
-	virtual int32 FindIndex(const UPrimitiveComponent* HitComponent) const { return INDEX_NONE; }
-
+	virtual bool IsOwnedComponent(const UPrimitiveComponent* PrimitiveComponent) const = 0;
+	
 	virtual void SelectAllInstances(bool bSelect) = 0;
 	virtual void SelectInstance(bool bSelect, int32 Index) = 0;
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) = 0;
-	virtual int32 GetInstanceIndexFrom(UInstancedStaticMeshComponent* HISMComponent, int32 ComponentIndex) const { return INDEX_NONE; }
+	virtual int32 GetInstanceIndexFrom(const UPrimitiveComponent* PrimitiveComponent, int32 ComponentIndex) const = 0;
 	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const = 0;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) = 0;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) = 0;
@@ -546,8 +545,8 @@ struct FDesiredFoliageInstance
 
 	}
 
-	FDesiredFoliageInstance(const FVector& InStartTrace, const FVector& InEndTrace, const float InTraceRadius = 0.f)
-		: FoliageType(nullptr)
+	FDesiredFoliageInstance(const FVector& InStartTrace, const FVector& InEndTrace, const UFoliageType* InFoliageType, const float InTraceRadius = 0.f)
+		: FoliageType(InFoliageType)
 		, StartTrace(InStartTrace)
 		, EndTrace(InEndTrace)
 		, Rotation(ForceInit)

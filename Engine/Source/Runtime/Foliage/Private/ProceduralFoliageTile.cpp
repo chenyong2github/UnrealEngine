@@ -487,10 +487,9 @@ void UProceduralFoliageTile::ExtractDesiredInstances(TArray<FDesiredFoliageInsta
 			continue;
 		}
 		
-		FDesiredFoliageInstance* DesiredInst = new (OutInstances)FDesiredFoliageInstance(StartRay, EndRay, Instance.GetMaxRadius());
+		FDesiredFoliageInstance* DesiredInst = new (OutInstances)FDesiredFoliageInstance(StartRay, EndRay, Instance.Type, Instance.GetMaxRadius());
 		DesiredInst->Rotation = Instance.Rotation;
 		DesiredInst->ProceduralGuid = ProceduralGuid;
-		DesiredInst->FoliageType = Instance.Type;
 		DesiredInst->Age = Instance.Age;
 		DesiredInst->ProceduralVolumeBodyInstance = VolumeBodyInstance;
 		DesiredInst->PlacementMode = EFoliagePlacementMode::Procedural;

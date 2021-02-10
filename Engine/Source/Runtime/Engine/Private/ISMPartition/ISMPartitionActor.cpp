@@ -499,7 +499,7 @@ bool AISMPartitionActor::IsISMComponent(const UPrimitiveComponent* Component) co
 	return false;
 }
 
-int32 AISMPartitionActor::GetISMInstanceIndex(const FISMClientHandle& Handle, UInstancedStaticMeshComponent* ISMComponent, int32 ComponentIndex) const
+int32 AISMPartitionActor::GetISMInstanceIndex(const FISMClientHandle& Handle, const UInstancedStaticMeshComponent* ISMComponent, int32 ComponentIndex) const
 {
 	check(Handle.Guid == Clients[Handle.Index]);
 	for (const FISMComponentData& ComponentData : DescriptorComponents)
