@@ -195,7 +195,7 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 	{
 		UObject* Object = PinSubCategoryObject.Get(true);
 		Ar << Object;
-		if(!Ar.IsObjectReferenceCollector() && ( Ar.IsLoading() || Ar.IsModifyingWeakAndStrongReferences() ))
+		if(Ar.IsLoading() || Ar.IsModifyingWeakAndStrongReferences())
 		{
 			PinSubCategoryObject = Object;
 		}
