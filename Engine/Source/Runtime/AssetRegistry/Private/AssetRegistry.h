@@ -176,8 +176,10 @@ private:
 	void ConstructGatherer();
 	/**  Called to set up timing variables and launch the on-constructor SearchAllAssets async call */
 	void SearchAllAssetsInitialAsync();
+
+	typedef TFunctionRef<void(const TRingBuffer<FAssetData*>&)> FAssetsFoundCallback;
 	/** Read any results from the gatherer, if it is running asynchronously */
-	void TickGatherer(float DeltaTime, TArray<FName>* OutFoundAssets=nullptr);
+	void TickGatherer(float DeltaTime, TOptional<FAssetsFoundCallback> AssetsFoundCallback = TOptional<FAssetsFoundCallback>());
 	/** Internal handler for ScanPathsSynchronous */
 	void ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles, bool bForceRescan, bool bIgnoreBlackListScanFilters, TArray<FName>* OutFoundAssets);
 
