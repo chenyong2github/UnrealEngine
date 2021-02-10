@@ -1777,8 +1777,6 @@ private:
 
 	const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const uint16 RepIndCustomDeltaPropertyIndexex) const;
 
-	bool IsAFastArray(const uint16 CustomDeltaPropertyIndex) const;
-
 	ERepLayoutFlags Flags;
 
 	/** Size (in bytes) needed to allocate a single instance of a Shadow buffer for this RepLayout. */

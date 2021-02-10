@@ -222,13 +222,6 @@ public:
 public:
 
 	// These can go away once we do a full merge of Custom Delta and RepLayout.
-	static bool IsAFastArray(
-		const FRepLayout& RepLayout,
-		const uint16 CustomDeltaIndex)
-	{
-		return RepLayout.IsAFastArray(CustomDeltaIndex);
-	}
-
 
 	static bool SendCustomDeltaProperty(
 		const FRepLayout& RepLayout,
@@ -839,7 +832,6 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 
 				// If this is a dynamic array property, we have to look through the list of retirement records to see if we need to reset the base state
 				FPropertyRetirement* Rec = Retirement.Next; // Retirement[i] is head and not actually used in this case
-				uint32 LastAcknowledged = 0;
 				while (Rec != nullptr)
 				{
 					if (NakPacketId > Rec->OutPacketIdRange.Last)
@@ -847,7 +839,6 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 						// We can assume this means this record's packet was ack'd, so we can get rid of the old state
 						check(Retirement.Next == Rec);
 						Retirement.Next = Rec->Next;
-						LastAcknowledged = Rec->FastArrayChangelistHistory;
 						delete Rec;
 						Rec = Retirement.Next;
 						continue;
@@ -858,12 +849,6 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 
 						// The Nack'd packet did update this property, so we need to replace the buffer in RecentDynamic
 						// with the buffer we used to create this update (which was dropped), so that the update will be recreated on the next replicate actor
-						
-						if (LastAcknowledged != 0 && Rec->DynamicState.IsValid() && FNetSerializeCB::IsAFastArray(*RepLayout, (uint16)i))
-						{
-							((FNetFastTArrayBaseState*)Rec->DynamicState.Get())->LastAckedHistory = LastAcknowledged;
-						}
-
 						SendingRepState->RecentCustomDeltaState[i] = Rec->DynamicState;
 
 						// We can get rid of the rest of the saved off base states since we will be regenerating these updates on the next replicate actor
@@ -1427,7 +1412,6 @@ void FObjectReplicator::PostReceivedBunch()
 
 static FORCEINLINE FPropertyRetirement** UpdateAckedRetirements(
 	FPropertyRetirement& Retire,
-	uint32& LastAcknowledged,
 	const int32 OutAckPacketId,
 	const UObject* Object)
 {
@@ -1435,7 +1419,6 @@ static FORCEINLINE FPropertyRetirement** UpdateAckedRetirements(
 
 	FPropertyRetirement** Rec = &Retire.Next; // Note the first element is 'head' that we don't actually use
 
-	LastAcknowledged = 0;
 	while (*Rec != nullptr)
 	{
 		if (OutAckPacketId >= (*Rec)->OutPacketIdRange.Last)
@@ -1448,7 +1431,6 @@ static FORCEINLINE FPropertyRetirement** UpdateAckedRetirements(
 			Retire.Next = ToDelete->Next;
 			Rec = &Retire.Next;
 
-			LastAcknowledged = ToDelete->FastArrayChangelistHistory;
 			delete ToDelete;
 			continue;
 		}
@@ -1555,7 +1537,6 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 			continue;
 		}
 
-		const bool bIsAFastArray = FNetSerializeCB::IsAFastArray(*RepLayout, CustomDeltaProperty);
 		FPropertyRetirement** LastNext = nullptr;
 
 		if (!bIsConnectionInternalAck)
@@ -1565,13 +1546,7 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 			// Update Retirement records with this new state so we can handle packet drops.
 			// LastNext will be pointer to the last "Next" pointer in the list (so pointer to a pointer)
-			uint32 LastAcknowledged = 0;
-			LastNext = UpdateAckedRetirements(Retire, LastAcknowledged, Connection->OutAckPacketId, Object);
-
-			if (LastAcknowledged != 0 && OldState.IsValid() && bIsAFastArray)
-			{
-				((FNetFastTArrayBaseState*)OldState.Get())->LastAckedHistory = LastAcknowledged;
-			}
+			LastNext = UpdateAckedRetirements(Retire, Connection->OutAckPacketId, Object);
 
 			check(LastNext != nullptr);
 			check(*LastNext == nullptr);
@@ -1595,15 +1570,6 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 			// Remember what the old state was at this point in time.  If we get a nak, we will need to revert back to this.
 			(*LastNext)->DynamicState = OldState;
-
-			// Using NewState's ChangelistHistory seems counter intuitive at first, because it *seems* like we should be using the history from the OldState.
-			// However, PropertyRetirements associate the OldState with the state of replication **in case of a NAK**.
-			// So, in the case of an ACK, we know that we no longer need to hold onto that OldState because the client has received
-			// the NewState (which will become our OldState the next time we send something).
-			if (NewState.IsValid() && bIsAFastArray)
-			{
-				(*LastNext)->FastArrayChangelistHistory = ((FNetFastTArrayBaseState*)NewState.Get())->ChangelistHistory;
-			}
 		}
 
 		// Save NewState into the RecentCustomDeltaState array (old state is a reference into our RecentCustomDeltaState map)
