@@ -346,6 +346,8 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 	FString Name = FString::Printf(TEXT("BackBuffer%d"), BackBufferIndex);
 	SetName(SwapChainTexture->GetResource(), *Name);
 
+	SwapChainTexture->GetResource()->SetIsBackBuffer(true);
+
 	FD3D12TextureStats::D3D12TextureAllocated2D(*SwapChainTexture);
 	return SwapChainTexture;
 }

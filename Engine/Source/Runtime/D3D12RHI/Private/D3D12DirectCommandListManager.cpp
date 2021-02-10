@@ -330,6 +330,7 @@ FD3D12CommandListManager::FD3D12CommandListManager(FD3D12Device* InParent, D3D12
 	, CommandListType(InCommandListType)
 	, QueueType(InQueueType)
 	, BreadCrumbResourceAddress(nullptr)
+	, bExcludeBackbufferWriteTransitionTime(false)
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	, bShouldTrackCmdListTime(false)
 #endif
@@ -507,7 +508,7 @@ FD3D12CommandListHandle FD3D12CommandListManager::ObtainCommandList(FD3D12Comman
 	}
 
 	check(List.GetCommandListType() == CommandListType);
-	List.Reset(CommandAllocator, ShouldTrackCommandListTime() && !bHasBackbufferWriteTransition);
+	List.Reset(CommandAllocator, ShouldTrackCommandListTime() && !(bHasBackbufferWriteTransition && bExcludeBackbufferWriteTransitionTime));
 	return List;
 }
 
@@ -898,7 +899,7 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 		TArray<D3D12_RESOURCE_BARRIER> BarrierDescs;
 		BarrierDescs.Reserve(NumPendingResourceBarriers);
 
-		TArray<D3D12_RESOURCE_BARRIER> BackBufferBarrierDescs;
+		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<2>> BackBufferBarrierDescs;
 
 		// Fill out the descs
 		D3D12_RESOURCE_BARRIER Desc = {};
@@ -925,13 +926,11 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 				Desc.Transition.StateAfter = After;
 
 				// Add the desc
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 				if (PRB.Resource->IsBackBuffer() && (After & BackBufferBarrierWriteTransitionTargets))
 				{
 					BackBufferBarrierDescs.Add(Desc);
 				}
 				else
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 				{
 					BarrierDescs.Add(Desc);
 				}
@@ -947,11 +946,7 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 			}
 		}
 
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 		const uint32 BarrierCount = BarrierDescs.Num() + BackBufferBarrierDescs.Num();
-#else // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-		const uint32 BarrierCount = BarrierDescs.Num();
-#endif // #else // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 		if (BarrierCount > 0)
 		{
@@ -973,9 +968,7 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 #endif // #if ENABLE_RESIDENCY_MANAGEMENT
 #if DEBUG_RESOURCE_STATES
 			LogResourceBarriers(BarrierDescs.Num(), BarrierDescs.GetData(), hResourceBarrierList.CommandList());
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 			LogResourceBarriers(BackBufferBarrierDescs.Num(), BackBufferBarrierDescs.GetData(), BackBufferBarrierDescs.CommandList());
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 #endif // #if DEBUG_RESOURCE_STATES
 			const int32 BarrierBatchMax = FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit();
 
@@ -1003,6 +996,9 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 			}
 
 			if (BarrierDescs.Num())
+#else
+			BarrierDescs.Append(BackBufferBarrierDescs);
+			BackBufferBarrierDescs.Empty();
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 			{
 				if (BarrierDescs.Num() > BarrierBatchMax)

@@ -294,6 +294,11 @@ public:
 	bool GetShouldTrackCmdListTime() const { return bShouldTrackCmdListTime; }
 	void SetShouldTrackCmdListTime(bool val) { bShouldTrackCmdListTime = val; }
 
+	void SetExcludeBackbufferWriteTransitionTime(bool Value)
+	{
+		bExcludeBackbufferWriteTransitionTime = Value;
+	}
+
 protected:
 	struct FCmdListExecTime
 	{
@@ -347,6 +352,9 @@ protected:
 	TArray<FResolvedCmdListExecTime> ResolvedTimingPairs;
 #endif
 
+	/** Whether to treat backbuffer write transition time as GPU idle time */
+	bool bExcludeBackbufferWriteTransitionTime;
+	/** Whether to track command list execution time */
 	bool bShouldTrackCmdListTime;
 	/** Timstamps marking the beginning of tracked command lists */
 	TArray<uint64> CmdListStartTimestamps;

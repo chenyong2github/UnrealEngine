@@ -254,9 +254,7 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	, bRequiresResourceStateTracking(true)
 	, bDepthStencil(false)
 	, bDeferDelete(true)
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	, bBackBuffer(false)
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	, HeapType(InHeapType)
 	, GPUVirtualAddress(0)
 	, ResourceBaseAddress(nullptr)
