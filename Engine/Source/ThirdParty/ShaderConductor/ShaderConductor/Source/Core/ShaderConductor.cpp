@@ -144,6 +144,14 @@ namespace
             m_dxcompilerDll = ::LoadLibraryA(dllName);
 #else
             m_dxcompilerDll = ::dlopen(dllName, RTLD_LAZY);
+	// UE Change Begin: Unreal Engine uses rpaths on Mac for loading dylibs, so "@rpath/" needs to be added before the name of the dylib, so that macOS can find the file
+    #if __APPLE__
+            if (m_dxcompilerDll == nullptr)
+            {
+                m_dxcompilerDll = ::dlopen((std::string("@rpath/") + dllName).c_str(), RTLD_LAZY);
+            }
+    #endif
+	// UE Change End: Unreal Engine uses rpaths on Mac for loading dylibs, so "@rpath/" needs to be added before the name of the dylib, so that macOS can find the file
 #endif
 
             if (m_dxcompilerDll != nullptr)
