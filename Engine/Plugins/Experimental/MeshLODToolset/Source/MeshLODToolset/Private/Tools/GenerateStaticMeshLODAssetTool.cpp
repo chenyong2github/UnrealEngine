@@ -409,7 +409,13 @@ void UGenerateStaticMeshLODAssetTool::UpdateExistingAsset()
 	GenerateProcess->CalculateDerivedPathName(BasicProperties->GeneratedSuffix);
 
 	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
-	GenerateProcess->UpdateSourceAsset();
+
+	// only updated HD source if we have no HD source asset. Otherwise we are overwriting with existing lowpoly LOD0.
+	bool bUpdateHDSource =
+		BasicProperties->bSaveAsHDSource &&
+		(GenerateProcess->GetSourceStaticMesh()->IsHiResMeshDescriptionValid() == false);
+
+	GenerateProcess->UpdateSourceAsset(bUpdateHDSource);
 	GenerateProcess->GraphEvalCriticalSection.Unlock();
 }
 

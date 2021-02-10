@@ -178,13 +178,13 @@ public:
 	/**
 	 * Creates new Asset
 	 */
-	bool WriteDerivedAssetData();
+	virtual bool WriteDerivedAssetData();
 
 
 	/**
 	 * Updates existing SM Asset
 	 */
-	void UpdateSourceAsset();
+	virtual void UpdateSourceAsset(bool bSetNewHDSourceAsset = false);
 
 
 
@@ -264,7 +264,7 @@ protected:
 	void UpdateMaterialTextureParameters(UMaterialInstanceConstant* Material, FMaterialInfo& DerivedMaterialInfo);
 	void WriteDerivedStaticMeshAsset();
 
-	void UpdateSourceStaticMeshAsset();
+	void UpdateSourceStaticMeshAsset(bool bSetNewHDSourceAsset);
 
 	void UpdateMaterialTextureParameters(UMaterialInstanceDynamic* Material, const FMaterialInfo& SourceMaterialInfo, 
 		const TMap<UTexture2D*,UTexture2D*>& PreviewTextures, UTexture2D* PreviewNormalMap);

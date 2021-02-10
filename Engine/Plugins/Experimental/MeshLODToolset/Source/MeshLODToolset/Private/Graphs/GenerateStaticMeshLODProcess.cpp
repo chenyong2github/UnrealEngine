@@ -63,7 +63,10 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn)
 	FlushRenderingCommands();
 
 	SourceStaticMesh = StaticMeshIn;
-	const FMeshDescription* SourceMeshDescription = StaticMeshIn->GetMeshDescription(0);
+
+	bool bHasHiResSource = SourceStaticMesh->IsHiResMeshDescriptionValid();
+	const FMeshDescription* SourceMeshDescription =
+		(bHasHiResSource) ? SourceStaticMesh->GetHiResMeshDescription() : SourceStaticMesh->GetMeshDescription(0);
 
 	// start async mesh-conversion
 	SourceMesh.Clear();
@@ -495,7 +498,7 @@ bool UGenerateStaticMeshLODProcess::WriteDerivedAssetData()
 }
 
 
-void UGenerateStaticMeshLODProcess::UpdateSourceAsset()
+void UGenerateStaticMeshLODProcess::UpdateSourceAsset(bool bSetNewHDSourceAsset)
 {
 	AllDerivedTextures.Reset();
 
@@ -503,7 +506,7 @@ void UGenerateStaticMeshLODProcess::UpdateSourceAsset()
 
 	WriteDerivedMaterials();
 
-	UpdateSourceStaticMeshAsset();
+	UpdateSourceStaticMeshAsset(bSetNewHDSourceAsset);
 
 	// clear list of derived textures we were holding onto to prevent GC
 	AllDerivedTextures.Reset();
@@ -652,6 +655,11 @@ void UGenerateStaticMeshLODProcess::WriteDerivedMaterials()
 		FMaterialInfo& DerivedMaterialInfo = DerivedMaterials[mi];
 
 		UMaterialInterface* MaterialInterface = SourceMaterialInfo.SourceMaterial.MaterialInterface;
+		if (MaterialInterface == nullptr)
+		{
+			DerivedMaterialInfo.SourceMaterial.MaterialInterface = nullptr;
+			continue;
+		}
 		bool bSourceIsMIC = (Cast<UMaterialInstanceConstant>(MaterialInterface) != nullptr);
 
 		FString SourceMaterialPath = UEditorAssetLibrary::GetPathNameForLoadedAsset(MaterialInterface);
@@ -805,11 +813,19 @@ void UGenerateStaticMeshLODProcess::WriteDerivedStaticMeshAsset()
 
 
 
-void UGenerateStaticMeshLODProcess::UpdateSourceStaticMeshAsset()
+void UGenerateStaticMeshLODProcess::UpdateSourceStaticMeshAsset(bool bSetNewHDSourceAsset)
 {
 	GEditor->BeginTransaction(LOCTEXT("UpdateExistingAssetMessage", "Added Generated LOD"));
 
 	SourceStaticMesh->Modify();
+
+	if (bSetNewHDSourceAsset)
+	{
+		FMeshDescription* NewSourceMD = SourceStaticMesh->CreateHiResMeshDescription();
+		const FMeshDescription* ExistingSourceMD = SourceStaticMesh->GetMeshDescription(0);
+		*NewSourceMD = *ExistingSourceMD;
+		SourceStaticMesh->CommitHiResMeshDescription();
+	}
 
 	TArray<FStaticMaterial> ExistingMaterials = SourceStaticMesh->GetStaticMaterials();
 
@@ -835,20 +851,20 @@ void UGenerateStaticMeshLODProcess::UpdateSourceStaticMeshAsset()
 	// update materials on generated mesh
 	SourceStaticMesh->SetStaticMaterials(ExistingMaterials);
 
-	// store new derived LOD as LOD 1
-	SourceStaticMesh->SetNumSourceModels(2);
-	FMeshDescription* MeshDescription = SourceStaticMesh->GetMeshDescription(1);
+	// store new derived LOD as LOD 0
+	SourceStaticMesh->SetNumSourceModels(1);
+	FMeshDescription* MeshDescription = SourceStaticMesh->GetMeshDescription(0);
 	if (MeshDescription == nullptr)
 	{
-		MeshDescription = SourceStaticMesh->CreateMeshDescription(1);
+		MeshDescription = SourceStaticMesh->CreateMeshDescription(0);
 	}
 	FConversionToMeshDescriptionOptions ConversionOptions;
 	FDynamicMeshToMeshDescription Converter(ConversionOptions);
 	Converter.Convert(&DerivedLODMesh, *MeshDescription);
-	SourceStaticMesh->CommitMeshDescription(1);
+	SourceStaticMesh->CommitMeshDescription(0);
 
 	// this will prevent simplification?
-	FStaticMeshSourceModel& SrcModel = SourceStaticMesh->GetSourceModel(1);
+	FStaticMeshSourceModel& SrcModel = SourceStaticMesh->GetSourceModel(0);
 	SrcModel.ReductionSettings.MaxDeviation = 0.0f;
 	SrcModel.ReductionSettings.PercentTriangles = 1.0f;
 	SrcModel.ReductionSettings.PercentVertices = 1.0f;

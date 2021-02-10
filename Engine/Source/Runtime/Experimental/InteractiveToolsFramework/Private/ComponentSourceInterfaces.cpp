@@ -5,22 +5,46 @@
 #include "Components/PrimitiveComponent.h"
 #include "Containers/Array.h"
 
+
 namespace
 {
-	TArray<TUniquePtr<FComponentTargetFactory>> Factories;
+	TMap<uint32, TUniquePtr<FComponentTargetFactory>> Factories;
+
+	static int32 FactoryUniqueKeyGenerator = 1;
 }
 
 
-void AddComponentTargetFactory( TUniquePtr<FComponentTargetFactory> Factory )
+int32 AddComponentTargetFactory( TUniquePtr<FComponentTargetFactory> Factory )
 {
-	Factories.Push( MoveTemp(Factory) );
+	int32 NewFactoryKey = FactoryUniqueKeyGenerator++;
+	Factories.Add(NewFactoryKey, MoveTemp(Factory));
+	return NewFactoryKey;
 }
+
+
+FComponentTargetFactory* FindComponentTargetFactoryByKey(int32 Key)
+{
+	TUniquePtr<FComponentTargetFactory>* Found = Factories.Find(Key);
+	return (Found != nullptr) ? Found->Get() : nullptr;
+}
+
+
+bool RemoveComponentTargetFactoryByKey(int32 Key)
+{
+	return Factories.Remove(Key) != 0;
+}
+
+void RemoveAllComponentTargetFactoryies()
+{
+	Factories.Reset();
+}
+
 
 bool CanMakeComponentTarget(UActorComponent* Component)
 {
-	for ( const auto& Factory : Factories )
+	for ( const auto& FactoryPair : Factories )
 	{
-		if ( Factory->CanBuild(Component) )
+		if (FactoryPair.Value->CanBuild(Component) )
 		{
 			return true;
 		}
@@ -30,11 +54,11 @@ bool CanMakeComponentTarget(UActorComponent* Component)
 
 TUniquePtr<FPrimitiveComponentTarget> MakeComponentTarget(UPrimitiveComponent* Component)
 {
-	for ( const auto& Factory : Factories )
+	for (const auto& FactoryPair : Factories)
 	{
-		if ( Factory->CanBuild( Component ) )
+		if (FactoryPair.Value->CanBuild( Component ) )
 		{
-			return Factory->Build( Component );
+			return FactoryPair.Value->Build( Component );
 		}
 	}
 	return {};

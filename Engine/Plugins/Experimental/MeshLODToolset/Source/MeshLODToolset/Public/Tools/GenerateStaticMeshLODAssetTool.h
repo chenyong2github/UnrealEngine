@@ -69,6 +69,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
 	FString GeneratedSuffix;
 
+	/** If true, the high-resolution input mesh is stored as HD source mesh in the Asset */
+	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (EditCondition = "OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset"))
+	bool bSaveAsHDSource = true;
+
+
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bParallelExecution = false;
 

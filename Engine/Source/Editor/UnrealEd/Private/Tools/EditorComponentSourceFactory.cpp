@@ -10,6 +10,55 @@
 #include "PhysicsEngine/BodySetup.h"
 
 
+static void DisplayCriticalWarningMessage(const FString& Message)
+{
+	if (GAreScreenMessagesEnabled)
+	{
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 10.0f, FColor::Red, Message);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
+}
+
+
+FStaticMeshComponentTarget::FStaticMeshComponentTarget(UPrimitiveComponent* Component, EStaticMeshEditingLOD EditingLODIn)
+	: FPrimitiveComponentTarget(Cast<UStaticMeshComponent>(Component))
+{
+	EditingLOD = EStaticMeshEditingLOD::LOD0;
+
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+	if (ensure(StaticMeshComponent != nullptr))
+	{
+		UStaticMesh* StaticMeshAsset = StaticMeshComponent->GetStaticMesh();
+		if (ensure(StaticMeshAsset != nullptr))
+		{
+			if (EditingLODIn == EStaticMeshEditingLOD::MaxQuality)
+			{
+				EditingLOD = StaticMeshAsset->IsHiResMeshDescriptionValid() ? EStaticMeshEditingLOD::HiResSource : EStaticMeshEditingLOD::LOD0;
+			}
+			else if (EditingLODIn == EStaticMeshEditingLOD::HiResSource)
+			{
+				EditingLOD = StaticMeshAsset->IsHiResMeshDescriptionValid() ? EStaticMeshEditingLOD::HiResSource : EStaticMeshEditingLOD::LOD0;
+				if (EditingLOD != EStaticMeshEditingLOD::HiResSource)
+				{
+					DisplayCriticalWarningMessage(FString(TEXT("HiRes Source selected but not available - Falling Back to LOD0")));
+				}
+			}
+			else
+			{
+				int32 WantLOD = (int)EditingLODIn;
+				int32 MaxExistingLOD = StaticMeshAsset->GetNumSourceModels() - 1;
+				if (WantLOD > MaxExistingLOD)
+				{
+					DisplayCriticalWarningMessage(FString::Printf(TEXT("LOD%d Requested but not available - Falling Back to LOD%d"), WantLOD, MaxExistingLOD));
+					EditingLOD = (EStaticMeshEditingLOD)MaxExistingLOD;
+				}
+			}
+		}
+	}
+}
+
+
+
 
 bool FStaticMeshComponentTarget::IsValid() const
 {
@@ -27,17 +76,31 @@ bool FStaticMeshComponentTarget::IsValid() const
 	{
 		return false;
 	}
-	if (!(LODIndex < StaticMesh->GetNumSourceModels()))
+
+	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	{
+		if (StaticMesh->IsHiResMeshDescriptionValid() == false)
+		{
+			return false;
+		}
+	}
+	else if ( (int32)EditingLOD >= StaticMesh->GetNumSourceModels() )
 	{
 		return false;
 	}
+
 	return true;
 }
 
 FMeshDescription* FStaticMeshComponentTarget::GetMesh() 
 {
-	ensure(IsValid());
-	return IsValid() ? Cast<UStaticMeshComponent>(Component)->GetStaticMesh()->GetMeshDescription(LODIndex) : nullptr;
+	if (ensure(IsValid()))
+	{
+		UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
+		return (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
+			StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
+	}
+	return nullptr;
 }
 
 
@@ -149,12 +212,7 @@ void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 
 	if (StaticMesh->GetPathName().StartsWith(TEXT("/Engine/")))
 	{
-		FString DebugMessage = FString::Printf(TEXT("CANNOT MODIFY BUILT-IN ENGINE ASSET %s"), *StaticMesh->GetPathName());
-		if (GAreScreenMessagesEnabled)
-		{
-			GEngine->AddOnScreenDebugMessage(INDEX_NONE, 10.0f, FColor::Red, DebugMessage);
-		}
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *DebugMessage);
+		DisplayCriticalWarningMessage(FString::Printf(TEXT("CANNOT MODIFY BUILT-IN ENGINE ASSET %s"), *StaticMesh->GetPathName()));
 		return;
 	}
 
@@ -171,11 +229,19 @@ void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 	check(bSavedToTransactionBuffer);
 
 	FCommitParams CommitParams;
-	CommitParams.MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
+	CommitParams.MeshDescription = GetMesh();
 
 	Committer(CommitParams);
 
-	StaticMesh->CommitMeshDescription(LODIndex);
+	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	{
+		StaticMesh->CommitHiResMeshDescription();
+	}
+	else
+	{
+		StaticMesh->CommitMeshDescription( (int32)EditingLOD );
+	}
+
 	StaticMesh->PostEditChange();
 
 	// this rebuilds physics, but it doesn't undo!
@@ -205,7 +271,7 @@ TUniquePtr<FPrimitiveComponentTarget> FStaticMeshComponentTargetFactory::Build(U
 		&& StaticMeshComponent->GetStaticMesh() != nullptr 
 		&& StaticMeshComponent->GetStaticMesh()->GetNumSourceModels() > 0)
 	{
-		return TUniquePtr<FPrimitiveComponentTarget> { new FStaticMeshComponentTarget{Component} };
+		return MakeUnique<FStaticMeshComponentTarget>(Component, CurrentEditingLOD);
 	}
 	return {};
 }

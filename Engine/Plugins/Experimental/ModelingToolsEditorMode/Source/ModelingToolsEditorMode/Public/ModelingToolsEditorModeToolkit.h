@@ -97,6 +97,10 @@ private:
 	FDelegateHandle AssetSettingsModifiedHandle;
 	void OnShowAssetSettings();
 
+	TArray<TSharedPtr<FString>> AssetLODModes;
+	TSharedPtr<STextBlock> AssetLODModeLabel;
+	TSharedPtr<STextComboBox> AssetLODMode;
+
 
 	// custom accept/cancel/complete handlers
 };

@@ -123,9 +123,27 @@ public:
  *
  * Add a factory method to make ComponentTarget from UPrimitiveComponent*
  * @param Factory The ComponentTargetFactory
- * @return void
+ * @return integer indentifier that identifies this Factory
  */
-INTERACTIVETOOLSFRAMEWORK_API void AddComponentTargetFactory( TUniquePtr<FComponentTargetFactory> Factory );
+INTERACTIVETOOLSFRAMEWORK_API int32 AddComponentTargetFactory( TUniquePtr<FComponentTargetFactory> Factory );
+
+
+/**
+ * @return ComponentTargetFactory associated with the given Key, or nullptr if not found
+ */
+INTERACTIVETOOLSFRAMEWORK_API FComponentTargetFactory* FindComponentTargetFactoryByKey(int32 Key);
+
+
+/**
+ * @return true if ComponentTargetFactory associated with the given Key was found and removed
+ */
+INTERACTIVETOOLSFRAMEWORK_API bool RemoveComponentTargetFactoryByKey(int32 Key);
+
+
+/**
+ * remove all registered ComponentTargetFactory objects
+ */
+INTERACTIVETOOLSFRAMEWORK_API void RemoveAllComponentTargetFactoryies();
 
 
 /**

@@ -20,6 +20,10 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SExpandableArea.h"
 
+// for LOD setting
+#include "EditorInteractiveToolsFrameworkModule.h"
+#include "Tools/EditorComponentSourceFactory.h"
+
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
 
 
@@ -191,6 +195,10 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 {
+	//
+	// New Asset Location drop-down
+	//
+
 	AssetLocationModes.Add(MakeShared<FString>(TEXT("AutoGen Folder (World-Relative)")));
 	AssetLocationModes.Add(MakeShared<FString>(TEXT("AutoGen Folder (Global)")));
 	AssetLocationModes.Add(MakeShared<FString>(TEXT("Current Folder")));
@@ -212,21 +220,85 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 	AssetSettingsModifiedHandle = Settings->OnModified.AddLambda([this](UObject*, FProperty*) { OnAssetSettingsModified(); });
 
 
+	//
+	// LOD selection dropdown
+	//
+
+	AssetLODModes.Add(MakeShared<FString>(TEXT("Max Available")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("HiRes")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("LOD0")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("LOD1")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("LOD2")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("LOD3")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("LOD4")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("LOD5")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("LOD6")));
+	AssetLODModes.Add(MakeShared<FString>(TEXT("LOD7")));
+	AssetLODMode = SNew(STextComboBox)
+		.OptionsSource(&AssetLODModes)
+		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> String, ESelectInfo::Type)
+	{
+		if (FEditorInteractiveToolsFrameworkGlobals::RegisteredStaticMeshTargetFactoryKey >= 0)
+		{
+			FComponentTargetFactory* Factory = FindComponentTargetFactoryByKey(FEditorInteractiveToolsFrameworkGlobals::RegisteredStaticMeshTargetFactoryKey);
+			if (Factory != nullptr)
+			{
+				FStaticMeshComponentTargetFactory* StaticMeshFactory = static_cast<FStaticMeshComponentTargetFactory*>(Factory);
+				if (*String == *AssetLODModes[0])
+				{
+					StaticMeshFactory->CurrentEditingLOD = EStaticMeshEditingLOD::MaxQuality;
+				}
+				else if (*String == *AssetLODModes[1])
+				{
+					StaticMeshFactory->CurrentEditingLOD = EStaticMeshEditingLOD::HiResSource;
+				}
+				else
+				{
+					for (int32 k = 2; k < AssetLODModes.Num(); ++k)
+					{
+						if (*String == *AssetLODModes[k])
+						{
+							StaticMeshFactory->CurrentEditingLOD = (EStaticMeshEditingLOD)(k - 2);
+							break;
+						}
+					}
+				}
+			}
+		}
+	});
+
+
+	// initialize combos
+	//UpdateAssetPanelFromSettings();
+	AssetLODMode->SetSelectedItem(AssetLODModes[0]);		// TODO read from settings?
+
+
+	AssetLODModeLabel = SNew(STextBlock).Text(LOCTEXT("ActiveLODLabel", "Editing LOD"));
+
 	TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox)
-	//+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(0)
-	//	[
-	//		SNew(SSeparator)
-	//	]
-	+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(0, 4, 0, 5)
+	+ SVerticalBox::Slot().MaxHeight(20).HAlign(HAlign_Fill)
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().Padding(0).HAlign(HAlign_Left).VAlign(VAlign_Center).AutoWidth()
+			+ SHorizontalBox::Slot().Padding(0, 2, 2, 2).HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
+				[ AssetLODModeLabel->AsShared() ]
+			+ SHorizontalBox::Slot().Padding(0).FillWidth(4.0f)
+				[ AssetLODMode->AsShared() ]
+		]
+
+	+ SVerticalBox::Slot().MaxHeight(20).HAlign(HAlign_Fill).Padding(0, 3, 0, 0)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().Padding(0, 2, 2, 2).HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("AssetPanelHeaderLabel", "Generated Asset Settings"))
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+					.Text(LOCTEXT("AssetLocationLabel", "New Asset Location"))
 				]
-			+ SHorizontalBox::Slot().HAlign(HAlign_Right).Padding(0).FillWidth(1.0f)
+			+ SHorizontalBox::Slot().Padding(0).FillWidth(4.0f)
+				[
+					AssetLocationMode->AsShared()
+				]
+
+			+ SHorizontalBox::Slot().HAlign(HAlign_Right).Padding(5, 0, 0, 0).FillWidth(1.0f)
 				[
 					SNew(SBox).MaxDesiredHeight(16).MaxDesiredWidth(17)
 					[
@@ -235,36 +307,11 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
 						.OnClicked_Lambda( [this]() {OnShowAssetSettings(); return FReply::Handled(); } )
 						[
-							SNew(SImage)
-							.Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings").GetIcon())
+							SNew(SImage).Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings").GetIcon())
 						]
 					]
 				]
-		]
-	+ SVerticalBox::Slot().MaxHeight(20).HAlign(HAlign_Fill).Padding(0)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().Padding(0, 2, 2, 2).HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("AssetLocationLabel", "Location"))
-				]
-			+ SHorizontalBox::Slot().Padding(0).FillWidth(4.0f)
-				[
-					AssetLocationMode->AsShared()
-				]
-			+ SHorizontalBox::Slot().Padding(10, 2, 2, 2).HAlign(HAlign_Right).VAlign(VAlign_Center).AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("AssetSaveModeLabel", "Save Mode"))
-				]
-			+ SHorizontalBox::Slot().Padding(0).FillWidth(3.0f)
-				[
-					AssetSaveMode->AsShared()
-				]
 		];
-
-	//return Content;
 
 
 	TSharedPtr<SExpandableArea> AssetConfigPanel = SNew(SExpandableArea)
@@ -289,6 +336,7 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 	return AssetConfigPanel;
 
 }
+
 
 
 
@@ -576,6 +624,10 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 	ActiveToolName = CurTool->GetToolInfo().ToolDisplayName;
 
 	GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+
+	// disable LOD level picker once Tool is active
+	AssetLODMode->SetEnabled(false);
+	AssetLODModeLabel->SetEnabled(false);
 }
 
 void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -596,6 +648,10 @@ void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manag
 	{
 		CurTool->OnPropertySetsModified.RemoveAll(this);
 	}
+
+	// re-enable LOD level picker
+	AssetLODMode->SetEnabled(true);
+	AssetLODModeLabel->SetEnabled(true);
 }
 
 void FModelingToolsEditorModeToolkit::OnActiveViewportChanged(TSharedPtr<IAssetViewport> OldViewport, TSharedPtr<IAssetViewport> NewViewport)
