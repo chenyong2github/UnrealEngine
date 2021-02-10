@@ -515,12 +515,14 @@ public:
 	DECLARE_GLOBAL_SHADER(FAmbientOcclusionSetupPS);
 	SHADER_USE_PARAMETER_STRUCT(FAmbientOcclusionSetupPS, FGlobalShader);
 
-	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
-	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -579,9 +581,7 @@ FScreenPassTexture AddAmbientOcclusionSetupPass(
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-	FAmbientOcclusionSetupPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FAmbientOcclusionSetupPS::FStrata>(Strata::IsStrataEnabled());
-	TShaderMapRef<FAmbientOcclusionSetupPS> PixelShader(View.ShaderMap, PermutationVector);
+	TShaderMapRef<FAmbientOcclusionSetupPS> PixelShader(View.ShaderMap);
 
 	AddDrawScreenPass(
 		GraphBuilder,
@@ -708,14 +708,14 @@ public:
 	class FUseUpsampleDim       : SHADER_PERMUTATION_BOOL("USE_UPSAMPLE");
 	class FUseAoSetupAsInputDim : SHADER_PERMUTATION_BOOL("USE_AO_SETUP_AS_INPUT");
 	class FShaderQualityDim     : SHADER_PERMUTATION_INT("SHADER_QUALITY", 5);
-	class FStrata				: SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseUpsampleDim, FUseAoSetupAsInputDim, FShaderQualityDim, FStrata>;
+	using FPermutationDomain = TShaderPermutationDomain<FUseUpsampleDim, FUseAoSetupAsInputDim, FShaderQualityDim>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 0);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -740,9 +740,8 @@ public:
 	class FUseUpsampleDim       : SHADER_PERMUTATION_BOOL("USE_UPSAMPLE");
 	class FUseAoSetupAsInputDim : SHADER_PERMUTATION_BOOL("USE_AO_SETUP_AS_INPUT");
 	class FShaderQualityDim     : SHADER_PERMUTATION_INT("SHADER_QUALITY", 5);
-	class FStrata				: SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseUpsampleDim, FUseAoSetupAsInputDim, FShaderQualityDim, FStrata>;
+	using FPermutationDomain = TShaderPermutationDomain<FUseUpsampleDim, FUseAoSetupAsInputDim, FShaderQualityDim>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -750,6 +749,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 16);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 16);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -864,7 +864,6 @@ FScreenPassTexture AddAmbientOcclusionPass(
 		PermutationVector.Set<FAmbientOcclusionCS::FUseUpsampleDim>(bDoUpsample);
 		PermutationVector.Set<FAmbientOcclusionCS::FUseAoSetupAsInputDim>(bAOSetupAsInput);
 		PermutationVector.Set<FAmbientOcclusionCS::FShaderQualityDim>(CommonParameters.ShaderQuality);
-		PermutationVector.Set<FAmbientOcclusionCS::FStrata>(Strata::IsStrataEnabled());
 
 		TShaderMapRef<FAmbientOcclusionCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
@@ -887,7 +886,6 @@ FScreenPassTexture AddAmbientOcclusionPass(
 		PermutationVector.Set<FAmbientOcclusionPS::FUseUpsampleDim>(bDoUpsample);
 		PermutationVector.Set<FAmbientOcclusionPS::FUseAoSetupAsInputDim>(bAOSetupAsInput);
 		PermutationVector.Set<FAmbientOcclusionPS::FShaderQualityDim>(CommonParameters.ShaderQuality);
-		PermutationVector.Set<FAmbientOcclusionPS::FStrata>(Strata::IsStrataEnabled());
 
 		TShaderMapRef<FAmbientOcclusionPS> PixelShader(View.ShaderMap, PermutationVector);
 		AddDrawScreenPass(
@@ -974,9 +972,8 @@ public:
 
 	class FShaderQualityDim : SHADER_PERMUTATION_INT("SHADER_QUALITY", 5);
 	class FUseNormalBufferDim : SHADER_PERMUTATION_BOOL("USE_NORMALBUFFER");
-	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
-	using FPermutationDomain = TShaderPermutationDomain<FShaderQualityDim, FUseNormalBufferDim, FStrata>;
+	using FPermutationDomain = TShaderPermutationDomain<FShaderQualityDim, FUseNormalBufferDim>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -984,6 +981,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 8);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1049,7 +1047,6 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 	FGTAOHorizonSearchAndIntegrateCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGTAOHorizonSearchAndIntegrateCS::FShaderQualityDim>(CommonParameters.ShaderQuality);
 	PermutationVector.Set<FGTAOHorizonSearchAndIntegrateCS::FUseNormalBufferDim>(bUseNormals);
-	PermutationVector.Set<FGTAOHorizonSearchAndIntegrateCS::FStrata>(Strata::IsStrataEnabled());
 
 	TShaderMapRef<FGTAOHorizonSearchAndIntegrateCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
@@ -1073,14 +1070,11 @@ public:
 	DECLARE_GLOBAL_SHADER(FGTAOInnerIntegratePS);
 	SHADER_USE_PARAMETER_STRUCT(FGTAOInnerIntegratePS, FGlobalShader);
 
-	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
-
-	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 0);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1145,9 +1139,7 @@ FScreenPassTexture AddGTAOInnerIntegratePass(
 
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-	FGTAOInnerIntegratePS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FGTAOInnerIntegratePS::FStrata>(Strata::IsStrataEnabled());
-	TShaderMapRef<FGTAOInnerIntegratePS> PixelShader(View.ShaderMap, PermutationVector);
+	TShaderMapRef<FGTAOInnerIntegratePS> PixelShader(View.ShaderMap);
 
 	AddDrawScreenPass(
 		GraphBuilder,
@@ -1170,9 +1162,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FGTAOHorizonSearchCS, FGlobalShader);
 
 	class FShaderQualityDim : SHADER_PERMUTATION_INT("SHADER_QUALITY", 5);
-	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
-	using FPermutationDomain = TShaderPermutationDomain<FShaderQualityDim, FStrata>;
+	using FPermutationDomain = TShaderPermutationDomain<FShaderQualityDim>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -1180,6 +1171,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 8);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1228,7 +1220,6 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
 
 	FGTAOHorizonSearchCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGTAOHorizonSearchCS::FShaderQualityDim>(CommonParameters.ShaderQuality);
-	PermutationVector.Set<FGTAOHorizonSearchCS::FStrata>(Strata::IsStrataEnabled());
 
 	TShaderMapRef<FGTAOHorizonSearchCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(

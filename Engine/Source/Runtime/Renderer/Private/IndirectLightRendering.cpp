@@ -189,7 +189,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FSkyShadowing : SHADER_PERMUTATION_BOOL("APPLY_SKY_SHADOWING");
 	class FRayTracedReflections : SHADER_PERMUTATION_BOOL("RAY_TRACED_REFLECTIONS");
-	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 	class FStrataFastPath : SHADER_PERMUTATION_BOOL("STRATA_FASTPATH");
 
 	using FPermutationDomain = TShaderPermutationDomain<
@@ -200,7 +199,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		FDynamicSkyLight,
 		FSkyShadowing,
 		FRayTracedReflections,
-		FStrata,
 		FStrataFastPath>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -215,11 +213,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		if (!PermutationVector.Get<FDynamicSkyLight>())
 		{
 			PermutationVector.Set<FSkyShadowing>(false);
-		}
-
-		if (PermutationVector.Get<FStrata>() && !Strata::IsStrataEnabled())
-		{
-			PermutationVector.Set<FStrata>(false);
 		}
 
 		if (PermutationVector.Get<FStrataFastPath>() && (!Strata::IsStrataEnabled() || !Strata::IsClassificationEnabled()))
@@ -241,7 +234,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		PermutationVector.Set<FDynamicSkyLight>(bEnableDynamicSkyLight);
 		PermutationVector.Set<FSkyShadowing>(bApplySkyShadowing);
 		PermutationVector.Set<FRayTracedReflections>(bRayTracedReflections);
-		PermutationVector.Set<FStrata>(Strata::IsStrataEnabled());
 		PermutationVector.Set<FStrataFastPath>(Strata::IsStrataEnabled() && Strata::IsClassificationEnabled() && bStrataFastPath);
 
 		return RemapPermutation(PermutationVector);
@@ -262,6 +254,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("MAX_CAPTURES"), GMaxNumReflectionCaptures);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 		OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 	}

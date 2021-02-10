@@ -275,9 +275,6 @@ class FComputeDistanceFieldNormalPS : public FGlobalShader
 public:
 	DECLARE_GLOBAL_SHADER(FComputeDistanceFieldNormalPS);
 
-	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
-	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
@@ -295,6 +292,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("DOWNSAMPLE_FACTOR"), GAODownsampleFactor);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GDistanceFieldAOTileSizeX);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GDistanceFieldAOTileSizeY);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	FComputeDistanceFieldNormalPS() = default;
@@ -323,9 +321,6 @@ class FComputeDistanceFieldNormalCS : public FGlobalShader
 public:
 	DECLARE_GLOBAL_SHADER(FComputeDistanceFieldNormalCS);
 
-	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
-	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
@@ -343,6 +338,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("DOWNSAMPLE_FACTOR"), GAODownsampleFactor);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GDistanceFieldAOTileSizeX);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GDistanceFieldAOTileSizeY);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	FComputeDistanceFieldNormalCS() = default;
@@ -388,9 +384,7 @@ void ComputeDistanceFieldNormal(
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->RWDistanceFieldNormal = GraphBuilder.CreateUAV(DistanceFieldNormal);
 
-			FComputeDistanceFieldNormalCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FComputeDistanceFieldNormalCS::FStrata>(Strata::IsStrataEnabled());
-			TShaderMapRef<FComputeDistanceFieldNormalCS> ComputeShader(View.ShaderMap, PermutationVector);
+			TShaderMapRef<FComputeDistanceFieldNormalCS> ComputeShader(View.ShaderMap);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ComputeNormalCS"),
@@ -430,9 +424,7 @@ void ComputeDistanceFieldNormal(
 
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 
-				FComputeDistanceFieldNormalPS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FComputeDistanceFieldNormalPS::FStrata>(Strata::IsStrataEnabled());
-				TShaderMapRef<FComputeDistanceFieldNormalPS> PixelShader(View.ShaderMap, PermutationVector);
+				TShaderMapRef<FComputeDistanceFieldNormalPS> PixelShader(View.ShaderMap);
 
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
