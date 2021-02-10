@@ -392,6 +392,7 @@ void FStaticMeshCompilingManager::FinishCompilationsForGame()
 			{
 				if (Component->IsRegistered() &&
 					PIEWorlds.Contains(Component->GetWorld()) &&
+					Component->GetStaticMesh() != nullptr &&
 					RegisteredStaticMesh.Contains(Component->GetStaticMesh()) &&
 					(PlayInEditorMode == 0 || Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision || Component->IsNavigationRelevant()))
 				{
