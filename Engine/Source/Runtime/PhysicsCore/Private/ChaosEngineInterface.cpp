@@ -1568,8 +1568,6 @@ FChaosScene* FChaosEngineInterface::GetCurrentScene(const FPhysicsActorHandle& I
 {
 	if(!InHandle)
 	{
-		UE_LOG(LogChaos,Warning,TEXT("Attempting to get the current scene for a null handle."));
-		CHAOS_ENSURE(false);
 		return nullptr;
 	}
 
