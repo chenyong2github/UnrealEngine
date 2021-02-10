@@ -664,7 +664,7 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static FWheeledSnaphotData MakeWheeledSnapshot(FTransform Transform, FVector LinearVelocity, FVector AngularVelocity
-			, int SelectedGear, float EngineRPM, TArray<FWheelSnapshot>& WheelSnapshots);
+			, int SelectedGear, float EngineRPM, const TArray<FWheelSnapshot>& WheelSnapshots);
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static void BreakWheelSnapshot(const struct FWheelSnapshot& Snapshot, float& SuspensionOffset

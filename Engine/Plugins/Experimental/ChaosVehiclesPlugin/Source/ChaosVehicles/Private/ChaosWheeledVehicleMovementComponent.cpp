@@ -1928,7 +1928,7 @@ void UChaosWheeledVehicleMovementComponent::BreakWheeledSnapshot(const struct FW
 }
 
 FWheeledSnaphotData UChaosWheeledVehicleMovementComponent::MakeWheeledSnapshot(FTransform Transform, FVector LinearVelocity
-	, FVector AngularVelocity, int SelectedGear, float EngineRPM, TArray<FWheelSnapshot>& WheelSnapshots)
+	, FVector AngularVelocity, int SelectedGear, float EngineRPM, const TArray<FWheelSnapshot>& WheelSnapshots)
 {
 	FWheeledSnaphotData Snapshot;
 	Snapshot.Transform = Transform;
