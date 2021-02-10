@@ -17,7 +17,7 @@ typedef TSharedRef<class FIOSDeviceHelper, ESPMode::ThreadSafe> FIOSDeviceHelper
  *
  * The first parameter is newly added or removed device
  */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnDeviceConnectEvent, const FIOSLaunchDaemonPong&)
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDeviceConnectEvent, const struct FIOSLaunchDaemonPong&);
 
 /**
  * Implemented the iOS device helper class
@@ -52,7 +52,7 @@ public:
     /**
      * Installs an ipa on to the device
      */
-    static bool InstallIPAOnDevice(const FTargetDeviceId& DeviceId, const FString& IPAPath);
+    static bool InstallIPAOnDevice(const class FTargetDeviceId& DeviceId, const FString& IPAPath);
     
 	/**
 	 * Suspends/Enables the device connect/disconnect thread

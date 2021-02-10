@@ -1,3 +1,4 @@
+#include "IOSDeviceHelper.h"
 #include "IOSTargetPlatform.h"
 #include "IOSTargetDeviceOutput.h"
 #include "HAL/PlatformProcess.h"
