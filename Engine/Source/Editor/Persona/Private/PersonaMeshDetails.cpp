@@ -5303,6 +5303,8 @@ FText FPersonaMeshDetails::GetCurrentRecomputeTangentsVertexChannelMaskName(int3
 
 	FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
 
+	if (!LODModel.Sections.IsValidIndex(SectionIndex))
+		return FText::GetEmpty();
 
 	FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
 
