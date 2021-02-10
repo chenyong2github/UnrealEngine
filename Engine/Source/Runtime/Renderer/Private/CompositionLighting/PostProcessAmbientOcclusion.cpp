@@ -8,6 +8,7 @@
 #include "CompositionLighting/CompositionLighting.h"
 #include "SceneTextureParameters.h"
 #include "ScenePrivate.h"
+#include "Strata/Strata.h"
 
 DECLARE_GPU_STAT_NAMED(SSAOSetup, TEXT("ScreenSpace AO Setup") );
 DECLARE_GPU_STAT_NAMED(SSAO, TEXT("ScreenSpace AO") );
@@ -514,6 +515,9 @@ public:
 	DECLARE_GLOBAL_SHADER(FAmbientOcclusionSetupPS);
 	SHADER_USE_PARAMETER_STRUCT(FAmbientOcclusionSetupPS, FGlobalShader);
 
+	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
+	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
@@ -527,6 +531,8 @@ public:
 
 		SHADER_PARAMETER(float, ThresholdInverse)
 		SHADER_PARAMETER(FVector2D, InputExtentInverse)
+
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT();
@@ -563,15 +569,20 @@ FScreenPassTexture AddAmbientOcclusionSetupPass(
 	const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 	const float ThresholdInverseValue = Settings.AmbientOcclusionMipThreshold * ((float)OutputViewport.Extent.X / (float)CommonParameters.SceneTexturesViewport.Extent.X);
 
+
 	FAmbientOcclusionSetupPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientOcclusionSetupPS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTextures = CommonParameters.SceneTexturesUniformBuffer;
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, InputViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::SSAO);
 	PassParameters->ThresholdInverse = ThresholdInverseValue;
 	PassParameters->InputExtentInverse = FVector2D(1.0f) / FVector2D(InputViewport.Extent);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-	TShaderMapRef<FAmbientOcclusionSetupPS> PixelShader(View.ShaderMap);
+	FAmbientOcclusionSetupPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FAmbientOcclusionSetupPS::FStrata>(Strata::IsStrataEnabled());
+	TShaderMapRef<FAmbientOcclusionSetupPS> PixelShader(View.ShaderMap, PermutationVector);
+
 	AddDrawScreenPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("AmbientOcclusionSetup %dx%d", OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
@@ -697,8 +708,9 @@ public:
 	class FUseUpsampleDim       : SHADER_PERMUTATION_BOOL("USE_UPSAMPLE");
 	class FUseAoSetupAsInputDim : SHADER_PERMUTATION_BOOL("USE_AO_SETUP_AS_INPUT");
 	class FShaderQualityDim     : SHADER_PERMUTATION_INT("SHADER_QUALITY", 5);
+	class FStrata				: SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseUpsampleDim, FUseAoSetupAsInputDim, FShaderQualityDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FUseUpsampleDim, FUseAoSetupAsInputDim, FShaderQualityDim, FStrata>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -713,7 +725,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAmbientOcclusionParameters, SharedParameters)
-
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_GLOBAL_SHADER_PARAMETER_STRUCT();
 };
@@ -728,8 +740,9 @@ public:
 	class FUseUpsampleDim       : SHADER_PERMUTATION_BOOL("USE_UPSAMPLE");
 	class FUseAoSetupAsInputDim : SHADER_PERMUTATION_BOOL("USE_AO_SETUP_AS_INPUT");
 	class FShaderQualityDim     : SHADER_PERMUTATION_INT("SHADER_QUALITY", 5);
+	class FStrata				: SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseUpsampleDim, FUseAoSetupAsInputDim, FShaderQualityDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FUseUpsampleDim, FUseAoSetupAsInputDim, FShaderQualityDim, FStrata>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -746,7 +759,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAmbientOcclusionParameters, SharedParameters)
-
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT();
 };
@@ -844,12 +857,14 @@ FScreenPassTexture AddAmbientOcclusionPass(
 		// Compute Shader Path
 		FAmbientOcclusionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientOcclusionCS::FParameters>();
 		PassParameters->SharedParameters = MoveTemp(SharedParameters);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->OutTexture = GraphBuilder.CreateUAV(Output.Texture);
 
 		FAmbientOcclusionCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FAmbientOcclusionCS::FUseUpsampleDim>(bDoUpsample);
 		PermutationVector.Set<FAmbientOcclusionCS::FUseAoSetupAsInputDim>(bAOSetupAsInput);
 		PermutationVector.Set<FAmbientOcclusionCS::FShaderQualityDim>(CommonParameters.ShaderQuality);
+		PermutationVector.Set<FAmbientOcclusionCS::FStrata>(Strata::IsStrataEnabled());
 
 		TShaderMapRef<FAmbientOcclusionCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
@@ -865,12 +880,14 @@ FScreenPassTexture AddAmbientOcclusionPass(
 		// Pixel Shader Path
 		FAmbientOcclusionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientOcclusionPS::FParameters>();
 		PassParameters->SharedParameters = MoveTemp(SharedParameters);
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
 		FAmbientOcclusionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FAmbientOcclusionPS::FUseUpsampleDim>(bDoUpsample);
 		PermutationVector.Set<FAmbientOcclusionPS::FUseAoSetupAsInputDim>(bAOSetupAsInput);
 		PermutationVector.Set<FAmbientOcclusionPS::FShaderQualityDim>(CommonParameters.ShaderQuality);
+		PermutationVector.Set<FAmbientOcclusionPS::FStrata>(Strata::IsStrataEnabled());
 
 		TShaderMapRef<FAmbientOcclusionPS> PixelShader(View.ShaderMap, PermutationVector);
 		AddDrawScreenPass(
@@ -957,8 +974,9 @@ public:
 
 	class FShaderQualityDim : SHADER_PERMUTATION_INT("SHADER_QUALITY", 5);
 	class FUseNormalBufferDim : SHADER_PERMUTATION_BOOL("USE_NORMALBUFFER");
+	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
-	using FPermutationDomain = TShaderPermutationDomain<FShaderQualityDim, FUseNormalBufferDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FShaderQualityDim, FUseNormalBufferDim, FStrata>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -977,6 +995,7 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHZBParameters, HZBParameters)
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSAOShaderParameters, SSAOParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGTAOShaderParameters, GTAOParameters)
@@ -1021,6 +1040,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTextures = CommonParameters.SceneTexturesUniformBuffer;
 	PassParameters->HZBParameters = GetHZBParameters(View, HZBInput, SceneViewport.Extent, EAOTechnique::GTAO);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, SceneViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::GTAO);
 	PassParameters->GTAOParameters = GetGTAOShaderParameters(View, OutputViewport.Extent);
 
@@ -1029,6 +1049,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchIntegratePass(
 	FGTAOHorizonSearchAndIntegrateCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGTAOHorizonSearchAndIntegrateCS::FShaderQualityDim>(CommonParameters.ShaderQuality);
 	PermutationVector.Set<FGTAOHorizonSearchAndIntegrateCS::FUseNormalBufferDim>(bUseNormals);
+	PermutationVector.Set<FGTAOHorizonSearchAndIntegrateCS::FStrata>(Strata::IsStrataEnabled());
 
 	TShaderMapRef<FGTAOHorizonSearchAndIntegrateCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
@@ -1052,6 +1073,10 @@ public:
 	DECLARE_GLOBAL_SHADER(FGTAOInnerIntegratePS);
 	SHADER_USE_PARAMETER_STRUCT(FGTAOInnerIntegratePS, FGlobalShader);
 
+	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
+
+	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -1066,6 +1091,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSAOShaderParameters, SSAOParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGTAOShaderParameters, GTAOParameters)
@@ -1110,6 +1136,7 @@ FScreenPassTexture AddGTAOInnerIntegratePass(
 
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTextures = CommonParameters.SceneTexturesUniformBuffer;
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, InputViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::GTAO);
 	PassParameters->GTAOParameters = GetGTAOShaderParameters(View, OutputViewport.Extent);
 
@@ -1118,7 +1145,10 @@ FScreenPassTexture AddGTAOInnerIntegratePass(
 
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-	TShaderMapRef<FGTAOInnerIntegratePS> PixelShader(View.ShaderMap);
+	FGTAOInnerIntegratePS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FGTAOInnerIntegratePS::FStrata>(Strata::IsStrataEnabled());
+	TShaderMapRef<FGTAOInnerIntegratePS> PixelShader(View.ShaderMap, PermutationVector);
+
 	AddDrawScreenPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("GTAOInnerIntegratePS %dx%d Downscale=%d", OutputViewport.Rect.Width(), OutputViewport.Rect.Height(), CommonParameters.DownscaleFactor),
@@ -1140,8 +1170,9 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FGTAOHorizonSearchCS, FGlobalShader);
 
 	class FShaderQualityDim : SHADER_PERMUTATION_INT("SHADER_QUALITY", 5);
+	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
-	using FPermutationDomain = TShaderPermutationDomain<FShaderQualityDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FShaderQualityDim, FStrata>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -1160,6 +1191,7 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHZBParameters, HZBParameters)
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSAOShaderParameters, SSAOParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGTAOShaderParameters, GTAOParameters)
@@ -1188,6 +1220,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTextures = CommonParameters.SceneTexturesUniformBuffer;
 	PassParameters->HZBParameters = GetHZBParameters(View, HZBInput, SceneViewport.Extent, EAOTechnique::GTAO);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, SceneViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::GTAO);
 	PassParameters->GTAOParameters = GetGTAOShaderParameters(View, OutputViewport.Extent);
 
@@ -1195,6 +1228,7 @@ FGTAOHorizonSearchOutputs AddGTAOHorizonSearchPass(
 
 	FGTAOHorizonSearchCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGTAOHorizonSearchCS::FShaderQualityDim>(CommonParameters.ShaderQuality);
+	PermutationVector.Set<FGTAOHorizonSearchCS::FStrata>(Strata::IsStrataEnabled());
 
 	TShaderMapRef<FGTAOHorizonSearchCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(

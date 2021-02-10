@@ -12,6 +12,10 @@
 #include "CapsuleLightIntegrate.ush"
 #include "RectLightIntegrate.ush"
 
+#ifndef STRATA_ENABLED
+#define STRATA_ENABLED 0
+#endif
+
 /** 
  * Data about a single light.
  * Putting the light data in this struct allows the same lighting code to be used between standard deferred, 
@@ -145,10 +149,10 @@ float ShadowRayCast(
 #error "Must set SUPPORT_CONTACT_SHADOWS"
 #endif
 
-void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 WorldPosition, float3 L, float4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
+void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint ShadingModelID, float ContactShadowOpacity, FDeferredLightData LightData, float3 WorldPosition, float3 L, float4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
 {
 	float ContactShadowLength = 0.0f;
-	const float ContactShadowLengthScreenScale = View.ClipToView[1][1] * GBuffer.Depth;
+	const float ContactShadowLengthScreenScale = View.ClipToView[1][1] * SceneDepth;
 
 	BRANCH
 	if (LightData.ShadowedBits)
@@ -159,7 +163,7 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 		// Whole scene directional light shadows in x, whole scene directional light SSS shadows in y
 		// Get static shadowing from the appropriate GBuffer channel
 		float UsesStaticShadowMap = dot(LightData.ShadowMapChannelMask, float4(1, 1, 1, 1));
-		float StaticShadowing = lerp(1, dot(GBuffer.PrecomputedShadowFactors, LightData.ShadowMapChannelMask), UsesStaticShadowMap);
+		float StaticShadowing = lerp(1, dot(PrecomputedShadowFactors, LightData.ShadowMapChannelMask), UsesStaticShadowMap);
 
 		if (LightData.bRadialLight)
 		{
@@ -178,7 +182,7 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 			// Also fix up the fade between dynamic and static shadows
 			// to work with plane splits rather than spheres.
 
-			float DynamicShadowFraction = DistanceFromCameraFade(GBuffer.Depth, LightData, WorldPosition, View.WorldCameraOrigin);
+			float DynamicShadowFraction = DistanceFromCameraFade(SceneDepth, LightData, WorldPosition, View.WorldCameraOrigin);
 			// For a directional light, fade between static shadowing and the whole scene dynamic shadowing based on distance + per object shadows
 			Shadow.SurfaceShadow = lerp(LightAttenuation.x, StaticShadowing, DynamicShadowFraction);
 			// Fade between SSS dynamic shadowing and static shadowing based on distance
@@ -198,13 +202,13 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 		}
 	}
 
-#if SUPPORT_CONTACT_SHADOWS
-	if (LightData.ShadowedBits < 2 && (GBuffer.ShadingModelID == SHADINGMODELID_HAIR))
+#if SUPPORT_CONTACT_SHADOWS && STRATA_ENABLED == 0
+	if (LightData.ShadowedBits < 2 && (ShadingModelID == SHADINGMODELID_HAIR))
 	{
 		ContactShadowLength = 0.2 * ContactShadowLengthScreenScale;
 	}
 	// World space distance to cover eyelids and eyelashes but not beyond
-	if (GBuffer.ShadingModelID == SHADINGMODELID_EYE)
+	if (ShadingModelID == SHADINGMODELID_EYE)
 	{
 		ContactShadowLength = 0.5;
 		
@@ -229,16 +233,15 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 			// thickness (closest-point-from-light to shading-point), and this creates light leaks. Instead we consider first hit as a blocker (old behavior)
 			BRANCH
 			if (ContactShadowOcclusion > 0.0 && 
-				IsSubsurfaceModel(GBuffer.ShadingModelID) && 
-				GBuffer.ShadingModelID != SHADINGMODELID_HAIR && 
-				GBuffer.ShadingModelID != SHADINGMODELID_EYE && 
-				GBuffer.ShadingModelID != SHADINGMODELID_SUBSURFACE_PROFILE)
+				IsSubsurfaceModel(ShadingModelID) &&
+				ShadingModelID != SHADINGMODELID_HAIR &&
+				ShadingModelID != SHADINGMODELID_EYE &&
+				ShadingModelID != SHADINGMODELID_SUBSURFACE_PROFILE)
 			{
 				// Reduce the intensity of the shadow similar to the subsurface approximation used by the shadow maps path
 				// Note that this is imperfect as we don't really have the "nearest occluder to the light", but this should at least
 				// ensure that we don't darken-out the subsurface term with the contact shadows
-				float Opacity = GBuffer.CustomData.a;
-				float Density = SubsurfaceDensityFromOpacity( Opacity );
+				float Density = SubsurfaceDensityFromOpacity(ContactShadowOpacity);
 				ContactShadowOcclusion *= 1.0 - saturate( exp( -Density * HitDistance ) );
 			}
 
@@ -352,7 +355,9 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 		Shadow.TransmissionShadow = 1;
 		Shadow.TransmissionThickness = 1;
 		Shadow.HairTransmittance.OpaqueVisibility = 1;
-		GetShadowTerms(GBuffer, LightData, WorldPosition, L, LightAttenuation, Dither, Shadow);
+		const float ContactShadowOpacity = GBuffer.CustomData.a;
+		GetShadowTerms(GBuffer.Depth, GBuffer.PrecomputedShadowFactors, GBuffer.ShadingModelID, ContactShadowOpacity,
+			LightData, WorldPosition, L, LightAttenuation, Dither, Shadow);
 		SurfaceShadow = Shadow.SurfaceShadow;
 
 		LightAccumulator.EstimatedCost += 0.3f;		// add the cost of getting the shadow terms

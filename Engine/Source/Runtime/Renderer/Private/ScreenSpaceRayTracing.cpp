@@ -6,6 +6,7 @@
 #include "ScreenPass.h"
 #include "ScenePrivate.h"
 #include "SceneTextureParameters.h"
+#include "Strata/Strata.h"
 
 
 static TAutoConsoleVariable<int32> CVarSSRQuality(
@@ -360,6 +361,7 @@ enum class ELightingTerm
 class FSSRQualityDim : SHADER_PERMUTATION_ENUM_CLASS("SSR_QUALITY", ESSRQuality);
 class FSSROutputForDenoiser : SHADER_PERMUTATION_BOOL("SSR_OUTPUT_FOR_DENOISER");
 class FLightingTermDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_LIGHTING_TERM", ELightingTerm);
+class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
 
 class FSSRTPrevFrameReductionCS : public FGlobalShader
 {
@@ -443,7 +445,7 @@ class FScreenSpaceReflectionsStencilPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FScreenSpaceReflectionsStencilPS);
 	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceReflectionsStencilPS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<FSSROutputForDenoiser>;
+	using FPermutationDomain = TShaderPermutationDomain<FSSROutputForDenoiser, FStrata>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -458,6 +460,7 @@ class FScreenSpaceReflectionsStencilPS : public FGlobalShader
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRCommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -467,7 +470,7 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FScreenSpaceReflectionsPS);
 	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceReflectionsPS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<FSSRQualityDim, FSSROutputForDenoiser>;
+	using FPermutationDomain = TShaderPermutationDomain<FSSRQualityDim, FSSROutputForDenoiser, FStrata>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -480,6 +483,7 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRPassCommonParameters, SSRPassCommonParameter)
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectDrawParameter)			// FScreenSpaceReflectionsTileVS
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, TileListData)		// FScreenSpaceReflectionsTileVS
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -1086,9 +1090,11 @@ void RenderScreenSpaceReflections(
 
 		FScreenSpaceReflectionsStencilPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
+		PermutationVector.Set<FStrata>(Strata::IsStrataEnabled());
 
 		FScreenSpaceReflectionsStencilPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceReflectionsStencilPS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->RenderTargets = RenderTargets;
 		
 		TShaderMapRef<FScreenSpaceReflectionsStencilPS> PixelShader(View.ShaderMap, PermutationVector);
@@ -1166,10 +1172,12 @@ void RenderScreenSpaceReflections(
 	FScreenSpaceReflectionsPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FSSRQualityDim>(SSRQuality);
 	PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
+	PermutationVector.Set<FStrata>(Strata::IsStrataEnabled());
 		
 	FScreenSpaceReflectionsPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceReflectionsPS::FParameters>();
 	PassParameters->CommonParameters = CommonParameters;
 	SetSSRParameters(&PassParameters->SSRPassCommonParameter);
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	PassParameters->RenderTargets = RenderTargets;
 
 	TShaderMapRef<FScreenSpaceReflectionsPS> PixelShader(View.ShaderMap, PermutationVector);

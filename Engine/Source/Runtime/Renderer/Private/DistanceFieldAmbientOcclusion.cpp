@@ -19,6 +19,7 @@
 #include "VisualizeTexture.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "Lumen/Lumen.h"
+#include "Strata/Strata.h"
 
 IMPLEMENT_TYPE_LAYOUT(FAOParameters);
 IMPLEMENT_TYPE_LAYOUT(FDFAOUpsampleParameters);
@@ -274,9 +275,13 @@ class FComputeDistanceFieldNormalPS : public FGlobalShader
 public:
 	DECLARE_GLOBAL_SHADER(FComputeDistanceFieldNormalPS);
 
+	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
+	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -318,9 +323,13 @@ class FComputeDistanceFieldNormalCS : public FGlobalShader
 public:
 	DECLARE_GLOBAL_SHADER(FComputeDistanceFieldNormalCS);
 
+	class FStrata : SHADER_PERMUTATION_BOOL("STRATA_ENABLED");
+	using FPermutationDomain = TShaderPermutationDomain<FStrata>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWDistanceFieldNormal)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -376,9 +385,12 @@ void ComputeDistanceFieldNormal(
 			auto* PassParameters = GraphBuilder.AllocParameters<FComputeDistanceFieldNormalCS::FParameters>();
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->RWDistanceFieldNormal = GraphBuilder.CreateUAV(DistanceFieldNormal);
 
-			TShaderMapRef<FComputeDistanceFieldNormalCS> ComputeShader(View.ShaderMap);
+			FComputeDistanceFieldNormalCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FComputeDistanceFieldNormalCS::FStrata>(Strata::IsStrataEnabled());
+			TShaderMapRef<FComputeDistanceFieldNormalCS> ComputeShader(View.ShaderMap, PermutationVector);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ComputeNormalCS"),
@@ -405,6 +417,7 @@ void ComputeDistanceFieldNormal(
 			auto* PassParameters = GraphBuilder.AllocParameters<FComputeDistanceFieldNormalPS::FParameters>();
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(DistanceFieldNormal, ViewIndex == 0 ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 
 			GraphBuilder.AddPass(
@@ -416,7 +429,10 @@ void ComputeDistanceFieldNormal(
 				RHICmdList.SetViewport(0, 0, 0.0f, View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor, 1.0f);
 
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-				TShaderMapRef<FComputeDistanceFieldNormalPS> PixelShader(View.ShaderMap);
+
+				FComputeDistanceFieldNormalPS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FComputeDistanceFieldNormalPS::FStrata>(Strata::IsStrataEnabled());
+				TShaderMapRef<FComputeDistanceFieldNormalPS> PixelShader(View.ShaderMap, PermutationVector);
 
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);

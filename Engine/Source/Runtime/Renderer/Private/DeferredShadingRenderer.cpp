@@ -2410,6 +2410,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
 	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil);
 
+	// Post base pass for material classification
+	if (Strata::IsStrataEnabled())
+	{
+		Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
+	}
+
 	// Pre-lighting composition lighting stage
 	// e.g. deferred decals, SSAO
 	{
@@ -2430,12 +2436,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			bool bEnableSSAO = ViewPipelineState->AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
 			CompositionLighting::ProcessAfterBasePass(GraphBuilder, View, SceneTextures, CompositionLightingAsyncResults, bEnableSSAO);
 		}
-	}
-
-	// Post base pass for material classification
-	if (Strata::IsStrataEnabled())
-	{
-		Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
 	}
 
 	// Hair base pass for deferred shading

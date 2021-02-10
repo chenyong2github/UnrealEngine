@@ -1666,23 +1666,24 @@ static void SetSlotsForShadingModelType(bool Slots[], EMaterialShadingModel Shad
 
 
 
-static void SetStandardGBufferSlots(bool Slots[], bool bWriteEmissive, bool bHasTangent, bool bHasVelocity, bool bHasStaticLighting)
+static void SetStandardGBufferSlots(bool Slots[], bool bWriteEmissive, bool bHasTangent, bool bHasVelocity, bool bHasStaticLighting, bool bIsStrataMaterial)
 {
 	Slots[GBS_SceneColor] = bWriteEmissive;
-	Slots[GBS_WorldNormal] = true;
-	Slots[GBS_PerObjectGBufferData] = true;
-	Slots[GBS_Metallic] = true;
-	Slots[GBS_Specular] = true;
-	Slots[GBS_Roughness] = true;
-	Slots[GBS_ShadingModelId] = true;
-	Slots[GBS_SelectiveOutputMask] = true;
-	Slots[GBS_BaseColor] = true;
-	Slots[GBS_GenericAO] = true;
-	Slots[GBS_AO] = false;// true;
 	Slots[GBS_Velocity] = bHasVelocity;
 	Slots[GBS_PrecomputedShadowFactor] = bHasStaticLighting;
-	Slots[GBS_WorldTangent] = bHasTangent;
-	Slots[GBS_Anisotropy] = bHasTangent;
+
+	Slots[GBS_WorldNormal] =			bIsStrataMaterial ? false : true;
+	Slots[GBS_PerObjectGBufferData] =	bIsStrataMaterial ? false : true;
+	Slots[GBS_Metallic] =				bIsStrataMaterial ? false : true;
+	Slots[GBS_Specular] =				bIsStrataMaterial ? false : true;
+	Slots[GBS_Roughness] =				bIsStrataMaterial ? false : true;
+	Slots[GBS_ShadingModelId] =			bIsStrataMaterial ? false : true;
+	Slots[GBS_SelectiveOutputMask] =	bIsStrataMaterial ? false : true;
+	Slots[GBS_BaseColor] =				bIsStrataMaterial ? false : true;
+	Slots[GBS_GenericAO] =				bIsStrataMaterial ? false : true;
+	Slots[GBS_AO] =						bIsStrataMaterial ? false : false;// true;		// Why false?
+	Slots[GBS_WorldTangent] =			bIsStrataMaterial ? false : bHasTangent;
+	Slots[GBS_Anisotropy] =				bIsStrataMaterial ? false : bHasTangent;
 }
 
 static void DetermineUsedMaterialSlots(
@@ -1698,6 +1699,7 @@ static void DetermineUsedMaterialSlots(
 	bool bHasTangent = SrcGlobal.GBUFFER_HAS_TANGENT;
 	bool bHasVelocity = Dst.WRITES_VELOCITY_TO_GBUFFER;
 	bool bHasStaticLighting = Dst.GBUFFER_HAS_PRECSHADOWFACTOR || Dst.WRITES_PRECSHADOWFACTOR_TO_GBUFFER;
+	bool bIsStrataMaterial = Mat.PROJECT_STRATA && Mat.MATERIAL_IS_STRATA;
 
 	// we have to use if statements, not switch or if/else statements because we can have multiple shader model ids.
 	if (Mat.MATERIAL_SHADINGMODEL_UNLIT)
@@ -1707,61 +1709,61 @@ static void DetermineUsedMaterialSlots(
 
 	if (Mat.MATERIAL_SHADINGMODEL_DEFAULT_LIT)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_SUBSURFACE)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_CLEAR_COAT)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_HAIR)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_CLOTH)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_EYE)
 	{
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		Slots[GBS_CustomData] = true;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 	{
 		// single layer water uses standard slots
-		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting);
+		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 	}
 
 	// doesn't write to GBuffer

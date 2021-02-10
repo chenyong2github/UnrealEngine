@@ -977,11 +977,18 @@ void FPixelShaderInOut_MainPS(
 	// Initialise a Strata header with normal in registers
 	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
 	UNROLL
-		for (int l = 0; l < Strata.LayerCount; ++l)
-		{
-			StrataPixelHeader.BSDFCount += Strata.Layers[l].BSDFCount;
-		}
+	for (int l = 0; l < Strata.LayerCount; ++l)
+	{
+		StrataPixelHeader.BSDFCount += Strata.Layers[l].BSDFCount;
+	}
 	StrataPixelHeader.SharedNormals = MaterialParameters.SharedNormals;
+
+#if !GBUFFER_HAS_PRECSHADOWFACTOR
+	StrataPixelHeader.SkipPrecShadowMask = true;
+#endif
+#if (GBUFFER_HAS_PRECSHADOWFACTOR && WRITES_PRECSHADOWFACTOR_ZERO)
+	StrataPixelHeader.ZeroPrecShadowMask = true;
+#endif
 #endif
 
 #if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER

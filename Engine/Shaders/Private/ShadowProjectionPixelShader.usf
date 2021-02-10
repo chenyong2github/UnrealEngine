@@ -96,7 +96,7 @@ Texture2D<uint4> HairCategorizationTexture;
 
 #if STRATA_ENABLED
 #define STRATA_INLINE_SHADING 0
-#include "Strata/StrataEvaluation.ush"
+#include "/Engine/Private/Strata/Strata.ush"
 #endif
 
 /**
@@ -213,10 +213,18 @@ void Main(
 	{
 		#if SHADING_PATH_DEFERRED && !FORWARD_SHADING && !SUBPIXEL_SHADOW
 			// Attenuate soft transition based on the angle with the light and the shading normal (acts as a receiver bias)
-			FGBufferData GBufferData = GetGBufferData(ScreenUV);
 			const bool bIsDirectional = LightPositionOrDirection.w == 0;
 			const float3 LightDirection = bIsDirectional ? -LightPositionOrDirection.xyz : normalize(LightPositionOrDirection.xyz - WorldPosition);
-			const float NoL = saturate(dot(GBufferData.WorldNormal, LightDirection));
+
+		#if STRATA_ENABLED
+			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
+			const float3 WorldNormal = TopLayerData.Normal;
+		#else
+			FGBufferData GBufferData = GetGBufferData(ScreenUV);
+			const float3 WorldNormal = GBufferData.WorldNormal;
+		#endif
+
+			const float NoL = saturate(dot(WorldNormal, LightDirection));
 		#endif
 		
 		FPCFSamplerSettings Settings;

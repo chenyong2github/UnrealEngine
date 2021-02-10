@@ -140,6 +140,26 @@ float3 GetAtmosphericLightTransmittance(in float3 StableLargeWorldPosition, in f
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if STRATA_ENABLED
+
+float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, int2 PixelPos)
+{
+	if (!StrataPixelHeader.SkipPrecShadowMask)
+	{
+#if ALLOW_STATIC_LIGHTING
+		float4 GBufferE = SceneTexturesStruct.GBufferETexture.Load(int3(PixelPos, 0));
+#else
+		float4 GBufferE = 1;
+#endif
+		return GBufferE;
+	}
+	return StrataPixelHeader.ZeroPrecShadowMask ? 0.0f : 1.0f;
+}
+
+#endif // STRATA_ENABLED
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #if USE_HAIR_LIGHTING == 0
 
 void DeferredLightPixelMain(
@@ -169,10 +189,67 @@ void DeferredLightPixelMain(
 	InputParams.ScreenVector	= ScreenVector;
 #endif
 
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(InputParams.ScreenUV);
+#if STRATA_ENABLED
 
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+
+	BRANCH
+	if (StrataPixelHeader.BSDFCount > 0	// This test is also enough to exclude sky pixels
+#if USE_LIGHTING_CHANNELS
+		&& (GetLightingChannelMask(InputParams.ScreenUV) & DeferredLightUniforms.LightingChannelMask)
+#endif
+		) 
+	{
+		const float SceneDepth = CalcSceneDepth(InputParams.ScreenUV);
+		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
+
+		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
+
+		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
+		float SurfaceShadow = 1.0f;
+
+		float3 V =-DerivedParams.CameraVector;
+		float3 L = LightData.Direction;	// Already normalized
+		float3 ToLight = L;
+		float LightMask = 1;
+		if (LightData.bRadialLight)
+		{
+			LightMask = GetLocalLightAttenuation(DerivedParams.WorldPosition, LightData, ToLight, L);
+		}
+
+		float4 Radiance = 0;
+		if (LightMask > 0)
+		{
+			FShadowTerms ShadowTerms = { StrataPixelHeader.MaterialAO, 1.0, 1.0, InitHairTransmittanceData() };
+			float4 LightAttenuation = GetPerPixelLightAttenuation(InputParams.ScreenUV);
+
+			float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8);
+			float4 PrecomputedShadowFactors = StrataReadPrecomputedShadowFactors(StrataPixelHeader, PixelPos);
+			const uint FakeShadingModelID = 0;
+			const float FakeContactShadowOpacity = 1.0f;
+			GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity,
+				LightData, DerivedParams.WorldPosition, L, LightAttenuation, Dither, ShadowTerms);
+			SurfaceShadow = ShadowTerms.SurfaceShadow;
+
+			Radiance = StrataDeferredLighting(
+				LightData,
+				V,
+				L,
+				ToLight,
+				LightMask,
+				ShadowTerms,
+				RectTexture,
+				Strata.MaterialLobesBuffer,
+				StrataAddressing,
+				StrataPixelHeader);
+		}
+
+#else // STRATA_ENABLED
+
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(InputParams.ScreenUV);
 	// Only light pixels marked as using deferred shading
-	BRANCH if( ScreenSpaceData.GBuffer.ShadingModelID > 0 
+	BRANCH if (ScreenSpaceData.GBuffer.ShadingModelID > 0
 #if USE_LIGHTING_CHANNELS
 		&& (GetLightingChannelMask(InputParams.ScreenUV) & DeferredLightUniforms.LightingChannelMask)
 #endif
@@ -182,69 +259,26 @@ void DeferredLightPixelMain(
 		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
 
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
-#if STRATA_ENABLED == 0 || (STRATA_ENABLED && STRATA_FASTPATH == 0)
+
 		if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_HAIR && ShouldUseHairComplexTransmittance(ScreenSpaceData.GBuffer))
 		{
 			// Prevent numerical issue causing NaN during hair lighting (i.e., during baseColor/luma(baseColor) computation)
 			ScreenSpaceData.GBuffer.BaseColor = max(0.0001f, ScreenSpaceData.GBuffer.BaseColor);
 			LightData.HairTransmittance = EvaluateDualScattering(ScreenSpaceData.GBuffer, DerivedParams.CameraVector, -DeferredLightUniforms.Direction);
 		}
-#endif
 
-		float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8 );
+		float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8);
 
 		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
 		float SurfaceShadow = 1.0f;
 
-		float4 Radiance = 0;
+		float4 Radiance = GetDynamicLighting(DerivedParams.WorldPosition, DerivedParams.CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InputParams.ScreenUV), Dither, uint2(InputParams.PixelPos), RectTexture, SurfaceShadow);
 
-#if STRATA_ENABLED
-		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
-		BRANCH
-		if (StrataPixelHeader.BSDFCount > 0) // This test is also enough to exclude sky pixels
-		{
-			float3 V =-DerivedParams.CameraVector;
-			float3 L = LightData.Direction;	// Already normalized
-			float3 ToLight = L;
-			float LightMask = 1;
-			if (LightData.bRadialLight)
-			{
-				LightMask = GetLocalLightAttenuation(DerivedParams.WorldPosition, LightData, ToLight, L);
-			}
-
-			if (LightMask > 0)
-			{
-				uint2 PixelPos = InputParams.PixelPos;
-
-				FShadowTerms ShadowTerms = { ScreenSpaceData.AmbientOcclusion, 1.0, 1.0, InitHairTransmittanceData() };
-				float4 LightAttenuation = GetPerPixelLightAttenuation(InputParams.ScreenUV);
-				GetShadowTerms(ScreenSpaceData.GBuffer, LightData, DerivedParams.WorldPosition, L, LightAttenuation, Dither, ShadowTerms);
-				SurfaceShadow = ShadowTerms.SurfaceShadow;
-
-				Radiance = StrataDeferredLighting(
-					LightData,
-					V,
-					L,
-					ToLight,
-					LightMask,
-					ShadowTerms,
-					RectTexture,
-					Strata.MaterialLobesBuffer,
-					StrataAddressing,
-					StrataPixelHeader);
-			}
-		}
-#else
-		{
-			Radiance = GetDynamicLighting(DerivedParams.WorldPosition, DerivedParams.CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InputParams.ScreenUV), Dither, uint2(InputParams.PixelPos), RectTexture, SurfaceShadow);
-		}
-#endif
+#endif // STRATA_ENABLED
 
 		const float  Attenuation = ComputeLightProfileMultiplier(DerivedParams.WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
 		OutColor += (Radiance * Attenuation);
-
 
 	#if USE_ATMOSPHERE_TRANSMITTANCE || USE_CLOUD_TRANSMITTANCE
 		float DeviceZ = LookupDeviceZ(ScreenUV);

@@ -59,13 +59,13 @@ uint2 TileListGroupSize;
 Texture2D DistanceFieldNormalTexture;
 SamplerState DistanceFieldNormalSampler;
 
-float4 EncodeDownsampledGBuffer(FGBufferData GBufferData, float SceneDepth)
+float4 EncodeDownsampledGBuffer(in float3 WorldNormal, float SceneDepth)
 {
 	#if METAL_PROFILE 
 		// clamp max depth to avoid #inf
 		SceneDepth = min(SceneDepth, 65500.0f);
 	#endif
-	return float4(GBufferData.WorldNormal.xyz, SceneDepth);
+	return float4(WorldNormal, SceneDepth);
 } 
 
 void GetDownsampledGBuffer(float2 ScreenUV, out float3 OutNormal, out float OutDepth)

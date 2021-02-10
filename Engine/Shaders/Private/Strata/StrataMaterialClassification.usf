@@ -160,6 +160,10 @@ void MainPS(
 
 		FinalizeTopLayerData(TopLayerData);
 	}
+	else
+	{
+		TopLayerData.Normal = normalize(float3(-1.0f, -1.0f, -1.0f));
+	}
 
 	OutColor0 = StrataPackClassificationData(ClassificationData);
 	OutColor1 = StrataPackTopLayerData(TopLayerData);

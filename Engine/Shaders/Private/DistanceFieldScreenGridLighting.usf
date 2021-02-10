@@ -10,6 +10,11 @@
 #include "DistanceFieldAOShared.ush"
 #include "GlobalDistanceFieldShared.ush"
 
+#if STRATA_ENABLED
+#define STRATA_INLINE_SHADING 0
+#include "/Engine/Private/Strata/Strata.ush"
+#endif
+
 /** Computes the distance field normal from the GBuffer. */
 void ComputeDistanceFieldNormalPS(
 	in float4 UVAndScreenPos : TEXCOORD0, 
@@ -17,11 +22,18 @@ void ComputeDistanceFieldNormalPS(
 	out float4 OutColor : SV_Target0)
 {
 	// Sample from the center of the top left full resolution texel
-	float2 ScreenUV = float2((floor(SVPos.xy) * DOWNSAMPLE_FACTOR + View.ViewRectMin.xy + .5f) * View.BufferSizeAndInvSize.zw);
-	float SceneDepth = CalcSceneDepth(ScreenUV);
-	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	float2 PixelCoord = floor(SVPos.xy) * DOWNSAMPLE_FACTOR + View.ViewRectMin.xy + .5f;
+	float2 ScreenUV = float2(PixelCoord * View.BufferSizeAndInvSize.zw);
 
-	OutColor = EncodeDownsampledGBuffer(GBufferData, SceneDepth);
+	float SceneDepth = CalcSceneDepth(ScreenUV);
+
+#if STRATA_ENABLED
+	float3 WorldNormal = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0))).Normal;
+#else
+	float3 WorldNormal = GetGBufferData(ScreenUV).WorldNormal.xyz;
+#endif
+
+	OutColor = EncodeDownsampledGBuffer(WorldNormal, SceneDepth);
 }
 
 RWTexture2D<float4> RWDistanceFieldNormal;
@@ -32,12 +44,18 @@ void ComputeDistanceFieldNormalCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
     uint3 GroupThreadId : SV_GroupThreadID) 
 {
-	float2 ScreenUV = float2((DispatchThreadId.xy * DOWNSAMPLE_FACTOR + View.ViewRectMin.xy + .5f) * View.BufferSizeAndInvSize.zw);
-	float SceneDepth = CalcSceneDepth(ScreenUV);
-	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	float2 PixelCoord = DispatchThreadId.xy * DOWNSAMPLE_FACTOR + View.ViewRectMin.xy + .5f;
+	float2 ScreenUV = float2(PixelCoord * View.BufferSizeAndInvSize.zw);
 
-	float4 OutValue = EncodeDownsampledGBuffer(GBufferData, SceneDepth);
-	RWDistanceFieldNormal[DispatchThreadId.xy] = OutValue;
+	float SceneDepth = CalcSceneDepth(ScreenUV);
+
+#if STRATA_ENABLED
+	float3 WorldNormal = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0))).Normal;
+#else
+	float3 WorldNormal = GetGBufferData(ScreenUV).WorldNormal.xyz;
+#endif
+
+	RWDistanceFieldNormal[DispatchThreadId.xy] = EncodeDownsampledGBuffer(WorldNormal, SceneDepth);
 }
 
 Buffer<float4> TileConeDepthRanges;
