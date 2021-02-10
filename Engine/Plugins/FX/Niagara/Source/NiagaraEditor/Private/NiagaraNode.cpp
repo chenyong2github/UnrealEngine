@@ -156,7 +156,7 @@ bool UNiagaraNode::NiagaraNodeAppendCompileHash(FNiagaraCompileHashVisitor* InVi
 
 bool UNiagaraNode::SetPinDefaultToTypeDefaultIfUnset(UEdGraphPin* InPin)
 {
-	UE_LOG(LogNiagaraEditor, Warning, TEXT("SetPinDefaultToTypeDefaultIfUnset"));
+	//UE_LOG(LogNiagaraEditor, Warning, TEXT("SetPinDefaultToTypeDefaultIfUnset"));
 
 	if (InPin->DefaultValue.Len() != 0)
 		return true;
