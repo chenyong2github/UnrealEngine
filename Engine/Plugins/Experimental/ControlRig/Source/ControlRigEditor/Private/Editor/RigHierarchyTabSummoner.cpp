@@ -4,6 +4,7 @@
 #include "SRigHierarchy.h"
 #include "ControlRigEditorStyle.h"
 #include "ControlRigEditor.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "RigHierarchyTabSummoner"
 
