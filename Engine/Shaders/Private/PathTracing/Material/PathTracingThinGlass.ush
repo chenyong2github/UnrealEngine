@@ -48,16 +48,12 @@ SlabWeights ComputeThinSlabWeights(float3 SlabColor, float CosV, float Eta)
 	return Result;
 }
 
-void RoughThinGlass_EvalMaterial(
+FMaterialEval RoughThinGlass_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	out float3 OutWeight,
-	out float OutPdf)
+	FMaterialClosestHitPayload Payload
+)
 {
-	OutWeight = 0;
-	OutPdf = 0;
-
 	float3 V_World = -IncomingDirection;
 	float3 L_World = OutgoingDirection;
 	float3 N_World = GetWorldNormal(Payload);
@@ -73,7 +69,7 @@ void RoughThinGlass_EvalMaterial(
 	if (V.z <= 0)
 	{
 		// invalid input
-		return;
+		return NullMaterialEval();
 	}
 
 	const bool IsTransmission = L.z < 0;
@@ -90,36 +86,23 @@ void RoughThinGlass_EvalMaterial(
 	const float ProbR = LobeSelectionProb(Result.Reflected, Result.Transmitted);
 
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-	OutWeight = GGXResult.x;
-	OutPdf = GGXResult.y;
 
 	if (IsTransmission)
 	{
-		OutWeight *= Result.Transmitted / (1.0 - ProbR);
-		OutPdf *= 1.0 - ProbR;
+		return CreateMaterialEval(GGXResult.x / (1.0 - ProbR) * Result.Transmitted, GGXResult.y * (1.0 - ProbR));
 	}
 	else
 	{
-		OutWeight *= Result.Reflected / ProbR;
-		OutPdf *= ProbR;
+		return CreateMaterialEval(GGXResult.x / ProbR * Result.Reflected, GGXResult.y * ProbR);
 	}
 }
 
 
-void RoughThinGlass_SampleMaterial(
+FMaterialSample RoughThinGlass_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf,
-	out float OutPositionBiasSign)
+	float4 RandSample)
 {
-	OutDirection = 0;
-	OutWeight = 0;
-	OutPdf = 0;
-	OutPositionBiasSign = 1;
-
 	float3 N_World = GetWorldNormal(Payload);
 	float3 V_World = -RayDirection;
 
@@ -134,7 +117,7 @@ void RoughThinGlass_SampleMaterial(
 	if (NoV == 0)
 	{
 		// invalid grazing angle
-		return;
+		return NullMaterialSample();
 	}
 
 	float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
@@ -143,9 +126,10 @@ void RoughThinGlass_SampleMaterial(
 	float VoH = saturate(dot(V, H));
 
 	float3 L = reflect(-V, H);
-	if (L.z <= 0) {
+	if (L.z <= 0)
+	{
 		// invalid output direction, exit early
-		return;
+		return NullMaterialSample();
 	}
 
 	float NoL = saturate(L.z);
@@ -155,23 +139,24 @@ void RoughThinGlass_SampleMaterial(
 	const float ProbR = LobeSelectionProb(Result.Reflected, Result.Transmitted);
 
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-	OutWeight = GGXResult.x;
-	OutPdf = GGXResult.y;
+	float3 OutWeight = GGXResult.x;
+	float OutPdf = GGXResult.y;
 
 	// decide between reflection/transmission
 	if (RandSample.z < ProbR)
 	{
 		// reflected ray
 		OutWeight *= Result.Reflected / ProbR;
-		OutDirection = normalize(mul(L, Basis));
 		OutPdf *= ProbR;
+		float3 OutDirection = normalize(mul(L, Basis));
+		return CreateMaterialSample(OutDirection, OutWeight, OutPdf, 1.0);
 	}
 	else
 	{
 		// transmitted ray
 		OutWeight *= Result.Transmitted / (1.0 - ProbR);
-		OutDirection = normalize(mul(float3(L.xy, -L.z), Basis)); // flip reflection to other side
 		OutPdf *= 1.0 - ProbR;
-		OutPositionBiasSign = -1;
+		float3 OutDirection = normalize(mul(float3(L.xy, -L.z), Basis)); // flip reflection to other side
+		return CreateMaterialSample(OutDirection, OutWeight, OutPdf, -1.0);
 	}
 }

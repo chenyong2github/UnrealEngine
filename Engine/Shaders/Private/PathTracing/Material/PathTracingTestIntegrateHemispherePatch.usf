@@ -65,8 +65,8 @@ float IntegratePdfInSphericalPatch(float Theta0, float Phi0, float Theta1, float
 
 			float3 Wi = normalize(float3(SinTheta*CosPhi, SinTheta*SinPhi, CosTheta));
 
-			float PDF;
-
+			float PDF = 0;
+#if 0
 			if (BrdfType == 0)
 			{
 				PDF = Lambert_Pdf(Wi, Payload);
@@ -77,6 +77,7 @@ float IntegratePdfInSphericalPatch(float Theta0, float Phi0, float Theta1, float
 				DefaultLit_EvalMaterial(Wo, Wi, Payload, Weight, PDF);
 			}
 			else
+#endif
 			{
 				// Should never be here, generate invalid outgoing to trigger an error
 				return -1.0;

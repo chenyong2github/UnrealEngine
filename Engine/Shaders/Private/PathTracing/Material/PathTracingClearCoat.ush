@@ -13,6 +13,7 @@
 
 #define CLEAR_COAT_F0	0.04 // From hard-coded value in ShadingModels.ush
 
+#include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 
 float3 CalcThinTransmission(float NoL, float NoV, FMaterialClosestHitPayload Payload)
@@ -57,17 +58,14 @@ float ClearCoatFresnel(float VoH) {
 	return Fc + (1 - Fc) * CLEAR_COAT_F0;
 }
 
-void ClearCoat_EvalMaterial(
+FMaterialEval ClearCoat_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	inout FMaterialClosestHitPayload Payload,
-	out float3 OutWeight,
-	out float OutPdf
+	inout FMaterialClosestHitPayload Payload
 )
 {
-	OutWeight = 0;
-	OutPdf = 0;
-
+	FMaterialEval Result = NullMaterialEval();
+	
 	float3 V_World = -IncomingDirection;
 	float3 L_World = OutgoingDirection;
 	float3 N_World = GetWorldNormal(Payload);
@@ -93,22 +91,21 @@ void ClearCoat_EvalMaterial(
 	const float3 SpecWeight = F * GGXResult.x;
 	const float SpecPdf = GGXResult.y;
 
-	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, CoatSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, SpecWeight, SpecPdf, CoatSelectionPdf);
 	
 
 	// bottom-layer clear coat evaluation
-	float3 BottomWeight = 0;
-	float BottomPdf = 0;
+	FMaterialEval BottomEval = NullMaterialEval();
 	Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
 #if GREY_INNER_LAYER == 0
 	// NOTE: Should we try to account for the IOR ratio between layers? We could try to darken Specular Color by the coating IOR
 	// but this would apply to both the dielctric and metal portions equally ...
 	// It seems better to punt until we have a Strata going
-	DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, BottomWeight, BottomPdf);
+	BottomEval = DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 #else
 	float3 OldColor = Payload.BaseColor;
 	Payload.BaseColor = 0.18;
-	Lambert_EvalMaterial(OutgoingDirection, Payload, BottomWeight, BottomPdf);
+	BottomEval = Lambert_EvalMaterial(OutgoingDirection, Payload);
 	Payload.BaseColor = OldColor;
 #endif
 	Payload.WorldNormal = N_World;
@@ -123,30 +120,26 @@ void ClearCoat_EvalMaterial(
 	float CC_F1 = ClearCoatFresnel(NoV);
 	float CC_F2 = ClearCoatFresnel(NoL);
 
-	BottomWeight *= lerp(1.0, Transmission * (1 - CC_F1) * (1 - CC_F2), GetClearCoat(Payload));
+	BottomEval.Weight *= lerp(1.0, Transmission * (1 - CC_F1) * (1 - CC_F2), GetClearCoat(Payload));
 
-	AddLobeWithMIS(OutWeight, OutPdf, BottomWeight, BottomPdf, 1.0 - CoatSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, BottomEval.Weight, BottomEval.Pdf, 1.0 - CoatSelectionPdf);
+
+	return Result;
 }
 
-void ClearCoat_SampleMaterial(
+FMaterialSample ClearCoat_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf
+	float4 RandSample
 )
 {
 	float3 N_World = GetWorldNormal(Payload);
 	float3 V_World = -RayDirection;
 
-	OutDirection = 0.0;
-	OutWeight = 0.0;
-	OutPdf = 0.0;
-
 	float CoatSelectionPdf = CalcClearCoatSelectionPdf(Payload);
 
 	// choose between coat and bottom layer
+	float3 OutDirection = 0;
 	if (RandSample.x < CoatSelectionPdf)
 	{
 		RandSample.x /= CoatSelectionPdf;
@@ -162,9 +155,10 @@ void ClearCoat_SampleMaterial(
 		float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
 
 		float3 L = reflect(-V, H);
-		if (L.z <= 0) {
+		if (L.z <= 0)
+		{
 			// invalid output direction, skip some work
-			return;
+			return NullMaterialSample();
 		}
 		// reflect and transform
 		OutDirection = mul(L, Basis);
@@ -178,7 +172,7 @@ void ClearCoat_SampleMaterial(
 		float3 Weight = 0;
 		float Pdf = 0;
 		Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
-		DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, Weight, Pdf);
+		OutDirection = DefaultLit_SampleMaterial(RayDirection, Payload, RandSample).Direction;
 		Payload.WorldNormal = N_World;
 #else
 		float3 Nb = GetClearCoatBottomNormal(Payload);
@@ -188,5 +182,6 @@ void ClearCoat_SampleMaterial(
 
 	// defer to eval for now to get proper MIS mix of both events
 	// TODO: could use temporary results above to inline Eval logic here
-	ClearCoat_EvalMaterial(RayDirection, OutDirection, Payload, OutWeight, OutPdf);
+	FMaterialEval Result = ClearCoat_EvalMaterial(RayDirection, OutDirection, Payload);
+	return CreateMaterialSample(OutDirection, Result.Weight, Result.Pdf, 1.0);
 }

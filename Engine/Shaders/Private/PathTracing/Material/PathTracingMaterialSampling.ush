@@ -182,27 +182,21 @@ void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, in
 	PathRoughness = lerp(PathRoughness, Payload.Roughness, GlassPercent);
 }
 
-void SampleMaterial(
+FMaterialSample SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
 	float4 RandSample,
-	bool bForceRadianceProbe,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf,
-	out float OutPositionBiasSign)
+	bool bForceRadianceProbe
+)
 {
-	OutPositionBiasSign = 1;
-	
 	if (bForceRadianceProbe)
 	{
-		RadianceProbe_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
-		return;
+		return RadianceProbe_SampleMaterial(Payload, RandSample);
 	}
 	
 #if FORCE_ALL_MATERIALS_DIFFUSE
 	{
-		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
+		return Lambert_SampleMaterial(Payload, RandSample);
 	}
 #else
 
@@ -210,10 +204,7 @@ void SampleMaterial(
 		Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
 	{
 		// transparency only, nothing to sample
-		OutDirection = 0;
-		OutWeight = 0;
-		OutPdf = 0;
-		return;
+		return NullMaterialSample();
 	}
 
 	// Decide the overall weight of the BRDF portion vs. the translucent portion
@@ -245,6 +236,7 @@ void SampleMaterial(
 			break;
 	}
 
+	FMaterialSample Result = NullMaterialSample();
 	if (RandSample.x < BrdfProb)
 	{
 		// we randomly decided to sample the brdf portion of the material
@@ -258,79 +250,72 @@ void SampleMaterial(
 		// only case that should reach this point is the refraction model (which can be thin or solid)
 		if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 		{
-			RoughThinGlass_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+			Result = RoughThinGlass_SampleMaterial(RayDirection, Payload, RandSample);
 		}
 		else if (Payload.Roughness == 0)
 		{
-			SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+			Result = SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample);
 		}
 		else
 		{
-			RoughGlass_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+			Result = RoughGlass_SampleMaterial(RayDirection, Payload, RandSample);
 		}
-		OutWeight *= TransWeight;
-		OutPdf *= 1 - BrdfProb;
-		return;
+		Result.Weight *= TransWeight;
+		Result.Pdf *= 1 - BrdfProb;
+		return Result;
 	}
 
 	switch (Payload.ShadingModelID)
 	{
 		case SHADINGMODELID_UNLIT:
 			// Nothing to do, material does not scatter light
-			OutDirection = 0;
-			OutWeight = 0;
-			OutPdf = 0;
-			return;
+			return Result;
 		case SHADINGMODELID_DEFAULT_LIT:
-			DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
+			Result = DefaultLit_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
 		case SHADINGMODELID_CLOTH:
-			Cloth_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
+			Result = Cloth_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
 		case SHADINGMODELID_CLEAR_COAT:
-			ClearCoat_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
+			Result = ClearCoat_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
-			TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+			Result = TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
 		default:
-			Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
+			Result = Lambert_SampleMaterial(Payload, RandSample);
 			break;
 	}
 
 	// final adjustment to weight / prob based on the stochastic decision for translucency earlier
-	OutWeight *= BrdfWeight;
-	OutPdf *= BrdfProb;
+	Result.Weight *= BrdfWeight;
+	Result.Pdf *= BrdfProb;
+	return Result;
 #endif
 }
 
-void EvalMaterial(
+FMaterialEval EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
-	bool bForceRadianceProbe,
-	out float3 OutWeight,
-	out float OutPdf
+	bool bForceRadianceProbe
 )
 {
 	if (bForceRadianceProbe)
 	{
-		RadianceProbe_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
-		return;
+		return RadianceProbe_EvalMaterial(OutgoingDirection, Payload);
 	}
 	
 #if FORCE_ALL_MATERIALS_DIFFUSE
 	{
-		Lambert_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
+		return Lambert_EvalMaterial(OutgoingDirection, Payload);
 	}
 #else
 
 	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE ||
 		Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
 	{
-		OutWeight = 0;
-		OutPdf = 0;
-		return;
+		return NullMaterialEval();
 	}
 
 	// Decide the overall weight of the BRDF portion vs. the translucent portion
@@ -367,54 +352,53 @@ void EvalMaterial(
 
 	// NOTE: the translucent portions are all singular -- so we can ignore them in the eval method for now as they have Pdf=+inf for a single direction only
 
+	FMaterialEval Result = NullMaterialEval();
 	switch (Payload.ShadingModelID)
 	{
 		case SHADINGMODELID_UNLIT:
-			OutWeight = 0.0;
-			OutPdf = 0.0;
 			break;
 		case SHADINGMODELID_DEFAULT_LIT:
-			DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
+			Result = DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		case SHADINGMODELID_CLOTH:
-			Cloth_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
+			Result = Cloth_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		case SHADINGMODELID_CLEAR_COAT:
-			ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
+			Result = ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
-			TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
+			Result = TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		default:
-			Lambert_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
+			Result = Lambert_EvalMaterial(OutgoingDirection, Payload);
 			break;
 	}
 
 	// final adjustment to weight / prob for translucency
-	OutWeight *= BrdfWeight;
-	OutPdf *= BrdfProb;
+	Result.Weight *= BrdfWeight;
+	Result.Pdf *= BrdfProb;
 
 	if (BrdfProb < 1.0)
 	{
 		// refraction model (only evaluate for rough case as singular can't be evaluated)
 		if (Payload.Roughness != 0)
 		{
-			float3 GlassWeight = 0;
-			float GlassPdf = 0;
+			FMaterialEval GlassEval;
 			if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 			{
 				// just a thin slab (reflection-like lobe on both sides)
-				RoughThinGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, GlassWeight, GlassPdf);
+				GlassEval = RoughThinGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			}
 			else
 			{
 				// real solid glass, reflection and refraction
-				RoughGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, GlassWeight, GlassPdf);
+				GlassEval = RoughGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			}
 			
 
-			AddLobeWithMIS(OutWeight, OutPdf, GlassWeight, GlassPdf, 1.0 - BrdfProb);
+			AddLobeWithMIS(Result.Weight, Result.Pdf, GlassEval.Weight, GlassEval.Pdf, 1.0 - BrdfProb);
 		}
 	}
+	return Result;
 #endif
 }

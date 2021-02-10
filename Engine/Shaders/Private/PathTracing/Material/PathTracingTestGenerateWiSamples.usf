@@ -50,7 +50,7 @@ void TestGenerateWiSamplesCS(
 	float SampledPDF;
 
 	float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
-
+#if 0
 	if (BrdfType == 0)
 	{
 		Lambert_SampleMaterial(Payload, RandSample, Wi, SampledBRDF, SampledPDF);
@@ -60,6 +60,7 @@ void TestGenerateWiSamplesCS(
 		DefaultLit_SampleMaterial(Wo, Payload, RandSample, Wi, SampledBRDF, SampledPDF);
 	}
 	else
+#endif
 	{
 		// Should never be here, generate invalid outgoing to trigger an error
 		Wi = float3(0.0, 0.0, 0.0); 

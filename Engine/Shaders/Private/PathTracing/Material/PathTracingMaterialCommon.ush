@@ -151,3 +151,48 @@ void AddLobeWithMIS(inout float3 Weight, inout float Pdf, float3 LobeWeight, flo
 		Pdf += LobePdf;
 	}
 }
+
+// The following structs are used as return types for the Eval/Sample methods
+
+struct FMaterialSample
+{
+	float3 Direction;
+	float3 Weight;
+	float Pdf;
+	float PositionBiasSign;
+};
+
+FMaterialSample NullMaterialSample()
+{
+	// return a zero initialized sample, for cases where we couldn't sample the material (such as rays below the horizon, etc..)
+	return (FMaterialSample)0;
+}
+
+FMaterialSample CreateMaterialSample(float3 Direction, float3 Weight, float Pdf, float PositionBiasSign)
+{
+	FMaterialSample Result;
+	Result.Direction = Direction;
+	Result.Weight = Weight;
+	Result.Pdf = Pdf;
+	Result.PositionBiasSign = PositionBiasSign;
+	return Result;
+}
+
+struct FMaterialEval
+{
+	float3 Weight;
+	float Pdf;
+};
+
+FMaterialEval NullMaterialEval()
+{
+	return (FMaterialEval)0;
+}
+
+FMaterialEval CreateMaterialEval(float3 Weight, float Pdf)
+{
+	FMaterialEval Result;
+	Result.Weight = Weight;
+	Result.Pdf = Pdf;
+	return Result;
+}

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 
 float CalcLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
@@ -19,16 +20,13 @@ float CalcLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
 	return LobeSelectionProb(Diff, Spec);
 }
 
-void DefaultLit_EvalMaterial(
+FMaterialEval DefaultLit_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	out float3 OutWeight,
-	out float OutPdf
+	FMaterialClosestHitPayload Payload
 )
 {
-	OutWeight = 0;
-	OutPdf = 0;
+	FMaterialEval Result = NullMaterialEval();
 
 	const float3 V_World = -IncomingDirection;
 	const float3 L_World = OutgoingDirection;
@@ -49,7 +47,7 @@ void DefaultLit_EvalMaterial(
 	const float LobeSelectionPdf = CalcLobeSelectionPdf(V_World, Payload);
 
 	// Diffuse Lobe
-	AddLobeWithMIS(OutWeight, OutPdf, GetDiffuseColor(Payload), NoL / PI, LobeSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, GetDiffuseColor(Payload), NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
@@ -57,22 +55,17 @@ void DefaultLit_EvalMaterial(
 	const float3 SpecWeight = F * GGXResult.x;
 	const float SpecPdf = GGXResult.y;
 
-	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1.0 - LobeSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, SpecWeight, SpecPdf, 1.0 - LobeSelectionPdf);
+
+	return Result;
 }
 
-void DefaultLit_SampleMaterial(
+FMaterialSample DefaultLit_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf
+	float4 RandSample
 )
 {
-	OutDirection = 0;
-	OutWeight = 0;
-	OutPdf = 0;
-
 	float3 N = GetWorldNormal(Payload);
 	float3 V = -RayDirection;
 	
@@ -109,9 +102,10 @@ void DefaultLit_SampleMaterial(
 		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
 
 		L = reflect(-V, H);
-		if (L.z <= 0) {
+		if (L.z <= 0)
+		{
 			// invalid output direction, exit early
-			return;
+			return NullMaterialSample();
 		}
 	}
 
@@ -119,6 +113,9 @@ void DefaultLit_SampleMaterial(
 
 	const float NoL = saturate(L.z);
 	const float VoH = saturate(dot(V, H));
+
+	float3 OutWeight = 0;
+	float OutPdf = 0;
 
 	// Diffuse Lobe
 	AddLobeWithMIS(OutWeight, OutPdf, GetDiffuseColor(Payload), NoL / PI, LobeSelectionPdf);
@@ -131,5 +128,5 @@ void DefaultLit_SampleMaterial(
 	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1.0 - LobeSelectionPdf);
 
 	// transform to world space
-	OutDirection = normalize(mul(L, Basis));
+	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0);
 }

@@ -48,12 +48,10 @@ float2 InverseConcentricMapping(float2 p)
 	return float2(x, y);
 }
 
-void RadianceProbe_SampleMaterial(
+FMaterialSample RadianceProbe_SampleMaterial(
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf)
+	float4 RandSample
+)
 {
 	float PdfAdjust = 1.0f; 
 	
@@ -118,12 +116,14 @@ void RadianceProbe_SampleMaterial(
 	float3 N_World = GetWorldNormal(Payload);
 
 	float4 SampledValue = CosineSampleHemisphereConcentric(RandSample.xy);
-	OutDirection = TangentToWorld(SampledValue.xyz, N_World);
+	float3 OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
 	PdfAdjust = max(PdfAdjust, 0.00001f);
-	OutPdf = SampledValue.w * PdfAdjust;
+	float OutPdf = SampledValue.w * PdfAdjust;
 	// As the name suggests, radiance probe has a combined throughput (Pdf * Weight) == 1
-	OutWeight = (OutPdf > 0.0f) ? (1.0f / OutPdf) : 0;
+	float OutWeight = (OutPdf > 0.0f) ? (1.0f / OutPdf) : 0;
+
+	return CreateMaterialSample(OutDirection, OutWeight, OutPdf, 1.0);
 }
 
 float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
@@ -192,11 +192,9 @@ float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Pay
 	return (NoL / PI) * PdfAdjust;
 }
 
-void RadianceProbe_EvalMaterial(
+FMaterialEval RadianceProbe_EvalMaterial(
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	out float3 OutWeight,
-	out float OutPdf
+	FMaterialClosestHitPayload Payload
 )
 {
 	float3 N_World = GetWorldNormal(Payload);
@@ -262,27 +260,24 @@ void RadianceProbe_EvalMaterial(
 
 	PdfAdjust = max(PdfAdjust, 0.00001f);
 
-	OutPdf = NoL / PI * PdfAdjust;
+	float OutPdf = NoL / PI * PdfAdjust;
 	// As the name suggests, radiance probe has a combined throughput (Pdf * Weight) == 1
-	OutWeight = (OutPdf > 0.0f) ? (1.0f / OutPdf) : 0;
+	float OutWeight = (OutPdf > 0.0f) ? (1.0f / OutPdf) : 0;
+
+	return CreateMaterialEval(OutWeight, OutPdf);
 }
 
 #else
 
-void RadianceProbe_SampleMaterial(
+FMaterialSample RadianceProbe_SampleMaterial(
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf)
+	float4 RandSample)
 {
 	float3 N_World = GetWorldNormal(Payload);
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
-	OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
-	OutWeight = 1;
-	OutPdf = SampledValue.w;
+	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World), 1.0, SampledValue.w, 1.0);
 }
 
 float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
@@ -292,18 +287,15 @@ float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Pay
 	return NoL / PI;
 }
 
-void RadianceProbe_EvalMaterial(
+FMaterialEval RadianceProbe_EvalMaterial(
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	out float3 OutWeight,
-	out float OutPdf
+	FMaterialClosestHitPayload Payload
 )
 {
 	float3 N_World = GetWorldNormal(Payload);
 	float NoL = saturate(dot(N_World, OutgoingDirection));
 
-	OutWeight = GetDiffuseColor(Payload);
-	OutPdf = NoL / PI;
+	return CreateMaterialEval(GetDiffuseColor(Payload), NoL / PI);
 }
 
 #endif

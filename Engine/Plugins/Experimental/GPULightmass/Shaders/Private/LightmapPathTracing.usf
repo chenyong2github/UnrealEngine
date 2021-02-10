@@ -423,25 +423,25 @@ void PathTracingKernel(
 					if (PackedPayload.IsMiss())
 					{
 						// Evaluate material
-						float3 MaterialWeight;
-						float MaterialPdf = 0.0;
-						EvalMaterial(Ray.Direction, LightRay.Direction, Payload, Bounce == 0, MaterialWeight, MaterialPdf);
+						FMaterialEval MaterialEval = EvalMaterial(Ray.Direction, LightRay.Direction, Payload, Bounce == 0);
 
-						float3 MaterialEval = MaterialWeight * MaterialPdf;
-
-						float MISWeight = MISMode == 2 ? MISWeightRobust(LightPdf, MaterialPdf) : 1.0;
+						float3 LightContrib = PathThroughput * RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;
+						if (MISMode == 2)
+						{
+							LightContrib *= MISWeightRobust(LightPdf, MaterialEval.Pdf);
+						}
 
 						// Record the contribution
 						if (Bounce > 0)
 						{
-							AccumulateRadiance(Radiance, MISWeight * PathThroughput * RadianceOverPdf * MaterialEval);
+							AccumulateRadiance(Radiance, LightContrib);
 						}
 						else
 						{
 							// GPULightmass records contribution of direct lighting separately, and only for static lights
 							if (!IsStationary(LightId))
 							{
-								DirectLightingNEERadianceValue += MISWeight * PathThroughput * RadianceOverPdf * MaterialEval;
+								DirectLightingNEERadianceValue += LightContrib;
 								DirectLightingNEERadianceDirection = LightRay.Direction;
 							}
 						}
@@ -457,26 +457,22 @@ void PathTracingKernel(
 		}
 	
 		// Sample material
-		float3 Direction;
-		float3 MaterialWeight;
-		float SignedPositionBias;
-		float MaterialSamplePdf;
-		SampleMaterial(Ray.Direction, Payload, RandSample, Bounce == 0, Direction, MaterialWeight, MaterialSamplePdf, SignedPositionBias);
+		FMaterialSample MaterialSample = SampleMaterial(Ray.Direction, Payload, RandSample, Bounce == 0);
 
-		if (MaterialSamplePdf < 0 || asuint(MaterialSamplePdf) > 0x7F800000)
+		if (MaterialSample.Pdf < 0 || asuint(MaterialSample.Pdf) > 0x7F800000)
 		{
 			// Pdf became invalid (either negative or NaN)
 			bIsValidSample = false;
 			break;
 		}
 
-		if (!(MaterialSamplePdf > 0))
+		if (!(MaterialSample.Pdf > 0))
 		{
 			// No valid direction -- we are done
 			break;
 		}
 
-		float3 NextPathThroughput = PathThroughput * MaterialWeight;
+		float3 NextPathThroughput = PathThroughput * MaterialSample.Weight;
 		if (!any(NextPathThroughput > 0))
 		{
 			// no energy left in this path
@@ -512,19 +508,19 @@ void PathTracingKernel(
 		if (MISMode == 2)
 		{
 			// If we are doing MIS, the Material ray on the next loop through will need to know the Pdf
-			PrevMaterialPdf = MaterialSamplePdf;
+			PrevMaterialPdf = MaterialSample.Pdf;
 		}
 
 		// Update ray and loop back around to trace again
-		Ray.Direction = Direction;
+		Ray.Direction = MaterialSample.Direction;
 		Ray.TMin = 0;
-		ApplyPositionBias(Ray, SignedPositionBias* Payload.WorldNormal, 0.01f);
+		ApplyPositionBias(Ray, MaterialSample.PositionBiasSign * Payload.WorldNormal, 0.01f);
 		
 		if (Bounce == 0)
 		{
 			RadianceDirection = Ray.Direction;
 		#if USE_IRRADIANCE_CACHING
-			RadianceProbe_Pdf = MaterialSamplePdf;
+			RadianceProbe_Pdf = MaterialSample.Pdf;
 		#endif
 			PrimaryRandSample = RandSample;
 		}
