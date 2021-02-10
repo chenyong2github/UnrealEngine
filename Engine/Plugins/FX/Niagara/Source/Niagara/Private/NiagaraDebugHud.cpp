@@ -425,10 +425,19 @@ void FNiagaraDebugHud::GatherSystemInfo()
 		return;
 	}
 
-	// When the display is minimal we won't show in world of overview information
-	if (Settings.HudVerbosity <= ENiagaraDebugHudSystemVerbosity::Minimal)
+	// When in none mode do nothing
+	if (Settings.HudVerbosity == ENiagaraDebugHudSystemVerbosity::None)
 	{
 		return;
+	}
+
+	// When in minimal mode only gather data if we have filters enabled
+	if (Settings.HudVerbosity == ENiagaraDebugHudSystemVerbosity::Minimal)
+	{
+		if ( !Settings.bActorFilterEnabled && !Settings.bComponentFilterEnabled && !Settings.bSystemFilterEnabled )
+		{
+			return;
+		}
 	}
 
 	// Iterate all components looking for active ones in the world we are in
@@ -863,9 +872,13 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 
 		UNiagaraSystem* NiagaraSystem = NiagaraComponent->GetAsset();
 		FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
+		if ((NiagaraSystem == nullptr) || (SystemInstance == nullptr))
+		{
+			continue;
+		}
+
 		auto SystemSimulation = SystemInstance->GetSystemSimulation();
-		const bool bSystemSimulationValid = SystemSimulation.IsValid() && SystemSimulation->IsValid();
-		if ((NiagaraSystem == nullptr) || (SystemInstance == nullptr) || !bSystemSimulationValid)
+		if (!SystemSimulation.IsValid() || !SystemSimulation->IsValid())
 		{
 			continue;
 		}
