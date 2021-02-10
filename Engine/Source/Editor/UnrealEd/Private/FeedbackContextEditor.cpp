@@ -189,7 +189,7 @@ private:
 		// Always show the first one
 		DynamicProgressIndices.Add(0);
 
-		for (int32 Index = 1; Index < ScopeStack->Num() && DynamicProgressIndices.Num() <= MaxNumSecondaryBars - 1; ++Index)
+		for (int32 Index = 1; Index < ScopeStack->Num() && DynamicProgressIndices.Num() <= MaxNumSecondaryBars; ++Index)
 		{
 			const auto* Scope = (*ScopeStack)[Index];
 

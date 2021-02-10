@@ -609,29 +609,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 		Set( "SearchBox.ActiveBorder", new BOX_BRUSH( "Common/TextBox_Special_Active", FMargin(8.0f/32.0f) ) );
 	}
-	
-	// ProgressBar
-	{
-
-
-		Set( "ProgressBar.ThinBackground", new BOX_BRUSH( "Common/ProgressBar_Thin_Background", FMargin(5.f/12.f) ) );
-		Set( "ProgressBar.ThinFill", new BOX_BRUSH( "Common/ProgressBar_Thin_Fill", FMargin(5.f/12.f) ) );
-
-		// Legacy ProgressBar styles; kept here because other FEditorStyle controls (mis)use them
-		// todo: jdale - Widgets using these styles should be updated to use SlateStyle types once FEditorStyle has been obliterated from the Slate core
-		Set( "ProgressBar.Background", new BOX_BRUSH( "Common/ProgressBar_Background", FMargin(5.f/12.f) ) );
-		Set( "ProgressBar.Marquee", new IMAGE_BRUSH( "Common/ProgressBar_Marquee", FVector2D(20,12), FLinearColor::White, ESlateBrushTileType::Horizontal ) );
-		Set( "ProgressBar.BorderPadding", FVector2D(1,0) );
-	}
-
-	// WorkingBar
-	{
-		Set( "WorkingBar", FProgressBarStyle()
-			.SetBackgroundImage( FSlateNoResource() )
-			.SetFillImage( BOX_BRUSH( "Common/ProgressBar_Fill", FMargin(5.f/12.f), FLinearColor( 1.0f, 0.22f, 0.0f ) ) )
-			.SetMarqueeImage( IMAGE_BRUSH( "Common/WorkingBar_Marquee", FVector2D(20,2), FLinearColor::White, ESlateBrushTileType::Horizontal ) )
-			);
-	}
 
 	// Filtering/Searching feedback
 	{

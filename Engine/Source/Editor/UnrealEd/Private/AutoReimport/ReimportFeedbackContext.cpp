@@ -326,8 +326,6 @@ public:
 						SAssignNew(ProgressBar, SProgressBar)
 						.BorderPadding(FVector2D::ZeroVector)
 						.Percent( this, &SReimportFeedback::GetProgressFraction )
-						.BackgroundImage( FEditorStyle::GetBrush("ProgressBar.ThinBackground") )
-						.FillImage( FEditorStyle::GetBrush("ProgressBar.ThinFill") )
 					]
 				]
 

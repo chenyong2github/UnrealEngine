@@ -354,7 +354,6 @@ void SAssetView::Construct( const FArguments& InArgs )
 			[
 				SNew( SProgressBar )
 				.Percent( this, &SAssetView::GetIsWorkingProgressBarState )
-				.Style( FEditorStyle::Get(), "WorkingBar" )
 				.BorderPadding( FVector2D(0,0) )
 			]
 		]
