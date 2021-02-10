@@ -15,7 +15,12 @@ FAutoConsoleVariableRef FBoundingVolumeCVars::CVarFilterFarBodies(
 
 namespace Chaos
 {
+#if WITH_EDITOR
+	CHAOS_API int32 MaxDirtyElements = MAX_int32;
+#else
 	CHAOS_API int32 MaxDirtyElements = 10000;
+#endif
+
 	FAutoConsoleVariableRef CVarMaxDirtyElements(
 	    TEXT("p.MaxDirtyElements"),
 	    MaxDirtyElements,
