@@ -269,12 +269,21 @@ namespace UnrealBuildTool
 			CommonRsyncArguments.Add("--prune-empty-dirs"); // Remove empty directories from the file list
 
 			// Get the remote base directory
-			StringBuilder Output;
-			if(ExecuteAndCaptureOutput("'echo ~'", out Output) != 0)
+			string RemoteServerOverrideBuildPath;
+			if (Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RemoteServerOverrideBuildPath", out RemoteServerOverrideBuildPath) && !String.IsNullOrEmpty(RemoteServerOverrideBuildPath))
 			{
-				throw new BuildException("Unable to determine home directory for remote user. SSH output:\n{0}", StringUtils.Indent(Output.ToString(), "  "));
+				RemoteBaseDir = String.Format("{0}/{1}", RemoteServerOverrideBuildPath.Trim().TrimEnd('/'), Environment.MachineName);
 			}
-			RemoteBaseDir = String.Format("{0}/UE4/Builds/{1}", Output.ToString().Trim().TrimEnd('/'), Environment.MachineName);
+			else
+			{
+				StringBuilder Output;
+				if (ExecuteAndCaptureOutput("'echo ~'", out Output) != 0)
+				{
+					throw new BuildException("Unable to determine home directory for remote user. SSH output:\n{0}", StringUtils.Indent(Output.ToString(), "  "));
+				}
+				RemoteBaseDir = String.Format("{0}/UE4/Builds/{1}", Output.ToString().Trim().TrimEnd('/'), Environment.MachineName);
+			}
+
 			Log.TraceInformation("[Remote] Using base directory '{0}'", RemoteBaseDir);
 
 			// Build the list of directory mappings between the local and remote machines
