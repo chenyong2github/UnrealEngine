@@ -39,14 +39,13 @@ void FLidarPointCloudIndexBuffer::Resize(const uint32 & RequestedCapacity)
 
 void FLidarPointCloudIndexBuffer::InitRHI()
 {
-	FRHIResourceCreateInfo CreateInfo;
-	void* Buffer = nullptr;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FLidarPointCloudIndexBuffer"));
 	uint32 Size = Capacity * 7 * sizeof(uint32);
 	PointOffset = Capacity * 6;
 
-	IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), Size, BUF_Dynamic, CreateInfo, Buffer);
+	IndexBufferRHI = RHICreateBuffer(Size, BUF_Dynamic | BUF_IndexBuffer, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
-	uint32* Data = (uint32*)Buffer;
+	uint32* Data = (uint32*)RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
 	for (uint32 i = 0; i < Capacity; i++)
 	{
 		// Full quads
@@ -65,9 +64,7 @@ void FLidarPointCloudIndexBuffer::InitRHI()
 		// Points
 		Data[PointOffset + i] = i;
 	}
-
 	RHIUnlockBuffer(IndexBufferRHI);
-	Buffer = nullptr;
 }
 
 //////////////////////////////////////////////////////////// Structured Buffer

@@ -4317,9 +4317,9 @@ public:
 	{
 		const int32 NumDummyVerts = 3;
 		const uint32 Size = sizeof(FVector4) * NumDummyVerts;
-		FRHIResourceCreateInfo CreateInfo;
-		void* BufferData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(Size, BUF_Static, CreateInfo, BufferData);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FDummySceneColorResolveBuffer"));
+		VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 		FMemory::Memset(BufferData, 0, Size);		
 		RHIUnlockBuffer(VertexBufferRHI);		
 	}

@@ -1191,7 +1191,7 @@ public:
 		return GetRHI();
 	}
 
-	/** Returns the buffer to use for RHI calls, eg RHILockVertexBuffer. */
+	/** Returns the buffer to use for RHI calls, eg RHILockBuffer. */
 	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
 	FORCEINLINE FRHIBuffer* GetRHIVertexBuffer() const
 	{

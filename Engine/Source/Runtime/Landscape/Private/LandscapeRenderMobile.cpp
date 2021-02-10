@@ -211,11 +211,11 @@ void FLandscapeVertexBufferMobile::UpdateMemoryStat(int32 Delta)
 void FLandscapeVertexBufferMobile::InitRHI()
 {
 	// create a static vertex buffer
-	FRHIResourceCreateInfo CreateInfo;
-	void* VertexDataPtr = nullptr;
-	VertexBufferRHI = RHICreateAndLockVertexBuffer(VertexData.Num(), BUF_Static, CreateInfo, VertexDataPtr);
+	FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeVertexBufferMobile"));
+	VertexBufferRHI = RHICreateBuffer(VertexData.Num(), BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 	// Copy stored platform data and free CPU copy
+	void* VertexDataPtr = RHILockBuffer(VertexBufferRHI, 0, VertexData.Num(), RLM_WriteOnly);
 	FMemory::Memcpy(VertexDataPtr, VertexData.GetData(), VertexData.Num());
 	VertexData.Empty();
 

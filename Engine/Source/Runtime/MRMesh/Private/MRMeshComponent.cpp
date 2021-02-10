@@ -105,12 +105,14 @@ public:
 	{
 		NumIndices = Indices.Num();
 
-		FRHIResourceCreateInfo CreateInfo;
-		void* Buffer = nullptr;
-		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(int32), Indices.Num() * sizeof(int32), BUF_Static, CreateInfo, Buffer);
+		const uint32 Size = Indices.Num() * sizeof(uint32);
+
+		FRHIResourceCreateInfo CreateInfo(TEXT("FMRMeshIndexBuffer"));
+		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		// Write the indices to the index buffer.
-		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(int32));
+		void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
+		FMemory::Memcpy(Buffer, Indices.GetData(), Size);
 		RHIUnlockBuffer(IndexBufferRHI);
 	}
 
@@ -118,12 +120,14 @@ public:
 	{
 		NumIndices = Indices.Num();
 
-		FRHIResourceCreateInfo CreateInfo;
-		void* Buffer = nullptr;
-		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint16), Indices.Num() * sizeof(uint16), BUF_Static, CreateInfo, Buffer);
+		const uint32 Size = Indices.Num() * sizeof(uint16);
+
+		FRHIResourceCreateInfo CreateInfo(TEXT("FMRMeshIndexBuffer"));
+		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		// Write the indices to the index buffer.
-		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint16));
+		void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
+		FMemory::Memcpy(Buffer, Indices.GetData(), Size);
 		RHIUnlockBuffer(IndexBufferRHI);
 	}
 };

@@ -543,9 +543,8 @@ public:
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo(TEXT("FNullColorVertexBuffer"));
 
-		void* LockedData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(uint32) * 4, BUF_Static | BUF_ZeroStride | BUF_ShaderResource, CreateInfo, LockedData);
-		uint32* Vertices = (uint32*)LockedData;
+		VertexBufferRHI = RHICreateBuffer(sizeof(uint32) * 4, BUF_Static | BUF_ZeroStride | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		uint32* Vertices = (uint32*)RHILockBuffer(VertexBufferRHI, 0, sizeof(uint32) * 4, RLM_WriteOnly);
 		Vertices[0] = FColor(255, 255, 255, 255).DWColor();
 		Vertices[1] = FColor(255, 255, 255, 255).DWColor();
 		Vertices[2] = FColor(255, 255, 255, 255).DWColor();
@@ -578,13 +577,10 @@ public:
 	virtual void InitRHI() override
 	{
 		// create a static vertex buffer
-		FRHIResourceCreateInfo CreateInfo;
-
-		void* LockedData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(float) * 3, BUF_Static | BUF_ZeroStride | BUF_ShaderResource, CreateInfo, LockedData);
-
-		*reinterpret_cast<FVector*>(LockedData) = FVector(0.0f);
-
+		FRHIResourceCreateInfo CreateInfo(TEXT("FNullVertexBuffer"));
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector), BUF_Static | BUF_ZeroStride | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		FVector* LockedData = (FVector*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector), RLM_WriteOnly);
+		*LockedData = FVector(0.0f);
 		RHIUnlockBuffer(VertexBufferRHI);
 
 		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);

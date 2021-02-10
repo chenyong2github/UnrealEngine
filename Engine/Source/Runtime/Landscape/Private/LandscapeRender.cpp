@@ -2829,10 +2829,9 @@ void FLandscapeVertexBuffer::InitRHI()
 	SCOPED_LOADTIMER(FLandscapeVertexBuffer_InitRHI);
 
 	// create a static vertex buffer
-	FRHIResourceCreateInfo CreateInfo;
-	void* BufferData = nullptr;
-	VertexBufferRHI = RHICreateAndLockVertexBuffer(NumVertices * sizeof(FLandscapeVertex), BUF_Static, CreateInfo, BufferData);
-	FLandscapeVertex* Vertex = (FLandscapeVertex*)BufferData;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeVertexBuffer"));
+	VertexBufferRHI = RHICreateBuffer(NumVertices * sizeof(FLandscapeVertex), BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+	FLandscapeVertex* Vertex = (FLandscapeVertex*)RHILockBuffer(VertexBufferRHI, 0, NumVertices * sizeof(FLandscapeVertex), RLM_WriteOnly);
 	int32 VertexIndex = 0;
 	for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 	{

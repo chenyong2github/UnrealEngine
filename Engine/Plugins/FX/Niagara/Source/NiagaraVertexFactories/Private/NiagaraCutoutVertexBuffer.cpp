@@ -19,11 +19,11 @@ void FNiagaraCutoutVertexBuffer::InitRHI()
 	if (Data.Num())
 	{
 		// create a static vertex buffer
-		FRHIResourceCreateInfo CreateInfo;
-		void* BufferData = nullptr;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FNiagaraCutoutVertexBuffer"));
 
 		const int32 DataSize = Data.Num() * sizeof(FVector2D);
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(DataSize, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
+		VertexBufferRHI = RHICreateBuffer(DataSize, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, DataSize, RLM_WriteOnly);
 		FMemory::Memcpy(BufferData, Data.GetData(), DataSize);
 		RHIUnlockBuffer(VertexBufferRHI);
 		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);

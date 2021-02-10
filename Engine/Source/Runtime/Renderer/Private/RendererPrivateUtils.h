@@ -14,9 +14,8 @@ public:
 	{
 		const uint32 Size = sizeof(FVector2D) * 4 * NumTileQuadsInBuffer;
 		FRHIResourceCreateInfo CreateInfo;
-		void* BufferData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(Size, BUF_Static, CreateInfo, BufferData);
-		FVector2D* Vertices = (FVector2D*)BufferData;
+		VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FVector2D* Vertices = (FVector2D*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 		for (uint32 SpriteIndex = 0; SpriteIndex < NumTileQuadsInBuffer; ++SpriteIndex)
 		{
 			Vertices[SpriteIndex * 4 + 0] = FVector2D(0.0f, 0.0f);
@@ -43,10 +42,9 @@ public:
 	{
 		const uint32 Size = sizeof(uint16) * 6 * NumTileQuadsInBuffer;
 		const uint32 Stride = sizeof(uint16);
-		FRHIResourceCreateInfo CreateInfo;
-		void* Buffer = nullptr;
-		IndexBufferRHI = RHICreateAndLockIndexBuffer(Stride, Size, BUF_Static, CreateInfo, Buffer);
-		uint16* Indices = (uint16*)Buffer;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FTileIndexBuffer"));
+		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		uint16* Indices = (uint16*)RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
 		for (uint32 SpriteIndex = 0; SpriteIndex < NumTileQuadsInBuffer; ++SpriteIndex)
 		{
 			Indices[SpriteIndex * 6 + 0] = SpriteIndex * 4 + 0;

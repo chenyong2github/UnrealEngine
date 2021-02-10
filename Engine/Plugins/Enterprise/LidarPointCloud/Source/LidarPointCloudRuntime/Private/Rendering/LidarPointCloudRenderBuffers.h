@@ -162,12 +162,11 @@ private:
 	public:
 		virtual void InitRHI() override
 		{
-			FRHIResourceCreateInfo CreateInfo;
-			void* Buffer = nullptr;
-			VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(FVector), BUF_Static | BUF_ZeroStride, CreateInfo, Buffer);
+			FRHIResourceCreateInfo CreateInfo(TEXT("FPointCloudVertexBuffer"));
+			VertexBufferRHI = RHICreateBuffer(sizeof(FVector), BUF_Static | BUF_VertexBuffer | BUF_ZeroStride, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+			void* Buffer = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector), RLM_WriteOnly);
 			FMemory::Memzero(Buffer, sizeof(FVector));
 			RHIUnlockBuffer(VertexBufferRHI);
-			Buffer = nullptr;
 		}
 
 		virtual FString GetFriendlyName() const override { return TEXT("FPointCloudVertexBuffer"); }

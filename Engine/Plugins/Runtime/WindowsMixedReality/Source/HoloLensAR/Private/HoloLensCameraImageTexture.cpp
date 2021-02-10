@@ -87,10 +87,9 @@ public:
 
 	virtual void InitRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo;
-		void* BufferData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(FVector4) * 4, BUF_Static, CreateInfo, BufferData);
-		FVector4* DummyContents = (FVector4*)BufferData;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyVertexBuffer"));
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4) * 4, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FVector4* DummyContents = (FVector4*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 4, RLM_WriteOnly);
 		DummyContents[0] = FVector4(0.f, 0.f, 0.f, 0.f);
 		DummyContents[1] = FVector4(1.f, 0.f, 0.f, 0.f);
 		DummyContents[2] = FVector4(0.f, 1.f, 0.f, 0.f);

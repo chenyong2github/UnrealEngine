@@ -1275,10 +1275,8 @@ void FGeomCacheVertexFactory::Init(const FVertexBuffer* PositionBuffer, const FV
 
 void FGeomCacheIndexBuffer::InitRHI()
 {
-	FRHIResourceCreateInfo CreateInfo;
-	void* Buffer = nullptr;
-	IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
-	RHIUnlockBuffer(IndexBufferRHI);
+	FRHIResourceCreateInfo CreateInfo(TEXT("FGeomCacheIndexBuffer"));
+	IndexBufferRHI = RHICreateBuffer(NumIndices * sizeof(uint32), BUF_Dynamic | BUF_IndexBuffer | BUF_ShaderResource, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 }
 
 void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
@@ -1293,16 +1291,14 @@ void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
 	if (Indices.Num() > NumIndices)
 	{
 		NumIndices = Indices.Num();
-		FRHIResourceCreateInfo CreateInfo;
-		IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FGeomCacheIndexBuffer"));
+		IndexBufferRHI = RHICreateBuffer(NumIndices * sizeof(uint32), BUF_Dynamic | BUF_IndexBuffer | BUF_ShaderResource, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 	}
-	else
+
+	if (Indices.Num() > 0)
 	{
-		if (Indices.Num() > 0)
-		{
-			// Copy the index data into the index buffer.
-			Buffer = RHILockBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
-		}
+		// Copy the index data into the index buffer.
+		Buffer = RHILockBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
 	}
 
 	if (Buffer)
@@ -1319,18 +1315,16 @@ void FGeomCacheIndexBuffer::UpdateSizeOnly(int32 NewNumIndices)
 	// We only ever grow in size. Ok for now?
 	if (NewNumIndices > NumIndices)
 	{
-		FRHIResourceCreateInfo CreateInfo;
-		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), NewNumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FGeomCacheIndexBuffer"));
+		IndexBufferRHI = RHICreateBuffer(NewNumIndices * sizeof(uint32), BUF_Dynamic | BUF_IndexBuffer | BUF_ShaderResource, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 		NumIndices = NewNumIndices;
 	}
 }
 
 void FGeomCacheVertexBuffer::InitRHI()
 {
-	FRHIResourceCreateInfo CreateInfo;
-	void* BufferData = nullptr;
-	VertexBufferRHI = RHICreateAndLockVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
-	RHIUnlockBuffer(VertexBufferRHI);
+	FRHIResourceCreateInfo CreateInfo(TEXT("FGeomCacheVertexBuffer"));
+	VertexBufferRHI = RHICreateBuffer(SizeInBytes, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 }
 
 void FGeomCacheVertexBuffer::UpdateRaw(const void* Data, int32 NumItems, int32 ItemSizeBytes, int32 ItemStrideBytes)
@@ -1339,18 +1333,14 @@ void FGeomCacheVertexBuffer::UpdateRaw(const void* Data, int32 NumItems, int32 I
 	int32 NewSizeInBytes = ItemSizeBytes * NumItems;
 	bool bCanMemcopy = ItemSizeBytes == ItemStrideBytes;
 
-	void* VertexBufferData = nullptr;
-
 	if (NewSizeInBytes > SizeInBytes)
 	{
 		SizeInBytes = NewSizeInBytes;
-		FRHIResourceCreateInfo CreateInfo;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo, VertexBufferData);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FGeomCacheVertexBuffer"));
+		VertexBufferRHI = RHICreateBuffer(SizeInBytes, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 	}
-	else
-	{
-		VertexBufferData = RHILockBuffer(VertexBufferRHI, 0, SizeInBytes, RLM_WriteOnly);
-	}
+
+	void* VertexBufferData = RHILockBuffer(VertexBufferRHI, 0, SizeInBytes, RLM_WriteOnly);
 
 	if (bCanMemcopy)
 	{
@@ -1376,7 +1366,7 @@ void FGeomCacheVertexBuffer::UpdateSize(int32 NewSizeInBytes)
 	if (NewSizeInBytes > SizeInBytes)
 	{
 		SizeInBytes = NewSizeInBytes;
-		FRHIResourceCreateInfo CreateInfo;
-		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FGeomCacheVertexBuffer"));
+		VertexBufferRHI = RHICreateBuffer(SizeInBytes, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 	}
 }

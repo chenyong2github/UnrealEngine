@@ -41,12 +41,14 @@ namespace
 
 		virtual void InitRHI() override
 		{
-			FRHIResourceCreateInfo CreateInfo;
-			void* Buffer = nullptr;
-			IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint16), Indices.Num() * sizeof(uint16), BUF_Static, CreateInfo, Buffer);
+			const uint32 Size = Indices.Num() * sizeof(uint16);
+
+			FRHIResourceCreateInfo CreateInfo(TEXT("FImagePlateIndexBuffer"));
+			IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 			// Copy the index data into the index buffer.		
-			FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint16));
+			void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
+			FMemory::Memcpy(Buffer, Indices.GetData(), Size);
 			RHIUnlockBuffer(IndexBufferRHI);
 		}
 	};
