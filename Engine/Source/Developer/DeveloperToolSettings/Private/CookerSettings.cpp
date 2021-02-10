@@ -20,7 +20,6 @@ UCookerSettings::UCookerSettings(const FObjectInitializer& ObjectInitializer)
 	, bCookBlueprintComponentTemplateData(false)
 {
 	SectionName = TEXT("Cooker");
-	DefaultPVRTCQuality = 1;
 	DefaultASTCQualityBySize = 3;
 	DefaultASTCQualityBySpeed = 3;
 }

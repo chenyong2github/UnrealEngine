@@ -977,7 +977,6 @@ namespace UnrealBuildTool
 					else if (ModuleName == "TargetPlatform")
 					{
 						bBuildShaderFormats = true;
-						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatPVR");
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
 						Rules.DynamicallyLoadedModuleNames.Add("TextureFormatETC2");
 						if (Target.bBuildDeveloperTools && Target.bCompileAgainstEngine)

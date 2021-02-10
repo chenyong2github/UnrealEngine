@@ -437,22 +437,6 @@ static bool SupportsMetalMRT()
 	return bSupportsMetalMRT;
 }
 
-static bool CookPVRTC()
-{
-	// default to using PVRTC
-	bool bCookPVRTCTextures = true;
-	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bCookPVRTCTextures"), bCookPVRTCTextures, GEngineIni);
-	return bCookPVRTCTextures;
-}
-
-static bool CookASTC()
-{
-	// default to not using ASTC
-	bool bCookASTCTextures = true;
-	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bCookASTCTextures"), bCookASTCTextures, GEngineIni);
-	return bCookASTCTextures;
-}
-
 static bool SupportsSoftwareOcclusion()
 {
 	static auto* CVarMobileAllowSoftwareOcclusion = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowSoftwareOcclusion"));
@@ -562,18 +546,18 @@ void FIOSTargetPlatform::GetAllTargetedShaderFormats( TArray<FName>& OutFormats 
 	GetAllPossibleShaderFormats(OutFormats);
 }
 
-// we remap some of the defaults (with PVRTC and ASTC formats)
+// we remap some of the defaults
 static FName FormatRemap[] =
 {
-	// original				PVRTC						ASTC
-	FName(TEXT("DXT1")),	FName(TEXT("PVRTC2")),		FName(TEXT("ASTC_RGB")),
-	FName(TEXT("DXT5")),	FName(TEXT("PVRTC4")),		FName(TEXT("ASTC_RGBA")),
-	FName(TEXT("DXT5n")),	FName(TEXT("PVRTCN")),		FName(TEXT("ASTC_NormalAG")),
-	FName(TEXT("BC5")),		FName(TEXT("PVRTCN")),		FName(TEXT("ASTC_NormalRG")),
-	FName(TEXT("AutoDXT")),	FName(TEXT("AutoPVRTC")),	FName(TEXT("ASTC_RGBAuto")),
-	FName(TEXT("BC4")),		FName(TEXT("G8")),			FName(TEXT("G8")),
-	FName(TEXT("BC6H")),	FName(TEXT("PVRTC2")),		FName(TEXT("ASTC_RGB")), 
-	FName(TEXT("BC7")),		FName(TEXT("AutoPVRTC")),	FName(TEXT("ASTC_RGBAuto"))
+	// original				ASTC
+	FName(TEXT("AutoDXT")),	FName(TEXT("ASTC_RGBAuto")),
+	FName(TEXT("DXT1")),	FName(TEXT("ASTC_RGB")),
+	FName(TEXT("DXT5")),	FName(TEXT("ASTC_RGBA")),
+	FName(TEXT("DXT5n")),	FName(TEXT("ASTC_NormalAG")),
+	FName(TEXT("BC5")),		FName(TEXT("ASTC_NormalRG")),
+	FName(TEXT("BC4")),		FName(TEXT("G8")),
+	FName(TEXT("BC6H")),	FName(TEXT("ASTC_RGB")), 
+	FName(TEXT("BC7")),		FName(TEXT("ASTC_RGBAuto"))
 };
 static FName NameBGRA8(TEXT("BGRA8"));
 static FName NameG8 = FName(TEXT("G8"));
@@ -582,23 +566,10 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 {
 	check(Texture);
 
-	static FName NamePOTERROR(TEXT("POTERROR"));
-
 	const int32 NumLayers = Texture->Source.GetNumLayers();
-
-	if (Texture->bForcePVRTC4 && CookPVRTC())
-	{
-		TArray<FName> NamesPVRTC4;
-		TArray<FName> NamesPVRTCN;
-		NamesPVRTC4.Init(FName(TEXT("PVRTC4")), NumLayers);
-		NamesPVRTCN.Init(FName(TEXT("PVRTCN")), NumLayers);
-
-		OutFormats.AddUnique(NamesPVRTC4);
-		OutFormats.AddUnique(NamesPVRTCN);
-		return;
-	}
-
-	TArray<FName> TextureFormatNames;
+	
+	TArray<FName>& TextureFormatNames = OutFormats.AddDefaulted_GetRef();
+	TextureFormatNames.Reserve(NumLayers);
 
 	// forward rendering only needs one channel for shadow maps
 	if (Texture->LODGroup == TEXTUREGROUP_Shadowmap && !SupportsMetalMRT())
@@ -607,64 +578,31 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 	}
 
 	// if we didn't assign anything specially, then use the defaults
-    bool bIncludePVRTC = !bIsTVOS && CookPVRTC();
-    bool bIncludeASTC = bIsTVOS || CookASTC();
 	if (TextureFormatNames.Num() == 0)
 	{
-        int32 BlockSize = 4;
-        if (!Texture->bForcePVRTC4 && !bIncludePVRTC && bIncludeASTC)
-        {
-            BlockSize = 1;
-        }
+        int32 BlockSize = 1;
 		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, true, false, BlockSize);
 	}
 
-	// include the formats we want (use ASTC first so that it is preferred at runtime if they both exist and it's supported)
-	if (bIncludeASTC)
+	// include the formats we want
+	for (FName& TextureFormatName : TextureFormatNames)
 	{
-		TArray<FName> TextureFormatNamesASTC(TextureFormatNames);
-		for (FName& TextureFormatName : TextureFormatNamesASTC)
+		if (TextureFormatName == NameBGRA8 || 
+			TextureFormatName == NameG8)
 		{
-			for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
+			continue;
+		}
+
+		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 2)
+		{
+			if (TextureFormatName == FormatRemap[RemapIndex])
 			{
-				if (TextureFormatName == FormatRemap[RemapIndex])
-				{
-					TextureFormatName = FormatRemap[RemapIndex + 2];
-					break;
-				}
+				TextureFormatName = FormatRemap[RemapIndex + 1];
+				break;
 			}
 		}
-		OutFormats.AddUnique(TextureFormatNamesASTC);
 	}
-
-	if (bIncludePVRTC)
-	{
-		TArray<FName> TextureFormatNamesPVRTC(TextureFormatNames);
-		for (FName& TextureFormatName : TextureFormatNamesPVRTC)
-		{
-			for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
-			{
-				if (TextureFormatName == FormatRemap[RemapIndex])
-				{
-					// handle non-power of 2 textures
-					if (!Texture->Source.IsPowerOfTwo() && Texture->PowerOfTwoMode == ETexturePowerOfTwoSetting::None)
-					{
-						// option 1: Uncompress, but users will get very large textures unknowingly
-						// TextureFormatName = NameBGRA8;
-						// option 2: Use an "error message" texture so they see it in game
-						TextureFormatName = NamePOTERROR;
-					}
-					else
-					{
-						TextureFormatName = FormatRemap[RemapIndex + 1];
-					}
-					break;
-				}
-			}
-		}
-		OutFormats.AddUnique(TextureFormatNamesPVRTC);
-	}
-
+		
 	for (FName& TextureFormatName : OutFormats.Last())
 	{
 		if (Texture->IsA(UTextureCube::StaticClass()))
@@ -686,30 +624,18 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 void FIOSTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const 
 {
 	bool bFoundRemap = false;
-	bool bIncludePVRTC = !bIsTVOS && CookPVRTC();
-	bool bIncludeASTC = bIsTVOS || CookASTC();
 
 	GetAllDefaultTextureFormats(this, OutFormats, false);
 
-	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 2)
 	{
 		OutFormats.Remove(FormatRemap[RemapIndex+0]);
 	}
 
-	// include the formats we want (use ASTC first so that it is preferred at runtime if they both exist and it's supported)
-	if (bIncludeASTC)
+	// include the formats we want
+	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 2)
 	{
-		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
-		{
-			OutFormats.AddUnique(FormatRemap[RemapIndex + 2]);
-		}
-	}
-	if (bIncludePVRTC)
-	{
-		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 3)
-		{
-			OutFormats.AddUnique(FormatRemap[RemapIndex + 1]);
-		}
+		OutFormats.AddUnique(FormatRemap[RemapIndex + 1]);
 	}
 }
 
@@ -728,10 +654,6 @@ FName FIOSTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) const
 		{ { FName(TEXT("ASTC_RGBAuto")) },		{ NameAutoETC2 } },
 		{ { FName(TEXT("ASTC_NormalAG")) },		{ NameETC2_RGB } },
 		{ { FName(TEXT("ASTC_NormalRG")) },		{ NameETC2_RGB } },
-		{ { FName(TEXT("PVRTC2")) },			{ NameETC2_RGB } },
-		{ { FName(TEXT("PVRTC4")) },			{ NameETC2_RGBA } },
-		{ { FName(TEXT("PVRTCN")) },			{ NameETC2_RGB } },
-		{ { FName(TEXT("AutoPVRTC")) },			{ NameAutoETC2 } }
 	};
 
 	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(ETCRemap); RemapIndex++)

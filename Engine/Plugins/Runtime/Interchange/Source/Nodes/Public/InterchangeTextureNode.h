@@ -524,23 +524,6 @@ public:
 
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool GetCustombForcePVRTC4(bool& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(bForcePVRTC4, bool);
-	}
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool SetCustombForcePVRTC4(const bool& AttributeValue, bool bAddApplyDelegate = true)
-	{
-#if WITH_EDITORONLY_DATA
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTextureNode, bForcePVRTC4, bool, UTexture)
-#else
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(bForcePVRTC4, bool)
-#endif
-	}
-
-	/** Return false if the Attribute was not set previously.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
 	bool GetCustomPowerOfTwoMode(uint8& AttributeValue) const
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_GETTER(PowerOfTwoMode, uint8);
@@ -911,7 +894,6 @@ private:
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(bDitherMipMapAlpha, bool, UTexture, );
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AlphaCoverageThresholds, FVector4, UTexture, );
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(bFlipGreenChannel, bool, UTexture, );
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(bForcePVRTC4, bool, UTexture, );
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(PowerOfTwoMode, uint8, UTexture, TEnumAsByte<enum ETexturePowerOfTwoSetting::Type>);
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(PaddingColor, FColor, UTexture, );
 #endif //#if WITH_EDITORONLY_DATA

@@ -1559,7 +1559,6 @@ void FLightMapPendingTexture::EncodeCoefficientTexture(int32 CoefficientIndex, U
 	FormatSettings.SRGB = false;
 	FormatSettings.CompressionNoAlpha = CoefficientIndex >= LQ_LIGHTMAP_COEF_INDEX;
 	FormatSettings.CompressionNone = !GCompressLightmaps;
-	//FormatSettings.bForcePVRTC4 = true;
 	Texture->SetLayerFormatSettings(LayerIndex, FormatSettings);
 
 	if (bEncodeVirtualTexture)
@@ -1822,7 +1821,6 @@ void FLightMapPendingTexture::StartEncoding(ULevel* LightingScenario, ITextureCo
 		Texture->Filter	= GUseBilinearLightmaps ? TF_Default : TF_Nearest;
 		Texture->LODGroup = TEXTUREGROUP_Lightmap;
 		Texture->LightmapFlags = ELightMapFlags( LightmapFlags );
-		Texture->bForcePVRTC4 = true;
 
 		EncodeCoefficientTexture(CoefficientIndex, Texture, 0u, TextureColor, false);
 	}

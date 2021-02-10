@@ -47,7 +47,6 @@ public class TargetPlatform : ModuleRules
 				DynamicallyLoadedModuleNames.Add("MetalShaderFormat");
 
 				DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
-				DynamicallyLoadedModuleNames.Add("TextureFormatPVR");
 				DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
 
 				DynamicallyLoadedModuleNames.Add("TextureFormatUncompressed");
@@ -70,7 +69,6 @@ public class TargetPlatform : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
-				DynamicallyLoadedModuleNames.Add("TextureFormatPVR");
 				DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
 
 				DynamicallyLoadedModuleNames.Add("TextureFormatUncompressed");
@@ -92,7 +90,6 @@ public class TargetPlatform : ModuleRules
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 			{
 				DynamicallyLoadedModuleNames.Add("TextureFormatDXT");
-				DynamicallyLoadedModuleNames.Add("TextureFormatPVR");
 				DynamicallyLoadedModuleNames.Add("TextureFormatASTC");
 
 				DynamicallyLoadedModuleNames.Add("TextureFormatUncompressed");
