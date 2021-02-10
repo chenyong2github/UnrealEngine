@@ -236,14 +236,14 @@ bool FAssetRegistryTagSerializationTest::RunTest(const FString& Parameters)
 	LooseMaps.Add(MakeLooseMap({{"Localized",	"NSLOCTEXT(\"\", \"5F8411BA4D1A349F6E2C56BB04A1A810\", \"Content Browser Walkthrough\")"}}));
 	LooseMaps.Add(MakeLooseMap({{"Wide",		TEXT("Wide\x00DF")}}));
 
+	TArray<uint8> Data;
+
+#if ALLOW_NAME_BATCH_SAVING
 	FAssetRegistryWriterOptions Options;
 	Options.Tags.StoreAsName = {	"Name", "Name_0"};
 	Options.Tags.StoreAsPath = {	"FullPath", "PkgPath", "ObjPath",
 									"NumPath_0", "NumPath_1", "NumPath_2",
 									"NumPath_3", "NumPath_4", "NumPath_5", "NumPath_6"};
-
-	TArray<uint8> Data;
-
 	{
 		FMemoryWriter DataWriter(Data);
 		FAssetRegistryWriter RegistryWriter(Options, DataWriter);
@@ -252,6 +252,7 @@ bool FAssetRegistryTagSerializationTest::RunTest(const FString& Parameters)
 			SaveTags(RegistryWriter, LooseMap);
 		}
 	}
+#endif
 
 	TArray<FAssetDataTagMapSharedView> FixedMaps;
 	FixedMaps.SetNum(LooseMaps.Num());
