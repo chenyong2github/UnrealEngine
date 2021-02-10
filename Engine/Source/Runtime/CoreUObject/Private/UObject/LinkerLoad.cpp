@@ -4070,6 +4070,8 @@ UObject* FLinkerLoad::Create( UClass* ObjectClass, FName ObjectName, UObject* Ou
 
 void FLinkerLoad::Preload( UObject* Object )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLinkerLoad::Preload);
+
 	//check(IsValidLowLevel());
 	check(Object);
 

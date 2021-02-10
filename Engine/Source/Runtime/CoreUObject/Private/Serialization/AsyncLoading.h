@@ -545,7 +545,7 @@ private:
 	/** Call backs called when we finished loading this package											*/
 	TArray<FCompletionCallback>	CompletionCallbacks;
 	/** Pending Import packages - we wait until all of them have been fully loaded. */
-	TArray<FAsyncPackage*> PendingImportedPackages;
+	TMap<FName, FAsyncPackage*> PendingImportedPackages;
 	/** Referenced imports - list of packages we need until we finish loading this package. */
 	TArray<FAsyncPackage*> ReferencedImports;
 	/** Root package if this package was loaded as a dependency of another. NULL otherwise */
