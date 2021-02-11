@@ -1783,26 +1783,14 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 					});
 				}
 
-				FPackageStoreWriter::HeaderInfo HeaderInfo;
-				FPackageStoreWriter::ExportsInfo ExportsInfo;
-
-				ExportsInfo.PackageName = HeaderInfo.PackageName = SaveContext.GetPackage()->GetFName();
-				ExportsInfo.LooseFilePath = HeaderInfo.LooseFilePath = SaveContext.GetFilename();
-
 				const int32 HeaderSize = Linker->Summary.TotalHeaderSize;
-				SavePackageContext->PackageStoreWriter->WriteHeader(HeaderInfo, FIoBuffer(IoBuffer.Data(), HeaderSize, IoBuffer));
 
-				const uint8* ExportsData = IoBuffer.Data() + HeaderSize;
-				const int32 ExportCount = Linker->ExportMap.Num();
+				IPackageStoreWriter::FPackageInfo PackageInfo;
+				PackageInfo.PackageName = SaveContext.GetPackage()->GetFName();
+				PackageInfo.LooseFilePath = SaveContext.GetFilename();
+				PackageInfo.HeaderSize = HeaderSize;
 
-				ExportsInfo.Exports.Reserve(ExportCount);
-				ExportsInfo.RegionsOffset = HeaderSize;
-
-				for (const FObjectExport& Export : Linker->ExportMap)
-				{
-					ExportsInfo.Exports.Add(FIoBuffer(IoBuffer.Data() + Export.SerialOffset, Export.SerialSize, IoBuffer));
-				}
-				SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer), Linker->FileRegions);
+				SavePackageContext->PackageStoreWriter->WritePackage(PackageInfo, IoBuffer, Linker->FileRegions);
 			}
 			else
 			{

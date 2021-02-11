@@ -119,6 +119,7 @@
 #include "Async/ParallelFor.h"
 
 #include "Commandlets/ShaderPipelineCacheToolsCommandlet.h"
+#include "PackageStoreWriter.h"
 
 #define LOCTEXT_NAMESPACE "Cooker"
 #define REMAPPED_PLUGINS TEXT("RemappedPlugins")
@@ -420,7 +421,7 @@ public:
 	bool							bSkipHardReferences = false;
 	bool							bSkipSoftReferences = false;
 	bool							bFullLoadAndSave = false;
-	bool							bPackageStore = false;
+	bool							bIoStore = false;
 	bool							bCookAgainstFixedBase = false;
 	bool							bDlcLoadMainAssetRegistry = false;
 	TArray<FName>					StartupPackages;
@@ -1013,9 +1014,9 @@ bool UCookOnTheFlyServer::IsUsingShaderCodeLibrary() const
 	return IsCookByTheBookMode();
 }
 
-bool UCookOnTheFlyServer::IsUsingPackageStore() const
+bool UCookOnTheFlyServer::IsUsingIoStore() const
 {
-	return IsCookByTheBookMode() && CookByTheBookOptions->bPackageStore;
+	return IsCookByTheBookMode() && CookByTheBookOptions->bIoStore;
 }
 
 bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const
@@ -7004,7 +7005,11 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
 		FPackageStoreBulkDataManifest* BulkDataManifest	= bIsDiffOnly == false ? new FPackageStoreBulkDataManifest(ResolvedProjectPath) : nullptr;
-		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
+		FPackageStoreWriter* PackageStoreWriter = nullptr;
+		if (IsUsingIoStore())
+		{
+			PackageStoreWriter = new FPackageStoreWriter(ResolvedRootPath, TargetPlatform);
+		}
 
 		FConfigFile PlatformEngineIni;
 		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
@@ -7012,7 +7017,7 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 		bool bLegacyBulkDataOffsets = false;
 		PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("LegacyBulkDataOffsets"), bLegacyBulkDataOffsets);
 
-		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest, bLegacyBulkDataOffsets);
+		FSavePackageContext* SavePackageContext			= new FSavePackageContext(PackageStoreWriter, BulkDataManifest, bLegacyBulkDataOffsets);
 		SavePackageContexts.Add(SavePackageContext);
 	}
 }
@@ -7021,15 +7026,22 @@ void UCookOnTheFlyServer::FinalizePackageStore()
 {
 	UE_SCOPED_HIERARCHICAL_COOKTIMER(FinalizePackageStore);
 
-	UE_LOG(LogCook, Display, TEXT("Saving BulkData manifest(s)..."));
+	UE_LOG(LogCook, Display, TEXT("Finalize package store(s)..."));
 	for (FSavePackageContext* PackageContext : SavePackageContexts)
 	{
-		if (PackageContext != nullptr && PackageContext->BulkDataManifest != nullptr)
+		if (PackageContext != nullptr)
 		{
-			PackageContext->BulkDataManifest->Save();
+			if (PackageContext->BulkDataManifest != nullptr)
+			{
+				PackageContext->BulkDataManifest->Save();
+			}
+			if (PackageContext->PackageStoreWriter != nullptr)
+			{
+				PackageContext->PackageStoreWriter->Finalize();
+			}
 		}
 	}
-	UE_LOG(LogCook, Display, TEXT("Done saving BulkData manifest(s)"));
+	UE_LOG(LogCook, Display, TEXT("Done finalizing package store(s)"));
 
 	ClearPackageStoreContexts();
 }
@@ -7150,7 +7162,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bSkipHardReferences = !!(CookOptions & ECookByTheBookOptions::SkipHardReferences);
 	CookByTheBookOptions->bSkipSoftReferences = !!(CookOptions & ECookByTheBookOptions::SkipSoftReferences);
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
-	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
+	CookByTheBookOptions->bIoStore = !!(CookOptions & ECookByTheBookOptions::IoStore);
 	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
 	CookByTheBookOptions->bDlcLoadMainAssetRegistry = !!(CookOptions & ECookByTheBookOptions::DlcLoadMainAssetRegistry);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;

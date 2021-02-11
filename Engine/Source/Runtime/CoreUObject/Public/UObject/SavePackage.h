@@ -49,34 +49,19 @@ struct FSavePackageArgs
 	FSavePackageContext* SavePackageContext = nullptr;
 };
 
-class FPackageStoreWriter
+class IPackageStoreWriter
 {
 public:
-	COREUOBJECT_API			FPackageStoreWriter();
-	COREUOBJECT_API virtual ~FPackageStoreWriter();
+	COREUOBJECT_API virtual ~IPackageStoreWriter();
 
-	struct HeaderInfo
+	struct FPackageInfo
 	{
 		FName	PackageName;
 		FString	LooseFilePath;
+		uint64  HeaderSize;
 	};
 
-	/** Write 'uasset' data
-	  */
-	virtual void WriteHeader(const HeaderInfo& Info, const FIoBuffer& HeaderData) = 0;
-
-	struct ExportsInfo
-	{
-		FName	PackageName;
-		FString	LooseFilePath;
-		uint64  RegionsOffset;
-
-		TArray<FIoBuffer> Exports;
-	};
-
-	/** Write 'uexp' data
-	  */
-	virtual void WriteExports(const ExportsInfo& Info, const FIoBuffer& ExportsData, const TArray<FFileRegion>& FileRegions) = 0;
+	virtual void WritePackage(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions) = 0;
 
 	struct FBulkDataInfo
 	{
@@ -92,28 +77,15 @@ public:
 		FString	LooseFilePath;
 	};
 
-	/** Write 'ubulk' data
-	  */
 	virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) = 0;
-};
 
-class FLooseFileWriter : public FPackageStoreWriter
-{
-public:
-	COREUOBJECT_API FLooseFileWriter();
-	COREUOBJECT_API ~FLooseFileWriter();
-
-	COREUOBJECT_API virtual void WriteHeader(const HeaderInfo& Info, const FIoBuffer& HeaderData) override;
-	COREUOBJECT_API virtual void WriteExports(const ExportsInfo& Info, const FIoBuffer& ExportsData, const TArray<FFileRegion>& FileRegions) override;
-	COREUOBJECT_API virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override;
-
-private:
+	virtual void Finalize() = 0;
 };
 
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(FPackageStoreWriter* InPackageStoreWriter, FPackageStoreBulkDataManifest* InBulkDataManifest, bool InbForceLegacyOffsets)
+	FSavePackageContext(IPackageStoreWriter* InPackageStoreWriter, FPackageStoreBulkDataManifest* InBulkDataManifest, bool InbForceLegacyOffsets)
 	: PackageStoreWriter(InPackageStoreWriter) 
 	, BulkDataManifest(InBulkDataManifest)
 	, bForceLegacyOffsets(InbForceLegacyOffsets)
@@ -122,7 +94,7 @@ public:
 
 	COREUOBJECT_API ~FSavePackageContext();
 
-	FPackageStoreWriter* PackageStoreWriter;
+	IPackageStoreWriter* PackageStoreWriter;
 	FPackageStoreBulkDataManifest* BulkDataManifest;
 	bool bForceLegacyOffsets;
 };

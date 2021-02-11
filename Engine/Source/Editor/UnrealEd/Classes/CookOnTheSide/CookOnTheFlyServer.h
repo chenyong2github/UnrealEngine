@@ -70,7 +70,7 @@ enum class ECookByTheBookOptions
 	SkipSoftReferences =				0x00001000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
 	SkipHardReferences =				0x00002000, // Don't follow hard references when cooking. Not viable for a real cook, only useful for debugging
 	FullLoadAndSave =					0x00004000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
-	PackageStore =						0x00008000, // Cook package header information into a global package store
+	IoStore =							0x00008000, // Cook for IoStore
 	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
 	DlcLoadMainAssetRegistry =			0x00020000, // If cooking DLC, populate the main game asset registry
 
@@ -543,7 +543,7 @@ public:
 
 	bool IsUsingShaderCodeLibrary() const;
 
-	bool IsUsingPackageStore() const;
+	bool IsUsingIoStore() const;
 
 	/**
 	* Helper function returns if we are in any cook on the fly mode

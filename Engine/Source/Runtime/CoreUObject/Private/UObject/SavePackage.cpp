@@ -4458,28 +4458,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 									const int32 HeaderSize = Linker->Summary.TotalHeaderSize;
 
-									FPackageStoreWriter::HeaderInfo HeaderInfo;
-									HeaderInfo.PackageName		= InOuter->GetFName();
-									HeaderInfo.LooseFilePath	= Filename;
+									IPackageStoreWriter::FPackageInfo PackageInfo;
+									PackageInfo.PackageName		= InOuter->GetFName();
+									PackageInfo.LooseFilePath	= Filename;
+									PackageInfo.HeaderSize		= HeaderSize;
 
-									SavePackageContext->PackageStoreWriter->WriteHeader(HeaderInfo, FIoBuffer(IoBuffer.Data(), HeaderSize, IoBuffer));
-
-									FPackageStoreWriter::ExportsInfo ExportsInfo;
-									ExportsInfo.LooseFilePath	= Filename;
-									ExportsInfo.PackageName		= InOuter->GetFName();
-									ExportsInfo.RegionsOffset   = HeaderSize;
-
-									const uint8* ExportsData = IoBuffer.Data() + HeaderSize;
-									const int32 ExportCount = Linker->ExportMap.Num();
-
-									ExportsInfo.Exports.Reserve(ExportCount);
-
-									for (const FObjectExport& Export : Linker->ExportMap)
-									{
-										ExportsInfo.Exports.Add(FIoBuffer(IoBuffer.Data() + Export.SerialOffset, Export.SerialSize, IoBuffer));
-									}
-
-									SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer), Linker->FileRegions);
+									SavePackageContext->PackageStoreWriter->WritePackage(PackageInfo, IoBuffer, Linker->FileRegions);
 								}
 								else
 								{
@@ -4705,78 +4689,7 @@ bool UPackage::SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLev
 // TODO: this should go elsewhere, this file is big enough as it is already
 //
 
-FPackageStoreWriter::FPackageStoreWriter() = default;
-FPackageStoreWriter::~FPackageStoreWriter() = default;
-
-FLooseFileWriter::FLooseFileWriter() = default;
-FLooseFileWriter::~FLooseFileWriter() = default;
-
-void FLooseFileWriter::WriteHeader(const FLooseFileWriter::HeaderInfo& Info, const FIoBuffer& HeaderData)
-{
-	SavePackageUtilities::WriteToFile(Info.LooseFilePath, HeaderData.Data(), HeaderData.DataSize());
-}
-
-void FLooseFileWriter::WriteExports(const FLooseFileWriter::ExportsInfo& Info, const FIoBuffer& ExportsData, const TArray<FFileRegion>& FileRegions)
-{
-	const FString ArchiveFilename = FPaths::ChangeExtension(Info.LooseFilePath, TEXT(".uexp"));
-
-	SavePackageUtilities::WriteToFile(ArchiveFilename, ExportsData.Data(), ExportsData.DataSize());
-
-	if (FileRegions.Num() > 0)
-	{
-		// Adjust regions so they are relative to the start of the uexp file
-		TArray<FFileRegion> FileRegionsCopy = FileRegions;
-		for (FFileRegion& Region : FileRegionsCopy)
-		{
-			Region.Offset -= Info.RegionsOffset;
-		}
-
-		TArray<uint8> Memory;
-		FMemoryWriter Ar(Memory);
-		FFileRegion::SerializeFileRegions(Ar, FileRegionsCopy);
-
-		SavePackageUtilities::WriteToFile(ArchiveFilename + FFileRegion::RegionsFileExtension, Memory.GetData(), Memory.Num());
-	}
-}
-
-void FLooseFileWriter::WriteBulkdata(const FLooseFileWriter::FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions)
-{
-	if (BulkData.DataSize() == 0)
-		return;
-
-	const TCHAR* BulkFileExtension = nullptr;
-
-	switch (Info.BulkdataType)
-	{
-		case FPackageStoreWriter::FBulkDataInfo::Standard:
-			BulkFileExtension = TEXT(".ubulk");		// Regular separate bulk data file
-			break;
-
-		case FPackageStoreWriter::FBulkDataInfo::Mmap:
-			BulkFileExtension = TEXT(".m.ubulk");	// Memory-mapped bulk data
-			break;
-
-		case FPackageStoreWriter::FBulkDataInfo::Optional:
-			BulkFileExtension = TEXT(".uptnl");		// Optional bulk data
-			break;
-
-		default:
-			check(false);
-	}
-
-	const FString ArchiveFilename = FPaths::ChangeExtension(Info.LooseFilePath, BulkFileExtension);
-
-	SavePackageUtilities::WriteToFile(ArchiveFilename, BulkData.Data(), BulkData.DataSize());
-
-	if (FileRegions.Num() > 0)
-	{
-		TArray<uint8> Memory;
-		FMemoryWriter Ar(Memory);
-		FFileRegion::SerializeFileRegions(Ar, const_cast<TArray<FFileRegion>&>(FileRegions));
-
-		SavePackageUtilities::WriteToFile(ArchiveFilename + FFileRegion::RegionsFileExtension, Memory.GetData(), Memory.Num());
-	}
-}
+IPackageStoreWriter::~IPackageStoreWriter() = default;
 
 FSavePackageContext::~FSavePackageContext()
 {

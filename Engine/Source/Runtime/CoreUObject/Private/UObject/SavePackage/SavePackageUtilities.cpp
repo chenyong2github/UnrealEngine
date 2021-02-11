@@ -2016,18 +2016,27 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 					return FIoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), TotalSize);
 				};
 
-				FPackageStoreWriter::FBulkDataInfo BulkInfo;
+				IPackageStoreWriter::FBulkDataInfo BulkInfo;
 				BulkInfo.PackageName = InOuter->GetFName();
-				BulkInfo.LooseFilePath = Filename;
-				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Standard;
-
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
-
-				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Optional;
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
-
-				BulkInfo.BulkdataType = FPackageStoreWriter::FBulkDataInfo::Mmap;
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
+				
+				if (BulkArchive->TotalSize())
+				{
+					BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Standard;
+					BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+					SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
+				}
+				if (OptionalBulkArchive->TotalSize())
+				{
+					BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Optional;
+					BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, TEXT(".uptnl"));
+					SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
+				}
+				if (MappedBulkArchive->TotalSize())
+				{
+					BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Mmap;
+					BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, TEXT(".m.ubulk"));
+					SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
+				}
 			}
 			else
 			{
