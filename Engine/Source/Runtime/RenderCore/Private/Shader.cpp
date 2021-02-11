@@ -1481,6 +1481,12 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_NoUB") : TEXT("");
 		}
 
+		if (IsVulkanPlatform(Platform))
+		{
+			// Currently mobile only supports NoUB
+			KeyString += TEXT("_NoUB");
+		}
+
 		{
 			static IConsoleVariable* CVarMobileEnableMovableSpotlights = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableMovableSpotlights"));
 			bool bMobileEnableMovableSpotlights = CVarMobileEnableMovableSpotlights ? (CVarMobileEnableMovableSpotlights->GetInt() != 0) : false;
@@ -1535,6 +1541,20 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 		{
 			KeyString += IsMobileDistanceFieldEnabled(Platform) ? TEXT("_MobSDF") : TEXT("");
+		}
+	}
+	else
+	{
+		if (IsOpenGLPlatform(Platform))
+		{
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OpenGL.UseEmulatedUBs"));
+			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_NoUB") : TEXT("");
+		}
+
+		if (IsVulkanPlatform(Platform))
+		{
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.UseRealUBs"));
+			KeyString += (CVar && CVar->GetInt() == 0) ? TEXT("_NoUB") : TEXT("");
 		}
 	}
 

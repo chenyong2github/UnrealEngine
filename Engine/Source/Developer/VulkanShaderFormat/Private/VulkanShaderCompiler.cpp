@@ -2925,9 +2925,9 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	const EShaderPlatform ShaderPlatform = (EShaderPlatform)Input.Target.Platform;
 	check(IsVulkanPlatform(ShaderPlatform));
 
-	const bool bHasRealUBs = HasRealUBs(Version);
-	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5 || Version == EVulkanShaderVersion::SM5_NOUB);
-	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID || Version == EVulkanShaderVersion::ES3_1_NOUB || Version == EVulkanShaderVersion::ES3_1_ANDROID_NOUB);
+	const bool bHasRealUBs = !Input.Environment.CompilerFlags.Contains(CFLAG_UseEmulatedUB);
+	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5);
+	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID);
 	const bool bForceDXC = Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 
 	const EHlslShaderFrequency FrequencyTable[] =

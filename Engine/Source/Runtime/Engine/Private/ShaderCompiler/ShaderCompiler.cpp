@@ -4438,11 +4438,26 @@ void GlobalBeginCompileShader(
 		Input.Environment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 
-	if (IsOpenGLPlatform((EShaderPlatform)Target.Platform) &&
-		IsMobilePlatform((EShaderPlatform)Target.Platform))
+	if (IsMobilePlatform((EShaderPlatform)Target.Platform))
 	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OpenGL.UseEmulatedUBs"));
-		if (CVar && CVar->GetInt() != 0)
+		if (IsOpenGLPlatform((EShaderPlatform)Target.Platform))
+		{
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OpenGL.UseEmulatedUBs"));
+			if (CVar && CVar->GetInt() != 0)
+			{
+				Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
+			}
+		}
+		else if(IsVulkanPlatform((EShaderPlatform)Target.Platform))
+		{
+			// Always use Emulated UB's for Vulkan Mobile
+			Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
+		}
+	}
+	else
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.UseRealUBs"));
+		if (CVar && CVar->GetInt() == 0)
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
 		}
