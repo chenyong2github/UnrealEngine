@@ -237,7 +237,7 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 			}
 		}
 
-		if (ClosestGeometryCollection.IsValid())
+		if (ClosestGeometryCollection.IsValid() && ClosestComponent)
 		{
 			// Which bone points to the closest convex?
 			const TManagedArray<FTransform>& Transform = ClosestGeometryCollection->Transform;
