@@ -1,5 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "LumenHardwareRayTracingCommon.h"
+#include "RendererPrivate.h"
+#include "ScenePrivate.h"
+#include "SceneUtils.h"
+#include "LumenSceneUtils.h"
+#include "PipelineStateCache.h"
+#include "ShaderParameterStruct.h"
+
 static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracing(
 	TEXT("r.Lumen.HardwareRayTracing"),
 	0,
