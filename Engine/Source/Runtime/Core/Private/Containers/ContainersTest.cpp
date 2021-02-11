@@ -4,6 +4,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "Containers/SortedMap.h"
 #include "Containers/ArrayView.h"
 #include "Misc/AutomationTest.h"
@@ -577,6 +578,179 @@ bool FContainerPerformanceTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+namespace
+{
+	struct FRecorder
+	{
+		FRecorder(uint32 InKey = 0, uint32 InPayload=0)
+			: Id(NextId++)
+			, Key(InKey)
+			, Payload(InPayload)
+		{
+		}
+		FRecorder(const FRecorder& Other)
+			: Id(NextId++)
+			, Key(Other.Key)
+			, Payload(Other.Payload)
+			, NumCopies(Other.NumCopies+1)
+			, NumMoves(Other.NumMoves)
+		{
+		}
+		FRecorder(FRecorder&& Other)
+			: Id(NextId++)
+			, Key(Other.Key)
+			, Payload(Other.Payload)
+			, NumCopies(Other.NumCopies)
+			, NumMoves(Other.NumMoves+1)
+		{
+		}
+
+		bool operator==(const FRecorder& Other) const
+		{
+			return Key == Other.Key;
+		}
+
+		uint32 Id;
+		uint32 Key;
+		uint32 Payload;
+		uint32 NumCopies = 0;
+		uint32 NumMoves = 0;
+
+		static uint32 NextId;
+	};
+	uint32 FRecorder::NextId = 0;
+
+	uint32 GetTypeHash(const FRecorder& Recorder)
+	{
+		return Recorder.Payload;
+	}
+
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FContainersTSetTest, "System.Core.Containers.TSet", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FContainersTSetTest::RunTest(const FString& Parameters)
+{
+	enum class EArgType
+	{
+		Copy,
+		Move
+	};
+	enum class EHashType
+	{
+		Internal,
+		PassedIn
+	};
+
+	for (EHashType HashType : { EHashType::Internal, EHashType::PassedIn})
+	{
+		for (EArgType ArgType : {EArgType::Copy, EArgType::Move})
+		{
+			FString FuncName;
+			auto FullText = [HashType,ArgType,&FuncName](const TCHAR* Message)
+			{
+				const TCHAR* HashText = HashType == EHashType::Internal ? TEXT("") : TEXT("ByHash");
+				const TCHAR* ArgText = ArgType == EArgType::Copy ? TEXT("const&") : TEXT("&&");
+				return FString::Printf(TEXT("TSet::%s%s(%s) %s"), *FuncName, HashText, ArgText, Message);
+			};
+
+			// Test TSet::Add(const&), Add(&&), AddByHash(const&), AddByHash(&&)
+			FuncName = TEXT("Add");
+			{
+				TSet<FRecorder> Set;
+				FRecorder First(37, 43);
+				bool bAlreadyInSet = true;
+
+				if (HashType == EHashType::Internal)
+					if (ArgType == EArgType::Copy)
+						Set.Add(First, &bAlreadyInSet);
+					else
+						Set.Add(MoveTemp(First), &bAlreadyInSet);
+				else
+					if (ArgType == EArgType::Copy)
+						Set.AddByHash(GetTypeHash(First), First, &bAlreadyInSet);
+					else
+						Set.AddByHash(GetTypeHash(First), MoveTemp(First), &bAlreadyInSet);
+				TestFalse(FullText(TEXT("returns bAlreadyInSet==false for first add")), bAlreadyInSet);
+
+				FRecorder* Found = Set.Find(First);
+				if (ArgType == EArgType::Copy)
+					TestTrue(FullText(TEXT("constructs a copy")), Found && Found->Id > First.Id && Found->NumCopies > 0 && Found->Payload == First.Payload);
+				else
+					TestTrue(FullText(TEXT("constructs a move")), Found && Found->Id > First.Id && Found->NumCopies == 0 && Found->NumMoves >= 1 && Found->Payload == First.Payload);
+
+				uint32 FoundId = Found ? Found->Id : 0;
+				Found = Set.Find(First);
+				TestTrue(TEXT("Finding an element returns a reference, no copies"), Found && Found->Id == FoundId);
+
+				FRecorder Second(37, 56);
+				if (HashType == EHashType::Internal)
+					if (ArgType == EArgType::Copy)
+						Set.Add(Second, &bAlreadyInSet);
+					else
+						Set.Add(MoveTemp(Second), &bAlreadyInSet);
+				else
+					if (ArgType == EArgType::Copy)
+						Set.AddByHash(GetTypeHash(Second), Second, &bAlreadyInSet);
+					else
+						Set.AddByHash(GetTypeHash(Second), MoveTemp(Second), &bAlreadyInSet);
+				TestTrue(FullText(TEXT("returns bAlreadyInSet==true for second add")), bAlreadyInSet);
+				Found = Set.Find(First);
+				TestTrue(FullText(TEXT("with a duplicate key constructs a copy of the new key")), Found && Found->Id > Second.Id && Found->Payload == Second.Payload);
+			}
+
+			// Test TSet::FindOrAdd(const&), FindOrAdd(&&), FindOrAddByHash(const&), FindOrAddByHash(&&)
+			FuncName = TEXT("FindOrAdd");
+			{
+				TSet<FRecorder> Set;
+				FRecorder First(37, 43);
+				bool bAlreadyInSet = true;
+
+				FRecorder* FindOrAddResult;
+				if (HashType == EHashType::Internal)
+					if (ArgType == EArgType::Copy)
+						FindOrAddResult = &Set.FindOrAdd(First, &bAlreadyInSet);
+					else
+						FindOrAddResult = &Set.FindOrAdd(MoveTemp(First), &bAlreadyInSet);
+				else
+					if (ArgType == EArgType::Copy)
+						FindOrAddResult = &Set.FindOrAddByHash(GetTypeHash(First), First, &bAlreadyInSet);
+					else
+						FindOrAddResult = &Set.FindOrAddByHash(GetTypeHash(First), MoveTemp(First), &bAlreadyInSet);
+				TestFalse(FullText(TEXT("returns bAlreadyInSet==false for first add")), bAlreadyInSet);
+				if (ArgType == EArgType::Copy)
+					TestTrue(FullText(TEXT("on the first constructs a copy")), FindOrAddResult->Id > First.Id && FindOrAddResult->NumCopies > 0 && FindOrAddResult->Payload == First.Payload);
+				else
+					TestTrue(FullText(TEXT("on the first constructs a move")), FindOrAddResult->Id > First.Id && FindOrAddResult->NumCopies == 0 && FindOrAddResult->NumMoves >= 1 && FindOrAddResult->Payload == First.Payload);
+				uint32 FoundId = FindOrAddResult->Id;
+
+				FRecorder* Found = Set.Find(First);
+				TestTrue(FullText(TEXT("returns same value as future find")), Found&& Found->Id == FindOrAddResult->Id);
+				Found = Set.Find(First);
+				TestTrue(TEXT("Finding an element returns a reference, no copies"), Found && Found->Id == FoundId);
+
+				FRecorder Second(37, 56);
+				if (HashType == EHashType::Internal)
+					if (ArgType == EArgType::Copy)
+						FindOrAddResult = &Set.FindOrAdd(Second, &bAlreadyInSet);
+					else
+						FindOrAddResult = &Set.FindOrAdd(MoveTemp(Second), &bAlreadyInSet);
+				else
+					if (ArgType == EArgType::Copy)
+						FindOrAddResult = &Set.FindOrAddByHash(GetTypeHash(Second), Second, &bAlreadyInSet);
+					else
+						FindOrAddResult = &Set.FindOrAddByHash(GetTypeHash(Second), MoveTemp(Second), &bAlreadyInSet);
+				TestTrue(FullText(TEXT("returns bAlreadyInSet==true for second add")), bAlreadyInSet);
+				TestTrue(FullText(TEXT("with a duplicate key keeps the original key, returned from FindOrAdd")), FindOrAddResult->Id == FoundId && FindOrAddResult->Payload == First.Payload);
+				Found = Set.Find(First);
+				TestTrue(FullText(TEXT("with a duplicate key keeps the original key, returned from future Finds")), Found->Id == FoundId && Found->Payload == First.Payload);
+			}
+		}
+	}
+
+
+	return !HasAnyErrors();
+}
+
 
 namespace ArrayViewTests
 {

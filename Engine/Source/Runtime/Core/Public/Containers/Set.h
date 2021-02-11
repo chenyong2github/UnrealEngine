@@ -605,6 +605,22 @@ public:
 	FORCEINLINE FSetElementId Add(      InElementType&& InElement, bool* bIsAlreadyInSetPtr = nullptr) { return Emplace(MoveTempIfPossible(InElement), bIsAlreadyInSetPtr); }
 
 	/**
+	 * Adds an element to the set if not already present and returns a reference to the added or existing element.
+	 *
+	 * @param	InElement					Element to add to set
+	 * @param	bIsAlreadyInSetPtr	[out]	Optional pointer to bool that will be set depending on whether element is already in set
+	 * @return	A reference to the element stored in the set.
+	 */
+	FORCEINLINE ElementType& FindOrAdd(const InElementType& InElement, bool* bIsAlreadyInSetPtr = nullptr)
+	{
+		return FindOrAddByHash(KeyFuncs::GetKeyHash(KeyFuncs::GetSetKey(InElement)), InElement, bIsAlreadyInSetPtr);
+	}
+	FORCEINLINE ElementType& FindOrAdd(InElementType&& InElement, bool* bIsAlreadyInSetPtr = nullptr)
+	{
+		return FindOrAddByHash(KeyFuncs::GetKeyHash(KeyFuncs::GetSetKey(InElement)), MoveTempIfPossible(InElement), bIsAlreadyInSetPtr);
+	}
+
+	/**
 	 * Adds an element to the set.
 	 *
 	 * @see		Class documentation section on ByHash() functions
@@ -621,8 +637,37 @@ public:
 		return EmplaceByHash(KeyHash, MoveTempIfPossible(InElement), bIsAlreadyInSetPtr);
 	}
 
+	/**
+	 * Adds an element to the set if not already present and returns a reference to the added or existing element.
+	 *
+	 * @see		Class documentation section on ByHash() functions
+	 * @param	InElement					Element to add to set
+	 * @param	bIsAlreadyInSetPtr	[out]	Optional pointer to bool that will be set depending on whether element is already in set
+	 * @return  A reference to the element stored in the set
+	 */
+	template <typename ElementReferenceType>
+	ElementType& FindOrAddByHash(uint32 KeyHash, ElementReferenceType&& InElement, bool* bIsAlreadyInSetPtr = nullptr)
+	{
+		FSetElementId ExistingId = FindIdByHash(KeyHash, KeyFuncs::GetSetKey(InElement));
+		bool bIsAlreadyInSet = ExistingId.IsValidId();
+		if (bIsAlreadyInSetPtr)
+		{
+			*bIsAlreadyInSetPtr = bIsAlreadyInSet;
+		}
+		if (bIsAlreadyInSet)
+		{
+			return Elements[ExistingId].Value;
+		}
+
+		// Create a new element.
+		FSparseArrayAllocationInfo ElementAllocation = Elements.AddUninitialized();
+		SetElementType& Element = *new (ElementAllocation) SetElementType(Forward<ElementReferenceType>(InElement));
+		RehashOrLink(KeyHash, Element, ElementAllocation.Index);
+		return Element.Value;
+	}
+
 private:
-	FSetElementId EmplaceImpl(uint32 KeyHash, SetElementType& Element, FSetElementId ElementId, bool* bIsAlreadyInSetPtr)
+	bool TryReplaceExisting(uint32 KeyHash, SetElementType& Element, FSetElementId& InOutElementId, bool* bIsAlreadyInSetPtr)
 	{
 		bool bIsAlreadyInSet = false;
 		if (!KeyFuncs::bAllowDuplicateKeys)
@@ -640,30 +685,28 @@ private:
 					MoveByRelocate(Elements[ExistingId].Value, Element.Value);
 
 					// Then remove the new element.
-					Elements.RemoveAtUninitialized(ElementId);
+					Elements.RemoveAtUninitialized(InOutElementId);
 
 					// Then point the return value at the replaced element.
-					ElementId = ExistingId;
+					InOutElementId = ExistingId;
 				}
 			}
 		}
-
-		if (!bIsAlreadyInSet)
-		{
-			// Check if the hash needs to be resized.
-			if (!ConditionalRehash(Elements.Num()))
-			{
-				// If the rehash didn't add the new element to the hash, add it.
-				LinkElement(ElementId, Element, KeyHash);
-			}
-		}
-
 		if (bIsAlreadyInSetPtr)
 		{
 			*bIsAlreadyInSetPtr = bIsAlreadyInSet;
 		}
+		return bIsAlreadyInSet;
+	}
 
-		return ElementId;
+	FORCEINLINE void RehashOrLink(uint32 KeyHash, SetElementType& Element, FSetElementId ElementId)
+	{
+		// Check if the hash needs to be resized.
+		if (!ConditionalRehash(Elements.Num()))
+		{
+			// If the rehash didn't add the new element to the hash, add it.
+			LinkElement(ElementId, Element, KeyHash);
+		}
 	}
 
 public:
@@ -680,9 +723,14 @@ public:
 		// Create a new element.
 		FSparseArrayAllocationInfo ElementAllocation = Elements.AddUninitialized();
 		SetElementType& Element = *new (ElementAllocation) SetElementType(Forward<ArgsType>(Args));
+		FSetElementId ElementId = ElementAllocation.Index;
 
 		uint32 KeyHash = KeyFuncs::GetKeyHash(KeyFuncs::GetSetKey(Element.Value));
-		return EmplaceImpl(KeyHash, Element, ElementAllocation.Index, bIsAlreadyInSetPtr);
+		if (!TryReplaceExisting(KeyHash, Element, ElementId, bIsAlreadyInSetPtr))
+		{
+			RehashOrLink(KeyHash, Element, ElementId);
+		}
+		return ElementId;
 	}
 	
 	/**
@@ -699,8 +747,13 @@ public:
 		// Create a new element.
 		FSparseArrayAllocationInfo ElementAllocation = Elements.AddUninitialized();
 		SetElementType& Element = *new (ElementAllocation) SetElementType(Forward<ArgsType>(Args));
+		FSetElementId ElementId = ElementAllocation.Index;
 
-		return EmplaceImpl(KeyHash, Element, ElementAllocation.Index, bIsAlreadyInSetPtr);
+		if (!TryReplaceExisting(KeyHash, Element, ElementId, bIsAlreadyInSetPtr))
+		{
+			RehashOrLink(KeyHash, Element, ElementId);
+		}
+		return ElementId;
 	}
 
 	template<typename ArrayAllocator>
