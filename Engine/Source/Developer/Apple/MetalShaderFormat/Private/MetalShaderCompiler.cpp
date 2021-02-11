@@ -957,6 +957,7 @@ void BuildMetalShaderOutput(
 			Job.SourceCRC = SourceCRC;
 			Job.bRetainObjectFile = ShaderInput.Environment.CompilerFlags.Contains(CFLAG_Archive);
 			Job.bCompileAsPCH = false;
+			Job.ReturnCode = 0;
 
 			FMetalShaderBytecodeCooker* BytecodeCooker = new FMetalShaderBytecodeCooker(Job);
 			
