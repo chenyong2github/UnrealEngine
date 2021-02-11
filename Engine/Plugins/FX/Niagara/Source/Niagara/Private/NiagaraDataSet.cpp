@@ -876,6 +876,9 @@ void FNiagaraDataBuffer::ReleaseGPU()
 	check(IsInRenderingThread());
 
 	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUParticleMemory, GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes);
+#if NIAGARA_MEMORY_TRACKING
+	Owner->BufferSizeBytes -= GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes;
+#endif
 
 	NumInstancesAllocated = 0;
 	FloatStride = 0;
