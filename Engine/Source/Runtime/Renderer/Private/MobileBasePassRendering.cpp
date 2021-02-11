@@ -194,7 +194,7 @@ void SetupMobileBasePassUniformParameters(
 
 	BasePassParameters.EyeAdaptationBuffer = GetEyeAdaptationBuffer(View);
 
-	if (!bTranslucentPass && GAmbientOcclusionMobileOutputs.IsValid())
+	if (!bTranslucentPass && GAmbientOcclusionMobileOutputs.IsValid() && IsUsingMobileAmbientOcclusion(View.GetShaderPlatform()))
 	{
 		BasePassParameters.AmbientOcclusionTexture = GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetRenderTargetItem().ShaderResourceTexture;
 	}
