@@ -7389,7 +7389,6 @@ void FSequencer::SelectObject(FGuid ObjectBinding)
 	TSharedPtr<FSequencerObjectBindingNode> Node = NodeTree->FindObjectBindingNode(ObjectBinding);
 	if (Node.IsValid())
 	{
-		GetSelection().Empty();
 		GetSelection().AddToSelection(Node.ToSharedRef());
 	}
 }
