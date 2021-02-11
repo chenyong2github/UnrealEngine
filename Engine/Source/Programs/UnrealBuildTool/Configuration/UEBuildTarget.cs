@@ -3876,6 +3876,10 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+
+			RulesObject.PrivateDefinitions.Add(String.Format("UE_MODULE_NAME=\"{0}\"", ModuleName));
+			RulesObject.PrivateDefinitions.Add(String.Format("UE_PLUGIN_NAME=\"{0}\"", RulesObject.IsPlugin ? RulesObject.Plugin.Name : ""));
+
 			return RulesObject;
 		}
 
