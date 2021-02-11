@@ -4257,6 +4257,12 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		return HandleDumpMaterialStatsCommand( Cmd, Ar );	
 	}
+#if WITH_EDITOR
+	else if( FParse::Command(&Cmd,TEXT("DumpShaderCompileStats")) )
+	{
+		HandleDumpShaderCompileStatsCommand(Cmd, Ar);
+	}
+#endif
 	else if (FParse::Command(&Cmd, TEXT("DumpShaderPipelineStats")))
 	{
 		return HandleDumpShaderPipelineStatsCommand(Cmd, Ar);
@@ -5034,6 +5040,15 @@ bool UEngine::HandleDumpMaterialStatsCommand( const TCHAR* Cmd, FOutputDevice& A
 	DumpMaterialStats( Platform );
 	return true;
 }
+
+#if WITH_EDITOR
+bool UEngine::HandleDumpShaderCompileStatsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	Ar.Logf(TEXT("Dumping shader compile stats"));
+	GShaderCompilerStats->WriteStats(&Ar);
+	return true;
+}
+#endif
 
 bool UEngine::HandleProfileCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {

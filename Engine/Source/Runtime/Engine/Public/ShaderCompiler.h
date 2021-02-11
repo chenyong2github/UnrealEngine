@@ -809,7 +809,7 @@ public:
 	ENGINE_API void RegisterCookedShaders(uint32 NumCooked, float CompileTime, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
 	ENGINE_API void RegisterCompiledShaders(uint32 NumPermutations, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
 	ENGINE_API const TSparseArray<ShaderCompilerStats>& GetShaderCompilerStats() { return CompileStats; }
-	ENGINE_API void WriteStats();
+	ENGINE_API void WriteStats(class FOutputDevice* Ar = nullptr);
 
 private:
 	FCriticalSection CompileStatsLock;

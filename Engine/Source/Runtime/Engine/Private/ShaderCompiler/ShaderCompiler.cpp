@@ -120,12 +120,12 @@ namespace GlobalShaderCookStats
 	static int32 ShadersCompiled = 0;
 
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
-	{
-		UsageStats.LogStats(AddStat, TEXT("GlobalShader.Usage"), TEXT(""));
-		AddStat(TEXT("GlobalShader.Misc"), FCookStatsManager::CreateKeyValueArray(
-			TEXT("ShadersCompiled"), ShadersCompiled
-		));
-	});
+		{
+			UsageStats.LogStats(AddStat, TEXT("GlobalShader.Usage"), TEXT(""));
+			AddStat(TEXT("GlobalShader.Misc"), FCookStatsManager::CreateKeyValueArray(
+				TEXT("ShadersCompiled"), ShadersCompiled
+			));
+		});
 }
 #endif
 
@@ -900,15 +900,15 @@ namespace ShaderCompilerCookStats
 	static double AsyncCompileTimeSec = 0.0;
 
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
-	{
-		AddStat(TEXT("ShaderCompiler"), FCookStatsManager::CreateKeyValueArray(
-			TEXT("BlockingTimeSec"), BlockingTimeSec,
-			TEXT("AsyncCompileTimeSec"), AsyncCompileTimeSec,
-			TEXT("GlobalBeginCompileShaderTimeSec"), GlobalBeginCompileShaderTimeSec,
-			TEXT("GlobalBeginCompileShaderCalls"), GlobalBeginCompileShaderCalls,
-			TEXT("ProcessAsyncResultsTimeSec"), ProcessAsyncResultsTimeSec
+		{
+			AddStat(TEXT("ShaderCompiler"), FCookStatsManager::CreateKeyValueArray(
+				TEXT("BlockingTimeSec"), BlockingTimeSec,
+				TEXT("AsyncCompileTimeSec"), AsyncCompileTimeSec,
+				TEXT("GlobalBeginCompileShaderTimeSec"), GlobalBeginCompileShaderTimeSec,
+				TEXT("GlobalBeginCompileShaderCalls"), GlobalBeginCompileShaderCalls,
+				TEXT("ProcessAsyncResultsTimeSec"), ProcessAsyncResultsTimeSec
 			));
-	});
+		});
 }
 #endif
 
@@ -2283,13 +2283,14 @@ int32 FShaderCompileThreadRunnable::CompilingLoop()
 
 FShaderCompilerStats* GShaderCompilerStats = NULL;
 
-void FShaderCompilerStats::WriteStats()
+void FShaderCompilerStats::WriteStats(FOutputDevice* Ar)
 {
 #if ALLOW_DEBUG_FILES
+	static TCHAR DebugText[] = TEXT("Wrote shader compile stats to file '%s'.");
 	{
 		FlushRenderingCommands(true);
 
-		FString FileName = FPaths::Combine(*FPaths::ProjectSavedDir(), FString::Printf(TEXT("MaterialStats/Stats-%s.csv"),  *FDateTime::Now().ToString()));
+		FString FileName = FPaths::Combine(*FPaths::ProjectSavedDir(), FString::Printf(TEXT("MaterialStats/Stats-%s.csv"), *FDateTime::Now().ToString()));
 		auto DebugWriter = IFileManager::Get().CreateFileWriter(*FileName);
 		FDiagnosticTableWriterCSV StatWriter(DebugWriter);
 		const TSparseArray<ShaderCompilerStats>& PlatformStats = GetShaderCompilerStats();
@@ -2332,6 +2333,17 @@ void FShaderCompilerStats::WriteStats()
 			}
 		}
 		DebugWriter->Close();
+
+		FString FullFileName = FPaths::ConvertRelativePathToFull(FileName);
+		if (Ar)
+		{
+			Ar->Logf(DebugText, *FullFileName);
+		}
+		else
+		{
+			UE_LOG(LogShaderCompilers, Log, DebugText, *FullFileName);
+		}
+
 		if (FParse::Param(FCommandLine::Get(), TEXT("mirrorshaderstats")))
 		{
 			FString MirrorLocation;
@@ -2399,6 +2411,16 @@ void FShaderCompilerStats::WriteStats()
 				}
 
 			}
+		}
+
+		FString FullFileName = FPaths::ConvertRelativePathToFull(FileName);
+		if (Ar)
+		{
+			Ar->Logf(DebugText, *FullFileName);
+		}
+		else
+		{
+			UE_LOG(LogShaderCompilers, Log, DebugText, *FullFileName);
 		}
 	}
 #endif // ALLOW_DEBUG_FILES
