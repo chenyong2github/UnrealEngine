@@ -1352,23 +1352,23 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 				{
 					if ( ULightComponent* LightComponent = LightActor->GetLightComponent() )
 					{
-						UnrealToUsd::ConvertLightComponent( *LightComponent, UsdPrim, Time );
+						UnrealToUsd::ConvertLightComponent( *LightComponent, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 
 						if ( UDirectionalLightComponent* DirectionalLight = Cast<UDirectionalLightComponent>( LightComponent ) )
 						{
-							UnrealToUsd::ConvertDirectionalLightComponent( *DirectionalLight, UsdPrim, Time );
+							UnrealToUsd::ConvertDirectionalLightComponent( *DirectionalLight, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 						}
 						else if ( URectLightComponent* RectLight = Cast<URectLightComponent>( LightComponent ) )
 						{
-							UnrealToUsd::ConvertRectLightComponent( *RectLight, UsdPrim, Time );
+							UnrealToUsd::ConvertRectLightComponent( *RectLight, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 						}
 						else if ( UPointLightComponent* PointLight = Cast<UPointLightComponent>( LightComponent ) )
 						{
-							UnrealToUsd::ConvertPointLightComponent( *PointLight, UsdPrim, Time );
+							UnrealToUsd::ConvertPointLightComponent( *PointLight, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 
 							if ( USpotLightComponent* SpotLight = Cast<USpotLightComponent>( LightComponent ) )
 							{
-								UnrealToUsd::ConvertSpotLightComponent( *SpotLight, UsdPrim, Time );
+								UnrealToUsd::ConvertSpotLightComponent( *SpotLight, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 							}
 						}
 					}
@@ -1376,7 +1376,8 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 				// In contrast to the other light types, the USkyLightComponent is the root component of the ASkyLight
 				else if ( USkyLightComponent* SkyLightComponent = Cast<USkyLightComponent>( PrimSceneComponent ) )
 				{
-					UnrealToUsd::ConvertSkyLightComponent( *SkyLightComponent, UsdPrim, Time );
+					UnrealToUsd::ConvertLightComponent( *SkyLightComponent, UsdPrim, UsdUtils::GetDefaultTimeCode() );
+					UnrealToUsd::ConvertSkyLightComponent( *SkyLightComponent, UsdPrim, UsdUtils::GetDefaultTimeCode() );
 				}
 #endif // #if USE_USD_SDK
 

@@ -66,6 +66,9 @@ namespace UsdUtils
 
 	/** Makes sure that the layer start and end timecodes include StartTimeCode and EndTimeCode */
 	USDUTILITIES_API void AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double StartTimeCode, double EndTimeCode );
+
+	/** Makes Path relative to the file path of Layer. Conversion happens in-place. */
+	USDUTILITIES_API void MakePathRelativeToLayer( const UE::FSdfLayer& Layer, FString& Path );
 }
 
 #endif // #if USE_USD_SDK

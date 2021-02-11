@@ -306,6 +306,20 @@ void UsdUtils::AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double
 	}
 }
 
+void UsdUtils::MakePathRelativeToLayer( const UE::FSdfLayer& Layer, FString& Path )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	if ( pxr::SdfLayerRefPtr UsdLayer = (pxr::SdfLayerRefPtr)Layer )
+	{
+		std::string RepositoryPath = UsdLayer->GetRepositoryPath().empty() ? UsdLayer->GetRealPath() : UsdLayer->GetRepositoryPath();
+		FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
+		FPaths::MakePathRelativeTo( Path, *LayerAbsolutePath );
+	}
+#endif // #if USE_USD_SDK
+}
+
 #undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK

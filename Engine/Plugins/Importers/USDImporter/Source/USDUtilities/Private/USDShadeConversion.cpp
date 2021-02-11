@@ -759,7 +759,7 @@ namespace UsdShadeConversionImpl
 					{
 						UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( Texture, TEXT( "USDAssetImportData" ) );
 						ImportData->PrimPath = PrimPath;
-						ImportData->UpdateFilenameOnly( TexturePath );
+						ImportData->UpdateFilenameOnly( ResolvedTexturePath );
 						Texture->AssetImportData = ImportData;
 					}
 				}
@@ -1286,6 +1286,16 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		}
 	}
 
+	// Emissive color
+	{
+		const bool bIsNormalMap = false;
+		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::EmissiveColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
+		{
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "EmissiveColor" ), ParameterValue );
+			bHasMaterialInfo = true;
+		}
+	}
+
 	// Metallic
 	{
 		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
@@ -1369,6 +1379,19 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 			Material.BaseColor.Expression = Expression;
 			SetOutputIndex( ParameterValue, Material.BaseColor.OutputIndex );
 			
+			bHasMaterialInfo = true;
+		}
+	}
+
+	// Emissive color
+	{
+		const bool bIsNormalMap = false;
+		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::EmissiveColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex );
+		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
+		{
+			Material.EmissiveColor.Expression = Expression;
+			SetOutputIndex( ParameterValue, Material.EmissiveColor.OutputIndex );
+
 			bHasMaterialInfo = true;
 		}
 	}

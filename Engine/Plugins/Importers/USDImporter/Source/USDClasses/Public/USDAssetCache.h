@@ -14,6 +14,12 @@ class USDCLASSES_API UUsdAssetCache : public UObject
 	GENERATED_BODY()
 
 public:
+	UUsdAssetCache();
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
+#endif
+
 	void CacheAsset( const FString& Hash, UObject* Asset, const FString& PrimPath = FString() );
 	void DiscardAsset( const FString& Hash );
 	UObject* GetCachedAsset( const FString& Hash ) const;
@@ -49,6 +55,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category="Assets")
 	TMap< FString, UObject* > PersistentStorage;
+
+	UPROPERTY(EditAnywhere, Category="Assets", AdvancedDisplay)
+	bool bAllowPersistentStorage;
 
 	// Points to the assets in primary storage, used to quickly check if we own an asset
 	TSet< UObject* > OwnedAssets;
