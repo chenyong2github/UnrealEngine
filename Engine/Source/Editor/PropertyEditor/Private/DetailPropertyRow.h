@@ -121,6 +121,11 @@ private:
 	void MakeValueWidget( FDetailWidgetRow& Row, const TSharedPtr<FDetailWidgetRow> InCustomRow, bool bAddWidgetDecoration = true ) const;
 
 	/**
+	 * Set the given widget row's custom properties. Note: Should be called before MakeNameOrKeyWidget and MakeValueWidget.
+	 */
+	void SetWidgetRowProperties( FDetailWidgetRow& Row ) const;
+
+	/**
 	 * @return true if this row has an edit condition
 	 */
 	bool HasEditCondition() const;
