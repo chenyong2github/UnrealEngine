@@ -112,6 +112,16 @@ void FCameraShakePreviewUpdater::ModifyCamera(FEditorViewportViewModifierParams&
 	{
 		Params.AddPostProcessBlend(LastPostProcessSettings[PPIndex], LastPostProcessBlendWeights[PPIndex]);
 	}
+
+	// Clean-up finished camera anims.
+	for (int32 Index = ActiveAnims.Num() - 1; Index >= 0; --Index)
+	{
+		UCameraAnimInst* ActiveAnim(ActiveAnims[Index]);
+		if (ActiveAnim->bFinished)
+		{
+			ActiveAnims.RemoveAt(Index);
+		}
+	}
 }
 
 
@@ -203,6 +213,10 @@ void FCameraShakePreviewUpdater::UpdateCameraAnimInstance(UCameraAnimInst& Camer
 	{
 		return;
 	}
+	if (CameraAnimInstance.bFinished)
+	{
+		return;
+	}
 
 	Actor->SetActorLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
 
@@ -210,6 +224,7 @@ void FCameraShakePreviewUpdater::UpdateCameraAnimInstance(UCameraAnimInst& Camer
 	if (DefaultActor)
 	{
 		Actor->GetCameraComponent()->AspectRatio = DefaultActor->GetCameraComponent()->AspectRatio;
+		Actor->GetCameraComponent()->FieldOfView = CameraAnimInstance.CamAnim->BaseFOV;
 		Actor->GetCameraComponent()->PostProcessSettings = CameraAnimInstance.CamAnim->BasePostProcessSettings;
 		Actor->GetCameraComponent()->PostProcessBlendWeight = CameraAnimInstance.CamAnim->BasePostProcessBlendWeight;
 	}
