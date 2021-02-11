@@ -4,6 +4,7 @@
 
 #include "GeForceNOWWrapper.h"
 #include "GeForceNOWWrapperPrivate.h"
+#include "Misc/CommandLine.h"
 
 PUSH_MACRO(TEXT)
 #undef TEXT
