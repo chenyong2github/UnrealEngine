@@ -4,7 +4,10 @@
 
 #include "GeForceNOWWrapper.h"
 #include "GeForceNOWWrapperPrivate.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 #include "Misc/CommandLine.h"
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
 
 PUSH_MACRO(TEXT)
 #undef TEXT
