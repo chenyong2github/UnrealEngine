@@ -20,88 +20,59 @@ LightSampling.usf: Light sampling for next-event estimation
 #include "PathTracingSpotLight.ush"
 
 // Returns float4 packed with Radiance and Pdf
-float4 TraceLight(RayDesc Ray, int LightId, inout float HitT)
+FLightHit TraceLight(RayDesc Ray, int LightId)
 {
 	switch (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK)
 	{
-		case PATHTRACING_LIGHT_SKY:			return SkyLight_TraceLight(Ray, LightId, HitT);
-		case PATHTRACING_LIGHT_POINT:		return PointLight_TraceLight(Ray, LightId, HitT);
-		case PATHTRACING_LIGHT_DIRECTIONAL: return DirectionalLight_TraceLight(Ray, LightId, HitT);
-		case PATHTRACING_LIGHT_RECT:		return RectLight_TraceLight(Ray, LightId, HitT);
-		case PATHTRACING_LIGHT_SPOT:		return SpotLight_TraceLight(Ray, LightId, HitT);
-		default: return 0; // unknown light type?
+		case PATHTRACING_LIGHT_SKY:			return SkyLight_TraceLight(Ray, LightId);
+		case PATHTRACING_LIGHT_POINT:		return PointLight_TraceLight(Ray, LightId);
+		case PATHTRACING_LIGHT_DIRECTIONAL: return DirectionalLight_TraceLight(Ray, LightId);
+		case PATHTRACING_LIGHT_RECT:		return RectLight_TraceLight(Ray, LightId);
+		case PATHTRACING_LIGHT_SPOT:		return SpotLight_TraceLight(Ray, LightId);
+		default:							return NullLightHit(); // unknown light type?
 	}
 }
 
 // Choose a point on a light as seen from the given shading point
-void SampleLight(
+FLightSample SampleLight(
 	int LightId,
 	float4 RandSample,
 	float3 WorldPos,
-	float3 WorldNormal,
-	out float3 OutDirection,
-	out float  OutDistance,
-	out float3 OutRadianceOverPdf,
-	out float OutPdf)
+	float3 WorldNormal
+)
 {
 	switch (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK)
 	{
-		case PATHTRACING_LIGHT_SKY:
-			SkyLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
-			return;
-		case PATHTRACING_LIGHT_POINT:
-			PointLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
-			return;
-		case PATHTRACING_LIGHT_DIRECTIONAL:
-			DirectionalLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
-			return;
-		case PATHTRACING_LIGHT_RECT:
-			RectLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
-			return;
-		case PATHTRACING_LIGHT_SPOT:
-			SpotLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
-			return;
-		default:
-			// unknown light type?
-			OutDirection = 0;
-			OutDistance = 0;
-			OutRadianceOverPdf = 0;
-			OutPdf = 0;
-			return;
+		case PATHTRACING_LIGHT_SKY:			return SkyLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal);
+		case PATHTRACING_LIGHT_POINT:		return PointLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal);
+		case PATHTRACING_LIGHT_DIRECTIONAL: return DirectionalLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal);
+		case PATHTRACING_LIGHT_RECT:		return RectLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal);
+		case PATHTRACING_LIGHT_SPOT:		return SpotLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal);
+		default:							return NullLightSample(); // unknown light type?
 	}
 }
 
-void EstimateLight(
+float EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
 	uint PrimitiveLightingChannelMask,
-	bool IsTransmissiveMaterial,
-	inout float OutIrradiance
+	bool IsTransmissiveMaterial
 )
 {
-	OutIrradiance = 0.0f;
-	if ((GetLightingChannelMask(LightId) & PrimitiveLightingChannelMask) == 0) return;
+	if ((GetLightingChannelMask(LightId) & PrimitiveLightingChannelMask) == 0)
+	{
+		return 0.0;
+	}
 
 	switch (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK)
 	{
-		case PATHTRACING_LIGHT_SKY:
-			SkyLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
-			return;
-		case PATHTRACING_LIGHT_POINT:
-			PointLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
-			return;
-		case PATHTRACING_LIGHT_DIRECTIONAL:
-			DirectionalLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
-			return;
-		case PATHTRACING_LIGHT_RECT:
-			RectLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
-			return;
-		case PATHTRACING_LIGHT_SPOT:
-			SpotLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
-			return;
-		default:
-			return;
+		case PATHTRACING_LIGHT_SKY:			return SkyLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial);
+		case PATHTRACING_LIGHT_POINT:		return PointLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial);
+		case PATHTRACING_LIGHT_DIRECTIONAL:	return DirectionalLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial);
+		case PATHTRACING_LIGHT_RECT:		return RectLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial);
+		case PATHTRACING_LIGHT_SPOT:		return SpotLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial);
+		default:							return 0.0;
 	}
 }
 
@@ -131,7 +102,7 @@ bool InitLightPickingCdf(
 	{
 		for (uint LightIndex = 0; LightIndex < SceneLightCount; ++LightIndex)
 		{
-			EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf[LightIndex]);
+			LightPickingCdf[LightIndex] = EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
 			LightPickingCdf[LightIndex] += LastCdf;
 			LastCdf = LightPickingCdf[LightIndex];
 		}
@@ -211,13 +182,11 @@ bool SampleLight(
 
 	SelectLight(RandSample.x, LightPickingCdf, OutLightId, LightPickPdf);
 
-	SampleLight(OutLightId, RandSample, WorldPos, WorldNormal,
-		OutDirection,
-		OutDistance,
-		OutRadianceOverPdf,
-		OutPdf);
-	OutRadianceOverPdf /= LightPickPdf;
-	OutPdf *= LightPickPdf;
+	FLightSample Result = SampleLight(OutLightId, RandSample, WorldPos, WorldNormal);
+	OutDirection = Result.Direction;
+	OutDistance = Result.Distance;
+	OutRadianceOverPdf = Result.RadianceOverPdf / LightPickPdf;
+	OutPdf = Result.Pdf * LightPickPdf;
 
 	return true;
 }

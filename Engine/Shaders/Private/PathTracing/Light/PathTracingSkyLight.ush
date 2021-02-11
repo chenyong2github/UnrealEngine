@@ -11,12 +11,11 @@ SkyLight.usf: Light sampling functions for SkyLight implementation
 
 #define USE_HIERARCHICAL_IMPORTANCE_SAMPLING
 
-void SkyLight_EstimateLight(
+float SkyLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
-	bool IsTransmissiveMaterial,
-	out float OutIrradiance
+	bool IsTransmissiveMaterial
 )
 {
 	// Modifying diffuse contribution to prevent false negatives with PDF estimation
@@ -24,11 +23,11 @@ void SkyLight_EstimateLight(
 	float3 SkyLightIrradiance = GetColor(LightId) * SkySHDiffuse;
 	float SkyLightIlluminance = Luminance(SkyLightIrradiance);
 
-	OutIrradiance = SkyLightIlluminance * 2.0f * PI;
+	return SkyLightIlluminance * 2.0f * PI;
 }
 
-float4 SkyLight_TraceLight(RayDesc Ray, int LightId, inout float HitT) {
-	if (Ray.TMax == HitT)
+FLightHit SkyLight_TraceLight(RayDesc Ray, int LightId) {
+	if (Ray.TMax == POSITIVE_INFINITY)
 	{
 		// LightUV convention in the code below is just the world space ray direction
 		// so its safe to call into the method below for now ...
@@ -65,21 +64,17 @@ float4 SkyLight_TraceLight(RayDesc Ray, int LightId, inout float HitT) {
 #endif
 		}
 		
-
-		return float4(Radiance, Pdf);
+		return CreateLightHit(Radiance, Pdf, POSITIVE_INFINITY);
 	}
-	return 0.0;
+	return NullLightHit();
 }
 
-void SkyLight_SampleLight(
+FLightSample SkyLight_SampleLight(
 	int LightId,
 	float4 RandSample,
 	float3 WorldPos,
-	float3 WorldNormal,
-	out float3 OutDirection,
-	out float  OutDistance,
-	out float3 OutRadianceOverPdf,
-	out float OutPdf)
+	float3 WorldNormal
+)
 {
 	// Make temp structures so we can re-use the calls above
 	// #dxr_todo: write optimized form that combines radiance and pdf lookup in a single step
@@ -160,12 +155,11 @@ void SkyLight_SampleLight(
 	uint LinearIndex = BufferOffsetAtPixel(MipPixel, StopLevel, SkyLight.MipDimensions.xy);
 	float AreaPdf = SkyLight.SolidAnglePdf[LinearIndex];
 
-	OutDirection = normalize(GetTextureCubeVector(TexelCoord, TextureDimensions));
-	OutPdf = FacePdf * MipPdf * AreaPdf;
+	float3 OutDirection = normalize(GetTextureCubeVector(TexelCoord, TextureDimensions));
+	float OutPdf = FacePdf * MipPdf * AreaPdf;
 #endif
 
 	float3 Radiance = SkyLight.Color * SkyLight.Texture.SampleLevel(SkyLight.TextureSampler, OutDirection, 0).rgb;
 
-	OutDistance = 1.0e27;
-	OutRadianceOverPdf = Radiance / OutPdf;
+	return CreateLightSample(Radiance / OutPdf, OutPdf, OutDirection, POSITIVE_INFINITY);
 }

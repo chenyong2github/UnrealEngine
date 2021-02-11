@@ -27,43 +27,41 @@ float SpotAttenuation(float3 L, float3 SpotDirection, float2 SpotAngles)
 }
 
 
-float4 SpotLight_TraceLight(RayDesc Ray, int LightId, inout float HitT) {
+FLightHit SpotLight_TraceLight(RayDesc Ray, int LightId) {
 
-	float4 Result = PointLight_TraceLight(Ray, LightId, HitT);
-	if (Result.w > 0)
+	FLightHit Result = PointLight_TraceLight(Ray, LightId);
+	if (Result.IsHit())
 	{
 		float3 LightPosition = GetPosition(LightId);
 		float3 LightNormal = GetNormal(LightId);
 		float2 CosConeAngles = GetCosConeAngles(LightId);
-		Result.xyz *= SpotAttenuation(-normalize(Ray.Origin - LightPosition), LightNormal, CosConeAngles);
+		Result.Radiance *= SpotAttenuation(-normalize(Ray.Origin - LightPosition), LightNormal, CosConeAngles);
 	}
 	return Result;
 }
 
-void SpotLight_SampleLight(
+FLightSample SpotLight_SampleLight(
 	int LightId,
 	float4 RandSample,
 	float3 WorldPos,
-	float3 WorldNormal,
-	out float3 OutDirection,
-	out float  OutDistance,
-	out float3 OutRadianceOverPdf,
-	out float OutPdf)
+	float3 WorldNormal
+)
 {
-	PointLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
+	FLightSample Result = PointLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal);
 
 	float3 LightPosition = GetPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);
 	float2 CosConeAngles = GetCosConeAngles(LightId);
-	OutRadianceOverPdf *= SpotAttenuation(-normalize(WorldPos - LightPosition), LightNormal, CosConeAngles);
+	Result.RadianceOverPdf *= SpotAttenuation(-normalize(WorldPos - LightPosition), LightNormal, CosConeAngles);
+
+	return Result;
 }
 
-void SpotLight_EstimateLight(
+float SpotLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
-	bool IsTransmissiveMaterial,
-	out float OutIrradiance
+	bool IsTransmissiveMaterial
 )
 {
 	float3 LightPosition = GetPosition(LightId);
@@ -79,9 +77,11 @@ void SpotLight_EstimateLight(
 	float NoL = 1.0; // trivial upper bound -- trying to be more accurate appears to reduce performance
 
 	float Falloff = ComputeAttenuationFalloff(LightDistanceSquared, LightId);
-	OutIrradiance = LightPower * Falloff * NoL / LightDistanceSquared;
+	float OutIrradiance = LightPower * Falloff * NoL / LightDistanceSquared;
 	
 	float2 CosConeAngles = GetCosConeAngles(LightId);
 	OutIrradiance *= SpotAttenuation(normalize(LightDirection), LightNormal, CosConeAngles);
+
+	return OutIrradiance;
 }
 

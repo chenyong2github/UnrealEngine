@@ -10,11 +10,11 @@ PathTracingPointLight.ush: Light sampling functions for Point lights
 #include "PathTracingCapsuleLight.ush"
 
 
-float4 PointLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
+FLightHit PointLight_TraceLight(RayDesc Ray, int LightId)
 {
 	if (GetSourceLength(LightId) > 0)
 	{
-		return CapsuleLight_TraceLight(Ray, LightId, HitT);
+		return CapsuleLight_TraceLight(Ray, LightId);
 	}
 
 	float3 LightPosition = GetPosition(LightId);
@@ -32,9 +32,8 @@ float4 PointLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
 	{
 		h = sqrt(h);
 		float t = (-b - h) / a;
-		if (t > Ray.TMin && t < HitT)
+		if (t > Ray.TMin && t < Ray.TMax)
 		{
-			HitT = t;
 			// #dxr_todo: sphere area is 4*pi*r^2 -- but the factor of 4 is missing for some reason?
 			float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 			float3 LightRadiance = LightPower / (PI * LightRadius2);
@@ -44,30 +43,28 @@ float4 PointLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
 			float OneMinusCosThetaMax = SinThetaMax2 < 0.01 ? SinThetaMax2 * (0.5 + 0.125 * SinThetaMax2) : 1 - sqrt(1 - SinThetaMax2);
 
 			float SolidAngle = 2 * PI * OneMinusCosThetaMax;
-			return float4(LightRadiance, 1.0 / SolidAngle);
+			return CreateLightHit(LightRadiance, 1.0 / SolidAngle, t);
 		}
 		// #dxr_todo: process inside hit here ...
 		// How should we define radiance on the inside of the sphere?
 	}
-	return 0.0;
+	return NullLightHit();
 }
 
-void PointLight_SampleLight(
+FLightSample PointLight_SampleLight(
 	int LightId,
 	float4 RandSample,
 	float3 WorldPos,
-	float3 WorldNormal,
-	out float3 OutDirection,
-	out float  OutDistance,
-	out float3 OutRadianceOverPdf,
-	out float OutPdf)
+	float3 WorldNormal
+)
 {
 	float3 LightDirection = GetPosition(LightId) - WorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
 
+	FLightSample Result = NullLightSample();
 	if (GetSourceLength(LightId) > 0)
 	{
-		CapsuleLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
+		Result = CapsuleLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal);
 	}
 	else
 	{
@@ -86,30 +83,30 @@ void PointLight_SampleLight(
 		float CosTheta = DirAndPdf.z;
 		float SinTheta2 = 1.0 - CosTheta * CosTheta;
 
-		OutDirection = TangentToWorld(DirAndPdf.xyz, normalize(LightDirection));
-		OutDistance = length(LightDirection) * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
+		Result.Direction = TangentToWorld(DirAndPdf.xyz, normalize(LightDirection));
+		Result.Distance = length(LightDirection) * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
 
-		OutPdf = DirAndPdf.w;
+		Result.Pdf = DirAndPdf.w;
 
 		float3 LightPower = GetColor(LightId);
 		float3 LightRadiance = LightPower / (PI * Radius2);
 
 		// When the angle is very small, Radiance over pdf simplifies even more since SolidAngle ~= PI * SinThetaMax2
 		// Canceling out common factors further leads to the classic Power / D^2 formula
-		OutRadianceOverPdf = SinThetaMax2 < 0.001 ? LightPower / LightDistanceSquared : LightRadiance / OutPdf;
+		Result.RadianceOverPdf = SinThetaMax2 < 0.001 ? LightPower / LightDistanceSquared : LightRadiance / Result.Pdf;
 	}
 
 	// NOTE: uses distance to center to keep fadeoff mask consistent for all samples
-	OutRadianceOverPdf *= ComputeAttenuationFalloff(LightDistanceSquared, LightId);
-	OutRadianceOverPdf *= ComputeIESAttenuation(LightId, WorldPos);
+	Result.RadianceOverPdf *= ComputeAttenuationFalloff(LightDistanceSquared, LightId);
+	Result.RadianceOverPdf *= ComputeIESAttenuation(LightId, WorldPos);
+	return Result;
 }
 
-void PointLight_EstimateLight(
+float PointLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
-	bool IsTransmissiveMaterial,
-	out float OutIrradiance
+	bool IsTransmissiveMaterial
 )
 {
 	// Distance
@@ -121,5 +118,5 @@ void PointLight_EstimateLight(
 
 	float LightPower = Luminance(GetColor(LightId));
 	float Falloff = ComputeAttenuationFalloff(LightDistanceSquared, LightId);
-	OutIrradiance = LightPower * Falloff * NoL / LightDistanceSquared;
+	return LightPower * Falloff * NoL / LightDistanceSquared;
 }

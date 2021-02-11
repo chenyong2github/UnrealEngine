@@ -11,6 +11,51 @@ LightCommon.usf: Common utility functions for light sampling
 uint SceneLightCount;
 StructuredBuffer<FPathTracingLight> SceneLights;
 
+struct FLightHit {
+	float3 Radiance;
+	float Pdf;
+	float HitT;
+
+	bool IsMiss() { return HitT <= 0; }
+	bool IsHit() { return HitT > 0; }
+};
+
+struct FLightSample {
+	float3 RadianceOverPdf;
+	float Pdf;
+	float3 Direction;
+	float Distance;
+};
+
+FLightHit NullLightHit()
+{
+	return (FLightHit)0;
+}
+
+FLightHit CreateLightHit(float3 Radiance, float Pdf, float HitT)
+{
+	FLightHit Result;
+	Result.Radiance = Radiance;
+	Result.Pdf = Pdf;
+	Result.HitT = HitT;
+	return Result;
+}
+
+FLightSample NullLightSample()
+{
+	return (FLightSample)0;
+}
+
+FLightSample CreateLightSample(float3 RadianceOverPdf, float Pdf, float3 Direction, float Distance)
+{
+	FLightSample Sample;
+	Sample.RadianceOverPdf = RadianceOverPdf;
+	Sample.Pdf = Pdf;
+	Sample.Direction = Direction;
+	Sample.Distance = Distance;
+	return Sample;
+}
+
 
 int GetLightId(FMaterialClosestHitPayload RayHitInfo)
 {

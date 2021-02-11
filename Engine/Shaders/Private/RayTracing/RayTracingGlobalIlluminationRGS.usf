@@ -182,7 +182,9 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				if (EvalSkyLight && Bounce > 0)
 				{
 					uint SkyLightId = 0;
-					float3 EnvironmentRadiance = SkyLight_TraceLight(Ray, SkyLightId, Ray.TMax).xyz;
+					RayDesc LightRay = Ray;
+					LightRay.TMax = POSITIVE_INFINITY;
+					float3 EnvironmentRadiance = SkyLight_TraceLight(Ray, SkyLightId).Radiance;
 					Irradiance += EnvironmentRadiance * RayThroughput / RayPdf;
 				}
 				break;

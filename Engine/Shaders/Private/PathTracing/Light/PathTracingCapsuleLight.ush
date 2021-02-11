@@ -55,18 +55,17 @@ float3 CapsuleNormal(float3 Pos, float3 Center, float3 Axis)
 	return normalize(pa - h * Axis);
 }
 
-float4 CapsuleLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
+FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 {
 	float3 LightPosition = GetPosition(LightId);
 	float LightRadius = GetRadius(LightId);
 	float SourceLength = GetSourceLength(LightId);
 	float3 Axis = GetdPdv(LightId) * SourceLength;
 	float t = CapsuleIntersect(Ray.Origin, Ray.Direction, LightPosition, Axis, LightRadius);
-	if (t > Ray.TMin && t < HitT)
+	if (t > Ray.TMin && t < Ray.TMax)
 	{
 		float CapsArea = Pow2(LightRadius);
 		float BodyArea = 0.5 * LightRadius * SourceLength;
-		HitT = t;
 		float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 		float3 LightRadiance = LightPower / (PI * (CapsArea + BodyArea));
 		float3 LightDirection = GetPosition(LightId) - Ray.Origin;
@@ -79,20 +78,17 @@ float4 CapsuleLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
 
 		float Pdf = CosTheta > 0 ? t * t / (4 * PI * CosTheta * (CapsArea + BodyArea)) : 0.0;
 
-		return float4(LightRadiance, Pdf);
+		return CreateLightHit(LightRadiance, Pdf, t);
 	}
-	return 0.0;
+	return NullLightHit();
 }
 
-void CapsuleLight_SampleLight(
+FLightSample CapsuleLight_SampleLight(
 	int LightId,
 	float4 RandSample,
 	float3 WorldPos,
-	float3 WorldNormal,
-	out float3 OutDirection,
-	out float  OutDistance,
-	out float3 OutRadianceOverPdf,
-	out float OutPdf)
+	float3 WorldNormal
+)
 {
 	// Capsule case
 	// #dxr_todo: only sample the visible portion of the capsule and account for the 1/d^2 falloff down the axis
@@ -143,10 +139,12 @@ void CapsuleLight_SampleLight(
 	LightPoint = mul(LightPoint, CylinderBasis) + LightDirection; // Local to World
 
 	float DistanceSquared = dot(LightPoint, LightPoint);
-	OutDistance = sqrt(DistanceSquared);
-	OutDirection = LightPoint * rcp(OutDistance);
+	float Distance = sqrt(DistanceSquared);
+	float3 Direction = LightPoint * rcp(Distance);
 
 	float3 LightPower = GetColor(LightId);
-	OutRadianceOverPdf = LightPower * CosTheta * 4 / DistanceSquared;
-	OutPdf = CosTheta > 0 ? DistanceSquared / (4 * PI * CosTheta * (CapsArea + BodyArea)) : 0.0;
+	float3 RadianceOverPdf = LightPower * CosTheta * 4 / DistanceSquared;
+	float Pdf = CosTheta > 0 ? DistanceSquared / (4 * PI * CosTheta * (CapsArea + BodyArea)) : 0.0;
+
+	return CreateLightSample(RadianceOverPdf, Pdf, Direction, Distance);
 }

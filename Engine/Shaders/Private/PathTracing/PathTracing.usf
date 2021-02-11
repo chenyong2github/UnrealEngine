@@ -64,8 +64,9 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 		// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
 		for (uint LightId = 0; LightId < NumLights; ++LightId)
 		{
-			float HitT = HitPayload.IsMiss() ? Ray.TMax : HitPayload.HitT;
-			float3 LightRadiance = TraceLight(Ray, LightId, HitT).xyz;
+			RayDesc LightRay = Ray;
+			LightRay.TMax = HitPayload.IsMiss() ? Ray.TMax : HitPayload.HitT;
+			float3 LightRadiance = TraceLight(LightRay, LightId).Radiance;
 			AccumulateRadiance(Radiance, PathThroughput * LightRadiance);
 		}
 
@@ -318,45 +319,38 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 				SelectLight(RandSample.x, LightPickingCdf, LightId, LightPickPdf);
 
-				RayDesc LightRay;
-				LightRay.Origin = WorldPos;
-				LightRay.TMin = 0;
-				float3 RadianceOverPdf;
-				float LightPdf;
-				SampleLight(LightId, RandSample, WorldPos, WorldNormal,
-					LightRay.Direction,
-					LightRay.TMax,
-					RadianceOverPdf,
-					LightPdf);
-				RadianceOverPdf /= LightPickPdf;
-				LightPdf *= LightPickPdf;
-				if (LightPdf > 0)
-				{
-					float SignedPositionBias = 1.0;
-					if (IsTransmissiveMaterial)
-					{
-						// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
-						float NoL = dot(Payload.WorldNormal, LightRay.Direction);
-						SignedPositionBias = sign(NoL);
-					}
-					ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, PathTracingData.MaxNormalBias);
+				FLightSample LightSample = SampleLight(LightId, RandSample, WorldPos, WorldNormal);
 
+				LightSample.RadianceOverPdf /= LightPickPdf;
+				LightSample.Pdf *= LightPickPdf;
+				if (LightSample.Pdf > 0)
+				{
 					if (CastsShadow(LightId))
 					{
-						RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, LaunchIndex, PathRoughness);
+						// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
+						const float SignedPositionBias = IsTransmissiveMaterial ? sign(dot(Payload.WorldNormal, LightSample.Direction)) : 1.0;
+
+						RayDesc LightRay;
+						LightRay.Origin = WorldPos;
+						LightRay.TMin = 0;
+						LightRay.Direction = LightSample.Direction;
+						LightRay.TMax = LightSample.Distance;
+						ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, PathTracingData.MaxNormalBias);
+
+						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, LaunchIndex, PathRoughness);
 					}
 
 					// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
-					if (any(RadianceOverPdf > 0))
+					if (any(LightSample.RadianceOverPdf > 0))
 					{
 						// Evaluate material
-						FMaterialEval MaterialEval = EvalMaterial(Ray.Direction, LightRay.Direction, Payload, false);
+						FMaterialEval MaterialEval = EvalMaterial(Ray.Direction, LightSample.Direction, Payload, false);
 
 						// Record the contribution
-						float3 LightContrib = PathThroughput * RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;
+						float3 LightContrib = PathThroughput * LightSample.RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;
 						if (MISMode == 2)
 						{
-							LightContrib *= MISWeightRobust(LightPdf, MaterialEval.Pdf);
+							LightContrib *= MISWeightRobust(LightSample.Pdf, MaterialEval.Pdf);
 						}
 						AccumulateRadiance(Radiance, LightContrib);
 					}
@@ -434,19 +428,15 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 					continue;
 				}
 
-				float HitT = Ray.TMax;
-				float4 LightResult = TraceLight(Ray, LightId, HitT);
-				float3 LightRadiance = LightResult.xyz;
+				FLightHit LightResult = TraceLight(Ray, LightId);
 
-				float3 LightContrib = PathThroughput * LightRadiance;
+				float3 LightContrib = PathThroughput * LightResult.Radiance;
 				if (MISMode == 2)
 				{
-					float LightPdf = LightResult.w;
 					float LightPickPdf =  LightPickingCdf[LightId] - PreviousCdfValue;
 					PreviousCdfValue = LightPickingCdf[LightId];
 
-					LightPdf *= LightPickPdf;
-					LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightPdf);
+					LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf * LightPickPdf);
 				}
 
 				if (any(LightContrib > 0))
@@ -454,7 +444,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 					if (CastsShadow(LightId))
 					{
 						RayDesc LightRay = Ray;
-						LightRay.TMax = HitT;
+						LightRay.TMax = LightResult.HitT;
 						LightContrib *= TraceTransparentVisibilityRay(LightRay, LaunchIndex, PathRoughness);
 					}
 					// the light made some contribution, and there was nothing along the shadow ray
