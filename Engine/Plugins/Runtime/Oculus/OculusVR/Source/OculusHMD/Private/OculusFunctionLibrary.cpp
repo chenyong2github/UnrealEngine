@@ -353,7 +353,7 @@ EOculusDeviceType UOculusFunctionLibrary::GetDeviceType()
 			switch (OculusHMD->GetSettings()->SystemHeadset) {
 			case ovrpSystemHeadset_Oculus_Quest:
 				return EOculusDeviceType::OculusQuest;
-			case ovrpSystemHeadset_Placeholder_9:
+			case ovrpSystemHeadset_Oculus_Quest_2:
 				return EOculusDeviceType::OculusQuest2;
 			/*case ovrpSystemHeadset_Placeholder_10:
 				return EOculusDeviceType::OculusMobile_Placeholder10;*/
@@ -363,9 +363,9 @@ EOculusDeviceType UOculusFunctionLibrary::GetDeviceType()
 				return EOculusDeviceType::Rift_S;
 			case ovrpSystemHeadset_Oculus_Link_Quest:
 				return EOculusDeviceType::Quest_Link;
-			/*case ovrpSystemHeadset_PC_Placeholder_4102:
-				return EOculusDeviceType::OculusPC_Placeholder4102;
-			case ovrpSystemHeadset_PC_Placeholder_4103:
+			case ovrpSystemHeadset_Oculus_Link_Quest_2:
+				return EOculusDeviceType::Quest2_Link;
+			/*case ovrpSystemHeadset_PC_Placeholder_4103:
 				return EOculusDeviceType::OculusPC_Placeholder4103;*/
 			default:
 				break;

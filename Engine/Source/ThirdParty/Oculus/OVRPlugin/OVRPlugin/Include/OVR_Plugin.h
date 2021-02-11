@@ -2,14 +2,8 @@
 
 Copyright (c) Facebook Technologies, LLC and its affiliates.  All rights reserved.
 
-Licensed under the Oculus Master SDK License Version 1.0 (the "License");
-you may not use the Oculus SDK except in compliance with the License,
-which is provided at the time of installation or download, or which
-otherwise accompanies this software in either electronic or hard copy form.
-
-You may obtain a copy of the License at
-
-https://developer.oculus.com/licenses/oculusmastersdk-1.0/
+Your use of this SDK or tool is subject to the Oculus SDK License Agreement, available at
+https://developer.oculus.com/licenses/oculussdk/
 
 Unless required by applicable law or agreed to in writing, the Oculus SDK
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,7 +42,7 @@ OVRP_EXPORT ovrpBool ovrp_GetInitialized();
 /// Sets up the Oculus runtime, VR tracking, and graphics resources.
 /// You must call this before any other function except ovrp_PreInitialize() or
 /// ovrp_GetInitialized().
-OVRP_EXPORT ovrpResult ovrp_Initialize5(
+OVRP_EXPORT ovrpResult ovrp_Initialize6(
     ovrpRenderAPIType apiType,
     ovrpLogCallback logCallback,
     void* activity,
@@ -56,6 +50,8 @@ OVRP_EXPORT ovrpResult ovrp_Initialize5(
     void* vkPhysicalDevice,
     void* vkDevice,
     void* vkQueue,
+    void* vkGetInstanceProcAddr, // PFN_vkGetInstanceProcAddr
+    unsigned int vkQueueFamilyIndex,
     int initializeFlags,
     OVRP_CONSTREF(ovrpVersion) version);
 
@@ -68,8 +64,15 @@ OVRP_EXPORT ovrpResult ovrp_GetVersion2(char const** version);
 /// Gets the version of the underlying VR SDK currently in use.
 OVRP_EXPORT ovrpResult ovrp_GetNativeSDKVersion2(char const** nativeSDKVersion);
 
-/// Returns a pointer that can be used to access the underlying VR SDK.
+/// Returns a pointer that can be used to access the underlying VR SDK
+/// (e.g. ovrSession in CAPI, ovrMobile* in VRAPI, XrSession* in OpenXR).
 OVRP_EXPORT ovrpResult ovrp_GetNativeSDKPointer2(void** nativeSDKPointer);
+
+/// Retreive the current XR API being used by OVRPlugin
+OVRP_EXPORT ovrpResult ovrp_GetNativeXrApiType(ovrpXrApi* xrApi);
+
+/// Retrive XrInstance / XrSession when OpenXR is being used
+OVRP_EXPORT ovrpResult ovrp_GetNativeOpenXRHandles(ovrpUInt64* xrInstance, ovrpUInt64* xrSession);
 
 /// Retrieves the expected Display Adapter ID associated with the Oculus HMD.
 /// On Windows systems, this will return a DX11 LUID, otherwise nullptr.
@@ -125,13 +128,6 @@ OVRP_EXPORT ovrpResult ovrp_GetDominantHand(ovrpHandedness* dominantHand);
 /// Used by System Activities application for setting the Remote Handedness.
 OVRP_EXPORT ovrpResult ovrp_SetRemoteHandedness(ovrpHandedness handedness);
 
-// Returns the recenter mode (i.e. what the HMD does when the controller recenters).
-// If true, the HMD recenters on controller recenter, and if false, the HMD does nothing on controller recenter.
-OVRP_EXPORT ovrpResult ovrp_GetReorientHMDOnControllerRecenter(ovrpBool* recenter);
-
-// Sets the recenter mode on mobile, and returns unsupported on PC.
-OVRP_EXPORT ovrpResult ovrp_SetReorientHMDOnControllerRecenter(ovrpBool recenter);
-
 // Sets color scale parameters; can be used for effects like fade-to-black. Final pixel color will be multiplied by
 // colorScale and added to offset. If applyToAllLayers is false, this applies only for the eyefov layer. If it's true,
 // it's for every layer submitted.
@@ -150,6 +146,12 @@ OVRP_EXPORT ovrpResult ovrp_SetupLayerDepth(void* device, ovrpTextureFormat dept
 /// Get Eye Fov layer index if created
 /// Otherwise return fail
 OVRP_EXPORT ovrpResult ovrp_GetEyeFovLayerId(int* layerId);
+
+/// Set blending mode of Eye Fov layer to use premultiplied alpha or not
+OVRP_EXPORT ovrpResult ovrp_SetEyeFovPremultipliedAlphaMode(const ovrpBool enabled);
+
+/// Get premultiplied alpha mode of the Eye Fov layer
+OVRP_EXPORT ovrpResult ovrp_GetEyeFovPremultipliedAlphaMode(ovrpBool* enabled);
 
 /// Gets the number of texture stages in the layer.
 /// Layers have multiple stages, unless the ovrpLayer_Static flag was specified.
@@ -288,6 +290,9 @@ OVRP_EXPORT ovrpResult ovrp_WaitToBeginFrame(int frameIndex);
 /// Marks the beginning of a frame. Call this before issuing any graphics commands in a given frame.
 OVRP_EXPORT ovrpResult ovrp_BeginFrame4(int frameIndex, void* commandQueue);
 
+/// Late update of foveation parameters, both GL and Vulkan
+OVRP_EXPORT ovrpResult ovrp_UpdateFoveation(int frameIndex);
+
 /// Marks the end of a frame and performs TimeWarp. Call this before Present or SwapBuffers to
 /// update the VR window.
 OVRP_EXPORT ovrpResult
@@ -362,6 +367,11 @@ OVRP_EXPORT ovrpResult ovrp_GetNodePoseStateRaw(ovrpStep step, int frameIndex, o
 
 /// Gets the current frustum for the given node, if available.
 OVRP_EXPORT ovrpResult ovrp_GetNodeFrustum2(ovrpNode nodeId, ovrpFrustum2f* nodeFrustum);
+
+
+
+
+
 
 /// Set relative rotation/translation to the eye pose
 OVRP_EXPORT ovrpResult ovrp_SetHeadPoseModifier(const ovrpQuatf* relativeRotation, const ovrpVector3f* relativeTranslation);
@@ -610,10 +620,6 @@ OVRP_EXPORT ovrpResult ovrp_AutoThreadScheduling(
     ovrpThreadPerf* threadPerfFlags,
     int threadCount);
 
-
-
-
-
 OVRP_EXPORT ovrpResult ovrp_GetGPUFrameTime(float* gpuTime);
 
 /// This is to request vertices and indices for the triangle mesh
@@ -632,6 +638,8 @@ OVRP_EXPORT ovrpResult ovrp_SendEvent2(const char* eventName, const char* param,
 OVRP_EXPORT ovrpResult ovrp_AddCustomMetadata(const char* metadataName, const char* metadataParam);
 
 OVRP_EXPORT ovrpResult ovrp_SetDeveloperMode(ovrpBool active);
+
+OVRP_EXPORT ovrpResult ovrp_SetDeveloperModeStrict(ovrpBool active);
 
 OVRP_EXPORT ovrpResult ovrp_SetVrApiPropertyInt(int propertyEnum, int value);
 
@@ -658,8 +666,17 @@ OVRP_EXPORT ovrpResult ovrp_GetPredictedDisplayTime(int frameIndex, double* pred
 OVRP_EXPORT ovrpResult ovrp_GetHandTrackingEnabled(ovrpBool* handTrackingEnabled);
 OVRP_EXPORT ovrpResult ovrp_GetHandState(ovrpStep step, ovrpHand hand, ovrpHandState* handState);
 OVRP_EXPORT ovrpResult ovrp_GetHandState2(ovrpStep step, int frameIndex, ovrpHand hand, ovrpHandState* handState);
-OVRP_EXPORT ovrpResult ovrp_GetSkeleton(ovrpSkeletonType skeletonType, ovrpSkeleton* skeleton);
+OVRP_EXPORT ovrpResult ovrp_GetSkeleton2(ovrpSkeletonType skeletonType, ovrpSkeleton2* skeleton);
 OVRP_EXPORT ovrpResult ovrp_GetMesh(ovrpMeshType meshType, ovrpMesh* mesh);
+
+
+
+
+
+
+
+
+
 
 OVRP_EXPORT ovrpResult ovrp_GetLocalTrackingSpaceRecenterCount(int* recenterCount);
 
@@ -669,6 +686,13 @@ OVRP_EXPORT ovrpResult ovrp_GetSystemHmd3DofModeEnabled(ovrpBool* enabled);
 OVRP_EXPORT ovrpResult ovrp_SetClientColorDesc(ovrpColorSpace colorSpace);
 OVRP_EXPORT ovrpResult ovrp_GetHmdColorDesc(ovrpColorSpace* colorSpace);
 
+// app should call this in a loop until there are no more events, which will return ovrpSuccess_EventUnavailable and an event of type ovrpEventType_None
+// ovrp_PollEvent and ovrp_PollEvent2 are both in use, Unity needed ovrp_PollEvent2 due to memory allocation issues
+OVRP_EXPORT ovrpResult ovrp_PollEvent(ovrpEventDataBuffer* eventBuffer);
+OVRP_EXPORT ovrpResult ovrp_PollEvent2(ovrpEventType* eventType, unsigned char** eventBuffer);
+
+OVRP_EXPORT ovrpResult ovrp_SetKeyboardOverlayUV(ovrpVector2f uv);
+OVRP_EXPORT ovrpResult ovrp_SetKeyboardOverlayPose(ovrpPosef pose);
 
 
 

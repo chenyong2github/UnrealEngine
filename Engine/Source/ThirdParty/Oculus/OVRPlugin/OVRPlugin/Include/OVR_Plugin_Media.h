@@ -14,6 +14,9 @@ OVRP_EXPORT ovrpResult ovrp_Media_Update();
 
 OVRP_EXPORT ovrpResult ovrp_Media_GetMrcActivationMode(ovrpMediaMrcActivationMode* activationMode);
 OVRP_EXPORT ovrpResult ovrp_Media_SetMrcActivationMode(ovrpMediaMrcActivationMode activationMode);
+OVRP_EXPORT ovrpResult ovrp_Media_SetPlatformInitialized();
+OVRP_EXPORT ovrpResult ovrp_Media_GetPlatformCameraMode(ovrpPlatformCameraMode* platformCameraMode);
+OVRP_EXPORT ovrpResult ovrp_Media_SetPlatformCameraMode(ovrpPlatformCameraMode platformCameraMode);
 OVRP_EXPORT ovrpResult ovrp_Media_IsMrcEnabled(ovrpBool* mrcEnabled);
 OVRP_EXPORT ovrpResult ovrp_Media_IsMrcActivated(ovrpBool* mrcActivated);
 OVRP_EXPORT ovrpResult ovrp_Media_UseMrcDebugCamera(ovrpBool* useMrcDebugCamera);

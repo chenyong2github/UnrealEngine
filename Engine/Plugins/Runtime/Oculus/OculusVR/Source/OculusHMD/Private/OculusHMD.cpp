@@ -2149,7 +2149,7 @@ namespace OculusHMD
 				initializeFlags |= ovrpInitializeFlag_FocusAware;
 			}
 
-			if (OVRP_FAILURE(FOculusHMDModule::GetPluginWrapper().Initialize5(
+			if (OVRP_FAILURE(FOculusHMDModule::GetPluginWrapper().Initialize6(
 				CustomPresent->GetRenderAPI(),
 				logCallback,
 				activity,
@@ -2157,6 +2157,8 @@ namespace OculusHMD
 				CustomPresent->GetOvrpPhysicalDevice(),
 				CustomPresent->GetOvrpDevice(),
 				CustomPresent->GetOvrpCommandQueue(),
+				nullptr,
+				-1,
 				initializeFlags,
 				{ OVRP_VERSION })))
 			{
@@ -2192,7 +2194,6 @@ namespace OculusHMD
 		FOculusHMDModule::GetPluginWrapper().SetTiledMultiResLevel((ovrpTiledMultiResLevel)Settings->FFRLevel);
 		FOculusHMDModule::GetPluginWrapper().SetTiledMultiResDynamic(Settings->FFRDynamic);
 		FOculusHMDModule::GetPluginWrapper().SetAppCPUPriority2(ovrpBool_True);
-		FOculusHMDModule::GetPluginWrapper().SetReorientHMDOnControllerRecenter(Settings->Flags.bRecenterHMDWithController ? ovrpBool_True : ovrpBool_False);
 
 		OCFlags.NeedSetTrackingOrigin = true;
 		bNeedReAllocateViewportRenderTarget = true;
