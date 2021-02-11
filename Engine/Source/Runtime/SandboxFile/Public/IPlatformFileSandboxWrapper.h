@@ -45,6 +45,12 @@ class SANDBOXFILE_API FSandboxPlatformFile : public IPlatformFile
 	bool				bSandboxEnabled;
 
 	/**
+	 *	Whether access is restricted to the sandbox or not.
+	 *	Defaults to false.
+	 */
+	bool				bSandboxOnly;
+
+	/**
 	 * Clears the contents of the specified folder
 	 *
 	 * @param AbsolutePath Absolute path to the folder to wipe
@@ -162,6 +168,9 @@ public:
 	 * @Caution, these have a performance cost
 	*/
 	void AddExclusion(const TCHAR* Wildcard, bool bIsDirectory = false);
+
+	/** Whether access is restricted the the sandbox or not. */
+	void SetSandboxOnly(bool bInSandboxOnly);
 
 	// IPlatformFile Interface
 

@@ -35,6 +35,7 @@ FSandboxPlatformFile::FSandboxPlatformFile(bool bInEntireEngineWillUseThisSandbo
 	: LowerLevel(nullptr)
 	, bEntireEngineWillUseThisSandbox(bInEntireEngineWillUseThisSandbox)
 	, bSandboxEnabled(true)
+	, bSandboxOnly(false)
 {
 }
 
@@ -447,7 +448,7 @@ bool FSandboxPlatformFile::OkForInnerAccess(const TCHAR* InFilenameOrDirectoryNa
 			}
 		}
 	}
-	return true;
+	return !bSandboxOnly;
 }
 
 void FSandboxPlatformFile::SetSandboxEnabled(bool bInEnabled)
@@ -485,6 +486,11 @@ void FSandboxPlatformFile::AddExclusion(const TCHAR* Wildcard, bool bIsDirectory
 	{
 		FileExclusionWildcards.AddUnique(FString(Wildcard));
 	}
+}
+
+void FSandboxPlatformFile::SetSandboxOnly(bool bInSandboxOnly)
+{
+	bSandboxOnly = bInSandboxOnly;
 }
 
 // IPlatformFile Interface

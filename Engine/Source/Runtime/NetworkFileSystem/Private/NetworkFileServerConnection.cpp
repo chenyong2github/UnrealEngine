@@ -457,6 +457,10 @@ void FNetworkFileServerClientConnection::ProcessOpenFile( FArchive& In, FArchive
 	TArray<FString> NewUnsolictedFiles;
 	NetworkFileDelegates->FileRequestDelegate.ExecuteIfBound(Filename, ConnectedPlatformName, NewUnsolictedFiles);
 
+	// Disable access to outside the sandbox to prevent sending uncooked packages to the client
+	const bool bIsCookable = FPackageName::IsPackageExtension(*FPaths::GetExtension(Filename, true));
+	Sandbox->SetSandboxOnly(bIsCookable && !bIsWriting);
+
 	FDateTime ServerTimeStamp = Sandbox->GetTimeStamp(*Filename);
 	int64 ServerFileSize = 0;
 	IFileHandle* File = bIsWriting ? Sandbox->OpenWrite(*Filename, bAppend, bAllowRead) : Sandbox->OpenRead(*Filename);
@@ -469,6 +473,8 @@ void FNetworkFileServerClientConnection::ProcessOpenFile( FArchive& In, FArchive
 	{
 		ServerFileSize = File->Size();
 	}
+
+	Sandbox->SetSandboxOnly(false);
 
 	uint64 HandleId = ++LastHandleId;
 	OpenFiles.Add( HandleId, File );
