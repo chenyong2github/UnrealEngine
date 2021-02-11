@@ -154,10 +154,16 @@ void FNiagaraDataSet::ResetBuffers()
 	else
 	{
 		checkSlow(GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);
-		ENQUEUE_RENDER_COMMAND(ResetBuffersCommand)([=](FRHICommandListImmediate& RHICmdList)
-		{
-			ResetBuffersInternal();
-		});
+		ENQUEUE_RENDER_COMMAND(ResetBuffersCommand)(
+			[=](FRHICommandListImmediate& RHICmdList)
+			{
+				for (FNiagaraDataBuffer* Buffer : Data)
+				{
+					Buffer->ReleaseGPU();
+				}
+				ResetBuffersInternal();
+			}
+		);
 	}
 }
 
@@ -863,6 +869,36 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 #if NIAGARA_MEMORY_TRACKING
 	Owner->BufferSizeBytes += GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes;
 #endif
+}
+
+void FNiagaraDataBuffer::ReleaseGPU()
+{
+	check(IsInRenderingThread());
+
+	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUParticleMemory, GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes);
+
+	NumInstancesAllocated = 0;
+	FloatStride = 0;
+	Int32Stride = 0;
+	HalfStride = 0;
+
+	if (GPUBufferFloat.Buffer)
+	{
+		GPUBufferFloat.Release();
+	}
+	if (GPUBufferInt.Buffer)
+	{
+		GPUBufferInt.Release();
+	}
+	if (GPUBufferHalf.Buffer)
+	{
+		GPUBufferHalf.Release();
+	}
+
+	if (GPUIDToIndexTable.Buffer)
+	{
+		GPUIDToIndexTable.Release();
+	}
 }
 
 void FNiagaraDataBuffer::SwapInstances(uint32 OldIndex, uint32 NewIndex) 

@@ -872,13 +872,12 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 
 void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batcher)
 {
-	FNiagaraComputeExecutionContext* Context = this;
-	NiagaraEmitterInstanceBatcher* B = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
+	NiagaraEmitterInstanceBatcher* RT_Batcher = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
 	ENQUEUE_RENDER_COMMAND(ResetRT)(
-		[B, Context](FRHICommandListImmediate& RHICmdList)
-	{
-		Context->ResetInternal(B);
-	}
+		[RT_Batcher, RT_Context=this](FRHICommandListImmediate& RHICmdList)
+		{
+			RT_Context->ResetInternal(RT_Batcher);
+		}
 	);
 }
 
