@@ -1,18 +1,18 @@
 {
-	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
-	"FriendlyName" : "Media IO Framework",
-	"Description" : "Media Framework classes to support Professional Media IO used by the Virtual Production industry.",
-	"Category" : "Media",
-	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
-	"MarketplaceURL" : "",
-	"SupportURL" : "",
-	"EnabledByDefault" : false,
-	"CanContainContent" : false,
-	"IsBetaVersion" : false,
-	"Installed" : false,
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Media IO Framework",
+	"Description": "Media Framework classes to support Professional Media IO used by the Virtual Production industry.",
+	"Category": "Virtual Production",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
 	"Modules": [
 		{
 			"Name": "MediaIOCore",
@@ -24,5 +24,7 @@
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
 		}
-	]
+	],
+	"DocsURL": "",
+	"IsExperimentalVersion": false
 }

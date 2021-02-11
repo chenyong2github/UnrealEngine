@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Interchange Editor",
 	"Description": "Interchange Editor plugin pull on Interchange plugin to allow us to force interchange plugin in editor.",
-	"Category": "Import Export",
+	"Category": "Importers",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
@@ -30,5 +30,6 @@
 				"Program"
 			]
 		}
-	]
+	],
+	"IsExperimentalVersion": false
 }

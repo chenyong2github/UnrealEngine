@@ -1,10 +1,10 @@
 {
-	"FileVersion": 1,
+	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "0.1",
 	"FriendlyName": "Automation Utilities",
 	"Description": "Tools and Utilities for Automation purposes",
-	"Category": "Automation",
+	"Category": "Testing",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"MarketplaceURL": "",
@@ -25,11 +25,12 @@
 			"LoadingPhase": "Default"
 		}
 	],
-	"Plugins":
-	[
+	"Plugins": [
 		{
 			"Name": "ScreenshotTools",
 			"Enabled": true
 		}
-	]
+	],
+	"DocsURL": "",
+	"IsExperimentalVersion": false
 }

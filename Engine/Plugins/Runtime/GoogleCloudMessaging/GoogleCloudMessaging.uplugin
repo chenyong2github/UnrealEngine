@@ -1,21 +1,28 @@
 {
-	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
-	"FriendlyName" : "Google Cloud Messaging",
-	"Description" : "Support for remote notifications using Google Cloud Messaging",
-	"Category" : "Notifications",
-	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
-	"EnabledByDefault" : true,
-  "Installed" : false,
-	"Modules" :
-	[
-        {
-            "Name": "GoogleCloudMessaging",
-            "Type": "Runtime",
-            "LoadingPhase": "PreDefault",
-            "WhitelistPlatforms": [ "Android" ]
-        }
-	]
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Google Cloud Messaging",
+	"Description": "Support for remote notifications using Google Cloud Messaging",
+	"Category": "Online Platform",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"EnabledByDefault": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "GoogleCloudMessaging",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"WhitelistPlatforms": [
+				"Android"
+			]
+		}
+	],
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false
 }

@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Movie Player for WebM files",
 	"Description": "Movie Player for WebM files",
-	"Category": "Movie Players",
+	"Category": "Media Players",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
@@ -34,5 +34,6 @@
 			"Name": "WebMMedia",
 			"Enabled": true
 		}
-	]
+	],
+	"IsExperimentalVersion": false
 }

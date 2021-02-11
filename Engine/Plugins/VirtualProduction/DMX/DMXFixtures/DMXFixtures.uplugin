@@ -1,24 +1,24 @@
 {
-  "FileVersion": 1,
-  "Version": 1,
-  "VersionName": "1.0",
-  "FriendlyName": "DMX Fixtures",
-  "Description": "DMX Light Fixtures Blueprints",
-  "Category": "Media",
-  "CreatedBy": "Epic Games, Inc.",
-  "CreatedByURL": "http://epicgames.com",
-  "DocsURL": "",
-  "MarketplaceURL": "",
-  "SupportURL": "",
-  "CanContainContent": true,
-  "IsBetaVersion": true,
-  "Modules": [
-    {
-      "Name": "DMXFixtures",
-      "Type": "Runtime",
-      "LoadingPhase": "Default"
-    }
-   ],
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "DMX Fixtures",
+	"Description": "DMX Light Fixtures Blueprints",
+	"Category": "Virtual Production",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Modules": [
+		{
+			"Name": "DMXFixtures",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
 	"Plugins": [
 		{
 			"Name": "DMXEngine",
@@ -32,5 +32,7 @@
 			"Name": "ProceduralMeshComponent",
 			"Enabled": true
 		}
-	]
+	],
+	"IsExperimentalVersion": false,
+	"Installed": false
 }

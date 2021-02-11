@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Property Access Node",
 	"Description": "Blueprint node that allows access to properties via a property path",
-	"Category": "Developer",
+	"Category": "Blueprints",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
@@ -14,20 +14,18 @@
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
-
-	"Modules":
-	[
+	"Modules": [
 		{
 			"Name": "PropertyAccessNode",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault"
 		}
 	],
-	"Plugins":
-	[
+	"Plugins": [
 		{
 			"Name": "PropertyAccessEditor",
 			"Enabled": true
 		}
-	]
+	],
+	"IsExperimentalVersion": false
 }

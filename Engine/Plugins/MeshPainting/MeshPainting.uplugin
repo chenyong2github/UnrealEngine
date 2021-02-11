@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Mesh Painting",
 	"Description": "System for painting data onto meshes.",
-	"Category": "Mesh",
+	"Category": "Editor",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
@@ -31,5 +31,6 @@
 			"Name": "GeometryProcessing",
 			"Enabled": true
 		}
-	]
+	],
+	"IsExperimentalVersion": false
 }

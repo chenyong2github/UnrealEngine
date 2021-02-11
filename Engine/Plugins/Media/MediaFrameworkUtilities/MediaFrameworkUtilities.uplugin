@@ -1,24 +1,23 @@
 {
-	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
-	"FriendlyName" : "Media Framework Utilities",
-	"Description" : "Utility assets and actors to ease the use of the Media Framework.",
-	"Category" : "Media",
-	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
-	"MarketplaceURL" : "",
-	"SupportURL" : "",
-	"EnabledByDefault" : false,
-	"CanContainContent" : true,
-	"IsBetaVersion" : false,
-	"Installed" : false,
-	"Modules" :
-	[
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Media Framework Utilities",
+	"Description": "Utility assets and actors to ease the use of the Media Framework.",
+	"Category": "Media Players",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
 		{
-			"Name" : "MediaFrameworkUtilities",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default",
+			"Name": "MediaFrameworkUtilities",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Linux",
@@ -26,9 +25,9 @@
 			]
 		},
 		{
-			"Name" : "MediaFrameworkUtilitiesEditor",
-			"Type" : "Editor",
-			"LoadingPhase" : "PostEngineInit",
+			"Name": "MediaFrameworkUtilitiesEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Linux",
@@ -36,19 +35,20 @@
 			]
 		}
 	],
-	"Plugins" :
-	[
+	"Plugins": [
 		{
 			"Name": "MediaIOFramework",
 			"Enabled": true
 		},
 		{
-			"Name" : "OpenCVLensDistortion",
-			"Enabled" : true
+			"Name": "OpenCVLensDistortion",
+			"Enabled": true
 		},
 		{
 			"Name": "MediaPlayerEditor",
 			"Enabled": true
 		}
-	]
+	],
+	"DocsURL": "",
+	"IsExperimentalVersion": false
 }
