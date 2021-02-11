@@ -218,7 +218,7 @@ public:
 	bool GetIsolateEnabled() const;
 #endif
 
-	FNiagaraSystemInstanceID GetId() { return ID; }
+	FNiagaraSystemInstanceID GetId() const { return ID; }
 
 	/** Returns the instance data for a particular interface for this System. */
 	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 

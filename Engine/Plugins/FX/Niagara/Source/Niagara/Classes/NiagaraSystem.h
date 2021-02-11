@@ -12,6 +12,7 @@
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraEmitterHandle.h"
+#include "NiagaraFlipbookSettings.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraEffectType.h"
@@ -512,6 +513,10 @@ public:
 	FORCEINLINE void UnregisterActiveInstance();
 	FORCEINLINE int32& GetActiveInstancesCount() { return ActiveInstances; }
 
+#if WITH_EDITORONLY_DATA
+	UNiagaraFlipbookSettings* GetFlipbookSettings();
+#endif
+
 private:
 #if WITH_EDITORONLY_DATA
 	/** Checks the ddc for vm execution data for the given script. Return true if the data was loaded from the ddc, false otherwise. */
@@ -627,6 +632,12 @@ protected:
 	/** Delta time to use for warmup ticks. */
 	UPROPERTY(EditAnywhere, Category = Warmup)
 	float WarmupTickDelta;
+
+#if WITH_EDITORONLY_DATA
+	/** Flipbook generation settings. */
+	UPROPERTY(EditAnywhere, Export, Category = Flipbook, meta = (EditInline))
+	UNiagaraFlipbookSettings* FlipbookSettings;
+#endif
 
 	UPROPERTY()
 	bool bHasSystemScriptDIsWithPerInstanceData;

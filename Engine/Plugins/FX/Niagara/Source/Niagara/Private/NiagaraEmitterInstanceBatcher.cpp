@@ -418,12 +418,12 @@ void NiagaraEmitterInstanceBatcher::Tick(float DeltaTime)
 	ENQUEUE_RENDER_COMMAND(NiagaraPumpBatcher)(
 		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
 		{
-			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList);
+			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, false);
 		}
 	);
 }
 
-void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList)
+void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList, bool bForceFlush)
 {
 	// No ticks are pending
 	if ( Ticks_RT.Num() == 0 )
@@ -434,7 +434,7 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 
 	// We have pending ticks increment our counter, once we cross the threshold we will perform the appropriate operation
 	++FramesBeforeTickFlush;
-	if (FramesBeforeTickFlush < uint32(NiagaraEmitterInstanceBatcherLocal::GTickFlushMaxQueuedFrames) )
+	if (!bForceFlush && (FramesBeforeTickFlush < uint32(NiagaraEmitterInstanceBatcherLocal::GTickFlushMaxQueuedFrames)) )
 	{
 		return;
 	}

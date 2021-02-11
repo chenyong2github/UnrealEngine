@@ -382,6 +382,9 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 		Style->Set("NiagaraEditor.Debugger.StepIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Step", Icon24x24));
 	}
 
+	// Flipbook
+	Style->Set("NiagaraEditor.Flipbook", new IMAGE_PLUGIN_BRUSH("Icons/Flipbook/FlipbookIcon", Icon40x40));
+
 	return Style;
 }
 

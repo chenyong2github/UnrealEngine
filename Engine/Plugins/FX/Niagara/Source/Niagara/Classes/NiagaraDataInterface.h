@@ -407,6 +407,9 @@ public:
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const {}
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const { return false; }
 
+	virtual bool CanRenderVariablesToCanvas() const { return false; }
+	virtual void GetCanvasVariables(TArray<FNiagaraVariableBase>& OutVariables) const { }
+	virtual bool RenderVariableToCanvas(FNiagaraSystemInstanceID SystemInstanceID, FName VariableName, class FCanvas* Canvas, const FIntRect& DrawRect) const { return false; }
 
 	FNiagaraDataInterfaceProxy* GetProxy()
 	{
@@ -452,6 +455,14 @@ protected:
 	T* GetProxyAs()
 	{
 		T* TypedProxy = static_cast<T*>(Proxy.Get());
+		check(TypedProxy != nullptr);
+		return TypedProxy;
+	}
+
+	template<typename T>
+	const T* GetProxyAs() const
+	{
+		const T* TypedProxy = static_cast<const T*>(Proxy.Get());
 		check(TypedProxy != nullptr);
 		return TypedProxy;
 	}

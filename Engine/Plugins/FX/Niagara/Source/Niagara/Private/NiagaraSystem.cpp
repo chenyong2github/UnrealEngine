@@ -2865,6 +2865,15 @@ void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiag
 	FloatOffsets.Shrink();
 	Int32Offsets.Shrink();
 }
+
+UNiagaraFlipbookSettings* UNiagaraSystem::GetFlipbookSettings()
+{
+	if ( FlipbookSettings == nullptr )
+	{
+		FlipbookSettings = NewObject<UNiagaraFlipbookSettings>(this, "FlipbookSettings", RF_Transactional);
+	}
+	return FlipbookSettings;
+}
 #endif
 
 #undef LOCTEXT_NAMESPACE // NiagaraSystem

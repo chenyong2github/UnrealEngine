@@ -15,6 +15,7 @@
 #endif
 #include "NiagaraStats.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "CanvasTypes.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
 
@@ -382,6 +383,8 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 
 	extern float GNiagaraRenderTargetResolutionMultiplier;
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTarget2DRWInstanceData_GameThread();
+	SystemInstancesToProxyData_GT.Emplace(SystemInstance->GetId(), InstanceData);
+
 	InstanceData->Size.X = FMath::Clamp<int>(int(float(Size.X) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
 	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
 	InstanceData->MipMapGeneration = MipMapGeneration;
@@ -442,6 +445,8 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 
 void UNiagaraDataInterfaceRenderTarget2D::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
+	SystemInstancesToProxyData_GT.Remove(SystemInstance->GetId());
+
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = static_cast<FRenderTarget2DRWInstanceData_GameThread*>(PerInstanceData);
 
 	InstanceData->~FRenderTarget2DRWInstanceData_GameThread();
@@ -489,7 +494,40 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetExposedVariableValue(const FNiagara
 	return false;
 }
 
+void UNiagaraDataInterfaceRenderTarget2D::GetCanvasVariables(TArray<FNiagaraVariableBase>& OutVariables) const
+{
+	static const FName NAME_RenderTarget(TEXT("RenderTarget"));
+	OutVariables.Emplace(FNiagaraTypeDefinition::GetVec4Def(), NAME_RenderTarget);
+}
 
+bool UNiagaraDataInterfaceRenderTarget2D::RenderVariableToCanvas(FNiagaraSystemInstanceID SystemInstanceID, FName VariableName, class FCanvas* Canvas, const FIntRect& DrawRect) const
+{
+	if (!Canvas)
+	{
+		return false;
+	}
+
+	FRenderTarget2DRWInstanceData_GameThread* GT_InstanceData = SystemInstancesToProxyData_GT.FindRef(SystemInstanceID);
+	if (!GT_InstanceData)
+	{
+		return false;
+	}
+
+	if ( !GT_InstanceData->TargetTexture || !GT_InstanceData->TargetTexture->Resource )
+	{
+		return false;
+	}
+
+	Canvas->DrawTile(
+		DrawRect.Min.X, DrawRect.Min.Y, DrawRect.Width(), DrawRect.Height(),
+		0.0f, 0.0f, 1.0f, 1.0f,
+		FLinearColor::White,
+		GT_InstanceData->TargetTexture->Resource,
+		false
+	);
+
+	return true;
+}
 
 void UNiagaraDataInterfaceRenderTarget2D::SetSize(FVectorVMContext& Context)
 {
