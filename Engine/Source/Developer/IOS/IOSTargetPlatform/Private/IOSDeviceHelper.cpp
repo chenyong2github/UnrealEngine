@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "IOSDeviceHelper.h"
 #include "IOSTargetPlatform.h"
 #include "IOSTargetDeviceOutput.h"
