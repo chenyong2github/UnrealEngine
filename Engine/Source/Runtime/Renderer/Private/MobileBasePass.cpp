@@ -432,6 +432,19 @@ void MobileBasePass::SetTranslucentRenderState(FMeshPassProcessorRenderState& Dr
 	}
 }
 
+bool MobileBasePass::StationarySkyLightHasBeenApplied(const FScene* Scene, ELightMapPolicyType LightMapPolicyType)
+{
+	return Scene
+		&& Scene->SkyLight
+		&& Scene->SkyLight->bWantsStaticShadowing
+		&& (LightMapPolicyType == LMP_LQ_LIGHTMAP
+			|| LightMapPolicyType == LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_WITH_LIGHTMAP
+			|| LightMapPolicyType == LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP
+			|| LightMapPolicyType == LMP_CACHED_POINT_INDIRECT_LIGHTING
+			|| LightMapPolicyType == LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT
+			|| LightMapPolicyType == LMP_MOBILE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT);
+}
+
 static FMeshDrawCommandSortKey GetBasePassStaticSortKey(EBlendMode BlendMode, bool bBackground)
 {
 	FMeshDrawCommandSortKey SortKey;
@@ -682,14 +695,13 @@ bool FMobileBasePassMeshProcessor::Process(
 	
 	if (Scene && Scene->SkyLight)
 	{
-		//The stationary skylight contribution has been added to the LowQuality Lightmap for StaticMeshActor on mobile, so we should skip the sky light spherical harmonic contribution for it.
-		//Enable skylight if LowQualityLightmaps is disabled or the Lightmap has not been built or if it is a dynamic skylight
-		bool bStaticMeshHasValidLightmapFromStationarySkyLight = FReadOnlyCVARCache::Get().bAllowStaticLighting && FReadOnlyCVARCache::Get().bEnableLowQualityLightmaps && PrimitiveSceneProxy && PrimitiveSceneProxy->IsStatic() && MeshBatch.LCI && MeshBatch.LCI->GetLightMapInteraction(FeatureLevel).GetType() == LMIT_Texture && Scene->SkyLight->bWantsStaticShadowing;
+		//The stationary skylight contribution has been added both to the LowQuality Lightmap and ILC on mobile, so we should skip the sky light spherical harmonic contribution for it.
+		bool bStationarySkyLightHasBeenApplied = MobileBasePass::StationarySkyLightHasBeenApplied(Scene, LightMapPolicyType);
 
 		//Two side material should enable sky light for the back face since only the front face has light map and it will be corrected in base pass shader.
-		bool bDisableStationarySkyLightForStaticMesh = bStaticMeshHasValidLightmapFromStationarySkyLight && !MaterialResource.IsTwoSided();
+		bool bSkipStationarySkyLight = bStationarySkyLightHasBeenApplied && !MaterialResource.IsTwoSided();
 
-		bEnableSkyLight = ShadingModels.IsLit() && Scene->ShouldRenderSkylightInBasePass(BlendMode) && (!bDisableStationarySkyLightForStaticMesh);
+		bEnableSkyLight = ShadingModels.IsLit() && Scene->ShouldRenderSkylightInBasePass(BlendMode) && (!bSkipStationarySkyLight);
 	}
 
 	int32 NumMovablePointLights = 0;
