@@ -669,7 +669,7 @@ constexpr auto& CastEnumToUnderlyingTypeReference(EnumType& Type)
 // Default value comes from bPromptToRetryFailedShaderCompiles in BaseEngine.ini
 // This is set as a global variable to allow changing in the debugger even in release
 // For example if there are a lot of content shader compile errors you want to skip over without relaunching
-bool GRetryShaderCompilation = false;
+bool GRetryShaderCompilation = true;
 
 static FShaderCompilingManager::EDumpShaderDebugInfo GDumpShaderDebugInfo = FShaderCompilingManager::EDumpShaderDebugInfo::Never;
 static FAutoConsoleVariableRef CVarDumpShaderDebugInfo(
@@ -2578,8 +2578,6 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	GConfig->GetFloat(TEXT("DevOptions.Shaders"), TEXT("BuildWorkerTimeToLive"), GBuildWorkerTimeToLive, GEngineIni);
 	GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bForceUseSCWMemoryPressureLimits"), bForceUseSCWMemoryPressureLimits, GEngineIni);
 
-	GRetryShaderCompilation = bPromptToRetryFailedShaderCompiles;
-
 	verify(GConfig->GetFloat( TEXT("DevOptions.Shaders"), TEXT("ProcessGameThreadTargetTime"), ProcessGameThreadTargetTime, GEngineIni ));
 
 #if UE_BUILD_DEBUG
@@ -3645,7 +3643,7 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 					}
 				}
 
-				if (UE_LOG_ACTIVE(LogShaders, Log) && bPromptToRetryFailedShaderCompiles && bAnyErrorLikelyToBeCodeError)
+				if (UE_LOG_ACTIVE(LogShaders, Log) && (bAnyErrorLikelyToBeCodeError || bPromptToRetryFailedShaderCompiles))
 				{
 #if UE_BUILD_DEBUG
 					// Use debug break in debug with the debugger attached, otherwise message box
@@ -5142,6 +5140,8 @@ static void PrepareGlobalShaderCompileJob(EShaderPlatform Platform,
 	ShaderType->SetupCompileEnvironment(Platform, Key.PermutationId, PermutationFlags, ShaderEnvironment);
 
 	static FString GlobalName(TEXT("Global"));
+
+	NewJob->bErrorsAreLikelyToBeCode = true;
 
 	// Compile the shader environment passed in with the shader type's source code.
 	::GlobalBeginCompileShader(

@@ -186,7 +186,7 @@ protected:
 		CurrentWorker(EShaderCompilerWorkerType::None),
 		bFinalized(false),
 		bSucceeded(false),
-		bErrorsAreLikelyToBeCode(true),
+		bErrorsAreLikelyToBeCode(false),
 		bReleased(false),
 		bInputHashSet(false)
 	{
