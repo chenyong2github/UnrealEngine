@@ -21,13 +21,13 @@ struct FTentDistribution
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Tent", meta = (UIMin = 0.0, UIMax = 60.0))
-	float TipAltitude;
+	float TipAltitude = 0.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Tent", meta = (UIMin = 0.0, UIMax = 1.0, ClampMin = 0.0, SliderExponent = 4.0))
-	float TipValue;
+	float TipValue = 0.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Tent", meta = (UIMin = 0.01, UIMax = 20.0, ClampMin = 0.0))
-	float Width;
+	float Width = 1.0f;
 };
 
 UENUM()

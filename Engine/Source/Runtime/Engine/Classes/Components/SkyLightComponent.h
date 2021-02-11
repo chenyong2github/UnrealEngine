@@ -381,7 +381,7 @@ public:
 	FGuid LightGuid;
 
 	UPROPERTY()
-	float AverageBrightness;
+	float AverageBrightness = 1.0f;
 
 	// This has to be refcounted to keep it alive during the handoff without doing a deep copy
 	TRefCountPtr<FSkyTextureCubeResource> ProcessedSkyTexture;
