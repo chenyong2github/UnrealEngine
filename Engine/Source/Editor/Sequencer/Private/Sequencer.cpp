@@ -700,11 +700,22 @@ void FSequencer::Tick(float InDeltaTime)
 
 	static const float AutoScrollFactor = 0.1f;
 
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = Sequence ? Sequence->GetMovieScene() : nullptr;
+
 	// Animate the autoscroll offset if it's set
 	if (AutoscrollOffset.IsSet())
 	{
 		float Offset = AutoscrollOffset.GetValue() * AutoScrollFactor;
 		SetViewRange(TRange<double>(TargetViewRange.GetLowerBoundValue() + Offset, TargetViewRange.GetUpperBoundValue() + Offset), EViewRangeInterpolation::Immediate);
+	}
+	else if (MovieScene)
+	{
+		FMovieSceneEditorData& EditorData = MovieScene->GetEditorData();
+		if (EditorData.GetViewRange() != TargetViewRange)
+		{
+			SetViewRange(EditorData.GetViewRange(), EViewRangeInterpolation::Immediate);
+		}
 	}
 
 	// Animate the autoscrub offset if it's set
@@ -716,7 +727,7 @@ void FSequencer::Tick(float InDeltaTime)
 	}
 
 	// Reset to the root sequence if the focused sequence no longer exists. This can happen if either the subsequence has been deleted or the hierarchy has changed.
-	if (!GetFocusedMovieSceneSequence() || !GetFocusedMovieSceneSequence()->GetMovieScene())
+	if (!MovieScene)
 	{
 		PopToSequenceInstance(MovieSceneSequenceID::Root);
 	}
