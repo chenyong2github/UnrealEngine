@@ -9,8 +9,9 @@
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "AnimBlueprintCompilerHandler_CachedPose.h"
-#include "IAnimBlueprintCompilerHandlerCollection.h"
 #include "IAnimBlueprintCompilationContext.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#include "BlueprintEditorModule.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_UseCachedPose
@@ -86,6 +87,24 @@ FText UAnimGraphNode_UseCachedPose::GetNodeTitle(ENodeTitleType::Type TitleType)
 	}
 	Args.Add(TEXT("CachePoseName"), FText::FromString(NameOfCache));
 	return FText::Format(LOCTEXT("AnimGraphNode_UseCachedPose_Title", "Use cached pose '{CachePoseName}'"), Args);
+}
+
+void UAnimGraphNode_UseCachedPose::JumpToDefinition() const
+{
+	if (UObject* HyperlinkTarget = GetJumpTargetForDoubleClick())
+	{
+		TSharedPtr<IBlueprintEditor> BlueprintEditor = FKismetEditorUtilities::GetIBlueprintEditorForObject(HyperlinkTarget, true);
+		if(BlueprintEditor.IsValid())
+		{
+			BlueprintEditor->JumpToHyperlink(HyperlinkTarget, false);
+		}
+	}
+}
+
+UObject* UAnimGraphNode_UseCachedPose::GetJumpTargetForDoubleClick() const
+{
+	// Double click goes to the save cached pose for this node
+	return SaveCachedPoseNode.Get();
 }
 
 FString UAnimGraphNode_UseCachedPose::GetNodeCategory() const
