@@ -718,9 +718,7 @@ namespace ChaosTest {
 			FVec3(HalfSize.X, -HalfSize.Y,  HalfSize.Z),
 		};
 
-		TParticles<FReal, 3> BoxParticles(MoveTemp(BoxVerts));
-
-		return FImplicitConvex3(BoxParticles, Margin);
+		return FImplicitConvex3(BoxVerts, Margin);
 	}
 
 
