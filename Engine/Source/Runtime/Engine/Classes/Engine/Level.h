@@ -975,6 +975,9 @@ public:
 	/** Sets if the level uses external actors mode or not. */
 	ENGINE_API void SetUseExternalActors(bool bEnable);
 
+	/** Returns true if the level wants newly spawned actors to be external */
+	ENGINE_API bool ShouldCreateNewExternalActors() const;
+
 	/** 
 	 * Convert this level actors to the specified loading strategy
 	 * @param bExternal if true will convert internal actors to external, will convert external actors to internal otherwise

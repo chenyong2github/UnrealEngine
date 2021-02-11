@@ -2306,6 +2306,11 @@ void ULevel::SetUseExternalActors(bool bEnable)
 	}
 }
 
+bool ULevel::ShouldCreateNewExternalActors() const
+{
+	return IsUsingExternalActors() && !GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor);
+}
+
 void ULevel::ConvertAllActorsToPackaging(bool bExternal)
 {
 	// Make a copy of the current actor lists since packaging conversion may modify the actor list as a side effect
