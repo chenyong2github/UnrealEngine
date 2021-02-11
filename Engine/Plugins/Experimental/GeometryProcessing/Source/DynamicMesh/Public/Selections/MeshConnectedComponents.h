@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
+#include "Containers/IndirectArray.h"
 
 /**
  * FMeshConnectedComponents calculates Connected Components of a Mesh, or sub-regions of a Mesh.
