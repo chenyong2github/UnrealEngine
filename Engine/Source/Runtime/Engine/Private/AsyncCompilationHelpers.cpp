@@ -136,7 +136,7 @@ namespace AsyncCompilationHelpers
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			PendingTasks[Index].Job = &Getter(Index);
-			GThreadPool->AddQueuedWork(&PendingTasks[Index], EQueuedWorkPriority::High);
+			GThreadPool->AddQueuedWork(&PendingTasks[Index], EQueuedWorkPriority::Highest);
 		}
 
 		auto FormatProgress =

@@ -36,6 +36,10 @@ public:
 				{
 					Priority = LowLevelTasks::ETaskPriority::BackgroundNormal;
 				}
+				else if (Priority == LowLevelTasks::ETaskPriority::BackgroundNormal)
+				{
+					Priority = LowLevelTasks::ETaskPriority::BackgroundHigh;
+				}
 			}
 			else
 			{

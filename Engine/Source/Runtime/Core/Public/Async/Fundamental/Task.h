@@ -15,6 +15,8 @@ namespace LowLevelTasks
 		High,
 		Normal,
 		Default = Normal,
+		BackgroundHigh,
+		ForegroundCount = BackgroundHigh,
 		BackgroundNormal,
 		BackgroundLow,
 		Count
@@ -74,15 +76,15 @@ namespace LowLevelTasks
 #if PLATFORM_32BITS
 			uintptr_t DebugName : 32;
 #else
-			uintptr_t DebugName : 58;
+			uintptr_t DebugName : 57;
 #endif
-			uintptr_t Priority	: 2;
+			uintptr_t Priority	: 3;
 			uintptr_t State		: 4;
 			
 		public:
 			FPackedData() : FPackedData(nullptr,  ETaskPriority::Default, ETaskState::Completed)
 			{
-				static_assert(uintptr_t(ETaskPriority::Count) <= (1ull << 2), "Not enough bits to store ETaskPriority");
+				static_assert(uintptr_t(ETaskPriority::Count) <= (1ull << 3), "Not enough bits to store ETaskPriority");
 				static_assert(uintptr_t(ETaskState::Count) <= (1ull << 4), "Not enough bits to store ETaskState");
 			}
 
@@ -91,8 +93,8 @@ namespace LowLevelTasks
 				, Priority((uintptr_t)InPriority)
 				, State((uintptr_t)InState)
 			{
-				checkSlow(reinterpret_cast<uintptr_t>(InDebugName) < (1ull << 58));
-				checkSlow((uintptr_t)InPriority < (1ull << 2));
+				checkSlow(reinterpret_cast<uintptr_t>(InDebugName) < (1ull << 57));
+				checkSlow((uintptr_t)InPriority < (1ull << 3));
 				checkSlow((uintptr_t)InState < (1ull << 4));
 #if PLATFORM_32BITS
 				static_assert(sizeof(FPackedData) == 2 * sizeof(uintptr_t), "Packed data needs to be 8bytes in size");
@@ -318,6 +320,6 @@ namespace LowLevelTasks
 
 	inline bool FTask::IsBackgroundTask() const
 	{
-		return PackedData.load(std::memory_order_relaxed).GetPriority() >= ETaskPriority::BackgroundNormal;
+		return PackedData.load(std::memory_order_relaxed).GetPriority() >= ETaskPriority::ForegroundCount;
 	}
 }

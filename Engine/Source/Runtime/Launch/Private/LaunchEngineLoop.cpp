@@ -2185,31 +2185,18 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 #if WITH_EDITOR
 		{
-			int32 NumThreadsInLargeThreadPool = 1;
-			int32 NumThreadsInThreadPool = 1;
+			int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
+			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
 			// when we are in the editor we like to do things like build lighting and such
 			// this thread pool can be used for those purposes
 			extern CORE_API int32 GUseNewTaskBackend;
 			if (!GUseNewTaskBackend)
 			{
-				NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
-				NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
 				GLargeThreadPool = FQueuedThreadPool::Allocate();
 			}
 			else
 			{
-				NumThreadsInLargeThreadPool = FMath::Max(LowLevelTasks::FScheduler::Get().GetNumWorkers() - 2, 2u);			
-				if(NumThreadsInLargeThreadPool < int(LowLevelTasks::FScheduler::Get().GetNumWorkers()))
-				{
-					NumThreadsInThreadPool = FMath::Max(NumThreadsInLargeThreadPool - 1, 1);
-					GLargeThreadPool = new FQueuedLowLevelThreadPool(NumThreadsInLargeThreadPool);
-				}
-				else
-				{
-					NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
-					NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
-					GLargeThreadPool = FQueuedThreadPool::Allocate();
-				}
+				GLargeThreadPool = new FQueuedLowLevelThreadPool();
 			}
 		
 			// TaskGraph has it's HP threads slightly below normal, we want to be below the taskgraph HP threads to avoid interfering with the game-thread.
@@ -2241,24 +2228,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			}
 			else
 			{
-				int NumThreadsInWorkerPool = FMath::Max(LowLevelTasks::FScheduler::Get().GetNumWorkers() - 2, 2u);			
-				if(NumThreadsInWorkerPool < int(LowLevelTasks::FScheduler::Get().GetNumWorkers()))
-				{
-					NumThreadsInWorkerPool = FMath::Max(NumThreadsInWorkerPool - 1, 1);
-					GThreadPool = new FQueuedLowLevelThreadPool(NumThreadsInWorkerPool);
-				}
-				else
-				{
-					GThreadPool = FQueuedThreadPool::Allocate();
-					int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
-
-					// we are only going to give dedicated servers one pool thread
-					if (FPlatformProperties::IsServerOnly())
-					{
-						NumThreadsInThreadPool = 1;
-					}
-					verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize, TPri_SlightlyBelowNormal, TEXT("ThreadPool")));
-				}
+				GThreadPool = new FQueuedLowLevelThreadPool();
 			}
 		}
 #endif
