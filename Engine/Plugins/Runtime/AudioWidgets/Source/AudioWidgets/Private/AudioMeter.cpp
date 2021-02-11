@@ -154,7 +154,7 @@ void UAudioMeter::SetMeterScaleLabelColor(FLinearColor InValue)
 
 const FText UAudioMeter::GetPaletteCategory()
 {
-	return LOCTEXT("Common", "Common");
+	return LOCTEXT("Audio", "Audio");
 }
 
 #endif

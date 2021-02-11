@@ -8,7 +8,7 @@
 
 void FAudioWidgetsModule::StartupModule()
 {
-	FModuleManager::Get().LoadModuleChecked<FAdvancedWidgetsModule>("AdvancedWidgets");
+	//FModuleManager::Get().LoadModuleChecked<FAdvancedWidgetsModule>("AdvancedWidgets");
 }
 
 void FAudioWidgetsModule::ShutdownModule()
