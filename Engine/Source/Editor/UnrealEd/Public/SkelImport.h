@@ -87,7 +87,7 @@ struct FExistingSkelMeshData
 
 	USkeletalMesh::FOnMeshChanged			ExistingOnMeshChanged;
 
-	TMap<FName, FString>* ExistingUMetaDataTagValues;
+	TMap<FName, FString> ExistingUMetaDataTagValues;
 
 	FVector PositiveBoundsExtension;
 	FVector NegativeBoundsExtension;
