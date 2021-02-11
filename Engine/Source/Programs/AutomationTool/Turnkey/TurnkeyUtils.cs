@@ -479,7 +479,7 @@ namespace Turnkey
 					ChosenPlatforms = GetAllValidPlatforms(PossiblePlatforms);
 				}
 				// if there's only one platform possible, use it
-				else if (PossiblePlatforms.Count == 1)
+				else if (PossiblePlatforms != null && PossiblePlatforms.Count == 1)
 				{
 					ChosenPlatforms = PossiblePlatforms;
 				}

@@ -209,7 +209,7 @@ namespace Turnkey.Commands
 
 									if (MatchingInstallableSdk == null)
 									{
-										TurnkeyUtils.Log("ERROR: {0}: Unable top find any Sdks that could be installed on {1}", Platform, Device.Name);
+										TurnkeyUtils.Log("ERROR: {0}: Unable to find any Sdks that could be installed on {1}", Platform, Device.Name);
 										TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 									}
 									else
