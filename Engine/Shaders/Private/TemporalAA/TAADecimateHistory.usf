@@ -138,7 +138,7 @@ void MainCS(
 		uint2 Random = Rand3DPCG16(int3(InputPixelPos - InputInfo_ViewportMin, View.StateFrameIndexMod8)).xy;
 		float2 E = Hammersley16(0, 1, Random);
 
-		DecimatedColor += DecimatedColor * (E.x * OutputQuantizationError);
+		DecimatedColor += DecimatedColor * taa_half3(E.x * OutputQuantizationError);
 	}
 	#endif
 
@@ -156,7 +156,7 @@ void MainCS(
 	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
 		PredictionSceneColorOutput[InputPixelPos] = DecimatedColor;
-		ParallaxRejectionMaskOutput[InputPixelPos] = ParallaxRejectionMask;
+		ParallaxRejectionMaskOutput[InputPixelPos] = taa_half(ParallaxRejectionMask);
 		
 		#if DEBUG_OUTPUT
 		{

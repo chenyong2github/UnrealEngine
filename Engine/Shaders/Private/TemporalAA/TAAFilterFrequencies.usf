@@ -262,11 +262,11 @@ void MainCS(
 			HistorySample *= 10.0 * HdrWeight4(HistorySample);
 		#endif
 
-		FilteredInput       += (SampleSpatialWeight * InputWeight) * InputSample;
-		FilteredInputWeight += (SampleSpatialWeight * InputWeight);
+		FilteredInput       += taa_half(SampleSpatialWeight * InputWeight) * InputSample;
+		FilteredInputWeight += taa_half(SampleSpatialWeight * InputWeight);
 		
-		FilteredHistory       += (SampleSpatialWeight * HistoryWeight) * HistorySample;
-		FilteredHistoryWeight += (SampleSpatialWeight * HistoryWeight);
+		FilteredHistory       += taa_half(SampleSpatialWeight * HistoryWeight) * HistorySample;
+		FilteredHistoryWeight += taa_half(SampleSpatialWeight * HistoryWeight);
 	}
 
 	{
@@ -285,8 +285,8 @@ void MainCS(
 		uint2 Random = Rand3DPCG16(int3(OutputPixelPos, View.StateFrameIndexMod8)).xy;
 		float2 E = Hammersley16(0, 1, Random);
 
-		FilteredInput += FilteredInput * (E.x * OutputQuantizationError);
-		FilteredHistory += FilteredHistory * (E.x * OutputQuantizationError);
+		FilteredInput += FilteredInput * taa_half3(E.x * OutputQuantizationError);
+		FilteredHistory += FilteredHistory * taa_half3(E.x * OutputQuantizationError);
 	}
 	#endif
 

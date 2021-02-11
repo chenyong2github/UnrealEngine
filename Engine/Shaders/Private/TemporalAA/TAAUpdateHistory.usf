@@ -159,6 +159,7 @@ void MainCS(
 
 		taa_half FilteredInputColorWeight = taa_half(0.0);
 		
+		// TODO: UECON-464 - this causes shader warnings on XSX DXC.  Revisit once we have aged out the problem GDK versions.
 		#if 0 // shader compiler bug :'(
 			taa_half InputToHistoryFactor = taa_half(HistoryInfo_ViewportSize.x * InputInfo_ViewportSizeInverse.x);
 			taa_half FinalInputToHistoryFactor = bOffScreen ? taa_half(1.0) : InputToHistoryFactor;

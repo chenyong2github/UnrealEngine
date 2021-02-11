@@ -50,7 +50,9 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionMainRG)
 		Payload // Payload
 	);
 
-	OcclusionOutput[RayIndex] = Payload.IsHit() ? ~0 : 0;
+	// Workaround for DXC bug creating validation error
+	//OcclusionOutput[RayIndex] = Payload.IsHit() ? ~0 : 0;
+	OcclusionOutput[RayIndex] = ((FMinimalPayload)Payload).IsHit() ? ~0 : 0;
 }
 
 RAY_TRACING_ENTRY_RAYGEN(IntersectionMainRG)

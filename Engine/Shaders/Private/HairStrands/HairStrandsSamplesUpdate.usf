@@ -23,7 +23,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	for(uint i = 0; i < MaxSampleCount; ++i, ++WeightsOffset)
 	{
 		SampleDeformation += InterpolationWeightsBuffer[WeightsOffset] * 
-				(SampleDeformedPositionsBuffer[i]-SampleRestPositionsBuffer[i]);
+				(SampleDeformedPositionsBuffer[i] - SampleRestPositionsBuffer[i]).xyz;
 	}
 
 	OutSampleDeformationsBuffer[SampleIndex] = float4(SampleDeformation,1);

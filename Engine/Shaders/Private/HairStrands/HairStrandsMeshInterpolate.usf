@@ -27,7 +27,7 @@ void ApplyRBF(
 	Buffer<float4> InRestRootTrianglePosition,
 	RWBuffer<float4> OutDeformedRootTrianglePosition)
 {
-	const float3 RestControlPoint = InRestRootTrianglePosition[InRootIndex];
+	const float3 RestControlPoint = InRestRootTrianglePosition[InRootIndex].xyz;
 	const float3 DeformedControlPoint = ApplyRBF(RestControlPoint, MaxSampleCount, RestSamplePositionsBuffer, MeshSampleWeightsBuffer);
 	OutDeformedRootTrianglePosition[InRootIndex + MaxRootCount] = float4(DeformedControlPoint, 1);
 }

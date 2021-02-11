@@ -22,6 +22,12 @@ Texture2D HistogramTexture;
 SCREEN_PASS_TEXTURE_VIEWPORT(Input)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 
+
+float ComputeRgbLuminance(float3 Color)
+{
+	return dot(Color, float3(0.299, 0.587, 0.114));
+}
+
 // only needed for nice visualization
 float ComputeHistogramMax(Texture2D HistogramTexture)
 {
@@ -272,7 +278,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 			// EV100
 			TopLeft = OutputViewportCenter + int2(11, 33);
 
-			const float EyeAdaptationEV100 = log2((LuminanceAvg/.18)/EyeAdaptation_LuminanceMax);
+			const float EyeAdaptationEV100 = log2((ComputeRgbLuminance(LuminanceAvg)/.18)/EyeAdaptation_LuminanceMax);
 			PrintMediumFloatWithSign(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, EyeAdaptationEV100);
 
 			TopLeft.x += 60;
