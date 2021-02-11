@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PackageReader.h"
+
+#include "AssetRegistry.h"
+#include "AssetRegistryPrivate.h"
+#include "AssetRegistry/AssetData.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Internationalization.h"
 #include "Logging/MessageLog.h"
+#include "Misc/Guid.h"
 #include "Misc/PackageName.h"
 #include "UObject/Class.h"
-#include "AssetRegistryPrivate.h"
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry.h"
 
 FPackageReader::FPackageReader()
 	: Loader(nullptr)
@@ -348,8 +350,13 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	}
 
 	OutDependencyData.PackageName = FName(*PackageNameString);
-	OutDependencyData.PackageData.DiskSize = PackageFileSize;
-	OutDependencyData.PackageData.PackageGuid = PackageFileSummary.Guid;
+	FAssetPackageData& PackageData = OutDependencyData.PackageData;
+	PackageData.DiskSize = PackageFileSize;
+	PackageData.PackageGuid = PackageFileSummary.Guid;
+	PackageData.SetCustomVersions(PackageFileSummary.GetCustomVersionContainer().GetAllVersions());
+	PackageData.FileVersionUE4 = PackageFileSummary.GetFileVersionUE4();
+	PackageData.FileVersionLicenseeUE4 = PackageFileSummary.GetFileVersionLicenseeUE4();
+	PackageData.SetIsLicenseeVersion(PackageFileSummary.SavedByEngineVersion.IsLicenseeVersion());
 
 	if (!SerializeNameMap())
 	{

@@ -3,19 +3,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/Package.h"
-#include "UObject/ObjectRedirector.h"
-#include "Misc/PackageName.h"
-#include "Misc/StringBuilder.h"
-#include "Containers/StringView.h"
-#include "UObject/LinkerLoad.h"
+
 #include "AssetRegistry/AssetBundleData.h"
 #include "AssetRegistry/AssetDataTagMap.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringView.h"
+#include "Misc/PackageName.h"
+#include "Misc/StringBuilder.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Class.h"
+#include "UObject/LinkerLoad.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectRedirector.h"
+#include "UObject/Package.h"
 #include "UObject/PrimaryAssetId.h"
+
+struct FCustomVersion;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogAssetData, Log, All);
 
@@ -44,6 +49,7 @@ struct COREUOBJECT_API FAssetRegistryVersion
 								// * Switched from FName table to seek-free and more optimized FName batch loading
 								// * Removed global tag storage, a tag map reference-counts one store per asset registry
 								// * All configs can mix fixed and loose tag maps 
+		WorkspaceDomain,		// Added Version information to AssetPackageData
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -545,23 +551,124 @@ inline FAssetRegistryExportPath FAssetData::GetTagValueRef<FAssetRegistryExportP
 	return FoundValue.IsSet() ? FoundValue.AsExportPath() : FAssetRegistryExportPath();
 }
 
+namespace UE
+{
+namespace AssetRegistry
+{
+
+/** Low-memory version of FCustomVersion; holds only Guid and integer version. */
+struct FPackageCustomVersion
+{
+	FGuid Key;
+	int32 Version = 0;
+
+	FPackageCustomVersion() = default;
+	FPackageCustomVersion(const FGuid& InKey, const int32 InVersion)
+		: Key(InKey)
+		, Version(InVersion)
+	{
+	}
+	bool operator<(const FPackageCustomVersion& RHS) const
+	{
+		if (Key < RHS.Key) return true;
+		if (RHS.Key < Key) return false;
+		return Version < RHS.Version;
+	}
+	bool operator==(const FPackageCustomVersion& RHS) const
+	{
+		return Key == RHS.Key && Version == RHS.Version;
+	}
+	friend FArchive& operator<<(FArchive& Ar, FPackageCustomVersion& CustomVersion)
+	{
+		return Ar << CustomVersion.Key << CustomVersion.Version;
+	}
+};
+
+/** A handle to a deduplicated, sorted array of FPackageCustomVersion. */
+class FPackageCustomVersionsHandle
+{
+public:
+	TConstArrayView<FPackageCustomVersion> Get() const { return Ptr; }
+
+	COREUOBJECT_API static FPackageCustomVersionsHandle FindOrAdd(TConstArrayView<FCustomVersion> InCustomVersions);
+	COREUOBJECT_API static FPackageCustomVersionsHandle FindOrAdd(TConstArrayView<FPackageCustomVersion> InCustomVersions);
+	COREUOBJECT_API static FPackageCustomVersionsHandle FindOrAdd(TArray<FPackageCustomVersion>&& InCustomVersions);
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FPackageCustomVersionsHandle& Handle);
+
+private:
+	TConstArrayView<FPackageCustomVersion> Ptr;
+	friend class FPackageCustomVersionRegistry;
+};
+
+}
+}
+
 /** A class to hold data about a package on disk, this data is updated on save/load and is not updated when an asset changes in memory */
 class FAssetPackageData
 {
 public:
-	/** Total size of this asset on disk */
-	int64 DiskSize;
-
 	/** Guid of the source package, uniquely identifies an asset package */
 	FGuid PackageGuid;
 
 	/** MD5 of the cooked package on disk, for tracking nondeterministic changes */
 	FMD5Hash CookedHash;
 
+	/** Total size of this asset on disk */
+	int64 DiskSize;
+
+	/** UE4 file version that the package was saved with */
+	int32 FileVersionUE4;
+
+	/** Licensee file version that the package was saved with */
+	int32 FileVersionLicenseeUE4;
+
+private:
+	UE::AssetRegistry::FPackageCustomVersionsHandle CustomVersions;
+	/** Bit storage for flags */
+	uint32 Flags;
+
+public:
+
 	FAssetPackageData()
 		: DiskSize(0)
+		, FileVersionUE4(-1)
+		, FileVersionLicenseeUE4(-1)
+		, Flags(0)
 	{
 	}
+	FAssetPackageData(FAssetPackageData&& Other) = default;
+	FAssetPackageData(const FAssetPackageData& Other)
+		: FAssetPackageData()
+	{
+		*this = Other;
+	}
+	FAssetPackageData& operator=(FAssetPackageData&& Other) = default;
+	FAssetPackageData& operator=(const FAssetPackageData& Other) = default;
+
+	/**
+	 * Custom versions used by the package, used to check whether we need to update the package for the current binary.
+	 * The array is sorted by FPackageCustomVersion::operator<.
+	 */
+	TConstArrayView<UE::AssetRegistry::FPackageCustomVersion> GetCustomVersions() const
+	{
+		return CustomVersions.Get();
+	}
+	void SetCustomVersions(TConstArrayView<FCustomVersion> InCustomVersions)
+	{
+		CustomVersions = UE::AssetRegistry::FPackageCustomVersionsHandle::FindOrAdd(InCustomVersions);
+	}
+	void SetCustomVersions(TConstArrayView<UE::AssetRegistry::FPackageCustomVersion> InCustomVersions)
+	{
+		CustomVersions = UE::AssetRegistry::FPackageCustomVersionsHandle::FindOrAdd(InCustomVersions);
+	}
+	void SetCustomVersions(TArray<UE::AssetRegistry::FPackageCustomVersion>&& InCustomVersions)
+	{
+		CustomVersions = UE::AssetRegistry::FPackageCustomVersionsHandle::FindOrAdd(MoveTemp(InCustomVersions));
+	}
+
+	/** Whether the package was saved from a licensee executable, used to tell whether non-matching FileVersionLicenseeUE4 requires a resave */
+	bool IsLicenseeVersion() const { return (Flags & FLAG_LICENSEE_VERSION) != 0; }
+	void SetIsLicenseeVersion(bool bValue) { Flags = (Flags & ~FLAG_LICENSEE_VERSION) | (bValue ? FLAG_LICENSEE_VERSION : 0); }
 
 	/**
 	 * Serialize as part of the registry cache. This is not meant to be serialized as part of a package so  it does not handle versions normally
@@ -572,7 +679,17 @@ public:
 		Ar << DiskSize;
 		Ar << PackageGuid;
 		Ar << CookedHash;
+		Ar << FileVersionUE4;
+		Ar << FileVersionLicenseeUE4;
+		Ar << Flags;
+		Ar << CustomVersions;
 	}
+
+private:
+	enum
+	{
+		FLAG_LICENSEE_VERSION = 0x1,
+	};
 };
 
 /**
@@ -826,5 +943,4 @@ struct FAssetIdentifier
 		return Ar;
 	}
 };
-
 

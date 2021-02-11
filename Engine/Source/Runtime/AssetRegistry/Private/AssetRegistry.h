@@ -93,6 +93,7 @@ public:
 	virtual bool PathExists(const FName PathToTest) const override;
 	virtual void SearchAllAssets(bool bSynchronousSearch) override;
 	virtual void WaitForCompletion() override;
+	virtual void WaitForPackage(const FString& PackageName) override;
 	virtual void ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan = false, bool bIgnoreBlackListScanFilters = false) override;
 	virtual void ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan = false) override;
 	virtual void PrioritizeSearchPath(const FString& PathToPrioritize) override;
@@ -180,6 +181,8 @@ private:
 	typedef TFunctionRef<void(const TRingBuffer<FAssetData*>&)> FAssetsFoundCallback;
 	/** Read any results from the gatherer, if it is running asynchronously */
 	void TickGatherer(float DeltaTime, TOptional<FAssetsFoundCallback> AssetsFoundCallback = TOptional<FAssetsFoundCallback>());
+	/** Look for and load a single AssetData result from the gatherer. */
+	void TickGatherPackage(const FString& PackageName);
 	/** Internal handler for ScanPathsSynchronous */
 	void ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles, bool bForceRescan, bool bIgnoreBlackListScanFilters, TArray<FName>* OutFoundAssets);
 

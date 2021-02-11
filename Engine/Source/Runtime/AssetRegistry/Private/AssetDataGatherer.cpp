@@ -30,7 +30,7 @@ namespace AssetDataGathererConstants
 	constexpr int32 SingleThreadFilesPerBatch = 3;
 	constexpr int32 ExpectedMaxBatchSize = 100;
 	constexpr int32 MinSecondsToElapseBeforeCacheWrite = 60;
-	static constexpr uint32 CacheSerializationMagic = 0xCBA78339; 
+	static constexpr uint32 CacheSerializationMagic = 0x89ABCDF0;
 }
 
 namespace UE
@@ -2758,6 +2758,24 @@ void FAssetDataGatherer::GetAndTrimSearchResults(bool& bOutIsSearching, TRingBuf
 		Shrink();
 	}
 	bOutIsSearching = !bIsIdle;
+}
+
+void FAssetDataGatherer::GetPackageResults(TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults)
+{
+	FGathererScopeLock ResultsScopeLock(&ResultsLock);
+
+	auto MoveAppendRangeToRingBuffer = [](auto& OutRingBuffer, auto& InArray)
+	{
+		OutRingBuffer.Reserve(OutRingBuffer.Num() + InArray.Num());
+		for (auto& Element : InArray)
+		{
+			OutRingBuffer.Add(MoveTemp(Element));
+		}
+		InArray.Reset();
+	};
+
+	MoveAppendRangeToRingBuffer(OutAssetResults, AssetResults);
+	MoveAppendRangeToRingBuffer(OutDependencyResults, DependencyResults);
 }
 
 void FAssetDataGatherer::WaitOnPath(FStringView InPath)

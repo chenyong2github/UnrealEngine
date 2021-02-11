@@ -869,6 +869,23 @@ void UAssetRegistryImpl::WaitForCompletion()
 	}
 }
 
+void UAssetRegistryImpl::WaitForPackage(const FString& PackageName)
+{
+	check(IsInGameThread());
+	if (!IsLoadingAssets() || !GlobalGatherer.IsValid())
+	{
+		return;
+	}
+
+	FString LocalPath;
+	if (!FPackageName::TryConvertLongPackageNameToFilename(PackageName, LocalPath))
+	{
+		return;
+	}
+	GlobalGatherer->WaitOnPath(LocalPath);
+	TickGatherPackage(PackageName);
+}
+
 bool UAssetRegistryImpl::HasAssets(const FName PackagePath, const bool bRecursive) const
 {
 	bool bHasAssets = State.HasAssets(PackagePath);
@@ -2035,6 +2052,50 @@ void UAssetRegistryImpl::TickGatherer(float DeltaTime, TOptional<UAssetRegistryI
 		ProcessLoadedAssetsToUpdateCache(TickStartTime, bBecameIdle);
 	}
 #endif
+}
+
+void UAssetRegistryImpl::TickGatherPackage(const FString& PackageName)
+{
+	check(IsInGameThread()); // AssetRegistry is not threadsafe
+	if (!GlobalGatherer.IsValid())
+	{
+		return;
+	}
+	FName PackageFName(PackageName);
+
+	// Gather results from the background search
+	GlobalGatherer->GetPackageResults(BackgroundAssetResults, BackgroundDependencyResults);
+
+	TRingBuffer<FAssetData*> PackageAssets;
+	TRingBuffer<FPackageDependencyData> PackageDependencyDatas;
+	for (int n = 0; n < BackgroundAssetResults.Num(); ++n)
+	{
+		FAssetData* Asset = BackgroundAssetResults[n];
+		if (Asset->PackageName == PackageFName)
+		{
+			Swap(BackgroundAssetResults[n], BackgroundAssetResults.Last());
+			PackageAssets.Add(BackgroundAssetResults.PopValue());
+			--n;
+		}
+	}
+	for (int n = 0; n < BackgroundDependencyResults.Num(); ++n)
+	{
+		FPackageDependencyData& DependencyData = BackgroundDependencyResults[n];
+		if (DependencyData.PackageName == PackageFName)
+		{
+			Swap(BackgroundDependencyResults[n], BackgroundDependencyResults.Last());
+			PackageDependencyDatas.Add(BackgroundDependencyResults.PopValue());
+			--n;
+		}
+	}
+	if (PackageAssets.Num() > 0)
+	{
+		AssetSearchDataGathered(-1., PackageAssets);
+	}
+	if (PackageDependencyDatas.Num() > 0)
+	{
+		DependencyDataGathered(-1., PackageDependencyDatas);
+	}
 }
 
 void UAssetRegistryImpl::Serialize(FArchive& Ar)

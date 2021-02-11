@@ -91,6 +91,8 @@ public:
 	void GetAndTrimSearchResults(bool& bOutIsSearching, TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FString>& OutPathResults,
 		TRingBuffer<FPackageDependencyData>& OutDependencyResults, TRingBuffer<FString>& OutCookedPackageNamesWithoutAssetDataResults,
 		TArray<double>& OutSearchTimes, int32& OutNumFilesToSearch, int32& OutNumPathsToSearch, bool& OutIsDiscoveringFiles);
+	/** Gets just the AssetResults and DependencyResults from the data gatherer. */
+	void GetPackageResults(TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults);
 	/** Wait for all monitored assets under the given path to be added to search results. Returns immediately if the given path is not monitored. */
 	void WaitOnPath(FStringView LocalPath);
 	/**

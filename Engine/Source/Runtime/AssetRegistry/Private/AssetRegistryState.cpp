@@ -1120,38 +1120,40 @@ void FAssetRegistryState::Load(Archive&& Ar, FAssetRegistryVersion::Type Version
 
 	if (LocalNumPackageData > 0)
 	{
+		FAssetPackageData SerializedElement;
+		TArrayView<FAssetPackageData> PreallocatedPackageDataBuffer;
 		if (Options.bLoadPackageData)
 		{
-			TArrayView<FAssetPackageData> PreallocatedPackageDataBuffer(new FAssetPackageData[LocalNumPackageData], LocalNumPackageData);
+			PreallocatedPackageDataBuffer = TArrayView<FAssetPackageData>(new FAssetPackageData[LocalNumPackageData], LocalNumPackageData);
 			PreallocatedPackageDataBuffers.Add(PreallocatedPackageDataBuffer.GetData());
 			CachedPackageData.Reserve(LocalNumPackageData);
-			for (FAssetPackageData& NewPackageData : PreallocatedPackageDataBuffer)
-			{
-				FName PackageName;
-				Ar << PackageName;
-		
-				if (Version < FAssetRegistryVersion::AddedCookedMD5Hash)
-				{
-					Ar << NewPackageData.DiskSize;
-					Ar << NewPackageData.PackageGuid;
-				}
-				else
-				{
-					NewPackageData.SerializeForCache(Ar);
-				}
-
-				CachedPackageData.Add(PackageName, &NewPackageData);
-			}	
 		}
-		else
+		for (int32 PackageDataIndex = 0; PackageDataIndex < LocalNumPackageData; PackageDataIndex++)
 		{
-			for (int32 PackageDataIndex = 0; PackageDataIndex < LocalNumPackageData; PackageDataIndex++)
+			FName PackageName;
+			Ar << PackageName;
+			FAssetPackageData* NewPackageData;
+			if (Options.bLoadPackageData)
 			{
-				FName PackageName;
-				Ar << PackageName;
-
-				FAssetPackageData FakeData;
-				FakeData.SerializeForCache(Ar);
+				NewPackageData = &PreallocatedPackageDataBuffer[PackageDataIndex];
+				CachedPackageData.Add(PackageName, NewPackageData);
+			}
+			else
+			{
+				NewPackageData = &SerializedElement;
+			}
+			if (Version >= FAssetRegistryVersion::WorkspaceDomain)
+			{
+				NewPackageData->SerializeForCache(Ar);
+			}
+			else
+			{
+				Ar << NewPackageData->DiskSize;
+				Ar << NewPackageData->PackageGuid;
+				if (Version >= FAssetRegistryVersion::AddedCookedMD5Hash)
+				{
+					Ar << NewPackageData->CookedHash;
+				}
 			}
 		}
 	}
