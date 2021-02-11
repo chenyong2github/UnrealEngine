@@ -6194,7 +6194,7 @@ void FSequencer::SaveCurrentMovieScene()
 		}
 	}
 
-	if ( ensure(GCurrentLevelEditingViewportClient) && Viewport != nullptr )
+	if (GCurrentLevelEditingViewportClient && Viewport)
 	{
 		bool bIsInGameView = GCurrentLevelEditingViewportClient->IsInGameView();
 		GCurrentLevelEditingViewportClient->SetGameView(true);
@@ -7059,13 +7059,16 @@ void FSequencer::ZoomToFit()
 
 	for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : Selection.GetSelectedSections())
 	{
-		if (BoundsHull == TRange<FFrameNumber>::All())
+		if (SelectedSection->GetRange().HasUpperBound() && SelectedSection->GetRange().HasLowerBound())
 		{
-			BoundsHull = SelectedSection->GetRange();
-		}
-		else
-		{
-			BoundsHull = TRange<FFrameNumber>::Hull(SelectedSection->GetRange(), BoundsHull);
+			if (BoundsHull == TRange<FFrameNumber>::All())
+			{
+				BoundsHull = SelectedSection->GetRange();
+			}
+			else
+			{
+				BoundsHull = TRange<FFrameNumber>::Hull(SelectedSection->GetRange(), BoundsHull);
+			}
 		}
 	}
 	
