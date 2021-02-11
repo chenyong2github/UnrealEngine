@@ -546,8 +546,14 @@ void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
 {
 	auto AddRenderContextEntry = [&](const FName& RenderContext)
 	{
+		FText RenderContextName = FText::FromName( RenderContext );
+		if ( RenderContext.IsNone() )
+		{
+			RenderContextName = LOCTEXT("UniversalRenderContext", "Universal");
+		}
+
 		MenuBuilder.AddMenuEntry(
-			FText::FromName( RenderContext ),
+			RenderContextName,
 			FText::GetEmpty(),
 			FSlateIcon(),
 			FUIAction(
