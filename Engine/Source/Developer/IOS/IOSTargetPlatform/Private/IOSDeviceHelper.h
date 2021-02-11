@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 /**
  * Type definition for shared pointers to instances of FIOSDeviceHelper
  */
