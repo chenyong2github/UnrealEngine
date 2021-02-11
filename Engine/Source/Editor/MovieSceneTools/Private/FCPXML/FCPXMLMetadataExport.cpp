@@ -82,7 +82,14 @@ bool FFCPXMLMetadataExportVisitor::ConstructMasterClipNode(TSharedRef<FFCPXMLNod
 {
 	int32 Duration = InClipMetadata.GetDuration();
 	int32 StartFrame = InClipMetadata.StartFrame;
-	int32 EndFrame = InClipMetadata.EndFrame;
+
+	//
+	// EndFrame + 1: The clip meta data's end frame is the frame that is actually output. It is not exclusive. FCPXML is exclusive. 
+	// For example, a 50 frame duration movie that starts at frame 0 should have an end frame value of 50. 
+	// See corresponding note in FCPXMLExport.cpp GetCinematicSectionFrames which constructs the end frame from 
+	// the section's exclusive end frame.
+	// 
+	int32 EndFrame = InClipMetadata.EndFrame + 1;
 	int32 InFrame = HandleFrames;
 	int32 OutFrame = InFrame + Duration;
 	FString SectionName = InClipName;
@@ -141,7 +148,14 @@ bool FFCPXMLMetadataExportVisitor::ConstructVideoClipItemNode(TSharedRef<FFCPXML
 
 	int32 Duration = InClipMetadata.GetDuration();
 	int32 StartFrame = InClipMetadata.StartFrame;
-	int32 EndFrame = InClipMetadata.EndFrame;
+
+	//
+	// EndFrame + 1: The clip meta data's end frame is the frame that is actually output. It is not exclusive. FCPXML is exclusive. 
+	// For example, a 50 frame duration movie that starts at frame 0 should have an end frame value of 50. 
+	// See corresponding note in FCPXMLExport.cpp GetCinematicSectionFrames which constructs the end frame from 
+	// the section's exclusive end frame.
+	// 
+	int32 EndFrame = InClipMetadata.EndFrame + 1;
 	int32 InFrame = HandleFrames;
 	int32 OutFrame = InFrame + Duration;
 
