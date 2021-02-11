@@ -137,17 +137,17 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
 	TUniquePtr<IOperator> Operator = RootGraph->BuildOperator(InSettings, Environment, BuildErrors);
 
+	// Log build errors
+	for (const IOperatorBuilder::FBuildErrorPtr& Error : BuildErrors)
+	{
+		if (Error.IsValid())
+		{
+			UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] build error [%s] \"%s\""), *GetName(), *(Error->GetErrorType().ToString()), *(Error->GetErrorDescription().ToString()));
+		}
+	}
 	if (!Operator.IsValid())
 	{
-		// Log build errors that resulted in a null operator.
 		UE_LOG(LogMetasound, Error, TEXT("Failed to build Metasound operator from graph in MetasoundSource [%s]"), *GetName());
-		for (const IOperatorBuilder::FBuildErrorPtr& Error : BuildErrors)
-		{
-			if (Error.IsValid())
-			{
-				UE_LOG(LogMetasound, Warning, TEXT("MetasoundSource [%s] build error [%s] \"%s\""), *GetName(), *(Error->GetErrorType().ToString()), *(Error->GetErrorDescription().ToString()));
-			}
-		}
 	}
 	else
 	{

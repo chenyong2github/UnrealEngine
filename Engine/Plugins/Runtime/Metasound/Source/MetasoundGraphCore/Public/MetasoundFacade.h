@@ -40,7 +40,7 @@ namespace Metasound
 			template<typename T, T> 
 			struct Helper;
 
-			// Check for "static const FNodeClassMetadata& U::CreateOperator(const FCreateOperatorParams& Inparams, FBuildErrorArray& OutErrors)"
+			// Check for "static const FNodeClassMetadata& U::GetNodeInfo()"
 			template<typename T>
 			static uint8 Check(Helper<const FNodeClassMetadata&(*)(), &T::GetNodeInfo>*);
 

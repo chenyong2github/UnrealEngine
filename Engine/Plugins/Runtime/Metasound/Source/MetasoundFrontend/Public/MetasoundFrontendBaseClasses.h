@@ -28,23 +28,6 @@ namespace Metasound
 		// @returns nullptr if the type given wasn't found.
 		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructExternalNode(const FName& InNodeClassFullName, uint32 InNodeHash, const FNodeInitData& InInitData);
 
-
-		// Utility functions for building a ::Metasound::FDataInitParam corresponding to a literal.
-
-		// Return the literal description parsed into a init param. 
-		// @Returns an invalid init param if the data type couldn't be found, or if the literal type was incompatible with the data type.
-		METASOUNDFRONTEND_API FLiteral GetLiteralParamForDataType(FName InDataType, const FMetasoundFrontendLiteral& InDescription);
-
-		METASOUNDFRONTEND_API bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundFrontendLiteralType InLiteralType);
-		METASOUNDFRONTEND_API bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralType InLiteralType);
-		
-		// Returns a literal param without any type checking.
-		METASOUNDFRONTEND_API FLiteral GetLiteralParam(const FMetasoundFrontendLiteral& InDescription);
-
-		// Returns the defaulted version of a literal param for the given data type.
-		// @Returns an invalid init param if the data type couldn't be found.
-		METASOUNDFRONTEND_API FLiteral GetDefaultParamForDataType(FName InDataType);
-
 		// Utility base class for classes that want to support naive multi-level undo/redo.
 		class METASOUNDFRONTEND_API ITransactable : public TSharedFromThis<ITransactable>
 		{

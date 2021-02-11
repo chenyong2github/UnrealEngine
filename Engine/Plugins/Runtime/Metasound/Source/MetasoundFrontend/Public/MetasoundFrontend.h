@@ -91,8 +91,6 @@ namespace Metasound
 			return GenerateClassDescription<NodeType>(InitData);
 		}
 
-		// Convenience function to convert Metasound::ELiteralType to EMetasoundFrontendLiteralType, the UEnum used for metasound documents.
-		METASOUNDFRONTEND_API EMetasoundFrontendLiteralType GetMetasoundLiteralType(Metasound::ELiteralType InLiteralType);
 
 		template<typename DataType>
 		FName GetDataTypeName()

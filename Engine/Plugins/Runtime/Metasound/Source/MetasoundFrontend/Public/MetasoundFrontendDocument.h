@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAccessPtr.h"
+#include "MetasoundFrontendLiteral.h"
 #include "MetasoundNodeInterface.h"
 #include "Misc/Guid.h"
 
@@ -70,61 +71,6 @@ struct FMetasoundFrontendVersion
 	FMetasoundFrontendVersionNumber Number;
 };
 
-// The type of a given literal for an input value.
-UENUM()
-enum class EMetasoundFrontendLiteralType : uint8
-{
-	None,
-	Bool,
-	Float,
-	Integer,
-	String,
-	UObject,
-	UObjectArray,
-	Invalid UMETA(Hidden)
-};
-
-// Represents the serialized version of variant literal types. 
-USTRUCT()
-struct METASOUNDFRONTEND_API FMetasoundFrontendLiteral
-{
-	GENERATED_BODY()
-
-	// The set type of this literal.
-	UPROPERTY(EditAnywhere, Category = Customized)
-	EMetasoundFrontendLiteralType Type = EMetasoundFrontendLiteralType::None;
-
-	UPROPERTY(EditAnywhere, Category = Customized)
-	bool AsBool = false;
-
-	UPROPERTY(EditAnywhere, Category = Customized)
-	int32 AsInteger = 0;
-
-	UPROPERTY(EditAnywhere, Category = Customized)
-	float AsFloat = 0.f;
-
-	UPROPERTY(EditAnywhere, Category = Customized)
-	FString AsString = TEXT("");
-
-	UPROPERTY(EditAnywhere, Category = Customized)
-	UObject* AsUObject = nullptr;
-
-	UPROPERTY(EditAnywhere, Category = Customized)
-	TArray<UObject*> AsUObjectArray;
-
-	void Set(bool InValue);
-	void Set(int32 InValue);
-	void Set(float InValue);
-	void Set(const FString& InValue);
-	void Set(UObject* InValue);
-	void Set(const TArray<UObject*>& InValue);
-
-	void SetFromLiteral(const Metasound::FLiteral& InLiteral);
-
-	FString ToString() const;
-
-	void Clear();
-};
 
 // An FMetasoundFrontendVertex provides a named connection point of a node.
 USTRUCT() 

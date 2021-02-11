@@ -5,39 +5,45 @@
 #include "CoreMinimal.h"
 
 #include "IAudioProxyInitializer.h"
-#include "MetasoundOperatorSettings.h" 
-#include "Misc/Guid.h"
 #include "Misc/TVariant.h"
 #include <type_traits>
 
 #define METASOUND_DEBUG_LITERALS 1
 
+// Forward Declare
+struct FGuid;
+class FString;
+
+
 namespace Metasound
 {
+	/** ELiteralType describes the format of the values held in the literal. */
 	enum class ELiteralType : uint8
 	{
-		None, // If the literal is None, TType(const FOperatorSettings&) or TType() will be invoked.
-		Boolean,
+		None, //< If the literal is None, TType(const FOperatorSettings&) or TType() will be invoked.
+		Boolean, 
 		Integer,
 		Float,
 		String,
 		UObjectProxy,
-		NoneArray, // If this is set, TType(const FOperatorSettings&) or TType() will be invoked for each element in the array. 
+		NoneArray, //< For NoneArray types,  TType(const FOperatorSettings&) or TType() will be invoked for each element in the array. 
 		BooleanArray,
 		IntegerArray,
 		FloatArray,
 		StringArray,
 		UObjectProxyArray,
-		Invalid,
+		Invalid  //< The literal is in an invalid state and cannot be used to construct an object.
 	};
 
 
 	/**
-	 * FLiteral 
-	 * Convenience wrapper for safely invoking the correct constructor.
-	 * This can be used for int32, float, bool, FString, Audio::IProxyData, or TArray<Audio::IProxyData>
+	 * FLiteral represents a constant value in a Metasound graph and is primarily
+	 * used to invoke the correct constructor of a Metasound data type. To be constructed
+	 * using a FLiteral, the Metasound data type must support a constructor which 
+	 * accepts one of the types supported by a FLiteral. The Metasound data type may 
+	 * optionally accept a `const FOperatorSettings&` in addition.
 	 *
-	 * For example:
+	 * Example:
 	 * // Somewhere before DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer...), ParseFrom<FAudioBuffer>(int32) is defined
 	 * // which means this data type can be created from an integer.
 	 * Metasound::FAudioBuffer ::Metasound::ParseFrom<Metasound::FAudioBuffer>(int32 InNumFrames, const ::Metasound::FOperatorSettings&)
@@ -57,8 +63,9 @@ namespace Metasound
 	 *     //...
 	 * }
 	 */
-	struct FLiteral
+	struct METASOUNDGRAPHCORE_API FLiteral
 	{
+	public:
 		struct FInvalid {};
 
 		/* FNone is used in scenarios where an object is constructed with an FLiteral
@@ -67,216 +74,11 @@ namespace Metasound
 		 */
 		struct FNone {};
 
-		FLiteral(const FLiteral& Other) = delete;
-		FLiteral(FLiteral&& Other) = default;
-		FLiteral& operator=(FLiteral&& Other) = default;
-
 		using FVariantType = TVariant<
 			FNone, bool, int32, float, FString, Audio::IProxyDataPtr, // Single value types
 			TArray<FNone>, TArray<bool>, TArray<int32>, TArray<float>, TArray<FString>, TArray<Audio::IProxyDataPtr>, // Array of values types
 			FInvalid
 		>;
-
-		FVariantType Value;
-
-#if METASOUND_DEBUG_LITERALS
-		private:
-
-		FString DebugString;
-
-		void InitDebugString()
-		{
-			// GetIndex returns the index of the current type set in the TVariant.
-			// The index refers to the order of the template parameters to TVariant.
-			switch (Value.GetIndex())
-			{
-				case 0:
-					DebugString = TEXT("NONE");
-				break;
-
-				case 1:
-					DebugString = FString::Printf(TEXT("Bool: %s"), Value.Get<bool>() ? TEXT("true") : TEXT("false"));
-				break;
-
-				case 2:
-					DebugString = FString::Printf(TEXT("Int32: %d"), Value.Get<int32>());
-				break;
-
-				case 3:
-					DebugString = FString::Printf(TEXT("Float: %f"), Value.Get<float>());
-				break;
-
-				case 4:
-					DebugString = FString::Printf(TEXT("String: %s"), *Value.Get<FString>());
-				break;
-
-				case 5:
-					DebugString = FString::Printf(TEXT("Object: %f"), *Value.Get<Audio::IProxyDataPtr>()->GetProxyTypeName().ToString());
-				break;
-
-				case 6:
-					DebugString = TEXT("TArray<NONE>");
-				break;
-
-				case 7:
-					DebugString = FString::Printf(TEXT("TArray<Bool>"));
-				break;
-
-				case 8:
-					DebugString = FString::Printf(TEXT("TArray<int32>"));
-				break;
-
-				case 9:
-					DebugString = FString::Printf(TEXT("TArray<float>"));
-				break;
-
-				case 10:
-					DebugString = FString::Printf(TEXT("TArray<FString>"));
-				break;
-
-				case 11:
-					DebugString = FString::Printf(TEXT("TArray<UObject>"));
-				break;
-
-				case 12:
-					DebugString = TEXT("INVALID");
-				break;
-
-				default:
-					static_assert(TVariantSize<FVariantType>::Value == 13, "Possible missing FVariantType case coverage");
-					checkNoEntry();
-			}
-		}
-
-		public:
-#endif // METAOUND_DEBUG_LITERALS
-
-
-		// builds an invalid FLiteral.
-		static FLiteral CreateInvalid()
-		{
-			return FLiteral(FInvalid());
-		}
-
-		bool IsValid() const
-		{
-			return GetType() != ELiteralType::Invalid;
-		}
-
-		ELiteralType GetType() const
-		{
-			switch (Value.GetIndex())
-			{
-				case 0:
-					return ELiteralType::None;
-
-				case 1:
-					return ELiteralType::Boolean;
-
-				case 2:
-					return ELiteralType::Integer;
-
-				case 3:
-					return ELiteralType::Float;
-
-				case 4:
-					return ELiteralType::String;
-
-				case 5:
-					return ELiteralType::UObjectProxy;
-
-				case 6:
-					return ELiteralType::NoneArray;
-
-				case 7:
-					return ELiteralType::BooleanArray;
-
-				case 8:
-					return ELiteralType::IntegerArray;
-
-				case 9:
-					return ELiteralType::FloatArray;
-
-				case 10:
-					return ELiteralType::StringArray;
-
-				case 11:
-					return ELiteralType::UObjectProxyArray;
-
-				case 12:
-				default:
-					static_assert(TVariantSize<FVariantType>::Value == 13, "Possible missing FVariantType case coverage");
-					return ELiteralType::Invalid;
-			}
-		}
-
-		FLiteral Clone() const
-		{
-			// TODO: If Clone() is supported after reworking vertices,
-			// wrap the Audio::IProxyData in a object that manages virtual
-			// copy construction.  Then replace this switch with simple
-			// TVariant copy constructor.
-			switch (GetType())
-			{
-			case ELiteralType::Invalid:
-				return CreateInvalid();
-
-			case ELiteralType::None:
-				return FLiteral(FNone());
-
-			case ELiteralType::Boolean:
-				return FLiteral(Value.Get<bool>());
-
-			case ELiteralType::Float:
-				return FLiteral(Value.Get<float>());
-
-			case ELiteralType::Integer:
-				return FLiteral(Value.Get<int32>());
-
-			case ELiteralType::String:
-				return FLiteral(Value.Get<FString>());
-
-			case ELiteralType::UObjectProxy:
-				if (const Audio::IProxyDataPtr& ProxyPtr = Value.Get<Audio::IProxyDataPtr>())
-				{
-					return FLiteral(ProxyPtr->Clone());
-				}
-				return CreateInvalid();
-
-			case ELiteralType::NoneArray:
-				return FLiteral(Value.Get<TArray<FNone>>());
-
-			case ELiteralType::BooleanArray:
-				return FLiteral(Value.Get<TArray<bool>>());
-
-			case ELiteralType::FloatArray:
-				return FLiteral(Value.Get<TArray<float>>());
-
-			case ELiteralType::IntegerArray:
-				return FLiteral(Value.Get<TArray<int32>>());
-
-			case ELiteralType::StringArray:
-				return FLiteral(Value.Get<TArray<FString>>());
-
-			case ELiteralType::UObjectProxyArray:
-				{
-					TArray<Audio::IProxyDataPtr> ProxyPtrArrayCopy;
-					for (const Audio::IProxyDataPtr& Ptr : Value.Get<TArray<Audio::IProxyDataPtr>>())
-					{
-						if (Ptr.IsValid())
-						{
-							ProxyPtrArrayCopy.Add(Ptr->Clone());
-						}
-					}
-					return FLiteral(MoveTemp(ProxyPtrArrayCopy));
-				}
-				return CreateInvalid();
-
-			default:
-				checkNoEntry();
-				return CreateInvalid();
-			}
-		}
 
 		/** Construct a literal param with a single argument. */
 		template<
@@ -304,6 +106,40 @@ namespace Metasound
 #endif
 		}
 
+		FLiteral(const FLiteral& Other) = delete;
+		FLiteral(FLiteral&& Other) = default;
+		FLiteral& operator=(FLiteral&& Other) = default;
+
+		FVariantType Value;
+
+		// builds an invalid FLiteral.
+		static FLiteral CreateInvalid();
+		static FLiteral GetDefaultForType(ELiteralType InType);
+
+		bool IsValid() const;
+
+		ELiteralType GetType() const;
+
+		FLiteral Clone() const;
+
+
+		template<typename ArgType>
+		void Set(ArgType&& Arg)
+		{
+			Value.Set<typename std::decay<ArgType>::type>(Forward<ArgType>(Arg));
+#if METASOUND_DEBUG_LITERALS
+			InitDebugString();
+#endif
+		}
+
+#if METASOUND_DEBUG_LITERALS
+	private:
+
+		FString DebugString;
+
+		void InitDebugString();
+
+#endif // METAOUND_DEBUG_LITERALS
 	};
 
 	namespace MetasoundLiteralIntrinsics
@@ -318,6 +154,7 @@ namespace Metasound
 		template<>
 		FORCEINLINE ELiteralType GetLiteralArgTypeFromDecayed<>()
 		{
+			checkNoEntry();
 			return ELiteralType::None;
 		}
 
@@ -386,6 +223,66 @@ namespace Metasound
 		{
 			return ELiteralType::UObjectProxyArray;
 		}
+
+		template<typename ... ArgTypes>
+		struct TLiteralDefaultValueFromDecayed {};
+
+		template<typename ArgType>
+		struct TLiteralDefaultValueFromDecayed<ArgType>
+		{
+			static const ArgType& GetValue()
+			{
+				static const ArgType Value = static_cast<ArgType>(0);
+				return Value;
+			}
+		};
+
+		template<>
+		struct TLiteralDefaultValueFromDecayed<FLiteral::FNone>
+		{
+			static FLiteral::FNone GetValue()
+			{
+				return FLiteral::FNone{};
+			}
+		};
+
+		template<>
+		struct TLiteralDefaultValueFromDecayed<FString>
+		{
+			static const FString& GetValue()
+			{
+				static const FString Value = TEXT("");
+				return Value;
+			}
+		};
+
+		template<typename ElementType>
+		struct TLiteralDefaultValueFromDecayed<TArray<ElementType>>
+		{
+			static const TArray<ElementType>& GetValue()
+			{
+				static const TArray<ElementType> Value;
+				return Value;
+			}
+		};
+
+		template<>
+		struct TLiteralDefaultValueFromDecayed<Audio::IProxyDataPtr>
+		{
+			static Audio::IProxyDataPtr GetValue()
+			{
+				return Audio::IProxyDataPtr(nullptr);
+			}
+		};
+
+		template<>
+		struct TLiteralDefaultValueFromDecayed<TArray<Audio::IProxyDataPtr>>
+		{
+			static TArray<Audio::IProxyDataPtr> GetValue()
+			{
+				return TArray<Audio::IProxyDataPtr>();
+			}
+		};
 	}
 
 
@@ -394,13 +291,22 @@ namespace Metasound
 	 * @tparam ArgType - A C++ type.
 	 */
 	template<typename... ArgTypes>
-	struct TLiteralTypeInfo
+	struct TLiteralTypeInfo{};
+
+	template<typename ArgType>
+	struct TLiteralTypeInfo<ArgType>
 	{
+		using FDecayedType = typename std::decay<ArgType>::type;
 		/** Returns the associated ELiteralType for the C++ type provided in the TLiteralTypeInfo<Type> */
 		static const ELiteralType GetLiteralArgTypeEnum()
 		{
 			// Use decayed version of template arg to remove references and cv qualifiers. 
-			return MetasoundLiteralIntrinsics::GetLiteralArgTypeFromDecayed<typename std::decay<ArgTypes...>::type>();
+			return MetasoundLiteralIntrinsics::GetLiteralArgTypeFromDecayed<FDecayedType>();
+		}
+
+		static auto GetDefaultValue()
+		{
+			return MetasoundLiteralIntrinsics::TLiteralDefaultValueFromDecayed<FDecayedType>::GetValue();
 		}
 	};
 
@@ -416,6 +322,11 @@ namespace Metasound
 		{
 			// Use decayed version of template arg to remove references and cv qualifiers. 
 			return MetasoundLiteralIntrinsics::GetLiteralArgTypeFromDecayed<>();
+		}
+
+		static FLiteral::FNone GetDefaultValue()
+		{
+			return FLiteral::FNone{};
 		}
 	};
 

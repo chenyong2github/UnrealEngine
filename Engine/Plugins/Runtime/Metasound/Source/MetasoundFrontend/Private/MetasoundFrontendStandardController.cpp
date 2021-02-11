@@ -2312,101 +2312,42 @@ namespace Metasound
 
 		bool FGraphController::SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral)
 		{
-			switch (InLiteral.Type)
+			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
 			{
-				case EMetasoundFrontendLiteralType::Bool:
-				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsBool);
-				}
-				break;
+				auto IsLiteralWithSamePointID = [&](const FMetasoundFrontendVertexLiteral& InVertexLiteral) 
+				{ 
+					return InVertexLiteral.PointID == InPointID; 
+				};
 
-				case EMetasoundFrontendLiteralType::Float:
+				FMetasoundFrontendVertexLiteral* VertexLiteral = Desc->Defaults.FindByPredicate(IsLiteralWithSamePointID);
+				if (nullptr == VertexLiteral)
 				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsFloat);
+					VertexLiteral = &Desc->Defaults.AddDefaulted_GetRef();
+					VertexLiteral->PointID = InPointID;
 				}
-				break;
 
-				case EMetasoundFrontendLiteralType::Integer:
+				if (ensure(DoesDataTypeSupportLiteralType(Desc->TypeName, InLiteral.Type)))
 				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsInteger);
+					VertexLiteral->Value = InLiteral;
+					return true;
 				}
-				break;
-
-				case EMetasoundFrontendLiteralType::String:
+				else
 				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsString);
+					VertexLiteral->Value.Clear();
 				}
-				break;
-
-				case EMetasoundFrontendLiteralType::UObject:
-				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, InLiteral.AsUObject);
-				}
-				break;
-
-				// TODO: Remove as array support will not be specialized to object type
-				case EMetasoundFrontendLiteralType::UObjectArray:
-				{
-					return false;
-				}
-				break;
-
-				case EMetasoundFrontendLiteralType::Invalid:
-				case EMetasoundFrontendLiteralType::None:
-				default:
-				{
-					static_assert(static_cast<int32>(EMetasoundFrontendLiteralType::Invalid) == 7, "Possible missing ELiteralType case coverage");
-					return false;
-				}
-				break;
 			}
+
+			return false;
 		}
 
 		bool FGraphController::SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName)
 		{
-			Metasound::FLiteral LiteralParam = Frontend::GetDefaultParamForDataType(InDataTypeName);
-			switch (LiteralParam.GetType())
-			{
-				case ELiteralType::Boolean:
-				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, LiteralParam.Value.Get<bool>());
-				}
-				break;
+			FMetasoundFrontendLiteral FrontendLiteral;
 
-				case ELiteralType::Float:
-				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, LiteralParam.Value.Get<float>());
-				}
-				break;
+			Metasound::FLiteral Literal = Frontend::GetDefaultParamForDataType(InDataTypeName);
+			FrontendLiteral.SetFromLiteral(Literal);
 
-				case ELiteralType::Integer:
-				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, LiteralParam.Value.Get<int32>());
-				}
-				break;
-
-				case ELiteralType::String:
-				{
-					return SetDefaultInputToLiteralInternal(InInputName, InPointID, LiteralParam.Value.Get<FString>());
-				}
-				break;
-
-				case ELiteralType::None:
-				case ELiteralType::UObjectProxy:	// UObject literals do not currently support default data type references
-				case ELiteralType::NoneArray:
-				case ELiteralType::BooleanArray:
-				case ELiteralType::IntegerArray:
-				case ELiteralType::FloatArray:
-				case ELiteralType::StringArray:
-				case ELiteralType::UObjectProxyArray:
-				case ELiteralType::Invalid:
-				default:
-				{
-					static_assert(static_cast<int32>(ELiteralType::Invalid) == 12, "Possible missing ELiteralType case coverage");
-					return false;
-				}
-				break;
-			}
+			return SetDefaultInputToFrontendLiteral(InInputName, InPointID, InDataTypeName, FrontendLiteral);
 		}
 
 		// Set the display name for the input with the given name

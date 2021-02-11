@@ -600,60 +600,6 @@ namespace Metasound
 		/** FGraphController represents a Metasound graph class. */
 		class METASOUNDFRONTEND_API FGraphController : public IGraphController
 		{
-			// Util for setting template to literal based on template argument
-			template<typename ArgType>
-			bool SetDefaultInputToLiteralInternal(const FString& InInputName, FGuid InPointID, ArgType InValue)
-			{
-				if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
-				{
-					auto IsLiteralWithSamePointID = [&](const FMetasoundFrontendVertexLiteral& InVertexLiteral) 
-					{ 
-						return InVertexLiteral.PointID == InPointID; 
-					};
-
-					FMetasoundFrontendVertexLiteral* VertexLiteral = Desc->Defaults.FindByPredicate(IsLiteralWithSamePointID);
-					if (nullptr == VertexLiteral)
-					{
-						VertexLiteral = &Desc->Defaults.AddDefaulted_GetRef();
-						VertexLiteral->PointID = InPointID;
-					}
-
-					if (ensure(FMetasoundFrontendRegistryContainer::Get()->DoesDataTypeSupportLiteralType<ArgType>(Desc->TypeName)))
-					{
-						VertexLiteral->Value.Set(InValue);
-						return true;
-					}
-				}
-
-				return false;
-			}
-
-			template<>
-			bool SetDefaultInputToLiteralInternal<UObject*>(const FString& InInputName, FGuid InPointID, UObject* InValue)
-			{
-				if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
-				{
-					auto IsLiteralWithSamePointID = [&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
-					{
-						return InVertexLiteral.PointID == InPointID;
-					};
-
-					FMetasoundFrontendVertexLiteral* VertexLiteral = Desc->Defaults.FindByPredicate(IsLiteralWithSamePointID);
-					if (nullptr == VertexLiteral)
-					{
-						VertexLiteral = &Desc->Defaults.AddDefaulted_GetRef();
-						VertexLiteral->PointID = InPointID;
-					}
-
-					if (ensure(FMetasoundFrontendRegistryContainer::Get()->DoesDataTypeSupportLiteralType(Desc->TypeName, Metasound::ELiteralType::UObjectProxy)))
-					{
-						VertexLiteral->Value.Set(InValue);
-						return true;
-					}
-				}
-
-				return false;
-			}
 
 			// Private token only allows members or friends to call constructor.
 			enum EPrivateToken { Token };

@@ -157,7 +157,7 @@ namespace Metasound
 
 				if (IsLiteralParsableByDataType)
 				{
-					FLiteral Literal = Frontend::GetLiteralParamForDataType(InputVertex.TypeName, VertexLiteral->Value);
+					FLiteral Literal = VertexLiteral->Value.ToLiteral(InputVertex.TypeName);
 
 					FInputNodeConstructorParams InitParams =
 					{

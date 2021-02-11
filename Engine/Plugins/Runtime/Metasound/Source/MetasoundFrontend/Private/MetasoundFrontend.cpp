@@ -136,42 +136,6 @@ namespace Metasound
 			}
 		}
 
-		EMetasoundFrontendLiteralType GetMetasoundLiteralType(Metasound::ELiteralType InLiteralType)
-		{
-			switch (InLiteralType)
-			{
-				case Metasound::ELiteralType::Boolean:
-				{
-					return EMetasoundFrontendLiteralType::Bool;
-				}
-				case Metasound::ELiteralType::Integer:
-				{
-					return EMetasoundFrontendLiteralType::Integer;
-				}
-				case Metasound::ELiteralType::Float:
-				{
-					return EMetasoundFrontendLiteralType::Float;
-				}
-				case Metasound::ELiteralType::String:
-				{
-					return EMetasoundFrontendLiteralType::String;
-				}
-				case Metasound::ELiteralType::UObjectProxy:
-				{
-					return EMetasoundFrontendLiteralType::UObject;
-				}
-				case Metasound::ELiteralType::UObjectProxyArray:
-				{
-					return EMetasoundFrontendLiteralType::UObjectArray;
-				}
-				case Metasound::ELiteralType::None:
-				default:
-				{
-					return EMetasoundFrontendLiteralType::None;
-				}
-			}
-		}
-
 		TArray<FName> GetAllAvailableDataTypes()
 		{
 			return FMetasoundFrontendRegistryContainer::Get()->GetAllValidDataTypes();
@@ -228,6 +192,8 @@ REGISTER_METASOUND_DATATYPE(int64, "Int64", ::Metasound::ELiteralType::Integer)
 REGISTER_METASOUND_DATATYPE(float, "Float", ::Metasound::ELiteralType::Float)
 REGISTER_METASOUND_DATATYPE(double, "Double", ::Metasound::ELiteralType::Float)
 REGISTER_METASOUND_DATATYPE(FString, "String", ::Metasound::ELiteralType::String)
+
+REGISTER_METASOUND_DATATYPE(TArray<float>, "FloatArray", ::Metasound::ELiteralType::FloatArray)
 
 REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio:Buffer")
 REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Transmission:Address")

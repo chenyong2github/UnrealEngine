@@ -18,5 +18,7 @@ namespace Metasound
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(double, METASOUNDFRONTEND_API, FDoubleTypeInfo, FDoubleReadRef, FDoubleWriteRef);
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FString, METASOUNDFRONTEND_API, FStringTypeInfo, FStringReadRef, FStringWriteRef);
+
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(TArray<float>, METASOUNDFRONTEND_API, FFloatArrayTypeInfo, FFloatArrayReadRef, FFloatArrayWriteRef);
 }
 

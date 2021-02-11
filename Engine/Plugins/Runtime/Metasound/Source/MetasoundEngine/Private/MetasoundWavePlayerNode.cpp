@@ -157,50 +157,58 @@ namespace Metasound
 
 		void ExecuteInternal(int32 StartFrame, int32 EndFrame)
 		{
-			// shouldn't be calling this function if we don't have access to a valid SoundWave
-			ensure(Wave->IsSoundWaveValid());
-			ensure(Wave->SoundWaveProxy->GetNumChannels() <= 2); // only support mono or stereo inputs
-			ensure(Decoder.CanGenerateAudio());
+			bool bCanDecodeWave = Wave->IsSoundWaveValid() && (Wave->SoundWaveProxy->GetNumChannels() <= 2); // only support mono or stereo inputs
 
 			// note: output is hard-coded to stereo (dual-mono)
 			float* FinalOutputLeft = AudioBufferL->GetData() + StartFrame;
 			float* FinalOutputRight = AudioBufferR->GetData() + StartFrame;
-
-			const int32 NumInputChannels = Wave->SoundWaveProxy->GetNumChannels();
-			const bool bNeedsUpmix = (NumInputChannels == 1);
-			const bool bNeedsDeinterleave = !bNeedsUpmix;
-
 			const int32 NumOutputFrames = (EndFrame - StartFrame);
-			const int32 NumSamplesToGenerate = NumOutputFrames * NumInputChannels; // (stereo output)
 
-			PostSrcBuffer.Reset(NumSamplesToGenerate);
-			PostSrcBuffer.AddZeroed(NumSamplesToGenerate);
-			float* PostSrcBufferPtr = PostSrcBuffer.GetData();
-
-			int32 NumFramesDecoded = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFrames, *PitchShiftCents); // TODO: pitch shift
-
-			// TODO: handle decoder having completed during it's decode
-			if (!Decoder.CanGenerateAudio() ||  (NumFramesDecoded < NumOutputFrames))
+			if (bCanDecodeWave)
 			{
-				bIsPlaying = false;
-				TrigggerOnDone->TriggerFrame(StartFrame + NumFramesDecoded);
-			}
+				ensure(Decoder.CanGenerateAudio());
 
-			if (bNeedsUpmix)
-			{
-				// TODO: attenuate by -3 dB?
-				// copy to Left & Right output buffers
-				FMemory::Memcpy(FinalOutputLeft, PostSrcBufferPtr, sizeof(float) * NumOutputFrames);
-				FMemory::Memcpy(FinalOutputRight, PostSrcBufferPtr, sizeof(float) * NumOutputFrames);
-			}
-			else if (bNeedsDeinterleave)
-			{
-				for (int32 i = 0; i < NumOutputFrames; ++i)
+
+				const int32 NumInputChannels = Wave->SoundWaveProxy->GetNumChannels();
+				const bool bNeedsUpmix = (NumInputChannels == 1);
+				const bool bNeedsDeinterleave = !bNeedsUpmix;
+
+				const int32 NumSamplesToGenerate = NumOutputFrames * NumInputChannels; // (stereo output)
+
+				PostSrcBuffer.Reset(NumSamplesToGenerate);
+				PostSrcBuffer.AddZeroed(NumSamplesToGenerate);
+				float* PostSrcBufferPtr = PostSrcBuffer.GetData();
+
+				int32 NumFramesDecoded = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFrames, *PitchShiftCents); // TODO: pitch shift
+
+				// TODO: handle decoder having completed during it's decode
+				if (!Decoder.CanGenerateAudio() ||  (NumFramesDecoded < NumOutputFrames))
 				{
-					// de-interleave each stereo frame into output buffers
-					FinalOutputLeft[i] = PostSrcBufferPtr[(i << 1)];
-					FinalOutputRight[i] = PostSrcBufferPtr[(i << 1) + 1];
+					bIsPlaying = false;
+					TrigggerOnDone->TriggerFrame(StartFrame + NumFramesDecoded);
 				}
+
+				if (bNeedsUpmix)
+				{
+					// TODO: attenuate by -3 dB?
+					// copy to Left & Right output buffers
+					FMemory::Memcpy(FinalOutputLeft, PostSrcBufferPtr, sizeof(float) * NumOutputFrames);
+					FMemory::Memcpy(FinalOutputRight, PostSrcBufferPtr, sizeof(float) * NumOutputFrames);
+				}
+				else if (bNeedsDeinterleave)
+				{
+					for (int32 i = 0; i < NumOutputFrames; ++i)
+					{
+						// de-interleave each stereo frame into output buffers
+						FinalOutputLeft[i] = PostSrcBufferPtr[(i << 1)];
+						FinalOutputRight[i] = PostSrcBufferPtr[(i << 1) + 1];
+					}
+				}
+			}
+			else
+			{
+				FMemory::Memzero(FinalOutputLeft, sizeof(float) * NumOutputFrames);
+				FMemory::Memzero(FinalOutputRight, sizeof(float) * NumOutputFrames);
 			}
 		}
 
