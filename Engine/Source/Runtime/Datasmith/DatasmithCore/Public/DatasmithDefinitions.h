@@ -78,21 +78,20 @@ enum class EDatasmithElementVariantSubType : uint64
 ENUM_CLASS_FLAGS( EDatasmithElementVariantSubType ); // Define bitwise operators for EDatasmithElementVariantSubType
 
 /** Subtype of the MaterialExpression EDatasmithElementType, containing property value, variant, variant set, etc. */
-enum class EDatasmithMaterialExpressionType : uint64
+enum class EDatasmithMaterialExpressionType : uint8
 {
-	None              = 0,
-	ConstantBool      = 1 << 0,
-	ConstantColor     = 1 << 1,
-	ConstantScalar    = 1 << 2,
-	FlattenNormal     = 1 << 3,
-	FunctionCall      = 1 << 4,
-	Generic           = 1 << 5,
-	Texture           = 1 << 6,
-	TextureCoordinate = 1 << 7,
-	Custom            = 1 << 8,
-};
+	ConstantBool,
+	ConstantColor,
+	ConstantScalar,
+	FlattenNormal,
+	FunctionCall,
+	Generic,
+	Texture,
+	TextureCoordinate,
+	Custom,
 
-ENUM_CLASS_FLAGS( EDatasmithMaterialExpressionType ); // Define bitwise operators for EDatasmithMaterialExpressionType
+	None = 255
+};
 
 
 /**

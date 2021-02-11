@@ -185,7 +185,7 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	, Refraction(         MakeShared< FDatasmithExpressionInputImpl >( TEXT("Refraction") ) )
 	, AmbientOcclusion(   MakeShared< FDatasmithExpressionInputImpl >( TEXT("AmbientOcclusion") ) )
 	, MaterialAttributes( MakeShared< FDatasmithExpressionInputImpl >( TEXT("MaterialAttributes") ) )
-    , BlendMode(0)
+	, BlendMode(0)
 	, bTwoSided( false )
 	, bUseMaterialAttributes( false )
 	, bMaterialFunctionOnly ( false )
@@ -335,6 +335,27 @@ const TCHAR* FDatasmithUEPbrMaterialElementImpl::GetParentLabel() const
 		return *ParentLabel.Get( Store );
 	}
 }
+
+
+void FDatasmithUEPbrMaterialElementImpl::CustomSerialize(class DirectLink::FSnapshotProxy& Ar)
+{
+	// [4.26.1 .. 4.27.0[ compatibility
+	if (Ar.IsSaving())
+	{
+		// In 4.26, an ExpressionTypes array was used alongside the expressions array.
+		// namely: TReflected<TArray<EDatasmithMaterialExpressionType>, TArray<int32>> FDatasmithUEPbrMaterialElementImpl::ExpressionTypes;
+		// This field was required. In order to be readable by 4.26, that array is recreated here.
+		// Without it, a 4.26 DirectLink receiver could crash on 4.27 data usage.
+		TArray<int32> ExpressionTypes;
+		for (const TSharedPtr<IDatasmithMaterialExpression>& Expression : Expressions.View())
+		{
+			EDatasmithMaterialExpressionType ExpressionType = Expression.IsValid() ? Expression->GetExpressionType() : EDatasmithMaterialExpressionType::None;
+			ExpressionTypes.Add(int32(ExpressionType));
+		}
+		Ar.TagSerialize("ExpressionTypes", ExpressionTypes);
+	}
+}
+
 
 FDatasmithMaterialExpressionCustomImpl::FDatasmithMaterialExpressionCustomImpl() : FDatasmithMaterialExpressionImpl< IDatasmithMaterialExpressionCustom >(EDatasmithMaterialExpressionType::Custom)
 {

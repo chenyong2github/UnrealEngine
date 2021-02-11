@@ -8,8 +8,6 @@
 #include "Containers/Array.h"
 #include "Misc/SecureHash.h"
 
-template<typename>
-class FDatasmithMaterialExpressionImpl;
 
 namespace FDatasmithExpressionUtils
 {
@@ -108,7 +106,9 @@ public:
 };
 
 template< typename InterfaceType >
-class FDatasmithMaterialExpressionImpl : public FDatasmithElementImpl< InterfaceType >, public TSharedFromThis< FDatasmithMaterialExpressionImpl< InterfaceType > >
+class FDatasmithMaterialExpressionImpl
+	: public FDatasmithElementImpl< InterfaceType >
+	, public TSharedFromThis< FDatasmithMaterialExpressionImpl< InterfaceType > >
 {
 public:
 	explicit FDatasmithMaterialExpressionImpl( EDatasmithMaterialExpressionType InSubType );
@@ -117,7 +117,10 @@ public:
 
 	virtual EDatasmithMaterialExpressionType GetExpressionType() const override { return static_cast<EDatasmithMaterialExpressionType>( this->Subtype.Get( this->Store ) ); }
 
-	virtual bool IsSubType( const EDatasmithMaterialExpressionType ExpressionType ) const override { return FDatasmithElementImpl< InterfaceType >::IsSubTypeInternal( (uint64)ExpressionType ); }
+	virtual bool IsSubType( const EDatasmithMaterialExpressionType ExpressionType ) const override
+	{ return this->IsSubTypeInternal( (uint64)ExpressionType ); }
+
+	virtual bool IsSubTypeInternal( uint64 InSubType ) const override { return InSubType == this->GetSubType(); } // as our subtype is not a bitfield
 
 	virtual void ConnectExpression( IDatasmithExpressionInput& ExpressionInput ) override
 	{
@@ -157,7 +160,6 @@ template< typename InterfaceType >
 class FDatasmithExpressionParameterImpl : public FDatasmithMaterialExpressionImpl< InterfaceType >
 {
 public:
-
 	typedef FDatasmithMaterialExpressionImpl< InterfaceType > TBaseExpression;
 
 	FDatasmithExpressionParameterImpl( EDatasmithMaterialExpressionType InSubType )
@@ -638,6 +640,8 @@ public:
 
 	virtual void SetShadingModel( const EDatasmithShadingModel InShadingModel ) override { ShadingModel.Edit( Store ) = InShadingModel; }
 	virtual EDatasmithShadingModel GetShadingModel() const override { return ShadingModel.Get( Store ); }
+
+	virtual void CustomSerialize(class DirectLink::FSnapshotProxy& Ar) override;
 
 protected:
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > BaseColor;

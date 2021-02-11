@@ -13,6 +13,7 @@
 #include "DirectLinkCommon.h"
 #include "DirectLinkElementSnapshot.h"
 #include "DirectLinkLog.h"
+#include "DirectLinkParameterStore.h"
 #include "DirectLinkSceneSnapshot.h"
 
 
@@ -61,26 +62,25 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 
 	for (const auto& KV : SceneSnapshot.Elements)
 	{
-		const DirectLink::FElementSnapshot& Snap = KV.Value.Get();
-		DirectLink::FSceneGraphId NodeId = Snap.NodeId;
-		const DirectLink::FParameterStoreSnapshot& DataSnapshot = Snap.DataSnapshot;
+		const DirectLink::FElementSnapshot& ElementSnapshot = KV.Value.Get();
+		DirectLink::FSceneGraphId NodeId = ElementSnapshot.GetNodeId();
 
 		FString Name;
-		if (!DataSnapshot.GetValueAs("Name", Name))
+		if (!ElementSnapshot.GetValueAs("Name", Name))
 		{
 			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element name for node #%d"), NodeId);
 			return;
 		}
 
 		uint64 Type = 0;
-		if (!DataSnapshot.GetValueAs("Type", Type))
+		if (!ElementSnapshot.GetValueAs("Type", Type))
 		{
 			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element type info for node '%s'"), *Name);
 			return;
 		}
 
 		uint64 Subtype = 0;
-		if (!DataSnapshot.GetValueAs("Subtype", Subtype))
+		if (!ElementSnapshot.GetValueAs("Subtype", Subtype))
 		{
 			UE_LOG( LogDatasmith, Display, TEXT("OnAddElement failed: missing element subtype info for node '%s'"), *Name);
 			return;
@@ -105,19 +105,19 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 
 		FFinalizableNode& Node = Nodes.AddDefaulted_GetRef();
 		Node.Element = Element;
-		Node.Snapshot = &Snap;
+		Node.Snapshot = &ElementSnapshot;
 	}
 
 	// all nodes are created, link refs
 	for (FFinalizableNode& Node : Nodes)
 	{
-		Node.Element->UpdateRefs(Current->Elements, Node.Snapshot->RefSnapshot);
+		Node.Snapshot->UpdateNodeReferences(Current->Elements, *Node.Element);
 	}
 
 	// set data
 	for (FFinalizableNode& Node : Nodes)
 	{
-		Node.Element->GetStore().Update(Node.Snapshot->DataSnapshot);
+		Node.Snapshot->UpdateNodeData(*Node.Element);
 	}
 
 	// detect graph root
