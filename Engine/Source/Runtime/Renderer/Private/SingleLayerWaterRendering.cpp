@@ -419,13 +419,6 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		FIntVector ViewRes(View.ViewRect.Width(), View.ViewRect.Height(), 1);
 		FIntVector TiledViewRes = FIntVector::DivideAndRoundUp(ViewRes, TiledScreenSpaceReflection.TileSize);
 
-		// We need to update the classification texture once again because the GBuffer has been patched with single layer water data.
-		if (Strata::IsStrataEnabled() && bRunTiled)
-		{
-			Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
-		}
-
-
 		if (bRunTiled)
 		{
 			TiledScreenSpaceReflection.DispatchIndirectParametersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("SLW.WaterIndirectDrawParameters"));
@@ -498,7 +491,6 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				DenoiserInputs.RayImaginaryDepth = GraphBuilder.CreateTexture(Desc, TEXT("SLW.RayTracingReflectionsImaginaryDepth"));
 			}
 
-			bool bReflectOnlyWater = true;
 			RenderRayTracingReflections(
 				GraphBuilder,
 				SceneTextures,
@@ -548,8 +540,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			RDG_EVENT_SCOPE(GraphBuilder, "Water ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
 
 			const bool bDenoise = false;
+			const bool bSingleLayerWater = true;
 			ScreenSpaceRayTracing::RenderScreenSpaceReflections(
-				GraphBuilder, SceneTextureParameters, SceneTextures.Color.Resolve, View, SSRQuality, bDenoise, &DenoiserInputs, bRunTiled ? &TiledScreenSpaceReflection : nullptr);
+				GraphBuilder, SceneTextureParameters, SceneTextures.Color.Resolve, View, SSRQuality, bDenoise, &DenoiserInputs, bSingleLayerWater, bRunTiled ? &TiledScreenSpaceReflection : nullptr);
 
 			ReflectionsColor = DenoiserInputs.Color;
 

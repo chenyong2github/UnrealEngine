@@ -59,7 +59,8 @@ struct FStrataBSDF
 #define HEADER_BIT_COUNT_AO						8
 #define HEADER_BIT_COUNT_SKIP_PRECSHADOW_MASK	1
 #define HEADER_BIT_COUNT_ZERO_PRECSHADOW_MASK	1
-#define HEADER_BIT_COUNT___UNUSED___			11
+#define HEADER_BIT_COUNT_ISSINGLELAYERWATER		1
+#define HEADER_BIT_COUNT___UNUSED___			10
 
 #define HEADER_BIT_OFFSET_BSDF_COUNT			0
 #define HEADER_BIT_OFFSET_SHAREDNORMAL_COUNT	(HEADER_BIT_OFFSET_BSDF_COUNT				+ HEADER_BIT_COUNT_BSDF_COUNT)
@@ -67,6 +68,7 @@ struct FStrataBSDF
 #define HEADER_BIT_OFFSET_AO					(HEADER_BIT_OFFSET_SHAREDNORMAL_TYPE		+ HEADER_BIT_COUNT_SHAREDNORMAL_TYPE)
 #define HEADER_BIT_OFFSET_SKIP_PRECSHADOW_MASK	(HEADER_BIT_OFFSET_AO						+ HEADER_BIT_COUNT_AO)
 #define HEADER_BIT_OFFSET_ZERO_PRECSHADOW_MASK	(HEADER_BIT_OFFSET_SKIP_PRECSHADOW_MASK		+ HEADER_BIT_COUNT_SKIP_PRECSHADOW_MASK)
+#define HEADER_BIT_OFFSET_ISSINGLELAYERWATER	(HEADER_BIT_OFFSET_ZERO_PRECSHADOW_MASK		+ HEADER_BIT_COUNT_ZERO_PRECSHADOW_MASK)
 
 #define HEADER_GETBSDFCOUNT(X)					READ_BITS( X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT)
 #define HEADER_SETBSDFCOUNT(X, NewValue)		WRITE_BITS(X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT, NewValue)
@@ -85,6 +87,9 @@ struct FStrataBSDF
 
 #define HEADER_GETZEROPRECSHADOWMASK(X)			READ_BITS(  X, HEADER_BIT_COUNT_ZERO_PRECSHADOW_MASK, HEADER_BIT_OFFSET_ZERO_PRECSHADOW_MASK)
 #define HEADER_SETZEROPRECSHADOWMASK(X, NewValue)WRITE_BITS(X, HEADER_BIT_COUNT_ZERO_PRECSHADOW_MASK, HEADER_BIT_OFFSET_ZERO_PRECSHADOW_MASK, NewValue)
+
+#define HEADER_GETISSINGLELAYERWATER(X)			READ_BITS(  X, HEADER_BIT_COUNT_ISSINGLELAYERWATER, HEADER_BIT_OFFSET_ISSINGLELAYERWATER)
+#define HEADER_SETISSINGLELAYERWATER(X, NewValue)WRITE_BITS(X, HEADER_BIT_COUNT_ISSINGLELAYERWATER, HEADER_BIT_OFFSET_ISSINGLELAYERWATER, NewValue)
 
 // Bit count for each component stored in a Strata BSDF state
 #define STATE_BIT_COUNT_BSDF					3
@@ -262,9 +267,7 @@ FStrataClassification StrataUnpackClassificationData(uint In)
 struct FStrataTopLayerData
 {
 	float3 Normal;
-	float3 BaseColor;
 	float  Roughness;
-	float3 EnvBRDF;
 
 	// transient data when accumulating top layer data
 	float AccumRoughnessCount;
@@ -286,28 +289,25 @@ struct FStrataSubsurfaceData
 void FinalizeTopLayerData(inout FStrataTopLayerData Out)
 {
 	Out.Normal = normalize(Out.Normal);
-	Out.BaseColor = saturate(Out.BaseColor);
 	Out.Roughness = Out.AccumRoughnessCount > 0.0f ? saturate(Out.Roughness / Out.AccumRoughnessCount) : 1.f;
-	Out.EnvBRDF = Out.BaseColor; // When not subsurface, BaseColor stores the split-sum approximation EnvBRDF. STRATA_TODO better approximation
 }
 
 uint2 StrataPackTopLayerData(FStrataTopLayerData In)
 {
 	uint2 Out = 0;
-	Out.x = PackColorLinearToGamma2AlphaLinear(float4(In.BaseColor, In.Roughness));
+	float3 Unused = 0.0f;
+	Out.x = PackColorLinearToGamma2AlphaLinear(float4(Unused, In.Roughness));
 	Out.y = StrataPackNormal(In.Normal);
 	return Out;
 }
 
 FStrataTopLayerData StrataUnpackTopLayerData(uint2 In)
 {
-	const float4 BaseColorAndRoughness = UnpackColorGamma2ToLinearAlphaLinear(In.x);
+	const float4 UnusedAndRoughness = UnpackColorGamma2ToLinearAlphaLinear(In.x);
 
 	FStrataTopLayerData Out = (FStrataTopLayerData)0;
 	Out.Normal = StrataUnpackNormal(In.y);
-	Out.BaseColor = BaseColorAndRoughness.xyz;
-	Out.Roughness = BaseColorAndRoughness.w;
-	Out.EnvBRDF = Out.BaseColor; // When not subsurface, BaseColor stores the split-sum approximation EnvBRDF. STRATA_TODO better approximation
+	Out.Roughness = UnusedAndRoughness.w;
 	return Out;
 }
 
@@ -650,6 +650,7 @@ struct FStrataPixelHeader
 	float MaterialAO;
 	bool SkipPrecShadowMask;
 	bool ZeroPrecShadowMask;
+	bool IsSingleLayerWater;	// Used to avoid loading BSDF or Categorisation data when generating tiles containing SLW material. Avoid running another categorisation.
 };
 
 FStrataPixelHeader InitialiseStrataPixelHeader()
@@ -665,6 +666,7 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.MaterialAO = 1.0f;
 	Out.SkipPrecShadowMask = false;
 	Out.ZeroPrecShadowMask = false;
+	Out.IsSingleLayerWater = false;
 	return Out;
 }
 
@@ -1194,9 +1196,6 @@ void PackStrataOut(
 					// Setup SSR for the top layer
 					TopLayer.Roughness += BSDFCoverageAvg * SLAB_ROUGHNESSX(BSDF);
 					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
-
-					const float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDF));
-					TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, F90, SafeRoughness, saturate(ContextNoLight.NoV));
 				}
 
 				// Select the first/toppest layer with subsurface scattering
@@ -1226,9 +1225,6 @@ void PackStrataOut(
 				{
 					TopLayer.Roughness += BSDFCoverageAvg * SHEEN_ROUGHNESS(BSDF);
 					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
-
-					const float SafeRoughness = MakeRoughnessSafe(SHEEN_ROUGHNESS(BSDF));
-					TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
 				}
 
 				LayerCoverage	+= BSDFCoverage;
@@ -1258,11 +1254,6 @@ void PackStrataOut(
 
 					TopLayer.Roughness += BSDFCoverageAvg * Roughness;
 					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
-
-					// The specular over the water in completely in the hand of the user. We do not fade out metallness for instance.
-					const float3 F0 = ComputeF0(SLW_SPECULAR(BSDF), SLW_BASECOLOR(BSDF), SLW_METALLIC(BSDF));
-					const float SafeRoughness = MakeRoughnessSafe(Roughness);
-					TopLayer.BaseColor += BSDFCoverage * EnvBRDFApprox(F0, SafeRoughness, saturate(ContextNoLight.NoV));
 				}
 
 				EmissiveColor += BSDF_GETEMISSIVE(BSDF) * Throughput;
@@ -1292,7 +1283,6 @@ void PackStrataOut(
 
 			// Roughness is needed for SSR, base color represents EnvBRDF
 			GBuffer.Roughness = TopLayer.Roughness;
-			GBuffer.BaseColor = TopLayer.BaseColor;
 			
 			// Approximative way to be able to have SSR produce colored specular reflections
 			GBuffer.Specular = 1;
@@ -1441,6 +1431,7 @@ uint PackStrataHeaderIn(uint InBSDFCount, FStrataPixelHeader InHeader)
 
 	HEADER_SETSKIPPRECSHADOWMASK(Out, InHeader.SkipPrecShadowMask ? 1u : 0u);
 	HEADER_SETZEROPRECSHADOWMASK(Out, InHeader.ZeroPrecShadowMask ? 1u : 0u);
+	HEADER_SETISSINGLELAYERWATER(Out, InHeader.IsSingleLayerWater ? 1u : 0u);
 	return Out;
 }
 
@@ -1473,6 +1464,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 
 	Out.SkipPrecShadowMask = HEADER_GETSKIPPRECSHADOWMASK(PackedHeader);
 	Out.ZeroPrecShadowMask = HEADER_GETSKIPPRECSHADOWMASK(PackedHeader);
+	Out.IsSingleLayerWater = HEADER_GETISSINGLELAYERWATER(PackedHeader);
 
 	return Out;
 }

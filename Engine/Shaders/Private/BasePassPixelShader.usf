@@ -993,6 +993,8 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 #if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
+	StrataPixelHeader.IsSingleLayerWater = true;
+
 	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
 	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)
 	SanitizeStrataSingleLayerWater(PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0]);

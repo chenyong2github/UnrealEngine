@@ -43,9 +43,6 @@ struct SingleLayerWaterCompositeOutput
 
 SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float2 ScreenPosition, float4 SvPosition)
 {
-	// Sample scene textures.
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
-	uint ShadingModelID = GBuffer.ShadingModelID;
 	// No AO or DFAO
 
 	const float3 OneThird3 = float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f);
@@ -63,16 +60,79 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 	const float PreExposure = 1.f;
 #endif
 
-	bool bIsStrataSLW = false;
 #if STRATA_ENABLED
-	const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(SvPosition.xy, 0)));
-	if (StrataData.bIsStrataMaterial)
-	{
-		bIsStrataSLW = StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_SINGLELAYERWATER);
-	}
-#endif
 
-	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER || bIsStrataSLW)
+	// Water do nto read the classification data to avoid running it a second time when water is enabled.
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(SvPosition.xy, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+	if (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.IsSingleLayerWater)
+	{
+		float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
+		float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+
+		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
+
+		float OpaqueDepth = SceneNoWaterDepthTexture.SampleLevel(SceneNoWaterDepthSampler, SceneNoWaterUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float WaterDepth = SceneDepth;
+
+		float DeltaDepth = CameraIsUnderWater ? WaterDepth : OpaqueDepth - WaterDepth;	// Inverted depth
+		if (DeltaDepth > 0.0)
+		{
+			const FStrataBSDF SLWaterBSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, StrataAddressing);
+			const float3 WorldNormal = StrataGetBSDFSharedBasis(StrataPixelHeader, SLWaterBSDF, StrataAddressing)[2];
+			const float3 F0 = ComputeF0(SLW_SPECULAR(SLWaterBSDF), SLW_BASECOLOR(SLWaterBSDF), SLW_METALLIC(SLWaterBSDF));
+			const float Roughness = SLW_ROUGHNESS(SLWaterBSDF);
+			const float SafeRoughness = MakeRoughnessSafe(SLW_ROUGHNESS(SLWaterBSDF));
+
+			// Compute the sky reflection contribution
+			float3 Reflection = 0.0f;
+
+			// TODO MAKE COMMON WITH ReflectionEnvironment?
+			float3 WorldPosition = mul(float4(ScreenPosition * WaterDepth, WaterDepth, 1), View.ScreenToWorld).xyz;
+			float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
+			float3 ReflectionVector = reflect(CameraToPixel, WorldNormal);
+			float IndirectIrradiance = 0.0;
+			float IndirectSpecularOcclusion = 1.0f;
+			float3 ExtraIndirectSpecular = 0;
+			uint CaptureDataStartIndex = 0;
+			uint NumCulledReflectionCaptures = 0;
+			//
+			float3 N = WorldNormal;
+			float3 V = -CameraToPixel;
+			float3 R = 2 * dot(V, N) * N - V;
+			float NoV = saturate(dot(N, V));
+			// Point lobe in off-specular peak direction
+			R = GetOffSpecularPeakReflectionDir(N, R, SafeRoughness);
+			const bool bCompositeSkylight = true;
+			Reflection += PreExposure * CompositeReflectionCapturesAndSkylight(
+				1,
+				WorldPosition,
+				R,
+				SafeRoughness,
+				IndirectIrradiance,
+				IndirectSpecularOcclusion,
+				ExtraIndirectSpecular,
+				NumCulledReflectionCaptures,
+				CaptureDataStartIndex,
+				0,
+				bCompositeSkylight);
+
+			// Then combine reflection with SSR
+			float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
+			Reflection = SSR.rgb + Reflection * (1 - SSR.a);
+
+			const float3 BSDFCoverage = 1.0f;	// Since the SLW BSDF is always isolated and composited onto the strata material buffer, this is assumed to be 1 here.
+
+			// The specular over the water in completely in the hand of the user. We do not fade out metalness for instance.
+			float3 EnvBrdfValue = BSDFCoverage * EnvBRDF(SLW_SPECULAR(SLWaterBSDF), SafeRoughness, saturate(NoV));
+
+#else // STRATA_ENABLED
+
+	// Sample scene textures.
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+	uint ShadingModelID = GBuffer.ShadingModelID;
+
+	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
 		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
 
@@ -121,19 +181,11 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 			// Apply the BRDF reflection integral to reflection. 
 			// BRDF/Fresnel is already applied for the under water part in the scene.
-			float3 EnvBrdf = 0.0;
-#if STRATA_ENABLED
-			if (bIsStrataSLW)
-			{
-				const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SvPosition.xy, 0)));
-				EnvBrdf = TopLayerData.EnvBRDF;
-			}
-			else
-#endif
-			{
-				EnvBrdf = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
-			}
-			Reflection *= EnvBrdf;
+			float3 EnvBrdfValue = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
+
+#endif // STRATA_ENABLED
+
+			Reflection *= EnvBrdfValue;
 
 			// Soft fading near shor to avoid seeing triangles.
 			const float ShoreOpacity = saturate(DeltaDepth * 0.02f);
@@ -142,7 +194,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			// Apply transmittance to reflection if under water
 			if (CameraIsUnderWater)
 			{
-				TransmittanceToScene *= 1.0 - EnvBrdf;
+				TransmittanceToScene *= 1.0 - EnvBrdfValue;
 
 				// Using default under water material: compute transmittance and scattering
 				float3 WaterMediumScattering = 0.0f;
@@ -203,16 +255,14 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 			{
 				uint2 PixelPos = (ThreadId.xy + uint2(i, j)) + View.ViewRectMin.xy;
 				float2 BufferUV = (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
-				FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
-
-				bContainsWater = bContainsWater || GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
 
 			#if STRATA_ENABLED
-				const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelPos,0)));
-				if (StrataData.bIsStrataMaterial)
-				{
-					bContainsWater = bContainsWater || StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_SINGLELAYERWATER);
-				}
+				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+				FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+				bContainsWater = bContainsWater || (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.IsSingleLayerWater);
+			#else
+				FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+				bContainsWater = bContainsWater || GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
 			#endif
 			}
 		}
@@ -231,15 +281,14 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 	{
 		uint2 PixelPos = ThreadId.xy + View.ViewRectMin.xy;
 		float2 BufferUV = (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
-		FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
-		bContainsWater = GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
 
 	#if STRATA_ENABLED
-		const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelPos, 0)));
-		if (StrataData.bIsStrataMaterial)
-		{
-			bContainsWater = bContainsWater || StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_SINGLELAYERWATER);
-		}
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+		bContainsWater = bContainsWater || (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.IsSingleLayerWater);
+	#else
+		FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+		bContainsWater = bContainsWater || GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
 	#endif
 	}
 

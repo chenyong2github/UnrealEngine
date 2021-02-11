@@ -344,6 +344,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSRPassCommonParameters, )
 	SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
 	SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
 	SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
+	SHADER_PARAMETER(uint32, ShouldReflectOnlyWater)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZB)
@@ -1027,6 +1028,7 @@ void RenderScreenSpaceReflections(
 	ESSRQuality SSRQuality,
 	bool bDenoiser,
 	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs,
+	bool bSingleLayerWater,
 	FTiledScreenSpaceReflection* TiledScreenSpaceReflection)
 {
 	FRDGTextureRef InputColor = CurrentSceneColor;
@@ -1166,6 +1168,7 @@ void RenderScreenSpaceReflections(
 			PassParameters->ScreenSpaceRayTracingDebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, DenoiserInputs->Color->Desc, TEXT("DebugSSR"), true);
 		}
 		PassParameters->PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
+		PassParameters->ShouldReflectOnlyWater = bSingleLayerWater ? 1u : 0u;
 		
 		PassParameters->SceneColor = InputColor;
 		PassParameters->SceneColorSampler = GSSRHalfResSceneColor ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();

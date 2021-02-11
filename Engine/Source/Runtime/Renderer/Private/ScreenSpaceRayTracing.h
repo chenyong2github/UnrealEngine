@@ -101,6 +101,7 @@ void RenderScreenSpaceReflections(
 	ESSRQuality SSRQuality,
 	bool bDenoiser,
 	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs,
+	bool bSingleLayerWater = false,
 	FTiledScreenSpaceReflection* TiledScreenSpaceReflection = nullptr);
 
 bool IsScreenSpaceDiffuseIndirectSupported(const FViewInfo& View);

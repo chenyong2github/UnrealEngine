@@ -32,6 +32,7 @@ SamplerState SceneColorSampler;
 Texture2D HZB;
 SamplerState HZBSampler;
 
+uint ShouldReflectOnlyWater;
 
 float GetRoughness(const in FGBufferData GBuffer)
 {
@@ -133,10 +134,37 @@ void ScreenSpaceReflections(
 #if STRATA_ENABLED
 
 	uint2 PixelCoord = SvPosition.xy;
-	const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelCoord, 0)));
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
 
-	float3 N = TopLayerData.Normal;
+	float3 N = 0;
+	float Roughness = 0.0;
+	bool bNoMaterial = true;
+	BRANCH
+	if (ShouldReflectOnlyWater)
+	{
+		// We do not rerun material classification after the Strata material buffer has been patched with SLW material.
+		// So in this case we simply load the Header and water BSDF directly because we know there can only be a single one.
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+		if (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.IsSingleLayerWater)
+		{
+			const FStrataBSDF SLWaterBSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, StrataAddressing);
+			N = StrataGetBSDFSharedBasis(StrataPixelHeader, SLWaterBSDF, StrataAddressing)[2];
+			Roughness = SLW_ROUGHNESS(SLWaterBSDF);
+			bNoMaterial = false;
+		}
+	}
+	else
+	{
+		const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelCoord, 0)));
+		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
+
+		// For now, SSR is only used to trace the top material layer.
+		// STRATA_TODO try stochastic selection
+		N = TopLayerData.Normal;
+		Roughness = TopLayerData.Roughness;
+		bNoMaterial = !StrataData.bIsStrataMaterial;
+	}
+
 	float DeviceZ = SampleDeviceZFromSceneTextures(UV);
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
@@ -145,10 +173,6 @@ void ScreenSpaceReflections(
 
 	// STRATA_TODO Handle anisotrpoy using ModifyGGXAnisotropicNormalRoughness or similar approach
 
-	// For now, SSR is only used to trace the top material layer.
-	// STRATA_TODO try stochastic selection
-	const float Roughness = TopLayerData.Roughness;
-	const bool bNoMaterial = !StrataData.bIsStrataMaterial;
 
 #else // STRATA_ENABLED
 
