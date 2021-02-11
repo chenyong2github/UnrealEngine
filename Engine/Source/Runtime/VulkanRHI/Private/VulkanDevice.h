@@ -288,21 +288,6 @@ public:
 
 	const VkComponentMapping& GetFormatComponentMapping(EPixelFormat UEFormat) const;
 
-	inline uint32 GetVRSTileWidth() const
-	{
-		return VRSTileWidth;
-	}
-
-	inline uint32 GetVRSTileHeight() const
-	{
-		return VRSTileHeight;
-	}
-
-	inline EVariableRateShadingImageDataType GetVRSImageDataType()
-	{
-		return VRSImageDataType;
-	}
-
 	inline VkDevice GetInstanceHandle() const
 	{
 		return Device;
@@ -540,10 +525,6 @@ private:
 	bool bPresentOnComputeQueue = false;
 
 	EGpuVendorId VendorId = EGpuVendorId::NotQueried;
-
-	uint32 VRSTileWidth;
-	uint32 VRSTileHeight;
-	EVariableRateShadingImageDataType VRSImageDataType;
 
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 	struct

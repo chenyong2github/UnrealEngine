@@ -872,9 +872,12 @@ bool GRHISupportsBackBufferWithCustomDepthStencil = true;
 bool GRHIIsHDREnabled = false;
 bool GRHISupportsHDROutput = false;
 
-bool GRHISupportsVariableRateShading = false;
-int32 GVariableRateShadingImageTileSize = 0;
-int32 GVariableRateShadingTier = 0;
+bool GRHISupportsPerDrawVariableRateShading = false;
+bool GRHISupportsImageBasedVariableRateShading = false;
+int32 GRHIVariableRateShadingImageTileSize = 0;
+EVRSImageDataType GRHIVariableRateShadingImageDataType = VRSImage_NotSupported;
+EPixelFormat GRHIVariableRateShadingImageFormat = PF_Unknown;
+bool GRHISupportsLateVariableRateShadingUpdate = false;
 
 EPixelFormat GRHIHDRDisplayOutputFormat = PF_FloatRGBA;
 
@@ -1337,6 +1340,7 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 	OutRTInfo.bClearStencil = (StencilLoadAction == ERenderTargetLoadAction::EClear);
 
 	OutRTInfo.ShadingRateTexture = ShadingRateTexture;
+	OutRTInfo.ShadingRateTextureCombiner = ShadingRateTextureCombiner;
 	OutRTInfo.MultiViewCount = MultiViewCount;
 }
 

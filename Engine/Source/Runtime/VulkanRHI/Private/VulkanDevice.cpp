@@ -169,9 +169,6 @@ FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	, ComputeQueue(nullptr)
 	, TransferQueue(nullptr)
 	, PresentQueue(nullptr)
-	, VRSTileWidth(0)
-	, VRSTileHeight(0)
-	, VRSImageDataType(VRSImage_NotSupported)
 	, ImmediateContext(nullptr)
 	, ComputeContext(nullptr)
 	, PipelineStateCache(nullptr)
@@ -960,25 +957,36 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP 
 	// Prefer the Fragment Density Map extension (primarily used on mobile devices).
-	if (VRSImageDataType == VRSImage_NotSupported && GetOptionalExtensions().HasEXTFragmentDensityMap)
+	if (!GRHISupportsImageBasedVariableRateShading && GetOptionalExtensions().HasEXTFragmentDensityMap)
 	{
-		// Go with the smallest tile size for now.
+		GRHISupportsImageBasedVariableRateShading = true;
+
+		// Go with the smallest tile size for now, and also force to square, since this seems to be standard.
 		// TODO: Eventually we may want to surface the range of possible tile sizes depending on end use cases, but for now this is being used for foveated rendering and smallest tile size
 		// is preferred.
-		VRSTileWidth = FragmentDensityMapProperties.minFragmentDensityTexelSize.width;
-		VRSTileHeight = FragmentDensityMapProperties.minFragmentDensityTexelSize.height;
-		VRSImageDataType = VRSImage_Fractional;
+		
+		GRHIVariableRateShadingImageTileSize = FragmentDensityMapProperties.minFragmentDensityTexelSize.width;
+		GRHIVariableRateShadingImageTileSize = FMath::Min((uint32)GRHIVariableRateShadingImageTileSize, FragmentDensityMapProperties.minFragmentDensityTexelSize.height);
+
+		check(GRHIVariableRateShadingImageTileSize <= (int32)FragmentDensityMapProperties.maxFragmentDensityTexelSize.width);
+
+		GRHIVariableRateShadingImageDataType = VRSImage_Fractional;
+		GRHIVariableRateShadingImageFormat = PF_R8G8;
 		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via EXTFragmentDensityMap extension. Selected VRS tile size %u by %u pixels per VRS image texel."));
 	}
 #endif
 
 #if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	if (VRSImageDataType == VRSImage_NotSupported && GetOptionalExtensions().HasNVShadingRateImage)
+	if (!GRHISupportsImageBasedVariableRateShading && GetOptionalExtensions().HasNVShadingRateImage)
 	{
+		GRHISupportsImageBasedVariableRateShading = true;
+
 		// If no FDM, and we have the NV extension version, we'll be using that. We have a fixed tile size in this case.
-		VRSTileWidth = ShadingRateImagePropertiesNV.shadingRateTexelSize.width;
-		VRSTileHeight = ShadingRateImagePropertiesNV.shadingRateTexelSize.height;
-		VRSImageDataType = VRSImage_Palette;
+		GRHIVariableRateShadingImageTileSize = ShadingRateImagePropertiesNV.shadingRateTexelSize.width;
+		check(ShadingRateImagePropertiesNV.shadingRateTexelSize.width == ShadingRateImagePropertiesNV.shadingRateTexelSize.height);
+
+		GRHIVariableRateShadingImageDataType = VRSImage_Palette;
+		GRHIVariableRateShadingImageFormat = PF_R8;
 		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via NVShadingRateImage extension. Selected VRS tile size %u by %u pixels per VRS image texel."));
 	}
 #endif

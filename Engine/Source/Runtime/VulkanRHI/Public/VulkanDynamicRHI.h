@@ -187,9 +187,6 @@ public:
 	virtual class IRHIComputeContext* RHIGetDefaultAsyncComputeContext() final override;
 	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) final override;
 	virtual uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format) final override;
-	virtual EPixelFormat RHIGetVariableRateShadingImageFormat() final override;
-	virtual void RHIGetVariableRateShadingImageTileSize(uint32& OutWidth, uint32& OutHeight) final override;
-	virtual EVariableRateShadingImageDataType RHIGetVariableRateShadingImageDataType() final override;
 
 	///////// Pass through functions that allow RHIs to optimize certain calls.
 	//virtual FVertexBufferRHIRef CreateAndLockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer) override final;

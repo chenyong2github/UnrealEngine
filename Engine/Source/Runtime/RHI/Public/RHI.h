@@ -431,12 +431,6 @@ extern RHI_API TRHIGlobal<int32> GMaxVolumeTextureDimensions;
 /** Whether RW texture buffers are supported */
 extern RHI_API bool GRHISupportsRWTextureBuffers;
 
-/** Whether Variable Rate Shading or equivalent is supported. */
-extern RHI_API bool GRHISupportsVRS;
-
-/** Whether Variable Rate Shading deferred shading rate texture update is supported. */
-extern RHI_API bool GRHISupportsLateVRSUpdate;
-
 FORCEINLINE uint64 GetMaxBufferDimension()
 {
 	return GMaxBufferDimensions;
@@ -592,14 +586,23 @@ extern RHI_API bool GRHIIsHDREnabled;
 /** Whether the present adapter/display offers HDR output capabilities. */
 extern RHI_API bool GRHISupportsHDROutput;
 
-/** Whether or not the RHI can support Variable Rate Shading. */
-extern RHI_API bool GRHISupportsVariableRateShading;
+/** Whether or not the RHI can support per-draw Variable Rate Shading. */
+extern RHI_API bool GRHISupportsPerDrawVariableRateShading;
+
+/** Whether or not the RHI can support image-based Variable Rate Shading. */
+extern RHI_API bool GRHISupportsImageBasedVariableRateShading;
 
 /** Size of the tiles in a screen space texture that can be used to drive Variable Rate Shading. */
-extern RHI_API int32 GVariableRateShadingImageTileSize;
+extern RHI_API int32 GRHIVariableRateShadingImageTileSize;
 
-/** What tier of Variable Rate Shading the HW supports */
-extern RHI_API int32 GVariableRateShadingTier;
+/** Data type contained in a shading-rate image for image-based Variable Rate Shading. */
+extern RHI_API EVRSImageDataType GRHIVariableRateShadingImageDataType;
+
+/** Image format for the shading rate image for image-based Variable Rate Shading. */
+extern RHI_API EPixelFormat GRHIVariableRateShadingImageFormat;
+
+/** Whether Variable Rate Shading deferred shading rate texture update is supported. */
+extern RHI_API bool GRHISupportsLateVariableRateShadingUpdate;
 
 /** Format used for the backbuffer when outputting to a HDR display. */
 extern RHI_API EPixelFormat GRHIHDRDisplayOutputFormat;

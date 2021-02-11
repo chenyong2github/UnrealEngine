@@ -989,13 +989,13 @@ public:
 		if (PipelineState.Graphics.DrawShadingRate != ShadingRate )
 		{
 			PipelineState.Graphics.DrawShadingRate = ShadingRate;
-			bNeedSetShadingRate = GRHISupportsVariableRateShading;
+			bNeedSetShadingRate = GRHISupportsPerDrawVariableRateShading;
 		}
 
 		if (PipelineState.Graphics.Combiner != Combiner)
 		{
 			PipelineState.Graphics.Combiner = Combiner;
-			bNeedSetShadingRate = GRHISupportsVariableRateShading;
+			bNeedSetShadingRate = GRHISupportsPerDrawVariableRateShading;
 		}
 	}
 

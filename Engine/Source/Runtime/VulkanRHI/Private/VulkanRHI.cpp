@@ -743,17 +743,18 @@ void FVulkanDynamicRHI::InitInstance()
 		GSupportsSeparateRenderTargetBlendState = true;
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-		GRHISupportsVRS = (GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap && Device->GetFragmentDensityMapFeatures().fragmentDensityMap);
+		GRHISupportsImageBasedVariableRateShading = (GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap && Device->GetFragmentDensityMapFeatures().fragmentDensityMap);
 #endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
-		GRHISupportsLateVRSUpdate = GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap2 && Device->GetFragmentDensityMap2Features().fragmentDensityMapDeferred;
+		GRHISupportsLateVariableRateShadingUpdate = GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap2 && Device->GetFragmentDensityMap2Features().fragmentDensityMapDeferred;
 #endif
 
 		// NVidia GPUs don't support the Fragment Density Map extension... but they do support this, which can also be used in the same way.
-		// This extension has since been elevated to a KHR extension, but is not available in the current VulkanSDK used in the engine. TODO: Update to the KHRShadingRateImage extension when available.
+		// This extension has since been elevated to a KHR extension, but is not available in the current VulkanSDK used in the engine. 
+		// TODO: Update to the KHRShadingRateImage extension when available.
 #if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-		GRHISupportsVRS |= GetDevice()->GetOptionalExtensions().HasNVShadingRateImage && Device->GetShadingRateImageFeaturesNV().shadingRateImage;
+		GRHISupportsImageBasedVariableRateShading |= GetDevice()->GetOptionalExtensions().HasNVShadingRateImage && Device->GetShadingRateImageFeaturesNV().shadingRateImage;
 #endif
 
 		FVulkanPlatform::SetupFeatureLevels();
@@ -1066,33 +1067,6 @@ uint64 FVulkanDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat 
 {
 	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
 	return Limits.minTexelBufferOffsetAlignment;
-}
-
-EVariableRateShadingImageDataType FVulkanDynamicRHI::RHIGetVariableRateShadingImageDataType()
-{
-	return Device->GetVRSImageDataType();
-}
-
-EPixelFormat FVulkanDynamicRHI::RHIGetVariableRateShadingImageFormat()
-{
-	EVariableRateShadingImageDataType VRSImageType = Device->GetVRSImageDataType();
-	if (VRSImageType == VRSImage_Fractional)
-	{
-		return PF_R8G8;
-	}
-	else if (VRSImageType == VRSImage_Palette)
-	{
-		return PF_R8;
-	}
-
-	// Not supported.
-	return PF_Unknown;
-}
-
-void FVulkanDynamicRHI::RHIGetVariableRateShadingImageTileSize(uint32& OutWidth, uint32& OutHeight)
-{
-	OutWidth = Device->GetVRSTileWidth();
-	OutHeight = Device->GetVRSTileHeight();
 }
 
 IRHICommandContextContainer* FVulkanDynamicRHI::RHIGetCommandContextContainer(int32 Index, int32 Num)

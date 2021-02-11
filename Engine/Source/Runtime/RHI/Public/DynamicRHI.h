@@ -192,13 +192,6 @@ enum ERayTracingSceneLifetime
 	// RTSL_MultiFrame,
 };
 
-enum EVariableRateShadingImageDataType
-{
-	VRSImage_NotSupported,		// Image-based Variable Rate Shading is not supported on the current device/platform.
-	VRSImage_Palette,			// Image-based VRS uses a palette of discrete, enumerated values to describe shading rate per tile.
-	VRSImage_Fractional,		// Image-based VRS uses a floating point value to describe shading rate in X/Y (e.g. 1.0f is full rate, 0.5f is half-rate, 0.25f is 1/4 rate, etc).
-};
-
 struct FRayTracingSceneInitializer
 {
 	TArrayView<FRayTracingGeometryInstance> Instances;
@@ -700,35 +693,6 @@ public:
 	*/
 	// FlushType: Thread safe
 	virtual uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format);
-
-	/**
-	* Gets the data type for shading rate texture, or SRIDT_NotSupported if VRS is not supported.
-	*/
-	// FlushType: Thread safe
-	virtual EVariableRateShadingImageDataType RHIGetVariableRateShadingImageDataType()
-	{
-		return VRSImage_NotSupported;
-	}
-
-	/**
-	* Gets the required pixel format for shading rate textures, or PF_Unknown if VRS (or equivalent) is not supported 
-	* on the current device.
-	*/
-	// FlushType: Thread safe
-	virtual EPixelFormat RHIGetVariableRateShadingImageFormat()
-	{
-		return PF_Unknown;
-	}
-
-	/**
-	* Gets the shading-rate tile size for VRS shading rate textures, or 0
-	* on the current device.
-	*/
-	// FlushType: Thread safe
-	virtual void RHIGetVariableRateShadingImageTileSize(uint32& OutWidth, uint32& OutHeight)
-	{
-		OutWidth = OutHeight = 0;
-	}
 
 	/**
 	* Retrieves texture memory stats.
@@ -1571,21 +1535,6 @@ FORCEINLINE uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uin
 FORCEINLINE uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
 {
 	return GDynamicRHI->RHIGetMinimumAlignmentForBufferBackedSRV(Format);
-}
-
-FORCEINLINE EVariableRateShadingImageDataType RHIGetVariableRateShadingImageDataType()
-{
-	return GDynamicRHI->RHIGetVariableRateShadingImageDataType();
-}
-
-FORCEINLINE EPixelFormat RHIGetVariableRateShadingImageFormat()
-{
-	return GDynamicRHI->RHIGetVariableRateShadingImageFormat();
-}
-
-FORCEINLINE void RHIGetVariableRateShadingImageTileSize(uint32& OutWidth, uint32& OutHeight)
-{
-	GDynamicRHI->RHIGetVariableRateShadingImageTileSize(OutWidth, OutHeight);
 }
 
 FORCEINLINE void RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)

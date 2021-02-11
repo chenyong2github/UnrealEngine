@@ -434,25 +434,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		GRHIMaximumWaveSize = Features.WaveLaneCountMax;
 	}
 
-#if PLATFORM_WINDOWS
-	// Detect availability of Variable Rate Shading Tier 2 support, and gather metrics.
-	{
-		D3D12_FEATURE_DATA_D3D12_OPTIONS6 VrsOptions;
-		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, (void*)&VrsOptions, sizeof(VrsOptions))))
-		{
-			if (VrsOptions.VariableShadingRateTier == D3D12_VARIABLE_SHADING_RATE_TIER_2)
-			{
-				VRSTileSize = (uint32)VrsOptions.ShadingRateImageTileSize;
-				GRHISupportsVariableRateShading = true;
-			}
-			else
-			{
-				GRHISupportsVariableRateShading = false;
-			}
-		}
-	}
-#endif // #if PLATFORM_WINDOWS
-
 #if ENABLE_RESIDENCY_MANAGEMENT
 	if (!CVarResidencyManagement.GetValueOnAnyThread())
 	{

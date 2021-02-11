@@ -1786,6 +1786,7 @@ public:
 	bool bClearStencil;
 
 	FRHITexture* ShadingRateTexture;
+	EVRSRateCombiner ShadingRateTextureCombiner;
 
 	uint8 MultiViewCount;
 
@@ -1804,7 +1805,8 @@ public:
 		bHasResolveAttachments(false),
 		DepthStencilRenderTarget(InDepthStencilRenderTarget),		
 		bClearDepth(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.DepthLoadAction == ERenderTargetLoadAction::EClear),
-		ShadingRateTexture(nullptr)
+		ShadingRateTexture(nullptr),
+		ShadingRateTextureCombiner(VRSRB_Passthrough)
 	{
 		check(InNumColorRenderTargets <= 0 || InColorRenderTargets);
 		for (int32 Index = 0; Index < InNumColorRenderTargets; ++Index)
@@ -2579,6 +2581,7 @@ struct FRHIRenderPassInfo
 	// Some RHIs can use a texture to control the sampling and/or shading resolution of different areas 
 	// (@todo: This implementation is specific to fixed foveated rendering, and will be updated or replaced as a more general pathway comes online)
 	FTextureRHIRef ShadingRateTexture = nullptr;
+	EVRSRateCombiner ShadingRateTextureCombiner = VRSRB_Passthrough;
 
 	// Some RHIs require a hint that occlusion queries will be used in this render pass
 	uint32 NumOcclusionQueries = 0;
@@ -2775,7 +2778,8 @@ struct FRHIRenderPassInfo
 
 	// Color and depth with resolve and optional sample density
 	explicit FRHIRenderPassInfo(FRHITexture* ColorRT, ERenderTargetActions ColorAction, FRHITexture* ResolveColorRT,
-		FRHITexture* DepthRT, EDepthStencilTargetActions DepthActions, FRHITexture* ResolveDepthRT, FRHITexture* InShadingRateTexture,
+		FRHITexture* DepthRT, EDepthStencilTargetActions DepthActions, FRHITexture* ResolveDepthRT, 
+		FRHITexture* InShadingRateTexture, EVRSRateCombiner InShadingRateTextureCombiner,
 		FExclusiveDepthStencil InEDS = FExclusiveDepthStencil::DepthWrite_StencilWrite)
 	{
 		check(ColorRT);
@@ -2791,6 +2795,7 @@ struct FRHIRenderPassInfo
 		DepthStencilRenderTarget.Action = DepthActions;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
 		ShadingRateTexture = InShadingRateTexture;
+		ShadingRateTextureCombiner = InShadingRateTextureCombiner;
 		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
 	}
 

@@ -1602,7 +1602,7 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 void FSceneRenderTargets::AllocateShadingRateTexture(FRHICommandList& RHICmdList)
 {
 	// Only do any work if the RHI/Device supports VRS in some form.
-	if (!GRHISupportsVariableRateShading)		// TODO: Check if the stereo rendering device supports the shading rate image data type.
+	if (!GRHISupportsImageBasedVariableRateShading)		// TODO: Check if the stereo rendering device supports the shading rate image data type.
 	{
 		return;
 	}
@@ -1618,10 +1618,10 @@ void FSceneRenderTargets::AllocateShadingRateTexture(FRHICommandList& RHICmdList
 	{
 		ShadingRateTexture.SafeRelease();
 	}
-	bAllocatedShadingRateTexture = StereoRenderTargetManager && StereoRenderTargetManager->AllocateShadingRateTexture(0, BufferSize.X, BufferSize.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
+	bAllocatedShadingRateTexture = StereoRenderTargetManager && StereoRenderTargetManager->AllocateShadingRateTexture(0, BufferSize.X, BufferSize.Y, GRHIVariableRateShadingImageFormat, 0, TexCreate_None, TexCreate_None, Texture, TextureSize);
 	if (bAllocatedShadingRateTexture)
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TextureSize, PF_R8G8, FClearValueBinding::White, TexCreate_None, TexCreate_None, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(TextureSize, GRHIVariableRateShadingImageFormat, FClearValueBinding::White, TexCreate_None, TexCreate_None, false));
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadingRateTexture, TEXT("ShadingRate"));
 		const uint32 OldElementSize = ShadingRateTexture->ComputeMemorySize();
 		ShadingRateTexture->GetRenderTargetItem().ShaderResourceTexture = ShadingRateTexture->GetRenderTargetItem().TargetableTexture = Texture;

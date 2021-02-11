@@ -1168,6 +1168,13 @@ enum EVRSRateCombiner : uint8
 	VRSRB_Sum,
 };
 
+enum EVRSImageDataType : uint8
+{
+	VRSImage_NotSupported,		// Image-based Variable Rate Shading is not supported on the current device/platform.
+	VRSImage_Palette,			// Image-based VRS uses a palette of discrete, enumerated values to describe shading rate per tile.
+	VRSImage_Fractional,		// Image-based VRS uses a floating point value to describe shading rate in X/Y (e.g. 1.0f is full rate, 0.5f is half-rate, 0.25f is 1/4 rate, etc).
+};
+
 /**
  *	Resource usage flags - for vertex and index buffers.
  */

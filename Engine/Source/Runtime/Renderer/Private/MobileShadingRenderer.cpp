@@ -920,6 +920,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		DepthTargetAction,
 		nullptr, // we never resolve scene depth on mobile
 		ShadingRateTexture,
+		VRSRB_Sum,
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
@@ -1035,6 +1036,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 			DepthTargetAction, 
 			nullptr,
 			ShadingRateTexture,
+			VRSRB_Sum,
 			ExclusiveDepthStencil
 		);
 		TranslucentRenderPassInfo.NumOcclusionQueries = 0;
@@ -1231,6 +1233,7 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 				EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil, 
 				nullptr,
 				nullptr,
+				VRSRB_Passthrough,
 				FExclusiveDepthStencil::DepthRead_StencilWrite
 			);
 			ShadingPassInfo.NumOcclusionQueries = 0;
