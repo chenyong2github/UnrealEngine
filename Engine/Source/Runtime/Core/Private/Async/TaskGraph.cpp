@@ -98,7 +98,7 @@ static FAutoConsoleVariableRef CVarForkedProcessMaxWorkerThreads(
 	TEXT("Configures the number of worker threads a forked process should spawn if it allows multithreading.")
 );
 
-CORE_API int32 GUseNewTaskBackend = 0;
+CORE_API int32 GUseNewTaskBackend = 1;
 uint32 GNumForegroundWorkers = 2;
 
 #if CREATE_HIPRI_TASK_THREADS || CREATE_BACKGROUND_TASK_THREADS
