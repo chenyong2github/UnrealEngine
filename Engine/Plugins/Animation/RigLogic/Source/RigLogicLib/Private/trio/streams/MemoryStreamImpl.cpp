@@ -3,14 +3,13 @@
 #include "trio/streams/MemoryStreamImpl.h"
 
 #include <pma/PolyAllocator.h>
-#include <status/Provider.h>
 
 #ifdef _MSC_VER
     #pragma warning(push)
     #pragma warning(disable : 4365 4987)
 #endif
 #include <cassert>
-#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #ifdef _MSC_VER
     #pragma warning(pop)
@@ -18,17 +17,52 @@
 
 namespace trio {
 
-const sc::StatusCode MemoryStream::ReadError{121, "Error reading from memory stream."};
-const sc::StatusCode MemoryStream::WriteError{122, "Error writing to memory stream."};
+namespace {
 
-#ifdef __clang__
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wglobal-constructors"
-#endif
-sc::StatusProvider MemoryStreamImpl::status{ReadError, WriteError};
-#ifdef __clang__
-    #pragma clang diagnostic pop
-#endif
+
+class MemoryReader : public Readable {
+    public:
+        explicit MemoryReader(const char* source_) : source{source_} {
+        }
+
+        std::size_t read(char* destination, std::size_t size) override {
+            std::memcpy(destination, source, size);
+            source += size;
+            return size;
+        }
+
+        std::size_t read(Writable* destination, std::size_t size) override {
+            destination->write(source, size);
+            source += size;
+            return size;
+        }
+
+    private:
+        const char* source;
+};
+
+class MemoryWriter : public Writable {
+    public:
+        explicit MemoryWriter(char* destination_) : destination{destination_} {
+        }
+
+        std::size_t write(const char* source, std::size_t size) override {
+            std::memcpy(destination, source, size);
+            destination += size;
+            return size;
+        }
+
+        std::size_t write(Readable* source, std::size_t size) override {
+            source->read(destination, size);
+            destination += size;
+            return size;
+        }
+
+    private:
+        char* destination;
+};
+
+}  // namespace
 
 MemoryStream::~MemoryStream() = default;
 
@@ -62,31 +96,79 @@ void MemoryStreamImpl::close() {
     position = 0ul;
 }
 
-std::size_t MemoryStreamImpl::tell() {
+std::uint64_t MemoryStreamImpl::tell() {
     return position;
 }
 
-void MemoryStreamImpl::seek(std::size_t position_) {
-    position = position_;
+void MemoryStreamImpl::seek(std::uint64_t position_) {
+    if ((position_ == 0ul) || (position_ <= size())) {
+        #if !defined(__clang__) && defined(__GNUC__)
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wuseless-cast"
+        #endif
+        position = static_cast<std::size_t>(position_);
+        #if !defined(__clang__) && defined(__GNUC__)
+            #pragma GCC diagnostic pop
+        #endif
+    } else {
+        status->set(SeekError);
+    }
 }
 
-void MemoryStreamImpl::read(char* buffer, std::size_t size) {
+std::size_t MemoryStreamImpl::read(char* destination, std::size_t size) {
+    if (destination == nullptr) {
+        status->set(ReadError);
+        return 0ul;
+    }
+
+    MemoryWriter writer{destination};
+    return read(&writer, size);
+}
+
+std::size_t MemoryStreamImpl::read(Writable* destination, std::size_t size) {
+    if (destination == nullptr) {
+        status->set(ReadError);
+        return 0ul;
+    }
+
     const std::size_t available = data.size() - position;
     const std::size_t bytesToRead = std::min(size, available);
-    std::memcpy(buffer, &data[position], bytesToRead);
-    position += bytesToRead;
+    const std::size_t bytesCopied = destination->write(&data[position], bytesToRead);
+    position += bytesCopied;
+    return bytesCopied;
 }
 
-void MemoryStreamImpl::write(const char* buffer, std::size_t size) {
+std::size_t MemoryStreamImpl::write(const char* source, std::size_t size) {
+    if (source == nullptr) {
+        status->set(WriteError);
+        return 0ul;
+    }
+
+    MemoryReader reader{source};
+    return write(&reader, size);
+}
+
+std::size_t MemoryStreamImpl::write(Readable* source, std::size_t size) {
+    if (source == nullptr) {
+        status->set(WriteError);
+        return 0ul;
+    }
     const std::size_t available = data.size() - position;
     if (available < size) {
-        data.resize(data.size() + (size - available));
+        const std::size_t newSize = data.size() + (size - available);
+        // Check for overflow / wrap-around
+        if (newSize < data.size()) {
+            status->set(WriteError);
+            return 0ul;
+        }
+        data.resize(newSize);
     }
-    std::memcpy(&data[position], buffer, size);
-    position += size;
+    const std::size_t bytesCopied = source->read(&data[position], size);
+    position += bytesCopied;
+    return bytesCopied;
 }
 
-std::size_t MemoryStreamImpl::size() {
+std::uint64_t MemoryStreamImpl::size() {
     return data.size();
 }
 

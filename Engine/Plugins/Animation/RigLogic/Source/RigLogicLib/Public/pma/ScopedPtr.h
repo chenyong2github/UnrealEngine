@@ -13,18 +13,18 @@
 
 namespace pma {
 
-template<class T>
+template<class T, class B = T>
 struct New {
     template<typename ... Args>
-    T* operator()(Args&& ... args) {
+    B* operator()(Args&& ... args) {
         return new T{std::forward<Args>(args)...};
     }
 
 };
 
-template<class T>
+template<class T, class B = T>
 struct Delete {
-    void operator()(T* ptr) {
+    void operator()(B* ptr) {
         // Calling delete on an incomplete type is undefined behavior.
         // This check will result in a compile error for incomplete types, rather than allow UB.
         #if !defined(__clang__) && defined(__GNUC__)
@@ -68,19 +68,19 @@ struct Delete<T[]> {
 
 };
 
-template<class T>
+template<class T, class B = T>
 struct FactoryCreate {
     template<typename ... Args>
-    T* operator()(Args&& ... args) {
+    B* operator()(Args&& ... args) {
         return T::create(std::forward<Args>(args)...);
     }
 
 };
 
-template<class T>
+template<class T, class B = T>
 struct FactoryDestroy {
-    void operator()(T* ptr) {
-        T::destroy(ptr);
+    void operator()(B* ptr) {
+        T::destroy(static_cast<T*>(ptr));
     }
 
 };
@@ -247,12 +247,17 @@ class ScopedPtr : private TDestroyer {
         Alternately, it's also possible to pass a custom creator / destroyer on each
         invocation.
  */
-template<class T, class TCreator, class TDestroyer, typename ... Args>
-ScopedPtr<T, TDestroyer> makeScoped(Args&& ... args) {
-    return ScopedPtr<T, TDestroyer>{TCreator{} (std::forward<Args>(args)...)};
+template<class T, class TCreator, class TDestroyer, typename ... Args,
+         typename Base = typename std::remove_pointer < decltype(TCreator{} (std::declval<Args>()...)) > ::type>
+ScopedPtr<Base, TDestroyer> makeScoped(Args&& ... args) {
+    static_assert(std::is_same<Base, T>::value ||
+                  std::is_base_of<Base, T>::value ||
+                  std::is_convertible<T, typename std::add_pointer<Base>::type>::value,
+                  "Incompatible types.");
+    return ScopedPtr<Base, TDestroyer>{TCreator{} (std::forward<Args>(args)...)};
 }
 
-template<class T, template<class> class TCreatorTemplate, template<class> class TDestroyerTemplate, typename ... Args>
+template<class T, template<class ...> class TCreatorTemplate, template<class ...> class TDestroyerTemplate, typename ... Args>
 ScopedPtr<T, TDestroyerTemplate<T> > makeScoped(Args&& ... args) {
     using TCreator = TCreatorTemplate<T>;
     using TDestroyer = TDestroyerTemplate<T>;

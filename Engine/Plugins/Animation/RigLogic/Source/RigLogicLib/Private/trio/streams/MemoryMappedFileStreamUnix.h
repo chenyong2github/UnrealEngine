@@ -6,12 +6,12 @@
 #ifdef TRIO_MMAP_AVAILABLE
 
 #include "trio/streams/MemoryMappedFileStream.h"
+#include "trio/streams/StreamStatus.h"
 #include "trio/types/Aliases.h"
 
 #include <pma/TypeDefs.h>
-#include <status/Provider.h>
 
-#include <cstddef>
+#include <cstdint>
 
 namespace trio {
 
@@ -28,25 +28,40 @@ class MemoryMappedFileStreamUnix : public MemoryMappedFileStream {
 
         void open() override;
         void close() override;
-        std::size_t tell() override;
-        void seek(std::size_t position) override;
-        std::size_t size() override;
-        void read(char* buffer, std::size_t size) override;
-        void write(const char* buffer, std::size_t size) override;
+        std::uint64_t tell() override;
+        void seek(std::uint64_t position) override;
+        std::uint64_t size() override;
+        std::size_t read(char* destination, std::size_t size) override;
+        std::size_t read(Writable* destination, std::size_t size) override;
+        std::size_t write(const char* source, std::size_t size) override;
+        std::size_t write(Readable* source, std::size_t size) override;
         void flush() override;
-        void resize(std::size_t size) override;
+        void resize(std::uint64_t size) override;
+        const char* path() const override;
+        AccessMode accessMode() const override;
 
         MemoryResource* getMemoryResource();
 
     private:
-        static sc::StatusProvider status;
+        void openFile();
+        void closeFile();
+        void mapFile(std::uint64_t offset, std::uint64_t size);
+        void unmapFile();
+        void resizeFile(std::uint64_t size);
 
-        void* data;
-        std::size_t position;
-        pma::String<char> path;
-        AccessMode accessMode;
-        std::size_t fileSize;
+    private:
+        StreamStatus status;
+        pma::String<char> filePath;
+        AccessMode fileAccessMode;
         MemoryResource* memRes;
+        int file;
+        void* data;
+        std::uint64_t position;
+        std::uint64_t fileSize;
+        std::uint64_t viewOffset;
+        std::size_t viewSize;
+        bool delayedMapping;
+        bool dirty;
 };
 
 }  // namespace trio

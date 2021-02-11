@@ -24,11 +24,25 @@ namespace dna {
 namespace {
 
 constexpr std::size_t operator"" _KB(unsigned long long size) {
-    return size * 1024ul;
+    #if !defined(__clang__) && defined(__GNUC__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wuseless-cast"
+    #endif
+    return static_cast<std::size_t>(size * 1024ul);
+    #if !defined(__clang__) && defined(__GNUC__)
+        #pragma GCC diagnostic pop
+    #endif
 }
 
 constexpr std::size_t operator"" _MB(unsigned long long size) {
-    return size * 1024ul * 1024ul;
+    #if !defined(__clang__) && defined(__GNUC__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wuseless-cast"
+    #endif
+    return static_cast<std::size_t>(size * 1024ul * 1024ul);
+    #if !defined(__clang__) && defined(__GNUC__)
+        #pragma GCC diagnostic pop
+    #endif
 }
 
 struct ArenaFactory {
@@ -40,8 +54,8 @@ struct ArenaFactory {
                 All = 20_MB,
                 Geometry = 16_MB,
                 // Rest of the overheads are absolute values
-                AllWithoutBlendShapes = 32_MB,
-                GeometryWithoutBlendShapes = 28_MB,
+                AllWithoutBlendShapes = 30_MB,
+                GeometryWithoutBlendShapes = 26_MB,
                 Behavior = 5_MB,
                 Definition = 256_KB,
                 Descriptor = 64_KB
@@ -54,8 +68,8 @@ struct ArenaFactory {
                 All = 16_MB,
                 Geometry = 12_MB,
                 // Rest of the overheads are absolute values
-                AllWithoutBlendShapes = 28_MB,
-                GeometryWithoutBlendShapes = 24_MB,
+                AllWithoutBlendShapes = 26_MB,
+                GeometryWithoutBlendShapes = 22_MB,
                 Behavior = 5_MB,
                 Definition = 256_KB,
                 Descriptor = 64_KB

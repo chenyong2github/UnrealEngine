@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "HAL/UnrealMemory.h"
 
 #include "riglogic/RigLogic.h"
@@ -19,8 +20,15 @@ public:
 		FMemory::Free(ptr);
 	}
 
-	static MemoryResource* Instance() {
-		static FMemoryResource MemoryResource;
-		return &MemoryResource;
+	static TSharedPtr<FMemoryResource> SharedInstance()
+	{
+		static TSharedPtr<FMemoryResource> MemoryResource = MakeShared<FMemoryResource>();
+		return MemoryResource;
 	}
+
+	static MemoryResource* Instance()
+	{
+		return SharedInstance().Get();
+	}
+
 };

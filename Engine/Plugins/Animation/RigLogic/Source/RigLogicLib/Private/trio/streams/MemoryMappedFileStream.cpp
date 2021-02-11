@@ -7,14 +7,8 @@
 #include "trio/streams/MemoryMappedFileStreamWindows.h"
 
 #include <pma/PolyAllocator.h>
-#include <status/StatusCode.h>
 
 namespace trio {
-
-const sc::StatusCode MemoryMappedFileStream::OpenError{110, "Error opening file: %s"};
-const sc::StatusCode MemoryMappedFileStream::ReadError{111, "Error reading file: %s"};
-const sc::StatusCode MemoryMappedFileStream::WriteError{112, "Error writing file: %s"};
-const sc::StatusCode MemoryMappedFileStream::AlreadyOpenError{113, "File already open: %s"};
 
 #if defined(TRIO_WINDOWS_FILE_MAPPING_AVAILABLE)
     using MemoryMappedFileStreamImpl = MemoryMappedFileStreamWindows;
