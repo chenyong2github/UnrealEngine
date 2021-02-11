@@ -44,6 +44,13 @@ struct MAGICLEAP_API FMagicLeapHeadTrackingState
 	GENERATED_BODY()
 
 public:
+	FMagicLeapHeadTrackingState()
+	{
+		Mode = EMagicLeapHeadTrackingMode::Unknown;
+		Error = EMagicLeapHeadTrackingError::None;
+		Confidence = 1.0f;
+	}
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MagicLeap")
 	EMagicLeapHeadTrackingMode Mode;
 
