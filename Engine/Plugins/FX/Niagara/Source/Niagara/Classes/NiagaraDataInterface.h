@@ -896,3 +896,98 @@ struct FNDIOutputParam<FNiagaraID>
 		*AcquireTag.GetDestAndAdvance() = Val.AcquireTag;
 	}
 };
+
+class FNDI_GeneratedData
+{
+public:
+	virtual ~FNDI_GeneratedData() = default;
+
+	typedef uint32 TypeHash;
+
+	virtual void Tick(ETickingGroup TickGroup, float DeltaSeconds) = 0;
+};
+
+class FNDI_SharedResourceUsage
+{
+public:
+	FNDI_SharedResourceUsage() = default;
+	FNDI_SharedResourceUsage(bool InRequiresCpuAccess, bool InRequiresGpuAccess)
+		: RequiresCpuAccess(InRequiresCpuAccess)
+		, RequiresGpuAccess(InRequiresGpuAccess)
+	{}
+
+	bool IsValid() const { return RequiresCpuAccess || RequiresGpuAccess; }
+
+	bool RequiresCpuAccess = false;
+	bool RequiresGpuAccess = false;
+};
+
+template<typename ResourceType, typename UsageType>
+class FNDI_SharedResourceHandle
+{
+	using HandleType = FNDI_SharedResourceHandle<ResourceType, UsageType>;
+
+public:
+	FNDI_SharedResourceHandle()
+		: Resource(nullptr)
+	{}
+
+	FNDI_SharedResourceHandle(UsageType InUsage, const TSharedPtr<ResourceType>& InResource, bool bNeedsDataImmediately)
+		: Usage(InUsage)
+		, Resource(InResource)
+	{
+		if (ResourceType* ResourceData = Resource.Get())
+		{
+			ResourceData->RegisterUser(Usage, bNeedsDataImmediately);
+		}
+	}
+
+	FNDI_SharedResourceHandle(const HandleType& Other) = delete;
+	FNDI_SharedResourceHandle(HandleType&& Other)
+		: Usage(Other.Usage)
+		, Resource(Other.Resource)
+	{
+		Other.Resource = nullptr;
+	}
+
+	~FNDI_SharedResourceHandle()
+	{
+		if (ResourceType* ResourceData = Resource.Get())
+		{
+			ResourceData->UnregisterUser(Usage);
+		}
+	}
+
+	FNDI_SharedResourceHandle& operator=(const HandleType& Other) = delete;
+	FNDI_SharedResourceHandle& operator=(HandleType&& Other)
+	{
+		if (this != &Other)
+		{
+			if (ResourceType* ResourceData = Resource.Get())
+			{
+				ResourceData->UnregisterUser(Usage);
+			}
+
+			Usage = Other.Usage;
+			Resource = Other.Resource;
+			Other.Resource = nullptr;
+		}
+
+		return *this;
+	}
+
+	explicit operator bool() const
+	{
+		return Resource.IsValid();
+	}
+
+	const ResourceType& ReadResource() const
+	{
+		return *Resource;
+	}
+
+	UsageType Usage;
+
+private:
+	TSharedPtr<ResourceType> Resource;
+};

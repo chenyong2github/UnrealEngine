@@ -316,7 +316,7 @@ private:
 	TSharedPtr<FSkeletalMeshConnectivity> ConnectivityData;
 };
 
-class FNDI_SkeletalMesh_GeneratedData
+class FNDI_SkeletalMesh_GeneratedData : public FNDI_GeneratedData
 {
 	FRWLock CachedSkinningDataGuard;
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedPtr<FSkeletalMeshSkinningData> > CachedSkinningData;
@@ -332,7 +332,13 @@ public:
 	FSkeletalMeshUvMappingHandle GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex, FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
 	FSkeletalMeshConnectivityHandle GetCachedConnectivity(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, FSkeletalMeshConnectivityUsage Usage, bool bNeedsDataImmediately);
 
-	void TickGeneratedData(ETickingGroup TickGroup, float DeltaSeconds);
+	virtual void Tick(ETickingGroup TickGroup, float DeltaSeconds) override;
+
+	static TypeHash GetTypeHash()
+	{
+		static const TypeHash Hash = ::GetTypeHash(TEXT("FNDI_SkeletalMesh_GeneratedData"));
+		return Hash;
+	}
 };
 
 //////////////////////////////////////////////////////////////////////////

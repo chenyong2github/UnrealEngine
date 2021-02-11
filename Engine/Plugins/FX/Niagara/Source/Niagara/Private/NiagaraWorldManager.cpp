@@ -862,8 +862,11 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		return;
 	}
 
-	// Tick skeletal mesh data
-	SkeletalMeshGeneratedData.TickGeneratedData(TickGroup, DeltaSeconds);
+	// Tick generated data
+	for (auto& GeneratedData : DIGeneratedData)
+	{
+		GeneratedData.Value->Tick(TickGroup, DeltaSeconds);
+	}
 
 	// Now tick all system instances. 
 	const int ActualTickGroup = FNiagaraUtilities::GetNiagaraTickGroup(TickGroup);

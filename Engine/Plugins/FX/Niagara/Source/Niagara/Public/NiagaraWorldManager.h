@@ -140,7 +140,23 @@ public:
 	void PostGarbageCollect();
 	void PreGarbageCollectBeginDestroy();
 	
-	FORCEINLINE FNDI_SkeletalMesh_GeneratedData& GetSkeletalMeshGeneratedData() { return SkeletalMeshGeneratedData; }
+	template<typename T>
+	const T& ReadGeneratedData()
+	{
+		return EditGeneratedData<T>();
+	}
+
+	template<typename T>
+	T& EditGeneratedData()
+	{
+		const FNDI_GeneratedData::TypeHash Hash = T::GetTypeHash();
+		const auto* ExistingValue = DIGeneratedData.Find(Hash);
+		if (ExistingValue == nullptr)
+		{
+			ExistingValue = &DIGeneratedData.Emplace(Hash, new T());
+		}
+		return static_cast<T&>(**ExistingValue);
+	}
 
 	NIAGARA_API bool CachedPlayerViewLocationsValid() const { return bCachedPlayerViewLocationsValid; }
 	NIAGARA_API TArrayView<const FVector> GetCachedPlayerViewLocations() const { check(bCachedPlayerViewLocationsValid); return MakeArrayView(CachedPlayerViewLocations); }
@@ -266,8 +282,7 @@ private:
 	UNiagaraComponentPool* ComponentPool;
 	bool bPoolIsPrimed = false;
 
-	/** Generated data used by data interfaces */
-	FNDI_SkeletalMesh_GeneratedData SkeletalMeshGeneratedData;
+	TMap<FNDI_GeneratedData::TypeHash, TUniquePtr<FNDI_GeneratedData>> DIGeneratedData;
 
 	/** Instances that have been queued for deletion this frame, serviced in PostActorTick */
 	TArray<TUniquePtr<FNiagaraSystemInstance>> DeferredDeletionQueue;

@@ -2468,6 +2468,53 @@ FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)
 	return nullptr;
 }
 
+void FNiagaraSystemInstance::EvaluateBoundFunction(FName FunctionName, bool& UsedOnCpu, bool& UsedOnGpu) const
+{
+	auto ScriptUsesFunction = [&](UNiagaraScript* Script)
+	{
+		if (Script)
+		{
+			const bool IsGpuScript = UNiagaraScript::IsGPUScript(Script->Usage);
+			const auto& VMExecData = Script->GetVMExecutableData();
+
+			if (!UsedOnGpu && IsGpuScript)
+			{
+				for (const FNiagaraDataInterfaceGPUParamInfo& DIParamInfo : VMExecData.DIParamInfo)
+				{
+					auto GpuFunctionPredicate = [&](const FNiagaraDataInterfaceGeneratedFunction& DIFunction)
+					{
+						return DIFunction.DefinitionName == FunctionName;
+					};
+
+					if (DIParamInfo.GeneratedFunctions.ContainsByPredicate(GpuFunctionPredicate))
+					{
+						UsedOnGpu = true;
+						break;
+					}
+				}
+			}
+
+			if (!UsedOnCpu && !IsGpuScript)
+			{
+				auto CpuFunctionPredicate = [&](const FVMExternalFunctionBindingInfo& BindingInfo)
+				{
+					return BindingInfo.Name == FunctionName;
+				};
+
+				if (VMExecData.CalledVMExternalFunctions.ContainsByPredicate(CpuFunctionPredicate))
+				{
+					UsedOnCpu = true;
+				}
+			}
+		}
+	};
+
+	if (const UNiagaraSystem* System = GetSystem())
+	{
+		System->ForEachScript(ScriptUsesFunction);
+	}
+}
+
 #if WITH_EDITOR
 FNiagaraSystemInstance::FOnInitialized& FNiagaraSystemInstance::OnInitialized()
 {
