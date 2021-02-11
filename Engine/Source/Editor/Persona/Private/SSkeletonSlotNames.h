@@ -17,6 +17,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 #include "EditorObjectsTracker.h"
+#include "EditorUndoClient.h"
 
 class FMenuBuilder;
 class IEditableSkeleton;
