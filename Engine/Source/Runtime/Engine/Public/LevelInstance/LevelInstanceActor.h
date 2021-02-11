@@ -82,7 +82,7 @@ public:
 	virtual void OnEdit();
 	virtual void OnEditChild() {}
 	virtual void OnCommit();
-	virtual void OnCommitChild() {}
+	virtual void OnCommitChild(bool bChanged) {}
 		
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelInstanceActorPostLoad, ALevelInstance*);
 	static FOnLevelInstanceActorPostLoad OnLevelInstanceActorPostLoad;

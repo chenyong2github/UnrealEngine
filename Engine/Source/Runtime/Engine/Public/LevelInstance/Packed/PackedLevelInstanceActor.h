@@ -38,7 +38,7 @@ public:
 	virtual void OnWorldAssetChanged() override;
 	virtual void OnWorldAssetSaved() override;
 	virtual void OnCommit() override;
-	virtual void OnCommitChild() override;
+	virtual void OnCommitChild(bool bChanged) override;
 	virtual void OnEdit() override;
 	virtual void OnEditChild() override;
 
@@ -73,9 +73,12 @@ public:
 
 private:
 	UPROPERTY(NonTransactional)
-	bool bEditing = false;
+	bool bEditing;
 
 	UPROPERTY(NonTransactional)
-	int32 ChildEditing = 0;
+	int32 ChildEditing;
+
+	UPROPERTY(NonTransactional)
+	bool bChildChanged;
 #endif
 };

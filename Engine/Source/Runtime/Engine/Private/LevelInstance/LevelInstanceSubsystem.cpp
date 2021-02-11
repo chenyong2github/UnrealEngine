@@ -498,40 +498,60 @@ void ULevelInstanceSubsystem::ForEachLevelInstanceAncestors(const AActor* Actor,
 	while (ParentLevelInstance != nullptr && Operation(ParentLevelInstance));
 }
 
-void ULevelInstanceSubsystem::ForEachLevelInstanceChildren(const ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(const ALevelInstance*)> Operation) const
+void ULevelInstanceSubsystem::ForEachLevelInstanceChild(const ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(const ALevelInstance*)> Operation) const
 {
+	ForEachLevelInstanceChildImpl(LevelInstanceActor, bRecursive, Operation);
+}
+
+bool ULevelInstanceSubsystem::ForEachLevelInstanceChildImpl(const ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(const ALevelInstance*)> Operation) const
+{
+	bool bContinue = true;
 	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
 	{
-		ForEachActorInLevel(LevelInstanceLevel, [this, Operation,bRecursive](AActor* LevelActor)
+		ForEachActorInLevel(LevelInstanceLevel, [&bContinue, this, Operation,bRecursive](AActor* LevelActor)
 		{
 			if (const ALevelInstance* ChildLevelInstanceActor = Cast<ALevelInstance>(LevelActor))
 			{
-				if (Operation(ChildLevelInstanceActor) && bRecursive)
+				bContinue = Operation(ChildLevelInstanceActor);
+				
+				if (bContinue && bRecursive)
 				{
-					ForEachLevelInstanceChildren(ChildLevelInstanceActor, bRecursive, Operation);
+					bContinue = ForEachLevelInstanceChildImpl(ChildLevelInstanceActor, bRecursive, Operation);
 				}
 			}
-			return true;
+			return bContinue;
 		});
 	}
+
+	return bContinue;
 }
 
-void ULevelInstanceSubsystem::ForEachLevelInstanceChildren(ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(ALevelInstance*)> Operation) const
+void ULevelInstanceSubsystem::ForEachLevelInstanceChild(ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(ALevelInstance*)> Operation) const
 {
+	ForEachLevelInstanceChildImpl(LevelInstanceActor, bRecursive, Operation);
+}
+
+bool ULevelInstanceSubsystem::ForEachLevelInstanceChildImpl(ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(ALevelInstance*)> Operation) const
+{
+	bool bContinue = true;
 	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
 	{
-		ForEachActorInLevel(LevelInstanceLevel, [this, Operation, bRecursive](AActor* LevelActor)
+		ForEachActorInLevel(LevelInstanceLevel, [&bContinue, this, Operation, bRecursive](AActor* LevelActor)
 		{
 			if (ALevelInstance* ChildLevelInstanceActor = Cast<ALevelInstance>(LevelActor))
 			{
-				if (Operation(ChildLevelInstanceActor) && bRecursive)
+				bContinue = Operation(ChildLevelInstanceActor);
+
+				if (bContinue && bRecursive)
 				{
-					ForEachLevelInstanceChildren(ChildLevelInstanceActor, bRecursive, Operation);
+					bContinue = ForEachLevelInstanceChildImpl(ChildLevelInstanceActor, bRecursive, Operation);
 				}
 			}
-			return true;
+			return bContinue;
 		});
 	}
+
+	return bContinue;
 }
 
 void ULevelInstanceSubsystem::ForEachLevelInstanceEdit(TFunctionRef<bool(ALevelInstance*)> Operation) const
@@ -548,7 +568,7 @@ void ULevelInstanceSubsystem::ForEachLevelInstanceEdit(TFunctionRef<bool(ALevelI
 bool ULevelInstanceSubsystem::HasDirtyChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const
 {
 	bool bDirtyChildren = false;
-	ForEachLevelInstanceChildren(LevelInstanceActor, /*bRecursive=*/true, [this, &bDirtyChildren](const ALevelInstance* ChildLevelInstanceActor)
+	ForEachLevelInstanceChild(LevelInstanceActor, /*bRecursive=*/true, [this, &bDirtyChildren](const ALevelInstance* ChildLevelInstanceActor)
 	{
 		if (IsEditingLevelInstanceDirty(ChildLevelInstanceActor))
 		{
@@ -563,7 +583,7 @@ bool ULevelInstanceSubsystem::HasDirtyChildrenLevelInstances(const ALevelInstanc
 bool ULevelInstanceSubsystem::HasEditingChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const
 {
 	bool bEditingChildren = false;
-	ForEachLevelInstanceChildren(LevelInstanceActor, true, [this, &bEditingChildren](const ALevelInstance* ChildLevelInstanceActor)
+	ForEachLevelInstanceChild(LevelInstanceActor, true, [this, &bEditingChildren](const ALevelInstance* ChildLevelInstanceActor)
 		{
 			if (IsEditingLevelInstance(ChildLevelInstanceActor))
 			{
@@ -986,7 +1006,7 @@ bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor, FText* Ou
 			}
 
 			bool bEditingChildren = false;
-			ForEachLevelInstanceChildren(LevelInstanceActor, true, [this, &bEditingChildren](const ALevelInstance* ChildLevelInstanceActor)
+			ForEachLevelInstanceChild(LevelInstanceActor, true, [this, &bEditingChildren](const ALevelInstance* ChildLevelInstanceActor)
 			{
 				if (IsEditingLevelInstance(ChildLevelInstanceActor))
 				{
@@ -1332,7 +1352,7 @@ void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceAct
 
 		if (!LevelInstanceToCommit)
 		{
-			ForEachLevelInstanceChildren(LevelInstanceActor, true, GetLevelInstanceToCommit);
+			ForEachLevelInstanceChild(LevelInstanceActor, true, GetLevelInstanceToCommit);
 		}
 		
 		if (LevelInstanceToCommit)
@@ -1410,7 +1430,7 @@ void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceAct
 void ULevelInstanceSubsystem::CommitChildrenLevelInstances(ALevelInstance* LevelInstanceActor)
 {
 	// We are ending editing. Discard Non dirty child edits
-	ForEachLevelInstanceChildren(LevelInstanceActor, /*bRecursive=*/true, [this](const ALevelInstance* ChildLevelInstanceActor)
+	ForEachLevelInstanceChild(LevelInstanceActor, /*bRecursive=*/true, [this](const ALevelInstance* ChildLevelInstanceActor)
 	{
 		if (const FLevelInstanceEdit* ChildLevelInstanceEdit = GetLevelInstanceEdit(ChildLevelInstanceActor))
 		{
@@ -1502,9 +1522,9 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 	LevelInstanceActor->OnCommit();
 
 	// Notify Ancestors
-	ForEachLevelInstanceAncestors(LevelInstanceActor, [](ALevelInstance* AncestorLevelInstance)
+	ForEachLevelInstanceAncestors(LevelInstanceActor, [bChangesCommitted](ALevelInstance* AncestorLevelInstance)
 	{
-		AncestorLevelInstance->OnCommitChild();
+		AncestorLevelInstance->OnCommitChild(bChangesCommitted);
 		return true;
 	});
 				

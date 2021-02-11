@@ -7,11 +7,13 @@
 
 APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-{
 #if WITH_EDITORONLY_DATA
-	ISMComponentClass = UInstancedStaticMeshComponent::StaticClass();
-	bEditing = false;
+	, ISMComponentClass(UInstancedStaticMeshComponent::StaticClass())
+	, bEditing(false)
+	, ChildEditing(0)
+	, bChildChanged(false)
 #endif
+{
 }
 
 bool APackedLevelInstance::SupportsLoading() const
@@ -65,26 +67,31 @@ void APackedLevelInstance::OnEditChild()
 	MarkComponentsRenderStateDirty();
 }
 
-void APackedLevelInstance::OnCommitChild()
+void APackedLevelInstance::OnCommitChild(bool bChanged)
 {
 	check(GetLevelInstanceSubsystem()->GetLevelInstanceLevel(this) != nullptr);
 	check(ChildEditing > 0);
 	ChildEditing--;
+	bChildChanged |= bChanged;
 	if (!ChildEditing)
 	{
 		UnloadLevelInstance();
 
-		// Reflect child changes
-		TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
-		
-		if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
+		if (bChildChanged)
 		{
-			check(GeneratedBy == BlueprintAsset.Get());
-			Builder->UpdateBlueprint(GeneratedBy);
-		}
-		else
-		{
-			Builder->PackActor(this, GetWorldAsset());
+			// Reflect child changes
+			TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
+
+			if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
+			{
+				check(GeneratedBy == BlueprintAsset.Get());
+				Builder->UpdateBlueprint(GeneratedBy);
+			}
+			else
+			{
+				Builder->PackActor(this, GetWorldAsset());
+			}
+			bChildChanged = false;
 		}
 
 		MarkComponentsRenderStateDirty();
