@@ -42,6 +42,8 @@
 #define DEBUG_FLAG_CULL_FRUSTUM_BOX					0x8
 #define DEBUG_FLAG_CULL_FRUSTUM_SPHERE				0x10
 
+#define NUM_PRINT_STATS_PASSES						3
+
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCull,		TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM,	TEXT("Nanite Instance Cull VSM"));
 
@@ -1637,7 +1639,8 @@ class FPrintStatsCS : public FNaniteShader
 	SHADER_USE_PARAMETER_STRUCT( FPrintStatsCS, FNaniteShader );
 
 	class FTwoPassCullingDim : SHADER_PERMUTATION_BOOL( "TWO_PASS_CULLING" );
-	using FPermutationDomain = TShaderPermutationDomain<FTwoPassCullingDim>;
+	class FPassDim : SHADER_PERMUTATION_INT("PRINT_PASS", NUM_PRINT_STATS_PASSES);
+	using FPermutationDomain = TShaderPermutationDomain<FTwoPassCullingDim, FPassDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -3366,6 +3369,9 @@ void PrintStats(
 		auto& MainPassBuffers = Nanite::GGlobalResources.GetMainPassBuffers();
 		auto& PostPassBuffers = Nanite::GGlobalResources.GetPostPassBuffers();
 
+		// Shader compilers have a hard time handling the size of the full PrintStats shader, so we split it into multiple passes.
+		// This reduces the FXC compilation time from 2-3 minutes to just a few seconds.
+		for (uint32 Pass = 0; Pass < NUM_PRINT_STATS_PASSES; Pass++)
 		{
 			FPrintStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPrintStatsCS::FParameters>();
 
@@ -3386,8 +3392,9 @@ void PrintStats(
 			}
 
 			FPrintStatsCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FPrintStatsCS::FTwoPassCullingDim>( bTwoPass );
-			auto ComputeShader = View.ShaderMap->GetShader<FPrintStatsCS>( PermutationVector );
+			PermutationVector.Set<FPrintStatsCS::FTwoPassCullingDim>(bTwoPass);
+			PermutationVector.Set<FPrintStatsCS::FPassDim>(Pass);
+			auto ComputeShader = View.ShaderMap->GetShader<FPrintStatsCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -3395,7 +3402,7 @@ void PrintStats(
 				ComputeShader,
 				PassParameters,
 				FIntVector(1, 1, 1)
-				);
+			);
 		}
 	}
 }

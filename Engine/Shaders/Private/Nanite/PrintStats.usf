@@ -46,12 +46,13 @@ void PrintStats()
 {
 	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
 
-	float TopMargin = 0.05f;
-	float HeadlineX = 0.77f;
-	float ItemX = 0.78f;
+	const float TopMargin = 0.05f;
+	const float HeadlineX = 0.77f;
+	const float ItemX = 0.78f;
 
 	float2 ScreenPos = float2(HeadlineX, TopMargin);
 
+#if PRINT_PASS == 0
 	// Main Pass
 	ScreenPos.x = HeadlineX;
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _M_);
@@ -158,8 +159,12 @@ void PrintStats()
 	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
+#else
+	ScreenPos.y += 9 * ShaderPrintUniform.FontSize.w;
+#endif
 
 #if TWO_PASS_CULLING
+#if PRINT_PASS == 1
 	// Post Pass
 	ScreenPos.x = HeadlineX;
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
@@ -266,8 +271,12 @@ void PrintStats()
 	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
+#else
+	ScreenPos.y += 9 * ShaderPrintUniform.FontSize.w;
+#endif
 #endif
 
+#if PRINT_PASS == 2
 	// Total
 	ScreenPos.x = HeadlineX;
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
@@ -335,10 +344,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
 	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
 	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumLargePageRectClusters);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-
-
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+#endif
 }
 
 [numthreads(1, 1, 1)]
