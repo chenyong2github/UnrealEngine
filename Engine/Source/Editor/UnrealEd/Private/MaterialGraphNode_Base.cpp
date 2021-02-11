@@ -26,12 +26,26 @@ const FMaterialGraphPinInfo& UMaterialGraphNode_Base::GetPinInfo(const class UEd
 
 uint32 UMaterialGraphNode_Base::GetOutputType(const UEdGraphPin* OutputPin) const
 {
-	return GetPinInfo(OutputPin).Type;
+	return GetPinMaterialType(OutputPin, GetPinInfo(OutputPin));
 }
 
 uint32 UMaterialGraphNode_Base::GetInputType(const UEdGraphPin* InputPin) const
 {
-	return GetPinInfo(InputPin).Type;
+	return GetPinMaterialType(InputPin, GetPinInfo(InputPin));
+}
+
+uint32 UMaterialGraphNode_Base::GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const
+{
+	switch (PinInfo.PinType)
+	{
+	case EMaterialGraphPinType::Data:
+		return MCT_Unknown;
+	case EMaterialGraphPinType::Exec:
+		return MCT_Execution;
+	default:
+		checkNoEntry();
+		return 0u;
+	}
 }
 
 void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
@@ -139,13 +153,13 @@ void UMaterialGraphNode_Base::AllocateDefaultPins()
 	CreateOutputPins();
 }
 
-void UMaterialGraphNode_Base::RegisterPin(UEdGraphPin* Pin, int32 Index, uint32 Type)
+void UMaterialGraphNode_Base::RegisterPin(UEdGraphPin* Pin, EMaterialGraphPinType Type, int32 Index)
 {
 	FMaterialGraphPinInfo& PinInfo = PinInfoMap.FindOrAdd(Pin);
-	PinInfo.Type = Type;
+	PinInfo.PinType = Type;
 	PinInfo.Index = Index;
 
-	if (Type & MCT_Execution)
+	if (Type == EMaterialGraphPinType::Exec)
 	{
 		if (Pin->Direction == EGPD_Input)
 		{

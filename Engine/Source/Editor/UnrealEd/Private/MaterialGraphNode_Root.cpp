@@ -45,6 +45,29 @@ void UMaterialGraphNode_Root::PostPlacedNewNode()
 	}
 }
 
+uint32 UMaterialGraphNode_Root::GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const
+{
+	check(PinInfo.PinType == EMaterialGraphPinType::Data);
+	const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
+	const FMaterialInputInfo& MaterialInput = MaterialGraph->MaterialInputs[PinInfo.Index];
+	EMaterialProperty Property = MaterialInput.GetProperty();
+
+	uint32 MaterialType = 0u;
+	if (Property == MP_MaterialAttributes)
+	{
+		MaterialType = MCT_MaterialAttributes;
+	}
+	else if (Property == MP_FrontMaterial)
+	{
+		MaterialType = MCT_Strata;
+	}
+	else
+	{
+		MaterialType = FMaterialAttributeDefinitionMap::GetValueType(Property);
+	}
+	return MaterialType;
+}
+
 void UMaterialGraphNode_Root::CreateInputPins()
 {
 	UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
@@ -54,22 +77,8 @@ void UMaterialGraphNode_Root::CreateInputPins()
 		const FMaterialInputInfo& MaterialInput = MaterialGraph->MaterialInputs[Index];
 		EMaterialProperty Property = MaterialInput.GetProperty();
 	
-		uint32 MaterialType = 0u;
-		if (Property == MP_MaterialAttributes)
-		{
-			MaterialType = MCT_MaterialAttributes;
-		}
-		else if (Property == MP_FrontMaterial)
-		{
-			MaterialType = MCT_Strata;
-		}
-		else
-		{
-			MaterialType = FMaterialAttributeDefinitionMap::GetValueType(Property);
-		}
-
 		UEdGraphPin* InputPin = CreatePin(EGPD_Input, UMaterialGraphSchema::PC_MaterialInput, *FString::Printf(TEXT("%d"), (int32)Property), *MaterialInput.GetName().ToString());
-		RegisterPin(InputPin, Index, MaterialType);
+		RegisterPin(InputPin, EMaterialGraphPinType::Data, Index);
 	}
 
 }

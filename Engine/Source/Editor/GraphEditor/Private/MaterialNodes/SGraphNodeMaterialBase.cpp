@@ -279,7 +279,7 @@ void SGraphNodeMaterialBase::CreatePinWidgets()
 			if ((bIsABreakAttrNode && CurPin->Direction == EGPD_Output) || (bIsAMakeAttrNode && CurPin->Direction == EGPD_Input))
 			{
 				const FMaterialGraphPinInfo& PinInfo = MaterialNode->GetPinInfo(CurPin);
-				if (!(PinInfo.Type & MCT_Execution))
+				if (PinInfo.PinType == EMaterialGraphPinType::Data)
 				{
 					bPinDesiresToBeHidden |= !MaterialGraph->MaterialInputs[PinInfo.Index].IsVisiblePin(MaterialGraph->Material, true);
 				}

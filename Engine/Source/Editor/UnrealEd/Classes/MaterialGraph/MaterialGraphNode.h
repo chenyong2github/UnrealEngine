@@ -70,7 +70,8 @@ public:
 	virtual void OnCommentBubbleToggled( bool bInCommentBubbleVisible ) override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	virtual FString GetDocumentationExcerptName() const override;
-	virtual bool CanUserDeleteNode() const override; 
+	virtual bool CanUserDeleteNode() const override;
+	virtual uint32 GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const override;
 	//~ End UEdGraphNode Interface.
 
 	//~ Begin UMaterialGraphNode_Base Interface

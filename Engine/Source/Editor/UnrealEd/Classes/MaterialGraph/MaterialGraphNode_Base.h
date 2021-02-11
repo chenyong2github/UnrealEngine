@@ -10,9 +10,15 @@
 class UEdGraphPin;
 class UEdGraphSchema;
 
+enum class EMaterialGraphPinType
+{
+	Data,
+	Exec,
+};
+
 struct FMaterialGraphPinInfo
 {
-	uint32 Type; // EMaterialValueType
+	EMaterialGraphPinType PinType;
 	int32 Index; // index into the expression's list of inputs/outputs (exec inputs/outpus are indexed separately)
 };
 
@@ -75,7 +81,9 @@ class UMaterialGraphNode_Base : public UEdGraphNode
 protected:
 	void ModifyAndCopyPersistentPinData(UEdGraphPin& TargetPin, const UEdGraphPin& SourcePin) const;
 
-	void RegisterPin(UEdGraphPin* Pin, int32 Index, uint32 Type);
+	void RegisterPin(UEdGraphPin* Pin, EMaterialGraphPinType Type, int32 Index);
+
+	virtual uint32 GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const;
 
 	void EmptyPins();
 };

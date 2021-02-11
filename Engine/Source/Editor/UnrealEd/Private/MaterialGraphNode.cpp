@@ -620,6 +620,27 @@ FName UMaterialGraphNode::GetShortenPinName(const FName PinName)
 	return InputName;
 }
 
+uint32 UMaterialGraphNode::GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const
+{
+	switch (PinInfo.PinType)
+	{
+	case EMaterialGraphPinType::Exec:
+		return MCT_Execution;
+	case EMaterialGraphPinType::Data:
+		if (Pin->Direction == EGPD_Input)
+		{
+			return MaterialExpression->GetInputType(PinInfo.Index);
+		}
+		else
+		{
+			return MaterialExpression->GetOutputType(PinInfo.Index);
+		}
+	default:
+		checkNoEntry();
+		return 0u;
+	}
+}
+
 void UMaterialGraphNode::CreateInputPins()
 {
 	if (MaterialExpression->HasExecInput())
@@ -629,32 +650,24 @@ void UMaterialGraphNode::CreateInputPins()
 		NewPin->PinName = CreateUniquePinName(TEXT("Input"));
 		NewPin->PinFriendlyName = SpaceText;
 
-		RegisterPin(NewPin, 0, MCT_Execution);
+		RegisterPin(NewPin, EMaterialGraphPinType::Exec, 0);
 	}
 
 	const TArray<FExpressionInput*> ExpressionInputs = MaterialExpression->GetInputs();
-	for (int32 Index = 0; Index < ExpressionInputs.Num() ; ++Index)
+	for (int32 Index = 0; Index < ExpressionInputs.Num(); ++Index)
 	{
 		FExpressionInput* Input = ExpressionInputs[Index];
-		const uint32 InputType = MaterialExpression->GetInputType(Index);
 		FName PinCategory;
-		FName InputName;
-		if (InputType == MCT_Execution)
+
+		FName InputName = MaterialExpression->GetInputName(Index);
+		InputName = GetShortenPinName(InputName);
+		if (MaterialExpression->IsInputConnectionRequired(Index))
 		{
-			PinCategory = UMaterialGraphSchema::PC_Exec;
+			PinCategory = UMaterialGraphSchema::PC_Required;
 		}
 		else
 		{
-			InputName = MaterialExpression->GetInputName(Index);
-			InputName = GetShortenPinName(InputName);
-			if (MaterialExpression->IsInputConnectionRequired(Index))
-			{
-				PinCategory = UMaterialGraphSchema::PC_Required;
-			}
-			else
-			{
-				PinCategory = UMaterialGraphSchema::PC_Optional;
-			}
+			PinCategory = UMaterialGraphSchema::PC_Optional;
 		}
 
 		UEdGraphPin* NewPin = CreatePin(EGPD_Input, PinCategory, InputName);
@@ -665,7 +678,7 @@ void UMaterialGraphNode::CreateInputPins()
 			NewPin->PinFriendlyName = SpaceText;
 		}
 
-		RegisterPin(NewPin, Index, InputType);
+		RegisterPin(NewPin, EMaterialGraphPinType::Data, Index);
 	}
 }
 
@@ -675,7 +688,6 @@ void UMaterialGraphNode::CreateOutputPins()
 	for(int32 Index = 0; Index < Outputs.Num(); ++Index)
 	{
 		const FExpressionOutput& ExpressionOutput = Outputs[Index];
-		const uint32 OutputType = MaterialExpression->GetOutputType(Index);
 
 		FName PinCategory;
 		FName PinSubCategory;
@@ -685,36 +697,29 @@ void UMaterialGraphNode::CreateOutputPins()
 			OutputName = ExpressionOutput.OutputName;
 		}
 
-		if (OutputType == MCT_Execution)
+		if (MaterialExpression->bShowMaskColorsOnPin && ExpressionOutput.Mask)
 		{
-			PinCategory = UMaterialGraphSchema::PC_Exec;
-		}
-		else
-		{
-			if (MaterialExpression->bShowMaskColorsOnPin && ExpressionOutput.Mask)
-			{
-				PinCategory = UMaterialGraphSchema::PC_Mask;
+			PinCategory = UMaterialGraphSchema::PC_Mask;
 
-				if (ExpressionOutput.MaskR && !ExpressionOutput.MaskG && !ExpressionOutput.MaskB && !ExpressionOutput.MaskA)
-				{
-					PinSubCategory = UMaterialGraphSchema::PSC_Red;
-				}
-				else if (!ExpressionOutput.MaskR &&  ExpressionOutput.MaskG && !ExpressionOutput.MaskB && !ExpressionOutput.MaskA)
-				{
-					PinSubCategory = UMaterialGraphSchema::PSC_Green;
-				}
-				else if (!ExpressionOutput.MaskR && !ExpressionOutput.MaskG &&  ExpressionOutput.MaskB && !ExpressionOutput.MaskA)
-				{
-					PinSubCategory = UMaterialGraphSchema::PSC_Blue;
-				}
-				else if (!ExpressionOutput.MaskR && !ExpressionOutput.MaskG && !ExpressionOutput.MaskB &&  ExpressionOutput.MaskA)
-				{
-					PinSubCategory = UMaterialGraphSchema::PSC_Alpha;
-				}
-				else if (ExpressionOutput.MaskR && ExpressionOutput.MaskG && ExpressionOutput.MaskB &&  ExpressionOutput.MaskA)
-				{
-					PinSubCategory = UMaterialGraphSchema::PSC_RGBA;
-				}
+			if (ExpressionOutput.MaskR && !ExpressionOutput.MaskG && !ExpressionOutput.MaskB && !ExpressionOutput.MaskA)
+			{
+				PinSubCategory = UMaterialGraphSchema::PSC_Red;
+			}
+			else if (!ExpressionOutput.MaskR && ExpressionOutput.MaskG && !ExpressionOutput.MaskB && !ExpressionOutput.MaskA)
+			{
+				PinSubCategory = UMaterialGraphSchema::PSC_Green;
+			}
+			else if (!ExpressionOutput.MaskR && !ExpressionOutput.MaskG && ExpressionOutput.MaskB && !ExpressionOutput.MaskA)
+			{
+				PinSubCategory = UMaterialGraphSchema::PSC_Blue;
+			}
+			else if (!ExpressionOutput.MaskR && !ExpressionOutput.MaskG && !ExpressionOutput.MaskB && ExpressionOutput.MaskA)
+			{
+				PinSubCategory = UMaterialGraphSchema::PSC_Alpha;
+			}
+			else if (ExpressionOutput.MaskR && ExpressionOutput.MaskG && ExpressionOutput.MaskB && ExpressionOutput.MaskA)
+			{
+				PinSubCategory = UMaterialGraphSchema::PSC_RGBA;
 			}
 		}
 
@@ -726,7 +731,7 @@ void UMaterialGraphNode::CreateOutputPins()
 			NewPin->PinFriendlyName = SpaceText;
 		}
 
-		RegisterPin(NewPin, Index, OutputType);
+		RegisterPin(NewPin, EMaterialGraphPinType::Data, Index);
 	}
 
 	TArray<FExpressionExecOutputEntry> ExecOutputs;
@@ -749,7 +754,7 @@ void UMaterialGraphNode::CreateOutputPins()
 			NewPin->PinFriendlyName = SpaceText;
 		}
 
-		RegisterPin(NewPin, Index, MCT_Execution);
+		RegisterPin(NewPin, EMaterialGraphPinType::Exec, Index);
 	}
 }
 

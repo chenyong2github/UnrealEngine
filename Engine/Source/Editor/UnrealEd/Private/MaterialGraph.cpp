@@ -330,7 +330,7 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 		{
 			UEdGraphPin* Pin = It.Key;
 			const FMaterialGraphPinInfo& PinInfo = It.Value;
-			if (Pin->Direction == EGPD_Input && PinInfo.Type != MCT_Execution)
+			if (Pin->Direction == EGPD_Input && PinInfo.PinType == EMaterialGraphPinType::Data)
 			{
 				if (ExpressionInputs[PinInfo.Index]->Expression)
 				{
@@ -360,7 +360,7 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 					}
 				}
 			}
-			else if (Pin->Direction == EGPD_Output && PinInfo.Type == MCT_Execution)
+			else if (Pin->Direction == EGPD_Output && PinInfo.PinType == EMaterialGraphPinType::Exec)
 			{
 				FExpressionExecOutput* ExecOutput = ExecOutputs[PinInfo.Index].Output;
 				if (ExecOutput->Expression)
@@ -450,7 +450,7 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 					{
 						UEdGraphPin* Pin = It.Key;
 						const FMaterialGraphPinInfo& PinInfo = It.Value;
-						if (Pin->Direction == EGPD_Input && PinInfo.Type != MCT_Execution)
+						if (Pin->Direction == EGPD_Input && PinInfo.PinType == EMaterialGraphPinType::Data)
 						{
 							// Wire up non-execution input pins
 							FExpressionInput* ExpressionInput = ExpressionInputs[PinInfo.Index];
@@ -488,7 +488,7 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 								ExpressionInput->Expression = NULL;
 							}
 						}
-						else if (Pin->Direction == EGPD_Output && PinInfo.Type == MCT_Execution)
+						else if (Pin->Direction == EGPD_Output && PinInfo.PinType == EMaterialGraphPinType::Exec)
 						{
 							// Wire up execution output pins
 							FExpressionExecOutput* ExpressionOutput = ExecOutputs[PinInfo.Index].Output;
