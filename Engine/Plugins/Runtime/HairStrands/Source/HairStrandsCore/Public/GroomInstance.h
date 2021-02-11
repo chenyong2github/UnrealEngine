@@ -54,7 +54,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 
 		// Resources - Rest root data, for deforming strands attached to a skinned mesh surface
 		// Resources - Deformed root data, for deforming strands attached to a skinned mesh surface
-		bool bOwnRootResourceAllocation = true;
 		FHairStrandsRestRootResource* RestRootResource = nullptr;
 		FHairStrandsDeformedRootResource* DeformedRootResource = nullptr;
 

@@ -826,9 +826,6 @@ void RunHairStrandsDebug(
 			for (FHairGroupInstance* Instance : Instances)
 			{
 				const bool bIsActive = Instance->WorldType == WorldType;
-				const bool bHasSkinInterpolation = Instance->Strands.RestRootResource != nullptr;
-				const bool bHasBindingAsset = bHasSkinInterpolation && !Instance->Strands.bOwnRootResourceAllocation;
-
 				if (!bIsActive)
 					continue;
 
