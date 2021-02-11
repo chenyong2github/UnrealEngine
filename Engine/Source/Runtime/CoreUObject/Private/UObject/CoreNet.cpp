@@ -504,6 +504,11 @@ FArchive& FNetBitReader::operator<<(FSoftObjectPtr& Value)
 	return FArchiveUObject::SerializeSoftObjectPtr(*this, Value);
 }
 
+FArchive& FNetBitReader::operator<<(FObjectPtr& Value)
+{
+	return FArchiveUObject::SerializeObjectPtr(*this, Value);
+}
+
 FArchive& FNetBitReader::operator<<(struct FWeakObjectPtr& WeakObjectPtr)
 {
 	return FArchiveUObject::SerializeWeakObjectPtr(*this, WeakObjectPtr);
