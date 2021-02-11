@@ -218,21 +218,23 @@ struct FPropertyRetirement
 #if !UE_BUILD_SHIPPING
 	static const uint32 ExpectedSanityTag = 0xDF41C9A3;
 
-	uint32			SanityTag;
+	uint32 SanityTag;
 #endif
 
-	FPropertyRetirement * Next;
+	FPropertyRetirement* Next;
 
 	TSharedPtr<class INetDeltaBaseState> DynamicState;
 
-	FPacketIdRange	OutPacketIdRange;
+	FPacketIdRange OutPacketIdRange;
+	uint32 FastArrayChangelistHistory;
 
 	FPropertyRetirement() :
 #if !UE_BUILD_SHIPPING
-			SanityTag( ExpectedSanityTag ),
+		SanityTag( ExpectedSanityTag ),
 #endif
-			Next( nullptr )
-		,	DynamicState ( nullptr )
+		 Next(nullptr)
+		, DynamicState(nullptr)
+		, FastArrayChangelistHistory(0)
 	{}
 
 	void CountBytes(FArchive& Ar) const;
@@ -396,7 +398,13 @@ bool FORCEINLINE NetworkGuidSetsAreSame( const TSet< FNetworkGUID >& A, const TS
 class INetDeltaBaseState : public TSharedFromThis<INetDeltaBaseState>
 {
 public:
-	INetDeltaBaseState() { }
+	INetDeltaBaseState()
+		: LastAckedHistory(0)
+		, ChangelistHistory(0)
+	{
+
+	}
+
 	virtual ~INetDeltaBaseState() { }
 
 	virtual bool IsStateEqual(INetDeltaBaseState* Otherstate) = 0;
@@ -407,7 +415,15 @@ public:
 	 */
 	virtual void CountBytes(FArchive& Ar) const {}
 
+	uint32 GetLastAckedHistory() const { return LastAckedHistory; }
+	void SetLastAckedHistory(uint32 InAckedHistory) { LastAckedHistory = InAckedHistory; }
+
+	uint32 GetChangelistHistory() const { return ChangelistHistory; }
+	void SetChangelistHistory(uint32 InChangelistHistory) { ChangelistHistory = InChangelistHistory; }
+
 private:
+	uint32 LastAckedHistory;
+	uint32 ChangelistHistory;
 };
 
 struct FNetDeltaSerializeInfo;
