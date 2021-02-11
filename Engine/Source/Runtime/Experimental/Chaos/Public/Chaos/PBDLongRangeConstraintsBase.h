@@ -74,7 +74,7 @@ protected:
 		return Delta;
 	};
 
-	static FReal ComputeGeodesicDistance(const TParticles<FReal, 3>& InParticles, const TArray<uint32>& Path)
+	static FReal ComputeGeodesicDistance(const FParticles& InParticles, const TArray<uint32>& Path)
 	{
 		FReal distance = 0;
 		for (int32 i = 0; i < Path.Num() - 1; ++i)
@@ -96,10 +96,10 @@ protected:
 	void ComputeEuclideanConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments);
 	void ComputeGeodesicConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments);
 
-	static FReal ComputeDistance(const TParticles<FReal, 3>& InParticles, const uint32 i, const uint32 j) { return (InParticles.X(i) - InParticles.X(j)).Size(); }
+	static FReal ComputeDistance(const FParticles& InParticles, const uint32 i, const uint32 j) { return (InParticles.X(i) - InParticles.X(j)).Size(); }
 	static FReal ComputeDistance(const FPBDParticles& InParticles, const uint32 i, const uint32 j) { return (InParticles.P(i) - InParticles.P(j)).Size(); }
 
-	static FReal ComputeGeodesicDistance(const TParticles<FReal, 3>& InParticles, const TVector<uint32, 2>& Path)
+	static FReal ComputeGeodesicDistance(const FParticles& InParticles, const TVector<uint32, 2>& Path)
 	{
 		return (InParticles.X(Path[0]) - InParticles.X(Path[1])).Size();
 	}

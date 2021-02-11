@@ -18,6 +18,7 @@ namespace Chaos
 	class TLevelSet;
 	template <typename T, int d>
 	class TParticles;
+	using FParticles = TParticles<FReal, 3>;
 }
 
 class CHAOS_API FCollisionStructureManager
@@ -37,7 +38,7 @@ public:
 	 * of the remainder.
 	 */
 	static FSimplicial* NewSimplicial(
-		const Chaos::TParticles<float, 3>& Vertices,
+		const Chaos::FParticles& Vertices,
 		const Chaos::FTriangleMesh& TriMesh,
 		const Chaos::FImplicitObject* Implicit,
 		const int32 CollisionParticlesMaxInput);
@@ -47,7 +48,7 @@ public:
 	 * and returns a bounding volume hierarchy of the remainder.
 	 */
 	static FSimplicial* NewSimplicial(
-		const Chaos::TParticles<float,3>& AllParticles,
+		const Chaos::FParticles& AllParticles,
 		const TManagedArray<int32>& BoneMap,
 		const ECollisionTypeEnum CollisionType,
 		Chaos::FTriangleMesh& TriMesh,
@@ -78,7 +79,7 @@ public:
 	 */
 	static FImplicit * NewImplicit(
 		Chaos::FErrorReporter ErrorReporter,
-		const Chaos::TParticles<float, 3>& MeshParticles,
+		const Chaos::FParticles& MeshParticles,
 		const Chaos::FTriangleMesh& TriMesh,
 		const FBox& CollisionBounds,
 		const float Radius,
@@ -100,7 +101,7 @@ public:
 
 	static FImplicit* NewImplicitLevelset(
 		Chaos::FErrorReporter ErrorReporter,
-		const Chaos::TParticles<float, 3>& MeshParticles,
+		const Chaos::FParticles& MeshParticles,
 		const Chaos::FTriangleMesh& TriMesh,
 		const FBox& CollisionBounds,
 		const int32 MinRes,
@@ -110,7 +111,7 @@ public:
 
 	static Chaos::TLevelSet<float, 3>* NewLevelset(
 		Chaos::FErrorReporter ErrorReporter,
-		const Chaos::TParticles<float, 3>& MeshParticles,
+		const Chaos::FParticles& MeshParticles,
 		const Chaos::FTriangleMesh& TriMesh,
 		const FBox& CollisionBounds,
 		const int32 MinRes,

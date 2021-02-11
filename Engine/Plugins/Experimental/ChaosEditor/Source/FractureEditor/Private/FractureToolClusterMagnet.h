@@ -10,6 +10,7 @@ namespace Chaos
 {
 	template<class T, int d>
 	class TParticles;
+	using FParticles = TParticles<FReal, 3>;
 }
 
 

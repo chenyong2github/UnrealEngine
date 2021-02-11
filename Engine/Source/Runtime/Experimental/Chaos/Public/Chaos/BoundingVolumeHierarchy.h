@@ -178,14 +178,14 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 #if PLATFORM_MAC || PLATFORM_LINUX
     extern template class CHAOS_API TBoundingVolumeHierarchy<TArray<Chaos::TSphere<FReal, 3>*>, TArray<int32>, FReal, 3>;
     extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<FReal, 3>, TArray<int32>, FReal, 3>;
-    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TParticles<FReal, 3>, TArray<int32>, FReal, 3>;
+    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::FParticles, TArray<int32>, FReal, 3>;
     extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TGeometryParticles<FReal, 3>, TArray<int32>, FReal, 3>;
     extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<FReal, 3>, TBoundingVolume<TPBDRigidParticleHandle<FReal,3>*, FReal, 3>, FReal, 3>;
     extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TGeometryParticles<FReal, 3>, TBoundingVolume<TGeometryParticleHandle<FReal,3>*, FReal, 3>, FReal, 3>;
 #else
     extern template class TBoundingVolumeHierarchy<TArray<Chaos::TSphere<FReal, 3>*>, TArray<int32>, FReal, 3>;
     extern template class TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<FReal, 3>, TArray<int32>, FReal, 3>;
-    extern template class TBoundingVolumeHierarchy<Chaos::TParticles<FReal, 3>, TArray<int32>, FReal, 3>;
+    extern template class TBoundingVolumeHierarchy<Chaos::FParticles, TArray<int32>, FReal, 3>;
     extern template class TBoundingVolumeHierarchy<Chaos::TGeometryParticles<FReal, 3>, TArray<int32>, FReal, 3>;
     extern template class TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<FReal, 3>, TBoundingVolume<TPBDRigidParticleHandle<FReal,3>*, FReal, 3>, FReal, 3>;
     extern template class TBoundingVolumeHierarchy<Chaos::TGeometryParticles<FReal, 3>, TBoundingVolume<TGeometryParticleHandle<FReal,3>*, FReal, 3>, FReal, 3>;

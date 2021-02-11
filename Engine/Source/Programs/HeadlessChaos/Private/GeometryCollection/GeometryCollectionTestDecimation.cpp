@@ -33,12 +33,12 @@ namespace GeometryCollectionTest
 	
 	using namespace Chaos;
 
-	Chaos::TParticles<FReal, 3>
+	Chaos::FParticles
 	BuildParticlesFeomGeomCollection(FGeometryCollection *TestCollection)
 	{
 		TManagedArray<FVector> &Vertex = TestCollection->Vertex;
 		const int numParticles = Vertex.Num();
-		Chaos::TParticles<FReal, 3> particles;
+		Chaos::FParticles particles;
 		particles.AddParticles(numParticles);
 		for (int i = 0; i < numParticles; i++)
 			particles.X(i).Set(Vertex[i][0], Vertex[i][1], Vertex[i][2]);
@@ -135,7 +135,7 @@ namespace GeometryCollectionTest
 	bool
 	RunGeomDecimationTest(FGeometryCollection* TestCollection, const char *BaseName, const char *OutputDir, const uint32 ExpectedHash, const bool RestrictToLocalIndexRange = false)
 	{
-		Chaos::TParticles<FReal, 3> Particles = BuildParticlesFeomGeomCollection(TestCollection);
+		Chaos::FParticles Particles = BuildParticlesFeomGeomCollection(TestCollection);
 		Chaos::FTriangleMesh TriMesh = BuildTriMeshFromGeomCollection(TestCollection);
 
 		TArray<int32> CoincidentVertices;

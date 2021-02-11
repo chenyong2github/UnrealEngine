@@ -32,7 +32,7 @@ FAutoConsoleVariableRef CVarCollisionParticlesMax(TEXT("p.CollisionParticlesMax"
 
 FCollisionStructureManager::FSimplicial*
 FCollisionStructureManager::NewSimplicial(
-	const Chaos::TParticles<float, 3>& Vertices,
+	const Chaos::FParticles& Vertices,
 	const Chaos::FTriangleMesh& TriMesh,
 	const Chaos::FImplicitObject* Implicit,
 	const int32 CollisionParticlesMaxInput)
@@ -126,7 +126,7 @@ FCollisionStructureManager::NewSimplicial(
 
 FCollisionStructureManager::FSimplicial*
 FCollisionStructureManager::NewSimplicial(
-	const Chaos::TParticles<float,3>& AllParticles,
+	const Chaos::FParticles& AllParticles,
 	const TManagedArray<int32>& BoneMap,
 	const ECollisionTypeEnum CollisionType,
 	Chaos::FTriangleMesh& TriMesh,
@@ -187,7 +187,7 @@ void FCollisionStructureManager::UpdateImplicitFlags(
 FCollisionStructureManager::FImplicit* 
 FCollisionStructureManager::NewImplicit(
 	Chaos::FErrorReporter ErrorReporter,
-	const Chaos::TParticles<float, 3>& MeshParticles,
+	const Chaos::FParticles& MeshParticles,
 	const Chaos::FTriangleMesh& TriMesh,
 	const FBox& CollisionBounds,
 	const float Radius, 
@@ -240,7 +240,7 @@ FCollisionStructureManager::NewImplicitSphere(
 FCollisionStructureManager::FImplicit*
 FCollisionStructureManager::NewImplicitLevelset(
 	Chaos::FErrorReporter ErrorReporter,
-	const Chaos::TParticles<float, 3>& MeshParticles,
+	const Chaos::FParticles& MeshParticles,
 	const Chaos::FTriangleMesh& TriMesh,
 	const FBox& CollisionBounds,
 	const int32 MinRes,
@@ -285,7 +285,7 @@ FCollisionStructureManager::NewImplicitLevelset(
 
 Chaos::TLevelSet<float, 3>* FCollisionStructureManager::NewLevelset(
 	Chaos::FErrorReporter ErrorReporter,
-	const Chaos::TParticles<float, 3>& MeshParticles,
+	const Chaos::FParticles& MeshParticles,
 	const Chaos::FTriangleMesh& TriMesh,
 	const FBox& CollisionBounds,
 	const int32 MinRes,

@@ -112,7 +112,7 @@ namespace ChaosTest {
 	FKinematicGeometryParticleHandle* AppendStaticConvexFloor(FPBDRigidsSOAs& SOAs);
 		
 	/**/
-	TLevelSet<FReal, 3> ConstructLevelset(TParticles<FReal, 3> & SurfaceParticles, TArray<TVec3<int32>> & Elements);
+	TLevelSet<FReal, 3> ConstructLevelset(FParticles& SurfaceParticles, TArray<TVec3<int32>> & Elements);
 
 	/**/
 	void AppendDynamicParticleConvexBox(FPBDRigidParticleHandle& InParticles, const FVec3& Scale, FReal Margin);

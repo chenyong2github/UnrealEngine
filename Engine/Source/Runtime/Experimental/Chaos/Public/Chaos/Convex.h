@@ -648,7 +648,7 @@ namespace Chaos
 				// Copy vertices and move into particles.
 				// @todo(chaos): make CalculateVolumeAndCenterOfMass take array of positions rather than particles
 				TArray<FVec3> VerticesCopy = Vertices;
-				const TParticles<FReal, 3> SurfaceParticles(MoveTemp(VerticesCopy));
+				const FParticles SurfaceParticles(MoveTemp(VerticesCopy));
 				CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 			}
 

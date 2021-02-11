@@ -57,7 +57,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 		const PxVec3* Vertices = ConvexMesh->getVertices();
 		const uint32 NumVerts = ConvexMesh->getNbVertices();
 
-		TParticles<float, 3> Particles;
+		FParticles Particles;
 		Particles.AddParticles(NumVerts);
 		for (uint32 Idx = 0; Idx < NumVerts; ++Idx)
 		{
@@ -137,7 +137,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 		const PxVec3* Vertices = TriangleMesh->getVertices();
 		const uint32 NumVerts = TriangleMesh->getNbVertices();
 
-		TParticles<float, 3> Particles;
+		FParticles Particles;
 		Particles.AddParticles(NumVerts);
 		for (uint32 Idx = 0; Idx < NumVerts; ++Idx)
 		{

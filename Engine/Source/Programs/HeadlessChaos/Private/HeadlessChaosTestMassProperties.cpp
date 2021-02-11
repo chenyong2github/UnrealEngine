@@ -172,7 +172,7 @@ namespace ChaosTest {
 
 	void ComputeMassProperties()
 	{
-		Chaos::TParticles<FReal, 3> Particles;
+		Chaos::FParticles Particles;
 		Particles.AddParticles(8);
 		Particles.X(0) = FVec3(-1, -1, -1);
 		Particles.X(1) = FVec3(-1, -1, 1);

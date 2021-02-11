@@ -96,7 +96,7 @@ namespace ChaosInterface
 	{
 #if WITH_CHAOS && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 		TArray<Chaos::TVec3<int32>> CollisionMeshElements = GetMeshElements(PhysXMesh);
-		Chaos::TParticles<float, 3> CollisionMeshParticles;
+		Chaos::FParticles CollisionMeshParticles;
 		CollisionMeshParticles.AddParticles(PhysXMesh->getNbVertices());
 		for (uint32 j = 0; j < CollisionMeshParticles.Size(); ++j)
 		{

@@ -138,7 +138,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			check(sizeof(Chaos::FVec3) == sizeof(FVector));
 
 			//TODO: this should all be done on the asset instead of in the callback. Duplicates all mesh vertices every time
-			Chaos::TParticles<float, 3> MeshParticles(MoveTemp(Parameters.MeshVertexPositions));
+			Chaos::FParticles MeshParticles(MoveTemp(Parameters.MeshVertexPositions));
 
 			TUniquePtr<Chaos::FTriangleMesh> TriangleMesh(new Chaos::FTriangleMesh(MoveTemp(Parameters.TriIndices)));
 			Chaos::FErrorReporter ErrorReporter(Parameters.Name + " | RigidBodyId: " + FString::FromInt(RigidBodyId));;

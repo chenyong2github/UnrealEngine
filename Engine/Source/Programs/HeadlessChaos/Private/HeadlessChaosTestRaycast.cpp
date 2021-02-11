@@ -294,7 +294,7 @@ namespace ChaosTest
 		TArray<uint16> DummyMaterials;
 		int32 FaceIndex;
 
-		TParticles<FReal, 3> Particles;
+		FParticles Particles;
 		Particles.AddParticles(3);
 		Particles.X(0) = FVec3(1, 1, 1);
 		Particles.X(1) = FVec3(5, 1, 1);

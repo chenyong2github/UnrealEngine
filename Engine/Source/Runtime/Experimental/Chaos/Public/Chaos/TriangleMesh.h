@@ -139,11 +139,11 @@ namespace Chaos
 		*/
 		CHAOS_API TArray<FVec3> GetFaceNormals(const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError = true) const;
 		CHAOS_API void GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError = true) const;
-		FORCEINLINE TArray<FVec3> GetFaceNormals(const TParticles<FReal, 3>& InParticles, const bool ReturnEmptyOnError = true) const
+		FORCEINLINE TArray<FVec3> GetFaceNormals(const FParticles& InParticles, const bool ReturnEmptyOnError = true) const
 		{ return GetFaceNormals(InParticles.X(), ReturnEmptyOnError); }
 
 		CHAOS_API TArray<FVec3> GetPointNormals(const TConstArrayView<FVec3>& points, const bool ReturnEmptyOnError = true);
-		FORCEINLINE TArray<FVec3> GetPointNormals(const TParticles<FReal, 3>& InParticles, const bool ReturnEmptyOnError = true)
+		FORCEINLINE TArray<FVec3> GetPointNormals(const FParticles& InParticles, const bool ReturnEmptyOnError = true)
 		{ return GetPointNormals(InParticles.X(), ReturnEmptyOnError); }
 
 		CHAOS_API void GetPointNormals(TArrayView<FVec3> PointNormals, const TConstArrayView<FVec3>& FaceNormals, const bool bUseGlobalArray);
@@ -156,7 +156,7 @@ namespace Chaos
 
 		static CHAOS_API FTriangleMesh GetConvexHullFromParticles(const TConstArrayView<FVec3>& points);
 		/** Deprecated. Use TArrayView version. */
-		static FORCEINLINE FTriangleMesh GetConvexHullFromParticles(const TParticles<FReal, 3>& InParticles)
+		static FORCEINLINE FTriangleMesh GetConvexHullFromParticles(const FParticles& InParticles)
 		{ return GetConvexHullFromParticles(InParticles.X()); }
 
 		/**
@@ -227,7 +227,7 @@ namespace Chaos
 		CHAOS_API void RemoveDuplicateElements();
 		CHAOS_API void RemoveDegenerateElements();
 
-		static FORCEINLINE void InitEquilateralTriangleXY(FTriangleMesh& TriMesh, TParticles<FReal, 3>& Particles)
+		static FORCEINLINE void InitEquilateralTriangleXY(FTriangleMesh& TriMesh, FParticles& Particles)
 		{
 			const int32 Idx = Particles.Size();
 			Particles.AddParticles(3);
@@ -242,7 +242,7 @@ namespace Chaos
 
 			TriMesh.Init(MoveTemp(Elements));
 		}
-		static FORCEINLINE void InitEquilateralTriangleYZ(FTriangleMesh& TriMesh, TParticles<FReal, 3>& Particles)
+		static FORCEINLINE void InitEquilateralTriangleYZ(FTriangleMesh& TriMesh, FParticles& Particles)
 		{
 			const int32 Idx = Particles.Size();
 			Particles.AddParticles(3);

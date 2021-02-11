@@ -14,6 +14,7 @@ namespace Chaos
 
 	template<class T, int d>
 	class TParticles;
+	using FParticles = TParticles<FReal, 3>;
 
 	struct CHAOS_API FMassProperties
 	{
@@ -34,13 +35,13 @@ namespace Chaos
 	FRotation3 CHAOS_API TransformToLocalSpace(FMatrix33& Inertia);
 
 	template<typename TSurfaces>
-	void CHAOS_API CalculateVolumeAndCenterOfMass(const TParticles<FReal, 3>& Vertices, const TSurfaces& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
+	void CHAOS_API CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
 
 	template<typename TSurfaces>
-	FMassProperties CHAOS_API CalculateMassProperties(const TParticles<FReal, 3>& Vertices, const TSurfaces& Surfaces, const FReal Mass);
+	FMassProperties CHAOS_API CalculateMassProperties(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Mass);
 
 	template<typename TSurfaces>
-	void CHAOS_API CalculateInertiaAndRotationOfMass(const TParticles<FReal, 3>& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
+	void CHAOS_API CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
 	    FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 
 	FMassProperties CHAOS_API Combine(const TArray<FMassProperties>& MPArray);

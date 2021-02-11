@@ -138,7 +138,7 @@ static TAutoConsoleVariable<int32> CVarMaxSweepSteps(
 	TEXT("Number of steps during a sweep"),
 	ECVF_Default);
 
-bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::TClusterBuffer<float, 3>& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const Chaos::FImplicitObject& QueryGeom, const Chaos::TParticles<float, 3>& CollisionParticles, const FTransform& StartPose, const FVector& Dir, float DeltaMag, const bool bCanBeDisabled, FHitSweep& OutHit)
+bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::TClusterBuffer<float, 3>& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const Chaos::FImplicitObject& QueryGeom, const Chaos::FParticles& CollisionParticles, const FTransform& StartPose, const FVector& Dir, float DeltaMag, const bool bCanBeDisabled, FHitSweep& OutHit)
 {
 	using namespace Chaos;
 
@@ -396,7 +396,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 	TMap<const Chaos::FPhysicsSolver*, TArray<int32>> SolverIntersectionSets;
 
 	// Getter for intersections from the mapping above
-	auto GetIntersectionsFunc = [&](const Chaos::FPhysicsSolver* InSolver, const Chaos::TParticles<float, 3>& InCollisionParticles, float InDeltaMag, const FTransform& InPose) -> TArray<int32>
+	auto GetIntersectionsFunc = [&](const Chaos::FPhysicsSolver* InSolver, const Chaos::FParticles& InCollisionParticles, float InDeltaMag, const FTransform& InPose) -> TArray<int32>
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SQSweepBroadPhase)
 
@@ -450,7 +450,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 	bool bHit = false;
 	FHitSweep Hit;
 	PxGeometryHolder Holder(QueryGeom);
-	Chaos::TParticles<float, 3> CollisionParticles;
+	Chaos::FParticles CollisionParticles;
 
 	if(Holder.getType() == PxGeometryType::eCAPSULE)
 	{

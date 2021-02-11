@@ -228,4 +228,6 @@ namespace Chaos
 		/** */
 		Chaos_CTF_MAX,
 	};
+
+	using FParticles = TParticles<FReal, 3>;
 } // namespace Chaos

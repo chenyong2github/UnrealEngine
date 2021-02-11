@@ -22,7 +22,7 @@ namespace GeometryCollectionTest
 		using Traits = TypeParam;
 		using namespace Chaos;
 
-		Chaos::TParticles<FReal, 3> Vertices;
+		Chaos::FParticles Vertices;
 		Vertices.AddParticles(8);
 		Vertices.X(0) = FVec3(-1, 1, -1);
 		Vertices.X(1) = FVec3(1, 1, -1);
@@ -132,7 +132,7 @@ namespace GeometryCollectionTest
 		MassProperties.CenterOfMass = FVector(0);
 		MassProperties.Mass = 1.0;
 
-		TParticles<FReal, 3> MassSpaceParticles;
+		FParticles MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
@@ -206,7 +206,7 @@ namespace GeometryCollectionTest
 		MassPropertiesArray.AddUninitialized(NumGeometries);
 		FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
-		TParticles<FReal, 3> MassSpaceParticles;
+		FParticles MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
@@ -289,7 +289,7 @@ namespace GeometryCollectionTest
 		MassProperties.Mass = 1.0;
 		MassProperties.CenterOfMass = FVector(0);
 
-		TParticles<FReal, 3> MassSpaceParticles;
+		FParticles MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
@@ -371,7 +371,7 @@ namespace GeometryCollectionTest
 		FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
 		TArray<FVector> SomeVec;
-		TParticles<FReal, 3> MassSpaceParticles;
+		FParticles MassSpaceParticles;
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{

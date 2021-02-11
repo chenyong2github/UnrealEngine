@@ -134,12 +134,12 @@ Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject
 	}
 	else
 	{
-		return FindDeepestIntersection(Other, static_cast<const TParticles<FReal, 3>*>(Particles), OtherToLocalTransform, Thickness);
+		return FindDeepestIntersection(Other, static_cast<const FParticles*>(Particles), OtherToLocalTransform, Thickness);
 	}
 	return MakePair(Point, Phi < Thickness);
 }
 
-Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject* Other, const TParticles<FReal, 3>* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const
+Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject* Other, const FParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const
 {
 	// Do analytics
 	// @todo(mlentine): Should we do a convex pass here?

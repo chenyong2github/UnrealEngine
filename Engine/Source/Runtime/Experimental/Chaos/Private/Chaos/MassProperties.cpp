@@ -80,7 +80,7 @@ namespace Chaos
 	}
 
 	template<typename TSurfaces>
-	void CalculateVolumeAndCenterOfMass(const TParticles<FReal, 3>& Vertices, const TSurfaces& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass)
+	void CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass)
 	{
 		if (!Surfaces.Num())
 		{
@@ -125,7 +125,7 @@ namespace Chaos
 	}
 
 	template <typename TSurfaces>
-	void CalculateInertiaAndRotationOfMass(const TParticles<FReal, 3>& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
+	void CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
 		FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass)
 	{
 		check(Density > 0);
@@ -156,7 +156,7 @@ namespace Chaos
 
 	template<typename TSurfaces>
 	FMassProperties CalculateMassProperties(
-		const TParticles<FReal, 3> & Vertices,
+		const FParticles & Vertices,
 		const TSurfaces& Surfaces,
 		const FReal Mass)
 	{
@@ -211,14 +211,14 @@ namespace Chaos
 		return NewMP;
 	}
 
-	template CHAOS_API FMassProperties CalculateMassProperties(const TParticles<FReal, 3>& Vertices, const TArray<TVec3<int32>>& Surfaces, const FReal Mass);
-	template CHAOS_API FMassProperties CalculateMassProperties(const TParticles<FReal, 3> & Vertices, const TArray<TArray<int32>>& Surfaces, const FReal Mass);
+	template CHAOS_API FMassProperties CalculateMassProperties(const FParticles& Vertices, const TArray<TVec3<int32>>& Surfaces, const FReal Mass);
+	template CHAOS_API FMassProperties CalculateMassProperties(const FParticles & Vertices, const TArray<TArray<int32>>& Surfaces, const FReal Mass);
 
-	template CHAOS_API void CalculateVolumeAndCenterOfMass(const TParticles<FReal, 3>& Vertices, const TArray<TVec3<int32>>& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
-	template CHAOS_API void CalculateVolumeAndCenterOfMass(const TParticles<FReal, 3>& Vertices, const TArray<TArray<int32>>& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
+	template CHAOS_API void CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TArray<TVec3<int32>>& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
+	template CHAOS_API void CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TArray<TArray<int32>>& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
 
-	template CHAOS_API void CalculateInertiaAndRotationOfMass(const TParticles<FReal, 3>& Vertices, const TArray<TVec3<int32>>& Surface, const FReal Density,
+	template CHAOS_API void CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TArray<TVec3<int32>>& Surface, const FReal Density,
 		const FVec3& CenterOfMass, FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
-	template CHAOS_API void CalculateInertiaAndRotationOfMass(const TParticles<FReal, 3>& Vertices, const TArray<TArray<int32>>& Surface, const FReal Density,
+	template CHAOS_API void CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TArray<TArray<int32>>& Surface, const FReal Density,
 		const FVec3& CenterOfMass, FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 }
