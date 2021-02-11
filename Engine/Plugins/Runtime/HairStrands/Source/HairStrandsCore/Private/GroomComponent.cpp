@@ -1807,6 +1807,10 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 	// Insure that the binding asset is compatible, otherwise no binding will be used
 	USkeletalMeshComponent* SkeletalMeshComponent = ValidateBindingAsset(GroomAsset, BindingAsset, GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr, bIsBindingReloading, bValidationEnable, this);
+	if (SkeletalMeshComponent && SkeletalMeshComponent->SkeletalMesh == nullptr)
+	{
+		SkeletalMeshComponent = nullptr;
+	}
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
 	if (SkeletalMeshComponent)
