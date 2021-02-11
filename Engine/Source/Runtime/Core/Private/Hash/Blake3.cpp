@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Misc/Blake3.h"
+#include "Hash/Blake3.h"
 
 #include "blake3.h"
 

@@ -5,7 +5,7 @@
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "HAL/UnrealMemory.h"
-#include "Misc/Blake3.h"
+#include "Hash/Blake3.h"
 #include "Memory/MemoryView.h"
 #include "Serialization/Archive.h"
 #include "String/BytesToHex.h"

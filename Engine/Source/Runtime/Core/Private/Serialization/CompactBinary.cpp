@@ -2,8 +2,8 @@
 
 #include "Serialization/CompactBinary.h"
 
+#include "Hash/Blake3.h"
 #include "Math/UnrealMathUtility.h"
-#include "Misc/Blake3.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
