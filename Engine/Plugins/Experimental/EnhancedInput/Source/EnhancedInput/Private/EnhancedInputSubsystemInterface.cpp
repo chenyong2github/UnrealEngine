@@ -268,7 +268,7 @@ void IEnhancedInputSubsystemInterface::ApplyAxisPropertyModifiers(UEnhancedPlaye
 		// If a modifier already exists it should override axis properties.
 		auto HasExistingModifier = [&Mapping](UClass* OfType)
 		{
-			auto TypeMatcher = [&OfType](UInputModifier* Modifier) { return Modifier->IsA(OfType); };
+			auto TypeMatcher = [&OfType](UInputModifier* Modifier) { return Modifier != nullptr && Modifier->IsA(OfType); };
 			return Mapping.Modifiers.ContainsByPredicate(TypeMatcher) || Mapping.Action->Modifiers.ContainsByPredicate(TypeMatcher);
 		};
 
