@@ -686,7 +686,7 @@ void FDetailPropertyRow::SetWidgetRowProperties(FDetailWidgetRow& Row) const
 
 		if (CustomPropertyWidget->CustomResetToDefault.IsSet())
 		{
-			checkf(!CustomResetToDefault.IsSet(), TEXT("Duplicate reset to default handlers set on both FDetailPropertyRow and CustomWidget()!"));
+			ensureMsgf(!CustomResetToDefault.IsSet(), TEXT("Duplicate reset to default handlers set on both FDetailPropertyRow and CustomWidget()!"));
 			Row.CustomResetToDefault = CustomPropertyWidget->CustomResetToDefault;
 		}
 	}
