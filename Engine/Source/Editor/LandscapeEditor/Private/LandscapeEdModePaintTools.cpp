@@ -4,6 +4,7 @@
 #include "Misc/App.h"
 #include "InputCoreTypes.h"
 #include "Engine/EngineTypes.h"
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "LandscapeToolInterface.h"
@@ -41,13 +42,56 @@ const int32 FNoiseParameter::Permutations[256] =
 	138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
 };
 
+namespace
+{
+	/** Helper function to invalidate the runtime virtual texture data associated with the passed in landscape region. */
+	void DirtyRuntimeVirtualTextureForLandscapeArea(ULandscapeInfo* LandscapeInfo, int32 X1, int32 Y1, int32 X2, int32 Y2)
+	{
+		FBox DirtyWorldBounds(ForceInit);
 
+		// Iterate touched components to find touched runtime virtual textures.
+		TSet<ULandscapeComponent*> Components;
+		LandscapeInfo->GetComponentsInRegion(X1 + 1, Y1 + 1, X2 - 1, Y2 - 1, Components);
+
+		TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+		for (ULandscapeComponent* Component : Components)
+		{
+			ALandscapeProxy* Landscape = Component->GetLandscapeProxy();
+			if (Landscape != nullptr && Landscape->RuntimeVirtualTextures.Num() > 0)
+			{
+				for (URuntimeVirtualTexture* RuntimeVirtualTexture : Landscape->RuntimeVirtualTextures)
+				{
+					RuntimeVirtualTextures.AddUnique(RuntimeVirtualTexture);
+				}
+
+				// Also accumulate bounds in world space.
+				const int32 LocalX1 = FMath::Max(X1, Component->GetSectionBase().X) - Component->GetSectionBase().X;
+				const int32 LocalY1 = FMath::Max(Y1, Component->GetSectionBase().Y) - Component->GetSectionBase().Y;
+				const int32 LocalX2 = FMath::Min(X2, Component->GetSectionBase().X + LandscapeInfo->ComponentSizeQuads) - Component->GetSectionBase().X;
+				const int32 LocalY2 = FMath::Min(Y2, Component->GetSectionBase().Y + LandscapeInfo->ComponentSizeQuads) - Component->GetSectionBase().Y;
+				const FBox LocalDirtyBounds(FVector(LocalX1, LocalY1, 0), FVector(LocalX2, LocalY2, 1));
+
+				DirtyWorldBounds += LocalDirtyBounds.TransformBy(Component->GetComponentToWorld());
+			}
+		}
+
+		// Find matching runtime virtual texture components and invalidate dirty region.
+		if (RuntimeVirtualTextures.Num() > 0)
+		{
+			for (TObjectIterator<URuntimeVirtualTextureComponent> It; It; ++It)
+			{
+				if (It->GetVirtualTexture() != nullptr && RuntimeVirtualTextures.Contains(It->GetVirtualTexture()))
+				{
+					It->Invalidate(FBoxSphereBounds(DirtyWorldBounds));
+				}
+			}
+		}
+	}
+}
 
 // 
 // FLandscapeToolPaintBase
 //
-
-
 template<class TToolTarget, class TStrokeClass>
 class FLandscapeToolPaintBase : public FLandscapeToolBase<TStrokeClass>
 {
@@ -77,8 +121,6 @@ public:
 protected:
 	typename ToolTarget::CacheClass Cache;
 };
-
-
 
 // 
 // FLandscapeToolPaint
@@ -262,18 +304,8 @@ public:
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
 		this->Cache.Flush();
 		
-		// If we render to a runtime virtual texture then we mark touched components as dirty to trigger updates
-		//todo[vt]: Would be more efficient to update VT in a single flush instead of one flush per component. Also dirtying all render state is a bit heavyweight.
-		TSet<ULandscapeComponent*> Components;
-		LandscapeInfo->GetComponentsInRegion(X1 + 1, Y1 + 1, X2 - 1, Y2 - 1, Components);
-		for (ULandscapeComponent* Component : Components)
-		{
-			ALandscapeProxy* Landscape = Component->GetLandscapeProxy();
-			if (Landscape != nullptr && Landscape->RuntimeVirtualTextures.Num() > 0)
-			{
-				Component->MarkRenderStateDirty();
-			}
-		}
+		// Dirty any runtime virtual textures that our landscape components write to.
+		DirtyRuntimeVirtualTextureForLandscapeArea(LandscapeInfo, X1, Y1, X2, Y2);
 	}
 };
 
