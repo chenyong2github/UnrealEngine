@@ -507,6 +507,10 @@
 				</ForEach>
 			</Do>
 			
+			<!-- Tag AutomationTool and UnrealBuildTool folders recursively as NET Core dependencies are not currently handled by CsCompile -->
+			<Tag Files="$(CsToolsDir)/Engine/Binaries/DotNET/AutomationTool/..." With="#Build Tools CS Binaries" />
+			<Tag Files="$(CsToolsDir)/Engine/Binaries/DotNET/UnrealBuildTool/..." With="#Build Tools CS Binaries" />
+			
 			<!-- Compile IPP. Mac/Linux bundled versions of Mono do not have Winforms, so we just use the existing one. -->
 			<Property Name="CompileIPP" Value="true"/>
 			<Property Name="CompileIPP" Value="false" If="'$(HostPlatform)' != 'Win64'"/>
