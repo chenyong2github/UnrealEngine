@@ -90,6 +90,9 @@ enum ECompilerFlags
 	// Enable support of C-style data types for platforms that can. Check for PLATFORM_SUPPORTS_REAL_TYPES.
 	CFLAG_AllowRealTypes,
 
+	// Allow warnings to be treated as errors
+	CFLAG_WarningsAsErrors,
+
 	CFLAG_Max,
 };
 static_assert(CFLAG_Max < 32, "Out of bitfields!");

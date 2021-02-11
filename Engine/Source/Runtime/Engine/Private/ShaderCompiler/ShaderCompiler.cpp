@@ -799,6 +799,12 @@ static TAutoConsoleVariable<int32> CVarShaderBoundsChecking(
 	TEXT("Whether to enforce bounds-checking & flush-to-zero/ignore for buffer reads & writes in shaders. Defaults to 1 (enabled). Not all shader languages can omit bounds checking."),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarShaderWarningsAsErrors(
+	TEXT("r.Shaders.WarningsAsErrors"),
+	0,
+	TEXT("Whether to treat warnings as errors when running the shader compiler. Defaults to 0 (disabled). Not all compilers support this mode."),
+	ECVF_ReadOnly);
+
 static TAutoConsoleVariable<int32> CVarShaderFlowControl(
 	TEXT("r.Shaders.FlowControlMode"),
 	0,
@@ -4484,6 +4490,11 @@ void GlobalBeginCompileShader(
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_SkipValidation);
 		}
+	}
+
+	if (CVarShaderWarningsAsErrors.GetValueOnAnyThread())
+	{
+		Input.Environment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
 	if (IsD3DPlatform((EShaderPlatform)Target.Platform) && IsPCPlatform((EShaderPlatform)Target.Platform))

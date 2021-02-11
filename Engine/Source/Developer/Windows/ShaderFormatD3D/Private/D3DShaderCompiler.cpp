@@ -53,6 +53,7 @@ static uint32 TranslateCompilerFlagD3D11(ECompilerFlags CompilerFlag)
 	{
 	case CFLAG_PreferFlowControl: return D3DCOMPILE_PREFER_FLOW_CONTROL;
 	case CFLAG_AvoidFlowControl: return D3DCOMPILE_AVOID_FLOW_CONTROL;
+	case CFLAG_WarningsAsErrors: return D3DCOMPILE_WARNINGS_ARE_ERRORS;
 	default: return 0;
 	};
 }
@@ -219,6 +220,12 @@ static FString D3D11CreateShaderCompileCommandLine(
 	{
 		CompileFlags &= ~D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
 		FXCCommandline += FString(TEXT(" /Gec"));
+	}
+
+	if (CompileFlags & D3DCOMPILE_WARNINGS_ARE_ERRORS)
+	{
+		CompileFlags &= ~D3DCOMPILE_WARNINGS_ARE_ERRORS;
+		FXCCommandline += FString(TEXT(" /WX"));
 	}
 
 	switch (CompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)

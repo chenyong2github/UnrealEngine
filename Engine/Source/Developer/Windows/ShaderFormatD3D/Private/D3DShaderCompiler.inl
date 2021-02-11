@@ -88,6 +88,12 @@ public:
 			ExtraArguments.Add(L"/Gec");
 		}
 
+		if (D3DCompileFlags & D3DCOMPILE_WARNINGS_ARE_ERRORS)
+		{
+			D3DCompileFlags &= ~D3DCOMPILE_WARNINGS_ARE_ERRORS;
+			ExtraArguments.Add(L"/WX");
+		}
+
 		switch (D3DCompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
 		{
 		case D3DCOMPILE_OPTIMIZATION_LEVEL0:
