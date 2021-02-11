@@ -134,34 +134,28 @@ namespace Metasound
 
 		struct FEnumHandler : Metasound::Frontend::IEnumDataTypeInterface
 		{
-			TArray<FName> GetAllNames() const override
-			{
-				return FStringHelper::GetAllNames();
-			}
 			FName GetNamespace() const override
 			{
 				return FStringHelper::GetNamespace();
 			}
-			TOptional<FName> ToName(int32 InEnumValue) const override
+			int32 GetDefaultValue() const override
 			{
-				return FStringHelper::ToName(static_cast<InnerType>(InEnumValue));
+				return static_cast<int32>(TEnumTraits<TDataType>::DefaultValue);
 			}
-			TOptional<int32> ToValue(FName InName) const override
+			const TArray<FGenericInt32Entry>& GetAllEntries() const override
 			{
-				if (TOptional<InnerType> Result = FStringHelper::FromName(InName))
+				auto BuildIntEntries = []()
 				{
-					return static_cast<int32>(*Result);
-				}
-				return {};
-			}
-			TArray<FGenericInt32Entry> GetAllEntries() const override
-			{
-				// Convert to int32 representation 
-				TArray<FGenericInt32Entry> IntEntries;
-				for (const TEnumEntry<InnerType>& i : FStringHelper::GetAllEntries())
-				{					
-					IntEntries.Emplace(FGenericInt32Entry{ static_cast<int32>(i.Value), i.Name, i.Tooltip });
-				}
+					// Convert to int32 representation 
+					TArray<FGenericInt32Entry> IntEntries;
+					IntEntries.Reserve(FStringHelper::GetAllEntries().Num());
+					for (const TEnumEntry<InnerType>& i : FStringHelper::GetAllEntries())
+					{
+						IntEntries.Emplace(i);
+					}
+					return IntEntries;
+				};
+				static const TArray<FGenericInt32Entry> IntEntries = BuildIntEntries();
 				return IntEntries;
 			}
 		};

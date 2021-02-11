@@ -8,6 +8,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundOperatorSettings.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
 
 #include "DSP/Filter.h"
 #include "DSP/InterpolatedOnePole.h"
@@ -685,7 +686,22 @@ namespace Metasound
 
 
 #pragma region Biquad Filter
+	DECLARE_METASOUND_ENUM(Audio::EBiquadFilter::Type, Audio::EBiquadFilter::Lowpass,
+		METASOUNDSTANDARDNODES_API, FEnumEBiquadFilterType, FEnumBiQuadFilterTypeInfo, FEnumBiQuadFilterReadRef, FEnumBiQuadFilterWriteRef);
 
+	DEFINE_METASOUND_ENUM_BEGIN(Audio::EBiquadFilter::Type, FEnumEBiquadFilterType, "BiquadFilterType")
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Lowpass, LOCTEXT("LpDescription", "Low Pass"), LOCTEXT("LpDescriptionTT", "Low Pass Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Highpass, LOCTEXT("HpDescription", "High Pass"), LOCTEXT("HpDescriptionTT", "High Pass Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Bandpass, LOCTEXT("BpDescription", "Band Pass"), LOCTEXT("BpDescriptionTT", "Band Pass Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Notch, LOCTEXT("NotchDescription", "Notch "), LOCTEXT("NotchDescriptionTT", "Notch Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ParametricEQ, LOCTEXT("ParaEqDescription", "Parametric EQ"), LOCTEXT("ParaEqDescriptionTT", "Parametric EQ Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::LowShelf, LOCTEXT("LowShelfDescription", "Low Shelf"), LOCTEXT("LowShelfDescriptionTT", "Low Shelf Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::HighShelf, LOCTEXT("HighShelfDescription", "High Shelf"), LOCTEXT("HighShelfDescriptionTT", "High Shelf Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::AllPass, LOCTEXT("AllPassDescription", "All Pass"), LOCTEXT("AllPassDescriptionTT", "All Pass Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ButterworthLowPass, LOCTEXT("LowPassButterDescription", "Butterworth Low Pass"), LOCTEXT("LowPassButterDescriptionTT", "Butterworth Low Pass Biquad Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ButterworthHighPass,LOCTEXT("HighPassButterDescription", "Butterworth High Pass"), LOCTEXT("HighPassButterDescriptionTT", "Butterworth High Pass Biquad Filter"))
+	DEFINE_METASOUND_ENUM_END()
+	
 	class FBiquadFilterOperator : public TExecutableOperator<FBiquadFilterOperator>
 	{
 	public:
@@ -701,6 +717,7 @@ namespace Metasound
 			InputDataReferences.AddDataReadReference(TEXT("In"), FAudioBufferReadRef(AudioInput));
 			InputDataReferences.AddDataReadReference(TEXT("Freq."), FFloatReadRef(Frequency));
 			InputDataReferences.AddDataReadReference(TEXT("Bandwidth"), FFloatReadRef(Bandwidth));
+			InputDataReferences.AddDataReadReference(TEXT("Type"), FEnumBiQuadFilterReadRef(FilterType));
 
 			return InputDataReferences;
 		}
@@ -722,6 +739,7 @@ namespace Metasound
 		FAudioBufferReadRef AudioInput;
 		FFloatReadRef Frequency;
 		FFloatReadRef Bandwidth;
+		FEnumBiQuadFilterReadRef FilterType;
 
 		// cached data
 		float LastFrequency;
@@ -745,19 +763,22 @@ namespace Metasound
 			const FOperatorSettings& InSettings,
 			const FAudioBufferReadRef& InAudioInput,
 			const FFloatReadRef& InFrequency,
-			const FFloatReadRef& InBandwidth
+			const FFloatReadRef& InBandwidth,
+			const FEnumBiQuadFilterReadRef& InFilterType
 		)
 			: AudioInput(InAudioInput)
 			, Frequency(InFrequency)
 			, Bandwidth(InBandwidth)
+			, FilterType(InFilterType)
 			, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
 			, BlockSize(InSettings.GetNumFramesPerBlock())
 			, SampleRate(InSettings.GetSampleRate())
+			, LastFilterType(*FilterType)
 		{
 			// verify our buffer sizes:
 			check(AudioOutput->Num() == BlockSize);
 
-			BiquadFilter.Init(SampleRate, 1, Audio::EBiquadFilter::Type::ButterworthLowPass);
+			BiquadFilter.Init(SampleRate, 1, *FilterType);
 		}
 	};
 
@@ -799,7 +820,8 @@ namespace Metasound
 			FInputVertexInterface(
 				TInputDataVertexModel<FAudioBuffer>(TEXT("In"), LOCTEXT("AudioInputTooltip", "Audio Input")),
 				TInputDataVertexModel<float>(TEXT("Freq."), LOCTEXT("FrequencyTooltip", "Controls Filter Cutoff")),
-				TInputDataVertexModel<float>(TEXT("Bandwidth"), LOCTEXT("BandwidthTooltip", "Bandwidth Control"))
+				TInputDataVertexModel<float>(TEXT("Bandwidth"), LOCTEXT("BandwidthTooltip", "Bandwidth Control")),
+				TInputDataVertexModel<FEnumEBiquadFilterType>(TEXT("Type"), LOCTEXT("FilterTypeDescription", "Biquad Filter Type"))
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), LOCTEXT("FilterOutputToolTip", "Audio Output"))
@@ -819,12 +841,14 @@ namespace Metasound
 		FAudioBufferReadRef AudioIn = InputDataRefs.GetDataReadReferenceOrConstruct<FAudioBuffer>(TEXT("In"), InParams.OperatorSettings);
 		FFloatReadRef FrequencyIn = InputDataRefs.GetDataReadReferenceOrConstruct<float>(TEXT("Freq."));
 		FFloatReadRef BandwidthIn = InputDataRefs.GetDataReadReferenceOrConstruct<float>(TEXT("Bandwidth"));
+		FEnumBiQuadFilterReadRef FilterType = InputDataRefs.GetDataReadReferenceOrConstruct<FEnumEBiquadFilterType>(TEXT("Type"));
 
 		return MakeUnique<FBiquadFilterOperator>(
 			InParams.OperatorSettings
 			, AudioIn
 			, FrequencyIn
 			, BandwidthIn
+			, FilterType
 			);
 	}
 
@@ -838,6 +862,12 @@ namespace Metasound
 		if (!FMath::IsNearlyEqual(LastBandwidth, *Bandwidth))
 		{
 			BiquadFilter.SetBandwidth(*Bandwidth);
+		}
+
+		if (*FilterType != LastFilterType)
+		{
+			BiquadFilter.SetType(*FilterType);
+			LastFilterType = *FilterType;
 		}
 
 		BiquadFilter.ProcessAudio(AudioInput->GetData(), AudioInput->Num(), AudioOutput->GetData());

@@ -27,6 +27,10 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "MetasoundFrontendRegistries.h"
+#include "PropertyCustomizationHelpers.h"
+#include "SGraphPinComboBox.h"
+#include "SMetasoundEnumPin.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphNode"
 
@@ -97,6 +101,10 @@ TSharedPtr<SGraphPin> SMetasoundGraphNode::CreatePinWidget(UEdGraphPin* InPin) c
 
 		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt32)
 		{
+			if (SMetasoundEnumPin::FindEnumInterfaceFromPin(InPin))
+			{
+				return SNew(SMetasoundEnumPin, InPin);
+			}
 			return SNew(SGraphPinInteger, InPin);
 		}
 

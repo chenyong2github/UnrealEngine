@@ -138,15 +138,45 @@ namespace Metasound
 		{
 			using FGenericInt32Entry = TEnumEntry<int32>;
 
-			virtual FName GetNamespace() const = 0;
-			virtual TArray<FGenericInt32Entry> GetAllEntries() const = 0;
-
-			virtual TArray<FName> GetAllNames() const = 0;
-
-			virtual TOptional<FName> ToName(int32 InEnumValue) const = 0;
-			virtual TOptional<int32> ToValue(FName InName) const = 0;
-
 			virtual ~IEnumDataTypeInterface() = default;
+			virtual const TArray<FGenericInt32Entry>& GetAllEntries() const = 0;
+			virtual FName GetNamespace() const = 0;
+			virtual int32 GetDefaultValue() const = 0;
+
+			template<typename Predicate>
+			TOptional<FGenericInt32Entry> FindEntryBy(Predicate Pred) const
+			{
+				TArray<FGenericInt32Entry> Entries = GetAllEntries();
+				if (FGenericInt32Entry* Found = Entries.FindByPredicate(Pred))
+				{
+					return *Found;
+				}
+				return {};
+			}
+			TOptional<FGenericInt32Entry> FindByValue(int32 InEnumValue) const
+			{
+				return FindEntryBy([InEnumValue](const FGenericInt32Entry& i) -> bool { return i.Value == InEnumValue; });
+			}
+			TOptional<FGenericInt32Entry> FindByName(FName InEnumName) const
+			{
+				return FindEntryBy([InEnumName](const FGenericInt32Entry& i) -> bool { return i.Name == InEnumName; });
+			}
+			TOptional<FName> ToName(int32 InEnumValue) const
+			{
+				if(TOptional<FGenericInt32Entry> Result = FindByValue(InEnumValue))
+				{
+					return Result->Name;
+				}
+				return {};
+			}
+			TOptional<int32> ToValue(FName InName) const
+			{
+				if (TOptional<FGenericInt32Entry> Result = FindByName(InName))
+				{
+					return Result->Value;
+				}
+				return {};
+			}
 		};
 	}
 

@@ -301,50 +301,58 @@ namespace Metasound
 			// Create enum widget.
 			TSharedRef<SWidget> CreatePropertyValueWidgetInternal(TSharedPtr<IPropertyHandle> InLiteralPropertyHandle, bool bDisplayDefaultPropertyButtons = false) const override
 			{
+				using namespace Metasound::Frontend;
+				
 				if (TSharedPtr<IPropertyHandle> PropertyHandle = GetValueHandle(InLiteralPropertyHandle))
-				{
-					auto RemoveNamespace = [](const FString& InString) -> FString
-					{ 
-						FString EnumName;
-						if (InString.Split(TEXT("::"), nullptr, &EnumName))
-						{
-							return EnumName;
-						}
-						return InString;
-					};
-
-					auto GetAll = [EnumInterface = EnumInterface, RemoveNamespace](TArray<TSharedPtr<FString>>& OutStrings, TArray<TSharedPtr<SToolTip>>& OutTooltips, TArray<bool>&)
+				{				
+					auto GetAll = [Interface = EnumInterface](TArray<TSharedPtr<FString>>& OutStrings, TArray<TSharedPtr<SToolTip>>& OutTooltips, TArray<bool>&)
 					{
-						for (const Metasound::Frontend::IEnumDataTypeInterface::FGenericInt32Entry& i : EnumInterface->GetAllEntries())
+						for (const IEnumDataTypeInterface::FGenericInt32Entry& i : Interface->GetAllEntries())
 						{
 							OutTooltips.Emplace(SNew(SToolTip).Text(i.Tooltip));
-
-							// Trim the namespace off for display.
-							OutStrings.Emplace(MakeShared<FString>(RemoveNamespace(i.Name.GetPlainNameString())));
+							OutStrings.Emplace(MakeShared<FString>(i.DisplayName.ToString()));
 						}
 					};
-
-					auto GetValue = [EnumInterface = EnumInterface, PropertyHandle = PropertyHandle, RemoveNamespace]() -> FString
+					auto GetValue = [Interface = EnumInterface, Prop = PropertyHandle]() -> FString
 					{
 						int32 IntValue;
-						if (PropertyHandle->GetValue(IntValue))
+						if (Prop->GetValue(IntValue) != FPropertyAccess::Success)
 						{
-							if (TOptional<FName> Result = EnumInterface->ToName(IntValue))
-							{
-								return RemoveNamespace(Result->GetPlainNameString());
-							}
-							UE_LOG(LogTemp, Warning, TEXT("Failed to Get Valid Value for Property '%s' with Value of '%d'"), *GetNameSafe(PropertyHandle->GetProperty()), IntValue);
+							IntValue = Interface->GetDefaultValue();
+							UE_LOG(LogTemp, Warning, TEXT("Failed ready int Property '%s', defaulting."), *GetNameSafe(Prop->GetProperty()));
 						}
-						return {};
-					};
-
-					auto SelectedValue = [EnumInterface = EnumInterface, PropertyHandle = PropertyHandle](const FString& InSelected)
-					{
-						FString FullyQualifiedName = FString::Printf(TEXT("%s::%s"), *EnumInterface->GetNamespace().GetPlainNameString(), *InSelected);
-						TOptional<int32> Result = EnumInterface->ToValue(*FullyQualifiedName);
-						if (ensure(Result))
+						if (TOptional<IEnumDataTypeInterface::FGenericInt32Entry> Result = Interface->FindByValue(IntValue))
 						{
-							PropertyHandle->SetValue(*Result);
+							return Result->DisplayName.ToString();
+						}
+						UE_LOG(LogTemp, Warning, TEXT("Failed to resolve int value '%d' to a valid enum value for enum '%s'"),
+							IntValue, *Interface->GetNamespace().ToString());
+
+						// Return default (should always succeed as we can't have empty Enums and we must have a default).
+						return Interface->FindByValue(Interface->GetDefaultValue())->DisplayName.ToString();
+					};
+					auto SelectedValue = [Interface = EnumInterface, Prop = PropertyHandle](const FString& InSelected)
+					{
+						TOptional<IEnumDataTypeInterface::FGenericInt32Entry> Found =
+							Interface->FindEntryBy([TextSelected = FText::FromString(InSelected)](const IEnumDataTypeInterface::FGenericInt32Entry& i)
+						{ return i.DisplayName.EqualTo(TextSelected); });
+
+						if (Found)
+						{
+							// Only save the changes if its different and we can read the old value to check that.
+							int32 CurrentValue;
+							bool bReadCurrentValue = Prop->GetValue(CurrentValue) == FPropertyAccess::Success;
+							if ((bReadCurrentValue && CurrentValue != Found->Value) || !bReadCurrentValue)
+							{
+								ensure(Prop->SetValue(Found->Value) == FPropertyAccess::Success);
+							}
+						}
+						else
+						{
+							UE_LOG(LogTemp, Warning, TEXT("Failed to Set Valid Value for Property '%s' with Value of '%s', writing default."),
+								*GetNameSafe(Prop->GetProperty()), *InSelected);
+
+							ensure(Prop->SetValue(Interface->GetDefaultValue()) == FPropertyAccess::Success);
 						}
 					};
 

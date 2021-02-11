@@ -23,9 +23,9 @@
 
 // 3. Define it using the BEGIN/ENTRY/END macros
 // DEFINE_METASOUND_ENUM_BEGIN(EMyOtherTestEnum)
-// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Alpha, LOCTEXT("AlphaDescription", "Alpha tooltip")),
-// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Beta, LOCTEXT("BetaDescription", "Beta tooltip")),
-// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Gamma, LOCTEXT("GammaDescription", "Gamma tooltip"))
+// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Alpha, LOCTEXT("AlphaDescription", "Alpha"), LOCTEXT("AlphaDescriptionTT", "Alpha tooltip")),
+// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Beta, LOCTEXT("BetaDescription", "Beta"), LOCTEXT("BetaDescriptioTT", "Beta tooltip")),
+// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Gamma, LOCTEXT("GammaDescription", "Gamma", LOCTEXT("GammaDescriptionTT", "Gamma tooltip"))
 // DEFINE_METASOUND_ENUM_END()
 
 namespace Metasound
@@ -36,7 +36,14 @@ namespace Metasound
 	{
 		T Value;
 		FName Name;
-		FText Tooltip;	// TODO: Remove this for runtime.
+		FText DisplayName;		// TODO: Remove this from runtime.
+		FText Tooltip;			// TODO: Remove this from runtime.
+
+		// Allow implicit conversion to int32 entry
+		operator TEnumEntry<int32>() const
+		{
+			return TEnumEntry<int32>{ static_cast<int32>(Value), Name, DisplayName, Tooltip };
+		}	
 	};
 
 	/** CRTP base class for Enum String Helper type.
@@ -73,7 +80,7 @@ namespace Metasound
 		static TArray<FName> GetAllNames()
 		{
 			TArray<FName> Names;
-			for (const TEnumEntry<EnumType> i : Derived::GetAllEntries())
+			for (const TEnumEntry<EnumType>& i : Derived::GetAllEntries())
 			{
 				Names.Emplace(i.Name);
 			}
@@ -99,7 +106,10 @@ namespace Metasound
 		static constexpr EnumType Default = DefaultValue;
 
 		static_assert(TIsEnum<EnumType>::Value, "Expecting an Enum type");
-		static_assert(TIsSame<typename std::underlying_type<EnumType>::type, int32>::Value, "We serialize to int32, so limit to that for now");
+		
+		// Allow Non-enum class Enum or Enum class that's are derived from int32
+		static_assert(TIsSame<typename std::underlying_type<EnumType>::type, int32>::Value || 
+			!TIsEnumClass<EnumType>::Value, "We serialize to int32, so limit to that for now");
 
 		// Default.
 		explicit TEnum(EnumType InValue = DefaultValue)
@@ -206,16 +216,17 @@ namespace Metasound
 //  - GetAllEntries() which returns all posible entries in the enum. 
 
 /** DECLARE_METASOUND_ENUM
- * @param ENUMNAME - The typename of your EnumType you want to use for Metasounds. e.g. My
+ * @param ENUMNAME - The typename of your EnumType you want to use for Metasounds. e.g. MyEnum
  * @param DEFAULT - A fully qualified default Enum value. e.g. EMyEnum::One
  * @param API - The module API this is declared inside e.g. METASOUNDSTANDARDNODES_API 
+ * @param ENUMTYPEDEF - The name of the TEnum<YourType> wrapper type
  * @param TYPEINFO - The name of the TypeInfo type you want to define e.g. FMyEnumTypeInfo
  * @param READREF - The name of the Read Reference type you want to define. e.g FMyEnumReadRef
  * @param WRITEREF -The name of the Write Reference type you want to define e.g. FMyEnumWriteRef
  */
-#define DECLARE_METASOUND_ENUM(ENUMNAME, DEFAULT, API, TYPEINFO, READREF, WRITEREF)\
-	using FEnum##ENUMNAME = Metasound::TEnum<ENUMNAME, DEFAULT>; \
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FEnum##ENUMNAME, API, TYPEINFO, READREF, WRITEREF);\
+#define DECLARE_METASOUND_ENUM(ENUMNAME, DEFAULT, API, ENUMTYPEDEF, TYPEINFO, READREF, WRITEREF)\
+	using ENUMTYPEDEF = Metasound::TEnum<ENUMNAME, DEFAULT>; \
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(ENUMTYPEDEF, API, TYPEINFO, READREF, WRITEREF);\
 	template<> struct API Metasound::TEnumStringHelper<ENUMNAME> : Metasound::TEnumStringHelperBase<Metasound::TEnumStringHelper<ENUMNAME>, ENUMNAME>\
 	{\
 		static FName GetNamespace()\
@@ -227,24 +238,25 @@ namespace Metasound
 	};
 
 /** DEFINE_METASOUND_ENUM_BEGIN
- * @param ENUMNAME - The typename of your EnumType you want to use for Metasounds. e.g. EMyType
+ * @param ENUMNAME - The typename of your raw EnumType you want to use for Metasounds. e.g. EMyType
+ * @param ENUMTYPEDEF - The name of the TEnum<YourType> wrapper type
+ * @param DATATYPENAMESTRING - The string that will the data type name "Enum:<string>" e.g. "MyEnum"
  */
-#define DEFINE_METASOUND_ENUM_BEGIN(ENUMNAME)\
-	REGISTER_METASOUND_DATATYPE(FEnum##ENUMNAME, "Enum:" #ENUMNAME, ::Metasound::ELiteralType::Integer);\
+#define DEFINE_METASOUND_ENUM_BEGIN(ENUMNAME,ENUMTYPEDEF,DATATYPENAMESTRING)\
+	REGISTER_METASOUND_DATATYPE(ENUMTYPEDEF, "Enum:" DATATYPENAMESTRING, ::Metasound::ELiteralType::Integer);\
 	TArrayView<const Metasound::TEnumEntry<ENUMNAME>> Metasound::TEnumStringHelper<ENUMNAME>::GetAllEntries()\
 	{\
 		static const Metasound::TEnumEntry<ENUMNAME> Entries[] = {
 
 /** DEFINE_METASOUND_ENUM_ENTRY - defines a single Enum Entry
   * @param ENTRY - Fully Qualified Name of Entry of the Enum. (e.g. EMyType::One)
-  * @param TOOLTIP - FText 
+  * @param DISPLAYNAME - FText Presented to User
+  * @param TOOLTIP - FText displayed as a tooltip
   */
-	#define DEFINE_METASOUND_ENUM_ENTRY(ENTRY, TOOLTIP) { ENTRY, TEXT(#ENTRY), TOOLTIP }
+	#define DEFINE_METASOUND_ENUM_ENTRY(ENTRY, DISPLAYNAME, TOOLTIP) { ENTRY, TEXT(#ENTRY), DISPLAYNAME, TOOLTIP }
 
 /** DEFINE_METASOUND_ENUM_END - macro which ends the function body of the GetAllEntries function
-  * @param ENTRY - Fully Qualified Name of Entry of the Enum. (e.g. EMyType::One)
-  * @param TOOLTIP - Non-wide Quoted String use for the tooltip.
-  */
+   */
 #define DEFINE_METASOUND_ENUM_END() \
 		};\
 		return Entries;\
