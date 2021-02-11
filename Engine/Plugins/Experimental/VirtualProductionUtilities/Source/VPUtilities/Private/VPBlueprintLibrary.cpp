@@ -12,6 +12,7 @@
 #include "Editor.h"
 #include "IVREditorModule.h"
 #include "LevelEditorViewport.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
 #include "ViewportWorldInteraction.h"
 #include "VPBookmarkEditorBlueprintLibrary.h"
 #include "VREditorInteractor.h"
@@ -268,6 +269,19 @@ bool UVPBlueprintLibrary::EditorDuplicate()
 	return false;
 }
 
+UWorld* UVPBlueprintLibrary::GetEditorWorld()
+{
+	UWorld* World = nullptr;
+#if WITH_EDITOR
+	if (UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>())
+	{
+		World = UnrealEditorSubsystem->GetEditorWorld();
+	}
+
+#endif WITH_EDITOR
+	return World;
+}
+
 void UVPBlueprintLibrary::VPBookmarkSplineMeshIndicatorSetStartAndEnd(USplineMeshComponent* SplineMesh)
 {
 	SplineMesh->SetVisibility(true);
@@ -282,4 +296,3 @@ void UVPBlueprintLibrary::VPBookmarkSplineMeshIndicatorDisable(USplineMeshCompon
 {
 	SplineMesh->SetVisibility(false);
 }
-

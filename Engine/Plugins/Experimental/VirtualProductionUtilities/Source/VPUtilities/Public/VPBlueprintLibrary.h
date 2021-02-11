@@ -82,9 +82,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static bool EditorDeleteSelectedObjects();
 
+	/**
+	 * Wrapper around UUnrealEditorSubsystem::GetEditorWorld.
+	 * Used because you can't get the subsystem without being an editor utility actor.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static UWorld* GetEditorWorld();
+
 	UFUNCTION(BlueprintCallable, Category = "VPBookmarks")		
 	static void VPBookmarkSplineMeshIndicatorSetStartAndEnd(USplineMeshComponent* SplineMesh);
 
 	UFUNCTION(BlueprintCallable, Category = "VPBookmarks")
 	static void VPBookmarkSplineMeshIndicatorDisable(USplineMeshComponent* SplineMesh);
+
+	
 };
