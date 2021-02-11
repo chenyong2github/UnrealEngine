@@ -486,4 +486,5 @@ private:
 	TSet<UTypedElementList*> ActiveElementLists;
 
 	uint8 DisableElementDestructionOnGCCount = 0;
+	bool bIsWithinFrame = false;
 };
