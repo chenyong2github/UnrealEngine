@@ -51,7 +51,9 @@ UObject* UNiagaraStackObject::GetObject()
 
 void UNiagaraStackObject::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
-	OnDataObjectModified().Broadcast(Object);
+	TArray<UObject*> ChangedObjects;
+	ChangedObjects.Add(Object);
+	OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Changed);
 }
 
 bool UNiagaraStackObject::GetIsEnabled() const
@@ -62,6 +64,11 @@ bool UNiagaraStackObject::GetIsEnabled() const
 bool UNiagaraStackObject::GetShouldShowInStack() const
 {
 	return false;
+}
+
+UObject* UNiagaraStackObject::GetDisplayedObject() const
+{
+	return Object;
 }
 
 void UNiagaraStackObject::FinalizeInternal()

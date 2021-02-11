@@ -1542,6 +1542,7 @@ void UNiagaraStackFunctionInput::Reset()
 {
 	if (CanReset())
 	{
+		bool bBroadcastDataObjectChanged = false;
 		if (DefaultInputValues.Mode == EValueMode::Data)
 		{
 			FScopedTransaction ScopedTransaction(LOCTEXT("ResetInputObjectTransaction", "Reset the inputs data interface object to default."));
@@ -1556,6 +1557,7 @@ void UNiagaraStackFunctionInput::Reset()
 				// Otherwise remove the current nodes from the override pin and set a new data object and copy the values from the default.
 				ResetDataInterfaceOverride();
 			}
+			bBroadcastDataObjectChanged = true;
 		}
 		else if (DefaultInputValues.Mode == EValueMode::Linked)
 		{
@@ -1577,8 +1579,15 @@ void UNiagaraStackFunctionInput::Reset()
 		{
 			ensureMsgf(false, TEXT("Attempted to reset a function input to default without a valid default."));
 		}
+
+		RefreshChildren();
+		if (bBroadcastDataObjectChanged && InputValues.DataObject.IsValid())
+		{
+			TArray<UObject*> ChangedObjects;
+			ChangedObjects.Add(InputValues.DataObject.Get());
+			OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Unknown);
+		}
 	}
-	RefreshChildren();
 }
 
 bool UNiagaraStackFunctionInput::IsStaticParameter() const
@@ -2470,13 +2479,15 @@ void UNiagaraStackFunctionInput::RemoveNodesForOverridePin(UEdGraphPin& Override
 {
 	TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
 	FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(OverridePin, RemovedDataObjects);
+	TArray<UObject*> RemovedObjects;
 	for (TWeakObjectPtr<UNiagaraDataInterface> RemovedDataObject : RemovedDataObjects)
 	{
 		if (RemovedDataObject.IsValid())
 		{
-			OnDataObjectModified().Broadcast(RemovedDataObject.Get());
+			RemovedObjects.Add(RemovedDataObject.Get());
 		}
 	}
+	OnDataObjectModified().Broadcast(RemovedObjects, ENiagaraDataObjectChange::Removed);
 }
 
 void UNiagaraStackFunctionInput::RemoveOverridePin()

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "NiagaraEditorCommon.h"
 #include "Widgets/Views/STableRow.h"
 #include "NiagaraStackEntry.generated.h"
 
@@ -90,7 +91,7 @@ public:
 	};
 
 	DECLARE_MULTICAST_DELEGATE(FOnStructureChanged);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDataObjectModified, UObject*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataObjectModified, TArray<UObject*>, ENiagaraDataObjectChange);
 	DECLARE_MULTICAST_DELEGATE(FOnRequestFullRefresh);
 	DECLARE_MULTICAST_DELEGATE(FOnRequestFullRefreshDeferred);
 	DECLARE_DELEGATE_RetVal_TwoParams(TOptional<FDropRequestResponse>, FOnRequestDrop, const UNiagaraStackEntry& /*TargetEntry*/, const FDropRequest& /*DropRequest*/);
@@ -435,7 +436,7 @@ protected:
 private:
 	void ChildStructureChanged();
 	
-	void ChildDataObjectModified(UObject* ChangedObject);
+	void ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 
 	void ChildRequestFullRefresh();
 

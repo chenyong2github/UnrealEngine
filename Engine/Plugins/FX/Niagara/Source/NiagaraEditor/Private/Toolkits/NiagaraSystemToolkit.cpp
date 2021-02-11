@@ -15,7 +15,6 @@
 #include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
-#include "Widgets/SNiagaraCurveEditor.h"
 #include "Widgets/SNiagaraSystemScript.h"
 #include "Widgets/SNiagaraSystemViewport.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
@@ -190,7 +189,6 @@ FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 			SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().RemoveAll(this);
 			SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		}
-		SystemViewModel->GetOnPinnedCurvesChanged().RemoveAll(this);
 		SystemViewModel->Cleanup();
 	}
 	SystemViewModel.Reset();
@@ -321,7 +319,6 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
-	SystemViewModel->GetOnPinnedCurvesChanged().AddSP(this, &FNiagaraSystemToolkit::OnPinnedCurvesChanged);
 	SystemViewModel->OnRequestFocusTab().AddSP(this, &FNiagaraSystemToolkit::OnViewModelRequestFocusTab);
 
 	const float InTime = -0.02f;
@@ -486,7 +483,7 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_CurveEd(const FSpawnTabArgs
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SNew(SNiagaraCurveEditor, SystemViewModel.ToSharedRef())
+			FNiagaraEditorModule::Get().GetWidgetProvider()->CreateCurveOverview(SystemViewModel.ToSharedRef())
 		];
 
 	return SpawnedTab;

@@ -362,6 +362,11 @@ UNiagaraNodeOutput* UNiagaraStackScriptItemGroup::GetScriptOutputNode() const
 	return Graph->FindEquivalentOutputNode(ScriptUsage, ScriptUsageId);
 }
 
+UObject* UNiagaraStackScriptItemGroup::GetDisplayedObject() const
+{
+	return ScriptViewModel.IsValid() ? ScriptViewModel.Pin()->GetScript(ScriptUsage, ScriptUsageId) : nullptr;
+}
+
 void UNiagaraStackScriptItemGroup::FinalizeInternal()
 {
 	if (ScriptGraph.IsValid())

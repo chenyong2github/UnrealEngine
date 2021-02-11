@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceCurveDetails.h"
-#include "NiagaraCurveOwner.h"
 #include "NiagaraDataInterfaceCurve.h"
 #include "NiagaraDataInterfaceVector2DCurve.h"
 #include "NiagaraDataInterfaceVectorCurve.h"
 #include "NiagaraDataInterfaceVector4Curve.h"
 #include "NiagaraDataInterfaceColorCurve.h"
+#include "NiagaraEditorModule.h"
 #include "NiagaraEditorWidgetsModule.h"
+#include "NiagaraSystem.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraCurveSelectionViewModel.h"
 
-#include "SCurveEditor.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -19,10 +21,19 @@
 #include "Brushes/SlateColorBrush.h"
 #include "Modules/ModuleManager.h"
 
+#include "CurveEditor.h"
+#include "Tree/SCurveEditorTree.h"
+#include "Tree/ICurveEditorTreeItem.h"
+#include "Tree/SCurveEditorTreePin.h"
+#include "RichCurveEditorModel.h"
+#include "SCurveEditorPanel.h"
+#include "SCurveKeyDetailPanel.h"
+
 #include "Widgets/SVerticalResizeBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "IContentBrowserSingleton.h"
@@ -33,8 +44,101 @@
 #include "Curves/CurveLinearColor.h"
 #include "Curves/RichCurve.h"
 #include "ScopedTransaction.h"
+#include "SColorGradientEditor.h"
+
+#include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCurveDetails"
+
+struct FNiagaraCurveDetailsTreeItem : public ICurveEditorTreeItem, TSharedFromThis<FNiagaraCurveDetailsTreeItem>
+{
+	FNiagaraCurveDetailsTreeItem(UObject* InCurveOwnerObject, UNiagaraDataInterfaceCurveBase::FCurveData InCurveData)
+		: CurveOwnerObject(InCurveOwnerObject)
+		, CurveData(InCurveData)
+	{
+	}
+
+	UObject* GetCurveOwnerObject() const
+	{
+		return CurveOwnerObject.Get();
+	}
+
+	FRichCurve* GetCurve() const
+	{
+		return CurveOwnerObject.IsValid() ? CurveData.Curve : nullptr;
+	}
+
+	virtual TSharedPtr<SWidget> GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& TableRow) override
+	{
+		if (InColumnName == ColumnNames.Label)
+		{
+			return SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(0, 0, 5, 0)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Text(FEditorFontGlyphs::Circle)
+					.ColorAndOpacity(FSlateColor(CurveData.Color))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					.MinDesiredHeight(22)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromName(CurveData.Name))
+						.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.CurveComponentText")
+					]
+				];
+		}
+		else if (InColumnName == ColumnNames.PinHeader)
+		{
+			return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID, TableRow);
+		}
+
+		return nullptr;
+	}
+
+	virtual void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels) override
+	{
+		if (CurveOwnerObject.IsValid() == false)
+		{
+			return;
+		}
+
+		TUniquePtr<FRichCurveEditorModelRaw> NewCurve = MakeUnique<FRichCurveEditorModelRaw>(CurveData.Curve, CurveOwnerObject.Get());
+		if(CurveData.Name != NAME_None)
+		{
+			NewCurve->SetShortDisplayName(FText::FromName(CurveData.Name));
+		}
+		NewCurve->SetColor(CurveData.Color);
+		NewCurve->OnCurveModified().AddSP(this, &FNiagaraCurveDetailsTreeItem::CurveChanged);
+		OutCurveModels.Add(MoveTemp(NewCurve));
+	}
+
+	virtual bool PassesFilter(const FCurveEditorTreeFilter* InFilter) const override { return true; }
+
+	FSimpleMulticastDelegate& OnCurveChanged()
+	{
+		return CurveChangedDelegate;
+	}
+
+private:
+	void CurveChanged()
+	{
+		CurveChangedDelegate.Broadcast();
+	}
+
+private:
+	TWeakObjectPtr<UObject> CurveOwnerObject;
+	UNiagaraDataInterfaceCurveBase::FCurveData CurveData;
+	FSimpleMulticastDelegate CurveChangedDelegate;
+};
 
 FRichCurve* GetCurveFromPropertyHandle(TSharedPtr<IPropertyHandle> Handle)
 {
@@ -43,8 +147,616 @@ FRichCurve* GetCurveFromPropertyHandle(TSharedPtr<IPropertyHandle> Handle)
 	return RawData.Num() == 1 ? static_cast<FRichCurve*>(RawData[0]) : nullptr;
 }
 
+class SNiagaraDataInterfaceCurveKeySelector : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SNiagaraDataInterfaceCurveKeySelector) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> InCurveEditor, const TArray<FCurveEditorTreeItemID>& InCurveTreeItemIds, TSharedPtr<SCurveEditorTree> InCurveEditorTree)
+	{
+		CurveEditor = InCurveEditor;
+		OrderedCurveTreeItemIds = InCurveTreeItemIds;
+		CurveEditorTree = InCurveEditorTree;
+		ChildSlot
+		[
+			SNew(SHorizontalBox)
+
+			// Zoom to fit button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 4, 0)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
+				.OnClicked(this, &SNiagaraDataInterfaceCurveKeySelector::ZoomToFitClicked)
+				.ToolTipText(LOCTEXT("ZoomToFitToolTip", "Zoom to fit all keys"))
+				.Content()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(FEditorFontGlyphs::Expand)
+				]
+			]
+
+			// Previous curve button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 1, 0)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
+				.OnClicked(this, &SNiagaraDataInterfaceCurveKeySelector::PreviousCurveClicked)
+				.ToolTipText(LOCTEXT("PreviousCurveToolTip", "Select the previous curve"))
+				.Visibility(this, &SNiagaraDataInterfaceCurveKeySelector::GetNextPreviousCurveButtonVisibility)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(FEditorFontGlyphs::Arrow_Up)
+				]
+			]
+
+			// Next curve button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 4, 0)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
+				.OnClicked(this, &SNiagaraDataInterfaceCurveKeySelector::NextCurveClicked)
+				.ToolTipText(LOCTEXT("NextCurveToolTip", "Select the next curve"))
+				.Visibility(this, &SNiagaraDataInterfaceCurveKeySelector::GetNextPreviousCurveButtonVisibility)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(FEditorFontGlyphs::Arrow_Down)
+				]
+			]
+
+			// Previous key button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 1, 0)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
+				.OnClicked(this, &SNiagaraDataInterfaceCurveKeySelector::PreviousKeyClicked)
+				.ToolTipText(LOCTEXT("PreviousKeyToolTip", "Select the previous key for the selected curve."))
+				.Content()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(FEditorFontGlyphs::Arrow_Left)
+				]
+			]
+
+			// Next key button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 4, 0)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
+				.OnClicked(this, &SNiagaraDataInterfaceCurveKeySelector::NextKeyClicked)
+				.ToolTipText(LOCTEXT("NextKeyToolTip", "Select the next key for the selected curve."))
+				.Content()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(FEditorFontGlyphs::Arrow_Right)
+				]
+			]
+
+			// Add key button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 1, 0)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
+				.OnClicked(this, &SNiagaraDataInterfaceCurveKeySelector::AddKeyClicked)
+				.ToolTipText(LOCTEXT("AddKeyToolTip", "Add a key to the selected curve."))
+				.Content()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(FEditorFontGlyphs::Plus)
+				]
+			]
+
+			// Delete key button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
+				.OnClicked(this, &SNiagaraDataInterfaceCurveKeySelector::DeleteKeyClicked)
+				.ToolTipText(LOCTEXT("DeleteKeyToolTip", "Delete the currently selected keys."))
+				.Content()
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(FEditorFontGlyphs::Trash)
+				]
+			]
+		];
+	}
+
+private:
+	void GetActiveCurveModelAndSelectedKeys(TOptional<FCurveModelID>& OutActiveCurveModelId, TArray<FKeyHandle>& OutSelectedKeyHandles)
+	{
+		const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& CurveTreeSelection = CurveEditor->GetTree()->GetSelection();
+		if (CurveTreeSelection.Num() != 0)
+		{
+			// If there are curves selected in the tree use those first.
+			FCurveEditorTreeItemID FirstSelectedCurveTreeItemId;
+			for (int32 i = OrderedCurveTreeItemIds.Num() - 1; i >= 0; i--)
+			{
+				const FCurveEditorTreeItemID& CurveTreeItemId = OrderedCurveTreeItemIds[i];
+				if (CurveTreeSelection.Contains(CurveTreeItemId))
+				{
+					FirstSelectedCurveTreeItemId = CurveTreeItemId;
+					break;
+				}
+			}
+
+			TArrayView<const FCurveModelID> CurveModelIds = CurveEditor->GetTreeItem(FirstSelectedCurveTreeItemId).GetOrCreateCurves(CurveEditor.Get());
+			if (CurveModelIds.Num() == 1)
+			{
+				OutActiveCurveModelId = CurveModelIds[0];
+
+				const FKeyHandleSet* SelectedKeyHandleSet = CurveEditor->GetSelection().GetAll().Find(OutActiveCurveModelId.GetValue());
+				if (SelectedKeyHandleSet != nullptr)
+				{
+					OutSelectedKeyHandles = SelectedKeyHandleSet->AsArray();
+				}
+			}
+		}
+		else
+		{
+			// Otherwise check if there are keys selected and if so use first curve with selected keys.
+			FCurveEditorSelection& CurveEditorSelection = CurveEditor->GetSelection();
+			if (CurveEditorSelection.IsEmpty() == false)
+			{
+				for (int32 i = OrderedCurveTreeItemIds.Num() - 1; i >= 0; i--)
+				{
+					const FCurveEditorTreeItemID& CurveTreeItemId = OrderedCurveTreeItemIds[i];
+					TArrayView<const FCurveModelID> CurveModelIds = CurveEditor->GetTreeItem(CurveTreeItemId).GetCurves();
+					if (CurveModelIds.Num() == 1)
+					{
+						const FKeyHandleSet* SelectedKeyHandleSet = CurveEditorSelection.GetAll().Find(CurveModelIds[0]);
+						if (SelectedKeyHandleSet != nullptr)
+						{
+							OutActiveCurveModelId = CurveModelIds[0];
+							OutSelectedKeyHandles = SelectedKeyHandleSet->AsArray();
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				// Otherwise just use the first pinned curve.
+				const TSet<FCurveModelID>& PinnedCurveIds = CurveEditor->GetPinnedCurves();
+				if (PinnedCurveIds.Num() > 0)
+				{
+					for (FCurveEditorTreeItemID& CurveTreeItemId : OrderedCurveTreeItemIds)
+					{
+						TArrayView<const FCurveModelID> CurveModelIds = CurveEditor->GetTreeItem(CurveTreeItemId).GetOrCreateCurves(CurveEditor.Get());
+						if (CurveModelIds.Num() == 1 && PinnedCurveIds.Contains(CurveModelIds[0]))
+						{
+							OutActiveCurveModelId = CurveModelIds[0];
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	struct FKeyHandlePositionPair
+	{
+		FKeyHandle Handle;
+		FKeyPosition Position;
+	};
+
+	void GetSortedKeyHandlessAndPositionsForModel(FCurveModel& InCurveModel, TArray<FKeyHandlePositionPair>& OutSortedKeyHandlesAndPositions)
+	{
+		TArray<FKeyHandle> KeyHandles;
+		InCurveModel.GetKeys(*CurveEditor.Get(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
+
+		TArray<FKeyPosition> KeyPositions;
+		KeyPositions.AddDefaulted(KeyHandles.Num());
+		InCurveModel.GetKeyPositions(KeyHandles, KeyPositions);
+
+		for (int32 i = 0; i < KeyHandles.Num(); i++)
+		{
+			FKeyHandlePositionPair& KeyHandlePositionPair = OutSortedKeyHandlesAndPositions.AddDefaulted_GetRef();
+			KeyHandlePositionPair.Handle = KeyHandles[i];
+			KeyHandlePositionPair.Position = KeyPositions[i];
+		}
+
+		OutSortedKeyHandlesAndPositions.Sort([](const FKeyHandlePositionPair& A, const FKeyHandlePositionPair& B) { return A.Position.InputValue < B.Position.InputValue; });
+	}
+
+	void GetOrderedActiveCurveModelIds(TArray<FCurveModelID>& OutOrderedActiveCurveModelIds)
+	{
+		if (CurveEditor->GetTreeSelection().Num() > 0)
+		{
+			// If there are curves selected in the tree then those are the only active ones.
+			for (const FCurveEditorTreeItemID& OrderedCurveTreeItemId : OrderedCurveTreeItemIds)
+			{
+				if(CurveEditor->GetTreeSelectionState(OrderedCurveTreeItemId) != ECurveEditorTreeSelectionState::None)
+				{
+					TArrayView<const FCurveModelID> CurveModelIds = CurveEditor->GetTreeItem(OrderedCurveTreeItemId).GetOrCreateCurves(CurveEditor.Get());
+					if (CurveModelIds.Num() == 1)
+					{
+						OutOrderedActiveCurveModelIds.Add(CurveModelIds[0]);
+					}
+				}
+			}
+		}
+		else
+		{
+			// Otherwise the active curves are the pinned curves.
+			for (const FCurveEditorTreeItemID& OrderedCurveTreeItemId : OrderedCurveTreeItemIds)
+			{
+				TArrayView<const FCurveModelID> CurveModelIds = CurveEditor->GetTreeItem(OrderedCurveTreeItemId).GetCurves();
+				if (CurveModelIds.Num() == 1 && CurveEditor->IsCurvePinned(CurveModelIds[0]))
+				{
+					OutOrderedActiveCurveModelIds.Add(CurveModelIds[0]);
+				}
+			}
+		}
+	}
+
+	enum class ENavigateDirection
+	{
+		Previous,
+		Next
+	};
+
+	void NavigateToAdjacentCurve(ENavigateDirection Direction)
+	{
+		if (CurveEditorTree.IsValid())
+		{
+			if (CurveEditor->GetTreeSelection().Num() == 0)
+			{
+				CurveEditorTree->SetItemSelection(OrderedCurveTreeItemIds[0], true);
+			}
+			else
+			{
+				int32 TargetSelectedTreeItemIndex = INDEX_NONE;
+				int32 StartIndex = Direction == ENavigateDirection::Previous ? 0 : OrderedCurveTreeItemIds.Num() - 1;
+				int32 EndIndex = Direction == ENavigateDirection::Previous ? OrderedCurveTreeItemIds.Num() : -1;
+				int32 IndexOffset = Direction == ENavigateDirection::Previous ? 1 : -1;
+				for (int32 i = StartIndex; i != EndIndex; i += IndexOffset)
+				{
+					if (CurveEditor->GetTreeSelectionState(OrderedCurveTreeItemIds[i]) != ECurveEditorTreeSelectionState::None)
+					{
+						TargetSelectedTreeItemIndex = i;
+						break;
+					}
+				}
+
+				if (TargetSelectedTreeItemIndex != INDEX_NONE)
+				{
+					int32 IndexToSelect = Direction == ENavigateDirection::Previous 
+						? TargetSelectedTreeItemIndex - 1
+						: TargetSelectedTreeItemIndex + 1;
+
+					if (IndexToSelect > OrderedCurveTreeItemIds.Num() - 1)
+					{
+						IndexToSelect = 0;
+					}
+					else if(IndexToSelect < 0)
+					{
+						IndexToSelect = OrderedCurveTreeItemIds.Num() - 1;
+					}
+
+					CurveEditorTree->ClearSelection();
+					CurveEditorTree->SetItemSelection(OrderedCurveTreeItemIds[IndexToSelect], true);
+				}
+			}
+		}
+	}
+
+	void NavigateToAdjacentKey(ENavigateDirection Direction)
+	{
+		TOptional<FCurveModelID> ActiveCurveModelId;
+		TArray<FKeyHandle> SelectedKeyHandles;
+		GetActiveCurveModelAndSelectedKeys(ActiveCurveModelId, SelectedKeyHandles);
+
+		TOptional<FCurveModelID> CurveModelIdToSelect;
+		TOptional<FKeyHandle> KeyHandleToSelect;
+		if (ActiveCurveModelId.IsSet())
+		{
+			FCurveModel* ActiveCurveModel = CurveEditor->GetCurves()[ActiveCurveModelId.GetValue()].Get();
+			TArray<FKeyHandlePositionPair> ActiveSortedKeyHandlePositionPairs;
+			GetSortedKeyHandlessAndPositionsForModel(*ActiveCurveModel, ActiveSortedKeyHandlePositionPairs);
+
+			if (SelectedKeyHandles.Num() != 0)
+			{
+				// If there's currently a selected key on the active curve then we want to use that as the target for navigating.
+				int32 TargetSelectedKeyIndex = INDEX_NONE;
+				int32 StartIndex = Direction == ENavigateDirection::Previous ? 0 : ActiveSortedKeyHandlePositionPairs.Num() - 1;
+				int32 EndIndex = Direction == ENavigateDirection::Previous ? ActiveSortedKeyHandlePositionPairs.Num() : -1;
+				int32 IndexOffset = Direction == ENavigateDirection::Previous ? 1 : -1;
+				for (int32 i = StartIndex; i != EndIndex; i += IndexOffset)
+				{
+					if (SelectedKeyHandles.Contains(ActiveSortedKeyHandlePositionPairs[i].Handle))
+					{
+						TargetSelectedKeyIndex = i;
+						break;
+					}
+				}
+
+				if (TargetSelectedKeyIndex != INDEX_NONE)
+				{
+					if(Direction == ENavigateDirection::Previous && TargetSelectedKeyIndex > 0)
+					{
+						// If we're navigating previous and we're not at the first key we can just select the previous key on this curve.
+						CurveModelIdToSelect = ActiveCurveModelId;
+						KeyHandleToSelect = ActiveSortedKeyHandlePositionPairs[TargetSelectedKeyIndex - 1].Handle;
+					}
+					else if (Direction == ENavigateDirection::Next && TargetSelectedKeyIndex < ActiveSortedKeyHandlePositionPairs.Num() - 1)
+					{
+						// If we're navigating next and we're not at the last key we can just select the next key on this curve.
+						CurveModelIdToSelect = ActiveCurveModelId;
+						KeyHandleToSelect = ActiveSortedKeyHandlePositionPairs[TargetSelectedKeyIndex + 1].Handle;
+					}
+					else
+					{
+						// Otherwise we're going to need to navigate to another curve since we're at the start or end of the current curve.
+						TArray<FCurveModelID> OrderedActiveCurveModelIds;
+						GetOrderedActiveCurveModelIds(OrderedActiveCurveModelIds);
+
+						// Find the adjacent curve with keys so we can select a key there.
+						FCurveModel* CurveModelToSelect = nullptr;
+						int32 CurrentIndex = OrderedActiveCurveModelIds.IndexOfByKey(ActiveCurveModelId);
+						int32 CurrentIndexOffset = Direction == ENavigateDirection::Previous ? -1 : 1;
+						while (CurveModelIdToSelect.IsSet() == false)
+						{
+							CurrentIndex += CurrentIndexOffset;
+							if (CurrentIndex < 0)
+							{
+								CurrentIndex = OrderedActiveCurveModelIds.Num() - 1;
+							}
+							else if (CurrentIndex > OrderedActiveCurveModelIds.Num() - 1)
+							{
+								CurrentIndex = 0;
+							}
+
+							FCurveModel* CurrentCurveModel = CurveEditor->GetCurves()[OrderedActiveCurveModelIds[CurrentIndex]].Get();
+							if (CurrentCurveModel->GetNumKeys() > 0)
+							{
+								CurveModelIdToSelect = OrderedActiveCurveModelIds[CurrentIndex];
+								CurveModelToSelect = CurrentCurveModel;
+							}
+						}
+
+
+						if (CurveModelIdToSelect == ActiveCurveModelId)
+						{
+							// There were no other active curves with keys to select from so just wrap around the currently active curve.
+							if (Direction == ENavigateDirection::Previous)
+							{
+								KeyHandleToSelect = ActiveSortedKeyHandlePositionPairs.Last().Handle;
+							}
+							else
+							{
+								KeyHandleToSelect = ActiveSortedKeyHandlePositionPairs[0].Handle;
+							}
+						}
+						else
+						{
+							// We're selecting a key on a different curve so we need to sort the positions and select the first or last based
+							// on the navigation direction.
+							TArray<FKeyHandlePositionPair> SortedKeyHandlePositionPairs;
+							GetSortedKeyHandlessAndPositionsForModel(*CurveModelToSelect, SortedKeyHandlePositionPairs);
+							if (Direction == ENavigateDirection::Previous)
+							{
+								KeyHandleToSelect = SortedKeyHandlePositionPairs.Last().Handle;
+							}
+							else
+							{
+								KeyHandleToSelect = SortedKeyHandlePositionPairs[0].Handle;
+							}
+						}
+					}
+				}
+			}
+			else if(ActiveSortedKeyHandlePositionPairs.Num() > 0)
+			{
+				// There weren't any keys already selected so just select the first key on the active curve.
+				CurveModelIdToSelect = ActiveCurveModelId;
+				KeyHandleToSelect = ActiveSortedKeyHandlePositionPairs[0].Handle;
+			}
+		}
+
+		if (CurveModelIdToSelect.IsSet() && KeyHandleToSelect.IsSet())
+		{
+			FCurveEditorSelection& CurveEditorSelection = CurveEditor->GetSelection();
+			CurveEditorSelection.Clear();
+			CurveEditorSelection.Add(CurveModelIdToSelect.GetValue(), ECurvePointType::Key, KeyHandleToSelect.GetValue());
+
+			TArray<FCurveModelID> CurvesToFit;
+			CurvesToFit.Add(CurveModelIdToSelect.GetValue());
+			CurveEditor->ZoomToFitCurves(CurvesToFit);
+		}
+	}
+
+	FReply ZoomToFitClicked()
+	{
+		TArray<FCurveModelID> ActiveCurveModelIds;
+		GetOrderedActiveCurveModelIds(ActiveCurveModelIds);
+		CurveEditor->ZoomToFitCurves(ActiveCurveModelIds);
+		return FReply::Handled();
+	}
+
+	FReply PreviousCurveClicked()
+	{
+		NavigateToAdjacentCurve(ENavigateDirection::Previous);
+		return FReply::Handled();
+	}
+
+	FReply NextCurveClicked()
+	{
+		NavigateToAdjacentCurve(ENavigateDirection::Next);
+		return FReply::Handled();
+	}
+
+	FReply PreviousKeyClicked()
+	{
+		NavigateToAdjacentKey(ENavigateDirection::Previous);
+		return FReply::Handled();
+	}
+
+	FReply NextKeyClicked()
+	{
+		NavigateToAdjacentKey(ENavigateDirection::Next);
+		return FReply::Handled();
+	}
+
+	EVisibility GetNextPreviousCurveButtonVisibility() const
+	{
+		return OrderedCurveTreeItemIds.Num() == 1 ? EVisibility::Collapsed : EVisibility::Visible;
+	}
+
+	FReply AddKeyClicked()
+	{
+		TOptional<FCurveModelID> CurveModelIdForAdd;
+		TArray<FKeyHandle> SelectedKeyHandles;
+		GetActiveCurveModelAndSelectedKeys(CurveModelIdForAdd, SelectedKeyHandles);
+
+		if(CurveModelIdForAdd.IsSet())
+		{
+			FCurveModel* CurveModelForAdd = CurveEditor->GetCurves()[CurveModelIdForAdd.GetValue()].Get();
+
+			FKeyPosition NewKeyPosition;
+			FKeyAttributes NewKeyAttributes = CurveEditor->GetDefaultKeyAttributes().Get();
+			NewKeyAttributes.SetInterpMode(RCIM_Cubic);
+			NewKeyAttributes.SetTangentMode(RCTM_Auto);
+			if (CurveModelForAdd->GetNumKeys() == 0)
+			{
+				// If there are no keys, add one at 0, 0.
+				NewKeyPosition.InputValue = 0.0f;
+				NewKeyPosition.OutputValue = 0.0f;
+			}
+			else if (CurveModelForAdd->GetNumKeys() == 1)
+			{
+				// If there's a single key, add the new key at the same value, but time + 1.
+				TArray<FKeyHandle> KeyHandles;
+				CurveModelForAdd->GetKeys(*CurveEditor.Get(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
+				
+				TArray<FKeyPosition> KeyPositions;
+				KeyPositions.AddDefaulted();
+				CurveModelForAdd->GetKeyPositions(KeyHandles, KeyPositions);
+						
+				NewKeyPosition.InputValue = KeyPositions[0].InputValue + 1;
+				NewKeyPosition.OutputValue = KeyPositions[0].OutputValue;
+			}
+			else
+			{
+				TArray<FKeyHandlePositionPair> SortedKeyHandlePositionPairs;
+				GetSortedKeyHandlessAndPositionsForModel(*CurveModelForAdd, SortedKeyHandlePositionPairs);
+
+				int32 IndexToAddAfter = INDEX_NONE;
+				if (SelectedKeyHandles.Num() > 0)
+				{
+					for (int32 i = SortedKeyHandlePositionPairs.Num() - 1; i >= 0; i--)
+					{
+						if (SelectedKeyHandles.Contains(SortedKeyHandlePositionPairs[i].Handle))
+						{
+							IndexToAddAfter = i;
+							break;
+						}
+					}
+				}
+
+				if(IndexToAddAfter == INDEX_NONE)
+				{
+					IndexToAddAfter = SortedKeyHandlePositionPairs.Num() - 1;
+				}
+
+				if (IndexToAddAfter == SortedKeyHandlePositionPairs.Num() - 1)
+				{
+					const FKeyPosition& TargetKeyPosition = SortedKeyHandlePositionPairs[IndexToAddAfter].Position;
+					const FKeyPosition& PreviousKeyPosition = SortedKeyHandlePositionPairs[IndexToAddAfter - 1].Position;
+					NewKeyPosition.InputValue = TargetKeyPosition.InputValue + (TargetKeyPosition.InputValue - PreviousKeyPosition.InputValue);
+					NewKeyPosition.OutputValue = TargetKeyPosition.OutputValue + (TargetKeyPosition.OutputValue - PreviousKeyPosition.OutputValue);
+				}
+				else
+				{
+					const FKeyPosition& TargetKeyPosition = SortedKeyHandlePositionPairs[IndexToAddAfter].Position;
+					const FKeyPosition& NextKeyPosition = SortedKeyHandlePositionPairs[IndexToAddAfter + 1].Position;
+					NewKeyPosition.InputValue = TargetKeyPosition.InputValue + ((NextKeyPosition.InputValue - TargetKeyPosition.InputValue) / 2);
+					NewKeyPosition.OutputValue = TargetKeyPosition.OutputValue + ((NextKeyPosition.OutputValue - TargetKeyPosition.OutputValue) / 2);
+				}
+			}
+
+			FScopedTransaction Transaction(LOCTEXT("AddKey", "Add Key"));
+			TOptional<FKeyHandle> NewKeyHandle = CurveModelForAdd->AddKey(NewKeyPosition, NewKeyAttributes);
+			if(NewKeyHandle.IsSet())
+			{
+				FCurveEditorSelection& CurveEditorSelection = CurveEditor->GetSelection();
+				CurveEditorSelection.Clear();
+				CurveEditorSelection.Add(CurveModelIdForAdd.GetValue(), ECurvePointType::Key, NewKeyHandle.GetValue());
+
+				TArray<FCurveModelID> CurvesToFit;
+				CurvesToFit.Add(CurveModelIdForAdd.GetValue());
+				CurveEditor->ZoomToFitCurves(CurvesToFit);
+			}
+		}
+		return FReply::Handled();
+	}
+
+	FReply DeleteKeyClicked()
+	{
+		CurveEditor->DeleteSelection();
+		return FReply::Handled();
+	}
+
+private:
+	TSharedPtr<FCurveEditor> CurveEditor;
+	TArray<FCurveEditorTreeItemID> OrderedCurveTreeItemIds;
+	TSharedPtr<SCurveEditorTree> CurveEditorTree;
+};
+
 class SNiagaraDataInterfaceCurveEditor : public SCompoundWidget
 {
+private:
+	struct FDataInterfaceCurveEditorBounds : public ICurveEditorBounds
+	{
+		FDataInterfaceCurveEditorBounds(TSharedRef<FNiagaraStackCurveEditorOptions> InStackCurveEditorOptions)
+			: StackCurveEditorOptions(InStackCurveEditorOptions)
+		{
+		}
+
+		virtual void GetInputBounds(double& OutMin, double& OutMax) const
+		{
+			OutMin = StackCurveEditorOptions->GetViewMinInput();
+			OutMax = StackCurveEditorOptions->GetViewMaxInput();
+		}
+
+		virtual void SetInputBounds(double InMin, double InMax)
+		{
+			StackCurveEditorOptions->SetInputViewRange((float)InMin, (float)InMax);
+		}
+
+	private:
+		TSharedRef<FNiagaraStackCurveEditorOptions> StackCurveEditorOptions;
+	};
+
 public:
 	SLATE_BEGIN_ARGS(SNiagaraDataInterfaceCurveEditor) {}
 	SLATE_END_ARGS()
@@ -52,7 +764,6 @@ public:
 	void Construct(
 		const FArguments& InArgs,
 		TArray<TSharedRef<IPropertyHandle>> InCurveProperties,
-		bool bIsColorCurve,
 		TSharedRef<FNiagaraStackCurveEditorOptions> InStackCurveEditorOptions)
 	{
 		CurveProperties = InCurveProperties;
@@ -60,34 +771,10 @@ public:
 
 		TArray<UObject*> OuterObjects;
 		CurveProperties[0]->GetOuterObjects(OuterObjects);
-		UObject* CurveOwnerObject = OuterObjects[0];
-
-		CurveOwner = MakeShared<FNiagaraCurveOwner>();
-		if (bIsColorCurve)
+		UNiagaraDataInterfaceCurveBase* CurveOwnerObject = Cast<UNiagaraDataInterfaceCurveBase>(OuterObjects[0]);
+		if (CurveOwnerObject == nullptr)
 		{
-			CurveOwner->SetColorCurves(
-				*GetCurveFromPropertyHandle(CurveProperties[0]),
-				*GetCurveFromPropertyHandle(CurveProperties[1]),
-				*GetCurveFromPropertyHandle(CurveProperties[2]),
-				*GetCurveFromPropertyHandle(CurveProperties[3]),
-				NAME_None,
-				*CurveOwnerObject,
-				FNiagaraCurveOwner::FNotifyCurveChanged::CreateRaw(this, &SNiagaraDataInterfaceCurveEditor::CurveChanged));
-		}
-		else
-		{
-			TArray<FLinearColor> CurveColors{ FLinearColor::Red, FLinearColor::Green, FLinearColor::Blue, FLinearColor::White };
-			int32 ColorIndex = 0;
-			for (TSharedRef<IPropertyHandle> CurveProperty : CurveProperties)
-			{
-				CurveOwner->AddCurve(
-					*GetCurveFromPropertyHandle(CurveProperty),
-					*CurveProperty->GetProperty()->GetDisplayNameText().ToString(),
-					CurveColors[ColorIndex],
-					*CurveOwnerObject,
-					FNiagaraCurveOwner::FNotifyCurveChanged::CreateRaw(this, &SNiagaraDataInterfaceCurveEditor::CurveChanged));
-				ColorIndex++;
-			}
+			return;
 		}
 
 		if (StackCurveEditorOptions->GetNeedsInitializeView())
@@ -95,26 +782,79 @@ public:
 			InitializeView();
 		}
 
+		CurveEditor = MakeShared<FCurveEditor>();
+		FCurveEditorInitParams InitParams;
+		CurveEditor->InitCurveEditor(InitParams);
+		CurveEditor->GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}");
+
+		// Initialize our bounds at slightly larger than default to avoid clipping the tabs on the color widget.
+		TUniquePtr<ICurveEditorBounds> EditorBounds = MakeUnique<FDataInterfaceCurveEditorBounds>(InStackCurveEditorOptions);
+		CurveEditor->SetBounds(MoveTemp(EditorBounds));
+
+		TSharedPtr<SCurveEditorTree> CurveEditorTree;
+		CurveEditorPanel = SNew(SCurveEditorPanel, CurveEditor.ToSharedRef())
+			.MinimumViewPanelHeight(50.0f)
+			.TreeSplitterWidth(0.2f)
+			.ContentSplitterWidth(0.8f)
+			.TreeContent()
+			[
+				CurveProperties.Num() == 1
+					? SNullWidget::NullWidget
+					: SAssignNew(CurveEditorTree, SCurveEditorTree, CurveEditor)
+					.SelectColumnWidth(0)
+			];
+
+		TArray<UNiagaraDataInterfaceCurveBase::FCurveData> CurveDatas;
+		CurveOwnerObject->GetCurveData(CurveDatas);
+		TArray<FCurveEditorTreeItemID> TreeItemIds;
+		for (const UNiagaraDataInterfaceCurveBase::FCurveData& CurveData : CurveDatas)
+		{
+			TSharedRef<FNiagaraCurveDetailsTreeItem> TreeItem = MakeShared<FNiagaraCurveDetailsTreeItem>(CurveOwnerObject, CurveData);
+			TreeItem->OnCurveChanged().AddSP(this, &SNiagaraDataInterfaceCurveEditor::CurveChanged, TWeakPtr<FNiagaraCurveDetailsTreeItem>(TreeItem));
+			FCurveEditorTreeItem* NewItem = CurveEditor->AddTreeItem(FCurveEditorTreeItemID::Invalid());
+			NewItem->SetStrongItem(TreeItem);
+			TreeItemIds.Add(NewItem->GetID());
+			for (const FCurveModelID& CurveModel : NewItem->GetOrCreateCurves(CurveEditor.Get()))
+			{
+				CurveEditor->PinCurve(CurveModel);
+			}
+		}
+
+		float KeySelectorLeftPadding = CurveProperties.Num() == 1 ? 0 : 7;
 		ChildSlot
 		[
-			SAssignNew(CurveEditor, SCurveEditor)
-			.HideUI(false)
-			.ViewMinInput(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::GetViewMinInput)
-			.ViewMaxInput(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::GetViewMaxInput)
-			.ViewMinOutput(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::GetViewMinOutput)
-			.ViewMaxOutput(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::GetViewMaxOutput)
-			.AreCurvesVisible(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::GetAreCurvesVisible)
-			.ZoomToFitVertical(false)
-			.ZoomToFitHorizontal(false)
-			.TimelineLength(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::GetTimelineLength)
-			.OnSetInputViewRange(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::SetInputViewRange)
-			.OnSetOutputViewRange(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::SetOutputViewRange)
-			.OnSetAreCurvesVisible(StackCurveEditorOptions.ToSharedRef(), &FNiagaraStackCurveEditorOptions::SetAreCurvesVisible)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.Padding(0, 0, 0, 5)
+			[
+				CurveEditorPanel.ToSharedRef()
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(KeySelectorLeftPadding, 0, 8, 0)
+				[
+					SNew(SNiagaraDataInterfaceCurveKeySelector, CurveEditor, TreeItemIds, CurveEditorTree)
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(0, 0, 3, 0)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("KeyLabel", "Key Data"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					CurveEditorPanel->GetKeyDetailsView().ToSharedRef()
+				]
+			]
 		];
-
-		CurveEditor->SetCurveOwner(CurveOwner.Get());
-		// Allow users to scroll over the widget in the editor using the scroll wheel (unless it has keyboard focus, in which case it will zoom in/out)
-		CurveEditor->SetRequireFocusToZoom(true);
 	}
 
 private:
@@ -126,9 +866,9 @@ private:
 		float ViewMinOutput = TNumericLimits<float>::Max();
 		float ViewMaxOutput = TNumericLimits<float>::Lowest();
 
-		for (const FRichCurveEditInfo& CurveEditInfo : CurveOwner->GetCurves())
+		for (TSharedRef<IPropertyHandle> CurveProperty : CurveProperties)
 		{
-			FRealCurve* Curve = CurveEditInfo.CurveToEdit;
+			FRealCurve* Curve = GetCurveFromPropertyHandle(CurveProperty);
 			for(auto KeyIterator = Curve->GetKeyHandleIterator(); KeyIterator; ++KeyIterator)
 			{
 				float KeyTime = Curve->GetKeyTime(*KeyIterator);
@@ -189,16 +929,23 @@ private:
 			ViewMaxOutput + ViewOutputPadding);
 	}
 
-	void CurveChanged(FRichCurve* ChangedCurve, UObject* CurveOwnerObject)
+	void CurveChanged(TWeakPtr<FNiagaraCurveDetailsTreeItem> TreeItemWeak)
 	{
-		UNiagaraDataInterfaceCurveBase* EditedCurve = Cast<UNiagaraDataInterfaceCurveBase>(CurveOwnerObject);
-		EditedCurve->UpdateLUT(); // we need this done before notify change because of the internal copy methods
-		for (TSharedRef<IPropertyHandle> CurveProperty : CurveProperties)
+		TSharedPtr<FNiagaraCurveDetailsTreeItem> TreeItem = TreeItemWeak.Pin();
+		if(TreeItem.IsValid())
 		{
-			if (GetCurveFromPropertyHandle(CurveProperty) == ChangedCurve)
+			UNiagaraDataInterfaceCurveBase* EditedCurveOwner = Cast<UNiagaraDataInterfaceCurveBase>(TreeItem->GetCurveOwnerObject());
+			if(EditedCurveOwner != nullptr)
 			{
-				CurveProperty->NotifyPostChange();
-				break;
+				EditedCurveOwner->UpdateLUT(); // we need this done before notify change because of the internal copy methods
+				for (TSharedRef<IPropertyHandle> CurveProperty : CurveProperties)
+				{
+					if (GetCurveFromPropertyHandle(CurveProperty) == TreeItem->GetCurve())
+					{
+						CurveProperty->NotifyPostChange();
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -206,9 +953,199 @@ private:
 private:
 	TArray<TSharedRef<IPropertyHandle>> CurveProperties;
 	TSharedPtr<FNiagaraStackCurveEditorOptions> StackCurveEditorOptions;
-	TSharedPtr<FNiagaraCurveOwner> CurveOwner;
-	TSharedPtr<SCurveEditor> CurveEditor;
+
+	TSharedPtr<FCurveEditor> CurveEditor;
+	TSharedPtr<SCurveEditorPanel> CurveEditorPanel;
 };
+
+class FNiagaraColorCurveDataInterfaceCurveOwner : public FCurveOwnerInterface
+{
+public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnColorCurveChanged, TArray<FRichCurve*> /* ChangedCurves */);
+
+public:
+	FNiagaraColorCurveDataInterfaceCurveOwner(UNiagaraDataInterfaceColorCurve& InDataInterface)
+	{
+		DataInterfaceWeak = &InDataInterface;
+
+		ConstCurves.Add(FRichCurveEditInfoConst(&InDataInterface.RedCurve, "Red"));
+		ConstCurves.Add(FRichCurveEditInfoConst(&InDataInterface.GreenCurve, "Green"));
+		ConstCurves.Add(FRichCurveEditInfoConst(&InDataInterface.BlueCurve, "Blue"));
+		ConstCurves.Add(FRichCurveEditInfoConst(&InDataInterface.AlphaCurve, "Alpha"));
+
+		Curves.Add(FRichCurveEditInfo(&InDataInterface.RedCurve, "Red"));
+		Curves.Add(FRichCurveEditInfo(&InDataInterface.GreenCurve, "Green"));
+		Curves.Add(FRichCurveEditInfo(&InDataInterface.BlueCurve, "Blue"));
+		Curves.Add(FRichCurveEditInfo(&InDataInterface.AlphaCurve, "Alpha"));
+
+		Owners.Add(&InDataInterface);
+	}
+
+	/** FCurveOwnerInterface */
+	virtual TArray<FRichCurveEditInfoConst> GetCurves() const override
+	{
+		return ConstCurves;
+	}
+
+	virtual TArray<FRichCurveEditInfo> GetCurves() override
+	{
+		return Curves;
+	}
+
+	virtual void ModifyOwner() override
+	{
+		if (DataInterfaceWeak.IsValid())
+		{
+			DataInterfaceWeak->Modify();
+		}
+	}
+
+	virtual TArray<const UObject*> GetOwners() const override
+	{
+		return Owners;
+	}
+
+	virtual void MakeTransactional() override { }
+
+	virtual void OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos) override
+	{
+		TArray<FRichCurve*> ChangedCurves;
+		for (const FRichCurveEditInfo& ChangedCurveEditInfo : ChangedCurveEditInfos)
+		{
+			ChangedCurves.Add((FRichCurve*)ChangedCurveEditInfo.CurveToEdit);
+		}
+		if(ChangedCurves.Num() > 0)
+		{
+			OnColorCurveChangedDelegate.Broadcast(ChangedCurves);
+		}
+	}
+
+	virtual bool IsLinearColorCurve() const override 
+	{
+		return true;
+	}
+
+	virtual FLinearColor GetLinearColorValue(float InTime) const override
+	{
+		if (DataInterfaceWeak.IsValid())
+		{
+			return FLinearColor(
+				DataInterfaceWeak->RedCurve.Eval(InTime),
+				DataInterfaceWeak->GreenCurve.Eval(InTime),
+				DataInterfaceWeak->BlueCurve.Eval(InTime),
+				DataInterfaceWeak->AlphaCurve.Eval(InTime));
+		}
+		return FLinearColor::White;
+	}
+
+	virtual bool HasAnyAlphaKeys() const override 
+	{ 
+		return DataInterfaceWeak.IsValid() && DataInterfaceWeak->AlphaCurve.GetNumKeys() != 0;
+	}
+
+	virtual bool IsValidCurve(FRichCurveEditInfo CurveInfo) override 
+	{
+		return Curves.Contains(CurveInfo);
+	}
+
+	virtual FLinearColor GetCurveColor(FRichCurveEditInfo CurveInfo) const override 
+	{
+		return FLinearColor::White;
+	}
+
+	FOnColorCurveChanged& OnColorCurveChanged()
+	{
+		return OnColorCurveChangedDelegate;
+	}
+
+private:
+	TWeakObjectPtr<UNiagaraDataInterfaceColorCurve> DataInterfaceWeak;
+	TArray<FRichCurveEditInfoConst> ConstCurves;
+	TArray<FRichCurveEditInfo> Curves;
+	TArray<const UObject*> Owners;
+	FOnColorCurveChanged OnColorCurveChangedDelegate;
+};
+
+class SNiagaraDataInterfaceGradientEditor : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SNiagaraDataInterfaceGradientEditor) {}
+	SLATE_END_ARGS()
+
+	void Construct(
+		const FArguments& InArgs,
+		UNiagaraDataInterfaceCurveBase* InDataInterface,
+		TArray<TSharedRef<IPropertyHandle>> InCurveProperties)
+	{
+		UNiagaraDataInterfaceColorCurve* ColorCurveDataInterface = Cast<UNiagaraDataInterfaceColorCurve>(InDataInterface);
+		if(ensureMsgf(ColorCurveDataInterface != nullptr, TEXT("Only UNiagaraDataInterfaceColorCurve is currently supported.")))
+		{
+			ColorCurveDataInterfaceWeak = ColorCurveDataInterface;
+			CurveProperties = InCurveProperties;
+			ColorCurveOwner = MakeShared<FNiagaraColorCurveDataInterfaceCurveOwner>(*ColorCurveDataInterface);
+			ColorCurveOwner->OnColorCurveChanged().AddSP(this, &SNiagaraDataInterfaceGradientEditor::ColorCurveChanged);
+			TSharedRef<SColorGradientEditor> GradientEditor = SNew(SColorGradientEditor)
+				.ViewMinInput(0.0f)
+				.ViewMaxInput(1.0f);
+
+			GradientEditor->SetCurveOwner(ColorCurveOwner.Get());
+			ChildSlot
+			[
+				SNew(SBox)
+				.Padding(FMargin(0, 0, 10, 0))
+				[
+					GradientEditor
+				]
+			];
+		}
+	}
+
+private:
+	void ClampKeyTimes(FRichCurve& Curve)
+	{
+		for (auto It = Curve.GetKeyHandleIterator(); It; ++It)
+		{
+			if (Curve.GetKeyTime(*It) < 0)
+			{
+				Curve.SetKeyTime(*It, 0);
+			}
+			if (Curve.GetKeyTime(*It) > 1)
+			{
+				Curve.SetKeyTime(*It, 1);
+			}
+		}
+	}
+
+	void ColorCurveChanged(TArray<FRichCurve*> ChangedCurves)
+	{
+		UNiagaraDataInterfaceColorCurve* ColorCurveDataInterface = ColorCurveDataInterfaceWeak.Get();
+		if(ColorCurveDataInterface != nullptr)
+		{
+			ClampKeyTimes(ColorCurveDataInterface->RedCurve);
+			ClampKeyTimes(ColorCurveDataInterface->GreenCurve);
+			ClampKeyTimes(ColorCurveDataInterface->BlueCurve);
+			ClampKeyTimes(ColorCurveDataInterface->AlphaCurve);
+
+			ColorCurveDataInterface->UpdateLUT();
+			for (FRichCurve* ChangedCurve : ChangedCurves)
+			{
+				for (TSharedRef<IPropertyHandle> CurveProperty : CurveProperties)
+				{
+					if (GetCurveFromPropertyHandle(CurveProperty) == ChangedCurve)
+					{
+						CurveProperty->NotifyPostChange();
+					}
+				}
+			}
+		}
+	}
+
+private:
+	TWeakObjectPtr<UNiagaraDataInterfaceColorCurve> ColorCurveDataInterfaceWeak;
+	TArray<TSharedRef<IPropertyHandle>> CurveProperties;
+	TSharedPtr<FNiagaraColorCurveDataInterfaceCurveOwner> ColorCurveOwner;
+};
+
 
 
 // Curve Base
@@ -216,6 +1153,7 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 {
 	CustomDetailBuilder = &DetailBuilder;
 	FNiagaraDataInterfaceDetailsBase::CustomizeDetails(DetailBuilder);
+
 	// Only support single objects.
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
@@ -223,6 +1161,7 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 	{
 		return;
 	}
+
 	CustomizedCurveInterface = Cast<UNiagaraDataInterfaceCurveBase>(ObjectsBeingCustomized[0].Get());
 	FNiagaraEditorWidgetsModule& NiagaraEditorWidgetsModule = FModuleManager::GetModuleChecked<FNiagaraEditorWidgetsModule>("NiagaraEditorWidgets");
 	TSharedRef<FNiagaraStackCurveEditorOptions> StackCurveEditorOptions = NiagaraEditorWidgetsModule.GetOrCreateStackCurveEditorOptionsForObject(
@@ -245,35 +1184,72 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 		CurveProperty->MarkHiddenByCustomization();
 	}
 
-	IDetailCategoryBuilder& CurveCategory = DetailBuilder.EditCategory("Curve");
-	TSharedRef<IPropertyHandle> ShowInCurveEditorHandle = CustomDetailBuilder->GetProperty(FName("ShowInCurveEditor"), UNiagaraDataInterfaceCurveBase::StaticClass());
-	if (ShowInCurveEditorHandle->IsValidHandle())
-	{
-		ShowInCurveEditorHandle->MarkHiddenByCustomization();
-	}
-	CurveCategory.HeaderContent( 
-		// Checkbox for showing in curve editor
+	TSharedRef<SHorizontalBox> HeaderBox =
 		SNew(SHorizontalBox)
+		// Button to show in the curve overview.
 		+ SHorizontalBox::Slot()
-		.Padding(5, 0, 5, 0)
+		.Padding(0, 0, 5, 0)
 		.HAlign(EHorizontalAlignment::HAlign_Left)
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ContentPadding(1)
-			.ToolTipText(this, &FNiagaraDataInterfaceCurveDetailsBase::GetShowInCurveEditorTooltip)
-			.OnClicked(this, &FNiagaraDataInterfaceCurveDetailsBase::OnToggleShowInCurveEditor)
+			.OnClicked(this, &FNiagaraDataInterfaceCurveDetailsBase::OnShowInCurveEditor)
+			.ToolTipText(LOCTEXT("ShowInCurveOverviewToolTip", "Show this curve in the curve overview."))
 			.Content()
 			[
-				SNew(SImage)
-				.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.ShowInCurveEditorIcon"))
-				.ColorAndOpacity(this, &FNiagaraDataInterfaceCurveDetailsBase::GetShowInCurveEditorImageColor)
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FEditorFontGlyphs::External_Link)
 			]
-		]
-		+ SHorizontalBox::Slot()
+		];
+
+	if (GetIsColorCurve())
+	{
+		bShowGradient = true;
+		HeaderBox->AddSlot()
+			.Padding(3, 0, 2, 0)
+			.HAlign(EHorizontalAlignment::HAlign_Left)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+				.OnClicked(this, &FNiagaraDataInterfaceCurveDetailsBase::SetGradientVisibility, true)
+				.ToolTipText(LOCTEXT("ShowGradientToolTip", "Show the gradient editor."))
+				.ButtonColorAndOpacity(this, &FNiagaraDataInterfaceCurveDetailsBase::GetGradientButtonColor)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Justification(ETextJustify::Center)
+					.MinDesiredWidth(50)
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(LOCTEXT("GradientButtonLabel", "Gradient"))
+				]
+			];
+
+		HeaderBox->AddSlot()
+			.Padding(0, 0, 1, 0)
+			.HAlign(EHorizontalAlignment::HAlign_Left)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
+				.OnClicked(this, &FNiagaraDataInterfaceCurveDetailsBase::SetGradientVisibility, false)
+				.ToolTipText(LOCTEXT("ShowCurvesToolTip", "Show the curve editor."))
+				.ButtonColorAndOpacity(this, &FNiagaraDataInterfaceCurveDetailsBase::GetCurveButtonColor)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Justification(ETextJustify::Center)
+					.MinDesiredWidth(50)
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.CurveDetails.TextButtonForeground"))
+					.Text(LOCTEXT("CurvesButtonLabel", "Curves"))
+				]
+			];
+	}
+
+	HeaderBox->AddSlot()
 		.HAlign(EHorizontalAlignment::HAlign_Right)
 		[
 			SNew(SComboButton)
@@ -288,8 +1264,30 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 				.Text(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "Import", "Import"))
 				.ToolTipText(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CopyCurveAsset", "Copy data from another Curve asset"))
 			]
-		]
-	);
+		];
+
+	TSharedPtr<SWidget> CurveDataInterfaceEditor;
+	if (GetIsColorCurve())
+	{
+		CurveDataInterfaceEditor = 
+			SNew(SWidgetSwitcher)
+			.WidgetIndex(this, &FNiagaraDataInterfaceCurveDetailsBase::GetGradientCurvesSwitcherIndex)
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(SNiagaraDataInterfaceGradientEditor, CustomizedCurveInterface, CurveProperties)
+			]
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(SNiagaraDataInterfaceCurveEditor, CurveProperties, StackCurveEditorOptions)
+			];
+	}
+	else
+	{
+		CurveDataInterfaceEditor = SNew(SNiagaraDataInterfaceCurveEditor, CurveProperties, StackCurveEditorOptions);
+	}
+
+	IDetailCategoryBuilder& CurveCategory = DetailBuilder.EditCategory("Curve");
+	CurveCategory.HeaderContent(HeaderBox);
 	CurveCategory.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CurveFilterText", "Curve"))
 		.WholeRowContent()
 		[
@@ -298,31 +1296,48 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 			.ContentHeightChanged(StackCurveEditorOptions, &FNiagaraStackCurveEditorOptions::SetHeight)
 			.Content()
 			[
-				SNew(SNiagaraDataInterfaceCurveEditor, CurveProperties, GetIsColorCurve(), StackCurveEditorOptions)
+				CurveDataInterfaceEditor.ToSharedRef()
 			]
 		];
+
+	CurveDataInterfaceWeak = CustomizedCurveInterface;
 }
 
-FText FNiagaraDataInterfaceCurveDetailsBase::GetShowInCurveEditorTooltip() const
+FReply FNiagaraDataInterfaceCurveDetailsBase::SetGradientVisibility(bool bInShowGradient)
 {
-	return LOCTEXT("ShowInCurveEditorToolTip", "Show this curve in the curves tab.");
+	bShowGradient = bInShowGradient;
+	return FReply::Handled();
 }
 
-FSlateColor FNiagaraDataInterfaceCurveDetailsBase::GetShowInCurveEditorImageColor() const
+int32 FNiagaraDataInterfaceCurveDetailsBase::GetGradientCurvesSwitcherIndex() const
 {
-	return CustomizedCurveInterface->ShowInCurveEditor
-		? FEditorStyle::GetSlateColor("SelectionColor")
-		: FLinearColor::Gray;
+	return bShowGradient ? 0 : 1;
 }
 
-FReply FNiagaraDataInterfaceCurveDetailsBase::OnToggleShowInCurveEditor() const
+FSlateColor FNiagaraDataInterfaceCurveDetailsBase::GetGradientButtonColor() const
 {
-	TSharedRef<IPropertyHandle> ShowInCurveEditorHandle = CustomDetailBuilder->GetProperty(FName("ShowInCurveEditor"), UNiagaraDataInterfaceCurveBase::StaticClass());
-	if (ShowInCurveEditorHandle->IsValidHandle())
+	return bShowGradient ? FLinearColor(0.4f, 0.4f, 0.4f, 1) : FLinearColor(0.15f, 0.15f, 0.15f, 1);
+}
+
+FSlateColor FNiagaraDataInterfaceCurveDetailsBase::GetCurveButtonColor() const
+{
+	return bShowGradient ? FLinearColor(0.15f, 0.15f, 0.15f, 1) : FLinearColor(0.4f, 0.4f, 0.4f, 1);
+}
+
+FReply FNiagaraDataInterfaceCurveDetailsBase::OnShowInCurveEditor() const
+{
+	UNiagaraDataInterfaceCurveBase* CurveDataInterface = CurveDataInterfaceWeak.Get();
+	if (CurveDataInterface != nullptr)
 	{
-		bool bShowInCurveEditor;
-		ShowInCurveEditorHandle->GetValue(bShowInCurveEditor);
-		ShowInCurveEditorHandle->SetValue(!bShowInCurveEditor);
+		UNiagaraSystem* OwningSystem = CurveDataInterface->GetTypedOuter<UNiagaraSystem>();
+		if (OwningSystem != nullptr)
+		{
+			TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = FNiagaraEditorModule::Get().GetExistingViewModelForSystem(OwningSystem);
+			if(SystemViewModel.IsValid())
+			{
+				SystemViewModel->GetCurveSelectionViewModel()->FocusAndSelectCurveDataInterface(*CurveDataInterface);
+			}
+		}
 	}
 	return FReply::Handled();
 }

@@ -31,6 +31,8 @@ public:
 	FGuid GetScriptUsageId() const { return ScriptUsageId; }
 	UNiagaraNodeOutput* GetScriptOutputNode() const;
 
+	virtual UObject* GetDisplayedObject() const override;
+
 	virtual bool SupportsPaste() const override { return true; }
 	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
 	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;

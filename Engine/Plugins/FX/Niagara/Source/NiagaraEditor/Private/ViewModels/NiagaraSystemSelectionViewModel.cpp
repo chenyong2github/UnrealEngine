@@ -209,6 +209,16 @@ void UNiagaraSystemSelectionViewModel::AddEntryToSelectionByDisplayedObjectDefer
 	AddEntriesToSelectionByDisplayedObjectsDeferred(InObjects);
 }
 
+void UNiagaraSystemSelectionViewModel::AddEntriesToSelectionByDisplayedObjectKeysDeferred(const TArray<FObjectKey>& InObjectKeys)
+{
+	DeferredDisplayedObjectKeysToAddToSelection.Append(InObjectKeys);
+}
+
+void UNiagaraSystemSelectionViewModel::AddEntryToSelectionByDisplayedObjectKeyDeferred(const FObjectKey& InObjectKey)
+{
+	DeferredDisplayedObjectKeysToAddToSelection.Add(InObjectKey);
+}
+
 void CollectGroupAndItemEntries(TSharedRef<FNiagaraSystemViewModel> SystemViewModel, TMap<FGuid, TMap<FString, UNiagaraStackEntry*>>& OutEmitterGuidToEntryKeyToEntryMap)
 {
 	auto CollectFromStackViewModel = [](FGuid EmitterGuid, UNiagaraStackViewModel* StackViewModel, TMap<FGuid, TMap<FString, UNiagaraStackEntry*>>& OutEmitterGuidToEntryKeyToEntryMap)
@@ -303,12 +313,37 @@ UNiagaraSystemSelectionViewModel::FOnSelectionChanged& UNiagaraSystemSelectionVi
 	return OnSystemIsSelectedChangedDelegate;
 }
 
+void GatherAllObjectKeysForEntry(UNiagaraStackEntry& StackEntry, TArray<FObjectKey>& OutObjectKeys)
+{
+	UObject* DisplayedObject = StackEntry.GetDisplayedObject();
+	if (DisplayedObject != nullptr)
+	{
+		OutObjectKeys.Add(FObjectKey(DisplayedObject));
+	}
+
+	TArray<UNiagaraStackEntry*> Children;
+	StackEntry.GetUnfilteredChildren(Children);
+	for (UNiagaraStackEntry* ChildEntry : Children)
+	{
+		GatherAllObjectKeysForEntry(*ChildEntry, OutObjectKeys);
+	}
+}
+
 void FindStackGroupsAndItemsForDisplayedObjectKeysRecursive(UNiagaraStackEntry* StackEntry, const TArray<FObjectKey>& ObjectKeys, TArray<UNiagaraStackEntry*>& OutFoundStackEntries)
 {
-	if (StackEntry->IsA<UNiagaraStackItemGroup>() || StackEntry->IsA<UNiagaraStackItem>())
+	if (StackEntry->IsA<UNiagaraStackItemGroup>())
 	{
 		UObject* DisplayedObject = StackEntry->GetDisplayedObject();
 		if (DisplayedObject != nullptr && ObjectKeys.Contains(FObjectKey(DisplayedObject)))
+		{
+			OutFoundStackEntries.Add(StackEntry);
+		}
+	}
+	else if (StackEntry->IsA<UNiagaraStackItem>())
+	{
+		TArray<FObjectKey> ItemObjectKeys;
+		GatherAllObjectKeysForEntry(*StackEntry, ItemObjectKeys);
+		if (ObjectKeys.ContainsByPredicate([&ItemObjectKeys](const FObjectKey& ObjectKey) { return ItemObjectKeys.Contains(ObjectKey); }))
 		{
 			OutFoundStackEntries.Add(StackEntry);
 		}

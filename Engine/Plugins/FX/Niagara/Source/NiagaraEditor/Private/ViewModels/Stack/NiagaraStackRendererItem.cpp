@@ -240,10 +240,14 @@ FText UNiagaraStackRendererItem::GetDeleteTransactionText() const
 void UNiagaraStackRendererItem::Delete()
 {
 	UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
-	Emitter->Modify();
-	Emitter->RemoveRenderer(RendererProperties.Get());
 
-	OnDataObjectModified().Broadcast(RendererProperties.Get());
+	UNiagaraRendererProperties* Renderer = RendererProperties.Get();
+	Emitter->Modify();
+	Emitter->RemoveRenderer(Renderer);
+
+	TArray<UObject*> ChangedObjects;
+	ChangedObjects.Add(Renderer);
+	OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Removed);
 }
 
 bool UNiagaraStackRendererItem::HasBaseRenderer() const
@@ -317,7 +321,9 @@ void UNiagaraStackRendererItem::SetIsEnabledInternal(bool bInIsEnabled)
 	FScopedTransaction ScopedTransaction(LOCTEXT("SetRendererEnabledState", "Set renderer enabled/disabled state."));
 	RendererProperties->Modify();
 	RendererProperties->SetIsEnabled(bInIsEnabled);
-	OnDataObjectModified().Broadcast(RendererProperties.Get());
+	TArray<UObject*> ChangedObjects;
+	ChangedObjects.Add(RendererProperties.Get());
+	OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Changed);
 	RefreshChildren();
 }
 

@@ -42,7 +42,7 @@ class NIAGARAEDITOR_API UNiagaraStackViewModel : public UObject
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnStructureChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnSearchCompleted);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDataObjectChanged, UObject* /** Changed Object */);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataObjectChanged, TArray<UObject*> /** Changed objects */, ENiagaraDataObjectChange /** Change type */);
 public:
 	struct FSearchResult
 	{
@@ -154,7 +154,7 @@ private:
 	};
 
 	void EntryStructureChanged();
-	void EntryDataObjectModified(UObject* ChangedObject);
+	void EntryDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 	void EntryRequestFullRefresh();
 	void EntryRequestFullRefreshDeferred();
 	void RefreshTopLevelViewModels();

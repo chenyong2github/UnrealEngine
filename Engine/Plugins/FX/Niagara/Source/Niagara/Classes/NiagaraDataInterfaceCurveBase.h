@@ -90,9 +90,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
 	uint32 bOverrideOptimizeThreshold : 1;
 
-	UPROPERTY(EditAnywhere, Transient, Category = "Curve")
-	uint32 ShowInCurveEditor : 1;
-
 	UPROPERTY(Transient)
 	uint32 HasEditorData : 1;
 
@@ -124,7 +121,6 @@ public:
 #if WITH_EDITORONLY_DATA
 		, bOptimizeLUT(true)
 		, bOverrideOptimizeThreshold(false)
-		, ShowInCurveEditor(false)
 		, HasEditorData(true)
 		, OptimizeThreshold(DefaultOptimizeThreshold)
 #endif
@@ -142,7 +138,6 @@ public:
 #if WITH_EDITORONLY_DATA
 		, bOptimizeLUT(true)
 		, bOverrideOptimizeThreshold(false)
-		, ShowInCurveEditor(false)
 		, HasEditorData(true)
 		, OptimizeThreshold(DefaultOptimizeThreshold)
 #endif

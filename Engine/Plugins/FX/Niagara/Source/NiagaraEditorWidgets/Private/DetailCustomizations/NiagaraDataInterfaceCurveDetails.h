@@ -35,10 +35,14 @@ protected:
 
 private:
 	virtual TSharedRef<SWidget> GetCurveToCopyMenu();
-	FText GetShowInCurveEditorTooltip() const;
-	FSlateColor GetShowInCurveEditorImageColor() const;
-	FReply OnToggleShowInCurveEditor() const;
+	FReply SetGradientVisibility(bool bInShowGradient);
+	int32 GetGradientCurvesSwitcherIndex() const;
+	FSlateColor GetGradientButtonColor() const;
+	FSlateColor GetCurveButtonColor() const;
+	FReply OnShowInCurveEditor() const;
 	void CurveToCopySelected(const FAssetData& AssetData);
+	TWeakObjectPtr<UNiagaraDataInterfaceCurveBase> CurveDataInterfaceWeak;
+	bool bShowGradient;
 };
 
 /** Details customization for curve data interfaces. */

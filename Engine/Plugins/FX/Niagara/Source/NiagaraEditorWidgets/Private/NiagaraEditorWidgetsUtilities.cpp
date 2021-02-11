@@ -17,6 +17,7 @@
 #include "Modules/ModuleManager.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackEditorWidgetsUtilities"
 
@@ -151,6 +152,72 @@ FName FNiagaraStackEditorWidgetsUtilities::GetColorNameForParameterScope(ENiagar
 	return NAME_None;
 }
 
+FText FNiagaraStackEditorWidgetsUtilities::GetIconTextForInputMode(UNiagaraStackFunctionInput::EValueMode InputValueMode)
+{
+	switch (InputValueMode)
+	{
+	case UNiagaraStackFunctionInput::EValueMode::Linked:
+		return FEditorFontGlyphs::Link;
+	case UNiagaraStackFunctionInput::EValueMode::Data:
+		return FEditorFontGlyphs::Database;
+	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
+		return FEditorFontGlyphs::Line_Chart;
+	case UNiagaraStackFunctionInput::EValueMode::Expression:
+		return FEditorFontGlyphs::Terminal;
+	case UNiagaraStackFunctionInput::EValueMode::DefaultFunction:
+		return FEditorFontGlyphs::Plug;
+	case UNiagaraStackFunctionInput::EValueMode::InvalidOverride:
+		return FEditorFontGlyphs::Question;
+	case UNiagaraStackFunctionInput::EValueMode::UnsupportedDefault:
+		return FEditorFontGlyphs::Star;
+	default:
+		return FEditorFontGlyphs::Question;
+	}
+}
+
+FText FNiagaraStackEditorWidgetsUtilities::GetIconToolTipForInputMode(UNiagaraStackFunctionInput::EValueMode InputValueMode)
+{
+	static const FText InvalidText = LOCTEXT("InvalidInputIconToolTip", "Unsupported value.  Check the graph for issues.");
+	switch (InputValueMode)
+	{
+	case UNiagaraStackFunctionInput::EValueMode::Linked:
+		return LOCTEXT("LinkInputIconToolTip", "Linked Value");
+	case UNiagaraStackFunctionInput::EValueMode::Data:
+		return LOCTEXT("DataInterfaceInputIconToolTip", "Data Value");
+	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
+		return LOCTEXT("DynamicInputIconToolTip", "Dynamic Value");
+	case UNiagaraStackFunctionInput::EValueMode::Expression:
+		return LOCTEXT("ExpressionInputIconToolTip", "Custom Expression");
+	case UNiagaraStackFunctionInput::EValueMode::DefaultFunction:
+		return LOCTEXT("DefaultFunctionIconToolTip", "Script Defined Default Function");
+	case UNiagaraStackFunctionInput::EValueMode::InvalidOverride:
+		return LOCTEXT("InvalidOverrideIconToolTip", "Invalid Script State");
+	case UNiagaraStackFunctionInput::EValueMode::UnsupportedDefault:
+		return LOCTEXT("UnsupportedDefaultIconToolTip", "Script Defined Custom Default");
+	default:
+		return InvalidText;
+	}
+}
+
+FName FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForInputMode(UNiagaraStackFunctionInput::EValueMode InputValueMode)
+{
+	switch (InputValueMode)
+	{
+	case UNiagaraStackFunctionInput::EValueMode::Linked:
+		return "NiagaraEditor.Stack.InputValueIconColor.Linked";
+	case UNiagaraStackFunctionInput::EValueMode::Data:
+		return "NiagaraEditor.Stack.InputValueIconColor.Data";
+	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
+		return "NiagaraEditor.Stack.InputValueIconColor.Dynamic";
+	case UNiagaraStackFunctionInput::EValueMode::Expression:
+		return "NiagaraEditor.Stack.InputValueIconColor.Expression";
+	case UNiagaraStackFunctionInput::EValueMode::InvalidOverride:
+	case UNiagaraStackFunctionInput::EValueMode::UnsupportedDefault:
+	case UNiagaraStackFunctionInput::EValueMode::DefaultFunction:
+	default:
+		return "NiagaraEditor.Stack.InputValueIconColor.Default";
+	}
+}
 
 void OpenSourceAsset(TWeakObjectPtr<UNiagaraStackEntry> StackEntryWeak)
 {

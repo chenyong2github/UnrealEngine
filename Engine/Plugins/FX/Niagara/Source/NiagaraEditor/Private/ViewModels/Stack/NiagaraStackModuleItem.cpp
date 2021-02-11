@@ -1345,13 +1345,15 @@ void UNiagaraStackModuleItem::Delete()
 		UNiagaraGraph* Graph = FunctionCallNode->GetNiagaraGraph();
 		Graph->NotifyGraphNeedsRecompile();
 		FNiagaraStackGraphUtilities::RelayoutGraph(*FunctionCallNode->GetGraph());
+		TArray<UObject*> RemovedDataInterfaces;
 		for (auto InputNode : RemovedNodes)
 		{
-			if (InputNode != nullptr && InputNode->Usage == ENiagaraInputNodeUsage::Parameter)
+			if (InputNode != nullptr && InputNode->Usage == ENiagaraInputNodeUsage::Parameter && InputNode->GetDataInterface() != nullptr)
 			{
-				GetSystemViewModel()->NotifyDataObjectChanged(InputNode->GetDataInterface());
+				RemovedDataInterfaces.Add(InputNode->GetDataInterface());
 			}
 		}
+		GetSystemViewModel()->NotifyDataObjectChanged(RemovedDataInterfaces, ENiagaraDataObjectChange::Removed);
 		ModifiedGroupItemsDelegate.Broadcast();
 	}
 }

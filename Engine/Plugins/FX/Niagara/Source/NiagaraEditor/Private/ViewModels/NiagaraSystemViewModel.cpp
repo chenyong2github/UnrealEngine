@@ -8,10 +8,12 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraDataInterfaceCurveBase.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraCurveSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
@@ -117,6 +119,9 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	ScriptScratchPadViewModel->OnScriptRenamed().AddSP(this, &FNiagaraSystemViewModel::ScratchPadScriptsChanged);
 	ScriptScratchPadViewModel->OnScriptDeleted().AddSP(this, &FNiagaraSystemViewModel::ScratchPadScriptsChanged);
 
+	CurveSelectionViewModel = NewObject<UNiagaraCurveSelectionViewModel>(GetTransientPackage());
+	CurveSelectionViewModel->Initialize(this->AsShared());
+
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
 	RefreshAll();
@@ -147,8 +152,6 @@ void FNiagaraSystemViewModel::Cleanup()
 		PreviewComponent->DeactivateImmediate();
 		PreviewComponent = nullptr;
 	}
-
-	CurveOwner.EmptyCurves();
 
 	GEditor->UnregisterForUndo(this);
 
@@ -205,6 +208,12 @@ void FNiagaraSystemViewModel::Cleanup()
 		ScriptScratchPadViewModel->OnScriptDeleted().RemoveAll(this);
 		ScriptScratchPadViewModel->Finalize();
 		ScriptScratchPadViewModel = nullptr;
+	}
+
+	if (CurveSelectionViewModel != nullptr)
+	{
+		CurveSelectionViewModel->Finalize();
+		CurveSelectionViewModel = nullptr;
 	}
 
 	System = nullptr;
@@ -286,11 +295,6 @@ UNiagaraComponent* FNiagaraSystemViewModel::GetPreviewComponent()
 TSharedPtr<ISequencer> FNiagaraSystemViewModel::GetSequencer()
 {
 	return Sequencer;
-}
-
-FNiagaraCurveOwner& FNiagaraSystemViewModel::GetCurveOwner()
-{
-	return CurveOwner;
 }
 
 UNiagaraSystem& FNiagaraSystemViewModel::GetSystem() const
@@ -556,11 +560,6 @@ FNiagaraSystemViewModel::FOnEmitterHandleViewModelsChanged& FNiagaraSystemViewMo
 	return OnEmitterHandleViewModelsChangedDelegate;
 }
 
-FNiagaraSystemViewModel::FOnCurveOwnerChanged& FNiagaraSystemViewModel::OnCurveOwnerChanged()
-{
-	return OnCurveOwnerChangedDelegate;
-}
-
 FNiagaraSystemViewModel::FOnPostSequencerTimeChange& FNiagaraSystemViewModel::OnPostSequencerTimeChanged()
 {
 	return OnPostSequencerTimeChangeDelegate;
@@ -592,6 +591,10 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 	if (ScriptScratchPadViewModel != nullptr)
 	{
 		Collector.AddReferencedObject(ScriptScratchPadViewModel);
+	}
+	if (CurveSelectionViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(CurveSelectionViewModel);
 	}
 }
 
@@ -713,11 +716,6 @@ TSharedPtr<FUICommandList> FNiagaraSystemViewModel::GetToolkitCommands()
 	return ToolkitCommands.Pin();
 }
 
-FNiagaraSystemViewModel::FOnPinnedCurvesChanged& FNiagaraSystemViewModel::GetOnPinnedCurvesChanged()
-{
-	return OnPinnedCurvesChangedDelegate;
-}
-
 void FNiagaraSystemViewModel::SetToolkitCommands(const TSharedRef<FUICommandList>& InToolkitCommands)
 {
 	ToolkitCommands = InToolkitCommands;
@@ -815,6 +813,11 @@ UNiagaraSystemSelectionViewModel* FNiagaraSystemViewModel::GetSelectionViewModel
 UNiagaraScratchPadViewModel* FNiagaraSystemViewModel::GetScriptScratchPadViewModel()
 {
 	return ScriptScratchPadViewModel;
+}
+
+UNiagaraCurveSelectionViewModel* FNiagaraSystemViewModel::GetCurveSelectionViewModel()
+{
+	return CurveSelectionViewModel;
 }
 
 TStatId FNiagaraSystemViewModel::GetStatId() const
@@ -1053,39 +1056,50 @@ void FNiagaraSystemViewModel::RefreshAll()
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 	RefreshEmitterHandleViewModels();
 	RefreshSequencerTracks();
-	ResetCurveData();
 	InvalidateCachedCompileStatus();
 	ScriptScratchPadViewModel->RefreshScriptViewModels();
+	CurveSelectionViewModel->Refresh();
 	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
 	SelectionViewModel->Refresh();
 }
 
-void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
+void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
 {
-	if (ChangedObject && (ChangedObject->IsA<UNiagaraEmitter>() || ChangedObject->IsA<UNiagaraSystem>()))
+	if (ChangedObjects.Num() == 1 && (ChangedObjects[0]->IsA<UNiagaraEmitter>() || ChangedObjects[0]->IsA<UNiagaraSystem>()))
 	{
 		// we do nothing on emitter or system changes here, because they will trigger a compile and reset on their own, depending on the changed property
 		return;
 	}
-	UNiagaraDataInterface* ChangedDataInterface = Cast<UNiagaraDataInterface>(ChangedObject);
-	if (ChangedDataInterface)
+
+	bool bRefreshCurveSelectionViewModel = false;
+	if(ChangedObjects.Num() != 0)
 	{
-		UpdateCompiledDataInterfaces(ChangedDataInterface);
+		for(UObject* ChangedObject : ChangedObjects)
+		{
+			UNiagaraDataInterface* ChangedDataInterface = Cast<UNiagaraDataInterface>(ChangedObject);
+			if (ChangedDataInterface)
+			{
+				UpdateCompiledDataInterfaces(ChangedDataInterface);
+			}
+
+		
+			if(ChangedObject->IsA<UNiagaraDataInterfaceCurveBase>() && ChangeType != ENiagaraDataObjectChange::Changed)
+			{
+				bRefreshCurveSelectionViewModel = true;
+			}
+		}
+	}
+	else
+	{
+		bRefreshCurveSelectionViewModel = true;
 	}
 
-	UNiagaraDataInterfaceCurveBase* ChangedDataInterfaceCurve = Cast<UNiagaraDataInterfaceCurveBase>(ChangedDataInterface);
-	if (ChangedDataInterfaceCurve || ChangedObject == nullptr)
+	if (bRefreshCurveSelectionViewModel)
 	{
-		TArray<UNiagaraDataInterfaceCurveBase*> OldShownCurveDataInterfaces = ShownCurveDataInterfaces;
-		ResetCurveData();
-		if(ChangedDataInterfaceCurve != nullptr && ChangedDataInterfaceCurve->ShowInCurveEditor && OldShownCurveDataInterfaces.Contains(ChangedDataInterfaceCurve) == false)
-		{
-			NotifyPinnedCurvesChanged();
-		}
+		CurveSelectionViewModel->Refresh();
 	}
 
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
-	RefreshSequencerTracks();
 }
 
 void FNiagaraSystemViewModel::IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate)
@@ -1426,110 +1440,6 @@ void FNiagaraSystemViewModel::RequestResetSystem()
 	bResetRequestPending = true;
 }
 
-struct FNiagaraSystemCurveData
-{
-	FRichCurve* Curve;
-	FName Name;
-	FLinearColor Color;
-	UObject* Owner;
-};
-
-void GetCurveDataFromInterface(UNiagaraDataInterfaceCurveBase* CurveDataInterface, FString CurveSource, FString DefaultName,  
-	TArray<FNiagaraSystemCurveData>& OutCurveData, TArray<UNiagaraDataInterfaceCurveBase*>& OutCurveDataInterfaces)
-{
-	if (!CurveDataInterface->ShowInCurveEditor)
-	{
-		return;
-	}
-	OutCurveDataInterfaces.Add(CurveDataInterface);
-	TArray<UNiagaraDataInterfaceCurveBase::FCurveData> CurveData;
-	CurveDataInterface->GetCurveData(CurveData);
-	for (UNiagaraDataInterfaceCurveBase::FCurveData CurveDataItem : CurveData)
-	{
-		FNiagaraSystemCurveData SystemCurveData;
-		SystemCurveData.Curve = CurveDataItem.Curve;
-		SystemCurveData.Color = CurveDataItem.Color;
-		SystemCurveData.Owner = CurveDataInterface;
-		FString ParameterName = CurveDataItem.Name == NAME_None
-			? DefaultName
-			: DefaultName + ".";
-		FString DataName = CurveDataItem.Name == NAME_None
-			? FString()
-			: CurveDataItem.Name.ToString();
-		SystemCurveData.Name = *(CurveSource + ParameterName + DataName);
-		OutCurveData.Add(SystemCurveData);
-	}
-}
-
-void GetCurveData(FString CurveSource, UNiagaraGraph* SourceGraph, TArray<FNiagaraSystemCurveData>& OutCurveData, TArray<UNiagaraDataInterfaceCurveBase*>& OutCurveDataInterfaces)
-{
-	TArray<UNiagaraNodeInput*> InputNodes;
-	SourceGraph->GetNodesOfClass<UNiagaraNodeInput>(InputNodes);
-	TSet<FName> HandledInputs;
-	for (UNiagaraNodeInput* InputNode : InputNodes)
-	{
-		if (HandledInputs.Contains(InputNode->Input.GetName()) == false)
-		{
-			if (InputNode->Usage == ENiagaraInputNodeUsage::Parameter)
-			{
-				UNiagaraDataInterfaceCurveBase* CurveDataInterface = Cast<UNiagaraDataInterfaceCurveBase>(InputNode->GetDataInterface());
-				if (CurveDataInterface != nullptr)
-				{
-					FString DefaultName = InputNode->Input.GetName().ToString();
-					GetCurveDataFromInterface(CurveDataInterface, CurveSource, DefaultName, OutCurveData, OutCurveDataInterfaces);
-				}
-			}
-			HandledInputs.Add(InputNode->Input.GetName());
-		}
-	}
-}
-
-void FNiagaraSystemViewModel::ResetCurveData()
-{
-	CurveOwner.EmptyCurves();
-	ShownCurveDataInterfaces.Empty();
-
-	TArray<FNiagaraSystemCurveData> CurveData;
-
-
-	check(SystemScriptViewModel.IsValid()); 
-	GetCurveData(
-		TEXT("System"),
-		SystemScriptViewModel->GetGraphViewModel()->GetGraph(),
-		CurveData,
-		ShownCurveDataInterfaces);
-	// Get curves from user variables
-	for (UNiagaraDataInterface* DataInterface : GetSystem().GetExposedParameters().GetDataInterfaces())
-	{
-		UNiagaraDataInterfaceCurveBase* CurveDataInterface = Cast<UNiagaraDataInterfaceCurveBase>(DataInterface);
-		if (CurveDataInterface != nullptr)
-		{
-			GetCurveDataFromInterface(CurveDataInterface, TEXT("System"), TEXT("User"), CurveData, ShownCurveDataInterfaces);
-		}
-	}
-	
-	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
-	{
-		GetCurveData(
-			EmitterHandleViewModel->GetName().ToString(),
-			EmitterHandleViewModel->GetEmitterViewModel()->GetSharedScriptViewModel()->GetGraphViewModel()->GetGraph(),
-			CurveData, 
-			ShownCurveDataInterfaces);
-	}
-
-	for (FNiagaraSystemCurveData& CurveDataItem : CurveData)
-	{
-		CurveOwner.AddCurve(
-			*CurveDataItem.Curve,
-			CurveDataItem.Name,
-			CurveDataItem.Color,
-			*CurveDataItem.Owner,
-			FNiagaraCurveOwner::FNotifyCurveChanged::CreateRaw(this, &FNiagaraSystemViewModel::CurveChanged));
-	}
-
-	OnCurveOwnerChangedDelegate.Broadcast();
-}
-
 void GetCompiledScriptAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNiagaraSystem& OwningSystem, UNiagaraScript*& OutCompiledScript, FString& OutEmitterName)
 {
 	OutCompiledScript = nullptr;
@@ -1729,17 +1639,6 @@ void FNiagaraSystemViewModel::UpdateSimulationFromParameterChange()
 			// TODO: Update the view when paused and reset on change is turned off.
 		}
 	}
-}
-
-void FNiagaraSystemViewModel::CurveChanged(FRichCurve* ChangedCurve, UObject* InCurveOwner)
-{
-	UNiagaraDataInterfaceCurveBase* CurveDataInterface = Cast<UNiagaraDataInterfaceCurveBase>(InCurveOwner);
-	if (CurveDataInterface != nullptr)
-	{
-		CurveDataInterface->UpdateLUT();
-		UpdateCompiledDataInterfaces(CurveDataInterface);
-	}
-	ResetSystem();
 }
 
 void PopulateNiagaraFoldersFromMovieSceneFolders(const TArray<UMovieSceneFolder*>& MovieSceneFolders, const TArray<UMovieSceneTrack*>& MovieSceneTracks, UNiagaraSystemEditorFolder* ParentFolder)
@@ -2202,11 +2101,6 @@ void FNiagaraSystemViewModel::RemoveSystemEventHandlers()
 	UserParameterStoreChangedHandle.Reset();
 	SystemScriptGraphChangedHandle.Reset();
 	SystemScriptGraphNeedsRecompileHandle.Reset();
-}
-
-void FNiagaraSystemViewModel::NotifyPinnedCurvesChanged()
-{
-	OnPinnedCurvesChangedDelegate.Broadcast();
 }
 
 void FNiagaraSystemViewModel::BuildStackModuleData(UNiagaraScript* Script, FGuid InEmitterHandleId, TArray<FNiagaraStackModuleData>& OutStackModuleData)
