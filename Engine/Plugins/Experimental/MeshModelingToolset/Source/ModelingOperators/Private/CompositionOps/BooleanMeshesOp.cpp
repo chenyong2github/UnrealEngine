@@ -72,7 +72,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	MeshBoolean.bPutResultInInputSpace = false;
-	MeshBoolean.bTrackAllNewEdges = (bTryCollapseExtraEdges);
+	MeshBoolean.bSimplifyAlongNewEdges = bTryCollapseExtraEdges;
 	MeshBoolean.Progress = Progress;
 	bool bSuccess = MeshBoolean.Compute();
 	ResultTransform = MeshBoolean.ResultTransform;
@@ -83,40 +83,6 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	CreatedBoundaryEdges = MeshBoolean.CreatedBoundaryEdges;
-
-	// Boolean operation is based on edge splits, which results in spurious vertices
-	// along straight intersection edges. Try to collapse away those extra vertices.
-	if (bTryCollapseExtraEdges)
-	{
-		FDynamicMesh3* TargetMesh = MeshBoolean.Result;
-
-		FQEMSimplification Simplifier(TargetMesh);
-		Simplifier.bAllowSeamCollapse = true;
-		if (TargetMesh->Attributes())
-		{
-			TargetMesh->Attributes()->SplitAllBowties();		// eliminate any bowties that might have formed on UV seams.
-		}
-
-		FMeshConstraints Constraints;
-		FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(Constraints, *TargetMesh,
-			EEdgeRefineFlags::NoConstraint, EEdgeRefineFlags::NoConstraint, EEdgeRefineFlags::NoConstraint,
-			true, true, true);
-		Simplifier.SetExternalConstraints(MoveTemp(Constraints));
-
-		Simplifier.SimplifyToMinimalPlanar( TryCollapseExtraEdgesPlanarThresh,
-			[&MeshBoolean](int32 eid) { return MeshBoolean.AllNewEdges.Contains(eid); } );
-
-		// update boundary-edge set
-		TArray<int32> UpdatedBoundaryEdges;
-		for (int32 eid : CreatedBoundaryEdges)
-		{
-			if (MeshBoolean.Result->IsEdge(eid))
-			{
-				UpdatedBoundaryEdges.Add(eid);
-			}
-		}
-		CreatedBoundaryEdges = MoveTemp(UpdatedBoundaryEdges);
-	}
 
 	// try to fill cracks/holes in boolean result
 	if (CreatedBoundaryEdges.Num() > 0 && bAttemptFixHoles)

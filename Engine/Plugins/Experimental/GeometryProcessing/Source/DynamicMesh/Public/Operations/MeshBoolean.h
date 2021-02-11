@@ -70,6 +70,23 @@ public:
 	/** Set this to be able to cancel running operation */
 	FProgressCancel* Progress = nullptr;
 
+	/** Control whether we attempt to auto-simplify the small planar triangles that the boolean operation tends to generate */
+	bool bSimplifyAlongNewEdges = false;
+	//
+    // Simplification-specific settings (only relevant if bSimplifyAlongNewEdges==true):
+	//
+	/** Degrees of deviation from coplanar that we will still simplify */
+	double SimplificationAngleTolerance = .1;
+	/** Prevent simplification from distorting vertex UVs */
+	bool bPreserveVertexUVs = true;
+	/** Prevent simplification from distorting overlay UVs */
+	bool bPreserveOverlayUVs = true;
+	/** When preserving UVs, sets maximum allowed change in UV coordinates from collapsing an edge, measured at the removed vertex */
+	float UVDistortTolerance = .0001;
+	/** If > -1, then only preserve the UVs of one of the input meshes.  Useful when cutting an artist-created asset w/ procedural geometry. */
+	int PreserveUVsOnlyForMesh = -1;
+
+
 
 	//
 	// Input & Output (to be modified by algorithm)
@@ -147,4 +164,37 @@ private:
 
 	bool MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3* CutMesh[2], const TArray<int> CutBoundaryEdges[2], const TMap<int, int>& AllVIDMatches);
 
+	void SimplifyAlongNewEdges(int NumMeshesToProcess, FDynamicMesh3* CutMesh[2], TArray<int> CutBoundaryEdges[2], TMap<int, int>& AllVIDMatches);
+
+public:
+	
+	// specialized helper functions useful for implementing mesh boolean-like features (shared with the extremely similar FMeshSelfUnion algorithm)
+
+	/**
+	 * Test if the triangles connected to a vertex are all coplanar
+	 * @param Mesh The mesh to query
+	 * @param VID The vertex to query
+	 * @param DotTolerance If the dot product of two normals are >= this tolerance, the normals are considered equivalent
+	 * @param The normal of the first triangle attached to the vertex.
+	 * @return Whether all the triangles were coplanar
+	 */
+	static bool IsFlat(const FDynamicMesh3& Mesh, int VID, double DotTolerance, FVector3d& OutFirstNormal);
+
+	/**
+	 * Test if a given edge collapse would cause a triangle flip or other unacceptable decrease in mesh quality
+	 * Specialized for collapsing at flat triangles
+	 * TODO: Currently this only detects triangle flips; need to extend it to also detect other mesh quality issues
+	 */
+	static bool CollapseWouldHurtTriangleQuality(
+		const FDynamicMesh3& Mesh, const FVector3d& ExpectNormal,
+		int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos
+	);
+
+	/**
+	 * Test if a given edge collapse would change the mesh shape or UVs unacceptably
+	 */
+	static bool CollapseWouldChangeShapeOrUVs(
+		const FDynamicMesh3& Mesh, const TSet<int> CutBoundaryEdgeSet, double DotTolerance, int SourceEID,
+		int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos,
+		const FVector3d& EdgeDir, bool bPreserveUVsForMesh, bool bPreserveVertexUVs, bool bPreserveOverlayUVs, float UVToleranceSq);
 };

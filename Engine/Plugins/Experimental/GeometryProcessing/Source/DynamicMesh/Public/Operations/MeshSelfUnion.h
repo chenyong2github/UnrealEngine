@@ -14,7 +14,7 @@
 
 #include "Util/ProgressCancel.h"
 
-
+#include "Operations/MeshBoolean.h" // for shared utility functions
 
 
 
@@ -55,6 +55,20 @@ public:
 
 	/** Set this to be able to cancel running operation */
 	FProgressCancel* Progress = nullptr;
+
+	/** Control whether we attempt to auto-simplify the small planar triangles that the boolean operation tends to generate */
+	bool bSimplifyAlongNewEdges = false;
+	//
+	// Simplification-specific settings (only relevant if bSimplifyAlongNewEdges==true):
+	//
+	/** Degrees of deviation from coplanar that we will still simplify */
+	double SimplificationAngleTolerance = .1;
+	/** Prevent simplification from distorting vertex UVs */
+	bool bPreserveVertexUVs = true;
+	/** Prevent simplification from distorting overlay UVs */
+	bool bPreserveOverlayUVs = true;
+	/** When preserving UVs, sets maximum allowed change in UV coordinates from collapsing an edge, measured at the removed vertex */
+	float UVDistortTolerance = .0001;
 
 
 	//
@@ -113,5 +127,7 @@ private:
 	int FindNearestEdge(const TArray<int>& EIDs, const TArray<int>& BoundaryNbrEdges, FVector3d Pos);
 
 	bool MergeEdges(const TArray<int>& CutBoundaryEdges, const TMap<int, int>& AllVIDMatches);
+
+	void SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<int, int>& FoundMatches);
 
 };
