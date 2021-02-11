@@ -1160,6 +1160,13 @@ bool FFCPXMLExportVisitor::GetCinematicSectionFrames(const TSharedPtr<FMovieScen
 
 	int32 HandleFrames = ExportData->GetHandleFrames();
 	OutStartFrame = InCinematicSectionData->StartFrame.Value;
+
+	//
+	// The cinematic section's end frame is exclusive, FCPXML is also exclusive. 
+	// For example, a 50 frame duration movie that starts at frame 0 should have an end frame value of 50. 
+	// See corresponding note in FCPXMLMetadataExport.cpp ConstructVideoClipItemNode and ConstructMasterClipNode which 
+	// constructs the end frame from the actual outputted frames.
+	//
 	OutEndFrame = InCinematicSectionData->EndFrame.Value;
 	OutDuration = OutEndFrame - OutStartFrame;
 	OutInFrame = HandleFrames;
