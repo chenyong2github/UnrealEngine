@@ -1445,6 +1445,13 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().CreateCamera );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
+			UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
+			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
+			{
+				// Only show this button where it makes sense (ie, if the sequence is not contained within a blueprint already)
+				ToolBarBuilder.AddToolBarButton(FSequencerCommands::Get().OpenDirectorBlueprint);
+			}
+
 			ToolBarBuilder.AddSeparator("Level Sequence Separator");
 		}
 
