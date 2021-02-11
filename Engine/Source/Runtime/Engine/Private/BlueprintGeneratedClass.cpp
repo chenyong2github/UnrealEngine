@@ -605,7 +605,7 @@ bool UBlueprintGeneratedClass::BuildCustomArrayPropertyListForPostConstruction(F
 void UBlueprintGeneratedClass::UpdateCustomPropertyListForPostConstruction()
 {
 	// Empty the current list.
-	CustomPropertyListForPostConstruction.Empty();
+	CustomPropertyListForPostConstruction.Reset();
 	bCustomPropertyListForPostConstructionInitialized = false;
 
 	// Find the first native antecedent. All non-native decendant properties are attached to the PostConstructLink chain (see UStruct::Link), so we only need to worry about properties owned by native super classes here.
