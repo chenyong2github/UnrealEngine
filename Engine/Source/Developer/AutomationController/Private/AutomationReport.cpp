@@ -396,7 +396,8 @@ void FAutomationReport::SetResults( const int32 ClusterIndex, const int32 PassIn
 	// Add an error report if none was received
 	if ( InResults.State == EAutomationState::Fail && InResults.GetErrorTotal() == 0 )
 	{
-		Results[ClusterIndex][PassIndex].AddEvent(FAutomationEvent(EAutomationEventType::Error, "Test failed, but no errors were logged."));
+		FString Msg = FString::Printf(TEXT("Test %s failed, but no errors were logged."), *TestInfo.GetFullTestPath());
+		Results[ClusterIndex][PassIndex].AddEvent(FAutomationEvent(EAutomationEventType::Error, *Msg));
 	}
 
 	// While setting the results of the test cause the log of any selected test to refresh
