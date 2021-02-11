@@ -364,8 +364,9 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 		return;
 	}
 
+	// Clear existing mappings, but retain the mapping array for later processing
+	TArray<FEnhancedActionKeyMapping> OldMappings(MoveTemp(PlayerInput->EnhancedActionMappings));
 	PlayerInput->ClearAllMappings();
-	PlayerInput->ResetActionInstanceData();
 
 	// Order contexts by priority
 	TMap<const UInputMappingContext*, int32> OrderedInputContexts = PlayerInput->AppliedInputContexts;
@@ -436,6 +437,29 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	InjectChordBlockers(ChordedMappings);
 
 	PlayerInput->ForceRebuildingKeyMaps(false);
+
+	// Remove action instance data for actions that are not referenced in the new action mappings
+	TSet<const UInputAction*> RemovedActions;
+	for (TPair<const UInputAction*, FInputActionInstance>& ActionInstance : PlayerInput->ActionInstanceData)
+	{
+		RemovedActions.Add(ActionInstance.Key);
+	}
+	for (FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
+	{
+		RemovedActions.Remove(Mapping.Action);
+
+		// Retain old mapping trigger/modifier state for identical key -> action mappings.
+		TArray<FEnhancedActionKeyMapping>::SizeType Idx = OldMappings.IndexOfByPredicate([&Mapping](const FEnhancedActionKeyMapping& Other) {return Mapping.Action == Other.Action && Mapping.Key == Other.Key; });
+		if (Idx != INDEX_NONE)
+		{
+			Mapping = MoveTemp(OldMappings[Idx]);
+			OldMappings.RemoveAtSwap(Idx);
+		}
+	}
+	for (const UInputAction* Action : RemovedActions)
+	{
+		PlayerInput->ActionInstanceData.Remove(Action);
+	}
 
 	bMappingRebuildPending = false;
 }
