@@ -83,7 +83,7 @@ namespace Gauntlet
 			return Platform == null;
 		}
 
-		public ITargetDevice CreateDevice(string InRef, string InParam)
+		public ITargetDevice CreateDevice(string InRef, string InCachePath, string InParam = null)
 		{
 			return new TargetDeviceNull(InRef);
 		}

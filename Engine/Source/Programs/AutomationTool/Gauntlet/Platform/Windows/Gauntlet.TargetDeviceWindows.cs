@@ -171,6 +171,22 @@ namespace Gauntlet
 		{
 			return Device.Run(this);
 		}
+
+		public virtual void CleanDeviceArtifacts()
+		{
+			if (!string.IsNullOrEmpty(ArtifactPath) && Directory.Exists(ArtifactPath))
+			{
+				try
+				{
+					Log.Info("Clearing actifact path {0} for {1}", ArtifactPath, Device.Name);
+					Directory.Delete(ArtifactPath, true);
+				}
+				catch (Exception Ex)
+				{
+					Log.Warning("Failed to delete {0}. {1}", ArtifactPath, Ex.Message);
+				}
+			}
+		}
 	}
 
 	public class Win64DeviceFactory : IDeviceFactory
@@ -180,9 +196,9 @@ namespace Gauntlet
 			return Platform == UnrealTargetPlatform.Win64;
 		}
 
-		public ITargetDevice CreateDevice(string InRef, string InParam)
+		public ITargetDevice CreateDevice(string InRef, string InCachePath, string InParam = null)
 		{
-			return new TargetDeviceWindows(InRef, InParam);
+			return new TargetDeviceWindows(InRef, InCachePath);
 		}
 	}
 
@@ -193,9 +209,9 @@ namespace Gauntlet
 			return Platform == UnrealTargetPlatform.Win32;
 		}
 
-		public ITargetDevice CreateDevice(string InRef, string InParam)
+		public ITargetDevice CreateDevice(string InRef, string InCachePath, string InParam = null)
 		{
-			return new TargetDeviceWindows(InRef, InParam, false);
+			return new TargetDeviceWindows(InRef, InCachePath, false);
 		}
 	}
 
@@ -215,13 +231,13 @@ namespace Gauntlet
 		/// </summary>
 		protected Dictionary<EIntendedBaseCopyDirectory, string> LocalDirectoryMappings { get; set; }
 
-		public TargetDeviceWindows(string InName, string InTempDir, bool InIsWin64=true)
+		public TargetDeviceWindows(string InName, string InCacheDir, bool InIsWin64=true)
 		{
 			Name = InName;
-			TempDir = InTempDir;
+			LocalCachePath = InCacheDir;
 			RunOptions = CommandUtils.ERunOptions.NoWaitForExit | CommandUtils.ERunOptions.NoLoggingOfRunCommand;
 
-			UserDir = Path.Combine(TempDir, string.Format("{0}_UserDir", Name));
+			UserDir = Path.Combine(LocalCachePath, string.Format("{0}_UserDir", Name));
             LocalDirectoryMappings = new Dictionary<EIntendedBaseCopyDirectory, string>();
 
 			IsWin64 = InIsWin64;
@@ -359,7 +375,7 @@ namespace Gauntlet
 			if (CanRunFromPath(BuildPath) == false)
 			{
 				string SubDir = string.IsNullOrEmpty(AppConfig.Sandbox) ? AppConfig.ProjectName : AppConfig.Sandbox;
-				string DestPath = Path.Combine(this.TempDir, SubDir, AppConfig.ProcessType.ToString());
+				string DestPath = Path.Combine(this.LocalCachePath, SubDir, AppConfig.ProcessType.ToString());
 
 				if (!SkipDeploy)
 				{
@@ -396,17 +412,7 @@ namespace Gauntlet
 			}
 
 			// clear artifact path
-			if (Directory.Exists(WinApp.ArtifactPath))
-			{
-				try
-				{
-					Directory.Delete(WinApp.ArtifactPath, true);
-				}
-				catch (Exception Ex)
-				{
-					Log.Warning("Failed to delete {0}. {1}", WinApp.ArtifactPath, Ex.Message);
-				}
-			}
+			WinApp.CleanDeviceArtifacts();
 
             if (LocalDirectoryMappings.Count == 0)
             {
@@ -507,13 +513,12 @@ namespace Gauntlet
 		
 		public bool CanRunFromPath(string InPath)
 		{
-			// path must be under our mapped drive (e.g. w:\KitName);
-			return string.Compare(Path.GetPathRoot(InPath), Path.GetPathRoot(this.TempDir), StringComparison.OrdinalIgnoreCase) == 0;
+			return !Utils.SystemHelpers.IsNetworkPath(InPath);
 		}
 
 		public UnrealTargetPlatform? Platform { get { return IsWin64 ? UnrealTargetPlatform.Win64 : UnrealTargetPlatform.Win32; } }
 
-		public string TempDir { get; private set; }
+		public string LocalCachePath { get; private set; }
 		public bool IsAvailable { get { return true; } }
 		public bool IsConnected { get { return true; } }
 		public bool IsOn { get { return true; } }

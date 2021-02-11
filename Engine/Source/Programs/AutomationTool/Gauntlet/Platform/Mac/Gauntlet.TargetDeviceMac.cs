@@ -17,9 +17,9 @@ namespace Gauntlet
 			return Platform == UnrealTargetPlatform.Mac;
 		}
 
-		public ITargetDevice CreateDevice(string InRef, string InParam)
+		public ITargetDevice CreateDevice(string InRef, string InCachePath, string InParam = null)
 		{
-			return new TargetDeviceMac(InRef, InParam);
+			return new TargetDeviceMac(InRef, InCachePath);
 		}
 	}
 
@@ -52,6 +52,22 @@ namespace Gauntlet
 		public IAppInstance Run()
 		{
 			return Device.Run(this);
+		}
+
+		public virtual void CleanDeviceArtifacts()
+		{
+			if (!string.IsNullOrEmpty(ArtifactPath) && Directory.Exists(ArtifactPath))
+			{
+				try
+				{
+					Log.Info("Clearing actifact path {0} for {1}", ArtifactPath, Device.Name);
+					Directory.Delete(ArtifactPath, true);
+				}
+				catch (Exception Ex)
+				{
+					Log.Warning("Failed to delete {0}. {1}", ArtifactPath, Ex.Message);
+				}
+			}
 		}
 	}
 
@@ -99,17 +115,17 @@ namespace Gauntlet
 
 		protected string UserDir { get; set; }
 
-		protected string TempDir { get; set; }
+		protected string LocalCachePath { get; set; }
 
 		public CommandUtils.ERunOptions RunOptions { get; set; }
 
 		protected Dictionary<EIntendedBaseCopyDirectory, string> LocalDirectoryMappings { get; set; }
 
-		public TargetDeviceMac(string InName, string InTempDir)
+		public TargetDeviceMac(string InName, string InCachePath)
 		{
 			Name = InName;
-			TempDir = InTempDir;
-			UserDir = Path.Combine(TempDir, string.Format("{0}_UserDir", Name));
+			LocalCachePath = InCachePath;
+			UserDir = Path.Combine(LocalCachePath, string.Format("{0}_UserDir", Name));
 			this.RunOptions = CommandUtils.ERunOptions.NoWaitForExit;
 			LocalDirectoryMappings = new Dictionary<EIntendedBaseCopyDirectory, string>();
 		}
@@ -184,7 +200,7 @@ namespace Gauntlet
 			if (BuildVolume.Equals(LocalRoot, StringComparison.OrdinalIgnoreCase) == false)
 			{
 				string SubDir = string.IsNullOrEmpty(AppConfig.Sandbox) ? AppConfig.ProjectName : AppConfig.Sandbox;
-				string DestPath = Path.Combine(this.TempDir, SubDir, AppConfig.ProcessType.ToString());
+				string DestPath = Path.Combine(this.LocalCachePath, SubDir, AppConfig.ProcessType.ToString());
 
 				if (!SkipDeploy)
 				{
@@ -221,17 +237,7 @@ namespace Gauntlet
 			//MacApp.ArtifactPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library/Logs", AppConfig.ProjectName);
 
 			// clear artifact path
-			if (Directory.Exists(MacApp.ArtifactPath))
-			{
-				try
-				{
-					Directory.Delete(MacApp.ArtifactPath, true);
-				}
-				catch (Exception Ex)
-				{
-					Log.Warning("Failed to delete {0}. {1}", MacApp.ArtifactPath, Ex.Message);
-				}
-			}
+			MacApp.CleanDeviceArtifacts();
 
 			// For Mac turn Foo.app into Foo/Content/MacOS/Foo
 			string AppPath = Path.GetDirectoryName(InBuild.ExecutablePath);
@@ -295,7 +301,6 @@ namespace Gauntlet
 			// Mac always forces this to stop logs and other artifacts going to different places
 			MacApp.CommandArguments += string.Format(" -userdir=\"{0}\"", UserDir);
 			MacApp.ArtifactPath = Path.Combine(UserDir, @"Saved");
-
 
 			// now turn the Foo.app into Foo/Content/MacOS/Foo
 			string AppPath = Path.GetDirectoryName(EditorBuild.ExecutablePath);

@@ -113,6 +113,6 @@ namespace Gauntlet
 	/// </summary>
 	public interface IDeviceFactory : IDeviceSource
 	{
-		ITargetDevice CreateDevice(string InRef, string InParam);
+		ITargetDevice CreateDevice(string InRef, string InLocalCache, string InParam=null);
 	}
 }
