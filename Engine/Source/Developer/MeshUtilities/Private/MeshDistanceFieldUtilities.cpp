@@ -297,7 +297,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 			ParallelForTemplate(AsyncTasks.Num(), [&AsyncTasks](int32 TaskIndex)
 			{
 				AsyncTasks[TaskIndex].DoWork();
-			}, EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced);
+			}, EParallelForFlags::Unbalanced);
 
 			for (int32 TaskIndex = 0; TaskIndex < AsyncTasks.Num(); TaskIndex++)
 			{

@@ -88,7 +88,6 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 
 	const bool bSingleThreaded = NumElements < 5000;
 	const EParallelForFlags ThreadingFlags = bSingleThreaded ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None;
-	const EParallelForFlags PriorityFlags = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
 	ParallelFor( NumElements,
 		[&]( uint32 Index )
 		{
@@ -100,7 +99,7 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 			Morton |= FMath::MortonCode3( CenterLocal.Y * 1023 ) << 1;
 			Morton |= FMath::MortonCode3( CenterLocal.Z * 1023 ) << 2;
 			SortKeys[ Index ] = Morton;
-		}, ThreadingFlags | PriorityFlags);
+		}, ThreadingFlags);
 
 	RadixSort32( SortedTo.GetData(), Indexes.GetData(), NumElements,
 		[&]( uint32 Index )

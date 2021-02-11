@@ -143,7 +143,7 @@ bool UAnimBoneCompressionSettings::Compress(const FCompressibleAnimData& AnimSeq
 	ParallelForTemplate(ContextList.Num(), [&ContextList](int32 TaskIndex)
 	{
 		CompressAnimSequenceImpl(*ContextList[TaskIndex]);
-	}, EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced);
+	}, EParallelForFlags::Unbalanced);
 
 	const int32 NumContextes = ContextList.Num();
 	if (NumContextes == 0)

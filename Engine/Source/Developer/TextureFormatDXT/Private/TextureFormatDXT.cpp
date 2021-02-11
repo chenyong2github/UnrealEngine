@@ -381,7 +381,7 @@ static bool CompressImageUsingNVTT(
 		ParallelForTemplate(AsyncTasks.Num(), [&AsyncTasks](int32 TaskIndex)
 		{
 			AsyncTasks[TaskIndex].DoWork();
-		}, EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced);
+		}, EParallelForFlags::Unbalanced);
 
 		for (int32 BatchIndex = 0; BatchIndex < NumBatches; ++BatchIndex)
 		{

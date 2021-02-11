@@ -289,7 +289,7 @@ struct FMultithreadedCompression
 			[&EncoderSettings, &Image, &OutCompressedImage, &MultithreadSettings, &FunctionCallback]()
 			{
 				FunctionCallback(&EncoderSettings, &Image, &OutCompressedImage, MultithreadSettings.iScansPerTask * MultithreadSettings.iNumTasks, Image.SizeY, Image.NumSlices - 1);
-			}, EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced);
+			}, EParallelForFlags::Unbalanced);
 		}
 		else
 		{
