@@ -269,8 +269,14 @@ public:
 	LANDSCAPE_API void SnapFoliageInstances();
 #endif
 
-	public:
+public:
 	TOptional<float> GetHeight(float X, float Y);
+
+	/**
+	 * Populates a supplied array with the heights from the heightfield.  Samples are placed
+	 * in a tile defined by the starting point (Offset) and the stride/row
+	 */
+	LANDSCAPE_API bool FillHeightTile(TArrayView<float> Heights, int32 Offset, int32 Stride) const;
 };
 
 

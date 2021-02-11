@@ -2973,6 +2973,47 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 	return Height;
 }
 
+bool ULandscapeHeightfieldCollisionComponent::FillHeightTile(TArrayView<float> Heights, int32 Offset, int32 Stride) const
+{
+#if WITH_CHAOS
+	TUniquePtr<Chaos::FHeightField>& HeightFieldData = HeightfieldRef->Heightfield;
+
+	// If we are expecting height data, but it isn't there, clear the return array, and exit
+	if (HeightFieldData.IsValid())
+	{
+		const int32 NumX = HeightFieldData->GetNumCols();
+		const int32 NumY = HeightFieldData->GetNumRows();
+
+		const int32 LastTiledIndex = Offset + FMath::Max(0, NumX - 1) + Stride * FMath::Max(0, NumY - 1);
+
+		if (!Heights.IsValidIndex(LastTiledIndex))
+		{
+			return false;
+		}
+
+		const FTransform& WorldTransform = GetComponentToWorld();
+		const float ZScale = WorldTransform.GetScale3D().Z * LANDSCAPE_ZSCALE;
+
+		// Write all values to output array
+		for (int32 y = 0; y < NumY; ++y)
+		{
+			for (int32 x = 0; x < NumX; ++x)
+			{
+				const float CurrHeight = HeightFieldData->GetHeight(x, y) * ZScale;
+				const float WorldHeight = WorldTransform.TransformPositionNoScale(FVector(0, 0, CurrHeight)).Z;
+
+				// write output
+				Heights[Offset + y * Stride + x] = WorldHeight;
+			}
+		}
+
+		return true;
+	}
+#endif
+
+	return false;
+}
+
 TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location) const
 {
 	TOptional<float> Height;
@@ -3059,8 +3100,8 @@ void ALandscapeProxy::GetHeightValues(int32& SizeX, int32& SizeY, TArray<float> 
 			return;
 		}
 
-		const int32 BaseX = CollisionComponent->SectionBaseX;
-		const int32 BaseY = CollisionComponent->SectionBaseY;
+		const int32 BaseX = CollisionComponent->SectionBaseX - MinX;
+		const int32 BaseY = CollisionComponent->SectionBaseY - MinY;
 
 		const int32 NumX = HeightFieldData->GetNumCols();
 		const int32 NumY = HeightFieldData->GetNumRows();
