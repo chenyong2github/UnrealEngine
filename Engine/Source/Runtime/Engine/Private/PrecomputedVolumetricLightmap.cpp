@@ -702,6 +702,7 @@ void FPrecomputedVolumetricLightmap::AddToScene(FSceneInterface* Scene, UMapBuil
 	if (NewData && Scene)
 	{
 		bAddedToScene = true;
+		SourceRegistry = Registry;
 
 		FPrecomputedVolumetricLightmap* Volume = this;
 
@@ -727,9 +728,18 @@ void FPrecomputedVolumetricLightmap::RemoveFromScene(FSceneInterface* Scene)
 	{
 		bAddedToScene = false;
 
-		if (Scene)
+		// Certain paths in the editor (namely, ReloadPackages and ForceDelete) will GC the registry before the UWorld destruction (which destructs FScene)
+		ensureMsgf(SourceRegistry.IsValid(), TEXT("UMapBuildDataRegistry is garbage collected before an FPrecomputedVolumetricLightmap is removed from the scene. Is there a missing ReleaseRenderingResources() call?"));
+
+		// While that can be explained as missing ReleaseRenderingResources() calls, this fail-safe guard is added here
+		if (SourceRegistry.IsValid())
 		{
-			Scene->RemovePrecomputedVolumetricLightmap(this);
+			SourceRegistry = nullptr;
+
+			if (Scene)
+			{
+				Scene->RemovePrecomputedVolumetricLightmap(this);
+			}
 		}
 	}
 
