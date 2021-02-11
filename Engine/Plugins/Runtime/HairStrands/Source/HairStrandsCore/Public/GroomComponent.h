@@ -187,6 +187,11 @@ public:
 	virtual int32 GetNumMaterials() const override;
 	//~ End UPrimitiveComponent Interface
 
+#if WITH_EDITORONLY_DATA
+	// Set the component in preview mode, forcing the loading of certain data
+	void SetPreviewMode(bool bValue) { bPreviewMode = bValue; };
+#endif
+
 private:
 	TArray<FHairGroupInstance*> HairGroupInstances;
 
@@ -211,7 +216,7 @@ private:
 	bool bIsGroomBindingAssetCallbackRegistered;
 	int32 PredictedLODIndex = -1;
 	bool bValidationEnable = true;
-	
+	bool bPreviewMode = false;
 
 	EWorldType::Type GetWorldType() const; 
 	void InitResources(bool bIsBindingReloading=false);

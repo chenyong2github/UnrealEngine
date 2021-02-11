@@ -1299,7 +1299,15 @@ void RegisterClusterData(FHairGroupInstance* Instance, FHairStrandClusterData* I
 
 EHairStrandsDebugMode GetHairStrandsGeometryDebugMode(FHairGroupInstance* Instance)
 {
-	return Instance->Debug.DebugMode != EHairStrandsDebugMode::NoneDebug ? Instance->Debug.DebugMode : GetHairStrandsDebugStrandsMode();
+	EHairStrandsDebugMode DebugMode = Instance->Debug.DebugMode != EHairStrandsDebugMode::NoneDebug ? Instance->Debug.DebugMode : GetHairStrandsDebugStrandsMode();
+	if ((DebugMode == EHairStrandsDebugMode::SimHairStrands ||
+		 DebugMode == EHairStrandsDebugMode::RenderHairStrands ||
+		 DebugMode == EHairStrandsDebugMode::RenderVisCluster)
+		&& Instance->Guides.Data == nullptr)
+	{
+		DebugMode = EHairStrandsDebugMode::NoneDebug;
+	}
+	return DebugMode;
 }
 
 FHairScaleAndClipDesc ComputeHairScaleAndClipDesc(FHairGroupInstance* Instance)
@@ -1492,7 +1500,8 @@ void ComputeHairStrandsInterpolation(
 		Instance->HairGroupPublicData->VFInput = ComputeHairStrandsVertexInputData(Instance);
 		{
 			{
-				const bool bValidGuide = Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation;
+				// "WITH_EDITOR && bDebugModePatchedAttributeBuffer" is a special path when visualizing groom within the groom editor, so that we can diplay guides even when there is no simulation or global interpolation enabled
+				const bool bValidGuide = Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation || (WITH_EDITOR && bDebugModePatchedAttributeBuffer);
 				const bool bHasSkinning = Instance->BindingType == EHairBindingType::Skinning;
 
 				AddHairStrandsInterpolationPass(

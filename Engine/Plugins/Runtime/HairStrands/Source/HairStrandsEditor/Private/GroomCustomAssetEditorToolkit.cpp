@@ -238,6 +238,7 @@ void FGroomCustomAssetEditorToolkit::InitPreviewComponents()
 	PreviewGroomComponent = NewObject<UGroomComponent>(GetTransientPackage(), NAME_None, RF_Transient);
 	PreviewGroomComponent->CastShadow = 1;
 	PreviewGroomComponent->bCastDynamicShadow = 1;
+	PreviewGroomComponent->SetPreviewMode(true);
 	PreviewGroomComponent->SetGroomAsset(GroomAsset.Get());
 	PreviewGroomComponent->Activate(true);
 	

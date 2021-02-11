@@ -38,6 +38,8 @@ bool IsHairAdaptiveSubstepsEnabled() { return (GHairEnableAdaptiveSubsteps == 1)
 
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
+EHairStrandsDebugMode GetHairStrandsGeometryDebugMode(FHairGroupInstance* Instance);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static EHairBindingType ToHairBindingType(EGroomBindingType In)
@@ -721,7 +723,7 @@ public:
 
 
 		FMaterialRenderProxy* Strands_MaterialProxy = nullptr;
-		const EHairStrandsDebugMode DebugMode = Instances[0]->Debug.DebugMode != EHairStrandsDebugMode::NoneDebug ? Instances[0]->Debug.DebugMode : GetHairStrandsDebugStrandsMode();
+		const EHairStrandsDebugMode DebugMode = GetHairStrandsGeometryDebugMode(Instances[0]);
 		if (DebugMode != EHairStrandsDebugMode::NoneDebug)
 		{
 			float DebugModeScalar = 0;
@@ -1950,7 +1952,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// * Physics simulation
 		// * RBF deformation.
 		// Therefore, even if simulation is disabled, we need to run partially the update if the binding system is enabled (skin deformation + RBF correction)
-		if (GroupData.Guides.IsValid() && (bDynamicResources || bIsStrandsEnabled) && (bHasNeedSimulation || bHasNeedGlobalDeformation))
+		if (GroupData.Guides.IsValid() && (bDynamicResources || bIsStrandsEnabled) && (bHasNeedSimulation || bHasNeedGlobalDeformation || bPreviewMode))
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.Data;
 
