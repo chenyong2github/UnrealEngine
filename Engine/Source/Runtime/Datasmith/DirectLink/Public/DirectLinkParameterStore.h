@@ -69,16 +69,14 @@ public:
 	}
 
 	template<typename T>
-	bool GetValueAs(FName Name, T& Out) const
+	bool GetValueAs(FName Name, T& Out) const { return GetValueAs(GetParameterIndex(Name), Out); }
+
+	int32 GetParameterIndex(FName ParameterName) const
 	{
-		int32 I = Parameters.IndexOfByPredicate([&](const FParameterDetails& Parameter) {
-			return Parameter.Name == Name;
+		return Parameters.IndexOfByPredicate([&](const FParameterDetails& Parameter) {
+			return Parameter.Name == ParameterName;
 		});
-
-		return GetValueAs(I, Out);
 	}
-
-	int32 GetParameterCount() const { return Parameters.Num(); }
 
 	void AddParam(FName Name, Reflect::ESerialMethod StorageMethod, void* StorageLocation);
 
@@ -106,7 +104,7 @@ class DIRECTLINK_API FParameterStore
 {
 public:
 	template<typename T, typename S>
-	TStoreKey<T, S>& RegisterParameter(TStoreKey<T, S>& Key, FName Name) //, IEditListener* Listener = nullptr)
+	TStoreKey<T, S>& RegisterParameter(TStoreKey<T, S>& Key, FName Name)
 	{
 		check(HasParameterNamed(Name) == false);
 
@@ -154,5 +152,34 @@ private:
 	TArray<FParameterDetails> Parameters;
 };
 
+
+class DIRECTLINK_API FSnapshotProxy
+{
+public:
+	FSnapshotProxy(FParameterStoreSnapshot& Storage, bool bIsSaving)
+		: Storage(Storage)
+		, bIsSaving(bIsSaving)
+	{}
+
+	bool IsSaving() const { return bIsSaving; }
+
+	template<typename T>
+	bool TagSerialize(FName SerialTag, T& Item)
+	{
+		if (bIsSaving)
+		{
+			Storage.AddParam(SerialTag, Reflect::TDefaultSerialMethod<T>::Value, &Item);
+			return true;
+		}
+		else
+		{
+			return Storage.GetValueAs(SerialTag, Item);
+		}
+	}
+
+private:
+	FParameterStoreSnapshot& Storage;
+	const bool bIsSaving;
+};
 
 } // namespace DirectLink

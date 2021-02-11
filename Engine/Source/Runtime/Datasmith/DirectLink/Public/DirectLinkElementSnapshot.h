@@ -40,7 +40,7 @@ class DIRECTLINK_API FElementSnapshot
 {
 public:
 	FElementSnapshot() = default;
-	FElementSnapshot(const class ISceneGraphNode& Node);
+	FElementSnapshot(const ISceneGraphNode& Node);
 
 	friend FArchive& operator<<(FArchive& Ar, FElementSnapshot& This);
 
@@ -50,7 +50,18 @@ public:
 	FElementHash GetDataHash() const; // #ue_directlink_sync: serialize hashs
 	FElementHash GetRefHash() const;
 
-public:
+	void UpdateNodeReferences(IReferenceResolutionProvider& Resolver, ISceneGraphNode& Node) const;
+	void UpdateNodeData(ISceneGraphNode& Node) const;
+
+	FSceneGraphId GetNodeId() const { return NodeId; }
+
+	template<typename T>
+	bool GetValueAs(FName Name, T& Out) const
+	{
+		return DataSnapshot.GetValueAs(Name, Out);
+	}
+
+private:
 	FSceneGraphId NodeId;
 	mutable FElementHash DataHash = InvalidHash;
 	mutable FElementHash RefHash = InvalidHash;
