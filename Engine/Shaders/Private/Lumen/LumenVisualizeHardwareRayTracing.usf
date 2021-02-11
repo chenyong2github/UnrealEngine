@@ -120,6 +120,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingDeferredMaterialRGS)
 	uint LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
 
 	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
+	DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
 	if (all(TraceCoord < View.BufferSizeAndInvSize.xy))
 	{
 		float2 ScreenUV = (TraceCoord + 0.5) * View.BufferSizeAndInvSize.zw;

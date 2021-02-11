@@ -150,16 +150,19 @@ uint TileSize;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS)
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy;
-	if (DispatchThreadId.x >= CompactedTraceTexelAllocator[0])
+	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
+	uint DeferredMaterialBufferIndex = DispatchRaysIndex().x;
+	if (DispatchRaysIndex().x >= CompactedTraceTexelAllocator[0])
 	{
+		DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
+		RWDeferredMaterialBuffer[DeferredMaterialBufferIndex] = DeferredMaterialPayload;
 		return;
 	}
 
 	uint ScreenProbeIndex;
 	uint2 TraceTexelCoord;
 	float TraceHitDistance;
-	DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+	DecodeTraceTexel(CompactedTraceTexelData[DeferredMaterialBufferIndex], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
 
 	uint2 ScreenProbeScreenCoord;
 	uint ScreenProbeSubsampleIndex;
@@ -204,7 +207,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	Context.TraceCoord = ScreenProbeScreenCoord;
 	Context.LinearCoord = ScreenProbeScreenCoord.y * ScreenProbeViewSize.x + ScreenProbeScreenCoord.x;
 
-	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 
 	// Encode max trace distance in the case of an invalid or miss condition
@@ -214,7 +216,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	}
 
 	// Remap the coordinate to that of the initial dispatch index
-	DeferredMaterialPayload.PixelCoordinates = DispatchThreadId.x;
+	DeferredMaterialPayload.PixelCoordinates = DeferredMaterialBufferIndex;
 
-	RWDeferredMaterialBuffer[DispatchThreadId.x] = DeferredMaterialPayload;
+	RWDeferredMaterialBuffer[DeferredMaterialBufferIndex] = DeferredMaterialPayload;
 }

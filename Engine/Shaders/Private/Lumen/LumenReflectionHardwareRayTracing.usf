@@ -43,8 +43,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 
 		if (DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID)
 		{
-			bool bHit = false;
-			RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(TraceHitDistance, bHit);
 			return;
 		}
 	}
@@ -131,14 +129,18 @@ uint TileSize;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingDeferredMaterialRGS)
 {
+	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
+	uint DeferredMaterialBufferIndex = DispatchRaysIndex().x;
 	if (DispatchRaysIndex().x >= CompactedTraceTexelAllocator[0])
 	{
+		DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
+		RWDeferredMaterialBuffer[DeferredMaterialBufferIndex] = DeferredMaterialPayload;
 		return;
 	}
 
 	uint2 ReflectionTracingCoord;
 	float TraceHitDistance = 0;
-	DecodeTraceTexel(CompactedTraceTexelData[DispatchRaysIndex().x], ReflectionTracingCoord, TraceHitDistance);
+	DecodeTraceTexel(CompactedTraceTexelData[DeferredMaterialBufferIndex], ReflectionTracingCoord, TraceHitDistance);
 
 	float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
 	float2 ScreenCoord = ScreenUV * View.BufferSizeAndInvSize.xy;
@@ -170,7 +172,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingDeferredMaterialRGS)
 	Context.TraceCoord = ReflectionTracingCoord;
 	Context.LinearCoord = LinearCoord;
 
-	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 
 	// Encode max trace distance in the case of an invalid or miss condition
@@ -178,19 +179,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingDeferredMaterialRGS)
 	{
 		DeferredMaterialPayload.HitT = MaxTraceDistance;
 	}
-
-#if 0
-	// Rearrange in tiled blocks to extract spatial coherence
-	uint2 BlockCoord = ReflectionTracingCoord / TileSize;
-	uint BlocksPerRow = DeferredMaterialBufferResolution.x / TileSize;
-	uint BlockIndex = BlockCoord.y * BlocksPerRow + BlockCoord.x;
-	uint2 TileCoord = ReflectionTracingCoord % TileSize;
-	uint TileIndex = TileCoord.y * TileSize + TileCoord.x;
-	uint BlockSize = TileSize * TileSize;
-	uint DeferredMaterialBufferIndex = BlockIndex * BlockSize + TileIndex;
-#else
-	uint DeferredMaterialBufferIndex = DispatchRaysIndex().x;
-#endif
 
 	RWDeferredMaterialBuffer[DeferredMaterialBufferIndex] = DeferredMaterialPayload;
 }
