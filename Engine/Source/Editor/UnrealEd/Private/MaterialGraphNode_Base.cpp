@@ -165,6 +165,14 @@ void UMaterialGraphNode_Base::RegisterPin(UEdGraphPin* Pin, int32 Index, uint32 
 	}
 }
 
+void UMaterialGraphNode_Base::EmptyPins()
+{
+	Pins.Reset();
+	PinInfoMap.Reset();
+	InputPins.Reset();
+	OutputPins.Reset();
+}
+
 void UMaterialGraphNode_Base::ReconstructNode()
 {
 	Modify();
@@ -188,10 +196,7 @@ void UMaterialGraphNode_Base::ReconstructNode()
 	// Move the existing pins to a saved array
 	TArray<UEdGraphPin*> OldPins = MoveTemp(Pins);
 
-	Pins.Reset();
-	PinInfoMap.Reset();
-	InputPins.Reset();
-	OutputPins.Reset();
+	EmptyPins();
 
 	// Recreate the new pins
 	AllocateDefaultPins();

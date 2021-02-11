@@ -87,7 +87,7 @@ void UMaterialGraphNode::RecreateAndLinkNode()
 
 		UEdGraphNode::DestroyPin(Pin);
 	}
-	Pins.Empty();
+	EmptyPins();
 
 	AllocateDefaultPins();
 

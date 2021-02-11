@@ -76,4 +76,6 @@ protected:
 	void ModifyAndCopyPersistentPinData(UEdGraphPin& TargetPin, const UEdGraphPin& SourcePin) const;
 
 	void RegisterPin(UEdGraphPin* Pin, int32 Index, uint32 Type);
+
+	void EmptyPins();
 };
