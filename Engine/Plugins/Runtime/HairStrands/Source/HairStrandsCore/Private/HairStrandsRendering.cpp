@@ -344,7 +344,7 @@ static void AddCopyBufferPass(
 	const uint32 TotalByteCount = DstBuffer->Desc.BytesPerElement * DstBuffer->Desc.NumElements;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairCardsUpdateBLAS"),
+		RDG_EVENT_NAME("HairCopyPosition"),
 		Parameters,
 		ERDGPassFlags::Copy,
 		[Parameters, SrcBuffer, TotalByteCount](FRHICommandList& RHICmdList)
@@ -1567,35 +1567,38 @@ void ComputeHairStrandsInterpolation(
 		if (Instance->Strands.RenRaytracingResource)
 		{
 			const float HairRadiusScaleRT = (GHairRaytracingRadiusScale > 0 ? GHairRaytracingRadiusScale : Instance->Strands.Modifier.HairRaytracingRadiusScale);
-
-			FRDGImportedBuffer Raytracing_PositionBuffer = Register(GraphBuilder, Instance->Strands.RenRaytracingResource->PositionBuffer, ERDGImportedBufferFlags::CreateViews);
-			AddGenerateRaytracingGeometryPass(
-				GraphBuilder,
-				ShaderMap,
-				Instance->Strands.RestResource->GetVertexCount(),
-				ScaleAndClipDesc.MaxOutHairRadius * HairRadiusScaleRT,
-				RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current)),
-				CullingData,
-				Strands_DeformedPosition.SRV,
-				Raytracing_PositionBuffer.UAV);
-
-			GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairStrandsUpdateBLAS"),
-			ERDGPassFlags::NeverCull,
-			[Instance](FRHICommandList& RHICmdList)
+			const bool bNeedUpdate = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized || Instance->BindingType == EHairBindingType::Skinning;
+			if (bNeedUpdate)
 			{
-				const bool bNeedFullBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized;
-				if (bNeedFullBuild)
+				FRDGImportedBuffer Raytracing_PositionBuffer = Register(GraphBuilder, Instance->Strands.RenRaytracingResource->PositionBuffer, ERDGImportedBufferFlags::CreateViews);
+				AddGenerateRaytracingGeometryPass(
+					GraphBuilder,
+					ShaderMap,
+					Instance->Strands.RestResource->GetVertexCount(),
+					ScaleAndClipDesc.MaxOutHairRadius * HairRadiusScaleRT,
+					RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current)),
+					CullingData,
+					Strands_DeformedPosition.SRV,
+					Raytracing_PositionBuffer.UAV);
+
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("HairStrandsUpdateBLAS"),
+					ERDGPassFlags::NeverCull,
+				[Instance](FRHICommandList& RHICmdList)
 				{
-					FBufferRHIRef PositionBuffer(Instance->Strands.RenRaytracingResource->PositionBuffer.Buffer->GetRHI());
-					BuildHairAccelerationStructure_Strands(RHICmdList, Instance->Strands.RenRaytracingResource->VertexCount, PositionBuffer, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
-				}
-				else
-				{
-					UpdateHairAccelerationStructure(RHICmdList, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
-				}
-				Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized = true;
-			});
+					const bool bNeedFullBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized;
+					if (bNeedFullBuild)
+					{
+						FBufferRHIRef PositionBuffer(Instance->Strands.RenRaytracingResource->PositionBuffer.Buffer->GetRHI());
+						BuildHairAccelerationStructure_Strands(RHICmdList, Instance->Strands.RenRaytracingResource->VertexCount, PositionBuffer, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
+					}
+					else
+					{
+						UpdateHairAccelerationStructure(RHICmdList, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
+					}
+					Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized = true;
+				});
+			}
 		}
 		#endif
 	}
@@ -1690,17 +1693,20 @@ void ComputeHairStrandsInterpolation(
 			#if RHI_RAYTRACING
 			if (LOD.RaytracingResource)
 			{
-				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("HairCardsUpdateBLAS"),
-					ERDGPassFlags::NeverCull,
-					[Instance, HairLODIndex](FRHICommandList& RHICmdList)
+				const bool bNeedUpdate = !LOD.RaytracingResource->bIsRTGeometryInitialized || Instance->BindingType == EHairBindingType::Skinning;
+				if (bNeedUpdate)
+				{
+					GraphBuilder.AddPass(
+						RDG_EVENT_NAME("HairCardsUpdateBLAS"),
+						ERDGPassFlags::NeverCull,
+						[Instance, HairLODIndex](FRHICommandList& RHICmdList)
 					{
 						FHairGroupInstance::FCards::FLOD& LocalLOD = Instance->Cards.LODs[HairLODIndex];
 
 						const bool bNeedFullBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;
 						if (bNeedFullBuild)
 						{
-							BuildHairAccelerationStructure_Cards(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource,  &LocalLOD.RaytracingResource->RayTracingGeometry);
+							BuildHairAccelerationStructure_Cards(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource, &LocalLOD.RaytracingResource->RayTracingGeometry);
 						}
 						else
 						{
@@ -1708,6 +1714,7 @@ void ComputeHairStrandsInterpolation(
 						}
 						LocalLOD.RaytracingResource->bIsRTGeometryInitialized = true;
 					});
+				}
 			}
 			#endif
 		}
@@ -1735,25 +1742,27 @@ void ComputeHairStrandsInterpolation(
 		FHairGroupInstance::FMeshes::FLOD& LOD = Instance->Meshes.LODs[HairLODIndex];
 		if (LOD.RaytracingResource)
 		{
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("HairMeshesUpdateBLAS"),
-				ERDGPassFlags::NeverCull,
-				[Instance, HairLODIndex](FRHICommandList& RHICmdList)
+			const bool bNeedUpdate = !LOD.RaytracingResource->bIsRTGeometryInitialized || Instance->BindingType == EHairBindingType::Skinning;
+			if (bNeedUpdate)
 			{
-
-				FHairGroupInstance::FMeshes::FLOD& LocalLOD = Instance->Meshes.LODs[HairLODIndex];
-				
-				const bool bNeedFullBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;
-				if (bNeedFullBuild)
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("HairMeshesUpdateBLAS"),
+					ERDGPassFlags::NeverCull,
+					[Instance, HairLODIndex](FRHICommandList& RHICmdList)
 				{
-					BuildHairAccelerationStructure_Meshes(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource,  &LocalLOD.RaytracingResource->RayTracingGeometry);
-				}
-				else
-				{
-					UpdateHairAccelerationStructure(RHICmdList, &LocalLOD.RaytracingResource->RayTracingGeometry);
-				}
-				LocalLOD.RaytracingResource->bIsRTGeometryInitialized = true;
-			});
+					FHairGroupInstance::FMeshes::FLOD& LocalLOD = Instance->Meshes.LODs[HairLODIndex];				
+					const bool bNeedFullBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;
+					if (bNeedFullBuild)
+					{
+						BuildHairAccelerationStructure_Meshes(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource,  &LocalLOD.RaytracingResource->RayTracingGeometry);
+					}
+					else
+					{
+						UpdateHairAccelerationStructure(RHICmdList, &LocalLOD.RaytracingResource->RayTracingGeometry);
+					}
+					LocalLOD.RaytracingResource->bIsRTGeometryInitialized = true;
+				});
+			}
 		}
 		#endif
 	}

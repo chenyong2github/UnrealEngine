@@ -605,6 +605,22 @@ public:
 		}
 	}
 
+	void GetOverrideLocalToTransform(const FHairGroupInstance* Instance, FMatrix& OutLocalToWorld) const
+	{
+		if (Instance->BindingType == EHairBindingType::Skinning)
+		{
+			OutLocalToWorld = Instance->Debug.SkeletalLocalToWorld.ToMatrixWithScale();
+		}
+	}
+
+	void GetOverridePreviousLocalToTransform(const FHairGroupInstance* Instance, FMatrix& OutPreviousLocalToWorld) const
+	{
+		if (Instance->BindingType == EHairBindingType::Skinning)
+		{
+			OutPreviousLocalToWorld = Instance->Debug.SkeletalPreviousLocalToWorld.ToMatrixWithScale();
+		}
+	}
+
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const { return true; }
 	virtual bool IsRayTracingStaticRelevant() const { return false; }
@@ -622,6 +638,10 @@ public:
 		{
 			const FHairGroup& GroupData = HairGroups[GroupIt];
 
+			FHairGroupInstance* Instance = HairGroupInstances[GroupIt];
+			FMatrix OverrideLocalToWorld = GetLocalToWorld();
+			GetOverrideLocalToTransform(Instance, OverrideLocalToWorld);
+
 			if (GroupData.PublicData->VFInput.GeometryType == EHairGeometryType::Strands)
 			{
 				if (GroupData.RayTracingGeometry_Strands && GroupData.RayTracingGeometry_Strands->RayTracingGeometryRHI.IsValid())
@@ -630,7 +650,7 @@ public:
 					{
 						check(Segment.VertexBuffer.IsValid());
 					}
-					AddOpaqueRaytracingInstance(GetLocalToWorld(), GroupData.RayTracingGeometry_Strands, RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
+					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometry_Strands, RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
 				}
 			}
 			else if (GroupData.PublicData->VFInput.GeometryType == EHairGeometryType::Cards)
@@ -644,14 +664,13 @@ public:
 					}
 				// Either use shadow only (no material evaluation) or full material evaluation during tracing
 				#if 0
-					AddOpaqueRaytracingInstance(GetLocalToWorld(), GroupData.RayTracingGeometries_Cards[LODIndex], RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
+					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometries_Cards[LODIndex], RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
 				#else
-					FHairGroupInstance* Instance = HairGroupInstances[GroupIt];
 
 					FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, GroupData, Instance, GroupIt, /*LODIndex,*/ nullptr);
 					TArray<FMeshBatch> MeshBatches;
 					MeshBatches.Add(*MeshBatch);
-					AddOpaqueRaytracingInstance(GetLocalToWorld(), GroupData.RayTracingGeometries_Cards[LODIndex], RaytracingInstanceMask_Opaque, MeshBatches, OutRayTracingInstances);
+					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometries_Cards[LODIndex], RaytracingInstanceMask_Opaque, MeshBatches, OutRayTracingInstances);
 				#endif
 				}
 			}
@@ -666,14 +685,13 @@ public:
 					}
 				// Either use shadow only (no material evaluation) or full material evaluation during tracing
 				#if 0
-					AddOpaqueRaytracingInstance(GetLocalToWorld(), GroupData.RayTracingGeometries_Meshes[LODIndex], RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
+					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometries_Meshes[LODIndex], RaytracingInstanceMask_ThinShadow, OutRayTracingInstances);
 				#else
-					FHairGroupInstance* Instance = HairGroupInstances[GroupIt];
 
 					FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, GroupData, Instance, GroupIt, /*LODIndex,*/ nullptr);
 					TArray<FMeshBatch> MeshBatches;
 					MeshBatches.Add(*MeshBatch);
-					AddOpaqueRaytracingInstance(GetLocalToWorld(), GroupData.RayTracingGeometries_Meshes[LODIndex], RaytracingInstanceMask_Opaque, MeshBatches, OutRayTracingInstances);
+					AddOpaqueRaytracingInstance(OverrideLocalToWorld, GroupData.RayTracingGeometries_Meshes[LODIndex], RaytracingInstanceMask_Opaque, MeshBatches, OutRayTracingInstances);
 				#endif
 				}
 			}
@@ -867,11 +885,8 @@ public:
 		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
 		FMatrix OverrideLocalToWorld = GetLocalToWorld();
-		if (Instance->BindingType == EHairBindingType::Skinning)
-		{
-			OverrideLocalToWorld = Instance->Debug.SkeletalLocalToWorld.ToMatrixWithScale();
-			PreviousLocalToWorld = Instance->Debug.SkeletalPreviousLocalToWorld.ToMatrixWithScale();
-		}
+		GetOverrideLocalToTransform(Instance, OverrideLocalToWorld);
+		GetOverridePreviousLocalToTransform(Instance, PreviousLocalToWorld);
 
 		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
 		DynamicPrimitiveUniformBuffer.Set(OverrideLocalToWorld, PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, false, bDrawVelocity, bOutputVelocity);
