@@ -84,7 +84,7 @@ namespace Lumen
 	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode(const FViewInfo& View)
 	{
 #if RHI_RAYTRACING
-		// Piecewise mapping for relative bias (LumenReflectionQuality, BiasValue):
+		// Piecewise mapping for relative bias, interpolates through the following (LumenReflectionQuality, BiasValue):
 		// (0.25, -2)
 		// (0.5 , -1)
 		// (1.0 ,  0)
@@ -100,8 +100,8 @@ namespace Lumen
 		// LumenReflectionQuality acts as a biasing value to the LightingMode
 		const float LumenReflectionQuality = View.FinalPostProcessSettings.LumenReflectionQuality;
 		const int32 ReflectionQualityLightingModeBias = (LumenReflectionQuality > 1.0f) ?
-			FMath::Clamp<int32>(FMath::TruncToInt(LinearMapping(LumenReflectionQuality)), 0, 2) :
-			FMath::Clamp<int32>(FMath::TruncToInt(SublinearMapping(LumenReflectionQuality)), -2, 0);
+			FMath::Clamp<int32>(FMath::FloorToInt(LinearMapping(LumenReflectionQuality)), 0, 2) :
+			FMath::Clamp<int32>(FMath::FloorToInt(SublinearMapping(LumenReflectionQuality)), -2, 0);
 
 		const int32 LightingModeCVar = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
 		Lumen::EHardwareRayTracingLightingMode LightingMode = static_cast<Lumen::EHardwareRayTracingLightingMode>(FMath::Clamp<int32>(LightingModeCVar + ReflectionQualityLightingModeBias, 0, 2));
@@ -126,6 +126,18 @@ namespace Lumen
 		}
 		return nullptr;
 	}
+
+#if RHI_RAYTRACING
+	FHardwareRayTracingPermutationSettings GetReflectionsHardwareRayTracingPermutationSettings(const FViewInfo& View)
+	{
+		FHardwareRayTracingPermutationSettings ModesAndPermutationSettings;
+		ModesAndPermutationSettings.LightingMode = GetReflectionsHardwareRayTracingLightingMode(View);
+		ModesAndPermutationSettings.NormalMode = CVarLumenReflectionsHardwareRayTracingNormalMode.GetValueOnRenderThread();
+		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache) && (ModesAndPermutationSettings.NormalMode == 0);
+		ModesAndPermutationSettings.bUseDeferredMaterial = (CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread()) != 0 && !ModesAndPermutationSettings.bUseMinimalPayload;
+		return ModesAndPermutationSettings;
+	}
+#endif
 }
 
 #if RHI_RAYTRACING
@@ -195,37 +207,42 @@ IMPLEMENT_GLOBAL_SHADER(FLumenReflectionHardwareRayTracingDeferredMaterialRGS, "
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	bool bUseDeferredMaterial = CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread() != 0;
-	int NormalMode = CVarLumenReflectionsHardwareRayTracingNormalMode.GetValueOnRenderThread();
-	int LightingMode = static_cast<int>(Lumen::GetReflectionsHardwareRayTracingLightingMode(View));
+	if (Lumen::UseHardwareRayTracedReflections())
+	{
+		Lumen::FHardwareRayTracingPermutationSettings PermutationSettings = Lumen::GetReflectionsHardwareRayTracingPermutationSettings(View);
 
-	FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(bUseDeferredMaterial);
-	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
-	PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(LightingMode));
-	TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
+		FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
+		TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 
-	OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+	}
 }
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsDeferredMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	FLumenReflectionHardwareRayTracingDeferredMaterialRGS::FPermutationDomain PermutationVector;
-	TShaderRef<FLumenReflectionHardwareRayTracingDeferredMaterialRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingDeferredMaterialRGS>(PermutationVector);
-	OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+	Lumen::FHardwareRayTracingPermutationSettings PermutationSettings = Lumen::GetReflectionsHardwareRayTracingPermutationSettings(View);
+
+	if (Lumen::UseHardwareRayTracedReflections() && PermutationSettings.bUseDeferredMaterial)
+	{
+		FLumenReflectionHardwareRayTracingDeferredMaterialRGS::FPermutationDomain PermutationVector;
+		TShaderRef<FLumenReflectionHardwareRayTracingDeferredMaterialRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingDeferredMaterialRGS>(PermutationVector);
+		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+	}
 }
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	Lumen::EHardwareRayTracingLightingMode LightingMode = Lumen::GetReflectionsHardwareRayTracingLightingMode(View);
-	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
+	Lumen::FHardwareRayTracingPermutationSettings PermutationSettings = Lumen::GetReflectionsHardwareRayTracingPermutationSettings(View);
 
-	if (Lumen::UseHardwareRayTracedReflections() && bUseMinimalPayload)
+	if (Lumen::UseHardwareRayTracedReflections() && PermutationSettings.bUseMinimalPayload)
 	{
 		FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(0);
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(0);
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(0);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
 		TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 	}
@@ -256,10 +273,8 @@ void RenderLumenHardwareRayTracingReflections(
 	FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FDeferredMaterialPayload), DeferredMaterialBufferNumElements);
 	FRDGBufferRef DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("LumenVisualizeHardwareRayTracingDeferredMaterialBuffer"));
 
-	Lumen::EHardwareRayTracingLightingMode LightingMode = Lumen::GetReflectionsHardwareRayTracingLightingMode(View);
-	bool bUseMinimalPayload = LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
-	bool bUseDeferredMaterial = (CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread() != 0) && !bUseMinimalPayload;
-	if (bUseDeferredMaterial)
+	Lumen::FHardwareRayTracingPermutationSettings PermutationSettings = Lumen::GetReflectionsHardwareRayTracingPermutationSettings(View);
+	if (PermutationSettings.bUseDeferredMaterial)
 	{
 		FLumenReflectionHardwareRayTracingDeferredMaterialRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenReflectionHardwareRayTracingDeferredMaterialRGS::FParameters>();
 		SetLumenHardwareRayTracingSharedParameters(
@@ -334,39 +349,36 @@ void RenderLumenHardwareRayTracingReflections(
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);
 		PassParameters->RayTraceDispatchIndirectArgs = CompactedTraceParameters.RayTraceDispatchIndirectArgs;
-
 		PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
-		//int LightingMode = CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread();
-		int NormalMode = CVarLumenReflectionsHardwareRayTracingNormalMode.GetValueOnRenderThread();
 
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 
 		FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(bUseDeferredMaterial);
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(NormalMode != 0);
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(LightingMode));
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
 
 		TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader =
 			View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 		FIntPoint DispatchResolution = FIntPoint(ReflectionTracingParameters.ReflectionTracingViewSize.X * ReflectionTracingParameters.ReflectionTracingViewSize.Y, 1);
-		if (bUseDeferredMaterial)
+		if (PermutationSettings.bUseDeferredMaterial)
 		{
 			DispatchResolution = FIntPoint(DeferredMaterialBufferNumElements, 1);
 		}
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("LumenReflectionHardwareRayTracingRGS %ux%u LightingMode=%s, DeferredMaterial=%u", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(LightingMode), bUseDeferredMaterial),
+			RDG_EVENT_NAME("LumenReflectionHardwareRayTracingRGS %ux%u LightingMode=%s, DeferredMaterial=%u", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(PermutationSettings.LightingMode), PermutationSettings.bUseDeferredMaterial),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, DispatchResolution, bUseMinimalPayload](FRHICommandList& RHICmdList)
+			[PassParameters, &View, RayGenerationShader, DispatchResolution, PermutationSettings](FRHICommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
 				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-				FRayTracingPipelineState* RayTracingPipeline = bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
+				FRayTracingPipelineState* RayTracingPipeline = PermutationSettings.bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
 
 				if (GRHISupportsRayTracingDispatchIndirect && CVarLumenReflectionsHardwareRayTracingIndirect.GetValueOnRenderThread() == 1)
 				{

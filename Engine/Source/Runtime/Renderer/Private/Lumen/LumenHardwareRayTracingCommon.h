@@ -22,6 +22,17 @@
 #include "LumenRadianceCache.h"
 #include "LumenScreenProbeGather.h"
 
+namespace Lumen
+{
+	struct FHardwareRayTracingPermutationSettings
+	{
+		EHardwareRayTracingLightingMode LightingMode;
+		int NormalMode;
+		bool bUseMinimalPayload;
+		bool bUseDeferredMaterial;
+	};
+}
+
 class FLumenHardwareRayTracingRGS : public FGlobalShader
 {
 public:
