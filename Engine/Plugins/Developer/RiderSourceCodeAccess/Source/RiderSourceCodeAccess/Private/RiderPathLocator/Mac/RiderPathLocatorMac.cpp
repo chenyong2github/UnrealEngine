@@ -36,7 +36,8 @@ static TArray<FInstallInfo> GetManuallyInstalledRiders()
 	IFileManager::Get().FindFiles(RiderPaths, TEXT("/Applications/Rider*.app"), false, true);
 	for(const FString& RiderPath: RiderPaths)
 	{
-		TOptional<FInstallInfo> InstallInfo = FRiderPathLocator::GetInstallInfoFromRiderPath(RiderPath, false);
+		FString FullPath = TEXT("/Applications/") + RiderPath;
+		TOptional<FInstallInfo> InstallInfo = FRiderPathLocator::GetInstallInfoFromRiderPath(FullPath, false);
 		if(InstallInfo.IsSet())
 			Result.Add(InstallInfo.GetValue());
 	}
@@ -57,10 +58,37 @@ static FString GetToolboxPath()
 
 	return FPaths::Combine(LocalAppData, TEXT("JetBrains"), TEXT("Toolbox"));
 }
-	
+
+static TArray<FInstallInfo> GetInstalledRidersWithMdfind()
+{
+    int32 ReturnCode;
+    FString OutResults;
+    FString OutErrors;
+    FPlatformProcess::ExecProcess(TEXT("/usr/bin/mdfind"), TEXT("\"kMDItemKind == Application\""), &ReturnCode, &OutResults, &OutErrors);
+    if (ReturnCode != 0)
+		return {};
+
+    TArray<FString> RiderPaths;
+	FString TmpString;
+	while(OutResults.Split(TEXT("\n"), &TmpString, &OutResults))
+	{
+		if(TmpString.Contains(TEXT("Rider")))
+			RiderPaths.Add(TmpString);
+	}
+    TArray<FInstallInfo> Result;
+    for(const FString& RiderPath: RiderPaths)
+    {
+        TOptional<FInstallInfo> InstallInfo = FRiderPathLocator::GetInstallInfoFromRiderPath(RiderPath, false);
+        if(InstallInfo.IsSet())
+            Result.Add(InstallInfo.GetValue());
+    }
+    return Result;
+}
+
 TSet<FInstallInfo> FRiderPathLocator::CollectAllPaths()
 {
 	TSet<FInstallInfo> InstallInfos;
+	InstallInfos.Append(GetInstalledRidersWithMdfind());
 	InstallInfos.Append(GetManuallyInstalledRiders());
 	InstallInfos.Append(GetInstallInfosFromToolbox(GetToolboxPath(), "Rider*.app"));
 	return InstallInfos;

@@ -73,7 +73,7 @@ void FRiderPathLocator::ParseProductInfoJson(FInstallInfo& Info, const FString& 
 			FString SupportUprojectStateKey;
 			const bool bIsValidKey = Item->TryGetStringField(TEXT("key"), SupportUprojectStateKey);
 			if(!bIsValidKey) continue;
-			if(!SupportUprojectStateKey.Equals(TEXT("SupportUprojectState"))) continue;
+			if(!SupportUprojectStateKey.Equals(TEXT("SupportUproject"))) continue;
 
 			FString SupportUprojectStateValue;
 			const bool bIsValidValue  = Item->TryGetStringField(TEXT("value"), SupportUprojectStateValue);
