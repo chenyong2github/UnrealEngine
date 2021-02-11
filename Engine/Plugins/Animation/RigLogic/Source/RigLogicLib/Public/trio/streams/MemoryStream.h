@@ -4,7 +4,8 @@
 
 #include "trio/Defs.h"
 #include "trio/Stream.h"
-#include "trio/types/Aliases.h"
+
+#include <cstdint>
 
 namespace trio {
 
@@ -12,10 +13,6 @@ namespace trio {
     @brief In-memory stream.
 */
 class TRIOAPI MemoryStream : public BoundedIOStream {
-    public:
-        static const sc::StatusCode ReadError;
-        static const sc::StatusCode WriteError;
-
     public:
         /**
             @brief Factory method for creation of a MemoryStream instance.

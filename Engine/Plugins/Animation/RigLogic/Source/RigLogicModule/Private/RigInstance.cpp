@@ -13,7 +13,8 @@ void FRigInstance::FRigInstanceDeleter::operator()(rl4::RigInstance* Pointer)
 }
 
 FRigInstance::FRigInstance(FRigLogic* RigLogic) :
-	RigInstance{rl4::RigInstance::create(RigLogic->Unwrap(), FMemoryResource::Instance())}
+	MemoryResource{FMemoryResource::SharedInstance()},
+	RigInstance{rl4::RigInstance::create(RigLogic->Unwrap(), MemoryResource.Get())}
 {
 }
 
