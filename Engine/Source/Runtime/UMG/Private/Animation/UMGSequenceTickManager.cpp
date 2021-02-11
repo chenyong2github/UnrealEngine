@@ -7,6 +7,7 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Engine/Engine.h"
 
 DECLARE_CYCLE_STAT(TEXT("Flush End of Frame Animations"), MovieSceneEval_FlushEndOfFrameAnimations, STATGROUP_MovieSceneEval);
 
@@ -175,15 +176,25 @@ UUMGSequenceTickManager* UUMGSequenceTickManager::Get(UObject* PlaybackContext)
 {
 	const TCHAR* TickManagerName = TEXT("GlobalUMGSequenceTickManager");
 
-	check(PlaybackContext != nullptr && PlaybackContext->GetWorld() != nullptr);
-	UWorld* World = PlaybackContext->GetWorld();
+	// The tick manager is owned by GEngine to ensure that it is kept alive for widgets that do not belong to
+	// a world, but still require animations to be ticked. Ultimately this class could become an engine subsystem
+	// but that would mean it is still around and active even if there are no animations playing, which is less
+	// than ideal
+	UObject* Owner = GEngine;
+	if (!ensure(Owner))
+	{
+		// If (in the hopefully impossible event) there is no engine, use the previous method of a World as a fallback.
+		// This will at least ensure we do not crash at the callsite due to a null tick manager
+		check(PlaybackContext != nullptr && PlaybackContext->GetWorld() != nullptr);
+		Owner = PlaybackContext->GetWorld();
+	}
 
-	UUMGSequenceTickManager* TickManager = FindObject<UUMGSequenceTickManager>(World, TickManagerName);
+	UUMGSequenceTickManager* TickManager = FindObject<UUMGSequenceTickManager>(Owner, TickManagerName);
 	if (!TickManager)
 	{
-		TickManager = NewObject<UUMGSequenceTickManager>(World, TickManagerName);
+		TickManager = NewObject<UUMGSequenceTickManager>(Owner, TickManagerName);
 
-		TickManager->Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(World, TEXT("UMGAnimationEntitySystemLinker"));
+		TickManager->Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(Owner, TEXT("UMGAnimationEntitySystemLinker"));
 		check(TickManager->Linker);
 		TickManager->Runner.AttachToLinker(TickManager->Linker);
 
