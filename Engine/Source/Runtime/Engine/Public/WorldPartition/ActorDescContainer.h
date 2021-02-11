@@ -68,9 +68,12 @@ public:
 		typedef typename TChooseClass<bConst, const ValueType*, ValueType*>::Result ReturnType;
 
 	public:
-		TBaseIterator(ContainerType InActorDescContainer)
+		TBaseIterator(ContainerType InActorDescContainer, UClass* InActorClass)
 			: ActorsIterator(InActorDescContainer->Actors)
+			, ActorClass(InActorClass)
 		{
+			check(ActorClass->IsChildOf(ActorType::StaticClass()));
+
 			if (ShouldSkip())
 			{
 				operator++();
@@ -130,10 +133,11 @@ public:
 				return false;
 			}
 
-			return !ActorsIterator->Value->Get()->GetActorClass()->IsChildOf(ActorType::StaticClass());
+			return !ActorsIterator->Value->Get()->GetActorClass()->IsChildOf(ActorClass);
 		}
 
 		IteratorType ActorsIterator;
+		UClass* ActorClass;
 	};
 
 	template <class ActorType = AActor>
@@ -142,8 +146,8 @@ public:
 		typedef TBaseIterator<false, ActorType> BaseType;
 
 	public:
-		TIterator(typename BaseType::ContainerType InActorDescContainer)
-			: BaseType(InActorDescContainer)
+		TIterator(typename BaseType::ContainerType InActorDescContainer, UClass* InActorClass = nullptr)
+			: BaseType(InActorDescContainer, InActorClass ? InActorClass : ActorType::StaticClass())
 		{}
 	};
 
@@ -153,8 +157,8 @@ public:
 		typedef TBaseIterator<true, ActorType> BaseType;
 
 	public:
-		TConstIterator(typename BaseType::ContainerType InActorDescContainer)
-			: BaseType(InActorDescContainer)
+		TConstIterator(typename BaseType::ContainerType InActorDescContainer, UClass* InActorClass = nullptr)
+			: BaseType(InActorDescContainer, InActorClass ? InActorClass : ActorType::StaticClass())
 		{}
 	};
 #endif
