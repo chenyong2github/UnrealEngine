@@ -198,6 +198,22 @@ void SPluginTile::RecreateWidgets()
 		}
 	}
 
+	TSharedRef<SWidget> RestrictedPluginWidget = SNullWidget::NullWidget;
+	if (FPaths::IsRestrictedPath(Plugin->GetDescriptorFileName()))
+	{
+		RestrictedPluginWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Bottom)
+				.Padding(2.0f, 0.0f, 8.0f, 1.0f)
+				[
+					SNew(STextBlock)
+						.TextStyle(FPluginStyle::Get(), "PluginTile.BetaText")
+						.Text(LOCTEXT("PluginRestrictedText", "[Restricted]"))
+						.ToolTipText(FText::AsCultureInvariant(Plugin->GetDescriptorFileName()))
+				];
+	}
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -278,6 +294,14 @@ void SPluginTile::RecreateWidgets()
 											.AutoWidth()
 											[
 												SNew(SHorizontalBox)
+
+												// noredist/restricted label
+												+ SHorizontalBox::Slot()
+													.AutoWidth()
+													.VAlign(VAlign_Bottom)
+													[
+														RestrictedPluginWidget
+													]
 
 												// beta version label
 												+ SHorizontalBox::Slot()
