@@ -171,6 +171,7 @@ UThumbnailInfo* FAssetTypeActions_MaterialFunction::GetThumbnailInfo(UObject* As
 
 UClass* FAssetTypeActions_MaterialFunctionLayer::GetSupportedClass() const
 {
+	IMaterialEditorModule::Get();	// force load Material Module here
 	UClass* SupportedClass = UMaterialFunctionMaterialLayer::StaticClass();
 	return SupportedClass;
 }
