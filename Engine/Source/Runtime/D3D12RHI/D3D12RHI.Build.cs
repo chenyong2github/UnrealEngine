@@ -43,10 +43,10 @@ public class D3D12RHI : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
             if (Target.Platform != UnrealTargetPlatform.HoloLens)
             {
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
+				PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "GeForceNOW");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
             }
         }

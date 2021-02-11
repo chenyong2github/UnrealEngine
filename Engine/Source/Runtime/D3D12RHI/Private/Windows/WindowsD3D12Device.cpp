@@ -31,9 +31,7 @@
 #include "ShaderCompiler.h"
 
 #if NV_GEFORCENOW
-THIRD_PARTY_INCLUDES_START
-#include "GfnRuntimeSdk_CAPI.h"
-THIRD_PARTY_INCLUDES_END
+#include "GeForceNOWWrapper.h"
 #endif
 
 #pragma comment(lib, "d3d12.lib")
@@ -652,13 +650,13 @@ void FD3D12DynamicRHI::Init()
 
 	bool bIsRunningNvidiaGFN = false;
 #if NV_GEFORCENOW
-	const GfnRuntimeSdk::GfnRuntimeError GfnResult = GfnRuntimeSdk::gfnInitializeRuntimeSdk(GfnRuntimeSdk::gfnDefaultLanguage);
-	const bool bGfnRuntimeSDKInitialized = GfnResult == GfnRuntimeSdk::gfnSuccess || GfnResult == GfnRuntimeSdk::gfnInitSuccessClientOnly;
-	if (bGfnRuntimeSDKInitialized && GfnRuntimeSdk::gfnIsRunningInCloud())
+	const GfnRuntimeError GfnResult = GeForceNOWWrapper::Get().Initialize();
+	const bool bGfnRuntimeSDKInitialized = GfnResult == gfnSuccess || GfnResult == gfnInitSuccessClientOnly;
+
+	if (bGfnRuntimeSDKInitialized && GeForceNOWWrapper::Get().IsRunningInCloud())
 	{
 		UE_LOG(LogRHI, Log, TEXT("GeForceNow cloud instance running. Ray Tracing Windows build version check disabled"));
 		bIsRunningNvidiaGFN = true;
-		GfnRuntimeSdk::gfnShutdownRuntimeSdk();
 	}
 #endif
 
