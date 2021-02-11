@@ -122,7 +122,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			if (bTraceRay)
 			{
 				float HitDistance;
-				float TOffset = RebaseRay(Ray);
 				bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_NORMAL_MODE == SDF_NORMAL_TYPE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 				if (bUseMinimalPayload)
 				{
@@ -132,7 +131,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 				{
 					bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, DIM_NORMAL_MODE, HitDistance, Radiance);
 				}
-				RebaseTraceHitDistance(HitDistance, TOffset);
+
 #if !DIM_DEFERRED_MATERIAL_MODE
 				TraceHitDistance = HitDistance;
 #endif
@@ -205,10 +204,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	Context.TraceCoord = ScreenProbeScreenCoord;
 	Context.LinearCoord = ScreenProbeScreenCoord.y * ScreenProbeViewSize.x + ScreenProbeScreenCoord.x;
 
-	float TOffset = RebaseRay(Ray);
 	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
-	RebaseTraceHitDistance(DeferredMaterialPayload.HitT, TOffset);
 
 	// Encode max trace distance in the case of an invalid or miss condition
 	if (!bIsHit)

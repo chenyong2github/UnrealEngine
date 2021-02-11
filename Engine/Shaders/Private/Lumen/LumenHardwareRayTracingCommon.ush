@@ -28,29 +28,7 @@
 #define SDF_NORMAL_TYPE 0
 #define GEOMETRIC_NORMAL_TYPE 1
 
-// Workaround for a bug on certain platforms that requires Ray.TMin = 0.0.
-#define NO_TMIN 1
-
 #define INVALID_DF_OBJECT_INDEX -1
-
-float RebaseRay(inout RayDesc Ray)
-{
-	float TOffset = 0.0;
-#if NO_TMIN
-	TOffset = Ray.TMin;
-	Ray.Origin += Ray.Direction * TOffset;
-	Ray.TMax -= TOffset;
-	Ray.TMin = 0.0;
-#endif
-	return TOffset;
-}
-
-void RebaseTraceHitDistance(inout float TraceHitDistance, float TOffset)
-{
-#if NO_TMIN
-	TraceHitDistance += TOffset;
-#endif
-}
 
 uint GetAtlasId(int Mode)
 {

@@ -79,7 +79,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 				Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
 			}
 		}
-		float TOffset = RebaseRay(Ray);
 
 		bool bHit = false;
 		float3 Radiance = 0;
@@ -125,7 +124,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingDeferredMaterialRGS)
 	{
 		float2 ScreenUV = (TraceCoord + 0.5) * View.BufferSizeAndInvSize.zw;
 		RayDesc Ray = CreatePrimaryRay(ScreenUV);
-		float TOffset = RebaseRay(Ray);
 
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;

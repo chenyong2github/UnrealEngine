@@ -100,7 +100,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 			Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
 		}
 	}
-	float TOffset = RebaseRay(Ray);
 
 	bool bHit = false;
 	float3 Radiance = 0;
@@ -119,8 +118,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 #if !DIM_DEFERRED_MATERIAL_MODE
 		TraceHitDistance = HitDistance;
 #endif
-
-		RebaseTraceHitDistance(TraceHitDistance, TOffset);
 	}
 
 	Radiance *= View.PreExposure;
@@ -159,7 +156,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingDeferredMaterialRGS)
 	float RayBias = 0.05;
 	Ray.TMin = max(TraceHitDistance, RayBias);
 	Ray.TMax = MaxTraceDistance;
-	float TOffset = RebaseRay(Ray);
 
 	float NormalBias = 0.05;
 	ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
@@ -176,7 +172,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingDeferredMaterialRGS)
 
 	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
-	RebaseTraceHitDistance(DeferredMaterialPayload.HitT, TOffset);
 
 	// Encode max trace distance in the case of an invalid or miss condition
 	if (!bIsHit)
