@@ -333,8 +333,13 @@ void SEditConditionWidget::Construct( const FArguments& Args )
 		SNew(SCheckBox)
 		.OnCheckStateChanged(this, &SEditConditionWidget::OnEditConditionCheckChanged)
 		.IsChecked(this, &SEditConditionWidget::OnGetEditConditionCheckState)
-		.Visibility_Lambda([this]() { return HasEditConditionToggle() ? EVisibility::Visible : EVisibility::Collapsed; })
+		.Visibility(this, &SEditConditionWidget::GetVisibility)
 	];
+}
+
+EVisibility SEditConditionWidget::GetVisibility() const
+{
+	return HasEditConditionToggle() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 bool SEditConditionWidget::HasEditConditionToggle() const

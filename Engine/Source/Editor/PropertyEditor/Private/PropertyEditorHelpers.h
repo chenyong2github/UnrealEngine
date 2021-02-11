@@ -94,6 +94,7 @@ private:
 	void OnEditConditionCheckChanged( ECheckBoxState CheckState );
 	bool HasEditConditionToggle() const;
 	ECheckBoxState OnGetEditConditionCheckState() const;
+	EVisibility GetVisibility() const;
 
 private:
 	TAttribute<bool> EditConditionValue;
