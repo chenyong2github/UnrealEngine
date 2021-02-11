@@ -3,6 +3,7 @@
 
 #include "Chaos/ArrayCollection.h"
 #include "Chaos/ArrayCollectionArray.h"
+#include "Chaos/Core.h"
 #include "Chaos/Vector.h"
 #include "ChaosArchive.h"
 #include "HAL/LowLevelMemTracker.h"
