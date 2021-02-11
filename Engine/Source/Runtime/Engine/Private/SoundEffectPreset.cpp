@@ -76,7 +76,7 @@ void USoundEffectPreset::RemoveEffectInstance(TSoundEffectPtr& InEffectPtr)
 	Instances.RemoveSwap(TSoundEffectWeakPtr(InEffectPtr));
 }
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 void USoundEffectPreset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// Copy the settings to the thread safe version

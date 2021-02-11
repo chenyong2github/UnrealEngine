@@ -76,7 +76,7 @@ namespace Audio
 
 		// Process key frame, returning true if should continue processing
 		// (Returns false in audition mode and writes straight to output).
-		bool ProcessKeyFrame(const float* InKeyFrame, float* OutFrame);
+		bool ProcessKeyFrame(const float* InKeyFrame, float* OutFrame, bool bKeyIsInput);
 
 		// (Optional) Low-pass filter for input signal
 		FBiquadFilter InputLowshelfFilter;

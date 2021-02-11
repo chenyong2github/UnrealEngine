@@ -50,9 +50,6 @@ void FSubmixEffectDynamicsProcessor::Init(const FSoundEffectSubmixInitData& Init
 	AudioInputFrame.Reset();
 	AudioInputFrame.AddZeroed(ProcessorScratchNumChannels);
 
-	AudioOutputFrame.Reset();
-	AudioOutputFrame.AddZeroed(ProcessorScratchNumChannels);
-
 	DeviceId = InitData.DeviceID;
 
 	if (USubmixEffectDynamicsProcessorPreset* ProcPreset = Cast<USubmixEffectDynamicsProcessorPreset>(Preset.Get()))
@@ -170,12 +167,19 @@ Audio::FMixerDevice* FSubmixEffectDynamicsProcessor::GetMixerDevice()
 
 bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 {
+	// Default (input as key) does not use source patch, so don't
+	// continue checking or updating state.
+	if (KeySource.GetType() == ESubmixEffectDynamicsKeySource::Default)
+	{
+		return false;
+	}
+
 	if (KeySource.Patch.IsValid())
 	{
 		return true;
 	}
 
-	switch (KeySource.Type)
+	switch (KeySource.GetType())
 	{
 		case ESubmixEffectDynamicsKeySource::AudioBus:
 		{
@@ -185,7 +189,7 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 			// should never be hit during Teardown.
 			if (Audio::FMixerDevice* MixerDevice = GetMixerDevice())
 			{
-				KeySource.Patch = MixerDevice->AddPatchForAudioBus(KeySource.ObjectId, 1.0f /* PatchGain */);
+				KeySource.Patch = MixerDevice->AddPatchForAudioBus(KeySource.GetObjectId(), 1.0f /* PatchGain */);
 				if (KeySource.Patch.IsValid())
 				{
 					DynamicsProcessor.SetKeyNumChannels(KeySource.GetNumChannels());
@@ -203,10 +207,10 @@ bool FSubmixEffectDynamicsProcessor::UpdateKeySourcePatch()
 			// should never be hit during Teardown.
 			if (Audio::FMixerDevice* MixerDevice = GetMixerDevice())
 			{
-				KeySource.Patch = MixerDevice->AddPatchForSubmix(KeySource.ObjectId, 1.0f /* PatchGain */);
+				KeySource.Patch = MixerDevice->AddPatchForSubmix(KeySource.GetObjectId(), 1.0f /* PatchGain */);
 				if (KeySource.Patch.IsValid())
 				{
-					Audio::FMixerSubmixPtr SubmixPtr = MixerDevice->FindSubmixInstanceByObjectId(KeySource.ObjectId);
+					Audio::FMixerSubmixPtr SubmixPtr = MixerDevice->FindSubmixInstanceByObjectId(KeySource.GetObjectId());
 					if (SubmixPtr.IsValid())
 					{
 						const int32 SubmixNumChannels = SubmixPtr->GetNumOutputChannels();
@@ -246,65 +250,50 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 		return;
 	}
 
-	int32 NumKeyChannels = DynamicsProcessor.GetKeyNumChannels();
+	const int32 NumKeyChannels = DynamicsProcessor.GetKeyNumChannels();
+	const int32 NumKeySamples = InData.NumFrames * NumKeyChannels;
+
 	AudioExternal.Reset();
-	if (KeySource.ObjectId != INDEX_NONE)
+	if (KeySource.GetType() != ESubmixEffectDynamicsKeySource::Default)
 	{
-		if (UpdateKeySourcePatch())
-		{
-			// Refresh num channels in case it changed when updating patch
-			NumKeyChannels = DynamicsProcessor.GetKeyNumChannels();
-
-			const int32 NumSamples = InData.NumFrames * NumKeyChannels;
-
-			AudioExternal.AddZeroed(NumSamples);
-			KeySource.Patch->PopAudio(AudioExternal.GetData(), NumSamples, true /* bUseLatestAudio */);
-		}
+		AudioExternal.AddZeroed(NumKeySamples);
 	}
 
-	const int32 NumChannels = DynamicsProcessor.GetNumChannels();
-	if (InData.NumChannels != NumChannels)
+	if (UpdateKeySourcePatch())
+	{
+		KeySource.Patch->PopAudio(AudioExternal.GetData(), NumKeySamples, true /* bUseLatestAudio */);
+	}
+
+	if (InData.NumChannels != DynamicsProcessor.GetNumChannels())
 	{
 		DynamicsProcessor.SetNumChannels(InData.NumChannels);
 	}
 
-	for (int32 Frame = 0; Frame < InData.NumFrames; ++Frame)
+	// No key assigned (Uses input buffer as key)
+	if (KeySource.GetType() == ESubmixEffectDynamicsKeySource::Default)
 	{
-		// Copy the data to the frame input
-		const int32 SampleIndexOfInputFrame = Frame * InData.NumChannels;
-		for (int32 Channel = 0; Channel < InData.NumChannels; ++Channel)
+		for (int32 Frame = 0; Frame < InData.NumFrames; ++Frame)
 		{
-			const int32 SampleIndex = SampleIndexOfInputFrame + Channel;
-			AudioInputFrame[Channel] = InBuffer[SampleIndex];
-		}
-
-		// Copy buffer data to key if key is external source
-		if (AudioExternal.Num() > 0)
-		{
-			// Copy the data to the frame input
-			const int32 SampleIndexOfKeyFrame = Frame * NumKeyChannels;
-			for (int32 Channel = 0; Channel < NumKeyChannels; ++Channel)
-			{
-				const int32 SampleIndex = SampleIndexOfKeyFrame + Channel;
-				AudioKeyFrame[Channel] = AudioExternal[SampleIndex];
-			}
-
-			DynamicsProcessor.ProcessAudio(AudioInputFrame.GetData(), InData.NumChannels, AudioOutputFrame.GetData(), AudioKeyFrame.GetData());
-		}
-		else
-		{
-			DynamicsProcessor.ProcessAudio(AudioInputFrame.GetData(), InData.NumChannels, AudioOutputFrame.GetData());
-		}
-
-		// Copy the data to the frame output
-		for (int32 Channel = 0; Channel < InData.NumChannels; ++Channel)
-		{
-			const int32 SampleIndex = SampleIndexOfInputFrame + Channel;
-			OutBuffer[SampleIndex] = AudioOutputFrame[Channel];
+			const int32 SampleIndex = Frame * InData.NumChannels;
+			DynamicsProcessor.ProcessAudio(&InBuffer[SampleIndex], InData.NumChannels, &OutBuffer[SampleIndex]);
 		}
 	}
+	// Key assigned
+	else
+	{
+		for (int32 Frame = 0; Frame < InData.NumFrames; ++Frame)
+		{
+			// Copy the data to the input frame
+			const int32 SampleIndexOfInputFrame = Frame * InData.NumChannels;
+			FMemory::Memcpy(AudioInputFrame.GetData(), &InBuffer[SampleIndexOfInputFrame], sizeof(float) * InData.NumChannels);
 
-	AudioExternal.Reset();
+			// Copy the data to the key frame
+			const int32 SampleIndexOfKeyFrame = Frame * NumKeyChannels;
+			FMemory::Memcpy(AudioKeyFrame.GetData(), &AudioExternal[SampleIndexOfKeyFrame], sizeof(float) * NumKeyChannels);
+
+			DynamicsProcessor.ProcessAudio(AudioInputFrame.GetData(), InData.NumChannels, &OutBuffer[SampleIndexOfInputFrame], AudioKeyFrame.GetData());
+		}
+	}
 }
 
 void FSubmixEffectDynamicsProcessor::UpdateKeyFromSettings(const FSubmixEffectDynamicsProcessorSettings& InSettings)
@@ -385,6 +374,40 @@ void USubmixEffectDynamicsProcessorPreset::OnInit()
 		break;
 	}
 }
+
+#if WITH_EDITOR
+void USubmixEffectDynamicsProcessorPreset::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& InChainEvent)
+{
+	if (InChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FSubmixEffectDynamicsProcessorSettings, KeySource))
+	{
+		switch (Settings.KeySource)
+		{
+		case ESubmixEffectDynamicsKeySource::AudioBus:
+		{
+			Settings.ExternalSubmix = nullptr;
+		}
+		break;
+
+		case ESubmixEffectDynamicsKeySource::Submix:
+		{
+			Settings.ExternalAudioBus = nullptr;
+		}
+		break;
+
+		case ESubmixEffectDynamicsKeySource::Default:
+		default:
+		{
+			Settings.ExternalSubmix = nullptr;
+			Settings.ExternalAudioBus = nullptr;
+			static_assert(static_cast<int32>(ESubmixEffectDynamicsKeySource::Count) == 3, "Possible missing KeySource switch case coverage");
+		}
+		break;
+		}
+	}
+
+	Super::PostEditChangeChainProperty(InChainEvent);
+}
+#endif // WITH_EDITOR
 
 void USubmixEffectDynamicsProcessorPreset::Serialize(FStructuredArchive::FRecord Record)
 {
