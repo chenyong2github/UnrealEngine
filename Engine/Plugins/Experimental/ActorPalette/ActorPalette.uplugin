@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Actor Palette",
 	"Description": "Allows creation of Actor Palettes based on existing levels to quickly select actors and drag them into the level editor",
-	"Category": "Other",
+	"Category": "Experimental",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",

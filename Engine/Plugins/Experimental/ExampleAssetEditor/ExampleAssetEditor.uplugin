@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "Example Asset Editor",
 	"Description": "Experiments with a UAssetEditor for asset editing.",
-	"Category": "Assets",
+	"Category": "Examples",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
@@ -21,10 +21,10 @@
 			"LoadingPhase": "Default"
 		}
 	],
-	"Plugins" : [
+	"Plugins": [
 		{
-			"Name" : "GizmoEdMode",
-			"Enabled" : true
+			"Name": "GizmoEdMode",
+			"Enabled": true
 		}
 	]
 }
