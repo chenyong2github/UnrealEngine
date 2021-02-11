@@ -329,7 +329,12 @@ uint32 IStreamedCompressedInfo::IncrementCurrentSampleCount(uint32 NewSamples)
 
 uint32 IStreamedCompressedInfo::WriteFromDecodedPCM(uint8* Destination, uint32 BufferSize)
 {
+	// logical number of bytes we need to copy
 	uint32 BytesToCopy = FMath::Min(BufferSize, LastPCMByteSize - LastPCMOffset);
+
+	// make sure we aren't reading off the end of LastDecodedPCM
+	BytesToCopy = FMath::Min(BytesToCopy, LastDecodedPCM.Num() - LastPCMOffset);
+
 	if (BytesToCopy > 0)
 	{
 		check(BytesToCopy <= LastDecodedPCM.Num() - LastPCMOffset);
