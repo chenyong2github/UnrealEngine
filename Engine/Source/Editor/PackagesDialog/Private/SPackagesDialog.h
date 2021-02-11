@@ -285,21 +285,21 @@ public:
 	/**
 	 * Gets the type name and color of the package item
 	 *
-	 * @param OutName	FString into which the type name will be placed, or an empty string if type cannot be obtained
+	 * @param OutName	FText into which the type name will be placed, or an empty string if type cannot be obtained
 	 * @param OutColor	FColor into which the type color will be placed
 	 *
 	 * @return Whether the details were successfully fetched.
 	 */
-	bool GetTypeNameAndColor(FString& OutName, FColor& OutColor) const;
+	bool GetTypeNameAndColor(FText& OutName, FColor& OutColor) const;
 
 	/**
 	 * Gets just the type name of the package item
 	 *
 	 * @return Type name of the package item, or an empty string
 	 */
-	FString GetTypeName() const
+	FText GetTypeName() const
 	{
-		FString OutName;
+		FText OutName;
 		FColor OutColor;
 		GetTypeNameAndColor(OutName, OutColor);
 		return OutName;

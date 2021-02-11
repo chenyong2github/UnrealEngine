@@ -79,7 +79,7 @@ bool FPackageItem::HasMultipleAssets() const
 }
 
 
-bool FPackageItem::GetTypeNameAndColor(FString& OutName, FColor& OutColor) const
+bool FPackageItem::GetTypeNameAndColor(FText& OutName, FColor& OutColor) const
 {
 	// Resolve the object belonging to the package and cache.
 	if (!Object.IsValid())
@@ -98,12 +98,17 @@ bool FPackageItem::GetTypeNameAndColor(FString& OutName, FColor& OutColor) const
 			if(HasMultipleAssets())
 			{
 				OutColor = FColor::White;
-				OutName = LOCTEXT("MultipleAssets", "Multiple Assets").ToString();
+				OutName = LOCTEXT("MultipleAssets", "Multiple Assets");
 			}
 			else
 			{
 				OutColor = ObjectPtr->IsPendingKill() ? FColor::Red : AssetTypeActions->GetTypeColor();
-				OutName = AssetTypeActions->GetName().ToString();
+
+				OutName = AssetTypeActions->GetDisplayNameFromAssetData(FAssetData(ObjectPtr));
+				if (OutName.IsEmpty())
+				{
+					OutName = AssetTypeActions->GetName();
+				}
 			}
 			return true;
 		}
@@ -111,7 +116,7 @@ bool FPackageItem::GetTypeNameAndColor(FString& OutName, FColor& OutColor) const
 	// if we do not find any package object, consider the package empty, return a red `Empty Package`
 	else
 	{
-		OutName = FString(TEXT("Empty Package"));
+		OutName = LOCTEXT("NoAssets", "Empty Package");
 		OutColor = FColor(					// Copied from ContentBrowserCLR.cpp
 			127 + FColor::Red.R / 2,		// Desaturate the colors a bit (GB colors were too.. much)
 			127 + FColor::Red.G / 2,
@@ -483,7 +488,7 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 
 	// Extract the type and color for the package
 	FColor PackageColor;
-	FString PackageType;
+	FText PackageType;
 	Item->GetTypeNameAndColor(PackageType, PackageColor);
 
 	const FString AssetName = Item->GetAssetName();
@@ -559,8 +564,8 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 			.Padding(RowPadding)
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(PackageType))
-				.ToolTipText(FText::FromString(PackageType))
+				.Text(PackageType)
+				.ToolTipText(PackageType)
 				.IsEnabled(!Item->IsDisabled())
 				.ColorAndOpacity(PackageColor)
 			];
@@ -871,12 +876,12 @@ void SPackagesDialog::SortTree()
 		if (SortMode == EColumnSortMode::Ascending)
 		{
 			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
-				return A->GetTypeName() < B->GetTypeName(); } );
+				return A->GetTypeName().CompareTo(B->GetTypeName()) < 0; } );
 		}
 		else if (SortMode == EColumnSortMode::Descending)
 		{
 			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
-				return A->GetTypeName() >= B->GetTypeName(); } );
+				return A->GetTypeName().CompareTo(B->GetTypeName()) >= 0; } );
 		}
 	}
 	else if (SortByColumn == SPackagesDialogDefs::ColumnID_IconLabel)

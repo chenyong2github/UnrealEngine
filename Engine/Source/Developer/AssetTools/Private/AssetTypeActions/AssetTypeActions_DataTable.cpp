@@ -13,6 +13,8 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
+static const FName NAME_RowStructure(TEXT("RowStructure"));
+
 void FAssetTypeActions_DataTable::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Tables = GetTypedWeakObjectPtrs<UObject>(InObjects);
@@ -227,6 +229,23 @@ void FAssetTypeActions_DataTable::PerformAssetDiff(UObject* OldAsset, UObject* N
 	{
 		FAssetTypeActions_CSVAssetBase::PerformAssetDiff(OldAsset, NewAsset, OldRevision, NewRevision);
 	}
+}
+
+FText FAssetTypeActions_DataTable::GetDisplayNameFromAssetData(const FAssetData& AssetData) const
+{
+	if (AssetData.IsValid())
+	{
+		const FAssetDataTagMapSharedView::FFindTagResult RowStructureTag = AssetData.TagsAndValues.FindTag(NAME_RowStructure);
+		if (RowStructureTag.IsSet())
+		{
+			if (UScriptStruct* FoundStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *RowStructureTag.GetValue(), true))
+			{
+				return FText::Format(LOCTEXT("DataTableWithRowType", "Data Table ({0})"), FoundStruct->GetDisplayNameText());
+			}
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE

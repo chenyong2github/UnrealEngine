@@ -14,4 +14,5 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(201, 29, 85); }
 	virtual UClass* GetSupportedClass() const override { return UDataAsset::StaticClass(); }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
+	virtual FText GetDisplayNameFromAssetData(const FAssetData& AssetData) const override;
 };
