@@ -18,15 +18,15 @@ void FDataDrivenConsoleVariable::Register()
 		{
 			if (Type == FDataDrivenCVarType::CVarInt)
 			{
-				CVarToAdd = IConsoleManager::Get().RegisterConsoleVariable(*Name, DefaultValueInt, TEXT("RuntimeConsoleVariables"), ECVF_Default);
+				CVarToAdd = IConsoleManager::Get().RegisterConsoleVariable(*Name, DefaultValueInt, TEXT("RuntimeConsoleVariables"), ECVF_Default | ECVF_Scalability);
 			}
 			else if (Type == FDataDrivenCVarType::CVarBool)
 			{
-				CVarToAdd = IConsoleManager::Get().RegisterConsoleVariable(*Name, DefaultValueBool, TEXT("RuntimeConsoleVariables"), ECVF_Default);
+				CVarToAdd = IConsoleManager::Get().RegisterConsoleVariable(*Name, DefaultValueBool, TEXT("RuntimeConsoleVariables"), ECVF_Default | ECVF_Scalability);
 			}
 			else
 			{
-				CVarToAdd = IConsoleManager::Get().RegisterConsoleVariable(*Name, DefaultValueFloat, TEXT("RuntimeConsoleVariables"), ECVF_Default);
+				CVarToAdd = IConsoleManager::Get().RegisterConsoleVariable(*Name, DefaultValueFloat, TEXT("RuntimeConsoleVariables"), ECVF_Default | ECVF_Scalability);
 			}
 		}
 		CVarToAdd->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(UDataDrivenConsoleVariableSettings::OnDataDrivenChange));
@@ -56,16 +56,16 @@ void FDataDrivenConsoleVariable::Refresh()
 		{
 			UnRegister(true);
 		}
-		
-		Register();
 		ShadowName = Name;
 	}
 	else if (ShadowType != Type)
 	{
 		UnRegister(true);
-		Register();
 		ShadowType = Type;
 	}
+
+	// make sure the cvar is registered
+	Register();
 }
 #endif
 
@@ -94,13 +94,9 @@ void UDataDrivenConsoleVariableSettings::PostEditChangeProperty(FPropertyChanged
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.Property != NULL)
+	for (FDataDrivenConsoleVariable& CVar : CVarsArray)
 	{
-		// register new cvars
-		for (FDataDrivenConsoleVariable& CVar : CVarsArray)
-		{
-			CVar.Refresh();
-		}
+		CVar.Refresh();
 	}
 }
 #endif // #if WITH_EDITOR
