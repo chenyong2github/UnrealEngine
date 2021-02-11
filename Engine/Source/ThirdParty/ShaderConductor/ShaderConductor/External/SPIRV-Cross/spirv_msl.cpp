@@ -3566,9 +3566,45 @@ void CompilerMSL::emit_custom_functions()
 		// Emulate texture2D atomic operations
 		case SPVFuncImplImage2DAtomicCoords:
 		{
+			// UE Change Begin: Add support for Image2D/3D atomic emulation
+			constexpr uint32_t r32ui_linear_texture_alignment = 4;
+			constexpr uint32_t r32ui_alignment_constant_id = 65535;
+			if (msl_options.supports_msl_version(1, 2))
+			{
+				statement("// The required alignment of a linear texture of R32Uint format.");
+				statement("constant uint spvLinearTextureAlignmentOverride [[function_constant(",
+				          r32ui_alignment_constant_id, ")]];");
+				statement("constant uint spvLinearTextureAlignment = ",
+				          "is_function_constant_defined(spvLinearTextureAlignmentOverride) ? ",
+				          "spvLinearTextureAlignmentOverride : ", r32ui_linear_texture_alignment, ";");
+			}
+			else
+			{
+				statement("// The required alignment of a linear texture of R32Uint format.");
+				statement("constant uint spvLinearTextureAlignment = ", r32ui_linear_texture_alignment,
+				          ";");
+			}
 			statement("// Returns buffer coords corresponding to 2D texture coords for emulating 2D texture atomics");
-			statement("#define spvImage2DAtomicCoord(tc, tex) (((tex).get_width() * (tc).y) + (tc).x)");
+			statement("template<typename T>");
+			statement("inline uint spvImageAtomicCoord(texture2d<T> tex, uint2 tc)");
+			begin_scope();
+			statement("const uint aligned_width = ((tex.get_width() + spvLinearTextureAlignment / 4 - 1) & "
+			          "~(spvLinearTextureAlignment / 4 - 1));");
+			statement("return tc.y * aligned_width + tc.x;");
+			end_scope();
 			statement("");
+
+			statement("template <typename T>");
+			statement("inline uint spvImageAtomicCoord(texture3d<T> tex, uint3 tc)");
+			begin_scope();
+			statement("const uint aligned_width = ((tex.get_width() + spvLinearTextureAlignment / 4 - 1) & "
+			          "~(spvLinearTextureAlignment / 4 - 1));");
+			statement("const uint aligned_height = ((tex.get_height() + spvLinearTextureAlignment / 4 - 1) & "
+			          "~(spvLinearTextureAlignment / 4 - 1));");
+			statement("return (tc.z * aligned_height + tc.y) * aligned_width + tc.x;");
+			end_scope();
+			statement("");
+			// UE Change End: Add support for Image2D/3D atomic emulation
 			break;
 		}
 
@@ -5602,10 +5638,12 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 
 			std::string coord = to_expression(ops[3]);
 			auto &type = expression_type(ops[2]);
-			if (type.image.dim == Dim2D)
+			// UE Change Begin: Add support for Image2D/3D atomic emulation
+			if (type.image.dim == Dim2D || type.image.dim == Dim3D)
 			{
-				coord = join("spvImage2DAtomicCoord(", coord, ", ", to_expression(ops[2]), ")");
+				coord = join("spvImageAtomicCoord(", to_expression(ops[2]), ", ", coord, ")");
 			}
+			// UE Change End: Add support for Image2D/3D atomic emulation
 
 			// Storage buffer robustness
 			if (msl_options.enforce_storge_buffer_bounds)
@@ -12333,8 +12371,11 @@ CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op o
 				compiler.buffers_requiring_array_length.insert(args[opcode == OpAtomicStore ? 0 : 2]);
 			}
 
-			if (tid && compiler.get<SPIRType>(tid).image.dim == Dim2D)
+			// UE Change Begin: Add support for Image2D/3D atomic emulation
+			Dim dim = compiler.get<SPIRType>(tid).image.dim;
+			if (tid && (dim == Dim2D || dim == Dim3D))
 				return SPVFuncImplImage2DAtomicCoords;
+			// UE Change End: Add support for Image2D/3D atomic emulation
 
 			return SPVFuncImplStorageBufferCoords;
 		}
