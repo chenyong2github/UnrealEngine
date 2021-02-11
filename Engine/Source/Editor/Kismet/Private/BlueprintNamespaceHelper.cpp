@@ -7,12 +7,6 @@
 
 FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBlueprint)
 {
-	// Skip namespace adds if the feature is disabled.
-	if (!IsNamespaceImportScopingEnabled())
-	{
-		return;
-	}
-
 	// Default namespace paths implicitly imported by every Blueprint.
 	AddNamespaces(GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude);
 	AddNamespaces(GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude);
@@ -28,12 +22,6 @@ FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBluepri
 
 bool FBlueprintNamespaceHelper::IsIncludedInNamespaceList(const FString& TestNamespace) const
 {
-	// Always include if the feature is disabled.
-	if (!IsNamespaceImportScopingEnabled())
-	{
-		return true;
-	}
-
 	// Empty namespace == global namespace
 	if (TestNamespace.IsEmpty())
 	{
