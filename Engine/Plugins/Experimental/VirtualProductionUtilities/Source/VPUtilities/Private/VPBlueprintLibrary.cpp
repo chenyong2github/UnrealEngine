@@ -278,7 +278,7 @@ UWorld* UVPBlueprintLibrary::GetEditorWorld()
 		World = UnrealEditorSubsystem->GetEditorWorld();
 	}
 
-#endif WITH_EDITOR
+#endif
 	return World;
 }
 
