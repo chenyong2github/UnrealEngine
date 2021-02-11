@@ -910,6 +910,11 @@ FString CreateProjectPath()
 #endif
 }
 
+FString FUnrealEdMisc::GetProjectEditorBinaryPath()
+{
+	return CreateProjectPath();
+}
+
 void FUnrealEdMisc::OnExit()
 {
 	if ( !bInitialized )

@@ -16,6 +16,7 @@
 #include "Cooker/PackageTracker.h"
 #include "CookPackageSplitter.h"
 #include "Containers/RingBuffer.h"
+#include "EditorDomain/EditorDomain.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
@@ -4201,7 +4202,9 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024);
 
 	if (IsCookByTheBookMode() && !IsCookingInEditor() &&
-		FPlatformMisc::SupportsMultithreadedFileHandles()// Preloading moves file handles between threads
+		FPlatformMisc::SupportsMultithreadedFileHandles() && // Preloading moves file handles between threads
+		!FEditorDomain::Get() && // EDITOR_DOMAIN_TODO EditorDomain does not yet support opening packages from async threads, because AssetRegistry is not asynchronous
+		!GAllowCookedDataInEditorBuilds // // Use of preloaded files is not yet implemented when GAllowCookedDataInEditorBuilds is on, see FLinkerLoad::CreateLoader
 		)
 	{
 		bPreloadingEnabled = true;

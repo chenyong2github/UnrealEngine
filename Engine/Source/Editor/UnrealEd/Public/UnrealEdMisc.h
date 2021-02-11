@@ -308,6 +308,9 @@ public:
 
 	bool EnableWorldPartition(UWorld* InWorld, bool bEnable);
 
+	/** Get the path to the executable that runs the editor */
+	FString GetProjectEditorBinaryPath();
+
 private:
 
 	/** The current state of the autosave */
