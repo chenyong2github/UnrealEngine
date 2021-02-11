@@ -12,7 +12,7 @@ namespace Chaos
 {
 class FPBDAxialSpringConstraintsBase
 {
-  public:
+public:
 	FPBDAxialSpringConstraintsBase(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec3<int32>>&& Constraints, const FReal Stiffness = (FReal)1.)
 	    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
 	{
@@ -81,7 +81,9 @@ class FPBDAxialSpringConstraintsBase
 		return MStiffness * Delta / CombinedInvMass;
 	}
 
-  private:
+	void SetStiffness(FReal InStiffness) { MStiffness = FMath::Clamp(InStiffness, (FReal)0., (FReal)1.); }
+
+private:
 	  FReal FindBary(const TDynamicParticles<FReal, 3>& InParticles, const int32 i1, const int32 i2, const int32 i3)
 	{
 		const FVec3& P1 = InParticles.X(i1);
@@ -96,7 +98,7 @@ class FPBDAxialSpringConstraintsBase
 		return Bary;
 	}
 
-  protected:
+protected:
 	TArray<TVec3<int32>> MConstraints;
 	TArray<FReal> MBarys;
 	TArray<FReal> MDists;

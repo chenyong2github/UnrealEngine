@@ -10,8 +10,8 @@ namespace Chaos
 class FPBDVolumeConstraintBase
 {
   public:
-	  FPBDVolumeConstraintBase(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec3<int32>>&& constraints, const FReal stiffness = (FReal)1.)
-	    : MConstraints(constraints), Stiffness(stiffness)
+	  FPBDVolumeConstraintBase(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec3<int32>>&& InConstraints, const FReal InStiffness = (FReal)1.)
+	    : Constraints(InConstraints), Stiffness(InStiffness)
 	{
 		FVec3 Com = FVec3(0, 0, 0);
 		for (uint32 i = 0; i < InParticles.Size(); ++i)
@@ -19,15 +19,15 @@ class FPBDVolumeConstraintBase
 			Com += InParticles.X(i);
 		}
 		Com /= InParticles.Size();
-		MVolume = 0;
-		for (auto constraint : MConstraints)
+		RefVolume = 0;
+		for (const TVec3<int32>& Constraint : Constraints)
 		{
-			const FVec3& P1 = InParticles.X(constraint[0]);
-			const FVec3& P2 = InParticles.X(constraint[1]);
-			const FVec3& P3 = InParticles.X(constraint[2]);
-			MVolume += GetVolume(P1, P2, P3, Com);
+			const FVec3& P1 = InParticles.X(Constraint[0]);
+			const FVec3& P2 = InParticles.X(Constraint[1]);
+			const FVec3& P3 = InParticles.X(Constraint[2]);
+			RefVolume += GetVolume(P1, P2, P3, Com);
 		}
-		MVolume /= (FReal)9.;
+		RefVolume /= (FReal)9.;
 	}
 	virtual ~FPBDVolumeConstraintBase() {}
 
@@ -60,26 +60,26 @@ class FPBDVolumeConstraintBase
 		Com /= InParticles.Size();
 		TArray<FVec3> Grads;
 		Grads.SetNum(InParticles.Size());
-		for (auto& Elem : Grads)
+		for (FVec3& Elem : Grads)
 		{
 			Elem = FVec3(0, 0, 0);
 		}
-		for (int32 i = 0; i < MConstraints.Num(); ++i)
+		for (int32 i = 0; i < Constraints.Num(); ++i)
 		{
-			auto constraint = MConstraints[i];
-			const int32 i1 = constraint[0];
-			const int32 i2 = constraint[1];
-			const int32 i3 = constraint[2];
+			const TVec3<int32>& Constraint = Constraints[i];
+			const int32 i1 = Constraint[0];
+			const int32 i2 = Constraint[1];
+			const int32 i3 = Constraint[2];
 			const FVec3& P1 = InParticles.P(i1);
 			const FVec3& P2 = InParticles.P(i2);
 			const FVec3& P3 = InParticles.P(i3);
-			auto area = GetArea(P1, P2, P3);
-			auto Normal = GetNormal(P1, P2, P3, Com);
-			Grads[i1] += area * Normal;
-			Grads[i2] += area * Normal;
-			Grads[i3] += area * Normal;
+			const FReal Area = GetArea(P1, P2, P3);
+			const FVec3 Normal = GetNormal(P1, P2, P3, Com);
+			Grads[i1] += Area * Normal;
+			Grads[i2] += Area * Normal;
+			Grads[i3] += Area * Normal;
 		}
-		for (auto& Elem : Grads)
+		for (FVec3& Elem : Grads)
 		{
 			Elem *= (FReal)1. / (FReal)3.;
 		}
@@ -95,11 +95,11 @@ class FPBDVolumeConstraintBase
 		}
 		Com /= InParticles.Size();
 		FReal Volume = 0;
-		for (auto constraint : MConstraints)
+		for (const TVec3<int32>& Constraint : Constraints)
 		{
-			const FVec3& P1 = InParticles.P(constraint[0]);
-			const FVec3& P2 = InParticles.P(constraint[1]);
-			const FVec3& P3 = InParticles.P(constraint[2]);
+			const FVec3& P1 = InParticles.P(Constraint[0]);
+			const FVec3& P2 = InParticles.P(Constraint[1]);
+			const FVec3& P3 = InParticles.P(Constraint[2]);
 			Volume += GetVolume(P1, P2, P3, Com);
 		}
 		Volume /= (FReal)9.;
@@ -108,18 +108,20 @@ class FPBDVolumeConstraintBase
 		{
 			Denom += W[i] * Grads[i].SizeSquared();
 		}
-		FReal S = (Volume - MVolume) / Denom;
+		FReal S = (Volume - RefVolume) / Denom;
 		return Stiffness * S;
 	}
 
-  protected:
-	TArray<TVec3<int32>> MConstraints;
+	void SetStiffness(FReal InStiffness) { Stiffness = FMath::Clamp(InStiffness, (FReal)0., (FReal)1.); }
 
-  private:
+protected:
+	TArray<TVec3<int32>> Constraints;
+
+private:
 	// Utility functions for the triangle concept
 	FVec3 GetNormal(const FVec3 P1, const FVec3& P2, const FVec3& P3, const FVec3& Com) const
 	{
-		auto Normal = FVec3::CrossProduct(P2 - P1, P3 - P1).GetSafeNormal();
+		const FVec3 Normal = FVec3::CrossProduct(P2 - P1, P3 - P1).GetSafeNormal();
 		if (FVec3::DotProduct((P1 + P2 + P3) / (FReal)3. - Com, Normal) < 0)
 			return -Normal;
 		return Normal;
@@ -137,7 +139,7 @@ class FPBDVolumeConstraintBase
 		return GetArea(P1, P2, P3) * FVec3::DotProduct(P1 + P2 + P3, GetNormal(P1, P2, P3, Com));
 	}
 
-	FReal MVolume;
+	FReal RefVolume;
 	FReal Stiffness;
 };
 }

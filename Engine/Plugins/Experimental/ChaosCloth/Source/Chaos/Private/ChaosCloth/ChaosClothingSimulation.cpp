@@ -423,6 +423,16 @@ void FClothingSimulation::UpdateSimulationFromSharedSimConfig()
 	}
 }
 
+void FClothingSimulation::SetNumIterations(int32 InNumIterations)
+{
+	Solver->SetNumIterations(InNumIterations);
+}
+
+void FClothingSimulation::SetNumSubsteps(int32 InNumSubsteps)
+{
+	Solver->SetNumSubsteps(InNumSubsteps);
+}
+
 bool FClothingSimulation::ShouldSimulate() const
 {
 	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
@@ -729,23 +739,6 @@ void FClothingSimulation::RefreshPhysicsAsset()
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("RefreshPhysicsAsset, all collisions have been re-added for all clothing assets"));
 }
 
-void FClothingSimulation::SetAnimDriveSpringStiffness(FReal InAnimDriveSpringStiffness)
-{
-	// This is a legacy function used to set the AnimDrive stiffness from the Blueprint
-	for (TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
-	{
-		// Retrieve damping
-		TVector<float, 2> AnimDriveStiffness;
-		TVector<float, 2> AnimDriveDamping;
-		Cloth->GetAnimDriveProperties(AnimDriveStiffness, AnimDriveDamping);
-
-		// Override stiffness
-		Cloth->SetAnimDriveProperties(
-			TVector<float, 2>(0.f, InAnimDriveSpringStiffness),
-			AnimDriveDamping);
-	}
-}
-
 void FClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
 {
 	bUseGravityOverride = true;
@@ -755,6 +748,17 @@ void FClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
 void FClothingSimulation::DisableGravityOverride()
 {
 	bUseGravityOverride = false;
+}
+
+FClothingSimulationCloth* Chaos::FClothingSimulation::GetCloth(int32 ClothId)
+{
+	TUniquePtr<FClothingSimulationCloth>* const Cloth = Cloths.FindByPredicate(
+		[ClothId](TUniquePtr<FClothingSimulationCloth>& InCloth)
+		{
+			return InCloth->GetGroupId() == ClothId;
+		});
+
+	return Cloth ? Cloth->Get(): nullptr;
 }
 
 #if WITH_EDITOR

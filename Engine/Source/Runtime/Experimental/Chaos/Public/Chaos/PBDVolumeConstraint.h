@@ -13,8 +13,8 @@ class FPBDVolumeConstraint : public TParticleRule<FReal, 3>, public FPBDVolumeCo
 	typedef FPBDVolumeConstraintBase Base;
 
   public:
-	  FPBDVolumeConstraint(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec3<int32>>&& constraints, const FReal stiffness = (FReal)1.)
-	    : Base(InParticles, MoveTemp(constraints), stiffness) {}
+	  FPBDVolumeConstraint(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec3<int32>>&& InConstraints, const FReal InStiffness = (FReal)1.)
+	    : Base(InParticles, MoveTemp(InConstraints), InStiffness) {}
 	virtual ~FPBDVolumeConstraint() {}
 
 	void Apply(FPBDParticles& InParticles, const FReal dt) const override //-V762

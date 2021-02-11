@@ -32,6 +32,8 @@ public:
 	const TArray<FVec3>& GetNormals() const { return Normals; }
 	float GetThickness() const { return Thickness; }
 
+	void SetThickness(FReal InThickness) { Thickness = FMath::Max(InThickness, (FReal)0.);  }
+
 protected:
 	TArray<TVec4<int32>> Constraints;
 	TArray<FVec3> Barys;

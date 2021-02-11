@@ -39,12 +39,12 @@ namespace Chaos
 			float InAreaStiffness,
 			float InVolumeStiffness,
 			bool bInUseThinShellVolumeConstraints,
-			float InStrainLimitingStiffness,
+			float InTetherStiffness,
 			float InLimitScale,
 			ETetherMode InTetherMode,
 			float InMaxDistancesMultiplier,
-			const TVector<float, 2>& InAnimDriveStiffness,
-			const TVector<float, 2>& InAnimDriveDamping,
+			const FVec2& InAnimDriveStiffness,
+			const FVec2& InAnimDriveDamping,
 			float InShapeTargetStiffness,
 			bool bInUseXPBDConstraints,
 			float InGravityScale,
@@ -74,8 +74,17 @@ namespace Chaos
 
 		// ---- Animatable property setters ----
 		void SetMaxDistancesMultiplier(float InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
-		void SetAnimDriveProperties(const TVector<float, 2>& InAnimDriveStiffness, const TVector<float, 2>& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
-		void GetAnimDriveProperties(TVector<float, 2>& OutAnimDriveStiffness, TVector<float, 2>& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
+
+		void SetMaterialProperties(float InEdgeStiffness, float InBendingStiffness, float InAreaStiffness) { EdgeStiffness = InEdgeStiffness; BendingStiffness = InBendingStiffness; AreaStiffness = InAreaStiffness; }
+		void SetLongRangeAttachmentProperties(float InTetherStiffness) { TetherStiffness = InTetherStiffness; }
+		void SetCollisionProperties(float InCollisionThickness, float InFrictionCoefficient, bool bInUseCCD, float InSelfCollisionThickness) { CollisionThickness = InCollisionThickness; FrictionCoefficient = InFrictionCoefficient; bUseCCD = bInUseCCD; SelfCollisionThickness = InSelfCollisionThickness; }
+		void SetDampingProperties(float InDampingCoefficient) { DampingCoefficient = InDampingCoefficient; }
+		void SetAerodynamicsProperties(float InDragCoefficient, float InLiftCoefficient) { DragCoefficient = InDragCoefficient; LiftCoefficient = InLiftCoefficient; }
+		void SetGravityProperties(float InGravityScale, bool bInIsGravityOverridden, const FVec3& InGravityOverride) { GravityScale = InGravityScale; bIsGravityOverridden = bInIsGravityOverridden; GravityOverride = InGravityOverride; }
+		void SetAnimDriveProperties(const FVec2& InAnimDriveStiffness, const FVec2& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
+		void SetVelocityScaleProperties(const FVec3& InLinearVelocityScale, float InAngularVelocityScale) { LinearVelocityScale = InLinearVelocityScale; AngularVelocityScale = InAngularVelocityScale; }
+
+		void GetAnimDriveProperties(FVec2& OutAnimDriveStiffness, FVec2& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
 
 		void Reset() { bNeedsReset = true; }
 		void Teleport() { bNeedsTeleport = true; }
@@ -181,12 +190,12 @@ namespace Chaos
 		float AreaStiffness;
 		float VolumeStiffness;
 		bool bUseThinShellVolumeConstraints;
-		float StrainLimitingStiffness;
+		float TetherStiffness;
 		float LimitScale;
 		ETetherMode TetherMode;
-		float MaxDistancesMultiplier;  // Animatable
-		TVector<float, 2> AnimDriveStiffness;  // Animatable
-		TVector<float, 2> AnimDriveDamping;  // Animatable
+		float MaxDistancesMultiplier;
+		FVec2 AnimDriveStiffness;
+		FVec2 AnimDriveDamping;
 		float ShapeTargetStiffness;
 		bool bUseXPBDConstraints;
 		float GravityScale;

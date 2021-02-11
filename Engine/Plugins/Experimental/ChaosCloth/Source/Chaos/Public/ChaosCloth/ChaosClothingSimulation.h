@@ -60,8 +60,6 @@ namespace Chaos
 		// End of IClothingSimulation interface
 
 	public:
-		// Set the animation drive stiffness for all actors
-		void SetAnimDriveSpringStiffness(FReal InAnimDriveSpringStiffness);
 		void SetGravityOverride(const FVector& InGravityOverride);
 		void DisableGravityOverride();
 
@@ -73,6 +71,8 @@ namespace Chaos
 		void RefreshPhysicsAsset();
 
 		// IClothingSimulation interface
+		virtual void SetNumIterations(int32 NumIterations) override;
+		virtual void SetNumSubsteps(int32 NumSubsteps) override;
 		virtual int32 GetNumCloths() const override { return NumCloths; }
 		virtual int32 GetNumKinematicParticles() const override { return NumKinematicParticles; }
 		virtual int32 GetNumDynamicParticles() const override { return NumDynamicParticles; }
@@ -81,6 +81,8 @@ namespace Chaos
 		virtual FReal GetSimulationTime() const override { return SimulationTime; }
 		virtual bool IsTeleported() const override { return bIsTeleported; }
 		// End of IClothingSimulation interface
+
+		FClothingSimulationCloth* GetCloth(int32 ClothId);
 
 #if WITH_EDITOR
 		// FGCObject interface

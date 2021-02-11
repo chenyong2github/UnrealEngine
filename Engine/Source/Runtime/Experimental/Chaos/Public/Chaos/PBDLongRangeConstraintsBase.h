@@ -38,6 +38,8 @@ public:
 
 	static TArray<TArray<uint32>> ComputeIslands(const TMap<int32, TSet<uint32>>& PointToNeighbors, const TArray<uint32>& KinematicParticles);
 
+	void SetStiffness(FReal InStiffness) { MStiffness = FMath::Clamp(InStiffness, (FReal)0., (FReal)1.); }
+
 protected:
 	template<class TConstraintType>
 	inline FVec3 GetDelta(const TConstraintType& Constraint, const FPBDParticles& InParticles, const FReal RefDist) const

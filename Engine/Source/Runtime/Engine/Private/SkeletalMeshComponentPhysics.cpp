@@ -26,6 +26,7 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "AnimationRuntime.h"
 #include "ClothCollisionData.h"
+#include "ClothingSimulationInteractor.h"
 
 #include "Logging/MessageLog.h"
 #include "CollisionDebugDrawingPublic.h"
@@ -2585,6 +2586,11 @@ void USkeletalMeshComponent::RecreateClothingActors()
 					if (Asset && AssetsInUse.Contains(Asset))
 					{
 						ClothingSimulation->CreateActor(this, Asset, BaseAssetIndex);
+						
+						if (ClothingInteractor)
+						{
+							ClothingInteractor->CreateClothingInteractor(Asset, BaseAssetIndex);
+						}
 					}
 				}
 			}
@@ -2616,6 +2622,11 @@ void USkeletalMeshComponent::RemoveAllClothingActors()
 	{
 		// Can't destroy our actors if we're still simulating
 		HandleExistingParallelClothSimulation();
+
+		if(ClothingInteractor)
+		{
+			ClothingInteractor->DestroyClothingInteractors();
+		}
 
 		ClothingSimulation->DestroyActors();
 	}

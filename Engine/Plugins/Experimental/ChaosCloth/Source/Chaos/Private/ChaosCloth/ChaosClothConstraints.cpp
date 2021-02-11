@@ -26,9 +26,6 @@ FClothConstraints::FClothConstraints()
 	, ConstraintRuleOffset(INDEX_NONE)
 	, NumConstraintInits(0)
 	, NumConstraintRules(0)
-	, MaxDistancesMultiplier(1.f)
-	, AnimDriveStiffness(0.f)
-	, AnimDriveDamping(0.f)
 {
 }
 
@@ -199,7 +196,6 @@ void FClothConstraints::CreateRules()
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
 			{
-				MaximumDistanceConstraints->SetSphereRadiiMultiplier(FMath::Max(0.f, MaxDistancesMultiplier));
 				MaximumDistanceConstraints->Apply(Particles, Dt);
 			};
 	}
@@ -216,7 +212,7 @@ void FClothConstraints::CreateRules()
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
 			{
-				AnimDriveConstraints->SetProperties(AnimDriveStiffness, AnimDriveDamping, Dt, Evolution->GetIterations());  // TODO: Move to init function, this isn't a per iteration call
+				AnimDriveConstraints->ApplyProperties(Dt, Evolution->GetIterations());  // TODO: Move to init, there is no reason to update this at every iterations
 				AnimDriveConstraints->Apply(Particles, Dt);
 			};
 	}
@@ -411,3 +407,90 @@ void FClothConstraints::SetSelfCollisionConstraints(const TArray<TVec3<int32>>& 
 	++NumConstraintRules;  // and a rule
 }
 
+void FClothConstraints::SetEdgeProperties(FReal EdgeStiffness)
+{
+	if (EdgeConstraints)
+	{
+		EdgeConstraints->SetStiffness(EdgeStiffness);
+	}
+	if (XEdgeConstraints)
+	{
+		XEdgeConstraints->SetStiffness(EdgeStiffness);
+	}
+}
+
+void FClothConstraints::SetBendingProperties(FReal BendingStiffness)
+{
+	if (BendingConstraints)
+	{
+		BendingConstraints->SetStiffness(BendingStiffness);
+	}
+	if (XBendingConstraints)
+	{
+		XBendingConstraints->SetStiffness(BendingStiffness);
+	}
+}
+
+void FClothConstraints::SetAreaProperties(FReal AreaStiffness)
+{
+	if (AreaConstraints)
+	{
+		AreaConstraints->SetStiffness(AreaStiffness);
+	}
+	if (XAreaConstraints)
+	{
+		XAreaConstraints->SetStiffness(AreaStiffness);
+	}
+}
+
+void FClothConstraints::SetThinShellVolumeProperties(FReal VolumeStiffness)
+{
+	if (ThinShellVolumeConstraints)
+	{
+		ThinShellVolumeConstraints->SetStiffness(VolumeStiffness);
+	}
+}
+
+void FClothConstraints::SetVolumeProperties(FReal VolumeStiffness)
+{
+	if (VolumeConstraints)
+	{
+		VolumeConstraints->SetStiffness(VolumeStiffness);
+	}
+}
+
+void FClothConstraints::SetLongRangeAttachmentProperties(FReal TetherStiffness)
+{
+	if (LongRangeConstraints)
+	{
+		LongRangeConstraints->SetStiffness(TetherStiffness);
+	}
+	if (XLongRangeConstraints)
+	{
+		XLongRangeConstraints->SetStiffness(TetherStiffness);
+	}
+}
+
+void FClothConstraints::SetMaximumDistanceProperties(FReal MaxDistancesMultiplier)
+{
+	if (MaximumDistanceConstraints)
+	{
+		MaximumDistanceConstraints->SetSphereRadiiMultiplier(MaxDistancesMultiplier);
+	}
+}
+
+void FClothConstraints::SetAnimDriveProperties(const FVec2& AnimDriveStiffness, const FVec2& AnimDriveDamping)
+{
+	if (AnimDriveConstraints)
+	{
+		AnimDriveConstraints->SetProperties(AnimDriveStiffness, AnimDriveDamping);
+	}
+}
+
+void FClothConstraints::SetSelfCollisionProperties(FReal SelfCollisionThickness)
+{
+	if (SelfCollisionConstraints)
+	{
+		SelfCollisionConstraints->SetThickness(SelfCollisionThickness);
+	}
+}

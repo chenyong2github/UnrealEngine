@@ -70,6 +70,8 @@ class FPBDBendingConstraintsBase
 		return MStiffness * SafeDivide(Delta, Denom);
 	}
 
+	void SetStiffness(FReal InStiffness) { MStiffness = FMath::Clamp(InStiffness, (FReal)0., (FReal)1.); }
+
   private:
 	template<class TNum>
 	inline TNum SafeDivide(const TNum& Numerator, const FReal& Denominator) const

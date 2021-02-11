@@ -59,12 +59,9 @@ namespace Chaos
 		virtual ~FPBDAnimDriveConstraint() {}
 
 		// Set stiffness offset and range, as well as the simulation stiffness exponent
-		inline void SetProperties(const FVec2& InStiffness, const FVec2& InDamping, const FReal Dt, const int32 NumIterations)
+		inline void ApplyProperties(const FReal Dt, const int32 NumIterations)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_PBD_AnimDriveConstraintSetStiffness);
-
-			Stiffness = InStiffness;
-			Damping = InDamping;
 
 			// Define the stiffness mapping function
 			static const FReal ParameterFitLogBase = FMath::Loge(ParameterFitBase);
@@ -105,6 +102,12 @@ namespace Chaos
 
 		// Return the damping input values used by the constraint
 		inline FVec2 GetDamping() const { return Damping; }
+
+		void SetProperties(const FVec2& InStiffness, const FVec2& InDamping)
+		{
+			Stiffness = InStiffness.ClampAxes((FReal)0., (FReal)1.);
+			Damping = InDamping.ClampAxes((FReal)0., (FReal)1.);
+		}
 
 		inline virtual void Apply(FPBDParticles& InParticles, const FReal Dt) const override
 		{

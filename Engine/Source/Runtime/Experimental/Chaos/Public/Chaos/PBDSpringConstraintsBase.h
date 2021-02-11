@@ -47,6 +47,8 @@ namespace Chaos
 		virtual ~FPBDSpringConstraintsBase()
 		{}
 
+		void SetStiffness(FReal InStiffness) { MStiffness = FMath::Clamp(InStiffness, (FReal)0., (FReal)1.); }
+
 	protected:
 		template<class T_PARTICLES>
 		inline FVec3 GetDelta(const T_PARTICLES& InParticles, const int32 i) const

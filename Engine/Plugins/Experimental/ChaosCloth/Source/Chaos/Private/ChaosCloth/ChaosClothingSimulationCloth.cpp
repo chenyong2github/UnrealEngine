@@ -190,14 +190,14 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 
 	// Long range constraints
-	if (Cloth->StrainLimitingStiffness)
+	if (Cloth->TetherStiffness)
 	{
 		check(TriangleMesh.GetNumElements() > 0);
 		// PerFormance note: The Per constraint version of this function is quite a bit faster for smaller assets
 		// There might be a cross-over point where the PerParticle version is faster: To be determined
 		ClothConstraints.SetLongRangeConstraints(
 			TriangleMesh.GetPointToNeighborsMap(),
-			Cloth->StrainLimitingStiffness,
+			Cloth->TetherStiffness,
 			Cloth->LimitScale,
 			Cloth->TetherMode,
 			Cloth->bUseXPBDConstraints);
@@ -266,8 +266,15 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 
 	// Update the animatable constraint parameters
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-	ClothConstraints.SetMaxDistancesMultiplier(Cloth->MaxDistancesMultiplier);
+	ClothConstraints.SetMaximumDistanceProperties(Cloth->MaxDistancesMultiplier);
+	ClothConstraints.SetEdgeProperties(Cloth->EdgeStiffness);
+	ClothConstraints.SetBendingProperties(Cloth->BendingStiffness);
+	ClothConstraints.SetAreaProperties(Cloth->AreaStiffness);
+	ClothConstraints.SetLongRangeAttachmentProperties(Cloth->TetherStiffness);
+	ClothConstraints.SetSelfCollisionProperties(Cloth->SelfCollisionThickness);
 	ClothConstraints.SetAnimDriveProperties(Cloth->AnimDriveStiffness, Cloth->AnimDriveDamping);
+	ClothConstraints.SetThinShellVolumeProperties(Cloth->VolumeStiffness);
+	ClothConstraints.SetVolumeProperties(Cloth->VolumeStiffness);
 }
 
 void FClothingSimulationCloth::FLODData::Enable(FClothingSimulationSolver* Solver, bool bEnable) const
@@ -330,7 +337,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	float InAreaStiffness,
 	float InVolumeStiffness,
 	bool bInUseThinShellVolumeConstraints,
-	float InStrainLimitingStiffness,
+	float InTetherStiffness,
 	float InLimitScale,
 	ETetherMode InTetherMode,
 	float InMaxDistancesMultiplier,
@@ -367,7 +374,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, AreaStiffness(InAreaStiffness)
 	, VolumeStiffness(InVolumeStiffness)
 	, bUseThinShellVolumeConstraints(bInUseThinShellVolumeConstraints)
-	, StrainLimitingStiffness(InStrainLimitingStiffness)
+	, TetherStiffness(InTetherStiffness)
 	, LimitScale(InLimitScale)
 	, TetherMode(InTetherMode)
 	, MaxDistancesMultiplier(InMaxDistancesMultiplier)
