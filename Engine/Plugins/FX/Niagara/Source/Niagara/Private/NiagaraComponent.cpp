@@ -2490,6 +2490,7 @@ void UNiagaraComponent::PostLoad()
 	Super::PostLoad();
 
 	OverrideParameters.PostLoad();
+	OverrideParameters.SanityCheckData();
 
 #if WITH_EDITOR
 	if (Asset != nullptr)
