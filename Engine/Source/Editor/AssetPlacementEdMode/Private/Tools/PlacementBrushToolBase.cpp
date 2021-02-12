@@ -92,21 +92,12 @@ FTransform UPlacementBrushToolBase::GetFinalTransformFromHitLocationAndNormal(co
 		return FinalizedTransform;
 	}
 
-	// For now, just apply a random yaw to any placed object, until we have per object settings for random pitch and yaw angles.
-	if (PlacementSettings->bAllowRandomRotation)
-	{
-		FRotator UpdatedRotation = FinalizedTransform.Rotator();
-
-		// UpdatedRotation = FRotator(FMath::FRand() * ItemToPlace->RandomPitchAngle, 0.f, 0.f);
-
-		// if (ItemToPlace.bUseRandomYaw)
-		UpdatedRotation.Yaw = FMath::FRand() * 360.f;
-
-		FinalizedTransform.SetRotation(UpdatedRotation.Quaternion());
-	}
+	// Update the rotation if we need to
+	FRotator FinalRotation = GetFinalRotation(FinalizedTransform);
+	FinalizedTransform.SetRotation(FinalRotation.Quaternion());
 
 	// Align to normal
-	if (PlacementSettings->bAllowAlignToNormal)
+	if (PlacementSettings->bAlignToNormal)
 	{
 		FRotator AlignRotation = InNormal.Rotation();
 		// Static meshes are authored along the vertical axis rather than the X axis, so we add 90 degrees to the static mesh's Pitch.
@@ -133,7 +124,7 @@ FTransform UPlacementBrushToolBase::GetFinalTransformFromHitLocationAndNormal(co
 		FinalizedTransform.SetRotation(FQuat(AlignRotation) * FinalizedTransform.GetRotation());
 	}
 
-	if (PlacementSettings->bAllowRandomScale)
+	if (PlacementSettings->bUseRandomScale)
 	{
 		// Until we have per object settings, just use a uniform scale, clamped from half to double size
 		FFloatInterval ScaleRange(0.5f, 2.0f);
@@ -142,6 +133,33 @@ FTransform UPlacementBrushToolBase::GetFinalTransformFromHitLocationAndNormal(co
 	}
 
 	return FinalizedTransform;
+}
+
+FRotator UPlacementBrushToolBase::GetFinalRotation(const FTransform& InTransform)
+{
+	FRotator UpdatedRotation = InTransform.Rotator();
+
+	if (!PlacementSettings.IsValid())
+	{
+		return UpdatedRotation;
+	}
+
+	if (PlacementSettings->bUseRandomXRotation)
+	{
+		UpdatedRotation.Roll = PlacementSettings->RandomRotationX.Interpolate(FMath::FRand());
+	}
+
+	if (PlacementSettings->bUseRandomYRotation)
+	{
+		UpdatedRotation.Pitch = PlacementSettings->RandomRotationY.Interpolate(FMath::FRand());
+	}
+
+	if (PlacementSettings->bUseRandomZRotation)
+	{
+		UpdatedRotation.Yaw = PlacementSettings->RandomRotationZ.Interpolate(FMath::FRand());
+	}
+
+	return UpdatedRotation;
 }
 
 TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() const

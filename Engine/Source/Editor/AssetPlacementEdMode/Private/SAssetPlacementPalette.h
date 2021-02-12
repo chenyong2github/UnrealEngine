@@ -59,9 +59,6 @@ public:
 	/** Refreshes the Placement palette */
 	void RefreshPalette();
 
-	bool AnySelectedTileHovered() const;
-	void ActivateAllSelectedTypes(bool bActivate) const;
-
 	/** @return True if the given view mode is the active view mode */
 	bool IsActiveViewMode(EAssetPlacementPaletteViewMode ViewMode) const;
 
@@ -96,10 +93,6 @@ private:	// GENERAL
 	/** Gets the visibility of the Add Placement Type text in the header row button */
 	EVisibility GetAddPlacementTypeButtonTextVisibility() const;
 
-	/** Toggle whether all Placement types are active */
-	ECheckBoxState GetState_AllMeshes() const;
-	void OnCheckStateChanged_AllMeshes(ECheckBoxState InState);
-
 	/** Sets the view mode of the palette */
 	void SetViewMode(EAssetPlacementPaletteViewMode NewViewMode);
 
@@ -111,12 +104,6 @@ private:	// GENERAL
 
 	/** @return The index of the view widget to display */
 	int32 GetActiveViewIndex() const;
-
-	/** Handler for selection changes in either view */
-	void OnSelectionChanged(FPlacementPaletteItemModelPtr Item, ESelectInfo::Type SelectInfo);
-
-	/** Toggle the activation state of a type on a double-click */
-	void OnItemDoubleClicked(FPlacementPaletteItemModelPtr Item) const;
 
 	/** Creates the view options menu */
 	TSharedRef<SWidget> GetViewOptionsMenuContent();
@@ -137,46 +124,8 @@ private:	// CONTEXT MENU
 	/** @return the SWidget containing the context menu */
 	TSharedPtr<SWidget> ConstructPlacementTypeContextMenu();
 
-	/** Handler for the 'Activate' command */
-	void OnActivatePlacementTypes();
-	bool OnCanActivatePlacementTypes() const;
-
-	/** Handler for the 'Deactivate' command */
-	void OnDeactivatePlacementTypes();
-	bool OnCanDeactivatePlacementTypes() const;
-
-	/** Fills 'Replace' menu command  */
-	void FillReplacePlacementTypeSubmenu(FMenuBuilder& MenuBuilder);
-
-	/** Handler for 'Replace' command  */
-	void OnReplacePlacementTypeSelected(const struct FAssetData& AssetData);
-
-	/** Handler for 'Remove' command  */
-	void OnRemovePlacementType();
-
 	/** Handler for 'Show in CB' command  */
 	void OnShowPlacementTypeInCB();
-
-	/** Handler for 'Select All' command  */
-	void OnSelectAllInstances();
-
-	/** Handler for 'Deselect All' command  */
-	void OnDeselectAllInstances();
-
-	/** Handler for 'Select Invalid Instances' command  */
-	void OnSelectInvalidInstances();
-
-	/** Executes Function on gathered list of Placement types from the selected palette items */
-	void ExecuteOnSelectedItemPlacementTypes(TFunctionRef<void(const TArray<FAssetData>&)> ExecuteFunc);
-
-	/** @return Whether selecting instances is currently possible */
-	bool CanSelectInstances() const;
-
-	/** Handler for 'Reflect Selection in Palette ' command */
-	void OnReflectSelectionInPalette();
-
-	/** Selects Placement Type in palette */
-	void SelectPlacementTypesInPalette(const TArray<FAssetData>& PlacementTypes);
 
 private:	// THUMBNAIL VIEW
 

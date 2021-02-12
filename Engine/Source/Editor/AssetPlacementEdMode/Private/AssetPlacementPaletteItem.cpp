@@ -155,17 +155,6 @@ TSharedRef<SToolTip> FAssetPlacementPaletteItemModel::CreateTooltipWidget() cons
 		];
 }
 
-TSharedRef<SCheckBox> FAssetPlacementPaletteItemModel::CreateActivationCheckBox(TAttribute<bool> IsItemWidgetSelected, TAttribute<EVisibility> InVisibility)
-{
-	return
-		SNew(SCheckBox)
-		.Padding(0.f)
-		.OnCheckStateChanged(this, &FAssetPlacementPaletteItemModel::HandleCheckStateChanged, IsItemWidgetSelected)
-		.Visibility(InVisibility)
-		.IsChecked(this, &FAssetPlacementPaletteItemModel::GetCheckBoxState)
-		.ToolTipText(LOCTEXT("TileCheckboxTooltip", "Check to activate the currently selected types in the palette"));
-}
-
 FName FAssetPlacementPaletteItemModel::GetDisplayFName() const
 {
 	return DisplayFName;
@@ -183,16 +172,6 @@ FText FAssetPlacementPaletteItemModel::GetPaletteSearchText() const
 	}
 }
 
-void FAssetPlacementPaletteItemModel::SetTypeActiveInPalette(bool bSetActiveInPalette)
-{
-	bSelected = bSetActiveInPalette;
-}
-
-bool FAssetPlacementPaletteItemModel::IsActive() const
-{
-	return bSelected;
-}
-
 bool FAssetPlacementPaletteItemModel::IsBlueprint() const
 {
 	return TypeInfo && (TypeInfo->AssetData.GetClass()->GetDefaultObject()->IsA<UBlueprint>() || (TypeInfo->AssetData.GetClass()->ClassGeneratedBy != nullptr));
@@ -201,26 +180,6 @@ bool FAssetPlacementPaletteItemModel::IsBlueprint() const
 bool FAssetPlacementPaletteItemModel::IsAsset() const
 {
 	return TypeInfo && TypeInfo->AssetData.IsValid();
-}
-
-void FAssetPlacementPaletteItemModel::HandleCheckStateChanged(const ECheckBoxState NewCheckedState, TAttribute<bool> IsItemWidgetSelected)
-{
-	if (!IsItemWidgetSelected.IsSet()) { return; }
-
-	const bool bShouldActivate = NewCheckedState == ECheckBoxState::Checked;
-	if (!IsItemWidgetSelected.Get())
-	{
-		SetTypeActiveInPalette(bShouldActivate);
-	}
-	else if (AssetPalette.IsValid())
-	{
-		AssetPalette.Pin()->ActivateAllSelectedTypes(bShouldActivate);
-	}
-}
-
-ECheckBoxState FAssetPlacementPaletteItemModel::GetCheckBoxState() const
-{
-	return bSelected ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 EVisibility FAssetPlacementPaletteItemModel::GetTooltipVisibility() const
@@ -259,9 +218,6 @@ void SAssetPlacementPaletteItemTile::Construct(const FArguments& InArgs, TShared
 {
 	Model = InModel;
 
-	auto IsSelectedGetter = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SAssetPlacementPaletteItemTile::IsSelected));
-	auto CheckBoxVisibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SAssetPlacementPaletteItemTile::GetCheckBoxVisibility));
-
 	STableRow<FAssetPlacementUIInfoPtr>::Construct(
 		STableRow<FAssetPlacementUIInfoPtr>::FArguments()
 		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
@@ -278,43 +234,12 @@ void SAssetPlacementPaletteItemTile::Construct(const FArguments& InArgs, TShared
 				.Padding(4.f)
 				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
 				.ForegroundColor(FLinearColor::White)
-				.ColorAndOpacity(this, &SAssetPlacementPaletteItemTile::GetTileColorAndOpacity)
+				.ColorAndOpacity(FLinearColor::White)
 				[
 					Model->GetThumbnailWidget()
 				]
 			]
-			
-			// Checkbox
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Top)
-			.Padding(FMargin(3.f))
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
-				.BorderBackgroundColor(FLinearColor::Black)
-				.ForegroundColor(FLinearColor::White)
-				.Padding(3.f)
-				[
-					Model->CreateActivationCheckBox(IsSelectedGetter, CheckBoxVisibility)
-				]
-			]
 		], InOwnerTableView);
-}
-
-FLinearColor SAssetPlacementPaletteItemTile::GetTileColorAndOpacity() const
-{
-	return Model->IsActive() ? FLinearColor::White : FLinearColor(0.5f, 0.5f, 0.5f, 1.f);
-}
-
-EVisibility SAssetPlacementPaletteItemTile::GetCheckBoxVisibility() const
-{
-	return CanShowOverlayItems() && (IsHovered() || (IsSelected() && Model->GetAssetPalette()->AnySelectedTileHovered())) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-bool SAssetPlacementPaletteItemTile::CanShowOverlayItems() const
-{
-	return true;
 }
 
 ////////////////////////////////////////////////
@@ -333,12 +258,7 @@ TSharedRef<SWidget> SAssetPlacementPaletteItemRow::GenerateWidgetForColumn(const
 {
 	TSharedPtr<SWidget> TableRowContent = SNullWidget::NullWidget;
 
-	if (ColumnName == AssetPlacementPaletteTreeColumns::ColumnID_ToggleActive)
-	{
-		TAttribute<bool> IsSelectedGetter = MakeAttributeSP<bool>(this, &SAssetPlacementPaletteItemTile::IsSelected);
-		TableRowContent = Model->CreateActivationCheckBox(IsSelectedGetter);
-	} 
-	else if (ColumnName == AssetPlacementPaletteTreeColumns::ColumnID_Type)
+	if (ColumnName == AssetPlacementPaletteTreeColumns::ColumnID_Type)
 	{
 		TableRowContent =
 			SNew(SHorizontalBox)

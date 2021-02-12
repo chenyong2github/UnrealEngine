@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #include "EditorModeManager.h"
 
@@ -38,9 +39,17 @@ TSharedPtr<SWidget> FAssetPlacementEdModeToolkit::GetInlineContent() const
 {
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
-		.AutoHeight()
+		.FillHeight(.6)
 		[
-			FModeToolkit::GetInlineContent().ToSharedRef()
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+			[
+				DetailsView.ToSharedRef()
+			]
+			+ SScrollBox::Slot()
+			[
+				ModeDetailsView.ToSharedRef()
+			]
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
@@ -49,8 +58,12 @@ TSharedPtr<SWidget> FAssetPlacementEdModeToolkit::GetInlineContent() const
 			.AreaTitle(LOCTEXT("AssetPaletteHeader", "Asset Palette"))
 			.BodyContent()
 			[
-				SNew(SAssetPlacementPalette)
-				.PlacementSettings(PlacementSettings)
+				SNew(SScrollBox)
+				+ SScrollBox::Slot()
+				[
+					SNew(SAssetPlacementPalette)
+					.PlacementSettings(PlacementSettings)
+				]
 			]
 		];
 }
