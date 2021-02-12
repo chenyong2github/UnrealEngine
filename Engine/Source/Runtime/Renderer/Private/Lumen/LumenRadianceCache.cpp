@@ -149,11 +149,11 @@ namespace LumenRadianceCache
 	{
 		GetInterpolationParametersNoResources(GraphBuilder, RadianceCacheState, RadianceCacheInputs, OutParameters);
 
-		OutParameters.RadianceProbeIndirectionTexture = RadianceCacheState.RadianceProbeIndirectionTexture ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeIndirectionTexture, TEXT("RadianceCacheIndirectionTexture")) : nullptr;
-		OutParameters.RadianceCacheFinalRadianceAtlas = RadianceCacheState.FinalRadianceAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalRadianceAtlas, TEXT("RadianceCacheFinalRadianceAtlas")) : nullptr;
-		OutParameters.RadianceCacheFinalIrradianceAtlas = RadianceCacheState.FinalIrradianceAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalIrradianceAtlas, TEXT("RadianceCacheFinalIrradianceAtlas")) : nullptr;
-		OutParameters.RadianceCacheProbeOcclusionAtlas = RadianceCacheState.ProbeOcclusionAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.ProbeOcclusionAtlas, TEXT("RadianceCacheProbeOcclusionAtlas")) : nullptr;
-		OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DepthProbeAtlasTexture, TEXT("RadianceCacheDepthAtlas"));
+		OutParameters.RadianceProbeIndirectionTexture = RadianceCacheState.RadianceProbeIndirectionTexture ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeIndirectionTexture, TEXT("Lumen.RadianceCacheIndirectionTexture")) : nullptr;
+		OutParameters.RadianceCacheFinalRadianceAtlas = RadianceCacheState.FinalRadianceAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalRadianceAtlas, TEXT("Lumen.RadianceCacheFinalRadianceAtlas")) : nullptr;
+		OutParameters.RadianceCacheFinalIrradianceAtlas = RadianceCacheState.FinalIrradianceAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalIrradianceAtlas, TEXT("Lumen.RadianceCacheFinalIrradianceAtlas")) : nullptr;
+		OutParameters.RadianceCacheProbeOcclusionAtlas = RadianceCacheState.ProbeOcclusionAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.ProbeOcclusionAtlas, TEXT("Lumen.RadianceCacheProbeOcclusionAtlas")) : nullptr;
+		OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DepthProbeAtlasTexture, TEXT("Lumen.RadianceCacheDepthAtlas"));
 		FRDGBufferRef ProbeWorldOffset = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeWorldOffset);
 		OutParameters.ProbeWorldOffset = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeWorldOffset, PF_A32B32G32R32F));
 	}
@@ -925,7 +925,7 @@ void RenderRadianceCache(
 				FClearValueBinding::None,
 				TexCreate_ShaderResource | TexCreate_UAV);
 
-			DepthProbeAtlasTexture = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("DepthProbeAtlasTexture"));
+			DepthProbeAtlasTexture = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("Lumen.DepthProbeAtlasTexture"));
 			bResizedHistoryState = true;
 		}
 
@@ -952,7 +952,7 @@ void RenderRadianceCache(
 					TexCreate_ShaderResource | TexCreate_UAV,
 					RadianceCacheInputs.FinalRadianceAtlasMaxMip + 1);
 
-				FinalIrradianceAtlas = GraphBuilder.CreateTexture(FinalRadianceAtlasDesc, TEXT("RadianceCacheFinalIrradianceAtlas"));
+				FinalIrradianceAtlas = GraphBuilder.CreateTexture(FinalRadianceAtlasDesc, TEXT("Lumen.RadianceCacheFinalIrradianceAtlas"));
 				bResizedHistoryState = true;
 			}
 
@@ -973,7 +973,7 @@ void RenderRadianceCache(
 					TexCreate_ShaderResource | TexCreate_UAV,
 					RadianceCacheInputs.FinalRadianceAtlasMaxMip + 1);
 
-				ProbeOcclusionAtlas = GraphBuilder.CreateTexture(ProbeOcclusionAtlasDesc, TEXT("RadianceCacheProbeOcclusionAtlas"));
+				ProbeOcclusionAtlas = GraphBuilder.CreateTexture(ProbeOcclusionAtlasDesc, TEXT("Lumen.RadianceCacheProbeOcclusionAtlas"));
 				bResizedHistoryState = true;
 			}
 		}
@@ -996,7 +996,7 @@ void RenderRadianceCache(
 					TexCreate_ShaderResource | TexCreate_UAV,
 					RadianceCacheInputs.FinalRadianceAtlasMaxMip + 1);
 
-				FinalRadianceAtlas = GraphBuilder.CreateTexture(FinalRadianceAtlasDesc, TEXT("RadianceCacheFinalRadianceAtlas"));
+				FinalRadianceAtlas = GraphBuilder.CreateTexture(FinalRadianceAtlasDesc, TEXT("Lumen.RadianceCacheFinalRadianceAtlas"));
 				bResizedHistoryState = true;
 			}
 		}
@@ -1015,7 +1015,7 @@ void RenderRadianceCache(
 				FClearValueBinding::None,
 				TexCreate_ShaderResource | TexCreate_UAV);
 
-			DebugBRDFProbabilityDensityFunction = GraphBuilder.CreateTexture(DebugBRDFProbabilityDensityFunctionDesc, TEXT("DebugBRDFProbabilityDensityFunction"));
+			DebugBRDFProbabilityDensityFunction = GraphBuilder.CreateTexture(DebugBRDFProbabilityDensityFunctionDesc, TEXT("Lumen.DebugBRDFProbabilityDensityFunction"));
 		}
 
 		LumenRadianceCache::GetInterpolationParametersNoResources(GraphBuilder, RadianceCacheState, RadianceCacheInputs, RadianceCacheParameters);
@@ -1031,7 +1031,7 @@ void RenderRadianceCache(
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling);
 
-		FRDGTextureRef RadianceProbeIndirectionTexture = GraphBuilder.CreateTexture(FRDGTextureDesc(ProbeIndirectionDesc), TEXT("RadianceProbeIndirectionTexture"));
+		FRDGTextureRef RadianceProbeIndirectionTexture = GraphBuilder.CreateTexture(FRDGTextureDesc(ProbeIndirectionDesc), TEXT("Lumen.RadianceProbeIndirectionTexture"));
 		FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceProbeIndirectionTexture));
 
 		RadianceCacheParameters.RadianceProbeIndirectionTexture = RadianceProbeIndirectionTexture;
@@ -1077,10 +1077,10 @@ void RenderRadianceCache(
 		}
 		else
 		{
-			ProbeFreeListAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1), TEXT("RadianceCacheProbeFreeListAllocator"));
-			ProbeFreeList = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumProbes), TEXT("RadianceCacheProbeFreeList"));
-			ProbeLastUsedFrame = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumProbes), TEXT("ProbeLastUsedFrame"));
-			ProbeWorldOffset = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), MaxNumProbes), TEXT("ProbeWorldOffset"));
+			ProbeFreeListAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1), TEXT("Lumen.RadianceCacheProbeFreeListAllocator"));
+			ProbeFreeList = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumProbes), TEXT("Lumen.RadianceCacheProbeFreeList"));
+			ProbeLastUsedFrame = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumProbes), TEXT("Lumen.ProbeLastUsedFrame"));
+			ProbeWorldOffset = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), MaxNumProbes), TEXT("Lumen.ProbeWorldOffset"));
 		}
 
 		FRDGBufferUAVRef ProbeFreeListAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeFreeListAllocator, PF_R32_SINT));
@@ -1151,11 +1151,11 @@ void RenderRadianceCache(
 
 		if (IsValidRef(RadianceCacheState.ProbeAllocator))
 		{
-			ProbeAllocator = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeAllocator, TEXT("ProbeAllocator"));
+			ProbeAllocator = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeAllocator, TEXT("Lumen.ProbeAllocator"));
 		}
 		else
 		{
-			ProbeAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("RadianceCacheProbeAllocator"));
+			ProbeAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.RadianceCacheProbeAllocator"));
 		}
 
 		FRDGBufferUAVRef ProbeAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeAllocator, PF_R32_UINT));
@@ -1165,7 +1165,7 @@ void RenderRadianceCache(
 			FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, ProbeAllocatorUAV, 0);
 		}
 
-		FRDGBufferRef ProbeTraceData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), MaxNumProbes), TEXT("RadianceCacheProbeTraceData"));
+		FRDGBufferRef ProbeTraceData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), MaxNumProbes), TEXT("Lumen.RadianceCacheProbeTraceData"));
 
 		FRDGTextureRef RadianceProbeAtlasTextureSource = nullptr;
 
@@ -1182,14 +1182,14 @@ void RenderRadianceCache(
 		}
 		else
 		{
-			RadianceProbeAtlasTextureSource = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("RadianceProbeAtlasTextureSource"));
+			RadianceProbeAtlasTextureSource = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("Lumen.RadianceProbeAtlasTextureSource"));
 		}
 
-		FRDGBufferRef ProbeTraceAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("ProbeTraceAllocator"));
+		FRDGBufferRef ProbeTraceAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.ProbeTraceAllocator"));
 		FRDGBufferUAVRef ProbeTraceAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeTraceAllocator, PF_R32_UINT));
 		FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, ProbeTraceAllocatorUAV, 0);
 
-		FRDGBufferRef NumNewProbes = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("NumNewProbes"));
+		FRDGBufferRef NumNewProbes = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.NumNewProbes"));
 
 		// Update probe lighting in two passes:
 		// The first operates on new probes (cache misses) which trace at a lower resolution when over budget.
@@ -1248,13 +1248,13 @@ void RenderRadianceCache(
 			}
 		}
 
-		FRDGBufferRef ClearProbePDFsIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(2), TEXT("ClearProbePDFsIndirectArgs"));
-		FRDGBufferRef GenerateProbeTraceTilesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(3), TEXT("GenerateProbeTraceTilesIndirectArgs"));
-		FRDGBufferRef ProbeTraceTileAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("ProbeTraceTileAllocator"));
-		FRDGBufferRef FilterProbesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(5), TEXT("FilterProbesIndirectArgs"));
-		FRDGBufferRef CalculateProbeIrradianceIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(6), TEXT("CalculateProbeIrradianceIndirectArgs"));
-		FRDGBufferRef PrepareProbeOcclusionIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(7), TEXT("PrepareProbeOcclusionIndirectArgs"));
-		FRDGBufferRef FixupProbeBordersIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(8), TEXT("FixupProbeBordersIndirectArgs"));
+		FRDGBufferRef ClearProbePDFsIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(2), TEXT("Lumen.ClearProbePDFsIndirectArgs"));
+		FRDGBufferRef GenerateProbeTraceTilesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(3), TEXT("Lumen.GenerateProbeTraceTilesIndirectArgs"));
+		FRDGBufferRef ProbeTraceTileAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.ProbeTraceTileAllocator"));
+		FRDGBufferRef FilterProbesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(5), TEXT("Lumen.FilterProbesIndirectArgs"));
+		FRDGBufferRef CalculateProbeIrradianceIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(6), TEXT("Lumen.CalculateProbeIrradianceIndirectArgs"));
+		FRDGBufferRef PrepareProbeOcclusionIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(7), TEXT("Lumen.PrepareProbeOcclusionIndirectArgs"));
+		FRDGBufferRef FixupProbeBordersIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(8), TEXT("Lumen.FixupProbeBordersIndirectArgs"));
 
 		{
 			FSetupProbeIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupProbeIndirectArgsCS::FParameters>();
@@ -1304,7 +1304,7 @@ void RenderRadianceCache(
 
 		RadianceCacheParameters.ProbeWorldOffset = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeWorldOffset, PF_A32B32G32R32F));
 
-		FRDGBufferRef RadianceProbeSH_PDF = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), MaxNumProbes * (9 + 1)), TEXT("RadianceProbeSH_PDF"));
+		FRDGBufferRef RadianceProbeSH_PDF = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), MaxNumProbes * (9 + 1)), TEXT("Lumen.RadianceProbeSH_PDF"));
 
 		const bool bGenerateBRDF_PDF = ScreenProbeParameters && BRDFProbabilityDensityFunctionSH;
 
@@ -1348,7 +1348,7 @@ void RenderRadianceCache(
 		}
 
 		const int32 MaxProbeTraceTileResolution = RadianceCacheInputs.RadianceProbeResolution / FRadianceCacheTraceFromProbesCS::GetGroupSize() * 2;
-		FRDGBufferRef ProbeTraceTileData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntPoint), MaxNumProbes * MaxProbeTraceTileResolution * MaxProbeTraceTileResolution), TEXT("RadianceCacheProbeTraceTileData"));
+		FRDGBufferRef ProbeTraceTileData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntPoint), MaxNumProbes * MaxProbeTraceTileResolution * MaxProbeTraceTileResolution), TEXT("Lumen.RadianceCacheProbeTraceTileData"));
 
 		{
 			FGenerateProbeTraceTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGenerateProbeTraceTilesCS::FParameters>();
@@ -1381,7 +1381,7 @@ void RenderRadianceCache(
 				0);
 		}
 
-		FRDGBufferRef TraceProbesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(4), TEXT("TraceProbesIndirectArgs"));
+		FRDGBufferRef TraceProbesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(4), TEXT("Lumen.raceProbesIndirectArgs"));
 
 		{
 			FSetupTraceFromProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupTraceFromProbesCS::FParameters>();
@@ -1429,7 +1429,7 @@ void RenderRadianceCache(
 
 		if (GRadianceCacheFilterProbes)
 		{
-			FRDGTextureRef FilteredRadianceProbeAtlasTexture = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("FilteredRadianceProbeAtlasTexture"));
+			FRDGTextureRef FilteredRadianceProbeAtlasTexture = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("Lumen.FilteredRadianceProbeAtlasTexture"));
 
 			{
 				FFilterProbeRadianceWithGatherCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFilterProbeRadianceWithGatherCS::FParameters>();

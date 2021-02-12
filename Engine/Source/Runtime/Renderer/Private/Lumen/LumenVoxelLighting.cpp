@@ -575,9 +575,9 @@ void VoxelizeVisBuffer(
 
 		const FLumenVoxelLightingClipmapState& Clipmap = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex];
 
-		FRDGBufferRef CompactedVisBufferAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("CompactedVisBufferAllocator"));
-		FRDGBufferRef CompactedVisBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), ClipmapGridResolution.X * ClipmapGridResolution.Y * ClipmapGridResolution.Z * GNumVoxelDirections), TEXT("CompactedVisBuffer"));
-		FRDGBufferRef CompactedVisBufferIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("CompactedVisBufferIndirectArguments"));
+		FRDGBufferRef CompactedVisBufferAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.CompactedVisBufferAllocator"));
+		FRDGBufferRef CompactedVisBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), ClipmapGridResolution.X * ClipmapGridResolution.Y * ClipmapGridResolution.Z * GNumVoxelDirections), TEXT("Lumen.CompactedVisBuffer"));
+		FRDGBufferRef CompactedVisBufferIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.CompactedVisBufferIndirectArguments"));
 
 		// Clear current voxel lighting clipmap
 		{
@@ -903,7 +903,7 @@ void UpdateVoxelVisBuffer(
 
 				UpdateBoundsBuffer = GraphBuilder.CreateBuffer(
 					FRDGBufferDesc::CreateUploadDesc(sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2))),
-					TEXT("UpdateBoundsBuffer"));
+					TEXT("Lumen.UpdateBoundsBuffer"));
 
 				FUploadVoxelLightingUpdateBoundsParameters* PassParameters = GraphBuilder.AllocParameters<FUploadVoxelLightingUpdateBoundsParameters>();
 				PassParameters->UpdateBoundsBuffer = UpdateBoundsBuffer;
@@ -926,9 +926,9 @@ void UpdateVoxelVisBuffer(
 					});
 			}
 
-			FRDGBufferRef ClearVisBufferIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("UpdateIndirectArgBuffer"));
-			FRDGBufferRef TraceSetupIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("TraceSetupIndirectArgBuffer"));
-			FRDGBufferRef TraceIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("TraceIndirectArgBuffer"));
+			FRDGBufferRef ClearVisBufferIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.UpdateIndirectArgBuffer"));
+			FRDGBufferRef TraceSetupIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.TraceSetupIndirectArgBuffer"));
+			FRDGBufferRef TraceIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.TraceIndirectArgBuffer"));
 			{
 				FClearIndirectAgrBuffersCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearIndirectAgrBuffersCS::FParameters>();
 				PassParameters->RWClearVisBufferIndirectArgBuffer = GraphBuilder.CreateUAV(ClearVisBufferIndirectArgBuffer, PF_R32_UINT);
@@ -950,14 +950,14 @@ void UpdateVoxelVisBuffer(
 			const FVector UpdateGridCoordToWorldCenterBias = Clipmap.Center - Clipmap.Extent + 0.5f * UpdateGridCoordToWorldCenterScale;
 
 			const uint32 UpdateGridSize = UpdateGridResolution.X * UpdateGridResolution.Y * UpdateGridResolution.Z;
-			FRDGBufferRef UpdateTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), UpdateGridSize), TEXT("UpdateTileBuffer"));
+			FRDGBufferRef UpdateTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), UpdateGridSize), TEXT("Lumen.UpdateTileBuffer"));
 
 			FRDGTextureDesc UpdateTileMaskDesc(FRDGTextureDesc::Create3D(
 				UpdateGridResolution,
 				PF_R8_UINT,
 				FClearValueBinding::Black,
 				TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling));
-			FRDGTextureRef UpdateTileMaskTexture = GraphBuilder.CreateTexture(UpdateTileMaskDesc, TEXT("UpdateTileMask"));
+			FRDGTextureRef UpdateTileMaskTexture = GraphBuilder.CreateTexture(UpdateTileMaskDesc, TEXT("Lumen.UpdateTileMask"));
 			
 			// Prepare tiles which need to be updated
 			{
@@ -1008,7 +1008,7 @@ void UpdateVoxelVisBuffer(
 			}
 
 			const int32 MaxSDFMeshObjects = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
-			FRDGBufferRef ObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxSDFMeshObjects), TEXT("ObjectIndices"));
+			FRDGBufferRef ObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxSDFMeshObjects), TEXT("Lumen.ObjectIndices"));
 
 			// Cull to clipmap
 			{
@@ -1034,7 +1034,7 @@ void UpdateVoxelVisBuffer(
 			}
 
 			const uint32 AverageObjectsPerVisBufferTile = FMath::Clamp(GLumenSceneVoxelLightingAverageObjectsPerVisBufferTile, 1, 8192);
-			FRDGBufferRef VoxelTraceData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(2 * sizeof(uint32), UpdateGridSize * AverageObjectsPerVisBufferTile), TEXT("VoxelTraceData"));
+			FRDGBufferRef VoxelTraceData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(2 * sizeof(uint32), UpdateGridSize * AverageObjectsPerVisBufferTile), TEXT("Lumen.VoxelTraceData"));
 
 			// Setup voxel traces
 			{
@@ -1128,7 +1128,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		if (!VoxelLighting || VoxelLighting->Desc != LightingDesc)
 		{
 			bForceFullUpdate = true;
-			VoxelLighting = GraphBuilder.CreateTexture(LightingDesc, TEXT("VoxelLighting"));
+			VoxelLighting = GraphBuilder.CreateTexture(LightingDesc, TEXT("Lumen.VoxelLighting"));
 		}
 	}
 
@@ -1148,7 +1148,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 			|| VoxelVisBuffer->Desc.Depth != VoxelVisBufferDesc.Depth)
 		{
 			bForceFullUpdate = true;
-			VoxelVisBuffer = GraphBuilder.CreateTexture(VoxelVisBufferDesc, TEXT("VoxelVisBuffer"));
+			VoxelVisBuffer = GraphBuilder.CreateTexture(VoxelVisBufferDesc, TEXT("Lumen.VoxelVisBuffer"));
 
 			uint32 VisBufferClearValue[4] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelVisBuffer), VisBufferClearValue);

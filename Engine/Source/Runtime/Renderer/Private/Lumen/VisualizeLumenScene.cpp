@@ -557,7 +557,20 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		UE_LOG(LogRenderer, Log, TEXT("  Cards allocated memory: %.3fMb"), LumenSceneData.Cards.GetAllocatedSize() / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  MeshCards allocated memory: %.3fMb"), LumenSceneData.MeshCards.GetAllocatedSize() / (1024.0f * 1024.0f));
 
-		GDistanceFieldVolumeTextureAtlas.ListMeshDistanceFields();
+		UE_LOG(LogRenderer, Log, TEXT("GPU Memory:"));
+		UE_LOG(LogRenderer, Log, TEXT("  CardBuffer: %.3fMb"), LumenSceneData.CardBuffer.NumBytes / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  MeshCardsBuffer: %.3fMb"), LumenSceneData.MeshCardsBuffer.NumBytes / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  DFObjectToMeshCardsIndexBuffer: %.3fMb"), LumenSceneData.DFObjectToMeshCardsIndexBuffer.NumBytes / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  LumenInstanceToDFObjectIndexBuffer: %.3fMb"), LumenSceneData.LumenInstanceToDFObjectIndexBuffer.NumBytes / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  CardUploadBuffer: %.3fMb"), LumenSceneData.CardUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  UploadMeshCardsBuffer: %.3fMb"), LumenSceneData.UploadMeshCardsBuffer.GetNumBytes() / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  ByteBufferUploadBuffer: %.3fMb"), LumenSceneData.ByteBufferUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  UploadPrimitiveBuffer: %.3fMb"), LumenSceneData.UploadPrimitiveBuffer.GetNumBytes() / (1024.0f * 1024.0f));
+		
+		if (GLumenSceneDumpStats >= 2)
+		{
+			GDistanceFieldVolumeTextureAtlas.ListMeshDistanceFields();
+		}
 
 		GLumenSceneDumpStats = 0;
 	}
