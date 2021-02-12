@@ -1945,15 +1945,15 @@ public:
 	EGameplayEffectPeriodInhibitionRemovedPolicy PeriodicInhibitionPolicy;
 
 	/** Array of modifiers that will affect the target of this effect */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=GameplayEffect)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=GameplayEffect, meta=(TitleProperty=Attribute))
 	TArray<FGameplayModifierInfo> Modifiers;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayEffect)
-	TArray<FGameplayEffectExecutionDefinition>	Executions;
+	TArray<FGameplayEffectExecutionDefinition> Executions;
 
 	/** Probability that this gameplay effect will be applied to the target actor (0.0 for never, 1.0 for always) */
 	UPROPERTY(EditDefaultsOnly, Category=Application, meta=(GameplayAttribute="True"))
-	FScalableFloat	ChanceToApplyToTarget;
+	FScalableFloat ChanceToApplyToTarget;
 
 	UPROPERTY(EditDefaultsOnly, Category=Application, DisplayName="Application Requirement")
 	TArray<TSubclassOf<UGameplayEffectCustomApplicationRequirement> > ApplicationRequirements;
