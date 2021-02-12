@@ -6,6 +6,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Containers/StringView.h"
 #include "ContentBrowserItemData.h"
+#include "UObject/StructOnScope.h"
 
 struct FContentBrowserDataFilter;
 
