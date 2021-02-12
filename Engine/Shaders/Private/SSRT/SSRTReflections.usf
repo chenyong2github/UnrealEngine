@@ -78,9 +78,8 @@ void ScreenSpaceReflectionsStencilPS(
 
 	uint2 PixelCoord = SvPosition.xy;
 	const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelCoord, 0)));
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
 
-	const float Roughness = TopLayerData.Roughness;
+	const float Roughness = StrataData.TopLayerRoughness;
 	const bool bNoMaterial = !StrataData.bIsStrataMaterial;
 
 #else // STRATA_ENABLED
@@ -156,12 +155,12 @@ void ScreenSpaceReflections(
 	else
 	{
 		const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelCoord, 0)));
-		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
+		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(PixelCoord, 0)));
 
 		// For now, SSR is only used to trace the top material layer.
 		// STRATA_TODO try stochastic selection
-		N = TopLayerData.Normal;
-		Roughness = TopLayerData.Roughness;
+		N = TopLayerData.WorldNormal;
+		Roughness = StrataData.TopLayerRoughness;
 		bNoMaterial = !StrataData.bIsStrataMaterial;
 	}
 

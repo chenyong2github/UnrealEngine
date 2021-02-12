@@ -28,7 +28,7 @@ void ComputeDistanceFieldNormalPS(
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 
 #if STRATA_ENABLED
-	float3 WorldNormal = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0))).Normal;
+	float3 WorldNormal = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(PixelCoord, 0))).WorldNormal;
 #else
 	float3 WorldNormal = GetGBufferData(ScreenUV).WorldNormal.xyz;
 #endif
@@ -50,7 +50,7 @@ void ComputeDistanceFieldNormalCS(
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 
 #if STRATA_ENABLED
-	float3 WorldNormal = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0))).Normal;
+	float3 WorldNormal = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(PixelCoord, 0))).WorldNormal;
 #else
 	float3 WorldNormal = GetGBufferData(ScreenUV).WorldNormal.xyz;
 #endif

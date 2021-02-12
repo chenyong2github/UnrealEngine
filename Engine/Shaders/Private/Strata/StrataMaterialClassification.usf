@@ -20,7 +20,9 @@ void ComputePostProcessBSDFData(
 	float3 V,
 	inout FStrataClassification Classification,
 	inout FStrataSubsurfaceData SSS,
-	inout FStrataTopLayerData TopLayer)
+	inout FStrataTopLayerData TopLayer,
+	inout float TopLayerRoughness, 
+	inout float TopLayerRoughnessAverageCount)
 {
 	const float OpaqueBSDFThroughput = 0.0f;
 	const float FullThroughput = 1.0f;
@@ -34,7 +36,7 @@ void ComputePostProcessBSDFData(
 	float3 N = TangentBasis[2];
 	//N = normalize(N);
 
-	TopLayer.Normal += N;
+	TopLayer.WorldNormal += N;
 
 	BxDFContext ContextNoLight = (BxDFContext)0;
 	const float3 FakeL = float3(0, 0, 1);
@@ -55,8 +57,8 @@ void ComputePostProcessBSDFData(
 		if (bTopLayer)
 		{
 			// Setup SSR for the top layer
-			TopLayer.Roughness += BSDFCoverageAvg * SLAB_ROUGHNESSX(BSDF);
-			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+			TopLayerRoughness += BSDFCoverageAvg * SLAB_ROUGHNESSX(BSDF);
+			TopLayerRoughnessAverageCount += BSDFCoverageAvg;
 		}
 
 		Classification.bIsSimple = Classification.bIsSimple && IsStrataFastPathCompatible(BSDF);
@@ -81,8 +83,8 @@ void ComputePostProcessBSDFData(
 
 		if (bTopLayer)
 		{
-			TopLayer.Roughness += SHEEN_ROUGHNESS(BSDF);
-			TopLayer.AccumRoughnessCount += 1.0f;
+			TopLayerRoughness += SHEEN_ROUGHNESS(BSDF);
+			TopLayerRoughnessAverageCount += 1.0f;
 		}
 		break;
 	}
@@ -94,8 +96,8 @@ void ComputePostProcessBSDFData(
 		// No SSR
 		if (bTopLayer)
 		{
-			TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
-			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+			TopLayerRoughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
+			TopLayerRoughnessAverageCount += BSDFCoverageAvg;
 		}
 		break;
 	}
@@ -106,8 +108,8 @@ void ComputePostProcessBSDFData(
 		{
 			const float Roughness = SLW_ROUGHNESS(BSDF);
 
-			TopLayer.Roughness += BSDFCoverageAvg * Roughness;
-			TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
+			TopLayerRoughness += BSDFCoverageAvg * Roughness;
+			TopLayerRoughnessAverageCount += BSDFCoverageAvg;
 		}
 		break;
 	}
@@ -118,7 +120,7 @@ void ComputePostProcessBSDFData(
 void MainPS(
 	float4 SVPos : SV_POSITION, 
 	out uint OutColor0 : SV_Target0,
-	out uint2 OutColor1 : SV_Target1)
+	out uint OutColor1 : SV_Target1)
 {
 	const uint2 PixelPos = uint2(SVPos.xy);
 	
@@ -141,17 +143,21 @@ void MainPS(
 
 		ClassificationData.MaterialAO = Header.MaterialAO;
 		ClassificationData.bIsSimple = Header.BSDFCount == 1;
+
+		float TopLayerRoughness = 0.0f;
+		float TopLayerRoughnessAverageCount = 0.0f;
 		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
 		{
 			const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, StrataAddressing);
-			ComputePostProcessBSDFData(Header, BSDF, StrataAddressing, V, ClassificationData, SSSData, TopLayerData);
+			ComputePostProcessBSDFData(Header, BSDF, StrataAddressing, V, ClassificationData, SSSData, TopLayerData, TopLayerRoughness, TopLayerRoughnessAverageCount);
 		}
 
-		FinalizeTopLayerData(TopLayerData);
+		TopLayerData.WorldNormal = normalize(TopLayerData.WorldNormal);
+		ClassificationData.TopLayerRoughness = TopLayerRoughnessAverageCount > 0.0f ? TopLayerRoughness / TopLayerRoughnessAverageCount : 0.0f;
 	}
 	else
 	{
-		TopLayerData.Normal = normalize(float3(-1.0f, -1.0f, -1.0f));
+		TopLayerData.WorldNormal = normalize(float3(-1.0f, -1.0f, -1.0f));
 	}
 
 	OutColor0 = StrataPackClassificationData(ClassificationData);

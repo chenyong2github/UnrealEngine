@@ -102,7 +102,7 @@ struct FStrataBSDF
 #define STATE_BIT_COUNT_HAZINESS				1
 #define STATE_BIT_COUNT_EDGECOLOR				1
 #define STATE_BIT_COUNT_THINFILM				1
-#define STATE_BIT_COUNT___UNUSED___				10
+#define STATE_BIT_COUNT___UNUSED___				9
 #define STATE_BIT_COUNT_WEIGHT10F				10
 
 // Bit offset of each component store in BSDF state 
@@ -228,6 +228,7 @@ struct FStrataClassification
 {
 	uint ShadingModels;
 	float MaterialAO;
+	float TopLayerRoughness;
 	bool bIsStrataMaterial;
 	bool bHasSubsurface;
 	bool bHasSubsurfaceProfile;
@@ -237,40 +238,41 @@ struct FStrataClassification
 
 uint StrataPackClassificationData(FStrataClassification In)
 {
-	const uint MaterialAO8Bits = In.MaterialAO * 255.0f;
+	const uint MaterialAO8Bits = sqrt(saturate(In.MaterialAO)) * 255.0f;	// Give more accuracy to the blacks to reduce banding
+	const uint TopLayerRoughness8Bits = In.TopLayerRoughness * 255.0f;
 	return 
 		(In.ShadingModels & 0xFF) | 
 		((MaterialAO8Bits & 0xFF)			 << 8  ) |
-		((In.bIsStrataMaterial		? 1 : 0) << 16 ) |
-		((In.bHasSubsurface			? 1 : 0) << 17 ) | 
-		((In.bHasSubsurfaceProfile	? 1 : 0) << 18) |
-		((In.bHasTransmission		? 1 : 0) << 19) |
-		((In.bIsSimple				? 1 : 0) << 20);
+		((TopLayerRoughness8Bits & 0xFF)	 << 16 ) |
+		((In.bIsStrataMaterial		? 1 : 0) << 24 ) |
+		((In.bHasSubsurface			? 1 : 0) << 25 ) | 
+		((In.bHasSubsurfaceProfile	? 1 : 0) << 26 ) |
+		((In.bHasTransmission		? 1 : 0) << 27 ) |
+		((In.bIsSimple				? 1 : 0) << 28 );
 }
 
 FStrataClassification StrataUnpackClassificationData(uint In)
 {
 	uint MaterialAO8Bits = 0;
+	uint TopLayerRoughness8Bits = 0;
 	FStrataClassification Out;
 	Out.ShadingModels			= (In >> 0 ) & 0xFF;
 	MaterialAO8Bits				= (In >> 8 ) & 0xFF;
-	Out.bIsStrataMaterial		= (In >> 16) & 0x1;
-	Out.bHasSubsurface			= (In >> 17) & 0x1;
-	Out.bHasSubsurfaceProfile	= (In >> 18) & 0x1;
-	Out.bHasTransmission		= (In >> 19) & 0x1;
-	Out.bIsSimple				= (In >> 20) & 0x1;
+	TopLayerRoughness8Bits		= (In >> 16) & 0xFF;
+	Out.bIsStrataMaterial		= (In >> 24) & 0x1;
+	Out.bHasSubsurface			= (In >> 25) & 0x1;
+	Out.bHasSubsurfaceProfile	= (In >> 26) & 0x1;
+	Out.bHasTransmission		= (In >> 27) & 0x1;
+	Out.bIsSimple				= (In >> 28) & 0x1;
 
-	Out.MaterialAO = float(MaterialAO8Bits) * (1.0f / 255.0f);
+	Out.MaterialAO = Square(float(MaterialAO8Bits) * (1.0f / 255.0f));
+	Out.TopLayerRoughness = float(TopLayerRoughness8Bits) * (1.0f / 255.0f);
 	return Out;
 }
 
 struct FStrataTopLayerData
 {
-	float3 Normal;
-	float  Roughness;
-
-	// transient data when accumulating top layer data
-	float AccumRoughnessCount;
+	float3 WorldNormal;
 };
 
 struct FStrataSubsurfaceData
@@ -286,28 +288,16 @@ struct FStrataSubsurfaceData
 	float3 DMFP;				// When the profile is not used, a per pixel DMFP is used
 };
 
-void FinalizeTopLayerData(inout FStrataTopLayerData Out)
+uint StrataPackTopLayerData(FStrataTopLayerData In)
 {
-	Out.Normal = normalize(Out.Normal);
-	Out.Roughness = Out.AccumRoughnessCount > 0.0f ? saturate(Out.Roughness / Out.AccumRoughnessCount) : 1.f;
-}
-
-uint2 StrataPackTopLayerData(FStrataTopLayerData In)
-{
-	uint2 Out = 0;
-	float3 Unused = 0.0f;
-	Out.x = PackColorLinearToGamma2AlphaLinear(float4(Unused, In.Roughness));
-	Out.y = StrataPackNormal(In.Normal);
+	uint Out = StrataPackNormal(In.WorldNormal);
 	return Out;
 }
 
-FStrataTopLayerData StrataUnpackTopLayerData(uint2 In)
+FStrataTopLayerData StrataUnpackTopLayerData(uint In)
 {
-	const float4 UnusedAndRoughness = UnpackColorGamma2ToLinearAlphaLinear(In.x);
-
 	FStrataTopLayerData Out = (FStrataTopLayerData)0;
-	Out.Normal = StrataUnpackNormal(In.y);
-	Out.Roughness = UnusedAndRoughness.w;
+	Out.WorldNormal = StrataUnpackNormal(In);
 	return Out;
 }
 
@@ -1134,9 +1124,10 @@ void PackStrataOut(
 	FStrataPixelHeader StrataPixelHeader,
 	FStrataData Strata,
 	float3 V,
-	inout FGBufferData GBuffer,
+	inout bool bStrataSubsurfaceEnable,
 	inout float3 EmissiveColor)
 {
+	bStrataSubsurfaceEnable = false;
 	EmissiveColor = 0.0f;
 
 	const float OpaqueBSDFThroughput = 0.0f;
@@ -1148,9 +1139,6 @@ void PackStrataOut(
 
 	// We clamp the layer count to the maximum one according to our byte per pixel budget (removing the bottom layer first)
 	Strata.LayerCount = STRATA_CLAMPED_LAYER_COUNT;
-
-	FStrataTopLayerData TopLayer = (FStrataTopLayerData)0;
-	FStrataSubsurfaceData SSS = (FStrataSubsurfaceData)0;
 
 	// For each of the BSDF, we evaluated their combined weight/throughput according to the material operation performed (layering, mixing, etc.).
 	int l;
@@ -1178,8 +1166,6 @@ void PackStrataOut(
 			float3 N = TangentBasis[2];
 			//N = normalize(N);
 
-			TopLayer.Normal += N;
-
 			BxDFContext ContextNoLight = (BxDFContext)0;
 			const float3 FakeL = float3(0, 0, 1);
 			Init(ContextNoLight, N, V, FakeL);
@@ -1191,25 +1177,9 @@ void PackStrataOut(
 				const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDF), SLAB_BASECOLOR(BSDF), SLAB_METALLIC(BSDF));
 				const float3 F90 = ComputeF90(F0, SLAB_EDGECOLOR(BSDF), SLAB_METALLIC(BSDF));
 
-				if (bTopLayer)
-				{
-					// Setup SSR for the top layer
-					TopLayer.Roughness += BSDFCoverageAvg * SLAB_ROUGHNESSX(BSDF);
-					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
-				}
-
-				// Select the first/toppest layer with subsurface scattering
-				if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && !SSS.bHasSubsurface)
-				{
-					SSS.bHasSubsurface = true;
-					SSS.bHasProfile			= BSDF_GETHASSSSPROFILE(BSDF);
-					SSS.ProfilePackedId		= SLAB_SSSPROFILEID(BSDF);
-					SSS.ProfileRadiusScale	= SLAB_SSSPROFILERADIUSSCALE(BSDF);
-					SSS.BaseColor			= SLAB_BASECOLOR(BSDF);
-					SSS.DMFP				= SLAB_SSSDMFP(BSDF);
-				}
-
 				EmissiveColor += BSDF_GETEMISSIVE(BSDF) * Throughput;
+
+				bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0);
 
 				LayerCoverage	+= BSDFCoverage;
 				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput; // STRATA_TODO: take into accound SSS transmittance
@@ -1221,12 +1191,6 @@ void PackStrataOut(
 				const float3 F0  = SHEEN_BASECOLOR(BSDF);
 				const float3 F = F_Schlick(F0, ContextNoLight.VoH);
 
-				if (bTopLayer)
-				{
-					TopLayer.Roughness += BSDFCoverageAvg * SHEEN_ROUGHNESS(BSDF);
-					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
-				}
-
 				LayerCoverage	+= BSDFCoverage;
 				LayerThroughput += BSDFCoverage * (1.0f - F); // STRATA_TODO use 1-FGD instead of simple 1-F, event if we ignore ray scattering/spreading
 				break;
@@ -1234,12 +1198,6 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_HAIR:
 			{
-				// No SSR
-				if (bTopLayer)
-				{
-					TopLayer.Roughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
-					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
-				}
 				// Hair are considered opaque
 				LayerCoverage	+= BSDFCoverage;
 				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
@@ -1248,14 +1206,6 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 			{
-				if (bTopLayer)
-				{
-					const float Roughness = SLW_ROUGHNESS(BSDF);
-
-					TopLayer.Roughness += BSDFCoverageAvg * Roughness;
-					TopLayer.AccumRoughnessCount += BSDFCoverageAvg;
-				}
-
 				EmissiveColor += BSDF_GETEMISSIVE(BSDF) * Throughput;
 
 				// Water is considered opaque, it has a custom process to simulate translucency
@@ -1273,47 +1223,11 @@ void PackStrataOut(
 			BSDF_SETISTOPLAYER(Strata.Layers[l].BSDFs[i], bTopLayer ? 1 : 0);
 		}
 
-		// Now modify the gbuffer according to the top layer information
-		if (bTopLayer)
-		{
-			FinalizeTopLayerData(TopLayer);
-
-			// Normal is needed for some AO techniques
-			GBuffer.WorldNormal = normalize(TopLayer.Normal);
-
-			// Roughness is needed for SSR, base color represents EnvBRDF
-			GBuffer.Roughness = TopLayer.Roughness;
-			
-			// Approximative way to be able to have SSR produce colored specular reflections
-			GBuffer.Specular = 1;
-			GBuffer.Metallic = 1;
-		}
-
 		// Take into account the non covered part for this layer and update throughput accordingly
 		LayerThroughput += (1.0 - saturate(LayerCoverage)) * FullThroughput;
 
 		// And combine this layer throughtput with he material throughput
 		Throughput *= LayerThroughput;
-	}
-
-	// Patch Gbuffer data with SSS data if enabled
-	GBuffer.CustomData = 0;
-	if (SSS.bHasSubsurface)
-	{
-		if (SSS.bHasProfile)
-		{
-			GBuffer.BaseColor      = SSS.BaseColor;
-			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SSS.ProfilePackedId);
-			GBuffer.CustomData.a   = SSS.ProfileRadiusScale;
-		}
-		else
-		{
-			GBuffer.BaseColor      = SSS.BaseColor;
-
-			// This packing should match what is done in SubsurfaceBurleyNormalized.ush
-			uint PackedDMFP11_11_10 = PackR11G11B10F(SSS.DMFP);
-			GBuffer.CustomData = UnpackRGBA8(PackedDMFP11_11_10);
-		}
 	}
 
 	// Now write out Strata data

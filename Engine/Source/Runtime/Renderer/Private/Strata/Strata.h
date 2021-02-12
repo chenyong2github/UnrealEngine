@@ -23,7 +23,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialLobesBuffer)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, ClassificationTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D<uint2>, TopLayerTexture)
+	SHADER_PARAMETER_TEXTURE(Texture2D<uint>, TopLayerNormalTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 struct FStrataSceneData
@@ -31,7 +31,7 @@ struct FStrataSceneData
 	uint32 MaxBytesPerPixel;
 	FRWByteAddressBuffer MaterialLobesBuffer;					// This should be a RDG resource
 	TRefCountPtr<IPooledRenderTarget> ClassificationTexture;	// This should be a RDG resource
-	TRefCountPtr<IPooledRenderTarget> TopLayerTexture;			// This should be a RDG resource
+	TRefCountPtr<IPooledRenderTarget> TopLayerNormalTexture;	// This should be a RDG resource
 
 	TRefCountPtr<FRDGPooledBuffer> ClassificationTileListBuffer;
 	TRefCountPtr<FRDGPooledBuffer> ClassificationTileIndirectBuffer;

@@ -1539,7 +1539,7 @@ void FPixelShaderInOut_MainPS(
 #endif // MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 
 
-	bool bSubsurfaceEnable = true;
+	bool bStrataSubsurfaceEnable = false;
 #if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
 
 #if STRATA_OPAQUE_ENABLED
@@ -1549,18 +1549,13 @@ void FPixelShaderInOut_MainPS(
 	// Except for water doing some specialised and simplified lighting during the base pass
 	Color = 0;
 #endif
-	// Clear only what should be and keep the rest
-	GBuffer.DiffuseColor = 0;
-	GBuffer.SpecularColor = 0;
-	GBuffer.BaseColor = 0;
-	GBuffer.Roughness = 0;
-	GBuffer.Specular = 0;
-	GBuffer.Metallic = 0;
-	GBuffer.ShadingModelID = SHADINGMODELID_STRATA;
-	GBuffer.WorldNormal = 0; // Normal will be overriden by the top layer normal
 
 	// STRATA_TODO GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION and ALLOW_STATIC_LIGHTING cases
 	StrataPixelHeader.MaterialAO = GBuffer.GBufferAO;
+
+	// Clear only what should be and keep the rest
+	GBuffer = (FGBufferData)0;						// We should not rely on gbuffer for anything else to make any pass work.
+	GBuffer.ShadingModelID = SHADINGMODELID_STRATA;	// STRATA_TODO remove that after SSS has been moved to strata completely
 
 	uint2 PixelPos = In.SvPosition.xy;
 
@@ -1570,12 +1565,9 @@ void FPixelShaderInOut_MainPS(
 		OpaqueBasePass.Strata.MaterialLobesBufferUAV, 
 		GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), OpaqueBasePass.Strata.MaxBytesPerPixel),
 		StrataPixelHeader, Strata,
-		MaterialParameters.CameraVector, GBuffer, EmissiveLuminance);
+		MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance);
 
 	Color += EmissiveLuminance;
-
-	// Since we don't carry SSS on/off through the ShadingModel value (DefaultLit/SubSurfaceProfile), we update subsurface toggle, based on the MFP radius value
-	bSubsurfaceEnable = any(GBuffer.CustomData > 0);
 #endif // STRATA_OPAQUE_ENABLED
 
 #if STRATA_TRANSLUCENT_ENABLED
@@ -1588,7 +1580,7 @@ void FPixelShaderInOut_MainPS(
 
 		float3 Throughput = 1.0f;
 		Color = StrataForwardLighting(
-			GBuffer,
+			GBuffer,		// STRATA_TODO remove that!
 			MaterialParameters.WorldNormal,
 			V,
 			L,
@@ -1690,7 +1682,7 @@ void FPixelShaderInOut_MainPS(
 				// to the specular component, otherwise lighting is applied twice
 				Color *= !bChecker;
 			}
-			LightAccumulator_Add(LightAccumulator, Color + DiffuseColor, DiffuseColor, 1.0f, UseSubsurfaceProfile(GBuffer.ShadingModelID) && bSubsurfaceEnable);
+			LightAccumulator_Add(LightAccumulator, Color + DiffuseColor, DiffuseColor, 1.0f, UseSubsurfaceProfile(GBuffer.ShadingModelID) || bStrataSubsurfaceEnable);
 		#else
 			LightAccumulator_Add(LightAccumulator, Color, 0, 1.0f, false);
 		#endif
