@@ -2,7 +2,6 @@
 
 #include "GameFeatureAction_AddGameplayTags.h"
 #include "GameplayTagsManager.h"
-#include "NativeGameplayTags.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
@@ -11,19 +10,21 @@
 
 void UGameFeatureAction_AddGameplayTags::OnGameFeatureRegistering()
 {
+	Generated_TagSourceName = GetName();
+
 	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
-	for (TSharedRef<const FNativeGameplayTagSource> TagSource : NativeTagSources)
+	for (int32 Index = 0; Index < NativeTagSources.Num(); Index++)
 	{
-		TagSource->Register();
+		Manager.AddNativeGameplayTagSource(Generated_TagSourceName + TEXT("_") + LexToString(Index), NativeTagSources[Index]);
 	}
 }
 
 void UGameFeatureAction_AddGameplayTags::OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context)
 {
 	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
-	for (TSharedRef<const FNativeGameplayTagSource> TagSource : NativeTagSources)
+	for (int32 Index = 0; Index < NativeTagSources.Num(); Index++)
 	{
-		TagSource->Unregister();
+		Manager.RemoveNativeGameplayTagSource(Generated_TagSourceName + TEXT("_") + LexToString(Index));
 	}
 }
 

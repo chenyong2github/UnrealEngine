@@ -19,8 +19,6 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/CoreDelegates.h"
-#include "HAL/IConsoleManager.h"
-#include "NativeGameplayTags.h"
 
 #if WITH_EDITOR
 #include "SourceControlHelpers.h"
@@ -29,6 +27,7 @@
 #include "PropertyHandle.h"
 FSimpleMulticastDelegate UGameplayTagsManager::OnEditorRefreshGameplayTagTree;
 #endif
+#include "HAL/IConsoleManager.h"
 
 const FName UGameplayTagsManager::NAME_Categories("Categories");
 const FName UGameplayTagsManager::NAME_GameplayTagFilter("GameplayTagFilter");
@@ -188,7 +187,7 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 
 			AddTagsFromAdditionalLooseIniFiles(FilesInDirectory);
 
-			InvalidateNetworkIndex();
+			ConstructNetIndex();
 
 			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 #endif
@@ -313,11 +312,6 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 			{
 				AddTagTableRow(FGameplayTagTableRow(TagToAdd), FGameplayTagSource::GetNativeName());
 			}
-
-			for (const class FNativeGameplayTag* NativeTag : FNativeGameplayTag::RegisteredNativeTags)
-			{
-				AddTagTableRow(FGameplayTagTableRow(NativeTag->InternalTag.GetTagName()), FGameplayTagSource::GetNativeName());
-			}
 		}
 
 		{
@@ -421,7 +415,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 		if (ShouldUseFastReplication())
 		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Reconstruct NetIndex"));
-			InvalidateNetworkIndex();
+			ConstructNetIndex();
 		}
 
 		{
@@ -541,8 +535,6 @@ int32 PrintNetIndiceAssignment = 0;
 static FAutoConsoleVariableRef CVarPrintNetIndiceAssignment(TEXT("GameplayTags.PrintNetIndiceAssignment"), PrintNetIndiceAssignment, TEXT("Logs GameplayTag NetIndice assignment"), ECVF_Default );
 void UGameplayTagsManager::ConstructNetIndex()
 {
-	bNetworkIndexInvalidated = false;
-
 	NetworkGameplayTagNodeIndex.Empty();
 
 	GameplayTagNodeMap.GenerateValueArray(NetworkGameplayTagNodeIndex);
@@ -611,8 +603,6 @@ void UGameplayTagsManager::ConstructNetIndex()
 
 FName UGameplayTagsManager::GetTagNameFromNetIndex(FGameplayTagNetIndex Index) const
 {
-	VerifyNetworkIndex();
-
 	if (Index >= NetworkGameplayTagNodeIndex.Num())
 	{
 		// Ensure Index is the invalid index. If its higher than that, then something is wrong.
@@ -624,8 +614,6 @@ FName UGameplayTagsManager::GetTagNameFromNetIndex(FGameplayTagNetIndex Index) c
 
 FGameplayTagNetIndex UGameplayTagsManager::GetNetIndexFromTag(const FGameplayTag &InTag) const
 {
-	VerifyNetworkIndex();
-
 	TSharedPtr<FGameplayTagNode> GameplayTagNode = FindTagNode(InTag);
 
 	if (GameplayTagNode.IsValid())
@@ -1195,7 +1183,6 @@ int32 UGameplayTagsManager::InsertTagIntoNodeArray(FName Tag, FName FullTag, TSh
 
 void UGameplayTagsManager::PrintReplicationIndices()
 {
-	VerifyNetworkIndex();
 
 	UE_LOG(LogGameplayTags, Display, TEXT("::PrintReplicationIndices (TOTAL %d"), GameplayTagNodeMap.Num());
 
@@ -1871,26 +1858,17 @@ FGameplayTag UGameplayTagsManager::AddNativeGameplayTag(FName TagName, const FSt
 	return FGameplayTag();
 }
 
-void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource, FName TagName, const FString& TagDevComment)
+FGameplayTag FNativeGameplayTagSource::Add(FName TagName, const FString& TagDevComment)
 {
-	// TODO This is awful, need to invalidate the tag tree, not rebuild it.
+	if (TagName.IsNone())
 	{
-#if WITH_EDITOR
-		EditorRefreshGameplayTagTree();
-#else
-		AddTagTableRow(FGameplayTagTableRow(TagName, TagDevComment), FGameplayTagSource::GetNativeName());
-		InvalidateNetworkIndex();
-		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
-#endif
+		return FGameplayTag();
 	}
-}
 
-void UGameplayTagsManager::RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource)
-{
-	//TODO - Removing tags isn't really a thing right now, but setting this up for the future.
-	//DestroyGameplayTagTree();
-	//ConstructGameplayTagTree();
-	//OnEditorRefreshGameplayTagTree.Broadcast();
+	FGameplayTag NewTag = FGameplayTag(TagName);
+	NativeTags.Add(FGameplayTagTableRow(TagName, TagDevComment));
+
+	return NewTag;
 }
 
 void UGameplayTagsManager::AddNativeGameplayTagSource(const FString& InNativeSourceName, TSharedRef<const FNativeGameplayTagSource> NativeSource)
@@ -1903,11 +1881,14 @@ void UGameplayTagsManager::AddNativeGameplayTagSource(const FString& InNativeSou
 	// Replace the old one, in case we reload or something, allow new ones to come in.
 	NativeSourcesToAdd.Add(NativeSourceName, NativeSource);
 
+	if (!bIsConstructingGameplayTagTree)
+	{
 #if WITH_EDITOR
-	EditorRefreshGameplayTagTree();
+		EditorRefreshGameplayTagTree();
 #else
-	AddTagsFromNativeSource(NativeSourceName, NativeSource);
+		AddTagsFromNativeSource(NativeSourceName, NativeSource);
 #endif
+	}
 }
 
 void UGameplayTagsManager::RemoveNativeGameplayTagSource(const FString& InNativeSourceName)
@@ -1916,11 +1897,16 @@ void UGameplayTagsManager::RemoveNativeGameplayTagSource(const FString& InNative
 
 	if (NativeSourcesToAdd.Remove(NativeSourceName) > 0)
 	{
+		if (!bIsConstructingGameplayTagTree)
+		{
 #if WITH_EDITOR
-		EditorRefreshGameplayTagTree();
+			EditorRefreshGameplayTagTree();
 #else
-		//TODO - Removing tags isn't really a thing right now, but setting this up for the future.
+			ConstructNetIndex();
+
+			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 #endif
+		}
 	}
 }
 
@@ -1936,7 +1922,7 @@ void UGameplayTagsManager::AddTagsFromNativeSource(FName NativeSourceName, TShar
 		AddTagTableRow(Row, NativeSourceName);
 	}
 
-	InvalidateNetworkIndex();
+	ConstructNetIndex();
 
 	IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 }

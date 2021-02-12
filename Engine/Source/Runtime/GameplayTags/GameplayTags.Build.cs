@@ -21,14 +21,7 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"Projects"
-				}
-			);
-
-			if (Target.Type == TargetType.Editor)
+            if (Target.Type == TargetType.Editor)
             {
                 PrivateDependencyModuleNames.AddRange(
                 new string[]

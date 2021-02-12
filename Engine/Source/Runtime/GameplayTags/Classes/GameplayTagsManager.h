@@ -14,8 +14,6 @@
 
 class UGameplayTagsList;
 struct FStreamableHandle;
-class FNativeGameplayTagSource;
-class FNativeGameplayTag;
 
 /** Simple struct for a table row in the gameplay tag table and element in the ini list */
 USTRUCT()
@@ -259,6 +257,18 @@ private:
 	friend class SGameplayTagWidget;
 };
 
+struct GAMEPLAYTAGS_API FNativeGameplayTagSource : public FNoncopyable
+{
+	FNativeGameplayTagSource() { }
+
+protected:
+	FGameplayTag Add(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
+
+private:
+	TArray<FGameplayTagTableRow> NativeTags;
+
+	friend class UGameplayTagsManager;
+};
 
 /** Holds data about the tag dictionary, is in a singleton UObject */
 UCLASS(config=Engine)
@@ -340,9 +350,6 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	void RemoveNativeGameplayTagSource(const FString& NativeSourceName);
 
 private:
-	void AddNativeGameplayTag(FNativeGameplayTag* TagSource, FName TagName, const FString& TagDevComment);
-	void RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource);
-
 	/**
 	 * 
 	 */
@@ -496,7 +503,7 @@ public:
 	}
 
 	/** Returns the hash of NetworkGameplayTagNodeIndex */
-	uint32 GetNetworkGameplayTagNodeIndexHash() const { VerifyNetworkIndex(); return NetworkGameplayTagNodeIndexHash; }
+	uint32 GetNetworkGameplayTagNodeIndexHash() const {	return NetworkGameplayTagNodeIndexHash;	}
 
 	/** Returns a list of the ini files that contain restricted tags */
 	void GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const;
@@ -538,7 +545,7 @@ public:
 	/** This is the actual value for an invalid tag "None". This is computed at runtime as (Total number of tags) + 1 */
 	FGameplayTagNetIndex InvalidTagNetIndex;
 
-	const TArray<TSharedPtr<FGameplayTagNode>>& GetNetworkGameplayTagNodeIndex() const { VerifyNetworkIndex(); return NetworkGameplayTagNodeIndex; }
+	const TArray<TSharedPtr<FGameplayTagNode>>& GetNetworkGameplayTagNodeIndex() const { return NetworkGameplayTagNodeIndex; }
 
 	bool IsNativelyAddedTag(FGameplayTag Tag) const;
 
@@ -684,7 +691,6 @@ private:
 	friend class FGameplayTagsEditorModule;
 	friend class UGameplayTagsSettings;
 	friend class SAddNewGameplayTagSourceWidget;
-	friend class FNativeGameplayTag;
 
 	/**
 	 * Helper function to insert a tag into a tag node array
@@ -735,16 +741,6 @@ private:
 	/** Marks all of the nodes that descend from CurNode as having an ancestor node that has a source conflict. */
 	void MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNode> CurNode);
 
-	void VerifyNetworkIndex() const
-	{
-		if (bNetworkIndexInvalidated)
-		{
-			const_cast<UGameplayTagsManager*>(this)->ConstructNetIndex();
-		}
-	}
-
-	void InvalidateNetworkIndex() { bNetworkIndexInvalidated = true; }
-
 	/** Roots of gameplay tag nodes */
 	TSharedPtr<FGameplayTagNode> GameplayRootTag;
 
@@ -794,8 +790,6 @@ private:
 	TArray<TSharedPtr<FGameplayTagNode>> NetworkGameplayTagNodeIndex;
 
 	uint32 NetworkGameplayTagNodeIndexHash;
-
-	bool bNetworkIndexInvalidated = true;
 
 	/** Holds all of the valid gameplay-related tags that can be applied to assets */
 	UPROPERTY()

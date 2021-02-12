@@ -8,7 +8,7 @@
 
 #include "GameFeatureAction_AddGameplayTags.generated.h"
 
-class FNativeGameplayTagSource;
+struct FNativeGameplayTagSource;
 
 //////////////////////////////////////////////////////////////////////
 // UGameFeatureAction_AddGameplayTags
@@ -27,6 +27,10 @@ public:
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
 	//~End of UGameFeatureAction interface
 
+
 protected:
 	TArray<TSharedRef<const FNativeGameplayTagSource>> NativeTagSources;
+
+private:
+	FString Generated_TagSourceName;
 };
