@@ -635,7 +635,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 
 		if (ThreadReadOffset < IndexCount)
 		{
-			const float3 OutHairPositionOffset = RenderDeformedOffsetBuffer[0];
+			const float3 OutHairPositionOffset = RenderDeformedOffsetBuffer[0].xyz;
 
 			const uint VertexIndex = ClusterVertexIdBuffer[IndexOffset + ThreadReadOffset];
 			const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1);
