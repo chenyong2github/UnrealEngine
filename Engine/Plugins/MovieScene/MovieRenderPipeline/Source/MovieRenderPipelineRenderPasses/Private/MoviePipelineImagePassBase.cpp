@@ -161,21 +161,12 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 		// Overwrite whatever sampling count came from the PostProcessVolume
 		View->FinalPostProcessSettings.bOverride_PathTracingSamplesPerPixel = true;
 		View->FinalPostProcessSettings.PathTracingSamplesPerPixel = InOutSampleState.SpatialSampleCount;
-		if (InOutSampleState.SpatialSampleIndex == 0)
-		{
-			// reset path tracer's accumulation at the start of each temporal sample
-			View->bForceCameraVisibilityReset = true;
-		}
+
+		// reset path tracer's accumulation at the start of each spatial sample
+		View->bForcePathTracerReset = InOutSampleState.SpatialSampleIndex == 0;
 
 		// discard the result, unless its the last spatial sample
 		InOutSampleState.bDiscardResult |= !(InOutSampleState.SpatialSampleIndex == InOutSampleState.SpatialSampleCount - 1);
-
-		if (InOutSampleState.GetTileCount() > 1 && InOutSampleState.GetTileIndex() == 0 && SampleIndex == 0)
-		{
-			// warn the user
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Path tracer does not support tiling correctly yet!"));
-			// FIXME: find a way to disable tiling earlier so this doesn't happen
-		}
 	}
 
 	// Object Occlusion/Histories
