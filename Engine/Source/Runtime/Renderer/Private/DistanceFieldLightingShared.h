@@ -22,6 +22,7 @@ class FPrimitiveSceneInfo;
 class FSceneRenderer;
 class FShaderParameterMap;
 class FViewInfo;
+class FDistanceFieldSceneData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDistanceField, Log, All);
 
