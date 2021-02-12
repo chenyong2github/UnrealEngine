@@ -40,15 +40,15 @@ struct FRenderingPolygonGroup
 
 	/** The rendering section index for this mesh section */
 	UPROPERTY()
-	uint32 RenderingSectionIndex;
+	uint32 RenderingSectionIndex = 0;
 
 	/** The material slot index assigned to this polygon group's material */
 	UPROPERTY()
-	int32 MaterialIndex;
+	int32 MaterialIndex = 0;
 
 	/** Maximum number of triangles which have been reserved in the index buffer */
 	UPROPERTY()
-	int32 MaxTriangles;
+	int32 MaxTriangles = 0;
 
 	/** Sparse array of triangles, that matches the triangles in the mesh index buffers.  Elements that
 	    aren't allocated will be stored as degenerates in the mesh index buffer. */

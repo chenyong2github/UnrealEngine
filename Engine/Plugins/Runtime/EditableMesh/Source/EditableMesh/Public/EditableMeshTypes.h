@@ -194,23 +194,23 @@ struct FSubdividedQuadVertex
 	GENERATED_BODY()
 
 	/** The index of the vertex position (into the FSubdivisionLimitData's VertexPositions array) used for this vertex */
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	int32 VertexPositionIndex;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	int32 VertexPositionIndex = 0;
 
 	/** Texture coordinates for this vertex.  We only support up to two, for now. (Just to avoid TArrays/allocations) */
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FVector2D TextureCoordinate0;
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FVector2D TextureCoordinate1;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FVector2D TextureCoordinate0 = FVector2D::ZeroVector;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FVector2D TextureCoordinate1 = FVector2D::ZeroVector;
 
 	/** Vertex color */
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FColor VertexColor;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FColor VertexColor = FColor::White;
 
 	/** Quad vertex normal */
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FVector VertexNormal;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FVector VertexNormal = FVector::ZeroVector;
 
 	/** Quad vertex tangent */
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FVector VertexTangent;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	FVector VertexTangent = FVector::ZeroVector;
 
 	/** Quad vertex binormal sign (-1.0 or 1.0)*/
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	float VertexBinormalSign;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	float VertexBinormalSign = 0;
 };
 
 
@@ -275,8 +275,8 @@ struct FSubdividedWireEdge
 	// NOTE: The reason we're using separate variables instead of a static array is so that we can expose these to Blueprints, which doesn't support static array properties
 
 	/** The vertex indices for the two corners of this quad */
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	int32 EdgeVertex0PositionIndex;
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	int32 EdgeVertex1PositionIndex;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	int32 EdgeVertex0PositionIndex = 0;
+	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )	int32 EdgeVertex1PositionIndex = 0;
 
 	/** True if this edge is a counterpart to an original base cage edge of the mesh.  Otherwise it's a new edge that exists only
 	    in the subdivision surfaces */
@@ -959,7 +959,7 @@ struct FVertexIndexAndInstanceID
 
 	/** Contour index of the vertex to change */
 	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )
-	int32 ContourIndex;
+	int32 ContourIndex = 0;
 
 	/** New vertex instance ID to assign */
 	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )
