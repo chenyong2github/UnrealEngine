@@ -243,6 +243,7 @@ int32 XGEController_Main(int ArgC, TCHAR* ArgV[])
 	return ReturnCode;
 }
 
+#endif // PLATFORM_WINDOWS
 
 // XGE Monitor mode is used for the xml interface. It monitors both the engine and
 // build processes, and terminates the build if the engine process exits.
@@ -282,15 +283,15 @@ bool XGEMain(int ArgC, TCHAR* ArgV[], int32& ReturnCode)
 		ReturnCode = XGEMonitor_Main(ArgC, ArgV);
 		return true;
 	}
+#if PLATFORM_WINDOWS
 	else if (ArgC == 3 && FCString::Strcmp(ArgV[1], TEXT("-xgecontroller")) == 0)
 	{
 		ReturnCode = XGEController_Main(ArgC, ArgV);
 		return true;
 	}
+#endif // PLATFORM_WINDOWS
 	else
 	{
 		return false;
 	}
 }
-
-#endif // PLATFORM_WINDOWS
