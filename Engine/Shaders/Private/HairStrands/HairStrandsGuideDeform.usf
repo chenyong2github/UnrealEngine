@@ -6,7 +6,6 @@
 
 float3 SimRestOffset;
 uint VertexCount;
-uint IterationCount;
 uint DispatchCountX; 
 
 Buffer<float4> SimDeformedOffsetBuffer;
@@ -24,11 +23,9 @@ RWBuffer<uint4> OutSimDeformedPositionBuffer;
 
 
 #define DEFORMATION_BYPASS 0
-#define DEFORMATION_WAVE 1
-#define DEFORMATION_NORMAL_DIRECTION 2
-#define DEFORMATION_OFFSET_GUIDE 3
-#define DEFORMATION_OFFSET_GUIDE_DYNAMIC 4
-#define DEFORMATION_OFFSET_GUIDE_GLOBAL 5
+#define DEFORMATION_OFFSET_GUIDE 1
+#define DEFORMATION_OFFSET_GUIDE_DYNAMIC 2
+#define DEFORMATION_OFFSET_GUIDE_GLOBAL 3
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_DYNAMIC
 
@@ -65,25 +62,12 @@ Buffer<float4>  RestSamplePositionsBuffer;
 Buffer<float4>  MeshSampleWeightsBuffer;
 #endif
 
-float3 DisplacePosition(uint VertexIndex, float3 Pos, float Seed)
+float3 DisplacePosition(uint VertexIndex, float3 Pos)
 {
-	const float3 OutSimHairPositionOffset = SimDeformedOffsetBuffer[0];
+	const float3 OutSimHairPositionOffset = SimDeformedOffsetBuffer[0].xyz;
 
 // By pass
 #if PERMUTATION_DEFORMATION == DEFORMATION_BYPASS
-	return Pos;
-#endif
-
-// Wave
-#if PERMUTATION_DEFORMATION == DEFORMATION_WAVE
-	const float Scale = 100.f;
-	Pos *= Scale;
-	//	return float3(0, cos(Pos.y + Seed / 16.f), cos(Pos.z + Seed / 32.f)) / Scale;
-	return Pos + float3(0, cos(Pos.y + Seed / 16.f), cos(Pos.z + Seed / 32.f));
-#endif
-
-// Align with some normal
-#if PERMUTATION_DEFORMATION == DEFORMATION_NORMAL_DIRECTION
 	return Pos;
 #endif
 
@@ -116,7 +100,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		const uint4  Data 				= SimRestPosePositionBuffer[VertexIndex];
 		const float3 ControlPoint		= f16tof32(Data.xyz);
-		const float3 DisplacedPosition	= DisplacePosition(VertexIndex, ControlPoint, IterationCount);
+		const float3 DisplacedPosition	= DisplacePosition(VertexIndex, ControlPoint);
 		OutSimDeformedPositionBuffer[VertexIndex] = uint4(f32tof16(DisplacedPosition), Data.w);
 	}
 }
