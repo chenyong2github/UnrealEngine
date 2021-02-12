@@ -699,45 +699,42 @@ namespace Gauntlet
 		/// <returns></returns>
 		public virtual void ApplyToConfig(UnrealAppConfig AppConfig, UnrealSessionRole ConfigRole, IEnumerable<UnrealSessionRole> OtherRoles)
 		{
-			if (AppConfig.ProcessType.IsClient())
+			if (Nullrhi)
 			{
-				if (Nullrhi)
+				AppConfig.CommandLine += " -nullrhi";
+			}
+			else if (AppConfig.ProcessType.IsClient())
+			{
+				if (AppConfig.Platform == UnrealTargetPlatform.Win64 || AppConfig.Platform == UnrealTargetPlatform.Mac)
 				{
-					AppConfig.CommandLine += " -nullrhi";
-				}
-				else
-				{
-					if (AppConfig.Platform == UnrealTargetPlatform.Win64 || AppConfig.Platform == UnrealTargetPlatform.Mac)
+					if (!IgnoreDefaultResolutionAndWindowMode)
 					{
-						if (!IgnoreDefaultResolutionAndWindowMode)
+						if (Globals.Params.ParseValues("resx").Count() == 0)
 						{
-							if (Globals.Params.ParseValues("resx").Count() == 0)
-							{
-								AppConfig.CommandLine += String.Format(" -ResX={0} -ResY={1}", ResX, ResY);
-							}
-							if (WindowMode == EWindowMode.Windowed || Windowed)
-							{
-								AppConfig.CommandLine += " -windowed";
-							}
-							else if (WindowMode == EWindowMode.Fullscreen)
-							{
-								AppConfig.CommandLine += " -fullscreen";
-							}
-							else if (WindowMode == EWindowMode.WindowedFullscreen) // Proper -windowedfullscreen flag does not exist and some platforms treat both modes as the same.
-							{
-								AppConfig.CommandLine += " -fullscreen";
-							}
-							else
-							{
-								Log.Warning("Test config uses an unsupported WindowMode: {0}! WindowMode not set.", Enum.GetName(typeof(EWindowMode), WindowMode));
-							}
+							AppConfig.CommandLine += String.Format(" -ResX={0} -ResY={1}", ResX, ResY);
+						}
+						if (WindowMode == EWindowMode.Windowed || Windowed)
+						{
+							AppConfig.CommandLine += " -windowed";
+						}
+						else if (WindowMode == EWindowMode.Fullscreen)
+						{
+							AppConfig.CommandLine += " -fullscreen";
+						}
+						else if (WindowMode == EWindowMode.WindowedFullscreen) // Proper -windowedfullscreen flag does not exist and some platforms treat both modes as the same.
+						{
+							AppConfig.CommandLine += " -fullscreen";
+						}
+						else
+						{
+							Log.Warning("Test config uses an unsupported WindowMode: {0}! WindowMode not set.", Enum.GetName(typeof(EWindowMode), WindowMode));
 						}
 					}
+				}
 
-					if (ScreenshotPeriod > 0 && Nullrhi == false)
-					{
-						AppConfig.CommandLine += string.Format(" -gauntlet.screenshotperiod={0}", ScreenshotPeriod);
-					}
+				if (ScreenshotPeriod > 0 && Nullrhi == false)
+				{
+					AppConfig.CommandLine += string.Format(" -gauntlet.screenshotperiod={0}", ScreenshotPeriod);
 				}
 			}
 
