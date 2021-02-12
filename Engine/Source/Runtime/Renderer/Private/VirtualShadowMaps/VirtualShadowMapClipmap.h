@@ -88,6 +88,7 @@ private:
 		FVirtualShadowMap* VirtualShadowMap;
 		FMatrix ViewToClip;
 		FVector WorldCenter;
+		FIntPoint CenterSnapUnits;	// Center of clipmap in world units / level radius
 	};
 
 	TArray< FLevelData, TInlineAllocator<16> > LevelData;

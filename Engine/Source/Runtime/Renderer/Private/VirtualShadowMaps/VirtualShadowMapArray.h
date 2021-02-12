@@ -90,21 +90,21 @@ struct FVirtualShadowMapProjectionShaderData
 	FMatrix ShadowViewToClipMatrix;
 	FMatrix TranslatedWorldToShadowUVMatrix;
 	FMatrix TranslatedWorldToShadowUVNormalMatrix;
-	/**
-	 * Translation from world space to shadow space (add before transform by TranslatedWorldToShadowViewMatrix).
-	 */
+
 	FVector ShadowPreViewTranslation;
 	uint32 LightType = ELightComponentType::LightType_Directional;
 	
 	FVector ClipmapWorldOrigin;
 	int32 VirtualShadowMapId = INDEX_NONE;
-
+	
+	FIntPoint ClipmapCenterSnapUnits;
+	int32 ClipmapIndex = 0;					// 0 .. ClipmapLevelCount-1
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
 	int32 ClipmapLevelCount = 0;
 	float ClipmapResolutionLodBias = 0.0f;
 
 	// Seems the FMatrix forces 16-byte alignment
-	//float Padding[3];
+	float Padding[2];
 };
 static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 

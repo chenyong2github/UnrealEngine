@@ -26,7 +26,7 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstLevel(
 static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapMaxRadius(
 	TEXT( "r.Shadow.v.Clipmap.MaxRadius" ),
 	1000000.0f,
-	TEXT( "Maximum distance the clipmap covers. Determines the number of clipmap levels. " ),
+	TEXT( "Maximum distance the clipmap covers. Determines the number of clipmap levels." ),
 	ECVF_RenderThreadSafe
 );
 
@@ -62,9 +62,10 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	FMatrix ViewToWorldRotationMatrix = WorldToViewRotationMatrix.GetTransposed();
 	
 	// NOTE: Rotational (roll) invariance of the directional light depends on square pixels so we just base everything on the camera X scales/resolution
-	float LodScale = 1.0f / CameraViewMatrices.GetProjectionScale().X;
+	// NOTE: 0.5 because we double the size of the clipmap region below to handle snapping
+	float LodScale = 0.5f / CameraViewMatrices.GetProjectionScale().X;
 	LodScale *= float(FVirtualShadowMap::VirtualMaxResolutionXY) / float(CameraViewRectSize.X);
-	
+		
 	ResolutionLodBias = CVarVirtualShadowMapClipmapResolutionLodBias.GetValueOnRenderThread() + FMath::Log2(LodScale);
 	// Clamp negative absolute resolution biases as they would exceed the maximum resolution/ranges allocated
 	ResolutionLodBias = FMath::Max(0.0f, ResolutionLodBias);
@@ -94,30 +95,26 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		Level.VirtualShadowMap = VirtualShadowMapArray.Allocate();
 		ensure(Index == 0 || (Level.VirtualShadowMap->ID == (LevelData[Index-1].VirtualShadowMap->ID + 1)));
 
-		// Snap world center point to page boundaries
-		// Max error from snapping with round to nearest is the diagonal sqrt(2) * PageSize
-		// Must ensure radius is adjusted to cover the entire original radius
-		constexpr float DimPages = static_cast<float>(FVirtualShadowMap::Level0DimPagesXY);
 		const float RawLevelRadius = GetLevelRadius(LevelIndex);
-		float PageSizeInWorldSpace = (2.0f * RawLevelRadius) / (DimPages - UE_SQRT_2);
 
-		// NOTE: We may eventually want to snap/quantize Z as well, but right now we just adjust it each time
-		// we update the cache page. With clipmaps this could ertainly be simplified.
+		float SnappedLevelRadius = 2.0f * RawLevelRadius;
+		float SnapSize = RawLevelRadius;
+
 		FVector ViewCenter = WorldToViewRotationMatrix.TransformPosition(WorldOrigin);
-		FIntPoint PageSpaceCenter(
-			FMath::RoundToInt(ViewCenter.X / PageSizeInWorldSpace),
-			FMath::RoundToInt(ViewCenter.Y / PageSizeInWorldSpace));
-		ViewCenter.X = PageSpaceCenter.X * PageSizeInWorldSpace;
-		ViewCenter.Y = PageSpaceCenter.Y * PageSizeInWorldSpace;
+		FIntPoint CenterSnapUnits(
+			FMath::RoundToInt(ViewCenter.X / SnapSize),
+			FMath::RoundToInt(ViewCenter.Y / SnapSize));
+		ViewCenter.X = CenterSnapUnits.X * SnapSize;
+		ViewCenter.Y = CenterSnapUnits.Y * SnapSize;
 
 		const FVector SnappedWorldCenter = ViewToWorldRotationMatrix.TransformPosition(ViewCenter);
-		const float SnappedLevelRadius = 0.5f * (PageSizeInWorldSpace * DimPages);
 
 		const float ZScale = 0.5f / RawLevelRadius;
 		const float ZOffset = RawLevelRadius;
 
 		Level.WorldCenter = SnappedWorldCenter;
 		Level.ViewToClip = FReversedZOrthoMatrix(SnappedLevelRadius, SnappedLevelRadius, ZScale, ZOffset);
+		Level.CenterSnapUnits = CenterSnapUnits;
 
 		if (VirtualShadowMapArrayCacheManager)
 		{
@@ -125,7 +122,9 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 			TSharedPtr<FVirtualShadowMapCacheEntry> CacheEntry = VirtualShadowMapArrayCacheManager->FindCreateCacheEntry(LightSceneInfo.Id, LevelIndex);
 			if (CacheEntry)
 			{
-				FIntPoint PageOffset(PageSpaceCenter);
+				// We snap to half the size of the VSM at each level
+				check((FVirtualShadowMap::Level0DimPagesXY & 1) == 0);
+				FIntPoint PageOffset(CenterSnapUnits * (FVirtualShadowMap::Level0DimPagesXY >> 1));
 				PageOffset.Y = -PageOffset.Y;		// Viewport
 				float DepthOffset = -ViewCenter.Z * ZScale;
 
@@ -171,9 +170,11 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.VirtualShadowMapId = Level.VirtualShadowMap->ID;
 	Data.LightType = ELightComponentType::LightType_Directional;
 	Data.ClipmapWorldOrigin = WorldOrigin;
+	Data.ClipmapIndex = ClipmapIndex;
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
 	Data.ClipmapLevelCount = LevelData.Num();
 	Data.ClipmapResolutionLodBias = ResolutionLodBias;
+	Data.ClipmapCenterSnapUnits = Level.CenterSnapUnits;
 
 	return Data;
 }

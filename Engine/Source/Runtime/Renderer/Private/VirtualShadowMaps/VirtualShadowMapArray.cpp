@@ -286,7 +286,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, ShadowMapProjectionData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)
 		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
 		SHADER_PARAMETER(uint32, bPostBasePass)
@@ -355,7 +355,8 @@ class FPropagateMappedMipsCS : public FVirtualPageManagementShader
 	SHADER_USE_PARAMETER_STRUCT(FPropagateMappedMipsCS, FVirtualPageManagementShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters,	VirtualSmCommon)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FVirtualShadowMapCommonParameters,	VirtualSmCommon )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >,			OutPageTable )
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -815,7 +816,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				PassParameters->OutPageRequestFlags = GraphBuilder.CreateUAV(PageRequestFlagsRDG);
 				PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 				PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV(VirtualShadowMapIdRemapRDG[ViewIndex]);
-				PassParameters->ShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
+				PassParameters->VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
 				PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
 				PassParameters->LodFootprintScale = LodFootprintScale;
 				PassParameters->PageDilationBorderSize = PageDilationBorderSize;
@@ -928,7 +929,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			FCreatePageMappingsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCreatePageMappingsCS::FParameters >();
 			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 
-			PassParameters->PageRequestFlags		= GraphBuilder.CreateSRV(PageRequestFlagsRDG );
+			PassParameters->PageRequestFlags		= GraphBuilder.CreateSRV( PageRequestFlagsRDG );
 			PassParameters->CoverageSummaryInOut	= GraphBuilder.CreateUAV( CoverageSummary );
 			PassParameters->AllocatedPagesOffset	= GraphBuilder.CreateUAV( AllocatedPagesOffsetRDG);
 			PassParameters->OutPageTable			= GraphBuilder.CreateUAV( PageTableRDG );
@@ -981,6 +982,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			// Propagate mapped mips down the hierarchy to allow O(1) lookup of coarser mapped pages
 			FPropagateMappedMipsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPropagateMappedMipsCS::FParameters>();
 			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
+			PassParameters->VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
 			PassParameters->OutPageTable	= GraphBuilder.CreateUAV(PageTableRDG);
 
 			const uint32 DispatchWidthThreads = FVirtualShadowMap::Level0DimPagesXY;

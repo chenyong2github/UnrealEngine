@@ -49,8 +49,6 @@ FSMRTClipmapRayState SMRTClipmapRayInitialize(
 	float3 RayStepShadowTexelsZ  = float3(LevelDims, LevelDims, 1.0f) * RayStepUV.xyz;
 
 	// Work out scale/bias to convert to the adjacent UVs from the regular UVs
-	// NOTE: Since depth function is constant, probably worth refactoring the clipmap mappings to be scale/bias in general rather than
-	// a full transform matrix.
 	const FVirtualShadowMapProjectionShaderData ProjectionDataAdjacent = GetVirtualShadowMapProjectionData(VirtualShadowMapId + ClipmapIndexAdjacent);
 
 	// TranslatedWorldToShadowViewMatrix is identical for each of the cascades; only the pre-view translation changes
