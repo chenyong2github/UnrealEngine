@@ -4,6 +4,7 @@
 #include "ContextualAnimEdModeToolkit.h"
 #include "Toolkits/ToolkitManager.h"
 #include "EditorModeManager.h"
+#include "EditorViewportClient.h"
 #include "Engine/Selection.h"
 #include "EngineUtils.h"
 #include "ContextualAnimEdModeSettings.h"
