@@ -1097,6 +1097,13 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 			bOnlyAddToLayoutManager = false;
 			bDoInitialClear = true;
 		}
+		else if (UEFlags & TexCreate_Foveation)
+		{
+			// If it's a foveation texture, do not clear but add to layoutmgr, and set correct foveation layout. 
+			InitialLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+			bOnlyAddToLayoutManager = true;
+			bDoInitialClear = false;
+		}
 		else
 		{
 			// If we haven't seen this image before, we assume it's an SRV (VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) and the call below
