@@ -49,7 +49,7 @@ public:
 	void SetSize( TAttribute<FVector2D> InSpacerSize )
 	{
 		SpacerSize = InSpacerSize;
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidgetReason::Layout);
 	}
 
 protected:

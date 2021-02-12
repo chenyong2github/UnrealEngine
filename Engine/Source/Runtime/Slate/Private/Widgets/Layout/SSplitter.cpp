@@ -596,7 +596,7 @@ void SSplitter::FindAllResizeableSlotsAfterHandle( int32 DraggedHandle, const TP
 		OutSlotIndicies.Add( SlotIndex );
 	}
 };
-PRAGMA_DISABLE_OPTIMIZATION
+
 void SSplitter::HandleResizingDelta(EOrientation SplitterOrientation, const float InPhysicalSplitterHandleSize, const ESplitterResizeMode::Type InResizeMode, int32 DraggedHandle, float Delta, TPanelChildren<FSlot>& InChildren, const TArray<FLayoutGeometry>& ChildGeometries)
 {
 	const int32 NumChildren = InChildren.Num();
@@ -744,7 +744,7 @@ void SSplitter::HandleResizingDelta(EOrientation SplitterOrientation, const floa
 		}
 	}
 }
-PRAGMA_ENABLE_OPTIMIZATION
+
 void SSplitter::HandleResizingBySize(EOrientation SplitterOrientation, const float InPhysicalSplitterHandleSize, const ESplitterResizeMode::Type InResizeMode, int32 DraggedHandle, const FVector2D& InDesiredSize, TPanelChildren<FSlot>& InChildren, const TArray<FLayoutGeometry>& ChildGeometries)
 {
 	const int32 AxisIndex = (SplitterOrientation == Orient_Horizontal) ? 0 : 1;
