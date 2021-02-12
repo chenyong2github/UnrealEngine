@@ -64,6 +64,8 @@ public:
   void SetValidatorVersion(unsigned ValMajor, unsigned ValMinor);
   bool UpgradeValidatorVersion(unsigned ValMajor, unsigned ValMinor);
   void GetValidatorVersion(unsigned &ValMajor, unsigned &ValMinor) const;
+  void SetForceZeroStoreLifetimes(bool ForceZeroStoreLifetimes);
+  bool GetForceZeroStoreLifetimes() const;
 
   // Return true on success, requires valid shader model and CollectShaderFlags to have been set
   bool GetMinValidatorVersion(unsigned &ValMajor, unsigned &ValMinor) const;
@@ -151,6 +153,9 @@ public:
   // Is an entry function that uses input/output signature conventions?
   // Includes: vs/hs/ds/gs/ps/cs as well as the patch constant function.
   bool IsEntryThatUsesSignatures(const llvm::Function *F) const ;
+  // Is F an entry?
+  // Includes: IsEntryThatUsesSignatures and all ray tracing shaders.
+  bool IsEntry(const llvm::Function *F) const;
 
   // Remove Root Signature from module metadata, return true if changed
   bool StripRootSignatureFromMetadata();
@@ -199,6 +204,11 @@ public:
 
   bool StripReflection();
   void StripDebugRelatedCode();
+
+  // Helper to remove dx.* metadata with source and compile options.
+  // If the parameter `bReplaceWithDummyData` is true, the named metadata
+  // are replaced with valid empty data that satisfy tools.
+  void StripShaderSourcesAndCompileOptions(bool bReplaceWithDummyData=false);
   llvm::DebugInfoFinder &GetOrCreateDebugInfoFinder();
 
   static DxilModule *TryGetDxilModule(llvm::Module *pModule);
@@ -236,6 +246,10 @@ public:
   // Compute/Mesh/Amplification shader.
   void SetNumThreads(unsigned x, unsigned y, unsigned z);
   unsigned GetNumThreads(unsigned idx) const;
+
+  // Compute shader
+  void SetWaveSize(unsigned size);
+  unsigned GetWaveSize() const;
 
   // Geometry shader.
   DXIL::InputPrimitive GetInputPrimitive() const;
@@ -335,6 +349,7 @@ private:
   unsigned m_DxilMinor;
   unsigned m_ValMajor;
   unsigned m_ValMinor;
+  bool m_ForceZeroStoreLifetimes;
 
   std::unique_ptr<OP> m_pOP;
   size_t m_pUnused;

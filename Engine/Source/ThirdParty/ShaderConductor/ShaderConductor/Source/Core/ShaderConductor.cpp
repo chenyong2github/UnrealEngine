@@ -49,6 +49,7 @@
 #include <spirv_glsl.hpp>
 #include <spirv_hlsl.hpp>
 #include <spirv_msl.hpp>
+#include <spirv_cross_util.hpp>
 
 #ifdef LLVM_ON_WIN32
 #include <d3d12shader.h>
@@ -168,14 +169,14 @@ namespace
             m_dxcompilerDll = ::LoadLibraryA(dllName);
 #else
             m_dxcompilerDll = ::dlopen(dllName, RTLD_LAZY);
-	// UE Change Begin: Unreal Engine uses rpaths on Mac for loading dylibs, so "@rpath/" needs to be added before the name of the dylib, so that macOS can find the file
-    #if __APPLE__
+// UE Change Begin: Unreal Engine uses rpaths on Mac for loading dylibs, so "@rpath/" needs to be added before the name of the dylib, so that macOS can find the file
+#if __APPLE__
             if (m_dxcompilerDll == nullptr)
             {
                 m_dxcompilerDll = ::dlopen((std::string("@rpath/") + dllName).c_str(), RTLD_LAZY);
             }
-    #endif
-	// UE Change End: Unreal Engine uses rpaths on Mac for loading dylibs, so "@rpath/" needs to be added before the name of the dylib, so that macOS can find the file
+#endif
+// UE Change End: Unreal Engine uses rpaths on Mac for loading dylibs, so "@rpath/" needs to be added before the name of the dylib, so that macOS can find the file
 #endif
 
             if (m_dxcompilerDll != nullptr)
@@ -801,6 +802,14 @@ namespace
             if (options.enableDebugInfo)
                 dxcArgStrings.push_back(L"-fspv-debug=line");
             // UE Change End: Emit SPIRV debug info when asked to.
+            // UE Change Begin: Support for specifying direct arguments to DXC
+            for (uint32_t arg = 0; arg < options.numDXCArgs; ++arg)
+            {
+                std::wstring argUTF16;
+                Unicode::UTF8ToUTF16String(options.DXCArgs[arg], &argUTF16);
+                dxcArgStrings.push_back(argUTF16);
+            }
+            // UE Change End: Support for specifying direct arguments to DXC
             break;
 
         default:
@@ -827,7 +836,7 @@ namespace
     }
 
     Compiler::ResultDesc CrossCompile(const Compiler::ResultDesc& binaryResult, const Compiler::SourceDesc& source,
-                                      const Compiler::TargetDesc& target)
+                                      const Compiler::Options& options, const Compiler::TargetDesc& target)
     {
         assert((target.language != ShadingLanguage::Dxil) && (target.language != ShadingLanguage::SpirV));
         assert((binaryResult.target.Size() & (sizeof(uint32_t) - 1)) == 0);
@@ -1152,7 +1161,7 @@ namespace
             }
 #endif
 			// UE Change End: Don't re-assign binding slots. This is done with SPIRV-Reflect.
-		}
+        }
 
         if (buildDummySampler)
         {
@@ -1167,6 +1176,11 @@ namespace
         if (combinedImageSamplers)
         {
             compiler->build_combined_image_samplers();
+
+            if (options.inheritCombinedSamplerBindings)
+            {
+                spirv_cross_util::inherit_combined_sampler_bindings(*compiler);
+            }
 
             for (auto& remap : compiler->get_combined_image_samplers())
             {
@@ -1213,7 +1227,7 @@ namespace ShaderConductor
 // UE Change End: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities.
 
     Compiler::ResultDesc Compiler::ConvertBinary(const Compiler::ResultDesc& binaryResult, const Compiler::SourceDesc& source,
-                                       const Compiler::TargetDesc& target)
+                                       const Compiler::Options& options, const Compiler::TargetDesc& target)
     {
         if (!binaryResult.hasError)
         {
@@ -1234,7 +1248,7 @@ namespace ShaderConductor
                 case ShadingLanguage::Essl:
                 case ShadingLanguage::Msl_macOS:
                 case ShadingLanguage::Msl_iOS:
-                    return CrossCompile(binaryResult, source, target);
+                    return CrossCompile(binaryResult, source, options, target);
 
                 default:
                     llvm_unreachable("Invalid shading language.");
@@ -1415,7 +1429,7 @@ namespace ShaderConductor
                 binaryResult = spirvBinaryResult;
             }
 
-            results[i] = ConvertBinary(binaryResult, sourceOverride, targets[i]);
+            results[i] = ConvertBinary(binaryResult, sourceOverride, options, targets[i]);
         }
     }
 
@@ -1534,7 +1548,7 @@ namespace ShaderConductor
         Compiler::SourceDesc source{};
         source.entryPoint = modules.entryPoint;
         source.stage = modules.stage;
-        return ConvertBinary(binaryResult, source, target);
+        return ConvertBinary(binaryResult, source, options, target);
     }
 } // namespace ShaderConductor
 

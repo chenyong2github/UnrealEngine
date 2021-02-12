@@ -228,6 +228,12 @@ public:
   std::map<std::string, std::string> HLSLOptimizationSelects;
   /// Debug option to print IR after every pass
   bool HLSLPrintAfterAll = false;
+  /// Force-replace lifetime intrinsics by zeroinitializer stores.
+  bool HLSLForceZeroStoreLifetimes = false;
+  /// Enable lifetime marker generation
+  bool HLSLEnableLifetimeMarkers = false;
+  /// Put shader sources and options in the module
+  bool HLSLEmbedSourcesInModule = false;
   // HLSL Change Ends
 
   // SPIRV Change Starts

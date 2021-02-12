@@ -411,6 +411,9 @@ include(HandleLLVMOptions)
 # Verify that we can find a Python 3 interpreter and force cmake to use it.
 # UE Change Begin: Support Cmake 3.12+ in finding python3
 find_package(Python3 COMPONENTS Interpreter Development)
+if("${PYTHON_EXECUTABLE}" STREQUAL "")
+	set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+endif()
 #find_package(PythonInterp 3 REQUIRED)
 # UE Change End: Support Cmake 3.12+ in finding python3
 
@@ -446,7 +449,7 @@ endif (LLVM_USE_OPROFILE)
 message(STATUS "Constructing LLVMBuild project information")
 
 execute_process(
-  COMMAND ${PYTHON_EXECUTABLE} ${LLVMBUILDTOOL}
+  COMMAND "${PYTHON_EXECUTABLE}" ${LLVMBUILDTOOL}
             --native-target Unknown
             --enable-targets "${LLVM_TARGETS_TO_BUILD}"
             --enable-optional-components "${LLVMOPTIONALCOMPONENTS}"

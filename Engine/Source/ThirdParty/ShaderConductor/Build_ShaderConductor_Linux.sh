@@ -3,7 +3,7 @@
 # Build instructions:
 #
 # 1. Make sure LINUX_MULTIARCH_ROOT is set. Ie:
-#   export LINUX_MULTIARCH_ROOT=${UE_SDKS_ROOT}/HostLinux/Linux_x64/v16_clang-9.0.1-centos7
+#   export LINUX_MULTIARCH_ROOT=${UE_SDKS_ROOT}/HostLinux/Linux_x64/v17_clang-10.0.1-centos7/
 #  or
 #   export LINUX_MULTIARCH_ROOT=/epic/v16_clang-9.0.1-centos7
 #
@@ -32,6 +32,14 @@ BuildShaderConductor()
     mkdir -p ${BUILD_DIR}
 
     pushd ${BUILD_DIR}
+
+    # In CrossCompile.cmake, it's checking for the existence of
+    #   ${LLVM_${target_name}_BUILD}  ; which is 'NATIVE' in this case
+    # And if it doesn't exist, it launches a couple cmake instances
+    # to configure the targets and cross toolchain flags, etc which
+    # overwrites our cross toolchain information. We create the
+    # NATIVE dir here and it'll skip all that stuff.
+    mkdir NATIVE
 
     set -x
     cmake -G Ninja \

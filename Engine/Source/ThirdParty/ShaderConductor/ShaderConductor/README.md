@@ -27,9 +27,9 @@ ShaderConductor is not a real compiler. Instead, it glues existing open source c
 ## Prerequisites
 
 * [Git](http://git-scm.com/downloads). Put git into the PATH is recommended.
-* [Visual Studio 16 (2019)](https://www.visualstudio.com/downloads). Select the following workloads: Universal Windows Platform Development and Desktop Development with C++.
-* [CMake](https://www.cmake.org/download/). Version 3.13 or up. It's highly recommended to choose "Add CMake to the system PATH for all users" during installation.
-* [Python](https://www.python.org/downloads/). Version 3.0 or up. You need not change your PATH variable during installation.
+* [Visual Studio 2017](https://www.visualstudio.com/downloads). Select the following workloads: Universal Windows Platform Development and Desktop Development with C++.
+* [CMake](https://www.cmake.org/download/). Version 3.9 or up. It's highly recommended to choose "Add CMake to the system PATH for all users" during installation.
+* [Python](https://www.python.org/downloads/). Version 2.7 or up. You need not change your PATH variable during installation.
 
 ## Building
 
@@ -41,7 +41,7 @@ ShaderConductor has been tested on Windows, Linux, and macOS.
   BuildAll.py <BuildSystem> <Compiler> <Architecture> <Configuration>
 ```
 where,
-* \<BuildSystem\> can be ninja or vs2019. Default is vs2019.
+* \<BuildSystem\> can be ninja or vs2017. Default is vs2017.
 * \<Compiler\> can be vc141 on Windows, gcc or clang on Linux, clang on macOS.
 * \<Architecture\> must be x64 (for now).
 * \<Configuration\> can be Debug, Release, RelWithDebInfo, or MinSizeRel. Default is Release.
@@ -53,7 +53,7 @@ This script automatically grabs external dependencies to External folder, genera
 ```
   mkdir Build
   cd Build
-  cmake -G "Visual Studio 16" -T host=x64 -A x64 ../
+  cmake -G "Visual Studio 15" -T host=x64 -A x64 ../
   cmake --build .
 ```
 

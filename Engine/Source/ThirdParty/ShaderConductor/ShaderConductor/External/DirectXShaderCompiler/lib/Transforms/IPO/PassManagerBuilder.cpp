@@ -207,7 +207,7 @@ void PassManagerBuilder::populateFunctionPassManager(
 }
 
 // HLSL Change Starts
-static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, bool OnlyWarnOnUnrollFail, bool StructurizeLoopExitsForUnroll, hlsl::HLSLExtensionsCodegenHelper *ExtHelper, legacy::PassManagerBase &MPM) {
+static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, bool OnlyWarnOnUnrollFail, bool StructurizeLoopExitsForUnroll, bool EnableLifetimeMarkers, hlsl::HLSLExtensionsCodegenHelper *ExtHelper, legacy::PassManagerBase &MPM) {
 
   // Don't do any lowering if we're targeting high-level.
   if (HLSLHighLevel) {
@@ -255,6 +255,14 @@ static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, bool OnlyWarnOn
   // Special Mem2Reg pass that skips precise marker.
   MPM.add(createDxilConditionalMem2RegPass(NoOpt));
 
+  // Clean up inefficiencies that can cause unnecessary live values related to
+  // lifetime marker cleanup blocks. This is the earliest possible location
+  // without interfering with HLSL-specific lowering.
+  if (!NoOpt && EnableLifetimeMarkers) {
+    MPM.add(createSROAPass());
+    MPM.add(createJumpThreadingPass());
+  }
+
   // Remove unneeded dxbreak conditionals
   MPM.add(createCleanupDxBreakPass());
 
@@ -270,6 +278,7 @@ static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, bool OnlyWarnOn
 
   MPM.add(createDxilPromoteLocalResources());
   MPM.add(createDxilPromoteStaticResources());
+
   // Verify no undef resource again after promotion
   MPM.add(createInvalidateUndefResourcesPass());
 
@@ -326,7 +335,7 @@ void PassManagerBuilder::populateModulePassManager(
     MPM.add(createDxilRewriteOutputArgDebugInfoPass()); // Fix output argument types.
 
     if (!HLSLHighLevel)
-      MPM.add(createDxilInsertPreservesPass(HLSLAllowPreserveValues)); // HLSL Change - insert preserve instructions
+      if (HLSLEnableDebugNops) MPM.add(createDxilInsertPreservesPass(HLSLAllowPreserveValues)); // HLSL Change - insert preserve instructions
 
     if (Inliner) {
       MPM.add(createHLLegalizeParameter()); // HLSL Change - legalize parameters
@@ -354,6 +363,7 @@ void PassManagerBuilder::populateModulePassManager(
     addHLSLPasses(HLSLHighLevel, OptLevel,
       this->HLSLOnlyWarnOnUnrollFail,
       this->StructurizeLoopExitsForUnroll,
+      this->HLSLEnableLifetimeMarkers,
       this->HLSLExtensionsCodeGen,
       MPM);
 
@@ -365,6 +375,7 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createMultiDimArrayToOneDimArrayPass());
       MPM.add(createDeadCodeEliminationPass());
       MPM.add(createGlobalDCEPass());
+      MPM.add(createDxilMutateResourceToHandlePass());
       MPM.add(createDxilLowerCreateHandleForLibPass());
       MPM.add(createDxilTranslateRawBuffer());
       MPM.add(createDxilLegalizeSampleOffsetPass());
@@ -389,12 +400,12 @@ void PassManagerBuilder::populateModulePassManager(
   MPM.add(createDxilRewriteOutputArgDebugInfoPass()); // Fix output argument types.
 
   MPM.add(createHLLegalizeParameter()); // legalize parameters before inline.
-  MPM.add(createAlwaysInlinerPass(/*InsertLifeTime*/false));
+  MPM.add(createAlwaysInlinerPass(/*InsertLifeTime*/this->HLSLEnableLifetimeMarkers));
   if (Inliner) {
     delete Inliner;
     Inliner = nullptr;
   }
-  addHLSLPasses(HLSLHighLevel, OptLevel, this->HLSLOnlyWarnOnUnrollFail, this->StructurizeLoopExitsForUnroll, HLSLExtensionsCodeGen, MPM); // HLSL Change
+  addHLSLPasses(HLSLHighLevel, OptLevel, this->HLSLOnlyWarnOnUnrollFail, this->StructurizeLoopExitsForUnroll, this->HLSLEnableLifetimeMarkers, HLSLExtensionsCodeGen, MPM); // HLSL Change
   // HLSL Change Ends
 
   // Add LibraryInfo if we have some.
@@ -666,6 +677,7 @@ void PassManagerBuilder::populateModulePassManager(
     MPM.add(createDxilRemoveDeadBlocksPass());
     MPM.add(createDeadCodeEliminationPass());
     MPM.add(createGlobalDCEPass());
+    MPM.add(createDxilMutateResourceToHandlePass());
     MPM.add(createDxilLowerCreateHandleForLibPass());
     MPM.add(createDxilTranslateRawBuffer());
     // Always try to legalize sample offsets as loop unrolling

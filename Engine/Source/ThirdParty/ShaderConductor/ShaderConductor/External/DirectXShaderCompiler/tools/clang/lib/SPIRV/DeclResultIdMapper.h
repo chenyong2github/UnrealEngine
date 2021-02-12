@@ -410,12 +410,11 @@ public:
   /// VarDecls (such as some ray tracing enums).
   void tryToCreateImplicitConstVar(const ValueDecl *);
 
-  /// \brief Creates a variable for hull shader output patch with Workgroup
+  /// \brief Creates a variable for hull shader output patch with Output
   /// storage class, and registers the SPIR-V variable for the given decl.
   SpirvInstruction *createHullMainOutputPatch(const ParmVarDecl *param,
                                               const QualType retType,
-                                              uint32_t numOutputControlPoints,
-                                              SourceLocation loc);
+                                              uint32_t numOutputControlPoints);
 
   /// Raytracing specific functions
   /// \brief Creates a ShaderRecordBufferNV block from the given decl.
@@ -667,14 +666,10 @@ private:
                                      const llvm::StringRef name,
                                      SourceLocation);
 
-  // UE Change Begin: Create intermediate output variable to communicate patch
-  // constant data in hull shader since workgroup memory is not allowed there.
-  SpirvVariable *
-  createSpirvIntermediateOutputStageVar(const NamedDecl *decl,
-                                        const llvm::StringRef name,
-                                        QualType asType, uint32_t arraySize);
-  // UE Change End: Create intermediate output variable to communicate patch
-  // constant data in hull shader since workgroup memory is not allowed there.
+  // Create intermediate output variable to communicate patch constant
+  // data in hull shader since workgroup memory is not allowed there.
+  SpirvVariable *createSpirvIntermediateOutputStageVar(
+      const NamedDecl *decl, const llvm::StringRef name, QualType asType);
 
   /// Returns true if all vk:: attributes usages are valid.
   bool validateVKAttributes(const NamedDecl *decl);
