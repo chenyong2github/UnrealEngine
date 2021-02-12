@@ -292,24 +292,28 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 		if (GUseNewTaskBackend)
 		{
 			TLocalWorkQueue<FGraphData> LocalWork(Graph);
-			LocalWork.Run([&LocalWork, this](FGraphData* Graph)
+			TFunctionRef<void(FGraphData*)> RunTask = [this, &LocalWork, &RunTask](FGraphData* Graph)
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(PartitionStrict::ProcessLocalWorkSynchronous);
 				FGraphData* ChildGraphs[2];
 				BisectGraph( Graph, ChildGraphs );
 				delete Graph;
 
 				if( ChildGraphs[0] && ChildGraphs[1] )
 				{
-					LocalWork.AddTask(ChildGraphs[0]);
 					// Only spawn add a worker thread if remaining work is expected to be large enough
 					if (ChildGraphs[0]->Num > 256)
 					{
+						LocalWork.AddTask(ChildGraphs[0]);
 						LocalWork.AddWorkers(1);
 					}
-					LocalWork.AddTask(ChildGraphs[1]);
+					else
+					{
+						RunTask(ChildGraphs[0]);
+					}
+					RunTask(ChildGraphs[1]);
 				}
-			});
+			};
+			LocalWork.Run(RunTask);
 		}
 		else
 		{
