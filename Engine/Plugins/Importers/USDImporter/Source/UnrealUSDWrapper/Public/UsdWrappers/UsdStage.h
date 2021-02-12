@@ -28,6 +28,7 @@ namespace UE
 	class FSdfPath;
 	class FUsdPrim;
 	class FUsdStage;
+	class FVtValue;
 
 	namespace Internal
 	{
@@ -75,6 +76,11 @@ namespace UE
 		bool IsEditTargetValid() const;
 		void SetEditTarget( const FSdfLayer& Layer );
 		FSdfLayer GetEditTarget() const;
+
+		bool GetMetadata( const TCHAR* Key, UE::FVtValue& Value ) const;
+		bool HasMetadata( const TCHAR* Key ) const;
+		bool SetMetadata( const TCHAR* Key, const UE::FVtValue& Value ) const;
+		bool ClearMetadata( const TCHAR* Key ) const;
 
 		double GetStartTimeCode() const;
 		double GetEndTimeCode() const;

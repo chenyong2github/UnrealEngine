@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Templates/UniquePtr.h"
+#include "Misc/Optional.h"
 
 #if USE_USD_SDK
 
@@ -20,6 +21,7 @@ namespace UE
 {
 	class FSdfPath;
 	class FUsdPrim;
+	class FVtValue;
 
 	namespace Internal
 	{
@@ -64,7 +66,16 @@ namespace UE
 		FName GetBaseName() const;
 		FName GetTypeName() const;
 
+		bool HasValue() const;
+		bool HasFallbackValue() const;
+
 		bool ValueMightBeTimeVarying() const;
+
+		bool Get( UE::FVtValue& Value, TOptional<double> Time = {} ) const;
+		bool Set( const UE::FVtValue& Value, TOptional<double> Time = {} ) const;
+
+		bool Clear() const;
+		bool ClearAtTime( double Time ) const;
 
 		FSdfPath GetPath() const;
 		FUsdPrim GetPrim() const;

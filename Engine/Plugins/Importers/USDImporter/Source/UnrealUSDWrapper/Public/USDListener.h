@@ -11,6 +11,17 @@ class FUsdListenerImpl;
 namespace UE
 {
 	class FUsdStage;
+	class FVtValue;
+}
+
+namespace UsdUtils
+{
+	/**
+	 * Maps from prim property paths to the values stored by those fields. "/" signifies the property is actually stage metadata, like metersPerUnit or upAxis.
+	 * Note that for consistency we *always* have a field token at the end (almost always ".default", but can be "variability", "timeSamples", etc.).
+	 * Example keys: "/Root/MyPrim.some_field.timeSamples", "/Root/Parent/SomePrim.kind.default", "/.metersPerUnit.default", "/.upAxis.default", etc.
+	 */
+	using FUsdFieldValueMap = TMap<FString, UE::FVtValue>;
 }
 
 /**
@@ -50,6 +61,9 @@ public:
 
 	DECLARE_EVENT_OneParam( FUsdListener, FOnLayersChanged, const TArray< FString >& );
 	FOnLayersChanged& GetOnLayersChanged();
+
+	DECLARE_EVENT_TwoParams( FUsdListener, FOnFieldsChanged, const UsdUtils::FUsdFieldValueMap& /** OldValues */, const UsdUtils::FUsdFieldValueMap& /** NewValues */ );
+	FOnFieldsChanged& GetOnFieldsChanged();
 
 private:
 	TUniquePtr< FUsdListenerImpl > Impl;

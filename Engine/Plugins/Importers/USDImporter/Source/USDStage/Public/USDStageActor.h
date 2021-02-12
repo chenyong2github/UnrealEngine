@@ -25,6 +25,7 @@ class IMeshBuilderModule;
 class ULevelSequence;
 class UMaterial;
 class UUsdAsset;
+class UUsdTransactor;
 enum class EMapChangeType : uint8;
 enum class EUsdPurpose : int32;
 struct FMeshDescription;
@@ -189,6 +190,9 @@ private:
 	UUsdAssetCache* AssetCache;
 
 private:
+	UPROPERTY(Transient)
+	UUsdTransactor* Transactor;
+
 	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
 	UsdUtils::FBlendShapeMap BlendShapesByPath;
 
@@ -231,3 +235,4 @@ private:
 
 	FDelegateHandle OnRedoHandle;
 };
+

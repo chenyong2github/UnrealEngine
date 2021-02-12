@@ -16,6 +16,7 @@
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 #include "USDSkelRootTranslator.h"
+#include "USDTransactor.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/UsdAttribute.h"
@@ -243,6 +244,9 @@ AUsdStageActor::AUsdStageActor()
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 	RenderContext = UsdSchemasModule.GetRenderContextRegistry().GetUniversalRenderContext();
 
+	Transactor = NewObject<UUsdTransactor>( this, TEXT( "Transactor" ), EObjectFlags::RF_Transactional );
+	Transactor->Initialize( this );
+
 	if ( HasAuthorityOverStage() )
 	{
 #if WITH_EDITOR
@@ -300,25 +304,11 @@ AUsdStageActor::AUsdStageActor()
 						}
 						// We have a valid filepath but no objects/assets spawned, so it's likely we were just spawned on the
 						// other client, and were replicated here with our RootLayer path already filled out, meaning we should just load that stage
+						// Note that now our UUsdTransactor may have already caused the stage itself to be loaded, but we may still need to call LoadUsdStage on our end.
 						else if ( ObjectsToWatch.Num() == 0 && ( !AssetCache || AssetCache->GetNumAssets() == 0 ) )
 						{
-							bool bNeedLoad = true;
-
-							TArray<UE::FUsdStage> OpenedStages = UnrealUSDWrapper::GetAllStagesFromCache();
-							for ( const UE::FUsdStage& Stage : OpenedStages )
-							{
-								if ( FPaths::IsSamePath( Stage.GetRootLayer().GetRealPath(), RootLayer.FilePath ) )
-								{
-									bNeedLoad = false;
-									break;
-								}
-							}
-
-							if ( bNeedLoad )
-							{
-								this->LoadUsdStage();
-								AUsdStageActor::OnActorLoaded.Broadcast( this );
-							}
+							this->LoadUsdStage();
+							AUsdStageActor::OnActorLoaded.Broadcast( this );
 						}
 					}
 				}
@@ -348,6 +338,16 @@ AUsdStageActor::AUsdStageActor()
 					UE_LOG( LogUsd, Verbose, TEXT("Reloading animations because layer '%s' was added/removed/reloaded"), *ChangeVecItem );
 					ReloadAnimations();
 					return;
+				}
+			}
+		);
+
+		UsdListener.GetOnFieldsChanged().AddLambda(
+			[&]( const UsdUtils::FUsdFieldValueMap& OldValues, const UsdUtils::FUsdFieldValueMap& NewValues )
+			{
+				if ( Transactor )
+				{
+					Transactor->Update( OldValues, NewValues );
 				}
 			}
 		);

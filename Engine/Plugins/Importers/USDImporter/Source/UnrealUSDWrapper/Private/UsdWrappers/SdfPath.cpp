@@ -156,6 +156,24 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	FString FSdfPath::GetName() const
+	{
+#if USE_USD_SDK
+		return FString( ANSI_TO_TCHAR( Impl->PxrSdfPath.Get().GetName().c_str() ) );
+#else
+		return FString();
+#endif // #if USE_USD_SDK
+	}
+
+	FString FSdfPath::GetElementString() const
+	{
+#if USE_USD_SDK
+		return FString( ANSI_TO_TCHAR( Impl->PxrSdfPath.Get().GetElementString().c_str() ) );
+#else
+		return FString();
+#endif // #if USE_USD_SDK
+	}
+
 	FSdfPath FSdfPath::GetAbsoluteRootOrPrimPath() const
 	{
 #if USE_USD_SDK

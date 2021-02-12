@@ -58,7 +58,10 @@ namespace UE
 	// Wrapped pxr::SdfPath functions, refer to the USD SDK documentation
 	public:
 		static const FSdfPath& AbsoluteRootPath();
+
 		bool IsAbsoluteRootOrPrimPath() const;
+		FString GetName() const;
+		FString GetElementString() const;
 		FSdfPath GetAbsoluteRootOrPrimPath() const;
 
 		FSdfPath GetParentPath() const;

@@ -4,6 +4,7 @@
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/VtValue.h"
 
 #include "USDMemory.h"
 
@@ -170,10 +171,70 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	bool FUsdAttribute::HasValue() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdAttribute.Get().HasValue();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdAttribute::HasFallbackValue() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdAttribute.Get().HasFallbackValue();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
 	bool FUsdAttribute::ValueMightBeTimeVarying() const
 	{
 #if USE_USD_SDK
 		return Impl->PxrUsdAttribute.Get().ValueMightBeTimeVarying();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdAttribute::Get( UE::FVtValue & Value, TOptional<double> Time /*= {} */ ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::UsdTimeCode TimeCode = Time.IsSet() ? Time.GetValue() : pxr::UsdTimeCode::Default();
+		return Impl->PxrUsdAttribute.Get().Get( &Value.GetUsdValue(), TimeCode );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdAttribute::Set( const UE::FVtValue & Value, TOptional<double> Time /*= {} */ ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::UsdTimeCode TimeCode = Time.IsSet() ? Time.GetValue() : pxr::UsdTimeCode::Default();
+		return Impl->PxrUsdAttribute.Get().Set( Value.GetUsdValue(), TimeCode );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdAttribute::Clear() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdAttribute.Get().Clear();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdAttribute::ClearAtTime( double Time ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdAttribute.Get().ClearAtTime( pxr::UsdTimeCode( Time ) );
 #else
 		return false;
 #endif // #if USE_USD_SDK
