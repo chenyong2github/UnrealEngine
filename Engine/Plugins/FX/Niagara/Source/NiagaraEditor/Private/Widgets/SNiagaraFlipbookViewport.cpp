@@ -59,8 +59,8 @@ public:
 		{
 			Texture = GetCheckerboardTexture();
 			Color = FLinearColor::White;
-			EndUV.X = float(InRect.Width()) / float(Texture->GetSizeX());
-			EndUV.Y = float(InRect.Height()) / float(Texture->GetSizeY());
+			EndUV.X = float(InRect.Width()) / float(FMath::Max(Texture->GetSizeX(), 1));
+			EndUV.Y = float(InRect.Height()) / float(FMath::Max(Texture->GetSizeY(), 1));
 		}
 		Canvas->DrawTile(InRect.Min.X, InRect.Min.Y, InRect.Width(), InRect.Height(), 0.0f, 0.0f, EndUV.X, EndUV.Y, Color, Texture ? Texture->Resource : nullptr, false);
 	}
@@ -191,7 +191,7 @@ public:
 
 			if (bFlipbookValid)
 			{
-				const FIntPoint TextureSize = FIntPoint(PreviewTextureSettings->GeneratedTexture->GetSizeX(), PreviewTextureSettings->GeneratedTexture->GetSizeY());
+				const FIntPoint TextureSize = FIntPoint(FMath::Max(PreviewTextureSettings->GeneratedTexture->GetSizeX(), 1), FMath::Max(PreviewTextureSettings->GeneratedTexture->GetSizeY(), 1));
 				const FIntPoint FramesPerDimension = ViewModel->GetGeneratedFramesPerDimension();
 				const FIntPoint FrameIndex2D = FIntPoint(DisplayData.FrameIndex % FramesPerDimension.X, DisplayData.FrameIndex / FramesPerDimension.X);
 				const FIntPoint FramePixel = FIntPoint(FrameIndex2D.X * PreviewTextureSettings->FrameSize.X, FrameIndex2D.Y * PreviewTextureSettings->FrameSize.Y);
