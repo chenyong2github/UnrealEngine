@@ -198,7 +198,9 @@ public:
 	//~ End INavAgentInterface Interface
 
 	//~ Begin INavPathObserverInterface Interface
-	virtual void OnPathUpdated(class INavigationPathGenerator* PathGenerator) override;
+	virtual void OnPathUpdated(class INavigationPathGenerator* PathGenerator) override {};
+	virtual void OnPathInvalid(class INavigationPathGenerator* PathGenerator) override {};
+	virtual void OnPathFailed(class INavigationPathGenerator* PathGenerator) override {};
 	//~ End INavPathObserverInterface Interface	
 
 	void UpdateNavData();
