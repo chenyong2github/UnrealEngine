@@ -664,15 +664,19 @@ SIZE_T FPrecomputedVolumetricLightmapData::GetAllocatedBytes() const
 		IndirectionTextureOriginalValues.Num() * IndirectionTextureOriginalValues.GetTypeSize();
 }
 
+TMap<FPrecomputedVolumetricLightmap*, TWeakObjectPtr<UMapBuildDataRegistry>> SourceRegistries;
 
 FPrecomputedVolumetricLightmap::FPrecomputedVolumetricLightmap() :
 	Data(NULL),
 	bAddedToScene(false),
 	WorldOriginOffset(ForceInitToZero)
-{}
+{
+	SourceRegistries.Add(this, TWeakObjectPtr<UMapBuildDataRegistry>());
+}
 
 FPrecomputedVolumetricLightmap::~FPrecomputedVolumetricLightmap()
 {
+	SourceRegistries.Remove(this);
 }
 
 void FPrecomputedVolumetricLightmap::AddToScene(FSceneInterface* Scene, UMapBuildDataRegistry* Registry, FGuid LevelBuildDataId, bool bIsPersistentLevel)
@@ -702,6 +706,7 @@ void FPrecomputedVolumetricLightmap::AddToScene(FSceneInterface* Scene, UMapBuil
 	if (NewData && Scene)
 	{
 		bAddedToScene = true;
+		SourceRegistries[this] = Registry;
 
 		FPrecomputedVolumetricLightmap* Volume = this;
 
@@ -727,9 +732,18 @@ void FPrecomputedVolumetricLightmap::RemoveFromScene(FSceneInterface* Scene)
 	{
 		bAddedToScene = false;
 
-		if (Scene)
+		// Certain paths in the editor (namely, ReloadPackages and ForceDelete) will GC the registry before the UWorld destruction (which destructs FScene)
+		ensureMsgf(SourceRegistries[this].IsValid(), TEXT("UMapBuildDataRegistry is garbage collected before an FPrecomputedVolumetricLightmap is removed from the scene. Is there a missing ReleaseRenderingResources() call?"));
+
+		// While that can be explained as missing ReleaseRenderingResources() calls, this fail-safe guard is added here
+		if (SourceRegistries[this].IsValid())
 		{
-			Scene->RemovePrecomputedVolumetricLightmap(this);
+			SourceRegistries[this] = nullptr;
+
+			if (Scene)
+			{
+				Scene->RemovePrecomputedVolumetricLightmap(this);
+			}
 		}
 	}
 

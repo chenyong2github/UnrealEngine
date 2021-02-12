@@ -1177,7 +1177,6 @@ FScene::~FScene()
 	ReflectionSceneData.CubemapArray.ReleaseResource();
 	IndirectLightingCache.ReleaseResource();
 	DistanceFieldSceneData.Release();
-	VolumetricLightmapSceneData.RemoveAll();
 
 	if (AtmosphericFog)
 	{
@@ -2330,16 +2329,6 @@ void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetri
 
 	// Invalidate CPU lightmap lookup cache
 	CPUInterpolationCache.Empty();
-}
-
-void FVolumetricLightmapSceneData::RemoveAll()
-{
-	ensureMsgf(LevelVolumetricLightmaps.Num() == 0, TEXT("All volumetric lightmaps should have been removed before ~FScene(). Removing them anyway to avoid crash."));
-
-	while (LevelVolumetricLightmaps.Num() > 0)
-	{
-		RemoveLevelVolume(LevelVolumetricLightmaps[LevelVolumetricLightmaps.Num() - 1]);
-	}
 }
 
 const FPrecomputedVolumetricLightmap* FVolumetricLightmapSceneData::GetLevelVolumetricLightmap() const
