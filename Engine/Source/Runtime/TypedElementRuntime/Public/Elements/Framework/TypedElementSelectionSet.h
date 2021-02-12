@@ -513,6 +513,10 @@ private:
 	/** Set when we are currently restoring the selection state (eg, from an undo/redo) */
 	bool bIsRestoringState = false;
 
-	/** Set between a PreEditUndo->PostEditUndo call, to hold the state loaded during Serialize and applied in PostEditUndo */
+	/**
+	 * Set between a PreEditUndo->PostEditUndo call.
+	 * Initially holds the state cached during PreEditUndo which is saved during Serialize, 
+	 * and is then replaced with the state loaded from Serialize to be applied in PostEditUndo.
+	 */
 	TUniquePtr<FTypedElementSelectionSetState> PendingUndoRedoState;
 };

@@ -22,7 +22,11 @@ void UTypedElementSelectionSet::PreEditUndo()
 	Super::PreEditUndo();
 
 	checkf(!PendingUndoRedoState, TEXT("PendingUndoRedoState was set! Missing call to PostEditUndo?"));
-	PendingUndoRedoState = MakeUnique<FTypedElementSelectionSetState>();
+	PendingUndoRedoState = MakeUnique<FTypedElementSelectionSetState>(GetCurrentSelectionState());
+
+	FTypedElementSelectionSetState EmptySelectionState;
+	EmptySelectionState.CreatedFromSelectionSet = this;
+	RestoreSelectionState(EmptySelectionState);
 }
 
 void UTypedElementSelectionSet::PostEditUndo()
@@ -61,9 +65,19 @@ void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 {
 	checkf(!Ar.IsPersistent(), TEXT("UTypedElementSelectionSet can only be serialized by transient archives!"));
 
+	const bool bIsUndoRedo = PendingUndoRedoState && Ar.IsTransacting();
+
+	FTypedElementSelectionSetState TmpSelectionState;
+	TmpSelectionState.CreatedFromSelectionSet = this;
+
+	FTypedElementSelectionSetState& SelectionState = bIsUndoRedo ? *PendingUndoRedoState : TmpSelectionState;
+
 	if (Ar.IsSaving())
 	{
-		FTypedElementSelectionSetState SelectionState = ElementList ? GetCurrentSelectionState() : FTypedElementSelectionSetState();
+		if (ElementList && !bIsUndoRedo)
+		{
+			TmpSelectionState = GetCurrentSelectionState();
+		}
 
 		int32 NumTransactedElements = SelectionState.TransactedElements.Num();
 		Ar << NumTransactedElements;
@@ -80,16 +94,10 @@ void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 	{
 		UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
-		const bool bIsUndoRedo = PendingUndoRedoState && Ar.IsTransacting();
-		FTypedElementSelectionSetState TmpSelectionState;
-
-		FTypedElementSelectionSetState& SelectionState = bIsUndoRedo ? *PendingUndoRedoState : TmpSelectionState;
-		SelectionState.CreatedFromSelectionSet = this;
-
 		int32 NumTransactedElements = 0;
 		Ar << NumTransactedElements;
 
-		SelectionState.TransactedElements.Reserve(NumTransactedElements);
+		SelectionState.TransactedElements.Reset(NumTransactedElements);
 		for (int32 TransactedElementIndex = 0; TransactedElementIndex < NumTransactedElements; ++TransactedElementIndex)
 		{
 			FTypedHandleTypeId TypeId = 0;
