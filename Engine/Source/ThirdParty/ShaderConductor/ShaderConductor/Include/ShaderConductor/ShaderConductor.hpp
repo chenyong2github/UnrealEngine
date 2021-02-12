@@ -169,16 +169,21 @@ namespace ShaderConductor
 
         struct Options
         {
-            bool packMatricesInRowMajor = true; // Experimental: Decide how a matrix get packed
-            bool enable16bitTypes = false;      // Enable 16-bit types, such as half, uint16_t. Requires shader model 6.2+
-            bool enableDebugInfo = false;       // Embed debug info into the binary
-            bool disableOptimizations = false;  // Force to turn off optimizations. Ignore optimizationLevel below.
+            bool packMatricesInRowMajor = true;          // Experimental: Decide how a matrix get packed
+            bool enable16bitTypes = false;               // Enable 16-bit types, such as half, uint16_t. Requires shader model 6.2+
+            bool enableDebugInfo = false;                // Embed debug info into the binary
+            bool disableOptimizations = false;           // Force to turn off optimizations. Ignore optimizationLevel below.
+            bool inheritCombinedSamplerBindings = false; // If textures and samplers are combined, inherit the binding of the texture
             // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
             bool removeUnusedGlobals = false;
             // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
             // UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
             bool enableFMAPass = false;
             // UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
+            // UE Change Begin: Support for specifying direct arguments to DXC
+            uint32_t numDXCArgs = 0;
+            const char** DXCArgs = nullptr;
+            // UE Change End: Support for specifying direct arguments to DXC
 
             int optimizationLevel = 3; // 0 to 3, no optimization to most optimization
             ShaderModel shaderModel = {6, 0};
@@ -261,7 +266,8 @@ namespace ShaderConductor
         static ResultDesc Disassemble(const DisassembleDesc& source);
 
         // UE Change Begin: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities.
-        static ResultDesc ConvertBinary(const ResultDesc& binaryResult, const SourceDesc& source, const TargetDesc& target);
+        static ResultDesc ConvertBinary(const ResultDesc& binaryResult, const SourceDesc& source, const Compiler::Options& options,
+                                        const TargetDesc& target);
         // UE Change End: Two stage compilation is preferable for UE4 as it avoids polluting SC with SPIRV->MSL complexities.
         // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
         static ResultDesc Rewrite(SourceDesc source, const Compiler::Options& options);

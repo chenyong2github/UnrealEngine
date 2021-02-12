@@ -94,7 +94,7 @@ namespace CrossCompiler
 		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
 		ShaderConductor::Compiler::ResultDesc& OutResultDesc)
 	{
-		OutResultDesc = ShaderConductor::Compiler::ConvertBinary(InBinaryDesc, InSourceDesc, InTargetDesc);
+		OutResultDesc = ShaderConductor::Compiler::ConvertBinary(InBinaryDesc, InSourceDesc, /*Options:*/ {}, InTargetDesc);
 	}
 
 	static bool ScConvertBinaryWrapper(
