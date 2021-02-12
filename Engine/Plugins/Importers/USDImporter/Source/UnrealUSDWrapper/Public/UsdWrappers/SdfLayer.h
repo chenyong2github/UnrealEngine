@@ -85,7 +85,10 @@ namespace UE
 		FString GetIdentifier() const;
 		FString GetDisplayName() const;
 
+		bool IsEmpty() const;
 		bool IsAnonymous() const;
+
+		bool Export( const TCHAR* Filename ) const;
 
 		bool HasStartTimeCode() const;
 		double GetStartTimeCode() const;
@@ -113,6 +116,9 @@ namespace UE
 
 		TSet< double > ListTimeSamplesForPath( const FSdfPath& Path ) const;
 		void EraseTimeSample( const FSdfPath& Path, double Time );
+
+		bool IsMuted() const;
+		void SetMuted(bool bMuted);
 
 	private:
 		TUniquePtr< Internal::FSdfLayerImpl > Impl;

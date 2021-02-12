@@ -9,6 +9,7 @@
 #include "USDErrorUtils.h"
 #include "USDGeomMeshTranslator.h"
 #include "USDGeomXformableTranslator.h"
+#include "USDLayerUtils.h"
 #include "USDLightConversion.h"
 #include "USDListener.h"
 #include "USDLog.h"
@@ -899,6 +900,12 @@ void AUsdStageActor::OpenUsdStage()
 
 		UsdListener.Register( UsdStage );
 
+#if USE_USD_SDK
+		// Try loading a UE-state session layer if we can find one
+		const bool bCreateIfNeeded = false;
+		UsdUtils::GetUEPersistentStateSublayer( UsdStage, bCreateIfNeeded );
+#endif // #if USE_USD_SDK
+
 		OnStageChanged.Broadcast();
 	}
 
@@ -1416,7 +1423,7 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 			FUsdStageActorImpl::CloseEditorsForAssets( AssetCache->GetCachedAssets() );
 			AssetCache->Reset(); // We've changed USD file, clear the cache
 		}
-		
+
 		BlendShapesByPath.Reset();
 		MaterialToPrimvarToUVIndex.Reset();
 		LoadUsdStage();

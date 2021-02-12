@@ -5,6 +5,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
+#include "USDLayerUtils.h"
 #include "USDStageActor.h"
 #include "USDStageImportContext.h"
 #include "USDStageImporterModule.h"
@@ -32,8 +33,26 @@
 
 #endif // #if USE_USD_SDK
 
-
 #define LOCTEXT_NAMESPACE "UsdStageViewModel"
+
+#if USE_USD_SDK
+namespace UsdViewModelImpl
+{
+	/**
+	 * Saves the UE-state session layer for the given stage.
+	 * We use this instead of pxr::UsdStage::SaveSessionLayers because that function
+	 * will emit a warning about the main session layer not being saved every time it is used
+	 */
+	void SaveUEStateLayer( const UE::FUsdStage& UsdStage )
+	{
+		const bool bCreateIfNeeded = false;
+		if ( UE::FSdfLayer UEStateLayer = UsdUtils::GetUEPersistentStateSublayer( UsdStage, bCreateIfNeeded ) )
+		{
+			UEStateLayer.Export( *UEStateLayer.GetRealPath() );
+		}
+	}
+}
+#endif // #if USE_USD_SDK
 
 void FUsdStageViewModel::NewStage( const TCHAR* FilePath )
 {
@@ -110,7 +129,13 @@ void FUsdStageViewModel::ReloadStage()
 			const std::vector<pxr::SdfLayerHandle>& HandleVec = UsdStage->GetUsedLayers();
 
 			const bool bForce = true;
-			pxr::SdfLayer::ReloadLayers( {HandleVec.begin(), HandleVec.end()}, bForce );
+			pxr::SdfLayer::ReloadLayers( { HandleVec.begin(), HandleVec.end() }, bForce );
+
+			// When reloading our UEState layer is closed but there is nothing on the root layer
+			// that would automatically pull the UEState session layer and cause it to be reloaded, so we need to try
+			// to load it back again
+			const bool bCreateIfNeeded = false;
+			UsdUtils::GetUEPersistentStateSublayer( UsdStageActor->GetUsdStage(), bCreateIfNeeded );
 		}
 
 		if ( UsdUtils::ShowErrorsAndStopMonitoring() )
@@ -151,6 +176,7 @@ void FUsdStageViewModel::SaveStage()
 			UsdUtils::StartMonitoringErrors();
 
 			pxr::UsdStageRefPtr( UsdStage )->Save();
+			UsdViewModelImpl::SaveUEStateLayer( UsdStage );
 
 			UsdUtils::ShowErrorsAndStopMonitoring(LOCTEXT("USDSaveError", "Failed to save current USD Stage!\nCheck the Output Log for details."));
 		}
@@ -182,6 +208,8 @@ void FUsdStageViewModel::SaveStageAs( const TCHAR* FilePath )
 					FScopedUnrealAllocs UEAllocs;
 
 					OpenStage( FilePath );
+
+					UsdViewModelImpl::SaveUEStateLayer( UsdStage );
 				}
 			}
 

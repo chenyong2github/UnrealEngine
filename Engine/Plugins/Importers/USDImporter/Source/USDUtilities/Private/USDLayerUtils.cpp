@@ -7,7 +7,9 @@
 #include "USDLog.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfChangeBlock.h"
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Misc/Paths.h"
@@ -21,8 +23,10 @@
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/pcp/layerStack.h"
+	#include "pxr/usd/sdf/fileFormat.h"
 	#include "pxr/usd/sdf/layer.h"
 	#include "pxr/usd/sdf/layerUtils.h"
+	#include "pxr/usd/sdf/textFileFormat.h"
 	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/modelAPI.h"
 	#include "pxr/usd/usd/primCompositionQuery.h"
@@ -32,7 +36,15 @@
 
 #define LOCTEXT_NAMESPACE "USDLayerUtils"
 
-bool UsdUtils::InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile )
+namespace UsdUtils
+{
+	std::string GetUESessionStateLayerDisplayName( const pxr::UsdStageRefPtr& Stage )
+	{
+		return pxr::SdfLayer::GetDisplayNameFromIdentifier( Stage->GetRootLayer()->GetIdentifier() ) + "-UE-session-state.usda";
+	}
+}
+
+bool UsdUtils::InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile, int32 Index )
 {
 	if ( !ParentLayer.Get() )
 	{
@@ -47,7 +59,7 @@ bool UsdUtils::InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLay
 	FString SubLayerFilePath = FPaths::ConvertRelativePathToFull( SubLayerFile );
 	FPaths::MakePathRelativeTo( SubLayerFilePath, *LayerFilePath );
 
-	ParentLayer.Get()->InsertSubLayerPath( UnrealToUsd::ConvertString( *SubLayerFilePath ).Get() );
+	ParentLayer.Get()->InsertSubLayerPath( UnrealToUsd::ConvertString( *SubLayerFilePath ).Get(), Index );
 
 	return true;
 }
@@ -318,6 +330,135 @@ void UsdUtils::MakePathRelativeToLayer( const UE::FSdfLayer& Layer, FString& Pat
 		FPaths::MakePathRelativeTo( Path, *LayerAbsolutePath );
 	}
 #endif // #if USE_USD_SDK
+}
+
+UE::FSdfLayer UsdUtils::GetUEPersistentStateSublayer( const UE::FUsdStage& Stage, bool bCreateIfNeeded )
+{
+	UE::FSdfLayer StateLayer;
+	if ( !Stage )
+	{
+		return StateLayer;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	UE::FSdfChangeBlock ChangeBlock;
+
+	FString PathPart;
+	FString FilenamePart;
+	FString ExtensionPart;
+	FPaths::Split( Stage.GetRootLayer().GetRealPath(), PathPart, FilenamePart, ExtensionPart );
+
+	FString ExpectedStateLayerPath = FPaths::Combine( PathPart, FString::Printf( TEXT( "%s-UE-persistent-state.%s" ), *FilenamePart, *ExtensionPart ) );
+	FPaths::NormalizeFilename( ExpectedStateLayerPath );
+
+	StateLayer = UE::FSdfLayer::FindOrOpen( *ExpectedStateLayerPath );
+
+	if ( !StateLayer && bCreateIfNeeded )
+	{
+		StateLayer = pxr::SdfLayer::New(
+			pxr::SdfFileFormat::FindById( pxr::SdfTextFileFormatTokens->Id ),
+			UnrealToUsd::ConvertString( *ExpectedStateLayerPath ).Get()
+		);
+	}
+
+	// Add the layer as a sublayer of the session layer, in the right location
+	// Always check this because we need to do this even if we just loaded an existing state layer from disk
+	if ( StateLayer )
+	{
+		UE::FSdfLayer SessionLayer = Stage.GetSessionLayer();
+
+		// For consistency we always add the UEPersistentState sublayer as the weakest sublayer of the stage's session layer
+		// Note that we intentionally only guarantee the UEPersistentLayer is weaker than the UESessionLayer when inserting,
+		// so that the user may reorder these if he wants, for whatever reason
+		bool bNeedsToBeAdded = true;
+		for ( const FString& Path : SessionLayer.GetSubLayerPaths() )
+		{
+			if ( FPaths::IsSamePath( Path, ExpectedStateLayerPath ) )
+			{
+				bNeedsToBeAdded = false;
+				break;
+			}
+		}
+
+		if ( bNeedsToBeAdded )
+		{
+			// Always add it at the back, so it's weaker than the session layer
+			InsertSubLayer( static_cast< pxr::SdfLayerRefPtr& >( SessionLayer ), *ExpectedStateLayerPath );
+		}
+	}
+
+	return StateLayer;
+}
+
+UE::FSdfLayer UsdUtils::GetUESessionStateSublayer( const UE::FUsdStage& Stage, bool bCreateIfNeeded )
+{
+	UE::FSdfLayer StateLayer;
+	if ( !Stage )
+	{
+		return StateLayer;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	const pxr::UsdStageRefPtr UsdStage{ Stage };
+	pxr::SdfLayerRefPtr UsdSessionLayer = UsdStage->GetSessionLayer();
+
+	FString PathPart;
+	FString FilenamePart;
+	FString ExtensionPart;
+	FPaths::Split( Stage.GetRootLayer().GetRealPath(), PathPart, FilenamePart, ExtensionPart );
+
+	FString ExpectedStateLayerDisplayName = FString::Printf( TEXT( "%s-UE-session-state.%s" ), *FilenamePart, *ExtensionPart );
+	FPaths::NormalizeFilename( ExpectedStateLayerDisplayName );
+
+	std::string UsdExpectedStateLayerDisplayName = UnrealToUsd::ConvertString( *ExpectedStateLayerDisplayName ).Get();
+
+	// Check if we already have an existing utils layer in this stage
+	std::string ExistingUESessionStateIdentifier;
+	{
+		std::unordered_set<std::string> SessionLayerSubLayerIdentifiers;
+		for ( const std::string& SubLayerIdentifier : UsdSessionLayer->GetSubLayerPaths() )
+		{
+			SessionLayerSubLayerIdentifiers.insert( SubLayerIdentifier );
+		}
+		if ( SessionLayerSubLayerIdentifiers.size() > 0 )
+		{
+			const bool bIncludeSessionLayers = true;
+			for ( const pxr::SdfLayerHandle& Layer : UsdStage->GetLayerStack( bIncludeSessionLayers ) )
+			{
+				// All session layers always come before the root layer
+				if ( Layer == UsdStage->GetRootLayer() )
+				{
+					break;
+				}
+
+				const std::string& Identifier = Layer->GetIdentifier();
+				if ( Layer->IsAnonymous() && Layer->GetDisplayName() == UsdExpectedStateLayerDisplayName && SessionLayerSubLayerIdentifiers.count( Identifier ) > 0 )
+				{
+					ExistingUESessionStateIdentifier = Identifier;
+					break;
+				}
+			}
+		}
+	}
+
+	if ( ExistingUESessionStateIdentifier.size() > 0 )
+	{
+		StateLayer = UE::FSdfLayer::FindOrOpen( *UsdToUnreal::ConvertString( ExistingUESessionStateIdentifier ) );
+	}
+
+	// We only need to add as sublayer when creating the StateLayer layers, because they are always transient and never saved/loaded from disk
+	// so if it exists already, it was created right here, where we add it as a sublayer
+	if ( !StateLayer && bCreateIfNeeded )
+	{
+		pxr::SdfLayerRefPtr UsdStateLayer = pxr::SdfLayer::CreateAnonymous( UsdExpectedStateLayerDisplayName );
+		UsdSessionLayer->InsertSubLayerPath( UsdStateLayer->GetIdentifier(), 0 ); // Always add it at the front, so it's stronger than the persistent layer
+
+		StateLayer = UsdStateLayer;
+	}
+
+	return StateLayer;
 }
 
 #undef LOCTEXT_NAMESPACE
