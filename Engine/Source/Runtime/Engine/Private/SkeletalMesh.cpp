@@ -4364,13 +4364,13 @@ const UAnimSequence* USkeletalMesh::GetBakePose(int32 LODIndex) const
 	const FSkeletalMeshLODInfo* LOD = GetLODInfo(LODIndex);
 	if (LOD)
 	{
-		if (LOD->BakePoseOverride && GetSkeleton() == LOD->BakePoseOverride->GetSkeleton())
+		if (LOD->BakePoseOverride && GetSkeleton() && GetSkeleton() == LOD->BakePoseOverride->GetSkeleton())
 		{
 			return LOD->BakePoseOverride;
 		}
 
 		// we make sure bake pose uses same skeleton
-		if (LOD->BakePose && GetSkeleton() == LOD->BakePose->GetSkeleton())
+		if (LOD->BakePose && GetSkeleton() && GetSkeleton() == LOD->BakePose->GetSkeleton())
 		{
 			return LOD->BakePose;
 		}

@@ -361,9 +361,10 @@ public:
 
 	bool ReduceBoneCounts(USkeletalMesh* SkeletalMesh, int32 DesiredLOD, const TArray<FName>* BoneNamesToRemove, bool bCallPostEditChange /*= true*/) override
 	{
-		check (SkeletalMesh);
-		USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
-		check (Skeleton);
+		if (!ensure(SkeletalMesh))
+		{
+			return false;
+		}
 
 		// find all the bones to remove from Skeleton settings
 		TMap<FBoneIndexType, FBoneIndexType> BonesToRemove;

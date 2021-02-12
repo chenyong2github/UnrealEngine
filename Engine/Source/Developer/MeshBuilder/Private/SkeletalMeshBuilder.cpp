@@ -185,7 +185,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		}
 		else
 		{
-			if (LODInfo->BonesToRemove.Num() > 0)
+			if (LODInfo->BonesToRemove.Num() > 0 && SkeletalMesh->GetSkeleton())
 			{
 				TArray<FName> BonesToRemove;
 				BonesToRemove.Reserve(LODInfo->BonesToRemove.Num());
