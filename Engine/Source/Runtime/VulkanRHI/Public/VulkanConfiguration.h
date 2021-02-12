@@ -270,7 +270,7 @@
 	#ifdef VK_EXT_fragment_density_map2
 		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2			1
 	#else
-		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP			0
+		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2			0
 	#endif
 #endif
 
