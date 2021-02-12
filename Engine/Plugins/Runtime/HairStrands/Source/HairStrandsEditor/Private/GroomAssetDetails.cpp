@@ -899,7 +899,7 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 		return SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.ColorAndOpacity(HairGroupColor)
-			.Text(FText::Format(LOCTEXT("Cards", "Cards {0}"), FText::AsNumber(GroupIndex)));
+			.Text(FText::Format(LOCTEXT("Cards", "Cards {0} "), FText::AsNumber(GroupIndex)));
 	}
 	break;
 	case EMaterialPanelType::Meshes:
@@ -907,7 +907,7 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 		return SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.ColorAndOpacity(HairGroupColor)
-			.Text(FText::Format(LOCTEXT("Meshes", "Meshes {0}"), FText::AsNumber(GroupIndex)));
+			.Text(FText::Format(LOCTEXT("Meshes", "Meshes {0} "), FText::AsNumber(GroupIndex)));
 	}
 	break;
 	default:
@@ -915,7 +915,7 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 		return SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.ColorAndOpacity(HairGroupColor)
-			.Text(FText::Format(LOCTEXT("Group", "Group ID {0}"), FText::AsNumber(GroupIndex)));
+			.Text(FText::Format(LOCTEXT("Group", "Group ID {0} "), FText::AsNumber(GroupIndex)));
 	}
 	break;
 	}
@@ -927,6 +927,7 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyHandle> StructProperty, int32 GroupIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout)
 {
 	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
+	const FLinearColor GroupColor = GetHairGroupDebugColor(GroupIndex);
 
 	FProperty* Property = StructProperty->GetProperty();
 
@@ -954,9 +955,20 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
+		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Right)
 		[
 			MakeGroupNameCustomization(GroupIndex)
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SColorBlock)
+			.Color(GroupColor)
+			.Size(FVector2D(8,8))
+			.CornerRadius(FVector4(4.0f, 4.0f, 4.0f, 4.0f))
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()

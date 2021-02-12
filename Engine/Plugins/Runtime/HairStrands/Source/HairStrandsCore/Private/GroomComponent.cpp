@@ -38,7 +38,35 @@ bool IsHairAdaptiveSubstepsEnabled() { return (GHairEnableAdaptiveSubsteps == 1)
 
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 EHairStrandsDebugMode GetHairStrandsGeometryDebugMode(FHairGroupInstance* Instance);
+
+const FLinearColor GetHairGroupDebugColor(int32 GroupIt)
+{
+	static TArray<FLinearColor> IndexedColor;
+	if (IndexedColor.Num() == 0)
+	{
+		IndexedColor.Add(FLinearColor(FColor::Cyan));
+		IndexedColor.Add(FLinearColor(FColor::Magenta));
+		IndexedColor.Add(FLinearColor(FColor::Orange));
+		IndexedColor.Add(FLinearColor(FColor::Silver));
+		IndexedColor.Add(FLinearColor(FColor::Emerald));
+		IndexedColor.Add(FLinearColor(FColor::Red));
+		IndexedColor.Add(FLinearColor(FColor::Green));
+		IndexedColor.Add(FLinearColor(FColor::Blue));
+		IndexedColor.Add(FLinearColor(FColor::Yellow));
+		IndexedColor.Add(FLinearColor(FColor::Purple));
+		IndexedColor.Add(FLinearColor(FColor::Turquoise));
+	
+	}
+	if (GroupIt >= IndexedColor.Num())
+	{
+		IndexedColor.Add(FLinearColor::MakeRandomColor());
+	}
+	check(GroupIt < IndexedColor.Num());
+	return IndexedColor[GroupIt];	
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -106,23 +134,27 @@ public:
 	const float HairMinRadius;
 	const float HairMaxRadius;
 	const float HairClipLength;
+	const FVector HairGroupColor;
 
 	FName DebugModeParamName;
 	FName MinHairRadiusParamName;
 	FName MaxHairRadiusParamName;
 	FName HairClipLengthParamName;
+	FName HairGroupHairColorParamName;
 
 	/** Initialization constructor. */
-	FHairDebugModeMaterialRenderProxy(const FMaterialRenderProxy* InParent, float InMode, float InMinRadius, float InMaxRadius, float InHairClipLength) :
+	FHairDebugModeMaterialRenderProxy(const FMaterialRenderProxy* InParent, float InMode, float InMinRadius, float InMaxRadius, float InHairClipLength, FVector InGroupColor) :
 		Parent(InParent),
 		DebugMode(InMode),
 		HairMinRadius(InMinRadius),
 		HairMaxRadius(InMaxRadius),
 		HairClipLength(InHairClipLength),
+		HairGroupColor(InGroupColor),
 		DebugModeParamName(NAME_FloatProperty),
 		MinHairRadiusParamName(NAME_ByteProperty),
 		MaxHairRadiusParamName(NAME_IntProperty),
-		HairClipLengthParamName(NAME_BoolProperty)
+		HairClipLengthParamName(NAME_BoolProperty),
+		HairGroupHairColorParamName(NAME_VectorProperty)
 	{}
 
 	virtual const FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const override
@@ -137,6 +169,11 @@ public:
 
 	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
 	{
+		if (ParameterInfo.Name == HairGroupHairColorParamName)
+		{
+			*OutValue = HairGroupColor;
+			return true;
+		}
 		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
 	}
 
@@ -162,10 +199,7 @@ public:
 			*OutValue = HairClipLength;
 			return true;
 		}
-		else
-		{
-			return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-		}
+		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
 	}
 
 	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
@@ -721,41 +755,6 @@ public:
 
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_HairStrandsSceneProxy_GetDynamicMeshElements);
 
-
-		FMaterialRenderProxy* Strands_MaterialProxy = nullptr;
-		const EHairStrandsDebugMode DebugMode = GetHairStrandsGeometryDebugMode(Instances[0]);
-		if (DebugMode != EHairStrandsDebugMode::NoneDebug)
-		{
-			float DebugModeScalar = 0;
-			switch(DebugMode)
-			{
-			case EHairStrandsDebugMode::NoneDebug					: DebugModeScalar =99.f; break;
-			case EHairStrandsDebugMode::SimHairStrands				: DebugModeScalar = 0.f; break;
-			case EHairStrandsDebugMode::RenderHairStrands			: DebugModeScalar = 0.f; break;
-			case EHairStrandsDebugMode::RenderHairRootUV			: DebugModeScalar = 1.f; break;
-			case EHairStrandsDebugMode::RenderHairUV				: DebugModeScalar = 2.f; break;
-			case EHairStrandsDebugMode::RenderHairSeed				: DebugModeScalar = 3.f; break;
-			case EHairStrandsDebugMode::RenderHairDimension			: DebugModeScalar = 4.f; break;
-			case EHairStrandsDebugMode::RenderHairRadiusVariation	: DebugModeScalar = 5.f; break;
-			case EHairStrandsDebugMode::RenderHairRootUDIM			: DebugModeScalar = 6.f; break;
-			case EHairStrandsDebugMode::RenderHairBaseColor			: DebugModeScalar = 7.f; break;
-			case EHairStrandsDebugMode::RenderHairRoughness			: DebugModeScalar = 8.f; break;
-			case EHairStrandsDebugMode::RenderVisCluster			: DebugModeScalar = 0.f; break;
-			};
-
-			// TODO: fix this as the radius is incorrect. This code run before the interpolation code, which is where HairRadius is updated.
-			float HairMaxRadius = 0;
-			for (FHairGroupInstance* Instance : Instances)
-			{
-				HairMaxRadius = FMath::Max(HairMaxRadius, Instance->Strands.Modifier.HairWidth * 0.5f);
-			}
-
-			const float HairClipLength = GetHairClipLength();
-			auto DebugMaterial = new FHairDebugModeMaterialRenderProxy(Strands_DebugMaterial ? Strands_DebugMaterial->GetRenderProxy() : nullptr, DebugModeScalar, 0, HairMaxRadius, HairClipLength);
-			Collector.RegisterOneFrameMaterialProxy(DebugMaterial);
-			Strands_MaterialProxy = DebugMaterial;
-		}
-
 		// Need information back from the rendering thread to knwo which representation to use (strands/cards/mesh)
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -769,6 +768,42 @@ public:
 			{
 				for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 				{
+					FMaterialRenderProxy* Strands_MaterialProxy = nullptr;
+					const EHairStrandsDebugMode DebugMode = GetHairStrandsGeometryDebugMode(Instances[GroupIt]);
+					if (DebugMode != EHairStrandsDebugMode::NoneDebug)
+					{
+						float DebugModeScalar = 0;
+						switch(DebugMode)
+						{
+						case EHairStrandsDebugMode::NoneDebug					: DebugModeScalar =99.f; break;
+						case EHairStrandsDebugMode::SimHairStrands				: DebugModeScalar = 0.f; break;
+						case EHairStrandsDebugMode::RenderHairStrands			: DebugModeScalar = 0.f; break;
+						case EHairStrandsDebugMode::RenderHairRootUV			: DebugModeScalar = 1.f; break;
+						case EHairStrandsDebugMode::RenderHairUV				: DebugModeScalar = 2.f; break;
+						case EHairStrandsDebugMode::RenderHairSeed				: DebugModeScalar = 3.f; break;
+						case EHairStrandsDebugMode::RenderHairDimension			: DebugModeScalar = 4.f; break;
+						case EHairStrandsDebugMode::RenderHairRadiusVariation	: DebugModeScalar = 5.f; break;
+						case EHairStrandsDebugMode::RenderHairRootUDIM			: DebugModeScalar = 6.f; break;
+						case EHairStrandsDebugMode::RenderHairBaseColor			: DebugModeScalar = 7.f; break;
+						case EHairStrandsDebugMode::RenderHairRoughness			: DebugModeScalar = 8.f; break;
+						case EHairStrandsDebugMode::RenderVisCluster			: DebugModeScalar = 0.f; break;
+						case EHairStrandsDebugMode::RenderHairGroup				: DebugModeScalar = 9.f; break;
+						};
+
+						// TODO: fix this as the radius is incorrect. This code run before the interpolation code, which is where HairRadius is updated.
+						float HairMaxRadius = 0;
+						for (FHairGroupInstance* Instance : Instances)
+						{
+							HairMaxRadius = FMath::Max(HairMaxRadius, Instance->Strands.Modifier.HairWidth * 0.5f);
+						}
+
+						const FVector HairGroupColor = FVector(GetHairGroupDebugColor(GroupIt));
+						const float HairClipLength = GetHairClipLength();
+						auto DebugMaterial = new FHairDebugModeMaterialRenderProxy(Strands_DebugMaterial ? Strands_DebugMaterial->GetRenderProxy() : nullptr, DebugModeScalar, 0, HairMaxRadius, HairClipLength, HairGroupColor);
+						Collector.RegisterOneFrameMaterialProxy(DebugMaterial);
+						Strands_MaterialProxy = DebugMaterial;
+					}
+
 					FMeshBatch* MeshBatch = CreateMeshBatch(View, ViewFamily, Collector, HairGroups[GroupIt], Instances[GroupIt], GroupIt, Strands_MaterialProxy);
 					if (MeshBatch == nullptr)
 					{

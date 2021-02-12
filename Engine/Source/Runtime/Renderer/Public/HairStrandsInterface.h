@@ -66,6 +66,7 @@ enum class EHairStrandsDebugMode : uint8
 	RenderHairBaseColor,
 	RenderHairRoughness,
 	RenderVisCluster,
+	RenderHairGroup,
 	Count
 };
 

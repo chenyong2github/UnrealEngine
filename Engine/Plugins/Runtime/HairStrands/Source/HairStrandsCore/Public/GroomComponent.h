@@ -238,4 +238,9 @@ public:
 private:
 	TArray<UGroomComponent*> GroomComponents;
 };
+
+/** Return the debug color of an hair group */
+HAIRSTRANDSCORE_API const FLinearColor GetHairGroupDebugColor(int32 GroupIt);
+
 #endif
+

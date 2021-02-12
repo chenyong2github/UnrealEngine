@@ -32,6 +32,7 @@ public:
 	TSharedPtr<FUICommandInfo> ViewMode_BaseColor;
 	TSharedPtr<FUICommandInfo> ViewMode_Roughness;
 	TSharedPtr<FUICommandInfo> ViewMode_VisCluster;
+	TSharedPtr<FUICommandInfo> ViewMode_Group;
 
 	TSharedPtr<FUICommandInfo> ViewMode_CardsGuides;
 
