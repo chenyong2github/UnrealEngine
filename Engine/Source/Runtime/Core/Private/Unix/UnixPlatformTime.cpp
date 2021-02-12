@@ -58,6 +58,11 @@ FCPUTime FUnixTime::GetCPUTime()
 	// minimum delay between checks to minimize overhead (and also match Windows version)
 	constexpr double MinDelayBetweenChecksMicroSec = 25 * 1e3;
 	
+	if (UNLIKELY(ClockSource < 0))
+	{
+		ClockSource = FUnixTime::CalibrateAndSelectClock();
+	}
+
 	struct timespec ts;
 	if (0 == clock_gettime(ClockSource, &ts))
 	{
