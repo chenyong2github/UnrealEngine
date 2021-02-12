@@ -4,7 +4,7 @@
 
 #include "GeForceNOWWrapper.h"
 #include "GeForceNOWWrapperPrivate.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/CommandLine.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
