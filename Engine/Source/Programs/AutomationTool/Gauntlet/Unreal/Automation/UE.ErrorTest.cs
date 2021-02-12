@@ -80,7 +80,6 @@ namespace UE
 			ErrorType = ErrorTypes.Check;
 			ErrorDelay = 5;
 			Server = false;
-			LogWarningsAndErrorsAfterSummary = false;
 		}
 
 		public override UnrealGame.UE4TestConfig GetConfiguration()

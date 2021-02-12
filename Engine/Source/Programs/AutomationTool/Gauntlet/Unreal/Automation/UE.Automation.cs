@@ -294,8 +294,6 @@ namespace UE
 		public AutomationNodeBase(Gauntlet.UnrealTestContext InContext)
 			: base(InContext)
 		{
-			// We format warnings ourselves so don't show these
-			LogWarningsAndErrorsAfterSummary = false;
 		}
 
 	
@@ -591,7 +589,7 @@ namespace UE
 
 			if (SessionArtifacts == null)
 			{
-				return Enumerable.Empty<string>();
+				return AllWarnings;
 			}
 
 			foreach (var Artifact in SessionArtifacts)
@@ -603,7 +601,7 @@ namespace UE
 						Parser.GetResults()
 							.SelectMany(R => R.Events
 								.Where(E => E.ToLower().Contains("warning"))
-								.Distinct()
+								.Distinct().Select(E => string.Format("[test={0}] {1}", R.DisplayName, E))
 							)
 						);
 				}

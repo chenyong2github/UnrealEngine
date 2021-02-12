@@ -100,7 +100,7 @@ namespace Gauntlet
 		public override TestPriority Priority { get { return GetPriority(); } }
 
 		/// <summary>
-		/// Returns Warnings found during tests. By default only ensures are considered
+		/// Returns Warnings found during tests. By default only ensures and warnings in case of abnormal exit are considered
 		/// </summary>
 		public override IEnumerable<string> GetWarnings()
 		{
@@ -109,14 +109,13 @@ namespace Gauntlet
 				return Warnings;
 			}
 
-			return SessionArtifacts.SelectMany(A =>
-			{
-				return A.LogSummary.Ensures.Select(E => E.Message);
-			}).Union(Warnings); 
+			return SessionArtifacts.SelectMany(A => A.LogSummary.Ensures.Select(E => E.Message))
+					.Union(SessionArtifacts.Where(A => A.AppInstance.WasKilled == false && A.LogSummary.HasAbnormalExit).SelectMany(A => A.LogSummary.Warnings))
+					.Union(Warnings); 
 		}
 
 		/// <summary>
-		/// Returns Errors found during tests. By default only fatal errors are considered
+		/// Returns Errors found during tests. By default only fatal errors and errors in case of abnormal exit are considered
 		/// </summary>
 		public override IEnumerable<string> GetErrors()
 		{
@@ -125,17 +124,26 @@ namespace Gauntlet
 				return Errors;
 			}
 
-			var FailedArtifacts = GetArtifactsWithFailures();
+			IEnumerable<UnrealRoleArtifacts> FailedArtifacts = GetArtifactsWithFailures();
 
-			 return FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message).Union(Errors);
+			IEnumerable<string> AbnormalExitErrors = FailedArtifacts.Where(A => A.AppInstance.WasKilled == false && A.LogSummary.HasAbnormalExit).SelectMany(A => A.LogSummary.Errors).Distinct();
+
+			IEnumerable<string> FatalErrors = FailedArtifacts.Where(A => A.LogSummary.FatalError != null).Select(A => A.LogSummary.FatalError.Message);
+				
+			return FatalErrors.Union(AbnormalExitErrors).Union(Errors);
 		}
 
 		/// <summary>
 		/// Returns Errors found during tests. Including Abnornal Exit reasons
 		/// </summary>
-		public virtual IEnumerable<string> GetErrorsAndAbnornalExits()
+		public virtual IEnumerable<string> GetErrorsAndAbnornalExitReasons()
 		{
 			IEnumerable<string>  Errors = GetErrors();
+
+			if (SessionArtifacts == null)
+			{
+				return Errors;
+			}
 
 			Dictionary<UnrealRoleArtifacts, Tuple<int, string>> ErrorCodesAndReasons = new Dictionary<UnrealRoleArtifacts, Tuple<int, string>>();
 
@@ -307,6 +315,8 @@ namespace Gauntlet
 			TestVersion = new Version("1.0.0");
 			ArtifactPath = string.Empty;
 			PopulateCommandlineInfo();
+			// We format warnings ourselves so don't show these
+			LogWarningsAndErrorsAfterSummary = false;
 		}
 
 		 ~UnrealTestNode()
@@ -1033,15 +1043,19 @@ namespace Gauntlet
 			HordeTestReport.ReportCreatedOn = DateTime.Now.ToString();
 			HordeTestReport.TotalDurationSeconds = (float) (DateTime.Now - SessionStartTime).TotalSeconds;
 			HordeTestReport.Description = Context.ToString();
-			HordeTestReport.Status = Result.ToString();
 			HordeTestReport.URLLink = GetURLLink();
-			HordeTestReport.Errors.AddRange(GetErrorsAndAbnornalExits());
+			HordeTestReport.Errors.AddRange(GetErrorsAndAbnornalExitReasons());
 			if (!string.IsNullOrEmpty(CancellationReason))
 			{
 				HordeTestReport.Errors.Add(CancellationReason);
 			}
 			HordeTestReport.Warnings.AddRange(GetWarnings());
 			HordeTestReport.HasSucceeded = !(Result == TestResult.Failed || Result == TestResult.TimedOut || HordeTestReport.Errors.Count > 0);
+			if (HordeTestReport.Errors.Count > 0 && Result == TestResult.Passed)
+			{
+				SetUnrealTestResult(TestResult.Failed);
+			}
+			HordeTestReport.Status = GetTestResult().ToString();
 			string HordeArtifactPath = string.IsNullOrEmpty(GetConfiguration().HordeArtifactPath) ? HordeReport.DefaultArtifactsDir : GetConfiguration().HordeArtifactPath;
 			HordeTestReport.SetOutputArtifactPath(HordeArtifactPath);
 			if (SessionArtifacts != null)
