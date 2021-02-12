@@ -12,10 +12,7 @@ class UObjectElementEditorSelectionInterface : public UObjectElementSelectionInt
 
 public:
 	virtual bool ShouldPreventTransactions(const FTypedElementHandle& InElementHandle) override;
-	virtual void WriteTransactedElement(const FTypedElementHandle& InElementHandle, FArchive& InArchive) override;
-	virtual FTypedElementHandle ReadTransactedElement(FArchive& InArchive) override;
+	virtual TUniquePtr<ITypedElementTransactedElement> CreateTransactedElementImpl() override;
 
 	static bool ShouldObjectPreventTransactions(const UObject* InObject);
-	static void WriteTransactedObject(const UObject* InObject, FArchive& InArchive);
-	static FTypedElementHandle ReadTransactedObject(FArchive& InArchive, TFunctionRef<FTypedElementHandle(const UObject*)> InFindElementForObject);
 };

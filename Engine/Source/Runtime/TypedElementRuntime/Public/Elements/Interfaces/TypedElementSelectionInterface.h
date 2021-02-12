@@ -62,6 +62,55 @@ private:
 	bool bWarnIfLocked = false;
 };
 
+class ITypedElementTransactedElement
+{
+public:
+	virtual ~ITypedElementTransactedElement() = default;
+
+	TUniquePtr<ITypedElementTransactedElement> Clone() const
+	{
+		TUniquePtr<ITypedElementTransactedElement> Cloned = CloneImpl();
+		checkf(Cloned, TEXT("ITypedElementTransactedElement derived types must implement a valid Clone function!"));
+		return Cloned;
+	}
+
+	FTypedElementHandle GetElement() const
+	{
+		return GetElementImpl();
+	}
+
+	FTypedHandleTypeId GetElementType() const
+	{
+		return TypeId;
+	}
+
+	void SetElement(const FTypedElementHandle& InElementHandle)
+	{
+		SetElementType(InElementHandle.GetId().GetTypeId());
+		SetElementImpl(InElementHandle);
+	}
+
+	void SetElementType(const FTypedHandleTypeId InTypeId)
+	{
+		TypeId = InTypeId;
+	}
+
+	void Serialize(FArchive& InArchive)
+	{
+		checkf(!InArchive.IsPersistent(), TEXT("ITypedElementTransactedElement can only be serialized by transient archives!"));
+		SerializeImpl(InArchive);
+	}
+
+protected:
+	virtual TUniquePtr<ITypedElementTransactedElement> CloneImpl() const = 0;
+	virtual FTypedElementHandle GetElementImpl() const = 0;
+	virtual void SetElementImpl(const FTypedElementHandle& InElementHandle) = 0;
+	virtual void SerializeImpl(FArchive& InArchive) = 0;
+
+private:
+	FTypedHandleTypeId TypeId = 0;
+};
+
 UCLASS(Abstract)
 class TYPEDELEMENTRUNTIME_API UTypedElementSelectionInterface : public UTypedElementInterface
 {
@@ -118,16 +167,37 @@ public:
 	virtual bool ShouldPreventTransactions(const FTypedElementHandle& InElementHandle) { return false; }
 
 	/**
-	 * Write the information needed to find the given element again when this transaction is replayed for undo/redo.
-	 * @note The data written must match the data read by ReadTransactedElement.
+	 * Create a transacted element instance that can be used to save the given element for undo/redo.
 	 */
-	virtual void WriteTransactedElement(const FTypedElementHandle& InElementHandle, FArchive& InArchive) {}
+	TUniquePtr<ITypedElementTransactedElement> CreateTransactedElement(const FTypedElementHandle& InElementHandle)
+	{
+		TUniquePtr<ITypedElementTransactedElement> TransactedElement = CreateTransactedElementImpl();
+		if (TransactedElement)
+		{
+			TransactedElement->SetElement(InElementHandle);
+		}
+		return TransactedElement;
+	}
 
 	/**
-	 * Read the information needed to be find a previously tracked element, and attempt to get it now that this transaction is being replayed for undo/redo.
-	 * @note The data read must match the data written by WriteTransactedElement.
+	 * Create a transacted element instance that can be used to load an element previously saved for undo/redo.
 	 */
-	virtual FTypedElementHandle ReadTransactedElement(FArchive& InArchive) { return FTypedElementHandle(); }
+	TUniquePtr<ITypedElementTransactedElement> CreateTransactedElement(const FTypedHandleTypeId InTypeId)
+	{
+		TUniquePtr<ITypedElementTransactedElement> TransactedElement = CreateTransactedElementImpl();
+		if (TransactedElement)
+		{
+			TransactedElement->SetElementType(InTypeId);
+		}
+		return TransactedElement;
+	}
+
+protected:
+	/**
+	 * Create a transacted element instance that can be used to save/load elements of the implementation type for undo/redo.
+	 * @note The instance returned from this function must have either SetElement or SetElementType called on it prior to being used.
+	 */
+	virtual TUniquePtr<ITypedElementTransactedElement> CreateTransactedElementImpl() { return nullptr; }
 };
 
 template <>
@@ -141,6 +211,5 @@ struct TTypedElement<UTypedElementSelectionInterface> : public TTypedElementBase
 	bool AllowSelectionModifiers(const UTypedElementList* InSelectionSet) const { return InterfacePtr->AllowSelectionModifiers(*this, InSelectionSet); }
 	FTypedElementHandle GetSelectionElement(const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) const { return InterfacePtr->GetSelectionElement(*this, InCurrentSelection, InSelectionMethod); }
 	bool ShouldPreventTransactions() const { return InterfacePtr->ShouldPreventTransactions(*this); }
-	void WriteTransactedElement(FArchive& InArchive) const { return InterfacePtr->WriteTransactedElement(*this, InArchive); }
-	FTypedElementHandle ReadTransactedElement(FArchive& InArchive) const { return InterfacePtr->ReadTransactedElement(InArchive); }
+	TUniquePtr<ITypedElementTransactedElement> CreateTransactedElement() const { return InterfacePtr->CreateTransactedElement(*this); }
 };

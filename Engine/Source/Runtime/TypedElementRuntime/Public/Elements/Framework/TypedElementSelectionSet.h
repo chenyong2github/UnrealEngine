@@ -82,12 +82,41 @@ struct FTypedElementSelectionSetState
 
 	friend class UTypedElementSelectionSet;
 
+	FTypedElementSelectionSetState() = default;
+
+	FTypedElementSelectionSetState(FTypedElementSelectionSetState&&) = default;
+	FTypedElementSelectionSetState& operator=(FTypedElementSelectionSetState&&) = default;
+
+	FTypedElementSelectionSetState(const FTypedElementSelectionSetState& InOther)
+		: CreatedFromSelectionSet(InOther.CreatedFromSelectionSet)
+	{
+		TransactedElements.Reserve(InOther.TransactedElements.Num());
+		for (const TUniquePtr<ITypedElementTransactedElement>& OtherTransactedElement : InOther.TransactedElements)
+		{
+			TransactedElements.Emplace(OtherTransactedElement->Clone());
+		}
+	}
+
+	FTypedElementSelectionSetState& operator=(const FTypedElementSelectionSetState& InOther)
+	{
+		if (&InOther != this)
+		{
+			CreatedFromSelectionSet = InOther.CreatedFromSelectionSet;
+
+			TransactedElements.Reset(InOther.TransactedElements.Num());
+			for (const TUniquePtr<ITypedElementTransactedElement>& OtherTransactedElement : InOther.TransactedElements)
+			{
+				TransactedElements.Emplace(OtherTransactedElement->Clone());
+			}
+		}
+		return *this;
+	}
+
 private:
 	UPROPERTY()
-	TArray<uint8> StoredSelectionSetData;
-
-	UPROPERTY()
 	TWeakObjectPtr<const UTypedElementSelectionSet> CreatedFromSelectionSet;
+
+	TArray<TUniquePtr<ITypedElementTransactedElement>> TransactedElements;
 };
 
 /**
@@ -104,6 +133,8 @@ public:
 
 	//~ UObject interface
 #if WITH_EDITOR
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #endif	// WITH_EDITOR
 	virtual void Serialize(FArchive& Ar) override;
@@ -479,6 +510,9 @@ private:
 	/** Delegate that is invoked whenever the underlying element list has been changed. */
 	FOnChanged OnChangedDelegate;
 
-	/** Set when we are currently restoring the selection state from a transaction (undo/redo) */
-	bool bIsRestoringFromTransaction = false;
+	/** Set when we are currently restoring the selection state (eg, from an undo/redo) */
+	bool bIsRestoringState = false;
+
+	/** Set between a PreEditUndo->PostEditUndo call, to hold the state loaded during Serialize and applied in PostEditUndo */
+	TUniquePtr<FTypedElementSelectionSetState> PendingUndoRedoState;
 };

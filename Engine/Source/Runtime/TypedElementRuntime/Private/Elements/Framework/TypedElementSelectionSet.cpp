@@ -17,6 +17,23 @@ UTypedElementSelectionSet::UTypedElementSelectionSet()
 }
 
 #if WITH_EDITOR
+void UTypedElementSelectionSet::PreEditUndo()
+{
+	Super::PreEditUndo();
+
+	checkf(!PendingUndoRedoState, TEXT("PendingUndoRedoState was set! Missing call to PostEditUndo?"));
+	PendingUndoRedoState = MakeUnique<FTypedElementSelectionSetState>();
+}
+
+void UTypedElementSelectionSet::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	checkf(PendingUndoRedoState, TEXT("PendingUndoRedoState was null! Missing call to PreEditUndo?"));
+	RestoreSelectionState(*PendingUndoRedoState);
+	PendingUndoRedoState.Reset();
+}
+
 bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
 {
 	if (GUndo && CanModify())
@@ -46,65 +63,51 @@ void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 
 	if (Ar.IsSaving())
 	{
-		FTypedHandleTypeId ElementTypeId = 0;
+		FTypedElementSelectionSetState SelectionState = ElementList ? GetCurrentSelectionState() : FTypedElementSelectionSetState();
 
-		if (ElementList)
+		int32 NumTransactedElements = SelectionState.TransactedElements.Num();
+		Ar << NumTransactedElements;
+
+		for (const TUniquePtr<ITypedElementTransactedElement>& TransactedElement : SelectionState.TransactedElements)
 		{
-			ElementList->ForEachElement<UTypedElementSelectionInterface>([&Ar, &ElementTypeId](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
-			{
-				ElementTypeId = InSelectionElement.GetId().GetTypeId();
-				Ar << ElementTypeId;
+			FTypedHandleTypeId TypeId = TransactedElement->GetElementType();
+			Ar << TypeId;
 
-				InSelectionElement.WriteTransactedElement(Ar);
-				return true;
-			});
+			TransactedElement->Serialize(Ar);
 		}
-
-		// End of the list
-		ElementTypeId = 0;
-		Ar << ElementTypeId;
 	}
 	else if (Ar.IsLoading())
 	{
-		TArray<FTypedElementHandle, TInlineAllocator<256>> SelectedElements;
+		UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
+		const bool bIsUndoRedo = PendingUndoRedoState && Ar.IsTransacting();
+		FTypedElementSelectionSetState TmpSelectionState;
+
+		FTypedElementSelectionSetState& SelectionState = bIsUndoRedo ? *PendingUndoRedoState : TmpSelectionState;
+		SelectionState.CreatedFromSelectionSet = this;
+
+		int32 NumTransactedElements = 0;
+		Ar << NumTransactedElements;
+
+		SelectionState.TransactedElements.Reserve(NumTransactedElements);
+		for (int32 TransactedElementIndex = 0; TransactedElementIndex < NumTransactedElements; ++TransactedElementIndex)
 		{
-			UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+			FTypedHandleTypeId TypeId = 0;
+			Ar << TypeId;
 
-			FTypedHandleTypeId ElementTypeId = 0;
-			for (;;)
-			{
-				Ar << ElementTypeId;
-				if (!ElementTypeId)
-				{
-					// End of the list
-					break;
-				}
+			UTypedElementSelectionInterface* ElementTypeSelectionInterface = Registry->GetElementInterface<UTypedElementSelectionInterface>(TypeId);
+			checkf(ElementTypeSelectionInterface, TEXT("Failed to find selection interface for a previously transacted element type!"));
 
-				UTypedElementSelectionInterface* ElementTypeSelectionInterface = Registry->GetElementInterface<UTypedElementSelectionInterface>(ElementTypeId);
-				checkf(ElementTypeSelectionInterface, TEXT("Failed to find selection interface for a previously transacted element type!"));
-				FTypedElementHandle SelectedElement = ElementTypeSelectionInterface->ReadTransactedElement(Ar);
-				if (SelectedElement)
-				{
-					SelectedElements.Add(MoveTemp(SelectedElement));
-				}
-			}
+			TUniquePtr<ITypedElementTransactedElement> TransactedElement = ElementTypeSelectionInterface->CreateTransactedElement(TypeId);
+			checkf(TransactedElement, TEXT("Failed to allocate a transacted element for a previously transacted element type!"));
+
+			TransactedElement->Serialize(Ar);
+			SelectionState.TransactedElements.Emplace(MoveTemp(TransactedElement));
 		}
 
-		if (ElementList)
+		if (ElementList && !bIsUndoRedo)
 		{
-			FTypedElementListLegacySyncScopedBatch LegacySyncBatch(ElementList, /*bNotify*/false);
-			TGuardValue<bool> GuardIsRestoringFromTransaction(bIsRestoringFromTransaction, true);
-
-			// TODO: Work out the intersection of the before and after state instead of clearing and reselecting?
-
-			const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
-				.SetAllowHidden(true)
-				.SetAllowGroups(false)
-				.SetWarnIfLocked(false);
-
-			ClearSelection(SelectionOptions);
-			SelectElements(SelectedElements, SelectionOptions);
+			RestoreSelectionState(SelectionState);
 		}
 	}
 }
@@ -240,24 +243,48 @@ FTypedElementSelectionSetState UTypedElementSelectionSet::GetCurrentSelectionSta
 {
 	FTypedElementSelectionSetState CurrentState;
 
-	FObjectWriter TempArchive(const_cast<UTypedElementSelectionSet*>(this), CurrentState.StoredSelectionSetData);
-	if (TempArchive.IsError())
-	{
-		CurrentState.StoredSelectionSetData.Reset();
-	}
-	else
-	{
-		CurrentState.CreatedFromSelectionSet = this;
-	}
+	CurrentState.CreatedFromSelectionSet = this;
 
-	return MoveTemp(CurrentState);
+	CurrentState.TransactedElements.Reserve(ElementList->Num());
+	ElementList->ForEachElement<UTypedElementSelectionInterface>([&CurrentState](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
+	{
+		if (TUniquePtr<ITypedElementTransactedElement> TransactedElement = InSelectionElement.CreateTransactedElement())
+		{
+			CurrentState.TransactedElements.Emplace(MoveTemp(TransactedElement));
+		}
+		return true;
+	});
+
+	return CurrentState;
 }
 
 void UTypedElementSelectionSet::RestoreSelectionState(const FTypedElementSelectionSetState& InSelectionState)
 {
-	if ((InSelectionState.CreatedFromSelectionSet == this) && (InSelectionState.StoredSelectionSetData.Num() > 0))
+	if (InSelectionState.CreatedFromSelectionSet == this)
 	{
-		FObjectReader TempArchive(this, InSelectionState.StoredSelectionSetData);
+		TArray<FTypedElementHandle, TInlineAllocator<256>> SelectedElements;
+		SelectedElements.Reserve(InSelectionState.TransactedElements.Num());
+		
+		for (const TUniquePtr<ITypedElementTransactedElement>& TransactedElement : InSelectionState.TransactedElements)
+		{
+			if (FTypedElementHandle SelectedElement = TransactedElement->GetElement())
+			{
+				SelectedElements.Add(MoveTemp(SelectedElement));
+			}
+		}
+
+		{
+			TGuardValue<bool> GuardIsRestoringState(bIsRestoringState, true);
+
+			const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+				.SetAllowHidden(true)
+				.SetAllowGroups(false)
+				.SetAllowLegacyNotifications(false)
+				.SetWarnIfLocked(false);
+
+			// TODO: Work out the intersection of the before and after state instead of clearing and reselecting?
+			SetSelection(SelectedElements, SelectionOptions);
+		}
 	}
 }
 
@@ -273,7 +300,7 @@ void UTypedElementSelectionSet::OnElementListPreChange(const UTypedElementList* 
 	check(InElementList == ElementList);
 	OnPreChangeDelegate.Broadcast(this);
 
-	if (!bIsRestoringFromTransaction)
+	if (!bIsRestoringState)
 	{
 		// Track the pre-change state for undo/redo
 		Modify();

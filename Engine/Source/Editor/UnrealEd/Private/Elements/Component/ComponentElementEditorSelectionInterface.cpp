@@ -9,6 +9,36 @@
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Object/ObjectElementEditorSelectionInterface.h"
 
+class FComponentElementTransactedElement : public ITypedElementTransactedElement
+{
+private:
+	virtual TUniquePtr<ITypedElementTransactedElement> CloneImpl() const override
+	{
+		return MakeUnique<FComponentElementTransactedElement>(*this);
+	}
+
+	virtual FTypedElementHandle GetElementImpl() const override
+	{
+		const UActorComponent* Component = ComponentPtr.Get(/*bEvenIfPendingKill*/true);
+		return Component
+			? UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component)
+			: FTypedElementHandle();
+	}
+
+	virtual void SetElementImpl(const FTypedElementHandle& InElementHandle) override
+	{
+		UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
+		ComponentPtr = Component;
+	}
+
+	virtual void SerializeImpl(FArchive& InArchive) override
+	{
+		InArchive << ComponentPtr;
+	}
+
+	TWeakObjectPtr<UActorComponent> ComponentPtr;
+};
+
 bool UComponentElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
 	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
@@ -21,20 +51,9 @@ bool UComponentElementEditorSelectionInterface::ShouldPreventTransactions(const 
 	return Component && UObjectElementEditorSelectionInterface::ShouldObjectPreventTransactions(Component);
 }
 
-void UComponentElementEditorSelectionInterface::WriteTransactedElement(const FTypedElementHandle& InElementHandle, FArchive& InArchive)
+TUniquePtr<ITypedElementTransactedElement> UComponentElementEditorSelectionInterface::CreateTransactedElementImpl()
 {
-	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementHandle))
-	{
-		UObjectElementEditorSelectionInterface::WriteTransactedObject(Component, InArchive);
-	}
-}
-
-FTypedElementHandle UComponentElementEditorSelectionInterface::ReadTransactedElement(FArchive& InArchive)
-{
-	return UObjectElementEditorSelectionInterface::ReadTransactedObject(InArchive, [](const UObject* InObject)
-	{
-		return UEngineElementsLibrary::AcquireEditorComponentElementHandle(CastChecked<const UActorComponent>(InObject));
-	});
+	return MakeUnique<FComponentElementTransactedElement>();
 }
 
 bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActorComponent* InComponent, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
