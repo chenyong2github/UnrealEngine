@@ -24,6 +24,9 @@ namespace UnrealBuildTool
 		// classpath of default android build tools gradle plugin
 		private const string ANDROID_TOOLS_BUILD_GRADLE_VERSION = "com.android.tools.build:gradle:4.0.0";
 
+		// name of the only vulkan validation layer we're interested in 
+		private const string ANDROID_VULKAN_VALIDATION_LAYER = "libVkLayer_khronos_validation.so";
+
 		// Minimum Android SDK that must be used for Java compiling
 		readonly int MinimumSDKLevel = 28;
 
@@ -1306,10 +1309,10 @@ namespace UnrealBuildTool
 				string VulkanLayersDir = Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/third_party/vulkan/src/build-android/jniLibs/") + NDKArch;
 				if (Directory.Exists(VulkanLayersDir))
 				{
-					Log.TraceInformation("Copying vulkan layers from {0}", VulkanLayersDir);
+					Log.TraceInformation("Copying {0} vulkan layer from {1}", ANDROID_VULKAN_VALIDATION_LAYER, VulkanLayersDir);
 					string DestDir = Path.Combine(UE4BuildPath, "libs", NDKArch);
 					Directory.CreateDirectory(DestDir);
-					CopyFileDirectory(VulkanLayersDir, DestDir);
+					File.Copy(Path.Combine(VulkanLayersDir, ANDROID_VULKAN_VALIDATION_LAYER), Path.Combine(DestDir, ANDROID_VULKAN_VALIDATION_LAYER));
 				}
 			}
 		}
