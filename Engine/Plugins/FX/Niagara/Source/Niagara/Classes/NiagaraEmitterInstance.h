@@ -60,6 +60,10 @@ public:
 
 	bool IsAllowedToExecute() const;
 
+#if WITH_EDITOR
+	void TickRapidIterationParameters();
+#endif
+
 	void PreTick();
 	void Tick(float DeltaSeconds);
 	void PostTick();

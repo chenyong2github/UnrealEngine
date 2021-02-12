@@ -2129,6 +2129,17 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	{
 		BeginAsyncWork();
 	}
+
+#if WITH_EDITOR
+	// We need to tick the rapid iteration parameters when in the editor
+	for (auto& EmitterInstance : Emitters)
+	{
+		if (EmitterInstance->ShouldTick())
+		{
+			EmitterInstance->TickRapidIterationParameters();
+		}
+	}
+#endif
 }
 
 void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
