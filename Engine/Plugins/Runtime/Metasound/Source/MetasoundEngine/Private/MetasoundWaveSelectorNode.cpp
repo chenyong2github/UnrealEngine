@@ -9,7 +9,7 @@
 #include "MetasoundTrigger.h"
 #include "MetasoundWave.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundWaveNode"
+#define LOCTEXT_NAMESPACE "MetasoundWaveSelectorNode"
 
 
 namespace Metasound
