@@ -134,11 +134,11 @@ struct NIAGARACORE_API FNiagaraDebugHUDVariable
 {
 	GENERATED_BODY()
 		
-	UPROPERTY(EditAnywhere, Category = "Variable")
+	UPROPERTY(EditAnywhere, Category = "Attribute")
 	bool bEnabled = true;
 
-	/** Name of variables to match, uses wildcard matching. */
-	UPROPERTY(EditAnywhere, Category = "Variable")
+	/** Name of attributes to match, uses wildcard matching. */
+	UPROPERTY(EditAnywhere, Category = "Attribute")
 	FString Name;
 
 	static FString BuildVariableString(const TArray<FNiagaraDebugHUDVariable>& Variables);
@@ -223,8 +223,8 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	bool bEmitterFilterEnabled = false;
 
 	/**
-	Wildcard filter used to match emitters when generating particle variable view.
-	For example,. "Fluid*" would match all emtiters starting with Fluid and only particle variables for those would be visible.
+	Wildcard filter used to match emitters when generating particle attribute view.
+	For example,. "Fluid*" would match all emtiters starting with Fluid and only particle attributes for those would be visible.
 	*/
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bEmitterFilterEnabled"))
 	FString EmitterFilter;
@@ -244,30 +244,30 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
 	bool bSystemShowActiveOnlyInWorld = true;
 
-	/** Should we display the system variables. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
+	/** Should we display the system attributes. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (DisplayName="Show System Attributes"))
 	bool bShowSystemVariables = true;
 
 	/**
-	List of variables to show about the system, each entry uses wildcard matching.
-	For example, "System.*" would match all system variables.
+	List of attributes to show about the system, each entry uses wildcard matching.
+	For example, "System.*" would match all system attributes.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
+	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (DisplayName="System Attributes"))
 	TArray<FNiagaraDebugHUDVariable> SystemVariables;
 
 	/** Selects which font to use for system information display. */
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
 	ENiagaraDebugHudFont SystemFont = ENiagaraDebugHudFont::Small;
 
-	/** When enabled will show particle variables from the list. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
+	/** When enabled will show particle attributes from the list. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (DisplayName="Show Particle Attributes"))
 	bool bShowParticleVariables = true;
 
 	/**
-	List of variables to show per particle, each entry uses wildcard matching.
-	For example, "*Position" would match all variables that end in Position.
+	List of attributes to show per particle, each entry uses wildcard matching.
+	For example, "*Position" would match all attributes that end in Position.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (DisplayName="Particle Attributes"))
 	TArray<FNiagaraDebugHUDVariable> ParticlesVariables;
 
 	/** Selects which font to use for particle information display. */
@@ -275,15 +275,15 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	ENiagaraDebugHudFont ParticleFont = ENiagaraDebugHudFont::Small;
 
 	/**
-	When enabled particle variables will display with the system information
+	When enabled particle attributess will display with the system information
 	rather than in world at the particle location.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (DisplayName="Show Particles Attributes With System"))
 	bool bShowParticlesVariablesWithSystem = false;
 
 	/**
 	Maximum number of particles to show information about.
-	Set to 0 to show all variables, but be warned that displaying information about 1000's of particles
+	Set to 0 to show all attributes, but be warned that displaying information about 1000's of particles
 	will result in poor editor performance & potentially OOM on some platforms.
 	*/
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
