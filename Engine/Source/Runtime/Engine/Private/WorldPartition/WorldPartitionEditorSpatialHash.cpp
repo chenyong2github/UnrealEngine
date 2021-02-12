@@ -39,6 +39,11 @@ FName UWorldPartitionEditorSpatialHash::GetWorldPartitionEditorName()
 	return TEXT("SpatialHash");
 }
 
+FBox UWorldPartitionEditorSpatialHash::GetEditorWorldBounds() const
+{
+	return Bounds;
+}
+
 void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 {
 	if (bBoundsDirty)

@@ -210,6 +210,7 @@ public:
 	virtual void Initialize() override;
 	virtual void SetDefaultValues() override;
 	virtual FName GetWorldPartitionEditorName() override;
+	virtual FBox GetEditorWorldBounds() const override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	virtual void HashActor(FWorldPartitionHandle& InActorHandle) override;

@@ -140,6 +140,7 @@ public:
 	void FinalizeGeneratedPackageForCook();
 
 	FBox GetWorldBounds() const;
+	FBox GetEditorWorldBounds() const;
 	void GenerateHLOD(ISourceControlHelper* SourceControlHelper);
 	void GenerateNavigationData();
 

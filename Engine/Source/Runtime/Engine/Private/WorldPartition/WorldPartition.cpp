@@ -913,14 +913,24 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 	{
 		FString LineEntry = TEXT("Guid, Class, Name, BVCenterX, BVCenterY, BVCenterZ, BVExtentX, BVExtentY, BVExtentZ") LINE_TERMINATOR;
 		LogFile->Serialize(TCHAR_TO_ANSI(*LineEntry), LineEntry.Len());
-			
+
+		TArray<const FWorldPartitionActorDesc*> ActorDescs;
 		for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
+			ActorDescs.Add(*ActorDescIterator);
+		}
+		ActorDescs.Sort([](const FWorldPartitionActorDesc& A, const FWorldPartitionActorDesc& B)
+		{
+			return A.GetBounds().GetExtent().GetMax() < B.GetBounds().GetExtent().GetMax();
+		});
+		for (const FWorldPartitionActorDesc* ActorDescIterator : ActorDescs)
+		{
 			LineEntry = FString::Printf(
-				TEXT("%s, %s, %s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f") LINE_TERMINATOR, 
+				TEXT("%s, %s, %s, %s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f") LINE_TERMINATOR, 
 				*ActorDescIterator->GetGuid().ToString(), 
 				*ActorDescIterator->GetClass().ToString(), 
 				*FPaths::GetExtension(ActorDescIterator->GetActorPath().ToString()), 
+				ActorDescIterator->GetActor() ? *ActorDescIterator->GetActor()->GetActorLabel(false) : TEXT("None"),
 				ActorDescIterator->GetBounds().GetCenter().X,
 				ActorDescIterator->GetBounds().GetCenter().Y,
 				ActorDescIterator->GetBounds().GetCenter().Z,
@@ -965,6 +975,11 @@ FBox UWorldPartition::GetWorldBounds() const
 		}
 	}
 	return WorldBounds;
+}
+
+FBox UWorldPartition::GetEditorWorldBounds() const
+{
+	return EditorHash->GetEditorWorldBounds();
 }
 #endif
 

@@ -17,6 +17,7 @@
 #include "PackageSourceControlHelper.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
+#include"WorldPartition/WorldPartition.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionMiniMapHelper, All, All);
 
@@ -84,7 +85,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 	WaitForShaderCompilation();
 	
 	//Calculate bounds of the World
-	OutWorldBounds = FWorldPartitionMiniMapHelper::GetWorldBounds(InWorld);
+	OutWorldBounds = InWorld->GetWorldPartition()->GetEditorWorldBounds();
 	
 	//Calculate Viewport size
 	FBox2D WorldBounds2D(FVector2D(OutWorldBounds.Min), FVector2D(OutWorldBounds.Max));
@@ -136,36 +137,6 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 	InOutMiniMapTexture->AdjustMinAlpha = 1.f;
 	InOutMiniMapTexture->LODGroup = TEXTUREGROUP_UI;
 	InOutMiniMapTexture->UpdateResource();
-}
-
-bool FWorldPartitionMiniMapHelper::DoesActorContributeToBounds(AActor* Actor)
-{
-	return Actor && Actor->GetGridPlacement() != EActorGridPlacement::AlwaysLoaded;
-}
-
-FBox FWorldPartitionMiniMapHelper::GetWorldBounds(UWorld* World)
-{
-	FBox WorldBox(ForceInit);
-
-	TArray<ULevel*> LevelsToRender = World->GetLevels();
-	for (ULevel* Level : LevelsToRender)
-	{
-		if (Level && Level->bIsVisible)
-		{
-			for (AActor* Actor : Level->Actors)
-			{
-				if ( Actor && DoesActorContributeToBounds(Actor))
-				{
-					FVector Origin, Extent;
-					Actor->GetActorBounds(false, Origin, Extent);
-					FBox ActorBounds(Origin - Extent, Origin + Extent);
-					WorldBox += ActorBounds;
-				}
-			}
-		}
-	}
-
-	return WorldBox;
 }
 
 void FWorldPartitionMiniMapHelper::CalTopViewOfWorld(FMatrix& OutProjectionMatrix, const FBox& WorldBox, uint32 ViewportWidth, uint32 ViewportHeight)
