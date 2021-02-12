@@ -17,10 +17,14 @@ struct FSlateInvalidationWidgetSortOrder
 {
 private:
 	uint32 Order = 0;
+	FSlateInvalidationWidgetSortOrder(uint32 InOrder) : Order(InOrder) {}
 
 public:
 	FSlateInvalidationWidgetSortOrder() = default;
 	FSlateInvalidationWidgetSortOrder(const FSlateInvalidationWidgetList& List, FSlateInvalidationWidgetIndex Index);
+
+	static FSlateInvalidationWidgetSortOrder LimitMax();
+	static FSlateInvalidationWidgetSortOrder LimitMin();
 
 	bool operator< (const FSlateInvalidationWidgetSortOrder Other) const { return Order < Other.Order; }
 	bool operator<= (const FSlateInvalidationWidgetSortOrder Other) const { return Order <= Other.Order; }

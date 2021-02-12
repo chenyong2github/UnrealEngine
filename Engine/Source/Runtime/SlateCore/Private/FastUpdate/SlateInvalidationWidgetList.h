@@ -4,22 +4,62 @@
 
 #include "CoreMinimal.h"
 
-#include "Debugging/SlateDebugging.h"
+#include "FastUpdate/SlateElementSortedArray.h"
 #include "FastUpdate/SlateInvalidationRootHandle.h"
 #include "FastUpdate/SlateInvalidationWidgetIndex.h"
 #include "FastUpdate/SlateInvalidationWidgetSortOrder.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
+#ifndef UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
+	#define UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif
+
 class FSlateInvalidationWidgetList
 {
+	friend struct FSlateInvalidationWidgetSortOrder;
 public:
 	using InvalidationWidgetType = FWidgetProxy;
 private:
 	using IndexType = FSlateInvalidationWidgetIndex::IndexType;
 	using ElementListType = TArray<InvalidationWidgetType>;
+	using WidgetListType = TSlateElementSortedArray<IndexType>;
+
 
 public:
+	/** */
+	struct FIndexRange
+	{
+	private:
+		FSlateInvalidationWidgetIndex InclusiveMin = FSlateInvalidationWidgetIndex::Invalid;
+		FSlateInvalidationWidgetIndex InclusiveMax = FSlateInvalidationWidgetIndex::Invalid;
+		FSlateInvalidationWidgetSortOrder OrderMin;
+		FSlateInvalidationWidgetSortOrder OrderMax;
+
+	public:
+		FIndexRange() = default;
+		FIndexRange(const FSlateInvalidationWidgetList& Self, FSlateInvalidationWidgetIndex InFrom, FSlateInvalidationWidgetIndex InEnd)
+			: InclusiveMin(InFrom), InclusiveMax(InEnd)
+			, OrderMin(Self, InFrom), OrderMax(Self, InEnd)
+		{
+			check(OrderMin <= OrderMax);
+		}
+		bool Include(FSlateInvalidationWidgetSortOrder Other) const
+		{
+			return OrderMin <= Other && Other <= OrderMax;
+		}
+		bool IsValid() const { return InclusiveMin != FSlateInvalidationWidgetIndex::Invalid; }
+
+		FSlateInvalidationWidgetIndex GetInclusiveMinWidgetIndex() const { return InclusiveMin; }
+		FSlateInvalidationWidgetIndex GetInclusiveMaxWidgetIndex() const { return InclusiveMax; }
+		FSlateInvalidationWidgetSortOrder GetInclusiveMinWidgetSortOrder() const { return OrderMin; }
+		FSlateInvalidationWidgetSortOrder GetInclusiveMaxWidgetSortOrder() const { return OrderMax; }
+
+		bool operator==(const FIndexRange& Other) const { return Other.InclusiveMin == InclusiveMin && Other.InclusiveMax == InclusiveMax; }
+	};
+
+public:
+	/** */
 	struct FArguments
 	{
 		static int32 MaxPreferedElementsNum;
@@ -41,7 +81,7 @@ public:
 		 * The value should be between PreferedElementsNum and MaxSortOrderPaddingBetweenArray.
 		 */
 		int32 SortOrderPaddingBetweenArray = 1000;
-#if WITH_SLATE_DEBUGGING
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 		/** Change the Widget Index when building the array. Use when building temporary list. */
 		bool bAssignedWidgetIndex = true;
 #endif
@@ -59,8 +99,50 @@ public:
 	/** Get the Generation number the list was built on. */
 	int32 GetGenerationNumber() const { return GenerationNumber; }
 
-	/** Process widget that have a ChildOrder invalidation. */
-	void ProcessChildOrderInvalidation(const TArray<TWeakPtr<SWidget>>& Invalidated);
+	/** */
+	struct IProcessChildOrderInvalidationCallback
+	{
+		struct FReIndexOperation
+		{
+			FReIndexOperation(FIndexRange const& InRange, FSlateInvalidationWidgetIndex InReIndexTarget) : Range(InRange), ReIndexTarget(InReIndexTarget) {}
+			FIndexRange const& GetRange() const { return Range; }
+			UE_NODISCARD FSlateInvalidationWidgetIndex ReIndex(FSlateInvalidationWidgetIndex Index) const;
+		private:
+			const FIndexRange& Range;
+			FSlateInvalidationWidgetIndex ReIndexTarget = FSlateInvalidationWidgetIndex::Invalid;
+		};
+		struct FReSortOperation
+		{
+			FReSortOperation(FIndexRange const& InRange) : Range(InRange) {}
+			FIndexRange const& GetRange() const { return Range; }
+		private:
+			FIndexRange const& Range;
+		};
+
+		/** Widget proxies that will be removed and will not be valid anymore. */
+		virtual void PreChildRemove(FIndexRange const& Range) {}
+		/** Widget proxies that got moved/re-indexed by the operation. */
+		virtual void ProxiesReIndexed(FReIndexOperation const& Operation) {}
+		/** Widget proxies that got resorted by the operation. */
+		virtual void ProxiesPreResort(FReSortOperation const& Operation) {}
+		/** Widget proxies that got resorted by the operation. */
+		virtual void ProxiesPostResort() {}
+		/** Widget proxies built by the operation. */
+		virtual void ProxiesBuilt(FIndexRange const& Range) {}
+	};
+
+	/**
+	 * Process widget that have a ChildOrder invalidation.
+	 * @returns true if the InvalidationWidget is still valid.
+	 */
+	bool ProcessChildOrderInvalidation(InvalidationWidgetType const& InvalidationWidget, IProcessChildOrderInvalidationCallback& Callback);
+
+
+	/**
+	 * Test, then adds or removes from the registered attribute list.
+	 * @returns true if the Widget go added to the registered attribute list.
+	 */
+	void ProcessAttributeRegistrationInvalidation(InvalidationWidgetType const& InvalidationWidget);
 
 	/** Performs an operation on all SWidget in the list. */
 	template<typename Predicate>
@@ -100,6 +182,49 @@ public:
 
 			ArrayIndex = Data[ArrayIndex].NextArrayIndex;
 		}
+	}
+
+	/** Iterator that goes over all the widgets with registered attribute. */
+	struct FWidgetAttributeIterator
+	{
+	private:
+		FSlateInvalidationWidgetList const& WidgetList;
+		FSlateInvalidationWidgetIndex CurrentWidgetIndex;
+		FSlateInvalidationWidgetSortOrder CurrentWidgetSortOrder;
+		int32 AttributeIndex;
+
+		FSlateInvalidationWidgetIndex MoveToWidgetIndexOnNextAdvance;
+
+	public:
+		FWidgetAttributeIterator(FSlateInvalidationWidgetList const& InWidgetList);
+
+		//~ Handle operation
+		void PreChildRemove(FIndexRange const& Range);
+		void ReIndexed(IProcessChildOrderInvalidationCallback::FReIndexOperation const& Operation);
+		void PostResort();
+		void ProxiesBuilt(FIndexRange const& Range);
+		void FixCurrentWidgetIndex();
+		void Seek(FSlateInvalidationWidgetIndex SeekTo);
+
+		/** Get the current widget index the iterator is pointing to. */
+		FSlateInvalidationWidgetIndex GetCurrentIndex() const { return CurrentWidgetIndex; }
+		
+		/** Get the current widget sort order the iterator is pointing to. */
+		FSlateInvalidationWidgetSortOrder GetCurrentSortOrder() const { return CurrentWidgetSortOrder; }
+
+		/** Advance the iterator to the next valid widget index. */
+		void Advance();
+
+		/** Is the iterator pointing to a valid widget index. */
+		bool IsValid() const { return CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid; }
+
+	private:
+		void AdvanceArrayIndex(int32 ArrayIndex);
+	};
+
+	FWidgetAttributeIterator CreateWidgetAttributeIterator()
+	{
+		return FWidgetAttributeIterator(*this);
 	}
 
 public:
@@ -148,10 +273,10 @@ public:
 	}
 
 	/** Increment a widget index to the next entry in the WidgetList. */
-	FSlateInvalidationWidgetIndex IncrementIndex(FSlateInvalidationWidgetIndex Index) const;
+	UE_NODISCARD FSlateInvalidationWidgetIndex IncrementIndex(FSlateInvalidationWidgetIndex Index) const;
 
 	/** Decrement a widget index to the next entry in the WidgetList. */
-	FSlateInvalidationWidgetIndex DecrementIndex(FSlateInvalidationWidgetIndex Index) const;
+	UE_NODISCARD FSlateInvalidationWidgetIndex DecrementIndex(FSlateInvalidationWidgetIndex Index) const;
 
 	/** Empties the WidgetList. */
 	void Empty();
@@ -160,7 +285,7 @@ public:
 	void Reset();
 
 public:
-#if WITH_SLATE_DEBUGGING
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 	/** For testing purposes. Return the InvalidationWidgetIndex of the Widget within the InvalidationWidgetList. */
 	FSlateInvalidationWidgetIndex FindWidget(const TSharedRef<SWidget> Widget) const;
 
@@ -170,7 +295,7 @@ public:
 	void RemoveWidget(const TSharedRef<SWidget> WidgetToRemove);
 
 	/** For testing purposes. Use to test ProcessChildOrderInvalidation */
-	TArray<TSharedPtr<SWidget>> FindChildren(const TSharedRef<SWidget> Widget) const;
+	UE_NODISCARD TArray<TSharedPtr<SWidget>> FindChildren(const TSharedRef<SWidget> Widget) const;
 
 	/**
 	 * For testing purposes.
@@ -191,30 +316,10 @@ public:
 
 	/** For testing purposes. Verify that every the sorting order is increasing between widgets. */
 	bool VerifySortOrder() const;
+
+	/** For testing purposes. Verify that the ElementIndexList_ have valid indexes and are sorted. */
+	bool VerifyElementIndexList() const;
 #endif
-
-private:
-	friend struct FSlateInvalidationWidgetSortOrder;
-
-	struct FIndexRange
-	{
-		FSlateInvalidationWidgetIndex InclusiveMin = FSlateInvalidationWidgetIndex::Invalid;
-		FSlateInvalidationWidgetIndex InclusiveMax = FSlateInvalidationWidgetIndex::Invalid;
-		FSlateInvalidationWidgetSortOrder OrderMin;
-		FSlateInvalidationWidgetSortOrder OrderMax;
-		FIndexRange() = default;
-		FIndexRange(const FSlateInvalidationWidgetList& Self, FSlateInvalidationWidgetIndex InFrom, FSlateInvalidationWidgetIndex InEnd)
-			: InclusiveMin(InFrom), InclusiveMax(InEnd)
-			, OrderMin(Self, InFrom), OrderMax(Self, InEnd)
-		{
-			check(OrderMin <= OrderMax);
-		}
-		bool Include(FSlateInvalidationWidgetSortOrder Other) const
-		{
-			return OrderMin <= Other && Other <= OrderMax;
-		}
-		bool operator==(const FIndexRange& Other) const { return Other.InclusiveMin == InclusiveMin && Other.InclusiveMax == InclusiveMax; }
-	};
 
 private:
 	bool ShouldDoRecursion(const SWidget* Widget) const
@@ -251,20 +356,29 @@ private:
 	}
 
 private:
-	IndexType AddArrayNodeIfNeeded(bool bReserveElementList);
-	IndexType InsertArrayNodeIfNeeded(IndexType AfterArrayIndex, bool bReserveElementList);
-	IndexType InsertDataNodeAfter(IndexType AfterIndex, bool bReserveElementList);
+	struct FCutResult
+	{
+		FCutResult() = default;
+
+		/** Where in the previous array the reindexed element starts. */
+		int32 OldElementIndexStart = INDEX_NONE;
+	};
+private:
+	UE_NODISCARD IndexType AddArrayNodeIfNeeded(bool bReserveElementList);
+	UE_NODISCARD IndexType InsertArrayNodeIfNeeded(IndexType AfterArrayIndex, bool bReserveElementList);
+	UE_NODISCARD IndexType InsertDataNodeAfter(IndexType AfterIndex, bool bReserveElementList);
 	void RemoveDataNode(IndexType Index);
 	void RebuildOrderIndex(IndexType StartFrom);
 	void UpdateParentLeafIndex(const InvalidationWidgetType& InvalidationWidget, FSlateInvalidationWidgetIndex OldIndex, FSlateInvalidationWidgetIndex NewIndex);
-	void CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
+	FCutResult CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
 
 private:
 	FSlateInvalidationWidgetIndex _BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, bool bParentVisible, bool bParentVolatile);
 	void _RebuildWidgetListTree(TSharedRef<SWidget> Widget, int32 ChildAtIndex);
-	void _FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<SWidget*, TMemStackAllocator<>>& Widgets) const;
+	using FFindChildrenElement = TPair<SWidget*, FSlateInvalidationWidgetIndex>;
+	void _FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const;
 	void _RemoveRangeFromSameParent(const FIndexRange Range);
-	int32 _CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
+	FCutResult _CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
 
 private:
 	struct FArrayNode
@@ -273,8 +387,11 @@ private:
 		int32 PreviousArrayIndex = INDEX_NONE;
 		int32 NextArrayIndex = INDEX_NONE;
 		int32 SortOrder = 0;
-		IndexType StartIndex = 0; // The array may start further in the array as a result of a split.
+		IndexType StartIndex = 0; // The array may start further in the ElementList as a result of a split.
 		ElementListType ElementList;
+		WidgetListType ElementIndexList_WidgetWithRegisteredSlateAttribute;
+
+		void RemoveElementIndexBiggerOrEqualThan(IndexType ElementIndex);
 	};
 	using ArrayNodeType = TSparseArray<FArrayNode>;
 
@@ -284,6 +401,6 @@ private:
 	int32 FirstArrayIndex = INDEX_NONE;
 	int32 LastArrayIndex = INDEX_NONE;
 	int32 GenerationNumber = INDEX_NONE;
-
+	IProcessChildOrderInvalidationCallback* CurrentInvalidationCallback = nullptr;
 	const FArguments WidgetListConfig;
 };

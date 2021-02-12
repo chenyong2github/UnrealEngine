@@ -17,7 +17,7 @@
 class SWidget;
 class FPaintArgs;
 struct FFastPathPerFrameData;
-class FSlateInvalidationWidgetHeap;
+class FSlateInvalidationWidgetPostHeap;
 class FSlateInvalidationWidgetList;
 struct FSlateWidgetPersistentState;
 class FSlateInvalidationRoot;
@@ -35,9 +35,9 @@ public:
 
 	int32 Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements);
 
-	bool ProcessInvalidation(FSlateInvalidationWidgetHeap& UpdateList, FSlateInvalidationWidgetList& FastPathWidgetList, FSlateInvalidationRoot& Root);
+	bool ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& UpdateList, FSlateInvalidationWidgetList& FastPathWidgetList, FSlateInvalidationRoot& Root);
 
-	void MarkProxyUpdatedThisFrame(FSlateInvalidationWidgetHeap& UpdateList);
+	void MarkProxyUpdatedThisFrame(FSlateInvalidationWidgetPostHeap& UpdateList);
 
 #if UE_SLATE_WITH_WIDGETPROXY_WEAKPTR
 	SWidget* GetWidget() const
@@ -87,11 +87,15 @@ public:
 	EVisibility Visibility;
 	/** Used to make sure we don't double process a widget that is invalidated.  (a widget can invalidate itself but an ancestor can end up painting that widget first thus rendering the child's own invalidate unnecessary */
 	uint8 bUpdatedSinceLastInvalidate : 1;
-	/** Is the widget already in a pending update list.  If it already is in an update list we don't bother adding it again */
-	uint8 bContainedByWidgetHeap : 1;
+	/** Is the widget already in a pending pre update list.  If it already is in an update list we don't bother adding it again */
+	uint8 bContainedByWidgetPreHeap : 1;
+	/** Is the widget already in a pending post update list.  If it already is in an update list we don't bother adding it again */
+	uint8 bContainedByWidgetPostHeap : 1;
 	/** Use with "Slate.InvalidationRoot.VerifyWidgetVisibility". Cached the last FastPathVisible value to find widgets that do not call Invalidate properly. */
 	uint8 bDebug_LastFrameVisible : 1;
 	uint8 bDebug_LastFrameVisibleSet : 1;
+	/** Use with "SLate.InvalidationRoot.VerifyWidgetAttribute". */
+	uint8 bDebug_AttributeUpdated : 1;
 };
 
 #if !UE_SLATE_WITH_WIDGETPROXY_WIDGETTYPE

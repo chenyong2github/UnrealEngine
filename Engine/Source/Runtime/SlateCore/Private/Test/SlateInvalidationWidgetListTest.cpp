@@ -14,8 +14,8 @@
 
 #define LOCTEXT_NAMESPACE "Slate.FastPath.InvalidationWidgetList"
 
-//IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSlateInvalidationWidgetListTest, "Slate.FastPath.InvalidationWidgetList.AddBuildRemove", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSlateInvalidationWidgetListTest, "Slate.FastPath.InvalidationWidgetList.AddBuildRemove", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+//IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSlateInvalidationWidgetListTest, "Slate.InvalidationWidgetList.AddBuildRemove", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSlateInvalidationWidgetListTest, "Slate.InvalidationWidgetList.AddBuildRemove", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 
 namespace UE
 {
@@ -23,6 +23,8 @@ namespace Slate
 {
 namespace Private
 {
+
+static const bool bUpdateOnlyWhatIsNeeded = false;
 
 class SEmptyLeftWidget : public SLeafWidget
 {
@@ -42,20 +44,22 @@ TSharedRef<SVerticalBox> AddVerticalBox(TSharedPtr<SVerticalBox> VerticalBox, TC
 {
 	FName NewName = *FString::Printf(TEXT("TagVerticalBox-%c"), Letter);
 	TSharedRef<SVerticalBox> Result = SNew(SVerticalBox).Tag(NewName);
-	VerticalBox->AddSlot()[Result];
+	if (VerticalBox)
+	{
+		VerticalBox->AddSlot()[Result];
+	}
 	return Result;
 }
 
 TSharedRef<SWidget> AddEmptyWidget(TSharedPtr<SVerticalBox> VerticalBox, int32 Number)
 {
-	static FName NewName = TEXT("TagEmptyLeftWidget");
-	NewName.SetNumber(Number);
+	FName NewName = *FString::Printf(TEXT("TagLeafWidget-%d"), Number);
 	TSharedRef<SWidget> Result = SNew(SEmptyLeftWidget).Tag(NewName);
 	VerticalBox->AddSlot()[Result];
 	return Result;
 }
 
-TSharedRef<SVerticalBox> BuildTestUI_ChildOrder(TSharedPtr<SVerticalBox>& WidgetC, TSharedPtr<SVerticalBox>& WidgetF)
+TSharedRef<SVerticalBox> BuildTestUI_ChildOrder(TSharedPtr<SVerticalBox>& WidgetC, TSharedPtr<SVerticalBox>& WidgetE, TSharedPtr<SVerticalBox>& WidgetF)
 {
 	// A
 	//  B (1, 2, 3)
@@ -69,7 +73,7 @@ TSharedRef<SVerticalBox> BuildTestUI_ChildOrder(TSharedPtr<SVerticalBox>& Widget
 	//   I
 	//  J (14)
 
-	TSharedRef<SVerticalBox> Root = SNew(SVerticalBox);
+	TSharedRef<SVerticalBox> Root = AddVerticalBox(nullptr, TEXT('A'));
 	{
 		TSharedRef<SVerticalBox> Sub = AddVerticalBox(Root, TEXT('B'));
 		AddEmptyWidget(Sub, 1);
@@ -86,10 +90,10 @@ TSharedRef<SVerticalBox> BuildTestUI_ChildOrder(TSharedPtr<SVerticalBox>& Widget
 	Root->AddSlot()[SNullWidget::NullWidget];
 	AddVerticalBox(Root, TEXT('D'));
 	{
-		TSharedRef<SVerticalBox> Sub = AddVerticalBox(Root, TEXT('E'));
-		AddEmptyWidget(Sub, 8);
-		AddEmptyWidget(Sub, 9);
-		AddEmptyWidget(Sub, 10);
+		WidgetE = AddVerticalBox(Root, TEXT('E'));
+		AddEmptyWidget(WidgetE, 8);
+		AddEmptyWidget(WidgetE, 9);
+		AddEmptyWidget(WidgetE, 10);
 	}
 	{
 		WidgetF = AddVerticalBox(Root, TEXT('F'));
@@ -131,7 +135,7 @@ TSharedRef<SVerticalBox> BuildTestUI_Child(TSharedPtr<SVerticalBox>& WidgetA, TA
 	//  H (8)
 	//  I
 
-	WidgetA = SNew(SVerticalBox);
+	WidgetA = AddVerticalBox(nullptr, TEXT('A'));
 	{
 		WidgetB = AddVerticalBox(WidgetA, TEXT('B'));
 		ChildOfWidgetA.Add(WidgetB);
@@ -228,8 +232,8 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 		}
 
 		{
-			TSharedPtr<SVerticalBox> WidgetC, WidgetF;
-			TSharedRef<SVerticalBox> RootChildOrder = UE::Slate::Private::BuildTestUI_ChildOrder(WidgetC, WidgetF);
+			TSharedPtr<SVerticalBox> WidgetC, WidgetE, WidgetF;
+			TSharedRef<SVerticalBox> RootChildOrder = UE::Slate::Private::BuildTestUI_ChildOrder(WidgetC, WidgetE, WidgetF);
 
 			FSlateInvalidationWidgetList List = { FSlateInvalidationRootHandle(), Args };
 			List.BuildWidgetList(RootChildOrder);
@@ -240,7 +244,9 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 				List.RemoveWidget(WidgetF->GetAllChildren()->GetChildAt(1));
 				WidgetF->RemoveSlot(WidgetF->GetAllChildren()->GetChildAt(1));
 				{
-					FSlateInvalidationWidgetList TempList = { FSlateInvalidationRootHandle(), Args };
+					FSlateInvalidationWidgetList::FArguments ArgsWithoutAssign = Args;
+					ArgsWithoutAssign.bAssignedWidgetIndex = false;
+					FSlateInvalidationWidgetList TempList = { FSlateInvalidationRootHandle(), ArgsWithoutAssign };
 					TempList.BuildWidgetList(RootChildOrder);
 					if (!TempList.DeapCompare(List))
 					{
@@ -270,7 +276,9 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 				RootChildOrder->RemoveSlot(WidgetF.ToSharedRef());
 				RootChildOrder->RemoveSlot(WidgetC.ToSharedRef());
 				{
-					FSlateInvalidationWidgetList TempList = { FSlateInvalidationRootHandle(), Args };
+					FSlateInvalidationWidgetList::FArguments ArgsWithoutAssign = Args;
+					ArgsWithoutAssign.bAssignedWidgetIndex = false;
+					FSlateInvalidationWidgetList TempList = { FSlateInvalidationRootHandle(), ArgsWithoutAssign };
 					TempList.BuildWidgetList(RootChildOrder);
 					if (!TempList.DeapCompare(List))
 					{
@@ -286,7 +294,9 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 				List.RemoveWidget(List.FindWidget(RemovedWidget));
 
 				{
-					FSlateInvalidationWidgetList TempList = { FSlateInvalidationRootHandle(), Args };
+					FSlateInvalidationWidgetList::FArguments ArgsWithoutAssign = Args;
+					ArgsWithoutAssign.bAssignedWidgetIndex = false;
+					FSlateInvalidationWidgetList TempList = { FSlateInvalidationRootHandle(), ArgsWithoutAssign };
 					TempList.BuildWidgetList(RootChildOrder);
 					if (!TempList.DeapCompare(List))
 					{
@@ -296,31 +306,255 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 			}
 		}
 		{
-			TSharedPtr<SVerticalBox> WidgetC, WidgetF;
-			TSharedRef<SVerticalBox> RootChildOrder = UE::Slate::Private::BuildTestUI_ChildOrder(WidgetC, WidgetF);
+			TSharedPtr<SVerticalBox> WidgetC, WidgetE, WidgetF;
+			TSharedRef<SVerticalBox> RootChildOrder = UE::Slate::Private::BuildTestUI_ChildOrder(WidgetC, WidgetE, WidgetF);
 
 			// Child invalidation
 			FSlateInvalidationWidgetList List = { FSlateInvalidationRootHandle(), Args };
 			List.BuildWidgetList(RootChildOrder);
 			AddErrorIfFalse(List.VerifyWidgetsIndex(), TEXT("The widget list integrity has failed."));
 
-			WidgetF->RemoveSlot(WidgetF->GetAllChildren()->GetChildAt(0));
-			WidgetC->RemoveSlot(WidgetC->GetAllChildren()->GetChildAt(1));
+			struct FChildOrderInvalidationCallback_Count : FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback
+			{
+				mutable int32 ChildRemoveCount = 0;
+				mutable int32 ReIndexedCount = 0;
+				mutable int32 ResortCount = 0;
+				mutable int32 BuiltCount = 0;
+				virtual void PreChildRemove(const FSlateInvalidationWidgetList::FIndexRange& Range) override { ++ChildRemoveCount; }
+				using FReIndexOperation = FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback::FReIndexOperation;
+				virtual void ProxiesReIndexed(const FReIndexOperation& Operation) override { ++ReIndexedCount; }
+				using FReSortOperation = FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback::FReSortOperation;
+				virtual void ProxiesPreResort(const FReSortOperation& Operation) override { ++ResortCount; }
+				virtual void ProxiesBuilt(const FSlateInvalidationWidgetList::FIndexRange& Range) override { ++BuiltCount; }
+			};
 
-			TArray<TWeakPtr<SWidget>> InvalidationWidgetIndexes;
-			InvalidationWidgetIndexes.Add(WidgetF->AsShared());
-			InvalidationWidgetIndexes.Add(WidgetC->AsShared());
-			InvalidationWidgetIndexes.Add(WidgetC->AsShared());
-			List.ProcessChildOrderInvalidation(InvalidationWidgetIndexes);
-			AddErrorIfFalse(List.VerifyWidgetsIndex(), TEXT("The widget list integrity has failed."));
+			auto TestRemoveWidget = [&](TSharedPtr<SVerticalBox>& Widget, const TCHAR* Message) -> bool
+				{
+					FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = List[Widget->GetProxyHandle().GetWidgetIndex()];
+					FChildOrderInvalidationCallback_Count Callback;
+					const bool bIsProxyValid = List.ProcessChildOrderInvalidation(InvalidationWidget, Callback);
+					AddErrorIfFalse(bIsProxyValid, FString::Printf(TEXT("The proxy should be valid for '%s'."), Message));
+					AddErrorIfFalse(List.VerifyWidgetsIndex(), FString::Printf(TEXT("The widget list integrity has failed for '%s'."), Message));
+					AddErrorIfFalse(List.VerifySortOrder(), FString::Printf(TEXT("The widget list sort order has failed for '%s'."), Message));
+
+					{
+						FSlateInvalidationWidgetList::FArguments ArgsWithoutAssign = Args;
+						ArgsWithoutAssign.bAssignedWidgetIndex = false;
+						FSlateInvalidationWidgetList TempList = { FSlateInvalidationRootHandle(), ArgsWithoutAssign };
+						TempList.BuildWidgetList(RootChildOrder);
+						if (!TempList.DeapCompare(List))
+						{
+							AddError(FString::Printf(TEXT("Was not able to process invalidation of widget '%s'."), Message));
+						}
+					}
+					return Callback.ChildRemoveCount > 0;
+				};
 
 			{
-				FSlateInvalidationWidgetList TempList = { FSlateInvalidationRootHandle(), Args };
-				TempList.BuildWidgetList(RootChildOrder);
-				if (!TempList.DeapCompare(List))
+				WidgetF->RemoveSlot(WidgetF->GetAllChildren()->GetChildAt(0));
+				bool bChildRemoved = TestRemoveWidget(WidgetF, TEXT("F"));
+				AddErrorIfFalse(bChildRemoved, TEXT("F has to removed 1 widget"));
+			}
+
+			{
+				WidgetE->RemoveSlot(WidgetE->GetAllChildren()->GetChildAt(1));
+				bool bChildRemoved = TestRemoveWidget(WidgetE, TEXT("E"));
+				AddErrorIfFalse(bChildRemoved, TEXT("E has to removed 1 widget"));
+			}
+
+			{
+				WidgetC->RemoveSlot(WidgetC->GetAllChildren()->GetChildAt(1));
+				WidgetC->RemoveSlot(WidgetC->GetAllChildren()->GetChildAt(1));
+				bool bChildRemoved = TestRemoveWidget(WidgetC, TEXT("C"));
+				AddErrorIfFalse(bChildRemoved, TEXT("C has to removed 2 widget"));
+			}
+
+			{
+				bool bChildRemoved = TestRemoveWidget(WidgetC, TEXT("C"));
+				AddErrorIfFalse(!bChildRemoved || !UE::Slate::Private::bUpdateOnlyWhatIsNeeded, TEXT("C no widget was removed"));
+			}
+		}
+	}
+
+
+	{
+		// A						//[0]A, B, 1, 2
+		//  B (1, 2, 3)				//[1]3, C, 4, 5
+		//  C (4, 5, 6, 7)			//[2]6, 7, D, E
+		//  Null					//[3]8, 9, 0, F
+		//  D						//[4]G, 1, 2, H
+		//  E (8, 9, 10)			//[5]3, I, J, 4
+		//  F
+		//   G (11, Null, 12)
+		//   H (13)
+		//   I
+		//  J (14)
+
+		TSharedPtr<SVerticalBox> WidgetC, WidgetE, WidgetF;
+		TSharedRef<SVerticalBox> RootChildOrder = UE::Slate::Private::BuildTestUI_ChildOrder(WidgetC, WidgetE, WidgetF);
+
+		FSlateInvalidationWidgetList::FArguments Arg = { 4,2 };
+		FSlateInvalidationWidgetList List = { FSlateInvalidationRootHandle(), Arg };
+		List.BuildWidgetList(RootChildOrder);
+		AddErrorIfFalse(List.VerifyWidgetsIndex(), TEXT("The widget list integrity has failed."));
+
+		// Test FProcessChildOrderInvalidationResult with G
+		{
+			struct FChildOrderInvalidationCallback_RemoveG : FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback
+			{
+				virtual ~FChildOrderInvalidationCallback_RemoveG() = default;
+				FSlateInvalidationWidgetListTest* Self = nullptr;
+
+				TArray<TTuple<FString, FSlateInvalidationWidgetSortOrder, bool>> PreChildRemoveToCheck;
+				virtual void PreChildRemove(const FSlateInvalidationWidgetList::FIndexRange& Range) override
 				{
-					AddError(TEXT("Was not able to process invalidation C and F."));
+					Self->AddErrorIfFalse(Range.IsValid(), TEXT("The range is not valid."));
+
+					if (PreChildRemoveToCheck.Num() == 0)
+					{
+						Self->AddError(TEXT("No PreChildRemove was expected"));
+					}
+					else
+					{
+						for (const auto& Element : PreChildRemoveToCheck)
+						{
+							bool bIsIncluded = Range.Include(Element.Get<1>());
+							if (bIsIncluded != Element.Get<2>())
+							{
+								Self->AddError(FString::Printf(TEXT("'%s' should be %s in the PreChildRemove range"), *Element.Get<0>(), (bIsIncluded ? TEXT("included") : TEXT("not be included"))));
+							}
+						}
+					}
 				}
+
+				TArray<TTuple<FString, FSlateInvalidationWidgetSortOrder, bool>> ProxiesReIndexedToCheck;
+				using FReIndexOperation = FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback::FReIndexOperation;
+				virtual void ProxiesReIndexed(const FReIndexOperation& Operation) override
+				{
+					Self->AddErrorIfFalse(Operation.GetRange().IsValid(), TEXT("The range is not valid."));
+
+					if (ProxiesReIndexedToCheck.Num() == 0)
+					{
+						Self->AddError(TEXT("No ProxiesReIndexed was expected"));
+					}
+					else
+					{
+						for (const auto& Element : ProxiesReIndexedToCheck)
+						{
+							bool bIsIncluded = Operation.GetRange().Include(Element.Get<1>());
+							if (bIsIncluded != Element.Get<2>())
+							{
+								Self->AddError(FString::Printf(TEXT("'%s' should be %s in the ProxiesReIndexed range"), *Element.Get<0>(), (bIsIncluded ? TEXT("included") : TEXT("not be included"))));
+							}
+						}
+					}
+				}
+
+				TArray<TTuple<FString, FSlateInvalidationWidgetSortOrder, bool>> ProxiesPreResortToCheck;
+				using FReSortOperation = FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback::FReSortOperation;
+				virtual void ProxiesPreResort(const FReSortOperation& Operation) override
+				{
+					Self->AddErrorIfFalse(Operation.GetRange().IsValid(), TEXT("The range is not valid."));
+
+					if (ProxiesPreResortToCheck.Num() == 0)
+					{
+						Self->AddError(TEXT("No ProxiesPreResort was expected"));
+					}
+					else
+					{
+						for (const auto& Element : ProxiesPreResortToCheck)
+						{
+							bool bIsIncluded = Operation.GetRange().Include(Element.Get<1>());
+							if (bIsIncluded != Element.Get<2>())
+							{
+								Self->AddError(FString::Printf(TEXT("'%s' should be %s in the ProxiesPreResort range"), *Element.Get<0>(), (bIsIncluded ? TEXT("included") : TEXT("not be included"))));
+							}
+						}
+					}
+				}
+
+				TArray<TTuple<FString, FSlateInvalidationWidgetSortOrder, bool>> ProxiesBuiltToCheck;
+				virtual void ProxiesBuilt(const FSlateInvalidationWidgetList::FIndexRange& Range) override
+				{
+					Self->AddErrorIfFalse(Range.IsValid(), TEXT("The range is not valid."));
+
+					if (ProxiesBuiltToCheck.Num() == 0)
+					{
+						Self->AddError(TEXT("No ProxiesBuilt was expected"));
+					}
+					else
+					{
+						for (const auto& Element : ProxiesBuiltToCheck)
+						{
+							bool bIsIncluded = Range.Include(Element.Get<1>());
+							if (bIsIncluded != Element.Get<2>())
+							{
+								Self->AddError(FString::Printf(TEXT("'%s' should be %s in the ProxiesBuilt range"), *Element.Get<0>(), (bIsIncluded ? TEXT("included") : TEXT("not be included"))));
+							}
+						}
+					}
+				}
+			};
+
+			FChildOrderInvalidationCallback_RemoveG CallbackG;
+			CallbackG.Self = this;
+
+			const FSlateInvalidationWidgetIndex WidgetIndexC = WidgetC->GetProxyHandle().GetWidgetIndex();
+			const FSlateInvalidationWidgetIndex WidgetIndexF = WidgetF->GetProxyHandle().GetWidgetIndex();
+			const FSlateInvalidationWidgetIndex WidgetIndexG = WidgetF->GetAllChildren()->GetChildAt(0)->GetProxyHandle().GetWidgetIndex();
+			const FSlateInvalidationWidgetIndex WidgetIndex11 = List.IncrementIndex(WidgetIndexG);
+			AddErrorIfFalse(WidgetIndex11 == StaticCastSharedRef<SVerticalBox>(WidgetF->GetAllChildren()->GetChildAt(0))->GetAllChildren()->GetChildAt(0)->GetProxyHandle().GetWidgetIndex(), TEXT("Index of 11 is not identical."));
+			const FSlateInvalidationWidgetIndex WidgetIndex12 = List.IncrementIndex(WidgetIndex11);
+			AddErrorIfFalse(WidgetIndex12 == StaticCastSharedRef<SVerticalBox>(WidgetF->GetAllChildren()->GetChildAt(0))->GetAllChildren()->GetChildAt(2)->GetProxyHandle().GetWidgetIndex(), TEXT("Index of 12 is not identical."));
+			const FSlateInvalidationWidgetIndex WidgetIndexH = WidgetF->GetAllChildren()->GetChildAt(1)->GetProxyHandle().GetWidgetIndex();
+			const FSlateInvalidationWidgetIndex WidgetIndex13 = List.IncrementIndex(WidgetIndexH);
+			AddErrorIfFalse(WidgetIndex13 == StaticCastSharedRef<SVerticalBox>(WidgetF->GetAllChildren()->GetChildAt(1))->GetAllChildren()->GetChildAt(0)->GetProxyHandle().GetWidgetIndex(), TEXT("Index of 13 is not identical."));
+			const FSlateInvalidationWidgetIndex WidgetIndexI = List.IncrementIndex(WidgetIndex13);
+			const FSlateInvalidationWidgetIndex WidgetIndexJ = List.IncrementIndex(WidgetIndexI);
+			const FSlateInvalidationWidgetIndex WidgetIndex14 = List.IncrementIndex(WidgetIndexJ);
+
+			{
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("C"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexC }, false);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("F"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexF }, false);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("G"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexG }, true);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("11"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndex11 }, true);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("12"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndex12 }, true);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("H"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexH }, true);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("13"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndex13 }, true);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("I"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexI }, true);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("J"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexJ }, false);
+				CallbackG.PreChildRemoveToCheck.Emplace(TEXT("14"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndex14 }, false);
+			}
+
+			{
+				//No ProxiesReIndexed expected
+			}
+
+			{
+				//No ProxiesPreResortToCheck expected
+			}
+
+			{
+
+				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("C"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexC }, false);
+				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("F"), FSlateInvalidationWidgetSortOrder{ List, WidgetIndexF }, false);
+				const FSlateInvalidationWidgetIndex NewWidgetIndexH = WidgetF->GetAllChildren()->GetChildAt(0)->GetProxyHandle().GetWidgetIndex();
+				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("H"), FSlateInvalidationWidgetSortOrder{ List, NewWidgetIndexH }, true);
+				const FSlateInvalidationWidgetIndex NewWidgetIndex13 = List.IncrementIndex(NewWidgetIndexH);
+				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("13"), FSlateInvalidationWidgetSortOrder{ List, NewWidgetIndex13 }, true);
+				const FSlateInvalidationWidgetIndex NewWidgetIndexI = List.IncrementIndex(NewWidgetIndex13);
+				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("I"), FSlateInvalidationWidgetSortOrder{ List, NewWidgetIndexI }, true);
+				const FSlateInvalidationWidgetIndex NewWidgetIndexJ = List.IncrementIndex(NewWidgetIndexI);
+				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("J"), FSlateInvalidationWidgetSortOrder{ List, NewWidgetIndexJ }, false);
+				const FSlateInvalidationWidgetIndex NewWidgetIndex14 = List.IncrementIndex(NewWidgetIndexJ);
+				CallbackG.ProxiesBuiltToCheck.Emplace(TEXT("14"), FSlateInvalidationWidgetSortOrder{ List, NewWidgetIndex14 }, false);
+			}
+
+			// Remove G
+			{
+				WidgetF->RemoveSlot(WidgetF->GetAllChildren()->GetChildAt(0));
+				bool bIsValid = List.ProcessChildOrderInvalidation(List[WidgetIndexF], CallbackG);
+				AddErrorIfFalse(bIsValid, TEXT("The F widget should still be valid"));
 			}
 		}
 	}

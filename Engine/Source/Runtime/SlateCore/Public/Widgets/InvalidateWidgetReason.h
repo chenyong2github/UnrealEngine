@@ -31,13 +31,20 @@ enum class EInvalidateWidgetReason : uint8
 	 */
 	ChildOrder = 1 << 3,
 
-	/** A Widgets render transform changed */
+	/**
+	 * A Widgets render transform changed
+	 */
 	RenderTransform = 1 << 4,
 
 	/**
 	 * Changing visibility (this implies layout)
 	 */
 	Visibility = 1 << 5,
+
+	/**
+	 * Attributes got bound or unbound (it's used by the SlateAttributeMetaData)
+	 */
+	AttributeRegistration = 1 << 6,
 
 	/**
 	 * Use Paint invalidation if you're changing a normal property involving painting or sizing.

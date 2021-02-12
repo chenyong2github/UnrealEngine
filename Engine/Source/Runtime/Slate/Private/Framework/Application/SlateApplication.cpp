@@ -1511,9 +1511,6 @@ void FSlateApplication::TickAndDrawWidgets(float DeltaTime)
 		Renderer->ReleaseAccessedResources(/* Flush State */ false);
 	}
 
-	// We clear all pending Updates from last frame
-	FSlateInvalidationRoot::ClearAllWidgetUpdatesPending();
-
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlatePreTickEvent);
 		PreTickEvent.Broadcast(DeltaTime);

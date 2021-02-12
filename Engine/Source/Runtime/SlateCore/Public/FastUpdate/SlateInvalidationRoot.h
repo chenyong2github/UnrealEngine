@@ -10,8 +10,9 @@
 #include "Rendering/DrawElements.h"
 
 struct FSlateCachedElementData;
-class FSlateInvalidationWidgetHeap;
 class FSlateInvalidationWidgetList;
+class FSlateInvalidationWidgetPreHeap;
+class FSlateInvalidationWidgetPostHeap;
 class FSlateWindowElementList;
 class FWidgetStyle;
 
@@ -115,8 +116,6 @@ public:
 
 	SLATECORE_API void Advanced_ResetInvalidation(bool bClearResourcesImmediately);
 
-	SLATECORE_API static void ClearAllWidgetUpdatesPending();
-
 #if WITH_SLATE_DEBUGGING
 	/** @return the last paint type the invalidation root handle used. */
 	ESlateInvalidationPaintType GetLastPaintType() const { return LastPaintType; }
@@ -144,22 +143,35 @@ private:
 
 	bool PaintFastPath(const FSlateInvalidationContext& Context);
 
-	/** Call to notify that the ordering of children below this Widget has changed and the fast path is no longer valid. */
-	void InvalidateWidgetChildOrder(TSharedRef<SWidget> Widget);
-	void ProcessChildOrderUpdate();
-	void BuildFastPathWidgetList(TSharedRef<SWidget> RootWidget);
+	/** Call when an invalidation occurred. */
+	void InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWidgetReason InvalidateReason);
 
+	void BuildFastPathWidgetList(TSharedRef<SWidget> RootWidget);
 	void AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform);
+
+	/** Update child order and slate attribute */
+	void ProcessPreUpdate();
+	/** Update layout, and update the FinalUpdateList */
+	bool ProcessPostUpdate();
 
 private:
 	/** List of all the Widget included by this SlateInvalidationRoot. */
-	FSlateInvalidationWidgetList* FastWidgetPathList;
-	/** Index to widgets which are dirty, volatile, or need some sort of per frame update (such as a tick or timer) */
-	FSlateInvalidationWidgetHeap* WidgetsNeedingUpdate;
+	TUniquePtr<FSlateInvalidationWidgetList> FastWidgetPathList;
+
+	/**
+	 * Index of widgets that are dirty (child order)
+	 * and need to be updated before the Post list.
+	 */
+	TUniquePtr<FSlateInvalidationWidgetPreHeap> WidgetsNeedingPreUpdate;
+
+	/**
+	 * Index to widgets that are dirty (volatile, or need some sort of per frame update such as a tick or timer)
+	 * and need to be updated after the Pre list.
+	 */
+	TUniquePtr<FSlateInvalidationWidgetPostHeap> WidgetsNeedingPostUpdate;
+
 	/** Index to widgets that will be updated. */
 	TArray<FSlateInvalidationWidgetIndex> FinalUpdateList;
-	/** Widget that has ChildOrder invalidation. */
-	TArray<TWeakPtr<SWidget>> WidgetsNeedingChildOrderUpdate;
 
 	FSlateCachedElementData* CachedElementData;
 
@@ -182,15 +194,15 @@ private:
 	bool bChildOrderInvalidated;
 	bool bNeedsSlowPath;
 	bool bNeedScreenPositionShift;
-	bool bProcessingChildOrderUpdate;
+	bool bProcessingPreUpdate;
+	bool bProcessingPostUpdate;
+	bool bBuildingWidgetList;
+	bool bProcessingChildOrderInvalidation;
 
 #if WITH_SLATE_DEBUGGING
 	ESlateInvalidationPaintType LastPaintType;
-	uint32 ProcessInvalidationFrameNumber;
 #endif
 #if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
 	TArray<const SWidget*> FastWidgetPathToClearedBecauseOfDelay;
 #endif
-
-	static TArray<FSlateInvalidationRoot*> ClearUpdateList;
 };
