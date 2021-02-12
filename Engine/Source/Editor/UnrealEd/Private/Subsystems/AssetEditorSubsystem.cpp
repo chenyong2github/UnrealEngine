@@ -30,6 +30,7 @@
 #include "AssetEditorMessages.h"
 #include "EditorModeManager.h"
 #include "Tools/LegacyEdMode.h"
+#include "ProfilingDebugging/StallDetector.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetEditorSubsystem"
@@ -275,6 +276,8 @@ bool UAssetEditorSubsystem::CloseAllAssetEditors()
 
 bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor, const bool bShowProgressWindow)
 {
+	SCOPE_STALL_REPORTER(UAssetEditorSubsystem::OpenEditorForAsset, 2.0);
+
 	const double OpenAssetStartTime = FStudioAnalytics::GetAnalyticSeconds();
 
 	if (!Asset)

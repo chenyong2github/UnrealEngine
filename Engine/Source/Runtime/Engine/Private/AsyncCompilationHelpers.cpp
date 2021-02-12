@@ -16,6 +16,7 @@
 #include "HAL/PlatformStackWalk.h"
 #include "Hash/CityHash.h"
 #include "Misc/ScopeRWLock.h"
+#include "ProfilingDebugging/StallDetector.h"
 
 #define LOCTEXT_NAMESPACE "AsyncCompilation"
 
@@ -91,6 +92,7 @@ namespace AsyncCompilationHelpers
 		TFunctionRef<void(ICompilable*)> PostCompileSingle
 	)
 	{
+		SCOPE_STALL_REPORTER(AsyncCompilationHelpers::FinishCompilation, 10.0);
 		if (Num <= 0)
 		{
 			return;
