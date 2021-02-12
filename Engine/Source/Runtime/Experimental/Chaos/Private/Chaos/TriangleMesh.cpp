@@ -52,7 +52,7 @@ void FTriangleMesh::Init(TArray<TVec3<int32>>&& Elements, const int32 StartIdx, 
 	InitHelper(StartIdx, EndIdx, CullDegenerateElements);
 }
 
-void FTriangleMesh::Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
+void FTriangleMesh::Init(const TArray<TVec3<int32>>& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
 	MElements = Elements;
 	MStartIdx = 0;
@@ -100,7 +100,7 @@ void FTriangleMesh::ResetAuxiliaryStructures()
 {
 	MPointToTriangleMap.Reset();
 	MPointToNeighborsMap.Reset();
-	TArray<TVector<int32, 2>> EmptyEdges;
+	TArray<TVec2<int32>> EmptyEdges;
 	MSegmentMesh.Init(EmptyEdges);
 	MFaceToEdges.Reset();
 	MEdgeToFaces.Reset();
@@ -122,7 +122,7 @@ void FTriangleMesh::GetVertexSet(TSet<int32>& VertexSet) const
 {
 	VertexSet.Reset();
 	VertexSet.Reserve(MNumIndices);
-	for (const TVector<int32, 3>& Element : MElements)
+	for (const TVec3<int32>& Element : MElements)
 	{
 		VertexSet.Append({Element[0], Element[1], Element[2]});
 	}
@@ -173,10 +173,10 @@ TConstArrayView<TArray<int32>> FTriangleMesh::GetPointToTriangleMap() const
 
 TArray<TVec2<int32>> FTriangleMesh::GetUniqueAdjacentPoints() const
 {
-	TArray<TVector<int32, 2>> BendingConstraints;
-	const TArray<TVector<int32, 4>> BendingElements = GetUniqueAdjacentElements();
+	TArray<TVec2<int32>> BendingConstraints;
+	const TArray<TVec4<int32>> BendingElements = GetUniqueAdjacentElements();
 	BendingConstraints.Reset(BendingElements.Num());
-	for (const TVector<int32, 4>& Element : BendingElements)
+	for (const TVec4<int32>& Element : BendingElements)
 	{
 		BendingConstraints.Emplace(Element[2], Element[3]);
 	}
@@ -188,7 +188,7 @@ TArray<TVec4<int32>> FTriangleMesh::GetUniqueAdjacentElements() const
 	// Build a map with a list of opposite points for every edges
 	TMap<TVec2<int32> /*Edge*/, TArray<int32> /*OppositePoints*/> EdgeMap;
 
-	auto SortedEdge = [](int32 P0, int32 P1) { return P0 <= P1 ? TVector<int32, 2>(P0, P1) : TVector<int32, 2>(P1, P0); };
+	auto SortedEdge = [](int32 P0, int32 P1) { return P0 <= P1 ? TVec2<int32>(P0, P1) : TVec2<int32>(P1, P0); };
 
 	for (const TVec3<int32>& Element : MElements)
 	{
@@ -230,7 +230,7 @@ void FTriangleMesh::GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView
 	Normals.Reset(MElements.Num());
 	if (ReturnEmptyOnError)
 	{
-		for (const TVector<int32, 3>& Tri : MElements)
+		for (const TVec3<int32>& Tri : MElements)
 		{
 			FVec3 p10 = Points[Tri[1]] - Points[Tri[0]];
 			FVec3 p20 = Points[Tri[2]] - Points[Tri[0]];
@@ -251,7 +251,7 @@ void FTriangleMesh::GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView
 	}
 	else
 	{
-		if (bChaos_TriangleMesh_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
 		{
 			static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 			Normals.SetNumUninitialized(MElements.Num());
@@ -266,7 +266,7 @@ void FTriangleMesh::GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView
 		}
 		else
 		{
-			for (const TVector<int32, 3>& Tri : MElements)
+			for (const TVec3<int32>& Tri : MElements)
 			{
 				FVec3 p10 = Points[Tri[1]] - Points[Tri[0]];
 				FVec3 p20 = Points[Tri[2]] - Points[Tri[0]];
@@ -300,7 +300,7 @@ void FTriangleMesh::GetPointNormals(TArrayView<FVec3> PointNormals, const TConst
 {
 	check(MPointToTriangleMap.Num() != 0);
 
-	if (bChaos_TriangleMesh_ISPC_Enabled)
+	if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
 	{
 		static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 
@@ -600,12 +600,12 @@ TVec3<int32> GetOrdered(const TVec3<int32>& Elem)
 }
 
 /**
- * Comparator for TSet<TVector<int32,2>> that compares the components of vectors in ascending
+ * Comparator for TSet<TVec2<int32>> that compares the components of vectors in ascending
  * order.
  */
 struct OrderedEdgeKeyFuncs : BaseKeyFuncs<TVec2<int32>, TVec2<int32>, false>
 {
-	static FORCEINLINE TVector<int32, 2> GetSetKey(const TVec2<int32>& elem)
+	static FORCEINLINE TVec2<int32> GetSetKey(const TVec2<int32>& elem)
 	{
 		return GetOrdered(elem);
 	}
@@ -624,7 +624,7 @@ struct OrderedEdgeKeyFuncs : BaseKeyFuncs<TVec2<int32>, TVec2<int32>, false>
 	}
 };
 
-TSegmentMesh<FReal>& FTriangleMesh::GetSegmentMesh()
+FSegmentMesh& FTriangleMesh::GetSegmentMesh()
 {
 	if (MSegmentMesh.GetNumElements() != 0)
 	{
@@ -702,7 +702,7 @@ const TArray<TVec2<int32>>& FTriangleMesh::GetEdgeToFaces()
 
 TSet<int32> FTriangleMesh::GetBoundaryPoints()
 {
-	TSegmentMesh<FReal>& SegmentMesh = GetSegmentMesh();
+	FSegmentMesh& SegmentMesh = GetSegmentMesh();
 	const TArray<TVec2<int32>>& Edges = SegmentMesh.GetElements();
 	const TArray<TVec2<int32>>& EdgeToFaces = GetEdgeToFaces();
 	TSet<int32> OpenBoundaryPoints;
@@ -841,7 +841,7 @@ TArray<FReal> FTriangleMesh::GetCurvatureOnEdges(const TArray<FVec3>& FaceNormal
 {
 	const int32 NumNormals = FaceNormals.Num();
 	check(NumNormals == MElements.Num());
-	const TSegmentMesh<FReal>& SegmentMesh = GetSegmentMesh(); // builds MEdgeToFaces
+	const FSegmentMesh& SegmentMesh = GetSegmentMesh(); // builds MEdgeToFaces
 	TArray<FReal> EdgeAngles;
 	EdgeAngles.SetNumZeroed(MEdgeToFaces.Num());
 	for (int32 EdgeId = 0; EdgeId < MEdgeToFaces.Num(); EdgeId++)
@@ -868,7 +868,7 @@ TArray<FReal> FTriangleMesh::GetCurvatureOnEdges(const TConstArrayView<FVec3>& P
 
 TArray<FReal> FTriangleMesh::GetCurvatureOnPoints(const TArray<FReal>& EdgeCurvatures)
 {
-	const TSegmentMesh<FReal>& SegmentMesh = GetSegmentMesh();
+	const FSegmentMesh& SegmentMesh = GetSegmentMesh();
 	const TArray<TVec2<int32>>& Segments = SegmentMesh.GetElements();
 	check(EdgeCurvatures.Num() == Segments.Num());
 
@@ -885,7 +885,7 @@ TArray<FReal> FTriangleMesh::GetCurvatureOnPoints(const TArray<FReal>& EdgeCurva
 	for (int32 i = 0; i < Segments.Num(); i++)
 	{
 		const FReal EdgeCurvature = EdgeCurvatures[i];
-		const TVector<int32, 2>& Edge = Segments[i];
+		const TVec2<int32>& Edge = Segments[i];
 		PointCurvatures[GlobalToLocal(Edge[0])] = FMath::Max(PointCurvatures[GlobalToLocal(Edge[0])], EdgeCurvature);
 		PointCurvatures[GlobalToLocal(Edge[1])] = FMath::Max(PointCurvatures[GlobalToLocal(Edge[1])], EdgeCurvature);
 	}
@@ -1209,7 +1209,7 @@ void FTriangleMesh::RemapVertices(const TArray<int32>& Order)
 	int32 MaxIdx = -TNumericLimits<int32>::Max();
 	for (int32 i = 0; i < MElements.Num(); i++)
 	{
-		TVector<int32, 3>& elem = MElements[i];
+		TVec3<int32>& elem = MElements[i];
 		for (int32 j = 0; j < 3; ++j)
 		{
 			if (elem[j] != Order[elem[j]])
@@ -1264,8 +1264,8 @@ void FTriangleMesh::RemoveDuplicateElements()
 	TSet<TVec3<int32>> Existing;
 	for (int32 Idx = 0; Idx < MElements.Num(); ++Idx)
 	{
-		const TVector<int32, 3>& Tri = MElements[Idx];
-		const TVector<int32, 3> OrderedTri = GetOrdered(Tri);
+		const TVec3<int32>& Tri = MElements[Idx];
+		const TVec3<int32> OrderedTri = GetOrdered(Tri);
 		if (!Existing.Contains(OrderedTri))
 		{
 			Existing.Add(OrderedTri);

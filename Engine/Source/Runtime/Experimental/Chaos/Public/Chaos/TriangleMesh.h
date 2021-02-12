@@ -162,7 +162,7 @@ namespace Chaos
 		/**
 		 * @ret The connectivity of this mesh represented as a collection of unique segments.
 		 */
-		CHAOS_API TSegmentMesh<FReal>& GetSegmentMesh();
+		CHAOS_API FSegmentMesh& GetSegmentMesh();
 		/** @ret A map from all face indices, to the indices of their associated edges. */
 		CHAOS_API const TArray<TVec3<int32>>& GetFaceToEdges();
 		/** @ret A map from all edge indices, to the indices of their containing faces. */
@@ -280,13 +280,16 @@ namespace Chaos
 		mutable TArray<TArray<int32>> MPointToTriangleMap;  // !! Unlike the TArrayView returned by GetPointToTriangleMap, this array starts at 0 for the point of index MStartIdx. Use GlobalToLocal to access with a global index. Note that this array's content is always indexed in global index.
 		mutable TMap<int32, TSet<uint32>> MPointToNeighborsMap;
 
-		TSegmentMesh<FReal> MSegmentMesh;
+		FSegmentMesh MSegmentMesh;
 		TArray<TVec3<int32>> MFaceToEdges;
 		TArray<TVec2<int32>> MEdgeToFaces;
 
 		int32 MStartIdx;
 		int32 MNumIndices;
 	};
+
+	template <typename T>
+	using TTriangleMesh = FTriangleMesh;
 }
 
 // Support ISPC enable/disable in non-shipping builds
