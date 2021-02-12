@@ -142,7 +142,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 
 			const bool DoCollisionGeom = Parameters.CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric;
 			TArray<Chaos::FVec3>* SamplePoints = nullptr;
-			Chaos::TAABB<float, 3> SamplePointsBBox = Chaos::TAABB<float, 3>::EmptyAABB();
+			Chaos::FAABB3 SamplePointsBBox = Chaos::FAABB3::EmptyAABB();
 			if (DoCollisionGeom)
 			{
 				SamplePoints =
@@ -178,7 +178,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 				// Precision gets worse in opt builds, so only do the phi test in debug.
 				checkSlow(PointVolumeRegistrationCheck(*SamplePoints, *ImplicitObject, 0.01));
 				auto PointBBoxCheck =
-					[&](const auto &InSamplePoints, const Chaos::TAABB<float,3> &BBox) -> bool
+					[&](const auto &InSamplePoints, const Chaos::FAABB3 &BBox) -> bool
 					{
 						for (int32 i = 0; i < InSamplePoints.Num(); i++)
 						{
@@ -194,7 +194,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 				check(PointBBoxCheck(*SamplePoints, ImplicitObject->BoundingBox()));
 			}
 
-			const Chaos::TAABB<float, 3>& BBox = ImplicitObject->BoundingBox();
+			const Chaos::FAABB3& BBox = ImplicitObject->BoundingBox();
 
 			const FVector Scale = WorldTransform->GetScale3D();
 			const FVector &CenterOfMass = MassProperties.CenterOfMass;

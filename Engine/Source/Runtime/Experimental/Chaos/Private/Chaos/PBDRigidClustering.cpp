@@ -1829,9 +1829,9 @@ namespace Chaos
 			// strange hacked initilization that seems misplaced and ill thought
 			Parent->SetHasBounds(true);
 			Parent->SetLocalBounds(Implicit->BoundingBox());
-			const Chaos::TAABB<float, 3>& LocalBounds = Parent->LocalBounds();
-			const Chaos::TRigidTransform<float, 3> Xf(Parent->X(), Parent->R());
-			const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
+			const Chaos::FAABB3& LocalBounds = Parent->LocalBounds();
+			const Chaos::FRigidTransform3 Xf(Parent->X(), Parent->R());
+			const Chaos::FAABB3 TransformedBBox = LocalBounds.TransformedAABB(Xf);
 			Parent->SetWorldSpaceInflatedBounds(TransformedBBox);
 		}
 

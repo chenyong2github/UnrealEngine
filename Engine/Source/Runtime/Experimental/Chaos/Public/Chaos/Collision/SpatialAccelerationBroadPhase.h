@@ -208,7 +208,7 @@ namespace Chaos
 					if (bBody1Bounded)
 					{
 						const FReal Box1Thickness = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
-						const TAABB<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox<FReal>(Particle1).ThickenSymmetrically(FVec3(Box1Thickness));
+						const FAABB3 Box1 = ComputeWorldSpaceBoundingBox<FReal>(Particle1).ThickenSymmetrically(FVec3(Box1Thickness));
 
 						CHAOS_COLLISION_STAT(StatData.RecordBoundsData(Box1));
 

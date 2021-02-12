@@ -188,13 +188,13 @@ public:
 		// we'd do something more accurate...
 		for (int32 i=0; i < Num-1; i++)
 		{
-			const Chaos::TAABB<float, 3>& BoxI = BBoxes[i];
+			const Chaos::FAABB3& BoxI = BBoxes[i];
 			for (int32 j = i+1; j < Num; j++)
 			{
-				const Chaos::TAABB<float, 3>& BoxJ = BBoxes[j];
+				const Chaos::FAABB3& BoxJ = BBoxes[j];
 				if (BoxI.Intersects(BoxJ))
 				{
-					Chaos::TAABB<float, 3> BoxIJ = BoxI.GetIntersection(BoxJ);
+					Chaos::FAABB3 BoxIJ = BoxI.GetIntersection(BoxJ);
 					const float VolIJ = BoxIJ.GetVolume();
 					if (VolIJ > KINDA_SMALL_NUMBER)
 					{
@@ -313,7 +313,7 @@ public:
 			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 			{
-				const Chaos::TAABB<float, 3>& BBox = Convex->BoundingBox();
+				const Chaos::FAABB3& BBox = Convex->BoundingBox();
 				Chaos::TSphere<float, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
 				Points = Sphere.ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
 				Chaos::FVec3 Normal;
@@ -332,7 +332,7 @@ public:
 			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 			{
-				const Chaos::TAABB<float, 3>& BBox = LevelSet->BoundingBox();
+				const Chaos::FAABB3& BBox = LevelSet->BoundingBox();
 				Chaos::TSphere<float, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
 				Points = Sphere.ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
 				Chaos::FVec3 Normal;
@@ -480,7 +480,7 @@ protected:
 	template<class TImplicitShape>
 	void CullDeepPoints(TArray<Chaos::FVec3>& Points, const TImplicitShape& Shape, const FTransform& Xf)
 	{
-		const Chaos::TAABB<float, 3>& BBox = Shape.BoundingBox();
+		const Chaos::FAABB3& BBox = Shape.BoundingBox();
 		const float Tolerance = -BBox.Extents().Max() / 100.f; // -1/100th the largest dimension
 		if (Xf.Equals(FTransform::Identity))
 		{

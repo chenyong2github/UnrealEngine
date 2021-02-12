@@ -83,7 +83,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 			{
 				Handle->SetHasBounds(true);
 				Handle->SetLocalBounds(Geometry->BoundingBox());
-				TAABB<float,3> WorldSpaceBounds = Geometry->BoundingBox().TransformedAABB(TRigidTransform<float,3>(Handle->X(),Handle->R()));
+				FAABB3 WorldSpaceBounds = Geometry->BoundingBox().TransformedAABB(TRigidTransform<float,3>(Handle->X(),Handle->R()));
 				if(bHasKinematicData)
 				{
 					WorldSpaceBounds.ThickenSymmetrically(KinematicHandle->V());

@@ -254,11 +254,11 @@ namespace Chaos
 
 	public:
 
-		static void Build(const TArray<FVec3>& InVertices, TArray <TPlaneConcrete<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3>& OutVertices, TAABB<FReal, 3>& OutLocalBounds)
+		static void Build(const TArray<FVec3>& InVertices, TArray <TPlaneConcrete<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3>& OutVertices, FAABB3& OutLocalBounds)
 		{
 			OutPlanes.Reset();
 			OutVertices.Reset();
-			OutLocalBounds = TAABB<FReal, 3>::EmptyAABB();
+			OutLocalBounds = FAABB3::EmptyAABB();
 
 			const int32 NumVerticesIn = InVertices.Num();
 			if(NumVerticesIn == 0)
@@ -309,7 +309,7 @@ namespace Chaos
 
 			const int32 NumVerticesToUse = VerticesToUse->Num();
 
-			OutLocalBounds = TAABB<FReal, 3>((*VerticesToUse)[0], (*VerticesToUse)[0]);
+			OutLocalBounds = FAABB3((*VerticesToUse)[0], (*VerticesToUse)[0]);
 			for (int32 VertexIndex = 0; VertexIndex < NumVerticesToUse; ++VertexIndex)
 			{
 				OutLocalBounds.GrowToInclude((*VerticesToUse)[VertexIndex]);
@@ -450,7 +450,7 @@ namespace Chaos
 			return FString::Printf(TEXT("Planes %d, Vertices %d"), NumPlanes, NumVertices);
 		}
 
-		static CHAOS_API void Simplify(TArray <TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TArray<FVec3>& InOutVertices, TAABB<FReal, 3>& InOutLocalBounds)
+		static CHAOS_API void Simplify(TArray <TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TArray<FVec3>& InOutVertices, FAABB3& InOutLocalBounds)
 		{
 			struct TPair
 			{

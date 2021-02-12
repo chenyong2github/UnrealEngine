@@ -117,7 +117,7 @@ namespace Chaos
 		// Return the current gravity as applied by the solver using the various overrides, not thread safe, call must be done right after the solver update.
 		FVec3 GetGravity(const FClothingSimulationSolver* Solver) const;
 		// Return the current bounding box based on a given solver, not thread safe, call must be done right after the solver update.
-		TAABB<float, 3> CalculateBoundingBox(const FClothingSimulationSolver* Solver) const;
+		FAABB3 CalculateBoundingBox(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Offset in the solver's particle array, or INDEX_NONE if no LOD is currently selected
 		int32 GetOffset(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Mesh

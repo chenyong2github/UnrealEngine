@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Real.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/Plane.h"
@@ -21,7 +22,6 @@ namespace Chaos
 			return TArray<TVector<T, d>>();
 		}
 	};
-
 
 	template<class T, int d>
 	class TAABB
@@ -619,4 +619,6 @@ namespace Chaos
 			return SamplePoints;
 		}
 	};
+
+	using FAABB3 = TAABB<FReal, 3>;
 }

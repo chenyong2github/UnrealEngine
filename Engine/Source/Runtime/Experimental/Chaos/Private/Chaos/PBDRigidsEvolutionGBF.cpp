@@ -517,7 +517,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 						const int32 Island = Active.Island();
 						ensure(Island >= 0);
 						const int32 ColorIdx = Island % NumColors;
-						const TAABB<FReal,3> LocalBounds = Geom->BoundingBox();
+						const FAABB3 LocalBounds = Geom->BoundingBox();
 						FDebugDrawQueue::GetInstance().DrawDebugBox(Active.X(),LocalBounds.Extents()*0.5f,Active.R(),IslandColors[ColorIdx],false,-1.f,0,0.f);
 					}
 				}

@@ -89,7 +89,7 @@ void FImplicitObjectUnion::RemoveAt(int32 RemoveIndex)
 		MObjects.RemoveAt(RemoveIndex);
 	}
 
-	MLocalBoundingBox = TAABB<float, 3>::EmptyAABB();
+	MLocalBoundingBox = FAABB3::EmptyAABB();
 	for (int32 i = 0; i < MObjects.Num(); ++i)
 	{
 		if (i > 0)

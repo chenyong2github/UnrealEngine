@@ -64,7 +64,7 @@ namespace Chaos
 		: Proxy(nullptr)
 		, ShapeIdx(InShapeIdx)
 		, Geometry()
-		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
+		, WorldSpaceInflatedShapeBounds(FAABB3(FVec3(0), FVec3(0)))
 	{
 	}
 
@@ -107,7 +107,7 @@ namespace Chaos
 		else
 		{
 			// This should be set by particle serializing this FPerShapeData.
-			SetWorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f)));
+			SetWorldSpaceInflatedShapeBounds(FAABB3(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f)));
 		}
 
 	}

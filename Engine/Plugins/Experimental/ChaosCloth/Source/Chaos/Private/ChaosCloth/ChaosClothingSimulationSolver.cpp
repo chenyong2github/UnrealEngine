@@ -794,7 +794,7 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 	if (ParticlesActiveView.HasActiveRange())
 	{
 		// Calculate bounding box
-		TAABB<float, 3> BoundingBox = TAABB<float, 3>::EmptyAABB();
+		FAABB3 BoundingBox = FAABB3::EmptyAABB();
 
 		ParticlesActiveView.SequentialFor(
 			[&BoundingBox](FPBDParticles& Particles, int32 Index)

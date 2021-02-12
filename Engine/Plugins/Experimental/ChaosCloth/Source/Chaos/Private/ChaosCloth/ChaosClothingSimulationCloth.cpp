@@ -580,12 +580,12 @@ FVec3 FClothingSimulationCloth::GetGravity(const FClothingSimulationSolver* Solv
 	return Solver->IsClothGravityOverrideEnabled() && bIsGravityOverridden ? GravityOverride : Solver->GetGravity() * GravityScale;
 }
 
-TAABB<float, 3> FClothingSimulationCloth::CalculateBoundingBox(const FClothingSimulationSolver* Solver) const
+FAABB3 FClothingSimulationCloth::CalculateBoundingBox(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 
 	// Calculate local space bounding box
-	TAABB<float, 3> BoundingBox = TAABB<float, 3>::EmptyAABB();
+	FAABB3 BoundingBox = FAABB3::EmptyAABB();
 
 	const TConstArrayView<FVec3> ParticlePositions = GetParticlePositions(Solver);
 	for (const FVec3& ParticlePosition : ParticlePositions)

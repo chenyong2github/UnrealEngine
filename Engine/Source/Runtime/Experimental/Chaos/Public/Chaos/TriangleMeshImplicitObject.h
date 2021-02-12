@@ -291,7 +291,7 @@ namespace Chaos
 
 		FParticles MParticles;
 		FTrimeshIndexBuffer MElements;
-		TAABB<FReal, 3> MLocalBoundingBox;
+		FAABB3 MLocalBoundingBox;
 		TArray<uint16> MaterialIndices;
 		TUniquePtr<TArray<int32>> ExternalFaceIndexMap;
 		TUniquePtr<TArray<int32>> ExternalVertexIndexMap;
@@ -310,7 +310,7 @@ namespace Chaos
 
 			bool HasBoundingBox() const { return true; }
 
-			TAABB<FReal, 3> BoundingBox() const
+			FAABB3 BoundingBox() const
 			{
 				auto LambdaHelper = [&](const auto& Elements)
 				{

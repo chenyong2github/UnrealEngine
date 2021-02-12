@@ -592,7 +592,7 @@ namespace ChaosTest
 		{
 			//get to EPA from GJKPenetration
 			// Boxes that are very close to each other (Almost penetrating).
-			TAABB<float, 3> Box({ -50, -50, -50 }, { 50, 50, 50 });
+			FAABB3 Box({ -50, -50, -50 }, { 50, 50, 50 });
 
 			const FRigidTransform3 BToATM({ -8.74146843, 4.58291769, -100.029655 }, FRotation3::FromElements(6.63562241e-05, -0.000235952888, 0.00664712908, 0.999977887));
 			FVec3 ClosestA, ClosestB, Normal;

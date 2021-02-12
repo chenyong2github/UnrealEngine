@@ -273,9 +273,9 @@ void PopulateSimulatedParticle(
 		Handle->SetSharedGeometry(SharedImplicitTS);
 		Handle->SetHasBounds(true);
 		Handle->SetLocalBounds(SharedImplicitTS->BoundingBox());
-		const Chaos::TAABB<float, 3>& LocalBounds = Handle->LocalBounds();
-		const Chaos::TRigidTransform<float, 3> Xf(Handle->X(), Handle->R());
-		const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
+		const Chaos::FAABB3& LocalBounds = Handle->LocalBounds();
+		const Chaos::FRigidTransform3 Xf(Handle->X(), Handle->R());
+		const Chaos::FAABB3 TransformedBBox = LocalBounds.TransformedAABB(Xf);
 		Handle->SetWorldSpaceInflatedBounds(TransformedBBox);
 	}
 
@@ -286,9 +286,9 @@ void PopulateSimulatedParticle(
 		TUniquePtr<Chaos::TBVHParticles<float, 3>>& CollisionParticles = Handle->CollisionParticles();
 		if (Simplicial->Size())
 		{
-			const Chaos::TAABB<float,3> ImplicitShapeDomain = 
+			const Chaos::FAABB3 ImplicitShapeDomain = 
 				Implicit && Implicit->GetType() == Chaos::ImplicitObjectType::LevelSet && Implicit->HasBoundingBox() ? 
-				Implicit->BoundingBox() : Chaos::TAABB<float,3>::FullAABB();
+				Implicit->BoundingBox() : Chaos::FAABB3::FullAABB();
 
 			CollisionParticles->Resize(0);
 			CollisionParticles->AddParticles(Simplicial->Size());
@@ -1142,9 +1142,9 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	{
 		Parent->SetHasBounds(true);
 		Parent->SetLocalBounds(Parent->Geometry()->BoundingBox());
-		const Chaos::TAABB<float, 3>& LocalBounds = Parent->LocalBounds();
+		const Chaos::FAABB3& LocalBounds = Parent->LocalBounds();
 		const Chaos::TRigidTransform<float, 3> Xf(Parent->X(), Parent->R());
-		const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
+		const Chaos::FAABB3 TransformedBBox = LocalBounds.TransformedAABB(Xf);
 		Parent->SetWorldSpaceInflatedBounds(TransformedBBox);
 
 		Solver->GetEvolution()->DirtyParticle(*Parent);
@@ -2162,7 +2162,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				{
 					const auto Implicit = CollectionImplicits[TransformGroupIndex];
 					const auto BBox = Implicit->BoundingBox();
-					const FVec3 Extents = BBox.Extents(); // Chaos::TAABB::Extents() is Max - Min
+					const FVec3 Extents = BBox.Extents(); // Chaos::FAABB3::Extents() is Max - Min
 					MaxChildBounds = MaxChildBounds.ComponentwiseMax(Extents);
 				}
 			}

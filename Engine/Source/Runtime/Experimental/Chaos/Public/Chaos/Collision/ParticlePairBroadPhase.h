@@ -23,7 +23,7 @@ namespace Chaos
 	public:
 		using FParticleHandle = TGeometryParticleHandle<FReal, 3>;
 		using FParticlePair = TVector<FParticleHandle*, 2>;
-		using FAABB = TAABB<FReal, 3>;
+		using FAABB = FAABB3;
 
 		FParticlePairBroadPhase(const TArray<FParticlePair>* InParticlePairs, const TArray<FParticleHandle*>* InParticlesA, const TArray<FParticleHandle*>* InParticlesB, const FReal InCullDistance)
 			: ParticlePairs(InParticlePairs)
@@ -95,8 +95,8 @@ namespace Chaos
 			FParticleHandle* ParticleB,
 			CollisionStats::FStatData& StatData)
 		{
-			const TAABB<FReal, 3>& Box0 = ParticleA->WorldSpaceInflatedBounds();
-			const TAABB<FReal, 3>& Box1 = ParticleB->WorldSpaceInflatedBounds();
+			const FAABB3& Box0 = ParticleA->WorldSpaceInflatedBounds();
+			const FAABB3& Box1 = ParticleB->WorldSpaceInflatedBounds();
 			if (Box0.Intersects(Box1))
 			{
 				NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, ParticleA, ParticleB, CullDistance);

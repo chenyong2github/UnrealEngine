@@ -353,7 +353,7 @@ FCollisionStructureManager::CalculateUnitMassInertiaTensor(
 	if (ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
 	{
 		const Chaos::FVec3 Size = Bounds.GetSize();
-		const Chaos::PMatrix<float, 3, 3> I = Chaos::TAABB<float, 3>::GetInertiaTensor(1.0, Size);
+		const Chaos::FMatrix33 I = Chaos::FAABB3::GetInertiaTensor(1.0, Size);
 		Tensor = { I.M[0][0], I.M[1][1], I.M[2][2] };
 	}
 	else if (ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)

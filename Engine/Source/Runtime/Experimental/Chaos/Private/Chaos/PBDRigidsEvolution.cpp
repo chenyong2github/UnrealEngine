@@ -494,7 +494,7 @@ namespace Chaos
 				else
 				{
 					FGeometryParticle* UpdateParticle = SpatialData.AccelerationHandle.GetExternalGeometryParticle_ExternalThread();
-					TAABB<FReal,3> WorldBounds;
+					FAABB3 WorldBounds;
 					const bool bHasBounds = UpdateParticle->Geometry() && UpdateParticle->Geometry()->HasBoundingBox();
 					if(bHasBounds)
 					{

@@ -21,7 +21,7 @@ namespace ClothingMeshUtils
 
 			bool HasBoundingBox() const { return true; }
 
-			Chaos::TAABB<float, 3> BoundingBox() const
+			Chaos::FAABB3 BoundingBox() const
 			{
 				int32 TriBaseIdx = Index * 3;
 
@@ -33,7 +33,7 @@ namespace ClothingMeshUtils
 				const FVector& B = TmData->Positions[IB];
 				const FVector& C = TmData->Positions[IC];
 
-				Chaos::TAABB<float,3> Bounds(A, A);
+				Chaos::FAABB3 Bounds(A, A);
 
 				Bounds.GrowToInclude(B);
 				Bounds.GrowToInclude(C);
@@ -85,7 +85,7 @@ namespace ClothingMeshUtils
 					BVH.Reinitialize(BVEntries);
 					bHasValidBVH = true;
 				}
-				Chaos::TAABB<float, 3> TmpAABB(Point, Point);
+				Chaos::FAABB3 TmpAABB(Point, Point);
 				return BVH.FindAllIntersections(TmpAABB);
 			}
 			else

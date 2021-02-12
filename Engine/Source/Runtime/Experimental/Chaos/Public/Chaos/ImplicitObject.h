@@ -28,6 +28,7 @@ template<class T, int d>
 class TBVHParticles;
 class FImplicitObject;
 
+using FAABB3 = TAABB<FReal, 3>;
 using FParticles = TParticles<FReal, 3>;
 
 namespace ImplicitObjectType
@@ -293,7 +294,7 @@ public:
 		Out.Add(MakePair(This, ParentTM));
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TAABB<FReal, 3>& LocalBounds) const;
+	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
 
 	virtual FString ToString() const
 	{

@@ -184,7 +184,7 @@ struct FSpatialAccelerationCacheHandle
 		return Cache->HasBounds(EntryIdx);
 	}
 
-	const TAABB<FReal, 3>& BoundingBox() const
+	const FAABB3& BoundingBox() const
 	{
 		return Cache->Bounds(EntryIdx);
 	}

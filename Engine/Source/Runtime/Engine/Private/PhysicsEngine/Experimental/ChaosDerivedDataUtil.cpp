@@ -18,7 +18,7 @@ namespace Chaos
 		TPayloadType GetPayload(int32 Idx) const { return Idx; }
 
 		bool HasBoundingBox() const { return true; }
-		TAABB<FReal, 3> BoundingBox() const { return TAABB<FReal, 3>(Vert, Vert); }
+		FAABB3 BoundingBox() const { return FAABB3(Vert, Vert); }
 	};
 
 	void CleanTrimesh(TArray<FVector>& InOutVertices, TArray<int32>& InOutIndices, TArray<int32>* OutOptFaceRemap, TArray<int32>* OutOptVertexRemap)
@@ -90,7 +90,7 @@ namespace Chaos
 
 			const FVector& SourceVert = LocalSourceVerts[SourceVertIndex];
 
-			TArray<int32> Duplicates = Accel.FindAllIntersections(TAABB<FReal, 3>(SourceVert - WeldThresholdSq, SourceVert + WeldThresholdSq));
+			TArray<int32> Duplicates = Accel.FindAllIntersections(FAABB3(SourceVert - WeldThresholdSq, SourceVert + WeldThresholdSq));
 			ensure(Duplicates.Num() > 0);	//Should always find at least original vert
 
 			//first index is always considered unique

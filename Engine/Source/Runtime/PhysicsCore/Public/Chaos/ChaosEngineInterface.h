@@ -205,6 +205,7 @@ namespace Chaos
 
 	template <typename T, int>
 	class TAABB;
+	using FAABB3 = TAABB<FReal, 3>;
 
 	template <typename T, int>
 	class TBox;
