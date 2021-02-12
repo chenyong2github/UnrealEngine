@@ -336,18 +336,15 @@ void FNDI_Landscape_SharedResource::Initialize()
 			const float DefaultHeight = 0.0f;
 
 			const int32 ComponentQuadCount = ResourceKey.Source->ComponentSizeQuads;
-			const int32 ComponentVertexCount = ComponentQuadCount + 1;
-
 			const FIntPoint RegionSpan = ResourceKey.MaxCaptureRegion - ResourceKey.MinCaptureRegion + FIntPoint(1, 1);
-			const FIntPoint CaptureVertexSpan = RegionSpan * ComponentVertexCount;
 			const FIntPoint CaptureQuadSpan = RegionSpan * ComponentQuadCount;
-
+			const FIntPoint CaptureVertexSpan = CaptureQuadSpan + FIntPoint(1, 1);
 			const int32 HeightsCount = CaptureVertexSpan.X * CaptureVertexSpan.Y;
 
 			HeightValues.Reset(HeightsCount);
 			HeightValues.Init(DefaultHeight, HeightsCount);
 
-			const FIntPoint RegionVertexBase = ResourceKey.MinCaptureRegion * ComponentVertexCount;
+			const FIntPoint RegionVertexBase = ResourceKey.MinCaptureRegion * ComponentQuadCount;
 
 			for (const FIntPoint& Region : ResourceKey.CapturedRegions)
 			{
@@ -358,7 +355,7 @@ void FNDI_Landscape_SharedResource::Initialize()
 				{
 					if (const ULandscapeHeightfieldCollisionComponent* CollisionComponent = *FoundCollisionComponent)
 					{
-						const FIntPoint SectionBase = (Region - ResourceKey.MinCaptureRegion) * ComponentVertexCount;
+						const FIntPoint SectionBase = (Region - ResourceKey.MinCaptureRegion) * ComponentQuadCount;
 
 						CollisionComponent->FillHeightTile(HeightValues, SectionBase.X + SectionBase.Y * CaptureVertexSpan.X, CaptureVertexSpan.X);
 					}
@@ -369,13 +366,13 @@ void FNDI_Landscape_SharedResource::Initialize()
 			CellCount = CaptureVertexSpan;
 
 			// mapping to get the UV from 'cell space' which is relative to the entire terrain (not just the captured regions)
-			FVector2D UvScale(1.0f / (CaptureQuadSpan.X), 1.0f / (CaptureQuadSpan.Y - 1.0f));
+			FVector2D UvScale(1.0f / CaptureVertexSpan.X, 1.0f / CaptureVertexSpan.Y);
 
 			UvScaleBias = FVector4(
 				UvScale.X,
 				UvScale.Y,
-				-RegionVertexBase.X * UvScale.X,
-				-RegionVertexBase.Y * UvScale.Y);
+				(0.5f - RegionVertexBase.X) * UvScale.X,
+				(0.5f - RegionVertexBase.Y) * UvScale.Y);
 
 			WorldToActorTransform = ResourceKey.Source->GetTransform().ToMatrixWithScale().Inverse();
 
