@@ -17,7 +17,7 @@ FScopedTransaction::FScopedTransaction(const TCHAR* TransactionContext, const FT
 
 void FScopedTransaction::Construct (const TCHAR* TransactionContext, const FText& SessionName, UObject* PrimaryObject, const bool bShouldActuallyTransact)
 {
-	if( bShouldActuallyTransact && GEditor && GEditor->Trans && ensure(!GIsTransacting))
+	if( bShouldActuallyTransact && GEditor && GEditor->CanTransact() && ensure(!GIsTransacting))
 	{
 		Index = GEditor->BeginTransaction( TransactionContext, SessionName, PrimaryObject );
 		check( IsOutstanding() );

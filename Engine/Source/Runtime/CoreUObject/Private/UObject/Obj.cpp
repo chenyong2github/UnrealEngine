@@ -1214,7 +1214,8 @@ bool UObject::Modify( bool bAlwaysMarkDirty/*=true*/ )
 		// Do not consider script packages, as they should never end up in the
 		// transaction buffer and we don't want to mark them dirty here either.
 		// We do want to consider PIE objects however
-		if (GetOutermost()->HasAnyPackageFlags(PKG_ContainsScript | PKG_CompiledIn) == false || GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_Config))
+		if ((GetOutermost()->HasAnyPackageFlags(PKG_ContainsScript | PKG_CompiledIn) == false || GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_Config)) &&
+			!HasAnyInternalFlags(EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading))
 		{
 			// Attempt to mark the package dirty and save a copy of the object to the transaction
 			// buffer. The save will fail if there isn't a valid transactor, the object isn't

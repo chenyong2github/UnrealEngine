@@ -2212,6 +2212,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 
 bool SaveToTransactionBuffer(UObject* Object, bool bMarkDirty)
 {
+	check(!Object->HasAnyInternalFlags(EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading));
 	bool bSavedToTransactionBuffer = false;
 
 	// Script packages should not end up in the transaction buffer.
@@ -3376,7 +3377,11 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 		(*InClass->ClassConstructor)(FObjectInitializer(Result, Params));
 	}
 	
-	if( GIsEditor && GUndo && (InFlags & RF_Transactional) && !(InFlags & RF_NeedLoad) && !InClass->IsChildOf(UField::StaticClass()) )
+	if (GIsEditor && GUndo && 
+		(InFlags & RF_Transactional) && !(InFlags & RF_NeedLoad) && 
+		!InClass->IsChildOf(UField::StaticClass()) &&
+		// Do not consider object creation in transaction if the object is marked as async or in being async loaded 
+		!Result->HasAnyInternalFlags(EInternalObjectFlags::Async|EInternalObjectFlags::AsyncLoading))
 	{
 		// Set RF_PendingKill and update the undo buffer so an undo operation will set RF_PendingKill on the newly constructed object.
 		Result->MarkPendingKill();

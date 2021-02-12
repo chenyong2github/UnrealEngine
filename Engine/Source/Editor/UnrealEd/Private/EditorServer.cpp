@@ -1082,7 +1082,7 @@ int32 UEditorEngine::BeginTransaction(const TCHAR* TransactionContext, const FTe
 {
 	int32 Index = INDEX_NONE;
 
-	if (Trans)
+	if (CanTransact())
 	{
 		// generate transaction context
 		Index = Trans->Begin(TransactionContext, Description);
@@ -1093,12 +1093,16 @@ int32 UEditorEngine::BeginTransaction(const TCHAR* TransactionContext, const FTe
 
 int32 UEditorEngine::BeginTransaction(const FText& Description)
 {
-	return BeginTransaction(NULL, Description, NULL);
+	return BeginTransaction(nullptr, Description, nullptr);
 }
 
 bool UEditorEngine::CanTransact()
 {
-	return Trans != nullptr;
+	// we can transact if we have a transaction buffer and aren't currently loading packages or  routing postload.
+	// No transaction should be created during loading
+	return Trans != nullptr &&
+		!GIsEditorLoadingPackage &&
+		!FUObjectThreadContext::Get().IsRoutingPostLoad;
 }
 
 int32 UEditorEngine::EndTransaction()
