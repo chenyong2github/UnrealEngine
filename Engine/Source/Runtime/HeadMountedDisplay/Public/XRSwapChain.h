@@ -24,7 +24,9 @@ public:
 	void GenerateMips_RenderThread(FRHICommandListImmediate& RHICmdList);
 	uint32 GetSwapChainIndex_RHIThread() { return SwapChainIndex_RHIThread; }
 
-	virtual void IncrementSwapChainIndex_RHIThread(int64 TimeoutNanoseconds = 0); // Default to no timeout (immediate).
+	virtual void IncrementSwapChainIndex_RHIThread();
+
+	virtual void WaitCurrentImage_RHIThread(int64 TimeoutNanoseconds = 0) {} // Default to no timeout (immediate).
 	virtual void ReleaseCurrentImage_RHIThread() {}
 
 protected:

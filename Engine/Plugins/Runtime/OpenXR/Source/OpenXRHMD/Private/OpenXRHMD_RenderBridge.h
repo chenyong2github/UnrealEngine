@@ -26,7 +26,6 @@ public:
 	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, const FClearValueBinding& ClearValueBinding) = 0;
 
 	/** FRHICustomPresent */
-	virtual void BeginDrawing() override;
 	virtual bool Present(int32& InOutSyncInterval) override;
 
 protected:

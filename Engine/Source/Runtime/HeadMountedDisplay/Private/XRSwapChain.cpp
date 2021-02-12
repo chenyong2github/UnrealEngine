@@ -112,7 +112,7 @@ void FXRSwapChain::GenerateMips_RenderThread(FRHICommandListImmediate& RHICmdLis
 }
 
 
-void FXRSwapChain::IncrementSwapChainIndex_RHIThread(int64 /* TimeoutNanoseconds */)
+void FXRSwapChain::IncrementSwapChainIndex_RHIThread()
 {
 	CheckInRHIThread();
 
