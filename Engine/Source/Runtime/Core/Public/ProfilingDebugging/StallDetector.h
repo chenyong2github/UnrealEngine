@@ -137,6 +137,11 @@ namespace UE
 	{
 	public:
 		/**
+		* Special const value for invalid timestamps, used to detect races of startup/shutdown and threads
+		*/
+		static const double InvalidSeconds;
+
+		/**
 		* Construct the stall detector linking it to it's stats object and take a timestamp
 		*/
 		FStallDetector(FStallDetectorStats& InStats);
@@ -151,7 +156,7 @@ namespace UE
 		* @param bIsComplete			Is this check the one performed at completion of the scope or measurement period?
 		* @param InWhenToCheckSeconds	The timestamp at which to compare the start time to
 		**/
-		void Check(bool bIsComplete, double InWhenToCheckSeconds = 0.0);
+		void Check(bool bIsComplete, double InWhenToCheckSeconds = InvalidSeconds);
 
 		/**
 		* Perform a Check and then reset the timer to the current time.

@@ -28,8 +28,10 @@
 DEFINE_LOG_CATEGORY(LogStall);
 
 /**
-* The reference count for the resources for this API
+* Globals
 **/
+
+// The reference count for the resources for this API
 static uint32 InitCount = 0;
 
 /**
@@ -103,6 +105,7 @@ uint32 UE::FStallDetectorRunnable::Run()
 		double Seconds = FStallDetector::Seconds();
 
 		// Check the detectors
+		if (Seconds != FStallDetector::InvalidSeconds)
 		{
 			FScopeLock ScopeLock(&FStallDetector::GetInstancesSection());
 			for (FStallDetector* Detector : FStallDetector::GetInstances())
@@ -215,18 +218,22 @@ void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedRe
 * Stall Detector
 **/
 
+const double UE::FStallDetector::InvalidSeconds = -1.0;
 FCriticalSection UE::FStallDetector::InstancesSection;
 TSet<UE::FStallDetector*> UE::FStallDetector::Instances;
 
 UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
 	: Stats(InStats)
+	, ThreadId(0)
+	, StartSeconds(InvalidSeconds)
 	, bPersistent(false)
 	, Triggered(false)
 {
-	check(InitCount);
-
-	ThreadId = FPlatformTLS::GetCurrentThreadId();
-	StartSeconds = FStallDetector::Seconds();
+	if (InitCount)
+	{
+		ThreadId = FPlatformTLS::GetCurrentThreadId();
+		StartSeconds = FStallDetector::Seconds();
+	}
 
 	// Add at the end of construction
 	FScopeLock ScopeLock(&InstancesSection);
@@ -241,18 +248,32 @@ UE::FStallDetector::~FStallDetector()
 		Instances.Remove(this);
 	}
 
-	if (!bPersistent)
+	if (InitCount)
 	{
-		Check(true);
+		if (!bPersistent)
+		{
+			Check(true);
+		}
 	}
 }
 
 void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
 {
+	// StartSeconds checks that system was started when this detector was constructed
+	bool bInitialized = InitCount && StartSeconds != InvalidSeconds;
+	if (!bInitialized)
+	{
+		return;
+	}
+
 	double CheckSeconds = InWhenToCheckSeconds;
-	if (InWhenToCheckSeconds == 0.0)
+	if (InWhenToCheckSeconds == InvalidSeconds)
 	{
 		CheckSeconds = FStallDetector::Seconds();
+		if (CheckSeconds == InvalidSeconds)
+		{
+			return;
+		}
 	}
 
 	double DeltaSeconds = CheckSeconds - StartSeconds;
@@ -290,7 +311,18 @@ void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
 
 void UE::FStallDetector::CheckAndReset()
 {
+	// StartSeconds checks that system was started when this detector was constructed
+	bool bInitialized = InitCount && StartSeconds != InvalidSeconds;
+	if (!bInitialized)
+	{
+		return;
+	}
+
 	double CheckSeconds = FStallDetector::Seconds();
+	if (CheckSeconds == InvalidSeconds)
+	{
+		return;
+	}
 
 	// if this is the first call to CheckAndReset
 	if (!bPersistent)
@@ -377,31 +409,32 @@ void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElaps
 
 double UE::FStallDetector::Seconds()
 {
-	check(InitCount);
+	double Result = InvalidSeconds;
 
-	double Result;
-
+	if (InitCount)
+	{
 #if STALL_DETECTOR_HEART_BEAT_CLOCK
-	Result = Runnable->GetClock().Seconds();
+		Result = Runnable->GetClock().Seconds();
 #else
-	Result = FPlatformTime::Seconds();
+		Result = FPlatformTime::Seconds();
 #endif
 
 #if STALL_DETECTOR_DEBUG
-	static double ClockStartSeconds = Result;
-	static double PlatformStartSeconds = FPlatformTime::Seconds();
-	double ClockDelta = Result - ClockStartSeconds;
-	double PlatformDelta = FPlatformTime::Seconds() - PlatformStartSeconds;
-	double Drift = PlatformDelta - ClockDelta;
-	static double LastDrift = Drift;
-	double DriftDelta = Drift - LastDrift;
-	if (DriftDelta > 0.001)
-	{
-		FString ResultString = FString::Printf(TEXT("[FStallDetector] Thread %5d / Platform: %f / Clock: %f / Drift: %f (%f)\n"), FPlatformTLS::GetCurrentThreadId(), PlatformDelta, ClockDelta, Drift, DriftDelta);
-		FPlatformMisc::LocalPrint(ResultString.GetCharArray().GetData());
-		LastDrift = Drift;
-	}
+		static double ClockStartSeconds = Result;
+		static double PlatformStartSeconds = FPlatformTime::Seconds();
+		double ClockDelta = Result - ClockStartSeconds;
+		double PlatformDelta = FPlatformTime::Seconds() - PlatformStartSeconds;
+		double Drift = PlatformDelta - ClockDelta;
+		static double LastDrift = Drift;
+		double DriftDelta = Drift - LastDrift;
+		if (DriftDelta > 0.001)
+		{
+			FString ResultString = FString::Printf(TEXT("[FStallDetector] Thread %5d / Platform: %f / Clock: %f / Drift: %f (%f)\n"), FPlatformTLS::GetCurrentThreadId(), PlatformDelta, ClockDelta, Drift, DriftDelta);
+			FPlatformMisc::LocalPrint(ResultString.GetCharArray().GetData());
+			LastDrift = Drift;
+		}
 #endif
+	}
 
 	return Result;
 }
