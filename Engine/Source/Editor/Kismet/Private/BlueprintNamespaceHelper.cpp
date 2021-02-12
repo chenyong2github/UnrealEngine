@@ -2,8 +2,11 @@
 
 #include "BlueprintNamespaceHelper.h"
 #include "Engine/Blueprint.h"
+#include "BlueprintEditor.h"
 #include "BlueprintEditorSettings.h"
 #include "Settings/EditorProjectSettings.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Toolkits/ToolkitManager.h"
 
 FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBlueprint)
 {
@@ -48,29 +51,57 @@ bool FBlueprintNamespaceHelper::IsIncludedInNamespaceList(const FString& TestNam
 	return false;
 }
 
-static TAutoConsoleVariable<bool> CVarBPEnableNamespaceImportScoping(
-	TEXT("BP.EnableNamespaceImportScoping"),
+// ---
+// @todo_namespaces - Remove CVar flags/sink below after converting to editable 'config' properties
+// ---
+
+static TAutoConsoleVariable<bool> CVarEnableNamespaceFilteringFeatures(
+	TEXT("Editor.EnableNamespaceFilteringFeatures"),
 	false,
-	TEXT("Enable Blueprint namespace import scoping features (experimental)."));
+	TEXT("Enables namespace filtering features in the editor UI (experimental).")
+);
 
-bool FBlueprintNamespaceHelper::IsNamespaceImportScopingEnabled()
-{
-	// @todo - Replace with editor/project setting at some point?
-	return CVarBPEnableNamespaceImportScoping.GetValueOnAnyThread();
-}
-
-static TAutoConsoleVariable<bool> CVarBPEnableNamespaceImportEditorUX(
-	TEXT("BP.EnableNamespaceImportEditorUX"),
+static TAutoConsoleVariable<bool> CVarBPEnableNamespaceImportingFeatures(
+	TEXT("BP.EnableNamespaceImportingFeatures"),
 	false,
-	TEXT("Enables the namespace importing UX in the Blueprint editor (experimental)."));
+	TEXT("Enables namespace importing features in the Blueprint editor (experimental)."));
 
-bool FBlueprintNamespaceHelper::IsNamespaceImportEditorUXEnabled()
+static void UpdateNamespaceFeatureSettingsCVarSinkFunction()
 {
-	if (!IsNamespaceImportScopingEnabled())
+	// Global editor UI settings.
+	UEditorExperimentalSettings* EditorSettingsPtr = GetMutableDefault<UEditorExperimentalSettings>();
+	EditorSettingsPtr->bEnableNamespaceFilteringFeatures = CVarEnableNamespaceFilteringFeatures.GetValueOnGameThread();
+
+	// Blueprint editor settings.
+	UBlueprintEditorSettings* BlueprintEditorSettingsPtr = GetMutableDefault<UBlueprintEditorSettings>();
+	BlueprintEditorSettingsPtr->bEnableNamespaceImportingFeatures = CVarBPEnableNamespaceImportingFeatures.GetValueOnGameThread();
+
+	// Refresh all relevant open Blueprint editor UI elements.
+	// @todo_namespaces - Move this into PostEditChangeProperty() on the appropriate settings object(s).
+	if (GEditor)
 	{
-		return false;
+		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets();
+			for (UObject* Asset : EditedAssets)
+			{
+				if (Asset && Asset->IsA<UBlueprint>())
+				{
+					TSharedPtr<IToolkit> AssetEditorPtr = FToolkitManager::Get().FindEditorForAsset(Asset);
+					if (AssetEditorPtr.IsValid() && AssetEditorPtr->IsBlueprintEditor())
+					{
+						TSharedPtr<IBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<IBlueprintEditor>(AssetEditorPtr);
+						BlueprintEditorPtr->RefreshMyBlueprint();
+						BlueprintEditorPtr->RefreshInspector();
+					}
+				}
+			}
+		}
 	}
-
-	// @todo - Replace with editor/project setting at some point?
-	return CVarBPEnableNamespaceImportEditorUX.GetValueOnAnyThread();
 }
+
+static FAutoConsoleVariableSink CVarUpdateNamespaceFeatureSettingsSink(
+	FConsoleCommandDelegate::CreateStatic(&UpdateNamespaceFeatureSettingsCVarSinkFunction)
+);
+
+// ---

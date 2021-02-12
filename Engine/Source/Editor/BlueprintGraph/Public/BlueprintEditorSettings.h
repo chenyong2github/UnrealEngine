@@ -101,6 +101,11 @@ public:
 
 // Experimental
 public:
+	/** Whether to enable namespace importing features in the Blueprint editor */
+	// @todo_namespaces - Make this a non-transient editable config property.
+	UPROPERTY(Transient/*, Category = Experimental*/)
+	bool bEnableNamespaceImportingFeatures;
+
 	// The list of namespaces to always expose in any Blueprint (local per-user)
 	UPROPERTY(EditAnywhere, config, Category = Experimental)
 	TArray<FString> NamespacesToAlwaysInclude;

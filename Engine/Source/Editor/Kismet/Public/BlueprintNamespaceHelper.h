@@ -33,12 +33,6 @@ public:
 
 	bool IsIncludedInNamespaceList(const FString& TestNamespace) const;
 
-	/** Whether Blueprint namespace-based scoping features are enabled. */
-	static bool IsNamespaceImportScopingEnabled();
-
-	/** Whether the UX for importing namespaces in the Blueprint editor is enabled. */
-	static bool IsNamespaceImportEditorUXEnabled();
-
 private:
 	// Complete list of all fully-qualified namespace path identifiers for the associated Blueprint.
 	TSet<FString> FullyQualifiedListOfNamespaces;

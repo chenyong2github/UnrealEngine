@@ -137,6 +137,11 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Content Browser", meta = (DisplayName = "Enable support for long paths (> 260 characters)"))
 	bool bEnableLongPathsSupport;
 
+	/** Whether to enable namespace filtering features in the editor UI */
+	// @todo_namespaces - Make this a non-transient editable config property.
+	UPROPERTY(Transient/*, Category = UserInterface*/)
+	bool bEnableNamespaceFilteringFeatures;
+
 	/**
 	 * Returns an event delegate that is executed when a setting has changed.
 	 *
