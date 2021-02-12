@@ -437,21 +437,18 @@ void RenderDirectLightIntoLumenCards(
 	const bool bDynamicallyShadowed = ShadowSetup.DenseShadowMap != nullptr;
 
 	FDistanceFieldObjectBufferParameters ObjectBufferParameters;
-	ObjectBufferParameters.SceneObjectBounds = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-	ObjectBufferParameters.SceneObjectData = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-	ObjectBufferParameters.NumSceneObjects = Scene->DistanceFieldSceneData.NumObjectsInBuffer;
+	DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData, ObjectBufferParameters);
 
 	FLightTileIntersectionParameters LightTileIntersectionParameters;
 	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
 	FMatrix WorldToMeshSDFShadowValue = FMatrix::Identity;
-
 
 	const bool bLumenUseHardwareRayTracedShadow = Lumen::UseHardwareRayTracedShadows(View) && bShadowed;
 	const bool bTraceMeshSDFs = bShadowed 
 		&& LumenLightType == ELumenLightType::Directional 
 		&& DoesPlatformSupportDistanceFieldShadowing(View.GetShaderPlatform())
 		&& GLumenDirectLightingOffscreenShadowingTraceMeshSDFs != 0
-		&& Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
+		&& ObjectBufferParameters.NumSceneObjects > 0;
 
 	int32 VirtualShadowMapId = -1;
 	if (bDynamicallyShadowed

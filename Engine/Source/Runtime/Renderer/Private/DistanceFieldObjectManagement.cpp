@@ -61,6 +61,23 @@ void TDistanceFieldObjectBuffers<PrimitiveType>::Initialize()
 {
 }
 
+void DistanceField::SetupObjectBufferParameters(const FDistanceFieldSceneData& DistanceFieldSceneData, FDistanceFieldObjectBufferParameters& ObjectBufferParameters)
+{
+	ObjectBufferParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+
+	if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
+	{
+		check(DistanceFieldSceneData.GetCurrentObjectBuffers());
+		ObjectBufferParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+		ObjectBufferParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+	}
+	else
+	{
+		ObjectBufferParameters.SceneObjectBounds = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
+		ObjectBufferParameters.SceneObjectData = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
+	}
+}
+
 const uint32 UpdateObjectsGroupSize = 64;
 
 struct FParallelUpdateRangeDFO

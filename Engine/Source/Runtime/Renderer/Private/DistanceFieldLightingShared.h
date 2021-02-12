@@ -91,6 +91,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldObjectBufferParameters, )
 	SHADER_PARAMETER(uint32, NumSceneObjects)
 END_SHADER_PARAMETER_STRUCT()
 
+namespace DistanceField
+{
+	void SetupObjectBufferParameters(const FDistanceFieldSceneData& DistanceFieldSceneData, FDistanceFieldObjectBufferParameters& ObjectBufferParameters);
+};
+
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldObjectBufferParameters
 {
