@@ -46,10 +46,7 @@ FEditorSessionSourceFilterService::FEditorSessionSourceFilterService()
 	FilterCollection = FTraceSourceFiltering::Get().GetFilterCollection();
 	FilterCollection->GetSourceFiltersUpdated().AddRaw(this, &FEditorSessionSourceFilterService::StateChanged);
 
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().AddRaw(this, &FEditorSessionSourceFilterService::OnObjectsReplaced);
-	}
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FEditorSessionSourceFilterService::OnObjectsReplaced);
 
 	// Register delegate to catch engine-level trace filtering system changes 
 	FTraceWorldFiltering::OnFilterStateChanged().AddRaw(this, &FEditorSessionSourceFilterService::StateChanged);	
@@ -59,10 +56,7 @@ FEditorSessionSourceFilterService::FEditorSessionSourceFilterService()
 
 FEditorSessionSourceFilterService::~FEditorSessionSourceFilterService()
 {
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().RemoveAll(this);
-	}
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	
 	FilterCollection->GetSourceFiltersUpdated().RemoveAll(this);
 	FTraceWorldFiltering::OnFilterStateChanged().RemoveAll(this);

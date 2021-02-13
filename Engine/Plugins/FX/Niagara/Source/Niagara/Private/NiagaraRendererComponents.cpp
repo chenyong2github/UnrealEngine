@@ -143,12 +143,9 @@ FNiagaraRendererComponents::FNiagaraRendererComponents(ERHIFeatureLevel::Type Fe
 
 	ComponentPool.Reserve(Properties->ComponentCountLimit);
 
-#if WITH_EDITORONLY_DATA
-	if (GEditor)
-	{
-		// for the component renderer we need to listen for class changes so we can clean up old component renderer instances
-		GEditor->OnObjectsReplaced().AddRaw(this, &FNiagaraRendererComponents::OnObjectsReplacedCallback);
-	}
+#if WITH_EDITOR
+	// for the component renderer we need to listen for class changes so we can clean up old component renderer instances
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FNiagaraRendererComponents::OnObjectsReplacedCallback);
 #endif
 }
 
@@ -179,12 +176,9 @@ void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 				OwnerActor->Destroy();
 			}
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			// TODO: This has the potential to race, as renderers are destroyed on the render thread, but it should be a rarity
-			if (GEditor)
-			{
-				GEditor->OnObjectsReplaced().RemoveAll(this);
-			}
+			FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 #endif
 		}
 	);
@@ -577,7 +571,7 @@ FNiagaraRendererComponents::FComponentPropertyAddress FNiagaraRendererComponents
 	return FComponentPropertyAddress();
 }
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 
 void FNiagaraRendererComponents::OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
 {

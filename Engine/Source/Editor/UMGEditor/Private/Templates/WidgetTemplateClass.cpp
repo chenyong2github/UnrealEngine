@@ -17,7 +17,7 @@ FWidgetTemplateClass::FWidgetTemplateClass()
 	: WidgetClass(nullptr)
 {
 	// register for any objects replaced
-	GEditor->OnObjectsReplaced().AddRaw(this, &FWidgetTemplateClass::OnObjectsReplaced);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FWidgetTemplateClass::OnObjectsReplaced);
 }
 
 FWidgetTemplateClass::FWidgetTemplateClass(TSubclassOf<UWidget> InWidgetClass)
@@ -26,7 +26,7 @@ FWidgetTemplateClass::FWidgetTemplateClass(TSubclassOf<UWidget> InWidgetClass)
 	Name = WidgetClass->GetDisplayNameText();
 
 	// register for any objects replaced
-	GEditor->OnObjectsReplaced().AddRaw(this, &FWidgetTemplateClass::OnObjectsReplaced);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FWidgetTemplateClass::OnObjectsReplaced);
 }
 
 FWidgetTemplateClass::FWidgetTemplateClass(const FAssetData& InWidgetAssetData, TSubclassOf<UWidget> InWidgetClass)
@@ -45,7 +45,7 @@ FWidgetTemplateClass::FWidgetTemplateClass(const FAssetData& InWidgetAssetData, 
 
 FWidgetTemplateClass::~FWidgetTemplateClass()
 {
-	GEditor->OnObjectsReplaced().RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 }
 
 FText FWidgetTemplateClass::GetCategory() const

@@ -112,11 +112,8 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 #endif
 	, TemplateComponent(nullptr)
 {
-#if WITH_EDITORONLY_DATA
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().AddUObject(this, &UNiagaraComponentRendererProperties::OnObjectsReplacedCallback);
-	}
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UNiagaraComponentRendererProperties::OnObjectsReplacedCallback);
 #endif
 
 	AttributeBindings.Reserve(2);
@@ -126,11 +123,8 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 
 UNiagaraComponentRendererProperties::~UNiagaraComponentRendererProperties()
 {
-#if WITH_EDITORONLY_DATA
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().RemoveAll(this);
-	}
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 #endif
 }
 
@@ -320,6 +314,8 @@ void UNiagaraComponentRendererProperties::CreateTemplateComponent()
 	TemplateComponent->SetAbsolute(IsWorldSpace, IsWorldSpace, IsWorldSpace);
 }
 
+#if WITH_EDITOR
+
 void UNiagaraComponentRendererProperties::OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap)
 {
 	// When a custom component class is recompiled in the editor, we need to switch to the new template component object
@@ -333,6 +329,8 @@ void UNiagaraComponentRendererProperties::OnObjectsReplacedCallback(const TMap<U
 		}		
 	}
 }
+
+#endif
 
 bool UNiagaraComponentRendererProperties::HasPropertyBinding(FName PropertyName) const
 {

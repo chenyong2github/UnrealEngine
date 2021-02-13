@@ -68,7 +68,7 @@ void IMeshPaintEdMode::Enter()
 	bWasSelectionLockedOnStart = GEdSelectionLock;	
 
 	// Catch when objects are replaced when a construction script is rerun
-	GEditor->OnObjectsReplaced().AddSP(this, &IMeshPaintEdMode::OnObjectsReplaced);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &IMeshPaintEdMode::OnObjectsReplaced);
 
 	// Hook into pre/post world save, so that the original collision volumes can be temporarily reinstated
 	FEditorDelegates::PreSaveWorld.AddSP(this, &IMeshPaintEdMode::OnPreSaveWorld);
@@ -141,7 +141,7 @@ void IMeshPaintEdMode::Exit()
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
 	FEditorDelegates::PreSaveWorld.RemoveAll(this);
 	FEditorDelegates::PostSaveWorld.RemoveAll(this);
-	GEditor->OnObjectsReplaced().RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	USelection::SelectionChangedEvent.Remove(SelectionChangedHandle);
 
 	// Call parent implementation

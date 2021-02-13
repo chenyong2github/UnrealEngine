@@ -383,7 +383,7 @@ void FEdModeFoliage::Enter()
 	FEdMode::Enter();
 
 	// register for any objects replaced
-	GEditor->OnObjectsReplaced().AddRaw(this, &FEdModeFoliage::OnObjectsReplaced);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FEdModeFoliage::OnObjectsReplaced);
 	FEditorDelegates::EndPIE.AddRaw(this, &FEdModeFoliage::OnEndPIE);
 
 
@@ -481,7 +481,7 @@ void FEdModeFoliage::Exit()
 		AssetRegistryModule.Get().OnAssetRemoved().RemoveAll(this);
 	}
 
-	GEditor->OnObjectsReplaced().RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 
 
 	// Remove the brush

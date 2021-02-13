@@ -132,7 +132,7 @@ FControlRigEditMode::FControlRigEditMode()
 	BindCommands();
 
 #if WITH_EDITOR
-	GEditor->OnObjectsReplaced().AddRaw(this, &FControlRigEditMode::OnObjectsReplaced);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FControlRigEditMode::OnObjectsReplaced);
 #endif
 }
 
@@ -159,10 +159,7 @@ FControlRigEditMode::~FControlRigEditMode()
 	}
 
 #if WITH_EDITOR
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().RemoveAll(this);
-	}
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 #endif
 }
 

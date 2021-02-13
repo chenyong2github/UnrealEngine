@@ -187,22 +187,7 @@ void FMovieSceneToolsModule::StartupModule()
 		}
 	};
 
-	if (GEditor)
-	{
-		this->OnObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddLambda(OnObjectsReplaced);
-	}
-	else
-	{
-		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda(
-			[this, OnObjectsReplaced]
-			{
-				if (GEditor)
-				{
-					this->OnObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddLambda(OnObjectsReplaced);
-				}
-			}
-		);
-	}
+	OnObjectsReplacedHandle = FCoreUObjectDelegates::OnObjectsReplaced.AddLambda(OnObjectsReplaced);
 
 	// EditorStyle must be initialized by now
 	FModuleManager::Get().LoadModule("EditorStyle");
@@ -230,10 +215,7 @@ void FMovieSceneToolsModule::ShutdownModule()
 		SettingsModule->UnregisterSettings("Project", "Editor", "Level Sequences");
 	}
 
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().Remove(OnObjectsReplacedHandle);
-	}
+	FCoreUObjectDelegates::OnObjectsReplaced.Remove(OnObjectsReplacedHandle);
 
 	if (!FModuleManager::Get().IsModuleLoaded("Sequencer"))
 	{

@@ -91,18 +91,12 @@ FComponentTransformDetails::FComponentTransformDetails( const TArray< TWeakObjec
 	, HiddenFieldMask( 0 )
 {
 	GConfig->GetBool(TEXT("SelectionDetails"), TEXT("PreserveScaleRatio"), bPreserveScaleRatio, GEditorPerProjectIni);
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().AddRaw(this, &FComponentTransformDetails::OnObjectsReplaced);
-	}
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FComponentTransformDetails::OnObjectsReplaced);
 }
 
 FComponentTransformDetails::~FComponentTransformDetails()
 {
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().RemoveAll(this);
-	}
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 }
 
 TSharedRef<SWidget> FComponentTransformDetails::BuildTransformFieldLabel( ETransformField::Type TransformField )

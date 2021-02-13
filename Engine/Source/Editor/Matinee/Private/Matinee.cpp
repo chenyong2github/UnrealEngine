@@ -976,7 +976,7 @@ void FMatinee::InitMatinee(const EToolkitMode::Type Mode, const TSharedPtr< clas
 	OnActorMovedDelegateHandle = GEngine->OnActorMoved().AddRaw(this, &FMatinee::OnActorMoved);
 
 	// register for any objects replaced
-	GEditor->OnObjectsReplaced().AddSP(this, &FMatinee::OnObjectsReplaced);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &FMatinee::OnObjectsReplaced);
 
 	// Make sure any particle replay tracks are filled in with the correct state
 	UpdateParticleReplayTracks();
@@ -2002,7 +2002,7 @@ void FMatinee::OnClose()
 
 	// Unregister call back events
 	GEngine->OnActorMoved().Remove(OnActorMovedDelegateHandle);
-	GEditor->OnObjectsReplaced().RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 
 	// Restore the perspective viewport audio settings when matinee closes.
 	SetAudioRealtimeOverride(false);

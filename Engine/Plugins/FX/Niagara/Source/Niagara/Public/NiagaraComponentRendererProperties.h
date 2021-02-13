@@ -151,6 +151,8 @@ private:
 
 	bool HasPropertyBinding(FName PropertyName) const;
 
+#if WITH_EDITOR
 	/** Callback for whenever any blueprint components are reinstanced */
 	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
+#endif
 };

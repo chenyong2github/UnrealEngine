@@ -39,9 +39,9 @@ FPropertyTable::FPropertyTable()
 
 FPropertyTable::~FPropertyTable()
 {
-	if (GEditor && ObjectsReplacedHandle.IsValid())
+	if (ObjectsReplacedHandle.IsValid())
 	{
-		GEditor->OnObjectsReplaced().Remove(ObjectsReplacedHandle);
+		FCoreUObjectDelegates::OnObjectsReplaced.Remove(ObjectsReplacedHandle);
 	}
 }
 
@@ -1021,9 +1021,9 @@ void FPropertyTable::SetObjects( const TArray< TWeakObjectPtr< UObject > >& Obje
 	UpdateRows();
 
 	// Bind to object delegates, we can't do this at construction because the shared pointer isn't set up yet
-	if (GEditor && !ObjectsReplacedHandle.IsValid())
+	if (!ObjectsReplacedHandle.IsValid())
 	{
-		ObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddSP(this, &FPropertyTable::OnObjectsReplaced);
+		ObjectsReplacedHandle = FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &FPropertyTable::OnObjectsReplaced);
 	}
 }
 

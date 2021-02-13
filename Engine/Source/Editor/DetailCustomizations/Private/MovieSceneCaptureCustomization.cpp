@@ -17,14 +17,14 @@ TSharedRef<IDetailCustomization> FMovieSceneCaptureCustomization::MakeInstance()
 
 FMovieSceneCaptureCustomization::FMovieSceneCaptureCustomization()
 {
-	ObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddRaw(this, &FMovieSceneCaptureCustomization::OnObjectsReplaced);
+	ObjectsReplacedHandle = FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FMovieSceneCaptureCustomization::OnObjectsReplaced);
 	PropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FMovieSceneCaptureCustomization::OnObjectPostEditChange);
 }
 
 FMovieSceneCaptureCustomization::~FMovieSceneCaptureCustomization()
 {
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(PropertyChangedHandle);
-	GEditor->OnObjectsReplaced().Remove(ObjectsReplacedHandle);
+	FCoreUObjectDelegates::OnObjectsReplaced.Remove(ObjectsReplacedHandle);
 }
 
 void FMovieSceneCaptureCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)

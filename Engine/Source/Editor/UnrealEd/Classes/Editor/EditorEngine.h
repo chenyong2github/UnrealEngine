@@ -597,12 +597,9 @@ public:
 	void BroadcastBlueprintReinstanced() { BlueprintReinstanced.Broadcast(); }
 
 	/** Called when UObjects have been replaced to allow others a chance to fix their references. */
-	// TODO: Deprecate in favor of using FCoreUObjectDelegates::OnObjectsReplaced directly?
 	using FObjectsReplacedEvent = FCoreUObjectDelegates::FOnObjectsReplaced;
+	UE_DEPRECATED(5.0, "Use FCoreUObjectDelegates::OnObjectsReplaced instead.")
 	FObjectsReplacedEvent& OnObjectsReplaced() { return FCoreUObjectDelegates::OnObjectsReplaced; }
-
-	/**	Broadcasts that objects have been replaced*/
-	void BroadcastBlueprintCompiled(const TMap<UObject*, UObject*>& ReplacementMap) { FCoreUObjectDelegates::OnObjectsReplaced.Broadcast(ReplacementMap); }
 
 	/** Called when a package with data-driven classes becomes loaded or unloaded */
 	DECLARE_EVENT( UEditorEngine, FClassPackageLoadedOrUnloadedEvent );

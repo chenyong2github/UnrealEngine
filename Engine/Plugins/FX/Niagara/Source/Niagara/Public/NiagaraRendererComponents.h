@@ -56,7 +56,7 @@ private:
 	};
 
 	void ResetComponentPool(bool bResetOwner);
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
 #endif
 	

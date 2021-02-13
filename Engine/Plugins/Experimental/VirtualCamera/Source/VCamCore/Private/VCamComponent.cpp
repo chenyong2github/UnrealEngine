@@ -54,10 +54,7 @@ UVCamComponent::UVCamComponent()
 		FEditorDelegates::BeginPIE.AddUObject(this, &UVCamComponent::OnBeginPIE);
 		FEditorDelegates::EndPIE.AddUObject(this, &UVCamComponent::OnEndPIE);
 
-		if (GEditor)
-		{
-			GEditor->OnObjectsReplaced().AddUObject(this, &UVCamComponent::HandleObjectReplaced);
-		}
+		FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UVCamComponent::HandleObjectReplaced);
 #endif
 	}
 }
@@ -85,10 +82,7 @@ void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	FEditorDelegates::BeginPIE.RemoveAll(this);
 	FEditorDelegates::EndPIE.RemoveAll(this);
 
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().RemoveAll(this);
-	}
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 #endif
 }
 

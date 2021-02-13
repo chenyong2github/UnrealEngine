@@ -347,7 +347,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	}
 
 	{
-		FDelegateHandle OnObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddLambda([&](const TMap<UObject*, UObject*>& ReplacementMap)
+		FDelegateHandle OnObjectsReplacedHandle = FCoreUObjectDelegates::OnObjectsReplaced.AddLambda([&](const TMap<UObject*, UObject*>& ReplacementMap)
 		{
 			// Close sequencer if any of the objects being replaced is itself
 			TArray<UPackage*> AllSequences;
@@ -392,7 +392,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 			PreAnimatedState.OnObjectsReplaced(ReplacementMap);
 
 		});
-		AcquiredResources.Add([=] { GEditor->OnObjectsReplaced().Remove(OnObjectsReplacedHandle); });
+		AcquiredResources.Add([=] { FCoreUObjectDelegates::OnObjectsReplaced.Remove(OnObjectsReplacedHandle); });
 	}
 
 

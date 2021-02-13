@@ -618,11 +618,8 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 
 	OnPropertyChangedHandle = Generator->OnFinishedChangingProperties().AddSP( this, &SDataprepDetailsView::OnPropertyChanged );
 
-	if ( GEditor )
-	{
-		OnObjectReplacedHandle = GEditor->OnObjectsReplaced().AddSP(this, &SDataprepDetailsView::OnObjectReplaced);
-		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP( this, &SDataprepDetailsView::OnObjectTransacted );
-	}
+	OnObjectReplacedHandle = FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &SDataprepDetailsView::OnObjectReplaced);
+	OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP( this, &SDataprepDetailsView::OnObjectTransacted );
 
 	Construct();
 }
@@ -696,11 +693,8 @@ SDataprepDetailsView::~SDataprepDetailsView()
 {
 	Generator->OnFinishedChangingProperties().Remove( OnPropertyChangedHandle );
 
-	if ( GEditor )
-	{
-		GEditor->OnObjectsReplaced().Remove( OnObjectReplacedHandle );
-		FCoreUObjectDelegates::OnObjectTransacted.Remove( OnObjectTransactedHandle );
-	}
+	FCoreUObjectDelegates::OnObjectsReplaced.Remove( OnObjectReplacedHandle );
+	FCoreUObjectDelegates::OnObjectTransacted.Remove( OnObjectTransactedHandle );
 
 	if ( UDataprepAsset* DataprepAsset = DataprepAssetForParameterization.Get() )
 	{

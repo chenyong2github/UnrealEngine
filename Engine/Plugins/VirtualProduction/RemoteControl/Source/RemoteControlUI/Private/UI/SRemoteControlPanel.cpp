@@ -1115,7 +1115,7 @@ void SRemoteControlPanel::RegisterEvents()
 		FEditorDelegates::PostPIEStarted.AddSP(this, &SRemoteControlPanel::OnPieEvent);
 		FEditorDelegates::EndPIE.AddSP(this, &SRemoteControlPanel::OnPieEvent);
 
-		GEditor->OnObjectsReplaced().AddSP(this, &SRemoteControlPanel::OnObjectsReplaced);
+		FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &SRemoteControlPanel::OnObjectsReplaced);
 		GEditor->OnBlueprintReinstanced().AddSP(this, &SRemoteControlPanel::RefreshBlueprintLibraryNodes);
 	}
 }
@@ -1125,7 +1125,7 @@ void SRemoteControlPanel::UnregisterEvents()
 	if (GEditor)
 	{
 		GEditor->OnBlueprintReinstanced().RemoveAll(this);
-		GEditor->OnObjectsReplaced().RemoveAll(this);
+		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 
 		FEditorDelegates::EndPIE.RemoveAll(this);
 		FEditorDelegates::PostPIEStarted.RemoveAll(this);
