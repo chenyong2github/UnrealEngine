@@ -532,9 +532,8 @@ class UChaosWheeledVehicleSimulation : public UChaosVehicleSimulation
 {
 public:
 
-	UChaosWheeledVehicleSimulation(TArray<class UChaosVehicleWheel*>& WheelsIn, TArray<FPhysicsConstraintHandle>& ConstraintHandlesIn)
+	UChaosWheeledVehicleSimulation(TArray<class UChaosVehicleWheel*>& WheelsIn)
 		: Wheels(WheelsIn)
-		, ConstraintHandles(ConstraintHandlesIn)
 	{
 
 	}
@@ -549,6 +548,8 @@ public:
 
 		WheelState.Init(PVehicle->Wheels.Num());
 	}
+
+	virtual void UpdateConstraintHandles(TArray<FPhysicsConstraintHandle>& ConstraintHandlesIn) override;
 
 	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle) override;
 
@@ -590,7 +591,7 @@ public:
 
 	FWheelState WheelState;	/** Cached state that holds wheel data for this frame */
 
-	TArray<FPhysicsConstraintHandle>& ConstraintHandles;
+	TArray<FPhysicsConstraintHandle> ConstraintHandles;
 
 };
 
@@ -747,7 +748,7 @@ protected:
 	virtual TUniquePtr<Chaos::FSimpleWheeledVehicle> CreatePhysicsVehicle() override
 	{
 		// Make the Vehicle Simulation class that will be updated from the physics thread async callback
-		VehicleSimulationPT = MakeUnique<UChaosWheeledVehicleSimulation>(Wheels, ConstraintHandles);
+		VehicleSimulationPT = MakeUnique<UChaosWheeledVehicleSimulation>(Wheels);
 
 		return UChaosVehicleMovementComponent::CreatePhysicsVehicle();
 	}

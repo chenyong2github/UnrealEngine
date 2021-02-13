@@ -682,6 +682,8 @@ public:
 		PVehicle = MoveTemp(PVehicleIn);
 	}
 
+	virtual void UpdateConstraintHandles(TArray<FPhysicsConstraintHandle>& ConstraintHandlesIn) {}
+
 	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
 	/** Advance the vehicle simulation */

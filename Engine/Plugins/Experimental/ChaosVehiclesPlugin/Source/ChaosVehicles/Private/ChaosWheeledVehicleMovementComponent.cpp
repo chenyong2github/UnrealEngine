@@ -905,6 +905,12 @@ void UChaosWheeledVehicleSimulation::FillOutputState(FChaosVehicleAsyncOutput& O
 
 }
 
+void UChaosWheeledVehicleSimulation::UpdateConstraintHandles(TArray<FPhysicsConstraintHandle>& ConstraintHandlesIn)
+{
+	UChaosVehicleSimulation::UpdateConstraintHandles(ConstraintHandlesIn);
+	ConstraintHandles = ConstraintHandlesIn;
+}
+
 /**
  * UChaosWheeledVehicleMovementComponent
  */
@@ -984,50 +990,43 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 							}
 						}
 
-						if (!GWheeledVehicleDebugParams.DisableSuspensionConstraint)
-						{
-							FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
-
-							FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
-								{
-#if WITH_CHAOS
-									const FVector LocalWheel = GetWheelRestingPosition(WheelSetup);
-									FPhysicsConstraintHandle ConstraintHandle = FPhysicsInterface::CreateSuspension(Chassis, LocalWheel);
-
-									if (ConstraintHandle.IsValid())
-									{
-										UChaosVehicleWheel* Wheel = Wheels[WheelIdx];
-										check(Wheel);
-										if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
-										{
-											Constraint->SetHardstopStiffness(1.0f);
-											Constraint->SetSpringStiffness(Wheel->SpringRate * 0.25f);
-											Constraint->SetSpringPreload(Wheel->SpringPreload);
-											Constraint->SetSpringDamping(Wheel->SuspensionDampingRatio * 5.0f);
-											Constraint->SetMinLength(-Wheel->SuspensionMaxRaise);
-											Constraint->SetMaxLength(Wheel->SuspensionMaxDrop);
-											Constraint->SetAxis(-Wheel->SuspensionAxis);
-										}
-
-										ConstraintHandles.Add(ConstraintHandle);
-										if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
-										{
-											Constraint->SetHardstopStiffness(1.0f);
-											Constraint->SetSpringStiffness(Wheel->SpringRate * 0.25f);
-											Constraint->SetSpringPreload(Wheel->SpringPreload);
-											Constraint->SetSpringDamping(Wheel->SuspensionDampingRatio * 5.0f);
-											Constraint->SetMinLength(-Wheel->SuspensionMaxRaise);
-											Constraint->SetMaxLength(Wheel->SuspensionMaxDrop);
-											Constraint->SetAxis(-Wheel->SuspensionAxis);
-										}
-									}
-#endif // WITH_CHAOS
-								});
-						}
 					}
+
+					if (!GWheeledVehicleDebugParams.DisableSuspensionConstraint)
+					{
+						FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
+
+						FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+							{
+#if WITH_CHAOS
+								const FVector LocalWheel = GetWheelRestingPosition(WheelSetup);
+								FPhysicsConstraintHandle ConstraintHandle = FPhysicsInterface::CreateSuspension(Chassis, LocalWheel);
+
+								if (ConstraintHandle.IsValid())
+								{
+									UChaosVehicleWheel* Wheel = Wheels[WheelIdx];
+									check(Wheel);
+									ConstraintHandles.Add(ConstraintHandle);
+									if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
+									{
+										Constraint->SetHardstopStiffness(1.0f);
+										Constraint->SetSpringStiffness(Chaos::MToCm(Wheel->SpringRate) * 0.25f);
+										Constraint->SetSpringPreload(Chaos::MToCm(Wheel->SpringPreload));
+										Constraint->SetSpringDamping(Wheel->SuspensionDampingRatio * 5.0f);
+										Constraint->SetMinLength(-Wheel->SuspensionMaxRaise);
+										Constraint->SetMaxLength(Wheel->SuspensionMaxDrop);
+										Constraint->SetAxis(-Wheel->SuspensionAxis);
+									}
+								}
+#endif // WITH_CHAOS
+							});
+					}
+
 				}
 			}
 		}
+
+		VehicleSimulationPT->UpdateConstraintHandles(ConstraintHandles); // TODO: think of a better way to communicate this data
 
 		Mesh->KinematicBonesUpdateType = EKinematicBonesUpdateToPhysics::SkipSimulatingBones;
 
