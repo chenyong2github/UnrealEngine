@@ -405,7 +405,11 @@ void FChaosEngineInterface::SetSendsSleepNotifies_AssumesLocked(const FPhysicsAc
 
 void FChaosEngineInterface::PutToSleep_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	if(InActorReference->GetGameThreadAPI().ObjectState() == Chaos::EObjectStateType::Dynamic)
+	// NOTE: We want to set the state whether or not it's asleep - if we currently think we're
+	// asleep but the physics thread has queued up a wake event, then we still need to call
+	// SetObjectState, so that this manual call will take priority.
+	Chaos::FRigidBodyHandle_External& BodyHandle_External = InActorReference->GetGameThreadAPI();
+	if (BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Dynamic || BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Sleeping)
 	{
 		InActorReference->GetGameThreadAPI().SetObjectState(Chaos::EObjectStateType::Sleeping);
 	}
@@ -414,8 +418,11 @@ void FChaosEngineInterface::PutToSleep_AssumesLocked(const FPhysicsActorHandle& 
 
 void FChaosEngineInterface::WakeUp_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
+	// NOTE: We want to set the state whether or not it's asleep - if we currently think we're
+	// dynamic but the physics thread has queued up a sleep event, then we still need to call
+	// SetObjectState, so that this manual call will take priority.
 	Chaos::FRigidBodyHandle_External& BodyHandle_External = InActorReference->GetGameThreadAPI();
-	if(BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Sleeping)
+	if(BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Dynamic || BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Sleeping)
 	{
 		BodyHandle_External.SetObjectState(Chaos::EObjectStateType::Dynamic);
 		BodyHandle_External.ClearEvents();
