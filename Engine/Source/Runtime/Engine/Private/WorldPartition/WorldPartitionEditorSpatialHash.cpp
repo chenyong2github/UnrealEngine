@@ -5,6 +5,7 @@
 #include "WorldPartition/WorldPartitionEditorCell.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
@@ -27,6 +28,10 @@ void UWorldPartitionEditorSpatialHash::Initialize()
 
 	AlwaysLoadedCell = NewObject<UWorldPartitionEditorCell>(this, TEXT("AlwaysLoadedCell"), RF_Transient);
 	AlwaysLoadedCell->Bounds.Init();
+
+	FHashBuilder EditorGridConfigHashBuilder;
+	EditorGridConfigHashBuilder << CellSize;
+	GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridConfigHash(EditorGridConfigHashBuilder.GetHash());
 }
 
 void UWorldPartitionEditorSpatialHash::SetDefaultValues()

@@ -142,6 +142,11 @@ void FWorldPartitionEditorModule::SetConversionPromptEnabled(bool bEnabled)
 	GetMutableDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt = bEnabled;
 }
 
+bool FWorldPartitionEditorModule::GetEnableLoadingOfLastLoadedCells() const
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->bEnableLoadingOfLastLoadedCells;
+}
+	
 float FWorldPartitionEditorModule::GetAutoCellLoadingMaxWorldSize() const
 {
 	return GetDefault<UWorldPartitionEditorSettings>()->AutoCellLoadingMaxWorldSize;

@@ -43,6 +43,11 @@ public:
 	/**
 	 *
 	 */
+	virtual bool GetEnableLoadingOfLastLoadedCells() const override;
+
+	/**
+	 *
+	 */
 	virtual float GetAutoCellLoadingMaxWorldSize() const override;
 
 	/**

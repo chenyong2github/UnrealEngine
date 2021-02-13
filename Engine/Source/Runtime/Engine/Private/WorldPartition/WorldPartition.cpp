@@ -31,6 +31,7 @@
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
+#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "Modules/ModuleManager.h"
 #endif //WITH_EDITOR
 
@@ -84,6 +85,17 @@ struct FWorldPartionCellUpdateContext
 				{
 					WorldPartition->WorldPartitionEditor->Refresh();
 				}
+
+				TArray<FVector> EditorGridLastLoadedCells;
+				WorldPartition->EditorHash->ForEachCell([this, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
+				{
+					if ((Cell != WorldPartition->EditorHash->GetAlwaysLoadedCell()) && Cell->bLoaded)
+					{
+						EditorGridLastLoadedCells.Add(Cell->Bounds.GetCenter());
+					}
+				});
+
+				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLastLoadedCells(WorldPartition->GetWorld(), EditorGridLastLoadedCells);
 			}
 		}
 	}
@@ -257,6 +269,20 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				{
 					UpdateLoadingEditorCell(Cell, true);
 				});
+			}
+
+			// Load last loaded cells
+			if (WorldPartitionEditorModule.GetEnableLoadingOfLastLoadedCells())
+			{
+				const TArray<FVector>& EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLastLoadedCells(InWorld);
+
+				for (const FVector& EditorGridLastLoadedCellCenter : EditorGridLastLoadedCells)
+				{
+					EditorHash->ForEachIntersectingCell(FBox(&EditorGridLastLoadedCellCenter, 1), [this](UWorldPartitionEditorCell* Cell)
+					{
+						UpdateLoadingEditorCell(Cell, true);
+					});
+				}
 			}
 		}
 	}
@@ -473,6 +499,8 @@ bool UWorldPartition::RefreshLoadedEditorCells()
 
 void UWorldPartition::UnloadEditorCells(const FBox& Box)
 {
+	FWorldPartionCellUpdateContext CellUpdateContext(this);
+
 	auto GetCellsToUnload = [this, Box](TArray<UWorldPartitionEditorCell*>& CellsToUnload)
 	{
 		return EditorHash->GetIntersectingCells(Box, CellsToUnload) > 0;
