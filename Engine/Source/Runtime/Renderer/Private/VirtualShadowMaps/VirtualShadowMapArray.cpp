@@ -98,15 +98,15 @@ FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	FMatrix TranslatedWorldToShadowUv = TranslatedWorldToShadowClip * ScaleAndBiasToSmUV;
 	return TranslatedWorldToShadowUv;
 }
-#if ENABLE_NON_NANITE_VSM
 
-static TAutoConsoleVariable<int32> CVarAllocatePagesUsingRects(
+TAutoConsoleVariable<int32> CVarAllocatePagesUsingRects(
 	TEXT("r.Shadow.v.AllocatePagesUsingRects"),
 	0,
 	TEXT("If set to 1 then pages are allocated in a contigious block to support the bounding rectangle of allocated virtual pages leading to a trivial mapping but higher memory overhead."),
 	ECVF_RenderThreadSafe
 );
 
+#if ENABLE_NON_NANITE_VSM
 
 static TAutoConsoleVariable<int32> CVarShowClipmapStats(
 	TEXT("r.Shadow.v.ShowClipmapStats"),
