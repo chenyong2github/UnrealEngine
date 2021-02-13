@@ -278,7 +278,7 @@ protected:
 
 	// Called when more audio is needed to be generated
 	// This method of generating audio is soon to be deprecated. For all new synth components, create an FSoundGenerator instance and implement CreateSoundGenerator method to create an instance.
-	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) PURE_VIRTUAL(USynthComponent::OnGenerateAudio, return 0; );
+	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) { return 0; }
 
 	// Implemented by the synth component to create a generator object instead of generating audio directly on the synth component.
 	// This method prevents UObjects from having to exist in the audio render thread.

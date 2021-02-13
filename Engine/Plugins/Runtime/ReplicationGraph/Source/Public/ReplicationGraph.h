@@ -69,7 +69,7 @@ typedef TObjectKey<class UNetReplicationGraphConnection> FRepGraphConnectionKey;
 
 #define DO_ENABLE_REPGRAPH_DEBUG_ACTOR !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-UCLASS(transient, config=Engine)
+UCLASS(abstract, transient, config=Engine)
 class REPLICATIONGRAPH_API UReplicationGraphNode : public UObject
 {
 	GENERATED_BODY()
