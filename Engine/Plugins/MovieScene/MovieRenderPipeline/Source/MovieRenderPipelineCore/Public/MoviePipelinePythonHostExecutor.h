@@ -26,7 +26,8 @@ public:
 
 	// UMoviePipelineExecutorBase Interface
 	virtual void Execute_Implementation(UMoviePipelineQueue* InPipelineQueue) override;
-	
+	virtual bool IsRendering_Implementation() const override { return false; }
+
 	/** You should override this method to implement canceling jobs. */
 	virtual void CancelAllJobs_Implementation() override;
 	/** You only need to override this methond if your executor supports multiple queued jobs. */

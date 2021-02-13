@@ -26,6 +26,8 @@ public:
 	virtual UMovieScene* GetMovieScene() const override;
 	virtual UObject* GetParentObject(UObject* Object) const override;
 	virtual void UnbindPossessableObjects(const FGuid& ObjectId) override;
+	virtual void UnbindObjects(const FGuid& ObjectId, const TArray<UObject*>& InObjects, UObject* Context) override {}
+	virtual void UnbindInvalidObjects(const FGuid& ObjectId, UObject* Context) override {}
 	virtual UObject* CreateDirectorInstance(IMovieScenePlayer& Player) override;
 
 #if WITH_EDITOR

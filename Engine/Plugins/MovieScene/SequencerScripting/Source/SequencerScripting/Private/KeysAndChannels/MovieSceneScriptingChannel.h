@@ -35,7 +35,7 @@ public:
 };
 
 
-UCLASS(BlueprintType)
+UCLASS(abstract, BlueprintType)
 class UMovieSceneScriptingChannel : public UObject
 {
 	GENERATED_BODY()
