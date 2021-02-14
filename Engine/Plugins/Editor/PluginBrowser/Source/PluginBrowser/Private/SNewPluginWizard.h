@@ -101,11 +101,6 @@ private:
 	ECheckBoxState IsEnginePlugin() const;
 
 	/**
-	 * Returns the visibility of the "Open Content Directory" checkbox, which should be displayed for any plugin that can contain content
-	 */
-	EVisibility GetShowPluginContentDirectoryVisibility() const;
-
-	/**
 	 * Called when state of Engine plugin checkbox changes
 	 * @param NewCheckedState New state of the checkbox
 	 */
@@ -165,7 +160,7 @@ private:
 	bool bIsPluginNameValid;
 
 	/** Whether we want to create a plugin in the engine folder */
-	bool bIsEnginePlugin;
+	bool bIsSelectedPathInEngine;
 
 	/** Tab that owns this wizard so that we can ask to close after completion */
 	TWeakPtr<SDockTab> OwnerTab;

@@ -11,15 +11,12 @@ public:
 
 	// Begin IPluginWizardDefinition interface
 	virtual const TArray<TSharedRef<FPluginTemplateDescription>>& GetTemplatesSource() const override;
-	virtual void OnTemplateSelectionChanged(TArray<TSharedRef<FPluginTemplateDescription>> InSelectedItems, ESelectInfo::Type SelectInfo) override;
-	virtual TArray<TSharedPtr<FPluginTemplateDescription>> GetSelectedTemplates() const override;
+	virtual void OnTemplateSelectionChanged(TSharedPtr<FPluginTemplateDescription> InSelectedItem, ESelectInfo::Type SelectInfo) override;
+	virtual TSharedPtr<FPluginTemplateDescription> GetSelectedTemplate() const override;
 	virtual void ClearTemplateSelection() override;
 	virtual bool HasValidTemplateSelection() const override;
 
-	virtual ESelectionMode::Type GetSelectionMode() const override { return ESelectionMode::Single; }
-	virtual bool AllowsEnginePlugins() const override;
 	virtual bool CanShowOnStartup() const override { return false; }
-	virtual bool CanContainContent() const override;
 	virtual bool HasModules() const override;
 	virtual bool IsMod() const override;
 	virtual void OnShowOnStartupCheckboxChanged(ECheckBoxState CheckBoxState) override {}

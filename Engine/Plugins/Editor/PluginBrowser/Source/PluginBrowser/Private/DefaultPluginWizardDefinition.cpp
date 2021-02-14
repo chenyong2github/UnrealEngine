@@ -6,6 +6,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/App.h"
+#include "PluginBrowserModule.h"
 
 #define LOCTEXT_NAMESPACE "NewPluginWizard"
 
@@ -35,17 +36,46 @@ void FDefaultPluginWizardDefinition::PopulateTemplatesSource()
 	const FText EditorModeDescription = LOCTEXT("EditorModeDesc", "Create a plugin that will have an editor mode.\n\nThis will include a toolkit example to specify UI that will appear in \"Modes\" tab (next to Foliage, Landscape etc).\nIt will also include very basic UI that demonstrates editor interaction and undo/redo functions usage.");
 	const FText ThirdPartyDescription = LOCTEXT("ThirdPartyDesc", "Create a plugin that uses an included third party library.\n\nThis can be used as an example of how to include, load and use a third party library yourself.");
 
-	TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(ContentOnlyTemplateName, ContentOnlyDescription, TEXT("ContentOnly"), true, EHostType::Runtime)));
+	TSharedRef<FPluginTemplateDescription> ContentOnlyTemplate = MakeShareable(new FPluginTemplateDescription(ContentOnlyTemplateName, ContentOnlyDescription, PluginBaseDir / TEXT("Templates") / TEXT("ContentOnly"), true, EHostType::Runtime));
+	ContentOnlyTemplate->SortPriority = 1;
+	TemplateDefinitions.Add(ContentOnlyTemplate);
+
 	if (!bIsContentOnlyProject)
 	{
 		// Insert the blank template to make sure it appears before the content only template.
-		TemplateDefinitions.Insert(MakeShareable(new FPluginTemplateDescription(BlankTemplateName, BlankDescription, TEXT("Blank"), true, EHostType::Runtime)), 0);
-		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(BlueprintLibTemplateName, BlueprintLibDescription, TEXT("BlueprintLibrary"), true, EHostType::Runtime, ELoadingPhase::PreLoadingScreen)));
-		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(BasicTemplateName, BasicDescription, TEXT("Basic"), false, EHostType::Editor)));
-		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(AdvancedTemplateName, AdvancedDescription, TEXT("Advanced"), false, EHostType::Editor)));
-		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(EditorModeTemplateName, EditorModeDescription, TEXT("EditorMode"), false, EHostType::Editor)));
-		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(ThirdPartyTemplateName, ThirdPartyDescription, TEXT("ThirdPartyLibrary"), true, EHostType::Runtime)));
+
+		TSharedRef<FPluginTemplateDescription> BlankTemplate = MakeShareable(new FPluginTemplateDescription(BlankTemplateName, BlankDescription, PluginBaseDir / TEXT("Templates") / TEXT("Blank"), true, EHostType::Runtime));
+		BlankTemplate->SortPriority = 2;
+		TemplateDefinitions.Add(BlankTemplate);
+
+		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(BlueprintLibTemplateName, BlueprintLibDescription, PluginBaseDir / TEXT("Templates") / TEXT("BlueprintLibrary"), true, EHostType::Runtime, ELoadingPhase::PreLoadingScreen)));
+		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(BasicTemplateName, BasicDescription, PluginBaseDir / TEXT("Templates") / TEXT("Basic"), false, EHostType::Editor)));
+		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(AdvancedTemplateName, AdvancedDescription, PluginBaseDir / TEXT("Templates") / TEXT("Advanced"), false, EHostType::Editor)));
+		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(EditorModeTemplateName, EditorModeDescription, PluginBaseDir / TEXT("Templates") / TEXT("EditorMode"), false, EHostType::Editor)));
+		TemplateDefinitions.Add(MakeShareable(new FPluginTemplateDescription(ThirdPartyTemplateName, ThirdPartyDescription, PluginBaseDir / TEXT("Templates") / TEXT("ThirdPartyLibrary"), true, EHostType::Runtime)));
 	}
+
+	// Add external templates that came from the modular feature interface (e.g., from another plugin like Game Features)
+	TemplateDefinitions.Append(FPluginBrowserModule::Get().GetAddedPluginTemplates());
+
+	// Don't show the option to make an engine plugin in installed builds
+	const bool bAllowEnginePlugins = !FApp::IsEngineInstalled();
+	for (const TSharedRef<FPluginTemplateDescription>& Template : TemplateDefinitions)
+	{
+		Template->bCanBePlacedInEngine = Template->bCanBePlacedInEngine && bAllowEnginePlugins;
+	}
+
+	TemplateDefinitions.Sort([](const TSharedRef<FPluginTemplateDescription>& A, const TSharedRef<FPluginTemplateDescription>& B)
+	{
+		if (A->SortPriority != B->SortPriority)
+		{
+			return A->SortPriority > B->SortPriority;
+		}
+		else
+		{
+			return A->Name.CompareTo(B->Name) <= 0;
+		}
+	});
 }
 
 const TArray<TSharedRef<FPluginTemplateDescription>>& FDefaultPluginWizardDefinition::GetTemplatesSource() const
@@ -54,25 +84,14 @@ const TArray<TSharedRef<FPluginTemplateDescription>>& FDefaultPluginWizardDefini
 }
 
 
-void FDefaultPluginWizardDefinition::OnTemplateSelectionChanged(TArray<TSharedRef<FPluginTemplateDescription>> InSelectedItems, ESelectInfo::Type SelectInfo)
+void FDefaultPluginWizardDefinition::OnTemplateSelectionChanged(TSharedPtr<FPluginTemplateDescription> InSelectedItem, ESelectInfo::Type SelectInfo)
 {
-	CurrentTemplateDefinition.Reset();
-	
-	if (InSelectedItems.Num() > 0)
-	{
-		CurrentTemplateDefinition = InSelectedItems[0];
-	}
+	CurrentTemplateDefinition = InSelectedItem;
 }
 
-TArray<TSharedPtr<FPluginTemplateDescription>> FDefaultPluginWizardDefinition::GetSelectedTemplates() const
+TSharedPtr<FPluginTemplateDescription> FDefaultPluginWizardDefinition::GetSelectedTemplate() const
 {
-	TArray<TSharedPtr<FPluginTemplateDescription>> Selection;
-	if (CurrentTemplateDefinition.IsValid())
-	{
-		Selection.Add(CurrentTemplateDefinition);
-	}
-
-	return Selection;
+	return CurrentTemplateDefinition;
 }
 
 bool FDefaultPluginWizardDefinition::HasValidTemplateSelection() const
@@ -83,17 +102,6 @@ bool FDefaultPluginWizardDefinition::HasValidTemplateSelection() const
 void FDefaultPluginWizardDefinition::ClearTemplateSelection()
 {
 	CurrentTemplateDefinition.Reset();
-}
-
-bool FDefaultPluginWizardDefinition::AllowsEnginePlugins() const
-{
-	// Don't show the option to make an engine plugin in installed builds
-	return !FApp::IsEngineInstalled();
-}
-
-bool FDefaultPluginWizardDefinition::CanContainContent() const
-{
-	return CurrentTemplateDefinition.IsValid() ? CurrentTemplateDefinition->bCanContainContent : false;
 }
 
 bool FDefaultPluginWizardDefinition::HasModules() const
@@ -181,9 +189,7 @@ FString FDefaultPluginWizardDefinition::GetPluginFolderPath() const
 
 FString FDefaultPluginWizardDefinition::GetFolderForTemplate(TSharedRef<FPluginTemplateDescription> InTemplate) const
 {
-	FString TemplateFolderName = PluginBaseDir / TEXT("Templates") / InTemplate->OnDiskPath;
-
-	return TemplateFolderName;
+	return InTemplate->OnDiskPath;
 }
 
 #undef LOCTEXT_NAMESPACE

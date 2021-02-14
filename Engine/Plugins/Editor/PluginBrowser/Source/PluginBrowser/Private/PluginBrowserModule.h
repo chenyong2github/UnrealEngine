@@ -25,6 +25,10 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	/** IPluginsEditorFeature implementation */
+	virtual void RegisterPluginTemplate(TSharedRef<FPluginTemplateDescription> Template) override;
+	virtual void UnregisterPluginTemplate(TSharedRef<FPluginTemplateDescription> Template) override;
+
 	/** Gets a delegate so that you can register/unregister to receive callbacks when plugins are created */
 	FOnNewPluginCreated& OnNewPluginCreated() {return NewPluginCreatedDelegate;}
 
@@ -67,6 +71,8 @@ public:
 	/** Spawns the plugin creator tab with a specific wizard definition */
 	virtual TSharedRef<SDockTab> SpawnPluginCreatorTab(const FSpawnTabArgs& SpawnTabArgs, TSharedPtr<IPluginWizardDefinition> PluginWizardDefinition) override;
 
+	const TArray<TSharedRef<FPluginTemplateDescription>>& GetAddedPluginTemplates() const { return AddedPluginTemplates; }
+
 private:
 	/** Called to spawn the plugin browser tab */
 	TSharedRef<SDockTab> HandleSpawnPluginBrowserTab(const FSpawnTabArgs& SpawnTabArgs);
@@ -85,6 +91,9 @@ private:
 
 	/** Updates the user's config file with the list of installed plugins that they've seen. */
 	void UpdatePreviousInstalledPlugins();
+
+	/** List of added plugin templates */
+	TArray<TSharedRef<FPluginTemplateDescription>> AddedPluginTemplates;
 
 	/** The spawned browser tab */
 	TWeakPtr<SDockTab> PluginBrowserTab;

@@ -98,6 +98,16 @@ void FPluginBrowserModule::ShutdownModule()
 	IModularFeatures::Get().UnregisterModularFeature( EditorFeatures::PluginsEditor, this );
 }
 
+void FPluginBrowserModule::RegisterPluginTemplate(TSharedRef<FPluginTemplateDescription> Template)
+{
+	AddedPluginTemplates.Add(Template);
+}
+
+void FPluginBrowserModule::UnregisterPluginTemplate(TSharedRef<FPluginTemplateDescription> Template)
+{
+	AddedPluginTemplates.RemoveSingle(Template);
+}
+
 void FPluginBrowserModule::SetPluginPendingEnableState(const FString& PluginName, bool bCurrentlyEnabled, bool bPendingEnabled)
 {
 	if (bCurrentlyEnabled == bPendingEnabled)
