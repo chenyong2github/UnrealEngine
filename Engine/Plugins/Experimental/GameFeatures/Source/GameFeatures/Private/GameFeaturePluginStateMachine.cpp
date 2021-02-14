@@ -39,35 +39,35 @@ namespace UE
 		{
 			return Result.HasValue() ? FString(TEXT("Success")) : (FString(TEXT("Failure, ErrorCode=")) + Result.GetError());
 		}
-	}
-}
 
-FString EGameFeaturePluginState::ToString(EGameFeaturePluginState::Type InType)
-{
-	switch (InType)
-	{
-	case Uninitialized: return TEXT("Uninitialized");
-	case UnknownStatus: return TEXT("UnknownStatus");
-	case CheckingStatus: return TEXT("CheckingStatus");
-	case StatusKnown: return TEXT("StatusKnown");
-	case Uninstalling: return TEXT("Uninstalling");
-	case Downloading: return TEXT("Downloading");
-	case Installed: return TEXT("Installed");
-	case Unmounting: return TEXT("Unmounting");
-	case Mounting: return TEXT("Mounting");
-	case WaitingForDependencies: return TEXT("WaitingForDependencies");
-	case Unregistering: return TEXT("Unregistering");
-	case Registering: return TEXT("Registering");
-	case Registered: return TEXT("Registered");
-	case Unloading: return TEXT("Unloading");
-	case Loading: return TEXT("Loading");
-	case Loaded: return TEXT("Loaded");
-	case Deactivating: return TEXT("Deactivating");
-	case Activating: return TEXT("Activating");
-	case Active: return TEXT("Active");
-	default:
-		check(0);
-		return FString();
+		FString ToString(EGameFeaturePluginState InType)
+		{
+			switch (InType)
+			{
+			case EGameFeaturePluginState::Uninitialized: return TEXT("Uninitialized");
+			case EGameFeaturePluginState::UnknownStatus: return TEXT("UnknownStatus");
+			case EGameFeaturePluginState::CheckingStatus: return TEXT("CheckingStatus");
+			case EGameFeaturePluginState::StatusKnown: return TEXT("StatusKnown");
+			case EGameFeaturePluginState::Uninstalling: return TEXT("Uninstalling");
+			case EGameFeaturePluginState::Downloading: return TEXT("Downloading");
+			case EGameFeaturePluginState::Installed: return TEXT("Installed");
+			case EGameFeaturePluginState::Unmounting: return TEXT("Unmounting");
+			case EGameFeaturePluginState::Mounting: return TEXT("Mounting");
+			case EGameFeaturePluginState::WaitingForDependencies: return TEXT("WaitingForDependencies");
+			case EGameFeaturePluginState::Unregistering: return TEXT("Unregistering");
+			case EGameFeaturePluginState::Registering: return TEXT("Registering");
+			case EGameFeaturePluginState::Registered: return TEXT("Registered");
+			case EGameFeaturePluginState::Unloading: return TEXT("Unloading");
+			case EGameFeaturePluginState::Loading: return TEXT("Loading");
+			case EGameFeaturePluginState::Loaded: return TEXT("Loaded");
+			case EGameFeaturePluginState::Deactivating: return TEXT("Deactivating");
+			case EGameFeaturePluginState::Activating: return TEXT("Activating");
+			case EGameFeaturePluginState::Active: return TEXT("Active");
+			default:
+				check(0);
+				return FString();
+			}
+		}
 	}
 }
 
@@ -229,15 +229,7 @@ struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
 		}
 
 		StateStatus.TransitionToState = EGameFeaturePluginState::StatusKnown;
-		//@TODO: Collapse once TValueOrError operator= works
-		if (Result.HasValue())
-		{
-			StateStatus.TransitionResult = MakeValue();
-		}
-		else
-		{
-			StateStatus.TransitionResult = MakeError(Result.GetError());
-		}
+		StateStatus.TransitionResult = Result;
 	}
 
 	virtual void EndState()
@@ -967,30 +959,30 @@ void UGameFeaturePluginStateMachine::InitStateMachine(const FString& InPluginURL
 		OnRequestStateMachineDependencies,
 		FGameFeaturePluginRequestUpdateStateMachine::CreateUObject(this, &ThisClass::UpdateStateMachine));
 
-	AllStates[EGameFeaturePluginState::Uninitialized] = MakeUnique<FGameFeaturePluginState_Uninitialized>(StateProperties);
-	AllStates[EGameFeaturePluginState::UnknownStatus] = MakeUnique<FGameFeaturePluginState_UnknownStatus>(StateProperties);
-	AllStates[EGameFeaturePluginState::CheckingStatus] = MakeUnique<FGameFeaturePluginState_CheckingStatus>(StateProperties);
-	AllStates[EGameFeaturePluginState::StatusKnown] = MakeUnique<FGameFeaturePluginState_StatusKnown>(StateProperties);
-	AllStates[EGameFeaturePluginState::Uninstalling] = MakeUnique<FGameFeaturePluginState_Uninstalling>(StateProperties);
-	AllStates[EGameFeaturePluginState::Downloading] = MakeUnique<FGameFeaturePluginState_Downloading>(StateProperties);
-	AllStates[EGameFeaturePluginState::Installed] = MakeUnique<FGameFeaturePluginState_Installed>(StateProperties);
-	AllStates[EGameFeaturePluginState::Unmounting] = MakeUnique<FGameFeaturePluginState_Unmounting>(StateProperties);
-	AllStates[EGameFeaturePluginState::Mounting] = MakeUnique<FGameFeaturePluginState_Mounting>(StateProperties);
-	AllStates[EGameFeaturePluginState::WaitingForDependencies] = MakeUnique<FGameFeaturePluginState_WaitingForDependencies>(StateProperties);
-	AllStates[EGameFeaturePluginState::Unregistering] = MakeUnique<FGameFeaturePluginState_Unregistering>(StateProperties);
-	AllStates[EGameFeaturePluginState::Registering] = MakeUnique<FGameFeaturePluginState_Registering>(StateProperties);
-	AllStates[EGameFeaturePluginState::Registered] = MakeUnique<FGameFeaturePluginState_Registered>(StateProperties);
-	AllStates[EGameFeaturePluginState::Unloading] = MakeUnique<FGameFeaturePluginState_Unloading>(StateProperties);
-	AllStates[EGameFeaturePluginState::Loading] = MakeUnique<FGameFeaturePluginState_Loading>(StateProperties);
-	AllStates[EGameFeaturePluginState::Loaded] = MakeUnique<FGameFeaturePluginState_Loaded>(StateProperties);
-	AllStates[EGameFeaturePluginState::Deactivating] = MakeUnique<FGameFeaturePluginState_Deactivating>(StateProperties);
-	AllStates[EGameFeaturePluginState::Activating] = MakeUnique<FGameFeaturePluginState_Activating>(StateProperties);
-	AllStates[EGameFeaturePluginState::Active] = MakeUnique<FGameFeaturePluginState_Active>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Uninitialized] = MakeUnique<FGameFeaturePluginState_Uninitialized>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::UnknownStatus] = MakeUnique<FGameFeaturePluginState_UnknownStatus>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::CheckingStatus] = MakeUnique<FGameFeaturePluginState_CheckingStatus>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::StatusKnown] = MakeUnique<FGameFeaturePluginState_StatusKnown>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Uninstalling] = MakeUnique<FGameFeaturePluginState_Uninstalling>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Downloading] = MakeUnique<FGameFeaturePluginState_Downloading>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Installed] = MakeUnique<FGameFeaturePluginState_Installed>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Unmounting] = MakeUnique<FGameFeaturePluginState_Unmounting>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Mounting] = MakeUnique<FGameFeaturePluginState_Mounting>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::WaitingForDependencies] = MakeUnique<FGameFeaturePluginState_WaitingForDependencies>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Unregistering] = MakeUnique<FGameFeaturePluginState_Unregistering>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Registering] = MakeUnique<FGameFeaturePluginState_Registering>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Registered] = MakeUnique<FGameFeaturePluginState_Registered>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Unloading] = MakeUnique<FGameFeaturePluginState_Unloading>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Loading] = MakeUnique<FGameFeaturePluginState_Loading>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Loaded] = MakeUnique<FGameFeaturePluginState_Loaded>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Deactivating] = MakeUnique<FGameFeaturePluginState_Deactivating>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Activating] = MakeUnique<FGameFeaturePluginState_Activating>(StateProperties);
+	AllStates[(int32)EGameFeaturePluginState::Active] = MakeUnique<FGameFeaturePluginState_Active>(StateProperties);
 
-	AllStates[CurrentStateInfo.State]->BeginState();
+	AllStates[(int32)CurrentStateInfo.State]->BeginState();
 }
 
-void UGameFeaturePluginStateMachine::SetDestinationState(EGameFeaturePluginState::Type InDestinationState, FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete)
+void UGameFeaturePluginStateMachine::SetDestinationState(EGameFeaturePluginState InDestinationState, FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete)
 {
 	check(IsValidDestinationState(InDestinationState));
 	StateProperties.DestinationState = InDestinationState;
@@ -1017,12 +1009,12 @@ bool UGameFeaturePluginStateMachine::GetPluginFilename(FString& OutPluginFilenam
 	return !OutPluginFilename.IsEmpty();
 }
 
-EGameFeaturePluginState::Type UGameFeaturePluginStateMachine::GetCurrentState() const
+EGameFeaturePluginState UGameFeaturePluginStateMachine::GetCurrentState() const
 {
 	return GetCurrentStateInfo().State;
 }
 
-EGameFeaturePluginState::Type UGameFeaturePluginStateMachine::GetDestinationState() const
+EGameFeaturePluginState UGameFeaturePluginStateMachine::GetDestinationState() const
 {
 	return StateProperties.DestinationState;
 }
@@ -1053,10 +1045,10 @@ UGameFeatureData* UGameFeaturePluginStateMachine::GetGameFeatureDataForActivePlu
 	return nullptr;
 }
 
-bool UGameFeaturePluginStateMachine::IsValidDestinationState(EGameFeaturePluginState::Type InDestinationState) const
+bool UGameFeaturePluginStateMachine::IsValidDestinationState(EGameFeaturePluginState InDestinationState) const
 {
-	check(InDestinationState >= 0 && InDestinationState < EGameFeaturePluginState::MAX);
-	return AllStates[InDestinationState]->CanBeDestinationState();
+	check(InDestinationState != EGameFeaturePluginState::MAX);
+	return AllStates[(int32)InDestinationState]->CanBeDestinationState();
 }
 
 void UGameFeaturePluginStateMachine::UpdateStateMachine()
@@ -1072,38 +1064,29 @@ void UGameFeaturePluginStateMachine::UpdateStateMachine()
 	bool bKeepProcessing = false;
 	int32 NumTransitions = 0;
 	const int32 MaxTransitions = 10000;
-	EGameFeaturePluginState::Type CurrentState = GetCurrentState();
-	check(CurrentState >= 0 && CurrentState < EGameFeaturePluginState::MAX);
+	EGameFeaturePluginState CurrentState = GetCurrentState();
 	do
 	{
 		bKeepProcessing = false;
 
 		FGameFeaturePluginStateStatus StateStatus;
-		AllStates[CurrentState]->UpdateState(StateStatus);
+		AllStates[(int32)CurrentState]->UpdateState(StateStatus);
 
-		//@TODO: Collapse once TValueOrError operator= works
-		if (StateStatus.TransitionResult.HasValue())
-		{
-			TransitionResult = MakeValue();
-		}
-		else
-		{
-			TransitionResult = MakeError(StateStatus.TransitionResult.GetError());
-		}
+		TransitionResult = StateStatus.TransitionResult;
 
 		if (StateStatus.TransitionToState == CurrentState)
 		{
-			UE_LOG(LogGameFeatures, Fatal, TEXT("Game feature state %s transitioning to itself. GameFeature: %s"), *EGameFeaturePluginState::ToString(CurrentState), *GetGameFeatureName());
+			UE_LOG(LogGameFeatures, Fatal, TEXT("Game feature state %s transitioning to itself. GameFeature: %s"), *UE::GameFeatures::ToString(CurrentState), *GetGameFeatureName());
 		}
 
 		if (StateStatus.TransitionToState != EGameFeaturePluginState::Uninitialized)
 		{
-			UE_LOG(LogGameFeatures, Display, TEXT("Game feature '%s' transitioning state (%s -> %s)"), *GetGameFeatureName(), *EGameFeaturePluginState::ToString(CurrentState), *EGameFeaturePluginState::ToString(StateStatus.TransitionToState));
-			AllStates[CurrentState]->EndState();
+			UE_LOG(LogGameFeatures, Display, TEXT("Game feature '%s' transitioning state (%s -> %s)"), *GetGameFeatureName(), *UE::GameFeatures::ToString(CurrentState), *UE::GameFeatures::ToString(StateStatus.TransitionToState));
+			AllStates[(int32)CurrentState]->EndState();
 			CurrentStateInfo = FGameFeaturePluginStateInfo(StateStatus.TransitionToState);
 			CurrentState = StateStatus.TransitionToState;
-			check(CurrentState >= 0 && CurrentState < EGameFeaturePluginState::MAX);
-			AllStates[CurrentState]->BeginState();
+			check(CurrentState != EGameFeaturePluginState::MAX);
+			AllStates[(int32)CurrentState]->BeginState();
 			OnStateChangedEvent.Broadcast(this);
 			bKeepProcessing = true;
 		}
@@ -1116,7 +1099,7 @@ void UGameFeaturePluginStateMachine::UpdateStateMachine()
 
 		if (NumTransitions++ > MaxTransitions)
 		{
-			UE_LOG(LogGameFeatures, Fatal, TEXT("Infinite loop in game feature state machine transitions. Current state %s. GameFeature: %s"), *EGameFeaturePluginState::ToString(CurrentState), *GetGameFeatureName());
+			UE_LOG(LogGameFeatures, Fatal, TEXT("Infinite loop in game feature state machine transitions. Current state %s. GameFeature: %s"), *UE::GameFeatures::ToString(CurrentState), *GetGameFeatureName());
 		}
 	} while (bKeepProcessing);
 
@@ -1129,7 +1112,7 @@ void UGameFeaturePluginStateMachine::UpdateStateMachine()
 
 FGameFeaturePluginStateMachineProperties::FGameFeaturePluginStateMachineProperties(
 	const FString& InPluginURL,
-	EGameFeaturePluginState::Type DesiredDestination,
+	EGameFeaturePluginState DesiredDestination,
 	const FGameFeaturePluginRequestStateMachineDependencies& RequestStateMachineDependenciesDelegate,
 	const TDelegate<void()>& RequestUpdateStateMachineDelegate)
 	: FGameFeaturePluginStateMachineProperties()

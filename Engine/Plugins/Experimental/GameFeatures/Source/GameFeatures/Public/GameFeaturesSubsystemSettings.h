@@ -7,6 +7,8 @@
 
 #include "GameFeaturesSubsystemSettings.generated.h"
 
+class UGameFeatureData;
+
 /** Settings for the Game Features framework */
 UCLASS(config=Game, defaultconfig, notplaceable, meta = (DisplayName = "Game Features"))
 class GAMEFEATURES_API UGameFeaturesSubsystemSettings : public UDeveloperSettings
@@ -39,4 +41,8 @@ public:
 	//@TODO: GameFeaturePluginEnginePush: This comment doesn't jive with some of the code in the subsystem which is only paying attention to plugins in this folder
 	UPROPERTY(transient)
 	FString BuiltInGameFeaturePluginsFolder;
+
+	/** The default class of game feature data to create for new game feature plugins (if not set, UGameFeatureData will be used) */
+	UPROPERTY(transient)
+	TSubclassOf<UGameFeatureData> DefaultGameFeatureDataClass;
 };

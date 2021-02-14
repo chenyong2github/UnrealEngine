@@ -138,8 +138,7 @@ void UGameFeaturesSubsystem::OnAssetManagerCreated()
 	FPrimaryAssetRules GameDataRules = UAssetManager::Get().GetPrimaryAssetRules(DummyGameFeatureDataAssetId);
 	if (GameDataRules.IsDefault())
 	{
-		//@TODO: GameFeaturePluginEnginePush: Re-enable this once the rule in FN is updated
-		//UE_LOG(LogGameFeatures, Error, TEXT("Asset manager settings do not include a rule for assets of type %s, which is required for game feature plugins to function"), *UGameFeatureData::StaticClass()->GetName());
+		UE_LOG(LogGameFeatures, Error, TEXT("Asset manager settings do not include a rule for assets of type %s, which is required for game feature plugins to function"), *UGameFeatureData::StaticClass()->GetName());
 	}
 
 	// Create the game-specific policy
@@ -363,6 +362,27 @@ const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForActivePlugi
 	return nullptr;
 }
 
+void UGameFeaturesSubsystem::LoadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate)
+{
+	if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
+	{
+		UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, true);
+
+		if (StateMachine->GetCurrentState() < EGameFeaturePluginState::Loaded)
+		{
+			StateMachine->SetDestinationState(EGameFeaturePluginState::Loaded, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadExternallyRequestedGameFeaturePluginComplete, CompleteDelegate));
+		}
+		else
+		{
+			CompleteDelegate.ExecuteIfBound(MakeValue());
+		}
+	}
+	else
+	{
+		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.Plugin_Denied_By_GameSpecificPolicy")));
+	}
+}
+
 void UGameFeaturesSubsystem::LoadAndActivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate)
 {
 	if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
@@ -372,7 +392,7 @@ void UGameFeaturesSubsystem::LoadAndActivateGameFeaturePlugin(const FString& Plu
 	}
 	else
 	{
-		//@TODO: Raise a failure to the CompleteDelegate
+		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.Plugin_Denied_By_GameSpecificPolicy")));
 	}
 }
 
@@ -445,61 +465,66 @@ void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL
 	}
 }
 
+void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlugin>& Plugin, FBuiltInPluginAdditionalFilters AdditionalFilter)
+{
+	const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();
+
+	// Make sure you are in the game feature plugins folder. All GameFeaturePlugins are in this folder.
+	//@TODO: GameFeaturePluginEnginePush: Comments elsewhere allow plugins outside of the folder as long as they explicitly opt in, either those are wrong or this check is wrong
+	if (!PluginDescriptorFilename.IsEmpty() && FPaths::ConvertRelativePathToFull(PluginDescriptorFilename).StartsWith(GetDefault<UGameFeaturesSubsystemSettings>()->BuiltInGameFeaturePluginsFolder) && FPaths::FileExists(PluginDescriptorFilename))
+	{
+		const FString PluginURL = TEXT("file:") + PluginDescriptorFilename;
+		if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
+		{
+			FGameFeaturePluginDetails PluginDetails;
+			if (GetGameFeaturePluginDetails(PluginDescriptorFilename, PluginDetails))
+			{
+				bool bShouldProcess = AdditionalFilter(PluginDescriptorFilename, PluginDetails);
+
+				if (bShouldProcess)
+				{
+					UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, true);
+
+					EGameFeaturePluginState DestinationState = EGameFeaturePluginState::Installed;
+					if (PluginDetails.bBuiltInAutoRegister)
+					{
+						DestinationState = EGameFeaturePluginState::Registered;
+						if (PluginDetails.bBuiltInAutoLoad)
+						{
+							DestinationState = EGameFeaturePluginState::Loaded;
+							if (PluginDetails.bBuiltInAutoActivate)
+							{
+								DestinationState = EGameFeaturePluginState::Active;
+							}
+						}
+					}
+
+					if (StateMachine->GetCurrentState() >= DestinationState)
+					{
+						// If we're already at the destination or beyond, don't transition back
+						LoadGameFeaturePluginComplete(StateMachine, MakeValue());
+					}
+					else
+					{
+						StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadGameFeaturePluginComplete));
+					}
+
+					if (!GameFeaturePluginNameToPathMap.Contains(Plugin->GetName()))
+					{
+						GameFeaturePluginNameToPathMap.Add(Plugin->GetName(), PluginURL);
+					}
+				}
+			}
+		}
+	}
+}
+
 void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditionalFilters AdditionalFilter)
 {
 	TArray<TSharedRef<IPlugin>> EnabledPlugins = IPluginManager::Get().GetEnabledPlugins();
 	for (const TSharedRef<IPlugin>& Plugin : EnabledPlugins)
 	{
-		const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();
-
-		// Make sure you are in the game feature plugins folder. All GameFeaturePlugins are in this folder.
-		//@TODO: GameFeaturePluginEnginePush: Comments elsewhere allow plugins outside of the folder as long as they explicitly opt in, either those are wrong or this check is wrong
-		if (!PluginDescriptorFilename.IsEmpty() && FPaths::ConvertRelativePathToFull(PluginDescriptorFilename).StartsWith(GetDefault<UGameFeaturesSubsystemSettings>()->BuiltInGameFeaturePluginsFolder) && FPaths::FileExists(PluginDescriptorFilename))
-		{
-			const FString PluginURL = TEXT("file:") + PluginDescriptorFilename;
-			if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
-			{
-				FGameFeaturePluginDetails PluginDetails;
-				if (GetGameFeaturePluginDetails(PluginDescriptorFilename, PluginDetails))
-				{
-					bool bShouldProcess = AdditionalFilter(PluginDescriptorFilename, PluginDetails);
-
-					if (bShouldProcess)
-					{
-						UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, true);
-
-						EGameFeaturePluginState::Type DestinationState = EGameFeaturePluginState::Installed;
-						if (PluginDetails.bBuiltInAutoRegister)
-						{
-							DestinationState = EGameFeaturePluginState::Registered;
-							if (PluginDetails.bBuiltInAutoLoad)
-							{
-								DestinationState = EGameFeaturePluginState::Loaded;
-								if (PluginDetails.bBuiltInAutoActivate)
-								{
-									DestinationState = EGameFeaturePluginState::Active;
-								}
-							}
-						}
-
-						if (StateMachine->GetCurrentState() >= DestinationState)
-						{
-							// If we're already at the destination or beyond, don't transition back
-							LoadGameFeaturePluginComplete(StateMachine, MakeValue());
-						}
-						else
-						{
-							StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadGameFeaturePluginComplete));
-						}
-
-						if (!GameFeaturePluginNameToPathMap.Contains(Plugin->GetName()))
-						{
-							GameFeaturePluginNameToPathMap.Add(Plugin->GetName(), PluginURL);
-						}
-					}
-				}
-			}
-		}
+		LoadBuiltInGameFeaturePlugin(Plugin, AdditionalFilter);
 	}
 }
 
@@ -523,7 +548,7 @@ FString UGameFeaturesSubsystem::GetPluginFilenameFromPluginURL(const FString& Pl
 	}
 	else
 	{
-		UE_LOG(LogGameFeatures, Error, TEXT("UGameFeaturesSubsystem could not get the plugin path form the plugin URL. URL:%s "), *PluginURL);
+		UE_LOG(LogGameFeatures, Error, TEXT("UGameFeaturesSubsystem could not get the plugin path from the plugin URL. URL:%s "), *PluginURL);
 	}
 	return PluginFilename;
 }
@@ -541,6 +566,18 @@ void UGameFeaturesSubsystem::GetLoadedGameFeaturePluginFilenamesForCooking(TArra
 				OutLoadedPluginFilenames.Add(PluginFilename);
 			}
 		}
+	}
+}
+
+EGameFeaturePluginState UGameFeaturesSubsystem::GetPluginState(const FString& PluginURL)
+{
+	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, /*bCreateIfDoesntExist=*/ false))
+	{
+		return StateMachine->GetCurrentState();
+	}
+	else
+	{
+		return EGameFeaturePluginState::UnknownStatus;
 	}
 }
 
@@ -671,7 +708,7 @@ void UGameFeaturesSubsystem::LoadGameFeaturePluginComplete(UGameFeaturePluginSta
 		const FString ErrorMessage = UE::GameFeatures::ToString(Result);
 		UE_LOG(LogGameFeatures, Error, TEXT("Game feature '%s' load failed. Ending state: %s. Result: %s"),
 			*Machine->GetGameFeatureName(),
-			*EGameFeaturePluginState::ToString(Machine->GetCurrentState()),
+			*UE::GameFeatures::ToString(Machine->GetCurrentState()),
 			*ErrorMessage);
 	}
 }
@@ -766,11 +803,11 @@ void UGameFeaturesSubsystem::ListGameFeaturePlugins(const TArray<FString>& Args,
 
 		if (bCsv)
 		{
-			Ar.Logf(TEXT(",%s,%s"), *GFSM->GetGameFeatureName(), *EGameFeaturePluginState::ToString(GFSM->GetCurrentState()));
+			Ar.Logf(TEXT(",%s,%s"), *GFSM->GetGameFeatureName(), *UE::GameFeatures::ToString(GFSM->GetCurrentState()));
 		}
 		else
 		{
-			Ar.Logf(TEXT("%s (%s)"), *GFSM->GetGameFeatureName(), *EGameFeaturePluginState::ToString(GFSM->GetCurrentState()));
+			Ar.Logf(TEXT("%s (%s)"), *GFSM->GetGameFeatureName(), *UE::GameFeatures::ToString(GFSM->GetCurrentState()));
 		}
 		++PluginCount;
 	}

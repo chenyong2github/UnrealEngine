@@ -105,34 +105,37 @@ Non-destination states are expected to transition the machine to another state a
 */
 
 /** The states a game feature plugin can be in before fully active */
-namespace EGameFeaturePluginState
+enum class EGameFeaturePluginState : uint8
 {
-	enum Type
+	Uninitialized,				// Unset. Not yet been set up.
+	UnknownStatus,				// Initialized, but the only thing known is the URL to query status.
+	CheckingStatus,				// Transition state UnknownStatus -> StatusKnown. The status is in the process of being queried.
+	StatusKnown,				// The plugin's information is known, but no action has taken place yet.
+	Uninstalling,				// Transition state Installed -> StatusKnown. In the process of removing from local storage.
+	Downloading,				// Transition state StatusKnown -> Installed. In the process of adding to local storage.
+	Installed,					// The plugin is in local storage (i.e. it is on the hard drive)
+	WaitingForDependencies,		// Transition state Installed -> Registered. In the process of loading code/content for all dependencies into memory.
+	Unmounting,					// Transition state Registered -> Installed. The content file(s) (i.e. pak file) for the plugin is unmounting.
+	Mounting,					// Transition state Installed -> Registered. The content files(s) (i.e. pak file) for the plugin is getting mounted.
+	Unregistering,				// Transition state Registered -> Installed. Cleaning up data gathered in Registering.
+	Registering,				// Transition state Installed -> Registered. Discovering assets in the plugin, but not loading them, except a few for discovery reasons.
+	Registered,					// The assets in the plugin are known, but have not yet been loaded, except a few for discovery reasons.
+	Unloading,					// Transition state Loaded -> Registered. In the process of removing code/contnet from memory. 
+	Loading,					// Transition state Registered -> Loaded. In the process of loading code/content into memory.
+	Loaded,						// The plugin is loaded into memory, but not registered with game systems and active.
+	Deactivating,				// Transition state Active -> Loaded. Currently unregistering with game systems.
+	Activating,					// Transition state Loaded -> Active. Currently registering plugin code/content with game systems.
+	Active,						// Plugin is fully loaded and active. It is affecting the game.
+
+	MAX
+};
+
+namespace UE
+{
+	namespace GameFeatures
 	{
-		Uninitialized,				// Unset. Not yet been set up.
-		UnknownStatus,				// Initialized, but the only thing known is the URL to query status.
-		CheckingStatus,				// Transition state UnknownStatus -> StatusKnown. The status is in the process of being queried.
-		StatusKnown,				// The plugin's information is known, but no action has taken place yet.
-		Uninstalling,				// Transition state Installed -> StatusKnown. In the process of removing from local storage.
-		Downloading,				// Transition state StatusKnown -> Installed. In the process of adding to local storage.
-		Installed,					// The plugin is in local storage (i.e. it is on the hard drive)
-		WaitingForDependencies,		// Transition state Installed -> Registered. In the process of loading code/content for all dependencies into memory.
-		Unmounting,					// Transition state Registered -> Installed. The content file(s) (i.e. pak file) for the plugin is unmounting.
-		Mounting,					// Transition state Installed -> Registered. The content files(s) (i.e. pak file) for the plugin is getting mounted.
-		Unregistering,				// Transition state Registered -> Installed. Cleaning up data gathered in Registering.
-		Registering,				// Transition state Installed -> Registered. Discovering assets in the plugin, but not loading them, except a few for discovery reasons.
-		Registered,					// The assets in the plugin are known, but have not yet been loaded, except a few for discovery reasons.
-		Unloading,					// Transition state Loaded -> Registered. In the process of removing code/contnet from memory. 
-		Loading,					// Transition state Registered -> Loaded. In the process of loading code/content into memory.
-		Loaded,						// The plugin is loaded into memory, but not registered with game systems and active.
-		Deactivating,				// Transition state Active -> Loaded. Currently unregistering with game systems.
-		Activating,					// Transition state Loaded -> Active. Currently registering plugin code/content with game systems.
-		Active,						// Plugin is fully loaded and active. It is affecting the game.
-
-		MAX
-	};
-
-	FString ToString(Type InType);
+		GAMEFEATURES_API FString ToString(EGameFeaturePluginState InType);
+	}
 }
 
 enum class EGameFeaturePluginProtocol : uint8
@@ -180,7 +183,7 @@ struct FGameFeaturePluginStateMachineProperties
 	FGameFeaturePluginRequestUpdateStateMachine OnRequestUpdateStateMachine;
 
 	/** The desired state during a transition. */
-	EGameFeaturePluginState::Type DestinationState;
+	EGameFeaturePluginState DestinationState;
 
 	/** Once status is known, this describes whether the plugin is available to download/load */
 	bool bIsAvailable;
@@ -192,7 +195,7 @@ struct FGameFeaturePluginStateMachineProperties
 	FGameFeaturePluginStateMachineProperties() : DestinationState(EGameFeaturePluginState::Uninitialized), bIsAvailable(false), GameFeatureData(nullptr) {}
 	FGameFeaturePluginStateMachineProperties(
 		const FString& InPluginURL,
-		EGameFeaturePluginState::Type DesiredDestination,
+		EGameFeaturePluginState DesiredDestination,
 		const FGameFeaturePluginRequestStateMachineDependencies& RequestStateMachineDependenciesDelegate,
 		const TDelegate<void()>& RequestUpdateStateMachineDelegate);
 
@@ -205,7 +208,7 @@ struct FGameFeaturePluginStateMachineProperties
 struct FGameFeaturePluginStateStatus
 {
 	/** The state to transition to after UpdateState is complete. */
-	EGameFeaturePluginState::Type TransitionToState;
+	EGameFeaturePluginState TransitionToState;
 
 	/** Holds the current error for any state transition. */
 	UE::GameFeatures::FResult TransitionResult;
@@ -239,13 +242,13 @@ struct FGameFeaturePluginState
 struct FGameFeaturePluginStateInfo
 {
 	/** The state this info represents */
-	EGameFeaturePluginState::Type State;
+	EGameFeaturePluginState State;
 
 	/** The progress of this state. Relevant only for transition states. */
 	float Progress;
 
 	FGameFeaturePluginStateInfo() : State(EGameFeaturePluginState::Uninitialized), Progress(0.f) {}
-	explicit FGameFeaturePluginStateInfo(EGameFeaturePluginState::Type InState) : State(InState), Progress(0.f) {}
+	explicit FGameFeaturePluginStateInfo(EGameFeaturePluginState InState) : State(InState), Progress(0.f) {}
 };
 
 /** A state machine to manage transitioning a game feature plugin from just a URL into a fully loaded and active plugin, including registering its contents with other game systems */
@@ -261,7 +264,7 @@ public:
 	void InitStateMachine(const FString& InPluginURL, const FGameFeaturePluginRequestStateMachineDependencies& OnRequestStateMachineDependencies);
 
 	/** Asynchronously transitions the state machine to the destination state and reports when it is done. DestinationState must not be a transition state like 'Downloading' */
-	void SetDestinationState(EGameFeaturePluginState::Type InDestinationState, FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete);
+	void SetDestinationState(EGameFeaturePluginState InDestinationState, FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete);
 
 	/** Returns the name of the game feature. Before StatusKnown, this returns the URL. */
 	FString GetGameFeatureName() const;
@@ -270,10 +273,10 @@ public:
 	bool GetPluginFilename(FString& OutPluginFilename) const;
 
 	/** Returns the enum state for this machine */
-	EGameFeaturePluginState::Type GetCurrentState() const;
+	EGameFeaturePluginState GetCurrentState() const;
 
 	/** Returns the state this machine is trying to move to */
-	EGameFeaturePluginState::Type GetDestinationState() const;
+	EGameFeaturePluginState GetDestinationState() const;
 
 	/** Returns information about the current state */
 	const FGameFeaturePluginStateInfo& GetCurrentStateInfo() const;
@@ -293,7 +296,7 @@ public:
 
 private:
 	/** Returns true if the specified state is not a transition state like 'Downloading' */
-	bool IsValidDestinationState(EGameFeaturePluginState::Type InDestinationState) const;
+	bool IsValidDestinationState(EGameFeaturePluginState InDestinationState) const;
 
 	/** Processes the current state and looks for state transitions */
 	void UpdateStateMachine();
@@ -309,7 +312,7 @@ private:
 	FGameFeaturePluginStateMachineProperties StateProperties;
 
 	/** All state machine state objects */
-	TUniquePtr<FGameFeaturePluginState> AllStates[EGameFeaturePluginState::MAX];
+	TUniquePtr<FGameFeaturePluginState> AllStates[(int32)EGameFeaturePluginState::MAX];
 
 	/** True when we are currently executing UpdateStateMachine, to avoid reentry */
 	bool bInUpdateStateMachine;

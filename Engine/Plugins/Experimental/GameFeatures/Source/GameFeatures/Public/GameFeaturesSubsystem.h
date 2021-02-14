@@ -14,7 +14,8 @@ class UGameFeatureStateChangeObserver;
 struct FStreamableHandle;
 class UGameFeatureData;
 class UGameFeaturesProjectPolicies;
-
+enum class EGameFeaturePluginState : uint8;
+class IPlugin;
 
 struct FGameFeatureDeactivatingContext
 {
@@ -38,7 +39,7 @@ private:
 	friend struct FGameFeaturePluginState_Deactivating;
 };
 
-DECLARE_LOG_CATEGORY_EXTERN(LogGameFeatures, Log, All);
+GAMEFEATURES_API DECLARE_LOG_CATEGORY_EXTERN(LogGameFeatures, Log, All);
 
 /** Notification that a game feature plugin load has finished */
 DECLARE_DELEGATE_OneParam(FGameFeaturePluginLoadComplete, const UE::GameFeatures::FResult& /*Result*/);
@@ -127,6 +128,9 @@ public:
 	/** Returns the game feature data for the plugin specified by PluginURL */
 	const UGameFeatureData* GetGameFeatureDataForActivePluginByURL(const FString& PluginURL);
 
+	/** Loads a single game feature plugin. */
+	void LoadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate);
+
 	/** Loads a single game feature plugin and activates it. */
 	void LoadAndActivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate);
 
@@ -158,20 +162,26 @@ public:
 		return *CastChecked<T>(GameSpecificPolicies, ECastCheckedType::NullChecked);
 	}
 
-	typedef TFunction<bool(const FString& PluginFilename, const FGameFeaturePluginDetails& Details)> FBuiltInPluginAdditionalFilters;
+	typedef TFunctionRef<bool(const FString& PluginFilename, const FGameFeaturePluginDetails& Details)> FBuiltInPluginAdditionalFilters;
 
-	/** Loads built-in game feature plugins that pass the specified filters */
+	/** Loads a built-in game feature plugin if it passes the specified filter */
+	void LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlugin>& Plugin, FBuiltInPluginAdditionalFilters AdditionalFilter);
+
+	/** Loads all built-in game feature plugins that pass the specified filters */
 	void LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditionalFilters AdditionalFilter);
 
 	/** Returns the list of plugin filenames that have progressed beyond installed. Used in cooking to determine which will be cooked. */
 	//@TODO: GameFeaturePluginEnginePush: Might not be general enough for engine level, TBD
 	void GetLoadedGameFeaturePluginFilenamesForCooking(TArray<FString>& OutLoadedPluginFilenames) const;
 	
-	/** Broadcasts when a plugin is activated and the GameFeatureData is avaialble */
+	/** Broadcasts when a plugin is activated and the GameFeatureData is available */
 	static FGameFeaturePluginLoadCompleteDataReady& OnPluginLoadCompleteDataReady() { return PluginLoadedGameFeatureDataReadyDelegate; }
 
 	/** Broadcasts when a plugin is deactivated */
 	static FGameFeaturePluginDeativated& OnPluginDeactivatedDataReady() { return PluginDeactivatedDelegate; }
+
+	/** Returns the current state of the state machine for the specified plugin URL */
+	EGameFeaturePluginState GetPluginState(const FString& PluginURL);
 
 private:
 	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);
@@ -195,7 +205,7 @@ private:
 
 private:
 	const UGameFeatureData* GetDataForStateMachine(UGameFeaturePluginStateMachine* GFSM) const;
-
+	
 	/** Gets relevant properties out of a uplugin file */
 	bool GetGameFeaturePluginDetails(const FString& PluginDescriptorFilename, struct FGameFeaturePluginDetails& OutPluginDetails) const;
 

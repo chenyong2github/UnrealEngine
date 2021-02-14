@@ -152,8 +152,21 @@ public:
 
 	FPrimaryAssetTypeInfo() : AssetBaseClass(UObject::StaticClass()), AssetBaseClassLoaded(UObject::StaticClass()), bHasBlueprintClasses(false), bIsEditorOnly(false),  bIsDynamicAsset(false), NumberOfAssets(0) {}
 
-	FPrimaryAssetTypeInfo(FName InPrimaryAssetType, UClass* InAssetBaseClass, bool bInHasBlueprintClasses, bool bInIsEditorOnly) 
+	FPrimaryAssetTypeInfo(FName InPrimaryAssetType, UClass* InAssetBaseClass, bool bInHasBlueprintClasses, bool bInIsEditorOnly)
 		: PrimaryAssetType(InPrimaryAssetType), AssetBaseClass(InAssetBaseClass), AssetBaseClassLoaded(InAssetBaseClass), bHasBlueprintClasses(bInHasBlueprintClasses), bIsEditorOnly(bInIsEditorOnly), bIsDynamicAsset(false), NumberOfAssets(0)
+	{
+	}
+
+	FPrimaryAssetTypeInfo(FName InPrimaryAssetType, UClass* InAssetBaseClass, bool bInHasBlueprintClasses, bool bInIsEditorOnly, TArray<FDirectoryPath>&& InDirectories, TArray<FSoftObjectPath>&& InSpecificAssets)
+		: PrimaryAssetType(InPrimaryAssetType)
+		, AssetBaseClass(InAssetBaseClass)
+		, AssetBaseClassLoaded(InAssetBaseClass)
+		, bHasBlueprintClasses(bInHasBlueprintClasses)
+		, bIsEditorOnly(bInIsEditorOnly)
+		, Directories(MoveTemp(InDirectories))
+		, SpecificAssets(MoveTemp(InSpecificAssets))
+		, bIsDynamicAsset(false)
+		, NumberOfAssets(0)
 	{
 	}
 
