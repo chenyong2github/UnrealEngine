@@ -76,7 +76,7 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 		UObject* NewAsset = AssetToolsModule.Get().CreateAsset(NewPlugin->GetName(), NewPlugin->GetMountedAssetPath(), DefaultGameFeatureDataClass, /*Factory=*/ nullptr);
 
 		// Activate the new game feature plugin
-		auto AdditionalFilter = [](const FString&, const FGameFeaturePluginDetails&) -> bool { return true; };
+		auto AdditionalFilter = [](const FString&, const FGameFeaturePluginDetails&, FBuiltInGameFeaturePluginBehaviorOptions&) -> bool { return true; };
 		UGameFeaturesSubsystem::Get().LoadBuiltInGameFeaturePlugin(NewPlugin.ToSharedRef(), AdditionalFilter);
 
 		// Edit the new game feature data

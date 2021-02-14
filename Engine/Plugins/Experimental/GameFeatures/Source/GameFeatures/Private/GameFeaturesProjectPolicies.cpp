@@ -8,7 +8,7 @@ void UDefaultGameFeaturesProjectPolicies::InitGameFeatureManager()
 {
 	UE_LOG(LogGameFeatures, Log, TEXT("Scanning for built-in game feature plugins"));
 
-	auto AdditionalFilter = [&](const FString& PluginFilename, const FGameFeaturePluginDetails& PluginDetails) -> bool
+	auto AdditionalFilter = [&](const FString& PluginFilename, const FGameFeaturePluginDetails& PluginDetails, FBuiltInGameFeaturePluginBehaviorOptions& OutOptions) -> bool
 	{
 		return true;
 	};

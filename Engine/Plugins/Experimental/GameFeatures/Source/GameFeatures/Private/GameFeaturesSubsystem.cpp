@@ -441,7 +441,7 @@ void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, c
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
 	{
-		EGameFeaturePluginState::Type DestinationState = bKeepRegistered ? EGameFeaturePluginState::Registered : EGameFeaturePluginState::Installed;
+		EGameFeaturePluginState DestinationState = bKeepRegistered ? EGameFeaturePluginState::Registered : EGameFeaturePluginState::Installed;
 		if (StateMachine->GetCurrentState() > DestinationState)
 		{
 			StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::UnloadGameFeaturePluginComplete, CompleteDelegate));
@@ -480,24 +480,34 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 			FGameFeaturePluginDetails PluginDetails;
 			if (GetGameFeaturePluginDetails(PluginDescriptorFilename, PluginDetails))
 			{
-				bool bShouldProcess = AdditionalFilter(PluginDescriptorFilename, PluginDetails);
+				FBuiltInGameFeaturePluginBehaviorOptions BehaviorOptions;
+				bool bShouldProcess = AdditionalFilter(PluginDescriptorFilename, PluginDetails, BehaviorOptions);
 
 				if (bShouldProcess)
 				{
 					UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, true);
 
-					EGameFeaturePluginState DestinationState = EGameFeaturePluginState::Installed;
-					if (PluginDetails.bBuiltInAutoRegister)
+					EBuiltInAutoState InitialAutoState = BehaviorOptions.AutoStateOverride != EBuiltInAutoState::Invalid ? BehaviorOptions.AutoStateOverride : PluginDetails.BuiltInAutoState;
+						
+					EGameFeaturePluginState DestinationState = EGameFeaturePluginState::UnknownStatus;
+					switch (InitialAutoState)
 					{
+					case EBuiltInAutoState::Installed:
+						DestinationState = EGameFeaturePluginState::Installed;
+						break;
+					case EBuiltInAutoState::Registered:
 						DestinationState = EGameFeaturePluginState::Registered;
-						if (PluginDetails.bBuiltInAutoLoad)
-						{
-							DestinationState = EGameFeaturePluginState::Loaded;
-							if (PluginDetails.bBuiltInAutoActivate)
-							{
-								DestinationState = EGameFeaturePluginState::Active;
-							}
-						}
+						break;
+					case EBuiltInAutoState::Loaded:
+						DestinationState = EGameFeaturePluginState::Loaded;
+						break;
+					case EBuiltInAutoState::Active:
+						DestinationState = EGameFeaturePluginState::Active;
+						break;
+
+					default:
+						ensureMsgf(false, TEXT("BuilIn Game Feature Plugin %s configured for invalid auto state %d. Setting to UnknownStatus."), (uint8)InitialAutoState);
+						break;
 					}
 
 					if (StateMachine->GetCurrentState() >= DestinationState)
@@ -608,16 +618,29 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 	ObjectPtr->TryGetBoolField(TEXT("Hotfixable"), OutPluginDetails.bHotfixable);
 
 	// BuiltInAutoRegister. Default to true. If this is a built in plugin, should it be registered automatically (set to false if you intent to load late with LoadAndActivateGameFeaturePlugin)
-	OutPluginDetails.bBuiltInAutoRegister = true;
-	ObjectPtr->TryGetBoolField(TEXT("BuiltInAutoRegister"), OutPluginDetails.bBuiltInAutoRegister);
+	bool bBuiltInAutoRegister = true;
+	ObjectPtr->TryGetBoolField(TEXT("BuiltInAutoRegister"), bBuiltInAutoRegister);
 
 	// BuiltInAutoLoad. Default to true. If this is a built in plugin, should it be loaded automatically (set to false if you intent to load late with LoadAndActivateGameFeaturePlugin)
-	OutPluginDetails.bBuiltInAutoLoad = true;
-	ObjectPtr->TryGetBoolField(TEXT("BuiltInAutoLoad"), OutPluginDetails.bBuiltInAutoLoad);
+	bool bBuiltInAutoLoad = true;
+	ObjectPtr->TryGetBoolField(TEXT("BuiltInAutoLoad"), bBuiltInAutoLoad);
 
 	// The cooker will need to activate the plugin so that assets can be scanned properly
-	OutPluginDetails.bBuiltInAutoActivate = true;
-	ObjectPtr->TryGetBoolField(TEXT("BuiltInAutoActivate"), OutPluginDetails.bBuiltInAutoActivate);
+	bool bBuiltInAutoActivate = true;
+	ObjectPtr->TryGetBoolField(TEXT("BuiltInAutoActivate"), bBuiltInAutoActivate);
+
+	if (bBuiltInAutoRegister)
+	{
+		OutPluginDetails.BuiltInAutoState = EBuiltInAutoState::Registered;
+		if (bBuiltInAutoLoad)
+		{
+			OutPluginDetails.BuiltInAutoState = EBuiltInAutoState::Loaded;
+			if (bBuiltInAutoActivate)
+			{
+				OutPluginDetails.BuiltInAutoState = EBuiltInAutoState::Active;
+			}
+		}
+	}
 
 	// Read any additional metadata the policy might want to consume (e.g., a release version number)
 	for (const FString& ExtraKey : GetDefault<UGameFeaturesSubsystemSettings>()->AdditionalPluginMetadataKeys)
