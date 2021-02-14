@@ -95,7 +95,7 @@ struct FWorldPartionCellUpdateContext
 					}
 				});
 
-				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLastLoadedCells(WorldPartition->GetWorld(), EditorGridLastLoadedCells);
+				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(WorldPartition->GetWorld(), EditorGridLastLoadedCells);
 			}
 		}
 	}
@@ -274,7 +274,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			// Load last loaded cells
 			if (WorldPartitionEditorModule.GetEnableLoadingOfLastLoadedCells())
 			{
-				const TArray<FVector>& EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLastLoadedCells(InWorld);
+				const TArray<FVector>& EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
 
 				for (const FVector& EditorGridLastLoadedCellCenter : EditorGridLastLoadedCells)
 				{

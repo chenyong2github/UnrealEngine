@@ -9,7 +9,7 @@
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "EngineUtils.h"
 #if WITH_EDITOR
-#include "WorldPartition/DataLayer/DataLayerEditorPerProjectUserSettings.h"
+#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldDataLayers"
@@ -232,14 +232,12 @@ void AWorldDataLayers::PostLoad()
 
 #if WITH_EDITOR
 	// Initialize DataLayer's IsDynamicallyLoadedInEditor based on DataLayerEditorPerProjectUserSettings
-	if (const FDataLayerNames* SettingsDataLayersNotLoadedInEditor = GetDefault<UDataLayerEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld()))
+	const TArray<FName>& SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
+	for (const FName& DataLayerName : SettingsDataLayersNotLoadedInEditor)
 	{
-		for (const FName& DataLayerName : SettingsDataLayersNotLoadedInEditor->DataLayers)
+		if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
 		{
-			if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
-			{
-				DataLayer->SetIsDynamicallyLoadedInEditor(false);
-			}
+			DataLayer->SetIsDynamicallyLoadedInEditor(false);
 		}
 	}
 #else

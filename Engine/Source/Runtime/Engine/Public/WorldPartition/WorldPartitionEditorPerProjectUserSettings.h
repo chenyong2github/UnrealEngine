@@ -3,25 +3,32 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPtr.h"
+#include "Engine/World.h"
 #include "WorldPartitionEditorPerProjectUserSettings.generated.h"
 
 USTRUCT()
-struct FWorldPartitionPerWorldEditorGridSettings
+struct FWorldPartitionPerWorldSettings
 {
 	GENERATED_BODY();
 
 #if WITH_EDITOR
-	FWorldPartitionPerWorldEditorGridSettings()
+	FWorldPartitionPerWorldSettings()
 	{}
 
-	FWorldPartitionPerWorldEditorGridSettings(TArray<FVector>& InLastLoadedCells)
-		: LastLoadedCells(InLastLoadedCells)
+	FWorldPartitionPerWorldSettings(TArray<FVector>& InLoadedEditorGridCells)
+		: LoadedEditorGridCells(InLoadedEditorGridCells)
 	{}
 #endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<FVector> LastLoadedCells;
+	TArray<FVector> LoadedEditorGridCells;
+
+	UPROPERTY()
+	TArray<FName> NotLoadedDataLayers;
 #endif
 };
 
@@ -42,20 +49,54 @@ public:
 		if (EditorGridConfigHash != InEditorGridConfigHash)
 		{
 			EditorGridConfigHash = InEditorGridConfigHash;
-			PerWorldEditorGridSettings.Empty();
+
+			for (auto& PerWorldEditorSetting : PerWorldEditorSettings)
+			{
+				PerWorldEditorSetting.Value.LoadedEditorGridCells.Empty();
+			}
 			SaveConfig();
 		}
 	}
 
-	const TArray<FVector>& GetEditorGridLastLoadedCells(UWorld* InWorld)
+	const TArray<FVector>& GetEditorGridLoadedCells(UWorld* InWorld)
 	{ 
-		return PerWorldEditorGridSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LastLoadedCells;
+		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
 	}
 
-	void SetEditorGridLastLoadedCells(UWorld* InWorld, TArray<FVector>& InEditorGridLastLoadedCells)
+	void SetEditorGridLoadedCells(UWorld* InWorld, TArray<FVector>& InEditorGridLoadedCells)
 	{
-		PerWorldEditorGridSettings.Add(TSoftObjectPtr<UWorld>(InWorld), InEditorGridLastLoadedCells);
+		TArray<FVector>& GridLoadedCells = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
+		GridLoadedCells = InEditorGridLoadedCells;
 		SaveConfig();
+	}
+
+	bool GetShowDataLayerContent() const
+	{
+		return bShowDataLayerContent;
+	}
+
+	void SetShowDataLayerContent(bool bInShowDataLayerContent)
+	{
+		if (bShowDataLayerContent != bInShowDataLayerContent)
+		{
+			bShowDataLayerContent = bInShowDataLayerContent;
+			SaveConfig();
+		}
+	}
+
+	const TArray<FName>& GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld)
+	{
+		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).NotLoadedDataLayers;
+	}
+
+	void SetWorldDataLayersNotLoadedInEditor(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor)
+	{
+		if (InWorld)
+		{
+			TArray<FName>& DataLayersNotLoadedInEditor = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).NotLoadedDataLayers;
+			DataLayersNotLoadedInEditor = InDataLayersLoadedInEditor;
+			SaveConfig();
+		}
 	}
 #endif
 
@@ -65,6 +106,9 @@ private:
 	uint32 EditorGridConfigHash;
 
 	UPROPERTY(config)
-	TMap<TSoftObjectPtr<UWorld>, FWorldPartitionPerWorldEditorGridSettings> PerWorldEditorGridSettings;
+	uint32 bShowDataLayerContent : 1;
+
+	UPROPERTY(config)
+	TMap<TSoftObjectPtr<UWorld>, FWorldPartitionPerWorldSettings> PerWorldEditorSettings;
 #endif
 };
