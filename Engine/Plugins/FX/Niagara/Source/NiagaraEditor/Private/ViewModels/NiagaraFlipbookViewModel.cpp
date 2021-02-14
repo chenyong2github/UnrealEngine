@@ -7,7 +7,7 @@
 
 #include "ViewModels/NiagaraFlipbookViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
-#include "Widgets/SNiagaraFlipBookWidget.h"
+#include "Widgets/SNiagaraFlipbookWidget.h"
 #include "NiagaraFlipbookRenderer.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraComponent.h"
