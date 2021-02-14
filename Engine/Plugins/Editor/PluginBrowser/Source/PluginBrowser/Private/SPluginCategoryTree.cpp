@@ -209,13 +209,13 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 	{
 		RootCategories.Add(ModCategory);
 	}
+	if(ProjectCategory->SubCategories.Num() > 0 || ProjectCategory->Plugins.Num() > 0)
+	{
+		RootCategories.Add(ProjectCategory);
+	}
 	if(InstalledCategory->SubCategories.Num() > 0 || InstalledCategory->Plugins.Num() > 0)
 	{
 		RootCategories.Add(InstalledCategory);
-	}
-	if (ProjectCategory->SubCategories.Num() > 0 || ProjectCategory->Plugins.Num() > 0)
-	{
-		RootCategories.Add(ProjectCategory);
 	}
 	if(BuiltInCategory->SubCategories.Num() > 0 || BuiltInCategory->Plugins.Num() > 0)
 	{
