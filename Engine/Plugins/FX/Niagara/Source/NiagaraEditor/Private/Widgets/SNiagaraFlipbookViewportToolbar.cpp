@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SNiagaraFlipbookViewportToolBar.h"
+#include "SNiagaraFlipbookViewportToolbar.h"
 #include "SNiagaraFlipbookViewport.h"
 #include "ViewModels/NiagaraFlipbookViewModel.h"
 
