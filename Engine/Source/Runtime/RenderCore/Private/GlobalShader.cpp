@@ -357,6 +357,7 @@ void FGlobalShaderMap::ReleaseAllSections()
 	{
 		delete It.Value;
 	}
+	SectionMap.Empty();
 }
 
 FShader* FGlobalShaderMap::FindOrAddShader(const FShaderType* ShaderType, int32 PermutationId, FShader* Shader)
