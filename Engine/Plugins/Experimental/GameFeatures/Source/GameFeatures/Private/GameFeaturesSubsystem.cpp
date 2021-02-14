@@ -431,19 +431,20 @@ void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginUR
 	}
 }
 
-void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL)
+void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, bool bKeepRegistered)
 {
 	FGameFeaturePluginUnloadComplete Callback = FGameFeaturePluginUnloadComplete();
-	UnloadGameFeaturePlugin(PluginURL, Callback);
+	UnloadGameFeaturePlugin(PluginURL, Callback, bKeepRegistered);
 }
 
-void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUnloadComplete& CompleteDelegate)
+void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUnloadComplete& CompleteDelegate, bool bKeepRegistered)
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, false))
 	{
-		if (StateMachine->GetCurrentState() > EGameFeaturePluginState::Installed)
+		EGameFeaturePluginState::Type DestinationState = bKeepRegistered ? EGameFeaturePluginState::Registered : EGameFeaturePluginState::Installed;
+		if (StateMachine->GetCurrentState() > DestinationState)
 		{
-			StateMachine->SetDestinationState(EGameFeaturePluginState::Installed, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::UnloadGameFeaturePluginComplete, CompleteDelegate));
+			StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::UnloadGameFeaturePluginComplete, CompleteDelegate));
 		}
 	}
 }
