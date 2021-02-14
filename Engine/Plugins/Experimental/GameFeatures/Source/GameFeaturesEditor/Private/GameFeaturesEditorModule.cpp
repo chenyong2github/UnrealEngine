@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+#include "GameFeatureData.h"
 #include "GameFeaturesSubsystemSettings.h"
 #include "Features/IPluginsEditorFeature.h"
 #include "Features/EditorFeatures.h"
@@ -17,6 +18,9 @@
 #include "Engine/AssetManagerSettings.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Engine/AssetManager.h"
+#include "HAL/FileManager.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
