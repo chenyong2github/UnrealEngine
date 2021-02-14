@@ -6,6 +6,7 @@
 #include "GameFeaturesSubsystemSettings.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/CoreRedirects.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
@@ -54,7 +55,7 @@ EDataValidationResult UGameFeatureData::IsDataValid(TArray<FText>& ValidationErr
 }
 #endif
 
-void UGameFeatureData::InitializePluginIniFile(const FString& PluginInstalledFilename) const
+void UGameFeatureData::InitializeBasePluginIniFile(const FString& PluginInstalledFilename) const
 {
 	const FString PluginName = FPaths::GetBaseFilename(PluginInstalledFilename);
 	const FString PluginConfigDir = FPaths::GetPath(PluginInstalledFilename) / TEXT("Config/");
@@ -78,8 +79,20 @@ void UGameFeatureData::InitializePluginIniFile(const FString& PluginInstalledFil
 	}
 	else
 	{
+		FCoreRedirects::ReadRedirectsFromIni(PluginConfigFilename);
 		ReloadConfigs(PluginConfig);
 	}
+}
+
+void UGameFeatureData::InitializeHierarchicalPluginIniFiles(const FString& PluginInstalledFilename) const
+{
+	const FString PluginName = FPaths::GetBaseFilename(PluginInstalledFilename);
+	const FString PluginConfigDir = FPaths::GetPath(PluginInstalledFilename) / TEXT("Config/");
+	const FString EngineConfigDir = FPaths::EngineConfigDir();
+
+	const bool bIsBaseIniName = false;
+	const bool bForceReloadFromDisk = false;
+	const bool bWriteDestIni = false;
 
 	// @todo: Likely we need to track the diffs this config caused and/or store versions/layers in order to unwind settings during unloading/deactivation
 	TArray<FString> IniNamesToLoad = { TEXT("Input"), TEXT("Game") };

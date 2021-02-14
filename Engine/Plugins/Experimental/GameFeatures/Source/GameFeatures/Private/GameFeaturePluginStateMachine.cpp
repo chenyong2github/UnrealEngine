@@ -800,6 +800,8 @@ struct FGameFeaturePluginState_Loading : public FGameFeaturePluginState
 
 		StateStatus.TransitionToState = EGameFeaturePluginState::Loaded;
 
+		StateProperties.GameFeatureData->InitializeBasePluginIniFile(StateProperties.PluginInstalledFilename);
+
 		// AssetManager
 		TSharedPtr<FStreamableHandle> BundleHandle = LoadGameFeatureBundles(StateProperties.GameFeatureData);
 		// @todo make this async. For now we just wait
@@ -913,7 +915,7 @@ struct FGameFeaturePluginState_Activating : public FGameFeaturePluginState
 		check(GEngine);
 		check(StateProperties.GameFeatureData);
 
-		StateProperties.GameFeatureData->InitializePluginIniFile(StateProperties.PluginInstalledFilename);
+		StateProperties.GameFeatureData->InitializeHierarchicalPluginIniFiles(StateProperties.PluginInstalledFilename);
 
 		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData);
 
