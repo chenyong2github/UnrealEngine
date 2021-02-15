@@ -25,6 +25,7 @@
 #include "Kismet2/Kismet2NameValidators.h"
 #include "AnimNodes/AnimNode_BlendSpaceGraphBase.h"
 #include "BlueprintEditor.h"
+#include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_BlendSpaceGraphBase"
 
