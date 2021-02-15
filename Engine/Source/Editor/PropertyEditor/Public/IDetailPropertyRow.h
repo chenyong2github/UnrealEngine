@@ -20,7 +20,7 @@ public:
 	
 	FDetailColumnSizeData()
 	{
-		ValueColumnWidthValue = 0.5f;
+		ValueColumnWidthValue = 0.7f;
 		RightColumnWidthValue = 0.05f;
 		HoveredSplitterIndexValue = INDEX_NONE;
 
@@ -54,7 +54,7 @@ private:
 	float RightColumnWidthValue;
 	int HoveredSplitterIndexValue;
 
-	float GetNameColumnWidth() const { return 1.0f - ValueColumnWidthValue; }
+	float GetNameColumnWidth() const { return 1.0f - (ValueColumnWidthValue + RightColumnWidthValue); }
 	float GetValueColumnWidth() const { return ValueColumnWidthValue; }
 	float GetRightColumnWidth() const { return RightColumnWidthValue; }
 	float GetPropertyColumnWidth() const { return 1.0f - RightColumnWidthValue; }
@@ -127,6 +127,17 @@ public:
 		FResetToDefaultOverride ResetToDefault;
 		ResetToDefault.bForceShow = false;
 		ResetToDefault.IsVisibleAttribute = InIsResetToDefaultVisible;
+		ResetToDefault.OnClickedDelegate = InResetToDefaultClicked;
+		ResetToDefault.bPropagateToChildren = InPropagateToChildren;
+		ResetToDefault.bForceHide = false;
+		return ResetToDefault;
+	}
+
+	/** Create a FResetToDefaultOverride from a simple delegate. */
+	static FResetToDefaultOverride Create(FSimpleDelegate InResetToDefaultClicked, const bool InPropagateToChildren = false)
+	{
+		FResetToDefaultOverride ResetToDefault;
+		ResetToDefault.bForceShow = true;
 		ResetToDefault.OnClickedDelegate = InResetToDefaultClicked;
 		ResetToDefault.bPropagateToChildren = InPropagateToChildren;
 		ResetToDefault.bForceHide = false;
