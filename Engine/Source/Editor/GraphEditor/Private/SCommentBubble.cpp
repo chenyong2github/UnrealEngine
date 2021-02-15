@@ -9,6 +9,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "SGraphPanel.h"
 #include "ScopedTransaction.h"
+#include "Styling/StyleColors.h"
 
 namespace SCommentBubbleDefs
 {
@@ -256,15 +257,13 @@ void SCommentBubble::UpdateBubble()
 						[
 							SAssignNew(TextBlock, SMultiLineEditableTextBox)
 							.Text(MakeAttributeLambda([this] { return CachedCommentText; }))
+							.Style(FAppStyle::Get(), "Graph.Node.NodeTitleInlineEditableText")
 							.HintText( NSLOCTEXT( "CommentBubble", "EditCommentHint", "Click to edit" ))
 							.IsReadOnly(this, &SCommentBubble::IsReadOnly)
 							.SelectAllTextWhenFocused( true )
 							.RevertTextOnEscape( true )
 							.ClearKeyboardFocusOnCommit( true )
 							.ModiferKeyForNewLine(EModifierKey::Shift)
-							.ForegroundColor(this, &SCommentBubble::GetTextForegroundColor)
-							.ReadOnlyForegroundColor(this, &SCommentBubble::GetReadOnlyTextForegroundColor)
-							.BackgroundColor(this, &SCommentBubble::GetTextBackgroundColor)
 							.OnTextCommitted(this, &SCommentBubble::OnCommentTextCommitted)
 						]
 						+SHorizontalBox::Slot()
@@ -401,22 +400,6 @@ FSlateColor SCommentBubble::GetBubbleColor() const
 	}
 	return ReturnColor;
 }
-
-FSlateColor SCommentBubble::GetTextBackgroundColor() const
-{
-	return TextBlock->HasKeyboardFocus() ? FLinearColor::White : SCommentBubbleDefs::TextClearBackground;
-}
-
-FSlateColor SCommentBubble::GetTextForegroundColor() const
-{
-	return TextBlock->HasKeyboardFocus() ? FSlateColor::UseStyle() : FLinearColor::Black;
-}
-
-FSlateColor SCommentBubble::GetReadOnlyTextForegroundColor() const
-{
-	return TextBlock->HasKeyboardFocus() ? FLinearColor::White : FLinearColor::Black;
-}
-
 void SCommentBubble::OnCommentTextCommitted( const FText& NewText, ETextCommit::Type CommitInfo )
 {
 	if (CommitInfo == ETextCommit::OnEnter || CommitInfo == ETextCommit::OnUserMovedFocus)

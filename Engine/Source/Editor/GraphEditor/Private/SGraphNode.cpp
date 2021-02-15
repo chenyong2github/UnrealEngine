@@ -732,7 +732,7 @@ void SGraphNode::SetupErrorReporting()
 TSharedRef<SWidget> SGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
 {
 	SAssignNew(InlineEditableText, SInlineEditableTextBlock)
-		.Style(FEditorStyle::Get(), "Graph.Node.NodeTitleInlineEditableText")
+		.Style(FAppStyle::Get(), "Graph.Node.NodeTitleInlineEditableText")
 		.Text(NodeTitle.Get(), &SNodeTitle::GetHeadTitle)
 		.OnVerifyTextChanged(this, &SGraphNode::OnVerifyNameTextChanged)
 		.OnTextCommitted(this, &SGraphNode::OnNameTextCommited)

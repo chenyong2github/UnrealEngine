@@ -133,15 +133,6 @@ protected:
 	/** Returns the color of the main bubble */
 	FSlateColor GetBubbleColor() const;
 
-	/** Returns the current background color for the textbox */
-	FSlateColor GetTextBackgroundColor() const;
-	
-	/** Returns the current foreground color for the textbox */
-	FSlateColor GetTextForegroundColor() const;
-
-	/** Returns the current foreground color for the textbox when it is read only*/
-	FSlateColor GetReadOnlyTextForegroundColor() const;
-
 	/** Returns the foreground color for the text and buttons, taking into account the bubble color */
 	FSlateColor GetForegroundColor() const override { return ForegroundColor; }
 

@@ -141,7 +141,7 @@ void SGraphNodeComment::UpdateGraphNode()
 
 	CachedFontSize = CommentNode->GetFontSize();
 
-	CommentStyle = FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.CommentBlock.TitleInlineEditableText");
+	CommentStyle = FAppStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.CommentBlock.TitleInlineEditableText");
 	CommentStyle.EditableTextBoxStyle.Font.Size = CachedFontSize;
 	CommentStyle.TextStyle.Font.Size = CachedFontSize;
 
