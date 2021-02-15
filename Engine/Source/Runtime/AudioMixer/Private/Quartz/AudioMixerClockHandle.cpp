@@ -60,6 +60,11 @@ UQuartzClockHandle* UQuartzClockHandle::Init(UWorld* InWorldPtr)
 	return this;
 }
 
+void UQuartzClockHandle::StartClock(const UObject* WorldContextObject)
+{
+	ResumeClock(WorldContextObject);
+}
+
 void UQuartzClockHandle::PauseClock(const UObject* WorldContextObject)
 {
 	if (QuartzSubsystem)
@@ -86,13 +91,23 @@ void UQuartzClockHandle::ResumeClock(const UObject* WorldContextObject)
 	}
 }
 
-void UQuartzClockHandle::ResetTransport(const UObject* WorldContextObject, const FOnQuartzCommandEventBP& InDelegate)
+void UQuartzClockHandle::ResetTransport(const UObject* WorldContextObject, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
 {
 	if (QuartzSubsystem != nullptr)
 	{
-		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTransportReset(this, InDelegate));
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTransportReset(this, InQuantizationBoundary, InDelegate));
 		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
 	}
+}
+
+bool UQuartzClockHandle::IsClockRunning(const UObject* WorldContextObject)
+{
+	if (QuartzSubsystem != nullptr)
+	{
+		return QuartzSubsystem->IsClockRunning(WorldContextObject, CurrentClockId);
+	}
+
+	return false;
 }
 
 void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent)
@@ -150,8 +165,9 @@ void UQuartzClockHandle::UnsubscribeFromAllTimeDivisions(const UObject* WorldCon
 }
 
 // Metronome Alteration (setters)
-void UQuartzClockHandle::SetMillisecondsPerTick(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float MillisecondsPerTick)
+void UQuartzClockHandle::SetMillisecondsPerTick(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, UQuartzClockHandle*& ClockHandle, float MillisecondsPerTick)
 {
+	ClockHandle = this;
 	if (MillisecondsPerTick < 0 || FMath::IsNearlyZero(MillisecondsPerTick))
 	{
 		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: MillisecondsPerTick was %f"), *this->CurrentClockId.ToString(), MillisecondsPerTick);
@@ -168,8 +184,9 @@ void UQuartzClockHandle::SetMillisecondsPerTick(const UObject* WorldContextObjec
 	}
 }
 
-void UQuartzClockHandle::SetTicksPerSecond(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float TicksPerSecond)
+void UQuartzClockHandle::SetTicksPerSecond(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, UQuartzClockHandle*& ClockHandle, float TicksPerSecond)
 {
+	ClockHandle = this;
 	if (TicksPerSecond < 0 || FMath::IsNearlyZero(TicksPerSecond))
 	{
 		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: TicksPerSecond was %f"), *this->CurrentClockId.ToString(), TicksPerSecond);
@@ -186,8 +203,9 @@ void UQuartzClockHandle::SetTicksPerSecond(const UObject* WorldContextObject, co
 	}
 }
 
-void UQuartzClockHandle::SetSecondsPerTick(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float SecondsPerTick)
+void UQuartzClockHandle::SetSecondsPerTick(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, UQuartzClockHandle*& ClockHandle, float SecondsPerTick)
 {
+	ClockHandle = this;
 	if (SecondsPerTick < 0 || FMath::IsNearlyZero(SecondsPerTick))
 	{
 		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: SecondsPerTick was %f"), *this->CurrentClockId.ToString(), SecondsPerTick);
@@ -204,8 +222,9 @@ void UQuartzClockHandle::SetSecondsPerTick(const UObject* WorldContextObject, co
 	}
 }
 
-void UQuartzClockHandle::SetThirtySecondNotesPerMinute(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float ThirtySecondsNotesPerMinute)
+void UQuartzClockHandle::SetThirtySecondNotesPerMinute(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, UQuartzClockHandle*& ClockHandle, float ThirtySecondsNotesPerMinute)
 {
+	ClockHandle = this;
 	if (ThirtySecondsNotesPerMinute < 0 || FMath::IsNearlyZero(ThirtySecondsNotesPerMinute))
 	{
 		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: ThirtySecondsNotesPerMinute was %f"), *this->CurrentClockId.ToString(), ThirtySecondsNotesPerMinute);
@@ -222,8 +241,9 @@ void UQuartzClockHandle::SetThirtySecondNotesPerMinute(const UObject* WorldConte
 	}
 }
 
-void UQuartzClockHandle::SetBeatsPerMinute(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float BeatsPerMinute)
+void UQuartzClockHandle::SetBeatsPerMinute(const UObject* WorldContextObject, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, UQuartzClockHandle*& ClockHandle, float BeatsPerMinute)
 {
+	ClockHandle = this;
 	if (BeatsPerMinute < 0 || FMath::IsNearlyZero(BeatsPerMinute))
 	{
 		UE_LOG(LogAudioQuartz, Warning, TEXT("Ignoring invalid request on Clock: %s: BeatsPerMinute was %f"), *this->CurrentClockId.ToString(), BeatsPerMinute);

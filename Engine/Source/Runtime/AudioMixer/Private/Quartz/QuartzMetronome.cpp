@@ -65,7 +65,6 @@ namespace Audio
 						}
 
 						FramesLeftInMusicalDuration[DurationType] += PulseDurations[PulseDurationIndex];
-
 					}
 					while (FramesLeftInMusicalDuration[DurationType] <= 0);
 				}
@@ -126,6 +125,11 @@ namespace Audio
 
 	int32 FQuartzMetronome::GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const
 	{
+		if(!ensure(InQuantizationBoundary.Quantization != EQuartzCommandQuantization::None))
+		{
+			return 0; // Metronome's should not have to deal w/ Quartization == None
+		}
+
 		if (InQuantizationBoundary.Multiplier < 1.0f)
 		{
 			UE_LOG(LogAudioQuartz, Warning, TEXT("Quantizatoin Boundary being clamped to 1.0 (from %f)"), InQuantizationBoundary.Multiplier);
@@ -309,6 +313,12 @@ namespace Audio
 	void FQuartzMetronome::ResetTransport()
 	{
 		CurrentTimeStamp.Reset();
+
+		for (int32& FrameCount : FramesLeftInMusicalDuration.FramesInTimeValueInternal)
+		{
+			FrameCount = 0;
+		}
+
 	}
 
 	void FQuartzMetronome::RecalculateDurations()

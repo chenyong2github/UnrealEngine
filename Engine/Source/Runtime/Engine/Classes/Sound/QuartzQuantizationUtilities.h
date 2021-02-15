@@ -67,7 +67,10 @@ enum class EQuartzCommandQuantization : uint8
 
 	Tick					UMETA(DisplayName = "On Tick (Smallest Value, same as 1/32)", ToolTip = "(same as 1/32)"),
 
-	Count				UMETA(Hidden),
+	Count					UMETA(Hidden),
+
+	None					UMETA(DisplayName = "None", ToolTip = "(Execute as son as possible)"),
+	// (when using "Count" in various logic, we don't want to account for "None")
 };
 
 // An enumeration for specifying the denominator of time signatures
@@ -137,21 +140,15 @@ struct ENGINE_API FQuartzTransportTimeStamp
 {
 	GENERATED_BODY()
 
-		int32 Bars { 0 };
+	int32 Bars { 0 };
 
 	int32 Beat{ 0 };
 
-	float BeatFration{ 0.f };
+	float BeatFraction{ 0.f };
 
-	bool IsZero() const
-	{
-		return (!Bars) && (!Beat) && FMath::IsNearlyZero(BeatFration);
-	}
+	bool IsZero() const;
 
-	void Reset()
-	{
-		Bars = 0;
-	}
+	void Reset();
 };
 
 
@@ -429,7 +426,7 @@ namespace Audio
 			, int32 InSourceID = -1
 		);
 
-		void SetOwningClockPtr(Audio::FQuartzClock* InClockPointer)
+		void SetOwningClockPtr(TSharedPtr<Audio::FQuartzClock> InClockPointer)
 		{
 			OwningClockPointer = InClockPointer;
 		}
@@ -443,7 +440,7 @@ namespace Audio
 		int32 GameThreadDelegateID{ -1 };
 
 		// Audio Render thread-specific data:
-		Audio::FQuartzClock* OwningClockPointer{ nullptr };
+		TSharedPtr<Audio::FQuartzClock> OwningClockPointer{ nullptr };
 		int32 SourceID{ -1 };
 	};
 

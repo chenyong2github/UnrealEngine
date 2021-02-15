@@ -26,12 +26,14 @@ namespace Audio
 
 		// add (and take ownership of) a new clock
 		// safe to call from AudioThread (uses critical section)
-		FQuartzClock* GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists = false);
+		TSharedPtr<FQuartzClock> GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists = false);
 
 
 		// returns true if a clock with the given name already exists.
-		// OutKey is overwritten with a default object if the clock didn't exist
 		bool DoesClockExist(const FName& InClockName);
+
+		// returns true if the name is running
+		bool IsClockRunning(const FName& InClockName);
 
 		// remove existing clock
 		// safe to call from AudioThread (uses Audio Render Thread Command)
@@ -84,7 +86,7 @@ namespace Audio
 		void TickClocks(int32 NumFramesToTick);
 
 		// find clock with a given key
-		FQuartzClock* FindClock(const FName& InName);
+		TSharedPtr<FQuartzClock> FindClock(const FName& InName);
 
 		// pointer to owning FMixerDevice
 		FMixerDevice* MixerDevice;
@@ -93,6 +95,6 @@ namespace Audio
 		FCriticalSection ActiveClockCritSec;
 
 		// Our array of active clocks (mutation/access acquires clock)
-		TArray<FQuartzClock> ActiveClocks;
+		TArray<TSharedPtr<FQuartzClock>> ActiveClocks;
 	};
 } // namespace Audio

@@ -190,6 +190,8 @@ namespace Audio
 
 		switch (InDuration)
 		{
+		case EQuartzCommandQuantization::None:
+			return 0;
 
 			// NORMAL
 		case EQuartzCommandQuantization::Tick:
@@ -603,3 +605,15 @@ namespace Audio
 
 
 } // namespace Audio
+
+bool FQuartzTransportTimeStamp::IsZero() const
+{
+	return (!Bars) && (!Beat) && FMath::IsNearlyZero(BeatFraction);
+}
+
+void FQuartzTransportTimeStamp::Reset()
+{
+	Bars = 0;
+	Beat = 0;
+	BeatFraction = 0.f;
+}

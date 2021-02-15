@@ -229,7 +229,7 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTickRateChange
 	return CommandInitInfo;
 }
 
-Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTransportReset(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate)
+Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTransportReset(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
 {
 	TSharedPtr<Audio::FQuantizedTransportReset> TransportResetCommandPtr = MakeShared<Audio::FQuantizedTransportReset>();
 
@@ -237,7 +237,7 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTransportReset
 
 	CommandInitInfo.ClockName = InClockHandle->GetClockName();
 	CommandInitInfo.ClockHandleName = InClockHandle->GetHandleName();
-	CommandInitInfo.QuantizationBoundary = EQuartzCommandQuantization::Bar;
+	CommandInitInfo.QuantizationBoundary = InQuantizationBoundary;
 	CommandInitInfo.QuantizedCommandPtr = TransportResetCommandPtr;
 
 	if (InDelegate.IsBound())
@@ -339,6 +339,22 @@ bool UQuartzSubsystem::DoesClockExist(const UObject* WorldContextObject, FName C
 	}
 
 	return ClockManager->DoesClockExist(ClockName);
+}
+
+bool UQuartzSubsystem::IsClockRunning(const UObject* WorldContextObject, FName ClockName)
+{
+	if (DisableQuartzCvar)
+	{
+		return false;
+	}
+
+	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
+	if (!ClockManager)
+	{
+		return false;
+	}
+
+	return ClockManager->IsClockRunning(ClockName);
 }
 
 
