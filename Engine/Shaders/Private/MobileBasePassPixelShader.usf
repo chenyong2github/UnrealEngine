@@ -623,19 +623,23 @@ void Main(
 	// TODO Sample screen velocity when available
 
 	float2 PrevScreenPosition = (ScreenPosition - ScreenVelocity);// NDC in [-1,1]
-	float2 PrevScreenUV = ScreenPositionToBufferUV(float4(PrevScreen.x, PrevScreen.y, 1, 1));
+	float2 PrevScreenUV = float2(PrevScreen.xy * MobileBasePass.PrevScreenPositionScaleBias.xy + MobileBasePass.PrevScreenPositionScaleBias.wz);
+	const bool bValidPreviousUV = all(PrevScreenUV > 0.0) && all(PrevScreenUV < 1.0f);
 #endif
 
 #if APPLY_AO
-	#if DEFERRED_SHADING_PATH
+	if (bValidPreviousUV)
+	{
+#if DEFERRED_SHADING_PATH
 		half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, SvPositionToBufferUV(SvPosition));
-	#else
+#else
 		half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, PrevScreenUV);
-	#endif
+#endif
 
-	half DynamicAmbientOcclusion = lerp(1.0f, GatheredAmbientOcclusion.r, AmbientOcclusionStaticFraction);
+		half DynamicAmbientOcclusion = lerp(1.0f, GatheredAmbientOcclusion.r, AmbientOcclusionStaticFraction);
 
-	MaterialAO *= DynamicAmbientOcclusion;
+		MaterialAO *= DynamicAmbientOcclusion;
+	}
 #endif
 
 	GBuffer.GBufferAO = MaterialAO;
@@ -754,7 +758,7 @@ void Main(
 #endif /* DIRECTIONAL_LIGHT_CSM */
 
 #if APPLY_DISTANCE_FIELD
-	if (ShadowPositionZ == 0)
+	if (ShadowPositionZ == 0 && bValidPreviousUV)
 	{
 		#if DEFERRED_SHADING_PATH
 			Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition)).x;
