@@ -2341,7 +2341,37 @@ void UGroomAsset::InitMeshesResources()
 	}
 }
 
-bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex)
+EGroomGeometryType UGroomAsset::GetGeometryType(int32 GroupIndex, int32 LODIndex) const
+{
+	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num())
+	{
+		return EGroomGeometryType::Strands;
+	}
+
+	if (LODIndex < 0 || LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	{
+		return EGroomGeometryType::Strands;
+	}
+
+	return HairGroupsLOD[GroupIndex].LODs[LODIndex].GeometryType;
+}
+
+EGroomBindingType UGroomAsset::GetBindingType(int32 GroupIndex, int32 LODIndex) const
+{
+	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num() || !IsHairStrandsBindingEnable())
+	{
+		return EGroomBindingType::Rigid; // Fallback to rigid by default
+	}
+
+	if (LODIndex < 0 || LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	{
+		return EGroomBindingType::Rigid; // Fallback to rigid by default
+	}
+
+	return HairGroupsLOD[GroupIndex].LODs[LODIndex].BindingType;
+}
+
+bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const 
 {
 	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num() || !IsHairStrandsSimulationEnable())
 	{
@@ -2371,7 +2401,7 @@ bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex)
 		(HairGroupsLOD[GroupIndex].LODs[LODIndex].Simulation == EGroomOverrideType::Auto && HairGroupsPhysics[GroupIndex].SolverSettings.EnableSimulation);
 }
 
-bool UGroomAsset::IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex)
+bool UGroomAsset::IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex) const
 {
 	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num())
 	{

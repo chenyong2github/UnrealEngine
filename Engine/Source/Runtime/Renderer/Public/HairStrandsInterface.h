@@ -186,6 +186,12 @@ public:
 	void SetLODVisibilities(const TArray<bool>& InLODVisibility) { LODVisibilities = InLODVisibility; }
 	const TArray<bool>& GetLODVisibilities() const { return LODVisibilities; }
 
+	EHairGeometryType GetGeometryType(int32 InLODIndex) const
+	{
+		if (InLODIndex < 0 && InLODIndex >= LODGeometryTypes.Num()) return EHairGeometryType::NoneGeometry;
+		return LODGeometryTypes[InLODIndex];
+	}
+
 	EHairBindingType GetBindingType(int32 InLODIndex) const
 	{ 
 		if (InLODIndex < 0 && InLODIndex >= BindingTypes.Num()) return EHairBindingType::NoneBinding;

@@ -37,14 +37,23 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 	{
 		const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[LODIndex];
 
-		// When the geometry is not-dynamic (no binding to skeletal mesh, no simulation), only a single vertex buffer is allocated. 
-		// In this case we force the buffer index to 0
-		const bool bIsDynamic = LOD.DeformedResource->bDynamic;
-
 		// Cards atlas UV are inverted so fetching needs to be inverted on the y-axis
 		UniformParameters.bInvertUV = LOD.RestResource->bInvertUV;
-		UniformParameters.PositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? Current : 0].SRV.GetReference();
-		UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? 1u-Current : 0].SRV.GetReference();
+
+		// When the geometry is not-dynamic (no binding to skeletal mesh, no simulation), only a single vertex buffer is allocated. 
+		// In this case we force the buffer index to 0
+		const bool bIsDynamic = LOD.DeformedResource != nullptr;
+		if (bIsDynamic)
+		{
+			UniformParameters.PositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? Current : 0].SRV.GetReference();
+			UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? 1u-Current : 0].SRV.GetReference();
+		}
+		else
+		{
+			UniformParameters.PositionBuffer = LOD.RestResource->RestPositionBuffer.ShaderResourceViewRHI;
+			UniformParameters.PreviousPositionBuffer = LOD.RestResource->RestPositionBuffer.ShaderResourceViewRHI;
+		}
+
 		UniformParameters.NormalsBuffer = LOD.RestResource->NormalsBuffer.ShaderResourceViewRHI.GetReference();
 		UniformParameters.UVsBuffer = LOD.RestResource->UVsBuffer.ShaderResourceViewRHI.GetReference();
 
@@ -65,12 +74,20 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 
 		// When the geometry is not-dynamic (no binding to skeletal mesh, no simulation), only a single vertex buffer is allocated. 
 		// In this case we force the buffer index to 0
-		const bool bIsDynamic = LOD.DeformedResource->bDynamic;
+		const bool bIsDynamic = LOD.DeformedResource != nullptr;
+		if (bIsDynamic)
+		{
+			UniformParameters.PositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? Current : 0].SRV.GetReference();
+			UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? 1u - Current : 0].SRV.GetReference();
+		}
+		else
+		{
+			UniformParameters.PositionBuffer = LOD.RestResource->RestPositionBuffer.ShaderResourceViewRHI;
+			UniformParameters.PreviousPositionBuffer = LOD.RestResource->RestPositionBuffer.ShaderResourceViewRHI;
+		}
 
 		// Meshes UV are not inverted so no need to invert the y-axis
 		UniformParameters.bInvertUV = 0;
-		UniformParameters.PositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? Current : 0].SRV.GetReference();
-		UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? 1u-Current : 0].SRV.GetReference();
 		UniformParameters.NormalsBuffer = LOD.RestResource->NormalsBuffer.ShaderResourceViewRHI.GetReference();
 		UniformParameters.UVsBuffer = LOD.RestResource->UVsBuffer.ShaderResourceViewRHI.GetReference();
 
@@ -153,14 +170,16 @@ public:
 		if (InstanceGeometryType == EHairGeometryType::Cards)
 		{
 			const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[LODIndex];
-			const uint32 UniformIndex = LOD.DeformedResource->GetIndex(FHairCardsDeformedResource::Current);
+			const bool bIsDynamic = LOD.DeformedResource != nullptr;
+			const uint32 UniformIndex = bIsDynamic ? LOD.DeformedResource->GetIndex(FHairCardsDeformedResource::Current) : 0;
 			check(LOD.UniformBuffer[UniformIndex]);
 			VertexFactoryUniformBuffer = LOD.UniformBuffer[UniformIndex];
 		}
 		else if (InstanceGeometryType == EHairGeometryType::Meshes)
 		{
 			const FHairGroupInstance::FMeshes::FLOD& LOD = Instance->Meshes.LODs[LODIndex];
-			const uint32 UniformIndex = LOD.DeformedResource->GetIndex(FHairMeshesDeformedResource::Current);
+			const bool bIsDynamic = LOD.DeformedResource != nullptr;
+			const uint32 UniformIndex = bIsDynamic ? LOD.DeformedResource->GetIndex(FHairMeshesDeformedResource::Current) : 0;
 			check(LOD.UniformBuffer[UniformIndex]);
 			VertexFactoryUniformBuffer = LOD.UniformBuffer[UniformIndex];
 		}

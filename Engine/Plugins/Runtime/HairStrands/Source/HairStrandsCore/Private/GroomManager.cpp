@@ -188,12 +188,21 @@ static void RunInternalHairStrandsInterpolation(
 			const EHairGeometryType InstanceGeometryType = Instance->GeometryType;
 			const EHairBindingType InstanceBindingType = Instance->BindingType;
 
+			const uint32 HairLODIndex = Instance->HairGroupPublicData->LODIndex;
+			const EHairBindingType BindingType = Instance->HairGroupPublicData->GetBindingType(HairLODIndex);
+			const bool bSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(HairLODIndex);
+			const bool bGlobalDeformationEnable = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(HairLODIndex);
+			check(InstanceBindingType == BindingType);
+
 			if (EHairStrandsInterpolationType::RenderStrands == Type)
 			{
 				if (InstanceGeometryType == EHairGeometryType::Strands)
 				{
-					if (Instance->Strands.HasValidRootData() && Instance->Strands.DeformedRootResource->IsValid(MeshLODIndex) && InstanceBindingType == EHairBindingType::Skinning)
+					if (BindingType == EHairBindingType::Skinning || bGlobalDeformationEnable)
 					{
+						check(Instance->Strands.HasValidRootData());
+						check(Instance->Strands.DeformedRootResource->IsValid(MeshLODIndex));
+
 						AddHairStrandUpdateMeshTrianglesPass(
 							GraphBuilder, 
 							ShaderMap, 
@@ -210,8 +219,10 @@ static void RunInternalHairStrandsInterpolation(
 							Instance->Strands.DeformedRootResource,
 							Instance->Strands.DeformedResource);
 					}
-					else if (Instance->Strands.HasValidData())
+					else if (bSimulationEnable)
 					{
+						check(Instance->Strands.HasValidData());
+
 						AddHairStrandUpdatePositionOffsetPass(
 							GraphBuilder,
 							ShaderMap,
@@ -222,12 +233,15 @@ static void RunInternalHairStrandsInterpolation(
 				}
 				else if (InstanceGeometryType == EHairGeometryType::Cards)
 				{
-					const uint32 HairLODIndex = Instance->HairGroupPublicData->LODIndex;
 					if (Instance->Cards.IsValid(HairLODIndex))
 					{
 						FHairGroupInstance::FCards::FLOD& CardsInstance = Instance->Cards.LODs[HairLODIndex];
-						if (CardsInstance.Guides.IsValid() && CardsInstance.Guides.HasValidRootData() && CardsInstance.Guides.DeformedRootResource->IsValid(MeshLODIndex) && NeedsUpdateCardsMeshTriangles() && InstanceBindingType == EHairBindingType::Skinning)
+						if (BindingType == EHairBindingType::Skinning || bGlobalDeformationEnable)
 						{
+							check(CardsInstance.Guides.IsValid());
+							check(CardsInstance.Guides.HasValidRootData());
+							check(CardsInstance.Guides.DeformedRootResource->IsValid(MeshLODIndex));
+
 							AddHairStrandUpdateMeshTrianglesPass(
 								GraphBuilder,
 								ShaderMap,
@@ -244,8 +258,9 @@ static void RunInternalHairStrandsInterpolation(
 								CardsInstance.Guides.DeformedRootResource,
 								CardsInstance.Guides.DeformedResource);
 						}
-						else if (CardsInstance.Guides.IsValid())
+						else if (bSimulationEnable)
 						{
+							check(CardsInstance.Guides.IsValid());
 							AddHairStrandUpdatePositionOffsetPass(
 								GraphBuilder,
 								ShaderMap,
@@ -262,23 +277,18 @@ static void RunInternalHairStrandsInterpolation(
 			}
 			else if (EHairStrandsInterpolationType::SimulationStrands == Type)
 			{
-				if (Instance->Guides.IsValid() && Instance->Guides.HasValidRootData() && Instance->Guides.DeformedRootResource->IsValid(MeshLODIndex) && 
-					InstanceBindingType == EHairBindingType::Skinning &&
-					(Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation))
+				// Guide update need to run only if simulation is enabled, or if RBF is enabled (since RFB are transfer through guides)
+				if (bGlobalDeformationEnable || bSimulationEnable)
 				{
-					AddHairStrandUpdateMeshTrianglesPass(
-						GraphBuilder,
-						ShaderMap,
-						Instance->Debug.MeshLODIndex,
-						HairStrandsTriangleType::DeformedPose,
-						MeshDataLOD,
-						Instance->Guides.RestRootResource,
-						Instance->Guides.DeformedRootResource);
+					check(Instance->Guides.IsValid());
 
-					if((Instance->GeometryType == EHairGeometryType::Strands && Instance->Guides.bHasGlobalInterpolation) ||
-						Instance->GeometryType == EHairGeometryType::Meshes || Instance->GeometryType == EHairGeometryType::Cards)
+					if (BindingType == EHairBindingType::Skinning)
 					{
-						AddHairStrandInitMeshSamplesPass(
+						check(Instance->Guides.IsValid());
+						check(Instance->Guides.HasValidRootData());
+						check(Instance->Guides.DeformedRootResource->IsValid(MeshLODIndex));
+
+						AddHairStrandUpdateMeshTrianglesPass(
 							GraphBuilder,
 							ShaderMap,
 							Instance->Debug.MeshLODIndex,
@@ -287,30 +297,44 @@ static void RunInternalHairStrandsInterpolation(
 							Instance->Guides.RestRootResource,
 							Instance->Guides.DeformedRootResource);
 
-						AddHairStrandUpdateMeshSamplesPass(
+						if (bGlobalDeformationEnable)
+						{
+							AddHairStrandInitMeshSamplesPass(
+								GraphBuilder,
+								ShaderMap,
+								Instance->Debug.MeshLODIndex,
+								HairStrandsTriangleType::DeformedPose,
+								MeshDataLOD,
+								Instance->Guides.RestRootResource,
+								Instance->Guides.DeformedRootResource);
+
+							AddHairStrandUpdateMeshSamplesPass(
+								GraphBuilder,
+								ShaderMap,
+								Instance->Debug.MeshLODIndex,
+								MeshDataLOD,
+								Instance->Guides.RestRootResource,
+								Instance->Guides.DeformedRootResource);
+						}
+
+						AddHairStrandUpdatePositionOffsetPass(
 							GraphBuilder,
 							ShaderMap,
 							Instance->Debug.MeshLODIndex,
-							MeshDataLOD,
-							Instance->Guides.RestRootResource,
-							Instance->Guides.DeformedRootResource);
+							Instance->Guides.DeformedRootResource,
+							Instance->Guides.DeformedResource);
 					}
+					else if (bSimulationEnable)
+					{
+						check(Instance->Guides.IsValid());
 
-					AddHairStrandUpdatePositionOffsetPass(
-						GraphBuilder,
-						ShaderMap,
-						Instance->Debug.MeshLODIndex,
-						Instance->Guides.DeformedRootResource,
-						Instance->Guides.DeformedResource);
-				}
-				else if (Instance->Guides.IsValid())
-				{
-					AddHairStrandUpdatePositionOffsetPass(
-						GraphBuilder,
-						ShaderMap,
-						Instance->Debug.MeshLODIndex,
-						nullptr,
-						Instance->Guides.DeformedResource);
+						AddHairStrandUpdatePositionOffsetPass(
+							GraphBuilder,
+							ShaderMap,
+							Instance->Debug.MeshLODIndex,
+							nullptr,
+							Instance->Guides.DeformedResource);
+					}
 				}
 			}
 		}
@@ -506,7 +530,10 @@ static void RunHairBufferSwap(EWorldType::Type WorldType, const TArray<const FSc
 			{
 				if (Instance->Cards.IsValid(LODIt))
 				{
-					Instance->Cards.LODs[LODIt].DeformedResource->SwapBuffer();
+					if (Instance->Cards.LODs[LODIt].DeformedResource)
+					{
+						Instance->Cards.LODs[LODIt].DeformedResource->SwapBuffer();
+					}
 					if (Instance->Cards.LODs[LODIt].Guides.IsValid())
 					{
 						Instance->Cards.LODs[LODIt].Guides.DeformedResource->SwapBuffer();
@@ -518,7 +545,10 @@ static void RunHairBufferSwap(EWorldType::Type WorldType, const TArray<const FSc
 			{
 				if (Instance->Meshes.IsValid(LODIt))
 				{
-					Instance->Meshes.LODs[LODIt].DeformedResource->SwapBuffer();
+					if (Instance->Meshes.LODs[LODIt].DeformedResource)
+					{
+						Instance->Meshes.LODs[LODIt].DeformedResource->SwapBuffer();
+					}
 				}
 			}
 

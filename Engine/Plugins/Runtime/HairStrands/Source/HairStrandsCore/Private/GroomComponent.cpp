@@ -417,7 +417,7 @@ struct FHairCardsVertexFactories
 	EShaderPlatform ShaderPlatform = EShaderPlatform::SP_NumPlatforms;
 };
 
-static EHairGeometryType ConvertToHairGeometryType(EGroomGeometryType Type)
+static EHairGeometryType ToHairGeometryType(EGroomGeometryType Type)
 {
 	switch (Type)
 	{
@@ -851,7 +851,8 @@ public:
 			{
 				return nullptr;
 			}
-			const bool bIsCurrent0 = Instance->Meshes.LODs[IntLODIndex].DeformedResource->CurrentIndex == 0;
+			const bool bIsDynamic  = Instance->Meshes.LODs[IntLODIndex].DeformedResource != nullptr;
+			const bool bIsCurrent0 = bIsDynamic ? Instance->Meshes.LODs[IntLODIndex].DeformedResource->CurrentIndex == 0 : true;
 			VertexFactory = (FVertexFactory*)CardsAndMeshesVertexFactories.GetVertexFactory(GroupIndex, IntLODIndex, bIsCurrent0, GeometryType);
 			check(VertexFactory);
 			HairVertexCount = Instance->Meshes.LODs[IntLODIndex].RestResource->PrimitiveCount * 3;
@@ -867,7 +868,9 @@ public:
 			{
 				return nullptr;
 			}
-			const bool bIsCurrent0 = Instance->Cards.LODs[IntLODIndex].DeformedResource->CurrentIndex == 0;
+
+			const bool bIsDynamic  = Instance->Cards.LODs[IntLODIndex].DeformedResource != nullptr;
+			const bool bIsCurrent0 = bIsDynamic ? Instance->Cards.LODs[IntLODIndex].DeformedResource->CurrentIndex == 0 : true;
 			VertexFactory = (FVertexFactory*)CardsAndMeshesVertexFactories.GetVertexFactory(GroupIndex, IntLODIndex, bIsCurrent0, GeometryType);
 			check(VertexFactory);
 			HairVertexCount = Instance->Cards.LODs[IntLODIndex].RestResource->PrimitiveCount * 3;
@@ -1881,27 +1884,34 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	InitializedResources = GroomAsset;
 
 	// 1. Check if we need any kind of binding data, simulation data, or RBF data
-	bool bHasNeedBindingData = false;
+	//
+	//					  Requires    	| Requires     | Requires
+	//         Features | Skeletal mesh	| Binding data | Guides
+	// -----------------|---------------|--------------|-------------
+	//    Rigid binding | No			| No		   | No
+	// Skinning binding | Yes			| Yes		   | No
+	//       Simulation | No			| No		   | Yes
+	//              RBF | Yes		    | Yes		   | Yes
+	//
+	bool bHasNeedSkinningBinding = false;			   
 	bool bHasNeedGlobalDeformation = false;
 	bool bHasNeedSimulation = false;
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
-		const FHairGroupsLOD& GroupLOD = GroomAsset->HairGroupsLOD[GroupIt];
-		for (const FHairLODSettings& LODSettings : GroupLOD.LODs)
-		{
-			bHasNeedBindingData  = bHasNeedBindingData || LODSettings.BindingType == EGroomBindingType::Skinning;
-		}
-
 		for (uint32 LODIt = 0, LODCount = GroomAsset->GetLODCount(); LODIt < LODCount; ++LODIt)
 		{
-			bHasNeedSimulation = bHasNeedSimulation || GroomAsset->IsSimulationEnable(GroupIt, LODIt);
-			bHasNeedGlobalDeformation = bHasNeedGlobalDeformation || GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt);
+			const EGroomGeometryType GeometryType = GroomAsset->GetGeometryType(GroupIt, LODIt);
+			const EGroomBindingType BindingType = GroomAsset->GetBindingType(GroupIt, LODIt);
+
+			// Force global interpolation to be enable for meshes with skinning binding as we use RBF defomation for 'sticking' meshes onto skel. mesh surface
+			const bool bForceGlobalDeformation = GeometryType == EGroomGeometryType::Meshes && BindingType == EGroomBindingType::Skinning;
+			
+			bHasNeedSkinningBinding   = bHasNeedSkinningBinding || BindingType == EGroomBindingType::Skinning;
+			bHasNeedSimulation		  = bHasNeedSimulation || GroomAsset->IsSimulationEnable(GroupIt, LODIt);
+			bHasNeedGlobalDeformation = bHasNeedGlobalDeformation || GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt) || bForceGlobalDeformation;
 		}
 	}
-
-	const FPrimitiveComponentId LocalComponentId = ComponentId;
-	const EWorldType::Type WorldType = GetWorldType();
-	const bool bIsStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
+	const bool bHasNeedBindingData = bHasNeedSkinningBinding || bHasNeedGlobalDeformation;
 
 	// 2. Insure that the binding asset is compatible, otherwise no binding
 	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
@@ -1913,16 +1923,26 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			SkeletalMeshComponent = nullptr;
 		}
 	}
-	UGroomBindingAsset* LocalBindingAsset = bHasNeedBindingData ? BindingAsset : nullptr;
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
+	UGroomBindingAsset* LocalBindingAsset = nullptr;
 	if (SkeletalMeshComponent)
 	{
 		RegisteredSkeletalMeshComponent = SkeletalMeshComponent;
 		AddTickPrerequisiteComponent(SkeletalMeshComponent);
 		bUseAttachParentBound = true;
+		LocalBindingAsset = bHasNeedBindingData ? BindingAsset : nullptr;
 	}
 
+	// Update requirement based on binding asset availability
+	if (LocalBindingAsset == nullptr)
+	{
+		bHasNeedSkinningBinding = false;
+		bHasNeedGlobalDeformation = false;
+	}
+
+	const bool bIsStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
+	const EWorldType::Type WorldType = GetWorldType();
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
 		FHairGroupInstance* HairGroupInstance = new FHairGroupInstance();
@@ -1932,7 +1952,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.GroupIndex = GroupIt;
 		HairGroupInstance->Debug.GroupCount = GroupCount;
 		HairGroupInstance->Debug.GroomAssetName = GroomAsset->GetName();
-		HairGroupInstance->Debug.SkeletalComponent = IsHairStrandsBindingEnable() ? SkeletalMeshComponent : nullptr;
+		HairGroupInstance->Debug.SkeletalComponent = SkeletalMeshComponent;
 		if (SkeletalMeshComponent)
 		{
 			HairGroupInstance->Debug.SkeletalComponentName = SkeletalMeshComponent->GetPathName();
@@ -1941,11 +1961,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->BindingType = EHairBindingType::NoneBinding;
 
 		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
-		const uint32 SkeletalLODCount = SkeletalMeshComponent ? SkeletalMeshComponent->GetNumLODs() : 0;
 
 		const EHairInterpolationType HairInterpolationType = ToHairInterpolationType(GroomAsset->HairInterpolationType);
-
-		const bool bDynamicResources = IsHairStrandsSimulationEnable() || IsHairStrandsBindingEnable();
 
 		// Initialize LOD screen size & visibility
 		{
@@ -1957,7 +1974,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			for (uint32 LODIt = 0, LODCount = GroupLOD.LODs.Num(); LODIt < LODCount; ++LODIt)
 			{
 				const FHairLODSettings& LODSettings = GroupLOD.LODs[LODIt];
-				EHairBindingType BindingType = ToHairBindingType(LODSettings.BindingType);
+				EHairBindingType BindingType = ToHairBindingType(GroomAsset->GetBindingType(GroupIt, LODIt));
 				if (BindingType == EHairBindingType::Skinning && !LocalBindingAsset)
 				{
 					BindingType = EHairBindingType::NoneBinding;
@@ -1967,12 +1984,16 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					BindingType = EHairBindingType::NoneBinding;
 				}
 
+				// Force global interpolation to be enable for meshes with skinning binding as we use RBF defomation for 'sticking' meshes onto skel. mesh surface
+				const EHairGeometryType GeometryType = ToHairGeometryType(GroomAsset->GetGeometryType(GroupIt, LODIt));
+				const bool bForceGlobalInterpolation = GeometryType == EHairGeometryType::Meshes && BindingType == EHairBindingType::Skinning;
+
 				const bool LODSimulation = GroomAsset->IsSimulationEnable(GroupIt, LODIt);
-				const bool LODGlobalInterpolation = GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt);
+				const bool LODGlobalInterpolation = LocalBindingAsset && (GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt) || bForceGlobalInterpolation);
 
 				CPULODScreenSize.Add(LODSettings.ScreenSize);
 				LODVisibility.Add(LODSettings.bVisible);
-				LODGeometryTypes.Add(ConvertToHairGeometryType(LODSettings.GeometryType));
+				LODGeometryTypes.Add(GeometryType);
 				HairGroupInstance->HairGroupPublicData->BindingTypes.Add(BindingType);
 				HairGroupInstance->HairGroupPublicData->LODSimulations.Add(LODSimulation);
 				HairGroupInstance->HairGroupPublicData->LODGlobalInterpolations.Add(LODGlobalInterpolation);
@@ -1982,17 +2003,21 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			HairGroupInstance->HairGroupPublicData->SetLODGeometryTypes(LODGeometryTypes);
 		}
 
+		// Not needed anymore
+		//const bool bDynamicResources = IsHairStrandsSimulationEnable() || IsHairStrandsBindingEnable();
+
 		// Sim data 
 		// Simulation guides are used for two purposes:
 		// * Physics simulation
 		// * RBF deformation.
 		// Therefore, even if simulation is disabled, we need to run partially the update if the binding system is enabled (skin deformation + RBF correction)
-		if (GroupData.Guides.IsValid() && (bDynamicResources || bIsStrandsEnabled) && (bHasNeedSimulation || bHasNeedGlobalDeformation || bPreviewMode))
+		if (GroupData.Guides.IsValid() && (bHasNeedSimulation || bHasNeedGlobalDeformation || bPreviewMode))
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.Data;
 
-			if (SkeletalMeshComponent && LocalBindingAsset)
+			if (LocalBindingAsset)
 			{
+				check(SkeletalMeshComponent);
 				check(LocalBindingAsset);
 				check(GroupIt < LocalBindingAsset->HairGroupResources.Num());
 				check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == LocalBindingAsset->HairGroupResources[GroupIt].SimRootResources->RootData.MeshProjectionLODs.Num() : false);
@@ -2004,7 +2029,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			}
 			HairGroupInstance->Guides.RestResource = GroupData.Guides.RestResource;
 
-			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.Data.RenderData, true, true, HairGroupInstance->Guides.RestResource->PositionOffset);
+			// If guides are allocated, deformed resources are always needs since they are either used with simulation, or RBF deformation. Both are dynamics, and require deformed positions
+			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.Data.RenderData, true, HairGroupInstance->Guides.RestResource->PositionOffset);
 			BeginInitResource(HairGroupInstance->Guides.DeformedResource);
 
 			HairGroupInstance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Guides.RestResource->PositionOffset;
@@ -2039,22 +2065,53 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			}
 			#endif
 
-			if (SkeletalMeshComponent && LocalBindingAsset && IsHairStrandsBindingEnable())
+			// Check if strands needs to load/allocate root resources
+			bool bNeedRootResources = false;
+			bool bNeedDynamicResources = false;
+			if (LocalBindingAsset)
+			{
+				const FHairGroupsLOD& GroupLOD = GroomAsset->HairGroupsLOD[GroupIt];
+				for (uint32 LODIt = 0, LODCount = GroupLOD.LODs.Num(); LODIt < LODCount; ++LODIt)
+				{
+					if (HairGroupInstance->HairGroupPublicData->GetGeometryType(LODIt) == EHairGeometryType::Strands)
+					{
+						if (HairGroupInstance->HairGroupPublicData->GetBindingType(LODIt) == EHairBindingType::Skinning ||
+							HairGroupInstance->HairGroupPublicData->IsGlobalInterpolationEnable(LODIt))
+						{
+							bNeedRootResources = true;
+						}
+
+						if (HairGroupInstance->HairGroupPublicData->GetBindingType(LODIt) == EHairBindingType::Skinning ||
+							HairGroupInstance->HairGroupPublicData->IsSimulationEnable(LODIt))
+						{
+							bNeedDynamicResources = true;
+						}
+					}
+				}
+			}
+
+			if (bNeedRootResources)
 			{
 				check(LocalBindingAsset);
+				check(SkeletalMeshComponent);
 				check(GroupIt < LocalBindingAsset->HairGroupResources.Num());
 				check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == LocalBindingAsset->HairGroupResources[GroupIt].RenRootResources->RootData.MeshProjectionLODs.Num() : false);
 
 				HairGroupInstance->Strands.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].RenRootResources;
-
 				HairGroupInstance->Strands.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Strands.RestRootResource);
 				BeginInitResource(HairGroupInstance->Strands.DeformedRootResource);
 			}
-		
+
 			HairGroupInstance->Strands.RestResource = GroupData.Strands.RestResource;
-			HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.Data.RenderData, false, bDynamicResources, HairGroupInstance->Strands.RestResource->PositionOffset);
-			BeginInitResource(HairGroupInstance->Strands.DeformedResource);
-			HairGroupInstance->Strands.ClusterCullingResource = GroupData.Strands.ClusterCullingResource;
+			if (bNeedDynamicResources)
+			{
+				HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.Data.RenderData, false, HairGroupInstance->Strands.RestResource->PositionOffset);
+				BeginInitResource(HairGroupInstance->Strands.DeformedResource);
+
+				// Initialize deformed position relative position offset to the rest pose offset
+				HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Strands.RestResource->PositionOffset;
+				HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = HairGroupInstance->Strands.RestResource->PositionOffset;
+			} 
 
 			// Create an debug buffer for storing cluster visalization data. This is only used for debug purpose, hence only enable in editor build.
 			// Special case for debug mode were the attribute buffer is patch with some custom data to show hair properties (strands belonging to the same cluster, ...)
@@ -2063,6 +2120,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			#endif
 
 			// An empty groom doesn't have a ClusterCullingResource
+			HairGroupInstance->Strands.ClusterCullingResource = GroupData.Strands.ClusterCullingResource;
 			if (HairGroupInstance->Strands.ClusterCullingResource)
 			{
 				// This codes assumes strands LOD are contigus and the highest (i.e., 0...x). Change this code to something more robust
@@ -2086,9 +2144,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				BeginInitResource(HairGroupInstance->HairGroupPublicData);
 			}
 
-			// Initialize deformed position relative position offset to the rest pose offset
-			HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Strands.RestResource->PositionOffset;
-			HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = HairGroupInstance->Strands.RestResource->PositionOffset;
 
 			HairGroupInstance->Strands.HairInterpolationType = HairInterpolationType;
 		}
@@ -2100,12 +2155,22 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			FHairGroupInstance::FCards::FLOD& InstanceLOD = HairGroupInstance->Cards.LODs.AddDefaulted_GetRef();
 			if (LOD.IsValid())
 			{
+				const EHairBindingType BindingType	= HairGroupInstance->HairGroupPublicData->GetBindingType(CardsLODIndex);
+				const bool bHasSimulation			= HairGroupInstance->HairGroupPublicData->IsSimulationEnable(CardsLODIndex);
+				const bool bHasGlobalDeformation	= HairGroupInstance->HairGroupPublicData->IsGlobalInterpolationEnable(CardsLODIndex);
+				const bool bNeedDeformedPositions	= bHasSimulation || bHasGlobalDeformation || BindingType == EHairBindingType::Skinning;
+				const bool bNeedRootData			= bHasGlobalDeformation || BindingType == EHairBindingType::Skinning;
+
 				InstanceLOD.Data = &LOD.Data;
 				InstanceLOD.RestResource = LOD.RestResource;
 				InstanceLOD.InterpolationData = &LOD.InterpolationData;
 				InstanceLOD.InterpolationResource = LOD.InterpolationResource;
-				InstanceLOD.DeformedResource = new FHairCardsDeformedResource(LOD.Data.RenderData, false, bDynamicResources);
-				BeginInitResource(InstanceLOD.DeformedResource);
+
+				if (bNeedDeformedPositions)
+				{
+					InstanceLOD.DeformedResource = new FHairCardsDeformedResource(LOD.Data.RenderData, false);
+					BeginInitResource(InstanceLOD.DeformedResource);
+				}
 
 				#if RHI_RAYTRACING
 				if (IsRayTracingEnabled())
@@ -2119,30 +2184,32 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				InstanceLOD.Material = nullptr;
 
 				// Strands data/resources
-				if (bDynamicResources)
+				if (bNeedDeformedPositions)
 				{
 					InstanceLOD.Guides.Data = &LOD.Guides.Data;
 					InstanceLOD.Guides.InterpolationData = &LOD.Guides.InterpolationData;
 					InstanceLOD.Guides.InterpolationResource = LOD.Guides.InterpolationResource;
 
-					if (SkeletalMeshComponent && LocalBindingAsset)
+					if (bNeedRootData)
 					{
+						check(LocalBindingAsset);
 						check(GroupIt < LocalBindingAsset->HairGroupResources.Num());
 						check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == LocalBindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex]->RootData.MeshProjectionLODs.Num() : false);
 
 						InstanceLOD.Guides.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex];
-
 						InstanceLOD.Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(InstanceLOD.Guides.RestRootResource);
 						BeginInitResource(InstanceLOD.Guides.DeformedRootResource);
 					}
 
 					InstanceLOD.Guides.RestResource = LOD.Guides.RestResource;
-					InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.Data.RenderData, false, true, InstanceLOD.Guides.RestResource->PositionOffset);
-					BeginInitResource(InstanceLOD.Guides.DeformedResource);
+					{
+						InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.Data.RenderData, false, InstanceLOD.Guides.RestResource->PositionOffset);
+						BeginInitResource(InstanceLOD.Guides.DeformedResource);
 
-					// Initialize deformed position relative position offset to the rest pose offset
-					InstanceLOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current) = InstanceLOD.Guides.RestResource->PositionOffset;
-					InstanceLOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = InstanceLOD.Guides.RestResource->PositionOffset;
+						// Initialize deformed position relative position offset to the rest pose offset
+						InstanceLOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current) = InstanceLOD.Guides.RestResource->PositionOffset;
+						InstanceLOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = InstanceLOD.Guides.RestResource->PositionOffset;
+					}
 
 					InstanceLOD.Guides.HairInterpolationType = HairInterpolationType;
 				}
@@ -2152,14 +2219,21 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// Meshes resources
 		for (FHairGroupData::FMeshes::FLOD& LOD : GroupData.Meshes.LODs)
 		{
-			const int32 MeshesIt = HairGroupInstance->Meshes.LODs.Num();
+			const int32 MeshLODIndex = HairGroupInstance->Meshes.LODs.Num();
 			FHairGroupInstance::FMeshes::FLOD& InstanceLOD = HairGroupInstance->Meshes.LODs.AddDefaulted_GetRef();
 			if (LOD.IsValid())
 			{
+				const EHairBindingType BindingType = HairGroupInstance->HairGroupPublicData->GetBindingType(MeshLODIndex);
+				const bool bHasGlobalDeformation   = HairGroupInstance->HairGroupPublicData->IsGlobalInterpolationEnable(MeshLODIndex);
+				const bool bNeedDeformedPositions  = bHasGlobalDeformation || BindingType == EHairBindingType::Skinning;
+
 				InstanceLOD.Data = &LOD.Data;
 				InstanceLOD.RestResource = LOD.RestResource;
-				InstanceLOD.DeformedResource = new FHairMeshesDeformedResource(LOD.Data.RenderData, true, bDynamicResources);
-				BeginInitResource(InstanceLOD.DeformedResource);
+				if (bNeedDeformedPositions)
+				{
+					InstanceLOD.DeformedResource = new FHairMeshesDeformedResource(LOD.Data.RenderData, true);
+					BeginInitResource(InstanceLOD.DeformedResource);
+				}
 
 				#if RHI_RAYTRACING
 				if (IsRayTracingEnabled())
