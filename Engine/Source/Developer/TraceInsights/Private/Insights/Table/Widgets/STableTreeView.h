@@ -165,6 +165,12 @@ protected:
 	void ContextMenu_CopyColumnToClipboard_Execute();
 	bool ContextMenu_CopyColumnTooltipToClipboard_CanExecute() const;
 	void ContextMenu_CopyColumnTooltipToClipboard_Execute();
+	bool ContextMenu_ExpandSubtree_CanExecute() const;
+	void ContextMenu_ExpandSubtree_Execute();
+	bool ContextMenu_ExpandCriticalPath_CanExecute() const;
+	void ContextMenu_ExpandCriticalPath_Execute();
+	bool ContextMenu_CollapseSubtree_CanExecute() const;
+	void ContextMenu_CollapseSubtree_Execute();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header
@@ -378,9 +384,9 @@ protected:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void ExpandChildGroups(FBaseTreeNode* InRoot, int32 InMaxExpandedNodes);
+	void SetExpandValueForChildGroups(FBaseTreeNode* InRoot, int32 InMaxExpandedNodes, int32 MaxDepthToExpand, bool InValue);
 	void CountNumNodesPerDepthRec(FBaseTreeNode* InRoot, TArray<int32>& InOutNumNodesPerDepth, int32 InDepth, int32 InMaxDepth, int InMaxNodes) const;
-	void ExpandChildGroupsRec(FBaseTreeNode* InRoot, int32 InDepth, int32 InMaxDepth);
+	void SetExpandValueForChildGroupsRec(FBaseTreeNode* InRoot, int32 InDepth, int32 InMaxDepth, bool InValue);
 
 protected:
 	/** Table view model. */
@@ -499,6 +505,9 @@ protected:
 
 	double StatsStartTime;
 	double StatsEndTime;
+
+	static constexpr int32 MAX_NUMBER_OF_NODES_TO_EXPAND = 1000 * 1000;
+	static constexpr int32 MAX_DEPTH_TO_EXPAND = 100;
 
 	//////////////////////////////////////////////////
 	// Logging
