@@ -2808,3 +2808,10 @@ static TAutoConsoleVariable<int32> CVarSkyLightingQuality(
 	TEXT("  1: on\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
+
+static TAutoConsoleVariable<int32> CVarMobileTemporalAAMethod(
+	TEXT("r.Mobile.TemporalAAMethod"),
+	0,
+	TEXT("0: Mobile TAA (default)")
+	TEXT("1: Desktop TAA"),
+	ECVF_RenderThreadSafe);

@@ -301,7 +301,7 @@ public:
 	* Affects the render quality of the scene. MSAA is needed if >1
 	* @return clamped to reasonable numbers
 	*/
-	static uint16 GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type InFeatureLevel);
+	static uint16 GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type InFeatureLevel, bool bRendererSupportMSAA = true);
 
 	bool IsStaticLightingAllowed() const { return bAllowStaticLighting; }
 

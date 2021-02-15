@@ -547,7 +547,7 @@ FIntPoint FSceneRenderTargets::ComputeDesiredSize(const FSceneViewFamily& ViewFa
 	return DesiredBufferSize;
 }
 
-uint16 FSceneRenderTargets::GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type InFeatureLevel)
+uint16 FSceneRenderTargets::GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type InFeatureLevel, bool bRendererSupportMSAA/* = true*/)
 {
 	uint16 NumSamples = 1;
 
@@ -559,12 +559,6 @@ uint16 FSceneRenderTargets::GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type I
 		if (IsForwardShadingEnabled(GetFeatureLevelShaderPlatform(InFeatureLevel)) && Method == AAM_MSAA)
 		{
 			NumSamples = FMath::Max(1, CVarMSAACount.GetValueOnRenderThread());
-
-			if (NumSamples != 1 && NumSamples != 2 && NumSamples != 4 && NumSamples != 8)
-			{
-				UE_LOG(LogRenderer, Warning, TEXT("Requested %d samples for MSAA, but this is not supported; falling back to 1 sample"), NumSamples);
-				NumSamples = 1;
-			}
 		}
 	}
 	else
@@ -573,28 +567,21 @@ uint16 FSceneRenderTargets::GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type I
 
 		static uint16 PlatformMaxSampleCount = GDynamicRHI->RHIGetPlatformTextureMaxSampleCount();
 		NumSamples = FMath::Min(NumSamples, PlatformMaxSampleCount);
-		
-		if (NumSamples != 1 && NumSamples != 2 && NumSamples != 4 && NumSamples != 8)
+	}
+
+	if ((NumSamples != 1 && NumSamples != 2 && NumSamples != 4 && NumSamples != 8) || !bRendererSupportMSAA)
+	{
+		NumSamples = 1;
+
+		static bool bWarned = false;
+
+		if (!bWarned)
 		{
+			bWarned = true;
 			UE_LOG(LogRenderer, Warning, TEXT("Requested %d samples for MSAA, but this is not supported; falling back to 1 sample"), NumSamples);
-			NumSamples = 1;
-		}
-
-		// Disable MSAA if we are using mobile pixel projected reflection, since we have to resolve the SceneColor and SceneDepth after opaque base pass
-		// Disable MSAA if we are using mobile ambient occlusion, since we have to resolve the SceneColor and SceneDepth after opaque base pass
-		if (NumSamples > 1 && (IsUsingMobilePixelProjectedReflection(GetFeatureLevelShaderPlatform(InFeatureLevel)) || IsUsingMobileAmbientOcclusion(GetFeatureLevelShaderPlatform(InFeatureLevel))))
-		{
-			NumSamples = 1;
-
-			static bool bWarned = false;
-
-			if (!bWarned)
-			{
-				bWarned = true;
-				UE_LOG(LogRenderer, Log, TEXT("Requested %d samples for MSAA, but using pixel projected reflection should disable MSAA"), NumSamples);
-			}
 		}
 	}
+
 	if (NumSamples > 1 && !RHISupportsMSAA(GShaderPlatformForFeatureLevel[InFeatureLevel]))
 	{
 		NumSamples = 1;
@@ -691,7 +678,7 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 
 	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
-	int32 MSAACount = GetNumSceneColorMSAASamples(NewFeatureLevel);
+	int32 MSAACount = GetNumSceneColorMSAASamples(NewFeatureLevel, SceneRenderer->SupportsMSAA());
 
 	bool bLightPropagationVolume = UseLightPropagationVolumeRT(NewFeatureLevel);
 
@@ -1003,7 +990,7 @@ void FSceneRenderTargets::AllocSceneColor(FRHICommandList& RHICmdList)
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, SceneColorBufferFormat, DefaultColorClear, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 		Desc.Flags |= GFastVRamConfig.SceneColor;
-		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
+		Desc.NumSamples = CurrentMSAACount;
 		Desc.ArraySize = bRequireMultiView ? 2 : 1;
 		Desc.bIsArray = bRequireMultiView;
 
@@ -1535,14 +1522,14 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 		}
 
 		FTexture2DRHIRef DepthTex, SRTex;
-		bHMDAllocatedDepthTarget = StereoRenderTargetManager && StereoRenderTargetManager->AllocateDepthTexture(0, BufferSize.X, BufferSize.Y, DepthFormat, 1, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, DepthTex, SRTex, GetNumSceneColorMSAASamples(CurrentFeatureLevel));
+		bHMDAllocatedDepthTarget = StereoRenderTargetManager && StereoRenderTargetManager->AllocateDepthTexture(0, BufferSize.X, BufferSize.Y, DepthFormat, 1, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, DepthTex, SRTex, CurrentMSAACount);
 
 		// Allow UAV depth?
 		const ETextureCreateFlags textureUAVCreateFlags = GRHISupportsDepthUAV ? TexCreate_UAV : TexCreate_None;
 
 		// Create a texture to store the resolved scene depth, and a render-targetable surface to hold the unresolved scene depth.
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, DepthFormat, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | textureUAVCreateFlags, false));
-		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
+		Desc.NumSamples = CurrentMSAACount;
 		Desc.Flags |= GFastVRamConfig.SceneDepth;
 		Desc.ArraySize = bRequireMultiView ? 2 : 1;
 		Desc.bIsArray = bRequireMultiView;
@@ -2492,6 +2479,8 @@ static void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	SceneTextureParameters.SceneDepthTexture = DepthDefault;
 	SceneTextureParameters.SceneDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SceneTextureParameters.SceneVelocityTexture = BlackDefault2D;
+	SceneTextureParameters.SceneVelocityTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	if (bUseSceneTextures)
 	{
@@ -2549,6 +2538,13 @@ static void SetupMobileSceneTextureUniformParameters(
 		SceneTextureParameters.GBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
 		SceneTextureParameters.GBufferDTextureSampler = TStaticSamplerState<>::GetRHI();
 		SceneTextureParameters.SceneDepthAuxTextureSampler = TStaticSamplerState<>::GetRHI();
+	}
+
+	const bool bUseSceneVelocity = EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneVelocity);
+
+	if (bUseSceneVelocity && SceneContext.SceneVelocity)
+	{
+		SceneTextureParameters.SceneVelocityTexture = GetRDG(SceneContext.SceneVelocity);
 	}
 }
 

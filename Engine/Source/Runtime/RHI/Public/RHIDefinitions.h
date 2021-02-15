@@ -1753,6 +1753,8 @@ inline bool RHIHasTiledGPU(const FStaticShaderPlatform Platform)
 	return Platform == SP_METAL || Platform == SP_METAL_TVOS
 		|| Platform == SP_OPENGL_ES3_1_ANDROID
 		|| Platform == SP_VULKAN_ES3_1_ANDROID
+		|| Platform == SP_METAL_MRT || Platform == SP_METAL_MRT_TVOS
+		|| Platform == SP_VULKAN_SM5_ANDROID
 		|| FDataDrivenShaderPlatformInfo::GetTargetsTiledGPU(Platform);
 }
 
