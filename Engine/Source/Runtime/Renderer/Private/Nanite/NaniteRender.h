@@ -366,12 +366,6 @@ enum class EOutputBufferMode : uint8
 	DepthOnly,
 };
 
-struct FCullingPassData
-{
-	FRDGBufferRef CandidateNodesAndClusters;
-	FRDGBufferRef RasterizeArgsSWHW;
-};
-
 struct FPackedView
 {
 	FMatrix		TranslatedWorldToView;
@@ -421,8 +415,8 @@ struct FCullingContext
 
 	FIntVector4		SOAStrides;
 
-	FCullingPassData	MainPass;
-	FCullingPassData	PostPass;
+	FRDGBufferRef	MainRasterizeArgsSWHW;
+	FRDGBufferRef	PostRasterizeArgsSWHW;
 
 	FRDGBufferRef	MainAndPostPassPersistentStates;
 	FRDGBufferRef	VisibleClustersSWHW;

@@ -2310,24 +2310,24 @@ FCullingContext InitCullingContext(
 		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchVisibleClustersBufferRef(), TEXT("VisibleClustersSWHW"));
 	}
 #else
-	FRDGBufferDesc VisibleClustersDesc					= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxVisibleClusters());	// Max visible clusters * sizeof(uint3)
-	VisibleClustersDesc.Usage							= EBufferUsageFlags(VisibleClustersDesc.Usage | BUF_ByteAddressBuffer);
+	FRDGBufferDesc VisibleClustersDesc			= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxVisibleClusters());	// Max visible clusters * sizeof(uint3)
+	VisibleClustersDesc.Usage					= EBufferUsageFlags(VisibleClustersDesc.Usage | BUF_ByteAddressBuffer);
 
-	CullingContext.VisibleClustersSWHW					= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("VisibleClustersSWHW"));
+	CullingContext.VisibleClustersSWHW			= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("VisibleClustersSWHW"));
 #endif
 
-	CullingContext.MainPass.RasterizeArgsSWHW			= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 8 ), TEXT("MainPass.RasterizeArgsSWHW") );
+	CullingContext.MainRasterizeArgsSWHW		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 8 ), TEXT("MainRasterizeArgsSWHW") );
 	
 	if( CullingContext.bTwoPassOcclusion )
 	{
 	#if NANITE_USE_SCRATCH_BUFFERS
-		CullingContext.OccludedInstances				= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("OccludedInstances"));
+		CullingContext.OccludedInstances		= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("OccludedInstances"));
 	#else
-		CullingContext.OccludedInstances				= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstances), TEXT("OccludedInstances"));
+		CullingContext.OccludedInstances		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstances), TEXT("OccludedInstances"));
 	#endif
 
-		CullingContext.OccludedInstancesArgs			= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 4 ), TEXT("OccludedInstancesArgs") );
-		CullingContext.PostPass.RasterizeArgsSWHW		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 8 ), TEXT( "PostPass.RasterizeArgsSWHW" ) );
+		CullingContext.OccludedInstancesArgs	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 4 ), TEXT("OccludedInstancesArgs") );
+		CullingContext.PostRasterizeArgsSWHW	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 8 ), TEXT( "PostRasterizeArgsSWHW" ) );
 	}
 
 	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer()); 
@@ -2339,43 +2339,6 @@ FCullingContext InitCullingContext(
 	if (bSupportsMultiplePasses)
 	{
 		CullingContext.TotalPrevDrawClustersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(8, 1), TEXT("TotalPrevDrawClustersBuffer"));
-	}
-
-	const uint32 MaxNodes = Nanite::FGlobalResources::GetMaxNodes();
-	const uint32 MaxCandidateClusters = Nanite::FGlobalResources::GetMaxCandidateClusters();
-	const uint32 MaxCullingBatches = MaxCandidateClusters / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
-	check(MaxCandidateClusters % PERSISTENT_CLUSTER_CULLING_GROUP_SIZE == 0);
-
-	// Persistent nodes and clusters: Initialize node and cluster array.
-	// They only have to be initialized once as the culling code reverts nodes/clusters to their cleared state after they have been consumed.
-	{
-		TRefCountPtr<FRDGPooledBuffer>& MainPassCandidateNodesAndClustersBufferRef = Nanite::GGlobalResources.GetMainPassBuffers().CandidateNodesAndClustersBuffer;
-		if (MainPassCandidateNodesAndClustersBufferRef.IsValid())
-		{
-			CullingContext.MainPass.CandidateNodesAndClusters = GraphBuilder.RegisterExternalBuffer(MainPassCandidateNodesAndClustersBufferRef, TEXT("MainPass.CandidateNodesAndClustersBuffer"));
-		}
-		else
-		{
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxCandidateClusters * 2 + MaxNodes * 2);
-			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
-			CullingContext.MainPass.CandidateNodesAndClusters = GraphBuilder.CreateBuffer(Desc, TEXT("MainPass.CandidateNodesAndClustersBuffer"));
-			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, GraphBuilder.CreateUAV(CullingContext.MainPass.CandidateNodesAndClusters), false);		
-		}
-	}
-
-	{
-		TRefCountPtr<FRDGPooledBuffer>& PostPassCandidateNodesAndClustersBufferRef = Nanite::GGlobalResources.GetPostPassBuffers().CandidateNodesAndClustersBuffer;
-		if (PostPassCandidateNodesAndClustersBufferRef.IsValid())
-		{
-			CullingContext.PostPass.CandidateNodesAndClusters = GraphBuilder.RegisterExternalBuffer(PostPassCandidateNodesAndClustersBufferRef, TEXT("PostPass.CandidateClustersBuffer"));
-		}
-		else
-		{
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxCandidateClusters * 2 + MaxNodes * 3);
-			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
-			CullingContext.PostPass.CandidateNodesAndClusters = GraphBuilder.CreateBuffer(Desc, TEXT("PostPass.CandidateNodesAndClustersBuffer"));
-			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, GraphBuilder.CreateUAV(CullingContext.PostPass.CandidateNodesAndClusters), true);
-		}
 	}
 
 	return CullingContext;
@@ -2391,6 +2354,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
 	const FGPUSceneParameters &GPUSceneParameters,
+	FRDGBufferRef MainCandidateNodesAndClusters,
+	FRDGBufferRef PostCandidateNodesAndClusters,
 	uint32 CullingPass,
 	FVirtualShadowMapArray *VirtualShadowMapArray,
 	FVirtualTargetParameters &VirtualTargetParameters
@@ -2442,7 +2407,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 		check( CullingPass == CULLING_PASS_NO_OCCLUSION );
 		check( CullingContext.InstanceDrawsBuffer == nullptr );
-		PassParameters->OutCandidateNodesAndClusters = GraphBuilder.CreateUAV( CullingContext.MainPass.CandidateNodesAndClusters );
+		PassParameters->OutCandidateNodesAndClusters = GraphBuilder.CreateUAV( MainCandidateNodesAndClusters );
 		
 		check(CullingContext.ViewsBuffer);
 
@@ -2491,19 +2456,19 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			{
 				PassParameters->InInstanceDraws			= GraphBuilder.CreateSRV( CullingContext.InstanceDrawsBuffer );
 			}
-			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( CullingContext.MainPass.CandidateNodesAndClusters);
+			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( MainCandidateNodesAndClusters);
 		}
 		else if( CullingPass == CULLING_PASS_OCCLUSION_MAIN )
 		{
 			PassParameters->OutOccludedInstances		= GraphBuilder.CreateUAV( CullingContext.OccludedInstances );
 			PassParameters->OutOccludedInstancesArgs	= GraphBuilder.CreateUAV( CullingContext.OccludedInstancesArgs );
-			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( CullingContext.MainPass.CandidateNodesAndClusters );
+			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( MainCandidateNodesAndClusters );
 		}
 		else
 		{
 			PassParameters->InInstanceDraws				= GraphBuilder.CreateSRV( CullingContext.OccludedInstances );
 			PassParameters->InOccludedInstancesArgs		= GraphBuilder.CreateSRV( CullingContext.OccludedInstancesArgs );
-			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( CullingContext.PostPass.CandidateNodesAndClusters);
+			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( PostCandidateNodesAndClusters);
 		}
 		
 		check(CullingContext.ViewsBuffer);
@@ -2570,19 +2535,19 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		
 		if( CullingPass == CULLING_PASS_NO_OCCLUSION || CullingPass == CULLING_PASS_OCCLUSION_MAIN )
 		{
-			PassParameters->InOutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( CullingContext.MainPass.CandidateNodesAndClusters );
-			PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.MainPass.RasterizeArgsSWHW );
+			PassParameters->InOutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( MainCandidateNodesAndClusters );
+			PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.MainRasterizeArgsSWHW );
 			
 			if( CullingPass == CULLING_PASS_OCCLUSION_MAIN )
 			{
-				PassParameters->OutOccludedNodesAndClusters	= GraphBuilder.CreateUAV( CullingContext.PostPass.CandidateNodesAndClusters );
+				PassParameters->OutOccludedNodesAndClusters	= GraphBuilder.CreateUAV( PostCandidateNodesAndClusters );
 			}
 		}
 		else
 		{
-			PassParameters->InOutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( CullingContext.PostPass.CandidateNodesAndClusters );
-			PassParameters->OffsetClustersArgsSWHW	= GraphBuilder.CreateSRV( CullingContext.MainPass.RasterizeArgsSWHW );
-			PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.PostPass.RasterizeArgsSWHW );
+			PassParameters->InOutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( PostCandidateNodesAndClusters );
+			PassParameters->OffsetClustersArgsSWHW	= GraphBuilder.CreateSRV( CullingContext.MainRasterizeArgsSWHW );
+			PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.PostRasterizeArgsSWHW );
 		}
 
 		PassParameters->OutVisibleClustersSWHW			= GraphBuilder.CreateUAV( CullingContext.VisibleClustersSWHW );
@@ -2964,6 +2929,51 @@ void FPackedView::UpdateLODScales()
 }
 
 
+static void AllocateCandidateBuffers(FRDGBuilder& GraphBuilder, FRDGBufferRef* MainCandidateNodesAndClustersBufferRef, FRDGBufferRef* PostCandidateNodesAndClustersBufferRef)
+{
+	const uint32 MaxNodes = Nanite::FGlobalResources::GetMaxNodes();
+	const uint32 MaxCandidateClusters = Nanite::FGlobalResources::GetMaxCandidateClusters();
+	const uint32 MaxCullingBatches = MaxCandidateClusters / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+	check(MaxCandidateClusters % PERSISTENT_CLUSTER_CULLING_GROUP_SIZE == 0);
+	check(MainCandidateNodesAndClustersBufferRef);
+
+	// Persistent nodes and clusters: Initialize node and cluster array.
+	// They only have to be initialized once as the culling code reverts nodes/clusters to their cleared state after they have been consumed.
+	{
+		TRefCountPtr<FRDGPooledBuffer>& CandidateNodesAndClustersBuffer = Nanite::GGlobalResources.GetMainPassBuffers().CandidateNodesAndClustersBuffer;
+		if (CandidateNodesAndClustersBuffer.IsValid())
+		{
+			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.RegisterExternalBuffer(CandidateNodesAndClustersBuffer, TEXT("MainPass.CandidateNodesAndClustersBuffer"));
+		}
+		else
+		{
+			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxCandidateClusters * 2 + MaxNodes * 2);
+			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
+			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("MainPass.CandidateNodesAndClustersBuffer"));
+			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, GraphBuilder.CreateUAV(*MainCandidateNodesAndClustersBufferRef), false);
+			ConvertToExternalBuffer(GraphBuilder, *MainCandidateNodesAndClustersBufferRef, CandidateNodesAndClustersBuffer);
+		}
+	}
+
+	if(PostCandidateNodesAndClustersBufferRef)
+	{
+		TRefCountPtr<FRDGPooledBuffer>& CandidateNodesAndClustersBuffer = Nanite::GGlobalResources.GetPostPassBuffers().CandidateNodesAndClustersBuffer;
+		if (CandidateNodesAndClustersBuffer.IsValid())
+		{
+			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.RegisterExternalBuffer(CandidateNodesAndClustersBuffer, TEXT("PostPass.CandidateNodesAndClustersBuffer"));
+		}
+		else
+		{
+			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxCandidateClusters * 2 + MaxNodes * 3);
+			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
+			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("PostPass.CandidateNodesAndClustersBuffer"));
+			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, GraphBuilder.CreateUAV(*PostCandidateNodesAndClustersBufferRef), true);
+			ConvertToExternalBuffer(GraphBuilder, *PostCandidateNodesAndClustersBufferRef, CandidateNodesAndClustersBuffer);
+		}
+	}
+}
+
+
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -3079,14 +3089,14 @@ void CullRasterize(
 		PassParameters->RenderFlags = CullingParameters.RenderFlags;
 
 		PassParameters->OutMainAndPostPassPersistentStates	= GraphBuilder.CreateUAV( CullingContext.MainAndPostPassPersistentStates );
-		PassParameters->InOutMainPassRasterizeArgsSWHW		= GraphBuilder.CreateUAV( CullingContext.MainPass.RasterizeArgsSWHW );
+		PassParameters->InOutMainPassRasterizeArgsSWHW		= GraphBuilder.CreateUAV( CullingContext.MainRasterizeArgsSWHW );
 
 		uint32 ClampedDrawPassIndex = FMath::Min( CullingContext.DrawPassIndex, 2u );
 
 		if( CullingContext.bTwoPassOcclusion )
 		{
 			PassParameters->OutOccludedInstancesArgs = GraphBuilder.CreateUAV( CullingContext.OccludedInstancesArgs );
-			PassParameters->InOutPostPassRasterizeArgsSWHW = GraphBuilder.CreateUAV( CullingContext.PostPass.RasterizeArgsSWHW );
+			PassParameters->InOutPostPassRasterizeArgsSWHW = GraphBuilder.CreateUAV( CullingContext.PostRasterizeArgsSWHW );
 		}
 		
 		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA); // sanity check
@@ -3115,6 +3125,11 @@ void CullRasterize(
 		);
 	}
 
+	// Allocate candidate buffers. Lifetime only duration of CullRasterize.
+	FRDGBufferRef MainCandidateNodesAndClustersBuffer = nullptr;
+	FRDGBufferRef PostCandidateNodesAndClustersBuffer = nullptr;
+	AllocateCandidateBuffers(GraphBuilder, &MainCandidateNodesAndClustersBuffer, CullingContext.bTwoPassOcclusion ? &PostCandidateNodesAndClustersBuffer : nullptr);
+
 	// No Occlusion Pass / Occlusion Main Pass
 	AddPass_InstanceHierarchyAndClusterCull(
 		GraphBuilder,
@@ -3126,6 +3141,8 @@ void CullRasterize(
 		RasterContext,
 		RasterState,
 		GPUSceneParameters,
+		MainCandidateNodesAndClustersBuffer,
+		PostCandidateNodesAndClustersBuffer,
 		CullingContext.bTwoPassOcclusion ? CULLING_PASS_OCCLUSION_MAIN : CULLING_PASS_NO_OCCLUSION,
 		VirtualShadowMapArray,
 		VirtualTargetParameters
@@ -3141,7 +3158,7 @@ void CullRasterize(
 		CullingContext.ViewsBuffer,
 		CullingContext.VisibleClustersSWHW,
 		nullptr,
-		CullingContext.MainPass.RasterizeArgsSWHW,
+		CullingContext.MainRasterizeArgsSWHW,
 		CullingContext.TotalPrevDrawClustersBuffer,
 		GPUSceneParameters,
 		true,
@@ -3199,6 +3216,8 @@ void CullRasterize(
 			RasterContext,
 			RasterState,
 			GPUSceneParameters,
+			MainCandidateNodesAndClustersBuffer,
+			PostCandidateNodesAndClustersBuffer,
 			CULLING_PASS_OCCLUSION_POST,
 			VirtualShadowMapArray,
 			VirtualTargetParameters
@@ -3214,19 +3233,15 @@ void CullRasterize(
 			CullingContext.RenderFlags,
 			CullingContext.ViewsBuffer,
 			CullingContext.VisibleClustersSWHW,
-			CullingContext.MainPass.RasterizeArgsSWHW,
-			CullingContext.PostPass.RasterizeArgsSWHW,
+			CullingContext.MainRasterizeArgsSWHW,
+			CullingContext.PostRasterizeArgsSWHW,
 			CullingContext.TotalPrevDrawClustersBuffer,
 			GPUSceneParameters,
 			false,
 			VirtualShadowMapArray,
 			VirtualTargetParameters
 		);
-
-		GraphBuilder.QueueBufferExtraction(CullingContext.PostPass.CandidateNodesAndClusters, &Nanite::GGlobalResources.GetPostPassBuffers().CandidateNodesAndClustersBuffer);
 	}
-
-	GraphBuilder.QueueBufferExtraction(CullingContext.MainPass.CandidateNodesAndClusters, &Nanite::GGlobalResources.GetMainPassBuffers().CandidateNodesAndClustersBuffer);
 
 	CullingContext.DrawPassIndex++;
 	CullingContext.RenderFlags |= RENDER_FLAG_HAVE_PREV_DRAW_DATA;
@@ -3275,12 +3290,12 @@ void ExtractStats(
 			PassParameters->OutClusterStatsArgs = GraphBuilder.CreateUAV(ClusterStatsArgs);
 
 			PassParameters->MainAndPostPassPersistentStates = GraphBuilder.CreateSRV(CullingContext.MainAndPostPassPersistentStates);
-			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainPass.RasterizeArgsSWHW);
+			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
 
 			if( CullingContext.bTwoPassOcclusion )
 			{
-				check(CullingContext.PostPass.RasterizeArgsSWHW);
-				PassParameters->PostPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.PostPass.RasterizeArgsSWHW);
+				check(CullingContext.PostRasterizeArgsSWHW);
+				PassParameters->PostPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.PostRasterizeArgsSWHW);
 			}
 			
 			FCalculateStatsCS::FPermutationDomain PermutationVector;
@@ -3308,11 +3323,11 @@ void ExtractStats(
 			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
 
-			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainPass.RasterizeArgsSWHW);
+			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
 			if( CullingContext.bTwoPassOcclusion )
 			{
-				check(CullingContext.PostPass.RasterizeArgsSWHW != nullptr);
-				PassParameters->PostPassRasterizeArgsSWHW = GraphBuilder.CreateSRV( CullingContext.PostPass.RasterizeArgsSWHW );
+				check(CullingContext.PostRasterizeArgsSWHW != nullptr);
+				PassParameters->PostPassRasterizeArgsSWHW = GraphBuilder.CreateSRV( CullingContext.PostRasterizeArgsSWHW );
 			}
 			PassParameters->StatsArgs = ClusterStatsArgs;
 
@@ -3334,7 +3349,7 @@ void ExtractStats(
 		// Extract main pass buffers
 		{
 			auto& MainPassBuffers = Nanite::GGlobalResources.GetMainPassBuffers();
-			ConvertToExternalBuffer(GraphBuilder, CullingContext.MainPass.RasterizeArgsSWHW, MainPassBuffers.StatsRasterizeArgsSWHWBuffer);
+			ConvertToExternalBuffer(GraphBuilder, CullingContext.MainRasterizeArgsSWHW, MainPassBuffers.StatsRasterizeArgsSWHWBuffer);
 		}
 
 		// Extract post pass buffers
@@ -3342,8 +3357,8 @@ void ExtractStats(
 		PostPassBuffers.StatsRasterizeArgsSWHWBuffer = nullptr;
 		if( CullingContext.bTwoPassOcclusion )
 		{
-			check( CullingContext.PostPass.RasterizeArgsSWHW != nullptr );
-			ConvertToExternalBuffer(GraphBuilder, CullingContext.PostPass.RasterizeArgsSWHW, PostPassBuffers.StatsRasterizeArgsSWHWBuffer);
+			check( CullingContext.PostRasterizeArgsSWHW != nullptr );
+			ConvertToExternalBuffer(GraphBuilder, CullingContext.PostRasterizeArgsSWHW, PostPassBuffers.StatsRasterizeArgsSWHWBuffer);
 		}
 
 		// Extract calculated stats (so VisibleClustersSWHW isn't needed later)
