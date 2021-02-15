@@ -458,7 +458,7 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 	UPROPERTY(EditAnywhere, Category = VehicleInputRate)
 	FRuntimeFloatCurve UserCurve;
 
-	FVehicleInputRateConfig() : RiseRate(5.0f), FallRate(5.0f) { }
+	FVehicleInputRateConfig() : RiseRate(5.0f), FallRate(5.0f), InputCurveFunction(EInputFunctionType::LinearFunction) { }
 
 	/** Change an output value using max rise and fall rates */
 	float InterpInputValue( float DeltaTime, float CurrentValue, float NewValue ) const
