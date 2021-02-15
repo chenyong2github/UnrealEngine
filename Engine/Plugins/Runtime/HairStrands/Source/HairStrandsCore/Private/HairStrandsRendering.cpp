@@ -849,7 +849,7 @@ static void AddHairCardsDeformationPass(
 	FHairCardsDeformationCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairCardsDeformationCS::FParameters>();
 	Parameters->GuideVertexCount			= LOD.Guides.RestResource->GetVertexCount();
 	Parameters->GuideRestPositionOffset		= LOD.Guides.RestResource->PositionOffset;
-	Parameters->GuideRestPositionBuffer		= RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->RestPositionBuffer);
+	Parameters->GuideRestPositionBuffer		= RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->PositionBuffer);
 	Parameters->GuideDeformedPositionBuffer = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current));
 	Parameters->GuideDeformedPositionOffsetBuffer = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current));
 	
@@ -1359,8 +1359,8 @@ FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHai
 	else
 	{
 
-		OutVFInput.Strands.PositionBuffer = Instance->Strands.RestResource->RestPositionBuffer.SRV;
-		OutVFInput.Strands.PrevPositionBuffer = Instance->Strands.RestResource->RestPositionBuffer.SRV;
+		OutVFInput.Strands.PositionBuffer = Instance->Strands.RestResource->PositionBuffer.SRV;
+		OutVFInput.Strands.PrevPositionBuffer = Instance->Strands.RestResource->PositionBuffer.SRV;
 		OutVFInput.Strands.TangentBuffer = Instance->Strands.RestResource->TangentBuffer.SRV;
 		OutVFInput.Strands.AttributeBuffer = Instance->Strands.RestResource->AttributeBuffer.SRV;
 		OutVFInput.Strands.MaterialBuffer = Instance->Strands.RestResource->MaterialBuffer.SRV;
@@ -1491,11 +1491,11 @@ void ComputeHairStrandsInterpolation(
 					bHasSkinning && bValidGuide ? Instance->Guides.RestRootResource : nullptr,
 					bHasSkinning ? Instance->Strands.DeformedRootResource : nullptr,
 					bHasSkinning && bValidGuide ? Instance->Guides.DeformedRootResource : nullptr,
-					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->RestPositionBuffer),
+					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionBuffer),
 					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->AttributeBuffer),
 					RegisterAsSRV(GraphBuilder, Instance->Strands.InterpolationResource->Interpolation0Buffer),
 					RegisterAsSRV(GraphBuilder, Instance->Strands.InterpolationResource->Interpolation1Buffer),
-					bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->RestPositionBuffer) : nullptr,
+					bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer) : nullptr,
 					bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current)) : nullptr,
 					bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->AttributeBuffer) : nullptr,
 					Strands_DeformedPosition,
@@ -1515,7 +1515,7 @@ void ComputeHairStrandsInterpolation(
 			}
 			else
 			{
-				Strands_PositionSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->RestPositionBuffer);
+				Strands_PositionSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionBuffer);
 				Strands_PositionOffsetSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer);
 				// Generated the static tangent if they haven;t been generated yet
 				Instance->Strands.RestResource->GetTangentBuffer(GraphBuilder, ShaderMap);
@@ -1650,11 +1650,11 @@ void ComputeHairStrandsInterpolation(
 						bHasSkinning && bValidGuide ? Instance->Guides.RestRootResource : nullptr,
 						bHasSkinning ? LOD.Guides.DeformedRootResource : nullptr,
 						bHasSkinning && bValidGuide ? Instance->Guides.DeformedRootResource : nullptr,
-						RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->RestPositionBuffer),
+						RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->PositionBuffer),
 						RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->AttributeBuffer),
 						RegisterAsSRV(GraphBuilder, LOD.Guides.InterpolationResource->Interpolation0Buffer),
 						RegisterAsSRV(GraphBuilder, LOD.Guides.InterpolationResource->Interpolation1Buffer),
-						bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->RestPositionBuffer) : nullptr,
+						bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer) : nullptr,
 						bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current)) : nullptr,
 						bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->AttributeBuffer) : nullptr,
 						Guides_DeformedPositionBuffer,
@@ -1807,7 +1807,7 @@ void ResetHairStrandsInterpolation(
 		Instance->Guides.RestResource->GetVertexCount(),
 		Instance->Guides.RestRootResource,
 		Instance->Guides.DeformedRootResource,
-		RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->RestPositionBuffer),
+		RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer),
 		DeformedPositionBuffer,
 		Instance->Guides.RestResource->PositionOffset,
 		RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current)),

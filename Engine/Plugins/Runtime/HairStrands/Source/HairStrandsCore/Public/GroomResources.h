@@ -179,7 +179,7 @@ struct FHairStrandsRestResource : public FRenderResource
 	uint32 GetResourcesSize() const
 	{
 		uint32 Total = 0;
-		Total += GetBufferTotalNumBytes(RestPositionBuffer);
+		Total += GetBufferTotalNumBytes(PositionBuffer);
 		Total += GetBufferTotalNumBytes(PositionOffsetBuffer);
 		Total += GetBufferTotalNumBytes(AttributeBuffer);
 		Total += GetBufferTotalNumBytes(MaterialBuffer);
@@ -188,7 +188,7 @@ struct FHairStrandsRestResource : public FRenderResource
 	}
 
 	/* Strand hair rest position buffer */
-	FRDGExternalBuffer  RestPositionBuffer;
+	FRDGExternalBuffer  PositionBuffer;
 
 	/* Strand hair rest offset position buffer */
 	FRDGExternalBuffer  PositionOffsetBuffer;

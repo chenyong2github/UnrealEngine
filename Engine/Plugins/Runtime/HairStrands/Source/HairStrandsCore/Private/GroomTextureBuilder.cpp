@@ -956,7 +956,7 @@ static void InternalBuildStrandsTextures_GPU(
 				VoxelOffsetAndCount,
 				VoxelData,
 
-				GroupData.Strands.RestResource->RestPositionBuffer.SRV,
+				GroupData.Strands.RestResource->PositionBuffer.SRV,
 				GroupData.Strands.RestResource->AttributeBuffer.SRV,
 				GroupData.Strands.RestResource->PositionOffset,
 				RenderingData.GeometrySettings.HairWidth * 0.5f,
