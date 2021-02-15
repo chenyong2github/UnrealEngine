@@ -84,6 +84,11 @@ namespace TraceServices
 		RunningTasksCounter->SetName(TEXT("Tasks::RunningTasks"));
 		RunningTasksCounter->SetDescription(TEXT("Tasks: level of parallelism - the number of tasks being executed"));
 		RunningTasksCounter->SetIsFloatingPoint(false);
+
+		ExecutionTimeCounter = CounterProvider.CreateCounter();
+		ExecutionTimeCounter->SetName(TEXT("Tasks::ExecutionTime"));
+		ExecutionTimeCounter->SetDescription(TEXT("Tasks: execution time"));
+		ExecutionTimeCounter->SetIsFloatingPoint(true);
 	}
 
 	void FTasksProvider::Init(uint32 InVersion)
@@ -188,6 +193,7 @@ namespace TraceServices
 		ExecutionThreads.FindOrAdd(ThreadId).Add(TaskId);
 
 		FTaskInfo* Task = TryGetTask(TaskId);
+		check(Task != nullptr);
 
 		if (IsNamedThread(Task->ThreadToExecuteOn))
 		{
@@ -199,8 +205,7 @@ namespace TraceServices
 		}
 		RunningTasksCounter->SetValue(Timestamp, ++RunningTasksNum);
 
-		double LatencyMicrosecs = Task->StartedTimestamp * 1000000 - Task->ScheduledTimestamp * 1000000;
-		TaskLatencyCounter->SetValue(Timestamp, LatencyMicrosecs);
+		TaskLatencyCounter->SetValue(Timestamp, Task->StartedTimestamp - Task->ScheduledTimestamp);
 	}
 
 	void FTasksProvider::NestedAdded(TaskTrace::FId TaskId, TaskTrace::FId NestedId, double Timestamp, uint32 ThreadId)
@@ -216,6 +221,10 @@ namespace TraceServices
 		}
 
 		RunningTasksCounter->SetValue(Timestamp, --RunningTasksNum);
+	
+		FTaskInfo* Task = TryGetTask(TaskId);
+		check(Task != nullptr);
+		ExecutionTimeCounter->SetValue(Timestamp, Task->FinishedTimestamp - Task->StartedTimestamp);
 	}
 
 	void FTasksProvider::TaskCompleted(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId)

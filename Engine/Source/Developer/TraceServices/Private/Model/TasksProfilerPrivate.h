@@ -92,5 +92,6 @@ namespace TraceServices
 		IEditableCounter* ScheduledTasksCounter;
 		IEditableCounter* NamedThreadsScheduledTasksCounter;
 		IEditableCounter* RunningTasksCounter;
+		IEditableCounter* ExecutionTimeCounter;
 	};
 }
