@@ -142,6 +142,7 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 			// If this widget no longer has any animations playing, it doesn't need to be ticked any more
 			if (UserWidget->ActiveSequencePlayers.Num() == 0)
 			{
+				UserWidget->UpdateCanTick();
 				UserWidget->AnimationTickManager = nullptr;
 				WidgetIter.RemoveCurrent();
 			}
