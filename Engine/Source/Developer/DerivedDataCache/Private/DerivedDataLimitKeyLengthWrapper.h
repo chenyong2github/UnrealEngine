@@ -269,6 +269,7 @@ private:
 		int32 OriginalPart = MaxKeyLength - HashStringSize - 2;
 		Result = Result.Left(OriginalPart) + TEXT("__") + HashString;
 		check(Result.Len() == MaxKeyLength && Result.Len() > 0);
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("ShortenKey %s -> %s"), CacheKey, *Result);
 		return true;
 	}
 
