@@ -224,7 +224,7 @@ public:
 
 	void RebuildFreeList()
 	{
-		FreeIndices = TDynamicVector<int>();
+		FreeIndices.Clear();
 		UsedCount = 0;
 
 		int N = (int)RefCounts.GetLength();
@@ -243,9 +243,16 @@ public:
 
 	void Trim(int maxIndex)
 	{
-		FreeIndices = TDynamicVector<int>();
+		FreeIndices.Clear();
 		RefCounts.Resize(maxIndex);
 		UsedCount = maxIndex;
+	}
+
+	void Clear()
+	{
+		FreeIndices.Clear();
+		RefCounts.Clear();
+		UsedCount = 0;
 	}
 
 	//

@@ -70,6 +70,19 @@ public:
 	 */
 	void Resize(int32 NewSize);
 
+	/**
+	 * Reset to initial state
+	 */
+	void Reset()
+	{
+		ListHeads.Clear();
+		ListBlocks.Clear();
+		FreeBlocks.Clear();
+		AllocatedCount = 0;
+		LinkedListElements.Clear();
+		FreeHeadIndex = NullValue;
+	}
+
 
 	/**
 	 * @return true if a list has been allocated at the given ListIndex

@@ -202,9 +202,9 @@ public:
 	}
 
 private:
-	static constexpr int nShiftBits = 11;
+	static constexpr int nShiftBits = 9;
 	static constexpr int BlockSize = 1 << nShiftBits;
-	static constexpr int BlockIndexBitmask = BlockSize - 1; // low 11 bits
+	static constexpr int BlockIndexBitmask = BlockSize - 1; // low 9 bits
 	static_assert( BlockSize && ((BlockSize & (BlockSize - 1)) == 0), "DynamicVector: BlockSize must be a power of two");
 
 	unsigned int CurBlock{0};

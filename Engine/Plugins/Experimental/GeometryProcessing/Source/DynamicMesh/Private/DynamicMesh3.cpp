@@ -144,22 +144,12 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 {
 	Clear();
 
-	Vertices = TDynamicVector<FVector3d>();
-	VertexEdgeLists = FSmallListSet();
-	VertexRefCounts = FRefCountVector();
-	Triangles = TDynamicVector<FIndex3i>();
-	TriangleEdges = TDynamicVector<FIndex3i>();
-	TriangleRefCounts = FRefCountVector();
-	TriangleGroups = TDynamicVector<int>();
-	GroupIDCounter = 0;
-	Edges = TDynamicVector<FEdge>();
-	EdgeRefCounts = FRefCountVector();
+	EnableTriangleGroups();
 
 	if (Generator->HasAttributes())
 	{
 		EnableAttributes();
 	}
-
 
 	int NumVerts = Generator->Vertices.Num();
 	for (int i = 0; i < NumVerts; ++i)
@@ -341,7 +331,32 @@ void FDynamicMesh3::CompactCopy(const FDynamicMesh3& copy, bool bNormals, bool b
 
 void FDynamicMesh3::Clear()
 {
-	*this = FDynamicMesh3();
+	Vertices.Clear();
+	VertexRefCounts.Clear();
+	VertexNormals.Reset();
+	VertexColors.Reset(); 
+	VertexUVs.Reset();
+	VertexEdgeLists.Reset();
+
+	Triangles.Clear();
+	TriangleRefCounts.Clear();
+	TriangleEdges.Clear();
+	TriangleGroups.Reset();
+	GroupIDCounter = 0;
+
+	Edges.Clear();
+	EdgeRefCounts.Clear();
+
+	AttributeSet.Reset();
+	Timestamp = 0;
+	ShapeTimestamp = 0;
+	TopologyTimestamp = 0;
+
+	CachedBoundingBox = FAxisAlignedBox3d();
+	CachedBoundingBoxTimestamp = -1;
+
+	bIsClosedCached = false;
+	CachedIsClosedTimestamp = -1;
 }
 
 int FDynamicMesh3::GetComponentsFlags() const

@@ -164,7 +164,7 @@ protected:
 
 public:
 	/** Default constructor */
-	FDynamicMesh3() : FDynamicMesh3(true, false, false, false) {}
+	FDynamicMesh3() : FDynamicMesh3(false, false, false, false) {}
 
 	/** Copy/Move construction */
 	FDynamicMesh3(const FDynamicMesh3& CopyMesh);
