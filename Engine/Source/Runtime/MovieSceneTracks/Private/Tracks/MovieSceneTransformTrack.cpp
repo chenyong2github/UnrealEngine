@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tracks/MovieSceneTransformTrack.h"
-#include "MovieSceneCommonHelpers.h"
 #include "Sections/MovieScene3DTransformSection.h"
-#include "Compilation/MovieSceneSegmentCompiler.h"
-#include "Compilation/MovieSceneTemplateInterrogation.h"
-#include "Evaluation/MovieScenePropertyTemplates.h"
 
 
 UMovieSceneTransformTrack::UMovieSceneTransformTrack(const FObjectInitializer& ObjectInitializer)
