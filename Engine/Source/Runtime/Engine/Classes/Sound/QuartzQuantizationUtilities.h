@@ -429,7 +429,7 @@ namespace Audio
 			, int32 InSourceID = -1
 		);
 
-		void SetOwningClockPtr(Audio::FQuartzClock* InClockPointer)
+		void SetOwningClockPtr(TSharedPtr<Audio::FQuartzClock> InClockPointer)
 		{
 			OwningClockPointer = InClockPointer;
 		}
@@ -443,7 +443,7 @@ namespace Audio
 		int32 GameThreadDelegateID{ -1 };
 
 		// Audio Render thread-specific data:
-		Audio::FQuartzClock* OwningClockPointer{ nullptr };
+		TSharedPtr<Audio::FQuartzClock> OwningClockPointer{ nullptr };
 		int32 SourceID{ -1 };
 	};
 
