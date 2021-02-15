@@ -89,6 +89,7 @@ void UNiagaraStackItem::PostRefreshChildrenInternal()
 {
 	Super::PostRefreshChildrenInternal();
 	bool bHasAdvancedContent = false;
+	bool bHasChangedContent = false;
 	TArray<UNiagaraStackItemContent*> ContentChildren;
 	GetContentChildren(*this, ContentChildren);
 	for (UNiagaraStackItemContent* ContentChild : ContentChildren)
@@ -96,10 +97,11 @@ void UNiagaraStackItem::PostRefreshChildrenInternal()
 		if (ContentChild->GetIsAdvanced())
 		{
 			bHasAdvancedContent = true;
-			break;
+			bHasChangedContent |= ContentChild->HasOverridenContent();
 		}
+		
 	}
-	ItemFooter->SetHasAdvancedContent(bHasAdvancedContent);
+	ItemFooter->SetHasAdvancedContent(bHasAdvancedContent, bHasChangedContent);
 }
 
 int32 UNiagaraStackItem::GetChildIndentLevel() const
@@ -143,6 +145,11 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackItemContent::GetStackRowStyle() 
 bool UNiagaraStackItemContent::GetIsAdvanced() const
 {
 	return bIsAdvanced;
+}
+
+bool UNiagaraStackItemContent::HasOverridenContent() const
+{
+	return false;
 }
 
 FString UNiagaraStackItemContent::GetOwnerStackItemEditorDataKey() const

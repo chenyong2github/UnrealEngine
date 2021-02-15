@@ -348,6 +348,11 @@ void UNiagaraStackFunctionInput::Paste(const UNiagaraClipboardContent* Clipboard
 	}
 }
 
+bool UNiagaraStackFunctionInput::HasOverridenContent() const
+{
+	return CanReset();
+}
+
 TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInput::GetChildInputs() const
 {
 	TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
