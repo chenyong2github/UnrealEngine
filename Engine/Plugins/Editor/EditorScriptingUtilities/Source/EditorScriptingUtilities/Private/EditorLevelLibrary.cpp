@@ -391,7 +391,7 @@ namespace InternalEditorLevelLibrary
 		}
 
 		UActorFactory* FactoryToUse = nullptr;
-		bool bSelectActors = false;
+		bool bSelectActors = true;
 		TArray<AActor*> Actors = FLevelEditorViewportClient::TryPlacingActorFromObject(DesiredLevel, ObjToUse, bSelectActors, NewObjectFlags, FactoryToUse);
 
 		if (Actors.Num() == 0 || Actors[0] == nullptr)
