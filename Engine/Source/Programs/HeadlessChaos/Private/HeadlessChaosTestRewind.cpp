@@ -444,6 +444,128 @@ namespace ChaosTest {
 		return Result;
 	}
 
+	TYPED_TEST(AllTraits, RewindTest_SimCallbackInputsOutputs)
+	{
+		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				struct FSimCallbackHelperInput : FSimCallbackInput
+				{
+					void Reset() {}
+					int InCounter;
+				};
+
+				struct FSimCallbackHelperOutput : FSimCallbackOutput
+				{
+					void Reset() {}
+					int OutCounter;
+				};
+
+				struct FSimCallbackHelper : TSimCallbackObject<FSimCallbackHelperInput, FSimCallbackHelperOutput>
+				{
+					int32 TriggerCount = 0;
+					virtual void OnPreSimulate_Internal() override
+					{
+						GetProducerOutputData_Internal().OutCounter = TriggerCount++;
+					}
+				};
+
+				struct FRewindCallback : public IRewindCallback
+				{
+					FRewindCallback(int32 InNumPhysicsSteps)
+						: NumPhysicsSteps(InNumPhysicsSteps)
+					{
+
+					}
+
+					TArray<int32> InCounters;
+					int32 NumPhysicsSteps;
+					bool bResim = false;
+
+					virtual int32 TriggerRewindIfNeeded(int32 LastCompletedStep) override
+					{
+						if (LastCompletedStep + 1 == NumPhysicsSteps && NumPhysicsSteps != INDEX_NONE)
+						{
+							NumPhysicsSteps = INDEX_NONE;	//don't resim again after this
+							return 0;
+						}
+
+						return INDEX_NONE;
+					}
+
+					virtual void RecordInputs(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+					{
+						EXPECT_EQ(SimCallbackInputs.Num(), 1);
+						FSimCallbackHelperInput* Input = static_cast<FSimCallbackHelperInput*>(SimCallbackInputs[0].Input);
+						if(bResim)
+						{
+							EXPECT_EQ(InCounters[PhysicsStep], Input->InCounter);
+						}
+						else
+						{
+							InCounters.Add(Input->InCounter);
+						}
+					}
+
+					virtual void PreResimStep(int32 PhysicsStep, bool bFirst) override
+					{
+						bResim = true;
+					}
+
+					virtual void PostResimStep(int32 PhysicsStep) override
+					{
+						bResim = false;
+					}
+				};
+
+				const int32 LastGameStep = 20;
+				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
+
+				Solver->SetRewindCallback(MakeUnique<FRewindCallback>(NumPhysSteps));
+				FSimCallbackHelper* SimCallback = Solver->CreateAndRegisterSimCallbackObject_External<FSimCallbackHelper>();
+
+				{
+					auto& Particle = Proxy->GetGameThreadAPI();
+					Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
+					Particle.SetGravityEnabled(true);
+					Particle.SetX(FVec3(0, 0, 100));
+
+					for (int Step = 0; Step < LastGameStep; ++Step)
+					{
+						SimCallback->GetProducerInputData_External()->InCounter = Step;
+						TickSolverHelper(Solver);
+					}
+				}
+
+				//during async we can't consume all outputs right away, so we won't get the resim results right away
+				//with sync we should be able to get all the results right away and this acts as a good test
+				if(!Solver->IsUsingAsyncResults())
+				{
+					//we get all the original outputs plus the rewind outputs, they counter just keeps going up, but the InternalTime should reflect the rewind
+					int32 Count = 0;
+					FReal CurTime = 0.f;
+					while (TSimCallbackOutputHandle<FSimCallbackHelperOutput> Output = SimCallback->PopOutputData_External())
+					{
+						EXPECT_FLOAT_EQ(Output->InternalTime, CurTime);
+						EXPECT_EQ(Count, Output->OutCounter);
+						++Count;
+
+						if(Count == NumPhysSteps)
+						{
+							CurTime = 0;	//reset time for resim
+						}
+						else
+						{
+							CurTime += SimDt;
+						}
+					}
+
+					EXPECT_EQ(Count, NumPhysSteps * 2);	//should have two results for each physics step since we rewound
+				}
+				
+
+			});
+	}
+
 	TYPED_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleport)
 	{
 		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)

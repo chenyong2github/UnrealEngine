@@ -997,7 +997,7 @@ namespace Chaos
 		}
 		PushData.SimCommands.Reset();
 
-		if(MRewindCallback)
+		if(MRewindCallback && !IsShuttingDown())
 		{
 			MRewindCallback->RecordInputs(MRewindData->CurrentFrame(), PushData.SimCallbackInputs);
 		}
@@ -1014,6 +1014,7 @@ namespace Chaos
 			{
 				if(ensure(MRewindData->RewindToFrame(ResimStep)))
 				{
+					CurrentFrame = ResimStep;
 					const int32 NumResimSteps = LastStep - ResimStep + 1;
 					TArray<FPushPhysicsData*> RecordedPushData = MarshallingManager.StealHistory_Internal(NumResimSteps);
 					bool bFirst = true;
@@ -1021,6 +1022,11 @@ namespace Chaos
 					for (int32 Step = ResimStep; Step <= LastStep; ++Step)
 					{
 						FPushPhysicsData* PushData = RecordedPushData[LastStep - Step];	//push data is sorted as latest first
+						if(bFirst)
+						{
+							MTime = PushData->StartTime;	//not sure if sub-steps have proper StartTime so just do this once and let solver evolve remaining time
+						}
+
 						MRewindCallback->PreResimStep(Step, bFirst);
 						FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
 						ImmediateTask.AdvanceSolver();
