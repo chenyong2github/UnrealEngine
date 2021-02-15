@@ -7,7 +7,7 @@
 
 namespace Chaos
 {
-	class FPerParticleDampVelocity : public TPerParticleRule<FReal, 3>
+	class FPerParticleDampVelocity : public FPerParticleRule
 	{
 	public:
 		FPerParticleDampVelocity(const FReal Coefficient = (FReal)0.01)

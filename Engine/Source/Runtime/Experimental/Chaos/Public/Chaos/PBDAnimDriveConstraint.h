@@ -12,7 +12,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Anim Drive Constraint Set Stiffness"), STAT_P
 
 namespace Chaos
 {
-	class FPBDAnimDriveConstraint : public TParticleRule<FReal, 3>
+	class FPBDAnimDriveConstraint : public FParticleRule
 	{
 	public:
 		FPBDAnimDriveConstraint(
@@ -195,4 +195,7 @@ namespace Chaos
 		FVec2 Stiffness;  // Input stiffness before parameter fitting
 		FVec2 Damping;  // Input damping before parameter fitting
 	};
+
+	template<typename T, int d>
+	using TPBDAnimDriveConstraint UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDAnimDriveConstraint instead") = FPBDAnimDriveConstraint;
 }

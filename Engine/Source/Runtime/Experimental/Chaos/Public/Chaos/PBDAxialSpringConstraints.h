@@ -12,7 +12,7 @@
 namespace Chaos
 {
 
-class CHAOS_API FPBDAxialSpringConstraints : public TParticleRule<FReal, 3>, public FPBDAxialSpringConstraintsBase
+class CHAOS_API FPBDAxialSpringConstraints : public FParticleRule, public FPBDAxialSpringConstraintsBase
 {
 	typedef FPBDAxialSpringConstraintsBase Base;
 	using Base::MBarys;

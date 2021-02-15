@@ -15,7 +15,7 @@ namespace Chaos
 // Stiffness is in N/CM^2, so it needs to be adjusted from the PBD stiffness ranging between [0,1]
 static const double XPBDAxialSpringMaxCompliance = 1e-7;  // Max stiffness: 1e+11 N/M^2 = 1e+7 N/CM^2 -> Max compliance: 1e-7 CM^2/N
 
-class FXPBDAxialSpringConstraints : public TParticleRule<FReal, 3>, public FPBDAxialSpringConstraintsBase
+class FXPBDAxialSpringConstraints : public FParticleRule, public FPBDAxialSpringConstraintsBase
 {
 	typedef FPBDAxialSpringConstraintsBase Base;
 	using Base::MBarys;
@@ -102,4 +102,7 @@ private:
 private:
 	mutable TArray<FReal> MLambdas;
 };
+
+template<class T, int d>
+using TXPBDAxialSpringConstraints UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FXPBDAxialSpringConstraints instead") = FXPBDAxialSpringConstraints;
 }

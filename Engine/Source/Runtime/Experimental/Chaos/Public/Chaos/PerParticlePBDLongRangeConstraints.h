@@ -10,7 +10,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Long Range Per Particle Constraint"), STAT_PB
 
 namespace Chaos
 {
-class FPerParticlePBDLongRangeConstraints : public TPerParticleRule<FReal, 3>, public FPBDLongRangeConstraintsBase
+class FPerParticlePBDLongRangeConstraints : public FPerParticleRule, public FPBDLongRangeConstraintsBase
 {
 	typedef FPBDLongRangeConstraintsBase Base;
 	using Base::MConstraints;

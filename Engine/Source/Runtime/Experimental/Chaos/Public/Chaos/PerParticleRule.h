@@ -14,40 +14,43 @@ namespace Chaos
  * all others (i.e., the implementation of ApplySingle only reads/writes to
  * the one particle).
  */
-template<class T, int d>
-class TPerParticleRule : public TParticleRule<T, d>
+class FPerParticleRule : public FParticleRule
 {
   public:
-	void Apply(TParticles<T, d>& InParticles, const T Dt) const override
+	void Apply(FParticles& InParticles, const FReal Dt) const override
 	{
 		ApplyPerParticle(InParticles, Dt);
 	}
 
-	void Apply(TDynamicParticles<T, d>& InParticles, const T Dt) const override
+	void Apply(FDynamicParticles& InParticles, const FReal Dt) const override
 	{
 		ApplyPerParticle(InParticles, Dt);
 	}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const override
+	void Apply(FPBDParticles& InParticles, const FReal Dt) const override
 	{
 		ApplyPerParticle(InParticles, Dt);
 	}
 
 	template<class T_PARTICLES>
-	void ApplyPerParticle(T_PARTICLES& InParticles, const T Dt) const
+	void ApplyPerParticle(T_PARTICLES& InParticles, const FReal Dt) const
 	{
 		PhysicsParallelFor(InParticles.Size(), [&](int32 Index) {
 			Apply(InParticles, Dt, Index);
 		});
 	}
 
-	virtual void Apply(TParticles<T, d>& InParticles, const T Dt, const int Index) const { check(0); };
-	virtual void Apply(TDynamicParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TParticles<T, d>&>(InParticles), Dt, Index); };
-	virtual void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TDynamicParticles<T, d>&>(InParticles), Dt, Index); };
-	virtual void Apply(TRigidParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TParticles<T, d>&>(InParticles), Dt, Index); };
-	virtual void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int Index) const { Apply(static_cast<TRigidParticles<T, d>&>(InParticles), Dt, Index); };
+	virtual void Apply(FParticles& InParticles, const FReal Dt, const int Index) const { check(0); };
+	virtual void Apply(FDynamicParticles& InParticles, const FReal Dt, const int Index) const { Apply(static_cast<FParticles&>(InParticles), Dt, Index); };
+	virtual void Apply(FPBDParticles& InParticles, const FReal Dt, const int Index) const { Apply(static_cast<FDynamicParticles&>(InParticles), Dt, Index); };
+	virtual void Apply(TRigidParticles<FReal, 3>& InParticles, const FReal Dt, const int Index) const { Apply(static_cast<FParticles&>(InParticles), Dt, Index); };
+	virtual void Apply(FPBDRigidParticles& InParticles, const FReal Dt, const int Index) const { Apply(static_cast<TRigidParticles<FReal, 3>&>(InParticles), Dt, Index); };
 
-	virtual void Apply(TPBDRigidParticleHandle<T, d>* Particle, const T Dt) const { check(0); }
-	virtual void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const { check(0); }
+	virtual void Apply(TPBDRigidParticleHandle<FReal, 3>* Particle, const FReal Dt) const { check(0); }
+	virtual void Apply(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal Dt) const { check(0); }
 };
+
+template<class T, int d>
+using TPerParticleRule UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPerParticleRule instead") = FPerParticleRule;
+
 }

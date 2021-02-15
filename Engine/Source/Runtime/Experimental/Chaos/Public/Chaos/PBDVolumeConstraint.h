@@ -8,7 +8,7 @@
 
 namespace Chaos
 {
-class FPBDVolumeConstraint : public TParticleRule<FReal, 3>, public FPBDVolumeConstraintBase
+class FPBDVolumeConstraint : public FParticleRule, public FPBDVolumeConstraintBase
 {
 	typedef FPBDVolumeConstraintBase Base;
 
@@ -28,4 +28,8 @@ class FPBDVolumeConstraint : public TParticleRule<FReal, 3>, public FPBDVolumeCo
 		}
 	}
 };
+
+template<class T>
+using TPBDVolumeConstraint UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDVolumeConstraint instead") = FPBDVolumeConstraint;
+
 }

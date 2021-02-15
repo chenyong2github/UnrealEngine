@@ -8,7 +8,7 @@
 
 namespace Chaos
 {
-class FPerParticlePBDSpringConstraints : public TPerParticleRule<FReal, 3>, public FPBDSpringConstraintsBase
+class FPerParticlePBDSpringConstraints : public FPerParticleRule, public FPBDSpringConstraintsBase
 {
 	typedef FPBDSpringConstraintsBase Base;
 	using Base::MConstraints;

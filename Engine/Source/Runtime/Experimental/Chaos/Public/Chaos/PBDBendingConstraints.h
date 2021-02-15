@@ -8,7 +8,7 @@
 
 namespace Chaos
 {
-class FPBDBendingConstraints : public TParticleRule<FReal, 3>, public FPBDBendingConstraintsBase
+class FPBDBendingConstraints : public FParticleRule, public FPBDBendingConstraintsBase
 {
 	typedef FPBDBendingConstraintsBase Base;
 	using Base::MConstraints;
@@ -36,4 +36,7 @@ class FPBDBendingConstraints : public TParticleRule<FReal, 3>, public FPBDBendin
 		}
 	}
 };
+
+template<class T>
+using TPBDBendingConstraints UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDBendingConstraints instead") = FPBDBendingConstraints;
 }

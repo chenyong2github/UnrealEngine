@@ -14,7 +14,7 @@ namespace Chaos
 class CHAOS_API FPBDEvolution : public TArrayCollection
 {
  public:
-	using FGravityForces = TPerParticleGravity<FReal, 3>;
+	using FGravityForces = FPerParticleGravity;
 
 	// TODO(mlentine): Init particles from some type of input
 	FPBDEvolution(FPBDParticles&& InParticles, FKinematicGeometryClothParticles&& InGeometryParticles, TArray<TVec3<int32>>&& CollisionTriangles, int32 NumIterations = 1, FReal CollisionThickness = 0, FReal SelfCollisionsThickness = 0, FReal CoefficientOfFriction = 0, FReal Damping = 0.04);

@@ -9,7 +9,7 @@
 
 namespace Chaos
 {
-class FPerParticlePBDShapeConstraints : public TPerParticleRule<FReal, 3>, public FPBDShapeConstraintsBase
+class FPerParticlePBDShapeConstraints : public FPerParticleRule, public FPBDShapeConstraintsBase
 {
 	typedef FPBDShapeConstraintsBase Base;
 

@@ -83,11 +83,11 @@ namespace Chaos
 		using Base::ParticleUpdatePosition;
 
 		using EvolutionTraits = Traits;
-		using FGravityForces = TPerParticleGravity<FReal, 3>;
+		using FGravityForces = FPerParticleGravity;
 		using FCollisionConstraints = FPBDCollisionConstraints;
 		using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 		using FCollisionDetector = FSpatialAccelerationCollisionDetector;
-		using FExternalForces = TPerParticleExternalForces<FReal, 3>;
+		using FExternalForces = FPerParticleExternalForces;
 		using FRigidClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
 
 		// Default iteration counts
@@ -176,10 +176,10 @@ namespace Chaos
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_Integrate);
 			CHAOS_SCOPED_TIMER(Integrate);
-			TPerParticleEulerStepVelocity<FReal, 3> EulerStepVelocityRule;
-			TPerParticleAddImpulses<FReal, 3> AddImpulsesRule;
-			TPerParticleEtherDrag<FReal, 3> EtherDragRule;
-			TPerParticlePBDEulerStep<FReal, 3> EulerStepRule;
+			FPerParticleEulerStepVelocity EulerStepVelocityRule;
+			FPerParticleAddImpulses AddImpulsesRule;
+			FPerParticleEtherDrag EtherDragRule;
+			FPerParticlePBDEulerStep EulerStepRule;
 
 			const FReal MaxAngularSpeedSq = HackMaxAngularVelocity * HackMaxAngularVelocity;
 			const FReal MaxSpeedSq = HackMaxVelocity * HackMaxVelocity;

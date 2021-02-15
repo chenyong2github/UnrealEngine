@@ -691,7 +691,7 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UpdateVelocites);
 
-		TPerParticlePBDUpdateFromDeltaPosition<FReal, 3> UpdateVelocityRule;
+		FPerParticlePBDUpdateFromDeltaPosition UpdateVelocityRule;
 		for (auto& Particle : Particles.GetActiveParticlesView())
 		{
 			UpdateVelocityRule.Apply(Particle, Dt);

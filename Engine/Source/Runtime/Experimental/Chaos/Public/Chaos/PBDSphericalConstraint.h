@@ -22,7 +22,7 @@ extern CHAOS_API bool bChaos_Spherical_ISPC_Enabled;
 
 namespace Chaos
 {
-	class CHAOS_API FPBDSphericalConstraint : public TParticleRule<FReal, 3>
+	class CHAOS_API FPBDSphericalConstraint : public FParticleRule
 	{
 	public:
 		FPBDSphericalConstraint(
@@ -98,7 +98,7 @@ namespace Chaos
 		FReal SphereRadiiMultiplier;
 	};
 
-	class CHAOS_API FPBDSphericalBackstopConstraint : public TParticleRule<FReal, 3>
+	class CHAOS_API FPBDSphericalBackstopConstraint : public FParticleRule
 	{
 	public:
 		FPBDSphericalBackstopConstraint(
@@ -257,4 +257,10 @@ namespace Chaos
 		FReal SphereRadiiMultiplier;
 		bool bUseLegacyBackstop;
 	};
+
+	template<typename T, int d>
+	using TPBDSphericalConstraint UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDSphericalConstraint instead") = FPBDSphericalConstraint;
+
+	template<typename T, int d>
+	using TPBDSphericalBackstopConstraint UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDSphericalBackstopConstraint instead") = FPBDSphericalBackstopConstraint;
 }

@@ -169,7 +169,7 @@ namespace Collisions
 void PostMoveToTOIHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle)
 {
 	// Update bounds, velocity etc
-	TPerParticlePBDUpdateFromDeltaPosition<FReal, 3> VelUpdateRule;
+	FPerParticlePBDUpdateFromDeltaPosition VelUpdateRule;
 	VelUpdateRule.Apply(Particle, Dt);
 }
 
@@ -546,7 +546,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 {
 	CollisionConstraints.SetCanDisableContacts(!!CollisionDisableCulledContacts);
 
-	SetParticleUpdateVelocityFunction([PBDUpdateRule = TPerParticlePBDUpdateFromDeltaPosition<FReal, 3>(), this](const TArray<FGeometryParticleHandle*>& ParticlesInput, const FReal Dt) {
+	SetParticleUpdateVelocityFunction([PBDUpdateRule = FPerParticlePBDUpdateFromDeltaPosition(), this](const TArray<FGeometryParticleHandle*>& ParticlesInput, const FReal Dt) {
 		ParticlesParallelFor(ParticlesInput, [&](auto& Particle, int32 Index) {
 			if (Particle->CastToRigidParticle() && Particle->ObjectState() == EObjectStateType::Dynamic)
 			{
@@ -555,7 +555,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 		});
 	});
 
-	SetParticleUpdatePositionFunction([this](const TParticleView<TPBDRigidParticles<FReal, 3>>& ParticlesInput, const FReal Dt)
+	SetParticleUpdatePositionFunction([this](const TParticleView<FPBDRigidParticles>& ParticlesInput, const FReal Dt)
 	{
 		ParticlesInput.ParallelFor([&](auto& Particle, int32 Index)
 		{

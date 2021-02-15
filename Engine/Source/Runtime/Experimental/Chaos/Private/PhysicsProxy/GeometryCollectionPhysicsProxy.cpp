@@ -976,7 +976,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 			// back on once it's off, but even if we didn't enclose this in an if(),
 			// this function won't be called again unless something dirties the proxy.
 
-			Chaos::TPerParticleGravity<float, 3>& GravityForces = RigidsSolver->GetEvolution()->GetGravityForces();
+			Chaos::FPerParticleGravity& GravityForces = RigidsSolver->GetEvolution()->GetGravityForces();
 			for (int32 HandleIdx = 0; HandleIdx < SolverParticleHandles.Num(); ++HandleIdx)
 			{
 				if (Chaos::TPBDRigidParticleHandle<float, 3>* Handle = SolverParticleHandles[HandleIdx])
