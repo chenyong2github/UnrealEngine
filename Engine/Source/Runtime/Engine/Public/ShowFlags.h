@@ -539,8 +539,6 @@ enum class EShowFlagShippingValue
 template<EShowFlagShippingValue ShippingValue = EShowFlagShippingValue::Dynamic>
 struct TCustomShowFlag
 {
-#undef IF_CONSTEXPR
-
 #if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 #define IF_CONSTEXPR if constexpr
 #else 
