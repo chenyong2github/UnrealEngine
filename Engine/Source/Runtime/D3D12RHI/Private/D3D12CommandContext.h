@@ -673,7 +673,7 @@ public:
 
 	FORCEINLINE virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) final override
 	{
-		ContextRedirect(RHISetShadingRateImage(RateImageTexture, Combiner));
+		checkf(false, TEXT("RHISetShadingRateImage API is deprecated. Use the ShadingRateImage attachment in the RHISetRenderTargetsInfo struct instead."));
 	}
 
 	FORCEINLINE virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture) final override

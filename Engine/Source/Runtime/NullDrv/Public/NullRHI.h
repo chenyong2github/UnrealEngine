@@ -701,9 +701,6 @@ public:
 	virtual void RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner) final override
 	{
 	}
-	virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner)  final override
-	{
-	}
 	virtual void* RHIGetNativeDevice() final override
 	{ 
 		return 0; 
