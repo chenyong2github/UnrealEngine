@@ -767,7 +767,8 @@ public:
 	 * @param bAllowShrinking If this call allows shrinking of the array during element remove.
 	 * @returns Popped element.
 	 */
-	FORCEINLINE ElementType Pop(bool bAllowShrinking = true)
+	template<typename InElementType=InElementType>
+	FORCEINLINE typename TEnableIf<!TIsAbstract<InElementType>::Value, ElementType>::Type Pop(bool bAllowShrinking = true)
 	{
 		RangeCheck(0);
 		ElementType Result = MoveTempIfPossible(GetData()[ArrayNum - 1]);
