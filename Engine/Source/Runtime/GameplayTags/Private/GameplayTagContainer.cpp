@@ -1036,7 +1036,7 @@ bool FGameplayTagContainer::NetSerialize(FArchive& Ar, class UPackageMap* Map, b
 
 	// -------------------------------------------------------
 
-	int32 NumBitsForContainerSize = UGameplayTagsManager::Get().NumBitsForContainerSize;
+	const int32 NumBitsForContainerSize = UGameplayTagsManager::Get().NumBitsForContainerSize;
 
 	if (Ar.IsSaving())
 	{
@@ -1294,7 +1294,7 @@ bool FGameplayTag::NetSerialize_Packed(FArchive& Ar, class UPackageMap* Map, boo
 
 				NetIndex = TagManager.GetNetIndexFromTag(*this);
 
-				if (NetIndex != TagManager.InvalidTagNetIndex && NetIndex != INVALID_TAGNETINDEX)
+				if (NetIndex != TagManager.GetInvalidTagNetIndex() && NetIndex != INVALID_TAGNETINDEX)
 				{
 					PackageMapClient->TrackNetFieldExport(NetFieldExportGroup.Get(), NetIndex);
 				}
@@ -1341,11 +1341,11 @@ bool FGameplayTag::NetSerialize_Packed(FArchive& Ar, class UPackageMap* Map, boo
 		{
 			NetIndex = TagManager.GetNetIndexFromTag(*this);
 			
-			SerializeTagNetIndexPacked(Ar, NetIndex, TagManager.NetIndexFirstBitSegment, TagManager.NetIndexTrueBitNum);
+			SerializeTagNetIndexPacked(Ar, NetIndex, TagManager.GetNetIndexFirstBitSegment(), TagManager.GetNetIndexTrueBitNum());
 		}
 		else
 		{
-			SerializeTagNetIndexPacked(Ar, NetIndex, TagManager.NetIndexFirstBitSegment, TagManager.NetIndexTrueBitNum);
+			SerializeTagNetIndexPacked(Ar, NetIndex, TagManager.GetNetIndexFirstBitSegment(), TagManager.GetNetIndexTrueBitNum());
 			TagName = TagManager.GetTagNameFromNetIndex(NetIndex);
 		}
 	}

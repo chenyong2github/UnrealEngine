@@ -14,6 +14,8 @@
 
 class UGameplayTagsList;
 struct FStreamableHandle;
+class FNativeGameplayTagSource;
+class FNativeGameplayTag;
 
 /** Simple struct for a table row in the gameplay tag table and element in the ini list */
 USTRUCT()
@@ -182,7 +184,7 @@ struct FGameplayTagNode
 	*
 	* @return The net index of this node
 	*/
-	FORCEINLINE FGameplayTagNetIndex GetNetIndex() const { return NetIndex; }
+	FORCEINLINE FGameplayTagNetIndex GetNetIndex() const { check(NetIndex != INVALID_TAGNETINDEX); return NetIndex; }
 
 	/** Reset the node of all of its values */
 	GAMEPLAYTAGS_API void ResetNode();
@@ -257,18 +259,6 @@ private:
 	friend class SGameplayTagWidget;
 };
 
-struct GAMEPLAYTAGS_API FNativeGameplayTagSource : public FNoncopyable
-{
-	FNativeGameplayTagSource() { }
-
-protected:
-	FGameplayTag Add(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
-
-private:
-	TArray<FGameplayTagTableRow> NativeTags;
-
-	friend class UGameplayTagsManager;
-};
 
 /** Holds data about the tag dictionary, is in a singleton UObject */
 UCLASS(config=Engine)
@@ -350,6 +340,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	void RemoveNativeGameplayTagSource(const FString& NativeSourceName);
 
 private:
+	void AddNativeGameplayTag(FNativeGameplayTag* TagSource, FName TagName, const FString& TagDevComment);
+	void RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource);
+
 	/**
 	 * 
 	 */
@@ -503,7 +496,7 @@ public:
 	}
 
 	/** Returns the hash of NetworkGameplayTagNodeIndex */
-	uint32 GetNetworkGameplayTagNodeIndexHash() const {	return NetworkGameplayTagNodeIndexHash;	}
+	uint32 GetNetworkGameplayTagNodeIndexHash() const { VerifyNetworkIndex(); return NetworkGameplayTagNodeIndexHash; }
 
 	/** Returns a list of the ini files that contain restricted tags */
 	void GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const;
@@ -534,23 +527,33 @@ public:
 	FGameplayTagNetIndex GetNetIndexFromTag(const FGameplayTag &InTag) const;
 
 	/** Cached number of bits we need to replicate tags. That is, Log2(Number of Tags). Will always be <= 16. */
-	int32 NetIndexTrueBitNum;
-	
+	int32 GetNetIndexTrueBitNum() const { VerifyNetworkIndex(); return NetIndexTrueBitNum; }
+
 	/** The length in bits of the first segment when net serializing tags. We will serialize NetIndexFirstBitSegment + 1 bit to indicatore "more" (more = second segment that is NetIndexTrueBitNum - NetIndexFirstBitSegment) */
-	int32 NetIndexFirstBitSegment;
+	int32 GetNetIndexFirstBitSegment() const { VerifyNetworkIndex(); return NetIndexFirstBitSegment; }
+
+	/** This is the actual value for an invalid tag "None". This is computed at runtime as (Total number of tags) + 1 */
+	FGameplayTagNetIndex GetInvalidTagNetIndex() const { VerifyNetworkIndex(); return InvalidTagNetIndex; }
+
+	const TArray<TSharedPtr<FGameplayTagNode>>& GetNetworkGameplayTagNodeIndex() const { VerifyNetworkIndex(); return NetworkGameplayTagNodeIndex; }
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGameplayTagLoaded, const FGameplayTag& /*Tag*/)
+	FOnGameplayTagLoaded OnGameplayTagLoadedDelegate;
 
 	/** Numbers of bits to use for replicating container size. This can be set via config. */
 	int32 NumBitsForContainerSize;
 
+private:
+	/** Cached number of bits we need to replicate tags. That is, Log2(Number of Tags). Will always be <= 16. */
+	int32 NetIndexTrueBitNum;
+
+	/** The length in bits of the first segment when net serializing tags. We will serialize NetIndexFirstBitSegment + 1 bit to indicatore "more" (more = second segment that is NetIndexTrueBitNum - NetIndexFirstBitSegment) */
+	int32 NetIndexFirstBitSegment;
+
 	/** This is the actual value for an invalid tag "None". This is computed at runtime as (Total number of tags) + 1 */
 	FGameplayTagNetIndex InvalidTagNetIndex;
 
-	const TArray<TSharedPtr<FGameplayTagNode>>& GetNetworkGameplayTagNodeIndex() const { return NetworkGameplayTagNodeIndex; }
-
-	bool IsNativelyAddedTag(FGameplayTag Tag) const;
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGameplayTagLoaded, const FGameplayTag& /*Tag*/)
-	FOnGameplayTagLoaded OnGameplayTagLoadedDelegate;
+public:
 
 #if WITH_EDITOR
 	/** Gets a Filtered copy of the GameplayRootTags Array based on the comma delimited filter string passed in */
@@ -691,6 +694,7 @@ private:
 	friend class FGameplayTagsEditorModule;
 	friend class UGameplayTagsSettings;
 	friend class SAddNewGameplayTagSourceWidget;
+	friend class FNativeGameplayTag;
 
 	/**
 	 * Helper function to insert a tag into a tag node array
@@ -741,6 +745,16 @@ private:
 	/** Marks all of the nodes that descend from CurNode as having an ancestor node that has a source conflict. */
 	void MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNode> CurNode);
 
+	void VerifyNetworkIndex() const
+	{
+		if (bNetworkIndexInvalidated)
+		{
+			const_cast<UGameplayTagsManager*>(this)->ConstructNetIndex();
+		}
+	}
+
+	void InvalidateNetworkIndex() { bNetworkIndexInvalidated = true; }
+
 	/** Roots of gameplay tag nodes */
 	TSharedPtr<FGameplayTagNode> GameplayRootTag;
 
@@ -790,6 +804,8 @@ private:
 	TArray<TSharedPtr<FGameplayTagNode>> NetworkGameplayTagNodeIndex;
 
 	uint32 NetworkGameplayTagNodeIndexHash;
+
+	bool bNetworkIndexInvalidated = true;
 
 	/** Holds all of the valid gameplay-related tags that can be applied to assets */
 	UPROPERTY()
