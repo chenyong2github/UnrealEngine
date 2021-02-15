@@ -82,7 +82,7 @@ static_assert(sizeof(FAddrPack) == sizeof(uint64), "");
 UE_TRACE_CHANNEL(MemSummaryChannel)
 UE_TRACE_CHANNEL_DEFINE(MemAllocChannel)
 
-UE_TRACE_EVENT_BEGIN(Memory, Init)
+UE_TRACE_EVENT_BEGIN(Memory, Init, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint64, BaseCycle)
 	UE_TRACE_EVENT_FIELD(uint32, MarkerPeriod)
 	UE_TRACE_EVENT_FIELD(uint8, MinAlignment)
