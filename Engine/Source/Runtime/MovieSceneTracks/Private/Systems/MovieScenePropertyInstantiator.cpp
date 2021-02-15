@@ -610,7 +610,7 @@ int32 UMovieScenePropertyInstantiatorSystem::ResolveProperty(UE::MovieScene::FCu
 		}
 	}
 
-	if (PropertyBinding.CanUseClassLookup())
+	if (!NewInfo.Property.IsSet() && PropertyBinding.CanUseClassLookup())
 	{
 		TOptional<uint16> FastPtrOffset = ComputeFastPropertyPtrOffset(Class, PropertyBinding);
 		if (FastPtrOffset.IsSet())
