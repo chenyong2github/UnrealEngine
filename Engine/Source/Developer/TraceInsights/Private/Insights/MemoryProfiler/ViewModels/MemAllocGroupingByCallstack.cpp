@@ -58,8 +58,6 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 
 	FTableTreeNodePtr UnsetGroupPtr = nullptr;
 
-	static FName PendingName(TEXT("Pending..."));
-	static FName NotFoundName(TEXT("Not found"));
 	static FName NotAvailableName(TEXT("N/A"));
 
 	for (FTableTreeNodePtr NodePtr : Nodes)
@@ -98,20 +96,19 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 						GroupPtr->GroupMap.Add(Frame->Addr, NewGroupPtr);
 
 						FName GroupName = NotAvailableName;
-						const TraceServices::QueryResult Result = Frame->Symbol->Result.load(std::memory_order_acquire);
+						const TraceServices::QueryResult Result = Frame->Symbol->GetResult();
 						switch (Result)
 						{
-						case TraceServices::QueryResult::QR_NotLoaded:
+						case TraceServices::QueryResult::Pending:
 							//GroupName = PendingName;
 							GroupName = FName(*FString::Printf(TEXT("0x%X (...)"), Frame->Addr));
 							break;
-						case TraceServices::QueryResult::QR_NotFound:
-							//GroupName = NotFoundName;
-							GroupName = FName(*FString::Printf(TEXT("0x%X"), Frame->Addr));
-							break;
-						case TraceServices::QueryResult::QR_OK:
+						case TraceServices::QueryResult::OK:
 							GroupName = FName(Frame->Symbol->Name);
 							//GroupName = FName(*FString::Printf(TEXT("0x%X %s"), Frame->Addr, Frame->Symbol->Name));
+							break;
+						default:
+							GroupName = FName(*FString::Printf(TEXT("0x%X"), Frame->Addr));
 							break;
 						}
 

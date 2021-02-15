@@ -11,12 +11,32 @@ namespace TraceServices {
   * Result of a query. Since symbol resolving can be deferred this signals if a
   * symbol has been resolved, waiting to be resolved or wasn't found at all.
   */
-enum QueryResult 
+enum class QueryResult : uint8
 {
-	QR_OK,
-	QR_NotFound,
-	QR_NotLoaded,
+	Pending,		// Symbol is pending resolution
+	OK,			// Symbol has been correctly resolved
+	NotLoaded,	// Module debug data could not be loaded or found
+	Mismatch,	// Module debug data could not be loaded because debug data did not match traced binary
+	NotFound,	// Symbol was not found in module debug data
+	StatusNum
 };
+
+////////////////////////////////////////////////////////////////////////////////
+/**
+ * Helper method to get a string representation of the query result.
+ */
+inline const TCHAR* QueryResultToString(QueryResult Result)
+{
+	static const TCHAR* DisplayStrings[] = {
+		TEXT("Pending..."),
+		TEXT("Ok"),
+		TEXT("Not loaded"),
+		TEXT("Mismatch"),
+		TEXT("Not found")
+	};
+	static_assert(UE_ARRAY_COUNT(DisplayStrings) == (uint8) QueryResult::StatusNum, "Missing QueryResult");
+	return DisplayStrings[(uint8)Result];
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /**
@@ -29,6 +49,11 @@ struct FResolvedSymbol
 	std::atomic<QueryResult> Result;
 	const TCHAR* Name;
 	const TCHAR* FileAndLine;
+
+	inline QueryResult GetResult() const
+	{
+		return Result.load(std::memory_order_acquire);
+	}
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -53,4 +78,5 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+
 } // namespace TraceServices

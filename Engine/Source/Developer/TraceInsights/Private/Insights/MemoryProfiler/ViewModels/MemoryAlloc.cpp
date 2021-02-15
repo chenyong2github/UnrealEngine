@@ -27,12 +27,6 @@ FMemoryAlloc::~FMemoryAlloc()
 
 FText FMemoryAlloc::GetFullCallstack() const
 {
-	static const TCHAR* DisplayStrings[] = {
-	TEXT("Pending..."),
-	TEXT("Not found"),
-	TEXT("N/A"),
-	};
-
 	FString Tooltip;
 	if (Callstack)
 	{
@@ -42,18 +36,14 @@ FText FMemoryAlloc::GetFullCallstack() const
 			const TraceServices::FStackFrame* Frame = Callstack->Frame(Index);
 			check(Frame != nullptr);
 
-			const TraceServices::QueryResult Result = Frame->Symbol->Result.load(std::memory_order_acquire);
-			switch (Result)
+			const TraceServices::QueryResult Result = Frame->Symbol->GetResult();
+			if (Result == TraceServices::QueryResult::OK)
 			{
-			case TraceServices::QueryResult::QR_NotLoaded:
-				Tooltip.Appendf(TEXT("%s\n"), DisplayStrings[0]); // pending
-				break;
-			case TraceServices::QueryResult::QR_NotFound:
-				Tooltip.Appendf(TEXT("%s\n"), DisplayStrings[1]); // not found
-				break;
-			case TraceServices::QueryResult::QR_OK:
 				Tooltip.Appendf(TEXT("%s\n"), Frame->Symbol->Name);
-				break;
+			}
+			else
+			{
+				Tooltip.Appendf(TEXT("%s\n"), QueryResultToString(Result));
 			}
 		}
 
@@ -63,7 +53,7 @@ FText FMemoryAlloc::GetFullCallstack() const
 
 	if (Tooltip.Len() == 0)
 	{
-		Tooltip.Append(DisplayStrings[2]);
+		Tooltip.Append(TEXT("N/A"));
 	}
 
 	return FText::FromString(Tooltip);

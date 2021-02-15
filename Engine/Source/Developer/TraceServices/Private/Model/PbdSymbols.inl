@@ -187,7 +187,7 @@ private:
 		{
 			DWORD Err = GetLastError();
 			SymbolsFailed++;
-			UpdateResolvedSymbol(Target, QR_NotFound, UNKNOWN_MODULE_TEXT, UNKNOWN_MODULE_TEXT);
+			UpdateResolvedSymbol(Target, QueryResult::NotFound, UNKNOWN_MODULE_TEXT, UNKNOWN_MODULE_TEXT);
 			return;
 		}
 
@@ -203,7 +203,7 @@ private:
 		if (!SymGetLineFromAddr(Handle, Address, &dwDisplacement, &Line))
 		{
 			SymbolsFailed++;
-			UpdateResolvedSymbol(Target, QR_OK, SymbolNameStr, UNKNOWN_MODULE_TEXT);
+			UpdateResolvedSymbol(Target, QueryResult::OK, SymbolNameStr, UNKNOWN_MODULE_TEXT);
 			return;
 		}
 
@@ -212,7 +212,7 @@ private:
 		const TCHAR* FileAndLineStr = Session.StoreString(FStringView(FileAndLine));
 		
 		SymbolsResolved++;
-		UpdateResolvedSymbol(Target, QR_OK, SymbolNameStr, FileAndLineStr);
+		UpdateResolvedSymbol(Target, QueryResult::OK, SymbolNameStr, FileAndLineStr);
 	}
 
 	bool LoadModuleSymbols(uint64 Base, uint64 Size, const TCHAR* Path)

@@ -515,13 +515,8 @@ void FMemAllocTable::AddDefaultColumns()
 					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
 					if (Alloc)
 					{
-						static const TCHAR* DisplayStrings[] = {
-							TEXT("Pending..."),
-							TEXT("Not found"),
-							TEXT("N/A"),
-						};
-
-						const TCHAR* Value = DisplayStrings[2]; // not available
+						static const TCHAR* NotAvailable = TEXT("N/A");
+						const TCHAR* Value = NotAvailable;
 
 						const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
 
@@ -531,18 +526,14 @@ void FMemAllocTable::AddDefaultColumns()
 							const TraceServices::FStackFrame* Frame = Callstack->Frame(FMath::Min(2u, Callstack->Num() - 1));
 							check(Frame != nullptr);
 
-							const TraceServices::QueryResult Result = Frame->Symbol->Result.load(std::memory_order_acquire);
-							switch (Result)
+							const TraceServices::QueryResult Result = Frame->Symbol->GetResult();
+							if (Result == TraceServices::QueryResult::OK)
 							{
-							case TraceServices::QueryResult::QR_NotLoaded:
-								Value = DisplayStrings[0]; // pending
-								break;
-							case TraceServices::QueryResult::QR_NotFound:
-								Value = DisplayStrings[1]; // not found
-								break;
-							case TraceServices::QueryResult::QR_OK:
 								Value = Frame->Symbol->Name;
-								break;
+							}
+							else
+							{
+								Value = TraceServices::QueryResultToString(Result);
 							}
 						}
 
