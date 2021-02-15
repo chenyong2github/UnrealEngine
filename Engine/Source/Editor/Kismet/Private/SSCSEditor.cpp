@@ -1838,6 +1838,7 @@ TSharedRef<SWidget> SSCS_RowWidget::GenerateWidgetForColumn( const FName& Column
 					]
 				+SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
+					.Padding(4.0f, 0.0f)
 					[
 						InlineWidget.ToSharedRef()
 					];
