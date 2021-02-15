@@ -19,12 +19,14 @@ struct ENGINE_API FISMComponentDescriptor
 {
 	GENERATED_USTRUCT_BODY()
 
+	FISMComponentDescriptor();
 #if WITH_EDITOR
 	static FISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
 	void InitFrom(UStaticMeshComponent* Component, bool bInitBodyInstance = true);
 
 	uint32 ComputeHash() const;
 	UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;
+	void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
 
 	friend inline uint32 GetTypeHash(const FISMComponentDescriptor& Key)
 	{
@@ -142,6 +144,15 @@ public:
 
 	UPROPERTY()
 	uint8 bIncludeInHLOD : 1;
+
+	UPROPERTY()
+	uint8 bVisibleInRayTracing : 1;
+
+	UPROPERTY()
+	uint8 bHiddenInGame : 1;
+
+	UPROPERTY()
+	uint8 bIsEditorOnly : 1;
 #endif
 };
 

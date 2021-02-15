@@ -7,10 +7,8 @@
 #include "LevelInstance/Packed/PackedLevelInstanceBuilder.h"
 #include "LevelInstance/Packed/PackedLevelInstanceActor.h"
 
-#include "Misc/Crc.h"
+#include "Templates/TypeHash.h"
 
-#include "Engine/StaticMeshActor.h"
-#include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
@@ -48,19 +46,7 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 	FLevelInstanceISMPackerCluster* ISMCluster = (FLevelInstanceISMPackerCluster*)InClusterID.GetData();
 	check(ISMCluster);
 
-	PackComponent->bReceivesDecals = ISMCluster->bReceivesDecals;
-	PackComponent->CastShadow = ISMCluster->bCastShadow;
-	PackComponent->bVisibleInRayTracing = ISMCluster->bVisibleInRayTracing;
-	PackComponent->SetStaticMesh(ISMCluster->StaticMesh);
-	for (int32 MaterialIndex = 0; MaterialIndex < ISMCluster->Materials.Num(); ++MaterialIndex)
-	{
-		PackComponent->SetMaterial(MaterialIndex, ISMCluster->Materials[MaterialIndex]);
-	}
-
-	if (!ISMCluster->bCollisionEnabled)
-	{
-		PackComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
+	ISMCluster->ISMDescriptor.InitComponent(PackComponent);
 
 	for (UActorComponent* Component : InComponents)
 	{
@@ -92,43 +78,23 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 
 FLevelInstanceISMPackerCluster::FLevelInstanceISMPackerCluster(FLevelInstancePackerID InPackerID, UStaticMeshComponent* InComponent)
 	: FLevelInstancePackerCluster(InPackerID)
-	, StaticMesh(InComponent->GetStaticMesh())
-	, Materials(InComponent->GetMaterials())
-	, bReceivesDecals(InComponent->bReceivesDecals)
-	, bCastShadow(InComponent->CastShadow)
-	, bVisibleInRayTracing(InComponent->bVisibleInRayTracing)
-	, bCollisionEnabled(InComponent->IsCollisionEnabled())
 {
-	
+	ISMDescriptor.InitFrom(InComponent, /** bInitBodyInstance= */ false);
+	// Component descriptor should be considered hidden if original actor owner was.
+	ISMDescriptor.bHiddenInGame |= InComponent->GetOwner()->IsHidden();
+	ISMDescriptor.BodyInstance.CopyRuntimeBodyInstancePropertiesFrom(&InComponent->BodyInstance);
+	ISMDescriptor.ComputeHash();
 }
 
 uint32 FLevelInstanceISMPackerCluster::ComputeHash() const
 {
-	uint32 ParentHash = FLevelInstancePackerCluster::ComputeHash();
-	// Hash pointers for now since we are not persisting the clusters
-	uint32 Hash = FCrc::TypeCrc32(StaticMesh, ParentHash);
-	for (UMaterialInterface* Material : Materials)
-	{
-		Hash = FCrc::TypeCrc32(Material, Hash);
-	}
-	Hash = FCrc::TypeCrc32(bReceivesDecals, Hash);
-	Hash = FCrc::TypeCrc32(bCastShadow, Hash);
-	Hash = FCrc::TypeCrc32(bVisibleInRayTracing, Hash);
-	Hash = FCrc::TypeCrc32(bCollisionEnabled, Hash);
-
-	return Hash;
+	return HashCombine(FLevelInstancePackerCluster::ComputeHash(), ISMDescriptor.Hash);
 }
 
 bool FLevelInstanceISMPackerCluster::operator==(const FLevelInstancePackerCluster& InOther) const
 {
 	const FLevelInstanceISMPackerCluster& ISMOther = (const FLevelInstanceISMPackerCluster&)InOther;
-	return FLevelInstancePackerCluster::operator==(InOther) &&
-		StaticMesh == ISMOther.StaticMesh &&
-		Materials == ISMOther.Materials &&
-		bReceivesDecals == ISMOther.bReceivesDecals &&
-		bCastShadow == ISMOther.bCastShadow &&
-		bVisibleInRayTracing == ISMOther.bVisibleInRayTracing &&
-		bCollisionEnabled == ISMOther.bCollisionEnabled;
+	return FLevelInstancePackerCluster::operator==(InOther) && ISMDescriptor == ISMOther.ISMDescriptor;
 }
 
 #endif

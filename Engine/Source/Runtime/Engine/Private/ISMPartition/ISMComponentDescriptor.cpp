@@ -10,6 +10,14 @@
 
 #endif
 
+FISMComponentDescriptor::FISMComponentDescriptor()
+{
+#if WITH_EDITORONLY_DATA
+	// Make sure we have proper defaults
+	InitFrom(UHierarchicalInstancedStaticMeshComponent::StaticClass()->GetDefaultObject<UHierarchicalInstancedStaticMeshComponent>());
+#endif
+}
+
 #if WITH_EDITOR
 
 FISMComponentDescriptor FISMComponentDescriptor::CreateFrom(const TSubclassOf<UStaticMeshComponent>& From)
@@ -51,6 +59,9 @@ void FISMComponentDescriptor::InitFrom(UStaticMeshComponent* Template, bool bIni
 	bUseAsOccluder = Template->bUseAsOccluder;
 	bRenderCustomDepth = Template->bRenderCustomDepth;
 	bIncludeInHLOD = Template->bEnableAutoLODGeneration;
+	bHiddenInGame = Template->bHiddenInGame;
+	bIsEditorOnly = Template->bIsEditorOnly;
+	bVisibleInRayTracing = Template->bVisibleInRayTracing;
 
 	if (UInstancedStaticMeshComponent* ISMTemplate = Cast<UInstancedStaticMeshComponent>(Template))
 	{
@@ -107,6 +118,9 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 	bRenderCustomDepth == Other.bRenderCustomDepth &&
 	bIncludeInHLOD == Other.bIncludeInHLOD &&
 	bEnableDiscardOnLoad == Other.bEnableDiscardOnLoad &&
+	bHiddenInGame == Other.bHiddenInGame &&
+	bIsEditorOnly == Other.bIsEditorOnly &&
+	bVisibleInRayTracing == Other.bVisibleInRayTracing &&
 	BodyInstance.GetCollisionEnabled() == Other.BodyInstance.GetCollisionEnabled() && 
 	BodyInstance.GetCollisionResponse() == Other.BodyInstance.GetCollisionResponse() &&
 	BodyInstance.DoesUseCollisionProfile() == Other.BodyInstance.DoesUseCollisionProfile() &&
@@ -129,6 +143,13 @@ UInstancedStaticMeshComponent* FISMComponentDescriptor::CreateComponent(UObject*
 {
 	UInstancedStaticMeshComponent* ISMComponent = NewObject<UInstancedStaticMeshComponent>(Outer, ComponentClass, Name, ObjectFlags);
 	
+	InitComponent(ISMComponent);
+
+	return ISMComponent;
+}
+
+void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMComponent) const
+{
 	ISMComponent->SetStaticMesh(StaticMesh);
 	ISMComponent->OverrideMaterials = OverrideMaterials;
 	ISMComponent->Mobility = Mobility;
@@ -157,14 +178,15 @@ UInstancedStaticMeshComponent* FISMComponentDescriptor::CreateComponent(UObject*
 	ISMComponent->bUseAsOccluder = bUseAsOccluder;
 	ISMComponent->bRenderCustomDepth = bRenderCustomDepth;
 	ISMComponent->bEnableAutoLODGeneration = bIncludeInHLOD;;
+	ISMComponent->bHiddenInGame = bHiddenInGame;
+	ISMComponent->bIsEditorOnly = bIsEditorOnly;
+	ISMComponent->bVisibleInRayTracing = bVisibleInRayTracing;
 
 	// HISM Specific
 	if (UHierarchicalInstancedStaticMeshComponent* HISMComponent = Cast<UHierarchicalInstancedStaticMeshComponent>(ISMComponent))
 	{
 		HISMComponent->bEnableDensityScaling = bEnableDensityScaling;
 	}
-
-	return ISMComponent;
 }
 
 #endif

@@ -6,6 +6,7 @@
 
 #include "LevelInstance/Packed/PackedLevelInstanceTypes.h"
 #include "LevelInstance/Packed/ILevelInstancePacker.h"
+#include "ISMPartition/ISMComponentDescriptor.h"
 
 class AActor;
 class APackedLevelInstance;
@@ -23,9 +24,6 @@ public:
 	virtual void PackActors(FPackedLevelInstanceBuilderContext& InContext, APackedLevelInstance* InPackingActor, const FLevelInstancePackerClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const override;
 };
 
-class UStaticMesh;
-class UMaterialInterface;
-
 class FLevelInstanceISMPackerCluster : public FLevelInstancePackerCluster
 {
 public:
@@ -34,13 +32,7 @@ public:
 	virtual bool operator==(const FLevelInstancePackerCluster& InOther) const override;
 	virtual uint32 ComputeHash() const override;
 
-	// UStaticMeshComponent that contribute to the hash. More can be added if needed.
-	UStaticMesh* StaticMesh = nullptr;
-	TArray<UMaterialInterface*> Materials;
-	bool bReceivesDecals;
-	bool bCastShadow;
-	bool bVisibleInRayTracing;
-	bool bCollisionEnabled;
+	FISMComponentDescriptor ISMDescriptor;
 };
 
 #endif
