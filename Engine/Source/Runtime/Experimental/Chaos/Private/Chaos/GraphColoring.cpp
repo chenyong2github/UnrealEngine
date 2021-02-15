@@ -5,7 +5,7 @@
 
 using namespace Chaos;
 
-bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec2<int32>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec2<int32>>& Graph, const FDynamicParticles& InParticles)
 {
 	for (int32 i = 0; i < ColorGraph.Num(); ++i)
 	{
@@ -37,7 +37,7 @@ bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec2<int32>>& G
 	return true;
 }
 
-bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec3<int32>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec3<int32>>& Graph, const FDynamicParticles& InParticles)
 {
 	for (int32 i = 0; i < ColorGraph.Num(); ++i)
 	{
@@ -80,7 +80,7 @@ bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec3<int32>>& G
 }
 
 
-TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<int32>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<int32>>& Graph, const FDynamicParticles& InParticles)
 {
 	TArray<TArray<int32>> ColorGraph;
 	TArray<FGraphNode> Nodes;
@@ -206,7 +206,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<in
 	return ColorGraph;
 }
 
-TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<int32>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<int32>>& Graph, const FDynamicParticles& InParticles)
 {
 	TArray<TArray<int32>> ColorGraph;
 	TArray<FGraphNode> Nodes;

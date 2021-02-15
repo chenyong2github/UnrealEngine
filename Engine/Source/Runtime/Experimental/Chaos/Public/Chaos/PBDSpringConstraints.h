@@ -10,9 +10,6 @@ namespace Chaos
 {
 
 template<class T, int d>
-class TDynamicParticles;
-
-template<class T, int d>
 class TPBDParticles;
 
 template<class T, int d>
@@ -31,7 +28,7 @@ class CHAOS_API FPBDSpringConstraints : public FPBDSpringConstraintsBase, public
 	    : FPBDSpringConstraintsBase(Stiffness)
 	{}
 
-	FPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1, bool bStripKinematicConstraints = false)
+	FPBDSpringConstraints(const FDynamicParticles& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1, bool bStripKinematicConstraints = false)
 	    : FPBDSpringConstraintsBase(InParticles, MoveTemp(Constraints), Stiffness, bStripKinematicConstraints)
 	{
 		InitColor(InParticles);
@@ -40,13 +37,13 @@ class CHAOS_API FPBDSpringConstraints : public FPBDSpringConstraintsBase, public
 	    : FPBDSpringConstraintsBase(InParticles, MoveTemp(Constraints), Stiffness, bStripKinematicConstraints) 
 	{}
 
-	FPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TArray<TVec3<int32>>& Constraints, const FReal Stiffness = (FReal)1, bool bStripKinematicConstraints = false)
+	FPBDSpringConstraints(const FDynamicParticles& InParticles, const TArray<TVec3<int32>>& Constraints, const FReal Stiffness = (FReal)1, bool bStripKinematicConstraints = false)
 	    : FPBDSpringConstraintsBase(InParticles, Constraints, Stiffness, bStripKinematicConstraints)
 	{
 		InitColor(InParticles);
 	}
 
-	FPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TArray<TVec4<int32>>& Constraints, const FReal Stiffness = (FReal)1, bool bStripKinematicConstraints = false)
+	FPBDSpringConstraints(const FDynamicParticles& InParticles, const TArray<TVec4<int32>>& Constraints, const FReal Stiffness = (FReal)1, bool bStripKinematicConstraints = false)
 	    : FPBDSpringConstraintsBase(InParticles, Constraints, Stiffness, bStripKinematicConstraints)
 	{
 		InitColor(InParticles);
@@ -65,7 +62,7 @@ class CHAOS_API FPBDSpringConstraints : public FPBDSpringConstraintsBase, public
 	void Apply(TPBDRigidParticles<FReal, 3>& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices) const;
 
 private:
-	void InitColor(const TDynamicParticles<FReal, 3>& InParticles);
+	void InitColor(const FDynamicParticles& InParticles);
 
 	TArray<TArray<int32>> MConstraintsPerColor;
 };

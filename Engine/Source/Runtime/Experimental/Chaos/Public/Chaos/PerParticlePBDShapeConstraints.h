@@ -18,7 +18,7 @@ class FPerParticlePBDShapeConstraints : public TPerParticleRule<FReal, 3>, publi
 	    : Base(Stiffness)
 	{
 	}
-	FPerParticlePBDShapeConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TArray<FVec3>& TargetPositions, const FReal Stiffness = (FReal)1.)
+	FPerParticlePBDShapeConstraints(const FDynamicParticles& InParticles, const TArray<FVec3>& TargetPositions, const FReal Stiffness = (FReal)1.)
 	    : Base(InParticles, TargetPositions, Stiffness)
 	{
 	}

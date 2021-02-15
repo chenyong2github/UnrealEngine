@@ -21,7 +21,7 @@ class FXPBDLongRangeConstraints : public FPBDLongRangeConstraintsBase, public FP
 	using Base::MStiffness;
 
 public:
-	FXPBDLongRangeConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const FReal Stiffness = (FReal)1.)
+	FXPBDLongRangeConstraints(const FDynamicParticles& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const FReal Stiffness = (FReal)1.)
 	    : FPBDLongRangeConstraintsBase(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness)
 	{ MLambdas.Init(0.f, MEuclideanConstraints.Num()); }
 

@@ -11,7 +11,7 @@
 using namespace Chaos;
 
 FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
-	const TDynamicParticles<FReal, 3>& InParticles,
+	const FDynamicParticles& InParticles,
 	const TMap<int32, TSet<uint32>>& PointToNeighbors,
 	const int32 NumberOfAttachments,
 	const FReal Stiffness,
@@ -116,7 +116,7 @@ TArray<TArray<uint32>> FPBDLongRangeConstraintsBase::ComputeIslands(
 }
 
 void FPBDLongRangeConstraintsBase::ComputeEuclideanConstraints(
-    const TDynamicParticles<FReal, 3>& InParticles,
+    const FDynamicParticles& InParticles,
     const TMap<int32, TSet<uint32>>& PointToNeighbors,
     const int32 NumberOfAttachments)
 {
@@ -192,7 +192,7 @@ void FPBDLongRangeConstraintsBase::ComputeEuclideanConstraints(
 }
 
 void FPBDLongRangeConstraintsBase::ComputeGeodesicConstraints(
-    const TDynamicParticles<FReal, 3>& InParticles,
+    const FDynamicParticles& InParticles,
     const TMap<int32, TSet<uint32>>& PointToNeighbors,
     const int32 NumberOfAttachments)
 {

@@ -14,7 +14,7 @@ class FPBDBendingConstraints : public TParticleRule<FReal, 3>, public FPBDBendin
 	using Base::MConstraints;
 
   public:
-	FPBDBendingConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec4<int32>>&& Constraints, const FReal stiffness = (FReal)1.)
+	FPBDBendingConstraints(const FDynamicParticles& InParticles, TArray<TVec4<int32>>&& Constraints, const FReal stiffness = (FReal)1.)
 	    : Base(InParticles, MoveTemp(Constraints), stiffness) {}
 	virtual ~FPBDBendingConstraints() {}
 

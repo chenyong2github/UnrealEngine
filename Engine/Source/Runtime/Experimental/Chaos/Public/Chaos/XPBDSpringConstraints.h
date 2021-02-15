@@ -28,7 +28,7 @@ public:
 	    : FPBDSpringConstraintsBase(Stiffness)
 	{}
 
-	FXPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
+	FXPBDSpringConstraints(const FDynamicParticles& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		: FPBDSpringConstraintsBase(InParticles, MoveTemp(Constraints), Stiffness, bStripKinematicConstraints)
 	{
 		MLambdas.Init((FReal)0., MConstraints.Num());
@@ -40,13 +40,13 @@ public:
 		MLambdas.Init((FReal)0., MConstraints.Num());
 	}
 
-	FXPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TArray<TVec3<int32>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
+	FXPBDSpringConstraints(const FDynamicParticles& InParticles, const TArray<TVec3<int32>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		: FPBDSpringConstraintsBase(InParticles, Constraints, Stiffness, bStripKinematicConstraints)
 	{
 		MLambdas.Init((FReal)0., MConstraints.Num());
 	}
 
-	FXPBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TArray<TVec4<int32>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
+	FXPBDSpringConstraints(const FDynamicParticles& InParticles, const TArray<TVec4<int32>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		: FPBDSpringConstraintsBase(InParticles, Constraints, Stiffness, bStripKinematicConstraints)
 	{
 		MLambdas.Init((FReal)0., MConstraints.Num());

@@ -19,7 +19,7 @@ public:
 	using Base::GetMode;
 
 	FPBDLongRangeConstraints(
-		const TDynamicParticles<FReal, 3>& InParticles,
+		const FDynamicParticles& InParticles,
 		const TMap<int32, TSet<uint32>>& PointToNeighbors,
 		const int32 NumberOfAttachments = 1,
 		const FReal Stiffness = (FReal)1.,

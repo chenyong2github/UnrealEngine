@@ -24,7 +24,7 @@ class FXPBDAxialSpringConstraints : public TParticleRule<FReal, 3>, public FPBDA
 	using Base::MStiffness;
 
 public:
-	FXPBDAxialSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVector<int32, 3>>&& Constraints, const FReal Stiffness = (FReal)1.)
+	FXPBDAxialSpringConstraints(const FDynamicParticles& InParticles, TArray<TVector<int32, 3>>&& Constraints, const FReal Stiffness = (FReal)1.)
 	    : FPBDAxialSpringConstraintsBase(InParticles, MoveTemp(Constraints), Stiffness)
 	{ MLambdas.Init(0.f, MConstraints.Num()); }
 

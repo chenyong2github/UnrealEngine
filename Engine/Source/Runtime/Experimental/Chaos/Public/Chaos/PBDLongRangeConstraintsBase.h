@@ -20,7 +20,7 @@ public:
 	};
 
 	FPBDLongRangeConstraintsBase(
-		const TDynamicParticles<FReal, 3>& InParticles,
+		const FDynamicParticles& InParticles,
 		const TMap<int32, TSet<uint32>>& PointToNeighbors,
 		const int32 NumberOfAttachments = 1,
 		const FReal Stiffness = (FReal)1.,
@@ -95,8 +95,8 @@ protected:
 		return distance;
 	}
 
-	void ComputeEuclideanConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments);
-	void ComputeGeodesicConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments);
+	void ComputeEuclideanConstraints(const FDynamicParticles& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments);
+	void ComputeGeodesicConstraints(const FDynamicParticles& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments);
 
 	static FReal ComputeDistance(const FParticles& InParticles, const uint32 i, const uint32 j) { return (InParticles.X(i) - InParticles.X(j)).Size(); }
 	static FReal ComputeDistance(const FPBDParticles& InParticles, const uint32 i, const uint32 j) { return (InParticles.P(i) - InParticles.P(j)).Size(); }

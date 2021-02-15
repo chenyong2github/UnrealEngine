@@ -18,7 +18,7 @@ namespace Chaos
 		FPBDSpringConstraintsBase(const FReal Stiffness = (FReal)1.)
 		    : MStiffness(Stiffness)
 		{}
-		FPBDSpringConstraintsBase(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
+		FPBDSpringConstraintsBase(const FDynamicParticles& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
 		{
 			RemoveRedundantConstraints(InParticles, bStripKinematicConstraints);
@@ -30,14 +30,14 @@ namespace Chaos
 			RemoveRedundantConstraints(InParticles, bStripKinematicConstraints);
 			UpdateDistances(InParticles);
 		}
-		FPBDSpringConstraintsBase(const TDynamicParticles<FReal, 3>& InParticles, const TArray<TVec3<int32>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
+		FPBDSpringConstraintsBase(const FDynamicParticles& InParticles, const TArray<TVec3<int32>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		    : MStiffness(Stiffness)
 		{
 			Init<3>(Constraints);
 			RemoveRedundantConstraints(InParticles, bStripKinematicConstraints);
 			UpdateDistances(InParticles);
 		}
-		FPBDSpringConstraintsBase(const TDynamicParticles<FReal, 3>& InParticles, const TArray<TVector<int32, 4>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
+		FPBDSpringConstraintsBase(const FDynamicParticles& InParticles, const TArray<TVector<int32, 4>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		    : MStiffness(Stiffness)
 		{
 			Init<4>(Constraints);

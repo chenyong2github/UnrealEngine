@@ -16,7 +16,7 @@ class FPerParticlePBDLongRangeConstraints : public TPerParticleRule<FReal, 3>, p
 	using Base::MConstraints;
 
   public:
-	FPerParticlePBDLongRangeConstraints(const TDynamicParticles<FReal, 3>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const FReal Stiffness = (FReal)1)
+	FPerParticlePBDLongRangeConstraints(const FDynamicParticles& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const FReal Stiffness = (FReal)1)
 	    : FPBDLongRangeConstraintsBase(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness)
 	{
 		MParticleToConstraints.SetNum(InParticles.Size());

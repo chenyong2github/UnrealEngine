@@ -14,7 +14,7 @@ class FPerParticlePBDSpringConstraints : public TPerParticleRule<FReal, 3>, publ
 	using Base::MConstraints;
 
   public:
-	FPerParticlePBDSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1.)
+	FPerParticlePBDSpringConstraints(const FDynamicParticles& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1.)
 	    : Base(InParticles, MoveTemp(Constraints), Stiffness)
 	{
 		for (int32 i = 0; i < MConstraints.Num(); ++i)

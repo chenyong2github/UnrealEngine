@@ -11,7 +11,7 @@ namespace Chaos
 class FPBDBendingConstraintsBase
 {
   public:
-	  FPBDBendingConstraintsBase(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec4<int32>>&& Constraints, const FReal Stiffness = (FReal)1.)
+	  FPBDBendingConstraintsBase(const FDynamicParticles& InParticles, TArray<TVec4<int32>>&& Constraints, const FReal Stiffness = (FReal)1.)
 	    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
 	{
 		for (auto Constraint : MConstraints)

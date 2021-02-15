@@ -10,7 +10,7 @@ namespace Chaos
 class FPBDVolumeConstraintBase
 {
   public:
-	  FPBDVolumeConstraintBase(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVec3<int32>>&& InConstraints, const FReal InStiffness = (FReal)1.)
+	  FPBDVolumeConstraintBase(const FDynamicParticles& InParticles, TArray<TVec3<int32>>&& InConstraints, const FReal InStiffness = (FReal)1.)
 	    : Constraints(InConstraints), Stiffness(InStiffness)
 	{
 		FVec3 Com = FVec3(0, 0, 0);
