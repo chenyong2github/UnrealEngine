@@ -678,9 +678,15 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 	auto ModuleProvider = Session->ReadProvider<IModuleProvider>(FName("ModuleProvider"));
 
 	IModuleProvider::FStats Stats;
-	ModuleProvider->GetStats(&Stats);
-
-	return FText::Format(LOCTEXT("SymbolsResolved", "{0} / {1} symbols resolved. {2} failed."), Stats.SymbolsResolved, Stats.SymbolsDiscovered, Stats.SymbolsFailed);
+	if (ModuleProvider)
+	{
+		ModuleProvider->GetStats(&Stats);
+		return FText::Format(LOCTEXT("SymbolsResolved", "{0} / {1} symbols resolved. {2} failed."), Stats.SymbolsResolved, Stats.SymbolsDiscovered, Stats.SymbolsFailed);
+	}
+	else
+	{
+		return LOCTEXT("SymbolsResolutionNotPossible", "No symbols resolution possible.");
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

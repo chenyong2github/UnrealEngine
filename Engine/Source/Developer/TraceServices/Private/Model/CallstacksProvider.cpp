@@ -12,6 +12,13 @@ namespace TraceServices
 {
 
 /////////////////////////////////////////////////////////////////////
+static const FResolvedSymbol GNeverResolveSymbol = {
+	QueryResult::NotLoaded,
+	nullptr,
+	nullptr
+};
+
+/////////////////////////////////////////////////////////////////////
 #ifdef TRACE_CALLSTACK_STATS
 static struct FCallstackProviderStats
 {
@@ -66,9 +73,17 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 	{
 		FStackFrame& F = Frames.PushBack();
 		F.Addr = InFrames[FrameIdx];
-		// This will return immediately. The result will be empty if the symbol 
-		// has not been encountered before, and resolution has been queued up.
-		F.Symbol = ModuleProvider->GetSymbol(InFrames[FrameIdx]);
+		
+		if (ModuleProvider)
+		{
+			// This will return immediately. The result will be empty if the symbol 
+			// has not been encountered before, and resolution has been queued up.
+			F.Symbol = ModuleProvider->GetSymbol(InFrames[FrameIdx]);
+		}
+		else
+		{
+			F.Symbol = &GNeverResolveSymbol;
+		}
 	}
 
 	{
