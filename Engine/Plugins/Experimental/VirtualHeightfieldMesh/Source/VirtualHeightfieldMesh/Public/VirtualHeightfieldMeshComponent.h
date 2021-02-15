@@ -62,6 +62,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD Distribution", ClampMin = "1.0", UIMin = "1.0"))
 	float LodDistribution = 2.f;
 
+	/** Scale applied to LodBias texture. A larger value increases resolution where the LodBias texture is set. */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD Bias Scale", ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "10.0"))
+	float LodBiasScale = 0.f;
+
 	/** The number of levels of geometry subdivision to apply before the LOD 0 from the source virtual texture. */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Subdivision LODs", ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "8"))
 	int32 NumSubdivisionLods = 0;
@@ -111,6 +115,7 @@ public:
 	float GetLod0ScreenSize() const { return Lod0ScreenSize; }
 	float GetLod0Distribution() const { return Lod0Distribution; }
 	float GetLodDistribution() const { return LodDistribution; }
+	float GetLodBiasScale() const { return LodBiasScale; }
 	int32 GetNumSubdivisionLods() const { return NumSubdivisionLods; }
 	int32 GetNumTailLods() const { return NumTailLods; }
 	int32 GetNumForceLoadLods() const { return NumForceLoadLods; }

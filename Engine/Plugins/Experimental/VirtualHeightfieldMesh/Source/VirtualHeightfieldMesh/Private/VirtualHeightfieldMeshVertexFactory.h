@@ -25,6 +25,7 @@ struct FVirtualHeightfieldMeshUserData : public FOneFrameResource
 	FRHIShaderResourceView* InstanceBufferSRV;
 	FRHITexture* PageTableTexture;
 	FRHITexture* HeightPhysicalTexture;
+	FRHITexture* LodBiasTexture;
 	FUintVector4 PackedUniform;
 	FUintVector4 PackedPageTableUniform[2];
 	FVector4 PageTableSize;
@@ -34,6 +35,7 @@ struct FVirtualHeightfieldMeshUserData : public FOneFrameResource
 	FMatrix VirtualHeightfieldToWorld;
 	FVector LodViewOrigin;
 	FVector4 LodDistances;
+	float LodBiasScale;
 };
 
 /**

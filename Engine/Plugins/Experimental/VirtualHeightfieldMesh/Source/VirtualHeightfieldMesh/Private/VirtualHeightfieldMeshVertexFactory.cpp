@@ -103,6 +103,8 @@ public:
 		PageTableTextureParameter.Bind(ParameterMap, TEXT("PageTableTexture"));
 		HeightTextureParameter.Bind(ParameterMap, TEXT("HeightTexture"));
 		HeightSamplerParameter.Bind(ParameterMap, TEXT("HeightSampler"));
+		LodBiasTextureParameter.Bind(ParameterMap, TEXT("LodBiasTexture"));
+		LodBiasSamplerParameter.Bind(ParameterMap, TEXT("LodBiasSampler"));
 		PackedUniformParameter.Bind(ParameterMap, TEXT("VTPackedUniform"));
 		PackedPageTableUniform0Parameter.Bind(ParameterMap, TEXT("VTPackedPageTableUniform0"));
 		PackedPageTableUniform1Parameter.Bind(ParameterMap, TEXT("VTPackedPageTableUniform1"));
@@ -113,6 +115,7 @@ public:
 		VirtualHeightfieldToWorldParameter.Bind(ParameterMap, TEXT("VirtualHeightfieldToWorld"));
 		LodViewOriginParameter.Bind(ParameterMap, TEXT("LodViewOrigin"));
 		LodDistancesParameter.Bind(ParameterMap, TEXT("LodDistances"));
+		LodBiasScaleParameter.Bind(ParameterMap, TEXT("LodBiasScale"));
 	}
 
 	void GetElementShaderBindings(
@@ -144,6 +147,10 @@ public:
 			if (HeightTextureParameter.IsBound() && HeightSamplerParameter.IsBound())
 			{
 				ShaderBindings.AddTexture(HeightTextureParameter, HeightSamplerParameter, TStaticSamplerState<SF_Bilinear>::GetRHI(), UserData->HeightPhysicalTexture);
+			}
+			if (LodBiasTextureParameter.IsBound() && LodBiasSamplerParameter.IsBound())
+			{
+				ShaderBindings.AddTexture(LodBiasTextureParameter, LodBiasSamplerParameter, TStaticSamplerState<SF_Point>::GetRHI(), UserData->LodBiasTexture);
 			}
 			if (PackedUniformParameter.IsBound())
 			{
@@ -185,6 +192,10 @@ public:
 			{
 				ShaderBindings.Add(LodDistancesParameter, UserData->LodDistances);
 			}
+			if (LodBiasScaleParameter.IsBound())
+			{
+				ShaderBindings.Add(LodBiasScaleParameter, UserData->LodBiasScale);
+			}
 		}
 	}
 
@@ -194,6 +205,8 @@ protected:
 	LAYOUT_FIELD(FShaderResourceParameter, PageTableSamplerParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, HeightTextureParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, HeightSamplerParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, LodBiasTextureParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, LodBiasSamplerParameter);
 	LAYOUT_FIELD(FShaderParameter, PackedUniformParameter);
 	LAYOUT_FIELD(FShaderParameter, PackedPageTableUniform0Parameter);
 	LAYOUT_FIELD(FShaderParameter, PackedPageTableUniform1Parameter);
@@ -204,6 +217,7 @@ protected:
 	LAYOUT_FIELD(FShaderParameter, VirtualHeightfieldToWorldParameter);
 	LAYOUT_FIELD(FShaderParameter, LodViewOriginParameter);
 	LAYOUT_FIELD(FShaderParameter, LodDistancesParameter);
+	LAYOUT_FIELD(FShaderParameter, LodBiasScaleParameter);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FVirtualHeightfieldMeshVertexFactoryShaderParameters);

@@ -20,8 +20,12 @@ float MaxLod;
 float4x4 VirtualHeightfieldToLocal;
 float4x4 VirtualHeightfieldToWorld;
 
+Texture2D<float> LodBiasTexture;
+SamplerState LodBiasSampler;
+
 float3 LodViewOrigin;
 float4 LodDistances;
+float LodBiasScale;
 
 #define GRID_SIZE (VirtualHeightfieldMeshVF.NumQuadsPerTileSide+1)
 
@@ -49,6 +53,12 @@ struct FVertexFactoryInterpolantsVSToPS
 	float4 TexCoords[(NUM_TEX_COORD_INTERPOLATORS + 1) / 2] : TEXCOORD0;
 #endif
 };
+
+/** Fetch the lod bias for the location. */
+float GetLodBias(float2 InUV, float InLodBiasScale)
+{
+	return CalculateBiasLod(LodBiasTexture.SampleLevel(LodBiasSampler, InUV, 0), InLodBiasScale);
+}
 
 /** Helper to morph the UV location of a vertex. First snaps down InMorphFactorFloor LOD levels and then morphs InMorphFactorFrac towards the next LOD level. */
 float2 MorphVertex(float2 InLocalUV, uint InGridSize, uint InMorphFactorFloor, float InMorphFactorFrac)
@@ -82,15 +92,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	uint2 VertexCoord = uint2(Input.VertexId % GRID_SIZE, Input.VertexId / GRID_SIZE);
 	float2 LocalUV = (float2)VertexCoord / (float)(GRID_SIZE - 1);
 
-	// Get neighbor details according to location.
-	uint NeighborIndex = ((LocalUV.x + LocalUV.y) > 1) ?
-		(LocalUV.x < LocalUV.y ? 1 : 2) :
-		(LocalUV.x < LocalUV.y ? 0 : 3);
-	float NeighborWeight = ((LocalUV.x + LocalUV.y) > 1) ?
-		(LocalUV.x < LocalUV.y ? LocalUV.y - 0.5 : LocalUV.x - 0.5) :
-		(LocalUV.x < LocalUV.y ? 0.5 - LocalUV.x : 0.5 - LocalUV.y);
-	NeighborWeight *= 2;
-
 	// Calculate vertex UV details before morphing
 	float2 XY = ((float2)Pos + LocalUV) * (float)(1 << Level);
 	float2 NormalizedPos = (XY * PageTableSize.zw);
@@ -102,35 +103,37 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		float Height = HeightTexture.SampleLevel(HeightSampler, LocalPhysicalUV, 0);
 		float3 WorldPos = mul(float4(NormalizedPos, Height, 1), VirtualHeightfieldToWorld).xyz;
 		float DistanceSq = dot(LodViewOrigin - WorldPos, LodViewOrigin - WorldPos);
-		float Distance = sqrt(DistanceSq) * LodDistances.w;
+		float LodForDistance = CalculateDistanceLod(DistanceSq, LodDistances);
+		float LodBias = GetLodBias(NormalizedPos, LodBiasScale);
 		
-		// Continous LOD at LOD 0.
-		float LodForDistance0 = saturate(Distance / (LodDistances.x * LodDistances.y));
-		// Continous LOD at LOD 1 and above.
-		float LodForDistanceN = log2(1 + max((Distance / LodDistances.x - LodDistances.y), 0)) / log2(LodDistances.z);
-		// Sum to get total continous LOD at distance from view origin.
-		float LodForDistance = LodForDistance0 + LodForDistanceN;
 		// Clamp between the LOD level for this instance and the max LOD. 
 		// Note that the culling phase should already ensure that LOD >= Level.
-		float LodForDistanceClamped = clamp(LodForDistance, (float)Level, MaxLod);
-		// Number of full levels that we need to morph.
-		float LodMorphFloor = floor(LodForDistanceClamped) - (float)Level;
-		// Final fractional morph has smoothstep to push transition region out to end of the LOD level.
-		float LodMorphFrac = smoothstep(0.7f, 0.98f, frac(LodForDistanceClamped));
+		float LodClamped = clamp(LodForDistance - LodBias, (float)Level, MaxLod);
+		
+		// Number of levels that we need to morph.
+		float LodMorphFloor = floor(LodClamped) - (float)Level;
+		float LodMorphCeil = ceil(LodClamped) - (float)Level;
+		float LodMorphFrac = LodClamped - (LodMorphFloor + (float)Level);
 
-		// Use LOD level as sample level but bias to keep sample level in a good range.
-		SampleLevel = max(0, LodForDistanceClamped - 0.5f);
+		// NOTE: Removing fractional continuous LOD here.
+		// This is because fractional locations come away from the surface of the triangles that they interpolate and we see the resultant surface shimmer.
+		// A fix for this while keeping fractional LOD is to use some sort of triangle barycentric interpolation when sampling the height texture instead of bilinear.
+		// But snapping to units here looks OK.
+		LodMorphFrac = 0;
 
 		// Apply morph to vertex postion.
 		LocalUV = MorphVertex(LocalUV, GRID_SIZE - 1, (uint)LodMorphFloor, LodMorphFrac);
 		// Adjust other position variables to match the new morphed position.
 		XY = ((float2)Pos + LocalUV) * (float)(1 << Level);
 		NormalizedPos = (XY * PageTableSize.zw);
+
+		// Use LOD level as sample level but bias to keep sample level in a good range.
+		SampleLevel = max(0, LodClamped - 0.5f);
 	}
 	
 	// Sample height from virtual texture.
 	VTUniform Uniform = VTUniform_Unpack(VTPackedUniform);
-	Uniform.vPageBorderSize -= .5f * PhysicalTextureSize.y; // Half texel offset hack
+	Uniform.vPageBorderSize -= .5f * PhysicalTextureSize.y; // Half texel offset is used in VT write and in sampling because we want texel locations to match landscape vertices.
 	VTPageTableUniform PageTableUniform = VTPageTableUniform_Unpack(VTPackedPageTableUniform0, VTPackedPageTableUniform1);
 	VTPageTableResult VTResult0 = TextureLoadVirtualPageTableLevel(PageTableTexture, PageTableUniform, NormalizedPos, VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP, floor(SampleLevel));
 	float4 Height0 = TextureVirtualSampleLevel(HeightTexture, HeightSampler, VTResult0, 0, Uniform);

@@ -14,7 +14,10 @@ UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObject
 	: Super(ObjectInitializer)
 {
 	CastShadow = true;
+	bCastContactShadow = false;
 	bUseAsOccluder = true;
+	bAffectDynamicIndirectLighting = false;
+	bAffectDistanceFieldLighting = false;
 	bNeverDistanceCull = true;
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = false;
