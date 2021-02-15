@@ -1337,6 +1337,8 @@ void SMaterialLayersFunctionsInstanceTree::CreateGroupsWidget()
 
 	Children.Empty();
 	ParameterGroups->GetChildren(Children);
+	// the order of DeferredSearches should correspond to NonLayerProperties exactly
+	TArray<TSharedPtr<IPropertyHandle>> DeferredSearches;
 	for (int32 GroupIdx = 0; GroupIdx < Children.Num(); ++GroupIdx)
 	{
 		TArray<void*> GroupPtrs;
@@ -1490,14 +1492,29 @@ void SMaterialLayersFunctionsInstanceTree::CreateGroupsWidget()
 					
 				NonLayerProperty.Parameter = Parameter;
 				NonLayerProperty.ParameterGroup = ParameterGroup;
-				NonLayerProperty.ParameterNode = Generator->FindTreeNode(ParameterValueProperty);
-				NonLayerProperty.ParameterHandle = NonLayerProperty.ParameterNode->CreatePropertyHandle();
+
+				DeferredSearches.Add(ParameterValueProperty);
 				NonLayerProperty.UnsortedName = Parameter->ParameterInfo.Name;
 
 				NonLayerProperties.Add(NonLayerProperty);
 			}
 		}
 	}
+
+	checkf(NonLayerProperties.Num() == DeferredSearches.Num(), TEXT("Internal inconsistency: number of node searches does not match the number of properties"));
+	TArray<TSharedPtr<IDetailTreeNode>> DeferredResults = Generator->FindTreeNodes(DeferredSearches);
+	checkf(NonLayerProperties.Num() == DeferredResults.Num(), TEXT("Internal inconsistency: number of node search results does not match the number of properties"));
+
+	for (int Idx = 0, NumUnsorted = NonLayerProperties.Num(); Idx < NumUnsorted; ++Idx)
+	{
+		FUnsortedParamData& NonLayerProperty = NonLayerProperties[Idx];
+		NonLayerProperty.ParameterNode = DeferredResults[Idx];
+		NonLayerProperty.ParameterHandle = NonLayerProperty.ParameterNode->CreatePropertyHandle();
+	}
+
+	DeferredResults.Empty();
+	DeferredSearches.Empty();
+
 	for (int32 LayerIdx = 0; LayerIdx < LayerProperties.Num(); LayerIdx++)
 	{
 		for (int32 ChildIdx = 0; ChildIdx < LayerProperties[LayerIdx]->Children.Num(); ChildIdx++)
@@ -2685,6 +2702,8 @@ void SMaterialLayersFunctionsMaterialTree::CreateGroupsWidget()
 
 	Children.Empty();
 	ParameterGroups->GetChildren(Children);
+	// the order should correspond to NonLayerProperty exactly
+	TArray<TSharedPtr<IPropertyHandle>> DeferredSearches;
 	for (int32 GroupIdx = 0; GroupIdx < Children.Num(); ++GroupIdx)
 	{
 		TArray<void*> GroupPtrs;
@@ -2838,14 +2857,29 @@ void SMaterialLayersFunctionsMaterialTree::CreateGroupsWidget()
 
 				NonLayerProperty.Parameter = Parameter;
 				NonLayerProperty.ParameterGroup = ParameterGroup;
-				NonLayerProperty.ParameterNode = Wrapper->GetGenerator()->FindTreeNode(ParameterValueProperty);
-				NonLayerProperty.ParameterHandle = NonLayerProperty.ParameterNode->CreatePropertyHandle();
+
+				DeferredSearches.Add(ParameterValueProperty);
 				NonLayerProperty.UnsortedName = Parameter->ParameterInfo.Name;
 
 				NonLayerProperties.Add(NonLayerProperty);
 			}
 		}
 	}
+
+	checkf(NonLayerProperties.Num() == DeferredSearches.Num(), TEXT("Internal inconsistency: number of node searches does not match the number of properties"));
+	TArray<TSharedPtr<IDetailTreeNode>> DeferredResults = Wrapper->GetGenerator()->FindTreeNodes(DeferredSearches);
+	checkf(NonLayerProperties.Num() == DeferredResults.Num(), TEXT("Internal inconsistency: number of node search results does not match the number of properties"));
+
+	for (int Idx = 0, NumUnsorted = NonLayerProperties.Num(); Idx < NumUnsorted; ++Idx)
+	{
+		FUnsortedParamData& NonLayerProperty = NonLayerProperties[Idx];
+		NonLayerProperty.ParameterNode = DeferredResults[Idx];
+		NonLayerProperty.ParameterHandle = NonLayerProperty.ParameterNode->CreatePropertyHandle();
+	}
+
+	DeferredResults.Empty();
+	DeferredSearches.Empty();
+
 	for (int32 LayerIdx = 0; LayerIdx < LayerProperties.Num(); LayerIdx++)
 	{
 		for (int32 ChildIdx = 0; ChildIdx < LayerProperties[LayerIdx]->Children.Num(); ChildIdx++)
