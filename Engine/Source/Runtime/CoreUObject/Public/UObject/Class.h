@@ -718,7 +718,7 @@ struct TStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<CPPSTRUCT>
 #if CHECK_PUREVIRTUALS
 #define DISABLE_ABSTRACT_CONSTRUCT TStructOpsTypeTraits<CPPSTRUCT>::WithPureVirtual
 #else
-#define DISABLE_ABSTRACT_CONSTRUCT false && TStructOpsTypeTraits<CPPSTRUCT>::WithPureVirtual
+#define DISABLE_ABSTRACT_CONSTRUCT (false && TStructOpsTypeTraits<CPPSTRUCT>::WithPureVirtual)
 #endif
 
 
