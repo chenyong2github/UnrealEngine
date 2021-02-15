@@ -1464,6 +1464,7 @@ public:
 	TOnePassPointShadowProjectionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 		FGlobalShader(Initializer)
 	{
+		StrataGlobalParameters.Bind(Initializer.ParameterMap, FStrataGlobalUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		OnePassShadowParameters.Bind(Initializer.ParameterMap);
 		ShadowDepthTextureSampler.Bind(Initializer.ParameterMap,TEXT("ShadowDepthTextureSampler"));
 		LightPosition.Bind(Initializer.ParameterMap,TEXT("LightPositionAndInvRadius"));
@@ -1473,9 +1474,6 @@ public:
 		PointLightProjParameters.Bind(Initializer.ParameterMap, TEXT("PointLightProjParameters"));
 		TransmissionProfilesTexture.Bind(Initializer.ParameterMap, TEXT("SSProfilesTexture"));
 		HairCategorizationTexture.Bind(Initializer.ParameterMap, TEXT("HairCategorizationTexture"));
-		ClassificationTexture.Bind(Initializer.ParameterMap, TEXT("StrataClassificationTexture"));
-		TopLayerNormalTexture.Bind(Initializer.ParameterMap, TEXT("StrataTopLayerNormalTexture"));
-		SSSTexture.Bind(Initializer.ParameterMap, TEXT("StrataSSSTexture"));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1522,11 +1520,10 @@ public:
 			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
 		}
 
-		if (Strata::IsStrataEnabled())
+		if (StrataGlobalParameters.IsBound())
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, ClassificationTexture, Strata::GetClassificationTexture(View));
-			SetTextureParameter(RHICmdList, ShaderRHI, TopLayerNormalTexture, Strata::GetTopLayerNormalTexture(View));
-			SetTextureParameter(RHICmdList, ShaderRHI, SSSTexture, Strata::GetSSSTexture(View));
+			TUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters = Strata::BindStrataGlobalUniformParameters(View);
+			SetUniformBufferParameter(RHICmdList, ShaderRHI, StrataGlobalParameters, StrataGlobalUniformParameters);
 		}
 
 		{
@@ -1570,9 +1567,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, PointLightProjParameters);
 	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, HairCategorizationTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, ClassificationTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, TopLayerNormalTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, SSSTexture);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, StrataGlobalParameters);
 };
 
 // Reversed Z

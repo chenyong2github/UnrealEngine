@@ -270,31 +270,6 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 	}
 }
 
-FTextureRHIRef GetClassificationTexture(const FViewInfo& View)
-{
-	if (View.StrataSceneData)
-	{
-		return View.StrataSceneData->ClassificationTexture->GetRenderTargetItem().ShaderResourceTexture;
-	}
-	return GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
-}
-FTextureRHIRef GetTopLayerNormalTexture(const FViewInfo& View)
-{
-	if (View.StrataSceneData)
-	{
-		return View.StrataSceneData->TopLayerNormalTexture->GetRenderTargetItem().ShaderResourceTexture;
-	}
-	return GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
-}
-FTextureRHIRef GetSSSTexture(const FViewInfo& View)
-{
-	if (View.StrataSceneData)
-	{
-		return View.StrataSceneData->SSSTexture->GetRenderTargetItem().ShaderResourceTexture;
-	}
-	return GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
-}
-
 ////////////////////////////////////////////////////////////////////////// 
 // Debug
 
