@@ -1249,6 +1249,12 @@ TArrayView<const FName> FAnimBlueprintCompilerContext::GetAttributesFromNode(UAn
 	return TArrayView<const FName>();
 }
 
+FProperty* FAnimBlueprintCompilerContext::CreateUniqueVariable(UObject* InForObject, const FEdGraphPinType& Type)
+{
+	const FString VariableName = ClassScopeNetNameMap.MakeValidName(InForObject);
+	return CreateVariable(*VariableName, Type);
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

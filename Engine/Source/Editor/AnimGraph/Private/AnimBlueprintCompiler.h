@@ -175,5 +175,8 @@ private:
 
 	// Get the current compiled-in attributes uniquely assigned to the specified node
 	TArrayView<const FName> GetAttributesFromNode(UAnimGraphNode_Base* InNode) const;
+	
+	// Create a uniquely named variable corresponding to an object in the current class
+	FProperty* CreateUniqueVariable(UObject* InForObject, const FEdGraphPinType& Type);
 };
 

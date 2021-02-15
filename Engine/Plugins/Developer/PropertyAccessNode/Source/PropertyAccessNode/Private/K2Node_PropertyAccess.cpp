@@ -31,7 +31,7 @@ void UK2Node_PropertyAccess::CreateClassVariablesFromBlueprint(IAnimBlueprintVar
 	if(ResolvedPinType != FEdGraphPinType() && ResolvedPinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard)
 	{
 		// Create internal generated destination property
-		if(FProperty* DestProperty = InCreationContext.CreateVariable(GetFName(), ResolvedPinType))
+		if(FProperty* DestProperty = InCreationContext.CreateUniqueVariable(this, ResolvedPinType))
 		{
 			GeneratedPropertyName = DestProperty->GetFName();
 		}
@@ -136,7 +136,7 @@ void UK2Node_PropertyAccess::AllocatePins(UEdGraphPin* InOldOutputPin)
 	{
 		UEdGraphPin* OutputPin = nullptr;
 	
-		if(InOldOutputPin != nullptr && InOldOutputPin->LinkedTo.Num() > 0)
+		if(InOldOutputPin != nullptr && InOldOutputPin->LinkedTo.Num() > 0 && InOldOutputPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard)
 		{
 			// Use old output pin if we have one and it is connected
 			OutputPin = CreatePin(EGPD_Output, InOldOutputPin->PinType, TEXT("Value"));

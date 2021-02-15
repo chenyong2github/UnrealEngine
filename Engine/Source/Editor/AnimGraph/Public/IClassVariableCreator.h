@@ -15,8 +15,11 @@ struct FEdGraphPinType;
 class IAnimBlueprintVariableCreationContext
 {
 public:
-	/** Create a class variable in the current class */
+	/** Create a class variable in the current class. Note that no name confick resolution is performed, if a unique name is needed, use CreateUniqueVariable */
 	virtual FProperty* CreateVariable(const FName Name, const FEdGraphPinType& Type) = 0;
+	
+	/** Create a uniquely named variable corresponding to an object in the current class. */
+	virtual FProperty* CreateUniqueVariable(UObject* InForObject, const FEdGraphPinType& Type) = 0;
 };
 
 UINTERFACE(MinimalAPI)
