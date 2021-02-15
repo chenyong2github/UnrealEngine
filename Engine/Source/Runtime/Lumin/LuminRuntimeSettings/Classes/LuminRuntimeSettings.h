@@ -34,6 +34,10 @@ struct FLuminComponentSubElement
 {
 	GENERATED_BODY()
 
+	FLuminComponentSubElement()
+		: ElementType(ELuminComponentSubElementType::Mode)
+	{}
+
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Component sub-node type"))
 	ELuminComponentSubElementType ElementType;
 
@@ -45,6 +49,10 @@ USTRUCT(BlueprintType)
 struct FLuminComponentElement
 {
 	GENERATED_BODY()
+
+	FLuminComponentElement()
+		: ComponentType(ELuminComponentType::Universe)
+	{}
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Name"))
 	FString Name;
