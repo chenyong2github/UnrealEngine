@@ -79,6 +79,8 @@ private:
 
 	bool InitTranslator();
 
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> GetTranslatorImportOptions();
+
 private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;
 	TUniquePtr< FDatasmithTranslatableSceneSource > TranslatableSourcePtr;
@@ -91,6 +93,12 @@ private:
 	UPackage* TransientPackage = nullptr;
 
 	TArray< TWeakObjectPtr< UObject > > Assets;
+
+	UPROPERTY()
+	TArray<UDatasmithOptionsBase*> TranslatorImportOptions;
+
+	UPROPERTY()
+	bool bTranslatorImportOptionsInitialized = false;
 
 	static FDatasmithTessellationOptions DefaultTessellationOptions;
 	static FDatasmithImportBaseOptions DefaultImportOptions;

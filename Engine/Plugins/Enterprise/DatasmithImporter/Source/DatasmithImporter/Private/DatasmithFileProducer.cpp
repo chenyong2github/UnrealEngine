@@ -199,28 +199,10 @@ bool UDatasmithFileProducer::Initialize()
 		return false;
 	}
 
-	// Set all import options to defaults for Dataprep
 	TSharedPtr<IDatasmithTranslator> TranslatorPtr = TranslatableSourcePtr->GetTranslator();
-	if(IDatasmithTranslator* Translator = TranslatorPtr.Get())
-	{
-		TArray< TStrongObjectPtr<UDatasmithOptionsBase> > Options;
-		Translator->GetSceneImportOptions( Options );
 
-		bool bUpdateOptions = false;
-		for(TStrongObjectPtr<UDatasmithOptionsBase>& ObjectPtr : Options)
-		{
-			if(UDatasmithCommonTessellationOptions* TessellationOption = Cast<UDatasmithCommonTessellationOptions>(ObjectPtr.Get()))
-			{
-				bUpdateOptions = true;
-				TessellationOption->Options = DefaultTessellationOptions;
-			}
-		}
-
-		if(bUpdateOptions == true)
-		{
-			Translator->SetSceneImportOptions( Options );
-		}
-	}
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options = GetTranslatorImportOptions();
+	TranslatorPtr->SetSceneImportOptions(Options);
 
 	const FDatasmithSceneSource& Source = TranslatorPtr->GetSource();
 
@@ -278,6 +260,42 @@ bool UDatasmithFileProducer::InitTranslator()
 	}
 
 	return true;
+}
+
+TArray<TStrongObjectPtr<UDatasmithOptionsBase>> UDatasmithFileProducer::GetTranslatorImportOptions()
+{
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Result;
+
+	if (!bTranslatorImportOptionsInitialized)
+	{
+		// Set all import options to defaults for Dataprep
+
+		TSharedPtr<IDatasmithTranslator> TranslatorPtr = TranslatableSourcePtr->GetTranslator();
+
+		if (IDatasmithTranslator* Translator = TranslatorPtr.Get())
+		{
+			TArray< TStrongObjectPtr<UDatasmithOptionsBase> > Options;
+			Translator->GetSceneImportOptions(Options);
+
+			for (TStrongObjectPtr<UDatasmithOptionsBase> Option : Options)
+			{
+				UDatasmithOptionsBase* MyOption = DuplicateObject<UDatasmithOptionsBase>(Option.Get(), this);
+				if (UDatasmithCommonTessellationOptions* TesselationOption = Cast<UDatasmithCommonTessellationOptions>(MyOption))
+				{
+					TesselationOption->Options = DefaultTessellationOptions;
+				}
+				TranslatorImportOptions.Add(MyOption);
+			}
+		}
+		bTranslatorImportOptionsInitialized = true;
+	}
+
+	for (UDatasmithOptionsBase* Option : TranslatorImportOptions)
+	{
+		Result.Add(TStrongObjectPtr<UDatasmithOptionsBase>(Option));
+	}
+
+	return MoveTemp(Result);
 }
 
 bool UDatasmithFileProducer::Execute(TArray< TWeakObjectPtr< UObject > >& OutAssets)
@@ -696,6 +714,8 @@ void UDatasmithFileProducer::OnFilePathChanged()
 {
 	FilePath = FPaths::ConvertRelativePathToFull( FilePath );
 	TranslatableSourcePtr.Reset();
+	TranslatorImportOptions.Empty();
+	bTranslatorImportOptionsInitialized = false;
 	UpdateName();
 	OnChanged.Broadcast( this );
 }
@@ -757,8 +777,7 @@ void UDatasmithFileProducer::OnChangeImportSettings()
 		.Title(FText::Format(LOCTEXT("ImportSettingsTitle", "{0} Import Settings"), FText::FromName(TranslatorPtr->GetFName())))
 		.SizingRule(ESizingRule::Autosized);
 
-	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options;
-	TranslatorPtr->GetSceneImportOptions( Options );
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options = GetTranslatorImportOptions();
 
 	if (Options.Num() == 0)
 	{
@@ -783,6 +802,8 @@ void UDatasmithFileProducer::OnChangeImportSettings()
 	);
 
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+
+	TranslatorPtr->SetSceneImportOptions(Options);
 }
 
 void UDatasmithFileProducer::UpdateName()
