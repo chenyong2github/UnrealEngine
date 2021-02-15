@@ -220,6 +220,14 @@ namespace Audio
 
 	void FQuartzClock::AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent)
 	{
+		// if this is unquantized, execute immediately (even if the clock is paused)
+		if (InQuantizationBondary.Quantization == EQuartzCommandQuantization::None)
+		{
+			InNewEvent->AboutToStart();
+			InNewEvent->OnFinalCallback(0);
+			return;
+		}
+
 		// get number of frames until event (assuming we are at frame 0)
 		int32 FramesUntilExec = Metronome.GetFramesUntilBoundary(InQuantizationBondary);
 
@@ -248,6 +256,11 @@ namespace Audio
 	{
 		// if container has any events in it.
 		return ((PendingCommands.Num() + ClockAlteringPendingCommands.Num() ) > 0);
+	}
+
+	bool FQuartzClock::IsRunning()
+	{
+		return bIsRunning;
 	}
 
 	FMixerDevice* FQuartzClock::GetMixerDevice()

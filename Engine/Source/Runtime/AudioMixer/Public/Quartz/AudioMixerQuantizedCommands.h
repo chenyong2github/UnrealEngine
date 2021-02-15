@@ -26,7 +26,7 @@ namespace Audio
 		virtual FName GetCommandName() const override;
 
 	private:
-		FQuartzClock* OwningClockPtr{ nullptr };
+		TSharedPtr<FQuartzClock> OwningClockPtr{ nullptr };
 
 		int32 SourceID{ -1 };
 
@@ -54,7 +54,7 @@ namespace Audio
 
 	private:
 		FQuartzClockTickRate TickRate;
-		FQuartzClock* OwningClockPtr{ nullptr };
+		TSharedPtr<FQuartzClock> OwningClockPtr{ nullptr };
 
 	}; // class FQuantizedTickRateChange 
 
@@ -74,7 +74,7 @@ namespace Audio
 		virtual FName GetCommandName() const override;
 
 	private:
-		FQuartzClock* OwningClockPtr{ nullptr };
+		TSharedPtr<FQuartzClock> OwningClockPtr{ nullptr };
 
 	}; // class FQuantizedTransportReset 
 

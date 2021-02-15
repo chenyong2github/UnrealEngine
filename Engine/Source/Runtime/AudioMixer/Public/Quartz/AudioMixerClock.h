@@ -98,6 +98,9 @@ namespace Audio
 		// does the clock have any pending events
 		bool HasPendingEvents();
 
+		// is the clock currently ticking?
+		bool IsRunning();
+
 		FMixerDevice* GetMixerDevice();
 
 		FMixerSourceManager* GetSourceManager();
