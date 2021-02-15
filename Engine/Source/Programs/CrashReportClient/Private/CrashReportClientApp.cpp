@@ -885,7 +885,9 @@ static bool WasAbnormalShutdown(const FEditorAnalyticsSession& AnalyticSession)
 
 void RunCrashReportClient(const TCHAR* CommandLine)
 {
+#if !PLATFORM_MAC
 	FTaskTagScope ThreadScope(ETaskTag::EGameThread); // Main thread is the game thread.
+#endif
 
 	FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("CRC/Init:%s"), *FDateTime::UtcNow().ToString()));
 
