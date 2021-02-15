@@ -59,6 +59,15 @@ public:
 		RepDataType->GetCppStructOps()->Construct(RepDataCopy);
 	}
 
+	void Flush()
+	{
+		// If we had a scheduled update run it now.
+		if (UpdateTickerHandle.IsValid())
+		{
+			DeferredHandleReplicateChanges(0.f);
+		}
+	}
+
 PACKAGE_SCOPE:
 	void ProcessReceivedData(const FOnlinePartyData& IncomingPartyData, bool bCompareToPrevious = true)
 	{
