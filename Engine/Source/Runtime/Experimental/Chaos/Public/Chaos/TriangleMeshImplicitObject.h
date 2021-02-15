@@ -300,6 +300,25 @@ namespace Chaos
 		//using BVHType = TBoundingVolume<int32, T, 3>;
 		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal, /*bComputeBounds=*/false>, FReal, /*bMutable=*/false>;
 
+		// Initialising constructor privately declared for use in CopySlow to copy the underlying BVH
+		template <typename IdxType>
+		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVec3<IdxType>>&& Elements, TArray<uint16>&& InMaterialIndices, const BVHType& InBvhToCopy, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
+			: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
+			, MParticles(MoveTemp(Particles))
+			, MElements(MoveTemp(Elements))
+			, MLocalBoundingBox(MParticles.X(0), MParticles.X(0))
+			, MaterialIndices(MoveTemp(InMaterialIndices))
+			, ExternalFaceIndexMap(MoveTemp(InExternalFaceIndexMap))
+			, ExternalVertexIndexMap(MoveTemp(InExternalVertexIndexMap))
+			, bCullsBackFaceRaycast(bInCullsBackFaceRaycast)
+		{
+			for(uint32 Idx = 1; Idx < MParticles.Size(); ++Idx)
+			{
+				MLocalBoundingBox.GrowToInclude(MParticles.X(Idx));
+			}
+			BVH.CopyFrom(InBvhToCopy);
+		}
+
 		template<typename InStorageType, typename InRealType>
 		friend struct FBvEntry;
 

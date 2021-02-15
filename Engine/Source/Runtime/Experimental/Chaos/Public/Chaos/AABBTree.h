@@ -395,6 +395,11 @@ public:
 
 	virtual ~TAABBTree() {}
 
+	void CopyFrom(const TAABBTree<TPayloadType, TLeafType, T, bMutable>& Other)
+	{
+		(*this) = Other;
+	}
+
 	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, T, 3>> Copy() const override
 	{
 		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, 3>>(new TAABBTree<TPayloadType, TLeafType, T, bMutable>(*this));
