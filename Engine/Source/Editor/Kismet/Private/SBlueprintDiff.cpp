@@ -94,7 +94,7 @@ public:
 	{
 		TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
 
-		if (OldBlueprint && NewBlueprint)
+		if (OldBlueprint && OldBlueprint->SkeletonGeneratedClass && NewBlueprint && NewBlueprint->SkeletonGeneratedClass)
 		{
 			for (TFieldIterator<FProperty> PropertyIt(OldBlueprint->SkeletonGeneratedClass); PropertyIt; ++PropertyIt)
 			{
@@ -343,7 +343,7 @@ public:
 		{
 			if (OldBlueprint->ParentClass != NewBlueprint->ParentClass)
 			{
-				FText DiffText = FText::Format(LOCTEXT("ParentChanged", "Parent Class changed from {0} to {1}"), FText::FromString(OldBlueprint->ParentClass->GetName()), FText::FromString(NewBlueprint->ParentClass->GetName()));
+				FText DiffText = FText::Format(LOCTEXT("ParentChanged", "Parent Class changed from {0} to {1}"), FText::FromString(GetNameSafe(OldBlueprint->ParentClass)), FText::FromString(NewBlueprint->ParentClass->GetName()));
 
 				TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
 					SelectionCallback,
