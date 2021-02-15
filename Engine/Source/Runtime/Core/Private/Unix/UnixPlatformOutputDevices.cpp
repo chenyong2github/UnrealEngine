@@ -18,7 +18,7 @@ void FUnixOutputDevices::SetupOutputDevices()
 {
 	check(GLog);
 
-	InitDefaultOutputDeviceFile();
+	ResetCachedAbsoluteFilename();
 
 	// add file log
 	GLog->AddOutputDevice(FPlatformOutputDevices::GetLog());
