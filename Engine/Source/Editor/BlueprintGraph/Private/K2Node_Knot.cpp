@@ -147,9 +147,12 @@ void UK2Node_Knot::PropagatePinTypeFromDirection(bool bFromInput)
 	// into this function but the recursion guard will stop it
 	for (UEdGraphPin* InPin : MySourcePin->LinkedTo)
 	{
-		if (UK2Node_Knot* KnotNode = Cast<UK2Node_Knot>(InPin->GetOwningNode()))
+		if (InPin)
 		{
-			KnotNode->PropagatePinTypeFromDirection(bFromInput);
+			if (UK2Node_Knot * KnotNode = Cast<UK2Node_Knot>(InPin->GetOwningNode()))
+			{
+				KnotNode->PropagatePinTypeFromDirection(bFromInput);
+			}
 		}
 	}
 
