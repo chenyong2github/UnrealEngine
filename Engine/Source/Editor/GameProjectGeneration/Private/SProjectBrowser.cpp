@@ -155,7 +155,7 @@ public:
 							.VAlign(VAlign_Center)
 							[
 								SNew(SImage)
-								.Image(ProjectItem->ProjectThumbnail ? ProjectItem->ProjectThumbnail.Get() : FAppStyle::Get().GetBrush("GameProjectDialog.DefaultGameThumbnail.Small"))
+								.Image(ProjectItem->ProjectThumbnail ? ProjectItem->ProjectThumbnail.Get() : FAppStyle::Get().GetBrush("GameProjectDialog.DefaultGameThumbnail"))
 							]
 						]
 					]
@@ -542,22 +542,6 @@ bool SProjectBrowser::CanExecuteFindInExplorer() const
 	return SelectedProjectItem.IsValid();
 }
 
-
-const FSlateBrush* SProjectBrowser::GetProjectItemImage(TWeakPtr<FProjectItem> ProjectItem) const
-{
-	if ( ProjectItem.IsValid() )
-	{
-		TSharedPtr<FProjectItem> Item = ProjectItem.Pin();
-		if ( Item->ProjectThumbnail.IsValid() )
-		{
-			return Item->ProjectThumbnail.Get();
-		}
-	}
-	
-	return FEditorStyle::GetBrush("GameProjectDialog.DefaultGameThumbnail");
-}
-
-
 TSharedPtr<FProjectItem> SProjectBrowser::GetSelectedProjectItem() const
 {
 	TArray< TSharedPtr<FProjectItem> > SelectedItems = ProjectTileView->GetSelectedItems();
@@ -662,146 +646,6 @@ static TSharedPtr<FProjectItem> CreateProjectItem(const FString& ProjectFilename
 
 FReply SProjectBrowser::FindProjects()
 {
-#if 0
-	// Create a map of parent project folders to their category
-	TMap<FString, EProjectCategoryType> ProjectFilesToCategoryType;
-
-	// Find all the engine installations
-	TMap<FString, FString> EngineInstallations;
-	FDesktopPlatformModule::Get()->EnumerateEngineInstallations(EngineInstallations);
-
-	// Add projects from every branch that we know about
-	FString CurrentEngineIdentifier = FDesktopPlatformModule::Get()->GetCurrentEngineIdentifier();
-	for(TMap<FString, FString>::TConstIterator Iter(EngineInstallations); Iter; ++Iter)
-	{
-		TArray<FString> ProjectFiles;
-		if(FDesktopPlatformModule::Get()->EnumerateProjectsKnownByEngine(Iter.Key(), false, ProjectFiles))
-		{
-			for(int Idx = 0; Idx < ProjectFiles.Num(); Idx++)
-			{
-				ProjectFilesToCategoryType.Add(ProjectFiles[Idx], EProjectCategoryType::UserDefined);
-			}
-		}
-	}
-
-	// Add all the samples from the launcher
-	TArray<FString> LauncherSampleProjects;
-	FDesktopPlatformModule::Get()->EnumerateLauncherSampleProjects(LauncherSampleProjects);
-	for(int32 Idx = 0; Idx < LauncherSampleProjects.Num(); Idx++)
-	{
-		ProjectFilesToCategoryType.Add(LauncherSampleProjects[Idx], EProjectCategoryType::Sample);
-	}
-
-	// Add all the native project files we can find, and automatically filter them depending on their directory
-	FUProjectDictionary& DefaultProjectDictionary = FUProjectDictionary::GetDefault();
-	DefaultProjectDictionary.Refresh();
-	const TArray<FString> &NativeProjectFiles = DefaultProjectDictionary.GetProjectPaths();
-	for(int32 Idx = 0; Idx < NativeProjectFiles.Num(); Idx++)
-	{
-		if(!NativeProjectFiles[Idx].Contains(TEXT("/Templates/")))
-		{
-			const EProjectCategoryType ProjectCategoryType = NativeProjectFiles[Idx].Contains(TEXT("/Samples/")) ? EProjectCategoryType::Sample : EProjectCategoryType::UserDefined;
-			ProjectFilesToCategoryType.Add(NativeProjectFiles[Idx], ProjectCategoryType);
-		}
-	}
-
-	// Normalize all the filenames and make sure there are no duplicates
-	TMap<FString, EProjectCategoryType> AbsoluteProjectFilesToCategory;
-	for(TMap<FString, EProjectCategoryType>::TConstIterator Iter(ProjectFilesToCategoryType); Iter; ++Iter)
-	{
-		FString AbsoluteFile = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Iter.Key());
-		AbsoluteProjectFilesToCategory.Add(AbsoluteFile, Iter.Value());
-	}
-
-	const FText MyProjectsCategoryName = LOCTEXT("MyProjectsCategoryName", "My Projects");
-	const FText SamplesCategoryName = LOCTEXT("SamplesCategoryName", "Samples");
-
-	// Add all the discovered projects to the list
-	for(TMap<FString, EProjectCategoryType>::TConstIterator Iter(AbsoluteProjectFilesToCategory); Iter; ++Iter)
-	{
-		const FString& ProjectFilename = *Iter.Key();
-		TSharedPtr<FProjectItem> NewProjectItem = CreateProjectItem(ProjectFilename);
-		if (NewProjectItem.IsValid())
-		{
-			FText ProjectCategory;
-			
-			if (NewProjectItem->Category.IsEmpty())
-			{
-				// Not category specified, so use the category for the detected project type
-				ProjectCategory = (Iter.Value() == EProjectCategoryType::Sample) ? SamplesCategoryName : MyProjectsCategoryName;
-			}
-			else
-			{
-				// Use the user defined category
-				ProjectCategory = NewProjectItem->Category;
-			}
-
-			AddProjectToCategory(NewProjectItem.ToSharedRef(), ProjectCategory);
-		}
-	}
-
-	// Make sure the category order is "My Projects", "Samples", then all remaining categories in alphabetical order
-	TSharedPtr<FProjectCategory> MyProjectsCategory;
-	TSharedPtr<FProjectCategory> SamplesCategory;
-
-	for ( int32 CategoryIdx = ProjectCategories.Num() - 1; CategoryIdx >= 0; --CategoryIdx )
-	{
-		TSharedRef<FProjectCategory> Category = ProjectCategories[CategoryIdx];
-		if ( Category->CategoryName.EqualTo(MyProjectsCategoryName) )
-		{
-			MyProjectsCategory = Category;
-			ProjectCategories.RemoveAt(CategoryIdx);
-		}
-		else if ( Category->CategoryName.EqualTo(SamplesCategoryName) )
-		{
-			SamplesCategory = Category;
-			ProjectCategories.RemoveAt(CategoryIdx);
-		}
-	}
-
-	// Sort categories
-	struct FCompareCategories
-	{
-		FORCEINLINE bool operator()( const TSharedRef<FProjectCategory>& A, const TSharedRef<FProjectCategory>& B ) const
-		{
-			return A->CategoryName.CompareToCaseIgnored(B->CategoryName) < 0;
-		}
-	};
-	ProjectCategories.Sort( FCompareCategories() );
-
-	// Now read the built-in categories (last added is first in the list)
-	if ( SamplesCategory.IsValid() )
-	{
-		ProjectCategories.Insert(SamplesCategory.ToSharedRef(), 0);
-	}
-	if ( MyProjectsCategory.IsValid() )
-	{
-		ProjectCategories.Insert(MyProjectsCategory.ToSharedRef(), 0);
-	}
-
-	// Sort each individual category
-	struct FCompareProjectItems
-	{
-		FORCEINLINE bool operator()( const TSharedPtr<FProjectItem>& A, const TSharedPtr<FProjectItem>& B ) const
-		{
-			return A->Name.CompareToCaseIgnored(B->Name) < 0;
-		}
-	};
-	for ( int32 CategoryIdx = 0; CategoryIdx < ProjectCategories.Num(); ++CategoryIdx )
-	{
-		TSharedRef<FProjectCategory> Category = ProjectCategories[CategoryIdx];
-		Category->ProjectItemsSource.Sort( FCompareProjectItems() );
-	}
-
-	PopulateFilteredProjects();
-
-	for (auto CategoryIt = ProjectCategories.CreateConstIterator(); CategoryIt; ++CategoryIt)
-	{
-		const TSharedRef<FProjectCategory>& Category = *CategoryIt;
-		ConstructCategory(CategoriesBox.ToSharedRef(), Category);
-	}
-#else
-
 	const FString LastSelectedProjectFile = CurrentSelectedProjectPath;
 
 	ProjectItemsSource.Empty();
@@ -810,21 +654,17 @@ FReply SProjectBrowser::FindProjects()
 
 	TArray<FRecentProjectFile> RecentProjects = GetDefault<UEditorSettings>()->RecentlyOpenedProjectFiles;
 
-	//TSet<FString> ExistingRecentProjects = RecentProjects;
-
 	TSet<FString> AllFoundProjectFiles;
-
-	//AllFoundProjectFiles.Append(RecentProjects);
 
 	// Find all the engine installations
 	TMap<FString, FString> EngineInstallations;
 	FDesktopPlatformModule::Get()->EnumerateEngineInstallations(EngineInstallations);
 
 	// Add projects from every branch that we know about
-	FString CurrentEngineIdentifier = FDesktopPlatformModule::Get()->GetCurrentEngineIdentifier();
 	for (TMap<FString, FString>::TConstIterator Iter(EngineInstallations); Iter; ++Iter)
 	{
 		TArray<FString> ProjectFiles;
+
 		if (FDesktopPlatformModule::Get()->EnumerateProjectsKnownByEngine(Iter.Key(), false, ProjectFiles))
 		{
 			AllFoundProjectFiles.Append(MoveTemp(ProjectFiles));
@@ -884,8 +724,6 @@ FReply SProjectBrowser::FindProjects()
 	{
 		ProjectTileView->SetSelection(FilteredProjectItemsSource[0], ESelectInfo::Direct);
 	}
-
-#endif
 
 	return FReply::Handled();
 }

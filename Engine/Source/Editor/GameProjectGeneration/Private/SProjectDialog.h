@@ -214,6 +214,8 @@ private:
 
 	TUniquePtr<FSlateBrush> RecentProjectsBrush;
 
+	static TUniquePtr<FSlateBrush> CustomTemplateBrush;
+
 	SVerticalBox::FSlot* ProjectOptionsSlot;
 	/** True if user has selected to copy starter content. */
 	bool bCopyStarterContent;

@@ -38,7 +38,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SProjectBrowser)
 	{}
-		SLATE_ARGUMENT(FProjectSelectionChanged, OnSelectionChanged);
+	SLATE_ARGUMENT(FProjectSelectionChanged, OnSelectionChanged);
 	SLATE_END_ARGS()
 
 public:
@@ -51,7 +51,7 @@ public:
 	 *
 	 * @param InArgs - The construction arguments.
 	 */
-	void Construct( const FArguments& InArgs );
+	void Construct(const FArguments& InArgs);
 
 	bool HasProjects() const;
 
@@ -77,10 +77,10 @@ public:
 protected:
 
 	/** Creates a row in the template list */
-	TSharedRef<ITableRow> MakeProjectViewWidget( TSharedPtr<FProjectItem> ProjectItem, const TSharedRef<STableViewBase>& OwnerTable );
+	TSharedRef<ITableRow> MakeProjectViewWidget(TSharedPtr<FProjectItem> ProjectItem, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Create a tooltip for the given project item */
-	TSharedRef<SToolTip> MakeProjectToolTip( TSharedPtr<FProjectItem> ProjectItem ) const;
+	TSharedRef<SToolTip> MakeProjectToolTip(TSharedPtr<FProjectItem> ProjectItem) const;
 
 	/** Add information to the tooltip for this project item */
 	void AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& InfoBox, const FText& Key, const FText& Value) const;
@@ -92,19 +92,17 @@ protected:
 	void ExecuteFindInExplorer() const;
 
 	/** Handler to check to see if a find in explorer command is allowed */
-	bool CanExecuteFindInExplorer() const;	
+	bool CanExecuteFindInExplorer() const;
 
-	/** Gets the image to display for the specified template */
-	const FSlateBrush* GetProjectItemImage( TWeakPtr<FProjectItem> ProjectItem ) const;
 
 	/** Gets the currently selected template item */
-	TSharedPtr<FProjectItem> GetSelectedProjectItem( ) const;
+	TSharedPtr<FProjectItem> GetSelectedProjectItem() const;
 
 	/** Populates ProjectItemsSource with projects found on disk */
-	FReply FindProjects( );
+	FReply FindProjects();
 
 	/** Opens the specified project file */
-	bool OpenProject( const FString& ProjectFile );
+	bool OpenProject(const FString& ProjectFile);
 
 	/** Populate the list of filtered project categories */
 	void PopulateFilteredProjects();
@@ -117,25 +115,20 @@ protected:
 	 *
 	 * @return  Returns whether the event was handled, along with other possible actions
 	 */
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
-
-
-
 	/** Returns true if the user is allowed to open a project with the supplied name and path */
-	bool HandleOpenProjectButtonIsEnabled( ) const;
+	bool HandleOpenProjectButtonIsEnabled() const;
 
 	/** Called when a user double-clicks a project item in the project view */
-	void HandleProjectItemDoubleClick( TSharedPtr<FProjectItem> ProjectItem );
+	void HandleProjectItemDoubleClick(TSharedPtr<FProjectItem> ProjectItem);
 
 	/** Handler for when the selection changes in the project view */
-	void HandleProjectViewSelectionChanged( TSharedPtr<FProjectItem> ProjectItem, ESelectInfo::Type SelectInfo);
-
+	void HandleProjectViewSelectionChanged(TSharedPtr<FProjectItem> ProjectItem, ESelectInfo::Type SelectInfo);
 
 	/** Called when the text in the filter box is changed */
 	void OnFilterTextChanged(const FText& InText);
-
 
 	/** Get the visibility of the specified category */
 	EVisibility GetProjectCategoryVisibility(const TSharedRef<FProjectCategory> InCategory) const;
@@ -144,7 +137,7 @@ private:
 
 	/** Get the visibility of the "no projects" error */
 	EVisibility GetNoProjectsAfterFilterErrorVisibility() const;
-	
+
 	/** Get the filter text to highlight on items in the list */
 	FText GetItemHighlightText() const;
 

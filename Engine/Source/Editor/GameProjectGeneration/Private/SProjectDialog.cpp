@@ -52,7 +52,10 @@ namespace NewProjectDialogDefs
 	constexpr float TemplateTileWidth = 102;
 	constexpr float ThumbnailSize = 64.0f, ThumbnailPadding = 5.f;
 	const FName DefaultCategoryName = "Games";
+	const FName BlankCategoryKey = "Default";
 }
+
+TUniquePtr<FSlateBrush> SProjectDialog::CustomTemplateBrush;
 
 class SMajorCategoryTile : public SCompoundWidget
 {
@@ -255,7 +258,7 @@ private:
 		{
 			return ItemPtr->Thumbnail.Get();
 		}
-		return FEditorStyle::GetBrush("GameProjectDialog.DefaultGameThumbnail.Small");
+		return FEditorStyle::GetBrush("GameProjectDialog.DefaultGameThumbnail");
 	}
 	
 };
@@ -492,19 +495,7 @@ void SProjectDialog::PopulateTemplateCategories()
 	TemplateCategories.Empty();
 	CurrentCategory.Reset();
 
-	FGameProjectGenerationModule::Get().GetAllTemplateCategories(TemplateCategories);
-
-	if (TemplateCategories.Num() == 0)
-	{
-		TSharedPtr<FTemplateCategory> DefaultCategory = MakeShared<FTemplateCategory>();
-		static const FName DefaultCategoryKey("Default");
-		DefaultCategory->Key = DefaultCategoryKey;
-		DefaultCategory->DisplayName = LOCTEXT("ProjectDialog_DefaultCategoryName", "Blank Project");
-		DefaultCategory->Description = LOCTEXT("ProjectDialog_DefaultCategoryDescription", "Create a new blank Unreal project.");
-		DefaultCategory->Icon = FAppStyle::Get().GetBrush("GameProjectDialog.DefaultGameThumbnail");
-
-		TemplateCategories.Add(DefaultCategory);
-	}
+	TemplateCategories = GetAllTemplateCategories();
 }
 
 TSharedRef<SWidget> SProjectDialog::MakeNewProjectDialogButtons()
@@ -1108,7 +1099,7 @@ TSharedRef<SWidget> SProjectDialog::MakeRecentProjectsTile()
 	RecentProjectsCategory->Key = "RecentProjects";
 	RecentProjectsCategory->IsEnterprise = false;
 
-	static const FName BrushName = *(FPaths::RootDir() / TEXT("Templates/Media") / TEXT("RecentProjects_2x.png"));
+	static const FName BrushName =  *(FAppStyle::Get().GetContentRootDir() / TEXT("/Starship/Projects/") / TEXT("RecentProjects_2x.png"));
 
 	RecentProjectsBrush = MakeUnique<FSlateDynamicImageBrush>(BrushName, FVector2D(300, 100));
 	RecentProjectsBrush->OutlineSettings.CornerRadii = FVector4(4, 4, 4, 4);
@@ -1800,18 +1791,29 @@ TArray<TSharedPtr<FTemplateCategory>> SProjectDialog::GetAllTemplateCategories()
 
 	if (AllTemplateCategories.Num() == 0)
 	{
-		TSharedPtr<FTemplateCategory> DefaultCategory = MakeShareable(new FTemplateCategory());
-		static const FName DefaultCategoryKey("Default");
-		DefaultCategory->Key = DefaultCategoryKey;
+		static const FName BrushName = *(FAppStyle::Get().GetContentRootDir() / TEXT("/Starship/Projects/") / TEXT("CustomTemplate_2x.png"));
+
+		if (!CustomTemplateBrush)
+		{
+			CustomTemplateBrush = MakeUnique<FSlateDynamicImageBrush>(BrushName, FVector2D(300, 100));
+			CustomTemplateBrush->OutlineSettings.CornerRadii = FVector4(4, 4, 4, 4);
+			CustomTemplateBrush->OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+			CustomTemplateBrush->DrawAs = ESlateBrushDrawType::RoundedBox;
+		}
+
+		TSharedPtr<FTemplateCategory> DefaultCategory = MakeShared<FTemplateCategory>();
+		DefaultCategory->Key = NewProjectDialogDefs::BlankCategoryKey;
 		DefaultCategory->DisplayName = LOCTEXT("ProjectDialog_DefaultCategoryName", "Blank Project");
 		DefaultCategory->Description = LOCTEXT("ProjectDialog_DefaultCategoryDescription", "Create a new blank Unreal project.");
-		DefaultCategory->Icon = FEditorStyle::GetBrush("GameProjectDialog.DefaultGameThumbnail");
+		DefaultCategory->Icon = CustomTemplateBrush.Get();
 
 		AllTemplateCategories.Add(DefaultCategory);
 	}
 
 	return AllTemplateCategories;
 }
+
+
 
 FText SProjectDialog::GetGlobalErrorLabelText() const
 {
