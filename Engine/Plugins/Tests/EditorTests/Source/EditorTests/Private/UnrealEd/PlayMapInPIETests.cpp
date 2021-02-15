@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
+#include "ContentStreaming.h"
 #include "EngineGlobals.h"
 #include "Tests/AutomationCommon.h"
 #include "Tests/AutomationEditorCommon.h"
