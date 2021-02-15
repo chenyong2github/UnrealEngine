@@ -12,7 +12,8 @@ UNiagaraDataInterfaceSpline::UNiagaraDataInterfaceSpline(FObjectInitializer cons
 	: Super(ObjectInitializer)
 	, Source(nullptr)
 {
-
+	FNiagaraTypeDefinition Def(UObject::StaticClass());
+	SplineUserParameter.Parameter.SetType(Def);
 }
 
 void UNiagaraDataInterfaceSpline::PostInitProperties()
@@ -348,6 +349,7 @@ bool UNiagaraDataInterfaceSpline::CopyToInternal(UNiagaraDataInterface* Destinat
 
 	UNiagaraDataInterfaceSpline* OtherTyped = CastChecked<UNiagaraDataInterfaceSpline>(Destination);
 	OtherTyped->Source = Source;
+	OtherTyped->SplineUserParameter = SplineUserParameter;
 	return true;
 }
 
@@ -358,7 +360,7 @@ bool UNiagaraDataInterfaceSpline::Equals(const UNiagaraDataInterface* Other) con
 		return false;
 	}
 	const UNiagaraDataInterfaceSpline* OtherTyped = CastChecked<const UNiagaraDataInterfaceSpline>(Other);
-	return OtherTyped->Source == Source;
+	return OtherTyped->Source == Source && OtherTyped->SplineUserParameter == SplineUserParameter;
 }
 
 int32 UNiagaraDataInterfaceSpline::PerInstanceDataSize()const
@@ -388,10 +390,48 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 	check(SystemInstance);
 	FNDISpline_InstanceData* InstData = (FNDISpline_InstanceData*)PerInstanceData;
 
+	if (InstData && InstData->ResetRequired(this, SystemInstance))
+	{
+		return true;
+	}
+
 	USplineComponent* SplineComponent = InstData->Component.Get();
 	if (SplineComponent == nullptr)
 	{
-		if (Source != nullptr)
+		if (SplineUserParameter.Parameter.IsValid() && InstData && SystemInstance != nullptr)
+		{
+			// Initialize the binding and retrieve the object. If a valid object is bound, we'll try and retrieve the Spline component from it.
+			// If it's not valid yet, we'll reset and do this again when/if a valid object is set on the binding
+			UObject* UserParamObject = InstData->UserParamBinding.Init(SystemInstance->GetInstanceParameters(), SplineUserParameter.Parameter);
+			InstData->CachedUserParam = UserParamObject;
+			if (UserParamObject)
+			{
+				if (USplineComponent* UserSplineComp = Cast<USplineComponent>(UserParamObject))
+				{
+					if (!UserSplineComp->IsPendingKill())
+					{
+						SplineComponent = UserSplineComp;
+					}
+				}
+				else if (AActor* Actor = Cast<AActor>(UserParamObject))
+				{
+					SplineComponent = Source->FindComponentByClass<USplineComponent>();
+				}
+				else
+				{
+					//We have a valid, non-null UObject parameter type but it is not a type we can use to get a skeletal Spline from. 
+					UE_LOG(LogNiagara, Warning, TEXT("Spline data interface using object parameter with invalid type. Spline Data Interfaces can only get a valid Spline from SplineComponents or Actors."));
+					UE_LOG(LogNiagara, Warning, TEXT("Invalid Parameter : %s"), *UserParamObject->GetFullName());
+					UE_LOG(LogNiagara, Warning, TEXT("Niagara Component : %s"), *GetFullNameSafe(Cast<UNiagaraComponent>(SystemInstance->GetAttachComponent())));
+					UE_LOG(LogNiagara, Warning, TEXT("System : %s"), *GetFullNameSafe(SystemInstance->GetSystem()));
+				}
+			}
+			else
+			{
+				// The binding exists, but no object is bound. Not warning here in case the user knows what they're doing.
+			}
+		}
+		else if (Source != nullptr)
 		{
 			SplineComponent = Source->FindComponentByClass<USplineComponent>();
 		}
@@ -416,7 +456,28 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 			InstData->SplineCurves = SplineComponent->SplineCurves;
 	}
 
+	
+
+
 	//Any situations requiring a rebind?
+	return false;
+}
+
+
+
+bool FNDISpline_InstanceData::ResetRequired(UNiagaraDataInterfaceSpline* Interface, FNiagaraSystemInstance* SystemInstance) const
+{
+	
+	if (Interface->SplineUserParameter.Parameter.IsValid())
+	{
+		// Reset if the user object ptr has been changed to look at a new object
+		if (UserParamBinding.GetValue() != CachedUserParam)
+		{
+			return true;
+		}
+	}
+	
+
 	return false;
 }
 
