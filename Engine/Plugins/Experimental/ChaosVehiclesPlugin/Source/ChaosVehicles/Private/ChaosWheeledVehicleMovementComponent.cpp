@@ -1891,6 +1891,8 @@ void UChaosWheeledVehicleMovementComponent::DrawDial(UCanvas* Canvas, FVector2D 
 
 }
 
+#endif
+
 void UChaosWheeledVehicleMovementComponent::FillWheelOutputState()
 {
 	for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
@@ -2097,8 +2099,6 @@ void UChaosWheeledVehicleMovementComponent::SetSnapshot(const FWheeledSnaphotDat
 		});
 
 }
-
-#endif
 
 FChaosWheelSetup::FChaosWheelSetup()
 	: WheelClass(UChaosVehicleWheel::StaticClass())
