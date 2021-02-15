@@ -2132,8 +2132,14 @@ void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FProp
 		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, false);
 		if (AssetEditor)
 		{
-			FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
-			BlueprintEditor->UpdateNodesUnrelatedStatesAfterGraphChange();
+			// Prevent crash with the custom editor operating on the project-specific UBlueprint class
+			// Such custom editor might not inherit after FBlueprintEditor, but could still utilize FBlueprintEditorUtils
+			FAssetEditorToolkit* AssetEditorToolkit = static_cast<FAssetEditorToolkit*>(AssetEditor);
+			if (AssetEditorToolkit->IsBlueprintEditor())
+			{
+				FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
+				BlueprintEditor->UpdateNodesUnrelatedStatesAfterGraphChange();
+			}
 		}
 	}
 }
