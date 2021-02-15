@@ -65,6 +65,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
 	bool bAutoRepair = true;
 
+	/** The number of consecutive attempt the auto repair routine will try to repair. */
+	UPROPERTY(config, EditAnywhere, Category = Transport, AdvancedDisplay)
+	uint32 AutoRepairAttemptLimit = 10;
+
 	/** Whether to stop the transport service when the application deactivates, and restart it when the application is reactivated */
 	UPROPERTY(config)
 	bool bStopServiceWhenAppDeactivates = true;

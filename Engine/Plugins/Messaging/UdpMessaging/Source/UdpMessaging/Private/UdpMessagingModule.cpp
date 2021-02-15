@@ -617,9 +617,10 @@ private:
 
 	void HandleTransportError()
 	{
-		if (GetDefault<UUdpMessagingSettings>()->bAutoRepair)
+		const UUdpMessagingSettings* Settings = GetDefault<UUdpMessagingSettings>();
+		if (Settings->bAutoRepair)
 		{
-			StartAutoRepairRoutine();
+			StartAutoRepairRoutine(Settings->AutoRepairAttemptLimit);
 		}
 		else
 		{
@@ -628,30 +629,31 @@ private:
 
 	}
 
-	void StartAutoRepairRoutine()
+	void StartAutoRepairRoutine(uint32 MaxRetryAttempt)
 	{
 		StopAutoRepairRoutine();
 		FTimespan CheckDelay(0, 0, 1);
 		uint32 CheckNumber = 1;
-		AutoRepairHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakTransport = WeakBridgeTransport, LastTime = FDateTime::UtcNow(), CheckDelay, CheckNumber](float DeltaTime) mutable
+		AutoRepairHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakTransport = WeakBridgeTransport, LastTime = FDateTime::UtcNow(), CheckDelay, CheckNumber, MaxRetryAttempt](float DeltaTime) mutable
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FUdpMessagingModule_AutoRepair);
 			bool bContinue = true;
 			FDateTime UtcNow = FDateTime::UtcNow();
 			if (LastTime + (CheckDelay * CheckNumber) <= UtcNow)
 			{
-				++CheckNumber;
-				LastTime = UtcNow;
 				if (auto Transport = WeakTransport.Pin())
 				{
-					// if the restart fail, continue the routine.
+					// if the restart fail, continue the routine if we are still under the retry attempt limit
 					bContinue = !Transport->RestartTransport();
+					bContinue = bContinue && CheckNumber <= MaxRetryAttempt;
 				}
 				// if we do not have a valid transport also stop the routine
 				else
 				{
 					bContinue = false;
 				}
+				++CheckNumber;
+				LastTime = UtcNow;
 			}
 			return bContinue;
 		}), 1.0f);
